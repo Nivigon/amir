@@ -18,10 +18,11 @@ import os
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Mappen die het spel tijdens het spelen inlaadt.
-ASSET_DIRS = ('design', 'enemies', 'karakters', 'music')
+ASSET_DIRS = ('design', 'enemies', 'karakters', 'music', 'sounds')
 
-# Alleen deze extensies; de rest is bronmateriaal of documentatie.
-KEEP_EXT = ('.png', '.jpg', '.jpeg', '.mp3')
+# Alleen deze extensies; de rest is bronmateriaal of documentatie. De json hoort
+# erbij omdat het spel enemies/hyena/metadata.json tijdens het laden opvraagt.
+KEEP_EXT = ('.png', '.jpg', '.jpeg', '.mp3', '.json')
 
 # Bronmateriaal dat het spel nooit opvraagt: sprite sheets, previews en de
 # magenta-werkbestanden. De drie vegetatie-sheets staan wel letterlijk in de

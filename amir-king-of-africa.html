@@ -297,6 +297,8 @@
       <button data-tool="groen" data-group="pers">Groene slang</button>
       <button data-tool="zwart" data-group="pers">Zwarte slang</button>
       <button data-tool="scorp" data-group="pers">Schorpioen</button>
+      <button data-tool="hyena1" data-group="pers">Hyena</button>
+      <button data-tool="hyena2" data-group="pers">2 hyena's</button>
       <button data-tool="bot_kort" data-group="bot">Bot kort</button>
       <button data-tool="bot_lang" data-group="bot">Bot lang</button>
       <button data-tool="bot_schuin" data-group="bot">Bot schuin</button>
@@ -337,6 +339,8 @@
       <button data-spawn="groen">Groene slang</button>
       <button data-spawn="zwart">Zwarte slang</button>
       <button data-spawn="panter">Panter</button>
+      <button data-spawn="hyena1">Hyena</button>
+      <button data-spawn="hyena2">2 hyena's</button>
       <button id="sbside">Van rechts</button>
     </div>
     <div class="row">
@@ -642,7 +646,9 @@ const GIJS_LEVEL = {
   lagen: 'thuis',
   rocks: [ { x: -1400, s: 1.0 }, { x: -3900, s: 1.2 }, { x: -6100, s: 0.9 }, { x: -8300, s: 1.1 } ],
   spawns: [ { x:  -900, k: 'groen' }, { x: -2300, k: 'groen' }, { x: -3500, k: 'zwart' },
-            { x: -4600, k: 'scorp' }, { x: -5500, k: 'groen' }, { x: -5560, k: 'groen' },
+            { x: -4600, k: 'scorp' },
+            { x: -5000, k: 'hyenas', n: 2 },              // halverwege: twee hyena's, van beide kanten
+            { x: -5500, k: 'groen' }, { x: -5560, k: 'groen' },
             { x: -7000, k: 'zwart' }, { x: -7700, k: 'scorp' }, { x: -8900, k: 'scorp' },
             { x: -9100, k: 'zwart' } ],
   props: [
@@ -2388,12 +2394,12 @@ function restart(){
   world = 0; facing = -1; frame = 0; frameAcc = 0; idleFrame = 0; idleAcc = 0;   // altijd weer bij het startpunt
   camY = 0; camFloor = 0;
   drawLives(); deadEl.classList.remove('on');
-  snakes.length = 0; scorps.length = 0; panthers.length = 0; arena = null; camEase = null; spawnTimer = 0.6;
+  snakes.length = 0; scorps.length = 0; panthers.length = 0; hyenas.length = 0; arena = null; camEase = null; spawnTimer = 0.6;
   thickets.length = 0; chips.length = 0;            // struwelen weer heel, brokstukken weg
   if (level && level.thickets) for (const d of level.thickets) addThicket(d.x, d.n, d.seed);
   if (level && level.tips) for (const t of level.tips) t.used = false;   // uitleg opnieuw laten zien
   resetHppotions();                                 // flesjes weer op hun plek, handen weer leeg
-  tutReset(); venom.length = 0; splat.length = 0; splashes.length = 0; stopWater();
+  tutReset(); venom.length = 0; splat.length = 0; splashes.length = 0; stopWater(); stopHyena();
   greenSince = 0; blackAfter = 3 + Math.floor(Math.random() * 3); forceBlack = false; setKindLabel();
   if (level && level.spawns) for (const sp of level.spawns){ sp.used = false; sp.armed = false; }
   // in een echt level begin je zonder speer: die staat voor je in de grond
@@ -2822,7 +2828,7 @@ function makeSnake(kind){
 // hoe ver vooruit een geplaatste slang wakker wordt, in schermbreedtes.
 // groen loopt gewoon binnen, zwartrood moet al op zijn plek staan omdat hij
 // op grote afstand blijft hangen en daar tijd voor nodig heeft.
-const TRIGGER = { groen: 1.10, zwart: 1.60, scorp: 1.20 };
+const TRIGGER = { groen: 1.10, zwart: 1.60, scorp: 1.20, hyenas: 1.05 };
 function triggerDist(kind){ return W * (TRIGGER[kind] || 1.10); }
 
 // een monster verschijnt nooit midden in beeld: stond zijn plek al in beeld
@@ -2869,8 +2875,9 @@ function updateSnakes(dt, plats, halfWNow, cliff){
         sp.armed = true;                 // één keer in de buurt geweest: dan komt hij ook echt
       }
       if (d > W * 2.5){ sp.used = true; continue; }   // je bent al ver voorbij: laat maar zitten
-      const x = spawnPoint(sp.x);
       sp.used = true;
+      if (sp.kind === 'hyenas'){ spawnHyenaPack(sp.n || 1, null); continue; }
+      const x = spawnPoint(sp.x);
       if (sp.kind === 'scorp'){ const k = makeScorp(x, x > world ? 1 : -1); k.base = terrainH(x); scorps.push(k); continue; }
       const s = makeSnake(sp.kind);
       s.x = x; s.base = terrainH(x);
@@ -3408,6 +3415,273 @@ function hitPanther(s){
   s.dieFrame = Math.min(s.frame, PAN_N[s.dieSet] - 1);
   s.state = 'dying'; s.flash = 0.25;
   s.vx = (s.x < playerX() ? -420 : 420);
+  return true;
+}
+
+// ---------- de hyena -----------------------------------------------------
+// Roedeldier. Hij komt rustig binnenlopen, blijft op afstand staan grommen en
+// stormt dan zonder aankondiging op je af, dwars langs je heen het beeld uit.
+// De enige waarschuwing is dat hij 0,2 s bevriest. Zijn storm gaat laag: je
+// springt eroverheen, bukken helpt niet.
+//
+// Maten, aantallen, tempo's en de kop-offsets staan in enemies/hyena/metadata.json
+// en worden bij het laden ingelezen; die waarden winnen. De tabel hieronder is de
+// terugval voor als dat bestand niet te lezen is, bijvoorbeeld als je het spel
+// rechtstreeks vanaf schijf opent: dan weigert de browser de fetch.
+const HY_META = 'enemies/hyena/metadata.json';
+const HY_DIRS = ['enemies/hyena/', 'enemies/hyena/hyena/'];      // zelfde fallback-opzet als de panter
+const HY = {
+  w: 940, h: 470, ground: 456,            // canvas van alle hyenaframes, grondlijn op rij 456
+  fig: 400,                               // hoogte van de staande figuur, in canvaspixels
+  bodyW: 650,                             // breedte van de figuur; de dreigafstand rekent hiermee
+  n:   { loop: 20, dreigen: 22, ren_lijf: 12, ren_kop: 27 },
+  fps: { loop: 12, dreigen: 12, ren_lijf: 16, ren_kop: 8 },
+  // verticale verschuiving van de kop per lijfframe, in canvaspixels, plus is omlaag
+  kopOff: [12, 12, 12, 14, 6, 8, 0, 0, -4, -17, -24, -30]
+};
+// Het haptempo: de fps van de koplaag tijdens de aanvalsren. Bijstellen doe je in
+// metadata.json (sets.ren_kop.fps); lukt lezen daarvan niet, dan geldt HY.fps.ren_kop.
+let HYENA_BITE_FPS = HY.fps.ren_kop;
+
+// ---- knoppen om aan te draaien -------------------------------------------
+const HY_H_SHARE    = 0.60;    // hoogte t.o.v. Amir. De panter staat op 0,68, de hyena is net kleiner
+const HY_WALK_SPD   = 170;     // normale loopsnelheid (wereld-px/s)
+const HY_RUN_MULT   = 2.5;     // de storm is 2,5 keer zo snel als zijn loopje
+const HY_THREAT_GAP = 2.5;     // dreigafstand, als veelvoud van zijn eigen breedte
+const HY_GAP_TOL    = 24;      // speling daarop, anders staat hij te trippelen
+const HY_THREAT_MIN = 1.0, HY_THREAT_MAX = 3.5;   // dreigtijd, per hyena apart geloot
+const HY_TELE_T     = 0.2;     // hoe lang hij bevriest: de enige waarschuwing
+const HY_DOUBLE_CHANCE = 0.30; // kans dat de tweede van de roedel meteen meestormt
+const HY_DOUBLE_MIN = 0.3, HY_DOUBLE_MAX = 0.8;   // en hoeveel later hij dan begint
+const HY_LAUGH_CHANCE = 0.15;  // kans per seconde op een extra lach tijdens het dreigen
+const HY_HP = 2;               // twee speerstoten
+const HY_INV_T = 0.5;          // onkwetsbaar na een treffer
+const HY_FALL_T = 0.6;         // omvallen en uitfaden
+const HY_STUCK_T = 1.2;        // komt hij zo lang niet vooruit (een rots, een ravijn), dan dreigt hij daar
+const HY_ENTER = 260;          // zo ver buiten beeld komt hij opzetten
+const HY_LEAVE = 420;          // en zo ver voorbij de rand is hij weg
+// de bek is tijdens de storm de raakzone: canvaspixels vanaf het canvasmidden in
+// de kijkrichting, en boven de grondlijn. Laag genoeg om overheen te springen.
+const HY_BITE = { from: 60, to: 100, low: 150, high: 250 };
+
+const hyImg = {};
+function hyLoad(){
+  for (const k in HY.n){
+    hyImg[k] = Array.from({ length: HY.n[k] }, (_, i) =>
+      loadQuiet(HY_DIRS.map(d => d + k + '/' + k + '_' + pad2(i) + '.png')));
+  }
+}
+hyLoad();
+fetch(HY_META).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(m => {
+  const c = m.canvas || {};
+  if (c.w) HY.w = c.w;
+  if (c.h) HY.h = c.h;
+  if (c.ground_y) HY.ground = c.ground_y;
+  if (c.fig) HY.fig = c.fig;
+  if (c.body_w) HY.bodyW = c.body_w;
+  let opnieuw = false;
+  for (const k in (m.sets || {})){
+    const s = m.sets[k] || {};
+    if (s.frames && HY.n[k] && s.frames !== HY.n[k]){ HY.n[k] = s.frames; opnieuw = true; }
+    if (s.fps) HY.fps[k] = s.fps;
+    if (k === 'ren_lijf' && Array.isArray(s.kop_offset_y_per_frame) && s.kop_offset_y_per_frame.length)
+      HY.kopOff = s.kop_offset_y_per_frame.slice();
+  }
+  HYENA_BITE_FPS = HY.fps.ren_kop;
+  if (opnieuw) hyLoad();                     // andere aantallen: de frames opnieuw ophalen
+}).catch(() => console.warn('niet gelezen, de ingebouwde waarden gelden: ' + HY_META));
+
+// ---- geluid --------------------------------------------------------------
+// Zelfde opzet als de plons: een klein stemmenpoeltje per geluid, zodat twee
+// hyena's door elkaar heen kunnen happen. hyena_bite.mp3 is een lange opname
+// waarvan alleen 14,0 s tot 16,0 s de hap is; die wordt eruit geknipt.
+const SFX_HYENA_BITE  = { src: 'sounds/hyena_bite.mp3',  from: 14.0, to: 16.0, vol: 0.9 };
+const SFX_HYENA_LAUGH = { src: 'sounds/hyena_laugh.mp3', from: 0,    to: 0,    vol: 0.8 };
+function hyVoices(sfx, n){
+  return Array.from({ length: n }, (_, i) => {
+    const a = new Audio();
+    if (i === 0) a.onerror = () => console.warn('ontbreekt: ' + sfx.src);   // een waarschuwing is genoeg
+    a.preload = 'auto'; a.src = sfx.src;
+    return a;
+  });
+}
+const hySnd = new Map([[SFX_HYENA_BITE,  hyVoices(SFX_HYENA_BITE, 2)],
+                       [SFX_HYENA_LAUGH, hyVoices(SFX_HYENA_LAUGH, 2)]]);
+const hyTurn = new Map([[SFX_HYENA_BITE, 0], [SFX_HYENA_LAUGH, 0]]);
+function hyPlay(sfx){
+  if (!wantSound) return;
+  const pool = hySnd.get(sfx);
+  const beurt = hyTurn.get(sfx); hyTurn.set(sfx, beurt + 1);
+  const a = pool[beurt % pool.length];
+  a.ontimeupdate = null;
+  const zoek = () => { try { a.currentTime = sfx.from; } catch (e) {} };
+  if (a.readyState >= 1) zoek(); else a.addEventListener('loadedmetadata', zoek, { once: true });
+  a.volume = sfx.vol;
+  if (sfx.to > sfx.from){                    // alleen het fragment, daarna stil
+    a.ontimeupdate = () => { if (a.currentTime >= sfx.to){ a.ontimeupdate = null; a.pause(); } };
+  }
+  a.play().catch(() => {});
+}
+function stopHyena(){
+  for (const pool of hySnd.values()) for (const a of pool){ a.ontimeupdate = null; a.pause(); }
+}
+
+// ---- de dieren zelf -------------------------------------------------------
+const hyenas = [];
+function hyScale(){
+  const scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H;
+  return (CHAR_H * scale * HY_H_SHARE) / HY.fig;
+}
+function hyThreatGap(){ return HY_THREAT_GAP * HY.bodyW * hyScale(); }
+function makeHyena(x, side, enc){
+  // side 1 = hij komt van rechts. De frames kijken naar links, dus face 1 = gespiegeld
+  return { x, side, face: -side, dir: -side, enc,
+           state: 'komen', show: 'loop', frame: 0, acc: 0,
+           dreig: 0, dreigAcc: 0, kop: 0, kopAcc: 0,
+           t: 0, threatT: HY_THREAT_MIN + Math.random() * (HY_THREAT_MAX - HY_THREAT_MIN),
+           laughT: 1, laughed: false, forceT: -1,
+           hp: HY_HP, inv: 0, flash: 0, alpha: 1, base: 0, fall: 0, stuck: 0,
+           hitUsed: false, sweptId: -1 };
+}
+// een encounter is één roedel: de lach klinkt één keer voor de hele roedel
+function spawnHyenaPack(n, side){
+  const enc = { laughed: false };
+  const kanten = n >= 2 ? [-1, 1]                                   // altijd van twee kanten
+                        : [side || (Math.random() < 0.5 ? -1 : 1)];
+  for (const sd of kanten){
+    let x = world + sd * (W / 2 / viewZoom() + HY_ENTER);           // net buiten beeld
+    x = Math.min(x, cliffAt().wall - 220);
+    x = Math.max(x, endWall() + 220);
+    const h = makeHyena(x, sd, enc);
+    h.base = terrainH(x);
+    hyenas.push(h);
+  }
+}
+function hySet(s, state){ s.state = state; s.frame = 0; s.acc = 0; s.t = 0; }
+function hyAnim(s, dt, fps, n, terug){
+  s.acc += dt * fps;
+  while (s.acc >= 1){ s.frame += terug ? -1 : 1; s.acc -= 1; }
+  s.frame = ((s.frame % n) + n) % n;
+}
+function hyMove(s, stap, plats, cliff, stormt){
+  const nx = s.x + stap;
+  if (stormt){ s.x = nx; return; }                  // in de storm houdt niets hem tegen
+  if (!knockBlocked(s, nx, plats, cliff, HY.bodyW * hyScale() * 0.35, 80)) s.x = nx;
+}
+function hyTelegraph(s){ hySet(s, 'telegraaf'); s.show = 'dreigen'; }
+function hyStorm(s){
+  hySet(s, 'storm');
+  s.dir = (world - s.x) >= 0 ? 1 : -1;              // richting staat nu vast: hij rent door
+  s.face = s.dir;
+  s.kop = 0; s.kopAcc = 0; s.hitUsed = false;
+  hyPlay(SFX_HYENA_BITE);
+  // de ander van de roedel doet soms meteen mee
+  const maat = hyenas.find(o => o !== s && o.enc === s.enc && o.forceT < 0
+                             && (o.state === 'komen' || o.state === 'dreigen'));
+  if (maat && Math.random() < HY_DOUBLE_CHANCE)
+    maat.forceT = HY_DOUBLE_MIN + Math.random() * (HY_DOUBLE_MAX - HY_DOUBLE_MIN);
+}
+function updateHyenas(dt, plats, cliff){
+  if (!running || (dead && !sandbox)) return;
+  for (let i = hyenas.length - 1; i >= 0; i--){
+    const s = hyenas[i];
+    updateHyena(s, dt, plats, cliff);
+    if (Math.abs(s.x - world) > W * 2 + 1600) s.state = 'gone';
+    if (s.state === 'gone') hyenas.splice(i, 1);
+  }
+}
+function updateHyena(s, dt, plats, cliff){
+  if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
+  if (s.inv > 0) s.inv = Math.max(0, s.inv - dt);
+  s.t += dt;
+
+  if (s.state === 'dood'){                          // omvallen en uitfaden, verder niets
+    s.fall = Math.min(1, s.fall + dt / HY_FALL_T);
+    s.alpha = 1 - s.fall;
+    if (s.fall >= 1) s.state = 'gone';
+    return;
+  }
+  s.base = terrainH(s.x);
+
+  // in beeld gelopen: de roedel lacht, één keer, niet per hyena
+  if (!s.enc.laughed && Math.abs(s.x - world) < W * 0.5 / viewZoom() + 120){
+    s.enc.laughed = true;
+    hyPlay(SFX_HYENA_LAUGH);
+  }
+
+  const dx = world - s.x, gap = Math.abs(dx), naarJe = dx >= 0 ? 1 : -1;
+
+  if (s.state === 'storm'){
+    hyMove(s, s.dir * HY_WALK_SPD * HY_RUN_MULT * dt, plats, cliff, true);
+    hyAnim(s, dt, HY.fps.ren_lijf, HY.n.ren_lijf, false);
+    s.kopAcc += dt * HYENA_BITE_FPS;                // eigen teller, eigen tempo
+    while (s.kopAcc >= 1){ s.kop = (s.kop + 1) % HY.n.ren_kop; s.kopAcc -= 1; }
+    if (gap > W * 0.5 / viewZoom() + HY_LEAVE) s.state = 'gone';        // voorbij en het beeld uit
+    return;
+  }
+
+  if (s.forceT >= 0){                               // hij is gekoppeld aan de storm van de ander
+    s.forceT -= dt;
+    if (s.forceT <= 0){ s.forceT = -1; hyTelegraph(s); return; }
+  }
+  s.face = naarJe;                                  // buiten de storm kijkt hij altijd naar Amir
+
+  if (s.state === 'komen'){
+    s.show = 'loop';
+    const voor = s.x;
+    hyMove(s, naarJe * HY_WALK_SPD * dt, plats, cliff, false);
+    hyAnim(s, dt, HY.fps.loop, HY.n.loop, false);
+    if (gap <= hyThreatGap()){ hySet(s, 'dreigen'); return; }
+    // staat er een rots of een ravijnrand tussen, dan blijft hij daar dreigen; zijn
+    // storm trekt zich er toch niets van aan
+    if (Math.abs(s.x - voor) < HY_WALK_SPD * dt * 0.4){
+      s.stuck += dt;
+      if (s.stuck >= HY_STUCK_T){ s.stuck = 0; hySet(s, 'dreigen'); }
+    } else s.stuck = 0;
+    return;
+  }
+
+  if (s.state === 'dreigen'){
+    const wil = hyThreatGap();
+    if (gap < wil - HY_GAP_TOL){                    // je komt te dichtbij: achteruit stappen
+      s.show = 'loop';
+      hyMove(s, -naarJe * HY_WALK_SPD * dt, plats, cliff, false);
+      hyAnim(s, dt, HY.fps.loop, HY.n.loop, true);  // de loop-cyclus achterstevoren
+    } else if (gap > wil + HY_GAP_TOL){             // je loopt weg: hij volgt op dezelfde afstand
+      s.show = 'loop';
+      hyMove(s, naarJe * HY_WALK_SPD * dt, plats, cliff, false);
+      hyAnim(s, dt, HY.fps.loop, HY.n.loop, false);
+    } else {
+      s.show = 'dreigen';
+      s.dreigAcc += dt * HY.fps.dreigen;
+      while (s.dreigAcc >= 1){ s.dreig = (s.dreig + 1) % HY.n.dreigen; s.dreigAcc -= 1; }
+    }
+    if (!s.laughed){                                // hoogstens één extra lach per hyena
+      s.laughT -= dt;
+      if (s.laughT <= 0){
+        s.laughT = 1;
+        if (Math.random() < HY_LAUGH_CHANCE){ s.laughed = true; hyPlay(SFX_HYENA_LAUGH); }
+      }
+    }
+    s.threatT -= dt;
+    if (s.threatT <= 0) hyTelegraph(s);
+    return;
+  }
+
+  if (s.state === 'telegraaf' && s.t >= HY_TELE_T) hyStorm(s);
+}
+function hyFrameImg(s){
+  if (s.state === 'dood') return hyImg.dreigen[0];              // hij valt om op dreigen_00
+  if (s.state === 'telegraaf' || s.show === 'dreigen') return hyImg.dreigen[s.dreig];
+  return hyImg.loop[s.frame];
+}
+function hitHyena(s){
+  if (s.inv > 0 || s.state === 'dood' || s.state === 'gone') return false;
+  s.hp--;
+  hits++; hitsEl.textContent = hits;
+  if (s.hp > 0){ s.inv = HY_INV_T; s.flash = 0.3; return true; }
+  s.flash = 0.25; s.fall = 0;
+  s.state = 'dood';                                 // ook midden in de storm: die stopt meteen
   return true;
 }
 
@@ -4155,6 +4429,7 @@ function loop(now){
   updateSnakes(dt, plats, halfWNow, cliff);
   updateScorps(dt, plats, cliff);
   updatePanthers(dt, plats, cliff);
+  updateHyenas(dt, plats, cliff);
   if (!building) updateVenom(dt, scaleNow); else { venom.length = 0; splat.length = 0; }
   if (!building) updateWind(dt); else { wind.length = 0; gust = null; }
   updateThickets(dt);
@@ -4522,8 +4797,10 @@ function loop(now){
         const px = cx + (sp.x - world);
         ctx.save();
         ctx.globalAlpha = 0.9;
-        ctx.fillStyle = sp.kind === 'zwart' ? '#2b1020' : sp.kind === 'scorp' ? '#4a3a22' : '#3d6b3a';
-        ctx.strokeStyle = sp.kind === 'zwart' ? '#c8324a' : sp.kind === 'scorp' ? '#b8ff3a' : '#8fd18a';
+        ctx.fillStyle = sp.kind === 'zwart' ? '#2b1020' : sp.kind === 'scorp' ? '#4a3a22'
+                      : sp.kind === 'hyenas' ? '#3a2a16' : '#3d6b3a';
+        ctx.strokeStyle = sp.kind === 'zwart' ? '#c8324a' : sp.kind === 'scorp' ? '#b8ff3a'
+                        : sp.kind === 'hyenas' ? '#e0a33c' : '#8fd18a';
         ctx.lineWidth = 3 / viewZoom();
         const rr = 34 / viewZoom();
         ctx.beginPath(); ctx.arc(px, groundY - rr, rr, 0, Math.PI * 2);
@@ -4925,6 +5202,86 @@ function loop(now){
       }
     }
 
+    // ---- de hyena's -----------------------------------------------------
+    {
+      const hS = hyScale();
+      const hw = HY.w * hS, hh = HY.h * hS;
+      for (const s of hyenas){
+        const bodyX = cx + (s.x - world);
+        if (bodyX < -hw - W || bodyX > W / viewZoom() + W + hw) continue;
+        const hBase = (s.base || 0) * scale;
+        const voeten = groundY - hBase;                 // hier ligt de grondlijn van zijn canvas
+        ctx.save();                                     // schaduw blijft op de grond
+        ctx.globalAlpha = Math.max(0, s.alpha) * 0.22;
+        ctx.fillStyle = '#1d140f';
+        ctx.beginPath();
+        ctx.ellipse(bodyX, voeten, CHAR_H * scale * 0.34, CHAR_H * scale * 0.03, 0, 0, Math.PI * 2);
+        ctx.fill(); ctx.restore();
+
+        ctx.save();
+        const hBlink = s.inv > 0 && s.state !== 'dood' && Math.floor(s.inv * 14) % 2 === 0;
+        ctx.globalAlpha = Math.max(0, s.alpha) * (hBlink ? 0.4 : 1);
+        ctx.translate(bodyX, voeten);
+        if (s.state === 'dood'){
+          // dreigen_00 dat omvalt: een kwartslag naar zijn rugkant, om zijn poten heen.
+          // Hij komt daarbij wat omhoog, anders zakt zijn achterkant door de grond.
+          const p = Math.min(1, s.fall / 0.7);
+          const hoek = (1 - Math.pow(1 - p, 3)) * Math.PI / 2;
+          ctx.translate(0, -Math.sin(hoek) * HY.bodyW * hS * 0.5);
+          ctx.rotate(s.face === 1 ? -hoek : hoek);
+        }
+        if (s.face === 1) ctx.scale(-1, 1);             // de frames kijken naar links
+        if (s.state === 'storm'){
+          // twee lagen op exact dezelfde canvaspositie: eerst het lijf, dan de kop,
+          // verticaal verschoven met de offset die bij dit lijfframe hoort
+          const lijf = hyImg.ren_lijf[s.frame], kop = hyImg.ren_kop[s.kop];
+          const off = (HY.kopOff[s.frame] || 0) * hS;
+          if (imgReady(lijf))
+            ctx.drawImage(s.flash > 0 ? whiteCopy(lijf, s.flash * 4) : lijf, -hw / 2, -HY.ground * hS, hw, hh);
+          if (imgReady(kop))
+            ctx.drawImage(s.flash > 0 ? whiteCopy(kop, s.flash * 4) : kop, -hw / 2, -HY.ground * hS + off, hw, hh);
+        } else {
+          const img = hyFrameImg(s);
+          if (imgReady(img))
+            ctx.drawImage(s.flash > 0 ? whiteCopy(img, s.flash * 4) : img, -hw / 2, -HY.ground * hS, hw, hh);
+        }
+        ctx.restore();
+        if (s.state === 'dood') continue;               // omgevallen: geen bek, geen lijf meer
+
+        const bhw = HY.bodyW * hS * 0.42;               // zijn lijf: hier raakt de speer hem
+        const nbox = { l: bodyX - bhw, r: bodyX + bhw, t: voeten - HY.fig * hS, b: voeten };
+        let bbox = null;
+        if (s.state === 'storm'){                       // de bek: laag, dus je springt eroverheen
+          const a1 = bodyX + s.face * HY_BITE.from * hS, a2 = bodyX + s.face * HY_BITE.to * hS;
+          bbox = { l: Math.min(a1, a2), r: Math.max(a1, a2),
+                   t: voeten - HY_BITE.high * hS, b: voeten - HY_BITE.low * hS };
+          if (!s.hitUsed && invuln <= 0 && !dead && hitBy(bbox, pbox)){
+            s.hitUsed = true; hurtPlayer(s.x < playerX());          // hij stopt niet, hij rent door
+          }
+        }
+        if (showBoxes){
+          ctx.save();
+          ctx.globalAlpha = 0.5; ctx.lineWidth = 2;
+          ctx.strokeStyle = '#7fd4ff';
+          ctx.strokeRect(nbox.l, nbox.t, nbox.r - nbox.l, nbox.b - nbox.t);
+          if (bbox){ ctx.strokeStyle = '#ff6b6b'; ctx.strokeRect(bbox.l, bbox.t, bbox.r - bbox.l, bbox.b - bbox.t); }
+          ctx.restore();
+        }
+        // speerpunt: in elke staat raak
+        if (attacking && !swingUsed && ATK_ACTIVE.indexOf(atkFrame) !== -1 && s.inv <= 0){
+          const dxv = TIP_DX[atkFrame] * scale;
+          const tipX = pcx + (facing === 1 ? -dxv : dxv);
+          const tipY = y + TIP_Y[atkFrame] * scale;
+          const reach = 40 * scale;
+          if (tipX + reach > nbox.l && tipX - reach < nbox.r && tipY + reach > nbox.t && tipY - reach < nbox.b){
+            swingUsed = true; hitHyena(s); continue;
+          }
+        }
+        // lage zwaai: ook raak, één keer per zwaai
+        if (s.sweptId !== sweepId && hitBy(swbox, nbox)){ s.sweptId = sweepId; hitHyena(s); }
+      }
+    }
+
     // ---- de speer tegen het doornbos ----------------------------------
     for (const t of thickets){
       if (t.stage >= THICKET_HITS) continue;          // een stronk hak je niet verder
@@ -5195,7 +5552,9 @@ function syncLevel(){
     name: level.name || '',
     lagen: level.lagen || '',
     rocks: level.rocks.map(r => ({ x: Math.round(r.x), s: +r.scale.toFixed(2) })),
-    spawns: level.spawns.map(s => ({ x: Math.round(s.x), k: s.kind })),
+    spawns: level.spawns.map(s => s.kind === 'hyenas'
+                                ? { x: Math.round(s.x), k: s.kind, n: s.n || 1 }
+                                : { x: Math.round(s.x), k: s.kind }),
     props: level.props.map(o => ({ x: Math.round(o.x), k: o.kind,
                                    s: +o.scale.toFixed(2), f: o.flip ? 1 : 0,
                                    v: o.far ? 1 : 0, y: o.far ? Math.round(o.y || 0) : 0 })),
@@ -5224,7 +5583,10 @@ function readLevel(txt){
   return { rocks: arr.map(r => ({ x: Number(r.x), scale: Number(r.s) || 1 })),
            name: o.name || '',
            lagen: SCENES[o.lagen] ? o.lagen : '',      // welk uitzicht dit level krijgt
-           spawns: (o.spawns || []).map(s => ({ x: Number(s.x), kind: s.k === 'zwart' ? 'zwart' : s.k === 'scorp' ? 'scorp' : s.k === 'panter' ? 'panter' : 'groen' })),
+           spawns: (o.spawns || []).map(s => ({ x: Number(s.x),
+                                                kind: s.k === 'zwart' ? 'zwart' : s.k === 'scorp' ? 'scorp'
+                                                    : s.k === 'panter' ? 'panter' : s.k === 'hyenas' ? 'hyenas' : 'groen',
+                                                n: Math.max(1, Math.min(2, Math.round(Number(s.n) || 1))) })),
            props: (o.props || []).filter(q => PROPS[q.k])
                                  .map(q => ({ x: Number(q.x), kind: q.k,
                                               scale: Number(q.s) || 1,
@@ -5336,7 +5698,7 @@ function stopSandbox(){
   document.getElementById('lives').style.display = '';
   sandboxEl.classList.remove('on');
   level = savedLevel; savedLevel = null;
-  scorps.length = 0; snakes.length = 0; panthers.length = 0;
+  scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0;
   deadEl.classList.remove('on'); restart();
   startEl.classList.remove('off');
   barEl.classList.add('hide');
@@ -5347,7 +5709,8 @@ function sbSpawn(kind){
   let x = world + side * W * 0.42;                  // net binnen beeld
   x = Math.min(x, cliffAt().wall - 220);            // en nooit achter de klif
   x = Math.max(x, endWall() + 220);
-  if (kind === 'scorp'){ scorps.push(makeScorp(x, side)); }
+  if (kind === 'hyena1' || kind === 'hyena2'){ spawnHyenaPack(kind === 'hyena2' ? 2 : 1, side); }   // bij twee telt de richting niet
+  else if (kind === 'scorp'){ scorps.push(makeScorp(x, side)); }
   else if (kind === 'panter'){ panthers.push(makePanther(x, side)); }
   else {
     const sn = makeSnake(kind); sn.x = x; sn.side = side; snakes.push(sn);
@@ -5379,7 +5742,7 @@ sbSideBtn.onclick = () => { sbFromRight = !sbFromRight; sbSideBtn.textContent = 
 const sbGodBtn = document.getElementById('sbgod');
 function setGodLabel(){ sbGodBtn.textContent = godMode ? 'Onsterfelijk aan' : 'Onsterfelijk uit'; sbGodBtn.classList.toggle('on', godMode); }
 sbGodBtn.onclick = () => { godMode = !godMode; setGodLabel(); cv.focus(); };
-document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; hppotions.length = 0; hppotionFx.length = 0; cv.focus(); };
+document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; hppotions.length = 0; hppotionFx.length = 0; cv.focus(); };
 document.getElementById('sbback').onclick = stopSandbox;
 document.getElementById('btnsandbox').onclick = startSandbox;
 document.getElementById('btnstop').onclick = () => { building = false; buildEl.classList.remove('on'); };
@@ -5563,6 +5926,9 @@ cv.addEventListener('pointerdown', e => {
   } else if (tool === 'groen' || tool === 'zwart' || tool === 'scorp'){
     if (wx >= cliffAt().wall - 40){ bcount.textContent = 'daar staat de klif'; return; }
     level.spawns.push({ x: wx, kind: tool });
+  } else if (tool === 'hyena1' || tool === 'hyena2'){
+    if (wx >= cliffAt().wall - 40){ bcount.textContent = 'daar staat de klif'; return; }
+    level.spawns.push({ x: wx, kind: 'hyenas', n: tool === 'hyena2' ? 2 : 1 });
   } else if (NPCS[tool]){
     const nw = { x: wx, kind: tool, flip: false, y: Math.abs(lift) < 25 ? 0 : Math.max(-60, Math.min(H, lift)) };
     const why = placeProblem('npc', nw, scale);
