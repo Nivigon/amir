@@ -3462,6 +3462,8 @@ const HY_INV_T = 0.5;          // onkwetsbaar na een treffer
 const HY_FALL_T = 0.6;         // omvallen en uitfaden
 const HY_RUN_LEG_MULT = 1.5;   // de poten draaien 1,5 keer zo snel als het materiaal; zijn snelheid verandert niet
 const HY_STUCK_T = 1.2;        // komt hij zo lang niet vooruit (een rots, een ravijn), dan dreigt hij daar
+const HY_PAIR_MIN = 1.0, HY_PAIR_MAX = 2.0;   // bij twee hyena's wacht de tweede zo lang
+                                              // voor hij ook het beeld op komt
 const HY_ENTER = 260;          // zo ver buiten beeld komt hij opzetten
 const HY_LEAVE = 420;          // en zo ver voorbij de rand is hij weg
 // de bek is tijdens de storm de raakzone: canvaspixels vanaf het canvasmidden in
@@ -3546,7 +3548,7 @@ function hyThreatGap(){ return HY_THREAT_GAP * HY.bodyW * hyScale(); }
 function makeHyena(x, side, enc){
   // side 1 = hij komt van rechts. De frames kijken naar links, dus face 1 = gespiegeld
   return { x, side, face: -side, dir: -side, enc,
-           state: 'komen', show: 'loop', frame: 0, acc: 0,
+           state: 'komen', show: 'loop', wacht: 0, frame: 0, acc: 0,
            dreig: 0, dreigAcc: 0, kop: 0, kopAcc: 0,
            t: 0, threatT: HY_THREAT_MIN + Math.random() * (HY_THREAT_MAX - HY_THREAT_MIN),
            forceT: -1,
@@ -3554,16 +3556,22 @@ function makeHyena(x, side, enc){
            hitUsed: false, sweptId: -1 };
 }
 // een encounter is één roedel: de lach klinkt één keer voor de hele roedel
+function hyRand(a, b){ return a + Math.random() * (b - a); }
+function hyBuitenBeeld(sd){                                         // net buiten de rand, binnen het level
+  let x = world + sd * (W / 2 / viewZoom() + HY_ENTER);
+  x = Math.min(x, cliffAt().wall - 220);
+  return Math.max(x, endWall() + 220);
+}
 function spawnHyenaPack(n, side){
   const enc = { laughed: false, lachT: Infinity };   // de klok start bij de eerste lach
   const kanten = n >= 2 ? [-1, 1]                                   // altijd van twee kanten
                         : [side || (Math.random() < 0.5 ? -1 : 1)];
+  const laat = Math.random() < 0.5 ? -1 : 1;                        // eentje komt later op
   for (const sd of kanten){
-    let x = world + sd * (W / 2 / viewZoom() + HY_ENTER);           // net buiten beeld
-    x = Math.min(x, cliffAt().wall - 220);
-    x = Math.max(x, endWall() + 220);
+    const x = hyBuitenBeeld(sd);
     const h = makeHyena(x, sd, enc);
     h.base = terrainH(x);
+    if (kanten.length > 1 && sd === laat) h.wacht = hyRand(HY_PAIR_MIN, HY_PAIR_MAX);
     hyenas.push(h);
   }
 }
@@ -3592,7 +3600,7 @@ function hyStorm(s){
   s.kop = 0; s.kopAcc = 0; s.hitUsed = false;
   hyPlay(SFX_HYENA_BITE);
   // de ander van de roedel doet soms meteen mee
-  const maat = hyenas.find(o => o !== s && o.enc === s.enc && o.forceT < 0
+  const maat = hyenas.find(o => o !== s && o.enc === s.enc && o.forceT < 0 && o.wacht <= 0
                              && (o.state === 'komen' || o.state === 'dreigen'));
   if (maat && Math.random() < HY_DOUBLE_CHANCE)
     maat.forceT = HY_DOUBLE_MIN + Math.random() * (HY_DOUBLE_MAX - HY_DOUBLE_MIN);
@@ -3616,6 +3624,14 @@ function updateHyena(s, dt, plats, cliff){
     s.alpha = 1 - s.fall;
     if (s.fall >= 1) s.state = 'gone';
     return;
+  }
+  // de tweede van een roedel blijft buiten beeld staan tot hij aan de beurt is,
+  // zodat ze nooit tegelijk het scherm op komen
+  if (s.wacht > 0){
+    s.wacht -= dt;
+    s.x = hyBuitenBeeld(s.side);                    // hij schuift mee, ook als Amir doorloopt
+    s.base = terrainH(s.x);
+    if (s.wacht > 0) return;
   }
   s.base = terrainH(s.x);
 
@@ -5221,6 +5237,7 @@ function loop(now){
       const hS = hyScale();
       const hw = HY.w * hS, hh = HY.h * hS;
       for (const s of hyenas){
+        if (s.wacht > 0) continue;                  // staat nog achter de rand te wachten
         const bodyX = cx + (s.x - world);
         if (bodyX < -hw - W || bodyX > W / viewZoom() + W + hw) continue;
         const hBase = (s.base || 0) * scale;
