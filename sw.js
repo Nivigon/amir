@@ -119,8 +119,20 @@ async function cacheFirst(req, cacheName, opts = {}) {
   }
 }
 
-/** Beantwoordt een Range-verzoek uit de assetcache met een echte 206. */
-async function rangeFromCache(req) {
+// Safari vraagt een geluidsbestand in vele kleine stukken op. Het hele bestand
+// telkens opnieuw uit de cache naar een ArrayBuffer kopiëren (5 MB voor de
+// muziek) is zonde van de CPU op een telefoon, dus de laatste paar bestanden
+// houden we uitgepakt bij de hand.
+const RANGE_KEEP = 4;
+const rangeBufs = new Map();   // url -> { buf, headers }
+async function rangeBuffer(req) {
+  const had = rangeBufs.get(req.url);
+  if (had) {
+    // opnieuw achteraan zetten: de oudste valt er als eerste uit
+    rangeBufs.delete(req.url);
+    rangeBufs.set(req.url, had);
+    return had;
+  }
   const cache = await caches.open(ASSET_CACHE);
   // De cache is gevuld met hele bestanden, dus matchen zonder het Range-verzoek.
   const plain = new Request(req.url);
@@ -128,17 +140,28 @@ async function rangeFromCache(req) {
 
   if (!hit) {
     // Nog niet in de cache: het hele bestand halen en bewaren, dan snijden.
-    try {
-      const res = await fetch(plain);
-      if (!res.ok) return fetch(req);
-      await cache.put(plain, res.clone());
-      hit = res;
-    } catch (err) {
-      return new Response('', { status: 504, statusText: 'offline' });
-    }
+    const res = await fetch(plain);
+    if (!res.ok) return null;
+    await cache.put(plain, res.clone());
+    hit = res;
   }
+  const entry = { buf: await hit.arrayBuffer(), headers: hit.headers };
+  rangeBufs.set(req.url, entry);
+  while (rangeBufs.size > RANGE_KEEP) rangeBufs.delete(rangeBufs.keys().next().value);
+  return entry;
+}
 
-  const buf = await hit.arrayBuffer();
+/** Beantwoordt een Range-verzoek uit de assetcache met een echte 206. */
+async function rangeFromCache(req) {
+  let hit;
+  try {
+    hit = await rangeBuffer(req);
+  } catch (err) {
+    return new Response('', { status: 504, statusText: 'offline' });
+  }
+  if (!hit) return fetch(req);
+
+  const buf = hit.buf;
   const header = req.headers.get('range') || '';
   const m = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
   if (!m) return new Response(buf, { status: 200, headers: hit.headers });

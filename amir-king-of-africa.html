@@ -2217,13 +2217,23 @@ const total = RUN_NS.length + RUN_SP.length + ATK_SP.length + 2 + IDLE_SP_FRAMES
 
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 let W = 0, H = 0, DPR = 1, lastW = -1, lastH = -1;
+// Hoeveel canvaspixels per CSS-pixel, hoogstens. Elke laag belichting, mist en lucht
+// gaat over het hele canvas, dus dit plafond bepaalt direct hoeveel werk een frame is.
+// Op een telefoon beginnen we op 1,5: op zo'n klein, dicht scherm zie je het verschil
+// met 2 niet, en het scheelt bijna de helft van de pixels. Blijft het toestel toch
+// traag, dan zakt het plafond vanzelf verder (zie perfTick), tot 1.
+let DPR_MAX = 2;
+function dprCap(){ return Math.min(window.devicePixelRatio || 1, DPR_MAX, touchOn() ? 1.5 : 2); }
 function resize(){
-  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  DPR = dprCap();
   const r = cv.parentElement.getBoundingClientRect();
   W = r.width; H = r.height;
   cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  ctx.imageSmoothingQuality = 'high';
+  // 'high' laat elke sprite elk frame door het duurste verkleinfilter gaan, en de
+  // bronplaatjes zijn vele malen groter dan ze getekend worden. 'medium' is op een
+  // telefoon niet te onderscheiden en een stuk goedkoper.
+  ctx.imageSmoothingQuality = 'medium';
   tcResize();                                    // de knoppenlaag meeschalen
 }
 function resizeIfNeeded(){
@@ -2233,6 +2243,24 @@ function resizeIfNeeded(){
   }
 }
 addEventListener('resize', resize);
+// Prestatiemeting: haalt het toestel de frames niet, dan zakt het resolutieplafond
+// een stap. Alleen omlaag, nooit terug omhoog: anders gaat hij zitten wippen.
+// Frames vlak na een resize of een lange onderbreking tellen niet mee.
+const PERF = { venster: 90, traag: 21, reeks: 2 };   // 90 frames, gemiddeld boven 21 ms, twee keer op rij
+let perfSom = 0, perfN = 0, perfTraag = 0, perfPrev = 0;
+function perfTick(now){
+  const d = now - perfPrev; perfPrev = now;
+  if (!(d > 0) || d > 200 || !running || paused || DPR <= 1) return;
+  perfSom += d; perfN++;
+  if (perfN < PERF.venster) return;
+  const gem = perfSom / perfN; perfSom = 0; perfN = 0;
+  perfTraag = gem > PERF.traag ? perfTraag + 1 : 0;
+  if (perfTraag < PERF.reeks) return;
+  perfTraag = 0;
+  DPR_MAX = Math.max(1, Math.round((DPR - 0.5) * 2) / 2);
+  console.log('traag (' + gem.toFixed(1) + ' ms per frame): resolutie omlaag naar ' + DPR_MAX + 'x');
+  resize();
+}
 
 const hintEl = document.getElementById('hint');
 let hintTimer = null;
@@ -5268,6 +5296,7 @@ function drawLichtlaag(){
 
 let last = performance.now();
 let paused = false;
+let frvLast = null, frameNr = 0;                  // laatst getoonde frametekst, en de frameteller
 function winLevel(){
   won = true;
   for (const k in keys) keys[k] = false;
@@ -5406,9 +5435,15 @@ function loop(now){
       while (idleAcc >= 1){ idleFrame = (idleFrame + 1) % set.idleAnim.length; idleAcc -= 1; }
     }
   }
-  frv.textContent = attacking ? ('A' + (atkFrame + 1)) : swFrame >= 0 ? ('S' + (swFrame + 1)) : (duckT > 0 ? 'buk' : (moving ? (frame + 1) : (set.idleAnim ? 'I' + (idleFrame + 1) : 'idle')));
+  // alleen naar de DOM schrijven als de tekst echt verandert: elke schrijfactie maakt de
+  // layout ongeldig, en de meting hieronder dwingt hem dan meteen weer af
+  const frvNu = attacking ? ('A' + (atkFrame + 1)) : swFrame >= 0 ? ('S' + (swFrame + 1)) : (duckT > 0 ? 'buk' : (moving ? String(frame + 1) : (set.idleAnim ? 'I' + (idleFrame + 1) : 'idle')));
+  if (frvNu !== frvLast){ frvLast = frvNu; frv.textContent = frvNu; }
 
-  resizeIfNeeded();
+  // getBoundingClientRect dwingt een layout af; de resize-events vangen het meeste al,
+  // dit is alleen een vangnet, dus om de 30 frames is ruim genoeg
+  if ((++frameNr % 30) === 0) resizeIfNeeded();
+  perfTick(now);
   const shakeX = shake > 0 ? (Math.random() - 0.5) * 26 * (shake / 0.28) : 0;
   const shakeY = shake > 0 ? (Math.random() - 0.5) * 14 * (shake / 0.28) : 0;
   updateCamera(dt, scaleNow);
@@ -7321,7 +7356,7 @@ tcv.addEventListener('contextmenu', e => e.preventDefault());
 // --- aan en uit: kijken naar de invoer, niet naar het apparaat ---------------
 addEventListener('pointerdown', e => {
   if (e.pointerType !== 'touch') return;
-  if (TOUCH.mode === 'auto' && !TOUCH.sawTouch){ TOUCH.sawTouch = true; syncTouch(); }
+  if (TOUCH.mode === 'auto' && !TOUCH.sawTouch){ TOUCH.sawTouch = true; syncTouch(); resize(); }   // resize: het telefoonplafond op de resolutie
 }, true);
 // capture, zodat dit vóór de gewone keydown van het spel loopt en we geen verse toets wissen
 addEventListener('keydown', e => {
@@ -7470,7 +7505,7 @@ tswapEl.onclick = () => { TOUCH.swap = !TOUCH.swap; touchReleaseAll(); showTouch
 for (const b of tmodeBtns) b.onclick = () => {
   TOUCH.mode = b.dataset.m;
   if (TOUCH.mode !== 'auto') TOUCH.sawTouch = false;
-  touchReleaseAll(); showTouchCfg(); saveTouchCfg(); syncTouch();
+  touchReleaseAll(); showTouchCfg(); saveTouchCfg(); syncTouch(); resize();   // resize: het plafond op de resolutie volgt de knoppen
 };
 pauseBtn.onclick = () => { if (won) return; if (paused) resumeGame(); else pauseGame(); };
 document.getElementById('dvagain').onclick = () => { restart(); };
