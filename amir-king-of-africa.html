@@ -1974,6 +1974,57 @@ function crustAt(wx){
            + 1.6 * Math.sin(wx * 0.081 + 0.4);
 }
 
+// een stem in kleine stapjes naar een ander volume brengen, en daarna eventueel
+// stoppen. Zo hoef je nergens een geluid hard aan of af te kappen.
+function sndRamp(a, naar, secs, stop){
+  clearInterval(a.fadeT);
+  const stappen = Math.max(1, Math.round(secs / 0.025));
+  const van = a.volume;
+  let k = 0;
+  a.fadeT = setInterval(() => {
+    k++;
+    a.volume = Math.max(0, Math.min(1, van + (naar - van) * (k / stappen)));
+    if (k >= stappen){
+      clearInterval(a.fadeT); a.fadeT = 0;
+      if (stop){ a.pause(); a.currentTime = 0; }
+    }
+  }, 25);
+}
+
+// ---- windgeluid ---------------------------------------------------------
+// De opname duurt bijna een halve minuut, een vlaag drie tot vijf seconden. Per
+// vlaag pakken we daarom een willekeurig stuk van een paar seconden: zacht erin,
+// zacht er weer uit, zodat je hem hoort aankomen en er niets wordt afgekapt.
+// Twee stemmen, want twee vlagen vlak na elkaar mogen elkaar overlappen.
+const SFX_WIND = { src: 'music/woestijnwind.mp3', vol: 0.20,
+                   aan: 0.6, duur: 2.4, uit: 1.2, span: 22 };
+const windSnd = [0, 1].map(i => {
+  const a = new Audio();
+  if (i === 0) a.onerror = () => console.warn('ontbreekt: ' + SFX_WIND.src);
+  a.preload = 'auto'; a.src = SFX_WIND.src;
+  return a;
+});
+let windTurn = 0;
+function playWind(amp){
+  if (!wantSound) return;
+  const a = windSnd[windTurn++ % windSnd.length];
+  clearTimeout(a.cutT); clearInterval(a.fadeT); a.cutT = 0; a.fadeT = 0;
+  const zoek = () => { try { a.currentTime = Math.random() * SFX_WIND.span; } catch (e) {} };
+  if (a.readyState >= 1) zoek(); else a.addEventListener('loadedmetadata', zoek, { once: true });
+  a.volume = 0;                                        // hij komt opzetten, hij staat er niet ineens
+  a.play().catch(() => {});
+  const doel = SFX_WIND.vol * Math.max(0.55, Math.min(1, amp));
+  sndRamp(a, doel, SFX_WIND.aan);
+  a.cutT = setTimeout(() => sndRamp(a, 0, SFX_WIND.uit, true),
+                      (SFX_WIND.aan + SFX_WIND.duur) * 1000);
+}
+function stopWind(){
+  for (const a of windSnd){
+    clearTimeout(a.cutT); clearInterval(a.fadeT); a.cutT = 0; a.fadeT = 0;
+    a.pause(); a.currentTime = 0;
+  }
+}
+
 // ---- stof: wolkjes bij springen, en af en toe een windvlaag over de kaart ----
 const dustPuff = new Image(), dustWisp = new Image();
 dustPuff.onerror = () => console.warn('ontbreekt: design/stofwolk.png');
@@ -1990,6 +2041,7 @@ function startGust(){
   const span = W / viewZoom();
   gust = { x0: world - dir * span * 0.65, dir, speed, t: 0,
            dur: 3.0 + Math.random() * 2.0, amp: 0.65 + Math.random() * 0.35 };
+  playWind(gust.amp);                                  // je hoort dezelfde vlaag die je ziet
   const n = 7 + Math.floor(Math.random() * 6);
   for (let i = 0; i < n; i++){
     wind.push({ kind: 'wisp',
@@ -2408,14 +2460,7 @@ const waterSnd = { step: waterVoices(WATER_SND.step, 4), plons: waterVoices(WATE
 const waterTurn = { step: 0, plons: 0 };
 // een stem na `cut` seconden in 0,1s wegdraaien: de klap blijft, de nasleep gaat
 function cutWater(a, cut){
-  a.cutT = setTimeout(() => {
-    const stap = a.volume / 5;
-    a.fadeT = setInterval(() => {
-      const v = a.volume - stap;
-      if (v <= 0.01){ clearInterval(a.fadeT); a.fadeT = 0; a.pause(); a.currentTime = 0; }
-      else a.volume = v;
-    }, 20);
-  }, cut * 1000);
+  a.cutT = setTimeout(() => sndRamp(a, 0, 0.1, true), cut * 1000);
 }
 function playWater(k, vol, rate, cut){
   if (!wantSound) return;
@@ -2634,7 +2679,7 @@ function restart(){
   if (level && level.thickets) for (const d of level.thickets) addThicket(d.x, d.n, d.seed);
   if (level && level.tips) for (const t of level.tips) t.used = false;   // uitleg opnieuw laten zien
   resetHppotions();                                 // flesjes weer op hun plek, handen weer leeg
-  tutReset(); venom.length = 0; splat.length = 0; splashes.length = 0; stopWater(); stopHyena();
+  tutReset(); venom.length = 0; splat.length = 0; splashes.length = 0; stopWater(); stopHyena(); stopWind();
   greenSince = 0; blackAfter = 3 + Math.floor(Math.random() * 3); forceBlack = false; setKindLabel();
   if (level && level.spawns) for (const sp of level.spawns){ sp.used = false; sp.armed = false; }
   // in een echt level begin je zonder speer: die staat voor je in de grond
@@ -3692,7 +3737,7 @@ const HY_DOUBLE_CHANCE = 0.30; // kans dat de tweede van de roedel meteen meesto
 const HY_DOUBLE_MIN = 0.3, HY_DOUBLE_MAX = 0.8;   // en hoeveel later hij dan begint
 const HY_LAUGH_MIN  = 3.0, HY_LAUGH_MAX = 5.5;   // om de zoveel seconden lacht er weer eentje,
                                                  // zolang de roedel nog staat te dreigen
-const HY_HP = 2;               // twee speerstoten
+const HY_HP = 1;               // raak met de speer is meteen raak: hij gaat neer
 const HY_INV_T = 0.5;          // onkwetsbaar na een treffer
 const HY_FALL_T = 0.6;         // omvallen en uitfaden
 const HY_RUN_LEG_MULT = 1.5;   // de poten draaien 1,5 keer zo snel als het materiaal; zijn snelheid verandert niet
@@ -3816,10 +3861,16 @@ function hyAnim(s, dt, fps, n, terug){
   while (s.acc >= 1){ s.frame += terug ? -1 : 1; s.acc -= 1; }
   s.frame = ((s.frame % n) + n) % n;
 }
+// Geeft terug of hij daadwerkelijk vooruit kwam. In de storm stapt hij nog steeds
+// over ravijnranden heen, maar door een rots of de klifwand rent hij niet: daar
+// botst hij op.
 function hyMove(s, stap, plats, cliff, stormt){
   const nx = s.x + stap;
-  if (stormt){ s.x = nx; return; }                  // in de storm houdt niets hem tegen
-  if (!knockBlocked(s, nx, plats, cliff, HY.bodyW * hyScale() * 0.35, 80)) s.x = nx;
+  const klem = stormt ? hardBlocked(s, nx, plats, cliff, 60)
+                      : knockBlocked(s, nx, plats, cliff, HY.bodyW * hyScale() * 0.35, 80);
+  if (klem) return false;
+  s.x = nx;
+  return true;
 }
 // De roedel lacht om de beurt, op één klok voor het hele stel: zo vallen twee
 // hyena's nooit over elkaar heen en blijft er een rustig ritme in zitten.
@@ -3879,7 +3930,13 @@ function updateHyena(s, dt, plats, cliff){
   const dx = world - s.x, gap = Math.abs(dx), naarJe = dx >= 0 ? 1 : -1;
 
   if (s.state === 'storm'){
-    hyMove(s, s.dir * HY_WALK_SPD * HY_RUN_MULT * dt, plats, cliff, true);
+    if (!hyMove(s, s.dir * HY_WALK_SPD * HY_RUN_MULT * dt, plats, cliff, true)){
+      // een rots of de klifwand: hij remt af en blijft ervoor staan dreigen
+      s.hitUsed = true;                             // zijn bek heeft zijn kans gehad
+      s.threatT = HY_THREAT_MAX + Math.random() * 2;   // na zo'n klap duurt het even voor hij het weer probeert
+      hySet(s, 'dreigen'); s.show = 'dreigen';
+      return;
+    }
     hyAnim(s, dt, HY.fps.ren_lijf * HY_RUN_LEG_MULT, HY.n.ren_lijf, false);
     s.kopAcc += dt * HYENA_BITE_FPS;                // eigen teller, eigen tempo
     while (s.kopAcc >= 1){
@@ -3970,8 +4027,9 @@ function scpBlocked(s, nx){
 }
 let plats_ = [], cliff_ = null;
 // een geraakt monster vliegt weg, maar nooit door een rots, wand, ravijn of terrasrand heen
-function knockBlocked(s, nx, plats, cliff, halfL, wallGap){
-  const d = nx >= s.x ? 1 : -1;
+// de harde dingen: de klifwand, het einde van de wereld en elke rots die boven hem
+// uitsteekt. Hier loopt niemand doorheen, ook niet in volle ren.
+function hardBlocked(s, nx, plats, cliff, wallGap){
   if (cliff && nx > cliff.wall - wallGap) return true;
   if (nx < endWall() + wallGap) return true;
   for (const p of plats){
@@ -3979,7 +4037,12 @@ function knockBlocked(s, nx, plats, cliff, halfL, wallGap){
     const half = 60 * (p.wPx / 400), mid = (p.left + p.right) / 2;
     if (nx + half > p.left && nx - half < p.right && Math.abs(nx - mid) < Math.abs(s.x - mid)) return true;
   }
-  if (inGap(nx + d * halfL)) return true;
+  return false;
+}
+function knockBlocked(s, nx, plats, cliff, halfL, wallGap){
+  const d = nx >= s.x ? 1 : -1;
+  if (hardBlocked(s, nx, plats, cliff, wallGap)) return true;
+  if (inGap(nx + d * halfL)) return true;               // en de rand van een ravijn
   if (dropAhead(nx + d * halfL, s.base || 0)) return true;
   return false;
 }
@@ -5746,7 +5809,7 @@ addEventListener('keydown', tryPlay);
 addEventListener('pointerdown', tryPlay);
 soundBtn.onclick = () => {
   wantSound = !wantSound; setLabel();
-  if (wantSound){ started = false; tryPlay(); } else { bg.pause(); stopKing(); }
+  if (wantSound){ started = false; tryPlay(); } else { bg.pause(); stopKing(); stopWind(); }
 };
 bg.addEventListener('error', () => { soundBtn.disabled = true; soundBtn.textContent = 'music/bg.mp3 ontbreekt'; });
 document.getElementById('thrust').addEventListener('error', () => console.warn('music/spearthrust.mp3 ontbreekt'));
