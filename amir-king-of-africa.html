@@ -2235,14 +2235,14 @@ function drawWaterStrips(groundY){
   }
 }
 // ---- watergeluid ------------------------------------------------------
-// Elke spetter die je ziet hoor je ook. De opname duurt 0,82s en dat is veel te
-// lang voor een pas: in het water valt er een spetter elke 0,22-0,34s, dus die
-// zouden over elkaar heen blijven liggen tot het een brij is. Daarom twee
-// knippen uit dezelfde plons: waterstep.mp3 is het korte stuk (0,27s, alleen de
-// klap plus een uitfadende nasleep, past binnen de pasmaat) en watersplash.mp3
-// is de hele plons, voor instappen en landen. Allebei beginnen ze op de klap,
-// zonder aanloopstilte, zodat het geluid op het beeld valt.
-const WATER_SND = { step: 'music/waterstep.mp3', plons: 'music/watersplash.mp3' };
+// Elke spetter die je ziet hoor je ook, en overal dezelfde plons: watersplash.mp3,
+// het geluid dat je al hoorde bij instappen en landen, is nu ook het loopgeluid.
+// De opname duurt 0,82s en dat is te lang voor een pas (in het water valt er een
+// spetter elke 0,22-0,34s), dus een pas speelt dezelfde plons maar knipt hem na
+// een paar tienden weg met een kort uitfaden (zie cutWater). Zo hou je de klap,
+// die op het beeld valt, zonder dat de staarten over elkaar heen tot een brij
+// blijven liggen. De opname begint meteen op de klap, zonder aanloopstilte.
+const WATER_SND = { step: 'music/watersplash.mp3', plons: 'music/watersplash.mp3' };
 function waterVoices(src, n){
   return Array.from({ length: n }, (_, i) => {
     const a = new Audio();
@@ -2251,20 +2251,39 @@ function waterVoices(src, n){
     return a;
   });
 }
-// kleine stemmenpool: een nieuwe pas mag over de staart van de vorige heen
-const waterSnd = { step: waterVoices(WATER_SND.step, 3), plons: waterVoices(WATER_SND.plons, 2) };
+// kleine stemmenpool: een nieuwe pas mag over de staart van de vorige heen.
+// Twee losse pools op hetzelfde bestand, zodat een pas de volle plons van een
+// sprong nooit afkapt. Vier stemmen voor de passen, want die knippen we af en
+// dan mogen er gerust een paar tegelijk uitfaden.
+const waterSnd = { step: waterVoices(WATER_SND.step, 4), plons: waterVoices(WATER_SND.plons, 2) };
 const waterTurn = { step: 0, plons: 0 };
-function playWater(k, vol, rate){
+// een stem na `cut` seconden in 0,1s wegdraaien: de klap blijft, de nasleep gaat
+function cutWater(a, cut){
+  a.cutT = setTimeout(() => {
+    const stap = a.volume / 5;
+    a.fadeT = setInterval(() => {
+      const v = a.volume - stap;
+      if (v <= 0.01){ clearInterval(a.fadeT); a.fadeT = 0; a.pause(); a.currentTime = 0; }
+      else a.volume = v;
+    }, 20);
+  }, cut * 1000);
+}
+function playWater(k, vol, rate, cut){
   if (!wantSound) return;
   const pool = waterSnd[k];
   const a = pool[waterTurn[k]++ % pool.length];
+  clearTimeout(a.cutT); clearInterval(a.fadeT); a.cutT = 0; a.fadeT = 0;   // hergebruik: oude knip vervalt
   a.currentTime = 0; a.volume = Math.max(0, Math.min(1, vol));
   a.playbackRate = rate || 1;                                         // hoger = kleinere spat
   a.preservesPitch = false; a.mozPreservesPitch = false; a.webkitPreservesPitch = false;   // de toonhoogte mag mee
   a.play().catch(() => {});
+  if (cut) cutWater(a, cut);
 }
 function stopWater(){
-  for (const k in waterSnd) for (const a of waterSnd[k]){ a.pause(); a.currentTime = 0; }
+  for (const k in waterSnd) for (const a of waterSnd[k]){
+    clearTimeout(a.cutT); clearInterval(a.fadeT); a.cutT = 0; a.fadeT = 0;
+    a.pause(); a.currentTime = 0;
+  }
 }
 // spetters en rimpels, in wereldcoördinaten
 const splashes = [];
@@ -2287,11 +2306,12 @@ function updateSplashes(dt, wet, moving){
         const sz = 0.45 + Math.random() * 0.3;
         splashes.push({ x: world + facing * 12, t: 0, k: 'spetter', s: sz, flip: Math.random() < 0.5 });
         // volume en toonhoogte per pas een beetje anders, anders hoor je de herhaling
-        playWater('step', (0.24 + 0.34 * sz) * (0.55 + 0.45 * wet), 1.18 - 0.22 * sz + (Math.random() - 0.5) * 0.12);
+        // de volle plons, maar afgeknipt binnen de pasmaat
+        playWater('step', (0.22 + 0.3 * sz) * (0.55 + 0.45 * wet), 1.18 - 0.22 * sz + (Math.random() - 0.5) * 0.12, 0.26);
         splashTimer = 0.22 + Math.random() * 0.12;
       } else {
         splashes.push({ x: world, t: 0, k: 'rimpel', s: 0.8 + Math.random() * 0.3 });
-        playWater('step', 0.1 * (0.55 + 0.45 * wet), 0.62 + Math.random() * 0.08);   // stilstaan: alleen een klotsje
+        playWater('step', 0.09 * (0.55 + 0.45 * wet), 0.62 + Math.random() * 0.08, 0.45);   // stilstaan: alleen een klotsje
         splashTimer = 1.0 + Math.random() * 0.7;
       }
     }
