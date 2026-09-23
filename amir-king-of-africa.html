@@ -84,8 +84,8 @@
     text-transform:uppercase;color:var(--sun);margin-top:6px}
   #start p{margin:0;font-size:15px;line-height:1.7;color:rgba(242,232,213,.75)}
   #start button{padding:10px 22px;font-size:16px}
-  #menuMain,#menuChoose,#menuLevels,#menuRenew,#menuRosa{display:none;flex-direction:column;align-items:center;gap:18px}
-  #menuMain.on,#menuChoose.on,#menuLevels.on,#menuRenew.on,#menuRosa.on{display:flex}
+  #menuMain,#menuChoose,#menuLevels,#menuRenew,#menuWinter,#menuRosa{display:none;flex-direction:column;align-items:center;gap:18px}
+  #menuMain.on,#menuChoose.on,#menuLevels.on,#menuRenew.on,#menuWinter.on,#menuRosa.on{display:flex}
   .bigbtn{position:relative;min-width:260px;padding:18px 28px!important;font-size:22px!important;font-weight:700;
     letter-spacing:.06em;text-transform:uppercase;border:1px solid rgba(242,232,213,.35);border-radius:4px;
     background:linear-gradient(180deg,rgba(226,119,74,.16),rgba(226,119,74,.04));transition:.15s}
@@ -256,9 +256,23 @@
       <div class="row">
         <button id="btnEp1" class="bigbtn">Episode 1<small>De weg naar het koningschap</small></button>
         <button id="btnRenew" class="bigbtn">Episode Renew<small>Tien levels, van rustig naar zwaar</small></button>
+        <button id="btnWinter" class="bigbtn">Episode Winter World<small>Hoog in de bergen, in de sneeuw</small></button>
         <button id="btnRosa" class="bigbtn">Rosa<small>Rustig beginnen</small></button>
       </div>
       <div class="row"><button class="menumain">Terug</button></div>
+    </div>
+
+    <div id="menuWinter">
+      <div>
+        <p class="epititle">Episode Winter World</p>
+        <p class="epihead">De witte berg</p>
+      </div>
+      <div class="cards" id="cardsWinter"></div>
+      <div class="row">
+        <button id="btnplayWinter">Spelen</button>
+        <button id="btnnightmareWinter">Nightmare</button>
+        <button class="menuback">Terug</button>
+      </div>
     </div>
 
     <div id="menuLevels">
@@ -319,6 +333,8 @@
       <button data-tool="doorn" data-group="voor">Doornbos</button>
       <button data-tool="hut" data-group="voor">Hut</button>
       <button data-tool="gras" data-group="voor">Droog gras</button>
+      <button data-tool="boulder_sneeuw" data-group="voor">Kei (sneeuw)</button>
+      <button data-tool="gras_sneeuw" data-group="voor">Gras (bevroren)</button>
       <button data-tool="gat" data-group="voor">Gat</button>
       <button data-tool="water" data-group="voor">Water</button>
       <button data-tool="klif" data-group="voor">Klif</button>
@@ -700,6 +716,44 @@ const PLAT_FIRST = -420;     // de eerste staat altijd links van je startpunt
 const platImg = new Image();
 platImg.onerror = () => console.warn('ontbreekt: ' + PLAT.src);
 platImg.src = PLAT.src;
+
+// ---- winter: episode Winter World ------------------------------------------
+// Een level met winter: true krijgt sneeuw op alles wat je beklimt, een besneeuwde
+// grond met grijze rots eronder, bevroren gras, sneeuwval, en witte dieren. De
+// winterplaatjes worden pas geladen als zo'n level gekozen wordt: wie alleen de
+// savanne speelt, haalt ze nooit op.
+function winterOn(){ return !!(level && level.winter && !sandbox); }
+const WINTER_SRC = {
+  plat:  'design/flatrock_sneeuw.png',
+  cliff: 'design/cliff_sneeuw.png',
+  ter:   'design/klimmen/klif_bovenrand_sneeuw.png',
+  ledge: 'design/klimmen/klif_richel_sneeuw.png',
+  edge:  'design/grondrand_sneeuw.png',
+  gras:  'design/drygrass_sneeuw.png'
+};
+const winterImg = {};                 // dezelfde sleutels, pas gevuld na loadWinter()
+let winterLoaded = false;
+function loadWinter(){
+  if (winterLoaded) return;
+  winterLoaded = true;
+  for (const k in WINTER_SRC){
+    const im = new Image();
+    im.onerror = () => console.warn('ontbreekt: ' + WINTER_SRC[k]);
+    if (k === 'ter') im.onload = () => { winterTerFade = makeTerFade(im); };
+    im.src = WINTER_SRC[k];
+    winterImg[k] = im;
+  }
+  panLoadSkin('wit');
+  hyLoadSkin('wit');
+  bakeWinterLayers();
+}
+// het plaatje dat nu hoort: in de winter de sneeuwversie zodra die er is, anders het gewone
+function winterPic(k, normal){
+  if (!winterOn()) return normal;
+  const w = winterImg[k];
+  return (w && w.complete && w.naturalWidth) ? w : normal;
+}
+function platPic(){ return winterPic('plat', platImg); }
 
 // vaste maar onregelmatige plekken: meestal ver uit elkaar, soms twee kort achter elkaar
 function rnd(i, k){ const t = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return t - Math.floor(t); }
@@ -1551,6 +1605,53 @@ const RENEW_10 = {
           { x: -16100, t: 'Het hoge gras. De panter, voor de laatste keer' } ]
 };
 const RENEW_LEVELS = [RENEW_1, RENEW_2, RENEW_3, RENEW_4, RENEW_5, RENEW_6, RENEW_7, RENEW_8, RENEW_9, RENEW_10];
+
+// ---- Episode Winter World: hoog in de bergen ---------------------------------
+// Winter 1: de witte berg. Sneeuw op alles, grijze rots eronder, witte hyena's die je
+// pas goed ziet als ze bewegen, een trap van besneeuwde terrassen, een ravijn, een
+// steile wand met richels, en op de hoogvlakte het sneeuwveld van de witte panter.
+// Die jaagt anders dan de zwarte: hij duikt van boven, dus bukken helpt niet.
+const WINTER_1 = {
+  name: 'Winter 1: De witte berg',
+  lagen: 'winter_berg',
+  winter: true,
+  rocks: [ {x: -1900, s: 1.0}, {x: -6900, s: 1.1}, {x: -9900, s: 1.0} ],
+  spawns: [ {x: -1300, k: 'hyenas', n: 1}, {x: -3500, k: 'hyenas', n: 1}, {x: -7400, k: 'hyenas', n: 2},
+            {x: -10400, k: 'hyenas', n: 2}, {x: -12700, k: 'panter'} ],
+  props: [ {x: -450, k: 'gras_sneeuw', s: 1.2, f: 0, v: 0}, {x: -820, k: 'bot_kort', s: 1.0, f: 1, v: 0},
+           {x: -1150, k: 'boulder_sneeuw', s: 1.0, f: 0, v: 0}, {x: -1600, k: 'gras_sneeuw', s: 1.0, f: 1, v: 0},
+           {x: -2250, k: 'ribben', s: 1.1, f: 0, v: 0}, {x: -2900, k: 'gras_sneeuw', s: 1.3, f: 0, v: 0},
+           {x: -3200, k: 'boulder_sneeuw', s: 1.2, f: 1, v: 0}, {x: -3800, k: 'bot_schuin', s: 1.0, f: 0, v: 0},
+           {x: -4300, k: 'gras_sneeuw', s: 1.1, f: 1, v: 0}, {x: -4800, k: 'boulder_sneeuw', s: 0.9, f: 0, v: 0},
+           {x: -5250, k: 'gras_sneeuw', s: 1.4, f: 0, v: 0}, {x: -5700, k: 'buffel', s: 1.1, f: 1, v: 0},
+           {x: -6200, k: 'gras_sneeuw', s: 1.0, f: 0, v: 0}, {x: -6600, k: 'bot_lang', s: 1.0, f: 0, v: 0},
+           {x: -7700, k: 'gras_sneeuw', s: 1.2, f: 1, v: 0}, {x: -8050, k: 'jakhals', s: 1.0, f: 0, v: 0},
+           {x: -8900, k: 'boulder_sneeuw', s: 1.1, f: 1, v: 0}, {x: -9400, k: 'gras_sneeuw', s: 1.1, f: 0, v: 0},
+           {x: -10800, k: 'gras_sneeuw', s: 1.3, f: 1, v: 0}, {x: -11100, k: 'ribben', s: 1.0, f: 1, v: 0},
+           {x: -11500, k: 'boulder_sneeuw', s: 1.0, f: 0, v: 0},
+           // het sneeuwveld van de panter: bevroren gras en keien, dichtbij
+           {x: -12200, k: 'gras_sneeuw', s: 1.6, f: 0, v: 0}, {x: -12450, k: 'boulder_sneeuw', s: 1.2, f: 1, v: 0},
+           {x: -12700, k: 'gras_sneeuw', s: 1.8, f: 1, v: 0}, {x: -12950, k: 'gras_sneeuw', s: 1.4, f: 0, v: 0},
+           {x: -13250, k: 'boulder_sneeuw', s: 1.3, f: 0, v: 0}, {x: -13500, k: 'gras_sneeuw', s: 1.7, f: 1, v: 0},
+           {x: -13800, k: 'gras_sneeuw', s: 1.5, f: 0, v: 0}, {x: -14050, k: 'boulder_sneeuw', s: 1.1, f: 1, v: 0},
+           {x: -13100, k: 'buffel', s: 1.1, f: 1, v: 0}, {x: -13650, k: 'ribben', s: 1.0, f: 0, v: 0} ],
+  gaps: [ {x: -2500, w: 230}, {x: -6400, w: 250}, {x: -8600, w: 240} ],
+  hppotions: [ {x: -3000, y: null}, {x: -6000, y: null}, {x: -9000, y: null}, {x: -11900, y: null} ],
+  terraces: [ {r: -4000, l: -5900, h: 150}, {r: -4500, l: -5500, h: 300}, {r: -4900, l: -5200, h: 450},
+              {r: -9700, l: -11600, h: 160}, {r: -10200, l: -11600, h: 600} ],
+  ledges: [ {x: -10200, h: 320, s: 1.0}, {x: -10200, h: 465, s: 0.62} ],
+  fg: { from: -12100, to: -14300 },
+  arena: { c: -13100 },
+  cliffs: [ {x: -15000} ],
+  ends: [ {x: -14500} ],
+  npcs: [],
+  tips: [ { x: -60, t: 'Winter World. Hoog in de bergen: sneeuw, grijze rots, en witte dieren die je pas ziet als ze bewegen' },
+          { x: -1100, t: 'Witte hyena\'s. Ze lachen, dreigen en stormen, net als hun bruine neven. Steek als hij komt' },
+          { x: -3800, t: 'De trap op. Sneeuw op de terrassen; daarboven wacht een ravijn' },
+          { x: -9600, t: 'Een steile wand met richels. Spring van richel naar richel, van onderaf kun je erdoorheen' },
+          { x: -12150, t: 'De witte panter. Hij jaagt anders dan de zwarte: kijk goed hoe hij springt, en waar hij neerkomt' } ]
+};
+const WINTER_LEVELS = [WINTER_1];
 const LEVELS = [GIJS_LEVEL, GIJS_LEVEL_2, GIJS_LEVEL_3, GIJS_LEVEL_4, GIJS_LEVEL_5, GIJS_LEVEL_6, GIJS_LEVEL_7, GIJS_LEVEL_8, BOSS_PANTER, PANTER_PLUS];
 let levelIdx = 0;
 
@@ -1568,23 +1669,28 @@ const LEDGE = { src: 'design/klimmen/klif_richel.png',
                 walk: 30, into: 45, tip: 25, k: 0.55 };   // k = grootte t.o.v. een terras
 const terImg = new Image();
 let terFade = null;          // zelfde plaatje, rechts zacht uitlopend: voor de rand links, zonder naad
-terImg.onload = () => {
+let winterTerFade = null;    // en hetzelfde voor de sneeuwversie
+function makeTerFade(img){
   const c = document.createElement('canvas');
-  c.width = terImg.naturalWidth; c.height = terImg.naturalHeight;
+  c.width = img.naturalWidth; c.height = img.naturalHeight;
   const g = c.getContext('2d');
-  g.drawImage(terImg, 0, 0);
+  g.drawImage(img, 0, 0);
   const x0 = c.width * 0.55, x1 = c.width - TER.trim;
   const gr = g.createLinearGradient(x0, 0, x1, 0);
   gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,1)');
   g.globalCompositeOperation = 'destination-out';
   g.fillStyle = gr; g.fillRect(x0, 0, c.width - x0, c.height);
-  terFade = c;
-};
+  return c;
+}
+terImg.onload = () => { terFade = makeTerFade(terImg); };
 terImg.onerror = () => console.warn('ontbreekt: ' + TER.src);
 terImg.src = TER.src;
 const ledgeImg = new Image();
 ledgeImg.onerror = () => console.warn('ontbreekt: ' + LEDGE.src);
 ledgeImg.src = LEDGE.src;
+function terPic(){ return winterPic('ter', terImg); }
+function terFadePic(){ return (winterOn() && terPic() !== terImg && winterTerFade) ? winterTerFade : terFade; }
+function ledgePic(){ return winterPic('ledge', ledgeImg); }
 function terraceList(){ return (level && level.terraces) ? level.terraces : []; }
 function ledgeList(){ return (level && level.ledges) ? level.ledges : []; }
 function hasClimb(){ return terraceList().length > 0; }
@@ -1597,7 +1703,7 @@ function terrainH(x){                        // hoogte van het terras op deze pl
 }
 function ledgeLen(o, scale){                 // hoe ver de richel uitsteekt, in wereld-px
   const sl = ledgeScale(scale, o);
-  const iw = ledgeImg.naturalWidth || 1184;
+  const iw = ledgePic().naturalWidth || 1184;
   return (iw - LEDGE.into - LEDGE.tip) * sl;
 }
 function terracePlats(scale){
@@ -1610,8 +1716,8 @@ function terracePlats(scale){
 }
 // één kolom uit het terrasplaatje, met de wand eronder herhaald tot onder het scherm
 function drawTerCol(sx, sw, dx, dw, flip, top, bottom, st, img){
-  img = img || terImg;
-  const ih = terImg.naturalHeight - TER.trim;    // de donkere snijrand onderaan niet meenemen
+  img = img || terPic();
+  const ih = terPic().naturalHeight - TER.trim;    // de donkere snijrand onderaan niet meenemen
   ctx.save();
   if (flip){ ctx.translate(dx + dw, 0); ctx.scale(-1, 1); dx = 0; }
   ctx.drawImage(img, sx, 0, sw, ih, dx, top, dw + 0.8, ih * st);
@@ -1632,22 +1738,23 @@ function drawClimb(groundY, scale, cx){
   const bottom = groundY + Math.max(H * 0.2, (H - groundY) / zoom) + 40;
   const viewL = -W, viewR = W / zoom + W;
   // richels eerst: hun rechte kant verdwijnt achter de wand
-  if (imgReady(ledgeImg)){
+  const ledgeImgNow = ledgePic();
+  if (imgReady(ledgeImgNow)){
     for (const o of ledgeList()){
       const sl = ledgeScale(scale, o);
-      const lw = ledgeImg.naturalWidth * sl, lh = ledgeImg.naturalHeight * sl;
+      const lw = ledgeImgNow.naturalWidth * sl, lh = ledgeImgNow.naturalHeight * sl;
       const x0 = cx + (o.x - world) - LEDGE.into * sl;
       if (x0 > viewR || x0 + lw < viewL) continue;
       const top = groundY - o.h * scale - LEDGE.walk * sl;
       ctx.save();
       ctx.translate(x0 + lw, top); ctx.scale(-1, 1);
-      ctx.drawImage(ledgeImg, 0, 0, lw, lh);
+      ctx.drawImage(ledgeImgNow, 0, 0, lw, lh);
       ctx.restore();
     }
   }
-  if (!imgReady(terImg)) return;
+  if (!imgReady(terPic())) return;
   const st = terScale(scale);
-  const iw = terImg.naturalWidth - TER.trim;     // en rechts ook niet: anders zie je naden
+  const iw = terPic().naturalWidth - TER.trim;     // en rechts ook niet: anders zie je naden
   const capW = iw * st, midW = (iw - TER.midX) * st;
   const list = terraceList().slice().sort((a, b) => a.h - b.h);
   for (const t of list){
@@ -1671,7 +1778,7 @@ function drawClimb(groundY, scale, cx){
     ctx.restore();
     ctx.save();
     ctx.beginPath(); ctx.rect(xl, top - 4, xr - xl, bottom - top + 4); ctx.clip();
-    if (leftCap) drawTerCol(0, iw, xl, capW, false, top, bottom, st, terFade || terImg);   // afbrokkelende rand links
+    if (leftCap) drawTerCol(0, iw, xl, capW, false, top, bottom, st, terFadePic() || terPic());   // afbrokkelende rand links
     drawTerCol(0, iw, xr - capW, capW, true, top, bottom, st);          // en rechts, naar je start toe
     ctx.restore();
     if (showBoxes || building){
@@ -1723,8 +1830,9 @@ function platsNear(scale){
 function measurePlat(p, scale){
   {
     const hPx = CHAR_H * scale * PLAT.h * p.scale;
-    const wPx = (platImg.naturalWidth && platImg.naturalHeight
-                 ? platImg.naturalWidth / platImg.naturalHeight : 681 / 482) * hPx;
+    const pim = platPic();
+    const wPx = (pim.naturalWidth && pim.naturalHeight
+                 ? pim.naturalWidth / pim.naturalHeight : 681 / 482) * hPx;
     return {
       x: p.x, scale: p.scale, wPx, hPx,
       left:  p.x - wPx / 2 + PLAT.l * wPx,
@@ -1754,6 +1862,7 @@ hutImg.src = HUT.src;
 const cliffImg = new Image();
 cliffImg.onerror = () => console.warn('ontbreekt: ' + CLIFF.src);
 cliffImg.src = CLIFF.src;
+function cliffPic(){ return winterPic('cliff', cliffImg); }
 
 // kliffen die jij neerzet staan links van je start en zijn het einde van de wereld
 function endWall(){
@@ -1776,8 +1885,9 @@ function finSize(scale){
 function cliffAt(){
   const gY = H * 0.82;
   const hPx = (gY + 2) / (1 - CLIFF.sink);       // van boven het scherm tot in de grond
-  const wPx = (cliffImg.naturalWidth && cliffImg.naturalHeight
-               ? cliffImg.naturalWidth / cliffImg.naturalHeight : 1652 / 969) * hPx;
+  const cim = cliffPic();
+  const wPx = (cim.naturalWidth && cim.naturalHeight
+               ? cim.naturalWidth / cim.naturalHeight : 1652 / 969) * hPx;
   return { wPx, hPx, wall: CLIFF.wall, leftWorld: CLIFF.wall - CLIFF.l * wPx };
 }
 
@@ -1800,6 +1910,9 @@ const PROPS = {
   struik:  { src: 'design/struik.png',     h: 0.85, sink: 0.09 },
   hut:     { src: 'design/villeaghut.png', h: 1.70, sink: 0.05, farOnly: true, bouwwerk: true },
   gras:    { src: 'design/drygrass.png',   h: 0.45, sink: 0.10, placeOnly: true },
+  // winter: besneeuwde kei en bevroren gras (episode Winter World)
+  boulder_sneeuw: { src: 'design/boulder_sneeuw.png',  h: 0.62, sink: 0.06, placeOnly: true },
+  gras_sneeuw:    { src: 'design/drygrass_sneeuw.png', h: 0.45, sink: 0.10, placeOnly: true },
   // botten: liggen op de grond, alleen met de hand neer te zetten
   bot_kort:  { src: 'design/botten/bot_kort.png',      h: 0.09, sink: 0.08, placeOnly: true },
   bot_lang:  { src: 'design/botten/bot_lang.png',      h: 0.09, sink: 0.08, placeOnly: true },
@@ -2533,6 +2646,39 @@ dustPuff.src = 'design/stofwolk.png';
 dustWisp.src = 'design/stofsliert.png';
 const imgReady = im => im.complete && im.naturalWidth > 0;
 
+// ---- sneeuwval (Winter World) -------------------------------------------
+// Vlokken in schermcoördinaten: ze dwarrelen omlaag, waaien mee met de vlaag en
+// schuiven een beetje tegen de camera in. Alleen in een winterlevel.
+const snowflakes = [];
+let snowWorldPrev = null;
+function updateSnowfall(dt){
+  if (!winterOn()){ snowflakes.length = 0; snowWorldPrev = null; return; }
+  const n = Math.round(Math.min(220, Math.max(90, W * H / 6500)));
+  while (snowflakes.length < n)
+    snowflakes.push({ x: Math.random() * W, y: Math.random() * H, r: 1.2 + Math.random() * 2.6,
+                      v: 38 + Math.random() * 70, ph: Math.random() * 6.28, sw: 8 + Math.random() * 18 });
+  const shift = snowWorldPrev === null ? 0 : (world - snowWorldPrev) * 0.35;
+  snowWorldPrev = world;
+  const g = gust ? gust.dir * gust.amp * 90 : 0;
+  for (const f of snowflakes){
+    f.ph += dt * 1.6;
+    f.y += f.v * dt * (0.6 + f.r * 0.25);
+    f.x += (Math.sin(f.ph) * f.sw + g) * dt + shift;
+    if (f.y > H + 4){ f.y = -4; f.x = Math.random() * W; }
+    if (f.x < -6) f.x += W + 12; else if (f.x > W + 6) f.x -= W + 12;
+  }
+}
+function drawSnowfall(){
+  if (!snowflakes.length) return;
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
+  for (const f of snowflakes){
+    ctx.globalAlpha = 0.45 + 0.35 * Math.min(1, f.r / 3);
+    ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
 const wind = [];                         // slierten en wolkjes, in wereldcoördinaten
 let gustTimer = 4 + Math.random() * 5;   // de eerste vlaag komt vrij snel
 function startGust(){
@@ -3181,6 +3327,7 @@ function restart(){
   camY = 0; camFloor = 0;
   drawLives(); deadEl.classList.remove('on');
   snakes.length = 0; scorps.length = 0; panthers.length = 0; hyenas.length = 0; arena = null; camEase = null; spawnTimer = 0.6;
+  snowPuffs.length = 0; snowflakes.length = 0; snowWorldPrev = null;
   thickets.length = 0; chips.length = 0;            // struwelen weer heel, brokstukken weg
   if (level && level.thickets) for (const d of level.thickets) addThicket(d.x, d.n, d.seed).src = d;
   if (level && level.tips) for (const t of level.tips) t.used = false;   // uitleg opnieuw laten zien
@@ -3842,12 +3989,24 @@ const PAN_N = { walk: 14, turn: 24, prowl: 16, pounce: 20, run: 9, claw: 14 };
 const PAN_FOLDER = { claw: 'lowstrike' };        // de klauwhaal staat in een eigen map
 const CLAW_W = 900, CLAW_OFF = 200;              // breder canvas; 200 naar links zodat zijn lijf op zijn plek blijft
 const panImg = {};
-for (const k in PAN_N){
-  const f = PAN_FOLDER[k] || k;
-  panImg[k] = Array.from({ length: PAN_N[k] }, (_, i) =>
-    loadQuiet([...PAN_DIRS.map(d => d + f + '/' + k + '_' + pad2(i) + '.png'),
-               'enemies/blackpanther/' + f + '/' + k + '_' + pad2(i) + '.png']));
+function panLoadInto(bank, dirs, root){
+  for (const k in PAN_N){
+    const f = PAN_FOLDER[k] || k;
+    bank[k] = Array.from({ length: PAN_N[k] }, (_, i) =>
+      loadQuiet([...dirs.map(d => d + f + '/' + k + '_' + pad2(i) + '.png'),
+                 root + f + '/' + k + '_' + pad2(i) + '.png']));
+  }
 }
+panLoadInto(panImg, PAN_DIRS, 'enemies/blackpanther/');
+// de witte panter van Winter World: zelfde frames, andere vacht (enemies/panter_wit). Pas laden als het moet.
+const PAN_SKIN_DIRS = { wit: { dirs: ['enemies/panter_wit/panter_wit/', 'enemies/panter_wit/'], root: 'enemies/panter_wit/' } };
+const panSkins = { zwart: panImg };
+function panLoadSkin(s){
+  if (panSkins[s] || !PAN_SKIN_DIRS[s]) return;
+  panSkins[s] = {};
+  panLoadInto(panSkins[s], PAN_SKIN_DIRS[s].dirs, PAN_SKIN_DIRS[s].root);
+}
+function panBank(s){ return (s.skin && panSkins[s.skin]) || panImg; }
 const PAN_WALK_SPD = 64, PAN_PROWL_SPD = 58, PAN_RUN_SPD = 300;
 const PAN_SEE = 950, PAN_RUN_FROM = 1250, PAN_RUN_TO = 750;
 const PAN_POUNCE_DIST = 460, PAN_POUNCE_MIN = 300;   // dichterbij dan MIN springt hij niet meer, dan klauwt hij
@@ -3885,6 +4044,48 @@ const CLAW_DASH = 620;                           // snelle uitval naar voren
 const CLAW_SAFE_H = 0.5;                         // sta je zo veel hoger dan hij (plateau), dan laat hij je met rust
 const PAN_STANDING = ['walk', 'spot', 'notice', 'prowl', 'run', 'wind'];   // op zijn poten = klauwklaar
 const panthers = [];
+// ---- de witte panter (Winter World) ----------------------------------------
+// Zelfde dier, andere jacht. Hij is bijna onzichtbaar in de sneeuw zolang hij sluipt
+// (je ziet vooral zijn schaduw), en zijn sprong is geen lage boog waar je onderdoor
+// bukt, maar een hoge sneeuwduik: hij springt hoog op en komt neer op de plek waar
+// je stond toen hij afzette. Bukken helpt niet; opzij stappen wel. Na de duik zit hij
+// tot zijn buik in de sneeuw: langer kwetsbaar dan de zwarte panter na zijn sprong.
+// Vanaf fase 2 wisselt hij de duik af met de lage tackle (springen), dus je moet zijn
+// aanloop lezen: hoog opgericht en een hoge grom = duik, diep ingezakt en laag = tackle.
+const PAN_DIVE_H = 1.35;                  // hoogte van de duikboog, als deel van Amir
+const PAN_DIVE_FPS = 8;                   // trager door de lucht dan de gewone sprong: je krijgt tijd om te stappen
+const PAN_DIVE_MAX = 800, PAN_DIVE_MIN = 140;
+const PAN_DIVE_FROM = 540;                // van zo dichtbij zet hij af: dan staat hij in beeld als hij wiebelt
+const PAN_SNOW_REST = 1.9;                // zo veel langer zit hij vast in de sneeuw (maal PAN_REST_T): je moet terug kunnen sprinten
+const PAN_CAMO = 0.5, PAN_CAMO_SNEAK = 0.32;   // doorzichtigheid terwijl hij sluipt / terugsluipt
+const PAN_CAMO_STATES = ['walk', 'spot', 'notice', 'prowl', 'run', 'look', 'flee', 'bolt'];
+const snowPuffs = [];                     // opstuivende sneeuw bij de landing
+function snowPuffAt(x, base, n){
+  for (let i = 0; i < n; i++)
+    snowPuffs.push({ x: x + (Math.random() - 0.5) * 120, base, h: Math.random() * 10,
+                     vx: (Math.random() - 0.5) * 260, vh: 90 + Math.random() * 190,
+                     r: 5 + Math.random() * 9, age: 0, life: 0.5 + Math.random() * 0.4 });
+}
+function updateSnowPuffs(dt){
+  for (let i = snowPuffs.length - 1; i >= 0; i--){
+    const p = snowPuffs[i];
+    p.age += dt;
+    if (p.age >= p.life){ snowPuffs.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.h += p.vh * dt; p.vh -= 420 * dt; p.vx *= 0.96;
+  }
+}
+function drawSnowPuffs(groundY, scale, cx){
+  if (!snowPuffs.length) return;
+  ctx.save();
+  ctx.fillStyle = '#f4f7fb';
+  for (const p of snowPuffs){
+    const t = p.age / p.life;
+    ctx.globalAlpha = 0.85 * (1 - t);
+    const x = cx + (p.x - world), y = groundY - (p.base || 0) * scale - p.h * scale;
+    ctx.beginPath(); ctx.arc(x, y, p.r * scale * (1 + t * 0.8), 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
 function panScale(){
   const scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H;
   return (CHAR_H * scale * PAN_H_SHARE) / PAN.fig;
@@ -3893,9 +4094,14 @@ function makePanther(x, side){
   // side 1 = rechts van je. Hij begint van je af te kijken, zodat je het omkijken ziet
   return { x, home: x, base: 0, face: side, dir: side, state: 'walk', frame: 0, acc: 0, t: 0,
            cool: 0, flash: 0, alpha: 1, vx: 0, lift: 0, hitUsed: false, x0: 0, x1: 0,
-           hp: PAN_HP, inv: 0, engaged: false };
+           hp: PAN_HP, inv: 0, engaged: false,
+           skin: winterOn() ? 'wit' : 'zwart', white: winterOn() };   // de witte panter jaagt anders (zie updatePanther)
 }
 function panBlocked(s, nx, plats, cliff){ return knockBlocked(s, nx, plats, cliff, 0.45 * CHAR_H, 80); }
+function panInView(x){                        // staat hij (grotendeels) in beeld? In de arena staat de camera bijna stil,
+  const camX = (arena && !building) ? arenaCam(world) : world;   // dus sta je aan de rand, dan komt hij van net buiten beeld
+  return Math.abs(x - camX) < W / 2 / viewZoom() + 100;
+}
 function panStep(s, dt, spd, plats, cliff){
   const nx = s.x + s.dir * spd * dt;
   if (!panBlocked(s, nx, plats, cliff)) { s.x = nx; return true; }
@@ -3915,6 +4121,7 @@ function updatePanthers(dt, plats, cliff){
     if (lg.volume <= 0.01) lg.pause();
   }
   if (!running || (dead && !sandbox)) return;
+  updateSnowPuffs(dt);
   for (let i = panthers.length - 1; i >= 0; i--){
     const s = panthers[i];
     updatePanther(s, dt, plats, cliff);
@@ -3987,7 +4194,8 @@ function updatePanther(s, dt, plats, cliff){
       if (s.sneak && gap < 700) s.sneak = false;
       if (gap > PAN_RUN_FROM) panSet(s, 'run');
       // te dichtbij om te springen: gewoon doorsluipen, dan komt de klauw vanzelf (zie de regel bovenin)
-      else if (gap < PAN_POUNCE_DIST && gap >= PAN_POUNCE_MIN && s.cool <= 0 && !dead && ph < 40) panSet(s, 'wind');
+      else if (gap < (s.white ? PAN_DIVE_FROM : PAN_POUNCE_DIST) && gap >= PAN_POUNCE_MIN && s.cool <= 0 && !dead && ph < 40
+               && (!s.white || panInView(s.x))) panSet(s, 'wind');   // de witte panter wiebelt alleen in beeld: zijn aanloop moet je kunnen zien
     } else {
       panAnim(s, dt, 14, PAN_N.run, true);
       panStep(s, dt, PAN_RUN_SPD, plats, cliff);
@@ -3996,14 +4204,29 @@ function updatePanther(s, dt, plats, cliff){
   } else if (s.state === 'wind'){                 // inzakken en met de billen wiebelen
     s.face = toward; s.dir = toward;
     if (s.t === dt){                              // eerste frame van het wiebelen: kiezen en grommen
-      s.atk = (phase2 && Math.random() < PAN_TACKLE_CHANCE) ? 'tackle' : 'leap';
-      if (s.atk === 'tackle') panPlay('snarl', 1, 0.72); else panPlay('snarl', 0.85);
+      s.atk = (phase2 && Math.random() < PAN_TACKLE_CHANCE) ? 'tackle' : (s.white ? 'dive' : 'leap');
+      if (s.atk === 'tackle') panPlay('snarl', 1, 0.72);
+      else if (s.atk === 'dive') panPlay('snarl', 0.9, 1.25);   // hoger: de duik komt eraan
+      else panPlay('snarl', 0.85);
     }
     if (s.frame < 2) panAnim(s, dt, 12, 3, false);
     if (phase2 && s.fake === undefined) s.fake = Math.random() < PAN_FAKE;
-    const windT = (phase2 ? PAN_WIND_T2 : PAN_WIND_T) * (phase4 ? 0.75 : 1);
+    // de duik houdt zijn lange aanloop, ook later in het gevecht: die moet je kunnen lezen
+    const windT = (phase2 && s.atk !== 'dive' ? PAN_WIND_T2 : PAN_WIND_T) * (phase4 ? 0.75 : 1);
     if (s.t >= windT && s.fake){                  // nepsprong: toch niet, verder sluipen
       s.fake = undefined; s.cool = 0.7; panSet(s, 'prowl');
+    } else if (s.t >= windT && s.atk === 'dive'){   // de sneeuwduik: hoog op, en neer op waar jij nu staat
+      s.fake = undefined;
+      panSet(s, 'dive'); s.frame = 3; s.hitUsed = false;
+      s.x0 = s.x;
+      let x1 = world;
+      if (Math.abs(x1 - s.x) < PAN_DIVE_MIN) x1 = s.x + s.dir * PAN_DIVE_MIN;
+      if (Math.abs(x1 - s.x) > PAN_DIVE_MAX) x1 = s.x + s.dir * PAN_DIVE_MAX;
+      if (cliff) x1 = Math.min(x1, cliff.wall - 90);
+      x1 = Math.max(x1, endWall() + 90);
+      const pit = inGap(x1);
+      if (pit) x1 = s.dir === 1 ? pit.x - pit.w / 2 - 60 : pit.x + pit.w / 2 + 60;
+      s.x1 = x1;
     } else if (s.t >= windT && s.atk === 'tackle'){
       s.fake = undefined;
       panSet(s, 'tackle'); s.hitUsed = false;
@@ -4034,14 +4257,28 @@ function updatePanther(s, dt, plats, cliff){
     s.x = s.x0 + (s.x1 - s.x0) * u;
     s.lift = Math.sin(Math.PI * u) * PAN_LEAP_H * CHAR_H;   // in sprite-eenheden
     if (s.frame >= AIR1){ s.lift = 0; s.x = s.x1; panSet(s, 'land'); s.frame = 12; }
+  } else if (s.state === 'dive'){                 // de sneeuwduik: zelfde frames, hogere en tragere boog
+    const AIR0 = 5, AIR1 = 12;
+    s.acc += dt * PAN_DIVE_FPS;
+    while (s.acc >= 1){ s.frame++; s.acc -= 1; }
+    const u = Math.max(0, Math.min(1, (s.frame + s.acc - AIR0) / (AIR1 - AIR0)));
+    s.x = s.x0 + (s.x1 - s.x0) * u;
+    s.lift = Math.sin(Math.PI * u) * PAN_DIVE_H * CHAR_H;
+    if (s.frame >= AIR1){                         // neergekomen: tot zijn buik in de sneeuw
+      s.lift = 0; s.x = s.x1; s.inSnow = true;
+      snowPuffAt(s.x, s.base, 16); shake = Math.max(shake, 0.16);
+      panSet(s, 'land'); s.frame = 12;
+    }
   } else if (s.state === 'land'){
     s.acc += dt * 14;
     while (s.acc >= 1){ s.frame++; s.acc -= 1; }
     if (s.frame >= 19){ s.frame = 19; panSet(s, 'rest'); s.frame = 19; }
   } else if (s.state === 'rest'){                 // kwetsbaar: nu steken
-    const restT = PAN_REST_T * (phase4 ? 0.6 : 1);
+    const restT = PAN_REST_T * (phase4 ? 0.6 : 1) * (s.inSnow ? PAN_SNOW_REST : 1);
+    if (s.inSnow && Math.random() < dt * 6) snowPuffAt(s.x, s.base, 1);   // hij worstelt zich los
     if (s.t >= restT){
       s.cool = (phase2 ? PAN_COOL * 0.7 : PAN_COOL) * (phase4 ? 0.6 : 1);
+      s.inSnow = false;
       s.restSet = null; s.face = toward; s.dir = toward; panSet(s, 'prowl');
     }
   } else if (s.state === 'tackle'){
@@ -4110,10 +4347,10 @@ function panFrameImg(s){
   else if (st === 'look') set = 'turn';
   else if (st === 'claw') set = 'claw';
   else if (st === 'rest' && s.restSet === 'claw'){ set = 'claw'; f = PAN_N.claw - 1; }
-  else if (st === 'wind' || st === 'leap' || st === 'land' || st === 'rest' || st === 'hop') set = 'pounce';
+  else if (st === 'wind' || st === 'leap' || st === 'dive' || st === 'land' || st === 'rest' || st === 'hop') set = 'pounce';
   else if (st === 'dying') { set = s.dieSet || 'walk'; f = s.dieFrame || 0; }
   s._set = set;
-  const im = panImg[set][Math.min(f, PAN_N[set] - 1)];
+  const im = panBank(s)[set][Math.min(f, PAN_N[set] - 1)];
   return (im && im.complete && im.naturalWidth) ? im : null;
 }
 let bossHintT = 0;
@@ -4136,6 +4373,7 @@ function updateArena(){
 // hoog gras op de voorgrond in het veld: de panter zit er half in verstopt
 const fgGrassImg = new Image();
 fgGrassImg.src = 'design/drygrass.png';
+function fgGrassPic(){ return winterPic('gras', fgGrassImg); }
 function fgGrassList(){
   if (!level || !level.fg) return [];
   if (level._fgList) return level._fgList;
@@ -4148,19 +4386,20 @@ function fgGrassList(){
 }
 function drawFgGrass(groundY, cx, scale, pcx){
   const list = fgGrassList();
-  if (!list.length || !imgReady(fgGrassImg)) return;
+  const gimg = fgGrassPic();
+  if (!list.length || !imgReady(gimg)) return;
   const t = performance.now() / 1000;
   for (const g of list){
     const sx = cx + (g.x - world);
     if (sx < -300 || sx > W / viewZoom() + 300) continue;
-    const hh = CHAR_H * scale * 0.45 * g.s, ww = fgGrassImg.naturalWidth * hh / fgGrassImg.naturalHeight;
+    const hh = CHAR_H * scale * 0.45 * g.s, ww = gimg.naturalWidth * hh / gimg.naturalHeight;
     const near = Math.abs(sx - pcx);           // bij Amir doorzichtig, zodat je jezelf blijft zien
     ctx.save();
     ctx.globalAlpha = near < 90 ? 0.25 : near < 170 ? 0.25 + 0.75 * (near - 90) / 80 : 1;
     ctx.translate(sx, groundY + hh * 0.1);
     ctx.transform(1, 0, Math.sin(t * 1.3 + g.ph) * 0.04, 1, 0, 0);   // wiegt een beetje
     if (g.f) ctx.scale(-1, 1);
-    ctx.drawImage(fgGrassImg, -ww / 2, -hh, ww, hh);
+    ctx.drawImage(gimg, -ww / 2, -hh, ww, hh);
     ctx.restore();
   }
 }
@@ -4175,7 +4414,7 @@ function drawBossBar(){
   ctx.save();
   ctx.globalAlpha = b.state === 'dying' ? Math.max(0, b.alpha) : 1;
   ctx.font = '600 14px system-ui, sans-serif'; ctx.textAlign = 'center';
-  ctx.fillStyle = '#f2e8d5'; ctx.fillText('Zwarte panter', W / 2, y0 - 8);
+  ctx.fillStyle = '#f2e8d5'; ctx.fillText(b.white ? 'Witte panter' : 'Zwarte panter', W / 2, y0 - 8);
   const seg = (bw - 8) / PAN_HP;
   for (let i = 0; i < PAN_HP; i++){
     const sx = x0 + i * (seg + 4);
@@ -4186,7 +4425,7 @@ function drawBossBar(){
 }
 function hitPanther(s){
   if (s.inv > 0 || s.state === 'dying' || s.state === 'flee' || s.state === 'look' || s.state === 'bolt' || s.state === 'lurk') return false;
-  s.hp--; s.engaged = true;
+  s.hp--; s.engaged = true; s.inSnow = false;
   hits++; hitsEl.textContent = hits;
   if (s.hp > 0){                                  // nog niet dood: flitsen, grommen, vluchten
     s.inv = 0.5; s.flash = 0.3; s.lift = 0; s.fake = undefined;
@@ -4196,7 +4435,7 @@ function hitPanther(s){
     return true;
   }
   panPlay('roar', 1);
-  s.dieSet = ({ notice: 'turn', prowl: 'prowl', run: 'run', wind: 'pounce', leap: 'pounce', land: 'pounce',
+  s.dieSet = ({ notice: 'turn', prowl: 'prowl', run: 'run', wind: 'pounce', leap: 'pounce', dive: 'pounce', land: 'pounce',
                 rest: s.restSet === 'claw' ? 'claw' : 'pounce', claw: 'claw', tackle: 'run' })[s.state] || 'walk';
   s.dieFrame = Math.min(s.frame, PAN_N[s.dieSet] - 1);
   s.state = 'dying'; s.flash = 0.25;
@@ -4257,12 +4496,25 @@ const HY_LEAVE = 420;          // en zo ver voorbij de rand is hij weg
 const HY_BITE = { from: 60, to: 100, low: 150, high: 250 };
 
 const hyImg = {};
-function hyLoad(){
+// vachten: de gewone hyena en de witte van Winter World (enemies/hyena_wit, zelfde frames)
+const HY_SKIN_DIRS = { wit: ['enemies/hyena_wit/'] };
+const hySkins = { zwart: hyImg };
+function hyLoadInto(bank, dirs){
   for (const k in HY.n){
-    hyImg[k] = Array.from({ length: HY.n[k] }, (_, i) =>
-      loadQuiet(HY_DIRS.map(d => d + k + '/' + k + '_' + pad2(i) + '.png')));
+    bank[k] = Array.from({ length: HY.n[k] }, (_, i) =>
+      loadQuiet(dirs.map(d => d + k + '/' + k + '_' + pad2(i) + '.png')));
   }
 }
+function hyLoad(){
+  hyLoadInto(hyImg, HY_DIRS);
+  for (const s in hySkins) if (s !== 'zwart') hyLoadInto(hySkins[s], HY_SKIN_DIRS[s]);
+}
+function hyLoadSkin(s){                                    // pas laden als een level erom vraagt
+  if (hySkins[s] || !HY_SKIN_DIRS[s]) return;
+  hySkins[s] = {};
+  hyLoadInto(hySkins[s], HY_SKIN_DIRS[s]);
+}
+function hyBank(s){ return (s.skin && hySkins[s.skin]) || hyImg; }
 hyLoad();
 fetch(HY_META).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(m => {
   const c = m.canvas || {};
@@ -4333,7 +4585,7 @@ function hyScale(){
 function hyThreatGap(){ return HY_THREAT_GAP * HY.bodyW * hyScale(); }
 function makeHyena(x, side, enc){
   // side 1 = hij komt van rechts. De frames kijken naar links, dus face 1 = gespiegeld
-  return { x, side, face: -side, dir: -side, enc,
+  return { x, side, face: -side, dir: -side, enc, skin: winterOn() ? 'wit' : 'zwart',
            state: 'komen', show: 'loop', wacht: 0, frame: 0, acc: 0,
            dreig: 0, dreigAcc: 0, kop: 0, kopAcc: 0,
            t: 0, threatT: HY_THREAT_MIN + Math.random() * (HY_THREAT_MAX - HY_THREAT_MIN),
@@ -4502,9 +4754,10 @@ function updateHyena(s, dt, plats, cliff){
   if (s.state === 'telegraaf' && s.t >= HY_TELE_T) hyStorm(s);
 }
 function hyFrameImg(s){
-  if (s.state === 'dood') return hyImg.dreigen[0];              // hij valt om op dreigen_00
-  if (s.state === 'telegraaf' || s.show === 'dreigen') return hyImg.dreigen[s.dreig];
-  return hyImg.loop[s.frame];
+  const B = hyBank(s);
+  if (s.state === 'dood') return B.dreigen[0];              // hij valt om op dreigen_00
+  if (s.state === 'telegraaf' || s.show === 'dreigen') return B.dreigen[s.dreig];
+  return B.loop[s.frame];
 }
 function hitHyena(s){
   if (s.inv > 0 || s.state === 'dood' || s.state === 'gone') return false;
@@ -4986,7 +5239,13 @@ const SCENES = {
   // Renew 10: koning van Afrika. Het diepste rood, de Kilimanjaro als laatste silhouet
   renew_koning:    { seqMid: 99, midHero: 0, midHeroAt: 59, seq: 108, hero: 0, heroAt: 3, midLift: 0.19, mist: 1.3, mistColor: '160,80,90',
                      sky: ['#0e0a24', '#33193f', '#b84a38'], land: '#2c1a34',
-                     dim: ['18,10,28', 0.26], sun: [0.70, 0.13, 0.06, '#d86a3c'] }
+                     dim: ['18,10,28', 0.26], sun: [0.70, 0.13, 0.06, '#d86a3c'] },
+  // ---- Episode Winter World: hoog in de bergen, alles wit en grijs ----
+  // Winter 1: de witte berg. Bleke lucht, koude nevel, de bergen dichtbij en een bleke zon
+  winter_berg:     { seqMid: 27, midHero: 2, midHeroAt: 57, seq: 63, hero: 0, heroAt: 3, mtnSize: 1 / 1400, mtn2Size: 1 / 1100,
+                     midLift: 0.23, mtn2Lift: 0.08, mist: 1.25, mistColor: '214,222,234',
+                     sky: ['#4c5a78', '#8ea1bf', '#e3eaf3'], land: '#b5bfcc',
+                     sun: [0.72, 0.24, 0.055, '#f3f1ea'] }
 };
 const sceneMix = {};                     // samengestelde instellingen, een keer per soort
 function sceneCfg(){
@@ -5004,7 +5263,11 @@ function drawMist(y, a, col){
   ctx.fillStyle = 'rgba(' + c + ',' + a + ')';
   ctx.fillRect(0, y - 0.5, W, H * 0.12);          // eronder verdwijnt het achter de volgende laag
 }
-function bakeLayer(L){                         // laden en een keer klaarzetten: waas + zachte linkerrand
+// tone: kleurbewerking en waaskleuren. Zonder tone de gewone savanne (warm avondlicht);
+// de winter bakt dezelfde panelen nog een keer, koud en bleek (zie bakeWinterLayers).
+const TONE_SAVANNE = { top: '110,64,88', bot: '226,119,74' };
+function bakeLayer(L, tone){                   // laden en een keer klaarzetten: waas + zachte linkerrand
+  tone = tone || TONE_SAVANNE;
   const out = L.files.map(() => null);
   L.files.forEach((f, i) => {
     const img = new Image();
@@ -5013,7 +5276,7 @@ function bakeLayer(L){                         // laden en een keer klaarzetten:
       const w = img.naturalWidth, h = img.naturalHeight;
       const c = document.createElement('canvas'); c.width = w; c.height = h;
       const g = c.getContext('2d');
-      g.filter = L.grade;
+      g.filter = tone.grade || L.grade;
       if (L.flip){ g.translate(w, 0); g.scale(-1, 1); }
       g.drawImage(img, 0, 0);
       g.setTransform(1, 0, 0, 1, 0, 0);
@@ -5021,8 +5284,8 @@ function bakeLayer(L){                         // laden en een keer klaarzetten:
       // waas: alleen op het landschap zelf (source-atop), sterker naar onderen toe
       const yH = h - (L.edge[i] - L.base);         // (spiegelen verandert de hoogte niet)
       const hz = g.createLinearGradient(0, yH - L.hazeReach, 0, yH);
-      hz.addColorStop(0, 'rgba(110,64,88,' + L.hazeTop + ')');
-      hz.addColorStop(1, 'rgba(226,119,74,' + L.hazeBot + ')');
+      hz.addColorStop(0, 'rgba(' + tone.top + ',' + L.hazeTop + ')');
+      hz.addColorStop(1, 'rgba(' + tone.bot + ',' + L.hazeBot + ')');
       g.globalCompositeOperation = 'source-atop';
       g.fillStyle = hz; g.fillRect(0, 0, w, h);
       // zachte linkerrand, zodat hij over het vorige paneel heen overvloeit
@@ -5064,6 +5327,23 @@ function layerSeq(L, seed, hero, at){
   return seq;
 }
 const mtnImgs = bakeLayer(MTN), midImgs = bakeLayer(MID), mtn2Imgs = bakeLayer(MTN2);
+// de winter: dezelfde panelen, bleek en koud. Pas gebakken als een winterlevel gekozen wordt.
+const TONE_WINTER = {
+  mtn:  { grade: 'saturate(0.10) brightness(1.30) contrast(0.85)', top: '170,185,210', bot: '222,230,242' },
+  mtn2: { grade: 'saturate(0.10) brightness(1.12) contrast(0.88)', top: '150,165,192', bot: '210,220,236' },
+  mid:  { grade: 'saturate(0.08) brightness(1.20) contrast(0.82)', top: '160,172,196', bot: '214,222,236' }
+};
+let mtnImgsW = null, midImgsW = null, mtn2ImgsW = null;
+function bakeWinterLayers(){
+  if (mtnImgsW) return;
+  mtnImgsW = bakeLayer(MTN, TONE_WINTER.mtn);
+  midImgsW = bakeLayer(MID, TONE_WINTER.mid);
+  mtn2ImgsW = bakeLayer(MTN2, TONE_WINTER.mtn2);
+}
+function layerImgs(){                          // de stapel die nu hoort: winter of savanne
+  if (winterOn() && mtnImgsW) return { mtn: mtnImgsW, mid: midImgsW, mtn2: mtn2ImgsW };
+  return { mtn: mtnImgs, mid: midImgs, mtn2: mtn2Imgs };
+}
 const seqCache = {};                               // elke rij wordt een keer uitgerekend en onthouden
 function seqFor(key, L, seed, hero, at){
   const k = key + '|' + seed + '|' + hero + '|' + at;
@@ -5103,9 +5383,10 @@ function drawLayer(L, imgs, seq, horizonY, lift, par, size){
     ctx.drawImage(onScale(img, Math.round(img.width * s) + 1, dh), x, bottom - dh);
   }
 }
-function midOn(){ return sceneCfg().mid && midImgs.some(Boolean); }   // laag 2: aan in de sandbox en in elk level
+function midOn(){ return sceneCfg().mid && layerImgs().mid.some(Boolean); }   // laag 2: aan in de sandbox en in elk level
 function scene(groundY){
   const sc = sceneCfg();                            // het uitzicht van dit level
+  const LI = layerImgs();
   // de horizon zakt maar een klein stukje mee als je klimt: ver weg beweegt trager
   const horizonY = groundY - camY * 0.72;
   const g = ctx.createLinearGradient(0, 0, 0, horizonY);
@@ -5117,19 +5398,19 @@ function scene(groundY){
   zonScherm.x = zonX; zonScherm.y = zonY; zonScherm.geldig = true;   // hier hangt de gloed straks aan
   ctx.fillStyle = sc.sun[3];
   ctx.beginPath(); ctx.arc(zonX, zonY, H * sc.sun[2], 0, Math.PI * 2); ctx.fill();   // zakt half achter de bergen
-  drawLayer(MTN, mtnImgs, seqFor('mtn', MTN, sc.seq, sc.hero, sc.heroAt), horizonY, mtnLift, sc.mtnPar, sc.mtnSize);   // laag 1: verre bergen
+  drawLayer(MTN, LI.mtn, seqFor('mtn', MTN, sc.seq, sc.hero, sc.heroAt), horizonY, mtnLift, sc.mtnPar, sc.mtnSize);   // laag 1: verre bergen
   if (on2){
     if (sc.mtn2){
       const s2 = H * sc.mtn2Size;
       drawMist(horizonY - sc.mtn2Lift * H - MTN2.base * s2, MIST.far * sc.mist, sc.mistColor);
-      drawLayer(MTN2, mtn2Imgs, seqFor('mtn2', MTN2, sc.seq2, -1, -1), horizonY, sc.mtn2Lift, sc.mtn2Par, sc.mtn2Size);  // laag 1b: dichtere bergrij
+      drawLayer(MTN2, LI.mtn2, seqFor('mtn2', MTN2, sc.seq2, -1, -1), horizonY, sc.mtn2Lift, sc.mtn2Par, sc.mtn2Size);  // laag 1b: dichtere bergrij
     }
     drawMist(horizonY - sc.midLift * H, MIST.near * sc.mist, sc.mistColor);
   }
   ctx.fillStyle = sc.land;
   if (groundY > horizonY) ctx.fillRect(0, horizonY - 0.5, W, groundY - horizonY + 1);   // het land in de verte
   if (on2){
-    drawLayer(MID, midImgs, seqFor('mid', MID, sc.seqMid, sc.midHero, sc.midHeroAt), horizonY, sc.midLift, sc.midPar, sc.midSize);    // laag 2: savanneheuvels
+    drawLayer(MID, LI.mid, seqFor('mid', MID, sc.seqMid, sc.midHero, sc.midHeroAt), horizonY, sc.midLift, sc.midPar, sc.midSize);    // laag 2: savanneheuvels
     drawMist(horizonY - (groundY - edgeTop(groundY)), MIST.ground * sc.mist, sc.mistColor);
   }
   if (sc.dim){                                      // hele achtergrond een tint donkerder: het wordt avond
@@ -5139,10 +5420,11 @@ function scene(groundY){
   drawProps(horizonY, propUnit, false);             // far scenery, behind the ground
   drawPlacedFar(groundY);                           // jouw achtergronddecor staat op de savanne, niet op de horizon
   const bandH = H * 0.18;
-  ctx.fillStyle = '#2e211d'; ctx.fillRect(0, groundY, W, Math.max(bandH, H - groundY) + H);
+  const eimg = winterPic('edge', edgeImg);                 // in de winter: sneeuw op grijze rots
+  ctx.fillStyle = winterOn() ? '#2b2f38' : '#2e211d'; ctx.fillRect(0, groundY, W, Math.max(bandH, H - groundY) + H);
   if (edgeReady()){
     const s = edgeScale(bandH);
-    const tw = edgeImg.naturalWidth * s, th = edgeImg.naturalHeight * s;
+    const tw = eimg.naturalWidth * s, th = eimg.naturalHeight * s;
     const top = groundY - EDGE.walk * s;
     const zoom = viewZoom();
     ctx.save();
@@ -5161,7 +5443,7 @@ function scene(groundY){
     ctx.clip('evenodd');
     let x = W / 2 - (((world % tw) + tw) % tw);          // vast aan de wereld
     while (x > left) x -= tw;
-    for (; x < right; x += tw) ctx.drawImage(edgeImg, x, top, tw + 1, th);
+    for (; x < right; x += tw) ctx.drawImage(eimg, x, top, tw + 1, th);
     drawWaterStrips(groundY);                            // poelen liggen over de grond heen
     ctx.restore();
   } else {
@@ -5367,7 +5649,7 @@ function loop(now){
   // tussen de fakkels door: level gehaald
   if (running && !building && !sandbox && !won && !dead && level && level.ends &&
       level.ends.some(f => Math.abs(world - f.x) < 50 && ph >= terrainH(f.x) - 5)){
-    if (bossBlocking()){ if (!bossHintT || now - bossHintT > 2500){ bossHintT = now; flashHint('Versla eerst de zwarte panter'); } }
+    if (bossBlocking()){ if (!bossHintT || now - bossHintT > 2500){ bossHintT = now; flashHint(winterOn() ? 'Versla eerst de witte panter' : 'Versla eerst de zwarte panter'); } }
     else winLevel();
   }
   if (!building) blockByPlatforms(plats, halfWNow);
@@ -5387,6 +5669,7 @@ function loop(now){
   updateHyenas(dt, plats, cliff);
   if (!building) updateVenom(dt, scaleNow); else { venom.length = 0; splat.length = 0; }
   if (!building) updateWind(dt); else { wind.length = 0; gust = null; }
+  updateSnowfall(dt);
   updateThickets(dt);
   updateNpcs(dt);                                // de dorpelinge hurkt en staat weer op
   updateHppotions(dt, scaleNow);
@@ -5486,20 +5769,21 @@ function loop(now){
     const shY = groundY - Math.max(0, supportHeight(plats, halfWNow)) * scale;
     ctx.beginPath(); ctx.ellipse(pcx, shY, CHAR_H * scale * 0.24, CHAR_H * scale * 0.03, 0, 0, Math.PI * 2);
     ctx.fill(); ctx.restore();
-    if (cliffImg.complete && cliffImg.naturalWidth){
+    const cliffImgNow = cliffPic();
+    if (cliffImgNow.complete && cliffImgNow.naturalWidth){
       const c = cliffAt();
       const cxp = cx + (c.leftWorld - world);
       const cyp = groundY - c.hPx * (1 - CLIFF.sink);
       // hut en gras steken links buiten het klifplaatje uit, dus ruimer kijken
       const overhang = CHAR_H * scale * HUT.h * 1.6;
       if (cxp < W + overhang && cxp + c.wPx > -overhang){
-        ctx.drawImage(cliffImg, cxp, cyp, c.wPx, c.hPx);
+        ctx.drawImage(cliffImgNow, cxp, cyp, c.wPx, c.hPx);
         if (cxp + c.wPx < W){                      // rechts doorstrekken, geen kier
-          const sw = Math.round(cliffImg.naturalWidth * 0.22);
-          ctx.drawImage(cliffImg, cliffImg.naturalWidth - sw, 0, sw, cliffImg.naturalHeight,
+          const sw = Math.round(cliffImgNow.naturalWidth * 0.22);
+          ctx.drawImage(cliffImgNow, cliffImgNow.naturalWidth - sw, 0, sw, cliffImgNow.naturalHeight,
                         cxp + c.wPx - 1, cyp, W - (cxp + c.wPx) + 2, c.hPx);
         }
-        if (hutImg.complete && hutImg.naturalWidth){
+        if (hutImg.complete && hutImg.naturalWidth && !winterOn()){   // hoog in de sneeuw staat geen hut
           const hh = CHAR_H * scale * HUT.h;
           const hw = hutImg.naturalWidth / hutImg.naturalHeight * hh;
           const hx = cxp + c.wPx * HUT.at - hw / 2;
@@ -5525,7 +5809,7 @@ function loop(now){
     }
 
     // jouw eigen kliffen: gespiegeld, de muur wijst naar rechts (naar je start)
-    if (level && level.cliffs && level.cliffs.length && cliffImg.complete && cliffImg.naturalWidth){
+    if (level && level.cliffs && level.cliffs.length && cliffImgNow.complete && cliffImgNow.naturalWidth){
       const c = cliffAt();
       const cyp = groundY - c.hPx * (1 - CLIFF.sink);
       for (const k of level.cliffs){
@@ -5535,10 +5819,10 @@ function loop(now){
         if (left > W / viewZoom() + W || right < -W) continue;
         ctx.save();
         ctx.translate(right, cyp); ctx.scale(-1, 1);
-        ctx.drawImage(cliffImg, 0, 0, c.wPx, c.hPx);
+        ctx.drawImage(cliffImgNow, 0, 0, c.wPx, c.hPx);
         if (left > -W){                                  // links doorstrekken, geen kier
-          const sw = Math.round(cliffImg.naturalWidth * 0.22);
-          ctx.drawImage(cliffImg, cliffImg.naturalWidth - sw, 0, sw, cliffImg.naturalHeight,
+          const sw = Math.round(cliffImgNow.naturalWidth * 0.22);
+          ctx.drawImage(cliffImgNow, cliffImgNow.naturalWidth - sw, 0, sw, cliffImgNow.naturalHeight,
                         c.wPx - 1, 0, left + W + 2, c.hPx);
         }
         ctx.restore();
@@ -5730,13 +6014,14 @@ function loop(now){
       }
     }
 
-    if (platImg.complete && platImg.naturalWidth){
+    const platImgNow = platPic();
+    if (platImgNow.complete && platImgNow.naturalWidth){
       for (const p of plats){
         if (p.terrace || p.thin) continue;           // die tekent drawClimb
         const px = cx + (p.x - world) - p.wPx / 2;
         if (px > W / viewZoom() + W || px + p.wPx < -W) continue;
         const pb = (p.base || 0) * scale;
-        ctx.drawImage(platImg, px, groundY - p.hPx + PLAT.sink * p.hPx - pb, p.wPx, p.hPx);
+        ctx.drawImage(platImgNow, px, groundY - p.hPx + PLAT.sink * p.hPx - pb, p.wPx, p.hPx);
         if (showBoxes || building){
           ctx.save();
           ctx.globalAlpha = 0.5; ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2;
@@ -6079,6 +6364,7 @@ function loop(now){
     // ---- de panters ----------------------------------------------------
     {
       const pS = panScale();
+      drawSnowPuffs(groundY, scale, cx);            // opstuivende sneeuw (witte panter)
       for (const s of panthers){
         if (s.state === 'lurk') continue;           // uit beeld aan het loeren
         const img = panFrameImg(s);
@@ -6091,19 +6377,30 @@ function loop(now){
         const liftPx = s.lift * scale;
         let wig = 0;
         const tk = s.state === 'wind' && s.atk === 'tackle';
+        const dv = s.state === 'wind' && s.atk === 'dive';
         if (s.state === 'wind' && s.frame >= 2) wig = Math.sin(s.t * (tk ? 55 : 38)) * (tk ? 5 : 3.5) * scale;   // billen wiebelen
         const px = bodyX - PAN.w * pS / 2 - (claww ? CLAW_OFF * pS : 0) + wig;
         const py = groundY - PAN.ground * pS - pBase - liftPx;
+        // de witte panter verdwijnt half in de sneeuw zolang hij sluipt; zijn schaduw blijft je houvast
+        const camo = (s.white && PAN_CAMO_STATES.indexOf(s.state) !== -1) ? (s.sneak ? PAN_CAMO_SNEAK : PAN_CAMO) : 1;
         ctx.save();                                   // schaduw blijft op de grond
-        ctx.globalAlpha = Math.max(0, s.alpha) * 0.22 * Math.max(0.35, 1 - s.lift / CHAR_H);
-        ctx.fillStyle = '#1d140f';
+        ctx.globalAlpha = Math.max(0, s.alpha) * (s.white ? 0.30 : 0.22) * Math.max(0.35, 1 - s.lift / CHAR_H);
+        ctx.fillStyle = s.white ? '#2a3140' : '#1d140f';
         ctx.beginPath(); ctx.ellipse(bodyX, groundY - pBase, CHAR_H * scale * 0.42, CHAR_H * scale * 0.035, 0, 0, Math.PI * 2);
         ctx.fill(); ctx.restore();
+        if (s.inSnow && (s.state === 'land' || s.state === 'rest')){   // sneeuw die om hem heen opgestoven ligt
+          ctx.save();
+          ctx.globalAlpha = 0.9; ctx.fillStyle = '#f4f7fb';
+          ctx.beginPath(); ctx.ellipse(bodyX, groundY - pBase + 2 * scale, CHAR_H * scale * 0.55, CHAR_H * scale * 0.09, 0, 0, Math.PI * 2);
+          ctx.fill(); ctx.restore();
+        }
         ctx.save();
         const pBlink = s.inv > 0 && s.state !== 'dying' && Math.floor(s.inv * 14) % 2 === 0;
-        ctx.globalAlpha = Math.max(0, s.alpha) * (pBlink ? 0.4 : 1);
+        ctx.globalAlpha = Math.max(0, s.alpha) * (pBlink ? 0.4 : 1) * camo;
         ctx.translate(px, py);
         if (tk){ ctx.translate(0, PAN.ground * pS * 0.12); ctx.scale(1, 0.88); }   // dieper ingezakt: tackle komt eraan
+        if (dv){ ctx.translate(0, -PAN.ground * pS * 0.06); ctx.scale(1, 1.06); }  // opgericht, de rug hoog: de duik komt eraan
+        if (s.inSnow && (s.state === 'land' || s.state === 'rest')) ctx.translate(0, PAN.ground * pS * 0.10);   // tot zijn buik in de sneeuw
         if (s.face === 1){ ctx.translate(pw, 0); ctx.scale(-1, 1); }   // de frames kijken naar links
         ctx.drawImage(s.flash > 0 ? whiteCopy(img, s.flash * 4) : img, 0, 0, pw, phh);
         ctx.restore();
@@ -6128,13 +6425,17 @@ function loop(now){
             ctx.restore();
           }
         }
-        if ((s.state === 'leap' || s.state === 'hop') && s.frame >= 5){
+        if ((s.state === 'leap' || s.state === 'hop' || s.state === 'dive') && s.frame >= 5){
           bhw = 0.20 * CHAR_H * scale;               // in de lucht alleen de kern van het lijf
           bt = groundY - pBase - liftPx - 0.70 * CHAR_H * scale;
           bb = groundY - pBase - liftPx - 0.30 * CHAR_H * scale;
         }
+        if (s.state === 'dive' && s.frame >= 9){     // hij komt neer: ook de grond onder hem is raak, bukken helpt niet
+          bhw = 0.30 * CHAR_H * scale;
+          bb = groundY - pBase;
+        }
         const nbox = { l: bodyX - bhw, r: bodyX + bhw, t: bt, b: bb };
-        const live = ((s.state === 'leap' && s.frame >= 4) || s.state === 'tackle') && !s.hitUsed;
+        const live = ((s.state === 'leap' && s.frame >= 4) || s.state === 'tackle' || (s.state === 'dive' && s.frame >= 9)) && !s.hitUsed;
         if (live && invuln <= 0 && !dead && hitBy(nbox, pbox)){ s.hitUsed = true; hurtPlayer(s.x < playerX()); }
         if (showBoxes && s.state !== 'dying'){
           ctx.save();
@@ -6194,7 +6495,8 @@ function loop(now){
         if (s.state === 'storm'){
           // twee lagen op exact dezelfde canvaspositie: eerst het lijf, dan de kop,
           // verticaal verschoven met de offset die bij dit lijfframe hoort
-          const lijf = hyImg.ren_lijf[s.frame], kop = hyImg.ren_kop[s.kop];
+          const B = hyBank(s);
+          const lijf = B.ren_lijf[s.frame], kop = B.ren_kop[s.kop];
           const off = (HY.kopOff[s.frame] || 0) * hS;
           if (imgReady(lijf))
             ctx.drawImage(s.flash > 0 ? whiteCopy(lijf, s.flash * 4) : lijf, -hw / 2, -HY.ground * hS, hw, hh);
@@ -6331,6 +6633,7 @@ function loop(now){
     }
     ctx.restore();                                  // zoom weer los
     drawLichtlaag();                                // de hele wereld in dezelfde belichting
+    drawSnowfall();                                 // de vlokken vallen over alles heen
     drawBossBar();
   } else {
     drawLichtlaag();
@@ -6487,7 +6790,8 @@ function toMenu(){
   restart();                                      // vijanden en gif weg, Amir terug op start
   barEl.classList.add('hide');
   startEl.classList.remove('off');
-  showMenu(levelList === ROSA_LEVELS ? 'menuRosa' : levelList === RENEW_LEVELS ? 'menuRenew' : 'menuLevels');
+  showMenu(levelList === ROSA_LEVELS ? 'menuRosa' : levelList === RENEW_LEVELS ? 'menuRenew'
+         : levelList === WINTER_LEVELS ? 'menuWinter' : 'menuLevels');
 }
 document.getElementById('btnplay').onclick = () => beginPlay('normal');
 document.getElementById('btnnightmare').onclick = () => beginPlay('nightmare');
@@ -6692,6 +6996,7 @@ function readLevel(txt){
            ledges: (o.ledges || []).map(q => ({ x: Number(q.x), h: Number(q.h) || 0, s: Number(q.s) || 1 })),
            fg: o.fg ? { from: Number(o.fg.from), to: Number(o.fg.to) } : null,
            arena: o.arena ? { c: Number(o.arena.c) } : null,
+           winter: !!o.winter,                          // sneeuw, grijze rots, witte dieren (Winter World)
            tips: (o.tips || []).map(t => ({ x: Number(t.x), t: String(t.t) })),
            tutorial: o.tutorial ? o.tutorial.map(s => Object.assign({}, s)) : null });
 }
@@ -6718,6 +7023,7 @@ function setLevel(i, list){
   if (list) levelList = list;
   levelIdx = Math.max(0, Math.min(levelList.length - 1, i));
   level = readLevel(JSON.stringify(levelList[levelIdx]));
+  if (level.winter) loadWinter();                  // de winterplaatjes pas ophalen als ze nodig zijn
   document.getElementById('lvname').textContent = level.name;
   markCards();
 }
@@ -6733,7 +7039,8 @@ const SUBS = {
   'Renew 3: Het doornenpad': 'Hakken, hakken, hakken', 'Renew 4: De heuvelrug': 'Klimmen en de eerste hyena',
   'Renew 5: Hyenavlakte': 'Roedels van twee kanten', 'Renew 6: Het verdronken dorp': 'Water en brede ravijnen',
   'Renew 7: De bergpas': 'De grote klim', 'Renew 8: Nacht van de doornen': 'Alles tegelijk',
-  'Renew 9: De panter keert terug': 'Lange tocht, dan de baas', 'Renew 10: Koning van Afrika': 'Het zwaarste van alles'
+  'Renew 9: De panter keert terug': 'Lange tocht, dan de baas', 'Renew 10: Koning van Afrika': 'Het zwaarste van alles',
+  'Winter 1: De witte berg': 'Sneeuw, witte hyena\'s en de witte panter'
 };
 function buildCards(el, list){
   el.innerHTML = '';
@@ -6751,23 +7058,28 @@ function buildCards(el, list){
 }
 function markCards(){
   const el = levelList === ROSA_LEVELS ? document.getElementById('cardsRosa')
-           : levelList === RENEW_LEVELS ? document.getElementById('cardsRenew') : document.getElementById('cardsEp1');
+           : levelList === RENEW_LEVELS ? document.getElementById('cardsRenew')
+           : levelList === WINTER_LEVELS ? document.getElementById('cardsWinter') : document.getElementById('cardsEp1');
   for (const c of document.querySelectorAll('.card')) c.classList.remove('on');
   const cur = el.children[levelIdx];
   if (cur) cur.classList.add('on');
 }
 function showMenu(which){
-  for (const id of ['menuMain','menuChoose','menuLevels','menuRenew','menuRosa'])
+  for (const id of ['menuMain','menuChoose','menuLevels','menuRenew','menuWinter','menuRosa'])
     document.getElementById(id).classList.toggle('on', id === which);
 }
 buildCards(document.getElementById('cardsEp1'), LEVELS);
 buildCards(document.getElementById('cardsRenew'), RENEW_LEVELS);
+buildCards(document.getElementById('cardsWinter'), WINTER_LEVELS);
 buildCards(document.getElementById('cardsRosa'), ROSA_LEVELS);
 document.getElementById('btnLevels').onclick = () => showMenu('menuChoose');
 document.getElementById('btnEp1').onclick = () => { showMenu('menuLevels'); setLevel(levelList === LEVELS ? levelIdx : 0, LEVELS); };
 document.getElementById('btnRenew').onclick = () => { showMenu('menuRenew'); setLevel(levelList === RENEW_LEVELS ? levelIdx : 0, RENEW_LEVELS); };
 document.getElementById('btnplayRenew').onclick = () => beginPlay('normal');
 document.getElementById('btnnightmareRenew').onclick = () => beginPlay('nightmare');
+document.getElementById('btnWinter').onclick = () => { showMenu('menuWinter'); setLevel(levelList === WINTER_LEVELS ? levelIdx : 0, WINTER_LEVELS); };
+document.getElementById('btnplayWinter').onclick = () => beginPlay('normal');
+document.getElementById('btnnightmareWinter').onclick = () => beginPlay('nightmare');
 document.getElementById('btnRosa').onclick = () => { showMenu('menuRosa'); setLevel(0, ROSA_LEVELS); };
 document.getElementById('btnplayRosa').onclick = () => beginPlay('normal');
 for (const b of document.querySelectorAll('.menuback')) b.onclick = () => showMenu('menuChoose');

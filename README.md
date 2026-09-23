@@ -6,9 +6,11 @@ Alle sprites, achtergronden en geluiden staan los op schijf. Het spel verwacht d
 
 ## Episodes
 
-In het menu onder **Levels** staan drie reeksen: Episode 1 (de weg naar het koningschap), Episode Renew en de oefenlevels voor Rosa.
+In het menu onder **Levels** staan vier reeksen: Episode 1 (de weg naar het koningschap), Episode Renew, Episode Winter World en de oefenlevels voor Rosa.
 
 Episode Renew is tien levels lang en loopt op van rustig naar zwaar: van het dorp bij de start en het eerste doornbos, via de poelen, het doornenpad, de heuvelrug, de hyenavlakte, het verdronken dorp en de bergpas, naar de nacht waarin alles tegelijk komt, en tot slot twee keer de zwarte panter als eindbaas. Elk level heeft zijn eigen uitzicht en gebruikt alles wat het spel heeft: drinkkalebassen, doornbossen, water, ravijnen, terrassen en richels, dorpen, botten, hyena's, slangen en schorpioenen. De leveldefinities staan in de HTML als `RENEW_1` tot en met `RENEW_10`.
+
+Episode Winter World speelt hoog in de bergen. Een level met `winter: true` krijgt sneeuw op alles wat je beklimt (de `_sneeuw`-versies van de rotsen en klimstukken), een besneeuwde grond met grijze rots eronder, bevroren gras, sneeuwval, een bleek uitzicht (dezelfde bergpanelen, koud gebakken) en witte dieren: de witte hyena's uit `enemies/hyena_wit` en de witte panter uit `enemies/panter_wit`. Die winterplaatjes worden pas geladen als je zo'n level kiest. De witte panter jaagt anders dan de zwarte: hij is half onzichtbaar zolang hij sluipt (let op zijn schaduw), en zijn sprong is een hoge sneeuwduik die neerkomt op de plek waar je stond toen hij afzette. Bukken helpt niet, opzij stappen wel, en daarna zit hij even tot zijn buik in de sneeuw: dan steek je. Vanaf zijn tweede fase wisselt hij de duik af met de lage tackle. De leveldefinitie staat in de HTML als `WINTER_1`.
 
 In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen naar het volgende level van dezelfde reeks.
 
@@ -82,6 +84,10 @@ enemies/
     blackpanther/          walk/, turn/, prowl/, pounce/, run/ (frames _00.. en sprite sheets)
     lowstrike/             claw_00..13.png (klauwhaal)
     pantherroar.mp3, panter snarl.mp3, panter_snarl_lang.mp3   pantergeluiden
+  panter_wit/              de witte panter (Winter World): dezelfde frames, wit gemaakt met tools/winter_art.py
+    panter_wit/            walk/, turn/, prowl/, pounce/, run/
+    lowstrike/             claw_00..13.png
+  hyena_wit/               de witte hyena (Winter World): loop/, dreigen/, ren_lijf/, ren_kop/, uit tools/winter_art.py
   hyena/
     loop/                  loop_00..19.png (aankomen en achteruit stappen)
     dreigen/               dreigen_00..21.png (op afstand blijven grommen)
@@ -101,7 +107,8 @@ design/
   botten/                  botten en schedels om op de grond te leggen
   klimmen/                 klif_bovenrand, klif_richel, klif_binnenhoek
   *_sneeuw.png             winterversies van flatrock, boulder, cliff en de drie klimstukken; gemaakt
-                           met tools/sneeuw.py (draai dat opnieuw als een origineel verandert)
+                           met tools/sneeuw.py (draai dat opnieuw als een origineel verandert).
+                           grondrand_sneeuw en drygrass_sneeuw komen uit tools/winter_art.py
   vegetatie/               boom_sheet, drygrass_sheet, struik_sheet (bewegende vegetatie) en de losse frames
   water/                   pool_links/midden/rechts, rimpel_01..08, spetter_01..08
 
