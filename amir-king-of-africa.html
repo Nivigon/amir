@@ -1534,6 +1534,8 @@ const jumpImg = JUMP_FILES.map(n => {
 });
 
 const propImg = {}, propFar = {};
+// het paarsblauw van de verre bergen: daar kleurt decor in de diepte naartoe
+const FAR_TINT = '58,37,64';
 // distant scenery is darkened toward the haze, not made see-through
 function makeFarCopy(kind){
   const img = propImg[kind];
@@ -1543,7 +1545,7 @@ function makeFarCopy(kind){
   const g = c.getContext('2d');
   g.drawImage(img, 0, 0);
   g.globalCompositeOperation = 'source-atop';
-  g.fillStyle = 'rgba(58,37,64,0.66)';
+  g.fillStyle = 'rgba(' + FAR_TINT + ',0.66)';
   g.fillRect(0, 0, c.width, c.height);
   propFar[kind] = c;
 }
@@ -1553,6 +1555,118 @@ for (const k in PROPS){
   im.onload = () => makeFarCopy(k);
   im.onerror = () => console.warn('ontbreekt: ' + PROPS[k].src);
   im.src = PROPS[k].src;                       // loaded from disk, not embedded
+}
+
+// ---- dorpsdecor --------------------------------------------------------
+// De acht platen uit design/village, met de waarden uit design/village/metadata.json
+// ernaast overgenomen. h = hoogte in Amirs (heightInPlayerHeights): de hoogte volgt
+// dus de speler en niet het canvas. mirror = false betekent dat het plaatje harde
+// slagschaduwen van links heeft; gespiegeld valt het licht de verkeerde kant op.
+// layer: 'mid' staat achter Amir, 'fg' wordt na Amir en de vijanden getekend.
+const VILLAGE_SINK = 0.03;      // zo diep zakt de voet in de grond: de zandrand valt weg
+const VILLAGE_FAR = 0.40;       // op depth 1 nog 60% groot, net als het verre decor
+const VILLAGE_TINT = 0.45;      // en op depth 1 zo ver in de nevel van de verre bergen
+const VILLAGE = {
+  hut_round_arch:         { src: 'design/village/hut_round_arch.png',                 h: 2.05, mirror: true,  layer: 'mid' },
+  hut_round_door_left:    { src: 'design/village/hut_round_door_left.png',            h: 2.05, mirror: true,  layer: 'mid' },
+  hut_round_back:         { src: 'design/village/hut_round_back.png',                 h: 2.05, mirror: true,  layer: 'mid' },
+  hut_rect_porch:         { src: 'design/village/hut_rect_porch.png',                 h: 1.95, mirror: false, layer: 'mid' },
+  hut_rect_back:          { src: 'design/village/hut_rect_back.png',                  h: 1.90, mirror: false, layer: 'mid' },
+  cooking_shelter:        { src: 'design/village/cooking_shelter.png',                h: 1.55, mirror: true,  layer: 'mid' },
+  well:                   { src: 'design/village/well.png',                           h: 1.30, mirror: true,  layer: 'mid' },
+  // de voorgrondhut: loopt Amir erachterlangs, dan zakt hij weg naar 0.35 (zie VILLAGE_FADE)
+  hut_round_back_closeup: { src: 'design/village/foreground/hut_round_back_closeup.png', h: 4.20, mirror: true, layer: 'fg' }
+};
+const VILLAGE_FADE = { alpha: 0.35, ms: 180 };   // doorkijk als Amir achter de voorgrondhut loopt
+const villageImg = {}, villageTint = {};
+for (const id in VILLAGE){
+  const im = new Image();
+  villageImg[id] = im;
+  im.onerror = () => console.warn('ontbreekt: ' + VILLAGE[id].src);
+  im.src = VILLAGE[id].src;
+}
+// Een silhouet in de nevelkleur, precies over de ondoorzichtige pixels heen: daarmee
+// kleuren we een object in de diepte, zonder dat de rechthoek eromheen mee verkleurt.
+// Pas aanmaken als er ook echt iets met diepte staat, het scheelt geheugen.
+function villageTintCopy(id){
+  if (villageTint[id]) return villageTint[id];
+  const img = villageImg[id];
+  if (!img || !img.complete || !img.naturalWidth) return null;
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const g = c.getContext('2d');
+  g.drawImage(img, 0, 0);
+  g.globalCompositeOperation = 'source-atop';
+  g.fillStyle = 'rgb(' + FAR_TINT + ')';
+  g.fillRect(0, 0, c.width, c.height);
+  villageTint[id] = c;
+  return c;
+}
+const villageWarned = {};
+// hoe breed een dorpsobject op het scherm staat, bij deze schaal en diepte
+function villageSize(id, depth, scale){
+  const def = VILLAGE[id], img = villageImg[id];
+  if (!def || !img || !img.complete || !img.naturalWidth) return null;
+  const h = CHAR_H * scale * def.h * (1 - VILLAGE_FAR * depth);
+  return { w: img.naturalWidth * (h / img.naturalHeight), h };
+}
+// Eén functie zet elk dorpsobject neer. Ankerpunt is midden onder, de hoogte komt uit
+// het register, de breedte uit de beeldverhouding van de PNG. opt: flip, depth (0..1)
+// en alpha.
+function drawVillageProp(id, x, groundY, scale, cx, opt){
+  const def = VILLAGE[id];
+  if (!def) return;
+  const o = opt || {};
+  const depth = Math.max(0, Math.min(1, Number(o.depth) || 0));
+  const size = villageSize(id, depth, scale);
+  if (!size) return;
+  const px = cx + (x - world) - size.w / 2;
+  if (px > W / viewZoom() + W || px + size.w < -W) return;   // buiten beeld: niets te doen
+  const py = groundY - size.h + VILLAGE_SINK * size.h - terrainH(x) * scale;
+  let flip = !!o.flip;
+  if (flip && !def.mirror){
+    if (!villageWarned[id]){ villageWarned[id] = 1; console.warn('niet spiegelbaar, flip genegeerd: ' + id); }
+    flip = false;                                            // licht en slagschaduw zouden omklappen
+  }
+  const alpha = (o.alpha === undefined || o.alpha === null) ? 1 : o.alpha;
+  if (alpha <= 0.002) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(px, py);
+  if (flip){ ctx.translate(size.w, 0); ctx.scale(-1, 1); }
+  ctx.drawImage(villageImg[id], 0, 0, size.w, size.h);
+  const tint = depth * VILLAGE_TINT;
+  if (tint > 0.002){
+    const tc = villageTintCopy(id);
+    if (tc){ ctx.globalAlpha = alpha * tint; ctx.drawImage(tc, 0, 0, size.w, size.h); }
+  }
+  ctx.restore();
+}
+// het dorpsdecor van dit level, per laag en op diepte gesorteerd: het verste eerst,
+// zodat wat dichterbij staat eroverheen komt
+function villageList(layer){
+  if (!level || !level.village || !level.village.length) return [];
+  return level.village.filter(o => VILLAGE[o.id] && VILLAGE[o.id].layer === layer)
+                      .sort((a, b) => (b.depth || 0) - (a.depth || 0));
+}
+function drawVillage(layer, groundY, scale, cx){
+  for (const o of villageList(layer)) drawVillageProp(o.id, o.x, groundY, scale, cx, o);
+}
+// De voorgrondlaag, na Amir en de vijanden. Staat Amir binnen de breedte van een
+// object, dan zakt dat object in VILLAGE_FADE.ms soepel weg naar VILLAGE_FADE.alpha,
+// en daarna weer terug. Alleen de tekening verandert, de botsingen niet.
+function drawVillageFg(groundY, scale, cx, playerX, dt){
+  for (const o of villageList('fg')){
+    const size = villageSize(o.id, Math.max(0, Math.min(1, Number(o.depth) || 0)), scale);
+    if (!size) continue;
+    const achter = Math.abs(playerX - o.x) < size.w / 2;      // loopt Amir erachterlangs?
+    if (typeof o.fade !== 'number') o.fade = 0;               // 0 = vol in beeld, 1 = doorkijk
+    const stap = dt / (VILLAGE_FADE.ms / 1000);
+    o.fade = achter ? Math.min(1, o.fade + stap) : Math.max(0, o.fade - stap);
+    const e = o.fade * o.fade * (3 - 2 * o.fade);             // smoothstep: geen knik aan begin en eind
+    drawVillageProp(o.id, o.x, groundY, scale, cx,
+                    { flip: o.flip, depth: o.depth, alpha: 1 - (1 - VILLAGE_FADE.alpha) * e });
+  }
 }
 const sets = {
   ns: { run: RUN_NS.map(loadAny), idle: loadAny(IDLE_NS) },
