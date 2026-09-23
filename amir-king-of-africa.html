@@ -52,9 +52,10 @@
   body.touch #start button{padding:8px 16px;font-size:14px}
   body.touch #start .bigbtn{min-width:200px;padding:12px 20px!important;font-size:18px!important}
   body.touch .cards{max-height:40vh}
-  #start #tmode button,#start #tcfg button{padding:6px 12px;font-size:13px}
-  #start #tmode button.on{border-color:var(--sun);color:var(--sun)}
-  #tmode .seg{display:flex;gap:6px}
+  #start #tmode button,#start #bmode button,#start #tcfg button{padding:6px 12px;font-size:13px}
+  #start #tmode button.on,#start #bmode button.on{border-color:var(--sun);color:var(--sun)}
+  #tmode .seg,#bmode .seg{display:flex;gap:6px}
+  #bmode .read{font-size:12px;opacity:.7}
   #tcfg{gap:16px}
   #lives{position:absolute;right:22px;top:22px;display:flex;gap:9px;z-index:5}
   #lives span{width:20px;height:20px;border-radius:50%;background:#e2774a;
@@ -235,6 +236,15 @@
           <button type="button" data-m="auto" class="on">Automatisch</button>
           <button type="button" data-m="on">Altijd aan</button>
         </span>
+      </div>
+      <div class="row" id="bmode">
+        <label>Beeld</label>
+        <span class="seg">
+          <button type="button" data-b="auto" class="on">Automatisch</button>
+          <button type="button" data-b="groot">Scherp</button>
+          <button type="button" data-b="klein">Licht</button>
+        </span>
+        <span class="read" id="bmodev"></span>
       </div>
       <div class="row" id="tcfg">
         <span class="field"><label for="tsize">Knopgrootte</label><input id="tsize" type="range" min="70" max="160" step="5" value="100"><span class="read" id="tsizev">100</span></span>
@@ -488,13 +498,37 @@ const LICHT = {
 // schermpositie weg en rekent de gloed daarmee.
 const zonScherm = { x: 0, y: 0, geldig: false };
 
+// ---- beeld: de grote of de kleine spriteset --------------------------------
+// Van Amir en de hyena staat er een halve versie in klein/ (zie tools/gen-klein.py),
+// met dezelfde mappen en namen. De grote frames zijn op een telefoon vele malen
+// groter dan ze getekend worden; Safari houdt die niet allemaal uitgepakt in het
+// geheugen en decodeert ze midden in het spel opnieuw, en dat zijn de hikjes.
+// De tekencode rekt elk plaatje naar vaste maten, dus beide sets werken met
+// dezelfde code. De keuze valt hier, voor het eerste plaatje geladen wordt;
+// wisselen in het startmenu herlaadt daarom de pagina.
+const BKEY = 'amir.beeld';
+function beeldKeuze(){                 // 'auto' | 'groot' | 'klein', zoals opgeslagen
+  try { const v = localStorage.getItem(BKEY); if (v === 'groot' || v === 'klein') return v; } catch (e) {}
+  return 'auto';
+}
+function beeldAuto(){                  // telefoon of tablet: grove aanwijzer, of aanraakscherm plus klein scherm
+  const grof = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
+  const aanraak = (navigator.maxTouchPoints || 0) > 0;
+  const kleinScherm = Math.min(screen.width || 0, screen.height || 0) < 900;
+  return (grof || (aanraak && kleinScherm)) ? 'klein' : 'groot';
+}
+const BEELD = beeldKeuze() === 'auto' ? beeldAuto() : beeldKeuze();   // wat er nu geladen wordt
+const KLEIN = BEELD === 'klein' ? 'klein/' : '';                       // voorvoegsel voor de families met een kleine set
+const uniq = a => a.filter((p, i) => a.indexOf(p) === i);            // zelfde pad niet twee keer proberen
+
 // Amir: de sprites staan los op schijf (scheelt een hoop in de grootte van dit bestand)
 // nieuwe indeling: karakters/amir/{idle, aanval/{lowsweep,speerstrike}, beweging/{bukken,jump,run}}
 // de oude paden blijven als reserve staan, dus beide mappenstructuren werken
-const AMIR = 'karakters/amir/';
+const AMIR_GROOT = 'karakters/amir/';
+const AMIR = KLEIN + AMIR_GROOT;       // de gekozen set; ontbreekt een klein frame, dan valt hij terug op groot
 const AMIR_OLD = 'amir runc/amir_sprites/design/amir/';
 const nums = n => Array.from({ length: n }, (_, i) => i + 1);
-const pick = (nw, old) => [AMIR + nw, AMIR_OLD + old];                  // eerst nieuw, dan oud
+const pick = (nw, old) => uniq([AMIR + nw, AMIR_GROOT + nw, AMIR_OLD + old]);   // eerst gekozen set, dan groot, dan oud
 const RUN_NS = nums(8).map(i => pick('beweging/run/run/run_ns_' + i + '.png', 'run_ns_' + i + '.png'));
 const RUN_SP = nums(8).map(i => pick('beweging/run/speerrun/run_sp_' + i + '.png', 'run_sp_' + i + '.png'));
 const IDLE_NS = pick('idle/idle_ns.png', 'idle_ns.png');
@@ -502,7 +536,7 @@ const IDLE_SP = pick('idle/idle_sp.png', 'idle_sp.png');
 // idle-animatie met speer: 20 frames in karakters/amir/idle/idle_sp/, valt terug op het stilstaande plaatje
 const IDLE_SP_FPS = 10;
 const IDLE_SP_FRAMES = Array.from({ length: 20 }, (_, i) =>
-  [AMIR + 'idle/idle_sp/idle_sp_' + (i < 10 ? '0' : '') + i + '.png', AMIR + 'idle/idle_sp.png']);
+  uniq([AMIR + 'idle/idle_sp/idle_sp_' + (i < 10 ? '0' : '') + i + '.png', AMIR_GROOT + 'idle/idle_sp/idle_sp_' + (i < 10 ? '0' : '') + i + '.png', AMIR + 'idle/idle_sp.png']));
 const ATK_SP = nums(10).map(i => pick('aanval/speerstrike/attack_sp_' + i + '.png', 'attack_sp_' + i + '.png'));
 
 // ---- hppotion: de drinkkalebas die gezondheid teruggeeft ----------------
@@ -532,16 +566,17 @@ const HPPOTION_FREE_KANS = 0.75;  // en dan nog deze kans, anders wachten we de 
 
 // ---- jump frames -------------------------------------------------------
 // de map met de sprongframes, gezien vanaf dit bestand; de eerste die werkt wint
-const JUMP_DIRS = [AMIR + 'beweging/jump/jump/',
+const JUMP_DIRS = uniq([AMIR + 'beweging/jump/jump/', AMIR_GROOT + 'beweging/jump/jump/',
                    'amir%20runc/amir/', 'amir runc/amir/', 'amir/', '',
-                   'jump/', 'amir_jump/', 'player/', 'design/amir/'];
+                   'jump/', 'amir_jump/', 'player/', 'design/amir/']);
 const JUMP_FILES = ['amirjump0staand','amirjump1hurk','amirjump2afzet','amirjump3stijgen',
                     'amirjump4top','amirjump5vallen','amirjump6landing'];
 // dezelfde sprong, maar met speer in de hand
-const JUMPSPEAR_DIRS = [AMIR + 'beweging/jump/jumpspeer/', AMIR + 'beweging/jump/jumpspeer/amirjumpspear/',
+const JUMPSPEAR_DIRS = uniq([AMIR + 'beweging/jump/jumpspeer/', AMIR_GROOT + 'beweging/jump/jumpspeer/',
+                        AMIR + 'beweging/jump/jumpspeer/amirjumpspear/',
                         'amir%20runc/jump/jumpspear/amirjumpspear/',
                         'amir runc/jump/jumpspear/amirjumpspear/',
-                        'jumpspear/amirjumpspear/', 'amirjumpspear/', 'jumpspear/'];
+                        'jumpspear/amirjumpspear/', 'amirjumpspear/', 'jumpspear/']);
 const JUMPSPEAR_FILES = ['amirjumpspear0staand','amirjumpspear1hurk','amirjumpspear2afzet',
                          'amirjumpspear3stijgen','amirjumpspear4top','amirjumpspear5vallen',
                          'amirjumpspear6landing'];
@@ -574,10 +609,12 @@ const CROUCH_T = 0.07, PUSH_T = 0.05, LAND_T = 0.13;
 
 // ---- bukken ------------------------------------------------------------
 // frames staan in 'amir runc/amir bukt/', de speerversie in de submap amir_bukken_speer/
-const DUCK_DIRS = [AMIR + 'beweging/bukken/bukken/', 'amir runc/amir bukt/', 'amir%20runc/amir%20bukt/'];
-const DUCKS_DIRS = [AMIR + 'beweging/bukken/bukkenspeer/', 'amir runc/amir bukt/amir_bukken_speer/',
+const DUCK_DIRS = uniq([AMIR + 'beweging/bukken/bukken/', AMIR_GROOT + 'beweging/bukken/bukken/',
+                   'amir runc/amir bukt/', 'amir%20runc/amir%20bukt/']);
+const DUCKS_DIRS = uniq([AMIR + 'beweging/bukken/bukkenspeer/', AMIR_GROOT + 'beweging/bukken/bukkenspeer/',
+                    'amir runc/amir bukt/amir_bukken_speer/',
                     'amir runc/amir bukt/amir_bukken_speer/amir_bukken_speer/', 'amir runc/amir bukt/',
-                    'amir%20runc/amir%20bukt/amir_bukken_speer/'];
+                    'amir%20runc/amir%20bukt/amir_bukken_speer/']);
 const DUCK_W = 530, DUCKS_W = 770, DUCK_H = 647, DUCK_GROUND = 637;   // speercanvas is aan beide kanten 120 px breder
 const DUCK_IN_T = 0.28, DUCK_OUT_T = 0.20;     // hoe snel hij omlaag gaat en weer opstaat
 const DUCK_HOLD_FPS = 3;                       // rustig ademen als hij gebukt zit
@@ -603,9 +640,9 @@ const duckSp = {
   hold: [1,2,3,4].map(n => loadQuiet(duckPaths(duckName('hold', n))))
 };
 // lage zwaai vanuit gebukt (alleen met speer): frames in 'amir runc/lowsweepaanval/'
-const SWEEP_DIRS = [AMIR + 'aanval/lowsweep/', AMIR + 'aanval/lowsweep/amir_sweep/',
+const SWEEP_DIRS = uniq([AMIR + 'aanval/lowsweep/', AMIR_GROOT + 'aanval/lowsweep/', AMIR + 'aanval/lowsweep/amir_sweep/',
                     'amir runc/lowsweepaanval/', 'amir runc/lowsweepaanval/amir_sweep/',
-                    'amir%20runc/lowsweepaanval/'];
+                    'amir%20runc/lowsweepaanval/']);
 const SWEEP_W = 1500, SWEEP_N = 18, SWEEP_FPS = 24;   // zelfde schaal en grondlijn als het bukken
 const SWEEP_FROM = 4, SWEEP_TO = 12;          // frames (vanaf 0) waarin de speer raakt; eerst even opstarten
 const SWEEP_RECOVER = 0.35;                   // na de zwaai nog even laag en kwetsbaar: niet springen of aanvallen
@@ -4243,7 +4280,7 @@ function hitPanther(s){
 // terugval voor als dat bestand niet te lezen is, bijvoorbeeld als je het spel
 // rechtstreeks vanaf schijf opent: dan weigert de browser de fetch.
 const HY_META = 'enemies/hyena/metadata.json';
-const HY_DIRS = ['enemies/hyena/', 'enemies/hyena/hyena/'];      // zelfde fallback-opzet als de panter
+const HY_DIRS = uniq([KLEIN + 'enemies/hyena/', 'enemies/hyena/', 'enemies/hyena/hyena/']);   // gekozen set eerst, dan groot; zelfde fallback-opzet als de panter
 const HY = {
   w: 940, h: 470, ground: 456,            // canvas van alle hyenaframes, grondlijn op rij 456
   fig: 400,                               // hoogte van de staande figuur, in canvaspixels
@@ -7507,6 +7544,24 @@ for (const b of tmodeBtns) b.onclick = () => {
   if (TOUCH.mode !== 'auto') TOUCH.sawTouch = false;
   touchReleaseAll(); showTouchCfg(); saveTouchCfg(); syncTouch(); resize();   // resize: het plafond op de resolutie volgt de knoppen
 };
+// --- beeld: de grote of de kleine spriteset (zie BEELD bovenaan) -------------
+const bmodeBtns = Array.prototype.slice.call(document.querySelectorAll('#bmode button'));
+const bmodevEl = document.getElementById('bmodev');
+function showBeeld(){
+  const keuze = beeldKeuze();
+  for (const b of bmodeBtns) b.classList.toggle('on', b.dataset.b === keuze);
+  bmodevEl.textContent = 'nu: ' + (BEELD === 'klein' ? 'licht (kleine sprites)' : 'scherp (grote sprites)');
+}
+for (const b of bmodeBtns) b.onclick = () => {
+  const keuze = b.dataset.b;
+  try { if (keuze === 'auto') localStorage.removeItem(BKEY); else localStorage.setItem(BKEY, keuze); } catch (err) {}
+  const straks = keuze === 'auto' ? beeldAuto() : keuze;
+  showBeeld();
+  // de sprites zijn al geladen: een andere set vraagt om een verse start
+  if (straks !== BEELD) location.reload();
+};
+showBeeld();
+
 pauseBtn.onclick = () => { if (won) return; if (paused) resumeGame(); else pauseGame(); };
 document.getElementById('dvagain').onclick = () => { restart(); };
 
