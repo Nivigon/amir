@@ -8,7 +8,7 @@ Alle sprites, achtergronden en geluiden staan los op schijf. Het spel verwacht d
 
 Het spel is een installeerbare webapp. Open de Pages-link in Safari, deel, "Zet op beginscherm". Daarna staat Amir als icoon tussen je apps en start hij zonder browserbalken, liggend.
 
-Open hem vanaf het beginscherm en druk in het startmenu op **Download voor offline**. Dat haalt alle 511 sprites en geluiden (ongeveer 104 MB) in een keer binnen. Vanaf dat moment laadt het spel meteen en speelt het ook zonder internet.
+Open hem vanaf het beginscherm en druk in het startmenu op **Download voor offline**. Dat haalt alle 595 sprites en geluiden (ongeveer 121 MB) in een keer binnen. Vanaf dat moment laadt het spel meteen en speelt het ook zonder internet.
 
 Doe die download vanuit het beginscherm-icoon, niet vanuit Safari: iOS geeft een geinstalleerde webapp een eigen opslag, dus wat je in Safari downloadt telt daar niet mee.
 
@@ -67,6 +67,13 @@ enemies/
     blackpanther/          walk/, turn/, prowl/, pounce/, run/ (frames _00.. en sprite sheets)
     lowstrike/             claw_00..13.png (klauwhaal)
     pantherroar.mp3, panter snarl.mp3, panter_snarl_lang.mp3   pantergeluiden
+  hyena/
+    loop/                  loop_00..19.png (aankomen en achteruit stappen)
+    dreigen/               dreigen_00..21.png (op afstand blijven grommen)
+    ren_lijf/              ren_lijf_00..11.png (onderlaag van de aanvalsren, 16 fps)
+    ren_kop/               ren_kop_00..26.png (bovenlaag: de happende kop, 8 fps)
+    metadata.json          canvas, grondlijn, aantallen, fps en de kop-offset per lijfframe
+    preview/               sprite sheets en preview-gifs (bronmateriaal)
 
 items/
   potions/                 hppotion.png (de drinkkalebas die gezondheid teruggeeft)
@@ -80,6 +87,9 @@ design/
   klimmen/                 klif_bovenrand, klif_richel, klif_binnenhoek
   vegetatie/               boom_sheet, drygrass_sheet, struik_sheet (bewegende vegetatie) en de losse frames
   water/                   pool_links/midden/rechts, rimpel_01..08, spetter_01..08
+
+sounds/                    hyena_bite.mp3 (lange opname; alleen 14,0-16,0 s is de hap die het spel
+                           afspeelt) en hyena_laugh.mp3 (de lach)
 
 music/                     bg.mp3 (achtergrond), stemmen van Amir (iamtheking, iamamir, iamamirfatherson,
                            hellomyfriend, ikill, protectinnocent, godsforsaken), snakehiss, spearthrust, scatter,
