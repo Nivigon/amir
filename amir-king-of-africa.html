@@ -57,6 +57,22 @@
   #lives span{width:20px;height:20px;border-radius:50%;background:#e2774a;
     box-shadow:0 0 0 2px rgba(20,16,30,.45);transition:background .2s ease,transform .2s ease}
   #lives span.spent{background:transparent;transform:scale(.7)}
+  #lives.heal span:not(.spent){animation:hppheal .5s ease}
+  @keyframes hppheal{0%{transform:scale(1)}35%{transform:scale(1.45);background:#ffcf7a}100%{transform:scale(1)}}
+  /* hppotion: telt hoeveel drinkkalebassen Amir bij zich heeft, vlak onder de levens */
+  #hppotion{position:absolute;right:22px;top:50px;z-index:5;display:flex;align-items:center;gap:7px;
+    transition:opacity .2s ease}
+  #hppotion.none{opacity:.42}
+  #hppotion img{display:block;height:28px;width:auto;
+    filter:drop-shadow(0 0 2px rgba(20,16,30,.55));transform-origin:50% 60%}
+  #hppotion span{font-size:15px;font-weight:800;letter-spacing:.02em;
+    text-shadow:0 1px 3px rgba(20,16,30,.85)}
+  #hppotion.pulse img{animation:hpppulse .45s ease}
+  #hppotion.shake img{animation:hppshake .38s ease}
+  @keyframes hpppulse{0%{transform:scale(1)}35%{transform:scale(1.45)}100%{transform:scale(1)}}
+  @keyframes hppshake{0%,100%{transform:translateX(0) rotate(0)}
+    18%{transform:translateX(-4px) rotate(-7deg)}38%{transform:translateX(4px) rotate(7deg)}
+    58%{transform:translateX(-3px) rotate(-5deg)}78%{transform:translateX(3px) rotate(4deg)}}
   #start{position:absolute;inset:0;z-index:8;display:flex;flex-direction:column;align-items:center;
     justify-content:center;gap:18px;background:rgba(20,14,26,.86);text-align:center}
   #start.off{display:none}
@@ -168,7 +184,7 @@
     <h1>Amir<br><small>King of Africa</small></h1>
 
     <div id="menuMain" class="on">
-      <p>Pijltjes rennen, pijl omhoog springen, Shift sprinten,<br>E speer, spatie stoten, pijl omlaag bukken, R opnieuw</p>
+      <p>Pijltjes rennen, pijl omhoog springen, Shift sprinten,<br>E speer, spatie stoten, pijl omlaag bukken, Q drinken, R opnieuw</p>
       <div class="row">
         <button id="btnLevels" class="bigbtn">Levels<small>Kies je avontuur</small></button>
       </div>
@@ -295,6 +311,11 @@
       <button id="sbside">Van rechts</button>
     </div>
     <div class="row">
+      <label>Hppotion</label>
+      <button id="sbhppotion">Neerzetten</button>
+      <button id="sbhppotiondrop">Laten vallen</button>
+    </div>
+    <div class="row">
       <label>Doornbos</label>
       <button data-thicket="1">1 klomp</button>
       <button data-thicket="2">2</button>
@@ -309,6 +330,7 @@
     </div>
   </div>
   <div id="lives"><span></span><span></span><span></span></div>
+  <div id="hppotion" class="none"><img id="hppotionicon" src="items/potions/hppotion.png" alt=""><span id="hppotioncount">0</span></div>
   <div id="win">
     <strong>Level gehaald!</strong>
     <span id="winname"></span>
@@ -329,7 +351,7 @@
     <strong>Draai je telefoon</strong>
     <span>Amir speelt liggend, met het scherm in de breedte.</span>
   </div>
-  <div id="hint">Pijltjes om te rennen, pijl omhoog om te springen, Shift sprint, E speer, spatie stoot, R opnieuw</div>
+  <div id="hint">Pijltjes om te rennen, pijl omhoog om te springen, Shift sprint, E speer, spatie stoot, Q drinken, R opnieuw</div>
 </div>
 <div id="bar" class="hide">
   <div class="field"><label for="fps">Beelden per seconde</label><input id="fps" type="range" min="6" max="24" step="1" value="12"><span class="read" id="fpsv">12</span></div>
@@ -381,6 +403,31 @@ const IDLE_SP_FPS = 10;
 const IDLE_SP_FRAMES = Array.from({ length: 20 }, (_, i) =>
   [AMIR + 'idle/idle_sp/idle_sp_' + (i < 10 ? '0' : '') + i + '.png', AMIR + 'idle/idle_sp.png']);
 const ATK_SP = nums(10).map(i => pick('aanval/speerstrike/attack_sp_' + i + '.png', 'attack_sp_' + i + '.png'));
+
+// ---- hppotion: de drinkkalebas die gezondheid teruggeeft ----------------
+// Alles wat je aan de hppotion wilt afstellen staat hier bij elkaar.
+const HPPOTION_SRC = 'items/potions/hppotion.png';   // 143 x 300, transparant
+const HPPOTION_H = 0.40;          // hoogte als deel van Amir's spritehoogte
+const HPPOTION_MAX = 3;           // zoveel kan Amir er tegelijk dragen
+const HPPOTION_HEAL = 1;          // zoveel gezondheid geeft een slok terug
+const HPPOTION_HP_MAX = 3;        // volle gezondheid (evenveel als het aantal levens)
+const HPPOTION_REACH = 0.14;      // extra oppakbereik naast Amir, als deel van zijn hoogte
+// zweven en glinsteren
+const HPPOTION_BOB = 9;           // zweefhoogte in sprite-eenheden (een paar schermpixels)
+const HPPOTION_BOB_T = 2.4;       // seconden voor een keer op en neer
+const HPPOTION_GLINT_EVERY = 3.6; // om de zoveel seconden trekt er een lichtje overheen
+const HPPOTION_GLINT_T = 0.55;    // zolang duurt die glinstering
+// korte effecten
+const HPPOTION_PICK_T = 0.42;     // het flesje krimpt in zoveel seconden naar de HUD
+const HPPOTION_DRINK_T = 0.55;    // zolang gloeit het warm om Amir heen
+const HPPOTION_HOP_V = 460;       // hoe hard dropHppotion hem omhoog wipt
+const HPPOTION_HOP_G = 1500;      // zwaartekracht op dat sprongetje
+// vrije modus (spelen zonder eigen monsters in het level): af en toe ligt er eentje
+const HPPOTION_FREE_ON = true;    // zet op false om dit helemaal uit te zetten
+const HPPOTION_FREE_GAP = [16, 30];  // ruime pauze ertussen, in seconden: [minimaal, maximaal]
+const HPPOTION_FREE_FIRST = [8, 14]; // de eerste laat wat korter op zich wachten
+const HPPOTION_FREE_MAX = 1;      // hooguit zoveel tegelijk in de wereld
+const HPPOTION_FREE_KANS = 0.75;  // en dan nog deze kans, anders wachten we de pauze opnieuw af
 
 // ---- jump frames -------------------------------------------------------
 // de map met de sprongframes, gezien vanaf dit bestand; de eerste die werkt wint
@@ -1582,6 +1629,7 @@ addEventListener('keydown', e => {
   if (paused) return;                            // tijdens de pauze doet de rest niets
   if (typing(e)) return;                         // in een tekstvak typ je gewoon
   if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W'){ e.preventDefault(); startJump(); return; }
+  if (e.key === 'q' || e.key === 'Q'){ drinkHppotion(); return; }
   if (e.key === 'r' || e.key === 'R'){ restart(); return; }
   if (e.key === 'h' || e.key === 'H'){ showBoxes = !showBoxes; setBoxLabel(); return; }
   if (e.key === ' ' || e.key === 'f' || e.key === 'F'){
@@ -2278,6 +2326,7 @@ function restart(){
   thickets.length = 0; chips.length = 0;            // struwelen weer heel, brokstukken weg
   if (level && level.thickets) for (const d of level.thickets) addThicket(d.x, d.n, d.seed);
   if (level && level.tips) for (const t of level.tips) t.used = false;   // uitleg opnieuw laten zien
+  resetHppotions();                                 // flesjes weer op hun plek, handen weer leeg
   tutReset(); venom.length = 0; splat.length = 0; splashes.length = 0;
   greenSince = 0; blackAfter = 3 + Math.floor(Math.random() * 3); forceBlack = false; setKindLabel();
   if (level && level.spawns) for (const sp of level.spawns){ sp.used = false; sp.armed = false; }
@@ -2285,6 +2334,306 @@ function restart(){
   if (level && !sandbox){ spearFound = false; spear = false; spearX = SPEAR_AHEAD; }
   else { spearFound = true; spearX = null; }
   setSpearLabel();
+}
+
+// ============================================================================
+//  hppotion: de drinkkalebas die gezondheid teruggeeft
+//  Ligt op de grond (of op een terras), zweeft zachtjes op en neer en glinstert
+//  af en toe. Loop ertegenaan en Amir pakt hem op, tot HPPOTION_MAX stuks.
+//  Met Q (of de aanraakknop) drinkt hij er een: HPPOTION_HEAL gezondheid terug.
+//  Alles wat je eraan wilt afstellen staat bovenin bij de HPPOTION_-instellingen.
+// ============================================================================
+const hppotionImg = new Image();
+hppotionImg.onerror = () => console.warn('ontbreekt: ' + HPPOTION_SRC);
+hppotionImg.src = HPPOTION_SRC;
+
+const hppotions = [];             // wat er nu in de wereld ligt
+const hppotionFx = [];            // korte effectjes: het krimpende flesje en het lichtflitsje
+let hppotionCarry = 0;            // zoveel draagt Amir er nu bij zich
+let hppotionDrinkT = 0;           // warme gloed om Amir na een slok
+let hppotionFreeT = 0;            // aftellen naar de volgende in de vrije modus
+
+// --- geluid: hier komt later jouw eigen geluid in ---------------------------
+function playHppotionPickupSound(){ /* geluid bij het oppakken van een hppotion */ }
+function playHppotionDrinkSound(){  /* geluid bij het drinken van een hppotion */ }
+
+// --- het icoontje met de teller in de HUD -----------------------------------
+const hppotionHudEl = document.getElementById('hppotion');
+const hppotionIconEl = document.getElementById('hppotionicon');
+const hppotionCountEl = document.getElementById('hppotioncount');
+const hppotionLivesEl = document.getElementById('lives');
+function hppotionHud(){
+  hppotionCountEl.textContent = hppotionCarry;
+  hppotionHudEl.classList.toggle('none', hppotionCarry === 0);
+}
+function hppotionHudAnim(cls){                     // dezelfde animatie nog een keer laten lopen
+  hppotionHudEl.classList.remove('pulse', 'shake');
+  void hppotionHudEl.offsetWidth;
+  hppotionHudEl.classList.add(cls);
+}
+function hppotionLivesAnim(){                      // het gezondheidsicoon pulseert mee
+  hppotionLivesEl.classList.remove('heal');
+  void hppotionLivesEl.offsetWidth;
+  hppotionLivesEl.classList.add('heal');
+}
+function hppotionHudTarget(){                      // waar het icoontje op het canvas staat
+  const r = hppotionIconEl.getBoundingClientRect(), c = cv.getBoundingClientRect();
+  if (!r.width || !c.width) return { x: W - 40, y: 60 };
+  return { x: r.left + r.width / 2 - c.left, y: r.top + r.height / 2 - c.top };
+}
+
+// --- maten en zweven --------------------------------------------------------
+function hppotionSize(scale){
+  const h = CHAR_H * scale * HPPOTION_H;           // ongeveer 40% van Amir's hoogte
+  const ratio = (hppotionImg.naturalWidth && hppotionImg.naturalHeight)
+              ? hppotionImg.naturalWidth / hppotionImg.naturalHeight : 143 / 300;
+  return { w: ratio * h, h };
+}
+function hppotionBob(p){                           // 0 = laagste punt, 1 = hoogste
+  return p.hop ? 0 : 0.5 - 0.5 * Math.cos(p.t * Math.PI * 2 / HPPOTION_BOB_T);
+}
+
+// --- neerzetten -------------------------------------------------------------
+function makeHppotion(x, y, opts){
+  const base = (y === undefined || y === null || !isFinite(y)) ? terrainH(x) : Number(y);
+  return Object.assign({ x: Number(x), base, h: base, vy: 0, vx: 0, hop: false, free: false,
+                         t: Math.random() * HPPOTION_BOB_T,
+                         glint: 0, glintT: Math.random() * HPPOTION_GLINT_EVERY }, opts || {});
+}
+function spawnHppotion(x, y, opts){                // alleen nu in de wereld, niet in het level
+  const p = makeHppotion(x, y, opts);
+  hppotions.push(p);
+  return p;
+}
+// Zet er een vast in dit level: hij ligt er meteen, en na een herstart weer op dezelfde plek.
+// y is de hoogte boven de grondlijn; laat hem weg en hij gaat op het terrein staan.
+function addHppotion(x, y){
+  if (level){
+    if (!level.hppotions) level.hppotions = [];
+    level.hppotions.push({ x: Number(x), y: (y === undefined || y === null) ? null : Number(y) });
+  }
+  return spawnHppotion(x, y);
+}
+// Laat er een tevoorschijn komen met een sprongetje, vanaf hoogte y, en neerkomen op de grond.
+// Bedoeld voor later: een kratje dat je kapot kunt slaan.
+function dropHppotion(x, y){
+  const from = (y === undefined || y === null || !isFinite(y)) ? terrainH(x) + CHAR_H * 0.5 : Number(y);
+  const p = spawnHppotion(x, terrainH(x));
+  p.h = from; p.vy = HPPOTION_HOP_V; p.vx = (Math.random() - 0.5) * 80; p.hop = true;
+  return p;
+}
+
+// --- oppakken ---------------------------------------------------------------
+function hppotionHits(p, scale){                   // raakt Amir dit flesje?
+  const sz = hppotionSize(scale);
+  const reach = PLAYER_HALF_W * CHAR_H * scale + sz.w / 2 + HPPOTION_REACH * CHAR_H * scale;
+  if (Math.abs(world - p.x) > reach) return false;
+  const top = p.h + HPPOTION_H * CHAR_H;           // in sprite-eenheden, net als ph
+  return p.h < ph + CHAR_H * duckShare && top > ph - 10;
+}
+function pickHppotion(p){
+  hppotionCarry = Math.min(HPPOTION_MAX, hppotionCarry + 1);
+  hppotionHud(); hppotionHudAnim('pulse');
+  const tgt = hppotionHudTarget();
+  const h = p.h + hppotionBob(p) * HPPOTION_BOB;
+  hppotionFx.push({ kind: 'pick', x: p.x, h, t: 0, life: HPPOTION_PICK_T, tx: tgt.x, ty: tgt.y });
+  hppotionFx.push({ kind: 'flash', x: p.x, h, t: 0, life: 0.30 });
+  playHppotionPickupSound();
+}
+
+// --- drinken ----------------------------------------------------------------
+function drinkHppotion(){
+  if (!running || building || paused || won || dead) return;
+  if (hppotionCarry <= 0 || lives >= HPPOTION_HP_MAX){
+    hppotionHudAnim('shake');                      // niets te drinken, of al helemaal heel
+    return;
+  }
+  hppotionCarry--;
+  lives = Math.min(HPPOTION_HP_MAX, lives + HPPOTION_HEAL);
+  drawLives(); hppotionLivesAnim();
+  hppotionHud(); hppotionHudAnim('pulse');
+  hppotionDrinkT = HPPOTION_DRINK_T;
+  playHppotionDrinkSound();
+}
+
+// --- vrije modus: af en toe ligt er vanzelf eentje ---------------------------
+function hppotionFreeMode(){
+  return HPPOTION_FREE_ON && running && !building && !sandbox && !won && !dead
+      && !(level && level.spawns && level.spawns.length);
+}
+function hppotionFreeSpot(scale){
+  const c = cliffAt(), left = endWall(), plats = platsNear(scale), dir = facing || -1;
+  for (let k = 0; k < 14; k++){
+    const side = (k % 3 === 2) ? -dir : dir;       // meestal voor je, af en toe achter je
+    const x = world + side * (W * 0.62 + Math.random() * W * 0.75);
+    if (x > c.wall - 300 || x < left + 300) continue;
+    if (inGap(x)) continue;                        // niet boven een gat
+    if (waterDepthAt(x) > 0.15) continue;          // en niet in het water
+    if (plats.some(m => !m.terrace && !m.thin && x > m.left - 70 && x < m.right + 70)) continue;
+    if (hppotions.some(q => Math.abs(q.x - x) < 320)) continue;
+    return x;
+  }
+  return null;
+}
+
+// --- elke tel ---------------------------------------------------------------
+function updateHppotions(dt, scale){
+  if (!running || building) return;
+  for (let i = hppotions.length - 1; i >= 0; i--){
+    const p = hppotions[i];
+    p.t += dt;
+    if (p.glint > 0) p.glint = Math.max(0, p.glint - dt);
+    else {
+      p.glintT -= dt;
+      if (p.glintT <= 0){ p.glint = HPPOTION_GLINT_T; p.glintT = HPPOTION_GLINT_EVERY; }
+    }
+    if (p.hop){                                    // het sprongetje uit dropHppotion
+      p.h += p.vy * dt; p.vy -= HPPOTION_HOP_G * dt;
+      p.x += p.vx * dt; p.vx *= 0.93;
+      const gh = terrainH(p.x);
+      if (p.h <= gh && p.vy < 0){
+        if (p.vy < -200){ p.vy = -p.vy * 0.34; p.h = gh; }   // nog één klein stuitertje
+        else { p.h = gh; p.base = gh; p.vy = 0; p.vx = 0; p.hop = false; p.t = 0; }
+      }
+    } else p.h = p.base;
+    // oppakken: gewoon ertegenaan lopen. Zit hij vol, dan blijft het flesje liggen.
+    if (!dead && !won && !fell && hppotionCarry < HPPOTION_MAX && hppotionHits(p, scale)){
+      pickHppotion(p);
+      hppotions.splice(i, 1);
+    }
+  }
+  if (hppotionFreeMode()){
+    hppotionFreeT -= dt;
+    if (hppotionFreeT <= 0){
+      hppotionFreeT = HPPOTION_FREE_GAP[0] + Math.random() * (HPPOTION_FREE_GAP[1] - HPPOTION_FREE_GAP[0]);
+      if (hppotions.length < HPPOTION_FREE_MAX && Math.random() < HPPOTION_FREE_KANS){
+        const x = hppotionFreeSpot(scale);
+        if (x !== null) spawnHppotion(x, null, { free: true });
+      }
+    }
+    for (let i = hppotions.length - 1; i >= 0; i--)   // ver achter je gebleven flesjes ruimen we op
+      if (hppotions[i].free && Math.abs(hppotions[i].x - world) > W * 3) hppotions.splice(i, 1);
+  }
+}
+function updateHppotionFx(dt){
+  if (hppotionDrinkT > 0) hppotionDrinkT = Math.max(0, hppotionDrinkT - dt);
+  for (let i = hppotionFx.length - 1; i >= 0; i--){
+    const f = hppotionFx[i];
+    f.t += dt;
+    if (f.t >= f.life) hppotionFx.splice(i, 1);
+  }
+}
+
+// --- tekenen ----------------------------------------------------------------
+// de glinstering: het lichtje trekt alleen over de kalebas zelf, dus zetten we hem
+// eerst op een klein eigen doekje en plakken de lichtband er met 'source-atop' op
+let hppGlintCv = null, hppGlintCtx = null;
+function drawHppotionGlint(x, y, w, h, k){
+  const cw = Math.max(2, Math.round(w)), ch = Math.max(2, Math.round(h));
+  if (!hppGlintCv){ hppGlintCv = document.createElement('canvas'); hppGlintCtx = hppGlintCv.getContext('2d'); }
+  if (hppGlintCv.width !== cw || hppGlintCv.height !== ch){ hppGlintCv.width = cw; hppGlintCv.height = ch; }
+  const g2 = hppGlintCtx;
+  g2.setTransform(1, 0, 0, 1, 0, 0);
+  g2.globalCompositeOperation = 'source-over';
+  g2.clearRect(0, 0, cw, ch);
+  g2.drawImage(hppotionImg, 0, 0, cw, ch);
+  g2.globalCompositeOperation = 'source-atop';
+  const band = ch * 0.30, pos = (-0.30 + k * 1.60) * (cw + ch);
+  const a = Math.sin(Math.min(1, Math.max(0, k)) * Math.PI) * 0.85;
+  const gr = g2.createLinearGradient(pos - band, ch, pos + band, 0);
+  gr.addColorStop(0,    'rgba(255,248,225,0)');
+  gr.addColorStop(0.42, 'rgba(255,248,225,' + (a * 0.45).toFixed(3) + ')');
+  gr.addColorStop(0.50, 'rgba(255,255,255,' + a.toFixed(3) + ')');
+  gr.addColorStop(0.58, 'rgba(255,248,225,' + (a * 0.45).toFixed(3) + ')');
+  gr.addColorStop(1,    'rgba(255,248,225,0)');
+  g2.fillStyle = gr; g2.fillRect(0, 0, cw, ch);
+  g2.globalCompositeOperation = 'source-over';
+  ctx.drawImage(hppGlintCv, x, y, w, h);
+}
+function drawHppotionShape(bx, bottom, sz){        // reserve als het plaatje ontbreekt
+  ctx.save();
+  ctx.translate(bx, bottom);
+  ctx.lineWidth = Math.max(1, sz.w * 0.06); ctx.strokeStyle = '#3a2317';
+  ctx.fillStyle = '#a8663c';
+  ctx.beginPath(); ctx.ellipse(0, -sz.h * 0.27, sz.w * 0.46, sz.h * 0.27, 0, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.rect(-sz.w * 0.13, -sz.h * 0.86, sz.w * 0.26, sz.h * 0.40);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#6b4a2b';
+  ctx.beginPath(); ctx.ellipse(0, -sz.h * 0.88, sz.w * 0.18, sz.h * 0.07, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+function drawHppotions(groundY, scale, cx){
+  if (!hppotions.length) return;
+  const sz = hppotionSize(scale), ready = imgReady(hppotionImg);
+  for (const p of hppotions){
+    const bx = cx + (p.x - world);
+    if (bx + sz.w < -W || bx - sz.w > W / viewZoom() + W) continue;
+    const gh = p.hop ? terrainH(p.x) : p.base;
+    const up = Math.max(0, p.h - gh) + hppotionBob(p) * HPPOTION_BOB;   // in sprite-eenheden
+    const bottom = groundY - gh * scale - up * scale;
+    const k = Math.min(1, up / (HPPOTION_BOB * 2.6));
+    // zacht ovaal schaduwtje, iets kleiner als hij omhoog zweeft
+    ctx.save();
+    ctx.globalAlpha = 0.22 * (1 - 0.40 * k); ctx.fillStyle = '#1d140f';
+    ctx.beginPath();
+    ctx.ellipse(bx, groundY - gh * scale, sz.w * 0.44 * (1 - 0.28 * k), sz.h * 0.05 * (1 - 0.32 * k),
+                0, 0, Math.PI * 2);
+    ctx.fill(); ctx.restore();
+    if (!ready){ drawHppotionShape(bx, bottom, sz); continue; }
+    if (p.glint > 0) drawHppotionGlint(bx - sz.w / 2, bottom - sz.h, sz.w, sz.h, 1 - p.glint / HPPOTION_GLINT_T);
+    else ctx.drawImage(hppotionImg, bx - sz.w / 2, bottom - sz.h, sz.w, sz.h);
+  }
+}
+function drawHppotionFx(groundY, scale, cx, pcx, lift){
+  if (hppotionDrinkT > 0){                         // warme gloed om Amir na een slok
+    const k = hppotionDrinkT / HPPOTION_DRINK_T;
+    const cy = groundY - CHAR_H * scale * 0.52 + lift;
+    const r = CHAR_H * scale * (0.55 + 0.35 * (1 - k));
+    const g = ctx.createRadialGradient(pcx, cy, 0, pcx, cy, r);
+    g.addColorStop(0,    'rgba(255,220,155,' + (0.58 * k).toFixed(3) + ')');
+    g.addColorStop(0.55, 'rgba(255,155,72,'  + (0.28 * k).toFixed(3) + ')');
+    g.addColorStop(1,    'rgba(255,120,50,0)');
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(pcx, cy, r, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  if (!hppotionFx.length) return;
+  const sz = hppotionSize(scale);
+  for (const f of hppotionFx){
+    const k = Math.min(1, f.t / f.life);
+    const sx = cx + (f.x - world), sy = groundY - f.h * scale - sz.h * 0.5;
+    if (f.kind === 'flash'){                       // klein lichtflitsje op de plek zelf
+      const r = sz.h * (0.32 + 1.05 * k), a = (1 - k) * 0.70;
+      const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r);
+      g.addColorStop(0,   'rgba(255,250,228,' + a.toFixed(3) + ')');
+      g.addColorStop(0.5, 'rgba(255,215,150,' + (a * 0.45).toFixed(3) + ')');
+      g.addColorStop(1,   'rgba(255,190,110,0)');
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      continue;
+    }
+    // het flesje krimpt snel omhoog naar het icoontje in de HUD
+    const e = k * k * (3 - 2 * k);
+    const x = sx + (f.tx - sx) * e, y = sy + (f.ty - sy) * e, s = 1 - 0.82 * e;
+    ctx.save();
+    ctx.globalAlpha = 1 - 0.55 * e;
+    if (imgReady(hppotionImg)) ctx.drawImage(hppotionImg, x - sz.w * s / 2, y - sz.h * s / 2, sz.w * s, sz.h * s);
+    else drawHppotionShape(x, y + sz.h * s / 2, { w: sz.w * s, h: sz.h * s });
+    ctx.restore();
+  }
+}
+
+// --- opnieuw beginnen: alles weer op zijn plek, Amir met lege handen ---------
+function resetHppotions(){
+  hppotions.length = 0; hppotionFx.length = 0;
+  hppotionCarry = 0; hppotionDrinkT = 0;
+  if (level && level.hppotions) for (const d of level.hppotions) spawnHppotion(d.x, d.y);
+  hppotionFreeT = HPPOTION_FREE_FIRST[0] + Math.random() * (HPPOTION_FREE_FIRST[1] - HPPOTION_FREE_FIRST[0]);
+  hppotionHudEl.classList.remove('pulse', 'shake');
+  hppotionLivesEl.classList.remove('heal');
+  hppotionHud();
 }
 
 let snakeStopGap = 200;        // recomputed every frame from the real strike reach
@@ -3739,6 +4088,8 @@ function loop(now){
   if (!building) updateVenom(dt, scaleNow); else { venom.length = 0; splat.length = 0; }
   if (!building) updateWind(dt); else { wind.length = 0; gust = null; }
   updateThickets(dt);
+  updateHppotions(dt, scaleNow);
+  updateHppotionFx(dt);
   vegDt = dt; vegTick++;
   const set = spear ? sets.sp : sets.ns;
   const moving = dir !== 0;
@@ -3968,6 +4319,7 @@ function loop(now){
       }
     }
 
+    drawHppotions(groundY, scale, cx);             // drinkkalebassen op de grond
     drawThickets(groundY, scale, cx);              // struwelen: achter Amir, voor de grond
 
     // het einde: fakkels met flakkerend licht
@@ -4531,6 +4883,7 @@ function loop(now){
     }
 
     drawFgGrass(groundY, cx, scale, pcx);
+    drawHppotionFx(groundY, scale, cx, pcx, lift);   // oppak- en drinkeffecten
     drawChips(groundY, scale, cx);
     drawGrains(groundY, scale, cx);
     drawVenom(groundY, scale);
@@ -4758,6 +5111,7 @@ function ensureLevel(){
   if (!level.ends) level.ends = [];
   if (!level.npcs) level.npcs = [];
   if (!level.thickets) level.thickets = [];
+  if (!level.hppotions) level.hppotions = [];
 }
 function syncLevel(){
   ensureLevel();
@@ -4781,6 +5135,8 @@ function syncLevel(){
     ends: level.ends.map(o => ({ x: Math.round(o.x) })),
     npcs: level.npcs.map(o => ({ x: Math.round(o.x), k: o.kind, f: o.flip ? 1 : 0, y: Math.round(o.y || 0) })),
     thickets: (level.thickets || []).map(o => ({ x: Math.round(o.x), n: o.n, seed: o.seed })),
+    hppotions: (level.hppotions || []).map(o => ({ x: Math.round(o.x),
+                                                   y: (o.y === null || o.y === undefined) ? null : Math.round(o.y) })),
     terraces: (level.terraces || []).map(o => ({ r: o.r, l: o.l, h: o.h })),
     ledges: (level.ledges || []).map(o => ({ x: o.x, h: o.h, s: o.s }))
   });
@@ -4811,6 +5167,8 @@ function readLevel(txt){
            thickets: (o.thickets || []).map(q => ({ x: Number(q.x),
                                                     n: Math.max(1, Math.min(5, Math.round(Number(q.n) || 1))),
                                                     seed: Number(q.seed) || 0 })),
+           hppotions: (o.hppotions || []).map(q => ({ x: Number(q.x),
+                                                      y: (q.y === null || q.y === undefined) ? null : Number(q.y) })),
            terraces: (o.terraces || []).map(q => ({ r: Number(q.r), l: Number(q.l), h: Number(q.h) || 0 })),
            ledges: (o.ledges || []).map(q => ({ x: Number(q.x), h: Number(q.h) || 0, s: Number(q.s) || 1 })),
            fg: o.fg ? { from: Number(o.fg.from), to: Number(o.fg.to) } : null,
@@ -4936,12 +5294,22 @@ function sbThicket(n){
   cv.focus();
 }
 sandboxEl.querySelectorAll('button[data-thicket]').forEach(b => b.onclick = () => sbThicket(Number(b.dataset.thicket)));
+function sbHppotion(drop){
+  const side = sbFromRight ? 1 : -1;
+  let x = world + side * 260;                       // vlak naast Amir, zo in te lopen
+  x = Math.min(x, cliffAt().wall - 200);
+  x = Math.max(x, endWall() + 200);
+  if (drop) dropHppotion(x, terrainH(x) + CHAR_H * 0.6); else spawnHppotion(x);
+  cv.focus();
+}
+document.getElementById('sbhppotion').onclick = () => sbHppotion(false);
+document.getElementById('sbhppotiondrop').onclick = () => sbHppotion(true);
 const sbSideBtn = document.getElementById('sbside');
 sbSideBtn.onclick = () => { sbFromRight = !sbFromRight; sbSideBtn.textContent = sbFromRight ? 'Van rechts' : 'Van links'; cv.focus(); };
 const sbGodBtn = document.getElementById('sbgod');
 function setGodLabel(){ sbGodBtn.textContent = godMode ? 'Onsterfelijk aan' : 'Onsterfelijk uit'; sbGodBtn.classList.toggle('on', godMode); }
 sbGodBtn.onclick = () => { godMode = !godMode; setGodLabel(); cv.focus(); };
-document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; cv.focus(); };
+document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; hppotions.length = 0; hppotionFx.length = 0; cv.focus(); };
 document.getElementById('sbback').onclick = stopSandbox;
 document.getElementById('btnsandbox').onclick = startSandbox;
 document.getElementById('btnstop').onclick = () => { building = false; buildEl.classList.remove('on'); };
@@ -5212,13 +5580,17 @@ const TOUCH_BTNS = [
   { id: 'jump',   label: '▲', pos: 'corner',    r: 46, hit: 2.40, act: 'jump'   },
   { id: 'hit',    label: '✦', ang: 50, arc: 118, r: 36, hit: 2.20, act: 'attack' },
   { id: 'spear',  label: 'E',      ang: 0,  arc: 118, r: 26, hit: 1.90, act: 'spear', when: 'pickup', dim: true },
-  { id: 'spell1', label: '',       ang: 96, arc: 118, r: 26, hit: 1.80, act: null, when: 'never' },
+  { id: 'drink',  label: '',       ang: 96, arc: 118, r: 30, hit: 2.00, act: 'drink', icon: 'hppotion' },
+  { id: 'spell1', label: '',      ang: 142, arc: 118, r: 26, hit: 1.80, act: null, when: 'never' },
   { id: 'spell2', label: '',       ang: 96, arc: 176, r: 26, hit: 1.80, act: null, when: 'never' }
 ];
 function btnVisible(b){
   if (b.when === 'never') return false;            // gereserveerd voor een spell
   if (b.when === 'pickup') return spearNear();     // alleen als er iets op te pakken is
   return true;
+}
+function btnDim(b){                                // lege drinkknop staat er wat flauwer bij
+  return b.id === 'drink' ? hppotionCarry === 0 : !!b.dim;
 }
 
 // --- veilige randen (notch, home-balk) ---------------------------------------
@@ -5294,6 +5666,7 @@ function pressBtn(id){
   if (b.act === 'jump') startJump();                                   // net als pijl omhoog
   else if (b.act === 'attack'){ if (!atkKeyHeld){ atkKeyHeld = true; startAttack(); } }   // net als spatie
   else if (b.act === 'spear') toggleSpear();                           // net als E
+  else if (b.act === 'drink') drinkHppotion();                         // net als Q
 }
 function releaseBtn(id){
   TOUCH.pressed.delete(id);
@@ -5414,6 +5787,27 @@ function ring(x, y, r, a, label, dim){
     tctx.fillText(label, x, y + r * 0.04);
   }
 }
+// het hppotion-icoon in zijn knop, met het aantal eronder
+function drawBtnHppotion(x, y, r, a){
+  const h = r * 1.10;
+  const ratio = (hppotionImg.naturalWidth && hppotionImg.naturalHeight)
+              ? hppotionImg.naturalWidth / hppotionImg.naturalHeight : 143 / 300;
+  const w = ratio * h;
+  tctx.save();
+  tctx.globalAlpha = Math.min(1, a + 0.45);
+  if (imgReady(hppotionImg)) tctx.drawImage(hppotionImg, x - w / 2, y - h * 0.50, w, h);
+  else {
+    tctx.fillStyle = 'rgba(18,12,10,0.85)';
+    tctx.beginPath(); tctx.ellipse(x, y + r * 0.12, r * 0.30, r * 0.34, 0, 0, Math.PI * 2); tctx.fill();
+    tctx.fillRect(x - r * 0.10, y - r * 0.50, r * 0.20, r * 0.42);
+  }
+  tctx.globalAlpha = 1;
+  tctx.fillStyle = 'rgba(18,12,10,' + Math.min(1, a + 0.45).toFixed(3) + ')';
+  tctx.font = '800 ' + Math.round(r * 0.52) + 'px Archivo, Arial, sans-serif';
+  tctx.textAlign = 'center'; tctx.textBaseline = 'middle';
+  tctx.fillText(String(hppotionCarry), x + r * 0.48, y + r * 0.50);
+  tctx.restore();
+}
 function drawTouch(){
   checkPortrait();
   const on = touchOn();
@@ -5444,7 +5838,9 @@ function drawTouch(){
   }
   for (const it of touchLayout()){
     if (!it.b.act) continue;
-    ring(it.x, it.y, it.r, TOUCH.pressed.has(it.b.id) ? hot : rest, it.b.label, it.b.dim);
+    const a = TOUCH.pressed.has(it.b.id) ? hot : rest;
+    ring(it.x, it.y, it.r, a, it.b.label, btnDim(it.b));
+    if (it.b.icon === 'hppotion') drawBtnHppotion(it.x, it.y, it.r, a);
   }
 }
 
