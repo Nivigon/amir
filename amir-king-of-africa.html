@@ -314,6 +314,10 @@ const RUN_NS = nums(8).map(i => pick('beweging/run/run/run_ns_' + i + '.png', 'r
 const RUN_SP = nums(8).map(i => pick('beweging/run/speerrun/run_sp_' + i + '.png', 'run_sp_' + i + '.png'));
 const IDLE_NS = pick('idle/idle_ns.png', 'idle_ns.png');
 const IDLE_SP = pick('idle/idle_sp.png', 'idle_sp.png');
+// idle-animatie met speer: 20 frames in karakters/amir/idle/idle_sp/, valt terug op het stilstaande plaatje
+const IDLE_SP_FPS = 10;
+const IDLE_SP_FRAMES = Array.from({ length: 20 }, (_, i) =>
+  [AMIR + 'idle/idle_sp/idle_sp_' + (i < 10 ? '0' : '') + i + '.png', AMIR + 'idle/idle_sp.png']);
 const ATK_SP = nums(10).map(i => pick('aanval/speerstrike/attack_sp_' + i + '.png', 'attack_sp_' + i + '.png'));
 
 // ---- jump frames -------------------------------------------------------
@@ -1325,9 +1329,16 @@ for (const k in PROPS){
 }
 const sets = {
   ns: { run: RUN_NS.map(loadAny), idle: loadAny(IDLE_NS) },
-  sp: { run: RUN_SP.map(loadAny), idle: loadAny(IDLE_SP) }
+  sp: { run: RUN_SP.map(loadAny), idle: loadAny(IDLE_SP), idleAnim: IDLE_SP_FRAMES.map(loadAny) }
 };
-const total = RUN_NS.length + RUN_SP.length + ATK_SP.length + 2 + 48 + 36 + 12;   // +36 schorpioen, +12 dorpeling
+// stilstaand plaatje, of het juiste frame van de idle-animatie als die er is
+function idleImg(set){
+  const a = set.idleAnim;
+  if (!a) return set.idle;
+  const f = a[idleFrame % a.length];
+  return (f.complete && f.naturalWidth) ? f : set.idle;
+}
+const total = RUN_NS.length + RUN_SP.length + ATK_SP.length + 2 + IDLE_SP_FRAMES.length + 48 + 36 + 12;   // +20 idle speer, +36 schorpioen, +12 dorpeling
 
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 let W = 0, H = 0, DPR = 1, lastW = -1, lastH = -1;
@@ -1511,6 +1522,7 @@ addEventListener('keyup', e => {
 });
 
 let facing = -1, frame = 0, frameAcc = 0, world = 0, autoFlip = true;
+let idleFrame = 0, idleAcc = 0;   // idle-animatie (staan met speer)
 let hits = 0, swingUsed = false;
 let lives = 3, invuln = 0, hurt = 0, knock = 0, shake = 0, dead = false;
 let jump = null;            // alleen de pose-fase; de hoogte staat hieronder
@@ -1954,7 +1966,7 @@ function restart(){
   hits = 0; hitsEl.textContent = 0;
   atkFrame = -1; atkAcc = 0; atkCooldown = 0; swFrame = -1; swAcc = 0; sweepBuf = 0; duckT = 0; swRecover = 0; sand.length = 0;
   jump = null; dust.length = 0; ph = 0; pvh = 0; onGround = true; fell = false; coyote = 0;
-  world = 0; facing = -1; frame = 0; frameAcc = 0;   // altijd weer bij het startpunt
+  world = 0; facing = -1; frame = 0; frameAcc = 0; idleFrame = 0; idleAcc = 0;   // altijd weer bij het startpunt
   camY = 0; camFloor = 0;
   drawLives(); deadEl.classList.remove('on');
   snakes.length = 0; scorps.length = 0; panthers.length = 0; arena = null; camEase = null; spawnTimer = 0.6;
@@ -3310,8 +3322,15 @@ function loop(now){
   if (moving){
     frameAcc += dt * Number(fpsEl.value) * (wetNow > 0.3 ? 1 : sprint) * (1 - 0.3 * wetNow);
     while (frameAcc >= 1){ frame = (frame + 1) % set.run.length; frameAcc -= 1; }
-  } else { frame = 0; frameAcc = 0; }
-  frv.textContent = attacking ? ('A' + (atkFrame + 1)) : swFrame >= 0 ? ('S' + (swFrame + 1)) : (duckT > 0 ? 'buk' : (moving ? (frame + 1) : 'idle'));
+    idleFrame = 0; idleAcc = 0;
+  } else {
+    frame = 0; frameAcc = 0;
+    if (set.idleAnim){
+      idleAcc += dt * IDLE_SP_FPS;
+      while (idleAcc >= 1){ idleFrame = (idleFrame + 1) % set.idleAnim.length; idleAcc -= 1; }
+    }
+  }
+  frv.textContent = attacking ? ('A' + (atkFrame + 1)) : swFrame >= 0 ? ('S' + (swFrame + 1)) : (duckT > 0 ? 'buk' : (moving ? (frame + 1) : (set.idleAnim ? 'I' + (idleFrame + 1) : 'idle')));
 
   resizeIfNeeded();
   const shakeX = shake > 0 ? (Math.random() - 0.5) * 26 * (shake / 0.28) : 0;
@@ -3356,7 +3375,7 @@ function loop(now){
               : useSweep ? swImg
               : useDuck ? dimg
               : (attacking ? atkImgs[atkFrame]
-                           : (moving ? set.run[frame] : set.idle));
+                           : (moving ? set.run[frame] : idleImg(set)));
     if (img && img.complete){
     const scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H;
     const cx = W / 2;
