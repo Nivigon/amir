@@ -157,6 +157,21 @@
   #pause.on{display:flex}
   #pause strong{font-size:34px;font-weight:800;letter-spacing:-.01em;margin-bottom:6px}
   #pause button{min-width:240px}
+  #pzcfg{display:none;flex-direction:column;align-items:center;gap:10px;margin:2px 0;
+    padding:14px 18px;border:2px solid rgba(242,232,213,.22);border-radius:3px;background:rgba(0,0,0,.3)}
+  #pzcfg.on{display:flex}
+  #pzcfg .field{gap:12px}
+  #pzcfg .hint{font-size:13px;color:rgba(242,232,213,.6);max-width:380px;text-align:center;line-height:1.35}
+  #pzcfg button{min-width:0;padding:5px 12px;font-size:14px}
+  body.touch #pause{gap:6px;padding:8px;overflow:auto;justify-content:flex-start}
+  body.touch #pause strong{font-size:21px;margin:auto 0 0}
+  body.touch #pause button{min-width:190px;padding:4px 12px;font-size:15px}
+  body.touch #pzmenu{margin-bottom:auto}
+  body.touch #pzcfg{padding:8px 12px;gap:6px}
+  body.touch #pzcfg .field label{font-size:13px}
+  body.touch #pzcfg .hint{font-size:11px;max-width:300px}
+  body.touch #pzcfg input[type=range]{width:130px;height:24px}
+  #pause.on ~ #hint{display:none}                 /* de toetsenbordhint niet over het menu */
   #win{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;
     justify-content:center;gap:14px;background:rgba(10,6,14,.93);text-align:center;z-index:6}
   #win.on{display:flex;animation:winfade 1.4s ease both}
@@ -275,7 +290,7 @@
   <div id="build">
     <div class="row">
       <strong>Bouwen</strong>
-      <span class="hint">kies links wat je plaatst, klik op iets = weg, pijltjes = opschuiven. Stippellijn = waar de slang wakker wordt.</span>
+      <span class="hint">kies links wat je plaatst, klik op iets = weg, pijltjes = opschuiven. Stippellijn = waar de slang wakker wordt. Grootte bepaalt bij een doornbos het aantal klompen.</span>
     </div>
     <div class="row" id="tabs">
       <button data-tab="voor" class="on">Voorwerpen</button>
@@ -287,6 +302,7 @@
       <button data-tool="boulder" data-group="voor">Kei</button>
       <button data-tool="tree" data-group="voor">Boom</button>
       <button data-tool="struik" data-group="voor">Struik</button>
+      <button data-tool="doorn" data-group="voor">Doornbos</button>
       <button data-tool="hut" data-group="voor">Hut</button>
       <button data-tool="gras" data-group="voor">Droog gras</button>
       <button data-tool="gat" data-group="voor">Gat</button>
@@ -374,6 +390,18 @@
   <div id="pause">
     <strong>Pauze</strong>
     <button id="pzresume">Verder</button>
+    <button id="pzcfgbtn">Instellingen</button>
+    <div id="pzcfg">
+      <div class="field"><label for="pztempo">Tempo van het spel</label>
+        <input id="pztempo" type="range" min="50" max="120" step="5" value="100">
+        <span class="read" id="pztempov">100%</span></div>
+      <div class="field"><label for="pzwalk">Looptempo van Amir</label>
+        <input id="pzwalk" type="range" min="70" max="120" step="5" value="100">
+        <span class="read" id="pzwalkv">100%</span></div>
+      <span class="hint">Tempo vertraagt het hele spel, looptempo alleen Amir.
+        Je sprong houdt altijd dezelfde afstand, dus je blijft elk ravijn halen.</span>
+      <button id="pzcfgreset">Terug naar standaard</button>
+    </div>
     <button id="pzrestart">Level opnieuw</button>
     <button id="pzmenu">Terug naar hoofdmenu</button>
   </div>
@@ -482,6 +510,26 @@ const J_STAND = 0, J_CROUCH = 1, J_PUSH = 2, J_RISE = 3, J_TOP = 4, J_FALL = 5, 
 const JMP_W = 530, JMP_H = 647, JMP_GROUND = 637, JMP_S = 0.45;
 const JMPS_W = 800, JMPS_H = 643, JMPS_GROUND = 633;   // breder canvas: de speer steekt uit
 const JUMP_V = 1000, GRAVITY = 2400;              // opsprong en zwaartekracht, in sprite-eenheden
+
+// ---- tempo: de twee schuifjes uit het pauzemenu -----------------------------
+// gameTempo schaalt dt, dus de hele wereld wordt samen langzamer: Amir, de
+// vijanden en de animaties. Alle banen door de ruimte blijven daarbij precies
+// gelijk, want snelheid gaat maal k en de tijd erover gedeeld door k.
+//
+// walkTempo verlaagt alleen Amirs loopsnelheid. Zonder meer zou hij dan een
+// ravijn niet meer halen, want de sprongafstand is snelheid maal hangtijd en
+// de hangtijd (2 * JUMP_V / GRAVITY) staat vast. Daarom schalen we mee:
+//
+//     JUMP_V * k   en   GRAVITY * k * k
+//
+// Dan wordt de hangtijd 1/k keer zo lang en blijft de afstand exact gelijk.
+// In de sprongHOOGTE, JUMP_V^2 / (2 * GRAVITY), valt k helemaal weg: die blijft
+// dus 208 eenheden, en Amir komt nog steeds niet over een doornbos heen.
+let gameTempo = 1;                                // 0,50 tot 1,20: het hele spel
+let walkTempo = 1;                                // 0,70 tot 1,20: alleen Amir
+function walkK(){ return building ? 1 : walkTempo; }   // in de bouwer stuur je op volle snelheid
+function jumpV(){ return JUMP_V * walkK(); }
+function gravity(){ return GRAVITY * walkK() * walkK(); }
 const CROUCH_T = 0.07, PUSH_T = 0.05, LAND_T = 0.13;
 
 // ---- bukken ------------------------------------------------------------
@@ -1272,7 +1320,7 @@ const PROPS = {
   boulder: { src: 'design/boulder.png',    h: 0.62, sink: 0.06 },
   tree:    { src: 'design/tree.png',       h: 2.40, sink: 0.02 },
   struik:  { src: 'design/struik.png',     h: 0.85, sink: 0.09 },
-  hut:     { src: 'design/villeaghut.png', h: 1.70, sink: 0.05, farOnly: true },
+  hut:     { src: 'design/villeaghut.png', h: 1.70, sink: 0.05, farOnly: true, bouwwerk: true },
   gras:    { src: 'design/drygrass.png',   h: 0.45, sink: 0.10, placeOnly: true },
   // botten: liggen op de grond, alleen met de hand neer te zetten
   bot_kort:  { src: 'design/botten/bot_kort.png',      h: 0.09, sink: 0.08, placeOnly: true },
@@ -1697,7 +1745,7 @@ let onGround = true;
 const dust = [];
 
 function takeOff(){
-  jump = { phase: 'air', t: 0 }; pvh = JUMP_V * (1 - (1 - POOL.jump) * waterDepthAt(world)); onGround = false; fell = false; coyote = 0; puffDust(4);
+  jump = { phase: 'air', t: 0 }; pvh = jumpV() * (1 - (1 - POOL.jump) * waterDepthAt(world)); onGround = false; fell = false; coyote = 0; puffDust(4);
 }
 function startJump(){
   if (typeof tutEvent === 'function') tutEvent('jump');
@@ -1960,7 +2008,7 @@ const chips = [];                           // losse brokstukken
 // Zet een struweel neer op wereld-x. aantalKlompen loopt van 1 tot 5. De seed bepaalt alle
 // willekeur, dus met dezelfde seed ziet hetzelfde struweel er elke keer precies zo uit.
 // Laat je de seed weg, dan volgt hij uit x en staat het struweel er dus ook altijd gelijk bij.
-function addThicket(x, aantalKlompen, seed){
+function makeThicket(x, aantalKlompen, seed){
   const n = Math.max(1, Math.min(5, Math.round(aantalKlompen || 1)));
   const sd = (seed === undefined || seed === null) ? Math.round(x) : Number(seed);
   let k = 0;
@@ -1986,6 +2034,12 @@ function addThicket(x, aantalKlompen, seed){
   const t = { x, base: terrainH(x), stage: 0, from: 0, shake: 0, sweptId: -1, clumps,
               halfW: (hi - lo) / 2,                                   // halve breedte van het plaatjesblok
               topH: clumps.reduce((m, c) => Math.max(m, c.hS), 0) };  // hoogte van de hoogste klomp
+  return t;
+}
+
+// hetzelfde, maar meteen in de wereld gezet
+function addThicket(x, aantalKlompen, seed){
+  const t = makeThicket(x, aantalKlompen, seed);
   thickets.push(t);
   return t;
 }
@@ -2310,7 +2364,7 @@ function updateJump(dt, plats, halfW){
     jump.t += dt;
     if (jump.phase === 'crouch' && jump.t >= CROUCH_T){ jump.phase = 'push'; jump.t = 0; }
     else if (jump.phase === 'push' && jump.t >= PUSH_T){
-      jump.phase = 'air'; jump.t = 0; pvh = JUMP_V * (1 - (1 - POOL.jump) * waterDepthAt(world)); onGround = false; puffDust(4);
+      jump.phase = 'air'; jump.t = 0; pvh = jumpV() * (1 - (1 - POOL.jump) * waterDepthAt(world)); onGround = false; puffDust(4);
     } else if (jump.phase === 'land' && jump.t >= LAND_T) jump = null;
   }
 
@@ -2320,7 +2374,7 @@ function updateJump(dt, plats, halfW){
   }
   const prevH = ph;
   if (!onGround){
-    pvh -= GRAVITY * dt;
+    pvh -= gravity() * dt;
     ph += pvh * dt;
   }
   const overGap = !building && !!inGap(world);   // staat er wel grond onder je? (in de bouwer loop je er gewoon overheen)
@@ -2396,7 +2450,7 @@ function restart(){
   drawLives(); deadEl.classList.remove('on');
   snakes.length = 0; scorps.length = 0; panthers.length = 0; hyenas.length = 0; arena = null; camEase = null; spawnTimer = 0.6;
   thickets.length = 0; chips.length = 0;            // struwelen weer heel, brokstukken weg
-  if (level && level.thickets) for (const d of level.thickets) addThicket(d.x, d.n, d.seed);
+  if (level && level.thickets) for (const d of level.thickets) addThicket(d.x, d.n, d.seed).src = d;
   if (level && level.tips) for (const t of level.tips) t.used = false;   // uitleg opnieuw laten zien
   resetHppotions();                                 // flesjes weer op hun plek, handen weer leeg
   tutReset(); venom.length = 0; splat.length = 0; splashes.length = 0; stopWater(); stopHyena();
@@ -3563,10 +3617,19 @@ function hyAnim(s, dt, fps, n, terug){
   while (s.acc >= 1){ s.frame += terug ? -1 : 1; s.acc -= 1; }
   s.frame = ((s.frame % n) + n) % n;
 }
+// Geeft terug of hij de stap ook echt gezet heeft. In de storm houdt geen rots
+// en geen wand hem tegen, maar een ravijn of een terrasrand wel: daar remt hij
+// op de rand af. Een hyena rent niet vrijwillig een afgrond in.
 function hyMove(s, stap, plats, cliff, stormt){
   const nx = s.x + stap;
-  if (stormt){ s.x = nx; return; }                  // in de storm houdt niets hem tegen
-  if (!knockBlocked(s, nx, plats, cliff, HY.bodyW * hyScale() * 0.35, 80)) s.x = nx;
+  const d = stap >= 0 ? 1 : -1;
+  const halfL = HY.bodyW * hyScale() * 0.35;
+  if (stormt){
+    if (inGap(nx + d * halfL) || dropAhead(nx + d * halfL, s.base || 0)) return false;
+    s.x = nx; return true;
+  }
+  if (knockBlocked(s, nx, plats, cliff, halfL, 80)) return false;
+  s.x = nx; return true;
 }
 function hyTelegraph(s){ hySet(s, 'telegraaf'); s.show = 'dreigen'; }
 function hyStorm(s){
@@ -3612,7 +3675,12 @@ function updateHyena(s, dt, plats, cliff){
   const dx = world - s.x, gap = Math.abs(dx), naarJe = dx >= 0 ? 1 : -1;
 
   if (s.state === 'storm'){
-    hyMove(s, s.dir * HY_WALK_SPD * HY_RUN_MULT * dt, plats, cliff, true);
+    if (!hyMove(s, s.dir * HY_WALK_SPD * HY_RUN_MULT * dt, plats, cliff, true)){
+      hySet(s, 'dreigen');                          // op de rand van het ravijn: remmen
+      s.show = 'dreigen';
+      s.threatT = HY_THREAT_MIN + Math.random() * (HY_THREAT_MAX - HY_THREAT_MIN);
+      return;                                       // en het over een tel opnieuw proberen
+    }
     hyAnim(s, dt, HY.fps.ren_lijf, HY.n.ren_lijf, false);
     s.kopAcc += dt * HYENA_BITE_FPS;                // eigen teller, eigen tempo
     while (s.kopAcc >= 1){ s.kop = (s.kop + 1) % HY.n.ren_kop; s.kopAcc -= 1; }
@@ -3632,8 +3700,7 @@ function updateHyena(s, dt, plats, cliff){
     hyMove(s, naarJe * HY_WALK_SPD * dt, plats, cliff, false);
     hyAnim(s, dt, HY.fps.loop, HY.n.loop, false);
     if (gap <= hyThreatGap()){ hySet(s, 'dreigen'); return; }
-    // staat er een rots of een ravijnrand tussen, dan blijft hij daar dreigen; zijn
-    // storm trekt zich er toch niets van aan
+    // staat er een rots of een ravijnrand tussen, dan blijft hij daar dreigen
     if (Math.abs(s.x - voor) < HY_WALK_SPD * dt * 0.4){
       s.stuck += dt;
       if (s.stuck >= HY_STUCK_T){ s.stuck = 0; hySet(s, 'dreigen'); }
@@ -4328,7 +4395,8 @@ function winLevel(){
 document.getElementById('wnreplay').onclick = () => { restart(); cv.focus(); };
 document.getElementById('wnmenu').onclick = () => { won = false; document.getElementById('win').classList.remove('on'); toMenu(); };
 function loop(now){
-  const dt = (paused || won) ? 0 : Math.max(0, Math.min((now - last) / 1000, 0.05)); last = now;
+  let dt = (paused || won) ? 0 : Math.max(0, Math.min((now - last) / 1000, 0.05)); last = now;
+  if (!building) dt *= gameTempo;                // het tempo uit de instellingen
   const left = keys['ArrowLeft'] || keys['a'] || keys['A'];
   const right = keys['ArrowRight'] || keys['d'] || keys['D'];
   // Was 1.85, oftewel 610 px/s tegen 330 wandelend. Dat is op een telefoonscherm
@@ -4364,7 +4432,7 @@ function loop(now){
   }
   if (knock !== 0){
     world += knock * dt;
-    knock *= 0.86;
+    knock *= Math.pow(0.86, dt * 60);             // per seconde, dus even ver bij elk tempo
     if (Math.abs(knock) < 8) knock = 0;
   }
   if (atkCooldown > 0) atkCooldown = Math.max(0, atkCooldown - dt);
@@ -4398,7 +4466,7 @@ function loop(now){
     duckShare = 1 - (1 - DUCK_BOX) * duckT;
   }
   const wetNow = (!building && ph < 2) ? waterDepthAt(world) : 0;   // tot je knieën in het water
-  if (!fell) world += dir * 330 * (wetNow > 0.3 ? 1 : sprint) * (1 - (1 - POOL.slow) * wetNow) * dt;
+  if (!fell) world += dir * 330 * walkK() * (wetNow > 0.3 ? 1 : sprint) * (1 - (1 - POOL.slow) * wetNow) * dt;
   const cliff = cliffAt();
   if (world + halfWNow > cliff.wall) world = cliff.wall - halfWNow;   // je komt er niet voorbij
   if (world - halfWNow < endWall()) world = endWall() + halfWNow;    // en ook niet voorbij je eigen klif
@@ -5460,6 +5528,45 @@ document.getElementById('pzrestart').onclick = () => {
   restart();                                      // zelfde modus, zelfde level, opnieuw
 };
 document.getElementById('pzmenu').onclick = () => { resumeGame(); toMenu(); };
+
+// ---- instellingen in het pauzemenu, bewaard in localStorage ----------------
+// Amir wordt altijd op een kwart van de schermhoogte getekend, maar zijn
+// snelheid staat vast in pixels. Op een telefoon legt hij daardoor per seconde
+// bijna twee keer zo veel van zijn eigen lengte af als op een laptop, en dat
+// voelt veel te snel. Daarom staat het schuifje de eerste keer alvast wat
+// lager op een klein scherm. Het blijft gewoon een schuifje: zet je het zelf,
+// dan onthouden we jouw stand.
+const SKEY = 'amir.spel';
+const TEMPO_REF_H = 700;                          // schermhoogte waarbij vol tempo goed voelt
+const pzcfgEl = document.getElementById('pzcfg');
+const pztempo = document.getElementById('pztempo'), pztempov = document.getElementById('pztempov');
+const pzwalk = document.getElementById('pzwalk'), pzwalkv = document.getElementById('pzwalkv');
+function tempoAdvies(){
+  // het scherm zelf, niet het canvas: anders zou de balk onder de bouwer het advies
+  // verschuiven terwijl het toestel hetzelfde blijft
+  const hoog = Math.max(H || 0, (window.visualViewport ? visualViewport.height : 0) || innerHeight || 0);
+  if (!hoog) return 1;
+  return Math.max(0.7, Math.min(1, Math.round(Math.sqrt(hoog / TEMPO_REF_H) * 20) / 20));
+}
+function loadGameCfg(){
+  let o = null;
+  try { o = JSON.parse(localStorage.getItem(SKEY) || 'null'); } catch (err) {}
+  gameTempo = (o && typeof o.tempo === 'number') ? Math.min(1.2, Math.max(0.5, o.tempo)) : tempoAdvies();
+  walkTempo = (o && typeof o.walk === 'number') ? Math.min(1.2, Math.max(0.7, o.walk)) : 1;
+}
+function saveGameCfg(){
+  try { localStorage.setItem(SKEY, JSON.stringify({ tempo: gameTempo, walk: walkTempo })); } catch (err) {}
+}
+function showGameCfg(){
+  pztempo.value = Math.round(gameTempo * 100); pztempov.textContent = pztempo.value + '%';
+  pzwalk.value = Math.round(walkTempo * 100);  pzwalkv.textContent = pzwalk.value + '%';
+}
+pztempo.addEventListener('input', () => { gameTempo = Number(pztempo.value) / 100; showGameCfg(); saveGameCfg(); });
+pzwalk.addEventListener('input', () => { walkTempo = Number(pzwalk.value) / 100; showGameCfg(); saveGameCfg(); });
+document.getElementById('pzcfgbtn').onclick = () => pzcfgEl.classList.toggle('on');
+document.getElementById('pzcfgreset').onclick = () => {
+  gameTempo = tempoAdvies(); walkTempo = 1; showGameCfg(); saveGameCfg();
+};
 function toMenu(){
   paused = false; pauseEl.classList.remove('on');
   won = false; document.getElementById('win').classList.remove('on');
@@ -5540,6 +5647,16 @@ function ensureLevel(){
   if (!level.thickets) level.thickets = [];
   if (!level.hppotions) level.hppotions = [];
 }
+// De bouwer tekent struwelen uit dezelfde lijst als het spel, dus na elke
+// wijziging zetten we ze opnieuw neer. Hakken doe je in de bouwer toch niet.
+function rebuildThickets(){
+  ensureLevel();
+  thickets.length = 0;
+  for (const d of level.thickets) addThicket(d.x, d.n, d.seed).src = d;
+}
+// halve breedte in wereld-px, zonder hem in de wereld te zetten
+function thicketHalfW(d, scale){ return makeThicket(d.x, d.n, d.seed).halfW * scale; }
+
 function syncLevel(){
   ensureLevel();
   level.rocks.sort((a, b) => a.x - b.x);
@@ -5548,6 +5665,8 @@ function syncLevel(){
   level.gaps.sort((a, b) => a.x - b.x);
   level.water.sort((a, b) => a.x - b.x);
   level.cliffs.sort((a, b) => a.x - b.x);
+  level.thickets.sort((a, b) => a.x - b.x);
+  if (building) rebuildThickets();                 // in de bouwer meteen weer zichtbaar
   bjson.value = JSON.stringify({
     name: level.name || '',
     lagen: level.lagen || '',
@@ -5573,14 +5692,62 @@ function syncLevel(){
                      + ' monsters, ' + level.props.length + ' decor, '
                      + level.gaps.length + ' gaten, ' + level.water.length + ' water, ' + level.cliffs.length + ' kliffen'
                      + ', ' + level.npcs.length + ' personages'
+                     + ', ' + level.thickets.length + ' doornbossen'
                      + (level.ends.length ? ', einde staat' : ', nog geen einde');
   document.getElementById('lvname').textContent = level.name || '';
   try { localStorage.setItem('amir_level', bjson.value); } catch (e) {}
 }
+// ---- elk level nakijken op decor boven een ravijn --------------------------
+// De bouwer weigert het al, maar een level kan ook uit een tekstvak, een
+// bestand of van een AI komen. Daarom kijken we elk level bij het laden na:
+// een boom, een hut of een doornbos hoort op de grond te staan, niet boven een
+// gat, ook niet als hij op de achtergrondlaag getekend wordt. Wat er overheen
+// steekt schuiven we naar de dichtstbijzijnde kant van het ravijn. Lukt dat
+// niet, dan gaat het weg: liever een boom minder dan een boom in de lucht.
+let levelSchoon = { verplaatst: 0, weg: 0 };
+function schoonScale(){ return ((H || 720) * (Number(sizeEl.value) / 100)) / CHAR_H; }
+function naastHetRavijn(x, halfW, gaps){
+  let nx = x;
+  for (let pass = 0; pass < 4; pass++){
+    const g = gaps.find(q => nx + halfW > q.x - q.w / 2 && nx - halfW < q.x + q.w / 2);
+    if (!g) return nx;
+    const links = g.x - g.w / 2 - halfW - 8, rechts = g.x + g.w / 2 + halfW + 8;
+    nx = Math.abs(nx - links) <= Math.abs(nx - rechts) ? links : rechts;
+  }
+  return null;                                     // klem tussen twee gaten
+}
+function schoonLevel(lv){
+  levelSchoon = { verplaatst: 0, weg: 0 };
+  if (!lv.gaps || !lv.gaps.length) return lv;
+  const scale = schoonScale();
+  const schuif = (lijst, halfWVan, hoortErbij) => {
+    for (let i = lijst.length - 1; i >= 0; i--){
+      const o = lijst[i];
+      if (hoortErbij && !hoortErbij(o)) continue;
+      const nx = naastHetRavijn(o.x, halfWVan(o), lv.gaps);
+      if (nx === null){ lijst.splice(i, 1); levelSchoon.weg++; }
+      else if (Math.abs(nx - o.x) > 0.5){ o.x = nx; levelSchoon.verplaatst++; }
+    }
+  };
+  // decor: laag decor altijd, gebouwen op elke laag en op elke hoogte
+  schuif(lv.props, o => propHalfW(o, scale),
+         o => !o.far || (o.y || 0) < FAR_GAP_LIFT || !!PROPS[o.kind].bouwwerk);
+  schuif(lv.npcs, o => npcSize(o.kind, scale).w * 0.3, o => (o.y || 0) < FAR_GAP_LIFT);
+  schuif(lv.thickets, o => thicketHalfW(o, scale) * THICKET_BOX);
+  if (levelSchoon.verplaatst || levelSchoon.weg)
+    console.warn('level nagekeken: ' + levelSchoon.verplaatst + ' verschoven, '
+               + levelSchoon.weg + ' weggehaald (stond boven een ravijn)');
+  return lv;
+}
+function schoonTekst(){
+  if (!levelSchoon.verplaatst && !levelSchoon.weg) return '';
+  return ', ' + levelSchoon.verplaatst + ' verschoven en ' + levelSchoon.weg
+       + ' weggehaald (stond boven een ravijn)';
+}
 function readLevel(txt){
   const o = JSON.parse(txt);
   const arr = Array.isArray(o) ? o : o.rocks || [];
-  return { rocks: arr.map(r => ({ x: Number(r.x), scale: Number(r.s) || 1 })),
+  return schoonLevel({ rocks: arr.map(r => ({ x: Number(r.x), scale: Number(r.s) || 1 })),
            name: o.name || '',
            lagen: SCENES[o.lagen] ? o.lagen : '',      // welk uitzicht dit level krijgt
            spawns: (o.spawns || []).map(s => ({ x: Number(s.x),
@@ -5606,7 +5773,7 @@ function readLevel(txt){
            fg: o.fg ? { from: Number(o.fg.from), to: Number(o.fg.to) } : null,
            arena: o.arena ? { c: Number(o.arena.c) } : null,
            tips: (o.tips || []).map(t => ({ x: Number(t.x), t: String(t.t) })),
-           tutorial: o.tutorial ? o.tutorial.map(s => Object.assign({}, s)) : null };
+           tutorial: o.tutorial ? o.tutorial.map(s => Object.assign({}, s)) : null });
 }
 function startBuild(){
   barEl.classList.remove('hide');
@@ -5769,7 +5936,7 @@ bfile.onchange = () => {
       level = readLevel(r.result);
       bname.value = level.name || '';
       syncLevel(); restart();
-      bcount.textContent = 'geopend: ' + f.name;
+      bcount.textContent = 'geopend: ' + f.name + schoonTekst();
     } catch (e){ bcount.textContent = 'dat bestand snap ik niet'; }
     bfile.value = '';
   };
@@ -5779,7 +5946,8 @@ document.getElementById('btntest').onclick = () => {
   building = false; buildEl.classList.remove('on'); restart(); cv.focus();
 };
 document.getElementById('btnclear').onclick = () => {
-  ensureLevel(); level.rocks.length = 0; level.spawns.length = 0; level.props.length = 0; level.gaps.length = 0; level.water.length = 0; syncLevel();
+  ensureLevel(); level.rocks.length = 0; level.spawns.length = 0; level.props.length = 0; level.gaps.length = 0;
+  level.water.length = 0; level.thickets.length = 0; syncLevel();
 };
 document.getElementById('btncopy').onclick = () => {
   bjson.select();
@@ -5791,7 +5959,7 @@ document.getElementById('btnload').onclick = () => {
     level = readLevel(bjson.value.trim());
     bname.value = level.name || '';
     syncLevel(); restart();
-    bcount.textContent = 'geladen: ' + bcount.textContent;
+    bcount.textContent = 'geladen: ' + bcount.textContent + schoonTekst();
   } catch (e) { bcount.textContent = 'die tekst kan ik niet lezen'; }
 };
 
@@ -5820,6 +5988,8 @@ function builderHit(wx, scale, lift){
     return lift > (o.y || 0) - 30 && lift < (o.y || 0) + ph;
   });
   if (pr) return { list: level.props, kind: 'prop', obj: pr };
+  const th = thickets.slice().reverse().find(t => t.src && Math.abs(wx - t.x) < t.halfW * scale);
+  if (th) return { list: level.thickets, kind: 'thicket', obj: th.src };
   const gp = level.gaps.find(g => Math.abs(g.x - wx) < g.w / 2);
   if (gp) return { list: level.gaps, kind: 'gap', obj: gp };
   const wt = (level.water || []).find(o => Math.abs(waterWetMid(o) - wx) < waterHalfW(o));
@@ -5853,15 +6023,25 @@ function placeProblem(kind, o, scale){               // mag dit hier staan? zo n
     if (Math.abs(o.x) < hw + 200) return 'niet op je startpunt';
     if (level.gaps.some(g => o.x + hw > g.x - g.w / 2 && o.x - hw < g.x + g.w / 2)) return 'niet boven een ravijn';
   }
+  else if (kind === 'thicket'){
+    const hw = thicketHalfW(o, scale) * THICKET_BOX;      // de muur is smaller dan het plaatje
+    if (o.x + hw >= wall - 40) return 'daar staat de klif';
+    if (Math.abs(o.x) < hw + 100) return 'niet op je startpunt';
+    if (level.gaps.some(g => o.x + hw > g.x - g.w / 2 && o.x - hw < g.x + g.w / 2)) return 'niet boven een ravijn';
+  }
   else if (kind === 'gap'){
     if (o.x + o.w / 2 >= wall - 40) return 'daar staat de klif';
     if (Math.abs(o.x) < o.w / 2 + 120) return 'niet op je startpunt';
-    if (level.props.some(q => { if (q.far && (q.y || 0) >= FAR_GAP_LIFT) return false; const h = propHalfW(q, scale); return q.x + h > o.x - o.w / 2 && q.x - h < o.x + o.w / 2; }))
+    if (level.props.some(q => { if (q.far && (q.y || 0) >= FAR_GAP_LIFT && !PROPS[q.kind].bouwwerk) return false;
+                                const h = propHalfW(q, scale); return q.x + h > o.x - o.w / 2 && q.x - h < o.x + o.w / 2; }))
       return 'daar staat decor';
   } else if (kind === 'prop'){
     if (o.x >= wall - 40) return 'daar staat de klif';
     const h = propHalfW(o, scale);
-    const low = !o.far || (o.y || 0) < FAR_GAP_LIFT;          // hoog in de verte mag wel boven een ravijn
+    // Laag decor mag nooit boven een ravijn hangen, hoog decor in de verte wel.
+    // Een gebouw is de uitzondering: dat staat op de grond, op welke laag het ook
+    // getekend wordt, dus dat zou boven een ravijn altijd raar staan.
+    const low = !o.far || (o.y || 0) < FAR_GAP_LIFT || !!PROPS[o.kind].bouwwerk;
     if (low && level.gaps.some(g => o.x + h > g.x - g.w / 2 && o.x - h < g.x + g.w / 2)) return 'niet boven een ravijn';
   }
   return '';
@@ -5873,6 +6053,7 @@ cv.addEventListener('pointermove', e => {
   }
   if (press.dragging){
     press.obj.x = pointerWorldX(e) + press.off;       // de tekening volgt meteen
+    if (press.kind === 'thicket') rebuildThickets();  // die komt uit de wereldlijst
     if ((press.kind === 'prop' && press.obj.far) || press.kind === 'npc'){   // ook omhoog en omlaag
       let ny = Math.max(-60, Math.min(H, pointerLift(e) + press.offY));
       if (press.kind === 'npc' && Math.abs(ny) < 18) ny = 0;               // klikt vast op de grond
@@ -5947,7 +6128,8 @@ cv.addEventListener('pointerdown', e => {
     const gw = GAP_BASE * brushScale;
     if (wx + gw / 2 >= cliffAt().wall - 40){ bcount.textContent = 'daar staat de klif'; return; }
     if (Math.abs(wx) < gw / 2 + 120){ bcount.textContent = 'niet op je startpunt'; return; }
-    if (level.props.some(o => { if (o.far && (o.y || 0) >= FAR_GAP_LIFT) return false; const h = propHalfW(o, scale); return o.x + h > wx - gw / 2 && o.x - h < wx + gw / 2; })){
+    if (level.props.some(o => { if (o.far && (o.y || 0) >= FAR_GAP_LIFT && !PROPS[o.kind].bouwwerk) return false;
+                                const h = propHalfW(o, scale); return o.x + h > wx - gw / 2 && o.x - h < wx + gw / 2; })){
       bcount.textContent = 'daar staat decor, haal dat eerst weg'; return;
     }
     if (level.ends.some(f => { const hw = finSize(scale).w / 2; return f.x + hw > wx - gw / 2 && f.x - hw < wx + gw / 2; })){
@@ -5955,6 +6137,9 @@ cv.addEventListener('pointerdown', e => {
     }
     if (level.npcs.some(n => Math.abs(n.x - wx) < gw / 2 + npcSize(n.kind, scale).w * 0.3)){
       bcount.textContent = 'daar staat een personage'; return;
+    }
+    if (level.thickets.some(t => Math.abs(t.x - wx) < gw / 2 + thicketHalfW(t, scale))){
+      bcount.textContent = 'daar staat een doornbos'; return;
     }
     level.gaps.push({ x: wx, w: gw });
   } else if (tool === 'water'){
@@ -5968,6 +6153,14 @@ cv.addEventListener('pointerdown', e => {
     }
     ensureLevel();
     level.water.push(nw);
+  } else if (tool === 'doorn'){
+    // Grootte bepaalt het aantal klompen: 0,5 is er een, 2,5 of hoger zijn er vijf.
+    // De seed ligt vast in het level, dus jouw doornbos ziet er altijd eender uit.
+    const nw = { x: wx, n: Math.max(1, Math.min(5, Math.round(brushScale * 2))),
+                 seed: Math.floor(Math.random() * 100000) };
+    const why = placeProblem('thicket', nw, scale);
+    if (why){ bcount.textContent = why; return; }
+    level.thickets.push(nw);
   } else if (PROPS[tool]){
     if (wx >= cliffAt().wall - 40){ bcount.textContent = 'daar staat de klif'; return; }
     const farNow = placeFar || !!PROPS[tool].farOnly;   // een hut staat altijd op de achtergrond
@@ -6350,6 +6543,7 @@ loadTouchCfg(); showTouchCfg();
 tcReady = true;
 
 setLabel(); setSpearLabel(); setBoxLabel(); setRightLabel(); setKindLabel(); resize();
+loadGameCfg(); showGameCfg();   // na resize, want het advies kijkt naar de schermhoogte
 requestAnimationFrame(safeLoop);
 </script>
 
