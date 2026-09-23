@@ -8,6 +8,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Amir">
 <meta name="theme-color" content="#2e211d">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
 <title>Amir - King of Africa</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -99,6 +102,24 @@
   #task.ok{border-color:#8ef2a0;border-left-color:#8ef2a0}
   #task.ok .lbl{color:#8ef2a0}
   .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  /* offline opslaan */
+  #offline{flex-direction:column;gap:8px;max-width:440px}
+  #offline.hide{display:none}
+  #offbar{width:260px;height:6px;border-radius:3px;background:rgba(242,232,213,.16);overflow:hidden;display:none}
+  #offbar.on{display:block}
+  #offbar i{display:block;height:100%;width:0;background:var(--sun);transition:width .2s linear}
+  #offnote{font-size:12px;line-height:1.5;color:rgba(242,232,213,.6);margin:0}
+  #offnote.done{color:#8ef2a0}
+  #offnote.warn{color:var(--sun)}
+  #offwipe{font-size:12px!important;padding:4px 10px!important;opacity:.6;display:none}
+  #offwipe.on{display:inline-block}
+  /* op een telefoon staat het startmenu al krap: daar alles op een regel */
+  body.touch #offline{flex-direction:row;flex-wrap:wrap;justify-content:center;gap:10px;max-width:none}
+  body.touch #offbar{width:110px}
+  body.touch #offnote{font-size:11px;max-width:330px;text-align:left}
+  /* de extra regel kost hoogte; iets krappere tussenruimtes houden het menu
+     op een liggende telefoon in beeld zonder te scrollen */
+  body.touch #menuMain{gap:12px}
   #build,#sandbox{position:absolute;left:18px;top:18px;z-index:7;display:none;flex-direction:column;gap:10px;
     background:rgba(20,14,26,.88);padding:14px 16px;border-radius:3px;max-width:430px;font-size:13px}
   #build.on,#sandbox.on{display:flex}
@@ -188,6 +209,14 @@
         <span class="field"><label for="tsize">Knopgrootte</label><input id="tsize" type="range" min="70" max="160" step="5" value="100"><span class="read" id="tsizev">100</span></span>
         <span class="field"><label for="talpha">Dekking</label><input id="talpha" type="range" min="40" max="160" step="5" value="100"><span class="read" id="talphav">100</span></span>
         <button type="button" id="tswap">Links/rechts omdraaien: uit</button>
+      </div>
+      <div class="row hide" id="offline">
+        <div class="row">
+          <button type="button" id="offbtn">Download voor offline</button>
+          <button type="button" id="offwipe">Wissen</button>
+        </div>
+        <div id="offbar"><i></i></div>
+        <p id="offnote"></p>
       </div>
     </div>
 
@@ -5218,6 +5247,139 @@ tcReady = true;
 
 setLabel(); setSpearLabel(); setBoxLabel(); setRightLabel(); setKindLabel(); resize();
 requestAnimationFrame(safeLoop);
+</script>
+
+<script>
+/* Offline opslaan.
+ *
+ * De service worker bewaart alles wat het spel ophaalt, dus na een keer spelen
+ * staat het grootste deel al op de telefoon. De knop hieronder haalt de rest
+ * er in een keer bij, zodat het spel ook zonder verbinding compleet is.
+ *
+ * Staat bewust los van de spellogica: gaat hier iets mis, dan speelt het spel
+ * gewoon door zoals het altijd deed.
+ */
+(function () {
+  const row   = document.getElementById('offline');
+  const btn   = document.getElementById('offbtn');
+  const wipe  = document.getElementById('offwipe');
+  const bar   = document.getElementById('offbar');
+  const fill  = bar.querySelector('i');
+  const note  = document.getElementById('offnote');
+
+  if (!('serviceWorker' in navigator)) return;      // geen ondersteuning: knop blijft weg
+
+  const mb = (bytes) => (bytes / 1048576).toFixed(0) + ' MB';
+
+  let busy = false;
+  let total = 0;
+
+  function say(text, kind) {
+    note.textContent = text;
+    note.className = kind || '';
+  }
+
+  function progress(done, count) {
+    bar.classList.add('on');
+    fill.style.width = (count ? (done / count) * 100 : 0).toFixed(1) + '%';
+  }
+
+  navigator.serviceWorker.register('sw.js').then(() => {
+    row.classList.remove('hide');
+    say('Even kijken wat er al opgeslagen staat.');
+    navigator.serviceWorker.ready.then(ask);
+  }).catch(() => {
+    // Registratie lukt niet (bijvoorbeeld via file:// geopend). Niets tonen.
+  });
+
+  function ask(reg) {
+    const sw = (reg && reg.active) || navigator.serviceWorker.controller;
+    if (sw) sw.postMessage({ type: 'status' });
+    else say('Herlaad de pagina om offline opslaan aan te zetten.');
+  }
+
+  function send(type) {
+    navigator.serviceWorker.ready.then((reg) => {
+      const sw = (reg && reg.active) || navigator.serviceWorker.controller;
+      if (sw) sw.postMessage({ type: type });
+    });
+  }
+
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    const d = event.data || {};
+
+    if (d.type === 'status') {
+      if (d.error) { say('Kon de bestandslijst niet lezen: ' + d.error, 'warn'); return; }
+      total = d.total;
+      const complete = d.done >= d.total;
+      btn.textContent = complete ? 'Opnieuw downloaden' : 'Download voor offline';
+      btn.disabled = busy;
+      wipe.classList.toggle('on', d.done > 0 && !busy);
+      if (busy) return;
+      if (complete) {
+        bar.classList.remove('on');
+        say('Alles staat op je toestel (' + d.total + ' bestanden, ' + mb(d.bytes) + '). Het spel werkt nu ook zonder internet.', 'done');
+      } else if (d.done > 0) {
+        progress(d.done, d.total);
+        say(d.done + ' van de ' + d.total + ' bestanden staan al opgeslagen. De rest erbij is ongeveer ' +
+            mb(d.bytes * (1 - d.done / d.total)) + '.');
+      } else {
+        bar.classList.remove('on');
+        say('Eenmalig ' + mb(d.bytes) + ' ophalen, daarna laadt het spel meteen en zonder internet. Doe dit op wifi.');
+      }
+      return;
+    }
+
+    if (d.type === 'precache-progress') {
+      progress(d.done, d.total);
+      say('Bezig: ' + d.done + ' van de ' + d.total + ' bestanden.');
+      return;
+    }
+
+    if (d.type === 'precache-done') {
+      busy = false;
+      btn.disabled = false;
+      btn.textContent = 'Opnieuw downloaden';
+      wipe.classList.add('on');
+      progress(d.total, d.total);
+      if (d.failed) say(d.failed + ' van de ' + d.total + ' bestanden lukten niet. Probeer het nog eens.', 'warn');
+      else say('Klaar. Alle ' + d.total + ' bestanden (' + mb(d.bytes) + ') staan op je toestel. Het spel werkt nu ook zonder internet.', 'done');
+      return;
+    }
+
+    if (d.type === 'precache-error') {
+      busy = false;
+      btn.disabled = false;
+      bar.classList.remove('on');
+      say('Downloaden mislukt: ' + d.message, 'warn');
+      return;
+    }
+
+    if (d.type === 'cleared') {
+      busy = false;
+      btn.disabled = false;
+      bar.classList.remove('on');
+      fill.style.width = '0%';
+    }
+  });
+
+  btn.onclick = () => {
+    if (busy) return;
+    busy = true;
+    btn.disabled = true;
+    wipe.classList.remove('on');
+    progress(0, total || 1);
+    say('Bezig met downloaden. Laat het scherm aan tot het klaar is.');
+    send('precache');
+  };
+
+  wipe.onclick = () => {
+    if (busy) return;
+    busy = true;
+    say('Bezig met wissen.');
+    send('clear');
+  };
+})();
 </script>
 </body>
 </html>

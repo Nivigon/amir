@@ -4,6 +4,36 @@ Een browserspel in een enkel bestand: open `amir-king-of-africa.html` in de brow
 
 Alle sprites, achtergronden en geluiden staan los op schijf. Het spel verwacht de mappenindeling hieronder; de paden staan letterlijk in de HTML.
 
+## Op je telefoon zetten
+
+Het spel is een installeerbare webapp. Open de Pages-link in Safari, deel, "Zet op beginscherm". Daarna staat Amir als icoon tussen je apps en start hij zonder browserbalken, liggend.
+
+Open hem vanaf het beginscherm en druk in het startmenu op **Download voor offline**. Dat haalt alle 477 sprites en geluiden (ongeveer 100 MB) in een keer binnen. Vanaf dat moment laadt het spel meteen en speelt het ook zonder internet.
+
+Doe die download vanuit het beginscherm-icoon, niet vanuit Safari: iOS geeft een geinstalleerde webapp een eigen opslag, dus wat je in Safari downloadt telt daar niet mee.
+
+Ook zonder op die knop te drukken wordt alles wat je tijdens het spelen tegenkomt bewaard, dus een tweede potje laadt sowieso sneller.
+
+### Hoe het werkt
+
+| bestand | rol |
+| --- | --- |
+| `manifest.webmanifest` | naam, icoon, liggend scherm, start zonder browserbalken |
+| `icons/` | app-iconen, gemaakt uit `amir.png` |
+| `sw.js` | de service worker: bewaart het spel en de assets, en serveert ze offline |
+| `offline-assets.json` | de lijst die de downloadknop afwerkt |
+| `tools/gen-offline-manifest.py` | genereert die lijst uit de bestanden op schijf |
+
+De service worker houdt twee caches uit elkaar. Het spel zelf (HTML, manifest, iconen) gaat network-first: online speel je altijd de nieuwste versie, offline de laatst bekende. De sprites en geluiden gaan cache-first en blijven staan, ook als je het spel update. Een nieuwe versie van de HTML kost dus geen nieuwe download van 100 MB.
+
+**Assets toegevoegd of vervangen?** Draai daarna:
+
+```
+python3 tools/gen-offline-manifest.py
+```
+
+De versie in `offline-assets.json` verandert mee, en de service worker ziet daaraan dat de oude assetcache weg mag.
+
 ## Mappenstructuur
 
 ```
