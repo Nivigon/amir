@@ -38,6 +38,9 @@ enemies/
     lowstrike/             claw_00..13.png (klauwhaal)
     pantherroar.mp3, panter snarl.mp3, panter_snarl_lang.mp3   pantergeluiden
 
+items/
+  potions/                 hppotion.png (de drinkkalebas die gezondheid teruggeeft)
+
 design/
   *.png / *.jpg            losse props en texturen: boulder, tree, struik, villeaghut, drygrass,
                            cliff, flatrock, grondrand, rotstextuur, savannesand, speer, stofwolk, stofsliert, einde
