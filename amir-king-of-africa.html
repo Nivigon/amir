@@ -295,6 +295,14 @@
       <button id="sbside">Van rechts</button>
     </div>
     <div class="row">
+      <label>Doornbos</label>
+      <button data-thicket="1">1 klomp</button>
+      <button data-thicket="2">2</button>
+      <button data-thicket="3">3</button>
+      <button data-thicket="4">4</button>
+      <button data-thicket="5">5</button>
+    </div>
+    <div class="row">
       <button id="sbgod" style="display:none">Onsterfelijk uit</button>
       <button id="sbclear">Alles weg</button>
       <button id="sbback">Terug naar menu</button>
@@ -1284,10 +1292,11 @@ function drawGrains(groundY, scale, cx){
 }      // overgang looppose naar gestrekte staart (de staart zakt)
 // stof op een vaste plek in de wereld (voor de schorpioen)
 const wdust = [];
-function puffWorld(wx, n, kick, size){
+function puffWorld(wx, n, kick, size, baseH){
   const k = size || 1;                               // kleinere wolkjes tijdens de charge
+  const b = (baseH === undefined) ? terrainH(wx) : baseH;   // standaard op de grond, anders op die hoogte
   for (let i = 0; i < n; i++){
-    wdust.push({ wx: wx + (Math.random() - 0.5) * 90, y: -Math.random() * 8, base: terrainH(wx),
+    wdust.push({ wx: wx + (Math.random() - 0.5) * 90, y: -Math.random() * 8, base: b,
                  vx: (Math.random() - 0.5) * 160 + (kick || 0), vy: -40 - Math.random() * 90,
                  r: (7 + Math.random() * 12) * k, life: 0.5 + Math.random() * 0.3, age: 0,
                  rot: Math.random() * 6.28 });
@@ -1812,6 +1821,231 @@ for (const k of ['links', 'midden', 'rechts']){
 const pad2w = i => (i < 10 ? '0' : '') + i;
 const splashImgs = [1,2,3,4,5,6,7,8].map(i => { const im = new Image(); im.src = POOL.dir + 'spetter_' + pad2w(i) + '.png'; return im; });
 const rippleImgs = [1,2,3,4,5,6,7,8].map(i => { const im = new Image(); im.src = POOL.dir + 'rimpel_' + pad2w(i) + '.png'; return im; });
+// ---- doornbos (struweel) -----------------------------------------------
+// Een struweel is één object dat uit 1 of meer klompen bestaat. Alle klompen wisselen
+// samen van hakstadium: 0 heel, 1 en 2 beschadigd, 3 stronk. Drie treffers met de speer
+// en hij is weg; tot dan blokkeert hij Amir volledig. De plaatjes staan met hun onderkant
+// op de grondlijn en per variant zijn alle vier de stadia precies even groot.
+const THICKET = {
+  // h = hoogte als deel van Amir; w/ih = afmeting van de bronplaatjes
+  a: { dir: 'design/doornbos/a_rond/', pre: 'doornbos_a_', h: 1.40, w: 527, ih: 480 },
+  b: { dir: 'design/doornbos/b_hoog/', pre: 'doornbos_b_', h: 1.70, w: 280, ih: 580 }
+};
+const THICKET_STAGES = ['0_heel', '1_hit', '2_hit', '3_stronk'];
+const THICKET_HITS = 3;            // zo vaak moet je hakken, ongeacht het aantal klompen
+const THICKET_BOX = 0.70;          // collisionbox: de binnenste 70% van de breedte
+const THICKET_SHAKE_T = 0.15;      // hoe lang hij naschudt na een treffer
+const THICKET_SHAKE = 0.040;       // uitslag van dat schudden, als deel van Amirs hoogte
+const THICKET_OVERLAP = 0.50;      // zo veel overlappen twee klompen elkaar
+const THICKET_BACK_S = 0.90;       // achterste laag: iets kleiner
+const THICKET_BACK_DARK = 0.20;    // en 20 procent donkerder
+// Amir springt JUMP_V^2 / (2 * GRAVITY) = 1000^2 / 4800 = 208 sprite-eenheden hoog. De
+// laagste klomp die kan voorkomen is 1,40 * 251 * 0,85 = 299 eenheden, dus er is geen
+// sprong die over een heel of beschadigd struweel heen komt.
+const thicketImg = {}, thicketDark = {};
+for (const v in THICKET){
+  thicketImg[v] = THICKET_STAGES.map(s => loadQuiet([THICKET[v].dir + THICKET[v].pre + s + '.png']));
+  thicketDark[v] = THICKET_STAGES.map(() => null);
+}
+// donkere kopie voor de achterste laag, net als bij het verre decor; pas bakken als hij nodig is
+function thicketBack(v, st){
+  if (thicketDark[v][st]) return thicketDark[v][st];
+  const img = thicketImg[v][st];
+  if (!imgReady(img)) return null;
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const g = c.getContext('2d');
+  g.drawImage(img, 0, 0);
+  g.globalCompositeOperation = 'source-atop';
+  g.fillStyle = 'rgba(0,0,0,' + THICKET_BACK_DARK + ')';
+  g.fillRect(0, 0, c.width, c.height);
+  thicketDark[v][st] = c;
+  return c;
+}
+// brokstukken: takjes en blaadjes die wegspatten als je hakt
+const chipImg = {
+  tak:  Array.from({ length: 16 }, (_, i) => loadQuiet(['design/doornbos/brokstukken/tak_'  + pad2(i + 1) + '.png'])),
+  blad: Array.from({ length: 8  }, (_, i) => loadQuiet(['design/doornbos/brokstukken/blad_' + pad2(i + 1) + '.png']))
+};
+const CHIP_MAX = 80;                        // niet meer tegelijk: zo blijft het licht op een iPhone
+const CHIP_H = { tak: 0.13, blad: 0.09 };   // hoogte als deel van Amir
+const CHIP_G = { tak: 900, blad: 430 };     // zwaartekracht, in sprite-eenheden
+const CHIP_BLAD_MAX = 150;                  // blaadjes vallen niet sneller dan dit: ze dwarrelen omlaag
+const thickets = [];                        // de struwelen die nu in de wereld staan
+const chips = [];                           // losse brokstukken
+
+// Zet een struweel neer op wereld-x. aantalKlompen loopt van 1 tot 5. De seed bepaalt alle
+// willekeur, dus met dezelfde seed ziet hetzelfde struweel er elke keer precies zo uit.
+// Laat je de seed weg, dan volgt hij uit x en staat het struweel er dus ook altijd gelijk bij.
+function addThicket(x, aantalKlompen, seed){
+  const n = Math.max(1, Math.min(5, Math.round(aantalKlompen || 1)));
+  const sd = (seed === undefined || seed === null) ? Math.round(x) : Number(seed);
+  let k = 0;
+  const r = () => rnd(sd * 1.37 + 11.3, ++k);        // dezelfde hash als de rotsen gebruiken
+  const clumps = [];
+  for (let i = 0; i < n; i++){
+    const v = r() < 0.5 ? 'a' : 'b';                 // a_rond en b_hoog door elkaar
+    const back = n > 1 && r() < 0.5;                 // ongeveer de helft gaat naar achteren
+    const s0 = 0.85 + r() * 0.15;                    // eigen maat van deze klomp
+    const hS = THICKET[v].h * CHAR_H * s0 * (back ? THICKET_BACK_S : 1);   // hoogte in sprite-eenheden
+    clumps.push({ v, back, s0, flip: r() < 0.5, hS, wS: hS * THICKET[v].w / THICKET[v].ih, dx: 0 });
+  }
+  // de klompen overlappen elkaar ongeveer half, dan leest het als één gegroeide massa
+  let at = 0;
+  for (let i = 0; i < n; i++){
+    if (i > 0) at += (clumps[i - 1].wS + clumps[i].wS) / 2 * (1 - THICKET_OVERLAP) * (0.85 + r() * 0.3);
+    clumps[i].dx = at;
+  }
+  let lo = Infinity, hi = -Infinity;                 // en het geheel netjes rond x centreren
+  for (const c of clumps){ lo = Math.min(lo, c.dx - c.wS / 2); hi = Math.max(hi, c.dx + c.wS / 2); }
+  const mid = (lo + hi) / 2;
+  for (const c of clumps) c.dx -= mid;
+  const t = { x, base: terrainH(x), stage: 0, from: 0, shake: 0, sweptId: -1, clumps,
+              halfW: (hi - lo) / 2,                                   // halve breedte van het plaatjesblok
+              topH: clumps.reduce((m, c) => Math.max(m, c.hS), 0) };  // hoogte van de hoogste klomp
+  thickets.push(t);
+  return t;
+}
+
+// hier kun je later een geluid ophangen: klinkt bij elke treffer, stage is 1, 2 of 3
+function thicketChopSound(t, stage){ }
+
+// from: -1 als Amir links van het struweel staat, +1 als hij rechts staat.
+// hx = raakpunt in wereld-px, hh = hoogte van het raakpunt boven de voet van het struweel.
+function hitThicket(t, from, hx, hh){
+  if (t.stage >= THICKET_HITS) return false;
+  if (!t.from) t.from = from;              // de kant van de eerste treffer blijft gelden
+  t.stage++;
+  t.shake = THICKET_SHAKE_T;
+  const last = t.stage >= THICKET_HITS;
+  thicketChopSound(t, t.stage);
+  // stofwolkje bij het raakpunt, met hetzelfde stof dat de schorpioen opschopt
+  puffWorld(hx, last ? 18 : 7, -from * 60, last ? 1.6 : 0.8, t.base + hh);
+  spawnChips(t, hx, hh, from,
+             last ? 14 + Math.floor(Math.random() * 5) : 6 + Math.floor(Math.random() * 4));
+  return true;
+}
+
+function spawnChips(t, hx, hh, from, n){
+  const away = -from;                               // ze spatten van Amir af
+  for (let i = 0; i < n; i++){
+    if (chips.length >= CHIP_MAX) chips.shift();     // de oudste valt af
+    const leaf = Math.random() < 0.40;
+    const list = leaf ? chipImg.blad : chipImg.tak;
+    chips.push({
+      img: list[Math.floor(Math.random() * list.length)], leaf,
+      hS: CHIP_H[leaf ? 'blad' : 'tak'] * CHAR_H * (0.75 + Math.random() * 0.45),
+      wx: hx + (Math.random() - 0.5) * 26, base: t.base,
+      h: Math.max(6, hh + (Math.random() - 0.5) * 30),
+      vx: away * (70 + Math.random() * (leaf ? 110 : 200)) + (Math.random() - 0.5) * 70,
+      vh: leaf ? 40 + Math.random() * 90 : 150 + Math.random() * 190,   // schuin omhoog
+      rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * (leaf ? 5 : 13),
+      sway: leaf ? 0.5 + Math.random() * 1.1 : 0, swayPh: Math.random() * 6.28,
+      bounce: 0, rest: false,
+      // eerst blijven liggen, daarna uitfaden; fadeAt schuift op als hij nog valt
+      age: 0, fadeAt: 1.5 + Math.random(), fade: 0.5
+    });
+  }
+}
+
+function updateThickets(dt){
+  for (const t of thickets) if (t.shake > 0) t.shake = Math.max(0, t.shake - dt);
+  for (let i = chips.length - 1; i >= 0; i--){
+    const c = chips[i];
+    c.age += dt;
+    if (c.age >= c.fadeAt + c.fade){ chips.splice(i, 1); continue; }
+    if (c.rest){                                     // ligt stil, glijdt alleen nog kort uit
+      if (c.vx !== 0){
+        c.wx += c.vx * dt;
+        c.vx *= Math.pow(0.02, dt);
+        if (Math.abs(c.vx) < 10) c.vx = 0;
+      }
+      continue;
+    }
+    c.wx += c.vx * dt;
+    c.h += c.vh * dt;
+    c.vh -= CHIP_G[c.leaf ? 'blad' : 'tak'] * dt;
+    c.rot += c.spin * dt;
+    if (c.leaf){                                     // blaadjes dwarrelen heen en weer en vallen traag
+      c.vx += Math.sin(c.age * 3.4 + c.swayPh) * c.sway * 120 * dt;
+      c.vx *= Math.pow(0.55, dt);
+      if (c.vh < -CHIP_BLAD_MAX) c.vh = -CHIP_BLAD_MAX;
+    }
+    if (c.h <= 0){                                   // niets zakt door de grondlijn
+      c.h = 0;
+      if (!c.leaf && c.bounce < 2 && c.vh < -40){     // takjes stuiteren een of twee keer licht op
+        c.bounce++;
+        c.vh = -c.vh * 0.30;                          // elke stuit veel minder hoog
+        c.vx *= 0.55;
+        c.spin *= 0.35;                               // en de draaiing remt af
+      } else { c.rest = true; c.vh = 0; c.spin = 0; if (c.leaf) c.vx = 0;
+               c.fadeAt = Math.max(c.fadeAt, c.age); }   // pas uitfaden als hij echt ligt
+    }
+  }
+}
+
+// heel of beschadigd blokkeert volledig, een stronk is alleen nog decor
+function blockByThickets(scale, halfW){
+  for (const t of thickets){
+    if (t.stage >= THICKET_HITS) continue;            // stronk: hier loop je gewoon overheen
+    if (ph >= t.base + t.topH) continue;              // erboven, en dat haal je niet met een sprong
+    const hw = t.halfW * THICKET_BOX * scale;         // smaller dan het plaatje: de doorns voelen niet als muur
+    const l = t.x - hw, r = t.x + hw;
+    if (world + halfW > l && world - halfW < r){
+      if (world < t.x) world = l - halfW; else world = r + halfW;
+    }
+  }
+}
+
+// het struweel staat achter Amir: eerst de achterste laag, daarna de voorste klompen
+function drawThickets(groundY, scale, cx){
+  for (const t of thickets){
+    const px = cx + (t.x - world);
+    if (px + t.halfW * scale < -80 || px - t.halfW * scale > W / viewZoom() + 80) continue;
+    const st = Math.min(THICKET_STAGES.length - 1, t.stage);
+    // beschadigd: de hap zit links in het plaatje, dus spiegelen als Amir van rechts sloeg
+    const bite = t.from === 1;
+    // anderhalve slag heen en weer in THICKET_SHAKE_T, uitdempend; trager dan dit valt
+    // tussen de beeldjes door weg
+    const k = t.shake / THICKET_SHAKE_T;
+    const sh = t.shake > 0
+      ? Math.sin((1 - k) * Math.PI * 3) * THICKET_SHAKE * CHAR_H * scale * k : 0;
+    const bottom = groundY - t.base * scale;
+    for (const pass of [true, false]){
+      for (const c of t.clumps){
+        if (c.back !== pass) continue;
+        const src = pass ? thicketBack(c.v, st)
+                         : (imgReady(thicketImg[c.v][st]) ? thicketImg[c.v][st] : null);
+        if (!src) continue;
+        const h = c.hS * scale, w = c.wS * scale;
+        ctx.save();
+        ctx.translate(px + c.dx * scale + sh - w / 2, bottom - h);
+        if (st >= 1 ? bite : c.flip){ ctx.translate(w, 0); ctx.scale(-1, 1); }
+        ctx.drawImage(src, 0, 0, w, h);
+        ctx.restore();
+      }
+    }
+  }
+}
+
+function drawChips(groundY, scale, cx){
+  if (!chips.length) return;
+  ctx.save();
+  for (const c of chips){
+    if (!imgReady(c.img)) continue;
+    const px = cx + (c.wx - world);
+    if (px < -60 || px > W / viewZoom() + 60) continue;
+    const h = c.hS * scale, w = h * c.img.naturalWidth / c.img.naturalHeight;
+    ctx.globalAlpha = c.age > c.fadeAt ? Math.max(0, 1 - (c.age - c.fadeAt) / c.fade) : 1;
+    ctx.save();
+    ctx.translate(px, groundY - (c.base + c.h) * scale - h / 2);
+    ctx.rotate(c.rot);
+    ctx.drawImage(c.img, -w / 2, -h / 2, w, h);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
 function waterList(){ return (level && level.water) ? level.water : []; }
 function poolScale(){ return edgeReady() ? edgeScale(H - (H * 0.82)) : 0.75; }
 function poolTileW(o){ return POOL.W + o.n * POOL.MW; }
@@ -2041,6 +2275,8 @@ function restart(){
   camY = 0; camFloor = 0;
   drawLives(); deadEl.classList.remove('on');
   snakes.length = 0; scorps.length = 0; panthers.length = 0; arena = null; camEase = null; spawnTimer = 0.6;
+  thickets.length = 0; chips.length = 0;            // struwelen weer heel, brokstukken weg
+  if (level && level.thickets) for (const d of level.thickets) addThicket(d.x, d.n, d.seed);
   if (level && level.tips) for (const t of level.tips) t.used = false;   // uitleg opnieuw laten zien
   tutReset(); venom.length = 0; splat.length = 0; splashes.length = 0;
   greenSince = 0; blackAfter = 3 + Math.floor(Math.random() * 3); forceBlack = false; setKindLabel();
@@ -3487,6 +3723,7 @@ function loop(now){
     else winLevel();
   }
   if (!building) blockByPlatforms(plats, halfWNow);
+  if (!building) blockByThickets(scaleNow, halfWNow);
   updateJump(dt, plats, halfWNow);
   if (sweepBuf > 0){
     sweepBuf = Math.max(0, sweepBuf - dt);
@@ -3501,6 +3738,7 @@ function loop(now){
   updatePanthers(dt, plats, cliff);
   if (!building) updateVenom(dt, scaleNow); else { venom.length = 0; splat.length = 0; }
   if (!building) updateWind(dt); else { wind.length = 0; gust = null; }
+  updateThickets(dt);
   vegDt = dt; vegTick++;
   const set = spear ? sets.sp : sets.ns;
   const moving = dir !== 0;
@@ -3729,6 +3967,8 @@ function loop(now){
         }
       }
     }
+
+    drawThickets(groundY, scale, cx);              // struwelen: achter Amir, voor de grond
 
     // het einde: fakkels met flakkerend licht
     if (level && level.ends && level.ends.length && finImg.complete && finImg.naturalWidth){
@@ -4263,7 +4503,35 @@ function loop(now){
       }
     }
 
+    // ---- de speer tegen het doornbos ----------------------------------
+    for (const t of thickets){
+      if (t.stage >= THICKET_HITS) continue;          // een stronk hak je niet verder
+      const hw = t.halfW * THICKET_BOX * scale;
+      const tbot = groundY - t.base * scale;
+      const tsx = cx + (t.x - world);
+      const tbox = { l: tsx - hw, r: tsx + hw, t: tbot - t.topH * scale, b: tbot };
+      const from = pWorld < t.x ? -1 : 1;             // staat Amir links of rechts van het struweel?
+      if (attacking && !swingUsed && ATK_ACTIVE.indexOf(atkFrame) !== -1){
+        const dxv = TIP_DX[atkFrame] * scale;
+        const tipX = pcx + (facing === 1 ? -dxv : dxv);
+        const tipY = y + TIP_Y[atkFrame] * scale;
+        const reach = 40 * scale;
+        if (tipX + reach > tbox.l && tipX - reach < tbox.r &&
+            tipY + reach > tbox.t && tipY - reach < tbox.b){
+          swingUsed = true;                           // deze stoot is nu op
+          hitThicket(t, from, world + (Math.max(tbox.l, Math.min(tbox.r, tipX)) - cx),
+                     (groundY - tipY) / scale - t.base);
+          continue;
+        }
+      }
+      if (t.sweptId !== sweepId && hitBy(swbox, tbox)){
+        t.sweptId = sweepId;                          // deze zwaai is nu op
+        hitThicket(t, from, world + ((from === -1 ? tbox.l : tbox.r) - cx), 0.25 * CHAR_H);
+      }
+    }
+
     drawFgGrass(groundY, cx, scale, pcx);
+    drawChips(groundY, scale, cx);
     drawGrains(groundY, scale, cx);
     drawVenom(groundY, scale);
     drawWind(groundY, scale, cx);              // stof waait vóór alles langs
@@ -4286,6 +4554,17 @@ function loop(now){
         ctx.stroke();
       }
       ctx.restore();
+    }
+    if (showBoxes){
+      for (const t of thickets){
+        if (t.stage >= THICKET_HITS) continue;
+        const hw = t.halfW * THICKET_BOX * scale, tbot = groundY - t.base * scale;
+        const tsx = cx + (t.x - world);
+        ctx.save();
+        ctx.globalAlpha = 0.5; ctx.strokeStyle = '#7fd4ff'; ctx.lineWidth = 2;
+        ctx.strokeRect(tsx - hw, tbot - t.topH * scale, hw * 2, t.topH * scale);
+        ctx.restore();
+      }
     }
     if (showBoxes && swbox){
       ctx.save();
@@ -4478,6 +4757,7 @@ function ensureLevel(){
   if (!level.cliffs) level.cliffs = [];
   if (!level.ends) level.ends = [];
   if (!level.npcs) level.npcs = [];
+  if (!level.thickets) level.thickets = [];
 }
 function syncLevel(){
   ensureLevel();
@@ -4500,6 +4780,7 @@ function syncLevel(){
     cliffs: level.cliffs.map(o => ({ x: Math.round(o.x) })),
     ends: level.ends.map(o => ({ x: Math.round(o.x) })),
     npcs: level.npcs.map(o => ({ x: Math.round(o.x), k: o.kind, f: o.flip ? 1 : 0, y: Math.round(o.y || 0) })),
+    thickets: (level.thickets || []).map(o => ({ x: Math.round(o.x), n: o.n, seed: o.seed })),
     terraces: (level.terraces || []).map(o => ({ r: o.r, l: o.l, h: o.h })),
     ledges: (level.ledges || []).map(o => ({ x: o.x, h: o.h, s: o.s }))
   });
@@ -4527,6 +4808,9 @@ function readLevel(txt){
            cliffs: (o.cliffs || []).map(q => ({ x: Number(q.x) })),
            ends: (o.ends || []).slice(0, 1).map(q => ({ x: Number(q.x) })),
            npcs: (o.npcs || []).filter(q => NPCS[q.k]).map(q => ({ x: Number(q.x), kind: q.k, flip: !!q.f, y: Number(q.y) || 0 })),
+           thickets: (o.thickets || []).map(q => ({ x: Number(q.x),
+                                                    n: Math.max(1, Math.min(5, Math.round(Number(q.n) || 1))),
+                                                    seed: Number(q.seed) || 0 })),
            terraces: (o.terraces || []).map(q => ({ r: Number(q.r), l: Number(q.l), h: Number(q.h) || 0 })),
            ledges: (o.ledges || []).map(q => ({ x: Number(q.x), h: Number(q.h) || 0, s: Number(q.s) || 1 })),
            fg: o.fg ? { from: Number(o.fg.from), to: Number(o.fg.to) } : null,
@@ -4643,12 +4927,21 @@ function sbSpawn(kind){
   cv.focus();
 }
 sandboxEl.querySelectorAll('button[data-spawn]').forEach(b => b.onclick = () => sbSpawn(b.dataset.spawn));
+function sbThicket(n){
+  const side = sbFromRight ? 1 : -1;
+  let x = world + side * W * 0.42;                  // net binnen beeld, aan de gekozen kant
+  x = Math.min(x, cliffAt().wall - 300);
+  x = Math.max(x, endWall() + 300);
+  addThicket(x, n, Math.floor(Math.random() * 100000));
+  cv.focus();
+}
+sandboxEl.querySelectorAll('button[data-thicket]').forEach(b => b.onclick = () => sbThicket(Number(b.dataset.thicket)));
 const sbSideBtn = document.getElementById('sbside');
 sbSideBtn.onclick = () => { sbFromRight = !sbFromRight; sbSideBtn.textContent = sbFromRight ? 'Van rechts' : 'Van links'; cv.focus(); };
 const sbGodBtn = document.getElementById('sbgod');
 function setGodLabel(){ sbGodBtn.textContent = godMode ? 'Onsterfelijk aan' : 'Onsterfelijk uit'; sbGodBtn.classList.toggle('on', godMode); }
 sbGodBtn.onclick = () => { godMode = !godMode; setGodLabel(); cv.focus(); };
-document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; venom.length = 0; cv.focus(); };
+document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; cv.focus(); };
 document.getElementById('sbback').onclick = stopSandbox;
 document.getElementById('btnsandbox').onclick = startSandbox;
 document.getElementById('btnstop').onclick = () => { building = false; buildEl.classList.remove('on'); };
