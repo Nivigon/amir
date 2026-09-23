@@ -55,6 +55,13 @@ karakters/
       bukken/bukkenspeer/  bukken_in_1..8_speer.png, bukken_hold_1..4_speer.png
   dorpeling1/
     dorpelingidle/         idle_01..12.png
+  dorpelinge/              sfeerkarakter met kruik, 204x360, grondlijn rij 353, 12 fps
+    idle/                  idle_00..17.png (lus)
+    neerzetten/            neerzetten_00..25.png (eenmalig, gaat over in gehurkt)
+    gehurkt/               gehurkt_00..17.png (lus)
+    oppakken/              oppakken_00..25.png (eenmalig, gaat over in idle)
+    metadata.json          framecounts en bounding boxes per frame
+    preview/               sheets en preview-gifs, bronmateriaal
 
 enemies/
   slang1/                  groene slang: idle_1..8, move_1..8, attack_1..8.png (+ mp4 referenties)

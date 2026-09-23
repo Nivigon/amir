@@ -294,6 +294,7 @@
       <button data-tool="klif" data-group="voor">Klif</button>
       <button data-tool="einde" data-group="voor">Einde</button>
       <button data-tool="dorpeling" data-group="pers">Dorpeling</button>
+      <button data-tool="dorpelinge" data-group="pers">Dorpelinge</button>
       <button data-tool="groen" data-group="pers">Groene slang</button>
       <button data-tool="zwart" data-group="pers">Zwarte slang</button>
       <button data-tool="scorp" data-group="pers">Schorpioen</button>
@@ -669,7 +670,8 @@ const GIJS_LEVEL = {
   gaps: [ { x: -3000, w: 250 }, { x: -6500, w: 290 }, { x: -8600, w: 270 } ],
   cliffs: [ { x: -10000 } ],
   ends: [ { x: -9450 } ],
-  npcs: [ { x: 300, k: 'dorpeling', f: 0 } ]
+  npcs: [ { x: 300, k: 'dorpeling', f: 0 },
+          { x: 170, k: 'dorpelinge', s: 1.0, f: 1 } ]
 };
 
 // level 2: langer, bredere gaten, vaker twee monsters kort na elkaar
@@ -1415,6 +1417,14 @@ const scp = {
             'enemies/schorpioen1/curl/curl_' + pad2(i) + '.png' ]))
 };
 // ---------- personages ----------
+const DLE_DIR = 'karakters/dorpelinge/';
+// idle_00.png .. idle_17.png enzovoort; het tweede pad vangt de extra map op
+// die Windows er bij het uitpakken soms tussen zet
+function dleCyclus(naam, n){
+  return Array.from({ length: n }, (_, i) => loadAny([
+    DLE_DIR + naam + '/' + naam + '_' + pad2(i) + '.png',
+    DLE_DIR + 'dorpelinge/' + naam + '/' + naam + '_' + pad2(i) + '.png' ]));
+}
 const NPCS = {
   // ground = de rij waarop hij staat. Hij staat met een voet naar voren en een naar achteren;
   // de onderste rij van het plaatje is alleen de teen van zijn voorste sandaal. Die rij op de
@@ -1425,12 +1435,68 @@ const NPCS = {
                  'karakters/dorpeling1/dorpelingidle/idle_' + pad2(i) + '.png',
                  'karakters/dorpeling1/dorpeling_idle_12frames/dorpeling_idle_12/idle_' + pad2(i) + '.png',
                  'karakters/dorpeling1/dorpeling_idle_12frames/idle_' + pad2(i) + '.png',
-                 'karakters/dorpeling1/dorpeling_idle_12/idle_' + pad2(i) + '.png' ])) }
+                 'karakters/dorpeling1/dorpeling_idle_12/idle_' + pad2(i) + '.png' ])) },
+  // De dorpelinge staat er puur voor de sfeer. Al haar frames staan op hetzelfde
+  // doek van 204x360 met de grondlijn op rij 353, dus alles gaat op dezelfde
+  // plek en de overgang van de ene reeks naar de andere loopt vanzelf door.
+  // Ze staat te wachten met haar kruik, zet die af en toe neer, blijft er een
+  // poos bij hurken en pakt hem daarna weer op.
+  dorpelinge: { w: 204, h: 360, ground: 353, fig: 346, tall: 1.24, fps: 12,
+                begin: 'idle',
+                cycli: {
+                  idle:       { frames: dleCyclus('idle', 18),       loop: true,
+                                duur: [8, 15], daarna: 'neerzetten' },
+                  neerzetten: { frames: dleCyclus('neerzetten', 26), loop: false, daarna: 'gehurkt' },
+                  gehurkt:    { frames: dleCyclus('gehurkt', 18),    loop: true,
+                                duur: [6, 12], daarna: 'oppakken' },
+                  oppakken:   { frames: dleCyclus('oppakken', 26),   loop: false, daarna: 'idle' }
+                } }
 };
-function npcSize(kind, scale){
+// de figuur is iets groter dan Amir; mul is de schaal die je per plaatsing meegeeft
+function npcSize(kind, scale, mul){
   const d = NPCS[kind];
-  const h = CHAR_H * scale * d.tall * d.h / d.fig;   // de figuur is iets groter dan Amir
+  const h = CHAR_H * scale * d.tall * (mul || 1) * d.h / d.fig;
   return { w: d.w * h / d.h, h, ground: d.ground * h / d.h };
+}
+// welke reeks draait er nu, en welk plaatje hoort daarbij
+function npcCyc(d, n){
+  if (!d.cycli) return null;
+  return d.cycli[n.cyc] || d.cycli[d.begin];
+}
+function npcFrame(d, n){
+  if (!d.cycli) return null;
+  const c = npcCyc(d, n);
+  return c.frames[Math.min(Math.max(n.fr || 0, 0), c.frames.length - 1)];
+}
+// een reeks starten: bij een lus loten we meteen hoe lang ze erin blijft
+function npcStart(d, n, naam){
+  n.cyc = naam; n.fr = 0; n.acc = 0;
+  const c = d.cycli[naam];
+  n.wacht = c.duur ? c.duur[0] + Math.random() * (c.duur[1] - c.duur[0]) : 0;
+}
+// De lussen draaien door tot hun tijd om is; de eenmalige reeksen (neerzetten,
+// oppakken) spelen precies een keer af en gaan daarna meteen de volgende lus in.
+function updateNpcs(dt){
+  if (!level || !level.npcs) return;
+  for (const n of level.npcs){
+    const d = NPCS[n.kind];
+    if (!d || !d.cycli) continue;
+    if (!n.cyc || !d.cycli[n.cyc]) npcStart(d, n, d.begin);
+    const c = d.cycli[n.cyc];
+    if (c.loop && c.daarna){
+      n.wacht -= dt;
+      if (n.wacht <= 0){ npcStart(d, n, c.daarna); continue; }
+    }
+    n.acc += dt * d.fps;
+    while (n.acc >= 1){
+      n.acc -= 1;
+      n.fr++;
+      if (n.fr < c.frames.length) continue;
+      if (c.loop){ n.fr = 0; continue; }
+      npcStart(d, n, c.daarna);                  // eenmalig: hierna meteen de volgende reeks
+      break;
+    }
+  }
 }
 function curlReady(){ return scp.curl.every(i => i.complete && i.naturalWidth); }
 let greenSince = 0;                 // hoeveel groene er zijn geweest
@@ -1499,7 +1565,7 @@ function idleImg(set){
   const f = a[idleFrame % a.length];
   return (f.complete && f.naturalWidth) ? f : set.idle;
 }
-const total = RUN_NS.length + RUN_SP.length + ATK_SP.length + 2 + IDLE_SP_FRAMES.length + 48 + 36 + 12;   // +20 idle speer, +36 schorpioen, +12 dorpeling
+const total = RUN_NS.length + RUN_SP.length + ATK_SP.length + 2 + IDLE_SP_FRAMES.length + 48 + 36 + 12 + 88;   // +20 idle speer, +36 schorpioen, +12 dorpeling, +88 dorpelinge
 
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 let W = 0, H = 0, DPR = 1, lastW = -1, lastH = -1;
@@ -4463,6 +4529,7 @@ function loop(now){
   if (!building) updateVenom(dt, scaleNow); else { venom.length = 0; splat.length = 0; }
   if (!building) updateWind(dt); else { wind.length = 0; gust = null; }
   updateThickets(dt);
+  updateNpcs(dt);                                // de dorpelinge hurkt en staat weer op
   updateHppotions(dt, scaleNow);
   updateHppotionFx(dt);
   vegDt = dt; vegTick++;
@@ -4723,15 +4790,17 @@ function loop(now){
       }
     }
 
-    // personages: staan rustig te ademen, achter Amir
+    // personages: staan rustig te ademen, achter Amir. Geen botsing, geen schade:
+    // Amir loopt er gewoon doorheen.
     if (level && level.npcs && level.npcs.length){
       const now = performance.now() / 1000;
       for (const n of level.npcs){
         const d = NPCS[n.kind]; if (!d) continue;
-        const ns = npcSize(n.kind, scale);
+        const ns = npcSize(n.kind, scale, n.scale);
         const nx = cx + (n.x - world) - ns.w / 2;
         if (nx > W / viewZoom() + W || nx + ns.w < -W) continue;
-        const fr = d.frames[Math.floor(now * d.fps + Math.abs(n.x) * 0.013) % d.frames.length];
+        const fr = d.cycli ? npcFrame(d, n)
+                           : d.frames[Math.floor(now * d.fps + Math.abs(n.x) * 0.013) % d.frames.length];
         if (!fr || !fr.complete || !fr.naturalWidth) continue;
         const lift = (n.y || 0) + terrainH(n.x) * scale;
         const ny = groundY - ns.ground - lift;
@@ -5593,7 +5662,8 @@ function syncLevel(){
     water: level.water.map(o => ({ x: Math.round(o.x), n: o.n })),
     cliffs: level.cliffs.map(o => ({ x: Math.round(o.x) })),
     ends: level.ends.map(o => ({ x: Math.round(o.x) })),
-    npcs: level.npcs.map(o => ({ x: Math.round(o.x), k: o.kind, f: o.flip ? 1 : 0, y: Math.round(o.y || 0) })),
+    npcs: level.npcs.map(o => ({ x: Math.round(o.x), k: o.kind, s: +(o.scale || 1).toFixed(2),
+                                 f: o.flip ? 1 : 0, y: Math.round(o.y || 0) })),
     thickets: (level.thickets || []).map(o => ({ x: Math.round(o.x), n: o.n, seed: o.seed })),
     hppotions: (level.hppotions || []).map(o => ({ x: Math.round(o.x),
                                                    y: (o.y === null || o.y === undefined) ? null : Math.round(o.y) })),
@@ -5626,7 +5696,9 @@ function readLevel(txt){
            water: (o.water || []).map(q => ({ x: Number(q.x), n: Math.max(0, Math.round(Number(q.n) || 0)) })),
            cliffs: (o.cliffs || []).map(q => ({ x: Number(q.x) })),
            ends: (o.ends || []).slice(0, 1).map(q => ({ x: Number(q.x) })),
-           npcs: (o.npcs || []).filter(q => NPCS[q.k]).map(q => ({ x: Number(q.x), kind: q.k, flip: !!q.f, y: Number(q.y) || 0 })),
+           npcs: (o.npcs || []).filter(q => NPCS[q.k])
+                                .map(q => ({ x: Number(q.x), kind: q.k, scale: Number(q.s) || 1,
+                                             flip: !!q.f, y: Number(q.y) || 0 })),
            thickets: (o.thickets || []).map(q => ({ x: Number(q.x),
                                                     n: Math.max(1, Math.min(5, Math.round(Number(q.n) || 1))),
                                                     seed: Number(q.seed) || 0 })),
@@ -5856,7 +5928,7 @@ function builderHit(wx, scale, lift){
   const wt = (level.water || []).find(o => Math.abs(waterWetMid(o) - wx) < waterHalfW(o));
   if (wt) return { list: level.water, kind: 'water', obj: wt };
   const np = level.npcs.slice().reverse().find(n => {
-    const ns = npcSize(n.kind, scale);
+    const ns = npcSize(n.kind, scale, n.scale);
     if (Math.abs(n.x - wx) >= ns.w * 0.4) return false;
     if (lift === undefined) return true;
     return lift > (n.y || 0) - 30 && lift < (n.y || 0) + ns.h;
@@ -5874,7 +5946,7 @@ function placeProblem(kind, o, scale){               // mag dit hier staan? zo n
   else if (kind === 'spawn'){ if (o.x >= wall - 40) return 'daar staat de klif'; }
   else if (kind === 'cliff'){ if (o.x > -400) return 'een klif staat links van je start'; }
   else if (kind === 'npc'){
-    const hw = npcSize(o.kind, scale).w * 0.3;
+    const hw = npcSize(o.kind, scale, o.scale).w * 0.3;
     if (o.x + hw >= wall - 40) return 'daar staat de klif';
     if ((o.y || 0) < FAR_GAP_LIFT && level.gaps.some(g => o.x + hw > g.x - g.w / 2 && o.x - hw < g.x + g.w / 2)) return 'niet boven een ravijn';
   }
@@ -5961,7 +6033,8 @@ cv.addEventListener('pointerdown', e => {
     if (wx >= cliffAt().wall - 40){ bcount.textContent = 'daar staat de klif'; return; }
     level.spawns.push({ x: wx, kind: 'hyenas', n: tool === 'hyena2' ? 2 : 1 });
   } else if (NPCS[tool]){
-    const nw = { x: wx, kind: tool, flip: false, y: Math.abs(lift) < 25 ? 0 : Math.max(-60, Math.min(H, lift)) };
+    const nw = { x: wx, kind: tool, scale: brushScale, flip: false,
+                 y: Math.abs(lift) < 25 ? 0 : Math.max(-60, Math.min(H, lift)) };
     const why = placeProblem('npc', nw, scale);
     if (why){ bcount.textContent = why; return; }
     level.npcs.push(nw);
@@ -5984,7 +6057,7 @@ cv.addEventListener('pointerdown', e => {
     if (level.ends.some(f => { const hw = finSize(scale).w / 2; return f.x + hw > wx - gw / 2 && f.x - hw < wx + gw / 2; })){
       bcount.textContent = 'daar staat het einde'; return;
     }
-    if (level.npcs.some(n => Math.abs(n.x - wx) < gw / 2 + npcSize(n.kind, scale).w * 0.3)){
+    if (level.npcs.some(n => Math.abs(n.x - wx) < gw / 2 + npcSize(n.kind, scale, n.scale).w * 0.3)){
       bcount.textContent = 'daar staat een personage'; return;
     }
     level.gaps.push({ x: wx, w: gw });
