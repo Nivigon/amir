@@ -2280,6 +2280,11 @@ function resizeIfNeeded(){
   }
 }
 addEventListener('resize', resize);
+// Verandert het speelvlak van maat zonder dat het venster verandert (de balk van de
+// bouwer of de sandbox verschijnt of verdwijnt), dan hoort het canvas meteen mee te
+// gaan. De ResizeObserver ziet dat direct; zonder observer valt het spel terug op de
+// controle om de 30 frames in de lus.
+if (window.ResizeObserver) new ResizeObserver(() => resizeIfNeeded()).observe(cv.parentElement);
 // Prestatiemeting: haalt het toestel de frames niet, dan zakt het resolutieplafond
 // een stap. Alleen omlaag, nooit terug omhoog: anders gaat hij zitten wippen.
 // Frames vlak na een resize of een lange onderbreking tellen niet mee.
@@ -2287,7 +2292,8 @@ const PERF = { venster: 90, traag: 21, reeks: 2 };   // 90 frames, gemiddeld bov
 let perfSom = 0, perfN = 0, perfTraag = 0, perfPrev = 0;
 function perfTick(now){
   const d = now - perfPrev; perfPrev = now;
-  if (!(d > 0) || d > 200 || !running || paused || DPR <= 1) return;
+  // alleen op een aanraakscherm: op een laptop blijft het beeld scherp, ook als hij even traag is
+  if (!(d > 0) || d > 200 || !running || paused || DPR <= 1 || !touchOn()) return;
   perfSom += d; perfN++;
   if (perfN < PERF.venster) return;
   const gem = perfSom / perfN; perfSom = 0; perfN = 0;
@@ -5477,9 +5483,10 @@ function loop(now){
   const frvNu = attacking ? ('A' + (atkFrame + 1)) : swFrame >= 0 ? ('S' + (swFrame + 1)) : (duckT > 0 ? 'buk' : (moving ? String(frame + 1) : (set.idleAnim ? 'I' + (idleFrame + 1) : 'idle')));
   if (frvNu !== frvLast){ frvLast = frvNu; frv.textContent = frvNu; }
 
-  // getBoundingClientRect dwingt een layout af; de resize-events vangen het meeste al,
-  // dit is alleen een vangnet, dus om de 30 frames is ruim genoeg
-  if ((++frameNr % 30) === 0) resizeIfNeeded();
+  // getBoundingClientRect dwingt een layout af; de resize-events en de ResizeObserver
+  // vangen alles al, dit is alleen een vangnet voor browsers zonder observer
+  frameNr++;
+  if (!window.ResizeObserver && frameNr % 30 === 0) resizeIfNeeded();
   perfTick(now);
   const shakeX = shake > 0 ? (Math.random() - 0.5) * 26 * (shake / 0.28) : 0;
   const shakeY = shake > 0 ? (Math.random() - 0.5) * 14 * (shake / 0.28) : 0;
