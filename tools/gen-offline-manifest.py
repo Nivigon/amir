@@ -36,6 +36,9 @@ SHEETS_IN_USE = (
 
 def is_source_material(rel: str) -> bool:
     name = os.path.basename(rel)
+    # docs-mappen zijn leesvoer bij de assets: readme's en previews, niets voor het spel
+    if '/docs/' in rel:
+        return True
     if '_magenta' in name or '_preview' in name:
         return True
     if 'sheet' in name and rel not in SHEETS_IN_USE:
