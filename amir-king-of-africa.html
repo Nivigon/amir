@@ -310,6 +310,7 @@
       <button data-tool="klif" data-group="voor">Klif</button>
       <button data-tool="einde" data-group="voor">Einde</button>
       <button data-tool="dorpeling" data-group="pers">Dorpeling</button>
+      <button data-tool="dorpelinge" data-group="pers">Dorpelinge</button>
       <button data-tool="groen" data-group="pers">Groene slang</button>
       <button data-tool="zwart" data-group="pers">Zwarte slang</button>
       <button data-tool="scorp" data-group="pers">Schorpioen</button>
@@ -448,6 +449,30 @@
 </div>
 
 <script>
+// ---- globale lichtlaag --------------------------------------------------
+// Eén belichting over de hele wereld: sprites, decor en achtergrond krijgen
+// dezelfde koele schaduwkant links, warm licht richting de zon en een onderkant
+// die iets dieper wegzakt. Bedoeld als subtiel: je merkt het pas als je het met
+// de toets L aan- en uitzet. Per level bij te stellen.
+const LICHT = {
+  aan: true,
+  schaduwKleur: [199, 191, 230],   // koele kant, links
+  lichtKleur:   [255, 250, 240],   // warme kant, richting de zon
+  kromming: 1.15,                  // verloop links naar rechts
+  zonX: 0.72,                      // zonpositie als fractie van de schermbreedte
+  zonY: 0.55,                      // zonpositie als fractie van de schermhoogte
+  gloedKleur: [255, 150, 60],
+  gloedSterkte: 0.15,              // additieve gloed rond de zon
+  gloedStraal: 0.45,               // straal als fractie van de schermbreedte
+  gloedBreedte: 1.6,               // horizontaal uitgerekt, 1 is rond
+  bodemDonker: 0.10,               // onderste kwart iets dieper in de schaduw
+  sterkte: 1.0                     // globale schaal over alles heen
+};
+// zonX en zonY zijn de terugval. De zon wordt als schijf in de achtergrondlaag
+// getekend, dus schrijft scene() hieronder elke frame zijn werkelijke
+// schermpositie weg en rekent de gloed daarmee.
+const zonScherm = { x: 0, y: 0, geldig: false };
+
 // Amir: de sprites staan los op schijf (scheelt een hoop in de grootte van dit bestand)
 // nieuwe indeling: karakters/amir/{idle, aanval/{lowsweep,speerstrike}, beweging/{bukken,jump,run}}
 // de oude paden blijven als reserve staan, dus beide mappenstructuren werken
@@ -714,10 +739,21 @@ const GIJS_LEVEL = {
            { x: -1100, k: 'hut',     s: 1.0, f: 1, v: 1 }, { x: -1600, k: 'tree',    s: 0.9, f: 0, v: 1 },
            { x: -4750, k: 'tree',    s: 1.1, f: 1, v: 1 }, { x: -5350, k: 'hut',     s: 0.9, f: 1, v: 1 },
            { x: -7600, k: 'hut',     s: 1.1, f: 0, v: 1 }, { x: -9750, k: 'hut',     s: 1.0, f: 1, v: 1 } ],
+  // een dorpje langs de weg: put, twee ronde hutten (de tweede gespiegeld) en een
+  // kookafdak op de grondlijn, twee hutten met veel depth ver erachter, en een grote
+  // hut op de voorgrond waar Amir achterlangs loopt
+  village: [ { id: 'well',                   x: -1350, depth: 0 },
+             { id: 'hut_rect_back',          x: -1550, depth: 0.72 },
+             { id: 'hut_round_arch',         x: -1900, depth: 0 },
+             { id: 'hut_round_back_closeup', x: -2100, depth: 0 },
+             { id: 'hut_round_door_left',    x: -2350, flip: 1, depth: 0 },
+             { id: 'hut_round_back',         x: -2550, depth: 0.88 },
+             { id: 'cooking_shelter',        x: -2640, depth: 0 } ],
   gaps: [ { x: -3000, w: 250 }, { x: -6500, w: 290 }, { x: -8600, w: 270 } ],
   cliffs: [ { x: -10000 } ],
   ends: [ { x: -9450 } ],
-  npcs: [ { x: 300, k: 'dorpeling', f: 0 } ]
+  npcs: [ { x: 300, k: 'dorpeling', f: 0 },
+          { x: 170, k: 'dorpelinge', s: 1.0, f: 1 } ]
 };
 
 // level 2: langer, bredere gaten, vaker twee monsters kort na elkaar
@@ -748,7 +784,7 @@ const GIJS_LEVEL_2 = {
            { x:  -1000, k: 'hut',     s: 1.0, f: 0, v: 1 }, { x:  -1700, k: 'tree',    s: 1.0, f: 1, v: 1 },
            { x:  -3700, k: 'tree',    s: 1.2, f: 0, v: 1 }, { x:  -4600, k: 'hut',     s: 0.9, f: 1, v: 1 },
            { x:  -6000, k: 'tree',    s: 1.1, f: 1, v: 1 }, { x:  -7000, k: 'hut',     s: 1.1, f: 0, v: 1 },
-           { x:  -8000, k: 'tree',    s: 0.9, f: 0, v: 1 }, { x:  -9400, k: 'hut',     s: 1.0, f: 1, v: 1 },
+           { x:  -8127, k: 'tree',    s: 0.9, f: 0, v: 1 }, { x:  -9330, k: 'hut',     s: 1.0, f: 1, v: 1 },
            { x: -10800, k: 'tree',    s: 1.3, f: 1, v: 1 }, { x: -11900, k: 'hut',     s: 1.0, f: 0, v: 1 },
            { x: -13200, k: 'hut',     s: 1.1, f: 1, v: 1 } ],
   gaps: [ { x: -2200, w: 260 }, { x: -4300, w: 280 }, { x: -5700, w: 300 },
@@ -785,7 +821,7 @@ const GIJS_LEVEL_3 = {
            { x:  -1500, k: 'hut',     s: 1.0, f: 0, v: 1 }, { x:  -2600, k: 'tree',    s: 1.1, f: 1, v: 1 },
            { x:  -4800, k: 'hut',     s: 0.9, f: 1, v: 1 }, { x:  -6000, k: 'tree',    s: 1.0, f: 0, v: 1 },
            { x:  -8800, k: 'tree',    s: 1.2, f: 1, v: 1 }, { x:  -9900, k: 'hut',     s: 1.1, f: 0, v: 1 },
-           { x: -11200, k: 'tree',    s: 0.9, f: 0, v: 1 }, { x: -12700, k: 'hut',     s: 1.0, f: 1, v: 1 },
+           { x: -11173, k: 'tree',    s: 0.9, f: 0, v: 1 }, { x: -12700, k: 'hut',     s: 1.0, f: 1, v: 1 },
            { x: -13800, k: 'tree',    s: 1.2, f: 0, v: 1 }, { x: -15000, k: 'hut',     s: 1.0, f: 0, v: 1 } ],
   gaps: [ { x: -3500, w: 260 }, { x: -7400, w: 280 }, { x: -11400, w: 290 } ],
   water: [ { x: -2000, n: 0 }, { x: -5200, n: 1 }, { x: -9400, n: 4 }, { x: -13000, n: 1 } ],
@@ -938,7 +974,7 @@ const GIJS_LEVEL_8 = {
            { x: -12700, k: 'boulder',  s: 1.0, f: 0, v: 0 }, { x: -13600, k: 'bot_schuin', s: 1.0, f: 1, v: 0 },
            { x: -14700, k: 'gras',     s: 1.2, f: 0, v: 0 }, { x: -15500, k: 'buffel',   s: 1.2, f: 1, v: 0 },
            { x:  -1100, k: 'hut',      s: 1.0, f: 0, v: 1 }, { x:  -3000, k: 'tree',     s: 1.1, f: 1, v: 1 },
-           { x:  -7400, k: 'hut',      s: 0.9, f: 1, v: 1 }, { x:  -8900, k: 'tree',     s: 1.2, f: 0, v: 1 },
+           { x:  -7400, k: 'hut',      s: 0.9, f: 1, v: 1 }, { x:  -8749, k: 'tree',     s: 1.2, f: 0, v: 1 },
            { x: -12500, k: 'tree',     s: 1.0, f: 1, v: 1 }, { x: -14200, k: 'hut',      s: 1.1, f: 0, v: 1 },
            { x: -15800, k: 'tree',     s: 1.3, f: 0, v: 1 } ],
   gaps: [ { x: -2000, w: 270 }, { x: -9000, w: 290 }, { x: -13900, w: 300 } ],
@@ -1001,9 +1037,9 @@ const PANTER_PLUS = {
            { x:  -7300, k: 'buffel',     s: 1.1, f: 0, v: 0 }, { x:  -8300, k: 'gras',     s: 1.2, f: 1, v: 0 },
            { x:  -9600, k: 'fragment',   s: 1.0, f: 0, v: 0 }, { x: -10700, k: 'bot_lang', s: 1.0, f: 1, v: 0 },
            { x: -11600, k: 'boulder',    s: 1.0, f: 0, v: 0 }, { x: -12200, k: 'gras',     s: 1.3, f: 1, v: 0 },
-           { x: -13100, k: 'bot_schuin', s: 1.0, f: 0, v: 0 }, { x: -13800, k: 'struik',   s: 1.0, f: 1, v: 0 },
+           { x: -13100, k: 'bot_schuin', s: 1.0, f: 0, v: 0 }, { x: -13737, k: 'struik',   s: 1.0, f: 1, v: 0 },
            { x:   -900, k: 'hut',        s: 1.0, f: 0, v: 1 }, { x:  -3200, k: 'tree',     s: 1.1, f: 1, v: 1 },
-           { x:  -6700, k: 'tree',       s: 1.2, f: 0, v: 1 }, { x:  -8800, k: 'hut',      s: 0.9, f: 1, v: 1 },
+           { x:  -6700, k: 'tree',       s: 1.2, f: 0, v: 1 }, { x:  -8854, k: 'hut',      s: 0.9, f: 1, v: 1 },
            { x: -11300, k: 'tree',       s: 1.0, f: 0, v: 1 }, { x: -13500, k: 'hut',      s: 1.1, f: 1, v: 1 },
            // het veld van de panter: struiken en hoog gras
            { x: -14700, k: 'gras',   s: 1.5, f: 0, v: 0 }, { x: -14900, k: 'struik', s: 1.2, f: 1, v: 0 },
@@ -1463,6 +1499,14 @@ const scp = {
             'enemies/schorpioen1/curl/curl_' + pad2(i) + '.png' ]))
 };
 // ---------- personages ----------
+const DLE_DIR = 'karakters/dorpelinge/';
+// idle_00.png .. idle_17.png enzovoort; het tweede pad vangt de extra map op
+// die Windows er bij het uitpakken soms tussen zet
+function dleCyclus(naam, n){
+  return Array.from({ length: n }, (_, i) => loadAny([
+    DLE_DIR + naam + '/' + naam + '_' + pad2(i) + '.png',
+    DLE_DIR + 'dorpelinge/' + naam + '/' + naam + '_' + pad2(i) + '.png' ]));
+}
 const NPCS = {
   // ground = de rij waarop hij staat. Hij staat met een voet naar voren en een naar achteren;
   // de onderste rij van het plaatje is alleen de teen van zijn voorste sandaal. Die rij op de
@@ -1473,12 +1517,68 @@ const NPCS = {
                  'karakters/dorpeling1/dorpelingidle/idle_' + pad2(i) + '.png',
                  'karakters/dorpeling1/dorpeling_idle_12frames/dorpeling_idle_12/idle_' + pad2(i) + '.png',
                  'karakters/dorpeling1/dorpeling_idle_12frames/idle_' + pad2(i) + '.png',
-                 'karakters/dorpeling1/dorpeling_idle_12/idle_' + pad2(i) + '.png' ])) }
+                 'karakters/dorpeling1/dorpeling_idle_12/idle_' + pad2(i) + '.png' ])) },
+  // De dorpelinge staat er puur voor de sfeer. Al haar frames staan op hetzelfde
+  // doek van 204x360 met de grondlijn op rij 353, dus alles gaat op dezelfde
+  // plek en de overgang van de ene reeks naar de andere loopt vanzelf door.
+  // Ze staat te wachten met haar kruik, zet die af en toe neer, blijft er een
+  // poos bij hurken en pakt hem daarna weer op.
+  dorpelinge: { w: 204, h: 360, ground: 353, fig: 346, tall: 1.24, fps: 12,
+                begin: 'idle',
+                cycli: {
+                  idle:       { frames: dleCyclus('idle', 18),       loop: true,
+                                duur: [8, 15], daarna: 'neerzetten' },
+                  neerzetten: { frames: dleCyclus('neerzetten', 26), loop: false, daarna: 'gehurkt' },
+                  gehurkt:    { frames: dleCyclus('gehurkt', 18),    loop: true,
+                                duur: [6, 12], daarna: 'oppakken' },
+                  oppakken:   { frames: dleCyclus('oppakken', 26),   loop: false, daarna: 'idle' }
+                } }
 };
-function npcSize(kind, scale){
+// de figuur is iets groter dan Amir; mul is de schaal die je per plaatsing meegeeft
+function npcSize(kind, scale, mul){
   const d = NPCS[kind];
-  const h = CHAR_H * scale * d.tall * d.h / d.fig;   // de figuur is iets groter dan Amir
+  const h = CHAR_H * scale * d.tall * (mul || 1) * d.h / d.fig;
   return { w: d.w * h / d.h, h, ground: d.ground * h / d.h };
+}
+// welke reeks draait er nu, en welk plaatje hoort daarbij
+function npcCyc(d, n){
+  if (!d.cycli) return null;
+  return d.cycli[n.cyc] || d.cycli[d.begin];
+}
+function npcFrame(d, n){
+  if (!d.cycli) return null;
+  const c = npcCyc(d, n);
+  return c.frames[Math.min(Math.max(n.fr || 0, 0), c.frames.length - 1)];
+}
+// een reeks starten: bij een lus loten we meteen hoe lang ze erin blijft
+function npcStart(d, n, naam){
+  n.cyc = naam; n.fr = 0; n.acc = 0;
+  const c = d.cycli[naam];
+  n.wacht = c.duur ? c.duur[0] + Math.random() * (c.duur[1] - c.duur[0]) : 0;
+}
+// De lussen draaien door tot hun tijd om is; de eenmalige reeksen (neerzetten,
+// oppakken) spelen precies een keer af en gaan daarna meteen de volgende lus in.
+function updateNpcs(dt){
+  if (!level || !level.npcs) return;
+  for (const n of level.npcs){
+    const d = NPCS[n.kind];
+    if (!d || !d.cycli) continue;
+    if (!n.cyc || !d.cycli[n.cyc]) npcStart(d, n, d.begin);
+    const c = d.cycli[n.cyc];
+    if (c.loop && c.daarna){
+      n.wacht -= dt;
+      if (n.wacht <= 0){ npcStart(d, n, c.daarna); continue; }
+    }
+    n.acc += dt * d.fps;
+    while (n.acc >= 1){
+      n.acc -= 1;
+      n.fr++;
+      if (n.fr < c.frames.length) continue;
+      if (c.loop){ n.fr = 0; continue; }
+      npcStart(d, n, c.daarna);                  // eenmalig: hierna meteen de volgende reeks
+      break;
+    }
+  }
 }
 function curlReady(){ return scp.curl.every(i => i.complete && i.naturalWidth); }
 let greenSince = 0;                 // hoeveel groene er zijn geweest
@@ -1516,6 +1616,8 @@ const jumpImg = JUMP_FILES.map(n => {
 });
 
 const propImg = {}, propFar = {};
+// het paarsblauw van de verre bergen: daar kleurt decor in de diepte naartoe
+const FAR_TINT = '58,37,64';
 // distant scenery is darkened toward the haze, not made see-through
 function makeFarCopy(kind){
   const img = propImg[kind];
@@ -1525,7 +1627,7 @@ function makeFarCopy(kind){
   const g = c.getContext('2d');
   g.drawImage(img, 0, 0);
   g.globalCompositeOperation = 'source-atop';
-  g.fillStyle = 'rgba(58,37,64,0.66)';
+  g.fillStyle = 'rgba(' + FAR_TINT + ',0.66)';
   g.fillRect(0, 0, c.width, c.height);
   propFar[kind] = c;
 }
@@ -1535,6 +1637,128 @@ for (const k in PROPS){
   im.onload = () => makeFarCopy(k);
   im.onerror = () => console.warn('ontbreekt: ' + PROPS[k].src);
   im.src = PROPS[k].src;                       // loaded from disk, not embedded
+}
+
+// ---- dorpsdecor --------------------------------------------------------
+// De acht platen uit design/village, met de waarden uit design/village/metadata.json
+// ernaast overgenomen. h = hoogte in Amirs (heightInPlayerHeights): de hoogte volgt
+// dus de speler en niet het canvas. mirror = false betekent dat het plaatje harde
+// slagschaduwen van links heeft; gespiegeld valt het licht de verkeerde kant op.
+// layer: 'mid' staat achter Amir, 'fg' wordt na Amir en de vijanden getekend.
+const VILLAGE_SINK = 0.03;      // zo diep zakt de voet in de grond: de zandrand valt weg
+const VILLAGE_FAR = 0.40;       // op depth 1 nog 60% groot, net als het verre decor
+const VILLAGE_TINT = 0.45;      // en op depth 1 zo ver in de nevel van de verre bergen
+const VILLAGE = {
+  hut_round_arch:         { src: 'design/village/hut_round_arch.png',                 h: 2.05, ar: 1.165, mirror: true,  layer: 'mid' },
+  hut_round_door_left:    { src: 'design/village/hut_round_door_left.png',            h: 2.05, ar: 1.086, mirror: true,  layer: 'mid' },
+  hut_round_back:         { src: 'design/village/hut_round_back.png',                 h: 2.05, ar: 1.123, mirror: true,  layer: 'mid' },
+  hut_rect_porch:         { src: 'design/village/hut_rect_porch.png',                 h: 1.95, ar: 1.720, mirror: false, layer: 'mid' },
+  hut_rect_back:          { src: 'design/village/hut_rect_back.png',                  h: 1.90, ar: 1.599, mirror: false, layer: 'mid' },
+  cooking_shelter:        { src: 'design/village/cooking_shelter.png',                h: 1.55, ar: 1.625, mirror: true,  layer: 'mid' },
+  well:                   { src: 'design/village/well.png',                           h: 1.30, ar: 1.112, mirror: true,  layer: 'mid' },
+  // de voorgrondhut: loopt Amir erachterlangs, dan zakt hij weg naar 0.35 (zie VILLAGE_FADE)
+  hut_round_back_closeup: { src: 'design/village/foreground/hut_round_back_closeup.png', h: 4.20, ar: 1.123, mirror: true, layer: 'fg' }
+};
+const VILLAGE_FADE = { alpha: 0.35, ms: 180 };   // doorkijk als Amir achter de voorgrondhut loopt
+const villageImg = {}, villageTint = {};
+for (const id in VILLAGE){
+  const im = new Image();
+  villageImg[id] = im;
+  im.onerror = () => console.warn('ontbreekt: ' + VILLAGE[id].src);
+  im.src = VILLAGE[id].src;
+}
+// Een silhouet in de nevelkleur, precies over de ondoorzichtige pixels heen: daarmee
+// kleuren we een object in de diepte, zonder dat de rechthoek eromheen mee verkleurt.
+// Pas aanmaken als er ook echt iets met diepte staat, het scheelt geheugen.
+function villageTintCopy(id){
+  if (villageTint[id]) return villageTint[id];
+  const img = villageImg[id];
+  if (!img || !img.complete || !img.naturalWidth) return null;
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const g = c.getContext('2d');
+  g.drawImage(img, 0, 0);
+  g.globalCompositeOperation = 'source-atop';
+  g.fillStyle = 'rgb(' + FAR_TINT + ')';
+  g.fillRect(0, 0, c.width, c.height);
+  villageTint[id] = c;
+  return c;
+}
+const villageWarned = {};
+// hoe breed een dorpsobject op het scherm staat, bij deze schaal en diepte
+function villageSize(id, depth, scale){
+  const def = VILLAGE[id], img = villageImg[id];
+  if (!def || !img || !img.complete || !img.naturalWidth) return null;
+  const h = CHAR_H * scale * def.h * (1 - VILLAGE_FAR * depth);
+  return { w: img.naturalWidth * (h / img.naturalHeight), h };
+}
+// Eén functie zet elk dorpsobject neer. Ankerpunt is midden onder, de hoogte komt uit
+// het register, de breedte uit de beeldverhouding van de PNG. opt: flip, depth (0..1)
+// en alpha.
+function drawVillageProp(id, x, groundY, scale, cx, opt){
+  const def = VILLAGE[id];
+  if (!def) return;
+  const o = opt || {};
+  const depth = Math.max(0, Math.min(1, Number(o.depth) || 0));
+  const size = villageSize(id, depth, scale);
+  if (!size) return;
+  const px = cx + (x - world) - size.w / 2;
+  if (px > W / viewZoom() + W || px + size.w < -W) return;   // buiten beeld: niets te doen
+  const py = groundY - size.h + VILLAGE_SINK * size.h - terrainH(x) * scale;
+  let flip = !!o.flip;
+  if (flip && !def.mirror){
+    if (!villageWarned[id]){ villageWarned[id] = 1; console.warn('niet spiegelbaar, flip genegeerd: ' + id); }
+    flip = false;                                            // licht en slagschaduw zouden omklappen
+  }
+  const alpha = (o.alpha === undefined || o.alpha === null) ? 1 : o.alpha;
+  if (alpha <= 0.002) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(px, py);
+  if (flip){ ctx.translate(size.w, 0); ctx.scale(-1, 1); }
+  ctx.drawImage(villageImg[id], 0, 0, size.w, size.h);
+  const tint = depth * VILLAGE_TINT;
+  if (tint > 0.002){
+    const tc = villageTintCopy(id);
+    if (tc){ ctx.globalAlpha = alpha * tint; ctx.drawImage(tc, 0, 0, size.w, size.h); }
+  }
+  ctx.restore();
+}
+// Halve breedte in wereld-px. Zolang de PNG nog laadt weten we de beeldverhouding
+// niet uit het plaatje; dan rekenen we met de ar uit het register hierboven.
+function villageHalfW(o, scale){
+  const def = VILLAGE[o.id];
+  if (!def) return 0;
+  const depth = Math.max(0, Math.min(1, Number(o.depth) || 0));
+  const size = villageSize(o.id, depth, scale);
+  if (size) return size.w / 2;
+  return CHAR_H * scale * def.h * (1 - VILLAGE_FAR * depth) * (def.ar || 1) / 2;
+}
+// het dorpsdecor van dit level, per laag en op diepte gesorteerd: het verste eerst,
+// zodat wat dichterbij staat eroverheen komt
+function villageList(layer){
+  if (!level || !level.village || !level.village.length) return [];
+  return level.village.filter(o => VILLAGE[o.id] && VILLAGE[o.id].layer === layer)
+                      .sort((a, b) => (b.depth || 0) - (a.depth || 0));
+}
+function drawVillage(layer, groundY, scale, cx){
+  for (const o of villageList(layer)) drawVillageProp(o.id, o.x, groundY, scale, cx, o);
+}
+// De voorgrondlaag, na Amir en de vijanden. Staat Amir binnen de breedte van een
+// object, dan zakt dat object in VILLAGE_FADE.ms soepel weg naar VILLAGE_FADE.alpha,
+// en daarna weer terug. Alleen de tekening verandert, de botsingen niet.
+function drawVillageFg(groundY, scale, cx, playerX, dt){
+  for (const o of villageList('fg')){
+    const size = villageSize(o.id, Math.max(0, Math.min(1, Number(o.depth) || 0)), scale);
+    if (!size) continue;
+    const achter = Math.abs(playerX - o.x) < size.w / 2;      // loopt Amir erachterlangs?
+    if (typeof o.fade !== 'number') o.fade = 0;               // 0 = vol in beeld, 1 = doorkijk
+    const stap = dt / (VILLAGE_FADE.ms / 1000);
+    o.fade = achter ? Math.min(1, o.fade + stap) : Math.max(0, o.fade - stap);
+    const e = o.fade * o.fade * (3 - 2 * o.fade);             // smoothstep: geen knik aan begin en eind
+    drawVillageProp(o.id, o.x, groundY, scale, cx,
+                    { flip: o.flip, depth: o.depth, alpha: 1 - (1 - VILLAGE_FADE.alpha) * e });
+  }
 }
 const sets = {
   ns: { run: RUN_NS.map(loadAny), idle: loadAny(IDLE_NS) },
@@ -1547,7 +1771,7 @@ function idleImg(set){
   const f = a[idleFrame % a.length];
   return (f.complete && f.naturalWidth) ? f : set.idle;
 }
-const total = RUN_NS.length + RUN_SP.length + ATK_SP.length + 2 + IDLE_SP_FRAMES.length + 48 + 36 + 12;   // +20 idle speer, +36 schorpioen, +12 dorpeling
+const total = RUN_NS.length + RUN_SP.length + ATK_SP.length + 2 + IDLE_SP_FRAMES.length + 48 + 36 + 12 + 88;   // +20 idle speer, +36 schorpioen, +12 dorpeling, +88 dorpelinge
 
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 let W = 0, H = 0, DPR = 1, lastW = -1, lastH = -1;
@@ -1715,6 +1939,7 @@ addEventListener('keydown', e => {
   if (e.key === 'q' || e.key === 'Q'){ drinkHppotion(); return; }
   if (e.key === 'r' || e.key === 'R'){ restart(); return; }
   if (e.key === 'h' || e.key === 'H'){ showBoxes = !showBoxes; setBoxLabel(); return; }
+  if (e.key === 'l' || e.key === 'L'){ LICHT.aan = !LICHT.aan; flashHint('Lichtlaag ' + (LICHT.aan ? 'aan' : 'uit')); return; }
   if (e.key === ' ' || e.key === 'f' || e.key === 'F'){
     e.preventDefault();
     if (e.repeat || atkKeyHeld) return;          // holding the key does not re-fire
@@ -1807,6 +2032,57 @@ function crustAt(wx){
            + 1.6 * Math.sin(wx * 0.081 + 0.4);
 }
 
+// een stem in kleine stapjes naar een ander volume brengen, en daarna eventueel
+// stoppen. Zo hoef je nergens een geluid hard aan of af te kappen.
+function sndRamp(a, naar, secs, stop){
+  clearInterval(a.fadeT);
+  const stappen = Math.max(1, Math.round(secs / 0.025));
+  const van = a.volume;
+  let k = 0;
+  a.fadeT = setInterval(() => {
+    k++;
+    a.volume = Math.max(0, Math.min(1, van + (naar - van) * (k / stappen)));
+    if (k >= stappen){
+      clearInterval(a.fadeT); a.fadeT = 0;
+      if (stop){ a.pause(); a.currentTime = 0; }
+    }
+  }, 25);
+}
+
+// ---- windgeluid ---------------------------------------------------------
+// De opname duurt bijna een halve minuut, een vlaag drie tot vijf seconden. Per
+// vlaag pakken we daarom een willekeurig stuk van een paar seconden: zacht erin,
+// zacht er weer uit, zodat je hem hoort aankomen en er niets wordt afgekapt.
+// Twee stemmen, want twee vlagen vlak na elkaar mogen elkaar overlappen.
+const SFX_WIND = { src: 'music/woestijnwind.mp3', vol: 0.20,
+                   aan: 0.6, duur: 2.4, uit: 1.2, span: 22 };
+const windSnd = [0, 1].map(i => {
+  const a = new Audio();
+  if (i === 0) a.onerror = () => console.warn('ontbreekt: ' + SFX_WIND.src);
+  a.preload = 'auto'; a.src = SFX_WIND.src;
+  return a;
+});
+let windTurn = 0;
+function playWind(amp){
+  if (!wantSound) return;
+  const a = windSnd[windTurn++ % windSnd.length];
+  clearTimeout(a.cutT); clearInterval(a.fadeT); a.cutT = 0; a.fadeT = 0;
+  const zoek = () => { try { a.currentTime = Math.random() * SFX_WIND.span; } catch (e) {} };
+  if (a.readyState >= 1) zoek(); else a.addEventListener('loadedmetadata', zoek, { once: true });
+  a.volume = 0;                                        // hij komt opzetten, hij staat er niet ineens
+  a.play().catch(() => {});
+  const doel = SFX_WIND.vol * Math.max(0.55, Math.min(1, amp));
+  sndRamp(a, doel, SFX_WIND.aan);
+  a.cutT = setTimeout(() => sndRamp(a, 0, SFX_WIND.uit, true),
+                      (SFX_WIND.aan + SFX_WIND.duur) * 1000);
+}
+function stopWind(){
+  for (const a of windSnd){
+    clearTimeout(a.cutT); clearInterval(a.fadeT); a.cutT = 0; a.fadeT = 0;
+    a.pause(); a.currentTime = 0;
+  }
+}
+
 // ---- stof: wolkjes bij springen, en af en toe een windvlaag over de kaart ----
 const dustPuff = new Image(), dustWisp = new Image();
 dustPuff.onerror = () => console.warn('ontbreekt: design/stofwolk.png');
@@ -1823,6 +2099,7 @@ function startGust(){
   const span = W / viewZoom();
   gust = { x0: world - dir * span * 0.65, dir, speed, t: 0,
            dur: 3.0 + Math.random() * 2.0, amp: 0.65 + Math.random() * 0.35 };
+  playWind(gust.amp);                                  // je hoort dezelfde vlaag die je ziet
   const n = 7 + Math.floor(Math.random() * 6);
   for (let i = 0; i < n; i++){
     wind.push({ kind: 'wisp',
@@ -2223,14 +2500,14 @@ function drawWaterStrips(groundY){
   }
 }
 // ---- watergeluid ------------------------------------------------------
-// Elke spetter die je ziet hoor je ook. De opname duurt 0,82s en dat is veel te
-// lang voor een pas: in het water valt er een spetter elke 0,22-0,34s, dus die
-// zouden over elkaar heen blijven liggen tot het een brij is. Daarom twee
-// knippen uit dezelfde plons: waterstep.mp3 is het korte stuk (0,27s, alleen de
-// klap plus een uitfadende nasleep, past binnen de pasmaat) en watersplash.mp3
-// is de hele plons, voor instappen en landen. Allebei beginnen ze op de klap,
-// zonder aanloopstilte, zodat het geluid op het beeld valt.
-const WATER_SND = { step: 'music/waterstep.mp3', plons: 'music/watersplash.mp3' };
+// Elke spetter die je ziet hoor je ook, en overal dezelfde plons: watersplash.mp3,
+// het geluid dat je al hoorde bij instappen en landen, is nu ook het loopgeluid.
+// De opname duurt 0,82s en dat is te lang voor een pas (in het water valt er een
+// spetter elke 0,22-0,34s), dus een pas speelt dezelfde plons maar knipt hem na
+// een paar tienden weg met een kort uitfaden (zie cutWater). Zo hou je de klap,
+// die op het beeld valt, zonder dat de staarten over elkaar heen tot een brij
+// blijven liggen. De opname begint meteen op de klap, zonder aanloopstilte.
+const WATER_SND = { step: 'music/watersplash.mp3', plons: 'music/watersplash.mp3' };
 function waterVoices(src, n){
   return Array.from({ length: n }, (_, i) => {
     const a = new Audio();
@@ -2239,20 +2516,32 @@ function waterVoices(src, n){
     return a;
   });
 }
-// kleine stemmenpool: een nieuwe pas mag over de staart van de vorige heen
-const waterSnd = { step: waterVoices(WATER_SND.step, 3), plons: waterVoices(WATER_SND.plons, 2) };
+// kleine stemmenpool: een nieuwe pas mag over de staart van de vorige heen.
+// Twee losse pools op hetzelfde bestand, zodat een pas de volle plons van een
+// sprong nooit afkapt. Vier stemmen voor de passen, want die knippen we af en
+// dan mogen er gerust een paar tegelijk uitfaden.
+const waterSnd = { step: waterVoices(WATER_SND.step, 4), plons: waterVoices(WATER_SND.plons, 2) };
 const waterTurn = { step: 0, plons: 0 };
-function playWater(k, vol, rate){
+// een stem na `cut` seconden in 0,1s wegdraaien: de klap blijft, de nasleep gaat
+function cutWater(a, cut){
+  a.cutT = setTimeout(() => sndRamp(a, 0, 0.1, true), cut * 1000);
+}
+function playWater(k, vol, rate, cut){
   if (!wantSound) return;
   const pool = waterSnd[k];
   const a = pool[waterTurn[k]++ % pool.length];
+  clearTimeout(a.cutT); clearInterval(a.fadeT); a.cutT = 0; a.fadeT = 0;   // hergebruik: oude knip vervalt
   a.currentTime = 0; a.volume = Math.max(0, Math.min(1, vol));
   a.playbackRate = rate || 1;                                         // hoger = kleinere spat
   a.preservesPitch = false; a.mozPreservesPitch = false; a.webkitPreservesPitch = false;   // de toonhoogte mag mee
   a.play().catch(() => {});
+  if (cut) cutWater(a, cut);
 }
 function stopWater(){
-  for (const k in waterSnd) for (const a of waterSnd[k]){ a.pause(); a.currentTime = 0; }
+  for (const k in waterSnd) for (const a of waterSnd[k]){
+    clearTimeout(a.cutT); clearInterval(a.fadeT); a.cutT = 0; a.fadeT = 0;
+    a.pause(); a.currentTime = 0;
+  }
 }
 // spetters en rimpels, in wereldcoördinaten
 const splashes = [];
@@ -2275,11 +2564,12 @@ function updateSplashes(dt, wet, moving){
         const sz = 0.45 + Math.random() * 0.3;
         splashes.push({ x: world + facing * 12, t: 0, k: 'spetter', s: sz, flip: Math.random() < 0.5 });
         // volume en toonhoogte per pas een beetje anders, anders hoor je de herhaling
-        playWater('step', (0.24 + 0.34 * sz) * (0.55 + 0.45 * wet), 1.18 - 0.22 * sz + (Math.random() - 0.5) * 0.12);
+        // de volle plons, maar afgeknipt binnen de pasmaat
+        playWater('step', (0.22 + 0.3 * sz) * (0.55 + 0.45 * wet), 1.18 - 0.22 * sz + (Math.random() - 0.5) * 0.12, 0.26);
         splashTimer = 0.22 + Math.random() * 0.12;
       } else {
         splashes.push({ x: world, t: 0, k: 'rimpel', s: 0.8 + Math.random() * 0.3 });
-        playWater('step', 0.1 * (0.55 + 0.45 * wet), 0.62 + Math.random() * 0.08);   // stilstaan: alleen een klotsje
+        playWater('step', 0.09 * (0.55 + 0.45 * wet), 0.62 + Math.random() * 0.08, 0.45);   // stilstaan: alleen een klotsje
         splashTimer = 1.0 + Math.random() * 0.7;
       }
     }
@@ -2453,7 +2743,7 @@ function restart(){
   if (level && level.thickets) for (const d of level.thickets) addThicket(d.x, d.n, d.seed).src = d;
   if (level && level.tips) for (const t of level.tips) t.used = false;   // uitleg opnieuw laten zien
   resetHppotions();                                 // flesjes weer op hun plek, handen weer leeg
-  tutReset(); venom.length = 0; splat.length = 0; splashes.length = 0; stopWater(); stopHyena();
+  tutReset(); venom.length = 0; splat.length = 0; splashes.length = 0; stopWater(); stopHyena(); stopWind();
   greenSince = 0; blackAfter = 3 + Math.floor(Math.random() * 3); forceBlack = false; setKindLabel();
   if (level && level.spawns) for (const sp of level.spawns){ sp.used = false; sp.armed = false; }
   // in een echt level begin je zonder speer: die staat voor je in de grond
@@ -3491,7 +3781,9 @@ const HY = {
   n:   { loop: 20, dreigen: 22, ren_lijf: 12, ren_kop: 27 },
   fps: { loop: 12, dreigen: 12, ren_lijf: 16, ren_kop: 8 },
   // verticale verschuiving van de kop per lijfframe, in canvaspixels, plus is omlaag
-  kopOff: [12, 12, 12, 14, 6, 8, 0, 0, -4, -17, -24, -30]
+  kopOff: [12, 12, 12, 14, 6, 8, 0, 0, -4, -17, -24, -30],
+  // kopframes waarop de bek dichtklapt; daar valt telkens een hap te horen
+  hapFrames: [9, 16, 26]
 };
 // Het haptempo: de fps van de koplaag tijdens de aanvalsren. Bijstellen doe je in
 // metadata.json (sets.ren_kop.fps); lukt lezen daarvan niet, dan geldt HY.fps.ren_kop.
@@ -3500,18 +3792,22 @@ let HYENA_BITE_FPS = HY.fps.ren_kop;
 // ---- knoppen om aan te draaien -------------------------------------------
 const HY_H_SHARE    = 0.60;    // hoogte t.o.v. Amir. De panter staat op 0,68, de hyena is net kleiner
 const HY_WALK_SPD   = 170;     // normale loopsnelheid (wereld-px/s)
-const HY_RUN_MULT   = 2.5;     // de storm is 2,5 keer zo snel als zijn loopje
+const HY_RUN_MULT   = 2.875;   // de storm: 2,5 keer zijn loopje plus 15 procent
 const HY_THREAT_GAP = 2.5;     // dreigafstand, als veelvoud van zijn eigen breedte
 const HY_GAP_TOL    = 24;      // speling daarop, anders staat hij te trippelen
 const HY_THREAT_MIN = 1.0, HY_THREAT_MAX = 3.5;   // dreigtijd, per hyena apart geloot
 const HY_TELE_T     = 0.2;     // hoe lang hij bevriest: de enige waarschuwing
 const HY_DOUBLE_CHANCE = 0.30; // kans dat de tweede van de roedel meteen meestormt
 const HY_DOUBLE_MIN = 0.3, HY_DOUBLE_MAX = 0.8;   // en hoeveel later hij dan begint
-const HY_LAUGH_CHANCE = 0.15;  // kans per seconde op een extra lach tijdens het dreigen
-const HY_HP = 2;               // twee speerstoten
+const HY_LAUGH_MIN  = 3.0, HY_LAUGH_MAX = 5.5;   // om de zoveel seconden lacht er weer eentje,
+                                                 // zolang de roedel nog staat te dreigen
+const HY_HP = 1;               // raak met de speer is meteen raak: hij gaat neer
 const HY_INV_T = 0.5;          // onkwetsbaar na een treffer
 const HY_FALL_T = 0.6;         // omvallen en uitfaden
+const HY_RUN_LEG_MULT = 1.5;   // de poten draaien 1,5 keer zo snel als het materiaal; zijn snelheid verandert niet
 const HY_STUCK_T = 1.2;        // komt hij zo lang niet vooruit (een rots, een ravijn), dan dreigt hij daar
+const HY_PAIR_MIN = 1.0, HY_PAIR_MAX = 2.0;   // bij twee hyena's wacht de tweede zo lang
+                                              // voor hij ook het beeld op komt
 const HY_ENTER = 260;          // zo ver buiten beeld komt hij opzetten
 const HY_LEAVE = 420;          // en zo ver voorbij de rand is hij weg
 // de bek is tijdens de storm de raakzone: canvaspixels vanaf het canvasmidden in
@@ -3540,16 +3836,22 @@ fetch(HY_META).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(m => {
     if (s.fps) HY.fps[k] = s.fps;
     if (k === 'ren_lijf' && Array.isArray(s.kop_offset_y_per_frame) && s.kop_offset_y_per_frame.length)
       HY.kopOff = s.kop_offset_y_per_frame.slice();
+    if (k === 'ren_kop' && Array.isArray(s.hap_frames) && s.hap_frames.length)
+      HY.hapFrames = s.hap_frames.slice();
   }
   HYENA_BITE_FPS = HY.fps.ren_kop;
   if (opnieuw) hyLoad();                     // andere aantallen: de frames opnieuw ophalen
 }).catch(() => console.warn('niet gelezen, de ingebouwde waarden gelden: ' + HY_META));
 
 // ---- geluid --------------------------------------------------------------
-// Zelfde opzet als de plons: een klein stemmenpoeltje per geluid, zodat twee
-// hyena's door elkaar heen kunnen happen. hyena_bite.mp3 is een lange opname
-// waarvan alleen 14,0 s tot 16,0 s de hap is; die wordt eruit geknipt.
-const SFX_HYENA_BITE  = { src: 'sounds/hyena_bite.mp3',  from: 14.0, to: 16.0, vol: 0.9 };
+// Zelfde opzet als de plons: een stemmenpoeltje per geluid, zodat happen over
+// elkaar heen mogen vallen.
+// De hap zit in hyena_bite.mp3 in het venster 14,0 tot 16,0 s, maar de klap zelf
+// valt daarbinnen pas op 15,35 s: de anderhalve seconde daarvoor is een zachte
+// grom die je onder de muziek niet hoort. Daarom speelt hij alleen de klap,
+// 15,35 tot 16,0 s, en niet één keer het hele venster.
+const HY_BITE_CLIP = { from: 15.35, to: 16.0 };
+const SFX_HYENA_BITE  = { src: 'sounds/hyena_bite.mp3',  from: HY_BITE_CLIP.from, to: HY_BITE_CLIP.to, vol: 0.95 };
 const SFX_HYENA_LAUGH = { src: 'sounds/hyena_laugh.mp3', from: 0,    to: 0,    vol: 0.8 };
 function hyVoices(sfx, n){
   return Array.from({ length: n }, (_, i) => {
@@ -3559,7 +3861,7 @@ function hyVoices(sfx, n){
     return a;
   });
 }
-const hySnd = new Map([[SFX_HYENA_BITE,  hyVoices(SFX_HYENA_BITE, 2)],
+const hySnd = new Map([[SFX_HYENA_BITE,  hyVoices(SFX_HYENA_BITE, 4)],
                        [SFX_HYENA_LAUGH, hyVoices(SFX_HYENA_LAUGH, 2)]]);
 const hyTurn = new Map([[SFX_HYENA_BITE, 0], [SFX_HYENA_LAUGH, 0]]);
 function hyPlay(sfx){
@@ -3590,24 +3892,30 @@ function hyThreatGap(){ return HY_THREAT_GAP * HY.bodyW * hyScale(); }
 function makeHyena(x, side, enc){
   // side 1 = hij komt van rechts. De frames kijken naar links, dus face 1 = gespiegeld
   return { x, side, face: -side, dir: -side, enc,
-           state: 'komen', show: 'loop', frame: 0, acc: 0,
+           state: 'komen', show: 'loop', wacht: 0, frame: 0, acc: 0,
            dreig: 0, dreigAcc: 0, kop: 0, kopAcc: 0,
            t: 0, threatT: HY_THREAT_MIN + Math.random() * (HY_THREAT_MAX - HY_THREAT_MIN),
-           laughT: 1, laughed: false, forceT: -1,
+           forceT: -1,
            hp: HY_HP, inv: 0, flash: 0, alpha: 1, base: 0, fall: 0, stuck: 0,
            hitUsed: false, sweptId: -1 };
 }
 // een encounter is één roedel: de lach klinkt één keer voor de hele roedel
+function hyRand(a, b){ return a + Math.random() * (b - a); }
+function hyBuitenBeeld(sd){                                         // net buiten de rand, binnen het level
+  let x = world + sd * (W / 2 / viewZoom() + HY_ENTER);
+  x = Math.min(x, cliffAt().wall - 220);
+  return Math.max(x, endWall() + 220);
+}
 function spawnHyenaPack(n, side){
-  const enc = { laughed: false };
+  const enc = { laughed: false, lachT: Infinity };   // de klok start bij de eerste lach
   const kanten = n >= 2 ? [-1, 1]                                   // altijd van twee kanten
                         : [side || (Math.random() < 0.5 ? -1 : 1)];
+  const laat = Math.random() < 0.5 ? -1 : 1;                        // eentje komt later op
   for (const sd of kanten){
-    let x = world + sd * (W / 2 / viewZoom() + HY_ENTER);           // net buiten beeld
-    x = Math.min(x, cliffAt().wall - 220);
-    x = Math.max(x, endWall() + 220);
+    const x = hyBuitenBeeld(sd);
     const h = makeHyena(x, sd, enc);
     h.base = terrainH(x);
+    if (kanten.length > 1 && sd === laat) h.wacht = hyRand(HY_PAIR_MIN, HY_PAIR_MAX);
     hyenas.push(h);
   }
 }
@@ -3617,19 +3925,25 @@ function hyAnim(s, dt, fps, n, terug){
   while (s.acc >= 1){ s.frame += terug ? -1 : 1; s.acc -= 1; }
   s.frame = ((s.frame % n) + n) % n;
 }
-// Geeft terug of hij de stap ook echt gezet heeft. In de storm houdt geen rots
-// en geen wand hem tegen, maar een ravijn of een terrasrand wel: daar remt hij
-// op de rand af. Een hyena rent niet vrijwillig een afgrond in.
+// Geeft terug of hij daadwerkelijk vooruit kwam. Door een rots of de klifwand
+// rent hij niet heen, en ook in volle ren stort hij zich niet in een ravijn of
+// van een terrasrand: daar remt hij op de rand af.
 function hyMove(s, stap, plats, cliff, stormt){
   const nx = s.x + stap;
   const d = stap >= 0 ? 1 : -1;
   const halfL = HY.bodyW * hyScale() * 0.35;
-  if (stormt){
-    if (inGap(nx + d * halfL) || dropAhead(nx + d * halfL, s.base || 0)) return false;
-    s.x = nx; return true;
-  }
-  if (knockBlocked(s, nx, plats, cliff, halfL, 80)) return false;
-  s.x = nx; return true;
+  const klem = stormt ? (hardBlocked(s, nx, plats, cliff, 60)
+                         || inGap(nx + d * halfL) || dropAhead(nx + d * halfL, s.base || 0))
+                      : knockBlocked(s, nx, plats, cliff, halfL, 80);
+  if (klem) return false;
+  s.x = nx;
+  return true;
+}
+// De roedel lacht om de beurt, op één klok voor het hele stel: zo vallen twee
+// hyena's nooit over elkaar heen en blijft er een rustig ritme in zitten.
+function hyLach(s){
+  s.enc.lachT = performance.now() + (HY_LAUGH_MIN + Math.random() * (HY_LAUGH_MAX - HY_LAUGH_MIN)) * 1000;
+  hyPlay(SFX_HYENA_LAUGH);
 }
 function hyTelegraph(s){ hySet(s, 'telegraaf'); s.show = 'dreigen'; }
 function hyStorm(s){
@@ -3639,7 +3953,7 @@ function hyStorm(s){
   s.kop = 0; s.kopAcc = 0; s.hitUsed = false;
   hyPlay(SFX_HYENA_BITE);
   // de ander van de roedel doet soms meteen mee
-  const maat = hyenas.find(o => o !== s && o.enc === s.enc && o.forceT < 0
+  const maat = hyenas.find(o => o !== s && o.enc === s.enc && o.forceT < 0 && o.wacht <= 0
                              && (o.state === 'komen' || o.state === 'dreigen'));
   if (maat && Math.random() < HY_DOUBLE_CHANCE)
     maat.forceT = HY_DOUBLE_MIN + Math.random() * (HY_DOUBLE_MAX - HY_DOUBLE_MIN);
@@ -3664,26 +3978,39 @@ function updateHyena(s, dt, plats, cliff){
     if (s.fall >= 1) s.state = 'gone';
     return;
   }
+  // de tweede van een roedel blijft buiten beeld staan tot hij aan de beurt is,
+  // zodat ze nooit tegelijk het scherm op komen
+  if (s.wacht > 0){
+    s.wacht -= dt;
+    s.x = hyBuitenBeeld(s.side);                    // hij schuift mee, ook als Amir doorloopt
+    s.base = terrainH(s.x);
+    if (s.wacht > 0) return;
+  }
   s.base = terrainH(s.x);
 
   // in beeld gelopen: de roedel lacht, één keer, niet per hyena
   if (!s.enc.laughed && Math.abs(s.x - world) < W * 0.5 / viewZoom() + 120){
     s.enc.laughed = true;
-    hyPlay(SFX_HYENA_LAUGH);
+    hyLach(s);
   }
 
   const dx = world - s.x, gap = Math.abs(dx), naarJe = dx >= 0 ? 1 : -1;
 
   if (s.state === 'storm'){
     if (!hyMove(s, s.dir * HY_WALK_SPD * HY_RUN_MULT * dt, plats, cliff, true)){
-      hySet(s, 'dreigen');                          // op de rand van het ravijn: remmen
-      s.show = 'dreigen';
-      s.threatT = HY_THREAT_MIN + Math.random() * (HY_THREAT_MAX - HY_THREAT_MIN);
-      return;                                       // en het over een tel opnieuw proberen
+      // een rots, de klifwand of de rand van een ravijn: hij remt af en blijft
+      // ervoor staan dreigen
+      s.hitUsed = true;                             // zijn bek heeft zijn kans gehad
+      s.threatT = HY_THREAT_MAX + Math.random() * 2;   // daarna duurt het even voor hij het weer probeert
+      hySet(s, 'dreigen'); s.show = 'dreigen';
+      return;
     }
-    hyAnim(s, dt, HY.fps.ren_lijf, HY.n.ren_lijf, false);
+    hyAnim(s, dt, HY.fps.ren_lijf * HY_RUN_LEG_MULT, HY.n.ren_lijf, false);
     s.kopAcc += dt * HYENA_BITE_FPS;                // eigen teller, eigen tempo
-    while (s.kopAcc >= 1){ s.kop = (s.kop + 1) % HY.n.ren_kop; s.kopAcc -= 1; }
+    while (s.kopAcc >= 1){
+      s.kop = (s.kop + 1) % HY.n.ren_kop; s.kopAcc -= 1;
+      if (HY.hapFrames.indexOf(s.kop) !== -1) hyPlay(SFX_HYENA_BITE);   // daar klapt de bek dicht
+    }
     if (gap > W * 0.5 / viewZoom() + HY_LEAVE) s.state = 'gone';        // voorbij en het beeld uit
     return;
   }
@@ -3693,6 +4020,8 @@ function updateHyena(s, dt, plats, cliff){
     if (s.forceT <= 0){ s.forceT = -1; hyTelegraph(s); return; }
   }
   s.face = naarJe;                                  // buiten de storm kijkt hij altijd naar Amir
+  // het gegrinnik gaat door zolang hij nog niet rent; tijdens de storm hoor je alleen de happen
+  if ((s.state === 'komen' || s.state === 'dreigen') && performance.now() >= s.enc.lachT) hyLach(s);
 
   if (s.state === 'komen'){
     s.show = 'loop';
@@ -3722,13 +4051,6 @@ function updateHyena(s, dt, plats, cliff){
       s.show = 'dreigen';
       s.dreigAcc += dt * HY.fps.dreigen;
       while (s.dreigAcc >= 1){ s.dreig = (s.dreig + 1) % HY.n.dreigen; s.dreigAcc -= 1; }
-    }
-    if (!s.laughed){                                // hoogstens één extra lach per hyena
-      s.laughT -= dt;
-      if (s.laughT <= 0){
-        s.laughT = 1;
-        if (Math.random() < HY_LAUGH_CHANCE){ s.laughed = true; hyPlay(SFX_HYENA_LAUGH); }
-      }
     }
     s.threatT -= dt;
     if (s.threatT <= 0) hyTelegraph(s);
@@ -3772,8 +4094,9 @@ function scpBlocked(s, nx){
 }
 let plats_ = [], cliff_ = null;
 // een geraakt monster vliegt weg, maar nooit door een rots, wand, ravijn of terrasrand heen
-function knockBlocked(s, nx, plats, cliff, halfL, wallGap){
-  const d = nx >= s.x ? 1 : -1;
+// de harde dingen: de klifwand, het einde van de wereld en elke rots die boven hem
+// uitsteekt. Hier loopt niemand doorheen, ook niet in volle ren.
+function hardBlocked(s, nx, plats, cliff, wallGap){
   if (cliff && nx > cliff.wall - wallGap) return true;
   if (nx < endWall() + wallGap) return true;
   for (const p of plats){
@@ -3781,7 +4104,12 @@ function knockBlocked(s, nx, plats, cliff, halfL, wallGap){
     const half = 60 * (p.wPx / 400), mid = (p.left + p.right) / 2;
     if (nx + half > p.left && nx - half < p.right && Math.abs(nx - mid) < Math.abs(s.x - mid)) return true;
   }
-  if (inGap(nx + d * halfL)) return true;
+  return false;
+}
+function knockBlocked(s, nx, plats, cliff, halfL, wallGap){
+  const d = nx >= s.x ? 1 : -1;
+  if (hardBlocked(s, nx, plats, cliff, wallGap)) return true;
+  if (inGap(nx + d * halfL)) return true;               // en de rand van een ravijn
   if (dropAhead(nx + d * halfL, s.base || 0)) return true;
   return false;
 }
@@ -4302,8 +4630,10 @@ function scene(groundY){
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, horizonY + 1);
   const on2 = midOn();
   const mtnLift = on2 ? sc.mtnLift : 0;             // met laag 2 ervoor staan de bergen wat hoger
+  const zonX = W * sc.sun[0], zonY = horizonY - (sc.sun[1] + mtnLift) * H;
+  zonScherm.x = zonX; zonScherm.y = zonY; zonScherm.geldig = true;   // hier hangt de gloed straks aan
   ctx.fillStyle = sc.sun[3];
-  ctx.beginPath(); ctx.arc(W * sc.sun[0], horizonY - (sc.sun[1] + mtnLift) * H, H * sc.sun[2], 0, Math.PI * 2); ctx.fill();   // zakt half achter de bergen
+  ctx.beginPath(); ctx.arc(zonX, zonY, H * sc.sun[2], 0, Math.PI * 2); ctx.fill();   // zakt half achter de bergen
   drawLayer(MTN, mtnImgs, seqFor('mtn', MTN, sc.seq, sc.hero, sc.heroAt), horizonY, mtnLift, sc.mtnPar, sc.mtnSize);   // laag 1: verre bergen
   if (on2){
     if (sc.mtn2){
@@ -4378,6 +4708,80 @@ function scene(groundY){
 }
 
 let propUnit = 1;
+
+// ---- de globale lichtlaag tekenen ---------------------------------------
+// Drie stappen over het hele canvas: een horizontale multiply-gradient van de
+// koele schaduwkant links naar het warme licht rechts, een additieve gloed rond
+// de zon, en een verticale multiply-gradient die de onderste 25 procent iets
+// dieper zet. De drie gradients worden één keer gebouwd en bewaard; ze worden
+// alleen opnieuw gemaakt als het canvas van formaat verandert of als er een
+// waarde in LICHT verandert.
+let lichtCache = null, lichtSleutel = '';
+function lichtSleutelNu(){
+  const L = LICHT;
+  return [W, H, L.schaduwKleur, L.lichtKleur, L.kromming, L.gloedKleur, L.gloedSterkte,
+          L.gloedStraal, L.gloedBreedte, L.bodemDonker, L.sterkte].join('|');
+}
+function lichtMix(a, b, f){          // van schaduw naar licht, daarna richting wit volgens sterkte
+  const s = Math.max(0, LICHT.sterkte);
+  const rgb = [];
+  for (let i = 0; i < 3; i++){
+    const v = a[i] + (b[i] - a[i]) * f;
+    rgb.push(Math.round(Math.max(0, Math.min(255, 255 + (v - 255) * s))));
+  }
+  return 'rgb(' + rgb.join(',') + ')';
+}
+function bouwLicht(){
+  const L = LICHT;
+  // a. links koel, rechts warm, met een extra kleurstop rond het midden zodat het
+  //    geen kale lineaire overgang is
+  const hor = ctx.createLinearGradient(0, 0, W, 0);
+  hor.addColorStop(0, lichtMix(L.schaduwKleur, L.lichtKleur, 0));
+  hor.addColorStop(0.5, lichtMix(L.schaduwKleur, L.lichtKleur, Math.pow(0.5, L.kromming)));
+  hor.addColorStop(1, lichtMix(L.schaduwKleur, L.lichtKleur, 1));
+  // b. de gloed: rond getekend rond (0,0), bij het tekenen schuiven we hem naar de
+  //    zon en rekken we de ruimte horizontaal op met gloedBreedte
+  const r = Math.max(1, L.gloedStraal * W);
+  const kl = L.gloedKleur.join(',');
+  const a0 = Math.max(0, L.gloedSterkte * L.sterkte);
+  const gl = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+  gl.addColorStop(0, 'rgba(' + kl + ',' + a0.toFixed(4) + ')');
+  gl.addColorStop(0.45, 'rgba(' + kl + ',' + (a0 * 0.34).toFixed(4) + ')');
+  gl.addColorStop(1, 'rgba(' + kl + ',0)');
+  // c. de onderste 25 procent: van wit (blijft zoals het is) naar een grijstint
+  const top = H * 0.75;
+  const d = Math.round(255 * (1 - Math.max(0, Math.min(1, L.bodemDonker * L.sterkte))));
+  const bod = ctx.createLinearGradient(0, top, 0, H);
+  bod.addColorStop(0, 'rgb(255,255,255)');
+  bod.addColorStop(1, 'rgb(' + d + ',' + d + ',' + d + ')');
+  return { hor, gl, bod, r, top };
+}
+function drawLichtlaag(){
+  if (!LICHT.aan || !(W > 0) || !(H > 0)) return;
+  const sleutel = lichtSleutelNu();
+  if (!lichtCache || sleutel !== lichtSleutel){ lichtCache = bouwLicht(); lichtSleutel = sleutel; }
+  const c = lichtCache;
+  const m = 48;                     // marge: de camera schudt een paar pixels heen en weer
+  ctx.save();
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.fillStyle = c.hor;
+  ctx.fillRect(-m, -m, W + m * 2, H + m * 2);
+  const zx = zonScherm.geldig ? zonScherm.x : LICHT.zonX * W;
+  const zy = zonScherm.geldig ? zonScherm.y : LICHT.zonY * H;
+  ctx.save();
+  ctx.translate(zx, zy);
+  ctx.scale(LICHT.gloedBreedte, 1);
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = c.gl;
+  ctx.fillRect(-c.r, -c.r, c.r * 2, c.r * 2);
+  ctx.restore();                    // de uitgerekte ruimte weer los
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.fillStyle = c.bod;
+  ctx.fillRect(-m, c.top, W + m * 2, H - c.top + m);
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.restore();
+}
 
 let last = performance.now();
 let paused = false;
@@ -4501,6 +4905,7 @@ function loop(now){
   if (!building) updateVenom(dt, scaleNow); else { venom.length = 0; splat.length = 0; }
   if (!building) updateWind(dt); else { wind.length = 0; gust = null; }
   updateThickets(dt);
+  updateNpcs(dt);                                // de dorpelinge hurkt en staat weer op
   updateHppotions(dt, scaleNow);
   updateHppotionFx(dt);
   vegDt = dt; vegTick++;
@@ -4732,6 +5137,7 @@ function loop(now){
       }
     }
 
+    drawVillage('mid', groundY, scale, cx);        // dorpsdecor: staat achter Amir
     drawHppotions(groundY, scale, cx);             // drinkkalebassen op de grond
     drawThickets(groundY, scale, cx);              // struwelen: achter Amir, voor de grond
 
@@ -4761,15 +5167,17 @@ function loop(now){
       }
     }
 
-    // personages: staan rustig te ademen, achter Amir
+    // personages: staan rustig te ademen, achter Amir. Geen botsing, geen schade:
+    // Amir loopt er gewoon doorheen.
     if (level && level.npcs && level.npcs.length){
       const now = performance.now() / 1000;
       for (const n of level.npcs){
         const d = NPCS[n.kind]; if (!d) continue;
-        const ns = npcSize(n.kind, scale);
+        const ns = npcSize(n.kind, scale, n.scale);
         const nx = cx + (n.x - world) - ns.w / 2;
         if (nx > W / viewZoom() + W || nx + ns.w < -W) continue;
-        const fr = d.frames[Math.floor(now * d.fps + Math.abs(n.x) * 0.013) % d.frames.length];
+        const fr = d.cycli ? npcFrame(d, n)
+                           : d.frames[Math.floor(now * d.fps + Math.abs(n.x) * 0.013) % d.frames.length];
         if (!fr || !fr.complete || !fr.naturalWidth) continue;
         const lift = (n.y || 0) + terrainH(n.x) * scale;
         const ny = groundY - ns.ground - lift;
@@ -5275,6 +5683,7 @@ function loop(now){
       const hS = hyScale();
       const hw = HY.w * hS, hh = HY.h * hS;
       for (const s of hyenas){
+        if (s.wacht > 0) continue;                  // staat nog achter de rand te wachten
         const bodyX = cx + (s.x - world);
         if (bodyX < -hw - W || bodyX > W / viewZoom() + W + hw) continue;
         const hBase = (s.base || 0) * scale;
@@ -5382,6 +5791,7 @@ function loop(now){
     drawChips(groundY, scale, cx);
     drawGrains(groundY, scale, cx);
     drawVenom(groundY, scale);
+    drawVillageFg(groundY, scale, cx, pWorld, dt);   // dorpsdecor dat vóór Amir langs staat
     drawWind(groundY, scale, cx);              // stof waait vóór alles langs
 
     if (swFrame >= SWEEP_FROM){                    // strakke lage zwaaiboog over de grond
@@ -5437,7 +5847,10 @@ function loop(now){
     }
     }
     ctx.restore();                                  // zoom weer los
+    drawLichtlaag();                                // de hele wereld in dezelfde belichting
     drawBossBar();
+  } else {
+    drawLichtlaag();
   }
   ctx.restore();
   if (camSwap !== null){ world = camSwap; camSwap = null; }
@@ -5464,7 +5877,7 @@ addEventListener('keydown', tryPlay);
 addEventListener('pointerdown', tryPlay);
 soundBtn.onclick = () => {
   wantSound = !wantSound; setLabel();
-  if (wantSound){ started = false; tryPlay(); } else { bg.pause(); stopKing(); }
+  if (wantSound){ started = false; tryPlay(); } else { bg.pause(); stopKing(); stopWind(); }
 };
 bg.addEventListener('error', () => { soundBtn.disabled = true; soundBtn.textContent = 'music/bg.mp3 ontbreekt'; });
 document.getElementById('thrust').addEventListener('error', () => console.warn('music/spearthrust.mp3 ontbreekt'));
@@ -5639,6 +6052,7 @@ function ensureLevel(){
   if (!level) level = { rocks: [], spawns: [], props: [] };
   if (!level.spawns) level.spawns = [];
   if (!level.props) level.props = [];
+  if (!level.village) level.village = [];
   if (!level.gaps) level.gaps = [];
   if (!level.water) level.water = [];
   if (!level.cliffs) level.cliffs = [];
@@ -5677,11 +6091,14 @@ function syncLevel(){
     props: level.props.map(o => ({ x: Math.round(o.x), k: o.kind,
                                    s: +o.scale.toFixed(2), f: o.flip ? 1 : 0,
                                    v: o.far ? 1 : 0, y: o.far ? Math.round(o.y || 0) : 0 })),
+    village: (level.village || []).map(o => ({ id: o.id, x: Math.round(o.x),
+                                              flip: o.flip ? 1 : 0, depth: +(o.depth || 0).toFixed(2) })),
     gaps: level.gaps.map(o => ({ x: Math.round(o.x), w: Math.round(o.w) })),
     water: level.water.map(o => ({ x: Math.round(o.x), n: o.n })),
     cliffs: level.cliffs.map(o => ({ x: Math.round(o.x) })),
     ends: level.ends.map(o => ({ x: Math.round(o.x) })),
-    npcs: level.npcs.map(o => ({ x: Math.round(o.x), k: o.kind, f: o.flip ? 1 : 0, y: Math.round(o.y || 0) })),
+    npcs: level.npcs.map(o => ({ x: Math.round(o.x), k: o.kind, s: +(o.scale || 1).toFixed(2),
+                                 f: o.flip ? 1 : 0, y: Math.round(o.y || 0) })),
     thickets: (level.thickets || []).map(o => ({ x: Math.round(o.x), n: o.n, seed: o.seed })),
     hppotions: (level.hppotions || []).map(o => ({ x: Math.round(o.x),
                                                    y: (o.y === null || o.y === undefined) ? null : Math.round(o.y) })),
@@ -5701,7 +6118,7 @@ function syncLevel(){
 // De bouwer weigert het al, maar een level kan ook uit een tekstvak, een
 // bestand of van een AI komen. Daarom kijken we elk level bij het laden na:
 // een boom, een hut of een doornbos hoort op de grond te staan, niet boven een
-// gat, ook niet als hij op de achtergrondlaag getekend wordt. Wat er overheen
+// gat, ook niet als hij op de achtergrond- of de middenlaag getekend wordt. Wat er overheen
 // steekt schuiven we naar de dichtstbijzijnde kant van het ravijn. Lukt dat
 // niet, dan gaat het weg: liever een boom minder dan een boom in de lucht.
 let levelSchoon = { verplaatst: 0, weg: 0 };
@@ -5732,6 +6149,7 @@ function schoonLevel(lv){
   // decor: laag decor altijd, gebouwen op elke laag en op elke hoogte
   schuif(lv.props, o => propHalfW(o, scale),
          o => !o.far || (o.y || 0) < FAR_GAP_LIFT || !!PROPS[o.kind].bouwwerk);
+  schuif(lv.village, o => villageHalfW(o, scale));   // hutten, put en afdak: altijd op de grond
   schuif(lv.npcs, o => npcSize(o.kind, scale).w * 0.3, o => (o.y || 0) < FAR_GAP_LIFT);
   schuif(lv.thickets, o => thicketHalfW(o, scale) * THICKET_BOX);
   if (levelSchoon.verplaatst || levelSchoon.weg)
@@ -5758,11 +6176,17 @@ function readLevel(txt){
                                  .map(q => ({ x: Number(q.x), kind: q.k,
                                               scale: Number(q.s) || 1,
                                               flip: !!q.f, far: !!q.v, y: Number(q.y) || 0 })),
+           // dorpsdecor: id uit het VILLAGE-register, x in de wereld, flip en depth (0..1)
+           village: (o.village || []).filter(q => VILLAGE[q.id])
+                                     .map(q => ({ id: q.id, x: Number(q.x), flip: !!q.flip,
+                                                  depth: Math.max(0, Math.min(1, Number(q.depth) || 0)) })),
            gaps: (o.gaps || []).map(q => ({ x: Number(q.x), w: Math.max(40, Number(q.w) || GAP_BASE) })),
            water: (o.water || []).map(q => ({ x: Number(q.x), n: Math.max(0, Math.round(Number(q.n) || 0)) })),
            cliffs: (o.cliffs || []).map(q => ({ x: Number(q.x) })),
            ends: (o.ends || []).slice(0, 1).map(q => ({ x: Number(q.x) })),
-           npcs: (o.npcs || []).filter(q => NPCS[q.k]).map(q => ({ x: Number(q.x), kind: q.k, flip: !!q.f, y: Number(q.y) || 0 })),
+           npcs: (o.npcs || []).filter(q => NPCS[q.k])
+                                .map(q => ({ x: Number(q.x), kind: q.k, scale: Number(q.s) || 1,
+                                             flip: !!q.f, y: Number(q.y) || 0 })),
            thickets: (o.thickets || []).map(q => ({ x: Number(q.x),
                                                     n: Math.max(1, Math.min(5, Math.round(Number(q.n) || 1))),
                                                     seed: Number(q.seed) || 0 })),
@@ -5995,7 +6419,7 @@ function builderHit(wx, scale, lift){
   const wt = (level.water || []).find(o => Math.abs(waterWetMid(o) - wx) < waterHalfW(o));
   if (wt) return { list: level.water, kind: 'water', obj: wt };
   const np = level.npcs.slice().reverse().find(n => {
-    const ns = npcSize(n.kind, scale);
+    const ns = npcSize(n.kind, scale, n.scale);
     if (Math.abs(n.x - wx) >= ns.w * 0.4) return false;
     if (lift === undefined) return true;
     return lift > (n.y || 0) - 30 && lift < (n.y || 0) + ns.h;
@@ -6013,7 +6437,7 @@ function placeProblem(kind, o, scale){               // mag dit hier staan? zo n
   else if (kind === 'spawn'){ if (o.x >= wall - 40) return 'daar staat de klif'; }
   else if (kind === 'cliff'){ if (o.x > -400) return 'een klif staat links van je start'; }
   else if (kind === 'npc'){
-    const hw = npcSize(o.kind, scale).w * 0.3;
+    const hw = npcSize(o.kind, scale, o.scale).w * 0.3;
     if (o.x + hw >= wall - 40) return 'daar staat de klif';
     if ((o.y || 0) < FAR_GAP_LIFT && level.gaps.some(g => o.x + hw > g.x - g.w / 2 && o.x - hw < g.x + g.w / 2)) return 'niet boven een ravijn';
   }
@@ -6032,6 +6456,8 @@ function placeProblem(kind, o, scale){               // mag dit hier staan? zo n
   else if (kind === 'gap'){
     if (o.x + o.w / 2 >= wall - 40) return 'daar staat de klif';
     if (Math.abs(o.x) < o.w / 2 + 120) return 'niet op je startpunt';
+    if ((level.village || []).some(q => Math.abs(q.x - o.x) < o.w / 2 + villageHalfW(q, scale)))
+      return 'daar staat een dorpshut';
     if (level.props.some(q => { if (q.far && (q.y || 0) >= FAR_GAP_LIFT && !PROPS[q.kind].bouwwerk) return false;
                                 const h = propHalfW(q, scale); return q.x + h > o.x - o.w / 2 && q.x - h < o.x + o.w / 2; }))
       return 'daar staat decor';
@@ -6111,7 +6537,8 @@ cv.addEventListener('pointerdown', e => {
     if (wx >= cliffAt().wall - 40){ bcount.textContent = 'daar staat de klif'; return; }
     level.spawns.push({ x: wx, kind: 'hyenas', n: tool === 'hyena2' ? 2 : 1 });
   } else if (NPCS[tool]){
-    const nw = { x: wx, kind: tool, flip: false, y: Math.abs(lift) < 25 ? 0 : Math.max(-60, Math.min(H, lift)) };
+    const nw = { x: wx, kind: tool, scale: brushScale, flip: false,
+                 y: Math.abs(lift) < 25 ? 0 : Math.max(-60, Math.min(H, lift)) };
     const why = placeProblem('npc', nw, scale);
     if (why){ bcount.textContent = why; return; }
     level.npcs.push(nw);
@@ -6135,11 +6562,14 @@ cv.addEventListener('pointerdown', e => {
     if (level.ends.some(f => { const hw = finSize(scale).w / 2; return f.x + hw > wx - gw / 2 && f.x - hw < wx + gw / 2; })){
       bcount.textContent = 'daar staat het einde'; return;
     }
-    if (level.npcs.some(n => Math.abs(n.x - wx) < gw / 2 + npcSize(n.kind, scale).w * 0.3)){
+    if (level.npcs.some(n => Math.abs(n.x - wx) < gw / 2 + npcSize(n.kind, scale, n.scale).w * 0.3)){
       bcount.textContent = 'daar staat een personage'; return;
     }
     if (level.thickets.some(t => Math.abs(t.x - wx) < gw / 2 + thicketHalfW(t, scale))){
       bcount.textContent = 'daar staat een doornbos'; return;
+    }
+    if ((level.village || []).some(o => Math.abs(o.x - wx) < gw / 2 + villageHalfW(o, scale))){
+      bcount.textContent = 'daar staat een dorpshut'; return;
     }
     level.gaps.push({ x: wx, w: gw });
   } else if (tool === 'water'){
