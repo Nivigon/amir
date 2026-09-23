@@ -3437,7 +3437,9 @@ const HY = {
   n:   { loop: 20, dreigen: 22, ren_lijf: 12, ren_kop: 27 },
   fps: { loop: 12, dreigen: 12, ren_lijf: 16, ren_kop: 8 },
   // verticale verschuiving van de kop per lijfframe, in canvaspixels, plus is omlaag
-  kopOff: [12, 12, 12, 14, 6, 8, 0, 0, -4, -17, -24, -30]
+  kopOff: [12, 12, 12, 14, 6, 8, 0, 0, -4, -17, -24, -30],
+  // kopframes waarop de bek dichtklapt; daar valt telkens een hap te horen
+  hapFrames: [9, 16, 26]
 };
 // Het haptempo: de fps van de koplaag tijdens de aanvalsren. Bijstellen doe je in
 // metadata.json (sets.ren_kop.fps); lukt lezen daarvan niet, dan geldt HY.fps.ren_kop.
@@ -3446,18 +3448,22 @@ let HYENA_BITE_FPS = HY.fps.ren_kop;
 // ---- knoppen om aan te draaien -------------------------------------------
 const HY_H_SHARE    = 0.60;    // hoogte t.o.v. Amir. De panter staat op 0,68, de hyena is net kleiner
 const HY_WALK_SPD   = 170;     // normale loopsnelheid (wereld-px/s)
-const HY_RUN_MULT   = 2.5;     // de storm is 2,5 keer zo snel als zijn loopje
+const HY_RUN_MULT   = 2.875;   // de storm: 2,5 keer zijn loopje plus 15 procent
 const HY_THREAT_GAP = 2.5;     // dreigafstand, als veelvoud van zijn eigen breedte
 const HY_GAP_TOL    = 24;      // speling daarop, anders staat hij te trippelen
 const HY_THREAT_MIN = 1.0, HY_THREAT_MAX = 3.5;   // dreigtijd, per hyena apart geloot
 const HY_TELE_T     = 0.2;     // hoe lang hij bevriest: de enige waarschuwing
 const HY_DOUBLE_CHANCE = 0.30; // kans dat de tweede van de roedel meteen meestormt
 const HY_DOUBLE_MIN = 0.3, HY_DOUBLE_MAX = 0.8;   // en hoeveel later hij dan begint
-const HY_LAUGH_CHANCE = 0.15;  // kans per seconde op een extra lach tijdens het dreigen
+const HY_LAUGH_MIN  = 3.0, HY_LAUGH_MAX = 5.5;   // om de zoveel seconden lacht er weer eentje,
+                                                 // zolang de roedel nog staat te dreigen
 const HY_HP = 2;               // twee speerstoten
 const HY_INV_T = 0.5;          // onkwetsbaar na een treffer
 const HY_FALL_T = 0.6;         // omvallen en uitfaden
+const HY_RUN_LEG_MULT = 1.5;   // de poten draaien 1,5 keer zo snel als het materiaal; zijn snelheid verandert niet
 const HY_STUCK_T = 1.2;        // komt hij zo lang niet vooruit (een rots, een ravijn), dan dreigt hij daar
+const HY_PAIR_MIN = 1.0, HY_PAIR_MAX = 2.0;   // bij twee hyena's wacht de tweede zo lang
+                                              // voor hij ook het beeld op komt
 const HY_ENTER = 260;          // zo ver buiten beeld komt hij opzetten
 const HY_LEAVE = 420;          // en zo ver voorbij de rand is hij weg
 // de bek is tijdens de storm de raakzone: canvaspixels vanaf het canvasmidden in
@@ -3486,16 +3492,22 @@ fetch(HY_META).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(m => {
     if (s.fps) HY.fps[k] = s.fps;
     if (k === 'ren_lijf' && Array.isArray(s.kop_offset_y_per_frame) && s.kop_offset_y_per_frame.length)
       HY.kopOff = s.kop_offset_y_per_frame.slice();
+    if (k === 'ren_kop' && Array.isArray(s.hap_frames) && s.hap_frames.length)
+      HY.hapFrames = s.hap_frames.slice();
   }
   HYENA_BITE_FPS = HY.fps.ren_kop;
   if (opnieuw) hyLoad();                     // andere aantallen: de frames opnieuw ophalen
 }).catch(() => console.warn('niet gelezen, de ingebouwde waarden gelden: ' + HY_META));
 
 // ---- geluid --------------------------------------------------------------
-// Zelfde opzet als de plons: een klein stemmenpoeltje per geluid, zodat twee
-// hyena's door elkaar heen kunnen happen. hyena_bite.mp3 is een lange opname
-// waarvan alleen 14,0 s tot 16,0 s de hap is; die wordt eruit geknipt.
-const SFX_HYENA_BITE  = { src: 'sounds/hyena_bite.mp3',  from: 14.0, to: 16.0, vol: 0.9 };
+// Zelfde opzet als de plons: een stemmenpoeltje per geluid, zodat happen over
+// elkaar heen mogen vallen.
+// De hap zit in hyena_bite.mp3 in het venster 14,0 tot 16,0 s, maar de klap zelf
+// valt daarbinnen pas op 15,35 s: de anderhalve seconde daarvoor is een zachte
+// grom die je onder de muziek niet hoort. Daarom speelt hij alleen de klap,
+// 15,35 tot 16,0 s, en niet één keer het hele venster.
+const HY_BITE_CLIP = { from: 15.35, to: 16.0 };
+const SFX_HYENA_BITE  = { src: 'sounds/hyena_bite.mp3',  from: HY_BITE_CLIP.from, to: HY_BITE_CLIP.to, vol: 0.95 };
 const SFX_HYENA_LAUGH = { src: 'sounds/hyena_laugh.mp3', from: 0,    to: 0,    vol: 0.8 };
 function hyVoices(sfx, n){
   return Array.from({ length: n }, (_, i) => {
@@ -3505,7 +3517,7 @@ function hyVoices(sfx, n){
     return a;
   });
 }
-const hySnd = new Map([[SFX_HYENA_BITE,  hyVoices(SFX_HYENA_BITE, 2)],
+const hySnd = new Map([[SFX_HYENA_BITE,  hyVoices(SFX_HYENA_BITE, 4)],
                        [SFX_HYENA_LAUGH, hyVoices(SFX_HYENA_LAUGH, 2)]]);
 const hyTurn = new Map([[SFX_HYENA_BITE, 0], [SFX_HYENA_LAUGH, 0]]);
 function hyPlay(sfx){
@@ -3536,24 +3548,30 @@ function hyThreatGap(){ return HY_THREAT_GAP * HY.bodyW * hyScale(); }
 function makeHyena(x, side, enc){
   // side 1 = hij komt van rechts. De frames kijken naar links, dus face 1 = gespiegeld
   return { x, side, face: -side, dir: -side, enc,
-           state: 'komen', show: 'loop', frame: 0, acc: 0,
+           state: 'komen', show: 'loop', wacht: 0, frame: 0, acc: 0,
            dreig: 0, dreigAcc: 0, kop: 0, kopAcc: 0,
            t: 0, threatT: HY_THREAT_MIN + Math.random() * (HY_THREAT_MAX - HY_THREAT_MIN),
-           laughT: 1, laughed: false, forceT: -1,
+           forceT: -1,
            hp: HY_HP, inv: 0, flash: 0, alpha: 1, base: 0, fall: 0, stuck: 0,
            hitUsed: false, sweptId: -1 };
 }
 // een encounter is één roedel: de lach klinkt één keer voor de hele roedel
+function hyRand(a, b){ return a + Math.random() * (b - a); }
+function hyBuitenBeeld(sd){                                         // net buiten de rand, binnen het level
+  let x = world + sd * (W / 2 / viewZoom() + HY_ENTER);
+  x = Math.min(x, cliffAt().wall - 220);
+  return Math.max(x, endWall() + 220);
+}
 function spawnHyenaPack(n, side){
-  const enc = { laughed: false };
+  const enc = { laughed: false, lachT: Infinity };   // de klok start bij de eerste lach
   const kanten = n >= 2 ? [-1, 1]                                   // altijd van twee kanten
                         : [side || (Math.random() < 0.5 ? -1 : 1)];
+  const laat = Math.random() < 0.5 ? -1 : 1;                        // eentje komt later op
   for (const sd of kanten){
-    let x = world + sd * (W / 2 / viewZoom() + HY_ENTER);           // net buiten beeld
-    x = Math.min(x, cliffAt().wall - 220);
-    x = Math.max(x, endWall() + 220);
+    const x = hyBuitenBeeld(sd);
     const h = makeHyena(x, sd, enc);
     h.base = terrainH(x);
+    if (kanten.length > 1 && sd === laat) h.wacht = hyRand(HY_PAIR_MIN, HY_PAIR_MAX);
     hyenas.push(h);
   }
 }
@@ -3568,6 +3586,12 @@ function hyMove(s, stap, plats, cliff, stormt){
   if (stormt){ s.x = nx; return; }                  // in de storm houdt niets hem tegen
   if (!knockBlocked(s, nx, plats, cliff, HY.bodyW * hyScale() * 0.35, 80)) s.x = nx;
 }
+// De roedel lacht om de beurt, op één klok voor het hele stel: zo vallen twee
+// hyena's nooit over elkaar heen en blijft er een rustig ritme in zitten.
+function hyLach(s){
+  s.enc.lachT = performance.now() + (HY_LAUGH_MIN + Math.random() * (HY_LAUGH_MAX - HY_LAUGH_MIN)) * 1000;
+  hyPlay(SFX_HYENA_LAUGH);
+}
 function hyTelegraph(s){ hySet(s, 'telegraaf'); s.show = 'dreigen'; }
 function hyStorm(s){
   hySet(s, 'storm');
@@ -3576,7 +3600,7 @@ function hyStorm(s){
   s.kop = 0; s.kopAcc = 0; s.hitUsed = false;
   hyPlay(SFX_HYENA_BITE);
   // de ander van de roedel doet soms meteen mee
-  const maat = hyenas.find(o => o !== s && o.enc === s.enc && o.forceT < 0
+  const maat = hyenas.find(o => o !== s && o.enc === s.enc && o.forceT < 0 && o.wacht <= 0
                              && (o.state === 'komen' || o.state === 'dreigen'));
   if (maat && Math.random() < HY_DOUBLE_CHANCE)
     maat.forceT = HY_DOUBLE_MIN + Math.random() * (HY_DOUBLE_MAX - HY_DOUBLE_MIN);
@@ -3601,21 +3625,32 @@ function updateHyena(s, dt, plats, cliff){
     if (s.fall >= 1) s.state = 'gone';
     return;
   }
+  // de tweede van een roedel blijft buiten beeld staan tot hij aan de beurt is,
+  // zodat ze nooit tegelijk het scherm op komen
+  if (s.wacht > 0){
+    s.wacht -= dt;
+    s.x = hyBuitenBeeld(s.side);                    // hij schuift mee, ook als Amir doorloopt
+    s.base = terrainH(s.x);
+    if (s.wacht > 0) return;
+  }
   s.base = terrainH(s.x);
 
   // in beeld gelopen: de roedel lacht, één keer, niet per hyena
   if (!s.enc.laughed && Math.abs(s.x - world) < W * 0.5 / viewZoom() + 120){
     s.enc.laughed = true;
-    hyPlay(SFX_HYENA_LAUGH);
+    hyLach(s);
   }
 
   const dx = world - s.x, gap = Math.abs(dx), naarJe = dx >= 0 ? 1 : -1;
 
   if (s.state === 'storm'){
     hyMove(s, s.dir * HY_WALK_SPD * HY_RUN_MULT * dt, plats, cliff, true);
-    hyAnim(s, dt, HY.fps.ren_lijf, HY.n.ren_lijf, false);
+    hyAnim(s, dt, HY.fps.ren_lijf * HY_RUN_LEG_MULT, HY.n.ren_lijf, false);
     s.kopAcc += dt * HYENA_BITE_FPS;                // eigen teller, eigen tempo
-    while (s.kopAcc >= 1){ s.kop = (s.kop + 1) % HY.n.ren_kop; s.kopAcc -= 1; }
+    while (s.kopAcc >= 1){
+      s.kop = (s.kop + 1) % HY.n.ren_kop; s.kopAcc -= 1;
+      if (HY.hapFrames.indexOf(s.kop) !== -1) hyPlay(SFX_HYENA_BITE);   // daar klapt de bek dicht
+    }
     if (gap > W * 0.5 / viewZoom() + HY_LEAVE) s.state = 'gone';        // voorbij en het beeld uit
     return;
   }
@@ -3625,6 +3660,8 @@ function updateHyena(s, dt, plats, cliff){
     if (s.forceT <= 0){ s.forceT = -1; hyTelegraph(s); return; }
   }
   s.face = naarJe;                                  // buiten de storm kijkt hij altijd naar Amir
+  // het gegrinnik gaat door zolang hij nog niet rent; tijdens de storm hoor je alleen de happen
+  if ((s.state === 'komen' || s.state === 'dreigen') && performance.now() >= s.enc.lachT) hyLach(s);
 
   if (s.state === 'komen'){
     s.show = 'loop';
@@ -3655,13 +3692,6 @@ function updateHyena(s, dt, plats, cliff){
       s.show = 'dreigen';
       s.dreigAcc += dt * HY.fps.dreigen;
       while (s.dreigAcc >= 1){ s.dreig = (s.dreig + 1) % HY.n.dreigen; s.dreigAcc -= 1; }
-    }
-    if (!s.laughed){                                // hoogstens één extra lach per hyena
-      s.laughT -= dt;
-      if (s.laughT <= 0){
-        s.laughT = 1;
-        if (Math.random() < HY_LAUGH_CHANCE){ s.laughed = true; hyPlay(SFX_HYENA_LAUGH); }
-      }
     }
     s.threatT -= dt;
     if (s.threatT <= 0) hyTelegraph(s);
@@ -5207,6 +5237,7 @@ function loop(now){
       const hS = hyScale();
       const hw = HY.w * hS, hh = HY.h * hS;
       for (const s of hyenas){
+        if (s.wacht > 0) continue;                  // staat nog achter de rand te wachten
         const bodyX = cx + (s.x - world);
         if (bodyX < -hw - W || bodyX > W / viewZoom() + W + hw) continue;
         const hBase = (s.base || 0) * scale;
