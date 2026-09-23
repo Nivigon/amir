@@ -36,6 +36,7 @@ enemies/
   blackpanther/
     blackpanther/          walk/, turn/, prowl/, pounce/, run/ (frames _00.. en sprite sheets)
     lowstrike/             claw_00..13.png (klauwhaal)
+    pantherroar.mp3, panter snarl.mp3, panter_snarl_lang.mp3   pantergeluiden
 
 design/
   *.png / *.jpg            losse props en texturen: boulder, tree, struik, villeaghut, drygrass,
@@ -47,7 +48,8 @@ design/
   vegetatie/               boom_sheet, drygrass_sheet, struik_sheet (bewegende vegetatie) en de losse frames
   water/                   pool_links/midden/rechts, rimpel_01..08, spetter_01..08
 
-music/                     muziek en stemmen (nog niet in deze repo, zie music/README.md)
+music/                     bg.mp3 (achtergrond), stemmen van Amir (iamtheking, iamamir, iamamirfatherson,
+                           hellomyfriend, ikill, protectinnocent, godsforsaken), snakehiss, spearthrust, scatter
 ```
 
 De `*_magenta.png`, `*_preview.gif`, `*_sheet.png` en `*_spritesheet*.png` bestanden zijn bronmateriaal en voorbeelden; het spel gebruikt de losse frames.
