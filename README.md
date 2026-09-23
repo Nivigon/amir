@@ -8,7 +8,7 @@ Alle sprites, achtergronden en geluiden staan los op schijf. Het spel verwacht d
 
 Het spel is een installeerbare webapp. Open de Pages-link in Safari, deel, "Zet op beginscherm". Daarna staat Amir als icoon tussen je apps en start hij zonder browserbalken, liggend.
 
-Open hem vanaf het beginscherm en druk in het startmenu op **Download voor offline**. Dat haalt alle 477 sprites en geluiden (ongeveer 100 MB) in een keer binnen. Vanaf dat moment laadt het spel meteen en speelt het ook zonder internet.
+Open hem vanaf het beginscherm en druk in het startmenu op **Download voor offline**. Dat haalt alle 511 sprites en geluiden (ongeveer 104 MB) in een keer binnen. Vanaf dat moment laadt het spel meteen en speelt het ook zonder internet.
 
 Doe die download vanuit het beginscherm-icoon, niet vanuit Safari: iOS geeft een geinstalleerde webapp een eigen opslag, dus wat je in Safari downloadt telt daar niet mee.
 
@@ -82,7 +82,9 @@ design/
   water/                   pool_links/midden/rechts, rimpel_01..08, spetter_01..08
 
 music/                     bg.mp3 (achtergrond), stemmen van Amir (iamtheking, iamamir, iamamirfatherson,
-                           hellomyfriend, ikill, protectinnocent, godsforsaken), snakehiss, spearthrust, scatter
+                           hellomyfriend, ikill, protectinnocent, godsforsaken), snakehiss, spearthrust, scatter,
+                           watersplash (de volle plons: instappen en landen) en waterstep (de korte knip
+                           uit diezelfde plons, voor de voetstappen in het water)
 ```
 
 De `*_magenta.png`, `*_preview.gif`, `*_sheet.png` en `*_spritesheet*.png` bestanden zijn bronmateriaal en voorbeelden; het spel gebruikt de losse frames.

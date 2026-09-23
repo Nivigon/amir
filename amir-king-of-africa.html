@@ -2162,12 +2162,45 @@ function drawWaterStrips(groundY){
     ctx.drawImage(poolImg.rechts, x - 0.5, top, poolImg.rechts.naturalWidth * s, th);
   }
 }
+// ---- watergeluid ------------------------------------------------------
+// Elke spetter die je ziet hoor je ook. De opname duurt 0,82s en dat is veel te
+// lang voor een pas: in het water valt er een spetter elke 0,22-0,34s, dus die
+// zouden over elkaar heen blijven liggen tot het een brij is. Daarom twee
+// knippen uit dezelfde plons: waterstep.mp3 is het korte stuk (0,27s, alleen de
+// klap plus een uitfadende nasleep, past binnen de pasmaat) en watersplash.mp3
+// is de hele plons, voor instappen en landen. Allebei beginnen ze op de klap,
+// zonder aanloopstilte, zodat het geluid op het beeld valt.
+const WATER_SND = { step: 'music/waterstep.mp3', plons: 'music/watersplash.mp3' };
+function waterVoices(src, n){
+  return Array.from({ length: n }, (_, i) => {
+    const a = new Audio();
+    if (i === 0) a.onerror = () => console.warn('ontbreekt: ' + src);   // een waarschuwing is genoeg
+    a.preload = 'auto'; a.src = src;
+    return a;
+  });
+}
+// kleine stemmenpool: een nieuwe pas mag over de staart van de vorige heen
+const waterSnd = { step: waterVoices(WATER_SND.step, 3), plons: waterVoices(WATER_SND.plons, 2) };
+const waterTurn = { step: 0, plons: 0 };
+function playWater(k, vol, rate){
+  if (!wantSound) return;
+  const pool = waterSnd[k];
+  const a = pool[waterTurn[k]++ % pool.length];
+  a.currentTime = 0; a.volume = Math.max(0, Math.min(1, vol));
+  a.playbackRate = rate || 1;                                         // hoger = kleinere spat
+  a.preservesPitch = false; a.mozPreservesPitch = false; a.webkitPreservesPitch = false;   // de toonhoogte mag mee
+  a.play().catch(() => {});
+}
+function stopWater(){
+  for (const k in waterSnd) for (const a of waterSnd[k]){ a.pause(); a.currentTime = 0; }
+}
 // spetters en rimpels, in wereldcoördinaten
 const splashes = [];
 let splashTimer = 0;
 function splashAt(x, size){
   splashes.push({ x, t: 0, k: 'spetter', s: size, flip: Math.random() < 0.5 });
   splashes.push({ x, t: 0, k: 'rimpel', s: size * 1.2 });
+  playWater('plons', 0.5 + 0.25 * size, 1.12 - 0.18 * size);   // groter = luider en dieper
 }
 function updateSplashes(dt, wet, moving){
   for (let i = splashes.length - 1; i >= 0; i--){
@@ -2179,10 +2212,14 @@ function updateSplashes(dt, wet, moving){
     splashTimer -= dt;
     if (splashTimer <= 0){
       if (moving){
-        splashes.push({ x: world + facing * 12, t: 0, k: 'spetter', s: 0.45 + Math.random() * 0.3, flip: Math.random() < 0.5 });
+        const sz = 0.45 + Math.random() * 0.3;
+        splashes.push({ x: world + facing * 12, t: 0, k: 'spetter', s: sz, flip: Math.random() < 0.5 });
+        // volume en toonhoogte per pas een beetje anders, anders hoor je de herhaling
+        playWater('step', (0.24 + 0.34 * sz) * (0.55 + 0.45 * wet), 1.18 - 0.22 * sz + (Math.random() - 0.5) * 0.12);
         splashTimer = 0.22 + Math.random() * 0.12;
       } else {
         splashes.push({ x: world, t: 0, k: 'rimpel', s: 0.8 + Math.random() * 0.3 });
+        playWater('step', 0.1 * (0.55 + 0.45 * wet), 0.62 + Math.random() * 0.08);   // stilstaan: alleen een klotsje
         splashTimer = 1.0 + Math.random() * 0.7;
       }
     }
@@ -2356,7 +2393,7 @@ function restart(){
   if (level && level.thickets) for (const d of level.thickets) addThicket(d.x, d.n, d.seed);
   if (level && level.tips) for (const t of level.tips) t.used = false;   // uitleg opnieuw laten zien
   resetHppotions();                                 // flesjes weer op hun plek, handen weer leeg
-  tutReset(); venom.length = 0; splat.length = 0; splashes.length = 0;
+  tutReset(); venom.length = 0; splat.length = 0; splashes.length = 0; stopWater();
   greenSince = 0; blackAfter = 3 + Math.floor(Math.random() * 3); forceBlack = false; setKindLabel();
   if (level && level.spawns) for (const sp of level.spawns){ sp.used = false; sp.armed = false; }
   // in een echt level begin je zonder speer: die staat voor je in de grond
