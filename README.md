@@ -100,6 +100,8 @@ design/
   bg/laag2/                savanneheuvels (parallax laag 2)
   botten/                  botten en schedels om op de grond te leggen
   klimmen/                 klif_bovenrand, klif_richel, klif_binnenhoek
+  *_sneeuw.png             winterversies van flatrock, boulder, cliff en de drie klimstukken; gemaakt
+                           met tools/sneeuw.py (draai dat opnieuw als een origineel verandert)
   vegetatie/               boom_sheet, drygrass_sheet, struik_sheet (bewegende vegetatie) en de losse frames
   water/                   pool_links/midden/rechts, rimpel_01..08, spetter_01..08
 
