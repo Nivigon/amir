@@ -421,6 +421,30 @@
 </div>
 
 <script>
+// ---- globale lichtlaag --------------------------------------------------
+// Eén belichting over de hele wereld: sprites, decor en achtergrond krijgen
+// dezelfde koele schaduwkant links, warm licht richting de zon en een onderkant
+// die iets dieper wegzakt. Bedoeld als subtiel: je merkt het pas als je het met
+// de toets L aan- en uitzet. Per level bij te stellen.
+const LICHT = {
+  aan: true,
+  schaduwKleur: [199, 191, 230],   // koele kant, links
+  lichtKleur:   [255, 250, 240],   // warme kant, richting de zon
+  kromming: 1.15,                  // verloop links naar rechts
+  zonX: 0.72,                      // zonpositie als fractie van de schermbreedte
+  zonY: 0.55,                      // zonpositie als fractie van de schermhoogte
+  gloedKleur: [255, 150, 60],
+  gloedSterkte: 0.15,              // additieve gloed rond de zon
+  gloedStraal: 0.45,               // straal als fractie van de schermbreedte
+  gloedBreedte: 1.6,               // horizontaal uitgerekt, 1 is rond
+  bodemDonker: 0.10,               // onderste kwart iets dieper in de schaduw
+  sterkte: 1.0                     // globale schaal over alles heen
+};
+// zonX en zonY zijn de terugval. De zon wordt als schijf in de achtergrondlaag
+// getekend, dus schrijft scene() hieronder elke frame zijn werkelijke
+// schermpositie weg en rekent de gloed daarmee.
+const zonScherm = { x: 0, y: 0, geldig: false };
+
 // Amir: de sprites staan los op schijf (scheelt een hoop in de grootte van dit bestand)
 // nieuwe indeling: karakters/amir/{idle, aanval/{lowsweep,speerstrike}, beweging/{bukken,jump,run}}
 // de oude paden blijven als reserve staan, dus beide mappenstructuren werken
@@ -1847,6 +1871,7 @@ addEventListener('keydown', e => {
   if (e.key === 'q' || e.key === 'Q'){ drinkHppotion(); return; }
   if (e.key === 'r' || e.key === 'R'){ restart(); return; }
   if (e.key === 'h' || e.key === 'H'){ showBoxes = !showBoxes; setBoxLabel(); return; }
+  if (e.key === 'l' || e.key === 'L'){ LICHT.aan = !LICHT.aan; flashHint('Lichtlaag ' + (LICHT.aan ? 'aan' : 'uit')); return; }
   if (e.key === ' ' || e.key === 'f' || e.key === 'F'){
     e.preventDefault();
     if (e.repeat || atkKeyHeld) return;          // holding the key does not re-fire
@@ -4465,8 +4490,10 @@ function scene(groundY){
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, horizonY + 1);
   const on2 = midOn();
   const mtnLift = on2 ? sc.mtnLift : 0;             // met laag 2 ervoor staan de bergen wat hoger
+  const zonX = W * sc.sun[0], zonY = horizonY - (sc.sun[1] + mtnLift) * H;
+  zonScherm.x = zonX; zonScherm.y = zonY; zonScherm.geldig = true;   // hier hangt de gloed straks aan
   ctx.fillStyle = sc.sun[3];
-  ctx.beginPath(); ctx.arc(W * sc.sun[0], horizonY - (sc.sun[1] + mtnLift) * H, H * sc.sun[2], 0, Math.PI * 2); ctx.fill();   // zakt half achter de bergen
+  ctx.beginPath(); ctx.arc(zonX, zonY, H * sc.sun[2], 0, Math.PI * 2); ctx.fill();   // zakt half achter de bergen
   drawLayer(MTN, mtnImgs, seqFor('mtn', MTN, sc.seq, sc.hero, sc.heroAt), horizonY, mtnLift, sc.mtnPar, sc.mtnSize);   // laag 1: verre bergen
   if (on2){
     if (sc.mtn2){
@@ -4541,6 +4568,80 @@ function scene(groundY){
 }
 
 let propUnit = 1;
+
+// ---- de globale lichtlaag tekenen ---------------------------------------
+// Drie stappen over het hele canvas: een horizontale multiply-gradient van de
+// koele schaduwkant links naar het warme licht rechts, een additieve gloed rond
+// de zon, en een verticale multiply-gradient die de onderste 25 procent iets
+// dieper zet. De drie gradients worden één keer gebouwd en bewaard; ze worden
+// alleen opnieuw gemaakt als het canvas van formaat verandert of als er een
+// waarde in LICHT verandert.
+let lichtCache = null, lichtSleutel = '';
+function lichtSleutelNu(){
+  const L = LICHT;
+  return [W, H, L.schaduwKleur, L.lichtKleur, L.kromming, L.gloedKleur, L.gloedSterkte,
+          L.gloedStraal, L.gloedBreedte, L.bodemDonker, L.sterkte].join('|');
+}
+function lichtMix(a, b, f){          // van schaduw naar licht, daarna richting wit volgens sterkte
+  const s = Math.max(0, LICHT.sterkte);
+  const rgb = [];
+  for (let i = 0; i < 3; i++){
+    const v = a[i] + (b[i] - a[i]) * f;
+    rgb.push(Math.round(Math.max(0, Math.min(255, 255 + (v - 255) * s))));
+  }
+  return 'rgb(' + rgb.join(',') + ')';
+}
+function bouwLicht(){
+  const L = LICHT;
+  // a. links koel, rechts warm, met een extra kleurstop rond het midden zodat het
+  //    geen kale lineaire overgang is
+  const hor = ctx.createLinearGradient(0, 0, W, 0);
+  hor.addColorStop(0, lichtMix(L.schaduwKleur, L.lichtKleur, 0));
+  hor.addColorStop(0.5, lichtMix(L.schaduwKleur, L.lichtKleur, Math.pow(0.5, L.kromming)));
+  hor.addColorStop(1, lichtMix(L.schaduwKleur, L.lichtKleur, 1));
+  // b. de gloed: rond getekend rond (0,0), bij het tekenen schuiven we hem naar de
+  //    zon en rekken we de ruimte horizontaal op met gloedBreedte
+  const r = Math.max(1, L.gloedStraal * W);
+  const kl = L.gloedKleur.join(',');
+  const a0 = Math.max(0, L.gloedSterkte * L.sterkte);
+  const gl = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+  gl.addColorStop(0, 'rgba(' + kl + ',' + a0.toFixed(4) + ')');
+  gl.addColorStop(0.45, 'rgba(' + kl + ',' + (a0 * 0.34).toFixed(4) + ')');
+  gl.addColorStop(1, 'rgba(' + kl + ',0)');
+  // c. de onderste 25 procent: van wit (blijft zoals het is) naar een grijstint
+  const top = H * 0.75;
+  const d = Math.round(255 * (1 - Math.max(0, Math.min(1, L.bodemDonker * L.sterkte))));
+  const bod = ctx.createLinearGradient(0, top, 0, H);
+  bod.addColorStop(0, 'rgb(255,255,255)');
+  bod.addColorStop(1, 'rgb(' + d + ',' + d + ',' + d + ')');
+  return { hor, gl, bod, r, top };
+}
+function drawLichtlaag(){
+  if (!LICHT.aan || !(W > 0) || !(H > 0)) return;
+  const sleutel = lichtSleutelNu();
+  if (!lichtCache || sleutel !== lichtSleutel){ lichtCache = bouwLicht(); lichtSleutel = sleutel; }
+  const c = lichtCache;
+  const m = 48;                     // marge: de camera schudt een paar pixels heen en weer
+  ctx.save();
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.fillStyle = c.hor;
+  ctx.fillRect(-m, -m, W + m * 2, H + m * 2);
+  const zx = zonScherm.geldig ? zonScherm.x : LICHT.zonX * W;
+  const zy = zonScherm.geldig ? zonScherm.y : LICHT.zonY * H;
+  ctx.save();
+  ctx.translate(zx, zy);
+  ctx.scale(LICHT.gloedBreedte, 1);
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = c.gl;
+  ctx.fillRect(-c.r, -c.r, c.r * 2, c.r * 2);
+  ctx.restore();                    // de uitgerekte ruimte weer los
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.fillStyle = c.bod;
+  ctx.fillRect(-m, c.top, W + m * 2, H - c.top + m);
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.restore();
+}
 
 let last = performance.now();
 let paused = false;
@@ -5603,7 +5704,10 @@ function loop(now){
     }
     }
     ctx.restore();                                  // zoom weer los
+    drawLichtlaag();                                // de hele wereld in dezelfde belichting
     drawBossBar();
+  } else {
+    drawLichtlaag();
   }
   ctx.restore();
   if (camSwap !== null){ world = camSwap; camSwap = null; }
