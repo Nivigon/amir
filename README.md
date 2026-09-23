@@ -24,14 +24,14 @@ karakters/
       bukken/bukken/       bukken_in_1..8.png, bukken_hold_1..4.png
       bukken/bukkenspeer/  bukken_in_1..8_speer.png, bukken_hold_1..4_speer.png
   dorpeling1/
-    dorpeling_idle_12/     idle_01..12.png
+    dorpelingidle/         idle_01..12.png
 
 enemies/
   slang1/                  groene slang: idle_1..8, move_1..8, attack_1..8.png (+ mp4 referenties)
   slang2/                  zwarte slang: idem, plus venom.png (het gif) en sprite sheets
   schorpioen1/
     schorpioen_walk_12/    walk_01..12.png
-    charge/                charge_01..12.png
+    charge/schorpioen_charge_12/  charge_01..12.png
     schorpioen_curl_12frames/  curl_01..12.png
   blackpanther/
     blackpanther/          walk/, turn/, prowl/, pounce/, run/ (frames _00.. en sprite sheets)
