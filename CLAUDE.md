@@ -53,7 +53,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | Episode Test levels | `TEST_1`: korte proefstukken, los van de echte episodes |
 | terrassen en richels | `terraces`, `ledges`, klimmen |
 | de rotswand rechts | `cliffs`, het einde van het level |
-| grotten en ravijnen | `grotten`: het steen om een opening heen, de verstrooiing, de botsingen |
+| grotten: rots als een raster van cellen | `grotten`: het raster, de randen, de verstrooiing, de botsingen |
 | schorpioen, het projectiel, spannen en werpen, de geworpen speer | de speerworp |
 | personages, dorpsdecor | NPC's, `VILLAGE`, de dorpsplaten |
 | stap voor stap leren spelen | het `tutorial`-systeem van de Rosa-levels |
@@ -92,7 +92,7 @@ precies hetzelfde formaat naar JSON.
 | `thickets` | doornbossen: `{x, n, seed}` |
 | `terraces` | terrassen om op te klimmen: `{r, l, h}` (rechterrand, linkerrand, hoogte) |
 | `ledges` | richels aan een wand: `{x, h, s}` |
-| `grotten` | grotten, overhangen en rotskloven: `{x, y, w, h, ...}` (zie hieronder) |
+| `grotten` | rotsgebieden als raster: `{x, cel, y, grid, ...}` (zie hieronder) |
 | `hppotions` | drinkkalebassen: `{x, y}` |
 | `fg` | strook waarover de voorgrondbegroeiing ligt: `{from, to}` |
 | `arena` | het veld van de eindbaas: `{c}` |
@@ -143,45 +143,61 @@ om. Dat is bewust buiten deze wijziging gelaten.
 staat naar de kant, of haalt het weg. Reken daar niet op als ontwerper: zet het
 meteen goed.
 
-### Een grot is een rechthoek, de rest volgt eruit
+### Rots als een raster van cellen
 
-Een grot beschrijf je als de opening waar Amir in loopt; alles eromheen is steen. Welke
-tegel waar komt rekent het spel zelf uit, met de ankerpunten uit `design/grot/grot.json`.
+Een rotsgebied is geen kamer maar terrein: een raster waarin elke cel vol of leeg is.
+Amir loopt door de lege cellen, en rots kan net zo goed boven of naast hem zitten als
+eronder. Je tekent het met de hand uit.
 
 | veld | wat |
 | --- | --- |
-| `x` en `w` | linkerrand en breedte van de opening, in wereld-x (dus negatief) |
-| `y` en `h` | vloerhoogte boven de grondlijn en hoogte van de opening, in sprite-eenheden (net als `terraces.h`) |
-| `plafond` | dak eroverheen (standaard `true`; `false` geeft een overhang of ravijn met open lucht) |
-| `wanden` | `'beide'`, `'links'`, `'rechts'` of `'geen'` (standaard `'beide'`) |
-| `achter` | achterwand van rotstextuur achter de opening (standaard `false`) |
-| `rand` | extra steen achter een wand, in wereld-px (standaard 0) |
-| `massief` | plafond, wanden en vloer blokkeren (standaard `true`) |
+| `x` | wereld-x van de linkerrand van het raster (dus negatief) |
+| `cel` | celgrootte in wereld-px (standaard `GROT_CEL`, 120) |
+| `y` | onderrand van het raster boven de grondlijn, in cellen (standaard 0) |
+| `grid` | de rijen van boven naar beneden; `#` is vol, al het andere leeg |
 | `seed` | dezelfde seed geeft elke keer dezelfde verstrooiing |
 | `strooi` | hangblokken, richels en keien vanzelf neerzetten (standaard `true`) |
+| `massief` | de volle cellen blokkeren (standaard `true`) |
 | `decor` | met de hand erbij: `[{k, x, y, f, s}]` |
 
-Let op de twee eenheden: `x` en `w` zijn wereld-px, `y` en `h` sprite-eenheden. Dat is
-dezelfde splitsing als bij `terraces` (`l`/`r` in wereld-px, `h` in sprite-eenheden).
+Cellen zijn altijd vierkant op het scherm, ook als je aan de Formaat-schuif draait: `cel`
+is een maat in wereld-px en die is gelijk aan schermpixels. De hoogte in sprite-eenheden
+(waar `ph` in rekent) volgt daaruit, en dus uit de schaal.
 
-Zet `achter: true` voor een echte grot of een kloof, anders kijk je er dwars doorheen de
-savanne in. Laat het uit voor een overhang waar dat juist de bedoeling is.
+Buiten het raster is het lucht, behalve onder de laatste rij: daar loopt de aarde door.
+De bovenkant van je rots is dus ook de bovenkant van het level, met de hemel erboven.
+Moet de massa doorlopen tot buiten beeld, maak het raster dan hoger.
 
-Zonder `rand` is de rotsband precies zo dik als de wand van het hoekstuk, en dat leest als
-een schot met lucht erachter. Reken op een paar honderd px voor een rotsmassief; die band
-is ook massief, dus je loopt er niet doorheen.
+De tekencode kijkt per volle cel welke buren leeg zijn:
 
-Een vloer onder de grondlijn (`y` negatief) maakt de grot zelf een gat in de grond: je
-valt er vanzelf in en de camera zakt mee zolang je erop staat. Er hoeft dus geen `gaps`
-naast. Dieper dan `GAP_DEATH` (1,6 Amir) vallen blijft dodelijk, dus houd `y` daarboven.
+| buur leeg | wat erop komt |
+| --- | --- |
+| onder | `plafond_strook.png`, horizontaal getegeld; de tanden hangen in de open ruimte |
+| boven | de gewone grondrand van het spel, als korst die naar onderen in het steen uitvloeit |
+| links of rechts | `wand_rand.png`, verticaal getegeld, gespiegeld voor de andere kant |
+| binnenhoek | `hoek_plafond_wand.png`, uitgelijnd op `wand_binnenrand_x_onderaan` |
 
-Een decoratie is `{k, x, y, f, s}`: `k` is de bestandsnaam (met of zonder `.png`), `x` de
-wereld-x, `y` de hoogte van het ankerpunt, `f` gespiegeld, `s` de schaal. Waar dat anker
-ligt hangt af van de soort: een hangblok aan zijn vlakke bovenkant, een richel aan zijn
-looprand met de vlakke kant tegen de wand, een kei aan de grond waar hij op staat. Laat
-je `y` weg, dan hangt een blok aan het plafond en ligt een kei op de vloer.
+Alle volle cellen worden eerst dicht gelegd met `rotstextuur.png`. Wat de set niet heeft
+vullen de brokken op: waar een vloer op een wand uitkomt komt een handvol keien over de
+naad, en waar een rotspunt uitsteekt komt een richel of een hangblok overheen.
 
-Alleen `wand_richel` draagt. Hangblokken en keien zijn puur decor.
+Drie dingen waar je op moet letten als je hieraan werkt:
+
+Eén pixelschaal voor de hele grotset, uit de celgrootte (`grotS`): de plafondband is
+precies één cel dik. Teken nooit een stuk op een andere schaal, want dan verspringt de
+korrel van de rots halverwege. De grondrand komt uit een ander plaatje en heeft daarom
+zijn eigen schaal (`grotEdgeS`), ook uit de celgrootte.
+
+Geen tint, geen overlay, geen `globalCompositeOperation` op deze sprites. Ze zijn allemaal
+hetzelfde warm grijsbruine gesteente; elke waas eroverheen maakt van de ene helft grijs en
+van de andere bruin.
+
+Tegels worden een keer op maat gezet (`grotTegelSet`) en daarna op hele pixels neergelegd.
+Verklein je een naadloze tegel rechtstreeks met `drawImage`, dan klemt de resampler op de
+rand en zie je de naad alsnog als een lijn door het steen lopen.
+
+Alleen `wand_richel` draagt, met een hitbox die alleen de bovenkant van het brok beslaat.
+Hangblokken en losse keien zijn puur decor.
 
 ### Een level toevoegen (alleen na toestemming)
 
