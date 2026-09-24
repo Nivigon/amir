@@ -100,11 +100,15 @@ De geworpen speer zakt door onder een derde van de zwaartekracht op Amir en
 wijst elk frame de kant van zijn snelheid op. Raakt hij een dier, dan doet hij
 schade en valt hij neer. Raakt hij grond of muur, dan blijft hij steken en
 natrillen, en een speer die in een muur steekt is een dun platform waar je op
-kunt staan (alleen van bovenaf; de schacht buigt 3 px door onder Amir). Komt de
-speer in het water, in een ravijn of buiten de wereld, dan staat hij na drie
-seconden weer op de laatste vaste grond waar Amir stond, zodat je nooit zonder
-wapen vastzit. Alles los te testen met de knoppen onder "Speerworp" in de
-sandbox.
+kunt staan (alleen van bovenaf; de schacht buigt 3 px door onder Amir). In een
+doornbos richt hij niets aan: hij blijft ertussen hangen en je trekt hem er met
+E weer uit. Hak je het struweel daarna om, dan valt hij op de grond.
+
+Je raakt hem nooit kwijt. Komt hij in het water of buiten de wereld terecht, dan
+ligt hij na drie seconden weer op de laatste vaste grond waar Amir stond. Valt
+hij in een ravijn, dan duikt hij na drie seconden aan de overkant op, net buiten
+beeld: je loopt er vanzelf tegenaan zodra je de oversteek gehaald hebt. Alles
+los te testen met de knoppen onder "Speerworp" in de sandbox.
 
 ## Mappenstructuur
 

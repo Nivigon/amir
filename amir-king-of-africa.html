@@ -2259,8 +2259,9 @@ const JAV = {
 };
 const javImg = loadQuiet(uniq([AMIR_OLD + 'speer_projectiel.png', AMIR + 'speer_projectiel.png',
                                AMIR_GROOT + 'speer_projectiel.png']));
-let jav = null;        // de geworpen speer: 'vlucht', 'val' (na een treffer), 'grond' of 'muur'
+let jav = null;        // de geworpen speer: 'vlucht', 'val' (na een treffer), 'grond', 'muur' of 'bos'
 let javLost = 0;       // aftellen tot hij terugkomt uit water of ravijn
+let javOver = null;    // {g, dir}: in welk ravijn hij viel, en van welke kant
 let lastSolid = 0;     // laatste vaste grond waar Amir stond: daar komt hij terug
 
 function nowScale(){ return (H * (Number(sizeEl.value) / 100)) / CHAR_H; }
@@ -2351,44 +2352,84 @@ function javFloor(x, plats){                 // hoogte van de vaste grond op dez
 function javAngle(scale){                    // schermhoek van de punt: volgt de snelheid
   return Math.atan2(-jav.vh * scale, jav.vx);
 }
-function javLose(){                          // water, ravijn of buiten de wereld
+function javGapNear(x){                      // het ravijn waar hij in verdween
+  for (const g of gapList())
+    if (x > g.x - g.w / 2 - 120 && x < g.x + g.w / 2 + 120) return g;
+  return null;
+}
+function javLose(g){                         // water, ravijn of buiten de wereld
+  javOver = g ? { g, dir: jav ? jav.dir : (facing === 1 ? 1 : -1) } : null;
   jav = null; javLost = JAV.lostT;
   spearFound = false; spearX = null; spearH = null;   // er valt nu niets op te pakken
 }
-function javStick(x, h, muur, scale){
+// Waar komt hij terug? Uit het water of van buiten de wereld op de laatste vaste
+// grond waar Amir stond. Uit een ravijn juist aan de overkant, net buiten beeld:
+// je loopt er vanzelf tegenaan zodra je de oversteek gehaald hebt.
+function javReturnX(){
+  if (!javOver) return lastSolid;
+  const g = javOver.g, dir = javOver.dir;
+  const cam = (arena && !building) ? arenaCam(world) : world;
+  const rand = W / 2 / viewZoom() + 70;
+  let x = dir < 0 ? Math.min(g.x - g.w / 2 - 70, cam - rand)
+                  : Math.max(g.x + g.w / 2 + 70, cam + rand);
+  for (let i = 0; i < 80 && (inGap(x) || waterDepthAt(x) > 0.3); i++) x += dir * 40;
+  x = Math.min(cliffAt().wall - 60, Math.max(endWall() + 60, x));
+  return (inGap(x) || waterDepthAt(x) > 0.3) ? lastSolid : x;   // nergens droog: dan toch maar terug
+}
+function javStick(x, h, soort, scale){
+  const muur = soort === 'muur', bos = soort === 'bos';
   // onder de looplijn blijven steken kan alleen in de wand van een ravijn: daar
   // komt Amir nooit bij, dus dat telt als verloren en het vangnet brengt hem terug
-  if (!building && muur && h < terrainH(x) - 4){ javLose(); return; }
-  jav.state = muur ? 'muur' : 'grond';
-  jav.x = x + (muur ? jav.dir * JAV.inTile : 0);      // de punt steekt de tegel in
-  jav.h = h - (muur ? 0 : JAV.inTile);
+  if (!building && muur && h < terrainH(x) - 4){ javLose(javGapNear(x)); return; }
+  jav.state = soort;
+  jav.x = x + (muur || bos ? jav.dir * JAV.inTile : 0);   // de punt steekt er een stukje in
+  jav.h = h - (muur || bos ? 0 : JAV.inTile);
   jav.vx = 0; jav.vh = 0;
   jav.wob = 1; jav.sag = 0; jav.stand = false;
-  if (!muur && jav.hit) jav.sa = jav.dir === 1 ? 0 : Math.PI;   // aangeraakte speer valt plat neer
-  spearFound = false; spearX = jav.x; spearH = jav.h;            // vanaf nu weer op te pakken
+  if (!muur && !bos && jav.hit) jav.sa = jav.dir === 1 ? 0 : Math.PI;   // plat neergevallen
+  spearFound = false; spearX = jav.x; spearH = jav.h;                   // vanaf nu weer op te pakken
 }
+// In een doornbos richt de speer niets aan: hij blijft ertussen hangen en je moet
+// hem er met E weer uit trekken. Amir kan niet in het struweel staan, dus het
+// oppakbereik loopt door tot de rand ervan.
+function javThicket(x, h, scale){
+  for (const t of thickets){
+    if (t.stage >= THICKET_HITS) continue;             // een stronk houdt niets meer tegen
+    const hw = t.halfW * THICKET_BOX * scale;
+    if (x > t.x - hw && x < t.x + hw && h > t.base && h < t.base + t.topH) return { t, hw };
+  }
+  return null;
+}
+function javReach(){ return 85 + (jav && jav.state === 'bos' ? (jav.bosHw || 0) : 0); }
 function javHitEnemy(){                      // hij raakt een vijand: schade, en hij valt
   jav.hit = true; jav.state = 'val'; jav.vx = 0; jav.vh = 0;
 }
 function javUpdate(dt, plats, scale){
   if (javLost > 0){
     javLost -= dt;
-    if (javLost <= 0){                       // vangnet: terug op de laatste vaste grond
-      javLost = 0; jav = null;
-      spearFound = false; spearX = lastSolid; spearH = null;
-      flashHint('Je speer is terug op vaste grond');
+    if (javLost <= 0){                       // vangnet: hij duikt weer op
+      const over = !!javOver;
+      const x = javReturnX();
+      javLost = 0; jav = null; javOver = null;
+      spearFound = false; spearX = x; spearH = null;
+      flashHint(over ? 'Je speer ligt aan de overkant van het ravijn'
+                     : 'Je speer is terug op vaste grond');
     }
     return;
   }
   if (!jav) return;
   if (jav.wob > 0) jav.wob = Math.max(0, jav.wob - dt / JAV.wobT);
+  if (jav.state === 'bos' && (jav.bos.stage >= THICKET_HITS || thickets.indexOf(jav.bos) < 0)){
+    jav.state = 'val'; jav.hit = true; jav.vx = 0; jav.vh = 0;   // struweel weggehakt: de speer valt
+    spearX = null; spearH = null;
+  }
   if (jav.state !== 'vlucht' && jav.state !== 'val'){
     const wil = jav.stand ? JAV.sag : 0;     // de schacht buigt door zolang Amir erop staat
     jav.sag += (wil - jav.sag) * Math.min(1, dt * 14);
     return;
   }
   jav.t += dt;
-  if (jav.t > JAV.maxT){ javLose(); return; }   // nergens grond onder: ook buiten de wereld
+  if (jav.t > JAV.maxT){ javLose(null); return; }   // nergens grond onder: ook buiten de wereld
   const g = GRAVITY * JAV.gDeel;
   const stap = Math.max(1, Math.ceil(Math.abs(jav.vx * dt) / 14));   // kleine stapjes: nooit door een wand heen
   const sdt = dt / stap;
@@ -2399,14 +2440,18 @@ function javUpdate(dt, plats, scale){
     const nx = jav.x + jav.vx * sdt;
     if (nx > muurR || nx < muurL){                                   // de rotswand aan de rand
       jav.x = Math.min(muurR, Math.max(muurL, nx));
-      javStick(jav.x, jav.h, true, scale); return;
+      javStick(jav.x, jav.h, 'muur', scale); return;
     }
     const fNieuw = javFloor(nx, plats);
-    if (fNieuw > jav.h && jav.h > fOud){ javStick(jav.x, jav.h, true, scale); return; }   // van opzij tegen een wand
+    if (fNieuw > jav.h && jav.h > fOud){ javStick(jav.x, jav.h, 'muur', scale); return; }   // van opzij tegen een wand
     jav.x = nx; jav.h += jav.vh * sdt; jav.vh -= g * sdt;
-    if (!building && jav.h <= terrainH(jav.x) + 8 && waterDepthAt(jav.x) > 0.35){ javLose(); return; }
-    if (jav.h < -GAP_DEATH){ javLose(); return; }                    // in een ravijn
-    if (fNieuw > -Infinity && jav.h <= fNieuw){ javStick(jav.x, fNieuw, false, scale); return; }
+    if (!building){                                                  // in de doorns blijven hangen
+      const bos = javThicket(jav.x, jav.h, scale);
+      if (bos){ jav.bos = bos.t; jav.bosHw = bos.hw; javStick(jav.x, jav.h, 'bos', scale); return; }
+    }
+    if (!building && jav.h <= terrainH(jav.x) + 8 && waterDepthAt(jav.x) > 0.35){ javLose(null); return; }
+    if (jav.h < -GAP_DEATH){ javLose(javGapNear(jav.x)); return; }   // in een ravijn
+    if (fNieuw > -Infinity && jav.h <= fNieuw){ javStick(jav.x, fNieuw, 'grond', scale); return; }
   }
 }
 // een speer die in een muur steekt is een platform: alleen van bovenaf, van
@@ -2919,7 +2964,7 @@ spearImg.onerror = () => {
 spearImg.src = SPEAR_PATHS[0];
 function spearRestH(){ return spearH !== null ? spearH : terrainH(spearX); }
 function spearNear(){
-  if (spearFound || spearX === null || Math.abs(world - spearX) >= 85) return false;
+  if (spearFound || spearX === null || Math.abs(world - spearX) >= javReach()) return false;
   const h = spearRestH();
   // op de grond sta je er precies naast; steekt hij in een muur, dan pak je hem
   // van onderaf of vanaf het platform waar hij zelf op staat
@@ -3947,7 +3992,7 @@ function restart(){
   lives = 3; invuln = 0; hurt = 0; knock = 0; shake = 0; dead = false;
   hits = 0; hitsEl.textContent = 0;
   atkFrame = -1; atkAcc = 0; atkCooldown = 0; swFrame = -1; swAcc = 0; sweepBuf = 0; duckT = 0; swRecover = 0; sand.length = 0;
-  thr = null; jav = null; javLost = 0; spearH = null; lastSolid = 0;
+  thr = null; jav = null; javLost = 0; javOver = null; spearH = null; lastSolid = 0;
   jump = null; dust.length = 0; ph = 0; pvh = 0; onGround = true; fell = false; coyote = 0;
   world = 0; facing = -1; frame = 0; frameAcc = 0; idleFrame = 0; idleAcc = 0;   // altijd weer bij het startpunt
   camY = 0; camFloor = 0;
