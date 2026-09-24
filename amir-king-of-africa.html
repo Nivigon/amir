@@ -530,15 +530,58 @@ function beeldKeuze(){                 // 'auto' | 'groot' | 'klein', zoals opge
   try { const v = localStorage.getItem(BKEY); if (v === 'groot' || v === 'klein') return v; } catch (e) {}
   return 'auto';
 }
-function beeldAuto(){                  // telefoon of tablet: grove aanwijzer, of aanraakscherm plus klein scherm
+// Een telefoon: grove aanwijzer en een kort scherm. Een tablet valt hier bewust
+// buiten. Alles wordt getekend naar rato van de schermhoogte, dus op een iPad
+// (700 CSS-pixels en hoger in liggende stand) komt elke sprite ongeveer twee keer
+// zo groot in beeld als op een telefoon, en dan is de halve set te zacht.
+function beeldAuto(){
   const grof = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
-  const aanraak = (navigator.maxTouchPoints || 0) > 0;
-  const kleinScherm = Math.min(screen.width || 0, screen.height || 0) < 900;
-  return (grof || (aanraak && kleinScherm)) ? 'klein' : 'groot';
+  const kort = Math.min(screen.width || 0, screen.height || 0) < 600;
+  return (grof && kort) ? 'klein' : 'groot';
 }
 const BEELD = beeldKeuze() === 'auto' ? beeldAuto() : beeldKeuze();   // wat er nu geladen wordt
 const KLEIN = BEELD === 'klein' ? 'klein/' : '';                       // voorvoegsel voor de families met een kleine set
 const uniq = a => a.filter((p, i) => a.indexOf(p) === i);            // zelfde pad niet twee keer proberen
+
+// Welke plaatjes een halve versie in klein/ hebben. Deze lijst hoort gelijk te
+// lopen met DOELEN in tools/gen-klein.py; dat script print hem aan het eind, zodat
+// je kunt vergelijken. Staat een pad hier niet bij, dan wordt de kleine map niet
+// eens geprobeerd en scheelt dat een mislukt verzoek per frame.
+const KLEIN_FAM = [
+  'karakters/amir/',
+  'enemies/hyena/',
+  'enemies/hyena_wit/',
+  'enemies/blackpanther/',
+  'enemies/panter_wit/',
+  'enemies/schorpioen1/',
+  'karakters/dorpeling1/',
+  'design/vegetatie/drygrass_frames/',
+  'design/vegetatie/drygrass_sheet.png',
+  'design/drygrass.png',
+  'design/drygrass_sneeuw.png',
+  'design/boulder.png',
+  'design/boulder_sneeuw.png',
+  'design/villeaghut.png',
+  'design/villeaghut_sneeuw.png',
+  'design/botten/'
+];
+const heeftKlein = p => KLEIN_FAM.some(f => p.indexOf(f) === 0);
+// Zet de kleine versie vooraan, met het origineel er direct achter als terugval.
+// Zonder kleine set (laptop) blijft de lijst onveranderd.
+function kleinEerst(paths){
+  if (!KLEIN) return paths;
+  const uit = [];
+  for (const p of paths) if (heeftKlein(p)) uit.push(KLEIN + p);
+  return uit.length ? uniq(uit.concat(paths)) : paths;
+}
+// voor de plekken die één bron zetten in plaats van een lijst te proberen
+function zetBron(img, pad, opFout){
+  const paden = kleinEerst([pad]);
+  let k = 0;
+  img.onerror = () => { k++; if (k < paden.length) img.src = paden[k]; else if (opFout) opFout(); };
+  img.src = paden[0];
+  return img;
+}
 
 // Amir: de sprites staan los op schijf (scheelt een hoop in de grootte van dit bestand)
 // nieuwe indeling: karakters/amir/{idle, aanval/{lowsweep,speerstrike}, beweging/{bukken,jump,run}}
@@ -643,6 +686,7 @@ const DUCK_HOLD_SEQ = [0, 1, 2, 3, 2, 1];
 const DUCK_DROP = [0, 0, 0, 0, 2, 10, 22, 26], DUCK_HOLD_DROP = 26, SWEEP_DROP = 26;
 function duckDrop(){ return duckT >= 1 ? DUCK_HOLD_DROP : DUCK_DROP[Math.min(7, Math.round(duckT * 7))]; }
 function loadQuiet(paths){                     // telt niet mee in de laadbalk, ontbreken mag
+  paths = kleinEerst(paths);                   // op een telefoon eerst de halve versie
   const i = new Image(); let k = 0;
   i.onerror = () => { k++; if (k < paths.length) i.src = paths[k]; else console.warn('ontbreekt: ' + paths[0]); };
   i.src = paths[0];
@@ -2047,10 +2091,15 @@ const SPR_W = 594, SPR_H = 301, SPR_GROUND = 297, CHAR_H = 251;
 const ATK_FPS = 18;
 
 function load(src){
-  const i = new Image();
+  const paths = kleinEerst([src]);             // op een telefoon eerst de halve versie
+  const i = new Image(); let k = 0;
   i.onload = () => loaded++;
-  i.onerror = () => { loaded++; console.warn('ontbreekt: ' + src); };  // a missing file must not stall the game
-  i.src = src;
+  i.onerror = () => {
+    k++;
+    if (k < paths.length) i.src = paths[k];
+    else { loaded++; console.warn('ontbreekt: ' + src); }   // a missing file must not stall the game
+  };
+  i.src = paths[0];
   return i;
 }
 let loaded = 0;
@@ -2137,6 +2186,7 @@ function puffWorld(wx, n, kick, size, baseH){
 const pad2 = n => (n < 10 ? '0' : '') + n;
 // probeert meerdere paden: Windows zet bij uitpakken vaak een extra map ertussen
 function loadAny(paths){
+  paths = kleinEerst(paths);                   // op een telefoon eerst de halve versie
   const i = new Image();
   let k = 0;
   i.onload = () => loaded++;
@@ -2301,8 +2351,8 @@ for (const k in PROPS){
   const im = new Image();
   propImg[k] = im;                             // registered before loading starts
   im.onload = () => makeFarCopy(k);
-  im.onerror = () => console.warn('ontbreekt: ' + PROPS[k].src);
-  im.src = PROPS[k].src;                       // loaded from disk, not embedded
+  // loaded from disk, not embedded; op een telefoon eerst de halve versie
+  zetBron(im, PROPS[k].src, () => console.warn('ontbreekt: ' + PROPS[k].src));
 }
 
 // ---- dorpsdecor --------------------------------------------------------
@@ -3038,8 +3088,7 @@ const VEG = {
 const VEG_FPS = 12;
 for (const k in VEG){
   const im = new Image();
-  im.onerror = () => console.warn('ontbreekt: ' + VEG[k].src + ' (plant staat dan stil)');
-  im.src = VEG[k].src;
+  zetBron(im, VEG[k].src, () => console.warn('ontbreekt: ' + VEG[k].src + ' (plant staat dan stil)'));
   VEG[k].img = im;
 }
 let vegDt = 0, vegTick = 0;
@@ -8354,14 +8403,15 @@ requestAnimationFrame(safeLoop);
 
   function ask(reg) {
     const sw = (reg && reg.active) || navigator.serviceWorker.controller;
-    if (sw) sw.postMessage({ type: 'status' });
+    // de set die dit toestel speelt gaat mee: alleen die bestanden tellen en downloaden
+    if (sw) sw.postMessage({ type: 'status', set: BEELD });
     else say('Herlaad de pagina om offline opslaan aan te zetten.');
   }
 
   function send(type) {
     navigator.serviceWorker.ready.then((reg) => {
       const sw = (reg && reg.active) || navigator.serviceWorker.controller;
-      if (sw) sw.postMessage({ type: type });
+      if (sw) sw.postMessage({ type: type, set: BEELD });
     });
   }
 
