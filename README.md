@@ -20,7 +20,7 @@ Of het sneeuwt, verschilt per potje. Bij de start wordt een weerplan geloot: de 
 
 In de winter is al het stof sneeuwstof (de stofplaatjes worden bij het laden wit gemaakt), en bij een landing of een lage zwaai stuift de sneeuw echt op: een brede lage wolk die blijft hangen, een waaier glinsterende kristallen en klonten die in een boog wegvliegen en bij het neerkomen een wolkje geven. Hoe harder je neerkomt, hoe groter de plof.
 
-Test levels zijn korte proefstukken: een enkel level waarin je een mechaniek los kunt bekijken, zonder gevecht en zonder lange tocht eromheen. Ze staan met opzet apart van de echte episodes, zodat daar niets aan hoeft te veranderen om iets nieuws te kunnen proberen. **Test 1: Grot, dak en klimmen** loopt in drie stukken. Eerst een dak: een rotsplaat over de weg heen, laag genoeg dat je je hoofd stoot als je eronder springt, met hangblokken en keien die door de verstrooiing zijn neergezet. Dan een trap van drie terrassen omhoog en aan de andere kant weer omlaag. En tot slot een grot in de savanne: een dichte achterwand, een wand aan het eind, en daartegen twee richels waarmee je naar een drinkkalebas klimt. Achterin staan de fakkels die het level uitspelen. De definitie staat in de HTML als `TEST_1`.
+Test levels zijn korte proefstukken: een enkel level waarin je een mechaniek los kunt bekijken, zonder gevecht en zonder lange tocht eromheen. Ze staan met opzet apart van de echte episodes, zodat daar niets aan hoeft te veranderen om iets nieuws te kunnen proberen. **Test 1: Gang, dak en klimmen** loopt in drie stukken. Eerst een dak van rots over de weg heen: op twee cellen hoogte loop je er rechtop onderdoor, maar springen gaat niet. Dan een trap van drie terrassen omhoog en aan de andere kant weer omlaag. En tot slot een gang door de rots: het plafond zakt van vier cellen bij de ingang naar drie en dan naar twee, er staan twee blokken om op te klimmen (met een drinkkalebas erboven), en helemaal achterin loopt de rots dicht. Daar staan de fakkels die het level uitspelen. De definitie staat in de HTML als `TEST_1`.
 
 In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen naar het volgende level van dezelfde reeks. Onder **Instellingen** staan daar ook het tempo van het spel, het looptempo van Amir, het formaat van het beeld en de muziek. Tijdens een level is het speelveld verder leeg: de testbalk met schuifjes staat alleen in de bouwer en de sandbox (met B haal je hem er tijdens het spelen alsnog bij).
 
@@ -152,33 +152,37 @@ en een speer die hem daarbuiten raakt ketst af op zijn vacht. De duik van de
 witte panter zet hem tot zijn buik in de sneeuw: dat is het langste venster en
 je staat er ver genoeg vanaf om te werpen.
 
-## Grotten en ravijnen
+## Rots boven en naast je
 
-Een grot is een rechthoek waar het steen omheen staat: de opening waar Amir in loopt.
-Het spel leidt daar zelf uit af waar de stukken komen. Over het hele rotsgebied ligt
-eerst een naadloze rotstextuur, zodat er nooit een gat te zien is. Daarover komt de
-plafondstrook, horizontaal getegeld, met een grillige onderrand vol tanden. Waar het
-plafond overgaat in een wand staat een hoekstuk, en daaronder loopt de wandtegel
-verticaal door tot aan de vloer. Hangblokken hangen onder het plafond, richels plakken
-tegen de wanden en keien liggen los op de vloer. Die laatste drie worden verstrooid met
-een vaste seed: dezelfde grot ziet er elke keer precies zo uit, maar niets staat op een
-regelmatige afstand.
+Een rotsgebied is geen losse grotkamer maar terrein: een raster waarin elke cel vol of
+leeg is. Amir loopt door de lege cellen als door een uitgehakte gang, en rots kan net zo
+goed boven of naast hem zitten als eronder. Waar een cel leeg is zie je gewoon de lucht en
+de savanne erdoorheen, dus een rotsmassa kan ook de bovenkant van een level zijn.
 
-Het plafond, de wanden en de vloer zijn massief. Je stoot je hoofd, je loopt niet door
-een wand heen en je staat op de vloer. Een richel is een plankje: van onderen spring je
-erdoorheen, van boven sta je erop, en alleen de bovenkant van het brok telt. Hangblokken
-en losse keien zijn puur decor.
+Het spel kijkt per volle cel welke buren leeg zijn en plakt daar de bijbehorende rand op.
+Rots met open ruimte eronder krijgt de plafondstrook met zijn grillige tandenrand, rots met
+open ruimte erboven krijgt de gewone grondrand van het spel, en aan de zijkanten komt de
+wandtegel. Waar het plafond overgaat in een wand staat het hoekstuk dat die bocht tekent.
+Alle volle cellen liggen eerst dicht met een naadloze rotstextuur, zodat er nooit een gat
+te zien is.
 
-Ligt de vloer onder de grondlijn, dan is de grot zelf een gat in de grond: je valt er
-vanzelf in, en de camera zakt mee zolang je erop staat. Dat is een rotskloof. Blijft het
-dak weg, dan krijg je een overhang of een ravijn met open lucht erboven.
+Twee randen heeft de set niet, en die worden opgevuld met losse brokken: waar een vloer op
+een wand uitkomt ligt een handvol keien over de naad, en waar een rotspunt uitsteekt komt
+een richel of een hangblok overheen. Verder krijgt ongeveer een op de drie randen iets mee,
+verstrooid met een vaste seed: hangblokken onder het plafond, richels tegen de wanden en
+keien op de vloeren. Dezelfde seed geeft elke keer precies hetzelfde, maar niets staat op
+een regelmatige afstand.
 
-Alles los te proberen met de knoppen onder **Grot** in de sandbox: een dichte grot, een
-doorloopgrot zonder wanden, een lage grot waar je je hoofd stoot, en een rotskloof.
-Elke druk geeft een andere seed. Met **Hitboxen aan** zie je de opening (blauw), de
-wanden (rood) en de bovenkant van elke richel (groen).
+De volle cellen zijn massief: je stoot je hoofd tegen het plafond, je loopt niet door een
+wand heen en je staat op de vloeren. Een richel is een plankje waar je op kunt staan, met
+een hitbox die alleen de bovenkant van het brok beslaat. Losse keien en hangblokken zijn
+puur decor.
 
-## Mappenstructuur
+Alles los te proberen met de knoppen onder **Rots** in de sandbox: een gang met rots boven
+en naast je, een dak om je hoofd aan te stoten, een uitstekende pilaar en een trap om op te
+klimmen. Elke druk geeft een andere seed. Met **Hitboxen aan** zie je welke cellen vol zijn.
+
+## Mappenstructuur## Mappenstructuur
 
 ```
 amir-king-of-africa.html   het spel
