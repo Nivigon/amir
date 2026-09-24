@@ -173,6 +173,10 @@ verstrooid met een vaste seed: hangblokken onder het plafond, richels tegen de w
 keien op de vloeren. Dezelfde seed geeft elke keer precies hetzelfde, maar niets staat op
 een regelmatige afstand.
 
+Een cel is precies zo hoog als een terrastrede, en die hoogte schaalt mee met Amir. Op elk
+scherm klim je dus wel op een blok van één cel en nooit op een blok van twee, en loop je
+rechtop door een gang van twee cellen maar stoot je je hoofd als je springt.
+
 De volle cellen zijn massief: je stoot je hoofd tegen het plafond, je loopt niet door een
 wand heen en je staat op de vloeren. Een richel is een plankje waar je op kunt staan, met
 een hitbox die alleen de bovenkant van het brok beslaat. Losse keien en hangblokken zijn

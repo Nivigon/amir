@@ -152,7 +152,8 @@ eronder. Je tekent het met de hand uit.
 | veld | wat |
 | --- | --- |
 | `x` | wereld-x van de linkerrand van het raster (dus negatief) |
-| `cel` | celgrootte in wereld-px (standaard `GROT_CEL`, 120) |
+| `cel` | celbreedte in wereld-px (standaard `GROT_CEL`, 120) |
+| `hoog` | celhoogte, als factor op de standaard (standaard 1 = 150 eenheden) |
 | `y` | onderrand van het raster boven de grondlijn, in cellen (standaard 0) |
 | `grid` | de rijen van boven naar beneden; `#` is vol, al het andere leeg |
 | `seed` | dezelfde seed geeft elke keer dezelfde verstrooiing |
@@ -160,9 +161,22 @@ eronder. Je tekent het met de hand uit.
 | `massief` | de volle cellen blokkeren (standaard `true`) |
 | `decor` | met de hand erbij: `[{k, x, y, f, s}]` |
 
-Cellen zijn altijd vierkant op het scherm, ook als je aan de Formaat-schuif draait: `cel`
-is een maat in wereld-px en die is gelijk aan schermpixels. De hoogte in sprite-eenheden
-(waar `ph` in rekent) volgt daaruit, en dus uit de schaal.
+Een cel heeft twee maten, en dat is met opzet, want het spel rekent zo overal. De
+**breedte** staat in wereld-px en ligt dus vast, net als bij `gaps`, `terraces` en `rocks`,
+en net als Amir zijn looptempo. De **hoogte** staat in sprite-eenheden (`GROT_HOOG * CHAR_H`
+= 150, precies een terrastrede) en schaalt dus mee met Amir, net als `terraces.h`.
+
+Dat verschil is niet vrijblijvend. Zou de hoogte ook in wereld-px staan, dan komt Amir op
+een kort scherm kleiner uit terwijl de cel gelijk blijft, en is een blok van één cel ineens
+niet meer te halen. Nu is een cel overal 150 eenheden en Amir zijn sprong overal 185, dus
+één cel klim je altijd, twee cellen nooit. Op een telefoon zijn cellen daardoor breder dan
+hoog en op een groot scherm hoger dan breed; rond het standaardformaat zijn ze vierkant.
+De losse stukken worden allemaal op één schaal getekend (zie hieronder), dus er wordt
+nergens iets uitgerekt.
+
+Wat dat voor het ontwerp betekent: één cel is een trede, twee cellen is een gang waar je
+rechtop door loopt maar je hoofd stoot als je springt, drie cellen is ruim, en een gat van
+één cel hoogte kun je niet in.
 
 Buiten het raster is het lucht, behalve onder de laatste rij: daar loopt de aarde door.
 De bovenkant van je rots is dus ook de bovenkant van het level, met de hemel erboven.

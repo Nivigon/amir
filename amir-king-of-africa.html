@@ -1996,7 +1996,7 @@ function terrainH(x){                        // hoogte van het terras op deze pl
   for (const t of terraceList()) if (x >= t.l && x <= t.r && t.h > h) h = t.h;
   // Een vloer in een grotraster is ook terrein: daar komen decor, personages en de
   // fakkels op te staan, in plaats van beneden op de savanne onder de rots.
-  const gh = grotTerrein(x, schoonScale());
+  const gh = grotTerrein(x);
   return Math.max(h, gh);
 }
 function ledgeLen(o, scale){                 // hoe ver de richel uitsteekt, in wereld-px
@@ -2189,7 +2189,13 @@ function measurePlat(p, scale){
 // De bovenkant van je rots is dus ook de bovenkant van het level, met de hemel erboven.
 // Moet de massa doorlopen tot buiten beeld, maak het raster dan hoger.
 const GROT_DIR = 'design/grot/';
-const GROT_CEL = 120;             // standaard celgrootte in wereld-px
+// Een cel heeft twee maten, en dat is met opzet, want het spel rekent zo overal.
+// De breedte staat in wereld-px en ligt dus vast, net als bij gaps, terraces en rocks, en
+// net als Amir zijn looptempo. De hoogte staat in sprite-eenheden en schaalt dus mee met
+// Amir, net als terraces.h. Zou de hoogte ook in wereld-px staan, dan wordt op een kort
+// scherm (waar Amir kleiner uitkomt) een blok van een cel ineens onklimbaar.
+const GROT_CEL = 120;             // standaard celbreedte in wereld-px
+const GROT_HOOG = 0.6;            // celhoogte als deel van Amir: 150 eenheden, een terrastrede
 // De maten komen uit design/grot/grot.json. Ze staan hier als getallen, zodat het spel
 // niets hoeft op te halen voordat het kan tekenen.
 const GROT = {
@@ -2202,11 +2208,11 @@ const GROT = {
 // Eén pixelschaal voor de hele grotset, afgeleid van de celgrootte: de plafondband is
 // precies één cel dik. Daarmee heeft elk stuk rots dezelfde korrel, van de tanden aan
 // het plafond tot het kleinste grindje.
-const grotS = cel => cel / GROT.hoek.band;
+const grotS = celPx => celPx / GROT.hoek.band;
 // De grondrand komt uit een ander plaatje, met zijn eigen resolutie. Die krijgt daarom
-// zijn eigen schaal, ook uit de celgrootte, zodat zijn aardlaag net als in de rest van
+// zijn eigen schaal, ook uit de celhoogte, zodat zijn aardlaag net als in de rest van
 // het spel ongeveer één cel dik uitkomt.
-const grotEdgeS = cel => cel / (EDGE.solid - EDGE.walk);
+const grotEdgeS = celPx => celPx / (EDGE.solid - EDGE.walk);
 
 // Het decorregister: de maten uit grot.json, en waar het ankerpunt van elke soort ligt.
 //   hang    bovenkant vlak, hangt onder een plafondrand:  x = midden,          y = de bovenkant
@@ -2254,13 +2260,14 @@ function grotLijst(){ return (level && level.grotten) ? level.grotten : []; }
 
 // het raster uit de tekstregels, één keer klaargezet
 function grotRaster(g){
-  const sleutel = (g.grid || []).join('|') + '#' + (g.cel || 0) + '#' + (g.y || 0);
+  const sleutel = (g.grid || []).join('|') + '#' + (g.cel || 0) + '#' + (g.y || 0) + '#' + (g.hoog || 0);
   if (g._r && g._r.sleutel === sleutel) return g._r;
   const rijen = (g.grid || []).map(String);
   const kol = rijen.reduce((m, s) => Math.max(m, s.length), 0);
   g._r = { sleutel, n: rijen.length, kol,
            vol: rijen.map(s => { const a = []; for (let c = 0; c < kol; c++) a.push(s[c] === '#'); return a; }),
-           cel: Math.max(24, Math.round(Number(g.cel) || GROT_CEL)),
+           cel: Math.max(24, Math.round(Number(g.cel) || GROT_CEL)),       // breedte, wereld-px
+           celH: GROT_HOOG * CHAR_H * (Number(g.hoog) || 1),              // hoogte, sprite-eenheden
            y: Number(g.y) || 0 };
   return g._r;
 }
@@ -2274,8 +2281,10 @@ function grotVol(R, c, r){
   return R.vol[r][c];
 }
 const grotRijH  = (R, r) => R.y + (R.n - 1 - r);                 // onderkant van rij r, in cellen
+const grotHoogte = (R, r) => grotRijH(R, r) * R.celH;            // en die in sprite-eenheden
+const grotCelPx = (R, scale) => R.celH * scale;                  // celhoogte op het scherm
 const grotKolom = (g, R, wx) => Math.floor((wx - g.x) / R.cel);
-const grotRij   = (R, hh, scale) => R.n - 1 - Math.floor(hh * scale / R.cel - R.y);
+const grotRij   = (R, hh) => R.n - 1 - Math.floor(hh / R.celH - R.y);
 
 // alle horizontale reeksen in rij r waarvoor test waar is, als [van, tot] in kolommen
 function grotReeksH(R, r, test){
@@ -2347,13 +2356,13 @@ function grotFade(c, kant){
   return c;
 }
 let grotTegels = null;
-function grotTegelSet(cel){
+function grotTegelSet(cel, celPx){
   const bodem = edgeReady() ? bodemPic() : null;
-  const sleutel = cel + '|' + (bodem ? bodem.src : '-');
+  const sleutel = cel + '|' + Math.round(celPx) + '|' + (bodem ? bodem.src : '-');
   if (grotTegels && grotTegels.sleutel === sleutel) return grotTegels;
   const st = grotPic('plafond_strook'), wa = grotPic('wand_rand'), ho = grotPic('hoek_plafond_wand');
   if (!imgReady(gapTex) || !st || !imgReady(st) || !wa || !imgReady(wa) || !ho || !imgReady(ho) || !bodem) return null;
-  const s = grotS(cel), es = grotEdgeS(cel);
+  const s = grotS(celPx), es = grotEdgeS(celPx);
   const rond = v => Math.max(1, Math.round(v));
   const tw = GROT.tex * cel;
   grotTegels = { sleutel, cel,
@@ -2371,14 +2380,14 @@ function grotTegelSet(cel){
 
 // de rotsvulling: alle volle cellen als één vlak, met rotstextuur.png naadloos getegeld
 // op hele pixels, zodat er geen naden tussen de cellen door lopen
-function grotVulling(R, X, Y, T){
+function grotVulling(R, X, Y, T, ch){
   ctx.save();
   ctx.beginPath();
   for (let r = 0; r < R.n; r++)
     for (const [c, e] of grotReeksH(R, r, (cc, rr) => R.vol[rr][cc]))
-      ctx.rect(X(c), Y(r) - R.cel, X(e + 1) - X(c), R.cel);
+      ctx.rect(X(c), Y(r) - ch, X(e + 1) - X(c), ch);
   ctx.clip();
-  const x0 = X(0), x1 = X(R.kol), yBot = Y(R.n - 1), yTop = Y(0) - R.cel;
+  const x0 = X(0), x1 = X(R.kol), yBot = Y(R.n - 1), yTop = Y(0) - ch;
   if (T){
     const tw = T.tex.width, th = T.tex.height;
     for (let y = yBot; y > yTop - th; y -= th)
@@ -2409,13 +2418,13 @@ function grotPlafonds(R, X, Y, T){
 // voelt als de vloer buiten. Hij krijgt zijn eigen schaal uit de celgrootte. Zijn onderkant
 // vloeit uit in het gesteente: blijft de volle aardlaag staan, dan ligt er een oranje band
 // over de grijze rots.
-function grotVloeren(R, X, Y, T, es){
+function grotVloeren(R, X, Y, T, es, ch){
   if (!T) return;
   const im = T.bodem, w = im.width, h = im.height;
   const lift = Math.round(EDGE.walk * es);
   for (let r = 0; r < R.n; r++)
     for (const [c, e] of grotReeksH(R, r, (cc, rr) => grotVol(R, cc, rr) && !grotVol(R, cc, rr - 1))){
-      const L = X(c), Rr = X(e + 1), top = Y(r) - R.cel - lift;
+      const L = X(c), Rr = X(e + 1), top = Y(r) - ch - lift;
       ctx.save();
       ctx.beginPath(); ctx.rect(L, top, Rr - L, h); ctx.clip();
       for (let x = L; x < Rr; x += w) ctx.drawImage(im, x, top);
@@ -2428,7 +2437,7 @@ function grotVloeren(R, X, Y, T, es){
 // aan de rechterkant spiegelen we hem. Zijn grillige rotskant steekt een stukje de open
 // ruimte in, net als de tanden aan het plafond: zonder dat is het silhouet van een blok
 // kaarsrecht. De botsing blijft gewoon op de celrand liggen.
-function grotWanden(R, X, Y, T, s){
+function grotWanden(R, X, Y, T, s, ch){
   if (!T) return;
   const im = T.wand, w = im.width, h = im.height;
   const rand = Math.round(GROT.wand.rand * s);
@@ -2436,7 +2445,7 @@ function grotWanden(R, X, Y, T, s){
   for (let c = 0; c < R.kol; c++)
     for (const kant of [-1, 1])
       for (const [r, e] of grotReeksV(R, c, (cc, rr) => grotVol(R, cc, rr) && !grotVol(R, cc + kant, rr))){
-        const top = Y(r) - R.cel, bot = Y(e);
+        const top = Y(r) - ch, bot = Y(e);
         const binnen = kant < 0 ? X(c) : X(c + 1);       // de kant waar de open ruimte zit
         ctx.save();
         ctx.beginPath();
@@ -2450,11 +2459,11 @@ function grotWanden(R, X, Y, T, s){
 }
 
 // het silhouet van de rots, met wat marge, om losse stukken binnen te houden
-function grotRotsPad(R, X, Y, m){
+function grotRotsPad(R, X, Y, m, ch){
   ctx.beginPath();
   for (let r = 0; r < R.n; r++)
     for (const [c, e] of grotReeksH(R, r, (cc, rr) => R.vol[rr][cc]))
-      ctx.rect(X(c) - m, Y(r) - R.cel - m, X(e + 1) - X(c) + 2 * m, R.cel + 2 * m);
+      ctx.rect(X(c) - m, Y(r) - ch - m, X(e + 1) - X(c) + 2 * m, ch + 2 * m);
 }
 
 // Binnenhoek: een lege cel met rots erboven en rots ernaast. Daar gaat het plafond over
@@ -2462,17 +2471,18 @@ function grotRotsPad(R, X, Y, m){
 // zijn bovenkant gelijk met de plafondstrook en met wand_binnenrand_x_onderaan op de
 // celgrens, net als in grot.json. Zijn ronde schouder mag een stukje de open cel in
 // steken; de botsing blijft gewoon op de celrand liggen.
-function grotHoeken(R, X, Y, T, s){
+function grotHoeken(R, X, Y, T, s, ch){
   if (!T) return;
   const im = T.hoek, w = im.width, h = im.height;
-  const binnen = Math.round(GROT.hoek.binnen * s), dicht = Math.round(GROT.vul * R.cel);
+  const binnen = Math.round(GROT.hoek.binnen * s);
+  const dicht = Math.round(GROT.vul * ch);
   ctx.save();
-  grotRotsPad(R, X, Y, Math.round(R.cel * 0.45));
+  grotRotsPad(R, X, Y, Math.round(ch * 0.45), ch);
   ctx.clip();
   for (let r = 0; r < R.n; r++)
     for (let c = 0; c < R.kol; c++){
       if (grotVol(R, c, r) || !grotVol(R, c, r - 1)) continue;   // moet leeg zijn met rots erboven
-      const top = Y(r) - R.cel - dicht;
+      const top = Y(r) - ch - dicht;
       if (grotVol(R, c + 1, r)) ctx.drawImage(im, X(c + 1) - binnen, top);   // wand rechts: onbewerkt
       if (grotVol(R, c - 1, r)){                                             // wand links: gespiegeld
         ctx.save();
@@ -2495,27 +2505,28 @@ function drawGrotten(groundY, scale, cx){
     if (!R.n || !R.kol) continue;
     // Alles op hele pixels: anders krijg je randartefacten tussen de tegels.
     const x0 = Math.round(cx + (g.x - world));
+    const ch = Math.max(1, Math.round(grotCelPx(R, scale)));       // celhoogte op het scherm
     const X = c => x0 + c * R.cel;
-    const Y = r => Math.round(groundY) - grotRijH(R, r) * R.cel;   // onderkant van rij r
+    const Y = r => Math.round(groundY) - grotRijH(R, r) * ch;      // onderkant van rij r
     if (X(R.kol) < viewL || X(0) > viewR) continue;
-    const s = grotS(R.cel), es = grotEdgeS(R.cel), T = grotTegelSet(R.cel);
-    grotVulling(R, X, Y, T);         // 1. het steen zelf
+    const s = grotS(ch), es = grotEdgeS(ch), T = grotTegelSet(R.cel, ch);
+    grotVulling(R, X, Y, T, ch);     // 1. het steen zelf
     grotPlafonds(R, X, Y, T);        // 2. buur onder leeg
-    grotWanden(R, X, Y, T, s);       // 3. buur links of rechts leeg
-    grotVloeren(R, X, Y, T, es);     // 4. buur boven leeg
-    grotHoeken(R, X, Y, T, s);       // 5. de binnenhoeken
+    grotWanden(R, X, Y, T, s, ch);   // 3. buur links of rechts leeg
+    grotVloeren(R, X, Y, T, es, ch); // 4. buur boven leeg
+    grotHoeken(R, X, Y, T, s, ch);   // 5. de binnenhoeken
     drawGrotDecor(g, R, groundY, scale, cx, s);   // 6. hangblokken, richels en keien
-    if (showBoxes || building) grotHitboxen(g, R, X, Y, scale);
+    if (showBoxes || building) grotHitboxen(g, R, X, Y, ch);
   }
 }
 
 // met Hitboxen aan: de volle cellen in het blauw, de looprand van elke richel in het groen
-function grotHitboxen(g, R, X, Y, scale){
+function grotHitboxen(g, R, X, Y, ch){
   ctx.save();
   ctx.globalAlpha = 0.5; ctx.strokeStyle = '#7ad7ff'; ctx.lineWidth = 1;
   for (let r = 0; r < R.n; r++)
     for (let c = 0; c < R.kol; c++)
-      if (R.vol[r][c]) ctx.strokeRect(X(c) + 0.5, Y(r) - R.cel + 0.5, R.cel - 1, R.cel - 1);
+      if (R.vol[r][c]) ctx.strokeRect(X(c) + 0.5, Y(r) - ch + 0.5, R.cel - 1, ch - 1);
   ctx.restore();
 }
 
@@ -2531,19 +2542,19 @@ function grotHitboxen(g, R, X, Y, scale){
 //   richel of een hangblok overheen.
 // De rest is verstrooiing: ongeveer een op de drie randen krijgt iets, met een seeded
 // random, dus met dezelfde seed staat er elke keer precies hetzelfde.
-function grotStrooi(g, R, scale){
+function grotStrooi(g, R){
   const sd = (g.seed === undefined || g.seed === null) ? Math.round(g.x) : Number(g.seed);
   let k = 0;
   const r = () => rnd(sd * 1.61 + 7.3, ++k);
   const uit = [];
   const cel = R.cel;
   const wx = c => g.x + c * cel;                     // linkerrand van kolom c, in wereld-x
+  const hy = q => q * R.celH;                        // cellen boven de grondlijn -> sprite-eenheden
   const laatst = {};                                 // per rand: waar stond het vorige stuk
   const ruimte = (sleutel, i) => {                   // niet twee stukken pal naast elkaar
     if (laatst[sleutel] !== undefined && i - laatst[sleutel] < 2) return false;
     laatst[sleutel] = i; return true;
   };
-  const hy = q => q * cel / scale;                   // cellen boven de grondlijn -> sprite-eenheden
   const zet = (naam, x, y, f, sc) => uit.push({ k: naam, soort: GROT_DEEL[naam].soort, x, y, f: !!f, s: sc || 1 });
   const kei = () => GROT_KEIEN[Math.floor(r() * GROT_KEIEN.length) % GROT_KEIEN.length];
 
@@ -2585,18 +2596,17 @@ function grotStrooi(g, R, scale){
   return uit;
 }
 
-function grotDecorLijst(g, scale){
+function grotDecorLijst(g){
   const R = grotRaster(g);
   const sleutel = R.sleutel + '#' + (g.seed === undefined ? 'x' : g.seed)
-                + '#' + (g.strooi === false ? 0 : 1) + '#' + (g.decor ? g.decor.length : 0)
-                + '#' + Math.round(scale * 1000);
+                + '#' + (g.strooi === false ? 0 : 1) + '#' + (g.decor ? g.decor.length : 0);
   if (g._d && g._dk === sleutel) return g._d;
   const hand = (g.decor || []).map(d => {
     const k = String(d.k || '').replace(/\.png$/, '');
     return GROT_DEEL[k] ? { k, soort: GROT_DEEL[k].soort, x: Number(d.x), y: Number(d.y) || 0,
                             f: !!d.f, s: Number(d.s) || 1 } : null;
   }).filter(Boolean);
-  g._d = (g.strooi === false ? [] : grotStrooi(g, R, scale)).concat(hand);
+  g._d = (g.strooi === false ? [] : grotStrooi(g, R)).concat(hand);
   g._dk = sleutel;
   return g._d;
 }
@@ -2605,7 +2615,7 @@ function grotDecorLijst(g, scale){
 // tegen de wand: gespiegeld steekt hij naar rechts uit, onbewerkt naar links.
 function drawGrotDecor(g, R, groundY, scale, cx, s){
   const viewL = -W, viewR = W / viewZoom() + W;
-  for (const d of grotDecorLijst(g, scale)){
+  for (const d of grotDecorLijst(g)){
     const im = grotPic(d.k), def = GROT_DEEL[d.k];
     if (!im || !imgReady(im) || !def) continue;
     const w = def.w * s * d.s, h = def.h * s * d.s;
@@ -2638,11 +2648,11 @@ function grotPlats(scale){
       for (const [c, e] of grotReeksH(R, r, (cc, rr) => grotVol(R, cc, rr) && !grotVol(R, cc, rr - 1))){
         const l = g.x + c * R.cel, rr = g.x + (e + 1) * R.cel;
         uit.push({ x: (l + rr) / 2, left: l, right: rr, wPx: 400, hPx: 0, cel: true,
-                   topH: (grotRijH(R, r) + 1) * R.cel / scale });
+                   topH: grotHoogte(R, r) + R.celH });
       }
-    for (const d of grotDecorLijst(g, scale)){
+    for (const d of grotDecorLijst(g)){
       if (d.soort !== 'richel') continue;
-      const w = GROT_DEEL[d.k].w * grotS(R.cel) * (d.s || 1);
+      const w = GROT_DEEL[d.k].w * grotS(grotCelPx(R, scale)) * (d.s || 1);
       const l0 = d.f ? d.x : d.x - w;                    // gespiegeld plakt hij aan een wand links
       const a = d.f ? 1 - GROT_RICHEL.r : GROT_RICHEL.l;
       const b = d.f ? 1 - GROT_RICHEL.l : GROT_RICHEL.r;
@@ -2660,12 +2670,12 @@ function grotKop(halfW, scale){
     if (g.massief === false) continue;
     const R = grotRaster(g);
     const c0 = grotKolom(g, R, world - halfW), c1 = grotKolom(g, R, world + halfW);
-    const rNu = grotRij(R, ph + 2, scale);
+    const rNu = grotRij(R, ph + 2);
     for (let c = c0; c <= c1; c++){
       if (c < 0 || c >= R.kol) continue;
       for (let r = Math.min(R.n - 1, rNu - 1); r >= 0; r--){
         if (!R.vol[r][c]) continue;
-        const t = grotRijH(R, r) * R.cel / scale - CHAR_H;
+        const t = grotHoogte(R, r) - CHAR_H;
         if (t < cap) cap = t;
         break;
       }
@@ -2680,7 +2690,7 @@ function grotBlok(halfW, scale){
     if (g.massief === false) continue;
     const R = grotRaster(g);
     // de rijen die zijn lichaam raakt: net boven zijn voeten tot net onder zijn kruin
-    const ra = grotRij(R, ph + CHAR_H * 0.10, scale), rb = grotRij(R, ph + CHAR_H * 0.92, scale);
+    const ra = grotRij(R, ph + CHAR_H * 0.10), rb = grotRij(R, ph + CHAR_H * 0.92);
     for (let r = Math.min(ra, rb); r <= Math.max(ra, rb); r++){
       if (r < 0 || r >= R.n) continue;
       let c = grotKolom(g, R, world + halfW);
@@ -2695,7 +2705,7 @@ function grotBlok(halfW, scale){
 // ruimte, en de onderkant van die cel is de vloer. Zo komen decor, personages en de
 // fakkels in een gang op de grond te staan en niet boven op de berg. Zit er geen raster,
 // of geen lege cel, dan blijft het de gewone grond.
-function grotTerrein(x, scale){
+function grotTerrein(x){
   let h = 0;
   for (const g of grotLijst()){
     const R = grotRaster(g);
@@ -2703,7 +2713,7 @@ function grotTerrein(x, scale){
     if (c < 0 || c >= R.kol) continue;
     for (let r = R.n - 1; r >= 0; r--){
       if (grotVol(R, c, r)) continue;
-      const t = grotRijH(R, r) * R.cel / scale;
+      const t = grotHoogte(R, r);
       if (t > h) h = t;
       break;
     }
@@ -9011,7 +9021,7 @@ function syncLevel(){
     terraces: (level.terraces || []).map(o => ({ r: o.r, l: o.l, h: o.h })),
     ledges: (level.ledges || []).map(o => ({ x: o.x, h: o.h, s: o.s })),
     grotten: (level.grotten || []).map(o => ({
-      x: Math.round(o.x), y: o.y || 0, cel: o.cel || GROT_CEL,
+      x: Math.round(o.x), y: o.y || 0, cel: o.cel || GROT_CEL, hoog: o.hoog || 1,
       grid: (o.grid || []).slice(), massief: o.massief !== false,
       seed: o.seed, strooi: o.strooi !== false,
       decor: (o.decor || []).map(d => ({ k: d.k, x: Math.round(d.x), y: Math.round(d.y || 0),
@@ -9120,6 +9130,7 @@ function readLevel(txt){
            grotten: (o.grotten || []).map(q => ({
              x: Number(q.x), y: Number(q.y) || 0,
              cel: Math.max(24, Math.round(Number(q.cel) || GROT_CEL)),
+             hoog: Number(q.hoog) || 1,
              grid: (q.grid || []).map(String),
              massief: q.massief !== false,
              seed: (q.seed === undefined || q.seed === null) ? undefined : Number(q.seed),
