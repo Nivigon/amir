@@ -2645,11 +2645,50 @@ function puffDust(n){
 // ---- gaten in de grond ------------------------------------------------
 const GAP_BASE = 220;                    // breedte bij Grootte 1,0
 const GAP_DEATH = CHAR_H * 1.6;          // zo diep gevallen is niet meer te redden
+// Binnenin zie je de overkant: de afgebroken rand met grasplukken (ravijn_rand) en
+// daaronder de rotswand (rotstextuur), die naar beneden in het donker verdwijnt.
 const gapTex = new Image();
-let gapPattern = null;
-gapTex.onload = () => { try { gapPattern = ctx.createPattern(gapTex, 'repeat'); } catch (e) {} };
 gapTex.onerror = () => console.warn('ontbreekt: design/rotstextuur.png');
 gapTex.src = 'design/rotstextuur.png';
+const gapRimImg = new Image();
+gapRimImg.onerror = () => console.warn('ontbreekt: design/ravijn_rand.png');
+gapRimImg.src = 'design/ravijn_rand.png';
+const GAP_RIM = { top: 30, rock: 135, h: 260, w: 512 };   // rijen in ravijn_rand: bovenste grasspriet, bovenkant van de rots
+// de plaatjes een keer op kleur zetten voor dit uitzicht: warm voor de savanne, koud en besneeuwd voor de winter
+let gapArtCache = null;
+function gapArt(){
+  if (!imgReady(gapTex) || !imgReady(gapRimImg)) return null;
+  const key = winterOn() ? 'winter' : 'savanne';
+  if (gapArtCache && gapArtCache.key === key) return gapArtCache;
+  const tint = (img, fn) => {
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const g = c.getContext('2d');
+    g.drawImage(img, 0, 0);
+    g.globalCompositeOperation = 'source-atop';       // alleen op de rots en het gras, niet op het doorzichtige deel
+    fn(g, c.width, c.height);
+    return c;
+  };
+  let rim, rock, dark;
+  if (key === 'winter'){
+    const koud = g => { g.fillStyle = 'rgba(168,182,204,0.55)'; g.fillRect(0, 0, 4096, 4096); };
+    rock = tint(gapTex, koud);
+    rim = tint(gapRimImg, (g, w) => {
+      koud(g);
+      const sn = g.createLinearGradient(0, GAP_RIM.top, 0, GAP_RIM.rock + 30);   // sneeuw op de plukken en de bovenrand
+      sn.addColorStop(0, 'rgba(244,247,252,0.95)'); sn.addColorStop(0.6, 'rgba(236,241,248,0.75)'); sn.addColorStop(1, 'rgba(236,241,248,0)');
+      g.fillStyle = sn; g.fillRect(0, 0, w, GAP_RIM.rock + 30);
+    });
+    dark = '12,16,24';
+  } else {
+    const warm = g => { g.fillStyle = 'rgba(210,140,90,0.28)'; g.fillRect(0, 0, 4096, 4096); };   // het avondlicht van de grondrand
+    rock = tint(gapTex, warm);
+    rim = tint(gapRimImg, warm);
+    dark = '16,9,12';
+  }
+  gapArtCache = { key, rim, rock, dark };
+  return gapArtCache;
+}
 
 const sandTex = new Image();
 sandTex.onload = () => { sandStrip = null; sandStripH = -1; };   // strook opnieuw opbouwen
@@ -5971,12 +6010,16 @@ function loop(now){
     drawClimb(groundY, scale, cx);                 // terrassen en richels
 
     // decor dat jij zelf hebt neergezet: staat op de grondlijn, geen parallax
-    // gaten: in zijaanzicht zie je geen binnenwanden, alleen de afgebroken rand
-    // van de grond en daarachter de diepte. Geen tegels, en niets dat beweegt.
+    // gaten: door de breuk kijk je op de overkant. Net onder je eigen looplijn de
+    // afgebroken rand met grasplukken, daaronder de rotswand, en die loopt naar
+    // beneden weg in het donker. Hetzelfde steen als de terrassen, in de kleur van
+    // dit uitzicht (koud en besneeuwd in de winter).
     {
       const bandH3 = H * 0.18;
       const topY = edgeTop(groundY);          // de breuk loopt ook door het bovenvlak
       const deep = groundY + bandH3 + 60;
+      const art = gapArt();
+      const amir = CHAR_H * scale;
       for (const g of gapList()){
         const gl = cx + (g.x - g.w / 2 - world);
         const gr = cx + (g.x + g.w / 2 - world);
@@ -5991,13 +6034,44 @@ function loop(now){
           ctx.fillStyle = sh;
           ctx.fillRect(Math.min(x0, x1), topY, Math.abs(x1 - x0), deep - topY);
         }
-        // de diepte zelf, vanaf de loopvlakte naar beneden
-        ctx.beginPath();
-        traceGap(g, gl, gr, groundY, groundY + H * 3, groundY);
-        const dg = ctx.createLinearGradient(0, groundY, 0, groundY + bandH3);
-        dg.addColorStop(0, '#3a2540');         // zelfde kleur als je heuvels
-        dg.addColorStop(1, '#130b18');
-        ctx.fillStyle = dg; ctx.fill();
+        if (art){
+          ctx.save();
+          ctx.beginPath();
+          traceGap(g, gl, gr, topY - 10, groundY + H * 3, groundY);   // ook de grasplukken blijven binnen de breuk
+          ctx.clip();
+          const sR = amir * 0.95 / GAP_RIM.h;                        // de rand van de overkant: bijna Amir-hoog
+          const rimW = GAP_RIM.w * sR, rimH = GAP_RIM.h * sR;
+          const rimY = groundY + amir * 0.06 - GAP_RIM.rock * sR;   // de rots van de overkant net onder je eigen looplijn
+          const rockW = art.rock.width * sR, rockH = art.rock.height * sR;
+          const rockTop = rimY + rimH - 1;
+          for (let x = gl - 30; x < gr + 30; x += rimW - 1){
+            ctx.drawImage(art.rim, x, rimY, rimW + 1, rimH);
+            for (let y = rockTop; y < groundY + H * 1.5; y += rockH - 1) ctx.drawImage(art.rock, x, y, rimW + 1, rockH * (rimW / rockW));
+          }
+          // hoe dieper, hoe donkerder: onderin zie je niets meer
+          const dg = ctx.createLinearGradient(0, groundY, 0, groundY + amir * 1.9);
+          dg.addColorStop(0, 'rgba(' + art.dark + ',0.10)');
+          dg.addColorStop(0.45, 'rgba(' + art.dark + ',0.55)');
+          dg.addColorStop(1, 'rgba(' + art.dark + ',0.97)');
+          ctx.fillStyle = dg; ctx.fillRect(gl - 40, groundY - 2, gr - gl + 80, H * 3);
+          ctx.fillStyle = 'rgb(' + art.dark + ')'; ctx.fillRect(gl - 40, groundY + amir * 1.9 - 1, gr - gl + 80, H * 3);
+          // de breukranden werpen schaduw op de overkant
+          for (const sd of [-1, 1]){
+            const x0 = sd < 0 ? gl : gr, x1 = sd < 0 ? gl + 34 : gr - 34;
+            const sh = ctx.createLinearGradient(x0, 0, x1, 0);
+            sh.addColorStop(0, 'rgba(' + art.dark + ',0.55)'); sh.addColorStop(1, 'rgba(' + art.dark + ',0)');
+            ctx.fillStyle = sh; ctx.fillRect(Math.min(x0, x1), topY - 10, 34, H * 3);
+          }
+          ctx.restore();
+        } else {
+          // plaatjes nog niet binnen: alleen de diepte, vanaf de loopvlakte naar beneden
+          ctx.beginPath();
+          traceGap(g, gl, gr, groundY, groundY + H * 3, groundY);
+          const dg = ctx.createLinearGradient(0, groundY, 0, groundY + bandH3);
+          dg.addColorStop(0, '#3a2540');
+          dg.addColorStop(1, '#130b18');
+          ctx.fillStyle = dg; ctx.fill();
+        }
         // dunne donkere lijn langs de breuk
         ctx.strokeStyle = 'rgba(18,10,14,0.85)'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
         for (const side of [0, 1]){
