@@ -413,6 +413,12 @@
       <button id="sbspear">Speer terug</button>
       <button id="sbrock">Rots ernaast</button>
       <button id="sbstick">Speer in de muur</button>
+      <button id="sbloose">Laat losschieten</button>
+    </div>
+    <div class="row">
+      <label>Panter</label>
+      <button id="sbterras">Terras ernaast</button>
+      <button id="sbboss">Als eindbaas</button>
     </div>
     <div class="row">
       <label>Doornbos</label>
@@ -448,8 +454,13 @@
       <div class="field"><label for="pzwalk">Looptempo van Amir</label>
         <input id="pzwalk" type="range" min="70" max="120" step="5" value="100">
         <span class="read" id="pzwalkv">100%</span></div>
+      <div class="field"><label for="pzsize">Formaat van het beeld</label>
+        <input id="pzsize" type="range" min="15" max="90" step="5" value="25">
+        <span class="read" id="pzsizev">25</span></div>
       <span class="hint">Tempo vertraagt het hele spel, looptempo alleen Amir.
-        Je sprong houdt altijd dezelfde afstand, dus je blijft elk ravijn halen.</span>
+        Je sprong houdt altijd dezelfde afstand, dus je blijft elk ravijn halen.
+        Formaat verandert alleen hoe groot alles getekend wordt.</span>
+      <button id="pzsound">Muziek aan</button>
       <button id="pzcfgreset">Terug naar standaard</button>
     </div>
     <button id="pzrestart">Level opnieuw</button>
@@ -2305,7 +2316,9 @@ const JAV = {
   plat: 40,           // het uitstekende deel is minstens zo breed als platform
   sag: 3,             // zo ver buigt de schacht door zolang Amir erop staat
   lostT: 3,           // water, ravijn of buiten de wereld: zolang duurt het voor hij terugkomt
-  maxT: 6             // komt hij zo lang nergens neer, dan is hij de wereld uit
+  maxT: 6,            // komt hij zo lang nergens neer, dan is hij de wereld uit
+  muurT: 12,          // zo lang blijft hij in een muur steken; daarna wrikt hij zichzelf los
+  muurWob: 1.6        // en zo lang trilt hij voor het zover is: je waarschuwing
 };
 const javImg = loadQuiet(uniq([AMIR_OLD + 'speer_projectiel.png', AMIR + 'speer_projectiel.png',
                                AMIR_GROOT + 'speer_projectiel.png']));
@@ -2436,7 +2449,11 @@ function javStick(x, h, soort, scale){
   // onder de looplijn blijven steken kan alleen in de wand van een ravijn: daar
   // komt Amir nooit bij, dus dat telt als verloren en het vangnet brengt hem terug
   if (!building && muur && h < terrainH(x) - 4){ javLose(javGapNear(x)); return; }
+  // tijdens een bazengevecht kun je de arena niet uit, dus een speer die daarbuiten neerkomt
+  // is net zo onbereikbaar: ook die telt als verloren en komt via het vangnet terug
+  if (!building && arena && Math.abs(x - arena.c) > arenaHalf() + 60){ javLose(null); return; }
   jav.state = soort;
+  jav.los = 0;                                           // de klok voor het losschieten begint opnieuw
   jav.x = x + (muur || bos ? jav.dir * JAV.inTile : 0);   // de punt steekt er een stukje in
   jav.h = h - (muur || bos ? 0 : JAV.inTile);
   jav.vx = 0; jav.vh = 0;
@@ -2455,7 +2472,12 @@ function javThicket(x, h, scale){
   }
   return null;
 }
-function javReach(){ return 85 + (jav && jav.state === 'bos' ? (jav.bosHw || 0) : 0); }
+// Zo ver mag je van de schacht af staan. Bij een groot Formaat is Amir zelf breder dan de
+// oude vaste 85, dus dan groeit het bereik mee; kleiner wordt het nooit.
+function javReach(){
+  const eigen = (PLAYER_HALF_W + 0.18) * CHAR_H * nowScale();
+  return Math.max(85, eigen) + (jav && jav.state === 'bos' ? (jav.bosHw || 0) : 0);
+}
 function javHitEnemy(){                      // hij raakt een vijand: schade, en hij valt
   jav.hit = true; jav.state = 'val'; jav.vx = 0; jav.vh = 0;
 }
@@ -2481,6 +2503,18 @@ function javUpdate(dt, plats, scale){
   if (jav.state !== 'vlucht' && jav.state !== 'val'){
     const wil = jav.stand ? JAV.sag : 0;     // de schacht buigt door zolang Amir erop staat
     jav.sag += (wil - jav.sag) * Math.min(1, dt * 14);
+    // Een speer in een steile wand kan te hoog komen te zitten om hem nog te pakken. Hij
+    // wrikt zichzelf daarom los: de klok loopt alleen als je er niet op staat, de laatste
+    // seconden trilt hij (zie javDraw), en dan valt hij gewoon naar beneden.
+    if (jav.state === 'muur' && !building && !jav.stand){
+      jav.los = (jav.los || 0) + dt;
+      if (jav.los >= JAV.muurT){
+        jav.x -= jav.dir * (JAV.inTile + 8);   // eerst de punt uit de wand, anders valt hij er bovenop
+        jav.state = 'val'; jav.hit = true; jav.vx = 0; jav.vh = 0; jav.t = 0;
+        spearX = null; spearH = null;
+        flashHint('Je speer is uit de wand geschoten');
+      }
+    }
     return;
   }
   jav.t += dt;
@@ -2526,11 +2560,16 @@ function javDraw(groundY, scale, cx){
   if (tx < -W || tx > W / viewZoom() + W) return;
   const L = javLen(scale), s = L / JAV.w;
   const wob = jav.wob > 0 ? Math.sin(jav.wob * Math.PI * 3) * jav.wob * JAV.wobDeg * Math.PI / 180 : 0;
+  // de laatste seconden voor hij uit de wand schiet: een fijn getril, zodat je het ziet aankomen
+  const over = JAV.muurT - (jav.los || 0);
+  const wrik = (jav.state === 'muur' && over < JAV.muurWob)
+             ? Math.sin(performance.now() * 0.034) * 0.035 * Math.min(1, (JAV.muurWob - over) / JAV.muurWob)
+             : 0;
   let a = jav.sa;
   ctx.save();
   ctx.translate(tx, ty);
   if (jav.dir === -1){ ctx.scale(-1, 1); a = Math.PI - a; }
-  ctx.rotate(a + wob - jav.sag / L);                        // doorbuigen: het uiteinde zakt
+  ctx.rotate(a + wob + wrik - jav.sag / L);                 // doorbuigen: het uiteinde zakt
   if (imgReady(javImg)) ctx.drawImage(javImg, -JAV.tipX * s, -JAV.tipY * s, JAV.w * s, JAV.h * s);
   else {                                                   // reserve, zodat je hem altijd ziet
     ctx.strokeStyle = '#6b4a2b'; ctx.lineWidth = Math.max(2, 5 * scale); ctx.lineCap = 'round';
@@ -2540,18 +2579,20 @@ function javDraw(groundY, scale, cx){
     ctx.closePath(); ctx.fill();
   }
   ctx.restore();
-  if (spearNear()){                                        // dezelfde E als bij de speer in de grond
+  const grp = spearGreep();                                // de E staat boven de plek waar je hem pakt
+  if (grp){
+    const gx = cx + (grp.x - world), gy = groundY - grp.h * scale;
     const t = performance.now() / 1000;
-    const ky = ty - 40 * scale + Math.sin(t * 4) * 4 * scale, kr = 17 * scale;
+    const ky = gy - 40 * scale + Math.sin(t * 4) * 4 * scale, kr = 17 * scale;
     ctx.save();
     ctx.fillStyle = 'rgba(20,14,26,0.8)'; ctx.strokeStyle = '#f2e8d5'; ctx.lineWidth = 2;
     ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(tx - kr, ky - kr, kr * 2, kr * 2, 4);
-    else ctx.rect(tx - kr, ky - kr, kr * 2, kr * 2);
+    if (ctx.roundRect) ctx.roundRect(gx - kr, ky - kr, kr * 2, kr * 2, 4);
+    else ctx.rect(gx - kr, ky - kr, kr * 2, kr * 2);
     ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#f2e8d5'; ctx.font = '800 ' + Math.round(20 * scale) + 'px Archivo, Arial, sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('E', tx, ky + 1);
+    ctx.fillText('E', gx, ky + 1);
     ctx.restore();
   }
 }
@@ -3021,13 +3062,29 @@ spearImg.onerror = () => {
 };
 spearImg.src = SPEAR_PATHS[0];
 function spearRestH(){ return spearH !== null ? spearH : terrainH(spearX); }
-function spearNear(){
-  if (spearFound || spearX === null || Math.abs(world - spearX) >= javReach()) return false;
-  const h = spearRestH();
-  // op de grond sta je er precies naast; steekt hij in een muur, dan pak je hem
-  // van onderaf of vanaf het platform waar hij zelf op staat
-  return h > ph - 30 && h < ph + CHAR_H * 0.95;
+// Waar pak je hem vast? Niet aan de punt: die is scherp en zit in de grond, in een wand of in
+// een doornbos. Je loopt tegen de schacht aan, dus we zoeken het dichtstbijzijnde stuk schacht
+// dat binnen bereik ligt en op jouw hoogte zit. Dat is meestal het stompe uiteinde.
+// In de hoogte geldt hetzelfde als eerst: van onderaf, of vanaf het platform waar hij zelf op staat.
+function spearGreep(){
+  if (spearFound || spearX === null) return null;
+  const reik = javReach(), laag = ph - 30, hoog = ph + CHAR_H * 0.95;
+  if (!jav || javLost > 0){                     // de speer die in de grond staat: één punt, zoals eerst
+    const h = spearRestH();
+    return (Math.abs(world - spearX) < reik && h > laag && h < hoog) ? { x: spearX, h } : null;
+  }
+  const scale = nowScale(), L = javLen(scale);
+  const c = Math.cos(jav.sa), s = Math.sin(jav.sa);
+  let best = null, bestD = Infinity;
+  for (let i = 0; i <= 8; i++){                 // van de punt naar het uiteinde, in stapjes
+    const d = L * i / 8;
+    const x = jav.x - c * d, h = jav.h + s * d / scale;
+    const afst = Math.abs(world - x);
+    if (afst < reik && h > laag && h < hoog && afst < bestD){ best = { x, h }; bestD = afst; }
+  }
+  return best;
 }
+function spearNear(){ return !!spearGreep(); }
 const spearBtn = document.getElementById('spearbtn');
 function setSpearLabel(){ spearBtn.textContent = spear ? 'Speer uit' : 'Speer aan'; }
 function toggleSpear(){
@@ -3085,6 +3142,7 @@ addEventListener('keydown', e => {
   if (e.key === 'q' || e.key === 'Q'){ drinkHppotion(); return; }
   if (e.key === 'r' || e.key === 'R'){ restart(); return; }
   if (e.key === 'h' || e.key === 'H'){ showBoxes = !showBoxes; setBoxLabel(); return; }
+  if (e.key === 'b' || e.key === 'B'){ barEl.classList.toggle('hide'); return; }   // testbalk erbij halen
   if (e.key === 'l' || e.key === 'L'){ LICHT.aan = !LICHT.aan; flashHint('Lichtlaag ' + (LICHT.aan ? 'aan' : 'uit')); return; }
   if (e.key === ',' || e.key === '.'){          // de lichtsterkte live bijstellen, 0 tot 2
     const stap = e.key === '.' ? 0.1 : -0.1;
@@ -4519,8 +4577,7 @@ function updateSnakes(dt, plats, halfWNow, cliff){
       if (sp.kind === 'panter'){                 // boss: komt van rechts zodra je zijn plek voorbij bent
         if (world > sp.x) continue;
         sp.used = true;
-        let x = world + W * 0.6 + 250;
-        const c = cliffAt(); if (c) x = Math.min(x, c.wall - 220);
+        const x = panSpawnX(world + W * 0.6 + 250, terrainH(world));
         const p = makePanther(x, 1);
         p.face = -1; p.dir = -1; p.engaged = true; p.base = terrainH(x); p.boss = true;
         panSet(p, 'run');
@@ -4945,6 +5002,7 @@ function makePanther(x, side){
   // side 1 = rechts van je. Hij begint van je af te kijken, zodat je het omkijken ziet
   return { x, home: x, base: 0, face: side, dir: side, state: 'walk', frame: 0, acc: 0, t: 0,
            cool: 0, flash: 0, alpha: 1, vx: 0, lift: 0, hitUsed: false, x0: 0, x1: 0,
+           fallV: 0, kwijt: 0,             // vallen van een terras, en de klok van het vangnet
            hp: PAN_HP, inv: 0, engaged: false,
            skin: winterOn() ? 'wit' : 'zwart', white: winterOn() };   // de witte panter jaagt anders (zie updatePanther)
 }
@@ -4964,6 +5022,55 @@ function panStep(s, dt, spd, plats, cliff){
   const nx = s.x + s.dir * spd * dt;
   if (!panBlocked(s, nx, plats, cliff)) { s.x = nx; return true; }
   return false;
+}
+let panTipT = 0;                              // laatste uitleg bij een afketsende speer
+const PAN_FALL_G = 2400;                      // valt net zo hard als jij
+const PAN_LOST_T = 2.5;                       // zo lang onbereikbaar en het vangnet haalt hem terug
+const PAN_LOST_OK = ['dying', 'flee', 'look', 'bolt', 'lurk'];   // daarin hoort hij ver weg te zijn
+const PAN_THROW_SEE = 1100;                   // van zo dichtbij ziet hij je speer uittrekken
+const PAN_DODGE = 340;                        // en zo ver springt hij dan opzij
+// De baas komt van rechts, op een afstand die met de schermbreedte meeschaalt. Die plek kan
+// zomaar op een terras of boven een ravijn vallen, en daar komt hij niet meer vanaf: van zijn
+// eigen terras stapt hij niet (dropAhead). Dus eerst grond zoeken op jouw hoogte, net zoals
+// spawnOK dat voor de slangen doet.
+function panSpawnX(x, base){
+  const c = cliffAt();
+  const lo = endWall() + 220, hi = c ? c.wall - 220 : Infinity;
+  const klem = v => Math.min(hi, Math.max(lo, v));
+  x = klem(x);
+  for (let k = 0; k <= 30; k++){
+    for (const p of (k ? [x - k * 60, x + k * 60] : [x])){       // eerst naar jou toe, dan verder weg
+      const v = klem(p);
+      if (!inGap(v) && terrainH(v) === base) return v;
+    }
+  }
+  return x;
+}
+// Opzij springen: voor een zwaai die eraan komt, en voor een speer die je uittrekt.
+function panDodge(s, toward, cliff){
+  s.engaged = true;
+  s.face = toward; s.dir = toward;
+  panSet(s, 'hop'); s.frame = 5; s.x0 = s.x;
+  let x1 = s.x - toward * PAN_DODGE;
+  if (cliff) x1 = Math.min(x1, cliff.wall - 90);
+  x1 = Math.max(x1, endWall() + 90);
+  if (inGap(x1) || terrainH(x1) !== s.base) x1 = s.x;            // niet het ravijn in, en niet van zijn vloer af
+  s.x1 = x1;
+}
+// Terug de jacht in: net buiten beeld, aan de kant waar plek is, en altijd op jouw vloer.
+// Hij gebruikt dit na zijn loerbeurt, en als vangnet wanneer hij onbereikbaar is komen te staan.
+function panTerug(s, cliff){
+  const base = terrainH(world);
+  const first = Math.random() < 0.5 ? 1 : -1;
+  for (const sd of [first, -first]){
+    let nx = world + sd * (W / 2 / viewZoom() + 160);
+    const c = cliff || cliffAt(); if (c) nx = Math.min(nx, c.wall - 220);
+    nx = Math.max(nx, endWall() + 220);
+    if (Math.abs(nx - world) > 400 && !inGap(nx) && terrainH(nx) === base){ s.x = nx; break; }
+  }
+  s.base = terrainH(s.x); s.fallV = 0; s.lift = 0; s.kwijt = 0;
+  s.face = world >= s.x ? 1 : -1; s.dir = s.face; s.cool = 0.8; s.sneak = true;
+  panSet(s, 'prowl');
 }
 function panAnim(s, dt, fps, n, loop){
   s.acc += dt * fps;
@@ -4997,6 +5104,31 @@ function updatePanther(s, dt, plats, cliff){
   const phase3 = s.hp <= 2;                      // daar komt de klauwhaal bij
   const phase4 = s.hp <= 1;                      // alles, en sneller
   const sc = (H * (Number(sizeEl.value) / 100)) / CHAR_H;
+  // De grond onder hem. Hij kan op een terras belanden (een sprong, een duik, een wegspringer)
+  // en moet daar ook weer vanaf kunnen. Zonder dit blijft zijn base hangen op de oude hoogte en
+  // loopt hij door de lucht, of staat hij voorgoed op een wand waar jij niet bij kunt.
+  if (s.state !== 'leap' && s.state !== 'dive' && s.state !== 'hop'){
+    const grond = terrainH(s.x);
+    if (grond > s.base){ s.base = grond; s.fallV = 0; }            // op iets hogers gezet: meteen erop
+    else if (grond < s.base - 0.5){                                // eraf: hij valt
+      s.fallV += PAN_FALL_G * dt;
+      s.base = Math.max(grond, s.base - s.fallV * dt);
+      if (s.base <= grond){
+        s.base = grond; s.fallV = 0;
+        if (panInView(s.x)){
+          if (winterOn()) snowPuffAt(s.x, s.base, 12);
+          shake = Math.max(shake, 0.10);
+        }
+      }
+    } else s.fallV = 0;
+  }
+  // Vangnet: een baas die je niet kunt bereiken hoort terug te komen. Anders staat het level op
+  // slot, want jij komt de arena niet uit en zonder hem gaan de fakkels niet open.
+  if (s.boss && arena && !building && PAN_LOST_OK.indexOf(s.state) === -1){
+    const ver = terrainH(s.x) > terrainH(world) || Math.abs(s.x - world) > arenaHalf() + 300;
+    s.kwijt = ver ? s.kwijt + dt : 0;
+    if (s.kwijt >= PAN_LOST_T){ panTerug(s, cliff); return; }
+  }
   // DE REGEL: op zijn poten + jij binnen bereik = direct klauwen. Ook als je springt;
   // alleen niet als je echt hoger staat dan hij, bijvoorbeeld op een plateau.
   if (!dead && PAN_STANDING.indexOf(s.state) !== -1 && gap < CLAW_RANGE * CHAR_H * sc){
@@ -5007,19 +5139,21 @@ function updatePanther(s, dt, plats, cliff){
       panSet(s, 'claw'); s.hitUsed = false; panPlay('snarl', 0.95, 1.2);
     }
   }
+  const opPoten = s.state === 'walk' || s.state === 'spot' || s.state === 'notice'
+               || s.state === 'prowl' || s.state === 'run';
   // een sweep zien aankomen terwijl hij niet kwetsbaar is: wegspringen
-  if (swFrame >= 0 && swFrame <= SWEEP_FROM && s.dodgeId !== sweepId &&
-      (s.state === 'walk' || s.state === 'spot' || s.state === 'notice' || s.state === 'prowl' || s.state === 'run')){
+  if (swFrame >= 0 && swFrame <= SWEEP_FROM && s.dodgeId !== sweepId && opPoten){
     if (gap < SWEEP_REACH * CHAR_H * sc + 0.5 * CHAR_H * sc + 60){
-      s.dodgeId = sweepId; s.engaged = true;
-      s.face = toward; s.dir = toward;
-      panSet(s, 'hop'); s.frame = 5; s.x0 = s.x;
-      let x1 = s.x - toward * 340;
-      if (cliff) x1 = Math.min(x1, cliff.wall - 90);
-      x1 = Math.max(x1, endWall() + 90);
-      const pit = inGap(x1); if (pit) x1 = s.x;
-      s.x1 = x1;
+      s.dodgeId = sweepId;
+      panDodge(s, toward, cliff);
     }
+  }
+  // en hetzelfde als hij je de speer ziet uittrekken. Raak is hij toch alleen in zijn herstel,
+  // dus zo leest het gevecht zichzelf voor: op een panter die op zijn poten staat gooi je niet.
+  if (thr && !thr.gone && thr.frame >= THR_DRAW1 && !dead && opPoten
+      && s.dodgeThr !== thrPressT && gap < PAN_THROW_SEE && panInView(s.x)){
+    s.dodgeThr = thrPressT;
+    panDodge(s, toward, cliff);
   }
   if (s.state === 'dying'){
     knockStep(s, dt, plats, cliff, 0.45 * CHAR_H, 80);
@@ -5182,15 +5316,8 @@ function updatePanther(s, dt, plats, cliff){
   } else if (s.state === 'lurk'){
     if (!s.langOn){ s.langOn = true; panPlay('lang', 0.55); }   // één lange, aanhoudende grom uit het gras
     if (s.t >= s.lurkT){                          // terug, willekeurig van links of rechts, laag door het gras
-      const first = Math.random() < 0.5 ? 1 : -1;
-      for (const sd of [first, -first]){
-        let nx = world + sd * (W / 2 / viewZoom() + 160);
-        if (cliff) nx = Math.min(nx, cliff.wall - 220);
-        nx = Math.max(nx, endWall() + 220);
-        if (Math.abs(nx - world) > 400 && !inGap(nx)){ s.x = nx; break; }
-      }
-      s.face = world >= s.x ? 1 : -1; s.dir = s.face; s.cool = 0.8; s.sneak = true; s.langOn = false;
-      panSet(s, 'prowl');
+      s.langOn = false;
+      panTerug(s, cliff);
     }
   }
 }
@@ -5368,6 +5495,7 @@ const HY_STUCK_T = 1.2;        // komt hij zo lang niet vooruit (een rots, een r
 const HY_PAIR_MIN = 1.0, HY_PAIR_MAX = 2.0;   // bij twee hyena's wacht de tweede zo lang
                                               // voor hij ook het beeld op komt
 const HY_ENTER = 260;          // zo ver buiten beeld komt hij opzetten
+const HY_EDGE = 150;           // en zo ver blijft zijn opkomstplek van een ravijnrand vandaan
 const HY_LEAVE = 420;          // en zo ver voorbij de rand is hij weg
 // de bek is tijdens de storm de raakzone: canvaspixels vanaf het canvasmidden in
 // de kijkrichting, en boven de grondlijn. Laag genoeg om overheen te springen.
@@ -5473,10 +5601,25 @@ function makeHyena(x, side, enc){
 }
 // een encounter is één roedel: de lach klinkt één keer voor de hele roedel
 function hyRand(a, b){ return a + Math.random() * (b - a); }
-function hyBuitenBeeld(sd){                                         // net buiten de rand, binnen het level
-  let x = world + sd * (W / 2 / viewZoom() + HY_ENTER);
-  x = Math.min(x, cliffAt().wall - 220);
-  return Math.max(x, endWall() + 220);
+// Net buiten de rand, binnen het level, en nooit boven een ravijn: daar zou hij in de lucht
+// komen te staan en geen kant meer op kunnen, want elke stap loopt dan tegen een rand aan.
+// Is er nergens vaste grond, dan geeft hij null terug en komt die hyena gewoon niet.
+function hyBuitenBeeld(sd){
+  const lo = endWall() + 220, hi = cliffAt().wall - 220;
+  const klem = v => Math.min(hi, Math.max(lo, v));
+  // droog staan is niet genoeg: de eerste stappen naar jou toe moeten ook grond hebben,
+  // anders staat hij meteen met zijn neus tegen de rand van hetzelfde ravijn
+  const vrij = v => !inGap(v) && !inGap(v - sd * HY_EDGE);
+  const x = klem(world + sd * (W / 2 / viewZoom() + HY_ENTER));
+  if (vrij(x)) return x;
+  for (const stap of [sd * 40, -sd * 40]){          // eerst verder naar buiten, dan naar binnen
+    let p = x;
+    for (let i = 0; i < 40; i++){
+      p = klem(p + stap);
+      if (vrij(p)) return p;
+    }
+  }
+  return null;
 }
 function spawnHyenaPack(n, side){
   const enc = { laughed: false, lachT: Infinity };   // de klok start bij de eerste lach
@@ -5485,6 +5628,7 @@ function spawnHyenaPack(n, side){
   const laat = Math.random() < 0.5 ? -1 : 1;                        // eentje komt later op
   for (const sd of kanten){
     const x = hyBuitenBeeld(sd);
+    if (x === null) continue;                                       // alleen ravijn aan die kant
     const h = makeHyena(x, sd, enc);
     h.base = terrainH(x);
     if (kanten.length > 1 && sd === laat) h.wacht = hyRand(HY_PAIR_MIN, HY_PAIR_MAX);
@@ -5554,9 +5698,16 @@ function updateHyena(s, dt, plats, cliff){
   // zodat ze nooit tegelijk het scherm op komen
   if (s.wacht > 0){
     s.wacht -= dt;
-    s.x = hyBuitenBeeld(s.side);                    // hij schuift mee, ook als Amir doorloopt
-    s.base = terrainH(s.x);
+    const bx = hyBuitenBeeld(s.side);               // hij schuift mee, ook als Amir doorloopt
+    if (bx !== null){ s.x = bx; s.base = terrainH(s.x); }
     if (s.wacht > 0) return;
+  }
+  // vangnet: staat hij toch boven een ravijn (een gat dat er bij het bouwen onder kwam),
+  // dan zet hij zich op de dichtstbijzijnde rand. Anders staat hij in de lucht te trappelen.
+  const kuil = inGap(s.x);
+  if (kuil){
+    const links = kuil.x - kuil.w / 2 - 60, rechts = kuil.x + kuil.w / 2 + 60;
+    s.x = Math.abs(s.x - links) < Math.abs(s.x - rechts) ? links : rechts;
   }
   s.base = terrainH(s.x);
 
@@ -7508,6 +7659,12 @@ function loop(now){
         if (javRaakt(nbox)){
           javHitEnemy();
           if (s.inv <= 0 && (s.state === 'land' || s.state === 'rest')){ hitPanther(s); continue; }
+          s.flash = Math.max(s.flash, 0.18);        // ketst af op zijn vacht: dat hoor en zie je
+          panPlay('snarl', 0.8, 1.15);
+          if (performance.now() - panTipT > 6000){
+            panTipT = performance.now();
+            flashHint('Je speer ketst af: raak hem als hij herstelt');
+          }
         }
         // lage zwaai
         // lage zwaai telt alleen in zijn herstel (landing en rust na sprong of tackle)
@@ -7710,7 +7867,11 @@ function safeLoop(now){
 
 const bg = document.getElementById('bg'), soundBtn = document.getElementById('sound');
 let wantSound = true, started = false;
-function setLabel(){ soundBtn.textContent = wantSound ? 'Muziek uit' : 'Muziek aan'; }
+const pzSoundBtn = document.getElementById('pzsound');
+function setLabel(){
+  const t = wantSound ? 'Muziek uit' : 'Muziek aan';
+  soundBtn.textContent = t; pzSoundBtn.textContent = t;
+}
 function tryPlay(){
   if (!wantSound || started) return;
   bg.volume = 0.28;
@@ -7719,11 +7880,16 @@ function tryPlay(){
 }
 addEventListener('keydown', tryPlay);
 addEventListener('pointerdown', tryPlay);
-soundBtn.onclick = () => {
+function toggleSound(){
   wantSound = !wantSound; setLabel();
   if (wantSound){ started = false; tryPlay(); } else { bg.pause(); stopKing(); stopWind(); }
-};
-bg.addEventListener('error', () => { soundBtn.disabled = true; soundBtn.textContent = 'music/bg.mp3 ontbreekt'; });
+}
+soundBtn.onclick = toggleSound;
+pzSoundBtn.onclick = toggleSound;
+bg.addEventListener('error', () => {
+  soundBtn.disabled = true; pzSoundBtn.disabled = true;
+  soundBtn.textContent = 'music/bg.mp3 ontbreekt'; pzSoundBtn.textContent = 'Muziek niet beschikbaar';
+});
 document.getElementById('thrust').addEventListener('error', () => console.warn('music/spearthrust.mp3 ontbreekt'));
 
 const voices = ['voice1','voice2','voice3','voice4','voice5','voice6','voice7'].map(id => document.getElementById(id));
@@ -7756,7 +7922,7 @@ const startEl = document.getElementById('start');
 let sandbox = false, godMode = false;
 const barEl = document.getElementById('bar');
 function beginPlay(mode){
-  barEl.classList.remove('hide');
+  barEl.classList.add('hide');                   // tijdens een level speel je zonder testbalk
   nightmare = mode === 'nightmare';
   applyDiff(nightmare ? 'nightmare' : 'medium');
   startEl.classList.add('off');
@@ -7811,6 +7977,7 @@ const TEMPO_REF_H = 700;                          // schermhoogte waarbij vol te
 const pzcfgEl = document.getElementById('pzcfg');
 const pztempo = document.getElementById('pztempo'), pztempov = document.getElementById('pztempov');
 const pzwalk = document.getElementById('pzwalk'), pzwalkv = document.getElementById('pzwalkv');
+const pzsize = document.getElementById('pzsize'), pzsizev = document.getElementById('pzsizev');
 function tempoAdvies(){
   // het scherm zelf, niet het canvas: anders zou de balk onder de bouwer het advies
   // verschuiven terwijl het toestel hetzelfde blijft
@@ -7823,19 +7990,33 @@ function loadGameCfg(){
   try { o = JSON.parse(localStorage.getItem(SKEY) || 'null'); } catch (err) {}
   gameTempo = (o && typeof o.tempo === 'number') ? Math.min(1.2, Math.max(0.5, o.tempo)) : tempoAdvies();
   walkTempo = (o && typeof o.walk === 'number') ? Math.min(1.2, Math.max(0.7, o.walk)) : 1;
+  if (o && typeof o.formaat === 'number'){       // het Formaat stond alleen in de testbalk; nu ook hier
+    sizeEl.value = Math.min(90, Math.max(15, o.formaat));
+    sizeEl.oninput();
+  }
 }
 function saveGameCfg(){
-  try { localStorage.setItem(SKEY, JSON.stringify({ tempo: gameTempo, walk: walkTempo })); } catch (err) {}
+  try {
+    localStorage.setItem(SKEY, JSON.stringify({ tempo: gameTempo, walk: walkTempo,
+                                                formaat: Number(sizeEl.value) }));
+  } catch (err) {}
 }
 function showGameCfg(){
   pztempo.value = Math.round(gameTempo * 100); pztempov.textContent = pztempo.value + '%';
   pzwalk.value = Math.round(walkTempo * 100);  pzwalkv.textContent = pzwalk.value + '%';
+  pzsize.value = sizeEl.value;                 pzsizev.textContent = pzsize.value;
 }
 pztempo.addEventListener('input', () => { gameTempo = Number(pztempo.value) / 100; showGameCfg(); saveGameCfg(); });
 pzwalk.addEventListener('input', () => { walkTempo = Number(pzwalk.value) / 100; showGameCfg(); saveGameCfg(); });
+pzsize.addEventListener('input', () => {       // hetzelfde schuifje als Formaat in de testbalk
+  sizeEl.value = pzsize.value; sizeEl.oninput();
+  showGameCfg(); saveGameCfg();
+});
 document.getElementById('pzcfgbtn').onclick = () => pzcfgEl.classList.toggle('on');
 document.getElementById('pzcfgreset').onclick = () => {
-  gameTempo = tempoAdvies(); walkTempo = 1; showGameCfg(); saveGameCfg();
+  gameTempo = tempoAdvies(); walkTempo = 1;
+  sizeEl.value = 25; sizeEl.oninput();
+  showGameCfg(); saveGameCfg();
 };
 function toMenu(){
   paused = false; pauseEl.classList.remove('on');
@@ -8179,7 +8360,11 @@ function sbSpawn(kind){
   x = Math.max(x, endWall() + 220);
   if (kind === 'hyena1' || kind === 'hyena2'){ spawnHyenaPack(kind === 'hyena2' ? 2 : 1, side); }   // bij twee telt de richting niet
   else if (kind === 'scorp'){ scorps.push(makeScorp(x, side)); }
-  else if (kind === 'panter'){ panthers.push(makePanther(x, side)); }
+  else if (kind === 'panter'){
+    const p = makePanther(x, side);
+    p.base = terrainH(x);                           // staat er een terras, dan begint hij daarop
+    panthers.push(p);
+  }
   else {
     const sn = makeSnake(kind); sn.x = x; sn.side = side; snakes.push(sn);
   }
@@ -8235,6 +8420,33 @@ document.getElementById('sbstick').onclick = () => {          // meteen een spee
   spear = false; spearFound = false; spearX = jav.x; spearH = jav.h;
   setSpearLabel(); cv.focus();
 };
+document.getElementById('sbloose').onclick = () => {          // de klok van een speer in een wand vooruitzetten
+  if (!jav || jav.state !== 'muur'){ flashHint('Zet eerst een speer in een wand'); cv.focus(); return; }
+  jav.los = JAV.muurT - JAV.muurWob;                          // nog net de trilling, dan valt hij
+  cv.focus();
+};
+document.getElementById('sbterras').onclick = () => {         // een wand om vanaf te vallen en op te mikken
+  const side = sbFromRight ? 1 : -1;
+  let x = world + side * 520;
+  x = Math.min(x, cliffAt().wall - 300);
+  x = Math.max(x, endWall() + 300);
+  if (!level.terraces) level.terraces = [];
+  level.terraces.push({ l: Math.min(x, x + side * 900), r: Math.max(x, x + side * 900), h: 450 });
+  cv.focus();
+};
+document.getElementById('sbboss').onclick = () => {           // met arena, dus je wordt meegeklemd
+  // Staat er een terras naast je, dan begint hij daar bovenop: precies de situatie waarin een
+  // baas vast kwam te staan. Anders op vaste grond, net als in een level.
+  const ter = terraceList()[0];
+  const x = ter ? (ter.l + ter.r) / 2 : panSpawnX(world + W * 0.6 + 250, terrainH(world));
+  const p = makePanther(x, 1);
+  p.face = -1; p.dir = -1; p.engaged = true; p.base = terrainH(x); p.boss = true;
+  panSet(p, 'run');
+  panthers.push(p);
+  arena = { c: world };
+  panPlay('roar', 1);
+  cv.focus();
+};
 document.getElementById('sbhppotion').onclick = () => sbHppotion(false);
 document.getElementById('sbhppotiondrop').onclick = () => sbHppotion(true);
 const sbSideBtn = document.getElementById('sbside');
@@ -8242,7 +8454,7 @@ sbSideBtn.onclick = () => { sbFromRight = !sbFromRight; sbSideBtn.textContent = 
 const sbGodBtn = document.getElementById('sbgod');
 function setGodLabel(){ sbGodBtn.textContent = godMode ? 'Onsterfelijk aan' : 'Onsterfelijk uit'; sbGodBtn.classList.toggle('on', godMode); }
 sbGodBtn.onclick = () => { godMode = !godMode; setGodLabel(); cv.focus(); };
-document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; hppotions.length = 0; hppotionFx.length = 0; level.rocks.length = 0; thr = null; jav = null; javLost = 0; cv.focus(); };
+document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; hppotions.length = 0; hppotionFx.length = 0; level.rocks.length = 0; if (level.terraces) level.terraces.length = 0; arena = null; thr = null; jav = null; javLost = 0; cv.focus(); };
 document.getElementById('sbback').onclick = stopSandbox;
 document.getElementById('btnsandbox').onclick = startSandbox;
 document.getElementById('btnstop').onclick = () => { building = false; buildEl.classList.remove('on'); };
