@@ -2068,6 +2068,243 @@ function measurePlat(p, scale){
   }
 }
 
+// ---- grotten en ravijnen -------------------------------------------------
+// De plaatjes staan in design/grot/, met design/grot/grot.json ernaast: daar staan de
+// maten en de ankerpunten van elk onderdeel in. De getallen hieronder zijn daaruit
+// overgenomen, zodat het spel niets hoeft op te halen voordat het kan tekenen.
+//
+// Een level beschrijft een grot of ravijn als een rechthoek: de opening waar Amir in
+// loopt. Alles eromheen is steen. De tekencode leidt daar zelf uit af waar de
+// plafondstrook, de hoekstukken en de wandtegels komen.
+//
+//   x        linkerrand van de opening in wereld-x (Amir loopt naar links, dus negatief)
+//   w        breedte in wereld-px
+//   y        hoogte van de vloer boven de grondlijn, in sprite-eenheden (net als terraces.h)
+//   h        hoogte van de opening, ook in sprite-eenheden
+//   plafond  dak eroverheen (standaard true; false geeft een ravijn met open lucht)
+//   wanden   'beide' | 'links' | 'rechts' | 'geen' (standaard 'beide')
+//   massief  plafond, wanden en vloer blokkeren (standaard true)
+//   seed     getal: dezelfde seed geeft elke keer dezelfde verstrooiing
+//   strooi   hangblokken, richels en keien vanzelf neerzetten (standaard true)
+//   decor    met de hand erbij: [{k, x, y, f, s}], zie het decorregister hieronder
+//
+// Let op: y is de vloer van de opening. Ligt die onder de grondlijn (y negatief), dan
+// kom je er alleen in via een gat in de grond; zet er dus een gaps-blok bij. Dieper dan
+// GAP_DEATH vallen blijft dodelijk, dus houd y boven -1,6 Amir.
+const GROT_DIR = 'design/grot/';
+const GROT = {
+  dik: 0.55,          // dikte van de plafondband, als deel van Amir zijn hoogte
+  vul: 0.86,          // tot deze rij van de band is het plafond dicht steen; daaronder tanden
+  strook: { w: 1724, h: 593 },
+  hoek:   { w: 1984, h: 1230, band: 593, binnen: 1415 },   // binnen = wand_binnenrand_x_onderaan
+  wand:   { w: 717,  h: 1108, rand: 13 },                  // rand = rots_linkerrand_x_bovenaan
+  texH:   1.35        // een tegel rotstextuur is zo hoog als dit deel van Amir
+};
+// Het decorregister. De maten komen uit grot.json; 'soort' zegt waar het ankerpunt ligt:
+//   hang    bovenkant vlak, hangt onder het plafond:  x = midden,        y = de bovenkant
+//   richel  rechterkant vlak, plakt tegen de wand:    x = die vlakke kant, y = de looprand
+//   kei     staat los op de grond:                    x = midden,        y = de onderkant
+const GROT_DEEL = {
+  hangblok_01: { w: 590, h: 520, soort: 'hang' },
+  hangblok_02: { w: 402, h: 871, soort: 'hang' },
+  hangblok_03: { w: 462, h: 887, soort: 'hang' },
+  wand_richel: { w: 933, h: 527, soort: 'richel' },
+  kei_01: { w: 317, h: 151, soort: 'kei' },
+  kei_02: { w: 152, h: 293, soort: 'kei' },
+  kei_03: { w: 191, h: 189, soort: 'kei' },
+  kei_04: { w: 238, h: 120, soort: 'kei' },
+  kei_05: { w: 188, h: 192, soort: 'kei' },
+  kei_06: { w: 220, h:  99, soort: 'kei' },
+  kei_07: { w: 109, h:  69, soort: 'kei' },
+  kei_rond_01: { w: 260, h: 211, soort: 'kei' },
+  kei_rond_02: { w: 241, h: 194, soort: 'kei' },
+  kei_rond_03: { w: 157, h: 173, soort: 'kei' },
+  kei_rond_04: { w: 145, h: 155, soort: 'kei' },
+  kei_rond_05: { w: 158, h: 134, soort: 'kei' },
+  kei_rond_06: { w: 151, h: 166, soort: 'kei' },
+  kei_rond_07: { w: 133, h: 183, soort: 'kei' },
+  kei_rond_08: { w: 128, h: 168, soort: 'kei' }
+};
+// Alle keien komen uit één tekening, dus ze delen één maatstaf: zo blijft een grindje
+// klein naast een blok. Per soort hoeveel Amir-hoogte één bronpixel waard is.
+const GROT_MAAT = { hang: 1 / 900, richel: 1 / 850, kei: 1 / 600 };
+// de hoogte van een onderdeel, als deel van Amir
+function grotHoog(k){
+  const d = GROT_DEEL[k];
+  return d ? d.h * GROT_MAAT[d.soort] : 0.3;
+}
+const GROT_RICHEL = { loop: 48, l: 0.08, r: 0.98 };   // looprij in wand_richel, en het bruikbare stuk bovenkant
+
+// De set is zwaar (bij elkaar een paar megabyte) en de meeste levels hebben hem niet
+// nodig. Hij wordt daarom pas geladen als er een grot in beeld komt of de sandbox erom vraagt.
+const grotImgs = {};
+let grotGeladen = false;
+// Dezelfde wandtegel met een zachte bovenkant. De eerste tegel onder een hoekstuk komt
+// daaruit: waar het hoekstuk transparant is zou je anders de vlakke snijrand van de
+// tegel zien liggen, als een liniaalstreep dwars over de rots.
+const GROT_WAND_FADE = 0.20;      // dit deel van de tegel vervaagt naar boven toe
+let grotWandFade = null;
+function maakWandFade(img){
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const g = c.getContext('2d');
+  g.drawImage(img, 0, 0);
+  const y1 = c.height * GROT_WAND_FADE;
+  const gr = g.createLinearGradient(0, 0, 0, y1);
+  gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  g.globalCompositeOperation = 'destination-out';
+  g.fillStyle = gr; g.fillRect(0, 0, c.width, y1);
+  return c;
+}
+function grotLaad(){
+  if (grotGeladen) return;
+  grotGeladen = true;
+  for (const n of ['plafond_strook', 'hoek_plafond_wand', 'wand_rand'].concat(Object.keys(GROT_DEEL))){
+    const im = new Image();
+    im.onerror = () => console.warn('ontbreekt: ' + GROT_DIR + n + '.png');
+    if (n === 'wand_rand') im.onload = () => { grotWandFade = maakWandFade(im); };
+    im.src = GROT_DIR + n + '.png';
+    grotImgs[n] = im;
+  }
+}
+const grotPic = n => grotImgs[n] || null;
+function grotLijst(){ return (level && level.grotten) ? level.grotten : []; }
+
+// Alles wat tekenen en botsen van één grot nodig hebben, op een rij. Wereld-x blijft
+// wereld-x; de hoogtes staan in sprite-eenheden, net als overal.
+function grotMaat(g, scale){
+  const amir = CHAR_H * scale;
+  const s = GROT.dik * amir / GROT.hoek.band;     // schermpixels per bronpixel
+  const wanden = g.wanden || 'beide';
+  const wL = wanden === 'beide' || wanden === 'links';
+  const wR = wanden === 'beide' || wanden === 'rechts';
+  // Zo dik is de rotsband achter een wand: precies de wand van het hoekstuk. De tegel
+  // wand_rand is breder en wordt op die maat afgesneden; wat eraf gaat is de vlakke
+  // buitenkant, die toch achter de rotsvulling zit.
+  const dik = (GROT.hoek.w - GROT.hoek.binnen) * s;
+  const vloer = g.y || 0;
+  return { s, amir, dik, wL, wR,
+           links: g.x, rechts: g.x + g.w,
+           plafond: g.plafond !== false,
+           massief: g.massief !== false,
+           vloer, top: vloer + g.h,
+           buitenL: g.x - (wL ? dik : 0),
+           buitenR: g.x + g.w + (wR ? dik : 0) };
+}
+
+// naadloze rotsvulling: rotstextuur.png getegeld. De tegel sluit links op rechts en
+// boven op onder, dus hij gaat recht door; spiegelen zou de naad juist stukmaken.
+// Hetzelfde steen als in een ravijn, zodat een grot en een breukrand familie blijven.
+// ank = de schermpositie van wereld-x 0, zodat het raster in de wereld vastligt
+function grotVul(x0, y0, x1, y1, amir, ank){
+  if (x1 <= x0 || y1 <= y0) return;
+  if (!imgReady(gapTex)){ ctx.fillStyle = '#4b3a31'; ctx.fillRect(x0, y0, x1 - x0, y1 - y0); return; }
+  const th = GROT.texH * amir;
+  const tw = th * gapTex.naturalWidth / gapTex.naturalHeight;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x0, y0, x1 - x0, y1 - y0); ctx.clip();
+  // het raster hangt aan de wereld, niet aan het scherm: dan staat het steen stil terwijl je loopt
+  const off = ((ank % tw) + tw) % tw;
+  const ax = Math.floor((x0 - off) / tw) * tw + off, ay = Math.floor(y0 / th) * th;
+  for (let y = ay; y < y1; y += th)
+    for (let x = ax; x < x1; x += tw) ctx.drawImage(gapTex, x, y, tw + 0.6, th + 0.6);
+  ctx.restore();
+}
+
+// De plafondstrook, horizontaal getegeld. De tegel sluit links op rechts aan, dus hij
+// gaat recht door. Hij loopt met opzet onder de hoekstukken door: die komen erna en
+// dekken de naad in de tanden af. knipL/knipR houden hem binnen het rotsgebied.
+function grotPlafond(x0, x1, topY, s, knipL, knipR){
+  const im = grotPic('plafond_strook');
+  if (!im || !imgReady(im) || x1 <= x0) return;
+  const w = GROT.strook.w * s, hh = GROT.strook.h * s;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(knipL, topY - 1, knipR - knipL, hh + 2); ctx.clip();
+  for (let x = x0; x < x1; x += w) ctx.drawImage(im, x, topY, w + 0.6, hh);
+  ctx.restore();
+}
+
+// wand_rand verticaal getegeld onder het hoekstuk, met de linkerrand van de rots
+// (wand_binnenrand_x_onderaan) precies op de binnenkant van de opening.
+function grotWand(binnenX, topY, botY, s, links, dik, zacht){
+  const im = grotPic('wand_rand');
+  if (!im || !imgReady(im) || botY <= topY) return;
+  const w = GROT.wand.w * s, hh = GROT.wand.h * s;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(links ? binnenX - dik : binnenX - 1, topY, dik + 1, botY - topY);   // afsnijden op de rotsband
+  ctx.clip();
+  if (links){ ctx.translate(binnenX + GROT.wand.rand * s, 0); ctx.scale(-1, 1); }
+  else ctx.translate(binnenX - GROT.wand.rand * s, 0);
+  let eerst = zacht && grotWandFade;
+  for (let y = topY; y < botY; y += hh){
+    ctx.drawImage(eerst || im, 0, y, w, hh + 0.6);
+    eerst = null;
+  }
+  ctx.restore();
+}
+
+// het hoekstuk: bovenkant gelijk met de plafondstrook, de vlakke kant naar buiten
+function grotHoek(binnenX, topY, s, links){
+  const im = grotPic('hoek_plafond_wand');
+  if (!im || !imgReady(im)) return;
+  const w = GROT.hoek.w * s, hh = GROT.hoek.h * s;
+  ctx.save();
+  if (links){ ctx.translate(binnenX + GROT.hoek.binnen * s, topY); ctx.scale(-1, 1); }
+  else ctx.translate(binnenX - GROT.hoek.binnen * s, topY);
+  ctx.drawImage(im, 0, 0, w, hh);
+  ctx.restore();
+}
+
+function drawGrotten(groundY, scale, cx){
+  const lijst = grotLijst();
+  if (!lijst.length) return;
+  grotLaad();
+  const viewL = -W, viewR = W / viewZoom() + W;
+  for (const g of lijst){
+    const m = grotMaat(g, scale);
+    const xl = cx + (m.links - world), xr = cx + (m.rechts - world);
+    if (xr + m.dik < viewL || xl - m.dik > viewR) continue;
+    const bl = xl - (m.wL ? m.dik : 0), br = xr + (m.wR ? m.dik : 0);
+    const vloerY = groundY - m.vloer * scale;
+    const plafY = groundY - m.top * scale;                 // de dichte onderkant van het plafond
+    const bandY = plafY - GROT.vul * GROT.strook.h * m.s;  // daar begint de plafondband
+    // met een plafond duikt de wand met zijn zachte kop onder het hoekstuk; zonder plafond
+    // begint hij gewoon bovenaan de opening
+    // De wand duikt zo ver onder het hoekstuk dat zijn zachte kop precies op de onderrand
+    // van dat hoekstuk is uitgevaagd: daarboven dekt het hoekstuk af, daaronder is de
+    // wand meteen dicht. Zonder plafond begint hij gewoon bovenaan de opening.
+    const wandTop = m.plafond ? bandY + (GROT.hoek.h - GROT.wand.h * GROT_WAND_FADE) * m.s : plafY;
+    const diep = vloerY + m.amir * 0.5;                    // de rotsband loopt nog even door onder de vloer
+
+    // 1. de vulling: eerst het hele rotsgebied dicht, dan komen de stukken eroverheen
+    const ank = cx - world;
+    if (m.plafond) grotVul(bl, plafY - m.amir * 6, br, plafY, m.amir, ank);
+    if (m.wL) grotVul(bl, m.plafond ? bandY : plafY, xl, diep, m.amir, ank);
+    if (m.wR) grotVul(xr, m.plafond ? bandY : plafY, br, diep, m.amir, ank);
+    if (m.vloer > 0) grotVul(xl, vloerY, xr, groundY + 4, m.amir, ank);   // de sokkel onder een opgetilde vloer
+
+    // 2. plafond, 3. wanden, 4. hoekstukken: elk stuk dekt de naad van het vorige af
+    if (m.plafond){
+      const sl = m.wL ? xl + GROT.hoek.binnen * m.s : xl;
+      const sr = m.wR ? xr - GROT.hoek.binnen * m.s : xr;
+      const w = GROT.strook.w * m.s;
+      grotPlafond(Math.max(sl - w, viewL - w), Math.min(sr + w, viewR + w), bandY, m.s, bl, br);
+    }
+    if (m.wL) grotWand(xl, wandTop, diep, m.s, true, m.dik, m.plafond);
+    if (m.wR) grotWand(xr, wandTop, diep, m.s, false, m.dik, m.plafond);
+    if (m.plafond && m.wL) grotHoek(xl, bandY, m.s, true);
+    if (m.plafond && m.wR) grotHoek(xr, bandY, m.s, false);
+
+    if (showBoxes || building){
+      ctx.save();
+      ctx.globalAlpha = 0.7; ctx.strokeStyle = '#7ad7ff'; ctx.lineWidth = 2 / viewZoom();
+      ctx.strokeRect(xl, plafY, xr - xl, vloerY - plafY);
+      ctx.restore();
+    }
+  }
+}
+
 // ---- de rotswand rechts: het einde van het level ----------------------
 const CLIFF = { src: 'design/cliff.png', l: 0.14, wall: 620, sink: 0.03 };
 // een hut aan de voet van de klif; dekt de naad af waar het gesteente omhoog loopt
@@ -7076,6 +7313,8 @@ function loop(now){
       w = SPR_W * scale; h = SPR_H * scale;
       x = pcx - w / 2; y = groundY - SPR_GROUND * scale + lift;
     }
+    drawGrotten(groundY, scale, cx);               // grotten en ravijnen: het steen om de opening heen
+
     ctx.save();
     ctx.globalAlpha = 0.22; ctx.fillStyle = '#1d140f';
     const shY = groundY - Math.max(0, supportHeight(plats, halfWNow)) * scale;
