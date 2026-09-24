@@ -20,7 +20,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Mappen die het spel tijdens het spelen inlaadt. klein/ is de halve spriteset
 # van Amir en de hyena (tools/gen-klein.py); die hoort erbij zodat het spel ook
 # offline nog van set kan wisselen.
-ASSET_DIRS = ('design', 'enemies', 'karakters', 'klein', 'music', 'sounds')
+# 'amir runc' is de oude mappenstructuur; daar staan de speerworpframes.
+ASSET_DIRS = ('amir runc', 'design', 'enemies', 'karakters', 'klein', 'music', 'sounds')
 
 # Alleen deze extensies; de rest is bronmateriaal of documentatie. De json hoort
 # erbij omdat het spel enemies/hyena/metadata.json tijdens het laden opvraagt.
