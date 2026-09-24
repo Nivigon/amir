@@ -38,7 +38,7 @@ Van een deel van de sprites staan twee versies op schijf: het origineel, en een 
 
 Waarom: de grote frames zijn op een telefoon vele malen groter dan ze getekend worden. Safari houdt ze niet allemaal uitgepakt in het geheugen en decodeert ze midden in het spel opnieuw, en dat zijn de hikjes. De tekencode rekt elk plaatje naar vaste maten, dus beide sets werken met dezelfde code. Ontbreekt een klein frame, dan valt het spel terug op het grote.
 
-Welke plaatjes meedoen staat in `DOELEN` in `tools/gen-klein.py`, en dat is met opzet een korte lijst. Een plaatje halveren mag alleen als het op een telefoon nog steeds groter is dan het stukje scherm waar het op terechtkomt. Dat is per familie gemeten en de factor staat erbij. Meedoen: Amir, de hyena's, de panters, de schorpioen, de dorpeling, het droge gras, de kei, de verre hut en de botten. Er juist buiten vallen de boom (1,0x), de struik (1,2x), het doornbos (0,9x), de dorpshutten (1,8x), de klif (1,9x) en de dorpelinge (1,9x): die staan al vrijwel op maat, dus halveren zou je meteen zien.
+Welke plaatjes meedoen staat in `DOELEN` in `tools/gen-klein.py`, en dat is met opzet een korte lijst. Een plaatje halveren mag alleen als het op een telefoon nog steeds groter is dan het stukje scherm waar het op terechtkomt. Dat is per familie gemeten en de factor staat erbij. Meedoen: Amir, de hyena's, de panters, de schorpioen, de dorpeling, het droge gras, de kei, de verre hut, de botten en de grotset (7,3x: het plafond, de hoekstukken en de wandtegels zijn de grootste bronnen van het spel en worden tot een tiende getekend). Er juist buiten vallen de boom (1,0x), de struik (1,2x), het doornbos (0,9x), de dorpshutten (1,8x), de klif (1,9x) en de dorpelinge (1,9x): die staan al vrijwel op maat, dus halveren zou je meteen zien.
 
 De download volgt de gekozen set: een telefoon haalt de kleine versies binnen en slaat de grote over, een laptop andersom. Dat scheelt ongeveer 58 MB.
 
@@ -150,6 +150,32 @@ en een speer die hem daarbuiten raakt ketst af op zijn vacht. De duik van de
 witte panter zet hem tot zijn buik in de sneeuw: dat is het langste venster en
 je staat er ver genoeg vanaf om te werpen.
 
+## Grotten en ravijnen
+
+Een grot is een rechthoek waar het steen omheen staat: de opening waar Amir in loopt.
+Het spel leidt daar zelf uit af waar de stukken komen. Over het hele rotsgebied ligt
+eerst een naadloze rotstextuur, zodat er nooit een gat te zien is. Daarover komt de
+plafondstrook, horizontaal getegeld, met een grillige onderrand vol tanden. Waar het
+plafond overgaat in een wand staat een hoekstuk, en daaronder loopt de wandtegel
+verticaal door tot aan de vloer. Hangblokken hangen onder het plafond, richels plakken
+tegen de wanden en keien liggen los op de vloer. Die laatste drie worden verstrooid met
+een vaste seed: dezelfde grot ziet er elke keer precies zo uit, maar niets staat op een
+regelmatige afstand.
+
+Het plafond, de wanden en de vloer zijn massief. Je stoot je hoofd, je loopt niet door
+een wand heen en je staat op de vloer. Een richel is een plankje: van onderen spring je
+erdoorheen, van boven sta je erop, en alleen de bovenkant van het brok telt. Hangblokken
+en losse keien zijn puur decor.
+
+Ligt de vloer onder de grondlijn, dan is de grot zelf een gat in de grond: je valt er
+vanzelf in, en de camera zakt mee zolang je erop staat. Dat is een rotskloof. Blijft het
+dak weg, dan krijg je een overhang of een ravijn met open lucht erboven.
+
+Alles los te proberen met de knoppen onder **Grot** in de sandbox: een dichte grot, een
+doorloopgrot zonder wanden, een lage grot waar je je hoofd stoot, en een rotskloof.
+Elke druk geeft een andere seed. Met **Hitboxen aan** zie je de opening (blauw), de
+wanden (rood) en de bovenkant van elke richel (groen).
+
 ## Mappenstructuur
 
 ```
@@ -218,6 +244,10 @@ design/
   bg/laag1/                verre bergen (parallax laag 1); *_sneeuw.png = de winterversie (tools/sneeuw_bg.py)
   bg/laag2/                savanneheuvels (parallax laag 2); *_sneeuw.png = idem, met sneeuw op de ruggen en de vlakte
   botten/                  botten en schedels om op de grond te leggen
+  grot/                    de grot- en ravijnset: plafond_strook, hoek_plafond_wand, wand_rand,
+                           wand_richel, hangblok_01..03, kei_01..07, kei_rond_01..08. In grot.json
+                           staan de maten en de ankerpunten van elk onderdeel; de tekencode rekent
+                           daarmee, dus de kleine versies in klein/ vallen precies op hun plek
   klimmen/                 klif_bovenrand, klif_richel, klif_binnenhoek
   *_sneeuw.png             winterversies van flatrock, boulder, cliff en de drie klimstukken; gemaakt
                            met tools/sneeuw.py (draai dat opnieuw als een origineel verandert).

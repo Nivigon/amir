@@ -51,6 +51,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | levels voor Rosa / Episode Renew / Episode Winter World | de leveldefinities |
 | terrassen en richels | `terraces`, `ledges`, klimmen |
 | de rotswand rechts | `cliffs`, het einde van het level |
+| grotten en ravijnen | `grotten`: het steen om een opening heen, de verstrooiing, de botsingen |
 | schorpioen, het projectiel, spannen en werpen, de geworpen speer | de speerworp |
 | personages, dorpsdecor | NPC's, `VILLAGE`, de dorpsplaten |
 | stap voor stap leren spelen | het `tutorial`-systeem van de Rosa-levels |
@@ -89,6 +90,7 @@ precies hetzelfde formaat naar JSON.
 | `thickets` | doornbossen: `{x, n, seed}` |
 | `terraces` | terrassen om op te klimmen: `{r, l, h}` (rechterrand, linkerrand, hoogte) |
 | `ledges` | richels aan een wand: `{x, h, s}` |
+| `grotten` | grotten, overhangen en rotskloven: `{x, y, w, h, ...}` (zie hieronder) |
 | `hppotions` | drinkkalebassen: `{x, y}` |
 | `fg` | strook waarover de voorgrondbegroeiing ligt: `{from, to}` |
 | `arena` | het veld van de eindbaas: `{c}` |
@@ -139,6 +141,41 @@ om. Dat is bewust buiten deze wijziging gelaten.
 staat naar de kant, of haalt het weg. Reken daar niet op als ontwerper: zet het
 meteen goed.
 
+### Een grot is een rechthoek, de rest volgt eruit
+
+Een grot beschrijf je als de opening waar Amir in loopt; alles eromheen is steen. Welke
+tegel waar komt rekent het spel zelf uit, met de ankerpunten uit `design/grot/grot.json`.
+
+| veld | wat |
+| --- | --- |
+| `x` en `w` | linkerrand en breedte van de opening, in wereld-x (dus negatief) |
+| `y` en `h` | vloerhoogte boven de grondlijn en hoogte van de opening, in sprite-eenheden (net als `terraces.h`) |
+| `plafond` | dak eroverheen (standaard `true`; `false` geeft een overhang of ravijn met open lucht) |
+| `wanden` | `'beide'`, `'links'`, `'rechts'` of `'geen'` (standaard `'beide'`) |
+| `achter` | achterwand van rotstextuur achter de opening (standaard `false`) |
+| `massief` | plafond, wanden en vloer blokkeren (standaard `true`) |
+| `seed` | dezelfde seed geeft elke keer dezelfde verstrooiing |
+| `strooi` | hangblokken, richels en keien vanzelf neerzetten (standaard `true`) |
+| `decor` | met de hand erbij: `[{k, x, y, f, s}]` |
+
+Let op de twee eenheden: `x` en `w` zijn wereld-px, `y` en `h` sprite-eenheden. Dat is
+dezelfde splitsing als bij `terraces` (`l`/`r` in wereld-px, `h` in sprite-eenheden).
+
+Zet `achter: true` voor een echte grot of een kloof, anders kijk je er dwars doorheen de
+savanne in. Laat het uit voor een overhang waar dat juist de bedoeling is.
+
+Een vloer onder de grondlijn (`y` negatief) maakt de grot zelf een gat in de grond: je
+valt er vanzelf in en de camera zakt mee zolang je erop staat. Er hoeft dus geen `gaps`
+naast. Dieper dan `GAP_DEATH` (1,6 Amir) vallen blijft dodelijk, dus houd `y` daarboven.
+
+Een decoratie is `{k, x, y, f, s}`: `k` is de bestandsnaam (met of zonder `.png`), `x` de
+wereld-x, `y` de hoogte van het ankerpunt, `f` gespiegeld, `s` de schaal. Waar dat anker
+ligt hangt af van de soort: een hangblok aan zijn vlakke bovenkant, een richel aan zijn
+looprand met de vlakke kant tegen de wand, een kei aan de grond waar hij op staat. Laat
+je `y` weg, dan hangt een blok aan het plafond en ligt een kei op de vloer.
+
+Alleen `wand_richel` draagt. Hangblokken en keien zijn puur decor.
+
 ### Een level toevoegen (alleen na toestemming)
 
 1. De definitie erbij, na de laatste van die reeks.
@@ -188,6 +225,12 @@ De bodem en het dek van het veld `sneeuw` komen uit `tools/sneeuwdek.py`
 (`grondrand_rots.png` en `sneeuwlaag_25..100.png`). Die staan met opzet niet in de kleine
 set: `grondrand.png` staat daar ook niet in, en een dek dat anders geschaald wordt dan de
 bodem eronder gaat schuiven.
+
+De grotset in `design/grot/` hoort wel in de kleine set: die stukken zijn de grootste
+bronnen van het spel en worden tot een tiende getekend. Dat mag hier omdat de tekencode
+met de maten uit `grot.json` rekent en elk stuk naar die maat rekt; de ankerpunten
+schuiven dus niet mee met de bronmaat. `grot.json` zelf blijft buiten de kleine set,
+want `gen-klein.py` pakt alleen png's.
 
 Winterversies komen uit `tools/sneeuw.py` (rotsen en klimstukken), `sneeuw_bg.py`
 (achtergrondpanelen), `sneeuw_dorp.py` (hutten, boom, struik) en `winter_art.py`
