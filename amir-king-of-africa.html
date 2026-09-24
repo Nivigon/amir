@@ -711,13 +711,15 @@ function drawSweepDust(back, cx, groundY, lift, scale){
     const a = (t < 0.12 ? t / 0.12 : 1 - (t - 0.12) / 0.88) * 0.85;
     const x = cx + (g.ax - world) + g.x * scale, y = groundY + (g.y - g.ah) * scale;
     ctx.globalAlpha = a;
-    if (imgReady(dustPuff)){
-      const pw = rr * 2.4, phh = pw * dustPuff.naturalHeight / dustPuff.naturalWidth;
+    const pimg = puffPic();
+    if (imgReady(pimg)){
+      const pw = rr * 2.4, phh = pw * pimg.naturalHeight / pimg.naturalWidth;
       ctx.save(); ctx.translate(x, y - rr * 0.35); ctx.rotate(g.rot + g.spin * g.age);
-      ctx.drawImage(dustPuff, -pw / 2, -phh / 2, pw, phh); ctx.restore();
+      ctx.drawImage(pimg, -pw / 2, -phh / 2, pw, phh); ctx.restore();
     } else {
       const gr = ctx.createRadialGradient(x, y - rr * 0.35, 0, x, y - rr * 0.35, rr);
-      gr.addColorStop(0, 'rgba(214,176,122,0.9)'); gr.addColorStop(1, 'rgba(214,176,122,0)');
+      const dc = winterOn() ? '236,241,248' : '214,176,122';
+      gr.addColorStop(0, 'rgba(' + dc + ',0.9)'); gr.addColorStop(1, 'rgba(' + dc + ',0)');
       ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y - rr * 0.35, rr, 0, Math.PI * 2); ctx.fill();
     }
   }
@@ -2054,7 +2056,7 @@ function drawGrains(groundY, scale, cx){
   for (const g of grains){
     const k = 1 - g.age / g.life;
     ctx.globalAlpha = 0.85 * Math.min(1, k * 2);
-    ctx.fillStyle = g.dark ? '#8a6238' : '#dcb177';
+    ctx.fillStyle = winterOn() ? (g.dark ? '#9aa6b8' : '#eef2f8') : (g.dark ? '#8a6238' : '#dcb177');   // sneeuwkorrels in de winter
     const r = g.r * scale * 1.6;
     ctx.fillRect(cx + (g.wx - world) - r / 2, groundY - (g.base + g.h) * scale - r, r, r);
   }
@@ -2779,6 +2781,32 @@ dustPuff.onerror = () => console.warn('ontbreekt: design/stofwolk.png');
 dustWisp.onerror = () => console.warn('ontbreekt: design/stofsliert.png');
 dustPuff.src = 'design/stofwolk.png';
 dustWisp.src = 'design/stofsliert.png';
+// In de winter is het geen zand maar sneeuwstof: dezelfde wolkjes en slierten, een keer
+// wit gemaakt (kleur eruit, doorzichtigheid terug, dan licht). Alles wat stof tekent vraagt
+// via puffPic() en wispPic() om het juiste plaatje voor dit level.
+let snowDust = null;
+function bakeSnowDust(img, licht, dicht){
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const g = c.getContext('2d');
+  for (let i = 0; i < (dicht || 1); i++) g.drawImage(img, 0, 0);   // vaker over elkaar = dichter (de sliert is van zichzelf heel ijl)
+  g.globalCompositeOperation = 'saturation'; g.fillStyle = '#808080'; g.fillRect(0, 0, c.width, c.height);
+  g.globalCompositeOperation = 'destination-in';
+  for (let i = 0; i < (dicht || 1); i++) g.drawImage(img, 0, 0);
+  g.globalCompositeOperation = 'source-atop'; g.fillStyle = licht; g.fillRect(0, 0, c.width, c.height);
+  c.naturalWidth = c.width; c.naturalHeight = c.height; c.complete = true;   // zodat hij overal als plaatje meekan
+  return c;
+}
+function snowDustReady(){
+  if (!winterOn()) return false;
+  if (!snowDust && imgReady(dustPuff) && imgReady(dustWisp))
+    snowDust = { puff: bakeSnowDust(dustPuff, 'rgba(240,245,252,0.72)'),       // wolkjes: wit
+                 wisp: bakeSnowDust(dustWisp, 'rgba(206,216,230,0.70)', 2) };  // slierten: iets grijsblauw en dichter, anders zie je ze niet over de sneeuw
+  return !!snowDust;
+}
+function puffPic(){ return snowDustReady() ? snowDust.puff : dustPuff; }
+function wispPic(){ return snowDustReady() ? snowDust.wisp : dustWisp; }
+function dustColor(){ return winterOn() ? '#e8eef6' : '#c9a877'; }   // vangnet als de plaatjes er niet zijn
 const imgReady = im => im.complete && im.naturalWidth > 0;
 
 // ---- sneeuwval (Winter World) -------------------------------------------
@@ -2868,19 +2896,19 @@ function drawWind(groundY, scale, cx){
     if (w.age < 0) continue;
     const t = w.age / w.life;
     const fade = Math.min(1, t * 4) * Math.min(1, (1 - t) * 3);
-    const img = w.kind === 'wisp' ? dustWisp : dustPuff;
+    const img = w.kind === 'wisp' ? wispPic() : puffPic();   // in de winter: stuifsneeuw
     const bh = CHAR_H * scale * (w.kind === 'wisp' ? 0.22 : 0.30) * w.s;
     const bw = imgReady(img) ? img.naturalWidth / img.naturalHeight * bh : bh * 4;
     const x = cx + (w.x - world);
     if (x + bw < -W || x - bw > W / viewZoom() + W) continue;
     const y = groundY - w.h * CHAR_H * scale + Math.sin(w.age * 2 + w.bob) * 4 * scale;
-    ctx.globalAlpha = w.a * fade;
+    ctx.globalAlpha = Math.min(1, w.a * fade * (winterOn() ? 1.6 : 1));   // stuifsneeuw over sneeuw: wat dikker, anders valt hij weg
     ctx.save();
     ctx.translate(x, y);
     if (w.flip) ctx.scale(-1, 1);
     if (w.rot) ctx.rotate(w.rot + w.age * 0.6);
     if (imgReady(img)) ctx.drawImage(img, -bw / 2, -bh / 2, bw, bh);
-    else { ctx.fillStyle = '#d6b480'; ctx.beginPath();
+    else { ctx.fillStyle = winterOn() ? '#e8eef6' : '#d6b480'; ctx.beginPath();
            ctx.ellipse(0, 0, bw / 2, bh / 2, 0, 0, Math.PI * 2); ctx.fill(); }
     ctx.restore();
   }
@@ -6319,17 +6347,18 @@ function loop(now){
       for (const d of dust){
         const k = 1 - d.age / d.life;
         const rr = d.r * scale * (1.7 - k * 0.7);
-        if (imgReady(dustPuff)){
+        const pimg = puffPic();
+        if (imgReady(pimg)){
           ctx.globalAlpha = 0.55 * k;
-          const pw = rr * 2.6, phh = pw * dustPuff.naturalHeight / dustPuff.naturalWidth;
+          const pw = rr * 2.6, phh = pw * pimg.naturalHeight / pimg.naturalWidth;
           ctx.save();
           ctx.translate(pcx + d.x * scale, groundY + d.y * scale + lift);
           ctx.rotate(d.rot + d.age * 1.5);
-          ctx.drawImage(dustPuff, -pw / 2, -phh / 2, pw, phh);
+          ctx.drawImage(pimg, -pw / 2, -phh / 2, pw, phh);
           ctx.restore();
         } else {
           ctx.globalAlpha = 0.30 * k;
-          ctx.fillStyle = '#c9a877';
+          ctx.fillStyle = dustColor();
           ctx.beginPath();
           ctx.arc(pcx + d.x * scale, groundY + d.y * scale + lift, rr, 0, Math.PI * 2);
           ctx.fill();
@@ -6458,13 +6487,14 @@ function loop(now){
         const k = 1 - d.age / d.life;
         const rr = d.r * scale * (1.7 - k * 0.7);
         const px = cx + (d.wx - world), py = groundY + d.y * scale - (d.base || 0) * scale;
-        if (imgReady(dustPuff)){
+        const pimg = puffPic();
+        if (imgReady(pimg)){
           ctx.globalAlpha = 0.55 * k;
-          const pw = rr * 2.6, phh = pw * dustPuff.naturalHeight / dustPuff.naturalWidth;
+          const pw = rr * 2.6, phh = pw * pimg.naturalHeight / pimg.naturalWidth;
           ctx.save(); ctx.translate(px, py); ctx.rotate(d.rot + d.age * 1.5);
-          ctx.drawImage(dustPuff, -pw / 2, -phh / 2, pw, phh); ctx.restore();
+          ctx.drawImage(pimg, -pw / 2, -phh / 2, pw, phh); ctx.restore();
         } else {
-          ctx.globalAlpha = 0.30 * k; ctx.fillStyle = '#c9a877';
+          ctx.globalAlpha = 0.30 * k; ctx.fillStyle = dustColor();
           ctx.beginPath(); ctx.arc(px, py, rr, 0, Math.PI * 2); ctx.fill();
         }
       }
