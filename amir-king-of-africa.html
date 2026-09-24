@@ -2206,7 +2206,7 @@ const GROT = {
   // anders dan meer rots, en dat leest als een eindeloze massa in plaats van een band;
   // dat wordt nu met rotstextuur gevuld.
   band:   { van: 433, hoog: 160, dicht: (508 - 433) / 160 },
-  tand:   0.45,                                            // zoveel van de tandenzone hangt onder de plafondlijn
+  tand:   0.12,                                            // zoveel van de tandenzone hangt onder de plafondlijn
   hoek:   { w: 1984, h: 1230, band: 593, binnen: 1415 },   // binnen = wand_binnenrand_x_onderaan
   wand:   { w: 717,  h: 1108, rand: 13 },                  // rand = rots_linkerrand_x_bovenaan
   vul:    0.86                                             // tot deze rij van de hele strook is hij dicht (hoekstuk)
@@ -2218,15 +2218,11 @@ const GROT = {
 // waar de grond de bovenkant van is.
 const GROT_SCHAAL = 2.1;
 const schaalGrond = () => edgeScale(H * 0.18);       // schermpixels per bronpixel van de grondrand
-const grotSteen = () => GROT_SCHAAL * schaalGrond(); // en die van de grotset
-// Eén pixelschaal voor de hele grotset, afgeleid van de celgrootte: de plafondband is
-// precies één cel dik. Daarmee heeft elk stuk rots dezelfde korrel, van de tanden aan
-// het plafond tot het kleinste grindje.
-const grotS = celPx => celPx / GROT.hoek.band;
-// De grondrand komt uit een ander plaatje, met zijn eigen resolutie. Die krijgt daarom
-// zijn eigen schaal, ook uit de celhoogte, zodat zijn aardlaag net als in de rest van
-// het spel ongeveer één cel dik uitkomt.
-const grotEdgeS = celPx => celPx / (EDGE.solid - EDGE.walk);
+const grotSteen = () => GROT_SCHAAL * schaalGrond(); // en die van de band en de vulling
+// De losse stukken hangen aan Amir, niet aan de steenschaal: daarop zou een hangblok zes
+// keer zo hoog worden als hij. Zo blijft een hangblok ongeveer een Amir lang, een richel
+// een plank om op te staan en een kei iets waar je overheen stapt.
+const grotDecorS = scale => CHAR_H * scale / 850;
 
 // Het decorregister: de maten uit grot.json, en waar het ankerpunt van elke soort ligt.
 //   hang    bovenkant vlak, hangt onder een plafondrand:  x = midden,          y = de bovenkant
@@ -2265,7 +2261,7 @@ let grotGeladen = false;
 function grotLaad(){
   if (grotGeladen) return;
   grotGeladen = true;
-  for (const n of ['plafond_strook', 'hoek_plafond_wand', 'wand_rand'].concat(Object.keys(GROT_DEEL)))
+  for (const n of ['plafond_strook', 'wand_rand'].concat(Object.keys(GROT_DEEL)))
     grotImgs[n] = zetBron(new Image(), GROT_DIR + n + '.png',
                           () => console.warn('ontbreekt: ' + GROT_DIR + n + '.png'));
 }
@@ -2360,7 +2356,7 @@ const GROT_FADE = 0.34;
 function grotFade(c, kant){
   const g = c.getContext('2d');
   g.globalCompositeOperation = 'destination-out';
-  const deel = kant === 'onder' ? 0.62 : GROT_FADE;
+  const deel = kant === 'onder' ? 0.78 : GROT_FADE;
   const gr = kant === 'boven' ? g.createLinearGradient(0, 0, 0, c.height * deel)
            : kant === 'onder' ? g.createLinearGradient(0, c.height, 0, c.height * (1 - deel))
                               : g.createLinearGradient(c.width, 0, c.width * (1 - deel), 0);
@@ -2377,18 +2373,18 @@ function grotTegelSet(cel, celPx){
   const ss = grotSteen();
   const sleutel = cel + '|' + Math.round(celPx) + '|' + ss.toFixed(3) + '|' + (bodem ? bodem.src : '-');
   if (grotTegels && grotTegels.sleutel === sleutel) return grotTegels;
-  const st = grotPic('plafond_strook'), wa = grotPic('wand_rand'), ho = grotPic('hoek_plafond_wand');
-  if (!imgReady(gapTex) || !st || !imgReady(st) || !wa || !imgReady(wa) || !ho || !imgReady(ho) || !bodem) return null;
-  const s = grotS(celPx), es = grotEdgeS(celPx);
+  const st = grotPic('plafond_strook'), wa = grotPic('wand_rand');
+  if (!imgReady(gapTex) || !st || !imgReady(st) || !wa || !imgReady(wa) || !bodem) return null;
+  const es = schaalGrond();            // de grondrand op precies de schaal van de grond zelf
+  const ds = grotDecorS(schoonScale());   // wand en losse stukken: zo blijven ze op maat
   const rond = v => Math.max(1, Math.round(v));
   const tw = rond(gapTex.naturalWidth * ss);
   grotTegels = { sleutel, cel, ss,
     tex:    grotTegelMaak(gapTex, tw, rond(gapTex.naturalHeight * ss), true, true),
     strook: grotFade(grotTegelMaak(st, rond(GROT.strook.w * ss), rond(GROT.band.hoog * ss), true, false,
                                    { x: 0, y: GROT.band.van, w: GROT.strook.w, h: GROT.band.hoog }), 'boven'),
-    wand:   grotFade(grotTegelMaak(wa, rond(GROT.wand.w * s), rond(GROT.wand.h * s), false, true), 'rechts'),
-    bodem:  grotFade(grotTegelMaak(bodem, rond(bodem.naturalWidth * es), rond(bodem.naturalHeight * es), true, false), 'onder'),
-    hoek:   grotFade(grotTegelMaak(ho, rond(GROT.hoek.w * s), rond(GROT.hoek.h * s), false, false), 'boven') };
+    wand:   grotFade(grotTegelMaak(wa, rond(GROT.wand.w * ds), rond(GROT.wand.h * ds), false, true), 'rechts'),
+    bodem:  grotFade(grotTegelMaak(bodem, rond(bodem.naturalWidth * es), rond(bodem.naturalHeight * es), true, false), 'onder') };
   return grotTegels;
 }
 
@@ -2437,15 +2433,15 @@ function grotPlafonds(R, X, Y, T){
 // voelt als de vloer buiten. Hij krijgt zijn eigen schaal uit de celgrootte. Zijn onderkant
 // vloeit uit in het gesteente: blijft de volle aardlaag staan, dan ligt er een oranje band
 // over de grijze rots.
-function grotVloeren(R, X, Y, T, es, ch){
+function grotVloeren(R, X, Y, T, ch){
   if (!T) return;
   const im = T.bodem, w = im.width, h = im.height;
-  const lift = Math.round(EDGE.walk * es);
+  const lift = Math.round(EDGE.walk * schaalGrond());
   for (let r = 0; r < R.n; r++)
     for (const [c, e] of grotReeksH(R, r, (cc, rr) => grotVol(R, cc, rr) && !grotVol(R, cc, rr - 1))){
       const L = X(c), Rr = X(e + 1), top = Y(r) - ch - lift;
       ctx.save();
-      ctx.beginPath(); ctx.rect(L, top, Rr - L, h); ctx.clip();
+      ctx.beginPath(); ctx.rect(L, top, Rr - L, Math.min(h, lift + ch)); ctx.clip();
       for (let x = L; x < Rr; x += w) ctx.drawImage(im, x, top);
       ctx.restore();
     }
@@ -2456,10 +2452,10 @@ function grotVloeren(R, X, Y, T, es, ch){
 // aan de rechterkant spiegelen we hem. Zijn grillige rotskant steekt een stukje de open
 // ruimte in, net als de tanden aan het plafond: zonder dat is het silhouet van een blok
 // kaarsrecht. De botsing blijft gewoon op de celrand liggen.
-function grotWanden(R, X, Y, T, s, ch){
+function grotWanden(R, X, Y, T, ch){
   if (!T) return;
   const im = T.wand, w = im.width, h = im.height;
-  const rand = Math.round(GROT.wand.rand * s);
+  const rand = Math.round(GROT.wand.rand * grotDecorS(schoonScale()));
   const over = Math.round(R.cel * 0.10);
   for (let c = 0; c < R.kol; c++)
     for (const kant of [-1, 1])
@@ -2477,42 +2473,6 @@ function grotWanden(R, X, Y, T, s, ch){
       }
 }
 
-// het silhouet van de rots, met wat marge, om losse stukken binnen te houden
-function grotRotsPad(R, X, Y, m, ch){
-  ctx.beginPath();
-  for (let r = 0; r < R.n; r++)
-    for (const [c, e] of grotReeksH(R, r, (cc, rr) => R.vol[rr][cc]))
-      ctx.rect(X(c) - m, Y(r) - ch - m, X(e + 1) - X(c) + 2 * m, ch + 2 * m);
-}
-
-// Binnenhoek: een lege cel met rots erboven en rots ernaast. Daar gaat het plafond over
-// in een wand, en dat is precies wat hoek_plafond_wand.png tekent. Het stuk staat met
-// zijn bovenkant gelijk met de plafondstrook en met wand_binnenrand_x_onderaan op de
-// celgrens, net als in grot.json. Zijn ronde schouder mag een stukje de open cel in
-// steken; de botsing blijft gewoon op de celrand liggen.
-function grotHoeken(R, X, Y, T, s, ch){
-  if (!T) return;
-  const im = T.hoek, w = im.width, h = im.height;
-  const binnen = Math.round(GROT.hoek.binnen * s);
-  const dicht = Math.round(GROT.vul * ch);
-  ctx.save();
-  grotRotsPad(R, X, Y, Math.round(ch * 0.45), ch);
-  ctx.clip();
-  for (let r = 0; r < R.n; r++)
-    for (let c = 0; c < R.kol; c++){
-      if (grotVol(R, c, r) || !grotVol(R, c, r - 1)) continue;   // moet leeg zijn met rots erboven
-      const top = Y(r) - ch - dicht;
-      if (grotVol(R, c + 1, r)) ctx.drawImage(im, X(c + 1) - binnen, top);   // wand rechts: onbewerkt
-      if (grotVol(R, c - 1, r)){                                             // wand links: gespiegeld
-        ctx.save();
-        ctx.translate(X(c) + binnen, top); ctx.scale(-1, 1);
-        ctx.drawImage(im, 0, 0);
-        ctx.restore();
-      }
-    }
-  ctx.restore();
-}
-
 // ---- tekenen --------------------------------------------------------------
 function drawGrotten(groundY, scale, cx){
   const lijst = grotLijst();
@@ -2528,13 +2488,12 @@ function drawGrotten(groundY, scale, cx){
     const X = c => x0 + c * R.cel;
     const Y = r => Math.round(groundY) - grotRijH(R, r) * ch;      // onderkant van rij r
     if (X(R.kol) < viewL || X(0) > viewR) continue;
-    const s = grotS(ch), es = grotEdgeS(ch), T = grotTegelSet(R.cel, ch);
+    const T = grotTegelSet(R.cel, ch);
     grotVulling(R, X, Y, T, ch);     // 1. het steen zelf
     grotPlafonds(R, X, Y, T);        // 2. buur onder leeg
-    grotWanden(R, X, Y, T, s, ch);   // 3. buur links of rechts leeg
-    grotVloeren(R, X, Y, T, es, ch); // 4. buur boven leeg
-    grotHoeken(R, X, Y, T, s, ch);   // 5. de binnenhoeken
-    drawGrotDecor(g, R, groundY, scale, cx, s);   // 6. hangblokken, richels en keien
+    grotWanden(R, X, Y, T, ch);      // 3. buur links of rechts leeg
+    grotVloeren(R, X, Y, T, ch);     // 4. buur boven leeg
+    drawGrotDecor(g, R, groundY, scale, cx);      // 6. hangblokken, richels en keien
     if (showBoxes || building) grotHitboxen(g, R, X, Y, ch);
   }
 }
@@ -2632,7 +2591,8 @@ function grotDecorLijst(g){
 
 // Alles op één pixelschaal, dezelfde als de randen. De richel plakt met zijn vlakke kant
 // tegen de wand: gespiegeld steekt hij naar rechts uit, onbewerkt naar links.
-function drawGrotDecor(g, R, groundY, scale, cx, s){
+function drawGrotDecor(g, R, groundY, scale, cx){
+  const s = grotDecorS(scale);
   const viewL = -W, viewR = W / viewZoom() + W;
   for (const d of grotDecorLijst(g)){
     const im = grotPic(d.k), def = GROT_DEEL[d.k];
@@ -2671,7 +2631,7 @@ function grotPlats(scale){
       }
     for (const d of grotDecorLijst(g)){
       if (d.soort !== 'richel') continue;
-      const w = GROT_DEEL[d.k].w * grotS(grotCelPx(R, scale)) * (d.s || 1);
+      const w = GROT_DEEL[d.k].w * grotDecorS(scale) * (d.s || 1);
       const l0 = d.f ? d.x : d.x - w;                    // gespiegeld plakt hij aan een wand links
       const a = d.f ? 1 - GROT_RICHEL.r : GROT_RICHEL.l;
       const b = d.f ? 1 - GROT_RICHEL.l : GROT_RICHEL.r;

@@ -160,11 +160,15 @@ goed boven of naast hem zitten als eronder. Waar een cel leeg is zie je gewoon d
 de savanne erdoorheen, dus een rotsmassa kan ook de bovenkant van een level zijn.
 
 Het spel kijkt per volle cel welke buren leeg zijn en plakt daar de bijbehorende rand op.
-Rots met open ruimte eronder krijgt de plafondstrook met zijn grillige tandenrand, rots met
+Rots met open ruimte eronder krijgt de plafondband met zijn grillige tandenrand, rots met
 open ruimte erboven krijgt de gewone grondrand van het spel, en aan de zijkanten komt de
-wandtegel. Waar het plafond overgaat in een wand staat het hoekstuk dat die bocht tekent.
-Alle volle cellen liggen eerst dicht met een naadloze rotstextuur, zodat er nooit een gat
-te zien is.
+wandtegel. Alle volle cellen liggen eerst dicht met een naadloze rotstextuur, zodat er
+nooit een gat te zien is.
+
+De plafondband is met opzet even grof en even dik als de grondband: de rotsbrokken erin
+zijn even groot als die in de grond, en er hangen brokken onder. Een rotsdak leest daardoor
+als de onderkant van dezelfde berg waar de grond de bovenkant van is, of je nu ergens
+onderdoor loopt of door een vallei met rots boven je.
 
 Twee randen heeft de set niet, en die worden opgevuld met losse brokken: waar een vloer op
 een wand uitkomt ligt een handvol keien over de naad, en waar een rotspunt uitsteekt komt
