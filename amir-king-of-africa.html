@@ -5212,6 +5212,11 @@ const MID = {
   propScale: 1,       // en hun grootte
   propPar: 0.6        // hun snelheid: ze staan dichterbij dan laag 2 (0.3), dus sneller, maar trager dan de grond
 };
+// Klimt de camera (terrassen), dan zakt de grond op het scherm met de volle camerahoogte en de
+// horizon met 28 procent. De heuvelrij hangt niet aan die horizon maar aan de grond: ze zakt met
+// 85 procent mee (dit is het deel dat ze achterblijft). Zo blijft ze tegen de grond aan staan en
+// gaapt er op een hoog terras geen kale band; tegen de verre bergen beweegt ze juist duidelijk.
+const MID_CAM_PAR = 0.15;
 // Laag 1b: een tweede, dichterbije bergrij. Zelfde plaatjes (zonder de Kilimanjaro), gespiegeld,
 // groter, donkerder en in een andere volgorde. Alleen samen met laag 2.
 const MTN2 = {
@@ -5361,7 +5366,7 @@ function sceneCfg(){
   const key = (!sandbox && level && SCENES[level.lagen]) ? level.lagen : 'basis';
   return sceneMix[key] || (sceneMix[key] = Object.assign({}, SCENE0, SCENES[key] || {}));
 }
-function drawMist(y, a, col){
+function drawMist(y, a, col, down){
   const c = col || MIST.color;
   a = Math.min(0.92, a);
   const r = MIST.rise * H;
@@ -5370,7 +5375,8 @@ function drawMist(y, a, col){
   g.addColorStop(1, 'rgba(' + c + ',' + a + ')');
   ctx.fillStyle = g; ctx.fillRect(0, y - r, W, r);
   ctx.fillStyle = 'rgba(' + c + ',' + a + ')';
-  ctx.fillRect(0, y - 0.5, W, H * 0.12);          // eronder verdwijnt het achter de volgende laag
+  // eronder verdwijnt het achter de volgende laag; staat die laag lager (camera hoog), dan loopt de nevel door tot daar
+  ctx.fillRect(0, y - 0.5, W, H * 0.12 + Math.max(0, down || 0));
 }
 // tone: kleurbewerking en waaskleuren. Zonder tone de gewone savanne (warm avondlicht);
 // de winter bakt dezelfde panelen nog een keer, koud en bleek (zie bakeWinterLayers).
@@ -5496,8 +5502,11 @@ function midOn(){ return sceneCfg().mid && layerImgs().mid.some(Boolean); }   //
 function scene(groundY){
   const sc = sceneCfg();                            // het uitzicht van dit level
   const LI = layerImgs();
-  // de horizon zakt maar een klein stukje mee als je klimt: ver weg beweegt trager
+  // de horizon zakt maar een klein stukje mee als je klimt: ver weg beweegt trager.
+  // De heuvelrij (laag 2) staat dichtbij en hangt daarom aan de grond, niet aan die horizon:
+  // anders gaapt er op een hoog terras een kale band tussen de heuvels en de grond
   const horizonY = groundY - camY * 0.72;
+  const nearY = groundY - camY * MID_CAM_PAR;
   const g = ctx.createLinearGradient(0, 0, 0, horizonY);
   g.addColorStop(0, sc.sky[0]); g.addColorStop(0.62, sc.sky[1]); g.addColorStop(1, sc.sky[2]);
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, horizonY + 1);
@@ -5507,26 +5516,33 @@ function scene(groundY){
   zonScherm.x = zonX; zonScherm.y = zonY; zonScherm.geldig = true;   // hier hangt de gloed straks aan
   ctx.fillStyle = sc.sun[3];
   ctx.beginPath(); ctx.arc(zonX, zonY, H * sc.sun[2], 0, Math.PI * 2); ctx.fill();   // zakt half achter de bergen
+  // het land in de verte: alles onder een horizonlijn. Elke bergrij heeft haar eigen (geheven)
+  // lijn; het laagste paneel komt daar precies op, de rest zakt erachter weg. Dat wegzakkende
+  // stuk moet dus na de laag worden afgedekt, anders steekt het als een rechthoek onder de rij uit
+  // zodra de heuvels (camera hoog) lager staan en het niet meer verstoppen
+  const landFrom = y => { ctx.fillStyle = sc.land; if (groundY > y) ctx.fillRect(0, y - 0.5, W, groundY - y + 1); };
+  landFrom(horizonY);
   drawLayer(MTN, LI.mtn, seqFor('mtn', MTN, sc.seq, sc.hero, sc.heroAt), horizonY, mtnLift, sc.mtnPar, sc.mtnSize);   // laag 1: verre bergen
   if (on2){
+    landFrom(horizonY - mtnLift * H);
     if (sc.mtn2){
       const s2 = H * sc.mtn2Size;
       drawMist(horizonY - sc.mtn2Lift * H - MTN2.base * s2, MIST.far * sc.mist, sc.mistColor);
       drawLayer(MTN2, LI.mtn2, seqFor('mtn2', MTN2, sc.seq2, -1, -1), horizonY, sc.mtn2Lift, sc.mtn2Par, sc.mtn2Size);  // laag 1b: dichtere bergrij
+      landFrom(horizonY - sc.mtn2Lift * H);
     }
-    drawMist(horizonY - sc.midLift * H, MIST.near * sc.mist, sc.mistColor);
+    // deze nevel loopt door tot aan de heuvelrij, ook als die (camera hoog) lager staat dan de horizon
+    drawMist(horizonY - sc.midLift * H, MIST.near * sc.mist, sc.mistColor, nearY - horizonY);
   }
-  ctx.fillStyle = sc.land;
-  if (groundY > horizonY) ctx.fillRect(0, horizonY - 0.5, W, groundY - horizonY + 1);   // het land in de verte
   if (on2){
-    drawLayer(MID, LI.mid, seqFor('mid', MID, sc.seqMid, sc.midHero, sc.midHeroAt), horizonY, sc.midLift, sc.midPar, sc.midSize);    // laag 2: savanneheuvels
-    drawMist(horizonY - (groundY - edgeTop(groundY)), MIST.ground * sc.mist, sc.mistColor);
+    drawLayer(MID, LI.mid, seqFor('mid', MID, sc.seqMid, sc.midHero, sc.midHeroAt), nearY, sc.midLift, sc.midPar, sc.midSize);    // laag 2: savanneheuvels
+    drawMist(nearY - (groundY - edgeTop(groundY)), MIST.ground * sc.mist, sc.mistColor);
   }
   if (sc.dim){                                      // hele achtergrond een tint donkerder: het wordt avond
     ctx.fillStyle = 'rgba(' + sc.dim[0] + ',' + sc.dim[1] + ')';
     ctx.fillRect(0, 0, W, Math.max(horizonY, groundY) + 1);
   }
-  drawProps(horizonY, propUnit, false);             // far scenery, behind the ground
+  drawProps(on2 ? nearY : horizonY, propUnit, false);   // far scenery, behind the ground (voor de heuvels: op hun lijn)
   drawPlacedFar(groundY);                           // jouw achtergronddecor staat op de savanne, niet op de horizon
   const bandH = H * 0.18;
   const eimg = winterPic('edge', edgeImg);                 // in de winter: sneeuw op grijze rots
