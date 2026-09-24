@@ -79,22 +79,37 @@ De versie in `offline-assets.json` verandert mee, en de service worker ziet daar
 | springen | pijl omhoog | ▲ |
 | bukken | pijl omlaag | joystick omlaag |
 | stoten | spatie (korte tik) | ✦ (korte tik) |
-| **speer werpen** | **spatie vasthouden** | **✦ vasthouden** |
-| mikken tijdens het spannen | pijl omhoog / omlaag | duim omhoog / omlaag slepen |
-| worp afbreken | tik in plaats van vasthouden | duim terugslepen naar ✦ en daar loslaten |
+| **speer recht vooruit** | **spatie vasthouden, loslaten** | **✦ vasthouden, loslaten** |
+| **speer in een boog** | **langer vasthouden, dan loslaten** | **langer vasthouden, dan loslaten** |
+| worp afbreken | tik in plaats van vasthouden | duim van ✦ af slepen en daar loslaten |
 | speer oppakken | E | E (verschijnt als je er vlakbij staat) |
 | drinken | Q | het kalebasje |
 
 ### De speerworp
 
-Dezelfde knop doet de stoot en de worp: een tik binnen 0,16 seconde is de oude
-stoot, langer vasthouden laat Amir spannen. Hij staat dan vast (niet lopen, niet
-springen) en is de hele animatie kwetsbaar. Er zijn drie mikstanden, altijd
-voorwaarts: 30 graden omhoog, recht (de standaard) en 20 graden omlaag.
+Er wordt niet gemikt. Hoe lang je de knop vasthoudt bepaalt de worp, en de
+animatie vertelt zelf welke je krijgt, want hij trekt in twee trappen uit:
 
-Tot en met frame 6 kan de worp nog afgebroken worden en houdt hij zijn speer;
-vanaf frame 7 gaat hij door. Laat je los in de laatste 0,1 seconde voordat Amir
-geraakt wordt, dan gaat de speer alsnog weg.
+| vasthouden | wat er gebeurt |
+|---|---|
+| tot 0,16 s | de oude stoot, ongewijzigd |
+| tot ongeveer 0,77 s | eerste trap: hij trekt uit tot frame 4 en wacht daar. Loslaten geeft de vlakke worp |
+| langer | tweede trap: frames 5 en 6 lopen alsnog door en daar wacht hij. Loslaten geeft de boog |
+
+Die twee frames ertussen zijn de aankondiging. Zijn voorste arm komt omhoog en
+naar voren, hij zakt dieper door zijn knieën, en er glinstert even iets op de
+speerpunt. Daarom is er geen balkje en geen richtpijltje nodig.
+
+De boog gaat 30 graden omhoog maar met 78 procent van de worpkracht: een lob,
+geen verdragende worp. Vlak komt ongeveer 0,8 scherm verderop neer, de boog
+piekt bijna drie keer Amirs lengte en landt rond 1,6 scherm. Lang vasthouden is
+daarmee niet gewoon beter, want de boog zeilt over alles heen wat dichtbij
+staat en je staat er een halve seconde langer kwetsbaar voor stil.
+
+Amir staat vast zolang hij spant en werpt: niet lopen, niet springen, en de hele
+animatie is kwetsbaar. Tot en met frame 6 kan de worp nog afgebroken worden en
+houdt hij zijn speer; vanaf frame 7 gaat hij door. Laat je los in de laatste 0,1
+seconde voordat Amir geraakt wordt, dan gaat de speer alsnog weg.
 
 De geworpen speer zakt door onder een derde van de zwaartekracht op Amir en
 wijst elk frame de kant van zijn snelheid op. Raakt hij een dier, dan doet hij
