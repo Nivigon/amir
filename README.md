@@ -10,7 +10,7 @@ In het menu onder **Levels** staan vier reeksen: Episode 1 (de weg naar het koni
 
 Episode Renew is tien levels lang en loopt op van rustig naar zwaar: van het dorp bij de start en het eerste doornbos, via de poelen, het doornenpad, de heuvelrug, de hyenavlakte, het verdronken dorp en de bergpas, naar de nacht waarin alles tegelijk komt, en tot slot twee keer de zwarte panter als eindbaas. Elk level heeft zijn eigen uitzicht en gebruikt alles wat het spel heeft: drinkkalebassen, doornbossen, water, ravijnen, terrassen en richels, dorpen, botten, hyena's, slangen en schorpioenen. De leveldefinities staan in de HTML als `RENEW_1` tot en met `RENEW_10`.
 
-Episode Winter World speelt hoog in de bergen. Een level met `winter: true` krijgt sneeuw op alles wat je beklimt (de `_sneeuw`-versies van de rotsen en klimstukken), een besneeuwde grond met grijze rots eronder, bevroren gras, sneeuwval, een bleek uitzicht (dezelfde bergpanelen, koud gebakken) en witte dieren: de witte hyena's uit `enemies/hyena_wit` en de witte panter uit `enemies/panter_wit`. Die winterplaatjes worden pas geladen als je zo'n level kiest. De witte panter jaagt anders dan de zwarte: hij is half onzichtbaar zolang hij sluipt (let op zijn schaduw), en zijn sprong is een hoge sneeuwduik die neerkomt op de plek waar je stond toen hij afzette. Bukken helpt niet, opzij stappen wel, en daarna zit hij even tot zijn buik in de sneeuw: dan steek je. Vanaf zijn tweede fase wisselt hij de duik af met de lage tackle. De leveldefinitie staat in de HTML als `WINTER_1`.
+Episode Winter World speelt hoog in de bergen. Een level met `winter: true` krijgt sneeuw op alles wat je beklimt (de `_sneeuw`-versies van de rotsen en klimstukken), een besneeuwde grond met grijze rots eronder, bevroren gras, sneeuwval, een bleek uitzicht (dezelfde bergpanelen, koud gebakken) en witte dieren: de witte hyena's uit `enemies/hyena_wit` en de witte panter uit `enemies/panter_wit`. Die winterplaatjes worden pas geladen als je zo'n level kiest. Van het dorp bestaat ook een winterversie: de zeven dorpsplaten hebben elk een `_sneeuw`-tegenhanger (`hut_round_arch_sneeuw`, `well_sneeuw`, enzovoort) die je in een leveldefinitie onder `village` neerzet, en in de bouwer staan een besneeuwde hut, boom en struik. Het winterlevel begint bij een ingesneeuwd berggehucht. De witte panter jaagt anders dan de zwarte: hij is half onzichtbaar zolang hij sluipt (let op zijn schaduw), en zijn sprong is een hoge sneeuwduik die neerkomt op de plek waar je stond toen hij afzette. Bukken helpt niet, opzij stappen wel, en daarna zit hij even tot zijn buik in de sneeuw: dan steek je. Vanaf zijn tweede fase wisselt hij de duik af met de lage tackle. De leveldefinitie staat in de HTML als `WINTER_1`.
 
 In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen naar het volgende level van dezelfde reeks.
 
@@ -18,7 +18,7 @@ In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen 
 
 Het spel is een installeerbare webapp. Open de Pages-link in Safari, deel, "Zet op beginscherm". Daarna staat Amir als icoon tussen je apps en start hij zonder browserbalken, liggend.
 
-Open hem vanaf het beginscherm en druk in het startmenu op **Download voor offline**. Dat haalt alle 595 sprites en geluiden (ongeveer 121 MB) in een keer binnen. Vanaf dat moment laadt het spel meteen en speelt het ook zonder internet.
+Open hem vanaf het beginscherm en druk in het startmenu op **Download voor offline**. Dat haalt alle sprites en geluiden in een keer binnen (bijna 1200 bestanden, ongeveer 200 MB; het precieze aantal staat in `offline-assets.json`). Vanaf dat moment laadt het spel meteen en speelt het ook zonder internet.
 
 Doe die download vanuit het beginscherm-icoon, niet vanuit Safari: iOS geeft een geinstalleerde webapp een eigen opslag, dus wat je in Safari downloadt telt daar niet mee.
 
@@ -49,7 +49,7 @@ Op een aanraakscherm tekent het spel op anderhalve canvaspixel per schermpixel i
 | `offline-assets.json` | de lijst die de downloadknop afwerkt |
 | `tools/gen-offline-manifest.py` | genereert die lijst uit de bestanden op schijf |
 
-De service worker houdt twee caches uit elkaar. Het spel zelf (HTML, manifest, iconen) gaat network-first: online speel je altijd de nieuwste versie, offline de laatst bekende. De sprites en geluiden gaan cache-first en blijven staan, ook als je het spel update. Een nieuwe versie van de HTML kost dus geen nieuwe download van 100 MB.
+De service worker houdt twee caches uit elkaar. Het spel zelf (HTML, manifest, iconen) gaat network-first: online speel je altijd de nieuwste versie, offline de laatst bekende. De sprites en geluiden gaan cache-first en blijven staan, ook als je het spel update. Een nieuwe versie van de HTML kost dus geen nieuwe download van 200 MB.
 
 **Assets toegevoegd of vervangen?** Draai daarna:
 
@@ -123,7 +123,10 @@ design/
   klimmen/                 klif_bovenrand, klif_richel, klif_binnenhoek
   *_sneeuw.png             winterversies van flatrock, boulder, cliff en de drie klimstukken; gemaakt
                            met tools/sneeuw.py (draai dat opnieuw als een origineel verandert).
-                           grondrand_sneeuw en drygrass_sneeuw komen uit tools/winter_art.py
+                           grondrand_sneeuw en drygrass_sneeuw komen uit tools/winter_art.py.
+                           villeaghut_sneeuw, tree_sneeuw, struik_sneeuw en de zeven platen in
+                           village/*_sneeuw.png (sneeuw op het dak, de randen en de grond, bevroren
+                           gras) komen uit tools/sneeuw_dorp.py
   vegetatie/               boom_sheet, drygrass_sheet, struik_sheet (bewegende vegetatie) en de losse frames
   water/                   pool_links/midden/rechts, rimpel_01..08, spetter_01..08
 
