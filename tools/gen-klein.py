@@ -33,7 +33,7 @@ OUT = 'klein'
 
 # Welke families een kleine versie krijgen. Uitbreiden is een regel erbij, plus
 # in de HTML het pad van die familie door KLEIN laten lopen.
-FAMILIES = ('karakters/amir', 'enemies/hyena')
+FAMILIES = ('karakters/amir', 'enemies/hyena', 'enemies/hyena_wit')
 
 FACTOR = 0.5      # zoveel kleiner, per zijde
 MIN_H = 400       # alleen frames hoger dan dit gaan op de helft
