@@ -221,7 +221,7 @@
     <h1>Amir<br><small>King of Africa</small></h1>
 
     <div id="menuMain" class="on">
-      <p>Pijltjes rennen, pijl omhoog springen, Shift sprinten,<br>E speer, spatie stoten, pijl omlaag bukken, Q drinken, R opnieuw</p>
+      <p>Pijltjes rennen, pijl omhoog springen, Shift sprinten,<br>E speer, spatie stoten, spatie vasthouden werpen (omhoog/omlaag mikt),<br>pijl omlaag bukken, Q drinken, R opnieuw</p>
       <div class="row">
         <button id="btnLevels" class="bigbtn">Levels<small>Kies je avontuur</small></button>
       </div>
@@ -409,6 +409,12 @@
       <button id="sbhppotiondrop">Laten vallen</button>
     </div>
     <div class="row">
+      <label>Speerworp</label>
+      <button id="sbspear">Speer terug</button>
+      <button id="sbrock">Rots ernaast</button>
+      <button id="sbstick">Speer in de muur</button>
+    </div>
+    <div class="row">
       <label>Doornbos</label>
       <button data-thicket="1">1 klomp</button>
       <button data-thicket="2">2</button>
@@ -457,7 +463,7 @@
     <strong>Draai je telefoon</strong>
     <span>Amir speelt liggend, met het scherm in de breedte.</span>
   </div>
-  <div id="hint">Pijltjes om te rennen, pijl omhoog om te springen, Shift sprint, E speer, spatie stoot, Q drinken, R opnieuw</div>
+  <div id="hint">Pijltjes om te rennen, pijl omhoog om te springen, Shift sprint, E speer, spatie stoot, spatie vasthouden werpt, Q drinken, R opnieuw</div>
 </div>
 <div id="bar" class="hide">
   <div class="field"><label for="fps">Beelden per seconde</label><input id="fps" type="range" min="6" max="24" step="1" value="12"><span class="read" id="fpsv">12</span></div>
@@ -552,6 +558,7 @@ const uniq = a => a.filter((p, i) => a.indexOf(p) === i);            // zelfde p
 // eens geprobeerd en scheelt dat een mislukt verzoek per frame.
 const KLEIN_FAM = [
   'karakters/amir/',
+  'amir runc/amir_sprites/design/amir/',          // de speerworp en het projectiel
   'enemies/hyena/',
   'enemies/hyena_wit/',
   'enemies/blackpanther/',
@@ -780,7 +787,7 @@ function startSweep(){
   swFrame = 0; swAcc = 0; sweepId++; sweepSnowCurtain = false;
   if (wantSound){
     const t = document.getElementById('thrust');
-    t.currentTime = 0; t.volume = 1; t.play().catch(() => {});
+    t.currentTime = 0; t.volume = 1; t.playbackRate = 1; t.play().catch(() => {});
   }
 }
 let duckT = 0;          // 0 = staand, 1 = helemaal gebukt
@@ -1964,6 +1971,8 @@ function updateCamera(dt, scale){
 
 function platsNear(scale){
   const out = terracePlats(scale);
+  const jp = javPlat(scale);                  // een speer die in een muur steekt draagt ook
+  if (jp) out.push(jp);
   const wall = cliffAt().wall;
   const fits = m => m.right < wall - 10;      // niets mag voor de klif staan
   if (level){
@@ -2201,6 +2210,269 @@ function loadAny(paths){
   i.src = paths[0];
   return i;
 }
+// ============================================================================
+//  Speerworp: spannen, mikken, werpen
+//  De worpframes staan op een breder en hoger canvas dan de gewone Amir-sprite,
+//  dus alles rekent met het anker (kolom THR_ANCHOR, rij THR_GROUND) en niet met
+//  de linkerbovenhoek. Let op: in deze set kijkt Amir naar RECHTS, terwijl de
+//  rest van zijn sprites naar links kijkt. De spiegeling staat daarom precies
+//  andersom dan elders (zie thrFlip).
+//
+//  Knop ingedrukt houden = spannen (frame 0 t/m THR_WIND, daar wacht hij).
+//  Loslaten = uithalen; op THR_LOOSE verlaat de speer zijn hand. Een korte tik
+//  op dezelfde knop is gewoon de oude stoot, dus de besturing blijft gelijk.
+// ============================================================================
+const THR_DIRS = uniq([AMIR_OLD + 'speerworp/', AMIR + 'speerworp/', AMIR_GROOT + 'speerworp/']);
+const THR_N = 20, THR_FPS = 12;
+const THR_W = 984, THR_H = 814, THR_GROUND = 803, THR_ANCHOR = 330, THR_BODY = 620;
+const THR_S = CHAR_H / THR_BODY;         // van worpcanvas naar sprite-eenheden
+const THR_WIND = 6;                      // t/m dit frame spant hij: tot hier kan hij nog stoppen
+const THR_LOOSE = 10;                    // op dit frame verlaat de speer zijn hand
+const THR_TIP = { x: 968, y: 246 };      // en daar staat de speerpunt dan, op het worpcanvas
+const THR_TAP = 0.16;                    // korter ingedrukt is geen worp maar de gewone stoot
+const THR_GRACE = 0.10;                  // losgelaten vlak voor een klap: de speer gaat alsnog weg
+const thrImgs = Array.from({ length: THR_N }, (_, i) =>
+  loadQuiet(THR_DIRS.map(d => d + 'speerworp_' + pad2(i) + '.png')));
+
+// drie vaste mikstanden, altijd voorwaarts, in de kijkrichting van Amir
+const AIM_DEG = [-30, 0, 20];            // omhoog, recht, omlaag (schermhoek: omhoog is negatief)
+const AIM_MID = 1;                       // recht is de standaard
+let thr = null;          // {frame, acc, aim, held, rel, gone} zolang hij spant of werpt
+let thrPressT = 0;       // wanneer de knop ingedrukt ging, voor de tik-drempel
+
+// ---- het projectiel -----------------------------------------------------
+const JAV = {
+  w: 624, h: 67, tipX: 623, tipY: 33,   // het plaatje, punt naar rechts, en waar die punt zit
+  len: 1.15,          // schermlengte als deel van Amirs lengte (zelfde maat als de speer in de grond)
+  tile: 0.62,         // een 'tegel' als deel van Amirs lengte op het scherm: hij is er ruim anderhalf hoog.
+                      // Aan zijn lengte gekoppeld en niet aan een vast aantal pixels, zodat de boog er
+                      // bij elk Formaat hetzelfde uitziet; de zwaartekracht hangt namelijk ook aan zijn maat.
+  tiles: 14,          // zoveel tegels per seconde, horizontaal
+  gDeel: 1 / 3,       // zwaartekracht: een derde van die op Amir, dus duidelijk maar niet sloom
+  inTile: 10,         // zo ver steekt de punt de tegel in na de inslag
+  wobT: 4 / THR_FPS,  // natrillen na de inslag: vier frames lang
+  wobDeg: 6,          // van zes graden naar nul
+  plat: 40,           // het uitstekende deel is minstens zo breed als platform
+  sag: 3,             // zo ver buigt de schacht door zolang Amir erop staat
+  lostT: 3,           // water, ravijn of buiten de wereld: zolang duurt het voor hij terugkomt
+  maxT: 6             // komt hij zo lang nergens neer, dan is hij de wereld uit
+};
+const javImg = loadQuiet(uniq([AMIR_OLD + 'speer_projectiel.png', AMIR + 'speer_projectiel.png',
+                               AMIR_GROOT + 'speer_projectiel.png']));
+let jav = null;        // de geworpen speer: 'vlucht', 'val' (na een treffer), 'grond' of 'muur'
+let javLost = 0;       // aftellen tot hij terugkomt uit water of ravijn
+let lastSolid = 0;     // laatste vaste grond waar Amir stond: daar komt hij terug
+
+function nowScale(){ return (H * (Number(sizeEl.value) / 100)) / CHAR_H; }
+function javLen(scale){ return CHAR_H * scale * JAV.len; }   // schermlengte van de speer
+function thrFlip(){ return autoFlip ? facing !== 1 : false; }
+function thrDir(){ return facing === 1 ? 1 : -1; }
+
+// ---- spannen en werpen --------------------------------------------------
+function canThrow(){
+  return spear && !dead && hurt <= 0 && onGround && !jump && !fell && !building
+      && atkFrame < 0 && swFrame < 0 && swRecover <= 0 && duckT <= 0;
+}
+function thrPress(){
+  thrPressT = performance.now();
+  if (canThrow()){ thr = { frame: 0, acc: 0, aim: AIM_MID, held: true, rel: 0, gone: false }; return; }
+  startAttack();                                   // gebukt, zonder speer of in de lucht: gewoon stoten
+}
+function thrRelease(cancel){
+  if (!thr) return;
+  const tik = performance.now() - thrPressT < THR_TAP * 1000;
+  if ((cancel || tik) && thr.frame <= THR_WIND && !thr.gone){
+    thr = null;                                    // afgebroken: hij houdt zijn speer
+    if (tik && !cancel) startAttack();             // een tik op dezelfde knop is de oude stoot
+    return;
+  }
+  if (!thr.held) return;
+  thr.held = false; thr.rel = performance.now();
+}
+function thrAimStep(d){                            // omhoog en omlaag lopen door de drie standen
+  if (thr && !thr.gone) thr.aim = Math.max(0, Math.min(AIM_DEG.length - 1, thr.aim + d));
+}
+function thrCancel(){ if (thr && !thr.gone) thr = null; }
+function updateThrow(dt){
+  if (!thr) return;
+  if (thr.held && thr.frame >= THR_WIND){ thr.acc = 0; return; }   // gespannen: wachten op je duim
+  thr.acc += dt * THR_FPS;
+  while (thr.acc >= 1){
+    thr.acc -= 1;
+    thr.frame++;
+    if (thr.frame === THR_LOOSE) looseSpear();
+    if (thr.frame >= THR_N){ thr = null; return; }
+    if (thr.held && thr.frame >= THR_WIND){ thr.acc = 0; return; }
+  }
+}
+// een klap tijdens de worp: de hele animatie is kwetsbaar. Losgelaten binnen
+// THR_GRACE voor de klap, of al voorbij het spannen, dan gaat de speer alsnog weg.
+function thrHurt(){
+  if (!thr) return;
+  const sinds = thr.rel ? (performance.now() - thr.rel) / 1000 : Infinity;
+  if (!thr.gone && (thr.frame > THR_WIND || sinds <= THR_GRACE)) looseSpear();
+  thr = null;
+}
+function looseSpear(){
+  if (!thr || thr.gone) return;
+  thr.gone = true;
+  spear = false; spearFound = false; spearX = null; spearH = null;
+  setSpearLabel();
+  const scale = nowScale(), dir = thrDir();
+  const a = AIM_DEG[thr.aim] * Math.PI / 180;
+  // V is de worpsnelheid in wereld-pixels per seconde; bij 'recht' is dat de volle
+  // 14 tegels horizontaal. De mikhoek draait de hele snelheid mee in plaats van er
+  // verticaal iets bovenop te zetten, anders vliegt de stand 'omhoog' vier schermen ver.
+  const V = JAV.tiles * JAV.tile * CHAR_H * scale;
+  // hoogte rekent in sprite-eenheden en x in wereld-pixels, dus de verticale kant
+  // wordt door scale gedeeld; op het scherm klopt de hoek dan precies
+  const ox = (THR_TIP.x - THR_ANCHOR) * THR_S * scale * dir;   // de punt staat op THR_TIP
+  const oh = (THR_GROUND - THR_TIP.y) * THR_S;
+  jav = { x: world + ox, h: ph + oh, vx: dir * V * Math.cos(a), vh: -Math.sin(a) * V / scale,
+          dir, state: 'vlucht', sa: dir === 1 ? a : Math.PI - a, t: 0,
+          wob: 0, sag: 0, stand: false, hit: false };
+  javLost = 0;
+  if (wantSound){
+    const t = document.getElementById('thrust');
+    t.currentTime = 0; t.volume = 0.8; t.playbackRate = 0.85; t.play().catch(() => {});
+  }
+}
+
+// ---- de geworpen speer ---------------------------------------------------
+function javFloor(x, plats){                 // hoogte van de vaste grond op deze plek
+  if (!building && inGap(x)) return -Infinity;
+  let s = terrainH(x);
+  for (const p of plats){
+    if (p.thin) continue;                    // richels en de speer zelf zijn geen wand
+    if (x > p.left && x < p.right && p.topH > s) s = p.topH;
+  }
+  return s;
+}
+function javAngle(scale){                    // schermhoek van de punt: volgt de snelheid
+  return Math.atan2(-jav.vh * scale, jav.vx);
+}
+function javLose(){                          // water, ravijn of buiten de wereld
+  jav = null; javLost = JAV.lostT;
+  spearFound = false; spearX = null; spearH = null;   // er valt nu niets op te pakken
+}
+function javStick(x, h, muur, scale){
+  // onder de looplijn blijven steken kan alleen in de wand van een ravijn: daar
+  // komt Amir nooit bij, dus dat telt als verloren en het vangnet brengt hem terug
+  if (!building && muur && h < terrainH(x) - 4){ javLose(); return; }
+  jav.state = muur ? 'muur' : 'grond';
+  jav.x = x + (muur ? jav.dir * JAV.inTile : 0);      // de punt steekt de tegel in
+  jav.h = h - (muur ? 0 : JAV.inTile);
+  jav.vx = 0; jav.vh = 0;
+  jav.wob = 1; jav.sag = 0; jav.stand = false;
+  if (!muur && jav.hit) jav.sa = jav.dir === 1 ? 0 : Math.PI;   // aangeraakte speer valt plat neer
+  spearFound = false; spearX = jav.x; spearH = jav.h;            // vanaf nu weer op te pakken
+}
+function javHitEnemy(){                      // hij raakt een vijand: schade, en hij valt
+  jav.hit = true; jav.state = 'val'; jav.vx = 0; jav.vh = 0;
+}
+function javUpdate(dt, plats, scale){
+  if (javLost > 0){
+    javLost -= dt;
+    if (javLost <= 0){                       // vangnet: terug op de laatste vaste grond
+      javLost = 0; jav = null;
+      spearFound = false; spearX = lastSolid; spearH = null;
+      flashHint('Je speer is terug op vaste grond');
+    }
+    return;
+  }
+  if (!jav) return;
+  if (jav.wob > 0) jav.wob = Math.max(0, jav.wob - dt / JAV.wobT);
+  if (jav.state !== 'vlucht' && jav.state !== 'val'){
+    const wil = jav.stand ? JAV.sag : 0;     // de schacht buigt door zolang Amir erop staat
+    jav.sag += (wil - jav.sag) * Math.min(1, dt * 14);
+    return;
+  }
+  jav.t += dt;
+  if (jav.t > JAV.maxT){ javLose(); return; }   // nergens grond onder: ook buiten de wereld
+  const g = GRAVITY * JAV.gDeel;
+  const stap = Math.max(1, Math.ceil(Math.abs(jav.vx * dt) / 14));   // kleine stapjes: nooit door een wand heen
+  const sdt = dt / stap;
+  const muurR = cliffAt().wall, muurL = endWall();
+  for (let k = 0; k < stap; k++){
+    if (jav.state === 'vlucht') jav.sa = javAngle(scale);
+    const fOud = javFloor(jav.x, plats);
+    const nx = jav.x + jav.vx * sdt;
+    if (nx > muurR || nx < muurL){                                   // de rotswand aan de rand
+      jav.x = Math.min(muurR, Math.max(muurL, nx));
+      javStick(jav.x, jav.h, true, scale); return;
+    }
+    const fNieuw = javFloor(nx, plats);
+    if (fNieuw > jav.h && jav.h > fOud){ javStick(jav.x, jav.h, true, scale); return; }   // van opzij tegen een wand
+    jav.x = nx; jav.h += jav.vh * sdt; jav.vh -= g * sdt;
+    if (!building && jav.h <= terrainH(jav.x) + 8 && waterDepthAt(jav.x) > 0.35){ javLose(); return; }
+    if (jav.h < -GAP_DEATH){ javLose(); return; }                    // in een ravijn
+    if (fNieuw > -Infinity && jav.h <= fNieuw){ javStick(jav.x, fNieuw, false, scale); return; }
+  }
+}
+// een speer die in een muur steekt is een platform: alleen van bovenaf, van
+// onderen spring je er doorheen (thin). Het uitstekende deel van de schacht draagt.
+function javPlat(scale){
+  if (!jav || jav.state !== 'muur') return null;
+  const L = javLen(scale);
+  const bx = jav.x - Math.cos(jav.sa) * L;                 // waar het uiteinde van de schacht zit
+  const mid = (jav.x + bx) / 2, half = Math.max(JAV.plat, Math.abs(jav.x - bx)) / 2;
+  const top = jav.h + Math.sin(jav.sa) * L / 2 / scale;    // hoogte halverwege de schacht
+  return { x: mid, left: mid - half, right: mid + half, topH: top - jav.sag / scale,
+           raw: top, wPx: half * 2, hPx: 0, thin: true, jav: true };
+}
+function javDraw(groundY, scale, cx){
+  if (!jav || javLost > 0) return;
+  const tx = cx + (jav.x - world), ty = groundY - jav.h * scale;
+  if (tx < -W || tx > W / viewZoom() + W) return;
+  const L = javLen(scale), s = L / JAV.w;
+  const wob = jav.wob > 0 ? Math.sin(jav.wob * Math.PI * 3) * jav.wob * JAV.wobDeg * Math.PI / 180 : 0;
+  let a = jav.sa;
+  ctx.save();
+  ctx.translate(tx, ty);
+  if (jav.dir === -1){ ctx.scale(-1, 1); a = Math.PI - a; }
+  ctx.rotate(a + wob - jav.sag / L);                        // doorbuigen: het uiteinde zakt
+  if (imgReady(javImg)) ctx.drawImage(javImg, -JAV.tipX * s, -JAV.tipY * s, JAV.w * s, JAV.h * s);
+  else {                                                   // reserve, zodat je hem altijd ziet
+    ctx.strokeStyle = '#6b4a2b'; ctx.lineWidth = Math.max(2, 5 * scale); ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-L, 0); ctx.stroke();
+    ctx.fillStyle = '#b9bec4';
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-L * 0.16, -L * 0.05); ctx.lineTo(-L * 0.16, L * 0.05);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+  if (spearNear()){                                        // dezelfde E als bij de speer in de grond
+    const t = performance.now() / 1000;
+    const ky = ty - 40 * scale + Math.sin(t * 4) * 4 * scale, kr = 17 * scale;
+    ctx.save();
+    ctx.fillStyle = 'rgba(20,14,26,0.8)'; ctx.strokeStyle = '#f2e8d5'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(tx - kr, ky - kr, kr * 2, kr * 2, 4);
+    else ctx.rect(tx - kr, ky - kr, kr * 2, kr * 2);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#f2e8d5'; ctx.font = '800 ' + Math.round(20 * scale) + 'px Archivo, Arial, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('E', tx, ky + 1);
+    ctx.restore();
+  }
+}
+// klein richtpijltje naast Amir zolang hij spant: op de telefoon zie je zo waar je op mikt
+function drawAimArrow(pcx, groundY, scale, lift){
+  if (!thr || thr.gone) return;
+  const dir = thrDir(), a = AIM_DEG[thr.aim] * Math.PI / 180 * dir;
+  const y = groundY + lift - CHAR_H * scale * 1.12;      // net boven zijn hoofd
+  const x = pcx + dir * CHAR_H * scale * 0.16;
+  const L = CHAR_H * scale * 0.20;
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(a); if (dir === -1) ctx.scale(-1, 1);
+  ctx.globalAlpha = 0.85; ctx.strokeStyle = '#f2e8d5'; ctx.lineWidth = Math.max(2, 3 * scale);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(L, 0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(L, 0); ctx.lineTo(L - L * 0.32, -L * 0.20);
+  ctx.lineTo(L - L * 0.32, L * 0.20); ctx.closePath();
+  ctx.fillStyle = '#f2e8d5'; ctx.fill();
+  ctx.restore();
+}
+
 const scp = {
   walk:   [1,2,3,4,5,6,7,8,9,10,11,12].map(i => loadAny([
             SCP_WALK_DIR + 'walk_' + pad2(i) + '.png',
@@ -2634,7 +2906,7 @@ const keys = Object.create(null);
 const MOVE = new Set(['ArrowLeft','ArrowRight','a','d','A','D']);
 let spear = false;
 // aan het begin van een level staat je speer een stukje verderop in de grond
-let spearFound = true, spearX = null;
+let spearFound = true, spearX = null, spearH = null;   // spearH: null = gewoon op de grond
 const SPEAR_AHEAD = -260;                        // levels lopen naar links, dus 'voor je' is links
 const spearImg = new Image();
 const SPEAR_PATHS = ['design/speer.png', AMIR + 'speer.png', AMIR_OLD + 'speer.png'];
@@ -2645,9 +2917,13 @@ spearImg.onerror = () => {
   else console.warn('ontbreekt: ' + SPEAR_PATHS[0]);
 };
 spearImg.src = SPEAR_PATHS[0];
+function spearRestH(){ return spearH !== null ? spearH : terrainH(spearX); }
 function spearNear(){
-  return !spearFound && spearX !== null && Math.abs(world - spearX) < 85
-         && Math.abs(ph - terrainH(spearX)) < 30;
+  if (spearFound || spearX === null || Math.abs(world - spearX) >= 85) return false;
+  const h = spearRestH();
+  // op de grond sta je er precies naast; steekt hij in een muur, dan pak je hem
+  // van onderaf of vanaf het platform waar hij zelf op staat
+  return h > ph - 30 && h < ph + CHAR_H * 0.95;
 }
 const spearBtn = document.getElementById('spearbtn');
 function setSpearLabel(){ spearBtn.textContent = spear ? 'Speer uit' : 'Speer aan'; }
@@ -2655,6 +2931,7 @@ function toggleSpear(){
   if (!spearFound){
     if (spearNear()){
       spearFound = true; spear = true; setSpearLabel();
+      jav = null; javLost = 0; spearX = null; spearH = null;   // ook een geworpen speer
       puffDust(5);
       flashHint('Speer gepakt! Spatie om te stoten');
     } else flashHint('Je speer staat verderop in de grond: ga erbij staan en druk op E');
@@ -2687,7 +2964,7 @@ function startAttack(){
   atkFrame = 0; atkAcc = 0; swingUsed = false;
   if (wantSound){
     const t = document.getElementById('thrust');
-    t.currentTime = 0; t.volume = 1; t.play().catch(() => {});
+    t.currentTime = 0; t.volume = 1; t.playbackRate = 1; t.play().catch(() => {});
   }
 }
 const typing = e => e.target && (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') && e.target.type !== 'range';
@@ -2701,6 +2978,9 @@ addEventListener('keydown', e => {
   }
   if (paused) return;                            // tijdens de pauze doet de rest niets
   if (typing(e)) return;                         // in een tekstvak typ je gewoon
+  // spant hij? Dan richt omhoog/omlaag alleen de mikstand, en springt hij niet
+  if (thr && (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W')){ e.preventDefault(); thrAimStep(-1); return; }
+  if (thr && (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S')){ e.preventDefault(); thrAimStep(1); return; }
   if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W'){ e.preventDefault(); startJump(); return; }
   if (e.key === 'q' || e.key === 'Q'){ drinkHppotion(); return; }
   if (e.key === 'r' || e.key === 'R'){ restart(); return; }
@@ -2716,7 +2996,7 @@ addEventListener('keydown', e => {
     e.preventDefault();
     if (e.repeat || atkKeyHeld) return;          // holding the key does not re-fire
     atkKeyHeld = true;
-    startAttack();
+    thrPress();                                  // vasthouden = spannen, een tik = de oude stoot
     return;
   }
   if (e.key === 'e' || e.key === 'E'){ toggleSpear(); return; }
@@ -2726,7 +3006,7 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => {
   keys[e.key] = false;
-  if (e.key === ' ' || e.key === 'f' || e.key === 'F') atkKeyHeld = false;
+  if (e.key === ' ' || e.key === 'f' || e.key === 'F'){ atkKeyHeld = false; thrRelease(false); }
 });
 
 let facing = -1, frame = 0, frameAcc = 0, world = 0, autoFlip = true;
@@ -2746,7 +3026,7 @@ function takeOff(){
 }
 function startJump(){
   if (typeof tutEvent === 'function') tutEvent('jump');
-  if (dead || hurt > 0 || atkFrame >= 0 || swFrame >= 0 || swRecover > 0) return;
+  if (dead || hurt > 0 || atkFrame >= 0 || swFrame >= 0 || swRecover > 0 || thr) return;
   if (!onGround && coyote > 0 && (!jump || jump.phase === 'air') && pvh <= 0){ takeOff(); return; }
   if (jump || !onGround) return;
   duckT = 0; duckHoldAcc = 0; duckShare = 1;
@@ -3652,6 +3932,7 @@ drawLives();
 
 function hurtPlayer(fromLeft){
   if (!running || invuln > 0 || dead || godMode) return;
+  thrHurt();                                       // de hele worp is kwetsbaar (zie thrHurt)
   if (sandbox){                                    // sandbox: je ziet de klap, maar dood ga je nooit
     invuln = 1.3; hurt = 0.38; shake = 0.28; knock = fromLeft ? 260 : -260;
     return;
@@ -3666,6 +3947,7 @@ function restart(){
   lives = 3; invuln = 0; hurt = 0; knock = 0; shake = 0; dead = false;
   hits = 0; hitsEl.textContent = 0;
   atkFrame = -1; atkAcc = 0; atkCooldown = 0; swFrame = -1; swAcc = 0; sweepBuf = 0; duckT = 0; swRecover = 0; sand.length = 0;
+  thr = null; jav = null; javLost = 0; spearH = null; lastSolid = 0;
   jump = null; dust.length = 0; ph = 0; pvh = 0; onGround = true; fell = false; coyote = 0;
   world = 0; facing = -1; frame = 0; frameAcc = 0; idleFrame = 0; idleAcc = 0;   // altijd weer bij het startpunt
   camY = 0; camFloor = 0;
@@ -6125,6 +6407,7 @@ function loop(now){
     dir = 0;
     if (atkFrame >= 0){ atkFrame = -1; atkAcc = 0; }   // a hit cancels the thrust
     swFrame = -1; swAcc = 0; swRecover = 0;
+    thr = null;                                        // ook een val in een ravijn stopt de worp
   }
   if (knock !== 0){
     world += knock * dt;
@@ -6132,6 +6415,8 @@ function loop(now){
     if (Math.abs(knock) < 8) knock = 0;
   }
   if (atkCooldown > 0) atkCooldown = Math.max(0, atkCooldown - dt);
+  updateThrow(dt);                               // spannen, uithalen, herstellen
+  javUpdate(dt, plats, scaleNow);                // en de speer die onderweg is
   if (atkFrame >= 0){
     atkAcc += dt * ATK_FPS;
     while (atkAcc >= 1){ atkFrame++; atkAcc -= 1; }
@@ -6140,7 +6425,8 @@ function loop(now){
     }
   }
   const attacking = atkFrame >= 0;               // re-checked AFTER the frame advance
-  if (attacking) dir = 0;                        // feet stay planted during the thrust
+  const throwing = !!thr;                        // spannen of werpen: hij staat vast
+  if (attacking || throwing) dir = 0;            // feet stay planted during the thrust
   if (swFrame >= 0){
     swAcc += dt * SWEEP_FPS;
     while (swAcc >= 1){ swFrame++; swAcc -= 1; }
@@ -6156,7 +6442,7 @@ function loop(now){
   // bukken: omlaag of S ingedrukt houden terwijl je op de grond staat
   {
     const downHeld = keys['ArrowDown'] || keys['s'] || keys['S'];
-    const canDuck = downHeld && onGround && !jump && !dead && hurt <= 0 && !attacking && !building && !fell;
+    const canDuck = downHeld && onGround && !jump && !dead && hurt <= 0 && !attacking && !throwing && !building && !fell;
     if (canDuck) duckT = Math.min(1, duckT + dt / DUCK_IN_T);
     else duckT = Math.max(0, duckT - dt / DUCK_OUT_T);
     if (duckT >= 1) duckHoldAcc += dt * DUCK_HOLD_FPS; else duckHoldAcc = 0;
@@ -6186,6 +6472,16 @@ function loop(now){
   if (!building) blockByPlatforms(plats, halfWNow);
   if (!building) blockByThickets(scaleNow, halfWNow);
   updateJump(dt, plats, halfWNow);
+  // waar stond hij voor het laatst op vaste grond? Daar komt een verloren speer terug
+  if (!building && onGround && !fell && !inGap(world) && waterDepthAt(world) < 0.2) lastSolid = world;
+  // staat hij op de speer? Dan buigt de schacht door (zie javUpdate)
+  if (jav && jav.state === 'muur'){
+    const jp = javPlat(scaleNow);
+    jav.stand = !!(jp && onGround && world + halfWNow > jp.left && world - halfWNow < jp.right
+                   && Math.abs(ph - jp.raw) < 6);
+    if (jav.stand && jav.landed !== true){ jav.landed = true; jav.wob = Math.max(jav.wob, 0.5); }
+    else if (!jav.stand) jav.landed = false;
+  }
   if (sweepBuf > 0){
     sweepBuf = Math.max(0, sweepBuf - dt);
     if (onGround && !fell && swFrame < 0 && swRecover <= 0 && atkFrame < 0 && spear && !dead && hurt <= 0 && sweepReady()
@@ -6222,7 +6518,7 @@ function loop(now){
   }
   // alleen naar de DOM schrijven als de tekst echt verandert: elke schrijfactie maakt de
   // layout ongeldig, en de meting hieronder dwingt hem dan meteen weer af
-  const frvNu = attacking ? ('A' + (atkFrame + 1)) : swFrame >= 0 ? ('S' + (swFrame + 1)) : (duckT > 0 ? 'buk' : (moving ? String(frame + 1) : (set.idleAnim ? 'I' + (idleFrame + 1) : 'idle')));
+  const frvNu = thr ? ('W' + (thr.frame + 1)) : attacking ? ('A' + (atkFrame + 1)) : swFrame >= 0 ? ('S' + (swFrame + 1)) : (duckT > 0 ? 'buk' : (moving ? String(frame + 1) : (set.idleAnim ? 'I' + (idleFrame + 1) : 'idle')));
   if (frvNu !== frvLast){ frvLast = frvNu; frv.textContent = frvNu; }
 
   // getBoundingClientRect dwingt een layout af; de resize-events en de ResizeObserver
@@ -6259,7 +6555,9 @@ function loop(now){
       ctx.scale(zoom, zoom);
       ctx.translate(-W / 2, -groundY);
     }
-    const jf = jumpFrame();
+    const thrImg = thr ? thrImgs[Math.min(THR_N - 1, thr.frame)] : null;
+    const useThrow = !!(thrImg && thrImg.complete && thrImg.naturalWidth);
+    const jf = useThrow ? -1 : jumpFrame();
     const wantSpear = spear && jf >= 0 && jumpSpearImg[jf].complete && jumpSpearImg[jf].naturalWidth;
     const jimg = jf < 0 ? null : (wantSpear ? jumpSpearImg[jf] : jumpImg[jf]);
     const useJump = jimg && jimg.complete && jimg.naturalWidth;
@@ -6268,7 +6566,8 @@ function loop(now){
     const dSp = spear && !!duckFrame(true);
     const dimg = (!useJump && !attacking && !useSweep) ? (dSp ? duckFrame(true) : duckFrame(false)) : null;
     const useDuck = !!dimg;
-    const img = useJump ? jimg
+    const img = useThrow ? thrImg
+              : useJump ? jimg
               : useSweep ? swImg
               : useDuck ? dimg
               : (attacking ? atkImgs[atkFrame]
@@ -6281,7 +6580,14 @@ function loop(now){
     const sinkPx = wetDraw * POOL.sink * CHAR_H * scale;   // in het water zak je een stukje weg
     const lift = -ph * scale + sinkPx;            // hoogte boven de grond
     let w, h, x, y;
-    if (useJump){
+    if (useThrow){
+      // breder en hoger canvas: reken met het anker, niet met de linkerbovenhoek.
+      // Deze set kijkt naar rechts, dus de kolom van het anker draait mee bij het spiegelen.
+      const ts = THR_S * scale;
+      w = THR_W * ts; h = THR_H * ts;
+      x = pcx - (thrFlip() ? THR_W - THR_ANCHOR : THR_ANCHOR) * ts;
+      y = groundY - THR_GROUND * ts + lift;
+    } else if (useJump){
       // gedeeld canvas: hoofd in het midden, grondlijn op een vaste rij
       const js = JMP_S * scale;
       const cw = wantSpear ? JMPS_W : JMP_W;
@@ -6543,7 +6849,7 @@ function loop(now){
     }
 
     // de speer die in de grond staat, met een E erboven als je dichtbij bent
-    if (!spearFound && spearX !== null && !building && !imgReady(spearImg)){
+    if (!spearFound && spearX !== null && !jav && !building && !imgReady(spearImg)){
       // het plaatje ontbreekt: teken hem dan zelf, zodat je hem altijd kunt vinden
       const footY = groundY - terrainH(spearX) * scale, bx = cx + (spearX - world);
       const L = CHAR_H * scale * 1.15;
@@ -6569,7 +6875,7 @@ function loop(now){
         ctx.restore();
       }
     }
-    if (!spearFound && spearX !== null && !building && imgReady(spearImg)){
+    if (!spearFound && spearX !== null && !jav && !building && imgReady(spearImg)){
       const sh = spearImg.naturalHeight * scale * 1.2, sw = spearImg.naturalWidth * scale * 1.2;
       const footY = groundY - terrainH(spearX) * scale;       // waar hij de grond in gaat
       const bx = cx + (spearX - world), by = footY + sh * 0.10;
@@ -6660,7 +6966,7 @@ function loop(now){
     ctx.save();
     ctx.globalAlpha = blink ? 0.45 : 1;
     ctx.translate(x, y);
-    if (autoFlip && facing === 1){ ctx.translate(w, 0); ctx.scale(-1, 1); }
+    if (useThrow ? thrFlip() : (autoFlip && facing === 1)){ ctx.translate(w, 0); ctx.scale(-1, 1); }
     ctx.drawImage(img, 0, 0, w, h);
     if (hurt > 0){                                    // red impact tint
       ctx.globalCompositeOperation = 'source-atop';
@@ -6718,6 +7024,12 @@ function loop(now){
     const swbox = sweepLive ? { l: pcx - swR, r: pcx + swR,
                                 t: feetY - SWEEP_HIGH * CHAR_H * scale, b: feetY + 12 * scale } : null;
     const hitBy = (b, k) => b && k.r > b.l && k.l < b.r && k.b > b.t && k.t < b.b;
+    // de geworpen speer: een vak rond de punt, net als de speerpunt bij de stoot
+    const javR = 26 * scale;
+    const javBox = (jav && jav.state === 'vlucht' && !jav.hit)
+                 ? { l: cx + (jav.x - world) - javR, r: cx + (jav.x - world) + javR,
+                     t: groundY - jav.h * scale - javR, b: groundY - jav.h * scale + javR } : null;
+    const javRaakt = box => !!javBox && hitBy(javBox, box);
     if (showBoxes){
       ctx.save();
       ctx.globalAlpha = 0.45; ctx.strokeStyle = '#8ef2a0'; ctx.lineWidth = 2;
@@ -6807,6 +7119,14 @@ function loop(now){
           s.frame = 0; s.acc = 0;
           tutEvent('thrust');
         }
+      }
+      // ---- de geworpen speer ------------------------------------------
+      if (s.state !== 'dying' && javRaakt(sbox)){
+        javHitEnemy();
+        hits++; hitsEl.textContent = hits;
+        s.state = 'dying'; s.flash = 0.25;
+        s.vx = (jav.dir === 1 ? 420 : -420);
+        s.frame = 0; s.acc = 0;
       }
       // ---- lage zwaai: raakt alles laag om hem heen, elke slang één keer ----
       if (s.state !== 'dying' && s.sweptId !== sweepId && hitBy(swbox, sbox)){
@@ -6937,6 +7257,13 @@ function loop(now){
           if (!scorps.some(o => o.state === 'charge')) document.getElementById('scatter').pause();
         }
       }
+      if (s.state !== 'dying' && javRaakt(kbox)){
+        javHitEnemy();
+        hits++; hitsEl.textContent = hits;
+        s.state = 'dying'; s.flash = 0.25;
+        s.vx = (jav.dir === 1 ? 420 : -420);
+        if (!scorps.some(o => o.state === 'charge')) document.getElementById('scatter').pause();
+      }
       if (s.state !== 'dying' && s.sweptId !== sweepId && hitBy(swbox, kbox)){
         s.sweptId = sweepId;
         hits++; hitsEl.textContent = hits;
@@ -7040,6 +7367,11 @@ function loop(now){
             swingUsed = true; hitPanther(s); continue;
           }
         }
+        // de geworpen speer: hij valt altijd neer, maar raakt alleen in zijn herstel
+        if (javRaakt(nbox)){
+          javHitEnemy();
+          if (s.inv <= 0 && (s.state === 'land' || s.state === 'rest')){ hitPanther(s); continue; }
+        }
         // lage zwaai
         // lage zwaai telt alleen in zijn herstel (landing en rust na sprong of tackle)
         if (s.sweptId !== sweepId && (s.state === 'land' || s.state === 'rest')
@@ -7124,6 +7456,8 @@ function loop(now){
             swingUsed = true; hitHyena(s); continue;
           }
         }
+        // de geworpen speer: in elke staat raak
+        if (s.inv <= 0 && javRaakt(nbox)){ javHitEnemy(); hitHyena(s); continue; }
         // lage zwaai: ook raak, één keer per zwaai
         if (s.sweptId !== sweepId && hitBy(swbox, nbox)){ s.sweptId = sweepId; hitHyena(s); }
       }
@@ -7156,6 +7490,8 @@ function loop(now){
       }
     }
 
+    javDraw(groundY, scale, cx);                     // de geworpen speer, voor de dieren langs
+    drawAimArrow(pcx, groundY, scale, lift);         // richtpijltje zolang hij spant
     drawFgGrass(groundY, cx, scale, pcx);
     drawHppotionFx(groundY, scale, cx, pcx, lift);   // oppak- en drinkeffecten
     drawChips(groundY, scale, cx);
@@ -7730,6 +8066,38 @@ function sbHppotion(drop){
   if (drop) dropHppotion(x, terrainH(x) + CHAR_H * 0.6); else spawnHppotion(x);
   cv.focus();
 }
+// ---- speerworp los testen: gooien, inslaan en erop klimmen ----------------
+document.getElementById('sbspear').onclick = () => {          // weer met een speer in de hand
+  thr = null; jav = null; javLost = 0;
+  spearFound = true; spear = true; spearX = null; spearH = null;
+  setSpearLabel(); cv.focus();
+};
+document.getElementById('sbrock').onclick = () => {           // een rots om op te mikken
+  const side = sbFromRight ? 1 : -1;
+  let x = world + side * 460;
+  x = Math.min(x, cliffAt().wall - 300);
+  x = Math.max(x, endWall() + 300);
+  level.rocks.push({ x, scale: 1.15 });
+  cv.focus();
+};
+document.getElementById('sbstick').onclick = () => {          // meteen een speer in de dichtstbijzijnde wand
+  const scale = nowScale();
+  let best = null, bd = Infinity;
+  for (const p of platsNear(scale)){
+    if (p.thin || p.topH <= 0) continue;
+    const d = Math.abs((p.left + p.right) / 2 - world);
+    if (d < bd){ bd = d; best = p; }
+  }
+  if (!best){ flashHint('Zet eerst een rots neer'); cv.focus(); return; }
+  const rechts = (best.left + best.right) / 2 > world;        // aan welke kant staat Amir?
+  const dir = rechts ? 1 : -1;
+  jav = { x: (rechts ? best.left : best.right) + dir * JAV.inTile, h: best.topH * 0.62,
+          vx: 0, vh: 0, dir, state: 'muur', sa: dir === 1 ? 0 : Math.PI,
+          wob: 1, sag: 0, stand: false, hit: false, landed: false, t: 0 };
+  javLost = 0;
+  spear = false; spearFound = false; spearX = jav.x; spearH = jav.h;
+  setSpearLabel(); cv.focus();
+};
 document.getElementById('sbhppotion').onclick = () => sbHppotion(false);
 document.getElementById('sbhppotiondrop').onclick = () => sbHppotion(true);
 const sbSideBtn = document.getElementById('sbside');
@@ -7737,7 +8105,7 @@ sbSideBtn.onclick = () => { sbFromRight = !sbFromRight; sbSideBtn.textContent = 
 const sbGodBtn = document.getElementById('sbgod');
 function setGodLabel(){ sbGodBtn.textContent = godMode ? 'Onsterfelijk aan' : 'Onsterfelijk uit'; sbGodBtn.classList.toggle('on', godMode); }
 sbGodBtn.onclick = () => { godMode = !godMode; setGodLabel(); cv.focus(); };
-document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; hppotions.length = 0; hppotionFx.length = 0; cv.focus(); };
+document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; hppotions.length = 0; hppotionFx.length = 0; level.rocks.length = 0; thr = null; jav = null; javLost = 0; cv.focus(); };
 document.getElementById('sbback').onclick = stopSandbox;
 document.getElementById('btnsandbox').onclick = startSandbox;
 document.getElementById('btnstop').onclick = () => { building = false; buildEl.classList.remove('on'); };
@@ -8025,6 +8393,7 @@ const TOUCH = {
   alpha: 1,            // schuifje dekking
   swap: false,         // linkshandig: joystick rechts, knoppen links
   stick: null,         // {id, ox, oy, x, y} van de dynamische joystick
+  aim: null,           // {id, ox, oy, x, y, it, out} van de duim op de werpknop
   held: new Map(),     // pointerId -> 'stick' of knop-id; een vinger blijft bij zijn eigen knop
   pressed: new Set()   // knoppen die nu ingedrukt zijn (alleen om te tekenen)
 };
@@ -8127,14 +8496,14 @@ function pressBtn(id){
   const b = findBtn(id);
   if (!b) return;
   if (b.act === 'jump') startJump();                                   // net als pijl omhoog
-  else if (b.act === 'attack'){ if (!atkKeyHeld){ atkKeyHeld = true; startAttack(); } }   // net als spatie
+  else if (b.act === 'attack'){ if (!atkKeyHeld){ atkKeyHeld = true; thrPress(); } }   // net als spatie: vasthouden is spannen
   else if (b.act === 'spear') toggleSpear();                           // net als E
   else if (b.act === 'drink') drinkHppotion();                         // net als Q
 }
-function releaseBtn(id){
+function releaseBtn(id, cancel){
   TOUCH.pressed.delete(id);
   const b = findBtn(id);
-  if (b && b.act === 'attack') atkKeyHeld = false;
+  if (b && b.act === 'attack'){ atkKeyHeld = false; thrRelease(!!cancel); }
 }
 
 // --- de dynamische joystick --------------------------------------------------
@@ -8166,9 +8535,10 @@ function applyStick(){
   setTKey('ArrowDown',  dy >  STICK_DUCK);
 }
 function touchReleaseAll(){
+  thrCancel();                                   // duim weg tijdens het spannen: worp afbreken
   for (const who of TOUCH.held.values()) if (who !== 'stick') releaseBtn(who);
   TOUCH.held.clear(); TOUCH.pressed.clear();
-  TOUCH.stick = null;
+  TOUCH.stick = null; TOUCH.aim = null;
   applyStick();
   atkKeyHeld = false;
 }
@@ -8192,11 +8562,26 @@ tcv.addEventListener('pointerdown', e => {
     const hit = nearestBtn(p.x, p.y);
     if (!hit) return;
     TOUCH.held.set(e.pointerId, hit.b.id);
+    // de werpknop houd je ingedrukt: omhoog of omlaag slepen mikt, terugslepen breekt af
+    if (hit.b.act === 'attack')
+      TOUCH.aim = { id: e.pointerId, ox: p.x, oy: p.y, x: p.x, y: p.y, it: hit, out: false };
     pressBtn(hit.b.id);
   }
   try { tcv.setPointerCapture(e.pointerId); } catch (err) {}
 });
+const AIM_DRAG = 26;         // zo ver slepen verzet de mikstand, in CSS-pixels
 tcv.addEventListener('pointermove', e => {
+  const a = TOUCH.aim;
+  if (a && a.id === e.pointerId){                        // duim op de werpknop: mikken
+    const p = tcPos(e);
+    a.x = p.x; a.y = p.y;
+    if (hitDist(a.it, p.x, p.y) > a.it.hit) a.out = true;   // de knop verlaten
+    if (thr && !thr.gone){
+      const dy = p.y - a.oy, d = AIM_DRAG * TOUCH.size;
+      thr.aim = dy < -d ? 0 : dy > d ? 2 : AIM_MID;
+    }
+    return;
+  }
   if (TOUCH.held.get(e.pointerId) !== 'stick') return;   // vinger op een knop blijft op die knop
   const st = TOUCH.stick;
   if (!st || st.id !== e.pointerId) return;
@@ -8208,8 +8593,15 @@ function touchEnd(e){
   const who = TOUCH.held.get(e.pointerId);
   if (who === undefined) return;
   TOUCH.held.delete(e.pointerId);
+  // was hij weggesleept en laat je weer óp de knop los, dan breekt de worp af
+  const a = TOUCH.aim;
+  let cancel = false;
+  if (a && a.id === e.pointerId){
+    cancel = a.out && hitDist(a.it, a.x, a.y) <= a.it.hit;
+    TOUCH.aim = null;
+  }
   if (who === 'stick'){ TOUCH.stick = null; applyStick(); }
-  else releaseBtn(who);
+  else releaseBtn(who, cancel);
   try { tcv.releasePointerCapture(e.pointerId); } catch (err) {}
 }
 tcv.addEventListener('pointerup', touchEnd);

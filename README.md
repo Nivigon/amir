@@ -71,6 +71,41 @@ python3 tools/gen-offline-manifest.py
 
 De versie in `offline-assets.json` verandert mee, en de service worker ziet daaraan dat de oude assetcache weg mag.
 
+## Besturing
+
+| | laptop | telefoon |
+|---|---|---|
+| lopen, rennen | pijltjes, Shift sprint | joystick (duim links) |
+| springen | pijl omhoog | ▲ |
+| bukken | pijl omlaag | joystick omlaag |
+| stoten | spatie (korte tik) | ✦ (korte tik) |
+| **speer werpen** | **spatie vasthouden** | **✦ vasthouden** |
+| mikken tijdens het spannen | pijl omhoog / omlaag | duim omhoog / omlaag slepen |
+| worp afbreken | tik in plaats van vasthouden | duim terugslepen naar ✦ en daar loslaten |
+| speer oppakken | E | E (verschijnt als je er vlakbij staat) |
+| drinken | Q | het kalebasje |
+
+### De speerworp
+
+Dezelfde knop doet de stoot en de worp: een tik binnen 0,16 seconde is de oude
+stoot, langer vasthouden laat Amir spannen. Hij staat dan vast (niet lopen, niet
+springen) en is de hele animatie kwetsbaar. Er zijn drie mikstanden, altijd
+voorwaarts: 30 graden omhoog, recht (de standaard) en 20 graden omlaag.
+
+Tot en met frame 6 kan de worp nog afgebroken worden en houdt hij zijn speer;
+vanaf frame 7 gaat hij door. Laat je los in de laatste 0,1 seconde voordat Amir
+geraakt wordt, dan gaat de speer alsnog weg.
+
+De geworpen speer zakt door onder een derde van de zwaartekracht op Amir en
+wijst elk frame de kant van zijn snelheid op. Raakt hij een dier, dan doet hij
+schade en valt hij neer. Raakt hij grond of muur, dan blijft hij steken en
+natrillen, en een speer die in een muur steekt is een dun platform waar je op
+kunt staan (alleen van bovenaf; de schacht buigt 3 px door onder Amir). Komt de
+speer in het water, in een ravijn of buiten de wereld, dan staat hij na drie
+seconden weer op de laatste vaste grond waar Amir stond, zodat je nooit zonder
+wapen vastzit. Alles los te testen met de knoppen onder "Speerworp" in de
+sandbox.
+
 ## Mappenstructuur
 
 ```
@@ -122,6 +157,13 @@ enemies/
     ren_kop/               ren_kop_00..26.png (bovenlaag: de happende kop, 8 fps)
     metadata.json          canvas, grondlijn, aantallen, fps en de kop-offset per lijfframe
     preview/               sprite sheets en preview-gifs (bronmateriaal)
+
+amir runc/
+  amir_sprites/design/amir/
+    speerworp/             speerworp_00..19.png (eenmalige worp, 20 frames, 12 fps),
+                           metadata.json (canvas 984x814, grondlijn rij 803, anker_x 330,
+                           Amir 620 px hoog, spannen 0-6, uithaal 7-10, los op 10, herstel 11-19)
+    speer_projectiel.png   de geworpen speer, 624x67, punt naar rechts op pixel (623, 33)
 
 items/
   potions/                 hppotion.png (de drinkkalebas die gezondheid teruggeeft)
