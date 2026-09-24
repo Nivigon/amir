@@ -2645,11 +2645,50 @@ function puffDust(n){
 // ---- gaten in de grond ------------------------------------------------
 const GAP_BASE = 220;                    // breedte bij Grootte 1,0
 const GAP_DEATH = CHAR_H * 1.6;          // zo diep gevallen is niet meer te redden
+// Binnenin zie je de overkant: de afgebroken rand met grasplukken (ravijn_rand) en
+// daaronder de rotswand (rotstextuur), die naar beneden in het donker verdwijnt.
 const gapTex = new Image();
-let gapPattern = null;
-gapTex.onload = () => { try { gapPattern = ctx.createPattern(gapTex, 'repeat'); } catch (e) {} };
 gapTex.onerror = () => console.warn('ontbreekt: design/rotstextuur.png');
 gapTex.src = 'design/rotstextuur.png';
+const gapRimImg = new Image();
+gapRimImg.onerror = () => console.warn('ontbreekt: design/ravijn_rand.png');
+gapRimImg.src = 'design/ravijn_rand.png';
+const GAP_RIM = { top: 30, rock: 135, h: 260, w: 512 };   // rijen in ravijn_rand: bovenste grasspriet, bovenkant van de rots
+// de plaatjes een keer op kleur zetten voor dit uitzicht: warm voor de savanne, koud en besneeuwd voor de winter
+let gapArtCache = null;
+function gapArt(){
+  if (!imgReady(gapTex) || !imgReady(gapRimImg)) return null;
+  const key = winterOn() ? 'winter' : 'savanne';
+  if (gapArtCache && gapArtCache.key === key) return gapArtCache;
+  const tint = (img, fn) => {
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const g = c.getContext('2d');
+    g.drawImage(img, 0, 0);
+    g.globalCompositeOperation = 'source-atop';       // alleen op de rots en het gras, niet op het doorzichtige deel
+    fn(g, c.width, c.height);
+    return c;
+  };
+  let rim, rock, dark;
+  if (key === 'winter'){
+    const koud = g => { g.fillStyle = 'rgba(168,182,204,0.55)'; g.fillRect(0, 0, 4096, 4096); };
+    rock = tint(gapTex, koud);
+    rim = tint(gapRimImg, (g, w) => {
+      koud(g);
+      const sn = g.createLinearGradient(0, GAP_RIM.top, 0, GAP_RIM.rock + 30);   // sneeuw op de plukken en de bovenrand
+      sn.addColorStop(0, 'rgba(244,247,252,0.95)'); sn.addColorStop(0.6, 'rgba(236,241,248,0.75)'); sn.addColorStop(1, 'rgba(236,241,248,0)');
+      g.fillStyle = sn; g.fillRect(0, 0, w, GAP_RIM.rock + 30);
+    });
+    dark = '12,16,24';
+  } else {
+    const warm = g => { g.fillStyle = 'rgba(210,140,90,0.28)'; g.fillRect(0, 0, 4096, 4096); };   // het avondlicht van de grondrand
+    rock = tint(gapTex, warm);
+    rim = tint(gapRimImg, warm);
+    dark = '16,9,12';
+  }
+  gapArtCache = { key, rim, rock, dark };
+  return gapArtCache;
+}
 
 const sandTex = new Image();
 sandTex.onload = () => { sandStrip = null; sandStripH = -1; };   // strook opnieuw opbouwen
@@ -2743,24 +2782,32 @@ dustWisp.src = 'design/stofsliert.png';
 const imgReady = im => im.complete && im.naturalWidth > 0;
 
 // ---- sneeuwval (Winter World) -------------------------------------------
-// Vlokken in schermcoördinaten: ze dwarrelen omlaag, waaien mee met de vlaag en
-// schuiven een beetje tegen de camera in. Alleen in een winterlevel.
+// Vlokken in schermcoördinaten, maar ze hangen in de wereld: beweegt de camera,
+// dan schuiven ze op het scherm de andere kant op, net als de grond. Grote vlokken
+// (dichtbij) doen dat volledig mee, kleine (ver weg) maar voor een deel: parallax.
+// Ze dwarrelen omlaag en waaien mee met de vlaag. Alleen in een winterlevel.
 const snowflakes = [];
-let snowWorldPrev = null;
+let snowWorldPrev = null, snowCamYPrev = 0;
+function snowPar(f){ return 0.45 + 0.55 * Math.min(1, Math.max(0, (f.r - 1.2) / 2.6)); }
 function updateSnowfall(dt){
   if (!winterOn()){ snowflakes.length = 0; snowWorldPrev = null; return; }
   const n = Math.round(Math.min(220, Math.max(90, W * H / 6500)));
   while (snowflakes.length < n)
     snowflakes.push({ x: Math.random() * W, y: Math.random() * H, r: 1.2 + Math.random() * 2.6,
                       v: 38 + Math.random() * 70, ph: Math.random() * 6.28, sw: 8 + Math.random() * 18 });
-  const shift = snowWorldPrev === null ? 0 : (world - snowWorldPrev) * 0.35;
-  snowWorldPrev = world;
+  const cam = camEase !== null ? camEase : world;          // in de boss-arena staat de camera los van Amir
+  let dx = snowWorldPrev === null ? 0 : (cam - snowWorldPrev) * viewZoom();
+  let dy = snowWorldPrev === null ? 0 : camY - snowCamYPrev;
+  if (Math.abs(dx) > W) dx = 0;                             // een sprong (herstart, level overslaan): niet meeslepen
+  snowWorldPrev = cam; snowCamYPrev = camY;
   const g = gust ? gust.dir * gust.amp * 90 : 0;
   for (const f of snowflakes){
+    const par = snowPar(f);
     f.ph += dt * 1.6;
-    f.y += f.v * dt * (0.6 + f.r * 0.25);
-    f.x += (Math.sin(f.ph) * f.sw + g) * dt + shift;
+    f.y += f.v * dt * (0.6 + f.r * 0.25) + dy * par;
+    f.x += (Math.sin(f.ph) * f.sw + g) * dt - dx * par;
     if (f.y > H + 4){ f.y = -4; f.x = Math.random() * W; }
+    else if (f.y < -6) f.y += H + 12;
     if (f.x < -6) f.x += W + 12; else if (f.x > W + 6) f.x -= W + 12;
   }
 }
@@ -5204,6 +5251,11 @@ const MID = {
   propScale: 1,       // en hun grootte
   propPar: 0.6        // hun snelheid: ze staan dichterbij dan laag 2 (0.3), dus sneller, maar trager dan de grond
 };
+// Klimt de camera (terrassen), dan zakt de grond op het scherm met de volle camerahoogte en de
+// horizon met 28 procent. De heuvelrij hangt niet aan die horizon maar aan de grond: ze zakt met
+// 85 procent mee (dit is het deel dat ze achterblijft). Zo blijft ze tegen de grond aan staan en
+// gaapt er op een hoog terras geen kale band; tegen de verre bergen beweegt ze juist duidelijk.
+const MID_CAM_PAR = 0.15;
 // Laag 1b: een tweede, dichterbije bergrij. Zelfde plaatjes (zonder de Kilimanjaro), gespiegeld,
 // groter, donkerder en in een andere volgorde. Alleen samen met laag 2.
 const MTN2 = {
@@ -5353,7 +5405,7 @@ function sceneCfg(){
   const key = (!sandbox && level && SCENES[level.lagen]) ? level.lagen : 'basis';
   return sceneMix[key] || (sceneMix[key] = Object.assign({}, SCENE0, SCENES[key] || {}));
 }
-function drawMist(y, a, col){
+function drawMist(y, a, col, down){
   const c = col || MIST.color;
   a = Math.min(0.92, a);
   const r = MIST.rise * H;
@@ -5362,7 +5414,8 @@ function drawMist(y, a, col){
   g.addColorStop(1, 'rgba(' + c + ',' + a + ')');
   ctx.fillStyle = g; ctx.fillRect(0, y - r, W, r);
   ctx.fillStyle = 'rgba(' + c + ',' + a + ')';
-  ctx.fillRect(0, y - 0.5, W, H * 0.12);          // eronder verdwijnt het achter de volgende laag
+  // eronder verdwijnt het achter de volgende laag; staat die laag lager (camera hoog), dan loopt de nevel door tot daar
+  ctx.fillRect(0, y - 0.5, W, H * 0.12 + Math.max(0, down || 0));
 }
 // tone: kleurbewerking en waaskleuren. Zonder tone de gewone savanne (warm avondlicht);
 // de winter bakt dezelfde panelen nog een keer, koud en bleek (zie bakeWinterLayers).
@@ -5488,8 +5541,11 @@ function midOn(){ return sceneCfg().mid && layerImgs().mid.some(Boolean); }   //
 function scene(groundY){
   const sc = sceneCfg();                            // het uitzicht van dit level
   const LI = layerImgs();
-  // de horizon zakt maar een klein stukje mee als je klimt: ver weg beweegt trager
+  // de horizon zakt maar een klein stukje mee als je klimt: ver weg beweegt trager.
+  // De heuvelrij (laag 2) staat dichtbij en hangt daarom aan de grond, niet aan die horizon:
+  // anders gaapt er op een hoog terras een kale band tussen de heuvels en de grond
   const horizonY = groundY - camY * 0.72;
+  const nearY = groundY - camY * MID_CAM_PAR;
   const g = ctx.createLinearGradient(0, 0, 0, horizonY);
   g.addColorStop(0, sc.sky[0]); g.addColorStop(0.62, sc.sky[1]); g.addColorStop(1, sc.sky[2]);
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, horizonY + 1);
@@ -5499,26 +5555,33 @@ function scene(groundY){
   zonScherm.x = zonX; zonScherm.y = zonY; zonScherm.geldig = true;   // hier hangt de gloed straks aan
   ctx.fillStyle = sc.sun[3];
   ctx.beginPath(); ctx.arc(zonX, zonY, H * sc.sun[2], 0, Math.PI * 2); ctx.fill();   // zakt half achter de bergen
+  // het land in de verte: alles onder een horizonlijn. Elke bergrij heeft haar eigen (geheven)
+  // lijn; het laagste paneel komt daar precies op, de rest zakt erachter weg. Dat wegzakkende
+  // stuk moet dus na de laag worden afgedekt, anders steekt het als een rechthoek onder de rij uit
+  // zodra de heuvels (camera hoog) lager staan en het niet meer verstoppen
+  const landFrom = y => { ctx.fillStyle = sc.land; if (groundY > y) ctx.fillRect(0, y - 0.5, W, groundY - y + 1); };
+  landFrom(horizonY);
   drawLayer(MTN, LI.mtn, seqFor('mtn', MTN, sc.seq, sc.hero, sc.heroAt), horizonY, mtnLift, sc.mtnPar, sc.mtnSize);   // laag 1: verre bergen
   if (on2){
+    landFrom(horizonY - mtnLift * H);
     if (sc.mtn2){
       const s2 = H * sc.mtn2Size;
       drawMist(horizonY - sc.mtn2Lift * H - MTN2.base * s2, MIST.far * sc.mist, sc.mistColor);
       drawLayer(MTN2, LI.mtn2, seqFor('mtn2', MTN2, sc.seq2, -1, -1), horizonY, sc.mtn2Lift, sc.mtn2Par, sc.mtn2Size);  // laag 1b: dichtere bergrij
+      landFrom(horizonY - sc.mtn2Lift * H);
     }
-    drawMist(horizonY - sc.midLift * H, MIST.near * sc.mist, sc.mistColor);
+    // deze nevel loopt door tot aan de heuvelrij, ook als die (camera hoog) lager staat dan de horizon
+    drawMist(horizonY - sc.midLift * H, MIST.near * sc.mist, sc.mistColor, nearY - horizonY);
   }
-  ctx.fillStyle = sc.land;
-  if (groundY > horizonY) ctx.fillRect(0, horizonY - 0.5, W, groundY - horizonY + 1);   // het land in de verte
   if (on2){
-    drawLayer(MID, LI.mid, seqFor('mid', MID, sc.seqMid, sc.midHero, sc.midHeroAt), horizonY, sc.midLift, sc.midPar, sc.midSize);    // laag 2: savanneheuvels
-    drawMist(horizonY - (groundY - edgeTop(groundY)), MIST.ground * sc.mist, sc.mistColor);
+    drawLayer(MID, LI.mid, seqFor('mid', MID, sc.seqMid, sc.midHero, sc.midHeroAt), nearY, sc.midLift, sc.midPar, sc.midSize);    // laag 2: savanneheuvels
+    drawMist(nearY - (groundY - edgeTop(groundY)), MIST.ground * sc.mist, sc.mistColor);
   }
   if (sc.dim){                                      // hele achtergrond een tint donkerder: het wordt avond
     ctx.fillStyle = 'rgba(' + sc.dim[0] + ',' + sc.dim[1] + ')';
     ctx.fillRect(0, 0, W, Math.max(horizonY, groundY) + 1);
   }
-  drawProps(horizonY, propUnit, false);             // far scenery, behind the ground
+  drawProps(on2 ? nearY : horizonY, propUnit, false);   // far scenery, behind the ground (voor de heuvels: op hun lijn)
   drawPlacedFar(groundY);                           // jouw achtergronddecor staat op de savanne, niet op de horizon
   const bandH = H * 0.18;
   const eimg = winterPic('edge', edgeImg);                 // in de winter: sneeuw op grijze rots
@@ -5947,12 +6010,16 @@ function loop(now){
     drawClimb(groundY, scale, cx);                 // terrassen en richels
 
     // decor dat jij zelf hebt neergezet: staat op de grondlijn, geen parallax
-    // gaten: in zijaanzicht zie je geen binnenwanden, alleen de afgebroken rand
-    // van de grond en daarachter de diepte. Geen tegels, en niets dat beweegt.
+    // gaten: door de breuk kijk je op de overkant. Net onder je eigen looplijn de
+    // afgebroken rand met grasplukken, daaronder de rotswand, en die loopt naar
+    // beneden weg in het donker. Hetzelfde steen als de terrassen, in de kleur van
+    // dit uitzicht (koud en besneeuwd in de winter).
     {
       const bandH3 = H * 0.18;
       const topY = edgeTop(groundY);          // de breuk loopt ook door het bovenvlak
       const deep = groundY + bandH3 + 60;
+      const art = gapArt();
+      const amir = CHAR_H * scale;
       for (const g of gapList()){
         const gl = cx + (g.x - g.w / 2 - world);
         const gr = cx + (g.x + g.w / 2 - world);
@@ -5967,13 +6034,53 @@ function loop(now){
           ctx.fillStyle = sh;
           ctx.fillRect(Math.min(x0, x1), topY, Math.abs(x1 - x0), deep - topY);
         }
-        // de diepte zelf, vanaf de loopvlakte naar beneden
-        ctx.beginPath();
-        traceGap(g, gl, gr, groundY, groundY + H * 3, groundY);
-        const dg = ctx.createLinearGradient(0, groundY, 0, groundY + bandH3);
-        dg.addColorStop(0, '#3a2540');         // zelfde kleur als je heuvels
-        dg.addColorStop(1, '#130b18');
-        ctx.fillStyle = dg; ctx.fill();
+        if (art){
+          ctx.save();
+          ctx.beginPath();
+          traceGap(g, gl, gr, topY - 10, groundY + H * 3, groundY);   // ook de grasplukken blijven binnen de breuk
+          ctx.clip();
+          const sR = amir * 0.95 / GAP_RIM.h;                        // de rand van de overkant: bijna Amir-hoog
+          const rimW = GAP_RIM.w * sR, rimH = GAP_RIM.h * sR;
+          const rimY = groundY + amir * 0.06 - GAP_RIM.rock * sR;   // de rots van de overkant net onder je eigen looplijn
+          const rockW = art.rock.width * sR, rockH = art.rock.height * sR;
+          const rockTop = rimY + rimH - 1;
+          for (let x = gl - 30; x < gr + 30; x += rimW - 1){
+            ctx.drawImage(art.rim, x, rimY, rimW + 1, rimH);
+            for (let y = rockTop; y < groundY + H * 1.5; y += rockH - 1) ctx.drawImage(art.rock, x, y, rimW + 1, rockH * (rimW / rockW));
+          }
+          // de overkant staat ver weg: onder de rand ligt nevel in de kleur van dit uitzicht over de
+          // wand, dikker naarmate je dieper kijkt. De rand zelf blijft scherp: daar moet je landen
+          const sc = sceneCfg();
+          const mistA = Math.min(0.75, 0.5 * (sc.mist || 1));
+          const hz = ctx.createLinearGradient(0, groundY + amir * 0.06, 0, groundY + amir * 1.3);
+          hz.addColorStop(0, 'rgba(' + sc.mistColor + ',0.08)');
+          hz.addColorStop(0.35, 'rgba(' + sc.mistColor + ',' + (mistA * 0.7).toFixed(3) + ')');
+          hz.addColorStop(1, 'rgba(' + sc.mistColor + ',' + mistA.toFixed(3) + ')');
+          ctx.fillStyle = hz; ctx.fillRect(gl - 40, groundY + amir * 0.06, gr - gl + 80, H * 3);
+          // en hoe dieper, hoe donkerder: onderin zie je niets meer
+          const dg = ctx.createLinearGradient(0, groundY + amir * 0.3, 0, groundY + amir * 2.2);
+          dg.addColorStop(0, 'rgba(' + art.dark + ',0.0)');
+          dg.addColorStop(0.5, 'rgba(' + art.dark + ',0.45)');
+          dg.addColorStop(1, 'rgba(' + art.dark + ',0.97)');
+          ctx.fillStyle = dg; ctx.fillRect(gl - 40, groundY - 2, gr - gl + 80, H * 3);
+          ctx.fillStyle = 'rgb(' + art.dark + ')'; ctx.fillRect(gl - 40, groundY + amir * 2.2 - 1, gr - gl + 80, H * 3);
+          // de breukranden werpen schaduw op de overkant
+          for (const sd of [-1, 1]){
+            const x0 = sd < 0 ? gl : gr, x1 = sd < 0 ? gl + 34 : gr - 34;
+            const sh = ctx.createLinearGradient(x0, 0, x1, 0);
+            sh.addColorStop(0, 'rgba(' + art.dark + ',0.55)'); sh.addColorStop(1, 'rgba(' + art.dark + ',0)');
+            ctx.fillStyle = sh; ctx.fillRect(Math.min(x0, x1), topY - 10, 34, H * 3);
+          }
+          ctx.restore();
+        } else {
+          // plaatjes nog niet binnen: alleen de diepte, vanaf de loopvlakte naar beneden
+          ctx.beginPath();
+          traceGap(g, gl, gr, groundY, groundY + H * 3, groundY);
+          const dg = ctx.createLinearGradient(0, groundY, 0, groundY + bandH3);
+          dg.addColorStop(0, '#3a2540');
+          dg.addColorStop(1, '#130b18');
+          ctx.fillStyle = dg; ctx.fill();
+        }
         // dunne donkere lijn langs de breuk
         ctx.strokeStyle = 'rgba(18,10,14,0.85)'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
         for (const side of [0, 1]){
