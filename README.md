@@ -18,7 +18,7 @@ In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen 
 
 Het spel is een installeerbare webapp. Open de Pages-link in Safari, deel, "Zet op beginscherm". Daarna staat Amir als icoon tussen je apps en start hij zonder browserbalken, liggend.
 
-Open hem vanaf het beginscherm en druk in het startmenu op **Download voor offline**. Dat haalt alle 595 sprites en geluiden (ongeveer 121 MB) in een keer binnen. Vanaf dat moment laadt het spel meteen en speelt het ook zonder internet.
+Open hem vanaf het beginscherm en druk in het startmenu op **Download voor offline**. Dat haalt alle sprites en geluiden in een keer binnen (bijna 1200 bestanden, ongeveer 200 MB; het precieze aantal staat in `offline-assets.json`). Vanaf dat moment laadt het spel meteen en speelt het ook zonder internet.
 
 Doe die download vanuit het beginscherm-icoon, niet vanuit Safari: iOS geeft een geinstalleerde webapp een eigen opslag, dus wat je in Safari downloadt telt daar niet mee.
 
@@ -49,7 +49,7 @@ Op een aanraakscherm tekent het spel op anderhalve canvaspixel per schermpixel i
 | `offline-assets.json` | de lijst die de downloadknop afwerkt |
 | `tools/gen-offline-manifest.py` | genereert die lijst uit de bestanden op schijf |
 
-De service worker houdt twee caches uit elkaar. Het spel zelf (HTML, manifest, iconen) gaat network-first: online speel je altijd de nieuwste versie, offline de laatst bekende. De sprites en geluiden gaan cache-first en blijven staan, ook als je het spel update. Een nieuwe versie van de HTML kost dus geen nieuwe download van 100 MB.
+De service worker houdt twee caches uit elkaar. Het spel zelf (HTML, manifest, iconen) gaat network-first: online speel je altijd de nieuwste versie, offline de laatst bekende. De sprites en geluiden gaan cache-first en blijven staan, ook als je het spel update. Een nieuwe versie van de HTML kost dus geen nieuwe download van 200 MB.
 
 **Assets toegevoegd of vervangen?** Draai daarna:
 
