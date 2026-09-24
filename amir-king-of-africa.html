@@ -2127,7 +2127,7 @@ const GROT_DEEL = {
 };
 // Alle keien komen uit één tekening, dus ze delen één maatstaf: zo blijft een grindje
 // klein naast een blok. Per soort hoeveel Amir-hoogte één bronpixel waard is.
-const GROT_MAAT = { hang: 1 / 900, richel: 1 / 850, kei: 1 / 600 };
+const GROT_MAAT = { hang: 1 / 900, richel: 1 / 1250, kei: 1 / 600 };
 // de hoogte van een onderdeel, als deel van Amir
 function grotHoog(k){
   const d = GROT_DEEL[k];
@@ -2256,6 +2256,93 @@ function grotHoek(binnenX, topY, s, links){
   ctx.restore();
 }
 
+// Verstrooiing met een seeded random: dezelfde seed geeft elke keer dezelfde grot,
+// maar niets staat op een regelmatige afstand. rnd is dezelfde hash als de rotsen en
+// de struwelen gebruiken. Alles komt uit in verhoudingen van de opening, dus de lijst
+// hoeft niet opnieuw als je aan de Formaat-schuif draait.
+function grotStrooi(g){
+  const sd = (g.seed === undefined || g.seed === null) ? Math.round(g.x) : Number(g.seed);
+  let k = 0;
+  const r = () => rnd(sd * 1.61 + 7.3, ++k);
+  const uit = [];
+  const vloer = g.y || 0, top = vloer + g.h;
+  const wanden = g.wanden || 'beide';
+  const hangs = ['hangblok_01', 'hangblok_02', 'hangblok_03'];
+  const keien = Object.keys(GROT_DEEL).filter(n => GROT_DEEL[n].soort === 'kei');
+  // hangblokken onder het plafond. Ze blijven uit de hoeken: daar buigt het plafond al
+  // naar beneden en zou een blok los in de lucht komen te hangen.
+  if (g.plafond !== false){
+    const n = Math.round(g.w / 520);
+    for (let i = 0; i < n; i++)
+      uit.push({ k: hangs[Math.floor(r() * 3) % 3], s: 0.7 + 0.5 * r(), f: r() < 0.5,
+                 x: g.x + g.w * (0.12 + 0.76 * (i + 0.15 + 0.7 * r()) / n), y: top });
+    }
+  // richels tegen de wanden, op kniehoogte tot ruim boven Amir: ze breken de rechte
+  // wandlijn en je kunt erop staan
+  for (const kant of ['links', 'rechts']){
+    if (wanden !== 'beide' && wanden !== kant) continue;
+    const n = 1 + Math.floor(r() * 2);
+    for (let i = 0; i < n; i++)
+      uit.push({ k: 'wand_richel', s: 0.8 + 0.45 * r(), f: kant === 'links',
+                 x: kant === 'links' ? g.x : g.x + g.w,
+                 y: vloer + g.h * (0.24 + 0.58 * (i + 0.15 + 0.7 * r()) / n) });
+  }
+  // losse keien op de vloer
+  const n = Math.max(1, Math.round(g.w / 340));
+  for (let i = 0; i < n; i++)
+    uit.push({ k: keien[Math.floor(r() * keien.length) % keien.length], s: 0.7 + 0.6 * r(), f: r() < 0.5,
+               x: g.x + g.w * (0.06 + 0.88 * (i + r()) / n), y: vloer });
+  return uit;
+}
+
+// De verstrooiing plus wat er met de hand bij staat. Een handmatige decoratie is
+// {k, x, y, f, s}: k = de bestandsnaam (met of zonder .png), x = wereld-x, y = de hoogte
+// van het ankerpunt boven de grondlijn, f = gespiegeld, s = schaal. Laat je y weg, dan
+// hangt een blok aan het plafond en ligt een kei op de vloer.
+function grotDecorLijst(g){
+  const sleutel = (g.seed === undefined ? 'x' : g.seed) + '|' + (g.strooi === false ? 0 : 1)
+                + '|' + (g.decor ? g.decor.length : 0);
+  if (g._decor && g._sleutel === sleutel) return g._decor;
+  const vloer = g.y || 0, top = vloer + g.h;
+  const hand = (g.decor || []).map(d => {
+    const kk = String(d.k || '').replace(/\.png$/, '');
+    const def = GROT_DEEL[kk];
+    return { k: kk, x: d.x, f: !!d.f, s: d.s || 1,
+             y: d.y === undefined ? (def && def.soort === 'kei' ? vloer : top) : d.y };
+  });
+  g._decor = (g.strooi === false ? [] : grotStrooi(g)).concat(hand).filter(d => GROT_DEEL[d.k]);
+  g._sleutel = sleutel;
+  return g._decor;
+}
+
+// Waar een decoratie terechtkomt, in schermpixels. Het ankerpunt hangt aan de soort:
+// een hangblok aan zijn vlakke bovenkant, een richel aan zijn looprand en zijn vlakke
+// kant tegen de wand, een kei aan de grond waar hij op staat.
+function grotDecorVak(d, groundY, scale, cx){
+  const def = GROT_DEEL[d.k];
+  const hh = grotHoog(d.k) * CHAR_H * scale * (d.s || 1);
+  const w = def.w / def.h * hh;
+  const bx = cx + (d.x - world), by = groundY - d.y * scale;
+  if (def.soort === 'hang') return { x: bx - w / 2, y: by, w, h: hh };
+  if (def.soort === 'richel') return { x: d.f ? bx : bx - w, y: by - GROT_RICHEL.loop * hh / def.h, w, h: hh };
+  return { x: bx - w / 2, y: by - hh, w, h: hh };
+}
+
+function drawGrotDecor(g, groundY, scale, cx){
+  const viewL = -W, viewR = W / viewZoom() + W;
+  for (const d of grotDecorLijst(g)){
+    const im = grotPic(d.k);
+    if (!im || !imgReady(im)) continue;
+    const v = grotDecorVak(d, groundY, scale, cx);
+    if (v.x > viewR || v.x + v.w < viewL) continue;
+    ctx.save();
+    ctx.translate(v.x, v.y);
+    if (d.f){ ctx.translate(v.w, 0); ctx.scale(-1, 1); }
+    ctx.drawImage(im, 0, 0, v.w, v.h);
+    ctx.restore();
+  }
+}
+
 function drawGrotten(groundY, scale, cx){
   const lijst = grotLijst();
   if (!lijst.length) return;
@@ -2295,6 +2382,9 @@ function drawGrotten(groundY, scale, cx){
     if (m.wR) grotWand(xr, wandTop, diep, m.s, false, m.dik, m.plafond);
     if (m.plafond && m.wL) grotHoek(xl, bandY, m.s, true);
     if (m.plafond && m.wR) grotHoek(xr, bandY, m.s, false);
+
+    // 5. hangblokken, richels en keien erover: die breken de rechte lijnen
+    drawGrotDecor(g, groundY, scale, cx);
 
     if (showBoxes || building){
       ctx.save();
