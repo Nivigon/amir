@@ -434,6 +434,16 @@
       <button data-thicket="5">5</button>
     </div>
     <div class="row">
+      <label>Sneeuwdek</label>
+      <button data-bodem="" class="on">Geen</button>
+      <button data-bodem="savanne">Savanne</button>
+      <button data-bodem="rots">Rotsbodem</button>
+      <button id="sbdekmin">Minder</button>
+      <button id="sbdekplus">Meer</button>
+      <span class="read" id="sbdekv">100%</span>
+      <button id="sbramp">Overgang uit</button>
+    </div>
+    <div class="row">
       <button id="sbgod" style="display:none">Onsterfelijk uit</button>
       <button id="sbclear">Alles weg</button>
       <button id="sbback">Terug naar menu</button>
@@ -4025,6 +4035,122 @@ function edgeTop(groundY){                 // bovenkant van de tegel op het sche
 function edgeCrust(groundY){
   return edgeReady() ? groundY - (EDGE.walk - EDGE.kruin) * edgeScale(H * 0.18) : groundY;
 }
+
+// ---- bodem en sneeuwdek -----------------------------------------------------
+// Twee dingen die los van elkaar staan, en dat is met opzet.
+//
+// De bodem is waar je op loopt. 'savanne' is de rode grond hierboven, 'rots' is
+// dezelfde grond als grijze steen (design/grondrand_rots.png). Het dek is de
+// sneeuw die daar bovenop ligt, als doorzichtige laag in vier standen
+// (design/sneeuwlaag_25 tot 100).
+//
+// Zo blijft rode grond rood onder de sneeuw, want een ondergesneeuwde
+// zandvlakte is nog altijd zand, en is grijs een keuze voor een rotsbodem in
+// plaats van iets wat er vanzelf bij komt als het gaat sneeuwen. Vergelijk het
+// met winter: true van episode Winter World: die zet sneeuw en grijze steen in
+// één ingebakken tegel, en dat is de bergversie. Die blijft zoals hij is.
+//
+// Een level zet het in het veld sneeuw:
+//   sneeuw: { soort: 'savanne' }                        rode grond, overal dicht onder
+//   sneeuw: { soort: 'rots', dek: 0.5 }                 grijze steen, overal half
+//   sneeuw: { soort: 'savanne', van: -1200, tot: -7000 } onderweg van kaal naar dicht
+// Amir loopt naar links, dus tot hoort negatiever te zijn dan van. Zonder van en
+// tot ligt overal evenveel (dek, standaard 1).
+const SNEEUW_STANDEN = [25, 50, 75, 100];
+const SNEEUW_ROTS = 'design/grondrand_rots.png';
+const sneeuwImg = { rots: null, lagen: [] };
+let sneeuwGeladen = false;
+function loadSneeuw(){                     // pas ophalen als een level er om vraagt
+  if (sneeuwGeladen) return;
+  sneeuwGeladen = true;
+  sneeuwImg.rots = zetBron(new Image(), SNEEUW_ROTS, () => console.warn('ontbreekt: ' + SNEEUW_ROTS));
+  sneeuwImg.lagen = SNEEUW_STANDEN.map(p => {
+    const pad = 'design/sneeuwlaag_' + p + '.png';
+    return zetBron(new Image(), pad, () => console.warn('ontbreekt: ' + pad));
+  });
+}
+// het plan van dit potje: uit de sandbox, anders uit het level. winter: true gaat
+// voor, want dat is de complete winteruitrusting en die brengt zijn eigen grond mee.
+function sneeuwPlan(){
+  if (sandbox) return sbSneeuw.soort ? sbSneeuw : null;
+  if (!level || level.winter) return null;
+  return level.sneeuw && level.sneeuw.soort ? level.sneeuw : null;
+}
+function sneeuwOn(){ return !!sneeuwPlan(); }
+// hoeveel sneeuw ligt er op deze plek: 0 is kaal, 1 is dicht
+function sneeuwAt(x, plan){
+  const p = plan || sneeuwPlan();
+  if (!p) return 0;
+  const vast = p.dek === undefined ? 1 : p.dek;
+  if (p.van === undefined || p.tot === undefined) return vast;
+  if (p.van === p.tot) return x <= p.tot ? vast : 0;
+  const u = Math.max(0, Math.min(1, (x - p.van) / (p.tot - p.van)));
+  return vast * u * u * (3 - 2 * u);       // zacht in- en uitlopen
+}
+// waar in de wereld ligt de grens waarboven deze stand eronder ligt? De smoothstep
+// van hierboven teruggerekend, zodat de grens precies bij die hoeveelheid valt.
+function sneeuwGrensX(deel, p){
+  const vast = p.dek === undefined ? 1 : p.dek;
+  if (!vast) return null;
+  const s = Math.max(0, Math.min(1, deel / vast));
+  const u = 0.5 - Math.sin(Math.asin(1 - 2 * s) / 3);
+  return p.van + (p.tot - p.van) * u;
+}
+// De grens loopt grillig, net als de breukrand van een ravijn. Een rechte streep
+// over de grond zou je meteen zien; zo zie je alleen dat er sneeuw bij komt.
+function sneeuwJag(i, y, top, s){
+  const k = i * 5.7, t = (y - top) / s;
+  return (26 * Math.sin(t * 0.021 + k) + 14 * Math.sin(t * 0.053 + k * 2.3)
+          + 7 * Math.sin(t * 0.11 + k * 3.1)) * s;
+}
+// de tegel waar je op loopt: de rotsbodem als het level daarom vraagt, anders de
+// gewone grond (of de ingebakken wintergrond van Winter World)
+function bodemPic(){
+  const p = sneeuwPlan();
+  if (p && p.soort === 'rots'){
+    loadSneeuw();
+    if (imgReady(sneeuwImg.rots)) return sneeuwImg.rots;
+  }
+  return winterPic('edge', edgeImg);
+}
+function bodemDonker(){                    // de massa onder de tegel, tot onder in beeld
+  const p = sneeuwPlan();
+  return (winterOn() || (p && p.soort === 'rots')) ? '#2b2f38' : '#2e211d';
+}
+// De vier standen liggen over elkaar en zijn genest: wat op 25 wit is, is dat op 50
+// ook. Een grens is daardoor alleen sneeuw die erbij komt, nooit sneeuw die weggaat.
+function drawSneeuwdek(top, tw, th, x0, left, right, s){
+  const p = sneeuwPlan();
+  if (!p) return;
+  loadSneeuw();
+  const loopt = p.van !== undefined && p.tot !== undefined;
+  const onder = top + th + H;
+  for (let i = 0; i < SNEEUW_STANDEN.length; i++){
+    const im = sneeuwImg.lagen[i];
+    if (!im || !imgReady(im)) continue;
+    // deze stand begint halverwege de vorige: zo komt de gemiddelde hoeveelheid uit
+    const deel = (SNEEUW_STANDEN[i] - 12.5) / 100;
+    let grens = null;
+    if (loopt){
+      const wx = sneeuwGrensX(deel, p);
+      if (wx === null) continue;
+      grens = W / 2 + (wx - world);
+      if (grens < left - W) continue;                    // nog nergens in beeld
+    } else if (sneeuwAt(0, p) < deel) continue;
+    ctx.save();
+    if (grens !== null){                                 // alleen het stuk dat al onder de sneeuw zit
+      ctx.beginPath();
+      ctx.moveTo(left - W, top - 40);
+      for (let y = top - 40; y <= onder; y += 8) ctx.lineTo(grens + sneeuwJag(i, y, top, s), y);
+      ctx.lineTo(left - W, onder);
+      ctx.closePath();
+      ctx.clip();
+    }
+    for (let x = x0; x < right; x += tw) ctx.drawImage(im, x, top, tw + 1, th);
+    ctx.restore();
+  }
+}
+
 // grillige breukrand, vaste vorm per gat
 function gapJag(g, side, y, groundY){
   const k = g.x * 0.01 + side * 7.3, t = y - groundY;
@@ -6537,8 +6663,8 @@ function scene(groundY){
   drawProps(on2 ? nearY : horizonY, propUnit, false);   // far scenery, behind the ground (voor de heuvels: op hun lijn)
   drawPlacedFar(groundY);                           // jouw achtergronddecor staat op de savanne, niet op de horizon
   const bandH = H * 0.18;
-  const eimg = winterPic('edge', edgeImg);                 // in de winter: sneeuw op grijze rots
-  ctx.fillStyle = winterOn() ? '#2b2f38' : '#2e211d'; ctx.fillRect(0, groundY, W, Math.max(bandH, H - groundY) + H);
+  const eimg = bodemPic();                                 // savanne, rotsbodem, of de ingebakken wintergrond
+  ctx.fillStyle = bodemDonker(); ctx.fillRect(0, groundY, W, Math.max(bandH, H - groundY) + H);
   if (edgeReady()){
     const s = edgeScale(bandH);
     const tw = eimg.naturalWidth * s, th = eimg.naturalHeight * s;
@@ -6560,7 +6686,9 @@ function scene(groundY){
     ctx.clip('evenodd');
     let x = W / 2 - (((world % tw) + tw) % tw);          // vast aan de wereld
     while (x > left) x -= tw;
+    const x0 = x;
     for (; x < right; x += tw) ctx.drawImage(eimg, x, top, tw + 1, th);
+    drawSneeuwdek(top, tw, th, x0, left, right, s);      // de sneeuw die erop ligt, op dezelfde tegelmaat
     drawWaterStrips(groundY);                            // poelen liggen over de grond heen
     ctx.restore();
   } else {
@@ -8196,7 +8324,8 @@ function syncLevel(){
     hppotions: (level.hppotions || []).map(o => ({ x: Math.round(o.x),
                                                    y: (o.y === null || o.y === undefined) ? null : Math.round(o.y) })),
     terraces: (level.terraces || []).map(o => ({ r: o.r, l: o.l, h: o.h })),
-    ledges: (level.ledges || []).map(o => ({ x: o.x, h: o.h, s: o.s }))
+    ledges: (level.ledges || []).map(o => ({ x: o.x, h: o.h, s: o.s })),
+    sneeuw: level.sneeuw || undefined        // staat er geen bodem of dek, dan valt het veld weg
   });
   bcount.textContent = level.rocks.length + ' rotsen, ' + level.spawns.length
                      + ' monsters, ' + level.props.length + ' decor, '
@@ -8255,6 +8384,15 @@ function schoonTekst(){
   return ', ' + levelSchoon.verplaatst + ' verschoven en ' + levelSchoon.weg
        + ' weggehaald (stond boven een ravijn)';
 }
+// bodem en sneeuwdek uit een level als tekst: alleen de twee soorten, en van en tot
+// tellen alleen als ze er allebei staan (anders weet je niet waar de overgang stopt)
+function leesSneeuw(o){
+  if (!o || (o.soort !== 'savanne' && o.soort !== 'rots')) return null;
+  const s = { soort: o.soort };
+  if (o.dek !== undefined) s.dek = Math.max(0, Math.min(1, Number(o.dek) || 0));
+  if (o.van !== undefined && o.tot !== undefined){ s.van = Number(o.van); s.tot = Number(o.tot); }
+  return s;
+}
 function readLevel(txt){
   const o = JSON.parse(txt);
   const arr = Array.isArray(o) ? o : o.rocks || [];
@@ -8290,6 +8428,7 @@ function readLevel(txt){
            fg: o.fg ? { from: Number(o.fg.from), to: Number(o.fg.to) } : null,
            arena: o.arena ? { c: Number(o.arena.c) } : null,
            winter: !!o.winter,                          // sneeuw, grijze rots, witte dieren (Winter World)
+           sneeuw: leesSneeuw(o.sneeuw),                // bodem en sneeuwdek, zie die sectie
            tips: (o.tips || []).map(t => ({ x: Number(t.x), t: String(t.t) })),
            tutorial: o.tutorial ? o.tutorial.map(s => Object.assign({}, s)) : null });
 }
@@ -8392,6 +8531,7 @@ function startSandbox(){
   savedLevel = level;                                   // je eigen level even parkeren
   level = { rocks: [], spawns: [], props: [], gaps: [] };
   sandbox = true; building = false; running = true;
+  sbSneeuw = { soort: null, dek: 1 }; sbSneeuwToon();   // kale grond, zoals de rest van de sandbox
   document.getElementById('lives').style.display = 'none';   // geen levens in de sandbox
   restart();
   cv.focus();
@@ -8510,6 +8650,38 @@ document.getElementById('sbboss').onclick = () => {           // met arena, dus 
   arena = { c: world };
   panPlay('roar', 1);
   cv.focus();
+};
+// ---- bodem en sneeuwdek los testen ---------------------------------------
+// Geen, savanne of rotsbodem, hoeveel sneeuw erop, en een overgang die vanaf hier
+// naar links oploopt. Zo zie je zonder level of het rood rood blijft.
+const SB_RAMP = { van: 400, tot: 6000 };     // zover vooruit begint hij, zover verderop is hij dicht
+let sbSneeuw = { soort: null, dek: 1 };
+const sbDekV = document.getElementById('sbdekv');
+const sbRampBtn = document.getElementById('sbramp');
+function sbSneeuwToon(){
+  sbDekV.textContent = Math.round(sbSneeuw.dek * 100) + '%';
+  const loopt = sbSneeuw.van !== undefined;
+  sbRampBtn.textContent = loopt ? 'Overgang aan' : 'Overgang uit';
+  sbRampBtn.classList.toggle('on', loopt);
+  sandboxEl.querySelectorAll('button[data-bodem]').forEach(b =>
+    b.classList.toggle('on', (b.dataset.bodem || null) === sbSneeuw.soort));
+}
+sandboxEl.querySelectorAll('button[data-bodem]').forEach(b => b.onclick = () => {
+  sbSneeuw.soort = b.dataset.bodem || null;
+  if (sbSneeuw.soort) loadSneeuw();
+  sbSneeuwToon(); cv.focus();
+});
+document.getElementById('sbdekmin').onclick = () => {
+  sbSneeuw.dek = Math.max(0, Math.round((sbSneeuw.dek - 0.25) * 100) / 100); sbSneeuwToon(); cv.focus();
+};
+document.getElementById('sbdekplus').onclick = () => {
+  sbSneeuw.dek = Math.min(1, Math.round((sbSneeuw.dek + 0.25) * 100) / 100); sbSneeuwToon(); cv.focus();
+};
+sbRampBtn.onclick = () => {
+  if (sbSneeuw.van !== undefined){ delete sbSneeuw.van; delete sbSneeuw.tot; }
+  else { sbSneeuw.van = world - SB_RAMP.van; sbSneeuw.tot = world - SB_RAMP.tot; }   // naar links loopt hij op
+  if (!sbSneeuw.soort){ sbSneeuw.soort = 'savanne'; loadSneeuw(); }
+  sbSneeuwToon(); cv.focus();
 };
 document.getElementById('sbhppotion').onclick = () => sbHppotion(false);
 document.getElementById('sbhppotiondrop').onclick = () => sbHppotion(true);
