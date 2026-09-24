@@ -730,7 +730,7 @@ const SWEEP_BUFFER = 0.25;
 const downKey = () => keys['ArrowDown'] || keys['s'] || keys['S'];
 function sweepReady(){ return sweepImgs.every(i => i.complete && i.naturalWidth); }
 function startSweep(){
-  swFrame = 0; swAcc = 0; sweepId++;
+  swFrame = 0; swAcc = 0; sweepId++; sweepSnowCurtain = false;
   if (wantSound){
     const t = document.getElementById('thrust');
     t.currentTime = 0; t.volume = 1; t.play().catch(() => {});
@@ -3435,9 +3435,11 @@ function updateJump(dt, plats, halfW){
     if (pvh <= 0 && prevH >= p.topH - 1 && ph <= p.topH && p.topH > target) target = p.topH;
   }
   if (!onGround && target > -Infinity && ph <= target){
+    const vIn = -pvh;                                 // hoe hard je neerkomt
     ph = target; pvh = 0; onGround = true;
     if (jump){ jump.phase = 'land'; jump.t = 0; }
     puffDust(9);
+    if (winterOn() && !building && waterDepthAt(world) < 0.2) snowBurst(world, target, vIn / 900);   // de sneeuw stuift op
   }
   if (!onGround && ph < -GAP_DEATH) fallDeath();   // in het gat gevallen
 
@@ -3498,7 +3500,7 @@ function restart(){
   camY = 0; camFloor = 0;
   drawLives(); deadEl.classList.remove('on');
   snakes.length = 0; scorps.length = 0; panthers.length = 0; hyenas.length = 0; arena = null; camEase = null; spawnTimer = 0.6;
-  snowPuffs.length = 0; snowflakes.length = 0; snowWorldPrev = null;
+  snowPuffs.length = 0; snowFx.length = 0; snowflakes.length = 0; snowWorldPrev = null;
   thickets.length = 0; chips.length = 0;            // struwelen weer heel, brokstukken weg
   if (level && level.thickets) for (const d of level.thickets) addThicket(d.x, d.n, d.seed).src = d;
   if (level && level.tips) for (const t of level.tips) t.used = false;   // uitleg opnieuw laten zien
@@ -4259,6 +4261,122 @@ function drawSnowPuffs(groundY, scale, cx){
     ctx.globalAlpha = 0.85 * (1 - t);
     const x = cx + (p.x - world), y = groundY - (p.base || 0) * scale - p.h * scale;
     ctx.beginPath(); ctx.arc(x, y, p.r * scale * (1 + t * 0.8), 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+// ---- sneeuw die opstuift bij Amir: landing en lage zwaai (Winter World) ----------
+// Drie soorten deeltjes, alle op hun plek in de wereld: wolken (het witte stofplaatje,
+// breed en traag, blijven hangen), kristallen (felle spikkels die in een waaier omhoog
+// schieten, glinsteren en terugvallen) en klonten (brokken sneeuw die in een boog
+// vliegen en bij het neerkomen een wolkje geven). Hoogtes en snelheden in wereld-px.
+const snowFx = [];
+const SNOWFX_MAX = 360;                   // op de telefoon nooit meer dan dit tegelijk
+let sweepSnowCurtain = false;             // het gordijn komt een keer per zwaai
+function snowFxPush(p){ if (snowFx.length < SNOWFX_MAX) snowFx.push(p); }
+function snowBurst(x, base, power){       // power: 0.4 (hupje) .. 1.8 (van een hoog terras)
+  const k = Math.max(0.4, Math.min(1.8, power));
+  const nC = Math.round(6 + 7 * k), nK = Math.round(16 + 26 * k), nL = Math.round(3 + 5 * k);
+  for (let i = 0; i < nC; i++){                                  // de brede lage schuif, naar twee kanten
+    const side = i % 2 ? 1 : -1;
+    snowFxPush({ kind: 'cloud', shade: i % 3 === 0, x: x + side * (10 + Math.random() * 40), h: 4 + Math.random() * 14, base,
+                 vx: side * (90 + Math.random() * 150) * k, vh: (30 + Math.random() * 60) * k,
+                 r: (18 + Math.random() * 16) * (0.7 + 0.5 * k), age: 0, life: 1.1 + Math.random() * 0.8,
+                 rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 2 });
+  }
+  for (let i = 0; i < nK; i++){                                  // kristallen in een waaier omhoog
+    const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.2, v = (220 + Math.random() * 300) * k;
+    snowFxPush({ kind: 'crystal', x: x + (Math.random() - 0.5) * 50, h: 2, base, vx: Math.cos(a) * v, vh: -Math.sin(a) * v,
+                 r: 1.4 + Math.random() * 2.0, age: 0, life: 0.7 + Math.random() * 0.7, tw: Math.random() * 6.28 });
+  }
+  for (let i = 0; i < nL; i++){                                  // klonten
+    const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.8, v = (160 + Math.random() * 240) * k;
+    snowFxPush({ kind: 'clump', x: x + (Math.random() - 0.5) * 60, h: 4, base, vx: Math.cos(a) * v, vh: -Math.sin(a) * v,
+                 r: 3 + Math.random() * 4.5, age: 0, life: 2.5, rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 8 });
+  }
+}
+function spawnSweepSnow(dt, scale){       // de speerpunt snijdt door de sneeuw: alles vliegt naar buiten weg
+  const R = SWEEP_REACH * CHAR_H * scale * 0.92, a = sweepAngle();
+  const out = Math.cos(a) >= 0 ? 1 : -1;
+  const n = Math.floor(dt * 260 + Math.random());
+  for (let i = 0; i < n; i++){
+    const along = 0.5 + Math.random() * 0.5, px = world + Math.cos(a) * R * along, r = Math.random();
+    if (r < 0.55)
+      snowFxPush({ kind: 'crystal', x: px, h: 2 + Math.random() * 6, base: ph, vx: out * (180 + Math.random() * 320), vh: 160 + Math.random() * 320,
+                   r: 1.4 + Math.random() * 2.0, age: 0, life: 0.6 + Math.random() * 0.6, tw: Math.random() * 6.28 });
+    else if (r < 0.85)
+      snowFxPush({ kind: 'cloud', shade: Math.random() < 0.35, x: px, h: 2 + Math.random() * 10, base: ph, vx: out * (120 + Math.random() * 200), vh: 50 + Math.random() * 110,
+                   r: 18 + Math.random() * 16, age: 0, life: 0.9 + Math.random() * 0.7, rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 3 });
+    else
+      snowFxPush({ kind: 'clump', x: px, h: 4, base: ph, vx: out * (200 + Math.random() * 260), vh: 200 + Math.random() * 260,
+                   r: 2.5 + Math.random() * 4, age: 0, life: 2.5, rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 10 });
+  }
+  if (!sweepSnowCurtain){                                        // het gordijn: een brede lage wolk die wegvliegt
+    sweepSnowCurtain = true;
+    for (let i = 0; i < 7; i++)
+      snowFxPush({ kind: 'cloud', shade: i % 2 === 1, x: world + out * (30 + i * 24), h: 3 + i * 4, base: ph, vx: out * (260 + i * 45), vh: 70 + i * 14,
+                   r: 30 + i * 5, age: 0, life: 1.2 + i * 0.1, rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 2 });
+  }
+}
+function updateSnowFx(dt){
+  for (let i = snowFx.length - 1; i >= 0; i--){
+    const p = snowFx[i];
+    p.age += dt;
+    if (p.age >= p.life){ snowFx.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.h += p.vh * dt;
+    if (p.kind === 'cloud'){ p.vx *= 0.94; p.vh *= 0.93; p.h -= 6 * dt; if (p.h < 0) p.h = 0; }   // blijft hangen, zakt heel traag
+    else {
+      p.vh -= 900 * dt; p.vx *= 0.985;
+      if (p.h <= 0){
+        if (p.kind === 'clump'){                                 // een klont slaat neer: wolkje, en weg
+          snowFxPush({ kind: 'cloud', x: p.x, h: 2, base: p.base, vx: p.vx * 0.3, vh: 30, r: 8 + p.r * 1.5, age: 0, life: 0.5, rot: 0, spin: 1 });
+          snowFx.splice(i, 1); continue;
+        }
+        p.h = 0; p.vh = 0; p.vx *= 0.5; p.life = Math.min(p.life, p.age + 0.25);   // een kristal blijft even liggen en dooft
+      }
+    }
+  }
+}
+function drawSnowFx(groundY, scale, cx){
+  if (!snowFx.length) return;
+  ctx.save();
+  for (const p of snowFx){
+    const t = p.age / p.life, x = cx + (p.x - world), y = groundY - (p.base + p.h) * scale;
+    if (x < -200 || x > W / viewZoom() + 200) continue;
+    if (p.kind === 'cloud'){
+      // poedersneeuw: zachte ronde wolk zonder rand (het stofplaatje leest wit als een bel), iets
+      // platter dan hoog, met een blauwgrijze onderkant zodat hij volume houdt tegen de witte grond
+      const rr = p.r * scale * (1 + t * 1.4);
+      const fade = (t < 0.1 ? t / 0.1 : 1 - (t - 0.1) / 0.9);
+      ctx.save(); ctx.translate(x, y); ctx.scale(1.35, 0.85);
+      if (p.shade){
+        ctx.globalAlpha = fade * 0.55;
+        const gs = ctx.createRadialGradient(0, rr * 0.25, 0, 0, rr * 0.25, rr * 1.05);
+        gs.addColorStop(0, 'rgba(168,186,212,0.9)'); gs.addColorStop(0.55, 'rgba(168,186,212,0.4)'); gs.addColorStop(1, 'rgba(168,186,212,0)');
+        ctx.fillStyle = gs; ctx.beginPath(); ctx.arc(0, rr * 0.25, rr * 1.05, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.globalAlpha = fade * (p.shade ? 0.6 : 0.78);
+      const gw = ctx.createRadialGradient(-rr * 0.15, -rr * 0.2, 0, 0, 0, rr);
+      gw.addColorStop(0, 'rgba(250,252,255,0.95)'); gw.addColorStop(0.5, 'rgba(244,248,253,0.55)'); gw.addColorStop(1, 'rgba(240,245,252,0)');
+      ctx.fillStyle = gw; ctx.beginPath(); ctx.arc(0, 0, rr, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    } else if (p.kind === 'crystal'){
+      const tw = 0.55 + 0.45 * Math.sin(p.tw + p.age * 28);      // glinstert
+      ctx.globalAlpha = Math.min(1, (1 - t) * 1.4) * tw;
+      ctx.fillStyle = '#ffffff';
+      const r = p.r * scale * 1.4;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+      if (tw > 0.85){                                            // op het felst een sterretje
+        ctx.globalAlpha *= 0.6;
+        ctx.fillRect(x - r * 3, y - 0.5, r * 6, 1); ctx.fillRect(x - 0.5, y - r * 3, 1, r * 6);
+      }
+    } else {                                                     // klont: wit met een schaduwkant
+      ctx.globalAlpha = 0.95;
+      const r = p.r * scale * 1.5;
+      ctx.save(); ctx.translate(x, y); ctx.rotate(p.rot + p.spin * p.age);
+      ctx.fillStyle = '#f4f7fb'; ctx.beginPath(); ctx.ellipse(0, 0, r * 1.25, r, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(150,168,196,0.32)'; ctx.beginPath(); ctx.ellipse(r * 0.2, r * 0.35, r * 0.85, r * 0.45, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
   }
   ctx.restore();
 }
@@ -5448,12 +5566,16 @@ function drawMist(y, a, col, down){
 // tone: kleurbewerking en waaskleuren. Zonder tone de gewone savanne (warm avondlicht);
 // de winter bakt dezelfde panelen nog een keer, koud en bleek (zie bakeWinterLayers).
 const TONE_SAVANNE = { top: '110,64,88', bot: '226,119,74' };
-function bakeLayer(L, tone){                   // laden en een keer klaarzetten: waas + zachte linkerrand
+function bakeLayer(L, tone, suffix){           // laden en een keer klaarzetten: waas + zachte linkerrand
   tone = tone || TONE_SAVANNE;
   const out = L.files.map(() => null);
   L.files.forEach((f, i) => {
     const img = new Image();
-    img.onerror = () => console.warn('ontbreekt: ' + L.dir + f + '.png');
+    img.onerror = () => {
+      // de winterversie (_sneeuw, uit tools/sneeuw_bg.py) ontbreekt: dan het gewone paneel, koud gebakken
+      if (suffix && !img.dataset.fallback){ img.dataset.fallback = '1'; img.src = L.dir + f + '.png'; return; }
+      console.warn('ontbreekt: ' + L.dir + f + (suffix || '') + '.png');
+    };
     img.onload = () => {
       const w = img.naturalWidth, h = img.naturalHeight;
       const c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -5477,7 +5599,7 @@ function bakeLayer(L, tone){                   // laden en een keer klaarzetten:
       g.fillStyle = fd; g.fillRect(0, 0, w, h);
       out[i] = c;
     };
-    img.src = L.dir + f + '.png';
+    img.src = L.dir + f + (suffix || '') + '.png';
   });
   return out;
 }
@@ -5509,18 +5631,20 @@ function layerSeq(L, seed, hero, at){
   return seq;
 }
 const mtnImgs = bakeLayer(MTN), midImgs = bakeLayer(MID), mtn2Imgs = bakeLayer(MTN2);
-// de winter: dezelfde panelen, bleek en koud. Pas gebakken als een winterlevel gekozen wordt.
+// de winter: de besneeuwde panelen (*_sneeuw.png, uit tools/sneeuw_bg.py: witte toppen, sneeuw op de
+// ruggen en de vlakte, al koud gezet). Pas geladen als een winterlevel gekozen wordt. De grade blijft
+// mild: het koud maken zit in de plaatjes zelf, zodat het ook klopt in browsers zonder canvas-filters.
 const TONE_WINTER = {
-  mtn:  { grade: 'saturate(0.10) brightness(1.30) contrast(0.85)', top: '170,185,210', bot: '222,230,242' },
-  mtn2: { grade: 'saturate(0.10) brightness(1.12) contrast(0.88)', top: '150,165,192', bot: '210,220,236' },
-  mid:  { grade: 'saturate(0.08) brightness(1.20) contrast(0.82)', top: '160,172,196', bot: '214,222,236' }
+  mtn:  { grade: 'brightness(1.08)', top: '170,185,210', bot: '222,230,242' },
+  mtn2: { grade: 'brightness(0.98)', top: '150,165,192', bot: '210,220,236' },
+  mid:  { grade: 'brightness(1.02)', top: '160,172,196', bot: '214,222,236' }
 };
 let mtnImgsW = null, midImgsW = null, mtn2ImgsW = null;
 function bakeWinterLayers(){
   if (mtnImgsW) return;
-  mtnImgsW = bakeLayer(MTN, TONE_WINTER.mtn);
-  midImgsW = bakeLayer(MID, TONE_WINTER.mid);
-  mtn2ImgsW = bakeLayer(MTN2, TONE_WINTER.mtn2);
+  mtnImgsW = bakeLayer(MTN, TONE_WINTER.mtn, '_sneeuw');
+  midImgsW = bakeLayer(MID, TONE_WINTER.mid, '_sneeuw');
+  mtn2ImgsW = bakeLayer(MTN2, TONE_WINTER.mtn2, '_sneeuw');
 }
 function layerImgs(){                          // de stapel die nu hoort: winter of savanne
   if (winterOn() && mtnImgsW) return { mtn: mtnImgsW, mid: midImgsW, mtn2: mtn2ImgsW };
@@ -5813,8 +5937,12 @@ function loop(now){
     if (swFrame >= SWEEP_N){ swFrame = -1; swAcc = 0; atkCooldown = SWEEP_COOLDOWN; swRecover = SWEEP_RECOVER; }
   } else if (swRecover > 0) swRecover = Math.max(0, swRecover - dt);
   if (swFrame >= SWEEP_FROM && swFrame <= SWEEP_TO && onGround && ph < 5 && !building
-      && waterDepthAt(world) < 0.2) spawnSweepSand(dt);   // alleen op het zand, niet op rots of in water
+      && waterDepthAt(world) < 0.2){
+    spawnSweepSand(dt);                                  // alleen op het zand, niet op rots of in water
+    if (winterOn()) spawnSweepSnow(dt, scaleNow);        // en in de winter vliegt de sneeuw op
+  }
   updateSand(dt);
+  updateSnowFx(dt);
   // bukken: omlaag of S ingedrukt houden terwijl je op de grond staat
   {
     const downHeld = keys['ArrowDown'] || keys['s'] || keys['S'];
@@ -6341,6 +6469,7 @@ function loop(now){
     }
     drawSplashes(groundY, scale, cx);
     drawSweepDust(false, cx, groundY, lift, scale);   // stof vóór Amir
+    drawSnowFx(groundY, scale, cx);                   // opstuivende sneeuw: wolken, kristallen, klonten
 
     if (dust.length){
       ctx.save();
