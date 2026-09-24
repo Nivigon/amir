@@ -2200,11 +2200,25 @@ const GROT_HOOG = 0.6;            // celhoogte als deel van Amir: 150 eenheden, 
 // niets hoeft op te halen voordat het kan tekenen.
 const GROT = {
   strook: { w: 1724, h: 593 },                             // plafond_strook
-  vul:    0.86,                                            // tot deze rij is de band dicht steen; daaronder tanden
+  // Van de plafondstrook tekenen we niet de hele hoogte, maar alleen de onderste 160
+  // bronrijen: dat is de band waarmee de rotsmassa ophoudt. Rij 433 tot 508 is nog
+  // massief steen, 509 tot 592 is de grillige tandenrand. Het stuk daarboven is niets
+  // anders dan meer rots, en dat leest als een eindeloze massa in plaats van een band;
+  // dat wordt nu met rotstextuur gevuld.
+  band:   { van: 433, hoog: 160, dicht: (508 - 433) / 160 },
+  tand:   0.45,                                            // zoveel van de tandenzone hangt onder de plafondlijn
   hoek:   { w: 1984, h: 1230, band: 593, binnen: 1415 },   // binnen = wand_binnenrand_x_onderaan
   wand:   { w: 717,  h: 1108, rand: 13 },                  // rand = rots_linkerrand_x_bovenaan
-  tex:    2                                                // de rotsvulling tegelt per zoveel cellen
+  vul:    0.86                                             // tot deze rij van de hele strook is hij dicht (hoekstuk)
 };
+// De korrel van het gesteente hangt aan de grond, niet aan de cel. De grondband van het
+// spel is 296 bronpixels dik en zijn rotsbrokken zijn ongeveer 150 px; in de plafondstrook
+// zijn ze ongeveer 70 px. Teken je de strook 2,1 keer zo groot als de grond, dan zijn de
+// brokken in allebei even groot en leest het plafond als de onderkant van dezelfde berg
+// waar de grond de bovenkant van is.
+const GROT_SCHAAL = 2.1;
+const schaalGrond = () => edgeScale(H * 0.18);       // schermpixels per bronpixel van de grondrand
+const grotSteen = () => GROT_SCHAAL * schaalGrond(); // en die van de grotset
 // Eén pixelschaal voor de hele grotset, afgeleid van de celgrootte: de plafondband is
 // precies één cel dik. Daarmee heeft elk stuk rots dezelfde korrel, van de tanden aan
 // het plafond tot het kleinste grindje.
@@ -2319,13 +2333,15 @@ function grotReeksV(R, c, test){
 // beeld ziet lopen. Daarom zetten we de tegel eerst drie keer naast (of onder) elkaar op
 // ware grootte, schalen dat in één keer, en knippen het middelste stuk eruit. Wat er dan
 // uitkomt tegelt weer naadloos, en wordt daarna op hele pixels neergezet.
-function grotTegelMaak(img, w, h, herhX, herhY){
+function grotTegelMaak(img, w, h, herhX, herhY, snee){
   const nx = herhX ? 3 : 1, ny = herhY ? 3 : 1;
+  const sx = snee ? snee.x : 0, sy = snee ? snee.y : 0;        // welk stuk van het plaatje
+  const sw = snee ? snee.w : img.naturalWidth, sh = snee ? snee.h : img.naturalHeight;
   const bron = document.createElement('canvas');
-  bron.width = img.naturalWidth * nx; bron.height = img.naturalHeight * ny;
+  bron.width = sw * nx; bron.height = sh * ny;
   const bg = bron.getContext('2d');
   for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++)
-    bg.drawImage(img, i * img.naturalWidth, j * img.naturalHeight);
+    bg.drawImage(img, sx, sy, sw, sh, i * sw, j * sh, sw, sh);
   const groot = document.createElement('canvas');
   groot.width = w * nx; groot.height = h * ny;
   const gg = groot.getContext('2d');
@@ -2358,16 +2374,18 @@ function grotFade(c, kant){
 let grotTegels = null;
 function grotTegelSet(cel, celPx){
   const bodem = edgeReady() ? bodemPic() : null;
-  const sleutel = cel + '|' + Math.round(celPx) + '|' + (bodem ? bodem.src : '-');
+  const ss = grotSteen();
+  const sleutel = cel + '|' + Math.round(celPx) + '|' + ss.toFixed(3) + '|' + (bodem ? bodem.src : '-');
   if (grotTegels && grotTegels.sleutel === sleutel) return grotTegels;
   const st = grotPic('plafond_strook'), wa = grotPic('wand_rand'), ho = grotPic('hoek_plafond_wand');
   if (!imgReady(gapTex) || !st || !imgReady(st) || !wa || !imgReady(wa) || !ho || !imgReady(ho) || !bodem) return null;
   const s = grotS(celPx), es = grotEdgeS(celPx);
   const rond = v => Math.max(1, Math.round(v));
-  const tw = GROT.tex * cel;
-  grotTegels = { sleutel, cel,
-    tex:    grotTegelMaak(gapTex, tw, rond(tw * gapTex.naturalHeight / gapTex.naturalWidth), true, true),
-    strook: grotFade(grotTegelMaak(st, rond(GROT.strook.w * s), rond(GROT.strook.h * s), true, false), 'boven'),
+  const tw = rond(gapTex.naturalWidth * ss);
+  grotTegels = { sleutel, cel, ss,
+    tex:    grotTegelMaak(gapTex, tw, rond(gapTex.naturalHeight * ss), true, true),
+    strook: grotFade(grotTegelMaak(st, rond(GROT.strook.w * ss), rond(GROT.band.hoog * ss), true, false,
+                                   { x: 0, y: GROT.band.van, w: GROT.strook.w, h: GROT.band.hoog }), 'boven'),
     wand:   grotFade(grotTegelMaak(wa, rond(GROT.wand.w * s), rond(GROT.wand.h * s), false, true), 'rechts'),
     bodem:  grotFade(grotTegelMaak(bodem, rond(bodem.naturalWidth * es), rond(bodem.naturalHeight * es), true, false), 'onder'),
     hoek:   grotFade(grotTegelMaak(ho, rond(GROT.hoek.w * s), rond(GROT.hoek.h * s), false, false), 'boven') };
@@ -2398,15 +2416,16 @@ function grotVulling(R, X, Y, T, ch){
   ctx.restore();
 }
 
-// buur onder is leeg: plafond_strook, horizontaal getegeld. De dichte band eindigt op de
-// celgrens, de tanden hangen eronder in de open ruimte.
+// buur onder is leeg: de band waarmee de rotsmassa ophoudt. Het massieve deel eindigt op
+// de plafondlijn; een deel van de tanden hangt eronder, in de open ruimte.
 function grotPlafonds(R, X, Y, T){
   if (!T) return;
   const im = T.strook, w = im.width, h = im.height;
-  const dicht = Math.round(GROT.vul * h);
+  const dicht = Math.round(GROT.band.dicht * h);
+  const hang = Math.round(GROT.tand * (h - dicht));
   for (let r = 0; r < R.n; r++)
     for (const [c, e] of grotReeksH(R, r, (cc, rr) => grotVol(R, cc, rr) && !grotVol(R, cc, rr + 1))){
-      const L = X(c), Rr = X(e + 1), top = Y(r) - dicht;
+      const L = X(c), Rr = X(e + 1), top = Y(r) - dicht + hang;
       ctx.save();
       ctx.beginPath(); ctx.rect(L, top - 1, Rr - L, h + 2); ctx.clip();
       for (let x = L; x < Rr; x += w) ctx.drawImage(im, x, top);
