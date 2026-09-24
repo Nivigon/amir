@@ -6,7 +6,7 @@ Alle sprites, achtergronden en geluiden staan los op schijf. Het spel verwacht d
 
 ## Episodes
 
-In het menu onder **Levels** staan vier reeksen: Episode 1 (de weg naar het koningschap), Episode Renew, Episode Winter World en de oefenlevels voor Rosa.
+In het menu onder **Levels** staan vijf reeksen: Episode 1 (de weg naar het koningschap), Episode Renew, Episode Winter World, de oefenlevels voor Rosa, en Test levels.
 
 Episode Renew is tien levels lang en loopt op van rustig naar zwaar: van het dorp bij de start en het eerste doornbos, via de poelen, het doornenpad, de heuvelrug, de hyenavlakte, het verdronken dorp en de bergpas, naar de nacht waarin alles tegelijk komt, en tot slot twee keer de zwarte panter als eindbaas. Elk level heeft zijn eigen uitzicht en gebruikt alles wat het spel heeft: drinkkalebassen, doornbossen, water, ravijnen, terrassen en richels, dorpen, botten, hyena's, slangen en schorpioenen. De leveldefinities staan in de HTML als `RENEW_1` tot en met `RENEW_10`.
 
@@ -19,6 +19,8 @@ Sneeuw hoeft niet de hele winteruitrusting te zijn. Naast `winter: true` kan een
 Of het sneeuwt, verschilt per potje. Bij de start wordt een weerplan geloot: de hele tijd sneeuw, helemaal geen, sneeuw die onderweg begint, sneeuw die onderweg ophoudt, of een bui midden in het level. Het plan hangt aan de afstand door het level, en begin en einde gaan langzaam: over ongeveer een tiende van het level dikt de sneeuw aan of dunt hij uit, en vlokken die weg moeten vallen gewoon uit beeld. Ook de dikte van de bui verschilt per potje (`planSnow` in de HTML).
 
 In de winter is al het stof sneeuwstof (de stofplaatjes worden bij het laden wit gemaakt), en bij een landing of een lage zwaai stuift de sneeuw echt op: een brede lage wolk die blijft hangen, een waaier glinsterende kristallen en klonten die in een boog wegvliegen en bij het neerkomen een wolkje geven. Hoe harder je neerkomt, hoe groter de plof.
+
+Test levels zijn korte proefstukken: een enkel level waarin je een mechaniek los kunt bekijken, zonder gevecht en zonder lange tocht eromheen. Ze staan met opzet apart van de echte episodes, zodat daar niets aan hoeft te veranderen om iets nieuws te kunnen proberen. **Test 1: Grot, dak en klimmen** loopt in drie stukken. Eerst een dak: een rotsplaat over de weg heen, laag genoeg dat je je hoofd stoot als je eronder springt, met hangblokken en keien die door de verstrooiing zijn neergezet. Dan een trap van drie terrassen omhoog en aan de andere kant weer omlaag. En tot slot een grot in de savanne: een dichte achterwand, een wand aan het eind, en daartegen twee richels waarmee je naar een drinkkalebas klimt. Achterin staan de fakkels die het level uitspelen. De definitie staat in de HTML als `TEST_1`.
 
 In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen naar het volgende level van dezelfde reeks. Onder **Instellingen** staan daar ook het tempo van het spel, het looptempo van Amir, het formaat van het beeld en de muziek. Tijdens een level is het speelveld verder leeg: de testbalk met schuifjes staat alleen in de bouwer en de sandbox (met B haal je hem er tijdens het spelen alsnog bij).
 

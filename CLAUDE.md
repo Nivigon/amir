@@ -11,7 +11,8 @@ en beschrijft wat het spel kan; dit document beschrijft hoe je eraan werkt.
 
 **1. Bestaande levels blijven met rust.** De leveldefinities in de HTML
 (`GIJS_LEVEL` tot en met `PANTER_PLUS`, `ROSA_1` en `ROSA_2`, `RENEW_1` tot en met
-`RENEW_10`, `WINTER_1` en `WINTER_2`) zijn bevroren. Er komt geen nieuwe vijand,
+`RENEW_10`, `WINTER_1` en `WINTER_2`) zijn bevroren. De levels in Episode Test levels
+(`TEST_1`) vallen daar niet onder: die zijn er juist om aan te rommelen. Er komt geen nieuwe vijand,
 prop, tip, potion of aangepast getal in, ook niet even om iets te laten zien. Alleen
 als de opdracht een level bij naam noemt ("zet dit in Renew 6") mag dat ene level
 veranderen. Twijfel je of iets eronder valt, dan valt het eronder: vraag het.
@@ -49,6 +50,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | winter: episode Winter World | `WINTER_SRC`, `winterOn()`, `winterPic()` |
 | bodem en sneeuwdek | het veld `sneeuw`: savanne of rots, en het dek in vier standen |
 | levels voor Rosa / Episode Renew / Episode Winter World | de leveldefinities |
+| Episode Test levels | `TEST_1`: korte proefstukken, los van de echte episodes |
 | terrassen en richels | `terraces`, `ledges`, klimmen |
 | de rotswand rechts | `cliffs`, het einde van het level |
 | grotten en ravijnen | `grotten`: het steen om een opening heen, de verstrooiing, de botsingen |
@@ -153,6 +155,7 @@ tegel waar komt rekent het spel zelf uit, met de ankerpunten uit `design/grot/gr
 | `plafond` | dak eroverheen (standaard `true`; `false` geeft een overhang of ravijn met open lucht) |
 | `wanden` | `'beide'`, `'links'`, `'rechts'` of `'geen'` (standaard `'beide'`) |
 | `achter` | achterwand van rotstextuur achter de opening (standaard `false`) |
+| `rand` | extra steen achter een wand, in wereld-px (standaard 0) |
 | `massief` | plafond, wanden en vloer blokkeren (standaard `true`) |
 | `seed` | dezelfde seed geeft elke keer dezelfde verstrooiing |
 | `strooi` | hangblokken, richels en keien vanzelf neerzetten (standaard `true`) |
@@ -163,6 +166,10 @@ dezelfde splitsing als bij `terraces` (`l`/`r` in wereld-px, `h` in sprite-eenhe
 
 Zet `achter: true` voor een echte grot of een kloof, anders kijk je er dwars doorheen de
 savanne in. Laat het uit voor een overhang waar dat juist de bedoeling is.
+
+Zonder `rand` is de rotsband precies zo dik als de wand van het hoekstuk, en dat leest als
+een schot met lucht erachter. Reken op een paar honderd px voor een rotsmassief; die band
+is ook massief, dus je loopt er niet doorheen.
 
 Een vloer onder de grondlijn (`y` negatief) maakt de grot zelf een gat in de grond: je
 valt er vanzelf in en de camera zakt mee zolang je erop staat. Er hoeft dus geen `gaps`
