@@ -1825,7 +1825,33 @@ const TER = { src: 'design/klimmen/klif_bovenrand.png',
               repY: 300,        // vanaf deze rij herhaalt de wand naar beneden
               depth: 0.33,      // bovenvlak boven de looplijn, als deel van Amir
               edge: 70,         // zo breed is de afbrokkelende rand
-              trim: 4 };        // donkere snijrand rechts en onderaan
+              soil: 195,        // tot deze rij brokkelt de zijkant van het plaatje zelf af; daaronder is hij recht
+              trim: 4,          // donkere snijrand rechts en onderaan
+              trimTop: 4 };     // en bovenaan: anders ligt er een donkerrode streep op het bovenvlak
+// De zijkant van een terras onder de sneeuwrand is in het plaatje kaarsrecht. Deze golf breekt
+// hem open, net als de randen van een ravijn: boven nog niets (daar doet het plaatje het werk),
+// naar beneden toe steeds grilliger.
+function terJag(seed, y, soilY, st){
+  const g = Math.min(1, Math.max(0, (y - soilY) / (70 * st)));
+  if (g <= 0) return 0;
+  const t = (y - soilY) / Math.max(1e-3, st);
+  return g * st * (12 + 9 * Math.sin(t * 0.021 + seed) + 7 * Math.sin(t * 0.063 + seed * 2.3));
+}
+const TER_JAG_STEP = 12;         // om de zoveel schermpixels een knik: fijner hoeft niet en kost alleen tijd
+// het silhouet van een terras: rechte bovenkant, gebroken zijkanten
+function terClipPath(xl, xr, top, bottom, st, soilY, leftHidden){
+  const sl = xl * 0.011, sr = xr * 0.017 + 2.4;
+  const L = y => leftHidden ? xl - 40 : xl + terJag(sl, y, soilY, st);
+  const R = y => xr - terJag(sr, y, soilY, st);
+  ctx.beginPath();
+  ctx.moveTo(L(top), top);
+  for (let y = top; y <= bottom; y += TER_JAG_STEP) ctx.lineTo(L(y), y);
+  ctx.lineTo(L(bottom), bottom);
+  ctx.lineTo(R(bottom), bottom);
+  for (let y = bottom; y >= top; y -= TER_JAG_STEP) ctx.lineTo(R(y), y);
+  ctx.lineTo(R(top), top);
+  ctx.closePath();
+}
 const LEDGE = { src: 'design/klimmen/klif_richel.png',
                 walk: 30, into: 45, tip: 25, k: 0.55 };   // k = grootte t.o.v. een terras
 const terImg = new Image();
@@ -1878,12 +1904,13 @@ function terracePlats(scale){
 // één kolom uit het terrasplaatje, met de wand eronder herhaald tot onder het scherm
 function drawTerCol(sx, sw, dx, dw, flip, top, bottom, st, img){
   img = img || terPic();
-  const ih = terPic().naturalHeight - TER.trim;    // de donkere snijrand onderaan niet meenemen
+  const sy = TER.trimTop;                          // de donkerrode contourlijn bovenaan niet meenemen
+  const ih = terPic().naturalHeight - TER.trim - sy;   // en de snijrand onderaan ook niet
   ctx.save();
   if (flip){ ctx.translate(dx + dw, 0); ctx.scale(-1, 1); dx = 0; }
-  ctx.drawImage(img, sx, 0, sw, ih, dx, top, dw + 0.8, ih * st);
+  ctx.drawImage(img, sx, sy, sw, ih, dx, top, dw + 0.8, ih * st);
   let y = top + ih * st, k = 0;
-  const rh = ih - TER.repY;
+  const rh = terPic().naturalHeight - TER.trim - TER.repY;
   while (y < bottom){
     ctx.save();
     if (k % 2 === 0){ ctx.translate(0, y + rh * st); ctx.scale(1, -1); ctx.drawImage(img, sx, TER.repY, sw, rh, dx, 0, dw + 0.8, rh * st + 0.8); }
@@ -1916,19 +1943,28 @@ function drawClimb(groundY, scale, cx){
   if (!imgReady(terPic())) return;
   const st = terScale(scale);
   const iw = terPic().naturalWidth - TER.trim;     // en rechts ook niet: anders zie je naden
-  const capW = iw * st, midW = (iw - TER.midX) * st;
+  const fullCap = iw * st, midW = (iw - TER.midX) * st;
   const list = terraceList().slice().sort((a, b) => a.h - b.h);
   for (const t of list){
     const xr = cx + (t.r - world), xl = cx + (t.l - world);
     if (xl > viewR || xr < viewL) continue;
-    const top = groundY - t.h * scale - TER.walk * st;
+    const top = groundY - t.h * scale - (TER.walk - TER.trimTop) * st;
     if (top > bottom) continue;
+    // past de rand niet in het terras, dan drukken we hem samen tot de breedte die er is, niet
+    // verder: anders wordt de rotsribbeling een fijne streepjescode. De twee randen mogen elkaar
+    // overlappen, want de linker wordt als laatste getekend en vloeit naar rechts uit
+    const capW = Math.min(fullCap, xr - xl);
+    const edgePx = TER.edge * (capW / iw);
+    const soilY = top + (TER.soil - TER.trimTop) * st;
     // links afgedekt door een hoger terras? dan geen rand aan die kant
     const leftHidden = terraceList().some(o => o !== t && o.h > t.h && o.l <= t.l + 1 && o.r > t.l);
-    const leftCap = !leftHidden && (xr - xl) > capW * 0.6;
+    ctx.save();
+    terClipPath(xl, xr, top - 4, bottom, st, soilY, leftHidden);        // gebroken zijkanten
+    ctx.clip();
     ctx.save();
     ctx.beginPath();
-    ctx.rect(xl + (leftCap ? TER.edge * st : 0), top - 4, (xr - TER.edge * st) - (xl + (leftCap ? TER.edge * st : 0)), bottom - top + 4);
+    const midL = xl + (leftHidden ? 0 : edgePx);
+    ctx.rect(midL, top - 4, (xr - edgePx) - midL, bottom - top + 4);
     ctx.clip();
     // middenstukken van rechts naar links, om en om gespiegeld: dan sluiten de naden
     let x = xr - capW, k = 0;
@@ -1937,10 +1973,10 @@ function drawClimb(groundY, scale, cx){
       x -= midW; k++;
     }
     ctx.restore();
-    ctx.save();
-    ctx.beginPath(); ctx.rect(xl, top - 4, xr - xl, bottom - top + 4); ctx.clip();
-    if (leftCap) drawTerCol(0, iw, xl, capW, false, top, bottom, st, terFadePic() || terPic());   // afbrokkelende rand links
-    drawTerCol(0, iw, xr - capW, capW, true, top, bottom, st);          // en rechts, naar je start toe
+    drawTerCol(0, iw, xr - capW, capW, true, top, bottom, st);          // afbrokkelende rand rechts, naar je start toe
+    // en links als laatste, met de zachte rechterkant: zo houdt hij zijn eigen rand, ook als
+    // het terras zo smal is dat de twee randen over elkaar heen vallen
+    if (!leftHidden) drawTerCol(0, iw, xl, capW, false, top, bottom, st, terFadePic() || terPic());
     ctx.restore();
     if (showBoxes || building){
       ctx.save();
@@ -4753,7 +4789,10 @@ const PAN_DIVE_FPS = 8;                   // trager door de lucht dan de gewone 
 const PAN_DIVE_MAX = 800, PAN_DIVE_MIN = 140;
 const PAN_DIVE_FROM = 540;                // van zo dichtbij zet hij af: dan staat hij in beeld als hij wiebelt
 const PAN_SNOW_REST = 1.9;                // zo veel langer zit hij vast in de sneeuw (maal PAN_REST_T): je moet terug kunnen sprinten
-const PAN_CAMO = 0.5, PAN_CAMO_SNEAK = 0.32;   // doorzichtigheid terwijl hij sluipt / terugsluipt
+// Doorzichtigheid terwijl hij sluipt / terugsluipt. Stond op 0,5 en 0,32: wit op halve dekking
+// tegen sneeuw is niet half zichtbaar maar onzichtbaar. Hij blijft wat wegvallen, maar je kunt
+// hem volgen; zijn schaduw hieronder is daar de tweede houvast voor.
+const PAN_CAMO = 0.74, PAN_CAMO_SNEAK = 0.52;
 const PAN_CAMO_STATES = ['walk', 'spot', 'notice', 'prowl', 'run', 'look', 'flee', 'bolt'];
 const snowPuffs = [];                     // opstuivende sneeuw bij de landing
 function snowPuffAt(x, base, n){
@@ -4910,9 +4949,16 @@ function makePanther(x, side){
            skin: winterOn() ? 'wit' : 'zwart', white: winterOn() };   // de witte panter jaagt anders (zie updatePanther)
 }
 function panBlocked(s, nx, plats, cliff){ return knockBlocked(s, nx, plats, cliff, 0.45 * CHAR_H, 80); }
-function panInView(x){                        // staat hij (grotendeels) in beeld? In de arena staat de camera bijna stil,
-  const camX = (arena && !building) ? arenaCam(world) : world;   // dus sta je aan de rand, dan komt hij van net buiten beeld
-  return Math.abs(x - camX) < W / 2 / viewZoom() + 100;
+function panInView(x){                        // staat hij echt in beeld? Niet 'net over de rand': zijn aanloop
+  const camX = (arena && !building) ? arenaCam(world) : world;   // moet je kunnen lezen, dus hij moet er een stuk binnen staan
+  return Math.abs(x - camX) < W / 2 / viewZoom() - PAN_VIEW_IN;
+}
+// De sprong- en duikafstanden staan in vaste wereldpixels, maar het zichtbare stuk wereld is
+// W / 2 breed. Op een klein scherm (telefoon) zette hij daardoor af terwijl hij nog naast het
+// beeld stond. Hij komt dan gewoon van dichterbij, maar wel waar je hem ziet.
+const PAN_VIEW_IN = 140;                      // zo ver binnen de schermrand telt als 'in beeld'
+function panReach(base){
+  return Math.max(PAN_POUNCE_MIN + 80, Math.min(base, W / 2 / viewZoom() - PAN_VIEW_IN));
 }
 function panStep(s, dt, spd, plats, cliff){
   const nx = s.x + s.dir * spd * dt;
@@ -5006,8 +5052,8 @@ function updatePanther(s, dt, plats, cliff){
       if (s.sneak && gap < 700) s.sneak = false;
       if (gap > PAN_RUN_FROM) panSet(s, 'run');
       // te dichtbij om te springen: gewoon doorsluipen, dan komt de klauw vanzelf (zie de regel bovenin)
-      else if (gap < (s.white ? PAN_DIVE_FROM : PAN_POUNCE_DIST) && gap >= PAN_POUNCE_MIN && s.cool <= 0 && !dead && ph < 40
-               && (!s.white || panInView(s.x))) panSet(s, 'wind');   // de witte panter wiebelt alleen in beeld: zijn aanloop moet je kunnen zien
+      else if (gap < panReach(s.white ? PAN_DIVE_FROM : PAN_POUNCE_DIST) && gap >= PAN_POUNCE_MIN && s.cool <= 0 && !dead && ph < 40
+               && panInView(s.x)) panSet(s, 'wind');   // hij wiebelt alleen in beeld: zijn aanloop moet je kunnen zien
     } else {
       panAnim(s, dt, 14, PAN_N.run, true);
       panStep(s, dt, PAN_RUN_SPD, plats, cliff);
@@ -5174,7 +5220,21 @@ function playerX(){ return camSwap !== null ? camSwap : world; }
 function arenaHalf(){                          // zo ver kan Amir lopen: tot vlak bij de schermrand
   return (W / 2 / viewZoom() - 80) / (1 - ARENA_DRIFT);
 }
-function arenaCam(p){ return arena.c + (p - arena.c) * ARENA_DRIFT; }
+const ARENA_LOOK = 0.7;                        // zo sterk kijkt de camera naar de baas toe
+const ARENA_KEEP = 0.62;                       // en zo ver mag Amir daarbij van het midden raken (deel van het halve scherm)
+// De arena-camera hing alleen aan Amir. Sta je rechts in de arena, dan schoof de baas daarmee
+// buiten beeld: zijn hele aanloop speelde zich naast het scherm af en je zag hem pas als hij al
+// sprong. De camera kijkt nu naar het midden tussen jullie, maar laat Amir nooit tegen de rand aan.
+function arenaCam(p){
+  let c = arena.c + (p - arena.c) * ARENA_DRIFT;
+  const b = panthers.find(q => q.engaged && q.state !== 'dying' && q.state !== 'gone');
+  if (b){
+    const keep = (W / 2 / viewZoom()) * ARENA_KEEP;
+    c += ((p + b.x) / 2 - c) * ARENA_LOOK;
+    c = Math.max(p - keep, Math.min(p + keep, c));
+  }
+  return c;
+}
 const PAN_LURK_MIN = 3, PAN_LURK_MAX = 5;      // zo lang blijft hij weg na een treffer
 const PAN_SNEAK_SPD = 140;                     // terugsluipen door het gras
 function updateArena(){
@@ -5205,7 +5265,13 @@ function drawFgGrass(groundY, cx, scale, pcx){
     const sx = cx + (g.x - world);
     if (sx < -300 || sx > W / viewZoom() + 300) continue;
     const hh = CHAR_H * scale * 0.45 * g.s, ww = gimg.naturalWidth * hh / gimg.naturalHeight;
-    const near = Math.abs(sx - pcx);           // bij Amir doorzichtig, zodat je jezelf blijft zien
+    // bij Amir doorzichtig, zodat je jezelf blijft zien. En bij de baas ook: het gras stond
+    // vol dekkend vóór hem, dus zelfs als hij in beeld kwam sluipen zag je hem niet
+    let near = Math.abs(sx - pcx);
+    for (const q of panthers){
+      if (q.state === 'gone' || q.alpha <= 0) continue;
+      near = Math.min(near, Math.abs(sx - (cx + (q.x - world))));
+    }
     ctx.save();
     ctx.globalAlpha = near < 90 ? 0.25 : near < 170 ? 0.25 + 0.75 * (near - 90) / 80 : 1;
     ctx.translate(sx, groundY + hh * 0.1);
@@ -5944,7 +6010,9 @@ const MIST = {
   far: 0.55,            // tussen de verre en de dichte bergrij
   near: 0.45,           // tussen de dichte bergrij en de heuvels
   ground: 0.35,         // tussen de heuvels en jouw grond
-  rise: 0.06            // hoe hoog de nevel opstijgt (deel van H)
+  rise: 0.10,           // hoe hoog de nevel opstijgt (deel van H)
+  fall: 0.07,           // en hoe ver hij eronder uitdunt (deel van H)
+  thin: 0.30            // zo veel blijft er daaronder van over: hij dunt uit, hij stopt niet als een plak
 };
 // ---- uitzicht per level -------------------------------------------------
 // De sandbox laat de hele stapel zien: verre bergen (laag 1), een tweede bergrij (laag 1b),
@@ -6078,14 +6146,19 @@ function sceneCfg(){
 function drawMist(y, a, col, down){
   const c = col || MIST.color;
   a = Math.min(0.92, a);
-  const r = MIST.rise * H;
-  const g = ctx.createLinearGradient(0, y - r, 0, y);
+  // Eén verloop over de hele nevel: opstijgen boven y, en eronder uitdunnen in plaats van als een
+  // egale plak doorlopen. Dat vlakke stuk was in de winter (nevel bijna de kleur van de sneeuw)
+  // de band die boven de grond leek te hangen, met een knik waar het verloop ophield.
+  const r = MIST.rise * H, f = MIST.fall * H;
+  const thin = (a * MIST.thin).toFixed(3);
+  const g = ctx.createLinearGradient(0, y - r, 0, y + f);
   g.addColorStop(0, 'rgba(' + c + ',0)');
-  g.addColorStop(1, 'rgba(' + c + ',' + a + ')');
-  ctx.fillStyle = g; ctx.fillRect(0, y - r, W, r);
-  ctx.fillStyle = 'rgba(' + c + ',' + a + ')';
-  // eronder verdwijnt het achter de volgende laag; staat die laag lager (camera hoog), dan loopt de nevel door tot daar
-  ctx.fillRect(0, y - 0.5, W, H * 0.12 + Math.max(0, down || 0));
+  g.addColorStop(r / (r + f), 'rgba(' + c + ',' + a + ')');
+  g.addColorStop(1, 'rgba(' + c + ',' + thin + ')');
+  ctx.fillStyle = g; ctx.fillRect(0, y - r, W, r + f);
+  // de rest verdwijnt achter de volgende laag; staat die lager (camera hoog), dan loopt hij door tot daar
+  const rest = H * 0.12 + Math.max(0, down || 0) - f;
+  if (rest > 0){ ctx.fillStyle = 'rgba(' + c + ',' + thin + ')'; ctx.fillRect(0, y + f - 0.5, W, rest + 0.5); }
 }
 // tone: kleurbewerking en waaskleuren. Zonder tone de gewone savanne (warm avondlicht);
 // de winter bakt dezelfde panelen nog een keer, koud en bleek (zie bakeWinterLayers).
@@ -7360,7 +7433,7 @@ function loop(now){
         // de witte panter verdwijnt half in de sneeuw zolang hij sluipt; zijn schaduw blijft je houvast
         const camo = (s.white && PAN_CAMO_STATES.indexOf(s.state) !== -1) ? (s.sneak ? PAN_CAMO_SNEAK : PAN_CAMO) : 1;
         ctx.save();                                   // schaduw blijft op de grond
-        ctx.globalAlpha = Math.max(0, s.alpha) * (s.white ? 0.30 : 0.22) * Math.max(0.35, 1 - s.lift / CHAR_H);
+        ctx.globalAlpha = Math.max(0, s.alpha) * (s.white ? 0.44 : 0.22) * Math.max(0.35, 1 - s.lift / CHAR_H);
         ctx.fillStyle = s.white ? '#2a3140' : '#1d140f';
         ctx.beginPath(); ctx.ellipse(bodyX, groundY - pBase, CHAR_H * scale * 0.42, CHAR_H * scale * 0.035, 0, 0, Math.PI * 2);
         ctx.fill(); ctx.restore();
