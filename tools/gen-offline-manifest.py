@@ -38,12 +38,16 @@ SHEETS_IN_USE = (
 
 def is_source_material(rel: str) -> bool:
     name = os.path.basename(rel)
+    # De halve set spiegelt de mappen van het origineel, dus dezelfde regels gelden
+    # daar. Zonder dit zou klein/design/vegetatie/drygrass_sheet.png als bronmateriaal
+    # gelden en uit de lijst vallen, terwijl het spel hem op een telefoon juist gebruikt.
+    kaal = rel[len('klein/'):] if rel.startswith('klein/') else rel
     # docs-mappen zijn leesvoer bij de assets: readme's en previews, niets voor het spel
     if '/docs/' in rel:
         return True
     if '_magenta' in name or '_preview' in name:
         return True
-    if 'sheet' in name and rel not in SHEETS_IN_USE:
+    if 'sheet' in name and kaal not in SHEETS_IN_USE:
         return True
     return False
 
@@ -74,9 +78,25 @@ def main():
     for rel, size in assets:
         digest.update(f'{rel}:{size}\n'.encode())
 
+    # Van een deel van de sprites staat er een halve versie in klein/. Een toestel
+    # speelt er maar één van, dus de service worker haalt ook maar één set binnen.
+    # Hier alvast uitrekenen hoeveel bytes dat per set is, zodat het startmenu de
+    # juiste download kan noemen.
+    klein = {rel[len('klein/'):] for rel, _ in assets if rel.startswith('klein/')}
+
+    def in_set(rel, set_naam):
+        is_klein = rel.startswith('klein/')
+        if set_naam == 'groot':
+            return not is_klein
+        return is_klein or rel not in klein
+
     payload = {
         'version': digest.hexdigest()[:12],
         'bytes': sum(size for _, size in assets),
+        'bytesSet': {
+            naam: sum(size for rel, size in assets if in_set(rel, naam))
+            for naam in ('klein', 'groot')
+        },
         'assets': [rel for rel, _ in assets],
     }
 
@@ -85,7 +105,9 @@ def main():
         json.dump(payload, fh, indent=0, ensure_ascii=False)
         fh.write('\n')
 
+    b = payload['bytesSet']
     print(f"{len(assets)} bestanden, {payload['bytes'] / 1048576:.1f} MB, versie {payload['version']}")
+    print(f"  download per set: klein {b['klein'] / 1048576:.1f} MB, groot {b['groot'] / 1048576:.1f} MB")
     print(f'geschreven naar {out}')
 
 

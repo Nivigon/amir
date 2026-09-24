@@ -221,10 +221,33 @@ async function networkFirst(req, cacheName) {
 
 self.addEventListener('message', (event) => {
   const data = event.data || {};
-  if (data.type === 'precache') event.waitUntil(precacheAll());
-  else if (data.type === 'status') event.waitUntil(reportStatus());
-  else if (data.type === 'clear') event.waitUntil(clearAssets());
+  const set = data.set === 'klein' || data.set === 'groot' ? data.set : null;
+  if (data.type === 'precache') event.waitUntil(precacheAll(set));
+  else if (data.type === 'status') event.waitUntil(reportStatus(set));
+  else if (data.type === 'clear') event.waitUntil(clearAssets(set));
 });
+
+/* Van sommige sprites staat er een halve versie in klein/ (tools/gen-klein.py).
+ * Een toestel speelt er maar één van, dus de andere hoeft het ook niet binnen te
+ * halen. Dat scheelt op een telefoon ruim de helft van de download.
+ *
+ * Welke bestanden een kleine versie hebben leidt de lijst zelf af: alles wat met
+ * klein/ begint. Het spel hoeft hier dus niets over door te geven behalve welke
+ * set het speelt, en een nieuwe familie in gen-klein.py werkt vanzelf mee.
+ */
+function voorSet(assets, set) {
+  if (!set) return assets;
+  const klein = new Set();
+  for (const rel of assets) {
+    if (rel.indexOf('klein/') === 0) klein.add(rel.slice('klein/'.length));
+  }
+  return assets.filter((rel) => {
+    const isKlein = rel.indexOf('klein/') === 0;
+    if (set === 'groot') return !isKlein;
+    // de kleine set: de halve versies, en van de rest alles waar er geen van is
+    return isKlein || !klein.has(rel);
+  });
+}
 
 async function post(msg) {
   const clients = await self.clients.matchAll({ includeUncontrolled: true });
@@ -251,23 +274,31 @@ async function loadManifest() {
   throw new Error('de bestandslijst is niet te bereiken');
 }
 
-async function reportStatus() {
+/** Hoeveel bytes de lijst voor deze set telt; zonder opgave het hele totaal. */
+function bytesVoor(manifest, set) {
+  const per = manifest.bytesSet;
+  if (set && per && typeof per[set] === 'number') return per[set];
+  return manifest.bytes;
+}
+
+async function reportStatus(set) {
   try {
     const manifest = await loadManifest();
+    const assets = voorSet(manifest.assets, set);
     const cache = await caches.open(ASSET_CACHE);
     const keys = await cache.keys();
     const have = new Set(keys.map((r) => new URL(r.url).pathname));
     // Via de URL-parser vergelijken, niet via plakken: bestandsnamen met een
     // spatie staan in de cache als %20 en zouden anders als missend tellen.
     let done = 0;
-    for (const rel of manifest.assets) {
+    for (const rel of assets) {
       if (have.has(new URL(rel, self.location).pathname)) done++;
     }
     await post({
       type: 'status',
       done,
-      total: manifest.assets.length,
-      bytes: manifest.bytes,
+      total: assets.length,
+      bytes: bytesVoor(manifest, set),
       version: manifest.version,
     });
   } catch (err) {
@@ -275,13 +306,13 @@ async function reportStatus() {
   }
 }
 
-async function clearAssets() {
+async function clearAssets(set) {
   await caches.delete(ASSET_CACHE);
   await post({ type: 'cleared' });
-  await reportStatus();
+  await reportStatus(set);
 }
 
-async function precacheAll() {
+async function precacheAll(set) {
   let manifest;
   try {
     manifest = await loadManifest();
@@ -289,6 +320,7 @@ async function precacheAll() {
     await post({ type: 'precache-error', message: String(err.message || err) });
     return;
   }
+  const assets = voorSet(manifest.assets, set);
 
   // Zijn de assets sinds de vorige download vervangen, dan is wat we hebben
   // niet meer te vertrouwen en beginnen we schoon opnieuw.
@@ -300,11 +332,11 @@ async function precacheAll() {
     cache = await caches.open(ASSET_CACHE);
   }
 
-  const total = manifest.assets.length;
+  const total = assets.length;
   let done = 0;
   let failed = 0;
 
-  const queue = manifest.assets.slice();
+  const queue = assets.slice();
 
   async function worker() {
     for (;;) {
@@ -334,5 +366,5 @@ async function precacheAll() {
   await cache.put(VERSION_KEY, new Response(manifest.version));
   // Geen reportStatus erachteraan: die zou de klaarmelding meteen weer
   // overschrijven met een telling. Het spel weet uit dit bericht genoeg.
-  await post({ type: 'precache-done', total, failed, bytes: manifest.bytes });
+  await post({ type: 'precache-done', total, failed, bytes: bytesVoor(manifest, set) });
 }
