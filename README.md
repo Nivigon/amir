@@ -14,6 +14,8 @@ Episode Winter World speelt hoog in de bergen. Een level met `winter: true` krij
 
 Winter 2 (De ijskloof) is de zwaardere tocht: steeds bredere ravijnen (tot 300), een trap van drie terrassen, een steile wand met twee richels waar je aan de andere kant 600 diep vanaf springt, twee ingesneeuwde gehuchten, roedels witte hyena's van twee kanten, en aan het eind opnieuw de witte panter. Het level heeft zijn eigen uitzicht (`winter_kloof`): later op de dag, donkerder blauw en dikkere nevel.
 
+Of het sneeuwt, verschilt per potje. Bij de start wordt een weerplan geloot: de hele tijd sneeuw, helemaal geen, sneeuw die onderweg begint, sneeuw die onderweg ophoudt, of een bui midden in het level. Het plan hangt aan de afstand door het level, en begin en einde gaan langzaam: over ongeveer een tiende van het level dikt de sneeuw aan of dunt hij uit, en vlokken die weg moeten vallen gewoon uit beeld. Ook de dikte van de bui verschilt per potje (`planSnow` in de HTML).
+
 In de winter is al het stof sneeuwstof (de stofplaatjes worden bij het laden wit gemaakt), en bij een landing of een lage zwaai stuift de sneeuw echt op: een brede lage wolk die blijft hangen, een waaier glinsterende kristallen en klonten die in een boog wegvliegen en bij het neerkomen een wolkje geven. Hoe harder je neerkomt, hoe groter de plof.
 
 In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen naar het volgende level van dezelfde reeks.

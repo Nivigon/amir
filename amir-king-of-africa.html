@@ -2877,11 +2877,60 @@ const imgReady = im => im.complete && im.naturalWidth > 0;
 const snowflakes = [];
 let snowWorldPrev = null, snowCamYPrev = 0;
 function snowPar(f){ return 0.45 + 0.55 * Math.min(1, Math.max(0, (f.r - 1.2) / 2.6)); }
+
+// ---- het weer: sneeuwt het? -----------------------------------------------
+// Elk potje krijgt een eigen plan, geloot bij de start (restart). Het plan hangt aan de
+// afstand door het level (0 = start, 1 = het einde), niet aan de klok, zodat het bij het
+// wachten of terugrennen niet omslaat. Vijf soorten: de hele tijd, helemaal niet, het
+// begint onderweg, het stopt onderweg, of een bui midden in het level. Begin en einde
+// gaan langzaam: over zo'n tiende van het level dunt de sneeuw uit of dikt hij aan, en
+// vlokken die weg moeten vallen gewoon uit beeld, er verdwijnt er geen een midden in de
+// lucht. De dikte van de bui verschilt ook per potje.
+let snowPlan = { kind: 'heel', a: 0, b: 1, w: 0.1, k: 1 };
+let snowLevel = null;                    // hoeveel het nu sneeuwt (0..1); null = nog niet gezet
+function planSnow(){
+  const r = Math.random(), rnd = (lo, hi) => lo + Math.random() * (hi - lo);
+  const k = rnd(0.55, 1.0);              // een lichte of een dikke bui
+  if (r < 0.34)      snowPlan = { kind: 'heel',   a: 0, b: 1, w: 0.1, k };
+  else if (r < 0.50) snowPlan = { kind: 'niet',   a: 0, b: 1, w: 0.1, k };
+  else if (r < 0.68) snowPlan = { kind: 'begint', a: rnd(0.30, 0.60), b: 1, w: rnd(0.08, 0.16), k };
+  else if (r < 0.86) snowPlan = { kind: 'stopt',  a: rnd(0.30, 0.60), b: 1, w: rnd(0.08, 0.16), k };
+  else               snowPlan = { kind: 'bui',    a: rnd(0.15, 0.35), b: rnd(0.55, 0.80), w: rnd(0.06, 0.12), k };
+  snowLevel = null;
+}
+function levelEndX(){                    // waar het level ophoudt: het einde, anders de klif, anders een slag
+  if (level && level.ends && level.ends.length) return level.ends[0].x;
+  if (level && level.cliffs && level.cliffs.length) return level.cliffs[0].x;
+  return -12000;
+}
+function snowTarget(){                   // hoe hard het hier zou moeten sneeuwen, volgens het plan
+  const end = levelEndX();
+  const p = end < 0 ? Math.max(0, Math.min(1, world / end)) : 0;
+  const ramp = (from, x) => Math.max(0, Math.min(1, (x - from) / snowPlan.w));   // 0 voor from, 1 na from + w
+  const P = snowPlan;
+  let s = 1;
+  if (P.kind === 'niet') s = 0;
+  else if (P.kind === 'begint') s = ramp(P.a, p);
+  else if (P.kind === 'stopt')  s = 1 - ramp(P.a, p);
+  else if (P.kind === 'bui')    s = Math.min(ramp(P.a, p), 1 - ramp(P.b, p));
+  return s * P.k;
+}
+function snowMax(){ return Math.round(Math.min(220, Math.max(90, W * H / 6500))); }
+
 function updateSnowfall(dt){
-  if (!winterOn()){ snowflakes.length = 0; snowWorldPrev = null; return; }
-  const n = Math.round(Math.min(220, Math.max(90, W * H / 6500)));
-  while (snowflakes.length < n)
-    snowflakes.push({ x: Math.random() * W, y: Math.random() * H, r: 1.2 + Math.random() * 2.6,
+  if (!winterOn()){ snowflakes.length = 0; snowWorldPrev = null; snowLevel = null; return; }
+  const target = snowTarget();
+  if (snowLevel === null){                                  // eerste beeld van dit potje: meteen op sterkte
+    snowLevel = target;
+    while (snowflakes.length < Math.round(snowMax() * snowLevel))
+      snowflakes.push({ x: Math.random() * W, y: Math.random() * H, r: 1.2 + Math.random() * 2.6,
+                        v: 38 + Math.random() * 70, ph: Math.random() * 6.28, sw: 8 + Math.random() * 18 });
+  } else snowLevel += (target - snowLevel) * Math.min(1, dt * 0.5);   // daarna rustig naar het plan toe
+  const n = Math.round(snowMax() * snowLevel);
+  // meer vlokken nodig: ze komen van boven het beeld binnen, niet zomaar midden in de lucht
+  let add = Math.min(n - snowflakes.length, Math.ceil(dt * 60));
+  while (add-- > 0)
+    snowflakes.push({ x: Math.random() * W, y: -4 - Math.random() * 30, r: 1.2 + Math.random() * 2.6,
                       v: 38 + Math.random() * 70, ph: Math.random() * 6.28, sw: 8 + Math.random() * 18 });
   const cam = camEase !== null ? camEase : world;          // in de boss-arena staat de camera los van Amir
   let dx = snowWorldPrev === null ? 0 : (cam - snowWorldPrev) * viewZoom();
@@ -2889,12 +2938,16 @@ function updateSnowfall(dt){
   if (Math.abs(dx) > W) dx = 0;                             // een sprong (herstart, level overslaan): niet meeslepen
   snowWorldPrev = cam; snowCamYPrev = camY;
   const g = gust ? gust.dir * gust.amp * 90 : 0;
-  for (const f of snowflakes){
+  for (let i = snowflakes.length - 1; i >= 0; i--){
+    const f = snowflakes[i];
     const par = snowPar(f);
     f.ph += dt * 1.6;
     f.y += f.v * dt * (0.6 + f.r * 0.25) + dy * par;
     f.x += (Math.sin(f.ph) * f.sw + g) * dt - dx * par;
-    if (f.y > H + 4){ f.y = -4; f.x = Math.random() * W; }
+    if (f.y > H + 4){
+      if (snowflakes.length > n){ snowflakes.splice(i, 1); continue; }   // te veel voor het weer van nu: deze is gevallen en komt niet terug
+      f.y = -4; f.x = Math.random() * W;
+    }
     else if (f.y < -6) f.y += H + 12;
     if (f.x < -6) f.x += W + 12; else if (f.x > W + 6) f.x -= W + 12;
   }
@@ -3561,6 +3614,7 @@ function restart(){
   drawLives(); deadEl.classList.remove('on');
   snakes.length = 0; scorps.length = 0; panthers.length = 0; hyenas.length = 0; arena = null; camEase = null; spawnTimer = 0.6;
   snowPuffs.length = 0; snowFx.length = 0; snowflakes.length = 0; snowWorldPrev = null;
+  planSnow();                                       // nieuw potje, nieuw weer
   thickets.length = 0; chips.length = 0;            // struwelen weer heel, brokstukken weg
   if (level && level.thickets) for (const d of level.thickets) addThicket(d.x, d.n, d.seed).src = d;
   if (level && level.tips) for (const t of level.tips) t.used = false;   // uitleg opnieuw laten zien
