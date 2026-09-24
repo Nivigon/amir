@@ -18,7 +18,7 @@ Of het sneeuwt, verschilt per potje. Bij de start wordt een weerplan geloot: de 
 
 In de winter is al het stof sneeuwstof (de stofplaatjes worden bij het laden wit gemaakt), en bij een landing of een lage zwaai stuift de sneeuw echt op: een brede lage wolk die blijft hangen, een waaier glinsterende kristallen en klonten die in een boog wegvliegen en bij het neerkomen een wolkje geven. Hoe harder je neerkomt, hoe groter de plof.
 
-In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen naar het volgende level van dezelfde reeks.
+In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen naar het volgende level van dezelfde reeks. Onder **Instellingen** staan daar ook het tempo van het spel, het looptempo van Amir, het formaat van het beeld en de muziek. Tijdens een level is het speelveld verder leeg: de testbalk met schuifjes staat alleen in de bouwer en de sandbox (met B haal je hem er tijdens het spelen alsnog bij).
 
 ## Op je telefoon zetten
 
@@ -82,7 +82,7 @@ De versie in `offline-assets.json` verandert mee, en de service worker ziet daar
 | **speer recht vooruit** | **spatie vasthouden, loslaten** | **✦ vasthouden, loslaten** |
 | **speer in een boog** | **langer vasthouden, dan loslaten** | **langer vasthouden, dan loslaten** |
 | worp afbreken | tik in plaats van vasthouden | duim van ✦ af slepen en daar loslaten |
-| speer oppakken | E | E (verschijnt als je er vlakbij staat) |
+| speer oppakken | E, waar je ook langs de schacht staat | E (verschijnt als je er vlakbij staat) |
 | drinken | Q | het kalebasje |
 
 ### De speerworp
@@ -119,11 +119,30 @@ kunt staan (alleen van bovenaf; de schacht buigt 3 px door onder Amir). In een
 doornbos richt hij niets aan: hij blijft ertussen hangen en je trekt hem er met
 E weer uit. Hak je het struweel daarna om, dan valt hij op de grond.
 
+Oppakken doe je bij de schacht, niet bij de punt: de E verschijnt zodra je bij
+het stuk staat waar je hem vastpakt, en dat is meestal het stompe uiteinde.
+
+Een speer in een muur wrikt zichzelf na twaalf seconden los en valt langs de
+wand naar beneden. De laatste anderhalve seconde trilt hij, dus je ziet het
+aankomen. Sta je erop, dan houdt hij het: de klok loopt alleen als je er niet
+op staat, en hij gaat verder waar hij was zodra je eraf stapt. Zo blijft een
+speer die te hoog in een steile wand terechtkomt nooit hangen waar je niet bij
+kunt.
+
 Je raakt hem nooit kwijt. Komt hij in het water of buiten de wereld terecht, dan
 ligt hij na drie seconden weer op de laatste vaste grond waar Amir stond. Valt
 hij in een ravijn, dan duikt hij na drie seconden aan de overkant op, net buiten
-beeld: je loopt er vanzelf tegenaan zodra je de oversteek gehaald hebt. Alles
-los te testen met de knoppen onder "Speerworp" in de sandbox.
+beeld: je loopt er vanzelf tegenaan zodra je de oversteek gehaald hebt. Gooi je
+hem tijdens een bazengevecht het veld uit, dan telt dat net zo: je kunt de arena
+niet uit, dus hij komt na drie seconden terug bij jou. Alles los te testen met
+de knoppen onder "Speerworp" in de sandbox.
+
+Tegen een panter geldt dezelfde regel als voor de stoot en de lage zwaai: raak
+is hij alleen in zijn herstel, na een sprong, een duik of een tackle. Ziet hij
+je de speer uittrekken terwijl hij op zijn poten staat, dan springt hij opzij,
+en een speer die hem daarbuiten raakt ketst af op zijn vacht. De duik van de
+witte panter zet hem tot zijn buik in de sneeuw: dat is het langste venster en
+je staat er ver genoeg vanaf om te werpen.
 
 ## Mappenstructuur
 
