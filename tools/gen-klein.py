@@ -69,6 +69,14 @@ DOELEN = [
     ('design/villeaghut.png', 400),     # 2,3x  staat altijd als ver decor, dus op 60 procent
     ('design/villeaghut_sneeuw.png', 400),
     ('design/botten', 60),              # 6,4x  losse botten, allemaal klein
+    ('design/grot', 60),                # 7,3x  de grotset: het plafond, de hoekstukken en
+                                        # de wandtegels zijn met afstand de grootste bronnen
+                                        # van het spel, en ze worden tot een tiende getekend.
+                                        # De keien zijn klein maar zitten er nog altijd ruim
+                                        # vier keer boven, vandaar dezelfde lage drempel als
+                                        # bij de botten. De tekencode rekent met de maten uit
+                                        # grot.json en rekt elk stuk naar die maat, dus de
+                                        # ankerpunten blijven op hun plek staan.
 ]
 
 # Bronmateriaal dat het spel nooit opvraagt. Een bestand dat hierboven bij naam
