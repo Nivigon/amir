@@ -426,6 +426,14 @@
       <button data-gap="320">Breed</button>
     </div>
     <div class="row">
+      <label>Grot</label>
+      <button data-grot="grot">Grot</button>
+      <button data-grot="door">Doorloop</button>
+      <button data-grot="richel">Lage grot</button>
+      <button data-grot="kloof">Rotskloof</button>
+      <button id="sbgrotweg">Grotten weg</button>
+    </div>
+    <div class="row">
       <label>Doornbos</label>
       <button data-thicket="1">1 klomp</button>
       <button data-thicket="2">2</button>
@@ -2023,10 +2031,14 @@ function drawClimb(groundY, scale, cx){
   }
 }
 // de camera klimt mee: hij volgt de grond waar je op staat, niet elke sprong
-let camY = 0, camFloor = 0;
+let camY = 0, camFloor = 0, camDiep = 0;
 function updateCamera(dt, scale){
   if (onGround) camFloor = ph; else camFloor = Math.min(camFloor, ph);
-  const target = (building || !hasClimb()) ? 0 : Math.max(0, camFloor * scale - H * 0.10);
+  // Sta je op een vloer onder de grondlijn (de bodem van een rotskloof), dan zakt de
+  // camera mee, anders loop je onder uit beeld. Alleen terwijl je erop staat: een val
+  // in een ravijn moet de camera niet meenemen, die blijft boven kijken.
+  if (onGround) camDiep = Math.min(0, ph);
+  const target = (building ? 0 : (hasClimb() ? Math.max(0, camFloor * scale - H * 0.10) : 0) + camDiep * scale);
   camY += (target - camY) * Math.min(1, dt * 3.2);
   if (Math.abs(target - camY) < 0.3) camY = target;
 }
@@ -2084,6 +2096,9 @@ function measurePlat(p, scale){
 //   h        hoogte van de opening, ook in sprite-eenheden
 //   plafond  dak eroverheen (standaard true; false geeft een ravijn met open lucht)
 //   wanden   'beide' | 'links' | 'rechts' | 'geen' (standaard 'beide')
+//   achter   achterwand van rotstextuur achter de opening (standaard false). Aan voor een
+//            echte grot of een rotskloof, uit voor een overhang waar je de savanne
+//            doorheen moet blijven zien.
 //   massief  plafond, wanden en vloer blokkeren (standaard true)
 //   seed     getal: dezelfde seed geeft elke keer dezelfde verstrooiing
 //   strooi   hangblokken, richels en keien vanzelf neerzetten (standaard true)
@@ -2403,6 +2418,17 @@ function grotBlok(halfW, scale){
   }
 }
 
+// De bovenrand van een kloof: geen liniaal, maar dezelfde rustige golving die de
+// bovenkant van de grondstrook ook volgt. ank = de schermpositie van wereld-x 0, zodat
+// de golf aan de wereld hangt en niet met de camera meeschuift.
+function grotKloofPad(x0, x1, y, bot, ank){
+  ctx.beginPath();
+  ctx.moveTo(x0, y + crustAt(x0 - ank));
+  for (let x = x0 + 8; x < x1; x += 8) ctx.lineTo(x, y + crustAt(x - ank));
+  ctx.lineTo(x1, y + crustAt(x1 - ank));
+  ctx.lineTo(x1, bot); ctx.lineTo(x0, bot); ctx.closePath();
+}
+
 function drawGrotten(groundY, scale, cx){
   const lijst = grotLijst();
   if (!lijst.length) return;
@@ -2422,14 +2448,33 @@ function drawGrotten(groundY, scale, cx){
     // van dat hoekstuk is uitgevaagd: daarboven dekt het hoekstuk af, daaronder is de
     // wand meteen dicht. Zonder plafond begint hij gewoon bovenaan de opening.
     const wandTop = m.plafond ? bandY + (GROT.hoek.h - GROT.wand.h * GROT_WAND_FADE) * m.s : plafY;
-    const diep = vloerY + m.amir * 0.5;                    // de rotsband loopt nog even door onder de vloer
+    // Het steen loopt door tot onder in beeld: onder de grondlijn ligt in dit spel altijd
+    // een snede aarde, en binnen een grot of kloof hoort daar rots te staan, geen savanne.
+    const diep = Math.max(groundY, vloerY) + H * 0.25;
 
     // 1. de vulling: eerst het hele rotsgebied dicht, dan komen de stukken eroverheen
     const ank = cx - world;
+    // Een kloof breekt door de grond heen: zijn bovenrand loopt grillig, net als die van
+    // een ravijn. Alles van deze grot blijft binnen die breuk.
+    const kloof = m.vloer < 0;
+    if (kloof){ ctx.save(); grotKloofPad(bl, br, plafY, vloerY + H * 2, ank); ctx.clip(); }
+    // 0. de achterwand: achter de opening is dan steen in plaats van savanne. Er ligt een
+    // schaduw over, het zwaarst tegen het plafond, in een verloop dat aan een stuk
+    // doorloopt tot onderin: elke knik erin zou als een streep over de wand liggen.
+    if (g.achter){
+      grotVul(xl, plafY, xr, diep, m.amir, ank);
+      ctx.save();
+      const sh = ctx.createLinearGradient(0, plafY, 0, diep);
+      sh.addColorStop(0, 'rgba(18,12,15,0.68)');
+      sh.addColorStop(1, 'rgba(18,12,15,0.30)');
+      ctx.fillStyle = sh; ctx.fillRect(xl, plafY, xr - xl, Math.max(0, diep - plafY));
+      ctx.restore();
+    }
     if (m.plafond) grotVul(bl, plafY - m.amir * 6, br, plafY, m.amir, ank);
     if (m.wL) grotVul(bl, m.plafond ? bandY : plafY, xl, diep, m.amir, ank);
     if (m.wR) grotVul(xr, m.plafond ? bandY : plafY, br, diep, m.amir, ank);
     if (m.vloer > 0) grotVul(xl, vloerY, xr, groundY + 4, m.amir, ank);   // de sokkel onder een opgetilde vloer
+    if (m.vloer < 0) grotVul(xl, vloerY, xr, vloerY + H, m.amir, ank);     // en de bodem van een kloof
 
     // 2. plafond, 3. wanden, 4. hoekstukken: elk stuk dekt de naad van het vorige af
     if (m.plafond){
@@ -2445,6 +2490,7 @@ function drawGrotten(groundY, scale, cx){
 
     // 5. hangblokken, richels en keien erover: die breken de rechte lijnen
     drawGrotDecor(g, groundY, scale, cx);
+    if (kloof) ctx.restore();
 
     if (showBoxes || building){
       ctx.save();
@@ -4513,6 +4559,30 @@ function bodemDonker(){                    // de massa onder de tegel, tot onder
   const p = sneeuwPlan();
   return (winterOn() || (p && p.soort === 'rots')) ? '#2b2f38' : '#2e211d';
 }
+function bodemDonkerRGB(){                 // dezelfde kleur, om een verloop mee te maken
+  const p = sneeuwPlan();
+  return (winterOn() || (p && p.soort === 'rots')) ? '43,47,56' : '46,33,29';
+}
+// Zak je met de camera onder de grondlijn (dat gebeurt op de bodem van een rotskloof),
+// dan houdt het plaatje van de grondrand op en blijft er kale kleur over. Daaronder
+// ligt gesteente: hetzelfde steen als in een ravijn, met een verloop eroverheen zodat
+// je de bovenrand van die laag niet ziet liggen. In een gewoon level komt dit niet aan
+// de beurt, want daar reikt de grondrand tot onder in beeld.
+function diepGesteente(groundY, bandH){
+  const onder = groundY + bandH * 1.05;
+  if (onder >= H || !imgReady(gapTex)) return;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, onder, W, H - onder + 2); ctx.clip();
+  const th = H * 0.40, tw = th * gapTex.naturalWidth / gapTex.naturalHeight;
+  const off = ((world % tw) + tw) % tw;
+  for (let y = onder; y < H; y += th)
+    for (let x = -off; x < W; x += tw) ctx.drawImage(gapTex, x, y, tw + 0.6, th + 0.6);
+  const vaag = ctx.createLinearGradient(0, onder, 0, onder + H * 0.14);
+  vaag.addColorStop(0, 'rgba(' + bodemDonkerRGB() + ',1)');
+  vaag.addColorStop(1, 'rgba(' + bodemDonkerRGB() + ',0.45)');
+  ctx.fillStyle = vaag; ctx.fillRect(0, onder, W, H - onder + 2);
+  ctx.restore();
+}
 // De vier standen liggen over elkaar en zijn genest: wat op 25 wit is, is dat op 50
 // ook. Een grens is daardoor alleen sneeuw die erbij komt, nooit sneeuw die weggaat.
 function drawSneeuwdek(top, tw, th, x0, left, right, s){
@@ -4566,6 +4636,16 @@ function gapList(){ return (level && level.gaps) ? level.gaps : []; }
 function inGap(x){
   for (const g of gapList()){
     if (x > g.x - g.w / 2 && x < g.x + g.w / 2) return g;
+  }
+  // Een grot met een vloer onder de grondlijn is zelf een gat: daar houdt de gewone
+  // grond op. De vorm die eruit komt is dezelfde als die van een ravijn (midden plus
+  // breedte), want de dieren rekenen daarmee. Hij wordt een keer klaargezet.
+  for (const g of grotLijst()){
+    if ((g.y || 0) >= 0) continue;
+    if (x > g.x && x < g.x + g.w){
+      if (!g._gat || g._gat.w !== g.w) g._gat = { x: g.x + g.w / 2, w: g.w };
+      return g._gat;
+    }
   }
   return null;
 }
@@ -4626,6 +4706,7 @@ function updateJump(dt, plats, halfW){
   if (!onGround && target > -Infinity && ph <= target){
     const vIn = -pvh;                                 // hoe hard je neerkomt
     ph = target; pvh = 0; onGround = true;
+    fell = false;                                     // toch ergens op geland: je mag weer lopen
     if (jump){ jump.phase = 'land'; jump.t = 0; }
     puffDust(9);
     if (winterOn() && !building && waterDepthAt(world) < 0.2) snowBurst(world, target, vIn / 900);   // de sneeuw stuift op
@@ -4687,6 +4768,7 @@ function restart(){
   atkFrame = -1; atkAcc = 0; atkCooldown = 0; swFrame = -1; swAcc = 0; sweepBuf = 0; duckT = 0; swRecover = 0; sand.length = 0;
   thr = null; jav = null; javLost = 0; javOver = null; spearH = null; lastSolid = 0;
   jump = null; dust.length = 0; ph = 0; pvh = 0; onGround = true; fell = false; coyote = 0;
+  camDiep = 0;
   world = 0; facing = -1; frame = 0; frameAcc = 0; idleFrame = 0; idleAcc = 0;   // altijd weer bij het startpunt
   camY = 0; camFloor = 0;
   drawLives(); deadEl.classList.remove('on');
@@ -7067,6 +7149,7 @@ function scene(groundY){
   const bandH = H * 0.18;
   const eimg = bodemPic();                                 // savanne, rotsbodem, of de ingebakken wintergrond
   ctx.fillStyle = bodemDonker(); ctx.fillRect(0, groundY, W, Math.max(bandH, H - groundY) + H);
+  diepGesteente(groundY, bandH);             // kijk je dieper dan de grondrand reikt, dan gesteente
   if (edgeReady()){
     const s = edgeScale(bandH);
     const tw = eimg.naturalWidth * s, th = eimg.naturalHeight * s;
@@ -8934,7 +9017,7 @@ function startSandbox(){
   buildEl.classList.remove('on');
   sandboxEl.classList.add('on');
   savedLevel = level;                                   // je eigen level even parkeren
-  level = { rocks: [], spawns: [], props: [], gaps: [] };
+  level = { rocks: [], spawns: [], props: [], gaps: [], grotten: [] };
   sandbox = true; building = false; running = true;
   sbSneeuw = { soort: null, dek: 1 }; sbSneeuwToon();   // kale grond, zoals de rest van de sandbox
   document.getElementById('lives').style.display = 'none';   // geen levens in de sandbox
@@ -8989,6 +9072,35 @@ function sbGap(w){
   cv.focus();
 }
 sandboxEl.querySelectorAll('button[data-gap]').forEach(b => b.onclick = () => sbGap(Number(b.dataset.gap)));
+// Een grot om de mechaniek los te bekijken: het steen, de verstrooide decoraties en de
+// botsingen, zonder dat er een level voor nodig is. Elke druk geeft een andere seed.
+//   grot    dicht: plafond en twee wanden, je moet er langs de zijkant in springen
+//   door    alleen een plafond, je rent er zo doorheen
+//   richel  laag plafond: je stoot je hoofd, en de richels zijn zo te pakken
+//   kloof   een rotskloof: geen plafond, twee wanden en een vloer onder de grondlijn.
+//           Zo'n vloer is zelf een gat in de grond, dus je valt er vanzelf in
+function sbGrot(soort){
+  const side = sbFromRight ? 1 : -1;
+  const w = 1700;
+  let x = world + side * W * 0.42;
+  x = Math.min(x, cliffAt().wall - 420 - w / 2);
+  x = Math.max(x, endWall() + 420 + w / 2);
+  const seed = Math.floor(Math.random() * 100000);
+  if (!level.grotten) level.grotten = [];
+  if (soort === 'kloof')
+    level.grotten.push({ x: x - w / 2, y: -300, w, h: 300, plafond: false, achter: true, seed });
+  else
+    level.grotten.push({ x: x - w / 2, y: 0, w, h: soort === 'richel' ? 330 : 700,
+                         wanden: soort === 'door' ? 'geen' : 'beide',
+                         achter: soort !== 'door', seed });
+  grotLaad();
+  cv.focus();
+}
+sandboxEl.querySelectorAll('button[data-grot]').forEach(b => b.onclick = () => sbGrot(b.dataset.grot));
+document.getElementById('sbgrotweg').onclick = () => {
+  if (level.grotten) level.grotten.length = 0;
+  cv.focus();
+};
 function sbHppotion(drop){
   const side = sbFromRight ? 1 : -1;
   let x = world + side * 260;                       // vlak naast Amir, zo in te lopen
@@ -9095,7 +9207,7 @@ sbSideBtn.onclick = () => { sbFromRight = !sbFromRight; sbSideBtn.textContent = 
 const sbGodBtn = document.getElementById('sbgod');
 function setGodLabel(){ sbGodBtn.textContent = godMode ? 'Onsterfelijk aan' : 'Onsterfelijk uit'; sbGodBtn.classList.toggle('on', godMode); }
 sbGodBtn.onclick = () => { godMode = !godMode; setGodLabel(); cv.focus(); };
-document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; hppotions.length = 0; hppotionFx.length = 0; level.rocks.length = 0; if (level.gaps) level.gaps.length = 0; if (level.terraces) level.terraces.length = 0; arena = null; thr = null; jav = null; javLost = 0; cv.focus(); };
+document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; hppotions.length = 0; hppotionFx.length = 0; level.rocks.length = 0; if (level.gaps) level.gaps.length = 0; if (level.grotten) level.grotten.length = 0; if (level.terraces) level.terraces.length = 0; arena = null; thr = null; jav = null; javLost = 0; cv.focus(); };
 document.getElementById('sbback').onclick = stopSandbox;
 document.getElementById('btnsandbox').onclick = startSandbox;
 document.getElementById('btnstop').onclick = () => { building = false; buildEl.classList.remove('on'); };
