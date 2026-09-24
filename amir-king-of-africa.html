@@ -2743,24 +2743,32 @@ dustWisp.src = 'design/stofsliert.png';
 const imgReady = im => im.complete && im.naturalWidth > 0;
 
 // ---- sneeuwval (Winter World) -------------------------------------------
-// Vlokken in schermcoördinaten: ze dwarrelen omlaag, waaien mee met de vlaag en
-// schuiven een beetje tegen de camera in. Alleen in een winterlevel.
+// Vlokken in schermcoördinaten, maar ze hangen in de wereld: beweegt de camera,
+// dan schuiven ze op het scherm de andere kant op, net als de grond. Grote vlokken
+// (dichtbij) doen dat volledig mee, kleine (ver weg) maar voor een deel: parallax.
+// Ze dwarrelen omlaag en waaien mee met de vlaag. Alleen in een winterlevel.
 const snowflakes = [];
-let snowWorldPrev = null;
+let snowWorldPrev = null, snowCamYPrev = 0;
+function snowPar(f){ return 0.45 + 0.55 * Math.min(1, Math.max(0, (f.r - 1.2) / 2.6)); }
 function updateSnowfall(dt){
   if (!winterOn()){ snowflakes.length = 0; snowWorldPrev = null; return; }
   const n = Math.round(Math.min(220, Math.max(90, W * H / 6500)));
   while (snowflakes.length < n)
     snowflakes.push({ x: Math.random() * W, y: Math.random() * H, r: 1.2 + Math.random() * 2.6,
                       v: 38 + Math.random() * 70, ph: Math.random() * 6.28, sw: 8 + Math.random() * 18 });
-  const shift = snowWorldPrev === null ? 0 : (world - snowWorldPrev) * 0.35;
-  snowWorldPrev = world;
+  const cam = camEase !== null ? camEase : world;          // in de boss-arena staat de camera los van Amir
+  let dx = snowWorldPrev === null ? 0 : (cam - snowWorldPrev) * viewZoom();
+  let dy = snowWorldPrev === null ? 0 : camY - snowCamYPrev;
+  if (Math.abs(dx) > W) dx = 0;                             // een sprong (herstart, level overslaan): niet meeslepen
+  snowWorldPrev = cam; snowCamYPrev = camY;
   const g = gust ? gust.dir * gust.amp * 90 : 0;
   for (const f of snowflakes){
+    const par = snowPar(f);
     f.ph += dt * 1.6;
-    f.y += f.v * dt * (0.6 + f.r * 0.25);
-    f.x += (Math.sin(f.ph) * f.sw + g) * dt + shift;
+    f.y += f.v * dt * (0.6 + f.r * 0.25) + dy * par;
+    f.x += (Math.sin(f.ph) * f.sw + g) * dt - dx * par;
     if (f.y > H + 4){ f.y = -4; f.x = Math.random() * W; }
+    else if (f.y < -6) f.y += H + 12;
     if (f.x < -6) f.x += W + 12; else if (f.x > W + 6) f.x -= W + 12;
   }
 }
