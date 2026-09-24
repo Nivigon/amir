@@ -159,19 +159,29 @@ leeg is. Amir loopt door de lege cellen als door een uitgehakte gang, en rots ka
 goed boven of naast hem zitten als eronder. Waar een cel leeg is zie je gewoon de lucht en
 de savanne erdoorheen, dus een rotsmassa kan ook de bovenkant van een level zijn.
 
-Het spel kijkt per volle cel welke buren leeg zijn en plakt daar de bijbehorende rand op.
-Rots met open ruimte eronder krijgt de plafondstrook met zijn grillige tandenrand, rots met
-open ruimte erboven krijgt de gewone grondrand van het spel, en aan de zijkanten komt de
-wandtegel. Waar het plafond overgaat in een wand staat het hoekstuk dat die bocht tekent.
-Alle volle cellen liggen eerst dicht met een naadloze rotstextuur, zodat er nooit een gat
-te zien is.
+Het gesteente is hetzelfde gesteente als een terras. Rots is in dit spel al iets dat je
+beklimt, met een bovenvlak om op te lopen en een geribbelde wand eronder, en een rotsgebied
+gebruikt precies dat: een blok rots is van hetzelfde steen als de terrassen ernaast, en in
+een winterlevel ligt er dezelfde sneeuw op. De zijkanten staan niet kaarsrecht maar breken
+open, net als de zijkant van een terras.
+
+De onderkant heeft een terras niet, want daar kom je bij een terras nooit. Rots met open
+ruimte eronder krijgt daarom de tandenrand uit de grotset: een rij grillige punten die met
+hun aanzet in het steen staan en met hun punten in de open ruimte hangen. Een rotsdak leest
+daardoor als de onderkant van dezelfde berg waar de grond de bovenkant van is, of je nu
+ergens onderdoor loopt of door een vallei met rots boven je.
 
 Twee randen heeft de set niet, en die worden opgevuld met losse brokken: waar een vloer op
-een wand uitkomt ligt een handvol keien over de naad, en waar een rotspunt uitsteekt komt
-een richel of een hangblok overheen. Verder krijgt ongeveer een op de drie randen iets mee,
-verstrooid met een vaste seed: hangblokken onder het plafond, richels tegen de wanden en
-keien op de vloeren. Dezelfde seed geeft elke keer precies hetzelfde, maar niets staat op
-een regelmatige afstand.
+een wand uitkomt ligt een handvol keien over de naad, en waar een plafond tegen een hogere
+wand aan loopt hangt er een blok in de hoek. Verder krijgt ongeveer een op de drie randen
+iets mee, verstrooid met een vaste seed: hangblokken onder het plafond en keien op de
+vloeren. Dezelfde seed geeft elke keer precies hetzelfde, maar niets staat op een
+regelmatige afstand. Een richel om op te springen wordt niet verstrooid: die zet een level
+neer waar hij als opstap bedoeld is.
+
+Een cel is precies zo hoog als een terrastrede, en die hoogte schaalt mee met Amir. Op elk
+scherm klim je dus wel op een blok van één cel en nooit op een blok van twee, en loop je
+rechtop door een gang van twee cellen maar stoot je je hoofd als je springt.
 
 De volle cellen zijn massief: je stoot je hoofd tegen het plafond, je loopt niet door een
 wand heen en je staat op de vloeren. Een richel is een plankje waar je op kunt staan, met
