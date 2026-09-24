@@ -2033,6 +2033,7 @@ function updateCamera(dt, scale){
 
 function platsNear(scale){
   const out = terracePlats(scale);
+  for (const p of grotPlats(scale)) out.push(p);      // richels en opgetilde grotvloeren
   const jp = javPlat(scale);                  // een speer die in een muur steekt draagt ook
   if (jp) out.push(jp);
   const wall = cliffAt().wall;
@@ -2343,6 +2344,65 @@ function drawGrotDecor(g, groundY, scale, cx){
   }
 }
 
+// ---- botsen tegen een grot -----------------------------------------------
+// Massief zijn het plafond, de twee wanden en de vloer. Een richel is een plankje:
+// van onderen spring je erdoorheen, van boven sta je erop, en alleen de bovenkant van
+// het brok telt. Hangblokken en losse keien zijn puur decor en doen niet mee.
+
+// de twee rotsbanden naast de opening, in wereld-x
+function grotMuren(g, scale){
+  const m = grotMaat(g, scale), uit = [];
+  if (m.wL) uit.push({ l: m.buitenL, r: m.links, top: m.top });
+  if (m.wR) uit.push({ l: m.rechts, r: m.buitenR, top: m.top });
+  return uit;
+}
+
+// de richels van een grot als plankjes, plus de vloer als hij niet op de grondlijn ligt
+function grotPlats(scale){
+  const uit = [];
+  for (const g of grotLijst()){
+    if (g.massief === false) continue;
+    if (g.y) uit.push({ x: g.x + g.w / 2, left: g.x, right: g.x + g.w, topH: g.y, wPx: 400, hPx: 0 });
+    for (const d of grotDecorLijst(g)){
+      const def = GROT_DEEL[d.k];
+      if (!def || def.soort !== 'richel') continue;
+      const hh = grotHoog(d.k) * CHAR_H * scale * (d.s || 1);
+      const w = def.w / def.h * hh;
+      const l0 = d.f ? d.x : d.x - w;                  // gespiegeld plakt hij aan een linkerwand
+      // het bruikbare stuk bovenkant; gespiegeld klapt die strook mee om
+      const a = d.f ? 1 - GROT_RICHEL.r : GROT_RICHEL.l;
+      const b = d.f ? 1 - GROT_RICHEL.l : GROT_RICHEL.r;
+      uit.push({ x: l0 + w / 2, left: l0 + a * w, right: l0 + b * w, topH: d.y, wPx: 400, hPx: 0, thin: true });
+    }
+  }
+  return uit;
+}
+
+// Zo hoog mogen je voeten komen: onder een massief plafond stoot je je hoofd. Is de
+// opening lager dan Amir, dan houdt de vloer voorrang, anders duw je hem de grond in.
+function grotKop(halfW){
+  let cap = Infinity;
+  for (const g of grotLijst()){
+    if (g.massief === false) continue;
+    if (world + halfW <= g.x || world - halfW >= g.x + g.w) continue;
+    const t = Math.max(g.y || 0, (g.y || 0) + g.h - CHAR_H);
+    if (t < cap) cap = t;
+  }
+  return cap;
+}
+
+// de wanden duwen je terug, net als de klif aan het eind van het level
+function grotBlok(halfW, scale){
+  for (const g of grotLijst()){
+    if (g.massief === false) continue;
+    for (const b of grotMuren(g, scale)){
+      if (ph >= b.top) continue;                                  // je bent er overheen
+      if (world + halfW <= b.l || world - halfW >= b.r) continue;
+      if (world < (b.l + b.r) / 2) world = b.l - halfW; else world = b.r + halfW;
+    }
+  }
+}
+
 function drawGrotten(groundY, scale, cx){
   const lijst = grotLijst();
   if (!lijst.length) return;
@@ -2388,8 +2448,17 @@ function drawGrotten(groundY, scale, cx){
 
     if (showBoxes || building){
       ctx.save();
-      ctx.globalAlpha = 0.7; ctx.strokeStyle = '#7ad7ff'; ctx.lineWidth = 2 / viewZoom();
+      ctx.globalAlpha = 0.7; ctx.lineWidth = 2 / viewZoom();
+      ctx.strokeStyle = '#7ad7ff';                       // de opening
       ctx.strokeRect(xl, plafY, xr - xl, vloerY - plafY);
+      ctx.strokeStyle = '#ff6b6b';                       // de wanden waar je tegenaan loopt
+      for (const b of grotMuren(g, scale))
+        ctx.strokeRect(cx + (b.l - world), plafY, b.r - b.l, vloerY - plafY);
+      ctx.strokeStyle = '#8ef2a0';                       // de bovenkant van elke richel
+      for (const pl of grotPlats(scale)){
+        const ty = groundY - pl.topH * scale;
+        ctx.beginPath(); ctx.moveTo(cx + (pl.left - world), ty); ctx.lineTo(cx + (pl.right - world), ty); ctx.stroke();
+      }
       ctx.restore();
     }
   }
@@ -4507,9 +4576,11 @@ function fallDeath(){
 }
 
 function supportHeight(plats, halfW){          // waar je voeten steun vinden
-  let s = 0;
+  // Niets gevonden geeft 0: de gewone grond. Een grotvloer kan onder die lijn liggen,
+  // dus de hoogste treffer telt, ook als die negatief is.
+  let s = 0, raak = false;
   for (const p of plats){
-    if (world + halfW > p.left && world - halfW < p.right && p.topH > s && p.topH <= ph + 1) s = p.topH;
+    if (world + halfW > p.left && world - halfW < p.right && p.topH <= ph + 1 && (!raak || p.topH > s)){ s = p.topH; raak = true; }
   }
   return s;
 }
@@ -4540,6 +4611,10 @@ function updateJump(dt, plats, halfW){
     pvh -= gravity() * dt;
     ph += pvh * dt;
   }
+  if (!building){                               // onder een massief grotplafond stoot je je hoofd
+    const kop = grotKop(halfW);
+    if (ph > kop){ ph = kop; if (pvh > 0) pvh = 0; }
+  }
   const overGap = !building && !!inGap(world);   // staat er wel grond onder je? (in de bouwer loop je er gewoon overheen)
 
   // op een rots landen kan alleen van bovenaf; van onderen spring je er doorheen
@@ -4559,7 +4634,7 @@ function updateJump(dt, plats, halfW){
 
   if (onGround){
     const s = supportHeight(plats, halfW);
-    const floor = s > 0 ? s : (overGap ? null : 0);
+    const floor = s !== 0 ? s : (overGap ? null : 0);
     if (floor !== null && floor >= ph - 1) ph = floor;   // meelopen met de rots
     else if (jump && (jump.phase === 'crouch' || jump.phase === 'push')) takeOff();   // al aan het afzetten: gewoon springen
     else { onGround = false; pvh = 0;                    // van de rand of het gat in
@@ -7266,6 +7341,7 @@ function loop(now){
   }
   if (!building) blockByPlatforms(plats, halfWNow);
   if (!building) blockByThickets(scaleNow, halfWNow);
+  if (!building) grotBlok(halfWNow, scaleNow);        // de wanden van een grot
   updateJump(dt, plats, halfWNow);
   // waar stond hij voor het laatst op vaste grond? Daar komt een verloren speer terug
   if (!building && onGround && !fell && !inGap(world) && waterDepthAt(world) < 0.2) lastSolid = world;
