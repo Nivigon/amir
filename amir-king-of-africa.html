@@ -2181,9 +2181,9 @@ function measurePlat(p, scale){
 // | massief | de volle cellen blokkeren (standaard true)                               |
 // | decor   | met de hand erbij: [{k, x, y, f, s}]                                     |
 //
-// Cellen zijn altijd vierkant op het scherm, ook als je aan de Formaat-schuif draait:
-// cel is een maat in wereld-px en die is gelijk aan schermpixels. De hoogte van een cel
-// in sprite-eenheden (waar ph in rekent) volgt daaruit, en dus uit de schaal.
+// Het gesteente is hetzelfde gesteente als een terras: de massa wordt getekend met het
+// terrasplaatje (grotMassa), en alleen de onderkant komt uit de grotset, want die rand
+// heeft een terras niet.
 //
 // Buiten het raster is het lucht, behalve onder de laatste rij: daar loopt de aarde door.
 // De bovenkant van je rots is dus ook de bovenkant van het level, met de hemel erboven.
@@ -2200,28 +2200,23 @@ const GROT_HOOG = 0.6;            // celhoogte als deel van Amir: 150 eenheden, 
 // niets hoeft op te halen voordat het kan tekenen.
 const GROT = {
   strook: { w: 1724, h: 593 },                             // plafond_strook
-  // Van de plafondstrook tekenen we niet de hele hoogte, maar alleen de onderste 160
-  // bronrijen: dat is de band waarmee de rotsmassa ophoudt. Rij 433 tot 508 is nog
-  // massief steen, 509 tot 592 is de grillige tandenrand. Het stuk daarboven is niets
-  // anders dan meer rots, en dat leest als een eindeloze massa in plaats van een band;
-  // dat wordt nu met rotstextuur gevuld.
-  band:   { van: 433, hoog: 160, dicht: (508 - 433) / 160 },
-  tand:   0.12,                                            // zoveel van de tandenzone hangt onder de plafondlijn
-  hoek:   { w: 1984, h: 1230, band: 593, binnen: 1415 },   // binnen = wand_binnenrand_x_onderaan
-  wand:   { w: 717,  h: 1108, rand: 13 },                  // rand = rots_linkerrand_x_bovenaan
-  vul:    0.86                                             // tot deze rij van de hele strook is hij dicht (hoekstuk)
+  // Van de plafondstrook gebruiken we alleen de onderste 160 bronrijen: rij 433 tot 508 is
+  // nog massief steen, 509 tot 592 is de grillige tandenrand.
+  // dicht = het deel van de band dat nog massief steen is; dat wordt weggeknipt, want de
+  // rots eromheen is het steen al. Wat overblijft is de tandenrand die eronder hangt.
+  band:   { van: 433, hoog: 160, dicht: (508 - 433) / 160 }
 };
-// De korrel van het gesteente hangt aan de grond, niet aan de cel. De grondband van het
+// De korrel van de tandenrand hangt aan de grond, niet aan de cel. De grondband van het
 // spel is 296 bronpixels dik en zijn rotsbrokken zijn ongeveer 150 px; in de plafondstrook
 // zijn ze ongeveer 70 px, dus op 2,1 keer de grondschaal zijn ze even groot.
 //
-// Alleen: op die factor wordt de band ook twee keer zo zwaar als de vloer, en dan vult hij
-// het halve scherm met grote lichte scherven terwijl de vloer juist een rustige, dunne band
-// is. De vloer wint. Op 1,35 blijven de brokken groot genoeg om als rots te lezen en blijft
-// de band lichter dan de grondband eronder.
+// Alleen: op die factor wordt de rand ook twee keer zo zwaar als de vloer, en dan hangt hij
+// met grote lichte scherven tot halverwege het scherm, terwijl de vloer juist een rustige,
+// dunne band is. De vloer wint. Op 1,35 blijven de brokken groot genoeg om als rots te
+// lezen en blijft de rand lichter dan de grondband eronder.
 const GROT_SCHAAL = 1.35;
 const schaalGrond = () => edgeScale(H * 0.18);       // schermpixels per bronpixel van de grondrand
-const grotSteen = () => GROT_SCHAAL * schaalGrond(); // en die van de band en de vulling
+const grotSteen = () => GROT_SCHAAL * schaalGrond(); // en die van de tandenrand
 // De losse stukken hangen aan Amir, niet aan de steenschaal: daarop zou een hangblok zes
 // keer zo hoog worden als hij. Zo blijft een hangblok ongeveer een Amir lang, een richel
 // een plank om op te staan en een kei iets waar je overheen stapt.
@@ -2230,6 +2225,7 @@ const grotDecorS = scale => CHAR_H * scale / 850;
 // Het decorregister: de maten uit grot.json, en waar het ankerpunt van elke soort ligt.
 //   hang    bovenkant vlak, hangt onder een plafondrand:  x = midden,          y = de bovenkant
 //   richel  rechterkant vlak, plakt tegen een wand:       x = die vlakke kant, y = de looprand
+//           (alleen met de hand neer te zetten, niet verstrooid)
 //   kei     staat los op een vloer:                       x = midden,          y = de onderkant
 // Alles wordt op grotS getekend, dus een grindje blijft klein naast een blok.
 const GROT_DEEL = {
@@ -2264,7 +2260,7 @@ let grotGeladen = false;
 function grotLaad(){
   if (grotGeladen) return;
   grotGeladen = true;
-  for (const n of ['plafond_strook', 'wand_rand'].concat(Object.keys(GROT_DEEL)))
+  for (const n of ['plafond_strook'].concat(Object.keys(GROT_DEEL)))
     grotImgs[n] = zetBron(new Image(), GROT_DIR + n + '.png',
                           () => console.warn('ontbreekt: ' + GROT_DIR + n + '.png'));
 }
@@ -2361,123 +2357,176 @@ function grotSilhouet(c){
 }
 let grotTegels = null;
 function grotTegelSet(cel, celPx){
-  const bodem = edgeReady() ? bodemPic() : null;
+  const st = grotPic('plafond_strook');
+  if (!st || !imgReady(st)) return null;
   const ss = grotSteen();
-  const sleutel = cel + '|' + Math.round(celPx) + '|' + ss.toFixed(3) + '|' + (bodem ? bodem.src : '-');
+  const sleutel = cel + '|' + Math.round(celPx) + '|' + ss.toFixed(3) + '|' + st.naturalWidth;
   if (grotTegels && grotTegels.sleutel === sleutel) return grotTegels;
-  const st = grotPic('plafond_strook'), wa = grotPic('wand_rand');
-  if (!st || !imgReady(st) || !wa || !imgReady(wa) || !bodem) return null;
-  const es = schaalGrond();            // de grondrand op precies de schaal van de grond zelf
-  const ds = grotDecorS(schoonScale());   // wand en losse stukken: zo blijven ze op maat
+  // De rijen van de band staan in de maten van grot.json, dus in de grote bron. Op een
+  // telefoon komt hetzelfde plaatje op halve grootte uit klein/, en dan ligt rij 433 buiten
+  // het plaatje: dan valt de hele band weg en hangt er niets meer aan het plafond. Daarom
+  // wordt de snee met de werkelijke bronbreedte meegeschaald; wat eruit komt houdt zijn maat.
+  const f = st.naturalWidth / GROT.strook.w;
+  const snee = { x: 0, y: GROT.band.van * f, w: st.naturalWidth, h: GROT.band.hoog * f };
   const rond = v => Math.max(1, Math.round(v));
+  const bw = rond(GROT.strook.w * ss), bh = rond(GROT.band.hoog * ss);
   grotTegels = { sleutel, cel, ss,
-
-    strook: grotTegelMaak(st, rond(GROT.strook.w * ss), rond(GROT.band.hoog * ss), true, false,
-                          { x: 0, y: GROT.band.van, w: GROT.strook.w, h: GROT.band.hoog }),
+    strook: grotTegelMaak(st, bw, bh, true, false, snee),
     // hetzelfde silhouet in het donker: dat komt er een paar pixels onder te liggen en geeft
     // de tanden dezelfde strakke rand als de aardlaag van de grond heeft
-    strookRand: grotSilhouet(grotTegelMaak(st, rond(GROT.strook.w * ss), rond(GROT.band.hoog * ss), true, false,
-                                   { x: 0, y: GROT.band.van, w: GROT.strook.w, h: GROT.band.hoog })),
-    wand:   grotTegelMaak(wa, rond(GROT.wand.w * ds), rond(GROT.wand.h * ds), false, true),
-    bodem:  grotTegelMaak(bodem, rond(bodem.naturalWidth * es), rond(bodem.naturalHeight * es), true, false) };
+    strookRand: grotSilhouet(grotTegelMaak(st, bw, bh, true, false, snee)) };
   return grotTegels;
 }
 
-// ---- de vier basisranden --------------------------------------------------
-// Per volle cel kijken we welke buren leeg zijn en plakken daar de rand op. Reeksen
-// worden in één keer getegeld, zodat een rand nooit halverwege van schaal verspringt.
+// ---- de massa: rots is hetzelfde gesteente als een terras -----------------
+// Elke volle cel hangt onder precies een cel waarvan de buur boven leeg is: loop je van
+// een volle cel omhoog, dan kom je daar altijd uit. Zo'n bovenrand met de massa eronder is
+// niets anders dan een terras van een paar cellen breed, en dat tekent het spel al.
+// Daarom staat hier geen tweede soort steen: we nemen het terrasplaatje zelf, met
+// hetzelfde bovenvlak om op te lopen en dezelfde geribbelde wand eronder, op de schaal die
+// een terras ook krijgt. Een rotsgebied is daarmee van hetzelfde gesteente als de rest van
+// het level. Dat was precies wat er misging: een eigen vlakke massa naast de vloer leest
+// als een grijze rechthoek, hoe je hem ook inkleurt.
+//
+// Alleen de onderkant heeft het terras niet, want daar kom je bij een terras nooit: die
+// komt uit de grotset (grotPlafonds, de band met tanden en de hangblokken eronder).
+const GROT_JAG = 0.16;        // zoveel van een cel mag een gebroken zijkant naar binnen happen
+const GROT_JAG_K = 1.7;       // en zo diep hapt hij: een terraszijkant is veel hoger, daar valt dezelfde golf minder op
 
-// de rotsvulling: alle volle cellen als één vlak, met rotstextuur.png naadloos getegeld
-// op hele pixels, zodat er geen naden tussen de cellen door lopen
-// De massa boven de plafondband is vlak, net als de aarde onder de grondband van het spel.
-// Elke getegelde textuur daar levert naden en rechthoeken op, want hij is nooit precies
-// hetzelfde steen als de band. De kleuren komen uit de strook zelf: de bovenkant is donker
-// (83,75,68), vlak boven de band lichter (125,112,102).
-const GROT_MASSA = ['rgb(72,65,59)', 'rgb(118,106,96)'];
-function grotVulling(R, X, Y, T, ch){
-  ctx.save();
+// Waar de rots zijdelings doorloopt is de zijkant een naad die onder het buurstuk valt:
+// die blijft recht (en loopt 40 px naar buiten, zodat er geen haarlijn tussen valt). Waar
+// hij open ligt hoort de afbrokkelende rand van het plaatje, en breekt het silhouet. Dat
+// verschilt per rij, want een stuk massa kan halverwege vrij komen te liggen.
+function grotKantOpen(R, u, kant, r){ return !grotVol(R, kant < 0 ? u.c - 1 : u.e + 1, r); }
+// de rijen van dit stuk waar die kant open ligt, als [van, tot]
+function grotKantReeksen(R, u, kant){
+  const uit = [];
+  let r = u.r;
+  while (r <= u.b){
+    if (!grotKantOpen(R, u, kant, r)){ r++; continue; }
+    let e = r;
+    while (e + 1 <= u.b && grotKantOpen(R, u, kant, e + 1)) e++;
+    uit.push([r, e]);
+    r = e + 1;
+  }
+  return uit;
+}
+// het silhouet van een stuk massa. terJag is dezelfde golf die de zijkant van een terras
+// openbreekt, geklemd op een deel van de cel: de botsing blijft immers op de celrand liggen.
+function grotSilPad(R, u, X, Y, ch, top, bottom, st, soilY){
+  const xl = X(u.c), xr = X(u.e + 1);
+  const kl = v => Math.max(0, Math.min(R.cel * GROT_JAG, v * GROT_JAG_K));
+  const sl = xl * 0.011, sr = xr * 0.017 + 2.4;
+  const links = [], rechts = [];
+  const zet = (y, oL, oR) => {
+    links.push([oL ? xl + kl(terJag(sl, y, soilY, st)) : xl - 40, y]);
+    rechts.push([oR ? xr - kl(terJag(sr, y, soilY, st)) : xr + 40, y]);
+  };
+  for (let r = u.r; r <= u.b; r++){
+    const oL = grotKantOpen(R, u, -1, r), oR = grotKantOpen(R, u, 1, r);
+    const ya = r === u.r ? top : Y(r) - ch, yb = r === u.b ? bottom : Y(r);
+    for (let y = ya; y < yb; y += TER_JAG_STEP) zet(y, oL, oR);
+    zet(yb, oL, oR);
+  }
   ctx.beginPath();
-  for (let r = 0; r < R.n; r++)
-    for (const [c, e] of grotReeksH(R, r, (cc, rr) => R.vol[rr][cc]))
-      ctx.rect(X(c), Y(r) - ch, X(e + 1) - X(c), ch);
-  ctx.clip();
-  const x0 = X(0), x1 = X(R.kol), yBot = Y(R.n - 1), yTop = Y(0) - ch;
-  const diep = Math.max(1, yBot - yTop);
-  const g = ctx.createLinearGradient(0, yTop, 0, yBot);
-  g.addColorStop(0, GROT_MASSA[0]);
-  g.addColorStop(Math.min(1, 1 - Math.min(0.55, 2.2 * ch / diep)), GROT_MASSA[0]);
-  g.addColorStop(1, GROT_MASSA[1]);
-  ctx.fillStyle = g;
-  ctx.fillRect(x0, yTop, x1 - x0, yBot - yTop + 2);
-  ctx.restore();
+  ctx.moveTo(links[0][0], links[0][1]);
+  for (const q of links) ctx.lineTo(q[0], q[1]);
+  for (let i = rechts.length - 1; i >= 0; i--) ctx.lineTo(rechts[i][0], rechts[i][1]);
+  ctx.closePath();
 }
 
-// buur onder is leeg: de band waarmee de rotsmassa ophoudt. Het massieve deel eindigt op
-// de plafondlijn; een deel van de tanden hangt eronder, in de open ruimte.
+// De stukken: per rij de reeksen cellen met open lucht erboven, opgesplitst waar de rots
+// eronder niet even diep doorloopt. Laagste rots eerst, zodat hoger gesteente de rand van
+// lager gesteente afdekt, net zoals de terrassen zich op elkaar leggen.
+function grotStukken(R){
+  const bodem = (c, r) => { let e = r; while (e + 1 < R.n && grotVol(R, c, e + 1)) e++; return e; };
+  const uit = [];
+  for (let r = 0; r < R.n; r++){
+    let c = 0;
+    while (c < R.kol){
+      if (!(grotVol(R, c, r) && !grotVol(R, c, r - 1))){ c++; continue; }
+      const b = bodem(c, r);
+      let e = c;
+      while (e + 1 < R.kol && grotVol(R, e + 1, r) && !grotVol(R, e + 1, r - 1) && bodem(e + 1, r) === b) e++;
+      uit.push({ r, c, e, b });
+      c = e + 1;
+    }
+  }
+  uit.sort((a, b) => b.r - a.r);
+  return uit;
+}
+
+// een stuk massa tekenen zoals drawClimb een terras tekent: middenstukken om en om
+// gespiegeld, en aan een open kant de afbrokkelende rand van het plaatje. Die rand wordt
+// op ware breedte getekend en door het silhouet afgesneden; hem samendrukken tot de
+// celbreedte maakt er een streepjescode van.
+function grotMassa(R, X, Y, ch, scale, groundY){
+  const tp = terPic();
+  if (!imgReady(tp)) return;
+  const st = terScale(scale);
+  const iw = tp.naturalWidth - TER.trim;
+  const breed = iw * st, midW = (iw - TER.midX) * st, rand = TER.edge * st;
+  const x0 = X(0);
+  for (const u of grotStukken(R)){
+    const xl = X(u.c), xr = X(u.e + 1);
+    const top = Y(u.r) - ch - (TER.walk - TER.trimTop) * st;
+    // loopt de rots tot onder het raster door, dan loopt de aarde door: tot de grondlijn
+    const diep = u.b === R.n - 1 ? Math.max(Y(u.b), Math.round(groundY)) : Y(u.b);
+    const bottom = diep + 4;
+    const soilY = top + (TER.soil - TER.trimTop) * st;
+    const openL = grotKantOpen(R, u, -1, u.r), openR = grotKantOpen(R, u, 1, u.r);
+    ctx.save();
+    grotSilPad(R, u, X, Y, ch, top - 4, bottom, st, soilY);
+    ctx.clip();
+    ctx.save();
+    ctx.beginPath();
+    const midL = xl + (openL ? rand : 0), midR = xr - (openR ? rand : 0);
+    ctx.rect(midL, top - 4, Math.max(0, midR - midL), bottom - top + 4);
+    ctx.clip();
+    // De ribbels liggen op een raster dat aan het hele gebied hangt, niet aan dit stuk:
+    // twee stukken naast elkaar zetten de wand anders halverwege opnieuw in, en dan loopt
+    // er een naad door het steen. Van rechts naar links, om en om gespiegeld.
+    const j0 = Math.floor((midL - x0) / midW), j1 = Math.floor((midR - x0 - 0.01) / midW);
+    for (let j = j1; j >= j0; j--)
+      drawTerCol(TER.midX, iw - TER.midX, x0 + j * midW, midW, (((j % 2) + 2) % 2) === 1, top, bottom, st);
+    ctx.restore();
+    // de afbrokkelende rand, alleen over de rijen waar die kant echt open ligt
+    const kant = (k, img) => {
+      for (const [ra, rb] of grotKantReeksen(R, u, k)){
+        const ya = ra === u.r ? top - 4 : Y(ra) - ch, yb = rb === u.b ? bottom : Y(rb);
+        ctx.save();
+        ctx.beginPath(); ctx.rect(k < 0 ? xl : xr - breed, ya, breed, yb - ya); ctx.clip();
+        drawTerCol(0, iw, k < 0 ? xl : xr - breed, breed, k > 0, top, bottom, st, img);
+        ctx.restore();
+      }
+    };
+    kant(1, null);
+    kant(-1, terFadePic() || tp);      // links als laatste, met de zachte rechterkant
+    ctx.restore();
+  }
+}
+
+// Buur onder is leeg: de tanden waarmee de rots ophoudt, de enige rand die een terras niet
+// heeft. Alleen wat onder de plafondlijn hangt komt in beeld; het massieve deel van de
+// strook wordt weggeknipt. Zou je dat wel tekenen, dan ligt er een lichte plaat over de
+// wand met een kaarsrechte bovenkant, en dat leest als een rechthoek op de rots. Zo staan
+// de tanden met hun aanzet in het steen en hangen ze met hun punten in de open ruimte.
 function grotPlafonds(R, X, Y, T){
   if (!T) return;
   const im = T.strook, w = im.width, h = im.height;
   const dicht = Math.round(GROT.band.dicht * h);
-  const hang = Math.round(GROT.tand * (h - dicht));
+  const x0 = X(0);
   for (let r = 0; r < R.n; r++)
     for (const [c, e] of grotReeksH(R, r, (cc, rr) => grotVol(R, cc, rr) && !grotVol(R, cc, rr + 1))){
-      const L = X(c), Rr = X(e + 1), top = Y(r) - dicht + hang;
+      const L = X(c), Rr = X(e + 1), lijn = Y(r), top = lijn - dicht;
       ctx.save();
-      ctx.beginPath(); ctx.rect(L, top - 1, Rr - L, h + 5); ctx.clip();
-      for (let x = L; x < Rr; x += w) ctx.drawImage(T.strookRand, x, top + 3);   // de donkere rand eronder
-      for (let x = L; x < Rr; x += w) ctx.drawImage(im, x, top);
+      ctx.beginPath(); ctx.rect(L, lijn - 2, Rr - L, h - dicht + 6); ctx.clip();
+      // dezelfde fase over het hele gebied, anders begint het patroon per reeks opnieuw
+      const start = x0 + Math.floor((L - x0) / w) * w;
+      for (let x = start; x < Rr; x += w) ctx.drawImage(T.strookRand, x, top + 3);   // de donkere rand eronder
+      for (let x = start; x < Rr; x += w) ctx.drawImage(im, x, top);
       ctx.restore();
     }
-}
-
-// Buur boven is leeg: de gewone grondrand van het spel, dus een vloer in een rotsgebied
-// voelt als de vloer buiten. Hij krijgt zijn eigen schaal uit de celgrootte. Zijn onderkant
-// vloeit uit in het gesteente: blijft de volle aardlaag staan, dan ligt er een oranje band
-// over de grijze rots.
-function grotVloeren(R, X, Y, T, ch){
-  if (!T) return;
-  const im = T.bodem, w = im.width, h = im.height;
-  const lift = Math.round(EDGE.walk * schaalGrond());
-  for (let r = 0; r < R.n; r++)
-    for (const [c, e] of grotReeksH(R, r, (cc, rr) => grotVol(R, cc, rr) && !grotVol(R, cc, rr - 1))){
-      const L = X(c), Rr = X(e + 1), top = Y(r) - ch - lift;
-      ctx.save();
-      ctx.beginPath(); ctx.rect(L, top, Rr - L, Math.min(h, lift + Math.round(ch * 0.8))); ctx.clip();
-      for (let x = L; x < Rr; x += w) ctx.drawImage(im, x, top);
-      ctx.restore();
-    }
-}
-
-// Buur links of rechts is leeg: wand_rand, verticaal getegeld. Het plaatje kijkt van
-// zichzelf naar links (de vlakke snijkant zit rechts), dus voor een wand met open ruimte
-// aan de rechterkant spiegelen we hem. Zijn grillige rotskant steekt een stukje de open
-// ruimte in, net als de tanden aan het plafond: zonder dat is het silhouet van een blok
-// kaarsrecht. De botsing blijft gewoon op de celrand liggen.
-function grotWanden(R, X, Y, T, ch){
-  if (!T) return;
-  const im = T.wand, w = im.width, h = im.height;
-  const rand = Math.round(GROT.wand.rand * grotDecorS(schoonScale()));
-  const over = Math.round(R.cel * 0.10);
-  for (let c = 0; c < R.kol; c++)
-    for (const kant of [-1, 1])
-      for (const [r, e] of grotReeksV(R, c, (cc, rr) => grotVol(R, cc, rr) && !grotVol(R, cc + kant, rr))){
-        const top = Y(r) - ch, bot = Y(e);
-        const binnen = kant < 0 ? X(c) : X(c + 1);       // de kant waar de open ruimte zit
-        ctx.save();
-        ctx.beginPath();
-        const breed = Math.round(R.cel * 0.42);            // alleen de rand, niet de hele cel
-        ctx.rect(kant < 0 ? binnen - over : binnen - breed, top, breed + over, bot - top);
-        ctx.clip();
-        if (kant > 0){ ctx.translate(binnen + over + rand, 0); ctx.scale(-1, 1); }
-        else ctx.translate(binnen - over - rand, 0);
-        for (let y = top; y < bot; y += h) ctx.drawImage(im, 0, y);
-        ctx.restore();
-        // dezelfde donkere lijn die de aardlaag van de grond ook heeft
-        ctx.save();
-        ctx.strokeStyle = 'rgba(20,14,12,0.45)'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(binnen, top); ctx.lineTo(binnen, bot); ctx.stroke();
-        ctx.restore();
-      }
 }
 
 // ---- tekenen --------------------------------------------------------------
@@ -2496,11 +2545,9 @@ function drawGrotten(groundY, scale, cx){
     const Y = r => Math.round(groundY) - grotRijH(R, r) * ch;      // onderkant van rij r
     if (X(R.kol) < viewL || X(0) > viewR) continue;
     const T = grotTegelSet(R.cel, ch);
-    grotVulling(R, X, Y, T, ch);     // 1. het steen zelf
-    grotPlafonds(R, X, Y, T);        // 2. buur onder leeg
-    grotWanden(R, X, Y, T, ch);      // 3. buur links of rechts leeg
-    grotVloeren(R, X, Y, T, ch);     // 4. buur boven leeg
-    drawGrotDecor(g, R, groundY, scale, cx);      // 6. hangblokken, richels en keien
+    grotMassa(R, X, Y, ch, scale, groundY);       // 1. het steen, en het vlak om op te lopen
+    grotPlafonds(R, X, Y, T);                     // 2. buur onder leeg: de plafondband
+    drawGrotDecor(g, R, groundY, scale, cx);      // 3. hangblokken, richels en keien
     if (showBoxes || building) grotHitboxen(g, R, X, Y, ch);
   }
 }
@@ -2523,8 +2570,11 @@ function grotHitboxen(g, R, X, Y, ch){
 // Twee randen heeft de set niet, en die vullen we hiermee op:
 //   waar een vloer op een wand uitkomt ligt geen hoekstuk, dus daar komt een handvol
 //   keien, en de naad verdwijnt onder het puin;
-//   waar een rotspunt in de open ruimte steekt is de hoek kaarsrecht, dus daar komt een
-//   richel of een hangblok overheen.
+//   waar een rotspunt in de open ruimte steekt is de hoek kaarsrecht, dus daar komen keien
+//   of een hangblok overheen.
+// wand_richel zit met opzet niet in de verstrooiing: dat is een plank om op te springen, en
+// tegen een losse celrand geplakt hangt hij als een plaat in de lucht. Zet hem met de hand
+// neer, daar waar je hem als opstap wilt.
 // De rest is verstrooiing: ongeveer een op de drie randen krijgt iets, met een seeded
 // random, dus met dezelfde seed staat er elke keer precies hetzelfde.
 function grotStrooi(g, R){
@@ -2550,13 +2600,23 @@ function grotStrooi(g, R){
       const links = !grotVol(R, c - 1, rr), rechts = !grotVol(R, c + 1, rr);
       const top = grotRijH(R, rr) + 1, bot = grotRijH(R, rr);
 
+      // Waar een plafond tegen een wand aan loopt die verder naar beneden doorloopt, zit een
+      // rechte hoek van 90 graden: de set heeft daar geen stuk voor (hoek_plafond_wand past
+      // niet in een raster). Daar komt een hangblok in de hoek, dat hangt eroverheen.
+      if (onder && !boven){
+        const naarL = grotVol(R, c - 1, rr) && grotVol(R, c - 1, rr + 1);
+        const naarR = grotVol(R, c + 1, rr) && grotVol(R, c + 1, rr + 1);
+        if (naarL || naarR){
+          const kant = naarL && (!naarR || r() < 0.5) ? 0.22 : 0.78;
+          zet(GROT_HANGS[Math.floor(r() * 3) % 3], wx(c) + kant * cel, hy(bot), kant > 0.5, 0.5 + 0.3 * r());
+          continue;
+        }
+      }
       // een rotspunt die uitsteekt: drie of meer open buren, dus een kale rechte hoek
       if (boven + onder + links + rechts >= 3){
         if (onder)                                    // hangt in de lucht: een blok eronder
           zet(GROT_HANGS[Math.floor(r() * 3) % 3], wx(c) + cel / 2, hy(bot), r() < 0.5, 0.55 + 0.25 * r());
-        else if (!boven)                              // steekt zijwaarts uit: een richel erover
-          zet('wand_richel', links ? wx(c) : wx(c + 1), hy(bot) + hy(0.55), !links, 0.85);
-        else                                          // een los blok op de vloer: keien erop
+        else                                          // een los brok: keien erop of ertegen
           for (let i = 0, n2 = 2 + Math.floor(r() * 2); i < n2; i++)
             zet(kei(), wx(c) + (0.15 + 0.7 * r()) * cel, hy(top), r() < 0.5, 0.7 + 0.5 * r());
         continue;
@@ -2573,8 +2633,6 @@ function grotStrooi(g, R){
       // en verder: ongeveer een op de drie randen krijgt iets mee
       if (onder && r() < 0.34 && ruimte('hang' + rr, c))
         zet(GROT_HANGS[Math.floor(r() * 3) % 3], wx(c) + (0.25 + 0.5 * r()) * cel, hy(bot), r() < 0.5, 0.45 + 0.35 * r());
-      if ((links || rechts) && r() < 0.34 && ruimte('richel' + c, rr))
-        zet('wand_richel', links ? wx(c) : wx(c + 1), hy(bot) + hy(0.25 + 0.5 * r()), !links, 0.8 + 0.3 * r());
       if (boven && r() < 0.34)
         zet(kei(), wx(c) + (0.2 + 0.6 * r()) * cel, hy(top), r() < 0.5, 0.7 + 0.6 * r());
     }
@@ -9305,7 +9363,7 @@ const SB_RASTERS = {
          '..............'],
   pilaar: ['####################',
            '####################',
-           '#########.....######',
+           '#########.#...######',
            '#####.....#...######',
            '##........#.........',
            '....................'],
