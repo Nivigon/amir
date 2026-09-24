@@ -191,29 +191,33 @@ De tekencode kijkt per volle cel welke buren leeg zijn:
 | links of rechts | `wand_rand.png`, verticaal getegeld, gespiegeld voor de andere kant |
 
 
-Alle volle cellen worden eerst dicht gelegd met `rotstextuur.png`. Wat de set niet heeft
+Alle volle cellen worden eerst dicht gelegd met een vlakke massa. Wat de set niet heeft
 vullen de brokken op: waar een vloer op een wand uitkomt komt een handvol keien over de
 naad, en waar een rotspunt uitsteekt komt een richel of een hangblok overheen.
 
-De korrel van het gesteente hangt aan de grond, niet aan de cel. De grondband is 296
-bronpixels dik met brokken van ongeveer 150 px; in `plafond_strook.png` zijn die brokken
-ongeveer 70 px. De band en de rotsvulling worden daarom op 2,1 keer `schaalGrond()`
-getekend (`grotSteen()`), en dan zijn de brokken boven en onder even groot.
+Een rotsdak is opgebouwd zoals de grond, maar omgekeerd: een vlakke massa met aan de
+open kant een band met detail. De grond is `bodemDonker()` met de grondrand erop; het dak
+is `GROT_MASSA` (een verloop van donker naar de kleur van de strook) met de plafondband
+eronder. Tegel die massa niet met een textuur: elk ander plaatje is net iets lichter of
+donkerder dan de band en dan ligt elke rand als een rechthoek in de rots. Dat is precies
+wat er misging.
 
 Van `plafond_strook.png` wordt alleen de onderste 160 bronrijen getekend (`GROT.band`):
-rij 433 tot 508 is massief steen, 509 tot 592 is de tandenrand. Dat is een band met dikte,
-net als de grondband. Het stuk erboven is niets anders dan meer rots en wordt met
-`rotstextuur.png` gevuld, anders leest het plafond als een eindeloze massa in plaats van
-als de onderkant van een berg. Een klein deel van de tanden (`GROT.tand`) hangt onder de
-plafondlijn, zoals het gras van de grondrand boven de looplijn uitsteekt.
+rij 433 tot 508 is massief steen, 509 tot 592 is de tandenrand. Een klein deel van die
+tanden (`GROT.tand`) hangt onder de plafondlijn, met een donkere contour eronder
+(`grotSilhouet`), zoals de aardlaag van de grond er ook een heeft.
+
+De band wordt op `grotSteen()` getekend, 1,35 keer de schaal van de grondrand. Op 2,1 zijn
+de rotsbrokken boven en onder precies even groot, maar dan wordt de band ook twee keer zo
+zwaar als de vloer en vult hij het halve scherm. De vloer is een rustige, dunne band en dat
+wint.
 
 De losse stukken (hangblokken, richels, keien) en de wandtegel hangen aan Amir
 (`grotDecorS`), niet aan de steenschaal: daarop zou een hangblok zes keer zo hoog worden
-als hij. De korrel klopt daar dus niet helemaal; dat is de prijs voor stukken die passen.
+als hij. De wandtegel wordt bovendien tot een smalle rand afgesneden, met dezelfde donkere
+lijn ernaast: over de hele celbreedte leest hij als een lichte rechthoek op de massa.
 
-`hoek_plafond_wand.png` wordt niet meer gebruikt. Op de steenschaal is dat stuk 2500 px
-breed en past het nergens meer in een raster van 120 px; de band en de wand vormen de hoek
-nu samen.
+`hoek_plafond_wand.png` wordt niet meer gebruikt: het stuk past niet in een raster.
 
 Geen tint, geen overlay, geen `globalCompositeOperation` op deze sprites. Ze zijn allemaal
 hetzelfde warm grijsbruine gesteente; elke waas eroverheen maakt van de ene helft grijs en

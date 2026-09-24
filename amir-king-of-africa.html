@@ -2213,10 +2213,13 @@ const GROT = {
 };
 // De korrel van het gesteente hangt aan de grond, niet aan de cel. De grondband van het
 // spel is 296 bronpixels dik en zijn rotsbrokken zijn ongeveer 150 px; in de plafondstrook
-// zijn ze ongeveer 70 px. Teken je de strook 2,1 keer zo groot als de grond, dan zijn de
-// brokken in allebei even groot en leest het plafond als de onderkant van dezelfde berg
-// waar de grond de bovenkant van is.
-const GROT_SCHAAL = 2.1;
+// zijn ze ongeveer 70 px, dus op 2,1 keer de grondschaal zijn ze even groot.
+//
+// Alleen: op die factor wordt de band ook twee keer zo zwaar als de vloer, en dan vult hij
+// het halve scherm met grote lichte scherven terwijl de vloer juist een rustige, dunne band
+// is. De vloer wint. Op 1,35 blijven de brokken groot genoeg om als rots te lezen en blijft
+// de band lichter dan de grondband eronder.
+const GROT_SCHAAL = 1.35;
 const schaalGrond = () => edgeScale(H * 0.18);       // schermpixels per bronpixel van de grondrand
 const grotSteen = () => GROT_SCHAAL * schaalGrond(); // en die van de band en de vulling
 // De losse stukken hangen aan Amir, niet aan de steenschaal: daarop zou een hangblok zes
@@ -2348,23 +2351,12 @@ function grotTegelMaak(img, w, h, herhX, herhY, snee){
   uit.getContext('2d').drawImage(groot, herhX ? -w : 0, herhY ? -h : 0);
   return uit;
 }
-// De randstukken komen over de rotsvulling heen. Laat je hun binnenkant recht aflopen, dan
-// zie je elk stuk als een dichte rechthoek op het steen liggen. Daarom vaagt de kant die
-// naar binnen wijst uit: de vulling erachter is hetzelfde gesteente, dus wat je overhoudt
-// is een rots met een rand eraan in plaats van een stapel plaatjes.
-const GROT_FADE = 0.34;
-function grotFade(c, kant){
+// hetzelfde plaatje, maar helemaal in een donkere kleur: het silhouet
+function grotSilhouet(c){
   const g = c.getContext('2d');
-  g.globalCompositeOperation = 'destination-out';
-  const deel = kant === 'onder' ? 0.78 : GROT_FADE;
-  const gr = kant === 'boven' ? g.createLinearGradient(0, 0, 0, c.height * deel)
-           : kant === 'onder' ? g.createLinearGradient(0, c.height, 0, c.height * (1 - deel))
-                              : g.createLinearGradient(c.width, 0, c.width * (1 - deel), 0);
-  gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
-  g.fillStyle = gr;
-  if (kant === 'boven') g.fillRect(0, 0, c.width, c.height * deel);
-  else if (kant === 'onder') g.fillRect(0, c.height * (1 - deel), c.width, c.height * deel);
-  else g.fillRect(c.width * (1 - deel), 0, c.width * deel, c.height);
+  g.globalCompositeOperation = 'source-atop';
+  g.fillStyle = 'rgba(20,14,12,0.55)';
+  g.fillRect(0, 0, c.width, c.height);
   return c;
 }
 let grotTegels = null;
@@ -2374,17 +2366,20 @@ function grotTegelSet(cel, celPx){
   const sleutel = cel + '|' + Math.round(celPx) + '|' + ss.toFixed(3) + '|' + (bodem ? bodem.src : '-');
   if (grotTegels && grotTegels.sleutel === sleutel) return grotTegels;
   const st = grotPic('plafond_strook'), wa = grotPic('wand_rand');
-  if (!imgReady(gapTex) || !st || !imgReady(st) || !wa || !imgReady(wa) || !bodem) return null;
+  if (!st || !imgReady(st) || !wa || !imgReady(wa) || !bodem) return null;
   const es = schaalGrond();            // de grondrand op precies de schaal van de grond zelf
   const ds = grotDecorS(schoonScale());   // wand en losse stukken: zo blijven ze op maat
   const rond = v => Math.max(1, Math.round(v));
-  const tw = rond(gapTex.naturalWidth * ss);
   grotTegels = { sleutel, cel, ss,
-    tex:    grotTegelMaak(gapTex, tw, rond(gapTex.naturalHeight * ss), true, true),
-    strook: grotFade(grotTegelMaak(st, rond(GROT.strook.w * ss), rond(GROT.band.hoog * ss), true, false,
-                                   { x: 0, y: GROT.band.van, w: GROT.strook.w, h: GROT.band.hoog }), 'boven'),
-    wand:   grotFade(grotTegelMaak(wa, rond(GROT.wand.w * ds), rond(GROT.wand.h * ds), false, true), 'rechts'),
-    bodem:  grotFade(grotTegelMaak(bodem, rond(bodem.naturalWidth * es), rond(bodem.naturalHeight * es), true, false), 'onder') };
+
+    strook: grotTegelMaak(st, rond(GROT.strook.w * ss), rond(GROT.band.hoog * ss), true, false,
+                          { x: 0, y: GROT.band.van, w: GROT.strook.w, h: GROT.band.hoog }),
+    // hetzelfde silhouet in het donker: dat komt er een paar pixels onder te liggen en geeft
+    // de tanden dezelfde strakke rand als de aardlaag van de grond heeft
+    strookRand: grotSilhouet(grotTegelMaak(st, rond(GROT.strook.w * ss), rond(GROT.band.hoog * ss), true, false,
+                                   { x: 0, y: GROT.band.van, w: GROT.strook.w, h: GROT.band.hoog })),
+    wand:   grotTegelMaak(wa, rond(GROT.wand.w * ds), rond(GROT.wand.h * ds), false, true),
+    bodem:  grotTegelMaak(bodem, rond(bodem.naturalWidth * es), rond(bodem.naturalHeight * es), true, false) };
   return grotTegels;
 }
 
@@ -2394,6 +2389,11 @@ function grotTegelSet(cel, celPx){
 
 // de rotsvulling: alle volle cellen als één vlak, met rotstextuur.png naadloos getegeld
 // op hele pixels, zodat er geen naden tussen de cellen door lopen
+// De massa boven de plafondband is vlak, net als de aarde onder de grondband van het spel.
+// Elke getegelde textuur daar levert naden en rechthoeken op, want hij is nooit precies
+// hetzelfde steen als de band. De kleuren komen uit de strook zelf: de bovenkant is donker
+// (83,75,68), vlak boven de band lichter (125,112,102).
+const GROT_MASSA = ['rgb(72,65,59)', 'rgb(118,106,96)'];
 function grotVulling(R, X, Y, T, ch){
   ctx.save();
   ctx.beginPath();
@@ -2402,13 +2402,13 @@ function grotVulling(R, X, Y, T, ch){
       ctx.rect(X(c), Y(r) - ch, X(e + 1) - X(c), ch);
   ctx.clip();
   const x0 = X(0), x1 = X(R.kol), yBot = Y(R.n - 1), yTop = Y(0) - ch;
-  if (T){
-    const tw = T.tex.width, th = T.tex.height;
-    for (let y = yBot; y > yTop - th; y -= th)
-      for (let x = x0; x < x1; x += tw) ctx.drawImage(T.tex, x, y - th);
-  } else {
-    ctx.fillStyle = '#6a5c52'; ctx.fillRect(x0, yTop, x1 - x0, yBot - yTop);
-  }
+  const diep = Math.max(1, yBot - yTop);
+  const g = ctx.createLinearGradient(0, yTop, 0, yBot);
+  g.addColorStop(0, GROT_MASSA[0]);
+  g.addColorStop(Math.min(1, 1 - Math.min(0.55, 2.2 * ch / diep)), GROT_MASSA[0]);
+  g.addColorStop(1, GROT_MASSA[1]);
+  ctx.fillStyle = g;
+  ctx.fillRect(x0, yTop, x1 - x0, yBot - yTop + 2);
   ctx.restore();
 }
 
@@ -2423,7 +2423,8 @@ function grotPlafonds(R, X, Y, T){
     for (const [c, e] of grotReeksH(R, r, (cc, rr) => grotVol(R, cc, rr) && !grotVol(R, cc, rr + 1))){
       const L = X(c), Rr = X(e + 1), top = Y(r) - dicht + hang;
       ctx.save();
-      ctx.beginPath(); ctx.rect(L, top - 1, Rr - L, h + 2); ctx.clip();
+      ctx.beginPath(); ctx.rect(L, top - 1, Rr - L, h + 5); ctx.clip();
+      for (let x = L; x < Rr; x += w) ctx.drawImage(T.strookRand, x, top + 3);   // de donkere rand eronder
       for (let x = L; x < Rr; x += w) ctx.drawImage(im, x, top);
       ctx.restore();
     }
@@ -2441,7 +2442,7 @@ function grotVloeren(R, X, Y, T, ch){
     for (const [c, e] of grotReeksH(R, r, (cc, rr) => grotVol(R, cc, rr) && !grotVol(R, cc, rr - 1))){
       const L = X(c), Rr = X(e + 1), top = Y(r) - ch - lift;
       ctx.save();
-      ctx.beginPath(); ctx.rect(L, top, Rr - L, Math.min(h, lift + ch)); ctx.clip();
+      ctx.beginPath(); ctx.rect(L, top, Rr - L, Math.min(h, lift + Math.round(ch * 0.8))); ctx.clip();
       for (let x = L; x < Rr; x += w) ctx.drawImage(im, x, top);
       ctx.restore();
     }
@@ -2464,11 +2465,17 @@ function grotWanden(R, X, Y, T, ch){
         const binnen = kant < 0 ? X(c) : X(c + 1);       // de kant waar de open ruimte zit
         ctx.save();
         ctx.beginPath();
-        ctx.rect(kant < 0 ? binnen - over : binnen - R.cel, top, R.cel + over, bot - top);
+        const breed = Math.round(R.cel * 0.42);            // alleen de rand, niet de hele cel
+        ctx.rect(kant < 0 ? binnen - over : binnen - breed, top, breed + over, bot - top);
         ctx.clip();
         if (kant > 0){ ctx.translate(binnen + over + rand, 0); ctx.scale(-1, 1); }
         else ctx.translate(binnen - over - rand, 0);
         for (let y = top; y < bot; y += h) ctx.drawImage(im, 0, y);
+        ctx.restore();
+        // dezelfde donkere lijn die de aardlaag van de grond ook heeft
+        ctx.save();
+        ctx.strokeStyle = 'rgba(20,14,12,0.45)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(binnen, top); ctx.lineTo(binnen, bot); ctx.stroke();
         ctx.restore();
       }
 }
