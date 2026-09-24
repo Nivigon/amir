@@ -421,6 +421,11 @@
       <button id="sbboss">Als eindbaas</button>
     </div>
     <div class="row">
+      <label>Ravijn</label>
+      <button data-gap="250">Smal</button>
+      <button data-gap="320">Breed</button>
+    </div>
+    <div class="row">
       <label>Doornbos</label>
       <button data-thicket="1">1 klomp</button>
       <button data-thicket="2">2</button>
@@ -2311,6 +2316,8 @@ const JAV = {
   tiles: 14,          // zoveel tegels per seconde, horizontaal
   gDeel: 1 / 3,       // zwaartekracht: een derde van die op Amir, dus duidelijk maar niet sloom
   inTile: 10,         // zo ver steekt de punt de tegel in na de inslag
+  inBos: 0.42,        // in een struweel zakt hij dieper weg: dit deel van zijn eigen lengte
+  bosZak: 14,         // en het uiteinde hangt zo veel graden door, dus lager dan Amirs hoofd
   wobT: 4 / THR_FPS,  // natrillen na de inslag: vier frames lang
   wobDeg: 6,          // van zes graden naar nul
   plat: 40,           // het uitstekende deel is minstens zo breed als platform
@@ -2454,8 +2461,21 @@ function javStick(x, h, soort, scale){
   if (!building && arena && Math.abs(x - arena.c) > arenaHalf() + 60){ javLose(null); return; }
   jav.state = soort;
   jav.los = 0;                                           // de klok voor het losschieten begint opnieuw
-  jav.x = x + (muur || bos ? jav.dir * JAV.inTile : 0);   // de punt steekt er een stukje in
+  jav.x = x + (muur ? jav.dir * JAV.inTile : 0);          // de punt steekt er een stukje in
   jav.h = h - (muur || bos ? 0 : JAV.inTile);
+  if (bos){
+    // Hij zakt de takken in tot een deel van zijn eigen lengte en het uiteinde hangt
+    // door onder zijn gewicht: zo steekt er minder schacht uit, en die ligt lager dan
+    // het hoofd van wie ernaast gaat staan om hem te pakken. De diepte telt vanaf de
+    // rand van het loof en niet vanaf het raakpunt, want gooi je van vlakbij, dan
+    // staat de punt bij het loslaten al tussen de takken en zou hij er in zijn geheel
+    // in verdwijnen. Zo blijft er altijd evenveel schacht buiten staan.
+    const half = jav.bosHalf || 0;
+    const rand = (jav.bosKx === undefined ? x : jav.bosKx) - jav.dir * half;
+    jav.x = rand + jav.dir * Math.min(JAV.inBos * javLen(scale), half * 1.2);
+    const zak = JAV.bosZak * Math.PI / 180;
+    jav.sa = jav.dir === 1 ? -zak : Math.PI + zak;
+  }
   jav.vx = 0; jav.vh = 0;
   jav.wob = 1; jav.sag = 0; jav.stand = false;
   if (!muur && !bos && jav.hit) jav.sa = jav.dir === 1 ? 0 : Math.PI;   // plat neergevallen
@@ -2467,8 +2487,17 @@ function javStick(x, h, soort, scale){
 function javThicket(x, h, scale){
   for (const t of thickets){
     if (t.stage >= THICKET_HITS) continue;             // een stronk houdt niets meer tegen
-    const hw = t.halfW * THICKET_BOX * scale;
-    if (x > t.x - hw && x < t.x + hw && h > t.base && h < t.base + t.topH) return { t, hw };
+    const hw = t.halfW * THICKET_BOX * scale;          // het hele blok: zo ver reikt Amir er later langs
+    // Per klomp een halve ellips in plaats van een rechthoek om het hele struweel.
+    // Een bos is bovenin smaller dan onderaan, en met een rechthoek bleef de speer
+    // in die lege bovenhoek hangen: naast het loof, in de lucht.
+    for (const c of t.clumps){
+      const hr = (h - t.base) / c.hS;
+      if (hr < 0 || hr > 1) continue;
+      const half = c.wS * scale / 2 * THICKET_BOX * Math.sqrt(1 - hr * hr);
+      const kx = t.x + c.dx * scale;
+      if (Math.abs(x - kx) < half) return { t, hw, kx, half };
+    }
   }
   return null;
 }
@@ -2536,7 +2565,10 @@ function javUpdate(dt, plats, scale){
     jav.x = nx; jav.h += jav.vh * sdt; jav.vh -= g * sdt;
     if (!building){                                                  // in de doorns blijven hangen
       const bos = javThicket(jav.x, jav.h, scale);
-      if (bos){ jav.bos = bos.t; jav.bosHw = bos.hw; javStick(jav.x, jav.h, 'bos', scale); return; }
+      if (bos){
+        jav.bos = bos.t; jav.bosHw = bos.hw; jav.bosKx = bos.kx; jav.bosHalf = bos.half;
+        javStick(jav.x, jav.h, 'bos', scale); return;
+      }
     }
     if (!building && jav.h <= terrainH(jav.x) + 8 && waterDepthAt(jav.x) > 0.35){ javLose(null); return; }
     if (jav.h < -GAP_DEATH){ javLose(javGapNear(jav.x)); return; }   // in een ravijn
@@ -2554,10 +2586,16 @@ function javPlat(scale){
   return { x: mid, left: mid - half, right: mid + half, topH: top - jav.sag / scale,
            raw: top, wPx: half * 2, hPx: 0, thin: true, jav: true };
 }
-function javDraw(groundY, scale, cx){
-  if (!jav || javLost > 0) return;
-  const tx = cx + (jav.x - world), ty = groundY - jav.h * scale;
-  if (tx < -W || tx > W / viewZoom() + W) return;
+// In welke laag hoort de speer op dit moment? Steekt hij in een struweel, dan gaat
+// hij erachter, zodat het loof het ingezakte deel bedekt. Steekt hij in de grond of
+// in een wand, dan staat hij achter Amir langs en niet voor zijn gezicht. Alleen de
+// speer in de lucht gaat overal voorlangs.
+function javLaag(){
+  if (!jav) return 'lucht';
+  if (jav.state === 'bos') return 'bos';
+  return (jav.state === 'vlucht' || jav.state === 'val') ? 'lucht' : 'rust';
+}
+function javSchacht(tx, ty, scale){                         // de speer zelf, op de punt gedraaid
   const L = javLen(scale), s = L / JAV.w;
   const wob = jav.wob > 0 ? Math.sin(jav.wob * Math.PI * 3) * jav.wob * JAV.wobDeg * Math.PI / 180 : 0;
   // de laatste seconden voor hij uit de wand schiet: een fijn getril, zodat je het ziet aankomen
@@ -2579,6 +2617,13 @@ function javDraw(groundY, scale, cx){
     ctx.closePath(); ctx.fill();
   }
   ctx.restore();
+}
+function javDraw(groundY, scale, cx, laag){
+  if (!jav || javLost > 0) return;
+  const tx = cx + (jav.x - world), ty = groundY - jav.h * scale;
+  if (tx < -W || tx > W / viewZoom() + W) return;
+  if (javLaag() === (laag || 'lucht')) javSchacht(tx, ty, scale);
+  if (laag) return;                                        // de E hoort in de voorste laag: altijd leesbaar
   const grp = spearGreep();                                // de E staat boven de plek waar je hem pakt
   if (grp){
     const gx = cx + (grp.x - world), gy = groundY - grp.h * scale;
@@ -3964,7 +4009,9 @@ function drawSplashes(groundY, scale, cx){
 
 // de grond uit Grok: bovenvlak, afbrokkelende rand en rotswand in één tegel.
 // walk = de rij in de tegel waar de voeten staan, solid = waar hij onderaan nog dicht is
-const EDGE = { src: 'design/grondrand.png', walk: 95, solid: 305 };
+// kruin = de eerste rij die niet meer doorzichtig is: de bovenste 46 rijen van de
+// tegel zijn leeg op wat grassprietjes na, dus daar begint de zichtbare grond pas
+const EDGE = { src: 'design/grondrand.png', walk: 95, solid: 305, kruin: 46 };
 const edgeImg = new Image();
 edgeImg.onerror = () => console.warn('ontbreekt: ' + EDGE.src);
 edgeImg.src = EDGE.src;
@@ -3972,6 +4019,11 @@ function edgeReady(){ return edgeImg.complete && edgeImg.naturalWidth > 0; }
 function edgeScale(bandH){ return bandH / (EDGE.solid - EDGE.walk); }
 function edgeTop(groundY){                 // bovenkant van de tegel op het scherm
   return edgeReady() ? groundY - EDGE.walk * edgeScale(H * 0.18) : groundY;
+}
+// en hier loopt de grond echt dicht. Alles wat langs de breuk van een ravijn wordt
+// getekend hangt hieraan: op de tegeltop zou het boven de grond in de lucht staan
+function edgeCrust(groundY){
+  return edgeReady() ? groundY - (EDGE.walk - EDGE.kruin) * edgeScale(H * 0.18) : groundY;
 }
 // grillige breukrand, vaste vorm per gat
 function gapJag(g, side, y, groundY){
@@ -6976,7 +7028,7 @@ function loop(now){
     // dit uitzicht (koud en besneeuwd in de winter).
     {
       const bandH3 = H * 0.18;
-      const topY = edgeTop(groundY);          // de breuk loopt ook door het bovenvlak
+      const topY = edgeCrust(groundY);        // de breuk loopt ook door het bovenvlak, tot waar dat dicht is
       const deep = groundY + bandH3 + 60;
       const art = gapArt();
       const amir = CHAR_H * scale;
@@ -6997,7 +7049,7 @@ function loop(now){
         if (art){
           ctx.save();
           ctx.beginPath();
-          traceGap(g, gl, gr, topY - 10, groundY + H * 3, groundY);   // ook de grasplukken blijven binnen de breuk
+          traceGap(g, gl, gr, topY, groundY + H * 3, groundY);   // ook de grasplukken blijven binnen de breuk
           ctx.clip();
           const sR = amir * 0.95 / GAP_RIM.h;                        // de rand van de overkant: bijna Amir-hoog
           const rimW = GAP_RIM.w * sR, rimH = GAP_RIM.h * sR;
@@ -7029,7 +7081,7 @@ function loop(now){
             const x0 = sd < 0 ? gl : gr, x1 = sd < 0 ? gl + 34 : gr - 34;
             const sh = ctx.createLinearGradient(x0, 0, x1, 0);
             sh.addColorStop(0, 'rgba(' + art.dark + ',0.55)'); sh.addColorStop(1, 'rgba(' + art.dark + ',0)');
-            ctx.fillStyle = sh; ctx.fillRect(Math.min(x0, x1), topY - 10, 34, H * 3);
+            ctx.fillStyle = sh; ctx.fillRect(Math.min(x0, x1), topY, 34, H * 3);
           }
           ctx.restore();
         } else {
@@ -7082,6 +7134,7 @@ function loop(now){
 
     drawVillage('mid', groundY, scale, cx);        // dorpsdecor: staat achter Amir
     drawHppotions(groundY, scale, cx);             // drinkkalebassen op de grond
+    javDraw(groundY, scale, cx, 'bos');            // een speer in het struweel: het loof dekt hem af
     drawThickets(groundY, scale, cx);              // struwelen: achter Amir, voor de grond
 
     // het einde: fakkels met flakkerend licht
@@ -7249,6 +7302,7 @@ function loop(now){
       }
     }
 
+    javDraw(groundY, scale, cx, 'rust');              // een speer in de grond of in een wand: achter Amir
     drawSweepDust(true, cx, groundY, lift, scale);    // stof achter Amir langs
     const blink = invuln > 0 && !dead && Math.floor(invuln * 14) % 2 === 0;
     ctx.save();
@@ -8380,6 +8434,16 @@ function sbThicket(n){
   cv.focus();
 }
 sandboxEl.querySelectorAll('button[data-thicket]').forEach(b => b.onclick = () => sbThicket(Number(b.dataset.thicket)));
+// een ravijn om de breukrand te bekijken: het decor eromheen tekent zichzelf
+function sbGap(w){
+  const side = sbFromRight ? 1 : -1;
+  let x = world + side * W * 0.42;
+  x = Math.min(x, cliffAt().wall - 400);
+  x = Math.max(x, endWall() + 400);
+  level.gaps.push({ x, w });
+  cv.focus();
+}
+sandboxEl.querySelectorAll('button[data-gap]').forEach(b => b.onclick = () => sbGap(Number(b.dataset.gap)));
 function sbHppotion(drop){
   const side = sbFromRight ? 1 : -1;
   let x = world + side * 260;                       // vlak naast Amir, zo in te lopen
@@ -8454,7 +8518,7 @@ sbSideBtn.onclick = () => { sbFromRight = !sbFromRight; sbSideBtn.textContent = 
 const sbGodBtn = document.getElementById('sbgod');
 function setGodLabel(){ sbGodBtn.textContent = godMode ? 'Onsterfelijk aan' : 'Onsterfelijk uit'; sbGodBtn.classList.toggle('on', godMode); }
 sbGodBtn.onclick = () => { godMode = !godMode; setGodLabel(); cv.focus(); };
-document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; hppotions.length = 0; hppotionFx.length = 0; level.rocks.length = 0; if (level.terraces) level.terraces.length = 0; arena = null; thr = null; jav = null; javLost = 0; cv.focus(); };
+document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; hppotions.length = 0; hppotionFx.length = 0; level.rocks.length = 0; if (level.gaps) level.gaps.length = 0; if (level.terraces) level.terraces.length = 0; arena = null; thr = null; jav = null; javLost = 0; cv.focus(); };
 document.getElementById('sbback').onclick = stopSandbox;
 document.getElementById('btnsandbox').onclick = startSandbox;
 document.getElementById('btnstop').onclick = () => { building = false; buildEl.classList.remove('on'); };

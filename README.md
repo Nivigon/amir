@@ -116,8 +116,11 @@ wijst elk frame de kant van zijn snelheid op. Raakt hij een dier, dan doet hij
 schade en valt hij neer. Raakt hij grond of muur, dan blijft hij steken en
 natrillen, en een speer die in een muur steekt is een dun platform waar je op
 kunt staan (alleen van bovenaf; de schacht buigt 3 px door onder Amir). In een
-doornbos richt hij niets aan: hij blijft ertussen hangen en je trekt hem er met
-E weer uit. Hak je het struweel daarna om, dan valt hij op de grond.
+doornbos richt hij niets aan: hij zakt de takken in tot iets minder dan de helft
+van zijn lengte, het uiteinde hangt door en steekt eruit, en je trekt hem er met
+E weer uit. Hak je het struweel daarna om, dan valt hij op de grond. Een speer
+die ergens in steekt wordt achter Amir langs getekend, dus hij loopt nooit meer
+dwars door hem heen als je ernaast gaat staan om hem te pakken.
 
 Oppakken doe je bij de schacht, niet bij de punt: de E verschijnt zodra je bij
 het stuk staat waar je hem vastpakt, en dat is meestal het stompe uiteinde.
@@ -135,7 +138,8 @@ hij in een ravijn, dan duikt hij na drie seconden aan de overkant op, net buiten
 beeld: je loopt er vanzelf tegenaan zodra je de oversteek gehaald hebt. Gooi je
 hem tijdens een bazengevecht het veld uit, dan telt dat net zo: je kunt de arena
 niet uit, dus hij komt na drie seconden terug bij jou. Alles los te testen met
-de knoppen onder "Speerworp" in de sandbox.
+de knoppen onder "Speerworp" in de sandbox; onder "Ravijn" zet je er een breuk
+naast om de rand te bekijken.
 
 Tegen een panter geldt dezelfde regel als voor de stoot en de lage zwaai: raak
 is hij alleen in zijn herstel, na een sprong, een duik of een tackle. Ziet hij
