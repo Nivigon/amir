@@ -1984,8 +1984,9 @@ const TEST_3 = {
           { x: -3400, t: 'Raak de schijf boven de deur. Staat de deur open, ga ervoor staan en druk op E' } ]
 };
 // Test 4: de val in de grot. Een kort stuk savanne, dan een ravijn dat te breed is om over
-// te springen. Eronder ligt geen dood maar een gang onder de grond (holtes), 600 diep: dat is
-// meer dan twee Amir, dus met valschade kost de val twee levens. Beneden is het donker, met
+// te springen. Eronder ligt geen dood maar een gang onder de grond (holtes), 900 diep: zo diep
+// dat de savanne net buiten beeld valt als je beneden staat (op Formaat 25). Dat is meer dan
+// twee Amir, dus met valschade kost de val twee levens (meer dan twee kost een val nooit). Beneden is het donker, met
 // alleen wat daglicht uit het gat, en links staan de fakkels.
 const TEST_4 = {
   name: 'Test 4: De val in de grot',
@@ -1998,7 +1999,7 @@ const TEST_4 = {
   gaps: [ {x: -1000, w: 620} ],                 // van -1310 tot -690: te breed voor een sprintsprong
   // de gang loopt aan de rechterkant een stuk onder de savanne door, zodat de wand niet
   // precies onder de rand van het ravijn staat
-  holtes: [ {r: -540, l: -3400, diep: 600} ],
+  holtes: [ {r: -540, l: -3400, diep: 900} ],
   village: [], npcs: [], water: [], thickets: [], cliffs: [],
   ends: [ {x: -3150} ],
   tips: [ { x: -60, t: 'Testlevel. Verderop is een ravijn. Laat je erin vallen' },
@@ -2200,6 +2201,9 @@ function updateCamera(dt, scale){
   // camera mee, anders loop je onder uit beeld. Alleen terwijl je erop staat: een val
   // in een ravijn moet de camera niet meenemen, die blijft boven kijken.
   if (onGround) camDiep = Math.min(0, ph);
+  // In een gang onder de grond gaat hij wel mee naar beneden, anders val je onder uit beeld
+  // en zie je pas na de landing waar je bent. Alleen omlaag: springen laat hem met rust.
+  else if (!building && ph < 0 && holteAt(world)) camDiep = Math.min(camDiep, Math.max(ph, -holteAt(world).diep));
   const target = (building ? 0 : (hasClimb() ? Math.max(0, camFloor * scale - H * 0.10) : 0) + camDiep * scale);
   camY += (target - camY) * Math.min(1, dt * 3.2);
   if (Math.abs(target - camY) < 0.3) camY = target;
@@ -6170,8 +6174,9 @@ drawLives();
 // dat vanaf twee Amir diep (502) twee levens, zie "vallen".
 //
 // Het grondpakket boven de gang is het dak. De onderkant ligt HOLTE_DAK onder de grondlijn,
-// net onder de grondrand, en daar stoot je je hoofd tegen. Met een diepte van 600 houd je
-// 410 over: rechtop lopen gaat, springen net niet helemaal.
+// net onder de grondrand, en daar stoot je je hoofd tegen. Onder de 650 diep stoot je bij
+// een sprong je hoofd. De camera gaat mee naar beneden, ook tijdens de val; op Formaat 25
+// valt de savanne vanaf zo'n 900 diep net buiten beeld als je beneden staat.
 //
 // Er is geen weg terug: het ravijn is breder dan een sprong, en uit de gang spring je niet
 // tot aan de grondlijn. Laat de gang aan de kant van het ravijn wat verder onder de grond
@@ -6243,6 +6248,13 @@ function holteSet(){
   return holteBuf;
 }
 
+// hoe ver de camera mee naar beneden is: 0 als je nog boven staat, 1 op de bodem
+function holteDiepT(scale){
+  const lijst = holteLijst();
+  if (!lijst.length) return 0;
+  const hier = holteAt(world) || lijst[0];
+  return Math.max(0, Math.min(1, -camY / (hier.diep * scale * 0.7)));
+}
 function drawHolte(groundY, scale, cx){
   const lijst = holteLijst();
   if (!lijst.length) return;
@@ -6254,28 +6266,26 @@ function drawHolte(groundY, scale, cx){
   const Y = h => groundY - h * scale;
   const boven = groundY - groundY / zoom - 4;           // bovenrand van het scherm
   const onder = groundY + (H - groundY) / zoom + 4;     // en de onderrand
+  const links = W / 2 - (W / 2) / zoom - 40, rechts = W / 2 + (W / 2) / zoom + 40;
   const dak = Y(-HOLTE_DAK);
-  // Hoe ver de camera mee naar beneden is: 0 als je nog boven staat, 1 op de bodem. Het
-  // donker boven het dak komt pas op als je beneden bent, zodat je van bovenaf gewoon de
-  // savanne ziet.
+  const tegel = (T, x0, x1, y0, y1) => {                // een tegel vast aan de wereld
+    const tw = T.width, th = T.height;
+    const ax = Math.round(X(0)), ay = Math.round(Y(0));
+    const xs = ax - Math.ceil((ax - x0) / tw) * tw, ys = ay - Math.ceil((ay - y0) / th) * th;
+    for (let y = ys; y < y1; y += th)
+      for (let x = xs; x < x1; x += tw) ctx.drawImage(T, x, y);
+  };
+  const gatenIn = o => gapList().filter(g => g.x + g.w / 2 > o.l && g.x - g.w / 2 < o.r);
   for (const o of lijst){
     const xl = X(o.l), xr = X(o.r);
-    if (xr < -W || xl > W / zoom + W) continue;
+    if (xr < links - W || xl > rechts + W) continue;
     const vloer = Y(-o.diep);
-    const diepT = Math.max(0, Math.min(1, -camY / (o.diep * scale * 0.7)));
-    const gaten = gapList().filter(g => g.x + g.w / 2 > o.l && g.x - g.w / 2 < o.r);
-    const tegel = (T, y0, y1) => {                      // een tegel vast aan de wereld
-      const tw = T.width, th = T.height;
-      const ax = Math.round(X(0)), ay = Math.round(Y(0));
-      const x0 = ax - Math.ceil((ax - xl) / tw) * tw, ys = ay - Math.ceil((ay - y0) / th) * th;
-      for (let y = ys; y < y1; y += th)
-        for (let x = x0; x < xr; x += tw) ctx.drawImage(T, x, y);
-    };
+    const gaten = gatenIn(o);
     ctx.save();
-    ctx.beginPath(); ctx.rect(xl, boven - H, xr - xl, onder - boven + 2 * H); ctx.clip();
+    ctx.beginPath(); ctx.rect(xl, dak, xr - xl, onder - dak + H); ctx.clip();   // alleen de gang zelf
 
     // 1. de achterwand, van het dak tot onder de vloer
-    tegel(S.wand, dak - 4, onder);
+    tegel(S.wand, xl, xr, dak, onder);
 
     // 2. het dak: de tanden van het plafond hangen aan de onderkant van het grondpakket,
     //    behalve waar het gat zit
@@ -6287,14 +6297,14 @@ function drawHolte(groundY, scale, cx){
         stukken.push([van, g.x - g.w / 2]); van = g.x + g.w / 2;
       }
       stukken.push([van, o.r]);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(xl, dak - 2, xr - xl, onder - dak + H); ctx.clip();
+      ctx.filter = 'brightness(' + (1 - HOLTE_LICHT.dak * 0.75) + ')';
       for (const [a, b] of stukken){
         if (b - a < 10) continue;
-        const pts = [{ x: a, y: -HOLTE_DAK }, { x: b, y: -HOLTE_DAK }];
-        ctx.save();
-        ctx.filter = 'brightness(' + (1 - HOLTE_LICHT.dak * 0.75) + ')';
-        plafondBand(pts, X, Y, T, boven, scale);
-        ctx.restore();
+        plafondBand([{ x: a, y: -HOLTE_DAK }, { x: b, y: -HOLTE_DAK }], X, Y, T, boven, scale);
       }
+      ctx.restore();
     }
 
     // 3. de vloer: dezelfde grondrand als boven, maar in het donker
@@ -6304,51 +6314,69 @@ function drawHolte(groundY, scale, cx){
       const top = vloer - EDGE.walk * s;
       let x = X(0) - Math.ceil((X(0) - xl) / tw) * tw;
       ctx.fillStyle = 'rgb(10,8,9)';
-      ctx.fillRect(xl, top + th - 2, xr - xl, onder - top);
+      ctx.fillRect(xl, top + th - 2, xr - xl, onder - top + H);
       for (; x < xr; x += tw) ctx.drawImage(S.vloer, x, top, tw + 1, th);
     }
 
-    // 4. beneden: alles boven het dak zakt weg in het steen, behalve het gat zelf
-    if (diepT > 0){
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(xl, boven - H, xr - xl, dak - boven + H + 2);
-      for (const g of gaten){
-        const gl = X(g.x - g.w / 2), gr = X(g.x + g.w / 2);
-        ctx.rect(gr, boven - H, gl - gr, dak - boven + H + 2);   // tegen de klok in: een gat in de snede
-      }
-      ctx.clip('evenodd');
-      ctx.globalAlpha = diepT;
-      tegel(S.wand, boven - H, dak + 2);
-      const v = ctx.createLinearGradient(0, dak, 0, boven);
-      v.addColorStop(0, 'rgba(8,6,7,0.35)'); v.addColorStop(1, 'rgba(8,6,7,0.92)');
-      ctx.fillStyle = v; ctx.fillRect(xl, boven - H, xr - xl, dak - boven + H + 2);
-      ctx.restore();
+    // 4. schaduw tegen de eindwanden, zodat die niet als een rechte snede in het steen staan
+    for (const [x0, x1] of [[xl, xl + 90], [xr, xr - 90]]){
+      const sh = ctx.createLinearGradient(x0, 0, x1, 0);
+      sh.addColorStop(0, 'rgba(6,4,5,0.85)'); sh.addColorStop(1, 'rgba(6,4,5,0)');
+      ctx.fillStyle = sh; ctx.fillRect(Math.min(x0, x1), dak, 90, onder - dak + H);
     }
 
-    // 5. gedempt daglicht door het gat, schuin naar beneden tot op de vloer
+    // 5. gedempt daglicht door het gat, schuin naar beneden tot op de vloer. Vier lagen over
+    //    elkaar, steeds smaller, zodat de bundel een zachte rand heeft en geen strakke lijn.
     ctx.globalCompositeOperation = 'lighter';
     for (const g of gaten){
       const gl = X(g.x - g.w / 2), gr = X(g.x + g.w / 2), gw = gr - gl;
       const a = HOLTE_LICHT.schacht;
-      for (const [k, al] of [[1, a * 0.5], [0.7, a * 0.5]]){      // twee lagen: een zachte rand
-        const m = (1 - k) * gw / 2;
+      for (const k of [1, 0.8, 0.6, 0.4]){
+        const m = (1 - k) * gw / 2, al = a * 0.3;
         ctx.beginPath();
-        ctx.moveTo(gl + m, groundY); ctx.lineTo(gr - m, groundY);
-        ctx.lineTo(gr - m + gw * 0.35, vloer); ctx.lineTo(gl + m + gw * 0.1, vloer);
+        ctx.moveTo(gl + m, dak); ctx.lineTo(gr - m, dak);
+        ctx.lineTo(gr - m + gw * 0.3, vloer); ctx.lineTo(gl + m + gw * 0.1, vloer);
         ctx.closePath();
-        const sv = ctx.createLinearGradient(0, groundY, 0, vloer);
+        const sv = ctx.createLinearGradient(0, dak, 0, vloer);
         sv.addColorStop(0, 'rgba(255,222,170,' + al + ')');
-        sv.addColorStop(1, 'rgba(255,200,140,' + (al * 0.35) + ')');
+        sv.addColorStop(1, 'rgba(255,200,140,' + (al * 0.3) + ')');
         ctx.fillStyle = sv; ctx.fill();
       }
-      const px = (gl + gr) / 2 + gw * 0.12, pr = gw * 0.75;
+      const px = (gl + gr) / 2 + gw * 0.1, pr = gw * 0.75;
       const pl = ctx.createRadialGradient(px, vloer, 0, px, vloer, pr);
       pl.addColorStop(0, 'rgba(255,205,140,' + (a * 0.9) + ')'); pl.addColorStop(1, 'rgba(255,205,140,0)');
       ctx.fillStyle = pl; ctx.fillRect(px - pr, vloer - pr, pr * 2, pr * 2);
     }
     ctx.restore();
   }
+
+  // 6. Beneden is alles buiten de gang massief steen: het grondpakket boven het dak, de
+  //    savanne daarboven, en de rots voorbij de eindwanden. Dat zakt weg in het donker,
+  //    zodra de camera mee naar beneden is. Open blijven alleen de gang en het gat erboven.
+  //    Hoe ver de camera zakt: 0 als je nog boven staat, 1 op de bodem. Van bovenaf zie je
+  //    dus gewoon de savanne.
+  const diepT = holteDiepT(scale);
+  if (diepT <= 0) return;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(links - W, boven - H, rechts - links + 2 * W, onder - boven + 2 * H);
+  for (const o of lijst){
+    const xl = X(o.l), xr = X(o.r);
+    ctx.rect(xl, dak, xr - xl, onder - dak + H);                 // de gang
+    for (const g of gatenIn(o)){
+      const gl = Math.max(xl, X(g.x - g.w / 2)), gr = Math.min(xr, X(g.x + g.w / 2));
+      ctx.rect(gl, boven - H, gr - gl, dak - boven + H);          // en het gat erboven
+    }
+  }
+  ctx.clip('evenodd');
+  ctx.globalAlpha = diepT;
+  tegel(S.wand, links - W, rechts + W, boven - H, onder + H);
+  ctx.fillStyle = 'rgba(8,6,7,0.55)';
+  ctx.fillRect(links - W, boven - H, rechts - links + 2 * W, onder - boven + 2 * H);
+  const v = ctx.createLinearGradient(0, dak, 0, boven);
+  v.addColorStop(0, 'rgba(8,6,7,0)'); v.addColorStop(1, 'rgba(8,6,7,0.6)');
+  ctx.fillStyle = v; ctx.fillRect(links - W, boven - H, rechts - links + 2 * W, dak - boven + H);
+  ctx.restore();
 }
 
 // ---- vallen: schade bij een diepe val -------------------------------------
@@ -9840,7 +9868,9 @@ function loop(now){
           const rimY = rotsY - GAP_RIM.rock * sR;
           ctx.save();
           ctx.beginPath();
-          traceGap(g, gl, gr, Math.min(topY, rimY + GAP_RIM.top * sR), groundY + H * 3, groundY);   // de grasplukken blijven binnen de breuk
+          // Ligt er een gang onder, dan houdt de overkant op bij het dak: daaronder zie je de gang
+          const bodemY = holteAt(g.x) ? groundY + HOLTE_DAK * scale : groundY + H * 3;
+          traceGap(g, gl, gr, Math.min(topY, rimY + GAP_RIM.top * sR), bodemY, groundY);   // de grasplukken blijven binnen de breuk
           ctx.clip();
           const rockW = art.rock.width * sR, rockH = art.rock.height * sR;
           const rockTop = rimY + rimH - 1;
@@ -9877,6 +9907,15 @@ function loop(now){
             const sh = ctx.createLinearGradient(x0, 0, x1, 0);
             sh.addColorStop(0, 'rgba(' + art.dark + ',0.55)'); sh.addColorStop(1, 'rgba(' + art.dark + ',0)');
             ctx.fillStyle = sh; ctx.fillRect(Math.min(x0, x1), topY, 34, H * 3);
+          }
+          // Van beneden uit een gang gezien is dit de wand van het gat boven je, in de verte:
+          // daar komt het daglicht vandaan, maar hij hoort niet zo fel als de savanne
+          const dT = holteAt(g.x) ? holteDiepT(scale) : 0;
+          if (dT > 0){
+            const gv = ctx.createLinearGradient(0, topY, 0, bodemY);
+            gv.addColorStop(0, 'rgba(8,6,7,' + (0.35 * dT) + ')');
+            gv.addColorStop(1, 'rgba(8,6,7,' + (0.7 * dT) + ')');
+            ctx.fillStyle = gv; ctx.fillRect(gl - 40, topY - H, gr - gl + 80, bodemY - topY + H);
           }
           ctx.restore();
         } else {
