@@ -3211,6 +3211,12 @@ const MUUR = {
     raak: 0.3       // straal van het raakvlak, als deel van Amirs lengte
   },
   gras: null,       // voorlopig geen gras voor de rots
+  // Een speer die de schijf mist blijft in de wand van de rots steken, op een willekeurig stuk
+  // van de baan die hij door het steen aflegt. Vliegt hij op de hoogte van de schijf erop af,
+  // dan blijft hij pas voorbij de schijf steken, anders kom je er nooit bij. Na valT seconden
+  // valt hij eruit en pak je hem met E op.
+  steen: { min: 0.05, max: 0.5 },  // hoe ver hij het steen in vliegt, als deel van Amirs lengte
+  valT: 4,
   rand: 0.14,       // marge rond het schuifblok, als deel van de deurbreedte
   tijd: 0.5,        // zoveel seconden doet het blok over het omhoogschuiven
   steek: 0.5        // zo diep blijft de speer in de schijf steken, als deel van de straal
@@ -3435,6 +3441,59 @@ function muurDeurIn(x, h, scale){
 }
 function muurDoor(){ return muurSchuif > 0.9; }    // staat de doorgang open?
 
+// Een misser in het steen. Komt de punt de rots in, dan kiest de speer hoe ver hij nog
+// doorvliegt; is die afstand op, of komt hij er eerder aan de andere kant uit, dan blijft hij
+// steken op het laatste punt in het steen. Zolang hij op de hoogte van de schijf vliegt en er
+// nog niet voorbij is, telt het steen niet: dat is de worp die de schijf raakt.
+function muurSteen(scale){
+  const m = muurNu(); if (!m || !jav || jav.state !== 'vlucht') return false;
+  const S = muurSet(scale); if (!S || !S.alfa) return false;
+  const sx = m.x - (S.w - S.symX);
+  const v0 = muurRij(S, jav.h, scale);
+  if ((jav.x - sx) * jav.dir < S.raakR && Math.abs(v0 - S.symY) < S.raakR * 1.5) return false;
+  const u = Math.round(muurKol(m, S, jav.x)), v = Math.round(muurRij(S, jav.h, scale));
+  const erin = u >= 0 && v >= 0 && u < S.w && v < S.h && S.alfa[v * S.w + u] > 40;
+  if (erin){
+    const amir = CHAR_H * scale;
+    if (!jav.steen){
+      const f = MUUR.steen.min + Math.random() * (MUUR.steen.max - MUUR.steen.min);
+      jav.steen = { rest: f * amir, x: jav.x, h: jav.h };
+    }
+    jav.steen.rest -= Math.hypot(jav.x - jav.steen.x, (jav.h - jav.steen.h) * scale);
+    jav.steen.x = jav.x; jav.steen.h = jav.h;
+    if (jav.steen.rest > 0) return false;
+  } else if (!jav.steen) return false;
+  const { x, h } = jav.steen;
+  jav.steen = null;
+  javStick(x, h, 'muur', scale);
+  if (jav && jav.state === 'muur'){
+    jav.x = x;                                              // in de plaat, niet een stukje verder
+    jav.los = Math.max(0, JAV.muurT - MUUR.valT);           // na een paar seconden valt hij eruit
+  }
+  return true;
+}
+
+// Staat de deur open en staat Amir ervoor? Dan zie je midden in beeld dat E hem erdoor laat.
+function muurVoorDeur(x){
+  if (!running || building || sandbox || won || dead || !muurDoor()) return false;
+  const q = muurLijn(schoonScale()); if (!q) return false;
+  return x >= q.achter && x <= q.voor && ph <= 5;
+}
+function drawMuurE(x){
+  if (!muurVoorDeur(x)) return;
+  const puls = 0.75 + 0.25 * Math.sin(performance.now() / 180);
+  const fs = Math.round(Math.max(28, Math.min(64, H * 0.08)));
+  ctx.save();
+  ctx.font = '700 ' + fs + 'px system-ui, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.globalAlpha = puls;
+  ctx.lineWidth = Math.max(4, fs * 0.14); ctx.strokeStyle = 'rgba(20,12,6,.9)';
+  ctx.strokeText('Press E', W / 2, H / 2);
+  ctx.fillStyle = '#ffd98a';
+  ctx.fillText('Press E', W / 2, H / 2);
+  ctx.restore();
+}
+
 // De punt van de speer tegen de schijf. Het raakvlak ligt dicht op het hout: een kleine schijf
 // hoort ook echt te betekenen dat je preciezer moet gaan staan.
 function muurSymRaak(x, h, scale){
@@ -3503,9 +3562,7 @@ function muurLijn(scale){
 
 // Staat de zwarte deur open en staat Amir ervoor, dan speelt E het level uit.
 function muurUitgang(){
-  if (!running || building || sandbox || won || dead || !muurDoor()) return false;
-  const q = muurLijn(schoonScale()); if (!q) return false;
-  if (world < q.achter || world > q.voor || ph > 5) return false;
+  if (!muurVoorDeur(world)) return false;
   winLevel();
   return true;
 }
@@ -4197,6 +4254,7 @@ function javUpdate(dt, plats, scale){
       // Eerst de schijf, dan het steen. De punt doet het werk en niet het midden van de
       // schacht: jav.x en jav.h zijn de punt zelf (javSchacht tekent op JAV.tipX).
       if (muurSymRaak(jav.x, jav.h, scale)){ muurTreffer(scale); return; }
+      if (muurSteen(scale)) return;               // gemist: dan ergens in het steen
     }
     if (!building){                                                  // in de doorns blijven hangen
       const bos = javThicket(jav.x, jav.h, scale);
@@ -10444,6 +10502,7 @@ function loop(now){
     drawLichtlaag();                                // de hele wereld in dezelfde belichting
     drawSnowfall();                                 // de vlokken vallen over alles heen
     drawBossBar();
+    drawMuurE(camSwap !== null ? camSwap : world);   // voor de open deur: Press E
   } else {
     drawLichtlaag();
   }
