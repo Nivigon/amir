@@ -344,26 +344,33 @@ steken en valt hij er na `JAV.muurT` vanzelf uit: dat is de gewone wandspeer, da
 voor aangepast.
 
 Een level zet hem neer met `muur: {x, speer}`. `x` is de rechterrand van de rots, de kant waar
-Amir aankomt; `speer` is de plek in de grond waar zijn speer steeds terugkomt, zodat je zo vaak
-kunt proberen als je wilt. Verder staat er geen enkele positie in het level: waar de opening en
+Amir aankomt; `speer` is waar zijn speer steeds terugkomt, en dat telt vanaf de lijn waar de
+wand hem tegenhoudt, niet vanaf een vaste plek in de wereld. Dat moet ook wel: de rots hangt aan
+Amirs maat, dus op een ander scherm verschuift die lijn mee en kwam een vaste plek achter de
+muur te liggen, waar je er niet meer bij kon. Verder staat er geen enkele positie in het level: waar de opening en
 de schijf komen rekent `muurSet` uit de plaat zelf uit. Alles wat je kunt afstellen zijn maten
 en verhoudingen, en die staan bij elkaar in `MUUR`.
 
 **De rots wordt in zijn geheel getekend.** Niet gesneden, niet gespiegeld, niet uitgerekt: de
-hele plaat met zijn volledige silhouet, geschaald tot hij past. `hoog` doet dat op de ruimte
-boven de grondlijn, `breed` daarna op de schermbreedte. Die tweede staat op 0,60 en dat is geen
-smaak: de camera staat op Amir en laat een halve schermbreedte naast hem zien, dus alles wat
-breder is kun je nooit in een keer overzien. Het is de grootste maat waarop de hele rots nog in
-beeld staat op de twee plekken waar het om gaat: als je voor de opening staat, en op het stuk
-van de raakstrook waar zijn speer in de grond staat.
+hele plaat met zijn volledige silhouet, geschaald tot hij past. Zijn maat hangt aan Amir
+(`hoogAmir`, 1,6 keer zijn lengte) en niet aan het scherm, en dat is niet vrijblijvend: de
+opening en de schijf worden uit Amir gerekend, dus hangt de rots aan het scherm, dan verspringt
+die verhouding met elk venster. Op een breed en laag scherm werd de rots groot terwijl Amir
+klein bleef, schoof de opening diep de rots in, en was de rune vanaf geen enkele plek meer te
+raken. Aan Amir gekoppeld ligt alles op elk scherm hetzelfde. `hoog` en `breed` zijn alleen nog
+een vangnet voor het geval hij niet past.
 
-De prijs is dat de rots niet boven Amir uittorent zoals in de demo. Daar is de speler 88 pixels
-op een scherm van 720 en hier is Amir er 180, dus dezelfde verhouding zou een rots van ruim
-duizend pixels hoog en tweeduizend breed vragen: drie schermen breed. Hoe groot hij lijkt hangt
-dus aan het Formaat, niet aan de plaat. Op 25 is hij 2,1 keer Amir, op 15 ruim 3,5 keer.
+Omklappen kan met `spiegel`, maar staat uit, en dat is gemeten. Gespiegeld wijst de hoge flank
+met de overhang naar Amir en komt de opening onder dat hoge steen te liggen. De schijf hangt
+altijd net onder de bovenrand van de rots, dus daar hangt hij hoog, en een hoge schijf betekent
+een lange worp: op 1280 bij 720 moet je dan van 480 pixels gooien en staat er nog maar een
+strook rots in beeld, en op 1440 bij 620 is er helemaal geen plek meer waar je hem kunt raken.
 
-**De plek van de opening komt uit de alfawaarden.** Per kolom wordt geteld hoe ver het steen
-vanaf de grond aaneengesloten massief is (`massief`), en daarna wordt van de kant waar Amir
+**De plek van de opening komt uit de alfawaarden.** Per kolom wordt geteld hoe hoog het steen
+vanaf de grond draagt (`massief`). Kleine gaten onderweg tellen daarbij niet als het einde: aan
+de voet staan de keien los van elkaar met lucht ertussen, en een telling die daar stopt geeft
+nul op kolommen waar in het beeld gewoon een muur van steen staat. Dat was precies waarom de
+opening met de kale plaat ineens driehonderd pixels dieper ging liggen. Vanaf dat profiel en daarna wordt van de kant waar Amir
 vandaan komt de eerste plek gezocht waar de opening past, met daar de hoogste deur die er nog
 in kan. Zo dicht mogelijk bij zijn kant dus, en dat is niet alleen netjes: hoe dieper de
 opening ligt, hoe verder je moet gaan staan om de rune te raken, en hoe minder er dan van de
@@ -410,9 +417,12 @@ steentjes, en daar zou hij aan blijven hangen ver voordat hij bij de deur is.
 
 **Controleer na elke wijziging of de rune nog te raken is.** Dat is geen gevoelskwestie: simuleer
 de boog vanaf elke plek waar Amir kan staan en kijk of er een aaneengesloten strook overblijft.
-Op een scherm van 1280 bij 720 en Formaat 25 is die strook 146 pixels breed, vlak voor de
-opening. Op het verste stuk ervan staat de rots ook in zijn geheel in beeld, en daar hoort de
-speer van het level dus te staan. Dichterbij gaat de speer onder de rune door tegen het steen, verder weg zakt hij er al
+Op een scherm van 1280 bij 720 en Formaat 25 is die strook 141 pixels breed, van 94 tot 235
+pixels voor de muurlijn, en vanaf de hele strook staat de rots in zijn geheel in beeld.
+
+Het gras aan de voet staat niet in de plaat maar wordt er los voor gezet (`MUUR.gras`), met
+dezelfde tekencode als al het andere gras, dus het buigt mee met de windvlagen. Ingebakken gras
+schaalt mee met de rots, en dan staan er sprieten van een meter hoog zodra hij groter wordt. Dichterbij gaat de speer onder de rune door tegen het steen, verder weg zakt hij er al
 voor. Er is nog een tweede strook op ruim tweeduizend pixels, maar daar staat de rots buiten
 beeld, dus die telt niet mee.
 
