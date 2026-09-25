@@ -1954,7 +1954,49 @@ const TEST_2 = {
           { x: -3050, t: 'Een kalebas, en daarna een lege strook. Neem hem mee' },
           { x: -4000, t: 'Verderop staan er twee tegelijk. De een roept de ander erbij' } ]
 };
-const TEST_LEVELS = [TEST_1, TEST_2];
+// Test 3: de rotswand met de rune, en verder niets. Een vlakke strook naar links, de wand
+// op -3200, en daar houdt het op tot je hem openkrijgt. Geen vijanden, geen klimwerk, geen
+// ravijnen, geen decor: alles wat in de baan van de speer kan komen is weggelaten.
+//
+// De maten volgen uit de worp. De schijf hangt op 530 eenheden en daar komt hij lopend,
+// springend of stotend niet bij: zijn stoot haalt 200, in de sprong 407, zijn hoofd 459, en
+// de onderkant van het raakvlak ligt op 458. Alleen de volle boog gaat eroverheen, en die
+// piekt op 677. Zijn speer kruist de wand op de goede hoogte als hij ongeveer tussen 340 en
+// 660 pixels voor de rots staat, en nog eens tussen 1580 en 1900: op de heenweg omhoog en
+// op de terugweg omlaag. Dichterbij gaat de speer er altijd onderdoor en blijft hij in het
+// steen steken. Die afstanden hangen aan Amirs lengte en schuiven dus mee met het Formaat:
+// op 15 ligt de eerste band op 205 tot 400 pixels, op 40 op 545 tot 1060.
+//
+// Zijn speer staat op -2650 in de grond, 550 pixels voor de wand: midden in die eerste band,
+// en dichtbij genoeg om de rots en de schijf gewoon in beeld te hebben. Raak je de schijf, dan
+// blijft die speer er voorgoed in zitten en staat er meteen weer een nieuwe op dezelfde
+// plek: eindeloos proberen dus. Mis je, dan blijft je speer in de rots hangen en valt hij
+// er na een tijdje vanzelf uit, zoals overal in het spel.
+//
+// Er staan geen fakkels: dit level is af zodra je de opening in loopt. Hoe zo'n wand in een
+// echt level verder gaat is een aparte vraag.
+//
+// De slang achter de wand is een noodgreep en geen tegenstander. Een level met een lege
+// spawns-lijst valt namelijk terug op de vrije modus, en die stuurt vanzelf slangen op je
+// af; dan loopt hier van alles rond terwijl het juist leeg hoort te zijn. Met een spawn ver
+// achter de wand blijft de lijst gevuld, en scherp komt hij nooit te staan, want je komt
+// niet verder dan de achterkant van de opening.
+const TEST_3 = {
+  name: 'Test 3: De rots met de rune',
+  lagen: 'tafelbergen',
+  muur: { x: -3200, speer: -2650 },
+  rocks: [], props: [],
+  spawns: [ {x: -9000, k: 'groen'} ],           // onbereikbaar: houdt de vrije modus uit
+  terraces: [], ledges: [],
+  hppotions: [],
+  fg: { from: -80, to: -700 },
+  village: [], npcs: [], gaps: [], water: [], thickets: [], cliffs: [], ends: [],
+  tips: [ { x: -60, t: 'Testlevel. Verderop verspert een rotswand de weg. Pak eerst je speer op' },
+          { x: -1300, t: 'Hoog op die rots zit een houten schijf met een rune. Springen en steken haalt hem niet' },
+          { x: -2350, t: 'Houd de werpknop vast tot hij de speer helemaal uittrekt: dan gaat hij in een boog' },
+          { x: -2950, t: 'Te dichtbij en de speer gaat eronderdoor. Mis je, dan staat er zo weer een in de grond' } ]
+};
+const TEST_LEVELS = [TEST_1, TEST_2, TEST_3];
 const WINTER_LEVELS = [WINTER_1, WINTER_2];
 let levelIdx = 0;
 
@@ -3124,6 +3166,439 @@ function plafondBlok(halfW){
   }
 }
 
+// ---- muur unlock: de rotswand met het rune-symbool ------------------------
+// Een rotswand die de weg verspert, met hoog op het steen een houten schijf met een rune
+// erin. Raak je die schijf met je speer, dan blijft die speer er voorgoed in zitten en
+// schuift het rotsblok in een halve seconde omhoog de berg in; daarna loop je de opening
+// in. Mis je, dan blijft de speer gewoon in de rots steken en valt hij er na een tijdje
+// uit, precies zoals elke andere speer in een wand (JAV.muurT regelt dat al).
+//
+// Uit dezelfde plaat komen bij het laden drie dingen:
+//   1. de muur met een gat erin: de vorm van de opening eruit gegumd met
+//      globalCompositeOperation = 'destination-out';
+//   2. het schuifblok: precies dat uitgegumde stuk rots, met een marge eromheen;
+//   3. een masker: diezelfde vorm, doorsneden met de rots zelf, zodat het gat nooit
+//      buiten de rots kan uitsteken.
+// Alles wat in de opening hoort (de schaduw en het blok) wordt op een apart canvas
+// getekend en daarna op dat masker afgeknipt. Gat en blok komen uit dezelfde pixels, dus
+// ze sluiten altijd aan, ook als je de opening verschuift. Het masker is met opzet een
+// pixel ruimer dan het gat: anders blijft er door de anti-aliasing een haarlijntje op de
+// rand staan.
+//
+// Zolang de muur dicht is mag er geen naad te zien zijn: het blok ligt dan precies terug
+// in zijn eigen gat, er wordt geen contour en geen schaduw getekend, en wat eruit komt is
+// pixel voor pixel dezelfde rots als de ongeschonden plaat. De speler moet zelf bedenken
+// dat het symbool iets doet.
+//
+// Alles staat in wereldcoordinaten: de camera schuift eroverheen zoals over elk ander
+// stuk decor. De canvassen worden op de getekende maat gezet en pas bij een andere
+// schaal opnieuw gebouwd.
+const MUUR = {
+  src: 'design/rotswand.png',
+  voet: 876 / 886,  // op deze rij van de plaat raakt de rots de grond; de rest zakt eronder
+  h: 5.8,           // hoogte van de wand als deel van Amirs lengte
+  // De ene flank van deze rots loopt te schuin om er een deur in te zetten: daar kan de
+  // speler niet bij. Die kant snijden we eraf, dan begint de wand met een massieve rechte
+  // kant. Amir loopt naar links, dus die kant moet naar hem toe wijzen; de plaat wordt
+  // daarom gespiegeld getekend en de snee ligt aan de kant waar hij vandaan komt.
+  crop: 0.125,      // zoveel gaat er van de aankomstkant af (0 = niets)
+
+  // Hieronder staat alles in sprite-eenheden, net als de hoogte van een terras of de
+  // plafondlijn: 251 eenheden is een Amir, en het schaalt dus mee met het Formaat.
+  // Horizontaal telt 'in' vanaf de rechte kant van de wand, de rots in.
+  deur: {
+    in: 0,          // afstand van die rechte kant tot de dichtstbijzijnde rand van de opening
+                    // (houd dit op 0: dan ligt de opening tegen de kant waar Amir aankomt)
+    breed: 330,     // breedte van de opening: ruim een Amir, dus je loopt er makkelijk in
+    onder: -40,     // onderkant, onder de grondlijn; het masker snijdt hem af op de voet van de rots
+    boven: 400,     // bovenkant: anderhalve Amir, je loopt er ruim onderdoor en stoot je hoofd bij een sprong
+    rafel: 14       // zoveel mag de rand uitwijken; 0 maakt er een kaarsrechte rechthoek van
+  },
+  // Het houten symbool. De hoogte is met opzet buiten zijn bereik gekozen: zijn stoot haalt
+  // 200, in de sprong 407, met zijn hoofd komt hij tot 459. De onderkant van het raakvlak
+  // ligt op 458, dus daar komt hij met geen van drieen bij. De vlakke worp laat de speer op
+  // 225 los en die zakt alleen maar, dus ook die raakt hem nooit: alleen de volle boog gaat
+  // eroverheen. Hoger kan ook niet zomaar, want die boog piekt op 677.
+  //
+  // 530 is bovendien gekozen op wat je ziet. De speer kruist de wand op de goede hoogte als
+  // je tussen ongeveer 340 en 670 pixels voor de rots staat, en met een half scherm van 640
+  // pixels vooruit staat de wand dan ook echt in beeld. Hang je hem hoger, dan moet je van
+  // verder gooien en mik je op iets wat net buiten beeld valt.
+  //
+  // 'in' moet kleiner blijven dan r + raak. De rots is in het zijaanzicht een plat vlak:
+  // een speer die eropaf komt raakt het steen op de rechte kant, dus bij een schijf die
+  // dieper ligt dan haar eigen trefcirkel kom je nooit. Nu steekt die cirkel 25 eenheden
+  // voor de wand uit, en daar vangt hij de punt op voordat het steen dat doet.
+  sym: { in: 90, h: 530, r: 70 },    // midden van de schijf, en de straal van het hout
+  raak: 45,         // zoveel ruimer dan de schijf telt de punt van de speer als treffer
+  rand: 24,         // marge rond het schuifblok, zodat het de rafelrand ruim afdekt
+  tijd: 0.5,        // zoveel seconden doet het blok over het omhoogschuiven
+  steek: 0.5        // zo diep blijft de speer in de schijf steken, als deel van de straal
+};
+
+const muurImg = new Image();
+zetBron(muurImg, MUUR.src, () => console.warn('ontbreekt: ' + MUUR.src));
+
+function muurNu(){ return (level && level.muur) ? level.muur : null; }
+
+let muurOpen = false;      // de rune is geraakt
+let muurSchuif = 0;        // 0 = dicht, 1 = het blok staat helemaal boven
+let muurSpeer = null;      // de speer die in de schijf is blijven zitten: {x, h, sa, dir}
+let muurCache = null;      // de canvassen, op de huidige maat
+
+function muurReset(){ muurOpen = false; muurSchuif = 0; muurSpeer = null; }
+
+// Vorm van de opening: geen kale rechthoek maar een licht afgebrokkelde rand. Gat, blok,
+// masker en schaduw gebruiken allemaal exact deze punten, dus ze passen per definitie.
+function muurDeurPunten(x0, y0, w, h, j){
+  let seed = 1337;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  const pts = [], N = 7;
+  const push = (x, y) => pts.push([x, y]);
+  for (let i = 0; i < N; i++) push(x0 + w * i / N, y0 + (rnd() - .5) * j * 2);
+  for (let i = 0; i < N; i++) push(x0 + w + (rnd() - .5) * j * 2, y0 + h * i / N);
+  for (let i = N; i > 0; i--) push(x0 + w * i / N, y0 + h + (rnd() - .5) * j * 2);
+  for (let i = N; i > 0; i--) push(x0 + (rnd() - .5) * j * 2, y0 + h * i / N);
+  return pts;
+}
+
+// De drie canvassen, een keer op maat gezet en daarna bewaard tot de schaal verandert.
+function muurSet(scale){
+  if (!imgReady(muurImg)) return null;
+  // De wand is 5,8 Amir hoog, en op een groot Formaat loopt dat op tot een canvas van
+  // tientallen miljoenen pixels, vier keer (plaat, gat, masker en het werkcanvas). Meer dan
+  // ruim twee schermen hoog zie je er nooit van, want de camera kijkt maar een schermhoogte
+  // omhoog, dus daarboven houdt de plaat op. Die snee ligt altijd ver buiten beeld.
+  const hPx = Math.max(2, Math.round(Math.min(CHAR_H * scale * MUUR.h, H * 2.6)));
+  // De schaal hoort in de sleutel en niet alleen de hoogte: zodra die begrensd wordt komen
+  // twee Formaten op dezelfde hoogte uit, terwijl de opening en de schijf wel meeschalen.
+  const sleutel = hPx + '|' + scale.toFixed(3) + '|' + muurImg.naturalWidth;
+  if (muurCache && muurCache.sleutel === sleutel) return muurCache;
+  const sx = Math.round(muurImg.naturalWidth * MUUR.crop);          // de aankomstkant eraf
+  const sw = muurImg.naturalWidth - sx;
+  const wPx = Math.max(2, Math.round(sw / muurImg.naturalHeight * hPx));
+  const voetY = hPx * MUUR.voet;                                    // hier raakt de rots de grond
+  const u = d => wPx - d * scale;                  // afstand vanaf de rechte kant, de rots in
+  const v = hh => voetY - hh * scale;              // hoogte boven de grondlijn
+
+  // de hele rots, gespiegeld: de gesneden kant ligt rechts, naar Amir toe
+  const heel = document.createElement('canvas');
+  heel.width = wPx; heel.height = hPx;
+  const hg = heel.getContext('2d');
+  hg.save(); hg.translate(wPx, 0); hg.scale(-1, 1);
+  hg.drawImage(muurImg, sx, 0, sw, muurImg.naturalHeight, 0, 0, wPx, hPx);
+  hg.restore();
+
+  const l = u(MUUR.deur.in + MUUR.deur.breed), r = u(MUUR.deur.in);
+  const t = v(MUUR.deur.boven), b = v(MUUR.deur.onder);
+  const pts = muurDeurPunten(l, t, r - l, b - t, MUUR.deur.rafel * scale);
+  const pad = (g, dy) => {
+    g.beginPath();
+    pts.forEach(([x, y], i) => i ? g.lineTo(x, y + dy) : g.moveTo(x, y + dy));
+    g.closePath();
+  };
+
+  // De alfakaart: waar zit er echt rots? Daarop botst de speer, en niet op een denkbeeldige
+  // verticale muurlijn. Alleen het alfakanaal, dat scheelt driekwart geheugen. Komt de plaat
+  // niet van dezelfde bron (een los bestand via file://), dan weigert de browser dit en valt
+  // de botsing terug op de hele rechthoek.
+  let alfa = null;
+  try {
+    const d = hg.getImageData(0, 0, wPx, hPx).data;
+    alfa = new Uint8Array(wPx * hPx);
+    for (let i = 0, n = alfa.length; i < n; i++) alfa[i] = d[i * 4 + 3];
+  } catch (e){
+    alfa = null;
+    console.warn('rotswand: de pixels zijn niet uit te lezen, de speer botst nu op de hele plaat');
+  }
+
+  // 1. het schuifblok: precies dat stuk rots, met een randje extra
+  const bm = Math.max(2, Math.round(MUUR.rand * scale));
+  const bl = Math.round(l) - bm, bt = Math.round(t) - bm;
+  const blok = document.createElement('canvas');
+  blok.width = Math.round(r - l) + bm * 2; blok.height = Math.round(b - t) + bm * 2;
+  blok.getContext('2d').drawImage(heel, -bl, -bt);
+
+  // 2. de muur met het gat erin
+  const gat = document.createElement('canvas');
+  gat.width = wPx; gat.height = hPx;
+  const gg = gat.getContext('2d');
+  gg.drawImage(heel, 0, 0);
+  gg.save(); gg.globalCompositeOperation = 'destination-out';
+  pad(gg, 0); gg.fill(); gg.restore();
+
+  // 3. het masker: dezelfde vorm, maar alleen daar waar ook echt rots zat, zodat er nooit
+  //    iets buiten de rots kan uitsteken. Een pixel ruimer dan het gat (de streek van 3
+  //    breed loopt anderhalve pixel naar buiten), anders blijft er door de anti-aliasing
+  //    een haarlijntje op de rand staan.
+  //
+  //    De snede met de rots gaat met de hand en niet met destination-in. Die rekent alfa
+  //    maal alfa, en waar de omtrek van de rots zelf door het gat loopt (langs de voet, bij
+  //    de steentjes en het gras) is die alfa halverwege: het blok werd daar dus doorzichtiger
+  //    dan het steen eromheen, en dan zie je de opening staan terwijl hij dicht is. Nu telt
+  //    alleen of er rots zit, ja of nee; het blok brengt zijn eigen zachte rand mee en die is
+  //    per definitie dezelfde als die van de rots.
+  const masker = document.createElement('canvas');
+  masker.width = wPx; masker.height = hPx;
+  const mg = masker.getContext('2d', { willReadFrequently: true });
+  pad(mg, 0); mg.fillStyle = '#000'; mg.fill();
+  mg.strokeStyle = '#000'; mg.lineWidth = 3; mg.lineJoin = 'round'; mg.stroke();
+  if (alfa){
+    const md = mg.getImageData(0, 0, wPx, hPx);
+    const q = md.data;
+    for (let i = 0, n = alfa.length; i < n; i++) if (!alfa[i]) q[i * 4 + 3] = 0;
+    mg.putImageData(md, 0, 0);
+  } else {
+    mg.globalCompositeOperation = 'destination-in';   // zonder alfakaart dan maar zo
+    mg.drawImage(heel, 0, 0);
+  }
+
+  const fx = document.createElement('canvas'); fx.width = wPx; fx.height = hPx;
+  muurCache = { sleutel, w: wPx, h: hPx, voetY, heel, gat, blok, masker, fx, alfa,
+                l, r, t, b, bl, bt,
+                symX: u(MUUR.sym.in), symY: v(MUUR.sym.h), symK: MUUR.sym.r * scale / 28 };
+  return muurCache;
+}
+
+// ---- waar zit rots, en waar mag je door -----------------------------------
+// Zit dit punt in de opening? x in wereld-pixels, h in sprite-eenheden boven de grondlijn.
+// De maten van de opening staan in sprite-eenheden, dus horizontaal gaan ze maal scale:
+// precies zoals muurSet ze op het canvas zet. Doe je dat niet, dan ligt de opening waar
+// je botst ergens anders dan de opening die je ziet, en alleen op Formaat 100 klopt het.
+function muurDeurIn(x, h, scale){
+  const m = muurNu(); if (!m) return false;
+  const d = (m.x - x) / scale;                      // afstand vanaf de rechte kant, de rots in
+  return d > MUUR.deur.in && d < MUUR.deur.in + MUUR.deur.breed
+      && h > MUUR.deur.onder && h < MUUR.deur.boven;
+}
+function muurDoor(){ return muurSchuif > 0.9; }    // staat de doorgang open?
+
+// Zit er op dit punt rots? Dit is wat de speer voelt: de werkelijke alfawaarde van de
+// plaat, uitgelezen met getImageData, en niet een rechte lijn ergens in de lucht.
+function muurVast(x, h, scale){
+  const m = muurNu(); if (!m) return false;
+  const S = muurSet(scale); if (!S) return false;
+  if (muurDeurIn(x, h, scale)) return !muurDoor();  // dicht is massief, open is doorgang
+  const u = Math.round(S.w - (m.x - x)), v = Math.round(S.voetY - h * scale);
+  if (u < 0 || v < 0 || u >= S.w || v >= S.h) return false;
+  if (!S.alfa) return true;                        // noodgeval: dan telt de hele plaat als rots
+  return S.alfa[v * S.w + u] > 40;
+}
+
+// De punt van de speer tegen de schijf. De schijf wordt op symK getekend, dus wat je ziet
+// is 1,21 keer r; het raakvlak ligt daar nog iets ruimer omheen.
+function muurSymRaak(x, h, scale){
+  const m = muurNu(); if (!m || muurOpen) return false;
+  const dx = x - (m.x - MUUR.sym.in * scale), dy = (h - MUUR.sym.h) * scale;
+  const r = (MUUR.sym.r + MUUR.raak) * scale;
+  return dx * dx + dy * dy < r * r;
+}
+
+// Raak. De speer blijft er voorgoed in zitten: hij gaat uit jav (en is daarmee geen
+// platform, niet op te pakken en valt er nooit meer uit) en wordt voortaan door de muur
+// zelf getekend. Het speersysteem is meteen weer vrij voor de volgende worp.
+function muurTreffer(scale){
+  const m = muurNu(); if (!m || !jav) return;
+  const sx = m.x - MUUR.sym.in * scale, sh = MUUR.sym.h;
+  const inzet = MUUR.sym.r * MUUR.steek * scale;   // de punt landt in het hout, niet ervoor
+  muurSpeer = { x: sx - Math.cos(jav.sa) * inzet, h: sh + Math.sin(jav.sa) * inzet / scale,
+                sa: jav.sa, dir: jav.dir };
+  jav = null; javLost = 0; javOver = null;
+  spear = false; spearFound = false; spearX = null; spearH = null;
+  setSpearLabel();
+  muurOpen = true;
+  shake = Math.max(shake, 0.22);                   // de berg komt in beweging
+  flashHint('De rune licht op: de rots schuift omhoog');
+}
+
+// De speer die eindeloos uit de grond komt. Staat er niets meer om op te pakken en heeft
+// Amir er geen in zijn hand, dan staat er weer een op de vaste plek van dit level.
+function muurVul(){
+  const m = muurNu();
+  if (!m || m.speer === undefined || m.speer === null || building) return;
+  if (spear || spearFound || spearX !== null || jav || javLost > 0) return;
+  spearX = m.speer; spearH = null;
+}
+
+function muurUpdate(dt){
+  if (muurOpen && muurSchuif < 1) muurSchuif = Math.min(1, muurSchuif + dt / MUUR.tijd);
+  muurVul();
+}
+
+// De wand duwt hem terug, net als de klif aan het eind van een level. Staat de doorgang
+// open en past hij eronder, dan mag hij naar binnen, tot aan de achterwand van de opening.
+function muurBlok(halfW, scale){
+  const m = muurNu(); if (!m) return;
+  const gevel = m.x - MUUR.deur.in * scale;
+  const achter = m.x - (MUUR.deur.in + MUUR.deur.breed) * scale;
+  const binnen = world < gevel;                    // hij staat al in de opening
+  const past = ph > MUUR.deur.onder && ph + CHAR_H < MUUR.deur.boven;
+  const grens = (muurDoor() && (binnen || past)) ? achter : m.x;
+  if (world - halfW < grens) world = grens + halfW;
+}
+
+// In de opening hangt de rots boven je: de bovenkant werkt als plafond, net als een cel
+// van een rotsraster. Buiten de opening is er niets boven je en geldt er geen cap.
+function muurKop(halfW, scale){
+  const m = muurNu(); if (!m || !muurDoor()) return Infinity;
+  const l = m.x - (MUUR.deur.in + MUUR.deur.breed) * scale, r = m.x - MUUR.deur.in * scale;
+  if (world + halfW <= l || world - halfW >= r - 1) return Infinity;
+  return MUUR.deur.boven - CHAR_H;
+}
+
+// ---- de wand tekenen -------------------------------------------------------
+function drawMuur(groundY, scale, cx){
+  const m = muurNu(); if (!m) return;
+  const S = muurSet(scale); if (!S) return;
+  const x0 = Math.round(cx + (m.x - world) - S.w), y0 = Math.round(groundY - S.voetY);
+  if (x0 > W / viewZoom() + W || x0 + S.w < -W) return;
+
+  // Dicht is dicht: dan komt de ongeschonden plaat in beeld en verder niets. Gat, blok en
+  // masker weer samenstellen zou op de zachte randen 8-bits afrondingen opleveren, en dat
+  // is precies het haarlijntje dat er niet mag zijn. Zodra het blok beweegt schakelt hij
+  // over op de drie canvassen; dan is er toch al iets te zien.
+  if (muurSchuif <= 0){
+    ctx.drawImage(S.heel, x0, y0);
+    muurSymbool(x0 + S.symX, y0 + S.symY, S.symK, muurOpen);
+    if (muurSpeer) muurSpeerTeken(groundY, scale, cx);
+    if (showBoxes || building) muurBoxen(x0, y0, S, scale, groundY, cx);
+    return;
+  }
+  ctx.drawImage(S.gat, x0, y0);
+
+  // Alles wat in de opening hoort op een eigen canvas, en daarna afgeknipt op het masker:
+  // rots en opening samen, dus er kan nooit iets buiten de rots uitsteken.
+  const g = S.fx.getContext('2d');
+  g.clearRect(0, 0, S.w, S.h);
+  const hoog = S.b - S.t, off = muurSchuif * hoog;
+  const X = S.l - 40, Y = S.t - 40, Wd = (S.r - S.l) + 80, Hd = hoog + 80;
+  {
+    // de gang: de berg in, dus donker. Bovenin het donkerst, onderin waar het licht van
+    // buiten nog net op de vloer valt iets warmer, en langs beide zijkanten de wanden weg
+    // in het zwart. Zonder dit kijk je door de opening heen naar de savanne erachter, en
+    // dan leest het als een raam in plaats van als een gang.
+    const diep = g.createLinearGradient(0, S.t, 0, S.b);
+    diep.addColorStop(0, '#0a0908'); diep.addColorStop(0.7, '#1c1712'); diep.addColorStop(1, '#2a2119');
+    g.fillStyle = diep; g.fillRect(X, Y, Wd, Hd);
+    const zij = g.createLinearGradient(S.l, 0, S.r, 0);
+    zij.addColorStop(0, 'rgba(0,0,0,0.67)'); zij.addColorStop(0.35, 'rgba(0,0,0,0)');
+    zij.addColorStop(0.65, 'rgba(0,0,0,0)'); zij.addColorStop(1, 'rgba(0,0,0,0.67)');
+    g.fillStyle = zij; g.fillRect(X, Y, Wd, Hd);
+    // schaduw onder de bovenrand: daar steekt de rots de gang in
+    const bov = g.createLinearGradient(0, S.t, 0, S.t + hoog * 0.30);
+    bov.addColorStop(0, 'rgba(0,0,0,0.75)'); bov.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = bov; g.fillRect(X, Y, Wd, hoog * 0.30 + 40);
+  }
+  if (muurSchuif < 1){
+    g.drawImage(S.blok, S.bl, S.bt - off);
+    // het blok werpt schaduw op de gang eronder
+    const sh = g.createLinearGradient(0, S.b - off, 0, S.b - off + hoog * 0.14);
+    sh.addColorStop(0, 'rgba(0,0,0,0.70)'); sh.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = sh; g.fillRect(X, S.b - off, Wd, hoog * 0.14);
+  }
+  g.globalCompositeOperation = 'destination-in';
+  g.drawImage(S.masker, 0, 0);
+  g.globalCompositeOperation = 'source-over';
+  ctx.drawImage(S.fx, x0, y0);
+
+  muurSymbool(x0 + S.symX, y0 + S.symY, S.symK, muurOpen);
+  if (muurSpeer) muurSpeerTeken(groundY, scale, cx);
+  if (showBoxes || building) muurBoxen(x0, y0, S, scale, groundY, cx);
+}
+
+// de opening, het raakvlak van de schijf en de lijn waar de wand tegenhoudt
+function muurBoxen(x0, y0, S, scale, groundY, cx){
+  const m = muurNu(); if (!m) return;
+  ctx.save();
+  ctx.globalAlpha = 0.6; ctx.lineWidth = 2;
+  ctx.strokeStyle = '#8ef2a0';
+  ctx.strokeRect(x0 + S.l, y0 + S.t, S.r - S.l, S.b - S.t);
+  ctx.strokeStyle = '#ffd98a';
+  ctx.beginPath();
+  ctx.arc(x0 + S.symX, y0 + S.symY, (MUUR.sym.r + MUUR.raak) * scale, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = '#ff6b6b'; ctx.lineWidth = 3;
+  const wx = cx + (m.x - world);
+  ctx.beginPath(); ctx.moveTo(wx, 0); ctx.lineTo(wx, groundY); ctx.stroke();
+  ctx.restore();
+}
+
+// de speer die in de schijf is blijven zitten, op zijn punt gedraaid (zoals javSchacht,
+// maar dan zonder het natrillen en zonder de klok die hem loswrikt)
+function muurSpeerTeken(groundY, scale, cx){
+  const s = muurSpeer;
+  const tx = cx + (s.x - world), ty = groundY - s.h * scale;
+  const L = javLen(scale), k = L / JAV.w;
+  let a = s.sa;
+  ctx.save();
+  ctx.translate(tx, ty);
+  if (s.dir === -1){ ctx.scale(-1, 1); a = Math.PI - a; }
+  ctx.rotate(a);
+  if (imgReady(javImg)) ctx.drawImage(javImg, -JAV.tipX * k, -JAV.tipY * k, JAV.w * k, JAV.h * k);
+  else {
+    ctx.strokeStyle = '#6b4a2b'; ctx.lineWidth = Math.max(2, 5 * scale); ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-L, 0); ctx.stroke();
+    ctx.fillStyle = '#b9bec4';
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-L * 0.16, -L * 0.05); ctx.lineTo(-L * 0.16, L * 0.05);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+
+// De houten schijf met de rune, helemaal in code getekend: vijf planken met nerven, een
+// donkere band eromheen met vier nagels, en het teken erin. Geraakt licht het teken op.
+// De tekening is op een straal van 28 gemaakt en wordt in zijn geheel op k geschaald,
+// zodat hij op elk Formaat hetzelfde uitvalt.
+function muurSymbool(px, py, k, aan){
+  const R = 28 + 6;
+  ctx.save(); ctx.translate(px, py); ctx.scale(k, k);
+
+  ctx.beginPath(); ctx.ellipse(4, 6, R, R * .96, 0, 0, 7);
+  ctx.fillStyle = 'rgba(20,14,8,.45)'; ctx.fill();
+
+  ctx.save(); ctx.beginPath(); ctx.arc(0, 0, R, 0, 7); ctx.clip();
+  const planken = 5, pw = R * 2 / planken;
+  const tint = ['#7a5330', '#8a5f38', '#6d4a2b', '#835a34', '#75502e'];
+  for (let i = 0; i < planken; i++){
+    const x0 = -R + i * pw;
+    ctx.fillStyle = tint[i % tint.length];
+    ctx.fillRect(x0, -R, pw + 1, R * 2);
+    ctx.strokeStyle = 'rgba(58,38,20,.35)'; ctx.lineWidth = 1.4;
+    for (let n = 1; n <= 3; n++){
+      const gx = x0 + pw * n / 4;
+      ctx.beginPath(); ctx.moveTo(gx, -R);
+      ctx.bezierCurveTo(gx + 3, -R / 3, gx - 3, R / 3, gx + 1, R); ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(38,24,12,.75)'; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.moveTo(x0, -R); ctx.lineTo(x0, R); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.ellipse(-R * .42, R * .34, 4.5, 3, .4, 0, 7);
+  ctx.fillStyle = '#4a3018'; ctx.fill();
+  const vig = ctx.createRadialGradient(0, 0, R * .35, 0, 0, R);
+  vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(30,18,8,.55)');
+  ctx.fillStyle = vig; ctx.fillRect(-R, -R, R * 2, R * 2);
+  ctx.restore();
+
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#2f2114'; ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.arc(0, 0, R - 3, 0, 7); ctx.stroke();
+  ctx.strokeStyle = 'rgba(190,160,120,.35)'; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.arc(0, 0, R - 6, -2.4, -.4); ctx.stroke();
+  ctx.fillStyle = '#241a10';
+  for (let i = 0; i < 4; i++){
+    const a = i * Math.PI / 2 + Math.PI / 4;
+    ctx.beginPath(); ctx.arc(Math.cos(a) * (R - 3), Math.sin(a) * (R - 3), 3.2, 0, 7); ctx.fill();
+  }
+
+  if (aan){ ctx.shadowColor = '#ffb347'; ctx.shadowBlur = 24; }
+  ctx.strokeStyle = aan ? '#ffd98a' : '#2e1d0e';
+  ctx.lineWidth = 5; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(0, -15); ctx.lineTo(-12, 4); ctx.lineTo(0, 0);
+  ctx.lineTo(12, 4); ctx.lineTo(0, 15); ctx.stroke();
+  ctx.restore();
+}
+
 // ---- de rotswand rechts: het einde van het level ----------------------
 const CLIFF = { src: 'design/cliff.png', l: 0.14, wall: 620, sink: 0.03 };
 // een hut aan de voet van de klif; dekt de naad af waar het gesteente omhoog loopt
@@ -3629,6 +4104,12 @@ function javUpdate(dt, plats, scale){
     const fNieuw = javFloor(nx, plats);
     if (fNieuw > jav.h && jav.h > fOud){ javStick(jav.x, jav.h, 'muur', scale); return; }   // van opzij tegen een wand
     jav.x = nx; jav.h += jav.vh * sdt; jav.vh -= g * sdt;
+    if (!building && muurNu()){                    // de rotswand met het rune-symbool
+      // Eerst de schijf, dan het steen. De punt doet het werk en niet het midden van de
+      // schacht: jav.x en jav.h zijn de punt zelf (javSchacht tekent op JAV.tipX).
+      if (muurSymRaak(jav.x, jav.h, scale)){ muurTreffer(scale); return; }
+      if (muurVast(jav.x, jav.h, scale)){ javStick(jav.x, jav.h, 'muur', scale); return; }
+    }
     if (!building){                                                  // in de doorns blijven hangen
       const bos = javThicket(jav.x, jav.h, scale);
       if (bos){
@@ -5389,7 +5870,7 @@ function updateJump(dt, plats, halfW){
     ph += pvh * dt;
   }
   if (!building){                               // onder massieve rots stoot je je hoofd
-    const kop = Math.min(grotKop(halfW, schoonScale()), plafondKop(halfW));
+    const kop = Math.min(grotKop(halfW, schoonScale()), plafondKop(halfW), muurKop(halfW, schoonScale()));
     // Is de ruimte lager dan Amir, dan kan hij er helemaal niet zijn; dan houdt de wand
     // hem tegen en mag de plafondcap hem niet de grond in duwen.
     if (ph > kop && kop > Math.max(0, supportHeight(plats, halfW))){ ph = kop; if (pvh > 0) pvh = 0; }
@@ -5533,6 +6014,7 @@ function restart(){
   hits = 0; hitsEl.textContent = 0;
   atkFrame = -1; atkAcc = 0; atkCooldown = 0; swFrame = -1; swAcc = 0; sweepBuf = 0; duckT = 0; swRecover = 0; sand.length = 0;
   thr = null; jav = null; javLost = 0; javOver = null; spearH = null; lastSolid = 0;
+  muurReset();                                      // de rotswand weer dicht, zonder speer erin
   jump = null; dust.length = 0; ph = 0; pvh = 0; onGround = true; fell = false; coyote = 0; valVan = 0;
   camDiep = 0;
   world = 0; facing = -1; frame = 0; frameAcc = 0; idleFrame = 0; idleAcc = 0;   // altijd weer bij het startpunt
@@ -5548,8 +6030,14 @@ function restart(){
   tutReset(); venom.length = 0; splat.length = 0; splashes.length = 0; stopWater(); stopHyena(); stopZwaard(); stopWind();
   greenSince = 0; blackAfter = 3 + Math.floor(Math.random() * 3); forceBlack = false; setKindLabel();
   if (level && level.spawns) for (const sp of level.spawns){ sp.used = false; sp.armed = false; }
-  // in een echt level begin je zonder speer: die staat voor je in de grond
-  if (level && !sandbox){ spearFound = false; spear = false; spearX = SPEAR_AHEAD; }
+  // in een echt level begin je zonder speer: die staat voor je in de grond. Heeft het
+  // level een rotswand met een eigen speerplek, dan staat hij daar, want daar komt hij
+  // ook steeds terug (zie muurVul).
+  if (level && !sandbox){
+    spearFound = false; spear = false;
+    spearX = (level.muur && level.muur.speer !== null && level.muur.speer !== undefined)
+             ? level.muur.speer : SPEAR_AHEAD;
+  }
   else { spearFound = true; spearX = null; }
   setSpearLabel();
 }
@@ -8619,6 +9107,7 @@ function loop(now){
   if (atkCooldown > 0) atkCooldown = Math.max(0, atkCooldown - dt);
   updateThrow(dt);                               // spannen, uithalen, herstellen
   javUpdate(dt, plats, scaleNow);                // en de speer die onderweg is
+  muurUpdate(dt);                                // het rotsblok schuift, en de speer komt terug in de grond
   if (atkFrame >= 0){
     atkAcc += dt * ATK_FPS;
     while (atkAcc >= 1){ atkFrame++; atkAcc -= 1; }
@@ -8675,6 +9164,7 @@ function loop(now){
   if (!building) blockByThickets(scaleNow, halfWNow);
   if (!building) grotBlok(halfWNow, scaleNow);        // de wanden van een rotsgebied
   if (!building) plafondBlok(halfWNow);              // en het steen waar de plafondlijn onder je kruin duikt
+  if (!building) muurBlok(halfWNow, scaleNow);       // en de rotswand met het rune-symbool
   updateJump(dt, plats, halfWNow);
   // waar stond hij voor het laatst op vaste grond? Daar komt een verloren speer terug
   if (!building && onGround && !fell && !inGap(world) && waterDepthAt(world) < 0.2) lastSolid = world;
@@ -9044,6 +9534,10 @@ function loop(now){
         ctx.restore();
       }
     }
+
+    // De rotswand met het rune-symbool. Hij staat na de fakkels en voor Amir: zolang de
+    // muur dicht is zie je niet wat erachter ligt, en Amir loopt er altijd voorlangs.
+    drawMuur(groundY, scale, cx);
 
     // personages: staan rustig te ademen, achter Amir. Geen botsing, geen schade:
     // Amir loopt er gewoon doorheen.
@@ -10196,6 +10690,7 @@ function syncLevel(){
     hppotions: (level.hppotions || []).map(o => ({ x: Math.round(o.x),
                                                    y: (o.y === null || o.y === undefined) ? null : Math.round(o.y) })),
     plafond: (level.plafond || []).map(o => ({ x: Math.round(o.x), y: Math.round(o.y) })),
+    muur: level.muur || undefined,           // zonder rotswand valt het veld weg
     terraces: (level.terraces || []).map(o => ({ r: o.r, l: o.l, h: o.h })),
     ledges: (level.ledges || []).map(o => ({ x: o.x, h: o.h, s: o.s })),
     grotten: (level.grotten || []).map(o => ({
@@ -10309,6 +10804,11 @@ function readLevel(txt){
            // de plafondlijn: punten met een x en een y, zie "plafond: de rots boven je"
            plafond: (o.plafond || []).map(q => ({ x: Number(q.x), y: Number(q.y) || 0 }))
                                      .sort((a, b) => a.x - b.x),
+           // de rotswand met het rune-symbool: x is de rechte kant waar Amir tegenaan loopt,
+           // speer de plek in de grond waar zijn speer steeds terugkomt
+           muur: o.muur ? { x: Number(o.muur.x),
+                            speer: (o.muur.speer === undefined || o.muur.speer === null)
+                                   ? null : Number(o.muur.speer) } : null,
            terraces: (o.terraces || []).map(q => ({ r: Number(q.r), l: Number(q.l), h: Number(q.h) || 0 })),
            ledges: (o.ledges || []).map(q => ({ x: Number(q.x), h: Number(q.h) || 0, s: Number(q.s) || 1 })),
            // rotsgebieden als raster: zie de sectie "grotten: rots als een raster van cellen"
@@ -10375,7 +10875,8 @@ const SUBS = {
   'Dark Africa 3: Onder de rots': 'Een dak dat zakt, en een gang', 'Dark Africa 4: Het verlaten dorp': 'Botten en roedels',
   'Dark Africa 5: Het hart van de duisternis': 'Alles, en dan de panter',
   'Test 1: Gang, dak en klimmen': 'Dak, trap en een gang door de rots',
-  'Test 2: De zwaardvechters': 'Eerst een losse, dan twee tegelijk'
+  'Test 2: De zwaardvechters': 'Eerst een losse, dan twee tegelijk',
+  'Test 3: De rots met de rune': 'Raak de schijf met je speer, dan gaat de wand open'
 };
 function buildCards(el, list){
   el.innerHTML = '';

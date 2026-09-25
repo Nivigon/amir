@@ -28,7 +28,7 @@ Een level kiest zelf zijn muziek. Met het veld `muziek` vraagt het om een nummer
 
 Een level kan ook de belichting bijstellen. De globale lichtlaag (een koele schaduwkant, warm licht richting de zon, en een onderkant die iets dieper wegzakt) ligt over het hele beeld heen. Met een veld `licht` in het uitzicht van een level (`SCENES`) zet je daar waarden overheen: dat is hoe Dark Africa donker wordt zonder dat er een tweede laag bij komt. Met **L** zet je de laag uit en met **,** en **.** stel je hem bij; die twee regelaars blijven gewoon van jou, ook in een level met een eigen belichting.
 
-Test levels zijn korte proefstukken: een enkel level waarin je een mechaniek los kunt bekijken, zonder gevecht en zonder lange tocht eromheen. Ze staan met opzet apart van de echte episodes, zodat daar niets aan hoeft te veranderen om iets nieuws te kunnen proberen. **Test 1: Gang, dak en klimmen** loopt in drie stukken, met één plafondlijn die er overheen loopt en op twee plekken in beeld zakt. Eerst een dak van rots over de weg heen: boven de kei ligt het net hoog genoeg om erop te springen, en een stuk verder zakt het zo ver dat je met springen niets meer haalt. Dan een trap van drie terrassen omhoog en aan de andere kant weer omlaag, met het plafond dat er schuin overheen weer uit beeld loopt. En tot slot de gang: het plafond zakt schuin naar beneden tot er ruim een lichaamslengte over is, knijpt daarna dicht tot net boven je kruin, en gaat achterin weer omhoog. Daar, in de open lucht, staan de fakkels die het level uitspelen. De definitie staat in de HTML als `TEST_1`. **Test 2: De zwaardvechters** gaat over het nieuwe type tegenstander en verder nergens over: een vlakke strook over de open vlakte, zonder ravijnen en zonder klimwerk. Eerst een losse, zodat je zijn ritme kunt leren, dan een kalebas, en daarna twee die samen op je af komen: wie jou het eerst ziet roept de ander erbij. De definitie staat in de HTML als `TEST_2`.
+Test levels zijn korte proefstukken: een enkel level waarin je een mechaniek los kunt bekijken, zonder gevecht en zonder lange tocht eromheen. Ze staan met opzet apart van de echte episodes, zodat daar niets aan hoeft te veranderen om iets nieuws te kunnen proberen. **Test 1: Gang, dak en klimmen** loopt in drie stukken, met één plafondlijn die er overheen loopt en op twee plekken in beeld zakt. Eerst een dak van rots over de weg heen: boven de kei ligt het net hoog genoeg om erop te springen, en een stuk verder zakt het zo ver dat je met springen niets meer haalt. Dan een trap van drie terrassen omhoog en aan de andere kant weer omlaag, met het plafond dat er schuin overheen weer uit beeld loopt. En tot slot de gang: het plafond zakt schuin naar beneden tot er ruim een lichaamslengte over is, knijpt daarna dicht tot net boven je kruin, en gaat achterin weer omhoog. Daar, in de open lucht, staan de fakkels die het level uitspelen. De definitie staat in de HTML als `TEST_1`. **Test 2: De zwaardvechters** gaat over het nieuwe type tegenstander en verder nergens over: een vlakke strook over de open vlakte, zonder ravijnen en zonder klimwerk. Eerst een losse, zodat je zijn ritme kunt leren, dan een kalebas, en daarna twee die samen op je af komen: wie jou het eerst ziet roept de ander erbij. De definitie staat in de HTML als `TEST_2`. **Test 3: De rots met de rune** gaat over de muur die je met je speer openkrijgt: een vlakke strook naar links en verder niets, tot een rotswand de weg verspert. Hoog op het steen zit een houten schijf met een rune. Raak je die met een geworpen speer, dan blijft die speer er voorgoed in zitten en schuift het rotsblok in een halve seconde omhoog de berg in, waarna je de opening in kunt lopen. Springen en steken halen de schijf niet, en met de vlakke worp kom je er ook niet bij: alleen de volle boog gaat eroverheen, dus je moet de werpknop helemaal uittrekken en een stuk voor de rots gaan staan. Van dichtbij gooien mist altijd. Mis je, dan blijft je speer in de rots steken en valt hij er na een tijdje vanzelf uit, en ondertussen staat er weer een nieuwe in de grond op de vaste plek: je kunt zo vaak proberen als je wilt. De definitie staat in de HTML als `TEST_3`.
 
 In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen naar het volgende level van dezelfde reeks. Onder **Instellingen** staan daar ook het tempo van het spel, het looptempo van Amir, het formaat van het beeld en de muziek. Tijdens een level is het speelveld verder leeg: de testbalk met schuifjes staat alleen in de bouwer en de sandbox (met B haal je hem er tijdens het spelen alsnog bij).
 
@@ -315,6 +315,29 @@ zijn puur decor; alleen een richel is een plankje waar je op kunt staan.
 
 Los te proberen met de knoppen onder **Plafond** in de sandbox: een ruime gang, een krappe
 gang waar springen niet meer lukt, een schuin zakkend stuk en een golvende lijn.
+
+## De muur die je met je speer openkrijgt
+
+Een rotswand die de weg verspert, met hoog op het steen een houten schijf met een rune erin. Raak je die schijf met een
+geworpen speer, dan licht de rune op, blijft de speer er voorgoed in zitten en schuift het rotsblok in een halve seconde
+omhoog de berg in. Daarachter ligt een donkere gang waar je in kunt lopen. Mis je, dan gebeurt er wat er altijd gebeurt als
+je een wand raakt: de speer blijft in het steen steken en valt er na een tijdje vanzelf uit.
+
+Zolang de muur dicht is zie je er niets van. Geen naad, geen contour, geen scheurtje in de vorm van een deur: de rots is
+gewoon een rots, en het enige wat je opvalt is die houten schijf. Wat die doet moet je zelf bedenken.
+
+Dat komt doordat gat en blok uit dezelfde pixels komen. Bij het laden wordt de plaat een keer op maat gezet, en daaruit
+worden drie dingen gemaakt: de muur met de vorm van de opening eruit gegumd, het schuifblok dat precies dat uitgegumde stuk
+is, en een masker dat de opening doorsnijdt met de rots zelf, zodat er nooit iets buiten de rots kan uitsteken. Zolang het
+blok stilstaat wordt de plaat zelf getekend en verder niets, en dan is er per definitie niets te zien.
+
+De speer botst op de werkelijke vorm van de rots en niet op een denkbeeldige rechte lijn: het spel leest de doorzichtigheid
+van de plaat uit en kijkt per stapje of de punt van de speer in het steen zit. De punt, niet het midden van de schacht.
+
+De hoogte van de schijf is gekozen op wat je wel en niet kunt. Zijn stoot haalt 200 eenheden, in de sprong 407, met zijn
+hoofd komt hij tot 459; de onderkant van het raakvlak ligt op 458. De vlakke worp laat de speer op 225 los en die zakt
+alleen maar. Alleen de volle boog, met de werpknop helemaal uitgetrokken, piekt hoger (677) en gaat er dus overheen. Sta je
+te dichtbij, dan gaat de speer eronderdoor en blijft hij in de rots steken: je moet een stuk teruglopen.
 
 ## Vallen doet pijn
 

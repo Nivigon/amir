@@ -57,6 +57,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | de rotswand rechts | `cliffs`, het einde van het level |
 | grotten: rots als een raster van cellen | `grotten`: het raster, de randen, de verstrooiing, de botsingen |
 | plafond: de rots boven je, als hoogtelijn | `plafond`: de lijn, de vulling, de band, de losse blokken |
+| muur unlock: de rotswand met het rune-symbool | `MUUR`: de plaat, het gat, het schuifblok, het masker en de schijf |
 | vallen: schade bij een diepe val | hoe diep een val telt en wat hij kost |
 | schorpioen, het projectiel, spannen en werpen, de geworpen speer | de speerworp |
 | personages, dorpsdecor | NPC's, `VILLAGE`, de dorpsplaten |
@@ -102,6 +103,7 @@ precies hetzelfde formaat naar JSON.
 | `ledges` | richels aan een wand: `{x, h, s}` |
 | `grotten` | rotsgebieden als raster: `{x, cel, y, grid, ...}` (zie hieronder) |
 | `plafond` | de rots boven je als hoogtelijn: `[{x, y}, ...]` (zie hieronder) |
+| `muur` | de rotswand met het rune-symbool: `{x, speer}` (zie hieronder) |
 | `hppotions` | drinkkalebassen: `{x, y}` |
 | `fg` | strook waarover de voorgrondbegroeiing ligt: `{from, to}` |
 | `arena` | het veld van de eindbaas: `{c}` |
@@ -332,6 +334,60 @@ Hangblokken zijn decor; alleen `wand_richel` draagt, met dezelfde hitbox als in 
 
 `hoek_plafond_wand.png` en `wand_rand.png` worden nergens meer getekend. Ze blijven wel in
 `design/grot/` staan, voor later, als er een ravijn komt waar je in afdaalt.
+
+### De muur die je met je speer openkrijgt
+
+Een rotswand die de weg verspert, met hoog op het steen een houten schijf met een rune. Raakt
+de punt van een geworpen speer die schijf, dan blijft die speer er voorgoed in zitten en
+schuift het rotsblok in een halve seconde omhoog de berg in. Mis je, dan blijft de speer in
+de rots steken en valt hij er na `JAV.muurT` vanzelf uit: dat is de gewone wandspeer, daar is
+niets voor aangepast.
+
+Een level zet hem neer met `muur: {x, speer}`. `x` is de rechte kant van de wand, waar Amir
+tegenaan loopt; `speer` is de plek in de grond waar zijn speer steeds terugkomt, zodat je zo
+vaak kunt proberen als je wilt. Alles wat je verder kunt afstellen staat bij elkaar in `MUUR`,
+bovenin die sectie: de crop, de opening, de schijf, de schuiftijd.
+
+Drie dingen die niet vanzelf spreken:
+
+**Gat en blok komen uit dezelfde pixels.** Bij het laden wordt de plaat een keer op maat gezet
+en daaruit komen drie canvassen: de muur met de vorm van de opening eruit gegumd
+(`destination-out`), het schuifblok dat precies dat uitgegumde stuk is met een marge eromheen,
+en een masker dat die vorm doorsnijdt met de rots zelf. Verschuif je de opening, dan schuift
+het blok mee en past het nog steeds. Het masker is een pixel ruimer dan het gat, anders blijft
+er door de anti-aliasing een haarlijntje op de rand staan.
+
+Die snede met de rots gaat met de hand en niet met `destination-in`. Die rekent alfa maal alfa,
+en waar de omtrek van de rots zelf door het gat loopt (langs de voet, bij de steentjes) werd het
+blok daardoor doorzichtiger dan het steen eromheen: dan zie je de opening staan terwijl hij dicht
+is. Nu telt alleen of er rots zit, ja of nee.
+
+En zolang het blok stilstaat wordt de ongeschonden plaat getekend en verder niets. De drie
+canvassen weer samenstellen levert op de zachte randen 8-bits afrondingen op, en dat is precies
+het haarlijntje dat er niet mag zijn. Zodra het blok beweegt schakelt hij over; dan is er toch
+al iets te zien.
+
+**De speer botst op de alfawaarde.** Niet op een denkbeeldige verticale muurlijn: `muurVast`
+leest de alfakaart van de plaat uit (`getImageData`, een keer per schaal, alleen het
+alfakanaal). De botsing gebeurt met de punt van de speer, en dat gaat vanzelf goed omdat
+`jav.x` en `jav.h` in dit spel de punt zelf zijn. Lukt het uitlezen niet, dan telt de hele
+plaat als rots; het spel moet toch al van een webserver komen, dus dat gebeurt alleen als je
+het bestand rechtstreeks opent.
+
+**Horizontaal maal scale.** De maten in `MUUR` staan in sprite-eenheden, net als de hoogte van
+een terras: 251 is een Amir. Horizontaal moeten ze daarom maal `scale`, precies zoals `muurSet`
+ze op het canvas zet. Doe je dat niet, dan ligt de opening waar je botst ergens anders dan de
+opening die je ziet, en klopt het alleen op Formaat 100.
+
+Twee dingen om op te letten als je hem verplaatst of anders afstelt:
+
+- `sym.in` moet kleiner blijven dan `sym.r + raak`. De rots is in het zijaanzicht een plat vlak,
+  dus een speer die eropaf komt raakt het steen op de rechte kant. Ligt de schijf dieper dan
+  haar eigen trefcirkel, dan kom je er nooit bij.
+- De hoogte van de schijf bepaalt van hoe ver je moet gooien, en dat bepaalt of de wand op dat
+  moment in beeld staat. Op 530 ligt de werpzone op 340 tot 660 pixels voor de rots, en met een
+  half scherm van 640 pixels zie je waar je op mikt. Hang je hem hoger, dan mik je op iets wat
+  net buiten beeld valt.
 
 ### Een level donker maken
 
