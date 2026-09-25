@@ -61,6 +61,7 @@
   #lives span{width:20px;height:20px;border-radius:50%;background:#e2774a;
     box-shadow:0 0 0 2px rgba(20,16,30,.45);transition:background .2s ease,transform .2s ease}
   #lives span.spent{background:transparent;transform:scale(.7)}
+  #lives span.half{background:linear-gradient(90deg,#e2774a 50%,rgba(226,119,74,.18) 50%)}
   #lives.heal span:not(.spent){animation:hppheal .5s ease}
   @keyframes hppheal{0%{transform:scale(1)}35%{transform:scale(1.45);background:#ffcf7a}100%{transform:scale(1)}}
   /* hppotion: telt hoeveel drinkkalebassen Amir bij zich heeft, vlak onder de levens */
@@ -414,6 +415,7 @@
       <button data-spawn="panter">Panter</button>
       <button data-spawn="hyena1">Hyena</button>
       <button data-spawn="hyena2">2 hyena's</button>
+      <button data-spawn="leem">Leemslang</button>
       <button id="sbside">Van rechts</button>
     </div>
     <div class="row">
@@ -2005,7 +2007,27 @@ const TEST_4 = {
   tips: [ { x: -60, t: 'Testlevel. Verderop is een ravijn. Laat je erin vallen' },
           { x: -1500, t: 'Een gang onder de grond. Die val kostte twee levens' } ]
 };
-const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4];
+// Test 5: de leemslang, en verder niets. Een kort stuk vlakte om je speer op te pakken, dan
+// komt hij binnen. Je bent hier onsterfelijk (onsterfelijk: true), zodat je rustig kunt
+// uitzoeken hoe hij werkt: zijn beet versteent je wel, maar er gaat geen leven af.
+// De tips zeggen met opzet niet hoe je hem verslaat. De fakkels gaan pas open als hij kapot is.
+const TEST_5 = {
+  name: 'Test 5: De leemslang',
+  lagen: 'tafelbergen',
+  onsterfelijk: true,
+  rocks: [],
+  props: [ {x: -250, k: 'gras', s: 1.1, f: 0, v: 0}, {x: -600, k: 'struik', s: 1.0, f: 1, v: 0},
+           {x: -1000, k: 'tree', s: 1.1, f: 0, v: 1}, {x: -3900, k: 'boulder', s: 0.9, f: 1, v: 0},
+           {x: -4300, k: 'gras', s: 1.2, f: 0, v: 0} ],
+  spawns: [ {x: -2300, k: 'leem'} ],
+  terraces: [], ledges: [],
+  hppotions: [],
+  fg: { from: -80, to: -700 },
+  village: [], npcs: [], gaps: [], water: [], thickets: [], cliffs: [],
+  ends: [ {x: -4800} ],
+  tips: [ { x: -60, t: 'Testlevel. Je kunt hier niet doodgaan. Pak je speer op en loop door' } ]
+};
+const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5];
 const WINTER_LEVELS = [WINTER_1, WINTER_2];
 let levelIdx = 0;
 
@@ -6163,7 +6185,9 @@ function jumpFrame(){
 }
 const liveEls = Array.from(document.getElementById('lives').children);
 const deadEl = document.getElementById('dead');
-function drawLives(){ liveEls.forEach((e, i) => e.classList.toggle('spent', i >= lives)); }
+function drawLives(){                            // een half leven is een half hartje
+  liveEls.forEach((e, i) => { e.classList.toggle('spent', i >= lives); e.classList.toggle('half', lives > i && lives < i + 1); });
+}
 drawLives();
 
 // ---- holte onder de grond: een ravijn met een bodem ------------------------
@@ -6409,7 +6433,7 @@ function valLand(diep){
   thrHurt();                                       // de hele worp is kwetsbaar (zie thrHurt)
   playRaak();
   invuln = 1.3; hurt = 0.38; shake = 0.34; puffDust(14);
-  if (sandbox) return;
+  if (sandbox || onsterfelijk()) return;
   lives = Math.max(0, lives - n); drawLives();
   if (lives <= 0){ dead = true; deadEl.classList.add('on'); }
 }
@@ -6450,7 +6474,7 @@ function hurtPlayer(fromLeft){
     invuln = 1.3; hurt = 0.38; shake = 0.28; knock = fromLeft ? 260 : -260;
     return;
   }
-  lives--; drawLives();
+  if (!onsterfelijk()){ lives--; drawLives(); }     // een level kan je onsterfelijk maken om iets te proberen
   invuln = 1.3; hurt = 0.38; shake = 0.28;
   knock = fromLeft ? 260 : -260;
   if (lives <= 0){ dead = true; deadEl.classList.add('on'); }
@@ -6468,6 +6492,7 @@ function restart(){
   camY = 0; camFloor = 0;
   drawLives(); deadEl.classList.remove('on');
   snakes.length = 0; scorps.length = 0; panthers.length = 0; hyenas.length = 0; zwaarden.length = 0; arena = null; camEase = null; spawnTimer = 0.6;
+  leemBazen.length = 0; leemBrok.length = 0; leemStilT = 0; amirSteen = 0;
   snowPuffs.length = 0; snowFx.length = 0; snowflakes.length = 0; snowWorldPrev = null;
   planSnow();                                       // nieuw potje, nieuw weer
   thickets.length = 0; chips.length = 0;            // struwelen weer heel, brokstukken weg
@@ -6909,7 +6934,7 @@ function makeSnake(kind){
 // hoe ver vooruit een geplaatste slang wakker wordt, in schermbreedtes.
 // groen loopt gewoon binnen, zwartrood moet al op zijn plek staan omdat hij
 // op grote afstand blijft hangen en daar tijd voor nodig heeft.
-const TRIGGER = { groen: 1.10, zwart: 1.60, scorp: 1.20, hyenas: 1.05, zwaard: 1.10 };
+const TRIGGER = { groen: 1.10, zwart: 1.60, scorp: 1.20, hyenas: 1.05, zwaard: 1.10, leem: 1.00 };
 function triggerDist(kind){ return W * (TRIGGER[kind] || 1.10); }
 
 // een monster verschijnt nooit midden in beeld: stond zijn plek al in beeld
@@ -6961,6 +6986,11 @@ function updateSnakes(dt, plats, halfWNow, cliff){
         const zx = spawnPoint(sp.x);
         const z = makeZwaard(zx, zx > world ? 1 : -1, sp.kleur);
         z.base = terrainH(zx); zwaarden.push(z); continue;
+      }
+      if (sp.kind === 'leem'){
+        const lx = spawnPoint(sp.x);
+        const b = makeLeem(lx, lx > world ? 1 : -1);
+        b.base = terrainH(lx); leemBazen.push(b); continue;
       }
       const x = spawnPoint(sp.x);
       if (sp.kind === 'scorp'){ const k = makeScorp(x, x > world ? 1 : -1); k.base = terrainH(x); scorps.push(k); continue; }
@@ -7827,12 +7857,13 @@ function drawFgGrass(groundY, cx, scale, pcx){
   }
 }
 function bossBlocking(){
-  return !!(level && level.spawns && level.spawns.some(sp => sp.kind === 'panter' && !sp.used))
-      || panthers.some(p => p.state !== 'dying' && p.state !== 'gone');
+  return !!(level && level.spawns && level.spawns.some(sp => (sp.kind === 'panter' || sp.kind === 'leem') && !sp.used))
+      || panthers.some(p => p.state !== 'dying' && p.state !== 'gone')
+      || leemBazen.some(s => s.state !== 'dood' && s.state !== 'weg');
 }
 function drawBossBar(){
   const b = panthers.find(p => p.engaged && p.state !== 'gone' && (p.hp > 0 || p.alpha > 0));
-  if (!b) return;
+  if (!b){ drawLeemBalk(); return; }
   const bw = Math.min(360, W * 0.5), bh = 12, x0 = (W - bw) / 2, y0 = 28;
   ctx.save();
   ctx.globalAlpha = b.state === 'dying' ? Math.max(0, b.alpha) : 1;
@@ -8511,6 +8542,355 @@ function hitZwaard(s){
   return true;
 }
 
+// ---- de leemslang: een baas die steen wordt als je stilzit ------------------
+// Een zandslang van twee keer de gewone maat, in de kleur van leem. Hij jaagt op beweging:
+// zit je gebukt stil terwijl hij op je af komt, dan ziet hij je niet meer en verstijft hij
+// tot steen. Zo'n stenen slang kun je raken, en elke treffer slaat er een stuk af. Daarna
+// heb je nog even voor hij loskomt, en sta je dan nog vlak bij hem, dan valt hij meteen uit.
+//
+// Zijn beet versteent jou. En op datzelfde moment verstijft hij zelf ook: jij staat stil, dus
+// ziet hij je niet. Zo doet het spel het voor zonder uitleg. Na zo'n beet neemt hij afstand.
+//
+// Blijf je gewoon gebukt zitten, dan werkt het niet nog een keer: hij moet je eerst weer zien
+// bewegen voor stilzitten hem opnieuw iets doet. Anders zit je het gevecht uit.
+//
+// Er zijn geen eigen plaatjes: de frames zijn die van de zandslang, eenmalig per frame
+// omgekleurd naar leem en naar steen (leemKopie). Een ruwe schets, om het gedrag te proberen.
+const LEEM = {
+  groot: 2,            // zoveel keer een gewone slang
+  hp: 5,               // zoveel treffers op steen
+  tempo: 0.8,          // kruipt iets trager dan een gewone slang
+  stil: 0.5,           // zo lang moet je gebukt stilzitten voor hij het merkt (s)
+  steen: 3.0,          // zo lang blijft hij steen als jij hem versteent (s)
+  naRaak: 2.0,         // na een treffer heb je nog zo lang voor hij loskomt (s)
+  waarschuw: 0.6,      // de laatste zoveel seconden kleurt hij terug en trilt hij
+  steenNaBeet: 2.6,    // zo lang verstijft hij mee als hij jou gebeten heeft (s)
+  amirSteen: 1.2,      // zo lang sta jij versteend na zijn beet (s)
+  schade: 0.5,         // zijn beet kost een half leven
+  terug: 1.5,          // zo lang neemt hij afstand na een beet (s)
+  koel: 0.8,           // rust tussen twee beten (s)
+  dreig: 0.45,         // zo lang staat hij opgericht voor hij bijt (s)
+  beetFps: 14, uitvalFps: 20   // gewone beet, en de uitval als hij loskomt terwijl jij dichtbij staat
+};
+const leemBazen = [];
+const leemBrok = [];                             // stukjes steen die eraf springen
+let leemStilT = 0;                               // zo lang zit Amir al gebukt stil
+let amirSteen = 0;                               // zo lang staat Amir nog versteend
+
+// de omgekleurde kopieen, eenmalig per frame. Lukt het uitlezen niet, dan het origineel.
+const leemKopieen = new WeakMap();
+function leemKopie(img, soort){
+  if (!img || !imgReady(img)) return img;
+  let e = leemKopieen.get(img);
+  if (!e){ e = {}; leemKopieen.set(img, e); }
+  if (e[soort] === undefined){
+    try { e[soort] = leemMaak(img, soort); } catch (err){ e[soort] = null; }
+  }
+  return e[soort] || img;
+}
+function leemMaak(img, soort){
+  const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  g.drawImage(img, 0, 0);
+  const d = g.getImageData(0, 0, w, h), p = d.data;
+  for (let i = 0; i < p.length; i += 4){
+    if (p[i + 3] === 0) continue;
+    const r = p[i], gr = p[i + 1], b = p[i + 2];
+    const l = (0.30 * r + 0.59 * gr + 0.11 * b) / 255;
+    if (soort === 'leem'){
+      // oker in het licht, omber in de schaduw; een kwart van het origineel voor de tekening
+      const k = Math.pow(l, 1.35);
+      const tr = 70 + k * 150, tg = 42 + k * 96, tb = 22 + k * 40;
+      p[i] = tr * 0.85 + r * 0.15 * 0.8; p[i + 1] = tg * 0.85 + gr * 0.15 * 0.8; p[i + 2] = tb * 0.85 + b * 0.15 * 0.8;
+    } else {
+      // steen: koud grijs met wat korrel, dus ook dichte grijze ogen
+      const x = (i >> 2) % w, y = (i >> 2) / w | 0;
+      const n = ((Math.sin(x * 12.9898 + y * 78.233) * 43758.5453) % 1) * 0.08;
+      const v = 0.20 + 0.42 * l + n;
+      p[i] = v * 225; p[i + 1] = v * 218; p[i + 2] = v * 204;
+    }
+  }
+  g.putImageData(d, 0, 0);
+  return c;
+}
+
+function leemScale(){ return snakeSScale() * LEEM.groot; }
+// hoe ver zijn beet komt, gemeten van zijn midden: dezelfde som als bij een gewone slang
+function leemReik(){
+  const ss = leemScale();
+  return (SNK_HEAD.x + SNK_STRIKE[3] + SNK_STRIKE_R - SNK_W / 2) * ss + PLAYER_HALF_W * CHAR_H * nowScale();
+}
+function onsterfelijk(){ return !sandbox && !!(level && level.onsterfelijk); }
+function amirStil(){
+  return duckT >= 1 && onGround && !jump && swFrame < 0 && swRecover <= 0 && atkFrame < 0 && !thr && hurt <= 0;
+}
+function makeLeem(x, side){
+  return { x, side, base: 0, state: 'jaag', frame: 0, acc: 0, t: 0,
+           hp: LEEM.hp, flash: 0, inv: 0, alpha: 1, vx: 0,
+           zag: true, naBeet: false, geraakt: false, biteUsed: false, sweptId: -1,
+           steenImg: null, hissed: false, schud: 0 };
+}
+function leemSet(s, state, t){ s.state = state; s.frame = 0; s.acc = 0; s.t = t || 0; }
+function leemVersteen(s, duur){
+  s.steenImg = leemFrame(s);                      // hij bevriest in de pose waarin hij stond
+  leemSet(s, 'steen', duur);
+  s.geraakt = false; s.zag = false; s.flash = 0;
+  puffWorld(s.x, 6, 0, 0.8, s.base);
+}
+function leemFrame(s){
+  const set = snk.groen;
+  if (s.state === 'beet') return set.atk[Math.min(s.frame, set.atk.length - 1)];
+  if (s.state === 'jaag' || s.state === 'terug') return set.move[s.frame % set.move.length];
+  if (s.state === 'steen' || s.state === 'dood') return s.steenImg || set.idle[0];
+  return set.idle[s.frame % set.idle.length];
+}
+function leemBrokken(s, n, kracht){
+  const sS = leemScale();
+  for (let i = 0; i < n; i++){
+    leemBrok.push({ x: s.x + (Math.random() - 0.5) * SNK_W * sS * 0.7,
+                    h: (s.base || 0) + (0.2 + Math.random() * 0.6) * SNK_H * sS / nowScale(),
+                    vx: (Math.random() - 0.5) * 380 * kracht, vh: 120 + Math.random() * 320 * kracht,
+                    r: 3 + Math.random() * 7, rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 12,
+                    t: 0, life: 1.1 + Math.random() * 0.6 });
+  }
+}
+
+function updateLeemBazen(dt, plats, cliff){
+  if (amirSteen > 0) amirSteen = Math.max(0, amirSteen - dt);
+  for (let i = leemBrok.length - 1; i >= 0; i--){
+    const b = leemBrok[i];
+    b.t += dt;
+    if (b.t >= b.life){ leemBrok.splice(i, 1); continue; }
+    b.x += b.vx * dt; b.h += b.vh * dt; b.vh -= 1400 * dt; b.rot += b.vr * dt;
+    const vloer = terrainH(b.x);
+    if (b.h < vloer){ b.h = vloer; b.vh = -b.vh * 0.25; b.vx *= 0.6; b.vr *= 0.5; }
+  }
+  if (!running || building || (dead && !sandbox)) return;
+  leemStilT = amirStil() ? leemStilT + dt : 0;
+  for (let i = leemBazen.length - 1; i >= 0; i--){
+    const s = leemBazen[i];
+    updateLeem(s, dt, plats, cliff);
+    if (s.state === 'weg') leemBazen.splice(i, 1);
+  }
+}
+function updateLeem(s, dt, plats, cliff){
+  if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
+  if (s.inv > 0) s.inv = Math.max(0, s.inv - dt);
+  if (s.vx !== 0) knockStep(s, dt, plats, cliff, SNK_W * leemScale() * 0.45, 60);
+  const gap = Math.abs(world - s.x);
+
+  if (!s.hissed && Math.abs(s.x - world) < W / 2 / viewZoom() + 40){
+    s.hissed = true;                               // hij komt in beeld
+    if (wantSound){ const hs = document.getElementById('hiss'); hs.currentTime = 0; hs.volume = 0.9; hs.play().catch(() => {}); }
+  }
+
+  if (s.state === 'dood'){
+    s.t += dt;
+    if (s.t > 0.5) s.alpha = Math.max(0, 1 - (s.t - 0.5) / 1.2);
+    if (s.alpha <= 0) s.state = 'weg';
+    return;
+  }
+  if (s.state === 'steen'){
+    s.t -= dt;
+    s.schud = s.t < LEEM.waarschuw ? 1 - s.t / LEEM.waarschuw : 0;
+    if (s.schud > 0 && Math.random() < dt * 10) puffWorld(s.x + (Math.random() - 0.5) * 120, 1, 0, 0.5, s.base);
+    if (s.t > 0) return;
+    // hij komt los. Sta je vlak bij hem, dan valt hij meteen uit.
+    s.schud = 0; s.steenImg = null;
+    s.side = s.x > world ? 1 : -1;
+    if (wantSound){ const hs = document.getElementById('hiss'); hs.currentTime = 0; hs.volume = 0.9; hs.play().catch(() => {}); }
+    if (gap < leemReik() * 1.05){ leemSet(s, 'beet'); s.snel = true; s.biteUsed = false; s.naBeet = false; }
+    else if (s.naBeet){ s.naBeet = false; s.side = -s.side; leemSet(s, 'terug'); }
+    else leemSet(s, 'jaag');
+    return;
+  }
+
+  // stilzitten: werkt alleen als hij je daarvoor heeft zien bewegen
+  const kanSteen = s.state !== 'beet';
+  if (kanSteen){
+    if (!amirStil()) s.zag = true;
+    else if (s.zag && leemStilT >= LEEM.stil && gap < W / viewZoom()){ leemVersteen(s, LEEM.steen); return; }
+  }
+
+  if (s.state !== 'beet' && s.state !== 'terug'){
+    const want = s.x > world ? 1 : -1;
+    if (want !== s.side && gap > 30){
+      s.turnT = (s.turnT || 0) + dt;
+      if (s.turnT > 0.15){ s.side = want; s.turnT = 0; }
+    } else s.turnT = 0;
+  }
+  const stop = leemReik() * 0.78;
+  if (s.state === 'jaag'){
+    slangSchuif(s, dt, plats, cliff, LEEM.tempo);
+    s.acc += dt * 12 * LEEM.tempo;
+    while (s.acc >= 1){ s.frame = (s.frame + 1) % 8; s.acc -= 1; }
+    if (gap < stop) leemSet(s, 'dreig', LEEM.dreig);
+  } else if (s.state === 'terug'){
+    s.t += dt;
+    slangSchuif(s, dt, plats, cliff, 1.2);
+    s.acc += dt * 14;
+    while (s.acc >= 1){ s.frame = (s.frame + 1) % 8; s.acc -= 1; }
+    if (s.t >= LEEM.terug){ s.side = s.x > world ? 1 : -1; leemSet(s, 'jaag'); }
+  } else if (s.state === 'dreig' || s.state === 'koel'){
+    s.t -= dt;
+    s.acc += dt * 10;
+    while (s.acc >= 1){ s.frame = (s.frame + 1) % 8; s.acc -= 1; }
+    if (gap > stop + 60) leemSet(s, 'jaag');
+    else if (s.t <= 0){ leemSet(s, 'beet'); s.snel = false; s.biteUsed = false; }
+  } else if (s.state === 'beet'){
+    s.acc += dt * (s.snel ? LEEM.uitvalFps : LEEM.beetFps);
+    while (s.acc >= 1){ s.frame++; s.acc -= 1; }
+    if (s.frame >= 8) leemSet(s, 'koel', LEEM.koel);
+  }
+}
+// zijn beet raakt: jij versteent, en hij verstijft mee
+function leemBijt(s){
+  s.biteUsed = true;
+  playRaak();
+  amirSteen = LEEM.amirSteen; hurt = LEEM.amirSteen; invuln = LEEM.amirSteen + 0.6; shake = 0.3;
+  thrHurt();
+  duckT = 0; leemStilT = 0;
+  if (!sandbox && !onsterfelijk()){
+    lives = Math.max(0, lives - LEEM.schade); drawLives();
+    if (lives <= 0){ dead = true; deadEl.classList.add('on'); }
+  }
+  s.naBeet = true;
+  leemVersteen(s, LEEM.steenNaBeet);
+}
+// een treffer: op steen slaat hij er een stuk af, op leem glijdt je speer eraf
+function leemRaak(s, van){
+  if (s.inv > 0 || s.state === 'dood') return;
+  s.inv = 0.35;
+  if (s.state !== 'steen'){
+    s.flash = 0.2;
+    s.vx = (s.x < playerX() ? -1 : 1) * 180;
+    return;
+  }
+  if (s.geraakt){ puffWorld(s.x, 3, 0, 0.6, s.base); return; }   // een per keer steen
+  s.geraakt = true;
+  s.hp--; hits++; hitsEl.textContent = hits;
+  shake = Math.max(shake, 0.2);
+  if (s.hp <= 0){
+    leemBrokken(s, 40, 1.4); puffWorld(s.x, 20, 0, 1.6, s.base);
+    s.state = 'dood'; s.t = 0;
+    return;
+  }
+  leemBrokken(s, 12, 1); puffWorld(van, 8, 0, 1, s.base);
+  s.t = LEEM.naRaak;                               // en nu heb je nog even
+}
+
+// tekenen, en meteen de treffers in beide richtingen, net als bij de slangen
+function drawLeemBazen(o){
+  const { cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, attacking, hitBy } = o;
+  // de stukjes steen
+  if (leemBrok.length){
+    ctx.save();
+    for (const b of leemBrok){
+      const k = 1 - Math.max(0, (b.t - b.life * 0.6) / (b.life * 0.4));
+      ctx.globalAlpha = k;
+      ctx.fillStyle = '#8f8a82';
+      ctx.save();
+      ctx.translate(cx + (b.x - world), groundY - b.h * scale);
+      ctx.rotate(b.rot);
+      const r = b.r * scale * 1.6;
+      ctx.beginPath(); ctx.moveTo(-r, -r * 0.4); ctx.lineTo(r * 0.3, -r); ctx.lineTo(r, r * 0.2); ctx.lineTo(-r * 0.2, r * 0.8);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(40,36,32,0.5)'; ctx.fillRect(-r * 0.2, 0, r * 0.8, r * 0.5);
+      ctx.fillStyle = '#8f8a82';
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+  const sS = leemScale();
+  const sw = SNK_W * sS, sh = SNK_H * sS;
+  for (const s of leemBazen){
+    const schud = s.schud > 0 ? (Math.random() - 0.5) * 6 * s.schud * scale : 0;
+    const sx = cx + (s.x - world) - sw / 2 + schud;
+    const sBase = (s.base || 0) * scale;
+    const sy = groundY - SNK_GROUND * sS - sBase;
+    if (sx > W / viewZoom() + W || sx < -2 * sw - W) continue;
+    const img = leemFrame(s);
+    if (!imgReady(img)) continue;
+    const steen = s.state === 'steen' || s.state === 'dood';
+
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, s.alpha) * 0.24; ctx.fillStyle = '#1d140f';
+    ctx.beginPath(); ctx.ellipse(sx + sw / 2 - schud, groundY - sBase, sw * 0.32, sh * 0.06, 0, 0, Math.PI * 2);
+    ctx.fill(); ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, s.alpha);
+    ctx.translate(sx, sy);
+    if (s.side === 1){ ctx.translate(sw, 0); ctx.scale(-1, 1); }
+    if (steen){
+      ctx.drawImage(leemKopie(img, 'steen'), 0, 0, sw, sh);
+      if (s.schud > 0){                            // hij kleurt terug: zo zie je hem loskomen
+        ctx.globalAlpha = Math.max(0, s.alpha) * s.schud * s.schud;
+        ctx.drawImage(leemKopie(img, 'leem'), 0, 0, sw, sh);
+      }
+    } else {
+      const l = leemKopie(img, 'leem');
+      ctx.drawImage(s.flash > 0 ? whiteCopy(l, s.flash * 4) : l, 0, 0, sw, sh);
+    }
+    ctx.restore();
+    if (s.state === 'dood') continue;
+
+    const bl = s.side === 1 ? SNK_W - SNK_BOX.r : SNK_BOX.l;
+    const br = s.side === 1 ? SNK_W - SNK_BOX.l : SNK_BOX.r;
+    const sbox = { l: sx + bl * sS, r: sx + br * sS, t: sy + SNK_BOX.t * sS, b: sy + SNK_BOX.b * sS };
+
+    let strike = null;
+    if (s.state === 'beet' && SNK_STRIKE[s.frame] !== undefined){
+      const reach = SNK_STRIKE[s.frame];
+      const headX = s.side === 1 ? SNK_W - SNK_HEAD.x : SNK_HEAD.x;
+      const tipX  = s.side === 1 ? headX - reach : headX + reach;
+      strike = { l: sx + Math.min(headX, tipX) * sS - SNK_STRIKE_R * 0.4 * sS,
+                 r: sx + Math.max(headX, tipX) * sS + SNK_STRIKE_R * 0.4 * sS,
+                 t: sy + (SNK_HEAD.y - SNK_STRIKE_R) * sS,
+                 b: sy + (SNK_HEAD.y + SNK_STRIKE_R * 1.15) * sS };
+      if (!s.biteUsed && invuln <= 0 && !dead && hitBy(strike, pbox)) leemBijt(s);
+    }
+    if (showBoxes){
+      ctx.save();
+      ctx.globalAlpha = 0.5; ctx.lineWidth = 2; ctx.strokeStyle = steen ? '#cfc8bb' : '#7fd4ff';
+      ctx.strokeRect(sbox.l, sbox.t, sbox.r - sbox.l, sbox.b - sbox.t);
+      if (strike){ ctx.strokeStyle = '#ff6b6b'; ctx.strokeRect(strike.l, strike.t, strike.r - strike.l, strike.b - strike.t); }
+      ctx.restore();
+    }
+    // de speerpunt
+    if (attacking && !swingUsed && ATK_ACTIVE.indexOf(atkFrame) !== -1){
+      const dxv = TIP_DX[atkFrame] * scale;
+      const tipX = pcx + (facing === 1 ? -dxv : dxv);
+      const tipY = y + TIP_Y[atkFrame] * scale;
+      const reach = 40 * scale;
+      if (tipX + reach > sbox.l && tipX - reach < sbox.r && tipY + reach > sbox.t && tipY - reach < sbox.b){
+        swingUsed = true; leemRaak(s, world + (tipX - cx)); continue;
+      }
+    }
+    // de geworpen speer ketst af, op leem en op steen
+    if (javRaakt(sbox)){ javHitEnemy(); s.flash = steen ? 0 : 0.15; puffWorld(s.x, 4, 0, 0.7, s.base); continue; }
+    // de lage zwaai
+    if (s.sweptId !== sweepId && hitBy(swbox, sbox)){ s.sweptId = sweepId; leemRaak(s, s.x); }
+  }
+}
+function drawLeemBalk(){
+  const b = leemBazen.find(s => s.hissed && (s.state !== 'dood' || s.alpha > 0));
+  if (!b) return;
+  const bw = Math.min(360, W * 0.5), bh = 12, x0 = (W - bw) / 2, y0 = 28;
+  ctx.save();
+  ctx.globalAlpha = b.state === 'dood' ? Math.max(0, b.alpha) : 1;
+  ctx.font = '600 14px system-ui, sans-serif'; ctx.textAlign = 'center';
+  ctx.fillStyle = '#f2e8d5'; ctx.fillText('Leemslang', W / 2, y0 - 8);
+  const seg = (bw - 4 * (LEEM.hp - 1)) / LEEM.hp;
+  for (let i = 0; i < LEEM.hp; i++){
+    const sx = x0 + i * (seg + 4);
+    ctx.fillStyle = 'rgba(20,14,20,0.6)'; ctx.fillRect(sx, y0, seg, bh);
+    if (i < b.hp){ ctx.fillStyle = '#b98a4e'; ctx.fillRect(sx + 2, y0 + 2, seg - 4, bh - 4); }
+  }
+  ctx.restore();
+}
+
 function gapBetween(a, b){                        // ligt er een ravijn tussen twee punten?
   const lo = Math.min(a, b), hi = Math.max(a, b);
   for (const g of gapList()) if (g.x + g.w / 2 > lo && g.x - g.w / 2 < hi) return true;
@@ -8646,8 +9026,8 @@ function scpImg(s){
 // daarom kleuren we een kopie op een apart doek en tekenen we die.
 const flashCv = document.createElement('canvas');
 function whiteCopy(img, amount){
-  if (!img.naturalWidth) return img;
-  flashCv.width = img.naturalWidth; flashCv.height = img.naturalHeight;
+  if (!(img.naturalWidth || img.width)) return img;
+  flashCv.width = img.naturalWidth || img.width; flashCv.height = img.naturalHeight || img.height;
   const g = flashCv.getContext('2d');
   g.drawImage(img, 0, 0);
   g.globalCompositeOperation = 'source-atop';
@@ -9604,7 +9984,7 @@ function loop(now){
   // tussen de fakkels door: level gehaald
   if (running && !building && !sandbox && !won && !dead && level && level.ends &&
       level.ends.some(f => Math.abs(world - f.x) < 50 && ph >= terrainH(f.x) - 5)){
-    if (bossBlocking()){ if (!bossHintT || now - bossHintT > 2500){ bossHintT = now; flashHint(winterOn() ? 'Versla eerst de witte panter' : 'Versla eerst de zwarte panter'); } }
+    if (bossBlocking()){ if (!bossHintT || now - bossHintT > 2500){ bossHintT = now; flashHint(leemBazen.length || (level.spawns || []).some(sp => sp.kind === 'leem') ? 'Versla eerst de leemslang' : winterOn() ? 'Versla eerst de witte panter' : 'Versla eerst de zwarte panter'); } }
     else winLevel();
   }
   if (!building) blockByPlatforms(plats, halfWNow);
@@ -9635,6 +10015,7 @@ function loop(now){
   updatePanthers(dt, plats, cliff);
   updateHyenas(dt, plats, cliff);
   updateZwaarden(dt, plats, cliff);
+  updateLeemBazen(dt, plats, cliff);
   if (!building) updateVenom(dt, scaleNow); else { venom.length = 0; splat.length = 0; }
   if (!building) updateWind(dt); else { wind.length = 0; gust = null; }
   updateSnowfall(dt);
@@ -10147,13 +10528,13 @@ function loop(now){
 
     javDraw(groundY, scale, cx, 'rust');              // een speer in de grond of in een wand: achter Amir
     drawSweepDust(true, cx, groundY, lift, scale);    // stof achter Amir langs
-    const blink = invuln > 0 && !dead && Math.floor(invuln * 14) % 2 === 0;
+    const blink = invuln > 0 && !dead && amirSteen <= 0 && Math.floor(invuln * 14) % 2 === 0;
     ctx.save();
     ctx.globalAlpha = blink ? 0.45 : 1;
     ctx.translate(x, y);
     if (useThrow ? thrFlip() : (autoFlip && facing === 1)){ ctx.translate(w, 0); ctx.scale(-1, 1); }
-    ctx.drawImage(img, 0, 0, w, h);
-    if (hurt > 0){                                    // red impact tint
+    ctx.drawImage(amirSteen > 0 ? leemKopie(img, 'steen') : img, 0, 0, w, h);   // door de leemslang versteend
+    if (hurt > 0 && amirSteen <= 0){                  // red impact tint
       ctx.globalCompositeOperation = 'source-atop';
       ctx.globalAlpha = Math.min(0.75, hurt * 2);
       ctx.fillStyle = '#c0392b';
@@ -10728,6 +11109,9 @@ function loop(now){
       }
     }
 
+    // ---- de leemslang ----------------------------------------------------
+    drawLeemBazen({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, attacking, hitBy });
+
     // ---- de speer tegen het doornbos ----------------------------------
     for (const t of thickets){
       if (t.stage >= THICKET_HITS) continue;          // een stronk hak je niet verder
@@ -11244,7 +11628,7 @@ function readLevel(txt){
            spawns: (o.spawns || []).map(s => ({ x: Number(s.x),
                                                 kind: s.k === 'zwart' ? 'zwart' : s.k === 'scorp' ? 'scorp'
                                                     : s.k === 'panter' ? 'panter' : s.k === 'hyenas' ? 'hyenas'
-                                                    : s.k === 'zwaard' ? 'zwaard' : 'groen',
+                                                    : s.k === 'zwaard' ? 'zwaard' : s.k === 'leem' ? 'leem' : 'groen',
                                                 // alleen de zwaardvechter heeft een kleur: rood, blauw of groen
                                                 kleur: ZW_KLEUREN[s.c] ? s.c : 'rood',
                                                 n: Math.max(1, Math.min(2, Math.round(Number(s.n) || 1))) })),
@@ -11281,6 +11665,7 @@ function readLevel(txt){
            holtes: (o.holtes || []).map(q => ({ r: Number(q.r), l: Number(q.l),
                                                 diep: Math.max(HOLTE_DAK + CHAR_H, Number(q.diep) || 600) })),
            valschade: !!o.valschade,                    // een diepe val kost levens (standaard uit)
+           onsterfelijk: !!o.onsterfelijk,              // om iets te proberen: je raakt geen levens kwijt
            ledges: (o.ledges || []).map(q => ({ x: Number(q.x), h: Number(q.h) || 0, s: Number(q.s) || 1 })),
            // rotsgebieden als raster: zie de sectie "grotten: rots als een raster van cellen"
            grotten: (o.grotten || []).map(q => ({
@@ -11348,7 +11733,8 @@ const SUBS = {
   'Test 1: Gang, dak en klimmen': 'Dak, trap en een gang door de rots',
   'Test 2: De zwaardvechters': 'Eerst een losse, dan twee tegelijk',
   'Test 3: De rots met de rune': 'Raak de schijf met je speer, dan gaat de wand open',
-  'Test 4: De val in de grot': 'Het ravijn in, en onder de grond verder'
+  'Test 4: De val in de grot': 'Het ravijn in, en onder de grond verder',
+  'Test 5: De leemslang': 'Een grote slang. Zoek zelf uit hoe hij werkt'
 };
 function buildCards(el, list){
   el.innerHTML = '';
@@ -11430,7 +11816,7 @@ function stopSandbox(){
   document.getElementById('lives').style.display = '';
   sandboxEl.classList.remove('on');
   level = savedLevel; savedLevel = null;
-  scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; zwaarden.length = 0;
+  scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; zwaarden.length = 0; leemBazen.length = 0;
   deadEl.classList.remove('on'); restart();
   startEl.classList.remove('off');
   barEl.classList.add('hide');
@@ -11450,6 +11836,7 @@ function sbSpawn(kind){
     zwaarden.push(z);
   }
   else if (kind === 'scorp'){ scorps.push(makeScorp(x, side)); }
+  else if (kind === 'leem'){ const b = makeLeem(x, side); b.base = terrainH(x); leemBazen.push(b); }
   else if (kind === 'panter'){
     const p = makePanther(x, side);
     p.base = terrainH(x);                           // staat er een terras, dan begint hij daarop
