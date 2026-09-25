@@ -192,6 +192,31 @@ Alles los te proberen met de knoppen onder **Rots** in de sandbox: een gang met 
 en naast je, een dak om je hoofd aan te stoten, een uitstekende pilaar en een trap om op te
 klimmen. Elke druk geeft een andere seed. Met **Hitboxen aan** zie je welke cellen vol zijn.
 
+## Vallen doet pijn
+
+Een diepe val kan een leven kosten. Dat staat standaard uit: de levels die er al waren zijn
+ontworpen zonder valschade en spelen precies zoals je gewend bent. Een level zet het zelf
+aan, en in de sandbox doe je het met een knop.
+
+Staat het aan, dan telt niet hoe hard je neerkomt maar hoe diep je gevallen bent, gemeten
+van de vloer waar je van losliet tot de vloer waar je landt. Je eigen sprong telt dus niet
+mee: op je eigen niveau landen is altijd gratis, en van een kei of een lage trede afstappen
+ook.
+
+| hoe diep | wat het kost |
+| --- | --- |
+| minder dan een Amir | niets |
+| een tot twee Amir | 1 leven |
+| dieper dan twee Amir | 2 levens, en nooit meer |
+
+In water landen kost niets: dat breekt je val. Een bodemloos ravijn blijft wat het was, daar
+overleef je niets van.
+
+Los te proberen met de knoppen onder **Vallen** in de sandbox. De knop zet de regel aan, en
+de drie terrassen zetten je meteen boven op een wand van een, twee of drie Amir hoog.
+Eraf stappen laat in beeld zien wat de val gekost zou hebben; levens raak je in de sandbox
+nog steeds niet kwijt.
+
 ## Mappenstructuur## Mappenstructuur
 
 ```

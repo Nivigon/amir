@@ -54,6 +54,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | terrassen en richels | `terraces`, `ledges`, klimmen |
 | de rotswand rechts | `cliffs`, het einde van het level |
 | grotten: rots als een raster van cellen | `grotten`: het raster, de randen, de verstrooiing, de botsingen |
+| vallen: schade bij een diepe val | hoe diep een val telt en wat hij kost |
 | schorpioen, het projectiel, spannen en werpen, de geworpen speer | de speerworp |
 | personages, dorpsdecor | NPC's, `VILLAGE`, de dorpsplaten |
 | stap voor stap leren spelen | het `tutorial`-systeem van de Rosa-levels |
@@ -83,6 +84,7 @@ precies hetzelfde formaat naar JSON.
 | `lagen` | sleutel uit `SCENES`: welk uitzicht dit level krijgt |
 | `winter` | `true` zet het hele level in de sneeuw (witte dieren, sneeuwversies van het decor) |
 | `sneeuw` | sneeuw op de grond, los van `winter`: `{soort, dek, van, tot}` (zie hieronder) |
+| `valschade` | `true` laat een diepe val een of twee levens kosten (standaard uit) |
 | `rocks` | keien om op te springen: `{x, s}` |
 | `spawns` | vijanden: `{x, k}` met `k` = `groen`, `zwart`, `scorp`, `hyenas`, `panter` |
 | `props` | decor: `{x, k, s, f, v}`, `k` uit `PROPS`, `f` spiegelen, `v` verre laag |
