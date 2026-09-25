@@ -10,7 +10,7 @@ en beschrijft wat het spel kan; dit document beschrijft hoe je eraan werkt.
 ## Regels
 
 **1. Bestaande levels blijven met rust.** De leveldefinities in de HTML
-(`GIJS_LEVEL` tot en met `PANTER_PLUS`, `ROSA_1` en `ROSA_2`, `RENEW_1` tot en met
+(`ROSA_1` en `ROSA_2`, `RENEW_1` tot en met
 `RENEW_10`, `WINTER_1` en `WINTER_2`, `DARK_1` tot en met `DARK_5`) zijn bevroren. De
 levels in Episode Test levels (`TEST_1`) vallen daar niet onder: die zijn er juist om aan te rommelen. Er komt geen nieuwe vijand,
 prop, tip, potion of aangepast getal in, ook niet even om iets te laten zien. Alleen
@@ -65,6 +65,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | gaten in de grond | `gaps`, de overkant, de nevel en de diepte; de laag die eronder doorloopt is `grondDoorlopen`, in de bodemsectie |
 | stof, sneeuwval, het weer | deeltjes en het weerplan per potje |
 | vegetatie, water, doornbos | `props`, `water`, `thickets` |
+| slangen: kleur, zicht en patrouille | `SNAKE_DIRS`, `slangZiet`, `startPatrouille`, `slangSchuif` |
 | zwarte panter, de witte panter, de hyena | de grote vijanden |
 | achtergrondlagen, uitzicht per level | `SCENE0` en `SCENES` |
 | startscherm, level maken, menu: kaartjes per level | menu en bouwer |
@@ -306,7 +307,13 @@ Drie lagen, in deze volgorde:
 2. **Band** (`plafondBand`): dezelfde tandenrand als bij de grotten (`GROT.band`, de onderste
    160 bronrijen van `plafond_strook`), maar langs de lijn, en per stuk meegedraaid met de
    helling. Het patroon loopt door over de knikken heen (`plafondFase`), anders begint het bij
-   elk stuk opnieuw en zie je de knik in het steen zitten.
+   elk stuk opnieuw en zie je de knik in het steen zitten. Die fase moet ook doorlopen buiten
+   de lijn: het spel tekent anderhalve schermbreedte breder dan het beeld, dus aan het eind
+   van een level ligt de rand van dat venster voorbij het eerste punt van de lijn. Daar is de
+   lijn vlak (`plafondH` klemt), dus de lengte is gewoon de afstand, en `plafondFase` geeft
+   hem negatief terug. Stopt hij daar op nul, dan staat de fase stil terwijl het stuk tussen
+   de vensterrand en het eerste punt wel meegeteld wordt, en plakt de tandenrand aan het
+   scherm in plaats van aan de wereld: hij schuift dan precies met je mee.
 3. **Losse blokken** (`plafondDecorLijst`): om de `PLAFOND_STAP` wereld-px een plek, waar
    ongeveer een op de drie keer een hangblok of een richel hangt, met een seed uit de lijn zelf.
    Ze worden afgesneden op de lijn: wat erboven uitsteekt zit in het steen. Hoe krapper de
@@ -404,6 +411,12 @@ aangemeld in `MUZIEK`; korte geluiden van personages en dieren horen in `sounds/
 `ahhit.mp3` en `stopit.mp3`, de twee kreten van Amir, bij de hyenageluiden en niet bij de
 muziek. Beide mappen zitten in de offline-download, dus draai na een nieuw bestand
 `tools/gen-offline-manifest.py` opnieuw.
+
+De twee slangen komen uit `tools/slang_kleur.py`: dat kleurt `enemies/slang1/` om naar de
+zandslang in `enemies/slang1_zand/` en `enemies/slang2/` naar de zwarte in
+`enemies/slang2_roet/`. Het spel tekent alleen die twee omgekleurde mappen (`SNAKE_DIRS`); de
+originelen blijven staan als bron, en `venom.png` komt nog steeds uit `slang2/`. Verandert er
+een frame, draai het script dan opnieuw. Ze staan niet in de kleine set.
 
 Winterversies komen uit `tools/sneeuw.py` (rotsen en klimstukken), `sneeuw_bg.py`
 (achtergrondpanelen), `sneeuw_dorp.py` (hutten, boom, struik) en `winter_art.py`
