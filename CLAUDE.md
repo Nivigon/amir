@@ -65,6 +65,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | gaten in de grond | `gaps`, inclusief de overkant en de nevel |
 | stof, sneeuwval, het weer | deeltjes en het weerplan per potje |
 | vegetatie, water, doornbos | `props`, `water`, `thickets` |
+| slangen: kleur, zicht en patrouille | `SNAKE_DIRS`, `slangZiet`, `startPatrouille`, `slangSchuif` |
 | zwarte panter, de witte panter, de hyena | de grote vijanden |
 | achtergrondlagen, uitzicht per level | `SCENE0` en `SCENES` |
 | startscherm, level maken, menu: kaartjes per level | menu en bouwer |
@@ -404,6 +405,12 @@ aangemeld in `MUZIEK`; korte geluiden van personages en dieren horen in `sounds/
 `ahhit.mp3` en `stopit.mp3`, de twee kreten van Amir, bij de hyenageluiden en niet bij de
 muziek. Beide mappen zitten in de offline-download, dus draai na een nieuw bestand
 `tools/gen-offline-manifest.py` opnieuw.
+
+De twee slangen komen uit `tools/slang_kleur.py`: dat kleurt `enemies/slang1/` om naar de
+zandslang in `enemies/slang1_zand/` en `enemies/slang2/` naar de zwarte in
+`enemies/slang2_roet/`. Het spel tekent alleen die twee omgekleurde mappen (`SNAKE_DIRS`); de
+originelen blijven staan als bron, en `venom.png` komt nog steeds uit `slang2/`. Verandert er
+een frame, draai het script dan opnieuw. Ze staan niet in de kleine set.
 
 Winterversies komen uit `tools/sneeuw.py` (rotsen en klimstukken), `sneeuw_bg.py`
 (achtergrondpanelen), `sneeuw_dorp.py` (hutten, boom, struik) en `winter_art.py`

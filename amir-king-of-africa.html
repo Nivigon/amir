@@ -381,7 +381,7 @@
       <button data-tool="einde" data-group="voor">Einde</button>
       <button data-tool="dorpeling" data-group="pers">Dorpeling</button>
       <button data-tool="dorpelinge" data-group="pers">Dorpelinge</button>
-      <button data-tool="groen" data-group="pers">Groene slang</button>
+      <button data-tool="groen" data-group="pers">Zandslang</button>
       <button data-tool="zwart" data-group="pers">Zwarte slang</button>
       <button data-tool="scorp" data-group="pers">Schorpioen</button>
       <button data-tool="hyena1" data-group="pers">Hyena</button>
@@ -423,12 +423,17 @@
     </div>
     <div class="row">
       <button data-spawn="scorp">Schorpioen</button>
-      <button data-spawn="groen">Groene slang</button>
+      <button data-spawn="groen">Zandslang</button>
       <button data-spawn="zwart">Zwarte slang</button>
       <button data-spawn="panter">Panter</button>
       <button data-spawn="hyena1">Hyena</button>
       <button data-spawn="hyena2">2 hyena's</button>
       <button id="sbside">Van rechts</button>
+    </div>
+    <div class="row">
+      <label>Slangen</label>
+      <button id="sbpat">Op patrouille</button>
+      <span class="hint">alsof ze je kwijt zijn: omdraaien en heen en weer, tot je hem weer uitzet</span>
     </div>
     <div class="row">
       <label>Hppotion</label>
@@ -3522,7 +3527,7 @@ function cliffAt(){
   return { wPx, hPx, wall: CLIFF.wall, leftWorld: CLIFF.wall - CLIFF.l * wPx };
 }
 
-const SNAKE_DIRS = { groen: 'enemies/slang1/', zwart: 'enemies/slang2/' };
+const SNAKE_DIRS = { groen: 'enemies/slang1_zand/', zwart: 'enemies/slang2_roet/' };
 const frameList = (dir, n) => [1,2,3,4,5,6,7,8].map(i => dir + n + '_' + i + '.png');
 const SPIT_FRAME = 3;        // op dit frame gaat de bek open en spuwt hij
 // de vluchttijd volgt uit de afstand: dichtbij een vlakke snelle klap,
@@ -6320,6 +6325,64 @@ function snakeSScale(){
   return (CHAR_H * scale * 0.62) / SNK_H;
 }
 
+// ---- uit het oog: omdraaien en patrouilleren ------------------------------
+// Een slang die je kwijt is gaat niet dood en blijft ook niet eindeloos tegen een
+// rots duwen. Is hij je PAT_NA seconden kwijt, dan draait hij om en kruipt hij een
+// stuk heen en weer; ziet hij je weer, dan gaat hij er meteen weer op af.
+// Zien is voor de groene: samen in beeld staan. De zwarte spuwt ook van buiten
+// beeld, dus die houdt je in de gaten zolang je binnen zijn schootsafstand bent.
+const PAT_NA = 5;             // seconden zonder zicht voor hij omdraait
+const PAT_TEMPO = 0.5;        // op patrouille kruipt hij half zo snel
+const PAT_DRAAI = 0.3;        // en na een draai duurt het even voor hij weer draait
+const SPUUG_ZICHT = 1700;     // zo ver blijft de zwarte je volgen, ook buiten beeld
+let sbPatrouille = false;     // sandbox: iedereen op patrouille, om het te kunnen zien
+function patDwang(){ return sandbox && sbPatrouille; }
+function patHeen(){ return SNK_W * snakeSScale() * 0.75; }   // hoe ver hij heen en weer gaat
+
+function slangInBeeld(s){
+  const half = SNK_W * snakeSScale() * 0.5;
+  const sx = W / 2 + (s.x - world);
+  return sx > -half && sx < W + half;
+}
+function slangZiet(s){
+  if (slangInBeeld(s)) return true;
+  return s.kind === 'zwart' && Math.abs(world - s.x) <= SPUUG_ZICHT;
+}
+function startPatrouille(s){
+  s.state = 'patrouille';
+  s.side = -s.side;                            // omdraaien, de andere kant op zoeken
+  s.pThuis = s.x; s.pDraai = PAT_DRAAI;
+  s.frame = 0; s.acc = 0; s.stuck = 0; s.edge = false; s.edgeT = 0;
+}
+
+// het schuiven zelf, hetzelfde voor lopen, teruglopen en patrouilleren: muren, de
+// klif, het eind van het level, de rand van een ravijn en het eind van zijn terras.
+// Geeft terug of hij aan een rand staat en of hij geen meter opschoot.
+function slangSchuif(s, dt, plats, cliff, tempo){
+  const voor = s.x;
+  s.x -= s.side * snakeSpeed() * tempo * dt;
+  if (cliff && s.x > cliff.wall - 60) s.x = Math.min(s.x, cliff.wall - 60);
+  if (s.x < endWall() + 60) s.x = endWall() + 60;
+  for (const p of plats){                      // a rock stops it
+    if (!blocksMonster(p, s.base || 0)) continue;
+    const half = 60 * (p.wPx / 400);
+    if (s.x + half > p.left && s.x - half < p.right){
+      s.x = s.side === 1 ? p.right + half : p.left - half;
+    }
+  }
+  // een ravijn: de kop blijft netjes op de rand staan
+  const halfL = SNK_W * snakeSScale() * 0.45;
+  const pit = inGap(s.x - s.side * halfL);
+  let edge = false;
+  if (pit){
+    s.x = s.side === 1 ? pit.x + pit.w / 2 + halfL : pit.x - pit.w / 2 - halfL;
+    edge = true;
+  } else if (dropAhead(s.x - s.side * halfL, s.base || 0)){   // de rand van zijn terras
+    s.x = voor; edge = true;
+  }
+  return { edge, vast: Math.abs(s.x - voor) < snakeSpeed() * tempo * dt * 0.4 };
+}
+
 function updateSnake(s, dt, plats, cliff){
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
 
@@ -6343,8 +6406,17 @@ function updateSnake(s, dt, plats, cliff){
     return;
   }
 
+  // hoe lang is hij je al kwijt? Een slang die je nog nooit in de gaten heeft
+  // gehad komt gewoon aanzetten; pas wie je een keer had kan je kwijtraken.
+  if (slangZiet(s)){ s.gezien = true; s.blind = 0; }
+  else s.blind = s.gezien ? (s.blind || 0) + dt : 0;
+  if ((s.state === 'walk' || s.state === 'wait') && (s.blind >= PAT_NA || patDwang())) startPatrouille(s);
+  else if (s.state === 'patrouille' && slangZiet(s) && !patDwang()){
+    s.state = 'walk'; s.side = s.x > world ? 1 : -1; s.frame = 0; s.acc = 0; s.stuck = 0;
+  }
+
   // naar je toe draaien als je langs hem bent gesprongen; een beet maakt hij eerst af
-  if (s.state !== 'bite' && s.state !== 'retreat'){
+  if (s.state !== 'bite' && s.state !== 'retreat' && s.state !== 'patrouille'){
     const want = s.x > world ? 1 : -1;
     if (want !== s.side && Math.abs(s.x - world) > 30){
       s.turnT = (s.turnT || 0) + dt;
@@ -6354,26 +6426,8 @@ function updateSnake(s, dt, plats, cliff){
 
   const gap = Math.abs(world - s.x);             // distance to the player, whichever side
   if (s.state === 'walk'){
-    const before = s.x;
-    s.x -= s.side * snakeSpeed() * dt;           // always crawls toward the player
-    if (cliff && s.x > cliff.wall - 60) s.x = Math.min(s.x, cliff.wall - 60);
-    if (s.x < endWall() + 60) s.x = endWall() + 60;
-    for (const p of plats){                      // a rock stops it
-      if (!blocksMonster(p, s.base || 0)) continue;
-      const half = 60 * (p.wPx / 400);
-      if (s.x + half > p.left && s.x - half < p.right){
-        s.x = s.side === 1 ? p.right + half : p.left - half;
-      }
-    }
-    // een ravijn: de kop blijft netjes op de rand staan
-    const halfL = SNK_W * snakeSScale() * 0.45;
-    const pit = inGap(s.x - s.side * halfL);
-    if (pit){
-      s.x = s.side === 1 ? pit.x + pit.w / 2 + halfL : pit.x - pit.w / 2 - halfL;
-      s.edge = true;
-    } else if (dropAhead(s.x - s.side * halfL, s.base || 0)){   // de rand van zijn terras
-      s.x = before; s.edge = true;
-    } else s.edge = false;
+    const r = slangSchuif(s, dt, plats, cliff, 1);   // always crawls toward the player
+    s.edge = r.edge;
     if (s.edge && s.kind !== 'zwart') s.stuck = 0;   // groen wacht aan de rand, geeft niet op
     else if (s.edge && s.kind === 'zwart'){
       // zwartrood aan een ravijn: even kijken, dan omkeren en 3 s weglopen
@@ -6382,42 +6436,43 @@ function updateSnake(s, dt, plats, cliff){
         s.state = 'retreat'; s.t = 0; s.side = -s.side; s.frame = 0; s.acc = 0; s.edge = false; s.edgeT = 0;
       }
     }
-    else if (Math.abs(s.x - before) < snakeSpeed() * dt * 0.4){
+    else if (r.vast){
       s.stuck = (s.stuck || 0) + dt;             // muur, geen voortgang
       // een spuwer hoeft niet dichtbij te komen: die begint gewoon te schieten
-      if (s.kind === 'zwart' && s.stuck > 0.5 && gap < 1700){
+      if (s.kind === 'zwart' && s.stuck > 0.5 && gap < SPUUG_ZICHT){
         s.state = 'wait'; s.frame = 0; s.acc = 0; s.cool = biteGap() * 0.55; s.stuck = 0;
-      } else if (s.stuck > 5){ s.state = 'dying'; s.vx = 0; }   // het opgeven
+      }
+      // en verder blijft hij gewoon duwen: tegen een rots staan is geen reden om
+      // op te lossen. Raakt hij je daarbij kwijt, dan gaat hij hierboven op patrouille.
     } else s.stuck = 0;
     s.acc += dt * 12;
     while (s.acc >= 1){ s.frame = (s.frame + 1) % 8; s.acc -= 1; }
     if (!(s.edge && s.kind === 'zwart') && gap < (s.kind === 'zwart' ? snakeStopGap * 3.4 : snakeStopGap)){ s.state = 'wait'; s.frame = 0; s.acc = 0; s.cool = biteGap() * 0.55; }
+  } else if (s.state === 'patrouille'){
+    // heen en weer over een stuk zo lang als hijzelf. Loopt hij ergens tegenaan,
+    // staat hij aan een rand, of is hij aan het eind van zijn stuk: omdraaien.
+    const r = slangSchuif(s, dt, plats, cliff, PAT_TEMPO);
+    s.edge = false;
+    s.pDraai = Math.max(0, (s.pDraai || 0) - dt);
+    if (s.pDraai <= 0 && (r.vast || r.edge || Math.abs(s.x - s.pThuis) > patHeen())){
+      s.side = -s.side; s.pDraai = PAT_DRAAI; s.frame = 0; s.acc = 0;
+    }
+    s.acc += dt * 12 * PAT_TEMPO;
+    while (s.acc >= 1){ s.frame = (s.frame + 1) % 8; s.acc -= 1; }
   } else if (s.state === 'retreat'){
     s.t += dt;
-    const before = s.x;
-    s.x -= s.side * snakeSpeed() * dt;             // side is omgedraaid, dus hij loopt van je af
-    if (cliff && s.x > cliff.wall - 60) s.x = Math.min(s.x, cliff.wall - 60);
-    if (s.x < endWall() + 60) s.x = endWall() + 60;
-    for (const p of plats){
-      if (!blocksMonster(p, s.base || 0)) continue;
-      const half = 60 * (p.wPx / 400);
-      if (s.x + half > p.left && s.x - half < p.right) s.x = s.side === 1 ? p.right + half : p.left - half;
-    }
-    const halfL2 = SNK_W * snakeSScale() * 0.45;
-    const pit2 = inGap(s.x - s.side * halfL2);
-    if (pit2) s.x = s.side === 1 ? pit2.x + pit2.w / 2 + halfL2 : pit2.x - pit2.w / 2 - halfL2;
-    else if (dropAhead(s.x - s.side * halfL2, s.base || 0)) s.x = before;
+    const r = slangSchuif(s, dt, plats, cliff, 1);   // side is omgedraaid, dus hij loopt van je af
     s.acc += dt * 12;
     while (s.acc >= 1){ s.frame = (s.frame + 1) % 8; s.acc -= 1; }
     // na 3 s, of als jij toch dichterbij komt, draait hij weer om
-    if (s.t >= 3 || Math.abs(s.x - before) < snakeSpeed() * dt * 0.4){
+    if (s.t >= 3 || r.vast){
       s.state = 'walk'; s.side = s.x > world ? 1 : -1; s.frame = 0; s.acc = 0; s.stuck = 0;
     }
   } else if (s.state === 'wait'){
     s.acc += dt * 10;
     while (s.acc >= 1){ s.frame = (s.frame + 1) % 8; s.acc -= 1; }
     s.cool -= dt;
-    if (gap > (s.kind === 'zwart' ? 1700 : snakeStopGap + 18)){ s.state = 'walk'; s.frame = 0; s.acc = 0; }
+    if (gap > (s.kind === 'zwart' ? SPUUG_ZICHT : snakeStopGap + 18)){ s.state = 'walk'; s.frame = 0; s.acc = 0; }
     else if (s.cool <= 0){ s.state = 'bite'; s.frame = 0; s.acc = 0; s.biteUsed = false; s.spat = false; }
   } else if (s.state === 'bite'){
     s.acc += dt * 14;
@@ -7883,7 +7938,7 @@ function whiteCopy(img, amount){
 function snakeImg(s){
   const set = snk[s.kind] || snk.groen;
   if (s.state === 'bite') return set.atk[Math.min(s.frame, set.atk.length - 1)];
-  if ((s.state === 'walk' && !s.edge) || s.state === 'retreat') return set.move[s.frame % set.move.length];
+  if ((s.state === 'walk' && !s.edge) || s.state === 'retreat' || s.state === 'patrouille') return set.move[s.frame % set.move.length];
   return set.idle[s.frame % set.idle.length];
 }
 
@@ -10573,6 +10628,7 @@ function startSandbox(){
 }
 function stopSandbox(){
   sandbox = false; godMode = false; setGodLabel();
+  sbPatrouille = false; sbPatBtn.classList.remove('on');
   sbMuziek = 'bg';
   sbVal = false; setValLabel();
   document.getElementById('lives').style.display = '';
@@ -10884,6 +10940,14 @@ document.getElementById('sbhppotion').onclick = () => sbHppotion(false);
 document.getElementById('sbhppotiondrop').onclick = () => sbHppotion(true);
 const sbSideBtn = document.getElementById('sbside');
 sbSideBtn.onclick = () => { sbFromRight = !sbFromRight; sbSideBtn.textContent = sbFromRight ? 'Van rechts' : 'Van links'; cv.focus(); };
+// slangen: zelf op patrouille zetten, anders is het alleen te zien als je uit beeld loopt
+const sbPatBtn = document.getElementById('sbpat');
+sbPatBtn.onclick = () => {
+  sbPatrouille = !sbPatrouille;
+  sbPatBtn.classList.toggle('on', sbPatrouille);
+  if (!sbPatrouille) for (const s of snakes) if (s.state === 'patrouille') s.blind = 0;
+  cv.focus();
+};
 const sbGodBtn = document.getElementById('sbgod');
 function setGodLabel(){ sbGodBtn.textContent = godMode ? 'Onsterfelijk aan' : 'Onsterfelijk uit'; sbGodBtn.classList.toggle('on', godMode); }
 sbGodBtn.onclick = () => { godMode = !godMode; setGodLabel(); cv.focus(); };
