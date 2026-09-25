@@ -337,7 +337,11 @@ het steen van de grond tot boven de deur massief is, en waar de bovenrand tegeli
 te krijgen. Op deze rots ligt dat een eind naar binnen, want de flank loopt schuin op. De schijf hangt net onder die
 bovenrand, want in zijaanzicht is de rots massief: alles onder de rand zit in het steen, en daar komt geen speer ooit.
 
-Je raakt hem dus alleen door er precies overheen te scheren, en dat lukt maar vanaf een strook van ongeveer honderd
+De rots staat altijd in zijn geheel in beeld, met zijn hele silhouet: hij wordt als geheel geschaald tot hij past, want
+de camera staat op jou en laat een halve schermbreedte naast je zien. Hoe groot hij lijkt hangt daardoor aan het Formaat.
+Op 25 is hij bijna twee keer Amir, op 15 ruim drie keer.
+
+Je raakt de schijf alleen door er precies overheen te scheren, en dat lukt maar vanaf een strook van ongeveer honderd
 pixels breed. Sta je dichter bij de deur, dan gaat de speer eronderdoor tegen de wand; sta je verder weg, dan zakt hij al
 voor de rots. Springen en steken halen de schijf niet, en met de vlakke worp kom je er ook niet bij: alleen de volle boog
 gaat eroverheen, dus je moet de werpknop helemaal uittrekken en goed kijken waar je staat.
