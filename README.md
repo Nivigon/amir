@@ -20,7 +20,7 @@ Of het sneeuwt, verschilt per potje. Bij de start wordt een weerplan geloot: de 
 
 In de winter is al het stof sneeuwstof (de stofplaatjes worden bij het laden wit gemaakt), en bij een landing of een lage zwaai stuift de sneeuw echt op: een brede lage wolk die blijft hangen, een waaier glinsterende kristallen en klonten die in een boog wegvliegen en bij het neerkomen een wolkje geven. Hoe harder je neerkomt, hoe groter de plof.
 
-Test levels zijn korte proefstukken: een enkel level waarin je een mechaniek los kunt bekijken, zonder gevecht en zonder lange tocht eromheen. Ze staan met opzet apart van de echte episodes, zodat daar niets aan hoeft te veranderen om iets nieuws te kunnen proberen. **Test 1: Gang, dak en klimmen** loopt in drie stukken. Eerst een dak van rots over de weg heen: op twee cellen hoogte loop je er rechtop onderdoor, maar springen gaat niet. Dan een trap van drie terrassen omhoog en aan de andere kant weer omlaag. En tot slot een gang door de rots: het plafond zakt van vier cellen bij de ingang naar drie en dan naar twee, er staan twee blokken om op te klimmen (met een drinkkalebas erboven), en helemaal achterin loopt de rots dicht. Daar staan de fakkels die het level uitspelen. De definitie staat in de HTML als `TEST_1`.
+Test levels zijn korte proefstukken: een enkel level waarin je een mechaniek los kunt bekijken, zonder gevecht en zonder lange tocht eromheen. Ze staan met opzet apart van de echte episodes, zodat daar niets aan hoeft te veranderen om iets nieuws te kunnen proberen. **Test 1: Gang, dak en klimmen** loopt in drie stukken, met één plafondlijn die er overheen loopt en op twee plekken in beeld zakt. Eerst een dak van rots over de weg heen: boven de kei ligt het net hoog genoeg om erop te springen, en een stuk verder zakt het zo ver dat je met springen niets meer haalt. Dan een trap van drie terrassen omhoog en aan de andere kant weer omlaag, met het plafond dat er schuin overheen weer uit beeld loopt. En tot slot de gang: het plafond zakt schuin naar beneden tot er ruim een lichaamslengte over is, knijpt daarna dicht tot net boven je kruin, en gaat achterin weer omhoog. Daar, in de open lucht, staan de fakkels die het level uitspelen. De definitie staat in de HTML als `TEST_1`.
 
 In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen naar het volgende level van dezelfde reeks. Onder **Instellingen** staan daar ook het tempo van het spel, het looptempo van Amir, het formaat van het beeld en de muziek. Tijdens een level is het speelveld verder leeg: de testbalk met schuifjes staat alleen in de bouwer en de sandbox (met B haal je hem er tijdens het spelen alsnog bij).
 
@@ -192,6 +192,31 @@ Alles los te proberen met de knoppen onder **Rots** in de sandbox: een gang met 
 en naast je, een dak om je hoofd aan te stoten, een uitstekende pilaar en een trap om op te
 klimmen. Elke druk geeft een andere seed. Met **Hitboxen aan** zie je welke cellen vol zijn.
 
+## Het plafond als hoogtelijn
+
+Rots boven je hoeft geen raster te zijn. De grond van het spel is een hoogtelijn: per plek
+in de wereld ligt vast hoe hoog de bodem daar zit. Een level kan het plafond op precies
+dezelfde manier neerzetten, maar dan van bovenaf: een rij punten met een x en een hoogte,
+en daartussen loopt de lijn recht door. Zo zakt de rots geleidelijk, loopt hij schuin, en
+staat er nergens een hoek van negentig graden. Een punt ver boven de bovenrand van het
+scherm betekent: hier is geen plafond, dus dezelfde lijn loopt over het hele level en komt
+alleen in beeld waar je hem wilt hebben.
+
+Het steen wordt in drie lagen getekend. Alles boven de lijn is gevuld met een rotstegel die
+uit de plafondband zelf geknipt is, dus dezelfde brokken in dezelfde maat, naadloos en
+altijd doorlopend tot voorbij de bovenrand van het scherm. Op de lijn hangt de band met de
+grillige tandenrand, die met de helling meedraait. En langs de lijn hangen hier en daar
+blokken en richels die er onderuit steken: die breken de lijn, zodat je geen rechte streep
+over het steen ziet lopen. Ze staan op vaste plekken per level (een seed), en hoe verder de
+lijn zakt, hoe kleiner ze worden, want je moet er niet doorheen hoeven lopen.
+
+De ruimte boven de lijn is massief. Je stoot je hoofd tegen de lijn zelf, ook tegen een
+schuin stuk, en waar de lijn onder je kruin duikt houdt het steen je tegen. De hangblokken
+zijn puur decor; alleen een richel is een plankje waar je op kunt staan.
+
+Los te proberen met de knoppen onder **Plafond** in de sandbox: een ruime gang, een krappe
+gang waar springen niet meer lukt, een schuin zakkend stuk en een golvende lijn.
+
 ## Vallen doet pijn
 
 Een diepe val kan een leven kosten. Dat staat standaard uit: de levels die er al waren zijn
@@ -285,10 +310,13 @@ design/
   bg/laag1/                verre bergen (parallax laag 1); *_sneeuw.png = de winterversie (tools/sneeuw_bg.py)
   bg/laag2/                savanneheuvels (parallax laag 2); *_sneeuw.png = idem, met sneeuw op de ruggen en de vlakte
   botten/                  botten en schedels om op de grond te leggen
-  grot/                    de grot- en ravijnset: plafond_strook, hoek_plafond_wand, wand_rand,
+  grot/                    de grot- en ravijnset: plafond_strook, rots_vulling, hoek_plafond_wand, wand_rand,
                            wand_richel, hangblok_01..03, kei_01..07, kei_rond_01..08. In grot.json
                            staan de maten en de ankerpunten van elk onderdeel; de tekencode rekent
-                           daarmee, dus de kleine versies in klein/ vallen precies op hun plek
+                           daarmee, dus de kleine versies in klein/ vallen precies op hun plek.
+                           rots_vulling is het steen boven een plafondlijn en komt uit het massieve
+                           deel van plafond_strook zelf (tools/rots_vulling.py); hoek_plafond_wand en
+                           wand_rand worden niet meer getekend en blijven liggen voor later
   klimmen/                 klif_bovenrand, klif_richel, klif_binnenhoek
   *_sneeuw.png             winterversies van flatrock, boulder, cliff en de drie klimstukken; gemaakt
                            met tools/sneeuw.py (draai dat opnieuw als een origineel verandert).
