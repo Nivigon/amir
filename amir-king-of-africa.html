@@ -4325,7 +4325,12 @@ function drawVillageProp(id, x, groundY, scale, cx, opt){
   if (!size) return;
   const px = cx + (x - world) - size.w / 2;
   if (px > W / viewZoom() + W || px + size.w < -W) return;   // buiten beeld: niets te doen
-  const py = groundY - size.h + VILLAGE_SINK * size.h - terrainH(x) * scale;
+  // Zelfde stap naar achteren als het losse decor, en depth telt daar bovenop mee: een hut
+  // op depth 0,85 hoort verder weg te staan, niet alleen kleiner te zijn. De voorgrondhut
+  // blijft waar hij staat: die hoort juist vóór Amir langs.
+  const terug = def.layer === 'fg' ? 0
+              : (groundY - edgeCrust(groundY)) * PROP_ACHTER * (1 + depth * VILLAGE_DIEP);
+  const py = groundY - size.h + VILLAGE_SINK * size.h - terrainH(x) * scale - terug;
   let flip = !!o.flip;
   if (flip && !def.mirror){
     if (!villageWarned[id]){ villageWarned[id] = 1; console.warn('niet spiegelbaar, flip genegeerd: ' + id); }
@@ -5454,6 +5459,16 @@ function edgeTop(groundY){                 // bovenkant van de tegel op het sche
 function edgeCrust(groundY){
   return edgeReady() ? groundY - (EDGE.walk - EDGE.kruin) * edgeScale(H * 0.18) : groundY;
 }
+
+// Hoe ver het decor achter de looplijn staat, als deel van de zichtbare grondband
+// (van edgeCrust tot de looplijn). Stond dit op 0, dan kwamen gras, struiken, keien,
+// putten en hutten op exact dezelfde lijn te staan als Amir en de dieren, en dan sta
+// je letterlijk in de planten. In de ontwerptekening staat het decor ongeveer 9 procent
+// van Amirs lengte hoger dan zijn voeten, en op 0,55 van deze band kom je daar precies
+// uit. Verder terug kan niet: grondrand.png heeft maar 49 rijen grondoppervlak boven de
+// looplijn, dus dit is de hele diepte die de tegel te bieden heeft.
+const PROP_ACHTER = 0.55;
+const VILLAGE_DIEP = 0.8;      // en zo veel verder nog per punt depth van een dorpsplaat
 
 // ---- bodem en sneeuwdek -----------------------------------------------------
 // Twee dingen die los van elkaar staan, en dat is met opzet.
@@ -9172,6 +9187,7 @@ function loop(now){
     }
 
     if (level && level.props){
+      const propTerug = (groundY - edgeCrust(groundY)) * PROP_ACHTER;
       for (const pass of [false]){                  // ver weg staat al achter de grond getekend
         for (const p of level.props){
           if (!!p.far !== pass) continue;
@@ -9181,7 +9197,8 @@ function loop(now){
           const pw2 = pim.naturalWidth * (ph2 / pim.naturalHeight);
           const px2 = cx + (p.x - world) - pw2 / 2;
           if (px2 > W / viewZoom() + W || px2 + pw2 < -W) continue;
-          const py2 = groundY - ph2 + (def.sink || 0.02) * ph2 + (p.far ? 4 : 0) - (p.far ? 0 : terrainH(p.x) * scale);
+          const py2 = groundY - ph2 + (def.sink || 0.02) * ph2 + (p.far ? 4 : 0)
+                    - (p.far ? 0 : terrainH(p.x) * scale + propTerug);
           const src2 = p.far ? (propFar[p.kind] || pim) : pim;
           if (VEG[p.kind]){
             drawVeg(p.kind, src2, px2 + pw2 / 2, py2 + ph2, ph2, p.flip, p, p.x, p.far);

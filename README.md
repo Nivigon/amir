@@ -188,6 +188,25 @@ In de sandbox staat onder **Slangen** de knop **Op patrouille**: die zet alles w
 meteen op patrouille en houdt het daar, zodat je het kunt bekijken zonder zelf uit beeld te
 lopen. Nog een keer drukken en ze komen weer op je af.
 
+## Het decor staat een stap naar achteren
+
+De grond is geen lijn maar een band. De tegel `design/grondrand.png` heeft 49 rijen
+grondoppervlak boven de looplijn, en dat is de strook waarop je van voor naar achter diepte
+kunt maken. Amir en de dieren lopen op de voorrand van die band; het decor staat erachter,
+op 55 procent van de band (`PROP_ACHTER`). Dorpsplaten gaan mee, en daar telt `depth` er
+bovenop mee (`VILLAGE_DIEP`), zodat een hut op `depth: 0.85` ook echt verder weg staat in
+plaats van alleen kleiner te zijn. De voorgrondhut blijft waar hij staat, want die hoort
+juist vóór Amir langs.
+
+Zonder die stap stonden gras, struiken, keien, putten en hutten op exact dezelfde lijn als
+Amir, en dan sta je letterlijk in de planten: een pol gras komt dan tussen je voeten omhoog,
+en een gevallen lichaam krijgt een struik door zijn borst. In de ontwerptekening van het
+dorp staat het decor ongeveer 9 procent van Amirs lengte hoger dan zijn voeten, en op 0,55
+van de band kom je daar precies uit. Verder terug kan niet: dieper is de tegel niet.
+
+Klimrotsen, terrassen en richels blijven waar ze staan, want daar loop je op. Alleen decor
+zonder botsing schuift mee.
+
 ## De zwaardvechter
 
 De eerste menselijke tegenstander: een man met een zwaard, in drie kleuren (rood, blauw en
