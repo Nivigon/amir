@@ -1983,7 +1983,28 @@ const TEST_3 = {
           { x: -2400, t: 'Houd de werpknop vast tot hij de speer helemaal uittrekt: dan gaat hij in een boog' },
           { x: -3400, t: 'Raak de schijf boven de deur. Staat de deur open, ga ervoor staan en druk op E' } ]
 };
-const TEST_LEVELS = [TEST_1, TEST_2, TEST_3];
+// Test 4: de val in de grot. Een kort stuk savanne, dan een ravijn dat te breed is om over
+// te springen. Eronder ligt geen dood maar een gang onder de grond (holtes), 600 diep: dat is
+// meer dan twee Amir, dus met valschade kost de val twee levens. Beneden is het donker, met
+// alleen wat daglicht uit het gat, en links staan de fakkels.
+const TEST_4 = {
+  name: 'Test 4: De val in de grot',
+  lagen: 'tafelbergen',
+  valschade: true,
+  rocks: [], props: [ {x: -250, k: 'gras', s: 1.1, f: 0, v: 0} ],
+  spawns: [ {x: -60000, k: 'groen'} ],          // heel ver weg: houdt de vrije modus uit
+  terraces: [], ledges: [],
+  hppotions: [],
+  gaps: [ {x: -1000, w: 620} ],                 // van -1310 tot -690: te breed voor een sprintsprong
+  // de gang loopt aan de rechterkant een stuk onder de savanne door, zodat de wand niet
+  // precies onder de rand van het ravijn staat
+  holtes: [ {r: -540, l: -3400, diep: 600} ],
+  village: [], npcs: [], water: [], thickets: [], cliffs: [],
+  ends: [ {x: -3150} ],
+  tips: [ { x: -60, t: 'Testlevel. Verderop is een ravijn. Laat je erin vallen' },
+          { x: -1500, t: 'Een gang onder de grond. Die val kostte twee levens' } ]
+};
+const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4];
 const WINTER_LEVELS = [WINTER_1, WINTER_2];
 let levelIdx = 0;
 
@@ -2055,7 +2076,8 @@ function hasClimb(){ return terraceList().length > 0; }
 function terScale(scale){ return TER.depth * CHAR_H * scale / TER.walk; }
 function ledgeScale(scale, o){ return terScale(scale) * LEDGE.k * (o.s || 1); }
 function terrainH(x){                        // hoogte van het terras op deze plek (0 = grond)
-  let h = 0;
+  const ho = holteAt(x);
+  let h = ho ? -ho.diep : 0;                  // boven een gang onder de grond staat alles op de bodem ervan
   for (const t of terraceList()) if (x >= t.l && x <= t.r && t.h > h) h = t.h;
   // Een vloer in een grotraster is ook terrein: daar komen decor, personages en de
   // fakkels op te staan, in plaats van beneden op de savanne onder de rots.
@@ -4161,7 +4183,7 @@ function looseSpear(){
 
 // ---- de geworpen speer ---------------------------------------------------
 function javFloor(x, plats){                 // hoogte van de vaste grond op deze plek
-  if (!building && inGap(x)) return -Infinity;
+  if (!building && inGap(x) && !holteAt(x)) return -Infinity;
   let s = terrainH(x);
   for (const p of plats){
     if (p.thin) continue;                    // richels en de speer zelf zijn geen wand
@@ -4322,7 +4344,7 @@ function javUpdate(dt, plats, scale){
       }
     }
     if (!building && jav.h <= terrainH(jav.x) + 8 && waterDepthAt(jav.x) > 0.35){ javLose(null); return; }
-    if (jav.h < -GAP_DEATH){ javLose(javGapNear(jav.x)); return; }   // in een ravijn
+    if (jav.h < Math.min(0, terrainH(jav.x)) - GAP_DEATH){ javLose(javGapNear(jav.x)); return; }   // in een ravijn
     if (fNieuw > -Infinity && jav.h <= fNieuw){ javStick(jav.x, fNieuw, 'grond', scale); return; }
   }
 }
@@ -6078,11 +6100,14 @@ function updateJump(dt, plats, halfW){
     // Is de ruimte lager dan Amir, dan kan hij er helemaal niet zijn; dan houdt de wand
     // hem tegen en mag de plafondcap hem niet de grond in duwen.
     if (ph > kop && kop > Math.max(0, supportHeight(plats, halfW))){ ph = kop; if (pvh > 0) pvh = 0; }
+    const hk = holteKop();                      // en in een gang onder de grond tegen het dak
+    if (ph > hk){ ph = hk; if (pvh > 0) pvh = 0; }
   }
   const overGap = !building && !!inGap(world);   // staat er wel grond onder je? (in de bouwer loop je er gewoon overheen)
 
   // op een rots landen kan alleen van bovenaf; van onderen spring je er doorheen
-  let target = overGap ? -Infinity : 0;
+  const bodem = building ? 0 : grondVloer(world, ph);   // grond, bodem van een gang, of niets
+  let target = bodem === null ? -Infinity : bodem;
   for (const p of plats){
     if (world + halfW <= p.left || world - halfW >= p.right) continue;
     if (pvh <= 0 && prevH >= p.topH - 1 && ph <= p.topH && p.topH > target) target = p.topH;
@@ -6097,11 +6122,11 @@ function updateJump(dt, plats, halfW){
     if (winterOn() && !building && waterDepthAt(world) < 0.2) snowBurst(world, target, vIn / 900);   // de sneeuw stuift op
     valLand(diep);
   }
-  if (!onGround && ph < -GAP_DEATH) fallDeath();   // in het gat gevallen
+  if (!onGround && ph < -GAP_DEATH && !holteAt(world)) fallDeath();   // in het gat gevallen (niet als er een gang onder zit)
 
   if (onGround){
     const s = supportHeight(plats, halfW);
-    const floor = s !== 0 ? s : (overGap ? null : 0);
+    const floor = s !== 0 ? s : (building ? 0 : grondVloer(world, ph));
     if (floor !== null && floor >= ph - 1) ph = floor;   // meelopen met de rots
     else if (jump && (jump.phase === 'crouch' || jump.phase === 'push')) takeOff();   // al aan het afzetten: gewoon springen
     else { onGround = false; pvh = 0;                    // van de rand of het gat in
@@ -6111,6 +6136,7 @@ function updateJump(dt, plats, halfW){
 }
 
 function blockByPlatforms(plats, halfW){     // je loopt niet dwars door een rots
+  holteBlok(halfW);                          // en onder de grond niet door de wand van de gang
   for (const p of plats){
     if (p.thin) continue;                    // onder een richel loop je gewoon door
     if (p.cel) continue;                     // rastercellen duwen zelf, per cel (grotBlok)
@@ -6135,6 +6161,195 @@ const liveEls = Array.from(document.getElementById('lives').children);
 const deadEl = document.getElementById('dead');
 function drawLives(){ liveEls.forEach((e, i) => e.classList.toggle('spent', i >= lives)); }
 drawLives();
+
+// ---- holte onder de grond: een ravijn met een bodem ------------------------
+// Een level legt met holtes: [{r, l, diep}] een gang onder de grond. r en l zijn de rechter-
+// en linkerrand in wereld-x (net als bij terraces), diep is hoe ver de vloer onder de
+// grondlijn ligt, in sprite-eenheden. Een ravijn uit gaps dat erboven ligt is de ingang: wie
+// erin valt gaat niet dood, maar komt beneden op de vloer terecht. Met valschade: true kost
+// dat vanaf twee Amir diep (502) twee levens, zie "vallen".
+//
+// Het grondpakket boven de gang is het dak. De onderkant ligt HOLTE_DAK onder de grondlijn,
+// net onder de grondrand, en daar stoot je je hoofd tegen. Met een diepte van 600 houd je
+// 410 over: rechtop lopen gaat, springen net niet helemaal.
+//
+// Er is geen weg terug: het ravijn is breder dan een sprong, en uit de gang spring je niet
+// tot aan de grondlijn. Laat de gang aan de kant van het ravijn wat verder onder de grond
+// doorlopen dan het gat zelf, anders staat de wand precies onder de rand en wordt Amir er
+// tijdens de val tegenaan geduwd.
+//
+// Beneden is het donker (schets E): de looprand van de vloer vangt nog licht, de vulling
+// eronder zakt weg, en de achterwand is hetzelfde steen als de plafondvulling maar veel
+// dieper. Dat donker is een zwarte laag over het steen, dus alleen helderheid: de tint van
+// het steen blijft wat hij is, en er wordt nergens iets grijs of bruin van. Door het gat valt
+// gedempt daglicht naar binnen (schets D, zachter).
+const HOLTE_DAK = 190;             // onderkant van het dak, in sprite-eenheden onder de grondlijn
+const HOLTE_LICHT = { wand: 0.74, rand: 0.3, vulling: 0.88, dak: 0.9, schacht: 0.16 };
+function holteLijst(){ return (level && level.holtes) ? level.holtes : []; }
+function holteAt(x){
+  for (const o of holteLijst()) if (x >= o.l && x <= o.r) return o;
+  return null;
+}
+// De vloer als er geen rots of terras onder je staat: de gewone grond (0), de bodem van een
+// gang, of niets (null, een gewoon ravijn). Onder de grondlijn in een gang telt de grond
+// erboven niet meer, anders sta je na een sprong ineens weer bovenop.
+function grondVloer(x, h){
+  const o = holteAt(x);
+  if (o && (inGap(x) || h < -1)) return -o.diep;
+  return inGap(x) ? null : 0;
+}
+// zo hoog mogen zijn voeten komen: onder het dak, maar niet onder het gat zelf
+function holteKop(){
+  if (building || ph >= -1) return Infinity;
+  const o = holteAt(world);
+  return (o && !inGap(world)) ? -HOLTE_DAK - CHAR_H : Infinity;
+}
+// de wanden aan de uiteinden van de gang
+function holteBlok(halfW){
+  if (building || ph >= -1) return;
+  for (const o of holteLijst()){
+    if (world < o.l - halfW - 60 || world > o.r + halfW + 60) continue;
+    world = Math.max(o.l + halfW, Math.min(o.r - halfW, world));
+  }
+}
+
+// het steen een keer donker zetten: zwart eroverheen, alleen waar het plaatje zelf staat
+function holteDonker(src, laag){
+  const c = document.createElement('canvas');
+  c.width = src.width || src.naturalWidth; c.height = src.height || src.naturalHeight;
+  const g = c.getContext('2d');
+  g.drawImage(src, 0, 0);
+  g.globalCompositeOperation = 'source-atop';
+  laag(g, c.width, c.height);
+  return c;
+}
+let holteBuf = null;
+function holteSet(){
+  const V = plafondVulTegel(), E = bodemPic();
+  if (!V || !imgReady(E)) return null;
+  const sleutel = V.width + 'x' + V.height + '|' + E.src;
+  if (holteBuf && holteBuf.sleutel === sleutel) return holteBuf;
+  const L = HOLTE_LICHT;
+  holteBuf = { sleutel,
+    wand: holteDonker(V, (g, w, h) => { g.fillStyle = 'rgba(0,0,0,' + L.wand + ')'; g.fillRect(0, 0, w, h); }),
+    // de vloer: het loopvlak houdt iets licht, daaronder loopt hij weg in het donker
+    vloer: holteDonker(E, (g, w, h) => {
+      const v = g.createLinearGradient(0, EDGE.kruin, 0, EDGE.solid);
+      v.addColorStop(0, 'rgba(0,0,0,' + L.rand + ')');
+      v.addColorStop((EDGE.walk - EDGE.kruin) / (EDGE.solid - EDGE.kruin), 'rgba(0,0,0,' + (L.rand + 0.1) + ')');
+      v.addColorStop(1, 'rgba(0,0,0,' + L.vulling + ')');
+      g.fillStyle = v; g.fillRect(0, 0, w, h);
+    }) };
+  return holteBuf;
+}
+
+function drawHolte(groundY, scale, cx){
+  const lijst = holteLijst();
+  if (!lijst.length) return;
+  grotLaad();
+  const S = holteSet();
+  if (!S) return;
+  const zoom = viewZoom();
+  const X = wx => cx + (wx - world);
+  const Y = h => groundY - h * scale;
+  const boven = groundY - groundY / zoom - 4;           // bovenrand van het scherm
+  const onder = groundY + (H - groundY) / zoom + 4;     // en de onderrand
+  const dak = Y(-HOLTE_DAK);
+  // Hoe ver de camera mee naar beneden is: 0 als je nog boven staat, 1 op de bodem. Het
+  // donker boven het dak komt pas op als je beneden bent, zodat je van bovenaf gewoon de
+  // savanne ziet.
+  for (const o of lijst){
+    const xl = X(o.l), xr = X(o.r);
+    if (xr < -W || xl > W / zoom + W) continue;
+    const vloer = Y(-o.diep);
+    const diepT = Math.max(0, Math.min(1, -camY / (o.diep * scale * 0.7)));
+    const gaten = gapList().filter(g => g.x + g.w / 2 > o.l && g.x - g.w / 2 < o.r);
+    const tegel = (T, y0, y1) => {                      // een tegel vast aan de wereld
+      const tw = T.width, th = T.height;
+      const ax = Math.round(X(0)), ay = Math.round(Y(0));
+      const x0 = ax - Math.ceil((ax - xl) / tw) * tw, ys = ay - Math.ceil((ay - y0) / th) * th;
+      for (let y = ys; y < y1; y += th)
+        for (let x = x0; x < xr; x += tw) ctx.drawImage(T, x, y);
+    };
+    ctx.save();
+    ctx.beginPath(); ctx.rect(xl, boven - H, xr - xl, onder - boven + 2 * H); ctx.clip();
+
+    // 1. de achterwand, van het dak tot onder de vloer
+    tegel(S.wand, dak - 4, onder);
+
+    // 2. het dak: de tanden van het plafond hangen aan de onderkant van het grondpakket,
+    //    behalve waar het gat zit
+    const T = plafondBandSet();
+    if (T){
+      let van = o.l;
+      const stukken = [];
+      for (const g of gaten.slice().sort((a, b) => a.x - b.x)){
+        stukken.push([van, g.x - g.w / 2]); van = g.x + g.w / 2;
+      }
+      stukken.push([van, o.r]);
+      for (const [a, b] of stukken){
+        if (b - a < 10) continue;
+        const pts = [{ x: a, y: -HOLTE_DAK }, { x: b, y: -HOLTE_DAK }];
+        ctx.save();
+        ctx.filter = 'brightness(' + (1 - HOLTE_LICHT.dak * 0.75) + ')';
+        plafondBand(pts, X, Y, T, boven, scale);
+        ctx.restore();
+      }
+    }
+
+    // 3. de vloer: dezelfde grondrand als boven, maar in het donker
+    {
+      const s = edgeScale(H * 0.18);
+      const tw = S.vloer.width * s, th = S.vloer.height * s;
+      const top = vloer - EDGE.walk * s;
+      let x = X(0) - Math.ceil((X(0) - xl) / tw) * tw;
+      ctx.fillStyle = 'rgb(10,8,9)';
+      ctx.fillRect(xl, top + th - 2, xr - xl, onder - top);
+      for (; x < xr; x += tw) ctx.drawImage(S.vloer, x, top, tw + 1, th);
+    }
+
+    // 4. beneden: alles boven het dak zakt weg in het steen, behalve het gat zelf
+    if (diepT > 0){
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(xl, boven - H, xr - xl, dak - boven + H + 2);
+      for (const g of gaten){
+        const gl = X(g.x - g.w / 2), gr = X(g.x + g.w / 2);
+        ctx.rect(gr, boven - H, gl - gr, dak - boven + H + 2);   // tegen de klok in: een gat in de snede
+      }
+      ctx.clip('evenodd');
+      ctx.globalAlpha = diepT;
+      tegel(S.wand, boven - H, dak + 2);
+      const v = ctx.createLinearGradient(0, dak, 0, boven);
+      v.addColorStop(0, 'rgba(8,6,7,0.35)'); v.addColorStop(1, 'rgba(8,6,7,0.92)');
+      ctx.fillStyle = v; ctx.fillRect(xl, boven - H, xr - xl, dak - boven + H + 2);
+      ctx.restore();
+    }
+
+    // 5. gedempt daglicht door het gat, schuin naar beneden tot op de vloer
+    ctx.globalCompositeOperation = 'lighter';
+    for (const g of gaten){
+      const gl = X(g.x - g.w / 2), gr = X(g.x + g.w / 2), gw = gr - gl;
+      const a = HOLTE_LICHT.schacht;
+      for (const [k, al] of [[1, a * 0.5], [0.7, a * 0.5]]){      // twee lagen: een zachte rand
+        const m = (1 - k) * gw / 2;
+        ctx.beginPath();
+        ctx.moveTo(gl + m, groundY); ctx.lineTo(gr - m, groundY);
+        ctx.lineTo(gr - m + gw * 0.35, vloer); ctx.lineTo(gl + m + gw * 0.1, vloer);
+        ctx.closePath();
+        const sv = ctx.createLinearGradient(0, groundY, 0, vloer);
+        sv.addColorStop(0, 'rgba(255,222,170,' + al + ')');
+        sv.addColorStop(1, 'rgba(255,200,140,' + (al * 0.35) + ')');
+        ctx.fillStyle = sv; ctx.fill();
+      }
+      const px = (gl + gr) / 2 + gw * 0.12, pr = gw * 0.75;
+      const pl = ctx.createRadialGradient(px, vloer, 0, px, vloer, pr);
+      pl.addColorStop(0, 'rgba(255,205,140,' + (a * 0.9) + ')'); pl.addColorStop(1, 'rgba(255,205,140,0)');
+      ctx.fillStyle = pl; ctx.fillRect(px - pr, vloer - pr, pr * 2, pr * 2);
+    }
+    ctx.restore();
+  }
+}
 
 // ---- vallen: schade bij een diepe val -------------------------------------
 // Staat standaard uit. Een level vraagt er zelf om met valschade: true, en in de sandbox
@@ -9508,6 +9723,7 @@ function loop(now){
     }
     drawPlafond(groundY, scale, cx);               // de rots boven je: vulling, band en losse blokken
     drawGrotten(groundY, scale, cx);               // grotten en ravijnen: het steen om de opening heen
+    drawHolte(groundY, scale, cx);                 // een gang onder de grond: donker, met licht uit het gat
 
     ctx.save();
     ctx.globalAlpha = 0.22; ctx.fillStyle = '#1d140f';
@@ -10902,6 +11118,8 @@ function syncLevel(){
     plafond: (level.plafond || []).map(o => ({ x: Math.round(o.x), y: Math.round(o.y) })),
     muur: level.muur || undefined,           // zonder rotswand valt het veld weg
     terraces: (level.terraces || []).map(o => ({ r: o.r, l: o.l, h: o.h })),
+    holtes: (level.holtes || []).map(o => ({ r: o.r, l: o.l, diep: o.diep })),
+    valschade: level.valschade || undefined,
     ledges: (level.ledges || []).map(o => ({ x: o.x, h: o.h, s: o.s })),
     grotten: (level.grotten || []).map(o => ({
       x: Math.round(o.x), y: o.y || 0, cel: o.cel || GROT_CEL, hoog: o.hoog || 1,
@@ -11020,6 +11238,10 @@ function readLevel(txt){
                             speer: (o.muur.speer === undefined || o.muur.speer === null)
                                    ? null : Number(o.muur.speer) } : null,
            terraces: (o.terraces || []).map(q => ({ r: Number(q.r), l: Number(q.l), h: Number(q.h) || 0 })),
+           // gangen onder de grond: zie "holte onder de grond"
+           holtes: (o.holtes || []).map(q => ({ r: Number(q.r), l: Number(q.l),
+                                                diep: Math.max(HOLTE_DAK + CHAR_H, Number(q.diep) || 600) })),
+           valschade: !!o.valschade,                    // een diepe val kost levens (standaard uit)
            ledges: (o.ledges || []).map(q => ({ x: Number(q.x), h: Number(q.h) || 0, s: Number(q.s) || 1 })),
            // rotsgebieden als raster: zie de sectie "grotten: rots als een raster van cellen"
            grotten: (o.grotten || []).map(q => ({
@@ -11086,7 +11308,8 @@ const SUBS = {
   'Dark Africa 5: Het hart van de duisternis': 'Alles, en dan de panter',
   'Test 1: Gang, dak en klimmen': 'Dak, trap en een gang door de rots',
   'Test 2: De zwaardvechters': 'Eerst een losse, dan twee tegelijk',
-  'Test 3: De rots met de rune': 'Raak de schijf met je speer, dan gaat de wand open'
+  'Test 3: De rots met de rune': 'Raak de schijf met je speer, dan gaat de wand open',
+  'Test 4: De val in de grot': 'Het ravijn in, en onder de grond verder'
 };
 function buildCards(el, list){
   el.innerHTML = '';
