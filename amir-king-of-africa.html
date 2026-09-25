@@ -415,8 +415,7 @@
       <button data-spawn="panter">Panter</button>
       <button data-spawn="hyena1">Hyena</button>
       <button data-spawn="hyena2">2 hyena's</button>
-      <button data-spawn="leem">Leemslang</button>
-      <button data-spawn="leem3">3 leemslangen</button>
+      <button data-spawn="leem">3 leemslangen</button>
       <button id="sbside">Van rechts</button>
     </div>
     <div class="row">
@@ -2008,28 +2007,26 @@ const TEST_4 = {
   tips: [ { x: -60, t: 'Testlevel. Verderop is een ravijn. Laat je erin vallen' },
           { x: -1500, t: 'Een gang onder de grond. Die val kostte twee levens' } ]
 };
-// Test 5: de leemslangen. Ze komen in groepjes, steeds eentje meer: eerst een losse om te
-// ontdekken hoe hij werkt, dan twee, dan drie. In een groepje houden ze afstand en komen ze na
-// elkaar, dus over ze heen springen helpt niet: je moet het trucje gebruiken. Je bent hier
-// onsterfelijk (onsterfelijk: true): een beet versteent je wel, maar er gaat geen leven af.
-// De tips zeggen met opzet niet hoe je ze verslaat.
+// Test 5: de leemslangen. Ze komen altijd met z'n drieen, en hier drie keer: een groep om
+// te ontdekken hoe ze werken, en daarna nog twee. Binnen een groep houden ze afstand en komen
+// ze na elkaar, dus over ze heen springen helpt niet: je moet het trucje gebruiken. Je bent
+// hier onsterfelijk (onsterfelijk: true): een beet versteent je wel, maar er gaat geen leven
+// af. De tips zeggen met opzet niet hoe je ze verslaat.
 const TEST_5 = {
   name: 'Test 5: De leemslangen',
   lagen: 'tafelbergen',
   onsterfelijk: true,
   rocks: [],
   props: [ {x: -250, k: 'gras', s: 1.1, f: 0, v: 0}, {x: -600, k: 'struik', s: 1.0, f: 1, v: 0},
-           {x: -1000, k: 'tree', s: 1.1, f: 0, v: 1}, {x: -2900, k: 'boulder', s: 0.9, f: 1, v: 0},
-           {x: -4300, k: 'gras', s: 1.2, f: 0, v: 0}, {x: -5900, k: 'struik', s: 1.0, f: 0, v: 0},
-           {x: -6300, k: 'gras', s: 1.1, f: 1, v: 0} ],
-  spawns: [ {x: -2100, k: 'leem'},                                          // eerst een losse
-            {x: -3700, k: 'leem'}, {x: -3950, k: 'leem'},                   // dan twee
-            {x: -5300, k: 'leem'}, {x: -5550, k: 'leem'}, {x: -5800, k: 'leem'} ],   // en dan drie
+           {x: -1000, k: 'tree', s: 1.1, f: 0, v: 1}, {x: -3200, k: 'boulder', s: 0.9, f: 1, v: 0},
+           {x: -4700, k: 'gras', s: 1.2, f: 0, v: 0}, {x: -6400, k: 'struik', s: 1.0, f: 0, v: 0},
+           {x: -6800, k: 'gras', s: 1.1, f: 1, v: 0} ],
+  spawns: [ {x: -2100, k: 'leem'}, {x: -4100, k: 'leem'}, {x: -6100, k: 'leem'} ],   // elk een groep van drie
   terraces: [], ledges: [],
   hppotions: [],
   fg: { from: -80, to: -700 },
   village: [], npcs: [], gaps: [], water: [], thickets: [], cliffs: [],
-  ends: [ {x: -7000} ],
+  ends: [ {x: -7600} ],
   tips: [ { x: -60, t: 'Testlevel. Je kunt hier niet doodgaan. Pak je speer op en loop door' } ]
 };
 const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5];
@@ -6992,10 +6989,9 @@ function updateSnakes(dt, plats, halfWNow, cliff){
         const z = makeZwaard(zx, zx > world ? 1 : -1, sp.kleur);
         z.base = terrainH(zx); zwaarden.push(z); continue;
       }
-      if (sp.kind === 'leem'){
+      if (sp.kind === 'leem'){                   // altijd een groep van drie
         const lx = spawnPoint(sp.x);
-        const b = makeLeem(lx, lx > world ? 1 : -1);
-        b.base = terrainH(lx); leemSlangen.push(b); continue;
+        leemGroep(lx, lx > world ? 1 : -1); continue;
       }
       const x = spawnPoint(sp.x);
       if (sp.kind === 'scorp'){ const k = makeScorp(x, x > world ? 1 : -1); k.base = terrainH(x); scorps.push(k); continue; }
@@ -8548,8 +8544,10 @@ function hitZwaard(s){
 
 // ---- de leemslang: wordt steen als je stilzit -------------------------------
 // Een zandslang van de gewone maat, in fosforkleur: donker mosgroen met geelgroene zadels, en
-// ogen die pulseren. Ze komen in groepjes en houden afstand van elkaar, zodat ze na elkaar op
-// je af komen: over de een heen springen zet je voor de volgende neer. Ze jagen op beweging:
+// ogen die pulseren, iets kleiner dan een gewone slang. Ze komen altijd met z'n drieen, maar
+// nooit precies tegelijk (leemGroep): elk heeft zijn eigen afstand, zijn eigen vertrektijd en
+// zijn eigen tempo. Ze houden afstand van elkaar, zodat ze na elkaar op je af komen: over de
+// een heen springen zet je voor de volgende neer. Ze jagen op beweging:
 // zit je gebukt stil terwijl ze op je af komen, dan zien ze je niet meer en verstijven ze
 // allemaal tot steen. Een stenen slang breekt op een directe steek. De lage zwaai en een
 // geworpen speer doen niets, en op het groene lijf ketst je steek af (LEEM.vlees zet dat om).
@@ -8566,10 +8564,14 @@ function hitZwaard(s){
 // pulseert (leemOgen). Een ruwe schets, om het gedrag te proberen. Als steen zijn de ogen
 // dicht; in de laatste halve seconde gaan ze weer gloeien, zo zie je hem loskomen.
 const LEEM = {
-  groot: 1,            // zoveel keer een gewone slang; groter wordt het plaatje opgeblazen en wazig
+  groot: 0.8,          // zoveel keer een gewone slang; boven de 1 wordt het plaatje opgeblazen en wazig
+  groep: 3,            // zoveel komen er altijd tegelijk
+  tussen: [0.5, 0.75], // afstand tussen twee in een groep, in slanglengtes (willekeurig daartussen)
+  vertrek: [0.05, 0.35], // en zoveel seconden later vertrekt de volgende (willekeurig daartussen)
+  eigenTempo: 0.12,    // elk kruipt tot zoveel sneller of trager dan LEEM.tempo
   hp: 1,               // zoveel treffers op steen
   vlees: false,        // true: een steek doodt hem ook als hij niet versteend is
-  ruimte: 0.75,        // zo ver houden ze afstand van elkaar, als deel van hun lengte
+  ruimte: 0.45,        // zo ver houden ze afstand van elkaar, als deel van hun lengte
   tempo: 0.8,          // kruipt iets trager dan een gewone slang
   stil: 0.5,           // zo lang moet je gebukt stilzitten voor hij het merkt (s)
   steen: 3.0,          // zo lang blijft hij steen als jij hem versteent (s)
@@ -8681,10 +8683,24 @@ function amirStil(){
   return duckT >= 1 && onGround && !jump && swFrame < 0 && swRecover <= 0 && atkFrame < 0 && !thr && hurt <= 0;
 }
 function makeLeem(x, side){
-  return { x, side, base: 0, state: 'jaag', frame: 0, acc: 0, t: 0,
+  return { x, side, base: 0, state: 'jaag', frame: 0, acc: 0, t: 0, wacht: 0, tempo: 1,
            hp: LEEM.hp, flash: 0, inv: 0, alpha: 1, vx: 0,
            zag: true, naBeet: false, geraakt: false, biteUsed: false, sweptId: -1,
            steenImg: null, hissed: false, schud: 0 };
+}
+// een groep van drie, achter elkaar vanaf x, aan de kant side. De eerste komt op x, de rest
+// steeds verder buiten beeld, met een eigen vertrektijd en een eigen tempo: zo komen ze nooit
+// precies tegelijk en nooit twee keer in hetzelfde ritme.
+function leemGroep(x, side){
+  const lengte = SNK_W * leemScale(), [a, b] = LEEM.tussen, [c, d] = LEEM.vertrek;
+  let lx = x, wacht = 0;
+  for (let i = 0; i < LEEM.groep; i++){
+    if (i > 0){ lx += side * lengte * (a + Math.random() * (b - a)); wacht += c + Math.random() * (d - c); }
+    const s = makeLeem(lx, side);
+    s.base = terrainH(lx); s.wacht = wacht;
+    s.tempo = 1 + (Math.random() * 2 - 1) * LEEM.eigenTempo;
+    leemSlangen.push(s);
+  }
 }
 function leemSet(s, state, t){ s.state = state; s.frame = 0; s.acc = 0; s.t = t || 0; }
 function leemVersteen(s, duur){
@@ -8740,6 +8756,7 @@ function updateLeem(s, dt, plats, cliff){
     if (wantSound){ const hs = document.getElementById('hiss'); hs.currentTime = 0; hs.volume = 0.9; hs.play().catch(() => {}); }
   }
 
+  if (s.wacht > 0){ s.wacht -= dt; return; }       // nog even en dan vertrekt hij ook
   if (s.state === 'dood'){
     s.t += dt;
     if (s.t > 0.5) s.alpha = Math.max(0, 1 - (s.t - 0.5) / 1.2);
@@ -8777,8 +8794,8 @@ function updateLeem(s, dt, plats, cliff){
   }
   const stop = leemReik() * 0.78;
   if (s.state === 'jaag'){
-    if (!leemInDeWeg(s)) slangSchuif(s, dt, plats, cliff, LEEM.tempo);
-    s.acc += dt * 12 * LEEM.tempo;
+    if (!leemInDeWeg(s)) slangSchuif(s, dt, plats, cliff, LEEM.tempo * s.tempo);
+    s.acc += dt * 12 * LEEM.tempo * s.tempo;
     while (s.acc >= 1){ s.frame = (s.frame + 1) % 8; s.acc -= 1; }
     if (gap < stop) leemSet(s, 'dreig', LEEM.dreig);
   } else if (s.state === 'terug'){
@@ -11787,7 +11804,7 @@ const SUBS = {
   'Test 2: De zwaardvechters': 'Eerst een losse, dan twee tegelijk',
   'Test 3: De rots met de rune': 'Raak de schijf met je speer, dan gaat de wand open',
   'Test 4: De val in de grot': 'Het ravijn in, en onder de grond verder',
-  'Test 5: De leemslangen': 'Eén, dan twee, dan drie. Zoek zelf uit hoe ze werken'
+  'Test 5: De leemslangen': 'Altijd met z\'n drieën. Zoek zelf uit hoe ze werken'
 };
 function buildCards(el, list){
   el.innerHTML = '';
@@ -11889,12 +11906,7 @@ function sbSpawn(kind){
     zwaarden.push(z);
   }
   else if (kind === 'scorp'){ scorps.push(makeScorp(x, side)); }
-  else if (kind === 'leem' || kind === 'leem3'){
-    for (let i = 0; i < (kind === 'leem3' ? 3 : 1); i++){
-      const lx = x + side * i * SNK_W * leemScale() * 1.1;   // achter elkaar, verder buiten beeld
-      const b = makeLeem(lx, side); b.base = terrainH(lx); leemSlangen.push(b);
-    }
-  }
+  else if (kind === 'leem') leemGroep(x, side);     // altijd met z'n drieen
   else if (kind === 'panter'){
     const p = makePanther(x, side);
     p.base = terrainH(x);                           // staat er een terras, dan begint hij daarop
