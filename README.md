@@ -160,6 +160,34 @@ en een speer die hem daarbuiten raakt ketst af op zijn vacht. De duik van de
 witte panter zet hem tot zijn buik in de sneeuw: dat is het langste venster en
 je staat er ver genoeg vanaf om te werpen.
 
+## De slangen
+
+Er zijn er twee, en ze zien er anders uit dan eerst. De eerste is de **zandslang**: bleek zand
+met roestbruine zadels en een amberen oog, de kleur van de grond waar hij op ligt. Hij kruipt
+naar je toe en bijt van dichtbij. De tweede is de **zwarte slang**: roetzwart met leisteengrijze
+zadels, en die spuwt gif over een flinke afstand, dus die hoeft niet eens in de buurt te komen.
+Waar het eerst fel groengeel tegenover fel zwartrood was, schelen ze nu in helderheid en niet in
+schreeuwkleur, en staan ze allebei in de aardetinten van het landschap.
+
+De frames komen uit `tools/slang_kleur.py`. Dat script kleurt de twee originele spritesets
+(`enemies/slang1/` en `enemies/slang2/`) om naar `enemies/slang1_zand/` en `enemies/slang2_roet/`;
+de tekening blijft staan, want per kleurvlak worden alleen de tint en de verzadiging vervangen.
+Twee dingen houden met opzet hun eigen kleur: het amberen oog van de zandslang en het vlees in de
+muil van de zwarte. In een leveldefinitie heten ze nog steeds `k: 'groen'` en `k: 'zwart'`.
+
+**Ze verdwijnen niet meer bij een rots, en ze kunnen je kwijtraken.** Loopt een slang tegen een
+kei of een wand, dan blijft hij daar duwen tot jij dichtbij genoeg komt. Vroeger gaf hij het na
+vijf seconden op en loste hij ter plekke op, en dat was precies wat je zag gebeuren als er een
+kei tussen jullie in stond. Ben je vijf seconden uit zijn gezichtsveld, dan draait hij om en gaat
+hij patrouilleren: rustig heen en weer over een stuk zo lang als hijzelf, rond de plek waar hij je
+kwijtraakte. Ziet hij je weer, dan gaat hij er meteen weer op af. Voor de zwarte telt niet het
+beeld maar zijn schootsafstand: zolang jij binnen zijn spuugbereik bent houdt hij je in de gaten,
+ook van buiten beeld, en pas vijf seconden daarbuiten gaat ook hij patrouilleren.
+
+In de sandbox staat onder **Slangen** de knop **Op patrouille**: die zet alles wat er kruipt
+meteen op patrouille en houdt het daar, zodat je het kunt bekijken zonder zelf uit beeld te
+lopen. Nog een keer drukken en ze komen weer op je af.
+
 ## De zwaardvechter
 
 De eerste menselijke tegenstander: een man met een zwaard, in drie kleuren (rood, blauw en
@@ -325,8 +353,10 @@ karakters/
     preview/               sheets en preview-gifs, bronmateriaal
 
 enemies/
-  slang1/                  groene slang: idle_1..8, move_1..8, attack_1..8.png (+ mp4 referenties)
-  slang2/                  zwarte slang: idem, plus venom.png (het gif) en sprite sheets
+  slang1/                  de originele groengele slang: idle_1..8, move_1..8, attack_1..8.png (+ mp4 referenties)
+  slang1_zand/             de zandslang die het spel tekent (uit slang1/, via tools/slang_kleur.py)
+  slang2/                  de originele zwartrode slang: idem, plus venom.png (het gif) en sprite sheets
+  slang2_roet/             de zwarte slang die het spel tekent; venom.png blijft uit slang2/ komen
   schorpioen1/
     schorpioen_walk_12/    walk_01..12.png
     charge/schorpioen_charge_12/  charge_01..12.png
