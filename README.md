@@ -279,6 +279,22 @@ de drie terrassen zetten je meteen boven op een wand van een, twee of drie Amir 
 Eraf stappen laat in beeld zien wat de val gekost zou hebben; levens raak je in de sandbox
 nog steeds niet kwijt.
 
+## Het uitzicht als je hoog staat
+
+De achtergrond bestaat uit lagen die met verschillende snelheden meeschuiven: de verre bergen,
+een tweede bergrij ervoor, en de savanneheuvels het dichtst bij. Klim je een terras op, dan zakt
+jouw grond op het scherm mee met de camera, maar die lagen blijven achter, elk op hun eigen
+tempo. De heuvels houden zich nu vast aan de voet van de bergen in plaats van aan jouw grond, dus
+de bergrij blijft één geheel en de ruimte die het klimmen oplevert valt eronder: de vlakte waar
+je vanaf het terras op neerkijkt, met de verre hutjes en acacia's erin. Wat daar geen geschilderd
+paneel heeft, loopt van de nevelkleur van het level naar de grondkleur, zodat het als afstand
+leest. Vroeger stond daar één effen kleur, en die lag er op een hoog terras als een blauwe balk
+dwars door het landschap.
+
+In de sandbox staan de knoppen onder **Uitzicht**: ze zetten je meteen op een terras van een tot
+vier Amir hoog, zonder valschade, zodat je het uitzicht op hoogte kunt bekijken zonder een level
+te klimmen. **Terug op de vlakte** haalt de terrassen weer weg.
+
 ## Mappenstructuur## Mappenstructuur
 
 ```
