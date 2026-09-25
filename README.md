@@ -6,7 +6,7 @@ Alle sprites, achtergronden en geluiden staan los op schijf. Het spel verwacht d
 
 ## Episodes
 
-In het menu onder **Levels** staan vijf reeksen: Episode 1 (de weg naar het koningschap), Episode Renew, Episode Winter World, de oefenlevels voor Rosa, en Test levels.
+In het menu onder **Levels** staan zes reeksen: Episode 1 (de weg naar het koningschap), Episode Renew, Episode Winter World, Episode Dark Africa, de oefenlevels voor Rosa, en Test levels.
 
 Episode Renew is tien levels lang en loopt op van rustig naar zwaar: van het dorp bij de start en het eerste doornbos, via de poelen, het doornenpad, de heuvelrug, de hyenavlakte, het verdronken dorp en de bergpas, naar de nacht waarin alles tegelijk komt, en tot slot twee keer de zwarte panter als eindbaas. Elk level heeft zijn eigen uitzicht en gebruikt alles wat het spel heeft: drinkkalebassen, doornbossen, water, ravijnen, terrassen en richels, dorpen, botten, hyena's, slangen en schorpioenen. De leveldefinities staan in de HTML als `RENEW_1` tot en met `RENEW_10`.
 
@@ -19,6 +19,14 @@ Sneeuw hoeft niet de hele winteruitrusting te zijn. Naast `winter: true` kan een
 Of het sneeuwt, verschilt per potje. Bij de start wordt een weerplan geloot: de hele tijd sneeuw, helemaal geen, sneeuw die onderweg begint, sneeuw die onderweg ophoudt, of een bui midden in het level. Het plan hangt aan de afstand door het level, en begin en einde gaan langzaam: over ongeveer een tiende van het level dikt de sneeuw aan of dunt hij uit, en vlokken die weg moeten vallen gewoon uit beeld. Ook de dikte van de bui verschilt per potje (`planSnow` in de HTML).
 
 In de winter is al het stof sneeuwstof (de stofplaatjes worden bij het laden wit gemaakt), en bij een landing of een lage zwaai stuift de sneeuw echt op: een brede lage wolk die blijft hangen, een waaier glinsterende kristallen en klonten die in een boog wegvliegen en bij het neerkomen een wolkje geven. Hoe harder je neerkomt, hoe groter de plof.
+
+Episode Dark Africa is vijf levels lang en speelt zich in een nacht af. Onder de hele episode draait een eigen deuntje (`music/darkafrica.mp3`), en het uitzicht loopt van het laatste rode licht naar volslagen duisternis: de lucht gaat per level dieper dicht, de tweede bergrij verdwijnt onderweg in de nevel, en de zon wordt de maan, klein en bleek. Het donker zit niet alleen in de lucht maar over het hele beeld, ook over de grond en over Amir, want elk van de vijf levels stelt de globale lichtlaag bij (zie hieronder). Wat dat voor het spelen betekent: je ziet wat er aankomt later dan overdag. Daarom staan er minder vijanden tegelijk dan in Renew, maar wel op plekken die je niet kunt overzien, en ligt er onderweg meer te drinken.
+
+De vijf: **Dark Africa 1: De laatste schemering** is de gewone tocht in het wegvallende licht, met een ravijn, een trap van twee terrassen, een poel en aan het eind een roedel hyena's. **Dark Africa 2: Het zwarte water** heeft vier poelen, waar de zwarte slangen zitten die gif spuwen en waar je half zo hard doorheen komt. **Dark Africa 3: Onder de rots** loopt twee keer onder een plafondlijn door: eerst een hal waar je nog op een kei kunt springen, daarna een stuk waar springen je meteen je kop kost, en achterin een gang die dichtknijpt tot net boven Amirs kruin. **Dark Africa 4: Het verlaten dorp** is hetzelfde dorp als bij de start, maar leeg: de hutten staan er nog, het vuur is uit, de botten liggen buiten en de hyena's zijn er thuis. **Dark Africa 5: Het hart van de duisternis** is de hele episode in een level, met de zwarte panter in het hoogste gras. De definities staan in de HTML als `DARK_1` tot en met `DARK_5`.
+
+Een level kiest zelf zijn muziek. Met het veld `muziek` vraagt het om een nummer uit het muziekregister (`MUZIEK` in de HTML): `darkafrica` voor `music/darkafrica.mp3`, en zonder dat veld loopt `music/bg.mp3` zoals altijd. In het menu en de bouwer klinkt altijd het gewone thema, en het spel wisselt alleen als er echt een ander nummer hoort te spelen, zodat het deuntje bij een levelwissel binnen dezelfde episode gewoon doorloopt. Mist het deuntje van een level, dan valt het spel terug op `bg.mp3` in plaats van stil te vallen. In de sandbox kies je zelf, onder **Muziek**: het thema of Dark Africa. Daar staat ook **Kreet bij een klap**, want Amir zegt er sinds kort iets van als hij geraakt wordt: twee korte kreten (`sounds/ahhit.mp3` en `sounds/stopit.mp3`), om en om, met een stilte van een paar seconden ertussen zodat hij niet de hele roedel doorpraat.
+
+Een level kan ook de belichting bijstellen. De globale lichtlaag (een koele schaduwkant, warm licht richting de zon, en een onderkant die iets dieper wegzakt) ligt over het hele beeld heen. Met een veld `licht` in het uitzicht van een level (`SCENES`) zet je daar waarden overheen: dat is hoe Dark Africa donker wordt zonder dat er een tweede laag bij komt. Met **L** zet je de laag uit en met **,** en **.** stel je hem bij; die twee regelaars blijven gewoon van jou, ook in een level met een eigen belichting.
 
 Test levels zijn korte proefstukken: een enkel level waarin je een mechaniek los kunt bekijken, zonder gevecht en zonder lange tocht eromheen. Ze staan met opzet apart van de echte episodes, zodat daar niets aan hoeft te veranderen om iets nieuws te kunnen proberen. **Test 1: Gang, dak en klimmen** loopt in drie stukken, met één plafondlijn die er overheen loopt en op twee plekken in beeld zakt. Eerst een dak van rots over de weg heen: boven de kei ligt het net hoog genoeg om erop te springen, en een stuk verder zakt het zo ver dat je met springen niets meer haalt. Dan een trap van drie terrassen omhoog en aan de andere kant weer omlaag, met het plafond dat er schuin overheen weer uit beeld loopt. En tot slot de gang: het plafond zakt schuin naar beneden tot er ruim een lichaamslengte over is, knijpt daarna dicht tot net boven je kruin, en gaat achterin weer omhoog. Daar, in de open lucht, staan de fakkels die het level uitspelen. De definitie staat in de HTML als `TEST_1`.
 
@@ -333,9 +341,12 @@ design/
   water/                   pool_links/midden/rechts, rimpel_01..08, spetter_01..08
 
 sounds/                    hyena_bite.mp3 (lange opname; alleen 14,0-16,0 s is de hap die het spel
-                           afspeelt) en hyena_laugh.mp3 (de lach)
+                           afspeelt), hyena_laugh.mp3 (de lach), en ahhit.mp3 en stopit.mp3: de twee
+                           kreten van Amir als hij geraakt wordt (om en om, met een stilte ertussen,
+                           zodat hij niet de hele roedel doorpraat)
 
-music/                     bg.mp3 (achtergrond), stemmen van Amir (iamtheking, iamamir, iamamirfatherson,
+music/                     bg.mp3 (achtergrond), darkafrica.mp3 (de achtergrond van Episode Dark Africa),
+                           stemmen van Amir (iamtheking, iamamir, iamamirfatherson,
                            hellomyfriend, ikill, protectinnocent, godsforsaken), snakehiss, spearthrust, scatter,
                            watersplash (de volle plons: instappen en landen) en waterstep (de korte knip
                            uit diezelfde plons, voor de voetstappen in het water)

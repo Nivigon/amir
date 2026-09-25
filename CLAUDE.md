@@ -11,8 +11,8 @@ en beschrijft wat het spel kan; dit document beschrijft hoe je eraan werkt.
 
 **1. Bestaande levels blijven met rust.** De leveldefinities in de HTML
 (`GIJS_LEVEL` tot en met `PANTER_PLUS`, `ROSA_1` en `ROSA_2`, `RENEW_1` tot en met
-`RENEW_10`, `WINTER_1` en `WINTER_2`) zijn bevroren. De levels in Episode Test levels
-(`TEST_1`) vallen daar niet onder: die zijn er juist om aan te rommelen. Er komt geen nieuwe vijand,
+`RENEW_10`, `WINTER_1` en `WINTER_2`, `DARK_1` tot en met `DARK_5`) zijn bevroren. De
+levels in Episode Test levels (`TEST_1`) vallen daar niet onder: die zijn er juist om aan te rommelen. Er komt geen nieuwe vijand,
 prop, tip, potion of aangepast getal in, ook niet even om iets te laten zien. Alleen
 als de opdracht een level bij naam noemt ("zet dit in Renew 6") mag dat ene level
 veranderen. Twijfel je of iets eronder valt, dan valt het eronder: vraag het.
@@ -42,7 +42,8 @@ regelnummer, want die schuiven bij elke wijziging.
 
 | kop | wat er staat |
 | --- | --- |
-| globale lichtlaag | kleurwaas over het beeld, volgt de zon van het level |
+| globale lichtlaag | kleurwaas over het beeld, volgt de zon van het level; een level stelt hem bij met `licht` in `SCENES` |
+| muziek per level | `MUZIEK`, `zetMuziek()`: welk deuntje onder welk level loopt |
 | beeld: de grote of de kleine spriteset | `KLEIN_FAM`, de keuze groot of klein, `zetBron` |
 | hppotion | de drinkkalebas |
 | bukken, jump frames, tempo | Amir zijn bewegingen |
@@ -50,6 +51,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | winter: episode Winter World | `WINTER_SRC`, `winterOn()`, `winterPic()` |
 | bodem en sneeuwdek | het veld `sneeuw`: savanne of rots, en het dek in vier standen |
 | levels voor Rosa / Episode Renew / Episode Winter World | de leveldefinities |
+| Episode Dark Africa | `DARK_1` tot en met `DARK_5`: vijf levels in de nacht, op `darkafrica.mp3` |
 | Episode Test levels | `TEST_1`: korte proefstukken, los van de echte episodes |
 | terrassen en richels | `terraces`, `ledges`, klimmen |
 | de rotswand rechts | `cliffs`, het einde van het level |
@@ -58,6 +60,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | vallen: schade bij een diepe val | hoe diep een val telt en wat hij kost |
 | schorpioen, het projectiel, spannen en werpen, de geworpen speer | de speerworp |
 | personages, dorpsdecor | NPC's, `VILLAGE`, de dorpsplaten |
+| Amir zegt er iets van als hij geraakt wordt | `SFX_RAAK`, `playRaak()`: de twee kreten |
 | stap voor stap leren spelen | het `tutorial`-systeem van de Rosa-levels |
 | gaten in de grond | `gaps`, inclusief de overkant en de nevel |
 | stof, sneeuwval, het weer | deeltjes en het weerplan per potje |
@@ -83,6 +86,7 @@ precies hetzelfde formaat naar JSON.
 | --- | --- |
 | `name` | naam op het kaartje in het menu |
 | `lagen` | sleutel uit `SCENES`: welk uitzicht dit level krijgt |
+| `muziek` | sleutel uit `MUZIEK`: welk deuntje eronder loopt (`darkafrica`); zonder dit veld `bg.mp3` |
 | `winter` | `true` zet het hele level in de sneeuw (witte dieren, sneeuwversies van het decor) |
 | `sneeuw` | sneeuw op de grond, los van `winter`: `{soort, dek, van, tot}` (zie hieronder) |
 | `valschade` | `true` laat een diepe val een of twee levens kosten (standaard uit) |
@@ -322,6 +326,19 @@ Hangblokken zijn decor; alleen `wand_richel` draagt, met dezelfde hitbox als in 
 `hoek_plafond_wand.png` en `wand_rand.png` worden nergens meer getekend. Ze blijven wel in
 `design/grot/` staan, voor later, als er een ravijn komt waar je in afdaalt.
 
+### Een level donker maken
+
+De lichtlaag ligt over het hele beeld, dus ook over de grond en over Amir. Een level dat
+er anders uit moet zien zet in zijn `SCENES`-blok een veld `licht` met de waarden die
+afwijken (zie `LICHT`), en dat is hoe Dark Africa donker wordt: een blauwgrijze
+schaduw- en lichtkleur, een zwakkere gloed en een iets diepere onderkant. `aan` en
+`sterkte` blijven van de regelaars (`L`, en `,` en `.`), ook in zo'n level: die zijn er
+om te kunnen kijken wat de laag doet, en dat moet in elk level werken.
+
+Het veld `dim` in `SCENES` is iets anders: dat zet alleen de achtergrond dieper, tot aan
+de grondlijn. Wil je dat de hele wereld donkerder wordt, dan is `licht` het juiste veld;
+wil je alleen dat de verte wegzakt, dan `dim`. Meestal gebruik je ze samen.
+
 ### Een level toevoegen (alleen na toestemming)
 
 1. De definitie erbij, na de laatste van die reeks.
@@ -381,6 +398,12 @@ bronnen van het spel en worden tot een tiende getekend. Dat mag hier omdat de te
 met de maten uit `grot.json` rekent en elk stuk naar die maat rekt; de ankerpunten
 schuiven dus niet mee met de bronmaat. `grot.json` zelf blijft buiten de kleine set,
 want `gen-klein.py` pakt alleen png's.
+
+Geluid staat in `music/` en `sounds/`. De achtergrondnummers staan in `music/` en worden
+aangemeld in `MUZIEK`; korte geluiden van personages en dieren horen in `sounds/`. Zo staan
+`ahhit.mp3` en `stopit.mp3`, de twee kreten van Amir, bij de hyenageluiden en niet bij de
+muziek. Beide mappen zitten in de offline-download, dus draai na een nieuw bestand
+`tools/gen-offline-manifest.py` opnieuw.
 
 Winterversies komen uit `tools/sneeuw.py` (rotsen en klimstukken), `sneeuw_bg.py`
 (achtergrondpanelen), `sneeuw_dorp.py` (hutten, boom, struik) en `winter_art.py`
