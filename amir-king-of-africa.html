@@ -434,6 +434,13 @@
       <button id="sbboss">Als eindbaas</button>
     </div>
     <div class="row">
+      <label>Vallen</label>
+      <button id="sbval">Valschade uit</button>
+      <button data-valter="250">Terras 1 Amir</button>
+      <button data-valter="500">2 Amir</button>
+      <button data-valter="750">3 Amir</button>
+    </div>
+    <div class="row">
       <label>Ravijn</label>
       <button data-gap="250">Smal</button>
       <button data-gap="320">Breed</button>
@@ -4913,6 +4920,7 @@ function supportHeight(plats, halfW){          // waar je voeten steun vinden
 }
 
 function updateJump(dt, plats, halfW){
+  if (onGround) valVan = ph;                  // zolang je staat: hier komt een val vandaan
   for (let i = dust.length - 1; i >= 0; i--){
     const d = dust[i];
     d.age += dt;
@@ -4954,11 +4962,13 @@ function updateJump(dt, plats, halfW){
   }
   if (!onGround && target > -Infinity && ph <= target){
     const vIn = -pvh;                                 // hoe hard je neerkomt
+    const diep = valVan - target;                     // en hoe diep je gevallen bent
     ph = target; pvh = 0; onGround = true;
     fell = false;                                     // toch ergens op geland: je mag weer lopen
     if (jump){ jump.phase = 'land'; jump.t = 0; }
     puffDust(9);
     if (winterOn() && !building && waterDepthAt(world) < 0.2) snowBurst(world, target, vIn / 900);   // de sneeuw stuift op
+    valLand(diep);
   }
   if (!onGround && ph < -GAP_DEATH) fallDeath();   // in het gat gevallen
 
@@ -4999,6 +5009,40 @@ const deadEl = document.getElementById('dead');
 function drawLives(){ liveEls.forEach((e, i) => e.classList.toggle('spent', i >= lives)); }
 drawLives();
 
+// ---- vallen: schade bij een diepe val -------------------------------------
+// Staat standaard uit. Een level vraagt er zelf om met valschade: true, en in de sandbox
+// zet je hem met een knop aan. De bestaande levels zijn ontworpen zonder, en die blijven
+// zoals ze zijn: in Renew 10 stap je van een terras van 620 naar eentje van 160, en dat
+// mag niet ineens een leven gaan kosten.
+//
+// We meten niet hoe hard je neerkomt, maar hoe diep je gevallen bent: de vloer waar je
+// van losliet, min de vloer waar je landt. Je eigen sprong telt dus niet mee (die komt
+// altijd 208 hoog), en van een terras afspringen kost evenveel als eraf stappen. Als
+// ontwerper lees je de prijs van een val zo rechtstreeks af aan de hoogte van het terras.
+const VAL_VRIJ = CHAR_H;             // tot een Amir diep kost een val niets
+const VAL_ZWAAR = CHAR_H * 2;        // vanaf twee Amir diep kost hij het dubbele
+const VAL_MAX = 2;                   // en meer dan twee levens nooit, hoe diep ook
+let valVan = 0;                      // de hoogte van de vloer waar je van losliet
+function valSchadeAan(){ return !building && (sandbox ? sbVal : !!(level && level.valschade)); }
+function valKosten(diep){ return diep < VAL_VRIJ ? 0 : (diep < VAL_ZWAAR ? 1 : VAL_MAX); }
+// De klap van een val is dezelfde als die van een beet, maar zonder terugstoot: je komt
+// neer waar je neerkomt. In water landen kost niets, dat breekt je val, en een poel op de
+// bodem zie je van bovenaf aankomen.
+function valLand(diep){
+  if (!valSchadeAan() || waterDepthAt(world) > 0.3) return;
+  const n = valKosten(diep);
+  if (n <= 0) return;
+  if (sandbox)                       // geen levens in de sandbox: daar lees je af wat het gekost zou hebben
+    flashHint('Val van ' + (diep / CHAR_H).toFixed(1).replace('.', ',') + ' Amir: '
+              + n + (n === 1 ? ' leven' : ' levens'));
+  if (!running || invuln > 0 || dead || godMode) return;
+  thrHurt();                                       // de hele worp is kwetsbaar (zie thrHurt)
+  invuln = 1.3; hurt = 0.38; shake = 0.34; puffDust(14);
+  if (sandbox) return;
+  lives = Math.max(0, lives - n); drawLives();
+  if (lives <= 0){ dead = true; deadEl.classList.add('on'); }
+}
+
 function hurtPlayer(fromLeft){
   if (!running || invuln > 0 || dead || godMode) return;
   thrHurt();                                       // de hele worp is kwetsbaar (zie thrHurt)
@@ -5017,7 +5061,7 @@ function restart(){
   hits = 0; hitsEl.textContent = 0;
   atkFrame = -1; atkAcc = 0; atkCooldown = 0; swFrame = -1; swAcc = 0; sweepBuf = 0; duckT = 0; swRecover = 0; sand.length = 0;
   thr = null; jav = null; javLost = 0; javOver = null; spearH = null; lastSolid = 0;
-  jump = null; dust.length = 0; ph = 0; pvh = 0; onGround = true; fell = false; coyote = 0;
+  jump = null; dust.length = 0; ph = 0; pvh = 0; onGround = true; fell = false; coyote = 0; valVan = 0;
   camDiep = 0;
   world = 0; facing = -1; frame = 0; frameAcc = 0; idleFrame = 0; idleAcc = 0;   // altijd weer bij het startpunt
   camY = 0; camFloor = 0;
@@ -9301,6 +9345,7 @@ function startSandbox(){
 }
 function stopSandbox(){
   sandbox = false; godMode = false; setGodLabel();
+  sbVal = false; setValLabel();
   document.getElementById('lives').style.display = '';
   sandboxEl.classList.remove('on');
   level = savedLevel; savedLevel = null;
@@ -9460,6 +9505,32 @@ document.getElementById('sbboss').onclick = () => {           // met arena, dus 
   panPlay('roar', 1);
   cv.focus();
 };
+// ---- valschade los testen -------------------------------------------------
+// De knop zet de regel aan; in een level doet valschade: true dat. De drie terrassen
+// zetten je meteen boven op een wand van een, twee of drie Amir hoog, want eroverheen
+// klimmen kan niet. Stap je eraf, dan staat in de hint wat de val gekost zou hebben:
+// een Amir diep is net gratis, twee kost een leven, drie kost er twee.
+let sbVal = false;
+const sbValBtn = document.getElementById('sbval');
+function setValLabel(){
+  sbValBtn.textContent = sbVal ? 'Valschade aan' : 'Valschade uit';
+  sbValBtn.classList.toggle('on', sbVal);
+}
+sbValBtn.onclick = () => { sbVal = !sbVal; setValLabel(); cv.focus(); };
+function sbValTerras(h){
+  const side = sbFromRight ? 1 : -1;
+  let x = world + side * 520;
+  x = Math.min(x, cliffAt().wall - 300);
+  x = Math.max(x, endWall() + 300);
+  const l = Math.min(x, x + side * 900), r = Math.max(x, x + side * 900);
+  if (!level.terraces) level.terraces = [];
+  level.terraces.push({ l, r, h });
+  world = (l + r) / 2; ph = h; pvh = 0; onGround = true; jump = null; fell = false;   // meteen erbovenop
+  if (!sbVal){ sbVal = true; setValLabel(); }
+  cv.focus();
+}
+sandboxEl.querySelectorAll('button[data-valter]').forEach(b => b.onclick = () => sbValTerras(Number(b.dataset.valter)));
+
 // ---- bodem en sneeuwdek los testen ---------------------------------------
 // Geen, savanne of rotsbodem, hoeveel sneeuw erop, en een overgang die vanaf hier
 // naar links oploopt. Zo zie je zonder level of het rood rood blijft.
