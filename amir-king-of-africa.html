@@ -4555,6 +4555,61 @@ function javReach(){
   const eigen = (PLAYER_HALF_W + 0.18) * CHAR_H * nowScale();
   return Math.max(85, eigen) + (jav && jav.state === 'bos' ? (jav.bosHw || 0) : 0);
 }
+// Een speer achter een doornbos, of er middenin, krijg je nooit meer terug: zonder speer hak
+// je het bos niet weg, en eroverheen springen kan niet (zie THICKET). Dat gebeurt als een boog
+// over het bos heen gaat, als hij tussen de takken op de grond valt, of als hij op zijn vaste
+// plek terugkomt en daar een bos voor staat. Dan zet het spel hem naast Amir neer.
+//
+// Hoe ver kom je? Vanaf Amir naar beide kanten tot het eerste hele bos (een stronk houdt niets
+// tegen), en daar reik je nog javReach voorbij. Ravijnen tellen hier niet: daar spring je over,
+// of het vangnet van het ravijn regelt het al. Waar hij terugkomt wel: nooit aan de overkant
+// van een ravijn, niet in het water, niet op een ander terras, en nooit in of achter een bos.
+function speerBereik(zonder){
+  const scale = nowScale(), halfW = PLAYER_HALF_W * CHAR_H * scale, vloer = vloerBij(world, ph);
+  let lo = -Infinity, hi = Infinity;
+  for (const t of thickets){
+    if (t === zonder || t.stage >= THICKET_HITS) continue;
+    if (t.base + t.topH <= vloer) continue;           // je staat er hoog boven: dan houdt hij je niet tegen
+    const hw = t.halfW * THICKET_BOX * scale;
+    if (t.x < world) lo = Math.max(lo, t.x + hw + halfW);
+    else hi = Math.min(hi, t.x - hw - halfW);
+  }
+  return { lo, hi };
+}
+function speerVrijePlek(x, vloer, lo, hi){
+  if (x < lo || x > hi) return false;                                // in of achter een bos
+  if (x < endWall() + 60 || x > cliffAt().wall - 60) return false;
+  if (waterDepthAt(x) > 0.3 || terrainH(x) !== vloer || vloerBij(x, ph) !== vloer) return false;
+  const a = Math.min(x, world) - 40, b = Math.max(x, world) + 40;
+  for (const g of gapList())                                         // geen ravijn tussen hem en Amir
+    if (g.x + g.w / 2 > a && g.x - g.w / 2 < b && gatOp(g.x, vloer)) return false;
+  return true;
+}
+function speerNaastAmir(){
+  if (building || !running || dead || spearFound || spearX === null) return;
+  if (javLost > 0 || (jav && (jav.state === 'vlucht' || jav.state === 'val'))) return;
+  const bos = jav && jav.state === 'bos' ? jav.bos : null;
+  const { lo, hi } = speerBereik(bos);
+  let doel = spearX;
+  if (bos){                                    // vast in een bos: je pakt hem aan de rand ervan
+    const hw = bos.halfW * THICKET_BOX * nowScale();
+    doel = world < bos.x ? bos.x - hw : bos.x + hw;
+  }
+  const reik = javReach();
+  if (doel >= lo - reik && doel <= hi + reik) return;                // gewoon te halen
+  const vloer = vloerBij(world, ph);
+  const kant = spearX < world ? -1 : 1;                              // liefst aan de kant waar hij lag
+  let x = null;
+  for (const d of [140, 200, 260, 340, 420, 520]){
+    for (const k of [kant, -kant]){
+      if (x === null && speerVrijePlek(world + k * d, vloer, lo, hi)) x = world + k * d;
+    }
+  }
+  if (x === null) x = speerVrijePlek(lastSolid, vloer, lo, hi) ? lastSolid : world;   // desnoods waar hij staat
+  jav = null; javLost = 0; javOver = null;
+  spearX = x; spearH = null;
+  flashHint('Je speer lag achter het doornbos. Hij staat nu naast je');
+}
 function javHitEnemy(){                      // hij raakt een vijand: schade, en hij valt
   jav.hit = true; jav.state = 'val'; jav.vx = 0; jav.vh = 0;
 }
@@ -10371,6 +10426,7 @@ function loop(now){
   if (atkCooldown > 0) atkCooldown = Math.max(0, atkCooldown - dt);
   updateThrow(dt);                               // spannen, uithalen, herstellen
   javUpdate(dt, plats, scaleNow);                // en de speer die onderweg is
+  speerNaastAmir();                              // achter een doornbos krijg je hem nooit terug
   muurUpdate(dt, scaleNow);                      // het rotsblok schuift, en de speer komt terug in de grond
   if (atkFrame >= 0){
     atkAcc += dt * ATK_FPS;

@@ -137,6 +137,13 @@ dwars door hem heen als je ernaast gaat staan om hem te pakken.
 Oppakken doe je bij de schacht, niet bij de punt: de E verschijnt zodra je bij
 het stuk staat waar je hem vastpakt, en dat is meestal het stompe uiteinde.
 
+Zonder speer hak je een doornbos niet weg, en eroverheen springen kan niet. Belandt
+je speer achter een doornbos (een boog die over het bos heen gaat) of ertussen op de
+grond, of komt hij terug op een plek waar een bos voor staat, dan krijg je hem daar
+nooit meer vandaan. In dat geval staat hij meteen naast je in de grond, aan jouw kant
+van het bos. Nooit aan de overkant van een ravijn, niet in het water en niet op een
+ander terras.
+
 Een speer in een muur wrikt zichzelf na twaalf seconden los en valt langs de
 wand naar beneden. De laatste anderhalve seconde trilt hij, dus je ziet het
 aankomen. Sta je erop, dan houdt hij het: de klok loopt alleen als je er niet
