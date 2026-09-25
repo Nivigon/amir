@@ -696,7 +696,12 @@ def ravijnen(lv, sp):
         w = g['w']
         plafond = lv.plafond_min(g['x'] - w / 2, rand) < sp.PLAFOND_WEG
         erbij = ' onder dit plafond' if plafond and schoon_r < sp.sprong(rennen, lambda x: math.inf, 0)[0] - 1 else ''
-        if w > red_r:
+        # ligt er een gang onder (holtes), dan is dit de ingang: erin vallen is de bedoeling
+        ingang = any(isinstance(h, dict) and h.get('l', 0) <= g['x'] - w / 2 and g['x'] + w / 2 <= h.get('r', 0)
+                     for h in (lv.d.get('holtes') or []))
+        if w > red_r and ingang:
+            yield info(g['x'], 'ravijn van %s breed boven een gang: de ingang, je valt erin' % n0(w))
+        elif w > red_r:
             yield fout(g['x'], 'ravijn van %s breed: met sprint haalt Amir hoogstens %s%s' % (n0(w), n0(red_r), erbij))
         elif w > schoon_r:
             yield letop(g['x'], 'ravijn van %s breed: een sprintsprong komt %s ver%s. Hij haalt de overkant alleen door '
