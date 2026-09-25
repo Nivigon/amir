@@ -6,7 +6,7 @@ Alle sprites, achtergronden en geluiden staan los op schijf. Het spel verwacht d
 
 ## Episodes
 
-In het menu onder **Levels** staan vijf reeksen: Episode Renew, Episode Winter World, Episode Dark Africa, Episode 25-9 (zeven pittige levels met alle vijanden van het spel en twee panters als eindbaas), en Test levels.
+In het menu onder **Levels** staan vijf reeksen: Episode Renew, Episode Winter World, Episode Dark Africa, Episode Het Groene Licht (een rustige instap en zeven pittige levels met alle vijanden van het spel en twee panters als eindbaas; begin je bij level 0, dan lees je voor elk level een stukje van het verhaal), en Test levels.
 
 Episode Renew is tien levels lang en loopt op van rustig naar zwaar: van het dorp bij de start en het eerste doornbos, via de poelen, het doornenpad, de heuvelrug, de hyenavlakte, het verdronken dorp en de bergpas, naar de nacht waarin alles tegelijk komt, en tot slot twee keer de zwarte panter als eindbaas. Elk level heeft zijn eigen uitzicht en gebruikt alles wat het spel heeft: drinkkalebassen, doornbossen, water, ravijnen, terrassen en richels, dorpen, botten, hyena's, slangen en schorpioenen. De leveldefinities staan in de HTML als `RENEW_1` tot en met `RENEW_10`.
 

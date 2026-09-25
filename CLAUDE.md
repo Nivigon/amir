@@ -10,7 +10,7 @@ en beschrijft wat het spel kan; dit document beschrijft hoe je eraan werkt.
 ## Regels
 
 **1. Bestaande levels blijven met rust.** De leveldefinities in de HTML
-(`EP259_1` tot en met `EP259_7`, `RENEW_1` tot en met
+(`LICHT_0` tot en met `LICHT_7`, `RENEW_1` tot en met
 `RENEW_10`, `WINTER_1` en `WINTER_2`, `DARK_1` tot en met `DARK_5`) zijn bevroren. De
 levels in Episode Test levels (`TEST_1`) vallen daar niet onder: die zijn er juist om aan te rommelen. Er komt geen nieuwe vijand,
 prop, tip, potion of aangepast getal in, ook niet even om iets te laten zien. Alleen
@@ -59,8 +59,9 @@ regelnummer, want die schuiven bij elke wijziging.
 | rotsen om op te springen | `rocks`, en het automatisch bijgroeien |
 | winter: episode Winter World | `WINTER_SRC`, `winterOn()`, `winterPic()` |
 | bodem en sneeuwdek | het veld `sneeuw`: savanne of rots, en het dek in vier standen |
-| Episode 25-9 / Episode Renew / Episode Winter World | de leveldefinities |
-| Episode 25-9 | `EP259_1` tot en met `EP259_7`: zeven pittige levels met alle vijanden, de laatste twee met een panter als eindbaas |
+| Episode Het Groene Licht / Episode Renew / Episode Winter World | de leveldefinities |
+| Episode Het Groene Licht | `LICHT_0` tot en met `LICHT_7`: een instap en zeven pittige levels, met alle vijanden en twee panters als eindbaas |
+| het verhaal van Het Groene Licht | `VERHAAL`, `verhaalToon()`: een stukje tekst op een zwart scherm voor elk level, alleen als je bij level 0 begint |
 | Episode Dark Africa | `DARK_1` tot en met `DARK_5`: vijf levels in de nacht, op `darkafrica.mp3` |
 | Episode Test levels | `TEST_1`: korte proefstukken, los van de echte episodes |
 | terrassen en richels | `terraces`, `ledges`, klimmen |
@@ -474,7 +475,7 @@ wil je alleen dat de verte wegzakt, dan `dim`. Meestal gebruik je ze samen.
 ### Een level toevoegen (alleen na toestemming)
 
 1. De definitie erbij, na de laatste van die reeks.
-2. De naam in de array van die reeks (`LEVELS`, `EP259_LEVELS`, `RENEW_LEVELS`,
+2. De naam in de array van die reeks (`LEVELS`, `LICHT_LEVELS`, `RENEW_LEVELS`,
    `WINTER_LEVELS`).
 3. Een ondertitel in `SUBS`, op de naam van het level.
 4. Een eigen uitzicht in `SCENES` als het level er anders uit moet zien.
