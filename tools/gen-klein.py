@@ -57,6 +57,9 @@ DOELEN = [
     ('enemies/blackpanther', 400),      # 2,5x   veruit de grootste post: 97 frames, twee vachten
     ('enemies/panter_wit', 400),
     ('enemies/schorpioen1', 400),       # 3,5x
+    ('enemies/zwaardvechter', 400),     # 2,7x   drie kleuren van hetzelfde personage, 321 frames
+                                        # op een canvas van 1150x981; de figuur zelf is 800 hoog
+                                        # en wordt op Amir zijn hoogte getekend
     ('karakters/dorpeling1', 400),      # 2,5x
     ('amir runc/amir_sprites/design/amir', 400),    # de speerworp (814 hoog); het
                                         # projectiel is 67 hoog en wordt ongewijzigd gekopieerd
