@@ -2297,8 +2297,10 @@ const TEST_2 = {
   name: 'Test 2: De zwaardvechters',
   lagen: 'vlakte',
   rocks: [],
-  spawns: [ {x: -1900, k: 'zwaard', c: 'rood'},                             // eerst een losse
-            {x: -4400, k: 'zwaard', c: 'blauw'}, {x: -4750, k: 'zwaard', c: 'groen'} ],   // en dan twee kort na elkaar
+  // Alle drie de basiskleur: de blauwe en de groene recolour zijn nog niet goed genoeg
+  // om ernaar te kijken. Het veld c blijft staan, dus omzetten is later één woord.
+  spawns: [ {x: -1900, k: 'zwaard', c: 'rood'},                            // eerst een losse
+            {x: -4400, k: 'zwaard', c: 'rood'}, {x: -4750, k: 'zwaard', c: 'rood'} ],   // en dan twee kort na elkaar
   props: [ {x: -300, k: 'gras', s: 1.1, f: 0, v: 0}, {x: -620, k: 'struik', s: 1.0, f: 1, v: 0},
            {x: -1050, k: 'tree', s: 1.1, f: 0, v: 1}, {x: -1400, k: 'gras', s: 1.3, f: 1, v: 0},
            {x: -2400, k: 'boulder', s: 0.9, f: 0, v: 0}, {x: -2700, k: 'gras', s: 1.2, f: 1, v: 0},
@@ -2314,7 +2316,7 @@ const TEST_2 = {
           { x: -1200, t: 'Daar staat er een. Hij dreigt, rent dan op je af, en haalt uit met zijn zwaard' },
           { x: -2300, t: 'Zijn haal duurt lang en hij staat er zelf bij stil. Steek in die tijd, of stap eruit' },
           { x: -3050, t: 'Een kalebas, en daarna een lege strook. Neem hem mee' },
-          { x: -4000, t: 'Verderop staan er twee: een blauwe en een groene. Ze komen kort na elkaar' } ]
+          { x: -4000, t: 'Verderop staan er twee tegelijk. De een roept de ander erbij' } ]
 };
 const TEST_LEVELS = [TEST_1, TEST_2];
 const WINTER_LEVELS = [WINTER_1, WINTER_2];
@@ -4325,7 +4327,12 @@ function drawVillageProp(id, x, groundY, scale, cx, opt){
   if (!size) return;
   const px = cx + (x - world) - size.w / 2;
   if (px > W / viewZoom() + W || px + size.w < -W) return;   // buiten beeld: niets te doen
-  const py = groundY - size.h + VILLAGE_SINK * size.h - terrainH(x) * scale;
+  // Zelfde stap naar achteren als het losse decor, en depth telt daar bovenop mee: een hut
+  // op depth 0,85 hoort verder weg te staan, niet alleen kleiner te zijn. De voorgrondhut
+  // blijft waar hij staat: die hoort juist vóór Amir langs.
+  const terug = def.layer === 'fg' ? 0
+              : (groundY - edgeCrust(groundY)) * PROP_ACHTER * (1 + depth * VILLAGE_DIEP);
+  const py = groundY - size.h + VILLAGE_SINK * size.h - terrainH(x) * scale - terug;
   let flip = !!o.flip;
   if (flip && !def.mirror){
     if (!villageWarned[id]){ villageWarned[id] = 1; console.warn('niet spiegelbaar, flip genegeerd: ' + id); }
@@ -5455,6 +5462,16 @@ function edgeCrust(groundY){
   return edgeReady() ? groundY - (EDGE.walk - EDGE.kruin) * edgeScale(H * 0.18) : groundY;
 }
 
+// Hoe ver het decor achter de looplijn staat, als deel van de zichtbare grondband
+// (van edgeCrust tot de looplijn). Stond dit op 0, dan kwamen gras, struiken, keien,
+// putten en hutten op exact dezelfde lijn te staan als Amir en de dieren, en dan sta
+// je letterlijk in de planten. In de ontwerptekening staat het decor ongeveer 9 procent
+// van Amirs lengte hoger dan zijn voeten, en op 0,55 van deze band kom je daar precies
+// uit. Verder terug kan niet: grondrand.png heeft maar 49 rijen grondoppervlak boven de
+// looplijn, dus dit is de hele diepte die de tegel te bieden heeft.
+const PROP_ACHTER = 0.55;
+const VILLAGE_DIEP = 0.8;      // en zo veel verder nog per punt depth van een dorpsplaat
+
 // ---- bodem en sneeuwdek -----------------------------------------------------
 // Twee dingen die los van elkaar staan, en dat is met opzet.
 //
@@ -5818,7 +5835,7 @@ function restart(){
   if (level && level.thickets) for (const d of level.thickets) addThicket(d.x, d.n, d.seed).src = d;
   if (level && level.tips) for (const t of level.tips) t.used = false;   // uitleg opnieuw laten zien
   resetHppotions();                                 // flesjes weer op hun plek, handen weer leeg
-  tutReset(); venom.length = 0; splat.length = 0; splashes.length = 0; stopWater(); stopHyena(); stopWind();
+  tutReset(); venom.length = 0; splat.length = 0; splashes.length = 0; stopWater(); stopHyena(); stopZwaard(); stopWind();
   greenSince = 0; blackAfter = 3 + Math.floor(Math.random() * 3); forceBlack = false; setKindLabel();
   if (level && level.spawns) for (const sp of level.spawns){ sp.used = false; sp.armed = false; }
   // in een echt level begin je zonder speer: die staat voor je in de grond
@@ -7578,12 +7595,29 @@ const ZW = {
   fig: 800,                               // hoogte van de staande figuur, in canvaspixels
   n:   { idle: 34, dreigen: 12, rennen: 10, slag: 26, geraakt: 1, dood: 24 },
   fps: { idle: 12, dreigen: 12, rennen: 12, slag: 12, geraakt: 12, dood: 12 },
-  raak: [15, 17]                          // de frames van de slag waarop het zwaard schade doet
+  raak: [15, 17],                         // de frames van de slag waarop het zwaard schade doet
+  klap: 13                                // en hier begint de haal: daar valt zijn zwaaigeluid
 };
 const ZW_LOOP = { idle: true, dreigen: true, rennen: true, slag: false, geraakt: false, dood: false };
+// De metadata geeft 12 fps voor elke set. Dat is het tempo waarop ze getekend zijn, niet
+// per se het tempo waarop ze goed spelen. Twee sets krijgen hier een eigen tempo, en dat
+// is een spelkeuze en geen correctie op de maker: zijn haal duurde op 12 fps ruim twee
+// seconden, en de eerste vier frames van zijn dood staat hij alleen maar te wankelen.
+const ZW_SET_FPS = { slag: 18, dood: 20 };
+// De maker geeft één grondlijn voor alle sets, maar de renframes staan er 21 tot 105 px
+// boven: geen enkele voet raakt de lijn, terwijl Amir in twee van zijn acht renframes
+// plant. Deze set zakt daarom terug tot het diepste frame de grond raakt; de zweeffase
+// blijft, want die hoort in een ren.
+const ZW_ZAK = { rennen: 21 };
 
 // ---- knoppen om aan te draaien -------------------------------------------
-const ZW_H_SHARE   = 1.00;    // hoogte t.o.v. Amir: een man van zijn eigen formaat
+// Hoogte ten opzichte van Amir. Let op met dit getal: CHAR_H (251) is niet Amirs kruin
+// maar zijn hitboxhoogte, gemeten tot ongeveer zijn voorhoofd; zijn sprite tekent door
+// tot 276. De zwaardvechter heeft dat niet, want zijn 800 is wel kruin tot zool. Op 1,00
+// kwam hij daardoor een tiende KLEINER uit dan Amir, terwijl dit volwassen mannen zijn en
+// Amir zestien is. De dorpeling is de maatstaf: die staat op 1,32 van zijn eigen figuur en
+// komt daarmee op 1,18 keer Amirs zichtbare lengte. Hetzelfde bereik je hier met 1,30.
+const ZW_H_SHARE   = 1.30;
 const ZW_SEE       = 900;     // vanaf hier ziet hij je (wereld-px), maar nooit buiten beeld
 const ZW_VERGEET   = 1500;    // en hierbuiten zakt hij terug in zijn idle
 const ZW_DREIG_T   = 1.0;     // zo lang dreigt hij: precies één lus van twaalf frames
@@ -7600,6 +7634,8 @@ const ZW_INV_T     = 0.6;     // onkwetsbaar na een treffer
 const ZW_GERAAKT_T = 0.30;    // zo lang staat hij in zijn pijnpose, met de flits eroverheen
 const ZW_KNOCK     = 130;     // en zo hard stuitert hij achteruit (wereld-px/s, dooft uit)
 const ZW_STUCK_T   = 1.2;     // komt hij zo lang niet vooruit (een rots, een ravijn), dan dreigt hij daar
+const ZW_LIJK_T    = 6.0;     // zo lang blijft hij liggen nadat hij neer is gekomen
+const ZW_LIJK_FADE = 0.8;     // en in die laatste seconde zakt hij weg
 const ZW_RUIMTE    = 420;     // zo veel ruimte houdt hij van zijn maat (canvaspixels), anders
                               // rennen ze bij een groepje allebei naar dezelfde plek en staan
                               // ze in elkaar; nu wacht de tweede zijn beurt af en blijft dreigen
@@ -7612,6 +7648,27 @@ const ZW_ZWAARD = { from: 60, to: 690, low: 0, high: 520 };
 // ruimer dan zijn silhouet, en dat is met opzet: de stoot rekent alleen met de punt
 // van je speer, en een smalle kist schiet je op korte afstand voorbij.
 const ZW_LIJF = { mid: 40, half: 180 };
+
+// Zijn zwaai klinkt als jouw stoot: hetzelfde bestand als music/spearthrust.mp3, want het
+// is dezelfde klap van staal door de lucht. Eigen stemmen, niet het gedeelde audio-element
+// van Amir, anders snijdt zijn haal jouw stoot af en andersom. Lager en zachter, zodat je
+// zijn zwaard van je eigen speer kunt onderscheiden.
+const SFX_ZWAARD = { src: 'music/spearthrust.mp3', vol: 0.7, rate: 0.82 };
+const zwSnd = Array.from({ length: 3 }, (_, i) => {
+  const a = new Audio();
+  if (i === 0) a.onerror = () => console.warn('ontbreekt: ' + SFX_ZWAARD.src);
+  a.preload = 'auto'; a.src = SFX_ZWAARD.src;
+  return a;
+});
+let zwBeurt = 0;
+function zwPlaySlag(){
+  if (!wantSound) return;
+  const a = zwSnd[zwBeurt++ % zwSnd.length];
+  try { a.currentTime = 0; } catch (e) {}
+  a.volume = SFX_ZWAARD.vol; a.playbackRate = SFX_ZWAARD.rate;
+  a.play().catch(() => {});
+}
+function stopZwaard(){ for (const a of zwSnd) a.pause(); }
 
 // per kleur een eigen bank met frames, pas geladen als een level of de sandbox erom vraagt
 const zwBanken = {};
@@ -7650,6 +7707,7 @@ fetch(ZW_META).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(m => {
     if (s.fps) ZW.fps[k] = s.fps;
     if (s.loop !== undefined) ZW_LOOP[k] = !!s.loop;
     if (k === 'slag' && Array.isArray(s.raak_frames) && s.raak_frames.length === 2) ZW.raak = s.raak_frames.slice();
+    if (k === 'slag' && Array.isArray(s.klap_frames) && s.klap_frames.length === 2) ZW.klap = s.klap_frames[0];
   }
   if (opnieuw) for (const kleur in zwBanken) zwLaadInto(zwBanken[kleur], zwDirs(kleur));   // andere aantallen: opnieuw ophalen
 }).catch(() => console.warn('niet gelezen, de ingebouwde waarden gelden: ' + ZW_META));
@@ -7678,19 +7736,20 @@ function makeZwaard(x, side, kleur){
   if (!ZW_KLEUREN[kleur]) kleur = 'rood';
   zwLaadKleur(kleur);
   return { x, kleur, face: -side, state: 'idle', frame: 0, acc: 0, t: 0,
-           hp: ZW_HP, inv: 0, flash: 0, knock: 0, base: 0, stuck: 0,
+           hp: ZW_HP, inv: 0, flash: 0, knock: 0, base: 0, stuck: 0, lig: 0, alpha: 1,
            hitUsed: false, sweptId: -1, klaar: false, vrij: false };
 }
 function zwSet(s, state){ s.state = state; s.frame = 0; s.acc = 0; s.t = 0; s.klaar = false; s.hitUsed = false; }
 // een lus loopt rond, een eenmalige set blijft op zijn laatste frame staan en zet klaar
 function zwAnim(s, dt){
   const n = ZW.n[s.state] || 1;
-  s.acc += dt * (ZW.fps[s.state] || 12);
+  s.acc += dt * (ZW_SET_FPS[s.state] || ZW.fps[s.state] || 12);
   while (s.acc >= 1){
     s.acc -= 1;
     if (ZW_LOOP[s.state]) s.frame = (s.frame + 1) % n;
     else if (s.frame < n - 1) s.frame++;
     else s.klaar = true;
+    if (s.state === 'slag' && s.frame === ZW.klap) zwPlaySlag();   // staal door de lucht
   }
   if (!ZW_LOOP[s.state] && s.frame >= n - 1) s.klaar = true;
 }
@@ -7715,7 +7774,11 @@ function zwInDeWeg(s, nx){
 }
 function updateZwaarden(dt, plats, cliff){
   if (!running || (dead && !sandbox)) return;
-  for (const s of zwaarden) updateZwaard(s, dt, plats, cliff);
+  for (let i = zwaarden.length - 1; i >= 0; i--){
+    const s = zwaarden[i];
+    updateZwaard(s, dt, plats, cliff);
+    if (s.state === 'weg') zwaarden.splice(i, 1);
+  }
 }
 function updateZwaard(s, dt, plats, cliff){
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
@@ -7723,8 +7786,14 @@ function updateZwaard(s, dt, plats, cliff){
   s.t += dt;
   s.base = terrainH(s.x);
 
-  if (s.state === 'dood'){                          // omvallen en blijven liggen
+  if (s.state === 'dood'){                          // neergaan, blijven liggen, wegzakken
     zwAnim(s, dt);
+    if (!s.klaar) return;                           // hij komt nog neer
+    if (s.vrij) return;                             // sandbox met de AI uit: hij blijft liggen
+    s.lig += dt;                                    // de klok loopt pas als hij stil ligt
+    if (s.lig >= ZW_LIJK_T - ZW_LIJK_FADE)
+      s.alpha = Math.max(0, (ZW_LIJK_T - s.lig) / ZW_LIJK_FADE);
+    if (s.lig >= ZW_LIJK_T) s.state = 'weg';
     return;
   }
   // in de sandbox mag je de stekker uit zijn kop trekken: dan speelt hij alleen
@@ -9172,6 +9241,7 @@ function loop(now){
     }
 
     if (level && level.props){
+      const propTerug = (groundY - edgeCrust(groundY)) * PROP_ACHTER;
       for (const pass of [false]){                  // ver weg staat al achter de grond getekend
         for (const p of level.props){
           if (!!p.far !== pass) continue;
@@ -9181,7 +9251,8 @@ function loop(now){
           const pw2 = pim.naturalWidth * (ph2 / pim.naturalHeight);
           const px2 = cx + (p.x - world) - pw2 / 2;
           if (px2 > W / viewZoom() + W || px2 + pw2 < -W) continue;
-          const py2 = groundY - ph2 + (def.sink || 0.02) * ph2 + (p.far ? 4 : 0) - (p.far ? 0 : terrainH(p.x) * scale);
+          const py2 = groundY - ph2 + (def.sink || 0.02) * ph2 + (p.far ? 4 : 0)
+                    - (p.far ? 0 : terrainH(p.x) * scale + propTerug);
           const src2 = p.far ? (propFar[p.kind] || pim) : pim;
           if (VEG[p.kind]){
             drawVeg(p.kind, src2, px2 + pw2 / 2, py2 + ph2, ph2, p.flip, p, p.x, p.far);
@@ -9888,15 +9959,20 @@ function loop(now){
         const zBase = (s.base || 0) * scale;
         const voeten = groundY - zBase;                 // hier ligt de grondlijn van zijn canvas
         ctx.save();                                     // schaduw blijft op de grond
-        ctx.globalAlpha = (s.state === 'dood' ? 0.12 : 0.22);
         ctx.fillStyle = '#1d140f';
         ctx.beginPath();
-        ctx.ellipse(bodyX, voeten, CHAR_H * scale * 0.20, CHAR_H * scale * 0.028, 0, 0, Math.PI * 2);
+        if (s.state === 'dood'){                        // liggend raakt hij de grond over zijn lengte
+          ctx.globalAlpha = 0.24 * Math.max(0, s.alpha);
+          ctx.ellipse(bodyX + s.face * 90 * zS, voeten - 8 * zS, 470 * zS, 26 * zS, 0, 0, Math.PI * 2);
+        } else {                                        // staand: zijn eigen breedte, dus hij schaalt mee
+          ctx.globalAlpha = 0.22;
+          ctx.ellipse(bodyX, voeten, ZW_LIJF.half * zS * 1.05, ZW_LIJF.half * zS * 0.16, 0, 0, Math.PI * 2);
+        }
         ctx.fill(); ctx.restore();
 
         ctx.save();
         const zBlink = s.inv > 0 && s.state !== 'dood' && Math.floor(s.inv * 14) % 2 === 0;
-        ctx.globalAlpha = zBlink ? 0.45 : 1;
+        ctx.globalAlpha = Math.max(0, s.alpha) * (zBlink ? 0.45 : 1);
         ctx.translate(bodyX, voeten);
         if (s.face === -1) ctx.scale(-1, 1);            // de frames kijken naar rechts
         const img = zwFrameImg(s);
@@ -9904,7 +9980,7 @@ function loop(now){
         // verspringt hij bij elke wissel van animatie
         if (img && imgReady(img))
           ctx.drawImage(s.flash > 0 ? whiteCopy(img, s.flash * 4) : img,
-                        -ZW.anker * zS, -ZW.ground * zS, zw, zh);
+                        -ZW.anker * zS, -ZW.ground * zS + (ZW_ZAK[s.state] || 0) * zS, zw, zh);
         ctx.restore();
         if (s.state === 'dood') continue;                // het lijk doet verder niets meer
 
@@ -10559,7 +10635,7 @@ const SUBS = {
   'Dark Africa 3: Onder de rots': 'Een dak dat zakt, en een gang', 'Dark Africa 4: Het verlaten dorp': 'Botten en roedels',
   'Dark Africa 5: Het hart van de duisternis': 'Alles, en dan de panter',
   'Test 1: Gang, dak en klimmen': 'Dak, trap en een gang door de rots',
-  'Test 2: De zwaardvechters': 'Het nieuwe type, los en met zijn tweeen'
+  'Test 2: De zwaardvechters': 'Eerst een losse, dan twee tegelijk'
 };
 function buildCards(el, list){
   el.innerHTML = '';

@@ -28,7 +28,7 @@ Een level kiest zelf zijn muziek. Met het veld `muziek` vraagt het om een nummer
 
 Een level kan ook de belichting bijstellen. De globale lichtlaag (een koele schaduwkant, warm licht richting de zon, en een onderkant die iets dieper wegzakt) ligt over het hele beeld heen. Met een veld `licht` in het uitzicht van een level (`SCENES`) zet je daar waarden overheen: dat is hoe Dark Africa donker wordt zonder dat er een tweede laag bij komt. Met **L** zet je de laag uit en met **,** en **.** stel je hem bij; die twee regelaars blijven gewoon van jou, ook in een level met een eigen belichting.
 
-Test levels zijn korte proefstukken: een enkel level waarin je een mechaniek los kunt bekijken, zonder gevecht en zonder lange tocht eromheen. Ze staan met opzet apart van de echte episodes, zodat daar niets aan hoeft te veranderen om iets nieuws te kunnen proberen. **Test 1: Gang, dak en klimmen** loopt in drie stukken, met één plafondlijn die er overheen loopt en op twee plekken in beeld zakt. Eerst een dak van rots over de weg heen: boven de kei ligt het net hoog genoeg om erop te springen, en een stuk verder zakt het zo ver dat je met springen niets meer haalt. Dan een trap van drie terrassen omhoog en aan de andere kant weer omlaag, met het plafond dat er schuin overheen weer uit beeld loopt. En tot slot de gang: het plafond zakt schuin naar beneden tot er ruim een lichaamslengte over is, knijpt daarna dicht tot net boven je kruin, en gaat achterin weer omhoog. Daar, in de open lucht, staan de fakkels die het level uitspelen. De definitie staat in de HTML als `TEST_1`. **Test 2: De zwaardvechters** gaat over het nieuwe type tegenstander en verder nergens over: een vlakke strook over de open vlakte, zonder ravijnen en zonder klimwerk. Eerst een losse rode, zodat je zijn ritme kunt leren, dan een kalebas, en daarna een blauwe en een groene die samen op je af komen. De definitie staat in de HTML als `TEST_2`.
+Test levels zijn korte proefstukken: een enkel level waarin je een mechaniek los kunt bekijken, zonder gevecht en zonder lange tocht eromheen. Ze staan met opzet apart van de echte episodes, zodat daar niets aan hoeft te veranderen om iets nieuws te kunnen proberen. **Test 1: Gang, dak en klimmen** loopt in drie stukken, met één plafondlijn die er overheen loopt en op twee plekken in beeld zakt. Eerst een dak van rots over de weg heen: boven de kei ligt het net hoog genoeg om erop te springen, en een stuk verder zakt het zo ver dat je met springen niets meer haalt. Dan een trap van drie terrassen omhoog en aan de andere kant weer omlaag, met het plafond dat er schuin overheen weer uit beeld loopt. En tot slot de gang: het plafond zakt schuin naar beneden tot er ruim een lichaamslengte over is, knijpt daarna dicht tot net boven je kruin, en gaat achterin weer omhoog. Daar, in de open lucht, staan de fakkels die het level uitspelen. De definitie staat in de HTML als `TEST_1`. **Test 2: De zwaardvechters** gaat over het nieuwe type tegenstander en verder nergens over: een vlakke strook over de open vlakte, zonder ravijnen en zonder klimwerk. Eerst een losse, zodat je zijn ritme kunt leren, dan een kalebas, en daarna twee die samen op je af komen: wie jou het eerst ziet roept de ander erbij. De definitie staat in de HTML als `TEST_2`.
 
 In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen naar het volgende level van dezelfde reeks. Onder **Instellingen** staan daar ook het tempo van het spel, het looptempo van Amir, het formaat van het beeld en de muziek. Tijdens een level is het speelveld verder leeg: de testbalk met schuifjes staat alleen in de bouwer en de sandbox (met B haal je hem er tijdens het spelen alsnog bij).
 
@@ -188,6 +188,25 @@ In de sandbox staat onder **Slangen** de knop **Op patrouille**: die zet alles w
 meteen op patrouille en houdt het daar, zodat je het kunt bekijken zonder zelf uit beeld te
 lopen. Nog een keer drukken en ze komen weer op je af.
 
+## Het decor staat een stap naar achteren
+
+De grond is geen lijn maar een band. De tegel `design/grondrand.png` heeft 49 rijen
+grondoppervlak boven de looplijn, en dat is de strook waarop je van voor naar achter diepte
+kunt maken. Amir en de dieren lopen op de voorrand van die band; het decor staat erachter,
+op 55 procent van de band (`PROP_ACHTER`). Dorpsplaten gaan mee, en daar telt `depth` er
+bovenop mee (`VILLAGE_DIEP`), zodat een hut op `depth: 0.85` ook echt verder weg staat in
+plaats van alleen kleiner te zijn. De voorgrondhut blijft waar hij staat, want die hoort
+juist vóór Amir langs.
+
+Zonder die stap stonden gras, struiken, keien, putten en hutten op exact dezelfde lijn als
+Amir, en dan sta je letterlijk in de planten: een pol gras komt dan tussen je voeten omhoog,
+en een gevallen lichaam krijgt een struik door zijn borst. In de ontwerptekening van het
+dorp staat het decor ongeveer 9 procent van Amirs lengte hoger dan zijn voeten, en op 0,55
+van de band kom je daar precies uit. Verder terug kan niet: dieper is de tegel niet.
+
+Klimrotsen, terrassen en richels blijven waar ze staan, want daar loop je op. Alleen decor
+zonder botsing schuift mee.
+
 ## De zwaardvechter
 
 De eerste menselijke tegenstander: een man met een zwaard, in drie kleuren (rood, blauw en
@@ -197,14 +216,28 @@ waarin het canvas, de grondlijn, het ankerpunt, de tempo's en de raakframes staa
 leest dat bestand bij het starten in; lukt dat niet, dan gelden de waarden die in de HTML
 staan.
 
+Hij is een volwassen man en Amir is zestien, dus hij is een kop groter: precies zo groot als
+de dorpeling, ofwel 1,18 keer Amirs zichtbare lengte. Let op als je aan dat getal draait:
+`CHAR_H` is niet Amirs kruin maar zijn hitboxhoogte, dus `ZW_H_SHARE: 1.00` zou hem juist
+kleiner maken dan Amir.
+
 Hij werkt in vier standen. Hij staat te wachten (**idle**) tot je in zicht komt, **dreigt**
 dan een korte lus, **rent** op je af (sneller dan jij kunt sprinten, dus weglopen alleen
 helpt niet), en **haalt uit** zodra hij dicht genoeg bij is. Die haal is zijn zwakke plek:
-van het eerste frame tot de klap zit ruim een seconde, en zolang die loopt staat hij vast.
-Jouw speer reikt bovendien verder dan zijn zwaard, dus er is altijd een stuk waarin jij hem
-wel kunt raken en hij jou nog niet. Raak je hem, dan flitst hij wit op, stuitert hij een
-stukje achteruit en staat hij even in zijn pijnpose; na drie treffers gaat hij neer en blijft
-het lichaam liggen.
+hij duurt anderhalve seconde, de klap valt na acht tiende, en zolang hij loopt staat de man
+vast. Je hoort hem ook: zijn zwaai speelt hetzelfde geluid als jouw stoot, maar lager en
+zachter, want het is dezelfde klap van staal door de lucht. Jouw speer reikt bovendien
+verder dan zijn zwaard, dus er is altijd een stuk waarin jij hem wel kunt raken en hij jou
+nog niet. Raak je hem, dan flitst hij wit op, stuitert hij een stukje achteruit en staat hij
+even in zijn pijnpose; na drie treffers gaat hij neer. Het lichaam blijft zes seconden
+liggen en zakt dan weg.
+
+De metadata geeft alle zes de sets op 12 beelden per seconde. Twee daarvan spelen op dat
+tempo te sloom en draaien daarom sneller (`ZW_SET_FPS`): de slag op 18 en zijn dood op 20.
+Dat is een spelkeuze en geen correctie op de maker. Eén set wordt ook verticaal
+bijgestuurd: de renframes staan 21 tot 105 px boven de grondlijn die voor alle sets geldt,
+dus geen enkele voet raakte de grond. `ZW_ZAK` zakt die set terug tot het diepste frame
+plant; de zweeffase blijft, want die hoort in een ren.
 
 Staan er meer bij elkaar, dan roept de eerste die je ziet zijn maten erbij, en houden ze
 onderling een lijf afstand: wie het dichtst bij je staat vecht, de rest wacht dreigend zijn
@@ -215,7 +248,8 @@ In de sandbox staat hij onder **Zwaardvechter**: rood, blauw of groen neerzetten
 set die hij dan speelt: idle, dreigen, rennen, slag, geraakt of dood. Een lus loopt rond, een
 eenmalige set blijft op zijn laatste frame staan, zodat je de pose kunt bekijken. In een
 leveldefinitie zet je hem neer met `{x: -1900, k: 'zwaard', c: 'rood'}`, waarbij `c` de kleur
-is (`rood`, `blauw` of `groen`; zonder `c` wordt het rood).
+is (`rood`, `blauw` of `groen`; zonder `c` wordt het rood). Voorlopig staat overal `rood`,
+ook in het testlevel: de blauwe en de groene recolour zijn nog niet goed genoeg.
 
 ## Rots boven en naast je
 
