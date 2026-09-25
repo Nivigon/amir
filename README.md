@@ -318,28 +318,29 @@ gang waar springen niet meer lukt, een schuin zakkend stuk en een golvende lijn.
 
 ## De muur die je met je speer openkrijgt
 
-Een rotswand die de weg verspert, met hoog op het steen een houten schijf met een rune erin. Raak je die schijf met een
-geworpen speer, dan licht de rune op, blijft de speer er voorgoed in zitten en schuift het rotsblok in een halve seconde
-omhoog de berg in. Daarachter ligt een donkere gang waar je in kunt lopen. Mis je, dan gebeurt er wat er altijd gebeurt als
-je een wand raakt: de speer blijft in het steen steken en valt er na een tijdje vanzelf uit.
-
-Als hij opengaat hoor je de rots kraken en schuiven.
+Een rotswand die de weg verspert, met op het steen een houten schijf met een rune. Raak je die schijf met een geworpen
+speer, dan licht de rune op, blijft de speer er voorgoed in zitten en schuift het rotsblok in een halve seconde omhoog de
+berg in. Als hij opengaat hoor je de rots kraken en schuiven, en daarachter ligt een donkere gang waar je in kunt lopen.
+Mis je, dan gebeurt er wat er altijd gebeurt als je een wand raakt: de speer blijft in het steen steken en valt er na een
+tijdje vanzelf uit. Ondertussen staat er weer een nieuwe in de grond, dus je kunt zo vaak proberen als je wilt.
 
 Zolang de muur dicht is zie je er niets van. Geen naad, geen contour, geen scheurtje in de vorm van een deur: de rots is
 gewoon een rots, en het enige wat je opvalt is die houten schijf. Wat die doet moet je zelf bedenken.
 
 Dat komt doordat gat en blok uit dezelfde pixels komen. Bij het laden wordt de plaat een keer op maat gezet, en daaruit
-worden drie dingen gemaakt: de muur met de vorm van de opening eruit gegumd, het schuifblok dat precies dat uitgegumde stuk
-is, en een masker dat de opening doorsnijdt met de rots zelf, zodat er nooit iets buiten de rots kan uitsteken. Zolang het
-blok stilstaat wordt de plaat zelf getekend en verder niets, en dan is er per definitie niets te zien.
+worden drie dingen gemaakt: de muur met de vorm van de opening eruit gegumd, het schuifblok dat precies dat uitgegumde
+stuk is, en een masker dat de opening doorsnijdt met de rots zelf, zodat er nooit iets buiten de rots kan uitsteken.
+Zolang het blok stilstaat wordt de plaat zelf getekend en verder niets, en dan is er per definitie niets te zien.
 
-De speer botst op de werkelijke vorm van de rots en niet op een denkbeeldige rechte lijn: het spel leest de doorzichtigheid
-van de plaat uit en kijkt per stapje of de punt van de speer in het steen zit. De punt, niet het midden van de schacht.
+Waar de opening zit staat nergens als getal: het spel leest de doorzichtigheid van de rots uit en zoekt zelf de plek waar
+het steen van de grond tot boven de deur massief is, en waar de bovenrand tegelijk laag genoeg is om je speer eroverheen
+te krijgen. Op deze rots ligt dat een eind naar binnen, want de flank loopt schuin op. De schijf hangt net onder die
+bovenrand, want in zijaanzicht is de rots massief: alles onder de rand zit in het steen, en daar komt geen speer ooit.
 
-De hoogte van de schijf is gekozen op wat je wel en niet kunt. Zijn stoot haalt 200 eenheden, in de sprong 407, met zijn
-hoofd komt hij tot 459; de onderkant van het raakvlak ligt op 458. De vlakke worp laat de speer op 225 los en die zakt
-alleen maar. Alleen de volle boog, met de werpknop helemaal uitgetrokken, piekt hoger (677) en gaat er dus overheen. Sta je
-te dichtbij, dan gaat de speer eronderdoor en blijft hij in de rots steken: je moet een stuk teruglopen.
+Je raakt hem dus alleen door er precies overheen te scheren, en dat lukt maar vanaf een strook van ongeveer honderd
+pixels breed. Sta je dichter bij de deur, dan gaat de speer eronderdoor tegen de wand; sta je verder weg, dan zakt hij al
+voor de rots. Springen en steken halen de schijf niet, en met de vlakke worp kom je er ook niet bij: alleen de volle boog
+gaat eroverheen, dus je moet de werpknop helemaal uittrekken en goed kijken waar je staat.
 
 ## Vallen doet pijn
 
