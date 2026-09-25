@@ -62,7 +62,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | personages, dorpsdecor | NPC's, `VILLAGE`, de dorpsplaten |
 | Amir zegt er iets van als hij geraakt wordt | `SFX_RAAK`, `playRaak()`: de twee kreten |
 | stap voor stap leren spelen | het `tutorial`-systeem van de Rosa-levels |
-| gaten in de grond | `gaps`, inclusief de overkant en de nevel |
+| gaten in de grond | `gaps`, de overkant, de nevel en de diepte; de laag die eronder doorloopt is `grondDoorlopen`, in de bodemsectie |
 | stof, sneeuwval, het weer | deeltjes en het weerplan per potje |
 | vegetatie, water, doornbos | `props`, `water`, `thickets` |
 | slangen: kleur, zicht en patrouille | `SNAKE_DIRS`, `slangZiet`, `startPatrouille`, `slangSchuif` |

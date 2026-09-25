@@ -4329,40 +4329,71 @@ const gapRimImg = new Image();
 gapRimImg.onerror = () => console.warn('ontbreekt: design/ravijn_rand.png');
 gapRimImg.src = 'design/ravijn_rand.png';
 const GAP_RIM = { top: 30, rock: 135, h: 260, w: 512 };   // rijen in ravijn_rand: bovenste grasspriet, bovenkant van de rots
-// de plaatjes een keer op kleur zetten voor dit uitzicht: warm voor de savanne, koud en besneeuwd voor de winter
+// De ravijnwand is de bleekste en de grijste steen van het spel (verzadiging 0,08)
+// en hij staat tegen de grondrand aan, de meest verzadigde tegel die er is (0,51 voor
+// de wand, 0,66 voor het loopvlak). Daar hoort hij omgeverfd te worden, niet met een
+// waas eroverheen.
+//
+// Een vulling met source-atop doet dat laatste: die maakt grijs steen lichter en legt
+// er een sluier op, maar de kleur eronder blijft grijs. De blend 'color' neemt tint en
+// verzadiging van de verf en de helderheid van het steen, en verft het dus echt om.
+// Een blend tekent ook over de doorzichtige delen heen, dus daarna zet destination-in
+// de oorspronkelijke doorzichtigheid terug.
+function gapVerf(img, kleur, sterkte, extra){
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const g = c.getContext('2d');
+  g.drawImage(img, 0, 0);
+  g.globalCompositeOperation = 'color';
+  g.globalAlpha = sterkte;
+  g.fillStyle = kleur; g.fillRect(0, 0, c.width, c.height);
+  g.globalAlpha = 1;
+  if (extra) extra(g, c.width, c.height);
+  g.globalCompositeOperation = 'destination-in';
+  g.drawImage(img, 0, 0);
+  return c;
+}
+// de plaatjes een keer op kleur zetten voor dit uitzicht: de aarde van de savanne, of
+// de koude steen en de sneeuw van de winter
 let gapArtCache = null;
 function gapArt(){
   if (!imgReady(gapTex) || !imgReady(gapRimImg)) return null;
   const key = winterOn() ? 'winter' : 'savanne';
   if (gapArtCache && gapArtCache.key === key) return gapArtCache;
-  const tint = (img, fn) => {
-    const c = document.createElement('canvas');
-    c.width = img.naturalWidth; c.height = img.naturalHeight;
-    const g = c.getContext('2d');
-    g.drawImage(img, 0, 0);
-    g.globalCompositeOperation = 'source-atop';       // alleen op de rots en het gras, niet op het doorzichtige deel
-    fn(g, c.width, c.height);
-    return c;
-  };
-  let rim, rock, dark;
-  if (key === 'winter'){
-    const koud = g => { g.fillStyle = 'rgba(168,182,204,0.55)'; g.fillRect(0, 0, 4096, 4096); };
-    rock = tint(gapTex, koud);
-    rim = tint(gapRimImg, (g, w) => {
-      koud(g);
+  const winter = key === 'winter';
+  const steen = winter ? '#8ea6c6' : '#b4692e';
+  const rand = (g, w) => {
+    // Bovenop de rand ligt in het plaatje een lichte streep. Die blijft bij een
+    // kleurbewerking even licht staan, en leest in de savanne als sneeuw.
+    g.globalCompositeOperation = 'multiply';
+    const v = g.createLinearGradient(0, GAP_RIM.rock - 34, 0, GAP_RIM.rock + 46);
+    v.addColorStop(0, '#ffffff');
+    v.addColorStop(0.45, winter ? '#b9c3d2' : '#8b7563');
+    v.addColorStop(1, '#ffffff');
+    g.fillStyle = v; g.fillRect(0, GAP_RIM.rock - 34, w, 80);
+    if (winter){
+      g.globalCompositeOperation = 'source-over';
       const sn = g.createLinearGradient(0, GAP_RIM.top, 0, GAP_RIM.rock + 30);   // sneeuw op de plukken en de bovenrand
       sn.addColorStop(0, 'rgba(244,247,252,0.95)'); sn.addColorStop(0.6, 'rgba(236,241,248,0.75)'); sn.addColorStop(1, 'rgba(236,241,248,0)');
       g.fillStyle = sn; g.fillRect(0, 0, w, GAP_RIM.rock + 30);
-    });
-    dark = '12,16,24';
-  } else {
-    const warm = g => { g.fillStyle = 'rgba(210,140,90,0.28)'; g.fillRect(0, 0, 4096, 4096); };   // het avondlicht van de grondrand
-    rock = tint(gapTex, warm);
-    rim = tint(gapRimImg, warm);
-    dark = '16,9,12';
-  }
-  gapArtCache = { key, rim, rock, dark };
+    }
+  };
+  gapArtCache = { key,
+                  rim: gapVerf(gapRimImg, steen, 0.88, rand),
+                  rock: gapVerf(gapTex, steen, 0.88),
+                  dark: winter ? '18,24,36' : '26,15,13' };
   return gapArtCache;
+}
+// De kleur waar het diepste stuk op uitkomt. Hij komt uit dit uitzicht (de landkleur,
+// met dim erdoor als het level dat zet), met de massa onder de grond erdoorheen zodat
+// het aarde is en geen hemel, en dan flink weggezakt. Zo hoeft er per episode niets
+// met de hand bijgesteld te worden.
+function ravijnDiep(){
+  const sc = sceneCfg();
+  let k = mengKleur(leesKleur(sc.land), [0, 0, 0], LAND.diep);
+  if (sc.dim) k = mengKleur(k, leesKleur(sc.dim[0]), sc.dim[1]);
+  k = mengKleur(k, leesKleur(bodemDonkerRGB()), 0.5);
+  return mengKleur(k, [0, 0, 0], 0.72).join(',');
 }
 
 const sandTex = new Image();
@@ -5214,6 +5245,50 @@ function diepGesteente(groundY, bandH){
   ctx.fillStyle = vaag; ctx.fillRect(0, onder, W, H - onder + 2);
   ctx.restore();
 }
+// Onder de grondlijn is niets getekend: de achtergrond houdt daar op. Zolang de grond
+// dicht is merk je daar niets van, maar door een ravijn kijk je zo in een gat in de
+// tekening, en dat gat werd tot nu toe gevuld door de vlakke bodemvulling, met een
+// kaarsrechte bovenrand op de grondlijn.
+//
+// Dit trekt in plaats daarvan de regel die op de grondlijn ligt naar beneden door, wat
+// daar ook staat: heuvels, water, nevel, het uitzicht van dit level. Per kolom precies
+// dezelfde kleur, dus er loopt nergens een naad, en er hoeft niets over de achtergrond
+// geraden te worden. Daarna zakt het weg, zodat een ravijn ook echt diep leest.
+//
+// Twee dingen die niet mogen schuiven. Het moet hier gebeuren, vlak voor de bodem: op
+// dit punt staat de achtergrond er en de grond nog niet. En de bronrij gaat maal DPR,
+// want drawImage pakt de pixels van het canvas zelf, en dat canvas is op een telefoon
+// groter dan W bij H. Sla je dat over, dan pakt hij een regel uit de lucht.
+function grondDoorlopen(groundY){
+  if (groundY < 2 || groundY >= H) return;
+  // Alleen daar waar een gat in beeld staat. Overal anders komt de bodemvulling er toch
+  // overheen, en dit zijn twee vullingen over de hele breedte per frame.
+  const zoom = viewZoom();
+  let van = Infinity, tot = -Infinity;
+  for (const g of gapList()){
+    const gl = W / 2 + (W / 2 + (g.x - g.w / 2 - world) - W / 2) * zoom;
+    const gr = W / 2 + (W / 2 + (g.x + g.w / 2 - world) - W / 2) * zoom;
+    if (gr < -60 || gl > W + 60) continue;
+    van = Math.min(van, gl); tot = Math.max(tot, gr);
+  }
+  if (van > tot) return;
+  const x0 = Math.max(0, Math.floor(van - 60)), x1 = Math.min(W, Math.ceil(tot + 60));
+  if (x1 <= x0) return;
+  const diep = Math.max(H * 0.18, H - groundY);
+  // De regel die gekopieerd wordt is ook de eerste regel die overgetekend wordt, en het
+  // verloop begint daar op nul. Zo is er op de naad per kolom geen enkel verschil.
+  const top = groundY - 2;
+  ctx.drawImage(cv, Math.round(x0 * DPR), Math.round(top * DPR), Math.max(1, Math.round((x1 - x0) * DPR)), 1,
+                x0, top, x1 - x0, diep + 4);
+  const d = ravijnDiep();
+  const g = ctx.createLinearGradient(0, top, 0, groundY + diep);
+  g.addColorStop(0, 'rgba(' + d + ',0)');
+  g.addColorStop(0.45, 'rgba(' + d + ',0.55)');
+  g.addColorStop(1, 'rgba(' + d + ',0.92)');
+  ctx.fillStyle = g; ctx.fillRect(x0, top, x1 - x0, diep + 4);
+  ctx.fillStyle = 'rgb(' + d + ')'; ctx.fillRect(x0, groundY + diep, x1 - x0, H);
+}
+
 // De vier standen liggen over elkaar en zijn genest: wat op 25 wit is, is dat op 50
 // ook. Een grens is daardoor alleen sneeuw die erbij komt, nooit sneeuw die weggaat.
 function drawSneeuwdek(top, tw, th, x0, left, right, s){
@@ -8281,7 +8356,32 @@ function scene(groundY){
   drawPlacedFar(groundY);                           // jouw achtergronddecor staat op de savanne, niet op de horizon
   const bandH = H * 0.18;
   const eimg = bodemPic();                                 // savanne, rotsbodem, of de ingebakken wintergrond
-  ctx.fillStyle = bodemDonker(); ctx.fillRect(0, groundY, W, Math.max(bandH, H - groundY) + H);
+  grondDoorlopen(groundY);                   // de laag op de grondlijn doorgetrokken, voor wie in een ravijn kijkt
+  // De vulling eronder is vlak en heeft een kaarsrechte bovenrand. Dat is prima zolang
+  // de grond erover ligt, maar door een ravijn zag je hem als een balk boven de overkant
+  // hangen. Hij gaat dus net zo goed uit de gaten als de tegel hieronder.
+  {
+    const zoom = viewZoom();
+    ctx.save();
+    if (zoom !== 1){ ctx.translate(W / 2, groundY); ctx.scale(zoom, zoom); ctx.translate(-W / 2, -groundY); }
+    const bl = W / 2 - (W / 2) / zoom - 40, br = W / 2 + (W / 2) / zoom + 40;
+    if (gapList().length){
+      // De snee begint ruim boven de grondlijn en de vulling pas erop, anders blijft er
+      // op de rand een half doorzichtige regel van de vulling staan: een dunne streep
+      // dwars over het gat.
+      ctx.beginPath();
+      ctx.rect(bl - W, groundY - 40, br - bl + 2 * W, H * 5);
+      for (const g of gapList()){
+        const gl = W / 2 + (g.x - g.w / 2 - world), gr = W / 2 + (g.x + g.w / 2 - world);
+        if (gr < bl - W || gl > br + W) continue;
+        traceGap(g, gl, gr, groundY - 40, groundY + H * 4, groundY);
+      }
+      ctx.clip('evenodd');
+    }
+    ctx.fillStyle = bodemDonker();
+    ctx.fillRect(bl - W, groundY, br - bl + 2 * W, Math.max(bandH, H - groundY) + H);
+    ctx.restore();
+  }
   diepGesteente(groundY, bandH);             // kijk je dieper dan de grondrand reikt, dan gesteente
   if (edgeReady()){
     const s = edgeScale(bandH);
@@ -8796,6 +8896,11 @@ function loop(now){
     // dit uitzicht (koud en besneeuwd in de winter).
     {
       const bandH3 = H * 0.18;
+      // Zo veel ravijn staat er werkelijk in beeld. Gedeeld door de zoom, want dit blok
+      // wordt getekend binnen de schaal van de bouwer en het verloop moet op het scherm
+      // over die afstand lopen, niet in de maat van de tekening.
+      const zicht = Math.max(bandH3, H - groundY) / viewZoom();
+      const diepK = ravijnDiep();     // de kleur waar het diepste stuk op uitkomt, een keer per frame
       const topY = edgeCrust(groundY);        // de breuk loopt ook door het bovenvlak, tot waar dat dicht is
       const deep = groundY + bandH3 + 60;
       const art = gapArt();
@@ -8828,22 +8933,29 @@ function loop(now){
             ctx.drawImage(art.rim, x, rimY, rimW + 1, rimH);
             for (let y = rockTop; y < groundY + H * 1.5; y += rockH - 1) ctx.drawImage(art.rock, x, y, rimW + 1, rockH * (rimW / rockW));
           }
-          // de overkant staat ver weg: onder de rand ligt nevel in de kleur van dit uitzicht over de
-          // wand, dikker naarmate je dieper kijkt. De rand zelf blijft scherp: daar moet je landen
+          // De overkant staat ver weg: onder de rand ligt nevel in de kleur van dit uitzicht over
+          // de wand, dikker naarmate je dieper kijkt, en daaronder wordt het donker. De rand zelf
+          // blijft scherp, want daar moet je landen.
+          //
+          // Beide verlopen hingen aan veelvouden van Amir en kwamen pas op volle sterkte 225 tot
+          // 396 px onder de grondlijn. Je ziet er maar 0,18 van de schermhoogte van, dus dat
+          // gebeurde altijd buiten beeld en bleef er een gelijkmatig verlichte plaat over. Ze
+          // lopen nu over het stuk dat werkelijk in beeld staat.
           const sc = sceneCfg();
           const mistA = Math.min(0.75, 0.5 * (sc.mist || 1));
-          const hz = ctx.createLinearGradient(0, groundY + amir * 0.06, 0, groundY + amir * 1.3);
-          hz.addColorStop(0, 'rgba(' + sc.mistColor + ',0.08)');
+          const hz = ctx.createLinearGradient(0, groundY + amir * 0.06, 0, groundY + zicht);
+          hz.addColorStop(0, 'rgba(' + sc.mistColor + ',0)');       // op nul beginnen, anders ligt er een streep op de rand
           hz.addColorStop(0.35, 'rgba(' + sc.mistColor + ',' + (mistA * 0.7).toFixed(3) + ')');
           hz.addColorStop(1, 'rgba(' + sc.mistColor + ',' + mistA.toFixed(3) + ')');
           ctx.fillStyle = hz; ctx.fillRect(gl - 40, groundY + amir * 0.06, gr - gl + 80, H * 3);
-          // en hoe dieper, hoe donkerder: onderin zie je niets meer
-          const dg = ctx.createLinearGradient(0, groundY + amir * 0.3, 0, groundY + amir * 2.2);
-          dg.addColorStop(0, 'rgba(' + art.dark + ',0.0)');
-          dg.addColorStop(0.5, 'rgba(' + art.dark + ',0.45)');
-          dg.addColorStop(1, 'rgba(' + art.dark + ',0.97)');
+          // en hoe dieper, hoe donkerder: onderin zie je niets meer. Dezelfde kleur waar de
+          // doorgetrokken achtergrond ook op uitkomt, dus daar zit geen overgang tussen
+          const dg = ctx.createLinearGradient(0, groundY + zicht * 0.12, 0, groundY + zicht);
+          dg.addColorStop(0, 'rgba(' + diepK + ',0.0)');
+          dg.addColorStop(0.5, 'rgba(' + diepK + ',0.5)');
+          dg.addColorStop(1, 'rgba(' + diepK + ',0.97)');
           ctx.fillStyle = dg; ctx.fillRect(gl - 40, groundY - 2, gr - gl + 80, H * 3);
-          ctx.fillStyle = 'rgb(' + art.dark + ')'; ctx.fillRect(gl - 40, groundY + amir * 2.2 - 1, gr - gl + 80, H * 3);
+          ctx.fillStyle = 'rgb(' + diepK + ')'; ctx.fillRect(gl - 40, groundY + zicht - 1, gr - gl + 80, H * 3);
           // de breukranden werpen schaduw op de overkant
           for (const sd of [-1, 1]){
             const x0 = sd < 0 ? gl : gr, x1 = sd < 0 ? gl + 34 : gr - 34;

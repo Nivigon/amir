@@ -357,6 +357,34 @@ In de sandbox staan de knoppen onder **Uitzicht**: ze zetten je meteen op een te
 vier Amir hoog, zonder valschade, zodat je het uitzicht op hoogte kunt bekijken zonder een level
 te klimmen. **Terug op de vlakte** haalt de terrassen weer weg.
 
+## In een ravijn kijken
+
+Een ravijn is een gat in de grond, en daar hoort je eigen wereld in door te lopen. Dat deed
+het niet. De achtergrond houdt op de grondlijn op en daaronder lag een vlakke vulling over de
+volle breedte van het scherm. Zolang de grond dicht is zie je daar niets van, maar door een
+breuk hing die vulling als een donkere balk boven de overkant, met een kaarsrechte bovenrand
+dwars over het gat. Dat is nu de eerste plek waar je naar keek, en het was het duidelijkste
+teken dat het gat er als een rechthoek in lag geplakt.
+
+Nu loopt de laag die op de grondlijn ligt naar beneden door, wat daar ook staat: de heuvels,
+de nevel, het water, het uitzicht van dit level. Per kolom precies dezelfde kleur, dus er is
+geen overgang te zien en er hoeft niets over de achtergrond geraden te worden. Daarna zakt het
+weg, zodat je in het gat kijkt en niet door een gleuf naar de lucht erachter. Een aparte rand
+met dikte en een slagschaduw zijn daardoor niet nodig: de achtergrond zelf doet het werk.
+
+Twee dingen aan de kleur horen daarbij. Het steen van de overkant was de bleekste en de grijste
+van het spel, met een verzadiging van 0,08, en het stond tegen de grondrand aan, de meest
+verzadigde tegel die er is (0,51 voor de wand, 0,66 voor het loopvlak). Daar lag een waas
+overheen die het wel lichter maakte maar niet warmer, en over grijs met de nevel van het level
+erbij werd dat lila. Het wordt nu omgeverfd in plaats van overgoten: tint en verzadiging van de
+grond, helderheid van het steen. En de nevel en het donker in het gat liepen tot anderhalve Amir
+onder de grondlijn, terwijl je er maar 0,18 van de schermhoogte van ziet. Het hele verloop van
+scherpe rand naar niets meer zien gebeurde dus buiten beeld. Het speelt zich nu af op het stuk
+dat werkelijk in beeld staat.
+
+In de sandbox staat het onder **Ravijn**: **Smal** en **Breed** zetten een breuk neer waar je
+staat.
+
 ## Mappenstructuur## Mappenstructuur
 
 ```
