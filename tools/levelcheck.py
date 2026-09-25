@@ -329,6 +329,7 @@ class Spel:
         self.GAP_BASE = b.getal('GAP_BASE')
         self.GAP_DEATH = b.getal('GAP_DEATH')
         self.PLAFOND_WEG = b.getal('PLAFOND_WEG')
+        self.HOLTE_DAK = b.getal('HOLTE_DAK')
         self.FAR_GAP_LIFT = b.getal('FAR_GAP_LIFT')
         self.PLAYER_HALF_W = b.getal('PLAYER_HALF_W')
         self.THICKET_BOX = b.getal('THICKET_BOX')
@@ -506,9 +507,19 @@ class Level:
         self.ends = g('ends')
         self.cliffs = g('cliffs')
         self.muur = d.get('muur')
+        self.holtes = [o for o in g('holtes') if isinstance(o, dict)]
+
+    def holte(self, x):
+        """De gang onder de grond op deze plek (holteAt)."""
+        for o in self.holtes:
+            if o['l'] <= x <= o['r']:
+                return o
+        return None
 
     def terrein(self, x, zonder=None):
-        h = 0
+        """terrainH: boven een gang staat alles op de bodem ervan."""
+        o = self.holte(x)
+        h = -o['diep'] if o else 0
         for t in self.terraces:
             if t is not zonder and t['l'] <= x <= t['r'] and t['h'] > h:
                 h = t['h']
@@ -541,6 +552,12 @@ class Level:
         """Hoe hoog zijn voeten mogen komen voor hij zijn hoofd stoot (plafondKop)."""
         m = self.plafond_min(x - self.spel.halfW, x + self.spel.halfW)
         return m - self.spel.CHAR_H
+
+    def dak_kop(self, x):
+        """holteKop: in een gang, buiten een gat, stoot hij zijn hoofd tegen het dak."""
+        if self.holte(x) and not self.in_gat(x, x):
+            return -self.spel.HOLTE_DAK - self.spel.CHAR_H
+        return math.inf
 
     def in_gat(self, x0, x1):
         for g in self.gaps:
@@ -643,11 +660,16 @@ def einde(lv, sp):
             if vrij < 0:
                 yield letop(e['x'], 'de fakkels staan %s px in het klifplaatje (tussen einde en klif hoort minstens %s)'
                             % (n0(-vrij), n0(sp.fakkels_halfw() + sp.klif_rechts())))
-        if lv.in_gat(e['x'] - sp.fakkels_halfw(), e['x'] + sp.fakkels_halfw()):
+        if lv.holte(e['x']):
+            o = lv.holte(e['x'])
+            yield info(e['x'], 'de fakkels staan beneden in de gang, op %s' % n0(-o['diep']))
+            if e['x'] - sp.EIND_BEREIK < o['l'] + sp.halfW:
+                yield fout(e['x'], 'de fakkels zijn niet te halen: de wand van de gang op %s houdt Amir tegen' % n0(o['l']))
+        elif lv.in_gat(e['x'] - sp.fakkels_halfw(), e['x'] + sp.fakkels_halfw()):
             yield fout(e['x'], 'de fakkels staan boven een ravijn')
         if lv.muur and lv.muur['x'] > e['x']:
             yield letop(lv.muur['x'], 'de muur staat voor de fakkels: je moet hem eerst open hebben')
-    if not lv.cliffs and lv.ends:
+    if not lv.cliffs and lv.ends and not lv.holte(lv.ends[0]['x']):
         yield info(None, 'geen klif achter het einde: je kunt voorbij de fakkels doorlopen')
 
 
@@ -678,7 +700,11 @@ def vijanden(lv, sp):
     if not lv.d.get('spawns'):
         yield letop(None, 'lege spawns: het spel valt dan terug op de vrije modus en stuurt zelf slangen op je af')
     for o in lv.d.get('spawns') or []:
-        if isinstance(o.get('x'), (int, float)) and lv.in_gat(o['x'] - 40, o['x'] + 40):
+        if not isinstance(o.get('x'), (int, float)):
+            continue
+        if lv.holte(o['x']):
+            yield info(o['x'], 'vijand %s staat beneden in de gang, op %s' % (o.get('k'), n0(lv.terrein(o['x']))))
+        elif lv.in_gat(o['x'] - 40, o['x'] + 40):
             yield letop(o['x'], 'vijand %s start boven een ravijn' % o.get('k'))
 
 
@@ -699,7 +725,11 @@ def ravijnen(lv, sp):
         # ligt er een gang onder (holtes), dan is dit de ingang: erin vallen is de bedoeling
         ingang = any(isinstance(h, dict) and h.get('l', 0) <= g['x'] - w / 2 and g['x'] + w / 2 <= h.get('r', 0)
                      for h in (lv.d.get('holtes') or []))
-        if w > red_r and ingang:
+        treden = [t for t in lv.terraces if t['h'] < 0 and t['l'] < g['x'] + w / 2 and t['r'] > g['x'] - w / 2]
+        if ingang and treden:
+            yield info(g['x'], 'gat van %s breed boven een gang, met %d treden erin: een weg naar boven'
+                       % (n0(w), len(treden)))
+        elif w > red_r and ingang:
             yield info(g['x'], 'ravijn van %s breed boven een gang: de ingang, je valt erin' % n0(w))
         elif w > red_r:
             yield fout(g['x'], 'ravijn van %s breed: met sprint haalt Amir hoogstens %s%s' % (n0(w), n0(red_r), erbij))
@@ -717,6 +747,8 @@ def ravijnen(lv, sp):
                             % (n0(p['x']), round(sp.POOL['jump'] * 100)))
         # terras over de rand
         for t in lv.terraces:
+            if ingang and t['h'] < 0:
+                continue                                  # een trede in de schacht, zie 'onder de grond'
             if t['l'] < g['x'] + w / 2 and t['r'] > g['x'] - w / 2:
                 yield letop(g['x'], 'ravijn loopt onder een terras (%s tot %s) door' % (n0(t['r']), n0(t['l'])))
         # grond tussen twee ravijnen
@@ -859,6 +891,7 @@ def terrassen(lv, sp):
 
         def apex(van):
             kop = lv.plafond_min(t['r'] - 150, t['r'] + sp.halfW) - sp.CHAR_H
+            kop = min(kop, lv.dak_kop(t['r'] + sp.halfW))   # hij zet af tegen de wand, misschien onder het dak
             return min(sp.SPRONG_H, kop - van)
         bereikt, rij = {vloer}, [vloer]
         while rij:
@@ -887,6 +920,61 @@ def terrassen(lv, sp):
     for o in lv.ledges:
         if not any(abs(o['x'] - t['r']) < 60 and t['h'] > o['h'] for t in lv.terraces):
             yield letop(o['x'], 'richel op %s hangt niet aan een terraswand' % n0(o['x']))
+
+
+@regel('onder de grond')
+def onder_de_grond(lv, sp):
+    """Een gang onder de grond (holtes) en de weg eruit. Een trede onder de grondlijn is een
+    terras met een negatieve h: hij hoort in een gang te staan, en waar Amir erop met zijn kruin
+    boven het dak uit zou komen, moet er een gat boven zitten. Ligt het einde voorbij de gang, dan
+    moet er een trap naar buiten zijn: een gat in het dak met treden erin, en de bovenste binnen
+    een sprong van de savanne."""
+    dak = -sp.HOLTE_DAK - sp.CHAR_H                 # zo hoog mogen zijn voeten onder het dak
+    for o in lv.holtes:
+        if o['l'] >= o['r']:
+            yield fout(o['r'], 'gang met l (%s) rechts van r (%s): l is de linkerrand, dus negatiever'
+                       % (n0(o['l']), n0(o['r'])))
+    for t in lv.terraces:
+        if t['h'] >= 0:
+            continue
+        waar = 'trede op %s (%s tot %s)' % (n0(t['h']), n0(t['r']), n0(t['l']))
+        o = lv.holte(t['r'])
+        if not o or not lv.holte(t['l']) or lv.holte(t['l']) is not o:
+            yield fout(t['r'], '%s staat onder de grondlijn maar niet helemaal in een gang: dat is massieve grond' % waar)
+            continue
+        if t['h'] <= -o['diep']:
+            yield letop(t['r'], '%s ligt niet boven de bodem van de gang (%s): die doet niets' % (waar, n0(-o['diep'])))
+        if t['h'] > dak:
+            # hier steekt hij met zijn kruin boven het dak uit: dat mag alleen onder een gat
+            x = t['r']
+            while x > t['l']:
+                if not lv.in_gat(x - 1, x - 1):
+                    yield fout(x, '%s: op %s staat Amir erop met zijn hoofd in het dak (voeten hoger dan %s '
+                               'kan alleen onder een gat)' % (waar, n0(x), n0(dak)))
+                    break
+                x -= 10
+            g = lv.in_gat(t['r'], t['r'])
+            if g and t['r'] + sp.halfW > g['x'] + g['w'] / 2:
+                yield fout(t['r'], '%s: wie ertegenaan staat, staat nog onder het dak en springt er niet op. '
+                           'Zet de rechterrand minstens %s binnen het gat' % (waar, n0(sp.halfW)))
+    # de weg naar boven
+    eind = lv.einde()
+    for o in lv.holtes:
+        if eind is None or eind >= o['l'] or lv.holte(eind):
+            continue                                      # het einde ligt in de gang, of ervoor
+        ingang = [g for g in lv.gaps if o['l'] <= g['x'] - g['w'] / 2 and g['x'] + g['w'] / 2 <= o['r']]
+        if not ingang:
+            continue                                      # er komt niemand in
+        uit = False
+        for g in ingang:
+            gl = g['x'] - g['w'] / 2
+            for t in lv.terraces:
+                if t['h'] < 0 and t['l'] <= gl + sp.halfW and t['r'] > gl and -t['h'] < sp.SPRONG_H:
+                    uit = True
+        if not uit:
+            yield fout(o['l'], 'het einde (%s) ligt voorbij de gang van %s tot %s, maar er is geen weg naar boven: '
+                       'een gat in het dak met treden erin, de bovenste tegen de linkerrand van het gat en '
+                       'minder dan %s onder de grondlijn' % (n0(eind), n0(o['r']), n0(o['l']), n0(sp.SPRONG_H)))
 
 
 @regel('water')

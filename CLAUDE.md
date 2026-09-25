@@ -111,8 +111,8 @@ precies hetzelfde formaat naar JSON.
 | `gaps` | ravijnen: `{x, w}` |
 | `water` | poelen: `{x, n}` met `n` = aantal middenstukken |
 | `thickets` | doornbossen: `{x, n, seed}` |
-| `terraces` | terrassen om op te klimmen: `{r, l, h}` (rechterrand, linkerrand, hoogte) |
-| `holtes` | gangen onder de grond: `{r, l, diep}`, een ravijn erboven is de ingang (zie hieronder) |
+| `terraces` | terrassen om op te klimmen: `{r, l, h}` (rechterrand, linkerrand, hoogte); met een negatieve `h` een trede in een gang |
+| `holtes` | gangen onder de grond: `{r, l, diep}`, een ravijn erboven is de ingang, een gat met treden de uitgang (zie hieronder) |
 | `ledges` | richels aan een wand: `{x, h, s}` |
 | `grotten` | rotsgebieden als raster: `{x, cel, y, grid, ...}` (zie hieronder) |
 | `plafond` | de rots boven je als hoogtelijn: `[{x, y}, ...]` (zie hieronder) |
@@ -164,7 +164,7 @@ een aan-of-uit sneeuwversie. Loop je door een overgang, dan springen die er in Ã
 om. Dat is bewust buiten deze wijziging gelaten.
 
 `schoonLevel` kijkt elk level bij het laden na en schuift decor dat boven een ravijn
-staat naar de kant, of haalt het weg. Reken daar niet op als ontwerper: zet het
+staat naar de kant, of haalt het weg (behalve binnen een gang: daar staat het op de bodem). Reken daar niet op als ontwerper: zet het
 meteen goed.
 
 ### Rots als een raster van cellen
@@ -456,8 +456,47 @@ onder de rand. Alles in de gang staat op de bodem, want `terrainH` geeft daar `-
 
 Het donker is schets E: een zwarte laag over het steen (alleen helderheid, geen tint), de
 looprand van de vloer lichter dan de vulling eronder, en boven het dak zakt alles weg zodra
-de camera mee naar beneden is. Door het gat valt gedempt daglicht. De waarden staan in
+de camera onder het dak zit. Door het gat valt gedempt daglicht. De waarden staan in
 `HOLTE_LICHT`. `Test 4` is het proefstuk.
+
+Alles wat binnen `r` en `l` van een gang staat, staat op de bodem: vijanden, decor,
+kalebassen en de fakkels. Een level kan dus onder de grond eindigen (`Licht 3`); de wand van
+de gang houdt je dan achter de fakkels tegen, een klif is niet nodig. Dat werkt omdat
+`grotTerrein` zonder raster `-Infinity` geeft en geen 0: gaf hij 0, dan trok `terrainH` alles in
+de gang weer naar de savanne, en dat is precies waarom de vijanden van Licht 3 eerst boven
+stonden en de fakkels daar niet te halen waren.
+
+Twee hulpjes houden boven en beneden uit elkaar. `gatOp(x, base)` is `inGap` voor wie op
+hoogte `base` staat: beneden in een gang is een gat erboven geen rand, dus een vijand loopt er
+onderdoor. `vloerBij(x, h)` is de vloer voor wie op hoogte `h` staat: boven een gang de
+savanne, erin de bodem. De vijanden rekenen hun vloer daarmee uit, en de sandbox zet een vijand
+daarmee op jouw hoogte neer. Gebruik ze in plaats van `inGap` en `terrainH` als het om iets gaat
+dat zowel boven als beneden kan staan.
+
+**Terug naar boven** gaat via een tweede gat in het dak met treden erin. Een trede is een gewoon
+terras met een negatieve `h`, dus de klimstukken van de terrassen, en `drawClimb` tekent ze in
+een tweede ronde na de ravijnen (anders tekent de overkant van het gat over de bovenste heen),
+dieper donkerder (`HOLTE_LICHT.trede`, alleen helderheid). Reken zo:
+
+- het dak ligt op 190, dus onder het dak mogen zijn voeten niet hoger dan -441 (`-HOLTE_DAK -
+  CHAR_H`). Een trede hoger dan dat moet helemaal onder het gat staan;
+- zijn rechterrand ligt minstens een halve Amir binnen het gat, anders staat hij bij het
+  afzetten nog onder het dak en haalt hij hem niet;
+- elke stap is minder dan de sprong (208); 150 is ruim;
+- de bovenste ligt binnen een sprong van de grondlijn en loopt door tot de linkerrand van het
+  gat: daar stapt hij de savanne op.
+
+Zolang zijn voeten tussen het dak en de grondlijn zitten, houdt `holteBlok` hem binnen het gat,
+want zijwaarts zit daar het grondpakket. Op de savanne boven een gang dragen de treden eronder
+niet (`supportHeight`). Test 4 heeft zo'n trap: van 900 diep in zes stappen van 150 naar boven.
+
+```
+gaps:     [ {x: -1000, w: 620}, {x: -3400, w: 900} ],       ingang, en de uitgang van -3850 tot -2950
+holtes:   [ {r: -540, l: -3850, diep: 900} ],
+terraces: [ {r: -2850, l: -3850, h: -750}, {r: -3050, l: -3850, h: -600}, ... {r: -3650, l: -3850, h: -150} ]
+```
+
+`levelcheck.py` kijkt dit na onder `onder de grond`.
 
 ### Een level donker maken
 
