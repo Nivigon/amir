@@ -307,7 +307,13 @@ Drie lagen, in deze volgorde:
 2. **Band** (`plafondBand`): dezelfde tandenrand als bij de grotten (`GROT.band`, de onderste
    160 bronrijen van `plafond_strook`), maar langs de lijn, en per stuk meegedraaid met de
    helling. Het patroon loopt door over de knikken heen (`plafondFase`), anders begint het bij
-   elk stuk opnieuw en zie je de knik in het steen zitten.
+   elk stuk opnieuw en zie je de knik in het steen zitten. Die fase moet ook doorlopen buiten
+   de lijn: het spel tekent anderhalve schermbreedte breder dan het beeld, dus aan het eind
+   van een level ligt de rand van dat venster voorbij het eerste punt van de lijn. Daar is de
+   lijn vlak (`plafondH` klemt), dus de lengte is gewoon de afstand, en `plafondFase` geeft
+   hem negatief terug. Stopt hij daar op nul, dan staat de fase stil terwijl het stuk tussen
+   de vensterrand en het eerste punt wel meegeteld wordt, en plakt de tandenrand aan het
+   scherm in plaats van aan de wereld: hij schuift dan precies met je mee.
 3. **Losse blokken** (`plafondDecorLijst`): om de `PLAFOND_STAP` wereld-px een plek, waar
    ongeveer een op de drie keer een hangblok of een richel hangt, met een seed uit de lijn zelf.
    Ze worden afgesneden op de lijn: wat erboven uitsteekt zit in het steen. Hoe krapper de
