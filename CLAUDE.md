@@ -453,10 +453,12 @@ wil je alleen dat de verte wegzakt, dan `dim`. Meestal gebruik je ze samen.
    `WINTER_LEVELS`).
 3. Een ondertitel in `SUBS`, op de naam van het level.
 4. Een eigen uitzicht in `SCENES` als het level er anders uit moet zien.
+5. `python3 tools/levelcheck.py` draaien, en elke FOUT oplossen voor je commit (zie
+   hieronder).
 
 ### Een episode toevoegen
 
-Die vier stappen, plus: een knop in `menuChoose`, een eigen `menuXxx`-blok in de
+Die vijf stappen, plus: een knop in `menuChoose`, een eigen `menuXxx`-blok in de
 HTML naar het voorbeeld van `menuWinter`, en die aanmelden in `buildCards`,
 `markCards` en `showMenu`.
 
@@ -522,6 +524,35 @@ Winterversies komen uit `tools/sneeuw.py` (rotsen en klimstukken), `sneeuw_bg.py
 (achtergrondpanelen), `sneeuw_dorp.py` (hutten, boom, struik) en `winter_art.py`
 (dieren, grond, gras). Verandert een origineel, draai het bijbehorende script dan
 opnieuw.
+
+## Levels nakijken: tools/levelcheck.py
+
+Na elk nieuw level, en na elke wijziging aan een level, draai je:
+
+```
+python3 tools/levelcheck.py            alle levels
+python3 tools/levelcheck.py "Test 4"   alleen de levels waarvan de naam dit bevat
+python3 tools/levelcheck.py -v         ook de info-regels
+```
+
+Het script leest de leveldefinities uit de HTML, samen met de getallen waar het spel
+zelf mee rekent (`CHAR_H`, `JUMP_V`, `GRAVITY`, de loopsnelheid en de sprint, `PLAFOND_WEG`,
+de maten van keien, klif en fakkels). Het verandert niets aan de levels, het meldt alleen.
+FOUT betekent: stuk, of tegen een regel uit dit document in. LET OP betekent: het werkt,
+maar krap, of het spel lost het stilletjes voor je op. Een nieuw level gaat pas de deur uit
+zonder FOUT. Wat het nakijkt: velden die `readLevel` niet kent, ravijnen tegen de echte
+sprong (met het plafond en het water erbij), decor boven een ravijn met dezelfde maten als
+`schoonLevel`, het plafond boven keien en treden, rechtop kunnen lopen, of elke trede met
+een sprong, een richel of een kei te halen is, en of de klif achter de fakkels staat.
+
+Maten die aan het scherm hangen rekent het uit voor 1280 bij 720 op Formaat 25; met `--hoog`
+en `--formaat` kijk je een ander scherm na.
+
+**Meldt iemand iets in een level dat niet samen kan** (een laag plafond boven een kei om op
+te springen, een poel vlak voor een ravijn), dan komt dat er als regel bij: een functie met
+`@regel('naam')` in `tools/levelcheck.py`, met de getallen uit de code en niet uit het hoofd.
+Draai daarna alle levels opnieuw en meld wat de nieuwe regel in de bestaande levels vindt,
+zonder die levels aan te passen (regel 1).
 
 ## Testen en afronden
 
