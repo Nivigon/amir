@@ -10,7 +10,7 @@ en beschrijft wat het spel kan; dit document beschrijft hoe je eraan werkt.
 ## Regels
 
 **1. Bestaande levels blijven met rust.** De leveldefinities in de HTML
-(`GIJS_LEVEL` tot en met `PANTER_PLUS`, `ROSA_1` en `ROSA_2`, `RENEW_1` tot en met
+(`ROSA_1` en `ROSA_2`, `RENEW_1` tot en met
 `RENEW_10`, `WINTER_1` en `WINTER_2`, `DARK_1` tot en met `DARK_5`) zijn bevroren. De
 levels in Episode Test levels (`TEST_1`) vallen daar niet onder: die zijn er juist om aan te rommelen. Er komt geen nieuwe vijand,
 prop, tip, potion of aangepast getal in, ook niet even om iets te laten zien. Alleen
