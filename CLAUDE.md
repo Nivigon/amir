@@ -337,57 +337,90 @@ Hangblokken zijn decor; alleen `wand_richel` draagt, met dezelfde hitbox als in 
 
 ### De muur die je met je speer openkrijgt
 
-Een rotswand die de weg verspert, met hoog op het steen een houten schijf met een rune. Raakt
-de punt van een geworpen speer die schijf, dan blijft die speer er voorgoed in zitten en
-schuift het rotsblok in een halve seconde omhoog de berg in. Mis je, dan blijft de speer in
-de rots steken en valt hij er na `JAV.muurT` vanzelf uit: dat is de gewone wandspeer, daar is
-niets voor aangepast.
+Een rotswand die de weg verspert, met op het steen een houten schijf met een rune. Raakt de
+punt van een geworpen speer die schijf, dan blijft die speer er voorgoed in zitten en schuift
+het rotsblok in een halve seconde omhoog de berg in. Mis je, dan blijft de speer in de rots
+steken en valt hij er na `JAV.muurT` vanzelf uit: dat is de gewone wandspeer, daar is niets
+voor aangepast.
 
-Een level zet hem neer met `muur: {x, speer}`. `x` is de rechte kant van de wand, waar Amir
-tegenaan loopt; `speer` is de plek in de grond waar zijn speer steeds terugkomt, zodat je zo
-vaak kunt proberen als je wilt. Alles wat je verder kunt afstellen staat bij elkaar in `MUUR`,
-bovenin die sectie: de crop, de opening, de schijf, de schuiftijd.
+Een level zet hem neer met `muur: {x, speer}`. `x` is de rechterrand van de rots, de kant waar
+Amir aankomt; `speer` is de plek in de grond waar zijn speer steeds terugkomt, zodat je zo vaak
+kunt proberen als je wilt. Verder staat er geen enkele positie in het level: waar de opening en
+de schijf komen rekent `muurSet` uit de plaat zelf uit. Alles wat je kunt afstellen zijn maten
+en verhoudingen, en die staan bij elkaar in `MUUR`.
 
-Drie dingen die niet vanzelf spreken:
+**De rots wordt in zijn geheel getekend.** Niet gesneden, niet gespiegeld, niet uitgerekt: de
+hele plaat met zijn volledige silhouet, geschaald tot hij past. `hoog` doet dat op de ruimte
+boven de grondlijn, `breed` daarna op de schermbreedte. Die tweede staat op 0,60 en dat is geen
+smaak: de camera staat op Amir en laat een halve schermbreedte naast hem zien, dus alles wat
+breder is kun je nooit in een keer overzien. Het is de grootste maat waarop de hele rots nog in
+beeld staat op de twee plekken waar het om gaat: als je voor de opening staat, en op het stuk
+van de raakstrook waar zijn speer in de grond staat.
 
-**Gat en blok komen uit dezelfde pixels.** Bij het laden wordt de plaat een keer op maat gezet
-en daaruit komen drie canvassen: de muur met de vorm van de opening eruit gegumd
-(`destination-out`), het schuifblok dat precies dat uitgegumde stuk is met een marge eromheen,
-en een masker dat die vorm doorsnijdt met de rots zelf. Verschuif je de opening, dan schuift
-het blok mee en past het nog steeds. Het masker is een pixel ruimer dan het gat, anders blijft
-er door de anti-aliasing een haarlijntje op de rand staan.
+De prijs is dat de rots niet boven Amir uittorent zoals in de demo. Daar is de speler 88 pixels
+op een scherm van 720 en hier is Amir er 180, dus dezelfde verhouding zou een rots van ruim
+duizend pixels hoog en tweeduizend breed vragen: drie schermen breed. Hoe groot hij lijkt hangt
+dus aan het Formaat, niet aan de plaat. Op 25 is hij 2,1 keer Amir, op 15 ruim 3,5 keer.
+
+**De plek van de opening komt uit de alfawaarden.** Per kolom wordt geteld hoe ver het steen
+vanaf de grond aaneengesloten massief is (`massief`), en daarna wordt van de kant waar Amir
+vandaan komt de eerste plek gezocht waar de opening past, met daar de hoogste deur die er nog
+in kan. Zo dicht mogelijk bij zijn kant dus, en dat is niet alleen netjes: hoe dieper de
+opening ligt, hoe verder je moet gaan staan om de rune te raken, en hoe minder er dan van de
+rots in beeld past. Twee eisen tegelijk:
+
+- over de volle breedte van de opening moet er genoeg steen staan (de deur plus de schijf
+  erboven plus een randje);
+- waar de schijf komt te hangen moet de bovenrand van de rots juist laag genoeg blijven, onder
+  de top van de werpboog. Het spel rekent die top uit de worpconstanten uit. Ligt de rand
+  hoger, dan kan de speer er per definitie nooit overheen en is de rune onraakbaar.
+
+Past de opening nergens, dan krimpt hij tot hij wel past, tot Amirs eigen lengte. Dat is met
+opzet: een deur die vasthoudt aan zijn maat belandt aan de rand van de rots, half in de lucht,
+en dat is precies wat er niet mag.
+
+**De schijf hangt aan de bovenrand, niet op een vaste hoogte.** In zijaanzicht is de rots een
+massief silhouet: een punt onder de bovenrand zit in het steen, en daar komt geen speer ooit,
+hoe je ook gooit. De schijf hangt dus net onder die rand (`onder`, 1 betekent dat haar
+bovenkant hem raakt), zodat het hout helemaal op de rots ligt en de punt er toch bij kan door
+er overheen te scheren. Daarom is het raakvlak (`raak`) ruimer dan het hout: de ruimte waar de
+speer kan komen ligt boven de schijf. Dat raakvlak staat los van de straal, en met opzet: `r`
+is hoe groot het hout eruitziet, `raak` is hoe nauw het luistert, allebei als deel van Amirs
+lengte. Zo maakt een kleinere schijf het spel niet meteen ook moeilijker. De punt blijft steken waar hij binnenkwam, geklemd op de
+rand van het hout, dus hij springt niet naar het midden.
+
+**Gat en blok komen uit dezelfde pixels.** Uit de plaat op maat komen drie canvassen: de muur
+met de vorm van de opening eruit gegumd (`destination-out`), het schuifblok dat precies dat
+uitgegumde stuk is met een marge eromheen, en een masker dat die vorm doorsnijdt met de rots
+zelf. Het masker is een pixel ruimer dan het gat, anders blijft er door de anti-aliasing een
+haarlijntje op de rand staan.
 
 Die snede met de rots gaat met de hand en niet met `destination-in`. Die rekent alfa maal alfa,
 en waar de omtrek van de rots zelf door het gat loopt (langs de voet, bij de steentjes) werd het
-blok daardoor doorzichtiger dan het steen eromheen: dan zie je de opening staan terwijl hij dicht
-is. Nu telt alleen of er rots zit, ja of nee.
+blok daardoor doorzichtiger dan het steen eromheen. En zolang het blok stilstaat wordt de
+ongeschonden plaat getekend en verder niets: de drie canvassen weer samenstellen levert op de
+zachte randen 8-bits afrondingen op, en dat is precies het haarlijntje dat er niet mag zijn.
 
-En zolang het blok stilstaat wordt de ongeschonden plaat getekend en verder niets. De drie
-canvassen weer samenstellen levert op de zachte randen 8-bits afrondingen op, en dat is precies
-het haarlijntje dat er niet mag zijn. Zodra het blok beweegt schakelt hij over; dan is er toch
-al iets te zien.
+**De speer botst op de alfawaarde**, met de punt, en dat gaat vanzelf goed omdat `jav.x` en
+`jav.h` in dit spel de punt zelf zijn. Lukt het uitlezen niet, dan telt de hele plaat als rots.
 
-**De speer botst op de alfawaarde.** Niet op een denkbeeldige verticale muurlijn: `muurVast`
-leest de alfakaart van de plaat uit (`getImageData`, een keer per schaal, alleen het
-alfakanaal). De botsing gebeurt met de punt van de speer, en dat gaat vanzelf goed omdat
-`jav.x` en `jav.h` in dit spel de punt zelf zijn. Lukt het uitlezen niet, dan telt de hele
-plaat als rots; het spel moet toch al van een webserver komen, dus dat gebeurt alleen als je
-het bestand rechtstreeks opent.
+**Amir botst op een enkele verticale lijn**, de rand van de opening die naar hem toe wijst. De
+rest van de rots is decor. Dat moet ook wel: de flank ervoor loopt schuin op en eindigt in losse
+steentjes, en daar zou hij aan blijven hangen ver voordat hij bij de deur is.
 
-**Horizontaal maal scale.** De maten in `MUUR` staan in sprite-eenheden, net als de hoogte van
-een terras: 251 is een Amir. Horizontaal moeten ze daarom maal `scale`, precies zoals `muurSet`
-ze op het canvas zet. Doe je dat niet, dan ligt de opening waar je botst ergens anders dan de
-opening die je ziet, en klopt het alleen op Formaat 100.
+**Controleer na elke wijziging of de rune nog te raken is.** Dat is geen gevoelskwestie: simuleer
+de boog vanaf elke plek waar Amir kan staan en kijk of er een aaneengesloten strook overblijft.
+Op een scherm van 1280 bij 720 en Formaat 25 is die strook 146 pixels breed, vlak voor de
+opening. Op het verste stuk ervan staat de rots ook in zijn geheel in beeld, en daar hoort de
+speer van het level dus te staan. Dichterbij gaat de speer onder de rune door tegen het steen, verder weg zakt hij er al
+voor. Er is nog een tweede strook op ruim tweeduizend pixels, maar daar staat de rots buiten
+beeld, dus die telt niet mee.
 
-Twee dingen om op te letten als je hem verplaatst of anders afstelt:
-
-- `sym.in` moet kleiner blijven dan `sym.r + raak`. De rots is in het zijaanzicht een plat vlak,
-  dus een speer die eropaf komt raakt het steen op de rechte kant. Ligt de schijf dieper dan
-  haar eigen trefcirkel, dan kom je er nooit bij.
-- De hoogte van de schijf bepaalt van hoe ver je moet gooien, en dat bepaalt of de wand op dat
-  moment in beeld staat. Op 530 ligt de werpzone op 340 tot 660 pixels voor de rots, en met een
-  half scherm van 640 pixels zie je waar je op mikt. Hang je hem hoger, dan mik je op iets wat
-  net buiten beeld valt.
+Het geluid zit in `SFX_DEUR` (`sounds/deuropen.mp3`) en speelt af op het moment van de treffer.
+De opname duurt 42 seconden en staat van begin tot eind even hard, terwijl het blok maar een
+halve seconde schuift, dus er wordt alleen de kop van gebruikt: vol tot `duur`, dan wegzakken in
+`uit`, samen zo'n drie seconden. Dezelfde aanpak als bij het windgeluid. `duur: 0` speelt hem
+wel helemaal uit.
 
 ### Een level donker maken
 
