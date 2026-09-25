@@ -694,6 +694,18 @@ def ravijnen(lv, sp):
         schoon_r, red_r = sp.sprong(rennen, kop, rand)
         schoon_l, _ = sp.sprong(lopen, kop, rand)
         w = g['w']
+        # Ligt er een gang onder (holtes), dan is dit een ingang: je hoort erin te vallen,
+        # dus over de sprong valt niets te melden. Wel of de gang het hele gat afdekt, want
+        # een stuk gat zonder gang eronder is gewoon een dodelijk ravijn.
+        gangen = [o for o in lv.d.get('holtes') or [] if o['l'] < rand and o['r'] > g['x'] - w / 2]
+        if gangen:
+            o = gangen[0]
+            if o['l'] > g['x'] - w / 2 or o['r'] < rand:
+                yield fout(g['x'], 'ravijn van %s breed valt maar half in de gang (%s tot %s)'
+                           % (n0(w), n0(o['r']), n0(o['l'])))
+            else:
+                yield info(g['x'], 'ravijn van %s breed is de ingang van een gang %s diep' % (n0(w), n0(o['diep'])))
+            continue
         plafond = lv.plafond_min(g['x'] - w / 2, rand) < sp.PLAFOND_WEG
         erbij = ' onder dit plafond' if plafond and schoon_r < sp.sprong(rennen, lambda x: math.inf, 0)[0] - 1 else ''
         if w > red_r:

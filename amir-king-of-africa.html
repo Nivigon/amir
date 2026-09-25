@@ -6235,6 +6235,13 @@ function holteSet(){
   const sleutel = V.width + 'x' + V.height + '|' + E.src;
   if (holteBuf && holteBuf.sleutel === sleutel) return holteBuf;
   const L = HOLTE_LICHT;
+  const gemKleur = c => {                             // de gemiddelde kleur van een tegel
+    const k = document.createElement('canvas'); k.width = k.height = 1;
+    const g = k.getContext('2d'); g.imageSmoothingQuality = 'high';
+    g.drawImage(c, 0, 0, 1, 1);
+    const d = g.getImageData(0, 0, 1, 1).data;
+    return 'rgb(' + d[0] + ',' + d[1] + ',' + d[2] + ')';
+  };
   holteBuf = { sleutel,
     wand: holteDonker(V, (g, w, h) => { g.fillStyle = 'rgba(0,0,0,' + L.wand + ')'; g.fillRect(0, 0, w, h); }),
     // de vloer: het loopvlak houdt iets licht, daaronder loopt hij weg in het donker
@@ -6245,9 +6252,17 @@ function holteSet(){
       v.addColorStop(1, 'rgba(0,0,0,' + L.vulling + ')');
       g.fillStyle = v; g.fillRect(0, 0, w, h);
     }) };
+  holteBuf.gem = gemKleur(holteBuf.wand);
   return holteBuf;
 }
 
+// De onderkant van het dak op het scherm, op een hele schermpixel. Daar komen drie lagen
+// samen (het donker erboven, de gang eronder, en de wand van het ravijn in het gat), elk met
+// een eigen snede. Valt die tussen twee pixels in, dan dekt op die rij geen van de drie
+// helemaal, en schemert de lichtere grond eronder door als een dunne lichte lijn.
+function holteDakY(groundY, scale){
+  return Math.round((groundY + HOLTE_DAK * scale) * DPR) / DPR;
+}
 // hoe ver de camera mee naar beneden is: 0 als je nog boven staat, 1 op de bodem
 function holteDiepT(scale){
   const lijst = holteLijst();
@@ -6267,13 +6282,17 @@ function drawHolte(groundY, scale, cx){
   const boven = groundY - groundY / zoom - 4;           // bovenrand van het scherm
   const onder = groundY + (H - groundY) / zoom + 4;     // en de onderrand
   const links = W / 2 - (W / 2) / zoom - 40, rechts = W / 2 + (W / 2) / zoom + 40;
-  const dak = Y(-HOLTE_DAK);
-  const tegel = (T, x0, x1, y0, y1) => {                // een tegel vast aan de wereld
+  const dak = holteDakY(groundY, scale);
+  // Een tegel vast aan de wereld. Elke tegel valt een pixel over de volgende heen: een
+  // browser die met de grafische kaart tekent mengt de laatste rij van een tegel met de
+  // leegte erachter zodra het beeld ook maar een fractie geschaald wordt (een scherm op 125
+  // of 150 procent), en dan loopt er een lichte lijn over de naad.
+  const tegel = (T, x0, x1, y0, y1) => {
     const tw = T.width, th = T.height;
     const ax = Math.round(X(0)), ay = Math.round(Y(0));
     const xs = ax - Math.ceil((ax - x0) / tw) * tw, ys = ay - Math.ceil((ay - y0) / th) * th;
     for (let y = ys; y < y1; y += th)
-      for (let x = xs; x < x1; x += tw) ctx.drawImage(T, x, y);
+      for (let x = xs; x < x1; x += tw) ctx.drawImage(T, x, y, tw + 1, th + 1);
   };
   const gatenIn = o => gapList().filter(g => g.x + g.w / 2 > o.l && g.x - g.w / 2 < o.r);
   for (const o of lijst){
@@ -6282,10 +6301,16 @@ function drawHolte(groundY, scale, cx){
     const vloer = Y(-o.diep);
     const gaten = gatenIn(o);
     ctx.save();
-    ctx.beginPath(); ctx.rect(xl, dak, xr - xl, onder - dak + H); ctx.clip();   // alleen de gang zelf
+    // alleen de gang zelf, met een pixel extra naar boven: die valt onder het donker erboven,
+    // zodat er op de dakrand geen rij overblijft die niemand dekt
+    ctx.beginPath(); ctx.rect(xl, dak - 1, xr - xl, onder - dak + H); ctx.clip();
 
-    // 1. de achterwand, van het dak tot onder de vloer
-    tegel(S.wand, xl, xr, dak, onder);
+    // 1. de achterwand, van het dak tot onder de vloer. Eerst de gemiddelde kleur van het
+    //    steen eronder: blijft er ergens toch een naad over, dan zie je daar die kleur en
+    //    niet de lichte grond die hier eerst getekend is
+    ctx.fillStyle = S.gem;
+    ctx.fillRect(xl, dak - 1, xr - xl, onder - dak + H);
+    tegel(S.wand, xl, xr, dak - 1, onder);
 
     // 2. het dak: de tanden van het plafond hangen aan de onderkant van het grondpakket,
     //    behalve waar het gat zit
@@ -9869,7 +9894,7 @@ function loop(now){
           ctx.save();
           ctx.beginPath();
           // Ligt er een gang onder, dan houdt de overkant op bij het dak: daaronder zie je de gang
-          const bodemY = holteAt(g.x) ? groundY + HOLTE_DAK * scale : groundY + H * 3;
+          const bodemY = holteAt(g.x) ? holteDakY(groundY, scale) : groundY + H * 3;
           traceGap(g, gl, gr, Math.min(topY, rimY + GAP_RIM.top * sR), bodemY, groundY);   // de grasplukken blijven binnen de breuk
           ctx.clip();
           const rockW = art.rock.width * sR, rockH = art.rock.height * sR;
