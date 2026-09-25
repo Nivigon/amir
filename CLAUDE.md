@@ -10,7 +10,7 @@ en beschrijft wat het spel kan; dit document beschrijft hoe je eraan werkt.
 ## Regels
 
 **1. Bestaande levels blijven met rust.** De leveldefinities in de HTML
-(`ROSA_1` en `ROSA_2`, `RENEW_1` tot en met
+(`EP259_1` tot en met `EP259_5`, `RENEW_1` tot en met
 `RENEW_10`, `WINTER_1` en `WINTER_2`, `DARK_1` tot en met `DARK_5`) zijn bevroren. De
 levels in Episode Test levels (`TEST_1`) vallen daar niet onder: die zijn er juist om aan te rommelen. Er komt geen nieuwe vijand,
 prop, tip, potion of aangepast getal in, ook niet even om iets te laten zien. Alleen
@@ -50,7 +50,8 @@ regelnummer, want die schuiven bij elke wijziging.
 | rotsen om op te springen | `rocks`, en het automatisch bijgroeien |
 | winter: episode Winter World | `WINTER_SRC`, `winterOn()`, `winterPic()` |
 | bodem en sneeuwdek | het veld `sneeuw`: savanne of rots, en het dek in vier standen |
-| levels voor Rosa / Episode Renew / Episode Winter World | de leveldefinities |
+| Episode 25-9 / Episode Renew / Episode Winter World | de leveldefinities |
+| Episode 25-9 | `EP259_1` tot en met `EP259_5`: vijf pittige levels met de zwaardvechters en de fosforslangen |
 | Episode Dark Africa | `DARK_1` tot en met `DARK_5`: vijf levels in de nacht, op `darkafrica.mp3` |
 | Episode Test levels | `TEST_1`: korte proefstukken, los van de echte episodes |
 | terrassen en richels | `terraces`, `ledges`, klimmen |
@@ -63,7 +64,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | schorpioen, het projectiel, spannen en werpen, de geworpen speer | de speerworp |
 | personages, dorpsdecor | NPC's, `VILLAGE`, de dorpsplaten |
 | Amir zegt er iets van als hij geraakt wordt | `SFX_RAAK`, `playRaak()`: de twee kreten |
-| stap voor stap leren spelen | het `tutorial`-systeem van de Rosa-levels |
+| stap voor stap leren spelen | het `tutorial`-systeem (staat klaar, geen level gebruikt het nu) |
 | gaten in de grond | `gaps`, de overkant, de nevel en de diepte; de laag die eronder doorloopt is `grondDoorlopen`, in de bodemsectie |
 | stof, sneeuwval, het weer | deeltjes en het weerplan per potje |
 | vegetatie, water, doornbos | `props`, `water`, `thickets` |
@@ -113,7 +114,7 @@ precies hetzelfde formaat naar JSON.
 | `ends` | de fakkels die het level uitspelen: `{x}` |
 | `npcs` | dorpelingen: `{x, k, f, s}` |
 | `tips` | tekst onderweg: `{x, t}` |
-| `tutorial` | alleen de Rosa-levels: stapjes met uitleg |
+| `tutorial` | stapjes met uitleg (nu door geen level gebruikt) |
 
 ### Bodem en sneeuwdek: grijs en rood zijn twee verschillende dingen
 
@@ -464,7 +465,7 @@ wil je alleen dat de verte wegzakt, dan `dim`. Meestal gebruik je ze samen.
 ### Een level toevoegen (alleen na toestemming)
 
 1. De definitie erbij, na de laatste van die reeks.
-2. De naam in de array van die reeks (`LEVELS`, `ROSA_LEVELS`, `RENEW_LEVELS`,
+2. De naam in de array van die reeks (`LEVELS`, `EP259_LEVELS`, `RENEW_LEVELS`,
    `WINTER_LEVELS`).
 3. Een ondertitel in `SUBS`, op de naam van het level.
 4. Een eigen uitzicht in `SCENES` als het level er anders uit moet zien.
