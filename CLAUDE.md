@@ -35,6 +35,15 @@ gedachtestreepje.
 **6. Werk op een `claude/*`-branch.** Push daarheen en maak alleen een pull request
 als daarom gevraagd wordt.
 
+**7. Vijanden komen niet over keien en ravijnen.** Slangen, fosforslangen, de
+zwaardvechter en ook de panters worden tegengehouden door een kei om op te springen en
+door de rand van een ravijn: niet lopend, niet met een sprong of een duik, en ze duiken
+ook niet aan de overkant op. Zo is een kei of een ravijn voor de speler een schuilplek.
+Een uitzondering mag alleen als de opdracht er expliciet om vraagt, of in een gevecht met
+een eindbaas als je daar zelf voor kiest omdat het dat gevecht beter maakt; zeg dan
+achteraf dat en waarom. Voor de panter is dat het veld `over: true` in zijn spawn
+(`panBaan`); zonder dat veld blijft hij aan zijn kant.
+
 ## Waar wat staat
 
 De HTML is opgedeeld met commentaarkoppen (`// ---- ... ----`). Zoek daarop, niet op
@@ -95,7 +104,7 @@ precies hetzelfde formaat naar JSON.
 | `sneeuw` | sneeuw op de grond, los van `winter`: `{soort, dek, van, tot}` (zie hieronder) |
 | `valschade` | `true` laat een diepe val een of twee levens kosten (standaard uit) |
 | `rocks` | keien om op te springen: `{x, s}` |
-| `spawns` | vijanden: `{x, k}` met `k` = `groen`, `zwart`, `scorp`, `hyenas`, `panter` |
+| `spawns` | vijanden: `{x, k}` met `k` = `groen`, `zwart`, `scorp`, `hyenas`, `panter`, `zwaard` (met `c`), `fosfor`; een panter met `over: true` mag over keien en ravijnen (zie regel 7) |
 | `props` | decor: `{x, k, s, f, v}`, `k` uit `PROPS`, `f` spiegelen, `v` verre laag |
 | `village` | dorpsplaten uit `VILLAGE`: `{id, x, depth, flip}` |
 | `gaps` | ravijnen: `{x, w}` |

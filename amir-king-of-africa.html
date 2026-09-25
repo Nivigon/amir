@@ -7157,9 +7157,10 @@ function updateSnakes(dt, plats, halfWNow, cliff){
       if (sp.kind === 'panter'){                 // boss: komt van rechts zodra je zijn plek voorbij bent
         if (world > sp.x) continue;
         sp.used = true;
-        const x = panSpawnX(world + W * 0.6 + 250, terrainH(world));
+        let x = panSpawnX(world + W * 0.6 + 250, terrainH(world));
+        if (!sp.over) x = panBaan(null, world, x, plats);    // niet aan de overkant van een kei of ravijn
         const p = makePanther(x, 1);
-        p.face = -1; p.dir = -1; p.engaged = true; p.base = terrainH(x); p.boss = true;
+        p.face = -1; p.dir = -1; p.engaged = true; p.base = terrainH(x); p.boss = true; p.over = !!sp.over;
         panSet(p, 'run');
         panthers.push(p);
         arena = { c: (level.arena && isFinite(level.arena.c)) ? level.arena.c : world };   // vaste plek voor het gevecht
@@ -7646,6 +7647,27 @@ function makePanther(x, side){
            skin: winterOn() ? 'wit' : 'zwart', white: winterOn() };   // de witte panter jaagt anders (zie updatePanther)
 }
 function panBlocked(s, nx, plats, cliff){ return knockBlocked(s, nx, plats, cliff, 0.45 * CHAR_H, 80); }
+// Een panter komt niet over een kei of een ravijn, net zo min als de slangen en de zwaardvechter:
+// niet lopend (dat regelt panBlocked al), maar ook niet met een sprong, een duik, een zijsprong,
+// of doordat hij aan de overkant opduikt. Waar een sprong van a naar b uitkomt: zo ver als hij
+// komt zonder er een te passeren. Een level kan het een baas wel toestaan met over: true in zijn
+// spawn; dan springt hij overal overheen, zoals hij dat eerst altijd deed.
+function panBaan(s, a, b, plats){
+  if (s && s.over) return b;
+  const d = b >= a ? 1 : -1, lo = Math.min(a, b), hi = Math.max(a, b);
+  let x = b;
+  for (const g of gapList()){
+    const gl = g.x - g.w / 2, gr = g.x + g.w / 2;
+    if (gr > lo && gl < hi) x = d === 1 ? Math.min(x, gl - 60) : Math.max(x, gr + 60);
+  }
+  const base = s ? (s.base || 0) : terrainH(a);
+  for (const p of plats || []){
+    if (!blocksMonster(p, base)) continue;
+    const m = 60 * (p.wPx / 400) + 20;
+    if (p.right > lo && p.left < hi) x = d === 1 ? Math.min(x, p.left - m) : Math.max(x, p.right + m);
+  }
+  return (x - a) * d < 0 ? a : x;                 // nooit achteruit
+}
 function panInView(x){                        // staat hij echt in beeld? Niet 'net over de rand': zijn aanloop
   const camX = (arena && !building) ? arenaCam(world) : world;   // moet je kunnen lezen, dus hij moet er een stuk binnen staan
   return Math.abs(x - camX) < W / 2 / viewZoom() - PAN_VIEW_IN;
@@ -7686,7 +7708,7 @@ function panSpawnX(x, base){
   return x;
 }
 // Opzij springen: voor een zwaai die eraan komt, en voor een speer die je uittrekt.
-function panDodge(s, toward, cliff){
+function panDodge(s, toward, cliff, plats){
   s.engaged = true;
   s.face = toward; s.dir = toward;
   panSet(s, 'hop'); s.frame = 5; s.x0 = s.x;
@@ -7694,17 +7716,18 @@ function panDodge(s, toward, cliff){
   if (cliff) x1 = Math.min(x1, cliff.wall - 90);
   x1 = Math.max(x1, endWall() + 90);
   if (inGap(x1) || terrainH(x1) !== s.base) x1 = s.x;            // niet het ravijn in, en niet van zijn vloer af
-  s.x1 = x1;
+  s.x1 = panBaan(s, s.x, x1, plats);
 }
 // Terug de jacht in: net buiten beeld, aan de kant waar plek is, en altijd op jouw vloer.
 // Hij gebruikt dit na zijn loerbeurt, en als vangnet wanneer hij onbereikbaar is komen te staan.
-function panTerug(s, cliff){
+function panTerug(s, cliff, plats){
   const base = terrainH(world);
   const first = Math.random() < 0.5 ? 1 : -1;
   for (const sd of [first, -first]){
     let nx = world + sd * (W / 2 / viewZoom() + 160);
     const c = cliff || cliffAt(); if (c) nx = Math.min(nx, c.wall - 220);
     nx = Math.max(nx, endWall() + 220);
+    if (!s.over) nx = panBaan(null, world, nx, plats);         // aan jouw kant van keien en ravijnen
     if (Math.abs(nx - world) > 400 && !inGap(nx) && terrainH(nx) === base){ s.x = nx; break; }
   }
   s.base = terrainH(s.x); s.fallV = 0; s.lift = 0; s.kwijt = 0;
@@ -7766,7 +7789,7 @@ function updatePanther(s, dt, plats, cliff){
   if (s.boss && arena && !building && PAN_LOST_OK.indexOf(s.state) === -1){
     const ver = terrainH(s.x) > terrainH(world) || Math.abs(s.x - world) > arenaHalf() + 300;
     s.kwijt = ver ? s.kwijt + dt : 0;
-    if (s.kwijt >= PAN_LOST_T){ panTerug(s, cliff); return; }
+    if (s.kwijt >= PAN_LOST_T){ panTerug(s, cliff, plats); return; }
   }
   // DE REGEL: op zijn poten + jij binnen bereik = direct klauwen. Ook als je springt;
   // alleen niet als je echt hoger staat dan hij, bijvoorbeeld op een plateau.
@@ -7784,7 +7807,7 @@ function updatePanther(s, dt, plats, cliff){
   if (swFrame >= 0 && swFrame <= SWEEP_FROM && s.dodgeId !== sweepId && opPoten){
     if (gap < SWEEP_REACH * CHAR_H * sc + 0.5 * CHAR_H * sc + 60){
       s.dodgeId = sweepId;
-      panDodge(s, toward, cliff);
+      panDodge(s, toward, cliff, plats);
     }
   }
   // en hetzelfde als hij je de speer ziet uittrekken. Raak is hij toch alleen in zijn herstel,
@@ -7792,7 +7815,7 @@ function updatePanther(s, dt, plats, cliff){
   if (thr && !thr.gone && thr.frame >= THR_DRAW1 && !dead && opPoten
       && s.dodgeThr !== thrPressT && gap < PAN_THROW_SEE && panInView(s.x)){
     s.dodgeThr = thrPressT;
-    panDodge(s, toward, cliff);
+    panDodge(s, toward, cliff, plats);
   }
   if (s.state === 'dying'){
     knockStep(s, dt, plats, cliff, 0.45 * CHAR_H, 80);
@@ -7857,7 +7880,7 @@ function updatePanther(s, dt, plats, cliff){
       x1 = Math.max(x1, endWall() + 90);
       const pit = inGap(x1);
       if (pit) x1 = s.dir === 1 ? pit.x - pit.w / 2 - 60 : pit.x + pit.w / 2 + 60;
-      s.x1 = x1;
+      s.x1 = panBaan(s, s.x, x1, plats);
     } else if (s.t >= windT && s.atk === 'tackle'){
       s.fake = undefined;
       panSet(s, 'tackle'); s.hitUsed = false;
@@ -7878,7 +7901,7 @@ function updatePanther(s, dt, plats, cliff){
       x1 = Math.max(x1, endWall() + 90);
       const pit = inGap(x1);
       if (pit) x1 = s.dir === 1 ? pit.x - pit.w / 2 - 60 : pit.x + pit.w / 2 + 60;
-      s.x1 = x1;
+      s.x1 = panBaan(s, s.x, x1, plats);
     }
   } else if (s.state === 'leap'){                 // frames 3..4 afzet, 5..11 in de lucht
     const AIR0 = 5, AIR1 = 12, FPS = 12;
@@ -7956,7 +7979,7 @@ function updatePanther(s, dt, plats, cliff){
     if (!s.langOn){ s.langOn = true; panPlay('lang', 0.55); }   // één lange, aanhoudende grom uit het gras
     if (s.t >= s.lurkT){                          // terug, willekeurig van links of rechts, laag door het gras
       s.langOn = false;
-      panTerug(s, cliff);
+      panTerug(s, cliff, plats);
     }
   }
 }
@@ -11836,6 +11859,8 @@ function syncLevel(){
                                 ? { x: Math.round(s.x), k: s.kind, n: s.n || 1 }
                                 : s.kind === 'zwaard'
                                 ? { x: Math.round(s.x), k: s.kind, c: s.kleur || 'rood' }
+                                : s.kind === 'panter' && s.over
+                                ? { x: Math.round(s.x), k: s.kind, over: true }
                                 : { x: Math.round(s.x), k: s.kind }),
     props: level.props.map(o => ({ x: Math.round(o.x), k: o.kind,
                                    s: +o.scale.toFixed(2), f: o.flip ? 1 : 0,
@@ -11944,7 +11969,9 @@ function readLevel(txt){
                                                     : s.k === 'zwaard' ? 'zwaard' : s.k === 'fosfor' ? 'fosfor' : 'groen',
                                                 // alleen de zwaardvechter heeft een kleur: rood, blauw of groen
                                                 kleur: ZW_KLEUREN[s.c] ? s.c : 'rood',
-                                                n: Math.max(1, Math.min(2, Math.round(Number(s.n) || 1))) })),
+                                                n: Math.max(1, Math.min(2, Math.round(Number(s.n) || 1))),
+                                                // een panter mag alleen over keien en ravijnen als het level dat zegt
+                                                over: s.over === true })),
            props: (o.props || []).filter(q => PROPS[q.k])
                                  .map(q => ({ x: Number(q.x), kind: q.k,
                                               scale: Number(q.s) || 1,
