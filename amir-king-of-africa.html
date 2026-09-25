@@ -3190,7 +3190,7 @@ const MUUR = {
   // Zijn maat hangt aan Amir en niet aan het scherm, zodat opening en schijf op elk scherm in
   // dezelfde verhouding tot hem staan. Er is geen schermgrens meer: de rots is decor, Amir loopt
   // er gewoon doorheen, dus hij hoeft niet in een keer in beeld te passen.
-  hoogAmir: 3.2,    // de rots is zo veel keer Amir hoog
+  hoogAmir: 3.52,   // de rots is zo veel keer Amir hoog
   spiegel: true,    // omgeklapt: de hoge flank met de overhang wijst naar Amir
 
   // De opening. De maat komt van Amir, want hij moet er net doorheen kunnen; de plek wordt
@@ -3207,7 +3207,8 @@ const MUUR = {
   // schijf vangt hem.
   sym: {
     r: 0.13,        // getekende straal als deel van Amirs lengte
-    boven: 0.12,    // zoveel ruimte tussen de bovenkant van de deur en de schijf, in Amirs
+    boven: 0.6,     // zoveel ruimte tussen de bovenkant van de deur en de schijf, in Amirs
+                    // (0,6: de schijf hangt een derde hoger dan op 0,12)
     raak: 0.3       // straal van het raakvlak, als deel van Amirs lengte
   },
   gras: null,       // voorlopig geen gras voor de rots
@@ -3232,26 +3233,73 @@ zetBron(muurImg, MUUR.src, () => console.warn('ontbreekt: ' + MUUR.src));
 // dat zo'n drie seconden: het wegzakken loopt in de praktijk trager dan die 0,9 seconde,
 // want setInterval krijgt naast de tekenlus niet elke 25 milliseconden zijn beurt. Dat geldt
 // voor het windgeluid net zo. Zet duur op 0 om de hele opname uit te spelen.
-const SFX_DEUR = { src: 'sounds/deuropen.mp3', vol: 0.85, duur: 1.6, uit: 0.9 };
+//
+// Het geluid mag harder dan een audio-element toelaat (daar is 1 het maximum), dus het loopt
+// door een versterker van de Web Audio API: vol is hier de versterking, 3 keer het oude niveau.
+// Lukt dat niet (oude browser), dan speelt hij gewoon op vol 1. Zolang hij klinkt zakt de
+// muziek weg tot demp van haar gewone sterkte, en daarna komt ze in terug weer op.
+const SFX_DEUR = { src: 'sounds/deuropen.mp3', vol: 2.55, duur: 1.6, uit: 0.9,
+                   demp: 0.2, terug: 1.2 };
 const deurSnd = new Audio();
 deurSnd.onerror = () => console.warn('ontbreekt: ' + SFX_DEUR.src);
 deurSnd.preload = 'auto';
 deurSnd.src = SFX_DEUR.src;
+let deurAc = null, deurGain = null;
+function deurVersterker(){
+  if (deurGain || deurAc === false) return deurGain;
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    deurAc = new AC();
+    deurGain = deurAc.createGain();
+    deurAc.createMediaElementSource(deurSnd).connect(deurGain);
+    deurGain.connect(deurAc.destination);
+  } catch (e){ deurAc = false; deurGain = null; }
+  return deurGain;
+}
+// de muziek even wegdrukken en daarna weer laten opkomen
+function deurDemp(){
+  if (!MUZIEK[muziekNu]) return;
+  const vol = MUZIEK[muziekNu].vol;
+  clearTimeout(bg.dempT);
+  sndRamp(bg, vol * SFX_DEUR.demp, 0.25, false);
+  bg.dempT = setTimeout(() => sndRamp(bg, MUZIEK[muziekNu].vol, SFX_DEUR.terug, false),
+                        (SFX_DEUR.duur + SFX_DEUR.uit) * 1000);
+}
 function playDeur(){
   if (!wantSound) return;
   const a = deurSnd;
   clearTimeout(a.cutT); clearInterval(a.fadeT); a.cutT = 0; a.fadeT = 0;
   try { a.currentTime = 0; } catch (e) {}
-  a.volume = SFX_DEUR.vol;
+  const g = deurVersterker();
+  if (g){
+    if (deurAc.state === 'suspended') deurAc.resume().catch(() => {});
+    const t = deurAc.currentTime;
+    a.volume = 1;
+    g.gain.cancelScheduledValues(t);
+    g.gain.setValueAtTime(SFX_DEUR.vol, t);
+    if (SFX_DEUR.duur > 0){
+      g.gain.setValueAtTime(SFX_DEUR.vol, t + SFX_DEUR.duur);
+      g.gain.linearRampToValueAtTime(0, t + SFX_DEUR.duur + SFX_DEUR.uit);
+      a.cutT = setTimeout(() => { a.pause(); try { a.currentTime = 0; } catch (e) {} },
+                          (SFX_DEUR.duur + SFX_DEUR.uit + 0.1) * 1000);
+    }
+  } else {
+    a.volume = Math.min(1, SFX_DEUR.vol);
+    if (SFX_DEUR.duur > 0)
+      a.cutT = setTimeout(() => sndRamp(a, 0, SFX_DEUR.uit, true), SFX_DEUR.duur * 1000);
+  }
   a.play().catch(() => {});
-  if (SFX_DEUR.duur > 0)
-    a.cutT = setTimeout(() => sndRamp(a, 0, SFX_DEUR.uit, true), SFX_DEUR.duur * 1000);
+  deurDemp();
 }
 function stopDeur(){
   const a = deurSnd;
   clearTimeout(a.cutT); clearInterval(a.fadeT); a.cutT = 0; a.fadeT = 0;
   a.pause();
   try { a.currentTime = 0; } catch (e) {}
+  if (bg.dempT){
+    clearTimeout(bg.dempT); bg.dempT = 0; clearInterval(bg.fadeT);
+    bg.volume = MUZIEK[muziekNu].vol;
+  }
 }
 
 function muurNu(){ return (level && level.muur) ? level.muur : null; }
