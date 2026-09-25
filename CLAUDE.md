@@ -379,6 +379,12 @@ een terras: 251 is een Amir. Horizontaal moeten ze daarom maal `scale`, precies 
 ze op het canvas zet. Doe je dat niet, dan ligt de opening waar je botst ergens anders dan de
 opening die je ziet, en klopt het alleen op Formaat 100.
 
+Het geluid zit in `SFX_DEUR` (`sounds/deuropen.mp3`) en speelt af op het moment van de
+treffer. De opname duurt 42 seconden en staat van begin tot eind even hard, terwijl het blok
+maar een halve seconde schuift, dus er wordt alleen de kop van gebruikt: vol tot `duur`, dan
+wegzakken in `uit`, samen zo'n drie seconden. Dezelfde aanpak als bij het windgeluid, dat ook
+uit een veel te lange opname komt. `duur: 0` speelt hem wel helemaal uit.
+
 Twee dingen om op te letten als je hem verplaatst of anders afstelt:
 
 - `sym.in` moet kleiner blijven dan `sym.r + raak`. De rots is in het zijaanzicht een plat vlak,

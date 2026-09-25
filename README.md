@@ -323,6 +323,8 @@ geworpen speer, dan licht de rune op, blijft de speer er voorgoed in zitten en s
 omhoog de berg in. Daarachter ligt een donkere gang waar je in kunt lopen. Mis je, dan gebeurt er wat er altijd gebeurt als
 je een wand raakt: de speer blijft in het steen steken en valt er na een tijdje vanzelf uit.
 
+Als hij opengaat hoor je de rots kraken en schuiven.
+
 Zolang de muur dicht is zie je er niets van. Geen naad, geen contour, geen scheurtje in de vorm van een deur: de rots is
 gewoon een rots, en het enige wat je opvalt is die houten schijf. Wat die doet moet je zelf bedenken.
 

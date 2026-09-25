@@ -3239,6 +3239,35 @@ const MUUR = {
 const muurImg = new Image();
 zetBron(muurImg, MUUR.src, () => console.warn('ontbreekt: ' + MUUR.src));
 
+// Het geluid van de rots die opengaat. De opname duurt 42 seconden en staat van begin tot
+// eind even hard, zonder aanzet en zonder uitklank, terwijl het blok maar een halve seconde
+// schuift. Daarom nemen we de kop ervan, net als bij het windgeluid: hij begint op het moment
+// van de treffer, blijft staan tot het blok stilstaat, en zakt daarna weg. Bij elkaar duurt
+// dat zo'n drie seconden: het wegzakken loopt in de praktijk trager dan die 0,9 seconde,
+// want setInterval krijgt naast de tekenlus niet elke 25 milliseconden zijn beurt. Dat geldt
+// voor het windgeluid net zo. Zet duur op 0 om de hele opname uit te spelen.
+const SFX_DEUR = { src: 'sounds/deuropen.mp3', vol: 0.85, duur: 1.6, uit: 0.9 };
+const deurSnd = new Audio();
+deurSnd.onerror = () => console.warn('ontbreekt: ' + SFX_DEUR.src);
+deurSnd.preload = 'auto';
+deurSnd.src = SFX_DEUR.src;
+function playDeur(){
+  if (!wantSound) return;
+  const a = deurSnd;
+  clearTimeout(a.cutT); clearInterval(a.fadeT); a.cutT = 0; a.fadeT = 0;
+  try { a.currentTime = 0; } catch (e) {}
+  a.volume = SFX_DEUR.vol;
+  a.play().catch(() => {});
+  if (SFX_DEUR.duur > 0)
+    a.cutT = setTimeout(() => sndRamp(a, 0, SFX_DEUR.uit, true), SFX_DEUR.duur * 1000);
+}
+function stopDeur(){
+  const a = deurSnd;
+  clearTimeout(a.cutT); clearInterval(a.fadeT); a.cutT = 0; a.fadeT = 0;
+  a.pause();
+  try { a.currentTime = 0; } catch (e) {}
+}
+
 function muurNu(){ return (level && level.muur) ? level.muur : null; }
 
 let muurOpen = false;      // de rune is geraakt
@@ -3246,7 +3275,7 @@ let muurSchuif = 0;        // 0 = dicht, 1 = het blok staat helemaal boven
 let muurSpeer = null;      // de speer die in de schijf is blijven zitten: {x, h, sa, dir}
 let muurCache = null;      // de canvassen, op de huidige maat
 
-function muurReset(){ muurOpen = false; muurSchuif = 0; muurSpeer = null; }
+function muurReset(){ muurOpen = false; muurSchuif = 0; muurSpeer = null; stopDeur(); }
 
 // Vorm van de opening: geen kale rechthoek maar een licht afgebrokkelde rand. Gat, blok,
 // masker en schaduw gebruiken allemaal exact deze punten, dus ze passen per definitie.
@@ -3408,6 +3437,7 @@ function muurTreffer(scale){
   setSpearLabel();
   muurOpen = true;
   shake = Math.max(shake, 0.22);                   // de berg komt in beweging
+  playDeur();
   flashHint('De rune licht op: de rots schuift omhoog');
 }
 
@@ -10415,7 +10445,7 @@ addEventListener('keydown', tryPlay);
 addEventListener('pointerdown', tryPlay);
 function toggleSound(){
   wantSound = !wantSound; setLabel();
-  if (wantSound){ started = false; tryPlay(); } else { bg.pause(); stopKing(); stopWind(); stopRaak(); }
+  if (wantSound){ started = false; tryPlay(); } else { bg.pause(); stopKing(); stopWind(); stopRaak(); stopDeur(); }
 }
 soundBtn.onclick = toggleSound;
 pzSoundBtn.onclick = toggleSound;
