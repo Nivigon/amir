@@ -101,6 +101,7 @@ precies hetzelfde formaat naar JSON.
 | `water` | poelen: `{x, n}` met `n` = aantal middenstukken |
 | `thickets` | doornbossen: `{x, n, seed}` |
 | `terraces` | terrassen om op te klimmen: `{r, l, h}` (rechterrand, linkerrand, hoogte) |
+| `holtes` | gangen onder de grond: `{r, l, diep}`, een ravijn erboven is de ingang (zie hieronder) |
 | `ledges` | richels aan een wand: `{x, h, s}` |
 | `grotten` | rotsgebieden als raster: `{x, cel, y, grid, ...}` (zie hieronder) |
 | `plafond` | de rots boven je als hoogtelijn: `[{x, y}, ...]` (zie hieronder) |
@@ -432,6 +433,20 @@ De opname duurt 42 seconden en staat van begin tot eind even hard, terwijl het b
 halve seconde schuift, dus er wordt alleen de kop van gebruikt: vol tot `duur`, dan wegzakken in
 `uit`, samen zo'n drie seconden. Dezelfde aanpak als bij het windgeluid. `duur: 0` speelt hem
 wel helemaal uit.
+
+### Een gang onder de grond
+
+`holtes: [{r, l, diep}]` legt een gang onder de grondlijn, met de vloer `diep` sprite-eenheden
+lager. Een ravijn uit `gaps` dat erboven ligt is de ingang: daarin val je niet dood maar kom je
+op de vloer terecht. Met `valschade: true` kost een val van 600 twee levens (vanaf twee Amir,
+502). Het dak is de onderkant van het grondpakket, `HOLTE_DAK` (190) onder de grondlijn.
+Laat de gang aan de kant van het ravijn wat verder doorlopen dan het gat, anders staat de wand
+onder de rand. Alles in de gang staat op de bodem, want `terrainH` geeft daar `-diep`.
+
+Het donker is schets E: een zwarte laag over het steen (alleen helderheid, geen tint), de
+looprand van de vloer lichter dan de vulling eronder, en boven het dak zakt alles weg zodra
+de camera mee naar beneden is. Door het gat valt gedempt daglicht. De waarden staan in
+`HOLTE_LICHT`. `Test 4` is het proefstuk.
 
 ### Een level donker maken
 
