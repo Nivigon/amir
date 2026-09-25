@@ -28,7 +28,7 @@ Een level kiest zelf zijn muziek. Met het veld `muziek` vraagt het om een nummer
 
 Een level kan ook de belichting bijstellen. De globale lichtlaag (een koele schaduwkant, warm licht richting de zon, en een onderkant die iets dieper wegzakt) ligt over het hele beeld heen. Met een veld `licht` in het uitzicht van een level (`SCENES`) zet je daar waarden overheen: dat is hoe Dark Africa donker wordt zonder dat er een tweede laag bij komt. Met **L** zet je de laag uit en met **,** en **.** stel je hem bij; die twee regelaars blijven gewoon van jou, ook in een level met een eigen belichting.
 
-Test levels zijn korte proefstukken: een enkel level waarin je een mechaniek los kunt bekijken, zonder gevecht en zonder lange tocht eromheen. Ze staan met opzet apart van de echte episodes, zodat daar niets aan hoeft te veranderen om iets nieuws te kunnen proberen. **Test 1: Gang, dak en klimmen** loopt in drie stukken, met één plafondlijn die er overheen loopt en op twee plekken in beeld zakt. Eerst een dak van rots over de weg heen: boven de kei ligt het net hoog genoeg om erop te springen, en een stuk verder zakt het zo ver dat je met springen niets meer haalt. Dan een trap van drie terrassen omhoog en aan de andere kant weer omlaag, met het plafond dat er schuin overheen weer uit beeld loopt. En tot slot de gang: het plafond zakt schuin naar beneden tot er ruim een lichaamslengte over is, knijpt daarna dicht tot net boven je kruin, en gaat achterin weer omhoog. Daar, in de open lucht, staan de fakkels die het level uitspelen. De definitie staat in de HTML als `TEST_1`.
+Test levels zijn korte proefstukken: een enkel level waarin je een mechaniek los kunt bekijken, zonder gevecht en zonder lange tocht eromheen. Ze staan met opzet apart van de echte episodes, zodat daar niets aan hoeft te veranderen om iets nieuws te kunnen proberen. **Test 1: Gang, dak en klimmen** loopt in drie stukken, met één plafondlijn die er overheen loopt en op twee plekken in beeld zakt. Eerst een dak van rots over de weg heen: boven de kei ligt het net hoog genoeg om erop te springen, en een stuk verder zakt het zo ver dat je met springen niets meer haalt. Dan een trap van drie terrassen omhoog en aan de andere kant weer omlaag, met het plafond dat er schuin overheen weer uit beeld loopt. En tot slot de gang: het plafond zakt schuin naar beneden tot er ruim een lichaamslengte over is, knijpt daarna dicht tot net boven je kruin, en gaat achterin weer omhoog. Daar, in de open lucht, staan de fakkels die het level uitspelen. De definitie staat in de HTML als `TEST_1`. **Test 2: De zwaardvechters** gaat over het nieuwe type tegenstander en verder nergens over: een vlakke strook over de open vlakte, zonder ravijnen en zonder klimwerk. Eerst een losse rode, zodat je zijn ritme kunt leren, dan een kalebas, en daarna een blauwe en een groene die samen op je af komen. De definitie staat in de HTML als `TEST_2`.
 
 In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen naar het volgende level van dezelfde reeks. Onder **Instellingen** staan daar ook het tempo van het spel, het looptempo van Amir, het formaat van het beeld en de muziek. Tijdens een level is het speelveld verder leeg: de testbalk met schuifjes staat alleen in de bouwer en de sandbox (met B haal je hem er tijdens het spelen alsnog bij).
 
@@ -36,7 +36,7 @@ In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen 
 
 Het spel is een installeerbare webapp. Open de Pages-link in Safari, deel, "Zet op beginscherm". Daarna staat Amir als icoon tussen je apps en start hij zonder browserbalken, liggend.
 
-Open hem vanaf het beginscherm en druk in het startmenu op **Download voor offline**. Dat haalt alle sprites en geluiden in een keer binnen (bijna 1200 bestanden, ongeveer 200 MB; het precieze aantal staat in `offline-assets.json`). Vanaf dat moment laadt het spel meteen en speelt het ook zonder internet.
+Open hem vanaf het beginscherm en druk in het startmenu op **Download voor offline**. Dat haalt alle sprites en geluiden in een keer binnen (ruim 2200 bestanden, ongeveer 230 MB; het precieze aantal staat in `offline-assets.json`). Vanaf dat moment laadt het spel meteen en speelt het ook zonder internet.
 
 Doe die download vanuit het beginscherm-icoon, niet vanuit Safari: iOS geeft een geinstalleerde webapp een eigen opslag, dus wat je in Safari downloadt telt daar niet mee.
 
@@ -48,9 +48,9 @@ Van een deel van de sprites staan twee versies op schijf: het origineel, en een 
 
 Waarom: de grote frames zijn op een telefoon vele malen groter dan ze getekend worden. Safari houdt ze niet allemaal uitgepakt in het geheugen en decodeert ze midden in het spel opnieuw, en dat zijn de hikjes. De tekencode rekt elk plaatje naar vaste maten, dus beide sets werken met dezelfde code. Ontbreekt een klein frame, dan valt het spel terug op het grote.
 
-Welke plaatjes meedoen staat in `DOELEN` in `tools/gen-klein.py`, en dat is met opzet een korte lijst. Een plaatje halveren mag alleen als het op een telefoon nog steeds groter is dan het stukje scherm waar het op terechtkomt. Dat is per familie gemeten en de factor staat erbij. Meedoen: Amir, de hyena's, de panters, de schorpioen, de dorpeling, het droge gras, de kei, de verre hut, de botten en de grotset (7,3x: het plafond, de hoekstukken en de wandtegels zijn de grootste bronnen van het spel en worden tot een tiende getekend). Er juist buiten vallen de boom (1,0x), de struik (1,2x), het doornbos (0,9x), de dorpshutten (1,8x), de klif (1,9x) en de dorpelinge (1,9x): die staan al vrijwel op maat, dus halveren zou je meteen zien.
+Welke plaatjes meedoen staat in `DOELEN` in `tools/gen-klein.py`, en dat is met opzet een korte lijst. Een plaatje halveren mag alleen als het op een telefoon nog steeds groter is dan het stukje scherm waar het op terechtkomt. Dat is per familie gemeten en de factor staat erbij. Meedoen: Amir, de hyena's, de panters, de schorpioen, de zwaardvechters (2,7x), de dorpeling, het droge gras, de kei, de verre hut, de botten en de grotset (7,3x: het plafond, de hoekstukken en de wandtegels zijn de grootste bronnen van het spel en worden tot een tiende getekend). Er juist buiten vallen de boom (1,0x), de struik (1,2x), het doornbos (0,9x), de dorpshutten (1,8x), de klif (1,9x) en de dorpelinge (1,9x): die staan al vrijwel op maat, dus halveren zou je meteen zien.
 
-De download volgt de gekozen set: een telefoon haalt de kleine versies binnen en slaat de grote over, een laptop andersom. Dat scheelt ongeveer 58 MB.
+De download volgt de gekozen set: een telefoon haalt de kleine versies binnen en slaat de grote over, een laptop andersom. Dat scheelt ongeveer 64 MB.
 
 Sprites toegevoegd of vervangen? Draai dan eerst de kleine set opnieuw en daarna de offline-lijst:
 
@@ -73,7 +73,7 @@ Op een aanraakscherm tekent het spel op anderhalve canvaspixel per schermpixel i
 | `offline-assets.json` | de lijst die de downloadknop afwerkt |
 | `tools/gen-offline-manifest.py` | genereert die lijst uit de bestanden op schijf |
 
-De service worker houdt twee caches uit elkaar. Het spel zelf (HTML, manifest, iconen) gaat network-first: online speel je altijd de nieuwste versie, offline de laatst bekende. De sprites en geluiden gaan cache-first en blijven staan, ook als je het spel update. Een nieuwe versie van de HTML kost dus geen nieuwe download van 200 MB.
+De service worker houdt twee caches uit elkaar. Het spel zelf (HTML, manifest, iconen) gaat network-first: online speel je altijd de nieuwste versie, offline de laatst bekende. De sprites en geluiden gaan cache-first en blijven staan, ook als je het spel update. Een nieuwe versie van de HTML kost dus geen nieuwe download van 230 MB.
 
 **Assets toegevoegd of vervangen?** Draai daarna:
 
@@ -159,6 +159,35 @@ je de speer uittrekken terwijl hij op zijn poten staat, dan springt hij opzij,
 en een speer die hem daarbuiten raakt ketst af op zijn vacht. De duik van de
 witte panter zet hem tot zijn buik in de sneeuw: dat is het langste venster en
 je staat er ver genoeg vanaf om te werpen.
+
+## De zwaardvechter
+
+De eerste menselijke tegenstander: een man met een zwaard, in drie kleuren (rood, blauw en
+groen) die verder exact hetzelfde personage zijn. De frames staan in
+`enemies/zwaardvechter/`, per kleur een map met zes animatiesets en een `metadata.json`
+waarin het canvas, de grondlijn, het ankerpunt, de tempo's en de raakframes staan. Het spel
+leest dat bestand bij het starten in; lukt dat niet, dan gelden de waarden die in de HTML
+staan.
+
+Hij werkt in vier standen. Hij staat te wachten (**idle**) tot je in zicht komt, **dreigt**
+dan een korte lus, **rent** op je af (sneller dan jij kunt sprinten, dus weglopen alleen
+helpt niet), en **haalt uit** zodra hij dicht genoeg bij is. Die haal is zijn zwakke plek:
+van het eerste frame tot de klap zit ruim een seconde, en zolang die loopt staat hij vast.
+Jouw speer reikt bovendien verder dan zijn zwaard, dus er is altijd een stuk waarin jij hem
+wel kunt raken en hij jou nog niet. Raak je hem, dan flitst hij wit op, stuitert hij een
+stukje achteruit en staat hij even in zijn pijnpose; na drie treffers gaat hij neer en blijft
+het lichaam liggen.
+
+Staan er meer bij elkaar, dan roept de eerste die je ziet zijn maten erbij, en houden ze
+onderling een lijf afstand: wie het dichtst bij je staat vecht, de rest wacht dreigend zijn
+beurt af. Zonder die twee regels kom je ze een voor een tegen, of staan ze in elkaar.
+
+In de sandbox staat hij onder **Zwaardvechter**: rood, blauw of groen neerzetten, en met
+**AI uit** haal je de stekker uit zijn kop. Daarnaast, onder **Zijn animaties**, kies je de
+set die hij dan speelt: idle, dreigen, rennen, slag, geraakt of dood. Een lus loopt rond, een
+eenmalige set blijft op zijn laatste frame staan, zodat je de pose kunt bekijken. In een
+leveldefinitie zet je hem neer met `{x: -1900, k: 'zwaard', c: 'rood'}`, waarbij `c` de kleur
+is (`rood`, `blauw` of `groen`; zonder `c` wordt het rood).
 
 ## Rots boven en naast je
 
@@ -294,6 +323,15 @@ enemies/
     panter_wit/            walk/, turn/, prowl/, pounce/, run/
     lowstrike/             claw_00..13.png
   hyena_wit/               de witte hyena (Winter World): loop/, dreigen/, ren_lijf/, ren_kop/, uit tools/winter_art.py
+  zwaardvechter/           de zwaardvechter, in drie kleuren met identieke frames en maten
+    basisacteur/           rode tunic (de bron)
+    vijand_blauw/          blauwe tunic
+    vijand_groen/          groene tunic
+                           elk met idle/ (34), dreigen/ (12), rennen/ (10), slag/ (26),
+                           geraakt/ (1) en dood/ (24), genummerd _00.. op 12 fps, plus
+                           metadata.json (canvas 1150x981, grondlijn rij 925, anker_x 443,
+                           figuur 800 px hoog, raakframes 15-17 van de slag). De frames
+                           kijken naar rechts; het spel spiegelt ze als hij naar links kijkt
   hyena/
     loop/                  loop_00..19.png (aankomen en achteruit stappen)
     dreigen/               dreigen_00..21.png (op afstand blijven grommen)
