@@ -339,7 +339,7 @@ bovenrand, want in zijaanzicht is de rots massief: alles onder de rand zit in he
 
 De rots staat altijd in zijn geheel in beeld, met zijn hele silhouet: hij wordt als geheel geschaald tot hij past, want
 de camera staat op jou en laat een halve schermbreedte naast je zien. Hoe groot hij lijkt hangt daardoor aan het Formaat.
-Op 25 is hij bijna twee keer Amir, op 15 ruim drie keer.
+Op 25 is hij twee keer Amir, op 15 ruim drie en een half keer.
 
 Je raakt de schijf alleen door er precies overheen te scheren, en dat lukt maar vanaf een strook van ongeveer honderd
 pixels breed. Sta je dichter bij de deur, dan gaat de speer eronderdoor tegen de wand; sta je verder weg, dan zakt hij al

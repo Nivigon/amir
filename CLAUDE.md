@@ -351,16 +351,16 @@ en verhoudingen, en die staan bij elkaar in `MUUR`.
 
 **De rots wordt in zijn geheel getekend.** Niet gesneden, niet gespiegeld, niet uitgerekt: de
 hele plaat met zijn volledige silhouet, geschaald tot hij past. `hoog` doet dat op de ruimte
-boven de grondlijn, `breed` daarna op de schermbreedte. Die tweede staat op 0,52 en dat is geen
+boven de grondlijn, `breed` daarna op de schermbreedte. Die tweede staat op 0,60 en dat is geen
 smaak: de camera staat op Amir en laat een halve schermbreedte naast hem zien, dus alles wat
-breder is kun je nooit in een keer overzien. Op deze maat staat de hele rots in beeld op
-allebei de plekken waar het om gaat: vanaf de strook waar je hem kunt raken, en als je voor de
-opening staat.
+breder is kun je nooit in een keer overzien. Het is de grootste maat waarop de hele rots nog in
+beeld staat op de twee plekken waar het om gaat: als je voor de opening staat, en op het stuk
+van de raakstrook waar zijn speer in de grond staat.
 
 De prijs is dat de rots niet boven Amir uittorent zoals in de demo. Daar is de speler 88 pixels
 op een scherm van 720 en hier is Amir er 180, dus dezelfde verhouding zou een rots van ruim
 duizend pixels hoog en tweeduizend breed vragen: drie schermen breed. Hoe groot hij lijkt hangt
-dus aan het Formaat, niet aan de plaat. Op 25 is hij 1,8 keer Amir, op 15 ruim 3 keer.
+dus aan het Formaat, niet aan de plaat. Op 25 is hij 2,1 keer Amir, op 15 ruim 3,5 keer.
 
 **De plek van de opening komt uit de alfawaarden.** Per kolom wordt geteld hoe ver het steen
 vanaf de grond aaneengesloten massief is (`massief`), en daarna wordt van de kant waar Amir
@@ -384,7 +384,9 @@ massief silhouet: een punt onder de bovenrand zit in het steen, en daar komt gee
 hoe je ook gooit. De schijf hangt dus net onder die rand (`onder`, 1 betekent dat haar
 bovenkant hem raakt), zodat het hout helemaal op de rots ligt en de punt er toch bij kan door
 er overheen te scheren. Daarom is het raakvlak (`raak`) ruimer dan het hout: de ruimte waar de
-speer kan komen ligt boven de schijf. De punt blijft steken waar hij binnenkwam, geklemd op de
+speer kan komen ligt boven de schijf. Dat raakvlak staat los van de straal, en met opzet: `r`
+is hoe groot het hout eruitziet, `raak` is hoe nauw het luistert, allebei als deel van Amirs
+lengte. Zo maakt een kleinere schijf het spel niet meteen ook moeilijker. De punt blijft steken waar hij binnenkwam, geklemd op de
 rand van het hout, dus hij springt niet naar het midden.
 
 **Gat en blok komen uit dezelfde pixels.** Uit de plaat op maat komen drie canvassen: de muur
@@ -408,8 +410,9 @@ steentjes, en daar zou hij aan blijven hangen ver voordat hij bij de deur is.
 
 **Controleer na elke wijziging of de rune nog te raken is.** Dat is geen gevoelskwestie: simuleer
 de boog vanaf elke plek waar Amir kan staan en kijk of er een aaneengesloten strook overblijft.
-Op een scherm van 1280 bij 720 en Formaat 25 is die strook 104 pixels breed, vlak voor de
-opening, en vanaf die hele strook staat de rots in zijn geheel in beeld. Dichterbij gaat de speer onder de rune door tegen het steen, verder weg zakt hij er al
+Op een scherm van 1280 bij 720 en Formaat 25 is die strook 146 pixels breed, vlak voor de
+opening. Op het verste stuk ervan staat de rots ook in zijn geheel in beeld, en daar hoort de
+speer van het level dus te staan. Dichterbij gaat de speer onder de rune door tegen het steen, verder weg zakt hij er al
 voor. Er is nog een tweede strook op ruim tweeduizend pixels, maar daar staat de rots buiten
 beeld, dus die telt niet mee.
 
