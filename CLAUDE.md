@@ -286,6 +286,12 @@ Reken met Amir: hij is `CHAR_H` (251) hoog en springt 208. Boven de 460 merkt hi
 400 loopt hij rechtop maar stoot hij bij elke sprong zijn hoofd, op 280 zit springen er niet
 meer in, en onder de 251 kan hij er helemaal niet langs, want gebukt loopt hij niet.
 
+Staat er iets onder de lijn om op te springen, tel dan door: een plafond knipt zijn sprong af,
+dus de lijn moet minstens op de hoogte van dat ding plus 251 plus ongeveer 75 liggen. Op de kei
+van Test 1 (114 hoog) is dat 440. Op 400 haalt hij het ook nog, maar alleen als hij precies op
+tijd afzet, en dan sta je de halve tijd klem voor een kei van een halve meter. Dat is gemeten,
+niet geschat: op 400 lukt de sprong vanaf 30 tot 180 px voor de kei, op 440 vanaf 30 tot 270.
+
 Drie lagen, in deze volgorde:
 
 1. **Vulling** (`plafondVulling`): alles boven de lijn, met de lijn als clippad. De tegel is
