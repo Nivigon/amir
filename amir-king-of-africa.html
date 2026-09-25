@@ -8543,7 +8543,8 @@ function hitZwaard(s){
 }
 
 // ---- de leemslang: een baas die steen wordt als je stilzit ------------------
-// Een zandslang van twee keer de gewone maat, in de kleur van leem. Hij jaagt op beweging:
+// Een zandslang van twee keer de gewone maat, in fosforkleur: donker mosgroen met geelgroene
+// zadels, en ogen die pulseren. Hij jaagt op beweging:
 // zit je gebukt stil terwijl hij op je af komt, dan ziet hij je niet meer en verstijft hij
 // tot steen. Zo'n stenen slang kun je raken, en elke treffer slaat er een stuk af. Daarna
 // heb je nog even voor hij loskomt, en sta je dan nog vlak bij hem, dan valt hij meteen uit.
@@ -8555,7 +8556,9 @@ function hitZwaard(s){
 // bewegen voor stilzitten hem opnieuw iets doet. Anders zit je het gevecht uit.
 //
 // Er zijn geen eigen plaatjes: de frames zijn die van de zandslang, eenmalig per frame
-// omgekleurd naar leem en naar steen (leemKopie). Een ruwe schets, om het gedrag te proberen.
+// omgekleurd naar fosfor en naar steen (leemKopie), plus een laag met alleen het oog die
+// pulseert (leemOgen). Een ruwe schets, om het gedrag te proberen. Als steen zijn de ogen
+// dicht; in de laatste halve seconde gaan ze weer gloeien, zo zie je hem loskomen.
 const LEEM = {
   groot: 2,            // zoveel keer een gewone slang
   hp: 5,               // zoveel treffers op steen
@@ -8570,7 +8573,8 @@ const LEEM = {
   terug: 1.5,          // zo lang neemt hij afstand na een beet (s)
   koel: 0.8,           // rust tussen twee beten (s)
   dreig: 0.45,         // zo lang staat hij opgericht voor hij bijt (s)
-  beetFps: 14, uitvalFps: 20   // gewone beet, en de uitval als hij loskomt terwijl jij dichtbij staat
+  beetFps: 14, uitvalFps: 20,  // gewone beet, en de uitval als hij loskomt terwijl jij dichtbij staat
+  puls: 1.1            // zo lang duurt een keer fel en weer dof van zijn ogen (s)
 };
 const leemBazen = [];
 const leemBrok = [];                             // stukjes steen die eraf springen
@@ -8594,15 +8598,36 @@ function leemMaak(img, soort){
   const g = c.getContext('2d');
   g.drawImage(img, 0, 0);
   const d = g.getImageData(0, 0, w, h), p = d.data;
+  let oogN = 0, oogX = 0, oogY = 0;
   for (let i = 0; i < p.length; i += 4){
     if (p[i + 3] === 0) continue;
     const r = p[i], gr = p[i + 1], b = p[i + 2];
     const l = (0.30 * r + 0.59 * gr + 0.11 * b) / 255;
-    if (soort === 'leem'){
-      // oker in het licht, omber in de schaduw; een kwart van het origineel voor de tekening
-      const k = Math.pow(l, 1.35);
-      const tr = 70 + k * 150, tg = 42 + k * 96, tb = 22 + k * 40;
-      p[i] = tr * 0.85 + r * 0.15 * 0.8; p[i + 1] = tg * 0.85 + gr * 0.15 * 0.8; p[i + 2] = tb * 0.85 + b * 0.15 * 0.8;
+    if (soort === 'fosfor' || soort === 'ogen'){
+      // wat is dit stukje zandslang: het amberen oog, een roestbruin zadel, of het lijf?
+      const mx = Math.max(r, gr, b), mn = Math.min(r, gr, b), v = mx / 255;
+      const s = mx > 0 ? (mx - mn) / mx : 0;
+      let hue = 0;
+      if (mx > mn){
+        hue = mx === r ? ((gr - b) / (mx - mn)) % 6 : mx === gr ? (b - r) / (mx - mn) + 2 : (r - gr) / (mx - mn) + 4;
+        hue = (hue * 60 + 360) % 360;
+      }
+      const oog = s > 0.55 && hue >= 30 && hue < 70 && v > 0.5;
+      if (soort === 'ogen'){                       // alleen het oog, fel, de rest weg
+        if (oog){ p[i] = 205; p[i + 1] = 255; p[i + 2] = 70; const q = i >> 2; oogN++; oogX += q % w; oogY += q / w | 0; }
+        else p[i + 3] = 0;
+        continue;
+      }
+      const k = Math.pow(l, 1.2);
+      if (oog){ p[i] = 40 * v; p[i + 1] = 62 * v; p[i + 2] = 22 * v; }   // dof; de ooglaag maakt hem fel
+      else if (s > 0.45 && hue < 25 && v > 0.2){   // de zadels: geelgroen, als een glimworm
+        const z = Math.min(1, v * 1.4);
+        p[i] = 120 + z * 95; p[i + 1] = 170 + z * 85; p[i + 2] = 20 + z * 50;
+      } else if (hue > 70 && hue < 330 || s < 0.12 && v < 0.25){   // contour en tong blijven
+        continue;
+      } else {                                     // het lijf: donker mosgroen
+        p[i] = 16 + k * 50; p[i + 1] = 30 + k * 78; p[i + 2] = 14 + k * 28;
+      }
     } else {
       // steen: koud grijs met wat korrel, dus ook dichte grijze ogen
       const x = (i >> 2) % w, y = (i >> 2) / w | 0;
@@ -8612,7 +8637,29 @@ function leemMaak(img, soort){
     }
   }
   g.putImageData(d, 0, 0);
+  if (soort === 'ogen'){                           // waar het oog zit, voor de gloed eromheen
+    if (!oogN) return null;
+    c.oogX = oogX / oogN; c.oogY = oogY / oogN;
+  }
   return c;
+}
+// de ogen pulseren: fel en weer dof, met een gloed eromheen. sterkte 0 is uit.
+function leemOgen(img, sw, sh, sterkte){
+  const o = leemKopie(img, 'ogen');
+  if (!o || o === img || sterkte <= 0) return;
+  const puls = 0.5 + 0.5 * Math.sin(performance.now() / 1000 * Math.PI * 2 / LEEM.puls);
+  ctx.save();
+  ctx.globalAlpha = sterkte * (0.15 + 0.85 * puls);
+  ctx.drawImage(o, 0, 0, sw, sh);
+  ctx.globalCompositeOperation = 'lighter';
+  const ox = o.oogX * sw / o.width, oy = o.oogY * sh / o.height, r = sh * (0.09 + 0.09 * puls);
+  const gl = ctx.createRadialGradient(ox, oy, 0, ox, oy, r);
+  gl.addColorStop(0, 'rgba(170,255,60,' + (0.7 * sterkte * puls).toFixed(3) + ')');
+  gl.addColorStop(0.4, 'rgba(140,230,40,' + (0.3 * sterkte * puls).toFixed(3) + ')');
+  gl.addColorStop(1, 'rgba(120,220,30,0)');
+  ctx.globalAlpha = 1; ctx.fillStyle = gl;
+  ctx.beginPath(); ctx.arc(ox, oy, r, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
 }
 
 function leemScale(){ return snakeSScale() * LEEM.groot; }
@@ -8825,13 +8872,15 @@ function drawLeemBazen(o){
     if (s.side === 1){ ctx.translate(sw, 0); ctx.scale(-1, 1); }
     if (steen){
       ctx.drawImage(leemKopie(img, 'steen'), 0, 0, sw, sh);
-      if (s.schud > 0){                            // hij kleurt terug: zo zie je hem loskomen
+      if (s.schud > 0){                            // hij kleurt terug en zijn ogen gaan weer aan
         ctx.globalAlpha = Math.max(0, s.alpha) * s.schud * s.schud;
-        ctx.drawImage(leemKopie(img, 'leem'), 0, 0, sw, sh);
+        ctx.drawImage(leemKopie(img, 'fosfor'), 0, 0, sw, sh);
+        leemOgen(img, sw, sh, s.schud);
       }
     } else {
-      const l = leemKopie(img, 'leem');
+      const l = leemKopie(img, 'fosfor');
       ctx.drawImage(s.flash > 0 ? whiteCopy(l, s.flash * 4) : l, 0, 0, sw, sh);
+      leemOgen(img, sw, sh, Math.max(0, s.alpha));
     }
     ctx.restore();
     if (s.state === 'dood') continue;
