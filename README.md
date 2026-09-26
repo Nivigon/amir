@@ -95,6 +95,7 @@ De versie in `offline-assets.json` verandert mee, en de service worker ziet daar
 | **speer in een boog** | **langer vasthouden, dan loslaten** | **langer vasthouden, dan loslaten** |
 | worp afbreken | tik in plaats van vasthouden | duim van ✦ af slepen en daar loslaten |
 | speer oppakken | E, waar je ook langs de schacht staat | E (verschijnt als je er vlakbij staat) |
+| door een open deur of grot | E, als je ervoor staat | E (verschijnt als je ervoor staat) |
 | drinken | Q | het kalebasje |
 
 ### De speerworp
