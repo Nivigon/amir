@@ -571,6 +571,20 @@ Twee regels die ertoe doen:
 - **Een open ravijn telt mee.** `lkSleutel` kijkt ook naar `ravijnGaten()`: scheurt er in een level
   met een gang een ravijn open, dan rekent de kaart opnieuw.
 
+### Een gewoon ravijn is een ravijn dat al open staat
+
+Een ravijn uit `gaps` zonder gang eronder wordt getekend met dezelfde module als het ravijn dat
+openscheurt: `ravijnVastVoor(g)` maakt er een `RavijnEffect` van dat meteen open staat
+(`openInstantly`), en `ravijnenTeken()` geeft die samen met de openscheurende ravijnen aan de
+ravijnlus in `scene()`. Zo heeft elk ravijn dezelfde wand, dezelfde rand van de overkant die
+lager ligt dan de grond vooraan, de achtergrond erboven, het kleine gras en in de winter de
+sneeuwrand. Het effect wordt per ravijn bewaard (`ravijnVast`) en pas opnieuw gemaakt als de
+schaal, de wandplaat of het level verandert. Botsen gaat zoals altijd over `gaps`, daar is niets
+aan veranderd.
+
+Een gat boven een gang houdt de oude tekening met `holteSchacht`, want daar hoort de wand door te
+lopen tot het dak. De bouwer ook, zodat je er ravijnen blijft zien terwijl je ze versleept.
+
 ### De zon op de wand van een ravijn
 
 De wand in een ravijn is de overkant: verder weg dan de grond vooraan, dus nooit lichter. De rand
@@ -582,9 +596,9 @@ in `RAVIJN_ZON`.
 
 | waar | hoe |
 | --- | --- |
-| gewoon ravijn | in de ravijnlus, onder de rand met het gras (`rotsY`), voor de nevel |
-| openscheurend ravijn | via het haakje `opLicht` van de module (`ravijn/ravijn-effect.js`), op het eigen canvas van de wand met `source-atop`: alleen op de wandpixels, nooit op de achtergrond erboven. `knik` is de verticale rek (`ravijnRek`), zodat de lijn in beeld de goede hoek heeft, en `open` is `fx.p`: de schaduw groeit mee met het openscheuren |
+| gewoon ravijn en openscheurend ravijn | via het haakje `opLicht` van de module (`ravijn/ravijn-effect.js`), op het eigen canvas van de wand met `source-atop`: alleen op de wandpixels, nooit op de achtergrond erboven. `knik` is de verticale rek (`ravijnRek`), zodat de lijn in beeld de goede hoek heeft, en `open` is `fx.p`: de schaduw groeit mee met het openscheuren |
 | gat boven een gang | niet: daar doet de lichtkaart het |
+| in de bouwer | in de oude ravijnlus, onder de rand met het gras (`rotsY`) |
 
 's Nachts is het verschil kleiner: de sterkte schaalt met `gloedSterkte` van het uitzicht (0,30
 overdag), met `RAVIJN_ZON.nacht` als ondergrens. In de winter is de schaduw blauwig

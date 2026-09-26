@@ -7503,6 +7503,44 @@ function ravijnenNu(){
   return ravijnen;
 }
 function ravijnBij(wx){ return ravijnenNu().find(fx => Math.abs(fx.x - wx) < 1) || null; }   // al een ravijn op deze plek?
+// Een gewoon ravijn (gaps) ziet er net zo uit als een ravijn dat openscheurt: dezelfde wand, de
+// rand van de overkant lager dan de grond vooraan, de achtergrond door het gat, klein gras op de
+// rand, in de winter de blauwgrijze wand met sneeuw, en de zon op de wand (ravijnZonLicht). Daarvoor
+// krijgt elk gewoon ravijn een eigen effect dat meteen helemaal open staat (openInstantly). Dat is
+// alleen om te tekenen: het staat niet in ravijnen, dus de botsing blijft gaps, en vijanden, decor
+// en vallen merken er niets van. Een gat boven een gang houdt zijn eigen tekening (de schacht en
+// de lichtkaart), en de bouwer ook, want die tekent in een andere zoom en volgorde.
+// Het effect hangt aan het gat (een WeakMap, zodat er niets in de leveldefinitie terechtkomt) en
+// wordt opnieuw gemaakt als het schermformaat of de wand (zomer of winter) verandert.
+const ravijnVast = new WeakMap();
+function ravijnVastVoor(g){
+  if (!ravijnWand.complete || !ravijnWand.naturalWidth) return null;
+  const sch = ((H * (Number(sizeEl.value) / 100)) / CHAR_H) / RAVIJN_MAAT.ref;
+  const wand = ravijnWandNu() || ravijnWand;
+  let fx = ravijnVast.get(g);
+  if (fx && fx.s === sch && fx.wall === wand && fx.x === g.x && fx.bronW === g.w && fx.lvl === level) return fx;
+  fx = new RavijnEffect({ wallImage: wand, quality: 1, stoneImages: [], x: g.x, groundY: 0, width: g.w / sch });
+  fx.openInstantly();
+  fx.lvl = level; fx.s = sch; fx.bronW = g.w;
+  ravijnZonHaak(fx);
+  ravijnVast.set(g, fx);
+  return fx;
+}
+// de gewone ravijnen die zo getekend worden, alleen wat in of vlak bij beeld ligt
+function ravijnenVast(){
+  if (building) return [];
+  const uit = [];
+  for (const g of gapList()){
+    if (holteAt(g.x)) continue;
+    const gl = W / 2 + (g.x - g.w / 2 - world), gr = W / 2 + (g.x + g.w / 2 - world);
+    if (gr < -W / 2 || gl > W * 1.5) continue;
+    const fx = ravijnVastVoor(g);
+    if (fx) uit.push(fx);
+  }
+  return uit;
+}
+// wat er dit beeld getekend wordt: de openscheurende en de gewone
+function ravijnenTeken(){ return ravijnenNu().concat(ravijnenVast()); }
 // Een open ravijn weer dicht laten gaan: de randen schuiven in RAVIJN_SLUIT seconden naar elkaar
 // toe (traag op gang, traag tot stilstand, zoals het openen), met een wolk stof en hetzelfde
 // geluid. Het gat blijft een ravijn zolang het er nog is, alleen smaller: wie erin staat valt
@@ -7960,7 +7998,16 @@ function ravijnWandRand(px, w, h){
 // telefoon een andere DPR omheen.
 // Elk ravijn heeft zijn eigen canvas (fx.achter) en vak (fx.vak): waar de vangst vandaan kwam.
 function ravijnAchterVang(groundY){
-  for (const fx of ravijnenNu()) ravijnAchterVangEen(fx, groundY);
+  for (const fx of ravijnenTeken()){
+    fx.groundY = Math.round(edgeCrust(groundY));    // een gewoon ravijn wordt niet in de lus bijgewerkt
+    ravijnAchterVangEen(fx, groundY);
+  }
+}
+// De zon op de wand (ravijnZonLicht), op het canvas van de module: alleen op de wandpixels. De
+// module rekent in zijn eigen maat; de schaduwlijn moet in beeld de goede hoek hebben, dus de
+// verticale rek gaat mee (ravijnRek), en hij groeit mee met het openscheuren (fx.p).
+function ravijnZonHaak(fx){
+  fx.opLicht = (g, gw, h) => ravijnZonLicht(g, 0, gw, 0, h, ravijnRek(fx, fx.opNu || 0), fx.p, true);
 }
 function ravijnAchterVangEen(fx, groundY){
   fx.vak = null;
@@ -12629,9 +12676,12 @@ function scene(groundY){
   ctx.strokeStyle = '#c08a52'; ctx.lineWidth = 4;
   ctx.beginPath(); ctx.moveTo(0, groundY + 2); ctx.lineTo(W, groundY + 2); ctx.stroke();
   }
-  for (const fx of ravijnenNu()){                   // ravijn opent: het gat, direct na de grond
+  // De ravijnen: het gat, direct na de grond. Een gewoon ravijn gaat hier ook doorheen, als een
+  // ravijn dat al open staat (ravijnVastVoor): dezelfde wand, dezelfde lage rand met klein gras,
+  // dezelfde sneeuwrand. Alleen een gat boven een gang en de bouwer gebruiken de ravijnlus verderop.
+  for (const fx of ravijnenTeken()){
     ravijnAchterTeken(fx, groundY);                 // de achtergrond door het gat, zoals bij een gewoon ravijn
-    const op = ravijnOphoog(fx, groundY);           // de overkant even hoog als deze kant
+    const op = ravijnOphoog(fx, groundY);           // hoe ver de rand van de overkant omhoog moet
     fx.opNu = op;                                   // voor de zon op de wand (opLicht)
     ravijnGrasTeken(fx, groundY, op);               // voor de wand, zodat de voet achter de rand valt
     ctx.save(); ctx.translate(Math.round(W / 2 - world), 0);   // x van het effect is een wereld-x
@@ -13162,6 +13212,9 @@ function loop(now){
         const gl = cx + (g.x - g.w / 2 - world);
         const gr = cx + (g.x + g.w / 2 - world);
         if (gr < -W || gl > W / viewZoom() + W) continue;
+        // een gewoon ravijn tekent zich al in scene(), als een open ravijneffect (ravijnVastVoor);
+        // hier alleen nog een gat boven een gang, en alles in de bouwer
+        if (!building && !holteAt(g.x) && ravijnVastVoor(g)) continue;
         ctx.save();
         // de grond vlak naast de breuk iets donkerder: de rand buigt weg
         for (const sd of [-1, 1]){
@@ -13212,7 +13265,7 @@ function loop(now){
           hz.addColorStop(0.35, 'rgba(' + sc.mistColor + ',' + (mistA * 0.7).toFixed(3) + ')');
           hz.addColorStop(1, 'rgba(' + sc.mistColor + ',' + mistA.toFixed(3) + ')');
           // de zon op de wand, onder de rand met het gras (ravijnZonLicht); boven een gang de lichtkaart
-          if (!holteAt(g.x)) ravijnZonLicht(ctx, gl, gr, rotsY, bodemY);
+          if (building && !holteAt(g.x)) ravijnZonLicht(ctx, gl, gr, rotsY, bodemY);
           ctx.fillStyle = hz; ctx.fillRect(gl - 40, rotsY, gr - gl + 80, H * 3);
           if (holteAt(g.x)){
             // Boven een gang is dit geen afgrond maar de wand van een gat met een gang eronder:
@@ -16102,10 +16155,7 @@ function ravijnOpen(wx, breed = RAVIJN_MAAT.breed){
   });
   fx.lvl = level;
   fx.s = sch;
-  // de zon op de wand (ravijnZonLicht), op het canvas van de module: alleen op de wandpixels. De
-  // module rekent in zijn eigen maat; de schaduwlijn moet in beeld de goede hoek hebben, dus de
-  // verticale rek gaat mee (ravijnRek), en hij groeit mee met het openscheuren (fx.p).
-  fx.opLicht = (g, gw, h) => ravijnZonLicht(g, 0, gw, 0, h, ravijnRek(fx, fx.opNu || 0), fx.p, true);
+  ravijnZonHaak(fx);
   // De module rekt de barst en het openen op bij een breder gat, en dat hoort ook zo: een
   // dubbel ravijn scheurt langer. Maar hij krijgt hier ook een grotere breedte omdat hij daarna
   // geschaald wordt; de duur hoort bij het echte gat, dus op breed in wereld-px, zoals de
