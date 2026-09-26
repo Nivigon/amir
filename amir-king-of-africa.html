@@ -1920,16 +1920,16 @@ const TEST_5 = {
   tips: [ { x: -60, t: 'Testlevel. Je kunt hier niet doodgaan. Pak je speer op en loop door' } ]
 };
 // Test 6: het openscheurende ravijn, en verder niets. Een kort vlak stuk savanne zonder
-// vijanden. Op -1250 staat een kei met een rune op zijn voorkant; raak je die met je speer,
-// dan scheurt vlak achter de kei, op x -1500 (RAVIJN_TEST, bij de proefaansluiting), de grond
-// open. Toets O doet hetzelfde zonder speer. Tijdens het trillen en de barst loop je er nog
-// overheen; is het open, dan is het een gewoon ravijn, en omdat er hier geen gang onder ligt
-// val je dood. Vanaf de kei haal je de overkant met een sprong. De slang heel ver weg houdt
-// de vrije modus uit, net als in Test 3.
+// vijanden. Vlak voor de plek staat een rotsformatie met op zijn flank een rune (RAVIJN_ROTS,
+// bij het ravijn in de code); raak je die met je speer, dan scheurt vlak achter de rots, op x
+// -1500 (RAVIJN_TEST, bij de proefaansluiting), de grond open. Toets O doet hetzelfde zonder
+// speer. Tijdens het trillen en de barst loop je er nog overheen; is het open, dan is het een
+// gewoon ravijn, en omdat er hier geen gang onder ligt val je dood. Met een sprintsprong haal
+// je de overkant. De slang heel ver weg houdt de vrije modus uit, net als in Test 3.
 const TEST_6 = {
   name: 'Test 6: Ravijn test',
   lagen: 'tafelbergen',
-  rocks: [ {x: -1250, s: 1.1} ],                 // de kei met de rune, vlak voor het ravijn
+  rocks: [],
   props: [ {x: -250, k: 'gras', s: 1.1, f: 0, v: 0} ],
   spawns: [ {x: -60000, k: 'groen'} ],          // heel ver weg: houdt de vrije modus uit
   terraces: [], ledges: [],
@@ -1938,7 +1938,7 @@ const TEST_6 = {
   cliffs: [ {x: -3300} ],
   ends: [ {x: -2800} ],
   tips: [ { x: -60, t: 'Testlevel voor het openscheurende ravijn. Pak je speer op en loop een stukje door' },
-          { x: -700, t: 'Gooi je speer tegen de rune op de kei. Hij blijft erin steken: haal hem eruit met E' } ]
+          { x: -500, t: 'Gooi je speer tegen de rune op de rots. Hij blijft erin steken: haal hem eruit met E' } ]
 };
 const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6];
 const WINTER_LEVELS = [WINTER_1, WINTER_2];
@@ -4416,8 +4416,11 @@ function javUpdate(dt, plats, scale){
       jav.x = Math.min(muurR, Math.max(muurL, nx));
       javStick(jav.x, jav.h, 'muur', scale); return;
     }
-    if (!building && ravijnRuneRaak(nx, jav.h + jav.vh * sdt, scale)){   // de rune op de kei van het ravijn
+    if (!building && ravijnRuneRaak(nx, jav.h + jav.vh * sdt, scale)){   // de rune op de rots bij het ravijn
       ravijnRuneTreffer(nx, jav.h + jav.vh * sdt, scale); return;
+    }
+    if (!building && ravijnRotsVol(nx, jav.h + jav.vh * sdt, scale)){     // gemist: in het steen van die rots
+      javStick(jav.x, jav.h, 'muur', scale); return;
     }
     const fNieuw = javFloor(nx, plats);
     if (fNieuw > jav.h && jav.h > fOud){ javStick(jav.x, jav.h, 'muur', scale); return; }   // van opzij tegen een wand
@@ -6209,33 +6212,89 @@ function ravijnValt(s, dt, weg){
   if (s.base < -GAP_DEATH) s.state = weg;
   return true;
 }
-// De rune op de kei. In Test 6 staat bij het ravijn een kei (RAVIJN_TEST.kei) met bovenop,
-// aan de kant waar Amir aankomt, de houten schijf met de rune (runeSchijf) rechtop. Raakt de
-// punt van de speer die schijf, dan scheurt het ravijn open en blijft de speer erin steken;
-// met E trek je hem er weer uit. Maten als deel van de kei, zodat hij meeschaalt.
+// De rune op de rots. In Test 6 staat vlak voor het ravijn een rotsformatie, de scheve spits
+// (design/rotswand_spits.jpg), met op zijn steile flank, de kant waar Amir aankomt, de houten
+// schijf met de rune (runeSchijf). Raakt de punt van de speer die schijf, dan scheurt het
+// ravijn open en blijft de speer erin steken; met E trek je hem er weer uit. Mis je, dan blijft
+// hij in het steen steken, en valt hij er na JAV.muurT uit zoals uit elke wand. De rots is decor:
+// Amir loopt erdoorheen, net als door de rotswand met de rune, en er staat niets bovenop.
 //
-// Bovenop en niet op de voorkant, en dat is gemeten: een gewone worp vertrekt op 225 en zakt
-// langzaam (op 600 px nog 198), en een kei waar Amir op kan klimmen is hoogstens 125 hoog. Op
-// de voorkant was de rune alleen van 960 px te raken, met de kei buiten beeld. Bovenop hangt
-// het midden rond 160, en dan raakt een gewone worp van 150 tot 900 px.
+// Eerst stond de schijf bovenop een kei om op te springen, maar dan stond Amir erop met zijn
+// voeten in het hout. En op de voorkant van zo'n kei was hij niet te raken: een gewone worp
+// vertrekt op 225 en zakt langzaam, en een kei om op te springen is hoogstens 125 hoog. Deze
+// flank is hoog genoeg om de schijf te hangen waar een gewone worp langskomt (hoog, in
+// sprite-eenheden boven de grond).
+//
+// De plaat is een jpg met een witte achtergrond. Bij het laden gaat dat wit eruit (tussen wit0
+// en wit1 zacht, op het donkerste kanaal) en wordt hij bijgesneden tot het steen. Er komt niets
+// nieuws in het plaatje. De alfa blijft bewaard: daarop botst de speer.
+const RAVIJN_ROTS = {
+  src: 'design/rotswand_spits.jpg',
+  x: -1130,       // wereld-x van het midden van de voet
+  hoog: 1.6,      // hoogte van het steen, als deel van Amirs lengte
+  wit0: 226, wit1: 246
+};
 const RAVIJN_RUNE = {
-  r: 0.2,         // straal van het hout, als deel van de keihoogte
+  r: 0.12,        // straal van het hout, als deel van Amirs lengte
   raak: 1.5,      // het raakvlak, als veelvoud van die straal: de punt scheert er ook langs
-  rand: 1.3,      // zo ver van de rechterrand van de kei staat het midden, in stralen
-  op: 0.85,       // zo ver steekt het midden boven het bovenvlak uit, in stralen (de voet zakt er iets in)
+  hoog: 190,      // hoogte van het midden boven de grond, in sprite-eenheden: waar een gewone worp langskomt
+  inzet: 1.25,    // zo ver van de rand van het steen ligt het midden, in stralen: het hout ligt helemaal op de rots
   steek: 0.35     // zo diep zakt de punt het hout in, als deel van de straal
 };
-let ravijnRuneAan = null;                        // het level waarin de rune al geraakt is
-function ravijnRune(scale){
-  if (!level || level.name !== RAVIJN_TEST.naam) return null;
-  const k = (level.rocks || []).find(p => Math.abs(p.x - RAVIJN_TEST.kei) < 1);
-  if (!k) return null;
-  const m = measurePlat(k, scale);
-  const rPx = m.hPx * RAVIJN_RUNE.r;
-  return { x: m.right - rPx * RAVIJN_RUNE.rand,
-           h: m.topH + rPx * RAVIJN_RUNE.op / scale,
-           rPx, raakPx: rPx * RAVIJN_RUNE.raak };
+const ravijnRotsImg = new Image();
+let ravijnRotsBeeld = null;                        // { c, w, h, alfa } na het uitknippen
+ravijnRotsImg.onload = () => { ravijnRotsBeeld = ravijnRotsKnip(ravijnRotsImg); };
+ravijnRotsImg.onerror = () => console.warn('ontbreekt: ' + RAVIJN_ROTS.src);   // src pas in ravijnRotsHier: alleen wie Test 6 speelt haalt hem op
+function ravijnRotsKnip(img){
+  const w = img.naturalWidth, h = img.naturalHeight;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+  let d; try { d = g.getImageData(0, 0, w, h); } catch (e){ return null; }
+  const px = d.data, K = RAVIJN_ROTS;
+  let l = w, r = -1, t = h, b = -1;
+  for (let y = 0; y < h; y++){
+    for (let x = 0; x < w; x++){
+      const i = (y * w + x) * 4;
+      const m = Math.min(px[i], px[i + 1], px[i + 2]);
+      const a = Math.round(255 * Math.max(0, Math.min(1, (K.wit1 - m) / (K.wit1 - K.wit0))));
+      px[i + 3] = a;
+      if (a > 20){ if (x < l) l = x; if (x > r) r = x; if (y < t) t = y; if (y > b) b = y; }
+    }
+  }
+  if (r < l) return null;
+  g.putImageData(d, 0, 0);
+  const cw = r - l + 1, ch = b - t + 1;
+  const uit = document.createElement('canvas'); uit.width = cw; uit.height = ch;
+  uit.getContext('2d').drawImage(c, l, t, cw, ch, 0, 0, cw, ch);
+  const alfa = new Uint8Array(cw * ch);
+  for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) alfa[y * cw + x] = px[((y + t) * w + x + l) * 4 + 3];
+  return { c: uit, w: cw, h: ch, alfa };
 }
+function ravijnRotsHier(){
+  if (!level || level.name !== RAVIJN_TEST.naam) return false;
+  if (!ravijnRotsImg.src) ravijnRotsImg.src = RAVIJN_ROTS.src;
+  return !!ravijnRotsBeeld;
+}
+function ravijnRotsMaat(scale){                    // de plaat in de wereld: linkerrand, breedte en hoogte in px
+  const B = ravijnRotsBeeld, hPx = RAVIJN_ROTS.hoog * CHAR_H * scale, wPx = B.w * hPx / B.h;
+  return { l: RAVIJN_ROTS.x - wPx / 2, wPx, hPx, k: B.h / hPx };   // k: bronpixels per schermpixel
+}
+function ravijnRotsVol(x, h, scale){               // zit dit punt in het steen?
+  if (!ravijnRotsHier()) return false;
+  const B = ravijnRotsBeeld, M = ravijnRotsMaat(scale);
+  const u = Math.floor((x - M.l) * M.k), v = Math.floor(B.h - h * scale * M.k);
+  return u >= 0 && v >= 0 && u < B.w && v < B.h && B.alfa[v * B.w + u] > 128;
+}
+function ravijnRune(scale){
+  if (!ravijnRotsHier()) return null;
+  const B = ravijnRotsBeeld, M = ravijnRotsMaat(scale);
+  const rPx = RAVIJN_RUNE.r * CHAR_H * scale;
+  const v = Math.max(0, Math.min(B.h - 1, Math.floor(B.h - RAVIJN_RUNE.hoog * scale * M.k)));
+  let u = B.w - 1;                                   // de rand van het steen aan Amirs kant, op die hoogte
+  while (u > 0 && B.alfa[v * B.w + u] <= 128) u--;
+  return { x: M.l + u / M.k - rPx * RAVIJN_RUNE.inzet, h: RAVIJN_RUNE.hoog, rPx, raakPx: rPx * RAVIJN_RUNE.raak };
+}
+let ravijnRuneAan = null;                        // het level waarin de rune al geraakt is
 function ravijnRuneRaak(x, h, scale){
   if (ravijnRuneAan === level) return false;
   const R = ravijnRune(scale); if (!R) return false;
@@ -6253,18 +6312,19 @@ function ravijnRuneTreffer(x, h, scale){
   ravijnOpen(RAVIJN_TEST.x);
   flashHint('De rune licht op: de grond scheurt open');
 }
-function ravijnRuneTeken(groundY, scale, cx){
-  const R = ravijnRune(scale); if (!R) return;
-  const hold = holteFilter(R.x, 0);
-  if (hold){ ctx.save(); ctx.filter = hold; }
+function ravijnRuneTeken(groundY, scale, cx){      // de rots, en de schijf erop
+  if (!ravijnRotsHier()) return;
+  const M = ravijnRotsMaat(scale), sx = cx + (M.l - world);
+  if (sx > W / viewZoom() + W || sx + M.wPx < -W) return;
+  ctx.drawImage(ravijnRotsBeeld.c, sx, groundY - M.hPx, M.wPx, M.hPx);
+  const R = ravijnRune(scale);
   runeSchijf(ctx, cx + (R.x - world), groundY - R.h * scale, R.rPx, { aan: ravijnRuneAan === level });
-  if (hold) ctx.restore();
 }
 function ravijnReset(){ ravijnFx = null; ravijnRuneAan = null; stopDeur(); }
 // De bovenste rijen van ravijn_wand.png zijn niet de wand maar de verre oever uit het
 // referentiebeeld: een vage rode savanne, met de graspollen en de rand van de overkant ervoor.
 // Die strook past nooit bij het level. Bij het laden gaat ze eruit, zodat je daar door het gat
-// de grond van het level zelf ziet. Er komt niets nieuws in het plaatje, alleen de alfa.
+// de achtergrond van het level zelf ziet (ravijnAchterTeken). Er komt niets nieuws in het plaatje, alleen de alfa.
 //
 // Gras en achtergrond verschillen in hoe koel ze zijn (blauw gedeeld door rood): de
 // achtergrond zit rond 0,43 tot 0,45, het gras, de rand en de wand eronder tussen 0,24 en
@@ -6300,42 +6360,51 @@ function ravijnWandSchoon(img){
   g.putImageData(d, 0, 0);
   return c;
 }
-// Waar de strook weg is, zie je door het gat de grond die er al getekend staat: de zandband
-// van het level, van de kruin tot de looplijn. Maar de rand van de overkant ligt dieper dan
-// die looplijn, en daartussen stond de voorkant van je eigen grond (de aardlaag), alsof de
-// grond over het gat heen doorliep. Dat stukje wordt gevuld met de zandband zelf: de rijen
-// net boven de looplijn, gespiegeld naar beneden gelegd, uit wat er op dit moment al op het
-// canvas staat. Gespiegeld, want dan grenst elke rij aan zichzelf en loopt er op de looplijn
-// geen naad; is er meer nodig dan de band hoog is, dan komt hij om en om recht en gespiegeld.
-// Dezelfde aanpak als grondDoorlopen, dus het klopt vanzelf met elk level en elke bodem, en er
-// hoeft niets bijgehouden te worden. De bron gaat door de huidige transformatie, want er zit
-// een schok (translate) en op een telefoon een andere DPR omheen.
-function ravijnZandDoorlopen(groundY){
+// Waar de strook weg is, hoort door het gat de achtergrond van het level door te lopen, net
+// als bij een gewoon ravijn: daar wordt de grond eruit geknipt en zie je boven de looplijn de
+// achtergrond zoals die getekend is, en daaronder trekt grondDoorlopen de onderste regel van
+// die achtergrond naar beneden. Hier gebeurt hetzelfde, in twee stappen. Voor de grond
+// getekend wordt (ravijnAchterVang, direct na grondDoorlopen in scene) gaat het stuk
+// achtergrond boven het gat naar een klein canvas; na de grond (ravijnAchterTeken, vlak voor
+// drawGap) komt het terug in het gat, van de kruin tot de looplijn zoals het was, en daaronder
+// de onderste regel doorgetrokken tot onder de rand van de overkant. De randen hebben dezelfde
+// grillige vorm als bij een gewoon ravijn (traceGap). Het klopt dus vanzelf met elk uitzicht.
+// De bron gaat door de huidige transformatie, want er zit een schok (translate) en op een
+// telefoon een andere DPR omheen.
+const ravijnAchter = document.createElement('canvas');
+let ravijnAchterVak = null;                           // waar de vangst vandaan kwam, in schermmaat
+function ravijnAchterVang(groundY){
+  ravijnAchterVak = null;
   const fx = ravijnFx;
-  if (!fx || fx.p <= 0) return;
-  const tot = fx.groundY + RAVIJN_SCHOON.rijen * (fx.s || 1);   // tot onder de rand van de overkant
-  const band = Math.floor(groundY - fx.groundY);           // de zandband: kruin tot looplijn
-  if (band < 4 || tot <= groundY) return;
+  if (!fx || fx.p <= 0 || fx.lvl !== level) return;
+  const [wl, wr] = ravijnRanden(fx);
+  const x0 = Math.max(0, Math.floor(W / 2 + (wl - world)) - 2), x1 = Math.min(W, Math.ceil(W / 2 + (wr - world)) + 2);
+  const y0 = Math.floor(edgeCrust(groundY)) - 2, y1 = Math.ceil(groundY);
+  if (x1 <= x0 || y1 <= y0) return;
   const m = ctx.getTransform();
+  const bw = Math.max(1, Math.round((x1 - x0) * m.a)), bh = Math.max(1, Math.round((y1 - y0) * m.d));
+  if (ravijnAchter.width < bw || ravijnAchter.height < bh){
+    ravijnAchter.width = Math.max(ravijnAchter.width, bw); ravijnAchter.height = Math.max(ravijnAchter.height, bh);
+  }
+  const g = ravijnAchter.getContext('2d');
+  g.clearRect(0, 0, bw, bh);
+  g.drawImage(cv, Math.round(x0 * m.a + m.e), Math.round(y0 * m.d + m.f), bw, bh, 0, 0, bw, bh);
+  ravijnAchterVak = { x0, x1, y0, y1, bw, bh };
+}
+function ravijnAchterTeken(groundY){
+  const fx = ravijnFx, v = ravijnAchterVak;
+  if (!fx || !v) return;
   const [wl, wr] = ravijnRanden(fx);
   const gl = W / 2 + (wl - world), gr = W / 2 + (wr - world);
-  const x0 = Math.max(0, Math.floor(gl)), x1 = Math.min(W, Math.ceil(gr));
-  if (x1 <= x0) return;
-  const sx = Math.round(x0 * m.a + m.e), sw = Math.round((x1 - x0) * m.a);
-  let k = 0;
-  for (let y = groundY; y < tot; y += band, k++){
-    const hgt = Math.min(band, tot - y);
-    if (k % 2 === 0){                                       // gespiegeld: de rij op de looplijn eerst
-      const sy = Math.round((groundY - hgt) * m.d + m.f);
-      ctx.save();
-      ctx.translate(0, 2 * y); ctx.scale(1, -1);
-      ctx.drawImage(cv, sx, sy, sw, Math.round(hgt * m.d), x0, y - hgt, x1 - x0, hgt);
-      ctx.restore();
-    } else {                                                // recht: sluit aan op de onderkant van het spiegelbeeld
-      const sy = Math.round((groundY - band) * m.d + m.f);
-      ctx.drawImage(cv, sx, sy, sw, Math.round(hgt * m.d), x0, y, x1 - x0, hgt);
-    }
-  }
+  const tot = fx.groundY + RAVIJN_SCHOON.rijen * (fx.s || 1) + 4;   // tot onder de rand van de overkant
+  ctx.save();
+  ctx.beginPath();
+  traceGap({ x: fx.x, w: wr - wl }, gl, gr, v.y0, tot, groundY);
+  ctx.clip();
+  ctx.drawImage(ravijnAchter, 0, 0, v.bw, v.bh, v.x0, v.y0, v.x1 - v.x0, v.y1 - v.y0);   // zoals het was
+  const r = Math.max(1, Math.round(v.bh * 2 / (v.y1 - v.y0)));   // de onderste regel, twee schermpixels boven de looplijn
+  ctx.drawImage(ravijnAchter, 0, v.bh - r - 1, v.bw, 1, v.x0, v.y1 - 1, v.x1 - v.x0, tot - v.y1 + 1);
+  ctx.restore();
 }
 function fallDeath(){
   if (dead) return;
@@ -10130,6 +10199,7 @@ function scene(groundY){
   const bandH = H * 0.18;
   const eimg = bodemPic();                                 // savanne, rotsbodem, of de ingebakken wintergrond
   grondDoorlopen(groundY);                   // de laag op de grondlijn doorgetrokken, voor wie in een ravijn kijkt
+  ravijnAchterVang(groundY);                 // en het stuk achtergrond boven het openscheurende ravijn, voor de grond erover komt
   // De vulling eronder is vlak en heeft een kaarsrechte bovenrand. Dat is prima zolang
   // de grond erover ligt, maar door een ravijn zag je hem als een balk boven de overkant
   // hangen. Hij gaat dus net zo goed uit de gaten als de tegel hieronder.
@@ -10206,7 +10276,7 @@ function scene(groundY){
   ctx.beginPath(); ctx.moveTo(0, groundY + 2); ctx.lineTo(W, groundY + 2); ctx.stroke();
   }
   if (ravijnFx){                                    // ravijn opent: het gat, direct na de grond
-    ravijnZandDoorlopen(groundY);                   // de zandband door tot onder de rand van de overkant
+    ravijnAchterTeken(groundY);                     // de achtergrond door het gat, zoals bij een gewoon ravijn
     ctx.save(); ctx.translate(Math.round(W / 2 - world), 0);   // x van het effect is een wereld-x
     ravijnSchaal(ravijnFx);
     ravijnFx.drawGap(ctx);
@@ -10971,7 +11041,7 @@ function loop(now){
         }
       }
     }
-    ravijnRuneTeken(groundY, scale, cx);          // de rune op de kei bij het ravijn
+    ravijnRuneTeken(groundY, scale, cx);          // de rots met de rune bij het ravijn
 
     if (building && level && level.spawns){
       for (const sp of level.spawns){
@@ -13410,13 +13480,13 @@ pauseBtn.onclick = () => { if (won) return; if (paused) resumeGame(); else pause
 document.getElementById('dvagain').onclick = () => { restart(); };
 
 // ---- ravijn opent: proefaansluiting ----
-// Het openscheurende ravijn. In Test 6 gaat het open als de speer de rune op de kei raakt
+// Het openscheurende ravijn. In Test 6 gaat het open als de speer de rune op de rots raakt
 // (ravijnRuneTreffer), op RAVIJN_TEST.x. Toets O blijft om te testen: in Test 6 op diezelfde
 // plek, in elk ander level op de plek waar Amir staat als je drukt. Is het open,
 // dan is het voor Amir een gewoon ravijn (ravijnGat, bij inGap); de leveldata blijft
 // ongemoeid. De plaatjes
 // staan in ravijn/assets en worden hier los geladen, nog niet via het laadsysteem.
-const RAVIJN_TEST = { naam: 'Test 6: Ravijn test', x: -1500, kei: -1250 };   // kei: waar de rune op staat
+const RAVIJN_TEST = { naam: 'Test 6: Ravijn test', x: -1500 };   // de rots met de rune: RAVIJN_ROTS
 // Steentjes op de zandband rond het gat, in wereld-x vanaf het midden. Ze liggen tussen de
 // bovenkant van de zandband en de looplijn (v: 0 is de bovenkant, 1 de looplijn), hoppen
 // tijdens het trillen, en de binnenste vallen mee het gat in.
