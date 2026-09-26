@@ -44,6 +44,11 @@ een eindbaas als je daar zelf voor kiest omdat het dat gevecht beter maakt; zeg 
 achteraf dat en waarom. Voor de panter is dat het veld `over: true` in zijn spawn
 (`panBaan`); zonder dat veld blijft hij aan zijn kant.
 
+**8. Elke pull request krijgt een versie.** Linksboven in beeld staat in heel kleine letters
+welke update er live is (`VERSIE`, bovenaan de code). Zet in elke pull request het nummer een stap
+hoger (1.1, 1.2, ...) en geef hem een naam van een paar woorden die zegt wat er nieuw is, zoals
+`1.2: ravijn nieuw`. Zo ziet de speler of een pull request al live staat.
+
 ## Waar wat staat
 
 De HTML is opgedeeld met commentaarkoppen (`// ---- ... ----`). Zoek daarop, niet op
@@ -51,6 +56,7 @@ regelnummer, want die schuiven bij elke wijziging.
 
 | kop | wat er staat |
 | --- | --- |
+| versie: welke update er live staat | `VERSIE`: nummer en naam, heel klein linksboven in beeld (regel 8) |
 | globale lichtlaag | kleurwaas over het beeld, volgt de zon van het level; een level stelt hem bij met `licht` in `SCENES` |
 | muziek per level | `MUZIEK`, `zetMuziek()`: welk deuntje onder welk level loopt |
 | beeld: de grote of de kleine spriteset | `KLEIN_FAM`, de keuze groot of klein, `zetBron` |
@@ -72,6 +78,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | ravijn in de winter | `RAVIJN_WINTER`, `ravijnWandNu()`, `ravijnSneeuwRand()`: het openscheurende ravijn in een winterlevel, de wand bij het laden omgekleurd naar blauwgrijze steen (alleen kleur, per pixel op helderheid), een getekende sneeuwrand en het berijpte gras |
 | zegel in de grond: de runeschijf plat, als schakelaar | `ZEGEL`, `zegelGrond`, `zegelUpdate`, `zegelDoe`: erop stappen zet hem aan of uit, en wat hij dan doet (nu: een ravijn openen) |
 | skelet met speer | `SKELET`, `skeletTrek`, `skeletUpdate`, `skeletTeken`, `skeletRaak`: E vasthouden trekt de speer eruit, het skelet stort in met de losse botten (`sounds/skeletvalt.mp3`); de schedel is daarna los decor; losse speren op de grond (`losseSperen`) en het blauwe vaantje (`vaanBlauw`) |
+| speerteken: een speer in de grond met een zwart doek en schedels | `TEKEN`, `tekenUpdate`, `tekenTeken`: decor in vier varianten (`teken`, `gebroken`, `gekruist`, `jagers`); het doek wappert op `windAt` zoals het gras. Maten in Amir |
 | runeschijf: het losse symbool | `runeSchijf(ctx, x, y, r, {aan, spiegel})`: de houten schijf met de rune, los te hergebruiken |
 | vallen: schade bij een diepe val | hoe diep een val telt en wat hij kost |
 | schorpioen, het projectiel, spannen en werpen, de geworpen speer | de speerworp; `speerNaastAmir` zet een speer waar Amir niet meer bij komt (achter of in een doornbos, boven op een terras dat hij van deze kant niet meer op komt) naast hem, nooit over een ravijn; `speerBereikbaar` rekent dat uit over de vloeren om hem heen |
@@ -126,6 +133,7 @@ precies hetzelfde formaat naar JSON.
 | `muur` | de rotswand met het rune-symbool: `{x, speer}`, of met `soort: 'grot'` de rotsboog met de kei (zie hieronder) |
 | `hppotions` | drinkkalebassen: `{x, y}` |
 | `skeletten` | een zittend skelet met een speer erin: `{x, f}`, `x` is het midden van het skelet, `f` spiegelt; E bij de schacht trekt hem eruit (zie hieronder) |
+| `tekens` | speertekens: `{x, v, f}`, `v` is `teken`, `gebroken`, `gekruist` of `jagers`, `f` spiegelt; puur decor |
 | `zegels` | zegels plat in de grond: `{x, ravijn, sluit}`; erop stappen zet hem aan of uit, en met `ravijn` scheurt de grond daar open als hij aangaat. Met `sluit` gaat het open ravijn op die x juist weer dicht (staat er niets open, dan blijft hij donker) |
 | `fg` | strook waarover de voorgrondbegroeiing ligt: `{from, to}` |
 | `voorgrond` | de onscherpe laag vlak voor de camera: `{stroken: [{van, tot, dicht, struik, kei}], los: [{x, k, s, f}]}`, `k` uit `VG_SOORT`; los van `fg` |
@@ -835,6 +843,12 @@ aangemeld in `MUZIEK`; korte geluiden van personages en dieren horen in `sounds/
 `ahhit.mp3` en `stopit.mp3`, de twee kreten van Amir, bij de hyenageluiden en niet bij de
 muziek. Beide mappen zitten in de offline-download, dus draai na een nieuw bestand
 `tools/gen-offline-manifest.py` opnieuw.
+
+Het speerteken heeft maar twee soorten eigen plaatjes, en die komen uit `tools/speerteken.py`:
+het doek in drie kleuren (`design/botten/speerteken/doek_zwart`, `doek_vaal`, `doek_rood`), omgekleurd
+op helderheid uit het blauwe doek van het skelet, en `riem.png`, de rode omwikkeling onder Amir zijn
+speerpunt in `amirspear.png`, bruin gemaakt. Zo blijft het in de stijl van de rest. Teken er niets met
+de hand bij; zoek een stuk uit een bestaande sprite en kleur dat om.
 
 De twee slangen komen uit `tools/slang_kleur.py`: dat kleurt `enemies/slang1/` om naar de
 zandslang in `enemies/slang1_zand/` en `enemies/slang2/` naar de zwarte in

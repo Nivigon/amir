@@ -872,7 +872,7 @@ def voorbij(lv, sp):
         return
     for veld, naam in (('spawns', 'vijand'), ('hppotions', 'kalebas'), ('rocks', 'kei'),
                        ('tips', 'tip'), ('thickets', 'doornbos'), ('gaps', 'ravijn'), ('zegels', 'zegel'),
-                       ('skeletten', 'skelet')):
+                       ('skeletten', 'skelet'), ('tekens', 'speerteken')):
         for o in lv.d.get(veld) or []:
             x = o.get('x')
             if not isinstance(x, (int, float)) or x < -50000:

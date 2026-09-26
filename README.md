@@ -4,6 +4,9 @@ Een browserspel in een enkel bestand: open `amir-king-of-africa.html` in de brow
 
 Alle sprites, achtergronden en geluiden staan los op schijf. Het spel verwacht de mappenindeling hieronder; de paden staan letterlijk in de HTML.
 
+Linksboven staat in heel kleine letters welke versie je speelt, bijvoorbeeld `versie 1.1: speerteken`. Elke update krijgt
+een nieuw nummer en een naam, dus daaraan zie je of een update al live staat.
+
 ## Episodes
 
 In het menu onder **Levels** staan vier reeksen: Episode Renew, Episode Winter World, Episode De Diepte (vijf zware levels die telkens onder de grond door gaan, met een verhaal en een slot als je bij level 1 begint), en Test levels.
@@ -425,6 +428,23 @@ Een level zet hem neer met `skeletten: [ {x: -900} ]`, met `f: true` wijst de sc
 gebruikt hem. In de sandbox staat hij onder het tabblad **Decor**, bij **Skelet**: **Met speer**, **Gespiegeld**,
 **Weer overeind** zet ze allemaal terug, en **Speer neerleggen** legt jouw speer naast je neer, zodat je met lege
 handen een skelet kunt leegtrekken.
+
+## Het speerteken
+
+Een speer schuin in de grond, met een zwart doek onder de punt en schedels erop of eromheen. Iemand heeft hier ooit een
+grens getrokken. Het is decor: je kunt er doorheen lopen en er niets van oppakken. Het doek wappert sneller en buigt
+opzij als er een windvlaag langskomt, net als het gras.
+
+Er zijn vier varianten:
+
+- **Het teken:** twee mensenschedels op de schacht, de een kijkt naar links en de ander naar rechts.
+- **Gebroken:** de schacht is afgeknapt en het bovenstuk ligt in het gras, er zit een schedel op de stomp en er ligt er
+  een aan de voet. Het doek is verbleekt.
+- **Gekruist:** twee speren als een X, met een schedel in het kruis en een in het zand.
+- **Jagers:** een buffelschedel met leren riempjes aan de schacht gebonden, een jakhals aan de voet en een rood doek.
+
+Een level zet het neer met `tekens: [ {x: -900, v: 'gebroken'} ]`, met `f: true` gespiegeld. Nog geen level gebruikt het.
+In de sandbox staat het onder het tabblad **Decor**, bij **Speerteken**.
 
 ## Vallen doet pijn
 
