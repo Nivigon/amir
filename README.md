@@ -511,9 +511,11 @@ savanne ophoudt en de gang begint.
 Het licht onder de grond komt van de hemel en de zon, en nergens anders vandaan. De zon staat
 waar hij in de lucht van het level staat, en valt schuin door de gaten naar binnen: de rand van
 een gat werpt een schaduw, de treden en jij vangen zon waar die echt binnenvalt, en hoe verder
-de gang van een gat af loopt, hoe donkerder het wordt. In de sandbox staan onder **Licht onder
-de grond** vier regelaars om dat bij te stellen: hoe donker het wordt, hoe fel de zon naar
-binnen valt, hoeveel licht er van de wanden kaatst, en hoe warm dat kaatslicht is.
+de gang van een gat af loopt, hoe donkerder het wordt. Pikdonker wordt het nergens: er is een
+ondergrens, zodat je de vloer, de randen en de treden altijd ziet. Je schaduw ligt beneden ook
+gewoon onder je voeten op de bodem van de gang. In de sandbox staan onder **Licht onder de grond**
+regelaars om dat bij te stellen: hoe donker het wordt, waar de ondergrens ligt, hoe fel de zon
+naar binnen valt, hoeveel licht er van de wanden kaatst, en hoe warm dat kaatslicht is.
 
 Terug naar boven gaat niet via het gat waar je in viel, maar wel via een tweede gat in het dak
 met treden erin. Die treden zijn van hetzelfde steen als de terrassen, en hoe dieper ze liggen,

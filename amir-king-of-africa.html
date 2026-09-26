@@ -528,6 +528,8 @@
         <label>Licht onder de grond</label>
         <button data-lk="donker:-">Donker −</button>
         <button data-lk="donker:+">Donker +</button>
+        <button data-lk="minLicht:-">Ondergrens −</button>
+        <button data-lk="minLicht:+">Ondergrens +</button>
         <button data-lk="zon:-">Zon −</button>
         <button data-lk="zon:+">Zon +</button>
         <button data-lk="kaats:-">Kaatslicht −</button>
@@ -8294,12 +8296,14 @@ const LK = {
   diepte: 110,             // vaste grond: zo diep onder de oppervlakte is hij een derde zo licht
   bodem: 0.2,              // en donkerder dan dit wordt hij niet
   kaatsR: 8,               // kaatslicht komt van zoveel cellen in het rond
-  ambient: 0.14,           // het minste licht dat er ergens is
+  ambient: 0.14,           // het minste licht dat er ergens is, voor het kaatslicht erbij komt
   marge: 1500,             // zo ver voorbij de uiteinden van een gang loopt de kaart door, in wereld-px
   stap: 12,                // zo ver loopt een straal per stap, in wereld-px
   budget: 4,               // zoveel ms per beeld rekent het spel vooruit aan de kaart
-  // de vier regelaars (in de sandbox onder "Licht onder de grond")
+  // de regelaars (in de sandbox onder "Licht onder de grond")
   donker: 0.85,            // hoe zwaar het donker weegt, 0 tot 1
+  minLicht: 0.45,          // de ondergrens: donkerder dan dit deel van het licht wordt niets, zodat de
+                           // vloer, de randen en de treden altijd te lezen blijven
   zon: 0.22,               // hoe fel de zon naar binnen valt
   kaats: 0.8,              // hoeveel licht er van de wanden kaatst
   warm: 0.16               // hoe warm dat kaatslicht is
@@ -8317,7 +8321,7 @@ function lkVastPunt(x, h){                        // is dit punt grond of rots?
 }
 function lkSleutel(){
   const d = level ? [level.holtes, level.gaps, level.terraces] : [];
-  return JSON.stringify(d) + '|' + zonRechts() + '|' + LK.donker + LK.zon + LK.kaats + LK.warm;
+  return JSON.stringify(d) + '|' + zonRechts() + '|' + [LK.donker, LK.minLicht, LK.zon, LK.kaats, LK.warm].join(',');
 }
 function lkKaart(){
   const lijst = holteLijst();
@@ -8423,7 +8427,7 @@ function lkKolom(k){                              // een kolom af: kaatslicht er
     const m = (k * nr + r) * 2, vast = K.ruw[m + 1] < 0;
     const l = vast ? K.ruw[m] : Math.max(K.ruw[m], LK.kaats * som / n);
     const licht = LK.ambient + (1 - LK.ambient) * Math.min(1, l);
-    const a = Math.round(255 * LK.donker * (1 - licht));
+    const a = Math.round(255 * Math.min(1 - LK.minLicht, LK.donker * (1 - licht)));
     const o = (r * K.nk + k) * 4;
     const doel = vast ? pg : pl;
     doel[o] = 8; doel[o + 1] = 6; doel[o + 2] = 7; doel[o + 3] = a;
@@ -12596,12 +12600,17 @@ function loop(now){
 
     ctx.save();
     ctx.globalAlpha = 0.22; ctx.fillStyle = '#1d140f';
+    // De schaduw ligt op dezelfde vloer als waar zijn voeten op komen (zie updateJump): een rots of
+    // een trede, en anders de grond, en beneden in een gang de bodem daarvan. Een gewoon ravijn
+    // heeft geen vloer (null): dan ligt hij op de grondlijn en wordt het gat eruit geknipt.
     const steun = supportHeight(plats, halfWNow);
-    const shY = groundY - Math.max(0, steun) * scale;
+    const vloer = steun !== 0 ? steun : (building ? 0 : grondVloer(world, ph));
+    const shY = groundY - (vloer === null ? 0 : vloer) * scale;
     const shW = CHAR_H * scale * 0.24;
     // Boven een ravijn ligt geen grond om een schaduw op te werpen: daar knippen we het gat eruit,
     // ook het openscheurende. Staat hij half op de rand, dan houdt de schaduw bij de rand op.
-    if (!building && steun <= 0){
+    // Beneden in een gang is een gat erboven geen rand: daar ligt de schaduw gewoon op de bodem.
+    if (!building && (vloer === null || Math.abs(vloer) <= 1)){
       let knip = false;
       ctx.beginPath(); ctx.rect(pcx - shW - 4, shY - 20, shW * 2 + 8, 40);
       for (const g of gatenMetRavijn()){
@@ -14640,15 +14649,16 @@ document.getElementById('sbholteweg').onclick = () => {
   if (level.terraces) level.terraces = level.terraces.filter(t => t.h >= 0);
   cv.focus();
 };
-// De vier regelaars van de lichtkaart (zie "lichtkaart"). Elke klik schuift een waarde een stap,
-// en onderin staan dan alle vier, zodat je ze kunt overnemen in LK. De kaart rekent zichzelf
+// De regelaars van de lichtkaart (zie "lichtkaart"). Elke klik schuift een waarde een stap, en
+// onderin staan ze dan allemaal, zodat je ze kunt overnemen in LK. De kaart rekent zichzelf
 // daarna opnieuw uit, want de waarden zitten in zijn sleutel.
-const LK_STAP = { donker: [0.05, 0, 1], zon: [0.04, 0, 0.8], kaats: [0.1, 0, 2], warm: [0.04, 0, 0.6] };
+const LK_STAP = { donker: [0.05, 0, 1], minLicht: [0.05, 0, 1], zon: [0.04, 0, 0.8], kaats: [0.1, 0, 2], warm: [0.04, 0, 0.6] };
 sandboxEl.querySelectorAll('button[data-lk]').forEach(b => b.onclick = () => {
   const [k, t] = b.dataset.lk.split(':'), [stap, min, max] = LK_STAP[k];
   LK[k] = Math.round(Math.max(min, Math.min(max, LK[k] + (t === '+' ? stap : -stap))) * 100) / 100;
   const f = v => String(v).replace('.', ',');
-  flashHint('Donker ' + f(LK.donker) + ', zon ' + f(LK.zon) + ', kaatslicht ' + f(LK.kaats) + ', warm ' + f(LK.warm));
+  flashHint('Donker ' + f(LK.donker) + ', ondergrens ' + f(LK.minLicht) + ', zon ' + f(LK.zon)
+            + ', kaatslicht ' + f(LK.kaats) + ', warm ' + f(LK.warm));
   cv.focus();
 });
 function sbHppotion(drop){
