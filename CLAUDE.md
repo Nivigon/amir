@@ -85,7 +85,8 @@ regelnummer, want die schuiven bij elke wijziging.
 | zwarte panter, de witte panter, de hyena | de grote vijanden |
 | achtergrondlagen, uitzicht per level | `SCENE0` en `SCENES` |
 | startscherm, level maken, menu: kaartjes per level | menu en bouwer |
-| elk level nakijken op decor boven een ravijn | `schoonLevel`, draait bij elk level |
+| elk level nakijken op decor boven een ravijn | `schoonLevel`, draait bij elk level; `schoonKomend` en `komendeRavijnen` houden hutten, keien en doornbossen weg waar later een ravijn openscheurt (rune of zegel), en `placeProblem` in de bouwer ook |
+| wat er staat waar een ravijn openscheurt | `RAVIJN_DECOR`, `ravijnDecor`, `ravijnDecorStap`: kalebassen, botten en dorpelingen vallen erin, planten, keien, doornbossen en de speer schuiven naar de rand of vervagen; alles in `rv` of `x0`, dus `ravijnReset` zet het terug |
 | sandbox | de vrije testmodus |
 
 Op schijf: `karakters/` (Amir, dorpeling, dorpelinge), `enemies/`, `design/` (decor,

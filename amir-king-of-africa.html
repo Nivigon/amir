@@ -7551,6 +7551,38 @@ function ravijnDecor(fx, dt, scale){
     if (p.valt || p.base > 1 || onder(p.x) || p.x <= l || p.x >= r) continue;
     p.valt = { v: 0 }; p.hop = false;
   }
+  // Wat er bij het laden al uit de weg is gezet (schoonLevel, komendeRavijnen) staat hier niet
+  // meer. Dit vangt op wat er toch staat: een ravijn uit de sandbox, of iets dat er later kwam.
+  const raakt = (x, hw) => x + hw > l && x - hw < r;
+  const opzij = (x, hw) => x < fx.x ? l - hw - D.marge : r + hw + D.marge;
+  for (const n of level.npcs || []){               // dorpelingen: vallen erin en zijn weg
+    if (n.rv || (n.y || 0) >= FAR_GAP_LIFT || onder(n.x) || n.x <= l || n.x >= r) continue;
+    n.rv = { dx: 0, a: 1, val: { v: 0, h: 0, rot: 0, draai: 0 } };
+  }
+  for (const k of level.rocks || []){               // keien om op te springen: naar de rand
+    if (onder(k.x)) continue;
+    const hw = measurePlat(k, scale).wPx / 2;
+    if (!raakt(k.x, hw)) continue;
+    if (k.x0 === undefined) k.x0 = k.x;
+    k.x = opzij(k.x, hw);
+  }
+  for (const o of level.village || []){             // een hut hoort er niet te staan; staat hij er toch, dan naar de rand
+    const hw = villageHalfW(o, scale);
+    if (!raakt(o.x, hw)) continue;
+    if (o.x0 === undefined) o.x0 = o.x;
+    o.x = opzij(o.x, hw);
+  }
+  for (let i = thickets.length - 1; i >= 0; i--){   // doornbossen: opnieuw opgebouwd aan de rand
+    const t = thickets[i], hw = t.halfW * scale;
+    if (onder(t.x) || !raakt(t.x, hw)) continue;
+    const d = t.src || { n: t.n, seed: t.seed };
+    const nt = makeThicket(opzij(t.x, hw), d.n, d.seed);
+    nt.src = t.src; nt.stage = t.stage; nt.from = t.from; thickets[i] = nt;   // half gekapt blijft half gekapt
+  }
+  if (!spearFound && spearX !== null && !jav && raakt(spearX, 30)){   // de speer in de grond: naar de rand
+    spearX = opzij(spearX, 30); spearH = null;
+  }
+  for (const sp of losseSperen) if (raakt(sp.x, 30)){ sp.x = opzij(sp.x, 30); sp.h = terrainH(sp.x); }
   if (!level.props) return;
   for (const p of level.props){
     if (p.far) continue;                            // achtergronddecor: drawPlacedFar laat het weg
@@ -7581,7 +7613,15 @@ function ravijnDecorStap(dt){                        // vallen en vervagen, elk 
     p.h -= p.valt.v * dt; p.base = p.h;
     if (p.h < -RAVIJN_DECOR.diep) hppotions.splice(i, 1);
   }
-  if (!level || !level.props) return;
+  if (!level) return;
+  for (const n of level.npcs || []){                // een dorpeling die valt
+    const rv = n.rv;
+    if (!rv || rv.weg) continue;
+    rv.val.v += GRAVITY * dt; rv.val.h -= rv.val.v * dt;
+    rv.a = Math.max(0, 1 + rv.val.h / RAVIJN_DECOR.diep);
+    if (rv.val.h < -RAVIJN_DECOR.diep) rv.weg = true;
+  }
+  if (!level.props) return;
   for (const p of level.props){
     const rv = p.rv;
     if (!rv || rv.weg) continue;
@@ -7595,8 +7635,24 @@ function ravijnDecorStap(dt){                        // vallen en vervagen, elk 
     }
   }
 }
-function ravijnDecorReset(){
-  if (level && level.props) for (const p of level.props) delete p.rv;
+function ravijnDecorReset(){                        // alles weer op de plek uit het level
+  if (!level) return;
+  for (const p of level.props || []) delete p.rv;
+  for (const n of level.npcs || []) delete n.rv;
+  for (const lijst of [level.rocks, level.village]) for (const o of lijst || [])
+    if (o.x0 !== undefined){ o.x = o.x0; delete o.x0; }
+}
+// Waar in dit level later een ravijn openscheurt: de runes uit RAVIJN_PROEF, en elk zegel met
+// een ravijn (op de standaardbreedte, tenzij RAVIJN_PROEF die plek al een breedte geeft).
+// schoonLevel houdt daar hutten, keien en doornbossen weg, en de bouwer laat je ze er niet
+// neerzetten. Laag decor, kalebassen en botten mogen er wel staan: die schuiven of vallen
+// als het openscheurt (ravijnDecor).
+function komendeRavijnen(lv){
+  const uit = ((lv && RAVIJN_PROEF[lv.name]) || []).map(e => ({ x: e.x, w: e.breed }));
+  for (const z of (lv && lv.zegels) || [])
+    if (z.ravijn !== null && z.ravijn !== undefined && !uit.some(g => Math.abs(g.x - z.ravijn) < 1))
+      uit.push({ x: z.ravijn, w: RAVIJN_MAAT.breed });
+  return uit;
 }
 // De rune op de rots. In Test 6 en Test 9 staat vlak voor elk ravijn een rotsformatie, de scheve spits
 // (design/rotswand_spits.jpg), met op zijn steile flank, de kant waar Amir aankomt, de houten
@@ -12960,19 +13016,24 @@ function loop(now){
       const now = performance.now() / 1000;
       for (const n of level.npcs){
         const d = NPCS[n.kind]; if (!d) continue;
+        const rv = building ? null : n.rv;          // valt in een ravijn dat openscheurde
+        if (rv && rv.weg) continue;
         const ns = npcSize(n.kind, scale, n.scale);
         const nx = cx + (n.x - world) - ns.w / 2;
         if (nx > W / viewZoom() + W || nx + ns.w < -W) continue;
         const fr = d.cycli ? npcFrame(d, n)
                            : d.frames[Math.floor(now * d.fps + Math.abs(n.x) * 0.013) % d.frames.length];
         if (!fr || !fr.complete || !fr.naturalWidth) continue;
-        const lift = (n.y || 0) + terrainH(n.x) * scale;
+        const lift = (n.y || 0) + terrainH(n.x) * scale + (rv ? rv.val.h * scale : 0);
         const ny = groundY - ns.ground - lift;
+        if (!rv){                                   // wie valt heeft geen schaduw meer
+          ctx.save();
+          ctx.globalAlpha = 0.22; ctx.fillStyle = '#1d140f';
+          ctx.beginPath(); ctx.ellipse(nx + ns.w / 2, groundY - lift, ns.w * 0.34, ns.h * 0.02, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
+        }
         ctx.save();
-        ctx.globalAlpha = 0.22; ctx.fillStyle = '#1d140f';
-        ctx.beginPath(); ctx.ellipse(nx + ns.w / 2, groundY - lift, ns.w * 0.34, ns.h * 0.02, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
-        ctx.save();
+        if (rv) ctx.globalAlpha *= rv.a;
         ctx.translate(nx, ny);
         if (n.flip){ ctx.translate(ns.w, 0); ctx.scale(-1, 1); }
         ctx.drawImage(fr, 0, 0, ns.w, ns.h);
@@ -14173,7 +14234,8 @@ function naastHetRavijn(x, halfW, gaps){
 }
 function schoonLevel(lv){
   levelSchoon = { verplaatst: 0, weg: 0 };
-  if (!lv.gaps || !lv.gaps.length) return lv;
+  schoonKomend(lv);
+  if (!lv.gaps || !lv.gaps.length){ schoonMelding(); return lv; }
   const scale = schoonScale();
   // wat binnen een gang onder de grond staat, staat op de bodem ervan: een gat erboven is daar geen rand
   const inGang = x => (lv.holtes || []).some(o => x >= o.l && x <= o.r);
@@ -14193,10 +14255,36 @@ function schoonLevel(lv){
   schuif(lv.village, o => villageHalfW(o, scale));   // hutten, put en afdak: altijd op de grond
   schuif(lv.npcs, o => npcSize(o.kind, scale).w * 0.3, o => (o.y || 0) < FAR_GAP_LIFT);
   schuif(lv.thickets, o => thicketHalfW(o, scale) * THICKET_BOX);
+  schoonMelding();
+  return lv;
+}
+function schoonMelding(){
   if (levelSchoon.verplaatst || levelSchoon.weg)
     console.warn('level nagekeken: ' + levelSchoon.verplaatst + ' verschoven, '
                + levelSchoon.weg + ' weggehaald (stond boven een ravijn)');
-  return lv;
+}
+// Waar later een ravijn openscheurt (komendeRavijnen) mag geen hut, geen kei om op te springen
+// en geen doornbos staan: die gaan naar de rand ervan, net als bij een gewoon ravijn. Een
+// dorpeling, laag decor, kalebassen en botten mogen er wel staan: die vallen of schuiven als
+// het openscheurt (ravijnDecor).
+function schoonKomend(lv){
+  const komend = komendeRavijnen(lv);
+  if (!komend.length) return;
+  const scale = schoonScale();
+  const inGang = x => (lv.holtes || []).some(o => x >= o.l && x <= o.r);
+  const schuif = (lijst, halfWVan, hoortErbij) => {
+    for (let i = (lijst || []).length - 1; i >= 0; i--){
+      const o = lijst[i];
+      if ((hoortErbij && !hoortErbij(o)) || inGang(o.x)) continue;
+      const nx = naastHetRavijn(o.x, halfWVan(o), komend);
+      if (nx === null){ lijst.splice(i, 1); levelSchoon.weg++; }
+      else if (Math.abs(nx - o.x) > 0.5){ o.x = nx; levelSchoon.verplaatst++; }
+    }
+  };
+  schuif(lv.village, o => villageHalfW(o, scale));
+  schuif(lv.props, o => propHalfW(o, scale), o => !!PROPS[o.kind].bouwwerk);
+  schuif(lv.rocks, o => measurePlat(o, scale).wPx / 2);
+  schuif(lv.thickets, o => thicketHalfW(o, scale) * THICKET_BOX);
 }
 function schoonTekst(){
   if (!levelSchoon.verplaatst && !levelSchoon.weg) return '';
@@ -14299,6 +14387,7 @@ function startBuild(){
   startEl.classList.add('off');
   buildEl.classList.add('on');
   building = true; running = true;
+  ravijnReset();                                   // open ravijnen dicht, en wat opzij schoof weer op zijn plek
   zetMuziek();                                     // in de bouwer het gewone thema
   ensureLevel();
   if (!level.rocks.length){
@@ -15021,6 +15110,11 @@ function builderHit(wx, scale, lift){
 }
 function placeProblem(kind, o, scale){               // mag dit hier staan? zo niet: waarom
   const wall = cliffAt().wall;
+  // waar later een ravijn openscheurt geen hut, geen kei om op te springen en geen doornbos
+  const komend = hw => komendeRavijnen(level).some(g => o.x + hw > g.x - g.w / 2 && o.x - hw < g.x + g.w / 2);
+  if (kind === 'rock' && komend(measurePlat(o, scale).wPx / 2)) return 'hier scheurt later een ravijn open';
+  if (kind === 'thicket' && komend(thicketHalfW(o, scale) * THICKET_BOX)) return 'hier scheurt later een ravijn open';
+  if (kind === 'prop' && PROPS[o.kind] && PROPS[o.kind].bouwwerk && komend(propHalfW(o, scale))) return 'hier scheurt later een ravijn open';
   if (kind === 'rock'){ if (measurePlat(o, scale).right >= wall - 10) return 'daar staat de klif'; }
   else if (kind === 'spawn'){ if (o.x >= wall - 40) return 'daar staat de klif'; }
   else if (kind === 'cliff'){ if (o.x > -400) return 'een klif staat links van je start'; }
