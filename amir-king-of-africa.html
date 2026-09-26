@@ -10420,8 +10420,17 @@ const VOORGROND = {
   rand: 260,            // zo ver loopt een strook uit, in de wereld
   bron: 300,            // hoogte van het voorgerekende plaatje, in pixels
   vaag: 7,              // onscherpte op die hoogte (een groter stuk is dus vager: dichterbij)
-  donker: 'rgba(28,20,10,0.52)'    // de schaduw waar hij in staat
+  schaduw: [0.50, 0.46, 0.42]      // zo donker (per kanaal) staat hij in de schaduw, onder het gewone licht
 };
+// De schaduw volgt het licht van het level: de kleur hierboven hoort bij de gewone
+// schaduwkleur van LICHT, en een level met een eigen licht (de nachtuitzichten) schuift hem
+// naar rato mee. Zo wordt de voorgrond in de nacht vanzelf donkerder en blauwer, in plaats
+// van een warmbruin vlak in een blauwgrijze wereld. Per pixel vermenigvuldigd, bij het
+// voorrekenen: een waas eroverheen zou de lichte randen grijs maken.
+function vgSchaduw(){
+  const L = lichtNu(), d = LICHT.schaduwKleur, k = L.schaduwKleur || d;
+  return VOORGROND.schaduw.map((v, i) => Math.round(v * Math.min(1.2, k[i] / d[i]) * 100) / 100);
+}
 // Hij wordt nergens doorzichtig: Amir loopt niet door de voorgrond maar erachter, en een laag
 // die voor hem wegpoetst breekt juist de diepte. Wat hem mag verbergen regel je met de hoogte
 // hieronder en met de dichtheid in het level: normaal hooguit zijn voeten en schenen, een
@@ -10462,8 +10471,8 @@ function voorgrondNu(){
 }
 const vgCache = {};
 // een plaatje een keer onscherp en donker op maat zetten, met een zachte voet
-function vgPlaatje(img, scherp, voet){
-  const k = img.src + (scherp ? ':s' : ':v') + ':' + voet;
+function vgPlaatje(img, scherp, voet, tint){
+  const k = img.src + (scherp ? ':s' : ':v') + ':' + voet + ':' + tint.join(',');
   if (vgCache[k]) return vgCache[k];
   const V = VOORGROND, m = scherp ? 0 : V.vaag * 3;
   const h = V.bron, w = Math.round(img.naturalWidth * h / img.naturalHeight);
@@ -10493,9 +10502,17 @@ function vgPlaatje(img, scherp, voet){
   } else g.drawImage(img, 0, 0, w, h);
   // onscherp lopen de dunne sprieten uit tot bijna niets: nog een keer over zichzelf heen
   if (!scherp) g.drawImage(c, 0, 0);
-  g.globalCompositeOperation = 'source-atop';
-  g.fillStyle = V.donker;
-  g.fillRect(0, 0, c.width, c.height);
+  try {
+    const d = g.getImageData(0, 0, c.width, c.height), px = d.data;
+    for (let i = 0; i < px.length; i += 4){
+      px[i] *= tint[0]; px[i + 1] *= tint[1]; px[i + 2] *= tint[2];
+    }
+    g.putImageData(d, 0, 0);
+  } catch (e){                                  // niet uit te lezen (geen webserver): een waas als terugval
+    g.globalCompositeOperation = 'source-atop';
+    g.fillStyle = 'rgba(28,20,10,0.52)';
+    g.fillRect(0, 0, c.width, c.height);
+  }
   if (voet > 0){
     const y0 = m + h * (1 - voet), gr = g.createLinearGradient(0, y0, 0, m + h);
     gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,1)');
@@ -10545,10 +10562,11 @@ function drawVoorgrond(groundY, scale){
   }
   stuks.sort((a, b) => VG_SOORT[a.k].laag - VG_SOORT[b.k].laag);
   const tijd = performance.now() / 1000;
+  const tint = vgSchaduw();
   for (const o of stuks){
     const S = VG_SOORT[o.k];
     if (!imgReady(S.img)) continue;
-    const p = vgPlaatje(S.img, sbVoorgrondScherp && sandbox, S.voet);
+    const p = vgPlaatje(S.img, sbVoorgrondScherp && sandbox, S.voet, tint);
     const sx = W / 2 + o.pos - lx;
     const hh = CHAR_H * scale * (S.h[0] + (S.h[1] - S.h[0]) * o.t) * o.s;
     const ww = p.w * hh / p.h, mm = p.m * hh / p.h;
