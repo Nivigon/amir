@@ -13576,6 +13576,7 @@ function loop(now){
         ctx.strokeStyle = sp.kind === 'zwart' ? '#c8324a' : sp.kind === 'scorp' ? '#b8ff3a'
                         : sp.kind === 'hyenas' ? '#e0a33c'
                         : sp.kind === 'zwaard' ? (sp.kleur === 'blauw' ? '#5aa8ff' : sp.kleur === 'groen' ? '#6ad06a' : '#e4584e')
+                        : sp.kind === 'panter' ? '#9a8cff' : sp.kind === 'fosfor' ? '#7cf0ff'
                         : '#8fd18a';
         ctx.lineWidth = 3 / viewZoom();
         const rr = 34 / viewZoom();
@@ -14547,6 +14548,8 @@ const GEREEDSCHAP = [
   { id: 'water',    cat: 'terrein', naam: 'Water' },
   { id: 'doorn',    cat: 'terrein', naam: 'Doornbos' },
   { id: 'klif',     cat: 'terrein', naam: 'Klif (einde van de wereld)' },
+  { id: 'terras',   cat: 'terrein', naam: 'Terras om op te klimmen' },
+  { id: 'richel',   cat: 'terrein', naam: 'Richel' },
   { id: 'boulder',  cat: 'decor',   naam: 'Kei', sneeuw: 'boulder_sneeuw' },
   { id: 'tree',     cat: 'decor',   naam: 'Boom', sneeuw: 'tree_sneeuw' },
   { id: 'struik',   cat: 'decor',   naam: 'Struik', sneeuw: 'struik_sneeuw' },
@@ -14568,13 +14571,23 @@ const GEREEDSCHAP = [
   { id: 'scorp',    cat: 'dieren',  naam: 'Schorpioen' },
   { id: 'hyena1',   cat: 'dieren',  naam: 'Hyena' },
   { id: 'hyena2',   cat: 'dieren',  naam: '2 hyena\'s' },
+  { id: 'fosfor',   cat: 'dieren',  naam: '3 fosforslangen' },
+  { id: 'panter',   cat: 'dieren',  naam: 'Panter' },
+  { id: 'zwaard',   cat: 'dieren',  naam: 'Zwaardvechter' },
   { id: 'dorpeling',  cat: 'mensen', naam: 'Dorpeling' },
   { id: 'dorpelinge', cat: 'mensen', naam: 'Dorpelinge' },
   { id: 'rune',     cat: 'schakelaars', naam: 'Ravijn met rune op een rots' },
   { id: 'zegel',    cat: 'schakelaars', naam: 'Zegel in de grond' },
   { id: 'muur',     cat: 'schakelaars', naam: 'Rotswand met rune' },
   { id: 'muurgrot', cat: 'schakelaars', naam: 'Grot met kei' },
-  { id: 'einde',    cat: 'spel',    naam: 'Einde (de fakkels)' }
+  { id: 'einde',    cat: 'spel',    naam: 'Einde (de fakkels)' },
+  { id: 'kalebas',  cat: 'spel',    naam: 'Drinkkalebas' },
+  { id: 'tip',      cat: 'spel',    naam: 'Tip (tekst onderweg)' },
+  { id: 'skelet',   cat: 'spel',    naam: 'Skelet met speer' },
+  { id: 'teken_teken',    cat: 'decor', naam: 'Speerteken', kop: 'Speertekens' },
+  { id: 'teken_gebroken', cat: 'decor', naam: 'Speerteken, gebroken' },
+  { id: 'teken_gekruist', cat: 'decor', naam: 'Speerteken, gekruist' },
+  { id: 'teken_jagers',   cat: 'decor', naam: 'Speerteken, jagers' }
 ];
 const GEREEDSCHAP_ID = {};
 for (const g of GEREEDSCHAP) GEREEDSCHAP_ID[g.id] = g;
@@ -14835,7 +14848,7 @@ function syncLevel(){
   level.water.sort((a, b) => a.x - b.x);
   level.cliffs.sort((a, b) => a.x - b.x);
   level.thickets.sort((a, b) => a.x - b.x);
-  if (building) rebuildThickets();                 // in de bouwer meteen weer zichtbaar
+  if (building){ rebuildThickets(); resetHppotions(); }   // in de bouwer meteen weer zichtbaar
   // Het wegschrijven begint bij het level zoals het binnenkwam (level.bron), en zet daar
   // overheen wat de bouwer beheert. Een veld dat de bouwer niet kent, blijft zo gewoon staan:
   // wie een level opent en opslaat, raakt niets kwijt. tools/bouwertest.js kijkt dat na.
@@ -15861,6 +15874,18 @@ function pointerWorldX(e){
   return world + (sx - W / 2) / viewZoom();
 }
 function builderHit(wx, scale, lift){
+  const tp = (level.tips || []).find(t => Math.abs(t.x - wx) < 60 && lift !== undefined && lift > 180 * scale);
+  if (tp) return { list: level.tips, kind: 'tip', obj: tp };
+  const kb = (level.hppotions || []).find(o => Math.abs(o.x - wx) < 50);
+  if (kb) return { list: level.hppotions, kind: 'kalebas', obj: kb };
+  const sk = (level.skeletten || []).find(o => Math.abs(o.x - wx) < skeletHalfW(scale));
+  if (sk) return { list: level.skeletten, kind: 'skelet', obj: sk };
+  const tk = (level.tekens || []).find(o => { const v = tekenVoet(o, scale); return Math.abs(o.x + v.dx - wx) < Math.max(40, v.hw); });
+  if (tk) return { list: level.tekens, kind: 'teken', obj: tk };
+  const ri = (level.ledges || []).find(o => Math.abs(o.x - wx) < 80);
+  if (ri) return { list: level.ledges, kind: 'richel', obj: ri };
+  const te = (level.terraces || []).find(t => t.h > 0 && wx > t.l && wx < t.r);
+  if (te) return { list: level.terraces, kind: 'terras', obj: te };
   const zg = (level.zegels || []).find(z => Math.abs(z.x - wx) < 70);
   if (zg) return { list: level.zegels, kind: 'zegel', obj: zg };
   const rn = (level.runes || []).find(e => wx > e.x - e.breed / 2 && wx < e.x + e.breed / 2 + RUNE_ROTS_BREED);
@@ -15919,6 +15944,24 @@ function placeProblem(kind, o, scale){               // mag dit hier staan? zo n
     if (o.x + r >= wall - 10) return 'daar staat de klif';
     if (overGat(o.x - r, o.x + r)) return 'niet boven een ravijn: daar kan Amir niet op staan';
     if (holteAt(o.x)) return 'niet boven een gang: een zegel gaat alleen aan op de savanne';
+    return '';
+  }
+  if (kind === 'skelet' || kind === 'teken'){
+    // vast in de grond: nooit boven een ravijn, niet waar er later een openscheurt, en in een gang niet hoger dan de gang
+    const v = kind === 'teken' ? tekenVoet(o, scale) : { dx: 0, hw: skeletHalfW(scale) };
+    const l = o.x + v.dx - v.hw, r = o.x + v.dx + v.hw;
+    if (r >= wall - 10) return 'daar staat de klif';
+    if (!holteAt(o.x) && overGat(l, r)) return 'niet boven een ravijn';
+    if (komendeRavijnen(level).some(g => r > g.x - g.w / 2 && l < g.x + g.w / 2)) return 'daar scheurt later een ravijn open';
+    const gang = holteAt(o.x);
+    if (gang && kind === 'teken' && (TEKEN.varianten[o.v] || TEKEN.varianten.teken).hoog * CHAR_H > gang.diep - HOLTE_DAK)
+      return 'de gang is hier te laag: de speer steekt door het dak';
+    return '';
+  }
+  if (kind === 'terras'){
+    if (o.r >= wall - 10) return 'daar staat de klif';
+    if (o.r > SPEAR_AHEAD - 60) return 'te dicht bij het begin';
+    if ((level.holtes || []).some(q => o.r > q.l && o.l < q.r)) return 'niet boven een gang: in de gang staat dan een pilaar';
     return '';
   }
   if (kind === 'muur'){
@@ -16025,7 +16068,8 @@ function bouwNaam(k){
   if (k.kind === 'prop'){ const g = GEREEDSCHAP.find(q => q.id === o.kind || q.sneeuw === o.kind); return g ? g.naam : o.kind; }
   if (k.kind === 'npc') return o.kind === 'dorpelinge' ? 'Dorpelinge' : 'Dorpeling';
   return { rock: 'Kei om op te springen', thicket: 'Doornbos', gap: 'Ravijn', water: 'Water', holte: 'Gang onder de grond',
-           end: 'Einde (de fakkels)', cliff: 'Klif', zegel: 'Zegel in de grond',
+           end: 'Einde (de fakkels)', cliff: 'Klif', zegel: 'Zegel in de grond', tip: 'Tip',
+           kalebas: 'Drinkkalebas', skelet: 'Skelet met speer', teken: 'Speerteken', terras: 'Terras', richel: 'Richel',
            rune: 'Ravijn met rune op een rots', muur: o.soort === 'grot' ? 'Grot met kei' : 'Rotswand met rune' }[k.kind] || k.kind;
 }
 // de velden per soort: [naam, invoer, sleutel, extra]; invoer is getal, vink of keuze
@@ -16042,6 +16086,15 @@ function bouwVelden(k){
   if (k.kind === 'thicket') v.push(['klompen', 'getal', 'n', { stap: 1, min: 1, max: 5 }]);
   if (k.kind === 'gap') v.push(['breedte', 'getal', 'w', { stap: 10, min: 40, max: 2000 }]);
   if (k.kind === 'water') v.push(['lengte', 'getal', 'n', { stap: 1, min: 0, max: 20 }]);
+  if (k.kind === 'terras'){
+    v.length = 0;
+    v.push(['rechterrand (r)', 'getal', 'r', { stap: 10 }], ['linkerrand (l)', 'getal', 'l', { stap: 10 }],
+           ['hoogte', 'getal', 'h', { stap: 10, min: 20, max: 1500 }]);
+  }
+  if (k.kind === 'richel') v.push(['hoogte', 'getal', 'h', { stap: 10, min: 0, max: 1500 }], ['grootte', 'getal', 's', { stap: 0.05, min: 0.3, max: 3 }]);
+  if (k.kind === 'skelet' || k.kind === 'teken') v.push(['gespiegeld', 'vink', 'f']);
+  if (k.kind === 'teken') v.push(['soort', 'keuze', 'v', { keuzes: Object.keys(TEKEN.varianten).map(q => [q, q]) }]);
+  if (k.kind === 'tip') v.push(['tekst', 'tekst', 't']);
   if (k.kind === 'rune'){
     v[0][0] = 'midden van het ravijn';
     v.push(['breedte van het ravijn', 'keuze', 'breed', { keuzes: [[277, '277, gewoon'], [554, '554, dubbel'], [831, '831, driedubbel']] }]);
@@ -16076,6 +16129,9 @@ function bouwInfo(){
       inp = document.createElement('select');
       for (const [w, t] of extra.keuzes){ const op = document.createElement('option'); op.value = w; op.textContent = t; inp.appendChild(op); }
       inp.value = (o[sleutel] === undefined || o[sleutel] === null) ? '' : o[sleutel];
+    } else if (soort === 'tekst'){
+      inp = document.createElement('textarea');
+      inp.value = o[sleutel] || ''; inp.rows = 3; inp.style.height = '64px';
     } else {
       inp = document.createElement('input');
       inp.type = soort === 'vink' ? 'checkbox' : 'number';
@@ -16087,6 +16143,7 @@ function bouwInfo(){
     inp.onchange = () => {
       const oud = o[sleutel];
       let w = soort === 'vink' ? inp.checked
+            : soort === 'tekst' ? inp.value
             : soort === 'keuze' ? (typeof extra.keuzes[0][0] === 'number' ? Number(inp.value) : (inp.value || undefined))
             : Number(inp.value);
       if (soort === 'getal'){
@@ -16098,6 +16155,8 @@ function bouwInfo(){
       const scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H;
       const why = placeProblem(k.kind, o, scale);
       if (why){ o[sleutel] = oud; bcount.textContent = why + ', niet veranderd'; }
+      if (k.kind === 'spawn') zwLaadLevel(level);   // een andere kleur zwaardvechter: die plaatjes ophalen
+      if (k.kind === 'terras' && o.l > o.r){ const t = o.l; o.l = o.r; o.r = t; }
       if (k.kind === 'holte'){                     // een gang: de randen op volgorde, en de trap past zich aan
         if (o.l > o.r){ const t = o.l; o.l = o.r; o.r = t; }
         if (holteUitgang(o)) holteTrap(o);
@@ -16319,6 +16378,15 @@ function bouwSchakelTeken(groundY, cx, scale){
   const z = viewZoom(), X = wx => cx + (wx - world);
   let nr = 0;
   ctx.save();
+  // tips: een tekstwolkje boven de plek waar hij verschijnt
+  ctx.font = Math.round(14 / z) + 'px Archivo, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  for (const t of level.tips || []){
+    const x = X(t.x), y = groundY - 330 / z, tekst = t.t.length > 34 ? t.t.slice(0, 33) + '\u2026' : t.t;
+    const w = ctx.measureText(tekst).width + 20 / z;
+    ctx.fillStyle = 'rgba(20,14,26,.85)'; ctx.fillRect(x - 10 / z, y - 14 / z, w, 28 / z);
+    ctx.beginPath(); ctx.moveTo(x, y + 14 / z); ctx.lineTo(x + 10 / z, y + 14 / z); ctx.lineTo(x, y + 26 / z); ctx.fill();
+    ctx.fillStyle = '#f2e8d5'; ctx.fillText(tekst, x, y);
+  }
   ctx.lineWidth = 3 / z;
   const kader = (x, w, kleur) => {                    // een ravijn dat nog open moet
     ctx.strokeStyle = kleur; ctx.fillStyle = kleur;
@@ -16472,6 +16540,34 @@ cv.addEventListener('pointerdown', e => {
     const why = placeProblem('npc', nw, scale);
     if (why){ bcount.textContent = why; return; }
     level.npcs.push(nw);
+  } else if (tool === 'panter' || tool === 'zwaard' || tool === 'fosfor'){
+    if (wx >= cliffAt().wall - 40){ bcount.textContent = 'daar staat de klif'; return; }
+    level.spawns.push({ x: wx, kind: tool, kleur: 'rood', n: 1, over: false });
+    if (tool === 'zwaard') zwLaadLevel(level);       // de plaatjes van die kleur ophalen
+  } else if (tool === 'kalebas'){
+    if (wx >= cliffAt().wall - 40){ bcount.textContent = 'daar staat de klif'; return; }
+    if ((level.gaps || []).some(g => Math.abs(g.x - wx) < g.w / 2 + 20)){ bcount.textContent = 'niet boven een ravijn: daar is hij onbereikbaar'; return; }
+    level.hppotions.push({ x: wx, y: null });
+  } else if (tool === 'tip'){
+    const nw = { x: wx, t: 'Nieuwe tip' };
+    level.tips.push(nw);
+    syncLevel(); bouwDicht();
+    bouwKies({ list: level.tips, kind: 'tip', obj: nw });   // meteen de tekst invullen
+    return;
+  } else if (tool === 'skelet' || tool.startsWith('teken_')){
+    const skelet = tool === 'skelet';
+    const nw = skelet ? { x: wx, f: false } : { x: wx, v: tool.slice(6), f: false };
+    const why = placeProblem(skelet ? 'skelet' : 'teken', nw, scale);
+    if (why){ bcount.textContent = why; return; }
+    (skelet ? level.skeletten : level.tekens).push(nw);
+    if (skelet) skeletReset();
+  } else if (tool === 'terras'){
+    const nw = { r: Math.round(wx + 300), l: Math.round(wx - 300), h: 200 };
+    const why = placeProblem('terras', nw, scale);
+    if (why){ bcount.textContent = why; return; }
+    level.terraces.push(nw);
+  } else if (tool === 'richel'){
+    level.ledges.push({ x: Math.round(wx), h: 250, s: 1 });
   } else if (tool === 'rune'){                      // de klik is het midden van het ravijn, de rots komt ervoor
     const nw = { x: wx, breed: RAVIJN_MAAT.breed };
     const why = placeProblem('rune', nw, scale);
