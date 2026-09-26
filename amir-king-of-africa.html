@@ -1847,12 +1847,14 @@ const TEST_2 = {
 // en hij is decor: Amir loopt er overal doorheen, en de speer vliegt er ook doorheen. Alleen de
 // houten schijf vangt de speer; die hangt midden boven de deur.
 //
-// muur.x is de rechterrand van de rots, de kant waar Amir aankomt. Waar de opening komt te
-// liggen rekent het spel zelf uit de plaat uit (zie muurSet). muur.speer telt vanaf de
-// rechterrand van de opening.
+// Sinds de grot (muur.soort 'grot', zie MUUR_GROT) staat hier geen kale rots met een gegumde deur
+// meer, maar een geschilderde rotsboog met een grot erin, en daarvoor de kei om op te springen.
+// muur.x is de rechterrand van de rots, de kant waar Amir aankomt; muur.speer telt vanaf de
+// rechterrand van de grot. De schijf hangt op de linkerschouder van de boog, even hoog als bij
+// de kale rots.
 //
-// Raak je de schijf, dan schuift het blok omhoog en staat er een zwarte deur, 1,2 keer Amir
-// hoog. Sta je daarvoor en druk je op E, dan is het level uitgespeeld. Er staan geen fakkels.
+// Raak je de schijf, dan zakt de kei de grond in en staat de grot open. Sta je ervoor en druk je
+// op E, dan is het level uitgespeeld. Er staan geen fakkels.
 //
 // De slang ver weg is een noodgreep en geen tegenstander. Een level met een lege spawns-lijst
 // valt terug op de vrije modus, en die stuurt vanzelf slangen op je af. Met een spawn heel ver
@@ -1860,7 +1862,7 @@ const TEST_2 = {
 const TEST_3 = {
   name: 'Test 3: De rots met de rune',
   lagen: 'tafelbergen',
-  muur: { x: -4000, speer: 150 },
+  muur: { x: -4000, speer: 150, soort: 'grot' },
   rocks: [], props: [],
   spawns: [ {x: -60000, k: 'groen'} ],          // heel ver weg: houdt de vrije modus uit
   terraces: [], ledges: [],
@@ -1869,7 +1871,7 @@ const TEST_3 = {
   village: [], npcs: [], gaps: [], water: [], thickets: [], cliffs: [], ends: [],
   tips: [ { x: -60, t: 'Testlevel. Verderop staat een rots met een rune. Pak eerst je speer op' },
           { x: -2400, t: 'Houd de werpknop vast tot hij de speer helemaal uittrekt: dan gaat hij in een boog' },
-          { x: -3400, t: 'Raak de schijf boven de deur. Staat de deur open, ga ervoor staan en druk op E' } ]
+          { x: -3400, t: 'Raak de schijf op de rots. Staat de grot open, ga ervoor staan en druk op E' } ]
 };
 // Test 4: de val in de grot, en er weer uit. Een kort stuk savanne, dan een ravijn dat te breed
 // is om over te springen. Eronder ligt geen dood maar een gang onder de grond (holtes), 900 diep:
@@ -3374,7 +3376,125 @@ let muurSchuif = 0;        // 0 = dicht, 1 = het blok staat helemaal boven
 let muurSpeer = null;      // de speer die in de schijf is blijven zitten: {x, h, sa, dir}
 let muurCache = null;      // de canvassen, op de huidige maat
 
-function muurReset(){ muurOpen = false; muurSchuif = 0; muurSpeer = null; stopDeur(); }
+function muurReset(){ muurOpen = false; muurSchuif = 0; muurKlok = 0; muurSpeer = null; stopDeur(); }
+let muurKlok = 0;          // seconden sinds de treffer: het stof hangt nog na als de kei al stil ligt
+
+// ---- de grot met de kei: de tweede soort rotswand -------------------------
+// Een level kiest hem met muur: {x, speer, soort: 'grot'}. Geen opening die we zelf in de rots
+// gummen, maar een rotsboog die zo geschilderd is (design/rotswand_boog.jpg), met daarin een
+// grot. Voor de opening staat de kei om op te springen (PROPS.boulder), groot genoeg om hem
+// helemaal te dekken. Raak je de schijf, dan trilt de kei even, er valt gruis van de boog, en
+// hij zakt de grond in. Daarbij komt langs zijn voet stof op dat opstijgt en uitwaait, en in
+// de grotmond blijft een waas hangen die daarna zakt. Zijn bovenkant blijft als drempel in de
+// vloer liggen.
+//
+// Een getekend gat in een geschilderde rots blijft computertekenwerk, hoe je de rand ook
+// vormt: daarom komt hier alles uit geschilderde platen. Alleen het donker in de grot is van
+// ons, en dat volgt precies de geschilderde rand (een vulling vanuit de voet van de boog).
+//
+// De schijf hangt op de linkerpoot van de boog, twee Amir hoog. Dat is lager dan bij de kale rots
+// (2,28), en dat is gemeten: de boogworp stijgt nog als hij bij de schijf is, dus hoe lager, hoe
+// dichterbij je hem raakt. Op 2,0 lukt dat op 1280 bij 720 van 465 tot 770 pixels ervoor, en tot
+// 620 staat de schijf dan in beeld; op 2,28 begon de strook pas op 590. De rots hangt aan Amirs
+// maat, dus die plek ligt op elk scherm even hoog en even ver.
+const MUUR_GROT = {
+  src: 'design/rotswand_boog.jpg',
+  wit0: 226, wit1: 246,   // het wit van de jpg eruit, zoals bij de rots bij het ravijn
+  hoogAmir: 2.7,          // de rots is zo veel keer Amir hoog: de grot is dan bijna twee Amir hoog
+  zak: 0.02,              // zo veel van Amirs lengte zakt de voet de grond in
+  sym: { u: 0.30,         // plek van de schijf: dit deel van de plaatbreedte, van links
+         hoog: 2.0 },     // en zo hoog, in Amirs: daar raakt de boogworp hem met de schijf in beeld
+  kei: { breed: 1.18,     // de kei is zo veel breder dan de grot
+         hoog: 1.1,       // en minstens zo veel hoger, zodat hij de boog helemaal dekt
+         zak: 0.05,       // zo veel van zijn hoogte staat hij in de grond
+         blijf: 0.1 },    // en zo veel steekt er straks nog boven de vloer uit: de drempel
+  tijd: 1.2,              // zo veel seconden duurt het zakken
+  tril: 0.15,             // het eerste deel daarvan trilt hij alleen
+  stof: 70,               // zo veel wolkjes langs de voet
+  gruis: 60               // en zo veel korreltjes van de boog
+};
+const grotMuurImg = new Image();
+let grotMuurBeeld = null;
+grotMuurImg.onload = () => { grotMuurBeeld = witKnip(grotMuurImg, MUUR_GROT.wit0, MUUR_GROT.wit1); };
+grotMuurImg.onerror = () => console.warn('ontbreekt: ' + MUUR_GROT.src);   // src pas in muurSet: alleen wie de grot speelt haalt hem op
+function muurGrot(){ const m = muurNu(); return !!m && m.soort === 'grot'; }
+
+// De canvassen voor de grot. Dezelfde velden als bij de kale rots (l, r, t, b is de opening,
+// symX en symY de schijf, alfa het steen), zodat botsen, de E voor de deur en de speer erin
+// gewoon doorwerken.
+function muurGrotSet(scale){
+  if (!grotMuurImg.src) grotMuurImg.src = MUUR_GROT.src;
+  const B = grotMuurBeeld, kimg = propImg.boulder;
+  if (!B || !imgReady(kimg)) return null;
+  const G = MUUR_GROT, amir = CHAR_H * scale;
+  const hPx = Math.max(40, Math.round(amir * G.hoogAmir)), wPx = Math.max(40, Math.round(hPx * B.w / B.h));
+  const sleutel = 'grot|' + hPx + '|' + wPx + '|' + Math.round(amir) + '|' + kimg.naturalWidth;
+  if (muurCache && muurCache.sleutel === sleutel) return muurCache;
+  const voetY = hPx - amir * G.zak;
+  const heel = document.createElement('canvas'); heel.width = wPx; heel.height = hPx;
+  const hg = heel.getContext('2d', { willReadFrequently: true });
+  hg.drawImage(B.c, 0, 0, wPx, hPx);
+  let alfa = null;
+  try {
+    const d = hg.getImageData(0, 0, wPx, hPx).data;
+    alfa = new Uint8Array(wPx * hPx);
+    for (let i = 0, n = alfa.length; i < n; i++) alfa[i] = d[i * 4 + 3];
+  } catch (e){ return null; }
+
+  // De grot: op vier vijfde van de hoogte het breedste lege stuk in het midden, en van daaruit
+  // alles vullen wat leeg is en tussen de poten van de boog ligt.
+  const y0 = Math.floor(hPx * 0.8), dicht = i => alfa[i] > 60;
+  let best = [0, 0];
+  for (let x = Math.floor(wPx * 0.2); x < wPx * 0.8;){
+    if (!dicht(y0 * wPx + x)){ let e = x; while (e < wPx && !dicht(y0 * wPx + e)) e++;
+      if (e - x > best[1] - best[0]) best = [x, e]; x = e; } else x++;
+  }
+  const band = (best[1] - best[0]) * 0.3, bl = Math.max(0, Math.floor(best[0] - band)),
+        br = Math.min(wPx - 1, Math.ceil(best[1] + band));
+  const vol = new Uint8Array(wPx * hPx), stapel = [[(best[0] + best[1]) >> 1, y0]];
+  let l = wPx, r = 0, t = hPx;
+  while (stapel.length){
+    const [x, y] = stapel.pop();
+    if (x < bl || x > br || y < 0 || y >= hPx) continue;
+    const i = y * wPx + x;
+    if (vol[i] || dicht(i)) continue;
+    vol[i] = 1; if (x < l) l = x; if (x > r) r = x; if (y < t) t = y;
+    stapel.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+  }
+  const b = Math.round(voetY) + Math.max(2, Math.round(hPx * 0.02));
+  // het donker, in precies die vorm: bij de vloer vangt het nog wat licht van buiten
+  const donker = document.createElement('canvas'); donker.width = wPx; donker.height = hPx;
+  const dg = donker.getContext('2d');
+  const vorm = dg.createImageData(wPx, hPx);
+  for (let i = 0; i < vol.length; i++) if (vol[i]) vorm.data[i * 4 + 3] = 255;
+  dg.putImageData(vorm, 0, 0);
+  const cxo = (l + r) / 2, Ho = voetY - t, Wo = r - l;
+  const gr = dg.createRadialGradient(cxo, voetY, 0, cxo, voetY, Ho * 1.05);
+  gr.addColorStop(0, '#3b2e24'); gr.addColorStop(0.35, '#17110d'); gr.addColorStop(1, '#050403');
+  dg.globalCompositeOperation = 'source-in'; dg.fillStyle = gr; dg.fillRect(0, 0, wPx, hPx);
+
+  // de kei: zo groot dat hij de grot dekt, midden ervoor
+  const kw0 = kimg.naturalWidth, kh0 = kimg.naturalHeight;
+  const ks = Math.max(Wo * G.kei.breed / kw0, Ho * G.kei.hoog / kh0);
+  const kw = kw0 * ks, kh = kh0 * ks, kx = cxo - kw / 2, ky = voetY - kh + kh * G.kei.zak;
+  const kc = document.createElement('canvas'); kc.width = wPx; kc.height = hPx;
+  const kg = kc.getContext('2d', { willReadFrequently: true });
+  kg.drawImage(kimg, kx, ky, kw, kh);
+  let keiAlfa = null;
+  try {
+    const d = kg.getImageData(0, 0, wPx, hPx).data;
+    keiAlfa = new Uint8Array(wPx * hPx);
+    for (let i = 0, n = keiAlfa.length; i < n; i++) keiAlfa[i] = d[i * 4 + 3];
+  } catch (e){ keiAlfa = null; }
+
+  const symR = Math.max(4, MUUR.sym.r * amir);
+  muurCache = { sleutel, grot: true, w: wPx, h: hPx, voetY, heel, donker, alfa, keiAlfa,
+                l, r, t, b, kei: { x: kx, y: ky, w: kw, h: kh },
+                symX: Math.round(wPx * G.sym.u), symY: Math.round(voetY - G.sym.hoog * amir),
+                symR, raakR: MUUR.sym.raak * amir };
+  return muurCache;
+}
+
 
 // Vorm van de opening: geen kale rechthoek maar een licht afgebrokkelde rand. Gat, blok,
 // masker en schaduw gebruiken allemaal exact deze punten, dus ze passen per definitie.
@@ -3392,6 +3512,7 @@ function muurDeurPunten(x0, y0, w, h, j){
 
 // De canvassen, een keer op maat gezet en daarna bewaard tot de maten veranderen.
 function muurSet(scale){
+  if (muurGrot()) return muurGrotSet(scale);
   if (!imgReady(muurImg)) return null;
   // De hele rots in beeld: eerst passend maken op de ruimte boven de grondlijn, en als hij
   // dan te breed uitvalt alsnog op de schermbreedte. Als geheel schalen, dus nooit snijden.
@@ -3565,7 +3686,17 @@ function muurSteen(scale){
   const v0 = muurRij(S, jav.h, scale);
   if ((jav.x - sx) * jav.dir < S.raakR && Math.abs(v0 - S.symY) < S.raakR * 1.5) return false;
   const u = Math.round(muurKol(m, S, jav.x)), v = Math.round(muurRij(S, jav.h, scale));
-  const erin = u >= 0 && v >= 0 && u < S.w && v < S.h && S.alfa[v * S.w + u] > 40;
+  const erin = u >= 0 && v >= 0 && u < S.w && v < S.h &&
+               (S.alfa[v * S.w + u] > 40 ||                       // de kei voor de grot, zolang hij er staat
+                (S.keiAlfa && muurSchuif < 0.5 && S.keiAlfa[v * S.w + u] > 40));
+  // Bij de grot staat Amir vaak voor de rots: onder de boog, of voor een poot of de kei. Een
+  // speer die daar vertrekt zit dan al in het steen, en zou er na een paar pixels in blijven
+  // steken, nog voor hij de schijf kan halen. Daar blijft hij dus pas steken als hij er van
+  // buitenaf in vliegt: eerst door lucht (de grot, de hemel), dan in het steen.
+  if (S.grot && !jav.buiten){
+    if (!erin) jav.buiten = true;
+    return false;
+  }
   if (erin){
     const amir = CHAR_H * scale;
     if (!jav.steen){
@@ -3637,7 +3768,7 @@ function muurTreffer(scale){
   muurOpen = true;
   shake = Math.max(shake, 0.22);                   // de berg komt in beweging
   playDeur();
-  flashHint('De rune licht op: de rots schuift omhoog');
+  flashHint(S.grot ? 'De rune licht op: de kei zakt de grond in' : 'De rune licht op: de rots schuift omhoog');
 }
 
 // Waar staat zijn speer? Niet op een vaste plek in de wereld, want de rots wordt op de
@@ -3661,7 +3792,9 @@ function muurVul(scale){
 }
 
 function muurUpdate(dt, scale){
-  if (muurOpen && muurSchuif < 1) muurSchuif = Math.min(1, muurSchuif + dt / MUUR.tijd);
+  const tijd = muurGrot() ? MUUR_GROT.tijd : MUUR.tijd;
+  if (muurOpen && muurSchuif < 1) muurSchuif = Math.min(1, muurSchuif + dt / tijd);
+  if (muurOpen) muurKlok += dt;
   muurVul(scale);
 }
 
@@ -3686,6 +3819,7 @@ function drawMuur(groundY, scale, cx){
   const S = muurSet(scale); if (!S) return;
   const x0 = Math.round(cx + (m.x - world) - S.w), y0 = Math.round(groundY - S.voetY);
   if (x0 > W / viewZoom() + W || x0 + S.w < -W) return;
+  if (S.grot){ drawMuurGrot(groundY, scale, cx, S, x0, y0); return; }
 
   // Dicht is dicht: dan komt de ongeschonden plaat in beeld en verder niets. Gat, blok en
   // masker weer samenstellen zou op de zachte randen 8-bits afrondingen opleveren, en dat
@@ -3746,6 +3880,75 @@ function drawMuur(groundY, scale, cx){
   runeSchijf(ctx, x0 + S.symX, y0 + S.symY, S.symR, { aan: muurOpen, spiegel: MUUR.spiegel });
   if (muurSpeer) muurSpeerTeken(groundY, scale, cx);
   muurGras(groundY, scale, cx, S);
+  if (showBoxes || building) muurBoxen(x0, y0, S, scale, groundY, cx);
+}
+
+// De grot met de kei. Van achter naar voren: het donker, de rotsboog, het gruis dat van de boog
+// valt, de kei (afgeknipt op de grondlijn, want hij zakt erin), en het stof langs zijn voet.
+// Alles hangt aan de klok sinds de treffer, dus het ziet er op elk toestel hetzelfde uit.
+function drawMuurGrot(groundY, scale, cx, S, x0, y0){
+  const G = MUUR_GROT, K = S.kei;
+  const T = muurKlok / G.tijd;                     // 0 tot 1 zakt hij, daarna hangt het stof nog na
+  const vy = y0 + S.voetY;                         // de grondlijn op het scherm
+  const ox0 = x0 + S.l, Wo = S.r - S.l, Ho = S.voetY - S.t, cxo = ox0 + Wo / 2;
+  ctx.drawImage(S.donker, x0, y0);
+  ctx.drawImage(S.heel, x0, y0);
+  const rng = i => { const v = Math.sin(i * 127.1 + 3.7) * 43758.5453; return v - Math.floor(v); };
+  if (muurOpen && T < 2){
+    // gruis van de boog, achter de kei langs
+    ctx.save();
+    for (let i = 0; i < G.gruis; i++){
+      const age = T - (0.05 + rng(i) * 0.9); if (age < 0 || age > 0.9) continue;
+      const px = ox0 + Wo * (0.15 + rng(i + 100) * 0.7), py = y0 + S.t + Ho * 0.04 + age * age * Ho * 2.4;
+      if (py > vy) continue;
+      ctx.globalAlpha = 0.75 * (1 - age / 0.9);
+      ctx.fillStyle = rng(i + 300) < 0.5 ? '#8a7a68' : '#5d5044';
+      const d = (1.2 + rng(i + 200) * 2.4) * scale / 0.72;
+      ctx.fillRect(px, py, d, d * 1.3);
+    }
+    ctx.restore();
+  }
+  // de kei: eerst trilt hij, dan zakt hij, rustig op gang en rustig tot stilstand
+  const e = Math.max(0, (muurSchuif - G.tril) / (1 - G.tril)), ez = e * e * (3 - 2 * e);
+  const tril = muurOpen && muurSchuif < 1 ? Math.sin(muurKlok * 90) * Math.max(2, K.w * 0.006) * (1 - ez * 0.6) : 0;
+  const dy = ez * (K.h * (1 - G.kei.zak - G.kei.blijf));
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x0 - 400, vy - K.h * 3, S.w + 800, K.h * 3 + K.h * G.kei.zak * 0.3); ctx.clip();
+  ctx.drawImage(propImg.boulder, x0 + K.x + tril, y0 + K.y + dy, K.w, K.h);
+  ctx.restore();
+  if (dy > 0){                                     // de naad waar hij de grond in gaat
+    ctx.save();
+    const n = ctx.createLinearGradient(0, vy - 6, 0, vy + 6);
+    n.addColorStop(0, 'rgba(40,25,12,0)'); n.addColorStop(0.5, 'rgba(40,25,12,0.55)'); n.addColorStop(1, 'rgba(40,25,12,0)');
+    ctx.fillStyle = n; ctx.fillRect(cxo - K.w * 0.42, vy - 6, K.w * 0.84, 12);
+    ctx.restore();
+  }
+  // stof langs de voet: ontstaat terwijl hij zakt, groeit, stijgt en waait uit
+  const puf = puffPic();
+  if (muurOpen && T < 2 && imgReady(puf)){
+    ctx.save();
+    for (let laag = 0; laag < 2; laag++)
+      for (let i = 0; i < G.stof; i++){
+        const life = 0.6 + rng(i + 600) * 0.7, age = T - (0.1 + rng(i + 500) * 0.8);
+        if (age < 0 || age > life) continue;
+        const f = age / life, kant = rng(i + 700) * 2 - 1;
+        const px = cxo + kant * K.w * 0.45 + Math.sign(kant) * f * K.w * (0.15 + rng(i + 900) * 0.4);
+        const py = vy - K.h * 0.02 - f * Ho * (0.15 + rng(i + 950) * 0.45);
+        const gr = Wo * (0.45 + rng(i + 1000) * 0.45) * (0.6 + f * 1.2);
+        ctx.globalAlpha = Math.min(1, f * 5) * (1 - f) * (0.8 + rng(i + 1100) * 0.2);
+        ctx.drawImage(puf, px - gr / 2, py - gr * 0.45, gr, gr * 0.7);
+      }
+    // een waas van stof dat in de grotmond blijft hangen en daarna zakt
+    if (T > 0.2){
+      ctx.globalAlpha = 0.5 * Math.min(1, (T - 0.2) * 2) * Math.max(0, 2 - T);
+      const hz = ctx.createLinearGradient(0, vy - Ho * 0.6, 0, vy);
+      hz.addColorStop(0, 'rgba(196,160,112,0)'); hz.addColorStop(1, 'rgba(196,160,112,0.8)');
+      ctx.fillStyle = hz; ctx.fillRect(ox0 - Wo * 0.1, vy - Ho * 0.6, Wo * 1.2, Ho * 0.6);
+    }
+    ctx.restore();
+  }
+  runeSchijf(ctx, x0 + S.symX, y0 + S.symY, S.symR, { aan: muurOpen, spiegel: false });
+  if (muurSpeer) muurSpeerTeken(groundY, scale, cx);
   if (showBoxes || building) muurBoxen(x0, y0, S, scale, groundY, cx);
 }
 
@@ -6606,18 +6809,22 @@ const ravijnRotsImg = new Image();
 let ravijnRotsBeeld = null;                        // { c, w, h, alfa } na het uitknippen
 ravijnRotsImg.onload = () => { ravijnRotsBeeld = ravijnRotsKnip(ravijnRotsImg); };
 ravijnRotsImg.onerror = () => console.warn('ontbreekt: ' + RAVIJN_ROTS.src);   // src pas in ravijnRotsHier: alleen wie Test 6 speelt haalt hem op
-function ravijnRotsKnip(img){
+function ravijnRotsKnip(img){ return witKnip(img, RAVIJN_ROTS.wit0, RAVIJN_ROTS.wit1); }
+// Een jpg met een witte achtergrond: het wit eruit (tussen wit0 en wit1 zacht, op het donkerste
+// kanaal) en bijgesneden tot het steen. Er komt niets nieuws in het plaatje. De alfa blijft
+// bewaard: daarop botst de speer. Gebruikt door de rots bij het ravijn en de grot met de kei.
+function witKnip(img, wit0, wit1){
   const w = img.naturalWidth, h = img.naturalHeight;
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   const g = c.getContext('2d'); g.drawImage(img, 0, 0);
   let d; try { d = g.getImageData(0, 0, w, h); } catch (e){ return null; }
-  const px = d.data, K = RAVIJN_ROTS;
+  const px = d.data;
   let l = w, r = -1, t = h, b = -1;
   for (let y = 0; y < h; y++){
     for (let x = 0; x < w; x++){
       const i = (y * w + x) * 4;
       const m = Math.min(px[i], px[i + 1], px[i + 2]);
-      const a = Math.round(255 * Math.max(0, Math.min(1, (K.wit1 - m) / (K.wit1 - K.wit0))));
+      const a = Math.round(255 * Math.max(0, Math.min(1, (wit1 - m) / (wit1 - wit0))));
       px[i + 3] = a;
       if (a > 20){ if (x < l) l = x; if (x > r) r = x; if (y < t) t = y; if (y > b) b = y; }
     }
@@ -12634,7 +12841,8 @@ function readLevel(txt){
            // speer de plek in de grond waar zijn speer steeds terugkomt
            muur: o.muur ? { x: Number(o.muur.x),
                             speer: (o.muur.speer === undefined || o.muur.speer === null)
-                                   ? null : Number(o.muur.speer) } : null,
+                                   ? null : Number(o.muur.speer),
+                            soort: o.muur.soort === 'grot' ? 'grot' : undefined } : null,
            terraces: (o.terraces || []).map(q => ({ r: Number(q.r), l: Number(q.l), h: Number(q.h) || 0 })),
            // gangen onder de grond: zie "holte onder de grond"
            holtes: (o.holtes || []).map(q => ({ r: Number(q.r), l: Number(q.l),
