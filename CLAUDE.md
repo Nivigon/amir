@@ -10,11 +10,10 @@ en beschrijft wat het spel kan; dit document beschrijft hoe je eraan werkt.
 ## Regels
 
 **1. Bestaande levels blijven met rust.** De leveldefinities in de HTML
-(`RENEW_1` tot en met `RENEW_10`, `WINTER_1` en `WINTER_2`, `DIEP_1` tot en met
-`DIEP_5`) zijn bevroren. De
+(`RUNE_1` tot en met `RUNE_10`) zijn bevroren. De
 levels in Episode Test levels (`TEST_1`) vallen daar niet onder: die zijn er juist om aan te rommelen. Er komt geen nieuwe vijand,
 prop, tip, potion of aangepast getal in, ook niet even om iets te laten zien. Alleen
-als de opdracht een level bij naam noemt ("zet dit in Renew 6") mag dat ene level
+als de opdracht een level bij naam noemt ("zet dit in Rune 6") mag dat ene level
 veranderen. Twijfel je of iets eronder valt, dan valt het eronder: vraag het.
 
 **2. Nieuw werk test je in de sandbox.** Een nieuwe vijand, prop of mechaniek krijgt
@@ -65,8 +64,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | rotsen om op te springen | `rocks`, en het automatisch bijgroeien |
 | winter: episode Winter World | `WINTER_SRC`, `winterOn()`, `winterPic()` |
 | bodem en sneeuwdek | het veld `sneeuw`: savanne of rots, en het dek in vier standen |
-| Episode De Diepte / Episode Renew / Episode Winter World | de leveldefinities |
-| Episode De Diepte | `DIEP_1` tot en met `DIEP_5`: vijf zware levels met valschade, elk met een gang onder de grond en een trap terug naar boven, met een verhaal en een slot en de zwarte panter als eindbaas |
+| Episode De Runen | `RUNE_1` tot en met `RUNE_10`: tien levels met zegels, runes en een poort in de rots, met een verhaal en een slot. In Rune 4 en Rune 8 loopt het boven dood en staan de fakkels in een gang die je zelf openmaakt (zegel of rune op de rots, `RAVIJN_PROEF`) |
 | het verhaal bij een episode | `VERHAAL` en `SLOT`, `verhaalToon()`: tekst op een zwart scherm voor elk level en na het laatste, alleen als je bij het eerste level begint. Op de naam van het level, dus een nieuwe episode hoeft alleen tekst toe te voegen en `verhaalAan` te zetten in zijn speelknop |
 | Episode Test levels | `TEST_1` tot en met `TEST_11`: korte proefstukken, los van de echte episodes |
 | lichtkaart: het licht onder de grond | `LK`, `drawLichtkaart`: een lichtbron (de hemel en de zon) voor alles onder de grond en onder rots boven je, per level een keer uitgerekend |
@@ -481,7 +479,7 @@ zachte randen 8-bits afrondingen op, en dat is precies het haarlijntje dat er ni
 **Amir loopt door de rots heen.** De hele rots is decor, ook de deur: uitspelen gaat met E als
 de deur open staat en hij ervoor staat (`muurUitgang`). Er is dus niets dat hem tegenhoudt, en
 een level dat bij de rots eindigt zonder klif erachter laat hem voorbij de rots eindeloos de lege
-savanne in lopen. Zet er een klif een stuk achter, zoals in Diepte 3.
+savanne in lopen. Zet er een klif een stuk achter, zoals in Rune 10.
 
 **Controleer na elke wijziging of de rune nog te raken is.** Dat is geen gevoelskwestie: simuleer
 de boog vanaf elke plek waar Amir kan staan en kijk of er een aaneengesloten strook overblijft.
@@ -518,7 +516,7 @@ al in het steen: met de gewone regel bleef hij er na een paar pixels in steken e
 dichtbij niet te halen. Zolang de kei staat vangt die ook een speer (`keiAlfa`).
 
 Let op: de getallen hierboven voor de kale rots (94 tot 235 pixels) kloppen niet meer met de huidige
-worp. Met dezelfde meting raak je de schijf in Diepte 3 van 590 tot 1005 pixels.
+worp. Met dezelfde meting raak je de schijf in de oude Diepte 3 (dezelfde kale rots als in Rune 10) van 590 tot 1005 pixels.
 
 Het geluid zit in `SFX_DEUR` (`sounds/deuropen.mp3`) en speelt af op het moment van de treffer.
 De opname duurt 42 seconden en staat van begin tot eind even hard, terwijl het blok maar een
@@ -834,7 +832,7 @@ wil je alleen dat de verte wegzakt, dan `dim`. Meestal gebruik je ze samen.
 ### Een level toevoegen (alleen na toestemming)
 
 1. De definitie erbij, na de laatste van die reeks.
-2. De naam in de array van die reeks (`LEVELS`, `DIEP_LEVELS`, `RENEW_LEVELS`, `WINTER_LEVELS`).
+2. De naam in de array van die reeks (`RUNE_LEVELS`, `TEST_LEVELS`).
 3. Een ondertitel in `SUBS`, op de naam van het level.
 4. Een eigen uitzicht in `SCENES` als het level er anders uit moet zien.
 5. `python3 tools/levelcheck.py` draaien, en elke FOUT oplossen voor je commit (zie
@@ -843,7 +841,7 @@ wil je alleen dat de verte wegzakt, dan `dim`. Meestal gebruik je ze samen.
 ### Een episode toevoegen
 
 Die vijf stappen, plus: een knop in `menuChoose`, een eigen `menuXxx`-blok in de
-HTML naar het voorbeeld van `menuWinter`, en die aanmelden in `buildCards`,
+HTML naar het voorbeeld van `menuRune`, en die aanmelden in `buildCards`,
 `markCards` en `showMenu`.
 
 ### Een vijand of prop toevoegen
