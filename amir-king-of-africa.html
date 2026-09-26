@@ -6099,9 +6099,17 @@ spearImg.src = SPEAR_PATHS[0];
 function spearRestH(){ return spearH !== null ? spearH : terrainH(spearX); }
 // De speer uit het skelet heeft een blauw vaantje in plaats van het rode. Het rode lint zit in
 // Amirs sprites, in de speer en in het projectiel gebakken, dus wordt het bij het tekenen
-// omgekleurd naar de tint van het doek (SKELET.vaan). Alleen fel, verzadigd rood telt: zijn huid
-// is ook roodbruin, maar donkerder en minder verzadigd (gemeten: lint 0,73 tot 0,84, huid onder
-// 0,66). Per plaatje een keer, daarna uit de cache.
+// omgekleurd naar de tint van het doek (SKELET.vaan). Per plaatje een keer, daarna uit de cache.
+//
+// Zijn huid is ook roodbruin, en in de idle-animatie is het lint oranjer en minder verzadigd
+// dan zijn huid op sommige plekken: op kleur alleen zijn ze niet uit elkaar te houden. Daarom
+// in drie stappen:
+// 1. zeker lint: fel verzadigd rood (verzadiging boven 0,68, tint -15 tot 10 graden);
+// 2. alleen stukken daarvan die samenhangen (VAAN.min pixels, geschaald naar de maat van het
+//    plaatje): losse huidpixels die toevallig zo fel zijn vallen af;
+// 3. vanaf die stukken een paar pixels uitgroeien over roodachtige buren (VAAN.stap), zo komen
+//    de oranjere randen en schaduwen van het lint mee, maar komt het nooit tot in zijn gezicht.
+const VAAN = { min: 25, stap: 10, ref: 594 * 301 };   // gemeten op de frames van 594 bij 301
 let speerBlauw = false;
 const vaanKopieen = new WeakMap();
 function vaanBlauw(img, aan){
@@ -6118,24 +6126,62 @@ function vaanMaak(img){
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   const g = c.getContext('2d');
   g.drawImage(img, 0, 0);
-  const d = g.getImageData(0, 0, w, h), p = d.data;
-  const hue = SKELET.vaan / 60, sec = Math.floor(hue), f = hue - sec;
-  let n = 0;
-  for (let i = 0; i < p.length; i += 4){
+  const d = g.getImageData(0, 0, w, h), p = d.data, n = w * h;
+  const zeker = new Uint8Array(n), rood = new Uint8Array(n);
+  for (let j = 0, i = 0; j < n; j++, i += 4){
     if (p[i + 3] === 0) continue;
     const r = p[i], gr = p[i + 1], b = p[i + 2];
     const mx = Math.max(r, gr, b), mn = Math.min(r, gr, b);
-    if (mx !== r || mx < 64) continue;
-    const sat = (mx - mn) / mx;
-    if (sat <= 0.68) continue;
-    const t = (gr - b) / (mx - mn) * 60;               // tint rond rood: -15 tot 10 graden
-    if (t > 10 || t < -15) continue;
-    // zelfde verzadiging en helderheid, andere tint
-    const v = mx, pp = v * (1 - sat), q = v * (1 - sat * f), tt = v * (1 - sat * (1 - f));
-    const rgb = [[v, tt, pp], [q, v, pp], [pp, v, tt], [pp, q, v], [tt, pp, v], [v, pp, q]][sec];
-    p[i] = rgb[0]; p[i + 1] = rgb[1]; p[i + 2] = rgb[2]; n++;
+    if (mx !== r || mx < 40 || mx === mn) continue;
+    const sat = (mx - mn) / mx, t = (gr - b) / (mx - mn) * 60;     // tint rond rood, in graden
+    if (sat > 0.3 && t <= 30 && t >= -30) rood[j] = 1;
+    if (mx >= 64 && sat > 0.68 && t <= 10 && t >= -15) zeker[j] = 1;
   }
-  if (!n) return null;                                 // niets rood: gewoon het origineel
+  // 2. samenhangende stukken zeker lint
+  const k = Math.sqrt(n / VAAN.ref), minN = Math.max(6, Math.round(VAAN.min * k * k));
+  const lint = new Uint8Array(n), gezien = new Uint8Array(n), stapel = [], stuk = [];
+  for (let j0 = 0; j0 < n; j0++){
+    if (!zeker[j0] || gezien[j0]) continue;
+    stuk.length = 0; stapel.push(j0); gezien[j0] = 1;
+    while (stapel.length){
+      const j = stapel.pop(); stuk.push(j);
+      const x = j % w, y = (j - x) / w;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++){
+        const xx = x + dx, yy = y + dy;
+        if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+        const q = yy * w + xx;
+        if (zeker[q] && !gezien[q]){ gezien[q] = 1; stapel.push(q); }
+      }
+    }
+    if (stuk.length >= minN) for (const j of stuk) lint[j] = 1;
+  }
+  // 3. uitgroeien over roodachtige buren
+  let rand = [];
+  for (let j = 0; j < n; j++) if (lint[j]) rand.push(j);
+  if (!rand.length) return null;                      // geen lint: gewoon het origineel
+  const stappen = Math.max(3, Math.round(VAAN.stap * k));
+  for (let s = 0; s < stappen && rand.length; s++){
+    const volgende = [];
+    for (const j of rand){
+      const x = j % w;
+      for (const q of [j - 1, j + 1, j - w, j + w]){
+        if (q < 0 || q >= n || lint[q] || !rood[q]) continue;
+        if ((q === j - 1 && x === 0) || (q === j + 1 && x === w - 1)) continue;
+        lint[q] = 1; volgende.push(q);
+      }
+    }
+    rand = volgende;
+  }
+  // omkleuren: zelfde verzadiging en helderheid, de tint van het doek
+  const hue = SKELET.vaan / 60, sec = Math.floor(hue), f = hue - sec;
+  for (let j = 0, i = 0; j < n; j++, i += 4){
+    if (!lint[j]) continue;
+    const r = p[i], gr = p[i + 1], b = p[i + 2];
+    const v = Math.max(r, gr, b), sat = (v - Math.min(r, gr, b)) / v;
+    const pp = v * (1 - sat), q = v * (1 - sat * f), tt = v * (1 - sat * (1 - f));
+    const rgb = [[v, tt, pp], [q, v, pp], [pp, v, tt], [pp, q, v], [tt, pp, v], [v, pp, q]][sec];
+    p[i] = rgb[0]; p[i + 1] = rgb[1]; p[i + 2] = rgb[2];
+  }
   g.putImageData(d, 0, 0);
   return c;
 }
@@ -6418,7 +6464,7 @@ function sndRamp(a, naar, secs, stop){
 // vlaag pakken we daarom een willekeurig stuk van een paar seconden: zacht erin,
 // zacht er weer uit, zodat je hem hoort aankomen en er niets wordt afgekapt.
 // Twee stemmen, want twee vlagen vlak na elkaar mogen elkaar overlappen.
-const SFX_WIND = { src: 'music/woestijnwind.mp3', vol: 0.20,
+const SFX_WIND = { src: 'music/woestijnwind.mp3', vol: 0.30,   // was 0,20: anderhalf keer zo hard
                    aan: 0.6, duur: 2.4, uit: 1.2, span: 22 };
 const windSnd = [0, 1].map(i => {
   const a = new Audio();
