@@ -372,6 +372,10 @@ klein bleef, schoof de opening diep de rots in, en was de rune vanaf geen enkele
 raken. Aan Amir gekoppeld ligt alles op elk scherm hetzelfde. `hoog` en `breed` zijn alleen nog
 een vangnet voor het geval hij niet past.
 
+Rotsformaties krijgen voortaan deze maat: 3,5 keer Amir hoog, even groot als deze rots in
+Test 3. Zo staat ook de scheve spits met de rune bij het openscheurende ravijn in Test 6
+(`RAVIJN_ROTS`).
+
 Omklappen kan met `spiegel`, maar staat uit, en dat is gemeten. Gespiegeld wijst de hoge flank
 met de overhang naar Amir en komt de opening onder dat hoge steen te liggen. De schijf hangt
 altijd net onder de bovenrand van de rots, dus daar hangt hij hoog, en een hoge schijf betekent
