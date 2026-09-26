@@ -484,6 +484,17 @@
       <button id="sbholteweg">Gang weg</button>
     </div>
     <div class="row">
+      <label>Licht onder de grond</label>
+      <button data-lk="donker:-">Donker −</button>
+      <button data-lk="donker:+">Donker +</button>
+      <button data-lk="zon:-">Zon −</button>
+      <button data-lk="zon:+">Zon +</button>
+      <button data-lk="kaats:-">Kaatslicht −</button>
+      <button data-lk="kaats:+">Kaatslicht +</button>
+      <button data-lk="warm:-">Warm −</button>
+      <button data-lk="warm:+">Warm +</button>
+    </div>
+    <div class="row">
       <label>Doornbos</label>
       <button data-thicket="1">1 klomp</button>
       <button data-thicket="2">2</button>
@@ -1940,7 +1951,31 @@ const TEST_6 = {
   tips: [ { x: -60, t: 'Testlevel voor het openscheurende ravijn. Pak je speer op en loop een stukje door' },
           { x: -500, t: 'Gooi je speer tegen de rune op de rots. Hij blijft erin steken: haal hem eruit met E' } ]
 };
-const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6];
+// Test 10: het licht onder de grond. Een kort stuk savanne, dan een ingang, een gang van 700 diep,
+// halverwege een smal gat in het dak waar alleen licht door valt, en aan het eind een uitgang met
+// treden. Zo staan de drie soorten gaten achter elkaar: een brede ingang, een smalle lichtschacht en
+// een schacht met een trap. Geen vijanden en geen valschade: het gaat om kijken. De regelaars van
+// het licht staan in de sandbox, onder "Licht onder de grond".
+const TEST_10 = {
+  name: 'Test 10: Licht onder de grond',
+  lagen: 'tafelbergen',
+  rocks: [],
+  props: [ {x: -250, k: 'gras', s: 1.1, f: 0, v: 0} ],
+  spawns: [ {x: -60000, k: 'groen'} ],          // heel ver weg: houdt de vrije modus uit
+  terraces: [ {r: -2500, l: -3400, h: -550}, {r: -2750, l: -3400, h: -400},
+              {r: -2950, l: -3400, h: -250}, {r: -3150, l: -3400, h: -100} ],
+  ledges: [], hppotions: [],
+  gaps: [ {x: -900, w: 600},                    // de ingang: te breed, je valt erin
+          {x: -1900, w: 260},                   // een smal gat in het dak, alleen voor het licht
+          {x: -3000, w: 800} ],                 // de uitgang, met de treden erin
+  holtes: [ {r: -450, l: -3400, diep: 700} ],
+  village: [], npcs: [], water: [], thickets: [],
+  cliffs: [ {x: -4400} ],
+  ends: [ {x: -3900} ],
+  tips: [ { x: -60, t: 'Testlevel voor het licht onder de grond. Laat je in het ravijn vallen' },
+          { x: -1300, t: 'Kijk hoe het licht door de gaten naar binnen valt' } ]
+};
+const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_10];
 const WINTER_LEVELS = [WINTER_1, WINTER_2];
 let levelIdx = 0;
 
@@ -2055,15 +2090,7 @@ function drawTerCol(sx, sw, dx, dw, flip, top, bottom, st, img){
 // Twee rondes: de gewone terrassen en richels (onder: false) staan achter de ravijnen. Wat onder
 // de grondlijn staat (onder: true), de treden in een gang, komt na de ravijnen, anders tekent de
 // overkant van een gat zijn rots over de bovenste trede in de schacht heen. Die treden zijn
-// hetzelfde steen als een terras, alleen donkerder naarmate ze dieper liggen, net als de gang:
-// alleen helderheid, geen tint.
-function holteHelder(h){ return 1 - HOLTE_LICHT.trede * Math.min(1, -h / 500); }
-// Decor, keien en doornbossen die beneden in een gang staan krijgen hetzelfde donker als de
-// treden daar: alleen helderheid, geen tint. Boven op de savanne blijft alles zoals het was.
-function holteFilter(x, h){
-  if (building || h >= -1 || !holteAt(x)) return null;
-  return 'brightness(' + holteHelder(h) + ')';
-}
+// hetzelfde steen als een terras; hoe donker ze beneden zijn, komt uit de lichtkaart.
 function drawClimb(groundY, scale, cx, onder){
   if (!hasClimb()) return;
   const hier = h => onder ? h < 0 : h >= 0;
@@ -2081,7 +2108,6 @@ function drawClimb(groundY, scale, cx, onder){
       if (x0 > viewR || x0 + lw < viewL) continue;
       const top = groundY - o.h * scale - LEDGE.walk * sl;
       ctx.save();
-      if (onder) ctx.filter = 'brightness(' + holteHelder(o.h) + ')';
       ctx.translate(x0 + lw, top); ctx.scale(-1, 1);
       ctx.drawImage(ledgeImgNow, 0, 0, lw, lh);
       ctx.restore();
@@ -2106,7 +2132,6 @@ function drawClimb(groundY, scale, cx, onder){
     // links afgedekt door een hoger terras? dan geen rand aan die kant
     const leftHidden = terraceList().some(o => o !== t && o.h > t.h && o.l <= t.l + 1 && o.r > t.l);
     ctx.save();
-    if (onder) ctx.filter = 'brightness(' + holteHelder(t.h) + ')';
     terClipPath(xl, xr, top - 4, bottom, st, soilY, leftHidden);        // gebroken zijkanten
     ctx.clip();
     ctx.save();
@@ -5750,8 +5775,6 @@ function drawThickets(groundY, scale, cx){
         if (!src) continue;
         const h = c.hS * scale, w = c.wS * scale;
         ctx.save();
-        const donker = holteFilter(t.x, t.base);        // een doornbos beneden in een gang
-        if (donker) ctx.filter = donker;
         ctx.translate(px + c.dx * scale + sh - w / 2, bottom - h);
         if (st >= 1 ? bite : c.flip){ ctx.translate(w, 0); ctx.scale(-1, 1); }
         ctx.drawImage(src, 0, 0, w, h);
@@ -6556,15 +6579,10 @@ drawLives();
 // gedempt daglicht naar binnen (schets D, zachter). Boven het dak loopt de aarde over in dat
 // steen, zie holteOvergang.
 const HOLTE_DAK = 190;             // onderkant van het dak, in sprite-eenheden onder de grondlijn
-const HOLTE_LICHT = { wand: 0.74, rand: 0.3, vulling: 0.88, dak: 0.9, schacht: 0.16, trede: 0.55,
-                      // het donker in het grondpakket, van de vloer (0) tot het dak (1): snel dieper onder
-                      // de vloer, en onderaan weer minder, want daar neemt het steen het over en dat is zelf
-                      // al donker. Afgesteld op het beeld, met de gloed van de lichtlaag erbij.
-                      pakket: [[0, 0.3], [0.12, 0.6], [0.22, 0.76], [0.5, 0.86], [0.7, 0.89], [0.84, 0.77], [0.92, 0.5], [1, 0.1]],
-                      weg: 0.3,                    // en extra, verder van een gat
-                      vloer: 0.1,                  // zoveel schermhoogte boven de grondlijn blijft open: de vloer met het gras
-                      massa: 0.55,                 // het donker over de dichte rots buiten de gang
-                      vaag: 40 };                  // hoe zacht dat uitloopt, in px op een scherm van 720 hoog
+// De tegels van de gang zijn een keer donker gezet (holteSet): de wand een beetje, zodat het steen
+// dieper leest dan het terrassteen, en de vloer naar onderen toe helemaal. Het echte licht, van
+// de hemel en de zon door de gaten, komt uit de lichtkaart eroverheen.
+const HOLTE_LICHT = { wand: 0.3, rand: 0.3, vulling: 0.88, dak: 0.9 };
 function holteLijst(){ return (level && level.holtes) ? level.holtes : []; }
 function holteAt(x){
   for (const o of holteLijst()) if (x >= o.l && x <= o.r) return o;
@@ -6641,6 +6659,212 @@ function holteSet(){
       g.fillStyle = v; g.fillRect(0, 0, w, h);
     }) };
   return holteBuf;
+}
+
+// ---- lichtkaart: het licht onder de grond ---------------------------------
+// Onder de grond is er een lichtbron: de hemel, met de zon als vaste richting. Voor elk stukje
+// wereld van LK.cel bij LK.cel wordt uitgerekend hoeveel hemel het ziet (stralen omhoog, die de
+// grond en de rots tegenhouden) en of de zon het rechtstreeks raakt. Daar volgt alles uit: de
+// schacht van een gat is licht, de rand werpt een schuine schaduw in de richting van de zon, en
+// hoe verder de gang van een gat af loopt, hoe donkerder hij wordt, zonder een rechte streep.
+//
+// Vaste grond is een doorsnede: die krijgt het licht van de oppervlakte erboven, en wordt dieper
+// onder die oppervlakte donkerder. Lucht die zelf weinig hemel ziet, krijgt kaatslicht van wat
+// eromheen ligt, en waar de zon in de buurt iets raakt is dat kaatslicht warm.
+//
+// Het hangt alleen af van de vorm van het level, dus elke cel wordt een keer uitgerekend en
+// bewaard. Dat gaat kolom voor kolom, zodra een stuk in beeld komt; per beeld is het daarna een
+// paar plaatjes over de wereld leggen. Verandert de vorm (in de sandbox), dan begint hij opnieuw.
+//
+// De kaart ligt over alles in de wereld, ook over Amir en de vijanden. De donkerte van vaste
+// grond komt er pas bij als de camera mee naar beneden gaat (holteDiepT): van bovenaf ziet de
+// grond eruit zoals altijd. Wat lucht is (een gat, een gang) is altijd zo licht als het is.
+const LK = {
+  cel: 16,                 // celmaat, in wereld-px en in sprite-eenheden
+  stralen: 11,             // zoveel stralen naar de hemel per cel
+  spreid: 75,              // tot zo ver van recht omhoog, in graden
+  zonHoek: 38,             // de zon staat zo ver van recht boven, aan de kant waar hij in de lucht staat
+  zonKegel: 7,             // de zon is geen punt: stralen binnen deze kegel geven een zachte schaduwrand
+  diepte: 110,             // vaste grond: zo diep onder de oppervlakte is hij een derde zo licht
+  bodem: 0.2,              // en donkerder dan dit wordt hij niet
+  kaatsR: 8,               // kaatslicht komt van zoveel cellen in het rond
+  ambient: 0.14,           // het minste licht dat er ergens is
+  marge: 1500,             // zo ver voorbij de uiteinden van een gang loopt de kaart door, in wereld-px
+  stap: 12,                // zo ver loopt een straal per stap, in wereld-px
+  budget: 4,               // zoveel ms per beeld rekent het spel vooruit aan de kaart
+  // de vier regelaars (in de sandbox onder "Licht onder de grond")
+  donker: 0.85,            // hoe zwaar het donker weegt, 0 tot 1
+  zon: 0.22,               // hoe fel de zon naar binnen valt
+  kaats: 0.8,              // hoeveel licht er van de wanden kaatst
+  warm: 0.16               // hoe warm dat kaatslicht is
+};
+let lk = null;
+function lkVastPunt(x, h){                        // is dit punt grond of rots?
+  if (h > 0){ const t = terrainH(x); return t > 0 && h <= t; }
+  const o = holteAt(x), gat = inGap(x);
+  if (o){
+    if (h <= terrainH(x)) return true;            // de bodem, of een trede
+    if (gat) return false;                         // de schacht van een gat
+    return h >= -HOLTE_DAK;                        // het pakket boven het dak, of de gang eronder
+  }
+  return !gat;
+}
+function lkSleutel(){
+  const d = level ? [level.holtes, level.gaps, level.terraces] : [];
+  return JSON.stringify(d) + '|' + zonRechts() + '|' + LK.donker + LK.zon + LK.kaats + LK.warm;
+}
+function lkKaart(){
+  const lijst = holteLijst();
+  if (!lijst.length) return (lk = null);
+  const sl = lkSleutel();
+  if (lk && lk.sleutel === sl && lk.level === level) return lk;
+  const C = LK.cel;
+  let l = Infinity, r = -Infinity, diep = 0;
+  for (const o of lijst){ l = Math.min(l, o.l); r = Math.max(r, o.r); diep = Math.max(diep, o.diep); }
+  const i0 = Math.floor((l - LK.marge) / C), i1 = Math.ceil((r + LK.marge) / C);
+  const j0 = Math.floor((-diep - 700) / C), j1 = Math.ceil(40 / C);   // ook onder de vloer, tot buiten beeld
+  const nk = i1 - i0 + 1, nr = j1 - j0 + 1;
+  const mk = () => { const c = document.createElement('canvas'); c.width = nk; c.height = nr; return c; };
+  const za = (zonRechts() ? 1 : -1) * LK.zonHoek * Math.PI / 180;
+  lk = { sleutel: sl, level, i0, i1, j0, j1, nk, nr, za,
+         vast: new Uint8Array(nk * nr),                   // 1 als de cel grond of rots is
+         ruw: new Float32Array(nk * nr * 2), ruwKlaar: new Uint8Array(nk),
+         som: new Float32Array(nk * nr * 2), somKlaar: new Uint8Array(nk),   // kaatslicht, per kolom verticaal opgeteld
+         klaar: new Uint8Array(nk), nogTeDoen: nk,
+         lucht: mk(), grond: mk(), zonC: mk(),
+         pix: [0, 1, 2].map(() => new ImageData(nk, nr)), vuil: null };   // de plaatjes, eerst in het geheugen
+  // wat vast is, in een keer: de stralen lezen daarna alleen nog dit raster
+  for (let k = 0; k < nk; k++) for (let r = 0; r < nr; r++)
+    lk.vast[k * nr + r] = lkVastPunt((i0 + k + 0.5) * C, (j1 - r + 0.5) * C) ? 1 : 0;
+  return lk;
+}
+function lkVast(i, j){                            // in cellen; boven de kaart is het lucht
+  const K = lk;
+  if (j > K.j1) return false;
+  if (j < K.j0) return true;
+  if (i < K.i0 || i > K.i1) return lkVastPunt((i + 0.5) * LK.cel, (j + 0.5) * LK.cel);
+  return K.vast[(i - K.i0) * K.nr + (K.j1 - j)] === 1;
+}
+function lkStraal(x, h, dx, dh){                  // komt deze straal aan de hemel?
+  const K = lk, C = LK.cel, top = K.j1 * C, st = LK.stap, v = K.vast, nr = K.nr;
+  for (let s = 8; s < 2600; s += st){
+    const hh = h + dh * s;
+    if (hh > top) return true;
+    const i = Math.floor((x + dx * s) / C) - K.i0, j = Math.floor(hh / C);
+    if (i < 0 || i >= K.nk || j < K.j0){ if (lkVast(i + K.i0, j)) return false; continue; }
+    if (v[i * nr + K.j1 - j]) return false;
+  }
+  return true;
+}
+function lkZicht(x, h){                           // deel van de hemel dat dit punt ziet, 0 tot 1
+  let som = 0, tot = 0;
+  for (let i = 0; i < LK.stralen; i++){
+    const a = (-LK.spreid + 2 * LK.spreid * i / (LK.stralen - 1)) * Math.PI / 180;
+    const w = Math.cos(a); tot += w;
+    if (lkStraal(x, h, Math.sin(a), Math.cos(a))) som += w;
+  }
+  return som / tot;
+}
+function lkZon(x, h){                             // deel van de zon dat dit punt raakt, 0 tot 1
+  let z = 0;
+  for (const d of [-1, 0, 1]){
+    const a = lk.za + d * LK.zonKegel * Math.PI / 180;
+    if (lkStraal(x, h, Math.sin(a), Math.cos(a))) z += 1 / 3;
+  }
+  return z;
+}
+function lkRuw(k){                                // een kolom: licht en zon per cel
+  const K = lk, C = LK.cel, i = K.i0 + k, x = (i + 0.5) * C;
+  let boven = 1, top = null;
+  for (let r = 0; r < K.nr; r++){
+    const j = K.j1 - r, h = (j + 0.5) * C, n = (k * K.nr + r) * 2;
+    if (lkVast(i, j)){
+      if (top === null){ top = h + C / 2; boven = lkZicht(x, top + 2); }
+      K.ruw[n] = boven * (LK.bodem + (1 - LK.bodem) * Math.exp(-(top - h) / LK.diepte));
+      K.ruw[n + 1] = -1;                          // vast
+    } else {
+      top = null;
+      K.ruw[n] = h < 0 ? lkZicht(x, h) : 1;
+      K.ruw[n + 1] = h < 0 ? lkZon(x, h) : 0;
+    }
+  }
+  K.ruwKlaar[k] = 1;
+}
+// Het kaatslicht is het gemiddelde over een vierkant van 2 * kaatsR + 1 cellen. Per kolom wordt
+// eerst verticaal opgeteld (lkSom); een cel telt daarna alleen nog de kolommen naast zich op.
+function lkSom(q){
+  const K = lk, R = LK.kaatsR, nr = K.nr;
+  if (!K.ruwKlaar[q]) lkRuw(q);
+  let a = 0, z = 0;
+  const w = r => { const m = (q * nr + r) * 2, zz = Math.max(0, K.ruw[m + 1]); return [K.ruw[m] + 0.6 * zz, zz]; };
+  for (let r = 0; r <= Math.min(nr - 1, R); r++){ const [p, zz] = w(r); a += p; z += zz; }
+  for (let r = 0; r < nr; r++){
+    K.som[(q * nr + r) * 2] = a; K.som[(q * nr + r) * 2 + 1] = z;
+    if (r + R + 1 < nr){ const [p, zz] = w(r + R + 1); a += p; z += zz; }
+    if (r - R >= 0){ const [p, zz] = w(r - R); a -= p; z -= zz; }
+  }
+  K.somKlaar[q] = 1;
+}
+function lkKolom(k){                              // een kolom af: kaatslicht erbij, en in de plaatjes
+  const K = lk, R = LK.kaatsR, nr = K.nr;
+  const q0 = Math.max(0, k - R), q1 = Math.min(K.nk - 1, k + R);
+  for (let q = q0; q <= q1; q++) if (!K.somKlaar[q]) lkSom(q);
+  const [pl, pg, pz] = K.pix.map(p => p.data);
+  for (let r = 0; r < nr; r++){
+    let som = 0, somZ = 0;
+    for (let q = q0; q <= q1; q++){ som += K.som[(q * nr + r) * 2]; somZ += K.som[(q * nr + r) * 2 + 1]; }
+    const n = (q1 - q0 + 1) * (Math.min(nr - 1, r + R) - Math.max(0, r - R) + 1);
+    const m = (k * nr + r) * 2, vast = K.ruw[m + 1] < 0;
+    const l = vast ? K.ruw[m] : Math.max(K.ruw[m], LK.kaats * som / n);
+    const licht = LK.ambient + (1 - LK.ambient) * Math.min(1, l);
+    const a = Math.round(255 * LK.donker * (1 - licht));
+    const o = (r * K.nk + k) * 4;
+    const doel = vast ? pg : pl;
+    doel[o] = 8; doel[o + 1] = 6; doel[o + 2] = 7; doel[o + 3] = a;
+    const za = Math.min(1, (vast ? 0 : LK.zon * K.ruw[m + 1]) + LK.warm * somZ / n);
+    pz[o] = 255; pz[o + 1] = 200; pz[o + 2] = 130; pz[o + 3] = Math.round(255 * za);
+  }
+  K.vuil = K.vuil ? [Math.min(K.vuil[0], k), Math.max(K.vuil[1], k)] : [k, k];
+  K.klaar[k] = 1; K.nogTeDoen--;
+}
+// wat er in het geheugen veranderd is, in een keer naar de plaatjes
+function lkPlaatjes(){
+  const K = lk;
+  if (!K.vuil) return;
+  const [a, b] = K.vuil;
+  [K.lucht, K.grond, K.zonC].forEach((c, n) => c.getContext('2d').putImageData(K.pix[n], 0, 0, a, 0, b - a + 1, K.nr));
+  K.vuil = null;
+}
+// Elk beeld een paar ms vooruit rekenen, vanaf wat het dichtst bij Amir ligt: zo is de kaart af
+// voor je beneden bent, en hapert het beeld niet als er een nieuw stuk in beeld komt.
+function lkVooruit(){
+  const K = lk;
+  if (!K || !K.nogTeDoen) return;
+  const t0 = performance.now(), mid = Math.floor(world / LK.cel) - K.i0;
+  for (let d = 0; d < K.nk && performance.now() - t0 < LK.budget; d++)
+    for (const k of [mid - d, mid + d]) if (k >= 0 && k < K.nk && !K.klaar[k]) lkKolom(k);
+}
+function drawLichtkaart(groundY, scale, cx){
+  if (building || !lkKaart()) return;
+  const K = lk, C = LK.cel, zoom = viewZoom();
+  const links = world - cx - (W / 2) / zoom - 40, rechts = world - cx + W / 2 + (W / 2) / zoom + 40;
+  const a = Math.max(K.i0, Math.floor(links / C) - 1), b = Math.min(K.i1, Math.ceil(rechts / C) + 1);
+  if (b < a) return;
+  for (let i = a; i <= b; i++) if (!K.klaar[i - K.i0]) lkKolom(i - K.i0);
+  lkVooruit();
+  lkPlaatjes();
+  const X = wx => cx + (wx - world), Y = h => groundY - h * scale;
+  const sx = a - K.i0, sw = b - a + 1;
+  // de cellen zijn middelpunten: het plaatje ligt een halve cel verschoven, zodat het verloop klopt
+  const dx = X(a * C), dy = Y((K.j1 + 1) * C), dw = sw * C, dh = K.nr * C * scale;
+  ctx.save();
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(K.lucht, sx, 0, sw, K.nr, dx, dy, dw, dh);
+  const diepT = holteDiepT(scale);
+  if (diepT > 0){ ctx.globalAlpha = diepT; ctx.drawImage(K.grond, sx, 0, sw, K.nr, dx, dy, dw, dh); }
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'lighter';
+  ctx.drawImage(K.zonC, sx, 0, sw, K.nr, dx, dy, dw, dh);
+  ctx.restore();
 }
 
 // ---- de overgang van aarde naar steen boven het dak ----
@@ -6724,74 +6948,13 @@ function holteSchachten(X){
   return uit.sort((a, b) => a[0] - b[0]);
 }
 // De wand van een gat boven een gang: wordt getekend door het ravijn (zie "gaten in de grond"),
-// binnen de breuk, met in plaats van de nevel en het donker van een diep ravijn dit. Onderaan
-// de overgang naar het steen van de gang, en het daglicht: de bundel die in de gang op het dak
-// begint, komt hier van de rand van het gat en loopt ongebroken door. Daarom dezelfde vier
-// lagen, even breed als de bovenkant van de bundel, en op het dak precies even sterk.
-function holteSchacht(gl, gr, diep, topY, groundY, scale, cx){
+// binnen de breuk, met in plaats van de nevel en het zwart van een diep ravijn onderaan de
+// overgang naar het steen van de gang. Het licht erop komt uit de lichtkaart.
+function holteSchacht(gl, gr, groundY, scale, cx){
   const S = holteSet();
   if (!S) return;
-  const X = wx => cx + (wx - world), Y = h => groundY - h * scale;
-  // Van beneden uit de gang gezien is dit de wand van het gat boven je, in de verte: daar komt
-  // het daglicht vandaan, maar hij hoort niet zo fel als de savanne. Dat donker ligt alleen op
-  // de aarde; het steen komt erover, zodat het op het dak even licht is als de gangwand eronder.
-  const dT = holteDiepT(scale);
-  if (dT > 0){
-    const gv = ctx.createLinearGradient(0, topY, 0, Y(-HOLTE_DAK));
-    const ov = Math.max(0, 1 - HOLTE_OVERGANG * scale / Math.max(1, Y(-HOLTE_DAK) - topY));
-    gv.addColorStop(0, 'rgba(8,6,7,' + (0.35 * dT) + ')');
-    gv.addColorStop(ov, 'rgba(8,6,7,' + (0.6 * dT) + ')');
-    gv.addColorStop(1, 'rgba(8,6,7,' + (0.25 * dT) + ')');       // onder het steen: niet nog eens donker
-    ctx.fillStyle = gv; ctx.fillRect(gl - 40, topY - H, gr - gl + 80, Y(-HOLTE_DAK) - topY + H);
-  }
-  holteOvergang(S, X, Y, scale, gl - 40, gr + 40);
-  const dak = Y(-HOLTE_DAK), gw = gr - gl, al = HOLTE_LICHT.schacht * 0.3;
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
-  for (const k of [1, 0.8, 0.6, 0.4]){
-    const m = (1 - k) * gw / 2;
-    const v = ctx.createLinearGradient(0, topY, 0, dak);
-    v.addColorStop(0, 'rgba(255,222,170,0)');
-    // over de hele overgang al op volle sterkte: het steen daar krijgt hetzelfde licht als de
-    // gangwand eronder, anders ligt er boven het dak een donkere band
-    v.addColorStop(Math.max(0, 1 - HOLTE_OVERGANG * scale / Math.max(1, dak - topY)), 'rgba(255,222,170,' + al + ')');
-    v.addColorStop(1, 'rgba(255,222,170,' + al + ')');
-    ctx.fillStyle = v; ctx.fillRect(gl + m, topY, gw - 2 * m, dak + HOLTE_ONDER - topY);   // tot waar het steen komt
-  }
-  // en de lichtvlek op de vloer van de gang is zo groot dat hij tot boven het dak reikt
-  const a = HOLTE_LICHT.schacht, vloer = Y(-diep);
-  const px = (gl + gr) / 2 + gw * 0.1, pr = gw * 0.75;
-  if (vloer - pr < dak){
-    const pl = ctx.createRadialGradient(px, vloer, 0, px, vloer, pr);
-    pl.addColorStop(0, 'rgba(255,205,140,' + (a * 0.9) + ')'); pl.addColorStop(1, 'rgba(255,205,140,0)');
-    ctx.fillStyle = pl; ctx.fillRect(px - pr, vloer - pr, pr * 2, dak + HOLTE_ONDER - (vloer - pr));
-  }
-  ctx.restore();
+  holteOvergang(S, wx => cx + (wx - world), h => groundY - h * scale, scale, gl - 40, gr + 40);
 }
-// Een donkerlaag die zacht moet uitlopen, getekend op een canvas van een kwart van het scherm,
-// daar vervaagd, en opgeschaald over het beeld gelegd. Zo kost de vervaging vrijwel niets.
-let holteVaagBuf = null;
-function holteVaag(teken, straal){
-  const cv = ctx.canvas, f = 4;
-  const w = Math.max(1, Math.ceil(cv.width / f)), h = Math.max(1, Math.ceil(cv.height / f));
-  if (!holteVaagBuf || holteVaagBuf.a.width !== w || holteVaagBuf.a.height !== h){
-    const mk = () => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
-    holteVaagBuf = { a: mk(), b: mk() };
-  }
-  const { a, b } = holteVaagBuf, T = ctx.getTransform();
-  const g = a.getContext('2d');
-  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, w, h);
-  g.setTransform(T.a / f, T.b / f, T.c / f, T.d / f, T.e / f, T.f / f);
-  g.save(); teken(g); g.restore();
-  const g2 = b.getContext('2d');
-  g2.setTransform(1, 0, 0, 1, 0, 0); g2.clearRect(0, 0, w, h);
-  g2.filter = 'blur(' + Math.max(1, straal * Math.abs(T.a) / f).toFixed(1) + 'px)';
-  g2.drawImage(a, 0, 0); g2.filter = 'none';
-  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.drawImage(b, 0, 0, cv.width, cv.height);
-  ctx.restore();
-}
-
 // Hoe ver de camera mee naar beneden is: 0 zolang hij niet onder het dak zit, 1 op de bodem.
 // Het telt pas vanaf het dak, want daarboven sta je nog in het gat zelf: op de bovenste trede
 // van een trap naar buiten hoort de savanne niet half in het donker te liggen.
@@ -6865,90 +7028,26 @@ function drawHolte(groundY, scale, cx){
       for (; x < xr; x += tw) ctx.drawImage(S.vloer, x, top, tw + 1, th);
     }
 
-    // 4. schaduw tegen de eindwanden, zodat die niet als een rechte snede in het steen staan
-    for (const [x0, x1] of [[xl, xl + 90], [xr, xr - 90]]){
-      const sh = ctx.createLinearGradient(x0, 0, x1, 0);
-      sh.addColorStop(0, 'rgba(6,4,5,0.85)'); sh.addColorStop(1, 'rgba(6,4,5,0)');
-      ctx.fillStyle = sh; ctx.fillRect(Math.min(x0, x1), dak, 90, onder - dak + H);
-    }
-
-    // 5. gedempt daglicht door het gat, schuin naar beneden tot op de vloer. Vier lagen over
-    //    elkaar, steeds smaller, zodat de bundel een zachte rand heeft en geen strakke lijn.
-    ctx.globalCompositeOperation = 'lighter';
-    for (const g of gaten){
-      const gl = X(g.x - g.w / 2), gr = X(g.x + g.w / 2), gw = gr - gl;
-      const a = HOLTE_LICHT.schacht;
-      for (const k of [1, 0.8, 0.6, 0.4]){
-        const m = (1 - k) * gw / 2, al = a * 0.3;
-        ctx.beginPath();
-        ctx.moveTo(gl + m, dak); ctx.lineTo(gr - m, dak);
-        ctx.lineTo(gr - m + gw * 0.3, vloer); ctx.lineTo(gl + m + gw * 0.1, vloer);
-        ctx.closePath();
-        const sv = ctx.createLinearGradient(0, dak, 0, vloer);
-        sv.addColorStop(0, 'rgba(255,222,170,' + al + ')');
-        sv.addColorStop(1, 'rgba(255,200,140,' + (al * 0.3) + ')');
-        ctx.fillStyle = sv; ctx.fill();
-      }
-      const px = (gl + gr) / 2 + gw * 0.1, pr = gw * 0.75;
-      const pl = ctx.createRadialGradient(px, vloer, 0, px, vloer, pr);
-      pl.addColorStop(0, 'rgba(255,205,140,' + (a * 0.9) + ')'); pl.addColorStop(1, 'rgba(255,205,140,0)');
-      ctx.fillStyle = pl; ctx.fillRect(px - pr, vloer - pr, pr * 2, pr * 2);
-    }
     ctx.restore();
   }
 
-  // 6. Het grondpakket boven de gang en naast de gaten: bovenop de vloer van de savanne,
-  //    daaronder aarde die onderin overloopt in het steen van de gang (zie holteOvergang), en
-  //    dan de tanden van het dak. De overgang is materiaal en staat er altijd; het donker komt
-  //    er pas bij als de camera mee naar beneden gaat. Dat donker is een verloop: de vloer
-  //    vangt nog licht, naar het dak toe zakt het weg, en verder van een gat ook. Onder de gaten
-  //    zelf staat hier niets: daar tekent het ravijn de wand, met dezelfde overgang.
+  // 4. Het grondpakket boven de gang en naast de gaten: aarde die onderin overloopt in het steen
+  //    van de gang (zie holteOvergang), met daaronder de tanden van het dak. Onder de gaten staat
+  //    hier niets: daar tekent het ravijn de wand, met dezelfde overgang. Hoe donker het pakket
+  //    is, komt uit de lichtkaart.
   const schachten = holteSchachten(X);
-  const stukken = [];
-  {
-    let van = links - W, vanGat = false;                  // per stuk: links, rechts, en welke kant aan een gat grenst
-    for (const [gl, gr] of schachten){
-      if (gl > van) stukken.push([van, gl, vanGat, true]);
-      van = Math.max(van, gr); vanGat = true;
-    }
-    if (rechts + W > van) stukken.push([van, rechts + W, vanGat, false]);
+  let van = links - W;
+  for (const [gl, gr] of schachten){
+    if (gl > van) holteOvergangLevel(S, X, Y, scale, van, gl);
+    van = Math.max(van, gr);
   }
-  for (const [a, b] of stukken) holteOvergangLevel(S, X, Y, scale, a, b);
+  if (rechts + W > van) holteOvergangLevel(S, X, Y, scale, van, rechts + W);
+
+  // 5. Onder het dak, voorbij de eindwanden van de gang, is massief steen. Dat komt erbij naarmate
+  //    de camera zakt, en is dan dicht, anders schijnt de savanne erdoorheen. Het donker erover
+  //    komt uit de lichtkaart.
   const diepT = holteDiepT(scale);
   if (diepT <= 0) return;
-  const grondTop = Y(0) - H * HOLTE_LICHT.vloer;           // de vloer en het gras erop blijven in beeld
-  ctx.save();
-  ctx.beginPath(); ctx.rect(links - W, grondTop, rechts - links + 2 * W, dak - grondTop); ctx.clip();
-  const vv = ctx.createLinearGradient(0, grondTop, 0, dak);
-  for (const [t, d] of HOLTE_LICHT.pakket) vv.addColorStop(t, 'rgba(8,6,7,' + (d * diepT).toFixed(3) + ')');
-  for (const [a, b, lGat, rGat] of stukken){
-    ctx.fillStyle = vv; ctx.fillRect(a, grondTop, b - a, dak - grondTop);
-    // verder van een gat donkerder: vanaf elke rand die aan een gat grenst, tot halverwege
-    const mid = (lGat && rGat) ? (a + b) / 2 : (lGat ? b : a);
-    for (const [rand, ver, aan] of [[a, mid, lGat], [b, mid, rGat]]){
-      if (!aan || Math.abs(ver - rand) < 2) continue;
-      const hv = ctx.createLinearGradient(rand, 0, rand + Math.sign(ver - rand) * W * 0.5, 0);
-      hv.addColorStop(0, 'rgba(8,6,7,0)'); hv.addColorStop(1, 'rgba(8,6,7,' + (HOLTE_LICHT.weg * diepT) + ')');
-      ctx.fillStyle = hv; ctx.fillRect(Math.min(rand, ver), grondTop, Math.abs(ver - rand), dak - grondTop);
-    }
-  }
-  ctx.restore();
-
-  // 7. Onder het dak, voorbij de eindwanden van de gang, is massief steen. Dat is dicht, anders
-  //    schijnt de savanne erdoorheen. Boven de vloer is het lucht: die blijft, maar zakt net als
-  //    het steen weg in het donker naarmate de camera zakt. Dat donker loopt zacht uit, zodat er
-  //    langs de gang, het pakket en de gaten geen rechte streep ligt. Open blijven de gang, het
-  //    grondpakket (hierboven) en de gaten.
-  const vorm = c => {
-    c.beginPath();
-    c.rect(links - W, boven - H, rechts - links + 2 * W, onder - boven + 2 * H);
-    for (const o of lijst) c.rect(X(o.l), dak, X(o.r) - X(o.l), onder - dak + H);
-    c.moveTo(links - W, dak); c.lineTo(links - W, grondTop);
-    for (const [gl, gr] of schachten){
-      c.lineTo(gl, grondTop); c.lineTo(gl, boven - H); c.lineTo(gr, boven - H); c.lineTo(gr, grondTop);
-    }
-    c.lineTo(rechts + W, grondTop); c.lineTo(rechts + W, dak); c.closePath();
-  };
   ctx.save();
   ctx.beginPath();
   ctx.rect(links - W, dak, rechts - links + 2 * W, onder - dak + H);
@@ -6957,14 +7056,6 @@ function drawHolte(groundY, scale, cx){
   ctx.globalAlpha = Math.min(1, diepT * 2);
   tegel(S.wand, links - W, rechts + W, dak, onder + H);
   ctx.restore();
-  holteVaag(g => {
-    vorm(g); g.clip('evenodd');
-    g.fillStyle = 'rgba(8,6,7,' + (HOLTE_LICHT.massa * diepT) + ')';
-    g.fillRect(links - W, boven - H, rechts - links + 2 * W, onder - boven + 2 * H);
-    const v = g.createLinearGradient(0, grondTop, 0, boven);
-    v.addColorStop(0, 'rgba(8,6,7,0)'); v.addColorStop(1, 'rgba(8,6,7,' + (0.6 * diepT) + ')');
-    g.fillStyle = v; g.fillRect(links - W, boven - H, rechts - links + 2 * W, grondTop - boven + H);
-  }, HOLTE_LICHT.vaag * H / 720);
 }
 
 // ---- vallen: schade bij een diepe val -------------------------------------
@@ -10596,6 +10687,8 @@ function drawLichtlaag(){
   ctx.translate(zx, zy);
   ctx.scale(L.gloedBreedte, 1);
   ctx.globalCompositeOperation = 'lighter';
+  // onder de grond schijnt de zon niet door de rots: daar komt het licht uit de lichtkaart
+  ctx.globalAlpha = 1 - holteDiepT(nowScale());
   ctx.fillStyle = c.gl;
   ctx.fillRect(-c.r, -c.r, c.r * 2, c.r * 2);
   ctx.restore();                    // de uitgerekte ruimte weer los
@@ -11025,10 +11118,10 @@ function loop(now){
           hz.addColorStop(1, 'rgba(' + sc.mistColor + ',' + mistA.toFixed(3) + ')');
           ctx.fillStyle = hz; ctx.fillRect(gl - 40, rotsY, gr - gl + 80, H * 3);
           if (holteAt(g.x)){
-            // Boven een gang is dit geen afgrond maar de wand van een gat met licht eronder:
+            // Boven een gang is dit geen afgrond maar de wand van een gat met een gang eronder:
             // geen diepte die wegzakt in het donker, maar aarde die overloopt in het steen van
-            // de gang, en het daglicht dat erlangs naar beneden valt (zie holteSchacht)
-            holteSchacht(gl, gr, holteAt(g.x).diep, topY, groundY, scale, cx);
+            // de gang (zie holteSchacht). Het licht erop komt uit de lichtkaart.
+            holteSchacht(gl, gr, groundY, scale, cx);
           } else {
             // en hoe dieper, hoe donkerder: onderin zie je niets meer. Dezelfde kleur waar de
             // doorgetrokken achtergrond ook op uitkomt, dus daar zit geen overgang tussen
@@ -11085,15 +11178,11 @@ function loop(now){
           const py2 = groundY - ph2 + (def.sink || 0.02) * ph2 + (p.far ? 4 : 0)
                     - (p.far ? 0 : terrainH(p.x) * scale + propTerug);
           const src2 = p.far ? (propFar[p.kind] || pim) : pim;
-          const donker = p.far ? null : holteFilter(p.x, terrainH(p.x));   // beneden in een gang
           if (VEG[p.kind]){
-            if (donker){ ctx.save(); ctx.filter = donker; }
             drawVeg(p.kind, src2, px2 + pw2 / 2, py2 + ph2, ph2, p.flip, p, p.x, p.far);
-            if (donker) ctx.restore();
             continue;
           }
           ctx.save();
-          if (donker) ctx.filter = donker;
           ctx.translate(px2, py2);
           if (p.flip){ ctx.translate(pw2, 0); ctx.scale(-1, 1); }
           ctx.drawImage(src2, 0, 0, pw2, ph2);
@@ -11224,10 +11313,7 @@ function loop(now){
         const px = cx + (p.x - world) - p.wPx / 2;
         if (px > W / viewZoom() + W || px + p.wPx < -W) continue;
         const pb = (p.base || 0) * scale;
-        const donker = holteFilter(p.x, p.base || 0);   // een kei beneden in een gang
-        if (donker){ ctx.save(); ctx.filter = donker; }
         ctx.drawImage(platImgNow, px, groundY - p.hPx + PLAT.sink * p.hPx - pb, p.wPx, p.hPx);
-        if (donker) ctx.restore();
         if (showBoxes || building){
           ctx.save();
           ctx.globalAlpha = 0.5; ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2;
@@ -11905,6 +11991,7 @@ function loop(now){
     drawVenom(groundY, scale);
     drawVillageFg(groundY, scale, cx, pWorld, dt);   // dorpsdecor dat vóór Amir langs staat
     drawWind(groundY, scale, cx);              // stof waait vóór alles langs
+    drawLichtkaart(groundY, scale, cx);        // het licht onder de grond, over alles in de wereld
 
     if (swFrame >= SWEEP_FROM){                    // strakke lage zwaaiboog over de grond
       const p = (swFrame - SWEEP_FROM) / (SWEEP_TO - SWEEP_FROM + 1);
@@ -12573,7 +12660,8 @@ const SUBS = {
   'Test 3: De rots met de rune': 'Raak de schijf met je speer, dan gaat de wand open',
   'Test 4: De val in de grot': 'Het ravijn in, onder de grond verder, en weer naar boven',
   'Test 5: De fosforslangen': 'Altijd met z\'n drieën. Zoek zelf uit hoe ze werken',
-  'Test 6: Ravijn test': 'Raak de rune en de grond scheurt open'
+  'Test 6: Ravijn test': 'Raak de rune en de grond scheurt open',
+  'Test 10: Licht onder de grond': 'Een gang met drie gaten in het dak, om het licht te bekijken'
 };
 function buildCards(el, list){
   el.innerHTML = '';
@@ -12840,6 +12928,17 @@ document.getElementById('sbholteweg').onclick = () => {
   if (level.terraces) level.terraces = level.terraces.filter(t => t.h >= 0);
   cv.focus();
 };
+// De vier regelaars van de lichtkaart (zie "lichtkaart"). Elke klik schuift een waarde een stap,
+// en onderin staan dan alle vier, zodat je ze kunt overnemen in LK. De kaart rekent zichzelf
+// daarna opnieuw uit, want de waarden zitten in zijn sleutel.
+const LK_STAP = { donker: [0.05, 0, 1], zon: [0.04, 0, 0.8], kaats: [0.1, 0, 2], warm: [0.04, 0, 0.6] };
+sandboxEl.querySelectorAll('button[data-lk]').forEach(b => b.onclick = () => {
+  const [k, t] = b.dataset.lk.split(':'), [stap, min, max] = LK_STAP[k];
+  LK[k] = Math.round(Math.max(min, Math.min(max, LK[k] + (t === '+' ? stap : -stap))) * 100) / 100;
+  const f = v => String(v).replace('.', ',');
+  flashHint('Donker ' + f(LK.donker) + ', zon ' + f(LK.zon) + ', kaatslicht ' + f(LK.kaats) + ', warm ' + f(LK.warm));
+  cv.focus();
+});
 function sbHppotion(drop){
   const side = sbFromRight ? 1 : -1;
   let x = world + side * 260;                       // vlak naast Amir, zo in te lopen
