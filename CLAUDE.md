@@ -563,6 +563,47 @@ Twee regels die ertoe doen:
 - **Vaste grond wordt pas donker als de camera zakt.** Het plaatje met de grond (`lk.grond`)
   krijgt `holteDiepT` als dekking: van bovenaf ziet de savanne eruit zoals altijd. Wat lucht is,
   een gat of een gang, is altijd zo licht als het is.
+- **Een ravijn zonder gang eronder laat de kaart met rust.** Zo'n gat tekent zijn eigen diepte en
+  schaduw (zie hieronder); in `lkRuw` krijgt het geen licht of donker uit de kaart. Zonder die
+  regel kreeg een dodelijk ravijn vlak bij een gang ineens zon en kaatslicht.
+- **De zon valt pas onder het dak binnen**, en loopt daar over `LK.zonInloop` eenheden in. De wand
+  van een gat erboven is de overkant, en die hoort niet lichter te zijn dan de grond vooraan.
+- **Een open ravijn telt mee.** `lkSleutel` kijkt ook naar `ravijnGaten()`: scheurt er in een level
+  met een gang een ravijn open, dan rekent de kaart opnieuw.
+
+### Een gewoon ravijn is een ravijn dat al open staat
+
+Een ravijn uit `gaps` zonder gang eronder wordt getekend met dezelfde module als het ravijn dat
+openscheurt: `ravijnVastVoor(g)` maakt er een `RavijnEffect` van dat meteen open staat
+(`openInstantly`), en `ravijnenTeken()` geeft die samen met de openscheurende ravijnen aan de
+ravijnlus in `scene()`. Zo heeft elk ravijn dezelfde wand, dezelfde rand van de overkant die
+lager ligt dan de grond vooraan, de achtergrond erboven, het kleine gras en in de winter de
+sneeuwrand. Het effect wordt per ravijn bewaard (`ravijnVast`) en pas opnieuw gemaakt als de
+schaal, de wandplaat of het level verandert. Botsen gaat zoals altijd over `gaps`, daar is niets
+aan veranderd.
+
+Een gat boven een gang houdt de oude tekening met `holteSchacht`, want daar hoort de wand door te
+lopen tot het dak. De bouwer ook, zodat je er ravijnen blijft zien terwijl je ze versleept.
+
+### De zon op de wand van een ravijn
+
+De wand in een ravijn is de overkant: verder weg dan de grond vooraan, dus nooit lichter. De rand
+aan de kant van de zon werpt er een schuine schaduw op, onder dezelfde hoek als waaronder de zon
+in een gang binnenvalt (`LK.zonHoek`, `zonRechts`). Boven die lijn vangt de wand gedempt licht,
+eronder ligt hij in de schaduw. Zo komt het licht in elk gat uit dezelfde richting als de zon in
+de lucht. `ravijnZonLicht(g, x0, x1, top, onder, knik, open, atop)` tekent dat; de waarden staan
+in `RAVIJN_ZON`.
+
+| waar | hoe |
+| --- | --- |
+| gewoon ravijn en openscheurend ravijn | via het haakje `opLicht` van de module (`ravijn/ravijn-effect.js`), op het eigen canvas van de wand met `source-atop`: alleen op de wandpixels, nooit op de achtergrond erboven. `knik` is de verticale rek (`ravijnRek`), zodat de lijn in beeld de goede hoek heeft, en `open` is `fx.p`: de schaduw groeit mee met het openscheuren |
+| gat boven een gang | niet: daar doet de lichtkaart het |
+| in de bouwer | in de oude ravijnlus, onder de rand met het gras (`rotsY`) |
+
+'s Nachts is het verschil kleiner: de sterkte schaalt met `gloedSterkte` van het uitzicht (0,30
+overdag), met `RAVIJN_ZON.nacht` als ondergrens. In de winter is de schaduw blauwig
+(`RAVIJN_ZON.winter`): sneeuw en steen in de schaduw worden koel, niet grauw. De sneeuwrand van het
+openscheurende ravijn komt na de wand en blijft dus wit.
 
 De kaart hangt alleen af van de vorm van het level, dus elke cel wordt een keer uitgerekend. Wat
 vast is gaat in een keer (`lkKaart`), de stralen per kolom zodra hij nodig is, en `lkVooruit`
