@@ -13545,6 +13545,8 @@ function loop(now){
     if (building && level && level.spawns){
       for (const sp of level.spawns){
         const px = cx + (sp.x - world);
+        // in een gang staat hij op de bodem, en daar tekent de bouwer hem ook
+        const gy = groundY + (holteAt(sp.x) ? holteAt(sp.x).diep * scale : 0);
         ctx.save();
         ctx.globalAlpha = 0.9;
         ctx.fillStyle = sp.kind === 'zwart' ? '#2b1020' : sp.kind === 'scorp' ? '#4a3a22'
@@ -13556,9 +13558,9 @@ function loop(now){
                         : '#8fd18a';
         ctx.lineWidth = 3 / viewZoom();
         const rr = 34 / viewZoom();
-        ctx.beginPath(); ctx.arc(px, groundY - rr, rr, 0, Math.PI * 2);
+        ctx.beginPath(); ctx.arc(px, gy - rr, rr, 0, Math.PI * 2);
         ctx.fill(); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(px, groundY - 2); ctx.lineTo(px, groundY + 14 / viewZoom());
+        ctx.beginPath(); ctx.moveTo(px, gy - 2); ctx.lineTo(px, gy + 14 / viewZoom());
         ctx.stroke();
         // gestippelde lijn op de plek waar hij wakker wordt, links en rechts
         const td = triggerDist(sp.kind);
@@ -13568,20 +13570,20 @@ function loop(now){
         for (const dir of [-1, 1]){
           const lx = px + dir * td;
           ctx.beginPath();
-          ctx.moveTo(lx, groundY - 150 / viewZoom());
-          ctx.lineTo(lx, groundY + 10 / viewZoom());
+          ctx.moveTo(lx, gy - 150 / viewZoom());
+          ctx.lineTo(lx, gy + 10 / viewZoom());
           ctx.stroke();
         }
         ctx.setLineDash([]);
         ctx.globalAlpha = 0.28;
         ctx.beginPath();
-        ctx.moveTo(px - td, groundY - 6 / viewZoom());
-        ctx.lineTo(px + td, groundY - 6 / viewZoom());
+        ctx.moveTo(px - td, gy - 6 / viewZoom());
+        ctx.lineTo(px + td, gy - 6 / viewZoom());
         ctx.stroke();
         ctx.restore();
       }
     }
-    bouwKeuzeTeken(groundY, cx);                     // in de bouwer: wat je gekozen hebt
+    bouwKeuzeTeken(groundY, cx, scale);              // in de bouwer: wat je gekozen hebt
 
     javDraw(groundY, scale, cx, 'rust');              // een speer in de grond of in een wand: achter Amir
     drawSweepDust(true, cx, groundY, lift, scale);    // stof achter Amir langs
@@ -14780,6 +14782,8 @@ function ensureLevel(){
   if (!level.npcs) level.npcs = [];
   if (!level.thickets) level.thickets = [];
   if (!level.hppotions) level.hppotions = [];
+  for (const k of ['holtes', 'terraces', 'ledges', 'zegels', 'runes', 'skeletten', 'tekens', 'tips'])
+    if (!level[k]) level[k] = [];
 }
 // De bouwer tekent struwelen uit dezelfde lijst als het spel, dus na elke
 // wijziging zetten we ze opnieuw neer. Hakken doe je in de bouwer toch niet.
@@ -15818,6 +15822,11 @@ function pointerWorldX(e){
   return world + (sx - W / 2) / viewZoom();
 }
 function builderHit(wx, scale, lift){
+  if (bouwD > HOLTE_DAK){                              // onder de grond kijken: de gang zelf is aan te klikken
+    const hl = (level.holtes || []).find(o => wx >= o.l && wx <= o.r);
+    if (hl && lift !== undefined && lift < -HOLTE_DAK * scale && !level.spawns.some(s => Math.abs(s.x - wx) < 90))
+      return { list: level.holtes, kind: 'holte', obj: hl };
+  }
   const sp = level.spawns.find(s => Math.abs(s.x - wx) < 90);
   if (sp) return { list: level.spawns, kind: 'spawn', obj: sp };
   const rk = level.rocks.find(p => { const m = measurePlat(p, scale); return wx > m.left - 12 && wx < m.right + 12; });
@@ -15895,7 +15904,13 @@ function placeProblem(kind, o, scale){               // mag dit hier staan? zo n
   }
   return '';
 }
+let bodemSleep = null;                               // de bodem van een gang die je versleept
 cv.addEventListener('pointermove', e => {
+  if (bodemSleep && e.pointerId === bodemSleep.id){
+    const o = bodemSleep.o;
+    o.diep = Math.round(Math.max(HOLTE_DAK + CHAR_H, Math.min(3000, -pointerLift(e) / bodemSleep.scale)) / 10) * 10;
+    return;
+  }
   if (!press || e.pointerId !== press.id) return;
   if (!press.dragging && (Math.abs(e.clientX - press.downX) > 6 || Math.abs(e.clientY - press.downY) > 6)){
     press.dragging = true; clearTimeout(press.timer); bcount.textContent = 'verplaatsen...';
@@ -15911,6 +15926,11 @@ cv.addEventListener('pointermove', e => {
   }
 });
 function endPress(e, cancel){
+  if (bodemSleep && (!e || e.pointerId === bodemSleep.id)){  // losgelaten: de trap past zich aan
+    const o = bodemSleep.o; bodemSleep = null;
+    if (holteUitgang(o)) holteTrap(o);
+    syncLevel(); bouwInfo(); return;
+  }
   if (!press || (e && e.pointerId !== press.id)) return;
   clearTimeout(press.timer);
   const p = press; press = null;
@@ -15936,7 +15956,7 @@ function bouwNaam(k){
   if (k.kind === 'spawn') return (o.kind === 'hyenas' && o.n === 2) ? '2 hyena\'s' : SPAWN_NAAM[o.kind] || o.kind;
   if (k.kind === 'prop'){ const g = GEREEDSCHAP.find(q => q.id === o.kind || q.sneeuw === o.kind); return g ? g.naam : o.kind; }
   if (k.kind === 'npc') return o.kind === 'dorpelinge' ? 'Dorpelinge' : 'Dorpeling';
-  return { rock: 'Kei om op te springen', thicket: 'Doornbos', gap: 'Ravijn', water: 'Water',
+  return { rock: 'Kei om op te springen', thicket: 'Doornbos', gap: 'Ravijn', water: 'Water', holte: 'Gang onder de grond',
            end: 'Einde (de fakkels)', cliff: 'Klif' }[k.kind] || k.kind;
 }
 // de velden per soort: [naam, invoer, sleutel, extra]; invoer is getal, vink of keuze
@@ -15953,6 +15973,11 @@ function bouwVelden(k){
   if (k.kind === 'thicket') v.push(['klompen', 'getal', 'n', { stap: 1, min: 1, max: 5 }]);
   if (k.kind === 'gap') v.push(['breedte', 'getal', 'w', { stap: 10, min: 40, max: 2000 }]);
   if (k.kind === 'water') v.push(['lengte', 'getal', 'n', { stap: 1, min: 0, max: 20 }]);
+  if (k.kind === 'holte'){
+    v.length = 0;
+    v.push(['rechts (r)', 'getal', 'r', { stap: 10 }], ['links (l)', 'getal', 'l', { stap: 10 }],
+           ['diepte', 'getal', 'diep', { stap: 50, min: HOLTE_DAK + CHAR_H, max: 3000 }]);
+  }
   return v;
 }
 function bouwKies(p){
@@ -15993,12 +16018,17 @@ function bouwInfo(){
       const scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H;
       const why = placeProblem(k.kind, o, scale);
       if (why){ o[sleutel] = oud; bcount.textContent = why + ', niet veranderd'; }
+      if (k.kind === 'holte'){                     // een gang: de randen op volgorde, en de trap past zich aan
+        if (o.l > o.r){ const t = o.l; o.l = o.r; o.r = t; }
+        if (holteUitgang(o)) holteTrap(o);
+      }
       syncLevel(); bouwInfo(); cv.focus();
     };
     if (soort === 'vink'){ rij.appendChild(inp); rij.appendChild(document.createTextNode(' ' + naam)); }
     else { const l = document.createElement('label'); l.textContent = naam; rij.appendChild(l); rij.appendChild(inp); }
     binfoEl.appendChild(rij);
   }
+  bouwExtra(k);
   const knoppen = document.createElement('div'); knoppen.className = 'brij';
   const wis = document.createElement('button'); wis.textContent = 'Wis';
   wis.onclick = bouwWis;
@@ -16008,8 +16038,118 @@ function bouwInfo(){
   binfoEl.appendChild(knoppen);
   binfoEl.classList.add('on');
 }
+// ---- gangen bouwen ----
+// Een gang maak je niet los, maar onder een ravijn: dat ravijn is dan de ingang. De bouwer zet hem
+// meteen goed neer volgens de regels in CLAUDE.md ("een gang onder de grond" en "hoogteverschil
+// onder de grond"), zodat er niets na te rekenen valt: hij loopt aan de kant van het gat wat door
+// (HOLTE_BUUR), hij komt niet over de speer aan het begin, en raakt hij een andere gang, dan
+// worden het er een. De uitgang is een tweede gat aan het linkereind, met een trap erin.
+const HOLTE_BUUR = 150;                   // zo ver loopt de gang aan de beginkant voorbij het gat door
+const HOLTE_LENGTE = 1200;                // en zo ver de andere kant op, voorbij het gat
+const HOLTE_TREDE = { stap: 150, breed: 200 };   // hoogstens 150 per trede (de sprong is 200), 200 breed
+function holteUnder(g){                   // de gang onder een ravijn, of null; half telt als 'half'
+  const l = g.x - g.w / 2, r = g.x + g.w / 2;
+  for (const o of level.holtes || []){
+    if (l >= o.l && r <= o.r) return o;
+    if (r > o.l && l < o.r) return 'half';
+  }
+  return null;
+}
+function holteUitgang(o){                 // het gat aan het linkereind met de trap, of null
+  return (level.gaps || []).find(g => Math.abs(g.x - g.w / 2 - o.l) < 5) || null;
+}
+function holteVerbind(o){                 // raakt hij een andere gang, of hangt er een gat half over de rand: samenvoegen
+  for (let pass = 0; pass < 8; pass++){
+    let klaar = true;
+    for (const q of level.holtes.slice()){
+      if (q === o || q.r < o.l - 50 || q.l > o.r + 50) continue;
+      o.l = Math.min(o.l, q.l); o.r = Math.max(o.r, q.r); o.diep = Math.max(o.diep, q.diep);
+      level.holtes.splice(level.holtes.indexOf(q), 1); klaar = false;
+    }
+    for (const g of level.gaps){
+      const l = g.x - g.w / 2, r = g.x + g.w / 2;
+      if (l < o.l && r > o.l){ o.l = l - HOLTE_BUUR; klaar = false; }
+      if (l < o.r && r > o.r){ o.r = r + HOLTE_BUUR; klaar = false; }
+    }
+    if (klaar) return;
+  }
+}
+function holteMaak(g){
+  ensureLevel();
+  const l = g.x - g.w / 2, r = g.x + g.w / 2;
+  const rechts = Math.min(r + HOLTE_BUUR, SPEAR_AHEAD - 100);   // de speer aan het begin blijft boven
+  if (rechts <= r + 20){ bcount.textContent = 'te dicht bij het begin: daar staat je speer, schuif het ravijn wat verder'; return null; }
+  const o = { l: l - HOLTE_LENGTE, r: rechts, diep: 600 };
+  level.holtes.push(o);
+  holteVerbind(o);
+  return o;
+}
+// de trap: treden van hoogstens HOLTE_TREDE.stap, elk 200 breder dan de vorige, tegen de linkerwand.
+// Alles wat hoger komt dan het dak min Amir (-441) staat helemaal onder het gat; het gat is daar
+// breed genoeg voor gemaakt.
+function holteTrap(o){
+  level.terraces = level.terraces.filter(t => !(t.h < 0 && Math.abs(t.l - o.l) < 5));
+  let gat = holteUitgang(o);
+  const n = Math.ceil(o.diep / HOLTE_TREDE.stap) - 1, stap = o.diep / (n + 1);
+  const hoogte = i => -Math.round(o.diep - stap * i);
+  const grens = -(HOLTE_DAK + CHAR_H);
+  let hoogste = 0;                                   // de breedste trede die boven -441 uitkomt
+  for (let i = 1; i <= n; i++) if (hoogte(i) > grens) hoogste = Math.max(hoogste, HOLTE_TREDE.breed * (n - i + 1));
+  const breed = Math.max(500, HOLTE_TREDE.breed * n - 100, hoogste + 100);
+  // het gat en de onderste trede mogen de ingang niet raken: dan loopt de gang eerst verder door
+  const ingang = (level.gaps || []).filter(g => g !== gat && g.x - g.w / 2 > o.l + 5 && g.x + g.w / 2 <= o.r)
+                                   .reduce((m, g) => Math.min(m, g.x - g.w / 2), Infinity);
+  const nodig = Math.max(breed, HOLTE_TREDE.breed * n) + 300;
+  if (isFinite(ingang) && ingang - o.l < nodig) o.l = Math.round(ingang - nodig);
+  for (let i = 1; i <= n; i++)
+    level.terraces.push({ r: Math.round(o.l + HOLTE_TREDE.breed * (n - i + 1)), l: Math.round(o.l), h: hoogte(i) });
+  if (!gat){ gat = { x: 0, w: 0 }; level.gaps.push(gat); }
+  gat.w = breed; gat.x = Math.round(o.l + breed / 2);
+  return gat;
+}
+function holteUitgangMaak(o){ holteTrap(o); }
+function holteWis(o){
+  level.terraces = level.terraces.filter(t => !(t.h < 0 && t.l >= o.l - 5 && t.r <= o.r + 5));
+  level.holtes.splice(level.holtes.indexOf(o), 1);
+}
+// regels en knoppen onder de velden: wat hier geldt, en wat je ermee kunt
+function bouwExtra(k){
+  const o = k.obj;
+  const regel = (tekst, soort) => { const e = document.createElement('div'); e.className = soort || 'hint'; e.textContent = tekst; binfoEl.appendChild(e); };
+  const knop = (tekst, doe) => { const b = document.createElement('button'); b.textContent = tekst; b.onclick = () => { doe(); syncLevel(); bouwInfo(); cv.focus(); }; binfoEl.appendChild(b); };
+  const prijs = d => level.valschade ? (valKosten(d) ? 'kost ' + valKosten(d) + (valKosten(d) === 1 ? ' leven' : ' levens') : 'kost niets')
+                                     : 'valschade staat uit';
+  if (k.kind === 'gap'){
+    const h = holteUnder(o);
+    if (h === 'half') regel('! maar half boven een gang: wie aan de kant zonder gang erin stapt, valt dood', 'blet');
+    else if (h){
+      const uit = holteUitgang(h) === o;
+      regel(uit ? 'uitgang van een gang, met een trap' : 'ingang van een gang: val van ' + Math.round(h.diep) + ', ' + prijs(h.diep), 'bgoed');
+      knop('Kies de gang', () => { bouwD = Math.max(bouwD, h.diep - 150); bouwKies({ list: level.holtes, kind: 'holte', obj: h }); });
+    } else {
+      regel('niets eronder: hier val je dood', 'blet');
+      knop('Maak er een ingang van (gang eronder)', () => {
+        const n = holteMaak(o);
+        if (n){ bouwD = n.diep - 150; bouwKies({ list: level.holtes, kind: 'holte', obj: n }); }
+      });
+    }
+  }
+  if (k.kind === 'holte'){
+    const gaten = (level.gaps || []).filter(g => holteUnder(g) === o);
+    const uit = holteUitgang(o);
+    const ingang = gaten.filter(g => g !== uit);
+    regel(ingang.length ? '\u2713 ingang: ' + ingang.map(g => 'gat op ' + Math.round(g.x)).join(', ') : '! geen ingang: er ligt geen ravijn boven',
+          ingang.length ? 'bgoed' : 'blet');
+    regel(uit ? '\u2713 uitgang: gat op ' + Math.round(uit.x) + ', trap van ' + level.terraces.filter(t => t.h < 0 && Math.abs(t.l - o.l) < 5).length + ' treden'
+              : '! geen uitgang: maak er een, of zet de fakkels in de gang', uit ? 'bgoed' : 'blet');
+    regel('val door de ingang: ' + Math.round(o.diep) + ', ' + prijs(o.diep), level.valschade && valKosten(o.diep) ? 'blet' : 'hint');
+    if (!uit) knop('+ uitgang met trap', () => holteUitgangMaak(o));
+    knop('Wis de gang', () => { holteWis(o); bouwKies(null); });
+  }
+}
 function bouwWis(){
   if (!gekozen) return;
+  if (gekozen.kind === 'holte'){ holteWis(gekozen.obj); bouwKies(null); syncLevel(); cv.focus(); return; }
   const i = gekozen.list.indexOf(gekozen.obj);
   if (i >= 0) gekozen.list.splice(i, 1);
   bouwKies(null); syncLevel(); cv.focus();
@@ -16019,13 +16159,19 @@ addEventListener('keydown', e => {
   if ((e.key === 'Delete' || e.key === 'Backspace') && gekozen){ e.preventDefault(); bouwWis(); }
 });
 // wat gekozen is krijgt in de wereld een gele haak, een ravijn een kader over zijn breedte
-function bouwKeuzeTeken(groundY, cx){
+function bouwKeuzeTeken(groundY, cx, scale){
   if (!building || !gekozen) return;
   const o = gekozen.obj, z = viewZoom();
   ctx.save();
   ctx.strokeStyle = '#ffd166'; ctx.fillStyle = '#ffd166'; ctx.lineWidth = 3 / z;
   ctx.setLineDash([10 / z, 7 / z]);
-  if (gekozen.kind === 'gap'){
+  if (gekozen.kind === 'holte'){                       // een gang: van het dak tot de bodem
+    const t = groundY + HOLTE_DAK * scale, b = groundY + o.diep * scale;
+    ctx.strokeRect(cx + (o.l - world), t, o.r - o.l, b - t);
+    ctx.setLineDash([]);
+    ctx.font = 'bold ' + Math.round(15 / z) + 'px Archivo, sans-serif';
+    ctx.fillText('diep ' + Math.round(o.diep), cx + ((o.l + o.r) / 2 - world), b - 12 / z);
+  } else if (gekozen.kind === 'gap'){
     const l = cx + (o.x - o.w / 2 - world);
     ctx.strokeRect(l, groundY - 40 / z, o.w, 240 / z);
   } else {
@@ -16050,6 +16196,13 @@ cv.addEventListener('pointerdown', e => {
 
   // klikken op iets dat er al staat: kort = weghalen, vasthouden of slepen = verplaatsen
   const lift = pointerLift(e);
+  // de bodem van een gekozen gang: vastpakken en slepen zet de diepte
+  if (gekozen && gekozen.kind === 'holte' && wx >= gekozen.obj.l && wx <= gekozen.obj.r
+      && Math.abs(lift + gekozen.obj.diep * scale) < 30 / viewZoom()){
+    bodemSleep = { id: e.pointerId, o: gekozen.obj, scale };
+    try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+    return;
+  }
   const hit = builderHit(wx, scale, lift);
   if (tool === 'gum'){
     if (hit){ hit.list.splice(hit.list.indexOf(hit.obj), 1); if (gekozen && gekozen.obj === hit.obj) bouwKies(null); syncLevel(); }
@@ -16057,6 +16210,7 @@ cv.addEventListener('pointerdown', e => {
     return;
   }
   if (!hit && gekozen){ bouwKies(null); return; }    // naast iets klikken: eerst de keuze los
+  if (hit && hit.kind === 'holte'){ bouwKies(hit); return; }   // een gang versleep je niet: verander hem in het venster
   if (hit){
     press = { list: hit.list, kind: hit.kind, obj: hit.obj, origX: hit.obj.x, off: hit.obj.x - wx,
               origY: hit.obj.y || 0, offY: (hit.obj.y || 0) - lift, downY: e.clientY,
