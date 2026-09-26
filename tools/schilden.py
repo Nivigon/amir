@@ -12,6 +12,9 @@ schild. Wat binnen de omtrek ligt en toch leeg is, krijgt daarom donkerbruine ve
 (VERF). De ruimte tussen de klauwscheuren is aan de bovenrand ingesloten en wordt dus
 ook donker; op spelmaat valt dat niet op.
 
+De zip staat niet meer in de repo. Wil je dit opnieuw draaien, haal hem dan terug
+uit de geschiedenis: git checkout 6390dae -- schilden_hires.zip
+
 Vereist Pillow: pip install pillow
 """
 import io
@@ -50,6 +53,8 @@ def vul_motief(im):
     uit.alpha_composite(im)
     return uit
 
+if not os.path.exists(ZIP):
+    sys.exit('schilden_hires.zip ontbreekt: git checkout 6390dae -- schilden_hires.zip')
 os.makedirs(UIT, exist_ok=True)
 with zipfile.ZipFile(ZIP) as z:
     for n in NAMEN:
