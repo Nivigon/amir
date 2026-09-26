@@ -10420,18 +10420,24 @@ const VOORGROND = {
   rand: 260,            // zo ver loopt een strook uit, in de wereld
   bron: 300,            // hoogte van het voorgerekende plaatje, in pixels
   vaag: 7,              // onscherpte op die hoogte (een groter stuk is dus vager: dichterbij)
-  donker: 'rgba(28,20,10,0.52)',   // de schaduw waar hij in staat
-  bijAmir: 0.3          // zo doorzichtig vlak voor Amir
+  donker: 'rgba(28,20,10,0.52)'    // de schaduw waar hij in staat
 };
+// Hij wordt nergens doorzichtig: Amir loopt niet door de voorgrond maar erachter, en een laag
+// die voor hem wegpoetst breekt juist de diepte. Wat hem mag verbergen regel je met de hoogte
+// hieronder en met de dichtheid in het level: normaal hooguit zijn voeten en schenen, een
+// enkele hoge pol even half, en bij een vijand of een ravijnrand een ijle strook.
 // h: hoogte als deel van Amir (van, tot); onder: zo ver staat de voet onder de rand van het
-// scherm; laag: tekenvolgorde, het gras komt over de voet van de rest heen; wieg: waait mee;
-// kern: het deel van de breedte dat dicht is, voor het doorzichtig worden bij Amir; voet: zo'n deel van onderen loopt zacht uit,
-// zodat er geen harde onderrand in beeld komt als de laag bij het afzakken omhoog schuift
+// scherm, want de voorgrond heeft geen eigen grond: wat zijn voet laat zien, zweeft; laag:
+// tekenvolgorde, het gras komt over de voet van de rest heen; wieg: waait mee; voet: zo'n
+// deel van onderen loopt zacht uit, zodat er geen harde onderrand in beeld komt als de laag
+// bij het afzakken omhoog schuift. De schedel ligt half onder de rand en krijgt altijd een
+// paar lage pollen voor zich (pollen), zodat je alleen de horens tussen het gras ziet.
 const VG_SOORT = {
-  kei:     { src: 'design/boulder.png',              h: [0.6, 1.1],  onder: 0.30, laag: 1, wieg: 0,   kern: 0.35, voet: 0.35 },
-  struik:  { src: 'design/struik.png',               h: [0.9, 1.5],  onder: 0.28, laag: 2, wieg: 0.6, kern: 0.3,  voet: 0.35 },
-  schedel: { src: 'design/botten/skull_buffel.png',  h: [0.34, 0.4], onder: -0.04, laag: 3, wieg: 0,  kern: 0.4,  voet: 0 },
-  gras:    { src: 'design/drygrass.png',             h: [0.8, 1.9],  onder: 0.10, laag: 4, wieg: 1,   kern: 0.25, voet: 0.3 }
+  kei:     { src: 'design/boulder.png',              h: [0.6, 1.1],  onder: 0.30, laag: 1, wieg: 0,   voet: 0.35 },
+  struik:  { src: 'design/struik.png',               h: [0.8, 1.3],  onder: 0.28, laag: 2, wieg: 0.6, voet: 0.35 },
+  schedel: { src: 'design/botten/skull_buffel.png',  h: [0.34, 0.4], onder: 0.07, laag: 3, wieg: 0,   voet: 0.3,
+             pollen: [{ dx: -0.35, s: 0.5 }, { dx: 0.3, s: 0.6 }] },   // dx als deel van zijn breedte
+  gras:    { src: 'design/drygrass.png',             h: [0.6, 1.5],  onder: 0.10, laag: 4, wieg: 1,   voet: 0.3 }
 };
 for (const k in VG_SOORT) VG_SOORT[k].img = zetBron(new Image(), VG_SOORT[k].src);
 function leesVoorgrond(o){
@@ -10510,7 +10516,7 @@ function vgStrook(cfg, wx){
   }
   return null;
 }
-function drawVoorgrond(groundY, scale, pcx){
+function drawVoorgrond(groundY, scale){
   const cfg = voorgrondNu();
   if (!cfg) return;
   const V = VOORGROND;
@@ -10531,10 +10537,13 @@ function drawVoorgrond(groundY, scale, pcx){
     const t = k === 'gras' ? rnd(i, 3) * rnd(i, 3) : rnd(i, 3);   // gras meestal laag
     stuks.push({ k, pos, t, f: rnd(i, 4) < 0.5, ph: i * 2.3, s: 1 });
   }
-  for (const q of cfg.los)
+  for (const q of cfg.los){
     stuks.push({ k: q.k, pos: q.x * V.par, t: 0.5, f: q.f, ph: q.x * 0.01, s: q.s });
+    const S = VG_SOORT[q.k], b = S.img.naturalWidth / Math.max(1, S.img.naturalHeight) * CHAR_H * S.h[0] * q.s;
+    for (const g of S.pollen || [])   // lage pollen ervoor; b is zijn breedte in wereldmaat, bij benadering
+      stuks.push({ k: 'gras', pos: q.x * V.par + g.dx * b, t: 0, f: g.dx < 0, ph: q.x * 0.01 + g.dx, s: g.s });
+  }
   stuks.sort((a, b) => VG_SOORT[a.k].laag - VG_SOORT[b.k].laag);
-  const voetAmir = groundY - ph * scale;
   const tijd = performance.now() / 1000;
   for (const o of stuks){
     const S = VG_SOORT[o.k];
@@ -10545,14 +10554,8 @@ function drawVoorgrond(groundY, scale, pcx){
     const ww = p.w * hh / p.h, mm = p.m * hh / p.h;
     const voet = rand0 + S.onder * CHAR_H * scale;
     if (sx + ww < -20 || sx - ww > W + 20 || voet - hh > H) continue;
-    // voor Amir langs even doorzichtig, maar alleen als het echt tot aan hem reikt
-    let a = 1;
-    if (voet - hh * 0.85 < voetAmir){
-      const near = Math.max(0, Math.abs(sx - pcx) - ww * S.kern) / scale;
-      a = near < 110 ? V.bijAmir : near < 200 ? V.bijAmir + (1 - V.bijAmir) * (near - 110) / 90 : 1;
-    }
     ctx.save();
-    ctx.globalAlpha = zicht * a;
+    ctx.globalAlpha = zicht;
     ctx.translate(sx, voet);
     if (S.wieg){
       const lean = windAt(cam - (sx - W / 2) / V.par) * VEG.gras.lean;
@@ -14127,7 +14130,7 @@ function loop(now){
     }
     drawLichtlaag();                                // de hele wereld in dezelfde belichting
     drawSnowfall();                                 // de vlokken vallen over alles heen
-    drawVoorgrond(groundY, scaleNow, W / 2 + (pWorld - world));   // het gras vlak voor de camera
+    drawVoorgrond(groundY, scaleNow);               // het gras vlak voor de camera
     drawBossBar();
     drawMuurE(camSwap !== null ? camSwap : world);   // voor de open deur: Press E
   } else {
