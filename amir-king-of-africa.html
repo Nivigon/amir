@@ -427,6 +427,7 @@
       <button id="sbrock">Rots ernaast</button>
       <button id="sbstick">Speer in de muur</button>
       <button id="sbloose">Laat losschieten</button>
+      <button id="sbworp">Worp: twee trappen</button>
     </div>
     <div class="row">
       <label>Panter</label>
@@ -1940,7 +1941,41 @@ const TEST_6 = {
   tips: [ { x: -60, t: 'Testlevel voor het openscheurende ravijn. Pak je speer op en loop een stukje door' },
           { x: -450, t: 'Gooi je speer tegen de rune op de rots. Hij blijft erin steken: haal hem eruit met E' } ]
 };
-const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6];
+// Test 7: de schaalworp (worp: 'schaal'). Hoe langer je vasthoudt, hoe hoger de hoek, van
+// vlak tot 30 graden, en hoe verder de speer komt. Vier plekken, elk met een andere afstand of
+// hoogte, zodat je elke keer een andere hoek nodig hebt:
+//   1. een slang achter een kei: hij kan er niet over (regel 7), jij gooit vanaf de kei;
+//   2. een zwarte slang aan de overkant van een ravijn: eraf gooien voor je springt;
+//   3. twee slangen achter een kei, de een dichtbij en de ander ver: twee hoeken na elkaar;
+//   4. de rots met de rune: die zit hoog, dus een hoge worp. Op 30 graden raak je hem van
+//      dezelfde plekken als met de boog in Test 3, op 25 graden van verder weg.
+// Je kunt hier niet doodgaan, zodat een misser alleen je speer kost. Achter de rots staat een
+// klif, anders loop je voorbij de rots de savanne in.
+const TEST_7 = {
+  name: 'Test 7: Werpen op gevoel',
+  lagen: 'tafelbergen',
+  worp: 'schaal',
+  onsterfelijk: true,
+  muur: { x: -8200, speer: 150 },
+  rocks: [ {x: -1400, s: 1.0}, {x: -5200, s: 1.0} ],
+  props: [ {x: -250, k: 'gras', s: 1.1, f: 0, v: 0}, {x: -900, k: 'tree', s: 1.1, f: 0, v: 1},
+           {x: -2900, k: 'struik', s: 1.0, f: 1, v: 0}, {x: -4800, k: 'gras', s: 1.2, f: 0, v: 0},
+           {x: -7000, k: 'boulder', s: 0.9, f: 1, v: 1} ],
+  spawns: [ {x: -2300, k: 'groen'}, {x: -4500, k: 'zwart'},
+            {x: -5900, k: 'groen'}, {x: -6700, k: 'groen'} ],
+  terraces: [], ledges: [],
+  hppotions: [],
+  fg: { from: -80, to: -700 },
+  village: [], npcs: [], gaps: [ {x: -3500, w: 300} ], water: [], thickets: [],
+  cliffs: [ {x: -9600} ], ends: [],
+  tips: [ { x: -60, t: 'Testlevel voor de schaalworp. Je kunt hier niet doodgaan. Pak je speer op' },
+          { x: -600, t: 'Houd de werpknop vast: hoe langer, hoe hoger en verder. Het streepje wijst de hoek' },
+          { x: -1150, t: 'Achter de kei zit een slang. Hij kan er niet over: raak hem vanaf de kei' },
+          { x: -3000, t: 'Aan de overkant wacht een slang. Gooi hem eraf voor je springt' },
+          { x: -4950, t: 'Twee slangen, de een dichtbij en de ander ver: twee hoeken' },
+          { x: -7300, t: 'De rune zit hoog: daar is een hoge worp voor nodig. Staat de deur open, druk op E' } ]
+};
+const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7];
 const WINTER_LEVELS = [WINTER_1, WINTER_2];
 let levelIdx = 0;
 
@@ -4028,7 +4063,31 @@ const thrImgs = Array.from({ length: THR_N }, (_, i) =>
 // en je staat er een halve seconde langer kwetsbaar voor stil.
 const THR_LOB_DEG = 30;                  // zo veel graden omhoog (schermhoek)
 const THR_LOB_V = 0.78;                  // en met dit deel van de worpsnelheid
-let thr = null;          // {frame, acc, held, rel, gone, lob, glint} zolang hij spant of werpt
+
+// De schaalworp: in plaats van twee trappen loopt de hoek op zolang je vasthoudt.
+// Hij trekt eerst helemaal uit tot frame THR_WIND, en daar ligt de speer vlak. Vanaf dan
+// gaat de hoek van 0 naar THR_HOEK_MAX in THR_HOEK_T seconden, eerst langzaam en dan
+// sneller (THR_HOEK_KROM), want juist de lage hoeken moeten fijn te kiezen zijn. Op het
+// maximum blijft hij staan. Wie loslaat voor hij helemaal uitgetrokken is, gooit vlak.
+// De plaatjes doen mee: in frame 6 ligt de speer vlak, in 5 wijst hij zo'n 14 graden
+// omhoog en in 4 zo'n 25 (THR_SCHAAL_FR). Hij tilt de punt dus op terwijl je vasthoudt,
+// en het beeld laat zelf zien hoe hoog de worp gaat.
+// De snelheid zakt mee zoals bij de boog, zodat de worp tot 30 graden steeds verder komt
+// (van 6,5 naar 13,9 Amir): langer vasthouden is verder gooien. Boven de 30 zou hij weer
+// korter worden, en dan geven twee hoeken dezelfde landing. Het maximum is precies de
+// boog van de twee trappen, dus de rune-muur blijft met dezelfde boogtop te raken.
+// Een level zet hem aan met worp: 'schaal', de sandbox met de knop onder Speerworp.
+const THR_HOEK_MAX = 30;                 // graden, het maximum
+const THR_HOEK_T = 0.5;                  // zo lang duurt het van 0 tot het maximum
+const THR_HOEK_KROM = 1.5;               // de curve: hoek = max * (t / T) ^ krom
+const THR_RICHT = 0.5;                   // het richtstreepje, als deel van Amirs lengte
+// per frame: de hoek waarin de speer in dat plaatje staat, en waar de punt dan zit (worpcanvas)
+const THR_SCHAAL_FR = [ { f: 6, a: 0,  x: 547, y: 298 },
+                        { f: 5, a: 14, x: 548, y: 185 },
+                        { f: 4, a: 25, x: 525, y: 139 } ];
+let sbWorpSchaal = false;                // de schakelaar in de sandbox
+function worpSchaal(){ return sandbox ? sbWorpSchaal : !!(level && level.worp === 'schaal'); }
+let thr = null;          // {frame, acc, held, rel, gone, lob, glint, hoek, t0, vol} zolang hij spant of werpt
 let thrPressT = 0;       // wanneer de knop ingedrukt ging, voor de tik- en oplaaddrempel
 
 // ---- het projectiel -----------------------------------------------------
@@ -4071,11 +4130,13 @@ function canThrow(){
 }
 function thrPress(){
   thrPressT = performance.now();
-  if (canThrow()){ thr = { frame: 0, acc: 0, held: true, rel: 0, gone: false, lob: false, glint: 0 }; return; }
+  if (canThrow()){ thr = { frame: 0, acc: 0, held: true, rel: 0, gone: false, lob: false, glint: 0,
+                           hoek: 0, t0: 0, vol: false }; return; }
   startAttack();                                   // gebukt, zonder speer of in de lucht: gewoon stoten
 }
 // tot welk frame mag hij nu uittrekken? Pas na THR_CHARGE komt de tweede trap vrij
 function thrStop(){
+  if (worpSchaal()) return THR_WIND;               // eerst helemaal uittrekken; daarna zet thrHoek het frame
   return (performance.now() - thrPressT >= THR_CHARGE * 1000) ? THR_WIND : THR_DRAW1;
 }
 function thrRelease(cancel){
@@ -4089,18 +4150,37 @@ function thrRelease(cancel){
   if (!thr.held) return;
   thr.held = false; thr.rel = performance.now();
   thr.lob = thr.frame >= THR_WIND;                 // helemaal uitgetrokken? Dan wordt het de boog
+  // bij de schaalworp staat de hoek vanaf nu vast: de speer gaat pas op THR_LOOSE weg
+}
+// Het frame dat bij een hoek hoort: het plaatje waarin de speer het dichtst bij die hoek staat.
+function thrSchaalFr(hoek){
+  let best = THR_SCHAAL_FR[0];
+  for (const r of THR_SCHAAL_FR) if (Math.abs(r.a - hoek) < Math.abs(best.a - hoek)) best = r;
+  return best;
+}
+// De hoek van de schaalworp bijwerken zolang hij vasthoudt. De klok loopt pas als hij
+// helemaal uitgetrokken is, dus wie voor die tijd loslaat gooit altijd vlak.
+function thrHoek(){
+  if (!thr.held || !worpSchaal() || (thr.frame < THR_WIND && !thr.t0)) return;   // daarna tilt hij terug naar 5 en 4
+  const nu = performance.now();
+  if (!thr.t0) thr.t0 = nu;
+  const f = Math.min(1, (nu - thr.t0) / (THR_HOEK_T * 1000));
+  thr.hoek = THR_HOEK_MAX * Math.pow(f, THR_HOEK_KROM);
+  thr.frame = thrSchaalFr(thr.hoek).f; thr.acc = 0;           // hij tilt de punt op
+  if (f >= 1 && !thr.vol){ thr.vol = true; thr.glint = 1; }   // het maximum: het lichtje op de punt
 }
 function thrCancel(){ if (thr && !thr.gone) thr = null; }
 function updateThrow(dt){
   if (!thr) return;
   if (thr.glint > 0) thr.glint = Math.max(0, thr.glint - dt / 0.30);
+  thrHoek();
   const stop = thr.held ? thrStop() : THR_N;
-  if (thr.held && thr.frame >= stop){ thr.acc = 0; return; }       // uitgetrokken: wachten op je duim
+  if (thr.held && (thr.frame >= stop || thr.t0)){ thr.acc = 0; return; }   // uitgetrokken: wachten op je duim
   thr.acc += dt * THR_FPS;
   while (thr.acc >= 1){
     thr.acc -= 1;
     thr.frame++;
-    if (thr.frame === THR_WIND && thr.held) thr.glint = 1;         // tweede trap bereikt: even een lichtje op de punt
+    if (thr.frame === THR_WIND && thr.held && !worpSchaal()) thr.glint = 1;   // tweede trap bereikt: even een lichtje op de punt
     if (thr.frame === THR_LOOSE) looseSpear();
     if (thr.frame >= THR_N){ thr = null; return; }
     if (thr.held && thr.frame >= stop){ thr.acc = 0; return; }
@@ -4120,11 +4200,14 @@ function looseSpear(){
   spear = false; spearFound = false; spearX = null; spearH = null;
   setSpearLabel();
   const scale = nowScale(), dir = thrDir();
-  const lob = !!thr.lob;
-  const a = lob ? -THR_LOB_DEG * Math.PI / 180 : 0;   // schermhoek: omhoog is negatief
+  const lob = !!thr.lob, schaal = worpSchaal();
+  const graden = schaal ? thr.hoek : lob ? THR_LOB_DEG : 0;
+  const a = -graden * Math.PI / 180;                  // schermhoek: omhoog is negatief
   // V is de worpsnelheid in wereld-pixels per seconde: bij de vlakke worp de volle
-  // 14 tegels, bij de boog minder, zodat hij hoger maar niet eindeloos ver gaat.
-  const V = JAV.tiles * JAV.tile * CHAR_H * scale * (lob ? THR_LOB_V : 1);
+  // 14 tegels, bij de boog minder, zodat hij hoger maar niet eindeloos ver gaat. De
+  // schaalworp schuift daartussen mee met de hoek.
+  const deel = schaal ? 1 - (1 - THR_LOB_V) * graden / THR_LOB_DEG : lob ? THR_LOB_V : 1;
+  const V = JAV.tiles * JAV.tile * CHAR_H * scale * deel;
   // hoogte rekent in sprite-eenheden en x in wereld-pixels, dus de verticale kant
   // wordt door scale gedeeld; op het scherm klopt de hoek dan precies
   const ox = (THR_TIP.x - THR_ANCHOR) * THR_S * scale * dir;   // de punt staat op THR_TIP
@@ -4516,8 +4599,9 @@ function javDraw(groundY, scale, cx, laag){
 function drawThrowGlint(pcx, groundY, scale, lift){
   if (!thr || thr.glint <= 0) return;
   const ts = THR_S * scale, k = thr.glint;
-  const col = thrFlip() ? THR_ANCHOR - THR_HEAD.x : THR_HEAD.x - THR_ANCHOR;
-  const x = pcx + col * ts, y = groundY + lift - (THR_GROUND - THR_HEAD.y) * ts;
+  const pt = (worpSchaal() && thr.t0) ? thrSchaalFr(thr.hoek) : THR_HEAD;   // schaalworp: op de punt van dit frame
+  const col = thrFlip() ? THR_ANCHOR - pt.x : pt.x - THR_ANCHOR;
+  const x = pcx + col * ts, y = groundY + lift - (THR_GROUND - pt.y) * ts;
   const r = CHAR_H * scale * 0.16 * (1.4 - k * 0.4);
   const g = ctx.createRadialGradient(x, y, 0, x, y, r);
   g.addColorStop(0, 'rgba(255,248,226,' + (0.85 * k).toFixed(3) + ')');
@@ -4527,6 +4611,28 @@ function drawThrowGlint(pcx, groundY, scale, lift){
   ctx.globalCompositeOperation = 'lighter';
   ctx.fillStyle = g;
   ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+// Het richtstreepje van de schaalworp: een kort, vaag streepje net voor de speerpunt (de punt
+// uit THR_SCHAAL_FR, per frame), in de hoek die hij nu heeft. Het wijst de richting aan, niet
+// de landing: waar hij neerkomt moet je zelf leren inschatten.
+function drawThrowRicht(pcx, groundY, scale, lift){
+  if (!thr || !thr.held || thr.gone || !worpSchaal() || !thr.t0) return;
+  const ts = THR_S * scale, pt = thrSchaalFr(thr.hoek);
+  const kant = thrFlip() ? -1 : 1;                 // de kant waar de punt naar wijst
+  const a = thr.hoek * Math.PI / 180, L = CHAR_H * scale * THR_RICHT;
+  const vrij = CHAR_H * scale * 0.08;              // een stukje lucht tussen de punt en het streepje
+  const x = pcx + kant * (pt.x - THR_ANCHOR) * ts + kant * Math.cos(a) * vrij;
+  const y = groundY + lift - (THR_GROUND - pt.y) * ts - Math.sin(a) * vrij;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,244,220,0.45)';
+  ctx.lineWidth = Math.max(1.5, CHAR_H * scale * 0.012);
+  ctx.lineCap = 'round';
+  ctx.setLineDash([L * 0.14, L * 0.1]);
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + kant * Math.cos(a) * L, y - Math.sin(a) * L);
+  ctx.stroke();
   ctx.restore();
 }
 
@@ -11701,6 +11807,7 @@ function loop(now){
 
     javDraw(groundY, scale, cx);                     // de geworpen speer, voor de dieren langs
     drawThrowGlint(pcx, groundY, scale, lift);       // lichtje als de tweede trap aangaat
+    drawThrowRicht(pcx, groundY, scale, lift);       // de schaalworp: in welke hoek hij nu gaat
     drawFgGrass(groundY, cx, scale, pcx);
     drawHppotionFx(groundY, scale, cx, pcx, lift);   // oppak- en drinkeffecten
     drawChips(groundY, scale, cx);
@@ -12111,6 +12218,7 @@ function syncLevel(){
     terraces: (level.terraces || []).map(o => ({ r: o.r, l: o.l, h: o.h })),
     holtes: (level.holtes || []).map(o => ({ r: o.r, l: o.l, diep: o.diep })),
     valschade: level.valschade || undefined,
+    worp: level.worp || undefined,            // zonder schaalworp valt het veld weg
     ledges: (level.ledges || []).map(o => ({ x: o.x, h: o.h, s: o.s })),
     grotten: (level.grotten || []).map(o => ({
       x: Math.round(o.x), y: o.y || 0, cel: o.cel || GROT_CEL, hoog: o.hoog || 1,
@@ -12239,6 +12347,7 @@ function readLevel(txt){
                                                 diep: Math.max(HOLTE_DAK + CHAR_H, Number(q.diep) || 600) })),
            valschade: !!o.valschade,                    // een diepe val kost levens (standaard uit)
            onsterfelijk: !!o.onsterfelijk,              // om iets te proberen: je raakt geen levens kwijt
+           worp: o.worp === 'schaal' ? 'schaal' : '',   // 'schaal': de hoek loopt op zolang je vasthoudt
            ledges: (o.ledges || []).map(q => ({ x: Number(q.x), h: Number(q.h) || 0, s: Number(q.s) || 1 })),
            // rotsgebieden als raster: zie de sectie "grotten: rots als een raster van cellen"
            grotten: (o.grotten || []).map(q => ({
@@ -12376,7 +12485,8 @@ const SUBS = {
   'Test 3: De rots met de rune': 'Raak de schijf met je speer, dan gaat de wand open',
   'Test 4: De val in de grot': 'Het ravijn in, onder de grond verder, en weer naar boven',
   'Test 5: De fosforslangen': 'Altijd met z\'n drieën. Zoek zelf uit hoe ze werken',
-  'Test 6: Ravijn test': 'Raak de rune en de grond scheurt open'
+  'Test 6: Ravijn test': 'Raak de rune en de grond scheurt open',
+  'Test 7: Werpen op gevoel': 'Hoe langer je vasthoudt, hoe hoger en verder'
 };
 function buildCards(el, list){
   el.innerHTML = '';
@@ -12652,6 +12762,14 @@ function sbHppotion(drop){
   cv.focus();
 }
 // ---- speerworp los testen: gooien, inslaan en erop klimmen ----------------
+// De schaalworp aan of uit: twee vaste trappen (vlak of de boog), of een hoek die oploopt
+// zolang je vasthoudt. Zie THR_HOEK_MAX bij de speerworp.
+document.getElementById('sbworp').onclick = e => {
+  sbWorpSchaal = !sbWorpSchaal;
+  e.currentTarget.textContent = sbWorpSchaal ? 'Worp: schaal' : 'Worp: twee trappen';
+  e.currentTarget.classList.toggle('on', sbWorpSchaal);
+  thrCancel(); cv.focus();
+};
 document.getElementById('sbspear').onclick = () => {          // weer met een speer in de hand
   thr = null; jav = null; javLost = 0;
   spearFound = true; spear = true; spearX = null; spearH = null;
