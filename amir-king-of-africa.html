@@ -14707,16 +14707,26 @@ function lijnBereik(){                                // van waar tot waar het l
   return { lo: lo - 400, hi: 400 };
 }
 let lijnSleep = false;
-function lijnNaarX(ev){
+const LIJN_GROND = 13;                                 // de grondlijn in de levellijn, in pixels van boven
+function lijnDiepMax(){
+  let d = 900;
+  for (const o of (level && level.holtes) || []) d = Math.max(d, o.diep);
+  return d;
+}
+// klik of sleep op de lijn: links en rechts is de plek, en onder de grondlijn kijk je de grond in
+// (zo kan dat ook zonder pijltjes, op een telefoon)
+function lijnNaar(ev){
   const r = blijn.getBoundingClientRect(), b = lijnBereik();
-  return b.lo + (ev.clientX - r.left) / r.width * (b.hi - b.lo);
+  world = b.lo + (ev.clientX - r.left) / r.width * (b.hi - b.lo);
+  const y = ev.clientY - r.top;
+  bouwD = y <= LIJN_GROND + 3 ? 0 : Math.min(bouwDiepteMax(), (y - LIJN_GROND) / Math.max(1, r.height - LIJN_GROND - 3) * lijnDiepMax());
 }
 blijn.addEventListener('pointerdown', ev => {
   if (!building) return;
   lijnSleep = true; try { blijn.setPointerCapture(ev.pointerId); } catch (e) {}
-  world = lijnNaarX(ev); cv.focus();
+  lijnNaar(ev); cv.focus();
 });
-blijn.addEventListener('pointermove', ev => { if (lijnSleep) world = lijnNaarX(ev); });
+blijn.addEventListener('pointermove', ev => { if (lijnSleep) lijnNaar(ev); });
 blijn.addEventListener('pointerup', () => { lijnSleep = false; cv.focus(); });
 blijn.addEventListener('pointercancel', () => { lijnSleep = false; });
 function tekenLijn(){
@@ -14729,9 +14739,7 @@ function tekenLijn(){
   g.fillStyle = 'rgba(242,232,213,.05)'; g.fillRect(0, 0, w, h);
   if (!level) return;
   const b = lijnBereik(), px = x => (x - b.lo) / (b.hi - b.lo) * w;
-  const gy = 13;                                        // de grondlijn
-  let diepMax = 900;
-  for (const o of level.holtes || []) diepMax = Math.max(diepMax, o.diep);
+  const gy = LIJN_GROND, diepMax = lijnDiepMax();
   const dy = d => gy + d / diepMax * (h - gy - 3);      // een diepte onder de grond, in pixels
   // gangen onder de grond
   g.fillStyle = 'rgba(0,0,0,.5)'; g.strokeStyle = 'rgba(242,232,213,.45)'; g.lineWidth = 1;
@@ -15147,7 +15155,7 @@ function bouwTesten(hier){
     const gang = holteAt(sx);
     const g = inGap(sx);
     if (g && !(gang && d > 150)) sx = g.x + g.w / 2 + 60;          // niet boven een ravijn beginnen
-    const v = (gang && d > 150) ? -gang.diep : vloerBij(sx, 0);
+    const v = (gang && d > 150) ? terrainH(sx) : vloerBij(sx, 0);   // in de gang: de bodem, of een trede
     world = sx; lastSolid = sx;
     ph = (v === null || !isFinite(v)) ? 0 : v; camDiep = Math.min(0, ph); camFloor = ph;
     spearFound = true; spear = true; spearX = null; setSpearLabel();

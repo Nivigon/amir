@@ -581,7 +581,8 @@ je komt terug op dezelfde plek.
 Daaronder loopt **de levellijn**: het hele level van opzij, van het vlaggetje waar Amir begint
 (rechts) tot de klif (links). Je ziet de ravijnen als onderbrekingen in de grond, de gangen als
 uitsparing eronder, en gekleurde stippen voor wat er staat. Het kader is wat je nu in beeld hebt:
-klik ergens op de lijn of sleep het kader, en je bent er.
+klik ergens op de lijn of sleep het kader, en je bent er. Klik je onder de grondlijn van de lijn,
+dan kijk je op die plek de grond in (zo kan het ook op een telefoon).
 
 **Amir is een geest** zolang je bouwt: je ziet hem niet, en hij loopt nergens tegenaan. Met links
 en rechts schuift het beeld, met pijltje omhoog en omlaag gaat het omhoog en omlaag, ook de grond
