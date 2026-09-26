@@ -10,8 +10,8 @@ en beschrijft wat het spel kan; dit document beschrijft hoe je eraan werkt.
 ## Regels
 
 **1. Bestaande levels blijven met rust.** De leveldefinities in de HTML
-(`LICHT_0` tot en met `LICHT_7`, `BRON_1` tot en met `BRON_5`, `RENEW_1` tot en met
-`RENEW_10`, `WINTER_1` en `WINTER_2`, `DARK_1` tot en met `DARK_5`) zijn bevroren. De
+(`RENEW_1` tot en met `RENEW_10`, `WINTER_1` en `WINTER_2`, `DIEP_1` tot en met
+`DIEP_5`) zijn bevroren. De
 levels in Episode Test levels (`TEST_1`) vallen daar niet onder: die zijn er juist om aan te rommelen. Er komt geen nieuwe vijand,
 prop, tip, potion of aangepast getal in, ook niet even om iets te laten zien. Alleen
 als de opdracht een level bij naam noemt ("zet dit in Renew 6") mag dat ene level
@@ -59,11 +59,9 @@ regelnummer, want die schuiven bij elke wijziging.
 | rotsen om op te springen | `rocks`, en het automatisch bijgroeien |
 | winter: episode Winter World | `WINTER_SRC`, `winterOn()`, `winterPic()` |
 | bodem en sneeuwdek | het veld `sneeuw`: savanne of rots, en het dek in vier standen |
-| Episode Het Groene Licht / Episode Renew / Episode Winter World | de leveldefinities |
-| Episode Het Groene Licht | `LICHT_0` tot en met `LICHT_7`: een instap en zeven pittige levels, met alle vijanden en twee panters als eindbaas |
-| Episode De Bron | `BRON_1` tot en met `BRON_5`: de droge rivier, met een verhaal en een slot |
+| Episode De Diepte / Episode Renew / Episode Winter World | de leveldefinities |
+| Episode De Diepte | `DIEP_1` tot en met `DIEP_5`: vijf zware levels met valschade, elk met een gang onder de grond en een trap terug naar boven, met een verhaal en een slot en de zwarte panter als eindbaas |
 | het verhaal bij een episode | `VERHAAL` en `SLOT`, `verhaalToon()`: tekst op een zwart scherm voor elk level en na het laatste, alleen als je bij het eerste level begint. Op de naam van het level, dus een nieuwe episode hoeft alleen tekst toe te voegen en `verhaalAan` te zetten in zijn speelknop |
-| Episode Dark Africa | `DARK_1` tot en met `DARK_5`: vijf levels in de nacht, op `darkafrica.mp3` |
 | Episode Test levels | `TEST_1`: korte proefstukken, los van de echte episodes |
 | terrassen en richels | `terraces`, `ledges`, klimmen |
 | de rotswand rechts | `cliffs`, het einde van het level |
@@ -428,7 +426,7 @@ zachte randen 8-bits afrondingen op, en dat is precies het haarlijntje dat er ni
 **Amir loopt door de rots heen.** De hele rots is decor, ook de deur: uitspelen gaat met E als
 de deur open staat en hij ervoor staat (`muurUitgang`). Er is dus niets dat hem tegenhoudt, en
 een level dat bij de rots eindigt zonder klif erachter laat hem voorbij de rots eindeloos de lege
-savanne in lopen (zo staan Licht 4 en Bron 4 er nu bij). Zet er een klif een stuk achter.
+savanne in lopen. Zet er een klif een stuk achter, zoals in Diepte 3.
 
 **Controleer na elke wijziging of de rune nog te raken is.** Dat is geen gevoelskwestie: simuleer
 de boog vanaf elke plek waar Amir kan staan en kijk of er een aaneengesloten strook overblijft.
@@ -462,10 +460,10 @@ de camera onder het dak zit. Door het gat valt gedempt daglicht. De waarden staa
 `HOLTE_LICHT`. `Test 4` is het proefstuk.
 
 Alles wat binnen `r` en `l` van een gang staat, staat op de bodem: vijanden, decor,
-kalebassen en de fakkels. Een level kan dus onder de grond eindigen (`Licht 3`); de wand van
+kalebassen en de fakkels. Een level kan dus onder de grond eindigen; de wand van
 de gang houdt je dan achter de fakkels tegen, een klif is niet nodig. Dat werkt omdat
 `grotTerrein` zonder raster `-Infinity` geeft en geen 0: gaf hij 0, dan trok `terrainH` alles in
-de gang weer naar de savanne, en dat is precies waarom de vijanden van Licht 3 eerst boven
+de gang weer naar de savanne, en dat is precies waarom de vijanden in een gang eerst boven
 stonden en de fakkels daar niet te halen waren.
 
 Twee hulpjes houden boven en beneden uit elkaar. `gatOp(x, base)` is `inGap` voor wie op
@@ -545,7 +543,8 @@ Wat het spel zelf regelt, zodat je er als ontwerper niet op hoeft te letten:
 
 De lichtlaag ligt over het hele beeld, dus ook over de grond en over Amir. Een level dat
 er anders uit moet zien zet in zijn `SCENES`-blok een veld `licht` met de waarden die
-afwijken (zie `LICHT`), en dat is hoe Dark Africa donker wordt: een blauwgrijze
+afwijken (zie `LICHT`), en dat is hoe de nachtuitzichten (`dark_rots`, `dark_hart` en de andere
+`dark_`-blokken) donker worden: een blauwgrijze
 schaduw- en lichtkleur, een zwakkere gloed en een iets diepere onderkant. `aan` en
 `sterkte` blijven van de regelaars (`L`, en `,` en `.`), ook in zo'n level: die zijn er
 om te kunnen kijken wat de laag doet, en dat moet in elk level werken.
@@ -557,8 +556,7 @@ wil je alleen dat de verte wegzakt, dan `dim`. Meestal gebruik je ze samen.
 ### Een level toevoegen (alleen na toestemming)
 
 1. De definitie erbij, na de laatste van die reeks.
-2. De naam in de array van die reeks (`LEVELS`, `LICHT_LEVELS`, `BRON_LEVELS`, `RENEW_LEVELS`,
-   `WINTER_LEVELS`).
+2. De naam in de array van die reeks (`LEVELS`, `DIEP_LEVELS`, `RENEW_LEVELS`, `WINTER_LEVELS`).
 3. Een ondertitel in `SUBS`, op de naam van het level.
 4. Een eigen uitzicht in `SCENES` als het level er anders uit moet zien.
 5. `python3 tools/levelcheck.py` draaien, en elke FOUT oplossen voor je commit (zie
