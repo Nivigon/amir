@@ -3444,7 +3444,9 @@ function muurGrotSet(scale){
   } catch (e){ return null; }
 
   // De grot: op vier vijfde van de hoogte het breedste lege stuk in het midden, en van daaruit
-  // alles vullen wat leeg is en tussen de poten van de boog ligt.
+  // alles vullen wat leeg is en tussen de poten van de boog ligt. Niet onder de grondlijn: daar
+  // staan de steentjes van de voet los van elkaar, en dan lekt het donker ertussendoor en ligt er
+  // links en rechts van de grot een zwarte streep over de grond.
   const y0 = Math.floor(hPx * 0.8), dicht = i => alfa[i] > 60;
   let best = [0, 0];
   for (let x = Math.floor(wPx * 0.2); x < wPx * 0.8;){
@@ -3457,12 +3459,20 @@ function muurGrotSet(scale){
   let l = wPx, r = 0, t = hPx;
   while (stapel.length){
     const [x, y] = stapel.pop();
-    if (x < bl || x > br || y < 0 || y >= hPx) continue;
+    if (x < bl || x > br || y < 0 || y >= Math.floor(voetY)) continue;
     const i = y * wPx + x;
     if (vol[i] || dicht(i)) continue;
     vol[i] = 1; if (x < l) l = x; if (x > r) r = x; if (y < t) t = y;
     stapel.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
   }
+  // Ook net boven de grond lekt het nog tussen de steentjes door. Daar mag het donker niet breder
+  // zijn dan de grot een klein stukje hoger is.
+  const rv = Math.floor(voetY - amir * 0.1);
+  let vl = wPx, vr = -1;
+  for (let x = 0; x < wPx; x++) if (vol[rv * wPx + x]){ if (x < vl) vl = x; if (x > vr) vr = x; }
+  if (vr >= vl)
+    for (let y = rv + 1; y < hPx; y++) for (let x = 0; x < wPx; x++)
+      if (x < vl || x > vr) vol[y * wPx + x] = 0;
   const b = Math.round(voetY) + Math.max(2, Math.round(hPx * 0.02));
   // het donker, in precies die vorm: bij de vloer vangt het nog wat licht van buiten
   const donker = document.createElement('canvas'); donker.width = wPx; donker.height = hPx;
@@ -3914,17 +3924,14 @@ function drawMuurGrot(groundY, scale, cx, S, x0, y0){
   const e = Math.max(0, (muurSchuif - G.tril) / (1 - G.tril)), ez = e * e * (3 - 2 * e);
   const tril = muurOpen && muurSchuif < 1 ? Math.sin(muurKlok * 90) * Math.max(2, K.w * 0.006) * (1 - ez * 0.6) : 0;
   const dy = ez * (K.h * (1 - G.kei.zak - G.kei.blijf));
+  // Zolang hij staat, staat hij een stukje in de grond zoals elke kei; zodra hij zakt wordt hij
+  // precies op de grondlijn afgeknipt. Geen naad of schaduw erlangs: die lag als een losse streep
+  // over de grond, breder dan het stuk kei dat er nog uitsteekt.
+  const knip = dy > 0 ? vy : vy + K.h * G.kei.zak;
   ctx.save();
-  ctx.beginPath(); ctx.rect(x0 - 400, vy - K.h * 3, S.w + 800, K.h * 3 + K.h * G.kei.zak * 0.3); ctx.clip();
+  ctx.beginPath(); ctx.rect(x0 - 400, vy - K.h * 3, S.w + 800, knip - (vy - K.h * 3)); ctx.clip();
   ctx.drawImage(propImg.boulder, x0 + K.x + tril, y0 + K.y + dy, K.w, K.h);
   ctx.restore();
-  if (dy > 0){                                     // de naad waar hij de grond in gaat
-    ctx.save();
-    const n = ctx.createLinearGradient(0, vy - 6, 0, vy + 6);
-    n.addColorStop(0, 'rgba(40,25,12,0)'); n.addColorStop(0.5, 'rgba(40,25,12,0.55)'); n.addColorStop(1, 'rgba(40,25,12,0)');
-    ctx.fillStyle = n; ctx.fillRect(cxo - K.w * 0.42, vy - 6, K.w * 0.84, 12);
-    ctx.restore();
-  }
   // stof langs de voet: ontstaat terwijl hij zakt, groeit, stijgt en waait uit
   const puf = puffPic();
   if (muurOpen && T < 2 && imgReady(puf)){
@@ -3943,9 +3950,11 @@ function drawMuurGrot(groundY, scale, cx, S, x0, y0){
     // een waas van stof dat in de grotmond blijft hangen en daarna zakt
     if (T > 0.2){
       ctx.globalAlpha = 0.5 * Math.min(1, (T - 0.2) * 2) * Math.max(0, 2 - T);
-      const hz = ctx.createLinearGradient(0, vy - Ho * 0.6, 0, vy);
-      hz.addColorStop(0, 'rgba(196,160,112,0)'); hz.addColorStop(1, 'rgba(196,160,112,0.8)');
-      ctx.fillStyle = hz; ctx.fillRect(ox0 - Wo * 0.1, vy - Ho * 0.6, Wo * 1.2, Ho * 0.6);
+      // een ellips die naar alle kanten uitloopt: een rechthoek liet een rechte rand in het stof
+      ctx.translate(cxo, vy); ctx.scale(Wo * 0.65, Ho * 0.6);
+      const hz = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+      hz.addColorStop(0, 'rgba(196,160,112,0.8)'); hz.addColorStop(1, 'rgba(196,160,112,0)');
+      ctx.fillStyle = hz; ctx.fillRect(-1, -1, 2, 1);
     }
     ctx.restore();
   }
