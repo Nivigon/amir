@@ -455,9 +455,32 @@ Laat de gang aan de kant van het ravijn wat verder doorlopen dan het gat, anders
 onder de rand. Alles in de gang staat op de bodem, want `terrainH` geeft daar `-diep`.
 
 Het donker is schets E: een zwarte laag over het steen (alleen helderheid, geen tint), de
-looprand van de vloer lichter dan de vulling eronder, en boven het dak zakt alles weg zodra
-de camera onder het dak zit. Door het gat valt gedempt daglicht. De waarden staan in
-`HOLTE_LICHT`. `Test 4` is het proefstuk.
+looprand van de vloer lichter dan de vulling eronder. Door het gat valt gedempt daglicht. De
+waarden staan in `HOLTE_LICHT`. `Test 4` is het proefstuk.
+
+**Boven het dak loopt de aarde over in steen, en dat is materiaal, geen kleur.** Het grondpakket
+boven een gang en de wand van het gat erboven zijn aarde, de gang is steen. Onderin het pakket
+wordt de wandtegel van de gang zichtbaar (`holteOvergang`, over `HOLTE_OVERGANG` eenheden), op
+precies hetzelfde ankerpunt in de wereld als de gangwand. Onder een gat ligt daardoor op de
+daklijn aan beide kanten hetzelfde steen en loopt het patroon gewoon door; naast een gat hangen
+er de tanden van het dak onder. Niet proberen de naad weg te poetsen met een tint of door kleuren
+gelijk te trekken: dat is geprobeerd, en het gaat mis zodra het uitzicht of de lichtlaag anders
+is. Meten deed het wel, en dat is de manier om een wijziging hier na te kijken: helderheid per
+rij over de naad, en geen sprong van meer dan een paar punten.
+
+De opbouw, van boven naar onder:
+
+| waar | wat |
+| --- | --- |
+| naast een gat | de vloer van de savanne, dan aarde die donkerder wordt (`HOLTE_LICHT.pakket`, verder van een gat nog iets meer: `weg`), die overloopt in steen, en dan de tanden |
+| in een gat (`holteSchacht`) | de wand van het ravijn zonder de nevel en het zwart van een afgrond, onderaan de overgang naar steen, en het daglicht: de bundel en de lichtvlek uit de gang lopen ongebroken door tot de rand |
+| buiten de gang | dichte rots, donker gemaakt op een klein vervaagd canvas (`holteVaag`), zodat hij zacht uitloopt |
+
+Het steen zit alleen boven een gang en loopt voorbij de uiteinden over `HOLTE_UITLOOP` uit. Het
+ravijn boven een gang houdt twee pixels onder het dak op, op een hele beeldpixel (`heelPx`): waar
+twee zachte randen op dezelfde lijn liggen schijnt er anders een haarlijn doorheen. Het donker in
+het pakket is afgesteld op het beeld mét de gloed van de lichtlaag, die daar zo'n 40 punten
+helderheid bij optelt; zet je `pakket` op papier, dan komt het te licht uit.
 
 Alles wat binnen `r` en `l` van een gang staat, staat op de bodem: vijanden, decor,
 kalebassen en de fakkels. Een level kan dus onder de grond eindigen; de wand van

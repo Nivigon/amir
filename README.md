@@ -432,6 +432,12 @@ kalebassen liggen op de vloer, en de fakkels kunnen er ook staan, zodat een leve
 grond kan eindigen. Een vijand in de gang loopt onder
 een gat gewoon door, want voor hem is daar vloer; wie boven op de savanne staat, blijft boven.
 
+Naar beneden toe gaat de aarde geleidelijk over in het steen van de gang. Naast een gat zie je
+bovenop de vloer van de savanne, daaronder de aarde die donkerder wordt en overloopt in steen,
+en onderaan hangen de tanden van het dak. In het gat zelf loopt de wand zonder tanden door
+tot in de gang, met het daglicht erlangs, zodat je nergens een rechte streep ziet waar de
+savanne ophoudt en de gang begint.
+
 Terug naar boven gaat niet via het gat waar je in viel, maar wel via een tweede gat in het dak
 met treden erin. Die treden zijn van hetzelfde steen als de terrassen, en hoe dieper ze liggen,
 hoe donkerder. Je springt van trede naar trede de schacht in, en van de bovenste stap je de
