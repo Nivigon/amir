@@ -6699,7 +6699,10 @@ function ravijnAchterVang(groundY){
   if (!fx || fx.p <= 0 || fx.lvl !== level) return;
   const [wl, wr] = ravijnRanden(fx);
   const x0 = Math.max(0, Math.floor(W / 2 + (wl - world)) - 2), x1 = Math.min(W, Math.ceil(W / 2 + (wr - world)) + 2);
-  const y0 = Math.floor(edgeCrust(groundY)) - 2, y1 = Math.ceil(groundY);
+  // Vanaf de bovenkant van de grondtegel en niet vanaf de kruin: daartussen heeft de tegel nog
+  // een randje met sprietjes en steentjes die op de grond liggen, en die bleven anders boven
+  // het gat in de lucht hangen. Een gewoon ravijn knipt ook vanaf daar (traceGap vanaf top).
+  const y0 = Math.floor(edgeTop(groundY)) - 2, y1 = Math.ceil(groundY);
   if (x1 <= x0 || y1 <= y0) return;
   const m = ctx.getTransform();
   const bw = Math.max(1, Math.round((x1 - x0) * m.a)), bh = Math.max(1, Math.round((y1 - y0) * m.d));
@@ -11007,8 +11010,22 @@ function loop(now){
 
     ctx.save();
     ctx.globalAlpha = 0.22; ctx.fillStyle = '#1d140f';
-    const shY = groundY - Math.max(0, supportHeight(plats, halfWNow)) * scale;
-    ctx.beginPath(); ctx.ellipse(pcx, shY, CHAR_H * scale * 0.24, CHAR_H * scale * 0.03, 0, 0, Math.PI * 2);
+    const steun = supportHeight(plats, halfWNow);
+    const shY = groundY - Math.max(0, steun) * scale;
+    const shW = CHAR_H * scale * 0.24;
+    // Boven een ravijn ligt geen grond om een schaduw op te werpen: daar knippen we het gat eruit,
+    // ook het openscheurende. Staat hij half op de rand, dan houdt de schaduw bij de rand op.
+    if (!building && steun <= 0){
+      let knip = false;
+      ctx.beginPath(); ctx.rect(pcx - shW - 4, shY - 20, shW * 2 + 8, 40);
+      for (const g of gatenMetRavijn()){
+        const gl = cx + (g.x - g.w / 2 - world), gr = cx + (g.x + g.w / 2 - world);
+        if (gr < pcx - shW || gl > pcx + shW) continue;
+        ctx.rect(gl, shY - 20, gr - gl, 40); knip = true;
+      }
+      if (knip) ctx.clip('evenodd');
+    }
+    ctx.beginPath(); ctx.ellipse(pcx, shY, shW, CHAR_H * scale * 0.03, 0, 0, Math.PI * 2);
     ctx.fill(); ctx.restore();
     const cliffImgNow = cliffPic();
     if (cliffImgNow.complete && cliffImgNow.naturalWidth){
