@@ -684,7 +684,7 @@
 // ---- versie: welke update er live staat ----------------------------------
 // Staat heel klein linksboven in beeld, zodat je ziet of een pull request al live is. Elke pull
 // request zet hier een nieuw nummer en een naam van een paar woorden bij, zie CLAUDE.md.
-const VERSIE = { nr: '1.2', naam: 'wat mag waar' };
+const VERSIE = { nr: '1.3', naam: 'licht buiten' };
 document.getElementById('versie').textContent = 'versie ' + VERSIE.nr + ': ' + VERSIE.naam;
 
 // ---- globale lichtlaag --------------------------------------------------
@@ -8916,6 +8916,9 @@ function holteSet(){
 // De kaart ligt over alles in de wereld, ook over Amir en de vijanden. De donkerte van vaste
 // grond komt er pas bij als de camera mee naar beneden gaat (holteDiepT): van bovenaf ziet de
 // grond eruit zoals altijd. Wat lucht is (een gat, een gang) is altijd zo licht als het is.
+//
+// Hangt er buiten rots boven je (een plafondlijn of een rotsraster), dan rekent de kaart daar ook:
+// onder die rots wordt het geleidelijk donkerder, met de zon schuin van zijn kant (zie lkRuw).
 const LK = {
   cel: 16,                 // celmaat, in wereld-px en in sprite-eenheden
   stralen: 11,             // zoveel stralen naar de hemel per cel
@@ -8940,11 +8943,54 @@ const LK = {
                            // vloer, de randen en de treden altijd te lezen blijven
   zon: 0.22,               // hoe fel de zon naar binnen valt
   kaats: 0.8,              // hoeveel licht er van de wanden kaatst
-  warm: 0.16               // hoe warm dat kaatslicht is
+  warm: 0.16,              // hoe warm dat kaatslicht is
+  // de zon volgt het uitzicht (lkZonKleur): overdag warm, in de winter koel, 's nachts zwakker
+  zonKleur: [255, 200, 130],     // overdag
+  zonWinter: [205, 220, 250],    // in de sneeuw: koel wit, geen oranje op grijze steen
+  zonNacht: 0.35,                // de ondergrens van de sterkte 's nachts, zoals RAVIJN_ZON.nacht
+  // buiten, onder rots boven je (plafond, grotten): zo zwaar weegt het donker daar, want de
+  // lucht eromheen is open en er kaatst veel licht naar binnen
+  buiten: 0.85,
+  buitenBuur: 700,         // zo ver van de rots rekent de kaart buiten nog, in wereld-px
+  buitenTop: 1400          // en tot zo hoog boven de grondlijn, in sprite-eenheden
 };
 let lk = null;
+// De zon onder de grond volgt het uitzicht, net als de zon op de wand van een ravijn: de sterkte
+// schaalt met de gloed van het level (0,30 overdag), met LK.zonNacht als ondergrens, en in de
+// winter is hij koel. Anders viel er in de sneeuw oranje licht op grijze steen, en was de zon
+// 's nachts beneden even fel als overdag.
+function lkZonKleur(){
+  const L = lichtNu();
+  const f = Math.max(LK.zonNacht, Math.min(1, L.gloedSterkte / 0.30));
+  return { rgb: winterOn() ? LK.zonWinter : LK.zonKleur, f };
+}
+// Rots boven je, buiten: de onderkant van een plafondlijn en de volle cellen van een rotsraster.
+// Dat is wat boven de grond licht tegenhoudt; terrassen en keien niet, want die staan in de open
+// lucht en krijgen verder ook nergens schaduw.
+function lkRotsPunt(x, h){
+  if (h <= 0) return false;
+  if (h >= plafondH(x)) return true;
+  for (const g of grotLijst()){
+    const R = grotRaster(g), c = grotKolom(g, R, x);
+    if (c < 0 || c >= R.kol) continue;
+    const r = grotRij(R, h);
+    if (r >= 0 && grotVol(R, c, r)) return true;
+  }
+  return false;
+}
+// waar er buiten rots boven je hangt, als [links, rechts] in wereld-x
+function lkRotsStukken(){
+  const uit = [], p = plafondLijn();
+  for (let i = 0; i < p.length; i++){
+    if (p[i].y >= PLAFOND_WEG) continue;
+    const a = i > 0 ? p[i - 1].x : p[i].x, b = i < p.length - 1 ? p[i + 1].x : p[i].x;
+    uit.push([Math.min(a, b), Math.max(a, b)]);
+  }
+  for (const g of grotLijst()){ const R = grotRaster(g); uit.push([g.x, g.x + R.kol * R.cel]); }
+  return uit;
+}
 function lkVastPunt(x, h){                        // is dit punt grond of rots?
-  if (h > 0){ const t = terrainH(x); return t > 0 && h <= t; }
+  if (h > 0){ const t = terrainH(x); return (t > 0 && h <= t) || lkRotsPunt(x, h); }
   const o = holteAt(x), gat = inGap(x);
   if (o){
     if (h <= terrainH(x)) return true;            // de bodem, of een trede
@@ -8954,24 +9000,30 @@ function lkVastPunt(x, h){                        // is dit punt grond of rots?
   return !gat;
 }
 function lkSleutel(){
-  const d = level ? [level.holtes, level.gaps, level.terraces] : [];
-  return JSON.stringify(d) + JSON.stringify(ravijnGaten()) + '|' + zonRechts() + '|' + [LK.donker, LK.minLicht, LK.personage, LK.zon, LK.kaats, LK.warm].join(',');
+  const d = level ? [level.holtes, level.gaps, level.terraces, level.plafond, level.grotten] : [];
+  const z = lkZonKleur();
+  return JSON.stringify(d) + JSON.stringify(ravijnGaten()) + '|' + zonRechts() + '|' + z.rgb + '|' + z.f + '|' +
+         [LK.donker, LK.minLicht, LK.personage, LK.zon, LK.kaats, LK.warm, LK.buiten].join(',');
 }
 function lkKaart(){
-  const lijst = holteLijst();
-  if (!lijst.length) return (lk = null);
+  const lijst = holteLijst(), rots = lkRotsStukken();
+  if (!lijst.length && !rots.length) return (lk = null);
   const sl = lkSleutel();
   if (lk && lk.sleutel === sl && lk.level === level) return lk;
   const C = LK.cel;
-  let l = Infinity, r = -Infinity, diep = 0;
-  for (const o of lijst){ l = Math.min(l, o.l); r = Math.max(r, o.r); diep = Math.max(diep, o.diep); }
-  const i0 = Math.floor((l - LK.marge) / C), i1 = Math.ceil((r + LK.marge) / C);
-  const j0 = Math.floor((-diep - 700) / C), j1 = Math.ceil(40 / C);   // ook onder de vloer, tot buiten beeld
+  let l = Infinity, r = -Infinity, diep = 0, hoog = 40;
+  for (const o of lijst){ l = Math.min(l, o.l - LK.marge); r = Math.max(r, o.r + LK.marge); diep = Math.max(diep, o.diep); }
+  // rots boven je: de kaart reikt dan ook omhoog, tot waar die rots nog in beeld kan komen
+  for (const [a, b] of rots){ l = Math.min(l, a - LK.buitenBuur); r = Math.max(r, b + LK.buitenBuur); hoog = LK.buitenTop; }
+  const i0 = Math.floor(l / C), i1 = Math.ceil(r / C);
+  const j0 = Math.floor((-diep - 700) / C), j1 = Math.ceil(hoog / C);   // ook onder de vloer, tot buiten beeld
   const nk = i1 - i0 + 1, nr = j1 - j0 + 1;
   const mk = () => { const c = document.createElement('canvas'); c.width = nk; c.height = nr; return c; };
   const za = (zonRechts() ? 1 : -1) * LK.zonHoek * Math.PI / 180;
-  lk = { sleutel: sl, level, i0, i1, j0, j1, nk, nr, za,
+  lk = { sleutel: sl, level, i0, i1, j0, j1, nk, nr, za, zon: lkZonKleur(),
          vast: new Uint8Array(nk * nr),                   // 1 als de cel grond of rots is
+         rots: new Uint8Array(nk * nr),                   // 1 als de cel rots boven de grond is
+         buur: new Uint8Array(nk),                        // 1 als er in de buurt van deze kolom rots boven je hangt
          ruw: new Float32Array(nk * nr * 2), ruwKlaar: new Uint8Array(nk),
          som: new Float32Array(nk * nr * 2), somKlaar: new Uint8Array(nk),   // kaatslicht, per kolom verticaal opgeteld
          licht: new Float32Array(nk * nr),               // het licht per cel, zoals het getekend wordt
@@ -8979,8 +9031,16 @@ function lkKaart(){
          lucht: mk(), grond: mk(), zonC: mk(), allen: mk(),
          pix: [0, 1, 2, 3].map(() => new ImageData(nk, nr)), vuil: null };   // de plaatjes, eerst in het geheugen
   // wat vast is, in een keer: de stralen lezen daarna alleen nog dit raster
-  for (let k = 0; k < nk; k++) for (let r = 0; r < nr; r++)
-    lk.vast[k * nr + r] = lkVastPunt((i0 + k + 0.5) * C, (j1 - r + 0.5) * C) ? 1 : 0;
+  for (let k = 0; k < nk; k++) for (let r = 0; r < nr; r++){
+    const x = (i0 + k + 0.5) * C, h = (j1 - r + 0.5) * C;
+    lk.vast[k * nr + r] = lkVastPunt(x, h) ? 1 : 0;
+    lk.rots[k * nr + r] = lkRotsPunt(x, h) ? 1 : 0;
+  }
+  const bk = Math.ceil(LK.buitenBuur / C);
+  for (let k = 0; k < nk; k++){
+    if (!lk.rots.subarray(k * nr, k * nr + nr).some(v => v)) continue;
+    for (let q = Math.max(0, k - bk); q <= Math.min(nk - 1, k + bk); q++) lk.buur[q] = 1;
+  }
   return lk;
 }
 function lkVast(i, j){                            // in cellen; boven de kaart is het lucht
@@ -8990,31 +9050,35 @@ function lkVast(i, j){                            // in cellen; boven de kaart i
   if (i < K.i0 || i > K.i1) return lkVastPunt((i + 0.5) * LK.cel, (j + 0.5) * LK.cel);
   return K.vast[(i - K.i0) * K.nr + (K.j1 - j)] === 1;
 }
-function lkStraal(x, h, dx, dh){                  // komt deze straal aan de hemel?
-  const K = lk, C = LK.cel, top = K.j1 * C, st = LK.stap, v = K.vast, nr = K.nr;
+// Buiten (rots) houdt alleen de rots boven je de straal tegen, niet de grond en de terrassen.
+function lkStraal(x, h, dx, dh, rots = false){    // komt deze straal aan de hemel?
+  const K = lk, C = LK.cel, top = K.j1 * C, st = LK.stap, v = rots ? K.rots : K.vast, nr = K.nr;
   for (let s = 8; s < 2600; s += st){
     const hh = h + dh * s;
     if (hh > top) return true;
     const i = Math.floor((x + dx * s) / C) - K.i0, j = Math.floor(hh / C);
-    if (i < 0 || i >= K.nk || j < K.j0){ if (lkVast(i + K.i0, j)) return false; continue; }
+    if (i < 0 || i >= K.nk || j < K.j0){
+      if (rots ? lkRotsPunt((i + K.i0 + 0.5) * C, (j + 0.5) * C) : lkVast(i + K.i0, j)) return false;
+      continue;
+    }
     if (v[i * nr + K.j1 - j]) return false;
   }
   return true;
 }
-function lkZicht(x, h){                           // deel van de hemel dat dit punt ziet, 0 tot 1
+function lkZicht(x, h, rots = false){             // deel van de hemel dat dit punt ziet, 0 tot 1
   let som = 0, tot = 0;
   for (let i = 0; i < LK.stralen; i++){
     const a = (-LK.spreid + 2 * LK.spreid * i / (LK.stralen - 1)) * Math.PI / 180;
     const w = Math.cos(a); tot += w;
-    if (lkStraal(x, h, Math.sin(a), Math.cos(a))) som += w;
+    if (lkStraal(x, h, Math.sin(a), Math.cos(a), rots)) som += w;
   }
   return som / tot;
 }
-function lkZon(x, h){                             // deel van de zon dat dit punt raakt, 0 tot 1
+function lkZon(x, h, rots = false){               // deel van de zon dat dit punt raakt, 0 tot 1
   let z = 0;
   for (const d of [-1, 0, 1]){
     const a = lk.za + d * LK.zonKegel * Math.PI / 180;
-    if (lkStraal(x, h, Math.sin(a), Math.cos(a))) z += 1 / 3;
+    if (lkStraal(x, h, Math.sin(a), Math.cos(a), rots)) z += 1 / 3;
   }
   return z;
 }
@@ -9023,6 +9087,16 @@ function lkRuw(k){                                // een kolom: licht en zon per
   let boven = 1, top = null;
   for (let r = 0; r < K.nr; r++){
     const j = K.j1 - r, h = (j + 0.5) * C, n = (k * K.nr + r) * 2;
+    if (h > 0 && K.buur[k] && !K.rots[k * K.nr + r]){
+      // Buiten, en geen rots. Hangt er in de buurt rots boven je, dan telt hoeveel hemel dit punt
+      // daaronder nog ziet, en of de zon het raakt: de zon komt schuin van zijn kant, dus onder een
+      // overhang ligt een schuine schaduwrand, en aan de open kant valt hij naar binnen. Een terras
+      // of een kei is hier gewoon lucht: ook daar ligt de schaduw van de rots overheen.
+      top = null;
+      K.ruw[n] = Math.max(lkZicht(x, h, true), lkZon(x, h, true));
+      K.ruw[n + 1] = -3;                          // buiten: geen zonnevlek erbij, het is al dag
+      continue;
+    }
     if (lkVast(i, j)){
       if (top === null){ top = h + C / 2; boven = lkZicht(x, top + 2); }
       K.ruw[n] = boven * (LK.bodem + (1 - LK.bodem) * Math.exp(-(top - h) / LK.diepte));
@@ -9067,11 +9141,11 @@ function lkKolom(k){                              // een kolom af: kaatslicht er
     let som = 0, somZ = 0;
     for (let q = q0; q <= q1; q++){ som += K.som[(q * nr + r) * 2]; somZ += K.som[(q * nr + r) * 2 + 1]; }
     const n = (q1 - q0 + 1) * (Math.min(nr - 1, r + R) - Math.max(0, r - R) + 1);
-    const m = (k * nr + r) * 2, vast = K.ruw[m + 1] === -1, vrij = K.ruw[m + 1] === -2;
+    const m = (k * nr + r) * 2, vast = K.ruw[m + 1] === -1, vrij = K.ruw[m + 1] === -2, buiten = K.ruw[m + 1] === -3;
     const l = vast ? K.ruw[m] : Math.max(K.ruw[m], LK.kaats * som / n);
     const licht = LK.ambient + (1 - LK.ambient) * Math.min(1, l);
     K.licht[k * nr + r] = vast ? -1 : licht;
-    const a = vrij ? 0 : Math.min(1 - LK.minLicht, LK.donker * (1 - licht));
+    const a = vrij ? 0 : Math.min(1 - LK.minLicht, LK.donker * (1 - licht)) * (buiten ? LK.buiten : 1);
     const o = (r * K.nk + k) * 4;
     // In de lucht twee delen, zie drawLichtkaart: a2 valt over alles, ook over de personages, en
     // a1 alleen over de wereld eronder. Samen geven ze de wereld precies a: (1 - a1)(1 - a2) = 1 - a.
@@ -9080,8 +9154,8 @@ function lkKolom(k){                              // een kolom af: kaatslicht er
     doel[o] = 8; doel[o + 1] = 6; doel[o + 2] = 7; doel[o + 3] = Math.round(255 * a1);
     pa[o] = 8; pa[o + 1] = 6; pa[o + 2] = 7; pa[o + 3] = Math.round(255 * a2);
     const inloop = Math.max(0, Math.min(1, (-HOLTE_DAK - (K.j1 - r + 0.5) * LK.cel) / LK.zonInloop));
-    const za = vrij ? 0 : inloop * Math.min(1, (vast ? 0 : LK.zon * K.ruw[m + 1]) + LK.warm * somZ / n);
-    pz[o] = 255; pz[o + 1] = 200; pz[o + 2] = 130; pz[o + 3] = Math.round(255 * za);
+    const za = vrij || buiten ? 0 : K.zon.f * inloop * Math.min(1, (vast ? 0 : LK.zon * K.ruw[m + 1]) + LK.warm * somZ / n);
+    pz[o] = K.zon.rgb[0]; pz[o + 1] = K.zon.rgb[1]; pz[o + 2] = K.zon.rgb[2]; pz[o + 3] = Math.round(255 * za);
   }
   K.vuil = K.vuil ? [Math.min(K.vuil[0], k), Math.max(K.vuil[1], k)] : [k, k];
   K.klaar[k] = 1; K.nogTeDoen--;

@@ -69,7 +69,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | Episode De Diepte | `DIEP_1` tot en met `DIEP_5`: vijf zware levels met valschade, elk met een gang onder de grond en een trap terug naar boven, met een verhaal en een slot en de zwarte panter als eindbaas |
 | het verhaal bij een episode | `VERHAAL` en `SLOT`, `verhaalToon()`: tekst op een zwart scherm voor elk level en na het laatste, alleen als je bij het eerste level begint. Op de naam van het level, dus een nieuwe episode hoeft alleen tekst toe te voegen en `verhaalAan` te zetten in zijn speelknop |
 | Episode Test levels | `TEST_1` tot en met `TEST_11`: korte proefstukken, los van de echte episodes |
-| lichtkaart: het licht onder de grond | `LK`, `drawLichtkaart`: een lichtbron (de hemel en de zon) voor alles onder de grond, per level een keer uitgerekend |
+| lichtkaart: het licht onder de grond | `LK`, `drawLichtkaart`: een lichtbron (de hemel en de zon) voor alles onder de grond en onder rots boven je, per level een keer uitgerekend |
 | terrassen en richels | `terraces`, `ledges`, klimmen |
 | de rotswand rechts | `cliffs`, het einde van het level |
 | grotten: rots als een raster van cellen | `grotten`: het raster, de randen, de verstrooiing, de botsingen |
@@ -611,6 +611,26 @@ Twee regels die ertoe doen:
   van een gat erboven is de overkant, en die hoort niet lichter te zijn dan de grond vooraan.
 - **Een open ravijn telt mee.** `lkSleutel` kijkt ook naar `ravijnGaten()`: scheurt er in een level
   met een gang een ravijn open, dan rekent de kaart opnieuw.
+
+**De zon volgt het uitzicht** (`lkZonKleur`), net als de zon op de wand van een ravijn. De sterkte
+schaalt met `gloedSterkte` (0,30 overdag), met `LK.zonNacht` als ondergrens, en in de winter is de
+kleur koel wit (`LK.zonWinter`) in plaats van warm (`LK.zonKleur`). Anders viel er in de sneeuw oranje
+licht op grijze steen, en was de zon 's nachts beneden even fel als overdag. Kleur en sterkte zitten in
+`lkSleutel`.
+
+**Rots boven je, ook buiten.** Een plafondlijn en de volle cellen van een rotsraster zijn voor de
+kaart rots (`lkRotsPunt`), ook boven de grond, en een level met alleen een plafond of grotten krijgt
+ook een kaart. Die reikt dan tot `LK.buitenTop` omhoog en rekent buiten alleen binnen `LK.buitenBuur`
+van die rots (`lk.buur`); verder weg blijft het gewoon dag. Een punt buiten telt hoeveel hemel het
+onder de rots nog ziet, en of de zon het raakt (`lkZicht` en `lkZon` met `rots`: alleen de rots houdt
+dan de straal tegen, niet de grond en de terrassen). Het lichtste van die twee telt. De zon komt schuin
+van zijn kant, dus onder een overhang ligt een schuine schaduwrand, en aan de open kant valt hij naar
+binnen. Buiten weegt het donker minder zwaar (`LK.buiten`), want de lucht eromheen is open, en er komt
+geen zonnevlek bij: het is al dag. Een terras of een kei onder de rots is voor de kaart lucht, zodat
+de schaduw er ook overheen ligt. De rots zelf wordt boven de grond niet donkerder gemaakt.
+
+Wat het kost, gemeten in Test 1: de hele kaart 0,3 seconde, in stukjes van `LK.budget`; het eerste
+beeld van een level onder de rots eenmalig zo'n 50 ms.
 
 ### Een gewoon ravijn is een ravijn dat al open staat
 
