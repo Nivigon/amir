@@ -81,6 +81,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | gaten in de grond | `gaps`, de overkant, de nevel en de diepte; de laag die eronder doorloopt is `grondDoorlopen`, in de bodemsectie |
 | stof, sneeuwval, het weer | deeltjes en het weerplan per potje |
 | vegetatie, water, doornbos | `props`, `water`, `thickets` |
+| schilden in de wind | `SCHILD`, `schildStofUpdate`, `schildTil`, `drawSchildStof`: een schild (`schild: true` in `PROPS`) is een windscherm; bij een vlaag stuwt er stof tegen de windkant op, dat eroverheen waait. Plaatjes uit `tools/schilden.py` |
 | slangen: kleur, zicht en patrouille | `SNAKE_DIRS`, `slangZiet`, `startPatrouille`, `slangSchuif` |
 | zwarte panter, de witte panter, de hyena | de grote vijanden |
 | voorgrond: de laag tussen de camera en Amir | `VOORGROND`, `VG_SOORT`, `drawVoorgrond`: onscherp gras, struiken, keien en een schedel vlak voor de camera; schuift sneller dan de wereld, ook verticaal, en valt onder de grond weg |
