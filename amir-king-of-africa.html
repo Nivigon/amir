@@ -2543,6 +2543,12 @@ function drawTerCol(sx, sw, dx, dw, flip, top, bottom, st, img){
 // hetzelfde steen als een terras, alleen donkerder naarmate ze dieper liggen, net als de gang:
 // alleen helderheid, geen tint.
 function holteHelder(h){ return 1 - HOLTE_LICHT.trede * Math.min(1, -h / 500); }
+// Decor, keien en doornbossen die beneden in een gang staan krijgen hetzelfde donker als de
+// treden daar: alleen helderheid, geen tint. Boven op de savanne blijft alles zoals het was.
+function holteFilter(x, h){
+  if (building || h >= -1 || !holteAt(x)) return null;
+  return 'brightness(' + holteHelder(h) + ')';
+}
 function drawClimb(groundY, scale, cx, onder){
   if (!hasClimb()) return;
   const hier = h => onder ? h < 0 : h >= 0;
@@ -4911,7 +4917,7 @@ function javUpdate(dt, plats, scale){
         javStick(jav.x, jav.h, 'bos', scale); return;
       }
     }
-    if (!building && jav.h <= terrainH(jav.x) + 8 && waterDepthAt(jav.x) > 0.35){ javLose(null); return; }
+    if (!building && jav.h <= terrainH(jav.x) + 8 && waterDepthAt(jav.x, jav.h) > 0.35){ javLose(null); return; }
     if (jav.h < Math.min(0, terrainH(jav.x)) - GAP_DEATH){ javLose(javGapNear(jav.x)); return; }   // in een ravijn
     if (fNieuw > -Infinity && jav.h <= fNieuw){ javStick(jav.x, fNieuw, 'grond', scale); return; }
   }
@@ -5571,7 +5577,7 @@ let onGround = true;
 const dust = [];
 
 function takeOff(){
-  jump = { phase: 'air', t: 0 }; pvh = jumpV() * (1 - (1 - POOL.jump) * waterDepthAt(world)); onGround = false; fell = false; coyote = 0; puffDust(4);
+  jump = { phase: 'air', t: 0 }; pvh = jumpV() * (1 - (1 - POOL.jump) * waterDepthAt(world, ph)); onGround = false; fell = false; coyote = 0; puffDust(4);
 }
 function startJump(){
   if (typeof tutEvent === 'function') tutEvent('jump');
@@ -5583,7 +5589,7 @@ function startJump(){
 }
 
 function puffDust(n){
-  if (!building && ph < 5 && waterDepthAt(world) > 0.2){ splashAt(world, n > 6 ? 1.15 : 0.8); return; }
+  if (!building && ph < 5 && waterDepthAt(world, ph) > 0.2){ splashAt(world, n > 6 ? 1.15 : 0.8); return; }
   for (let i = 0; i < n; i++){
     dust.push({ x: (Math.random() - 0.5) * 70, y: -Math.random() * 6,
                 vx: (Math.random() - 0.5) * 150, vy: -30 - Math.random() * 70,
@@ -6223,6 +6229,8 @@ function drawThickets(groundY, scale, cx){
         if (!src) continue;
         const h = c.hS * scale, w = c.wS * scale;
         ctx.save();
+        const donker = holteFilter(t.x, t.base);        // een doornbos beneden in een gang
+        if (donker) ctx.filter = donker;
         ctx.translate(px + c.dx * scale + sh - w / 2, bottom - h);
         if (st >= 1 ? bite : c.flip){ ctx.translate(w, 0); ctx.scale(-1, 1); }
         ctx.drawImage(src, 0, 0, w, h);
@@ -6261,7 +6269,10 @@ function waterWetMid(o){
   const s = poolScale();
   return poolLeft(o, s) + (POOL.wetL + (POOL.wetR + o.n * POOL.MW)) / 2 * s;
 }
-function waterDepthAt(x){                   // 0 = droog, 1 = midden in het water
+// h: de hoogte van wie er staat. Een poel ligt op de grondlijn, dus wie beneden in een gang
+// loopt (onder de grondlijn) staat niet in het water, ook niet als er een poel boven hem ligt.
+function waterDepthAt(x, h){                // 0 = droog, 1 = midden in het water
+  if (h !== undefined && h < -1 && holteAt(x)) return 0;
   const s = poolScale();
   let best = 0;
   for (const o of waterList()){
@@ -6653,7 +6664,7 @@ function updateJump(dt, plats, halfW){
     jump.t += dt;
     if (jump.phase === 'crouch' && jump.t >= CROUCH_T){ jump.phase = 'push'; jump.t = 0; }
     else if (jump.phase === 'push' && jump.t >= PUSH_T){
-      jump.phase = 'air'; jump.t = 0; pvh = jumpV() * (1 - (1 - POOL.jump) * waterDepthAt(world)); onGround = false; puffDust(4);
+      jump.phase = 'air'; jump.t = 0; pvh = jumpV() * (1 - (1 - POOL.jump) * waterDepthAt(world, ph)); onGround = false; puffDust(4);
     } else if (jump.phase === 'land' && jump.t >= LAND_T) jump = null;
   }
 
@@ -6690,7 +6701,7 @@ function updateJump(dt, plats, halfW){
     fell = false;                                     // toch ergens op geland: je mag weer lopen
     if (jump){ jump.phase = 'land'; jump.t = 0; }
     puffDust(9);
-    if (winterOn() && !building && waterDepthAt(world) < 0.2) snowBurst(world, target, vIn / 900);   // de sneeuw stuift op
+    if (winterOn() && !building && waterDepthAt(world, target) < 0.2) snowBurst(world, target, vIn / 900);   // de sneeuw stuift op
     valLand(diep);
   }
   if (!onGround && ph < -GAP_DEATH && !holteAt(world)) fallDeath();   // in het gat gevallen (niet als er een gang onder zit)
@@ -7002,7 +7013,7 @@ function valKosten(diep){ return diep < VAL_VRIJ ? 0 : (diep < VAL_ZWAAR ? 1 : V
 // neer waar je neerkomt. In water landen kost niets, dat breekt je val, en een poel op de
 // bodem zie je van bovenaf aankomen.
 function valLand(diep){
-  if (!valSchadeAan() || waterDepthAt(world) > 0.3) return;
+  if (!valSchadeAan() || waterDepthAt(world, ph) > 0.3) return;
   const n = valKosten(diep);
   if (n <= 0) return;
   if (sandbox)                       // geen levens in de sandbox: daar lees je af wat het gekost zou hebben
@@ -7520,7 +7531,9 @@ function triggerDist(kind){ return W * (TRIGGER[kind] || 1.10); }
 // (omdat hij moest wachten), dan komt hij net buiten de rand binnen
 // monsters op een terras: 'base' is de hoogte waar ze op staan (0 = gewone grond)
 function blocksMonster(p, base){ return !p.thin && p.topH > base + 1; }   // alleen wat boven hem uitsteekt
-function dropAhead(x, base){ return vloerBij(x, base) < base - 1; }              // hier houdt zijn terras op
+// Hier houdt zijn vloer op: de rand van zijn terras, of voor wie beneden in een gang staat de
+// eindwand van die gang (daarbuiten is het massief grondpakket, daar loopt niemand doorheen).
+function dropAhead(x, base){ return (base < -1 && !holteAt(x)) || vloerBij(x, base) < base - 1; }
 function spawnOK(x, base){ return !gatOp(x, base) && vloerBij(x, base) === base; }
 function spawnPoint(x){
   const minD = W / 2 / viewZoom() + 260;
@@ -7561,7 +7574,12 @@ function updateSnakes(dt, plats, halfWNow, cliff){
       }
       if (d > W * 2.5){ sp.used = true; continue; }   // je bent al ver voorbij: laat maar zitten
       sp.used = true;
-      if (sp.kind === 'hyenas'){ spawnHyenaPack(sp.n || 1, null); continue; }
+      if (sp.kind === 'hyenas'){
+        // Hyena's komen op de hoogte waar Amir staat. Staan ze in een gang en is hij nog boven,
+        // dan wachten ze tot hij beneden is: anders rennen ze over het dak en halen ze hem nooit.
+        if (holteAt(sp.x) && terrainH(sp.x) < -1 && ph >= -1){ sp.used = false; continue; }
+        spawnHyenaPack(sp.n || 1, null); continue;
+      }
       if (sp.kind === 'zwaard'){
         const zx = spawnPoint(sp.x);
         const z = makeZwaard(zx, zx > world ? 1 : -1, sp.kleur);
@@ -8655,7 +8673,10 @@ function hyRand(a, b){ return a + Math.random() * (b - a); }
 // komen te staan en geen kant meer op kunnen, want elke stap loopt dan tegen een rand aan.
 // Is er nergens vaste grond, dan geeft hij null terug en komt die hyena gewoon niet.
 function hyBuitenBeeld(sd){
-  const lo = endWall() + 220, hi = cliffAt().wall - 220;
+  let lo = endWall() + 220, hi = cliffAt().wall - 220;
+  // beneden in een gang komen ze uit die gang, niet van de savanne erboven
+  const gang = (!building && ph < -1) ? holteAt(world) : null;
+  if (gang){ lo = Math.max(lo, gang.l + 80); hi = Math.min(hi, gang.r - 80); }
   const klem = v => Math.min(hi, Math.max(lo, v));
   // droog staan is niet genoeg: de eerste stappen naar jou toe moeten ook grond hebben,
   // anders staat hij meteen met zijn neus tegen de rand van hetzelfde ravijn
@@ -10677,7 +10698,7 @@ function loop(now){
     if (swFrame >= SWEEP_N){ swFrame = -1; swAcc = 0; atkCooldown = SWEEP_COOLDOWN; swRecover = SWEEP_RECOVER; }
   } else if (swRecover > 0) swRecover = Math.max(0, swRecover - dt);
   if (swFrame >= SWEEP_FROM && swFrame <= SWEEP_TO && onGround && ph < 5 && !building
-      && waterDepthAt(world) < 0.2){
+      && waterDepthAt(world, ph) < 0.2){
     spawnSweepSand(dt);                                  // alleen op het zand, niet op rots of in water
     if (winterOn()) spawnSweepSnow(dt, scaleNow);        // en in de winter vliegt de sneeuw op
   }
@@ -10695,7 +10716,7 @@ function loop(now){
     else if (swRecover > 0){ duckT = 1; dir = 0; }               // en daarna nog even
     duckShare = 1 - (1 - DUCK_BOX) * duckT;
   }
-  const wetNow = (!building && ph < 2) ? waterDepthAt(world) : 0;   // tot je knieën in het water
+  const wetNow = (!building && ph < 2) ? waterDepthAt(world, ph) : 0;   // tot je knieën in het water
   if (!fell) world += dir * 330 * walkK() * (wetNow > 0.3 ? 1 : sprint) * (1 - (1 - POOL.slow) * wetNow) * dt;
   const cliff = cliffAt();
   if (world + halfWNow > cliff.wall) world = cliff.wall - halfWNow;   // je komt er niet voorbij
@@ -10719,7 +10740,7 @@ function loop(now){
   if (!building) plafondBlok(halfWNow);              // en het steen waar de plafondlijn onder je kruin duikt
   updateJump(dt, plats, halfWNow);
   // waar stond hij voor het laatst op vaste grond? Daar komt een verloren speer terug
-  if (!building && onGround && !fell && !gatOp(world, ph) && waterDepthAt(world) < 0.2) lastSolid = world;
+  if (!building && onGround && !fell && !gatOp(world, ph) && waterDepthAt(world, ph) < 0.2) lastSolid = world;
   // staat hij op de speer? Dan buigt de schacht door (zie javUpdate)
   if (jav && jav.state === 'muur'){
     const jp = javPlat(scaleNow);
@@ -10824,7 +10845,7 @@ function loop(now){
     const scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H;
     const cx = W / 2;
     const pcx = cx + (pWorld - world);            // Amir zelf (gelijk aan cx, behalve in de boss-arena)
-    const wetDraw = building ? 0 : waterDepthAt(pWorld) * Math.max(0, 1 - ph / 40);
+    const wetDraw = building ? 0 : waterDepthAt(pWorld, ph) * Math.max(0, 1 - ph / 40);
     const sinkPx = wetDraw * POOL.sink * CHAR_H * scale;   // in het water zak je een stukje weg
     const lift = -ph * scale + sinkPx;            // hoogte boven de grond
     let w, h, x, y;
@@ -11063,11 +11084,15 @@ function loop(now){
           const py2 = groundY - ph2 + (def.sink || 0.02) * ph2 + (p.far ? 4 : 0)
                     - (p.far ? 0 : terrainH(p.x) * scale + propTerug);
           const src2 = p.far ? (propFar[p.kind] || pim) : pim;
+          const donker = p.far ? null : holteFilter(p.x, terrainH(p.x));   // beneden in een gang
           if (VEG[p.kind]){
+            if (donker){ ctx.save(); ctx.filter = donker; }
             drawVeg(p.kind, src2, px2 + pw2 / 2, py2 + ph2, ph2, p.flip, p, p.x, p.far);
+            if (donker) ctx.restore();
             continue;
           }
           ctx.save();
+          if (donker) ctx.filter = donker;
           ctx.translate(px2, py2);
           if (p.flip){ ctx.translate(pw2, 0); ctx.scale(-1, 1); }
           ctx.drawImage(src2, 0, 0, pw2, ph2);
@@ -11198,7 +11223,10 @@ function loop(now){
         const px = cx + (p.x - world) - p.wPx / 2;
         if (px > W / viewZoom() + W || px + p.wPx < -W) continue;
         const pb = (p.base || 0) * scale;
+        const donker = holteFilter(p.x, p.base || 0);   // een kei beneden in een gang
+        if (donker){ ctx.save(); ctx.filter = donker; }
         ctx.drawImage(platImgNow, px, groundY - p.hPx + PLAT.sink * p.hPx - pb, p.wPx, p.hPx);
+        if (donker) ctx.restore();
         if (showBoxes || building){
           ctx.save();
           ctx.globalAlpha = 0.5; ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2;
