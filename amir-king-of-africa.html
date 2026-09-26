@@ -7818,17 +7818,91 @@ function ravijnWandKolom(u, gw, w){                 // welke kolom van de wand d
   const stuk = Math.min(tw, gw - 2 * B - n * tw);   // het laatste stuk kan korter zijn
   return Math.floor(B + stuk - r);
 }
+// ---- ravijn in de winter ----
+// In een level met winter: true is de grond grijze steen onder de sneeuw, en de gewone ravijnen
+// zijn daar blauwgrijs. De rode aarde van ravijn_wand.png past daar niet. De wand krijgt bij het
+// laden een eigen kleur: per pixel dezelfde helderheid, maar in steen (tint, een zacht
+// blauwgrijs), dus alleen kleur en geen waas eroverheen. Daarbovenop ligt sneeuw op de rand
+// van de overkant (ravijnSneeuwRand), door de code getekend, met hier en daar een kale plek.
+// dik: dikte van de sneeuw in rijen van de wand, golvend tussen de twee;
+// kaal: hoe vaak er steen doorkomt (0 nooit, 1 overal); sneeuw, schaduw, lijn: de kleuren.
+const RAVIJN_WINTER = { tint: [98, 105, 120], dik: [1.6, 5.4], kaal: 0.16,
+                        sneeuw: '#eef2f8', schaduw: 'rgba(120,140,175,0.85)', lijn: 'rgba(30,30,40,0.5)' };
+let ravijnWandWinter = null;
+function ravijnWandNu(){                            // de wand die bij dit level hoort
+  const b = ravijnWandBeeld;
+  if (!b || !winterOn()) return b;
+  if (ravijnWandWinter && ravijnWandWinter.bron === b) return ravijnWandWinter;
+  const c = document.createElement('canvas');
+  c.width = b.width; c.height = b.height;
+  const g = c.getContext('2d');
+  g.drawImage(b, 0, 0);
+  let d;
+  try { d = g.getImageData(0, 0, c.width, c.height); } catch (e){ return b; }
+  const px = d.data, T = RAVIJN_WINTER.tint;
+  let som = 0, n = 0;
+  for (let i = 0; i < px.length; i += 4) if (px[i + 3] > 200){ som += 0.3 * px[i] + 0.59 * px[i + 1] + 0.11 * px[i + 2]; n++; }
+  const gem = n ? som / n : 80;                     // de gemiddelde helderheid komt op de tint uit
+  for (let i = 0; i < px.length; i += 4){
+    const L = (0.3 * px[i] + 0.59 * px[i + 1] + 0.11 * px[i + 2]) / gem;
+    px[i] = Math.min(255, T[0] * L); px[i + 1] = Math.min(255, T[1] * L); px[i + 2] = Math.min(255, T[2] * L);
+  }
+  g.putImageData(d, 0, 0);
+  c.rand = b.rand; c.randMidden = b.randMidden; c.bron = b;
+  return ravijnWandWinter = c;
+}
+// De sneeuw op de rand van de overkant, in de maat van de module (na drawGap, binnen
+// ravijnSchaal en ravijnRekTeken): een witte strook langs de rand zoals de wand hem neerlegt,
+// met een blauwe schaduw en een donker lijntje aan de onderkant, zoals de andere sneeuwsprites.
+function ravijnSneeuwRand(fx){
+  if (!winterOn() || fx.p < 0.3) return;
+  const beeld = fx.wall;
+  if (!beeld || !beeld.rand) return;
+  const Z = RAVIJN_WINTER, lp = fx.gapLeft, gw = fx.gapRight - lp, w = beeld.rand.length;
+  const stukken = [];
+  let boven = [], onder = [];
+  for (let u = 0; u <= gw; u += 1.5){
+    const r = beeld.rand[ravijnWandKolom(u, gw, w)];
+    const golf = 0.5 + 0.25 * Math.sin(u * 0.21 + fx.x) + 0.17 * Math.sin(u * 0.53) + 0.08 * Math.sin(u * 0.09 + 2);
+    const kaal = Math.sin(u * 0.047 + fx.x * 0.013) + 0.35 * Math.sin(u * 0.13) > 1.35 - 2.2 * Z.kaal;
+    if (r < 0 || r > RAVIJN_GRAS.onder || kaal){    // hier geen sneeuw: een stuk afsluiten
+      if (boven.length > 1) stukken.push([boven, onder]);
+      boven = []; onder = [];
+      continue;
+    }
+    const x = lp + u, y = fx.groundY + r;
+    boven.push([x, y - 1.8]);
+    onder.push([x, y + Z.dik[0] + (Z.dik[1] - Z.dik[0]) * golf]);
+  }
+  if (boven.length > 1) stukken.push([boven, onder]);
+  if (!stukken.length) return;
+  ctx.save();
+  ctx.globalAlpha *= Math.min(1, (fx.p - 0.3) / 0.5);
+  const lijn = (pts, dy) => pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y + dy) : ctx.moveTo(x, y + dy));
+  for (const [b, o] of stukken){
+    ctx.beginPath();
+    lijn(b, 0);
+    for (let i = o.length - 1; i >= 0; i--) ctx.lineTo(o[i][0], o[i][1]);
+    ctx.closePath();
+    ctx.fillStyle = Z.sneeuw; ctx.fill();
+    ctx.beginPath(); lijn(o, -1); ctx.strokeStyle = Z.schaduw; ctx.lineWidth = 1.6; ctx.stroke();
+    ctx.beginPath(); lijn(o, 0.6); ctx.strokeStyle = Z.lijn; ctx.lineWidth = 0.8; ctx.stroke();
+  }
+  ctx.restore();
+}
 const ravijnGrasVer = new Map();                     // kleur -> { still, sheet }: het gras op afstand
 function ravijnGrasKleur(fx){
   if (fx.grasVer) return fx.grasVer;
-  const v = fx.vak, vs = VEG.gras;
-  if (!v || !imgReady(grassImg) || !imgReady(vs.img)) return null;
+  const v = fx.vak, vs = VEG.gras, winter = winterOn();
+  const stil = winter ? winterImg.gras : grassImg;   // in de winter het berijpte gras, zoals elders in die levels
+  if (!v || !stil || !imgReady(stil) || (!winter && !imgReady(vs.img))) return null;
   const a = fx.achter.getContext('2d').getImageData(0, Math.max(0, v.bh - 6), v.bw, Math.min(6, v.bh)).data;
   let r = 0, g = 0, b = 0, n = 0;
   for (let i = 0; i < a.length; i += 4) if (a[i + 3]){ r += a[i]; g += a[i + 1]; b += a[i + 2]; n++; }
   if (!n) return null;
   const kleur = 'rgb(' + [r, g, b].map(k => (k / n / 8 | 0) * 8).join(',') + ')';   // afgerond: minder varianten
-  if (!ravijnGrasVer.has(kleur)){
+  const sleutel = kleur + (winter ? ' winter' : '');
+  if (!ravijnGrasVer.has(sleutel)){
     if (ravijnGrasVer.size > 3) ravijnGrasVer.clear();
     const kleur1 = im => {
       const c = document.createElement('canvas');
@@ -7841,9 +7915,12 @@ function ravijnGrasKleur(fx){
       c.complete = true; c.naturalWidth = c.width; c.naturalHeight = c.height;   // zodat drawVeg hem als plaatje neemt
       return c;
     };
-    ravijnGrasVer.set(kleur, { still: kleur1(grassImg), sheet: kleur1(vs.img) });
+    // Het berijpte gras heeft geen animatievel en buigt nergens mee (het is bevroren), dus
+    // hier ook niet: geen sheet, en buigen staat uit (ravijnGrasTeken).
+    ravijnGrasVer.set(sleutel, winter ? { still: kleur1(stil), sheet: null }
+                                      : { still: kleur1(stil), sheet: kleur1(vs.img) });
   }
-  return fx.grasVer = ravijnGrasVer.get(kleur);
+  return fx.grasVer = ravijnGrasVer.get(sleutel);
 }
 function ravijnGrasTeken(fx, groundY, op){
   const beeld = ravijnWandBeeld, v = fx.vak;
@@ -7865,7 +7942,8 @@ function ravijnGrasTeken(fx, groundY, op){
       u += (G.groep[0] + (G.groep[1] - G.groep[0]) * rnd(fx.x, i + 300)) / s;
     }
   }
-  VEG.grasVer = { n: VEG.gras.n, cols: VEG.gras.cols, lean: VEG.gras.lean * G.buig, img: ver.sheet };
+  VEG.grasVer = ver.sheet ? { n: VEG.gras.n, cols: VEG.gras.cols, lean: VEG.gras.lean * G.buig, img: ver.sheet }
+                          : { n: 1, cols: 1, lean: 0, img: ver.still };   // bevroren: staat stil
   const gl = W / 2 + (wl - world), gr = W / 2 + (wr - world);
   ctx.save();
   ctx.beginPath();                                   // alleen in het gat, niet over de grond ernaast
@@ -11765,6 +11843,7 @@ function scene(groundY){
     ravijnSchaal(fx);
     ravijnRekTeken(fx, op);
     fx.drawGap(ctx);
+    ravijnSneeuwRand(fx);                           // in de winter: sneeuw op de rand van de overkant
     ctx.restore();
   }
   drawProps(groundY, propUnit, true);               // near scenery, standing on the line
@@ -15139,7 +15218,7 @@ function ravijnOpen(wx, breed = RAVIJN_MAAT.breed){
   if (oud) ravijnen.splice(ravijnen.indexOf(oud), 1);
   const spreid = breed / RAVIJN_MAAT.breed;
   const fx = new RavijnEffect({
-    wallImage: ravijnWandBeeld || ravijnWand,
+    wallImage: ravijnWandNu() || ravijnWand,        // in de winter de blauwgrijze (ravijnWandNu)
     quality: touchOn() ? 0.5 : 1,                   // op een telefoon de helft van de wolkjes
     stoneImages: ravijnStenen,
     x: wx,
