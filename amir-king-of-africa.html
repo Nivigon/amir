@@ -579,6 +579,14 @@
         <button data-muziek="darkafrica">Nacht</button>
         <button id="sbraak">Kreet bij een klap</button>
       </div>
+      <div class="row">
+        <label>Voorgrond</label>
+        <button data-voorgrond="0" class="on">Uit</button>
+        <button data-voorgrond="1">Gras</button>
+        <button data-voorgrond="2">Dicht gras</button>
+        <button data-voorgrond="3">Gemengd</button>
+        <button id="sbvgscherp">Onscherp</button>
+      </div>
     </div>
     <div class="row">
       <button id="sbgod" style="display:none">Onsterfelijk uit</button>
@@ -2118,7 +2126,42 @@ const TEST_10 = {
           { x: -1300, t: 'Kijk hoe het licht door de gaten naar binnen valt' },
           { x: -2400, t: 'Een lang donker stuk: na een paar tellen wennen je ogen eraan' } ]
 };
-const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10];
+// Test 11: Test 10 met een voorgrond. Het terrein is een kopie van Test 10 zoals het nu is;
+// Test 10 zelf blijft los. Het gaat om twee momenten: het begin, waar de voorgrond je de
+// savanne in laat kijken met gras, struiken, een schedel en een kei tot aan de rand van het
+// ravijn, en het afzakken in de ingang, waar hij omhoog wegglijdt. Aan het eind kom je met
+// de trap weer boven in dicht gras, dan een open plek rond de fakkels, zodat
+// je ziet waar je heen moet, en daarachter nog een strook tot aan de klif.
+const TEST_11 = {
+  name: 'Test 11: Voorgrond',
+  lagen: 'tafelbergen',
+  rocks: [],
+  props: [ {x: -250, k: 'gras', s: 1.1, f: 0, v: 0} ],
+  spawns: [ {x: -3200, k: 'scorp'} ],
+  terraces: [ {r: -4000, l: -4900, h: -550}, {r: -4250, l: -4900, h: -400},
+              {r: -4450, l: -4900, h: -250}, {r: -4650, l: -4900, h: -100} ],
+  ledges: [], hppotions: [],
+  gaps: [ {x: -900, w: 600}, {x: -1900, w: 260}, {x: -4500, w: 800} ],
+  holtes: [ {r: -450, l: -4900, diep: 700} ],
+  village: [], npcs: [], water: [], thickets: [],
+  cliffs: [ {x: -5900} ],
+  ends: [ {x: -5400} ],
+  voorgrond: {
+    stroken: [ {van: 700, tot: -250, dicht: 0.75, struik: 0.22, kei: 0.06},    // het begin: vol
+               {van: -250, tot: -1300, dicht: 0.4, struik: 0.1, kei: 0.12},    // naar het ravijn toe ijler
+               {van: -4750, tot: -5200, dicht: 0.85, struik: 0.25, kei: 0.08}, // weer boven: dicht
+               {van: -5200, tot: -5550, dicht: 0.2, struik: 0, kei: 0},        // open plek bij de fakkels
+               {van: -5550, tot: -6400, dicht: 0.7, struik: 0.15, kei: 0.1} ],
+    los: [ {x: -420, k: 'kei', s: 1.2, f: 1},
+           {x: -150, k: 'schedel', s: 1, f: 0},
+           {x: -5330, k: 'schedel', s: 1, f: 1},
+           {x: -5700, k: 'kei', s: 1.1, f: 0} ]
+  },
+  tips: [ { x: -60, t: 'Testlevel voor de voorgrond: gras, struiken en keien vlak voor de camera' },
+          { x: -1300, t: 'Onder de grond is de voorgrond weg: daar zit aarde tussen jou en de camera' },
+          { x: -2400, t: 'Loop door naar de trap: boven begint hij weer' } ]
+};
+const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11];
 const WINTER_LEVELS = [WINTER_1, WINTER_2];
 let levelIdx = 0;
 
@@ -10582,6 +10625,177 @@ function drawFgGrass(groundY, cx, scale, pcx){
     ctx.restore();
   }
 }
+
+// ---- voorgrond: de laag tussen de camera en Amir ----
+// Gras, struiken en keien die dichter bij de camera staan dan het pad: ze schuiven sneller
+// dan de wereld (par), zijn onscherp en donkerder, en staan met hun voet onder de rand van
+// het scherm. Ook verticaal schuift de laag sneller (parY): zakt de camera een gang in, dan
+// glijdt hij langs je omhoog het beeld uit en valt hij onderweg weg (weg), want onder de
+// grond staat er aarde tussen de camera en Amir; klim je een terras op, dan zakt hij weg.
+//
+// Een level zet hem met het veld voorgrond:
+//   stroken: [{van, tot, dicht, struik, kei}]   waar het groeit; dicht 0..1, struik en kei
+//            zijn het deel van de pollen dat een struik of een kei is, de rest is gras.
+//            Aan de uiteinden loopt een strook uit (rand), en binnen een strook wisselen
+//            dichte plekken en open stukken elkaar af (golf).
+//   los:     [{x, k, s, f}]   een enkel stuk op een vaste plek: k uit VG_SOORT
+// De x staat in de wereld: een stuk op x staat midden in beeld als Amir op x staat.
+// In de sandbox: Voorgrond, bij Beeld en geluid.
+const VOORGROND = {
+  par: 1.45,            // zo veel sneller dan de wereld, horizontaal
+  parY: 1.8,            // en verticaal: sneller, anders hangt hij bij een ondiepe gang nog in beeld
+  weg: [20, 170],       // camera zoveel onder de grondlijn: van hier tot daar valt hij weg. Vroeg:
+                        // de laag schuift omhoog, en anders komt de onderkant van een kei in beeld
+  stap: 85,             // om de zoveel schermpixels een plek voor een pol
+  rand: 260,            // zo ver loopt een strook uit, in de wereld
+  bron: 300,            // hoogte van het voorgerekende plaatje, in pixels
+  vaag: 7,              // onscherpte op die hoogte (een groter stuk is dus vager: dichterbij)
+  donker: 'rgba(28,20,10,0.52)'    // de schaduw waar hij in staat
+};
+// Hij wordt nergens doorzichtig: Amir loopt niet door de voorgrond maar erachter, en een laag
+// die voor hem wegpoetst breekt juist de diepte. Wat hem mag verbergen regel je met de hoogte
+// hieronder en met de dichtheid in het level: normaal hooguit zijn voeten en schenen, een
+// enkele hoge pol even half, en bij een vijand of een ravijnrand een ijle strook.
+// h: hoogte als deel van Amir (van, tot); onder: zo ver staat de voet onder de rand van het
+// scherm, want de voorgrond heeft geen eigen grond: wat zijn voet laat zien, zweeft; laag:
+// tekenvolgorde, het gras komt over de voet van de rest heen; wieg: waait mee; voet: zo'n
+// deel van onderen loopt zacht uit, zodat er geen harde onderrand in beeld komt als de laag
+// bij het afzakken omhoog schuift. De schedel ligt half onder de rand en krijgt altijd een
+// paar lage pollen voor zich (pollen), zodat je alleen de horens tussen het gras ziet.
+const VG_SOORT = {
+  kei:     { src: 'design/boulder.png',              h: [0.6, 1.1],  onder: 0.30, laag: 1, wieg: 0,   voet: 0.35 },
+  struik:  { src: 'design/struik.png',               h: [0.8, 1.3],  onder: 0.28, laag: 2, wieg: 0.6, voet: 0.35 },
+  schedel: { src: 'design/botten/skull_buffel.png',  h: [0.34, 0.4], onder: 0.07, laag: 3, wieg: 0,   voet: 0.3,
+             pollen: [{ dx: -0.35, s: 0.5 }, { dx: 0.3, s: 0.6 }] },   // dx als deel van zijn breedte
+  gras:    { src: 'design/drygrass.png',             h: [0.6, 1.5],  onder: 0.10, laag: 4, wieg: 1,   voet: 0.3 }
+};
+for (const k in VG_SOORT) VG_SOORT[k].img = zetBron(new Image(), VG_SOORT[k].src);
+function leesVoorgrond(o){
+  if (!o) return null;
+  const tot01 = v => Math.max(0, Math.min(1, Number(v) || 0));
+  return { stroken: (o.stroken || []).map(q => ({ van: Number(q.van), tot: Number(q.tot),
+                                                  dicht: q.dicht === undefined ? 0.5 : tot01(q.dicht),
+                                                  struik: tot01(q.struik), kei: tot01(q.kei) })),
+           los: (o.los || []).filter(q => VG_SOORT[q.k])
+                             .map(q => ({ x: Number(q.x), k: q.k, s: Number(q.s) || 1, f: !!q.f })) };
+}
+let sbVoorgrond = 0;     // 0 uit, 1 gras, 2 dicht gras, 3 gemengd
+let sbVoorgrondScherp = false;
+const SB_VOORGROND = [null,
+  { stroken: [{ van: Infinity, tot: -Infinity, dicht: 0.45, struik: 0, kei: 0 }], los: [] },
+  { stroken: [{ van: Infinity, tot: -Infinity, dicht: 0.85, struik: 0, kei: 0 }], los: [] },
+  { stroken: [{ van: Infinity, tot: -Infinity, dicht: 0.7, struik: 0.2, kei: 0.08 }], los: [] }];
+function voorgrondNu(){
+  if (building) return null;
+  if (sandbox) return SB_VOORGROND[sbVoorgrond];
+  return level && level.voorgrond;
+}
+const vgCache = {};
+// een plaatje een keer onscherp en donker op maat zetten, met een zachte voet
+function vgPlaatje(img, scherp, voet){
+  const k = img.src + (scherp ? ':s' : ':v') + ':' + voet;
+  if (vgCache[k]) return vgCache[k];
+  const V = VOORGROND, m = scherp ? 0 : V.vaag * 3;
+  const h = V.bron, w = Math.round(img.naturalWidth * h / img.naturalHeight);
+  const c = document.createElement('canvas');
+  c.width = w + m * 2; c.height = h + m * 2;
+  const g = c.getContext('2d');
+  if (!scherp && typeof g.filter === 'string'){
+    g.filter = 'blur(' + V.vaag + 'px)';
+    g.drawImage(img, m, m, w, h);
+    g.filter = 'none';
+  } else if (!scherp){                          // geen filter (oudere Safari): trapsgewijs verkleinen en terug
+    let src = img, sw = img.naturalWidth, sh = img.naturalHeight;
+    const trap = [];
+    for (let f = 2; f <= 8; f *= 2){
+      const t = document.createElement('canvas');
+      t.width = Math.max(1, Math.round(w / f)); t.height = Math.max(1, Math.round(h / f));
+      t.getContext('2d').drawImage(src, 0, 0, sw, sh, 0, 0, t.width, t.height);
+      trap.push(t); src = t; sw = t.width; sh = t.height;
+    }
+    for (let i = trap.length - 2; i >= 0; i--){
+      const t = trap[i], tg = t.getContext('2d');
+      tg.clearRect(0, 0, t.width, t.height);
+      tg.drawImage(src, 0, 0, sw, sh, 0, 0, t.width, t.height);
+      src = t; sw = t.width; sh = t.height;
+    }
+    g.drawImage(src, 0, 0, sw, sh, m, m, w, h);
+  } else g.drawImage(img, 0, 0, w, h);
+  // onscherp lopen de dunne sprieten uit tot bijna niets: nog een keer over zichzelf heen
+  if (!scherp) g.drawImage(c, 0, 0);
+  g.globalCompositeOperation = 'source-atop';
+  g.fillStyle = V.donker;
+  g.fillRect(0, 0, c.width, c.height);
+  if (voet > 0){
+    const y0 = m + h * (1 - voet), gr = g.createLinearGradient(0, y0, 0, m + h);
+    gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,1)');
+    g.globalCompositeOperation = 'destination-out';
+    g.fillStyle = gr; g.fillRect(0, y0, c.width, c.height - y0);
+  }
+  vgCache[k] = { c, m, w, h };
+  return vgCache[k];
+}
+// hoe dicht het hier groeit, en wat: de strook op wereld-x wx, met zijn uitloop en de golf
+function vgStrook(cfg, wx){
+  for (const q of cfg.stroken){
+    const hi = Math.max(q.van, q.tot), lo = Math.min(q.van, q.tot);
+    if (wx > hi || wx < lo) continue;
+    const rand = Math.min(1, Math.min(hi - wx, wx - lo) / VOORGROND.rand);
+    const golf = 0.5 + 0.3 * Math.sin(wx * 0.0071) + 0.2 * Math.sin(wx * 0.0167 + 2);
+    return { q, dicht: q.dicht * rand * (0.3 + 0.7 * golf) };
+  }
+  return null;
+}
+function drawVoorgrond(groundY, scale){
+  const cfg = voorgrondNu();
+  if (!cfg) return;
+  const V = VOORGROND;
+  const diep = Math.max(0, -camY / scale);
+  const zicht = 1 - Math.max(0, Math.min(1, (diep - V.weg[0]) / (V.weg[1] - V.weg[0])));
+  if (zicht <= 0) return;
+  const cam = camEase !== null ? camEase : world;
+  const lx = cam * V.par;                        // waar de laag staat, in schermpixels
+  const rand0 = groundY + camY * (V.parY - 1) + (H - H * 0.82);   // de rand van het scherm, meegeschoven
+  const stuks = [];
+  const i0 = Math.floor((lx - W) / V.stap), i1 = Math.ceil((lx + W) / V.stap);
+  for (let i = i0; i <= i1; i++){
+    const pos = (i + rnd(i, 2)) * V.stap;
+    const st = vgStrook(cfg, pos / V.par);
+    if (!st || rnd(i, 1) > st.dicht) continue;
+    const r = rnd(i, 5);
+    const k = r < st.q.kei ? 'kei' : r < st.q.kei + st.q.struik ? 'struik' : 'gras';
+    const t = k === 'gras' ? rnd(i, 3) * rnd(i, 3) : rnd(i, 3);   // gras meestal laag
+    stuks.push({ k, pos, t, f: rnd(i, 4) < 0.5, ph: i * 2.3, s: 1 });
+  }
+  for (const q of cfg.los){
+    stuks.push({ k: q.k, pos: q.x * V.par, t: 0.5, f: q.f, ph: q.x * 0.01, s: q.s });
+    const S = VG_SOORT[q.k], b = S.img.naturalWidth / Math.max(1, S.img.naturalHeight) * CHAR_H * S.h[0] * q.s;
+    for (const g of S.pollen || [])   // lage pollen ervoor; b is zijn breedte in wereldmaat, bij benadering
+      stuks.push({ k: 'gras', pos: q.x * V.par + g.dx * b, t: 0, f: g.dx < 0, ph: q.x * 0.01 + g.dx, s: g.s });
+  }
+  stuks.sort((a, b) => VG_SOORT[a.k].laag - VG_SOORT[b.k].laag);
+  const tijd = performance.now() / 1000;
+  for (const o of stuks){
+    const S = VG_SOORT[o.k];
+    if (!imgReady(S.img)) continue;
+    const p = vgPlaatje(S.img, sbVoorgrondScherp && sandbox, S.voet);
+    const sx = W / 2 + o.pos - lx;
+    const hh = CHAR_H * scale * (S.h[0] + (S.h[1] - S.h[0]) * o.t) * o.s;
+    const ww = p.w * hh / p.h, mm = p.m * hh / p.h;
+    const voet = rand0 + S.onder * CHAR_H * scale;
+    if (sx + ww < -20 || sx - ww > W + 20 || voet - hh > H) continue;
+    ctx.save();
+    ctx.globalAlpha = zicht;
+    ctx.translate(sx, voet);
+    if (S.wieg){
+      const lean = windAt(cam - (sx - W / 2) / V.par) * VEG.gras.lean;
+      ctx.transform(1, 0, S.wieg * (Math.sin(tijd * 1.1 + o.ph) * 0.035 - lean), 1, 0, 0);
+    }
+    if (o.f) ctx.scale(-1, 1);
+    ctx.drawImage(p.c, -ww / 2 - mm, -hh - mm, ww + mm * 2, hh + mm * 2);
+    ctx.restore();
+  }
+}
 function bossBlocking(){
   return !!(level && level.spawns && level.spawns.some(sp => sp.kind === 'panter' && !sp.used))
       || panthers.some(p => p.state !== 'dying' && p.state !== 'gone');
@@ -14148,6 +14362,7 @@ function loop(now){
     }
     drawLichtlaag();                                // de hele wereld in dezelfde belichting
     drawSnowfall();                                 // de vlokken vallen over alles heen
+    drawVoorgrond(groundY, scaleNow);               // het gras vlak voor de camera
     drawBossBar();
     drawMuurE(camSwap !== null ? camSwap : world);   // voor de open deur: Press E
   } else {
@@ -14497,7 +14712,8 @@ function syncLevel(){
       seed: o.seed, strooi: o.strooi !== false,
       decor: (o.decor || []).map(d => ({ k: d.k, x: Math.round(d.x), y: Math.round(d.y || 0),
                                          f: d.f ? 1 : 0, s: +(d.s || 1).toFixed(2) })) })),
-    sneeuw: level.sneeuw || undefined        // staat er geen bodem of dek, dan valt het veld weg
+    sneeuw: level.sneeuw || undefined,       // staat er geen bodem of dek, dan valt het veld weg
+    voorgrond: level.voorgrond || undefined  // zonder voorgrond valt het veld weg
   });
   bcount.textContent = level.rocks.length + ' rotsen, ' + level.spawns.length
                      + ' monsters, ' + level.props.length + ' decor, '
@@ -14675,6 +14891,7 @@ function readLevel(txt){
            arena: o.arena ? { c: Number(o.arena.c) } : null,
            winter: !!o.winter,                          // sneeuw, grijze rots, witte dieren (Winter World)
            sneeuw: leesSneeuw(o.sneeuw),                // bodem en sneeuwdek, zie die sectie
+           voorgrond: leesVoorgrond(o.voorgrond),       // gras en keien vlak voor de camera, zie "voorgrond"
            tips: (o.tips || []).map(t => ({ x: Number(t.x), t: String(t.t) })),
            tutorial: o.tutorial ? o.tutorial.map(s => Object.assign({}, s)) : null });
 }
@@ -14799,6 +15016,7 @@ const SUBS = {
   'Test 7: Werpen op gevoel': 'Hoe langer je vasthoudt, hoe hoger en verder',
   'Test 8: Zegel test': 'Stap op het zegel en de grond scheurt open',
   'Test 9: Brede ravijnen': 'Een gewoon, een dubbel en een driedubbel ravijn',
+  'Test 11: Voorgrond': 'Test 10 met een onscherpe voorgrond van gras, struiken en keien',
   'Test 10: Licht onder de grond': 'Een gang met drie gaten in het dak, om het licht te bekijken'
 };
 function buildCards(el, list){
@@ -14869,6 +15087,7 @@ function startSandbox(){
   zetMuziek();
   sbMuziek = 'bg'; sbMuziekToon();
   sbSneeuw = { soort: null, dek: 1 }; sbSneeuwToon();   // kale grond, zoals de rest van de sandbox
+  sbVoorgrond = 0; sbVoorgrondScherp = false; sbVoorgrondToon();
   sbZwVrij = false; sbZwLabel();                        // de zwaardvechter doet weer zijn eigen werk
   document.getElementById('lives').style.display = 'none';   // geen levens in de sandbox
   restart();
@@ -15305,6 +15524,17 @@ sbRampBtn.onclick = () => {
   if (!sbSneeuw.soort){ sbSneeuw.soort = 'savanne'; loadSneeuw(); }
   sbSneeuwToon(); cv.focus();
 };
+// de voorgrondlaag: gras tussen de camera en Amir, en scherp om te vergelijken
+const sbVgScherpBtn = document.getElementById('sbvgscherp');
+function sbVoorgrondToon(){
+  sandboxEl.querySelectorAll('button[data-voorgrond]').forEach(b =>
+    b.classList.toggle('on', Number(b.dataset.voorgrond) === sbVoorgrond));
+  sbVgScherpBtn.textContent = sbVoorgrondScherp ? 'Scherp' : 'Onscherp';
+}
+sandboxEl.querySelectorAll('button[data-voorgrond]').forEach(b => b.onclick = () => {
+  sbVoorgrond = Number(b.dataset.voorgrond); sbVoorgrondToon(); cv.focus();
+});
+sbVgScherpBtn.onclick = () => { sbVoorgrondScherp = !sbVoorgrondScherp; sbVoorgrondToon(); cv.focus(); };
 document.getElementById('sbhppotion').onclick = () => sbHppotion(false);
 document.getElementById('sbhppotiondrop').onclick = () => sbHppotion(true);
 const sbSideBtn = document.getElementById('sbside');
