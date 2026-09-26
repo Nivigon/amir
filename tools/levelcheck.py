@@ -387,8 +387,6 @@ class Spel:
         # het scherm waarvoor we de schermafhankelijke maten uitrekenen
         self.H = hoog
         self.W = breed or hoog * 16 / 9                                   # 1280 bij 720
-        self.TRIGGER = b.const('TRIGGER')
-        self.HY_ENTER = b.getal('HY_ENTER')
         self.formaat = formaat
         self.scale = hoog * (formaat / 100) / self.CHAR_H
         self.halfW = self.PLAYER_HALF_W * self.CHAR_H * self.scale      # Amir, in wereld-px
@@ -892,35 +890,6 @@ def vijanden(lv, sp):
             yield info(o['x'], 'vijand %s staat beneden in de gang, op %s' % (o.get('k'), n0(lv.terrein(o['x']))))
         elif lv.in_gat(o['x'] - 40, o['x'] + 40):
             yield letop(o['x'], 'vijand %s start boven een ravijn' % o.get('k'))
-        if o.get('k') == 'hyenas' and lv.holtes:
-            yield from hyenas_hoogte(lv, sp, o)
-
-
-def hyenas_hoogte(lv, sp, o):
-    """Hyena's staan niet op hun plek in het level: ze worden losgelaten zodra Amir binnen
-    TRIGGER.hyenas schermbreedtes komt, en komen dan van buiten beeld aanrennen op de hoogte waar
-    hij op dat moment staat (vloerBij(x, ph)). Met een gang erbij kan dat de verkeerde hoogte zijn:
-    staat hij nog boven als ze komen, dan rennen ze over het dak en halen ze hem beneden nooit.
-    Gemeten met de speelrobot in een proefgang."""
-    d = sp.TRIGGER.get('hyenas', 1.1) * sp.W
-    xt = min(0, o['x'] + d)                         # hier is hij als ze komen (van rechts naar links)
-    y = lv.hoogte_op(xt)
-    if y is None:
-        return
-    bedoeld = -1 if lv.holte(o['x']) else 0          # waar het level ze neerzet
-    mis = []
-    for kant in (-1, 1):
-        hx = xt + kant * (sp.W / 2 + sp.HY_ENTER)
-        g = lv.holte(hx)
-        vloer = (-g['diep'] if (y < -1 or lv.in_gat(hx, hx)) else 0) if g else 0
-        if (-1 if vloer < -1 else 0) != bedoeld:
-            mis.append(('links' if kant < 0 else 'rechts', 'boven op de savanne' if vloer >= -1 else 'beneden in de gang'))
-    if mis:
-        yield fout(o['x'], "de hyena's op %s staan %s, maar ze komen los als Amir op %s is, en dan staat hij %s: "
-                   'die van %s komen %s aanrennen. Zet ze verder van de ingang, zodat hij al %s is als ze komen'
-                   % (n0(o['x']), 'in de gang' if bedoeld else 'boven', n0(xt),
-                      'beneden in de gang' if y < -1 else 'boven op de savanne',
-                      ' en '.join(k for k, _ in mis), mis[0][1], 'beneden' if bedoeld else 'boven'))
 
 
 @regel('ravijnen')
@@ -1238,15 +1207,6 @@ def gangen(lv, sp):
                 yield fout(t['r'], 'terras van %s tot %s (h %s) staat boven de gang van %s tot %s: zijn wand loopt '
                            'door tot in de gang en staat daar als een pilaar, waar Amir beneden niet langs komt'
                            % (n0(t['r']), n0(t['l']), n0(t['h']), n0(o['r']), n0(o['l'])))
-    # water: waterDepthAt kijkt niet naar de hoogte, dus in de gang onder een poel loopt hij
-    # door dat water: hij zakt weg in de vloer, loopt half zo hard en springt zwakker
-    for p in lv.d.get('water') or []:
-        nl, nr = sp.poel_nat(p)
-        for o in lv.holtes:
-            if nl < o['r'] and nr > o['l']:
-                yield fout(p['x'], 'poel op %s ligt boven de gang van %s tot %s: het spel kijkt niet naar de hoogte, dus '
-                           'beneden in de gang loopt Amir door dat water. Hij zakt weg in de vloer, loopt trager en '
-                           'springt zwakker' % (n0(p['x']), n0(o['r']), n0(o['l'])))
     # keien: in een gang staat een kei op de bodem, en daar kapt het dak zijn sprong af
     for r in lv.rocks:
         if not lv.holte(r['x']) or lv.in_gat(r['x'] - 150, r['x'] + 150):

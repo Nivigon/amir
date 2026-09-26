@@ -516,26 +516,30 @@ proefgang, en `levelcheck.py` meldt ze:
   klem, ook als hij er net in is gevallen.
 - **Een terras op de savanne boven een gang.** Zijn wand wordt tot onder in beeld getekend en
   houdt hem ook tegen, dus in de gang staat een lichte stenen pilaar waar hij niet langs komt.
-- **Water boven een gang.** `waterDepthAt` kijkt niet naar de hoogte: beneden in de gang loopt
-  hij door die poel, zakt weg in de vloer (hij is dan zelfs helemaal uit beeld), loopt half zo hard
-  en springt zwakker.
 - **Een kei in de gang die tot in het dak reikt.** Op een trede van -520 staat de bovenkant van
   een kei op -406, en daar mogen zijn voeten niet komen: hij komt er niet overheen en niet langs.
 - **Decor dat hoger is dan de gang.** Alles staat op de bodem, ook een boom, en die steekt dan
-  door het dak (en wordt niet donkerder getekend, dus hij licht op in het donker). Een doornbos
-  of een dorpsplaat net zo.
+  door het dak. Een doornbos of een dorpsplaat net zo.
 - **Een ingang die maar half boven de gang ligt.** Wie aan de kant zonder gang erin stapt, valt
   recht naar beneden (in een val loop je niet meer) en is dood.
 - **Een gang die de speer overdekt.** Aan het begin staat je speer op `SPEAR_AHEAD` (-260) in de
   grond; ligt daar een gang, dan staat hij beneden op de bodem en begin je zonder.
-- **Hyena's in de gang, vlak achter de ingang.** Hyena's staan niet op hun plek: ze worden
-  losgelaten zodra Amir binnen 1,05 schermbreedte komt, en rennen dan van buiten beeld aan op de
-  hoogte waar hij op dat moment staat. Is hij dan nog boven, dan blijven ze boven op het dak.
 - **Een gang minder diep dan 441.** `readLevel` maakt er zonder iets te zeggen 441 van, en dan
   kloppen je treden niet meer.
 - **Vallen met `valschade`.** De val door de ingang telt ook: een ingang boven een richel op -700
   kost al twee levens. Tel de vallen langs de hele route op tegen de drie levens en de kalebassen
   die onderweg liggen.
+
+Wat het spel zelf regelt, zodat je er als ontwerper niet op hoeft te letten:
+
+- **Water kijkt naar de hoogte.** `waterDepthAt(x, h)` geeft 0 voor wie beneden in een gang
+  staat: een poel boven een gang maakt Amir daar niet nat, traag of zwak in de sprong.
+- **Decor in een gang is donker.** Props, keien en doornbossen beneden in een gang krijgen
+  hetzelfde donker als de treden daar (`holteFilter`, alleen helderheid), anders lichten ze op.
+- **Hyena's komen op de goede hoogte.** Hyena's in een gang worden pas losgelaten als Amir zelf
+  beneden is, en komen dan uit de gang aanrennen (`hyBuitenBeeld`), niet van de savanne erboven.
+- **Vijanden blijven in hun gang.** Voor wie beneden staat is de eindwand van de gang een rand
+  (`dropAhead`): daar lopen ze niet doorheen naar boven.
 
 ### Een level donker maken
 
