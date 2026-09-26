@@ -119,7 +119,7 @@ precies hetzelfde formaat naar JSON.
 | `plafond` | de rots boven je als hoogtelijn: `[{x, y}, ...]` (zie hieronder) |
 | `muur` | de rotswand met het rune-symbool: `{x, speer}` (zie hieronder) |
 | `hppotions` | drinkkalebassen: `{x, y}` |
-| `zegels` | zegels plat in de grond: `{x, ravijn}`; erop stappen zet hem aan of uit, en met `ravijn` scheurt de grond daar open als hij aangaat |
+| `zegels` | zegels plat in de grond: `{x, ravijn, sluit}`; erop stappen zet hem aan of uit, en met `ravijn` scheurt de grond daar open als hij aangaat. Met `sluit` gaat het open ravijn op die x juist weer dicht (staat er niets open, dan blijft hij donker) |
 | `fg` | strook waarover de voorgrondbegroeiing ligt: `{from, to}` |
 | `arena` | het veld van de eindbaas: `{c}` |
 | `cliffs` | de afsluitende rotswand: `{x}`, staat altijd achter `ends` |
