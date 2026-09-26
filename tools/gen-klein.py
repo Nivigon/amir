@@ -72,6 +72,8 @@ DOELEN = [
     ('design/villeaghut.png', 400),     # 2,3x  staat altijd als ver decor, dus op 60 procent
     ('design/villeaghut_sneeuw.png', 400),
     ('design/botten', 60),              # 6,4x  losse botten, allemaal klein
+    ('design/botten/skelet/instort_sheet.png', 60),   # het instortende skelet: 30 frames in een
+                                        # sheet, en een naam met sheet erin slaat de map over
     ('design/grot', 60),                # 7,3x  de grotset: het plafond, de hoekstukken en
                                         # de wandtegels zijn met afstand de grootste bronnen
                                         # van het spel, en ze worden tot een tiende getekend.

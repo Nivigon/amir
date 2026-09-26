@@ -469,6 +469,12 @@
       <button data-zegel="2">Die het ravijn sluit</button>
     </div>
     <div class="row">
+      <label>Skelet</label>
+      <button data-skelet="0">Met speer</button>
+      <button data-skelet="1">Gespiegeld</button>
+      <button id="sbskeletop">Weer overeind</button>
+    </div>
+    <div class="row">
       <label>Grot</label>
       <button data-grot="gang">Gang</button>
       <button data-grot="dak">Dak</button>
@@ -682,6 +688,7 @@ const KLEIN_FAM = [
   'design/villeaghut.png',
   'design/villeaghut_sneeuw.png',
   'design/botten/',
+  'design/botten/skelet/instort_sheet.png',      // valt al onder de botten, staat er voor de vergelijking
   'design/grot/'
 ];
 const heeftKlein = p => KLEIN_FAM.some(f => p.indexOf(f) === 0);
@@ -4283,6 +4290,259 @@ function zegelReset(){
   if (level && level.zegels) for (const z of level.zegels){ z.aan = false; z.op = false; z.t = 0; }
 }
 
+// ---- skelet met speer: trek de speer eruit en het stort in ------------------
+// Een zittend skelet met een speer dwars door de borstkas. Met E trek je hem eruit: de speer
+// is dan de jouwe (er is maar een speer, dus dat is gewoon oppakken), het skelet zakt in
+// elkaar en er blijft een hoopje botten liggen. De schedel ligt daarna los en rolt weg als je
+// ertegenaan loopt.
+//
+// Alles staat in skeletcoordinaten: (0, 0) is de linkerbovenhoek van het skelet zelf, in de
+// pixels van de grote bron. De plaatjes hebben elk een ander formaat, omdat de speer en de
+// rollende schedel buiten het skelet uitsteken; ox en oy zeggen waar het skelet in dat
+// plaatje begint. Houd je die punten gelijk, dan springt het skelet niet bij de wissel.
+// Elk plaatje wordt met zijn grote maat (w, h) getekend, dus de halve set uit klein/ past
+// er vanzelf in.
+const SKELET = {
+  map: 'design/botten/skelet/',
+  schaal: 0.19 / 237,           // bron naar spel: 0,19 bij een Amir van 237 px, dus het zittende skelet is 0,61 Amir
+  grond: 754,                   // de grondlijn (753 in de instortframes, die een pixel hoger beginnen)
+  midden: 412, breed: 824,      // het skelet zonder speer: x in een level is dit midden
+  heel:   { src: 'skelet_met_speer.png', w: 1097, h: 764, ox: 271, oy: 0 },
+  frames: { src: 'instort_sheet.png', w: 1124, h: 837, ox: 299, oy: -1,
+            n: 30, kol: 6, rij: 5, fps: 25 },               // 1,2 seconde, een keer
+  stapel: { src: 'skelet_ingestort_zonder_schedel.png', w: 1124, h: 837, ox: 299, oy: -1 },
+  // het wapperende doek: vier lagen op dezelfde plek in plaats van skelet_met_speer.png
+  lagen: {
+    skelet:  { src: 'skelet.png', w: 826, h: 764 },
+    voor:    { src: 'skelet_voorste_botten.png', w: 826, h: 764 },   // ribben en schouderblad over de schacht
+    speer:   { src: 'speer_zonder_doek.png', w: 168, h: 1556 },
+    doek:    { src: 'doek/doek_', n: 20, fps: 12 }                   // zelfde maat en stand als de speer
+  },
+  speer: { instek: [250, 300], punt: 600, hoek: 240, schaal: 0.65, as: 92,   // de punt zit op (as, 0)
+           greep: [520, 160] },                                          // hier pak je hem vast: de schacht buiten het skelet
+  schedel: { src: 'schedel.png', w: 228, h: 225, px: 96, py: 111,        // draaipunt in de sprite
+             x: 458, y: 592, hoek: 126, straal: 58,                      // zijn eindstand na het instorten
+             wrijving: 0.90, stop: 8, schop: 1.4, stof: 2 / 60 },        // per beeld op 60, onder 8 px/s ligt hij stil
+  // De grond eronder vermenigvuldigen in plaats van er een bruine vlek over te leggen: rood
+  // zakt het meest, blauw bijna niet, dus zand wordt donkerder zonder grijs te worden. De zon
+  // staat rechtsboven, dus de schaduw ligt naar links.
+  schaduw: { kleur: [0.74, 0.80, 0.91], breed: 1.1, hoog: 0.17, links: 0.16,
+             stapel: 0.84 },   // de stapel is even breed als het zittende skelet, maar heeft 70 procent van de massa
+  geluid: { src: 'sounds/skeletvalt.mp3', vol: 0.9 }
+};
+const SK_VALT = 13;             // na zoveel frames ligt alles beneden, de schedel rolt nog even door
+
+// De plaatjes worden pas geladen als er een skelet is: geen enkel level heeft er nu een,
+// en de instortsheet is groot.
+let skImg = null;
+function skeletLaad(){
+  if (skImg) return;
+  const laad = pad => { const im = new Image(); zetBron(im, SKELET.map + pad, () => console.warn('ontbreekt: ' + SKELET.map + pad)); return im; };
+  const L = SKELET.lagen;
+  skImg = { heel: laad(SKELET.heel.src), frames: laad(SKELET.frames.src), stapel: laad(SKELET.stapel.src),
+            schedel: laad(SKELET.schedel.src), skelet: laad(L.skelet.src), voor: laad(L.voor.src),
+            speer: laad(L.speer.src),
+            doek: Array.from({ length: L.doek.n }, (_, i) => laad(L.doek.src + (i < 10 ? '0' : '') + i + '.png')) };
+}
+const skeletSnd = new Audio();
+skeletSnd.onerror = () => console.warn('ontbreekt: ' + SKELET.geluid.src);
+skeletSnd.preload = 'auto'; skeletSnd.src = SKELET.geluid.src;
+// Een tweede instorting start het geluid opnieuw in plaats van er een tweede overheen te leggen.
+function playSkelet(){
+  if (!wantSound) return;
+  try { skeletSnd.currentTime = 0; } catch (e) {}
+  skeletSnd.volume = SKELET.geluid.vol;
+  skeletSnd.play().catch(() => {});
+}
+function stopSkelet(){ skeletSnd.pause(); }
+
+const skK = scale => SKELET.schaal * CHAR_H * scale;       // schermpixels per bronpixel
+const skZij = s => s.f ? -1 : 1;                           // gespiegeld: de speer wijst naar rechts
+// een punt in skeletcoordinaten naar wereld-x
+const skWereldX = (s, lx, scale) => s.x + skZij(s) * (lx - SKELET.midden) * skK(scale);
+// de speer: van de punt langs zijn hoek, zoals in onderdelen.json
+function skSpeerPunt(){
+  const sp = SKELET.speer, a = (sp.hoek - 90) * Math.PI / 180;
+  return [sp.instek[0] + Math.cos(a) * sp.punt, sp.instek[1] + Math.sin(a) * sp.punt];
+}
+// Het skelet dat je nu kunt leegtrekken: op dezelfde vloer, met de schacht binnen bereik.
+function skeletBij(){
+  if (!level || !level.skeletten || building) return null;
+  const scale = nowScale(), reik = javReach();
+  let best = null, bestD = Infinity;
+  for (const s of level.skeletten){
+    if (s.staat !== 'speer') continue;
+    const vloer = terrainH(s.x);
+    if (ph < vloer - 30 || ph > vloer + CHAR_H * 0.5) continue;
+    const d = Math.abs(world - skWereldX(s, SKELET.speer.greep[0], scale));
+    if (d < reik && d < bestD){ best = s; bestD = d; }
+  }
+  return best;
+}
+// E (of de speerknop): de speer eruit trekken. Geeft false als er niets te trekken valt,
+// dan doet E gewoon wat hij altijd deed.
+function skeletTrek(){
+  const s = skeletBij();
+  if (!s) return false;
+  s.staat = 'val'; s.t = 0;
+  playSkelet();                                     // tegelijk met frame 0: de klap zit in het geluid zelf
+  spearFound = true; spear = true; setSpearLabel(); // je eigen speer, waar die ook lag
+  jav = null; javLost = 0; spearX = null; spearH = null;
+  flashHint('Je trekt de speer uit het skelet');
+  return true;
+}
+function skeletSchedelStart(s){
+  s.kop = { d: 0, h: terrainH(s.x), v: 0, vy: 0, stof: 0, weg: false };
+}
+function skeletUpdate(dt, scale){
+  if (!level || !level.skeletten || !level.skeletten.length) return;
+  skeletLaad();
+  const k = skK(scale), sch = SKELET.schedel;
+  const vAmir = (world - (skeletUpdate.vorige === undefined ? world : skeletUpdate.vorige)) / dt;
+  skeletUpdate.vorige = world;
+  for (const s of level.skeletten){
+    s.klok = (s.klok || 0) + dt;
+    if (s.staat === 'val'){
+      s.t += dt;
+      if (s.t >= SKELET.frames.n / SKELET.frames.fps){ s.staat = 'lig'; skeletSchedelStart(s); }
+      continue;
+    }
+    if (s.staat !== 'lig' || !s.kop || s.kop.weg) continue;
+    const q = s.kop, zij = skZij(s);
+    const wx = skWereldX(s, sch.x + q.d, scale);
+    // Ertegenaan lopen is schoppen: hij krijgt jouw snelheid mee, in jouw richting.
+    const raak = (sch.straal * k) + PLAYER_HALF_W * CHAR_H * scale;
+    if (!building && Math.abs(world - wx) < raak && Math.abs(ph - q.h) < CHAR_H * 0.3 &&
+        Math.abs(vAmir) > 20 && Math.sign(vAmir) === Math.sign(wx - world)){
+      const v = vAmir * sch.schop / k * zij;       // wereld-px per seconde naar bronpixels, in skeletrichting
+      if (Math.abs(v) > Math.abs(q.v)) q.v = v;
+    }
+    if (q.v === 0 && q.vy === 0) continue;
+    // rollen: de draaiing hangt aan de afgelegde weg (zie skeletTeken), anders glijdt hij
+    const oudD = q.d;
+    q.d += q.v * dt;
+    q.v *= Math.pow(sch.wrijving, dt * 60);
+    if (Math.abs(q.v) < sch.stop) q.v = 0;
+    const nx = skWereldX(s, sch.x + q.d, scale);
+    const gat = gatOp(nx, q.h) && !holteAt(nx);
+    const vloer = gat ? -Infinity : vloerBij(nx, q.h);
+    if (vloer > q.h + 8){ q.d = oudD; q.v = -q.v * 0.35; }       // tegen een kei of een trede: terug
+    else if (q.h > vloer + 0.5 || q.vy !== 0){                    // van een richel af, of een ravijn in
+      q.vy -= GRAVITY * dt; q.h += q.vy * dt;
+      if (q.h <= vloer){ q.h = vloer; q.vy = 0; puffWorld(nx, 3, 0, 0.5, q.h); }
+      if (q.h < -3000) q.weg = true;
+    }
+    // elke twee frames een klein stofwolkje op het rolspoor
+    q.stof += dt;
+    if (q.v !== 0 && q.h === vloer && q.stof >= sch.stof){
+      q.stof = 0;
+      wdust.push({ wx: nx, y: 0, base: q.h, vx: -Math.sign(q.v * zij) * (10 + Math.random() * 20),
+                   vy: -20 - Math.random() * 30, r: 4 + Math.random() * 3,
+                   life: 0.4 + Math.random() * 0.2, age: 0, rot: Math.random() * 6.28 });
+    }
+  }
+}
+// De schaduw: een platte ellips die de grond vermenigvuldigt, zacht naar de rand.
+function skeletSchaduw(sx, gy, w){
+  const S = SKELET.schaduw, rx = w * S.breed / 2, ry = w * S.breed * S.hoog / 2;
+  const c = S.kleur.map(v => Math.round(v * 255)).join(',');
+  ctx.save();
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.translate(sx - w * S.links, gy); ctx.scale(1, ry / rx);
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+  g.addColorStop(0, 'rgb(' + c + ')'); g.addColorStop(0.45, 'rgb(' + c + ')'); g.addColorStop(1, 'rgb(255,255,255)');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(0, 0, rx, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+function skeletTeken(groundY, scale, cx){
+  if (!level || !level.skeletten || !skImg) return;
+  const k = skK(scale), im = skImg, sch = SKELET.schedel;
+  const klaar = imgReady, F = SKELET.frames;
+  for (const s of level.skeletten){
+    const sx = cx + (s.x - world), vloer = terrainH(s.x), gy = groundY - vloer * scale;
+    const ver = F.w * k * 2;
+    const zien = !(sx < -ver || sx > W / viewZoom() + ver);
+    const donker = holteFilter(s.x, vloer);
+    const frame = s.staat === 'val' ? Math.min(F.n - 1, Math.floor(s.t * F.fps)) : (s.staat === 'lig' ? F.n - 1 : 0);
+    if (zien){
+      // de schaduw krimpt mee met de stapel, op dezelfde curve als de val
+      const krimp = 1 - (1 - SKELET.schaduw.stapel) * Math.min(1, frame / SK_VALT);
+      skeletSchaduw(sx, gy, SKELET.breed * k * krimp);
+      ctx.save();
+      if (donker) ctx.filter = donker;
+      ctx.translate(sx, gy); ctx.scale(skZij(s) * k, k);
+      ctx.translate(-SKELET.midden, -SKELET.grond);
+      if (s.staat === 'speer'){
+        const L = SKELET.lagen, dk = im.doek[Math.floor(s.klok * L.doek.fps || 0) % L.doek.n];
+        if (klaar(im.skelet) && klaar(im.speer) && klaar(im.voor) && klaar(dk)){
+          const sp = SKELET.speer, [px, py] = skSpeerPunt();
+          const speer = img => {
+            ctx.save(); ctx.translate(px, py); ctx.rotate(sp.hoek * Math.PI / 180); ctx.scale(sp.schaal, sp.schaal);
+            ctx.drawImage(img, -sp.as, 0, L.speer.w, L.speer.h); ctx.restore();
+          };
+          ctx.drawImage(im.skelet, 0, 0, L.skelet.w, L.skelet.h);
+          speer(im.speer);
+          ctx.drawImage(im.voor, 0, 0, L.voor.w, L.voor.h);   // zonder deze laag ligt de speer op het skelet
+          speer(dk);
+        } else if (klaar(im.heel)){
+          const H = SKELET.heel;
+          ctx.drawImage(im.heel, -H.ox, -H.oy, H.w, H.h);
+        }
+      } else if (s.staat === 'val' && klaar(im.frames)){
+        const fw = im.frames.naturalWidth / F.kol, fh = im.frames.naturalHeight / F.rij;
+        ctx.drawImage(im.frames, (frame % F.kol) * fw, Math.floor(frame / F.kol) * fh, fw, fh,
+                      -F.ox, -F.oy, F.w, F.h);
+      } else if (s.staat === 'lig' && klaar(im.stapel)){
+        const P = SKELET.stapel;
+        ctx.drawImage(im.stapel, -P.ox, -P.oy, P.w, P.h);
+      }
+      ctx.restore();
+    }
+    // de losse schedel, na de animatie: draaiing = eindhoek plus de afgelegde weg gedeeld door de straal
+    const q = s.kop;
+    if (s.staat === 'lig' && q && !q.weg && klaar(im.schedel)){
+      const kx = cx + (skWereldX(s, sch.x + q.d, scale) - world);
+      const ky = groundY - q.h * scale - (SKELET.grond - sch.y) * k;
+      if (kx > -sch.w * k * 2 && kx < W / viewZoom() + sch.w * k * 2){
+        const weg = Math.min(1, Math.max(0, (Math.abs(q.d) - sch.straal) / sch.straal));
+        if (weg > 0 && q.h === vloerBij(skWereldX(s, sch.x + q.d, scale), q.h)){
+          ctx.save(); ctx.globalAlpha = weg;
+          skeletSchaduw(kx + SKELET.schaduw.links * sch.w * k, ky + (SKELET.grond - sch.y) * k, sch.w * k * 0.9);
+          ctx.restore();
+        }
+        ctx.save();
+        const dk = holteFilter(skWereldX(s, sch.x + q.d, scale), q.h);
+        if (dk) ctx.filter = dk;
+        ctx.translate(kx, ky); ctx.scale(skZij(s) * k, k);
+        ctx.rotate((sch.hoek + (q.d / sch.straal) * 180 / Math.PI) * Math.PI / 180);
+        ctx.drawImage(im.schedel, -sch.px, -sch.py, sch.w, sch.h);
+        ctx.restore();
+      }
+    }
+    // de E boven de schacht, zolang je hem eruit kunt trekken
+    if (s.staat === 'speer' && s === skeletBij()){
+      const [gx, gh] = SKELET.speer.greep;
+      const bx = cx + (skWereldX(s, gx, scale) - world);
+      const t = performance.now() / 1000;
+      const ky = gy - (SKELET.grond - gh) * k - 40 * scale + Math.sin(t * 4) * 4 * scale, kr = 17 * scale;
+      ctx.save();
+      ctx.fillStyle = 'rgba(20,14,26,0.8)'; ctx.strokeStyle = '#f2e8d5'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.roundRect ? ctx.roundRect(bx - kr, ky - kr, kr * 2, kr * 2, 4) : ctx.rect(bx - kr, ky - kr, kr * 2, kr * 2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#f2e8d5'; ctx.font = '800 ' + Math.round(20 * scale) + 'px Archivo, Arial, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('E', bx, ky + 1);
+      ctx.restore();
+    }
+  }
+}
+function skeletReset(){
+  if (level && level.skeletten) for (const s of level.skeletten){ s.staat = 'speer'; s.t = 0; s.klok = 0; s.kop = null; }
+  skeletUpdate.vorige = undefined;
+  stopSkelet();
+}
+
 // ---- de rotswand rechts: het einde van het level ----------------------
 const CLIFF = { src: 'design/cliff.png', l: 0.14, wall: 620, sink: 0.03 };
 // een hut aan de voet van de klif; dekt de naad af waar het gesteente omhoog loopt
@@ -5578,6 +5838,7 @@ function spearNear(){ return !!spearGreep(); }
 const spearBtn = document.getElementById('spearbtn');
 function setSpearLabel(){ spearBtn.textContent = spear ? 'Speer uit' : 'Speer aan'; }
 function toggleSpear(){
+  if (skeletTrek()) return;                         // een skelet met een speer erin gaat voor
   if (!spearFound){
     if (spearNear()){
       spearFound = true; spear = true; setSpearLabel();
@@ -7619,6 +7880,7 @@ function restart(){
   muurReset();                                      // de rotswand weer dicht, zonder speer erin
   ravijnReset();                                    // het ravijn weer dicht, de rune weer uit
   zegelReset();                                     // en de zegels weer uit
+  skeletReset();                                    // de skeletten weer overeind, met hun speer
   jump = null; dust.length = 0; ph = 0; pvh = 0; onGround = true; fell = false; coyote = 0; valVan = 0;
   camDiep = 0;
   world = 0; facing = -1; frame = 0; frameAcc = 0; idleFrame = 0; idleAcc = 0;   // altijd weer bij het startpunt
@@ -11374,6 +11636,7 @@ function loop(now){
     }
   }
   if (dt > 0) zegelUpdate(dt, scaleNow);          // erop stappen zet een zegel aan of uit
+  if (dt > 0) skeletUpdate(dt, scaleNow);         // instorten, en de schedel die wegrolt
   ctx.clearRect(0, 0, W, H);
   ctx.save();
   ctx.translate(shakeX + ravijnSX, shakeY + ravijnSY);
@@ -11829,6 +12092,7 @@ function loop(now){
       }
     }
     zegelTeken(groundY, scale, cx);               // de zegels plat in de grond
+    skeletTeken(groundY, scale, cx);              // skeletten, met of zonder speer
     ravijnRuneTeken(groundY, scale, cx);          // de rots met de rune bij het ravijn
 
     if (building && level && level.spawns){
@@ -12616,7 +12880,7 @@ addEventListener('keydown', tryPlay);
 addEventListener('pointerdown', tryPlay);
 function toggleSound(){
   wantSound = !wantSound; setLabel();
-  if (wantSound){ started = false; tryPlay(); } else { bg.pause(); stopKing(); stopWind(); stopRaak(); stopDeur(); }
+  if (wantSound){ started = false; tryPlay(); } else { bg.pause(); stopKing(); stopWind(); stopRaak(); stopDeur(); stopSkelet(); }
 }
 soundBtn.onclick = toggleSound;
 pzSoundBtn.onclick = toggleSound;
@@ -13016,6 +13280,8 @@ function readLevel(txt){
                                                         ? null : Number(q.ravijn),
                                                 sluit: (q.sluit === undefined || q.sluit === null)
                                                         ? null : Number(q.sluit) })),
+           // skeletten met een speer erin: trek hem eruit en het stort in, zie "skelet met speer"
+           skeletten: (o.skeletten || []).map(q => ({ x: Number(q.x), f: !!q.f })),
            hppotions: (o.hppotions || []).map(q => ({ x: Number(q.x),
                                                       y: (q.y === null || q.y === undefined) ? null : Number(q.y) })),
            // de plafondlijn: punten met een x en een y, zie "plafond: de rots boven je"
@@ -13351,6 +13617,21 @@ function sbZegel(soort){
   cv.focus();
 }
 sandboxEl.querySelectorAll('button[data-zegel]').forEach(b => b.onclick = () => sbZegel(Number(b.dataset.zegel)));
+// een skelet met een speer erin, aan de gekozen kant; ga bij de schacht staan en druk op E.
+// Gespiegeld wijst de schacht de andere kant op. Weer overeind zet ze allemaal terug, met de schedel.
+function sbSkelet(spiegel){
+  const side = sbFromRight ? 1 : -1;
+  let x = world + side * 320;
+  x = Math.min(x, cliffAt().wall - 300);
+  x = Math.max(x, endWall() + 300);
+  if (!level.skeletten) level.skeletten = [];
+  const s = { x, f: !!spiegel };
+  level.skeletten.push(s);
+  s.staat = 'speer'; s.t = 0; s.klok = 0; s.kop = null;
+  cv.focus();
+}
+sandboxEl.querySelectorAll('button[data-skelet]').forEach(b => b.onclick = () => sbSkelet(Number(b.dataset.skelet)));
+document.getElementById('sbskeletop').onclick = () => { skeletReset(); cv.focus(); };
 // Vier rasters om het systeem los te bekijken: een gang met rots boven en naast je, een
 // dak om je hoofd aan te stoten, een uitstekende rotspunt, en een trap om op te klimmen.
 // Elke druk geeft een andere seed, dus de verstrooiing valt elke keer anders.
@@ -13634,7 +13915,7 @@ sbPatBtn.onclick = () => {
 const sbGodBtn = document.getElementById('sbgod');
 function setGodLabel(){ sbGodBtn.textContent = godMode ? 'Onsterfelijk aan' : 'Onsterfelijk uit'; sbGodBtn.classList.toggle('on', godMode); }
 sbGodBtn.onclick = () => { godMode = !godMode; setGodLabel(); cv.focus(); };
-document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; hppotions.length = 0; hppotionFx.length = 0; level.rocks.length = 0; if (level.gaps) level.gaps.length = 0; if (level.grotten) level.grotten.length = 0; if (level.plafond) level.plafond.length = 0; if (level.terraces) level.terraces.length = 0; arena = null; thr = null; jav = null; javLost = 0; cv.focus(); };
+document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; hppotions.length = 0; hppotionFx.length = 0; level.rocks.length = 0; if (level.gaps) level.gaps.length = 0; if (level.grotten) level.grotten.length = 0; if (level.plafond) level.plafond.length = 0; if (level.terraces) level.terraces.length = 0; if (level.skeletten) level.skeletten.length = 0; arena = null; thr = null; jav = null; javLost = 0; cv.focus(); };
 document.getElementById('sbback').onclick = stopSandbox;
 document.getElementById('btnsandbox').onclick = startSandbox;
 document.getElementById('btnstop').onclick = () => { building = false; buildEl.classList.remove('on'); };
