@@ -162,8 +162,9 @@ meteen naast je in de grond. Nooit aan de overkant van een ravijn, niet in het w
 niet op een ander terras. Blijft hij in een wand steken, dan wacht het spel gewoon tot
 hij er vanzelf uit schiet.
 
-Een speer in een muur wrikt zichzelf na twaalf seconden los en valt langs de
-wand naar beneden. De laatste anderhalve seconde trilt hij, dus je ziet het
+Een speer blijft alleen zitten in de grond en in een houten runeschijf. In een
+wand, een kei of de rand van het level wrikt hij zichzelf na vier seconden los
+en valt hij naar beneden. De laatste seconde trilt hij, dus je ziet het
 aankomen. Sta je erop, dan houdt hij het: de klok loopt alleen als je er niet
 op staat, en hij gaat verder waar hij was zodra je eraf stapt. Zo blijft een
 speer die te hoog in een steile wand terechtkomt nooit hangen waar je niet bij
