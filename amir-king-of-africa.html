@@ -8422,6 +8422,7 @@ const LK = {
   spreid: 75,              // tot zo ver van recht omhoog, in graden
   zonHoek: 38,             // de zon staat zo ver van recht boven, aan de kant waar hij in de lucht staat
   zonKegel: 7,             // de zon is geen punt: stralen binnen deze kegel geven een zachte schaduwrand
+  zonInloop: 160,          // onder het dak loopt de zon over zoveel sprite-eenheden in
   diepte: 110,             // vaste grond: zo diep onder de oppervlakte is hij een derde zo licht
   bodem: 0.2,              // en donkerder dan dit wordt hij niet
   kaatsR: 8,               // kaatslicht komt van zoveel cellen in het rond
@@ -8454,7 +8455,7 @@ function lkVastPunt(x, h){                        // is dit punt grond of rots?
 }
 function lkSleutel(){
   const d = level ? [level.holtes, level.gaps, level.terraces] : [];
-  return JSON.stringify(d) + '|' + zonRechts() + '|' + [LK.donker, LK.minLicht, LK.personage, LK.zon, LK.kaats, LK.warm].join(',');
+  return JSON.stringify(d) + JSON.stringify(ravijnGaten()) + '|' + zonRechts() + '|' + [LK.donker, LK.minLicht, LK.personage, LK.zon, LK.kaats, LK.warm].join(',');
 }
 function lkKaart(){
   const lijst = holteLijst();
@@ -8526,10 +8527,18 @@ function lkRuw(k){                                // een kolom: licht en zon per
       if (top === null){ top = h + C / 2; boven = lkZicht(x, top + 2); }
       K.ruw[n] = boven * (LK.bodem + (1 - LK.bodem) * Math.exp(-(top - h) / LK.diepte));
       K.ruw[n + 1] = -1;                          // vast
+    } else if (h < 0 && inGap(x) && !holteAt(x)){
+      // een ravijn zonder gang eronder: dat tekent zijn eigen diepte en schaduw (ravijnZonLicht),
+      // de kaart laat het met rust
+      top = null;
+      K.ruw[n] = 1; K.ruw[n + 1] = -2;
     } else {
       top = null;
       K.ruw[n] = h < 0 ? lkZicht(x, h) : 1;
-      K.ruw[n + 1] = h < 0 ? lkZon(x, h) : 0;
+      // De zon valt pas onder het dak binnen, en loopt daar geleidelijk in: de wand van een gat
+      // erboven is de overkant, en die hoort niet lichter te zijn dan de grond vooraan.
+      const inloop = Math.max(0, Math.min(1, (-HOLTE_DAK - h) / LK.zonInloop));
+      K.ruw[n + 1] = inloop > 0 ? inloop * lkZon(x, h) : 0;
     }
   }
   K.ruwKlaar[k] = 1;
@@ -8558,11 +8567,11 @@ function lkKolom(k){                              // een kolom af: kaatslicht er
     let som = 0, somZ = 0;
     for (let q = q0; q <= q1; q++){ som += K.som[(q * nr + r) * 2]; somZ += K.som[(q * nr + r) * 2 + 1]; }
     const n = (q1 - q0 + 1) * (Math.min(nr - 1, r + R) - Math.max(0, r - R) + 1);
-    const m = (k * nr + r) * 2, vast = K.ruw[m + 1] < 0;
+    const m = (k * nr + r) * 2, vast = K.ruw[m + 1] === -1, vrij = K.ruw[m + 1] === -2;
     const l = vast ? K.ruw[m] : Math.max(K.ruw[m], LK.kaats * som / n);
     const licht = LK.ambient + (1 - LK.ambient) * Math.min(1, l);
     K.licht[k * nr + r] = vast ? -1 : licht;
-    const a = Math.min(1 - LK.minLicht, LK.donker * (1 - licht));
+    const a = vrij ? 0 : Math.min(1 - LK.minLicht, LK.donker * (1 - licht));
     const o = (r * K.nk + k) * 4;
     // In de lucht twee delen, zie drawLichtkaart: a2 valt over alles, ook over de personages, en
     // a1 alleen over de wereld eronder. Samen geven ze de wereld precies a: (1 - a1)(1 - a2) = 1 - a.
@@ -8570,7 +8579,8 @@ function lkKolom(k){                              // een kolom af: kaatslicht er
     const doel = vast ? pg : pl;
     doel[o] = 8; doel[o + 1] = 6; doel[o + 2] = 7; doel[o + 3] = Math.round(255 * a1);
     pa[o] = 8; pa[o + 1] = 6; pa[o + 2] = 7; pa[o + 3] = Math.round(255 * a2);
-    const za = Math.min(1, (vast ? 0 : LK.zon * K.ruw[m + 1]) + LK.warm * somZ / n);
+    const inloop = Math.max(0, Math.min(1, (-HOLTE_DAK - (K.j1 - r + 0.5) * LK.cel) / LK.zonInloop));
+    const za = vrij ? 0 : inloop * Math.min(1, (vast ? 0 : LK.zon * K.ruw[m + 1]) + LK.warm * somZ / n);
     pz[o] = 255; pz[o + 1] = 200; pz[o + 2] = 130; pz[o + 3] = Math.round(255 * za);
   }
   K.vuil = K.vuil ? [Math.min(K.vuil[0], k), Math.max(K.vuil[1], k)] : [k, k];
@@ -8659,6 +8669,40 @@ function drawLichtkaart(groundY, scale, cx, dt, deel){
     ctx.drawImage(K.zonC, sx, 0, sw, K.nr, dx, dy, dw, dh);
   }
   ctx.restore();
+}
+
+// ---- de zon op de wand van een ravijn --------------------------------------
+// De wand in een ravijn is de overkant: verder weg dan de grond vooraan, dus nooit lichter. De rand
+// aan de kant van de zon werpt er een schuine schaduw op, onder dezelfde hoek als waaronder de zon
+// in een gang naar binnen valt (LK.zonHoek, zonRechts): boven die lijn vangt de wand gedempt licht,
+// eronder ligt hij in de schaduw en zakt hij verder weg in de diepte. Zo komt het licht in elk gat
+// uit dezelfde richting als de zon in de lucht. Een gat boven een gang slaat dit over: daar doet
+// de lichtkaart het.
+//
+// Het hulpje tekent op g, over x0 tot x1 en top tot onder, met top op de rand. knik is hoe de wand
+// verticaal is uitgerekt (de schaduwlijn moet in het beeld de goede hoek hebben), en open hoe ver
+// hij er al staat (0 tot 1: groeit mee met het openscheuren). atop legt hem alleen op wat er al
+// staat, voor een wand op een eigen canvas. 's Nachts is het verschil kleiner: het schaalt met de
+// gloed van het uitzicht (0,30 overdag). In de winter is de schaduw blauwig: sneeuw en steen in de
+// schaduw worden niet grauw maar koel.
+const RAVIJN_ZON = { schaduw: 0.34, licht: 0.03, zacht: 60, nacht: 0.35,
+                     kleur: '12,8,8', winter: '22,32,58' };
+function ravijnZonLicht(g, x0, x1, top, onder, knik = 1, open = 1, atop = false){
+  const L = lichtNu(), R = RAVIJN_ZON;
+  const f = open * Math.max(R.nacht, Math.min(1, L.gloedSterkte / 0.30));
+  if (f <= 0 || x1 - x0 < 2) return;
+  const t = Math.tan(LK.zonHoek * Math.PI / 180) * knik;   // zo ver schuift de lijn per rij naar binnen
+  const rechts = zonRechts();
+  const px = rechts ? x1 : x0;                    // de hoek van de rand aan de zonkant
+  const nx = (rechts ? 1 : -1) / Math.hypot(1, t), ny = t / Math.hypot(1, t);   // naar de schaduw toe
+  const k = winterOn() ? R.winter : R.kleur, z = R.zacht / 2;
+  const v = g.createLinearGradient(px - nx * z, top - ny * z, px + nx * z, top + ny * z);
+  v.addColorStop(0, 'rgba(' + k + ',' + (R.licht * f).toFixed(3) + ')');
+  v.addColorStop(1, 'rgba(' + k + ',' + (R.schaduw * f).toFixed(3) + ')');
+  g.save();
+  if (atop) g.globalCompositeOperation = 'source-atop';
+  g.fillStyle = v; g.fillRect(x0, top, x1 - x0, onder - top);
+  g.restore();
 }
 
 // ---- de overgang van aarde naar steen boven het dak ----
@@ -12377,6 +12421,7 @@ function scene(groundY){
   for (const fx of ravijnenNu()){                   // ravijn opent: het gat, direct na de grond
     ravijnAchterTeken(fx, groundY);                 // de achtergrond door het gat, zoals bij een gewoon ravijn
     const op = ravijnOphoog(fx, groundY);           // de overkant even hoog als deze kant
+    fx.opNu = op;                                   // voor de zon op de wand (opLicht)
     ravijnGrasTeken(fx, groundY, op);               // voor de wand, zodat de voet achter de rand valt
     ctx.save(); ctx.translate(Math.round(W / 2 - world), 0);   // x van het effect is een wereld-x
     ravijnSchaal(fx);
@@ -12955,6 +13000,8 @@ function loop(now){
           hz.addColorStop(0, 'rgba(' + sc.mistColor + ',0)');       // op nul beginnen, anders ligt er een streep op de rand
           hz.addColorStop(0.35, 'rgba(' + sc.mistColor + ',' + (mistA * 0.7).toFixed(3) + ')');
           hz.addColorStop(1, 'rgba(' + sc.mistColor + ',' + mistA.toFixed(3) + ')');
+          // de zon op de wand, onder de rand met het gras (ravijnZonLicht); boven een gang de lichtkaart
+          if (!holteAt(g.x)) ravijnZonLicht(ctx, gl, gr, rotsY, bodemY);
           ctx.fillStyle = hz; ctx.fillRect(gl - 40, rotsY, gr - gl + 80, H * 3);
           if (holteAt(g.x)){
             // Boven een gang is dit geen afgrond maar de wand van een gat met een gang eronder:
@@ -15828,6 +15875,10 @@ function ravijnOpen(wx, breed = RAVIJN_MAAT.breed){
   });
   fx.lvl = level;
   fx.s = sch;
+  // de zon op de wand (ravijnZonLicht), op het canvas van de module: alleen op de wandpixels. De
+  // module rekent in zijn eigen maat; de schaduwlijn moet in beeld de goede hoek hebben, dus de
+  // verticale rek gaat mee (ravijnRek), en hij groeit mee met het openscheuren (fx.p).
+  fx.opLicht = (g, gw, h) => ravijnZonLicht(g, 0, gw, 0, h, ravijnRek(fx, fx.opNu || 0), fx.p, true);
   // De module rekt de barst en het openen op bij een breder gat, en dat hoort ook zo: een
   // dubbel ravijn scheurt langer. Maar hij krijgt hier ook een grotere breedte omdat hij daarna
   // geschaald wordt; de duur hoort bij het echte gat, dus op breed in wereld-px, zoals de
