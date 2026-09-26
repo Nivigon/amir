@@ -67,7 +67,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | de rotswand rechts | `cliffs`, het einde van het level |
 | grotten: rots als een raster van cellen | `grotten`: het raster, de randen, de verstrooiing, de botsingen |
 | plafond: de rots boven je, als hoogtelijn | `plafond`: de lijn, de vulling, de band, de losse blokken |
-| muur unlock: de rotswand met het rune-symbool | `MUUR`: de plaat, het gat, het schuifblok, het masker en de schijf |
+| muur unlock: de rotswand met het rune-symbool | `MUUR`: de plaat, het gat, het schuifblok, het masker en de schijf; en de grot met de kei (`MUUR_GROT`, `muurGrotSet`, `drawMuurGrot`) |
 | zegel in de grond: de runeschijf plat, als schakelaar | `ZEGEL`, `zegelGrond`, `zegelUpdate`, `zegelDoe`: erop stappen zet hem aan of uit, en wat hij dan doet (nu: een ravijn openen) |
 | runeschijf: het losse symbool | `runeSchijf(ctx, x, y, r, {aan, spiegel})`: de houten schijf met de rune, los te hergebruiken |
 | vallen: schade bij een diepe val | hoe diep een val telt en wat hij kost |
@@ -117,7 +117,7 @@ precies hetzelfde formaat naar JSON.
 | `ledges` | richels aan een wand: `{x, h, s}` |
 | `grotten` | rotsgebieden als raster: `{x, cel, y, grid, ...}` (zie hieronder) |
 | `plafond` | de rots boven je als hoogtelijn: `[{x, y}, ...]` (zie hieronder) |
-| `muur` | de rotswand met het rune-symbool: `{x, speer}` (zie hieronder) |
+| `muur` | de rotswand met het rune-symbool: `{x, speer}`, of met `soort: 'grot'` de rotsboog met de kei (zie hieronder) |
 | `hppotions` | drinkkalebassen: `{x, y}` |
 | `zegels` | zegels plat in de grond: `{x, ravijn, sluit}`; erop stappen zet hem aan of uit, en met `ravijn` scheurt de grond daar open als hij aangaat. Met `sluit` gaat het open ravijn op die x juist weer dicht (staat er niets open, dan blijft hij donker) |
 | `fg` | strook waarover de voorgrondbegroeiing ligt: `{from, to}` |
@@ -445,6 +445,32 @@ dezelfde tekencode als al het andere gras, dus het buigt mee met de windvlagen. 
 schaalt mee met de rots, en dan staan er sprieten van een meter hoog zodra hij groter wordt. Dichterbij gaat de speer onder de rune door tegen het steen, verder weg zakt hij er al
 voor. Er is nog een tweede strook op ruim tweeduizend pixels, maar daar staat de rots buiten
 beeld, dus die telt niet mee.
+
+**De grot met de kei** is een tweede soort muur: `muur: {x, speer, soort: 'grot'}` (nu alleen Test
+3). Instellingen in `MUUR_GROT`, de canvassen in `muurGrotSet`, tekenen in `drawMuurGrot`. De rots is
+de geschilderde boog `design/rotswand_boog.jpg`, met het wit eruit via `witKnip` (dezelfde functie
+als de rots bij het ravijn); het donker in de grot is een vulling vanuit de voet van de boog, dus het
+volgt de geschilderde rand. Voor de ingang staat `PROPS.boulder`, zo groot dat hij de grot dekt. Bij
+een treffer trilt hij, zakt hij de grond in en blijft zijn bovenkant als drempel liggen (`kei.blijf`),
+met stof (`puffPic()`) en gruis dat van de boog valt, allemaal op `muurKlok`. Zet hier geen gegumde
+opening in: een getekend gat in een geschilderde rots blijft computertekenwerk, en daar is dit de
+vervanger van. `muurSet` geeft voor de grot dezelfde velden terug (`l`, `r`, `t`, `b`, `symX`, `symY`,
+`alfa`), dus de E voor de deur, de speer in de schijf en `muur.speer` werken gewoon door.
+
+De schijf staat op `sym.hoog` 2,0 Amir, op de linkerpoot (`sym.u`). Dat is gemeten, niet gekozen: met
+de huidige boogworp raak je hem op een scherm van 1280 bij 720 van 465 tot 770 pixels, waarvan 465 tot
+620 met de schijf in beeld (de camera staat op Amir, dus je ziet 640 naar links). Op 2,28, de hoogte van
+de kale rots, begint de strook pas op 590 en valt er bijna niets meer in beeld. Op 1440 bij 620 is het
+400 tot 660, op 1920 bij 1080 690 tot 1155, op een telefoon van 844 bij 390 250 tot 420. Hoe lager de
+schijf, hoe dichterbij: de boog stijgt nog als hij bij de schijf is.
+
+Een speer blijft bij de grot pas in het steen steken als hij er van buitenaf in vliegt (`jav.buiten` in
+`muurSteen`). Amir staat hier vaak voor de rots, onder de boog of voor de kei, en dan vertrekt de speer
+al in het steen: met de gewone regel bleef hij er na een paar pixels in steken en was de schijf van
+dichtbij niet te halen. Zolang de kei staat vangt die ook een speer (`keiAlfa`).
+
+Let op: de getallen hierboven voor de kale rots (94 tot 235 pixels) kloppen niet meer met de huidige
+worp. Met dezelfde meting raak je de schijf in Diepte 3 van 590 tot 1005 pixels.
 
 Het geluid zit in `SFX_DEUR` (`sounds/deuropen.mp3`) en speelt af op het moment van de treffer.
 De opname duurt 42 seconden en staat van begin tot eind even hard, terwijl het blok maar een
