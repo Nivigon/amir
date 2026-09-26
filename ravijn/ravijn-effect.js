@@ -38,6 +38,7 @@
     depthNear:       0.10,  // blijvende verdonkering onderin
     depthFar:        0.58,  // extra verdonkering zolang het gat nog dichtgaat
     contactShadow:   20,
+    crackDepth:      0.62,  // hoe diep de barst de wand in zakt, deel van de wandhoogte
     shakeTremorFrom: 1.1,
     shakeTremorTo:   2.0,
     shakeCrack:      1.6,
@@ -252,36 +253,39 @@
   });
 
   // -------------------------------------------------------------- barst
+  // De barst splijt naar BENEDEN, dwars door de zandband en de rotslaag eronder.
+  // Coordinaten zijn relatief aan (this.x, this.groundY), dy positief is omlaag.
   RavijnEffect.prototype._buildCrack = function () {
     var rnd = mulberry32(5);
-    var self = this;
-    function line(x0, x1, y0) {
-      var pts = [[x0, y0]], x = x0, y = y0, vy = 0;
-      var step = x1 > x0 ? 6 : -6;
-      while (step > 0 ? x < x1 : x > x1) {
-        x += step + (rnd() - 0.5) * 5;
-        vy = vy * 0.55 + (rnd() - 0.5) * 4.8;
-        y += vy;
-        if (y < 6)  { y = 6;  vy = Math.abs(vy); }
-        if (y > 24) { y = 24; vy = -Math.abs(vy); }
+    var h = this.buf.height;
+    this.crackDepth = Math.round(h * CFG.crackDepth);
+
+    function down(x0, y0, depth, wobble, stepLen) {
+      var pts = [[x0, y0]], x = x0, y = y0, vx = 0;
+      while (y < y0 + depth) {
+        y += stepLen + (rnd() - 0.5) * stepLen * 0.6;
+        vx = vx * 0.45 + (rnd() - 0.5) * wobble;
+        x += vx;
         pts.push([x, y]);
       }
       return pts;
     }
-    var L = -this.half + 4, R = this.half - 4;
-    this.crackMain = line(0, L, 13).reverse().concat(line(0, R, 13).slice(1));
+
+    this.crackMain = down(0, 0, this.crackDepth, 7.5, 6);
     this.crackForks = [];
-    var n = Math.round(8 * this.scaleFactor);
+    var n = 3 + Math.round(2 * this.scaleFactor);
     for (var i = 0; i < n; i++) {
-      var k = 3 + Math.floor(rnd() * (this.crackMain.length - 6));
+      var k = 2 + Math.floor(rnd() * (this.crackMain.length - 4));
       var bx = this.crackMain[k][0], by = this.crackMain[k][1];
-      var pts = [[bx, by]], x = bx, y = by, dir = rnd() < 0.5 ? -1 : 1;
-      var segs = 2 + Math.floor(rnd() * 2);
+      var dir = rnd() < 0.5 ? -1 : 1;
+      var pts = [[bx, by]], x = bx, y = by;
+      var segs = 2 + Math.floor(rnd() * 3);
       for (var j = 0; j < segs; j++) {
-        x += (rnd() - 0.5) * 14; y += dir * (3.5 + rnd() * 3.5);
+        x += dir * (4 + rnd() * 8);
+        y += 4 + rnd() * 9;
         pts.push([x, y]);
       }
-      this.crackForks.push({ dist: Math.abs(bx), pts: pts });
+      this.crackForks.push({ depth: by, pts: pts });
     }
   };
 
@@ -295,14 +299,14 @@
     this._emit('high', Math.round(DUST.high.burst * q));
     this._emit('low',  Math.round(DUST.low.burst  * q));
     this._emit('deep', Math.round(DUST.deep.burst * q));
-    var n = Math.round(9 * this.scaleFactor * q);
+    var n = Math.round(7 * this.scaleFactor * q);
     for (var i = 0; i < n; i++) {
       var left = Math.random() < 0.5;
       this.chunks.push({
         x: (left ? this.gapLeft : this.gapRight) + rr(-4, 4),
         y: this.groundY + rr(4, 18),
-        vx: rr(24, 108) * (left ? 1 : -1), vy: rr(-132, 24),
-        r: rr(3.5, 8), rot: rr(0, 6.2), vr: rr(-4.2, 4.2)
+        vx: rr(10, 48) * (left ? 1 : -1), vy: rr(-22, 22),
+        r: rr(2.4, 5.2), rot: rr(0, 6.2), vr: rr(-4.2, 4.2)
       });
     }
   };
@@ -339,10 +343,26 @@
 
   RavijnEffect.prototype._edgesAt = function () { return [this.gapLeft, this.gapRight]; };
 
+  // wereldpositie van de punt van de barst
+  RavijnEffect.prototype._crackTip = function () {
+    var reach = this.g * this.crackDepth, pt = this.crackMain[0];
+    for (var i = 0; i < this.crackMain.length; i++) {
+      if (this.crackMain[i][1] <= reach) pt = this.crackMain[i]; else break;
+    }
+    return [this.x + pt[0], this.groundY + pt[1]];
+  };
+
   RavijnEffect.prototype._spawn = function (dt) {
     var q = this.quality, f = dt * 14;           // referentie was 14 fps
     if (this.phase === 'crack') {
-      this._emit('high', Math.round((this.g < 0.34 ? 3 : 8) * q * f * 0.5));
+      this._emit('high', Math.round((this.g < 0.34 ? 2 : 5) * q * f * 0.5));
+      var tip = this._crackTip();
+      var nt = Math.round((this.g < 0.34 ? 1 : 3) * q * f);
+      for (var t = 0; t < nt; t++) {
+        this.deep.push({ x: tip[0] + rr(-5, 5), y: tip[1] + rr(-4, 6),
+          vx: rr(-12, 12), vy: -rr(6, 22), r: rr(3, 10), life: 1,
+          decay: rr(0.8, 1.5), a: rr(0.4, 0.9), s: (t * 3) % 6 });
+      }
     } else if (this.phase === 'open' || this.phase === 'settle') {
       var fade = this.phase === 'settle' ? Math.max(0, 1 - this.t / (PHASES.settle * 0.6)) : 1;
       if (fade > 0) {
@@ -527,15 +547,15 @@
 
   RavijnEffect.prototype._drawCrack = function (ctx) {
     if (this.g <= 0 || this.p >= 0.999) return;
-    var reach = this.g * this.half;
+    var reach = this.g * this.crackDepth;          // hoe diep hij al gezakt is
     var self = this;
-    function draw(pts, scale, color, dy) {
+    function draw(pts, scale, color, dx) {
       var run = [];
       for (var i = 0; i < pts.length; i++) {
         var wx = self.x + pts[i][0], wy = self.groundY + pts[i][1];
         var inGap = wx > self.gapLeft - 1 && wx < self.gapRight + 1;
-        if (!inGap && Math.abs(pts[i][0]) <= reach) {
-          run.push([wx, wy + dy]);
+        if (!inGap && pts[i][1] <= reach) {
+          run.push([wx + dx, wy, pts[i][1]]);
         } else if (run.length) { stroke(run, scale, color); run = []; }
       }
       if (run.length) stroke(run, scale, color);
@@ -546,8 +566,9 @@
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       for (var i = 0; i < run.length - 1; i++) {
-        var mx = (run[i][0] + run[i + 1][0]) / 2 - self.x;
-        var taper = Math.max(0.6, 3.1 * (1 - Math.pow(Math.abs(mx) / self.half, 1.4)));
+        var md = (run[i][2] + run[i + 1][2]) / 2;
+        // breed aan de bovenkant, spits toelopend naar de punt
+        var taper = Math.max(0.6, 3.4 * (1 - Math.pow(md / self.crackDepth, 1.15)));
         ctx.lineWidth = Math.max(0.6, taper * scale);
         ctx.beginPath();
         ctx.moveTo(run[i][0], run[i][1]);
@@ -555,12 +576,12 @@
         ctx.stroke();
       }
     }
-    draw(this.crackMain, 0.75, CRACK_LIGHT, 1.6);
+    draw(this.crackMain, 0.70, CRACK_LIGHT, 1.7);   // hooglicht naast de scheur
     draw(this.crackMain, 1.00, CRACK_DARK, 0);
     for (var f = 0; f < this.crackForks.length; f++) {
-      if (this.crackForks[f].dist <= reach) {
-        draw(this.crackForks[f].pts, 0.45, CRACK_LIGHT, 1.3);
-        draw(this.crackForks[f].pts, 0.60, CRACK_DARK, 0);
+      if (this.crackForks[f].depth <= reach) {
+        draw(this.crackForks[f].pts, 0.40, CRACK_LIGHT, 1.3);
+        draw(this.crackForks[f].pts, 0.58, CRACK_DARK, 0);
       }
     }
   };
