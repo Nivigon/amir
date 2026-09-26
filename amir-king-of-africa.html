@@ -6156,10 +6156,26 @@ function inGap(x){
 // effect zelf. Wat eronder ligt beslist het level: een gang (holtes) vangt je op, anders val
 // je dood. Staat Amir erop als het opengaat, dan valt hij erin, want er is geen vloer meer.
 let ravijnFx = null;
+// Het effect is gemaakt op 1280 bij 720 met Formaat 25. Op een ander scherm wordt het in zijn
+// geheel geschaald (fx.s), rond het midden van het gat op de kruin: de wand, het stof, de barst
+// en de steentjes gaan mee met Amir, net als al het andere. De breedte van het gat niet, want
+// die is spel: 277 wereld-px, op elk scherm, zoals een gewoon ravijn. De module krijgt daarom
+// een breedte van 277 / s en vult het midden zelf aan; geschaald komt dat weer op 277 uit. Er
+// wordt dus niets uitgerekt of samengeknepen. Alles wat de module in zijn eigen maat geeft
+// (gapLeft, gapRight, de schok) gaat hier door s terug naar de wereld.
+const RAVIJN_MAAT = { breed: 277, ref: 720 * 0.25 / CHAR_H };   // ref: Amirs schaal op 720 hoog, Formaat 25
+function ravijnRanden(fx){                       // de randen van het gat nu, in wereld-x
+  const s = fx.s || 1;
+  return [fx.x + (fx.gapLeft - fx.x) * s, fx.x + (fx.gapRight - fx.x) * s];
+}
+function ravijnSchaal(fx){                       // de module in zijn eigen maat, rond het midden op de kruin
+  const s = fx.s || 1;
+  ctx.translate(fx.x, fx.groundY); ctx.scale(s, s); ctx.translate(-fx.x, -fx.groundY);
+}
 function ravijnGatNu(){                          // het open ravijn als gewoon gat {x, w}, of null
   const fx = ravijnFx;
   if (!fx || !fx.colliderActive || fx.lvl !== level) return null;
-  const l = fx.gapLeft, r = fx.gapRight;
+  const [l, r] = ravijnRanden(fx);
   return { x: (l + r) / 2, w: r - l };
 }
 function ravijnGat(x){
@@ -6244,7 +6260,83 @@ function ravijnRuneTeken(groundY, scale, cx){
   runeSchijf(ctx, cx + (R.x - world), groundY - R.h * scale, R.rPx, { aan: ravijnRuneAan === level });
   if (hold) ctx.restore();
 }
-function ravijnReset(){ ravijnFx = null; ravijnRuneAan = null; }
+function ravijnReset(){ ravijnFx = null; ravijnRuneAan = null; stopDeur(); }
+// De bovenste rijen van ravijn_wand.png zijn niet de wand maar de verre oever uit het
+// referentiebeeld: een vage rode savanne, met de graspollen en de rand van de overkant ervoor.
+// Die strook past nooit bij het level. Bij het laden gaat ze eruit, zodat je daar door het gat
+// de grond van het level zelf ziet. Er komt niets nieuws in het plaatje, alleen de alfa.
+//
+// Gras en achtergrond verschillen in hoe koel ze zijn (blauw gedeeld door rood): de
+// achtergrond zit rond 0,43 tot 0,45, het gras, de rand en de wand eronder tussen 0,24 en
+// 0,38. Tussen k0 en k1 loopt het zacht over. Daarna nog de losse puntjes eruit die in de
+// strepen van de achtergrond warmer uitvielen: een pixel met minder dan twee buren gaat weg.
+// Alleen de bovenste RAVIJN_SCHOON.rijen, want daaronder zit alleen nog wand.
+const RAVIJN_SCHOON = { rijen: 52, k0: 0.37, k1: 0.41 };
+function ravijnWandSchoon(img){
+  const w = img.naturalWidth, h = img.naturalHeight;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+  let d; try { d = g.getImageData(0, 0, w, h); } catch (e){ return img; }   // niet uit te lezen: dan zoals hij is
+  const px = d.data, rijen = Math.min(h, RAVIJN_SCHOON.rijen), K = RAVIJN_SCHOON;
+  for (let y = 0; y < rijen; y++){
+    for (let x = 0; x < w; x++){
+      const i = (y * w + x) * 4;
+      if (!px[i + 3]) continue;
+      const koel = px[i + 2] / Math.max(1, px[i]);
+      px[i + 3] = Math.round(px[i + 3] * Math.max(0, Math.min(1, (K.k1 - koel) / (K.k1 - K.k0))));
+    }
+  }
+  const vast = (x, y) => x >= 0 && y >= 0 && x < w && y < h && px[(y * w + x) * 4 + 3] > 128;
+  const weg = [];
+  for (let y = 0; y < rijen; y++){
+    for (let x = 0; x < w; x++){
+      if (!vast(x, y)) continue;
+      let n = 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && vast(x + dx, y + dy)) n++;
+      if (n < 2) weg.push((y * w + x) * 4 + 3);
+    }
+  }
+  for (const i of weg) px[i] = 0;
+  g.putImageData(d, 0, 0);
+  return c;
+}
+// Waar de strook weg is, zie je door het gat de grond die er al getekend staat: de zandband
+// van het level, van de kruin tot de looplijn. Maar de rand van de overkant ligt dieper dan
+// die looplijn, en daartussen stond de voorkant van je eigen grond (de aardlaag), alsof de
+// grond over het gat heen doorliep. Dat stukje wordt gevuld met de zandband zelf: de rijen
+// net boven de looplijn, gespiegeld naar beneden gelegd, uit wat er op dit moment al op het
+// canvas staat. Gespiegeld, want dan grenst elke rij aan zichzelf en loopt er op de looplijn
+// geen naad; is er meer nodig dan de band hoog is, dan komt hij om en om recht en gespiegeld.
+// Dezelfde aanpak als grondDoorlopen, dus het klopt vanzelf met elk level en elke bodem, en er
+// hoeft niets bijgehouden te worden. De bron gaat door de huidige transformatie, want er zit
+// een schok (translate) en op een telefoon een andere DPR omheen.
+function ravijnZandDoorlopen(groundY){
+  const fx = ravijnFx;
+  if (!fx || fx.p <= 0) return;
+  const tot = fx.groundY + RAVIJN_SCHOON.rijen * (fx.s || 1);   // tot onder de rand van de overkant
+  const band = Math.floor(groundY - fx.groundY);           // de zandband: kruin tot looplijn
+  if (band < 4 || tot <= groundY) return;
+  const m = ctx.getTransform();
+  const [wl, wr] = ravijnRanden(fx);
+  const gl = W / 2 + (wl - world), gr = W / 2 + (wr - world);
+  const x0 = Math.max(0, Math.floor(gl)), x1 = Math.min(W, Math.ceil(gr));
+  if (x1 <= x0) return;
+  const sx = Math.round(x0 * m.a + m.e), sw = Math.round((x1 - x0) * m.a);
+  let k = 0;
+  for (let y = groundY; y < tot; y += band, k++){
+    const hgt = Math.min(band, tot - y);
+    if (k % 2 === 0){                                       // gespiegeld: de rij op de looplijn eerst
+      const sy = Math.round((groundY - hgt) * m.d + m.f);
+      ctx.save();
+      ctx.translate(0, 2 * y); ctx.scale(1, -1);
+      ctx.drawImage(cv, sx, sy, sw, Math.round(hgt * m.d), x0, y - hgt, x1 - x0, hgt);
+      ctx.restore();
+    } else {                                                // recht: sluit aan op de onderkant van het spiegelbeeld
+      const sy = Math.round((groundY - band) * m.d + m.f);
+      ctx.drawImage(cv, sx, sy, sw, Math.round(hgt * m.d), x0, y, x1 - x0, hgt);
+    }
+  }
+}
 function fallDeath(){
   if (dead) return;
   lives = 0; drawLives();
@@ -10114,7 +10206,9 @@ function scene(groundY){
   ctx.beginPath(); ctx.moveTo(0, groundY + 2); ctx.lineTo(W, groundY + 2); ctx.stroke();
   }
   if (ravijnFx){                                    // ravijn opent: het gat, direct na de grond
+    ravijnZandDoorlopen(groundY);                   // de zandband door tot onder de rand van de overkant
     ctx.save(); ctx.translate(Math.round(W / 2 - world), 0);   // x van het effect is een wereld-x
+    ravijnSchaal(ravijnFx);
     ravijnFx.drawGap(ctx);
     ctx.restore();
   }
@@ -10435,7 +10529,7 @@ function loop(now){
     ravijnFx.groundY = Math.round(edgeCrust(groundY));
     ravijnFx.update(dt);
     if (ravijnFx.colliderActive && !ravijnFx.gevallen){ ravijnFx.gevallen = true; ravijnLaatVallen(); }
-    if (dt > 0){ ravijnSX = Math.round(ravijnFx.shakeX); ravijnSY = Math.round(ravijnFx.shakeY); }
+    if (dt > 0){ ravijnSX = Math.round(ravijnFx.shakeX * ravijnFx.s); ravijnSY = Math.round(ravijnFx.shakeY * ravijnFx.s); }
   }
   ctx.clearRect(0, 0, W, H);
   ctx.save();
@@ -11597,6 +11691,7 @@ function loop(now){
     ctx.restore();                                  // zoom weer los
     if (ravijnFx){                                  // ravijn opent: stof, barst en steentjes, na de personages
       ctx.save(); ctx.translate(Math.round(W / 2 - world), 0);
+      ravijnSchaal(ravijnFx);
       ravijnFx.drawOverlay(ctx);
       ctx.restore();
     }
@@ -13328,7 +13423,10 @@ const RAVIJN_TEST = { naam: 'Test 6: Ravijn test', x: -1500, kei: -1250 };   // 
 const RAVIJN_STENEN = [ {dx: -205, v: 0.55}, {dx: -168, v: 0.85}, {dx: -131, v: 0.35},
   {dx: -96, v: 0.7}, {dx: -52, v: 0.45}, {dx: -14, v: 0.8}, {dx: 31, v: 0.5},
   {dx: 74, v: 0.3}, {dx: 112, v: 0.75}, {dx: 149, v: 0.45}, {dx: 188, v: 0.9}, {dx: 226, v: 0.6} ];
-const ravijnWand = new Image(); ravijnWand.src = 'ravijn/assets/ravijn_wand.png';
+const ravijnWand = new Image();
+let ravijnWandBeeld = null;                         // de wand zonder de ingebakken achtergrond (ravijnWandSchoon)
+ravijnWand.onload = () => { ravijnWandBeeld = ravijnWandSchoon(ravijnWand); };
+ravijnWand.src = 'ravijn/assets/ravijn_wand.png';
 const ravijnStenen = [];
 for (let i = 1; i <= 5; i++){
   const s = new Image(); s.src = 'ravijn/assets/steen_' + i + '.png'; ravijnStenen.push(s);
@@ -13348,17 +13446,30 @@ function ravijnOpen(wx){
   const zandTop = Math.round(edgeCrust(looplijn));
   console.log('ravijn: groundY', zandTop, '(edgeCrust van looplijn', Math.round(looplijn) + ')');
   const band = looplijn - zandTop;
+  const sch = ((H * (Number(sizeEl.value) / 100)) / CHAR_H) / RAVIJN_MAAT.ref;   // 1 op 720 hoog, Formaat 25
   ravijnFx = new RavijnEffect({
-    wallImage: ravijnWand,
+    wallImage: ravijnWandBeeld || ravijnWand,
+    quality: touchOn() ? 0.5 : 1,                   // op een telefoon de helft van de wolkjes
     stoneImages: ravijnStenen,
     x: wx,
     groundY: zandTop,
-    width: 277,
-    stoneSpots: RAVIJN_STENEN.map(p => ({ x: wx + p.dx, y: Math.round(zandTop + p.v * band) })),
-    onEvent: n => console.log('ravijn:', n)
+    width: RAVIJN_MAAT.breed / sch,                 // geschaald komt dit op 277 wereld-px uit
+    // in de maat van de module: geschaald liggen ze dx van het midden, tussen kruin en looplijn
+    stoneSpots: RAVIJN_STENEN.map(p => ({ x: wx + p.dx / sch, y: zandTop + p.v * band / sch })),
+    onEvent: n => {
+      console.log('ravijn:', n);
+      if (n === 'onBreak') playDeur();              // voorlopig het geluid van de rotswand, op de klap
+    }
   });
   ravijnFx.lvl = level;
-  console.log('ravijn: op wereld-x', wx);
+  ravijnFx.s = sch;
+  // De module rekt de barst en het openen op bij een breder gat. Hier is hij alleen breder
+  // omdat hij daarna geschaald wordt; het echte gat is 277, dus de duur ook op 277, zoals de
+  // module die zelf uitrekent (zie tCrack en tOpen in ravijn-effect.js).
+  const echt = ravijnFx.scaleFactor * sch, FS = RavijnEffect.PHASES;
+  ravijnFx.tCrack = FS.crack * (0.72 + 0.28 * echt);
+  ravijnFx.tOpen = FS.open * (0.68 + 0.32 * echt);
+  console.log('ravijn: op wereld-x', wx, 'schaal', sch.toFixed(2));
   ravijnFx.start();
 }
 
