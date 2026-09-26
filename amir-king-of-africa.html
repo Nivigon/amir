@@ -530,6 +530,8 @@
         <button data-lk="donker:+">Donker +</button>
         <button data-lk="minLicht:-">Ondergrens −</button>
         <button data-lk="minLicht:+">Ondergrens +</button>
+        <button data-lk="gewenning:-">Gewenning −</button>
+        <button data-lk="gewenning:+">Gewenning +</button>
         <button data-lk="zon:-">Zon −</button>
         <button data-lk="zon:+">Zon +</button>
         <button data-lk="kaats:-">Kaatslicht −</button>
@@ -2070,8 +2072,8 @@ const TEST_9 = {
           { x: -5000, t: 'Een driedubbel ravijn' } ]
 };
 // Test 10: het licht onder de grond. Een kort stuk savanne, dan een ingang, een gang van 700 diep,
-// halverwege een smal gat in het dak waar alleen licht door valt, en aan het eind een uitgang met
-// treden. Zo staan de drie soorten gaten achter elkaar: een brede ingang, een smalle lichtschacht en
+// halverwege een smal gat in het dak waar alleen licht door valt, daarna een lang donker stuk (om
+// de ooggewenning te merken), en aan het eind een uitgang met treden. Zo staan de drie soorten gaten achter elkaar: een brede ingang, een smalle lichtschacht en
 // een schacht met een trap. Geen vijanden en geen valschade: het gaat om kijken. De regelaars van
 // het licht staan in de sandbox, onder "Licht onder de grond".
 const TEST_10 = {
@@ -2080,18 +2082,19 @@ const TEST_10 = {
   rocks: [],
   props: [ {x: -250, k: 'gras', s: 1.1, f: 0, v: 0} ],
   spawns: [ {x: -60000, k: 'groen'} ],          // heel ver weg: houdt de vrije modus uit
-  terraces: [ {r: -2500, l: -3400, h: -550}, {r: -2750, l: -3400, h: -400},
-              {r: -2950, l: -3400, h: -250}, {r: -3150, l: -3400, h: -100} ],
+  terraces: [ {r: -4000, l: -4900, h: -550}, {r: -4250, l: -4900, h: -400},
+              {r: -4450, l: -4900, h: -250}, {r: -4650, l: -4900, h: -100} ],
   ledges: [], hppotions: [],
   gaps: [ {x: -900, w: 600},                    // de ingang: te breed, je valt erin
           {x: -1900, w: 260},                   // een smal gat in het dak, alleen voor het licht
-          {x: -3000, w: 800} ],                 // de uitgang, met de treden erin
-  holtes: [ {r: -450, l: -3400, diep: 700} ],
+          {x: -4500, w: 800} ],                 // de uitgang, met de treden erin; daarvoor 2000 donker
+  holtes: [ {r: -450, l: -4900, diep: 700} ],
   village: [], npcs: [], water: [], thickets: [],
-  cliffs: [ {x: -4400} ],
-  ends: [ {x: -3900} ],
+  cliffs: [ {x: -5900} ],
+  ends: [ {x: -5400} ],
   tips: [ { x: -60, t: 'Testlevel voor het licht onder de grond. Laat je in het ravijn vallen' },
-          { x: -1300, t: 'Kijk hoe het licht door de gaten naar binnen valt' } ]
+          { x: -1300, t: 'Kijk hoe het licht door de gaten naar binnen valt' },
+          { x: -2400, t: 'Een lang donker stuk: na een paar tellen wennen je ogen eraan' } ]
 };
 const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10];
 const WINTER_LEVELS = [WINTER_1, WINTER_2];
@@ -8424,6 +8427,8 @@ const LK = {
   budget: 4,               // zoveel ms per beeld rekent het spel vooruit aan de kaart
   // de regelaars (in de sandbox onder "Licht onder de grond")
   donker: 0.85,            // hoe zwaar het donker weegt, 0 tot 1
+  gewenning: 0.5,          // ooggewenning: zoveel van het donker valt weg als het rond Amir donker is
+  gewenTijd: 1.5,          // en zo lang doen zijn ogen erover, in seconden
   minLicht: 0.45,          // de ondergrens: donkerder dan dit deel van het licht wordt niets, zodat de
                            // vloer, de randen en de treden altijd te lezen blijven
   zon: 0.22,               // hoe fel de zon naar binnen valt
@@ -8462,6 +8467,7 @@ function lkKaart(){
          vast: new Uint8Array(nk * nr),                   // 1 als de cel grond of rots is
          ruw: new Float32Array(nk * nr * 2), ruwKlaar: new Uint8Array(nk),
          som: new Float32Array(nk * nr * 2), somKlaar: new Uint8Array(nk),   // kaatslicht, per kolom verticaal opgeteld
+         licht: new Float32Array(nk * nr),               // het licht per cel, zoals het getekend wordt
          klaar: new Uint8Array(nk), nogTeDoen: nk,
          lucht: mk(), grond: mk(), zonC: mk(),
          pix: [0, 1, 2].map(() => new ImageData(nk, nr)), vuil: null };   // de plaatjes, eerst in het geheugen
@@ -8549,6 +8555,7 @@ function lkKolom(k){                              // een kolom af: kaatslicht er
     const m = (k * nr + r) * 2, vast = K.ruw[m + 1] < 0;
     const l = vast ? K.ruw[m] : Math.max(K.ruw[m], LK.kaats * som / n);
     const licht = LK.ambient + (1 - LK.ambient) * Math.min(1, l);
+    K.licht[k * nr + r] = vast ? -1 : licht;
     const a = Math.round(255 * Math.min(1 - LK.minLicht, LK.donker * (1 - licht)));
     const o = (r * K.nk + k) * 4;
     const doel = vast ? pg : pl;
@@ -8576,7 +8583,34 @@ function lkVooruit(){
   for (let d = 0; d < K.nk && performance.now() - t0 < LK.budget; d++)
     for (const k of [mid - d, mid + d]) if (k >= 0 && k < K.nk && !K.klaar[k]) lkKolom(k);
 }
-function drawLichtkaart(groundY, scale, cx){
+// Ooggewenning. Hoeveel licht er rond Amir is, staat al in de kaart: het gemiddelde van de
+// luchtcellen om hem heen, een halve schermbreedte in het rond en van zijn voeten tot een stuk
+// boven zijn hoofd. Hoe donkerder daar, hoe meer van het donker van de kaart wegvalt, tot
+// LK.gewenning; zijn ogen doen er LK.gewenTijd seconden over. Diep in een gang wordt het zo na
+// een paar tellen lichter, en loop je naar een gat of een uitgang, dan komt het donker terug.
+let lkGewend = 0, lkGewendLevel = null;
+function lkRondAmir(){
+  const K = lk, C = LK.cel;
+  const i0 = Math.floor((world - 320) / C), i1 = Math.floor((world + 320) / C);
+  const j0 = Math.floor(ph / C), j1 = Math.floor((ph + CHAR_H * 1.6) / C);
+  let som = 0, n = 0;
+  for (let i = Math.max(K.i0, i0); i <= Math.min(K.i1, i1); i += 2){
+    const k = i - K.i0;
+    if (!K.klaar[k]) lkKolom(k);
+    for (let j = Math.max(K.j0, j0); j <= Math.min(K.j1, j1); j++){
+      const l = K.licht[k * K.nr + (K.j1 - j)];
+      if (l >= 0){ som += l; n++; }
+    }
+  }
+  return n ? som / n : 1;
+}
+function lkGewenning(dt){
+  if (lkGewendLevel !== level){ lkGewend = 0; lkGewendLevel = level; }
+  const doel = LK.gewenning * Math.max(0, Math.min(1, (0.75 - lkRondAmir()) / 0.5));
+  lkGewend += (doel - lkGewend) * (1 - Math.exp(-dt / Math.max(0.05, LK.gewenTijd)));
+  return lkGewend;
+}
+function drawLichtkaart(groundY, scale, cx, dt){
   if (building || !lkKaart()) return;
   const K = lk, C = LK.cel, zoom = viewZoom();
   const links = world - cx - (W / 2) / zoom - 40, rechts = world - cx + W / 2 + (W / 2) / zoom + 40;
@@ -8591,9 +8625,11 @@ function drawLichtkaart(groundY, scale, cx){
   const dx = X(a * C), dy = Y((K.j1 + 1) * C), dw = sw * C, dh = K.nr * C * scale;
   ctx.save();
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  const open = 1 - lkGewenning(dt);                // het donker, na de ooggewenning
+  ctx.globalAlpha = open;
   ctx.drawImage(K.lucht, sx, 0, sw, K.nr, dx, dy, dw, dh);
   const diepT = holteDiepT(scale);
-  if (diepT > 0){ ctx.globalAlpha = diepT; ctx.drawImage(K.grond, sx, 0, sw, K.nr, dx, dy, dw, dh); }
+  if (diepT > 0){ ctx.globalAlpha = diepT * open; ctx.drawImage(K.grond, sx, 0, sw, K.nr, dx, dy, dw, dh); }
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'lighter';
   ctx.drawImage(K.zonC, sx, 0, sw, K.nr, dx, dy, dw, dh);
   ctx.restore();
@@ -13790,7 +13826,7 @@ function loop(now){
     drawVenom(groundY, scale);
     drawVillageFg(groundY, scale, cx, pWorld, dt);   // dorpsdecor dat vóór Amir langs staat
     drawWind(groundY, scale, cx);              // stof waait vóór alles langs
-    drawLichtkaart(groundY, scale, cx);        // het licht onder de grond, over alles in de wereld
+    drawLichtkaart(groundY, scale, cx, dt);    // het licht onder de grond, over alles in de wereld
 
     if (swFrame >= SWEEP_FROM){                    // strakke lage zwaaiboog over de grond
       const p = (swFrame - SWEEP_FROM) / (SWEEP_TO - SWEEP_FROM + 1);
@@ -14826,12 +14862,13 @@ document.getElementById('sbholteweg').onclick = () => {
 // De regelaars van de lichtkaart (zie "lichtkaart"). Elke klik schuift een waarde een stap, en
 // onderin staan ze dan allemaal, zodat je ze kunt overnemen in LK. De kaart rekent zichzelf
 // daarna opnieuw uit, want de waarden zitten in zijn sleutel.
-const LK_STAP = { donker: [0.05, 0, 1], minLicht: [0.05, 0, 1], zon: [0.04, 0, 0.8], kaats: [0.1, 0, 2], warm: [0.04, 0, 0.6] };
+const LK_STAP = { donker: [0.05, 0, 1], minLicht: [0.05, 0, 1], gewenning: [0.1, 0, 1], zon: [0.04, 0, 0.8], kaats: [0.1, 0, 2], warm: [0.04, 0, 0.6] };
 sandboxEl.querySelectorAll('button[data-lk]').forEach(b => b.onclick = () => {
   const [k, t] = b.dataset.lk.split(':'), [stap, min, max] = LK_STAP[k];
   LK[k] = Math.round(Math.max(min, Math.min(max, LK[k] + (t === '+' ? stap : -stap))) * 100) / 100;
   const f = v => String(v).replace('.', ',');
-  flashHint('Donker ' + f(LK.donker) + ', ondergrens ' + f(LK.minLicht) + ', zon ' + f(LK.zon)
+  flashHint('Donker ' + f(LK.donker) + ', ondergrens ' + f(LK.minLicht) + ', gewenning ' + f(LK.gewenning)
+            + ', zon ' + f(LK.zon)
             + ', kaatslicht ' + f(LK.kaats) + ', warm ' + f(LK.warm));
   cv.focus();
 });

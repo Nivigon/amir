@@ -571,8 +571,17 @@ kaatslicht 1,2 seconde op Test 10, nu 70 ms; de hele kaart is een halve seconde,
 Verandert de vorm (in de sandbox) of een regelaar, dan begint hij opnieuw (`lkSleutel`).
 
 De kaart ligt na alles in de wereld (na `drawWind`), dus ook over Amir, de vijanden en het decor.
-De regelaars staan in de sandbox onder **Licht onder de grond** (donker, ondergrens, zon,
-kaatslicht, warm); elke klik laat ze allemaal zien, zodat je ze in `LK` kunt overnemen.
+De regelaars staan in de sandbox onder **Licht onder de grond** (donker, ondergrens, gewenning,
+zon, kaatslicht, warm); elke klik laat ze allemaal zien, zodat je ze in `LK` kunt overnemen.
+
+**Ooggewenning** (`lkGewenning`): hoeveel licht er rond Amir is, staat al in de kaart (`lk.licht`,
+het licht per cel zoals het getekend wordt), dus er wordt niets uit het beeld teruggelezen.
+`lkRondAmir` neemt het gemiddelde van de luchtcellen om hem heen. Hoe donkerder daar, hoe meer van
+het donker van de kaart wegvalt, tot `LK.gewenning`, en zijn ogen doen er `LK.gewenTijd` seconden
+over (op de speltijd, dus ook de speelrobot ziet het). Diep in een gang wordt het zo na een paar
+tellen lichter, en loop je naar een gat of een uitgang, dan komt het donker terug. Gemeten in Test 10:
+zonder gewenning zakt het lange donkere stuk tot helderheid 30, met gewenning blijft het rond 44;
+bij de uitgang komen beide weer bij elkaar uit. De zonnegloed in de kaart valt er niet onder.
 
 **De ondergrens** (`LK.minLicht`) houdt het spel speelbaar: donkerder dan dat deel van het licht
 wordt de kaart nergens, hoe weinig hemel een plek ook ziet. Zo blijven de vloer, de randen en de
