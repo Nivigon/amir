@@ -524,6 +524,12 @@ waaronder de zon in een gang onder de grond naar binnen valt. Dat geldt voor een
 voor een ravijn dat openscheurt (de schaduw groeit dan mee), 's nachts zachter, en in de winter
 koel en blauwig.
 
+Het licht onder de grond volgt het uitzicht: in de winter valt er koel wit zonlicht door een gat in
+plaats van oranje, en 's nachts is het zwakker. En ook buiten werkt het licht: loop je onder een
+rotsdak of een overhang, dan wordt het daar geleidelijk wat donkerder, en aan de open kant valt de
+zon schuin naar binnen, uit dezelfde richting als waar hij in de lucht staat. Dat is te zien in
+Test 1, onder het rotsdak.
+
 In de sandbox staat het onder **Ravijn**: **Smal** en **Breed** zetten een breuk neer waar je
 staat.
 
