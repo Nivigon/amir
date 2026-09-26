@@ -6988,8 +6988,74 @@ function ravijnWandSchoon(img){
     }
   }
   for (const i of weg) px[i] = 0;
+  ravijnWandGras(px, w, h);
   g.putImageData(d, 0, 0);
+  c.rand = ravijnWandRand(px, w, h);
   return c;
+}
+// De graspollen van de overkant horen niet in de wand. De module herhaalt het midden van de
+// plaat bij een breder gat, en dan knipt die herhaling de pollen doormidden: halve bosjes.
+// Ze gaan er dus uit, en het spel zet er zijn eigen gras voor in de plaats (ravijnGrasTeken),
+// dat meebuigt met de wind en nergens wordt afgeknipt.
+// Per pol een strook kolommen (a tot b) met de rand van de overkant eronder, met de hand
+// uitgemeten in ravijn_wand.png (lijn: [kolom, rij]). Boven die lijn gaat alles weg. Waar de
+// voet van een pol over de wand hangt (tot rij tot) komt de wand terug uit een schone strook
+// ernaast (bron), heen en weer gespiegeld en op dezelfde afstand onder de rand. Alleen voor
+// deze plaat: een lange versie (RAVIJN_WAND.lang) zonder pollen heeft dit niet nodig.
+const RAVIJN_POLLEN = [
+  { a: 4, b: 69, tot: 0, bron: [72, 98],
+    lijn: [[4, 50], [10, 50], [18, 46], [24, 41], [40, 40], [58, 40], [63, 42], [66, 44], [69, 46]] },
+  { a: 114, b: 162, tot: 65, bron: [72, 98],
+    lijn: [[114, 50], [118, 50], [125, 48], [135, 45], [145, 42], [155, 39], [162, 37]] },
+  { a: 203, b: 276, tot: 57, bron: [72, 98],
+    lijn: [[203, 43], [206, 44], [212, 48], [220, 51], [261, 51], [265, 62], [276, 62]] } ];
+function ravijnWandGras(px, w, h){
+  if (w !== 277 || h < 70) return;                  // alleen de plaat waarvoor de lijnen gemeten zijn
+  const lijnOp = (l, x) => {
+    for (let i = 1; i < l.length; i++) if (x <= l[i][0]){
+      const [x0, y0] = l[i - 1], [x1, y1] = l[i];
+      return y0 + (y1 - y0) * Math.max(0, (x - x0) / (x1 - x0));
+    }
+    return l[l.length - 1][1];
+  };
+  const oud = px.slice();
+  for (const P of RAVIJN_POLLEN){
+    const [c0, c1] = P.bron, n = c1 - c0;
+    const bronRand = x => { const r = ravijnWandRandKolom(oud, w, x); return r < 0 ? 45 : r; };
+    for (let x = P.a; x <= P.b; x++){
+      const rand = lijnOp(P.lijn, x), r0 = Math.floor(rand);
+      for (let y = 0; y < r0; y++) px[(y * w + x) * 4 + 3] = 0;
+      const i0 = (r0 * w + x) * 4 + 3;              // de rij van de lijn zelf zacht
+      px[i0] = Math.round(px[i0] * (1 - (rand - r0)));
+      if (!P.tot || !oud[((P.tot + 3) * w + x) * 4 + 3]) continue;   // naast de wand blijft het leeg
+      const k = (x - P.a) % (2 * n), sx = k < n ? c1 - k : c0 + (k - n);   // heen en weer door de bron
+      const dy = bronRand(sx) - rand;
+      const zij = Math.min(1, (x - P.a + 1) / 4, (P.b - x + 1) / 4);   // aan de zijkant en onderaan zacht in de wand over
+      for (let y = Math.ceil(rand); y <= P.tot && y < h; y++){
+        const sy = Math.round(y + dy);
+        if (sy < 0 || sy >= h) continue;
+        const i = (y * w + x) * 4, j = (sy * w + sx) * 4, t = Math.min(zij, (P.tot - y + 1) / 6);
+        if (t >= 1 || !oud[i + 3]) for (let q = 0; q < 4; q++) px[i + q] = oud[j + q];
+        else for (let q = 0; q < 4; q++) px[i + q] = Math.round(oud[j + q] * t + oud[i + q] * (1 - t));
+      }
+    }
+  }
+  for (let x = 0; x < w; x++){                      // losse puntjes boven de rand, over de hele breedte
+    const r = ravijnWandRandKolom(px, w, x);
+    for (let y = 0; y < (r < 0 ? RAVIJN_SCHOON.rijen : r - 1); y++) px[(y * w + x) * 4 + 3] = 0;
+  }
+}
+// De rand van de overkant per kolom: de eerste rij waar de wand dicht is (drie rijen op
+// elkaar, zodat een los puntje niet telt), of -1.
+function ravijnWandRandKolom(px, w, x){
+  const vol = y => px[(y * w + x) * 4 + 3] > 128;
+  for (let y = 0; y < 90; y++) if (vol(y) && vol(y + 1) && vol(y + 2)) return y;
+  return -1;
+}
+function ravijnWandRand(px, w, h){
+  const r = new Array(w);
+  for (let x = 0; x < w; x++) r[x] = ravijnWandRandKolom(px, w, x);
+  return r;
 }
 // Waar de strook weg is, hoort door het gat de achtergrond van het level door te lopen, net
 // als bij een gewoon ravijn: daar wordt de grond eruit geknipt en zie je boven de looplijn de
@@ -7019,7 +7085,10 @@ function ravijnAchterVangEen(fx, groundY){
   const m = ctx.getTransform();
   const bw = Math.max(1, Math.round((x1 - x0) * m.a)), bh = Math.max(1, Math.round((y1 - y0) * m.d));
   const c = fx.achter || (fx.achter = document.createElement('canvas'));
-  if (c.width < bw || c.height < bh){ c.width = Math.max(c.width, bw); c.height = Math.max(c.height, bh); }
+  // Precies op maat, en niet alleen laten groeien: wat er van een eerdere, grotere vangst
+  // onder bleef liggen, trok de spiegeling (ravijnAchterTeken) bij het schalen op een telefoon
+  // als een oranje streep over de looplijn.
+  if (c.width !== bw || c.height !== bh){ c.width = bw; c.height = bh; }
   const g = c.getContext('2d');
   g.clearRect(0, 0, bw, bh);
   g.drawImage(cv, Math.round(x0 * m.a + m.e), Math.round(y0 * m.d + m.f), bw, bh, 0, 0, bw, bh);
@@ -7030,14 +7099,77 @@ function ravijnAchterTeken(fx, groundY){
   if (!v) return;
   const [wl, wr] = ravijnRanden(fx);
   const gl = W / 2 + (wl - world), gr = W / 2 + (wr - world);
-  const tot = fx.groundY + RAVIJN_SCHOON.rijen * (fx.s || 1) + 4;   // tot onder de rand van de overkant
+  const tot = fx.groundY + RAVIJN_GRAS.onder * (fx.s || 1) + 4;   // tot onder de rand van de overkant
   ctx.save();
   ctx.beginPath();
   traceGap({ x: fx.x, w: wr - wl }, gl, gr, v.y0, tot, groundY);
   ctx.clip();
-  ctx.drawImage(fx.achter, 0, 0, v.bw, v.bh, v.x0, v.y0, v.x1 - v.x0, v.y1 - v.y0);   // zoals het was
-  const r = Math.max(1, Math.round(v.bh * 2 / (v.y1 - v.y0)));   // de onderste regel, twee schermpixels boven de looplijn
-  ctx.drawImage(fx.achter, 0, v.bh - r - 1, v.bw, 1, v.x0, v.y1 - 1, v.x1 - v.x0, tot - v.y1 + 1);
+  const bx = v.x1 - v.x0, k = v.bh / (v.y1 - v.y0);
+  ctx.drawImage(fx.achter, 0, 0, v.bw, v.bh, v.x0, v.y0, bx, v.y1 - v.y0);   // zoals het was
+  // Onder de looplijn de vlakte gespiegeld, zoals het water hem ook zou laten zien: dan loopt
+  // er geen enkele regel uitgerekt door, en de verte zakt vanzelf achter de overkant weg.
+  // Is het gat dieper dan de strook hoog is, dan om en om gespiegeld en recht.
+  const hb = v.y1 - v.y0;
+  for (let y = v.y1, om = true; y < tot; y += hb, om = !om){
+    const h = Math.min(hb, tot - y);
+    // de bronrijen afgerond, maar nooit voorbij de strook: dan knipt de browser de bron af en
+    // schuift hij de spiegeling een pixel op, en ligt er een streep grond langs de looplijn
+    const sh = Math.max(1, Math.min(v.bh, Math.round(h * k)));
+    if (om){
+      ctx.save();
+      ctx.translate(0, 2 * y); ctx.scale(1, -1);    // rij y + d toont rij y - d van de strook
+      ctx.drawImage(fx.achter, 0, v.bh - sh, v.bw, sh, v.x0, y - h, bx, h);
+      ctx.restore();
+    } else {
+      ctx.drawImage(fx.achter, 0, 0, v.bw, sh, v.x0, y, bx, h);
+    }
+  }
+  ctx.restore();
+}
+// Het gras op de overkant. De pollen die in ravijn_wand.png zaten zijn eruit (RAVIJN_POLLEN);
+// hier komt het gras van het spel zelf, op Amirs maat en met dezelfde tekencode als al het
+// andere gras, dus het buigt mee met de windvlagen. Op onregelmatige afstanden over de hele
+// breedte van het gat, en elk polletje staat op de rand van de wand zoals de module die daar
+// neerlegt (ravijnWandKolom), dus ook in de herhaling van een breed gat. Het verschijnt met het
+// openen mee en verdwijnt met het sluiten.
+// stap: afstand tussen twee pollen in wereld-px, met een kans leeg op een kaal stuk erachter;
+// h: hoogte als deel van Amir;
+// onder: de laagste rij van de rand in de wand, tot waar de achtergrond moet doorlopen.
+const RAVIJN_GRAS = { stap: [16, 48], leeg: 0.25, h: [0.16, 0.34], onder: 60 };
+function ravijnWandKolom(u, gw, w){                 // welke kolom van de wand de module op u in het gat legt
+  const B = Math.min(RavijnEffect.CFG.edgeBand, gw / 2);
+  if (u < B) return Math.floor(u);
+  if (u >= gw - B) return Math.min(w - 1, Math.floor(w - (gw - u)));
+  const tw = w - 2 * B, m = u - B, n = Math.floor(m / tw), r = m - n * tw;
+  if (n % 2 === 0) return Math.floor(B + r);
+  const stuk = Math.min(tw, gw - 2 * B - n * tw);   // het laatste stuk kan korter zijn
+  return Math.floor(B + stuk - r);
+}
+function ravijnGrasTeken(fx){
+  const beeld = ravijnWandBeeld;
+  if (!beeld || !beeld.rand || !imgReady(grassImg)) return;
+  const a = Math.max(0, Math.min(1, (fx.p - 0.3) / 0.5));
+  if (!a) return;
+  const s = fx.s || 1, [wl, wr] = ravijnRanden(fx), gw = (wr - wl) / s, w = beeld.rand.length;
+  if (!fx.gras){                                     // een keer per ravijn, vast per plek
+    fx.gras = [];
+    const G = RAVIJN_GRAS;
+    for (let u = 6, i = 0; u < fx.width - 6; i++){
+      fx.gras.push({ u, h: G.h[0] + (G.h[1] - G.h[0]) * rnd(fx.x, i), f: rnd(fx.x, i + 50) < 0.5 });
+      let stap = G.stap[0] + (G.stap[1] - G.stap[0]) * rnd(fx.x, i + 100);
+      if (rnd(fx.x, i + 150) < G.leeg) stap += G.stap[1] * (1 + rnd(fx.x, i + 200));   // af en toe een kaal stuk
+      u += stap / s;
+    }
+  }
+  ctx.save();
+  ctx.globalAlpha *= a;
+  for (const t of fx.gras){
+    if (t.u > gw - 6) break;
+    const r = beeld.rand[ravijnWandKolom(t.u, gw, w)];
+    if (r < 0 || r > RAVIJN_GRAS.onder) continue;    // daar is geen rand
+    const wx = wl + t.u * s, gh = CHAR_H * propUnit * t.h;
+    drawVeg('gras', grassImg, W / 2 + (wx - world), fx.groundY + (r + 2) * s + gh * GRASS.sink, gh, t.f, t, wx, false);
+  }
   ctx.restore();
 }
 function fallDeath(){
@@ -10917,6 +11049,7 @@ function scene(groundY){
     ravijnSchaal(fx);
     fx.drawGap(ctx);
     ctx.restore();
+    ravijnGrasTeken(fx);
   }
   drawProps(groundY, propUnit, true);               // near scenery, standing on the line
 }
@@ -14199,7 +14332,14 @@ const RAVIJN_STENEN = [ {dx: -205, v: 0.55}, {dx: -168, v: 0.85}, {dx: -131, v: 
 const RAVIJN_WAND = { src: 'ravijn/assets/ravijn_wand.png', lang: null };
 const ravijnWand = new Image();
 let ravijnWandBeeld = null;                         // de wand zonder de ingebakken achtergrond (ravijnWandSchoon)
-ravijnWand.onload = () => { ravijnWandBeeld = ravijnWandSchoon(ravijnWand); ravijnWandLang(); };
+ravijnWand.onload = () => {
+  ravijnWandBeeld = ravijnWandSchoon(ravijnWand);
+  // De module haalt de bovenste rijen van het midden uit een strookje zonder graspollen. Die
+  // pollen zijn er nu uit, dus het hele midden kan mee, en dan loopt de rand ook in een breed
+  // gat door zonder een rechte snee op rij 40.
+  if (ravijnWandBeeld !== ravijnWand) RavijnEffect.CFG.lipRows = 0;
+  ravijnWandLang();
+};
 ravijnWand.src = RAVIJN_WAND.lang || RAVIJN_WAND.src;
 function ravijnWandLang(){                          // bij een lange plaat de bovenrand uit het hele midden
   const C = RavijnEffect.CFG, w = ravijnWand.naturalWidth;
