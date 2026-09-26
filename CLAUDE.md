@@ -62,7 +62,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | Episode De Diepte / Episode Renew / Episode Winter World | de leveldefinities |
 | Episode De Diepte | `DIEP_1` tot en met `DIEP_5`: vijf zware levels met valschade, elk met een gang onder de grond en een trap terug naar boven, met een verhaal en een slot en de zwarte panter als eindbaas |
 | het verhaal bij een episode | `VERHAAL` en `SLOT`, `verhaalToon()`: tekst op een zwart scherm voor elk level en na het laatste, alleen als je bij het eerste level begint. Op de naam van het level, dus een nieuwe episode hoeft alleen tekst toe te voegen en `verhaalAan` te zetten in zijn speelknop |
-| Episode Test levels | `TEST_1` tot en met `TEST_10`: korte proefstukken, los van de echte episodes |
+| Episode Test levels | `TEST_1` tot en met `TEST_11`: korte proefstukken, los van de echte episodes |
 | lichtkaart: het licht onder de grond | `LK`, `drawLichtkaart`: een lichtbron (de hemel en de zon) voor alles onder de grond, per level een keer uitgerekend |
 | terrassen en richels | `terraces`, `ledges`, klimmen |
 | de rotswand rechts | `cliffs`, het einde van het level |
@@ -83,6 +83,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | vegetatie, water, doornbos | `props`, `water`, `thickets` |
 | slangen: kleur, zicht en patrouille | `SNAKE_DIRS`, `slangZiet`, `startPatrouille`, `slangSchuif` |
 | zwarte panter, de witte panter, de hyena | de grote vijanden |
+| voorgrond: de laag tussen de camera en Amir | `VOORGROND`, `VG_SOORT`, `drawVoorgrond`: onscherp gras, struiken, keien en een schedel vlak voor de camera; schuift sneller dan de wereld, ook verticaal, en valt onder de grond weg |
 | achtergrondlagen, uitzicht per level | `SCENE0` en `SCENES` |
 | startscherm, level maken, menu: kaartjes per level | menu en bouwer |
 | elk level nakijken op decor boven een ravijn | `schoonLevel`, draait bij elk level; `schoonKomend` en `komendeRavijnen` houden hutten, keien en doornbossen weg waar later een ravijn openscheurt (rune of zegel), en `placeProblem` in de bouwer ook |
@@ -126,6 +127,7 @@ precies hetzelfde formaat naar JSON.
 | `skeletten` | een zittend skelet met een speer erin: `{x, f}`, `x` is het midden van het skelet, `f` spiegelt; E bij de schacht trekt hem eruit (zie hieronder) |
 | `zegels` | zegels plat in de grond: `{x, ravijn, sluit}`; erop stappen zet hem aan of uit, en met `ravijn` scheurt de grond daar open als hij aangaat. Met `sluit` gaat het open ravijn op die x juist weer dicht (staat er niets open, dan blijft hij donker) |
 | `fg` | strook waarover de voorgrondbegroeiing ligt: `{from, to}` |
+| `voorgrond` | de onscherpe laag vlak voor de camera: `{stroken: [{van, tot, dicht, struik, kei}], los: [{x, k, s, f}]}`, `k` uit `VG_SOORT`; los van `fg` |
 | `arena` | het veld van de eindbaas: `{c}` |
 | `cliffs` | de afsluitende rotswand: `{x}`, staat altijd achter `ends` |
 | `ends` | de fakkels die het level uitspelen: `{x}` |
