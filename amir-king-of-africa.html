@@ -4235,6 +4235,8 @@ function zegelUpdate(dt, scale){
       }
     }
     z.op = op;
+    // een sluitzegel gaat weer uit zodra zijn ravijn dicht is, en werkt dan opnieuw
+    if (z.aan && z.sluit !== null && z.sluit !== undefined && !ravijnBij(z.sluit)) z.aan = false;
     z.t = Math.max(0, Math.min(1, (z.t || 0) + (z.aan ? 1 : -1) * dt / ZEGEL.licht));
   }
 }
@@ -4247,7 +4249,8 @@ function zegelDoe(z){
 }
 // Een zegel met sluit doet het omgekeerde: staat het ravijn op die x open, dan licht hij op en
 // gaat het weer dicht (ravijnSluit). Staat er niets open, dan blijft hij donker, zodat wie er
-// te vroeg op stapt hem niet per ongeluk uitzet. Hij blijft aan tot R.
+// te vroeg op stapt hem niet per ongeluk uitzet. Is het ravijn dicht, dan gaat hij weer uit
+// (zegelUpdate), en gaat het opnieuw open, dan kun je hem opnieuw gebruiken.
 function zegelSluit(z){
   const fx = ravijnBij(z.sluit);
   if (!fx || fx.sluiten || !fx.colliderActive){
@@ -6830,7 +6833,9 @@ const RAVIJN_ROTS = {
 // Welke levels een ravijn met een rots en een rune hebben, en waar. x is het midden van het
 // ravijn, breed zijn breedte in wereld-px: 277 is een gewoon ravijn, maar elke maat werkt. De
 // rots staat met zijn linkervoet naast de rechterrand van zijn eigen gat, aan de kant waar Amir
-// aankomt. Of een rune al geraakt is, staat in het item zelf (aanIn: het level waarin).
+// aankomt. Een rune is aan zolang zijn ravijn er is (ravijnRuneAan): is het weer dicht, dan gaat
+// hij uit en kun je hem opnieuw raken. Raken kan altijd, ook als hij aan is: de speer blijft er
+// dan gewoon in hangen, alleen gaat er niets nog eens open.
 const RAVIJN_PROEF = {
   'Test 6: Ravijn test':    [ { x: -2100, breed: 277 } ],
   'Test 9: Brede ravijnen': [ { x: -2100, breed: 277 }, { x: -4400, breed: 554 }, { x: -7400, breed: 831 } ]
@@ -6906,10 +6911,10 @@ function ravijnRune(scale, e){
   while (u > 0 && B.alfa[v * B.w + u] <= 128) u--;
   return { x: M.l + u / M.k - rPx * RAVIJN_RUNE.inzet, h: RAVIJN_RUNE.hoog, rPx, raakPx: rPx * RAVIJN_RUNE.raak };
 }
+function ravijnRuneAan(e){ return !!ravijnBij(e.x); }   // aan zolang zijn ravijn er is, ook tijdens het dichtgaan
 function ravijnRuneRaak(x, h, scale){              // welke rune raakt dit punt, of null
   if (!ravijnRotsHier()) return null;
   for (const e of ravijnProef()){
-    if (e.aanIn === level) continue;               // al geraakt
     const R = ravijnRune(scale, e);
     const du = x - R.x, dv = (h - R.h) * scale;
     if (du * du + dv * dv < R.raakPx * R.raakPx) return e;
@@ -6923,8 +6928,8 @@ function ravijnRuneTreffer(x, h, scale, e){
   const f = Math.min(1, R.rPx * (1 - RAVIJN_RUNE.steek) / d);
   javStick(R.x + du * f, R.h + dv * f / scale, 'muur', scale);
   if (jav && jav.state === 'muur') jav.rune = true;   // valt er nooit vanzelf uit
-  e.aanIn = level;
-  if (!ravijnBij(e.x)) ravijnOpen(e.x, e.breed);    // al open (door het zegel of met O): niet nog eens
+  if (ravijnRuneAan(e)) return;                     // al open (of nog aan het dichtgaan): de speer hangt er alleen in
+  ravijnOpen(e.x, e.breed);
   flashHint('De rune licht op: de grond scheurt open');
 }
 function ravijnRuneTeken(groundY, scale, cx){      // de rotsen, en de schijf op elk
@@ -6934,14 +6939,10 @@ function ravijnRuneTeken(groundY, scale, cx){      // de rotsen, en de schijf op
     if (sx > W / viewZoom() + W || sx + M.wPx < -W) continue;
     ctx.drawImage(ravijnRotsBeeld.c, sx, groundY - M.hPx, M.wPx, M.hPx);
     const R = ravijnRune(scale, e);
-    runeSchijf(ctx, cx + (R.x - world), groundY - R.h * scale, R.rPx, { aan: e.aanIn === level });
+    runeSchijf(ctx, cx + (R.x - world), groundY - R.h * scale, R.rPx, { aan: ravijnRuneAan(e) });
   }
 }
-function ravijnReset(){
-  ravijnen.length = 0;
-  for (const k in RAVIJN_PROEF) for (const e of RAVIJN_PROEF[k]) e.aanIn = null;
-  stopDeur();
-}
+function ravijnReset(){ ravijnen.length = 0; stopDeur(); }
 // De bovenste rijen van ravijn_wand.png zijn niet de wand maar de verre oever uit het
 // referentiebeeld: een vage rode savanne, met de graspollen en de rand van de overkant ervoor.
 // Die strook past nooit bij het level. Bij het laden gaat ze eruit, zodat je daar door het gat
