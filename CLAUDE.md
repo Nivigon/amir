@@ -570,8 +570,17 @@ kaatslicht 1,2 seconde op Test 10, nu 70 ms; de hele kaart is een halve seconde,
 Verandert de vorm (in de sandbox) of een regelaar, dan begint hij opnieuw (`lkSleutel`).
 
 De kaart ligt na alles in de wereld (na `drawWind`), dus ook over Amir, de vijanden en het decor.
-De vier regelaars staan in de sandbox onder **Licht onder de grond** (donker, zon, kaatslicht,
-warm); elke klik laat alle vier zien, zodat je ze in `LK` kunt overnemen.
+De regelaars staan in de sandbox onder **Licht onder de grond** (donker, ondergrens, zon,
+kaatslicht, warm); elke klik laat ze allemaal zien, zodat je ze in `LK` kunt overnemen.
+
+**De ondergrens** (`LK.minLicht`) houdt het spel speelbaar: donkerder dan dat deel van het licht
+wordt de kaart nergens, hoe weinig hemel een plek ook ziet. Zo blijven de vloer, de randen en de
+treden te lezen. Het is een grens op het donker van de kaart, niet op het beeld: de tegels van de
+gang zijn zelf al een beetje donker, en de lichtlaag komt er nog overheen.
+
+**De schaduw van Amir** ligt op dezelfde vloer als waar zijn voeten op komen (`grondVloer`, net
+als in `updateJump`), dus beneden in een gang op de bodem. Het gat eruit knippen gebeurt alleen
+bovengronds: beneden is een gat erboven geen rand.
 
 **Boven het dak loopt de aarde over in steen, en dat is materiaal, geen kleur.** Het grondpakket
 boven een gang en de wand van het gat erboven zijn aarde, de gang is steen. Onderin het pakket
