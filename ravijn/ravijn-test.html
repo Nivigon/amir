@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Ravijn test</title>
+<style>
+  body { margin:0; background:#1b1512; color:#e9d9c6; font:14px system-ui, sans-serif; }
+  #wrap { padding:14px; }
+  canvas { display:block; background:#000; image-rendering:auto; max-width:100%; }
+  .bar { display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin:10px 0; }
+  button { background:#4a3524; color:#f0e2d2; border:1px solid #7a5a3c; padding:7px 14px;
+           border-radius:5px; cursor:pointer; font:inherit; }
+  button:hover { background:#5c4330; }
+  label { display:flex; gap:7px; align-items:center; }
+  #log { font-family:ui-monospace, monospace; font-size:12px; color:#b9a48c; min-height:18px; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div class="bar">
+    <button id="go">Start</button>
+    <label>breedte <input id="w" type="range" min="180" max="900" value="277"> <span id="wv">277</span> px</label>
+    <label>kwaliteit <input id="q" type="range" min="0.3" max="1" step="0.1" value="1"> <span id="qv">1.0</span></label>
+    <label><input id="slow" type="checkbox"> halve snelheid</label>
+    <span id="fps"></span>
+  </div>
+  <canvas id="c" width="1000" height="385"></canvas>
+  <div id="log"></div>
+</div>
+
+<script src="ravijn-effect.js"></script>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const log = document.getElementById('log');
+
+const GROUND_Y = 196;          // grondlijn in de strip
+const STRIP_W = 216;
+
+function load(src) {
+  return new Promise(res => { const i = new Image(); i.onload = () => res(i); i.src = src; });
+}
+
+let strip, wall, stones = [], fx;
+
+function makeStoneSpots(cx, width) {
+  const spots = [];
+  for (let x = 30; x < canvas.width - 20; x += 46) {
+    spots.push({ x: x + (x % 17), y: GROUND_Y + 30 + ((x * 7) % 26) });
+  }
+  return spots;
+}
+
+function build() {
+  const width = +document.getElementById('w').value;
+  fx = new RavijnEffect({
+    wallImage: wall,
+    stoneImages: stones,
+    x: canvas.width / 2,
+    groundY: GROUND_Y,
+    width: width,
+    quality: +document.getElementById('q').value,
+    stoneSpots: makeStoneSpots(canvas.width / 2, width),
+    onEvent: name => { log.textContent = name; }
+  });
+}
+
+function drawWorld() {
+  // achtergrond en grond: de strook gespiegeld doortegelen
+  let x = 0, flip = false;
+  while (x < canvas.width) {
+    ctx.save();
+    if (flip) { ctx.translate(x + STRIP_W, 0); ctx.scale(-1, 1); ctx.drawImage(strip, 0, 0); }
+    else { ctx.drawImage(strip, x, 0); }
+    ctx.restore();
+    x += STRIP_W; flip = !flip;
+  }
+}
+
+let last = 0, frames = 0, acc = 0;
+function frame(now) {
+  const slow = document.getElementById('slow').checked;
+  let dt = (now - last) / 1000; last = now;
+  if (!isFinite(dt) || dt <= 0) dt = 1 / 60;
+  fx.update(slow ? dt * 0.5 : dt);
+
+  ctx.save();
+  ctx.translate(Math.round(fx.shakeX), Math.round(fx.shakeY));
+  drawWorld();
+  fx.drawGap(ctx);
+  fx.drawOverlay(ctx);
+  ctx.restore();
+
+  frames++; acc += dt;
+  if (acc > 0.5) {
+    document.getElementById('fps').textContent =
+      Math.round(frames / acc) + ' fps, ' +
+      (fx.deep.length + fx.low.length + fx.high.length) + ' wolken';
+    frames = 0; acc = 0;
+  }
+  requestAnimationFrame(frame);
+}
+
+(async function () {
+  strip = await load('assets/grond_strip.png');
+  wall  = await load('assets/ravijn_wand.png');
+  for (let i = 1; i <= 5; i++) stones.push(await load('assets/steen_' + i + '.png'));
+  build();
+  requestAnimationFrame(frame);
+})();
+
+document.getElementById('go').onclick = () => { build(); fx.start(); };
+document.getElementById('w').oninput = e => {
+  document.getElementById('wv').textContent = e.target.value; build();
+};
+document.getElementById('q').oninput = e => {
+  document.getElementById('qv').textContent = (+e.target.value).toFixed(1); build();
+};
+</script>
+</body>
+</html>
