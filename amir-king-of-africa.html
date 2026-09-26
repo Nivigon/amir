@@ -1919,7 +1919,25 @@ const TEST_5 = {
   ends: [ {x: -7600} ],
   tips: [ { x: -60, t: 'Testlevel. Je kunt hier niet doodgaan. Pak je speer op en loop door' } ]
 };
-const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5];
+// Test 6: het openscheurende ravijn, en verder niets. Een kort vlak stuk savanne zonder
+// vijanden en zonder decor rond de plek. Loop een stukje door en druk op O: op x -1500
+// (RAVIJN_TEST, bij de proefaansluiting) scheurt de grond open. Het is nog alleen beeld: je
+// loopt er gewoon overheen, want er is nog geen gat in de grond. De slang heel ver weg houdt
+// de vrije modus uit, net als in Test 3.
+const TEST_6 = {
+  name: 'Test 6: Ravijn test',
+  lagen: 'tafelbergen',
+  rocks: [], props: [ {x: -250, k: 'gras', s: 1.1, f: 0, v: 0} ],
+  spawns: [ {x: -60000, k: 'groen'} ],          // heel ver weg: houdt de vrije modus uit
+  terraces: [], ledges: [],
+  hppotions: [],
+  village: [], npcs: [], gaps: [], water: [], thickets: [],
+  cliffs: [ {x: -3300} ],
+  ends: [ {x: -2800} ],
+  tips: [ { x: -60, t: 'Testlevel voor het openscheurende ravijn. Loop een stukje door' },
+          { x: -1000, t: 'Druk op O: vlak voor je scheurt de grond open. Nog eens O begint opnieuw' } ]
+};
+const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6];
 const WINTER_LEVELS = [WINTER_1, WINTER_2];
 let levelIdx = 0;
 
@@ -9986,7 +10004,11 @@ function scene(groundY){
   ctx.strokeStyle = '#c08a52'; ctx.lineWidth = 4;
   ctx.beginPath(); ctx.moveTo(0, groundY + 2); ctx.lineTo(W, groundY + 2); ctx.stroke();
   }
-  if (ravijnFx) ravijnFx.drawGap(ctx);              // ravijn opent: het gat, direct na de grond
+  if (ravijnFx){                                    // ravijn opent: het gat, direct na de grond
+    ctx.save(); ctx.translate(Math.round(W / 2 - world), 0);   // x van het effect is een wereld-x
+    ravijnFx.drawGap(ctx);
+    ctx.restore();
+  }
   drawProps(groundY, propUnit, true);               // near scenery, standing on the line
 }
 
@@ -10299,6 +10321,7 @@ function loop(now){
   // zodat hij met de camera meegaat. Zijn schok telt op bij die van het spel; in de pauze
   // (dt 0) niet, anders trilt het beeld achter het pauzemenu door.
   let ravijnSX = 0, ravijnSY = 0;
+  if (ravijnFx && ravijnFx.lvl !== level) ravijnFx = null;   // hoort bij het level waarin je O drukte
   if (ravijnFx){
     ravijnFx.groundY = Math.round(edgeCrust(groundY));
     ravijnFx.update(dt);
@@ -11461,7 +11484,11 @@ function loop(now){
     }
     }
     ctx.restore();                                  // zoom weer los
-    if (ravijnFx) ravijnFx.drawOverlay(ctx);        // ravijn opent: stof, barst en steentjes, na de personages
+    if (ravijnFx){                                  // ravijn opent: stof, barst en steentjes, na de personages
+      ctx.save(); ctx.translate(Math.round(W / 2 - world), 0);
+      ravijnFx.drawOverlay(ctx);
+      ctx.restore();
+    }
     drawLichtlaag();                                // de hele wereld in dezelfde belichting
     drawSnowfall();                                 // de vlokken vallen over alles heen
     drawBossBar();
@@ -12069,7 +12096,8 @@ const SUBS = {
   'Test 2: De zwaardvechters': 'Eerst een losse, dan twee tegelijk',
   'Test 3: De rots met de rune': 'Raak de schijf met je speer, dan gaat de wand open',
   'Test 4: De val in de grot': 'Het ravijn in, onder de grond verder, en weer naar boven',
-  'Test 5: De fosforslangen': 'Altijd met z\'n drieën. Zoek zelf uit hoe ze werken'
+  'Test 5: De fosforslangen': 'Altijd met z\'n drieën. Zoek zelf uit hoe ze werken',
+  'Test 6: Ravijn test': 'Druk op O en de grond scheurt open'
 };
 function buildCards(el, list){
   el.innerHTML = '';
@@ -13176,9 +13204,17 @@ pauseBtn.onclick = () => { if (won) return; if (paused) resumeGame(); else pause
 document.getElementById('dvagain').onclick = () => { restart(); };
 
 // ---- ravijn opent: proefaansluiting ----
-// Blokje 1: toets O laat het openscheurende ravijn midden in beeld zien, over alles
-// heen. Nergens aan gekoppeld: geen grond, geen botsing, geen level. De plaatjes
+// Toets O laat het openscheurende ravijn zien. Het staat op een wereld-x: in Test 6 op
+// RAVIJN_TEST.x, in elk ander level op de plek waar Amir staat als je drukt. Het is nog
+// alleen beeld: geen gat in de grond, geen botsing, niets in de leveldata. De plaatjes
 // staan in ravijn/assets en worden hier los geladen, nog niet via het laadsysteem.
+const RAVIJN_TEST = { naam: 'Test 6: Ravijn test', x: -1500 };
+// Steentjes op de zandband rond het gat, in wereld-x vanaf het midden. Ze liggen tussen de
+// bovenkant van de zandband en de looplijn (v: 0 is de bovenkant, 1 de looplijn), hoppen
+// tijdens het trillen, en de binnenste vallen mee het gat in.
+const RAVIJN_STENEN = [ {dx: -205, v: 0.55}, {dx: -168, v: 0.85}, {dx: -131, v: 0.35},
+  {dx: -96, v: 0.7}, {dx: -52, v: 0.45}, {dx: -14, v: 0.8}, {dx: 31, v: 0.5},
+  {dx: 74, v: 0.3}, {dx: 112, v: 0.75}, {dx: 149, v: 0.45}, {dx: 188, v: 0.9}, {dx: 226, v: 0.6} ];
 const ravijnWand = new Image(); ravijnWand.src = 'ravijn/assets/ravijn_wand.png';
 const ravijnStenen = [];
 for (let i = 1; i <= 5; i++){
@@ -13189,21 +13225,26 @@ addEventListener('keydown', e => {
   if (e.key !== 'o' && e.key !== 'O') return;
   if (paused || typing(e) || e.repeat) return;
   if (!ravijnWand.complete || !ravijnWand.naturalWidth) return;   // de module rekent met de maat van de wand
-  // elke keer opnieuw aanmaken: dan staat hij ook na een ander schermformaat in het midden
+  // elke keer opnieuw aanmaken, dan klopt de grondlijn ook na een ander schermformaat
   // Rij 0 van de wand hoort op de bovenkant van de zandband, niet op de looplijn. De
   // looplijn is de groundY van de renderlus (Amirs voeten); de zandband begint hoger, op
   // edgeCrust, en daar loopt ook de breuk van een gewoon ravijn tot.
   const looplijn = H * 0.82 + camY + touchLift();
   const zandTop = Math.round(edgeCrust(looplijn));
   console.log('ravijn: groundY', zandTop, '(edgeCrust van looplijn', Math.round(looplijn) + ')');
+  const wx = level && level.name === RAVIJN_TEST.naam ? RAVIJN_TEST.x : Math.round(world);
+  const band = looplijn - zandTop;
   ravijnFx = new RavijnEffect({
     wallImage: ravijnWand,
     stoneImages: ravijnStenen,
-    x: W / 2,
+    x: wx,
     groundY: zandTop,
     width: 277,
+    stoneSpots: RAVIJN_STENEN.map(p => ({ x: wx + p.dx, y: Math.round(zandTop + p.v * band) })),
     onEvent: n => console.log('ravijn:', n)
   });
+  ravijnFx.lvl = level;
+  console.log('ravijn: op wereld-x', wx);
   ravijnFx.start();
 });
 
