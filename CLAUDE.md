@@ -583,7 +583,14 @@ schaal, de wandplaat of het level verandert. Botsen gaat zoals altijd over `gaps
 aan veranderd.
 
 Een gat boven een gang houdt de oude tekening met `holteSchacht`, want daar hoort de wand door te
-lopen tot het dak. De bouwer ook, zodat je er ravijnen blijft zien terwijl je ze versleept.
+lopen tot het dak.
+
+In de bouwer is het precies hetzelfde ravijn, dus ook een level dat je daar maakt krijgt alleen de
+nieuwe stijl. Twee dingen zijn er anders omdat je daar van verder weg kijkt (`viewZoom`): de ravijnen
+worden rond het midden van de grondlijn geschaald, net als de grond (`ravijnZoom`, ook bij het vangen
+van de achtergrond), en onder de wand komt de donkere bodem (`ravijnBodemVul`), want uitgezoomd reikt
+het beeld dieper dan de wand. Versleep je een ravijn, dan wordt het effect opnieuw gemaakt; dat kost
+minder dan een tiende milliseconde.
 
 ### De zon op de wand van een ravijn
 
@@ -598,7 +605,6 @@ in `RAVIJN_ZON`.
 | --- | --- |
 | gewoon ravijn en openscheurend ravijn | via het haakje `opLicht` van de module (`ravijn/ravijn-effect.js`), op het eigen canvas van de wand met `source-atop`: alleen op de wandpixels, nooit op de achtergrond erboven. `knik` is de verticale rek (`ravijnRek`), zodat de lijn in beeld de goede hoek heeft, en `open` is `fx.p`: de schaduw groeit mee met het openscheuren |
 | gat boven een gang | niet: daar doet de lichtkaart het |
-| in de bouwer | in de oude ravijnlus, onder de rand met het gras (`rotsY`) |
 
 's Nachts is het verschil kleiner: de sterkte schaalt met `gloedSterkte` van het uitzicht (0,30
 overdag), met `RAVIJN_ZON.nacht` als ondergrens. In de winter is de schaduw blauwig

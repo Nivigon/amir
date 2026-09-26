@@ -7528,12 +7528,11 @@ function ravijnVastVoor(g){
 }
 // de gewone ravijnen die zo getekend worden, alleen wat in of vlak bij beeld ligt
 function ravijnenVast(){
-  if (building) return [];
-  const uit = [];
+  const uit = [], zicht = W / viewZoom();            // in de bouwer kijk je van verder weg
   for (const g of gapList()){
     if (holteAt(g.x)) continue;
     const gl = W / 2 + (g.x - g.w / 2 - world), gr = W / 2 + (g.x + g.w / 2 - world);
-    if (gr < -W / 2 || gl > W * 1.5) continue;
+    if (gr < W / 2 - zicht || gl > W / 2 + zicht) continue;
     const fx = ravijnVastVoor(g);
     if (fx) uit.push(fx);
   }
@@ -7998,10 +7997,19 @@ function ravijnWandRand(px, w, h){
 // telefoon een andere DPR omheen.
 // Elk ravijn heeft zijn eigen canvas (fx.achter) en vak (fx.vak): waar de vangst vandaan kwam.
 function ravijnAchterVang(groundY){
+  ctx.save();
+  ravijnZoom(groundY);                              // in de bouwer: de vangst komt uit het uitgezoomde beeld
   for (const fx of ravijnenTeken()){
     fx.groundY = Math.round(edgeCrust(groundY));    // een gewoon ravijn wordt niet in de lus bijgewerkt
     ravijnAchterVangEen(fx, groundY);
   }
+  ctx.restore();
+}
+// In de bouwer kijk je van verder weg (viewZoom): de grond wordt dan rond het midden van de
+// grondlijn geschaald, en de ravijnen moeten precies zo, anders staan ze naast hun gat.
+function ravijnZoom(groundY){
+  const zoom = viewZoom();
+  if (zoom !== 1){ ctx.translate(W / 2, groundY); ctx.scale(zoom, zoom); ctx.translate(-W / 2, -groundY); }
 }
 // De zon op de wand (ravijnZonLicht), op het canvas van de module: alleen op de wandpixels. De
 // module rekent in zijn eigen maat; de schaduwlijn moet in beeld de goede hoek hebben, dus de
@@ -8013,7 +8021,8 @@ function ravijnAchterVangEen(fx, groundY){
   fx.vak = null;
   if (fx.p <= 0) return;
   const [wl, wr] = ravijnRanden(fx);
-  const x0 = Math.max(0, Math.floor(W / 2 + (wl - world)) - 2), x1 = Math.min(W, Math.ceil(W / 2 + (wr - world)) + 2);
+  const half = (W / 2) / viewZoom();                  // wat er in beeld staat, ook uitgezoomd
+  const x0 = Math.max(W / 2 - half, Math.floor(W / 2 + (wl - world)) - 2), x1 = Math.min(W / 2 + half, Math.ceil(W / 2 + (wr - world)) + 2);
   // Vanaf de bovenkant van de grondtegel en niet vanaf de kruin: daartussen heeft de tegel nog
   // een randje met sprietjes en steentjes die op de grond liggen, en die bleven anders boven
   // het gat in de lucht hangen. Een gewoon ravijn knipt ook vanaf daar (traceGap vanaf top).
@@ -8030,6 +8039,21 @@ function ravijnAchterVangEen(fx, groundY){
   g.clearRect(0, 0, bw, bh);
   g.drawImage(cv, Math.round(x0 * m.a + m.e), Math.round(y0 * m.d + m.f), bw, bh, 0, 0, bw, bh);
   fx.vak = { x0, x1, y0, y1, bw, bh };
+}
+// In de bouwer kijk je van verder weg, en dan reikt het beeld dieper dan de wand van de module.
+// Daaronder liep de doorgetrokken grondlijn (grondDoorlopen) door het gat; dat wordt hier de
+// donkere bodem, dezelfde als naast het gat. De wand komt er daarna overheen.
+function ravijnBodemVul(fx, groundY){
+  const [wl, wr] = ravijnRanden(fx);
+  const gl = W / 2 + (wl - world), gr = W / 2 + (wr - world);
+  const van = fx.groundY + RAVIJN_GRAS.onder * (fx.s || 1) + 4;
+  ctx.save();
+  ctx.beginPath();
+  traceGap({ x: fx.x, w: wr - wl }, gl, gr, van, groundY + H * 4, groundY);
+  ctx.clip();
+  ctx.fillStyle = bodemDonker();
+  ctx.fillRect(gl - 40, van, gr - gl + 80, groundY + H * 4 - van);
+  ctx.restore();
 }
 function ravijnAchterTeken(fx, groundY){
   const v = fx.vak;
@@ -12681,9 +12705,12 @@ function scene(groundY){
   }
   // De ravijnen: het gat, direct na de grond. Een gewoon ravijn gaat hier ook doorheen, als een
   // ravijn dat al open staat (ravijnVastVoor): dezelfde wand, dezelfde lage rand met klein gras,
-  // dezelfde sneeuwrand. Alleen een gat boven een gang en de bouwer gebruiken de ravijnlus verderop.
+  // dezelfde sneeuwrand, ook in de bouwer. Alleen een gat boven een gang gebruikt de ravijnlus verderop.
+  ctx.save();
+  ravijnZoom(groundY);
   for (const fx of ravijnenTeken()){
     ravijnAchterTeken(fx, groundY);                 // de achtergrond door het gat, zoals bij een gewoon ravijn
+    if (building) ravijnBodemVul(fx, groundY);      // uitgezoomd kijk je dieper dan de wand reikt
     const op = ravijnOphoog(fx, groundY);           // hoe ver de rand van de overkant omhoog moet
     fx.opNu = op;                                   // voor de zon op de wand (opLicht)
     ravijnGrasTeken(fx, groundY, op);               // voor de wand, zodat de voet achter de rand valt
@@ -12694,6 +12721,7 @@ function scene(groundY){
     ravijnSneeuwRand(fx);                           // in de winter: sneeuw op de rand van de overkant
     ctx.restore();
   }
+  ctx.restore();
   drawProps(groundY, propUnit, true);               // near scenery, standing on the line
 }
 
@@ -13215,9 +13243,9 @@ function loop(now){
         const gl = cx + (g.x - g.w / 2 - world);
         const gr = cx + (g.x + g.w / 2 - world);
         if (gr < -W || gl > W / viewZoom() + W) continue;
-        // een gewoon ravijn tekent zich al in scene(), als een open ravijneffect (ravijnVastVoor);
-        // hier alleen nog een gat boven een gang, en alles in de bouwer
-        if (!building && !holteAt(g.x) && ravijnVastVoor(g)) continue;
+        // een gewoon ravijn tekent zich al in scene(), als een open ravijneffect (ravijnVastVoor),
+        // ook in de bouwer; hier alleen nog een gat boven een gang
+        if (!holteAt(g.x) && ravijnVastVoor(g)) continue;
         ctx.save();
         // de grond vlak naast de breuk iets donkerder: de rand buigt weg
         for (const sd of [-1, 1]){
@@ -13267,8 +13295,6 @@ function loop(now){
           hz.addColorStop(0, 'rgba(' + sc.mistColor + ',0)');       // op nul beginnen, anders ligt er een streep op de rand
           hz.addColorStop(0.35, 'rgba(' + sc.mistColor + ',' + (mistA * 0.7).toFixed(3) + ')');
           hz.addColorStop(1, 'rgba(' + sc.mistColor + ',' + mistA.toFixed(3) + ')');
-          // de zon op de wand, onder de rand met het gras (ravijnZonLicht); boven een gang de lichtkaart
-          if (building && !holteAt(g.x)) ravijnZonLicht(ctx, gl, gr, rotsY, bodemY);
           ctx.fillStyle = hz; ctx.fillRect(gl - 40, rotsY, gr - gl + 80, H * 3);
           if (holteAt(g.x)){
             // Boven een gang is dit geen afgrond maar de wand van een gat met een gang eronder:
