@@ -466,6 +466,7 @@
       <label>Zegel</label>
       <button data-zegel="0">Neerzetten</button>
       <button data-zegel="1">Met ravijn erachter</button>
+      <button data-zegel="2">Die het ravijn sluit</button>
     </div>
     <div class="row">
       <label>Grot</label>
@@ -2006,14 +2007,15 @@ const TEST_8 = {
 // gewoon ravijn van 277 op -2100, een dubbel van 554 op -4400 en een driedubbel van 831 op
 // -7400 (RAVIJN_PROEF). Elk heeft zijn eigen spits met een rune, met de voet naast de rand van
 // zijn eigen gat, en ertussen is steeds genoeg vlakte om op de goede afstand te gaan staan. Het
-// gewone haal je open nog met een sprintsprong, het dubbele en het driedubbele niet: wie verder
-// wil, laat die rune met rust, en R begint opnieuw. Waar het over gaat is het effect, niet de
-// weg erachter. Geen vijanden; de slang heel ver weg houdt de vrije modus uit.
+// gewone haal je open nog met een sprintsprong, het dubbele niet: daarom ligt er voor het dubbele
+// een zegel dat het weer dicht laat gaan (sluit), en dan loop je door naar het driedubbele. Geen
+// vijanden; de slang heel ver weg houdt de vrije modus uit.
 const TEST_9 = {
   name: 'Test 9: Brede ravijnen',
   lagen: 'tafelbergen',
   rocks: [],
   props: [ {x: -250, k: 'gras', s: 1.1, f: 0, v: 0} ],
+  zegels: [ {x: -2900, sluit: -4400} ],            // laat het dubbele ravijn weer dicht gaan
   spawns: [ {x: -60000, k: 'groen'} ],          // heel ver weg: houdt de vrije modus uit
   terraces: [], ledges: [],
   hppotions: [],
@@ -2022,8 +2024,8 @@ const TEST_9 = {
   ends: [ {x: -8600} ],
   tips: [ { x: -60, t: 'Testlevel: drie ravijnen, elk breder dan het vorige. Pak je speer op' },
           { x: -450, t: 'Een gewoon ravijn. Raak de rune, open haal je hem nog met een sprintsprong' },
-          { x: -2600, t: 'Een dubbel ravijn. Open is hij te breed om over te springen: R begint opnieuw' },
-          { x: -5000, t: 'Een driedubbel ravijn. Laat je de vorige dicht, dan kun je deze nog proberen' } ]
+          { x: -2500, t: 'Een dubbel ravijn: open te breed om over te springen. Stap dan op het zegel, dan gaat hij weer dicht' },
+          { x: -5000, t: 'Een driedubbel ravijn' } ]
 };
 const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9];
 const WINTER_LEVELS = [WINTER_1, WINTER_2];
@@ -4226,8 +4228,11 @@ function zegelUpdate(dt, scale){
     const vloer = terrainH(z.x);
     const op = !building && onGround && Math.abs(ph - vloer) < 2 && Math.abs(world - z.x) < rPx * ZEGEL.op;
     if (op && !z.op){
-      z.aan = !z.aan;
-      if (z.aan) zegelDoe(z);
+      if (z.sluit !== null && z.sluit !== undefined) zegelSluit(z);   // een sluitzegel: zie zegelSluit
+      else {
+        z.aan = !z.aan;
+        if (z.aan) zegelDoe(z);
+      }
     }
     z.op = op;
     z.t = Math.max(0, Math.min(1, (z.t || 0) + (z.aan ? 1 : -1) * dt / ZEGEL.licht));
@@ -4239,6 +4244,19 @@ function zegelDoe(z){
     ravijnOpen(z.ravijn);
     flashHint('Het zegel licht op: de grond scheurt open');
   }
+}
+// Een zegel met sluit doet het omgekeerde: staat het ravijn op die x open, dan licht hij op en
+// gaat het weer dicht (ravijnSluit). Staat er niets open, dan blijft hij donker, zodat wie er
+// te vroeg op stapt hem niet per ongeluk uitzet. Hij blijft aan tot R.
+function zegelSluit(z){
+  const fx = ravijnBij(z.sluit);
+  if (!fx || fx.sluiten || !fx.colliderActive){
+    if (!z.aan) flashHint('Het zegel blijft donker: hier staat geen ravijn open');
+    return;
+  }
+  z.aan = true;
+  ravijnSluit(z.sluit);
+  flashHint('Het zegel licht op: het ravijn gaat weer dicht');
 }
 function zegelTeken(groundY, scale, cx){
   if (!level || !level.zegels) return;
@@ -6708,6 +6726,26 @@ function ravijnenNu(){
   return ravijnen;
 }
 function ravijnBij(wx){ return ravijnenNu().find(fx => Math.abs(fx.x - wx) < 1) || null; }   // al een ravijn op deze plek?
+// Een open ravijn weer dicht laten gaan: de randen schuiven in RAVIJN_SLUIT seconden naar elkaar
+// toe (traag op gang, traag tot stilstand, zoals het openen), met een wolk stof en hetzelfde
+// geluid. Het gat blijft een ravijn zolang het er nog is, alleen smaller: wie erin staat valt
+// nog. Is het dicht, dan is het effect weg en ligt de grond er weer heel.
+const RAVIJN_SLUIT = 1.3;
+function ravijnSluit(wx){
+  const fx = ravijnBij(wx);
+  if (!fx || fx.sluiten) return;
+  fx.sluiten = { t: 0 };
+  fx._burst();                                      // de randen slaan dicht: stof en brokjes
+  playDeur();
+}
+function ravijnSluitStap(fx, dt){                   // na fx.update: de opening terug naar nul
+  if (!fx.sluiten) return false;
+  fx.sluiten.t += dt;
+  const v = Math.min(1, fx.sluiten.t / RAVIJN_SLUIT), glad = v * v * (3 - 2 * v);
+  fx.p = 1 - glad;
+  if (v >= 1){ ravijnen.splice(ravijnen.indexOf(fx), 1); return true; }
+  return false;
+}
 // Het effect is gemaakt op 1280 bij 720 met Formaat 25. Op een ander scherm wordt het in zijn
 // geheel geschaald (fx.s), rond het midden van het gat op de kruin: de wand, het stof, de barst
 // en de steentjes gaan mee met Amir, net als al het andere. De breedte van het gat niet, want
@@ -11183,9 +11221,10 @@ function loop(now){
   // (dt 0) niet, anders trilt het beeld achter het pauzemenu door.
   // Gaan er twee tegelijk, dan telt de hardste schok.
   let ravijnSX = 0, ravijnSY = 0;
-  for (const fx of ravijnenNu()){                 // alleen die van dit level (ravijnenNu ruimt de rest op)
+  for (const fx of ravijnenNu().slice()){         // alleen die van dit level (ravijnenNu ruimt de rest op)
     fx.groundY = Math.round(edgeCrust(groundY));
     fx.update(dt);
+    if (ravijnSluitStap(fx, dt)) continue;          // dichtgegaan: weg
     if (fx.colliderActive && !fx.gevallen){ fx.gevallen = true; ravijnLaatVallen(fx); }
     if (dt > 0 && Math.abs(fx.shakeX * fx.s) > Math.abs(ravijnSX)){
       ravijnSX = Math.round(fx.shakeX * fx.s); ravijnSY = Math.round(fx.shakeY * fx.s);
@@ -12831,7 +12870,9 @@ function readLevel(txt){
            // zegels in de grond: licht op als je erop stapt, zie "zegel in de grond"
            zegels: (o.zegels || []).map(q => ({ x: Number(q.x),
                                                 ravijn: (q.ravijn === undefined || q.ravijn === null)
-                                                        ? null : Number(q.ravijn) })),
+                                                        ? null : Number(q.ravijn),
+                                                sluit: (q.sluit === undefined || q.sluit === null)
+                                                        ? null : Number(q.sluit) })),
            hppotions: (o.hppotions || []).map(q => ({ x: Number(q.x),
                                                       y: (q.y === null || q.y === undefined) ? null : Number(q.y) })),
            // de plafondlijn: punten met een x en een y, zie "plafond: de rots boven je"
@@ -13151,16 +13192,22 @@ function sbGap(w){
 sandboxEl.querySelectorAll('button[data-gap]').forEach(b => b.onclick = () => sbGap(Number(b.dataset.gap)));
 // een zegel in de grond, aan de gekozen kant; stap erop en hij licht op, nog eens en hij gaat uit.
 // Met ravijn scheurt de grond erachter open zodra hij aangaat (een keer, net als in een level).
-function sbZegel(metRavijn){
+function sbZegel(soort){
   const side = sbFromRight ? 1 : -1;
   let x = world + side * 300;
   x = Math.min(x, cliffAt().wall - 300);
   x = Math.max(x, endWall() + 300);
   if (!level.zegels) level.zegels = [];
-  level.zegels.push({ x, ravijn: metRavijn ? x + side * 450 : null });
+  if (soort === 2){                                 // een sluitzegel voor het open ravijn dat het dichtst bij je ligt
+    const open = ravijnenNu().filter(f => f.colliderActive && !f.sluiten);
+    if (!open.length){ flashHint('Er staat geen ravijn open om te sluiten'); cv.focus(); return; }
+    let fx = open[0];
+    for (const f of open) if (Math.abs(f.x - world) < Math.abs(fx.x - world)) fx = f;
+    level.zegels.push({ x, ravijn: null, sluit: fx.x });
+  } else level.zegels.push({ x, ravijn: soort === 1 ? x + side * 450 : null });
   cv.focus();
 }
-sandboxEl.querySelectorAll('button[data-zegel]').forEach(b => b.onclick = () => sbZegel(b.dataset.zegel === '1'));
+sandboxEl.querySelectorAll('button[data-zegel]').forEach(b => b.onclick = () => sbZegel(Number(b.dataset.zegel)));
 // Vier rasters om het systeem los te bekijken: een gang met rots boven en naast je, een
 // dak om je hoofd aan te stoten, een uitstekende rotspunt, en een trap om op te klimmen.
 // Elke druk geeft een andere seed, dus de verstrooiing valt elke keer anders.
@@ -14131,10 +14178,24 @@ document.getElementById('dvagain').onclick = () => { restart(); };
 const RAVIJN_STENEN = [ {dx: -205, v: 0.55}, {dx: -168, v: 0.85}, {dx: -131, v: 0.35},
   {dx: -96, v: 0.7}, {dx: -52, v: 0.45}, {dx: -14, v: 0.8}, {dx: 31, v: 0.5},
   {dx: 74, v: 0.3}, {dx: 112, v: 0.75}, {dx: 149, v: 0.45}, {dx: 188, v: 0.9}, {dx: 226, v: 0.6} ];
+// De wand. ravijn_wand.png is 277 breed: bij een breder gat houdt de module aan elke kant
+// CFG.edgeBand vast en vult hij het midden met gespiegelde herhaling, en de bovenrand zelfs uit
+// een strookje van 36 px (lipSampleFrom tot lipSampleTo), en dat zie je bij een dubbel of
+// driedubbel ravijn als een patroon. Met een lange versie van de wand (lang: het pad) herhaalt
+// er niets: zolang het gat smaller is dan de plaat wordt het midden een uitsnede, en de
+// bovenrand komt dan uit het hele midden. Zo'n plaat moet even hoog zijn (189) en dezelfde
+// indeling hebben: rij 0 is de grondlijn, de rand van de overkant rond rij 32 tot 48, aan
+// elke kant een afgebroken rand van 60 px, en de graspollen onregelmatig verdeeld.
+const RAVIJN_WAND = { src: 'ravijn/assets/ravijn_wand.png', lang: null };
 const ravijnWand = new Image();
 let ravijnWandBeeld = null;                         // de wand zonder de ingebakken achtergrond (ravijnWandSchoon)
-ravijnWand.onload = () => { ravijnWandBeeld = ravijnWandSchoon(ravijnWand); };
-ravijnWand.src = 'ravijn/assets/ravijn_wand.png';
+ravijnWand.onload = () => { ravijnWandBeeld = ravijnWandSchoon(ravijnWand); ravijnWandLang(); };
+ravijnWand.src = RAVIJN_WAND.lang || RAVIJN_WAND.src;
+function ravijnWandLang(){                          // bij een lange plaat de bovenrand uit het hele midden
+  const C = RavijnEffect.CFG, w = ravijnWand.naturalWidth;
+  if (!RAVIJN_WAND.lang || w <= 277) return;
+  C.lipSampleFrom = C.edgeBand; C.lipSampleTo = w - C.edgeBand;
+}
 const ravijnStenen = [];
 for (let i = 1; i <= 5; i++){
   const s = new Image(); s.src = 'ravijn/assets/steen_' + i + '.png'; ravijnStenen.push(s);
