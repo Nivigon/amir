@@ -6179,6 +6179,11 @@ function toggleSpear(){
   spear = !spear; setSpearLabel();
 }
 spearBtn.onclick = () => { toggleSpear(); cv.focus(); };
+// E, van het toetsenbord en van de knop op de telefoon: eerst de deur uit, anders de speer
+// (en daarin gaat een skelet met een speer weer voor). Zo doen ze altijd hetzelfde.
+function eDruk(){ if (!muurUitgang()) toggleSpear(); }
+// Is er iets om E voor te gebruiken? Dan staat de E-knop op de telefoon erbij.
+function eNodig(){ return spearNear() || muurVoorDeur(world) || !!skeletBij(); }
 
 let showBoxes = false;
 const boxBtn = document.getElementById('boxbtn');
@@ -6236,7 +6241,7 @@ addEventListener('keydown', e => {
     thrPress();                                  // vasthouden = spannen, een tik = de oude stoot
     return;
   }
-  if (e.key === 'e' || e.key === 'E'){ if (!muurUitgang()) toggleSpear(); return; }
+  if (e.key === 'e' || e.key === 'E'){ eDruk(); return; }
   keys[e.key] = true;
   if (e.key === 'ArrowDown') e.preventDefault();
   if (MOVE.has(e.key)){ e.preventDefault(); clearTimeout(hintTimer); hintEl.classList.add('gone'); }
@@ -7721,19 +7726,28 @@ function ravijnAchterTeken(fx, groundY){
 // de overkant zo'n 43 rijen onder rij 0, en rij 0 hoort op de bovenkant van de zandband: zo
 // kwam die rand een flink stuk onder Amirs looplijn uit, en las de overkant als een lagere
 // richel. De wand gaat daarom omhoog tot de rand (de mediaan, randMidden) net boven de
-// looplijn ligt (boven, in module-eenheden). Wat er onderaan dan vrijkomt wordt donker, zoals
-// de diepte daar al is. Geeft de verschuiving in module-eenheden.
+// looplijn ligt (boven, in module-eenheden). Niet verschoven maar opgerekt, met de onderkant
+// op zijn plek: bij verschuiven komt er onderaan een strook vrij, en een vulling daar ligt op
+// een telefoon als een donkere balk onder de grond. Het rekken is een paar procent.
+// ravijnOphoog geeft hoeveel de rand omhoog moet, in module-eenheden.
 function ravijnOphoog(fx, groundY){
   const beeld = ravijnWandBeeld;
   if (!beeld || beeld.randMidden === undefined) return 0;
   const s = fx.s || 1;
   return Math.max(0, beeld.randMidden - (groundY - fx.groundY) / s + RAVIJN_GRAS.boven);
 }
-function ravijnOnder(fx, op){                       // onder de opgeschoven wand, in de maat van de module
-  if (op <= 0 || fx.p <= 0 || !fx.wall) return;
-  const lp = fx.gapLeft, gw = fx.gapRight - lp;
-  ctx.fillStyle = RAVIJN_GRAS.diepte;
-  ctx.fillRect(Math.round(lp) + 6, fx.groundY + fx.wall.height - op - 1, Math.max(0, Math.ceil(gw) - 12), op + 2);
+function ravijnRek(fx, op){                         // hoe ver de wand in de hoogte wordt opgerekt
+  const beeld = ravijnWandBeeld, h = fx.wall ? fx.wall.height : 189;
+  if (!beeld || op <= 0) return 1;
+  return (h - beeld.randMidden + op) / (h - beeld.randMidden);
+}
+function ravijnRekTeken(fx, op){                    // in de maat van de module: rekken rond de onderkant
+  const k = ravijnRek(fx, op), onder = fx.groundY + (fx.wall ? fx.wall.height : 189);
+  ctx.translate(0, onder); ctx.scale(1, k); ctx.translate(0, -onder);
+}
+function ravijnRijY(fx, r, op){                     // waar rij r van de wand komt, in de maat van de module
+  const h = fx.wall ? fx.wall.height : 189;
+  return fx.groundY + h - (h - r) * ravijnRek(fx, op);
 }
 // Het gras op de overkant. De pollen die in ravijn_wand.png zaten zijn eruit (RAVIJN_POLLEN);
 // hier komt het gras van het spel zelf, met dezelfde tekencode als al het andere gras, dus het
@@ -7748,7 +7762,7 @@ function ravijnOnder(fx, op){                       // onder de opgeschoven wand
 // Het verschijnt met het openen mee en verdwijnt met het sluiten.
 // onder: de laagste rij van de rand in de wand, tot waar de achtergrond moet doorlopen.
 const RAVIJN_GRAS = { groep: [45, 135], h: [0.13, 0.23], telefoon: 1.2, waas: 0.2, donker: 0.08,
-                      buig: 0.7, boven: 3, onder: 60, diepte: 'rgb(12,8,6)' };
+                      buig: 0.7, boven: 3, onder: 60 };
 function ravijnWandKolom(u, gw, w){                 // welke kolom van de wand de module op u in het gat legt
   const B = Math.min(RavijnEffect.CFG.edgeBand, gw / 2);
   if (u < B) return Math.floor(u);
@@ -7818,7 +7832,7 @@ function ravijnGrasTeken(fx, groundY, op){
     const r = beeld.rand[ravijnWandKolom(t.u, gw, w)];
     if (r < 0 || r > G.onder) continue;             // daar is geen rand
     const wx = wl + t.u * s, gh = CHAR_H * propUnit * t.h * groot;
-    const voet = fx.groundY + (r - op + t.diep) * s + gh * 0.2;   // de steentjes aan de voet vallen achter de rand
+    const voet = fx.groundY + (ravijnRijY(fx, r, op) + t.diep - fx.groundY) * s + gh * 0.2;   // de steentjes aan de voet vallen achter de rand
     drawVeg('grasVer', ver.still, W / 2 + (wx - world), voet, gh, t.f, t, wx, false);
   }
   ctx.restore();
@@ -11703,10 +11717,8 @@ function scene(groundY){
     ravijnGrasTeken(fx, groundY, op);               // voor de wand, zodat de voet achter de rand valt
     ctx.save(); ctx.translate(Math.round(W / 2 - world), 0);   // x van het effect is een wereld-x
     ravijnSchaal(fx);
-    ctx.translate(0, -op);
+    ravijnRekTeken(fx, op);
     fx.drawGap(ctx);
-    ctx.translate(0, op);
-    ravijnOnder(fx, op);
     ctx.restore();
   }
   drawProps(groundY, propUnit, true);               // near scenery, standing on the line
@@ -14615,7 +14627,7 @@ cv.addEventListener('pointerdown', e => {
 //  De knoppen hebben geen eigen beweging- of spellogica: ze zetten exact dezelfde
 //  interne toetsstatus als het toetsenbord. Lopen/rennen/bukken via keys['ArrowLeft'],
 //  keys['ArrowRight'], keys['Shift'] en keys['ArrowDown']; springen via startJump();
-//  slaan via atkKeyHeld + startAttack(); speer oppakken via toggleSpear().
+//  slaan via atkKeyHeld + startAttack(); E (speer, deur, skelet) via eDruk().
 // ============================================================================
 const tcv = document.getElementById('tc'), tctx = tcv.getContext('2d');
 const turnEl = document.getElementById('turn'), pauseBtn = document.getElementById('pausebtn');
@@ -14652,7 +14664,7 @@ const TOUCH_BTNS = [
 ];
 function btnVisible(b){
   if (b.when === 'never') return false;            // gereserveerd voor een spell
-  if (b.when === 'pickup') return spearNear();     // alleen als er iets op te pakken is
+  if (b.when === 'pickup') return eNodig();        // alleen als er iets met E te doen is: speer, deur, skelet
   return true;
 }
 function btnDim(b){                                // lege drinkknop staat er wat flauwer bij
@@ -14731,7 +14743,7 @@ function pressBtn(id){
   if (!b) return;
   if (b.act === 'jump') startJump();                                   // net als pijl omhoog
   else if (b.act === 'attack'){ if (!atkKeyHeld){ atkKeyHeld = true; thrPress(); } }   // net als spatie: vasthouden is spannen
-  else if (b.act === 'spear') toggleSpear();                           // net als E
+  else if (b.act === 'spear') eDruk();                                 // net als E, dus ook door de deur
   else if (b.act === 'drink') drinkHppotion();                         // net als Q
 }
 function releaseBtn(id, cancel){
