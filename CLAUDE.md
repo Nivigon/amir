@@ -92,6 +92,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | voorgrond: de laag tussen de camera en Amir | `VOORGROND`, `VG_SOORT`, `drawVoorgrond`: onscherp gras, struiken, keien en een schedel vlak voor de camera; schuift sneller dan de wereld, ook verticaal, en valt onder de grond weg |
 | achtergrondlagen, uitzicht per level | `SCENE0` en `SCENES` |
 | startscherm, level maken, menu: kaartjes per level | menu en bouwer |
+| level maken | de bouwer: `GEREEDSCHAP` (wat je neer kunt zetten), `bouwOpen` (de rand en de lijst), `bouwVelden` en `bouwExtra` (het venster), `tekenLijn` (de levellijn), `bouwD` en `bouwGeest` (Amir als geest), `bouwTesten` (testen vanaf hier), `holteMaak` en `holteTrap` (gangen), `bouwSchakelTeken` (koppelingen en raakvlakken); zie "De bouwer" hieronder |
 | elk level nakijken op decor boven een ravijn | `schoonLevel`, draait bij elk level; `schoonKomend` en `komendeRavijnen` houden hutten, keien, doornbossen, skeletten en speertekens weg waar later een ravijn openscheurt (rune of zegel), en `placeProblem` in de bouwer ook |
 | wat er staat waar een ravijn openscheurt | `RAVIJN_DECOR`, `ravijnDecor`, `ravijnDecorStap`: kalebassen, botten en dorpelingen vallen erin, planten, keien, doornbossen en de speer schuiven naar de rand of vervagen; alles in `rv` of `x0`, dus `ravijnReset` zet het terug |
 | sandbox | de vrije testmodus |
@@ -132,7 +133,8 @@ precies hetzelfde formaat naar JSON.
 | `hppotions` | drinkkalebassen: `{x, y}` |
 | `skeletten` | een zittend skelet met een speer erin: `{x, f}`, `x` is het midden van het skelet, `f` spiegelt; E bij de schacht trekt hem eruit (zie hieronder) |
 | `tekens` | speertekens: `{x, v, f}`, `v` is `teken`, `gebroken`, `gekruist` of `jagers`, `f` spiegelt; puur decor |
-| `zegels` | zegels plat in de grond: `{x, ravijn, sluit}`; erop stappen zet hem aan of uit, en met `ravijn` scheurt de grond daar open als hij aangaat. Met `sluit` gaat het open ravijn op die x juist weer dicht (staat er niets open, dan blijft hij donker) |
+| `zegels` | zegels plat in de grond: `{x, ravijn, sluit, breed, muur}`; erop stappen zet hem aan of uit, en met `ravijn` scheurt de grond daar open als hij aangaat, `breed` breed (standaard 277). Met `sluit` gaat het open ravijn op die x juist weer dicht (staat er niets open, dan blijft hij donker). Met `muur: true` opent hij de rotswand van het level (`zegelMuur`); de rune op de wand werkt daarnaast gewoon |
+| `runes` | ravijnen met een rune op een rots ervoor: `{x, breed}`, `x` het midden van het ravijn; de rots komt vanzelf aan de kant waar Amir aankomt. Oudere levels hebben ze nog op naam in `RAVIJN_PROEF` (Rune 8); staat het veld er, dan telt het veld |
 | `fg` | strook waarover de voorgrondbegroeiing ligt: `{from, to}` |
 | `voorgrond` | de onscherpe laag vlak voor de camera: `{stroken: [{van, tot, dicht, struik, kei}], los: [{x, k, s, f}]}`, `k` uit `VG_SOORT`; los van `fg` |
 | `arena` | het veld van de eindbaas: `{c}` |
@@ -207,8 +209,8 @@ soort, en komt dan in alle vijf:
    (in de sandbox), en dat een herstart het terugzet (`x0` of `rv`);
 4. `tools/levelcheck.py`: de regels `boven een ravijn`, `waar een ravijn openscheurt` en `onder de
    grond`, met de maten uit de code;
-5. `placeProblem`, als het in de bouwer neer te zetten is. Skeletten en speertekens zijn dat nog
-   niet: die komen uit een leveldefinitie of de sandbox.
+5. `placeProblem`, als het in de bouwer neer te zetten is. Skeletten en speertekens staan er
+   sinds de nieuwe bouwer ook in (`skelet` en `teken`).
 
 Voor een speerteken staan de maten per variant in `TEKEN.varianten`: `voet` is van waar tot waar
 het op de grond staat (het liggende stuk en de schedels in het zand tellen mee, dus niet
@@ -850,6 +852,49 @@ Tekencode en gedrag erbij, opnemen in `PROPS`, `VILLAGE` of de dierenlijst, en
 knoppen in de sandbox. Kies de soort (vast, los, plant of ver, zie "wat mag waar") en zet hem in
 de vijf functies die daarbij horen. Pas daarna is de vraag aan de orde of er een level bij moet.
 
+## De bouwer
+
+Level maken in het startmenu. Het is dezelfde wereld als het spel, met drie verschillen: je kijkt
+van verder weg (`BUILD_ZOOM`), Amir is een geest, en er ligt een laag bediening overheen.
+
+**De indeling.** Een balk boven (`#bbalk`) met de naam, openen, opslaan, de twee testknoppen en
+de levellijn (`tekenLijn`, een canvas: het hele level van opzij). Een rand links (`#brand`) met een
+knop per soort, die de lijst ernaast uitklapt (`bouwOpen`). Het venster rechtsonder (`#binfo`) is
+voor wat je aanklikt. De instellingenbalk van het spel (`#bar`) staat in de bouwer uit; B haalt hem
+terug.
+
+**Amir is een geest.** Het spel tekent hem niet (`globalAlpha` 0 in de bouwer, ook zijn schaduw),
+en de camera blijft aan hem hangen. `bouwD` is hoe diep je kijkt, in sprite-eenheden, en
+`updateCamera` zet de camera daarop. Omdat de camera in de bouwer ook met de zoom schaalt, klopt
+`-camY / scale` daar niet: gebruik `camDiepte(scale)` als iets wil weten hoe diep je kijkt. En
+reken een klik met `pointerLift`, die telt `camY` mee.
+
+**Een stuk erbij in de bouwer** is vier dingen:
+
+1. een regel in `GEREEDSCHAP` (id, soort, naam; `sneeuw` voor een winterversie, `kop` voor een
+   tussenkopje);
+2. een tak in de `pointerdown` van de bouwer, op dat id, met een `placeProblem` ervoor;
+3. een tak in `builderHit`, zodat je het kunt aanklikken, en een naam in `bouwNaam`;
+4. de velden in `bouwVelden` (getal, vink, keuze of tekst), en wat er verder bij hoort in
+   `bouwExtra`: regels die zeggen wat er geldt, en knoppen.
+
+Het wegschrijven hoef je niet bij te werken voor een veld dat de bouwer niet zelf beheert:
+`syncLevel` begint bij het level zoals het binnenkwam (`level.bron`) en zet daar alleen overheen wat
+de bouwer kent. Beheert de bouwer een veld wel, zet het dan in `syncLevel`, en draai
+`tools/bouwertest.js`.
+
+**Gangen** maakt de bouwer goed in plaats van ze achteraf na te kijken. `holteMaak` legt een gang
+onder een ravijn, laat hem aan de beginkant `HOLTE_BUUR` doorlopen, houdt hem van de speer aan het
+begin weg en voegt hem samen met een gang die hij raakt (`holteVerbind`). `holteTrap` legt de
+uitgang aan het linkereind: treden van hoogstens `HOLTE_TREDE.stap`, 200 breed, alles boven -441
+onder het gat, en raakt het gat de ingang, dan loopt de gang verder door. Verander je daar iets aan,
+draai dan `levelcheck.py` en de speelrobot op een level uit de bouwer.
+
+**Schakelaars** (`bouwSchakelTeken`): elke koppeling een kleur uit `KOPPEL_KLEUR` en een nummer, een
+stippelkader waar een ravijn later openscheurt, de stippelcirkel om de schijf van een rune
+(`RAVIJN_RUNE.raak`) en de streep onder een zegel (`ZEGEL.op`). Het raakvlak van de rotswand
+tekent `muurBoxen`.
+
 ## Sandbox
 
 De sandbox start met vlakke grond en een leeg level, geen automatische vijanden en
@@ -983,6 +1028,18 @@ geen speler: een eindbaas verslaat hij niet, en een sprong die precies getimed m
 hij. Loopt hij vast waar `levelcheck.py` niets meldt, kijk dan wat daar staat. Is het de robot,
 laat het dan; is het het level, dan hoort er een regel bij. Zo zijn de regels onder de grond
 ontstaan.
+
+## De bouwertest: tools/bouwertest.js
+
+Opent elk level uit de HTML in de bouwer, slaat het op en leest het weer in, en meldt per level de
+velden die daarbij veranderd of kwijtgeraakt zijn. Draai hem na elke wijziging aan de bouwer, aan
+`readLevel` of aan `syncLevel`; hij verandert niets aan de levels.
+
+```
+node tools/bouwertest.js              alle levels
+node tools/bouwertest.js "Test 4"     alleen de levels waarvan de naam dit bevat
+node tools/bouwertest.js --shots map  daarna een schermafdruk van de bouwer
+```
 
 ## Testen en afronden
 
