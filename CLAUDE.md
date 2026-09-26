@@ -68,6 +68,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | grotten: rots als een raster van cellen | `grotten`: het raster, de randen, de verstrooiing, de botsingen |
 | plafond: de rots boven je, als hoogtelijn | `plafond`: de lijn, de vulling, de band, de losse blokken |
 | muur unlock: de rotswand met het rune-symbool | `MUUR`: de plaat, het gat, het schuifblok, het masker en de schijf; en de grot met de kei (`MUUR_GROT`, `muurGrotSet`, `drawMuurGrot`) |
+| ravijn in de winter | `RAVIJN_WINTER`, `ravijnWandNu()`, `ravijnSneeuwRand()`: het openscheurende ravijn in een winterlevel, de wand bij het laden omgekleurd naar blauwgrijze steen (alleen kleur, per pixel op helderheid), een getekende sneeuwrand en het berijpte gras |
 | zegel in de grond: de runeschijf plat, als schakelaar | `ZEGEL`, `zegelGrond`, `zegelUpdate`, `zegelDoe`: erop stappen zet hem aan of uit, en wat hij dan doet (nu: een ravijn openen) |
 | skelet met speer | `SKELET`, `skeletTrek`, `skeletUpdate`, `skeletTeken`: E trekt de speer eruit, het skelet stort in (sheet van 30 frames op 25 fps, `sounds/skeletvalt.mp3`), daarna rolt de losse schedel weg als je ertegenaan loopt |
 | runeschijf: het losse symbool | `runeSchijf(ctx, x, y, r, {aan, spiegel})`: de houten schijf met de rune, los te hergebruiken |
