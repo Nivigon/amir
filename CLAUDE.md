@@ -13,7 +13,7 @@ en beschrijft wat het spel kan; dit document beschrijft hoe je eraan werkt.
 (`RUNE_1` tot en met `RUNE_10`) zijn bevroren. De
 levels in Episode Test levels (`TEST_1`) vallen daar niet onder: die zijn er juist om aan te rommelen. Er komt geen nieuwe vijand,
 prop, tip, potion of aangepast getal in, ook niet even om iets te laten zien. Alleen
-als de opdracht een level bij naam noemt ("zet dit in Renew 6") mag dat ene level
+als de opdracht een level bij naam noemt ("zet dit in Rune 6") mag dat ene level
 veranderen. Twijfel je of iets eronder valt, dan valt het eronder: vraag het.
 
 **2. Nieuw werk test je in de sandbox.** Een nieuwe vijand, prop of mechaniek krijgt
@@ -67,7 +67,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | Episode De Runen | `RUNE_1` tot en met `RUNE_10`: tien levels met zegels, runes en een poort in de rots, met een verhaal en een slot. In Rune 4 en Rune 8 loopt het boven dood en staan de fakkels in een gang die je zelf openmaakt (zegel of rune op de rots, `RAVIJN_PROEF`) |
 | het verhaal bij een episode | `VERHAAL` en `SLOT`, `verhaalToon()`: tekst op een zwart scherm voor elk level en na het laatste, alleen als je bij het eerste level begint. Op de naam van het level, dus een nieuwe episode hoeft alleen tekst toe te voegen en `verhaalAan` te zetten in zijn speelknop |
 | Episode Test levels | `TEST_1` tot en met `TEST_11`: korte proefstukken, los van de echte episodes |
-| lichtkaart: het licht onder de grond | `LK`, `drawLichtkaart`: een lichtbron (de hemel en de zon) voor alles onder de grond, per level een keer uitgerekend |
+| lichtkaart: het licht onder de grond | `LK`, `drawLichtkaart`: een lichtbron (de hemel en de zon) voor alles onder de grond en onder rots boven je, per level een keer uitgerekend |
 | terrassen en richels | `terraces`, `ledges`, klimmen |
 | de rotswand rechts | `cliffs`, het einde van het level |
 | grotten: rots als een raster van cellen | `grotten`: het raster, de randen, de verstrooiing, de botsingen |
@@ -479,7 +479,7 @@ zachte randen 8-bits afrondingen op, en dat is precies het haarlijntje dat er ni
 **Amir loopt door de rots heen.** De hele rots is decor, ook de deur: uitspelen gaat met E als
 de deur open staat en hij ervoor staat (`muurUitgang`). Er is dus niets dat hem tegenhoudt, en
 een level dat bij de rots eindigt zonder klif erachter laat hem voorbij de rots eindeloos de lege
-savanne in lopen. Zet er een klif een stuk achter, zoals in Diepte 3.
+savanne in lopen. Zet er een klif een stuk achter, zoals in Rune 10.
 
 **Controleer na elke wijziging of de rune nog te raken is.** Dat is geen gevoelskwestie: simuleer
 de boog vanaf elke plek waar Amir kan staan en kijk of er een aaneengesloten strook overblijft.
@@ -516,7 +516,7 @@ al in het steen: met de gewone regel bleef hij er na een paar pixels in steken e
 dichtbij niet te halen. Zolang de kei staat vangt die ook een speer (`keiAlfa`).
 
 Let op: de getallen hierboven voor de kale rots (94 tot 235 pixels) kloppen niet meer met de huidige
-worp. Met dezelfde meting raak je de schijf in Diepte 3 van 590 tot 1005 pixels.
+worp. Met dezelfde meting raak je de schijf in de oude Diepte 3 (dezelfde kale rots als in Rune 10) van 590 tot 1005 pixels.
 
 Het geluid zit in `SFX_DEUR` (`sounds/deuropen.mp3`) en speelt af op het moment van de treffer.
 De opname duurt 42 seconden en staat van begin tot eind even hard, terwijl het blok maar een
@@ -609,6 +609,26 @@ Twee regels die ertoe doen:
   van een gat erboven is de overkant, en die hoort niet lichter te zijn dan de grond vooraan.
 - **Een open ravijn telt mee.** `lkSleutel` kijkt ook naar `ravijnGaten()`: scheurt er in een level
   met een gang een ravijn open, dan rekent de kaart opnieuw.
+
+**De zon volgt het uitzicht** (`lkZonKleur`), net als de zon op de wand van een ravijn. De sterkte
+schaalt met `gloedSterkte` (0,30 overdag), met `LK.zonNacht` als ondergrens, en in de winter is de
+kleur koel wit (`LK.zonWinter`) in plaats van warm (`LK.zonKleur`). Anders viel er in de sneeuw oranje
+licht op grijze steen, en was de zon 's nachts beneden even fel als overdag. Kleur en sterkte zitten in
+`lkSleutel`.
+
+**Rots boven je, ook buiten.** Een plafondlijn en de volle cellen van een rotsraster zijn voor de
+kaart rots (`lkRotsPunt`), ook boven de grond, en een level met alleen een plafond of grotten krijgt
+ook een kaart. Die reikt dan tot `LK.buitenTop` omhoog en rekent buiten alleen binnen `LK.buitenBuur`
+van die rots (`lk.buur`); verder weg blijft het gewoon dag. Een punt buiten telt hoeveel hemel het
+onder de rots nog ziet, en of de zon het raakt (`lkZicht` en `lkZon` met `rots`: alleen de rots houdt
+dan de straal tegen, niet de grond en de terrassen). Het lichtste van die twee telt. De zon komt schuin
+van zijn kant, dus onder een overhang ligt een schuine schaduwrand, en aan de open kant valt hij naar
+binnen. Buiten weegt het donker minder zwaar (`LK.buiten`), want de lucht eromheen is open, en er komt
+geen zonnevlek bij: het is al dag. Een terras of een kei onder de rots is voor de kaart lucht, zodat
+de schaduw er ook overheen ligt. De rots zelf wordt boven de grond niet donkerder gemaakt.
+
+Wat het kost, gemeten in Test 1: de hele kaart 0,3 seconde, in stukjes van `LK.budget`; het eerste
+beeld van een level onder de rots eenmalig zo'n 50 ms.
 
 ### Een gewoon ravijn is een ravijn dat al open staat
 

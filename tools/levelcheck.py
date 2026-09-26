@@ -9,7 +9,7 @@ zoekt, dan stopt het met een melding in plaats van met een oud getal verder te r
 Het verandert niets: het meldt per level wat er niet klopt.
 
     python3 tools/levelcheck.py                  alle levels
-    python3 tools/levelcheck.py "Renew 6"        alleen levels waarvan de naam dit bevat
+    python3 tools/levelcheck.py "Rune 6"         alleen levels waarvan de naam dit bevat
     python3 tools/levelcheck.py -v               ook de info-regels (sprint nodig, en zo)
     python3 tools/levelcheck.py --hoog 393       op een ander scherm (standaard 720 hoog)
     python3 tools/levelcheck.py level.json       een level dat nog niet in de HTML staat (de bouwer
