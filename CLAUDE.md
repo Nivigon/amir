@@ -69,6 +69,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | plafond: de rots boven je, als hoogtelijn | `plafond`: de lijn, de vulling, de band, de losse blokken |
 | muur unlock: de rotswand met het rune-symbool | `MUUR`: de plaat, het gat, het schuifblok, het masker en de schijf; en de grot met de kei (`MUUR_GROT`, `muurGrotSet`, `drawMuurGrot`) |
 | zegel in de grond: de runeschijf plat, als schakelaar | `ZEGEL`, `zegelGrond`, `zegelUpdate`, `zegelDoe`: erop stappen zet hem aan of uit, en wat hij dan doet (nu: een ravijn openen) |
+| skelet met speer | `SKELET`, `skeletTrek`, `skeletUpdate`, `skeletTeken`: E trekt de speer eruit, het skelet stort in (sheet van 30 frames op 25 fps, `sounds/skeletvalt.mp3`), daarna rolt de losse schedel weg als je ertegenaan loopt |
 | runeschijf: het losse symbool | `runeSchijf(ctx, x, y, r, {aan, spiegel})`: de houten schijf met de rune, los te hergebruiken |
 | vallen: schade bij een diepe val | hoe diep een val telt en wat hij kost |
 | schorpioen, het projectiel, spannen en werpen, de geworpen speer | de speerworp; `speerNaastAmir` zet een speer waar Amir niet meer bij komt (achter of in een doornbos, boven op een terras dat hij van deze kant niet meer op komt) naast hem, nooit over een ravijn; `speerBereikbaar` rekent dat uit over de vloeren om hem heen |
@@ -119,6 +120,7 @@ precies hetzelfde formaat naar JSON.
 | `plafond` | de rots boven je als hoogtelijn: `[{x, y}, ...]` (zie hieronder) |
 | `muur` | de rotswand met het rune-symbool: `{x, speer}`, of met `soort: 'grot'` de rotsboog met de kei (zie hieronder) |
 | `hppotions` | drinkkalebassen: `{x, y}` |
+| `skeletten` | een zittend skelet met een speer erin: `{x, f}`, `x` is het midden van het skelet, `f` spiegelt; E bij de schacht trekt hem eruit (zie hieronder) |
 | `zegels` | zegels plat in de grond: `{x, ravijn, sluit}`; erop stappen zet hem aan of uit, en met `ravijn` scheurt de grond daar open als hij aangaat. Met `sluit` gaat het open ravijn op die x juist weer dicht (staat er niets open, dan blijft hij donker) |
 | `fg` | strook waarover de voorgrondbegroeiing ligt: `{from, to}` |
 | `arena` | het veld van de eindbaas: `{c}` |
@@ -477,6 +479,26 @@ De opname duurt 42 seconden en staat van begin tot eind even hard, terwijl het b
 halve seconde schuift, dus er wordt alleen de kop van gebruikt: vol tot `duur`, dan wegzakken in
 `uit`, samen zo'n drie seconden. Dezelfde aanpak als bij het windgeluid. `duur: 0` speelt hem
 wel helemaal uit.
+
+### Het skelet met de speer
+
+De plaatjes staan in `design/botten/skelet/` en zijn allemaal op één schaal gemaakt: 0,19 bij een Amir van 237 px
+(`SKELET.schaal`), dus het zittende skelet is 0,61 Amir. Rekenen gaat in skeletcoordinaten, met (0, 0) op de
+linkerbovenhoek van het skelet zelf; elk plaatje heeft een eigen `ox, oy` voor waar het skelet erin begint. Houd die
+punten gelijk, dan springt er niets bij de wissel van speer naar instorten naar stapel.
+
+- Met speer: vier lagen (`skelet`, de speer, `skelet_voorste_botten`, het doekframe), zodat het doek wappert.
+  `skelet_voorste_botten` is niet optioneel: zonder die laag ligt de speer op het skelet in plaats van erdoorheen.
+  Zolang die lagen nog niet binnen zijn, staat `skelet_met_speer.png` er.
+- Instorten: `instort_sheet.png`, 6 bij 5 vakken, 30 frames op 25 fps, een keer. Het geluid start op frame 0, niet bij
+  de klap: die zit in het geluid. Een tweede instorting start het opnieuw in plaats van eroverheen.
+- Daarna: de stapel zonder schedel met de schedel los erbovenop, op zijn eindstand (draaipunt 458, 592, hoek 126).
+  Rolt hij, dan hangt de hoek aan de afgelegde weg (126 plus weg gedeeld door de straal van 58), anders glijdt hij.
+- De schaduw vermenigvuldigt de grond met (0,74, 0,80, 0,91) en ligt naar links, want de zon staat rechtsboven. De
+  stapel is even breed als het zittende skelet; de schaduw krimpt daarom op de massa mee (`schaduw.stapel`).
+
+De instortsheet heet `sheet`, en `gen-klein.py` slaat zulke namen in een map over; daarom staat hij er bij naam in.
+De plaatjes laden pas als er een skelet in het level staat (`skeletLaad`).
 
 ### Een gang onder de grond
 

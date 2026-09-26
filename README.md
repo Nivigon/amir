@@ -400,6 +400,18 @@ uit, dan blijft het gat open. Zonder `ravijn` licht hij alleen op.
 In de sandbox staat hij onder **Zegel**: **Neerzetten** legt er een voor je neer, **Met ravijn erachter** een die de
 grond verderop openscheurt.
 
+## Het skelet met de speer
+
+Een zittend skelet tegen de grond, met een speer dwars door zijn borstkas en een blauw doek dat aan de schacht wappert.
+Ga bij de schacht staan en druk op E (of de speerknop): je trekt de speer eruit en hebt hem in de hand, net als wanneer
+je je eigen speer uit de grond trekt, want er is maar een speer. Het skelet zakt dan met een klap en een wolk stof in
+elkaar, en er blijft een hoopje botten liggen. De schedel ligt daarna los: loop je ertegenaan, dan rolt hij weg, remt af
+en rolt van een richel of een ravijn in als hij daar komt.
+
+Een level zet hem neer met `skeletten: [ {x: -900} ]`, met `f: true` wijst de schacht de andere kant op. Nog geen level
+gebruikt hem. In de sandbox staat hij onder **Skelet**: **Met speer**, **Gespiegeld**, en **Weer overeind** zet ze
+allemaal terug, met de speer erin.
+
 ## Vallen doet pijn
 
 Een diepe val kan een leven kosten. Dat staat standaard uit: de levels die er al waren zijn
