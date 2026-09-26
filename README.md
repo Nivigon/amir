@@ -403,14 +403,23 @@ grond verderop openscheurt.
 ## Het skelet met de speer
 
 Een zittend skelet tegen de grond, met een speer dwars door zijn borstkas en een blauw doek dat aan de schacht wappert.
-Ga bij de schacht staan en druk op E (of de speerknop): je trekt de speer eruit en hebt hem in de hand, net als wanneer
-je je eigen speer uit de grond trekt, want er is maar een speer. Het skelet zakt dan met een klap en een wolk stof in
-elkaar, en er blijft een hoopje botten liggen. De schedel ligt daarna los: loop je ertegenaan, dan rolt hij weg, remt af
-en rolt van een richel of een ravijn in als hij daar komt.
+
+- **De speer eruit trekken:** ga met lege handen bij de schacht staan en druk op E (of de speerknop). Het skelet schudt
+  even en ploft dan met een klap en een wolk stof in elkaar; de schedel rolt nog een stuk door. De speer is nu de
+  jouwe, met een blauw vaantje in plaats van het rode.
+- **Heb je al een speer,** dan kun je er geen tweede bij pakken: de speer wiebelt alleen en Amir laat weten dat hij
+  hem niet nodig heeft. Dat geldt ook voor een speer die los op de grond ligt.
+- **Een steek of een worp tegen de schedel** tikt hem eraf: hij valt, rolt even door en blijft liggen.
+- **Een lage zwaai** laat het skelet meteen uit elkaar vallen, en de speer valt op de grond. Daar kun je hem later met
+  E oprapen.
+- De schedel is daarna gewoon decor: tegenaan lopen of erop slaan doet niets.
+
+Pak je een speer terwijl die van jou ergens anders ligt, dan blijft de jouwe daar liggen.
 
 Een level zet hem neer met `skeletten: [ {x: -900} ]`, met `f: true` wijst de schacht de andere kant op. Nog geen level
-gebruikt hem. In de sandbox staat hij onder het tabblad **Decor**, bij **Skelet**: **Met speer**, **Gespiegeld**, en **Weer overeind** zet ze
-allemaal terug, met de speer erin.
+gebruikt hem. In de sandbox staat hij onder het tabblad **Decor**, bij **Skelet**: **Met speer**, **Gespiegeld**,
+**Weer overeind** zet ze allemaal terug, en **Speer neerleggen** legt jouw speer naast je neer, zodat je met lege
+handen een skelet kunt leegtrekken.
 
 ## Vallen doet pijn
 
