@@ -62,12 +62,13 @@ regelnummer, want die schuiven bij elke wijziging.
 | Episode De Diepte / Episode Renew / Episode Winter World | de leveldefinities |
 | Episode De Diepte | `DIEP_1` tot en met `DIEP_5`: vijf zware levels met valschade, elk met een gang onder de grond en een trap terug naar boven, met een verhaal en een slot en de zwarte panter als eindbaas |
 | het verhaal bij een episode | `VERHAAL` en `SLOT`, `verhaalToon()`: tekst op een zwart scherm voor elk level en na het laatste, alleen als je bij het eerste level begint. Op de naam van het level, dus een nieuwe episode hoeft alleen tekst toe te voegen en `verhaalAan` te zetten in zijn speelknop |
-| Episode Test levels | `TEST_1`: korte proefstukken, los van de echte episodes |
+| Episode Test levels | `TEST_1` tot en met `TEST_8`: korte proefstukken, los van de echte episodes |
 | terrassen en richels | `terraces`, `ledges`, klimmen |
 | de rotswand rechts | `cliffs`, het einde van het level |
 | grotten: rots als een raster van cellen | `grotten`: het raster, de randen, de verstrooiing, de botsingen |
 | plafond: de rots boven je, als hoogtelijn | `plafond`: de lijn, de vulling, de band, de losse blokken |
 | muur unlock: de rotswand met het rune-symbool | `MUUR`: de plaat, het gat, het schuifblok, het masker en de schijf |
+| zegel in de grond: de runeschijf plat, als schakelaar | `ZEGEL`, `zegelGrond`, `zegelUpdate`, `zegelDoe`: erop stappen zet hem aan of uit, en wat hij dan doet (nu: een ravijn openen) |
 | runeschijf: het losse symbool | `runeSchijf(ctx, x, y, r, {aan, spiegel})`: de houten schijf met de rune, los te hergebruiken |
 | vallen: schade bij een diepe val | hoe diep een val telt en wat hij kost |
 | schorpioen, het projectiel, spannen en werpen, de geworpen speer | de speerworp; `speerNaastAmir` zet een speer waar Amir niet meer bij komt (achter of in een doornbos, boven op een terras dat hij van deze kant niet meer op komt) naast hem, nooit over een ravijn; `speerBereikbaar` rekent dat uit over de vloeren om hem heen |
@@ -118,6 +119,7 @@ precies hetzelfde formaat naar JSON.
 | `plafond` | de rots boven je als hoogtelijn: `[{x, y}, ...]` (zie hieronder) |
 | `muur` | de rotswand met het rune-symbool: `{x, speer}` (zie hieronder) |
 | `hppotions` | drinkkalebassen: `{x, y}` |
+| `zegels` | zegels plat in de grond: `{x, ravijn}`; erop stappen zet hem aan of uit, en met `ravijn` scheurt de grond daar open als hij aangaat |
 | `fg` | strook waarover de voorgrondbegroeiing ligt: `{from, to}` |
 | `arena` | het veld van de eindbaas: `{c}` |
 | `cliffs` | de afsluitende rotswand: `{x}`, staat altijd achter `ends` |

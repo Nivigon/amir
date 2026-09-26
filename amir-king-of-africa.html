@@ -463,6 +463,11 @@
       <button data-gap="320">Breed</button>
     </div>
     <div class="row">
+      <label>Zegel</label>
+      <button data-zegel="0">Neerzetten</button>
+      <button data-zegel="1">Met ravijn erachter</button>
+    </div>
+    <div class="row">
       <label>Grot</label>
       <button data-grot="gang">Gang</button>
       <button data-grot="dak">Dak</button>
@@ -1975,7 +1980,27 @@ const TEST_7 = {
           { x: -4950, t: 'Twee slangen, de een dichtbij en de ander ver: twee hoeken' },
           { x: -7300, t: 'De rune zit hoog: daar is een hoge worp voor nodig. Staat de deur open, druk op E' } ]
 };
-const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7];
+// Test 8: het zegel in de grond (zie "zegel in de grond"). Een vlak stuk savanne met twee
+// zegels. Het eerste doet niets anders dan oplichten en weer uitgaan, zodat je het aan en uit
+// zetten los kunt proberen. Het tweede scheurt de grond open op -1350, een stuk verderop en
+// in beeld. Met een sprintsprong haal je de overkant. Geen vijanden; de slang heel ver weg
+// houdt de vrije modus uit, net als in Test 3 en Test 6.
+const TEST_8 = {
+  name: 'Test 8: Zegel test',
+  lagen: 'tafelbergen',
+  rocks: [],
+  props: [ {x: -250, k: 'gras', s: 1.1, f: 0, v: 0}, {x: -1700, k: 'gras', s: 0.9, f: 1, v: 0} ],
+  zegels: [ {x: -450}, {x: -900, ravijn: -1350} ],
+  spawns: [ {x: -60000, k: 'groen'} ],          // heel ver weg: houdt de vrije modus uit
+  terraces: [], ledges: [],
+  hppotions: [],
+  village: [], npcs: [], gaps: [], water: [], thickets: [],
+  cliffs: [ {x: -2700} ],
+  ends: [ {x: -2200} ],
+  tips: [ { x: -60, t: 'Testlevel voor het zegel in de grond. Stap erop en hij licht op, stap er nog eens op en hij gaat uit' },
+          { x: -700, t: 'Dit zegel scheurt de grond open. Neem een aanloop en spring over het ravijn' } ]
+};
+const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8];
 const WINTER_LEVELS = [WINTER_1, WINTER_2];
 let levelIdx = 0;
 
@@ -3816,6 +3841,190 @@ function runeSchijf(ctx, px, py, r, o){
   ctx.moveTo(0, -15); ctx.lineTo(-12, 4); ctx.lineTo(0, 0);
   ctx.lineTo(12, 4); ctx.lineTo(0, 15); ctx.stroke();
   ctx.restore();
+}
+
+// ---- zegel in de grond: de runeschijf plat, als schakelaar -------------------
+// Dezelfde houten schijf met de rune als runeSchijf, maar plat in de grond, in een ring van
+// platte stenen met zand over de voorste. Stapt Amir erop, dan licht hij op; stapt hij er
+// later opnieuw op, dan gaat hij weer uit. Van de grond af stappen doet niets. Wat er
+// gebeurt als hij aangaat staat in het level:
+//
+//   zegels: [ {x: -1500, ravijn: -2100} ]
+//     x        het midden, in wereld-x
+//     ravijn   (mag weg) de plek waar de grond openscheurt zodra hij aangaat; een keer per
+//              potje, uitzetten maakt het gat niet meer dicht
+//
+// Hij ligt echt plat: de schijf, de planken en de vorm van de rune worden allemaal in een
+// platgedrukte ruimte getekend (ZEGEL.plat, hoogte gedeeld door breedte, zoals de steentjes
+// in de grondtextuur). Alleen de lijndikte van de rune niet, anders verdwijnen de liggende
+// stukken. De schijf zakt een klein stukje in een kuil, en alles buiten die kuil wordt
+// weggeknipt: zo valt de voorrand van de kuil vanzelf over het hout, en zie je achter het hout
+// de verre binnenwand. De kleuren komen uit design/grondrand.png, anders valt het steen onder
+// de lichtlaag grijs uit.
+const ZEGEL = {
+  r: 0.24,        // straal van het hout, als deel van Amirs lengte
+  plat: 0.34,     // hoe plat hij ligt: hoogte gedeeld door breedte
+  op: 0.8,        // zo ver van het midden telt Amir als erop, als deel van de straal
+  zak: 1.8,       // zo diep ligt het hout in de kuil, in de eenheden van de tekening
+  licht: 0.35     // zo snel gaat hij aan en uit, in seconden
+};
+const ZEGEL_KLEUR = { grond: [218, 140, 66], donker: [150, 86, 34] };
+function zegelKleur(c, a){ return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'; }
+function zegelRnd(z){ return () => (z = (z * 16807) % 2147483647) / 2147483647; }
+// het teken als pad, in de platte ruimte; getekend op het scherm, dus even dik
+function zegelRunePad(ctx, x, y, k, p){
+  ctx.beginPath();
+  [[0, -15], [-12, 4], [0, 0], [12, 4], [0, 15]].forEach(([u, v], i) =>
+    ctx[i ? 'lineTo' : 'moveTo'](x + u * k, y + v * k * p));
+}
+//   zegelGrond(ctx, x, y, r, { aan })
+//     x, y   het midden op de grond, in de pixels van het canvas
+//     r      de straal van het hout in pixels
+//     aan    0 tot 1: hoe ver hij opgelicht is
+function zegelGrond(ctx, px, py, r, o){
+  const aan = Math.max(0, Math.min(1, (o && o.aan) || 0));
+  const p = ZEGEL.plat, R = 34, k = r / R, K = ZEGEL_KLEUR, rnd = zegelRnd(11);
+  ctx.save(); ctx.translate(px, py);
+  ctx.save(); ctx.scale(k, k * p);
+  // een zachte schaduw in het zand eromheen
+  const kg = ctx.createRadialGradient(0, 0, R * .9, 0, 0, R * 1.5);
+  kg.addColorStop(0, zegelKleur(K.donker, .45)); kg.addColorStop(1, zegelKleur(K.donker, 0));
+  ctx.fillStyle = kg; ctx.beginPath(); ctx.arc(0, 0, R * 1.5, 0, 7); ctx.fill();
+  // de ring: tien platte stenen, elk met een bovenvlak en een voorkant (de dikte)
+  const ring = R * 1.24, dik = 7, n = 10, stenen = [];
+  for (let i = 0; i < n; i++)
+    stenen.push({ a0: (i + rnd() * .12) / n * Math.PI * 2, a1: (i + .9 - rnd() * .1) / n * Math.PI * 2,
+                  u: ring + (rnd() - .4) * 5, c: rnd() });
+  const steen = (s, dy) => {
+    ctx.beginPath();
+    for (let j = 0; j <= 6; j++){
+      const a = s.a0 + (s.a1 - s.a0) * j / 6, u = s.u + Math.sin(j * 1.7 + s.c * 9) * 1.5;
+      ctx.lineTo(Math.cos(a) * u, Math.sin(a) * u + dy);
+    }
+    for (let j = 6; j >= 0; j--){
+      const a = s.a0 + (s.a1 - s.a0) * j / 6;
+      ctx.lineTo(Math.cos(a) * (R - 1), Math.sin(a) * (R - 1) + dy);
+    }
+    ctx.closePath();
+  };
+  for (const s of stenen){ steen(s, dik); ctx.fillStyle = '#8a5530'; ctx.fill(); }   // eerst alle voorkanten
+  for (const s of stenen){
+    const c = Math.round(s.c * 22);
+    steen(s, 0);
+    ctx.fillStyle = 'rgb(' + (214 + c) + ',' + (160 + c) + ',' + (108 + c) + ')'; ctx.fill();
+    ctx.strokeStyle = 'rgba(110,62,26,.65)'; ctx.lineWidth = 1.2 / p; ctx.stroke();
+  }
+  // de kuil met het hout erin, geknipt op de rand van de kuil
+  ctx.save(); ctx.beginPath(); ctx.arc(0, 0, R, 0, 7); ctx.clip();
+  const wand = ctx.createLinearGradient(0, -R, 0, R * .2);
+  wand.addColorStop(0, '#5a3418'); wand.addColorStop(1, '#2a170a');
+  ctx.fillStyle = wand; ctx.fillRect(-R, -R, R * 2, R * 2);
+  const zak = ZEGEL.zak / p;
+  ctx.translate(0, zak);
+  ctx.save(); ctx.beginPath(); ctx.arc(0, 0, R - 1, 0, 7); ctx.clip();
+  const pw = (R - 1) * 2 / 5, tint = ['#7a5330', '#8a5f38', '#6d4a2b', '#835a34', '#75502e'];
+  for (let i = 0; i < 5; i++){
+    const x0 = -(R - 1) + i * pw;
+    ctx.fillStyle = tint[i]; ctx.fillRect(x0, -R, pw + 1, R * 2);
+    ctx.strokeStyle = 'rgba(58,38,20,.35)'; ctx.lineWidth = 1.4;
+    for (let m = 1; m <= 3; m++){
+      const gx = x0 + pw * m / 4;
+      ctx.beginPath(); ctx.moveTo(gx, -R); ctx.bezierCurveTo(gx + 3, -R / 3, gx - 3, R / 3, gx + 1, R); ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(38,24,12,.75)'; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.moveTo(x0, -R); ctx.lineTo(x0, R); ctx.stroke();
+  }
+  ctx.restore();
+  ctx.strokeStyle = '#2f2114'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(0, 0, R - 4, 0, 7); ctx.stroke();
+  ctx.fillStyle = '#241a10';
+  for (let i = 0; i < 4; i++){
+    const a = i * Math.PI / 2 + Math.PI / 4;
+    ctx.beginPath(); ctx.arc(Math.cos(a) * (R - 4), Math.sin(a) * (R - 4), 3.2, 0, 7); ctx.fill();
+  }
+  const sch = ctx.createLinearGradient(0, -R - zak, 0, -R * .1);   // de schaduw van de verre wand
+  sch.addColorStop(0, 'rgba(20,10,2,.7)'); sch.addColorStop(1, 'rgba(20,10,2,0)');
+  ctx.fillStyle = sch; ctx.fillRect(-R, -R - zak, R * 2, R * 2);
+  ctx.restore();
+  // zand over de voorste stenen: een duin met een grillige binnenkant, die buiten in de grond uitloopt
+  const m = 22, bin = [], bui = [];
+  for (let i = 0; i <= m; i++){
+    const a = Math.PI * (.12 + .76 * i / m), t = Math.sin(Math.PI * i / m);
+    const ui = ring - 2 - t * (5 + rnd() * 7), uu = ring + 6 + t * 8;
+    bin.push([Math.cos(a) * ui, Math.sin(a) * ui + dik]);
+    bui.push([Math.cos(a) * uu, Math.sin(a) * uu + dik]);
+  }
+  ctx.beginPath(); bin.forEach(([x, y], i) => ctx[i ? 'lineTo' : 'moveTo'](x, y));
+  for (let i = m; i >= 0; i--) ctx.lineTo(bui[i][0], bui[i][1]);
+  ctx.closePath(); ctx.fillStyle = zegelKleur(K.grond, 1); ctx.fill();
+  ctx.beginPath(); bin.forEach(([x, y], i) => ctx[i ? 'lineTo' : 'moveTo'](x, y));
+  ctx.strokeStyle = zegelKleur(K.donker, .5); ctx.lineWidth = 2.2; ctx.stroke();
+  for (let i = 0; i < 5; i++){                      // een paar donkere spikkels, zoals in de grond
+    const a = rnd() * 7, d = Math.sqrt(rnd()), s = 1 + rnd() * 1.4;
+    ctx.fillStyle = zegelKleur(K.donker, .7);
+    ctx.beginPath(); ctx.ellipse(Math.cos(a) * ring * .8 * d, ring * .75 + dik + Math.sin(a) * ring * .2 * d, s * 1.6, s, 0, 0, 7); ctx.fill();
+  }
+  ctx.restore();
+
+  // de rune: een gleuf in het hout, met een lichte onderlip; aan gloeit hij op
+  const ry = ZEGEL.zak * k, dikte = Math.max(2, 3.6 * k);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.save(); ctx.translate(0, Math.max(1, k));
+  zegelRunePad(ctx, 0, ry, k * .95, p);
+  ctx.strokeStyle = 'rgba(255,214,150,' + (.35 * (1 - aan)) + ')'; ctx.lineWidth = dikte; ctx.stroke();
+  ctx.restore();
+  zegelRunePad(ctx, 0, ry, k * .95, p);
+  ctx.strokeStyle = '#2a190b'; ctx.lineWidth = dikte; ctx.stroke();
+  if (aan > 0){
+    // de gloed: een waas over het hout, plat zoals de schijf, en het teken zelf dat oplicht
+    const puls = .85 + .15 * Math.sin(performance.now() / 260);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    ctx.save(); ctx.scale(1, p);
+    const gl = ctx.createRadialGradient(0, ry / p, 0, 0, ry / p, r * 1.5);
+    gl.addColorStop(0, 'rgba(255,170,60,' + (.55 * aan * puls) + ')');
+    gl.addColorStop(1, 'rgba(255,120,30,0)');
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, ry / p, r * 1.5, 0, 7); ctx.fill();
+    ctx.restore(); ctx.restore();
+    ctx.globalAlpha = aan;
+    ctx.shadowColor = '#ffb347'; ctx.shadowBlur = 18 * puls;
+    zegelRunePad(ctx, 0, ry, k * .95, p);
+    ctx.strokeStyle = '#ffd98a'; ctx.lineWidth = dikte; ctx.stroke();
+  }
+  ctx.restore();
+}
+// Erop staan: met de voeten op de grond, binnen ZEGEL.op van het midden. Aan of uit gaat bij
+// het erop stappen, niet bij het eraf stappen, dus wie blijft staan zet hem maar een keer om.
+function zegelUpdate(dt, scale){
+  if (!level || !level.zegels || !level.zegels.length) return;
+  const rPx = ZEGEL.r * CHAR_H * scale;
+  for (const z of level.zegels){
+    const vloer = terrainH(z.x);
+    const op = !building && onGround && Math.abs(ph - vloer) < 2 && Math.abs(world - z.x) < rPx * ZEGEL.op;
+    if (op && !z.op){
+      z.aan = !z.aan;
+      if (z.aan) zegelDoe(z);
+    }
+    z.op = op;
+    z.t = Math.max(0, Math.min(1, (z.t || 0) + (z.aan ? 1 : -1) * dt / ZEGEL.licht));
+  }
+}
+// wat een zegel doet als hij aangaat
+function zegelDoe(z){
+  if (z.ravijn !== null && !ravijnFx){
+    ravijnOpen(z.ravijn);
+    flashHint('Het zegel licht op: de grond scheurt open');
+  }
+}
+function zegelTeken(groundY, scale, cx){
+  if (!level || !level.zegels) return;
+  const r = ZEGEL.r * CHAR_H * scale;
+  for (const z of level.zegels){
+    const sx = cx + (z.x - world);
+    if (sx < -r * 2 || sx > W / viewZoom() + r * 2) continue;
+    zegelGrond(ctx, sx, groundY - terrainH(z.x) * scale, r, { aan: z.t || 0 });
+  }
+}
+function zegelReset(){
+  if (level && level.zegels) for (const z of level.zegels){ z.aan = false; z.op = false; z.t = 0; }
 }
 
 // ---- de rotswand rechts: het einde van het level ----------------------
@@ -6418,7 +6627,7 @@ function ravijnRuneTreffer(x, h, scale){
   javStick(R.x + du * f, R.h + dv * f / scale, 'muur', scale);
   if (jav && jav.state === 'muur') jav.rune = true;   // valt er nooit vanzelf uit
   ravijnRuneAan = level;
-  ravijnOpen(RAVIJN_TEST.x);
+  if (!ravijnFx) ravijnOpen(RAVIJN_TEST.x);         // al open door het zegel: niet nog eens
   flashHint('De rune licht op: de grond scheurt open');
 }
 function ravijnRuneTeken(groundY, scale, cx){      // de rots, en de schijf erop
@@ -6961,6 +7170,7 @@ function restart(){
   thr = null; jav = null; javLost = 0; javOver = null; spearH = null; lastSolid = 0;
   muurReset();                                      // de rotswand weer dicht, zonder speer erin
   ravijnReset();                                    // het ravijn weer dicht, de rune weer uit
+  zegelReset();                                     // en de zegels weer uit
   jump = null; dust.length = 0; ph = 0; pvh = 0; onGround = true; fell = false; coyote = 0; valVan = 0;
   camDiep = 0;
   world = 0; facing = -1; frame = 0; frameAcc = 0; idleFrame = 0; idleAcc = 0;   // altijd weer bij het startpunt
@@ -10710,6 +10920,7 @@ function loop(now){
     if (ravijnFx.colliderActive && !ravijnFx.gevallen){ ravijnFx.gevallen = true; ravijnLaatVallen(); }
     if (dt > 0){ ravijnSX = Math.round(ravijnFx.shakeX * ravijnFx.s); ravijnSY = Math.round(ravijnFx.shakeY * ravijnFx.s); }
   }
+  if (dt > 0) zegelUpdate(dt, scaleNow);          // erop stappen zet een zegel aan of uit
   ctx.clearRect(0, 0, W, H);
   ctx.save();
   ctx.translate(shakeX + ravijnSX, shakeY + ravijnSY);
@@ -11150,6 +11361,7 @@ function loop(now){
         }
       }
     }
+    zegelTeken(groundY, scale, cx);               // de zegels plat in de grond
     ravijnRuneTeken(groundY, scale, cx);          // de rots met de rune bij het ravijn
 
     if (building && level && level.spawns){
@@ -12331,6 +12543,10 @@ function readLevel(txt){
            thickets: (o.thickets || []).map(q => ({ x: Number(q.x),
                                                     n: Math.max(1, Math.min(5, Math.round(Number(q.n) || 1))),
                                                     seed: Number(q.seed) || 0 })),
+           // zegels in de grond: licht op als je erop stapt, zie "zegel in de grond"
+           zegels: (o.zegels || []).map(q => ({ x: Number(q.x),
+                                                ravijn: (q.ravijn === undefined || q.ravijn === null)
+                                                        ? null : Number(q.ravijn) })),
            hppotions: (o.hppotions || []).map(q => ({ x: Number(q.x),
                                                       y: (q.y === null || q.y === undefined) ? null : Number(q.y) })),
            // de plafondlijn: punten met een x en een y, zie "plafond: de rots boven je"
@@ -12486,7 +12702,8 @@ const SUBS = {
   'Test 4: De val in de grot': 'Het ravijn in, onder de grond verder, en weer naar boven',
   'Test 5: De fosforslangen': 'Altijd met z\'n drieën. Zoek zelf uit hoe ze werken',
   'Test 6: Ravijn test': 'Raak de rune en de grond scheurt open',
-  'Test 7: Werpen op gevoel': 'Hoe langer je vasthoudt, hoe hoger en verder'
+  'Test 7: Werpen op gevoel': 'Hoe langer je vasthoudt, hoe hoger en verder',
+  'Test 8: Zegel test': 'Stap op het zegel en de grond scheurt open'
 };
 function buildCards(el, list){
   el.innerHTML = '';
@@ -12645,6 +12862,18 @@ function sbGap(w){
   cv.focus();
 }
 sandboxEl.querySelectorAll('button[data-gap]').forEach(b => b.onclick = () => sbGap(Number(b.dataset.gap)));
+// een zegel in de grond, aan de gekozen kant; stap erop en hij licht op, nog eens en hij gaat uit.
+// Met ravijn scheurt de grond erachter open zodra hij aangaat (een keer, net als in een level).
+function sbZegel(metRavijn){
+  const side = sbFromRight ? 1 : -1;
+  let x = world + side * 300;
+  x = Math.min(x, cliffAt().wall - 300);
+  x = Math.max(x, endWall() + 300);
+  if (!level.zegels) level.zegels = [];
+  level.zegels.push({ x, ravijn: metRavijn ? x + side * 450 : null });
+  cv.focus();
+}
+sandboxEl.querySelectorAll('button[data-zegel]').forEach(b => b.onclick = () => sbZegel(b.dataset.zegel === '1'));
 // Vier rasters om het systeem los te bekijken: een gang met rots boven en naast je, een
 // dak om je hoofd aan te stoten, een uitstekende rotspunt, en een trap om op te klimmen.
 // Elke druk geeft een andere seed, dus de verstrooiing valt elke keer anders.
