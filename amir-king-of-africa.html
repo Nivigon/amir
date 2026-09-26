@@ -35,6 +35,9 @@
     left:calc(14px + env(safe-area-inset-left,0px));top:14px;padding:6px 16px;
     background:rgba(20,14,26,.5);border-color:rgba(242,232,213,.45)}
   #pausebtn.on{display:block}
+  /* welke update er live staat: heel klein en zacht linksboven, ook in het menu */
+  #versie{position:absolute;z-index:10;left:calc(6px + env(safe-area-inset-left,0px));top:3px;
+    font-size:10px;line-height:1;letter-spacing:.02em;color:var(--bone);opacity:.35;pointer-events:none;white-space:nowrap}
   #turn{position:absolute;inset:0;z-index:9;display:none;flex-direction:column;align-items:center;
     justify-content:center;gap:16px;background:var(--earth);text-align:center;padding:24px}
   #turn.on{display:flex}
@@ -231,6 +234,7 @@
   <canvas id="c"></canvas>
   <canvas id="tc"></canvas>
   <button id="pausebtn" type="button" aria-label="Pauze">II</button>
+  <div id="versie"></div>
   <div id="start">
     <h1>Amir<br><small>King of Africa</small></h1>
 
@@ -475,6 +479,14 @@
       <button id="sbspeerneer">Speer neerleggen</button>
       </div>
       <div class="row">
+        <label>Speerteken</label>
+        <button data-teken="teken">Het teken</button>
+        <button data-teken="gebroken">Gebroken</button>
+        <button data-teken="gekruist">Gekruist</button>
+        <button data-teken="jagers">Jagers</button>
+        <span class="hint">decor, het doek waait mee met de vlagen</span>
+      </div>
+      <div class="row">
         <label>Zegel</label>
         <button data-zegel="0">Neerzetten</button>
         <button data-zegel="1">Met ravijn erachter</button>
@@ -653,6 +665,12 @@
 
 <script src="ravijn/ravijn-effect.js"></script>
 <script>
+// ---- versie: welke update er live staat ----------------------------------
+// Staat heel klein linksboven in beeld, zodat je ziet of een pull request al live is. Elke pull
+// request zet hier een nieuw nummer en een naam van een paar woorden bij, zie CLAUDE.md.
+const VERSIE = { nr: '1.1', naam: 'speerteken' };
+document.getElementById('versie').textContent = 'versie ' + VERSIE.nr + ': ' + VERSIE.naam;
+
 // ---- globale lichtlaag --------------------------------------------------
 // Eén belichting over de hele wereld: sprites, decor en achtergrond krijgen
 // dezelfde koele schaduwkant links, warm licht richting de zon en een onderkant
@@ -4894,6 +4912,218 @@ function skeletReset(){
   }
   skTrek = null;
   stopSkelet();
+}
+
+// ---- speerteken: een speer in de grond met een zwart doek en schedels ----
+// Een teken langs het pad: hier heeft iemand een grens getrokken, en niet op een vriendelijke
+// manier. Puur decor, geen botsing, niets om op te pakken. Een level zet het neer met
+// tekens: [{x, v, f}]; v is de variant (zie TEKEN.varianten), f spiegelt.
+//
+// Alles komt uit plaatjes die al in het spel staan, zodat het dezelfde stijl heeft: de speer van
+// het skelet, de mensenschedel, de buffel, de jakhals en de losse botten. Nieuw zijn alleen het
+// doek in drie kleuren (het blauwe doek van het skelet, omgekleurd) en het leren riempje (de rode
+// omwikkeling onder Amir zijn eigen speerpunt, bruin gemaakt); die maakt tools/speerteken.py.
+//
+// De wind: het doek speelt sneller af en buigt onder de knoop scheef naarmate het harder waait,
+// zoals het gras (drawVeg). Het hangt aan dezelfde vlaag, windAt.
+//
+// Alle maten zijn in Amir (CHAR_H = 1); x in een variant is de afstand tot tekens[i].x.
+const TEKEN = {
+  map: 'design/botten/speerteken/',
+  speer: { lang: 1.35, in: 0.064, bron: [168, 1556] },   // van de voet tot de punt, en zoveel steekt er in de grond
+  doek: { y: 265, h: 234, slip: 305, n: 20 },            // in de bron van de speer: de snede, en waar de slippen beginnen
+  riem: 0.06,                                            // breedte van een riempje
+  schedel: 0.2,                                          // breedte van een mensenschedel
+  bries: 0.1,                                            // zoveel wappert het doek ook zonder vlaag
+  varianten: {
+    // de twee schedels over de punt geschoven, elk een andere kant op
+    teken: {
+      speren: [ { x: 0, schuin: -0.26, lint: { t: 0.75, kleur: 'zwart' },
+                  schedels: [ { t: 0.30, flip: false, kant: 0.30 }, { t: 0.52, flip: true, kant: -0.30 } ] } ]
+    },
+    // afgeknapt: het bovenstuk ligt in het gras, de splinters steken door de kruin, het doek is verbleekt
+    gebroken: {
+      speren: [ { x: 0, schuin: -0.12, breuk: 0.56, lint: { t: 0.33, kleur: 'vaal' },
+                  schedels: [ { t: 0.47, flip: true, kant: -0.18 } ] } ],
+      ligt: { x: -0.8, t: 0.56 },
+      grond: [ { k: 'schedel', x: 0.28, rot: 0.42 }, { k: 'fragment', x: -0.22, b: 0.136, rot: 0.1 } ]
+    },
+    // twee speren als een X, met een schedel in het kruis
+    gekruist: {
+      speren: [ { x: 0.22, schuin: -0.35, lint: { t: 0.8, kleur: 'zwart' }, schedels: [] },
+                { x: -0.22, schuin: 0.35, lint: { t: 0.8, kleur: 'zwart' }, schedels: [] } ],
+      kruis: { flip: true, kant: -0.12 },
+      grond: [ { k: 'schedel', x: 0.01, rot: 0.2 } ]
+    },
+    // een buffelschedel vastgesjord, een jakhals aan de voet, een rood doek
+    jagers: {
+      speren: [ { x: 0, schuin: 0.1, lint: { t: 0.78, kleur: 'rood' },
+                  schedels: [ { k: 'buffel', t: 0.5, flip: true, kant: 0.05, b: 0.46, sjor: true } ] } ],
+      grond: [ { k: 'jakhals', x: 0.24, b: 0.27, rot: 0.08 }, { k: 'bot_kort', x: -0.27, b: 0.19, rot: -0.1 } ]
+    }
+  }
+};
+
+// De plaatjes laden pas als er een teken in het level staat. De buffel, de jakhals en de botten
+// zijn gewone props en zijn er dus al (propImg).
+let tkImg = null;
+function tekenLaad(){
+  if (tkImg) return;
+  const laad = pad => { const im = new Image(); zetBron(im, pad, () => console.warn('ontbreekt: ' + pad)); return im; };
+  const doek = kleur => Array.from({ length: TEKEN.doek.n }, (_, i) =>
+    laad(TEKEN.map + 'doek_' + kleur + '/doek_' + (i < 10 ? '0' : '') + i + '.png'));
+  tkImg = { speer: laad(SKELET.map + SKELET.lagen.speer.src), schedel: laad(SKELET.map + 'delen/skelet_1_schedel.png'),
+            riem: laad(TEKEN.map + 'riem.png'), doek: { zwart: doek('zwart'), vaal: doek('vaal'), rood: doek('rood') } };
+}
+const tkPlaatje = k => k === 'schedel' ? tkImg.schedel : propImg[k];
+
+// de wind op deze plek: een vlaag heeft een richting, zonder vlaag wappert het een beetje
+function tekenWind(x, t){
+  const b = TEKEN.bries * (0.55 + 0.25 * Math.sin(t * 0.7) + 0.2 * Math.sin(t * 1.9 + 1));
+  if (!gust) return b;
+  const g = windAt(x);
+  return b * (gust.dir === 1 ? 1 : 1 - g) + g * gust.dir;
+}
+function tekenUpdate(dt){
+  if (!level || !level.tekens || !level.tekens.length) return;
+  tekenLaad();
+  for (const s of level.tekens){
+    if (s.klok === undefined){ s.klok = Math.random() * 20; s.t = Math.random() * 10; s.zwaai = 0; s.zwaaiV = 0; }
+    s.t += dt;
+    const w = tekenWind(s.x, s.t);
+    s.w = w;
+    s.klok += dt * (8 + 16 * Math.min(1, Math.abs(w)));            // het doek wappert sneller naarmate het harder waait
+    s.zwaaiV += ((w * 0.012 + Math.sin(s.t * 1.7) * 0.002) - s.zwaai) * 40 * dt;   // de speer geeft een fractie mee
+    s.zwaaiV *= Math.pow(0.9, dt * 180); s.zwaai += s.zwaaiV * dt;
+  }
+}
+
+// een speer, in Amir-eenheden: de voet op (sp.x, 0), omhoog is negatief
+const tkHoek = (sp, s) => sp.schuin + (s.zwaai || 0) * (sp.breuk ? 0.5 : 1);
+function tkOp(sp, s, t){
+  const r = t * TEKEN.speer.lang, a = tkHoek(sp, s);
+  return { x: sp.x + Math.sin(a) * r, y: -Math.cos(a) * r };
+}
+function tkMaat(){
+  const S = TEKEN.speer, bh = S.lang + S.in;
+  return { bh, bw: S.bron[0] / S.bron[1] * bh, k: bh / S.bron[1] };   // k: Amir per bronpixel van de speer
+}
+// het stuk speer tussen t = van en t = tot; een breuk krijgt een splinterrand
+function tkSpeerStuk(sp, s, van, tot, splinter){
+  const im = tkImg.speer; if (!imgReady(im)) return;
+  const L = TEKEN.speer.lang, { bh, bw } = tkMaat();
+  ctx.save(); ctx.translate(sp.x, 0); ctx.rotate(tkHoek(sp, s));
+  const onder = van <= 0 ? TEKEN.speer.in * 0.9 : -van * L, boven = -tot * L, z = L / 340;
+  ctx.beginPath(); ctx.moveTo(-bw, onder);
+  if (splinter){
+    ctx.lineTo(-bw, boven + 6 * z);
+    for (const [zx, zy] of [[-5, 4], [-3, -9], [-1, 2], [1, -14], [3, 1], [5, -6]]) ctx.lineTo(zx * z, boven + zy * z);
+    ctx.lineTo(bw, boven + 3 * z);
+  } else { ctx.lineTo(-bw, boven); ctx.lineTo(bw, boven); }
+  ctx.lineTo(bw, onder); ctx.closePath(); ctx.clip();
+  ctx.drawImage(im, -bw / 2, -L, bw, bh);
+  ctx.restore();
+}
+// het afgeknapte bovenstuk, plat in het gras, de punt van de speer af
+function tkLiggend(l){
+  const im = tkImg.speer; if (!imgReady(im)) return;
+  const L = TEKEN.speer.lang, { bh, bw } = tkMaat(), z = L / 340;
+  ctx.save(); ctx.translate(l.x + 0.24, -0.016); ctx.rotate(-Math.PI / 2 + 0.035);
+  ctx.translate(0, l.t * L);
+  ctx.beginPath(); ctx.moveTo(-bw, -L - 0.05); ctx.lineTo(-bw, -l.t * L - 4 * z);
+  for (const [zx, zy] of [[-5, -3], [-3, 9], [-1, -1], [1, 12], [3, 0], [5, 6]]) ctx.lineTo(zx * z, -l.t * L + zy * z);
+  ctx.lineTo(bw, -l.t * L - 2 * z); ctx.lineTo(bw, -L - 0.05); ctx.closePath(); ctx.clip();
+  ctx.drawImage(im, -bw / 2, -L, bw, bh);
+  ctx.restore();
+}
+function tkBeeld(k, x, y, b, rot, flip){
+  const im = tkPlaatje(k); if (!imgReady(im)) return 0;
+  const h = im.naturalHeight / im.naturalWidth * b;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot || 0); if (flip) ctx.scale(-1, 1);
+  ctx.drawImage(im, -b / 2, -h / 2, b, h); ctx.restore();
+  return h;
+}
+function tkRiem(sp, s, t){
+  const im = tkImg.riem; if (!imgReady(im)) return;
+  const m = tkOp(sp, s, t), b = TEKEN.riem, h = im.naturalHeight / im.naturalWidth * b;
+  ctx.save(); ctx.translate(m.x, m.y); ctx.rotate(tkHoek(sp, s));
+  ctx.drawImage(im, -b / 2, -h / 2, b, h); ctx.restore();
+}
+// de splinters van de breuk steken door de kruin
+function tkSplinters(sp, s){
+  const m = tkOp(sp, s, sp.breuk), z = TEKEN.speer.lang / 340;
+  ctx.save(); ctx.translate(m.x, m.y); ctx.rotate(tkHoek(sp, s)); ctx.scale(z, z);
+  ctx.fillStyle = '#2a1812'; ctx.beginPath(); ctx.ellipse(0, 12, 7, 2.4, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.lineJoin = 'round'; ctx.lineWidth = 1.6; ctx.strokeStyle = '#1b0f0a'; ctx.fillStyle = '#8a5a36';
+  for (const [x0, y0, x1, y1] of [[-4, 12, -5, -6], [-1, 12, 1, -14], [2, 12, 4, -4]]){
+    ctx.beginPath(); ctx.moveTo(x0 - 2, y0); ctx.lineTo(x1, y1); ctx.lineTo(x0 + 2, y0); ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  ctx.restore();
+}
+// een schedel op de schacht: de schacht gaat door het achterhoofdsgat en de kruin eruit, dus na
+// de schedel komt het stuk schacht erboven er nog een keer overheen (in een kruis van allebei)
+function tkOpSchacht(sp, s, sk, alle){
+  const k = sk.k || 'schedel', b = sk.b || TEKEN.schedel, a = tkHoek(sp, s), m = tkOp(sp, s, sk.t);
+  const scheef = k === 'schedel' ? TEKEN.schedel * 0.08 * (sk.flip ? -1 : 1) : 0;
+  const h = tkBeeld(k, m.x + Math.cos(a) * scheef, m.y + Math.sin(a) * scheef, b, a + sk.kant, sk.flip) || b;
+  if (sk.sjor){ tkRiem(sp, s, sk.t - 0.06); tkRiem(sp, s, sk.t + 0.07); return; }
+  const tt = sk.t + h * 0.47 / TEKEN.speer.lang;
+  if (sp.breuk && tt > sp.breuk){ tkSplinters(sp, s); return; }
+  const top = tkOp(sp, s, tt), z = TEKEN.speer.lang / 340;
+  ctx.fillStyle = '#2a1812';
+  ctx.beginPath(); ctx.ellipse(top.x, top.y + z, 6 * z, 2.2 * z, a, 0, Math.PI * 2); ctx.fill();
+  for (const s2 of alle || [sp]){
+    const t2 = s2 === sp ? tt : -top.y / (TEKEN.speer.lang * Math.cos(tkHoek(s2, s))) + 0.004;
+    tkSpeerStuk(s2, s, t2, s2.breuk || 1, false);
+  }
+}
+// het doek: de knoop recht op de schacht, de slippen eronder scheef in de wind
+function tkDoek(sp, s, w, i){
+  const beelden = tkImg.doek[sp.lint.kleur], im = beelden[(Math.floor(s.klok) + i * 7) % TEKEN.doek.n];
+  if (!imgReady(im)) return;
+  const D = TEKEN.doek, L = TEKEN.speer.lang, { bw, k } = tkMaat();
+  const top = -sp.lint.t * L, dh = D.h * k, slipY = top + (D.slip - D.y) * k;
+  ctx.save(); ctx.translate(sp.x, 0); ctx.rotate(tkHoek(sp, s));
+  ctx.save(); ctx.beginPath(); ctx.rect(-bw, top - 0.05, bw * 2, slipY - top + 0.05); ctx.clip();
+  ctx.drawImage(im, -bw / 2, top, bw, dh); ctx.restore();
+  const a = Math.abs(w);
+  const sk = w * 1.25 + Math.sin(s.t * 9 + i) * 0.1 * a + Math.sin(s.t * 1.3 + i) * 0.04;
+  const sy = 1 - 0.45 * Math.min(1, a);
+  ctx.beginPath(); ctx.rect(-bw * 3, slipY, bw * 6, dh); ctx.clip();
+  ctx.translate(0, slipY); ctx.transform(1, 0, sk, sy, 0, 0); ctx.translate(0, -slipY);
+  ctx.drawImage(im, -bw / 2, top, bw, dh);
+  ctx.restore();
+}
+function tekenTeken(groundY, scale, cx){
+  if (!level || !level.tekens || !tkImg) return;
+  const u = CHAR_H * scale;                                  // schermpixels per Amir
+  for (const s of level.tekens){
+    const V = TEKEN.varianten[s.v] || TEKEN.varianten.teken;
+    const sx = cx + (s.x - world);
+    if (sx < -W || sx > W / viewZoom() + W) continue;
+    const gy = groundY - terrainH(s.x) * scale, zij = s.f ? -1 : 1;
+    const w = (s.w || 0) * zij;                              // gespiegeld waait het in het plaatje de andere kant op
+    // schaduwen eerst, op het scherm: de grond eronder donkerder, zoals bij het skelet
+    for (const sp of V.speren) skeletSchaduw(sx + zij * sp.x * u, gy, 0.16 * u);
+    for (const g of V.grond || []) skeletSchaduw(sx + zij * g.x * u, gy, (g.b || TEKEN.schedel) * 1.1 * u);
+    if (V.ligt) skeletSchaduw(sx + zij * (V.ligt.x + 0.2) * u, gy, 0.7 * u);
+    ctx.save();
+    ctx.translate(sx, gy); ctx.scale(zij * u, u);
+    if (V.ligt) tkLiggend(V.ligt);
+    for (const sp of V.speren) tkSpeerStuk(sp, s, 0, sp.breuk || 1, !!sp.breuk);
+    for (const sp of V.speren) for (const sk of sp.schedels) tkOpSchacht(sp, s, sk);
+    if (V.kruis){
+      const [a, b] = V.speren;
+      const t = (a.x - b.x) / (Math.sin(tkHoek(b, s)) - Math.sin(tkHoek(a, s))) / TEKEN.speer.lang;
+      tkOpSchacht(a, s, { t, flip: V.kruis.flip, kant: V.kruis.kant }, V.speren);
+    }
+    for (const g of V.grond || []){
+      const im = tkPlaatje(g.k), b = g.b || TEKEN.schedel;
+      if (imgReady(im)) tkBeeld(g.k, g.x, -im.naturalHeight / im.naturalWidth * b * 0.36, b, g.rot, g.flip);
+    }
+    V.speren.forEach((sp, i) => tkDoek(sp, s, w, i));
+    ctx.restore();
+  }
 }
 
 // ---- de rotswand rechts: het einde van het level ----------------------
@@ -12713,6 +12943,7 @@ function loop(now){
   if (dt > 0) ravijnDecorStap(dt);                // en dat vallen en vervagen zelf, ook na het dichtgaan
   if (dt > 0) zegelUpdate(dt, scaleNow);          // erop stappen zet een zegel aan of uit
   if (dt > 0) skeletUpdate(dt, scaleNow);         // instorten, en de schedel die wegrolt
+  if (dt > 0) tekenUpdate(dt);                    // het doek aan een speerteken, in de wind
   ctx.clearRect(0, 0, W, H);
   ctx.save();
   ctx.translate(shakeX + ravijnSX, shakeY + ravijnSY);
@@ -13179,6 +13410,7 @@ function loop(now){
       }
     }
     zegelTeken(groundY, scale, cx);               // de zegels plat in de grond
+    tekenTeken(groundY, scale, cx);               // speertekens: een speer met een zwart doek en schedels
     skeletTeken(groundY, scale, cx);              // skeletten, met of zonder speer
     losTeken(groundY, scale, cx);                 // speren die los op de grond liggen
     ravijnRuneTeken(groundY, scale, cx);          // de rots met de rune bij het ravijn
@@ -14405,6 +14637,8 @@ function readLevel(txt){
                                                         ? null : Number(q.sluit) })),
            // skeletten met een speer erin: trek hem eruit en het stort in, zie "skelet met speer"
            skeletten: (o.skeletten || []).map(q => ({ x: Number(q.x), f: !!q.f })),
+           // speertekens: een speer met een zwart doek en schedels, zie "speerteken"
+           tekens: (o.tekens || []).map(q => ({ x: Number(q.x), v: TEKEN.varianten[q.v] ? q.v : 'teken', f: !!q.f })),
            hppotions: (o.hppotions || []).map(q => ({ x: Number(q.x),
                                                       y: (q.y === null || q.y === undefined) ? null : Number(q.y) })),
            // de plafondlijn: punten met een x en een y, zie "plafond: de rots boven je"
@@ -14767,6 +15001,17 @@ sandboxEl.querySelectorAll('button[data-sbcat]').forEach(b => b.onclick = () => 
 });
 { let k = 'vijanden'; try { const w = localStorage.getItem('amir.sbcat'); if (w !== null) k = w; } catch (e) {} sbCat(k); }
 sandboxEl.querySelectorAll('button[data-skelet]').forEach(b => b.onclick = () => sbSkelet(Number(b.dataset.skelet)));
+// een speerteken aan de gekozen kant; van rechts gespiegeld, zodat de schedels naar je toe kijken
+function sbTeken(v){
+  const side = sbFromRight ? 1 : -1;
+  let x = world + side * 360;
+  x = Math.min(x, cliffAt().wall - 300);
+  x = Math.max(x, endWall() + 300);
+  if (!level.tekens) level.tekens = [];
+  level.tekens.push({ x, v, f: sbFromRight });
+  cv.focus();
+}
+sandboxEl.querySelectorAll('button[data-teken]').forEach(b => b.onclick = () => sbTeken(b.dataset.teken));
 document.getElementById('sbskeletop').onclick = () => { skeletReset(); cv.focus(); };
 // je speer naast je op de grond leggen: om met lege handen een skelet leeg te trekken, of om te
 // zien dat je een tweede speer niet oppakt
@@ -15075,7 +15320,7 @@ sbPatBtn.onclick = () => {
 const sbGodBtn = document.getElementById('sbgod');
 function setGodLabel(){ sbGodBtn.textContent = godMode ? 'Onsterfelijk aan' : 'Onsterfelijk uit'; sbGodBtn.classList.toggle('on', godMode); }
 sbGodBtn.onclick = () => { godMode = !godMode; setGodLabel(); cv.focus(); };
-document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; hppotions.length = 0; hppotionFx.length = 0; level.rocks.length = 0; if (level.gaps) level.gaps.length = 0; if (level.grotten) level.grotten.length = 0; if (level.plafond) level.plafond.length = 0; if (level.terraces) level.terraces.length = 0; if (level.skeletten) level.skeletten.length = 0; losseSperen.length = 0; arena = null; thr = null; jav = null; javLost = 0; cv.focus(); };
+document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; hppotions.length = 0; hppotionFx.length = 0; level.rocks.length = 0; if (level.gaps) level.gaps.length = 0; if (level.grotten) level.grotten.length = 0; if (level.plafond) level.plafond.length = 0; if (level.terraces) level.terraces.length = 0; if (level.skeletten) level.skeletten.length = 0; if (level.tekens) level.tekens.length = 0; losseSperen.length = 0; arena = null; thr = null; jav = null; javLost = 0; cv.focus(); };
 document.getElementById('sbback').onclick = stopSandbox;
 document.getElementById('btnsandbox').onclick = startSandbox;
 document.getElementById('btnstop').onclick = () => { building = false; buildEl.classList.remove('on'); };
