@@ -1539,12 +1539,13 @@ const TEST_5 = {
 // Test 6: het openscheurende ravijn, en verder niets. Een kort vlak stuk savanne zonder
 // vijanden. Vlak voor de plek staat een rotsformatie met op zijn flank een rune (RAVIJN_ROTS,
 // bij het ravijn in de code); raak je die met je speer, dan scheurt vlak achter de rots, op x
-// -2100 (RAVIJN_PROEF, bij het ravijn in de code), de grond open. Tijdens het trillen en de barst loop je er nog overheen; is het open, dan is het een
+// -2100 (runes, het ravijn met de rots ervoor), de grond open. Tijdens het trillen en de barst loop je er nog overheen; is het open, dan is het een
 // gewoon ravijn, en omdat er hier geen gang onder ligt val je dood. Met een sprintsprong haal
 // je de overkant. De slang heel ver weg houdt de vrije modus uit, net als in Test 3.
 const TEST_6 = {
   name: 'Test 6: Ravijn test',
   lagen: 'tafelbergen',
+  runes: [ {x: -2100, breed: 277} ],
   rocks: [],
   props: [ {x: -250, k: 'gras', s: 1.1, f: 0, v: 0} ],
   spawns: [ {x: -60000, k: 'groen'} ],          // heel ver weg: houdt de vrije modus uit
@@ -1612,7 +1613,7 @@ const TEST_8 = {
 };
 // Test 9: het openscheurende ravijn op drie maten, om te zien dat het op elke breedte werkt: een
 // gewoon ravijn van 277 op -2100, een dubbel van 554 op -4400 en een driedubbel van 831 op
-// -7400 (RAVIJN_PROEF). Elk heeft zijn eigen spits met een rune, met de voet naast de rand van
+// -7400 (runes). Elk heeft zijn eigen spits met een rune, met de voet naast de rand van
 // zijn eigen gat, en ertussen is steeds genoeg vlakte om op de goede afstand te gaan staan. Het
 // gewone haal je open nog met een sprintsprong, het dubbele niet: daarom ligt er voor het dubbele
 // een zegel dat het weer dicht laat gaan (sluit), en dan loop je door naar het driedubbele. Geen
@@ -1620,6 +1621,7 @@ const TEST_8 = {
 const TEST_9 = {
   name: 'Test 9: Brede ravijnen',
   lagen: 'tafelbergen',
+  runes: [ {x: -2100, breed: 277}, {x: -4400, breed: 554}, {x: -7400, breed: 831} ],
   rocks: [],
   props: [ {x: -250, k: 'gras', s: 1.1, f: 0, v: 0} ],
   zegels: [ {x: -2900, sluit: -4400} ],            // laat het dubbele ravijn weer dicht gaan
@@ -3910,10 +3912,21 @@ function zegelUpdate(dt, scale){
 }
 // wat een zegel doet als hij aangaat
 function zegelDoe(z){
-  if (z.ravijn !== null && !ravijnBij(z.ravijn)){
-    ravijnOpen(z.ravijn);
+  if (z.ravijn !== null && z.ravijn !== undefined && !ravijnBij(z.ravijn)){
+    ravijnOpen(z.ravijn, z.breed || RAVIJN_MAAT.breed);
     flashHint('Het zegel licht op: de grond scheurt open');
   }
+  if (z.muur) zegelMuur();
+}
+// Een zegel met muur: true opent de rotswand van het level, zonder speer. Het is dezelfde opening
+// als bij een treffer op de rune (muurTreffer), alleen blijft er geen speer in de schijf steken.
+// De rune op de wand blijft daarnaast gewoon werken: wat het eerst gebeurt, opent hem.
+function zegelMuur(){
+  const m = muurNu(); if (!m || muurOpen) return;
+  muurOpen = true;
+  shake = Math.max(shake, 0.22);
+  playDeur();
+  flashHint(m.soort === 'grot' ? 'Het zegel licht op: de kei zakt de grond in' : 'Het zegel licht op: de rots schuift omhoog');
 }
 // Een zegel met sluit doet het omgekeerde: staat het ravijn op die x open, dan licht hij op en
 // gaat het weer dicht (ravijnSluit). Staat er niets open, dan blijft hij donker, zodat wie er
@@ -7646,16 +7659,18 @@ function ravijnDecorReset(){                        // alles weer op de plek uit
   for (const lijst of [level.rocks, level.village, level.skeletten, level.tekens]) for (const o of lijst || [])
     if (o.x0 !== undefined){ o.x = o.x0; delete o.x0; }
 }
-// Waar in dit level later een ravijn openscheurt: de runes uit RAVIJN_PROEF, en elk zegel met
-// een ravijn (op de standaardbreedte, tenzij RAVIJN_PROEF die plek al een breedte geeft).
+// Waar in dit level later een ravijn openscheurt: de runes (uit het level of uit RAVIJN_PROEF), en
+// elk zegel met een ravijn (op zijn eigen breedte of de standaardbreedte, tenzij een rune die plek al
+// een breedte geeft).
 // schoonLevel houdt daar hutten, keien en doornbossen weg, en de bouwer laat je ze er niet
 // neerzetten. Laag decor, kalebassen en botten mogen er wel staan: die schuiven of vallen
 // als het openscheurt (ravijnDecor).
 function komendeRavijnen(lv){
-  const uit = ((lv && RAVIJN_PROEF[lv.name]) || []).map(e => ({ x: e.x, w: e.breed }));
+  const runes = (lv && lv.runes && lv.runes.length) ? lv.runes : ((lv && RAVIJN_PROEF[lv.name]) || []);
+  const uit = runes.map(e => ({ x: e.x, w: e.breed }));
   for (const z of (lv && lv.zegels) || [])
     if (z.ravijn !== null && z.ravijn !== undefined && !uit.some(g => Math.abs(g.x - z.ravijn) < 1))
-      uit.push({ x: z.ravijn, w: RAVIJN_MAAT.breed });
+      uit.push({ x: z.ravijn, w: z.breed || RAVIJN_MAAT.breed });
   return uit;
 }
 // De rune op de rots. In Test 6 en Test 9 staat vlak voor elk ravijn een rotsformatie, de scheve spits
@@ -7687,12 +7702,18 @@ const RAVIJN_ROTS = {
 // aankomt. Een rune is aan zolang zijn ravijn er is (ravijnRuneAan): is het weer dicht, dan gaat
 // hij uit en kun je hem opnieuw raken. Raken kan altijd, ook als hij aan is: de speer blijft er
 // dan gewoon in hangen, alleen gaat er niets nog eens open.
+// Een nieuw level zet zijn runes in het level zelf (runes, zie ravijnProef); deze lijst is er voor de
+// levels die van voor dat veld zijn.
 const RAVIJN_PROEF = {
-  'Test 6: Ravijn test':    [ { x: -2100, breed: 277 } ],
-  'Test 9: Brede ravijnen': [ { x: -2100, breed: 277 }, { x: -4400, breed: 554 }, { x: -7400, breed: 831 } ],
   'Rune 8: De rune boven de gang': [ { x: -3600, breed: 554 } ]   // de ingang van de gang
 };
-function ravijnProef(){ return (level && RAVIJN_PROEF[level.name]) || null; }
+// Een level kan zijn runes ook zelf meegeven (runes: [{x, breed}], zoals de bouwer ze wegschrijft);
+// dan tellen die. Anders de lijst hierboven, op naam van het level.
+function ravijnProef(){
+  if (!level) return null;
+  if (level.runes && level.runes.length) return level.runes;
+  return RAVIJN_PROEF[level.name] || null;
+}
 const RAVIJN_RUNE = {
   r: 0.12,        // straal van het hout, als deel van Amirs lengte
   raak: 1.5,      // het raakvlak, als veelvoud van die straal: de punt scheert er ook langs
@@ -13583,6 +13604,7 @@ function loop(now){
         ctx.restore();
       }
     }
+    bouwSchakelTeken(groundY, cx, scale);            // in de bouwer: koppelingen en raakvlakken
     bouwKeuzeTeken(groundY, cx, scale);              // in de bouwer: wat je gekozen hebt
 
     javDraw(groundY, scale, cx, 'rust');              // een speer in de grond of in een wand: achter Amir
@@ -14548,6 +14570,10 @@ const GEREEDSCHAP = [
   { id: 'hyena2',   cat: 'dieren',  naam: '2 hyena\'s' },
   { id: 'dorpeling',  cat: 'mensen', naam: 'Dorpeling' },
   { id: 'dorpelinge', cat: 'mensen', naam: 'Dorpelinge' },
+  { id: 'rune',     cat: 'schakelaars', naam: 'Ravijn met rune op een rots' },
+  { id: 'zegel',    cat: 'schakelaars', naam: 'Zegel in de grond' },
+  { id: 'muur',     cat: 'schakelaars', naam: 'Rotswand met rune' },
+  { id: 'muurgrot', cat: 'schakelaars', naam: 'Grot met kei' },
   { id: 'einde',    cat: 'spel',    naam: 'Einde (de fakkels)' }
 ];
 const GEREEDSCHAP_ID = {};
@@ -14721,6 +14747,11 @@ function tekenLijn(){
     stip(o.x, onder ? dy(onder.diep) - 3 : gy - 6, 2.6, LIJN_KLEUR[o.kind] || '#fff');
   }
   for (const o of level.zegels || []) stip(o.x, gy + 3, 2.4, '#5fd0c0');
+  for (const e of ravijnProef() || []){               // een ravijn dat later openscheurt: stippellijn onder de grond
+    g.strokeStyle = '#f2b54a'; g.setLineDash([2, 2]); g.lineWidth = 1.5;
+    g.strokeRect(px(e.x - e.breed / 2), gy + 1, px(e.x + e.breed / 2) - px(e.x - e.breed / 2), 5); g.setLineDash([]);
+    stip(e.x + e.breed / 2 + 120, gy - 8, 2.6, '#f2b54a');
+  }
   for (const o of level.hppotions || []) stip(o.x, gy - 6, 2, '#ff9a5a');
   if (level.muur){ g.fillStyle = '#8f8a85'; g.fillRect(px(level.muur.x) - 8, gy - 10, 8, 10); }
   for (const o of level.cliffs || []){ g.fillStyle = '#6d6259'; g.fillRect(px(o.x) - 5, 1, 5, gy); }
@@ -14853,8 +14884,11 @@ function syncLevel(){
       const z = { x: Math.round(o.x) };
       if (o.ravijn !== null && o.ravijn !== undefined) z.ravijn = Math.round(o.ravijn);
       if (o.sluit !== null && o.sluit !== undefined) z.sluit = Math.round(o.sluit);
+      if (o.breed && z.ravijn !== undefined) z.breed = Math.round(o.breed);
+      if (o.muur) z.muur = true;
       return z;
     }),
+    runes: (level.runes || []).length ? level.runes.map(o => ({ x: Math.round(o.x), breed: Math.round(o.breed) })) : undefined,
     skeletten: (level.skeletten || []).map(o => ({ x: Math.round(o.x), f: o.f ? 1 : 0 })),
     tekens: (level.tekens || []).map(o => ({ x: Math.round(o.x), v: o.v, f: o.f ? 1 : 0 })),
     tips: (level.tips || []).map(t => ({ x: Math.round(t.x), t: t.t })),
@@ -15008,7 +15042,12 @@ function readLevel(txt){
                                                 ravijn: (q.ravijn === undefined || q.ravijn === null)
                                                         ? null : Number(q.ravijn),
                                                 sluit: (q.sluit === undefined || q.sluit === null)
-                                                        ? null : Number(q.sluit) })),
+                                                        ? null : Number(q.sluit),
+                                                // de breedte van het ravijn dat hij opent (standaard RAVIJN_MAAT.breed)
+                                                breed: Number(q.breed) > 0 ? Number(q.breed) : undefined,
+                                                muur: q.muur === true })),   // opent de rotswand van het level
+           // ravijnen met een rune op een rots ervoor: x is het midden van het ravijn, zie RAVIJN_PROEF
+           runes: (o.runes || []).map(q => ({ x: Number(q.x), breed: Math.max(80, Number(q.breed) || RAVIJN_MAAT.breed) })),
            // skeletten met een speer erin: trek hem eruit en het stort in, zie "skelet met speer"
            skeletten: (o.skeletten || []).map(q => ({ x: Number(q.x), f: !!q.f })),
            // speertekens: een speer met een zwart doek en schedels, zie "speerteken"
@@ -15822,6 +15861,12 @@ function pointerWorldX(e){
   return world + (sx - W / 2) / viewZoom();
 }
 function builderHit(wx, scale, lift){
+  const zg = (level.zegels || []).find(z => Math.abs(z.x - wx) < 70);
+  if (zg) return { list: level.zegels, kind: 'zegel', obj: zg };
+  const rn = (level.runes || []).find(e => wx > e.x - e.breed / 2 && wx < e.x + e.breed / 2 + RUNE_ROTS_BREED);
+  if (rn) return { list: level.runes, kind: 'rune', obj: rn };
+  if (level.muur && wx > level.muur.x - MUUR_BREED && wx < level.muur.x + 20)
+    return { list: [level.muur], kind: 'muur', obj: level.muur };
   if (bouwD > HOLTE_DAK){                              // onder de grond kijken: de gang zelf is aan te klikken
     const hl = (level.holtes || []).find(o => wx >= o.l && wx <= o.r);
     if (hl && lift !== undefined && lift < -HOLTE_DAK * scale && !level.spawns.some(s => Math.abs(s.x - wx) < 90))
@@ -15858,8 +15903,30 @@ function builderHit(wx, scale, lift){
   if (cl) return { list: level.cliffs, kind: 'cliff', obj: cl };
   return null;
 }
+// zo breed zijn de rots bij een rune en de rotswand ongeveer, om ze aan te klikken (in wereld-px)
+const RUNE_ROTS_BREED = 380, MUUR_BREED = 700;
 function placeProblem(kind, o, scale){               // mag dit hier staan? zo niet: waarom
   const wall = cliffAt().wall;
+  const overGat = (l, r) => (level.gaps || []).some(g => r > g.x - g.w / 2 && l < g.x + g.w / 2);
+  if (kind === 'rune'){
+    if (o.x + o.breed / 2 + RUNE_ROTS_BREED >= wall - 10) return 'daar staat de klif';
+    if (o.x + o.breed / 2 + RUNE_ROTS_BREED > SPEAR_AHEAD - 60) return 'te dicht bij het begin: daar staat je speer';
+    if (overGat(o.x - o.breed / 2, o.x + o.breed / 2 + RUNE_ROTS_BREED)) return 'daar ligt al een ravijn';
+    return '';
+  }
+  if (kind === 'zegel'){
+    const r = ZEGEL.r * CHAR_H * scale;
+    if (o.x + r >= wall - 10) return 'daar staat de klif';
+    if (overGat(o.x - r, o.x + r)) return 'niet boven een ravijn: daar kan Amir niet op staan';
+    if (holteAt(o.x)) return 'niet boven een gang: een zegel gaat alleen aan op de savanne';
+    return '';
+  }
+  if (kind === 'muur'){
+    if (o.x >= wall - 10) return 'daar staat de klif';
+    if (o.x > SPEAR_AHEAD - 200) return 'te dicht bij het begin';
+    if (overGat(o.x - 400, o.x)) return 'niet boven een ravijn';
+    return '';
+  }
   // waar later een ravijn openscheurt geen hut, geen kei om op te springen en geen doornbos
   const komend = hw => komendeRavijnen(level).some(g => o.x + hw > g.x - g.w / 2 && o.x - hw < g.x + g.w / 2);
   if (kind === 'rock' && komend(measurePlat(o, scale).wPx / 2)) return 'hier scheurt later een ravijn open';
@@ -15948,6 +16015,7 @@ function endPress(e, cancel){
 // veranderen; Wis of de Delete-toets haalt het weg. Wat er in het venster staat, komt uit
 // bouwVelden: per soort een paar velden, elk met een naam, een soort invoer en waar het in staat.
 let gekozen = null;                                   // { list, kind, obj } of null
+let bouwDoel = null;                                  // { z, sleutel }: het volgende klikje zet het doel van een zegel
 const binfoEl = document.getElementById('binfo');
 const SPAWN_NAAM = { groen: 'Zandslang', zwart: 'Zwarte slang', scorp: 'Schorpioen', hyenas: 'Hyena',
                      panter: 'Panter', zwaard: 'Zwaardvechter', fosfor: 'Fosforslangen' };
@@ -15957,7 +16025,8 @@ function bouwNaam(k){
   if (k.kind === 'prop'){ const g = GEREEDSCHAP.find(q => q.id === o.kind || q.sneeuw === o.kind); return g ? g.naam : o.kind; }
   if (k.kind === 'npc') return o.kind === 'dorpelinge' ? 'Dorpelinge' : 'Dorpeling';
   return { rock: 'Kei om op te springen', thicket: 'Doornbos', gap: 'Ravijn', water: 'Water', holte: 'Gang onder de grond',
-           end: 'Einde (de fakkels)', cliff: 'Klif' }[k.kind] || k.kind;
+           end: 'Einde (de fakkels)', cliff: 'Klif', zegel: 'Zegel in de grond',
+           rune: 'Ravijn met rune op een rots', muur: o.soort === 'grot' ? 'Grot met kei' : 'Rotswand met rune' }[k.kind] || k.kind;
 }
 // de velden per soort: [naam, invoer, sleutel, extra]; invoer is getal, vink of keuze
 function bouwVelden(k){
@@ -15973,6 +16042,15 @@ function bouwVelden(k){
   if (k.kind === 'thicket') v.push(['klompen', 'getal', 'n', { stap: 1, min: 1, max: 5 }]);
   if (k.kind === 'gap') v.push(['breedte', 'getal', 'w', { stap: 10, min: 40, max: 2000 }]);
   if (k.kind === 'water') v.push(['lengte', 'getal', 'n', { stap: 1, min: 0, max: 20 }]);
+  if (k.kind === 'rune'){
+    v[0][0] = 'midden van het ravijn';
+    v.push(['breedte van het ravijn', 'keuze', 'breed', { keuzes: [[277, '277, gewoon'], [554, '554, dubbel'], [831, '831, driedubbel']] }]);
+  }
+  if (k.kind === 'muur'){
+    v[0][0] = 'rechterrand (x)';
+    v.push(['speer komt terug op', 'getal', 'speer', { stap: 10, min: 0, max: 2000 }],
+           ['soort', 'keuze', 'soort', { keuzes: [['', 'kale rots'], ['grot', 'grot met kei']] }]);
+  }
   if (k.kind === 'holte'){
     v.length = 0;
     v.push(['rechts (r)', 'getal', 'r', { stap: 10 }], ['links (l)', 'getal', 'l', { stap: 10 }],
@@ -15997,7 +16075,7 @@ function bouwInfo(){
     if (soort === 'keuze'){
       inp = document.createElement('select');
       for (const [w, t] of extra.keuzes){ const op = document.createElement('option'); op.value = w; op.textContent = t; inp.appendChild(op); }
-      inp.value = o[sleutel];
+      inp.value = (o[sleutel] === undefined || o[sleutel] === null) ? '' : o[sleutel];
     } else {
       inp = document.createElement('input');
       inp.type = soort === 'vink' ? 'checkbox' : 'number';
@@ -16008,7 +16086,9 @@ function bouwInfo(){
     inp.onkeydown = e => e.stopPropagation();       // typen stuurt Amir niet aan
     inp.onchange = () => {
       const oud = o[sleutel];
-      let w = soort === 'vink' ? inp.checked : soort === 'keuze' ? (typeof oud === 'number' ? Number(inp.value) : inp.value) : Number(inp.value);
+      let w = soort === 'vink' ? inp.checked
+            : soort === 'keuze' ? (typeof extra.keuzes[0][0] === 'number' ? Number(inp.value) : (inp.value || undefined))
+            : Number(inp.value);
       if (soort === 'getal'){
         if (!isFinite(w)){ inp.value = oud; return; }
         if (extra.min !== undefined) w = Math.max(extra.min, w);
@@ -16134,6 +16214,72 @@ function bouwExtra(k){
       });
     }
   }
+  if (k.kind === 'zegel'){
+    // wat hij doet: een keuze, en daaronder het doel
+    const doet = o.muur ? 'muur' : (o.sluit !== null && o.sluit !== undefined) ? 'sluit'
+               : (o.ravijn !== null && o.ravijn !== undefined) ? 'open' : 'niets';
+    const rij = document.createElement('div'); rij.className = 'bveld';
+    const l = document.createElement('label'); l.textContent = 'doet'; rij.appendChild(l);
+    const sel = document.createElement('select');
+    for (const [w, t] of [['niets', 'alleen oplichten'], ['open', 'een ravijn openen'], ['sluit', 'een open ravijn sluiten'], ['muur', 'de rotswand openen']]){
+      const op = document.createElement('option'); op.value = w; op.textContent = t; sel.appendChild(op);
+    }
+    sel.value = doet;
+    sel.onchange = () => {
+      const oud = (o.ravijn !== null && o.ravijn !== undefined) ? o.ravijn : o.sluit;
+      o.ravijn = null; o.sluit = null; o.muur = false;
+      const doel = (oud !== null && oud !== undefined) ? oud : Math.round(o.x - 600);   // standaard: een stuk verderop
+      if (sel.value === 'open') o.ravijn = doel;
+      if (sel.value === 'sluit') o.sluit = doel;
+      if (sel.value === 'muur') o.muur = true;
+      syncLevel(); bouwInfo(); cv.focus();
+    };
+    rij.appendChild(sel); binfoEl.appendChild(rij);
+    if (doet === 'open' || doet === 'sluit'){
+      const sleutel = doet === 'open' ? 'ravijn' : 'sluit';
+      const r2 = document.createElement('div'); r2.className = 'bveld';
+      const l2 = document.createElement('label'); l2.textContent = 'ravijn op'; r2.appendChild(l2);
+      const inp = document.createElement('input'); inp.type = 'number'; inp.step = 10; inp.value = Math.round(o[sleutel]);
+      inp.onkeydown = e => e.stopPropagation();
+      inp.onchange = () => { if (isFinite(Number(inp.value))){ o[sleutel] = Number(inp.value); syncLevel(); bouwInfo(); } cv.focus(); };
+      r2.appendChild(inp); binfoEl.appendChild(r2);
+      if (doet === 'open'){
+        const r3 = document.createElement('div'); r3.className = 'bveld';
+        const l3 = document.createElement('label'); l3.textContent = 'breedte'; r3.appendChild(l3);
+        const b3 = document.createElement('select');
+        for (const [w, t] of [[277, '277, gewoon'], [554, '554, dubbel'], [831, '831, driedubbel']]){
+          const op = document.createElement('option'); op.value = w; op.textContent = t; b3.appendChild(op);
+        }
+        b3.value = o.breed || RAVIJN_MAAT.breed;
+        b3.onchange = () => { o.breed = Number(b3.value) === RAVIJN_MAAT.breed ? undefined : Number(b3.value); syncLevel(); bouwInfo(); cv.focus(); };
+        r3.appendChild(b3); binfoEl.appendChild(r3);
+      }
+      knop('Wijs het ravijn aan in beeld', () => { bouwDoel = { z: o, sleutel }; });
+      if (bouwDoel && bouwDoel.z === o) regel('klik in de wereld waar het ravijn moet komen (Esc: laat maar)', 'blet');
+      const g = (level.gaps || []).find(q => Math.abs(q.x - o[sleutel]) < q.w / 2);
+      if (doet === 'sluit' && !komendeRavijnen(level).some(q => Math.abs(q.x - o.sluit) < 1))
+        regel('! op ' + Math.round(o.sluit) + ' gaat geen ravijn open: dit zegel blijft dan donker', 'blet');
+      if (doet === 'open' && g) regel('! daar ligt al een ravijn', 'blet');
+      if (doet === 'open' && holteAt(o.ravijn)) regel('het ravijn opent boven een gang: je valt dan de gang in', 'bgoed');
+      const bij = Math.abs(o[sleutel] - o.x) < (o.breed || RAVIJN_MAAT.breed) / 2 + ZEGEL.r * CHAR_H + 40;
+      if (doet === 'open' && bij) regel('! het ravijn gaat open onder het zegel zelf: wie erop stapt valt erin', 'blet');
+    }
+    if (doet === 'muur' && !level.muur) regel('! dit level heeft geen rotswand: zet er een neer (Schakelaars)', 'blet');
+    regel('het raakvlak: de groene streep op de grond, waar Amirs voeten tellen');
+  }
+  if (k.kind === 'rune'){
+    regel('gaat open als de punt van de speer de schijf raakt');
+    regel('raakvlak: ' + String(RAVIJN_RUNE.raak).replace('.', ',') + ' keer het hout (de stippelcirkel), ' + RAVIJN_RUNE.hoog + ' boven de grond');
+    if (holteAt(o.x)) regel('opent boven een gang: dan is het een ingang', 'bgoed');
+    const sluit = (level.zegels || []).filter(z => z.sluit !== null && z.sluit !== undefined && Math.abs(z.sluit - o.x) < 1);
+    if (sluit.length) regel('gaat weer dicht door het zegel op ' + sluit.map(z => Math.round(z.x)).join(', '), 'bgoed');
+  }
+  if (k.kind === 'muur'){
+    regel('opent als de speer de schijf raakt (de gele cirkel is het raakvlak)');
+    const zg = (level.zegels || []).filter(z => z.muur);
+    if (zg.length) regel('gaat ook open door het zegel op ' + zg.map(z => Math.round(z.x)).join(', '), 'bgoed');
+    regel('Amir loopt door de rots heen: zet er een klif een stuk achter', 'hint');
+  }
   if (k.kind === 'holte'){
     const gaten = (level.gaps || []).filter(g => holteUnder(g) === o);
     const uit = holteUitgang(o);
@@ -16150,6 +16296,7 @@ function bouwExtra(k){
 function bouwWis(){
   if (!gekozen) return;
   if (gekozen.kind === 'holte'){ holteWis(gekozen.obj); bouwKies(null); syncLevel(); cv.focus(); return; }
+  if (gekozen.kind === 'muur'){ level.muur = null; bouwKies(null); syncLevel(); cv.focus(); return; }
   const i = gekozen.list.indexOf(gekozen.obj);
   if (i >= 0) gekozen.list.splice(i, 1);
   bouwKies(null); syncLevel(); cv.focus();
@@ -16158,6 +16305,85 @@ addEventListener('keydown', e => {
   if (!building || typing(e)) return;
   if ((e.key === 'Delete' || e.key === 'Backspace') && gekozen){ e.preventDefault(); bouwWis(); }
 });
+addEventListener('keydown', e => {                    // Esc laat het aanwijzen los, en opent dan niet het pauzemenu
+  if (building && bouwDoel && e.key === 'Escape'){ e.preventDefault(); e.stopImmediatePropagation(); bouwDoel = null; bouwInfo(); }
+}, true);
+// ---- schakelaars in beeld: de koppelingen en de raakvlakken ----
+// Elke schakelaar met een doel krijgt een eigen kleur en een lijn naar dat doel. Een ravijn dat
+// later openscheurt staat als stippelkader in de grond. Het raakvlak van een rune is de
+// stippelcirkel om het hout (RAVIJN_RUNE.raak keer de straal), dat van een zegel de streep op de
+// grond waarbinnen Amirs voeten tellen (ZEGEL.op). Het raakvlak van de rotswand tekent muurBoxen al.
+const KOPPEL_KLEUR = ['#f2b54a', '#5fd0c0', '#e07bff', '#8ed08a', '#ff8a65', '#7fb2ff'];
+function bouwSchakelTeken(groundY, cx, scale){
+  if (!building || !level) return;
+  const z = viewZoom(), X = wx => cx + (wx - world);
+  let nr = 0;
+  ctx.save();
+  ctx.lineWidth = 3 / z;
+  const kader = (x, w, kleur) => {                    // een ravijn dat nog open moet
+    ctx.strokeStyle = kleur; ctx.fillStyle = kleur;
+    ctx.setLineDash([12 / z, 8 / z]);
+    ctx.globalAlpha = 0.18; ctx.fillRect(X(x - w / 2), groundY, w, 220 / z);
+    ctx.globalAlpha = 1; ctx.strokeRect(X(x - w / 2), groundY, w, 220 / z);
+    ctx.setLineDash([]);
+  };
+  const boog = (x0, y0, x1, y1, kleur) => {           // de koppeling
+    ctx.strokeStyle = kleur; ctx.setLineDash([3 / z, 9 / z]); ctx.lineCap = 'round'; ctx.lineWidth = 4 / z;
+    const top = Math.min(y0, y1) - Math.min(500, Math.abs(x1 - x0) * 0.35 + 80) / z;
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.bezierCurveTo(x0, top, x1, top, x1, y1); ctx.stroke();
+    ctx.setLineDash([]); ctx.lineWidth = 3 / z;
+  };
+  const nummer = (x, y, n, kleur) => {
+    ctx.fillStyle = kleur; ctx.beginPath(); ctx.arc(x, y, 13 / z, 0, 7); ctx.fill();
+    ctx.fillStyle = '#241a2b'; ctx.font = 'bold ' + Math.round(15 / z) + 'px Archivo, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(n), x, y + 1 / z);
+  };
+  // runes: het ravijn dat opengaat, en het hout met zijn raakvlak
+  for (const e of ravijnProef() || []){
+    const kleur = KOPPEL_KLEUR[nr % KOPPEL_KLEUR.length]; nr++;
+    kader(e.x, e.breed, kleur);
+    const R = ravijnRune(scale, e);
+    if (R){
+      const rx = X(R.x), ry = groundY - R.h * scale;
+      ctx.strokeStyle = kleur;
+      ctx.beginPath(); ctx.arc(rx, ry, R.rPx, 0, 7); ctx.stroke();
+      ctx.setLineDash([5 / z, 5 / z]); ctx.globalAlpha = 0.9;
+      ctx.beginPath(); ctx.arc(rx, ry, R.raakPx, 0, 7); ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha = 1;
+      boog(rx, ry - R.raakPx, X(e.x), groundY, kleur);
+      nummer(rx, ry - R.raakPx - 18 / z, nr, kleur);
+    } else nummer(X(e.x), groundY - 30 / z, nr, kleur);
+  }
+  // zegels: waar zijn voeten tellen, en de lijn naar wat hij doet
+  const rz = ZEGEL.r * CHAR_H * scale * ZEGEL.op;
+  for (const zg of level.zegels || []){
+    const x = X(zg.x);
+    ctx.strokeStyle = '#8ed08a'; ctx.lineWidth = 4 / z;
+    ctx.beginPath(); ctx.moveTo(x - rz, groundY + 8 / z); ctx.lineTo(x + rz, groundY + 8 / z); ctx.stroke();
+    ctx.lineWidth = 2 / z;
+    ctx.beginPath(); ctx.moveTo(x - rz, groundY); ctx.lineTo(x - rz, groundY + 16 / z);
+    ctx.moveTo(x + rz, groundY); ctx.lineTo(x + rz, groundY + 16 / z); ctx.stroke();
+    ctx.lineWidth = 3 / z;
+    const doel = (zg.ravijn !== null && zg.ravijn !== undefined) ? zg.ravijn : (zg.sluit !== null && zg.sluit !== undefined) ? zg.sluit : null;
+    if (doel === null && !zg.muur) continue;
+    const kleur = KOPPEL_KLEUR[nr % KOPPEL_KLEUR.length]; nr++;
+    if (zg.ravijn !== null && zg.ravijn !== undefined) kader(zg.ravijn, zg.breed || RAVIJN_MAAT.breed, kleur);
+    let tx = null, ty = groundY;
+    if (doel !== null) tx = X(doel);
+    else if (level.muur){                            // de rotswand: naar zijn schijf, zoals muurTreffer hem vindt
+      const S = muurSet(scale);
+      if (S){ tx = X(level.muur.x - (S.w - S.symX)); ty = groundY - (S.voetY - S.symY); }
+      else { tx = X(level.muur.x - 250); ty = groundY - 200 / z; }
+    }
+    if (tx !== null) boog(x, groundY - 20 / z, tx, ty, kleur);
+    nummer(x, groundY - 40 / z, nr, kleur);
+    if (zg.sluit !== null && zg.sluit !== undefined){
+      ctx.fillStyle = kleur; ctx.font = 'bold ' + Math.round(13 / z) + 'px Archivo, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('sluit', X(zg.sluit), groundY - 14 / z);
+    }
+  }
+  ctx.restore();
+}
 // wat gekozen is krijgt in de wereld een gele haak, een ravijn een kader over zijn breedte
 function bouwKeuzeTeken(groundY, cx, scale){
   if (!building || !gekozen) return;
@@ -16188,6 +16414,11 @@ cv.addEventListener('pointercancel', e => endPress(e, true));
 cv.addEventListener('pointerdown', e => {
   if (!building) return;
   const tool = gereedschapNu();                      // met Sneeuw aan de winterversie
+  if (bouwDoel){                                     // het doel van een zegel aanwijzen
+    const r0 = cv.getBoundingClientRect();
+    bouwDoel.z[bouwDoel.sleutel] = Math.round(world + ((e.clientX - r0.left) * (W / r0.width) - W / 2) / viewZoom());
+    bouwDoel = null; syncLevel(); bouwInfo(); return;
+  }
   const r = cv.getBoundingClientRect();
   const sx = (e.clientX - r.left) * (W / r.width);
   const wx = world + (sx - W / 2) / viewZoom();      // de zoom meerekenen
@@ -16205,7 +16436,12 @@ cv.addEventListener('pointerdown', e => {
   }
   const hit = builderHit(wx, scale, lift);
   if (tool === 'gum'){
-    if (hit){ hit.list.splice(hit.list.indexOf(hit.obj), 1); if (gekozen && gekozen.obj === hit.obj) bouwKies(null); syncLevel(); }
+    if (hit){
+      if (hit.kind === 'muur') level.muur = null;
+      else hit.list.splice(hit.list.indexOf(hit.obj), 1);
+      if (gekozen && gekozen.obj === hit.obj) bouwKies(null);
+      syncLevel();
+    }
     else bcount.textContent = 'daar staat niets';
     return;
   }
@@ -16236,6 +16472,24 @@ cv.addEventListener('pointerdown', e => {
     const why = placeProblem('npc', nw, scale);
     if (why){ bcount.textContent = why; return; }
     level.npcs.push(nw);
+  } else if (tool === 'rune'){                      // de klik is het midden van het ravijn, de rots komt ervoor
+    const nw = { x: wx, breed: RAVIJN_MAAT.breed };
+    const why = placeProblem('rune', nw, scale);
+    if (why){ bcount.textContent = why; return; }
+    level.runes.push(nw);
+  } else if (tool === 'zegel'){
+    const nw = { x: wx, ravijn: null, sluit: null };
+    const why = placeProblem('zegel', nw, scale);
+    if (why){ bcount.textContent = why; return; }
+    level.zegels.push(nw);
+    syncLevel(); bouwDicht();
+    bouwKies({ list: level.zegels, kind: 'zegel', obj: nw });   // meteen het venster: wat moet hij doen?
+    return;
+  } else if (tool === 'muur' || tool === 'muurgrot'){  // een per level: de oude verhuist
+    const nw = { x: wx, speer: level.muur ? level.muur.speer : 150, soort: tool === 'muurgrot' ? 'grot' : undefined };
+    const why = placeProblem('muur', nw, scale);
+    if (why){ bcount.textContent = why; return; }
+    level.muur = nw;
   } else if (tool === 'einde'){
     const nw = { x: wx };
     const why = placeProblem('end', nw, scale);
