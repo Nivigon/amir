@@ -1972,8 +1972,7 @@ const TEST_5 = {
 // Test 6: het openscheurende ravijn, en verder niets. Een kort vlak stuk savanne zonder
 // vijanden. Vlak voor de plek staat een rotsformatie met op zijn flank een rune (RAVIJN_ROTS,
 // bij het ravijn in de code); raak je die met je speer, dan scheurt vlak achter de rots, op x
-// -2100 (RAVIJN_PROEF, bij het ravijn in de code), de grond open. Toets O doet hetzelfde zonder
-// speer. Tijdens het trillen en de barst loop je er nog overheen; is het open, dan is het een
+// -2100 (RAVIJN_PROEF, bij het ravijn in de code), de grond open. Tijdens het trillen en de barst loop je er nog overheen; is het open, dan is het een
 // gewoon ravijn, en omdat er hier geen gang onder ligt val je dood. Met een sprintsprong haal
 // je de overkant. De slang heel ver weg houdt de vrije modus uit, net als in Test 3.
 const TEST_6 = {
@@ -7438,7 +7437,7 @@ function inGap(x){
   }
   return ravijnGat(x);
 }
-// Ravijn opent (toets O, zie de proefaansluiting): zodra het effect klaar is met openscheuren
+// Ravijn opent (zie de proefaansluiting): zodra het effect klaar is met openscheuren
 // (colliderActive) is het gat voor het spel een gewoon ravijn, van gapLeft tot gapRight.
 // Eerder niet, anders zakt Amir erdoor terwijl de grond er nog dicht bij ligt. Dit is alleen
 // de botsing: inGap kijkt ernaar, het tekenen (gapList) niet, want het beeld komt van het
@@ -7529,6 +7528,73 @@ function ravijnValt(s, dt, weg){
   if (s.lift) s.lift = 0;
   if (s.base < -GAP_DEATH) s.state = weg;
   return true;
+}
+// Wat er op de grond stond waar het ravijn openscheurt. Kalebassen en botten vallen erin:
+// ze zakken met de zwaartekracht en vervagen in de diepte. Planten, keien en bomen schuiven
+// met de rand mee naar de kant waar ze het dichtst bij stonden, net zoals schoonLevel dat bij
+// een gewoon ravijn doet. Staat er aan die rand al iets vlakbij, dan vervagen ze in plaats van
+// op elkaar te schuiven: vijf graspollen op een kluitje aan de rand ziet er niet uit.
+// Alles staat in p.rv (dx, val, a, weg), niet in p.x: het level zelf blijft zoals het is,
+// en bij een herstart (ravijnReset) staat alles weer op zijn plek.
+// valt: de soorten decor die erin vallen; ruimte: hoe dicht twee dingen aan de rand mogen
+// staan, als deel van hun halve breedtes samen; vervaag: seconden; diep: vanaf hoe diep
+// (sprite-eenheden) iets weg is.
+const RAVIJN_DECOR = { valt: ['bot_kort', 'bot_lang', 'bot_schuin', 'fragment', 'ribben', 'buffel', 'jakhals', 'wervels'],
+                       ruimte: 0.9, vervaag: 0.35, marge: 6, diep: 600 };
+function ravijnDecor(fx, dt, scale){
+  if (fx.p <= 0 || !level || building) return;
+  const [l, r] = ravijnRanden(fx), D = RAVIJN_DECOR;
+  const onder = x => (level.holtes || []).some(o => x >= o.l && x <= o.r);   // beneden in een gang: niet
+  for (const p of hppotions){                        // kalebassen: vallen erin
+    if (p.valt || p.base > 1 || onder(p.x) || p.x <= l || p.x >= r) continue;
+    p.valt = { v: 0 }; p.hop = false;
+  }
+  if (!level.props) return;
+  for (const p of level.props){
+    if (p.far) continue;                            // achtergronddecor: drawPlacedFar laat het weg
+    const rv = p.rv || (p.rv = { dx: 0, a: 1 });
+    if (rv.weg || rv.val || rv.vervaag || onder(p.x) || terrainH(p.x) > 1) continue;
+    const x = p.x + rv.dx, hw = propHalfW(p, scale);
+    if (D.valt.includes(p.kind)){
+      if (x > l && x < r) rv.val = { v: 0, h: 0, rot: 0, draai: (rnd(p.x, 7) - 0.5) * 3 };
+      continue;
+    }
+    if (x + hw <= l || x - hw >= r) continue;       // de opening raakt hem (nog) niet
+    const links = x < fx.x;
+    const nx = links ? l - hw - D.marge : r + hw + D.marge;
+    rv.dx = nx - p.x;
+    // staat er aan deze kant al iets vlakbij (dat niet zelf aan het verdwijnen is)? dan vervaagt hij
+    const vol = level.props.some(q => q !== p && !q.far && !(q.rv && (q.rv.weg || q.rv.val || q.rv.vervaag))
+      && !D.valt.includes(q.kind)
+      && Math.abs(q.x + (q.rv ? q.rv.dx : 0) - nx) < (hw + propHalfW(q, scale)) * D.ruimte
+      && (q.x + (q.rv ? q.rv.dx : 0) < fx.x) === links);
+    if (vol) rv.vervaag = true;
+  }
+}
+function ravijnDecorStap(dt){                        // vallen en vervagen, elk beeld
+  for (let i = hppotions.length - 1; i >= 0; i--){
+    const p = hppotions[i];
+    if (!p.valt) continue;
+    p.valt.v += GRAVITY * dt;
+    p.h -= p.valt.v * dt; p.base = p.h;
+    if (p.h < -RAVIJN_DECOR.diep) hppotions.splice(i, 1);
+  }
+  if (!level || !level.props) return;
+  for (const p of level.props){
+    const rv = p.rv;
+    if (!rv || rv.weg) continue;
+    if (rv.val){
+      rv.val.v += GRAVITY * dt; rv.val.h -= rv.val.v * dt; rv.val.rot += rv.val.draai * dt;
+      rv.a = Math.max(0, 1 + rv.val.h / RAVIJN_DECOR.diep);
+      if (rv.val.h < -RAVIJN_DECOR.diep) rv.weg = true;
+    } else if (rv.vervaag){
+      rv.a -= dt / RAVIJN_DECOR.vervaag;
+      if (rv.a <= 0) rv.weg = true;
+    }
+  }
+}
+function ravijnDecorReset(){
+  if (level && level.props) for (const p of level.props) delete p.rv;
 }
 // De rune op de rots. In Test 6 en Test 9 staat vlak voor elk ravijn een rotsformatie, de scheve spits
 // (design/rotswand_spits.jpg), met op zijn steile flank, de kant waar Amir aankomt, de houten
@@ -7665,7 +7731,7 @@ function ravijnRuneTeken(groundY, scale, cx){      // de rotsen, en de schijf op
     runeSchijf(ctx, cx + (R.x - world), groundY - R.h * scale, R.rPx, { aan: ravijnRuneAan(e) });
   }
 }
-function ravijnReset(){ ravijnen.length = 0; stopDeur(); }
+function ravijnReset(){ ravijnen.length = 0; stopDeur(); ravijnDecorReset(); }
 // De bovenste rijen van ravijn_wand.png zijn niet de wand maar de verre oever uit het
 // referentiebeeld: een vage rode savanne, met de graspollen en de rand van de overkant ervoor.
 // Die strook past nooit bij het level. Bij het laden gaat ze eruit, zodat je daar door het gat
@@ -8942,6 +9008,7 @@ function updateHppotions(dt, scale){
       }
     } else p.h = p.base;
     // oppakken: gewoon ertegenaan lopen. Zit hij vol, dan blijft het flesje liggen.
+    if (p.valt) continue;                          // valt in een ravijn: ravijnDecorStap
     if (!dead && !won && !fell && hppotionCarry < HPPOTION_MAX && hppotionHits(p, scale)){
       pickHppotion(p);
       hppotions.splice(i, 1);
@@ -9017,6 +9084,14 @@ function drawHppotions(groundY, scale, cx){
     const gh = p.hop ? terrainH(p.x) : p.base;
     const up = Math.max(0, p.h - gh) + hppotionBob(p) * HPPOTION_BOB;   // in sprite-eenheden
     const bottom = groundY - gh * scale - up * scale;
+    if (p.valt){                                   // valt in een ravijn: geen schaduw, vervaagt in de diepte
+      ctx.save();
+      ctx.globalAlpha *= Math.max(0, 1 + p.h / RAVIJN_DECOR.diep);
+      if (ready) ctx.drawImage(hppotionImg, bx - sz.w / 2, bottom - sz.h, sz.w, sz.h);
+      else drawHppotionShape(bx, bottom, sz);
+      ctx.restore();
+      continue;
+    }
     const k = Math.min(1, up / (HPPOTION_BOB * 2.6));
     // zacht ovaal schaduwtje, iets kleiner als hij omhoog zweeft
     ctx.save();
@@ -11549,7 +11624,7 @@ function drawPlacedFar(groundY){
   for (const p of level.props){
     if (!p.far) continue;
     // achtergronddecor dat boven een ravijn zou staan, tekenen we niet: dat lijkt te zweven
-    if ((p.y || 0) < FAR_GAP_LIFT && gapList().some(g => Math.abs(p.x - g.x) < g.w / 2 + 60)) continue;
+    if ((p.y || 0) < FAR_GAP_LIFT && gatenMetRavijn().some(g => Math.abs(p.x - g.x) < g.w / 2 + 60)) continue;   // ook een ravijn dat openscheurde
     const def = PROPS[p.kind], pim = propImg[p.kind];
     if (!def || !pim || !pim.complete || !pim.naturalWidth) continue;
     const ph2 = CHAR_H * propUnit * def.h * p.scale * 0.60;
@@ -11593,6 +11668,7 @@ function drawProps(groundY, unit, near){
     // height is set against the character, so a boulder reads as chest high
     const h = CHAR_H * unit * def.h * p.scale * (p.far ? 0.60 : 1) * (onMid ? MID.propScale : 1);
     const w = img.naturalWidth * (h / img.naturalHeight);
+    if (!p.far && ravijnGat(world + (x + w / 2 - W / 2))) continue;   // boven een ravijn dat openscheurde: weg
     const sink = (def.sink || 0.02) * h + (p.far ? 4 : 0);
     const y = (onMid ? groundY - MID.propLift * H : groundY) - h + sink;
     const src = p.far ? (propFar[p.kind] || img) : img;
@@ -12507,10 +12583,12 @@ function loop(now){
     fx.update(dt);
     if (ravijnSluitStap(fx, dt)) continue;          // dichtgegaan: weg
     if (fx.colliderActive && !fx.gevallen){ fx.gevallen = true; ravijnLaatVallen(fx); }
+    if (dt > 0) ravijnDecor(fx, dt, scaleNow);      // kalebassen en botten vallen erin, planten schuiven opzij
     if (dt > 0 && Math.abs(fx.shakeX * fx.s) > Math.abs(ravijnSX)){
       ravijnSX = Math.round(fx.shakeX * fx.s); ravijnSY = Math.round(fx.shakeY * fx.s);
     }
   }
+  if (dt > 0) ravijnDecorStap(dt);                // en dat vallen en vervagen zelf, ook na het dichtgaan
   if (dt > 0) zegelUpdate(dt, scaleNow);          // erop stappen zet een zegel aan of uit
   if (dt > 0) skeletUpdate(dt, scaleNow);         // instorten, en de schedel die wegrolt
   ctx.clearRect(0, 0, W, H);
@@ -12803,21 +12881,28 @@ function loop(now){
       for (const pass of [false]){                  // ver weg staat al achter de grond getekend
         for (const p of level.props){
           if (!!p.far !== pass) continue;
+          const rv = building ? null : p.rv;          // een ravijn dat openscheurde: opzij, vallend of vervaagd
+          if (rv && rv.weg) continue;
           const def = PROPS[p.kind], pim = propImg[p.kind];
           if (!def || !pim || !pim.complete || !pim.naturalWidth) continue;
           const ph2 = CHAR_H * scale * def.h * p.scale * (p.far ? 0.60 : 1);
           const pw2 = pim.naturalWidth * (ph2 / pim.naturalHeight);
-          const px2 = cx + (p.x - world) - pw2 / 2;
+          const wx = p.x + (rv ? rv.dx : 0);
+          const px2 = cx + (wx - world) - pw2 / 2;
           if (px2 > W / viewZoom() + W || px2 + pw2 < -W) continue;
           const py2 = groundY - ph2 + (def.sink || 0.02) * ph2 + (p.far ? 4 : 0)
-                    - (p.far ? 0 : terrainH(p.x) * scale + propTerug);
+                    - (p.far ? 0 : terrainH(wx) * scale + propTerug) - (rv && rv.val ? rv.val.h * scale : 0);
           const src2 = p.far ? (propFar[p.kind] || pim) : pim;
+          ctx.save();
+          if (rv && rv.a < 1) ctx.globalAlpha *= rv.a;
           if (VEG[p.kind]){
-            drawVeg(p.kind, src2, px2 + pw2 / 2, py2 + ph2, ph2, p.flip, p, p.x, p.far);
+            drawVeg(p.kind, src2, px2 + pw2 / 2, py2 + ph2, ph2, p.flip, p, wx, p.far);
+            ctx.restore();
             continue;
           }
-          ctx.save();
-          ctx.translate(px2, py2);
+          if (rv && rv.val && rv.val.rot){             // wat valt, tuimelt een beetje
+            ctx.translate(px2 + pw2 / 2, py2 + ph2 / 2); ctx.rotate(rv.val.rot); ctx.translate(-pw2 / 2, -ph2 / 2);
+          } else ctx.translate(px2, py2);
           if (p.flip){ ctx.translate(pw2, 0); ctx.scale(-1, 1); }
           ctx.drawImage(src2, 0, 0, pw2, ph2);
           ctx.restore();
@@ -15502,9 +15587,8 @@ document.getElementById('dvagain').onclick = () => { restart(); };
 // ---- ravijn opent: proefaansluiting ----
 // Het openscheurende ravijn. In Test 6 en Test 9 gaat het open als de speer de rune op een
 // rots raakt (ravijnRuneTreffer), op de plekken en breedtes uit RAVIJN_PROEF; in Test 8 als
-// je op het zegel stapt. Toets O blijft om te testen: in een level uit RAVIJN_PROEF het
-// ravijn dat het dichtst bij Amir ligt, in elk ander level een gewoon ravijn op de plek waar
-// Amir staat. Is het open, dan is het voor Amir een gewoon ravijn (ravijnGat, bij inGap); de
+// je op het zegel stapt, ook in een level uit de bouwer en in de sandbox (Zegel). Is het
+// open, dan is het voor Amir een gewoon ravijn (ravijnGat, bij inGap); de
 // leveldata blijft ongemoeid. De plaatjes staan in ravijn/assets en worden hier los geladen,
 // nog niet via het laadsysteem.
 // Steentjes op de zandband rond het gat, in wereld-x vanaf het midden van een gat van 277 (bij
@@ -15543,15 +15627,6 @@ const ravijnStenen = [];
 for (let i = 1; i <= 5; i++){
   const s = new Image(); s.src = 'ravijn/assets/steen_' + i + '.png'; ravijnStenen.push(s);
 }
-addEventListener('keydown', e => {
-  if (e.key !== 'o' && e.key !== 'O') return;
-  if (paused || typing(e) || e.repeat) return;
-  const proef = ravijnProef();
-  if (!proef){ ravijnOpen(Math.round(world)); return; }
-  let doel = proef[0];                              // het ravijn dat het dichtst bij Amir ligt
-  for (const q of proef) if (Math.abs(q.x - world) < Math.abs(doel.x - world)) doel = q;
-  ravijnOpen(doel.x, doel.breed);
-});
 // Een ravijn laten openscheuren op wereld-x wx, breed wereld-px breed. Staat er op die plek al
 // een, dan begint die opnieuw. Geeft het effect terug.
 function ravijnOpen(wx, breed = RAVIJN_MAAT.breed){
