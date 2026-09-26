@@ -479,6 +479,14 @@
       <button id="sbspeerneer">Speer neerleggen</button>
       </div>
       <div class="row">
+        <label>Schild</label>
+        <button data-schild="schild_gespleten">Gespleten</button>
+        <button data-schild="schild_klauwen">Klauwen</button>
+        <button data-schild="schild_verbrand">Verbrand</button>
+        <button data-windvlaag="1">Wind van links</button>
+        <button data-windvlaag="-1">Wind van rechts</button>
+      </div>
+      <div class="row">
         <label>Speerteken</label>
         <button data-teken="teken">Het teken</button>
         <button data-teken="gebroken">Gebroken</button>
@@ -5251,7 +5259,11 @@ const PROPS = {
   ribben:    { src: 'design/botten/ribben.png',        h: 0.30, sink: 0.05, placeOnly: true },
   buffel:    { src: 'design/botten/skull_buffel.png',  h: 0.24, sink: 0.06, placeOnly: true },
   jakhals:   { src: 'design/botten/skull_jakhals.png', h: 0.20, sink: 0.06, placeOnly: true },
-  wervels:   { src: 'design/botten/wervels.png',       h: 0.08, sink: 0.08, placeOnly: true }
+  wervels:   { src: 'design/botten/wervels.png',       h: 0.08, sink: 0.08, placeOnly: true },
+  // kapotte schilden, scheef in het zand (design/schilden/); ze houden de wind tegen, zie SCHILD
+  schild_gespleten: { src: 'design/schilden/schild_1_gespleten.png', h: 0.46, sink: 0.04, placeOnly: true, schild: true },
+  schild_klauwen:   { src: 'design/schilden/schild_2_klauwen.png',   h: 0.46, sink: 0.04, placeOnly: true, schild: true },
+  schild_verbrand:  { src: 'design/schilden/schild_3_verbrand.png',  h: 0.46, sink: 0.04, placeOnly: true, schild: true }
 };
 const SNK_W = 255, SNK_H = 140, SNK_GROUND = 136;
 const SNK_BOX = { l: 6, t: 10, r: 248, b: 136 };   // hurtbox inside the snake sprite
@@ -6980,8 +6992,8 @@ function drawSnowfall(){
 
 const wind = [];                         // slierten en wolkjes, in wereldcoördinaten
 let gustTimer = 4 + Math.random() * 5;   // de eerste vlaag komt vrij snel
-function startGust(){
-  const dir = Math.random() < 0.5 ? 1 : -1;          // waait van links of van rechts
+function startGust(richting){
+  const dir = richting || (Math.random() < 0.5 ? 1 : -1);   // waait van links of van rechts (de sandbox kiest zelf)
   const speed = 240 + Math.random() * 180;
   const span = W / viewZoom();
   gust = { x0: world - dir * span * 0.65, dir, speed, t: 0,
@@ -7016,7 +7028,124 @@ function updateWind(dt){
     if (w.age >= w.life){ wind.splice(i, 1); continue; }
     w.x += w.vx * dt;
     if (w.vh) w.h += w.vh * dt;
+    schildTil(w, dt);                                  // een schild op de route: eroverheen
   }
+}
+
+// ---- schilden in de wind: het stof blijft ertegen hangen ----
+// Een schild in het zand is een windscherm. Trekt er een vlaag over, dan waait aan de
+// windkant stof aan (dezelfde wolkjes als bij Amir zijn landing), dat tegen het schild
+// afremt, ertegen opbolt en langs de voorkant omhoog kruipt; wat boven de rand komt
+// waait eroverheen en zakt aan de luwe kant weer weg. Kleine korrels ketsen terug en
+// vallen. De slierten van de vlaag zelf gaan er ook overheen (schildTil).
+// Maten: x in wereld-px, hoogte in Amirs (h * CHAR_H), zoals de wind zelf.
+const SCHILD = {
+  vanaf: 0.12,        // onder deze windsterkte waait er niets aan
+  tempo: 30,          // wolkjes per seconde bij volle wind
+  aanloop: [140, 420],// zoveel px voor het schild komen ze de lucht in
+  rem: 130,           // vanaf deze afstand tot de voorkant remt het af
+  klim: 0.55,         // hoe snel het tegen de voorkant omhoog kruipt (Amirs per seconde)
+  zwel: 1.0,          // hoeveel een wolkje opbolt terwijl het klem zit
+  korrels: 10,        // korrels per seconde die terugketsen
+  voorkant: 0.42      // de voorkant ligt op dit deel van de breedte uit het midden (het schild staat scheef)
+};
+const schildStof = [];
+function schildenNu(){
+  if (!level || !level.props) return [];
+  return level.props.filter(p => PROPS[p.kind] && PROPS[p.kind].schild && !p.far && !(p.rv && p.rv.weg));
+}
+// de maat van een schild in wereld-px en Amirs; scale is die van het beeld nu
+function schildMaat(p, scale){
+  const def = PROPS[p.kind], im = propImg[p.kind];
+  const hoog = def.h * p.scale;                                    // in Amirs
+  const ph = CHAR_H * scale * hoog;
+  const breed = im && im.naturalWidth ? im.naturalWidth * ph / im.naturalHeight : ph * 0.8;
+  return { hoog: hoog * (1 - def.sink), half: breed / 2 };
+}
+function schildStofUpdate(dt, scale){
+  for (let i = schildStof.length - 1; i >= 0; i--){
+    const d = schildStof[i];
+    d.age += dt;
+    if (d.age >= d.life){ schildStof.splice(i, 1); continue; }
+    const m = schildMaat(d.p, scale);
+    const voor = d.p.x - d.dir * m.half * SCHILD.voorkant;        // de voorkant aan de windkant
+    const af = (voor - d.x) * d.dir;                               // hoe ver nog tot de voorkant
+    if (d.h < m.hoog && !d.over){
+      if (af < SCHILD.rem){                                        // tegen het schild: afremmen en omhoog
+        const k = Math.pow(1 - Math.max(0, af) / SCHILD.rem, 2);   // pas vlak voor het schild echt klem
+        d.vx += (d.dir * 25 - d.vx) * Math.min(1, dt * 9 * k);
+        d.vh += (SCHILD.klim * k * (0.6 + 0.4 * d.wind) - d.vh) * Math.min(1, dt * 5);
+        d.s += dt * SCHILD.zwel * k;
+        if (af < 0){ d.x = voor; d.vx = 0; }                       // erdoorheen gaat niet
+      }
+    } else {                                                       // boven de rand: de wind neemt het weer mee
+      d.over = true;
+      d.vx += (d.dir * d.v * 0.6 - d.vx) * Math.min(1, dt * 5);
+      d.vh += (-0.3 - d.vh) * Math.min(1, dt * 4);              // aan de luwe kant zakt het weer
+      if (af < -m.half) d.life = Math.min(d.life, d.age + 0.5);    // en waait uit
+    }
+    d.x += d.vx * dt; d.h = Math.max(0, d.h + d.vh * dt);
+  }
+  if (!gust) return;
+  for (const p of schildenNu()){
+    const s = windAt(p.x);
+    if (s < SCHILD.vanaf) continue;
+    const m = schildMaat(p, scale), dir = gust.dir, base = terrainH(p.x);
+    const voor = p.x - dir * m.half * SCHILD.voorkant;
+    p._stof = (p._stof || 0) + dt * SCHILD.tempo * s;
+    while (p._stof >= 1){
+      p._stof--;
+      const v = gust.speed * (0.8 + Math.random() * 0.3);
+      schildStof.push({ p, dir, v, wind: s, base,
+                        x: voor - dir * (SCHILD.aanloop[0] + Math.random() * (SCHILD.aanloop[1] - SCHILD.aanloop[0])),
+                        h: Math.pow(Math.random(), 1.5) * m.hoog * 0.55,
+                        vx: dir * v * 0.6, vh: 0, s: 0.45 + Math.random() * 0.4,
+                        a: 0.55 + Math.random() * 0.25, age: 0, life: 2.2 + Math.random() * 1.2,
+                        rot: Math.random() * 6.28, over: false });
+    }
+    p._korrel = (p._korrel || 0) + dt * SCHILD.korrels * s;
+    while (p._korrel >= 1){
+      p._korrel--;
+      grains.push({ wx: voor - dir * Math.random() * 14, base,
+                    h: Math.random() * m.hoog * CHAR_H * 0.6,
+                    vx: -dir * (30 + Math.random() * 60), vh: 30 + Math.random() * 80,
+                    r: 1.2 + Math.random() * 1.6, dark: Math.random() < 0.4,
+                    age: 0, life: 0.5 + Math.random() * 0.4 });
+    }
+  }
+}
+// een sliert of wolkje van de vlaag zelf dat laag op een schild af komt, gaat er overheen
+function schildTil(w, dt){
+  if (!level || !level.props || !gust) return;
+  const dir = Math.sign(w.vx) || 1;
+  for (const p of level.props){
+    if (!PROPS[p.kind] || !PROPS[p.kind].schild || p.far) continue;
+    const af = (p.x - w.x) * dir;
+    if (af < -60 || af > 260) continue;
+    const top = PROPS[p.kind].h * p.scale * 1.15;
+    if (w.h < top) w.h += (top - w.h) * Math.min(1, dt * 4 * (1 - Math.max(0, af) / 260));
+  }
+}
+function drawSchildStof(groundY, scale, cx){
+  if (!schildStof.length) return;
+  const img = puffPic();
+  ctx.save();
+  for (const d of schildStof){
+    const t = d.age / d.life;
+    const fade = Math.min(1, t * 5) * Math.min(1, (1 - t) * 2.5);
+    const bh = CHAR_H * scale * 0.26 * d.s;
+    const bw = imgReady(img) ? img.naturalWidth / img.naturalHeight * bh : bh * 1.4;
+    const x = cx + (d.x - world);
+    if (x + bw < -W || x - bw > W / viewZoom() + W) continue;
+    const y = groundY - (d.base + d.h * CHAR_H) * scale - bh * 0.3;
+    ctx.globalAlpha = Math.min(1, d.a * fade * (winterOn() ? 1.6 : 1));
+    ctx.save();
+    ctx.translate(x, y); ctx.rotate(d.rot + d.age * 0.8 * d.dir);
+    if (imgReady(img)) ctx.drawImage(img, -bw / 2, -bh / 2, bw, bh);
+    else { ctx.fillStyle = dustColor(); ctx.beginPath(); ctx.ellipse(0, 0, bw / 2, bh / 2, 0, 0, Math.PI * 2); ctx.fill(); }
+    ctx.restore();
+  }
+  ctx.restore();
 }
 function drawWind(groundY, scale, cx){
   ctx.save();
@@ -7733,6 +7862,44 @@ function ravijnenNu(){
   return ravijnen;
 }
 function ravijnBij(wx){ return ravijnenNu().find(fx => Math.abs(fx.x - wx) < 1) || null; }   // al een ravijn op deze plek?
+// Een gewoon ravijn (gaps) ziet er net zo uit als een ravijn dat openscheurt: dezelfde wand, de
+// rand van de overkant lager dan de grond vooraan, de achtergrond door het gat, klein gras op de
+// rand, in de winter de blauwgrijze wand met sneeuw, en de zon op de wand (ravijnZonLicht). Daarvoor
+// krijgt elk gewoon ravijn een eigen effect dat meteen helemaal open staat (openInstantly). Dat is
+// alleen om te tekenen: het staat niet in ravijnen, dus de botsing blijft gaps, en vijanden, decor
+// en vallen merken er niets van. Een gat boven een gang houdt zijn eigen tekening (de schacht en
+// de lichtkaart), en de bouwer ook, want die tekent in een andere zoom en volgorde.
+// Het effect hangt aan het gat (een WeakMap, zodat er niets in de leveldefinitie terechtkomt) en
+// wordt opnieuw gemaakt als het schermformaat of de wand (zomer of winter) verandert.
+const ravijnVast = new WeakMap();
+function ravijnVastVoor(g){
+  if (!ravijnWand.complete || !ravijnWand.naturalWidth) return null;
+  const sch = ((H * (Number(sizeEl.value) / 100)) / CHAR_H) / RAVIJN_MAAT.ref;
+  const wand = ravijnWandNu() || ravijnWand;
+  let fx = ravijnVast.get(g);
+  if (fx && fx.s === sch && fx.wall === wand && fx.x === g.x && fx.bronW === g.w && fx.lvl === level) return fx;
+  fx = new RavijnEffect({ wallImage: wand, quality: 1, stoneImages: [], x: g.x, groundY: 0, width: g.w / sch });
+  fx.openInstantly();
+  fx.lvl = level; fx.s = sch; fx.bronW = g.w;
+  ravijnZonHaak(fx);
+  ravijnVast.set(g, fx);
+  return fx;
+}
+// de gewone ravijnen die zo getekend worden, alleen wat in of vlak bij beeld ligt
+function ravijnenVast(){
+  if (building) return [];
+  const uit = [];
+  for (const g of gapList()){
+    if (holteAt(g.x)) continue;
+    const gl = W / 2 + (g.x - g.w / 2 - world), gr = W / 2 + (g.x + g.w / 2 - world);
+    if (gr < -W / 2 || gl > W * 1.5) continue;
+    const fx = ravijnVastVoor(g);
+    if (fx) uit.push(fx);
+  }
+  return uit;
+}
+// wat er dit beeld getekend wordt: de openscheurende en de gewone
+function ravijnenTeken(){ return ravijnenNu().concat(ravijnenVast()); }
 // Een open ravijn weer dicht laten gaan: de randen schuiven in RAVIJN_SLUIT seconden naar elkaar
 // toe (traag op gang, traag tot stilstand, zoals het openen), met een wolk stof en hetzelfde
 // geluid. Het gat blijft een ravijn zolang het er nog is, alleen smaller: wie erin staat valt
@@ -8190,7 +8357,16 @@ function ravijnWandRand(px, w, h){
 // telefoon een andere DPR omheen.
 // Elk ravijn heeft zijn eigen canvas (fx.achter) en vak (fx.vak): waar de vangst vandaan kwam.
 function ravijnAchterVang(groundY){
-  for (const fx of ravijnenNu()) ravijnAchterVangEen(fx, groundY);
+  for (const fx of ravijnenTeken()){
+    fx.groundY = Math.round(edgeCrust(groundY));    // een gewoon ravijn wordt niet in de lus bijgewerkt
+    ravijnAchterVangEen(fx, groundY);
+  }
+}
+// De zon op de wand (ravijnZonLicht), op het canvas van de module: alleen op de wandpixels. De
+// module rekent in zijn eigen maat; de schaduwlijn moet in beeld de goede hoek hebben, dus de
+// verticale rek gaat mee (ravijnRek), en hij groeit mee met het openscheuren (fx.p).
+function ravijnZonHaak(fx){
+  fx.opLicht = (g, gw, h) => ravijnZonLicht(g, 0, gw, 0, h, ravijnRek(fx, fx.opNu || 0), fx.p, true);
 }
 function ravijnAchterVangEen(fx, groundY){
   fx.vak = null;
@@ -8695,6 +8871,7 @@ const LK = {
   spreid: 75,              // tot zo ver van recht omhoog, in graden
   zonHoek: 38,             // de zon staat zo ver van recht boven, aan de kant waar hij in de lucht staat
   zonKegel: 7,             // de zon is geen punt: stralen binnen deze kegel geven een zachte schaduwrand
+  zonInloop: 160,          // onder het dak loopt de zon over zoveel sprite-eenheden in
   diepte: 110,             // vaste grond: zo diep onder de oppervlakte is hij een derde zo licht
   bodem: 0.2,              // en donkerder dan dit wordt hij niet
   kaatsR: 8,               // kaatslicht komt van zoveel cellen in het rond
@@ -8727,7 +8904,7 @@ function lkVastPunt(x, h){                        // is dit punt grond of rots?
 }
 function lkSleutel(){
   const d = level ? [level.holtes, level.gaps, level.terraces] : [];
-  return JSON.stringify(d) + '|' + zonRechts() + '|' + [LK.donker, LK.minLicht, LK.personage, LK.zon, LK.kaats, LK.warm].join(',');
+  return JSON.stringify(d) + JSON.stringify(ravijnGaten()) + '|' + zonRechts() + '|' + [LK.donker, LK.minLicht, LK.personage, LK.zon, LK.kaats, LK.warm].join(',');
 }
 function lkKaart(){
   const lijst = holteLijst();
@@ -8799,10 +8976,18 @@ function lkRuw(k){                                // een kolom: licht en zon per
       if (top === null){ top = h + C / 2; boven = lkZicht(x, top + 2); }
       K.ruw[n] = boven * (LK.bodem + (1 - LK.bodem) * Math.exp(-(top - h) / LK.diepte));
       K.ruw[n + 1] = -1;                          // vast
+    } else if (h < 0 && inGap(x) && !holteAt(x)){
+      // een ravijn zonder gang eronder: dat tekent zijn eigen diepte en schaduw (ravijnZonLicht),
+      // de kaart laat het met rust
+      top = null;
+      K.ruw[n] = 1; K.ruw[n + 1] = -2;
     } else {
       top = null;
       K.ruw[n] = h < 0 ? lkZicht(x, h) : 1;
-      K.ruw[n + 1] = h < 0 ? lkZon(x, h) : 0;
+      // De zon valt pas onder het dak binnen, en loopt daar geleidelijk in: de wand van een gat
+      // erboven is de overkant, en die hoort niet lichter te zijn dan de grond vooraan.
+      const inloop = Math.max(0, Math.min(1, (-HOLTE_DAK - h) / LK.zonInloop));
+      K.ruw[n + 1] = inloop > 0 ? inloop * lkZon(x, h) : 0;
     }
   }
   K.ruwKlaar[k] = 1;
@@ -8831,11 +9016,11 @@ function lkKolom(k){                              // een kolom af: kaatslicht er
     let som = 0, somZ = 0;
     for (let q = q0; q <= q1; q++){ som += K.som[(q * nr + r) * 2]; somZ += K.som[(q * nr + r) * 2 + 1]; }
     const n = (q1 - q0 + 1) * (Math.min(nr - 1, r + R) - Math.max(0, r - R) + 1);
-    const m = (k * nr + r) * 2, vast = K.ruw[m + 1] < 0;
+    const m = (k * nr + r) * 2, vast = K.ruw[m + 1] === -1, vrij = K.ruw[m + 1] === -2;
     const l = vast ? K.ruw[m] : Math.max(K.ruw[m], LK.kaats * som / n);
     const licht = LK.ambient + (1 - LK.ambient) * Math.min(1, l);
     K.licht[k * nr + r] = vast ? -1 : licht;
-    const a = Math.min(1 - LK.minLicht, LK.donker * (1 - licht));
+    const a = vrij ? 0 : Math.min(1 - LK.minLicht, LK.donker * (1 - licht));
     const o = (r * K.nk + k) * 4;
     // In de lucht twee delen, zie drawLichtkaart: a2 valt over alles, ook over de personages, en
     // a1 alleen over de wereld eronder. Samen geven ze de wereld precies a: (1 - a1)(1 - a2) = 1 - a.
@@ -8843,7 +9028,8 @@ function lkKolom(k){                              // een kolom af: kaatslicht er
     const doel = vast ? pg : pl;
     doel[o] = 8; doel[o + 1] = 6; doel[o + 2] = 7; doel[o + 3] = Math.round(255 * a1);
     pa[o] = 8; pa[o + 1] = 6; pa[o + 2] = 7; pa[o + 3] = Math.round(255 * a2);
-    const za = Math.min(1, (vast ? 0 : LK.zon * K.ruw[m + 1]) + LK.warm * somZ / n);
+    const inloop = Math.max(0, Math.min(1, (-HOLTE_DAK - (K.j1 - r + 0.5) * LK.cel) / LK.zonInloop));
+    const za = vrij ? 0 : inloop * Math.min(1, (vast ? 0 : LK.zon * K.ruw[m + 1]) + LK.warm * somZ / n);
     pz[o] = 255; pz[o + 1] = 200; pz[o + 2] = 130; pz[o + 3] = Math.round(255 * za);
   }
   K.vuil = K.vuil ? [Math.min(K.vuil[0], k), Math.max(K.vuil[1], k)] : [k, k];
@@ -8932,6 +9118,40 @@ function drawLichtkaart(groundY, scale, cx, dt, deel){
     ctx.drawImage(K.zonC, sx, 0, sw, K.nr, dx, dy, dw, dh);
   }
   ctx.restore();
+}
+
+// ---- de zon op de wand van een ravijn --------------------------------------
+// De wand in een ravijn is de overkant: verder weg dan de grond vooraan, dus nooit lichter. De rand
+// aan de kant van de zon werpt er een schuine schaduw op, onder dezelfde hoek als waaronder de zon
+// in een gang naar binnen valt (LK.zonHoek, zonRechts): boven die lijn vangt de wand gedempt licht,
+// eronder ligt hij in de schaduw en zakt hij verder weg in de diepte. Zo komt het licht in elk gat
+// uit dezelfde richting als de zon in de lucht. Een gat boven een gang slaat dit over: daar doet
+// de lichtkaart het.
+//
+// Het hulpje tekent op g, over x0 tot x1 en top tot onder, met top op de rand. knik is hoe de wand
+// verticaal is uitgerekt (de schaduwlijn moet in het beeld de goede hoek hebben), en open hoe ver
+// hij er al staat (0 tot 1: groeit mee met het openscheuren). atop legt hem alleen op wat er al
+// staat, voor een wand op een eigen canvas. 's Nachts is het verschil kleiner: het schaalt met de
+// gloed van het uitzicht (0,30 overdag). In de winter is de schaduw blauwig: sneeuw en steen in de
+// schaduw worden niet grauw maar koel.
+const RAVIJN_ZON = { schaduw: 0.34, licht: 0.03, zacht: 60, nacht: 0.35,
+                     kleur: '12,8,8', winter: '22,32,58' };
+function ravijnZonLicht(g, x0, x1, top, onder, knik = 1, open = 1, atop = false){
+  const L = lichtNu(), R = RAVIJN_ZON;
+  const f = open * Math.max(R.nacht, Math.min(1, L.gloedSterkte / 0.30));
+  if (f <= 0 || x1 - x0 < 2) return;
+  const t = Math.tan(LK.zonHoek * Math.PI / 180) * knik;   // zo ver schuift de lijn per rij naar binnen
+  const rechts = zonRechts();
+  const px = rechts ? x1 : x0;                    // de hoek van de rand aan de zonkant
+  const nx = (rechts ? 1 : -1) / Math.hypot(1, t), ny = t / Math.hypot(1, t);   // naar de schaduw toe
+  const k = winterOn() ? R.winter : R.kleur, z = R.zacht / 2;
+  const v = g.createLinearGradient(px - nx * z, top - ny * z, px + nx * z, top + ny * z);
+  v.addColorStop(0, 'rgba(' + k + ',' + (R.licht * f).toFixed(3) + ')');
+  v.addColorStop(1, 'rgba(' + k + ',' + (R.schaduw * f).toFixed(3) + ')');
+  g.save();
+  if (atop) g.globalCompositeOperation = 'source-atop';
+  g.fillStyle = v; g.fillRect(x0, top, x1 - x0, onder - top);
+  g.restore();
 }
 
 // ---- de overgang van aarde naar steen boven het dak ----
@@ -10650,8 +10870,17 @@ const VOORGROND = {
   rand: 260,            // zo ver loopt een strook uit, in de wereld
   bron: 300,            // hoogte van het voorgerekende plaatje, in pixels
   vaag: 7,              // onscherpte op die hoogte (een groter stuk is dus vager: dichterbij)
-  donker: 'rgba(28,20,10,0.52)'    // de schaduw waar hij in staat
+  schaduw: [0.50, 0.46, 0.42]      // zo donker (per kanaal) staat hij in de schaduw, onder het gewone licht
 };
+// De schaduw volgt het licht van het level: de kleur hierboven hoort bij de gewone
+// schaduwkleur van LICHT, en een level met een eigen licht (de nachtuitzichten) schuift hem
+// naar rato mee. Zo wordt de voorgrond in de nacht vanzelf donkerder en blauwer, in plaats
+// van een warmbruin vlak in een blauwgrijze wereld. Per pixel vermenigvuldigd, bij het
+// voorrekenen: een waas eroverheen zou de lichte randen grijs maken.
+function vgSchaduw(){
+  const L = lichtNu(), d = LICHT.schaduwKleur, k = L.schaduwKleur || d;
+  return VOORGROND.schaduw.map((v, i) => Math.round(v * Math.min(1.2, k[i] / d[i]) * 100) / 100);
+}
 // Hij wordt nergens doorzichtig: Amir loopt niet door de voorgrond maar erachter, en een laag
 // die voor hem wegpoetst breekt juist de diepte. Wat hem mag verbergen regel je met de hoogte
 // hieronder en met de dichtheid in het level: normaal hooguit zijn voeten en schenen, een
@@ -10692,8 +10921,8 @@ function voorgrondNu(){
 }
 const vgCache = {};
 // een plaatje een keer onscherp en donker op maat zetten, met een zachte voet
-function vgPlaatje(img, scherp, voet){
-  const k = img.src + (scherp ? ':s' : ':v') + ':' + voet;
+function vgPlaatje(img, scherp, voet, tint){
+  const k = img.src + (scherp ? ':s' : ':v') + ':' + voet + ':' + tint.join(',');
   if (vgCache[k]) return vgCache[k];
   const V = VOORGROND, m = scherp ? 0 : V.vaag * 3;
   const h = V.bron, w = Math.round(img.naturalWidth * h / img.naturalHeight);
@@ -10723,9 +10952,17 @@ function vgPlaatje(img, scherp, voet){
   } else g.drawImage(img, 0, 0, w, h);
   // onscherp lopen de dunne sprieten uit tot bijna niets: nog een keer over zichzelf heen
   if (!scherp) g.drawImage(c, 0, 0);
-  g.globalCompositeOperation = 'source-atop';
-  g.fillStyle = V.donker;
-  g.fillRect(0, 0, c.width, c.height);
+  try {
+    const d = g.getImageData(0, 0, c.width, c.height), px = d.data;
+    for (let i = 0; i < px.length; i += 4){
+      px[i] *= tint[0]; px[i + 1] *= tint[1]; px[i + 2] *= tint[2];
+    }
+    g.putImageData(d, 0, 0);
+  } catch (e){                                  // niet uit te lezen (geen webserver): een waas als terugval
+    g.globalCompositeOperation = 'source-atop';
+    g.fillStyle = 'rgba(28,20,10,0.52)';
+    g.fillRect(0, 0, c.width, c.height);
+  }
   if (voet > 0){
     const y0 = m + h * (1 - voet), gr = g.createLinearGradient(0, y0, 0, m + h);
     gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,1)');
@@ -10775,10 +11012,11 @@ function drawVoorgrond(groundY, scale){
   }
   stuks.sort((a, b) => VG_SOORT[a.k].laag - VG_SOORT[b.k].laag);
   const tijd = performance.now() / 1000;
+  const tint = vgSchaduw();
   for (const o of stuks){
     const S = VG_SOORT[o.k];
     if (!imgReady(S.img)) continue;
-    const p = vgPlaatje(S.img, sbVoorgrondScherp && sandbox, S.voet);
+    const p = vgPlaatje(S.img, sbVoorgrondScherp && sandbox, S.voet, tint);
     const sx = W / 2 + o.pos - lx;
     const hh = CHAR_H * scale * (S.h[0] + (S.h[1] - S.h[0]) * o.t) * o.s;
     const ww = p.w * hh / p.h, mm = p.m * hh / p.h;
@@ -12818,9 +13056,13 @@ function scene(groundY){
   ctx.strokeStyle = '#c08a52'; ctx.lineWidth = 4;
   ctx.beginPath(); ctx.moveTo(0, groundY + 2); ctx.lineTo(W, groundY + 2); ctx.stroke();
   }
-  for (const fx of ravijnenNu()){                   // ravijn opent: het gat, direct na de grond
+  // De ravijnen: het gat, direct na de grond. Een gewoon ravijn gaat hier ook doorheen, als een
+  // ravijn dat al open staat (ravijnVastVoor): dezelfde wand, dezelfde lage rand met klein gras,
+  // dezelfde sneeuwrand. Alleen een gat boven een gang en de bouwer gebruiken de ravijnlus verderop.
+  for (const fx of ravijnenTeken()){
     ravijnAchterTeken(fx, groundY);                 // de achtergrond door het gat, zoals bij een gewoon ravijn
-    const op = ravijnOphoog(fx, groundY);           // de overkant even hoog als deze kant
+    const op = ravijnOphoog(fx, groundY);           // hoe ver de rand van de overkant omhoog moet
+    fx.opNu = op;                                   // voor de zon op de wand (opLicht)
     ravijnGrasTeken(fx, groundY, op);               // voor de wand, zodat de voet achter de rand valt
     ctx.save(); ctx.translate(Math.round(W / 2 - world), 0);   // x van het effect is een wereld-x
     ravijnSchaal(fx);
@@ -13104,6 +13346,7 @@ function loop(now){
   updateFosforSlangen(dt, plats, cliff);
   if (!building) updateVenom(dt, scaleNow); else { venom.length = 0; splat.length = 0; }
   if (!building) updateWind(dt); else { wind.length = 0; gust = null; }
+  if (!building) schildStofUpdate(dt, scaleNow); else schildStof.length = 0;
   updateSnowfall(dt);
   updateThickets(dt);
   updateNpcs(dt);                                // de dorpelinge hurkt en staat weer op
@@ -13351,6 +13594,9 @@ function loop(now){
         const gl = cx + (g.x - g.w / 2 - world);
         const gr = cx + (g.x + g.w / 2 - world);
         if (gr < -W || gl > W / viewZoom() + W) continue;
+        // een gewoon ravijn tekent zich al in scene(), als een open ravijneffect (ravijnVastVoor);
+        // hier alleen nog een gat boven een gang, en alles in de bouwer
+        if (!building && !holteAt(g.x) && ravijnVastVoor(g)) continue;
         ctx.save();
         // de grond vlak naast de breuk iets donkerder: de rand buigt weg
         for (const sd of [-1, 1]){
@@ -13400,6 +13646,8 @@ function loop(now){
           hz.addColorStop(0, 'rgba(' + sc.mistColor + ',0)');       // op nul beginnen, anders ligt er een streep op de rand
           hz.addColorStop(0.35, 'rgba(' + sc.mistColor + ',' + (mistA * 0.7).toFixed(3) + ')');
           hz.addColorStop(1, 'rgba(' + sc.mistColor + ',' + mistA.toFixed(3) + ')');
+          // de zon op de wand, onder de rand met het gras (ravijnZonLicht); boven een gang de lichtkaart
+          if (building && !holteAt(g.x)) ravijnZonLicht(ctx, gl, gr, rotsY, bodemY);
           ctx.fillStyle = hz; ctx.fillRect(gl - 40, rotsY, gr - gl + 80, H * 3);
           if (holteAt(g.x)){
             // Boven een gang is dit geen afgrond maar de wand van een gat met een gang eronder:
@@ -13482,6 +13730,7 @@ function loop(now){
       }
     }
 
+    drawSchildStof(groundY, scale, cx);            // stof dat tegen een schild aan waait
     drawVillage('mid', groundY, scale, cx);        // dorpsdecor: staat achter Amir
     drawHppotions(groundY, scale, cx);             // drinkkalebassen op de grond
     javDraw(groundY, scale, cx, 'bos');            // een speer in het struweel: het loof dekt hem af
@@ -15195,6 +15444,22 @@ function sbZegel(soort){
   cv.focus();
 }
 sandboxEl.querySelectorAll('button[data-zegel]').forEach(b => b.onclick = () => sbZegel(Number(b.dataset.zegel)));
+// een schild in het zand, aan de gekozen kant; met een windvlaag erbij zie je het stof ertegen
+// aan waaien. Wind van links waait naar rechts, dus tegen de linkerkant van het schild.
+function sbSchild(kind){
+  const side = sbFromRight ? 1 : -1;
+  let x = world + side * 380;
+  x = Math.min(x, cliffAt().wall - 300);
+  x = Math.max(x, endWall() + 300);
+  level.props.push({ x, kind, scale: 1, flip: Math.random() < 0.5, far: false, y: 0 });
+  cv.focus();
+}
+sandboxEl.querySelectorAll('button[data-schild]').forEach(b => b.onclick = () => sbSchild(b.dataset.schild));
+sandboxEl.querySelectorAll('button[data-windvlaag]').forEach(b => b.onclick = () => {
+  startGust(Number(b.dataset.windvlaag));
+  gustTimer = 9 + Math.random() * 10;             // de volgende vanzelf pas weer over een tijdje
+  cv.focus();
+});
 // een skelet met een speer erin, aan de gekozen kant; ga bij de schacht staan en druk op E.
 // Gespiegeld wijst de schacht de andere kant op. Weer overeind zet ze allemaal terug, met de schedel.
 function sbSkelet(spiegel){
@@ -16303,6 +16568,7 @@ function ravijnOpen(wx, breed = RAVIJN_MAAT.breed){
   });
   fx.lvl = level;
   fx.s = sch;
+  ravijnZonHaak(fx);
   // De module rekt de barst en het openen op bij een breder gat, en dat hoort ook zo: een
   // dubbel ravijn scheurt langer. Maar hij krijgt hier ook een grotere breedte omdat hij daarna
   // geschaald wordt; de duur hoort bij het echte gat, dus op breed in wereld-px, zoals de

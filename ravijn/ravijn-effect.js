@@ -472,6 +472,9 @@
     g.fillRect(0, 0, gw, h);
     g.globalCompositeOperation = 'source-over';
 
+    // licht van buitenaf, alleen op de wand (het spel vult dit in: opLicht(g, breedte, hoogte))
+    if (this.opLicht) { g.save(); this.opLicht(g, gw, h); g.restore(); }
+
     ctx.drawImage(this.buf, 0, 0, Math.ceil(gw), h, Math.round(lp), this.groundY, Math.ceil(gw), h);
 
     if (this.p < 0.999) this._contactShadow(ctx, lp, rp);

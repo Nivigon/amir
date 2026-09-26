@@ -512,6 +512,17 @@ onder de grondlijn, terwijl je er maar 0,18 van de schermhoogte van ziet. Het he
 scherpe rand naar niets meer zien gebeurde dus buiten beeld. Het speelt zich nu af op het stuk
 dat werkelijk in beeld staat.
 
+Een gewoon ravijn ziet er nu precies zo uit als een ravijn dat openscheurt, maar dan al open: de
+rand van de overkant ligt lager dan de grond waar je staat, met klein gras erop en in de winter
+een rand van sneeuw, en boven die rand zie je de achtergrond van het level. Een gat boven een gang
+onder de grond houdt zijn eigen wand, die doorloopt tot het dak.
+
+De wand in een ravijn staat verder weg dan de grond waar jij staat, en ligt deels in de schaduw.
+De rand aan de kant van de zon werpt een schuine schaduw op de wand, uit dezelfde richting als
+waaronder de zon in een gang onder de grond naar binnen valt. Dat geldt voor een gewoon ravijn en
+voor een ravijn dat openscheurt (de schaduw groeit dan mee), 's nachts zachter, en in de winter
+koel en blauwig.
+
 In de sandbox staat het onder **Ravijn**: **Smal** en **Breed** zetten een breuk neer waar je
 staat.
 
