@@ -12,6 +12,8 @@ Het verandert niets: het meldt per level wat er niet klopt.
     python3 tools/levelcheck.py "Renew 6"        alleen levels waarvan de naam dit bevat
     python3 tools/levelcheck.py -v               ook de info-regels (sprint nodig, en zo)
     python3 tools/levelcheck.py --hoog 393       op een ander scherm (standaard 720 hoog)
+    python3 tools/levelcheck.py level.json       een level dat nog niet in de HTML staat (de bouwer
+                                                 exporteert hetzelfde formaat)
 
 Drie soorten meldingen:
 
@@ -37,7 +39,10 @@ Wat het script niet kan zien, en waarom:
   breedte lukt.
 - Grotten (het raster) en de muur met de rune worden alleen op hun plek gecontroleerd,
   niet op hun binnenkant: voor de rune staat in CLAUDE.md hoe je dat nakijkt.
+- Vijanden die je de weg versperren of levens kosten: het rekent alleen de vallen. Wat een
+  level echt doet, zie je met de speelrobot (tools/speelrobot.js), die het in het spel afloopt.
 """
+import json
 import math
 import os
 import re
@@ -320,7 +325,7 @@ def png_maat(pad):
 # ---- de getallen van het spel -------------------------------------------------
 
 class Spel:
-    def __init__(self, bron, hoog, formaat):
+    def __init__(self, bron, hoog, formaat, breed=None):
         b = bron
         self.CHAR_H = b.reeks_const('CHAR_H')
         self.JUMP_V = b.reeks_const('JUMP_V')
@@ -338,6 +343,10 @@ class Spel:
         self.VILLAGE_FAR = b.getal('VILLAGE_FAR')
         self.VAL_VRIJ = b.getal('VAL_VRIJ')
         self.VAL_ZWAAR = b.getal('VAL_ZWAAR')
+        self.VAL_MAX = b.getal('VAL_MAX')
+        self.HPPOTION_HEAL = b.getal('HPPOTION_HEAL')
+        self.LEVENS = b.getal('HPPOTION_HP_MAX')
+        self.SPEAR_AHEAD = b.getal('SPEAR_AHEAD')
         self.PLAT = b.const('PLAT')
         self.CLIFF = b.const('CLIFF')
         self.FIN = b.const('FIN')
@@ -377,10 +386,21 @@ class Spel:
 
         # het scherm waarvoor we de schermafhankelijke maten uitrekenen
         self.H = hoog
+        self.W = breed or hoog * 16 / 9                                   # 1280 bij 720
+        self.TRIGGER = b.const('TRIGGER')
+        self.HY_ENTER = b.getal('HY_ENTER')
         self.formaat = formaat
         self.scale = hoog * (formaat / 100) / self.CHAR_H
         self.halfW = self.PLAYER_HALF_W * self.CHAR_H * self.scale      # Amir, in wereld-px
-        self.SPRONG_H = self.JUMP_V ** 2 / (2 * self.GRAVITY)            # 208
+        # De sprong zoals het spel hem rekent: per beeld eerst de zwaartekracht, dan de hoogte.
+        # Dat komt lager uit dan JUMP_V^2 / 2G (208): op 60 beelden per seconde 200, en op een
+        # traag toestel (het spel neemt hoogstens DT_MAX per beeld) nog lager. Gemeten met de
+        # speelrobot: een trede van 199 haalt hij, een van 203 niet.
+        m = b.regex(r'Math\.min\(\(now - last\) / 1000, ([\d.]+)\)', 'de langste tijdstap per beeld')
+        self.DT_MAX = float(m.group(1))
+        self.SPRONG_THEORIE = self.JUMP_V ** 2 / (2 * self.GRAVITY)       # 208, het plafond van de formule
+        self.SPRONG_H = self.sprong_top(1 / 60)                           # 200, op 60 beelden per seconde
+        self.SPRONG_TRAAG = self.sprong_top(self.DT_MAX)                   # 184, op het traagste toestel
 
         # plaatjesmaten
         self.img = {}
@@ -424,6 +444,11 @@ class Spel:
         h = self.CHAR_H * self.scale * d['tall'] * (o.get('s') or 1) * d['h'] / d['fig']
         return d['w'] * h / d['h'] * 0.3              # schoonLevel neemt 30 procent van de breedte
 
+    def doornbos_hoog(self, t):
+        """De hoogste klomp van een doornbos, in sprite-eenheden."""
+        self.doornbos_halfw(t)
+        return self._doornbos_hoog
+
     def doornbos_halfw(self, t):
         """makeThicket nagedaan: dezelfde hash, dezelfde klompen."""
         n = max(1, min(5, round(t.get('n') or 1)))
@@ -441,12 +466,13 @@ class Spel:
             s0 = 0.85 + r() * 0.15
             hS = self.THICKET[v]['h'] * self.CHAR_H * s0 * (self.THICKET_BACK_S if back else 1)
             r()                                            # flip
-            klompen.append(dict(wS=hS * self.THICKET[v]['w'] / self.THICKET[v]['ih'], dx=0))
+            klompen.append(dict(wS=hS * self.THICKET[v]['w'] / self.THICKET[v]['ih'], dx=0, hS=hS))
         at = 0
         for i in range(n):
             if i > 0:
                 at += (klompen[i - 1]['wS'] + klompen[i]['wS']) / 2 * (1 - self.THICKET_OVERLAP) * (0.85 + r() * 0.3)
             klompen[i]['dx'] = at
+        self._doornbos_hoog = max(c['hS'] for c in klompen)
         lo = min(c['dx'] - c['wS'] / 2 for c in klompen)
         hi = max(c['dx'] + c['wS'] / 2 for c in klompen)
         return (hi - lo) / 2 * self.scale
@@ -469,12 +495,31 @@ class Spel:
         return (links + self.POOL['wetL'] * s, links + (self.POOL['wetR'] + (o.get('n') or 0) * self.POOL['MW']) * s)
 
     # -- de sprong --
+    def sprong_top(self, dt):
+        """Hoe hoog de sprong komt als het spel per beeld dt verder rekent (updateJump)."""
+        v, h, top = self.JUMP_V, 0.0, 0.0
+        while v > 0:
+            v -= self.GRAVITY * dt
+            h += v * dt
+            top = max(top, h)
+        return top
+
+    def boven_tijd(self, stap, dt=1 / 60):
+        """Hoe lang zijn voeten boven een trede van deze hoogte zijn, per beeld geteld."""
+        v, h, n = self.JUMP_V, 0.0, 0
+        while v > 0 or h > 0:
+            v -= self.GRAVITY * dt
+            h += v * dt
+            if h >= stap:
+                n += 1
+        return n * dt
+
     def sprong(self, snelheid, plafond_kop, x0, richting=-1, kracht=1.0):
         """Een sprong vanaf x0 naar links, met het plafond erbij. Geeft twee afstanden:
         tot hij weer op zijn eigen hoogte is, en tot hij zo diep zakt dat het spel hem
         opgeeft (GAP_DEATH). In het spel mag je tot die tweede afstand nog boven komen:
         wie onder de rand zakt en toch voorbij het gat komt, wordt op de grond gezet."""
-        dt = 1 / 600
+        dt = 1 / 60                                  # zoals het spel: per beeld
         x, ph, pvh = x0, 0.0, self.JUMP_V * kracht
         schoon = None
         while True:
@@ -507,7 +552,16 @@ class Level:
         self.ends = g('ends')
         self.cliffs = g('cliffs')
         self.muur = d.get('muur')
-        self.holtes = [o for o in g('holtes') if isinstance(o, dict)]
+        # readLevel zet een gang minstens HOLTE_DAK + CHAR_H diep (anders past Amir er niet in)
+        # en zonder diep op 600: rekenen met wat het spel ervan maakt, niet met wat er staat
+        self.holtes = []
+        for o in g('holtes'):
+            if isinstance(o, dict):
+                q = dict(o)
+                q['diep'] = max(spel.HOLTE_DAK + spel.CHAR_H, o.get('diep') or 600)
+                self.holtes.append(q)
+        self.keien = None
+        self._route, self.pad = None, []
 
     def holte(self, x):
         """De gang onder de grond op deze plek (holteAt)."""
@@ -564,6 +618,132 @@ class Level:
             if x1 > g['x'] - g['w'] / 2 and x0 < g['x'] + g['w'] / 2:
                 return g
         return None
+
+    def steun(self, x, y, tot=None):
+        """De hoogste vloer onder iemand op hoogte y, zoals grondVloer en supportHeight dat
+        samen uitrekenen: de grond, de bodem van een gang, een terras, een trede of een kei.
+        -inf als er niets is (een gewoon ravijn). Met tot: alles tot die hoogte, voor de vraag
+        wat er naast hem omhoog steekt."""
+        sp = self.spel
+        tot = y + 1 if tot is None else tot
+        if self.keien is None:
+            self.keien = [sp.kei(r, self.terrein) for r in self.rocks]
+        o, gat = self.holte(x), self.in_gat(x, x)
+        if o:
+            best = -o['diep'] if (gat or y < -1) else 0
+        else:
+            best = -math.inf if gat else 0
+        if best > tot:
+            best = -math.inf                         # de grond naast een gang is voor wie beneden staat een wand
+        op_dak = o and y >= -1 and not gat          # op de savanne boven een gang: de treden eronder dragen niet
+        for t in self.terraces:
+            if t['l'] <= x <= t['r'] and best < t['h'] <= tot and not (op_dak and t['h'] < -1):
+                best = t['h']
+        for l, r, top in self.keien:
+            if l <= x <= r and best < top <= tot:
+                best = top
+        return best
+
+    def steun_lijf(self, x, y, tot=None):
+        """steun over de breedte van Amir."""
+        hw = self.spel.halfW
+        return max(self.steun(x + d * hw, y, tot) for d in (-1, -0.5, 0, 0.5, 1))
+
+    def val(self, x0, y0, snelheid):
+        """Van een rand af lopen en vallen, per beeld zoals updateJump: waar hij neerkomt.
+        Geeft (x, hoogte), met hoogte None als hij in een ravijn verdwijnt."""
+        sp = self.spel
+        dt, x, y, vy = 1 / 60, x0, y0, 0.0
+        for _ in range(60 * 8):
+            vy -= sp.GRAVITY * dt
+            yn = y + vy * dt
+            x -= snelheid * dt
+            s = self.steun_lijf(x, y)
+            if yn <= s:
+                return x, s
+            y = yn
+            if y < -sp.GAP_DEATH and not self.holte(x):
+                return x, None
+        return x, None
+
+    def kop_hier(self, x, y):
+        """Hoe hoog zijn voeten hier mogen komen: het plafond, en voor wie onder de grondlijn
+        staat het dak van de gang (holteKop)."""
+        return min(self.kop(x), self.dak_kop(x) if y < -1 else math.inf)
+
+    def sprong_van(self, x0, y0, snelheid):
+        """Een sprong vanaf x0 op hoogte y0 naar links, per beeld zoals updateJump, met het
+        plafond en het dak erbij. Tegen een wand blijft hij hangen (blockByPlatforms) en zakt
+        hij langs de wand. Geeft (x, hoogte) waar hij neerkomt, hoogte None in een ravijn."""
+        sp = self.spel
+        dt, x, y, vy = 1 / 60, x0, y0, sp.JUMP_V
+        for _ in range(60 * 8):
+            vy -= sp.GRAVITY * dt
+            yn = min(y + vy * dt, self.kop_hier(x, y))
+            if yn < y + vy * dt:
+                vy = min(vy, 0)
+            nx = x - snelheid * dt
+            if self.steun_lijf(nx, yn, math.inf) <= yn + 2:
+                x = nx                                   # anders staat er een wand: hij blijft waar hij is
+            s = self.steun_lijf(x, y)
+            if vy <= 0 and yn <= s:
+                return x, s
+            y = yn
+            if y < -sp.GAP_DEATH and not self.holte(x):
+                return x, None
+        return x, None
+
+    def route(self):
+        """De weg die Amir aflegt als hij gewoon naar links loopt: over een gewoon ravijn
+        springt hij, van een rand valt hij (op looptempo), tegen een wand klimt hij op. Geeft
+        de vallen als (x, van, naar); naar is None als hij in een ravijn verdwijnt. Onderweg
+        houdt hij in self.pad bij op welke hoogte Amir waar loopt (zie hoogte_op)."""
+        if self._route is not None:
+            return self._route
+        sp = self.spel
+        eind = self.einde()
+        eind = eind if eind is not None else -30000
+        x, y, vallen = 0.0, 0.0, []
+        self.pad = []
+        self._route = vallen
+        while x > eind:
+            self.pad.append((x, y))
+            nx = x - 10
+            g = self.in_gat(nx, nx)
+            if g and y >= -1 and not self.holte(g['x']):
+                x = g['x'] - g['w'] / 2 - 1                  # een gewoon ravijn: eroverheen
+                continue
+            bereik = min(y + sp.SPRONG_H, self.kop_hier(x, y))  # het dak of het plafond kapt de sprong af
+            if self.steun_lijf(nx, y, math.inf) > bereik:
+                break                                        # een wand die hij niet op komt: dat meldt een andere regel
+            hoger = self.steun_lijf(nx, y, bereik)
+            if hoger > y + 1:                                # een wand of een kei: erop
+                x, y = nx, hoger
+                continue
+            s = self.steun_lijf(nx, y)
+            if s >= y - 1:
+                x, y = nx, s
+                continue
+            lx, ly = self.val(nx, y, sp.LOOP)
+            # een speler springt liever van een rand dan dat hij valt, als hij dan hoger uitkomt
+            jx, jy = self.sprong_van(x, y, sp.LOOP * sp.SPRINT)
+            if jy is not None and jx < x - 5 and (ly is None or jy > ly + 1):
+                x, y = jx, jy
+                continue
+            vallen.append((nx, y, ly))
+            if ly is None:
+                break
+            x, y = lx, ly
+        self.pad.append((x, y))
+        return vallen
+
+    def hoogte_op(self, x):
+        """Op welke hoogte Amir langs de route loopt als hij op x is (None: daar komt hij niet)."""
+        self.route()
+        voor = [(px, py) for px, py in self.pad if px >= x]
+        if not voor or self.pad[-1][0] > x + 20:
+            return None
+        return voor[-1][1]
 
     def einde(self):
         """Waar het level ophoudt: de fakkels, anders de muur, anders de klif."""
@@ -671,6 +851,12 @@ def einde(lv, sp):
             yield letop(lv.muur['x'], 'de muur staat voor de fakkels: je moet hem eerst open hebben')
     if not lv.cliffs and lv.ends and not lv.holte(lv.ends[0]['x']):
         yield info(None, 'geen klif achter het einde: je kunt voorbij de fakkels doorlopen')
+    if lv.muur and not lv.ends and not lv.cliffs:
+        # De rots met de rune is decor: Amir loopt erdoorheen (sinds de rots doorloopbaar is), en
+        # uitspelen gaat met E voor de open deur. Zonder klif erachter loopt hij gewoon door, de
+        # lege savanne in, zonder dat er ooit nog iets komt. Gezien met de speelrobot in Bron 4.
+        yield letop(lv.muur['x'], 'het level eindigt bij de rots met de rune, maar daar staat geen klif achter: de rots '
+                    'is decor, Amir loopt erdoorheen en daarna eindeloos door. Zet een klif een stuk achter de rots')
 
 
 @regel('voorbij het einde')
@@ -706,6 +892,35 @@ def vijanden(lv, sp):
             yield info(o['x'], 'vijand %s staat beneden in de gang, op %s' % (o.get('k'), n0(lv.terrein(o['x']))))
         elif lv.in_gat(o['x'] - 40, o['x'] + 40):
             yield letop(o['x'], 'vijand %s start boven een ravijn' % o.get('k'))
+        if o.get('k') == 'hyenas' and lv.holtes:
+            yield from hyenas_hoogte(lv, sp, o)
+
+
+def hyenas_hoogte(lv, sp, o):
+    """Hyena's staan niet op hun plek in het level: ze worden losgelaten zodra Amir binnen
+    TRIGGER.hyenas schermbreedtes komt, en komen dan van buiten beeld aanrennen op de hoogte waar
+    hij op dat moment staat (vloerBij(x, ph)). Met een gang erbij kan dat de verkeerde hoogte zijn:
+    staat hij nog boven als ze komen, dan rennen ze over het dak en halen ze hem beneden nooit.
+    Gemeten met de speelrobot in een proefgang."""
+    d = sp.TRIGGER.get('hyenas', 1.1) * sp.W
+    xt = min(0, o['x'] + d)                         # hier is hij als ze komen (van rechts naar links)
+    y = lv.hoogte_op(xt)
+    if y is None:
+        return
+    bedoeld = -1 if lv.holte(o['x']) else 0          # waar het level ze neerzet
+    mis = []
+    for kant in (-1, 1):
+        hx = xt + kant * (sp.W / 2 + sp.HY_ENTER)
+        g = lv.holte(hx)
+        vloer = (-g['diep'] if (y < -1 or lv.in_gat(hx, hx)) else 0) if g else 0
+        if (-1 if vloer < -1 else 0) != bedoeld:
+            mis.append(('links' if kant < 0 else 'rechts', 'boven op de savanne' if vloer >= -1 else 'beneden in de gang'))
+    if mis:
+        yield fout(o['x'], "de hyena's op %s staan %s, maar ze komen los als Amir op %s is, en dan staat hij %s: "
+                   'die van %s komen %s aanrennen. Zet ze verder van de ingang, zodat hij al %s is als ze komen'
+                   % (n0(o['x']), 'in de gang' if bedoeld else 'boven', n0(xt),
+                      'beneden in de gang' if y < -1 else 'boven op de savanne',
+                      ' en '.join(k for k, _ in mis), mis[0][1], 'beneden' if bedoeld else 'boven'))
 
 
 @regel('ravijnen')
@@ -723,13 +938,20 @@ def ravijnen(lv, sp):
         plafond = lv.plafond_min(g['x'] - w / 2, rand) < sp.PLAFOND_WEG
         erbij = ' onder dit plafond' if plafond and schoon_r < sp.sprong(rennen, lambda x: math.inf, 0)[0] - 1 else ''
         # ligt er een gang onder (holtes), dan is dit de ingang: erin vallen is de bedoeling
-        ingang = any(isinstance(h, dict) and h.get('l', 0) <= g['x'] - w / 2 and g['x'] + w / 2 <= h.get('r', 0)
-                     for h in (lv.d.get('holtes') or []))
+        ingang = any(h['l'] <= g['x'] - w / 2 and g['x'] + w / 2 <= h['r'] for h in lv.holtes)
+        half = any(g['x'] - w / 2 < h['r'] and rand > h['l'] for h in lv.holtes)
         treden = [t for t in lv.terraces if t['h'] < 0 and t['l'] < g['x'] + w / 2 and t['r'] > g['x'] - w / 2]
-        if ingang and treden:
+        if half and not ingang:
+            pass                                          # half boven een gang: zie 'onder de grond'
+        elif ingang and treden and max(t['h'] for t in treden) > -sp.SPRONG_H:
             yield info(g['x'], 'gat van %s breed boven een gang, met %d treden erin: een weg naar boven'
                        % (n0(w), len(treden)))
-        elif w > red_r and ingang:
+        elif ingang and w <= red_r:
+            # Een ingang die je kunt overspringen: dan is de gang niet verplicht. Wie springt,
+            # loopt over het dak verder en slaat alles over wat erin staat.
+            yield info(g['x'], 'ingang van %s breed: %s komt Amir eroverheen, en dan slaat hij de gang over'
+                       % (n0(w), 'lopend' if w <= schoon_l else 'met sprint'))
+        elif ingang:
             yield info(g['x'], 'ravijn van %s breed boven een gang: de ingang, je valt erin' % n0(w))
         elif w > red_r:
             yield fout(g['x'], 'ravijn van %s breed: met sprint haalt Amir hoogstens %s%s' % (n0(w), n0(red_r), erbij))
@@ -864,8 +1086,9 @@ def plafond(lv, sp):
 
 @regel('terrassen')
 def terrassen(lv, sp):
-    """Elke trede omhoog moet met een sprong te halen zijn (SPRONG_H = JUMP_V^2 / 2G), of
-    er moet een richel of kei staan om op te stappen."""
+    """Elke trede omhoog moet met een sprong te halen zijn (SPRONG_H: 200 op 60 beelden per
+    seconde), of er moet een richel of kei staan om op te stappen. In een gang kapt het dak de
+    sprong af: daar mogen zijn voeten niet hoger dan -HOLTE_DAK - CHAR_H komen."""
     KRAP_T = 0.15          # zo lang (seconden) zijn zijn voeten boven de trede: korter is precisiewerk
     eind = lv.einde()
     for t in lv.terraces:
@@ -889,10 +1112,12 @@ def terrassen(lv, sp):
             if t['r'] - 20 < rr and l < t['r'] + 400:
                 treden.append(top)
 
+        def kop(van):
+            k = lv.plafond_min(t['r'] - 150, t['r'] + sp.halfW) - sp.CHAR_H
+            return min(k, lv.dak_kop(t['r'] + sp.halfW))   # hij zet af tegen de wand, misschien onder het dak
+
         def apex(van):
-            kop = lv.plafond_min(t['r'] - 150, t['r'] + sp.halfW) - sp.CHAR_H
-            kop = min(kop, lv.dak_kop(t['r'] + sp.halfW))   # hij zet af tegen de wand, misschien onder het dak
-            return min(sp.SPRONG_H, kop - van)
+            return min(sp.SPRONG_H, kop(van) - van)
         bereikt, rij = {vloer}, [vloer]
         while rij:
             a = rij.pop()
@@ -901,22 +1126,18 @@ def terrassen(lv, sp):
                     bereikt.add(b)
                     rij.append(b)
         if t['h'] not in bereikt:
-            yield fout(t['r'], 'terras van %s hoog op %s: vanaf %s is dat %s omhoog, Amir springt %s en er staat '
+            waarom = 'Amir springt %s' % n0(sp.SPRONG_H)
+            if kop(vloer) - vloer < sp.SPRONG_H:
+                waarom = 'het dak van de gang laat zijn voeten niet hoger komen dan %s' % n0(kop(vloer))
+            yield fout(t['r'], 'terras van %s hoog op %s: vanaf %s is dat %s omhoog, %s en er staat '
                        'geen richel of kei om op te stappen' % (n0(t['h']), n0(t['r']), n0(vloer),
-                                                              n0(t['h'] - vloer), n0(sp.SPRONG_H)))
+                                                              n0(t['h'] - vloer), waarom))
         else:
             stap = t['h'] - max(b for b in bereikt if b < t['h'])
-            d = sp.JUMP_V ** 2 - 2 * sp.GRAVITY * stap
-            if d > 0 and 2 * math.sqrt(d) / (2 * sp.GRAVITY) < KRAP_T:
-                yield letop(t['r'], 'de laatste stap op het terras op %s is %s: bijna de hele sprong van %s'
-                            % (n0(t['r']), n0(stap), n0(sp.SPRONG_H)))
-        # naar beneden: met valschade kost een diepe val levens
-        if lv.d.get('valschade'):
-            onder = lv.terrein(t['l'] - 1, zonder=t)
-            diep = t['h'] - onder
-            if diep >= sp.VAL_VRIJ:
-                yield letop(t['l'], 'val van %s aan de linkerkant van het terras kost %s'
-                            % (n0(diep), '2 levens' if diep >= sp.VAL_ZWAAR else '1 leven'))
+            if sp.boven_tijd(stap) < KRAP_T:
+                yield letop(t['r'], 'de laatste stap op het terras op %s is %s: bijna de hele sprong van %s '
+                            '(op een traag toestel springt hij %s)' % (n0(t['r']), n0(stap), n0(sp.SPRONG_H),
+                                                                       n0(sp.SPRONG_TRAAG)))
     for o in lv.ledges:
         if not any(abs(o['x'] - t['r']) < 60 and t['h'] > o['h'] for t in lv.terraces):
             yield letop(o['x'], 'richel op %s hangt niet aan een terraswand' % n0(o['x']))
@@ -977,6 +1198,132 @@ def onder_de_grond(lv, sp):
                        'minder dan %s onder de grondlijn' % (n0(eind), n0(o['r']), n0(o['l']), n0(sp.SPRONG_H)))
 
 
+@regel('onder de grond')
+def gangen(lv, sp):
+    """Wat er mis kan gaan met de gang zelf en wat erboven of erin staat. Elk hiervan is met de
+    speelrobot in een proefgang nagelopen (zie CLAUDE.md, "een gang onder de grond")."""
+    dak = -sp.HOLTE_DAK - sp.CHAR_H                 # zo hoog mogen zijn voeten onder het dak
+    ruw = [o for o in (lv.d.get('holtes') or []) if isinstance(o, dict)]
+    for o in ruw:
+        if (o.get('diep') or 600) < sp.HOLTE_DAK + sp.CHAR_H:
+            yield letop(o.get('r'), 'gang van %s tot %s is %s diep: readLevel maakt daar %s van (het dak op %s plus Amir), '
+                        'en daar rekent dit script ook mee' % (n0(o['r']), n0(o['l']), n0(o.get('diep') or 0),
+                                                               n0(sp.HOLTE_DAK + sp.CHAR_H), n0(sp.HOLTE_DAK)))
+    # Twee gangen tegen elkaar: holteBlok houdt hem in allebei tegelijk vast, dus op de naad
+    # staat hij klem en komt hij niet verder, ook niet als de ene gang dieper is dan de andere.
+    marge = 2 * (sp.halfW + 60)
+    hs = sorted(lv.holtes, key=lambda o: -o['r'])
+    for a, b in zip(hs, hs[1:]):
+        if b['r'] > a['l'] - marge:
+            yield fout(a['l'], 'de gangen van %s tot %s en van %s tot %s liggen tegen elkaar: op de naad houdt de wand '
+                       'van de ene hem vast en die van de andere ook, en daar staat hij klem. Maak er een gang van '
+                       '(de diepste diep) en leg de hogere stukken als treden: terrassen met een negatieve h'
+                       % (n0(a['r']), n0(a['l']), n0(b['r']), n0(b['l'])))
+    for g in lv.gaps:
+        gr, gl = g['x'] + g['w'] / 2, g['x'] - g['w'] / 2
+        for o in lv.holtes:
+            if gl < o['r'] and gr > o['l'] and not (o['l'] <= gl and gr <= o['r']):
+                yield fout(g['x'], 'het gat van %s tot %s ligt maar voor een deel boven de gang (%s tot %s): wie aan '
+                           'de kant zonder gang erin valt, valt recht naar beneden en is dood. Leg het gat helemaal '
+                           'boven de gang, of de gang verder door' % (n0(gr), n0(gl), n0(o['r']), n0(o['l'])))
+    if not lv.holtes:
+        return
+    # een terras op de savanne boven een gang: drawClimb tekent zijn wand tot onder in beeld, en
+    # blockByPlatforms houdt Amir er beneden tegen, dus het staat als een pilaar door de gang
+    for t in lv.terraces:
+        if t['h'] < 0:
+            continue
+        for o in lv.holtes:
+            if t['l'] < o['r'] and t['r'] > o['l']:
+                yield fout(t['r'], 'terras van %s tot %s (h %s) staat boven de gang van %s tot %s: zijn wand loopt '
+                           'door tot in de gang en staat daar als een pilaar, waar Amir beneden niet langs komt'
+                           % (n0(t['r']), n0(t['l']), n0(t['h']), n0(o['r']), n0(o['l'])))
+    # water: waterDepthAt kijkt niet naar de hoogte, dus in de gang onder een poel loopt hij
+    # door dat water: hij zakt weg in de vloer, loopt half zo hard en springt zwakker
+    for p in lv.d.get('water') or []:
+        nl, nr = sp.poel_nat(p)
+        for o in lv.holtes:
+            if nl < o['r'] and nr > o['l']:
+                yield fout(p['x'], 'poel op %s ligt boven de gang van %s tot %s: het spel kijkt niet naar de hoogte, dus '
+                           'beneden in de gang loopt Amir door dat water. Hij zakt weg in de vloer, loopt trager en '
+                           'springt zwakker' % (n0(p['x']), n0(o['r']), n0(o['l'])))
+    # keien: in een gang staat een kei op de bodem, en daar kapt het dak zijn sprong af
+    for r in lv.rocks:
+        if not lv.holte(r['x']) or lv.in_gat(r['x'] - 150, r['x'] + 150):
+            continue
+        l, rr, top = sp.kei(r, lv.terrein)
+        if top > dak:
+            yield fout(r['x'], 'kei op %s staat in de gang en is %s hoog: bovenop zou Amir met zijn hoofd in het dak zitten '
+                       '(voeten hoger dan %s), dus hij komt er niet overheen en er ook niet langs'
+                       % (n0(r['x']), n0(top), n0(dak)))
+        elif top > dak - 60:
+            yield letop(r['x'], 'kei op %s staat in de gang en is %s hoog: het dak kapt de sprong erop af op %s, '
+                        'erop komen is precisiewerk' % (n0(r['x']), n0(top), n0(dak)))
+    # decor in de gang staat op de bodem; wat hoger is dan de gang steekt door het dak
+    def door_dak(x, hoog):
+        return lv.holte(x) and not lv.in_gat(x - 60, x + 60) and lv.terrein(x) + hoog > -sp.HOLTE_DAK
+    for o in lv.d.get('props') or []:
+        d = sp.PROPS.get(o.get('k'))
+        if not d or o.get('v'):
+            continue                                    # ver decor blijft boven op de savanne
+        hoog = sp.CHAR_H * d['h'] * (o.get('s') or 1) * (1 - (d.get('sink') or 0.02))
+        if door_dak(o['x'], hoog):
+            yield fout(o['x'], "prop '%s' staat in de gang, op de bodem (%s), en is %s hoog: hij steekt door het dak "
+                       '(op %s)' % (o['k'], n0(lv.terrein(o['x'])), n0(hoog), n0(-sp.HOLTE_DAK)))
+    for o in lv.d.get('village') or []:
+        d = sp.VILLAGE.get(o.get('id'))
+        if d and lv.holte(o['x']):
+            depth = max(0, min(1, o.get('depth') or 0))
+            hoog = sp.CHAR_H * d['h'] * (1 - sp.VILLAGE_FAR * depth)
+            if door_dak(o['x'], hoog):
+                yield fout(o['x'], "dorpsplaat '%s' staat in de gang en steekt door het dak" % o['id'])
+    for o in lv.d.get('npcs') or []:
+        d = sp.NPCS.get(o.get('k'))
+        if d and door_dak(o['x'], sp.CHAR_H * d['tall'] * (o.get('s') or 1) + (o.get('y') or 0)):
+            yield fout(o['x'], "npc '%s' staat in de gang en steekt door het dak" % o['k'])
+    for t in lv.d.get('thickets') or []:
+        if isinstance(t.get('x'), (int, float)) and door_dak(t['x'], sp.doornbos_hoog(t)):
+            yield fout(t['x'], 'doornbos op %s staat in de gang en is %s hoog: hij steekt door het dak'
+                       % (n0(t['x']), n0(sp.doornbos_hoog(t))))
+    # de speer: aan het begin staat hij op SPEAR_AHEAD in de grond, en in een gang staat hij beneden
+    if not lv.muur and lv.holte(sp.SPEAR_AHEAD) and not lv.in_gat(sp.SPEAR_AHEAD - 30, sp.SPEAR_AHEAD + 30):
+        yield fout(sp.SPEAR_AHEAD, 'je speer staat aan het begin op %s, en daar ligt een gang: hij staat beneden op de '
+                   'bodem, onder de savanne waar Amir begint. Laat de gang verderop beginnen' % n0(sp.SPEAR_AHEAD))
+
+
+@regel('vallen')
+def vallen(lv, sp):
+    """Met valschade: de weg die Amir aflegt als hij gewoon naar links loopt, met elke val die
+    onderweg niet te vermijden is. Een val loopt hij op looptempo in: wie rent, komt verder en
+    soms lager of hoger uit. De kalebassen in het level drinkt hij zodra hij er een heeft en niet
+    vol zit; de losse kalebassen die af en toe verschijnen tellen niet mee."""
+    if not lv.d.get('valschade'):
+        return
+    kalebassen = sorted((p['x'] for p in lv.d.get('hppotions') or [] if isinstance(p.get('x'), (int, float))),
+                        reverse=True)
+    levens, zak, k = sp.LEVENS, 0, 0
+    for x, van, naar in lv.route():
+        while k < len(kalebassen) and kalebassen[k] >= x:
+            zak += 1; k += 1
+        while zak and levens < sp.LEVENS:
+            zak -= 1; levens = min(sp.LEVENS, levens + sp.HPPOTION_HEAL)
+        if naar is None:
+            continue                                    # een ravijn: dat is voor de regel ravijnen
+        diep = van - naar
+        kost = 0 if diep < sp.VAL_VRIJ else (1 if diep < sp.VAL_ZWAAR else sp.VAL_MAX)
+        if not kost:
+            continue
+        levens -= kost
+        waar = 'de ingang van de gang' if lv.in_gat(x, x) and lv.holte(x) else 'de rand op %s' % n0(x)
+        if levens <= 0:
+            yield fout(x, 'val van %s naar %s bij %s kost %s: dan is hij dood, ook met de kalebassen die hij tot hier '
+                       'heeft gevonden. Onderweg kost vallen alleen al meer dan de %s levens die hij heeft'
+                       % (n0(van), n0(naar), waar, '2 levens' if kost == 2 else '1 leven', sp.LEVENS))
+            return
+        yield letop(x, 'val van %s naar %s bij %s kost %s (daarna nog %s)' % (
+            n0(van), n0(naar), waar, '2 levens' if kost == 2 else '1 leven', levens))
+
+
 @regel('water')
 def water(lv, sp):
     for p in lv.d.get('water') or []:
@@ -1004,7 +1351,7 @@ def lees_levels(bron):
 
 
 def main(argv):
-    hoog, formaat, uitgebreid, filters = 720, 25, False, []
+    hoog, formaat, uitgebreid, filters, breed, bestanden = 720, 25, False, [], None, []
     i = 0
     while i < len(argv):
         a = argv[i]
@@ -1015,14 +1362,23 @@ def main(argv):
             uitgebreid = True
         elif a == '--hoog':
             i += 1; hoog = float(argv[i])
+        elif a == '--breed':
+            i += 1; breed = float(argv[i])
         elif a == '--formaat':
             i += 1; formaat = float(argv[i])
+        elif a.endswith('.json'):
+            bestanden.append(a)
         else:
             filters.append(a.lower())
         i += 1
     bron = Bron(HTML)
-    sp = Spel(bron, hoog, formaat)
+    sp = Spel(bron, hoog, formaat, breed)
     levels = lees_levels(bron)
+    if bestanden:                                   # een level uit de bouwer (Exporteer), of met de hand
+        levels = []
+        for pad in bestanden:
+            with open(pad, encoding='utf-8') as f:
+                levels.append(('json', os.path.basename(pad), json.load(f)))
     print('scherm %d hoog, Formaat %d: Amir %.0f px breed, sprong %.0f hoog, lopend %d px/s, sprint %d px/s'
           % (hoog, formaat, 2 * sp.halfW, sp.SPRONG_H, sp.LOOP, sp.LOOP * sp.SPRINT))
     fouten = letops = 0

@@ -193,7 +193,7 @@ en net als Amir zijn looptempo. De **hoogte** staat in sprite-eenheden (`GROT_HO
 
 Dat verschil is niet vrijblijvend. Zou de hoogte ook in wereld-px staan, dan komt Amir op
 een kort scherm kleiner uit terwijl de cel gelijk blijft, en is een blok van één cel ineens
-niet meer te halen. Nu is een cel overal 150 eenheden en Amir zijn sprong overal 185, dus
+niet meer te halen. Nu is een cel overal 150 eenheden en Amir zijn sprong overal 200, dus
 één cel klim je altijd, twee cellen nooit. Op een telefoon zijn cellen daardoor breder dan
 hoog en op een groot scherm hoger dan breed; rond het standaardformaat zijn ze vierkant.
 De losse stukken worden allemaal op één schaal getekend (zie hieronder), dus er wordt
@@ -303,7 +303,7 @@ plafond: [ {x: -1000, y: 4000},    geen plafond: PLAFOND_WEG of hoger is open lu
 ```
 
 De punten mogen in looprichting staan (x steeds negatiever); het spel zet ze zelf op volgorde.
-Reken met Amir: hij is `CHAR_H` (251) hoog en springt 208. Boven de 460 merkt hij niets, op
+Reken met Amir: hij is `CHAR_H` (251) hoog en springt 200 (zie "de sprong" hieronder). Boven de 460 merkt hij niets, op
 400 loopt hij rechtop maar stoot hij bij elke sprong zijn hoofd, op 280 zit springen er niet
 meer in, en onder de 251 kan hij er helemaal niet langs, want gebukt loopt hij niet.
 
@@ -425,9 +425,10 @@ zachte randen 8-bits afrondingen op, en dat is precies het haarlijntje dat er ni
 **De speer botst op de alfawaarde**, met de punt, en dat gaat vanzelf goed omdat `jav.x` en
 `jav.h` in dit spel de punt zelf zijn. Lukt het uitlezen niet, dan telt de hele plaat als rots.
 
-**Amir botst op een enkele verticale lijn**, de rand van de opening die naar hem toe wijst. De
-rest van de rots is decor. Dat moet ook wel: de flank ervoor loopt schuin op en eindigt in losse
-steentjes, en daar zou hij aan blijven hangen ver voordat hij bij de deur is.
+**Amir loopt door de rots heen.** De hele rots is decor, ook de deur: uitspelen gaat met E als
+de deur open staat en hij ervoor staat (`muurUitgang`). Er is dus niets dat hem tegenhoudt, en
+een level dat bij de rots eindigt zonder klif erachter laat hem voorbij de rots eindeloos de lege
+savanne in lopen (zo staan Licht 4 en Bron 4 er nu bij). Zet er een klif een stuk achter.
 
 **Controleer na elke wijziging of de rune nog te raken is.** Dat is geen gevoelskwestie: simuleer
 de boog vanaf elke plek waar Amir kan staan en kijk of er een aaneengesloten strook overblijft.
@@ -483,7 +484,7 @@ dieper donkerder (`HOLTE_LICHT.trede`, alleen helderheid). Reken zo:
   CHAR_H`). Een trede hoger dan dat moet helemaal onder het gat staan;
 - zijn rechterrand ligt minstens een halve Amir binnen het gat, anders staat hij bij het
   afzetten nog onder het dak en haalt hij hem niet;
-- elke stap is minder dan de sprong (208); 150 is ruim;
+- elke stap is minder dan de sprong (200); 150 is ruim;
 - de bovenste ligt binnen een sprong van de grondlijn en loopt door tot de linkerrand van het
   gat: daar stapt hij de savanne op.
 
@@ -498,6 +499,43 @@ terraces: [ {r: -2850, l: -3850, h: -750}, {r: -3050, l: -3850, h: -600}, ... {r
 ```
 
 `levelcheck.py` kijkt dit na onder `onder de grond`.
+
+### Hoogteverschil onder de grond
+
+Een gang die dieper wordt, of waar je klimt en weer daalt, is **één gang** met de diepste `diep`,
+en de hogere stukken zijn treden: terrassen met een negatieve `h`, net als de trap naar buiten.
+Je landt dan op een richel, loopt eraf naar de bodem, klimt met een kei of een richel weer op,
+en daalt weer. Alles wat voor terrassen geldt, geldt hier ook; daarbovenop kapt het dak elke
+sprong af op -441.
+
+Wat niet werkt, en waarom. Elk hiervan is nagelopen met de speelrobot (zie hieronder) in een
+proefgang, en `levelcheck.py` meldt ze:
+
+- **Twee gangen tegen elkaar** (de ene dieper dan de andere). `holteBlok` houdt Amir in allebei
+  tegelijk vast: op de naad duwt de ene wand hem terug en de andere ook, en daar staat hij voorgoed
+  klem, ook als hij er net in is gevallen.
+- **Een terras op de savanne boven een gang.** Zijn wand wordt tot onder in beeld getekend en
+  houdt hem ook tegen, dus in de gang staat een lichte stenen pilaar waar hij niet langs komt.
+- **Water boven een gang.** `waterDepthAt` kijkt niet naar de hoogte: beneden in de gang loopt
+  hij door die poel, zakt weg in de vloer (hij is dan zelfs helemaal uit beeld), loopt half zo hard
+  en springt zwakker.
+- **Een kei in de gang die tot in het dak reikt.** Op een trede van -520 staat de bovenkant van
+  een kei op -406, en daar mogen zijn voeten niet komen: hij komt er niet overheen en niet langs.
+- **Decor dat hoger is dan de gang.** Alles staat op de bodem, ook een boom, en die steekt dan
+  door het dak (en wordt niet donkerder getekend, dus hij licht op in het donker). Een doornbos
+  of een dorpsplaat net zo.
+- **Een ingang die maar half boven de gang ligt.** Wie aan de kant zonder gang erin stapt, valt
+  recht naar beneden (in een val loop je niet meer) en is dood.
+- **Een gang die de speer overdekt.** Aan het begin staat je speer op `SPEAR_AHEAD` (-260) in de
+  grond; ligt daar een gang, dan staat hij beneden op de bodem en begin je zonder.
+- **Hyena's in de gang, vlak achter de ingang.** Hyena's staan niet op hun plek: ze worden
+  losgelaten zodra Amir binnen 1,05 schermbreedte komt, en rennen dan van buiten beeld aan op de
+  hoogte waar hij op dat moment staat. Is hij dan nog boven, dan blijven ze boven op het dak.
+- **Een gang minder diep dan 441.** `readLevel` maakt er zonder iets te zeggen 441 van, en dan
+  kloppen je treden niet meer.
+- **Vallen met `valschade`.** De val door de ingang telt ook: een ingang boven een richel op -700
+  kost al twee levens. Tel de vallen langs de hele route op tegen de drie levens en de kalebassen
+  die onderweg liggen.
 
 ### Een level donker maken
 
@@ -599,6 +637,7 @@ Na elk nieuw level, en na elke wijziging aan een level, draai je:
 python3 tools/levelcheck.py            alle levels
 python3 tools/levelcheck.py "Test 4"   alleen de levels waarvan de naam dit bevat
 python3 tools/levelcheck.py -v         ook de info-regels
+python3 tools/levelcheck.py level.json een level uit de bouwer, voor het in de HTML staat
 ```
 
 Het script leest de leveldefinities uit de HTML, samen met de getallen waar het spel
@@ -609,7 +648,21 @@ maar krap, of het spel lost het stilletjes voor je op. Een nieuw level gaat pas 
 zonder FOUT. Wat het nakijkt: velden die `readLevel` niet kent, ravijnen tegen de echte
 sprong (met het plafond en het water erbij), decor boven een ravijn met dezelfde maten als
 `schoonLevel`, het plafond boven keien en treden, rechtop kunnen lopen, of elke trede met
-een sprong, een richel of een kei te halen is, en of de klif achter de fakkels staat.
+een sprong, een richel of een kei te halen is, of de klif achter de fakkels staat, alles
+rond een gang onder de grond (zie "hoogteverschil onder de grond"), en met `valschade` of Amir
+de vallen langs de route overleeft.
+
+**De sprong.** `JUMP_V` en `GRAVITY` geven op papier 208, maar het spel rekent per beeld (eerst
+de zwaartekracht, dan de hoogte), en dan komt hij lager uit: op 60 beelden per seconde 200, op het
+traagste toestel (het spel neemt hoogstens 0,05 seconde per beeld) 184. Gemeten: een trede van
+199 haalt hij, een van 203 niet. Het script rekent daarom met 200, en de sprong over een ravijn
+ook per beeld.
+
+**De route.** Voor de vallen loopt het script het level af zoals een speler dat doet: naar links,
+over een gewoon ravijn springend, tegen een wand of kei op, en van een rand af op looptempo. Van
+een kei of een richel springt hij liever dan dat hij valt, als hij dan hoger uitkomt. Waar hij
+neerkomt rekent het per beeld uit, dus een val van een terras op een lagere trede die net verderop
+begint, telt als de kleine stap die het in het spel ook is.
 
 Maten die aan het scherm hangen rekent het uit voor 1280 bij 720 op Formaat 25; met `--hoog`
 en `--formaat` kijk je een ander scherm na.
@@ -619,6 +672,27 @@ te springen, een poel vlak voor een ravijn), dan komt dat er als regel bij: een 
 `@regel('naam')` in `tools/levelcheck.py`, met de getallen uit de code en niet uit het hoofd.
 Draai daarna alle levels opnieuw en meld wat de nieuwe regel in de bestaande levels vindt,
 zonder die levels aan te passen (regel 1).
+
+## De speelrobot: tools/speelrobot.js
+
+`levelcheck.py` rekent, de speelrobot speelt. Hij laadt het echte spel in Chromium, zet een level
+klaar en loopt het naar links uit op een vaste 60 beelden per seconde, los van hoe snel de
+computer is. Hij springt als hij vastloopt, springt over een ravijn zonder gang eronder, laat zich
+in een ingang vallen, pakt zijn speer, steekt naar doornbossen en vijanden voor hem, en blijft op
+een kei staan om er vanaf te springen. Hij meldt waar hij landt, wat een val kost, waar hij
+vastloopt en wat er in de console staat.
+
+```
+node tools/speelrobot.js "Test 4"               een level uit de HTML, op naam
+node tools/speelrobot.js level.json --taai      een level uit de bouwer; --taai: levens komen terug
+node tools/speelrobot.js "Test 4" --shots map   elke anderhalve seconde een schermafdruk
+```
+
+Hij heeft Node en Playwright nodig (`npm i -g playwright`), en start zelf een webserver. Hij is
+geen speler: een eindbaas verslaat hij niet, en een sprong die precies getimed moet worden mist
+hij. Loopt hij vast waar `levelcheck.py` niets meldt, kijk dan wat daar staat. Is het de robot,
+laat het dan; is het het level, dan hoort er een regel bij. Zo zijn de regels onder de grond
+ontstaan.
 
 ## Testen en afronden
 
