@@ -475,6 +475,14 @@
       <button id="sbspeerneer">Speer neerleggen</button>
       </div>
       <div class="row">
+        <label>Schild</label>
+        <button data-schild="schild_gespleten">Gespleten</button>
+        <button data-schild="schild_klauwen">Klauwen</button>
+        <button data-schild="schild_verbrand">Verbrand</button>
+        <button data-windvlaag="1">Wind van links</button>
+        <button data-windvlaag="-1">Wind van rechts</button>
+      </div>
+      <div class="row">
         <label>Zegel</label>
         <button data-zegel="0">Neerzetten</button>
         <button data-zegel="1">Met ravijn erachter</button>
@@ -5021,7 +5029,11 @@ const PROPS = {
   ribben:    { src: 'design/botten/ribben.png',        h: 0.30, sink: 0.05, placeOnly: true },
   buffel:    { src: 'design/botten/skull_buffel.png',  h: 0.24, sink: 0.06, placeOnly: true },
   jakhals:   { src: 'design/botten/skull_jakhals.png', h: 0.20, sink: 0.06, placeOnly: true },
-  wervels:   { src: 'design/botten/wervels.png',       h: 0.08, sink: 0.08, placeOnly: true }
+  wervels:   { src: 'design/botten/wervels.png',       h: 0.08, sink: 0.08, placeOnly: true },
+  // kapotte schilden, scheef in het zand (design/schilden/); ze houden de wind tegen, zie SCHILD
+  schild_gespleten: { src: 'design/schilden/schild_1_gespleten.png', h: 0.46, sink: 0.04, placeOnly: true, schild: true },
+  schild_klauwen:   { src: 'design/schilden/schild_2_klauwen.png',   h: 0.46, sink: 0.04, placeOnly: true, schild: true },
+  schild_verbrand:  { src: 'design/schilden/schild_3_verbrand.png',  h: 0.46, sink: 0.04, placeOnly: true, schild: true }
 };
 const SNK_W = 255, SNK_H = 140, SNK_GROUND = 136;
 const SNK_BOX = { l: 6, t: 10, r: 248, b: 136 };   // hurtbox inside the snake sprite
@@ -6750,8 +6762,8 @@ function drawSnowfall(){
 
 const wind = [];                         // slierten en wolkjes, in wereldcoördinaten
 let gustTimer = 4 + Math.random() * 5;   // de eerste vlaag komt vrij snel
-function startGust(){
-  const dir = Math.random() < 0.5 ? 1 : -1;          // waait van links of van rechts
+function startGust(richting){
+  const dir = richting || (Math.random() < 0.5 ? 1 : -1);   // waait van links of van rechts (de sandbox kiest zelf)
   const speed = 240 + Math.random() * 180;
   const span = W / viewZoom();
   gust = { x0: world - dir * span * 0.65, dir, speed, t: 0,
@@ -6786,7 +6798,124 @@ function updateWind(dt){
     if (w.age >= w.life){ wind.splice(i, 1); continue; }
     w.x += w.vx * dt;
     if (w.vh) w.h += w.vh * dt;
+    schildTil(w, dt);                                  // een schild op de route: eroverheen
   }
+}
+
+// ---- schilden in de wind: het stof blijft ertegen hangen ----
+// Een schild in het zand is een windscherm. Trekt er een vlaag over, dan waait aan de
+// windkant stof aan (dezelfde wolkjes als bij Amir zijn landing), dat tegen het schild
+// afremt, ertegen opbolt en langs de voorkant omhoog kruipt; wat boven de rand komt
+// waait eroverheen en zakt aan de luwe kant weer weg. Kleine korrels ketsen terug en
+// vallen. De slierten van de vlaag zelf gaan er ook overheen (schildTil).
+// Maten: x in wereld-px, hoogte in Amirs (h * CHAR_H), zoals de wind zelf.
+const SCHILD = {
+  vanaf: 0.12,        // onder deze windsterkte waait er niets aan
+  tempo: 30,          // wolkjes per seconde bij volle wind
+  aanloop: [140, 420],// zoveel px voor het schild komen ze de lucht in
+  rem: 130,           // vanaf deze afstand tot de voorkant remt het af
+  klim: 0.55,         // hoe snel het tegen de voorkant omhoog kruipt (Amirs per seconde)
+  zwel: 1.0,          // hoeveel een wolkje opbolt terwijl het klem zit
+  korrels: 10,        // korrels per seconde die terugketsen
+  voorkant: 0.42      // de voorkant ligt op dit deel van de breedte uit het midden (het schild staat scheef)
+};
+const schildStof = [];
+function schildenNu(){
+  if (!level || !level.props) return [];
+  return level.props.filter(p => PROPS[p.kind] && PROPS[p.kind].schild && !p.far && !(p.rv && p.rv.weg));
+}
+// de maat van een schild in wereld-px en Amirs; scale is die van het beeld nu
+function schildMaat(p, scale){
+  const def = PROPS[p.kind], im = propImg[p.kind];
+  const hoog = def.h * p.scale;                                    // in Amirs
+  const ph = CHAR_H * scale * hoog;
+  const breed = im && im.naturalWidth ? im.naturalWidth * ph / im.naturalHeight : ph * 0.8;
+  return { hoog: hoog * (1 - def.sink), half: breed / 2 };
+}
+function schildStofUpdate(dt, scale){
+  for (let i = schildStof.length - 1; i >= 0; i--){
+    const d = schildStof[i];
+    d.age += dt;
+    if (d.age >= d.life){ schildStof.splice(i, 1); continue; }
+    const m = schildMaat(d.p, scale);
+    const voor = d.p.x - d.dir * m.half * SCHILD.voorkant;        // de voorkant aan de windkant
+    const af = (voor - d.x) * d.dir;                               // hoe ver nog tot de voorkant
+    if (d.h < m.hoog && !d.over){
+      if (af < SCHILD.rem){                                        // tegen het schild: afremmen en omhoog
+        const k = Math.pow(1 - Math.max(0, af) / SCHILD.rem, 2);   // pas vlak voor het schild echt klem
+        d.vx += (d.dir * 25 - d.vx) * Math.min(1, dt * 9 * k);
+        d.vh += (SCHILD.klim * k * (0.6 + 0.4 * d.wind) - d.vh) * Math.min(1, dt * 5);
+        d.s += dt * SCHILD.zwel * k;
+        if (af < 0){ d.x = voor; d.vx = 0; }                       // erdoorheen gaat niet
+      }
+    } else {                                                       // boven de rand: de wind neemt het weer mee
+      d.over = true;
+      d.vx += (d.dir * d.v * 0.6 - d.vx) * Math.min(1, dt * 5);
+      d.vh += (-0.3 - d.vh) * Math.min(1, dt * 4);              // aan de luwe kant zakt het weer
+      if (af < -m.half) d.life = Math.min(d.life, d.age + 0.5);    // en waait uit
+    }
+    d.x += d.vx * dt; d.h = Math.max(0, d.h + d.vh * dt);
+  }
+  if (!gust) return;
+  for (const p of schildenNu()){
+    const s = windAt(p.x);
+    if (s < SCHILD.vanaf) continue;
+    const m = schildMaat(p, scale), dir = gust.dir, base = terrainH(p.x);
+    const voor = p.x - dir * m.half * SCHILD.voorkant;
+    p._stof = (p._stof || 0) + dt * SCHILD.tempo * s;
+    while (p._stof >= 1){
+      p._stof--;
+      const v = gust.speed * (0.8 + Math.random() * 0.3);
+      schildStof.push({ p, dir, v, wind: s, base,
+                        x: voor - dir * (SCHILD.aanloop[0] + Math.random() * (SCHILD.aanloop[1] - SCHILD.aanloop[0])),
+                        h: Math.pow(Math.random(), 1.5) * m.hoog * 0.55,
+                        vx: dir * v * 0.6, vh: 0, s: 0.45 + Math.random() * 0.4,
+                        a: 0.55 + Math.random() * 0.25, age: 0, life: 2.2 + Math.random() * 1.2,
+                        rot: Math.random() * 6.28, over: false });
+    }
+    p._korrel = (p._korrel || 0) + dt * SCHILD.korrels * s;
+    while (p._korrel >= 1){
+      p._korrel--;
+      grains.push({ wx: voor - dir * Math.random() * 14, base,
+                    h: Math.random() * m.hoog * CHAR_H * 0.6,
+                    vx: -dir * (30 + Math.random() * 60), vh: 30 + Math.random() * 80,
+                    r: 1.2 + Math.random() * 1.6, dark: Math.random() < 0.4,
+                    age: 0, life: 0.5 + Math.random() * 0.4 });
+    }
+  }
+}
+// een sliert of wolkje van de vlaag zelf dat laag op een schild af komt, gaat er overheen
+function schildTil(w, dt){
+  if (!level || !level.props || !gust) return;
+  const dir = Math.sign(w.vx) || 1;
+  for (const p of level.props){
+    if (!PROPS[p.kind] || !PROPS[p.kind].schild || p.far) continue;
+    const af = (p.x - w.x) * dir;
+    if (af < -60 || af > 260) continue;
+    const top = PROPS[p.kind].h * p.scale * 1.15;
+    if (w.h < top) w.h += (top - w.h) * Math.min(1, dt * 4 * (1 - Math.max(0, af) / 260));
+  }
+}
+function drawSchildStof(groundY, scale, cx){
+  if (!schildStof.length) return;
+  const img = puffPic();
+  ctx.save();
+  for (const d of schildStof){
+    const t = d.age / d.life;
+    const fade = Math.min(1, t * 5) * Math.min(1, (1 - t) * 2.5);
+    const bh = CHAR_H * scale * 0.26 * d.s;
+    const bw = imgReady(img) ? img.naturalWidth / img.naturalHeight * bh : bh * 1.4;
+    const x = cx + (d.x - world);
+    if (x + bw < -W || x - bw > W / viewZoom() + W) continue;
+    const y = groundY - (d.base + d.h * CHAR_H) * scale - bh * 0.3;
+    ctx.globalAlpha = Math.min(1, d.a * fade * (winterOn() ? 1.6 : 1));
+    ctx.save();
+    ctx.translate(x, y); ctx.rotate(d.rot + d.age * 0.8 * d.dir);
+    if (imgReady(img)) ctx.drawImage(img, -bw / 2, -bh / 2, bw, bh);
+    else { ctx.fillStyle = dustColor(); ctx.beginPath(); ctx.ellipse(0, 0, bw / 2, bh / 2, 0, 0, Math.PI * 2); ctx.fill(); }
+    ctx.restore();
+  }
+  ctx.restore();
 }
 function drawWind(groundY, scale, cx){
   ctx.save();
@@ -12987,6 +13116,7 @@ function loop(now){
   updateFosforSlangen(dt, plats, cliff);
   if (!building) updateVenom(dt, scaleNow); else { venom.length = 0; splat.length = 0; }
   if (!building) updateWind(dt); else { wind.length = 0; gust = null; }
+  if (!building) schildStofUpdate(dt, scaleNow); else schildStof.length = 0;
   updateSnowfall(dt);
   updateThickets(dt);
   updateNpcs(dt);                                // de dorpelinge hurkt en staat weer op
@@ -13369,6 +13499,7 @@ function loop(now){
       }
     }
 
+    drawSchildStof(groundY, scale, cx);            // stof dat tegen een schild aan waait
     drawVillage('mid', groundY, scale, cx);        // dorpsdecor: staat achter Amir
     drawHppotions(groundY, scale, cx);             // drinkkalebassen op de grond
     javDraw(groundY, scale, cx, 'bos');            // een speer in het struweel: het loof dekt hem af
@@ -15079,6 +15210,22 @@ function sbZegel(soort){
   cv.focus();
 }
 sandboxEl.querySelectorAll('button[data-zegel]').forEach(b => b.onclick = () => sbZegel(Number(b.dataset.zegel)));
+// een schild in het zand, aan de gekozen kant; met een windvlaag erbij zie je het stof ertegen
+// aan waaien. Wind van links waait naar rechts, dus tegen de linkerkant van het schild.
+function sbSchild(kind){
+  const side = sbFromRight ? 1 : -1;
+  let x = world + side * 380;
+  x = Math.min(x, cliffAt().wall - 300);
+  x = Math.max(x, endWall() + 300);
+  level.props.push({ x, kind, scale: 1, flip: Math.random() < 0.5, far: false, y: 0 });
+  cv.focus();
+}
+sandboxEl.querySelectorAll('button[data-schild]').forEach(b => b.onclick = () => sbSchild(b.dataset.schild));
+sandboxEl.querySelectorAll('button[data-windvlaag]').forEach(b => b.onclick = () => {
+  startGust(Number(b.dataset.windvlaag));
+  gustTimer = 9 + Math.random() * 10;             // de volgende vanzelf pas weer over een tijdje
+  cv.focus();
+});
 // een skelet met een speer erin, aan de gekozen kant; ga bij de schacht staan en druk op E.
 // Gespiegeld wijst de schacht de andere kant op. Weer overeind zet ze allemaal terug, met de schedel.
 function sbSkelet(spiegel){
