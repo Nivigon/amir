@@ -4555,60 +4555,136 @@ function javReach(){
   const eigen = (PLAYER_HALF_W + 0.18) * CHAR_H * nowScale();
   return Math.max(85, eigen) + (jav && jav.state === 'bos' ? (jav.bosHw || 0) : 0);
 }
-// Een speer achter een doornbos, of er middenin, krijg je nooit meer terug: zonder speer hak
-// je het bos niet weg, en eroverheen springen kan niet (zie THICKET). Dat gebeurt als een boog
-// over het bos heen gaat, als hij tussen de takken op de grond valt, of als hij op zijn vaste
-// plek terugkomt en daar een bos voor staat. Dan zet het spel hem naast Amir neer.
+// Een speer waar je niet meer bij komt, krijg je nooit meer terug. Dat gebeurt achter een
+// doornbos (zonder speer hak je het niet weg, en eroverheen springen kan niet, zie THICKET),
+// als hij ertussen op de grond valt, en op een terras of berg waar je net vanaf kwam en waar
+// je van deze kant niet meer op komt. Dan zet het spel hem naast Amir neer.
 //
-// Hoe ver kom je? Vanaf Amir naar beide kanten tot het eerste hele bos (een stronk houdt niets
-// tegen), en daar reik je nog javReach voorbij. Ravijnen tellen hier niet: daar spring je over,
-// of het vangnet van het ravijn regelt het al. Waar hij terugkomt wel: nooit aan de overkant
-// van een ravijn, niet in het water, niet op een ander terras, en nooit in of achter een bos.
-function speerBereik(zonder){
-  const scale = nowScale(), halfW = PLAYER_HALF_W * CHAR_H * scale, vloer = vloerBij(world, ph);
-  let lo = -Infinity, hi = Infinity;
+// Waar kom je nog? Dat rekent speerBereikbaar uit over de vloeren om je heen: de grond met
+// zijn terrassen (zonder ravijnen en zonder de doornbossen), de bodem van een gang, en de
+// keien, richels en rotsvloeren. Van de ene vloer kom je op de andere door te lopen, eraf te
+// stappen of te springen: omhoog minder dan een sprong, en opzij hoogstens zo ver als een
+// sprintsprong komt, niet over een wand die hoger is dan een sprong en niet door een doornbos.
+// Het rekent ruim (een plafond telt niet mee): twijfelt het, dan laat het de speer liggen.
+// Een speer in een muur laat het met rust, die schiet er vanzelf uit (JAV.muurT).
+const SPEER_KIJK = { stap: 20, ver: 4200, elke: 0.25 };
+let speerKijkT = 0;
+function speerVloeren(lo, hi, plats, scale){
+  const st = SPEER_KIJK.stap, uit = [];
+  const bossen = [];
   for (const t of thickets){
-    if (t === zonder || t.stage >= THICKET_HITS) continue;
-    if (t.base + t.topH <= vloer) continue;           // je staat er hoog boven: dan houdt hij je niet tegen
+    if (t.stage >= THICKET_HITS) continue;            // een stronk houdt niets tegen
     const hw = t.halfW * THICKET_BOX * scale;
-    if (t.x < world) lo = Math.max(lo, t.x + hw + halfW);
-    else hi = Math.min(hi, t.x - hw - halfW);
+    bossen.push({ l: t.x - hw, r: t.x + hw, top: t.base + t.topH });
   }
-  return { lo, hi };
+  const inBos = (x, h) => bossen.some(b => x > b.l && x < b.r && h < b.top);
+  // twee lagen grond: de gewone (in een gang de bodem) en de savanne boven een gang
+  const lagen = [x => (holteAt(x) || !inGap(x)) ? terrainH(x) : null,
+                 x => (holteAt(x) && !inGap(x)) ? 0 : null];
+  for (const laag of lagen){
+    let stuk = null;
+    for (let x = lo; x <= hi; x += st){
+      let h = laag(x);
+      if (h !== null && inBos(x, h)) h = null;
+      if (stuk && h === stuk.h){ stuk.r = x; continue; }
+      if (stuk) uit.push(stuk);
+      stuk = h === null ? null : { l: x, r: x, h };
+    }
+    if (stuk) uit.push(stuk);
+  }
+  for (const p of plats){                             // keien, richels, rotsvloeren; de terrassen zitten al in de grond
+    if (p.terrace || p.jav || p.right < lo || p.left > hi) continue;
+    uit.push({ l: p.left, r: p.right, h: p.topH, plat: true });
+  }
+  return { vloeren: uit, bossen };
 }
-function speerVrijePlek(x, vloer, lo, hi){
-  if (x < lo || x > hi) return false;                                // in of achter een bos
+function speerBereikbaar(punten, plats, scale){
+  const lo = Math.max(endWall(), world - SPEER_KIJK.ver), hi = Math.min(cliffAt().wall, world + SPEER_KIJK.ver);
+  const { vloeren, bossen } = speerVloeren(lo, hi, plats, scale);
+  const sprong = JUMP_V * JUMP_V / (2 * GRAVITY) - 4;
+  const ver = 330 * 1.5 * 2 * JUMP_V / GRAVITY + 20;   // een sprintsprong, bij elk tempo even ver
+  const halfW = PLAYER_HALF_W * CHAR_H * scale;
+  // waar staat hij nu: de hoogste vloer onder zijn voeten
+  let start = -1;
+  vloeren.forEach((v, i) => {
+    if (world + halfW >= v.l && world - halfW <= v.r && v.h <= ph + 2 && (start < 0 || v.h > vloeren[start].h)) start = i;
+  });
+  if (start < 0) return true;                         // weet het niet: niets doen
+  const kan = (a, b) => {
+    const d = Math.max(0, Math.max(a.l, b.l) - Math.min(a.r, b.r));
+    if (d > ver) return false;
+    if (b.h > a.h + 1 && b.h - a.h >= sprong) return false;
+    if (d > 0){
+      const sl = Math.min(a.r, b.r), sr = Math.max(a.l, b.l), laag = Math.min(a.h, b.h), hoog = Math.max(a.h, b.h);
+      if (bossen.some(o => o.l < sr && o.r > sl && laag < o.top)) return false;
+      for (let x = sl; x <= sr; x += SPEER_KIJK.stap)                  // een wand ertussen
+        if (!inGap(x) && terrainH(x) >= hoog + sprong) return false;
+    }
+    return true;
+  };
+  const gezien = new Set([start]), rij = [start];
+  const reik = javReach();
+  const pakt = v => punten.some(q => q.h > v.h - 30 && q.h < v.h + CHAR_H * 0.95
+                                   && q.x > v.l - reik - (v.plat ? halfW : 0) && q.x < v.r + reik + (v.plat ? halfW : 0));
+  while (rij.length){
+    const i = rij.pop();
+    if (pakt(vloeren[i])) return true;
+    for (let j = 0; j < vloeren.length; j++){
+      if (gezien.has(j) || !kan(vloeren[i], vloeren[j])) continue;
+      gezien.add(j); rij.push(j);
+    }
+  }
+  return false;
+}
+// De punten waar je hem vast kunt pakken: de schacht, zoals in spearGreep
+function speerPunten(scale){
+  if (!jav) return [{ x: spearX, h: spearRestH() }];
+  const L = javLen(scale), c = Math.cos(jav.sa), sn = Math.sin(jav.sa), uit = [];
+  for (let i = 0; i <= 8; i++){
+    const d = L * i / 8;
+    uit.push({ x: jav.x - c * d, h: jav.h + sn * d / scale });
+  }
+  return uit;
+}
+function speerVrijePlek(x, vloer){
   if (x < endWall() + 60 || x > cliffAt().wall - 60) return false;
   if (waterDepthAt(x) > 0.3 || terrainH(x) !== vloer || vloerBij(x, ph) !== vloer) return false;
   const a = Math.min(x, world) - 40, b = Math.max(x, world) + 40;
   for (const g of gapList())                                         // geen ravijn tussen hem en Amir
     if (g.x + g.w / 2 > a && g.x - g.w / 2 < b && gatOp(g.x, vloer)) return false;
+  const scale = nowScale();
+  for (const t of thickets){                                         // geen bos ertussen of eronder
+    if (t.stage >= THICKET_HITS || t.base + t.topH <= vloer) continue;
+    const hw = t.halfW * THICKET_BOX * scale;
+    if (t.x + hw > a && t.x - hw < b) return false;
+  }
+  for (let q = a; q <= b; q += 20) if (vloerBij(q, ph) > vloer + 1) return false;   // geen wand ertussen
   return true;
 }
-function speerNaastAmir(){
-  if (building || !running || dead || spearFound || spearX === null) return;
-  if (javLost > 0 || (jav && (jav.state === 'vlucht' || jav.state === 'val'))) return;
-  const bos = jav && jav.state === 'bos' ? jav.bos : null;
-  const { lo, hi } = speerBereik(bos);
-  let doel = spearX;
-  if (bos){                                    // vast in een bos: je pakt hem aan de rand ervan
-    const hw = bos.halfW * THICKET_BOX * nowScale();
-    doel = world < bos.x ? bos.x - hw : bos.x + hw;
-  }
-  const reik = javReach();
-  if (doel >= lo - reik && doel <= hi + reik) return;                // gewoon te halen
+function speerNaastAmir(dt, plats){
+  if (building || !running || dead || spearFound || spearX === null){ speerKijkT = 0; return; }
+  if (javLost > 0 || (jav && jav.state !== 'grond' && jav.state !== 'bos')) return;   // onderweg, of in een muur
+  if (!onGround) return;                             // pas kijken als hij ergens staat
+  speerKijkT += dt;
+  if (speerKijkT < SPEER_KIJK.elke) return;
+  speerKijkT = 0;
+  const scale = nowScale();
+  if (Math.abs(spearX - world) > SPEER_KIJK.ver - 200) return;   // zo ver weg: niet over oordelen
+  if (speerBereikbaar(speerPunten(scale), plats, scale)) return;
   const vloer = vloerBij(world, ph);
   const kant = spearX < world ? -1 : 1;                              // liefst aan de kant waar hij lag
   let x = null;
   for (const d of [140, 200, 260, 340, 420, 520]){
     for (const k of [kant, -kant]){
-      if (x === null && speerVrijePlek(world + k * d, vloer, lo, hi)) x = world + k * d;
+      if (x === null && speerVrijePlek(world + k * d, vloer)) x = world + k * d;
     }
   }
-  if (x === null) x = speerVrijePlek(lastSolid, vloer, lo, hi) ? lastSolid : world;   // desnoods waar hij staat
+  if (x === null) x = speerVrijePlek(lastSolid, vloer) ? lastSolid : world;   // desnoods waar hij staat
+  const bos = thickets.some(t => t.stage < THICKET_HITS && Math.abs(t.x - spearX) < 1200);
   jav = null; javLost = 0; javOver = null;
   spearX = x; spearH = null;
-  flashHint('Je speer lag achter het doornbos. Hij staat nu naast je');
+  flashHint(bos ? 'Je speer lag achter het doornbos. Hij staat nu naast je'
+                : 'Daar kwam je niet meer bij. Je speer staat nu naast je');
 }
 function javHitEnemy(){                      // hij raakt een vijand: schade, en hij valt
   jav.hit = true; jav.state = 'val'; jav.vx = 0; jav.vh = 0;
@@ -10426,7 +10502,7 @@ function loop(now){
   if (atkCooldown > 0) atkCooldown = Math.max(0, atkCooldown - dt);
   updateThrow(dt);                               // spannen, uithalen, herstellen
   javUpdate(dt, plats, scaleNow);                // en de speer die onderweg is
-  speerNaastAmir();                              // achter een doornbos krijg je hem nooit terug
+  speerNaastAmir(dt, plats);                     // achter een doornbos of boven op een berg: naast je
   muurUpdate(dt, scaleNow);                      // het rotsblok schuift, en de speer komt terug in de grond
   if (atkFrame >= 0){
     atkAcc += dt * ATK_FPS;
