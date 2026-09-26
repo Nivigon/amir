@@ -852,7 +852,7 @@ def einde(lv, sp):
     if lv.muur and not lv.ends and not lv.cliffs:
         # De rots met de rune is decor: Amir loopt erdoorheen (sinds de rots doorloopbaar is), en
         # uitspelen gaat met E voor de open deur. Zonder klif erachter loopt hij gewoon door, de
-        # lege savanne in, zonder dat er ooit nog iets komt. Gezien met de speelrobot in Bron 4.
+        # lege savanne in, zonder dat er ooit nog iets komt. Gezien met de speelrobot.
         yield letop(lv.muur['x'], 'het level eindigt bij de rots met de rune, maar daar staat geen klif achter: de rots '
                     'is decor, Amir loopt erdoorheen en daarna eindeloos door. Zet een klif een stuk achter de rots')
 
