@@ -62,7 +62,8 @@ regelnummer, want die schuiven bij elke wijziging.
 | Episode De Diepte / Episode Renew / Episode Winter World | de leveldefinities |
 | Episode De Diepte | `DIEP_1` tot en met `DIEP_5`: vijf zware levels met valschade, elk met een gang onder de grond en een trap terug naar boven, met een verhaal en een slot en de zwarte panter als eindbaas |
 | het verhaal bij een episode | `VERHAAL` en `SLOT`, `verhaalToon()`: tekst op een zwart scherm voor elk level en na het laatste, alleen als je bij het eerste level begint. Op de naam van het level, dus een nieuwe episode hoeft alleen tekst toe te voegen en `verhaalAan` te zetten in zijn speelknop |
-| Episode Test levels | `TEST_1` tot en met `TEST_8`: korte proefstukken, los van de echte episodes |
+| Episode Test levels | `TEST_1` tot en met `TEST_10`: korte proefstukken, los van de echte episodes |
+| lichtkaart: het licht onder de grond | `LK`, `drawLichtkaart`: een lichtbron (de hemel en de zon) voor alles onder de grond, per level een keer uitgerekend |
 | terrassen en richels | `terraces`, `ledges`, klimmen |
 | de rotswand rechts | `cliffs`, het einde van het level |
 | grotten: rots als een raster van cellen | `grotten`: het raster, de randen, de verstrooiing, de botsingen |
@@ -528,10 +529,72 @@ op de vloer terecht. Met `valschade: true` kost een val van 600 twee levens (van
 Laat de gang aan de kant van het ravijn wat verder doorlopen dan het gat, anders staat de wand
 onder de rand. Alles in de gang staat op de bodem, want `terrainH` geeft daar `-diep`.
 
-Het donker is schets E: een zwarte laag over het steen (alleen helderheid, geen tint), de
-looprand van de vloer lichter dan de vulling eronder, en boven het dak zakt alles weg zodra
-de camera onder het dak zit. Door het gat valt gedempt daglicht. De waarden staan in
-`HOLTE_LICHT`. `Test 4` is het proefstuk.
+Het licht onder de grond komt uit een plek: de lichtkaart (zie hieronder). De tegels van de
+gang zijn zelf maar een beetje donker gezet (`HOLTE_LICHT`), de looprand van de vloer lichter
+dan de vulling eronder. `Test 10` is het proefstuk voor het licht, `Test 4` voor de gang.
+
+### De lichtkaart: een lichtbron voor alles onder de grond
+
+Er is een lichtbron onder de grond: de hemel, met de zon als vaste richting. Voor elke cel van
+`LK.cel` bij `LK.cel` rekent `lkKolom` uit hoeveel hemel hij ziet (stralen omhoog die grond en
+rots tegenhouden, `lkZicht`) en of de zon hem raakt (`lkZon`, een smalle kegel, dus een zachte
+schaduwrand). De zon staat aan de kant waar hij in de lucht van het level staat (`zonRechts`),
+`LK.zonHoek` graden van recht boven. Daaruit volgt vanzelf wat je wilt zien: een gat is licht,
+de rand werpt een schuine schaduw van de zon af, en hoe verder de gang van een gat af loopt,
+hoe donkerder, zonder rechte streep. Vaste grond is een doorsnede: die krijgt het licht van de
+oppervlakte erboven en wordt dieper eronder donkerder (`LK.diepte`, `LK.bodem`). Lucht die zelf
+weinig hemel ziet, krijgt kaatslicht van wat eromheen ligt (`LK.kaatsR` cellen in het rond), en
+dat is warm waar de zon in de buurt iets raakt.
+
+Dit vervangt alle losse lagen die er eerst waren: de getekende lichtbundel door een gat, de
+schaduw tegen de eindwanden, het verloop in het grondpakket, `holteFilter` en `holteHelder`
+voor decor en treden, en een vervaagde donkerlaag over de rots. Die gaven elk hun eigen licht
+en dus rechte randen. Teken er dus geen nieuwe bij: een nieuw soort terrein hoeft alleen in
+`lkVastPunt` te zeggen wat vast is.
+
+Twee regels die ertoe doen:
+
+- **De zonnegloed van de lichtlaag schijnt niet door de rots.** `drawLichtlaag` telt de gloed rond
+  de zon op in schermruimte; onder de grond (`holteDiepT`) gaat die uit. Deed hij dat niet, dan lag
+  er in de gang zo'n 40 punten helderheid bovenop, en daar was het steen vlak en oranje van.
+- **Vaste grond wordt pas donker als de camera zakt.** Het plaatje met de grond (`lk.grond`)
+  krijgt `holteDiepT` als dekking: van bovenaf ziet de savanne eruit zoals altijd. Wat lucht is,
+  een gat of een gang, is altijd zo licht als het is.
+
+De kaart hangt alleen af van de vorm van het level, dus elke cel wordt een keer uitgerekend. Wat
+vast is gaat in een keer (`lkKaart`), de stralen per kolom zodra hij nodig is, en `lkVooruit`
+rekent elk beeld `LK.budget` ms vooruit, vanaf Amir naar buiten: zo is de kaart af voor je
+beneden bent. Het kaatslicht gaat met lopende sommen (`lkSom`), en de plaatjes worden eerst in
+het geheugen gezet en per beeld een keer overgezet (`lkPlaatjes`). Zonder die twee kostte het
+kaatslicht 1,2 seconde op Test 10, nu 70 ms; de hele kaart is een halve seconde, in stukjes.
+Verandert de vorm (in de sandbox) of een regelaar, dan begint hij opnieuw (`lkSleutel`).
+
+De kaart ligt na alles in de wereld (na `drawWind`), dus ook over Amir, de vijanden en het decor.
+De vier regelaars staan in de sandbox onder **Licht onder de grond** (donker, zon, kaatslicht,
+warm); elke klik laat alle vier zien, zodat je ze in `LK` kunt overnemen.
+
+**Boven het dak loopt de aarde over in steen, en dat is materiaal, geen kleur.** Het grondpakket
+boven een gang en de wand van het gat erboven zijn aarde, de gang is steen. Onderin het pakket
+wordt de wandtegel van de gang zichtbaar (`holteOvergang`, over `HOLTE_OVERGANG` eenheden), op
+precies hetzelfde ankerpunt in de wereld als de gangwand. Onder een gat ligt daardoor op de
+daklijn aan beide kanten hetzelfde steen en loopt het patroon gewoon door; naast een gat hangen
+er de tanden van het dak onder. Niet proberen de naad weg te poetsen met een tint of door kleuren
+gelijk te trekken: dat is geprobeerd, en het gaat mis zodra het uitzicht of de lichtlaag anders
+is. Meten deed het wel, en dat is de manier om een wijziging hier na te kijken: helderheid per
+rij over de naad, en geen sprong van meer dan een paar punten.
+
+De opbouw, van boven naar onder:
+
+| waar | wat |
+| --- | --- |
+| naast een gat | de vloer van de savanne, dan aarde die overloopt in steen, en dan de tanden |
+| in een gat (`holteSchacht`) | de wand van het ravijn zonder de nevel en het zwart van een afgrond, onderaan de overgang naar steen |
+| buiten de gang | dichte rots, onder het dak |
+
+Hoe licht of donker elk daarvan is, komt uit de lichtkaart. Het steen zit alleen boven een gang
+en loopt voorbij de uiteinden over `HOLTE_UITLOOP` uit. Het ravijn boven een gang houdt twee
+pixels onder het dak op, op een hele beeldpixel (`heelPx`): waar twee zachte randen op dezelfde
+lijn liggen schijnt er anders een haarlijn doorheen.
 
 Alles wat binnen `r` en `l` van een gang staat, staat op de bodem: vijanden, decor,
 kalebassen en de fakkels. Een level kan dus onder de grond eindigen; de wand van
@@ -549,8 +612,8 @@ dat zowel boven als beneden kan staan.
 
 **Terug naar boven** gaat via een tweede gat in het dak met treden erin. Een trede is een gewoon
 terras met een negatieve `h`, dus de klimstukken van de terrassen, en `drawClimb` tekent ze in
-een tweede ronde na de ravijnen (anders tekent de overkant van het gat over de bovenste heen),
-dieper donkerder (`HOLTE_LICHT.trede`, alleen helderheid). Reken zo:
+een tweede ronde na de ravijnen (anders tekent de overkant van het gat over de bovenste heen).
+Hoe licht ze zijn komt uit de lichtkaart. Reken zo:
 
 - het dak ligt op 190, dus onder het dak mogen zijn voeten niet hoger dan -441 (`-HOLTE_DAK -
   CHAR_H`). Een trede hoger dan dat moet helemaal onder het gat staan;
@@ -606,8 +669,8 @@ Wat het spel zelf regelt, zodat je er als ontwerper niet op hoeft te letten:
 
 - **Water kijkt naar de hoogte.** `waterDepthAt(x, h)` geeft 0 voor wie beneden in een gang
   staat: een poel boven een gang maakt Amir daar niet nat, traag of zwak in de sprong.
-- **Decor in een gang is donker.** Props, keien en doornbossen beneden in een gang krijgen
-  hetzelfde donker als de treden daar (`holteFilter`, alleen helderheid), anders lichten ze op.
+- **Decor in een gang is donker.** Props, keien, doornbossen en de personages beneden in een
+  gang krijgen hetzelfde licht als alles daar, want de lichtkaart ligt eroverheen.
 - **Hyena's komen op de goede hoogte.** Hyena's in een gang worden pas losgelaten als Amir zelf
   beneden is, en komen dan uit de gang aanrennen (`hyBuitenBeeld`), niet van de savanne erboven.
 - **Vijanden blijven in hun gang.** Voor wie beneden staat is de eindwand van de gang een rand
