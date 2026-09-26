@@ -357,6 +357,9 @@ class Spel:
         self.SCENES = b.const('SCENES')
         self.MUZIEK = b.const('MUZIEK')
         self.ZW_KLEUREN = b.const('ZW_KLEUREN')
+        self.TEKEN = b.const('TEKEN')                   # het speerteken: voet en hoogte per variant
+        self.SKELET = b.const('SKELET')
+        self.RAVIJN_PROEF = b.const('RAVIJN_PROEF')     # de runes die een ravijn openen, per level
         # NPCS en THICKET bevatten functieaanroepen; alleen de maten zijn nodig
         self.NPCS = {}
         for m in re.finditer(r'\n\s*(\w+):\s*\{\s*w:\s*(\d+),\s*h:\s*(\d+),\s*ground:\s*\d+,'
@@ -423,6 +426,24 @@ class Spel:
         wPx = iw / ih * hPx
         top = terrein(r['x']) + self.CHAR_H * self.PLAT['h'] * r['s'] * (1 - self.PLAT['top'] - self.PLAT['sink'])
         return (r['x'] - wPx / 2 + self.PLAT['l'] * wPx, r['x'] - wPx / 2 + self.PLAT['r'] * wPx, top)
+
+    def teken_voet(self, o):
+        """Van waar tot waar een speerteken op de grond staat, in wereld-px (tekenVoet)."""
+        V = self.TEKEN['varianten'].get(o.get('v')) or self.TEKEN['varianten']['teken']
+        u, zij = self.CHAR_H * self.scale, -1 if o.get('f') else 1
+        a, b = o['x'] + zij * V['voet'][0] * u, o['x'] + zij * V['voet'][1] * u
+        return min(a, b), max(a, b)
+
+    def teken_hoog(self, o):
+        V = self.TEKEN['varianten'].get(o.get('v')) or self.TEKEN['varianten']['teken']
+        return V['hoog'] * self.CHAR_H
+
+    def skelet_halfw(self):
+        """De halve breedte van een zittend skelet, in wereld-px (skeletHalfW)."""
+        return self.SKELET['breed'] * self.SKELET['schaal'] * self.CHAR_H * self.scale / 2
+
+    def skelet_hoog(self):
+        return self.SKELET['heel']['h'] * self.SKELET['schaal'] * self.CHAR_H
 
     def prop_halfw(self, o):
         d = self.PROPS.get(o.get('k'))
@@ -998,11 +1019,65 @@ def boven_ravijn(lv, sp):
             over = min(rr, g['x'] + g['w'] / 2) - max(l, g['x'] - g['w'] / 2)
             yield letop(r['x'], 'kei steekt %s px over de rand van het ravijn op %s (op een ander scherm meer of minder)'
                         % (n0(over), n0(g['x'])))
+    for o in lv.d.get('skeletten') or []:
+        hw = sp.skelet_halfw()
+        if isinstance(o.get('x'), (int, float)) and not lv.holte(o['x']) and lv.in_gat(o['x'] - hw, o['x'] + hw):
+            yield fout(o['x'], 'skelet staat boven een ravijn (schoonLevel schuift hem weg)')
+    for o in lv.d.get('tekens') or []:
+        if isinstance(o.get('x'), (int, float)) and not lv.holte(o['x']) and lv.in_gat(*sp.teken_voet(o)):
+            yield fout(o['x'], "speerteken '%s' staat boven een ravijn (schoonLevel schuift hem weg)"
+                       % (o.get('v') or 'teken'))
     for p in lv.d.get('hppotions') or []:
         if p.get('y') is None and lv.in_gat(p['x'] - 20, p['x'] + 20):
             yield fout(p['x'], 'kalebas op de grond, maar daar ligt een ravijn: hij is onbereikbaar')
     if lv.muur and lv.in_gat(lv.muur['x'] - 400, lv.muur['x']):
         yield fout(lv.muur['x'], 'de muur met de rune staat boven een ravijn')
+
+
+@regel('waar een ravijn openscheurt')
+def komend_ravijn(lv, sp):
+    """Waar later een ravijn openscheurt (een rune of een zegel) staat niets wat vast in de grond
+    zit: geen kei om op te springen, geen hut, geen doornbos, geen gebouw, geen skelet en geen
+    speerteken. schoonKomend schuift ze in het spel naar de rand, maar zet het meteen goed. Wat
+    los ligt (botten, kalebassen, planten, dorpelingen) mag er wel: dat valt of schuift (ravijnDecor)."""
+    komend = [(e['x'], e['breed']) for e in sp.RAVIJN_PROEF.get(lv.d.get('name'), [])]
+    for z in lv.d.get('zegels') or []:
+        r = z.get('ravijn')
+        if isinstance(r, (int, float)) and not any(abs(x - r) < 1 for x, _ in komend):
+            komend.append((r, sp.RAVIJN_BREED))
+    if not komend:
+        return
+    raakt = lambda a, b: next((x for x, w in komend if b > x - w / 2 and a < x + w / 2), None)
+    def meld(x, a, b, wat):
+        if isinstance(x, (int, float)) and not lv.holte(x):
+            g = raakt(a, b)
+            if g is not None:
+                return fout(x, '%s staat waar later een ravijn openscheurt (op %s); schoonKomend schuift hem weg'
+                            % (wat, n0(g)))
+    uit = []
+    for k in lv.rocks:
+        l, rr, _ = sp.kei(k, lv.terrein)
+        uit.append(meld(k['x'], l, rr, 'kei'))
+    for o in lv.d.get('village') or []:
+        if o.get('id') in sp.VILLAGE:
+            hw = sp.dorp_halfw(o)
+            uit.append(meld(o['x'], o['x'] - hw, o['x'] + hw, "dorpsplaat '%s'" % o['id']))
+    for t in lv.d.get('thickets') or []:
+        hw = sp.doornbos_halfw(t) * sp.THICKET_BOX
+        uit.append(meld(t.get('x'), t['x'] - hw, t['x'] + hw, 'doornbos'))
+    for o in lv.d.get('props') or []:
+        d = sp.PROPS.get(o.get('k'))
+        if d and d.get('bouwwerk'):
+            hw = sp.prop_halfw(o)
+            uit.append(meld(o['x'], o['x'] - hw, o['x'] + hw, "gebouw '%s'" % o['k']))
+    for o in lv.d.get('skeletten') or []:
+        hw = sp.skelet_halfw()
+        uit.append(meld(o.get('x'), o['x'] - hw, o['x'] + hw, 'skelet'))
+    for o in lv.d.get('tekens') or []:
+        uit.append(meld(o.get('x'), *sp.teken_voet(o), "speerteken '%s'" % (o.get('v') or 'teken')))
+    for m in uit:
+        if m:
+            yield m
 
 
 @regel('zegels')
@@ -1272,6 +1347,14 @@ def gangen(lv, sp):
         d = sp.NPCS.get(o.get('k'))
         if d and door_dak(o['x'], sp.CHAR_H * d['tall'] * (o.get('s') or 1) + (o.get('y') or 0)):
             yield fout(o['x'], "npc '%s' staat in de gang en steekt door het dak" % o['k'])
+    for o in lv.d.get('skeletten') or []:
+        if isinstance(o.get('x'), (int, float)) and door_dak(o['x'], sp.skelet_hoog()):
+            yield fout(o['x'], 'skelet op %s staat in de gang en is %s hoog: het steekt door het dak'
+                       % (n0(o['x']), n0(sp.skelet_hoog())))
+    for o in lv.d.get('tekens') or []:
+        if isinstance(o.get('x'), (int, float)) and door_dak(o['x'], sp.teken_hoog(o)):
+            yield fout(o['x'], "speerteken '%s' op %s staat in de gang en is %s hoog: de speer steekt door het dak"
+                       % (o.get('v') or 'teken', n0(o['x']), n0(sp.teken_hoog(o))))
     for t in lv.d.get('thickets') or []:
         if isinstance(t.get('x'), (int, float)) and door_dak(t['x'], sp.doornbos_hoog(t)):
             yield fout(t['x'], 'doornbos op %s staat in de gang en is %s hoog: hij steekt door het dak'

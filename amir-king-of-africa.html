@@ -684,7 +684,7 @@
 // ---- versie: welke update er live staat ----------------------------------
 // Staat heel klein linksboven in beeld, zodat je ziet of een pull request al live is. Elke pull
 // request zet hier een nieuw nummer en een naam van een paar woorden bij, zie CLAUDE.md.
-const VERSIE = { nr: '1.1', naam: 'speerteken' };
+const VERSIE = { nr: '1.2', naam: 'wat mag waar' };
 document.getElementById('versie').textContent = 'versie ' + VERSIE.nr + ': ' + VERSIE.naam;
 
 // ---- globale lichtlaag --------------------------------------------------
@@ -4543,6 +4543,7 @@ function stopSkelet(){ skeletSnd.pause(); neeSnd.pause(); }
 
 const skK = scale => SKELET.schaal * CHAR_H * scale;       // schermpixels per bronpixel
 const skZij = s => s.f ? -1 : 1;                           // gespiegeld: de speer wijst naar rechts
+const skeletHalfW = scale => SKELET.breed * skK(scale) / 2; // halve breedte in wereld-px, voor schoonLevel
 const skWereldX = (s, lx, scale) => s.x + skZij(s) * (lx - SKELET.midden) * skK(scale);
 // een punt op de speer in skeletcoordinaten: de punt, en langs de schacht (d bronpixels van de punt)
 function skSpeerPunt(hoek, d){
@@ -4979,6 +4980,9 @@ function skeletReset(){
 // zoals het gras (drawVeg). Het hangt aan dezelfde vlaag, windAt.
 //
 // Alle maten zijn in Amir (CHAR_H = 1); x in een variant is de afstand tot tekens[i].x.
+// voet: van waar tot waar het op de grond staat (de speren, het liggende stuk, de schedels en
+// botten in het zand), ongespiegeld; hoog: tot waar het reikt. Daarmee houden schoonLevel en
+// levelcheck.py het uit een ravijn en onder het dak van een gang (zie "wat mag waar" in CLAUDE.md).
 const TEKEN = {
   map: 'design/botten/speerteken/',
   speer: { lang: 1.35, in: 0.064, bron: [168, 1556] },   // van de voet tot de punt, en zoveel steekt er in de grond
@@ -4989,11 +4993,13 @@ const TEKEN = {
   varianten: {
     // de twee schedels over de punt geschoven, elk een andere kant op
     teken: {
+      voet: [-0.1, 0.1], hoog: 1.31,
       speren: [ { x: 0, schuin: -0.26, lint: { t: 0.75, kleur: 'zwart' },
                   schedels: [ { t: 0.30, flip: false, kant: 0.30 }, { t: 0.52, flip: true, kant: -0.30 } ] } ]
     },
     // afgeknapt: het bovenstuk ligt in het gras, de splinters steken door de kruin, het doek is verbleekt
     gebroken: {
+      voet: [-1.16, 0.39], hoog: 0.86,
       speren: [ { x: 0, schuin: -0.12, breuk: 0.56, lint: { t: 0.33, kleur: 'vaal' },
                   schedels: [ { t: 0.47, flip: true, kant: -0.18 } ] } ],
       ligt: { x: -0.8, t: 0.56 },
@@ -5001,6 +5007,7 @@ const TEKEN = {
     },
     // twee speren als een X, met een schedel in het kruis
     gekruist: {
+      voet: [-0.3, 0.3], hoog: 1.27,
       speren: [ { x: 0.22, schuin: -0.35, lint: { t: 0.8, kleur: 'zwart' }, schedels: [] },
                 { x: -0.22, schuin: 0.35, lint: { t: 0.8, kleur: 'zwart' }, schedels: [] } ],
       kruis: { flip: true, kant: -0.12 },
@@ -5008,6 +5015,7 @@ const TEKEN = {
     },
     // een buffelschedel vastgesjord, een jakhals aan de voet, een rood doek
     jagers: {
+      voet: [-0.37, 0.38], hoog: 1.34,
       speren: [ { x: 0, schuin: 0.1, lint: { t: 0.78, kleur: 'rood' },
                   schedels: [ { k: 'buffel', t: 0.5, flip: true, kant: 0.05, b: 0.46, sjor: true } ] } ],
       grond: [ { k: 'jakhals', x: 0.24, b: 0.27, rot: 0.08 }, { k: 'bot_kort', x: -0.27, b: 0.19, rot: -0.1 } ]
@@ -5025,6 +5033,11 @@ function tekenLaad(){
     laad(TEKEN.map + 'doek_' + kleur + '/doek_' + (i < 10 ? '0' : '') + i + '.png'));
   tkImg = { speer: laad(SKELET.map + SKELET.lagen.speer.src), schedel: laad(SKELET.map + 'delen/skelet_1_schedel.png'),
             riem: laad(TEKEN.map + 'riem.png'), doek: { zwart: doek('zwart'), vaal: doek('vaal'), rood: doek('rood') } };
+}
+// waar een teken op de grond staat, in wereld-px: het midden en de halve breedte (gespiegeld mee)
+function tekenVoet(o, scale){
+  const V = TEKEN.varianten[o.v] || TEKEN.varianten.teken, u = CHAR_H * scale, zij = o.f ? -1 : 1;
+  return { dx: zij * (V.voet[0] + V.voet[1]) / 2 * u, hw: (V.voet[1] - V.voet[0]) / 2 * u };
 }
 const tkPlaatje = k => k === 'schedel' ? tkImg.schedel : propImg[k];
 
@@ -8012,6 +8025,20 @@ function ravijnDecor(fx, dt, scale){
     if (k.x0 === undefined) k.x0 = k.x;
     k.x = opzij(k.x, hw);
   }
+  for (const o of level.skeletten || []){           // skeletten en speertekens: staan vast, dus naar de rand
+    if (onder(o.x) || o.staat === 'val' || o.staat === 'lig') continue;
+    const hw = skeletHalfW(scale);
+    if (!raakt(o.x, hw)) continue;
+    if (o.x0 === undefined) o.x0 = o.x;
+    o.x = opzij(o.x, hw);
+  }
+  for (const o of level.tekens || []){
+    if (onder(o.x)) continue;
+    const v = tekenVoet(o, scale);
+    if (!raakt(o.x + v.dx, v.hw)) continue;
+    if (o.x0 === undefined) o.x0 = o.x;
+    o.x = opzij(o.x + v.dx, v.hw) - v.dx;
+  }
   for (const o of level.village || []){             // een hut hoort er niet te staan; staat hij er toch, dan naar de rand
     const hw = villageHalfW(o, scale);
     if (!raakt(o.x, hw)) continue;
@@ -8085,7 +8112,7 @@ function ravijnDecorReset(){                        // alles weer op de plek uit
   if (!level) return;
   for (const p of level.props || []) delete p.rv;
   for (const n of level.npcs || []) delete n.rv;
-  for (const lijst of [level.rocks, level.village]) for (const o of lijst || [])
+  for (const lijst of [level.rocks, level.village, level.skeletten, level.tekens]) for (const o of lijst || [])
     if (o.x0 !== undefined){ o.x = o.x0; delete o.x0; }
 }
 // Waar in dit level later een ravijn openscheurt: de runes uit RAVIJN_PROEF, en elk zegel met
@@ -15025,14 +15052,16 @@ function schoonLevel(lv){
   const scale = schoonScale();
   // wat binnen een gang onder de grond staat, staat op de bodem ervan: een gat erboven is daar geen rand
   const inGang = x => (lv.holtes || []).some(o => x >= o.l && x <= o.r);
-  const schuif = (lijst, halfWVan, hoortErbij) => {
-    for (let i = lijst.length - 1; i >= 0; i--){
+  // midden: waar het midden van zijn voet ligt ten opzichte van o.x, als dat niet o.x zelf is
+  const schuif = (lijst, halfWVan, hoortErbij, midden) => {
+    for (let i = (lijst || []).length - 1; i >= 0; i--){
       const o = lijst[i];
       if (hoortErbij && !hoortErbij(o)) continue;
       if (inGang(o.x)) continue;
-      const nx = naastHetRavijn(o.x, halfWVan(o), lv.gaps);
+      const dx = midden ? midden(o) : 0;
+      const nx = naastHetRavijn(o.x + dx, halfWVan(o), lv.gaps);
       if (nx === null){ lijst.splice(i, 1); levelSchoon.weg++; }
-      else if (Math.abs(nx - o.x) > 0.5){ o.x = nx; levelSchoon.verplaatst++; }
+      else if (Math.abs(nx - dx - o.x) > 0.5){ o.x = nx - dx; levelSchoon.verplaatst++; }
     }
   };
   // decor: laag decor altijd, gebouwen op elke laag en op elke hoogte
@@ -15041,6 +15070,8 @@ function schoonLevel(lv){
   schuif(lv.village, o => villageHalfW(o, scale));   // hutten, put en afdak: altijd op de grond
   schuif(lv.npcs, o => npcSize(o.kind, scale).w * 0.3, o => (o.y || 0) < FAR_GAP_LIFT);
   schuif(lv.thickets, o => thicketHalfW(o, scale) * THICKET_BOX);
+  schuif(lv.skeletten, () => skeletHalfW(scale));
+  schuif(lv.tekens, o => tekenVoet(o, scale).hw, null, o => tekenVoet(o, scale).dx);
   schoonMelding();
   return lv;
 }
@@ -15049,8 +15080,9 @@ function schoonMelding(){
     console.warn('level nagekeken: ' + levelSchoon.verplaatst + ' verschoven, '
                + levelSchoon.weg + ' weggehaald (stond boven een ravijn)');
 }
-// Waar later een ravijn openscheurt (komendeRavijnen) mag geen hut, geen kei om op te springen
-// en geen doornbos staan: die gaan naar de rand ervan, net als bij een gewoon ravijn. Een
+// Waar later een ravijn openscheurt (komendeRavijnen) mag geen hut, geen kei om op te springen,
+// geen doornbos, geen skelet en geen speerteken staan: die gaan naar de rand ervan, net als bij
+// een gewoon ravijn. Een
 // dorpeling, laag decor, kalebassen en botten mogen er wel staan: die vallen of schuiven als
 // het openscheurt (ravijnDecor).
 function schoonKomend(lv){
@@ -15058,19 +15090,22 @@ function schoonKomend(lv){
   if (!komend.length) return;
   const scale = schoonScale();
   const inGang = x => (lv.holtes || []).some(o => x >= o.l && x <= o.r);
-  const schuif = (lijst, halfWVan, hoortErbij) => {
+  const schuif = (lijst, halfWVan, hoortErbij, midden) => {
     for (let i = (lijst || []).length - 1; i >= 0; i--){
       const o = lijst[i];
       if ((hoortErbij && !hoortErbij(o)) || inGang(o.x)) continue;
-      const nx = naastHetRavijn(o.x, halfWVan(o), komend);
+      const dx = midden ? midden(o) : 0;
+      const nx = naastHetRavijn(o.x + dx, halfWVan(o), komend);
       if (nx === null){ lijst.splice(i, 1); levelSchoon.weg++; }
-      else if (Math.abs(nx - o.x) > 0.5){ o.x = nx; levelSchoon.verplaatst++; }
+      else if (Math.abs(nx - dx - o.x) > 0.5){ o.x = nx - dx; levelSchoon.verplaatst++; }
     }
   };
   schuif(lv.village, o => villageHalfW(o, scale));
   schuif(lv.props, o => propHalfW(o, scale), o => !!PROPS[o.kind].bouwwerk);
   schuif(lv.rocks, o => measurePlat(o, scale).wPx / 2);
   schuif(lv.thickets, o => thicketHalfW(o, scale) * THICKET_BOX);
+  schuif(lv.skeletten, () => skeletHalfW(scale));         // vast in de grond: die vallen er niet in
+  schuif(lv.tekens, o => tekenVoet(o, scale).hw, null, o => tekenVoet(o, scale).dx);
 }
 function schoonTekst(){
   if (!levelSchoon.verplaatst && !levelSchoon.weg) return '';

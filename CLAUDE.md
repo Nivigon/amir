@@ -94,7 +94,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | voorgrond: de laag tussen de camera en Amir | `VOORGROND`, `VG_SOORT`, `drawVoorgrond`: onscherp gras, struiken, keien en een schedel vlak voor de camera; schuift sneller dan de wereld, ook verticaal, en valt onder de grond weg |
 | achtergrondlagen, uitzicht per level | `SCENE0` en `SCENES` |
 | startscherm, level maken, menu: kaartjes per level | menu en bouwer |
-| elk level nakijken op decor boven een ravijn | `schoonLevel`, draait bij elk level; `schoonKomend` en `komendeRavijnen` houden hutten, keien en doornbossen weg waar later een ravijn openscheurt (rune of zegel), en `placeProblem` in de bouwer ook |
+| elk level nakijken op decor boven een ravijn | `schoonLevel`, draait bij elk level; `schoonKomend` en `komendeRavijnen` houden hutten, keien, doornbossen, skeletten en speertekens weg waar later een ravijn openscheurt (rune of zegel), en `placeProblem` in de bouwer ook |
 | wat er staat waar een ravijn openscheurt | `RAVIJN_DECOR`, `ravijnDecor`, `ravijnDecorStap`: kalebassen, botten en dorpelingen vallen erin, planten, keien, doornbossen en de speer schuiven naar de rand of vervagen; alles in `rv` of `x0`, dus `ravijnReset` zet het terug |
 | sandbox | de vrije testmodus |
 
@@ -184,6 +184,38 @@ om. Dat is bewust buiten deze wijziging gelaten.
 `schoonLevel` kijkt elk level bij het laden na en schuift decor dat boven een ravijn
 staat naar de kant, of haalt het weg (behalve binnen een gang: daar staat het op de bodem). Reken daar niet op als ontwerper: zet het
 meteen goed.
+
+### Wat mag waar: vast, los, plant en ver
+
+Elk ding in een level valt in een van vier soorten, en de soort bepaalt wat er gebeurt bij een
+ravijn, bij een ravijn dat later openscheurt (een rune of een zegel) en in een gang.
+
+| soort | wat | boven een ravijn | waar later een ravijn openscheurt | in een gang |
+| --- | --- | --- | --- | --- |
+| vast | keien, hutten en andere props met `bouwwerk`, doornbossen, skeletten, speertekens | nooit | nooit: ze gaan naar de rand | op de bodem, en niet hoger dan de gang |
+| los | botten (`RAVIJN_DECOR.valt`), kalebassen, dorpelingen | nooit | mag: het valt erin | op de bodem |
+| plant | gras, struik, boom, schilden en ander laag decor | nooit | mag: het schuift naar de rand, of vervaagt als daar al iets staat | op de bodem, en niet hoger dan de gang |
+| ver | props met `v` die hoger staan dan `FAR_GAP_LIFT` | mag | mag | blijft boven op de savanne |
+
+Wat Amir tegenhoudt staat daar los van: een kei draagt (je springt erop), een doornbos houdt je
+tegen tot je hem kapt, en al het andere is decor waar je doorheen loopt.
+
+De soort staat niet op een plek, maar zit in vijf functies. Een nieuw ding krijgt dus eerst een
+soort, en komt dan in alle vijf:
+
+1. `schoonLevel`: schuift het uit een ravijn bij het laden (behalve ver decor);
+2. `schoonKomend`: schuift vaste dingen weg waar later een ravijn openscheurt;
+3. `ravijnDecor` en `ravijnDecorReset`: wat er gebeurt als het ravijn toch onder iets openscheurt
+   (in de sandbox), en dat een herstart het terugzet (`x0` of `rv`);
+4. `tools/levelcheck.py`: de regels `boven een ravijn`, `waar een ravijn openscheurt` en `onder de
+   grond`, met de maten uit de code;
+5. `placeProblem`, als het in de bouwer neer te zetten is. Skeletten en speertekens zijn dat nog
+   niet: die komen uit een leveldefinitie of de sandbox.
+
+Voor een speerteken staan de maten per variant in `TEKEN.varianten`: `voet` is van waar tot waar
+het op de grond staat (het liggende stuk en de schedels in het zand tellen mee, dus niet
+symmetrisch om `x`), `hoog` tot waar de speer reikt. Een teken is 0,86 tot 1,34 Amir hoog, dus
+in een gang minder diep dan zo'n 530 steekt de speer door het dak.
 
 ### Rots als een raster van cellen
 
@@ -797,7 +829,8 @@ HTML naar het voorbeeld van `menuWinter`, en die aanmelden in `buildCards`,
 ### Een vijand of prop toevoegen
 
 Tekencode en gedrag erbij, opnemen in `PROPS`, `VILLAGE` of de dierenlijst, en
-knoppen in de sandbox. Pas daarna is de vraag aan de orde of er een level bij moet.
+knoppen in de sandbox. Kies de soort (vast, los, plant of ver, zie "wat mag waar") en zet hem in
+de vijf functies die daarbij horen. Pas daarna is de vraag aan de orde of er een level bij moet.
 
 ## Sandbox
 
@@ -883,7 +916,8 @@ zelf mee rekent (`CHAR_H`, `JUMP_V`, `GRAVITY`, de loopsnelheid en de sprint, `P
 de maten van keien, klif en fakkels). Het verandert niets aan de levels, het meldt alleen.
 FOUT betekent: stuk, of tegen een regel uit dit document in. LET OP betekent: het werkt,
 maar krap, of het spel lost het stilletjes voor je op. Een nieuw level gaat pas de deur uit
-zonder FOUT. Wat het nakijkt: velden die `readLevel` niet kent, ravijnen tegen de echte
+zonder FOUT. Wat het nakijkt: velden die `readLevel` niet kent, vaste dingen waar later een ravijn
+openscheurt, ravijnen tegen de echte
 sprong (met het plafond en het water erbij), decor boven een ravijn met dezelfde maten als
 `schoonLevel`, het plafond boven keien en treden, rechtop kunnen lopen, of elke trede met
 een sprong, een richel of een kei te halen is, of de klif achter de fakkels staat, alles
