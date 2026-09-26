@@ -4340,8 +4340,9 @@ function zegelReset(){
 
 // ---- skelet met speer: trek de speer eruit en het stort in ------------------
 // Een zittend skelet met een speer dwars door de borstkas.
-// - E bij de schacht: je trekt de speer eruit (alleen met lege handen), het skelet schudt even
-//   en ploft dan in elkaar, met een wolk stof. De speer is dan de jouwe, met een blauw vaantje.
+// - E vasthouden bij de schacht: het skelet schudt steeds harder en de speer schuift eruit; na
+//   twee seconden laat hij los en ploft het in elkaar, met een wolk stof. De speer is dan de
+//   jouwe, met een blauw vaantje. Alleen met lege handen: een weggestoken speer telt ook.
 // - Een lage zwaai: het skelet valt meteen uit elkaar en de speer valt op de grond, waar hij
 //   blijft liggen tot je hem met E opraapt.
 // - Een steek of een worp tegen de schedel tikt hem eraf; hij valt, rolt een stuk en ligt stil.
@@ -4388,7 +4389,8 @@ const SKELET = {
     { n: 'schedel',           src: 'skelet_1_schedel.png',           ox: 62,  oy: 1,   w: 228, h: 225, px: 158, py: 112, dx: 176, dy: 480, a: 74 }
   ],
   val: 13 / 25,                 // in 13 frames op 25 fps ligt alles beneden
-  schud: { duur: 0.5, px: 20, hoek: 3 },     // eerst even schudden (bronpixels en graden), dan ploft het in elkaar
+  schud: { px: 20, hoek: 3 },                // zo hard schudt het op het laatst (bronpixels en graden)
+  trek: { duur: 2, uit: 150 },               // E zo lang vasthouden; de speer schuift ondertussen zoveel bronpixels naar buiten
   // Stof: eigen wolkjes, want puffWorld is voor een voetstap en na een halve seconde weg. Deze
   // groeien met de wortel van hun leeftijd, drijven omhoog en vervagen. Maten in bronpixels.
   stof: { n: 44, r: [200, 420], leven: [1.3, 2.4], op: [40, 110], opzij: 320, dicht: 0.95 },   // stofwolk.png is ijl, vandaar groot
@@ -4498,7 +4500,8 @@ function losBij(){
 function eigenSpeerNeer(){
   if (spearFound) return;
   let x = null;
-  if (jav) x = jav.x; else if (spearX !== null) x = spearX;
+  if (javLost > 0) x = javReturnX();                // in een ravijn: waar hij terug zou komen
+  else if (jav) x = jav.x; else if (spearX !== null) x = spearX;
   if (x !== null) losseSperen.push({ x, h: terrainH(x), zij: 1, soort: 'eigen', blauw: speerBlauw, wiebel: 0 });
   jav = null; javLost = 0; spearX = null; spearH = null;
 }
@@ -4524,8 +4527,6 @@ function losTeken(groundY, scale, cx){
     const w = sp.wiebel > 0 ? Math.sin(t * 38) * 0.05 * sp.wiebel / 0.5 : 0;
     const op = sp.wiebel > 0 ? Math.abs(Math.sin(t * 19)) * 6 * scale * sp.wiebel / 0.5 : 0;
     ctx.save();
-    const donker = holteFilter(sp.x, sp.h);
-    if (donker) ctx.filter = donker;
     if (sp.soort === 'skelet' && skImg && imgReady(skImg.speer)){
       ctx.translate(sx, gy - op); ctx.scale(sp.zij * k, k);
       ctx.translate(0, sp0.ligY - SKELET.grond); ctx.rotate(sp0.lig * Math.PI / 180 + w); ctx.scale(sp0.schaal, sp0.schaal);
@@ -4542,25 +4543,31 @@ function losTeken(groundY, scale, cx){
 }
 // De E boven een speer die je kunt pakken, na Amir getekend: hij staat er vaak bovenop.
 function skETeken(groundY, scale, cx){
-  const sp = losBij();
+  const sk = skeletBij();                              // E gaat eerst naar het skelet, dan alleen die E
+  const sp = sk ? null : losBij();
   if (sp){
     const lang = sp.soort === 'skelet' ? LOS_LEN / 2 * skK(scale) : javLen(scale) * 0.4;
     skE(cx + (sp.x + sp.zij * lang - world), groundY - sp.h * scale - CHAR_H * scale * 0.35, scale);
   }
-  const s = skeletBij();
+  const s = sk;
   if (s){
     const [gx, gh] = SKELET.speer.greep, k = skK(scale);
-    skE(cx + (skWereldX(s, gx, scale) - world), groundY - terrainH(s.x) * scale - (SKELET.grond - gh) * k - 40 * scale, scale);
+    skE(cx + (skWereldX(s, gx, scale) - world), groundY - terrainH(s.x) * scale - (SKELET.grond - gh) * k - 40 * scale, scale,
+        s.staat === 'trek' ? Math.min(1, s.t / SKELET.trek.duur) : 0);
   }
 }
 // de E, zoals bij je speer in de grond
-function skE(bx, y, scale){
+function skE(bx, y, scale, voortgang){
   const t = performance.now() / 1000;
   const ky = y + Math.sin(t * 4) * 4 * scale, kr = 17 * scale;
   ctx.save();
   ctx.fillStyle = 'rgba(20,14,26,0.8)'; ctx.strokeStyle = '#f2e8d5'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.roundRect ? ctx.roundRect(bx - kr, ky - kr, kr * 2, kr * 2, 4) : ctx.rect(bx - kr, ky - kr, kr * 2, kr * 2);
   ctx.fill(); ctx.stroke();
+  if (voortgang > 0){                                  // E vasthouden: een ring die volloopt
+    ctx.strokeStyle = '#ffd98a'; ctx.lineWidth = Math.max(2, 4 * scale); ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(bx, ky, kr * 1.45, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * voortgang); ctx.stroke();
+  }
   ctx.fillStyle = '#f2e8d5'; ctx.font = '800 ' + Math.round(20 * scale) + 'px Archivo, Arial, sans-serif';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('E', bx, ky + 1);
@@ -4568,14 +4575,14 @@ function skE(bx, y, scale){
 }
 
 // ---- het skelet ----
-// staat: 'speer' (zit, met de speer erin), 'schud' (de speer is eruit, het trilt), 'val'
-// (stort in), 'lig' (een hoopje botten). Los daarvan kan de schedel al los zijn (s.kop).
+// staat: 'speer' (zit, met de speer erin), 'trek' (je houdt E vast: het schudt en de speer schuift
+// eruit), 'val' (stort in), 'lig' (een hoopje botten). Los daarvan kan de schedel al los zijn (s.kop).
 function skeletBij(){
   if (!level || !level.skeletten || building) return null;
   const scale = nowScale(), reik = javReach();
   let best = null, bestD = Infinity;
   for (const s of level.skeletten){
-    if (s.staat !== 'speer') continue;
+    if (s.staat !== 'speer' && s.staat !== 'trek') continue;
     const vloer = terrainH(s.x);
     if (ph < vloer - 30 || ph > vloer + CHAR_H * 0.5) continue;
     const d = Math.abs(world - skWereldX(s, SKELET.speer.greep[0], scale));
@@ -4583,17 +4590,31 @@ function skeletBij(){
   }
   return best;
 }
-// E: de speer eruit trekken. Met een speer in je hand kan dat niet: dan wiebelt hij alleen.
+// E: de speer eruit trekken. Dat gaat door E vast te houden: het skelet schudt steeds harder en
+// de speer schuift eruit, en na SKELET.trek.duur laat hij los. Eerder loslaten of weglopen en hij
+// blijft erin. Met een speer in je hand, ook als je hem met E hebt weggestoken, kan het niet:
+// dan wiebelt hij alleen. Heb je je speer weggegooid, dan kan het wel: die blijft liggen waar hij ligt.
+let skTrek = null;
 function skeletTrek(){
   const s = skeletBij();
   if (!s) return false;
+  if (s.staat === 'trek') return true;
   if (spearFound){ s.wiebel = 0.5; playNee(); flashHint('Je hebt al een speer'); return true; }
+  s.staat = 'trek'; s.t = 0; skTrek = s;
+  flashHint('Houd E vast om de speer eruit te trekken');
+  return true;
+}
+function skeletTrekLos(){                            // E losgelaten
+  if (skTrek && skTrek.staat === 'trek'){ skTrek.staat = 'speer'; skTrek.t = 0; }
+  skTrek = null;
+}
+function skeletTrekKlaar(s, scale){                 // hij laat los: de speer is van jou, het skelet ploft in elkaar
+  skTrek = null;
   eigenSpeerNeer();                                 // je eigen speer blijft liggen waar hij lag
-  s.staat = 'schud'; s.t = 0;                       // eerst schudden; het geluid start als het valt
   spearFound = true; spear = true; setSpearLabel();
   speerBlauw = true;                                // met het blauwe vaantje van het skelet eraan
+  skeletValt(s, scale);
   flashHint('Je trekt de speer uit het skelet');
-  return true;
 }
 function skeletValt(s, scale){                      // vanaf hier ploft het in elkaar
   s.staat = 'val'; s.t = 0; s.klap = false;
@@ -4616,7 +4637,20 @@ function skeletStof(s, n, groot, van, tot){
                   vy: -rnd(S.op), r: rnd(S.r) * groot, leven: rnd(S.leven), age: 0, rot: Math.random() * 6.28 });
   }
 }
+// De werpframes zijn groot, en omkleuren kost daar tot een tiende seconde per frame. Zodra je
+// de blauwe speer hebt worden de speerframes daarom alvast gedaan, een per beeld, zodat de
+// eerste worp niet hapert.
+let vaanRij = null;
+function vaanVoorwerk(){
+  if (!speerBlauw){ vaanRij = null; return; }
+  if (!vaanRij) vaanRij = [javImg, spearImg, sets.sp.idle, ...thrImgs, ...sets.sp.idleAnim, ...sets.sp.run];
+  while (vaanRij.length){
+    const im = vaanRij.shift();
+    if (im && imgReady(im) && !vaanKopieen.has(im)){ vaanBlauw(im); return; }
+  }
+}
 function skeletUpdate(dt, scale){
+  vaanVoorwerk();
   if (losseSperen.length) for (const sp of losseSperen) sp.wiebel = Math.max(0, sp.wiebel - dt);
   if (!level || !level.skeletten || !level.skeletten.length) return;
   skeletLaad();
@@ -4631,10 +4665,13 @@ function skeletUpdate(dt, scale){
       w.x += w.vx * dt; w.y += w.vy * dt;
       w.vx *= Math.pow(0.35, dt); w.vy *= Math.pow(0.6, dt);
     }
-    if (s.staat === 'schud'){
+    if (s.staat === 'trek'){
       s.t += dt;
-      if (Math.random() < dt * 8) skeletStof(s, 1, 0.35);               // wat gruis dat eraf trilt
-      if (s.t >= SKELET.schud.duur) skeletValt(s, scale);
+      if (skeletBij() !== s || spearFound){ s.staat = 'speer'; s.t = 0; skTrek = null; }   // weggelopen
+      else {
+        if (Math.random() < dt * (3 + 10 * s.t / SKELET.trek.duur)) skeletStof(s, 1, 0.35);   // gruis dat eraf trilt
+        if (s.t >= SKELET.trek.duur) skeletTrekKlaar(s, scale);
+      }
     } else if (s.staat === 'val'){
       s.t += dt;
       if (!s.klap && s.t >= SKELET.val){                                 // de plof: alles ligt, de schedel rolt verder
@@ -4757,22 +4794,20 @@ function skeletTeken(groundY, scale, cx){
   for (const s of level.skeletten){
     const sx = cx + (s.x - world), vloer = terrainH(s.x), gy = groundY - vloer * scale;
     const zien = !(sx < -W || sx > W / viewZoom() + W);
-    const donker = holteFilter(s.x, vloer);
     // voortgang van de val, 0 tot 1 (en de naveer erboven)
     const u = s.staat === 'val' ? Math.min(1, s.t / SKELET.val) : (s.staat === 'lig' ? 1 : 0);
-    const sd = SKELET.schud, schok = s.staat === 'schud' ? Math.min(1, 0.35 + s.t / sd.duur)
-                                   : (s.wiebel > 0 ? 0.25 * s.wiebel / 0.5 : 0);
+    const sd = SKELET.schud, trek = s.staat === 'trek' ? Math.min(1, s.t / SKELET.trek.duur) : 0;
+    const schok = s.staat === 'trek' ? 0.15 + 0.85 * trek * trek : (s.wiebel > 0 ? 0.25 * s.wiebel / 0.5 : 0);
     if (zien){
       skeletSchaduw(sx, gy, SKELET.breed * k * (1 - (1 - SKELET.schaduw.stapel) * skCurve(u)));
       ctx.save();
-      if (donker) ctx.filter = donker;
       ctx.translate(sx, gy); ctx.scale(skZij(s) * k, k);
       if (schok > 0){                                  // schudden om de voeten, zodat het op de grond blijft
         ctx.translate((Math.random() - 0.5) * 2 * sd.px * schok, -Math.random() * sd.px * 0.5 * schok);
         ctx.rotate((Math.random() - 0.5) * 2 * sd.hoek * schok * Math.PI / 180);
       }
       ctx.translate(-SKELET.midden, -SKELET.grond);
-      const speerIn = s.staat === 'speer';
+      const speerIn = s.staat === 'speer' || s.staat === 'trek';
       const doek = im.doek[Math.floor(s.klok * L.doek.fps || 0) % L.doek.n];
       const speer = (img, hoek, [px, py]) => {
         ctx.save(); ctx.translate(px, py); ctx.rotate(hoek * Math.PI / 180); ctx.scale(sp.schaal, sp.schaal);
@@ -4781,7 +4816,8 @@ function skeletTeken(groundY, scale, cx){
       if (botten){
         skBotten(u, !!s.kop);
         if (speerIn && klaar(im.speer) && klaar(im.voor)){
-          const p = skSpeerPunt(sp.hoek);
+          const p = skSpeerPunt(sp.hoek), uit = SKELET.trek.uit * trek * trek;   // schuift naar buiten langs de schacht
+          p[0] += 0.866 * uit; p[1] -= 0.5 * uit;
           speer(im.speer, sp.hoek, p);
           ctx.drawImage(im.voor, 0, 0, L.voor.w, L.voor.h);   // zonder deze laag ligt de speer op het skelet
           if (klaar(doek)) speer(doek, sp.hoek, p);
@@ -4816,8 +4852,6 @@ function skeletTeken(groundY, scale, cx){
         }
         const d = skDeel('schedel');
         ctx.save();
-        const dk = holteFilter(lx, q.h);
-        if (dk) ctx.filter = dk;
         ctx.translate(kx, ky); ctx.scale(skZij(s) * k, k);
         ctx.rotate(q.hoek * Math.PI / 180);
         ctx.drawImage(im.delen.schedel, -sch.px, -sch.py, d.w, d.h);
@@ -4850,6 +4884,7 @@ function skeletReset(){
   if (level && level.skeletten) for (const s of level.skeletten){
     s.staat = 'speer'; s.t = 0; s.klok = 0; s.kop = null; s.klap = false; s.wolk = null; s.speerVal = null; s.wiebel = 0;
   }
+  skTrek = null;
   stopSkelet();
 }
 
@@ -6126,15 +6161,20 @@ function spearRestH(){ return spearH !== null ? spearH : terrainH(spearX); }
 // Amirs sprites, in de speer en in het projectiel gebakken, dus wordt het bij het tekenen
 // omgekleurd naar de tint van het doek (SKELET.vaan). Per plaatje een keer, daarna uit de cache.
 //
-// Zijn huid is ook roodbruin, en in de idle-animatie is het lint oranjer en minder verzadigd
-// dan zijn huid op sommige plekken: op kleur alleen zijn ze niet uit elkaar te houden. Daarom
-// in drie stappen:
-// 1. zeker lint: fel verzadigd rood (verzadiging boven 0,68, tint -15 tot 10 graden);
+// Zijn huid is ook roodbruin, in de idle-animatie is het lint oranje, en in de werpframes is
+// zijn huid net zo verzadigd als het lint: op tint alleen zijn ze niet uit elkaar te houden.
+// Wat wel scheidt is helderheid: het lint is fel (boven 115), zijn huid is donker (rond 85).
+// Daarom in vier stappen:
+// 1. zeker lint: fel, verzadigd, rood tot oranje (VAAN.zeker);
 // 2. alleen stukken daarvan die samenhangen (VAAN.min pixels, geschaald naar de maat van het
-//    plaatje): losse huidpixels die toevallig zo fel zijn vallen af;
-// 3. vanaf die stukken een paar pixels uitgroeien over roodachtige buren (VAAN.stap), zo komen
-//    de oranjere randen en schaduwen van het lint mee, maar komt het nooit tot in zijn gezicht.
-const VAAN = { min: 25, stap: 10, ref: 594 * 301 };   // gemeten op de frames van 594 bij 301
+//    plaatje): losse glimplekken op zijn huid vallen af;
+// 3. kleine felle stukjes vlak bij zo'n stuk horen er ook bij (VAAN.bij): het strikje om de
+//    schacht, dat door een donkere lijn van het lint gescheiden is;
+// 4. vanaf daar een paar pixels uitgroeien over roodachtige buren (VAAN.rood, VAAN.stap), zo
+//    komen de schaduwen en randen van het lint mee, maar komt het niet tot in zijn gezicht.
+// Nagekeken op alle speerframes: idle, rennen, steken, bukken, springen en de twintig van de worp.
+const VAAN = { zeker: { v: 115, s: 0.55, t: [-20, 25] }, rood: { v: 50, s: 0.3, t: [-45, 32] },
+               min: 25, bij: 12, stap: 8, ref: 594 * 301 };   // gemeten op de frames van 594 bij 301
 let speerBlauw = false;
 const vaanKopieen = new WeakMap();
 function vaanBlauw(img, aan){
@@ -6157,10 +6197,11 @@ function vaanMaak(img){
     if (p[i + 3] === 0) continue;
     const r = p[i], gr = p[i + 1], b = p[i + 2];
     const mx = Math.max(r, gr, b), mn = Math.min(r, gr, b);
-    if (mx !== r || mx < 40 || mx === mn) continue;
+    if (mx !== r || mx === mn) continue;
     const sat = (mx - mn) / mx, t = (gr - b) / (mx - mn) * 60;     // tint rond rood, in graden
-    if (sat > 0.3 && t <= 30 && t >= -30) rood[j] = 1;
-    if (mx >= 64 && sat > 0.68 && t <= 10 && t >= -15) zeker[j] = 1;
+    const Z = VAAN.zeker, R = VAAN.rood;
+    if (mx >= R.v && sat > R.s && t >= R.t[0] && t <= R.t[1]) rood[j] = 1;
+    if (mx >= Z.v && sat > Z.s && t >= Z.t[0] && t <= Z.t[1]) zeker[j] = 1;
   }
   // 2. samenhangende stukken zeker lint
   const k = Math.sqrt(n / VAAN.ref), minN = Math.max(6, Math.round(VAAN.min * k * k));
@@ -6180,20 +6221,29 @@ function vaanMaak(img){
     }
     if (stuk.length >= minN) for (const j of stuk) lint[j] = 1;
   }
-  // 3. uitgroeien over roodachtige buren
+  // 3. kleine felle stukjes vlak bij het lint: over alle pixels een paar stappen uitdijen
+  const buur = (j, x) => [x > 0 ? j - 1 : -1, x < w - 1 ? j + 1 : -1, j - w, j + w];
   let rand = [];
   for (let j = 0; j < n; j++) if (lint[j]) rand.push(j);
   if (!rand.length) return null;                      // geen lint: gewoon het origineel
+  const dicht = lint.slice();
+  let ring = rand;
+  for (let s = 0; s < Math.max(3, Math.round(VAAN.bij * k)); s++){
+    const volgende = [];
+    for (const j of ring) for (const q of buur(j, j % w)){
+      if (q < 0 || q >= n || dicht[q]) continue;
+      dicht[q] = 1; volgende.push(q);
+    }
+    ring = volgende;
+  }
+  for (let j = 0; j < n; j++) if (zeker[j] && dicht[j] && !lint[j]){ lint[j] = 1; rand.push(j); }
+  // 4. uitgroeien over roodachtige buren
   const stappen = Math.max(3, Math.round(VAAN.stap * k));
   for (let s = 0; s < stappen && rand.length; s++){
     const volgende = [];
-    for (const j of rand){
-      const x = j % w;
-      for (const q of [j - 1, j + 1, j - w, j + w]){
-        if (q < 0 || q >= n || lint[q] || !rood[q]) continue;
-        if ((q === j - 1 && x === 0) || (q === j + 1 && x === w - 1)) continue;
-        lint[q] = 1; volgende.push(q);
-      }
+    for (const j of rand) for (const q of buur(j, j % w)){
+      if (q < 0 || q >= n || lint[q] || !rood[q]) continue;
+      lint[q] = 1; volgende.push(q);
     }
     rand = volgende;
   }
@@ -6254,7 +6304,7 @@ spearBtn.onclick = () => { toggleSpear(); cv.focus(); };
 // (en daarin gaat een skelet met een speer weer voor). Zo doen ze altijd hetzelfde.
 function eDruk(){ if (!muurUitgang()) toggleSpear(); }
 // Is er iets om E voor te gebruiken? Dan staat de E-knop op de telefoon erbij.
-function eNodig(){ return spearNear() || muurVoorDeur(world) || !!skeletBij(); }
+function eNodig(){ return spearNear() || muurVoorDeur(world) || !!skeletBij() || !!losBij(); }
 
 let showBoxes = false;
 const boxBtn = document.getElementById('boxbtn');
@@ -6312,13 +6362,14 @@ addEventListener('keydown', e => {
     thrPress();                                  // vasthouden = spannen, een tik = de oude stoot
     return;
   }
-  if (e.key === 'e' || e.key === 'E'){ eDruk(); return; }
+  if (e.key === 'e' || e.key === 'E'){ if (!e.repeat) eDruk(); return; }   // vasthouden trekt aan een skelet, zie skeletTrek
   keys[e.key] = true;
   if (e.key === 'ArrowDown') e.preventDefault();
   if (MOVE.has(e.key)){ e.preventDefault(); clearTimeout(hintTimer); hintEl.classList.add('gone'); }
 });
 addEventListener('keyup', e => {
   keys[e.key] = false;
+  if (e.key === 'e' || e.key === 'E') skeletTrekLos();
   if (e.key === ' ' || e.key === 'f' || e.key === 'F'){ atkKeyHeld = false; thrRelease(false); }
 });
 
@@ -15174,6 +15225,7 @@ function releaseBtn(id, cancel){
   TOUCH.pressed.delete(id);
   const b = findBtn(id);
   if (b && b.act === 'attack'){ atkKeyHeld = false; thrRelease(!!cancel); }
+  if (b && b.act === 'spear') skeletTrekLos();          // de E-knop losgelaten: net als de toets
 }
 
 // --- de dynamische joystick --------------------------------------------------

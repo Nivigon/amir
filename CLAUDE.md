@@ -71,7 +71,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | muur unlock: de rotswand met het rune-symbool | `MUUR`: de plaat, het gat, het schuifblok, het masker en de schijf; en de grot met de kei (`MUUR_GROT`, `muurGrotSet`, `drawMuurGrot`) |
 | ravijn in de winter | `RAVIJN_WINTER`, `ravijnWandNu()`, `ravijnSneeuwRand()`: het openscheurende ravijn in een winterlevel, de wand bij het laden omgekleurd naar blauwgrijze steen (alleen kleur, per pixel op helderheid), een getekende sneeuwrand en het berijpte gras |
 | zegel in de grond: de runeschijf plat, als schakelaar | `ZEGEL`, `zegelGrond`, `zegelUpdate`, `zegelDoe`: erop stappen zet hem aan of uit, en wat hij dan doet (nu: een ravijn openen) |
-| skelet met speer | `SKELET`, `skeletTrek`, `skeletUpdate`, `skeletTeken`: E trekt de speer eruit, het skelet stort in (sheet van 30 frames op 25 fps, `sounds/skeletvalt.mp3`), daarna rolt de losse schedel weg als je ertegenaan loopt |
+| skelet met speer | `SKELET`, `skeletTrek`, `skeletUpdate`, `skeletTeken`, `skeletRaak`: E vasthouden trekt de speer eruit, het skelet stort in met de losse botten (`sounds/skeletvalt.mp3`); de schedel is daarna los decor; losse speren op de grond (`losseSperen`) en het blauwe vaantje (`vaanBlauw`) |
 | runeschijf: het losse symbool | `runeSchijf(ctx, x, y, r, {aan, spiegel})`: de houten schijf met de rune, los te hergebruiken |
 | vallen: schade bij een diepe val | hoe diep een val telt en wat hij kost |
 | schorpioen, het projectiel, spannen en werpen, de geworpen speer | de speerworp; `speerNaastAmir` zet een speer waar Amir niet meer bij komt (achter of in een doornbos, boven op een terras dat hij van deze kant niet meer op komt) naast hem, nooit over een ravijn; `speerBereikbaar` rekent dat uit over de vloeren om hem heen |
@@ -498,12 +498,18 @@ linkerbovenhoek van het skelet zelf en de grond op 754.
 - **De schedel** is na het instorten, of als hij eraf getikt is, een los ding (`s.kop`): hij valt, landt met stof,
   rolt met de hoek aan de afgelegde weg (weg gedeeld door de straal van 58) en ligt dan stil. Daarna is hij decor:
   tegenaan lopen of erop slaan doet niets.
-- Wat Amir kan: E bij de schacht trekt de speer eruit, maar alleen met lege handen (anders wiebelt hij en speelt
-  `sounds/dontneedthis.mp3`). Het skelet schudt dan (`schud`) en ploft in elkaar. Een steek of een worp tegen de schedel
+- Wat Amir kan: E **vasthouden** bij de schacht trekt de speer eruit (`skeletTrek`, `skeletTrekLos` bij het
+  loslaten van de toets of de E-knop). Het skelet schudt steeds harder, de speer schuift eruit en rond de E loopt een
+  ring vol; na `SKELET.trek.duur` (2 seconden) laat hij los en ploft het in elkaar. Eerder loslaten of weglopen en hij
+  blijft erin. Alleen met lege handen: een speer die je met E hebt weggestoken telt als in je hand (dan wiebelt hij en
+  speelt `sounds/dontneedthis.mp3`); een weggegooide speer niet, die blijft liggen waar hij ligt. Een steek of een worp tegen de schedel
   tikt die eraf (`skeletRaak`, aangeroepen vanuit de tekenlus waar ook de slangen geraakt worden). Een lage zwaai laat het
   meteen vallen, en de speer valt eruit en blijft liggen.
 - De speer uit het skelet heeft een **blauw vaantje**. Het rode lint zit in Amirs sprites gebakken en wordt bij het
-  tekenen omgekleurd (`vaanBlauw`), alleen fel verzadigd rood, zodat zijn huid blijft zoals hij is.
+  tekenen omgekleurd (`vaanBlauw`, `vaanMaak`). Op tint alleen gaat dat mis: in de idle is het lint oranje, en in de
+  werpframes is zijn huid net zo verzadigd als het lint. Wat scheidt is helderheid, samenhang en nabijheid; de stappen
+  en getallen staan bij `VAAN`. Verander je iets, kijk dan alle speerframes na, ook de twintig van de worp. De grote
+  werpframes kosten tot een tiende seconde, dus die worden vooraf gedaan zodra je de blauwe speer hebt (`vaanVoorwerk`).
 - **Losse speren** (`losseSperen`): er kan nu meer dan een speer zijn. Wat niet in je hand is en niet je eigen speer in
   de wereld, ligt daar. Pak je een andere speer terwijl de jouwe ergens ligt, dan wordt de jouwe een losse speer
   (`eigenSpeerNeer`), zodat hij niet verdwijnt.

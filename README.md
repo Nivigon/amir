@@ -405,11 +405,13 @@ grond verderop openscheurt.
 
 Een zittend skelet tegen de grond, met een speer dwars door zijn borstkas en een blauw doek dat aan de schacht wappert.
 
-- **De speer eruit trekken:** ga met lege handen bij de schacht staan en druk op E (of de speerknop). Het skelet schudt
-  even en ploft dan met een klap en een wolk stof in elkaar; de schedel rolt nog een stuk door. De speer is nu de
-  jouwe, met een blauw vaantje in plaats van het rode.
-- **Heb je al een speer,** dan kun je er geen tweede bij pakken: de speer wiebelt alleen en Amir laat weten dat hij
-  hem niet nodig heeft. Dat geldt ook voor een speer die los op de grond ligt.
+- **De speer eruit trekken:** ga met lege handen bij de schacht staan en houd E vast (of de E-knop). Het skelet schudt
+  steeds harder en de speer schuift eruit; rond de E loopt een ring vol. Na twee seconden laat hij los en ploft het
+  skelet met een klap en een wolk stof in elkaar; de schedel rolt nog een stuk door. Laat je eerder los, dan blijft hij
+  erin. De speer is nu de jouwe, met een blauw vaantje in plaats van het rode.
+- **Heb je al een speer,** ook als je hem met E hebt weggestoken, dan kun je er geen tweede bij pakken: de speer wiebelt
+  alleen en Amir laat weten dat hij hem niet nodig heeft. Dat geldt ook voor een speer die los op de grond ligt. Heb je
+  je speer weggegooid, dan kan het wel, en blijft die van jou liggen waar hij ligt.
 - **Een steek of een worp tegen de schedel** tikt hem eraf: hij valt, rolt even door en blijft liggen.
 - **Een lage zwaai** laat het skelet meteen uit elkaar vallen, en de speer valt op de grond. Daar kun je hem later met
   E oprapen.
