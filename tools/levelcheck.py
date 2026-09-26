@@ -377,6 +377,11 @@ class Spel:
         # de fakkels: zo dicht moet je erbij staan
         m = b.regex(r'Math\.abs\(world - f\.x\) < (\d+)', 'het bereik van de fakkels')
         self.EIND_BEREIK = int(m.group(1))
+        # het zegel in de grond: zijn straal, en de breedte van het ravijn dat hij opent
+        m = b.regex(r'const ZEGEL = \{\s*r: ([\d.]+)', 'de maat van het zegel')
+        self.ZEGEL_R = float(m.group(1))
+        m = b.regex(r'const RAVIJN_MAAT = \{ breed: (\d+)', 'de breedte van het open ravijn')
+        self.RAVIJN_BREED = int(m.group(1))
         # welke velden readLevel overneemt: de rest van een level wordt genegeerd
         rl = b.src[b.src.index('function readLevel'):]
         rl = blok_na(rl, rl.index('schoonLevel('))
@@ -390,6 +395,7 @@ class Spel:
         self.formaat = formaat
         self.scale = hoog * (formaat / 100) / self.CHAR_H
         self.halfW = self.PLAYER_HALF_W * self.CHAR_H * self.scale      # Amir, in wereld-px
+        self.zegelR = self.ZEGEL_R * self.CHAR_H * self.scale            # het zegel, in wereld-px
         # De sprong zoals het spel hem rekent: per beeld eerst de zwaartekracht, dan de hoogte.
         # Dat komt lager uit dan JUMP_V^2 / 2G (208): op 60 beelden per seconde 200, en op een
         # traag toestel (het spel neemt hoogstens DT_MAX per beeld) nog lager. Gemeten met de
@@ -865,7 +871,8 @@ def voorbij(lv, sp):
     if eind is None:
         return
     for veld, naam in (('spawns', 'vijand'), ('hppotions', 'kalebas'), ('rocks', 'kei'),
-                       ('tips', 'tip'), ('thickets', 'doornbos'), ('gaps', 'ravijn')):
+                       ('tips', 'tip'), ('thickets', 'doornbos'), ('gaps', 'ravijn'), ('zegels', 'zegel'),
+                       ('skeletten', 'skelet')):
         for o in lv.d.get(veld) or []:
             x = o.get('x')
             if not isinstance(x, (int, float)) or x < -50000:
@@ -996,6 +1003,30 @@ def boven_ravijn(lv, sp):
             yield fout(p['x'], 'kalebas op de grond, maar daar ligt een ravijn: hij is onbereikbaar')
     if lv.muur and lv.in_gat(lv.muur['x'] - 400, lv.muur['x']):
         yield fout(lv.muur['x'], 'de muur met de rune staat boven een ravijn')
+
+
+@regel('zegels')
+def zegels(lv, sp):
+    """Een zegel ligt plat op de grond en gaat aan als Amir erop stapt. Boven een ravijn of in
+    een gang kan dat niet, en een ravijn dat opengaat onder het zegel zelf laat hem meteen vallen."""
+    half = sp.RAVIJN_BREED / 2
+    for z in lv.d.get('zegels') or []:
+        x = z.get('x')
+        if not isinstance(x, (int, float)):
+            continue
+        if lv.in_gat(x - sp.zegelR, x + sp.zegelR):
+            yield fout(x, 'zegel boven een ravijn: daar kan Amir niet op staan')
+        if lv.holte(x):
+            yield fout(x, 'zegel boven een gang: hij wordt op de bodem getekend, maar gaat alleen aan op de savanne')
+        r = z.get('ravijn')
+        if not isinstance(r, (int, float)):
+            continue
+        if abs(r - x) < half + sp.zegelR + sp.halfW:
+            yield fout(x, 'het ravijn op %s gaat open onder het zegel zelf: wie erop stapt valt er meteen in' % n0(r))
+        if lv.in_gat(r - half, r + half):
+            yield letop(r, 'het ravijn van het zegel gaat open over een ravijn dat er al ligt')
+        if lv.holte(r):
+            yield letop(r, 'het ravijn van het zegel gaat open boven een gang: je valt dan de gang in')
 
 
 @regel('plafond')

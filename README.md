@@ -28,7 +28,7 @@ Een level kiest zelf zijn muziek. Met het veld `muziek` vraagt het om een nummer
 
 Een level kan ook de belichting bijstellen. De globale lichtlaag (een koele schaduwkant, warm licht richting de zon, en een onderkant die iets dieper wegzakt) ligt over het hele beeld heen. Met een veld `licht` in het uitzicht van een level (`SCENES`) zet je daar waarden overheen: dat is hoe de nachtlevels (Diepte 4 en 5) donker worden zonder dat er een tweede laag bij komt. Met **L** zet je de laag uit en met **,** en **.** stel je hem bij; die twee regelaars blijven gewoon van jou, ook in een level met een eigen belichting.
 
-Test levels zijn korte proefstukken: een enkel level waarin je een mechaniek los kunt bekijken, zonder gevecht en zonder lange tocht eromheen. Ze staan met opzet apart van de echte episodes, zodat daar niets aan hoeft te veranderen om iets nieuws te kunnen proberen. **Test 1: Gang, dak en klimmen** loopt in drie stukken, met één plafondlijn die er overheen loopt en op twee plekken in beeld zakt. Eerst een dak van rots over de weg heen: boven de kei ligt het net hoog genoeg om erop te springen, en een stuk verder zakt het zo ver dat je met springen niets meer haalt. Dan een trap van drie terrassen omhoog en aan de andere kant weer omlaag, met het plafond dat er schuin overheen weer uit beeld loopt. En tot slot de gang: het plafond zakt schuin naar beneden tot er ruim een lichaamslengte over is, knijpt daarna dicht tot net boven je kruin, en gaat achterin weer omhoog. Daar, in de open lucht, staan de fakkels die het level uitspelen. De definitie staat in de HTML als `TEST_1`. **Test 2: De zwaardvechters** gaat over het nieuwe type tegenstander en verder nergens over: een vlakke strook over de open vlakte, zonder ravijnen en zonder klimwerk. Eerst een losse, zodat je zijn ritme kunt leren, dan een kalebas, en daarna twee die samen op je af komen: wie jou het eerst ziet roept de ander erbij. De definitie staat in de HTML als `TEST_2`. **Test 3: De rots met de rune** gaat over de muur die je met je speer openkrijgt: een lange vlakke strook naar links met een grote rots en veel ruimte eromheen. De rots houdt je niet tegen: je loopt er gewoon doorheen, en je speer vliegt er ook doorheen. Boven de deur zit een houten schijf met een rune; alleen die vangt je speer. Raak je hem, dan blijft de speer er voorgoed in zitten en schuift het rotsblok omhoog, en staat er een zwarte deur. Ga ervoor staan en druk op E: dan is het level uitgespeeld. Ondertussen staat er steeds een nieuwe speer in de grond op de vaste plek, dus je kunt zo vaak proberen als je wilt. De definitie staat in de HTML als `TEST_3`. **Test 4: De val in de grot** begint met een stukje savanne en dan een ravijn dat te breed is om over te springen. Je laat je erin vallen en belandt in een gang onder de grond, zes meter lager. Die val kost twee levens, dus beneden ligt een kalebas. Beneden is het donker: alleen de rand van de vloer vangt nog wat licht, en door het gat boven je valt een gedempte bundel daglicht. In de gang wachten een schorpioen en een zwaardvechter. Verderop zit een tweede gat in het dak, met treden van rots erin: daarlangs klim je weer naar boven, en op de savanne staan na nog een slang de fakkels. De definitie staat in de HTML als `TEST_4`. **Test 5: De fosforslangen** gaat over een nieuw soort slang: de fosforslang, donker mosgroen met geelgroene zadels en ogen die pulseren, een slag kleiner dan een gewone slang. Ze komen altijd met z'n drieën. Tot je in beeld komt kronkelen ze om elkaar heen; zien ze je, dan staan ze ineens stil, en even later komen ze snel op je af en bijten ze kort na elkaar. Eentje is gewoon te verslaan, met een steek of een lage zwaai, maar een zwaai raakt er maar één tegelijk. Twee lukt alleen met heel goede timing, drie niet. Hoe je ze dan wel verslaat zegt het level met opzet niet, dat mag je zelf uitzoeken. Je kunt er niet doodgaan, dus probeer maar wat. Hun beet kost normaal een half leven, en dat zie je dan als een half hartje. In de sandbox staan ze onder **3 fosforslangen**. De definitie staat in de HTML als `TEST_5`. **Test 6: Ravijn test** is een kort, vlak stuk savanne zonder vijanden, voor het ravijn dat openscheurt. Pak je speer op en loop door tot je een hoge, scheve rots ziet met op zijn flank een houten schijf met een rune. Gooi je speer ertegen: dat lukt met een gewone worp, en mis je, dan blijft hij in het steen steken. Raak je de rune, dan licht hij op en blijft je speer erin steken, en vlak achter de rots begint de grond te trillen, kruipt er een barst naar beneden, is het even stil en scheurt het ravijn open met een dreun en een wolk stof. Door het gat zie je de achtergrond van het level, net als bij een gewoon ravijn, en op een telefoon heeft het ravijn dezelfde maat ten opzichte van Amir als op een groot scherm, met minder stof. Je speer trek je er met E weer uit. Zolang de grond trilt en de barst loopt, kun je er nog overheen; is het ravijn open, dan val je erin, en ook als je er precies op stond. Er ligt hier niets onder, dus dat is dodelijk. Met een sprintsprong haal je de overkant. Vijanden stoppen aan de rand van het open ravijn, en wie op de plek stond toen het openging valt erin. Toets O laat het ravijn ook openscheuren zonder speer, om te testen; in andere levels scheurt de grond dan open waar je staat. De definitie staat in de HTML als `TEST_6`. **Test 10: Licht onder de grond** is een korte gang zonder vijanden, om het licht te bekijken: je valt door een brede ingang, loopt onder een smal gat in het dak door waar alleen licht doorheen valt, en klimt via een trap in een derde gat weer naar boven. De definitie staat in de HTML als `TEST_10`.
+Test levels zijn korte proefstukken: een enkel level waarin je een mechaniek los kunt bekijken, zonder gevecht en zonder lange tocht eromheen. Ze staan met opzet apart van de echte episodes, zodat daar niets aan hoeft te veranderen om iets nieuws te kunnen proberen. **Test 1: Gang, dak en klimmen** loopt in drie stukken, met één plafondlijn die er overheen loopt en op twee plekken in beeld zakt. Eerst een dak van rots over de weg heen: boven de kei ligt het net hoog genoeg om erop te springen, en een stuk verder zakt het zo ver dat je met springen niets meer haalt. Dan een trap van drie terrassen omhoog en aan de andere kant weer omlaag, met het plafond dat er schuin overheen weer uit beeld loopt. En tot slot de gang: het plafond zakt schuin naar beneden tot er ruim een lichaamslengte over is, knijpt daarna dicht tot net boven je kruin, en gaat achterin weer omhoog. Daar, in de open lucht, staan de fakkels die het level uitspelen. De definitie staat in de HTML als `TEST_1`. **Test 2: De zwaardvechters** gaat over het nieuwe type tegenstander en verder nergens over: een vlakke strook over de open vlakte, zonder ravijnen en zonder klimwerk. Eerst een losse, zodat je zijn ritme kunt leren, dan een kalebas, en daarna twee die samen op je af komen: wie jou het eerst ziet roept de ander erbij. De definitie staat in de HTML als `TEST_2`. **Test 3: De rots met de rune** gaat over de rots die je met je speer openkrijgt: een lange vlakke strook naar links met een rotsboog en veel ruimte eromheen. In de boog zit een grot, en daarvoor een grote kei. De rots houdt je niet tegen: je loopt er gewoon doorheen. Op de linkerpoot van de boog zit een houten schijf met een rune. Raak je hem met de boogworp, dan blijft de speer er voorgoed in zitten, trilt de kei, en zakt hij met een wolk stof de grond in tot alleen zijn bovenkant nog als drempel in de vloer ligt. Ga voor de grot staan en druk op E: dan is het level uitgespeeld. Ondertussen staat er steeds een nieuwe speer in de grond op de vaste plek, dus je kunt zo vaak proberen als je wilt. De definitie staat in de HTML als `TEST_3`. **Test 4: De val in de grot** begint met een stukje savanne en dan een ravijn dat te breed is om over te springen. Je laat je erin vallen en belandt in een gang onder de grond, zes meter lager. Die val kost twee levens, dus beneden ligt een kalebas. Beneden is het donker: alleen de rand van de vloer vangt nog wat licht, en door het gat boven je valt een gedempte bundel daglicht. In de gang wachten een schorpioen en een zwaardvechter. Verderop zit een tweede gat in het dak, met treden van rots erin: daarlangs klim je weer naar boven, en op de savanne staan na nog een slang de fakkels. De definitie staat in de HTML als `TEST_4`. **Test 5: De fosforslangen** gaat over een nieuw soort slang: de fosforslang, donker mosgroen met geelgroene zadels en ogen die pulseren, een slag kleiner dan een gewone slang. Ze komen altijd met z'n drieën. Tot je in beeld komt kronkelen ze om elkaar heen; zien ze je, dan staan ze ineens stil, en even later komen ze snel op je af en bijten ze kort na elkaar. Eentje is gewoon te verslaan, met een steek of een lage zwaai, maar een zwaai raakt er maar één tegelijk. Twee lukt alleen met heel goede timing, drie niet. Hoe je ze dan wel verslaat zegt het level met opzet niet, dat mag je zelf uitzoeken. Je kunt er niet doodgaan, dus probeer maar wat. Hun beet kost normaal een half leven, en dat zie je dan als een half hartje. In de sandbox staan ze onder **3 fosforslangen**. De definitie staat in de HTML als `TEST_5`. **Test 6: Ravijn test** is een kort, vlak stuk savanne zonder vijanden, voor het ravijn dat openscheurt. Pak je speer op en loop door tot je een hoge, scheve rots ziet met op zijn flank een houten schijf met een rune. Gooi je speer ertegen: dat lukt met een gewone worp, en mis je, dan blijft hij in het steen steken. Raak je de rune, dan licht hij op en blijft je speer erin steken, en vlak achter de rots begint de grond te trillen, kruipt er een barst naar beneden, is het even stil en scheurt het ravijn open met een dreun en een wolk stof. Door het gat zie je de achtergrond van het level, net als bij een gewoon ravijn, en de rand van de overkant ligt even hoog als de grond waar Amir staat. Op die rand staat gras van het spel, dat meebuigt met de wind: kleiner dan het gras vooraan, iets in de kleur van de vlakte en met de voet achter de rand, zodat het op afstand staat. Het ingebakken gras uit de wandplaat is eruit, zodat een breed ravijn geen halve bosjes meer laat zien. In de winterlevels is de wand blauwgrijze steen, zoals de gewone ravijnen daar, ligt er sneeuw op de rand van de overkant met hier en daar een kale plek, en staat er berijpt gras dat net als het andere gras in de sneeuw stilstaat. Op een telefoon heeft het ravijn dezelfde maat ten opzichte van Amir als op een groot scherm, met minder stof. Je speer trek je er met E weer uit. Zolang de grond trilt en de barst loopt, kun je er nog overheen; is het ravijn open, dan val je erin, en ook als je er precies op stond. Er ligt hier niets onder, dus dat is dodelijk. Met een sprintsprong haal je de overkant. Vijanden stoppen aan de rand van het open ravijn, en wie op de plek stond toen het openging valt erin. Toets O laat het ravijn ook openscheuren zonder speer, om te testen; in andere levels scheurt de grond dan open waar je staat. De definitie staat in de HTML als `TEST_6`. **Test 7: Werpen op gevoel** is het proefstuk voor de schaalworp (zie de speerworp hieronder): hoe langer je vasthoudt, hoe hoger en verder. Vier plekken, elk met een andere afstand of hoogte. Eerst een slang achter een kei, die er niet overheen kan: je gooit hem vanaf de kei, en een vlakke worp blijft in de kei steken. Dan een zwarte slang aan de overkant van een ravijn, die je eraf gooit voor je springt. Dan twee slangen achter een kei, de een dichtbij en de ander ver, dus twee hoeken na elkaar. En tot slot de rots met de rune zoals Test 3 hem eerst had, die hoog zit: daar is een hoge worp voor nodig. Staat de deur open, ga ervoor staan en druk op E. Je kunt hier niet doodgaan, dus een misser kost alleen tijd. De definitie staat in de HTML als `TEST_7`. **Test 8: Zegel test** gaat over het zegel in de grond: dezelfde houten schijf met de rune, maar plat in de savanne, in een ring van stenen. Het eerste zegel doet niets anders dan oplichten als je erop stapt en weer uitgaan als je er opnieuw op stapt, zodat je dat los kunt proberen. Het tweede scheurt de grond een stuk verderop open, precies zoals de rune in Test 6. Met een sprintsprong haal je de overkant. De definitie staat in de HTML als `TEST_8`. **Test 9: Brede ravijnen** laat zien dat het openscheurende ravijn op elke breedte werkt. Er staan drie rotsen met een rune, elk vlak voor zijn eigen ravijn: een gewoon, een dubbel en een driedubbel. Raak je een rune, dan scheurt dat ravijn open; hoe breder, hoe langer het barsten en openen duurt. Het gewone haal je open nog met een sprintsprong, het dubbele niet: daarvoor ligt er een zegel in de grond. Stap erop als het dubbele open is, dan licht het zegel op en gaat het ravijn weer dicht, en kun je door naar het driedubbele. In de sandbox staat zo'n zegel onder Zegel, Die het ravijn sluit. Is een ravijn weer dicht, dan gaan de rune en het zegel uit en kun je het opnieuw openen en opnieuw sluiten. Je kunt een rune ook raken als hij al aan is: de speer blijft er dan gewoon in hangen. De definitie staat in de HTML als `TEST_9`. **Test 10: Licht onder de grond** is een korte gang zonder vijanden, om het licht te bekijken: je valt door een brede ingang, loopt onder een smal gat in het dak door waar alleen licht doorheen valt, en klimt via een trap in een derde gat weer naar boven. De definitie staat in de HTML als `TEST_10`.
 
 In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen naar het volgende level van dezelfde reeks. Onder **Instellingen** staan daar ook het tempo van het spel, het looptempo van Amir, het formaat van het beeld en de muziek. Tijdens een level is het speelveld verder leeg: de testbalk met schuifjes staat alleen in de bouwer en de sandbox (met B haal je hem er tijdens het spelen alsnog bij).
 
@@ -95,6 +95,7 @@ De versie in `offline-assets.json` verandert mee, en de service worker ziet daar
 | **speer in een boog** | **langer vasthouden, dan loslaten** | **langer vasthouden, dan loslaten** |
 | worp afbreken | tik in plaats van vasthouden | duim van ✦ af slepen en daar loslaten |
 | speer oppakken | E, waar je ook langs de schacht staat | E (verschijnt als je er vlakbij staat) |
+| door een open deur of grot | E, als je ervoor staat | E (verschijnt als je ervoor staat) |
 | drinken | Q | het kalebasje |
 
 ### De speerworp
@@ -117,6 +118,23 @@ geen verdragende worp. Vlak komt ongeveer 0,8 scherm verderop neer, de boog
 piekt bijna drie keer Amirs lengte en landt rond 1,6 scherm. Lang vasthouden is
 daarmee niet gewoon beter, want de boog zeilt over alles heen wat dichtbij
 staat en je staat er een halve seconde langer kwetsbaar voor stil.
+
+#### De schaalworp (proef)
+
+Er is een tweede manier van werpen, voor wie meer zelf wil kiezen. In plaats van
+twee vaste worpen loopt de hoek op zolang je vasthoudt. Hij trekt eerst helemaal
+uit en legt de speer vlak; laat je dan los, dan gooit hij vlak. Blijf je
+vasthouden, dan tilt hij de punt langzaam op, tot 30 graden in een halve seconde
+(eerst langzaam, dan sneller, zodat je de lage hoeken fijn kunt kiezen). Daar
+blijft hij staan, met een glinstering op de punt. Hoe hoger, hoe minder kracht,
+net als bij de boog: tot 30 graden komt de speer steeds verder, van ongeveer 6,5
+tot 14 keer Amirs lengte, en de volle 30 graden is precies de boog van hierboven.
+
+Een vaag streepje voor de speerpunt wijst de hoek aan, niet de landing: waar hij
+neerkomt moet je zelf leren inschatten. Een tik blijft de stoot.
+
+Probeer het in **Test 7: Werpen op gevoel**, of zet het in de sandbox aan met de
+knop **Worp** onder "Speerworp". In de episodes werp je nog in twee trappen.
 
 Amir staat vast zolang hij spant en werpt: niet lopen, niet springen, en de hele
 animatie is kwetsbaar. Tot en met frame 6 kan de worp nog afgebroken worden en
@@ -145,8 +163,9 @@ meteen naast je in de grond. Nooit aan de overkant van een ravijn, niet in het w
 niet op een ander terras. Blijft hij in een wand steken, dan wacht het spel gewoon tot
 hij er vanzelf uit schiet.
 
-Een speer in een muur wrikt zichzelf na twaalf seconden los en valt langs de
-wand naar beneden. De laatste anderhalve seconde trilt hij, dus je ziet het
+Een speer blijft alleen zitten in de grond en in een houten runeschijf. In een
+wand, een kei of de rand van het level wrikt hij zichzelf na vier seconden los
+en valt hij naar beneden. De laatste seconde trilt hij, dus je ziet het
 aankomen. Sta je erop, dan houdt hij het: de klok loopt alleen als je er niet
 op staat, en hij gaat verder waar hij was zodra je eraf stapt. Zo blijft een
 speer die te hoog in een steile wand terechtkomt nooit hangen waar je niet bij
@@ -353,6 +372,55 @@ Je raakt de schijf alleen door er precies overheen te scheren, en dat lukt maar 
 pixels breed. Sta je dichter bij de deur, dan gaat de speer eronderdoor tegen de wand; sta je verder weg, dan zakt hij al
 voor de rots. Springen en steken halen de schijf niet, en met de vlakke worp kom je er ook niet bij: alleen de volle boog
 gaat eroverheen, dus je moet de werpknop helemaal uittrekken en goed kijken waar je staat.
+
+### De grot met de kei
+
+In Test 3 staat een tweede soort: geen rots met een deur erin, maar een rotsboog met een grot, en voor de ingang een
+grote kei die hem helemaal afsluit. De houten schijf met de rune zit op de linkerpoot van de boog, naast de kei. Raak je
+hem met de boogworp, dan licht de rune op, trilt de kei even, valt er gruis van de boog, en zakt de kei de grond in.
+Langs zijn voet komt stof op dat opstijgt en uitwaait, en in de grotmond blijft een waas hangen die daarna zakt. De
+bovenkant van de kei blijft als drempel in de vloer liggen. Ga voor de grot staan en druk op E.
+
+Alles wat je ziet komt uit geschilderde platen: de rotsboog, de kei en het stof. Alleen het donker in de grot is erbij
+gezet, en dat volgt precies de geschilderde rand van de boog.
+
+De schijf hangt twee keer Amirs lengte hoog, zo dat je hem raakt van een plek waar hij nog in beeld staat: op een scherm
+van 1280 bij 720 van ongeveer 465 tot 620 pixels ervoor. Sta je voor de rots of onder de boog, dan gooi je er gewoon
+langs; mis je, dan blijft je speer pas steken waar hij van buitenaf het steen in vliegt.
+
+## Het zegel in de grond
+
+Een houten schijf met een rune, plat in de grond, in een ring van platte stenen met wat zand over de voorste. Stap je
+erop, dan licht de rune op en gloeit het hout warm; stap je er later nog eens op, dan gaat hij weer uit. Eraf stappen doet
+niets, dus wie blijft staan zet hem maar een keer om. Opgesprongen telt niet: je voeten moeten op de grond staan.
+
+Een zegel is een schakelaar: wat er gebeurt als hij aangaat, zet een level erbij. Nu kan hij de grond openscheuren, met
+hetzelfde ravijn als in Test 6: `zegels: [ {x: -900, ravijn: -1350} ]`. Dat gebeurt een keer per potje; zet je hem weer
+uit, dan blijft het gat open. Zonder `ravijn` licht hij alleen op.
+
+In de sandbox staat hij onder **Zegel**: **Neerzetten** legt er een voor je neer, **Met ravijn erachter** een die de
+grond verderop openscheurt.
+
+## Het skelet met de speer
+
+Een zittend skelet tegen de grond, met een speer dwars door zijn borstkas en een blauw doek dat aan de schacht wappert.
+
+- **De speer eruit trekken:** ga met lege handen bij de schacht staan en druk op E (of de speerknop). Het skelet schudt
+  even en ploft dan met een klap en een wolk stof in elkaar; de schedel rolt nog een stuk door. De speer is nu de
+  jouwe, met een blauw vaantje in plaats van het rode.
+- **Heb je al een speer,** dan kun je er geen tweede bij pakken: de speer wiebelt alleen en Amir laat weten dat hij
+  hem niet nodig heeft. Dat geldt ook voor een speer die los op de grond ligt.
+- **Een steek of een worp tegen de schedel** tikt hem eraf: hij valt, rolt even door en blijft liggen.
+- **Een lage zwaai** laat het skelet meteen uit elkaar vallen, en de speer valt op de grond. Daar kun je hem later met
+  E oprapen.
+- De schedel is daarna gewoon decor: tegenaan lopen of erop slaan doet niets.
+
+Pak je een speer terwijl die van jou ergens anders ligt, dan blijft de jouwe daar liggen.
+
+Een level zet hem neer met `skeletten: [ {x: -900} ]`, met `f: true` wijst de schacht de andere kant op. Nog geen level
+gebruikt hem. In de sandbox staat hij onder het tabblad **Decor**, bij **Skelet**: **Met speer**, **Gespiegeld**,
+**Weer overeind** zet ze allemaal terug, en **Speer neerleggen** legt jouw speer naast je neer, zodat je met lege
+handen een skelet kunt leegtrekken.
 
 ## Vallen doet pijn
 

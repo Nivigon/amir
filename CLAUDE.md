@@ -62,13 +62,16 @@ regelnummer, want die schuiven bij elke wijziging.
 | Episode De Diepte / Episode Renew / Episode Winter World | de leveldefinities |
 | Episode De Diepte | `DIEP_1` tot en met `DIEP_5`: vijf zware levels met valschade, elk met een gang onder de grond en een trap terug naar boven, met een verhaal en een slot en de zwarte panter als eindbaas |
 | het verhaal bij een episode | `VERHAAL` en `SLOT`, `verhaalToon()`: tekst op een zwart scherm voor elk level en na het laatste, alleen als je bij het eerste level begint. Op de naam van het level, dus een nieuwe episode hoeft alleen tekst toe te voegen en `verhaalAan` te zetten in zijn speelknop |
-| Episode Test levels | `TEST_1`: korte proefstukken, los van de echte episodes |
+| Episode Test levels | `TEST_1` tot en met `TEST_10`: korte proefstukken, los van de echte episodes |
 | lichtkaart: het licht onder de grond | `LK`, `drawLichtkaart`: een lichtbron (de hemel en de zon) voor alles onder de grond, per level een keer uitgerekend |
 | terrassen en richels | `terraces`, `ledges`, klimmen |
 | de rotswand rechts | `cliffs`, het einde van het level |
 | grotten: rots als een raster van cellen | `grotten`: het raster, de randen, de verstrooiing, de botsingen |
 | plafond: de rots boven je, als hoogtelijn | `plafond`: de lijn, de vulling, de band, de losse blokken |
-| muur unlock: de rotswand met het rune-symbool | `MUUR`: de plaat, het gat, het schuifblok, het masker en de schijf |
+| muur unlock: de rotswand met het rune-symbool | `MUUR`: de plaat, het gat, het schuifblok, het masker en de schijf; en de grot met de kei (`MUUR_GROT`, `muurGrotSet`, `drawMuurGrot`) |
+| ravijn in de winter | `RAVIJN_WINTER`, `ravijnWandNu()`, `ravijnSneeuwRand()`: het openscheurende ravijn in een winterlevel, de wand bij het laden omgekleurd naar blauwgrijze steen (alleen kleur, per pixel op helderheid), een getekende sneeuwrand en het berijpte gras |
+| zegel in de grond: de runeschijf plat, als schakelaar | `ZEGEL`, `zegelGrond`, `zegelUpdate`, `zegelDoe`: erop stappen zet hem aan of uit, en wat hij dan doet (nu: een ravijn openen) |
+| skelet met speer | `SKELET`, `skeletTrek`, `skeletUpdate`, `skeletTeken`: E trekt de speer eruit, het skelet stort in (sheet van 30 frames op 25 fps, `sounds/skeletvalt.mp3`), daarna rolt de losse schedel weg als je ertegenaan loopt |
 | runeschijf: het losse symbool | `runeSchijf(ctx, x, y, r, {aan, spiegel})`: de houten schijf met de rune, los te hergebruiken |
 | vallen: schade bij een diepe val | hoe diep een val telt en wat hij kost |
 | schorpioen, het projectiel, spannen en werpen, de geworpen speer | de speerworp; `speerNaastAmir` zet een speer waar Amir niet meer bij komt (achter of in een doornbos, boven op een terras dat hij van deze kant niet meer op komt) naast hem, nooit over een ravijn; `speerBereikbaar` rekent dat uit over de vloeren om hem heen |
@@ -104,6 +107,7 @@ precies hetzelfde formaat naar JSON.
 | `winter` | `true` zet het hele level in de sneeuw (witte dieren, sneeuwversies van het decor) |
 | `sneeuw` | sneeuw op de grond, los van `winter`: `{soort, dek, van, tot}` (zie hieronder) |
 | `valschade` | `true` laat een diepe val een of twee levens kosten (standaard uit) |
+| `worp` | `'schaal'` zet de schaalworp aan: de hoek loopt op zolang je vasthoudt, van vlak tot 30 graden (`THR_HOEK_MAX`); zonder dit veld de twee trappen. In de sandbox de knop Worp onder Speerworp |
 | `rocks` | keien om op te springen: `{x, s}` |
 | `spawns` | vijanden: `{x, k}` met `k` = `groen`, `zwart`, `scorp`, `hyenas`, `panter`, `zwaard` (met `c`), `fosfor`; een panter met `over: true` mag over keien en ravijnen (zie regel 7) |
 | `props` | decor: `{x, k, s, f, v}`, `k` uit `PROPS`, `f` spiegelen, `v` verre laag |
@@ -116,8 +120,10 @@ precies hetzelfde formaat naar JSON.
 | `ledges` | richels aan een wand: `{x, h, s}` |
 | `grotten` | rotsgebieden als raster: `{x, cel, y, grid, ...}` (zie hieronder) |
 | `plafond` | de rots boven je als hoogtelijn: `[{x, y}, ...]` (zie hieronder) |
-| `muur` | de rotswand met het rune-symbool: `{x, speer}` (zie hieronder) |
+| `muur` | de rotswand met het rune-symbool: `{x, speer}`, of met `soort: 'grot'` de rotsboog met de kei (zie hieronder) |
 | `hppotions` | drinkkalebassen: `{x, y}` |
+| `skeletten` | een zittend skelet met een speer erin: `{x, f}`, `x` is het midden van het skelet, `f` spiegelt; E bij de schacht trekt hem eruit (zie hieronder) |
+| `zegels` | zegels plat in de grond: `{x, ravijn, sluit}`; erop stappen zet hem aan of uit, en met `ravijn` scheurt de grond daar open als hij aangaat. Met `sluit` gaat het open ravijn op die x juist weer dicht (staat er niets open, dan blijft hij donker) |
 | `fg` | strook waarover de voorgrondbegroeiing ligt: `{from, to}` |
 | `arena` | het veld van de eindbaas: `{c}` |
 | `cliffs` | de afsluitende rotswand: `{x}`, staat altijd achter `ends` |
@@ -373,6 +379,10 @@ klein bleef, schoof de opening diep de rots in, en was de rune vanaf geen enkele
 raken. Aan Amir gekoppeld ligt alles op elk scherm hetzelfde. `hoog` en `breed` zijn alleen nog
 een vangnet voor het geval hij niet past.
 
+Rotsformaties krijgen voortaan deze maat: 3,5 keer Amir hoog, even groot als deze rots in
+Test 3. Zo staat ook de scheve spits met de rune bij het openscheurende ravijn in Test 6
+(`RAVIJN_ROTS`).
+
 Omklappen kan met `spiegel`, maar staat uit, en dat is gemeten. Gespiegeld wijst de hoge flank
 met de overhang naar Amir en komt de opening onder dat hoge steen te liggen. De schijf hangt
 altijd net onder de bovenrand van de rots, dus daar hangt hij hoog, en een hoge schijf betekent
@@ -440,11 +450,69 @@ schaalt mee met de rots, en dan staan er sprieten van een meter hoog zodra hij g
 voor. Er is nog een tweede strook op ruim tweeduizend pixels, maar daar staat de rots buiten
 beeld, dus die telt niet mee.
 
+**De grot met de kei** is een tweede soort muur: `muur: {x, speer, soort: 'grot'}` (nu alleen Test
+3). Instellingen in `MUUR_GROT`, de canvassen in `muurGrotSet`, tekenen in `drawMuurGrot`. De rots is
+de geschilderde boog `design/rotswand_boog.jpg`, met het wit eruit via `witKnip` (dezelfde functie
+als de rots bij het ravijn); het donker in de grot is een vulling vanuit de voet van de boog, dus het
+volgt de geschilderde rand. Voor de ingang staat `PROPS.boulder`, zo groot dat hij de grot dekt. Bij
+een treffer trilt hij, zakt hij de grond in en blijft zijn bovenkant als drempel liggen (`kei.blijf`),
+met stof (`puffPic()`) en gruis dat van de boog valt, allemaal op `muurKlok`. Zet hier geen gegumde
+opening in: een getekend gat in een geschilderde rots blijft computertekenwerk, en daar is dit de
+vervanger van. `muurSet` geeft voor de grot dezelfde velden terug (`l`, `r`, `t`, `b`, `symX`, `symY`,
+`alfa`), dus de E voor de deur, de speer in de schijf en `muur.speer` werken gewoon door.
+
+De schijf staat op `sym.hoog` 2,0 Amir, op de linkerpoot (`sym.u`). Dat is gemeten, niet gekozen: met
+de huidige boogworp raak je hem op een scherm van 1280 bij 720 van 465 tot 770 pixels, waarvan 465 tot
+620 met de schijf in beeld (de camera staat op Amir, dus je ziet 640 naar links). Op 2,28, de hoogte van
+de kale rots, begint de strook pas op 590 en valt er bijna niets meer in beeld. Op 1440 bij 620 is het
+400 tot 660, op 1920 bij 1080 690 tot 1155, op een telefoon van 844 bij 390 250 tot 420. Hoe lager de
+schijf, hoe dichterbij: de boog stijgt nog als hij bij de schijf is.
+
+Een speer blijft bij de grot pas in het steen steken als hij er van buitenaf in vliegt (`jav.buiten` in
+`muurSteen`). Amir staat hier vaak voor de rots, onder de boog of voor de kei, en dan vertrekt de speer
+al in het steen: met de gewone regel bleef hij er na een paar pixels in steken en was de schijf van
+dichtbij niet te halen. Zolang de kei staat vangt die ook een speer (`keiAlfa`).
+
+Let op: de getallen hierboven voor de kale rots (94 tot 235 pixels) kloppen niet meer met de huidige
+worp. Met dezelfde meting raak je de schijf in Diepte 3 van 590 tot 1005 pixels.
+
 Het geluid zit in `SFX_DEUR` (`sounds/deuropen.mp3`) en speelt af op het moment van de treffer.
 De opname duurt 42 seconden en staat van begin tot eind even hard, terwijl het blok maar een
 halve seconde schuift, dus er wordt alleen de kop van gebruikt: vol tot `duur`, dan wegzakken in
 `uit`, samen zo'n drie seconden. Dezelfde aanpak als bij het windgeluid. `duur: 0` speelt hem
 wel helemaal uit.
+
+### Het skelet met de speer
+
+De plaatjes staan in `design/botten/skelet/` en zijn allemaal op één schaal gemaakt: 0,19 bij een Amir van 237 px
+(`SKELET.schaal`), dus het zittende skelet is 0,61 Amir. Rekenen gaat in skeletcoordinaten, met (0, 0) op de
+linkerbovenhoek van het skelet zelf en de grond op 754.
+
+- **Zitten** zijn de negen losse botten uit `delen/` op hun plek, met daarover de speer,
+  `skelet_voorste_botten` en het doekframe. De voorste botten zijn niet optioneel: zonder die laag ligt de speer op
+  het skelet in plaats van erdoorheen. Tot de botten binnen zijn staat `skelet_met_speer.png` er.
+- **Instorten** speelt het spel zelf met die botten (`SKELET.delen`, `skBotten`), op de valcurve van het pakket. De
+  ingebakken sheet uit het pakket wordt niet gebruikt: daarin bleven de onderbenen met de knie in de lucht staan. Nu
+  kantelt het bovenbeen om de heup en ploft het onderbeen plat (`a` en `laat` bij de benen). Een kind draait mee met
+  zijn ouder, zoals in `onderdelen.json`.
+- **De schedel** is na het instorten, of als hij eraf getikt is, een los ding (`s.kop`): hij valt, landt met stof,
+  rolt met de hoek aan de afgelegde weg (weg gedeeld door de straal van 58) en ligt dan stil. Daarna is hij decor:
+  tegenaan lopen of erop slaan doet niets.
+- Wat Amir kan: E bij de schacht trekt de speer eruit, maar alleen met lege handen (anders wiebelt hij en speelt
+  `sounds/dontneedthis.mp3`). Het skelet schudt dan (`schud`) en ploft in elkaar. Een steek of een worp tegen de schedel
+  tikt die eraf (`skeletRaak`, aangeroepen vanuit de tekenlus waar ook de slangen geraakt worden). Een lage zwaai laat het
+  meteen vallen, en de speer valt eruit en blijft liggen.
+- De speer uit het skelet heeft een **blauw vaantje**. Het rode lint zit in Amirs sprites gebakken en wordt bij het
+  tekenen omgekleurd (`vaanBlauw`), alleen fel verzadigd rood, zodat zijn huid blijft zoals hij is.
+- **Losse speren** (`losseSperen`): er kan nu meer dan een speer zijn. Wat niet in je hand is en niet je eigen speer in
+  de wereld, ligt daar. Pak je een andere speer terwijl de jouwe ergens ligt, dan wordt de jouwe een losse speer
+  (`eigenSpeerNeer`), zodat hij niet verdwijnt.
+- Het geluid `sounds/skeletvalt.mp3` start als het valt, niet bij het trekken, en gaat via een versterker op 3,6
+  (vier keer 0,9), want een audio-element komt niet boven 1. Een tweede instorting start het opnieuw.
+- Stof: eigen wolkjes per skelet (`SKELET.stof`), want `stofwolk.png` is ijl en `puffWorld` is voor een voetstap.
+- De schaduw vermenigvuldigt de grond met (0,74, 0,80, 0,91) en ligt naar links, want de zon staat rechtsboven.
+
+De plaatjes laden pas als er een skelet in het level staat (`skeletLaad`).
 
 ### Een gang onder de grond
 
@@ -641,7 +709,11 @@ knoppen in de sandbox. Pas daarna is de vraag aan de orde of er een level bij mo
 De sandbox start met vlakke grond en een leeg level, geen automatische vijanden en
 geen levens. Een knop erbij is twee dingen: een `<button>` in `<div id="sandbox">`
 (een eigen `.row` met een `<label>` als het een nieuw onderwerp is) en de afhandeling
-in de sandbox-sectie van de code. Spawnen gebeurt net binnen beeld aan de gekozen
+in de sandbox-sectie van de code. De rijen staan in tabbladen per categorie (`.sbcat`:
+Vijanden, Speer en spullen, Decor, Terrein, Beeld en geluid), want alles onder elkaar past
+niet meer op het scherm. Zet een nieuwe rij in de categorie waar hij hoort; een nieuwe
+categorie is een `.sbcat` met een `data-cat` en een knop met dezelfde `data-sbcat` in `#sbtabs`.
+Van rechts, Alles weg en Terug naar menu staan eronder, buiten de tabbladen. Spawnen gebeurt net binnen beeld aan de gekozen
 kant (`sbFromRight`), altijd geklemd tussen `endWall()` en `cliffAt().wall`.
 
 ## Assets
