@@ -505,6 +505,12 @@
       <button id="sbplafondweg">Plafond weg</button>
     </div>
     <div class="row">
+      <label>Onder de grond</label>
+      <button data-holte="gang">Gang</button>
+      <button data-holte="trap">Gang met trap omhoog</button>
+      <button id="sbholteweg">Gang weg</button>
+    </div>
+    <div class="row">
       <label>Doornbos</label>
       <button data-thicket="1">1 klomp</button>
       <button data-thicket="2">2</button>
@@ -2365,27 +2371,37 @@ const TEST_3 = {
           { x: -2400, t: 'Houd de werpknop vast tot hij de speer helemaal uittrekt: dan gaat hij in een boog' },
           { x: -3400, t: 'Raak de schijf boven de deur. Staat de deur open, ga ervoor staan en druk op E' } ]
 };
-// Test 4: de val in de grot. Een kort stuk savanne, dan een ravijn dat te breed is om over
-// te springen. Eronder ligt geen dood maar een gang onder de grond (holtes), 900 diep: zo diep
-// dat de savanne net buiten beeld valt als je beneden staat (op Formaat 25). Dat is meer dan
-// twee Amir, dus met valschade kost de val twee levens (meer dan twee kost een val nooit). Beneden is het donker, met
-// alleen wat daglicht uit het gat, en links staan de fakkels.
+// Test 4: de val in de grot, en er weer uit. Een kort stuk savanne, dan een ravijn dat te breed
+// is om over te springen. Eronder ligt geen dood maar een gang onder de grond (holtes), 900 diep:
+// zo diep dat de savanne net buiten beeld valt als je beneden staat (op Formaat 25). Dat is meer
+// dan twee Amir, dus met valschade kost de val twee levens (meer dan twee kost een val nooit),
+// en daarom ligt er beneden een kalebas. In de gang staan een schorpioen en een zwaardvechter:
+// wat binnen een gang staat, staat ook echt beneden. Aan het eind een tweede gat in het dak, met
+// vijf treden van het terrassteen erin (zes stappen van 150, onder de sprong van 208). De onderste staat nog
+// onder het dak, want daar past hij: voeten op 750, kruin op 499, het dak op 190. Alle andere
+// staan in de schacht. Boven op de savanne wacht nog een slang, en dan de fakkels.
 const TEST_4 = {
   name: 'Test 4: De val in de grot',
   lagen: 'tafelbergen',
   valschade: true,
-  rocks: [], props: [ {x: -250, k: 'gras', s: 1.1, f: 0, v: 0} ],
-  spawns: [ {x: -60000, k: 'groen'} ],          // heel ver weg: houdt de vrije modus uit
-  terraces: [], ledges: [],
-  hppotions: [],
-  gaps: [ {x: -1000, w: 620} ],                 // van -1310 tot -690: te breed voor een sprintsprong
+  rocks: [], props: [ {x: -250, k: 'gras', s: 1.1, f: 0, v: 0}, {x: -4500, k: 'gras', s: 1.1, f: 1, v: 0} ],
+  spawns: [ {x: -2000, k: 'scorp'}, {x: -2600, k: 'zwaard', c: 'rood'}, {x: -4700, k: 'groen'} ],
+  // de trap naar buiten: de rechterrand van elke trede ligt 200 verder, de linker tegen de wand
+  terraces: [ {r: -2850, l: -3850, h: -750}, {r: -3050, l: -3850, h: -600}, {r: -3250, l: -3850, h: -450},
+              {r: -3450, l: -3850, h: -300}, {r: -3650, l: -3850, h: -150} ],
+  ledges: [],
+  hppotions: [ {x: -1800, y: null} ],
+  gaps: [ {x: -1000, w: 620},                   // van -1310 tot -690: te breed voor een sprintsprong
+          {x: -3400, w: 900} ],                 // van -3850 tot -2950: de uitgang, met de treden erin
   // de gang loopt aan de rechterkant een stuk onder de savanne door, zodat de wand niet
-  // precies onder de rand van het ravijn staat
-  holtes: [ {r: -540, l: -3400, diep: 900} ],
-  village: [], npcs: [], water: [], thickets: [], cliffs: [],
-  ends: [ {x: -3150} ],
+  // precies onder de rand van het ravijn staat; links houdt hij op waar de uitgang ophoudt
+  holtes: [ {r: -540, l: -3850, diep: 900} ],
+  village: [], npcs: [], water: [], thickets: [],
+  cliffs: [ {x: -5700} ],
+  ends: [ {x: -5200} ],
   tips: [ { x: -60, t: 'Testlevel. Verderop is een ravijn. Laat je erin vallen' },
-          { x: -1500, t: 'Een gang onder de grond. Die val kostte twee levens' } ]
+          { x: -1500, t: 'Een gang onder de grond. Die val kostte twee levens, drink wat' },
+          { x: -2900, t: 'Daar valt licht naar binnen. Treden omhoog, naar buiten' } ]
 };
 // Test 5: de fosforslangen. Ze komen altijd met z'n drieen, en hier drie keer: een groep om
 // te ontdekken hoe ze werken, en daarna nog twee. Elke groep kronkelt op zijn plek tot je in
@@ -2521,8 +2537,15 @@ function drawTerCol(sx, sw, dx, dw, flip, top, bottom, st, img){
   }
   ctx.restore();
 }
-function drawClimb(groundY, scale, cx){
+// Twee rondes: de gewone terrassen en richels (onder: false) staan achter de ravijnen. Wat onder
+// de grondlijn staat (onder: true), de treden in een gang, komt na de ravijnen, anders tekent de
+// overkant van een gat zijn rots over de bovenste trede in de schacht heen. Die treden zijn
+// hetzelfde steen als een terras, alleen donkerder naarmate ze dieper liggen, net als de gang:
+// alleen helderheid, geen tint.
+function holteHelder(h){ return 1 - HOLTE_LICHT.trede * Math.min(1, -h / 500); }
+function drawClimb(groundY, scale, cx, onder){
   if (!hasClimb()) return;
+  const hier = h => onder ? h < 0 : h >= 0;
   const zoom = viewZoom();
   const bottom = groundY + Math.max(H * 0.2, (H - groundY) / zoom) + 40;
   const viewL = -W, viewR = W / zoom + W;
@@ -2530,12 +2553,14 @@ function drawClimb(groundY, scale, cx){
   const ledgeImgNow = ledgePic();
   if (imgReady(ledgeImgNow)){
     for (const o of ledgeList()){
+      if (!hier(o.h)) continue;
       const sl = ledgeScale(scale, o);
       const lw = ledgeImgNow.naturalWidth * sl, lh = ledgeImgNow.naturalHeight * sl;
       const x0 = cx + (o.x - world) - LEDGE.into * sl;
       if (x0 > viewR || x0 + lw < viewL) continue;
       const top = groundY - o.h * scale - LEDGE.walk * sl;
       ctx.save();
+      if (onder) ctx.filter = 'brightness(' + holteHelder(o.h) + ')';
       ctx.translate(x0 + lw, top); ctx.scale(-1, 1);
       ctx.drawImage(ledgeImgNow, 0, 0, lw, lh);
       ctx.restore();
@@ -2545,7 +2570,7 @@ function drawClimb(groundY, scale, cx){
   const st = terScale(scale);
   const iw = terPic().naturalWidth - TER.trim;     // en rechts ook niet: anders zie je naden
   const fullCap = iw * st, midW = (iw - TER.midX) * st;
-  const list = terraceList().slice().sort((a, b) => a.h - b.h);
+  const list = terraceList().filter(t => hier(t.h)).sort((a, b) => a.h - b.h);
   for (const t of list){
     const xr = cx + (t.r - world), xl = cx + (t.l - world);
     if (xl > viewR || xr < viewL) continue;
@@ -2560,6 +2585,7 @@ function drawClimb(groundY, scale, cx){
     // links afgedekt door een hoger terras? dan geen rand aan die kant
     const leftHidden = terraceList().some(o => o !== t && o.h > t.h && o.l <= t.l + 1 && o.r > t.l);
     ctx.save();
+    if (onder) ctx.filter = 'brightness(' + holteHelder(t.h) + ')';
     terClipPath(xl, xr, top - 4, bottom, st, soilY, leftHidden);        // gebroken zijkanten
     ctx.clip();
     ctx.save();
@@ -2591,6 +2617,7 @@ function drawClimb(groundY, scale, cx){
     ctx.save();
     ctx.globalAlpha = 0.6; ctx.strokeStyle = '#8ef2a0'; ctx.lineWidth = 2 / zoom;
     for (const o of ledgeList()){
+      if (!hier(o.h)) continue;
       const ty = groundY - o.h * scale;
       ctx.beginPath(); ctx.moveTo(cx + (o.x - world), ty); ctx.lineTo(cx + (o.x + ledgeLen(o, scale) - world), ty); ctx.stroke();
     }
@@ -3246,9 +3273,11 @@ function grotBlok(halfW, scale){
 // Waar sta je in deze kolom? Van onderen omhoog kijken tot de eerste lege cel: daar is
 // ruimte, en de onderkant van die cel is de vloer. Zo komen decor, personages en de
 // fakkels in een gang op de grond te staan en niet boven op de berg. Zit er geen raster,
-// of geen lege cel, dan blijft het de gewone grond.
+// of geen lege cel, dan zegt het raster niets (-Infinity) en beslist terrainH: de gewone
+// grond, of de bodem van een gang onder de grond. Gaf dit 0, dan trok het alles in een gang
+// weer naar boven, en stonden de vijanden, het decor en de fakkels van Licht 3 op de savanne.
 function grotTerrein(x){
-  let h = 0;
+  let h = -Infinity;
   for (const g of grotLijst()){
     const R = grotRaster(g);
     const c = grotKolom(g, R, x);
@@ -4681,6 +4710,137 @@ function javThicket(x, h, scale){
 function javReach(){
   const eigen = (PLAYER_HALF_W + 0.18) * CHAR_H * nowScale();
   return Math.max(85, eigen) + (jav && jav.state === 'bos' ? (jav.bosHw || 0) : 0);
+}
+// Een speer waar je niet meer bij komt, krijg je nooit meer terug. Dat gebeurt achter een
+// doornbos (zonder speer hak je het niet weg, en eroverheen springen kan niet, zie THICKET),
+// als hij ertussen op de grond valt, en op een terras of berg waar je net vanaf kwam en waar
+// je van deze kant niet meer op komt. Dan zet het spel hem naast Amir neer.
+//
+// Waar kom je nog? Dat rekent speerBereikbaar uit over de vloeren om je heen: de grond met
+// zijn terrassen (zonder ravijnen en zonder de doornbossen), de bodem van een gang, en de
+// keien, richels en rotsvloeren. Van de ene vloer kom je op de andere door te lopen, eraf te
+// stappen of te springen: omhoog minder dan een sprong, en opzij hoogstens zo ver als een
+// sprintsprong komt, niet over een wand die hoger is dan een sprong en niet door een doornbos.
+// Het rekent ruim (een plafond telt niet mee): twijfelt het, dan laat het de speer liggen.
+// Een speer in een muur laat het met rust, die schiet er vanzelf uit (JAV.muurT).
+const SPEER_KIJK = { stap: 20, ver: 4200, elke: 0.25 };
+let speerKijkT = 0;
+function speerVloeren(lo, hi, plats, scale){
+  const st = SPEER_KIJK.stap, uit = [];
+  const bossen = [];
+  for (const t of thickets){
+    if (t.stage >= THICKET_HITS) continue;            // een stronk houdt niets tegen
+    const hw = t.halfW * THICKET_BOX * scale;
+    bossen.push({ l: t.x - hw, r: t.x + hw, top: t.base + t.topH });
+  }
+  const inBos = (x, h) => bossen.some(b => x > b.l && x < b.r && h < b.top);
+  // twee lagen grond: de gewone (in een gang de bodem) en de savanne boven een gang
+  const lagen = [x => (holteAt(x) || !inGap(x)) ? terrainH(x) : null,
+                 x => (holteAt(x) && !inGap(x)) ? 0 : null];
+  for (const laag of lagen){
+    let stuk = null;
+    for (let x = lo; x <= hi; x += st){
+      let h = laag(x);
+      if (h !== null && inBos(x, h)) h = null;
+      if (stuk && h === stuk.h){ stuk.r = x; continue; }
+      if (stuk) uit.push(stuk);
+      stuk = h === null ? null : { l: x, r: x, h };
+    }
+    if (stuk) uit.push(stuk);
+  }
+  for (const p of plats){                             // keien, richels, rotsvloeren; de terrassen zitten al in de grond
+    if (p.terrace || p.jav || p.right < lo || p.left > hi) continue;
+    uit.push({ l: p.left, r: p.right, h: p.topH, plat: true });
+  }
+  return { vloeren: uit, bossen };
+}
+function speerBereikbaar(punten, plats, scale){
+  const lo = Math.max(endWall(), world - SPEER_KIJK.ver), hi = Math.min(cliffAt().wall, world + SPEER_KIJK.ver);
+  const { vloeren, bossen } = speerVloeren(lo, hi, plats, scale);
+  const sprong = JUMP_V * JUMP_V / (2 * GRAVITY) - 4;
+  const ver = 330 * 1.5 * 2 * JUMP_V / GRAVITY + 20;   // een sprintsprong, bij elk tempo even ver
+  const halfW = PLAYER_HALF_W * CHAR_H * scale;
+  // waar staat hij nu: de hoogste vloer onder zijn voeten
+  let start = -1;
+  vloeren.forEach((v, i) => {
+    if (world + halfW >= v.l && world - halfW <= v.r && v.h <= ph + 2 && (start < 0 || v.h > vloeren[start].h)) start = i;
+  });
+  if (start < 0) return true;                         // weet het niet: niets doen
+  const kan = (a, b) => {
+    const d = Math.max(0, Math.max(a.l, b.l) - Math.min(a.r, b.r));
+    if (d > ver) return false;
+    if (b.h > a.h + 1 && b.h - a.h >= sprong) return false;
+    if (d > 0){
+      const sl = Math.min(a.r, b.r), sr = Math.max(a.l, b.l), laag = Math.min(a.h, b.h), hoog = Math.max(a.h, b.h);
+      if (bossen.some(o => o.l < sr && o.r > sl && laag < o.top)) return false;
+      for (let x = sl; x <= sr; x += SPEER_KIJK.stap)                  // een wand ertussen
+        if (!inGap(x) && terrainH(x) >= hoog + sprong) return false;
+    }
+    return true;
+  };
+  const gezien = new Set([start]), rij = [start];
+  const reik = javReach();
+  const pakt = v => punten.some(q => q.h > v.h - 30 && q.h < v.h + CHAR_H * 0.95
+                                   && q.x > v.l - reik - (v.plat ? halfW : 0) && q.x < v.r + reik + (v.plat ? halfW : 0));
+  while (rij.length){
+    const i = rij.pop();
+    if (pakt(vloeren[i])) return true;
+    for (let j = 0; j < vloeren.length; j++){
+      if (gezien.has(j) || !kan(vloeren[i], vloeren[j])) continue;
+      gezien.add(j); rij.push(j);
+    }
+  }
+  return false;
+}
+// De punten waar je hem vast kunt pakken: de schacht, zoals in spearGreep
+function speerPunten(scale){
+  if (!jav) return [{ x: spearX, h: spearRestH() }];
+  const L = javLen(scale), c = Math.cos(jav.sa), sn = Math.sin(jav.sa), uit = [];
+  for (let i = 0; i <= 8; i++){
+    const d = L * i / 8;
+    uit.push({ x: jav.x - c * d, h: jav.h + sn * d / scale });
+  }
+  return uit;
+}
+function speerVrijePlek(x, vloer){
+  if (x < endWall() + 60 || x > cliffAt().wall - 60) return false;
+  if (waterDepthAt(x) > 0.3 || terrainH(x) !== vloer || vloerBij(x, ph) !== vloer) return false;
+  const a = Math.min(x, world) - 40, b = Math.max(x, world) + 40;
+  for (const g of gapList())                                         // geen ravijn tussen hem en Amir
+    if (g.x + g.w / 2 > a && g.x - g.w / 2 < b && gatOp(g.x, vloer)) return false;
+  const scale = nowScale();
+  for (const t of thickets){                                         // geen bos ertussen of eronder
+    if (t.stage >= THICKET_HITS || t.base + t.topH <= vloer) continue;
+    const hw = t.halfW * THICKET_BOX * scale;
+    if (t.x + hw > a && t.x - hw < b) return false;
+  }
+  for (let q = a; q <= b; q += 20) if (vloerBij(q, ph) > vloer + 1) return false;   // geen wand ertussen
+  return true;
+}
+function speerNaastAmir(dt, plats){
+  if (building || !running || dead || spearFound || spearX === null){ speerKijkT = 0; return; }
+  if (javLost > 0 || (jav && jav.state !== 'grond' && jav.state !== 'bos')) return;   // onderweg, of in een muur
+  if (!onGround) return;                             // pas kijken als hij ergens staat
+  speerKijkT += dt;
+  if (speerKijkT < SPEER_KIJK.elke) return;
+  speerKijkT = 0;
+  const scale = nowScale();
+  if (Math.abs(spearX - world) > SPEER_KIJK.ver - 200) return;   // zo ver weg: niet over oordelen
+  if (speerBereikbaar(speerPunten(scale), plats, scale)) return;
+  const vloer = vloerBij(world, ph);
+  const kant = spearX < world ? -1 : 1;                              // liefst aan de kant waar hij lag
+  let x = null;
+  for (const d of [140, 200, 260, 340, 420, 520]){
+    for (const k of [kant, -kant]){
+      if (x === null && speerVrijePlek(world + k * d, vloer)) x = world + k * d;
+    }
+  }
+  if (x === null) x = speerVrijePlek(lastSolid, vloer) ? lastSolid : world;   // desnoods waar hij staat
+  const bos = thickets.some(t => t.stage < THICKET_HITS && Math.abs(t.x - spearX) < 1200);
+  jav = null; javLost = 0; javOver = null;
+  spearX = x; spearH = null;
+  flashHint(bos ? 'Je speer lag achter het doornbos. Hij staat nu naast je'
+                : 'Daar kwam je niet meer bij. Je speer staat nu naast je');
 }
 function javHitEnemy(){                      // hij raakt een vijand: schade, en hij valt
   jav.hit = true; jav.state = 'val'; jav.vx = 0; jav.vh = 0;
@@ -6470,7 +6630,10 @@ function supportHeight(plats, halfW){          // waar je voeten steun vinden
   // Niets gevonden geeft 0: de gewone grond. Een grotvloer kan onder die lijn liggen,
   // dus de hoogste treffer telt, ook als die negatief is.
   let s = 0, raak = false;
+  // Sta je boven een gang op de savanne, dan dragen de treden eronder niet: daar zit het dak tussen.
+  const opDak = ph >= -1 && !building && holteAt(world) && !inGap(world);
   for (const p of plats){
+    if (opDak && p.topH < -1) continue;
     if (world + halfW > p.left && world - halfW < p.right && p.topH <= ph + 1 && (!raak || p.topH > s)){ s = p.topH; raak = true; }
   }
   return s;
@@ -6584,10 +6747,21 @@ drawLives();
 // een sprong je hoofd. De camera gaat mee naar beneden, ook tijdens de val; op Formaat 25
 // valt de savanne vanaf zo'n 900 diep net buiten beeld als je beneden staat.
 //
-// Er is geen weg terug: het ravijn is breder dan een sprong, en uit de gang spring je niet
-// tot aan de grondlijn. Laat de gang aan de kant van het ravijn wat verder onder de grond
-// doorlopen dan het gat zelf, anders staat de wand precies onder de rand en wordt Amir er
-// tijdens de val tegenaan geduwd.
+// Terug naar boven kan niet via de ingang: het ravijn is breder dan een sprong, en uit de gang
+// spring je niet tot aan de grondlijn. Laat de gang aan de kant van het ravijn wat verder onder
+// de grond doorlopen dan het gat zelf, anders staat de wand precies onder de rand.
+//
+// Wel via een tweede gat in het dak, met treden erin: gewone terrassen met een negatieve h, van
+// hetzelfde steen (drawClimb tekent ze na de ravijnen en dieper donkerder). Een trede waarop
+// zijn voeten hoger komen dan het dak min Amir (-441) moet helemaal onder het gat staan, anders
+// zit zijn hoofd in de rots; zolang zijn voeten tussen het dak en de grondlijn zitten, houdt
+// holteBlok hem binnen het gat. De bovenste trede ligt binnen een sprong van de grondlijn,
+// tegen de linkerrand van het gat, en daar stapt hij de savanne op. Test 4 is het voorbeeld.
+//
+// Alles wat een level binnen de gang zet (vijanden, decor, kalebassen, de fakkels) staat op de
+// bodem ervan, want terrainH geeft daar -diep. Vijanden beneden lopen onder een gat gewoon door:
+// voor hen is het geen rand (gatOp). Wie op de savanne boven een gang staat, blijft daar
+// (vloerBij).
 //
 // Beneden is het donker (schets E): de looprand van de vloer vangt nog licht, de vulling
 // eronder zakt weg, en de achterwand is hetzelfde steen als de plafondvulling maar veel
@@ -6595,7 +6769,7 @@ drawLives();
 // het steen blijft wat hij is, en er wordt nergens iets grijs of bruin van. Door het gat valt
 // gedempt daglicht naar binnen (schets D, zachter).
 const HOLTE_DAK = 190;             // onderkant van het dak, in sprite-eenheden onder de grondlijn
-const HOLTE_LICHT = { wand: 0.74, rand: 0.3, vulling: 0.88, dak: 0.9, schacht: 0.16 };
+const HOLTE_LICHT = { wand: 0.74, rand: 0.3, vulling: 0.88, dak: 0.9, schacht: 0.16, trede: 0.55 };
 function holteLijst(){ return (level && level.holtes) ? level.holtes : []; }
 function holteAt(x){
   for (const o of holteLijst()) if (x >= o.l && x <= o.r) return o;
@@ -6609,6 +6783,17 @@ function grondVloer(x, h){
   if (o && (inGap(x) || h < -1)) return -o.diep;
   return inGap(x) ? null : 0;
 }
+// Een ravijn is voor wie op de grond staat een rand. Wie beneden in de gang staat (base onder
+// de grondlijn) heeft onder het gat gewoon vloer: daar is het geen rand, en een vijand loopt er
+// onderdoor. Voor de speler en alles wat op de savanne staat verandert er niets.
+function gatOp(x, base){ return (base < -1 && holteAt(x)) ? null : inGap(x); }
+// De vloer voor wie op hoogte h staat: in de gang de bodem, erboven de savanne. terrainH geeft
+// boven een gang altijd de bodem, en dat is goed voor een level, want daar staat wat erin
+// geplaatst is ook echt in. De sandbox zet een vijand op jouw hoogte, dus die vraagt het zo.
+function vloerBij(x, h){
+  const t = terrainH(x);
+  return (t < 0 && h >= -1 && holteAt(x) && !inGap(x)) ? 0 : t;
+}
 // zo hoog mogen zijn voeten komen: onder het dak, maar niet onder het gat zelf
 function holteKop(){
   if (building || ph >= -1) return Infinity;
@@ -6621,6 +6806,15 @@ function holteBlok(halfW){
   for (const o of holteLijst()){
     if (world < o.l - halfW - 60 || world > o.r + halfW + 60) continue;
     world = Math.max(o.l + halfW, Math.min(o.r - halfW, world));
+  }
+  // In de schacht van een gat: zolang zijn voeten tussen het dak en de grondlijn zitten, zit
+  // zijn lijf naast zich in het grondpakket, dus zijwaarts kan hij daar niet heen. Pas boven de
+  // grondlijn stapt hij de savanne op, en pas onder het dak loopt hij de gang in. Zo klim je via
+  // de treden in de schacht naar boven (zie "een gang onder de grond" in CLAUDE.md), en zo glijd
+  // je bij een val ook niet ongemerkt het dak in.
+  if (ph > -HOLTE_DAK - CHAR_H){
+    const g = inGap(world);
+    if (g && holteAt(world)) world = Math.max(g.x - g.w / 2 + 1, Math.min(g.x + g.w / 2 - 1, world));
   }
 }
 
@@ -6654,12 +6848,15 @@ function holteSet(){
   return holteBuf;
 }
 
-// hoe ver de camera mee naar beneden is: 0 als je nog boven staat, 1 op de bodem
+// Hoe ver de camera mee naar beneden is: 0 zolang hij niet onder het dak zit, 1 op de bodem.
+// Het telt pas vanaf het dak, want daarboven sta je nog in het gat zelf: op de bovenste trede
+// van een trap naar buiten hoort de savanne niet half in het donker te liggen.
 function holteDiepT(scale){
   const lijst = holteLijst();
   if (!lijst.length) return 0;
   const hier = holteAt(world) || lijst[0];
-  return Math.max(0, Math.min(1, -camY / (hier.diep * scale * 0.7)));
+  const d = -camY / scale;
+  return Math.max(0, Math.min(1, (d - HOLTE_DAK) / Math.max(40, hier.diep * 0.7 - HOLTE_DAK)));
 }
 function drawHolte(groundY, scale, cx){
   const lijst = holteLijst();
@@ -7323,8 +7520,8 @@ function triggerDist(kind){ return W * (TRIGGER[kind] || 1.10); }
 // (omdat hij moest wachten), dan komt hij net buiten de rand binnen
 // monsters op een terras: 'base' is de hoogte waar ze op staan (0 = gewone grond)
 function blocksMonster(p, base){ return !p.thin && p.topH > base + 1; }   // alleen wat boven hem uitsteekt
-function dropAhead(x, base){ return terrainH(x) < base - 1; }              // hier houdt zijn terras op
-function spawnOK(x, base){ return !inGap(x) && terrainH(x) === base; }
+function dropAhead(x, base){ return vloerBij(x, base) < base - 1; }              // hier houdt zijn terras op
+function spawnOK(x, base){ return !gatOp(x, base) && vloerBij(x, base) === base; }
 function spawnPoint(x){
   const minD = W / 2 / viewZoom() + 260;
   if (Math.abs(x - world) >= minD) return x;
@@ -7347,10 +7544,10 @@ function updateSnakes(dt, plats, halfWNow, cliff){
       if (sp.kind === 'panter'){                 // boss: komt van rechts zodra je zijn plek voorbij bent
         if (world > sp.x) continue;
         sp.used = true;
-        let x = panSpawnX(world + W * 0.6 + 250, terrainH(world));
+        let x = panSpawnX(world + W * 0.6 + 250, vloerBij(world, ph));
         if (!sp.over) x = panBaan(null, world, x, plats);    // niet aan de overkant van een kei of ravijn
         const p = makePanther(x, 1);
-        p.face = -1; p.dir = -1; p.engaged = true; p.base = terrainH(x); p.boss = true; p.over = !!sp.over;
+        p.face = -1; p.dir = -1; p.engaged = true; p.base = vloerBij(x, ph); p.boss = true; p.over = !!sp.over;
         panSet(p, 'run');
         panthers.push(p);
         arena = { c: (level.arena && isFinite(level.arena.c)) ? level.arena.c : world };   // vaste plek voor het gevecht
@@ -7454,7 +7651,7 @@ function slangSchuif(s, dt, plats, cliff, tempo){
   }
   // een ravijn: de kop blijft netjes op de rand staan
   const halfL = SNK_W * snakeSScale() * 0.45;
-  const pit = inGap(s.x - s.side * halfL);
+  const pit = gatOp(s.x - s.side * halfL, s.base || 0);
   let edge = false;
   if (pit){
     s.x = s.side === 1 ? pit.x + pit.w / 2 + halfL : pit.x - pit.w / 2 - halfL;
@@ -7846,11 +8043,12 @@ function panBaan(s, a, b, plats){
   if (s && s.over) return b;
   const d = b >= a ? 1 : -1, lo = Math.min(a, b), hi = Math.max(a, b);
   let x = b;
+  const base = s ? (s.base || 0) : vloerBij(a, ph);
   for (const g of gapList()){
+    if (!gatOp(g.x, base)) continue;             // beneden in een gang is een gat erboven geen rand
     const gl = g.x - g.w / 2, gr = g.x + g.w / 2;
     if (gr > lo && gl < hi) x = d === 1 ? Math.min(x, gl - 60) : Math.max(x, gr + 60);
   }
-  const base = s ? (s.base || 0) : terrainH(a);
   for (const p of plats || []){
     if (!blocksMonster(p, base)) continue;
     const m = 60 * (p.wPx / 400) + 20;
@@ -7892,7 +8090,7 @@ function panSpawnX(x, base){
   for (let k = 0; k <= 30; k++){
     for (const p of (k ? [x - k * 60, x + k * 60] : [x])){       // eerst naar jou toe, dan verder weg
       const v = klem(p);
-      if (!inGap(v) && terrainH(v) === base) return v;
+      if (!gatOp(v, base) && vloerBij(v, base) === base) return v;
     }
   }
   return x;
@@ -7905,22 +8103,22 @@ function panDodge(s, toward, cliff, plats){
   let x1 = s.x - toward * PAN_DODGE;
   if (cliff) x1 = Math.min(x1, cliff.wall - 90);
   x1 = Math.max(x1, endWall() + 90);
-  if (inGap(x1) || terrainH(x1) !== s.base) x1 = s.x;            // niet het ravijn in, en niet van zijn vloer af
+  if (gatOp(x1, s.base) || vloerBij(x1, s.base) !== s.base) x1 = s.x;            // niet het ravijn in, en niet van zijn vloer af
   s.x1 = panBaan(s, s.x, x1, plats);
 }
 // Terug de jacht in: net buiten beeld, aan de kant waar plek is, en altijd op jouw vloer.
 // Hij gebruikt dit na zijn loerbeurt, en als vangnet wanneer hij onbereikbaar is komen te staan.
 function panTerug(s, cliff, plats){
-  const base = terrainH(world);
+  const base = vloerBij(world, ph);
   const first = Math.random() < 0.5 ? 1 : -1;
   for (const sd of [first, -first]){
     let nx = world + sd * (W / 2 / viewZoom() + 160);
     const c = cliff || cliffAt(); if (c) nx = Math.min(nx, c.wall - 220);
     nx = Math.max(nx, endWall() + 220);
     if (!s.over) nx = panBaan(null, world, nx, plats);         // aan jouw kant van keien en ravijnen
-    if (Math.abs(nx - world) > 400 && !inGap(nx) && terrainH(nx) === base){ s.x = nx; break; }
+    if (Math.abs(nx - world) > 400 && !gatOp(nx, base) && vloerBij(nx, base) === base){ s.x = nx; break; }
   }
-  s.base = terrainH(s.x); s.fallV = 0; s.lift = 0; s.kwijt = 0;
+  s.base = vloerBij(s.x, base); s.fallV = 0; s.lift = 0; s.kwijt = 0;
   s.face = world >= s.x ? 1 : -1; s.dir = s.face; s.cool = 0.8; s.sneak = true;
   panSet(s, 'prowl');
 }
@@ -7960,7 +8158,7 @@ function updatePanther(s, dt, plats, cliff){
   // en moet daar ook weer vanaf kunnen. Zonder dit blijft zijn base hangen op de oude hoogte en
   // loopt hij door de lucht, of staat hij voorgoed op een wand waar jij niet bij kunt.
   if (s.state !== 'leap' && s.state !== 'dive' && s.state !== 'hop'){
-    const grond = terrainH(s.x);
+    const grond = vloerBij(s.x, s.base);          // boven een gang de savanne, erin de bodem
     if (grond > s.base){ s.base = grond; s.fallV = 0; }            // op iets hogers gezet: meteen erop
     else if (grond < s.base - 0.5){                                // eraf: hij valt
       s.fallV += PAN_FALL_G * dt;
@@ -8068,7 +8266,7 @@ function updatePanther(s, dt, plats, cliff){
       if (Math.abs(x1 - s.x) > PAN_DIVE_MAX) x1 = s.x + s.dir * PAN_DIVE_MAX;
       if (cliff) x1 = Math.min(x1, cliff.wall - 90);
       x1 = Math.max(x1, endWall() + 90);
-      const pit = inGap(x1);
+      const pit = gatOp(x1, s.base || 0);
       if (pit) x1 = s.dir === 1 ? pit.x - pit.w / 2 - 60 : pit.x + pit.w / 2 + 60;
       s.x1 = panBaan(s, s.x, x1, plats);
     } else if (s.t >= windT && s.atk === 'tackle'){
@@ -8089,7 +8287,7 @@ function updatePanther(s, dt, plats, cliff){
       let x1 = s.x + s.dir * dist;
       if (cliff) x1 = Math.min(x1, cliff.wall - 90);
       x1 = Math.max(x1, endWall() + 90);
-      const pit = inGap(x1);
+      const pit = gatOp(x1, s.base || 0);
       if (pit) x1 = s.dir === 1 ? pit.x - pit.w / 2 - 60 : pit.x + pit.w / 2 + 60;
       s.x1 = panBaan(s, s.x, x1, plats);
     }
@@ -8461,7 +8659,7 @@ function hyBuitenBeeld(sd){
   const klem = v => Math.min(hi, Math.max(lo, v));
   // droog staan is niet genoeg: de eerste stappen naar jou toe moeten ook grond hebben,
   // anders staat hij meteen met zijn neus tegen de rand van hetzelfde ravijn
-  const vrij = v => !inGap(v) && !inGap(v - sd * HY_EDGE);
+  const vrij = v => !gatOp(v, vloerBij(v, ph)) && !gatOp(v - sd * HY_EDGE, vloerBij(v, ph));
   const x = klem(world + sd * (W / 2 / viewZoom() + HY_ENTER));
   if (vrij(x)) return x;
   for (const stap of [sd * 40, -sd * 40]){          // eerst verder naar buiten, dan naar binnen
@@ -8482,7 +8680,7 @@ function spawnHyenaPack(n, side){
     const x = hyBuitenBeeld(sd);
     if (x === null) continue;                                       // alleen ravijn aan die kant
     const h = makeHyena(x, sd, enc);
-    h.base = terrainH(x);
+    h.base = vloerBij(x, ph);                                       // op jouw hoogte: in de gang of erboven
     if (kanten.length > 1 && sd === laat) h.wacht = hyRand(HY_PAIR_MIN, HY_PAIR_MAX);
     hyenas.push(h);
   }
@@ -8501,7 +8699,7 @@ function hyMove(s, stap, plats, cliff, stormt){
   const d = stap >= 0 ? 1 : -1;
   const halfL = HY.bodyW * hyScale() * 0.35;
   const klem = stormt ? (hardBlocked(s, nx, plats, cliff, 60)
-                         || inGap(nx + d * halfL) || dropAhead(nx + d * halfL, s.base || 0))
+                         || gatOp(nx + d * halfL, s.base || 0) || dropAhead(nx + d * halfL, s.base || 0))
                       : knockBlocked(s, nx, plats, cliff, halfL, 80);
   if (klem) return false;
   s.x = nx;
@@ -8551,17 +8749,17 @@ function updateHyena(s, dt, plats, cliff){
   if (s.wacht > 0){
     s.wacht -= dt;
     const bx = hyBuitenBeeld(s.side);               // hij schuift mee, ook als Amir doorloopt
-    if (bx !== null){ s.x = bx; s.base = terrainH(s.x); }
+    if (bx !== null){ s.x = bx; s.base = vloerBij(s.x, ph); }
     if (s.wacht > 0) return;
   }
   // vangnet: staat hij toch boven een ravijn (een gat dat er bij het bouwen onder kwam),
   // dan zet hij zich op de dichtstbijzijnde rand. Anders staat hij in de lucht te trappelen.
-  const kuil = inGap(s.x);
+  const kuil = gatOp(s.x, s.base || 0);
   if (kuil){
     const links = kuil.x - kuil.w / 2 - 60, rechts = kuil.x + kuil.w / 2 + 60;
     s.x = Math.abs(s.x - links) < Math.abs(s.x - rechts) ? links : rechts;
   }
-  s.base = terrainH(s.x);
+  s.base = vloerBij(s.x, s.base || 0);
 
   // in beeld gelopen: de roedel lacht, één keer, niet per hyena
   if (!s.enc.laughed && Math.abs(s.x - world) < W * 0.5 / viewZoom() + 120){
@@ -8863,7 +9061,7 @@ function updateZwaard(s, dt, plats, cliff){
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
   if (s.inv > 0) s.inv = Math.max(0, s.inv - dt);
   s.t += dt;
-  s.base = terrainH(s.x);
+  s.base = vloerBij(s.x, s.base);
 
   if (s.state === 'dood'){                          // neergaan, blijven liggen, wegzakken
     zwAnim(s, dt);
@@ -9110,13 +9308,13 @@ function makeFosfor(x, side){
 // Een groep van drie rond plek x. Ze beginnen te kronkelen, elk in een andere fase, en
 // wachten tot je langskomt.
 const fosforGroepen = [];
-function fosforGroep(x, side){
+function fosforGroep(x, side, base){
   const g = { c: x, fase: 'rond', t: 0, zag: true, leden: [] };
   for (let i = 0; i < FOSFOR.groep; i++){
     const s = makeFosfor(x, side);
     s.groep = g; s.fase = (i / FOSFOR.groep) * Math.PI * 2 + Math.random() * 0.6;
     s.x = x + Math.sin(s.fase) * SNK_W * fosforScale() * FOSFOR.rondBreed;
-    s.base = terrainH(s.x); s.state = 'rond';
+    s.base = base === undefined ? terrainH(s.x) : base; s.state = 'rond';
     g.leden.push(s); fosforSlangen.push(s);
   }
   fosforGroepen.push(g);
@@ -9431,7 +9629,7 @@ function scpBlocked(s, nx){
     if (nx + half > p.left && nx - half < p.right) return true;
   }
   const halfL = SCP_WALK.w * scpScale() * 0.35;
-  if (inGap(nx + s.dir * halfL)) return true;     // kijkt vóór zich, niet achter zich
+  if (gatOp(nx + s.dir * halfL, s.base || 0)) return true;     // kijkt vóór zich, niet achter zich
   if (dropAhead(nx + s.dir * halfL, s.base || 0)) return true;   // en valt niet van zijn terras
   return false;
 }
@@ -9452,7 +9650,7 @@ function hardBlocked(s, nx, plats, cliff, wallGap){
 function knockBlocked(s, nx, plats, cliff, halfL, wallGap){
   const d = nx >= s.x ? 1 : -1;
   if (hardBlocked(s, nx, plats, cliff, wallGap)) return true;
-  if (inGap(nx + d * halfL)) return true;               // en de rand van een ravijn
+  if (gatOp(nx + d * halfL, s.base || 0)) return true;      // en de rand van een ravijn
   if (dropAhead(nx + d * halfL, s.base || 0)) return true;
   return false;
 }
@@ -10461,6 +10659,7 @@ function loop(now){
   if (atkCooldown > 0) atkCooldown = Math.max(0, atkCooldown - dt);
   updateThrow(dt);                               // spannen, uithalen, herstellen
   javUpdate(dt, plats, scaleNow);                // en de speer die onderweg is
+  speerNaastAmir(dt, plats);                     // achter een doornbos of boven op een berg: naast je
   muurUpdate(dt, scaleNow);                      // het rotsblok schuift, en de speer komt terug in de grond
   if (atkFrame >= 0){
     atkAcc += dt * ATK_FPS;
@@ -10520,7 +10719,7 @@ function loop(now){
   if (!building) plafondBlok(halfWNow);              // en het steen waar de plafondlijn onder je kruin duikt
   updateJump(dt, plats, halfWNow);
   // waar stond hij voor het laatst op vaste grond? Daar komt een verloren speer terug
-  if (!building && onGround && !fell && !inGap(world) && waterDepthAt(world) < 0.2) lastSolid = world;
+  if (!building && onGround && !fell && !gatOp(world, ph) && waterDepthAt(world) < 0.2) lastSolid = world;
   // staat hij op de speer? Dan buigt de schacht door (zie javUpdate)
   if (jav && jav.state === 'muur'){
     const jp = javPlat(scaleNow);
@@ -10732,7 +10931,7 @@ function loop(now){
       }
     }
 
-    drawClimb(groundY, scale, cx);                 // terrassen en richels
+    drawClimb(groundY, scale, cx, false);          // terrassen en richels
 
     // decor dat jij zelf hebt neergezet: staat op de grondlijn, geen parallax
     // gaten: door de breuk kijk je op de overkant. Net onder je eigen looplijn de
@@ -10848,6 +11047,7 @@ function loop(now){
         ctx.restore();
       }
     }
+    drawClimb(groundY, scale, cx, true);           // treden onder de grond: na de ravijnen, zie drawClimb
 
     if (level && level.props){
       const propTerug = (groundY - edgeCrust(groundY)) * PROP_ACHTER;
@@ -12113,10 +12313,13 @@ function schoonLevel(lv){
   levelSchoon = { verplaatst: 0, weg: 0 };
   if (!lv.gaps || !lv.gaps.length) return lv;
   const scale = schoonScale();
+  // wat binnen een gang onder de grond staat, staat op de bodem ervan: een gat erboven is daar geen rand
+  const inGang = x => (lv.holtes || []).some(o => x >= o.l && x <= o.r);
   const schuif = (lijst, halfWVan, hoortErbij) => {
     for (let i = lijst.length - 1; i >= 0; i--){
       const o = lijst[i];
       if (hoortErbij && !hoortErbij(o)) continue;
+      if (inGang(o.x)) continue;
       const nx = naastHetRavijn(o.x, halfWVan(o), lv.gaps);
       if (nx === null){ lijst.splice(i, 1); levelSchoon.weg++; }
       else if (Math.abs(nx - o.x) > 0.5){ o.x = nx; levelSchoon.verplaatst++; }
@@ -12373,7 +12576,7 @@ const SUBS = {
   'Test 1: Gang, dak en klimmen': 'Dak, trap en een gang door de rots',
   'Test 2: De zwaardvechters': 'Eerst een losse, dan twee tegelijk',
   'Test 3: De rots met de rune': 'Raak de schijf met je speer, dan gaat de wand open',
-  'Test 4: De val in de grot': 'Het ravijn in, en onder de grond verder',
+  'Test 4: De val in de grot': 'Het ravijn in, onder de grond verder, en weer naar boven',
   'Test 5: De fosforslangen': 'Altijd met z\'n drieën. Zoek zelf uit hoe ze werken'
 };
 function buildCards(el, list){
@@ -12484,19 +12687,19 @@ function sbSpawn(kind){
   if (kind === 'hyena1' || kind === 'hyena2'){ spawnHyenaPack(kind === 'hyena2' ? 2 : 1, side); }   // bij twee telt de richting niet
   else if (kind.indexOf('zwaard_') === 0){
     const z = makeZwaard(x, side, kind.slice(7));
-    z.base = terrainH(x);                           // staat er een terras, dan begint hij daarop
+    z.base = vloerBij(x, ph);                       // op een terras, of op jouw hoogte bij een gang
     z.vrij = sbZwVrij;
     zwaarden.push(z);
   }
-  else if (kind === 'scorp'){ scorps.push(makeScorp(x, side)); }
-  else if (kind === 'fosfor') fosforGroep(x, side);     // altijd met z'n drieen
+  else if (kind === 'scorp'){ const k = makeScorp(x, side); k.base = vloerBij(x, ph); scorps.push(k); }
+  else if (kind === 'fosfor') fosforGroep(x, side, vloerBij(x, ph));     // altijd met z'n drieen
   else if (kind === 'panter'){
     const p = makePanther(x, side);
-    p.base = terrainH(x);                           // staat er een terras, dan begint hij daarop
+    p.base = vloerBij(x, ph);                       // staat er een terras, dan begint hij daarop
     panthers.push(p);
   }
   else {
-    const sn = makeSnake(kind); sn.x = x; sn.side = side; snakes.push(sn);
+    const sn = makeSnake(kind); sn.x = x; sn.side = side; sn.base = vloerBij(x, ph); snakes.push(sn);
   }
   cv.focus();
 }
@@ -12620,6 +12823,39 @@ document.getElementById('sbplafondweg').onclick = () => {
   if (level.plafond) level.plafond.length = 0;
   cv.focus();
 };
+// Een gang onder de grond om los te bekijken, in de richting waarin je kijkt (is daar geen plek
+// voor, dan naar links, zoals je door een level loopt): een ravijn dat te
+// breed is om over te springen, met de gang eronder. De trap-versie heeft verderop een tweede gat
+// met drie treden erin, van hetzelfde steen als een terras: daar klim je weer naar boven. Een
+// vijand die je neerzet terwijl je beneden staat, komt ook beneden (vloerBij).
+// De maten staan als afstand in de looprichting: d groter is verder van Amir af.
+function sbHolte(soort){
+  const eind = soort === 'trap' ? 2750 : 2400;
+  const side = (facing === 1 && cliffAt().wall - world > eind + 300) ? 1 : -1;
+  const x0 = side === 1 ? world : Math.max(world, endWall() + 300 + eind);
+  const X = d => x0 + side * d;
+  const bereik = (a, b) => ({ r: Math.max(X(a), X(b)), l: Math.min(X(a), X(b)) });
+  if (!level.gaps) level.gaps = [];
+  if (!level.holtes) level.holtes = [];
+  if (!level.terraces) level.terraces = [];
+  level.gaps.push({ x: X(500), w: 620 });                           // de ingang: te breed, je valt erin
+  level.holtes.push(Object.assign(bereik(40, eind), { diep: 650 }));
+  if (soort === 'trap'){
+    level.gaps.push({ x: X(2400), w: 700 });                        // de uitgang, met de treden erin
+    level.terraces.push(Object.assign(bereik(1950, eind), { h: -500 }),
+                        Object.assign(bereik(2200, eind), { h: -340 }),
+                        Object.assign(bereik(2450, eind), { h: -170 }));
+  }
+  cv.focus();
+}
+sandboxEl.querySelectorAll('button[data-holte]').forEach(b => b.onclick = () => sbHolte(b.dataset.holte));
+document.getElementById('sbholteweg').onclick = () => {
+  if (ph < -1){ ph = 0; pvh = 0; onGround = true; camDiep = 0; }    // sta je beneden, dan weer boven
+  if (level.gaps) level.gaps = level.gaps.filter(g => !holteAt(g.x));   // de gaten van de gang, de rest blijft
+  if (level.holtes) level.holtes.length = 0;
+  if (level.terraces) level.terraces = level.terraces.filter(t => t.h >= 0);
+  cv.focus();
+};
 function sbHppotion(drop){
   const side = sbFromRight ? 1 : -1;
   let x = world + side * 260;                       // vlak naast Amir, zo in te lopen
@@ -12678,9 +12914,9 @@ document.getElementById('sbboss').onclick = () => {           // met arena, dus 
   // Staat er een terras naast je, dan begint hij daar bovenop: precies de situatie waarin een
   // baas vast kwam te staan. Anders op vaste grond, net als in een level.
   const ter = terraceList()[0];
-  const x = ter ? (ter.l + ter.r) / 2 : panSpawnX(world + W * 0.6 + 250, terrainH(world));
+  const x = ter ? (ter.l + ter.r) / 2 : panSpawnX(world + W * 0.6 + 250, vloerBij(world, ph));
   const p = makePanther(x, 1);
-  p.face = -1; p.dir = -1; p.engaged = true; p.base = terrainH(x); p.boss = true;
+  p.face = -1; p.dir = -1; p.engaged = true; p.base = vloerBij(x, ph); p.boss = true;
   panSet(p, 'run');
   panthers.push(p);
   arena = { c: world };
