@@ -570,9 +570,20 @@ het geheugen gezet en per beeld een keer overgezet (`lkPlaatjes`). Zonder die tw
 kaatslicht 1,2 seconde op Test 10, nu 70 ms; de hele kaart is een halve seconde, in stukjes.
 Verandert de vorm (in de sandbox) of een regelaar, dan begint hij opnieuw (`lkSleutel`).
 
-De kaart ligt na alles in de wereld (na `drawWind`), dus ook over Amir, de vijanden en het decor.
+**De kaart wordt in twee delen getekend**, zodat de personages minder donker zijn dan hun
+omgeving zonder dat hun tekencode iets van licht weet. Het eerste deel (`'wereld'`) komt vlak voor
+Amir, na alles wat achter hem staat; het tweede (`'allen'`) komt na alles (na `drawWind`) en valt
+dus ook over Amir, de vijanden en wat er voor hen langs komt, en daarin zit ook de zon. Per cel
+worden de twee zo uitgerekend dat de wereld samen precies het hele donker `a` krijgt:
+`a2 = LK.personage * a` voor iedereen, en `a1 = 1 - (1 - a) / (1 - a2)` voor de wereld eronder,
+want `(1 - a1)(1 - a2) = 1 - a`. De personages krijgen alleen `a2`. Teken dus niets tussen Amir en
+het tweede deel wat bij de wereld hoort, want dat mist het eerste deel. De ooggewenning ligt als
+dekking over beide delen; dat is niet precies hetzelfde als het donker zelf verminderen, en in Test
+10 scheelt het op de wand ongeveer een punt helderheid.
+
 De regelaars staan in de sandbox onder **Licht onder de grond** (donker, ondergrens, gewenning,
-zon, kaatslicht, warm); elke klik laat ze allemaal zien, zodat je ze in `LK` kunt overnemen.
+personages, zon, kaatslicht, warm); elke klik laat ze allemaal zien, zodat je ze in `LK` kunt
+overnemen.
 
 **Ooggewenning** (`lkGewenning`): hoeveel licht er rond Amir is, staat al in de kaart (`lk.licht`,
 het licht per cel zoals het getekend wordt), dus er wordt niets uit het beeld teruggelezen.
@@ -688,8 +699,9 @@ Wat het spel zelf regelt, zodat je er als ontwerper niet op hoeft te letten:
 
 - **Water kijkt naar de hoogte.** `waterDepthAt(x, h)` geeft 0 voor wie beneden in een gang
   staat: een poel boven een gang maakt Amir daar niet nat, traag of zwak in de sprong.
-- **Decor in een gang is donker.** Props, keien, doornbossen en de personages beneden in een
-  gang krijgen hetzelfde licht als alles daar, want de lichtkaart ligt eroverheen.
+- **Decor in een gang is donker.** Props, keien en doornbossen beneden in een gang krijgen
+  hetzelfde licht als alles daar, want de lichtkaart ligt eroverheen. De personages krijgen er
+  een deel van (`LK.personage`), zodat je ze in het donker altijd ziet.
 - **Hyena's komen op de goede hoogte.** Hyena's in een gang worden pas losgelaten als Amir zelf
   beneden is, en komen dan uit de gang aanrennen (`hyBuitenBeeld`), niet van de savanne erboven.
 - **Vijanden blijven in hun gang.** Voor wie beneden staat is de eindwand van de gang een rand
