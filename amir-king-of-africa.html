@@ -467,6 +467,7 @@
         <button id="sbstick">Speer in de muur</button>
         <button id="sbloose">Laat losschieten</button>
         <button id="sbworp">Worp: twee trappen</button>
+        <button id="sbworpwacht" class="on">Spannen: nieuw</button>
       </div>
       <div class="row">
         <label>Renstoot</label>
@@ -4887,7 +4888,24 @@ const THR_SCHAAL_FR = [ { f: 6, a: 0,  x: 547, y: 298 },
                         { f: 4, a: 25, x: 525, y: 139 } ];
 let sbWorpSchaal = false;                // de schakelaar in de sandbox
 function worpSchaal(){ return sandbox ? sbWorpSchaal : !!(level && level.worp === 'schaal'); }
-let thr = null;          // {frame, acc, held, rel, gone, lob, glint, hoek, t0, vol} zolang hij spant of werpt
+let thr = null;          // {frame, acc, held, rel, gone, lob, glint, hoek, t0, vol, wF, wacht} zolang hij spant of werpt
+// Wachten met een gespannen speer. Zolang je vasthoudt staat hij niet stil op een frame:
+// hij ademt, en na een tijdje gaat hij trillen van de spanning, steeds iets harder. Is hij
+// helemaal uitgetrokken, dan glimt de punt af en toe. Alles in code, over hetzelfde frame:
+// ademen is het beeld een fractie hoger maken vanaf de grond, trillen is een klein hoekje om
+// zijn voeten. En de worp is af te breken met je andere knoppen: springen, bukken of de
+// andere kant op lopen (thrAfbreken). Hij houdt zijn speer en doet meteen wat je vraagt.
+// Er wordt nooit vanzelf gegooid: een speer in een runeschijf ben je kwijt (regel 9).
+const WORP_WACHT = {
+  adem: 2.4,          // seconden per ademhaling
+  ademDiep: 0.012,    // zo veel hoger wordt hij bij het inademen, als deel van het frame
+  trilNa: 1.2,        // na zo lang stilstaan begint het trillen
+  trilVol: 4.0,       // en hier is het op zijn sterkst
+  trilHoek: 0.8,      // graden, om zijn voeten
+  glimElk: 2.6,       // helemaal uitgetrokken: zo vaak glimt de punt opnieuw
+};
+let sbWorpWacht = true;                  // de schakelaar in de sandbox: nieuw (ademen, afbreken) of zoals het was
+function worpWacht(){ return sandbox ? sbWorpWacht : true; }
 let thrPressT = 0;       // wanneer de knop ingedrukt ging, voor de tik- en oplaaddrempel
 
 // ---- het projectiel -----------------------------------------------------
@@ -4973,10 +4991,41 @@ function thrHoek(){
   if (f >= 1 && !thr.vol){ thr.vol = true; thr.glint = 1; }   // het maximum: het lichtje op de punt
 }
 function thrCancel(){ if (thr && !thr.gone) thr = null; }
+// Springen, bukken of de andere kant op tijdens het spannen: de worp gaat niet door, hij houdt
+// zijn speer. Alleen zolang hij nog spant; is de knop los, dan is het een worp en die maakt hij af.
+function thrAfbreken(){
+  if (!thr || !thr.held || thr.gone || !worpWacht()) return false;
+  thr = null;
+  return true;
+}
+// Hoe lang hij al op dit frame wacht (wacht), voor het ademen en trillen, en het glimmen.
+function thrWachtBij(dt){
+  if (!thr.held || !worpWacht()){ thr.wacht = 0; return; }
+  if (thr.frame !== thr.wF){ thr.wF = thr.frame; thr.wacht = 0; return; }
+  const was = thr.wacht;
+  thr.wacht += dt;
+  const vol = worpSchaal() ? thr.vol : thr.frame >= THR_WIND;
+  const G = WORP_WACHT.glimElk;
+  if (vol && Math.floor(thr.wacht / G) > Math.floor(was / G)) thr.glint = 1;   // de punt glimt weer even
+}
+// Het ademen en trillen op het canvas zetten, om zijn voeten (px, py). Voor het worpframe
+// zelf, en voor het lichtje en het richtstreepje, zodat die meebewegen.
+function thrWachtZet(px, py){
+  if (!thr || !thr.held || !thr.wacht) return;
+  const W = WORP_WACHT, t = thr.wacht;
+  const adem = 1 + W.ademDiep * (1 - Math.cos(2 * Math.PI * t / W.adem)) / 2;
+  const k = Math.max(0, Math.min(1, (t - W.trilNa) / (W.trilVol - W.trilNa)));
+  const hoek = W.trilHoek * k * k * (0.6 * Math.sin(t * 41) + 0.4 * Math.sin(t * 27 + 1.3)) * Math.PI / 180;
+  ctx.translate(px, py);
+  if (hoek) ctx.rotate(hoek);
+  ctx.scale(1, adem);
+  ctx.translate(-px, -py);
+}
 function updateThrow(dt){
   if (!thr) return;
   if (thr.glint > 0) thr.glint = Math.max(0, thr.glint - dt / 0.30);
   thrHoek();
+  thrWachtBij(dt);
   const stop = thr.held ? thrStop() : THR_N;
   if (thr.held && (thr.frame >= stop || thr.t0)){ thr.acc = 0; return; }   // uitgetrokken: wachten op je duim
   thr.acc += dt * THR_FPS;
@@ -6211,6 +6260,7 @@ function takeOff(){
 }
 function startJump(){
   if (typeof tutEvent === 'function') tutEvent('jump');
+  thrAfbreken();                                   // springen tijdens het spannen: de worp gaat niet door
   if (dead || hurt > 0 || atkFrame >= 0 || swFrame >= 0 || swRecover > 0 || thr) return;
   if (!onGround && coyote > 0 && (!jump || jump.phase === 'air') && pvh <= 0){ takeOff(); return; }
   if (jump || !onGround) return;
@@ -13427,6 +13477,8 @@ function loop(now){
   let dir = 0;
   if (left && !right) dir = -1;
   if (right && !left) dir = 1;
+  // tijdens het spannen: de andere kant op of bukken breekt de worp af (zie WORP_WACHT)
+  if (thr && ((dir !== 0 && dir !== facing) || keys['ArrowDown'] || keys['s'] || keys['S'])) thrAfbreken();
   if (dir !== 0) facing = dir;
 
   // how far the tongue reaches on screen right now, so the snake knows when to stop
@@ -14150,6 +14202,7 @@ function loop(now){
     const blink = invuln > 0 && !dead && amirSteen <= 0 && Math.floor(invuln * 14) % 2 === 0;
     ctx.save();
     ctx.globalAlpha = building ? 0 : blink ? 0.45 : 1;   // in de bouwer is Amir een geest: je ziet hem niet
+    if (useThrow) thrWachtZet(pcx, groundY + lift);   // wachten met de speer: ademen en trillen
     ctx.translate(x, y);
     if (useThrow ? thrFlip() : (autoFlip && facing === 1)){ ctx.translate(w, 0); ctx.scale(-1, 1); }
     ctx.drawImage(amirSteen > 0 ? fosforKopie(img, 'steen') : vaanBlauw(img), 0, 0, w, h);   // door de fosforslang versteend
@@ -14771,8 +14824,10 @@ function loop(now){
 
     javDraw(groundY, scale, cx);                     // de geworpen speer, voor de dieren langs
     skETeken(groundY, scale, cx);                    // de E bij een skelet of een losse speer
+    ctx.save(); thrWachtZet(pcx, groundY + lift);    // die bewegen mee met het ademen en trillen
     drawThrowGlint(pcx, groundY, scale, lift);       // lichtje als de tweede trap aangaat
     drawThrowRicht(pcx, groundY, scale, lift);       // de schaalworp: in welke hoek hij nu gaat
+    ctx.restore();
     drawFgGrass(groundY, cx, scale, pcx);
     drawHppotionFx(groundY, scale, cx, pcx, lift);   // oppak- en drinkeffecten
     drawChips(groundY, scale, cx);
@@ -16167,6 +16222,14 @@ document.getElementById('sbworp').onclick = e => {
   sbWorpSchaal = !sbWorpSchaal;
   e.currentTarget.textContent = sbWorpSchaal ? 'Worp: schaal' : 'Worp: twee trappen';
   e.currentTarget.classList.toggle('on', sbWorpSchaal);
+  thrCancel(); cv.focus();
+};
+// Spannen nieuw of zoals het was: ademen, trillen en afbreken met springen, bukken of de
+// andere kant op (WORP_WACHT), of stilstaan op een frame en niet af te breken.
+document.getElementById('sbworpwacht').onclick = e => {
+  sbWorpWacht = !sbWorpWacht;
+  e.currentTarget.textContent = sbWorpWacht ? 'Spannen: nieuw' : 'Spannen: zoals het was';
+  e.currentTarget.classList.toggle('on', sbWorpWacht);
   thrCancel(); cv.focus();
 };
 // ---- renstoot: aan of uit, en hoe ver hij doorglijdt (zie RENSTOOT) -----------
