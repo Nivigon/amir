@@ -10,7 +10,7 @@ en beschrijft wat het spel kan; dit document beschrijft hoe je eraan werkt.
 ## Regels
 
 **1. Bestaande levels blijven met rust.** De leveldefinities in de HTML
-(`RUNE_1` tot en met `RUNE_10`) zijn bevroren. De
+(`RUNE_1` tot en met `RUNE_10`, `VORST_1` tot en met `VORST_7`) zijn bevroren. De
 levels in Episode Test levels (`TEST_1`) vallen daar niet onder: die zijn er juist om aan te rommelen. Er komt geen nieuwe vijand,
 prop, tip, potion of aangepast getal in, ook niet even om iets te laten zien. Alleen
 als de opdracht een level bij naam noemt ("zet dit in Rune 6") mag dat ene level
@@ -65,6 +65,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | winter: episode Winter World | `WINTER_SRC`, `winterOn()`, `winterPic()` |
 | bodem en sneeuwdek | het veld `sneeuw`: savanne of rots, en het dek in vier standen |
 | Episode De Runen | `RUNE_1` tot en met `RUNE_10`: tien levels met zegels, runes en een poort in de rots, met een verhaal en een slot. In Rune 4 en Rune 8 loopt het boven dood en staan de fakkels in een gang die je zelf openmaakt (zegel of rune op de rots, `RAVIJN_PROEF`) |
+| Episode De Vorst | `VORST_1` tot en met `VORST_7`: zeven levels, eerst sneeuw op de savanne (het veld `sneeuw`), dan `winter: true`, met de witte panter als eindbaas, een verhaal en een slot. Vorst 2 en 5 hebben een groep die stil in een kuil wacht die een rune openscheurt; Vorst 4 heeft het zegel voor de ingang van de gang voorbij die ingang. De raakafstanden per scherm staan bij `VORST_2` |
 | het verhaal bij een episode | `VERHAAL` en `SLOT`, `verhaalToon()`: tekst op een zwart scherm voor elk level en na het laatste, alleen als je bij het eerste level begint. Op de naam van het level, dus een nieuwe episode hoeft alleen tekst toe te voegen en `verhaalAan` te zetten in zijn speelknop |
 | Episode Test levels | `TEST_1` tot en met `TEST_11`: korte proefstukken, los van de echte episodes |
 | lichtkaart: het licht onder de grond | `LK`, `drawLichtkaart`: een lichtbron (de hemel en de zon) voor alles onder de grond en onder rots boven je, per level een keer uitgerekend |
@@ -642,7 +643,21 @@ schaal, de wandplaat of het level verandert. Botsen gaat zoals altijd over `gaps
 aan veranderd.
 
 Een gat boven een gang houdt de oude tekening met `holteSchacht`, want daar hoort de wand door te
-lopen tot het dak.
+lopen tot het dak. Dat geldt ook voor een ravijn dat boven een gang openscheurt (een rune of een
+zegel): zolang het scheurt tekent het effect zichzelf, maar zodra het open staat is het een gat in
+het dak (`ravijnBovenGang`) en telt het mee in `gatenTeken()`, de lijst waar de gatenlus, `drawHolte`
+en de grond op tekenen. Botsen gaat nog steeds via `gatenMetRavijn` en `inGap`. Zonder dat bleef het
+dak onder het gat dicht en zag je van boven een ondiepe kuil.
+
+Een vijand die in een ravijn staat dat al openscheurde voor hij verscheen (zijn spawn ligt in
+`ravijnGat`), komt niet meer: hij is erin gevallen. Anders stond hij boven het gat in de lucht. Wie
+er al stond valt erin (`ravijnValt`). Zo werkt de valkuil van Vorst 2 en 5: fosforslangen en
+zwaardvechters blijven stil staan tot ze je zien, dus een rune die van verder weg de grond onder ze
+openscheurt, neemt ze mee. Hyena's vallen hier buiten, want die komen van de rand van het beeld.
+
+In de winter valt er geen sneeuw in een gang (`drawSnowfall` dooft onder de grondlijn met
+`holteDiepT`), en treden in een gang (een terras met een negatieve `h`) krijgen de kale steen, niet
+de besneeuwde.
 
 In de bouwer is het precies hetzelfde ravijn, dus ook een level dat je daar maakt krijgt alleen de
 nieuwe stijl. Twee dingen zijn er anders omdat je daar van verder weg kijkt (`viewZoom`): de ravijnen
