@@ -45,10 +45,12 @@ een eindbaas als je daar zelf voor kiest omdat het dat gevecht beter maakt; zeg 
 achteraf dat en waarom. Voor de panter is dat het veld `over: true` in zijn spawn
 (`panBaan`); zonder dat veld blijft hij aan zijn kant.
 
-**8. Elke pull request krijgt een versie.** Linksboven in beeld staat in heel kleine letters
-welke update er live is (`VERSIE`, bovenaan de code). Zet in elke pull request het nummer een stap
-hoger (1.1, 1.2, ...) en geef hem een naam van een paar woorden die zegt wat er nieuw is, zoals
-`1.2: ravijn nieuw`. Zo ziet de speler of een pull request al live staat.
+**8. Geen versienummer in de code.** Linksboven staat vanzelf van wanneer de versie is die je
+speelt, en onder **Updates** in het menu staan de laatste vijf samengevoegde pull requests, van
+GitHub zelf, met per stuk of hij al in die versie zit. Zet dus nergens een nummer bij: vroeger
+paste elke pull request dezelfde regel aan (`VERSIE`), en twee die tegelijk openstonden botsten
+daar altijd op. Geef een pull request wel een titel die zegt wat er nieuw is, in een paar woorden:
+die titel is wat de speler onder Updates leest.
 
 ## Waar wat staat
 
@@ -57,7 +59,7 @@ regelnummer, want die schuiven bij elke wijziging.
 
 | kop | wat er staat |
 | --- | --- |
-| versie: welke update er live staat | `VERSIE`: nummer en naam, heel klein linksboven in beeld (regel 8) |
+| versie: welke update er live staat | `versieTijd` (uit `document.lastModified`) heel klein linksboven, en `toonUpdates`: de laatste vijf samengevoegde pull requests van GitHub (`VERSIE_REPO`), met of ze erin zitten (regel 8) |
 | globale lichtlaag | kleurwaas over het beeld, volgt de zon van het level; een level stelt hem bij met `licht` in `SCENES` |
 | muziek per level | `MUZIEK`, `zetMuziek()`: welk deuntje onder welk level loopt |
 | beeld: de grote of de kleine spriteset | `KLEIN_FAM`, de keuze groot of klein, `zetBron` |
@@ -528,6 +530,20 @@ De opname duurt 42 seconden en staat van begin tot eind even hard, terwijl het b
 halve seconde schuift, dus er wordt alleen de kop van gebruikt: vol tot `duur`, dan wegzakken in
 `uit`, samen zo'n drie seconden. Dezelfde aanpak als bij het windgeluid. `duur: 0` speelt hem
 wel helemaal uit.
+
+Een ravijn dat openscheurt gebruikt dezelfde opname als aardbeving (`playBeving`, `SFX_BEVING`), maar
+vanaf het eerste trillen (`onTremorStart`) in plaats van op de klap: hij zwelt aan van `begin` tot vol
+op de klap, houdt aan tot het gat open is en de stenen liggen, en zakt dan weg in `uit`. De tijden
+komen van het effect (`fx.tCrack`, `fx.tOpen`), dus een breder ravijn rommelt langer. Voor een gewoon
+ravijn is dat van 0 tot 5,3 seconden; eerst was het van 1,6 tot 4,1.
+
+**Geluid op een telefoon.** Een telefoon laat geluid alleen starten vlak na een tik. De versterkers
+(`deurVersterker`, `skeletVersterker`) werden pas aangemaakt als het spel ze nodig had, midden in het
+spel en zonder tik, en bleven dan stil: op een telefoon hoorde je de aardbeving, de rotswand en het
+skelet niet. `geluidOntgrendel` maakt ze bij elke tik of toets aan en zet ze op gang, en geeft de
+audio-elementen een keer een stil begin. Maak je een nieuw geluid met een eigen versterker of een
+eigen audio-element dat het spel zelf start, zet het daar dan bij. Headless Chromium past die regel
+niet toe, dus in de speelrobot is dit niet na te spelen: controleer het op een echte telefoon.
 
 ### Het skelet met de speer
 

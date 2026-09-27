@@ -4,8 +4,8 @@ Een browserspel in een enkel bestand: open `amir-king-of-africa.html` in de brow
 
 Alle sprites, achtergronden en geluiden staan los op schijf. Het spel verwacht de mappenindeling hieronder; de paden staan letterlijk in de HTML.
 
-Linksboven staat in heel kleine letters welke versie je speelt, bijvoorbeeld `versie 1.1: speerteken`. Elke update krijgt
-een nieuw nummer en een naam, dus daaraan zie je of een update al live staat.
+Linksboven staat in heel kleine letters van wanneer de versie is die je speelt. Onder **Updates** in het menu staan de
+laatste vijf updates, rechtstreeks van GitHub, met bij elke of hij al in jouw versie zit. Zonder internet zie je alleen de datum.
 
 ## Episodes
 
