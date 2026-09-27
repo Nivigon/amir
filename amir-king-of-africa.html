@@ -672,6 +672,7 @@
         <button data-bav="y:-1" title="omlaag">&#9660;</button>
         <button data-bav="s:-1" title="kleiner">&minus;</button>
         <button data-bav="s:1" title="groter">+</button>
+        <button id="sbbavafzet" title="toets J">Afzet (J)</button>
         <button id="sbbavspiegel">Spiegel</button>
         <button id="sbbavweg">Weg</button>
         <span class="hint" id="sbbavinfo">de eindbaas in wording, alleen het plaatje: vasthouden gaat door</span>
@@ -5259,12 +5260,30 @@ function tekenTeken(groundY, scale, cx){
 // Het plaatje komt uit tools/baviaan_knip.py. level.baviaan = {x, y, s, f}: x in wereld-px (het
 // midden van zijn voeten), y hoe ver hij boven de grond hangt en s hoe hoog hij is, allebei in Amir.
 const BAVIAAN = { src: 'enemies/baviaan/baviaan.png', s: 1.4, schaduw: 0.9 };
-let baviaanImg = null;
+// De afzet: hij laat de rotswand los en springt naar beneden. 44 frames op een gedeeld canvas van
+// 493 bij 592, een keer afgespeeld op 12 per seconde, daarna blijft het laatste staan. Frame 0 is
+// dezelfde hangpose als het losse plaatje; `kader` is waar de baviaan daarin zit (gemeten op de
+// alfa: x 146 tot 442, y 38 tot 558). De hele reeks krijgt een schaal, zo dat dat kader precies
+// even hoog is als het losse plaatje en op dezelfde plek ligt, dus de overgang springt niet.
+const BAV_AFZET = { map: 'enemies/baviaan/afzet/afzet_', n: 44, fps: 12, kader: { l: 146, t: 38, h: 520 } };
+let baviaanImg = null, bavAfzetImgs = null;
 function baviaanLaad(){
   if (baviaanImg) return;
   baviaanImg = new Image();
   baviaanImg.onerror = () => console.warn('ontbreekt: ' + BAVIAAN.src);
   baviaanImg.src = BAVIAAN.src;
+  bavAfzetImgs = [];
+  for (let i = 0; i < BAV_AFZET.n; i++){
+    const im = new Image(), src = BAV_AFZET.map + String(i).padStart(2, '0') + '.png';
+    im.onerror = () => console.warn('ontbreekt: ' + src);
+    im.src = src;
+    bavAfzetImgs.push(im);
+  }
+}
+// welk afzetframe nu, of -1 voor het losse plaatje (b.afzet is het moment van de start)
+function bavAfzetFrame(b){
+  if (b.afzet == null) return -1;
+  return Math.min(BAV_AFZET.n - 1, Math.floor((performance.now() - b.afzet) / 1000 * BAV_AFZET.fps));
 }
 function baviaanTeken(groundY, scale, cx){
   const b = level && level.baviaan;
@@ -5276,8 +5295,20 @@ function baviaanTeken(groundY, scale, cx){
   skeletSchaduw(sx, gy, BAVIAAN.schaduw * b.s * u / Math.max(1, 1 + b.y));
   ctx.save();
   ctx.translate(sx, voet); ctx.scale(b.f ? -1 : 1, 1);      // het plaatje kijkt naar links
-  ctx.drawImage(baviaanImg, -w / 2, -h, w, h);
+  const fi = bavAfzetFrame(b), fr = fi >= 0 && bavAfzetImgs[fi];
+  if (fr && imgReady(fr)){
+    const k = h / BAV_AFZET.kader.h;                         // een schaal voor alle frames
+    ctx.drawImage(fr, -w / 2 - BAV_AFZET.kader.l * k, -h - BAV_AFZET.kader.t * k,
+      fr.naturalWidth * k, fr.naturalHeight * k);
+  } else ctx.drawImage(baviaanImg, -w / 2, -h, w, h);
   ctx.restore();
+}
+// J in de sandbox: de afzet starten, en nog een keer terug naar het losse plaatje
+function bavAfzetWissel(){
+  if (!level.baviaan) sbBaviaan();
+  const b = level.baviaan;
+  b.afzet = b.afzet == null ? performance.now() : null;
+  sbBavInfo();
 }
 
 // ---- de rotswand rechts: het einde van het level ----------------------
@@ -6888,6 +6919,7 @@ addEventListener('keydown', e => {
     startJump(); return;
   }
   if (e.key === 'q' || e.key === 'Q'){ drinkHppotion(); return; }
+  if (sandbox && (e.key === 'j' || e.key === 'J')){ if (!e.repeat) bavAfzetWissel(); return; }   // de afzet van de baviaan
   if (e.key.toLowerCase() === woedeWaarde('toets')){ if (!e.repeat) woedeStart(); return; }   // de woede van Bhubesi
   if (e.key === 'r' || e.key === 'R'){ opnieuw(); return; }
   if (e.key === 'h' || e.key === 'H'){ showBoxes = !showBoxes; setBoxLabel(); return; }
@@ -17873,7 +17905,7 @@ function sbBavInfo(){
   if (!b){ el.textContent = 'de eindbaas in wording, alleen het plaatje: vasthouden gaat door'; return; }
   const n = v => v.toFixed(2).replace('.', ',');
   el.textContent = 'x ' + Math.round(b.x) + ', hoogte ' + n(b.y) +
-    ', grootte ' + n(b.s) + ' Amir' + (b.f ? ', gespiegeld' : '');
+    ', grootte ' + n(b.s) + ' Amir' + (b.f ? ', gespiegeld' : '') + (b.afzet != null ? ', afzet (J: terug)' : '');
 }
 function sbBaviaan(){
   baviaanLaad();
@@ -17894,6 +17926,7 @@ function sbBavStap(k, r, n){
   sbBavInfo();
 }
 document.getElementById('sbbav').onclick = sbBaviaan;
+document.getElementById('sbbavafzet').onclick = () => { bavAfzetWissel(); cv.focus(); };
 document.getElementById('sbbavspiegel').onclick = () => { if (!level.baviaan) sbBaviaan(); level.baviaan.f = !level.baviaan.f; sbBavInfo(); cv.focus(); };
 document.getElementById('sbbavweg').onclick = () => { level.baviaan = null; sbBavInfo(); cv.focus(); };
 sandboxEl.querySelectorAll('button[data-bav]').forEach(bt => {
