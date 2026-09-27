@@ -703,7 +703,7 @@
 // ---- versie: welke update er live staat ----------------------------------
 // Staat heel klein linksboven in beeld, zodat je ziet of een pull request al live is. Elke pull
 // request zet hier een nieuw nummer en een naam van een paar woorden bij, zie CLAUDE.md.
-const VERSIE = { nr: '1.6', naam: 'bouwer nieuw' };
+const VERSIE = { nr: '1.7', naam: 'joystick springt, dak houdt' };
 document.getElementById('versie').textContent = 'versie ' + VERSIE.nr + ': ' + VERSIE.naam;
 
 // ---- globale lichtlaag --------------------------------------------------
@@ -8562,7 +8562,10 @@ function updateJump(dt, plats, halfW){
   const overGap = !building && !!inGap(world);   // staat er wel grond onder je? (in de bouwer loop je er gewoon overheen)
 
   // op een rots landen kan alleen van bovenaf; van onderen spring je er doorheen
-  const bodem = building ? 0 : grondVloer(world, ph);   // grond, bodem van een gang, of niets
+  // De vloer hangt af van waar je vandaan komt, niet van waar deze stap je heeft neergezet: boven
+  // een gang zakt de laatste stap van een sprong een paar eenheden onder de grondlijn, en met ph
+  // koos grondVloer dan de bodem van de gang, zodat je dwars door het dak viel
+  const bodem = building ? 0 : grondVloer(world, Math.max(ph, prevH));   // grond, bodem van een gang, of niets
   let target = bodem === null ? -Infinity : bodem;
   for (const p of plats){
     if (world + halfW <= p.left || world - halfW >= p.right) continue;
@@ -12858,7 +12861,11 @@ function onScale(img, w, h){
   scaleCache.set(img, { key, c });
   return c;
 }
-function drawLayer(L, imgs, seq, horizonY, lift, par, size){
+// vloer: tot waar elk paneel moet reiken. Een paneel hangt aan zijn rug (L.edge), niet aan zijn
+// onderkant, dus een laag paneel onder een hoge heuvelrij (midLift) houdt boven de grond op, en
+// in die kier zag je de landvulling als een paarse balk net boven de grond. Wat ontbreekt vullen
+// we met de onderste rijen van het paneel zelf, gespiegeld, zodat de vlakte gewoon doorloopt.
+function drawLayer(L, imgs, seq, horizonY, lift, par, size, vloer){
   const s = H * (size === undefined ? L.size : size);
   const n = seq.length;
   const ref = imgs.find(Boolean);
@@ -12873,7 +12880,15 @@ function drawLayer(L, imgs, seq, horizonY, lift, par, size){
     if (!img) continue;
     const bottom = horizonY - lift * H + (L.edge[k] - L.base) * s;
     const dh = Math.round(img.height * s);
-    ctx.drawImage(onScale(img, Math.round(img.width * s) + 1, dh), x, bottom - dh);
+    const pc = onScale(img, Math.round(img.width * s) + 1, dh);
+    ctx.drawImage(pc, x, bottom - dh);
+    const kier = vloer === undefined ? 0 : Math.min(dh, Math.ceil(vloer - bottom));
+    if (kier > 0){
+      ctx.save();
+      ctx.translate(0, 2 * bottom); ctx.scale(1, -1);    // gespiegeld om de onderrand
+      ctx.drawImage(pc, 0, dh - kier, pc.width, kier, x, bottom - kier, pc.width, kier);
+      ctx.restore();
+    }
   }
 }
 function midOn(){ return sceneCfg().mid && layerImgs().mid.some(Boolean); }   // laag 2: aan in de sandbox en in elk level
@@ -12948,7 +12963,7 @@ function scene(groundY){
     drawMist(nearY - sc.midLift * H, MIST.near * sc.mist, sc.mistColor);
   }
   if (on2){
-    drawLayer(MID, LI.mid, seqFor('mid', MID, sc.seqMid, sc.midHero, sc.midHeroAt), nearY, sc.midLift, sc.midPar, sc.midSize);    // laag 2: savanneheuvels
+    drawLayer(MID, LI.mid, seqFor('mid', MID, sc.seqMid, sc.midHero, sc.midHeroAt), nearY, sc.midLift, sc.midPar, sc.midSize, nearY);    // laag 2: savanneheuvels, tot op de grond
     drawMist(nearY - (groundY - edgeTop(groundY)), MIST.ground * sc.mist, sc.mistColor);
   }
   if (sc.dim){                                      // hele achtergrond een tint donkerder: het wordt avond
@@ -17140,6 +17155,11 @@ const STICK_DEAD = 0.12;     // dode zone: hierbinnen gebeurt er niets
 const STICK_RUN_ON  = 0.85;  // hierbuiten begint sprinten (Shift)
 const STICK_RUN_OFF = 0.72;  // en pas hierbinnen stopt het weer
 const STICK_DUCK = 0.55;     // zo ver naar beneden duwen is bukken
+// Zo ver omhoog duwen is springen, net als de springknop: een keer per duw. Pas als je duim
+// weer onder STICK_UP_OFF zakt, telt de volgende duw omhoog als een nieuwe sprong; anders
+// sprong hij bij elke trilling van je duim rond de grens opnieuw.
+const STICK_UP = 0.55;
+const STICK_UP_OFF = 0.35;
 function stickZone(x){ return TOUCH.swap ? x > W / 2 : x < W / 2; }
 function applyStick(){
   const st = TOUCH.stick;
@@ -17156,6 +17176,8 @@ function applyStick(){
   setTKey('ArrowRight', dx >  STICK_DEAD);
   setTKey('Shift',      st.run);
   setTKey('ArrowDown',  dy >  STICK_DUCK);
+  if (!st.op && dy < -STICK_UP){ st.op = true; startJump(); }
+  else if (st.op && dy > -STICK_UP_OFF) st.op = false;
 }
 function touchReleaseAll(){
   thrCancel();                                   // duim weg tijdens het spannen: worp afbreken
@@ -17177,7 +17199,7 @@ tcv.addEventListener('pointerdown', e => {
   const p = tcPos(e);
   if (stickZone(p.x)){
     if (TOUCH.stick) return;                       // er ligt al een duim op de joystick
-    TOUCH.stick = { id: e.pointerId, ox: p.x, oy: p.y, x: p.x, y: p.y, run: false };
+    TOUCH.stick = { id: e.pointerId, ox: p.x, oy: p.y, x: p.x, y: p.y, run: false, op: false };
     TOUCH.held.set(e.pointerId, 'stick');
     clearTimeout(hintTimer); hintEl.classList.add('gone');
     applyStick();

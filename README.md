@@ -89,7 +89,7 @@ De versie in `offline-assets.json` verandert mee, en de service worker ziet daar
 | | laptop | telefoon |
 |---|---|---|
 | lopen, rennen | pijltjes, Shift sprint | joystick (duim links) |
-| springen | pijl omhoog | ▲ |
+| springen | pijl omhoog | ▲, of joystick omhoog |
 | bukken | pijl omlaag | joystick omlaag |
 | stoten | spatie (korte tik) | ✦ (korte tik) |
 | **speer recht vooruit** | **spatie vasthouden, loslaten** | **✦ vasthouden, loslaten** |
