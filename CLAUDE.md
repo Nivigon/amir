@@ -582,7 +582,7 @@ een rots, de rotswand en de grot. Bij een treffer wordt de speer meteen decor va
 heeft geen speer meer. Het spel geeft er niet vanzelf een nieuwe voor; dat regelt het level, met een
 skelet of met de speerplek bij de rotswand (`muurVul`). Een level zonder nieuwe speer na een rune is
 dus een keuze, en kan juist de uitdaging zijn: zet er een neer als de speler er daarna nog een nodig
-heeft. Vorst 5 heeft er een bij de grot, Rune 8 en Vorst 2 een skelet na de rune. Test 12 is het proefstuk: vijf rotsen, en na elke rots een
+heeft. Test 9 en Test 12 hebben er een skelet voor. Test 12 is het proefstuk: vijf rotsen, en na elke rots een
 skelet voor een nieuwe speer.
 
 De maten van een rots hangen aan Amir en dus aan het scherm, en een level niet: op 1920 bij 1080
