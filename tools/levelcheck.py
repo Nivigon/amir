@@ -1041,7 +1041,7 @@ def komend_ravijn(lv, sp):
     speerteken. schoonKomend schuift ze in het spel naar de rand, maar zet het meteen goed. Wat
     los ligt (botten, kalebassen, planten, dorpelingen) mag er wel: dat valt of schuift (ravijnDecor)."""
     runes = lv.d.get('runes') or sp.RAVIJN_PROEF.get(lv.d.get('name'), [])   # zoals ravijnProef
-    komend = [(e['x'], e.get('breed') or sp.RAVIJN_BREED) for e in runes]
+    komend = [(e['x'], e.get('breed') or sp.RAVIJN_BREED) for e in runes if not e.get('doel')]   # een doel opent niets
     for z in lv.d.get('zegels') or []:
         r = z.get('ravijn')
         if isinstance(r, (int, float)) and not any(abs(x - r) < 1 for x, _ in komend):
