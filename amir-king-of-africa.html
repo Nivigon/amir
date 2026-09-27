@@ -5492,16 +5492,20 @@ const BAV_IDLE_GROM = { map: 'enemies/baviaan/idle_grom/idle_grom_', n: 39, fps:
 // welke idle er na de brul loopt: 'grom' of 'opgefokt'; allebei met het hoofdschudden erin (bavRustStand).
 // Alleen bij 'grom' worden die frames geladen.
 const BAV_NA_BRUL = 'grom';
-// Hoofdschudden: 64 frames, een keer, als onderbreking van de idle. Hetzelfde canvas als de idle. Na een
-// willekeurige wachttijd tussen `wacht` seconden begint hij, maar pas als de idle-lus rond is (na het laatste
-// frame), en daarna loopt de idle verder vanaf frame 0. Elke keer een nieuwe wachttijd. K in de sandbox start
-// hem bij het eerstvolgende einde van de lus (bavSchudNu). Niet op een vast tempo: `delen` zegt per stuk tot
-// welk frame het loopt en hoe snel. Omlaag (0 tot 17) en weer omhoog (48 tot 63) wat sneller dan de 12 van de
-// set, en de shake zelf (18 tot 47, de kop omlaag) veel sneller, zodat hij iets van zich afschudt. Samen zo'n
-// 2,8 seconden in plaats van 5,3. Het schudden begint en eindigt rechtop, de grom staat laag: in en uit de grom
-// verspringt de houding, net als van de brul naar de grom.
-const BAV_SCHUD = { map: 'enemies/baviaan/hoofdschudden/hoofdschudden_', n: 64, links: 44, wacht: [4, 9],
-  delen: [{ tot: 18, fps: 20 }, { tot: 48, fps: 28 }, { tot: 64, fps: 20 }] };
+// Hoofdschudden: 64 frames, een keer, als onderbreking van de idle. Hetzelfde canvas als de idle.
+// Na de landing en de brul volgt een vast verloop: even idle, schudden, weer even idle, nog een keer
+// schudden, en dan komt hij in actie (de aanval die er nog niet is; tot die er is blijft hij in de idle).
+// `wacht` zijn die stukken idle, in seconden, elk willekeurig tussen de twee getallen: zoveel stukken,
+// zoveel keer schudden. Samen met het schudden zo'n 4 tot 5 seconden. Bij de opgefokte idle begint het
+// schudden pas als de lus rond is, want die loopt naadloos over; bij de grom meteen, want daar verspringt
+// de houding toch al (het schudden begint en eindigt rechtop, de grom staat laag). Na het schudden loopt
+// de idle vanaf frame 0. K in de sandbox schudt meteen, ook na het verloop (bavSchudNu).
+// Niet op een vast tempo: `delen` zegt per stuk tot welk frame het loopt en hoe snel. Omlaag (0 tot 17)
+// en weer omhoog (48 tot 63) snel, en de shake met de kop omlaag (18 tot 47) nog sneller: kort en fel,
+// alsof hij iets van zich afschudt. Samen zo'n 1,6 seconden.
+const BAV_SCHUD = { map: 'enemies/baviaan/hoofdschudden/hoofdschudden_', n: 64, links: 44,
+  wacht: [[0.6, 1.2], [0.5, 1.0]],
+  delen: [{ tot: 18, fps: 40 }, { tot: 48, fps: 42 }, { tot: 64, fps: 40 }] };
 // welk frame van het hoofdschudden er t seconden na zijn begin staat, of -1 als hij klaar is
 function bavSchudFrame(t){
   let van = 0;
@@ -5515,10 +5519,11 @@ function bavSchudFrame(t){
 const bavSchudDuur = () => { let van = 0, s = 0; for (const d of BAV_SCHUD.delen){ s += (d.tot - van) / d.fps; van = d.tot; } return s; };
 let baviaanImg = null, bavAfzetImgs = null, bavValImgs = null, bavLandingImgs = null, bavBrulImgs = null, bavIdleOpImgs = null, bavSchudImgs = null, bavGromImgs = null;
 // per baviaan waar de idle staat, los van level.baviaan zodat het niet mee het level in gaat:
-// t0 het begin van de lopende idle, wacht de wachttijd daarna, schud het begin van het hoofdschudden
-// (allebei in seconden sinds het begin van de idle), nu: K is gedrukt
+// t0 het begin van het lopende stuk idle, wacht hoe lang dat duurt, schud het begin van het hoofdschudden
+// (allebei in seconden sinds het begin van de idle), keer hoe vaak hij al geschud heeft, nu: K is gedrukt
 const bavRust = new WeakMap();
-function bavWacht(){ const [a, z] = BAV_SCHUD.wacht; return a + Math.random() * (z - a); }
+// hoe lang het stuk idle na `keer` keer schudden duurt; voorbij het verloop Infinity (dan de aanval)
+function bavWacht(keer){ const w = BAV_SCHUD.wacht[keer]; return w ? w[0] + Math.random() * (w[1] - w[0]) : Infinity; }
 function bavReeks(map, n){
   const r = [];
   for (let i = 0; i < n; i++){
@@ -5575,26 +5580,27 @@ function bavStand(b, scale){
 // de idle na de brul als lus (de grom of de opgefokte, BAV_NA_BRUL), af en toe onderbroken door het hoofdschudden
 function bavRustStand(b, tIdle, dx, dy){
   let r = bavRust.get(b);
-  if (!r || tIdle < r.t0){ r = { t0: 0, wacht: bavWacht(), schud: null, nu: !!(r && r.nu) }; bavRust.set(b, r); }
-  const I = BAV_NA_BRUL === 'grom' ? BAV_IDLE_GROM : BAV_IDLE_OP, imgs = BAV_NA_BRUL === 'grom' ? bavGromImgs : bavIdleOpImgs;
+  if (!r || tIdle < r.t0){ r = { t0: 0, wacht: bavWacht(0), schud: null, keer: 0, nu: !!(r && r.nu) }; bavRust.set(b, r); }
+  const grom = BAV_NA_BRUL === 'grom', I = grom ? BAV_IDLE_GROM : BAV_IDLE_OP, imgs = grom ? bavGromImgs : bavIdleOpImgs;
   const lus = I.n / I.fps, lang = bavSchudDuur();
   if (r.schud != null && tIdle >= r.schud + lang){             // klaar met schudden: de idle weer vanaf frame 0
-    r.t0 = r.schud + lang; r.schud = null; r.wacht = bavWacht();
+    r.t0 = r.schud + lang; r.schud = null; r.keer++; r.wacht = bavWacht(r.keer);
   }
   const ti = tIdle - r.t0;
-  if (r.schud == null && (ti >= r.wacht || r.nu)){            // plannen op het eerstvolgende einde van de lus
-    r.schud = r.t0 + lus * Math.max(1, Math.ceil(ti / lus - 1e-9)); r.nu = false;
+  if (r.schud == null && (ti >= r.wacht || r.nu)){
+    const tNu = r.nu ? ti : r.wacht;                           // de grom meteen, de opgefokte op het einde van de lus
+    r.schud = r.t0 + (grom ? tNu : lus * Math.max(1, Math.ceil(tNu / lus - 1e-9))); r.nu = false;
   }
   if (r.schud != null && tIdle >= r.schud)
     return { img: bavSchudImgs[Math.max(0, bavSchudFrame(tIdle - r.schud))], dx, dy, ox: BAV_SCHUD.links };
   return { img: imgs[Math.floor(ti * I.fps) % I.n], dx, dy, ox: I.links };
 }
-// K in de sandbox: het hoofdschudden meteen, bij het eerstvolgende einde van de idle-lus
+// K in de sandbox: het hoofdschudden meteen (bij de opgefokte idle op het eerstvolgende einde van de lus)
 function bavSchudNu(){
   const b = level && level.baviaan;
   if (!b || b.afzet == null) return;
   const r = bavRust.get(b);
-  if (r) r.nu = true; else bavRust.set(b, { t0: 0, wacht: bavWacht(), schud: null, nu: true });
+  if (r) r.nu = true; else bavRust.set(b, { t0: 0, wacht: bavWacht(0), schud: null, keer: 0, nu: true });
 }
 function baviaanTeken(groundY, scale, cx){
   const b = level && level.baviaan;
