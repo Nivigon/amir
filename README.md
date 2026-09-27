@@ -92,6 +92,7 @@ De versie in `offline-assets.json` verandert mee, en de service worker ziet daar
 | springen | pijl omhoog | ▲, of joystick omhoog |
 | bukken | pijl omlaag | joystick omlaag |
 | stoten | spatie (korte tik) | ✦ (korte tik) |
+| stoten vanuit een sprint | Shift en een pijltje, dan spatie: hij glijdt remmend door | joystick ver uit, dan ✦ |
 | **speer recht vooruit** | **spatie vasthouden, loslaten** | **✦ vasthouden, loslaten** |
 | **speer in een boog** | **langer vasthouden, dan loslaten** | **langer vasthouden, dan loslaten** |
 | worp afbreken | tik in plaats van vasthouden | duim van ✦ af slepen en daar loslaten |
@@ -221,10 +222,14 @@ lopen. Nog een keer drukken en ze komen weer op je af.
 De grond is geen lijn maar een band. De tegel `design/grondrand.png` heeft 49 rijen
 grondoppervlak boven de looplijn, en dat is de strook waarop je van voor naar achter diepte
 kunt maken. Amir en de dieren lopen op de voorrand van die band; het decor staat erachter,
-op 55 procent van de band (`PROP_ACHTER`). Dorpsplaten gaan mee, en daar telt `depth` er
-bovenop mee (`VILLAGE_DIEP`), zodat een hut op `depth: 0.85` ook echt verder weg staat in
-plaats van alleen kleiner te zijn. De voorgrondhut blijft waar hij staat, want die hoort
-juist vóór Amir langs.
+op 55 procent van de band (`PROP_ACHTER`). Dorpsplaten niet: die hebben hun eigen stukje
+grond ingetekend, en dat moet over de zandband vallen, waar het met een zachte voet
+(`VILLAGE_VOET`) in het zand van het level overloopt. Met de stap erbij eindigde die grond
+precies op de bovenrand van de band, en lag de overgang als een rechte lijn in het zand. Een
+hut op `depth: 0` staat dus op de looplijn; alleen `depth` zet hem naar achteren
+(`VILLAGE_DIEP`), zodat een hut op `depth: 0.85` ook echt verder weg staat in plaats van
+alleen kleiner te zijn. De voorgrondhut blijft waar hij staat, want die hoort juist vóór Amir
+langs.
 
 Zonder die stap stonden gras, struiken, keien, putten en hutten op exact dezelfde lijn als
 Amir, en dan sta je letterlijk in de planten: een pol gras komt dan tussen je voeten omhoog,
