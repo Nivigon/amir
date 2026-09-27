@@ -3686,7 +3686,7 @@ function geluidOntgrendel(){
   }
   if (geluidVrij) return;
   geluidVrij = true;
-  for (const a of [deurSnd, skeletSnd, neeSnd, stormSnd]){
+  for (const a of [deurSnd, skeletSnd, neeSnd, stormSnd, bavBrulSnd]){
     if (!a.paused) continue;
     a.muted = true;
     const p = a.play();
@@ -5514,11 +5514,32 @@ const BAV_VAL = { map: 'enemies/baviaan/val/val_', n: 8, fps: 12, vx: 2.5, grond
 // waar de val ophield; alle beweging zit in de frames. In landing_04 tot 06 zakken zijn handen tot
 // 10 bronpixels onder de grondlijn: de klap, hij drukt zich in de grond. Zo bedoeld.
 const BAV_LANDING = { map: 'enemies/baviaan/landing/landing_', n: 25, fps: 12 };
-// De brul: 24 frames, direct na de landing, een keer op 12 per seconde, daarna het laatste. brul_00 is
-// dezelfde pose als het laatste landingsframe. Het canvas is 542 bij 592, breder dan de 493 van de
-// rest: het begint `links` (44) bronpixels links van het landingscanvas, met de bovenkant en de
-// grondlijn (rij 575) gelijk. Op dezelfde schaal en op dezelfde plek, dus er verspringt niets.
-const BAV_BRUL = { map: 'enemies/baviaan/brul/brul_', n: 24, fps: 12, links: 44 };
+// De brul: 24 frames, direct na de landing, een keer, daarna het laatste. brul_00 is dezelfde pose als het
+// laatste landingsframe. Het canvas is 542 bij 592, breder dan de 493 van de rest: het begint `links` (44)
+// bronpixels links van het landingscanvas, met de bovenkant en de grondlijn (rij 575) gelijk. Op dezelfde
+// schaal en op dezelfde plek, dus er verspringt niets.
+// Het tempo loopt mee met het geluid (`geluid`, sounds/babrawr.mp3, 1,72 seconde: meteen luid, luid tot
+// 1,35 en dan uitstervend). Per stuk in `delen`: overeind komen en de bek open (0 tot 6) op 12 per seconde,
+// de bek wijd open (7 tot 19) op 10, zodat dat precies over het luide stuk valt, en dicht (20 tot 23) over
+// het uitsterven. Het geluid start `voor` seconden voor frame 7, want het eerste stukje is nog stil.
+const BAV_BRUL = { map: 'enemies/baviaan/brul/brul_', n: 24, links: 44,
+  delen: [{ tot: 7, fps: 12 }, { tot: 20, fps: 10 }, { tot: 24, fps: 11.4 }],
+  geluid: { src: 'sounds/babrawr.mp3', vol: 1, bij: 7, voor: 0.05 } };
+// algemeen voor een reeks met `delen` (tot welk frame, hoe snel): het frame op tijd t (of n als hij voorbij
+// is), wanneer frame f begint, en hoe lang de hele reeks duurt
+function deelFrame(delen, t){
+  let van = 0;
+  for (const d of delen){ const duur = (d.tot - van) / d.fps; if (t < duur) return van + Math.floor(t * d.fps); t -= duur; van = d.tot; }
+  return van;
+}
+function deelTijd(delen, f){
+  let van = 0, t = 0;
+  for (const d of delen){ const tot = Math.min(f, d.tot); if (tot > van) t += (tot - van) / d.fps; van = d.tot; if (f <= d.tot) break; }
+  return t;
+}
+const bavBrulSnd = new Audio(BAV_BRUL.geluid.src);
+bavBrulSnd.preload = 'auto';
+const bavBrulGespeeld = new WeakMap();                      // per baviaan: bij welke afzet de brul al klonk
 // Opgefokt stilstaan: 12 frames als lus op 12 per seconde, direct na de brul. Precies hetzelfde canvas,
 // dezelfde oorsprong en dezelfde schaal als de brul (dus ook 44 bronpixels naar links). Tussen de brul
 // en deze idle komt later nog een korte "opstaan"; tot die er is springt de houding daar even.
@@ -5659,8 +5680,13 @@ function bavStand(b, scale){
   if (tVal < tGrond) return { img: bavValImgs[Math.floor(tv * BAV_VAL.fps) % BAV_VAL.n], dx, dy };
   const tLand = tVal - tGrond, tBrul = tLand - BAV_LANDING.n / BAV_LANDING.fps;
   if (tBrul < 0) return { img: bavLandingImgs[Math.floor(tLand * BAV_LANDING.fps)], dx, dy };   // het canvas staat stil, de frames bewegen
-  const tIdle = tBrul - BAV_BRUL.n / BAV_BRUL.fps;
-  if (tIdle < 0) return { img: bavBrulImgs[Math.floor(tBrul * BAV_BRUL.fps)], dx, dy, ox: BAV_BRUL.links };
+  const tIdle = tBrul - deelTijd(BAV_BRUL.delen, BAV_BRUL.n);
+  const G = BAV_BRUL.geluid, tGeluid = deelTijd(BAV_BRUL.delen, G.bij) - G.voor;
+  if (tBrul >= tGeluid && tIdle < 0.5 && bavBrulGespeeld.get(b) !== b.afzet){   // de brul klinkt, een keer per afzet
+    bavBrulGespeeld.set(b, b.afzet);
+    if (wantSound){ try { bavBrulSnd.currentTime = 0; } catch (e) {} bavBrulSnd.volume = G.vol; bavBrulSnd.play().catch(() => {}); }
+  }
+  if (tIdle < 0) return { img: bavBrulImgs[Math.min(BAV_BRUL.n - 1, deelFrame(BAV_BRUL.delen, tBrul))], dx, dy, ox: BAV_BRUL.links };
   return bavRustStand(b, tIdle, dx, dy, scale, lijn);
 }
 // de idle na de brul als lus (de grom of de opgefokte, BAV_NA_BRUL), af en toe onderbroken door het hoofdschudden
@@ -5836,6 +5862,7 @@ function bavAfzetWissel(){
   const b = level.baviaan;
   b.afzet = b.afzet == null ? performance.now() : null;
   bavRust.delete(b);
+  if (b.afzet == null){ bavBrulSnd.pause(); try { bavBrulSnd.currentTime = 0; } catch (e) {} }
   sbBavInfo();
 }
 
