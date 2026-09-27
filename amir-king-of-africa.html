@@ -683,6 +683,21 @@
         <button id="sbramp">Overgang uit</button>
       </div>
       <div class="row">
+        <label>Tijd van de dag</label>
+        <button data-lagen="ochtend">Ochtend</button>
+        <button data-lagen="middag">Middag</button>
+        <button data-lagen="" class="on">Avond</button>
+        <button data-lagen="dark_hart">Nacht</button>
+      </div>
+      <div class="row">
+        <label>Zon</label>
+        <button data-zon="sterkte:-">Gloed −</button>
+        <button data-zon="sterkte:+">Gloed +</button>
+        <button data-zon="ringAdem:-">Ring ademt −</button>
+        <button data-zon="ringAdem:+">Ring ademt +</button>
+        <span class="read" id="sbzonv"></span>
+      </div>
+      <div class="row">
         <label>Weer</label>
         <button data-weer="" class="on">Droog</button>
         <button data-weer="regen">Regen</button>
@@ -7005,6 +7020,7 @@ function leesWeer(w){
                        sterkte: Math.max(0, Math.min(1.5, (q.sterkte === undefined || q.sterkte === null) ? 1 : Number(q.sterkte) || 0)) }))
           .sort((a, b) => b.x - a.x);                 // in looprichting: eerst wat het dichtst bij het begin ligt
 }
+let sbLagen = '';                                     // de sandbox: welk uitzicht (knoppen onder Tijd van de dag), '' is het gewone
 let sbWeer = null;                                    // de sandbox: een soort uit de knoppen onder Weer, of null
 let weerNu = null;                                    // hoe hard elke laag nu is; null = nog niet gezet
 function weerMeng(uit, soort, f){
@@ -13471,6 +13487,7 @@ const SCENE0 = {
   sky: ['#191733', '#4a2f52', '#e2774a'],   // lucht: boven, midden, bij de horizon
   land: '#3a2540',      // het land tussen de horizon en jouw grond
   dim: null,            // ['r,g,b', sterkte]: extra donker over alles achter de grondlijn
+  waas: 0,              // lucht tussen jou en de verte, overdag: 0 geen, 0,4 flink (zie drawWaas)
   sun: [0.74, 0.20, 0.07, '#f0a05a']        // plek in beeld, hoogte boven de horizon, straal, kleur
 };
 // Per level. Wat je niet noemt, blijft zoals hierboven.
@@ -13613,12 +13630,88 @@ const SCENES = {
                      sky: ['#04060f', '#111a33', '#34405e'], land: '#2c3448',
                      dim: ['8,12,26', 0.42], sun: [0.74, 0.16, 0.03, '#d6dcf0'],
                      licht: { schaduwKleur: [92,102,146], lichtKleur: [150,160,196],
-                              gloedSterkte: 0.15, gloedStraal: 0.38, bodemDonker: 0.30 } }
+                              gloedSterkte: 0.15, gloedStraal: 0.38, bodemDonker: 0.30 } },
+  // midden op de dag: de zon hoog en bijna wit, een blauwe lucht, en alles lichter. De bergen zijn
+  // in avondkleuren geschilderd; de waas legt er de blauwige lucht van de verte overheen, anders
+  // staan ze paarsrood onder een blauwe hemel. De schaduw van Amir wordt vanzelf kort (zonSchaduw)
+  middag:      { seqMid: 44, midHero: 2, midHeroAt: 58, seq: 88, hero: 2, heroAt: 1, midLift: 0.17, midSize: 1 / 1050,
+                 mist: 0.8, mistColor: '232,214,196', sky: ['#3c78b8', '#86b2d8', '#efe2c8'], land: '#8a6552',
+                 waas: 0.42, sun: [0.62, 0.52, 0.06, '#fff4d6'],
+                 licht: { schaduwKleur: [228,226,236], lichtKleur: [255,253,246], gloedSterkte: 0.12, bodemDonker: 0.06 } }
 };
 const sceneMix = {};                     // samengestelde instellingen, een keer per soort
 function sceneCfg(){
-  const key = (!sandbox && level && SCENES[level.lagen]) ? level.lagen : 'basis';
+  const key = sandbox ? (SCENES[sbLagen] ? sbLagen : 'basis')
+            : (level && SCENES[level.lagen]) ? level.lagen : 'basis';
   return sceneMix[key] || (sceneMix[key] = Object.assign({}, SCENE0, SCENES[key] || {}));
+}
+// ---- de zon: schijf, krans en ademende ring ----
+// De zon is geen platte schijf maar licht: een kern die naar de rand de kleur van het uitzicht
+// krijgt, een zachte krans in de lucht, een brede gloed op de horizon eronder, en een zachte ring
+// om de schijf die heel langzaam een klein beetje groter en weer kleiner wordt. Plek, straal en
+// kleur blijven uit `sun` in SCENES komen, want daar hangen ook de schaduwen en de lichtkaart aan.
+// Alles hier is alleen de lucht: de gloed over het hele beeld blijft van drawLichtlaag.
+const ZON = {
+  kern: 0.35,        // zoveel wit in het midden van de schijf
+  rood: 0.35,        // zoveel dieper rood aan de rand als de zon op de horizon staat
+  plat: 0.1,         // en zoveel platter
+  krans: 0.28,       // sterkte van de krans in de lucht
+  kransR: 4.5,       // tot zoveel keer de straal reikt hij
+  horizon: 0.28,     // sterkte van de gloed op de horizon
+  horizonR: 0.26,    // straal van die gloed, als deel van de schermhoogte (en 3,2 keer zo breed)
+  ring: 0.30,        // sterkte van de ademende ring
+  ringR: 1.32,       // hoe ver de ring reikt, in stralen, als hij het kleinst is
+  ringAdem: 0.07,    // en zoveel stralen verder als hij het grootst is
+  ringT: 4,          // een keer groter en kleiner in zoveel seconden
+  sterkte: 1         // alles samen, in de sandbox bij te stellen
+};
+function zonRgba(c, a){ return 'rgba(' + c.map(Math.round).join(',') + ',' + a + ')'; }
+function drawZon(sc, horizonY, zx, zy){
+  const r = H * sc.sun[2], zc = leesKleur(sc.sun[3]), k = ZON.sterkte;
+  const laag = Math.max(0, Math.min(1, 1 - (horizonY - zy) / (H * 0.3)));   // 1 = op de horizon
+  // de gloed op de horizon, plat en breed, onder de zon
+  if (ZON.horizon * k > 0){
+    const R = H * ZON.horizonR;
+    ctx.save(); ctx.translate(zx, horizonY); ctx.scale(3.2, 1);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
+    g.addColorStop(0, zonRgba(zc, ZON.horizon * k)); g.addColorStop(0.4, zonRgba(zc, ZON.horizon * k * 0.32)); g.addColorStop(1, zonRgba(zc, 0));
+    ctx.fillStyle = g; ctx.fillRect(-R, -R, R * 2, R * 2); ctx.restore();
+  }
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  // de krans
+  const kr = r * ZON.kransR;
+  let g = ctx.createRadialGradient(zx, zy, r * 0.9, zx, zy, kr);
+  g.addColorStop(0, zonRgba(zc, ZON.krans * k)); g.addColorStop(0.3, zonRgba(zc, ZON.krans * k * 0.3)); g.addColorStop(1, zonRgba(zc, 0));
+  ctx.fillStyle = g; ctx.fillRect(zx - kr, zy - kr, kr * 2, kr * 2);
+  // de ring die ademt
+  const adem = 0.5 + 0.5 * Math.sin(performance.now() / 1000 * 2 * Math.PI / ZON.ringT);
+  const rr = r * (ZON.ringR + ZON.ringAdem * adem);
+  g = ctx.createRadialGradient(zx, zy, r * 0.98, zx, zy, rr);
+  g.addColorStop(0, zonRgba(zc, ZON.ring * k)); g.addColorStop(0.45, zonRgba(zc, ZON.ring * k * 0.47)); g.addColorStop(1, zonRgba(zc, 0));
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(zx, zy, rr, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  // de schijf: lichte kern, en laag bij de horizon een rodere, iets plattere rand
+  const rand = mengKleur(zc, [220, 80, 40], ZON.rood * laag), kern = mengKleur(zc, [255, 250, 235], ZON.kern);
+  ctx.save(); ctx.translate(zx, zy); ctx.scale(1, 1 - ZON.plat * laag);
+  g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+  g.addColorStop(0, zonRgba(kern, 1)); g.addColorStop(0.6, zonRgba(mengKleur(kern, zc, 0.5), 1));
+  g.addColorStop(0.97, zonRgba(rand, 1)); g.addColorStop(1, zonRgba(rand, 0));
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();   // zakt half achter de bergen
+  ctx.restore();
+}
+// Overdag ligt er lucht tussen jou en de verte: een waas in de kleur van de lucht, dik op de verre
+// bergen en dun waar de heuvels op de grond komen. Hij loopt van boven in, zodat er geen streep
+// door de lucht ligt. `waas` in SCENES is de sterkte.
+function drawWaas(sc, horizonY, groundY){
+  const k = mengKleur(leesKleur(sc.sky[1]), leesKleur(sc.sky[2]), 0.3);
+  const top = horizonY - 0.62 * H, vol = horizonY - 0.36 * H;
+  if (groundY <= top) return;
+  const f = Math.max(0, Math.min(1, (vol - top) / (groundY - top))), a = sc.waas;
+  const g = ctx.createLinearGradient(0, top, 0, groundY);
+  g.addColorStop(0, zonRgba(k, 0)); g.addColorStop(f, zonRgba(k, a));
+  g.addColorStop(f + (1 - f) * 0.5, zonRgba(k, a * 0.7)); g.addColorStop(1, zonRgba(k, a * 0.25));
+  ctx.fillStyle = g; ctx.fillRect(0, top, W, groundY - top + 1);
 }
 function drawMist(y, a, col, down){
   const c = col || MIST.color;
@@ -13800,8 +13893,7 @@ function scene(groundY){
   const zonX = W * sc.sun[0], zonY = horizonY - (sc.sun[1] + mtnLift) * H;
   zonScherm.x = zonX; zonScherm.y = zonY; zonScherm.kleur = sc.sun[3];   // hier hangt de gloed straks aan
   zonScherm.geldig = true;
-  ctx.fillStyle = sc.sun[3];
-  ctx.beginPath(); ctx.arc(zonX, zonY, H * sc.sun[2], 0, Math.PI * 2); ctx.fill();   // zakt half achter de bergen
+  drawZon(sc, horizonY, zonX, zonY);
   // het land in de verte: alles onder een horizonlijn. Elke bergrij heeft haar eigen (geheven)
   // lijn; het laagste paneel komt daar precies op, de rest zakt erachter weg. Dat wegzakkende
   // stuk moet dus na de laag worden afgedekt, anders steekt het als een rechthoek onder de rij uit
@@ -13854,6 +13946,7 @@ function scene(groundY){
     ctx.fillStyle = 'rgba(' + sc.dim[0] + ',' + sc.dim[1] + ')';
     ctx.fillRect(0, 0, W, Math.max(horizonY, groundY) + 1);
   }
+  if (sc.waas) drawWaas(sc, horizonY, groundY);     // overdag: de verte in de lucht
   drawProps(on2 ? nearY : horizonY, propUnit, false);   // far scenery, behind the ground (voor de heuvels: op hun lijn)
   drawPlacedFar(groundY);                           // jouw achtergronddecor staat op de savanne, niet op de horizon
   const bandH = H * 0.18;
@@ -13974,7 +14067,8 @@ let lichtCache = null, lichtSleutel = '';
 // stel je hem bij, ook in een level dat zijn eigen belichting meebrengt.
 let lichtMeng = null, lichtMengKey = null;
 function lichtNu(){
-  const sc = (!sandbox && level && SCENES[level.lagen] && SCENES[level.lagen].licht) ? level.lagen : '';
+  const k = sandbox ? sbLagen : (level && level.lagen);
+  const sc = (k && SCENES[k] && SCENES[k].licht) ? k : '';
   if (!sc) return LICHT;
   if (lichtMengKey !== sc){ lichtMeng = Object.assign({}, LICHT, SCENES[sc].licht); lichtMengKey = sc; }
   lichtMeng.aan = LICHT.aan; lichtMeng.sterkte = LICHT.sterkte;
@@ -16879,6 +16973,7 @@ function startSandbox(){
   sbMuziek = 'bg'; sbMuziekToon();
   sbSneeuw = { soort: null, dek: 1 }; sbSneeuwToon();   // kale grond, zoals de rest van de sandbox
   sbWeer = null; sbWeerToon();                          // droog
+  sbLagen = ''; lichtMengKey = null; sbLagenToon();     // het gewone avonduitzicht
   sbVoorgrond = 0; sbVoorgrondScherp = false; sbVoorgrondToon();
   sbZwVrij = false; sbZwLabel();                        // de zwaardvechter doet weer zijn eigen werk
   document.getElementById('lives').style.display = 'none';   // geen levens in de sandbox
@@ -17372,6 +17467,23 @@ sandboxEl.querySelectorAll('button[data-muziek]').forEach(b => b.onclick = () =>
   sbMuziek = b.dataset.muziek;
   sbMuziekToon(); zetMuziek(); tryPlay(); cv.focus();
 });
+// tijd van de dag: een uitzicht uit SCENES, alleen voor de sandbox (sceneCfg en lichtNu lezen sbLagen)
+function sbLagenToon(){
+  sandboxEl.querySelectorAll('button[data-lagen]').forEach(b => b.classList.toggle('on', b.dataset.lagen === sbLagen));
+}
+sandboxEl.querySelectorAll('button[data-lagen]').forEach(b => b.onclick = () => {
+  sbLagen = b.dataset.lagen; lichtMengKey = null; sbLagenToon(); cv.focus();
+});
+// de zon: de gloed van alles samen, en hoe ver de ring ademt. De waarden staan erbij om in ZON over te nemen
+function sbZonToon(){
+  document.getElementById('sbzonv').textContent = 'gloed ' + ZON.sterkte.toFixed(2) + ', ring ' + ZON.ringAdem.toFixed(3);
+}
+sandboxEl.querySelectorAll('button[data-zon]').forEach(b => b.onclick = () => {
+  const [veld, r] = b.dataset.zon.split(':'), stap = veld === 'sterkte' ? 0.1 : 0.01;
+  ZON[veld] = Math.max(0, Math.round((ZON[veld] + (r === '+' ? stap : -stap)) * 1000) / 1000);
+  sbZonToon(); cv.focus();
+});
+sbZonToon();
 // het weer: een soort uit WEER.soorten, meteen op volle sterkte (droog laat het wegzakken)
 function sbWeerToon(){
   sandboxEl.querySelectorAll('button[data-weer]').forEach(b =>
