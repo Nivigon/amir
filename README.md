@@ -35,7 +35,7 @@ In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen 
 
 Elke run begint met het kiezen van een tribe: druk je in het menu op Spelen (of Nightmare), dan komt eerst het keuzescherm. Kiezen is verplicht en ligt vast voor de hele run. Nu is alleen **Mkuki, Tribe of the Spear** te kiezen; **Bhubesi, Tribe of the Lion** en **Impungushe, Tribe of the Jackal** staan er al, grijs en op slot (Coming soon). Met de pijltjes en Enter kies je met het toetsenbord, op een telefoon tik je.
 
-Bij het kiezen krijg je de eerste ability van je tribe, en na elk uitgespeeld level de volgende, met een eigen scherm. Na twee uitgespeelde levels heb je ze alle drie. Ze staan als klein rijtje rechtsboven, onder de kalebas. Game over en opnieuw beginnen is een nieuwe run: dan kies je opnieuw en begin je weer bij de eerste ability.
+Je begint zonder ability. Na het eerste uitgespeelde level krijg je de eerste van je tribe, na het tweede de tweede en na het derde de derde, elk met een eigen scherm. Tot dan doet een ability die je nog niet hebt niets. Ze staan als klein rijtje rechtsboven, onder de kalebas. Game over en opnieuw beginnen is een nieuwe run: dan kies je opnieuw en begin je weer zonder abilities.
 
 | ability | wat hij doet |
 |---|---|
