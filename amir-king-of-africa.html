@@ -1980,18 +1980,28 @@ function terJag(seed, y, soilY, st){
   return g * st * (12 + 9 * Math.sin(t * 0.021 + seed) + 7 * Math.sin(t * 0.063 + seed * 2.3));
 }
 const TER_JAG_STEP = 12;         // om de zoveel schermpixels een knik: fijner hoeft niet en kost alleen tijd
+// De golf hangt aan de rots, niet aan het scherm: de seed komt uit de wereld-x van de rand
+// (wl, wr), en de knikken liggen op een vast raster vanaf soilY. Kwam de seed uit de
+// schermpositie, dan kreeg de zijkant bij elke stap van de camera een andere vorm, en
+// golfde de rand terwijl je liep.
+function terJagRij(top, bottom, soilY){
+  const ys = [top];
+  let y = soilY - Math.floor((soilY - top) / TER_JAG_STEP) * TER_JAG_STEP;
+  if (y <= top) y += TER_JAG_STEP;
+  for (; y < bottom; y += TER_JAG_STEP) ys.push(y);
+  ys.push(bottom);
+  return ys;
+}
 // het silhouet van een terras: rechte bovenkant, gebroken zijkanten
-function terClipPath(xl, xr, top, bottom, st, soilY, leftHidden){
-  const sl = xl * 0.011, sr = xr * 0.017 + 2.4;
+function terClipPath(xl, xr, top, bottom, st, soilY, leftHidden, wl, wr, rightHidden){
+  const sl = wl * 0.011, sr = wr * 0.017 + 2.4;
   const L = y => leftHidden ? xl - 40 : xl + terJag(sl, y, soilY, st);
-  const R = y => xr - terJag(sr, y, soilY, st);
+  const R = y => rightHidden ? xr + 40 : xr - terJag(sr, y, soilY, st);
+  const ys = terJagRij(top, bottom, soilY);
   ctx.beginPath();
   ctx.moveTo(L(top), top);
-  for (let y = top; y <= bottom; y += TER_JAG_STEP) ctx.lineTo(L(y), y);
-  ctx.lineTo(L(bottom), bottom);
-  ctx.lineTo(R(bottom), bottom);
-  for (let y = bottom; y >= top; y -= TER_JAG_STEP) ctx.lineTo(R(y), y);
-  ctx.lineTo(R(top), top);
+  for (const y of ys) ctx.lineTo(L(y), y);
+  for (let i = ys.length - 1; i >= 0; i--) ctx.lineTo(R(ys[i]), ys[i]);
   ctx.closePath();
 }
 const LEDGE = { src: 'design/klimmen/klif_richel.png',
@@ -2109,26 +2119,31 @@ function drawClimb(groundY, scale, cx, onder){
     const edgePx = TER.edge * (capW / iw);
     const soilY = top + (TER.soil - TER.trimTop) * st;
     // links afgedekt door een hoger terras? dan geen rand aan die kant
-    const leftHidden = terraceList().some(o => o !== t && o.h > t.h && o.l <= t.l + 1 && o.r > t.l);
+    const leftHidden = terraceList().some(o => o !== t && o.h > t.h && o.l <= t.l + 1 && o.r >= t.l - 1);
+    // en rechts net zo: sluit er een hoger terras op aan (Vorst 3 bij -8000), dan loopt dit
+    // terras eronder door. Met een eigen rand aan die kant brokkelden de lage en de hoge rots
+    // allebei naar binnen af, en keek je tussen twee wanden door naar de lucht.
+    const rightHidden = terraceList().some(o => o !== t && o.h > t.h && o.l <= t.r + 1 && o.r >= t.r - 1);
     // een trede in een gang ligt onder de grond: daar ligt ook in de winter geen sneeuw op
     const onder = t.h < 0 && winterOn();
     const tp = onder ? terImg : terPic(), tf = onder ? terFade : (terFadePic() || terPic());
     ctx.save();
-    terClipPath(xl, xr, top - 4, bottom, st, soilY, leftHidden);        // gebroken zijkanten
+    terClipPath(xl, xr, top - 4, bottom, st, soilY, leftHidden, t.l, t.r, rightHidden);        // gebroken zijkanten
     ctx.clip();
     ctx.save();
     ctx.beginPath();
     const midL = xl + (leftHidden ? 0 : edgePx);
-    ctx.rect(midL, top - 4, (xr - edgePx) - midL, bottom - top + 4);
+    const midR = rightHidden ? xr + 40 : xr - edgePx;
+    ctx.rect(midL, top - 4, midR - midL, bottom - top + 4);
     ctx.clip();
     // middenstukken van rechts naar links, om en om gespiegeld: dan sluiten de naden
-    let x = xr - capW, k = 0;
+    let x = rightHidden ? xr + 40 : xr - capW, k = 0;
     while (x > xl && x > viewL - midW){
       drawTerCol(TER.midX, iw - TER.midX, x - midW, midW, k % 2 === 1, top, bottom, st, tp);
       x -= midW; k++;
     }
     ctx.restore();
-    drawTerCol(0, iw, xr - capW, capW, true, top, bottom, st, tp);      // afbrokkelende rand rechts, naar je start toe
+    if (!rightHidden) drawTerCol(0, iw, xr - capW, capW, true, top, bottom, st, tp);   // afbrokkelende rand rechts, naar je start toe
     // en links als laatste, met de zachte rechterkant: zo houdt hij zijn eigen rand, ook als
     // het terras zo smal is dat de twee randen over elkaar heen vallen
     if (!leftHidden) drawTerCol(0, iw, xl, capW, false, top, bottom, st, tf);
@@ -2470,7 +2485,7 @@ function grotKantReeksen(R, u, kant){
 function grotSilPad(R, u, X, Y, ch, top, bottom, st, soilY){
   const xl = X(u.c), xr = X(u.e + 1);
   const kl = v => Math.max(0, Math.min(R.cel * GROT_JAG, v * GROT_JAG_K));
-  const sl = xl * 0.011, sr = xr * 0.017 + 2.4;
+  const sl = u.c * R.cel * 0.011, sr = (u.e + 1) * R.cel * 0.017 + 2.4;   // aan het raster, niet aan het scherm
   const links = [], rechts = [];
   const zet = (y, oL, oR) => {
     links.push([oL ? xl + kl(terJag(sl, y, soilY, st)) : xl - 40, y]);
@@ -2479,8 +2494,7 @@ function grotSilPad(R, u, X, Y, ch, top, bottom, st, soilY){
   for (let r = u.r; r <= u.b; r++){
     const oL = grotKantOpen(R, u, -1, r), oR = grotKantOpen(R, u, 1, r);
     const ya = r === u.r ? top : Y(r) - ch, yb = r === u.b ? bottom : Y(r);
-    for (let y = ya; y < yb; y += TER_JAG_STEP) zet(y, oL, oR);
-    zet(yb, oL, oR);
+    for (const y of terJagRij(ya, yb, soilY)) zet(y, oL, oR);
   }
   ctx.beginPath();
   ctx.moveTo(links[0][0], links[0][1]);
@@ -6021,16 +6035,39 @@ function loadVillageWinter(){ for (const id in VILLAGE) if (VILLAGE[id].winter) 
 // Pas aanmaken als er ook echt iets met diepte staat, het scheelt geheugen.
 function villageTintCopy(id){
   if (villageTint[id]) return villageTint[id];
-  const img = villageImg[id];
-  if (!img || !img.complete || !img.naturalWidth) return null;
+  const img = VILLAGE[id].layer === 'fg' ? villageImg[id] : villageVoetCopy(id);
+  if (!img || (img.complete === false) || !(img.naturalWidth || img.width)) return null;
   const c = document.createElement('canvas');
-  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  c.width = img.naturalWidth || img.width; c.height = img.naturalHeight || img.height;
   const g = c.getContext('2d');
   g.drawImage(img, 0, 0);
   g.globalCompositeOperation = 'source-atop';
   g.fillStyle = 'rgb(' + FAR_TINT + ')';
   g.fillRect(0, 0, c.width, c.height);
   villageTint[id] = c;
+  return c;
+}
+// De voet van een dorpsplaat loopt zacht uit in de grond. Sinds het decor een stap achter de
+// looplijn staat (PROP_ACHTER), hangt de onderrand van de plaat boven de voorrand van de grond,
+// en dan zie je het ingetekende stukje grond onder de hut als een los plateau zweven, met een
+// harde onderkant op de sneeuw of het zand ervoor. Uitgelopen leest het als grond die in de
+// grond van het level overgaat. VILLAGE_VOET is het deel van de plaathoogte dat uitloopt.
+const VILLAGE_VOET = 0.07;
+const villageVoet = {};
+function villageVoetCopy(id){
+  if (villageVoet[id]) return villageVoet[id];
+  const img = villageImg[id];
+  if (!img || !img.complete || !img.naturalWidth) return null;
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const g = c.getContext('2d');
+  g.drawImage(img, 0, 0);
+  const y0 = c.height * (1 - VILLAGE_SINK - VILLAGE_VOET), y1 = c.height * (1 - VILLAGE_SINK);
+  const gr = g.createLinearGradient(0, y0, 0, y1);
+  gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,1)');
+  g.globalCompositeOperation = 'destination-out';
+  g.fillStyle = gr; g.fillRect(0, y0, c.width, c.height - y0);
+  villageVoet[id] = c;
   return c;
 }
 const villageWarned = {};
@@ -6070,7 +6107,7 @@ function drawVillageProp(id, x, groundY, scale, cx, opt){
   ctx.globalAlpha = alpha;
   ctx.translate(px, py);
   if (flip){ ctx.translate(size.w, 0); ctx.scale(-1, 1); }
-  ctx.drawImage(villageImg[id], 0, 0, size.w, size.h);
+  ctx.drawImage(def.layer === 'fg' ? villageImg[id] : (villageVoetCopy(id) || villageImg[id]), 0, 0, size.w, size.h);
   const tint = depth * VILLAGE_TINT;
   if (tint > 0.002){
     const tc = villageTintCopy(id);
