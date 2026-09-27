@@ -310,6 +310,30 @@
   }
   #tribehud{position:absolute;right:22px;top:88px;z-index:5;display:flex;gap:5px;pointer-events:none}
   #tribehud img{width:30px;height:30px;display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
+  /* de woedemeter van Bhubesi: alleen met Long Breath of Blood Rush, onder de abilities. Het
+     leeuwenicoon en een balk die vult op kills; tijdens de woede loopt hij leeg als aflopende tijd */
+  #woede{position:absolute;right:22px;top:126px;z-index:5;display:none;align-items:center;gap:8px;
+    background:none;border:0;padding:0;cursor:pointer;color:var(--bone)}
+  #woede.on{display:flex}
+  #woede img{width:34px;height:34px;display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6)) grayscale(.55) brightness(.8);
+    transition:filter .3s ease}
+  #woedebalk{width:96px;height:10px;border-radius:5px;background:rgba(20,16,30,.55);
+    box-shadow:0 0 0 2px rgba(20,16,30,.45);overflow:hidden}
+  #woedevul{display:block;height:100%;width:0;border-radius:5px;background:linear-gradient(90deg,#b8472a,#e2774a 60%,#f0b25a)}
+  #woede kbd{font:800 12px/1 Archivo,Arial,sans-serif;padding:3px 6px;border-radius:3px;
+    border:1.5px solid rgba(242,232,213,.45);opacity:0;transition:opacity .3s ease;text-shadow:0 1px 3px rgba(20,16,30,.85)}
+  body.touch #woede kbd{display:none}
+  #woede.vol img{filter:drop-shadow(0 0 6px rgba(255,176,80,.95)) drop-shadow(0 0 2px rgba(255,210,140,.9))}
+  #woede.vol #woedebalk{box-shadow:0 0 0 2px rgba(20,16,30,.45),0 0 8px rgba(255,160,70,.75)}
+  #woede.vol kbd{opacity:1}
+  #woede.puls img,#woede.puls #woedebalk{animation:woedepuls .4s ease 3}
+  #woede.aan img{filter:drop-shadow(0 0 7px rgba(255,150,60,.95))}
+  #woede.aan #woedevul{background:linear-gradient(90deg,#f0b25a,#ffd9a0)}
+  #woede.schud{animation:hppshake .38s ease}
+  @keyframes woedepuls{0%{transform:scale(1)}40%{transform:scale(1.18)}100%{transform:scale(1)}}
+  #lives span.weg{display:none}
+  #lives span.extra{box-shadow:0 0 0 2px rgba(20,16,30,.45),0 0 0 4px rgba(240,178,90,.55)}
+  @media (prefers-reduced-motion:reduce){#woede.puls img,#woede.puls #woedebalk,#woede.schud{animation:none}}
   #hint{position:absolute;left:50%;top:24px;z-index:5;transform:translateX(-50%);font-size:15px;background:rgba(20,16,30,.55);padding:8px 16px;border-radius:2px;transition:opacity .4s ease;pointer-events:none}
   #hint.gone{opacity:0}
   #bar{display:flex;align-items:center;gap:26px;flex-wrap:wrap;padding:12px 20px;background:var(--earth);border-top:2px solid rgba(242,232,213,.15);font-size:14px}
@@ -551,6 +575,13 @@
         <button data-ability="low_sweep" class="on">Low Sweep: aan</button>
       </div>
       <div class="row">
+        <label>Tribe Bhubesi</label>
+        <button data-ability="long_breath">Long Breath: uit</button>
+        <button data-ability="blood_rush">Blood Rush: uit</button>
+        <button data-ability="fourth_life">Fourth Life: uit</button>
+        <button id="sbwoedevol">Woede vol</button>
+      </div>
+      <div class="row">
         <label>Renstoot</label>
         <button id="sbrenstoot" class="on">Renstoot: aan</button>
         <button id="sbglij">Glijden: middel</button>
@@ -714,9 +745,10 @@
       <button id="sbback">Terug naar menu</button>
     </div>
   </div>
-  <div id="lives"><span></span><span></span><span></span></div>
+  <div id="lives"><span></span><span></span><span></span><span class="extra weg"></span></div>
   <div id="hppotion" class="none"><img id="hppotionicon" src="items/potions/hppotion.png" alt=""><span id="hppotioncount">0</span></div>
   <div id="tribehud" aria-label="Abilities"></div>
+  <button id="woede" type="button" aria-label="Fury" title="Fury"><img src="design/tribes/bhubesi/logo.png" alt=""><span id="woedebalk"><span id="woedevul"></span></span><kbd>G</kbd></button>
   <div id="tribekies" class="trscherm" role="dialog" aria-modal="true" aria-labelledby="trkop">
     <div class="trkop" id="trkop">Choose your tribe</div>
     <div class="trsub">Your tribe stays with you for the whole run.</div>
@@ -810,8 +842,8 @@
 <script>
 // ---- tribes: de stam die je aan het begin van een run kiest ----------------
 // Alles wat je aan de tribes wilt bijstellen staat hier, en nergens anders in de code.
-// Een run begint met het keuzescherm (tribeKies), zonder ability: na het eerste uitgespeelde
-// level krijg je de eerste, na het tweede de tweede, na het derde de derde (tribeNaLevel). De teksten zijn Engels,
+// Een run begint met het keuzescherm (tribeKies), met bijStart abilities (standaard geen): na het eerste
+// uitgespeelde level krijg je de volgende, enzovoort (tribeNaLevel). De teksten zijn Engels,
 // want ze staan zo in beeld. Een tribe met locked: true staat er wel, maar is niet te kiezen,
 // en heeft nog geen abilities. De code staat onder "tribes: keuzescherm, ability, HUD".
 const TRIBE_CONFIG = {
@@ -839,7 +871,41 @@ const TRIBE_CONFIG = {
           raakt: { slang: true, fosfor: true, schorpioen: true, hyena: true, panter: true, zwaard: true } }
       ] },
     { id: 'bhubesi', naam: 'Bhubesi', titel: 'Tribe of the Lion', logo: 'design/tribes/bhubesi/logo.png',
-      locked: true, abilities: [] },
+      locked: false,
+      // Zoveel abilities krijg je meteen bij het kiezen (Mkuki: geen). Met 1 komt Long Breath bij de
+      // start, Blood Rush na het eerste uitgespeelde level en Fourth Life na het tweede.
+      bijStart: 1,
+      abilities: [
+        { id: 'long_breath', naam: 'Long Breath', icoon: 'design/tribes/bhubesi/abilities/1_longer_immortality.png',
+          tekst: 'The fury lasts noticeably longer.',
+          // Geeft de woedemeter (zie woede hieronder), en de woede duurt dan zoveel seconden in plaats
+          // van woede.duur. Acht seconden is lang genoeg om dwars door een roedel hyena's of langs twee
+          // zwaardvechters te lopen, en kort genoeg dat je hem niet kunt opsparen voor een heel stuk level.
+          duur: 8 },
+        { id: 'blood_rush', naam: 'Blood Rush', icoon: 'design/tribes/bhubesi/abilities/2_faster_charge.png',
+          tekst: 'Every kill fills the fury meter faster.',
+          // Alles wat de meter vult (een kill, een treffer op een eindbaas) telt zoveel keer zo zwaar.
+          // 1,6 maakt van tien kills er zeven (0,16 per kill), en van twaalf baastreffers er acht.
+          // Zonder Long Breath geeft Blood Rush zelf de meter, met de basisduur (woede.duur).
+          vulFactor: 1.6 },
+        { id: 'fourth_life', naam: 'Fourth Life', icoon: 'design/tribes/bhubesi/abilities/3_fourth_life.png',
+          tekst: 'Amir starts every level with one extra life.',
+          // Zoveel levens boven het normale maximum (3) bij de start van elk level. Een kalebas vult
+          // alleen tot het normale maximum: het extra leven komt pas bij het volgende level terug.
+          extraLevens: 1 }
+      ],
+      // De woedemeter. Geen eigenschap van de tribe zelf: hij is er alleen met Long Breath of Blood
+      // Rush. Hij loopt van 0 tot 1, blijft staan tussen levels en gaat alleen af als je hem gebruikt.
+      woede: {
+        perKill: 0.10,         // per gedode vijand: tien kills is vol. Een level van De Jagers heeft er
+                               // zo'n tien tot veertien, dus ongeveer een keer per level
+        perBaasTreffer: 0.08,  // per rake klap op een eindbaas die hem nog niet doodt. De panter heeft
+                               // vier levens: drie klappen zijn samen 0,24, de laatste telt als kill
+        duur: 5,               // seconden onsterfelijk zonder Long Breath (alleen Blood Rush)
+        toets: 'g',            // de toets om hem te gebruiken (op de telefoon: de knop met de leeuw)
+        waarschuw: 1.5,        // zoveel seconden voor het einde gaat de gloed flakkeren
+        pulsVol: 1.2           // zo lang pulseert de meter als hij net vol is, in seconden
+      } },
     { id: 'impungushe', naam: 'Impungushe', titel: 'Tribe of the Jackal', logo: 'design/tribes/impungushe/logo.png',
       locked: true, abilities: [] }
   ],
@@ -848,7 +914,7 @@ const TRIBE_CONFIG = {
 };
 // De stand van deze run, in een object zodat het later in een keer in localStorage kan.
 // Game over en daarna opnieuw, of een nieuwe run uit het menu, zet hem terug (runReset).
-const RUN = { tribeId: null, abilities: [], gehaald: 0 };
+const RUN = { tribeId: null, abilities: [], gehaald: 0, woede: 0 };   // woede: de meter, 0 tot 1
 
 // ---- versie: welke update er live staat ----------------------------------
 // Er staat geen versienummer meer in de code: dat was een regel die elke pull request aanpaste,
@@ -6594,6 +6660,7 @@ addEventListener('keydown', e => {
     startJump(); return;
   }
   if (e.key === 'q' || e.key === 'Q'){ drinkHppotion(); return; }
+  if (e.key.toLowerCase() === woedeWaarde('toets')){ if (!e.repeat) woedeStart(); return; }   // de woede van Bhubesi
   if (e.key === 'r' || e.key === 'R'){ opnieuw(); return; }
   if (e.key === 'h' || e.key === 'H'){ showBoxes = !showBoxes; setBoxLabel(); return; }
   if (e.key === 'b' || e.key === 'B'){ barEl.classList.toggle('hide'); return; }   // testbalk erbij halen
@@ -9384,9 +9451,16 @@ function jumpFrame(){
 const liveEls = Array.from(document.getElementById('lives').children);
 const deadEl = document.getElementById('dead');
 function drawLives(){                            // een half leven is een half hartje
-  liveEls.forEach((e, i) => { e.classList.toggle('spent', i >= lives); e.classList.toggle('half', lives > i && lives < i + 1); });
+  const max = levensStart();                     // het vierde hartje staat er alleen met Fourth Life
+  liveEls.forEach((e, i) => {
+    e.classList.toggle('weg', i >= max);
+    e.classList.toggle('spent', i >= lives); e.classList.toggle('half', lives > i && lives < i + 1);
+  });
 }
-drawLives();
+// Zoveel levens bij de start van een level: drie, plus wat Fourth Life erbij geeft (TRIBE_CONFIG).
+function levensStart(){ return 3 + abilityWaarde('fourth_life', 'extraLevens', 0); }
+// (geen drawLives hier bij het laden: tribeLijst kijkt naar sandbox, en die staat verderop. Het vierde
+// hartje staat in de HTML al op weg.)
 
 // ---- holte onder de grond: een ravijn met een bodem ------------------------
 // Een level legt met holtes: [{r, l, diep}] een gang onder de grond. r en l zijn de rechter-
@@ -10106,7 +10180,7 @@ function valLand(diep){
   if (sandbox)                       // geen levens in de sandbox: daar lees je af wat het gekost zou hebben
     flashHint('Val van ' + (diep / CHAR_H).toFixed(1).replace('.', ',') + ' Amir: '
               + n + (n === 1 ? ' leven' : ' levens'));
-  if (!running || invuln > 0 || dead || godMode) return;
+  if (!running || invuln > 0 || dead || godMode || woedeAan()) return;
   thrHurt();                                       // de hele worp is kwetsbaar (zie thrHurt)
   playRaak();
   invuln = 1.3; hurt = 0.38; shake = 0.34; puffDust(14);
@@ -10155,6 +10229,7 @@ const rustSnd = new Audio();
 rustSnd.onerror = () => console.warn('ontbreekt: ' + SFX_RUST.src);
 rustSnd.preload = 'auto'; rustSnd.src = SFX_RUST.src;
 function vijandDood(baas){
+  woedeVul(woedeWaarde('perKill'));                // elke kill vult de woedemeter (als je die hebt)
   if (!baas && Math.random() * DOOD_KANS >= 1) return;
   setTimeout(() => {
     if (!wantSound || dead || !running) return;
@@ -10167,7 +10242,7 @@ function vijandDood(baas){
 }
 
 function hurtPlayer(fromLeft){
-  if (!running || invuln > 0 || dead || godMode) return;
+  if (!running || invuln > 0 || dead || godMode || woedeAan()) return;   // in de woede raakt niets hem
   thrHurt();                                       // de hele worp is kwetsbaar (zie thrHurt)
   playRaak();
   if (sandbox){                                    // sandbox: je ziet de klap, maar dood ga je nooit
@@ -10181,7 +10256,8 @@ function hurtPlayer(fromLeft){
 }
 function restart(){
   won = false; document.getElementById('win').classList.remove('on');
-  lives = 3; invuln = 0; hurt = 0; knock = 0; shake = 0; dead = false;
+  lives = levensStart(); invuln = 0; hurt = 0; knock = 0; shake = 0; dead = false;
+  woedeStop();                                      // de woede houdt op bij een nieuw begin
   hits = 0; hitsEl.textContent = 0;
   atkFrame = -1; atkAcc = 0; atkCooldown = 0; swFrame = -1; swAcc = 0; sweepBuf = 0; duckT = 0; swRecover = 0; sand.length = 0;
   thr = null; jav = null; javLost = 0; javOver = null; spearH = null; lastSolid = 0; glij = 0;
@@ -11896,6 +11972,7 @@ function hitPanther(s){
   if (s.inv > 0 || s.state === 'dying' || s.state === 'flee' || s.state === 'look' || s.state === 'bolt' || s.state === 'lurk') return false;
   s.hp--; s.engaged = true; s.inSnow = false;
   hits++; hitsEl.textContent = hits;
+  if (s.boss && s.hp > 0) woedeVul(woedeWaarde('perBaasTreffer'));   // schade aan een eindbaas vult de meter
   if (s.hp > 0){                                  // nog niet dood: flitsen, grommen, vluchten
     s.inv = 0.5; s.flash = 0.3; s.lift = 0; s.fake = undefined;
     panPlay('roar', 1);
@@ -12909,6 +12986,7 @@ function updateFosfor(s, dt, plats, cliff){
 // zijn beet raakt: jij versteent, en hij verstijft mee
 function fosforBijt(s){
   s.biteUsed = true;
+  if (woedeAan()) return;                         // in de woede versteent hij niet
   playRaak();
   amirSteen = FOSFOR.amirSteen; hurt = FOSFOR.amirSteen; invuln = FOSFOR.amirSteen + 0.6; shake = 0.3;
   thrHurt();
@@ -14242,6 +14320,7 @@ function loop(now){
   const plats = platsNear(scaleNow);
 
   if (invuln > 0) invuln = Math.max(0, invuln - dt);
+  woedeUpdate(dt);                               // de woede van Bhubesi loopt af (en de meter mee)
   if (raakKoel > 0) raakKoel = Math.max(0, raakKoel - dt);
   if (hurt > 0) hurt = Math.max(0, hurt - dt);
   if (shake > 0) shake = Math.max(0, shake - dt);
@@ -14954,7 +15033,17 @@ function loop(now){
     if (useThrow) thrWachtZet(pcx, groundY + lift);   // wachten met de speer: ademen en trillen
     ctx.translate(x, y);
     if (useThrow ? thrFlip() : (autoFlip && facing === 1)){ ctx.translate(w, 0); ctx.scale(-1, 1); }
+    const gloed = building ? 0 : woedeGloed();
+    if (gloed > 0){                                   // de woede: een warme gloed die als een vlam om zijn rand likt
+      const beeld = amirSteen > 0 ? fosforKopie(img, 'steen') : vaanBlauw(img);
+      ctx.shadowColor = 'rgba(255,120,30,' + (0.9 * gloed).toFixed(3) + ')';   // eerst ruim en diep oranje
+      ctx.shadowBlur = CHAR_H * scale * (0.07 + 0.04 * gloed) * DPR;          // shadowBlur rekent in canvaspixels
+      ctx.drawImage(beeld, 0, 0, w, h);
+      ctx.shadowColor = 'rgba(255,196,90,' + gloed.toFixed(3) + ')';           // dan een smal, lichter randje
+      ctx.shadowBlur = CHAR_H * scale * 0.022 * DPR;
+    }
     ctx.drawImage(amirSteen > 0 ? fosforKopie(img, 'steen') : vaanBlauw(img), 0, 0, w, h);   // door de fosforslang versteend
+    if (gloed > 0){ ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; }
     if (hurt > 0 && amirSteen <= 0){                  // red impact tint
       ctx.globalCompositeOperation = 'source-atop';
       ctx.globalAlpha = Math.min(0.75, hurt * 2);
@@ -14971,6 +15060,19 @@ function loop(now){
       ctx.restore();
     }
     drawSplashes(groundY, scale, cx);
+    if (woedeVonken.length && !building){             // de vonkjes van de woede, vóór Amir
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (const v of woedeVonken){
+        const k = 1 - v.t / v.life;
+        ctx.globalAlpha = 0.75 * k * Math.min(1, v.t / 0.08);
+        ctx.fillStyle = k > 0.6 ? '#ffc25a' : '#f07a2a';
+        ctx.beginPath();
+        ctx.arc(pcx + (v.x - world) + v.dx * scale, groundY + sinkPx - v.h * scale, v.r * scale * (0.5 + 0.5 * k) * 1.3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
     drawSweepDust(false, cx, groundY, lift, scale);   // stof vóór Amir
     drawSnowFx(groundY, scale, cx);                   // opstuivende sneeuw: wolken, kristallen, klonten
 
@@ -16645,11 +16747,13 @@ function zwaaiVak(box, soort){
   return a && a.raakt && a.raakt[soort] === false ? null : box;
 }
 function runReset(){
-  RUN.tribeId = null; RUN.abilities = []; RUN.gehaald = 0;
+  RUN.tribeId = null; RUN.abilities = []; RUN.gehaald = 0; RUN.woede = 0;
+  woedeStop();
   hudToon();
 }
 function hudToon(){
   tribeHudEl.innerHTML = '';
+  woedeHud();
   if (!running) return;
   for (const id of tribeLijst()){
     const a = abilityVan(id);
@@ -16659,6 +16763,134 @@ function hudToon(){
     tribeHudEl.appendChild(img);
   }
 }
+
+// ---- woede: de meter van Bhubesi (Long Breath en Blood Rush) ----
+// De meter is geen eigenschap van de tribe, maar van twee talents: zonder Long Breath of Blood Rush
+// is er geen meter, geen knop en niets in de HUD. De stand staat in RUN.woede (0 tot 1) en blijft
+// staan tussen levels; runReset zet hem op nul. Hij vult op elke kill (vijandDood) en op elke rake
+// klap op een eindbaas (hitPanther), niet verder dan vol, en niet terwijl de woede loopt. Vol gaat
+// hij niet vanzelf af: de speler zet hem aan met woede.toets (G), een klik op de meter, of de
+// leeuwknop op de telefoon. Dan neemt Amir woedeT seconden geen schade (hurtPlayer, valLand,
+// fosforBijt) en loopt de meter leeg als aflopende tijd. Hij wordt er niet sterker van. Een val in een
+// ravijn is geen schade maar het einde: daar helpt de woede niet tegen.
+const woedeEl = document.getElementById('woede'), woedeVulEl = document.getElementById('woedevul');
+let woedeT = 0, woedeDuurNu = 1, woedePuls = 0;
+const woedeVonken = [];                            // de vonkjes die van hem opstijgen
+function woedeWaarde(veld){ const t = tribeVan('bhubesi'); return t && t.woede ? t.woede[veld] : 0; }
+function heeftWoede(){ return tribeHeeft('long_breath') || tribeHeeft('blood_rush'); }
+function woedeAan(){ return woedeT > 0; }
+function woedeVul(n){
+  if (!heeftWoede() || woedeT > 0 || building || !(n > 0)) return;
+  const voor = RUN.woede;
+  RUN.woede = Math.min(1, voor + n * abilityWaarde('blood_rush', 'vulFactor', 1));   // vol is vol
+  if (voor < 1 && RUN.woede >= 1) woedeVolFx();
+  woedeHud();
+}
+// kan hij nu aan: vol, nog niet bezig, en midden in het spel (niet dood, niet in een scherm)
+function woedeKan(){
+  return heeftWoede() && RUN.woede >= 1 && woedeT <= 0 && running && !building && !paused && !dead && !won && !tribeOpen();
+}
+function woedeStart(){
+  if (!woedeKan()){
+    if (heeftWoede() && running && woedeT <= 0){      // nog niet vol: de meter schudt even nee
+      woedeEl.classList.remove('schud'); void woedeEl.offsetWidth; woedeEl.classList.add('schud');
+    }
+    return;
+  }
+  woedeDuurNu = abilityWaarde('long_breath', 'duur', woedeWaarde('duur'));
+  woedeT = woedeDuurNu;
+  woedePuls = 0;
+  woedeKlank('aan');
+  woedeHud();
+}
+// de woede houdt op (een nieuw begin, een nieuwe run); wat er nog van de meter liep is op
+function woedeStop(){
+  if (woedeT > 0) RUN.woede = 0;
+  woedeT = 0; woedeVonken.length = 0;
+  woedeHud();
+}
+function woedeUpdate(dt){
+  if (woedePuls > 0){ woedePuls = Math.max(0, woedePuls - dt); if (woedePuls <= 0) woedeHud(); }
+  for (let i = woedeVonken.length - 1; i >= 0; i--){
+    const v = woedeVonken[i];
+    v.t += dt; v.h += v.vh * dt; v.dx += v.vx * dt;
+    if (v.t >= v.life) woedeVonken.splice(i, 1);
+  }
+  if (woedeT <= 0) return;
+  woedeT = Math.max(0, woedeT - dt);
+  RUN.woede = woedeT / woedeDuurNu;                // de meter is nu de tijd die over is
+  if (Math.random() < dt * 14)                     // een paar vonkjes per seconde, van zijn lijf omhoog
+    woedeVonken.push({ x: world, dx: (Math.random() - 0.5) * CHAR_H * 0.34, h: ph + CHAR_H * (0.15 + Math.random() * 0.6),   // x in de wereld, dx en h in sprite-eenheden
+                       vx: (Math.random() - 0.5) * 30, vh: 70 + Math.random() * 70, t: 0,
+                       life: 0.6 + Math.random() * 0.5, r: 2 + Math.random() * 2.5 });
+  if (woedeT <= 0) RUN.woede = 0;
+  woedeHud();
+}
+// hoe fel de gloed nu is, 0 tot 1: aan het eind flakkert hij, zodat je ziet dat hij ophoudt
+function woedeGloed(){
+  if (woedeT <= 0) return 0;
+  const nu = performance.now() / 1000;
+  let g = 0.82 + 0.18 * Math.sin(nu * 9.3) * Math.sin(nu * 3.1);   // onrustig, als een vlam
+  const w = woedeWaarde('waarschuw');
+  if (woedeT < w) g *= 0.35 + 0.65 * (0.5 + 0.5 * Math.cos(nu * Math.PI * 2 * (3 + 4 * (1 - woedeT / w))));
+  return Math.min(1, woedeT / 0.2) * g;            // en hij komt even op bij het aangaan
+}
+// De meter in de HUD. De balk loopt van 0 tot 1; vol: het icoon licht op en de toets verschijnt.
+function woedeHud(){
+  const zien = running && !building && heeftWoede();
+  woedeEl.classList.toggle('on', zien);
+  if (!zien) return;
+  woedeVulEl.style.width = (RUN.woede * 100).toFixed(1) + '%';
+  woedeEl.classList.toggle('vol', RUN.woede >= 1 && woedeT <= 0);
+  woedeEl.classList.toggle('aan', woedeT > 0);
+  woedeEl.classList.toggle('puls', woedePuls > 0);
+  const k = woedeEl.querySelector('kbd');
+  if (k) k.textContent = String(woedeWaarde('toets')).toUpperCase();
+}
+function woedeVolFx(){
+  woedePuls = woedeWaarde('pulsVol');
+  woedeEl.classList.remove('puls'); void woedeEl.offsetWidth;   // de animatie opnieuw laten lopen
+  woedeKlank('vol');
+}
+// Twee korte klanken, gemaakt met de Web Audio API (via weerAc, die geluidOntgrendel bij een tik al
+// op gang zet): vol is een doffe trommelslag met een warme toon erboven, aan een lage brul van ruis.
+function woedeKlank(soort){
+  if (!wantSound) return;
+  const ac = weerVersterker();
+  if (!ac) return;
+  if (ac.state === 'suspended') ac.resume().catch(() => {});
+  const t0 = ac.currentTime + 0.01;
+  const uit = ac.createGain(); uit.gain.value = 0.55; uit.connect(ac.destination);
+  if (soort === 'vol'){
+    const trom = ac.createOscillator(), tg = ac.createGain();
+    trom.type = 'sine'; trom.frequency.setValueAtTime(150, t0); trom.frequency.exponentialRampToValueAtTime(55, t0 + 0.22);
+    tg.gain.setValueAtTime(0.0001, t0); tg.gain.exponentialRampToValueAtTime(0.9, t0 + 0.01); tg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.35);
+    trom.connect(tg); tg.connect(uit); trom.start(t0); trom.stop(t0 + 0.4);
+    for (const [f, d] of [[392, 0.12], [587, 0.18]]){   // een kwint, even na de slag
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'triangle'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t0 + d); g.gain.exponentialRampToValueAtTime(0.22, t0 + d + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + 0.5);
+      o.connect(g); g.connect(uit); o.start(t0 + d); o.stop(t0 + d + 0.55);
+    }
+  } else if (weerRuis){
+    const bron = ac.createBufferSource(); bron.buffer = weerRuis;
+    const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = 6;
+    f.frequency.setValueAtTime(260, t0); f.frequency.exponentialRampToValueAtTime(900, t0 + 0.25); f.frequency.exponentialRampToValueAtTime(180, t0 + 0.7);
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.8, t0 + 0.06); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.75);
+    bron.connect(f); f.connect(g); g.connect(uit); bron.start(t0); bron.stop(t0 + 0.8);
+  }
+}
+woedeEl.onclick = () => { woedeStart(); cv.focus(); };
+// Een icoon van een ability dat (nog) niet op schijf staat: dan het logo van zijn tribe, in plaats
+// van een gebroken plaatje op het keuzescherm en in de HUD.
+addEventListener('error', e => {
+  const im = e.target, m = im && im.tagName === 'IMG' && !im.dataset.terug && /design\/tribes\/(\w+)\/abilities\//.exec(im.src);
+  if (!m) return;
+  console.warn('ontbreekt: ' + im.src);
+  im.dataset.terug = '1'; im.src = 'design/tribes/' + m[1] + '/logo.png';
+}, true);
 function tribeOpen(){ return tribeKiesEl.classList.contains('on') || tribeUnlockEl.classList.contains('on'); }
 const SLOT_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="1.5"/>' +
                  '<path d="M8 11 V7.5 a4 4 0 0 1 8 0 V11"/></svg>';
@@ -16707,12 +16939,14 @@ function tribeSelecteer(id){
 function tribeJoin(){
   const t = tribeVan(tribeKeuze);
   if (!t || t.locked) return;
-  RUN.tribeId = t.id; RUN.abilities = []; RUN.gehaald = 0;   // de abilities verdien je per level
+  // de abilities verdien je per level; een tribe met bijStart heeft de eerste(n) meteen
+  RUN.tribeId = t.id; RUN.abilities = t.abilities.slice(0, t.bijStart || 0).map(a => a.id); RUN.gehaald = 0;
+  RUN.woede = 0;
   tribeKiesEl.classList.remove('on');
-  paused = false;
   const f = tribeVerder; tribeVerder = null;
-  if (f) f();
-  hudToon();
+  const start = () => { paused = false; if (f) f(); hudToon(); };
+  if (RUN.abilities.length) tribeNieuwToon(abilityVan(RUN.abilities[RUN.abilities.length - 1]), start);   // eerst laten zien wat je hebt
+  else start();
 }
 document.getElementById('trjoin').onclick = tribeJoin;
 // Na een uitgespeeld level: de teller op, en is er nog een ability van je tribe, dan het scherm
@@ -16723,9 +16957,13 @@ function tribeNaLevel(verder){
   RUN.gehaald++;
   const nieuw = t.abilities.find(a => RUN.abilities.indexOf(a.id) < 0);
   if (!nieuw){ verder(); return; }
-  const had = RUN.abilities.map(abilityVan).filter(Boolean);
   RUN.abilities.push(nieuw.id);
   hudToon();
+  tribeNieuwToon(nieuw, verder);
+}
+// het scherm met een nieuwe ability, en ernaast wat je al had; verder() komt na de knop
+function tribeNieuwToon(nieuw, verder){
+  const had = RUN.abilities.filter(id => id !== nieuw.id).map(abilityVan).filter(Boolean);
   const groot = document.getElementById('trugroot');
   groot.innerHTML = '<img class="trlogo" src="' + nieuw.icoon + '" alt="">' +
                     '<span class="trnaam">' + nieuw.naam + '</span><span class="trtekst">' + nieuw.tekst + '</span>';
@@ -16743,6 +16981,7 @@ document.getElementById('truverder').onclick = () => {
   tribeUnlockEl.classList.remove('on');
   const f = tribeVerder; tribeVerder = null;
   if (f) f();
+  hudToon();
 };
 // Een nieuwe run uit het menu: eerst de tribe, dan pas het level.
 function runStart(verder){ tribeKies(verder); }
@@ -16865,6 +17104,7 @@ function startSandbox(){
   sbWeer = null; sbWeerToon();                          // droog
   sbVoorgrond = 0; sbVoorgrondScherp = false; sbVoorgrondToon();
   sbZwVrij = false; sbZwLabel();                        // de zwaardvechter doet weer zijn eigen werk
+  RUN.woede = 0; woedeStop();                           // de woedemeter van de sandbox begint leeg
   document.getElementById('lives').style.display = 'none';   // geen levens in de sandbox
   restart();
   hudToon();
@@ -17217,6 +17457,12 @@ for (const b of document.querySelectorAll('[data-ability]')) b.onclick = e => {
   e.currentTarget.textContent = a.naam + ': ' + (sbAbilities.has(id) ? 'aan' : 'uit');
   e.currentTarget.classList.toggle('on', sbAbilities.has(id));
   hudToon(); cv.focus();
+};
+// de woedemeter meteen vol, om de woede te proberen zonder eerst tien vijanden (G zet hem aan)
+document.getElementById('sbwoedevol').onclick = () => {
+  if (!heeftWoede()) flashHint('Zet eerst Long Breath of Blood Rush aan');
+  else if (!woedeAan()) woedeVul(1);
+  cv.focus();
 };
 // ---- renstoot: aan of uit, en hoe ver hij doorglijdt (zie RENSTOOT) -----------
 document.getElementById('sbrenstoot').onclick = e => {
@@ -18315,15 +18561,19 @@ const TOUCH_BTNS = [
   { id: 'hit',    label: '✦', ang: 50, arc: 118, r: 36, hit: 2.20, act: 'attack' },
   { id: 'spear',  label: 'E',      ang: 0,  arc: 118, r: 26, hit: 1.90, act: 'spear', when: 'pickup', dim: true },
   { id: 'drink',  label: '',       ang: 96, arc: 118, r: 30, hit: 2.00, act: 'drink', icon: 'hppotion' },
-  { id: 'spell1', label: '',      ang: 142, arc: 118, r: 26, hit: 1.80, act: null, when: 'never' },
+  // de woede van Bhubesi: links van ✦, waar de duim er vanaf de slagknop heen schuift. Het oude plekje
+  // van spell1 (142 graden) viel tegen de schermrand en dan over de drinkknop heen.
+  { id: 'woede',  label: '',       ang: 22, arc: 200, r: 28, hit: 1.60, act: 'woede', when: 'woede', icon: 'woede' },
   { id: 'spell2', label: '',       ang: 96, arc: 176, r: 26, hit: 1.80, act: null, when: 'never' }
 ];
 function btnVisible(b){
   if (b.when === 'never') return false;            // gereserveerd voor een spell
   if (b.when === 'pickup') return eNodig();        // alleen als er iets met E te doen is: speer, deur, skelet
+  if (b.when === 'woede') return heeftWoede();     // alleen met de woedemeter (Long Breath of Blood Rush)
   return true;
 }
 function btnDim(b){                                // lege drinkknop staat er wat flauwer bij
+  if (b.id === 'woede') return RUN.woede < 1 && !woedeAan();   // en de woedeknop zolang hij niet vol is
   return b.id === 'drink' ? hppotionCarry === 0 : !!b.dim;
 }
 
@@ -18401,6 +18651,7 @@ function pressBtn(id){
   else if (b.act === 'attack'){ if (!atkKeyHeld){ atkKeyHeld = true; thrPress(); } }   // net als spatie: vasthouden is spannen
   else if (b.act === 'spear') eDruk();                                 // net als E, dus ook door de deur
   else if (b.act === 'drink') drinkHppotion();                         // net als Q
+  else if (b.act === 'woede') woedeStart();                            // net als G
 }
 function releaseBtn(id, cancel){
   TOUCH.pressed.delete(id);
@@ -18575,6 +18826,29 @@ function drawBtnHppotion(x, y, r, a){
   tctx.fillText(String(hppotionCarry), x + r * 0.48, y + r * 0.50);
   tctx.restore();
 }
+// De woedeknop: het leeuwenlogo, met een ring eromheen die zich vult zoals de meter. Vol gloeit hij
+// en pulseert hij even; tijdens de woede loopt de ring leeg.
+const woedeKnopImg = new Image(); woedeKnopImg.src = 'design/tribes/bhubesi/logo.png';
+function drawBtnWoede(x, y, r, a){
+  const vol = RUN.woede >= 1 && !woedeAan();
+  const puls = woedePuls > 0 ? 1 + 0.12 * Math.sin((1 - woedePuls / woedeWaarde('pulsVol')) * Math.PI * 6) : 1;
+  tctx.save();
+  if (vol || woedeAan()){ tctx.shadowColor = 'rgba(255,160,60,0.9)'; tctx.shadowBlur = r * 0.6; }
+  tctx.globalAlpha = vol || woedeAan() ? 1 : Math.min(1, a + 0.35);
+  const s = r * 1.5 * puls;
+  if (imgReady(woedeKnopImg)) tctx.drawImage(woedeKnopImg, x - s / 2, y - s / 2, s, s);
+  tctx.shadowBlur = 0;
+  tctx.globalAlpha = 1;
+  tctx.lineCap = 'round';
+  tctx.lineWidth = Math.max(3, r * 0.14);
+  tctx.strokeStyle = 'rgba(20,16,30,0.45)';
+  tctx.beginPath(); tctx.arc(x, y, r + tctx.lineWidth * 0.5, 0, Math.PI * 2); tctx.stroke();
+  if (RUN.woede > 0){
+    tctx.strokeStyle = woedeAan() ? '#ffd9a0' : '#e2774a';
+    tctx.beginPath(); tctx.arc(x, y, r + tctx.lineWidth * 0.5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * RUN.woede); tctx.stroke();
+  }
+  tctx.restore();
+}
 function drawTouch(){
   checkPortrait();
   const on = touchOn();
@@ -18608,6 +18882,7 @@ function drawTouch(){
     const a = TOUCH.pressed.has(it.b.id) ? hot : rest;
     ring(it.x, it.y, it.r, a, it.b.label, btnDim(it.b));
     if (it.b.icon === 'hppotion') drawBtnHppotion(it.x, it.y, it.r, a);
+    if (it.b.icon === 'woede') drawBtnWoede(it.x, it.y, it.r, a);
   }
 }
 
