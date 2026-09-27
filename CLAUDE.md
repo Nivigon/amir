@@ -95,7 +95,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | schilden in de wind | `SCHILD`, `schildStofUpdate`, `schildTil`, `drawSchildStof`: een schild (`schild: true` in `PROPS`) is een windscherm; bij een vlaag stuwt er stof tegen de windkant op, dat eroverheen waait. De plaatjes in `design/schilden/` zijn zelf de bron (het donkere motief van het klauwenschild is er met de hand in teruggezet) |
 | slangen: kleur, zicht en patrouille | `SNAKE_DIRS`, `slangZiet`, `startPatrouille`, `slangSchuif` |
 | zwarte panter, de witte panter, de hyena | de grote vijanden |
-| voorgrond: de laag tussen de camera en Amir | `VOORGROND`, `VG_SOORT`, `VG_LAGEN`, `vgStandaard`, `drawVoorgrond`: onscherp gras, struiken, keien en een schedel vlak voor de camera, in twee lagen; schuift sneller dan de wereld, ook verticaal, en valt onder de grond weg. Elk level heeft er een (zie "de voorgrond hoort bij elk level") |
+| voorgrond: de laag tussen de camera en Amir | `VOORGROND`, `VG_SOORT`, `VG_LAGEN`, `vgStandaard`, `drawVoorgrond`: onscherp gras, struiken, keien, een schedel en speertekens vlak voor de camera, in drie lagen waarvan de voorste bijna zwart is; schuift sneller dan de wereld, ook verticaal, en valt onder de grond weg. Elk level heeft er een (zie "de voorgrond hoort bij elk level") |
 | achtergrondlagen, uitzicht per level | `SCENE0` en `SCENES` |
 | startscherm, level maken, menu: kaartjes per level | menu en bouwer |
 | level maken | de bouwer: `GEREEDSCHAP` (wat je neer kunt zetten), `bouwOpen` (de rand en de lijst), `bouwVelden` en `bouwExtra` (het venster), `tekenLijn` (de levellijn), `bouwD` en `bouwGeest` (Amir als geest), `bouwTesten` (testen vanaf hier), `holteMaak` en `holteTrap` (gangen), `bouwSchakelTeken` (koppelingen en raakvlakken); zie "De bouwer" hieronder |
@@ -142,7 +142,7 @@ precies hetzelfde formaat naar JSON.
 | `zegels` | zegels plat in de grond: `{x, ravijn, sluit, breed, muur}`; erop stappen zet hem aan of uit, en met `ravijn` scheurt de grond daar open als hij aangaat, `breed` breed (standaard 277). Met `sluit` gaat het open ravijn op die x juist weer dicht (staat er niets open, dan blijft hij donker). Met `muur: true` opent hij de rotswand van het level (`zegelMuur`); de rune op de wand werkt daarnaast gewoon |
 | `runes` | ravijnen met een rune op een rots ervoor: `{x, breed}`, `x` het midden van het ravijn; de rots komt vanzelf aan de kant waar Amir aankomt. Oudere levels hebben ze nog op naam in `RAVIJN_PROEF` (Rune 8); staat het veld er, dan telt het veld |
 | `fg` | strook waarover de voorgrondbegroeiing ligt: `{from, to}` |
-| `voorgrond` | de onscherpe laag vlak voor de camera: `{stroken: [{van, tot, dicht, struik, kei}], los: [{x, k, s, f}]}`, `k` uit `VG_SOORT`; los van `fg`. Zonder dit veld krijgt het level de standaard, met `false` heeft het er geen (zie hieronder) |
+| `voorgrond` | de onscherpe laag vlak voor de camera: `{stroken: [{van, tot, dicht, struik, kei, teken}], los: [{x, k, s, f, v}], zwart}`, `k` uit `VG_SOORT` (`teken` met `v` een variant uit `TEKEN.varianten`), `zwart` 0 tot 1 voor de zwarte laag; los van `fg`. Zonder dit veld krijgt het level de standaard, met `false` heeft het er geen (zie hieronder) |
 | `arena` | het veld van de eindbaas: `{c}` |
 | `cliffs` | de afsluitende rotswand: `{x}`, staat altijd achter `ends` |
 | `ends` | de fakkels die het level uitspelen: `{x}` |
@@ -881,15 +881,27 @@ Een eigen `voorgrond` in de definitie gaat voor de standaard (Test 11 heeft er e
 level een plek heeft waar de voorgrond iets moet vertellen: dicht gras aan het begin, een schedel in
 het gras bij een eindbaas. `voorgrond: false` zet hem uit; doe dat alleen met een reden.
 
-De voorgrond heeft twee lagen (`VG_LAGEN`), van ver naar dichtbij, en daardoor zit er ook binnen de
+De voorgrond heeft drie lagen (`VG_LAGEN`), van ver naar dichtbij, en daardoor zit er ook binnen de
 voorgrond diepte:
 
 | laag | schuift | grootte | onscherp | schaduw |
 | --- | --- | --- | --- | --- |
 | ver | 1,2 keer de wereld (1,4 verticaal) | 0,6 | een beetje (3) | 0,85 van de schaduw |
 | dichtbij | 1,45 keer (1,8 verticaal) | 1 | veel (7) | de hele schaduw |
+| zwart | 1,85 keer (2,4 verticaal) | 1,25 | het meest (12) | bijna zwart: 0,12 van de schaduwkleur |
 
-Beide lagen lezen dezelfde stroken; de verre laag heeft een eigen reeks, zodat de pollen niet op
+De zwarte laag staat het dichtst bij de camera: silhouetten van gras en struiken (geen keien, die worden
+in het zwart een vlek), ijl, en voor bijna de helft onder de rand van het scherm, zodat je alleen de
+toppen ziet. Hij is niet echt zwart maar de schaduwkleur heel diep, dus 's nachts blauwig en in de
+winter koel. Hoeveel er staat zegt het veld `zwart` van de voorgrond; de standaard heeft 0,5
+(`VG_STANDAARD.zwart`), een eigen voorgrond zonder dat veld heeft hem niet. In de sandbox: **Zwarte laag**.
+
+Een speerteken kan ook in de voorgrond (`VG_SOORT.teken`): los met `{x, k: 'teken', v}`, of in een strook
+met `teken` als deel van de pollen, dan om en om een variant. Het plaatje wordt een keer getekend met de
+tekenfuncties van het speerteken (`tekenVoorBeeld`, die daarvoor op `tc` tekenen in plaats van `ctx`),
+stil, zonder wind. De standaard heeft er geen; in de sandbox staat het onder **Speertekens**.
+
+Alle lagen lezen dezelfde stroken; elke laag heeft een eigen reeks, zodat de pollen niet op
 elkaar staan, en staat wat dichter op elkaar omdat hij kleiner is. Losse stukken (`los`) staan alleen
 in de dichtbije. In de winter staan er de besneeuwde versies (`winter` bij elke soort in `VG_SOORT`)
 met een koelere, lichtere schaduw (`VOORGROND.schaduwWinter`), anders wordt de sneeuw bruin; 's nachts
