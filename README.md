@@ -35,9 +35,9 @@ In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen 
 
 ## Tribes
 
-Elke run begint met het kiezen van een tribe: druk je in het menu op Spelen (of Nightmare), dan komt eerst het keuzescherm. Kiezen is verplicht en ligt vast voor de hele run. Te kiezen zijn **Mkuki, Tribe of the Spear** en **Bhubesi, Tribe of the Lion**; **Impungushe, Tribe of the Jackal** staat er al, grijs en op slot (Coming soon). Met de pijltjes en Enter kies je met het toetsenbord, op een telefoon tik je.
+Een run van De Jagers begint met het kiezen van een tribe: druk je in het menu op Spelen (of Nightmare), dan komt eerst het keuzescherm. De Test levels hebben geen tribekeuze; daar heb je alle abilities, zodat je alles kunt proberen. Kiezen is verplicht en ligt vast voor de hele run. Te kiezen zijn **Mkuki, Tribe of the Spear** en **Bhubesi, Tribe of the Lion**; **Impungushe, Tribe of the Jackal** staat er al, grijs en op slot (Coming soon). Met de pijltjes en Enter kies je met het toetsenbord, op een telefoon tik je.
 
-Met Mkuki begin je zonder ability. Na het eerste uitgespeelde level krijg je de eerste van je tribe, na het tweede de tweede en na het derde de derde, elk met een eigen scherm. Bhubesi heeft de eerste meteen bij het kiezen, de tweede na het eerste level en de derde na het tweede. Tot dan doet een ability die je nog niet hebt niets. Ze staan als klein rijtje rechtsboven, onder de kalebas. Game over en opnieuw beginnen is een nieuwe run: dan kies je opnieuw en begin je weer zonder abilities.
+Met Mkuki begin je zonder ability. Na het eerste uitgespeelde level krijg je de eerste van je tribe, na het tweede de tweede en na het derde de derde, elk met een eigen scherm. Bhubesi heeft de eerste meteen bij het kiezen, de tweede na het eerste level en de derde na het tweede. Tot dan doet een ability die je nog niet hebt niets. Ze staan als klein rijtje rechtsboven, onder de kalebas. Ga je dood, dan begin je het level opnieuw met je tribe en de abilities die je al had. Pas als je in het menu opnieuw op Spelen drukt, begint een nieuwe run en kies je opnieuw.
 
 | ability | wat hij doet |
 |---|---|
@@ -53,7 +53,7 @@ Met Mkuki begin je zonder ability. Na het eerste uitgespeelde level krijg je de 
 | **Blood Rush** | de meter vult 1,6 keer zo snel, per kill en per treffer op een eindbaas. Heb je Long Breath nog niet, dan geeft Blood Rush zelf de meter, met 5 seconden |
 | **Fourth Life** | je begint elk level met vier levens in plaats van drie (het vierde hartje heeft een gouden randje). Het gaat eraf zoals de andere; een kalebas vult tot drie, pas het volgende level geeft het terug |
 
-De woedemeter staat onder de abilities, met het leeuwenlogo en een balk. Hij is er alleen met Long Breath of Blood Rush. Elke gedode vijand vult een tiende, en elke rake klap op een eindbaas die hem nog niet doodt 0,08. Hij blijft staan tussen levels en gaat pas terug naar nul bij een nieuwe run. Is hij vol, dan pulseert hij, licht de leeuw op en klinkt er een trommelslag, maar hij gaat niet vanzelf af: druk op **G** (of klik op de meter), op de telefoon op de ronde knop met de leeuw links van ✦. Dan neemt Amir een tijd geen schade, van beten, klappen, vallen en de fosforslang, en loopt de meter leeg als aflopende tijd. Hij wordt er niet sterker van. Om hem heen hangt een warme gloed met opstijgende vonkjes, die aan het eind flakkert. Een val in een ravijn blijft het einde. Is de meter niet vol, ben je al in de woede of ben je dood, dan doet G niets.
+De woedemeter staat onder de abilities, met het leeuwenlogo en een balk. Hij is er alleen met Long Breath of Blood Rush. Elke gedode vijand vult een tiende, en elke rake klap op een eindbaas die hem nog niet doodt 0,08. Hij blijft staan tussen levels en na game over, en gaat pas terug naar nul bij een nieuwe run uit het menu. Is hij vol, dan pulseert hij, licht de leeuw op en klinkt er een trommelslag, maar hij gaat niet vanzelf af: druk op **G** (of klik op de meter), op de telefoon op de ronde knop met de leeuw links van ✦. Dan neemt Amir een tijd geen schade, van beten, klappen, vallen en de fosforslang, en loopt de meter leeg als aflopende tijd. Hij wordt er niet sterker van. Om hem heen hangt een warme gloed met opstijgende vonkjes, die aan het eind flakkert. Een val in een ravijn blijft het einde. Is de meter niet vol, ben je al in de woede of ben je dood, dan doet G niets.
 
 Alle getallen en teksten staan in `TRIBE_CONFIG`, bovenin de HTML. In de sandbox staan de abilities los aan en uit onder **Tribe Mkuki** en **Tribe Bhubesi**, met **Woede vol** om de meter meteen te vullen; testen vanuit de bouwer doe je met alles.
 
@@ -275,6 +275,8 @@ Klimrotsen, terrassen en richels blijven waar ze staan, want daar loop je op. Al
 zonder botsing schuift mee.
 
 ## De zwaardvechter
+
+Een kei houdt hem tegen met zijn voorste voet, niet met het punt waar hij op staat: hij komt niet met een been op de kei, en vanaf de voet haalt zijn zwaard je bovenop de kei niet. Een kei is dus ook voor hem een schuilplek.
 
 De eerste menselijke tegenstander: een man met een zwaard, in drie kleuren (rood, blauw en
 groen) die verder exact hetzelfde personage zijn. De frames staan in
