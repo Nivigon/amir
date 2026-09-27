@@ -497,6 +497,11 @@
         <button id="sbworp">Worp: twee trappen</button>
       </div>
       <div class="row">
+        <label>Renstoot</label>
+        <button id="sbrenstoot" class="on">Renstoot: aan</button>
+        <button id="sbglij">Glijden: middel</button>
+      </div>
+      <div class="row">
         <label>Hppotion</label>
         <button id="sbhppotion">Neerzetten</button>
         <button id="sbhppotiondrop">Laten vallen</button>
@@ -5443,6 +5448,7 @@ function canThrow(){
 }
 function thrPress(){
   thrPressT = performance.now();
+  glijStart();                                     // in volle sprint: hij glijdt door (zie renstoot)
   if (canThrow()){ thr = { frame: 0, acc: 0, held: true, rel: 0, gone: false, lob: false, glint: 0,
                            hoek: 0, t0: 0, vol: false }; return; }
   startAttack();                                   // gebukt, zonder speer of in de lucht: gewoon stoten
@@ -6581,6 +6587,59 @@ boxBtn.onclick = () => { showBoxes = !showBoxes; setBoxLabel(); };
 
 let atkFrame = -1, atkAcc = 0, atkCooldown = 0, atkKeyHeld = false;
 const ATK_COOLDOWN = 0.18;                       // short recovery before the next thrust
+
+// ---- renstoot: sprinten en dan stoten, dan glijdt hij door ----------------
+// Zonder dit staan zijn voeten stil zodra je op spatie drukt, ook in volle sprint. Nu
+// neemt hij zijn vaart mee: hij zet zijn hakken in het zand en glijdt remmend door
+// terwijl de gewone stootframes lopen, met stof bij zijn voeten. Het begint op het
+// indrukken (thrPress), want een tik is eerst een beginnende worp en die zet hem ook
+// stil. Houd je vast, dan remt hij net zo af en gooit hij. Alleen vanuit een sprint, op
+// de grond, niet in het water; aan de rand van een ravijn stopt hij, daar glijdt hij
+// niet in. Met 495 px/s en een rem van 1200 staat hij na 0,41 s en 102 px stil, net
+// na de frames waarin de speer raakt (ATK_ACTIVE, 0,22 tot 0,44 s).
+const RENSTOOT = {
+  aan: true,
+  rem: 1200,         // vertraging in wereld-px per seconde in het kwadraat
+  stof: 0.03,        // om de zoveel seconden een wolkje bij zijn voeten
+  groot: 2.4,        // hoe groot die wolkjes zijn
+  schop: 0.3         // hoeveel van zijn vaart het stof meekrijgt, naar voren
+};
+// Het stof is dat van de lage zwaai (sand, drawSweepDust): het stofwolkje van een voetstap
+// of de schorpioen (puffWorld) is te ijl, dat zie je op het zand niet.
+function glijWolk(zij, k){
+  sand.push({ ax: world, ah: ph, x: zij * (10 + Math.random() * 30), y: -4,
+              back: Math.random() < 0.5,
+              vx: zij * Math.abs(glij) * RENSTOOT.schop * (0.5 + Math.random() * 0.8) - zij * 20,
+              vy: -(25 + Math.random() * 50),
+              r: (12 + Math.random() * 12) * RENSTOOT.groot * k, life: 0.6 + Math.random() * 0.5, age: 0,
+              rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 1.6 });
+}
+let glij = 0, glijStof = 0;      // glijsnelheid in wereld-px/s (met teken), en de stoftimer
+function glijStart(){
+  if (!RENSTOOT.aan || !spear || building || dead || hurt > 0 || jump || !onGround || fell) return;
+  if (atkFrame >= 0 || swFrame >= 0 || swRecover > 0 || duckT > 0 || !keys['Shift']) return;
+  const left = keys['ArrowLeft'] || keys['a'] || keys['A'];
+  const right = keys['ArrowRight'] || keys['d'] || keys['D'];
+  if (left === right || waterDepthAt(world, ph) > 0.3) return;
+  glij = (right ? 1 : -1) * 330 * walkK() * 1.5;  // dezelfde vaart als de sprint in de loop
+  glijStof = 0;
+  for (let i = 0; i < 3; i++) glijWolk(Math.sign(glij), 1);   // de hakken erin
+}
+function glijUpdate(dt, halfW){
+  if (dead || hurt > 0 || fell || !onGround || building || waterDepthAt(world, ph) > 0.3){ glij = 0; return; }
+  const zij = Math.sign(glij);
+  const stap = glij * dt;
+  if (gatOp(world + stap + zij * halfW * 0.5, ph)){ glij = 0; return; }   // niet het ravijn in
+  world += stap;
+  const v = glij - zij * RENSTOOT.rem * dt;
+  glij = Math.sign(v) === zij ? v : 0;
+  glijStof -= dt;
+  if (glij !== 0 && glijStof <= 0){
+    glijStof = RENSTOOT.stof;
+    const k = Math.abs(glij) / (330 * 1.5);                 // minder stof naarmate hij stilvalt
+    glijWolk(zij, 0.45 + 0.55 * k);
+  }
+}
 function startAttack(){
   // in de lucht met omlaag ingedrukt: de sweep gaat af zodra je landt
   if ((jump || !onGround) && downKey() && spear && !dead && hurt <= 0 && !building){ sweepBuf = SWEEP_BUFFER; return; }
@@ -9582,7 +9641,7 @@ function restart(){
   lives = 3; invuln = 0; hurt = 0; knock = 0; shake = 0; dead = false;
   hits = 0; hitsEl.textContent = 0;
   atkFrame = -1; atkAcc = 0; atkCooldown = 0; swFrame = -1; swAcc = 0; sweepBuf = 0; duckT = 0; swRecover = 0; sand.length = 0;
-  thr = null; jav = null; javLost = 0; javOver = null; spearH = null; lastSolid = 0;
+  thr = null; jav = null; javLost = 0; javOver = null; spearH = null; lastSolid = 0; glij = 0;
   muurReset();                                      // de rotswand weer dicht, zonder speer erin
   ravijnReset();                                    // het ravijn weer dicht, de rune weer uit
   zegelReset();                                     // en de zegels weer uit
@@ -13563,6 +13622,7 @@ function loop(now){
   }
   const wetNow = (!building && ph < 2) ? waterDepthAt(world, ph) : 0;   // tot je knieën in het water
   if (!fell) world += dir * 330 * walkK() * (wetNow > 0.3 ? 1 : sprint) * (1 - (1 - POOL.slow) * wetNow) * dt;
+  if (glij !== 0) glijUpdate(dt, halfWNow);      // de renstoot: remmend doorglijden
   const cliff = cliffAt();
   if (world + halfWNow > cliff.wall) world = cliff.wall - halfWNow;   // je komt er niet voorbij
   if (world - halfWNow < endWall()) world = endWall() + halfWNow;    // en ook niet voorbij je eigen klif
@@ -16273,6 +16333,20 @@ document.getElementById('sbworp').onclick = e => {
   e.currentTarget.textContent = sbWorpSchaal ? 'Worp: schaal' : 'Worp: twee trappen';
   e.currentTarget.classList.toggle('on', sbWorpSchaal);
   thrCancel(); cv.focus();
+};
+// ---- renstoot: aan of uit, en hoe ver hij doorglijdt (zie RENSTOOT) -----------
+document.getElementById('sbrenstoot').onclick = e => {
+  RENSTOOT.aan = !RENSTOOT.aan; glij = 0;
+  e.currentTarget.textContent = 'Renstoot: ' + (RENSTOOT.aan ? 'aan' : 'uit');
+  e.currentTarget.classList.toggle('on', RENSTOOT.aan);
+  cv.focus();
+};
+const GLIJ_STANDEN = [['kort', 1800], ['middel', 1200], ['lang', 800]];   // de rem: 68, 102 of 153 px
+document.getElementById('sbglij').onclick = e => {
+  const i = (GLIJ_STANDEN.findIndex(g => g[1] === RENSTOOT.rem) + 1) % GLIJ_STANDEN.length;
+  RENSTOOT.rem = GLIJ_STANDEN[i][1];
+  e.currentTarget.textContent = 'Glijden: ' + GLIJ_STANDEN[i][0];
+  cv.focus();
 };
 document.getElementById('sbspear').onclick = () => {          // weer met een speer in de hand
   thr = null; jav = null; javLost = 0;

@@ -64,6 +64,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | muziek per level | `MUZIEK`, `zetMuziek()`: welk deuntje onder welk level loopt |
 | beeld: de grote of de kleine spriteset | `KLEIN_FAM`, de keuze groot of klein, `zetBron` |
 | hppotion | de drinkkalebas |
+| renstoot: sprinten en dan stoten | `RENSTOOT`, `glijStart`, `glijUpdate`, `glijWolk`: vanuit een sprint neemt hij zijn vaart mee in de stoot en glijdt hij remmend door, met het stof van de lage zwaai bij zijn voeten; stopt voor een ravijn. In de sandbox onder Renstoot |
 | bukken, jump frames, tempo | Amir zijn bewegingen |
 | rotsen om op te springen | `rocks`, en het automatisch bijgroeien |
 | winter: episode Winter World | `WINTER_SRC`, `winterOn()`, `winterPic()` |
