@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // De bouwertest: kijkt na of de bouwer een level heel laat.
 //
-// Voor elk level uit de HTML (De Runen en de testlevels) doet hij wat een speler doet die het
+// Voor elk level uit de HTML (De Runen, De Vorst en de testlevels) doet hij wat een speler doet die het
 // level in de bouwer opent en meteen weer opslaat: readLevel, syncLevel, en de tekst die eruit
 // komt weer inlezen. Wat er dan anders is dan bij het origineel, is de bouwer kwijtgeraakt of
 // veranderd. Hij meldt per level de velden die niet gelijk bleven, en wat er in de console
@@ -83,7 +83,9 @@ async function start(){
       return o;
     };
     const uit = [];
-    for (const lijst of [RUNE_LEVELS, TEST_LEVELS]){
+    // elke episode die er is: De Runen, De Vorst (als die er staat) en de testlevels
+    const reeksen = [RUNE_LEVELS, typeof VORST_LEVELS !== 'undefined' ? VORST_LEVELS : [], TEST_LEVELS];
+    for (const lijst of reeksen){
       for (const def of lijst){
         if (filter && !def.name.toLowerCase().includes(filter.toLowerCase())) continue;
         const voor = vorm(readLevel(JSON.stringify(def)));
