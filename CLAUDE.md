@@ -83,6 +83,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | zegel in de grond: de runeschijf plat, als schakelaar | `ZEGEL`, `zegelGrond`, `zegelUpdate`, `zegelDoe`: erop stappen zet hem aan of uit, en wat hij dan doet (nu: een ravijn openen) |
 | skelet met speer | `SKELET`, `skeletTrek`, `skeletUpdate`, `skeletTeken`, `skeletRaak`: E vasthouden trekt de speer eruit, het skelet stort in met de losse botten (`sounds/skeletvalt.mp3`); de schedel is daarna los decor; losse speren op de grond (`losseSperen`) en het blauwe vaantje (`vaanBlauw`) |
 | speerteken: een speer in de grond met een zwart doek en schedels | `TEKEN`, `tekenUpdate`, `tekenTeken`: decor in vier varianten (`teken`, `gebroken`, `gekruist`, `jagers`); het doek wappert op `windAt` zoals het gras. Maten in Amir |
+| licht op de runerotsen | `RUNE_LICHT`, `runeLichtMaak`, `runeGrondSchaduw`: de zon op een rots met een rune, uit dezelfde richting als de lichtkaart (`LK.zonHoek`, `zonRechts`); zie "runes op elke rots" |
 | runeschijf: het losse symbool | `runeSchijf(ctx, x, y, r, {aan, spiegel})`: de houten schijf met de rune, los te hergebruiken |
 | vallen: schade bij een diepe val | hoe diep een val telt en wat hij kost |
 | schorpioen, het projectiel, spannen en werpen, de geworpen speer | de speerworp; `speerNaastAmir` zet een speer waar Amir niet meer bij komt (achter of in een doornbos, boven op een terras dat hij van deze kant niet meer op komt) naast hem, nooit over een ravijn; `speerBereikbaar` rekent dat uit over de vloeren om hem heen |
@@ -570,6 +571,17 @@ Met `doel: true` is een rune een doel: raken zet hem aan (`runeGeraakt`), met ee
 erin zit blijft daar als je een andere pakt (`runeSperen`, in `eigenSpeerNeer`), in plaats van als
 losse speer op de grond eronder te vallen. Test 12 is het proefstuk: vijf rotsen, en na elke rots een
 skelet voor een nieuwe speer.
+
+**Het licht op een runerots** komt van dezelfde zon als de rest (`RUNE_LICHT`). Net als bij de
+lichtkaart gaat er uit elk punt van de rots een straal naar de zon (`LK.zonHoek`, aan de kant van
+`zonRechts`), en telt hoe ver die door het steen moet (`runeLichtMaak`). Kort: een warme rand, met
+`soft-light` zodat licht steen niet wit wordt. Diep (tot `diep`, ongeveer de breedte van een zuil):
+schaduw. In een kier zakt die weg maar langzaam weg (`lucht`), anders licht een losse kei aan de
+schaduwkant op. Op de grond valt een slagschaduw naar de andere kant (`runeGrondSchaduw`), in de
+sneeuw blauwig. De sterkte volgt de gloed van het uitzicht, met `nacht` als ondergrens. De maskers
+worden een keer per plaat, kant en maat uitgerekend (zo'n 20 ms), een rots per beeld vanaf het begin
+van het level, dus voor je er bent. De grijze schaduwvloer onder de keien in de platen gaat er bij het
+laden uit (`RAVIJN_ROTS.voet` in `witKnip`); zonder dat lag er een grijze strook op de grond.
 
 De maten van een rots hangen aan Amir en dus aan het scherm, en een level niet: op 1920 bij 1080
 is een rots van 5 Amir ruim 2000 px breed. Laat tussen de rotsen genoeg ruimte voor het grootste

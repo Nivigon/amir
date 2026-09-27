@@ -8441,13 +8441,122 @@ function ravijnRuneTreffer(x, h, scale, e){
   ravijnOpen(e.x, e.breed);
   flashHint('De rune licht op: de grond scheurt open');
 }
+// ---- licht op de runerotsen ----
+// De rotsen staan in de open zon, dus ze krijgen hetzelfde licht als de rest van het spel: de zon
+// staat aan de kant van zonRechts, LK.zonHoek graden van recht boven. Net als bij de lichtkaart gaat
+// er uit elk punt van de rots een straal naar de zon, en telt hoe ver die door het steen moet
+// (runeLichtMaak, een keer per plaat, per kant en per maat). Waar dat kort is vangt het steen de
+// zon: een warme rand langs de bovenkant en de flank aan de zonkant. Hoe dieper, hoe meer schaduw,
+// en onder een overhang aan de zonkant ligt dus ook schaduw. Op de grond valt een slagschaduw naar
+// de andere kant. Kleur en sterkte volgen het uitzicht zoals de zon op de wand van een ravijn: de
+// gloed van het level (0,30 overdag) met nacht als ondergrens, en in de winter koel.
+// rand en diep staan in Amir, zodat een grote rots geen dikkere rand krijgt dan een kleine.
+const RUNE_LICHT = {
+  stap: 2,          // de maskers op dit deel van de bronmaat: het licht is zacht, dus dat mag grof
+  rand: 0.18,       // zo diep in het steen valt de zon nog, in Amir
+  licht: 0.8,       // zo fel is de rand, in de kleur van de zon (soft-light: warmer en lichter, nooit wit)
+  diep: 2.6,        // zo diep in het steen is de schaduw vol, in Amir: ongeveer de breedte van een zuil,
+                    // dus de zonkant is licht en de andere kant ligt in de schaduw
+  schaduw: 0.34,    // zo donker is de schaduw daar
+  lucht: 0.6,       // zo snel zakt de weg door het steen weg in een kier, in Amir
+  nacht: 0.35,      // ondergrens van de sterkte 's nachts
+  grond: { breed: 1.2, hoog: 0.14, weg: 0.2,        // de slagschaduw: maten als deel van de breedte van de rots
+           kleur: [0.62, 0.58, 0.60], winter: [0.70, 0.78, 0.92] }   // in de sneeuw blauwig, niet bruin
+};
+const runeLichtCache = {};                         // soort|kant|groot|winter -> { licht, schaduw }
+function runeLichtSleutel(e, rechts){
+  return runeSoort(e) + '|' + (rechts ? 1 : 0) + '|' + (e.groot || RAVIJN_ROTS.hoog) + '|' + (winterOn() ? 1 : 0);
+}
+function runeLichtMaak(e, B, rechts){
+  const RL = RUNE_LICHT, st = RL.stap, winter = winterOn();
+  const groot = e.groot || RAVIJN_ROTS.hoog;
+  const sleutel = runeLichtSleutel(e, rechts);
+  if (runeLichtCache[sleutel]) return runeLichtCache[sleutel];
+  const lw = Math.ceil(B.w / st), lh = Math.ceil(B.h / st), n = lw * lh;
+  // de rots op deze maat: het minimum van het blok, zodat licht en schaduw nergens buiten het steen komen
+  const vol = new Float32Array(n);
+  for (let y = 0; y < lh; y++) for (let x = 0; x < lw; x++){
+    let m = 255;
+    for (let j = 0; j < st; j++) for (let i = 0; i < st; i++){
+      const u = Math.min(B.w - 1, x * st + i), v = Math.min(B.h - 1, y * st + j);
+      m = Math.min(m, B.alfa[v * B.w + u]);
+    }
+    vol[y * lw + x] = m / 255;
+  }
+  // de weg door het steen naar de zon, per rij van boven naar onder: een rij hoger en t opzij
+  const t = Math.tan(LK.zonHoek * Math.PI / 180) * (rechts ? 1 : -1);
+  const d = new Float32Array(n);
+  // Door de lucht zakt die weg langzaam weg (lucht, in Amir), en niet ineens naar nul: een kier tussen een
+  // losse kei en de rots erachter zou anders de hele schaduw opheffen, en dan licht die kei op.
+  const perAmir = B.h / groot / st;               // maskerpixels per Amir
+  const stap = Math.hypot(1, t), zakt = Math.exp(-stap / (RL.lucht * perAmir));
+  for (let y = 0; y < lh; y++) for (let x = 0; x < lw; x++){
+    const i = y * lw + x;
+    let vorig = 0;
+    if (y > 0){
+      const q = x + t, q0 = Math.floor(q), f = q - q0;
+      const a = q0 >= 0 && q0 < lw ? d[i - lw - x + q0] : 0, b = q0 + 1 >= 0 && q0 + 1 < lw ? d[i - lw - x + q0 + 1] : 0;
+      vorig = a + (b - a) * f;
+    }
+    d[i] = vol[i] < 0.5 ? vorig * zakt : vorig + stap;
+  }
+  const zon = winter ? LK.zonWinter : LK.zonKleur;
+  const donker = (winter ? RAVIJN_ZON.winter : RAVIJN_ZON.kleur).split(',').map(Number);
+  const maak = () => { const c = document.createElement('canvas'); c.width = lw; c.height = lh; return c; };
+  const cl = maak(), cs = maak();
+  const gl = cl.getContext('2d'), gs = cs.getContext('2d');
+  const il = gl.createImageData(lw, lh), is = gs.createImageData(lw, lh);
+  for (let i = 0; i < n; i++){
+    if (vol[i] <= 0) continue;
+    const a = d[i] / perAmir;                      // weg door het steen, in Amir
+    const k = i * 4;
+    il.data[k] = zon[0]; il.data[k + 1] = zon[1]; il.data[k + 2] = zon[2];
+    il.data[k + 3] = Math.round(255 * vol[i] * Math.exp(-a / RL.rand));
+    const s = Math.min(1, a / RL.diep);
+    is.data[k] = donker[0]; is.data[k + 1] = donker[1]; is.data[k + 2] = donker[2];
+    is.data[k + 3] = Math.round(255 * vol[i] * s * s * (3 - 2 * s));
+  }
+  gl.putImageData(il, 0, 0); gs.putImageData(is, 0, 0);
+  return runeLichtCache[sleutel] = { licht: cl, schaduw: cs };
+}
+function runeLichtSterkte(){
+  return Math.max(RUNE_LICHT.nacht, Math.min(1, lichtNu().gloedSterkte / 0.30));
+}
+// De slagschaduw op de grond: een platte ellips die de grond vermenigvuldigt, naar de kant weg van de zon.
+function runeGrondSchaduw(sx, gy, wPx, rechts, f){
+  const G = RUNE_LICHT.grond, rx = wPx * G.breed / 2, ry = wPx * G.hoog / 2;
+  const c = (winterOn() ? G.winter : G.kleur).map(v => Math.round(255 - (255 - v * 255) * f)).join(',');
+  ctx.save();
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.translate(sx + wPx / 2 + (rechts ? -1 : 1) * wPx * G.weg, gy); ctx.scale(1, ry / rx);
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+  g.addColorStop(0, 'rgb(' + c + ')'); g.addColorStop(0.6, 'rgb(' + c + ')'); g.addColorStop(1, 'rgb(255,255,255)');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(0, 0, rx, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
 function ravijnRuneTeken(groundY, scale, cx){      // de rotsen, de schijf op elk, en de speren erin
   if (!ravijnRotsHier()) return;
+  // het licht vooruit: elk beeld hoogstens een rots die nog geen maskers heeft (zo'n 20 ms per stuk),
+  // zodat er niets hapert als hij in beeld komt
+  for (const e of ravijnProef()){
+    const B = runeBeeld(e);
+    if (B && !runeLichtCache[runeLichtSleutel(e, zonRechts())]){ runeLichtMaak(e, B, zonRechts()); break; }
+  }
   for (const e of ravijnProef()){
     const M = ravijnRotsMaat(scale, e); if (!M) continue;
     const sx = cx + (M.l - world);
     if (sx > W / viewZoom() + W || sx + M.wPx < -W) continue;
+    const rechts = zonRechts(), f = runeLichtSterkte();
+    runeGrondSchaduw(sx, groundY, M.wPx, rechts, f);
     ctx.drawImage(M.B.c, sx, groundY - M.hPx, M.wPx, M.hPx);
+    const RL = runeLichtMaak(e, M.B, rechts);
+    ctx.save();
+    ctx.globalAlpha = RUNE_LICHT.schaduw * f;
+    ctx.drawImage(RL.schaduw, sx, groundY - M.hPx, M.wPx, M.hPx);
+    ctx.globalCompositeOperation = 'soft-light'; ctx.globalAlpha = RUNE_LICHT.licht * f;
+    ctx.drawImage(RL.licht, sx, groundY - M.hPx, M.wPx, M.hPx);
+    ctx.restore();
     const R = ravijnRune(scale, e);
     const px = cx + (R.x - world), py = groundY - R.h * scale;
     if (runeDoel(e) && ravijnRuneAan(e)){            // een geraakt doel blijft gloeien, zacht en traag, achter het hout
