@@ -45,7 +45,9 @@ Elke tribe heeft een **talent tree**: een verticale boom zoals in World of Warcr
 |---|---|
 | **Quick Hand** | na een speerworp sta je korter vast: het herstel na het loslaten gaat 1,6 keer zo snel (0,47 in plaats van 0,75 seconde) |
 | **Thorn Breaker** | een doornbos gaat in een klap om in plaats van drie |
-| **Low Sweep** | de lage zwaai (bukken en aanvallen). Zonder deze ability doet die input niets. Hij raakt wat hij altijd raakte: slangen, fosforslangen, de schorpioen, hyena's, zwaardvechters en de panter als hij na een sprong plat ligt |
+| **Twin Sweep** | de lage zwaai heeft twee ladingen in plaats van een: de tweede is een reserve terwijl de eerste herlaadt |
+
+De lage zwaai zelf (bukken en aanvallen) heeft iedereen, bij elke tribe. Hij raakt slangen, fosforslangen, de schorpioen, hyena's, zwaardvechters en de panter als hij na een sprong plat ligt. Na een zwaai herlaadt hij 1,4 seconde voor je hem opnieuw kunt doen; dat zie je rechtsboven aan het icoon met de speer in de wervel, dat donker wordt en weer vrijdraait. Met Twin Sweep staan er twee stipjes naast: een per lading. De ladingen laden een voor een bij, en een misser kost er ook een.
 
 ### Bhubesi en de woede
 
@@ -57,7 +59,7 @@ Elke tribe heeft een **talent tree**: een verticale boom zoals in World of Warcr
 
 De woedemeter staat onder de abilities, met het leeuwenlogo en een balk. Hij is er alleen met Long Breath of Blood Rush. Elke gedode vijand vult een tiende, en elke rake klap op een eindbaas die hem nog niet doodt 0,08. Hij blijft staan tussen levels en na game over, en gaat pas terug naar nul bij een nieuwe run uit het menu. Is hij vol, dan pulseert hij, licht de leeuw op en klinkt er een trommelslag, maar hij gaat niet vanzelf af: druk op **G** (of klik op de meter), op de telefoon op de ronde knop met de leeuw links van ✦. Dan neemt Amir een tijd geen schade, van beten, klappen, vallen en de fosforslang, en loopt de meter leeg als aflopende tijd. Hij wordt er niet sterker van. Om hem heen hangt een warme gloed met opstijgende vonkjes, die aan het eind flakkert. Een val in een ravijn blijft het einde. Is de meter niet vol, ben je al in de woede of ben je dood, dan doet G niets.
 
-Alle getallen en teksten staan in `TRIBE_CONFIG`, bovenin de HTML. In de sandbox staan de abilities los aan en uit onder **Tribe Mkuki** en **Tribe Bhubesi**, met **Woede vol** om de meter meteen te vullen; testen vanuit de bouwer doe je met alles.
+Alle getallen en teksten staan in `TRIBE_CONFIG`, bovenin de HTML. In de sandbox staan de abilities los aan en uit onder **Tribe Mkuki** en **Tribe Bhubesi**, met **Woede vol** om de meter meteen te vullen, en onder **Lage zwaai** hoe lang een lading herlaadt; testen vanuit de bouwer doe je met alles.
 
 ## Op je telefoon zetten
 
@@ -117,7 +119,7 @@ De versie in `offline-assets.json` verandert mee, en de service worker ziet daar
 | lopen, rennen | pijltjes, Shift sprint | joystick (duim links) |
 | springen | pijl omhoog | ▲, of joystick omhoog |
 | bukken | pijl omlaag | joystick omlaag |
-| lage zwaai (met Low Sweep) | bukken en spatie | joystick omlaag en ✦ |
+| lage zwaai | bukken en spatie | joystick omlaag en ✦ |
 | stoten | spatie (korte tik) | ✦ (korte tik) |
 | stoten vanuit een sprint | Shift en een pijltje, dan spatie: hij glijdt remmend door | joystick ver uit, dan ✦ |
 | **speer recht vooruit** | **spatie vasthouden, loslaten** | **✦ vasthouden, loslaten** |
