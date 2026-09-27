@@ -9,12 +9,13 @@ en beschrijft wat het spel kan; dit document beschrijft hoe je eraan werkt.
 
 ## Regels
 
-**1. Bestaande levels blijven met rust.** De leveldefinities in de HTML
-(`RUNE_1` tot en met `RUNE_10`, `VORST_1` tot en met `VORST_7`) zijn bevroren. De
-levels in Episode Test levels (`TEST_1`) vallen daar niet onder: die zijn er juist om aan te rommelen. Er komt geen nieuwe vijand,
-prop, tip, potion of aangepast getal in, ook niet even om iets te laten zien. Alleen
-als de opdracht een level bij naam noemt ("zet dit in Rune 6") mag dat ene level
-veranderen. Twijfel je of iets eronder valt, dan valt het eronder: vraag het.
+**1. Levels van een echte episode blijven met rust.** Op dit moment is er geen: De Runen en
+De Vorst zijn eruit, en alleen Episode Test levels (`TEST_1` en verder) staat in het menu. Die
+vallen niet onder deze regel: ze zijn er juist om aan te rommelen. Komt er weer een echte episode,
+dan zijn zijn leveldefinities bevroren: er komt geen nieuwe vijand, prop, tip, potion of aangepast
+getal in, ook niet even om iets te laten zien. Alleen als de opdracht een level bij naam noemt
+("zet dit in level 6") mag dat ene level veranderen. Twijfel je of iets eronder valt, dan valt
+het eronder: vraag het.
 
 **2. Nieuw werk test je in de sandbox.** Een nieuwe vijand, prop of mechaniek krijgt
 knoppen in de sandbox, zodat het zonder level uit te proberen is. Dat is ook hoe de
@@ -61,6 +62,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | --- | --- |
 | versie: welke update er live staat | `versieTijd` (uit `document.lastModified`) heel klein linksboven, en `toonUpdates`: de laatste vijf samengevoegde pull requests van GitHub (`VERSIE_REPO`), met of ze erin zitten (regel 8) |
 | globale lichtlaag | kleurwaas over het beeld, volgt de zon van het level; een level stelt hem bij met `licht` in `SCENES` |
+| de schaduw van Amir | `AMIR_SCHADUW`, `amirSilhouet`, `drawAmirSchaduw`: zijn eigen frame als silhouet op de grond, met een contactschaduw onder de voeten; richting en lengte uit de zon van het uitzicht (`zonSchaduw`, `sun` in `SCENES`): naar voren, want de zon staat achter het landschap, opzij van de zon af, en langer naarmate de zon lager staat. Een keer per frame gebakken. De ravijnen en de lichtkaart gebruiken nog de vaste `LK.zonHoek` |
 | muziek per level | `MUZIEK`, `zetMuziek()`: welk deuntje onder welk level loopt |
 | beeld: de grote of de kleine spriteset | `KLEIN_FAM`, de keuze groot of klein, `zetBron` |
 | hppotion | de drinkkalebas |
@@ -69,8 +71,6 @@ regelnummer, want die schuiven bij elke wijziging.
 | rotsen om op te springen | `rocks`, en het automatisch bijgroeien |
 | winter: episode Winter World | `WINTER_SRC`, `winterOn()`, `winterPic()` |
 | bodem en sneeuwdek | het veld `sneeuw`: savanne of rots, en het dek in vier standen |
-| Episode De Runen | `RUNE_1` tot en met `RUNE_10`: tien levels met zegels, runes en een poort in de rots, met een verhaal en een slot. In Rune 4 en Rune 8 loopt het boven dood en staan de fakkels in een gang die je zelf openmaakt (zegel of rune op de rots, `RAVIJN_PROEF`) |
-| Episode De Vorst | `VORST_1` tot en met `VORST_7`: zeven levels, eerst sneeuw op de savanne (het veld `sneeuw`), dan `winter: true`, met de witte panter als eindbaas, een verhaal en een slot. Vorst 2 en 5 hebben een groep die stil in een kuil wacht die een rune openscheurt; Vorst 4 heeft het zegel voor de ingang van de gang voorbij die ingang. De raakafstanden per scherm staan bij `VORST_2` |
 | het verhaal bij een episode | `VERHAAL` en `SLOT`, `verhaalToon()`: tekst op een zwart scherm voor elk level en na het laatste, alleen als je bij het eerste level begint. Op de naam van het level, dus een nieuwe episode hoeft alleen tekst toe te voegen en `verhaalAan` te zetten in zijn speelknop |
 | Episode Test levels | `TEST_1` tot en met `TEST_12`: korte proefstukken, los van de echte episodes |
 | lichtkaart: het licht onder de grond | `LK`, `drawLichtkaart`: een lichtbron (de hemel en de zon) voor alles onder de grond en onder rots boven je, per level een keer uitgerekend |
@@ -142,7 +142,7 @@ precies hetzelfde formaat naar JSON.
 | `skeletten` | een zittend skelet met een speer erin: `{x, f}`, `x` is het midden van het skelet, `f` spiegelt; E bij de schacht trekt hem eruit (zie hieronder) |
 | `tekens` | speertekens: `{x, v, f}`, `v` is `teken`, `gebroken`, `gekruist` of `jagers`, `f` spiegelt; puur decor |
 | `zegels` | zegels plat in de grond: `{x, ravijn, sluit, breed, muur}`; erop stappen zet hem aan of uit, en met `ravijn` scheurt de grond daar open als hij aangaat, `breed` breed (standaard 277). Met `sluit` gaat het open ravijn op die x juist weer dicht (staat er niets open, dan blijft hij donker). Met `muur: true` opent hij de rotswand van het level (`zegelMuur`); de rune op de wand werkt daarnaast gewoon |
-| `runes` | ravijnen met een rune op een rots ervoor: `{x, breed, rots, groot, hoog, doel}`, `x` het midden van het ravijn; de rots komt vanzelf aan de kant waar Amir aankomt. `rots` is de plaat uit `RUNE_ROTSEN` (standaard de spits), `groot` de hoogte van de rots en `hoog` die van de schijf, allebei in Amir (standaard 3,5 en 0,76). Met `doel: true` opent hij niets maar gloeit hij op en blijft hij aan, en is `x` de linkervoet van de rots (zie "runes op elke rots"). Oudere levels hebben ze nog op naam in `RAVIJN_PROEF` (Rune 8); staat het veld er, dan telt het veld |
+| `runes` | ravijnen met een rune op een rots ervoor: `{x, breed, rots, groot, hoog, doel}`, `x` het midden van het ravijn; de rots komt vanzelf aan de kant waar Amir aankomt. `rots` is de plaat uit `RUNE_ROTSEN` (standaard de spits), `groot` de hoogte van de rots en `hoog` die van de schijf, allebei in Amir (standaard 3,5 en 0,76). Met `doel: true` opent hij niets maar gloeit hij op en blijft hij aan, en is `x` de linkervoet van de rots (zie "runes op elke rots"). Oudere levels hebben ze nog op naam in `RAVIJN_PROEF` (Test 6 en Test 9); staat het veld er, dan telt het veld |
 | `fg` | strook waarover de voorgrondbegroeiing ligt: `{from, to}` |
 | `voorgrond` | de onscherpe laag vlak voor de camera: `{stroken: [{van, tot, dicht, struik, kei}], los: [{x, k, s, f}]}`, `k` uit `VG_SOORT`; los van `fg`. Zonder dit veld krijgt het level de standaard, met `false` heeft het er geen (zie hieronder) |
 | `arena` | het veld van de eindbaas: `{c}` |
@@ -489,7 +489,7 @@ zachte randen 8-bits afrondingen op, en dat is precies het haarlijntje dat er ni
 **Amir loopt door de rots heen.** De hele rots is decor, ook de deur: uitspelen gaat met E als
 de deur open staat en hij ervoor staat (`muurUitgang`). Er is dus niets dat hem tegenhoudt, en
 een level dat bij de rots eindigt zonder klif erachter laat hem voorbij de rots eindeloos de lege
-savanne in lopen. Zet er een klif een stuk achter, zoals in Rune 10.
+savanne in lopen. Zet er een klif een stuk achter.
 
 **Controleer na elke wijziging of de rune nog te raken is.** Dat is geen gevoelskwestie: simuleer
 de boog vanaf elke plek waar Amir kan staan en kijk of er een aaneengesloten strook overblijft.
@@ -713,7 +713,7 @@ dak onder het gat dicht en zag je van boven een ondiepe kuil.
 
 Een vijand die in een ravijn staat dat al openscheurde voor hij verscheen (zijn spawn ligt in
 `ravijnGat`), komt niet meer: hij is erin gevallen. Anders stond hij boven het gat in de lucht. Wie
-er al stond valt erin (`ravijnValt`). Zo werkt de valkuil van Vorst 2 en 5: fosforslangen en
+er al stond valt erin (`ravijnValt`). Zo werkte de valkuil in de oude Vorst 2 en 5: fosforslangen en
 zwaardvechters blijven stil staan tot ze je zien, dus een rune die van verder weg de grond onder ze
 openscheurt, neemt ze mee. Hyena's vallen hier buiten, want die komen van de rand van het beeld.
 
@@ -940,7 +940,7 @@ beeld: de plaatjes worden per soort, laag en tint een keer onscherp gemaakt en b
 ### Een level toevoegen (alleen na toestemming)
 
 1. De definitie erbij, na de laatste van die reeks.
-2. De naam in de array van die reeks (`RUNE_LEVELS`, `VORST_LEVELS`, `TEST_LEVELS`).
+2. De naam in de array van die reeks (nu alleen `TEST_LEVELS`).
 3. Een ondertitel in `SUBS`, op de naam van het level.
 4. Een eigen uitzicht in `SCENES` als het level er anders uit moet zien.
    De voorgrond komt er vanzelf bij (zie hierboven); zet alleen een eigen `voorgrond` als het level
@@ -951,8 +951,11 @@ beeld: de plaatjes worden per soort, laag en tint een keer onscherp gemaakt en b
 ### Een episode toevoegen
 
 Die vijf stappen, plus: een knop in `menuChoose`, een eigen `menuXxx`-blok in de
-HTML naar het voorbeeld van `menuRune`, en die aanmelden in `buildCards`,
-`markCards` en `showMenu`.
+HTML naar het voorbeeld van `menuTest`, en die aanmelden in `buildCards`,
+`markCards` en `showMenu` (die kennen nu alleen `cardsTest` en `menuTest`, dus daar komt een
+keuze tussen de reeksen bij, en in de terugknop van het spel ook). Wil de episode een verhaal,
+zet dan de tekst in `VERHAAL` en `SLOT` en `verhaalAan` in zijn speelknop. De Runen en De Vorst
+zijn in de geschiedenis terug te vinden als voorbeeld van een episode met verhaal en Nightmare.
 
 ### Een vijand of prop toevoegen
 

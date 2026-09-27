@@ -69,7 +69,7 @@ async function start(){
   page.on('console', m => { if (m.type() === 'error' && !/ERR_CERT|ERR_NAME|ERR_INTERNET|ERR_PROXY|ERR_TUNNEL/.test(m.text())) console_.push(m.text()); });
   page.on('pageerror', e => console_.push('fout: ' + e.message));
   await page.goto('http://127.0.0.1:' + srv.address().port + '/amir-king-of-africa.html');
-  await page.waitForFunction(() => typeof readLevel === 'function' && typeof RUNE_LEVELS !== 'undefined');
+  await page.waitForFunction(() => typeof readLevel === 'function' && typeof TEST_LEVELS !== 'undefined');
   await page.waitForTimeout(1500);                 // de plaatjes: schoonLevel rekent met hun maten
 
   const uitslag = await page.evaluate(filter => {
@@ -84,7 +84,7 @@ async function start(){
     };
     const uit = [];
     // elke episode die er is: De Runen, De Vorst (als die er staat) en de testlevels
-    const reeksen = [RUNE_LEVELS, typeof VORST_LEVELS !== 'undefined' ? VORST_LEVELS : [], TEST_LEVELS];
+    const reeksen = [TEST_LEVELS];
     for (const lijst of reeksen){
       for (const def of lijst){
         if (filter && !def.name.toLowerCase().includes(filter.toLowerCase())) continue;
