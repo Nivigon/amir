@@ -5,7 +5,9 @@
  * Alle timings staan in seconden, dus framerate-onafhankelijk.
  *
  * Gebruik:
- *   const fx = new RavijnEffect({ wallImage, stoneImages, x, groundY, width });
+ *   const fx = new RavijnEffect({ wallImage, stoneImages, x, groundY, width, kleuren });
+ *   // kleuren (optioneel): { stof: {deep, low, high} als [r, g, b], zand: [...], barstDonker,
+ *   //   barstLicht, brok, brokLijn }; wat ontbreekt blijft de rode aarde (KLEUREN).
  *   fx.start();
  *   // per frame:
  *   fx.update(dt);
@@ -54,17 +56,22 @@
     high: { rgb: [216, 186, 142], alpha: 0.33, flat: 0.82, grow: 114, burst: 34, rate: 15 }
   };
 
-  var SAND_COLORS = ['#D6A062', '#C18850', '#AC7442'];
-  var CRACK_DARK  = 'rgba(112,66,31,0.96)';
-  var CRACK_LIGHT = 'rgba(231,172,118,0.45)';
-  var CHUNK_FILL  = '#B07646';
-  var CHUNK_LINE  = '#6C4426';
+  // De kleuren van de rode aarde. Een ravijn kan eigen kleuren meekrijgen (opts.kleuren),
+  // zoals in de winter het grijze steen; wat daar niet in staat komt hiervandaan.
+  var KLEUREN = {
+    stof:        { deep: DUST.deep.rgb, low: DUST.low.rgb, high: DUST.high.rgb },
+    zand:        ['#D6A062', '#C18850', '#AC7442'],
+    barstDonker: 'rgba(112,66,31,0.96)',
+    barstLicht:  'rgba(231,172,118,0.45)',
+    brok:        '#B07646',
+    brokLijn:    '#6C4426'
+  };
 
   // ------------------------------------------------------- wolk-sprites
   // Zes bobbelige wolkjes, elk uit zeven overlappende radiale verlopen.
   // Eenmalig bij het laden gerenderd, per kleur. Daarna alleen nog drawImage.
   var SPRITE_SIZE = 96;
-  var spriteCache = null;
+  var spriteCache = {};                          // per stofkleur
 
   function buildSprite(seed, rgb) {
     var c = document.createElement('canvas');
@@ -87,14 +94,15 @@
     return c;
   }
 
-  function sprites() {
-    if (spriteCache) return spriteCache;
-    spriteCache = {};
+  function sprites(stof) {
+    var sleutel = [stof.deep, stof.low, stof.high].join('|');
+    if (spriteCache[sleutel]) return spriteCache[sleutel];
+    var set = spriteCache[sleutel] = {};
     ['deep', 'low', 'high'].forEach(function (k) {
-      spriteCache[k] = [];
-      for (var s = 0; s < 6; s++) spriteCache[k].push(buildSprite(1000 + s * 77, DUST[k].rgb));
+      set[k] = [];
+      for (var s = 0; s < 6; s++) set[k].push(buildSprite(1000 + s * 77, stof[k]));
     });
-    return spriteCache;
+    return set;
   }
 
   function mulberry32(a) {
@@ -118,6 +126,19 @@
     this.quality = opts.quality != null ? opts.quality : 1;
     this.onEvent = opts.onEvent || function () {};
     this.stoneSpots = opts.stoneSpots || [];    // [{x, y}] in wereldcoordinaten
+    var k = opts.kleuren || {};
+    this.kleur = {
+      stof: {
+        deep: (k.stof && k.stof.deep) || KLEUREN.stof.deep,
+        low:  (k.stof && k.stof.low)  || KLEUREN.stof.low,
+        high: (k.stof && k.stof.high) || KLEUREN.stof.high
+      },
+      zand: k.zand || KLEUREN.zand,
+      barstDonker: k.barstDonker || KLEUREN.barstDonker,
+      barstLicht:  k.barstLicht  || KLEUREN.barstLicht,
+      brok:        k.brok        || KLEUREN.brok,
+      brokLijn:    k.brokLijn    || KLEUREN.brokLijn
+    };
 
     this.half = this.width / 2;
     this.scaleFactor = this.width / (this.wall ? this.wall.width : 277);
@@ -383,7 +404,7 @@
             var y0 = this.groundY + rr(3, 8);
             this.sand.push({ x: ex + rr(-1.6, 1.6), y: y0, y0: y0,
               vx: -offs[i][0] * rr(0.7, 6.3), vy: rr(7, 25),
-              span: rr(38, 95), col: SAND_COLORS[(Math.random() * 3) | 0] });
+              span: rr(38, 95), col: this.kleur.zand[(Math.random() * this.kleur.zand.length) | 0] });
           }
         }
       }
@@ -513,7 +534,7 @@
 
   // ---------------------------------------------------------- overlay
   RavijnEffect.prototype.drawOverlay = function (ctx) {
-    var sp = sprites();
+    var sp = sprites(this.kleur.stof);
     this._drawDust(ctx, this.deep, sp.deep, DUST.deep);
     this._drawDust(ctx, this.low,  sp.low,  DUST.low);
     this._drawDustHigh(ctx, sp.high, DUST.high);
@@ -579,12 +600,12 @@
         ctx.stroke();
       }
     }
-    draw(this.crackMain, 0.70, CRACK_LIGHT, 1.7);   // hooglicht naast de scheur
-    draw(this.crackMain, 1.00, CRACK_DARK, 0);
+    draw(this.crackMain, 0.70, this.kleur.barstLicht, 1.7);   // hooglicht naast de scheur
+    draw(this.crackMain, 1.00, this.kleur.barstDonker, 0);
     for (var f = 0; f < this.crackForks.length; f++) {
       if (this.crackForks[f].depth <= reach) {
-        draw(this.crackForks[f].pts, 0.40, CRACK_LIGHT, 1.3);
-        draw(this.crackForks[f].pts, 0.58, CRACK_DARK, 0);
+        draw(this.crackForks[f].pts, 0.40, this.kleur.barstLicht, 1.3);
+        draw(this.crackForks[f].pts, 0.58, this.kleur.barstDonker, 0);
       }
     }
   };
@@ -600,8 +621,8 @@
         if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
       }
       ctx.closePath();
-      ctx.fillStyle = CHUNK_FILL; ctx.fill();
-      ctx.strokeStyle = CHUNK_LINE; ctx.stroke();
+      ctx.fillStyle = this.kleur.brok; ctx.fill();
+      ctx.strokeStyle = this.kleur.brokLijn; ctx.stroke();
     }
   };
 
