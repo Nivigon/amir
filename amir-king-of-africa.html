@@ -13278,9 +13278,14 @@ const AMIR_SCHADUW = {
   alfa: 0.7,         // dekking van het silhouet bij de voeten
   kruin: 0.4,        // en bij zijn hoofd: verder van de voeten is een schaduw ijler
   nacht: 0.7,        // ondergrens van de sterkte in een donker uitzicht
-  contact: { breed: 0.15, hoog: 0.024, alfa: 0.42 },   // het plekje onder de voeten, in CHAR_H
-  weg: 330,          // zo hoog boven de vloer (sprite-eenheden) is er van het plekje niets meer over
-  wegSil: 160,       // en van het silhouet al hier: tijdens een sprong telt het plekje, dat wijst de landing
+  // De omgevingsschaduw: licht van alle kanten (de hemel, de wanden) wordt onder hem tegengehouden.
+  // Ook zijn silhouet, maar recht naar beneden platgedrukt en zachter: geen ronde vlek, maar de vorm
+  // van zijn voeten en benen. Die is er altijd waar licht is, ook onder de grond, en even sterk als
+  // het licht rond hem (lkRondAmir): in het donker weinig, nergens helemaal niets.
+  // Het donker van de lichtkaart komt er daarna nog overheen, dus licht telt hier maar half mee.
+  omgeving: { plat: 0.1, alfa: 0.75, vaag: 2.5, dik: 4, min: 0.6 },   // dik: eerst zoveel px dikker, anders blijft er van dunne benen na het vervagen niets over
+  weg: 330,          // zo hoog boven de vloer (sprite-eenheden) is er van de omgevingsschaduw niets meer over
+  wegSil: 160,       // en van de zonneschaduw al hier: in een sprong wijst de omgevingsschaduw de landing
   vaag: 1.5,         // zachte rand, in pixels op de gebakken maat
   maat: 160,         // het silhouet wordt op deze hoogte gebakken, een keer per frame
   kleur: '#1d140f',
@@ -13289,29 +13294,30 @@ const AMIR_SCHADUW = {
 // Per plaatje een keer: het frame klein, volledig in de schaduwkleur, met een zachte rand.
 // Een browser zonder canvasfilter tekent hem scherp; door het verkleinen is hij toch niet hard.
 const amirSilCache = new WeakMap();
-function amirSilhouet(img, kleur){
+function amirSilhouet(img, kleur, vaag = AMIR_SCHADUW.vaag, dik = 0){
   let per = amirSilCache.get(img);
   if (!per){ per = {}; amirSilCache.set(img, per); }
-  let c = per[kleur];
+  const sleutel = kleur + '|' + vaag + '|' + dik;
+  let c = per[sleutel];
   if (c) return c;
   const S = AMIR_SCHADUW, k = Math.min(1, S.maat / img.naturalHeight);
   const w = Math.max(1, Math.round(img.naturalWidth * k)), h = Math.max(1, Math.round(img.naturalHeight * k));
-  const pad = Math.ceil(S.vaag * 3);
+  const pad = Math.ceil(vaag * 3) + dik;
   const t = document.createElement('canvas'); t.width = w; t.height = h;
   const tc = t.getContext('2d');
   tc.drawImage(img, 0, 0, w, h);
   tc.globalCompositeOperation = 'source-in'; tc.fillStyle = kleur; tc.fillRect(0, 0, w, h);
   c = document.createElement('canvas'); c.width = w + pad * 2; c.height = h + pad * 2;
   const cc = c.getContext('2d');
-  cc.filter = 'blur(' + S.vaag + 'px)';
-  cc.drawImage(t, pad, pad);
+  cc.filter = 'blur(' + vaag + 'px)';
+  for (let d = -dik; d <= dik; d++) cc.drawImage(t, pad + d, pad);   // dikker maken, zijwaarts
   // van de voeten naar het hoofd ijler
   const v = cc.createLinearGradient(0, c.height, 0, 0);
   v.addColorStop(0, 'rgba(0,0,0,1)'); v.addColorStop(1, 'rgba(0,0,0,' + S.kruin + ')');
   cc.filter = 'none'; cc.globalCompositeOperation = 'destination-in';
   cc.fillStyle = v; cc.fillRect(0, 0, c.width, c.height);
   c.bw = w; c.bh = h; c.pad = pad;
-  per[kleur] = c;
+  per[sleutel] = c;
   return c;
 }
 // Hoeveel zon er op Amir valt, 0 tot 1. Bovengronds de hele zon; onder de grond of onder rots
@@ -13321,6 +13327,11 @@ function amirZon(vloer, wx){
   if (!lk) return 1;
   const onder = vloer !== null && vloer < -1;
   try { return lkZon(wx, (vloer || 0) + CHAR_H * 0.5, !onder); } catch (e) { return onder ? 0 : 1; }
+}
+// Hoeveel licht er rond Amir is, 0 tot 1, uit de lichtkaart; zonder kaart gewoon daglicht.
+function amirLicht(){
+  if (!lk) return 1;
+  try { return lkRondAmir(); } catch (e) { return 1; }
 }
 // Waar de schaduw heen valt, per eenheid hoogte: dx opzij (negatief is links), dy naar voren, al
 // verkort. Uit de zon van het uitzicht; zonder uitzicht (de sandbox zonder lagen) uit LICHT.
@@ -13333,7 +13344,19 @@ function zonSchaduw(){
 }
 // img staat op het scherm op (x, y, w, h), met zijn voeten op voetY en horizontaal op pcx; de
 // schaduw komt op shY, de vloer. hoog is hoe hoog hij boven die vloer is, in sprite-eenheden.
-function drawAmirSchaduw(img, x, y, w, h, flip, pcx, voetY, shY, hoog, scale, zonHier = 1){
+// Het silhouet op de grond leggen: een punt t boven zijn voeten komt dx * t opzij en dy * t naar
+// voren (omlaag in beeld). In een sprong blijven zijn voeten op de vloer recht onder hem.
+function amirSilLeg(sil, x, y, w, h, flip, pcx, voetY, shY, dx, dy, mid = 0){
+  const sx = w / sil.bw, sy = h / sil.bh;
+  ctx.save();
+  ctx.translate(pcx, shY - mid);                  // mid: zoveel schuift de band terug, om de voeten heen
+  ctx.transform(1, 0, -dx, -dy, 0, 0);
+  ctx.translate(x - pcx, y - voetY);
+  if (flip){ ctx.translate(w, 0); ctx.scale(-1, 1); }
+  ctx.drawImage(sil, -sil.pad * sx, -sil.pad * sy, (sil.bw + sil.pad * 2) * sx, (sil.bh + sil.pad * 2) * sy);
+  ctx.restore();
+}
+function drawAmirSchaduw(img, x, y, w, h, flip, pcx, voetY, shY, hoog, scale, zonHier = 1, licht = 1){
   const S = AMIR_SCHADUW, L = lichtNu();
   const op = Math.max(0, hoog);
   const blijft = Math.max(0, 1 - op / S.weg);
@@ -13343,30 +13366,19 @@ function drawAmirSchaduw(img, x, y, w, h, flip, pcx, voetY, shY, hoog, scale, zo
   const z = zonSchaduw();
   const kleur = winterOn() ? S.kleurWinter : S.kleur;
   const a0 = ctx.globalAlpha;
-  // het plekje onder de voeten, kleiner naarmate hij hoger is
-  const ck = 1 - 0.5 * (1 - blijft);
-  ctx.globalAlpha = a0 * S.contact.alfa * blijft;
-  ctx.fillStyle = kleur;
-  ctx.beginPath();
-  ctx.ellipse(pcx, shY, CHAR_H * scale * S.contact.breed * ck, CHAR_H * scale * S.contact.hoog * ck, 0, 0, Math.PI * 2);
-  ctx.fill();
-  // het silhouet: de hoogte boven de voeten wordt diepte (plat) en zijwaarts (schuin)
-  if (silBlijft > 0.01 && img && img.complete && img.naturalWidth){
-    const sil = amirSilhouet(img, kleur);
-    const sx = w / sil.bw, sy = h / sil.bh, opPx = op * scale;
+  if (!img || !img.complete || !img.naturalWidth) return;
+  // de omgevingsschaduw: recht onder hem, zacht, zo sterk als het licht rond hem
+  const O = S.omgeving;
+  ctx.globalAlpha = a0 * O.alfa * blijft * Math.max(O.min, Math.min(1, licht * 1.5));
+  amirSilLeg(amirSilhouet(img, kleur, O.vaag, O.dik), x, y, w, h, flip, pcx, voetY, shY, 0, O.plat,
+             O.plat * CHAR_H * scale * 0.45);        // half achter, half voor zijn voeten
+  // de zonneschaduw: opzij van de zon af en naar voren, alleen waar de zon op hem valt
+  if (silBlijft > 0.01){
     // naar voren is er maar een strook zand: past de schaduw er niet op, dan ligt hij platter
     const ruimte = edgeReady() ? (S.voorRij - EDGE.walk) * edgeScale(H * 0.18) : 20 * scale;
-    z.dy = Math.min(z.dy, ruimte / (CHAR_H * scale + opPx));
-    ctx.save();
+    z.dy = Math.min(z.dy, ruimte / (CHAR_H * scale));
     ctx.globalAlpha = a0 * S.alfa * zon * silBlijft;
-    // een punt t boven zijn voeten komt z.dx * t opzij en z.dy * t naar voren (omlaag in beeld).
-    // In een sprong blijft hij met zijn voeten op het plekje recht onder hem, en vervaagt hij.
-    ctx.translate(pcx, shY);
-    ctx.transform(1, 0, -z.dx, -z.dy, 0, 0);
-    ctx.translate(x - pcx, y - voetY);
-    if (flip){ ctx.translate(w, 0); ctx.scale(-1, 1); }
-    ctx.drawImage(sil, -sil.pad * sx, -sil.pad * sy, (sil.bw + sil.pad * 2) * sx, (sil.bh + sil.pad * 2) * sy);
-    ctx.restore();
+    amirSilLeg(amirSilhouet(img, kleur), x, y, w, h, flip, pcx, voetY, shY, z.dx, z.dy);
   }
   ctx.globalAlpha = a0;
 }
@@ -13777,7 +13789,7 @@ function loop(now){
       }
       const flipNu = useThrow ? thrFlip() : (autoFlip && facing === 1);
       drawAmirSchaduw(img, x, y, w, h, flipNu, pcx, groundY + lift, shY,
-                      ph - (vloer === null ? 0 : vloer), scale, amirZon(vloer, pWorld));
+                      ph - (vloer === null ? 0 : vloer), scale, amirZon(vloer, pWorld), amirLicht());
       ctx.restore();
     } };
     const cliffImgNow = cliffPic();
