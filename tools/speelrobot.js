@@ -25,7 +25,12 @@
 //   --shots map       schermafdrukken, elke --elke seconden (standaard 1,5)
 //   --spoor           elke tiende seconde: tijd, x, hoogte, op de grond, levens
 //   --vijanden        per vijand: op welke hoogte hij liep, en hoe hoog hij kwam
+//   --vredig          steekt niet naar vijanden (om te zien wat ze doen)
+//   --wacht x:t       op x t seconden blijven staan (meer: x:t,x:t), zodat vijanden hem inhalen
 //   --breed 1280 --hoog 720 --fps 60
+//
+// Regel 7 (vijanden komen niet over keien en ravijnen) kijkt hij altijd na: komt een vijand
+// aan de andere kant van een kei of ravijn terecht, dan staat er REGEL 7 in de uitvoer.
 //
 // Nodig: Node en Playwright (npm i -g playwright) met Chromium. De robot start zelf een
 // webserver op de map van het spel.
@@ -82,8 +87,14 @@ async function start(){
 }
 
 // Dit draait in de pagina, na elk beeld. Het gebruikt de globale namen van het spel.
-function robot([lopen, taai]){
-  const B = window.__robot = { spoor: [], ev: [], klaar: null, t0: null, beelden: 0, vijand: {} };
+function robot([lopen, taai, wachten, vredig]){
+  const B = window.__robot = { spoor: [], ev: [], klaar: null, t0: null, beelden: 0, vijand: {}, regel7: [] };
+  // regel 7: een vijand komt niet over een kei of een ravijn. Per vijand onthouden we aan welke
+  // kant van elk obstakel hij stond; staat hij ineens aan de andere kant, dan is hij erover.
+  const ids = new WeakMap(); let volg = 0;
+  const kant = new WeakMap();
+  const keien = (level && level.rocks ? level.rocks : []).map(r => measurePlat({ x: r.x, scale: r.s || 1 }, (H * (Number(sizeEl.value) / 100)) / CHAR_H));
+  let wachtTot = null, wachtKlaar = new Set();
   let lastX = world, stuckT = 0, lastT = null, lastLives = lives, wasGround = true, top = 0;
   let vastX = null, vastT = 0, laatsteSp = -1;
   const schaal = () => (H * (Number(sizeEl.value) / 100)) / CHAR_H;
@@ -96,7 +107,11 @@ function robot([lopen, taai]){
     if (won){ B.klaar = { uitkomst: 'gewonnen', t, x: r2(world), h: r2(ph) }; return; }
     if (dead && !taai){ B.klaar = { uitkomst: 'dood', t, x: r2(world), h: r2(ph) }; return; }
     if (lives !== lastLives){
-      B.ev.push({ t: +t.toFixed(2), wat: 'levens ' + lastLives + ' naar ' + lives, x: r2(world), h: r2(ph) });
+      // wie was het? de dichtstbijzijnde vijand, en of er gif of een steekje onderweg was
+      let wie = '', dmin = 1e9;
+      for (const [naam, l] of [['slang', snakes], ['schorpioen', scorps], ['zwaard', zwaarden], ['hyena', hyenas], ['panter', panthers], ['fosfor', fosforSlangen]])
+        for (const e of l){ const d = Math.abs(e.x - world); if (d < dmin){ dmin = d; wie = naam + ' op ' + r2(e.x) + (e.state ? ' (' + e.state + ')' : ''); } }
+      B.ev.push({ t: +t.toFixed(2), wat: 'levens ' + lastLives + ' naar ' + lives, x: r2(world), h: r2(ph), wie: wie + (venom.length ? ', gif in de lucht' : '') });
       if (taai && lives < lastLives){
         if (ph < -200 && !holteAt(world)){              // in een ravijn: terug naar vaste grond
           B.ev.push({ t: +t.toFixed(2), wat: 'in een ravijn, teruggezet', x: r2(world) });
@@ -117,6 +132,12 @@ function robot([lopen, taai]){
       for (const p of platsNear(sc))
         if (world + hw > p.left && world - hw < p.right && ph > p.topH && p.topH > (vl === null ? -1e9 : vl) + 20) loslaten = true;
     keys['ArrowLeft'] = !loslaten;
+    // --wacht x:t  op x even blijven staan, zodat de vijanden hem kunnen bereiken
+    for (const [wx, wt] of wachten){
+      if (!wachtKlaar.has(wx) && world <= wx && onGround){ wachtKlaar.add(wx); wachtTot = t + wt; B.ev.push({ t: +t.toFixed(2), wat: 'blijft ' + wt + ' s staan', x: r2(world), h: r2(ph) }); }
+    }
+    const wacht = wachtTot !== null && t < wachtTot;
+    if (wacht){ keys['ArrowLeft'] = false; vastT = t; }
     // een kalebas bij zich en niet vol: drinken
     if (hppotionCarry > 0 && lives < 3 && !dead) drinkHppotion();
     // de speer oppakken, en steken naar wat voor hem staat
@@ -125,30 +146,44 @@ function robot([lopen, taai]){
     for (const b of thickets) if (b.stage < THICKET_HITS) voor.push([b.x, b.base]);
     for (const l of [snakes, scorps, zwaarden, hyenas, panthers, fosforSlangen]) for (const e of l) if (!e.dead) voor.push([e.x, e.base || 0]);
     const iets = voor.some(([x, b]) => x < world + 40 && x > world - 200 && Math.abs(b - ph) < 60);
-    if (spear && iets && onGround && !jump) startAttack();
+    if (!vredig && spear && iets && onGround && !jump) startAttack();
     // de vijanden: op welke hoogte liepen ze, en hoe hoog kwamen ze
     for (const [naam, l] of [['slang', snakes], ['schorpioen', scorps], ['zwaard', zwaarden], ['hyena', hyenas], ['panter', panthers], ['fosfor', fosforSlangen]]){
       l.forEach((e, i) => {
-        const k = naam + ' ' + (i + 1), v = B.vijand[k] || (B.vijand[k] = { laag: 1e9, hoog: -1e9, top: -1e9, van: r2(e.x), tot: r2(e.x) });
+        if (!ids.has(e)) ids.set(e, ++volg);
+        const k = naam + ' ' + ids.get(e), v = B.vijand[k] || (B.vijand[k] = { laag: 1e9, hoog: -1e9, top: -1e9, van: r2(e.x), tot: r2(e.x) });
         const b = e.base || 0;
         v.laag = Math.min(v.laag, b); v.hoog = Math.max(v.hoog, b); v.top = Math.max(v.top, b + (e.lift || 0)); v.tot = r2(e.x);
+        if (B.beelden % 3 === 0) (B.vs || (B.vs = [])).push([+t.toFixed(2), k, r2(e.x), r2(b), e.state || '', r2(e.vx || 0)]);
+        if (e.dead || e.over) return;                 // een panter met over: true mag het wel
+        const k7 = kant.get(e) || new Map(); kant.set(e, k7);
+        const obst = [];
+        for (const g of gapList()) if (gatOp(g.x, b)) obst.push(['ravijn op ' + r2(g.x), g.x - g.w / 2, g.x + g.w / 2]);
+        for (const p of keien) if (Math.abs((p.base || 0) - b) < 2) obst.push(['kei op ' + r2(p.x), p.left, p.right]);
+        for (const [wat, l, r] of obst){
+          const z = e.x < l ? -1 : e.x > r ? 1 : 0;
+          if (!z) continue;
+          const oud = k7.get(wat);
+          if (oud && oud !== z) B.regel7.push({ t: +t.toFixed(2), wie: k, wat, van: oud > 0 ? 'rechts' : 'links', x: r2(e.x) });
+          k7.set(wat, z);
+        }
       });
     }
     // een ravijn voor hem zonder gang eronder: aan de rand springen
     const g = inGap(world - 60);
-    if (onGround && ph >= -1 && g && !holteAt(g.x) && !inGap(world)) startJump();
+    if (!wacht && onGround && ph >= -1 && g && !holteAt(g.x) && !inGap(world)) startJump();
     // op een kei: eerst neerkomen, dan aan de rand eraf springen
     if (onGround){
       const ps = platsNear(sc).filter(p => !p.terrace);
       const op = ps.some(p => world + hw > p.left && world - hw < p.right && Math.abs(p.topH - ph) < 2);
       const verder = ps.some(p => world - 12 > p.left && world - 12 < p.right + 2 * hw && p.topH >= ph - 2);   // nog kei voor hem
       if (op && jump && jump.phase === 'land') keys['ArrowLeft'] = false;
-      else if (op && !verder && vl !== null && ph > vl + 1) startJump();
+      else if (op && !verder && vl !== null && ph > vl + 1 && !wacht) startJump();
     }
     // vast tegen iets: springen (behalve voor een doornbos, dat steekt hij weg)
     if (Math.abs(world - lastX) < 0.3 && onGround) stuckT += dt; else stuckT = 0;
     lastX = world;
-    if (stuckT > 0.1 && onGround && !(iets && spear)){ startJump(); stuckT = 0; }
+    if (!wacht && stuckT > 0.1 && onGround && !(iets && spear && !vredig)){ startJump(); stuckT = 0; }
     // helemaal vast: acht seconden niet meer dan 30 px verder
     if (vastX === null || world < vastX - 30){ vastX = world; vastT = t; }
     if (t - vastT > 8){ B.klaar = { uitkomst: 'vast', t, x: r2(world), h: r2(ph), grond: onGround }; return; }
@@ -191,7 +226,8 @@ function robot([lopen, taai]){
   }, [doel, def]);
   if (!naam){ console.log('geen level gevonden: ' + doel); await browser.close(); srv.close(); process.exit(2); }
   console.log(naam + ' (' + fps + ' beelden per seconde, ' + breed + ' bij ' + hoog + ')');
-  await page.evaluate(robot, [args.includes('--lopen'), args.includes('--taai')]);
+  const wachten = (opt('--wacht', '') || '').split(',').filter(Boolean).map(w => w.split(':').map(Number));
+  await page.evaluate(robot, [args.includes('--lopen'), args.includes('--taai'), wachten, args.includes('--vredig')]);
   const klok = Date.now();
   let n = 0, volgende = 0;
   for (;;){
@@ -207,10 +243,16 @@ function robot([lopen, taai]){
   const B = await page.evaluate(() => ({ r: window.__robot, x: Math.round(world), h: Math.round(ph) }));
   const k = B.r.klaar || { uitkomst: 'tijd op', x: B.x, h: B.h };
   console.log('uitkomst: ' + k.uitkomst + ' op x=' + k.x + ', hoogte ' + k.h + (k.t ? ', na ' + k.t.toFixed(1) + ' s' : ''));
-  for (const e of B.r.ev) console.log('  ' + e.t.toFixed(2).padStart(6) + '  ' + e.wat.padEnd(26) + ' x=' + e.x + (e.h !== undefined ? ' h=' + e.h : '') + (e.top !== undefined ? ' (top ' + e.top + ')' : ''));
+  for (const e of B.r.ev) console.log('  ' + e.t.toFixed(2).padStart(6) + '  ' + e.wat.padEnd(26) + ' x=' + e.x + (e.h !== undefined ? ' h=' + e.h : '') + (e.top !== undefined ? ' (top ' + e.top + ')' : '') + (e.wie ? '  [' + e.wie + ']' : ''));
   if (args.includes('--vijanden'))
     for (const [k2, v] of Object.entries(B.r.vijand))
       console.log('  ' + k2.padEnd(14) + ' van x=' + v.van + ' tot x=' + v.tot + ', liep op ' + (v.laag === v.hoog ? v.laag : v.laag + ' tot ' + v.hoog) + ', kwam tot ' + v.top);
+  for (const r of B.r.regel7){
+    console.log('  REGEL 7  ' + r.t.toFixed(2).padStart(6) + '  ' + r.wie + ' kwam van ' + r.van + ' over de ' + r.wat + ', staat nu op x=' + r.x);
+    if (args.includes('--hoe'))                    // het stukje ervoor: waar liep hij, en wat deed hij
+      for (const v of (B.r.vs || []).filter(v => v[1] === r.wie && v[0] > r.t - 1.2 && v[0] <= r.t + 0.1))
+        console.log('           ' + v[0].toFixed(2) + ' x=' + v[2] + ' vloer ' + v[3] + ' ' + v[4] + ' vx ' + v[5]);
+  }
   if (args.includes('--spoor')) for (const r of B.r.spoor) console.log('  spoor ' + r.join(' '));
   // mp3 speelt Chromium zonder de codecs niet af: de terugvalpaden van de geluiden geven hier
   // 404's die in een gewone browser niet voorkomen
