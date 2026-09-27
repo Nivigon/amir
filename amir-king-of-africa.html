@@ -5484,19 +5484,35 @@ const BAV_BRUL = { map: 'enemies/baviaan/brul/brul_', n: 24, fps: 12, links: 44 
 // dezelfde oorsprong en dezelfde schaal als de brul (dus ook 44 bronpixels naar links). Tussen de brul
 // en deze idle komt later nog een korte "opstaan"; tot die er is springt de houding daar even.
 const BAV_IDLE_OP = { map: 'enemies/baviaan/idle_opgefokt/idle_opgefokt_', n: 12, fps: 12, links: 44 };
-// Hoofdschudden: 64 frames, een keer op 12 per seconde, als onderbreking van de opgefokte idle. Hetzelfde
-// canvas als de idle. Na een willekeurige wachttijd tussen `wacht` seconden begint hij, maar pas als de
-// idle-lus rond is (na idle_opgefokt_11), en daarna loopt de idle verder vanaf frame 0. Elke keer een
-// nieuwe wachttijd. K in de sandbox start hem bij het eerstvolgende einde van de lus (bavSchudNu).
 // Grommend stilstaan: de idle op de grond, 39 frames als naadloze lus op 12 per seconde, direct na de
 // brul. Hetzelfde canvas, dezelfde oorsprong en dezelfde schaal als de brul (ook 44 bronpixels naar links),
 // grondlijn op rij 575. Hij staat lager en gebogen dan de opgefokte idle, dus daartussen wisselen springt;
 // daar komt nog een overgang voor. Tot die er is, is dit de enige idle na de brul (BAV_NA_BRUL).
 const BAV_IDLE_GROM = { map: 'enemies/baviaan/idle_grom/idle_grom_', n: 39, fps: 12, links: 44 };
-// welke idle er na de brul loopt: 'grom', of 'opgefokt' met het hoofdschudden erin (bavRustStand).
+// welke idle er na de brul loopt: 'grom' of 'opgefokt'; allebei met het hoofdschudden erin (bavRustStand).
 // Alleen bij 'grom' worden die frames geladen.
 const BAV_NA_BRUL = 'grom';
-const BAV_SCHUD = { map: 'enemies/baviaan/hoofdschudden/hoofdschudden_', n: 64, fps: 12, links: 44, wacht: [4, 9] };
+// Hoofdschudden: 64 frames, een keer, als onderbreking van de idle. Hetzelfde canvas als de idle. Na een
+// willekeurige wachttijd tussen `wacht` seconden begint hij, maar pas als de idle-lus rond is (na het laatste
+// frame), en daarna loopt de idle verder vanaf frame 0. Elke keer een nieuwe wachttijd. K in de sandbox start
+// hem bij het eerstvolgende einde van de lus (bavSchudNu). Niet op een vast tempo: `delen` zegt per stuk tot
+// welk frame het loopt en hoe snel. Omlaag (0 tot 17) en weer omhoog (48 tot 63) wat sneller dan de 12 van de
+// set, en de shake zelf (18 tot 47, de kop omlaag) veel sneller, zodat hij iets van zich afschudt. Samen zo'n
+// 2,8 seconden in plaats van 5,3. Het schudden begint en eindigt rechtop, de grom staat laag: in en uit de grom
+// verspringt de houding, net als van de brul naar de grom.
+const BAV_SCHUD = { map: 'enemies/baviaan/hoofdschudden/hoofdschudden_', n: 64, links: 44, wacht: [4, 9],
+  delen: [{ tot: 18, fps: 20 }, { tot: 48, fps: 28 }, { tot: 64, fps: 20 }] };
+// welk frame van het hoofdschudden er t seconden na zijn begin staat, of -1 als hij klaar is
+function bavSchudFrame(t){
+  let van = 0;
+  for (const d of BAV_SCHUD.delen){
+    const duur = (d.tot - van) / d.fps;
+    if (t < duur) return van + Math.floor(t * d.fps);
+    t -= duur; van = d.tot;
+  }
+  return -1;
+}
+const bavSchudDuur = () => { let van = 0, s = 0; for (const d of BAV_SCHUD.delen){ s += (d.tot - van) / d.fps; van = d.tot; } return s; };
 let baviaanImg = null, bavAfzetImgs = null, bavValImgs = null, bavLandingImgs = null, bavBrulImgs = null, bavIdleOpImgs = null, bavSchudImgs = null, bavGromImgs = null;
 // per baviaan waar de idle staat, los van level.baviaan zodat het niet mee het level in gaat:
 // t0 het begin van de lopende idle, wacht de wachttijd daarna, schud het begin van het hoofdschudden
@@ -5554,14 +5570,14 @@ function bavStand(b, scale){
   if (tBrul < 0) return { img: bavLandingImgs[Math.floor(tLand * BAV_LANDING.fps)], dx, dy };   // het canvas staat stil, de frames bewegen
   const tIdle = tBrul - BAV_BRUL.n / BAV_BRUL.fps;
   if (tIdle < 0) return { img: bavBrulImgs[Math.floor(tBrul * BAV_BRUL.fps)], dx, dy, ox: BAV_BRUL.links };
-  if (BAV_NA_BRUL === 'opgefokt') return bavRustStand(b, tIdle, dx, dy);
-  return { img: bavGromImgs[Math.floor(tIdle * BAV_IDLE_GROM.fps) % BAV_IDLE_GROM.n], dx, dy, ox: BAV_IDLE_GROM.links };
+  return bavRustStand(b, tIdle, dx, dy);
 }
-// de opgefokte idle als lus, af en toe onderbroken door het hoofdschudden (BAV_SCHUD)
+// de idle na de brul als lus (de grom of de opgefokte, BAV_NA_BRUL), af en toe onderbroken door het hoofdschudden
 function bavRustStand(b, tIdle, dx, dy){
   let r = bavRust.get(b);
   if (!r || tIdle < r.t0){ r = { t0: 0, wacht: bavWacht(), schud: null, nu: !!(r && r.nu) }; bavRust.set(b, r); }
-  const lus = BAV_IDLE_OP.n / BAV_IDLE_OP.fps, lang = BAV_SCHUD.n / BAV_SCHUD.fps;
+  const I = BAV_NA_BRUL === 'grom' ? BAV_IDLE_GROM : BAV_IDLE_OP, imgs = BAV_NA_BRUL === 'grom' ? bavGromImgs : bavIdleOpImgs;
+  const lus = I.n / I.fps, lang = bavSchudDuur();
   if (r.schud != null && tIdle >= r.schud + lang){             // klaar met schudden: de idle weer vanaf frame 0
     r.t0 = r.schud + lang; r.schud = null; r.wacht = bavWacht();
   }
@@ -5570,13 +5586,13 @@ function bavRustStand(b, tIdle, dx, dy){
     r.schud = r.t0 + lus * Math.max(1, Math.ceil(ti / lus - 1e-9)); r.nu = false;
   }
   if (r.schud != null && tIdle >= r.schud)
-    return { img: bavSchudImgs[Math.min(BAV_SCHUD.n - 1, Math.floor((tIdle - r.schud) * BAV_SCHUD.fps))], dx, dy, ox: BAV_SCHUD.links };
-  return { img: bavIdleOpImgs[Math.floor(ti * BAV_IDLE_OP.fps) % BAV_IDLE_OP.n], dx, dy, ox: BAV_IDLE_OP.links };
+    return { img: bavSchudImgs[Math.max(0, bavSchudFrame(tIdle - r.schud))], dx, dy, ox: BAV_SCHUD.links };
+  return { img: imgs[Math.floor(ti * I.fps) % I.n], dx, dy, ox: I.links };
 }
 // K in de sandbox: het hoofdschudden meteen, bij het eerstvolgende einde van de idle-lus
 function bavSchudNu(){
   const b = level && level.baviaan;
-  if (!b || b.afzet == null || BAV_NA_BRUL !== 'opgefokt') return;   // alleen als de opgefokte idle loopt
+  if (!b || b.afzet == null) return;
   const r = bavRust.get(b);
   if (r) r.nu = true; else bavRust.set(b, { t0: 0, wacht: bavWacht(), schud: null, nu: true });
 }
