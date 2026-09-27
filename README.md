@@ -63,15 +63,17 @@ De woedemeter staat onder de kalebas, met het leeuwenlogo en een balk. Hij is er
 
 ### Impungushe, nog op slot
 
-Impungushe staat op het keuzescherm nog op slot, maar zijn drie talents zijn er al om te proberen: in de sandbox en in **Test 14**.
+Impungushe staat op het keuzescherm nog op slot, maar zijn drie talents zijn er al om te proberen: in de sandbox en in **Test 14**. Zijn boom is te bekijken, met de talents erin, maar dicht.
 
 | ability | wat hij doet |
 |---|---|
-| **Jackal Fang** | Amir heeft een mes. **E** wisselt rond: met een speer van speer naar mes naar niets en weer terug, zonder speer tussen niets en het mes. Het mes doodt niets: het houdt een vijand van je af. Een steek duwt hem terug en breekt zijn aanval af, maar hij geeft niet op en komt meteen weer. Daarna kun je dezelfde vijand even niet opnieuw afweren, dan gaat het mes erlangs. Tegen één vijand hou je het een tijd vol, tegen een groep niet. Het gif van de zwarte slang sla je met goede timing uit de lucht. De panter weer je niet af. Het mes kapt ook doornbossen, maar trager dan de speer (twee steken per klap). Geen lage zwaai en geen worp met het mes |
-| **Scavenger** | met het mes snijd je een kalebas los die aan een koordje aan een speer in de grond hangt. Hij valt en je raapt hem op zoals een gewone kalebas. Zonder dit talent, of met de speer, gebeurt er niets |
+| **Jackal Fang** | Amir heeft een mes. **E** wisselt rond: met een speer van speer naar mes naar niets en weer terug, zonder speer tussen niets en het mes. Het mes is eerst gereedschap: het snijdt een kalebas los die aan een koordje aan een speer in de grond hangt (hij valt, en je raapt hem op zoals een gewone kalebas), en het kapt doornbossen, trager dan de speer (twee steken per klap). Het doodt niets: een steek duwt een vijand terug en breekt zijn aanval af, maar hij komt meteen weer, en dezelfde vijand kun je daarna even niet opnieuw afweren. De panter weer je niet af. Geen lage zwaai en geen worp met het mes |
+| **Bared Teeth** | de dreighouding. Met het mes in je hand en een vijand voor je in de buurt kijkt Amir hem vanzelf aan en loopt hij langzaam; hij kan achteruit lopen zonder zich om te draaien, en sprinten kan niet (Shift breekt de houding). De vijand houdt afstand: stap je naar hem toe, dan schiet hij een stuk terug, loop je achteruit, dan komt hij langzaam mee. Zijn moed groeit, het snelst als je terugloopt, en een steek met het mes maakt hem weer banger. Is hij moedig genoeg, of staat hij met zijn rug tegen een kei, een ravijn of een wand (kat in het nauw), dan valt hij aan, en laat de houding hem even met rust. Wie achter je staat, doet gewoon zijn eigen ding, dus tegen een groep hou je het niet. De zwarte slang, de fosforslangen en de panter trekken zich er niets van aan. Erlangs kom je door over hem heen te springen |
 | **Feign Death** | een keer per level wordt de klap die je laatste leven zou kosten een schijndood: Amir valt om, ligt een paar tellen stil met een leven over, en kan zolang en even daarna niet geraakt worden. Rechtsboven staat een tegeltje met een gesloten oog, dat grijs wordt als hij op is. Een val in een ravijn blijft het einde |
 
-Hoe het mes precies reageert stel je in het spel zelf bij: druk op **Escape**, kies **Instellingen** en dan **Mes: reacties**. Daar staan de duw, hoe lang een vijand stilstaat van de klap, de afkoeltijd, de rust tussen twee steken en hoe ruim je het gif raakt, met een knop om het gif wegslaan uit te zetten. Het geldt meteen als je op **Verder** drukt, ook voor een vijand die al voor je staat. Je browser onthoudt het, en **Mes: standaard** zet alles terug. De knop staat er alleen als je het mes hebt, dus in Test 14 en in de sandbox.
+In de boom staat naast Jackal Fang een **T-splitsing** met de mogelijke varianten waarin het talent later kan opsplitsen: **Thorn Knife** (alleen doornbossen, maar snel) en **Gourd Knife** (alleen kalebassen, en je vindt er meer). Kiezen kan nog niet; het laat zien waar het heen kan. De varianten staan per talent in `TRIBE_CONFIG` (`varianten`).
+
+Hoe het mes precies reageert stel je in het spel zelf bij: druk op **Escape**, kies **Instellingen** en dan **Mes: reacties**. Daar staan de duw, hoe lang een vijand stilstaat van de klap, de afkoeltijd en de rust tussen twee steken, en met Bared Teeth ook je tempo in de houding, de afstand die een vijand houdt, hoe snel hij terugschiet en meekomt, en hoe snel zijn moed groeit als je stilstaat of terugloopt. Het geldt meteen als je op **Verder** drukt, ook voor een vijand die al voor je staat. Je browser onthoudt het, en **Mes: standaard** zet alles terug. De knop staat er alleen als je het mes hebt, dus in Test 14 en in de sandbox.
 
 Voor nu is het mes een tijdelijke tekening: er zijn nog geen frames van Amir met een mes. Het mes is de punt van zijn eigen speer met het leren riempje als heft (`tools/mes.py`), en bij een steek schiet zijn hele lijf even naar voren. Liggen is zijn gewone frame, gekanteld.
 
@@ -500,7 +502,7 @@ Er zijn vijf varianten:
 - **Gekruist:** twee speren als een X, met een schedel in het kruis en een in het zand.
 - **Jagers:** een buffelschedel met leren riempjes aan de schacht gebonden, een jakhals aan de voet en een rood doek.
 - **Kalebas:** een kalebas aan een koordje, op borsthoogte aan de schacht geknoopt. Hij slingert in de wind, en met het
-  mes en Scavenger snijd je hem los.
+  mes snijd je hem los.
 
 Een level zet het neer met `tekens: [ {x: -900, v: 'gebroken'} ]`, met `f: true` gespiegeld. Nog geen level gebruikt het.
 In de sandbox staat het onder het tabblad **Decor**, bij **Speerteken**.
