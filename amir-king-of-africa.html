@@ -847,7 +847,7 @@ const TRIBE_CONFIG = {
   unlockAnim: 0.7
 };
 // De stand van deze run, in een object zodat het later in een keer in localStorage kan.
-// Game over en daarna opnieuw, of een nieuwe run uit het menu, zet hem terug (runReset).
+// Alleen een nieuwe run uit het menu zet hem terug (runReset); na game over houd je je abilities.
 const RUN = { tribeId: null, abilities: [], gehaald: 0 };
 
 // ---- versie: welke update er live staat ----------------------------------
@@ -12455,8 +12455,24 @@ function zwMove(s, stap, plats, cliff){
   const nx = s.x + stap;
   const halfL = ZW_LIJF.half * zwScale();
   if (knockBlocked(s, nx, plats, cliff, halfL, 80)) return false;
+  if (zwTegenKei(s, nx, plats, ZW_VOET_VOOR * zwScale())) return false;
   s.x = nx;
   return true;
+}
+// Een kei houdt hem tegen met zijn voorste voet, niet met zijn anker. Zijn x is de plek van zijn
+// achterste voet (ZW.anker), en in zijn dreigende stand staat de voorste 487 canvaspixels verder,
+// in de renpas 189 (gemeten in de frames, rij 895 tot 935). hardBlocked rekent alleen met de maat
+// van de kei, en dan stond hij met een voet op de kei en leek het in de renpas of hij eroverheen
+// klom (regel 7). Van de kei af lopen mag altijd. Zo is een kei ook voor hem een schuilplek: vanaf
+// de voet haalt zijn zwaard je bovenop de kei niet.
+const ZW_VOET_VOOR = 500;
+function zwTegenKei(s, nx, plats, halfL){
+  for (const p of plats){
+    if (!blocksMonster(p, s.base || 0)) continue;
+    const mid = (p.left + p.right) / 2;
+    if (nx + halfL > p.left && nx - halfL < p.right && Math.abs(nx - mid) < Math.abs(s.x - mid)) return true;
+  }
+  return false;
 }
 // Staat er een maat tussen hem en jou, dan gaat hij daar niet doorheen. Wie het
 // dichtst bij je staat vecht; de rest blijft er een lijf vandaan staan dreigen.
@@ -16610,10 +16626,11 @@ window.addEventListener('keydown', e => {
 }, true);
 // ---- tribes: keuzescherm, ability, HUD ----
 // De getallen en teksten staan in TRIBE_CONFIG bovenin, de stand van de run in RUN. Een run
-// begint in het menu met Spelen (tribeKies), en na game over en opnieuw beginnen weer. Na elk
-// uitgespeeld level komt de volgende ability (tribeNaLevel, vanuit winLevel). De sandbox heeft
-// zijn eigen knoppen (sbAbilities), en testen vanuit de bouwer heeft alles, zodat je elk level
-// volledig kunt proberen. De speelrobot speelt zonder tribe.
+// begint in het menu met Spelen (tribeKies); na game over houd je je tribe en abilities. Na elk
+// uitgespeeld level komt de volgende ability (tribeNaLevel, vanuit winLevel). Alleen De Jagers
+// heeft een tribekeuze; de Test levels niet (tenzij daar om gevraagd wordt), en daar gelden alle
+// abilities, net als bij testen vanuit de bouwer. De sandbox heeft zijn eigen knoppen
+// (sbAbilities). De speelrobot speelt De Jagers zonder tribe, dus zonder abilities.
 const tribeKiesEl = document.getElementById('tribekies');
 const tribeUnlockEl = document.getElementById('trunlock');
 const tribeHudEl = document.getElementById('tribehud');
@@ -16630,6 +16647,7 @@ function tribeLijst(){
   for (const t of TRIBE_CONFIG.tribes) for (const a of t.abilities) alle.push(a.id);
   if (sandbox) return alle.filter(id => sbAbilities.has(id));
   if (bouwTest) return alle;
+  if (!RUN.tribeId && levelList === TEST_LEVELS) return alle;   // Test levels: zonder tribe, met alles
   return RUN.abilities.slice();
 }
 function tribeHeeft(id){ return tribeLijst().indexOf(id) >= 0; }
@@ -16746,14 +16764,8 @@ document.getElementById('truverder').onclick = () => {
 };
 // Een nieuwe run uit het menu: eerst de tribe, dan pas het level.
 function runStart(verder){ tribeKies(verder); }
-// Opnieuw na game over: de run is voorbij, dus eerst opnieuw kiezen. Anders gewoon opnieuw.
-function opnieuw(){
-  if (dead && running && RUN.tribeId && !sandbox && !bouwTest){
-    tribeKies(() => { restart(); cv.focus(); });
-    return;
-  }
-  restart();
-}
+// Opnieuw, ook na game over: hetzelfde level, met je tribe en de abilities die je al had.
+function opnieuw(){ restart(); }
 // Het toetsenbord: zolang een van de schermen openstaat, zijn de toetsen van de schermen. Pijltjes
 // lopen langs de kaarten, enter en spatie drukken de knop in waar je op staat.
 window.addEventListener('keydown', e => {
@@ -16810,7 +16822,11 @@ function buildCards(el, list){
     b.innerHTML = '<span class="num">' + (i + 1) + '</span>' + lv.name +
       '<span class="sub' + (boss ? ' boss' : '') + '">' + (boss ? 'Eindbaas' : (SUBS[lv.name] || '')) + '</span>';
     b.onclick = () => setLevel(i, list);
-    b.ondblclick = () => { setLevel(i, list); runStart(() => beginPlay('normal')); };
+    b.ondblclick = () => {
+      setLevel(i, list);
+      if (list === JAGER_LEVELS) runStart(() => beginPlay('normal'));
+      else { runReset(); beginPlay('normal'); }   // Test levels: geen tribekeuze
+    };
     el.appendChild(b);
   });
 }
@@ -16839,7 +16855,7 @@ document.getElementById('btnnightmareJager').onclick = () => runStart(() => {
   verhaalToon(() => beginPlay('nightmare'));
 });
 document.getElementById('btnTest').onclick = () => { showMenu('menuTest'); setLevel(levelList === TEST_LEVELS ? levelIdx : 0, TEST_LEVELS); };
-document.getElementById('btnplayTest').onclick = () => runStart(() => beginPlay('normal'));
+document.getElementById('btnplayTest').onclick = () => { runReset(); beginPlay('normal'); };   // geen tribekeuze
 for (const b of document.querySelectorAll('.menuback')) b.onclick = () => showMenu('menuChoose');
 for (const b of document.querySelectorAll('.menumain')) b.onclick = () => showMenu('menuMain');
 document.getElementById('wnnext').onclick = () => {
