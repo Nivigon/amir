@@ -385,6 +385,9 @@ class Spel:
         self.ZEGEL_R = float(m.group(1))
         m = b.regex(r'const RAVIJN_MAAT = \{ breed: (\d+)', 'de breedte van het open ravijn')
         self.RAVIJN_BREED = int(m.group(1))
+        # de soorten weer (het veld weer): de sleutels van WEER.soorten
+        m = b.regex(r'(?s)const WEER = \{\s*soorten: \{(.*?)\n  \}', 'de soorten weer')
+        self.WEER_SOORTEN = re.findall(r'^\s*(\w+):', m.group(1), re.M)
         # welke velden readLevel overneemt: de rest van een level wordt genegeerd
         rl = b.src[b.src.index('function readLevel'):]
         rl = blok_na(rl, rl.index('schoonLevel('))
@@ -842,6 +845,23 @@ def velden(lv, sp):
             yield fout(None, 'sneeuw heeft van of tot, maar niet allebei: dan telt geen van beide')
         if 'van' in s and 'tot' in s and s['tot'] > s['van']:
             yield letop(None, 'sneeuw.tot ligt rechts van van: Amir loopt naar links, dus het dek loopt af in plaats van op')
+    weer = lv.d.get('weer')
+    if weer is not None:
+        if not isinstance(weer, list):
+            yield fout(None, 'weer moet een lijst punten zijn: [{x, soort, sterkte}]; zo is er geen weer')
+        else:
+            for q in weer:
+                if q.get('soort') not in sp.WEER_SOORTEN:
+                    yield fout(q.get('x'), "weer '%s' bestaat niet (wel: %s): dit punt wordt weggelaten"
+                               % (q.get('soort'), ', '.join(sp.WEER_SOORTEN)))
+                if not isinstance(q.get('x'), (int, float)):
+                    yield fout(None, 'een weerpunt zonder x wordt weggelaten')
+                st = q.get('sterkte')
+                if isinstance(st, (int, float)) and not 0 <= st <= 1.5:
+                    yield letop(q.get('x'), 'weer.sterkte %s valt buiten 0 tot 1,5 en wordt geklemd' % st)
+            xs = [q.get('x') for q in weer if isinstance(q.get('x'), (int, float))]
+            if xs and max(xs) > 0:
+                yield letop(max(xs), 'een weerpunt rechts van het begin: Amir loopt naar links, dus dat geldt meteen')
     if (lv.d.get('ends') or []) and len(lv.d['ends']) > 1:
         yield letop(lv.d['ends'][1].get('x'), 'meer dan een einde: alleen het eerste telt, de rest wordt weggelaten')
 

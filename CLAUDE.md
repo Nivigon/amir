@@ -78,7 +78,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | bodem en sneeuwdek | het veld `sneeuw`: savanne of rots, en het dek in vier standen |
 | het verhaal bij een episode | `VERHAAL` en `SLOT`, `verhaalToon()`: tekst op een zwart scherm voor elk level en na het laatste, alleen als je bij het eerste level begint. Op de naam van het level, dus een nieuwe episode hoeft alleen tekst toe te voegen en `verhaalAan` te zetten in zijn speelknop |
 | Episode De Jagers | `JAGER_1` tot en met `JAGER_5` en `JAGER_LEVELS`: vijf pittige levels met een verhaal (`VERHAAL`, `SLOT`) en Nightmare; menu `menuJager`, `cardsJager` |
-| Episode Test levels | `TEST_1` tot en met `TEST_12`: korte proefstukken, los van de echte episodes |
+| Episode Test levels | `TEST_1` tot en met `TEST_13`: korte proefstukken, los van de echte episodes |
 | lichtkaart: het licht onder de grond | `LK`, `drawLichtkaart`: een lichtbron (de hemel en de zon) voor alles onder de grond en onder rots boven je, per level een keer uitgerekend |
 | terrassen en richels | `terraces`, `ledges`, klimmen |
 | de rotswand rechts | `cliffs`, het einde van het level |
@@ -99,6 +99,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | stap voor stap leren spelen | het `tutorial`-systeem (staat klaar, geen level gebruikt het nu) |
 | gaten in de grond | `gaps`, de overkant, de nevel en de diepte; de laag die eronder doorloopt is `grondDoorlopen`, in de bodemsectie |
 | stof, sneeuwval, het weer | deeltjes en het weerplan per potje |
+| het weer: regen, onweer, zandstorm, sneeuw en sneeuwstorm | `WEER`, `weerDoel`, `updateWeer`, `drawWeer`, `weerWind`, `weerGeluid`: het veld `weer` van een level (zie "het weer" hieronder) |
 | vegetatie, water, doornbos | `props`, `water`, `thickets` |
 | schilden in de wind | `SCHILD`, `schildStofUpdate`, `schildTil`, `drawSchildStof`: een schild (`schild: true` in `PROPS`) is een windscherm; bij een vlaag stuwt er stof tegen de windkant op, dat eroverheen waait. De plaatjes in `design/schilden/` zijn zelf de bron (het donkere motief van het klauwenschild is er met de hand in teruggezet) |
 | slangen: kleur, zicht en patrouille | `SNAKE_DIRS`, `slangZiet`, `startPatrouille`, `slangSchuif` |
@@ -129,6 +130,7 @@ precies hetzelfde formaat naar JSON.
 | `muziek` | sleutel uit `MUZIEK`: welk deuntje eronder loopt (`darkafrica`); zonder dit veld `bg.mp3` |
 | `winter` | `true` zet het hele level in de sneeuw (witte dieren, sneeuwversies van het decor) |
 | `sneeuw` | sneeuw op de grond, los van `winter`: `{soort, dek, van, tot}` (zie hieronder) |
+| `weer` | het weer onderweg: `[{x, soort, sterkte}]`, `soort` uit `WEER.soorten` (`droog`, `regen`, `onweer`, `zandstorm`, `sneeuw`, `sneeuwstorm`); voorbij `x` slaat het om (zie "het weer") |
 | `valschade` | `true` laat een diepe val een of twee levens kosten (standaard uit) |
 | `worp` | `'schaal'` zet de schaalworp aan: de hoek loopt op zolang je vasthoudt, van vlak tot 30 graden (`THR_HOEK_MAX`); zonder dit veld de twee trappen. In de sandbox de knop Worp onder Speerworp |
 | `rocks` | keien om op te springen: `{x, s}` |
@@ -198,6 +200,36 @@ om. Dat is bewust buiten deze wijziging gelaten.
 `schoonLevel` kijkt elk level bij het laden na en schuift decor dat boven een ravijn
 staat naar de kant, of haalt het weg (behalve binnen een gang: daar staat het op de bodem). Reken daar niet op als ontwerper: zet het
 meteen goed.
+
+### Het weer
+
+Een level zet het weer met `weer: [{x, soort, sterkte}]`. Voorbij `x` geldt die soort tot het
+volgende punt, de overgang loopt over `WEER.overgang` px en voor het eerste punt is het droog.
+Zonder het veld blijft het oude gedrag: in een winterlevel het sneeuwplan per potje (`planSnow`),
+verder geen weer. `sterkte` is standaard 1, hoogstens 1,5.
+
+Elke soort is een mengsel van zes lagen (`WEER.lagen`: regen, onweer, storm, zand, sneeuw, jacht),
+zodat de ene soort in de andere overloopt. De sneeuw zijn de gewone vlokken: `updateSnowfall`
+vraagt `weerDoel()` en sneeuwt dan ook buiten een winterlevel. Wil je de grond ook wit, zet er dan
+het veld `sneeuw` bij met dezelfde `van`.
+
+Drie keuzes die vastliggen:
+
+- **Weer maakt het beeld niet donkerder.** Geen waas over de lucht en geen donkere laag: regen maakt
+  het hooguit een zweem koeler (`WEER.koel`), een storm legt alleen vlak boven de grond een stuifband.
+  Zo is het gevraagd.
+- **Een storm is een vlaag die niet ophoudt.** `weerWind` zet `gust` op een vlaag over de hele kaart
+  (`gust.weer`), met een amplitude die golft. Alles wat al op `windAt` reageert gaat zo vanzelf mee;
+  de planten gaan in een storm verder plat en fladderen sneller (`WEER.storm.buig`, `fladder`, in
+  `drawVeg`). Waait het harder dan 1, dan staat een doek strak (`tekenWind` klemt op 1). Een nieuw
+  ding dat in de wind beweegt hoeft dus alleen `windAt` te gebruiken.
+- **Geluid**: de storm is `music/woestijnwind.mp3` als lus door een versterker (`stormSnd`,
+  `weerVersterker`), de regen en de donder zijn gefilterde ruis uit de Web Audio API. Alles hangt aan
+  `weerAc`, die `geluidOntgrendel` bij een tik op gang zet. Onder de grond klinkt het gedempt, en er
+  valt geen weer (`holteDiepT`, net als de sneeuw).
+
+Nog niet: onder een plafond of in een grot regent het gewoon door, en planten en keien hebben in de
+sneeuw alleen hun aan-of-uit sneeuwversie. In de sandbox onder **Weer**; Test 13 laat alles zien.
 
 ### Wat mag waar: vast, los, plant en ver
 
