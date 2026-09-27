@@ -53,6 +53,11 @@ paste elke pull request dezelfde regel aan (`VERSIE`), en twee die tegelijk open
 daar altijd op. Geef een pull request wel een titel die zegt wat er nieuw is, in een paar woorden:
 die titel is wat de speler onder Updates leest.
 
+**9. Een speer in een houten runeschijf blijft vastzitten.** Op een rots, in de rotswand of bij de
+grot: wie de schijf raakt is zijn speer kwijt, en E haalt hem er niet uit. Het spel geeft er niet
+vanzelf een nieuwe voor terug; of en waar de speler een nieuwe krijgt (een skelet, een speer in de
+grond) is een keuze van het level, en een level zonder mag juist de uitdaging zijn.
+
 ## Waar wat staat
 
 De HTML is opgedeeld met commentaarkoppen (`// ---- ... ----`). Zoek daarop, niet op
@@ -569,9 +574,15 @@ runerots steken): anders raakt hij de flank eronder, die naar beneden breder wor
 stukje lager weer vast. Een vallende speer zet ook geen rune aan.
 
 Met `doel: true` is een rune een doel: raken zet hem aan (`runeGeraakt`), met een felle gloed die in
-`RAVIJN_RUNE.flits` wegzakt (`runeFlits`), en hij blijft aan tot je opnieuw begint. De speer die
-erin zit blijft daar als je een andere pakt (`runeSperen`, in `eigenSpeerNeer`), in plaats van als
-losse speer op de grond eronder te vallen. Test 12 is het proefstuk: vijf rotsen, en na elke rots een
+`RAVIJN_RUNE.flits` wegzakt (`runeFlits`), en hij blijft aan tot je opnieuw begint.
+
+**Een speer in een runeschijf blijft vastzitten, punt.** Dat geldt voor elke houten schijf: de rune op
+een rots, de rotswand en de grot. Bij een treffer wordt de speer meteen decor van de rune
+(`runeSperen`, in `ravijnRuneTreffer`), net als `muurSpeer` bij de rotswand: E doet er niets, en Amir
+heeft geen speer meer. Het spel geeft er niet vanzelf een nieuwe voor; dat regelt het level, met een
+skelet of met de speerplek bij de rotswand (`muurVul`). Een level zonder nieuwe speer na een rune is
+dus een keuze, en kan juist de uitdaging zijn: zet er een neer als de speler er daarna nog een nodig
+heeft. Vorst 5 heeft er een bij de grot, Rune 8 en Vorst 2 een skelet na de rune. Test 12 is het proefstuk: vijf rotsen, en na elke rots een
 skelet voor een nieuwe speer.
 
 De maten van een rots hangen aan Amir en dus aan het scherm, en een level niet: op 1920 bij 1080
