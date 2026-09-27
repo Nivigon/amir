@@ -91,7 +91,7 @@ De versie in `offline-assets.json` verandert mee, en de service worker ziet daar
 | stoten vanuit een sprint | Shift en een pijltje, dan spatie: hij glijdt remmend door | joystick ver uit, dan ✦ |
 | **speer recht vooruit** | **spatie vasthouden, loslaten** | **✦ vasthouden, loslaten** |
 | **speer in een boog** | **langer vasthouden, dan loslaten** | **langer vasthouden, dan loslaten** |
-| worp afbreken | tik in plaats van vasthouden | duim van ✦ af slepen en daar loslaten |
+| worp afbreken | tijdens het spannen springen, bukken of de andere kant op | duim van ✦ af slepen en daar loslaten, of springen, bukken of de andere kant op |
 | speer oppakken | E, waar je ook langs de schacht staat | E (verschijnt als je er vlakbij staat) |
 | door een open deur of grot | E, als je ervoor staat | E (verschijnt als je ervoor staat) |
 | drinken | Q | het kalebasje |
@@ -116,6 +116,14 @@ geen verdragende worp. Vlak komt ongeveer 0,8 scherm verderop neer, de boog
 piekt bijna drie keer Amirs lengte en landt rond 1,6 scherm. Lang vasthouden is
 daarmee niet gewoon beter, want de boog zeilt over alles heen wat dichtbij
 staat en je staat er een halve seconde langer kwetsbaar voor stil.
+
+Je hoeft niet te gooien als je eenmaal spant. Spring, buk of loop de andere kant op
+en de worp gaat niet door: je houdt je speer en Amir doet meteen wat je vraagt. Er
+wordt ook nooit vanzelf gegooid, hoe lang je ook vasthoudt. Wacht je met een
+gespannen speer, dan staat hij niet stil: hij ademt, na ruim een seconde gaat hij
+licht trillen van de spanning, steeds iets meer, en is hij helemaal uitgetrokken,
+dan glimt de punt af en toe. In de sandbox zet de knop **Spannen** onder
+"Speerworp" dit uit, om het te vergelijken met hoe het was.
 
 #### De schaalworp (proef)
 
