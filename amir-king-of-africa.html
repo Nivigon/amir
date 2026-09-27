@@ -279,6 +279,10 @@
   .trkaart .trabs img{width:clamp(26px,6vh,40px);height:clamp(26px,6vh,40px);display:block}
   .trkaart .trslot{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13px;font-weight:600;letter-spacing:.04em}
   .trkaart .trslot svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.2}
+  .trkaart.opslot{opacity:.55;filter:grayscale(.85)}
+  .trkaart.opslot:hover,.trkaart.opslot:focus-visible{opacity:.8}
+  #tbterug{min-width:0;width:100%;padding:8px 16px;font-size:clamp(12px,2.2vh,14px);color:rgba(243,227,200,.75);border-color:rgba(243,227,200,.28)}
+  #tbterug[hidden]{display:none}
   #trjoin,#truverder{min-width:220px;padding:10px 22px;font-size:17px;border-color:rgba(243,227,200,.3);color:rgba(243,227,200,.5)}
   #trjoin:not([disabled]),#truverder{border-color:var(--tracc);background:var(--tracc);color:#1c120c;font-weight:800;
     box-shadow:0 3px 10px rgba(0,0,0,.45);transition:transform .15s ease,box-shadow .15s ease}
@@ -345,6 +349,8 @@
   .tbstam .tbkras{stroke:#0e0604;stroke-width:6;fill:none;stroke-linecap:round}
   .tbstam .tbgloei{stroke:#3b2414;stroke-width:2;stroke-dasharray:3 7;fill:none;stroke-linecap:round;transition:stroke .5s ease .2s}
   .tbstam.vol .tbgloei{stroke:#ffb35e;stroke-width:3.5;stroke-dasharray:none;filter:drop-shadow(0 0 5px #ff7a2a)}
+  .tbstam .tbpoot{fill:#3b2414}
+  .tbstam.vol .tbpoot{fill:#ffb35e;filter:drop-shadow(0 0 5px #ff7a2a)}
   .tbschacht{width:10px;height:100%;margin:0 auto;background:linear-gradient(90deg,#3a220f,#a0703d 45%,#2e1a0b);box-shadow:0 0 0 1px #000;
     transition:box-shadow .5s ease .2s}
   .tbstam.vol .tbschacht{background:repeating-linear-gradient(160deg,#b8341e 0 5px,transparent 5px 10px),linear-gradient(90deg,#3a220f,#a0703d 45%,#2e1a0b);
@@ -852,9 +858,8 @@
   <button id="woede" type="button" aria-label="Fury" title="Fury"><img src="design/tribes/bhubesi/logo.png" alt=""><span id="woedebalk"><span id="woedevul"></span></span><kbd>G</kbd></button>
   <div id="tribekies" class="trscherm" role="dialog" aria-modal="true" aria-labelledby="trkop">
     <div class="trkop" id="trkop">Choose your tribe</div>
-    <div class="trsub">Your tribe stays with you for the whole run.</div>
+    <div class="trsub">Look at each tribe's talents. Your choice is final once you join.</div>
     <div id="trkaarten" role="radiogroup" aria-labelledby="trkop"></div>
-    <button id="trjoin" type="button" disabled>Join this tribe</button>
   </div>
   <div id="trunlock" class="trscherm" role="dialog" aria-modal="true" aria-labelledby="trukop">
     <img id="tbwater" src="" alt="">
@@ -875,6 +880,7 @@
         <div class="tbistaat"></div>
         <button id="tbleer" type="button" hidden></button>
         <button id="truverder" type="button">Continue</button>
+        <button id="tbterug" type="button" hidden>Back to tribes</button>
       </div>
     </div>
   </div>
@@ -1031,6 +1037,9 @@ const TRIBE_CONFIG = {
         pulsVol: 1.2           // zo lang pulseert de meter als hij net vol is, in seconden
       } },
     { id: 'impungushe', naam: 'Impungushe', titel: 'Tribe of the Jackal', logo: 'design/tribes/impungushe/logo.png',
+      // Nog op slot: de boom is te bekijken (met TB_LEEG lege plekken), maar er valt niets te kiezen.
+      boom: { kop: 'The Pack', ring: 'tanden', lijn: 'spoor', punt: 'tooth mark', punten: 'tooth marks',
+              doel: 'to take a talent', geleerd: 'Taken', klaar: 'Ready to take', leer: 'Take it' },
       locked: true, abilities: [] }
   ],
   // het ability scherm: hoe lang het opschalen en de gloed duren, in seconden
@@ -16974,6 +16983,7 @@ function zwaaiVak(box, soort){
 }
 function runReset(){
   RUN.tribeId = null; RUN.abilities = []; RUN.gehaald = 0; RUN.punten = 0; RUN.woede = 0;
+  tbKijk = null;
   woedeStop();
   hudToon();
 }
@@ -17122,13 +17132,24 @@ function woedeKlank(soort){
   }
 }
 woedeEl.onclick = () => { woedeStart(); cv.focus(); };
-// Een icoon van een ability dat (nog) niet op schijf staat: dan het logo van zijn tribe, in plaats
-// van een gebroken plaatje op het keuzescherm en in de HUD.
+// Een icoon van een ability dat (nog) niet op schijf staat: dan een houten tegeltje met het getekende
+// teken uit de talent tree (TB_TEKEN), zoals de plaatjes van Mkuki eruitzien, of anders het logo van
+// zijn tribe. Zo staat er nooit een gebroken plaatje op het keuzescherm, in de HUD of in de boom.
+function tbTekenBeeld(id){
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><defs>' +
+    '<linearGradient id="h" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b3804c"/><stop offset="1" stop-color="#7a4b28"/></linearGradient></defs>' +
+    '<rect x="1" y="1" width="46" height="46" rx="3" fill="url(#h)" stroke="#3b2414" stroke-width="1.5"/>' +
+    '<path d="M4 12 C18 10 30 14 44 11 M4 27 C16 25 32 29 44 26 M4 39 C20 37 28 41 44 38" stroke="#000" stroke-opacity=".08" fill="none"/>' +
+    '<g transform="translate(7 7) scale(.708)">' + TB_TEKEN[id] + '</g></svg>';
+  return 'data:image/svg+xml,' + encodeURIComponent(svg);
+}
 addEventListener('error', e => {
   const im = e.target, m = im && im.tagName === 'IMG' && /design\/tribes\/(\w+)\/abilities\//.exec(im.src);
-  if (!m) return;                                  // (het logo zelf valt hier niet onder, dus dit loopt niet rond)
+  if (!m) return;                                  // (het logo en het tegeltje vallen hier niet onder, dus dit loopt niet rond)
   console.warn('ontbreekt: ' + im.src);
-  im.src = 'design/tribes/' + m[1] + '/logo.png';
+  let a = null;
+  for (const t of TRIBE_CONFIG.tribes) for (const x of t.abilities) if (im.src.endsWith(x.icoon)) a = x;
+  im.src = a && typeof TB_TEKEN !== 'undefined' && TB_TEKEN[a.id] ? tbTekenBeeld(a.id) : 'design/tribes/' + m[1] + '/logo.png';
 }, true);
 function tribeOpen(){ return tribeKiesEl.classList.contains('on') || tribeUnlockEl.classList.contains('on'); }
 const SLOT_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="1.5"/>' +
@@ -17141,54 +17162,57 @@ function tribeKies(verder){
   rij.innerHTML = '';
   for (const t of TRIBE_CONFIG.tribes){
     const b = document.createElement('button');
-    b.type = 'button'; b.className = 'trkaart'; b.dataset.tribe = t.id;
+    b.type = 'button'; b.className = 'trkaart' + (t.locked ? ' opslot' : ''); b.dataset.tribe = t.id;
     b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', 'false');
     let h = '<img class="trlogo" src="' + t.logo + '" alt="">' +
             '<span class="trnaam">' + t.naam + '</span><span class="trtitel">' + t.titel + '</span>';
     if (t.locked){
-      b.disabled = true;
       b.setAttribute('aria-label', t.naam + ', ' + t.titel + ', coming soon');
       h += '<span class="trslot">' + SLOT_SVG + 'Coming soon</span>';
     } else {
       h += '<span class="trabs">' + t.abilities.map(a => '<img src="' + a.icoon + '" alt="' + a.naam + '" title="' + a.naam + '">').join('') + '</span>';
-      b.onclick = () => tribeSelecteer(t.id);
-      b.ondblclick = () => { tribeSelecteer(t.id); tribeJoin(); };
     }
+    b.onclick = () => tribeBekijk(t.id);             // ook een tribe op slot is te bekijken
     b.innerHTML = h;
     rij.appendChild(b);
   }
-  document.getElementById('trjoin').disabled = true;
   for (const k in keys) keys[k] = false;
   if (running) paused = true;                      // na game over: achter het scherm gebeurt niets
   tribeKiesEl.classList.add('on');
-  const eerste = rij.querySelector('.trkaart:not([disabled])');
+  const eerste = rij.querySelector('.trkaart:not(.opslot)');
   if (eerste) eerste.focus();
 }
 function tribeSelecteer(id){
-  const t = tribeVan(id);
-  if (!t || t.locked) return;
+  if (!tribeVan(id)) return;
   tribeKeuze = id;
   for (const b of document.querySelectorAll('#trkaarten .trkaart')){
     const aan = b.dataset.tribe === id;
     b.classList.toggle('gekozen', aan);
     b.setAttribute('aria-checked', aan ? 'true' : 'false');
   }
-  document.getElementById('trjoin').disabled = false;
 }
-function tribeJoin(){
-  const t = tribeVan(tribeKeuze);
-  if (!t || t.locked) return;
-  // Je begint met niets geleerd; een tribe met bijStart geeft zoveel talentpunten mee, en die geef
-  // je meteen uit in de boom. Daarna een punt per uitgespeeld level (tribeNaLevel).
-  RUN.tribeId = t.id; RUN.abilities = []; RUN.gehaald = 0; RUN.punten = t.bijStart || 0;
-  RUN.woede = 0;
+// Een kaart op het keuzescherm opent de boom van die tribe, nog zonder te kiezen (tbKijk). Daar kies
+// je het eerste talent (of Join), en dan ligt de tribe vast; met Back to tribes ga je terug.
+let tbNaKeuze = null;                              // wat er na de keuze gebeurt, tot je kiest of teruggaat
+function tribeBekijk(id){
+  const t = tribeVan(id);
+  if (!t) return;
+  tribeSelecteer(id);
+  tbKijk = id;
+  tbNaKeuze = tribeVerder;
   tribeKiesEl.classList.remove('on');
-  const f = tribeVerder; tribeVerder = null;
-  const start = () => { paused = false; if (f) f(); hudToon(); };
-  if (RUN.punten > 0) tribeBoomToon(start);
-  else start();
+  const f = tbNaKeuze;
+  tribeBoomToon(() => { paused = false; tbNaKeuze = null; if (f) f(); hudToon(); });
 }
-document.getElementById('trjoin').onclick = tribeJoin;
+document.getElementById('tbterug').onclick = () => {
+  const id = tbKijk;
+  tbKijk = null;
+  tribeUnlockEl.classList.remove('on');
+  tribeVerder = tbNaKeuze; tbNaKeuze = null;
+  tribeKiesEl.classList.add('on');
+  const k = document.querySelector('#trkaarten .trkaart[data-tribe="' + id + '"]');
+  if (k) k.focus();
+};
 // Na een uitgespeeld level: de teller op, en valt er nog iets te leren, dan een talentpunt en de
 // boom, waarin de speler het zelf uitgeeft. verder() komt daarna (of meteen, als er niets te leren is).
 function tribeNaLevel(verder){
@@ -17213,6 +17237,7 @@ const TB_ROMEINS = ['I', 'II', 'III', 'IV', 'V', 'VI'];
 // de ring om een talent, in een vak van 160 bij 160: een krans van manen of van speerpunten
 const TB_RING = {
   manen: '80.0,0.0 88.8,18.6 102.5,3.2 105.8,23.6 123.3,12.7 120.6,33.1 140.5,27.6 132.2,46.5 152.8,46.8 139.5,62.5 159.2,68.6 142.0,80.0 159.2,91.4 139.5,97.5 152.8,113.2 132.2,113.5 140.5,132.4 120.6,126.9 123.3,147.3 105.8,136.4 102.5,156.8 88.8,141.4 80.0,160.0 71.2,141.4 57.5,156.8 54.2,136.4 36.7,147.3 39.4,126.9 19.5,132.4 27.8,113.5 7.2,113.2 20.5,97.5 0.8,91.4 18.0,80.0 0.8,68.6 20.5,62.5 7.2,46.8 27.8,46.5 19.5,27.6 39.4,33.1 36.7,12.7 54.2,23.6 57.5,3.2 71.2,18.6',
+  tanden: '80.0,0.0 94.2,17.6 111.2,15.1 119.9,30.0 142.5,30.1 137.7,52.2 150.2,64.0 144.0,80.0 158.0,97.8 137.7,107.8 136.3,124.9 119.9,130.0 114.7,152.1 94.2,142.4 80.0,152.0 65.8,142.4 45.3,152.1 40.1,130.0 23.7,124.9 22.3,107.8 2.0,97.8 16.0,80.0 9.8,64.0 22.3,52.2 17.5,30.1 40.1,30.0 48.8,15.1 65.8,17.6',
   speer: '80.0,0.0 95.5,32.4 127.0,15.3 120.5,50.6 156.1,55.3 130.0,80.0 156.1,104.7 120.5,109.4 127.0,144.7 95.5,127.6 80.0,160.0 64.5,127.6 33.0,144.7 39.5,109.4 3.9,104.7 30.0,80.0 3.9,55.3 39.5,50.6 33.0,15.3 64.5,32.4'
 };
 // Het teken voor een talent waarvan het plaatje (nog) niet op schijf staat, in de stijl van de
@@ -17225,6 +17250,7 @@ const TB_TEKEN = {
 // het teken bij je talentpunten: een klauwhaal of een speerpunt
 const TB_PUNT = {
   klauw: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M10 40 C12 28 14 18 16 8 M22 42 C23 30 24 20 25 7 M34 40 C33 28 32 19 32 9" stroke="#ff9a52" stroke-width="4" fill="none" stroke-linecap="round"/></svg>',
+  spoor: '<svg viewBox="0 0 48 48" aria-hidden="true"><g fill="#ff9a52"><ellipse cx="24" cy="31" rx="9" ry="7"/><ellipse cx="13" cy="20" rx="3.4" ry="4.4"/><ellipse cx="20" cy="13" rx="3.4" ry="4.4"/><ellipse cx="28" cy="13" rx="3.4" ry="4.4"/><ellipse cx="35" cy="20" rx="3.4" ry="4.4"/></g></svg>',
   schacht: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 3 L32 20 L24 25 L16 20 Z" fill="#ff9a52"/><rect x="22" y="24" width="4" height="22" fill="#ff9a52"/><path d="M21 28 L27 31 M21 33 L27 36" stroke="#b8341e" stroke-width="2.5"/></svg>'
 };
 // wat tussen twee talents zit: drie klauwhalen, of een stuk speerschacht
@@ -17233,8 +17259,14 @@ function tbLijn(soort){
     const d = 'M18 100 C 20 70 22 45 24 0 M50 104 C 50 70 50 45 50 -4 M82 100 C 80 70 78 45 76 0';
     return '<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path class="tbkras" d="' + d + '"/><path class="tbgloei" d="' + d + '"/></svg>';
   }
+  if (soort === 'spoor')                           // een spoor van pootjes, om en om
+    return '<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><g class="tbpoot">' +
+           '<ellipse cx="36" cy="22" rx="7" ry="9"/><ellipse cx="64" cy="54" rx="7" ry="9"/><ellipse cx="36" cy="86" rx="7" ry="9"/></g></svg>';
   return '<div class="tbschacht"></div>';
 }
+// Een tribe die nog op slot staat heeft nog geen talents; zijn boom laat zoveel lege plekken zien.
+const TB_LEEG = 3;
+const TB_VRAAG = '<g stroke="#f3dfb8" stroke-width="3.5" fill="none" stroke-linecap="round"><path d="M17 17 C17 9 31 9 31 17 C31 23 24 23 24 30"/></g><circle cx="24" cy="38" r="2.4" fill="#f3dfb8"/>';
 // hoe het talent het spel verandert, uit de getallen in TRIBE_CONFIG: [zonder, met], of null
 function tbVergelijk(a){
   const k = n => n + ' kill' + (n === 1 ? '' : 's');
@@ -17249,11 +17281,37 @@ function tbVergelijk(a){
   return null;
 }
 let tbSel = 0;
+// Vanaf het keuzescherm bekijk je een boom voor de keuze vastligt: tbKijk is dan de tribe die je
+// bekijkt, en je kunt terug naar de andere. De keuze ligt pas vast als je het eerste talent kiest
+// (of, bij een tribe zonder startpunt, met de knop Join). Tot dan staat RUN nog leeg.
+let tbKijk = null;
+function tbTribe(){ return tribeVan(tbKijk || RUN.tribeId); }
+// de stand waarmee de boom rekent: die van de run, of bij het bekijken die van een nieuwe run
+function tbRun(){
+  if (!tbKijk) return RUN;
+  const t = tribeVan(tbKijk);
+  return { abilities: [], punten: t && !t.locked ? (t.bijStart || 0) : 0 };
+}
+// de talents in de boom; een tribe op slot krijgt lege plekken
+function tbLijst(t){
+  if (t.abilities.length) return t.abilities;
+  const l = [];
+  for (let i = 0; i < TB_LEEG; i++) l.push({ id: 'leeg' + i, naam: 'Coming soon', leeg: true,
+    tekst: 'The ' + t.titel + ' is still on its way. Its talents have not been carved yet.' });
+  return l;
+}
 function tbStaat(t, i){
-  const a = t.abilities[i];
-  if (RUN.abilities.indexOf(a.id) >= 0) return 'geleerd';
-  if (i > 0 && RUN.abilities.indexOf(t.abilities[i - 1].id) < 0) return 'dicht';
-  return RUN.punten > 0 ? 'open' : 'wacht';
+  const r = tbRun(), l = tbLijst(t), a = l[i];
+  if (t.locked || a.leeg) return 'dicht';
+  if (r.abilities.indexOf(a.id) >= 0) return 'geleerd';
+  if (i > 0 && r.abilities.indexOf(l[i - 1].id) < 0) return 'dicht';
+  return r.punten > 0 ? 'open' : 'wacht';
+}
+// de keuze vastleggen: een nieuwe run met deze tribe, en zijn startpunten
+function tribeVastleggen(t){
+  RUN.tribeId = t.id; RUN.abilities = []; RUN.gehaald = 0; RUN.punten = t.bijStart || 0;
+  RUN.woede = 0;
+  tbKijk = null;
 }
 // wanneer het punt voor talent i binnenkomt: bij de start, of na zoveel uitgespeelde levels
 function tbWanneer(t, i){
@@ -17262,8 +17320,9 @@ function tbWanneer(t, i){
 }
 function tbBoom(t){ return t.boom || TRIBE_CONFIG.tribes[0].boom; }
 function tribeBoomToon(verder){
-  const t = tribeVan(RUN.tribeId);
+  const t = tbTribe();
   if (!t){ if (verder) verder(); return; }
+  const lijst = tbLijst(t);
   const b = tbBoom(t);
   tribeVerder = verder;
   document.getElementById('tblogo').src = t.logo;
@@ -17272,14 +17331,15 @@ function tribeBoomToon(verder){
   document.getElementById('trukop').textContent = b.kop;
   const tak = document.getElementById('tbtak');
   let h = '';
-  for (let i = t.abilities.length - 1; i >= 0; i--){    // van boven naar onder: de hoogste tier eerst
-    const a = t.abilities[i];
+  for (let i = lijst.length - 1; i >= 0; i--){          // van boven naar onder: de hoogste tier eerst
+    const a = lijst[i];
     h += '<div class="tbrij" role="listitem" data-i="' + i + '">' +
          '<span class="tbtier">' + (TB_ROMEINS[i] || i + 1) + '</span>' +
          '<button type="button" class="tbknoop" data-i="' + i + '">' +
          '<svg class="tbring" viewBox="0 0 160 160" aria-hidden="true"><polygon points="' + (TB_RING[b.ring] || TB_RING.manen) + '"/></svg>' +
+         (a.leeg ? '<span class="tbmed tbgeen"><svg class="tbteken" viewBox="0 0 48 48" aria-hidden="true">' + TB_VRAAG + '</svg>' :
          '<span class="tbmed"><img src="' + a.icoon + '" alt=""' + (TB_TEKEN[a.id] ? ' onerror="this.parentNode.classList.add(\'tbgeen\')"' : '') + '>' +
-         (TB_TEKEN[a.id] ? '<svg class="tbteken" viewBox="0 0 48 48" aria-hidden="true">' + TB_TEKEN[a.id] + '</svg>' : '') +
+         (TB_TEKEN[a.id] ? '<svg class="tbteken" viewBox="0 0 48 48" aria-hidden="true">' + TB_TEKEN[a.id] + '</svg>' : '')) +
          '</span></button>' +
          '<span class="tbnaam"><b>' + a.naam + '</b><small></small></span></div>';
     if (i > 0) h += '<div class="tbstam" data-i="' + i + '">' + tbLijn(b.lijn) + '</div>';
@@ -17292,8 +17352,8 @@ function tribeBoomToon(verder){
     k.onfocus = () => tbKies(i);
   }
   // waar je op begint: het talent dat je nu kunt leren, anders het laatst geleerde
-  let sel = t.abilities.findIndex((a, i) => tbStaat(t, i) === 'open');
-  if (sel < 0) sel = Math.max(0, RUN.abilities.length - 1);
+  let sel = lijst.findIndex((a, i) => tbStaat(t, i) === 'open');
+  if (sel < 0) sel = Math.max(0, tbRun().abilities.length - 1);
   tbSel = sel;
   tbBijwerken();
   tribeUnlockEl.style.setProperty('--trduur', TRIBE_CONFIG.unlockAnim + 's');
@@ -17305,10 +17365,11 @@ function tribeBoomToon(verder){
 }
 function tbKies(i){ tbSel = i; tbBijwerken(); }
 function tbKlik(i){
-  const t = tribeVan(RUN.tribeId);
+  const t = tbTribe();
   if (!t) return;
   tbKies(i);
-  if (tbStaat(t, i) !== 'open') return;
+  if (tbStaat(t, i) !== 'open') return;             // op slot of al geleerd: alleen bekijken
+  if (tbKijk) tribeVastleggen(t);                   // het eerste talent: nu ligt de keuze vast
   RUN.abilities.push(t.abilities[i].id);           // geleerd
   RUN.punten--;
   hudToon();
@@ -17320,50 +17381,59 @@ function tbKlik(i){
 }
 document.getElementById('tbleer').onclick = () => tbKlik(tbSel);
 function tbBijwerken(){
-  const t = tribeVan(RUN.tribeId);
+  const t = tbTribe();
   if (!t) return;
-  const b = tbBoom(t);
+  const b = tbBoom(t), lijst = tbLijst(t), run = tbRun();
   const tekst = (st, i) => st === 'geleerd' ? b.geleerd : st === 'open' ? b.klaar : tbWanneer(t, i);
   for (const r of document.querySelectorAll('#tbtak .tbrij')){
-    const i = Number(r.dataset.i), st = tbStaat(t, i), a = t.abilities[i];
+    const i = Number(r.dataset.i), st = tbStaat(t, i), a = lijst[i];
     r.className = 'tbrij ' + st;
-    r.querySelector('small').textContent = tekst(st, i);
+    r.querySelector('small').textContent = a.leeg ? 'Locked' : tekst(st, i);
     const k = r.querySelector('.tbknoop');
     k.classList.toggle('kies', i === tbSel);
-    k.setAttribute('aria-label', a.naam + ', ' + tekst(st, i).toLowerCase());
+    k.setAttribute('aria-label', a.naam + (a.leeg ? '' : ', ' + tekst(st, i).toLowerCase()));
   }
   for (const st of document.querySelectorAll('#tbtak .tbstam')){      // de lijn gloeit op boven wat geleerd is
     const i = Number(st.dataset.i);
-    st.classList.toggle('vol', RUN.abilities.indexOf(t.abilities[i - 1].id) >= 0);
+    st.classList.toggle('vol', run.abilities.indexOf(lijst[i - 1].id) >= 0);
   }
   const p = document.getElementById('tbpunt');
+  const pt = run.punten;
   p.innerHTML = (TB_PUNT[b.lijn] || TB_PUNT.klauw) + '<div><b>' +
-    (RUN.punten > 0 ? RUN.punten + ' ' + (RUN.punten > 1 ? b.punten : b.punt) : 'No ' + b.punten + ' left') +
-    '</b><span>' + (RUN.punten > 0 ? b.doel : 'Clear a level to earn one') + '</span></div>';
-  p.classList.toggle('leeg', RUN.punten <= 0);
-  const a = t.abilities[tbSel], st = tbStaat(t, tbSel), info = document.getElementById('tbinfo');
+    (t.locked ? 'Coming soon' : pt > 0 ? pt + ' ' + (pt > 1 ? b.punten : b.punt) : 'No ' + b.punten + (tbKijk ? ' yet' : ' left')) +
+    '</b><span>' + (t.locked ? 'This tribe is not ready yet' : pt > 0 ? b.doel : 'Clear a level to earn one') + '</span></div>';
+  p.classList.toggle('leeg', pt <= 0);
+  const a = lijst[tbSel], st = tbStaat(t, tbSel), info = document.getElementById('tbinfo');
   info.className = st;
   info.querySelector('.tbimeta').textContent = 'Tier ' + (TB_ROMEINS[tbSel] || tbSel + 1);
   info.querySelector('.tbinaam').textContent = a.naam;
   info.querySelector('.tbitekst').textContent = a.tekst;
-  const v = tbVergelijk(a);
+  const v = a.leeg ? null : tbVergelijk(a);
   info.querySelector('.tbivgl').innerHTML = v ? '<div><span>Without</span><b>' + v[0] + '</b></div><div><span>With it</span><b>' + v[1] + '</b></div>' : '';
   info.querySelector('.tbistaat').textContent =
     st === 'geleerd' ? b.geleerd :
     st === 'open' ? '' :
-    st === 'dicht' ? 'Requires ' + t.abilities[tbSel - 1].naam + ', ' + tbWanneer(t, tbSel).toLowerCase() :
+    a.leeg ? '' :
+    st === 'dicht' ? 'Requires ' + lijst[tbSel - 1].naam + ', ' + tbWanneer(t, tbSel).toLowerCase() :
     'Unlocks ' + tbWanneer(t, tbSel).toLowerCase();
   const leer = document.getElementById('tbleer');
   leer.hidden = st !== 'open';
   leer.textContent = b.leer;
   // verder kan pas als je punt op is (en er nog iets te leren valt); alleen kijken sluit altijd
   const knop = document.getElementById('truverder');
-  const moet = RUN.punten > 0 && t.abilities.some((x, i) => tbStaat(t, i) === 'open');
-  knop.disabled = moet;
-  knop.textContent = moet ? 'Choose a talent' : (tribeVerder ? 'Continue' : 'Close');
+  const moet = run.punten > 0 && lijst.some((x, i) => tbStaat(t, i) === 'open');
+  if (tbKijk){                                      // nog aan het kijken: kiezen of terug
+    knop.disabled = t.locked || moet;
+    knop.textContent = t.locked ? 'Coming soon' : moet ? 'Choose a talent to join' : 'Join ' + t.naam;
+  } else {
+    knop.disabled = moet;
+    knop.textContent = moet ? 'Choose a talent' : (tribeVerder ? 'Continue' : 'Close');
+  }
+  document.getElementById('tbterug').hidden = !tbKijk;
 }
 document.getElementById('truverder').onclick = () => {
   if (document.getElementById('truverder').disabled) return;
+  if (tbKijk){ const t = tribeVan(tbKijk); if (!t || t.locked) return; tribeVastleggen(t); }   // Join zonder startpunt
   tribeUnlockEl.classList.remove('on');
   const f = tribeVerder; tribeVerder = null;
   if (f) f();
@@ -17382,17 +17452,18 @@ window.addEventListener('keydown', e => {
   if (e.key === 'Tab') return;                     // de gewone focusvolgorde
   e.preventDefault();
   if (scherm === tribeUnlockEl){                   // de talent tree: op en neer langs de talents
-    const t = tribeVan(RUN.tribeId);
-    if (t && (e.key === 'ArrowUp' || e.key === 'ArrowDown')){
-      const i = Math.max(0, Math.min(t.abilities.length - 1, tbSel + (e.key === 'ArrowUp' ? 1 : -1)));   // de boom groeit omhoog
+    const t2 = tbTribe();
+    if (t2 && (e.key === 'ArrowUp' || e.key === 'ArrowDown')){
+      const i = Math.max(0, Math.min(tbLijst(t2).length - 1, tbSel + (e.key === 'ArrowUp' ? 1 : -1)));   // de boom groeit omhoog
       const k = document.querySelector('#tbtak .tbknoop[data-i="' + i + '"]');
       if (k) k.focus(); else tbKies(i);
       return;
     }
+    if (e.key === 'Escape' && tbKijk){ document.getElementById('tbterug').click(); return; }           // terug naar de tribes
     if (e.key === 'Escape' && !tribeVerder){ document.getElementById('truverder').click(); return; }   // alleen kijken: dicht
   }
   if (scherm === tribeKiesEl && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].indexOf(e.key) >= 0){
-    const kaarten = [...scherm.querySelectorAll('.trkaart:not([disabled])')];
+    const kaarten = [...scherm.querySelectorAll('.trkaart')];
     if (!kaarten.length) return;
     const i = kaarten.indexOf(document.activeElement);
     const stap = (e.key === 'ArrowLeft' || e.key === 'ArrowUp') ? -1 : 1;
@@ -17403,9 +17474,9 @@ window.addEventListener('keydown', e => {
   if (e.key === 'Enter' || e.key === ' '){
     const a = document.activeElement;
     if (a && scherm.contains(a) && a.tagName === 'BUTTON' && !a.disabled){
-      if (a.classList.contains('trkaart')){ tribeSelecteer(a.dataset.tribe); if (e.key === 'Enter') tribeJoin(); }
+      if (a.classList.contains('trkaart')) tribeBekijk(a.dataset.tribe);
       else a.click();
-    } else if (scherm === tribeKiesEl){ if (tribeKeuze) tribeJoin(); }
+    } else if (scherm === tribeKiesEl){ if (tribeKeuze) tribeBekijk(tribeKeuze); }
     else document.getElementById('truverder').click();
   }
 }, true);
