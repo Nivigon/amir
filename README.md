@@ -41,7 +41,7 @@ Bij het kiezen krijg je de eerste ability van je tribe, en na elk uitgespeeld le
 |---|---|
 | **Quick Hand** | na een speerworp sta je korter vast: het herstel na het loslaten gaat 1,6 keer zo snel (0,47 in plaats van 0,75 seconde) |
 | **Thorn Breaker** | een doornbos gaat in een klap om in plaats van drie |
-| **Low Sweep** | de lage zwaai (bukken en aanvallen). Zonder deze ability doet die input niets. Hij raakt wat laag is: slangen, fosforslangen, de schorpioen, hyena's en de panter als hij na een sprong plat ligt. Een zwaardvechter staat rechtop en raak je er niet mee |
+| **Low Sweep** | de lage zwaai (bukken en aanvallen). Zonder deze ability doet die input niets. Hij raakt wat hij altijd raakte: slangen, fosforslangen, de schorpioen, hyena's, zwaardvechters en de panter als hij na een sprong plat ligt |
 
 Alle getallen en teksten staan in `TRIBE_CONFIG`, bovenin de HTML. In de sandbox staan de drie los aan en uit onder **Tribe Mkuki**; testen vanuit de bouwer doe je met alle drie.
 
