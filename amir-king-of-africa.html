@@ -671,7 +671,7 @@
 // ---- versie: welke update er live staat ----------------------------------
 // Staat heel klein linksboven in beeld, zodat je ziet of een pull request al live is. Elke pull
 // request zet hier een nieuw nummer en een naam van een paar woorden bij, zie CLAUDE.md.
-const VERSIE = { nr: '1.5', naam: 'episode De Vorst' };
+const VERSIE = { nr: '1.6', naam: 'geen balk boven de grond' };
 document.getElementById('versie').textContent = 'versie ' + VERSIE.nr + ': ' + VERSIE.naam;
 
 // ---- globale lichtlaag --------------------------------------------------
@@ -12795,7 +12795,11 @@ function onScale(img, w, h){
   scaleCache.set(img, { key, c });
   return c;
 }
-function drawLayer(L, imgs, seq, horizonY, lift, par, size){
+// vloer: tot waar elk paneel moet reiken. Een paneel hangt aan zijn rug (L.edge), niet aan zijn
+// onderkant, dus een laag paneel onder een hoge heuvelrij (midLift) houdt boven de grond op, en
+// in die kier zag je de landvulling als een paarse balk net boven de grond. Wat ontbreekt vullen
+// we met de onderste rijen van het paneel zelf, gespiegeld, zodat de vlakte gewoon doorloopt.
+function drawLayer(L, imgs, seq, horizonY, lift, par, size, vloer){
   const s = H * (size === undefined ? L.size : size);
   const n = seq.length;
   const ref = imgs.find(Boolean);
@@ -12810,7 +12814,15 @@ function drawLayer(L, imgs, seq, horizonY, lift, par, size){
     if (!img) continue;
     const bottom = horizonY - lift * H + (L.edge[k] - L.base) * s;
     const dh = Math.round(img.height * s);
-    ctx.drawImage(onScale(img, Math.round(img.width * s) + 1, dh), x, bottom - dh);
+    const pc = onScale(img, Math.round(img.width * s) + 1, dh);
+    ctx.drawImage(pc, x, bottom - dh);
+    const kier = vloer === undefined ? 0 : Math.min(dh, Math.ceil(vloer - bottom));
+    if (kier > 0){
+      ctx.save();
+      ctx.translate(0, 2 * bottom); ctx.scale(1, -1);    // gespiegeld om de onderrand
+      ctx.drawImage(pc, 0, dh - kier, pc.width, kier, x, bottom - kier, pc.width, kier);
+      ctx.restore();
+    }
   }
 }
 function midOn(){ return sceneCfg().mid && layerImgs().mid.some(Boolean); }   // laag 2: aan in de sandbox en in elk level
@@ -12885,7 +12897,7 @@ function scene(groundY){
     drawMist(nearY - sc.midLift * H, MIST.near * sc.mist, sc.mistColor);
   }
   if (on2){
-    drawLayer(MID, LI.mid, seqFor('mid', MID, sc.seqMid, sc.midHero, sc.midHeroAt), nearY, sc.midLift, sc.midPar, sc.midSize);    // laag 2: savanneheuvels
+    drawLayer(MID, LI.mid, seqFor('mid', MID, sc.seqMid, sc.midHero, sc.midHeroAt), nearY, sc.midLift, sc.midPar, sc.midSize, nearY);    // laag 2: savanneheuvels, tot op de grond
     drawMist(nearY - (groundY - edgeTop(groundY)), MIST.ground * sc.mist, sc.mistColor);
   }
   if (sc.dim){                                      // hele achtergrond een tint donkerder: het wordt avond
