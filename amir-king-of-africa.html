@@ -1331,7 +1331,7 @@ const TEST_6 = {
   cliffs: [ {x: -3900} ],
   ends: [ {x: -3400} ],
   tips: [ { x: -60, t: 'Testlevel voor het openscheurende ravijn. Pak je speer op en loop een stukje door' },
-          { x: -450, t: 'Gooi je speer tegen de rune op de rots. Hij blijft erin steken: haal hem eruit met E' } ]
+          { x: -450, t: 'Gooi je speer tegen de rune op de rots. Raak je hem, dan blijft je speer erin zitten' } ]
 };
 // Test 7: de schaalworp (worp: 'schaal'). Hoe langer je vasthoudt, hoe hoger de hoek, van
 // vlak tot 30 graden, en hoe verder de speer komt. Vier plekken, elk met een andere afstand of
@@ -1392,7 +1392,8 @@ const TEST_8 = {
 // -7400 (runes). Elk heeft zijn eigen spits met een rune, met de voet naast de rand van
 // zijn eigen gat, en ertussen is steeds genoeg vlakte om op de goede afstand te gaan staan. Het
 // gewone haal je open nog met een sprintsprong, het dubbele niet: daarom ligt er voor het dubbele
-// een zegel dat het weer dicht laat gaan (sluit), en dan loop je door naar het driedubbele. Geen
+// een zegel dat het weer dicht laat gaan (sluit), en dan loop je door naar het driedubbele. Je speer
+// blijft in elke rune zitten, dus na de eerste en de tweede zit een skelet met een nieuwe. Geen
 // vijanden; de slang heel ver weg houdt de vrije modus uit.
 const TEST_9 = {
   name: 'Test 9: Brede ravijnen',
@@ -1401,6 +1402,7 @@ const TEST_9 = {
   rocks: [],
   props: [ {x: -250, k: 'gras', s: 1.1, f: 0, v: 0} ],
   zegels: [ {x: -2900, sluit: -4400} ],            // laat het dubbele ravijn weer dicht gaan
+  skeletten: [ {x: -2450, f: 0}, {x: -5000, f: 1} ],   // een nieuwe speer na de eerste en de tweede rune
   spawns: [ {x: -60000, k: 'groen'} ],          // heel ver weg: houdt de vrije modus uit
   terraces: [], ledges: [],
   hppotions: [],
@@ -1409,6 +1411,7 @@ const TEST_9 = {
   ends: [ {x: -8600} ],
   tips: [ { x: -60, t: 'Testlevel: drie ravijnen, elk breder dan het vorige. Pak je speer op' },
           { x: -450, t: 'Een gewoon ravijn. Raak de rune, open haal je hem nog met een sprintsprong' },
+          { x: -2300, t: 'Je speer zit in de rune. Houd E vast bij het skelet voor een nieuwe' },
           { x: -2500, t: 'Een dubbel ravijn: open te breed om over te springen. Stap dan op het zegel, dan gaat hij weer dicht' },
           { x: -5000, t: 'Een driedubbel ravijn' } ]
 };
@@ -3995,11 +3998,6 @@ function losBij(){
 // speer op de grond, zodat hij niet verdwijnt als je een andere oppakt.
 function eigenSpeerNeer(){
   if (spearFound) return;
-  if (jav && jav.rune && jav.state === 'muur' && javLost <= 0){   // in een runeschijf: daar blijft hij zitten
-    runeSperen.push(Object.assign({}, jav, { blauw: speerBlauw, stand: false, wob: 0, sag: 0 }));
-    jav = null; spearX = null; spearH = null;
-    return;
-  }
   let x = null;
   if (javLost > 0) x = javReturnX();                // in een ravijn: waar hij terug zou komen
   else if (jav) x = jav.x; else if (spearX !== null) x = spearX;
@@ -5279,11 +5277,12 @@ function javUpdate(dt, plats, scale){
     // Een speer in een steile wand kan te hoog komen te zitten om hem nog te pakken. Hij
     // wrikt zichzelf daarom los: de klok loopt alleen als je er niet op staat, de laatste
     // seconden trilt hij (zie javDraw), en dan valt hij gewoon naar beneden.
-    if (jav.state === 'muur' && !building && !jav.stand && !jav.rune){   // uit de rune komt hij alleen met E
+    if (jav.state === 'muur' && !building && !jav.stand){   // (een speer in een rune is al decor: runeSperen)
       jav.los = (jav.los || 0) + dt;
       if (jav.los >= JAV.muurT){
         jav.x -= jav.dir * (JAV.inTile + 8);   // eerst de punt uit de wand, anders valt hij er bovenop
         jav.state = 'val'; jav.hit = true; jav.vx = 0; jav.vh = 0; jav.t = 0;
+        jav.rotsUit = false;                  // hij valt door het steen van de rots naar beneden, niet er weer in vast
         spearX = null; spearH = null;
         flashHint('Je speer is uit de wand geschoten');
       }
@@ -5304,12 +5303,15 @@ function javUpdate(dt, plats, scale){
       jav.x = Math.min(muurR, Math.max(muurL, nx));
       javStick(jav.x, jav.h, 'muur', scale); return;
     }
-    const runeE = building ? null : ravijnRuneRaak(nx, jav.h + jav.vh * sdt, scale);   // de rune op een rots bij een ravijn
+    const runeE = (building || jav.state !== 'vlucht') ? null : ravijnRuneRaak(nx, jav.h + jav.vh * sdt, scale);   // de rune op een rots; een vallende speer telt niet
     if (runeE){ ravijnRuneTreffer(nx, jav.h + jav.vh * sdt, scale, runeE); return; }
     // gemist: in het steen van die rots. Pas als hij er van buitenaf in vliegt: Amir loopt door de
     // rots heen, en gooit hij van daar, dan vertrekt de speer al in het steen (net als bij de grot, jav.buiten)
     const inRots = !building && ravijnRotsVol(nx, jav.h + jav.vh * sdt, scale);
-    if (inRots && jav.rotsUit){ javStick(jav.x, jav.h, 'muur', scale); return; }
+    // Een vallende speer (uit de wand geschoten) blijft niet in de rots steken: anders raakt hij de
+    // flank eronder, die naar beneden breder wordt, en zit hij een stukje lager weer vast. Hij valt tot
+    // op de grond, en daar pak je hem op: Amir loopt door de rots heen.
+    if (inRots && jav.rotsUit && jav.state === 'vlucht'){ javStick(jav.x, jav.h, 'muur', scale); return; }
     if (!inRots) jav.rotsUit = true;
     const fNieuw = javFloor(nx, plats);
     if (fNieuw > jav.h && jav.h > fOud){ javStick(jav.x, jav.h, 'muur', scale); return; }   // van opzij tegen een wand
@@ -7661,7 +7663,7 @@ function komendeRavijnen(lv){
 // De rune op de rots. In Test 6 en Test 9 staat vlak voor elk ravijn een rotsformatie, de scheve spits
 // (design/rotswand_spits.jpg), met op zijn steile flank, de kant waar Amir aankomt, de houten
 // schijf met de rune (runeSchijf). Raakt de punt van de speer die schijf, dan scheurt het
-// ravijn open en blijft de speer erin steken; met E trek je hem er weer uit. Mis je, dan blijft
+// ravijn open en blijft de speer erin zitten, voorgoed (runeSperen). Mis je, dan blijft
 // hij in het steen steken, en valt hij er na JAV.muurT uit zoals uit elke wand. De rots is decor:
 // Amir loopt erdoorheen, net als door de rotswand met de rune, en er staat niets bovenop.
 //
@@ -7754,8 +7756,8 @@ function runeDoel(e){ return !!e.doel; }
 function runeVoet(e){ return runeDoel(e) ? e.x : e.x + e.breed / 2 + RAVIJN_ROTS.naast; }
 const runeGeraakt = new Set();                     // de doelen die al geraakt zijn
 const runeFlits = new Map();                       // rune -> tijd van de treffer (performance.now in seconden), voor het opgloeien
-// Een speer die in een schijf zit en daar blijft als je een andere pakt (eigenSpeerNeer): hij
-// hoort bij die rune, niet op de grond eronder. Zelfde velden als jav.
+// De speren die in een runeschijf zitten: ze blijven daar tot je opnieuw begint, en je trekt ze er
+// niet uit (ravijnRuneTreffer). Zelfde velden als jav, zodat javSchacht ze tekent.
 const runeSperen = [];
 // Per plaat een Image en het uitgeknipte beeld. Een plaat laadt pas als een rune hem gebruikt.
 const runeRotsBeelden = {};                        // soort -> { img, beeld }
@@ -7871,7 +7873,13 @@ function ravijnRuneTreffer(x, h, scale, e){
   const du = x - R.x, dv = (h - R.h) * scale, d = Math.hypot(du, dv) || 1;
   const f = Math.min(1, R.rPx * (1 - RAVIJN_RUNE.steek) / d);
   javStick(R.x + du * f, R.h + dv * f / scale, 'muur', scale);
-  if (jav && jav.state === 'muur') jav.rune = true;   // valt er nooit vanzelf uit
+  // Een speer in het hout blijft daar, altijd: hij wordt decor van de rune (runeSperen), zoals de
+  // speer in de schijf van de rotswand (muurSpeer), en je trekt hem er niet meer uit. Je hebt dan
+  // geen speer meer; een nieuwe komt uit het level (een skelet, of de speerplek bij de rotswand).
+  if (jav && jav.state === 'muur'){
+    runeSperen.push(Object.assign({}, jav, { rune: true, blauw: speerBlauw, stand: false, wob: 0, sag: 0 }));
+    jav = null; javLost = 0; spearX = null; spearH = null;
+  }
   if (ravijnRuneAan(e)) return;                     // al open (of nog aan het dichtgaan): de speer hangt er alleen in
   runeFlits.set(e, performance.now() / 1000);
   if (runeDoel(e)){
