@@ -563,7 +563,10 @@ of met `worp: 'schaal'` elke hoek tot 30 graden). Het venster in de bouwer laat 
 waarschuwt als hij leeg is of buiten beeld begint.
 
 Een speer die in een rots vertrekt (Amir loopt door de rotsen heen) blijft pas in het steen steken
-als hij er eerst uit is geweest (`jav.rotsUit`), net als bij de grot met de kei.
+als hij er eerst uit is geweest (`jav.rotsUit`), net als bij de grot met de kei. Een speer die na `JAV.muurT` uit
+het steen schiet, valt door de rots heen tot op de grond (alleen een vliegende speer blijft in een
+runerots steken): anders raakt hij de flank eronder, die naar beneden breder wordt, en zit hij een
+stukje lager weer vast. Een vallende speer zet ook geen rune aan.
 
 Met `doel: true` is een rune een doel: raken zet hem aan (`runeGeraakt`), met een felle gloed die in
 `RAVIJN_RUNE.flits` wegzakt (`runeFlits`), en hij blijft aan tot je opnieuw begint. De speer die
