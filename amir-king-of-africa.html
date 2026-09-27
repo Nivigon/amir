@@ -8235,7 +8235,13 @@ const RAVIJN_ROTS = {
   src: 'design/rotswand_spits.jpg',
   naast: 12,      // zo ver voorbij de rechterrand van het gat staat de linkervoet, in wereld-px
   hoog: 3.5,      // hoogte van het steen, als deel van Amirs lengte: even groot als de rots van Test 3
-  wit0: 226, wit1: 246
+  wit0: 226, wit1: 246,
+  // Onder de keien ligt in elke plaat een grijze schaduwvloer, lichter dan het steen maar niet wit,
+  // dus die blijft na het wit eruit staan als een grijze strook op de grond. Per kolom gaat alles
+  // onder de laatste zwarte omlijning eruit (zwart: het donkerste kanaal tot hier), hoogstens zo
+  // diep als dit deel van de plaathoogte. Over kolom (zo veel kolommen links en rechts) wordt de
+  // mediaan genomen, anders knipt een kolom zonder omlijning een gleuf in het steen.
+  voet: { diep: 0.03, zwart: 60, kolom: 8 }
 };
 // Welke rots er onder een rune staat (het veld rots): elke plaat is een jpg met een witte
 // achtergrond, en gaat door dezelfde witKnip. De spits is de standaard; zonder het veld blijft
@@ -8318,7 +8324,7 @@ function runeBeeld(e){
   let b = runeRotsBeelden[s];
   if (!b){
     b = runeRotsBeelden[s] = { img: new Image(), beeld: null };
-    b.img.onload = () => { b.beeld = witKnip(b.img, RAVIJN_ROTS.wit0, RAVIJN_ROTS.wit1); };
+    b.img.onload = () => { b.beeld = witKnip(b.img, RAVIJN_ROTS.wit0, RAVIJN_ROTS.wit1, RAVIJN_ROTS.voet); };
     b.img.onerror = () => console.warn('ontbreekt: ' + RUNE_ROTSEN[s].src);
     b.img.src = RUNE_ROTSEN[s].src;
   }
@@ -8327,20 +8333,40 @@ function runeBeeld(e){
 // Een jpg met een witte achtergrond: het wit eruit (tussen wit0 en wit1 zacht, op het donkerste
 // kanaal) en bijgesneden tot het steen. Er komt niets nieuws in het plaatje. De alfa blijft
 // bewaard: daarop botst de speer. Gebruikt door de rots bij het ravijn en de grot met de kei.
-function witKnip(img, wit0, wit1){
+// Met voet (zie RAVIJN_ROTS.voet) gaat ook de grijze schaduwvloer onder de keien eruit.
+function witKnip(img, wit0, wit1, voet){
   const w = img.naturalWidth, h = img.naturalHeight;
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   const g = c.getContext('2d'); g.drawImage(img, 0, 0);
   let d; try { d = g.getImageData(0, 0, w, h); } catch (e){ return null; }
   const px = d.data;
+  const donker = i => Math.min(px[i], px[i + 1], px[i + 2]);
+  for (let i = 0; i < px.length; i += 4)
+    px[i + 3] = Math.round(255 * Math.max(0, Math.min(1, (wit1 - donker(i)) / (wit1 - wit0))));
+  if (voet){
+    const K = Math.round(h * voet.diep), snee = new Int32Array(w).fill(-1), bodem = new Int32Array(w).fill(-1);
+    for (let x = 0; x < w; x++){
+      let yb = h - 1;
+      while (yb >= 0 && px[(yb * w + x) * 4 + 3] <= 20) yb--;
+      if (yb < 0) continue;
+      bodem[x] = yb;
+      let y = yb;
+      while (y > yb - K && y > 0 && donker((y * w + x) * 4) > voet.zwart) y--;
+      snee[x] = donker((y * w + x) * 4) <= voet.zwart ? y + 1 : y;
+    }
+    const buur = [];
+    for (let x = 0; x < w; x++){
+      if (bodem[x] < 0) continue;
+      buur.length = 0;
+      for (let j = Math.max(0, x - voet.kolom); j <= Math.min(w - 1, x + voet.kolom); j++) if (snee[j] >= 0) buur.push(snee[j]);
+      buur.sort((p, q) => p - q);
+      for (let y = buur[buur.length >> 1]; y <= bodem[x]; y++) px[(y * w + x) * 4 + 3] = 0;
+    }
+  }
   let l = w, r = -1, t = h, b = -1;
   for (let y = 0; y < h; y++){
     for (let x = 0; x < w; x++){
-      const i = (y * w + x) * 4;
-      const m = Math.min(px[i], px[i + 1], px[i + 2]);
-      const a = Math.round(255 * Math.max(0, Math.min(1, (wit1 - m) / (wit1 - wit0))));
-      px[i + 3] = a;
-      if (a > 20){ if (x < l) l = x; if (x > r) r = x; if (y < t) t = y; if (y > b) b = y; }
+      if (px[(y * w + x) * 4 + 3] > 20){ if (x < l) l = x; if (x > r) r = x; if (y < t) t = y; if (y > b) b = y; }
     }
   }
   if (r < l) return null;
