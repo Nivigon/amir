@@ -497,6 +497,21 @@
         <button id="sbworp">Worp: twee trappen</button>
       </div>
       <div class="row">
+        <label>Renstoot</label>
+        <button id="sbrenstoot" class="on">Renstoot: aan</button>
+        <button id="sbglij">Glijden: middel</button>
+      </div>
+      <div class="row">
+        <label>Rune op een rots</label>
+        <button data-runerots="spits">Spits</button>
+        <button data-runerots="pieken">Pieken</button>
+        <button data-runerots="zuilen">Zuilen</button>
+        <button data-runerots="boog">Boog</button>
+        <button id="sbrunegroot">Rots 3,5</button>
+        <button id="sbrunehoog">Schijf 1,9</button>
+        <span class="hint">een doel: raak hem en hij gloeit</span>
+      </div>
+      <div class="row">
         <label>Hppotion</label>
         <button id="sbhppotion">Neerzetten</button>
         <button id="sbhppotiondrop">Laten vallen</button>
@@ -2015,7 +2030,34 @@ const TEST_11 = {
           { x: -1300, t: 'Onder de grond is de voorgrond weg: daar zit aarde tussen jou en de camera' },
           { x: -2400, t: 'Loop door naar de trap: boven begint hij weer' } ]
 };
-const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11];
+// Test 12: mikken. Vijf rotsen achter elkaar, elk met een rune op een andere plek: vier platen
+// (rots), van klein tot groot (groot) en met de schijf van net boven zijn sprong tot vlak onder de
+// top van de werpboog (hoog). Het zijn doelen (doel: true): raak je de schijf, dan gloeit hij op
+// en blijft je speer erin zitten. Na elke rots zit een skelet met een speer, dus je hebt steeds
+// weer een nieuwe. Geen vijanden, geen ravijnen: het gaat om de boog.
+const TEST_12 = {
+  name: 'Test 12: Mikken',
+  lagen: 'tafelbergen',
+  worp: 'schaal',
+  runes: [ {x: -2300,  breed: 277, doel: true, groot: 3.5, hoog: 1.9},
+           {x: -4500,  breed: 277, doel: true, rots: 'zuilen', groot: 3, hoog: 2},
+           {x: -7250,  breed: 277, doel: true, rots: 'pieken', groot: 5, hoog: 1.95},
+           {x: -9100,  breed: 277, doel: true, rots: 'boog', groot: 2.8, hoog: 1.6},
+           {x: -11000, breed: 277, doel: true, groot: 2.4, hoog: 2.05} ],
+  skeletten: [ {x: -2450, f: 0}, {x: -4650, f: 1}, {x: -7400, f: 0}, {x: -9250, f: 1} ],
+  rocks: [],
+  props: [ {x: -250, k: 'gras', s: 1.1, f: 0, v: 0} ],
+  spawns: [ {x: -60000, k: 'groen'} ],          // heel ver weg: houdt de vrije modus uit
+  terraces: [], ledges: [],
+  hppotions: [],
+  village: [], npcs: [], gaps: [], water: [], thickets: [],
+  cliffs: [ {x: -12100} ],
+  ends: [ {x: -11600} ],
+  tips: [ { x: -60, t: 'Testlevel: vijf runes op verschillende rotsen en hoogtes. Raak ze met je speer' },
+          { x: -450, t: 'Houd de worpknop langer vast voor een hogere boog' },
+          { x: -2200, t: 'Je speer blijft in de rune zitten. Houd E vast bij het skelet voor een nieuwe' } ]
+};
+const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12];
 let levelIdx = 0;
 
 // ---- terrassen en richels: omhoog klimmen --------------------------------
@@ -4509,6 +4551,11 @@ function losBij(){
 // speer op de grond, zodat hij niet verdwijnt als je een andere oppakt.
 function eigenSpeerNeer(){
   if (spearFound) return;
+  if (jav && jav.rune && jav.state === 'muur' && javLost <= 0){   // in een runeschijf: daar blijft hij zitten
+    runeSperen.push(Object.assign({}, jav, { blauw: speerBlauw, stand: false, wob: 0, sag: 0 }));
+    jav = null; spearX = null; spearH = null;
+    return;
+  }
   let x = null;
   if (javLost > 0) x = javReturnX();                // in een ravijn: waar hij terug zou komen
   else if (jav) x = jav.x; else if (spearX !== null) x = spearX;
@@ -5443,6 +5490,7 @@ function canThrow(){
 }
 function thrPress(){
   thrPressT = performance.now();
+  glijStart();                                     // in volle sprint: hij glijdt door (zie renstoot)
   if (canThrow()){ thr = { frame: 0, acc: 0, held: true, rel: 0, gone: false, lob: false, glint: 0,
                            hoek: 0, t0: 0, vol: false }; return; }
   startAttack();                                   // gebukt, zonder speer of in de lucht: gewoon stoten
@@ -5814,9 +5862,11 @@ function javUpdate(dt, plats, scale){
     }
     const runeE = building ? null : ravijnRuneRaak(nx, jav.h + jav.vh * sdt, scale);   // de rune op een rots bij een ravijn
     if (runeE){ ravijnRuneTreffer(nx, jav.h + jav.vh * sdt, scale, runeE); return; }
-    if (!building && ravijnRotsVol(nx, jav.h + jav.vh * sdt, scale)){     // gemist: in het steen van die rots
-      javStick(jav.x, jav.h, 'muur', scale); return;
-    }
+    // gemist: in het steen van die rots. Pas als hij er van buitenaf in vliegt: Amir loopt door de
+    // rots heen, en gooit hij van daar, dan vertrekt de speer al in het steen (net als bij de grot, jav.buiten)
+    const inRots = !building && ravijnRotsVol(nx, jav.h + jav.vh * sdt, scale);
+    if (inRots && jav.rotsUit){ javStick(jav.x, jav.h, 'muur', scale); return; }
+    if (!inRots) jav.rotsUit = true;
     const fNieuw = javFloor(nx, plats);
     if (fNieuw > jav.h && jav.h > fOud){ javStick(jav.x, jav.h, 'muur', scale); return; }   // van opzij tegen een wand
     jav.x = nx; jav.h += jav.vh * sdt; jav.vh -= g * sdt;
@@ -6205,11 +6255,15 @@ function drawVillageProp(id, x, groundY, scale, cx, opt){
   if (!size) return;
   const px = cx + (x - world) - size.w / 2;
   if (px > W / viewZoom() + W || px + size.w < -W) return;   // buiten beeld: niets te doen
-  // Zelfde stap naar achteren als het losse decor, en depth telt daar bovenop mee: een hut
-  // op depth 0,85 hoort verder weg te staan, niet alleen kleiner te zijn. De voorgrondhut
-  // blijft waar hij staat: die hoort juist vóór Amir langs.
+  // Een dorpsplaat heeft zijn eigen stukje grond ingetekend, en dat moet over de zandband van
+  // het level vallen: dan loopt de zachte voet (VILLAGE_VOET) van die grond in het zand over.
+  // Met de stap van het losse decor (PROP_ACHTER) erbij eindigde die grond precies op de
+  // bovenrand van de band, en lag de overgang als een rechte lijn op de rand. Daarom staat
+  // een plaat op depth 0 op de looplijn, en gaat alleen depth hem naar achteren zetten: een
+  // hut op depth 0,85 staat verder weg, niet alleen kleiner. De voorgrondhut blijft waar hij
+  // staat: die hoort juist voor Amir langs.
   const terug = def.layer === 'fg' ? 0
-              : (groundY - edgeCrust(groundY)) * PROP_ACHTER * (1 + depth * VILLAGE_DIEP);
+              : (groundY - edgeCrust(groundY)) * PROP_ACHTER * depth * VILLAGE_DIEP;
   const py = groundY - size.h + VILLAGE_SINK * size.h - terrainH(x) * scale - terug;
   let flip = !!o.flip;
   if (flip && !def.mirror){
@@ -6577,6 +6631,59 @@ boxBtn.onclick = () => { showBoxes = !showBoxes; setBoxLabel(); };
 
 let atkFrame = -1, atkAcc = 0, atkCooldown = 0, atkKeyHeld = false;
 const ATK_COOLDOWN = 0.18;                       // short recovery before the next thrust
+
+// ---- renstoot: sprinten en dan stoten, dan glijdt hij door ----------------
+// Zonder dit staan zijn voeten stil zodra je op spatie drukt, ook in volle sprint. Nu
+// neemt hij zijn vaart mee: hij zet zijn hakken in het zand en glijdt remmend door
+// terwijl de gewone stootframes lopen, met stof bij zijn voeten. Het begint op het
+// indrukken (thrPress), want een tik is eerst een beginnende worp en die zet hem ook
+// stil. Houd je vast, dan remt hij net zo af en gooit hij. Alleen vanuit een sprint, op
+// de grond, niet in het water; aan de rand van een ravijn stopt hij, daar glijdt hij
+// niet in. Met 495 px/s en een rem van 1200 staat hij na 0,41 s en 102 px stil, net
+// na de frames waarin de speer raakt (ATK_ACTIVE, 0,22 tot 0,44 s).
+const RENSTOOT = {
+  aan: true,
+  rem: 1200,         // vertraging in wereld-px per seconde in het kwadraat
+  stof: 0.03,        // om de zoveel seconden een wolkje bij zijn voeten
+  groot: 2.4,        // hoe groot die wolkjes zijn
+  schop: 0.3         // hoeveel van zijn vaart het stof meekrijgt, naar voren
+};
+// Het stof is dat van de lage zwaai (sand, drawSweepDust): het stofwolkje van een voetstap
+// of de schorpioen (puffWorld) is te ijl, dat zie je op het zand niet.
+function glijWolk(zij, k){
+  sand.push({ ax: world, ah: ph, x: zij * (10 + Math.random() * 30), y: -4,
+              back: Math.random() < 0.5,
+              vx: zij * Math.abs(glij) * RENSTOOT.schop * (0.5 + Math.random() * 0.8) - zij * 20,
+              vy: -(25 + Math.random() * 50),
+              r: (12 + Math.random() * 12) * RENSTOOT.groot * k, life: 0.6 + Math.random() * 0.5, age: 0,
+              rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 1.6 });
+}
+let glij = 0, glijStof = 0;      // glijsnelheid in wereld-px/s (met teken), en de stoftimer
+function glijStart(){
+  if (!RENSTOOT.aan || !spear || building || dead || hurt > 0 || jump || !onGround || fell) return;
+  if (atkFrame >= 0 || swFrame >= 0 || swRecover > 0 || duckT > 0 || !keys['Shift']) return;
+  const left = keys['ArrowLeft'] || keys['a'] || keys['A'];
+  const right = keys['ArrowRight'] || keys['d'] || keys['D'];
+  if (left === right || waterDepthAt(world, ph) > 0.3) return;
+  glij = (right ? 1 : -1) * 330 * walkK() * 1.5;  // dezelfde vaart als de sprint in de loop
+  glijStof = 0;
+  for (let i = 0; i < 3; i++) glijWolk(Math.sign(glij), 1);   // de hakken erin
+}
+function glijUpdate(dt, halfW){
+  if (dead || hurt > 0 || fell || !onGround || building || waterDepthAt(world, ph) > 0.3){ glij = 0; return; }
+  const zij = Math.sign(glij);
+  const stap = glij * dt;
+  if (gatOp(world + stap + zij * halfW * 0.5, ph)){ glij = 0; return; }   // niet het ravijn in
+  world += stap;
+  const v = glij - zij * RENSTOOT.rem * dt;
+  glij = Math.sign(v) === zij ? v : 0;
+  glijStof -= dt;
+  if (glij !== 0 && glijStof <= 0){
+    glijStof = RENSTOOT.stof;
+    const k = Math.abs(glij) / (330 * 1.5);                 // minder stof naarmate hij stilvalt
+    glijWolk(zij, 0.45 + 0.55 * k);
+  }
+}
 function startAttack(){
   // in de lucht met omlaag ingedrukt: de sweep gaat af zodra je landt
   if ((jump || !onGround) && downKey() && spear && !dead && hurt <= 0 && !building){ sweepBuf = SWEEP_BUFFER; return; }
@@ -8101,7 +8208,7 @@ function ravijnDecorReset(){                        // alles weer op de plek uit
 // als het openscheurt (ravijnDecor).
 function komendeRavijnen(lv){
   const runes = (lv && lv.runes && lv.runes.length) ? lv.runes : ((lv && RAVIJN_PROEF[lv.name]) || []);
-  const uit = runes.map(e => ({ x: e.x, w: e.breed }));
+  const uit = runes.filter(e => !runeDoel(e)).map(e => ({ x: e.x, w: e.breed }));   // een doel opent niets
   for (const z of (lv && lv.zegels) || [])
     if (z.ravijn !== null && z.ravijn !== undefined && !uit.some(g => Math.abs(g.x - z.ravijn) < 1))
       uit.push({ x: z.ravijn, w: z.breed || RAVIJN_MAAT.breed });
@@ -8128,8 +8235,48 @@ const RAVIJN_ROTS = {
   src: 'design/rotswand_spits.jpg',
   naast: 12,      // zo ver voorbij de rechterrand van het gat staat de linkervoet, in wereld-px
   hoog: 3.5,      // hoogte van het steen, als deel van Amirs lengte: even groot als de rots van Test 3
-  wit0: 226, wit1: 246
+  wit0: 226, wit1: 246,
+  // Onder de keien ligt in elke plaat een grijze schaduwvloer, lichter dan het steen maar niet wit,
+  // dus die blijft na het wit eruit staan als een grijze strook op de grond. Per kolom gaat alles
+  // onder de laatste zwarte omlijning eruit (zwart: het donkerste kanaal tot hier), hoogstens zo
+  // diep als dit deel van de plaathoogte. Over kolom (zo veel kolommen links en rechts) wordt de
+  // mediaan genomen, anders knipt een kolom zonder omlijning een gleuf in het steen.
+  voet: { diep: 0.03, zwart: 60, kolom: 8 }
 };
+// Welke rots er onder een rune staat (het veld rots): elke plaat is een jpg met een witte
+// achtergrond, en gaat door dezelfde witKnip. De spits is de standaard; zonder het veld blijft
+// alles zoals het was. De maat (groot) en de hoogte van de schijf (hoog) staan per rune, zie
+// ravijnRotsMaat en ravijnRune.
+const RUNE_ROTSEN = {
+  spits:  { src: 'design/rotswand_spits.jpg',       naam: 'scheve spits' },
+  pieken: { src: 'design/rotswand_pieken.jpg',      naam: 'pieken' },
+  zuilen: { src: 'design/rotswand_zuilen.jpg',      naam: 'twee zuilen' },
+  boog:   { src: 'design/rotswand_boog_scheef.jpg', naam: 'scheve boog' }
+};
+// De grenzen voor een rune in de bouwer en bij het inlezen, in Amirs lengte. De schijf komt niet
+// lager dan waar hij springend bij kan (zijn kruin haalt 1,83, dan tikt hij hem met de hand aan)
+// en niet hoger dan de top van de werpboog (rond 2,6).
+const RUNE_MAAT = { grootMin: 1.5, grootMax: 6, hoogMin: 0.4, hoogMax: 2.5 };
+// Een rune zoals readLevel hem inleest en syncLevel hem wegschrijft: alleen de velden die er staan,
+// zodat een rune zonder rots, groot of hoog precies blijft wat hij was.
+function runeIn(q){
+  const e = { x: Number(q.x), breed: Math.max(80, Number(q.breed) || RAVIJN_MAAT.breed) };
+  if (RUNE_ROTSEN[q.rots]) e.rots = q.rots;
+  const tussen = (v, a, b) => Math.max(a, Math.min(b, Number(v)));
+  if (Number(q.groot) > 0) e.groot = tussen(q.groot, RUNE_MAAT.grootMin, RUNE_MAAT.grootMax);
+  if (Number(q.hoog) > 0) e.hoog = tussen(q.hoog, RUNE_MAAT.hoogMin, RUNE_MAAT.hoogMax);
+  if (q.doel === true) e.doel = true;
+  return e;
+}
+function runeUit(o){
+  const e = { x: Math.round(o.x), breed: Math.round(o.breed) };
+  if (o.rots && o.rots !== 'spits') e.rots = o.rots;
+  const r2 = v => Math.round(v * 100) / 100;
+  if (o.groot) e.groot = r2(o.groot);
+  if (o.hoog) e.hoog = r2(o.hoog);
+  if (o.doel) e.doel = true;
+  return e;
+}
 // Welke levels een ravijn met een rots en een rune hebben, en waar. x is het midden van het
 // ravijn, breed zijn breedte in wereld-px: 277 is een gewoon ravijn, maar elke maat werkt. De
 // rots staat met zijn linkervoet naast de rechterrand van zijn eigen gat, aan de kant waar Amir
@@ -8157,30 +8304,69 @@ const RAVIJN_RUNE = {
   raak: 1.5,      // het raakvlak, als veelvoud van die straal: de punt scheert er ook langs
   hoog: 190,      // hoogte van het midden boven de grond, in sprite-eenheden: waar een gewone worp langskomt
   inzet: 1.25,    // zo ver van de rand van het steen ligt het midden, in stralen: het hout ligt helemaal op de rots
-  steek: 0.35     // zo diep zakt de punt het hout in, als deel van de straal
+  steek: 0.35,    // zo diep zakt de punt het hout in, als deel van de straal
+  flits: 0.9      // zo lang licht hij fel op bij een treffer, in seconden
 };
-const ravijnRotsImg = new Image();
-let ravijnRotsBeeld = null;                        // { c, w, h, alfa } na het uitknippen
-ravijnRotsImg.onload = () => { ravijnRotsBeeld = ravijnRotsKnip(ravijnRotsImg); };
-ravijnRotsImg.onerror = () => console.warn('ontbreekt: ' + RAVIJN_ROTS.src);   // src pas in ravijnRotsHier: alleen wie Test 6 speelt haalt hem op
-function ravijnRotsKnip(img){ return witKnip(img, RAVIJN_ROTS.wit0, RAVIJN_ROTS.wit1); }
+// Een rune met doel: true opent niets: het is een doel. Raak je hem, dan licht hij op en blijft
+// hij aan tot je opnieuw begint (runeGeraakt). x is dan de linkervoet van de rots zelf.
+function runeDoel(e){ return !!e.doel; }
+function runeVoet(e){ return runeDoel(e) ? e.x : e.x + e.breed / 2 + RAVIJN_ROTS.naast; }
+const runeGeraakt = new Set();                     // de doelen die al geraakt zijn
+const runeFlits = new Map();                       // rune -> tijd van de treffer (performance.now in seconden), voor het opgloeien
+// Een speer die in een schijf zit en daar blijft als je een andere pakt (eigenSpeerNeer): hij
+// hoort bij die rune, niet op de grond eronder. Zelfde velden als jav.
+const runeSperen = [];
+// Per plaat een Image en het uitgeknipte beeld. Een plaat laadt pas als een rune hem gebruikt.
+const runeRotsBeelden = {};                        // soort -> { img, beeld }
+function runeSoort(e){ return RUNE_ROTSEN[e.rots] ? e.rots : 'spits'; }
+function runeBeeld(e){
+  const s = runeSoort(e);
+  let b = runeRotsBeelden[s];
+  if (!b){
+    b = runeRotsBeelden[s] = { img: new Image(), beeld: null };
+    b.img.onload = () => { b.beeld = witKnip(b.img, RAVIJN_ROTS.wit0, RAVIJN_ROTS.wit1, RAVIJN_ROTS.voet); };
+    b.img.onerror = () => console.warn('ontbreekt: ' + RUNE_ROTSEN[s].src);
+    b.img.src = RUNE_ROTSEN[s].src;
+  }
+  return b.beeld;
+}
 // Een jpg met een witte achtergrond: het wit eruit (tussen wit0 en wit1 zacht, op het donkerste
 // kanaal) en bijgesneden tot het steen. Er komt niets nieuws in het plaatje. De alfa blijft
 // bewaard: daarop botst de speer. Gebruikt door de rots bij het ravijn en de grot met de kei.
-function witKnip(img, wit0, wit1){
+// Met voet (zie RAVIJN_ROTS.voet) gaat ook de grijze schaduwvloer onder de keien eruit.
+function witKnip(img, wit0, wit1, voet){
   const w = img.naturalWidth, h = img.naturalHeight;
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   const g = c.getContext('2d'); g.drawImage(img, 0, 0);
   let d; try { d = g.getImageData(0, 0, w, h); } catch (e){ return null; }
   const px = d.data;
+  const donker = i => Math.min(px[i], px[i + 1], px[i + 2]);
+  for (let i = 0; i < px.length; i += 4)
+    px[i + 3] = Math.round(255 * Math.max(0, Math.min(1, (wit1 - donker(i)) / (wit1 - wit0))));
+  if (voet){
+    const K = Math.round(h * voet.diep), snee = new Int32Array(w).fill(-1), bodem = new Int32Array(w).fill(-1);
+    for (let x = 0; x < w; x++){
+      let yb = h - 1;
+      while (yb >= 0 && px[(yb * w + x) * 4 + 3] <= 20) yb--;
+      if (yb < 0) continue;
+      bodem[x] = yb;
+      let y = yb;
+      while (y > yb - K && y > 0 && donker((y * w + x) * 4) > voet.zwart) y--;
+      snee[x] = donker((y * w + x) * 4) <= voet.zwart ? y + 1 : y;
+    }
+    const buur = [];
+    for (let x = 0; x < w; x++){
+      if (bodem[x] < 0) continue;
+      buur.length = 0;
+      for (let j = Math.max(0, x - voet.kolom); j <= Math.min(w - 1, x + voet.kolom); j++) if (snee[j] >= 0) buur.push(snee[j]);
+      buur.sort((p, q) => p - q);
+      for (let y = buur[buur.length >> 1]; y <= bodem[x]; y++) px[(y * w + x) * 4 + 3] = 0;
+    }
+  }
   let l = w, r = -1, t = h, b = -1;
   for (let y = 0; y < h; y++){
     for (let x = 0; x < w; x++){
-      const i = (y * w + x) * 4;
-      const m = Math.min(px[i], px[i + 1], px[i + 2]);
-      const a = Math.round(255 * Math.max(0, Math.min(1, (wit1 - m) / (wit1 - wit0))));
-      px[i + 3] = a;
-      if (a > 20){ if (x < l) l = x; if (x > r) r = x; if (y < t) t = y; if (y > b) b = y; }
+      if (px[(y * w + x) * 4 + 3] > 20){ if (x < l) l = x; if (x > r) r = x; if (y < t) t = y; if (y > b) b = y; }
     }
   }
   if (r < l) return null;
@@ -8192,41 +8378,47 @@ function witKnip(img, wit0, wit1){
   for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) alfa[y * cw + x] = px[((y + t) * w + x + l) * 4 + 3];
   return { c: uit, w: cw, h: ch, alfa };
 }
-function ravijnRotsHier(){
-  if (!ravijnProef()) return false;
-  if (!ravijnRotsImg.src) ravijnRotsImg.src = RAVIJN_ROTS.src;
-  return !!ravijnRotsBeeld;
-}
+function ravijnRotsHier(){ return !!ravijnProef(); }
 function ravijnRotsMaat(scale, e){                 // de plaat in de wereld: linkerrand, breedte en hoogte in px
-  const B = ravijnRotsBeeld, hPx = RAVIJN_ROTS.hoog * CHAR_H * scale, wPx = B.w * hPx / B.h;
+  const B = runeBeeld(e); if (!B) return null;
+  const groot = e.groot || RAVIJN_ROTS.hoog;
+  const hPx = groot * CHAR_H * scale, wPx = B.w * hPx / B.h;
   // De voet staat vast, niet het midden: hoe breed hij uitvalt hangt aan de schermhoogte, en
   // met het midden vast kwam hij op een ander scherm over het ravijn te staan.
-  return { l: e.x + e.breed / 2 + RAVIJN_ROTS.naast, wPx, hPx, k: B.h / hPx };   // k: bronpixels per schermpixel
+  return { l: runeVoet(e), wPx, hPx, k: B.h / hPx, B };   // k: bronpixels per schermpixel
 }
 function ravijnRotsVol(x, h, scale){               // zit dit punt in het steen van een van de rotsen?
   if (!ravijnRotsHier()) return false;
-  const B = ravijnRotsBeeld;
   for (const e of ravijnProef()){
-    const M = ravijnRotsMaat(scale, e);
-    const u = Math.floor((x - M.l) * M.k), v = Math.floor(B.h - h * scale * M.k);
+    const M = ravijnRotsMaat(scale, e); if (!M) continue;
+    const B = M.B, u = Math.floor((x - M.l) * M.k), v = Math.floor(B.h - h * scale * M.k);
     if (u >= 0 && v >= 0 && u < B.w && v < B.h && B.alfa[v * B.w + u] > 128) return true;
   }
   return false;
 }
+// De hoogte van de schijf in sprite-eenheden: het veld hoog staat in Amirs lengte, zonder het veld
+// de oude 190. Hij blijft altijd een stukje onder de top van zijn eigen rots.
+function runeHoog(e){
+  const groot = e.groot || RAVIJN_ROTS.hoog;
+  const h = e.hoog ? e.hoog * CHAR_H : RAVIJN_RUNE.hoog;
+  return Math.min(h, (groot - RAVIJN_RUNE.r * 2) * CHAR_H);
+}
 function ravijnRune(scale, e){
-  if (!ravijnRotsHier()) return null;
-  const B = ravijnRotsBeeld, M = ravijnRotsMaat(scale, e);
+  const M = ravijnRotsMaat(scale, e); if (!M) return null;
+  const B = M.B, hoog = runeHoog(e);
   const rPx = RAVIJN_RUNE.r * CHAR_H * scale;
-  const v = Math.max(0, Math.min(B.h - 1, Math.floor(B.h - RAVIJN_RUNE.hoog * scale * M.k)));
+  const v = Math.max(0, Math.min(B.h - 1, Math.floor(B.h - hoog * scale * M.k)));
   let u = B.w - 1;                                   // de rand van het steen aan Amirs kant, op die hoogte
   while (u > 0 && B.alfa[v * B.w + u] <= 128) u--;
-  return { x: M.l + u / M.k - rPx * RAVIJN_RUNE.inzet, h: RAVIJN_RUNE.hoog, rPx, raakPx: rPx * RAVIJN_RUNE.raak };
+  return { x: M.l + u / M.k - rPx * RAVIJN_RUNE.inzet, h: hoog, rPx, raakPx: rPx * RAVIJN_RUNE.raak };
 }
-function ravijnRuneAan(e){ return !!ravijnBij(e.x); }   // aan zolang zijn ravijn er is, ook tijdens het dichtgaan
+function ravijnRuneAan(e){                          // een ravijn: aan zolang het er is, ook tijdens het dichtgaan
+  return runeDoel(e) ? runeGeraakt.has(e) : !!ravijnBij(e.x);
+}
 function ravijnRuneRaak(x, h, scale){              // welke rune raakt dit punt, of null
   if (!ravijnRotsHier()) return null;
   for (const e of ravijnProef()){
-    const R = ravijnRune(scale, e);
+    const R = ravijnRune(scale, e); if (!R) continue;
     const du = x - R.x, dv = (h - R.h) * scale;
     if (du * du + dv * dv < R.raakPx * R.raakPx) return e;
   }
@@ -8240,20 +8432,93 @@ function ravijnRuneTreffer(x, h, scale, e){
   javStick(R.x + du * f, R.h + dv * f / scale, 'muur', scale);
   if (jav && jav.state === 'muur') jav.rune = true;   // valt er nooit vanzelf uit
   if (ravijnRuneAan(e)) return;                     // al open (of nog aan het dichtgaan): de speer hangt er alleen in
+  runeFlits.set(e, performance.now() / 1000);
+  if (runeDoel(e)){
+    runeGeraakt.add(e);
+    flashHint(runeGeraakt.size + ' van de ' + ravijnProef().filter(runeDoel).length + ' runes gloeien');
+    return;
+  }
   ravijnOpen(e.x, e.breed);
   flashHint('De rune licht op: de grond scheurt open');
 }
-function ravijnRuneTeken(groundY, scale, cx){      // de rotsen, en de schijf op elk
+function ravijnRuneTeken(groundY, scale, cx){      // de rotsen, de schijf op elk, en de speren erin
   if (!ravijnRotsHier()) return;
   for (const e of ravijnProef()){
-    const M = ravijnRotsMaat(scale, e), sx = cx + (M.l - world);
+    const M = ravijnRotsMaat(scale, e); if (!M) continue;
+    const sx = cx + (M.l - world);
     if (sx > W / viewZoom() + W || sx + M.wPx < -W) continue;
-    ctx.drawImage(ravijnRotsBeeld.c, sx, groundY - M.hPx, M.wPx, M.hPx);
+    ctx.drawImage(M.B.c, sx, groundY - M.hPx, M.wPx, M.hPx);
     const R = ravijnRune(scale, e);
-    runeSchijf(ctx, cx + (R.x - world), groundY - R.h * scale, R.rPx, { aan: ravijnRuneAan(e) });
+    const px = cx + (R.x - world), py = groundY - R.h * scale;
+    if (runeDoel(e) && ravijnRuneAan(e)){            // een geraakt doel blijft gloeien, zacht en traag, achter het hout
+      const k = 0.8 + 0.2 * Math.sin(performance.now() / 1000 * 2.4), r = R.rPx * 2.6;
+      const g = ctx.createRadialGradient(px, py, R.rPx * 0.6, px, py, r);
+      g.addColorStop(0, 'rgba(255,200,110,' + (0.55 * k).toFixed(3) + ')');
+      g.addColorStop(1, 'rgba(255,170,70,0)');
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    }
+    runeSchijf(ctx, px, py, R.rPx, { aan: ravijnRuneAan(e) });
+    const t0 = runeFlits.get(e);                    // het opgloeien: een felle gloed die in RAVIJN_RUNE.flits wegzakt
+    const k = t0 === undefined ? 0 : 1 - (performance.now() / 1000 - t0) / RAVIJN_RUNE.flits;
+    if (k > 0){
+      const r = R.rPx * (2 + 2.5 * (1 - k));
+      const g = ctx.createRadialGradient(px, py, 0, px, py, r);
+      g.addColorStop(0, 'rgba(255,236,170,' + (0.9 * k).toFixed(3) + ')');
+      g.addColorStop(0.4, 'rgba(255,190,90,' + (0.45 * k).toFixed(3) + ')');
+      g.addColorStop(1, 'rgba(255,160,60,0)');
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    }
+  }
+  if (runeSperen.length){                           // de speren die in een schijf zijn blijven zitten
+    const oud = jav, oudB = speerBlauw;
+    for (const sp of runeSperen){
+      const tx = cx + (sp.x - world);
+      if (tx < -W || tx > W / viewZoom() + W) continue;
+      jav = sp; speerBlauw = sp.blauw;
+      javSchacht(tx, groundY - sp.h * scale, scale);
+    }
+    jav = oud; speerBlauw = oudB;
   }
 }
-function ravijnReset(){ ravijnen.length = 0; stopDeur(); ravijnDecorReset(); }
+// Van waar raak je deze schijf? De worpen van dit level (zie worpen hieronder), vanaf de grond rechts van de rots, met
+// dezelfde stappen als de speer in het spel (eerst de schijf, dan het steen). Geeft de stroken
+// terug als afstand tot de schijf in wereld-px, voor de bouwer en om een level na te kijken.
+function runeStroken(e, scale){
+  const R = ravijnRune(scale, e); if (!R) return [];
+  // de twee trappen, of met de schaalworp elke hoek van 0 tot THR_HOEK_MAX (de snelheid zakt mee)
+  const worpen = (level && level.worp === 'schaal')
+    ? Array.from({ length: THR_HOEK_MAX / 2 + 1 }, (_, i) => [i * 2, 1 - (1 - THR_LOB_V) * i * 2 / THR_LOB_DEG])
+    : [[THR_LOB_DEG, THR_LOB_V], [0, 1]];
+  const g = GRAVITY * JAV.gDeel, dt = 1 / 60, raakt = [];
+  const ox = (THR_TIP.x - THR_ANCHOR) * THR_S * scale, oh = (THR_GROUND - THR_TIP.y) * THR_S;
+  for (let d = 0; d <= 2400; d += 10){
+    let ok = false;
+    for (const [gr, deel] of worpen){
+      const a = gr * Math.PI / 180, V = JAV.tiles * JAV.tile * CHAR_H * scale * deel;
+      let x = R.x + d - ox, h = oh, vx = -V * Math.cos(a), vh = Math.sin(a) * V / scale, uit = false;
+      for (let t = 0; t < 4 && h > 0 && !ok; t += dt){
+        const stap = Math.max(1, Math.ceil(Math.abs(vx * dt) / 14)), s = dt / stap;
+        let klaar = false;
+        for (let i = 0; i < stap; i++){
+          const nx = x + vx * s, nh = h + vh * s;
+          if (ravijnRuneRaak(nx, nh, scale) === e){ ok = true; break; }
+          const vol = ravijnRotsVol(nx, nh, scale);
+          if (vol && uit){ klaar = true; break; }
+          if (!vol) uit = true;
+          x = nx; h = nh; vh -= g * s;
+        }
+        if (klaar) break;
+      }
+      if (ok) break;
+    }
+    const laatste = raakt[raakt.length - 1];
+    if (ok){ if (laatste && laatste[1] === d - 10) laatste[1] = d; else raakt.push([d, d]); }
+  }
+  return raakt;
+}
+function ravijnReset(){ ravijnen.length = 0; stopDeur(); ravijnDecorReset(); runeGeraakt.clear(); runeFlits.clear(); runeSperen.length = 0; }
 // De bovenste rijen van ravijn_wand.png zijn niet de wand maar de verre oever uit het
 // referentiebeeld: een vage rode savanne, met de graspollen en de rand van de overkant ervoor.
 // Die strook past nooit bij het level. Bij het laden gaat ze eruit, zodat je daar door het gat
@@ -9578,7 +9843,7 @@ function restart(){
   lives = 3; invuln = 0; hurt = 0; knock = 0; shake = 0; dead = false;
   hits = 0; hitsEl.textContent = 0;
   atkFrame = -1; atkAcc = 0; atkCooldown = 0; swFrame = -1; swAcc = 0; sweepBuf = 0; duckT = 0; swRecover = 0; sand.length = 0;
-  thr = null; jav = null; javLost = 0; javOver = null; spearH = null; lastSolid = 0;
+  thr = null; jav = null; javLost = 0; javOver = null; spearH = null; lastSolid = 0; glij = 0;
   muurReset();                                      // de rotswand weer dicht, zonder speer erin
   ravijnReset();                                    // het ravijn weer dicht, de rune weer uit
   zegelReset();                                     // en de zegels weer uit
@@ -11118,7 +11383,7 @@ function voorgrondNu(){
 // versleep je een ravijn en speel je meteen), anders bewaard (lv.vgStd).
 function vgStandaard(lv){
   const sleutel = [lv.name, (lv.gaps || []).map(g => g.x + ':' + g.w), (lv.zegels || []).map(z => z.x + ':' + z.ravijn),
-                   (lv.runes || []).map(e => e.x + ':' + e.breed),
+                   (lv.runes || []).map(e => e.x + ':' + e.breed + ':' + !!e.doel + ':' + (e.groot || '')),
                    (lv.ends || []).map(e => e.x), lv.muur ? lv.muur.x : '', lv.arena ? lv.arena.c : '',
                    (lv.spawns || []).filter(sp => sp.kind === 'panter').map(sp => sp.x)].join('|');
   if (lv.vgStd && lv.vgStdSleutel === sleutel) return lv.vgStd;
@@ -11128,7 +11393,7 @@ function vgStandaard(lv){
   for (const g of lv.gaps || []) zone(g.x - g.w / 2 - D.ravijn, g.x + g.w / 2 + D.ravijn);
   for (const g of komendeRavijnen(lv)) zone(g.x - g.w / 2 - D.ravijn, g.x + g.w / 2 + D.ravijn);
   const runes = (lv.runes && lv.runes.length) ? lv.runes : (RAVIJN_PROEF[lv.name] || []);   // uit de bouwer, of op naam
-  for (const e of runes) zone(e.x - e.breed / 2, e.x + e.breed / 2 + D.rots);
+  for (const e of runes) zone(runeDoel(e) ? e.x : e.x - e.breed / 2, runeVoet(e) + D.rots * (e.groot || RAVIJN_ROTS.hoog) / RAVIJN_ROTS.hoog);
   for (const z of lv.zegels || []) zone(z.x - D.zegel, z.x + D.zegel);
   for (const e of lv.ends || []) zone(e.x - D.eind, e.x + D.eind);
   if (lv.muur) zone(lv.muur.x - D.muur[0], lv.muur.x + D.muur[1]);
@@ -13664,6 +13929,7 @@ function loop(now){
   }
   const wetNow = (!building && ph < 2) ? waterDepthAt(world, ph) : 0;   // tot je knieën in het water
   if (!fell) world += dir * 330 * walkK() * (wetNow > 0.3 ? 1 : sprint) * (1 - (1 - POOL.slow) * wetNow) * dt;
+  if (glij !== 0) glijUpdate(dt, halfWNow);      // de renstoot: remmend doorglijden
   const cliff = cliffAt();
   if (world + halfWNow > cliff.wall) world = cliff.wall - halfWNow;   // je komt er niet voorbij
   if (world - halfWNow < endWall()) world = endWall() + halfWNow;    // en ook niet voorbij je eigen klif
@@ -15472,9 +15738,11 @@ function tekenLijn(){
   }
   for (const o of level.zegels || []) stip(o.x, gy + 3, 2.4, '#5fd0c0');
   for (const e of ravijnProef() || []){               // een ravijn dat later openscheurt: stippellijn onder de grond
-    g.strokeStyle = '#f2b54a'; g.setLineDash([2, 2]); g.lineWidth = 1.5;
-    g.strokeRect(px(e.x - e.breed / 2), gy + 1, px(e.x + e.breed / 2) - px(e.x - e.breed / 2), 5); g.setLineDash([]);
-    stip(e.x + e.breed / 2 + 120, gy - 8, 2.6, '#f2b54a');
+    if (!runeDoel(e)){
+      g.strokeStyle = '#f2b54a'; g.setLineDash([2, 2]); g.lineWidth = 1.5;
+      g.strokeRect(px(e.x - e.breed / 2), gy + 1, px(e.x + e.breed / 2) - px(e.x - e.breed / 2), 5); g.setLineDash([]);
+    }
+    stip(runeVoet(e) + 120, gy - 8, 2.6, '#f2b54a');
   }
   for (const o of level.hppotions || []) stip(o.x, gy - 6, 2, '#ff9a5a');
   if (level.muur){ g.fillStyle = '#8f8a85'; g.fillRect(px(level.muur.x) - 8, gy - 10, 8, 10); }
@@ -15612,7 +15880,7 @@ function syncLevel(){
       if (o.muur) z.muur = true;
       return z;
     }),
-    runes: (level.runes || []).length ? level.runes.map(o => ({ x: Math.round(o.x), breed: Math.round(o.breed) })) : undefined,
+    runes: (level.runes || []).length ? level.runes.map(runeUit) : undefined,
     skeletten: (level.skeletten || []).map(o => ({ x: Math.round(o.x), f: o.f ? 1 : 0 })),
     tekens: (level.tekens || []).map(o => ({ x: Math.round(o.x), v: o.v, f: o.f ? 1 : 0 })),
     tips: (level.tips || []).map(t => ({ x: Math.round(t.x), t: t.t })),
@@ -15771,7 +16039,8 @@ function readLevel(txt){
                                                 breed: Number(q.breed) > 0 ? Number(q.breed) : undefined,
                                                 muur: q.muur === true })),   // opent de rotswand van het level
            // ravijnen met een rune op een rots ervoor: x is het midden van het ravijn, zie RAVIJN_PROEF
-           runes: (o.runes || []).map(q => ({ x: Number(q.x), breed: Math.max(80, Number(q.breed) || RAVIJN_MAAT.breed) })),
+           // met rots, groot en hoog een andere plaat, maat of schijfhoogte; met doel: true opent hij niets
+           runes: (o.runes || []).map(runeIn),
            // skeletten met een speer erin: trek hem eruit en het stort in, zie "skelet met speer"
            skeletten: (o.skeletten || []).map(q => ({ x: Number(q.x), f: !!q.f })),
            // speertekens: een speer met een zwart doek en schedels, zie "speerteken"
@@ -16005,6 +16274,7 @@ const SUBS = {
   'Test 8: Zegel test': 'Stap op het zegel en de grond scheurt open',
   'Test 9: Brede ravijnen': 'Een gewoon, een dubbel en een driedubbel ravijn',
   'Test 11: Voorgrond': 'Test 10 met een onscherpe voorgrond van gras, struiken en keien',
+  'Test 12: Mikken': 'Vijf runes op verschillende rotsen en hoogtes, en na elke rots een skelet met een nieuwe speer',
   'Test 10: Licht onder de grond': 'Een gang met drie gaten in het dak, om het licht te bekijken'
 };
 function buildCards(el, list){
@@ -16189,6 +16459,32 @@ function sbZegel(soort){
   cv.focus();
 }
 sandboxEl.querySelectorAll('button[data-zegel]').forEach(b => b.onclick = () => sbZegel(Number(b.dataset.zegel)));
+// een rune op een rots voor je uit, als doel (doel: true): de schijf komt zo ver weg dat je hem
+// net met een worp raakt, op de maat en hoogte van de twee knoppen ernaast (in Amir).
+const SB_RUNE_GROOT = [2.5, 3.5, 5], SB_RUNE_HOOG = [1.6, 1.9, 2.1];
+let sbRuneGroot = 1, sbRuneHoog = 1;
+const sbKomma = v => String(v).replace('.', ',');
+function sbRune(rots){
+  if (!level.runes) level.runes = [];
+  const e = { x: world - 1500, breed: RAVIJN_MAAT.breed, doel: true, rots, groot: SB_RUNE_GROOT[sbRuneGroot], hoog: SB_RUNE_HOOG[sbRuneHoog] };
+  if (rots === 'spits') delete e.rots;
+  const zet = () => {                               // de plaat moet er zijn om te weten waar de schijf komt
+    if (!runeBeeld(e)){ setTimeout(zet, 50); return; }
+    const sc = nowScale(), R = ravijnRune(sc, e), st = runeStroken(e, sc);
+    e.x += (world - (st.length ? st[0][0] + 150 : 600)) - R.x;
+    e.x = Math.round(Math.max(e.x, endWall() + 100));
+    level.runes.push(e);
+  };
+  zet();
+  cv.focus();
+}
+sandboxEl.querySelectorAll('button[data-runerots]').forEach(b => b.onclick = () => sbRune(b.dataset.runerots));
+document.getElementById('sbrunegroot').onclick = function(){
+  sbRuneGroot = (sbRuneGroot + 1) % SB_RUNE_GROOT.length; this.textContent = 'Rots ' + sbKomma(SB_RUNE_GROOT[sbRuneGroot]); cv.focus();
+};
+document.getElementById('sbrunehoog').onclick = function(){
+  sbRuneHoog = (sbRuneHoog + 1) % SB_RUNE_HOOG.length; this.textContent = 'Schijf ' + sbKomma(SB_RUNE_HOOG[sbRuneHoog]); cv.focus();
+};
 // een schild in het zand, aan de gekozen kant; met een windvlaag erbij zie je het stof ertegen
 // aan waaien. Wind van links waait naar rechts, dus tegen de linkerkant van het schild.
 function sbSchild(kind){
@@ -16391,6 +16687,20 @@ document.getElementById('sbworp').onclick = e => {
   e.currentTarget.classList.toggle('on', sbWorpSchaal);
   thrCancel(); cv.focus();
 };
+// ---- renstoot: aan of uit, en hoe ver hij doorglijdt (zie RENSTOOT) -----------
+document.getElementById('sbrenstoot').onclick = e => {
+  RENSTOOT.aan = !RENSTOOT.aan; glij = 0;
+  e.currentTarget.textContent = 'Renstoot: ' + (RENSTOOT.aan ? 'aan' : 'uit');
+  e.currentTarget.classList.toggle('on', RENSTOOT.aan);
+  cv.focus();
+};
+const GLIJ_STANDEN = [['kort', 1800], ['middel', 1200], ['lang', 800]];   // de rem: 68, 102 of 153 px
+document.getElementById('sbglij').onclick = e => {
+  const i = (GLIJ_STANDEN.findIndex(g => g[1] === RENSTOOT.rem) + 1) % GLIJ_STANDEN.length;
+  RENSTOOT.rem = GLIJ_STANDEN[i][1];
+  e.currentTarget.textContent = 'Glijden: ' + GLIJ_STANDEN[i][0];
+  cv.focus();
+};
 document.getElementById('sbspear').onclick = () => {          // weer met een speer in de hand
   thr = null; jav = null; javLost = 0;
   spearFound = true; spear = true; spearX = null; spearH = null;
@@ -16560,7 +16870,7 @@ sbPatBtn.onclick = () => {
 const sbGodBtn = document.getElementById('sbgod');
 function setGodLabel(){ sbGodBtn.textContent = godMode ? 'Onsterfelijk aan' : 'Onsterfelijk uit'; sbGodBtn.classList.toggle('on', godMode); }
 sbGodBtn.onclick = () => { godMode = !godMode; setGodLabel(); cv.focus(); };
-document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; hppotions.length = 0; hppotionFx.length = 0; level.rocks.length = 0; if (level.gaps) level.gaps.length = 0; if (level.grotten) level.grotten.length = 0; if (level.plafond) level.plafond.length = 0; if (level.terraces) level.terraces.length = 0; if (level.skeletten) level.skeletten.length = 0; if (level.tekens) level.tekens.length = 0; losseSperen.length = 0; arena = null; thr = null; jav = null; javLost = 0; cv.focus(); };
+document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; hppotions.length = 0; hppotionFx.length = 0; level.rocks.length = 0; if (level.gaps) level.gaps.length = 0; if (level.grotten) level.grotten.length = 0; if (level.plafond) level.plafond.length = 0; if (level.terraces) level.terraces.length = 0; if (level.skeletten) level.skeletten.length = 0; if (level.tekens) level.tekens.length = 0; if (level.runes) level.runes.length = 0; ravijnReset(); losseSperen.length = 0; arena = null; thr = null; jav = null; javLost = 0; cv.focus(); };
 document.getElementById('sbback').onclick = stopSandbox;
 document.getElementById('btnsandbox').onclick = startSandbox;
 document.getElementById('btnstop').onclick = () => { building = false; buildEl.classList.remove('on'); };
@@ -16640,7 +16950,7 @@ function builderHit(wx, scale, lift){
   if (te) return { list: level.terraces, kind: 'terras', obj: te };
   const zg = (level.zegels || []).find(z => Math.abs(z.x - wx) < 70);
   if (zg) return { list: level.zegels, kind: 'zegel', obj: zg };
-  const rn = (level.runes || []).find(e => wx > e.x - e.breed / 2 && wx < e.x + e.breed / 2 + RUNE_ROTS_BREED);
+  const rn = (level.runes || []).find(e => wx > (runeDoel(e) ? e.x : e.x - e.breed / 2) && wx < runeVoet(e) + runeRotsBreed(e));
   if (rn) return { list: level.runes, kind: 'rune', obj: rn };
   if (level.muur && wx > level.muur.x - MUUR_BREED && wx < level.muur.x + 20)
     return { list: [level.muur], kind: 'muur', obj: level.muur };
@@ -16682,13 +16992,18 @@ function builderHit(wx, scale, lift){
 }
 // zo breed zijn de rots bij een rune en de rotswand ongeveer, om ze aan te klikken (in wereld-px)
 const RUNE_ROTS_BREED = 380, MUUR_BREED = 700;
+function runeRotsBreed(e){                           // de breedte van deze rots, uit de plaat als die er al is
+  const M = ravijnRotsMaat(nowScale(), e);
+  return M ? M.wPx : RUNE_ROTS_BREED * (e.groot || RAVIJN_ROTS.hoog) / RAVIJN_ROTS.hoog;
+}
 function placeProblem(kind, o, scale){               // mag dit hier staan? zo niet: waarom
   const wall = cliffAt().wall;
   const overGat = (l, r) => (level.gaps || []).some(g => r > g.x - g.w / 2 && l < g.x + g.w / 2);
   if (kind === 'rune'){
-    if (o.x + o.breed / 2 + RUNE_ROTS_BREED >= wall - 10) return 'daar staat de klif';
-    if (o.x + o.breed / 2 + RUNE_ROTS_BREED > SPEAR_AHEAD - 60) return 'te dicht bij het begin: daar staat je speer';
-    if (overGat(o.x - o.breed / 2, o.x + o.breed / 2 + RUNE_ROTS_BREED)) return 'daar ligt al een ravijn';
+    const rr = runeVoet(o) + runeRotsBreed(o);
+    if (rr >= wall - 10) return 'daar staat de klif';
+    if (rr > SPEAR_AHEAD - 60) return 'te dicht bij het begin: daar staat je speer';
+    if (overGat(runeDoel(o) ? o.x : o.x - o.breed / 2, rr)) return 'daar ligt al een ravijn';
     return '';
   }
   if (kind === 'zegel'){
@@ -16819,6 +17134,7 @@ function bouwNaam(k){
   if (k.kind === 'spawn') return (o.kind === 'hyenas' && o.n === 2) ? '2 hyena\'s' : SPAWN_NAAM[o.kind] || o.kind;
   if (k.kind === 'prop'){ const g = GEREEDSCHAP.find(q => q.id === o.kind || q.sneeuw === o.kind); return g ? g.naam : o.kind; }
   if (k.kind === 'npc') return o.kind === 'dorpelinge' ? 'Dorpelinge' : 'Dorpeling';
+  if (k.kind === 'rune' && o.doel) return 'Rune op een rots, als doel';
   return { rock: 'Kei om op te springen', thicket: 'Doornbos', gap: 'Ravijn', water: 'Water', holte: 'Gang onder de grond',
            end: 'Einde (de fakkels)', cliff: 'Klif', zegel: 'Zegel in de grond', tip: 'Tip',
            kalebas: 'Drinkkalebas', skelet: 'Skelet met speer', teken: 'Speerteken', terras: 'Terras', richel: 'Richel',
@@ -16848,8 +17164,12 @@ function bouwVelden(k){
   if (k.kind === 'teken') v.push(['soort', 'keuze', 'v', { keuzes: Object.keys(TEKEN.varianten).map(q => [q, q]) }]);
   if (k.kind === 'tip') v.push(['tekst', 'tekst', 't']);
   if (k.kind === 'rune'){
-    v[0][0] = 'midden van het ravijn';
-    v.push(['breedte van het ravijn', 'keuze', 'breed', { keuzes: [[277, '277, gewoon'], [554, '554, dubbel'], [831, '831, driedubbel']] }]);
+    v[0][0] = o.doel ? 'linkervoet van de rots' : 'midden van het ravijn';
+    v.push(['alleen een doel (opent niets)', 'vink', 'doel']);
+    if (!o.doel) v.push(['breedte van het ravijn', 'keuze', 'breed', { keuzes: [[277, '277, gewoon'], [554, '554, dubbel'], [831, '831, driedubbel']] }]);
+    v.push(['rots', 'keuze', 'rots', { keuzes: Object.keys(RUNE_ROTSEN).map(q => [q === 'spits' ? '' : q, RUNE_ROTSEN[q].naam]) }],
+           ['grootte van de rots (in Amir)', 'getal', 'groot', { stap: 0.1, min: RUNE_MAAT.grootMin, max: RUNE_MAAT.grootMax, standaard: RAVIJN_ROTS.hoog }],
+           ['hoogte van de schijf (in Amir)', 'getal', 'hoog', { stap: 0.05, min: RUNE_MAAT.hoogMin, max: RUNE_MAAT.hoogMax, standaard: Math.round(RAVIJN_RUNE.hoog / CHAR_H * 100) / 100 }]);
   }
   if (k.kind === 'muur'){
     v[0][0] = 'rechterrand (x)';
@@ -16889,7 +17209,8 @@ function bouwInfo(){
       inp.type = soort === 'vink' ? 'checkbox' : 'number';
       if (soort === 'vink') inp.checked = !!o[sleutel];
       else { inp.step = extra.stap; if (extra.min !== undefined) inp.min = extra.min; if (extra.max !== undefined) inp.max = extra.max;
-             inp.value = extra.stap >= 1 ? Math.round(o[sleutel]) : Math.round(o[sleutel] * 100) / 100; }
+             const w0 = (o[sleutel] === undefined && extra.standaard !== undefined) ? extra.standaard : o[sleutel];   // een veld dat er nog niet staat
+             inp.value = extra.stap >= 1 ? Math.round(w0) : Math.round(w0 * 100) / 100; }
     }
     inp.onkeydown = e => e.stopPropagation();       // typen stuurt Amir niet aan
     inp.onchange = () => {
@@ -16903,7 +17224,13 @@ function bouwInfo(){
         if (extra.min !== undefined) w = Math.max(extra.min, w);
         if (extra.max !== undefined) w = Math.min(extra.max, w);
       }
-      o[sleutel] = w;
+      if (k.kind === 'rune' && sleutel === 'doel'){   // de rots blijft staan: x is de voet of het midden van het ravijn
+        const voet = runeVoet(o);
+        if (w){ o.x = voet; o.doel = true; } else { delete o.doel; o.x = voet - o.breed / 2 - RAVIJN_ROTS.naast; }
+        w = o.doel;
+      }
+      if (k.kind === 'rune' && (w === undefined || w === false)) delete o[sleutel];   // de rune schrijft alleen weg wat afwijkt
+      else o[sleutel] = w;
       const scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H;
       const why = placeProblem(k.kind, o, scale);
       if (why){ o[sleutel] = oud; bcount.textContent = why + ', niet veranderd'; }
@@ -17079,11 +17406,20 @@ function bouwExtra(k){
     regel('het raakvlak: de groene streep op de grond, waar Amirs voeten tellen');
   }
   if (k.kind === 'rune'){
-    regel('gaat open als de punt van de speer de schijf raakt');
-    regel('raakvlak: ' + String(RAVIJN_RUNE.raak).replace('.', ',') + ' keer het hout (de stippelcirkel), ' + RAVIJN_RUNE.hoog + ' boven de grond');
+    regel(o.doel ? 'licht op als de punt van de speer de schijf raakt, en blijft aan'
+                 : 'gaat open als de punt van de speer de schijf raakt');
+    const komma = v => String(Math.round(v * 100) / 100).replace('.', ',');
+    regel('raakvlak: ' + komma(RAVIJN_RUNE.raak) + ' keer het hout (de stippelcirkel), ' + komma(runeHoog(o) / CHAR_H) + ' Amir boven de grond');
+    const strook = runeStroken(o, nowScale());
+    if (!ravijnRotsMaat(nowScale(), o)) regel('de rots laadt nog');
+    else if (!strook.length) regel('! niet te raken: het steen of de boog zit ervoor', 'blet');
+    else regel('te raken van ' + strook.map(q => q[0] + ' tot ' + q[1]).join(', ') + ' px ervoor (op dit scherm)', 'bgoed');
+    // de camera staat op Amir: verder dan een half scherm voor hem uit zie je de schijf niet meer
+    if (strook.length && strook[0][0] > W / 2 - RAVIJN_RUNE.r * CHAR_H * nowScale())
+      regel('! waar je hem raakt staat de schijf buiten beeld: lager, of een kleinere rots', 'blet');
     if (holteAt(o.x)) regel('opent boven een gang: dan is het een ingang', 'bgoed');
     const sluit = (level.zegels || []).filter(z => z.sluit !== null && z.sluit !== undefined && Math.abs(z.sluit - o.x) < 1);
-    if (sluit.length) regel('gaat weer dicht door het zegel op ' + sluit.map(z => Math.round(z.x)).join(', '), 'bgoed');
+    if (sluit.length && !o.doel) regel('gaat weer dicht door het zegel op ' + sluit.map(z => Math.round(z.x)).join(', '), 'bgoed');
   }
   if (k.kind === 'muur'){
     regel('opent als de speer de schijf raakt (de gele cirkel is het raakvlak)');
@@ -17161,7 +17497,7 @@ function bouwSchakelTeken(groundY, cx, scale){
   // runes: het ravijn dat opengaat, en het hout met zijn raakvlak
   for (const e of ravijnProef() || []){
     const kleur = KOPPEL_KLEUR[nr % KOPPEL_KLEUR.length]; nr++;
-    kader(e.x, e.breed, kleur);
+    if (!runeDoel(e)) kader(e.x, e.breed, kleur);
     const R = ravijnRune(scale, e);
     if (R){
       const rx = X(R.x), ry = groundY - R.h * scale;
@@ -17170,7 +17506,7 @@ function bouwSchakelTeken(groundY, cx, scale){
       ctx.setLineDash([5 / z, 5 / z]); ctx.globalAlpha = 0.9;
       ctx.beginPath(); ctx.arc(rx, ry, R.raakPx, 0, 7); ctx.stroke();
       ctx.setLineDash([]); ctx.globalAlpha = 1;
-      boog(rx, ry - R.raakPx, X(e.x), groundY, kleur);
+      if (!runeDoel(e)) boog(rx, ry - R.raakPx, X(e.x), groundY, kleur);
       nummer(rx, ry - R.raakPx - 18 / z, nr, kleur);
     } else nummer(X(e.x), groundY - 30 / z, nr, kleur);
   }
