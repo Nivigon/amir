@@ -13384,15 +13384,24 @@ function gloedKleurNu(){
 }
 // ---- de schaduw van Amir ----
 // Geen ronde vlek maar zijn eigen silhouet, plat op de grond gelegd: het frame dat getekend
-// wordt, in een donkere kleur, verticaal platgedrukt en scheef van de zon af (zonRechts, dezelfde
-// kant als de zon op de wand van een ravijn). Zo loopt de schaduw mee met zijn benen, zijn speer,
-// een worp en een sprong. Onder de voeten ligt daarnaast een klein, donkerder plekje (de
-// contactschaduw), dat hem op de grond zet. Springt hij, dan blijft de schaduw op de vloer,
-// schuift hij verder van de zon af en wordt hij ijler, tot hij op `weg` helemaal weg is.
-// 's Nachts is het silhouet zwakker (op gloedSterkte, zoals RAVIJN_ZON); het plekje blijft.
+// wordt, in een donkere kleur. Zo loopt de schaduw mee met zijn benen, zijn speer, een worp en
+// een sprong. Onder de voeten ligt daarnaast een klein, donkerder plekje (de contactschaduw), dat
+// hem op de grond zet. Springt hij, dan blijft de schaduw op de vloer, schuift hij verder weg en
+// wordt hij ijler, tot hij op `weg` helemaal weg is. 's Nachts is het silhouet zwakker (op
+// gloedSterkte, zoals RAVIJN_ZON); het plekje blijft.
+//
+// Richting en lengte komen uit de zon van het uitzicht (`sun` in SCENES, zonSchaduw). Die staat
+// zichtbaar achter het landschap, dus het licht komt van achteren naar de camera toe en de schaduw
+// valt naar voren: op het scherm onder zijn voeten. Opzij valt hij van de zon af, zoveel als de zon
+// links of rechts van het midden staat; staat de zon vlak achter hem, dan valt hij vooral naar
+// voren. Hoe lager de zon boven de horizon, hoe langer de schaduw, tot `lang` keer zijn lengte.
 const AMIR_SCHADUW = {
-  plat: 0.17,        // zo hoog is het silhouet op de grond, als deel van zijn echte hoogte
-  schuin: 0.5,       // zo ver schuift de schaduw opzij per eenheid hoogte, van de zon af
+  plat: 0.17,        // zo sterk is de grond verkort: een stap naar voren is zoveel van een stap opzij
+  hoek: 2.3,         // hoogte van de zon (deel van het scherm boven de horizon) naar de tangens van zijn hoek
+  lang: 2.2,         // de schaduw wordt nooit langer dan zoveel keer zijn eigen lengte
+  zij: 1.6,          // hoe sterk de zon opzij telt: 0,5 van het midden af is dan helemaal opzij
+  voorRij: 140,      // rij in grondrand.png net voor de voorrand van het zand (looplijn 95, rand 148):
+                     // verder naar voren komt de schaduw niet, anders hangt hij over de wand eronder
   alfa: 0.8,         // dekking van het silhouet bij de voeten
   kruin: 0.55,       // en bij zijn hoofd: verder van de voeten is een schaduw ijler
   nacht: 0.7,        // ondergrens van de sterkte in een donker uitzicht
@@ -13431,6 +13440,15 @@ function amirSilhouet(img, kleur){
   per[kleur] = c;
   return c;
 }
+// Waar de schaduw heen valt, per eenheid hoogte: dx opzij (negatief is links), dy naar voren, al
+// verkort. Uit de zon van het uitzicht; zonder uitzicht (de sandbox zonder lagen) uit LICHT.
+function zonSchaduw(){
+  const S = AMIR_SCHADUW, sc = sceneCfg(), L = lichtNu();
+  const zx = sc && sc.sun ? sc.sun[0] : L.zonX, zh = sc && sc.sun ? sc.sun[1] : 0.2;
+  const opzij = Math.max(-1, Math.min(1, (zx - 0.5) * S.zij));   // sinus van de richting
+  const lang = Math.min(S.lang, 1 / Math.max(0.05, zh * S.hoek));  // lengte per eenheid hoogte
+  return { dx: -opzij * lang, dy: Math.sqrt(1 - opzij * opzij) * lang * S.plat };
+}
 // img staat op het scherm op (x, y, w, h), met zijn voeten op voetY en horizontaal op pcx; de
 // schaduw komt op shY, de vloer. hoog is hoe hoog hij boven die vloer is, in sprite-eenheden.
 function drawAmirSchaduw(img, x, y, w, h, flip, pcx, voetY, shY, hoog, scale){
@@ -13439,7 +13457,7 @@ function drawAmirSchaduw(img, x, y, w, h, flip, pcx, voetY, shY, hoog, scale){
   const blijft = Math.max(0, 1 - op / S.weg);
   if (blijft <= 0) return;
   const zon = Math.max(S.nacht, Math.min(1, (L.gloedSterkte || LICHT.gloedSterkte) / LICHT.gloedSterkte));
-  const kant = zonRechts() ? -1 : 1;            // de schaduw valt van de zon af
+  const z = zonSchaduw();
   const kleur = winterOn() ? S.kleurWinter : S.kleur;
   const a0 = ctx.globalAlpha;
   // het plekje onder de voeten, kleiner naarmate hij hoger is
@@ -13453,10 +13471,14 @@ function drawAmirSchaduw(img, x, y, w, h, flip, pcx, voetY, shY, hoog, scale){
   if (img && img.complete && img.naturalWidth){
     const sil = amirSilhouet(img, kleur);
     const sx = w / sil.bw, sy = h / sil.bh, opPx = op * scale;
+    // naar voren is er maar een strook zand: past de schaduw er niet op, dan ligt hij platter
+    const ruimte = edgeReady() ? (S.voorRij - EDGE.walk) * edgeScale(H * 0.18) : 20 * scale;
+    z.dy = Math.min(z.dy, ruimte / (CHAR_H * scale + opPx));
     ctx.save();
     ctx.globalAlpha = a0 * S.alfa * zon * blijft;
-    ctx.translate(pcx + kant * S.schuin * opPx, shY - S.plat * opPx);
-    ctx.transform(1, 0, -kant * S.schuin, S.plat, 0, 0);
+    // een punt t boven zijn voeten komt z.dx * t opzij en z.dy * t naar voren (omlaag in beeld)
+    ctx.translate(pcx + z.dx * opPx, shY + z.dy * opPx);
+    ctx.transform(1, 0, -z.dx, -z.dy, 0, 0);
     ctx.translate(x - pcx, y - voetY);
     if (flip){ ctx.translate(w, 0); ctx.scale(-1, 1); }
     ctx.drawImage(sil, -sil.pad * sx, -sil.pad * sy, (sil.bw + sil.pad * 2) * sx, (sil.bh + sil.pad * 2) * sy);
@@ -13837,8 +13859,8 @@ function loop(now){
       const vloer = steun !== 0 ? steun : grondVloer(world, ph);
       const shY = groundY - (vloer === null ? 0 : vloer) * scale;
       const ah = CHAR_H * scale;
-      const reik = ah * (AMIR_SCHADUW.schuin * 1.4 + 0.6);   // zo ver kan het silhouet opzij liggen
-      const top = shY - ah, hoogte = ah + 20;
+      const reik = ah * (AMIR_SCHADUW.lang * 1.3 + 0.6);   // zo ver kan het silhouet opzij liggen
+      const top = shY - ah, hoogte = ah * (1 + AMIR_SCHADUW.lang * AMIR_SCHADUW.plat * 1.3) + 20;
       ctx.save();
       // Boven een ravijn ligt geen grond om een schaduw op te werpen: daar knippen we het gat eruit,
       // ook het openscheurende. Staat hij half op de rand, dan houdt de schaduw bij de rand op.
