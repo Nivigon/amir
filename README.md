@@ -525,9 +525,12 @@ Amir zijn eigen schaduw is geen ronde vlek meer maar zijn silhouet, plat op de g
 benen, zijn speer en een worp erin terug. Hij volgt de zon die je in de lucht ziet. Die staat achter
 het landschap, dus de schaduw valt naar voren, naar jou toe, en opzij van de zon af: staat de zon ver
 naar rechts, dan valt hij lang naar links, staat hij bijna achter Amir, dan vooral naar voren. Hoe
-lager de zon, hoe langer de schaduw. Bij de voeten is hij het donkerst, naar zijn hoofd toe ijler.
-Springt hij, dan blijft de schaduw op de grond, schuift hij verder weg en vervaagt hij. Op een kei
-blijft hij op het bovenvlak, 's nachts is hij zwakker en in de sneeuw koel blauw.
+lager de zon, hoe langer de schaduw, tot iets meer dan zijn eigen lengte. Bij de voeten is hij het
+donkerst, naar zijn hoofd toe ijler, en recht onder zijn voeten ligt een donker plekje. Springt hij,
+dan vervaagt het silhouet snel en blijft dat plekje recht onder hem: zo zie je waar je neerkomt. Op
+een kei, een terras of een trede ligt hij op het bovenvlak. Onder de grond valt er geen zon op hem en
+is er alleen het plekje, behalve waar de zon door een gat naar binnen valt. 's Nachts is hij zwakker
+en in de sneeuw koel blauw.
 
 Het licht onder de grond volgt het uitzicht: in de winter valt er koel wit zonlicht door een gat in
 plaats van oranje, en 's nachts is het zwakker. En ook buiten werkt het licht: loop je onder een
