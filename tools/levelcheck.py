@@ -1040,11 +1040,12 @@ def komend_ravijn(lv, sp):
     zit: geen kei om op te springen, geen hut, geen doornbos, geen gebouw, geen skelet en geen
     speerteken. schoonKomend schuift ze in het spel naar de rand, maar zet het meteen goed. Wat
     los ligt (botten, kalebassen, planten, dorpelingen) mag er wel: dat valt of schuift (ravijnDecor)."""
-    komend = [(e['x'], e['breed']) for e in sp.RAVIJN_PROEF.get(lv.d.get('name'), [])]
+    runes = lv.d.get('runes') or sp.RAVIJN_PROEF.get(lv.d.get('name'), [])   # zoals ravijnProef
+    komend = [(e['x'], e.get('breed') or sp.RAVIJN_BREED) for e in runes]
     for z in lv.d.get('zegels') or []:
         r = z.get('ravijn')
         if isinstance(r, (int, float)) and not any(abs(x - r) < 1 for x, _ in komend):
-            komend.append((r, sp.RAVIJN_BREED))
+            komend.append((r, z.get('breed') or sp.RAVIJN_BREED))
     if not komend:
         return
     raakt = lambda a, b: next((x for x, w in komend if b > x - w / 2 and a < x + w / 2), None)
@@ -1084,8 +1085,8 @@ def komend_ravijn(lv, sp):
 def zegels(lv, sp):
     """Een zegel ligt plat op de grond en gaat aan als Amir erop stapt. Boven een ravijn of in
     een gang kan dat niet, en een ravijn dat opengaat onder het zegel zelf laat hem meteen vallen."""
-    half = sp.RAVIJN_BREED / 2
     for z in lv.d.get('zegels') or []:
+        half = (z.get('breed') or sp.RAVIJN_BREED) / 2
         x = z.get('x')
         if not isinstance(x, (int, float)):
             continue
@@ -1102,6 +1103,9 @@ def zegels(lv, sp):
             yield letop(r, 'het ravijn van het zegel gaat open over een ravijn dat er al ligt')
         if lv.holte(r):
             yield letop(r, 'het ravijn van het zegel gaat open boven een gang: je valt dan de gang in')
+    for z in lv.d.get('zegels') or []:
+        if z.get('muur') and not lv.muur:
+            yield fout(z.get('x'), 'zegel met muur, maar dit level heeft geen rotswand: hij doet niets')
 
 
 @regel('plafond')
