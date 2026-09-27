@@ -9,10 +9,9 @@ en beschrijft wat het spel kan; dit document beschrijft hoe je eraan werkt.
 
 ## Regels
 
-**1. Levels van een echte episode blijven met rust.** Op dit moment is er geen: De Runen en
-De Vorst zijn eruit, en alleen Episode Test levels (`TEST_1` en verder) staat in het menu. Die
-vallen niet onder deze regel: ze zijn er juist om aan te rommelen. Komt er weer een echte episode,
-dan zijn zijn leveldefinities bevroren: er komt geen nieuwe vijand, prop, tip, potion of aangepast
+**1. Levels van een echte episode blijven met rust.** Nu is dat De Jagers (`JAGER_1` tot en met
+`JAGER_5`). De Episode Test levels (`TEST_1` en verder) vallen niet onder deze regel: ze zijn er
+juist om aan te rommelen. De leveldefinities van een echte episode zijn bevroren: er komt geen nieuwe vijand, prop, tip, potion of aangepast
 getal in, ook niet even om iets te laten zien. Alleen als de opdracht een level bij naam noemt
 ("zet dit in level 6") mag dat ene level veranderen. Twijfel je of iets eronder valt, dan valt
 het eronder: vraag het.
@@ -77,6 +76,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | winter: episode Winter World | `WINTER_SRC`, `winterOn()`, `winterPic()` |
 | bodem en sneeuwdek | het veld `sneeuw`: savanne of rots, en het dek in vier standen |
 | het verhaal bij een episode | `VERHAAL` en `SLOT`, `verhaalToon()`: tekst op een zwart scherm voor elk level en na het laatste, alleen als je bij het eerste level begint. Op de naam van het level, dus een nieuwe episode hoeft alleen tekst toe te voegen en `verhaalAan` te zetten in zijn speelknop |
+| Episode De Jagers | `JAGER_1` tot en met `JAGER_5` en `JAGER_LEVELS`: vijf pittige levels met een verhaal (`VERHAAL`, `SLOT`) en Nightmare; menu `menuJager`, `cardsJager` |
 | Episode Test levels | `TEST_1` tot en met `TEST_12`: korte proefstukken, los van de echte episodes |
 | lichtkaart: het licht onder de grond | `LK`, `drawLichtkaart`: een lichtbron (de hemel en de zon) voor alles onder de grond en onder rots boven je, per level een keer uitgerekend |
 | terrassen en richels | `terraces`, `ledges`, klimmen |
@@ -954,7 +954,7 @@ beeld: de plaatjes worden per soort, laag en tint een keer onscherp gemaakt en b
 ### Een level toevoegen (alleen na toestemming)
 
 1. De definitie erbij, na de laatste van die reeks.
-2. De naam in de array van die reeks (nu alleen `TEST_LEVELS`).
+2. De naam in de array van die reeks (`JAGER_LEVELS` of `TEST_LEVELS`).
 3. Een ondertitel in `SUBS`, op de naam van het level.
 4. Een eigen uitzicht in `SCENES` als het level er anders uit moet zien.
    De voorgrond komt er vanzelf bij (zie hierboven); zet alleen een eigen `voorgrond` als het level
@@ -966,10 +966,10 @@ beeld: de plaatjes worden per soort, laag en tint een keer onscherp gemaakt en b
 
 Die vijf stappen, plus: een knop in `menuChoose`, een eigen `menuXxx`-blok in de
 HTML naar het voorbeeld van `menuTest`, en die aanmelden in `buildCards`,
-`markCards` en `showMenu` (die kennen nu alleen `cardsTest` en `menuTest`, dus daar komt een
-keuze tussen de reeksen bij, en in de terugknop van het spel ook). Wil de episode een verhaal,
-zet dan de tekst in `VERHAAL` en `SLOT` en `verhaalAan` in zijn speelknop. De Runen en De Vorst
-zijn in de geschiedenis terug te vinden als voorbeeld van een episode met verhaal en Nightmare.
+`markCards` en `showMenu` (die kiezen nu tussen `cardsJager`/`menuJager` en `cardsTest`/`menuTest`,
+en `toMenu` ook), en de reeks in `tools/bouwertest.js` en `tools/speelrobot.js`. Wil de episode een
+verhaal, zet dan de tekst in `VERHAAL` en `SLOT` en `verhaalAan` in zijn speelknop. De Jagers is het
+voorbeeld van een episode met verhaal en Nightmare.
 
 ### Een vijand of prop toevoegen
 
