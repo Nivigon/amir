@@ -31,6 +31,20 @@ Test levels zijn korte proefstukken: een enkel level waarin je een mechaniek los
 
 In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen naar het volgende level van dezelfde reeks. Onder **Instellingen** staan daar ook het tempo van het spel, het looptempo van Amir, het formaat van het beeld en de muziek. Tijdens een level is het speelveld verder leeg: de testbalk met schuifjes staat alleen in de sandbox (met B haal je hem er tijdens het spelen en in de bouwer alsnog bij).
 
+## Tribes
+
+Elke run begint met het kiezen van een tribe: druk je in het menu op Spelen (of Nightmare), dan komt eerst het keuzescherm. Kiezen is verplicht en ligt vast voor de hele run. Nu is alleen **Mkuki, Tribe of the Spear** te kiezen; **Bhubesi, Tribe of the Lion** en **Impungushe, Tribe of the Jackal** staan er al, grijs en op slot (Coming soon). Met de pijltjes en Enter kies je met het toetsenbord, op een telefoon tik je.
+
+Bij het kiezen krijg je de eerste ability van je tribe, en na elk uitgespeeld level de volgende, met een eigen scherm. Na twee uitgespeelde levels heb je ze alle drie. Ze staan als klein rijtje rechtsboven, onder de kalebas. Game over en opnieuw beginnen is een nieuwe run: dan kies je opnieuw en begin je weer bij de eerste ability.
+
+| ability | wat hij doet |
+|---|---|
+| **Quick Hand** | na een speerworp sta je korter vast: het herstel na het loslaten gaat 1,6 keer zo snel (0,47 in plaats van 0,75 seconde) |
+| **Thorn Breaker** | een doornbos gaat in een klap om in plaats van drie |
+| **Low Sweep** | de lage zwaai (bukken en aanvallen). Zonder deze ability doet die input niets. Hij raakt wat laag is: slangen, fosforslangen, de schorpioen, hyena's en de panter als hij na een sprong plat ligt. Een zwaardvechter staat rechtop en raak je er niet mee |
+
+Alle getallen en teksten staan in `TRIBE_CONFIG`, bovenin de HTML. In de sandbox staan de drie los aan en uit onder **Tribe Mkuki**; testen vanuit de bouwer doe je met alle drie.
+
 ## Op je telefoon zetten
 
 Het spel is een installeerbare webapp. Open de Pages-link in Safari, deel, "Zet op beginscherm". Daarna staat Amir als icoon tussen je apps en start hij zonder browserbalken, liggend.
@@ -89,6 +103,7 @@ De versie in `offline-assets.json` verandert mee, en de service worker ziet daar
 | lopen, rennen | pijltjes, Shift sprint | joystick (duim links) |
 | springen | pijl omhoog | ▲, of joystick omhoog |
 | bukken | pijl omlaag | joystick omlaag |
+| lage zwaai (met Low Sweep) | bukken en spatie | joystick omlaag en ✦ |
 | stoten | spatie (korte tik) | ✦ (korte tik) |
 | stoten vanuit een sprint | Shift en een pijltje, dan spatie: hij glijdt remmend door | joystick ver uit, dan ✦ |
 | **speer recht vooruit** | **spatie vasthouden, loslaten** | **✦ vasthouden, loslaten** |
