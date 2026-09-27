@@ -93,7 +93,7 @@ De versie in `offline-assets.json` verandert mee, en de service worker ziet daar
 | stoten vanuit een sprint | Shift en een pijltje, dan spatie: hij glijdt remmend door | joystick ver uit, dan ✦ |
 | **speer recht vooruit** | **spatie vasthouden, loslaten** | **✦ vasthouden, loslaten** |
 | **speer in een boog** | **langer vasthouden, dan loslaten** | **langer vasthouden, dan loslaten** |
-| worp afbreken | tik in plaats van vasthouden | duim van ✦ af slepen en daar loslaten |
+| worp afbreken | tijdens het spannen springen, bukken of de andere kant op | duim van ✦ af slepen en daar loslaten, of springen, bukken of de andere kant op |
 | speer oppakken | E, waar je ook langs de schacht staat | E (verschijnt als je er vlakbij staat) |
 | door een open deur of grot | E, als je ervoor staat | E (verschijnt als je ervoor staat) |
 | drinken | Q | het kalebasje |
@@ -118,6 +118,14 @@ geen verdragende worp. Vlak komt ongeveer 0,8 scherm verderop neer, de boog
 piekt bijna drie keer Amirs lengte en landt rond 1,6 scherm. Lang vasthouden is
 daarmee niet gewoon beter, want de boog zeilt over alles heen wat dichtbij
 staat en je staat er een halve seconde langer kwetsbaar voor stil.
+
+Je hoeft niet te gooien als je eenmaal spant. Spring, buk of loop de andere kant op
+en de worp gaat niet door: je houdt je speer en Amir doet meteen wat je vraagt. Er
+wordt ook nooit vanzelf gegooid, hoe lang je ook vasthoudt. Wacht je met een
+gespannen speer, dan staat hij niet stil: hij ademt, na ruim een seconde gaat hij
+licht trillen van de spanning, steeds iets meer, en is hij helemaal uitgetrokken,
+dan glimt de punt af en toe. In de sandbox zet de knop **Spannen** onder
+"Speerworp" dit uit, om het te vergelijken met hoe het was.
 
 #### De schaalworp (proef)
 
@@ -528,11 +536,12 @@ benen, zijn speer en een worp erin terug. Hij volgt de zon die je in de lucht zi
 het landschap, dus de schaduw valt naar voren, naar jou toe, en opzij van de zon af: staat de zon ver
 naar rechts, dan valt hij lang naar links, staat hij bijna achter Amir, dan vooral naar voren. Hoe
 lager de zon, hoe langer de schaduw, tot iets meer dan zijn eigen lengte. Bij de voeten is hij het
-donkerst, naar zijn hoofd toe ijler, en recht onder zijn voeten ligt een donker plekje. Springt hij,
-dan vervaagt het silhouet snel en blijft dat plekje recht onder hem: zo zie je waar je neerkomt. Op
-een kei, een terras of een trede ligt hij op het bovenvlak. Onder de grond valt er geen zon op hem en
-is er alleen het plekje, behalve waar de zon door een gat naar binnen valt. 's Nachts is hij zwakker
-en in de sneeuw koel blauw.
+donkerst, naar zijn hoofd toe ijler. Daarnaast ligt er altijd een zachte schaduw recht onder hem, ook
+in de vorm van zijn voeten en benen (geen ronde vlek): het licht dat van alle kanten komt. Die is er
+ook onder de grond, even sterk als het licht daar. Springt hij, dan vervaagt de zonneschaduw snel en
+blijft de zachte schaduw recht onder hem: zo zie je waar je neerkomt. Op een kei, een terras of een
+trede ligt hij op het bovenvlak. Onder de grond komt de zonneschaduw er alleen bij waar de zon door een
+gat naar binnen valt. 's Nachts is hij zwakker en in de sneeuw koel blauw.
 
 Het licht onder de grond volgt het uitzicht: in de winter valt er koel wit zonlicht door een gat in
 plaats van oranje, en 's nachts is het zwakker. En ook buiten werkt het licht: loop je onder een
