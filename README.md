@@ -92,6 +92,7 @@ De versie in `offline-assets.json` verandert mee, en de service worker ziet daar
 | springen | pijl omhoog | ▲, of joystick omhoog |
 | bukken | pijl omlaag | joystick omlaag |
 | stoten | spatie (korte tik) | ✦ (korte tik) |
+| stoten vanuit een sprint | Shift en een pijltje, dan spatie: hij glijdt remmend door | joystick ver uit, dan ✦ |
 | **speer recht vooruit** | **spatie vasthouden, loslaten** | **✦ vasthouden, loslaten** |
 | **speer in een boog** | **langer vasthouden, dan loslaten** | **langer vasthouden, dan loslaten** |
 | worp afbreken | tik in plaats van vasthouden | duim van ✦ af slepen en daar loslaten |
