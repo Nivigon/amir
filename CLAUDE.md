@@ -92,7 +92,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | schilden in de wind | `SCHILD`, `schildStofUpdate`, `schildTil`, `drawSchildStof`: een schild (`schild: true` in `PROPS`) is een windscherm; bij een vlaag stuwt er stof tegen de windkant op, dat eroverheen waait. De plaatjes in `design/schilden/` zijn zelf de bron (het donkere motief van het klauwenschild is er met de hand in teruggezet) |
 | slangen: kleur, zicht en patrouille | `SNAKE_DIRS`, `slangZiet`, `startPatrouille`, `slangSchuif` |
 | zwarte panter, de witte panter, de hyena | de grote vijanden |
-| voorgrond: de laag tussen de camera en Amir | `VOORGROND`, `VG_SOORT`, `drawVoorgrond`: onscherp gras, struiken, keien en een schedel vlak voor de camera; schuift sneller dan de wereld, ook verticaal, en valt onder de grond weg |
+| voorgrond: de laag tussen de camera en Amir | `VOORGROND`, `VG_SOORT`, `VG_LAGEN`, `vgStandaard`, `drawVoorgrond`: onscherp gras, struiken, keien en een schedel vlak voor de camera, in twee lagen; schuift sneller dan de wereld, ook verticaal, en valt onder de grond weg. Elk level heeft er een (zie "de voorgrond hoort bij elk level") |
 | achtergrondlagen, uitzicht per level | `SCENE0` en `SCENES` |
 | startscherm, level maken, menu: kaartjes per level | menu en bouwer |
 | level maken | de bouwer: `GEREEDSCHAP` (wat je neer kunt zetten), `bouwOpen` (de rand en de lijst), `bouwVelden` en `bouwExtra` (het venster), `tekenLijn` (de levellijn), `bouwD` en `bouwGeest` (Amir als geest), `bouwTesten` (testen vanaf hier), `holteMaak` en `holteTrap` (gangen), `bouwSchakelTeken` (koppelingen en raakvlakken); zie "De bouwer" hieronder |
@@ -139,7 +139,7 @@ precies hetzelfde formaat naar JSON.
 | `zegels` | zegels plat in de grond: `{x, ravijn, sluit, breed, muur}`; erop stappen zet hem aan of uit, en met `ravijn` scheurt de grond daar open als hij aangaat, `breed` breed (standaard 277). Met `sluit` gaat het open ravijn op die x juist weer dicht (staat er niets open, dan blijft hij donker). Met `muur: true` opent hij de rotswand van het level (`zegelMuur`); de rune op de wand werkt daarnaast gewoon |
 | `runes` | ravijnen met een rune op een rots ervoor: `{x, breed}`, `x` het midden van het ravijn; de rots komt vanzelf aan de kant waar Amir aankomt. Oudere levels hebben ze nog op naam in `RAVIJN_PROEF` (Rune 8); staat het veld er, dan telt het veld |
 | `fg` | strook waarover de voorgrondbegroeiing ligt: `{from, to}` |
-| `voorgrond` | de onscherpe laag vlak voor de camera: `{stroken: [{van, tot, dicht, struik, kei}], los: [{x, k, s, f}]}`, `k` uit `VG_SOORT`; los van `fg` |
+| `voorgrond` | de onscherpe laag vlak voor de camera: `{stroken: [{van, tot, dicht, struik, kei}], los: [{x, k, s, f}]}`, `k` uit `VG_SOORT`; los van `fg`. Zonder dit veld krijgt het level de standaard, met `false` heeft het er geen (zie hieronder) |
 | `arena` | het veld van de eindbaas: `{c}` |
 | `cliffs` | de afsluitende rotswand: `{x}`, staat altijd achter `ends` |
 | `ends` | de fakkels die het level uitspelen: `{x}` |
@@ -848,12 +848,45 @@ Het veld `dim` in `SCENES` is iets anders: dat zet alleen de achtergrond dieper,
 de grondlijn. Wil je dat de hele wereld donkerder wordt, dan is `licht` het juiste veld;
 wil je alleen dat de verte wegzakt, dan `dim`. Meestal gebruik je ze samen.
 
+### De voorgrond hoort bij elk level
+
+Elk level heeft een voorgrond: de onscherpe laag vlak voor de camera die het beeld diepte geeft.
+Dat is geen keuze per level maar standaard. Zet een level er zelf geen, dan krijgt het er een van
+het spel (`vgStandaard`): ijl (`VG_STANDAARD.dicht`), over het hele level, met open plekken rond
+alles waar je naar moet kunnen kijken: ravijnen en de plekken waar er later een openscheurt, zegels,
+de rots met de rune (die reikt ver naar rechts, want de rots staat aan de kant waar Amir aankomt), de
+poort (`muur`), de fakkels en het veld van de eindbaas. Zo verbergt hij nooit een rand, een schijf of
+een vijand die je moet zien. De maten van die open plekken staan in `VG_STANDAARD`. De standaard hangt
+aan het level zelf, dus ook een level uit de bouwer krijgt hem, en verschuif je daar een ravijn, dan
+schuift de open plek mee.
+
+Een eigen `voorgrond` in de definitie gaat voor de standaard (Test 11 heeft er een). Doe dat als een
+level een plek heeft waar de voorgrond iets moet vertellen: dicht gras aan het begin, een schedel in
+het gras bij een eindbaas. `voorgrond: false` zet hem uit; doe dat alleen met een reden.
+
+De voorgrond heeft twee lagen (`VG_LAGEN`), van ver naar dichtbij, en daardoor zit er ook binnen de
+voorgrond diepte:
+
+| laag | schuift | grootte | onscherp | schaduw |
+| --- | --- | --- | --- | --- |
+| ver | 1,2 keer de wereld (1,4 verticaal) | 0,6 | een beetje (3) | 0,85 van de schaduw |
+| dichtbij | 1,45 keer (1,8 verticaal) | 1 | veel (7) | de hele schaduw |
+
+Beide lagen lezen dezelfde stroken; de verre laag heeft een eigen reeks, zodat de pollen niet op
+elkaar staan, en staat wat dichter op elkaar omdat hij kleiner is. Losse stukken (`los`) staan alleen
+in de dichtbije. In de winter staan er de besneeuwde versies (`winter` bij elke soort in `VG_SOORT`)
+met een koelere, lichtere schaduw (`VOORGROND.schaduwWinter`), anders wordt de sneeuw bruin; 's nachts
+staat hij dieper in de schaduw, naar de gloed van het uitzicht. De hele voorgrond kost zo'n 0,05 ms per
+beeld: de plaatjes worden per soort, laag en tint een keer onscherp gemaakt en bewaard.
+
 ### Een level toevoegen (alleen na toestemming)
 
 1. De definitie erbij, na de laatste van die reeks.
-2. De naam in de array van die reeks (`RUNE_LEVELS`, `TEST_LEVELS`).
+2. De naam in de array van die reeks (`RUNE_LEVELS`, `VORST_LEVELS`, `TEST_LEVELS`).
 3. Een ondertitel in `SUBS`, op de naam van het level.
 4. Een eigen uitzicht in `SCENES` als het level er anders uit moet zien.
+   De voorgrond komt er vanzelf bij (zie hierboven); zet alleen een eigen `voorgrond` als het level
+   daar iets mee wil.
 5. `python3 tools/levelcheck.py` draaien, en elke FOUT oplossen voor je commit (zie
    hieronder).
 
