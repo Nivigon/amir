@@ -61,6 +61,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | --- | --- |
 | versie: welke update er live staat | `versieTijd` (uit `document.lastModified`) heel klein linksboven, en `toonUpdates`: de laatste vijf samengevoegde pull requests van GitHub (`VERSIE_REPO`), met of ze erin zitten (regel 8) |
 | globale lichtlaag | kleurwaas over het beeld, volgt de zon van het level; een level stelt hem bij met `licht` in `SCENES` |
+| de schaduw van Amir | `AMIR_SCHADUW`, `amirSilhouet`, `drawAmirSchaduw`: zijn eigen frame als silhouet, platgedrukt en scheef van de zon af (`zonRechts`), met een contactschaduw onder de voeten; een keer per frame gebakken |
 | muziek per level | `MUZIEK`, `zetMuziek()`: welk deuntje onder welk level loopt |
 | beeld: de grote of de kleine spriteset | `KLEIN_FAM`, de keuze groot of klein, `zetBron` |
 | hppotion | de drinkkalebas |

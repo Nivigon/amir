@@ -13366,6 +13366,7 @@ function zonRechts(){
   const zx = zonScherm.geldig ? zonScherm.x : L.zonX * W;
   return zx >= W / 2;
 }
+
 // De gloed krijgt de kleur van de zon van dit level. Die schijf is licht geverfd,
 // en zo'n lichte kleur er additief overheen trekt het beeld naar wit. Daarom houden
 // we de tint aan en verzadigen we hem dieper: het hoogste kanaal blijft staan, de
@@ -13380,6 +13381,88 @@ function gloedKleurNu(){
   if (!m) return L.gloedKleur;
   const top = Math.max(m[0], m[1], m[2]) || 1;
   return m.map(v => Math.round(255 * Math.pow(v / top, Math.max(1, L.gloedDiepte))));
+}
+// ---- de schaduw van Amir ----
+// Geen ronde vlek maar zijn eigen silhouet, plat op de grond gelegd: het frame dat getekend
+// wordt, in een donkere kleur, verticaal platgedrukt en scheef van de zon af (zonRechts, dezelfde
+// kant als de zon op de wand van een ravijn). Zo loopt de schaduw mee met zijn benen, zijn speer,
+// een worp en een sprong. Onder de voeten ligt daarnaast een klein, donkerder plekje (de
+// contactschaduw), dat hem op de grond zet. Springt hij, dan blijft de schaduw op de vloer,
+// schuift hij verder van de zon af en wordt hij ijler, tot hij op `weg` helemaal weg is.
+// 's Nachts is het silhouet zwakker (op gloedSterkte, zoals RAVIJN_ZON); het plekje blijft.
+const AMIR_SCHADUW = {
+  plat: 0.17,        // zo hoog is het silhouet op de grond, als deel van zijn echte hoogte
+  schuin: 0.5,       // zo ver schuift de schaduw opzij per eenheid hoogte, van de zon af
+  alfa: 0.8,         // dekking van het silhouet bij de voeten
+  kruin: 0.55,       // en bij zijn hoofd: verder van de voeten is een schaduw ijler
+  nacht: 0.7,        // ondergrens van de sterkte in een donker uitzicht
+  contact: { breed: 0.14, hoog: 0.022, alfa: 0.26 },   // het plekje onder de voeten, in CHAR_H
+  weg: 330,          // zo hoog boven de vloer (sprite-eenheden) is er niets meer van over
+  vaag: 1.5,         // zachte rand, in pixels op de gebakken maat
+  maat: 160,         // het silhouet wordt op deze hoogte gebakken, een keer per frame
+  kleur: '#1d140f',
+  kleurWinter: '#1a2436'   // in de sneeuw koel, anders ligt er een bruine vlek op het wit
+};
+// Per plaatje een keer: het frame klein, volledig in de schaduwkleur, met een zachte rand.
+// Een browser zonder canvasfilter tekent hem scherp; door het verkleinen is hij toch niet hard.
+const amirSilCache = new WeakMap();
+function amirSilhouet(img, kleur){
+  let per = amirSilCache.get(img);
+  if (!per){ per = {}; amirSilCache.set(img, per); }
+  let c = per[kleur];
+  if (c) return c;
+  const S = AMIR_SCHADUW, k = Math.min(1, S.maat / img.naturalHeight);
+  const w = Math.max(1, Math.round(img.naturalWidth * k)), h = Math.max(1, Math.round(img.naturalHeight * k));
+  const pad = Math.ceil(S.vaag * 3);
+  const t = document.createElement('canvas'); t.width = w; t.height = h;
+  const tc = t.getContext('2d');
+  tc.drawImage(img, 0, 0, w, h);
+  tc.globalCompositeOperation = 'source-in'; tc.fillStyle = kleur; tc.fillRect(0, 0, w, h);
+  c = document.createElement('canvas'); c.width = w + pad * 2; c.height = h + pad * 2;
+  const cc = c.getContext('2d');
+  cc.filter = 'blur(' + S.vaag + 'px)';
+  cc.drawImage(t, pad, pad);
+  // van de voeten naar het hoofd ijler
+  const v = cc.createLinearGradient(0, c.height, 0, 0);
+  v.addColorStop(0, 'rgba(0,0,0,1)'); v.addColorStop(1, 'rgba(0,0,0,' + S.kruin + ')');
+  cc.filter = 'none'; cc.globalCompositeOperation = 'destination-in';
+  cc.fillStyle = v; cc.fillRect(0, 0, c.width, c.height);
+  c.bw = w; c.bh = h; c.pad = pad;
+  per[kleur] = c;
+  return c;
+}
+// img staat op het scherm op (x, y, w, h), met zijn voeten op voetY en horizontaal op pcx; de
+// schaduw komt op shY, de vloer. hoog is hoe hoog hij boven die vloer is, in sprite-eenheden.
+function drawAmirSchaduw(img, x, y, w, h, flip, pcx, voetY, shY, hoog, scale){
+  const S = AMIR_SCHADUW, L = lichtNu();
+  const op = Math.max(0, hoog);
+  const blijft = Math.max(0, 1 - op / S.weg);
+  if (blijft <= 0) return;
+  const zon = Math.max(S.nacht, Math.min(1, (L.gloedSterkte || LICHT.gloedSterkte) / LICHT.gloedSterkte));
+  const kant = zonRechts() ? -1 : 1;            // de schaduw valt van de zon af
+  const kleur = winterOn() ? S.kleurWinter : S.kleur;
+  const a0 = ctx.globalAlpha;
+  // het plekje onder de voeten, kleiner naarmate hij hoger is
+  const ck = 1 - 0.5 * (1 - blijft);
+  ctx.globalAlpha = a0 * S.contact.alfa * blijft;
+  ctx.fillStyle = kleur;
+  ctx.beginPath();
+  ctx.ellipse(pcx, shY, CHAR_H * scale * S.contact.breed * ck, CHAR_H * scale * S.contact.hoog * ck, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // het silhouet: de hoogte boven de voeten wordt diepte (plat) en zijwaarts (schuin)
+  if (img && img.complete && img.naturalWidth){
+    const sil = amirSilhouet(img, kleur);
+    const sx = w / sil.bw, sy = h / sil.bh, opPx = op * scale;
+    ctx.save();
+    ctx.globalAlpha = a0 * S.alfa * zon * blijft;
+    ctx.translate(pcx + kant * S.schuin * opPx, shY - S.plat * opPx);
+    ctx.transform(1, 0, -kant * S.schuin, S.plat, 0, 0);
+    ctx.translate(x - pcx, y - voetY);
+    if (flip){ ctx.translate(w, 0); ctx.scale(-1, 1); }
+    ctx.drawImage(sil, -sil.pad * sx, -sil.pad * sy, (sil.bw + sil.pad * 2) * sx, (sil.bh + sil.pad * 2) * sy);
+    ctx.restore();
+  }
+  ctx.globalAlpha = a0;
 }
 function lichtSleutelNu(){
   const L = lichtNu();
@@ -13745,30 +13828,46 @@ function loop(now){
     drawGrotten(groundY, scale, cx);               // grotten en ravijnen: het steen om de opening heen
     drawHolte(groundY, scale, cx);                 // een gang onder de grond: donker, met licht uit het gat
 
-    ctx.save();
-    ctx.globalAlpha = building ? 0 : 0.22; ctx.fillStyle = '#1d140f';   // de geest heeft geen schaduw
     // De schaduw ligt op dezelfde vloer als waar zijn voeten op komen (zie updateJump): een rots of
     // een trede, en anders de grond, en beneden in een gang de bodem daarvan. Een gewoon ravijn
     // heeft geen vloer (null): dan ligt hij op de grondlijn en wordt het gat eruit geknipt.
-    const steun = supportHeight(plats, halfWNow);
-    const vloer = steun !== 0 ? steun : (building ? 0 : grondVloer(world, ph));
-    const shY = groundY - (vloer === null ? 0 : vloer) * scale;
-    const shW = CHAR_H * scale * 0.24;
-    // Boven een ravijn ligt geen grond om een schaduw op te werpen: daar knippen we het gat eruit,
-    // ook het openscheurende. Staat hij half op de rand, dan houdt de schaduw bij de rand op.
-    // Beneden in een gang is een gat erboven geen rand: daar ligt de schaduw gewoon op de bodem.
-    if (!building && (vloer === null || Math.abs(vloer) <= 1)){
-      let knip = false;
-      ctx.beginPath(); ctx.rect(pcx - shW - 4, shY - 20, shW * 2 + 8, 40);
-      for (const g of gatenMetRavijn()){
-        const gl = cx + (g.x - g.w / 2 - world), gr = cx + (g.x + g.w / 2 - world);
-        if (gr < pcx - shW || gl > pcx + shW) continue;
-        ctx.rect(gl, shY - 20, gr - gl, 40); knip = true;
+    // Het is zijn eigen silhouet, plat op de grond (drawAmirSchaduw); de geest heeft er geen.
+    if (!building){
+      const steun = supportHeight(plats, halfWNow);
+      const vloer = steun !== 0 ? steun : grondVloer(world, ph);
+      const shY = groundY - (vloer === null ? 0 : vloer) * scale;
+      const ah = CHAR_H * scale;
+      const reik = ah * (AMIR_SCHADUW.schuin * 1.4 + 0.6);   // zo ver kan het silhouet opzij liggen
+      const top = shY - ah, hoogte = ah + 20;
+      ctx.save();
+      // Boven een ravijn ligt geen grond om een schaduw op te werpen: daar knippen we het gat eruit,
+      // ook het openscheurende. Staat hij half op de rand, dan houdt de schaduw bij de rand op.
+      // Beneden in een gang is een gat erboven geen rand: daar ligt de schaduw gewoon op de bodem.
+      if (vloer === null || Math.abs(vloer) <= 1){
+        let knip = false;
+        ctx.beginPath(); ctx.rect(pcx - reik, top, reik * 2, hoogte);
+        for (const g of gatenMetRavijn()){
+          const gl = cx + (g.x - g.w / 2 - world), gr = cx + (g.x + g.w / 2 - world);
+          if (gr < pcx - reik || gl > pcx + reik) continue;
+          ctx.rect(gl, top, gr - gl, hoogte); knip = true;
+        }
+        if (knip) ctx.clip('evenodd');
+      } else if (steun !== 0){
+        // op een kei of een trede: de schaduw blijft op dat bovenvlak en hangt niet over de rand in de lucht
+        ctx.beginPath();
+        for (const p of plats){
+          if (Math.abs(p.topH - steun) > 2) continue;
+          const pl = cx + (p.left - world), pr = cx + (p.right - world);
+          if (pr < pcx - reik || pl > pcx + reik) continue;
+          ctx.rect(pl, top, pr - pl, hoogte);
+        }
+        ctx.clip();
       }
-      if (knip) ctx.clip('evenodd');
+      const flipNu = useThrow ? thrFlip() : (autoFlip && facing === 1);
+      drawAmirSchaduw(img, x, y, w, h, flipNu, pcx, groundY + lift, shY,
+                      ph - (vloer === null ? 0 : vloer), scale);
+      ctx.restore();
     }
-    ctx.beginPath(); ctx.ellipse(pcx, shY, shW, CHAR_H * scale * 0.03, 0, 0, Math.PI * 2);
-    ctx.fill(); ctx.restore();
     const cliffImgNow = cliffPic();
     if (cliffImgNow.complete && cliffImgNow.naturalWidth){
       const c = cliffAt();
