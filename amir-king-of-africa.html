@@ -649,6 +649,19 @@
         <button data-zwanim="geraakt">Geraakt</button>
         <button data-zwanim="dood">Dood</button>
       </div>
+      <div class="row">
+        <label>Baviaan</label>
+        <button id="sbbav">Neerzetten</button>
+        <button data-bav="x:-1" title="naar links">&#9664;</button>
+        <button data-bav="x:1" title="naar rechts">&#9654;</button>
+        <button data-bav="y:1" title="omhoog">&#9650;</button>
+        <button data-bav="y:-1" title="omlaag">&#9660;</button>
+        <button data-bav="s:-1" title="kleiner">&minus;</button>
+        <button data-bav="s:1" title="groter">+</button>
+        <button id="sbbavspiegel">Spiegel</button>
+        <button id="sbbavweg">Weg</button>
+        <span class="hint" id="sbbavinfo">de eindbaas in wording, alleen het plaatje: vasthouden gaat door</span>
+      </div>
     </div>
     <div class="sbcat" data-cat="speer">
       <div class="row">
@@ -5187,6 +5200,33 @@ function tekenTeken(groundY, scale, cx){
     V.speren.forEach((sp, i) => tkDoek(sp, s, w, i));
     ctx.restore();
   }
+}
+
+// ---- baviaan: de eindbaas in wording ----------------------------------
+// Voor nu een plaatje om te passen: in de sandbox neer te zetten, te verschuiven en groter of
+// kleiner te maken (Vijanden, Baviaan), om te zien hoe hij naast Amir uitkomt. Nog geen gedrag.
+// Het plaatje komt uit tools/baviaan_knip.py. level.baviaan = {x, y, s, f}: x in wereld-px (het
+// midden van zijn voeten), y hoe ver hij boven de grond hangt en s hoe hoog hij is, allebei in Amir.
+const BAVIAAN = { src: 'enemies/baviaan/baviaan.png', s: 1.4, schaduw: 0.9 };
+let baviaanImg = null;
+function baviaanLaad(){
+  if (baviaanImg) return;
+  baviaanImg = new Image();
+  baviaanImg.onerror = () => console.warn('ontbreekt: ' + BAVIAAN.src);
+  baviaanImg.src = BAVIAAN.src;
+}
+function baviaanTeken(groundY, scale, cx){
+  const b = level && level.baviaan;
+  if (!b || !baviaanImg || !imgReady(baviaanImg)) return;
+  const u = CHAR_H * scale;                                  // schermpixels per Amir
+  const sx = cx + (b.x - world);
+  const gy = groundY - terrainH(b.x) * scale, voet = gy - b.y * u;
+  const h = b.s * u, w = h * baviaanImg.naturalWidth / baviaanImg.naturalHeight;
+  skeletSchaduw(sx, gy, BAVIAAN.schaduw * b.s * u / Math.max(1, 1 + b.y));
+  ctx.save();
+  ctx.translate(sx, voet); ctx.scale(b.f ? -1 : 1, 1);      // het plaatje kijkt naar links
+  ctx.drawImage(baviaanImg, -w / 2, -h, w, h);
+  ctx.restore();
 }
 
 // ---- de rotswand rechts: het einde van het level ----------------------
@@ -15207,6 +15247,7 @@ function loop(now){
     }
     zegelTeken(groundY, scale, cx);               // de zegels plat in de grond
     tekenTeken(groundY, scale, cx);               // speertekens: een speer met een zwart doek en schedels
+    baviaanTeken(groundY, scale, cx);             // de baviaan om te passen (alleen de sandbox)
     skeletTeken(groundY, scale, cx);              // skeletten, met of zonder speer
     losTeken(groundY, scale, cx);                 // speren die los op de grond liggen
     ravijnRuneTeken(groundY, scale, cx);          // de rots met de rune bij het ravijn
@@ -17760,6 +17801,46 @@ function sbTeken(v){
   cv.focus();
 }
 sandboxEl.querySelectorAll('button[data-teken]').forEach(b => b.onclick = () => sbTeken(b.dataset.teken));
+// de baviaan: een keer neerzetten, dan met de pijltjes verschuiven en met min en plus van maat
+// veranderen. Knop vasthouden herhaalt, steeds sneller. Onder de knoppen staan de getallen, om over
+// te nemen als hij goed staat.
+const BAV_STAP = { x: 10, y: 0.02, s: 0.02 };
+function sbBavInfo(){
+  const b = level && level.baviaan, el = document.getElementById('sbbavinfo');
+  if (!b){ el.textContent = 'de eindbaas in wording, alleen het plaatje: vasthouden gaat door'; return; }
+  const n = v => v.toFixed(2).replace('.', ',');
+  el.textContent = 'x ' + Math.round(b.x) + ', hoogte ' + n(b.y) +
+    ', grootte ' + n(b.s) + ' Amir' + (b.f ? ', gespiegeld' : '');
+}
+function sbBaviaan(){
+  baviaanLaad();
+  const side = sbFromRight ? 1 : -1;
+  let x = world + side * 420;
+  x = Math.min(x, cliffAt().wall - 300);
+  x = Math.max(x, endWall() + 300);
+  const oud = level.baviaan;
+  level.baviaan = { x, y: oud ? oud.y : 0, s: oud ? oud.s : BAVIAAN.s, f: !sbFromRight };   // kijkt naar Amir
+  sbBavInfo(); cv.focus();
+}
+function sbBavStap(k, r, n){
+  if (!level.baviaan) sbBaviaan();
+  const b = level.baviaan, d = BAV_STAP[k] * r * n;
+  if (k === 'x') b.x += d;
+  if (k === 'y') b.y = Math.max(0, b.y + d);
+  if (k === 's') b.s = Math.min(8, Math.max(0.2, b.s + d));
+  sbBavInfo();
+}
+document.getElementById('sbbav').onclick = sbBaviaan;
+document.getElementById('sbbavspiegel').onclick = () => { if (!level.baviaan) sbBaviaan(); level.baviaan.f = !level.baviaan.f; sbBavInfo(); cv.focus(); };
+document.getElementById('sbbavweg').onclick = () => { level.baviaan = null; sbBavInfo(); cv.focus(); };
+sandboxEl.querySelectorAll('button[data-bav]').forEach(bt => {
+  const [k, r] = bt.dataset.bav.split(':');
+  let klok = null, tel = 0;
+  const stop = () => { clearTimeout(klok); klok = null; cv.focus(); };
+  const stap = () => { tel++; sbBavStap(k, Number(r), tel > 25 ? 5 : tel > 8 ? 2 : 1); klok = setTimeout(stap, tel === 1 ? 350 : 60); };
+  bt.onpointerdown = e => { e.preventDefault(); stop(); tel = 0; stap(); };
+  bt.onpointerup = bt.onpointerleave = bt.onpointercancel = stop;
+});
 document.getElementById('sbskeletop').onclick = () => { skeletReset(); cv.focus(); };
 // je speer naast je op de grond leggen: om met lege handen een skelet leeg te trekken, of om te
 // zien dat je een tweede speer niet oppakt
@@ -18142,7 +18223,7 @@ sbPatBtn.onclick = () => {
 const sbGodBtn = document.getElementById('sbgod');
 function setGodLabel(){ sbGodBtn.textContent = godMode ? 'Onsterfelijk aan' : 'Onsterfelijk uit'; sbGodBtn.classList.toggle('on', godMode); }
 sbGodBtn.onclick = () => { godMode = !godMode; setGodLabel(); cv.focus(); };
-document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; hppotions.length = 0; hppotionFx.length = 0; level.rocks.length = 0; if (level.gaps) level.gaps.length = 0; if (level.grotten) level.grotten.length = 0; if (level.plafond) level.plafond.length = 0; if (level.terraces) level.terraces.length = 0; if (level.skeletten) level.skeletten.length = 0; if (level.tekens) level.tekens.length = 0; if (level.runes) level.runes.length = 0; ravijnReset(); losseSperen.length = 0; arena = null; thr = null; jav = null; javLost = 0; cv.focus(); };
+document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; hppotions.length = 0; hppotionFx.length = 0; level.rocks.length = 0; if (level.gaps) level.gaps.length = 0; if (level.grotten) level.grotten.length = 0; if (level.plafond) level.plafond.length = 0; if (level.terraces) level.terraces.length = 0; if (level.skeletten) level.skeletten.length = 0; if (level.tekens) level.tekens.length = 0; level.baviaan = null; sbBavInfo(); if (level.runes) level.runes.length = 0; ravijnReset(); losseSperen.length = 0; arena = null; thr = null; jav = null; javLost = 0; cv.focus(); };
 document.getElementById('sbback').onclick = stopSandbox;
 document.getElementById('btnsandbox').onclick = startSandbox;
 document.getElementById('btnstop').onclick = () => { building = false; buildEl.classList.remove('on'); };
