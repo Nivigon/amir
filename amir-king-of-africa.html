@@ -206,6 +206,18 @@
   #vhtekst{max-width:620px;font-size:clamp(17px,2.4vw,22px);line-height:1.6;color:#eee6d6}
   #vhtekst p{margin:0 0 .9em}
   #vhstart{min-width:200px}
+  /* de laatste updates: zelfde zwarte scherm als het verhaal */
+  #updates{position:absolute;inset:0;z-index:20;display:none;flex-direction:column;align-items:center;
+    justify-content:center;gap:18px;background:#000;padding:24px 16px;text-align:center;overflow:auto}
+  #updates.on{display:flex}
+  #updtitel{font-size:15px;letter-spacing:.14em;text-transform:uppercase;color:#a8c98a}
+  #updstand{font-size:14px;color:rgba(242,232,213,.7)}
+  #updlijst{list-style:none;margin:0;padding:0;max-width:620px;text-align:left}
+  #updlijst li{display:flex;gap:12px;align-items:baseline;padding:7px 0;border-bottom:1px solid rgba(242,232,213,.12);color:#eee6d6}
+  #updlijst .naam{flex:1;font-size:16px}
+  #updlijst .wanneer{font-size:12px;color:rgba(242,232,213,.55);white-space:nowrap}
+  #updlijst .erin{font-size:12px;white-space:nowrap;color:#a8c98a}
+  #updlijst .niet{font-size:12px;white-space:nowrap;color:#e0a060}
   #dead strong{font-size:34px;font-weight:800;letter-spacing:-.01em}
   #dead span{font-size:16px;color:rgba(242,232,213,.8)}
   #pause{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;
@@ -284,6 +296,7 @@
       <div class="row">
         <button id="btnbuild">Level maken</button>
         <button id="btnsandbox">Sandbox</button>
+        <button id="btnupdates">Updates</button>
       </div>
       <div class="row" id="tmode">
         <label>Aanraakbesturing</label>
@@ -656,6 +669,7 @@
     <button id="pzmenu">Terug naar hoofdmenu</button>
   </div>
   <div id="verhaal"><div id="vhtitel"></div><div id="vhtekst"></div><button id="vhstart" type="button">Start level</button></div>
+  <div id="updates"><div id="updtitel">Updates</div><div id="updstand"></div><ul id="updlijst"></ul><button id="updsluit" type="button">Terug</button></div>
   <div id="dead"><strong>Je bent dood</strong><span>Druk op R om opnieuw te beginnen</span><button id="dvagain" type="button">Opnieuw</button></div>
   <div id="task"><span class="lbl">Opdracht</span><span class="txt"></span></div>
   <div id="turn">
@@ -701,10 +715,56 @@
 <script src="ravijn/ravijn-effect.js"></script>
 <script>
 // ---- versie: welke update er live staat ----------------------------------
-// Staat heel klein linksboven in beeld, zodat je ziet of een pull request al live is. Elke pull
-// request zet hier een nieuw nummer en een naam van een paar woorden bij, zie CLAUDE.md.
-const VERSIE = { nr: '1.8', naam: 'voorgrond overal' };
-document.getElementById('versie').textContent = 'versie ' + VERSIE.nr + ': ' + VERSIE.naam;
+// Er staat geen versienummer meer in de code: dat was een regel die elke pull request aanpaste,
+// en twee pull requests die tegelijk openstonden botsten daar altijd op. Linksboven staat nu
+// wanneer het bestand dat je speelt is bijgewerkt (document.lastModified, de Last-Modified van
+// de server, dus op GitHub Pages het moment van de laatste uitrol). Onder Updates in het menu
+// staan de laatste pull requests die zijn samengevoegd, van GitHub zelf, met per stuk of het al
+// in jouw versie zit: dat is zo als het bestand later is bijgewerkt dan de pull request erin kwam.
+// Zonder internet blijft alleen de datum over.
+const VERSIE_REPO = (() => {                      // op nivigon.github.io/amir: Nivigon/amir
+  const m = location.hostname.match(/^([^.]+)\.github\.io$/), pad = location.pathname.split('/').filter(Boolean);
+  return m && pad.length ? m[1] + '/' + pad[0] : 'Nivigon/amir';
+})();
+// Wanneer dit bestand is bijgewerkt, of null. Zonder Last-Modified (van schijf geopend) geeft de
+// browser de tijd van nu, en die zegt niets.
+const versieTijd = (() => {
+  const t = Date.parse(document.lastModified);
+  return isFinite(t) && Math.abs(Date.now() - t) > 10000 ? t : null;
+})();
+const versieDatum = t => new Date(t).toLocaleString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+document.getElementById('versie').textContent = versieTijd ? 'versie van ' + versieDatum(versieTijd) : 'versie onbekend';
+async function toonUpdates(){
+  const el = document.getElementById('updates'), lijst = document.getElementById('updlijst');
+  document.getElementById('updstand').textContent = versieTijd
+    ? 'Jouw versie is van ' + versieDatum(versieTijd) : 'Van jouw versie is geen datum bekend';
+  lijst.innerHTML = '<li><span class="naam">Even kijken bij GitHub...</span></li>';
+  el.classList.add('on');
+  try {
+    const r = await fetch('https://api.github.com/repos/' + VERSIE_REPO + '/pulls?state=closed&sort=updated&direction=desc&per_page=30');
+    if (!r.ok) throw new Error(r.status);
+    const prs = (await r.json()).filter(p => p.merged_at)
+      .sort((a, b) => Date.parse(b.merged_at) - Date.parse(a.merged_at)).slice(0, 5);
+    lijst.innerHTML = '';
+    for (const p of prs){
+      const t = Date.parse(p.merged_at), li = document.createElement('li');
+      const erin = versieTijd === null ? null : versieTijd >= t;
+      const naam = document.createElement('span'); naam.className = 'naam';
+      naam.textContent = p.title.replace(/^\d+(\.\d+)*\s*:\s*/, '');   // oude titels begonnen met een nummer
+      const wanneer = document.createElement('span'); wanneer.className = 'wanneer'; wanneer.textContent = versieDatum(t);
+      const stand = document.createElement('span');
+      stand.className = erin === false ? 'niet' : 'erin';
+      stand.textContent = erin === null ? '' : erin ? 'staat erin' : 'nog niet';
+      li.append(naam, wanneer, stand);
+      lijst.appendChild(li);
+    }
+    if (!prs.length) lijst.innerHTML = '<li><span class="naam">Nog geen updates gevonden</span></li>';
+  } catch (e){
+    lijst.innerHTML = '<li><span class="naam">Geen verbinding met GitHub: de lijst komt van internet.</span></li>';
+  }
+}
+document.getElementById('btnupdates').onclick = toonUpdates;
+document.getElementById('updsluit').onclick = () => document.getElementById('updates').classList.remove('on');
 
 // ---- globale lichtlaag --------------------------------------------------
 // Eén belichting over de hele wereld: sprites, decor en achtergrond krijgen
@@ -3264,14 +3324,69 @@ function deurVersterker(){
   return deurGain;
 }
 // de muziek even wegdrukken en daarna weer laten opkomen
-function deurDemp(){
+function deurDemp(lang = SFX_DEUR.duur + SFX_DEUR.uit){
   if (!MUZIEK[muziekNu]) return;
   const vol = MUZIEK[muziekNu].vol;
   clearTimeout(bg.dempT);
   sndRamp(bg, vol * SFX_DEUR.demp, 0.25, false);
-  bg.dempT = setTimeout(() => sndRamp(bg, MUZIEK[muziekNu].vol, SFX_DEUR.terug, false),
-                        (SFX_DEUR.duur + SFX_DEUR.uit) * 1000);
+  bg.dempT = setTimeout(() => sndRamp(bg, MUZIEK[muziekNu].vol, SFX_DEUR.terug, false), lang * 1000);
 }
+// De aardbeving van een ravijn dat openscheurt: hetzelfde gerommel als de rotswand, maar vanaf
+// het eerste trillen (onTremorStart) in plaats van pas op de klap, en tot het ravijn open ligt.
+// Het zwelt aan tot de klap (van begin naar vol), houdt aan tot het gat open is en de stenen
+// liggen, en zakt dan weg in uit. De tijden komen van het effect zelf, want een breder ravijn
+// scheurt langer (fx.tCrack, fx.tOpen).
+const SFX_BEVING = { begin: 0.45, uit: 1.4 };
+function playBeving(fx){
+  if (!wantSound) return;
+  const F = RavijnEffect.PHASES;
+  const klap = F.tremor + fx.tCrack + F.hush, klaar = klap + fx.tOpen + F.settle;
+  const a = deurSnd;
+  clearTimeout(a.cutT); clearInterval(a.fadeT); a.cutT = 0; a.fadeT = 0;
+  try { a.currentTime = 0; } catch (e) {}
+  const g = deurVersterker();
+  if (g){
+    if (deurAc.state === 'suspended') deurAc.resume().catch(() => {});
+    const t = deurAc.currentTime, vol = SFX_DEUR.vol;
+    a.volume = 1;
+    g.gain.cancelScheduledValues(t);
+    g.gain.setValueAtTime(vol * SFX_BEVING.begin, t);
+    g.gain.linearRampToValueAtTime(vol, t + klap);
+    g.gain.setValueAtTime(vol, t + klaar);
+    g.gain.linearRampToValueAtTime(0, t + klaar + SFX_BEVING.uit);
+  } else {
+    a.volume = Math.min(1, SFX_DEUR.vol * SFX_BEVING.begin);
+    a.fadeT = setTimeout(() => sndRamp(a, 1, 0.3, false), klap * 1000);
+  }
+  a.cutT = setTimeout(() => { if (g) { a.pause(); try { a.currentTime = 0; } catch (e) {} } else sndRamp(a, 0, SFX_BEVING.uit, true); },
+                      (klaar + (g ? SFX_BEVING.uit + 0.1 : 0)) * 1000);
+  a.play().catch(() => {});
+  deurDemp(klaar + SFX_BEVING.uit);
+}
+// Een telefoon laat geluid alleen starten vlak na een tik. De versterkers (deur, skelet) worden
+// pas gebruikt als het spel iets doet (een ravijn scheurt open, een skelet stort in), en dan is
+// er geen tik: ze bleven stil. Daarom worden ze bij elke tik of toets aangemaakt en weer op gang
+// gezet, en krijgen de audio-elementen een keer een stil begin, zodat ze daarna mogen spelen.
+let geluidVrij = false;
+function geluidOntgrendel(){
+  if (!wantSound) return;
+  for (const [maak, ac] of [[deurVersterker, () => deurAc], [skeletVersterker, () => skeletAc]]){
+    maak();
+    const c = ac();
+    if (c && c.state === 'suspended') c.resume().catch(() => {});
+  }
+  if (geluidVrij) return;
+  geluidVrij = true;
+  for (const a of [deurSnd, skeletSnd, neeSnd]){
+    if (!a.paused) continue;
+    a.muted = true;
+    const p = a.play();
+    const terug = () => { a.pause(); try { a.currentTime = 0; } catch (e) {} a.muted = false; };
+    if (p && p.then) p.then(terug, () => { a.muted = false; geluidVrij = false; }); else terug();
+  }
+}
+for (const soort of ['pointerdown', 'pointerup', 'touchend', 'keydown'])
+  addEventListener(soort, geluidOntgrendel, { passive: true });
 function playDeur(){
   if (!wantSound) return;
   const a = deurSnd;
@@ -17604,7 +17719,7 @@ function ravijnOpen(wx, breed = RAVIJN_MAAT.breed){
     stoneSpots: RAVIJN_STENEN.map(p => ({ x: wx + p.dx * spreid / sch, y: zandTop + p.v * band / sch })),
     onEvent: n => {
       console.log('ravijn:', n);
-      if (n === 'onBreak') playDeur();              // voorlopig het geluid van de rotswand, op de klap
+      if (n === 'onTremorStart') playBeving(fx);    // de aardbeving, vanaf het eerste trillen tot hij open is
     }
   });
   fx.lvl = level;
