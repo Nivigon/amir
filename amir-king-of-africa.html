@@ -269,7 +269,7 @@
 </style>
 </head>
 <body>
-<audio id="bg" src="music/bg.mp3" loop preload="auto"></audio>
+<audio id="bg" src="music/darkafrica.mp3" preload="auto"></audio>
 <audio id="voice1" src="music/iamtheking.mp3" preload="auto"></audio>
 <audio id="voice2" src="music/iamamir.mp3" preload="auto"></audio>
 <audio id="voice3" src="music/iamamirfatherson.mp3" preload="auto"></audio>
@@ -615,7 +615,8 @@
       </div>
       <div class="row">
         <label>Muziek</label>
-        <button data-muziek="bg" class="on">Thema</button>
+        <button data-muziek="standaard" class="on">Standaard</button>
+        <button data-muziek="bg">Thema</button>
         <button data-muziek="darkafrica">Nacht</button>
         <button id="sbraak">Kreet bij een klap</button>
       </div>
@@ -3325,11 +3326,11 @@ function deurVersterker(){
 }
 // de muziek even wegdrukken en daarna weer laten opkomen
 function deurDemp(lang = SFX_DEUR.duur + SFX_DEUR.uit){
-  if (!MUZIEK[muziekNu]) return;
-  const vol = MUZIEK[muziekNu].vol;
+  if (!MUZIEK[muziekSpeelt]) return;
+  const vol = MUZIEK[muziekSpeelt].vol;
   clearTimeout(bg.dempT);
   sndRamp(bg, vol * SFX_DEUR.demp, 0.25, false);
-  bg.dempT = setTimeout(() => sndRamp(bg, MUZIEK[muziekNu].vol, SFX_DEUR.terug, false), lang * 1000);
+  bg.dempT = setTimeout(() => sndRamp(bg, MUZIEK[muziekSpeelt].vol, SFX_DEUR.terug, false), lang * 1000);
 }
 // De aardbeving van een ravijn dat openscheurt: hetzelfde gerommel als de rotswand, maar vanaf
 // het eerste trillen (onTremorStart) in plaats van pas op de klap, en tot het ravijn open ligt.
@@ -3420,7 +3421,7 @@ function stopDeur(){
   try { a.currentTime = 0; } catch (e) {}
   if (bg.dempT){
     clearTimeout(bg.dempT); bg.dempT = 0; clearInterval(bg.fadeT);
-    bg.volume = MUZIEK[muziekNu].vol;
+    bg.volume = MUZIEK[muziekSpeelt].vol;
   }
 }
 
@@ -14905,38 +14906,58 @@ const bg = document.getElementById('bg'), soundBtn = document.getElementById('so
 let wantSound = true, started = false;
 const pzSoundBtn = document.getElementById('pzsound');
 // ---- muziek per level ----------------------------------------------------
-// Onder alles door loopt bg.mp3. Een level mag met muziek: 'darkafrica' een eigen
-// deuntje vragen; in het menu, de bouwer en de sandbox klinkt altijd weer het
-// gewone thema. Wil je er een nummer bij, zet het dan hier neer: de sleutel is
-// wat een level in zijn veld muziek schrijft.
+// Een level zonder veld muziek, het menu en de bouwer krijgen de standaard
+// (STANDAARD): meestal darkafrica, en heel af en toe nog het oude thema bg.mp3.
+// Dat wordt per nummer geloot: loopt het nummer af, dan komt er een nieuw lot, en
+// het oude thema nooit twee keer achter elkaar. Een level mag met muziek:
+// 'darkafrica' of 'bg' vast een nummer vragen; dat loopt dan in een lus. Wil je er
+// een nummer bij, zet het dan hier neer: de sleutel is wat een level in zijn veld
+// muziek schrijft.
 const MUZIEK = {
   bg:         { src: 'music/bg.mp3',         vol: 0.28 },
   darkafrica: { src: 'music/darkafrica.mp3', vol: 0.30 }
 };
-let muziekNu = 'bg';
-let sbMuziek = 'bg';                    // in de sandbox kies je zelf, met de knoppen onder Muziek
+const STANDAARD = { vaak: 'darkafrica', soms: 'bg', kans: 0.15 };
+let muziekNu = 'standaard';            // wat er hoort te klinken: 'standaard' of een sleutel uit MUZIEK
+let muziekSpeelt = 'darkafrica';       // welk nummer er werkelijk loopt (de audio begint op darkafrica)
+let sbMuziek = 'standaard';            // in de sandbox kies je zelf, met de knoppen onder Muziek
 function muziekSleutel(){
-  const k = sandbox ? sbMuziek : ((running && !building && level && level.muziek) || 'bg');
-  return (MUZIEK[k] && !MUZIEK[k].weg) ? k : 'bg';
+  const k = sandbox ? sbMuziek : ((running && !building && level && level.muziek) || 'standaard');
+  if (k === 'standaard') return k;
+  return (MUZIEK[k] && !MUZIEK[k].weg) ? k : 'standaard';
 }
-// Wisselen alleen als er echt een ander nummer hoort te klinken: dezelfde src
+function muziekLot(){
+  const vaak = MUZIEK[STANDAARD.vaak].weg ? STANDAARD.soms : STANDAARD.vaak;
+  if (vaak === STANDAARD.soms || muziekSpeelt === STANDAARD.soms || MUZIEK[STANDAARD.soms].weg) return vaak;
+  return Math.random() < STANDAARD.kans ? STANDAARD.soms : vaak;
+}
+function muziekStart(n){
+  muziekSpeelt = n;
+  bg.pause();
+  bg.loop = muziekNu !== 'standaard';
+  bg.src = MUZIEK[n].src; bg.volume = MUZIEK[n].vol;
+  try { bg.currentTime = 0; } catch (e) {}
+  if (wantSound && started) bg.play().catch(() => { started = false; });
+}
+// Wisselen alleen als er echt iets anders hoort te klinken: dezelfde src
 // opnieuw zetten gooit het deuntje bij elke levelwissel terug naar het begin.
 function zetMuziek(){
   const k = muziekSleutel();
   if (k === muziekNu) return;
   muziekNu = k;
-  bg.pause();
-  bg.src = MUZIEK[k].src; bg.volume = MUZIEK[k].vol;
-  try { bg.currentTime = 0; } catch (e) {}
-  if (wantSound && started) bg.play().catch(() => { started = false; });
+  muziekStart(k === 'standaard' ? muziekLot() : k);
 }
+// de standaard loopt niet in een lus: aan het eind van een nummer komt het volgende lot
+bg.addEventListener('ended', () => {
+  if (muziekNu === 'standaard') muziekStart(muziekLot());
+});
 function setLabel(){
   const t = wantSound ? 'Muziek uit' : 'Muziek aan';
   soundBtn.textContent = t; pzSoundBtn.textContent = t;
 }
 function tryPlay(){
   if (!wantSound || started) return;
-  bg.volume = MUZIEK[muziekNu].vol;
+  bg.volume = MUZIEK[muziekSpeelt].vol;
   bg.play().then(() => { started = true; }).catch(() => {});
   startKing();
 }
@@ -14948,18 +14969,23 @@ function toggleSound(){
 }
 soundBtn.onclick = toggleSound;
 pzSoundBtn.onclick = toggleSound;
+bg.addEventListener('playing', () => { MUZIEK[muziekSpeelt].fout = false; });
 bg.addEventListener('error', () => {
-  // Mist alleen het deuntje van dit level, dan valt het spel terug op het thema
-  // en blijft de knop gewoon werken. Pas als bg.mp3 zelf ontbreekt is er niets.
-  if (muziekNu !== 'bg'){
-    console.warn('ontbreekt: ' + MUZIEK[muziekNu].src);
-    MUZIEK[muziekNu].weg = true; muziekNu = 'bg';
-    bg.src = MUZIEK.bg.src; bg.volume = MUZIEK.bg.vol;
-    if (wantSound && started) bg.play().catch(() => { started = false; });
+  // Mist dit nummer, dan valt het spel terug op het andere en blijft de knop gewoon
+  // werken. Onder de standaard is dat voor een nummer: het volgende lot probeert het
+  // gewoon weer, want bij het allereerste bezoek neemt de service worker het laden
+  // halverwege over en breekt een nummer soms af. Vraagt een level zelf om een
+  // nummer dat ontbreekt, dan valt het voorgoed terug op het thema.
+  const n = muziekSpeelt, ander = n === 'bg' ? 'darkafrica' : 'bg';
+  console.warn('ontbreekt: ' + MUZIEK[n].src);
+  MUZIEK[n].fout = true;
+  if (muziekNu !== 'standaard' && n !== 'bg'){ MUZIEK[n].weg = true; muziekNu = 'bg'; }
+  if ((muziekNu === 'standaard' || ander === 'bg') && !MUZIEK[ander].fout && !MUZIEK[ander].weg){
+    muziekStart(ander);
     return;
   }
   soundBtn.disabled = true; pzSoundBtn.disabled = true;
-  soundBtn.textContent = 'music/bg.mp3 ontbreekt'; pzSoundBtn.textContent = 'Muziek niet beschikbaar';
+  soundBtn.textContent = 'muziek ontbreekt'; pzSoundBtn.textContent = 'Muziek niet beschikbaar';
 });
 document.getElementById('thrust').addEventListener('error', () => console.warn('music/spearthrust.mp3 ontbreekt'));
 
@@ -15099,7 +15125,7 @@ function toMenu(){
   buildEl.classList.remove('on');
   deadEl.classList.remove('on');
   restart();                                      // vijanden en gif weg, Amir terug op start
-  zetMuziek();                                    // in het menu weer het gewone thema
+  zetMuziek();                                    // in het menu weer de standaard
   barEl.classList.add('hide');
   startEl.classList.remove('off');
   showMenu(levelList === TEST_LEVELS ? 'menuTest' : levelList === VORST_LEVELS ? 'menuVorst' : 'menuRune');
@@ -15704,7 +15730,7 @@ function startBuild(terug){
   buildEl.classList.add('on');
   building = true; running = true;
   ravijnReset();                                   // open ravijnen dicht, en wat opzij schoof weer op zijn plek
-  zetMuziek();                                     // in de bouwer het gewone thema
+  zetMuziek();                                     // in de bouwer de standaard
   ensureLevel();
   if (!level.rocks.length){
     try {
@@ -15957,8 +15983,8 @@ function startSandbox(){
   savedLevel = level;                                   // je eigen level even parkeren
   level = { rocks: [], spawns: [], props: [], gaps: [], grotten: [], plafond: [] };
   sandbox = true; building = false; running = true;
+  sbMuziek = 'standaard'; sbMuziekToon();
   zetMuziek();
-  sbMuziek = 'bg'; sbMuziekToon();
   sbSneeuw = { soort: null, dek: 1 }; sbSneeuwToon();   // kale grond, zoals de rest van de sandbox
   sbVoorgrond = 0; sbVoorgrondScherp = false; sbVoorgrondToon();
   sbZwVrij = false; sbZwLabel();                        // de zwaardvechter doet weer zijn eigen werk
@@ -15969,7 +15995,7 @@ function startSandbox(){
 function stopSandbox(){
   sandbox = false; godMode = false; setGodLabel();
   sbPatrouille = false; sbPatBtn.classList.remove('on');
-  sbMuziek = 'bg';
+  sbMuziek = 'standaard';
   sbVal = false; setValLabel();
   document.getElementById('lives').style.display = '';
   sandboxEl.classList.remove('on');

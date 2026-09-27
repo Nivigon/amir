@@ -61,7 +61,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | --- | --- |
 | versie: welke update er live staat | `versieTijd` (uit `document.lastModified`) heel klein linksboven, en `toonUpdates`: de laatste vijf samengevoegde pull requests van GitHub (`VERSIE_REPO`), met of ze erin zitten (regel 8) |
 | globale lichtlaag | kleurwaas over het beeld, volgt de zon van het level; een level stelt hem bij met `licht` in `SCENES` |
-| muziek per level | `MUZIEK`, `zetMuziek()`: welk deuntje onder welk level loopt |
+| muziek per level | `MUZIEK`, `STANDAARD`, `zetMuziek()`, `muziekLot()`: welk deuntje onder welk level loopt; zonder veld `muziek` de standaard, meestal darkafrica en af en toe bg |
 | beeld: de grote of de kleine spriteset | `KLEIN_FAM`, de keuze groot of klein, `zetBron` |
 | hppotion | de drinkkalebas |
 | bukken, jump frames, tempo | Amir zijn bewegingen |
