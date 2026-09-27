@@ -87,6 +87,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | schorpioen, het projectiel, spannen en werpen, de geworpen speer | de speerworp; `speerNaastAmir` zet een speer waar Amir niet meer bij komt (achter of in een doornbos, boven op een terras dat hij van deze kant niet meer op komt) naast hem, nooit over een ravijn; `speerBereikbaar` rekent dat uit over de vloeren om hem heen |
 | personages, dorpsdecor | NPC's, `VILLAGE`, de dorpsplaten |
 | Amir zegt er iets van als hij geraakt wordt | `SFX_RAAK`, `playRaak()`: de twee kreten |
+| Amir zegt iets als een vijand sterft | `SFX_RUST`, `vijandDood(baas)`: "ta soul, rest" na elke verslagen eindbaas en na een op de `DOOD_KANS` (7) andere vijanden; elke plek waar een vijand sterft roept `vijandDood` aan |
 | stap voor stap leren spelen | het `tutorial`-systeem (staat klaar, geen level gebruikt het nu) |
 | gaten in de grond | `gaps`, de overkant, de nevel en de diepte; de laag die eronder doorloopt is `grondDoorlopen`, in de bodemsectie |
 | stof, sneeuwval, het weer | deeltjes en het weerplan per potje |
