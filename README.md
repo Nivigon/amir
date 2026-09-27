@@ -35,9 +35,9 @@ In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen 
 
 ## Tribes
 
-Elke run begint met het kiezen van een tribe: druk je in het menu op Spelen (of Nightmare), dan komt eerst het keuzescherm. Kiezen is verplicht en ligt vast voor de hele run. Nu is alleen **Mkuki, Tribe of the Spear** te kiezen; **Bhubesi, Tribe of the Lion** en **Impungushe, Tribe of the Jackal** staan er al, grijs en op slot (Coming soon). Met de pijltjes en Enter kies je met het toetsenbord, op een telefoon tik je.
+Een run van De Jagers begint met het kiezen van een tribe: druk je in het menu op Spelen (of Nightmare), dan komt eerst het keuzescherm. De Test levels hebben geen tribekeuze; daar heb je alle abilities, zodat je alles kunt proberen. Kiezen is verplicht en ligt vast voor de hele run. Nu is alleen **Mkuki, Tribe of the Spear** te kiezen; **Bhubesi, Tribe of the Lion** en **Impungushe, Tribe of the Jackal** staan er al, grijs en op slot (Coming soon). Met de pijltjes en Enter kies je met het toetsenbord, op een telefoon tik je.
 
-Je begint zonder ability. Na het eerste uitgespeelde level krijg je de eerste van je tribe, na het tweede de tweede en na het derde de derde, elk met een eigen scherm. Tot dan doet een ability die je nog niet hebt niets. Ze staan als klein rijtje rechtsboven, onder de kalebas. Game over en opnieuw beginnen is een nieuwe run: dan kies je opnieuw en begin je weer zonder abilities.
+Je begint zonder ability. Na het eerste uitgespeelde level krijg je de eerste van je tribe, na het tweede de tweede en na het derde de derde, elk met een eigen scherm. Tot dan doet een ability die je nog niet hebt niets. Ze staan als klein rijtje rechtsboven, onder de kalebas. Ga je dood, dan begin je het level opnieuw met je tribe en de abilities die je al had. Pas als je in het menu opnieuw op Spelen drukt, begint een nieuwe run en kies je opnieuw.
 
 | ability | wat hij doet |
 |---|---|
@@ -264,6 +264,8 @@ Klimrotsen, terrassen en richels blijven waar ze staan, want daar loop je op. Al
 zonder botsing schuift mee.
 
 ## De zwaardvechter
+
+Een kei houdt hem tegen met zijn voorste voet, niet met het punt waar hij op staat: hij komt niet met een been op de kei, en vanaf de voet haalt zijn zwaard je bovenop de kei niet. Een kei is dus ook voor hem een schuilplek.
 
 De eerste menselijke tegenstander: een man met een zwaard, in drie kleuren (rood, blauw en
 groen) die verder exact hetzelfde personage zijn. De frames staan in
