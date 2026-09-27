@@ -5278,7 +5278,12 @@ const BAV_VAL = { map: 'enemies/baviaan/val/val_', n: 8, fps: 12, vx: 2.5, grond
 // waar de val ophield; alle beweging zit in de frames. In landing_04 tot 06 zakken zijn handen tot
 // 10 bronpixels onder de grondlijn: de klap, hij drukt zich in de grond. Zo bedoeld.
 const BAV_LANDING = { map: 'enemies/baviaan/landing/landing_', n: 25, fps: 12 };
-let baviaanImg = null, bavAfzetImgs = null, bavValImgs = null, bavLandingImgs = null;
+// De brul: 24 frames, direct na de landing, een keer op 12 per seconde, daarna het laatste. brul_00 is
+// dezelfde pose als het laatste landingsframe. Het canvas is 542 bij 592, breder dan de 493 van de
+// rest: het begint `links` (44) bronpixels links van het landingscanvas, met de bovenkant en de
+// grondlijn (rij 575) gelijk. Op dezelfde schaal en op dezelfde plek, dus er verspringt niets.
+const BAV_BRUL = { map: 'enemies/baviaan/brul/brul_', n: 24, fps: 12, links: 44 };
+let baviaanImg = null, bavAfzetImgs = null, bavValImgs = null, bavLandingImgs = null, bavBrulImgs = null;
 function bavReeks(map, n){
   const r = [];
   for (let i = 0; i < n; i++){
@@ -5297,8 +5302,10 @@ function baviaanLaad(){
   bavAfzetImgs = bavReeks(BAV_AFZET.map, BAV_AFZET.n);
   bavValImgs = bavReeks(BAV_VAL.map, BAV_VAL.n);
   bavLandingImgs = bavReeks(BAV_LANDING.map, BAV_LANDING.n);
+  bavBrulImgs = bavReeks(BAV_BRUL.map, BAV_BRUL.n);
 }
-// wat er nu staat: het frame, en hoe ver het canvas is verschoven (dx vooruit, dy omlaag, in Amir).
+// wat er nu staat: het frame, en hoe ver het canvas is verschoven (dx vooruit, dy omlaag, in Amir;
+// ox in bronpixels naar links, voor een canvas dat breder is dan dat van de afzet, zoals de brul).
 // Zonder afzet (b.afzet leeg) het losse plaatje: img null. De val loopt door tot de grondlijn van het
 // canvas de grond raakt op de plek waar hij neerkomt, niet waar hij afzette: ligt daar een terras,
 // dan komt hij er bovenop, ligt de grond lager, dan valt hij langer. Die plek hangt van de valtijd af
@@ -5321,8 +5328,10 @@ function bavStand(b, scale){
   const tGrond = bavLandPlek(b, scale, lijn, g), tv = Math.min(tVal, tGrond);
   const dx = BAV_VAL.vx * tv, dy = g * tv * tv / 2;
   if (tVal < tGrond) return { img: bavValImgs[Math.floor(tv * BAV_VAL.fps) % BAV_VAL.n], dx, dy };
-  const li = Math.min(BAV_LANDING.n - 1, Math.floor((tVal - tGrond) * BAV_LANDING.fps));
-  return { img: bavLandingImgs[li], dx, dy };                 // het canvas staat stil, de frames bewegen
+  const tLand = tVal - tGrond, tBrul = tLand - BAV_LANDING.n / BAV_LANDING.fps;
+  if (tBrul < 0) return { img: bavLandingImgs[Math.floor(tLand * BAV_LANDING.fps)], dx, dy };   // het canvas staat stil, de frames bewegen
+  const bi = Math.min(BAV_BRUL.n - 1, Math.floor(tBrul * BAV_BRUL.fps));
+  return { img: bavBrulImgs[bi], dx, dy, ox: BAV_BRUL.links };
 }
 function baviaanTeken(groundY, scale, cx){
   const b = level && level.baviaan;
@@ -5338,13 +5347,14 @@ function baviaanTeken(groundY, scale, cx){
   ctx.save();
   ctx.translate(sx, voet); ctx.scale(b.f ? -1 : 1, 1);      // het plaatje kijkt naar links
   if (fr){
-    const k = h / BAV_AFZET.kader.h;                         // een schaal voor alle frames: afzet, val en landing
-    ctx.drawImage(fr, -w / 2 - BAV_AFZET.kader.l * k, -h - BAV_AFZET.kader.t * k,
+    const k = h / BAV_AFZET.kader.h;                         // een schaal voor alle frames: afzet, val, landing en brul
+    // ox schuift een breder canvas naar links; gespiegeld (b.f) wordt dat vanzelf rechts
+    ctx.drawImage(fr, -w / 2 - (BAV_AFZET.kader.l + (st.ox || 0)) * k, -h - BAV_AFZET.kader.t * k,
       fr.naturalWidth * k, fr.naturalHeight * k);
   } else ctx.drawImage(baviaanImg, -w / 2, -h, w, h);
   ctx.restore();
 }
-// J in de sandbox: de afzet starten (met de val en de landing erachteraan), en nog een keer terug naar het losse plaatje
+// J in de sandbox: de afzet starten (met de val, de landing en de brul erachteraan), en nog een keer terug naar het losse plaatje
 function bavAfzetWissel(){
   if (!level.baviaan) sbBaviaan();
   const b = level.baviaan;
