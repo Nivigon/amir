@@ -38,6 +38,8 @@ als daarom gevraagd wordt.
 zwaardvechter en ook de panters worden tegengehouden door een kei om op te springen en
 door de rand van een ravijn: niet lopend, niet met een sprong of een duik, en ze duiken
 ook niet aan de overkant op. Zo is een kei of een ravijn voor de speler een schuilplek.
+Een schuilplek, geen veilige plek: een slang of schorpioen naast de kei mag Amir bovenop die
+kei nog bijten of steken, want hun beet reikt tot de hoogte van een kei. Dat is zo bedoeld.
 Een uitzondering mag alleen als de opdracht er expliciet om vraagt, of in een gevecht met
 een eindbaas als je daar zelf voor kiest omdat het dat gevecht beter maakt; zeg dan
 achteraf dat en waarom. Voor de panter is dat het veld `over: true` in zijn spawn
@@ -1021,7 +1023,28 @@ vastloopt en wat er in de console staat.
 node tools/speelrobot.js "Test 4"               een level uit de HTML, op naam
 node tools/speelrobot.js level.json --taai      een level uit de bouwer; --taai: levens komen terug
 node tools/speelrobot.js "Test 4" --shots map   elke anderhalve seconde een schermafdruk
+node tools/speelrobot.js level.json --vredig --wacht -1490:12
+                                                op -1490 twaalf seconden blijven staan, zonder te steken
 ```
+
+Regel 7 kijkt hij altijd na: per vijand onthoudt hij aan welke kant van elke kei en elk ravijn
+die stond, en komt hij aan de andere kant terecht, dan staat er `REGEL 7` in de uitvoer. Met
+`--wacht` laat je Amir op een kei of voor een ravijn staan tot de vijanden er zijn, met
+`--vredig` steekt hij niet terug. Bij elk verloren leven staat erbij welke vijand het dichtst
+bij was en wat die deed. Met `--hoe` staat bij elke overtreding waar de vijand de seconde
+ervoor liep en wat hij deed.
+
+Zo zijn twee gaten in regel 7 gevonden, allebei op telefoonformaat (852 bij 393), waar het spel
+trager loopt en vijanden verder achter Amir raken:
+
+- de keien telden voor de vijanden alleen binnen 2600 px van Amir (`platsNear`). Een vijand die
+  verder achter hem zat, liep er dwars doorheen. De vijanden krijgen nu alle keien van het level;
+- een hyena die buiten beeld op zijn beurt wacht, schoof mee met Amir en kon zo aan de overkant
+  van een ravijn opduiken. Hij schuift nu niet meer over een ravijn of kei (`panBaan`).
+
+Daarna: in tien levels op telefoonformaat geen enkele overtreding meer, en in proefstukken met
+een kei en een ravijn kwam geen slang, zwarte slang, fosforslang, schorpioen, zwaardvechter,
+hyena of panter erover.
 
 Hij heeft Node en Playwright nodig (`npm i -g playwright`), en start zelf een webserver. Hij is
 geen speler: een eindbaas verslaat hij niet, en een sprong die precies getimed moet worden mist
