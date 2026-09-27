@@ -71,7 +71,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | Episode De Runen | `RUNE_1` tot en met `RUNE_10`: tien levels met zegels, runes en een poort in de rots, met een verhaal en een slot. In Rune 4 en Rune 8 loopt het boven dood en staan de fakkels in een gang die je zelf openmaakt (zegel of rune op de rots, `RAVIJN_PROEF`) |
 | Episode De Vorst | `VORST_1` tot en met `VORST_7`: zeven levels, eerst sneeuw op de savanne (het veld `sneeuw`), dan `winter: true`, met de witte panter als eindbaas, een verhaal en een slot. Vorst 2 en 5 hebben een groep die stil in een kuil wacht die een rune openscheurt; Vorst 4 heeft het zegel voor de ingang van de gang voorbij die ingang. De raakafstanden per scherm staan bij `VORST_2` |
 | het verhaal bij een episode | `VERHAAL` en `SLOT`, `verhaalToon()`: tekst op een zwart scherm voor elk level en na het laatste, alleen als je bij het eerste level begint. Op de naam van het level, dus een nieuwe episode hoeft alleen tekst toe te voegen en `verhaalAan` te zetten in zijn speelknop |
-| Episode Test levels | `TEST_1` tot en met `TEST_11`: korte proefstukken, los van de echte episodes |
+| Episode Test levels | `TEST_1` tot en met `TEST_12`: korte proefstukken, los van de echte episodes |
 | lichtkaart: het licht onder de grond | `LK`, `drawLichtkaart`: een lichtbron (de hemel en de zon) voor alles onder de grond en onder rots boven je, per level een keer uitgerekend |
 | terrassen en richels | `terraces`, `ledges`, klimmen |
 | de rotswand rechts | `cliffs`, het einde van het level |
@@ -140,7 +140,7 @@ precies hetzelfde formaat naar JSON.
 | `skeletten` | een zittend skelet met een speer erin: `{x, f}`, `x` is het midden van het skelet, `f` spiegelt; E bij de schacht trekt hem eruit (zie hieronder) |
 | `tekens` | speertekens: `{x, v, f}`, `v` is `teken`, `gebroken`, `gekruist` of `jagers`, `f` spiegelt; puur decor |
 | `zegels` | zegels plat in de grond: `{x, ravijn, sluit, breed, muur}`; erop stappen zet hem aan of uit, en met `ravijn` scheurt de grond daar open als hij aangaat, `breed` breed (standaard 277). Met `sluit` gaat het open ravijn op die x juist weer dicht (staat er niets open, dan blijft hij donker). Met `muur: true` opent hij de rotswand van het level (`zegelMuur`); de rune op de wand werkt daarnaast gewoon |
-| `runes` | ravijnen met een rune op een rots ervoor: `{x, breed}`, `x` het midden van het ravijn; de rots komt vanzelf aan de kant waar Amir aankomt. Oudere levels hebben ze nog op naam in `RAVIJN_PROEF` (Rune 8); staat het veld er, dan telt het veld |
+| `runes` | ravijnen met een rune op een rots ervoor: `{x, breed, rots, groot, hoog, doel}`, `x` het midden van het ravijn; de rots komt vanzelf aan de kant waar Amir aankomt. `rots` is de plaat uit `RUNE_ROTSEN` (standaard de spits), `groot` de hoogte van de rots en `hoog` die van de schijf, allebei in Amir (standaard 3,5 en 0,76). Met `doel: true` opent hij niets maar gloeit hij op en blijft hij aan, en is `x` de linkervoet van de rots (zie "runes op elke rots"). Oudere levels hebben ze nog op naam in `RAVIJN_PROEF` (Rune 8); staat het veld er, dan telt het veld |
 | `fg` | strook waarover de voorgrondbegroeiing ligt: `{from, to}` |
 | `voorgrond` | de onscherpe laag vlak voor de camera: `{stroken: [{van, tot, dicht, struik, kei}], los: [{x, k, s, f}]}`, `k` uit `VG_SOORT`; los van `fg`. Zonder dit veld krijgt het level de standaard, met `false` heeft het er geen (zie hieronder) |
 | `arena` | het veld van de eindbaas: `{c}` |
@@ -545,6 +545,34 @@ skelet niet. `geluidOntgrendel` maakt ze bij elke tik of toets aan en zet ze op 
 audio-elementen een keer een stil begin. Maak je een nieuw geluid met een eigen versterker of een
 eigen audio-element dat het spel zelf start, zet het daar dan bij. Headless Chromium past die regel
 niet toe, dus in de speelrobot is dit niet na te spelen: controleer het op een echte telefoon.
+
+### Runes op elke rots, op elke hoogte
+
+Een rune hoeft niet op de scheve spits op 190 te zitten: `rots`, `groot` en `hoog` zetten hem op een
+andere plaat (`RUNE_ROTSEN`, alle met een witte achtergrond door `witKnip`, per plaat geladen in
+`runeBeeld`), op een andere maat en op een andere hoogte. De schijf komt op de flank aan Amirs kant
+(`ravijnRune` zoekt op die hoogte de rand van het steen in de alfa), en nooit hoger dan zijn eigen
+rots min twee stralen (`runeHoog`). Een rune zonder die velden is precies wat hij was.
+
+Hoe hoog is goed? Amir haalt springend 1,83; alles daarboven moet je raken met een worp. Hoe hoger,
+hoe verder je moet staan, en de camera staat op Amir: op 1280 bij 720 zie je 640 px voor je uit, en
+vanaf ongeveer 2,1 Amir begint de strook waar je hem raakt pas buiten beeld. Dat rekent `runeStroken`
+uit, met dezelfde stappen als de speer in het spel en met de worpen van het level (de twee trappen,
+of met `worp: 'schaal'` elke hoek tot 30 graden). Het venster in de bouwer laat de strook zien en
+waarschuwt als hij leeg is of buiten beeld begint.
+
+Een speer die in een rots vertrekt (Amir loopt door de rotsen heen) blijft pas in het steen steken
+als hij er eerst uit is geweest (`jav.rotsUit`), net als bij de grot met de kei.
+
+Met `doel: true` is een rune een doel: raken zet hem aan (`runeGeraakt`), met een felle gloed die in
+`RAVIJN_RUNE.flits` wegzakt (`runeFlits`), en hij blijft aan tot je opnieuw begint. De speer die
+erin zit blijft daar als je een andere pakt (`runeSperen`, in `eigenSpeerNeer`), in plaats van als
+losse speer op de grond eronder te vallen. Test 12 is het proefstuk: vijf rotsen, en na elke rots een
+skelet voor een nieuwe speer.
+
+De maten van een rots hangen aan Amir en dus aan het scherm, en een level niet: op 1920 bij 1080
+is een rots van 5 Amir ruim 2000 px breed. Laat tussen de rotsen genoeg ruimte voor het grootste
+scherm, anders sta je om te gooien in de vorige rots.
 
 ### Het skelet met de speer
 
