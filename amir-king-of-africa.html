@@ -5424,7 +5424,9 @@ function tekenTeken(groundY, scale, cx){
 // kleiner te maken (Vijanden, Baviaan), om te zien hoe hij naast Amir uitkomt. Nog geen gedrag.
 // Het plaatje komt uit tools/baviaan_knip.py. level.baviaan = {x, y, s, f}: x in wereld-px (het
 // midden van zijn voeten), y hoe ver hij boven de grond hangt en s hoe hoog hij is, allebei in Amir.
-const BAVIAAN = { src: 'enemies/baviaan/baviaan.png', s: 1.4, schaduw: 0.9 };
+// hang: hoe hoog hij na Neerzetten aan de wand hangt, minHang: lager kan hij in de sandbox niet, zodat
+// er na de afzet altijd een echte val komt en hij goed op de grond landt (allebei in Amir)
+const BAVIAAN = { src: 'enemies/baviaan/baviaan.png', s: 1.4, schaduw: 0.9, hang: 1.5, minHang: 0.8 };
 // De afzet: hij laat de rotswand los en springt naar beneden. 44 frames op een gedeeld canvas van
 // 493 bij 592, een keer afgespeeld op 12 per seconde, daarna volgt de val (BAV_VAL). Frame 0 is
 // dezelfde hangpose als het losse plaatje; `kader` is waar de baviaan daarin zit (gemeten op de
@@ -5434,10 +5436,19 @@ const BAV_AFZET = { map: 'enemies/baviaan/afzet/afzet_', n: 44, fps: 12, kader: 
 // De val: 8 frames op hetzelfde canvas en dezelfde schaal, als lus op 12 per seconde, direct na de
 // afzet. De duikpose beweegt nauwelijks; de val zelf is het hele canvas langs een boog: vooruit met
 // `vx` (Amir per seconde, de kant waar hij op kijkt) en omlaag met dezelfde zwaartekracht als Amir.
-// Zijn handen zijn het laagste punt, op `hand` (de onderkant van bronrij 535); raken die de grond,
-// dan staat hij stil op het frame van dat moment, tot de landing er is.
-const BAV_VAL = { map: 'enemies/baviaan/val/val_', n: 8, fps: 12, vx: 2.5, hand: 536 };
-let baviaanImg = null, bavAfzetImgs = null, bavValImgs = null;
+// De val stopt als de grondlijn van het canvas (`grond`, de onderkant van bronrij 575) de grond
+// raakt; zijn handen (rij 535) hangen dan nog 40 bronpixels hoger, en die zakken in de landing zelf.
+const BAV_VAL = { map: 'enemies/baviaan/val/val_', n: 8, fps: 12, vx: 2.5, grond: 576 };
+// De landing: 25 frames, een keer op 12 per seconde, daarna het laatste. Het canvas blijft staan
+// waar de val ophield; alle beweging zit in de frames. In landing_04 tot 06 zakken zijn handen tot
+// 10 bronpixels onder de grondlijn: de klap, hij drukt zich in de grond. Zo bedoeld.
+const BAV_LANDING = { map: 'enemies/baviaan/landing/landing_', n: 25, fps: 12 };
+// De brul: 24 frames, direct na de landing, een keer op 12 per seconde, daarna het laatste. brul_00 is
+// dezelfde pose als het laatste landingsframe. Het canvas is 542 bij 592, breder dan de 493 van de
+// rest: het begint `links` (44) bronpixels links van het landingscanvas, met de bovenkant en de
+// grondlijn (rij 575) gelijk. Op dezelfde schaal en op dezelfde plek, dus er verspringt niets.
+const BAV_BRUL = { map: 'enemies/baviaan/brul/brul_', n: 24, fps: 12, links: 44 };
+let baviaanImg = null, bavAfzetImgs = null, bavValImgs = null, bavLandingImgs = null, bavBrulImgs = null;
 function bavReeks(map, n){
   const r = [];
   for (let i = 0; i < n; i++){
@@ -5455,37 +5466,60 @@ function baviaanLaad(){
   baviaanImg.src = BAVIAAN.src;
   bavAfzetImgs = bavReeks(BAV_AFZET.map, BAV_AFZET.n);
   bavValImgs = bavReeks(BAV_VAL.map, BAV_VAL.n);
+  bavLandingImgs = bavReeks(BAV_LANDING.map, BAV_LANDING.n);
+  bavBrulImgs = bavReeks(BAV_BRUL.map, BAV_BRUL.n);
 }
-// wat er nu staat: het frame, en hoe ver het canvas is verschoven (dx vooruit, dy omlaag, in Amir).
-// Zonder afzet (b.afzet leeg) het losse plaatje: img null.
-function bavStand(b){
+// wat er nu staat: het frame, en hoe ver het canvas is verschoven (dx vooruit, dy omlaag, in Amir;
+// ox in bronpixels naar links, voor een canvas dat breder is dan dat van de afzet, zoals de brul).
+// Zonder afzet (b.afzet leeg) het losse plaatje: img null. De val loopt door tot de grondlijn van het
+// canvas de grond raakt op de plek waar hij neerkomt, niet waar hij afzette: ligt daar een terras,
+// dan komt hij er bovenop, ligt de grond lager, dan valt hij langer. Die plek hangt van de valtijd af
+// en andersom, dus een paar keer over elkaar heen gerekend (op een helling is dat na drie keer vast).
+function bavLandPlek(b, scale, lijn, g){
+  const dir = b.f ? 1 : -1, h0 = terrainH(b.x);
+  let rel = 0, tG = 0;
+  for (let i = 0; i < 4; i++){
+    tG = Math.sqrt(2 * Math.max(0, lijn - rel) / g);
+    rel = (terrainH(b.x + dir * BAV_VAL.vx * tG * CHAR_H * scale) - h0) / CHAR_H;
+  }
+  return Math.sqrt(2 * Math.max(0, lijn - rel) / g);
+}
+function bavStand(b, scale){
   if (b.afzet == null) return { img: null, dx: 0, dy: 0 };
   const t = (performance.now() - b.afzet) / 1000, tVal = t - BAV_AFZET.n / BAV_AFZET.fps;
   if (tVal < 0) return { img: bavAfzetImgs[Math.floor(t * BAV_AFZET.fps)], dx: 0, dy: 0 };
   const K = BAV_AFZET.kader, g = GRAVITY / CHAR_H;           // zwaartekracht in Amir per seconde kwadraat
-  const hand = b.y + (K.t + K.h - BAV_VAL.hand) * b.s / K.h;  // hoe hoog zijn handen boven de grond beginnen
-  const tv = Math.min(tVal, Math.sqrt(2 * Math.max(0, hand) / g));   // op de grond staat de klok stil
-  return { img: bavValImgs[Math.floor(tv * BAV_VAL.fps) % BAV_VAL.n], dx: BAV_VAL.vx * tv, dy: g * tv * tv / 2 };
+  const lijn = b.y + (K.t + K.h - BAV_VAL.grond) * b.s / K.h;   // hoe hoog de grondlijn van het canvas begint
+  const tGrond = bavLandPlek(b, scale, lijn, g), tv = Math.min(tVal, tGrond);
+  const dx = BAV_VAL.vx * tv, dy = g * tv * tv / 2;
+  if (tVal < tGrond) return { img: bavValImgs[Math.floor(tv * BAV_VAL.fps) % BAV_VAL.n], dx, dy };
+  const tLand = tVal - tGrond, tBrul = tLand - BAV_LANDING.n / BAV_LANDING.fps;
+  if (tBrul < 0) return { img: bavLandingImgs[Math.floor(tLand * BAV_LANDING.fps)], dx, dy };   // het canvas staat stil, de frames bewegen
+  const bi = Math.min(BAV_BRUL.n - 1, Math.floor(tBrul * BAV_BRUL.fps));
+  return { img: bavBrulImgs[bi], dx, dy, ox: BAV_BRUL.links };
 }
 function baviaanTeken(groundY, scale, cx){
   const b = level && level.baviaan;
   if (!b || !baviaanImg || !imgReady(baviaanImg)) return;
   const u = CHAR_H * scale;                                  // schermpixels per Amir
-  const st = bavStand(b), fr = st.img && imgReady(st.img) ? st.img : null;
-  const sx = cx + (b.x - world) + (b.f ? 1 : -1) * st.dx * u;   // vooruit is de kant waar hij op kijkt
+  const st = bavStand(b, scale), fr = st.img && imgReady(st.img) ? st.img : null;
+  const vooruit = (b.f ? 1 : -1) * st.dx * u;                // vooruit is de kant waar hij op kijkt
+  const sx = cx + (b.x - world) + vooruit;
   const gy = groundY - terrainH(b.x) * scale, voet = gy - (b.y - st.dy) * u;
   const h = b.s * u, w = h * baviaanImg.naturalWidth / baviaanImg.naturalHeight;
-  skeletSchaduw(sx, gy, BAVIAAN.schaduw * b.s * u / Math.max(1, 1 + Math.max(0, b.y - st.dy)));
+  const hNu = terrainH(b.x + vooruit), boven = b.y - st.dy - (hNu - terrainH(b.x)) / CHAR_H;   // de schaduw ligt op de grond onder hem
+  skeletSchaduw(sx, groundY - hNu * scale, BAVIAAN.schaduw * b.s * u / Math.max(1, 1 + Math.max(0, boven)));
   ctx.save();
   ctx.translate(sx, voet); ctx.scale(b.f ? -1 : 1, 1);      // het plaatje kijkt naar links
   if (fr){
-    const k = h / BAV_AFZET.kader.h;                         // een schaal voor alle frames, afzet en val
-    ctx.drawImage(fr, -w / 2 - BAV_AFZET.kader.l * k, -h - BAV_AFZET.kader.t * k,
+    const k = h / BAV_AFZET.kader.h;                         // een schaal voor alle frames: afzet, val, landing en brul
+    // ox schuift een breder canvas naar links; gespiegeld (b.f) wordt dat vanzelf rechts
+    ctx.drawImage(fr, -w / 2 - (BAV_AFZET.kader.l + (st.ox || 0)) * k, -h - BAV_AFZET.kader.t * k,
       fr.naturalWidth * k, fr.naturalHeight * k);
   } else ctx.drawImage(baviaanImg, -w / 2, -h, w, h);
   ctx.restore();
 }
-// J in de sandbox: de afzet starten (met de val erachteraan), en nog een keer terug naar het losse plaatje
+// J in de sandbox: de afzet starten (met de val, de landing en de brul erachteraan), en nog een keer terug naar het losse plaatje
 function bavAfzetWissel(){
   if (!level.baviaan) sbBaviaan();
   const b = level.baviaan;
@@ -18332,14 +18366,15 @@ function sbBaviaan(){
   x = Math.min(x, cliffAt().wall - 300);
   x = Math.max(x, endWall() + 300);
   const oud = level.baviaan;
-  level.baviaan = { x, y: oud ? oud.y : 0, s: oud ? oud.s : BAVIAAN.s, f: !sbFromRight };   // kijkt naar Amir
+  level.baviaan = { x, y: oud ? Math.max(BAVIAAN.minHang, oud.y) : BAVIAAN.hang,   // hangt meteen hoog genoeg voor de val
+    s: oud ? oud.s : BAVIAAN.s, f: !sbFromRight };   // kijkt naar Amir
   sbBavInfo(); cv.focus();
 }
 function sbBavStap(k, r, n){
   if (!level.baviaan) sbBaviaan();
   const b = level.baviaan, d = BAV_STAP[k] * r * n;
   if (k === 'x') b.x += d;
-  if (k === 'y') b.y = Math.max(0, b.y + d);
+  if (k === 'y') b.y = Math.max(BAVIAAN.minHang, b.y + d);   // nooit zo laag dat er geen val meer is
   if (k === 's') b.s = Math.min(8, Math.max(0.2, b.s + d));
   sbBavInfo();
 }
