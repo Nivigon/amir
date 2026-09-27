@@ -239,7 +239,11 @@
   #pause{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;
     justify-content:center;gap:14px;background:rgba(20,14,26,.78);text-align:center;z-index:5}
   #pause.on{display:flex}
-  #pause strong{font-size:34px;font-weight:800;letter-spacing:-.01em;margin-bottom:6px}
+  /* te lang voor het scherm (Instellingen en Mes: reacties open): dan scrollt het, en het midden
+     blijft het midden zolang het past (de automatische marges boven en onder) */
+  #pause{justify-content:flex-start;overflow:auto;padding:12px 0}
+  #pause strong{font-size:34px;font-weight:800;letter-spacing:-.01em;margin:auto 0 6px}
+  #pzmenu{margin-bottom:auto}
   #pause button{min-width:240px}
   #pzcfg{display:none;flex-direction:column;align-items:center;gap:10px;margin:2px 0;
     padding:14px 18px;border:2px solid rgba(242,232,213,.22);border-radius:3px;background:rgba(0,0,0,.3)}
@@ -247,6 +251,9 @@
   #pzcfg .field{gap:12px}
   #pzcfg .hint{font-size:13px;color:rgba(242,232,213,.6);max-width:380px;text-align:center;line-height:1.35}
   #pzcfg button{min-width:0;padding:5px 12px;font-size:14px}
+  #pzmes{display:none;flex-direction:column;align-items:center;gap:8px;padding:10px 12px;
+    border-top:1px solid rgba(242,232,213,.22)}
+  #pzmes.on{display:flex}
   body.touch #pause{gap:6px;padding:8px;overflow:auto;justify-content:flex-start}
   body.touch #pause strong{font-size:21px;margin:auto 0 0}
   body.touch #pause button{min-width:190px;padding:4px 12px;font-size:15px}
@@ -981,6 +988,23 @@
         Formaat verandert alleen hoe groot alles getekend wordt.</span>
       <button id="pzsound">Muziek aan</button>
       <button id="pzcfgreset">Terug naar standaard</button>
+      <button id="pzmesbtn">Mes: reacties</button>
+      <div id="pzmes">
+        <div class="field"><label for="pzmesduw">Duw</label>
+          <input id="pzmesduw" type="range" min="0" max="250" step="10"><span class="read" id="pzmesduwv"></span></div>
+        <div class="field"><label for="pzmesstil">Stil van de klap</label>
+          <input id="pzmesstil" type="range" min="5" max="100" step="5"><span class="read" id="pzmesstilv"></span></div>
+        <div class="field"><label for="pzmeskoel">Afkoeltijd</label>
+          <input id="pzmeskoel" type="range" min="0" max="40" step="1"><span class="read" id="pzmeskoelv"></span></div>
+        <div class="field"><label for="pzmesrust">Rust tussen steken</label>
+          <input id="pzmesrust" type="range" min="5" max="80" step="5"><span class="read" id="pzmesrustv"></span></div>
+        <div class="field"><label for="pzmesgifr">Gif wegslaan, ruimte</label>
+          <input id="pzmesgifr" type="range" min="10" max="160" step="10"><span class="read" id="pzmesgifrv"></span></div>
+        <button id="pzmesgif">Gif wegslaan: aan</button>
+        <button id="pzmesstd">Mes: standaard</button>
+        <span class="hint">Geldt meteen, ook voor een vijand die al voor je staat. Duw in pixels, tijden in
+          seconden, ruimte in eenheden van Amir (die is 251).</span>
+      </div>
     </div>
     <button id="pzrestart">Level opnieuw</button>
     <button id="pzskip">Level overslaan</button>
@@ -1121,17 +1145,24 @@ const TRIBE_CONFIG = {
               doel: 'to take a talent', geleerd: 'Taken', klaar: 'Ready to take', leer: 'Take it' },
       locked: true,
       abilities: [
-        { id: 'jackal_fang', naam: 'Jackal Fang', tekst: 'Amir carries a knife: short and quick, for when the spear is out of reach.',
-          // E wisselt rond: met speer speer, mes, niets; zonder speer niets en mes. Een steek met het
-          // mes gaat sneller dan met de speer (0,29 s en 0,2 s rust, tegen 0,55 en 0,18), maar reikt
-          // maar half zo ver voor zijn lijf uit. Geen lage zwaai en geen worp met het mes. De vorm
-          // van de steek (waar het mes per beeld zit) staat bij MES, want dat is tekenwerk.
+        { id: 'jackal_fang', naam: 'Jackal Fang', tekst: 'Amir carries a knife. It cannot kill, but it holds an enemy off for a moment.',
+          // E wisselt rond: met speer speer, mes, niets; zonder speer niets en mes. Het mes doodt niets:
+          // een steek weert een vijand af (mesAfweer). Hij deinst terug, zijn aanval breekt af, en hij
+          // komt meteen weer: hij blijft gecommit. Tegen een groep houd je dat niet vol. De vorm van
+          // de steek (waar het mes per beeld zit) staat bij MES, want dat is tekenwerk. De getallen
+          // hieronder zijn in het spel bij te stellen: pauze, Instellingen, Mes: reacties (mesAfstel).
           fps: 24,              // beelden van de steek per seconde (MES.steek)
-          rust: 0.2,            // zolang voor de volgende steek, in seconden: een vast ritme
+          rust: 0.2,            // zolang voor de volgende steek, in seconden
           reik: 34,             // straal om de punt die raakt, in sprite-eenheden (de speer: 40)
-          // wat het mes raakt, per soort; zet er een op false en het mes gaat erlangs. Wat het raakt,
-          // raakt het zoals de speer: de panter alleen in zijn herstel, zoals altijd.
-          raakt: { slang: true, fosfor: true, schorpioen: true, hyena: true, panter: true, zwaard: true,
+          afweer: { duw: 90,    // zo ver deinst een vijand terug, in wereld-px (nooit over een kei of ravijn)
+                    stil: 0.3,  // zo lang staat hij stil van de klap, in seconden
+                    koel: 1.2 },// zo lang is dezelfde vijand daarna niet opnieuw af te weren: het mes gaat erlangs
+          gif: { aan: true,     // het gif van de zwarte slang uit de lucht slaan
+                 reik: 60 },    // hoe ruim, in sprite-eenheden om de punt
+          doornbos: 2,          // zoveel steken met het mes voor een klap op een doornbos (de speer: een)
+          // wat het mes afweert (of raakt, bij een doornbos en een skelet), per soort. De panter niet:
+          // daar gaat het mes langs.
+          raakt: { slang: true, fosfor: true, schorpioen: true, hyena: true, panter: false, zwaard: true,
                    doornbos: true, skelet: true } },
         { id: 'scavenger', naam: 'Scavenger', tekst: 'The knife cuts loose what others leave hanging: a gourd on a spear, and more.',
           // Met het mes snijd je een kalebas los die aan een speerteken hangt (variant kalebas, zie
@@ -2249,8 +2280,8 @@ const TEST_14 = {
           { x: -7000,  t: 'Een roedel van drie: nu de woede' },
           { x: -7900,  t: 'Impungushe: E wisselt tussen speer, mes en niets' },
           { x: -8300,  t: 'Snijd de kalebas los met het mes (Scavenger)' },
-          { x: -9350,  t: 'Het mes kapt ook doornen, en steekt van dichtbij' },
-          { x: -10500, t: 'Raak de rune: je speer blijft erin zitten, en je gaat verder met het mes' },
+          { x: -9350,  t: 'Het mes kapt doornen, trager dan de speer, en houdt een vijand even van je af' },
+          { x: -10500, t: 'Raak de rune: je speer blijft erin zitten. Met het mes versla je niemand, dus kom erlangs' },
           { x: -12650, t: 'Een skelet met een nieuwe speer: houd E vast' },
           { x: -13300, t: 'Het zware slot. Met Feign Death speel je dood bij je laatste klap' } ]
 };
@@ -5714,6 +5745,66 @@ function steekY(){ return atkMes ? mesPunt(Math.min(atkFrame, MES.steek.length -
 function steekR(){ return atkMes ? (mesWaarde('reik') || 34) : 40; }
 function steekRaakt(soort){ const r = mesWaarde('raakt'); return !atkMes || !r || r[soort] !== false; }
 function steekEind(){ return atkMes ? MES.steek.length : atkImgs.length; }
+// ---- afweren met het mes ----
+// Het mes doodt niets. Een steek duwt een vijand terug (afweer.duw) en breekt zijn aanval af, en
+// dan komt hij meteen weer: een slang gaat terug naar loeren en bijt zo weer, een schorpioen zet
+// meteen een nieuwe aanval in, een hyena blijft om je heen dreigen, een zwaardvechter staat op en
+// is meteen weer boos. Daarna is dezelfde vijand afweer.koel seconden niet af te weren: dan gaat
+// het mes erlangs. Wie blijft prikken wordt dus toch geraakt, en tegen een groep houd je het niet
+// vol. Het terugdeinzen loopt via knockBlocked of het eigen loopwerk van de vijand, dus nooit over
+// een kei of een ravijn (regel 7). De getallen in TRIBE_CONFIG (jackal_fang).
+let mesKlok = 0;                                   // speltijd, voor de afkoeltijd (loopt niet in de pauze)
+function mesAfweer(s, soort){
+  const A = mesWaarde('afweer');
+  if ((s.afweerTot || 0) > mesKlok) return false;  // net afgeweerd: het mes gaat erlangs
+  if (soort === 'fosfor' && (s.state === 'steen' || s.state === 'rond' || s.state === 'dood')) return false;
+  s.afweerTot = mesKlok + A.koel;
+  const weg = s.x < playerX() ? -1 : 1;            // altijd bij jou vandaan
+  s.flash = Math.max(s.flash || 0, 0.2);
+  puffWorld(s.x + weg * 10, 4, weg * 80, 0.6, s.base || 0);
+  if (soort === 'zwaard'){                         // zijn eigen terugstoot dooft uit met 0,02 per seconde
+    s.knock = weg * A.duw * 3.9; zwSet(s, 'geraakt');
+    return true;
+  }
+  if (soort === 'fosfor'){                         // knockStep: de vaart zakt met 0,9 per beeld
+    s.vx = weg * A.duw * 6; fosforSet(s, 'dreig', FOSFOR.dreig);   // even dreigen, en dan weer bijten
+    return true;
+  }
+  s.afweerT = A.stil; s.afweerV = weg * 2 * A.duw / A.stil;   // lineair uitlopend: samen precies duw
+  if (soort === 'slang'){
+    s.state = 'wait'; s.frame = 0; s.acc = 0; s.cool = biteGap() * 0.55; s.spat = false;
+  } else if (soort === 'schorpioen'){
+    const wasCharge = s.state === 'charge';
+    s.state = 'stance'; s.t = SCP_TURN_T + SCP_FADE_T; s.turnT = 1; s.fade = 1; s.hitUsed = true;
+    s.side = s.x > world ? 1 : -1; s.dir = -s.side;
+    if (wasCharge && !scorps.some(o => o.state === 'charge')) document.getElementById('scatter').pause();
+  } else if (soort === 'hyena'){
+    s.hitUsed = true; s.forceT = -1;
+    hySet(s, 'dreigen'); s.show = 'dreigen';
+    s.threatT = A.koel;                            // hij blijft staan dreigen, en valt dan weer uit
+  }
+  return true;
+}
+// In de update van een slang, schorpioen of hyena: zolang hij terugdeinst doet hij niets anders.
+// beweeg(dx) schuift hem op, of niet als daar een kei, wand of ravijnrand zit.
+function afweerStap(s, dt, beweeg){
+  if (!(s.afweerT > 0)) return false;
+  const k = s.afweerT / mesWaarde('afweer').stil;
+  s.afweerT = Math.max(0, s.afweerT - dt);
+  beweeg(s.afweerV * Math.min(1, k) * dt);
+  return true;
+}
+// Het gif van de zwarte slang uit de lucht slaan: wx en wh zijn de punt in de wereld (px en
+// sprite-eenheden). Weggeslagen gif vliegt terug, valt en raakt niemand meer.
+function mesGifSlaan(wx, wh, scale){
+  const G = mesWaarde('gif');
+  if (!G || !G.aan) return;
+  for (const v of venom){
+    if (v.weg || Math.hypot(v.x - wx, (v.h - wh) * scale) > G.reik * scale) continue;
+    v.weg = true; v.vx = -v.vx * 0.45; v.vh = Math.abs(v.vh) * 0.3 + 260;
+    puffWorld(v.x, 3, 0, 0.5, v.h);
+  }
+}
 // Het mes tekenen, in de ruimte van Amir zijn frame (de linkerbovenhoek, al gespiegeld): h is
 // [dx, y, hoek] uit MES. Het plaatje wijst omhoog; draaien zodat de punt naar voren wijst, en het
 // heft op zijn hand.
@@ -11233,7 +11324,7 @@ function updateVenom(dt, scale){
     const px = cxWorld() + (v.x - world);
     const hitBody = Math.abs(v.x - world) < PLAYER_HALF_W * CHAR_H * scale + 10 * scale
                  && v.h > ph && v.h < ph + CHAR_H * duckShare;
-    if (hitBody && invuln <= 0 && !dead){
+    if (hitBody && !v.weg && invuln <= 0 && !dead){   // weggeslagen gif (mesGifSlaan) raakt niemand
       hurtPlayer(v.x < world); makeSplat(v.x, v.h); venom.splice(i, 1); continue;
     }
     const floorV = terrainH(v.x);
@@ -11507,6 +11598,9 @@ function updateSnake(s, dt, plats, cliff){
     if (s.alpha <= 0) s.state = 'gone';
     return;
   }
+  // afgeweerd met het mes: even terugdeinzen, maar nooit over een kei of ravijn
+  if (afweerStap(s, dt, dx => { const nx = s.x + dx;
+    if (!knockBlocked(s, nx, plats, cliff, SNK_W * snakeSScale() * 0.45, 60)) s.x = nx; })) return;
 
   // hoe lang is hij je al kwijt? Een slang die je nog nooit in de gaten heeft
   // gehad komt gewoon aanzetten; pas wie je een keer had kan je kwijtraken.
@@ -12862,6 +12956,8 @@ function updateHyena(s, dt, plats, cliff){
     hyLach(s);
   }
 
+  if (afweerStap(s, dt, dx => hyMove(s, dx, plats, cliff, false))) return;   // afgeweerd met het mes
+
   const dx = world - s.x, gap = Math.abs(dx), naarJe = dx >= 0 ? 1 : -1;
 
   if (s.state === 'storm'){
@@ -13720,6 +13816,7 @@ function drawFosforSlangen(o){
       const tipY = y + steekY() * scale;
       const reach = steekR() * scale;
       if (tipX + reach > sbox.l && tipX - reach < sbox.r && tipY + reach > sbox.t && tipY - reach < sbox.b){
+        if (atkMes){ if (mesAfweer(s, 'fosfor')) swingUsed = true; continue; }   // het mes weert af
         swingUsed = true; fosforRaak(s, world + (tipX - cx)); continue;
       }
     }
@@ -13791,6 +13888,8 @@ function updateScorp(s, dt, plats, cliff){
     if (s.alpha <= 0) s.state = 'gone';
     return;
   }
+  if (afweerStap(s, dt, dx => { const nx = s.x + dx;   // afgeweerd met het mes
+    if (!knockBlocked(s, nx, plats, cliff, SCP_WALK.w * scpScale() * 0.35, 80)) s.x = nx; })) return;
   if (s.state === 'walk'){
     // patrouilleren rond zijn spawn
     const nx = s.x + s.dir * SCP_WALK_SPD * dt;
@@ -15013,6 +15112,7 @@ function loop(now){
 
   if (invuln > 0) invuln = Math.max(0, invuln - dt);
   woedeUpdate(dt);                               // de woede van Bhubesi loopt af (en de meter mee)
+  mesKlok += dt;                                 // de klok van het afweren met het mes
   if (raakKoel > 0) raakKoel = Math.max(0, raakKoel - dt);
   if (hurt > 0) hurt = Math.max(0, hurt - dt);
   if (shake > 0) shake = Math.max(0, shake - dt);
@@ -15906,6 +16006,8 @@ function loop(now){
         const reach = steekR() * scale;
         if (tipX + reach > sbox.l && tipX - reach < sbox.r &&
             tipY + reach > sbox.t && tipY - reach < sbox.b){
+          if (atkMes){ if (mesAfweer(s, 'slang')) swingUsed = true; }   // het mes weert af, het doodt niet
+          else {
           swingUsed = true;
           hits++; hitsEl.textContent = hits;
           s.state = 'dying'; s.flash = 0.25;
@@ -15913,6 +16015,7 @@ function loop(now){
           vijandDood(false);
           s.frame = 0; s.acc = 0;
           tutEvent('thrust');
+          }
         }
       }
       // ---- de geworpen speer ------------------------------------------
@@ -16052,12 +16155,15 @@ function loop(now){
         const reach = steekR() * scale;
         if (tipX + reach > kbox.l && tipX - reach < kbox.r &&
             tipY + reach > kbox.t && tipY - reach < kbox.b){
+          if (atkMes){ if (mesAfweer(s, 'schorpioen')) swingUsed = true; }   // het mes weert af
+          else {
           swingUsed = true;
           hits++; hitsEl.textContent = hits;
           s.state = 'dying'; s.flash = 0.25;
           s.vx = (facing === 1 ? 420 : -420);
           vijandDood(false);
           if (!scorps.some(o => o.state === 'charge')) document.getElementById('scatter').pause();
+          }
         }
       }
       if (s.state !== 'dying' && javRaakt(kbox)){
@@ -16264,6 +16370,7 @@ function loop(now){
           const tipY = y + steekY() * scale;
           const reach = steekR() * scale;
           if (tipX + reach > nbox.l && tipX - reach < nbox.r && tipY + reach > nbox.t && tipY - reach < nbox.b){
+            if (atkMes){ if (mesAfweer(s, 'hyena')) swingUsed = true; continue; }   // het mes weert af
             swingUsed = true; hitHyena(s); continue;
           }
         }
@@ -16338,6 +16445,7 @@ function loop(now){
           const tipY = y + steekY() * scale;
           const reach = steekR() * scale;
           if (tipX + reach > nbox.l && tipX - reach < nbox.r && tipY + reach > nbox.t && tipY - reach < nbox.b){
+            if (atkMes){ if (mesAfweer(s, 'zwaard')) swingUsed = true; continue; }   // het mes weert af
             swingUsed = true; hitZwaard(s); continue;
           }
         }
@@ -16367,6 +16475,10 @@ function loop(now){
         if (tipX + reach > tbox.l && tipX - reach < tbox.r &&
             tipY + reach > tbox.t && tipY - reach < tbox.b){
           swingUsed = true;                           // deze stoot is nu op
+          if (atkMes && ((t.mesTik = (t.mesTik || 0) + 1) % (mesWaarde('doornbos') || 1)) !== 0){
+            puffWorld(world + (Math.max(tbox.l, Math.min(tbox.r, tipX)) - cx), 2, 0, 0.5, t.base);   // het mes kapt trager
+            continue;
+          }
           hitThicket(t, from, world + (Math.max(tbox.l, Math.min(tbox.r, tipX)) - cx),
                      (groundY - tipY) / scale - t.base);
           continue;
@@ -16378,10 +16490,11 @@ function loop(now){
       }
     }
 
-    // ---- het mes tegen een kalebas aan een speerteken (Scavenger) --------
-    if (attacking && atkMes && !swingUsed && steekLive()){
-      const dxv = steekDX() * scale;
-      if (tekenSnij(groundY, scale, cx, pcx + (facing === 1 ? -dxv : dxv), y + steekY() * scale, steekR() * scale)) swingUsed = true;
+    // ---- het mes tegen een kalebas aan een speerteken (Scavenger), en tegen het gif ----
+    if (attacking && atkMes && steekLive()){
+      const dxv = steekDX() * scale, tx = pcx + (facing === 1 ? -dxv : dxv), ty = y + steekY() * scale;
+      if (!swingUsed && tekenSnij(groundY, scale, cx, tx, ty, steekR() * scale)) swingUsed = true;
+      mesGifSlaan(world + (tx - cx), (groundY - ty) / scale, scale);
     }
     javDraw(groundY, scale, cx);                     // de geworpen speer, voor de dieren langs
     skETeken(groundY, scale, cx);                    // de E bij een skelet of een losse speer
@@ -16594,6 +16707,9 @@ function pauseGame(){
   sk.textContent = kan ? 'Level overslaan: ' + levelList[levelIdx + 1].name : 'Level overslaan';
   document.getElementById('pztalents').style.display = RUN.tribeId && !sandbox && !building ? '' : 'none';   // de boom van je tribe
   document.getElementById('pzkeuze').style.display = level && level.talentKeuze && !sandbox && !building ? '' : 'none';
+  document.getElementById('pzmesbtn').style.display = tribeHeeft('jackal_fang') ? '' : 'none';   // alleen met het mes
+  if (!tribeHeeft('jackal_fang')) document.getElementById('pzmes').classList.remove('on');
+  mesAfstelToon();
   pauseEl.classList.add('on');
 }
 function resumeGame(){
@@ -16672,6 +16788,53 @@ document.getElementById('pzcfgreset').onclick = () => {
   gameTempo = tempoAdvies(); walkTempo = 1;
   sizeEl.value = 25; sizeEl.oninput();
   showGameCfg(); saveGameCfg();
+};
+// ---- het mes afstellen, midden in het spel (pauze, Instellingen, Mes: reacties) ----
+// De schuifjes schrijven rechtstreeks in TRIBE_CONFIG (jackal_fang), dus de volgende steek gebruikt
+// ze al. De browser onthoudt de stand (MES_KEY); Mes: standaard zet terug wat in de code staat. Ben
+// je tevreden, neem de getallen dan over in TRIBE_CONFIG.
+const MES_KEY = 'amir.mes';
+const MES_STANDAARD = (() => { const a = abilityVan('jackal_fang');
+  return JSON.parse(JSON.stringify({ afweer: a.afweer, gif: a.gif, rust: a.rust })); })();
+const MES_SCHUIF = [   // id, waar in de config, deler (schuifje naar getal), hoe het er staat
+  ['pzmesduw',  ['afweer', 'duw'],  1,   v => v + ' px'],
+  ['pzmesstil', ['afweer', 'stil'], 100, v => v.toFixed(2).replace('.', ',') + ' s'],
+  ['pzmeskoel', ['afweer', 'koel'], 10,  v => v.toFixed(1).replace('.', ',') + ' s'],
+  ['pzmesrust', ['rust'],           100, v => v.toFixed(2).replace('.', ',') + ' s'],
+  ['pzmesgifr', ['gif', 'reik'],    1,   v => String(v)]
+];
+function mesPlek(pad){ const a = abilityVan('jackal_fang'); return pad.length === 1 ? [a, pad[0]] : [a[pad[0]], pad[1]]; }
+function mesAfstelToon(){
+  for (const [id, pad, deel, tekst] of MES_SCHUIF){
+    const [o, k] = mesPlek(pad);
+    document.getElementById(id).value = Math.round(o[k] * deel);
+    document.getElementById(id + 'v').textContent = tekst(o[k]);
+  }
+  document.getElementById('pzmesgif').textContent = 'Gif wegslaan: ' + (abilityVan('jackal_fang').gif.aan ? 'aan' : 'uit');
+}
+function mesAfstelBewaar(){
+  const a = abilityVan('jackal_fang');
+  try { localStorage.setItem(MES_KEY, JSON.stringify({ afweer: a.afweer, gif: a.gif, rust: a.rust })); } catch (err) {}
+}
+function mesAfstelZet(o){                          // een bewaarde of de standaard stand erin zetten
+  const a = abilityVan('jackal_fang');
+  if (!o) return;
+  if (o.afweer) for (const k of ['duw', 'stil', 'koel']) if (typeof o.afweer[k] === 'number') a.afweer[k] = o.afweer[k];
+  if (o.gif){ if (typeof o.gif.reik === 'number') a.gif.reik = o.gif.reik; if (typeof o.gif.aan === 'boolean') a.gif.aan = o.gif.aan; }
+  if (typeof o.rust === 'number') a.rust = o.rust;
+}
+try { mesAfstelZet(JSON.parse(localStorage.getItem(MES_KEY) || 'null')); } catch (err) {}
+for (const [id, pad, deel] of MES_SCHUIF) document.getElementById(id).addEventListener('input', e => {
+  const [o, k] = mesPlek(pad);
+  o[k] = Math.max(pad[0] === 'afweer' && k === 'stil' ? 0.05 : 0, Number(e.target.value) / deel);
+  mesAfstelToon(); mesAfstelBewaar();
+});
+document.getElementById('pzmesbtn').onclick = () => { document.getElementById('pzmes').classList.toggle('on'); mesAfstelToon(); };
+document.getElementById('pzmesgif').onclick = () => {
+  const g = abilityVan('jackal_fang').gif; g.aan = !g.aan; mesAfstelToon(); mesAfstelBewaar();
+};
+document.getElementById('pzmesstd').onclick = () => {
+  mesAfstelZet(JSON.parse(JSON.stringify(MES_STANDAARD))); mesAfstelToon(); mesAfstelBewaar();
 };
 function toMenu(){
   verhaalAan = false;
@@ -17906,7 +18069,7 @@ function tbVergelijk(a){
     case 'long_breath': return ['No fury meter', a.duur + ' s of fury'];
     case 'blood_rush': { const p = woedeWaarde('perKill'); return [k(Math.ceil(1 / p - 1e-9)) + ' to full', k(Math.ceil(1 / (p * a.vulFactor) - 1e-9))]; }
     case 'fourth_life': return ['3 lives', (3 + a.extraLevens) + ' lives'];
-    case 'jackal_fang': return ['Empty hands without a spear', 'A knife, quick and close'];
+    case 'jackal_fang': return ['Empty hands without a spear', 'A knife that holds them off'];
     case 'scavenger': return ['A hanging gourd stays out of reach', 'Cut it loose with the knife'];
     case 'feign_death': return ['The last blow ends it', a.keer + 'x per level: 1 life left'];
   }
