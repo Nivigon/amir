@@ -703,7 +703,7 @@
 // ---- versie: welke update er live staat ----------------------------------
 // Staat heel klein linksboven in beeld, zodat je ziet of een pull request al live is. Elke pull
 // request zet hier een nieuw nummer en een naam van een paar woorden bij, zie CLAUDE.md.
-const VERSIE = { nr: '1.8', naam: 'voorgrond overal' };
+const VERSIE = { nr: '1.9', naam: 'winterravijn grijze steentjes' };
 document.getElementById('versie').textContent = 'versie ' + VERSIE.nr + ': ' + VERSIE.naam;
 
 // ---- globale lichtlaag --------------------------------------------------
@@ -17540,6 +17540,33 @@ const ravijnStenen = [];
 for (let i = 1; i <= 5; i++){
   const s = new Image(); s.src = 'ravijn/assets/steen_' + i + '.png'; ravijnStenen.push(s);
 }
+// In de winter zijn de steentjes op de rand van hetzelfde blauwgrijze steen als de wand
+// (ravijnWandNu): per pixel dezelfde helderheid, in de tint van RAVIJN_WINTER, dus alleen kleur.
+// Een keer per steen omgekleurd en bewaard; is hij nog niet geladen, dan de gewone.
+const ravijnStenenWinter = [];
+function ravijnStenenNu(){
+  if (!winterOn()) return ravijnStenen;
+  return ravijnStenen.map((b, i) => {
+    if (ravijnStenenWinter[i]) return ravijnStenenWinter[i];
+    if (!b.complete || !b.naturalWidth) return b;
+    const c = document.createElement('canvas');
+    c.width = b.naturalWidth; c.height = b.naturalHeight;
+    const g = c.getContext('2d');
+    g.drawImage(b, 0, 0);
+    let d;
+    try { d = g.getImageData(0, 0, c.width, c.height); } catch (e){ return b; }
+    const px = d.data, T = RAVIJN_WINTER.tint;
+    let som = 0, n = 0;
+    for (let k = 0; k < px.length; k += 4) if (px[k + 3] > 200){ som += 0.3 * px[k] + 0.59 * px[k + 1] + 0.11 * px[k + 2]; n++; }
+    const gem = n ? som / n : 80;
+    for (let k = 0; k < px.length; k += 4){
+      const L = (0.3 * px[k] + 0.59 * px[k + 1] + 0.11 * px[k + 2]) / gem;
+      px[k] = Math.min(255, T[0] * L); px[k + 1] = Math.min(255, T[1] * L); px[k + 2] = Math.min(255, T[2] * L);
+    }
+    g.putImageData(d, 0, 0);
+    return ravijnStenenWinter[i] = c;
+  });
+}
 // Een ravijn laten openscheuren op wereld-x wx, breed wereld-px breed. Staat er op die plek al
 // een, dan begint die opnieuw. Geeft het effect terug.
 function ravijnOpen(wx, breed = RAVIJN_MAAT.breed){
@@ -17559,7 +17586,7 @@ function ravijnOpen(wx, breed = RAVIJN_MAAT.breed){
   const fx = new RavijnEffect({
     wallImage: ravijnWandNu() || ravijnWand,        // in de winter de blauwgrijze (ravijnWandNu)
     quality: touchOn() ? 0.5 : 1,                   // op een telefoon de helft van de wolkjes
-    stoneImages: ravijnStenen,
+    stoneImages: ravijnStenenNu(),                  // in de winter in de kleur van de rots
     x: wx,
     groundY: zandTop,
     width: breed / sch,                             // geschaald komt dit op breed wereld-px uit
