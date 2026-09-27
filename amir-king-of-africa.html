@@ -5565,22 +5565,27 @@ const bavSchudDuur = () => { let van = 0, s = 0; for (const d of BAV_SCHUD.delen
 // geklemd tussen `fpsMin` en `fpsMax`, zodat hij op een heel klein of groot scherm niet gaat trappelen of
 // slepen (daar glijdt hij dan een beetje). Hij volgt de grond onder zich. Nog zonder doel: hij rent
 // rechtdoor tot J hem terugzet.
-const BAV_RUN = { map: 'enemies/baviaan/run/run_', n: 17, links: 152, v: 495, pas: 40, fpsMin: 20, fpsMax: 36 };
-// De hap: 26 frames, een keer op 24 per seconde (1,08 seconde), op hetzelfde canvas en dezelfde plek als de
+// Vlak voor hij bij Amir is schiet hij naar voren (`sprint`): binnen `afstand` Amir van het bereik van zijn
+// bek rent hij `maal` keer zo snel, en de passen gaan mee tot `fpsMax` (zijn voeten glijden ook dan niet). De
+// laatste meters zijn zo in een kwart seconde voorbij: daar reageer je niet meer op, ook niet met de speer.
+const BAV_RUN = { map: 'enemies/baviaan/run/run_', n: 17, links: 152, v: 495, pas: 40, fpsMin: 20, fpsMax: 36,
+  sprint: { afstand: 2.5, maal: 3, fpsMax: 120 } };
+// De hap: 26 frames, een keer op `fps` (40: 0,65 seconde, sneller dan de 24 van de set), op hetzelfde canvas en dezelfde plek als de
 // run. 0 tot 3 de kaken open, 4 tot 10 de uitval, 11 tot 13 helemaal uitgestrekt: dan bijt hij (`raak`),
 // 14 tot 25 terug. Hij begint en eindigt op run_00, want daar lijkt de hap het meest op. Hij hapt als Amir
 // aan het begin van een pas voor hem staat, dichterbij dan zijn uitgestrekte bek plus `marge` (in Amir); het
 // stuk dat hij dan nog tekortkomt overbrugt hij in de uitval, tot `uitval` Amir ver. Raakt hij, dan blijft
 // hij `rust` seconden grommend staan en rent hij weer. Mis is meteen weer rennen.
-const BAV_HAP = { map: 'enemies/baviaan/hap/hap_', n: 26, fps: 24, links: 152, uit: [4, 10], raak: [11, 13],
+const BAV_HAP = { map: 'enemies/baviaan/hap/hap_', n: 26, fps: 40, links: 152, uit: [4, 10], raak: [11, 13],
   marge: 0.9, uitval: 0.9, rust: 2 };
 // De baviaan als tegenstander, na het verloop: hij rent op Amir af (en draait om aan het begin van een pas als
-// Amir achter hem staat), hapt, en een klap van Amir (steek, lage zwaai of geworpen speer) is genoeg: dan zakt
-// hij in elkaar en vervaagt hij in `dood` seconden. Het lijf waarop hij raakbaar is, is het kader van zijn
+// Amir achter hem staat) en hapt. Zo is hij niet te verslaan: `raakbaar` staat uit, dus een steek of de lage
+// zwaai doet hem niets en een geworpen speer ketst af en valt. Zet je hem aan, dan is een klap genoeg: dan
+// zakt hij in elkaar en vervaagt hij in `dood` seconden. Het lijf waarop hij raakbaar is, is het kader van zijn
 // frame min `krimp` aan elke kant. De bek is waar hij in hap_11 tot 13 zit, in bronpixels van het canvas
 // (`bek`: de kop met open kaken, niet de voorpoten eronder). Die zit op 0,55 tot 1,06 Amir hoog, dus springen
 // of bukken ontwijkt hem niet: je redt het door hem eerst te raken, of de speer te gooien voor hij er is.
-const BAV_VECHT = { dood: 0.8, krimp: 0.12, bek: { l: 0, r: 140, t: 180, b: 370 } };
+const BAV_VECHT = { raakbaar: false, dood: 0.8, krimp: 0.12, bek: { l: 0, r: 140, t: 180, b: 370 } };
 let baviaanImg = null, bavAfzetImgs = null, bavValImgs = null, bavLandingImgs = null, bavBrulImgs = null, bavIdleOpImgs = null, bavSchudImgs = null, bavGromImgs = null, bavRunImgs = null, bavHapImgs = null;
 // per baviaan waar de idle staat, los van level.baviaan zodat het niet mee het level in gaat:
 // t0 het begin van het lopende stuk idle, wacht hoe lang dat duurt, schud het begin van het hoofdschudden
@@ -5699,7 +5704,7 @@ function bavVecht(b, r, t, dx0, scale, lijn){
   const amirX = playerX(), voor = (amirX - (b.x + r.wx)) * (b.f ? 1 : -1);   // hoe ver Amir voor hem staat
   const draai = () => { if (voor < 0) b.f = !b.f; };
   if (r.fase === 'rust'){
-    if (t - r.fT >= BAV_HAP.rust){ r.fase = 'run'; r.fT = t; r.pas = -1; draai(); }
+    if (t - r.fT >= BAV_HAP.rust){ r.fase = 'run'; r.fT = t; r.pas = -1; r.pasT = 0; draai(); }
     else return uit(bavGromImgs[Math.floor((t - r.fT) * BAV_IDLE_GROM.fps) % BAV_IDLE_GROM.n], { ox: BAV_IDLE_GROM.links });
   }
   if (r.fase === 'hap'){
@@ -5707,7 +5712,7 @@ function bavVecht(b, r, t, dx0, scale, lijn){
     if (f >= BAV_HAP.n){
       r.fase = r.raak ? 'rust' : 'run'; r.fT = t;
       if (r.fase === 'rust') return uit(bavGromImgs[0], { ox: BAV_IDLE_GROM.links });
-      r.pas = -1; draai();
+      r.pas = -1; r.pasT = 0; draai();
     } else {
       if (f >= BAV_HAP.uit[0] && f <= BAV_HAP.uit[1] && r.uitval > 0){     // de uitval dicht het gat
         const d = Math.min(r.uitval, r.uitvalV * dt); r.uitval -= d; r.wx += (b.f ? 1 : -1) * d;
@@ -5716,17 +5721,21 @@ function bavVecht(b, r, t, dx0, scale, lijn){
       return uit(bavHapImgs[f], { ox: BAV_HAP.links });
     }
   }
-  // rennen, even snel als Amir sprint; de voeten glijden niet (zie BAV_RUN)
+  // rennen, even snel als Amir sprint, en vlak voor hij er is drie keer zo snel; de voeten glijden niet (zie BAV_RUN)
   r.bijt = false;
-  const fps = Math.min(BAV_RUN.fpsMax, Math.max(BAV_RUN.fpsMin, BAV_RUN.v / (BAV_RUN.pas * k)));
-  const pas = Math.floor((t - r.fT) * fps / BAV_RUN.n);
+  const w0 = b.s * u * baviaanImg.naturalWidth / baviaanImg.naturalHeight;
+  const hapKd = bavHapImgs[BAV_HAP.raak[0]] && imgReady(bavHapImgs[BAV_HAP.raak[0]]) ? bavKader(bavHapImgs[BAV_HAP.raak[0]]) : null;
+  const bekBereik = hapKd ? w0 / 2 + (BAV_AFZET.kader.l + BAV_HAP.links - hapKd.l) * k : 0;   // hoe ver zijn bek reikt
+  const SP = BAV_RUN.sprint, sprint = hapKd && voor >= 0 && voor <= bekBereik + (BAV_HAP.marge + SP.afstand) * u;
+  const v = BAV_RUN.v * (sprint ? SP.maal : 1);
+  const fps = Math.min(sprint ? SP.fpsMax : BAV_RUN.fpsMax, Math.max(BAV_RUN.fpsMin, v / (BAV_RUN.pas * k)));
+  // de pas loopt door op een eigen teller, zodat een sneller tempo niet midden in een pas verspringt
+  r.pasT = (r.pasT || 0) + dt * fps;
+  const pas = Math.floor(r.pasT / BAV_RUN.n);
   if (pas !== r.pas){                                              // begin van een pas: run_00
     r.pas = pas;
-    const hapImg = bavHapImgs[BAV_HAP.raak[0]], kd = hapImg && imgReady(hapImg) ? bavKader(hapImg) : null;
-    if (kd && voor >= 0){
-      // hoe ver de bek voor zijn anker reikt als hij helemaal uitgestrekt is (in wereld-px)
-      const w = b.s * u * baviaanImg.naturalWidth / baviaanImg.naturalHeight;
-      const bek = w / 2 + (BAV_AFZET.kader.l + BAV_HAP.links - kd.l) * k;
+    if (hapKd && voor >= 0){
+      const bek = bekBereik;
       if (voor <= bek + BAV_HAP.marge * u){
         r.fase = 'hap'; r.fT = t; r.raak = false; r.bijt = false;
         r.uitval = Math.min(Math.max(0, voor - bek * 0.85), BAV_HAP.uitval * u);
@@ -5736,8 +5745,8 @@ function bavVecht(b, r, t, dx0, scale, lijn){
     }
     if (voor < 0){ b.f = !b.f; }
   }
-  r.wx += (b.f ? 1 : -1) * BAV_RUN.v * dt;
-  return uit(bavRunImgs[Math.floor((t - r.fT) * fps) % BAV_RUN.n], { ox: BAV_RUN.links });
+  r.wx += (b.f ? 1 : -1) * v * dt;
+  return uit(bavRunImgs[Math.floor(r.pasT) % BAV_RUN.n], { ox: BAV_RUN.links });
 }
 // een klap van Amir: hij is dood
 function bavRaak(b, r, img, ox){
@@ -5774,7 +5783,7 @@ function bavGevecht({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, attacki
   }
   if (!geraakt && javRaakt(lijf)){ javHitEnemy(); geraakt = true; }
   if (!geraakt && hitBy(swbox, lijf)) geraakt = true;
-  if (geraakt) bavRaak(b, r, g.img, g.ox);
+  if (geraakt && BAV_VECHT.raakbaar) bavRaak(b, r, g.img, g.ox);
 }
 // K in de sandbox: het hoofdschudden meteen (bij de opgefokte idle op het eerstvolgende einde van de lus)
 function bavSchudNu(){
