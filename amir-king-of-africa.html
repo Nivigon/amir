@@ -774,6 +774,12 @@
         <span class="hint">een doel: raak hem en hij gloeit</span>
       </div>
       <div class="row">
+        <label>Speerval</label>
+        <button id="sbspeerval">Neerzetten</button>
+        <button id="sbspeervallos">Losschieten</button>
+        <span class="hint">een speer in de rotswand voor je uit, en een zegel dat hem losschiet: bukken</span>
+      </div>
+      <div class="row">
         <label>Hppotion</label>
         <button id="sbhppotion">Neerzetten</button>
         <button id="sbhppotiondrop">Laten vallen</button>
@@ -2346,7 +2352,33 @@ const TEST_15 = {
           { x: -1900, t: 'Twee ravijnen: spring in het stuk ertussen' },
           { x: -3000, t: 'Hij laat je er niet af' } ]
 };
-const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15];
+// Test 16: de speerval. De baviaan hangt achter je aan de rotswand en doet wat hij in de sandbox doet: de sprong,
+// de landing, de brul, twee keer het hoofdschudden, en dan stormt hij op je af. In de rotswand aan het eind zit een
+// speer met de punt naar je toe, en ervoor ligt een zegel dat hem losschiet (zie "speerval"). Stap erop met de
+// baviaan op je hielen en buk: de speer vliegt over je heen en raakt hem, en dan is hij dood. Sta je rechtop, dan
+// raakt hij jou. Mis je, dan zit de speer na een paar tellen weer in de wand en werkt het zegel opnieuw. De fakkels
+// staan voor het zegel en blijven dicht tot de baviaan dood is: je loopt erlangs, en daarna terug. Achter het zegel
+// kunnen ze niet, want dan staan ze tussen jou en de speer, en het zegel moet zo dicht bij de wand liggen dat je de
+// speer ziet (de camera kijkt 640 px vooruit). Vlak, zonder keien of ravijnen: het gaat hier alleen om de timing.
+const TEST_16 = {
+  name: 'Test 16: De speerval',
+  lagen: 'renew_vlakte',
+  baviaan: { x: 540, y: 1.45, s: 1.4, f: 0 },   // net als in Test 15: boven de hut, tegen de rots
+  zegels: [ {x: -2400, speerval: -2900} ],
+  speervallen: [ {x: -2900} ],                   // in de klif op -2900
+  gaps: [], rocks: [],
+  spawns: [ {x: -60000, k: 'groen'} ],          // heel ver weg: houdt de vrije modus uit
+  props: [ {x: -600, k: 'gras', s: 1.1, f: 0, v: 0}, {x: -1000, k: 'struik', s: 1.0, f: 1, v: 0},
+           {x: -1900, k: 'gras', s: 1.0, f: 1, v: 0}, {x: -2550, k: 'buffel', s: 1.0, f: 0, v: 0} ],
+  terraces: [], ledges: [], village: [], npcs: [], water: [], thickets: [],
+  hppotions: [ {x: -800, y: null} ],
+  cliffs: [ {x: -2900} ],
+  ends: [ {x: -1500} ],                         // voor het zegel: open zodra de baviaan dood is
+  tips: [ { x: -40,   t: 'Testlevel: achter je hangt de baviaan. Loop een stukje en kijk wat hij doet' },
+          { x: -1800, t: 'In de rotswand zit een speer, met de punt naar jou. Het zegel schiet hem los' },
+          { x: -2100, t: 'Stap op het zegel als de baviaan achter je aan komt, en buk meteen' } ]
+};
+const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16];
 let levelIdx = 0;
 
 // ---- terrassen en richels: omhoog klimmen --------------------------------
@@ -4474,6 +4506,7 @@ function runeSchijf(ctx, px, py, r, o){
 //     x        het midden, in wereld-x
 //     ravijn   (mag weg) de plek waar de grond openscheurt zodra hij aangaat; een keer per
 //              potje, uitzetten maakt het gat niet meer dicht
+//     speerval (mag weg) de x van een speer in de rotswand die losschiet (zie "speerval")
 //
 // Hij ligt echt plat: de schijf, de planken en de vorm van de rune worden allemaal in een
 // platgedrukte ruimte getekend (ZEGEL.plat, hoogte gedeeld door breedte, zoals de steentjes
@@ -4622,6 +4655,7 @@ function zegelUpdate(dt, scale){
     const op = !building && onGround && Math.abs(ph - vloer) < 2 && Math.abs(world - z.x) < rPx * ZEGEL.op;
     if (op && !z.op){
       if (z.sluit !== null && z.sluit !== undefined) zegelSluit(z);   // een sluitzegel: zie zegelSluit
+      else if (z.speerval !== null && z.speerval !== undefined) speervalZegel(z);   // zie "speerval"
       else {
         z.aan = !z.aan;
         if (z.aan) zegelDoe(z);
@@ -4630,6 +4664,8 @@ function zegelUpdate(dt, scale){
     z.op = op;
     // een sluitzegel gaat weer uit zodra zijn ravijn dicht is, en werkt dan opnieuw
     if (z.aan && z.sluit !== null && z.sluit !== undefined && !ravijnBij(z.sluit)) z.aan = false;
+    // en een zegel met een speerval zodra de speer weer in de wand zit
+    if (z.aan && z.speerval !== null && z.speerval !== undefined && speervalKlaar(z.speerval)) z.aan = false;
     z.t = Math.max(0, Math.min(1, (z.t || 0) + (z.aan ? 1 : -1) * dt / ZEGEL.licht));
   }
 }
@@ -4676,6 +4712,145 @@ function zegelTeken(groundY, scale, cx){
 }
 function zegelReset(){
   if (level && level.zegels) for (const z of level.zegels){ z.aan = false; z.op = false; z.t = 0; }
+}
+
+// ---- speerval: een speer in de rotswand die een zegel losschiet ------------------
+// Een speer zit horizontaal in de rotswand aan het eind van het level (cliffs), met de punt naar Amir: naar
+// rechts, de kant waar hij vandaan komt. Een zegel met `speerval` (de x van die speer) schiet hem los: eerst
+// trilt hij `wacht` seconden in de wand (je waarschuwing), dan vliegt hij recht vooruit, zonder boog, op `v` Amir
+// per seconde. Hij zit op `h` Amir hoog: boven een gebukte Amir (DUCK_BOX, 0,68) en door een staande. Bukken
+// is dus de manier om hem te laten passeren; springen helpt niet, want de sprong haalt 200 en de schacht zit
+// op 206. Raakt hij Amir, dan kost dat een leven en valt hij. Raakt hij de baviaan, dan is die dood, ook al is
+// hij verder niet te raken (BAV_VECHT.raakbaar): zo versla je hem, en een level met een speerval houdt de
+// fakkels dicht tot het zover is (bavBlokkeert). Mist hij, dan valt hij na `ver` Amir neer, ligt hij `lig`
+// seconden, vervaagt hij, en zit hij weer in de wand; het zegel gaat dan vanzelf uit en werkt opnieuw.
+//
+//   speervallen: [ {x: -3400, h} ]
+//     x   de klif waar hij in zit (de x uit cliffs); staat daar geen klif, dan is x zelf de wand
+//     h   (mag weg) hoe hoog, in Amir (standaard SPEERVAL.h)
+//   zegels: [ {x: -2500, speerval: -3400} ]
+//
+// Waar het steen op die hoogte echt begint, komt uit de alfa van de klifplaat (klifVlak): de klif hangt aan
+// het scherm en niet aan Amir, dus de rand op zijn hoogte ligt op elk scherm ergens anders.
+const SPEERVAL = {
+  h: 0.82,        // hoogte van de schacht boven de grond, in Amir
+  steek: 0.3,     // zo veel van zijn lengte zit in het steen
+  wacht: 0.45,    // zo lang trilt hij na het zegel, in seconden
+  v: 14,          // snelheid in Amir per seconde, recht vooruit
+  r: 0.06,        // straal van het raakvlak rond de punt, in Amir
+  voor: 0.3,      // en zo veel van zijn lengte achter de punt telt ook mee (anders vliegt hij door iets heen)
+  ver: 14,        // na zoveel Amir zonder treffer valt hij neer
+  lig: 1.6,       // zo lang ligt hij na een misser, en dan
+  terug: 0.6      // vervaagt hij in zoveel seconden en zit hij weer in de wand
+};
+// De rand van de klif op een hoogte boven de grond (schermpixels), in wereld-x. De klif is gespiegeld
+// getekend (zie "jouw eigen kliffen"), dus de rand is de eerste kolom van de plaat met steen op die rij.
+const klifAlfa = new WeakMap();
+function klifVlak(k, hoogPx){
+  const img = cliffPic(), c = cliffAt();
+  if (!imgReady(img)) return k.x;
+  let a = klifAlfa.get(img);
+  if (a === undefined){
+    a = null;
+    try {
+      const cv2 = document.createElement('canvas'); cv2.width = img.naturalWidth; cv2.height = img.naturalHeight;
+      const g = cv2.getContext('2d'); g.drawImage(img, 0, 0);
+      a = { d: g.getImageData(0, 0, cv2.width, cv2.height).data, w: cv2.width, h: cv2.height };
+    } catch (e) {}
+    klifAlfa.set(img, a);
+  }
+  if (!a) return k.x;
+  const v = Math.round((c.hPx * (1 - CLIFF.sink) - hoogPx) * a.h / c.hPx);
+  if (v < 0 || v >= a.h) return k.x;
+  for (let u = 0; u < a.w; u++) if (a.d[(v * a.w + u) * 4 + 3] > 128) return k.x + CLIFF.l * c.wPx - u * c.wPx / a.w;
+  return k.x;
+}
+function speervalZoek(x){
+  let best = null;
+  for (const sp of (level && level.speervallen) || []) if (!best || Math.abs(sp.x - x) < Math.abs(best.x - x)) best = sp;
+  return best && Math.abs(best.x - x) < 400 ? best : null;
+}
+const speervalH = sp => sp.h || SPEERVAL.h;                   // in Amir
+// de punt als hij in de wand zit, in wereld-x: de rand van het steen plus het stuk dat eruit steekt
+function speervalWandX(sp, scale){
+  const k = (level.cliffs || []).find(c => Math.abs(c.x - sp.x) < 60);
+  const vlak = k ? klifVlak(k, speervalH(sp) * CHAR_H * scale) : sp.x;
+  return vlak + javLen(scale) * (1 - SPEERVAL.steek);
+}
+// het zegel: zit de speer in de wand, dan licht hij op en komt de speer los; anders blijft hij donker
+function speervalZegel(z){
+  const sp = speervalZoek(z.speerval);
+  if (!sp || (sp.st && sp.st !== 'wand')){
+    if (!z.aan) flashHint('Het zegel blijft donker: de speer zit niet in de wand');
+    return;
+  }
+  z.aan = true;
+  sp.st = 'tril'; sp.t = 0;
+  flashHint('Het zegel licht op: in de rotswand komt een speer los');
+}
+const speervalKlaar = x => { const sp = speervalZoek(x); return !!sp && (!sp.st || sp.st === 'wand'); };
+// hij valt: na een treffer of een misser. dood: hij raakte de baviaan, dan blijft hij liggen
+function speervalVal(sp, dood){ sp.st = 'val'; sp.t = 0; sp.vy = 0; sp.dood = !!dood; }
+function speervalUpdate(dt, scale){
+  if (!level || !level.speervallen) return;
+  const u = CHAR_H * scale;
+  for (const sp of level.speervallen){
+    sp.t = (sp.t || 0) + dt;
+    if (!sp.st) sp.st = 'wand';
+    if (sp.st === 'wand' || sp.st === 'tril') sp.px = speervalWandX(sp, scale);
+    if (sp.st === 'tril' && sp.t >= SPEERVAL.wacht){ sp.st = 'vlucht'; sp.t = 0; sp.px0 = sp.px; sp.hy = speervalH(sp) * CHAR_H; }
+    else if (sp.st === 'vlucht'){
+      sp.px += SPEERVAL.v * u * dt;
+      if (sp.px - sp.px0 > SPEERVAL.ver * u || sp.px > cliffAt().wall) speervalVal(sp);
+    }
+    else if (sp.st === 'val'){                                 // vallen tot op de grond onder hem, in sprite-eenheden
+      sp.vy += GRAVITY * dt; sp.hy -= sp.vy * dt;
+      const g = terrainH(sp.px);
+      if (sp.hy <= g + 4){ sp.hy = g + 4; sp.st = 'lig'; sp.t = 0; puffWorld(sp.px, 4, 0, 0.7); }
+    }
+    else if (sp.st === 'lig' && !sp.dood && sp.t >= SPEERVAL.lig + SPEERVAL.terug){ sp.st = 'wand'; sp.t = 0; }
+  }
+}
+// het raakvlak in schermpixels: de punt en een stuk van de schacht erachter, of null als hij niet vliegt
+function speervalBox(sp, groundY, scale, cx){
+  if (sp.st !== 'vlucht') return null;
+  const tx = cx + (sp.px - world), ty = groundY - sp.hy * scale, r = SPEERVAL.r * CHAR_H * scale;
+  return { l: tx - javLen(scale) * SPEERVAL.voor, r: tx + r, t: ty - r, b: ty + r };
+}
+// achter: de laag voor de klif (in de wand en net eruit, zodat het steen over zijn staart ligt), anders erna
+function speervalTeken(groundY, scale, cx, achter){
+  if (!level || !level.speervallen || !imgReady(javImg)) return;
+  const len = javLen(scale), kk = len / JAV.w, t = performance.now() / 1000;
+  for (const sp of level.speervallen){
+    const st = sp.st || 'wand';
+    const inWand = st === 'wand' || st === 'tril' || (st === 'vlucht' && sp.px - len < sp.px0 - len * (1 - SPEERVAL.steek));
+    if (inWand !== !!achter || sp.px == null) continue;
+    const tx = cx + (sp.px - world);
+    if (tx < -W || tx - len > W / viewZoom() + W) continue;
+    const hy = st === 'wand' || st === 'tril' ? speervalH(sp) * CHAR_H : sp.hy;
+    let hoek = 0, dx = 0, alfa = 1;
+    if (st === 'tril'){                                      // hoe langer, hoe harder: je waarschuwing
+      const p = Math.min(1, sp.t / SPEERVAL.wacht);
+      hoek = Math.sin(t * 55) * (1 + 3 * p) * Math.PI / 180; dx = -Math.abs(Math.sin(t * 31)) * 5 * p * scale;
+    }
+    if (st === 'val') hoek = Math.min(0.25, sp.t * 0.8);        // de punt zakt wat voorover
+    if (st === 'lig'){ hoek = 0.04; if (!sp.dood) alfa = Math.max(0, 1 - Math.max(0, sp.t - SPEERVAL.lig) / SPEERVAL.terug); }
+    ctx.save();
+    ctx.globalAlpha *= alfa;
+    ctx.translate(tx + dx, groundY - hy * scale); ctx.rotate(hoek);
+    ctx.drawImage(javImg, -JAV.tipX * kk, -JAV.tipY * kk, JAV.w * kk, JAV.h * kk);   // punt naar rechts
+    ctx.restore();
+  }
+}
+function speervalReset(){
+  if (level && level.speervallen) for (const sp of level.speervallen){ sp.st = 'wand'; sp.t = 0; sp.dood = false; sp.px = null; }
+}
+// de baviaan houdt de fakkels dicht, maar alleen als er een speerval is: anders is hij niet te verslaan
+function bavBlokkeert(){
+  const b = level && level.baviaan;
+  if (!b || !b.lvl || !level.speervallen || !level.speervallen.length) return false;
+  const r = bavRust.get(b);
+  return !(r && r.fase === 'dood');
 }
 
 // ---- skelet met speer: trek de speer eruit en het stort in ------------------
@@ -5959,7 +6134,7 @@ function bavRaak(b, r, img, ox){
   vijandDood(true);
 }
 // het gevecht in de tekenlus, na de andere vijanden: raakt zijn bek Amir, en raakt Amir hem
-function bavGevecht({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, attacking, hitBy }){
+function bavGevecht({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, valRaakt, attacking, hitBy }){
   const b = level && level.baviaan, r = b && bavRust.get(b), g = b && bavGeo.get(b);
   if (!r || !g || !g.img || r.fase === 'dood' || !running || building) return;
   const kd = bavKader(g.img);
@@ -5971,6 +6146,10 @@ function bavGevecht({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, attacki
   const lijf = { l: l + kr, r: rr - kr, t: t + kv, b: o - kv };
   const B = BAV_VECHT.bek, b1 = sx(B.l), b2 = sx(B.r);
   const bek = { l: Math.min(b1, b2), r: Math.max(b1, b2), t: sy(B.t), b: sy(B.b) };
+  // de speer uit de speerval doodt hem, ook als hij verder niet te raken is; zolang hij nog niet stormt vliegt
+  // hij erlangs. Voor de beet gekeken: valt het in hetzelfde beeld, dan was de speer eerst.
+  const val = r.fase && valRaakt ? valRaakt(lijf) : null;
+  if (val){ speervalVal(val, true); bavRaak(b, r, g.img, g.ox); return; }
   if (r.bijt && !r.raak && hitBy(bek, pbox)){ r.raak = true; hurtPlayer(bek.l + bek.r < pbox.l + pbox.r); }
   if (showBoxes){
     ctx.save(); ctx.globalAlpha = 0.5; ctx.lineWidth = 2;
@@ -11482,6 +11661,7 @@ function restart(){
   muurReset();                                      // de rotswand weer dicht, zonder speer erin
   ravijnReset();                                    // het ravijn weer dicht, de rune weer uit
   zegelReset();                                     // en de zegels weer uit
+  speervalReset();                                  // de speervallen weer in de wand
   losseSperen.length = 0;                           // geen losse speren meer op de grond
   skeletReset();                                    // de skeletten weer overeind, met hun speer
   const bav = level && level.baviaan;               // de baviaan van een level weer hoog aan de wand
@@ -13176,7 +13356,8 @@ function drawVoorgrond(groundY, scale){
 }
 function bossBlocking(){
   return !!(level && level.spawns && level.spawns.some(sp => sp.kind === 'panter' && !sp.used))
-      || panthers.some(p => p.state !== 'dying' && p.state !== 'gone');
+      || panthers.some(p => p.state !== 'dying' && p.state !== 'gone')
+      || bavBlokkeert();                              // de baviaan, als er een speerval is om hem te verslaan
 }
 function drawBossBar(){
   const b = panthers.find(p => p.engaged && p.state !== 'gone' && (p.hp > 0 || p.alpha > 0));
@@ -15753,7 +15934,7 @@ function loop(now){
   if (running && !building && !sandbox && !won && !dead && level && level.ends &&
       level.ends.some(f => Math.abs(world - f.x) < 50 && ph >= terrainH(f.x) - 5
                         && ph < terrainH(f.x) + HOLTE_DAK + CHAR_H)){
-    if (bossBlocking()){ if (!bossHintT || now - bossHintT > 2500){ bossHintT = now; flashHint(winterOn() ? 'Versla eerst de witte panter' : 'Versla eerst de zwarte panter'); } }
+    if (bossBlocking()){ if (!bossHintT || now - bossHintT > 2500){ bossHintT = now; flashHint(bavBlokkeert() ? 'Versla eerst de baviaan' : winterOn() ? 'Versla eerst de witte panter' : 'Versla eerst de zwarte panter'); } }
     else winLevel();
   }
   if (!building) blockByPlatforms(plats, halfWNow);
@@ -15843,6 +16024,7 @@ function loop(now){
   }
   if (dt > 0) ravijnDecorStap(dt);                // en dat vallen en vervagen zelf, ook na het dichtgaan
   if (dt > 0) zegelUpdate(dt, scaleNow);          // erop stappen zet een zegel aan of uit
+  if (dt > 0) speervalUpdate(dt, scaleNow);       // de speer in de rotswand: trillen, vliegen, vallen
   if (dt > 0) skeletUpdate(dt, scaleNow);         // instorten, en de schedel die wegrolt
   if (dt > 0) tekenUpdate(dt);                    // het doek aan een speerteken, in de wind
   ctx.clearRect(0, 0, W, H);
@@ -16014,6 +16196,7 @@ function loop(now){
       }
     }
 
+    speervalTeken(groundY, scale, cx, true);       // de speer in de rotswand: het steen ligt over zijn staart
     // jouw eigen kliffen: gespiegeld, de muur wijst naar rechts (naar je start)
     if (level && level.cliffs && level.cliffs.length && cliffImgNow.complete && cliffImgNow.naturalWidth){
       const c = cliffAt();
@@ -16343,6 +16526,7 @@ function loop(now){
     zegelTeken(groundY, scale, cx);               // de zegels plat in de grond
     tekenTeken(groundY, scale, cx);               // speertekens: een speer met een zwart doek en schedels
     baviaanTeken(groundY, scale, cx);             // de baviaan (sandbox, en een level met het veld baviaan)
+    speervalTeken(groundY, scale, cx, false);     // de speer uit de speerval, als hij uit de wand is
     skeletTeken(groundY, scale, cx);              // skeletten, met of zonder speer
     losTeken(groundY, scale, cx);                 // speren die los op de grond liggen
     ravijnRuneTeken(groundY, scale, cx);          // de rots met de rune bij het ravijn
@@ -17024,8 +17208,19 @@ function loop(now){
       }
     }
 
+    // ---- de speerval: bukken, anders raakt hij Amir -------------------------
+    const valBoxen = ((level && level.speervallen) || []).map(sp => [sp, speervalBox(sp, groundY, scale, cx)]).filter(v => v[1]);
+    for (const [sp, vb] of valBoxen)
+      if (hitBy(vb, pbox) && invuln <= 0 && !dead && !godMode && !woedeAan()){ hurtPlayer(true); speervalVal(sp); }
+    const valRaakt = box => { const v = valBoxen.find(v => v[0].st === 'vlucht' && hitBy(v[1], box)); return v ? v[0] : null; };
+    if (showBoxes){
+      ctx.save(); ctx.globalAlpha = 0.5; ctx.lineWidth = 2; ctx.strokeStyle = '#ff9f43';
+      for (const [, vb] of valBoxen) ctx.strokeRect(vb.l, vb.t, vb.r - vb.l, vb.b - vb.t);
+      ctx.restore();
+    }
+
     // ---- de baviaan -------------------------------------------------------
-    bavGevecht({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, attacking, hitBy });
+    bavGevecht({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, valRaakt, attacking, hitBy });
 
     // ---- de fosforslang ----------------------------------------------------
     drawFosforSlangen({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, attacking, hitBy });
@@ -17813,6 +18008,7 @@ function syncLevel(){
       if (o.sluit !== null && o.sluit !== undefined) z.sluit = Math.round(o.sluit);
       if (o.breed && z.ravijn !== undefined) z.breed = Math.round(o.breed);
       if (o.muur) z.muur = true;
+      if (o.speerval !== null && o.speerval !== undefined) z.speerval = Math.round(o.speerval);
       return z;
     }),
     runes: (level.runes || []).length ? level.runes.map(runeUit) : undefined,
@@ -17972,7 +18168,12 @@ function readLevel(txt){
                                                         ? null : Number(q.sluit),
                                                 // de breedte van het ravijn dat hij opent (standaard RAVIJN_MAAT.breed)
                                                 breed: Number(q.breed) > 0 ? Number(q.breed) : undefined,
-                                                muur: q.muur === true })),   // opent de rotswand van het level
+                                                muur: q.muur === true,       // opent de rotswand van het level
+                                                // schiet de speer in de rotswand op die x los (zie "speerval")
+                                                speerval: (q.speerval === undefined || q.speerval === null)
+                                                          ? null : Number(q.speerval) })),
+           // speren in de rotswand die een zegel losschiet: x is de klif, h de hoogte in Amir
+           speervallen: (o.speervallen || []).map(q => ({ x: Number(q.x), h: Number(q.h) > 0 ? Number(q.h) : undefined })),
            // ravijnen met een rune op een rots ervoor: x is het midden van het ravijn, zie RAVIJN_PROEF
            // met rots, groot en hoog een andere plaat, maat of schijfhoogte; met doel: true opent hij niets
            runes: (o.runes || []).map(runeIn),
@@ -18047,7 +18248,7 @@ function startBuild(terug){
   world = 0; ph = 0; pvh = 0; onGround = true; fell = false; snakes.length = 0;
   bouwD = 0;
   if (terug && terug.x !== undefined){ world = terug.x; bouwD = terug.d || 0; }
-  muurReset(); zegelReset(); skeletReset(); losseSperen.length = 0;   // wat je in de test opende, weer dicht
+  muurReset(); zegelReset(); speervalReset(); skeletReset(); losseSperen.length = 0;   // wat je in de test opende, weer dicht
   jav = null; thr = null;
   bouwTest = null; document.getElementById('bterug').classList.remove('on');
   syncLevel(); bouwKies(null); bouwMaat(); requestAnimationFrame(bouwLus); cv.focus();
@@ -18887,6 +19088,7 @@ const SUBS = {
   'Test 13: Het weer': 'Na elk ravijn slaat het weer om: regen, onweer, zandstorm, sneeuw en sneeuwstorm',
   'Test 14: De drie stammen': 'Kies je talents en probeer ze alle negen, ook de drie van Impungushe',
   'Test 15: De baviaan': 'Hij springt van de wand en houdt je vast tussen twee ravijnen',
+  'Test 16: De speerval': 'Een zegel, een speer in de wand, en bukken als de baviaan achter je is',
   'Test 10: Licht onder de grond': 'Een gang met drie gaten in het dak, om het licht te bekijken'
 };
 function buildCards(el, list){
@@ -19069,6 +19271,34 @@ function sbZegel(soort){
   cv.focus();
 }
 sandboxEl.querySelectorAll('button[data-zegel]').forEach(b => b.onclick = () => sbZegel(Number(b.dataset.zegel)));
+// een speerval voor je uit (naar links, want de klif wijst altijd naar rechts): een klif met de speer erin, en
+// een zegel daartussen dat hem losschiet. Staat de baviaan achter je (Van rechts), dan kun je zo proberen of
+// de speer over je heen vliegt en hem raakt. Een eerdere speerval met zijn klif en zegel gaat weg.
+const SB_SPEERVAL = { klif: 1000, zegel: 450 };             // wereld-px voor Amir uit
+function sbSpeervalWeg(){
+  if (level.cliffs) level.cliffs = level.cliffs.filter(c => !c.valKlif);
+  if (level.zegels) level.zegels = level.zegels.filter(z => z.speerval === null || z.speerval === undefined);
+  level.speervallen = [];
+}
+function sbSpeerval(){
+  sbSpeervalWeg();
+  const x = world - SB_SPEERVAL.klif;
+  if (!level.cliffs) level.cliffs = [];
+  if (!level.zegels) level.zegels = [];
+  level.cliffs.push({ x, valKlif: true });
+  level.speervallen.push({ x });
+  level.zegels.push({ x: world - SB_SPEERVAL.zegel, ravijn: null, speerval: x });
+  flashHint('Stap op het zegel en buk');
+  cv.focus();
+}
+document.getElementById('sbspeerval').onclick = sbSpeerval;
+document.getElementById('sbspeervallos').onclick = () => {
+  const sp = (level.speervallen || [])[0];
+  if (!sp) sbSpeerval();
+  const z = level.zegels.find(q => q.speerval !== null && q.speerval !== undefined);
+  if (z) speervalZegel(z);
+  cv.focus();
+};
 // een rune op een rots voor je uit, als doel (doel: true): de schijf komt zo ver weg dat je hem
 // net met een worp raakt, op de maat en hoogte van de twee knoppen ernaast (in Amir).
 const SB_RUNE_GROOT = [2.5, 3.5, 5], SB_RUNE_HOOG = [1.6, 1.9, 2.1];
@@ -19599,7 +19829,7 @@ sbPatBtn.onclick = () => {
 const sbGodBtn = document.getElementById('sbgod');
 function setGodLabel(){ sbGodBtn.textContent = godMode ? 'Onsterfelijk aan' : 'Onsterfelijk uit'; sbGodBtn.classList.toggle('on', godMode); }
 sbGodBtn.onclick = () => { godMode = !godMode; setGodLabel(); cv.focus(); };
-document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; hppotions.length = 0; hppotionFx.length = 0; level.rocks.length = 0; if (level.gaps) level.gaps.length = 0; if (level.grotten) level.grotten.length = 0; if (level.plafond) level.plafond.length = 0; if (level.terraces) level.terraces.length = 0; if (level.skeletten) level.skeletten.length = 0; if (level.tekens) level.tekens.length = 0; level.baviaan = null; sbBavInfo(); if (level.runes) level.runes.length = 0; ravijnReset(); losseSperen.length = 0; arena = null; thr = null; jav = null; javLost = 0; cv.focus(); };
+document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; hppotions.length = 0; hppotionFx.length = 0; level.rocks.length = 0; if (level.gaps) level.gaps.length = 0; if (level.grotten) level.grotten.length = 0; if (level.plafond) level.plafond.length = 0; if (level.terraces) level.terraces.length = 0; if (level.skeletten) level.skeletten.length = 0; if (level.tekens) level.tekens.length = 0; level.baviaan = null; sbBavInfo(); sbSpeervalWeg(); if (level.runes) level.runes.length = 0; ravijnReset(); losseSperen.length = 0; arena = null; thr = null; jav = null; javLost = 0; cv.focus(); };
 document.getElementById('sbback').onclick = stopSandbox;
 document.getElementById('btnsandbox').onclick = startSandbox;
 document.getElementById('btnstop').onclick = () => { building = false; buildEl.classList.remove('on'); };
