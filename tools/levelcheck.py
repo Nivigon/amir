@@ -337,6 +337,7 @@ class Spel:
         self.HOLTE_DAK = b.getal('HOLTE_DAK')
         self.FAR_GAP_LIFT = b.getal('FAR_GAP_LIFT')
         self.PLAYER_HALF_W = b.getal('PLAYER_HALF_W')
+        self.ZUIL_MAX = float(b.regex(r'const ZUIL = \{ max: ([\d.]+)', 'ZUIL.max').group(1))
         self.THICKET_BOX = b.getal('THICKET_BOX')
         self.THICKET_OVERLAP = b.getal('THICKET_OVERLAP')
         self.THICKET_BACK_S = b.getal('THICKET_BACK_S')
@@ -938,6 +939,31 @@ def vijanden(lv, sp):
             yield info(o['x'], 'vijand %s staat beneden in de gang, op %s' % (o.get('k'), n0(lv.terrein(o['x']))))
         elif lv.in_gat(o['x'] - 40, o['x'] + 40):
             yield letop(o['x'], 'vijand %s start boven een ravijn' % o.get('k'))
+
+
+@regel('zuil')
+def zuil(lv, sp):
+    """Een strook grond van hoogstens ZUIL.max tussen twee ravijnen is een zuil (zie ZUIL in de HTML).
+    Daar redt het spel een te korte sprong niet: wie onder de rand zakt glijdt langs de wand naar
+    beneden. Het gat ervoor moet dus met een schone sprong te halen zijn, zonder wegzakken."""
+    gaps = sorted(lv.gaps, key=lambda g: -g['x'])
+    for a, b in zip(gaps, gaps[1:]):                 # a ligt rechts (daar komt hij vandaan), b links
+        r, l = a['x'] - a['w'] / 2, b['x'] + b['w'] / 2
+        breed = r - l
+        if breed <= 0 or breed > sp.ZUIL_MAX:
+            continue
+        if any(h['l'] < r and h['r'] > l for h in lv.holtes):
+            continue
+        kop = lambda x: lv.kop(x) - lv.terrein(x)
+        rand = a['x'] + a['w'] / 2
+        schoon_r, _ = sp.sprong(sp.LOOP * sp.SPRINT, kop, rand)
+        schoon_l, _ = sp.sprong(sp.LOOP, kop, rand)
+        if a['w'] > schoon_r:
+            yield fout((r + l) / 2, 'zuil van %s breed achter een gat van %s: met sprint komt Amir %s ver, en te kort '
+                       'springen wordt op een zuil niet gered' % (n0(breed), n0(a['w']), n0(schoon_r)))
+        else:
+            yield info((r + l) / 2, 'zuil van %s breed achter een gat van %s (%s)'
+                       % (n0(breed), n0(a['w']), 'lopend te halen' if a['w'] <= schoon_l else 'alleen met sprint'))
 
 
 @regel('ravijnen')

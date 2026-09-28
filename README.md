@@ -45,6 +45,15 @@ aan en twijfelt, met de speer nog in zijn borst, en pas dan zakt hij in elkaar, 
 staan voor het zegel en blijven dicht zolang hij leeft; daarna loop je terug. In de sandbox laat **Dood** (onder Baviaan)
 het hele stuk zien, en **Dood door speerval** hetzelfde met de speer in zijn borst (of met **Spiegel** in zijn rug).
 
+**Test 17: De zuil** gaat over precies springen. Midden in een ravijn is een smalle zuil grond blijven staan, en daar moet
+je op landen. Een sprong die net te kort is, wordt hier niet gered: bij de overkant van een gewoon ravijn zet het spel je
+weer op de rand als je er net onder zakt, maar de zijkant van een zuil is een wand, en daar glijd je langs naar beneden.
+Eerst een brede zuil over twee gaten die je lopend haalt. Dan een zuil van een halve Amir breed achter een gat dat je
+alleen met Shift haalt: zet vlak voor de rand af, want wie te vroeg springt komt tegen de wand en wie te laat springt
+vliegt eroverheen. Tot slot twee van die zuilen achter elkaar, en de tweede staat zo dichtbij dat je daar juist niet
+moet sprinten. Elke strook grond van hoogstens 300 px tussen twee ravijnen werkt zo. In de sandbox zet **Zuil** (bij
+Terrein) er een neer, smal of breed.
+
 **Baboon tests** is een episode met proefstukken voor de baviaan, en net als Testrun begin je met de tribekeuze. In
 **Baboon 1: De speerbeet** (dezelfde vlakte als Test 15) hangt hij niet aan de wand maar staat hij grommend op de grond,
 een stuk voor je uit, en kijkt je aan. Pak je speer en loop naar hem toe. Steek je naar hem, of kom je met je speer in de
@@ -644,7 +653,7 @@ zon schuin naar binnen, uit dezelfde richting als waar hij in de lucht staat. Da
 Test 1, onder het rotsdak.
 
 In de sandbox staat het onder **Ravijn**: **Smal** en **Breed** zetten een breuk neer waar je
-staat.
+staat. Onder **Zuil** staan twee ravijnen met een smalle strook grond ertussen (zie Test 17).
 
 ## Onder de grond
 

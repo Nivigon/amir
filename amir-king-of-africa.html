@@ -895,6 +895,11 @@
         <button data-gap="320">Breed</button>
       </div>
       <div class="row">
+        <label>Zuil</label>
+        <button data-zuil="90">Smal</button>
+        <button data-zuil="160">Breed</button>
+      </div>
+      <div class="row">
         <label>Vallen</label>
         <button id="sbval">Valschade uit</button>
         <button data-valter="250">Terras 1 Amir</button>
@@ -2497,7 +2502,32 @@ const TEST_16 = {
           { x: -1800, t: 'In de rotswand zit een speer, met de punt naar jou. Het zegel schiet hem los' },
           { x: -2100, t: 'Stap op het zegel als de baviaan achter je aan komt, en buk meteen' } ]
 };
-const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16];
+// Test 17: de zuil. Midden in een ravijn is een smalle zuil grond blijven staan, en daar moet je op
+// landen. Het zijn gewoon twee ravijnen met een strook grond ertussen. Een sprong duurt zo'n 0,82
+// seconde: lopend kom je 270 px ver, met Shift 404. Drie keer, steeds krapper: eerst een brede zuil
+// over twee gaten die je lopend haalt, dan een van 90 px achter een gat van 300 (alleen met Shift,
+// en dan moet je in een strook van zo'n 85 px afzetten), en tot slot twee van die zuilen achter elkaar,
+// met tussen de twee een gat van 240: dat is lopend te doen, en met Shift vlieg je eroverheen.
+// Te kort springen wordt hier niet gered: de zijkant van een zuil is een wand (zie ZUIL).
+const TEST_17 = {
+  name: 'Test 17: De zuil',
+  lagen: 'tafelbergen',
+  gaps: [ {x: -1200, w: 240}, {x: -1600, w: 240},                   // zuil 1: 160 breed, lopend te doen
+          {x: -2600, w: 300}, {x: -2970, w: 260},                   // zuil 2: 90 breed, met Shift
+          {x: -3900, w: 300}, {x: -4260, w: 240}, {x: -4600, w: 260} ],   // zuil 3 en 4: twee op rij
+  rocks: [],
+  spawns: [ {x: -60000, k: 'groen'} ],          // heel ver weg: houdt de vrije modus uit
+  props: [ {x: -500, k: 'gras', s: 1.1, f: 0, v: 0}, {x: -2050, k: 'struik', s: 1.0, f: 1, v: 0},
+           {x: -3400, k: 'gras', s: 1.0, f: 1, v: 0}, {x: -5000, k: 'gras', s: 1.1, f: 0, v: 0} ],
+  terraces: [], ledges: [], village: [], npcs: [], water: [], thickets: [],
+  hppotions: [ {x: -2200, y: null}, {x: -3500, y: null} ],
+  cliffs: [ {x: -5600} ],
+  ends: [ {x: -5150} ],
+  tips: [ { x: -700,  t: 'Testlevel: een zuil midden in het ravijn. Spring erop, en dan weer eraf' },
+          { x: -2150, t: 'Deze is smal en het gat is breed: alleen met Shift, en zet vlak voor de rand af' },
+          { x: -3450, t: 'Twee zuilen achter elkaar. De tweede staat dichterbij: daar juist niet sprinten' } ]
+};
+const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17];
 // ---- Episode Testrun: drie snelle combinatielevels ----
 // Gebouwd om combinaties van bestaande dingen uit te proberen (zie notities/combinaties.md): wat
 // werkt, gaat daar in het lijstje. Net als de Test levels vallen ze niet onder regel 1, maar het is
@@ -12234,6 +12264,7 @@ function updateJump(dt, plats, halfW){
     const hk = holteKop();                      // en in een gang onder de grond tegen het dak
     if (ph > hk){ ph = hk; if (pvh > 0) pvh = 0; }
   }
+  zuilWand(prevH);                              // onder de rand van een zuil: daar is het een wand
   const overGap = !building && !!inGap(world);   // staat er wel grond onder je? (in de bouwer loop je er gewoon overheen)
 
   // op een rots landen kan alleen van bovenaf; van onderen spring je er doorheen
@@ -12352,6 +12383,34 @@ function holteAt(x){
 // De vloer als er geen rots of terras onder je staat: de gewone grond (0), de bodem van een
 // gang, of niets (null, een gewoon ravijn). Onder de grondlijn in een gang telt de grond
 // erboven niet meer, anders sta je na een sprong ineens weer bovenop.
+// ---- zuil: een smalle strook grond tussen twee ravijnen ----
+// Ligt er tussen twee ravijnen hoogstens ZUIL.max px grond, dan is dat een zuil die midden in het
+// ravijn is blijven staan. Wie te kort springt en onder de rand zakt, wordt er niet weer op gezet
+// zoals bij de overkant van een gewoon ravijn: de zijkant van een zuil is een wand, en daar glijd je
+// langs naar beneden. Zo moet je er echt op landen (Test 17). Alleen de ravijnen uit gaps, en niet
+// boven een gang. Een bredere strook is gewoon grond, met de redding die het spel daar altijd geeft.
+const ZUIL = { max: 300, rand: 6 };   // rand: zo ver onder de grondlijn telt als eronder
+function zuilBij(x){
+  if (holteAt(x)) return null;
+  let l = -Infinity, r = Infinity;               // de dichtstbijzijnde ravijnranden links en rechts van x
+  for (const g of gapList()){
+    const gl = g.x - g.w / 2, gr = g.x + g.w / 2;
+    if (x > gl && x < gr) return null;           // in het gat zelf
+    if (gr <= x && gr > l) l = gr;
+    if (gl >= x && gl < r) r = gl;
+  }
+  return r - l <= ZUIL.max ? { l, r } : null;
+}
+// Zat Amir het vorige beeld al onder de rand en is hij de zuil in geschoven, dan zet dit hem terug
+// tegen de wand aan de kant waar hij vandaan kwam (de dichtstbijzijnde: per beeld schuift hij veel
+// minder dan een halve zuil). Het vorige beeld, want wie van bovenaf landt zakt in dat ene beeld zelf
+// ook een stukje onder de grondlijn, en die hoort er gewoon op te komen.
+function zuilWand(prevH){
+  if (building || onGround || prevH >= -ZUIL.rand) return;
+  const z = zuilBij(world);
+  if (!z) return;
+  world = (world - z.l < z.r - world) ? z.l - 0.5 : z.r + 0.5;
+}
 function grondVloer(x, h){
   const o = holteAt(x);
   if (o && (inGap(x) || h < -1)) return -o.diep;
@@ -20584,6 +20643,7 @@ const SUBS = {
   'Test 14: De drie stammen': 'Kies je talents en probeer ze alle negen, ook de drie van Impungushe',
   'Test 15: De baviaan': 'Hij springt van de wand en houdt je vast tussen twee ravijnen',
   'Test 16: De speerval': 'Een zegel, een speer in de wand, en bukken als de baviaan achter je is',
+  'Test 17: De zuil': 'Een smalle zuil grond midden in een ravijn: precies springen, en blijven staan',
   'Test 10: Licht onder de grond': 'Een gang met drie gaten in het dak, om het licht te bekijken',
   'Testrun 1: Regen bij de rivier': 'Een poel, een kei, onweer en twee vechters',
   'Testrun 2: De zandstorm': 'Schilden in de wind, een zegel, fosforslangen en een rune',
@@ -20759,6 +20819,20 @@ function sbGap(w){
   cv.focus();
 }
 sandboxEl.querySelectorAll('button[data-gap]').forEach(b => b.onclick = () => sbGap(Number(b.dataset.gap)));
+// een zuil in een ravijn (zie ZUIL): een gat van 300, dan b px grond, dan een gat van 260, aan de
+// gekozen kant, met 450 px aanloop vanaf Amir (voorbij de kei van de sandbox). Het eerste gat haal je alleen met Shift. Past hij aan
+// die kant niet voor de rotswand of het einde, dan komt hij aan de andere kant.
+function sbZuil(b){
+  const lang = 300 + b + 260;
+  const past = side => side < 0 ? world - 450 - lang > endWall() + 100 : world + 450 + lang < cliffAt().wall - 100;
+  let side = sbFromRight ? 1 : -1;
+  if (!past(side)) side = -side;
+  if (!past(side)){ flashHint('Hier is geen plek voor een zuil'); cv.focus(); return; }
+  const rand = world + side * 450;                  // de rand waar je afzet
+  level.gaps.push({ x: rand + side * 150, w: 300 }, { x: rand + side * (300 + b + 130), w: 260 });
+  cv.focus();
+}
+sandboxEl.querySelectorAll('button[data-zuil]').forEach(b => b.onclick = () => sbZuil(Number(b.dataset.zuil)));
 // een zegel in de grond, aan de gekozen kant; stap erop en hij licht op, nog eens en hij gaat uit.
 // Met ravijn scheurt de grond erachter open zodra hij aangaat (een keer, net als in een level).
 function sbZegel(soort){
