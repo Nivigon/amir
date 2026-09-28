@@ -5878,10 +5878,9 @@ const BAV_IDLE_GROM = { map: 'enemies/baviaan/idle_grom/idle_grom_', n: 39, fps:
 // Alleen bij 'grom' worden die frames geladen.
 const BAV_NA_BRUL = 'grom';
 // Hoofdschudden: 64 frames, een keer, als onderbreking van de idle. Hetzelfde canvas als de idle.
-// Na de landing en de brul volgt een vast verloop: even idle, schudden, weer even idle, nog een keer
-// schudden, en dan stormt hij (BAV_RUN).
-// `wacht` zijn die stukken idle, in seconden, elk willekeurig tussen de twee getallen: zoveel stukken,
-// zoveel keer schudden. Samen met het schudden zo'n 4 tot 5 seconden. Bij de opgefokte idle begint het
+// Na de landing en de brul volgt een vast verloop (BAV_VERLOOP): idle, schudden, idle, een korte zachte brul,
+// idle, nog een keer schudden, idle, en een grote lange brul waarbij het scherm licht trilt; dan stormt hij
+// (BAV_RUN). Samen zo'n 9 seconden. Bij de opgefokte idle begint het
 // schudden pas als de lus rond is, want die loopt naadloos over; bij de grom meteen, want daar verspringt
 // de houding toch al (het schudden begint en eindigt rechtop, de grom staat laag). Na het schudden loopt
 // de idle vanaf frame 0. K in de sandbox schudt meteen, zolang hij nog niet stormt (bavSchudNu).
@@ -5889,7 +5888,6 @@ const BAV_NA_BRUL = 'grom';
 // en weer omhoog (48 tot 63) snel, en de shake met de kop omlaag (18 tot 47) nog sneller: kort en fel,
 // alsof hij iets van zich afschudt. Samen zo'n 1,6 seconden.
 const BAV_SCHUD = { map: 'enemies/baviaan/hoofdschudden/hoofdschudden_', n: 64, links: 44,
-  wacht: [[0.6, 1.2], [0.5, 1.0]],
   delen: [{ tot: 18, fps: 40 }, { tot: 48, fps: 42 }, { tot: 64, fps: 40 }] };
 // welk frame van het hoofdschudden er t seconden na zijn begin staat, of -1 als hij klaar is
 function bavSchudFrame(t){
@@ -5901,6 +5899,26 @@ function bavSchudFrame(t){
   }
   return -1;
 }
+// Het verloop na de brul: `stappen` op volgorde, en voor elke stap eerst een stuk idle (`wacht`, in seconden,
+// elk keer willekeurig tussen de twee getallen). Een stap is `schud` (BAV_SCHUD) of een brul uit BAV_ROAR.
+const BAV_VERLOOP = { stappen: ['schud', 'klein', 'schud', 'groot'],
+  wacht: [[0.9, 1.4], [0.8, 1.2], [0.8, 1.2], [0.9, 1.3]] };
+// De twee extra brullen in het verloop: dezelfde 24 frames als de brul bij de landing (BAV_BRUL, hetzelfde canvas)
+// en hetzelfde geluid, maar met een eigen tempo per stuk (`delen`), een eigen volume en afspeelsnelheid (`rate`,
+// zonder de toonhoogte vast te houden: sneller is hoger en korter, trager is dieper en langer). Het geluid start
+// `voor` seconden voor frame `bij`, zoals bij de brul. De bek wijd open (7 tot 19) valt over het luide stuk.
+// Ze beginnen bij frame `van` (6): brul_00 is de lage houding van de landing, en uit de idle, die rechtop staat,
+// zakte hij dan eerst ineens door zijn knieen. brul_06 staat al rechtop, net als brul_23 waarmee hij eindigt.
+//   klein: kort en zachter. Het geluid dooft uit tussen `uit[0]` en `uit[1]` seconden na zijn begin.
+//   groot: groter en langer, de bek langer open, dieper. Van frame `tril.van` tot `tril.tot` trilt het scherm
+//          licht (`shake`, tot `tril.sterk`; Amir die geraakt wordt is 0,28), met `tril.aan` en `tril.af`
+//          seconden in- en uitlopen.
+const BAV_ROAR = {
+  klein: { delen: [{ tot: 7, fps: 10 }, { tot: 20, fps: 18 }, { tot: 24, fps: 16 }], van: 6, vol: 0.45, rate: 1.2,
+           bij: 7, voor: 0.04, uit: [0.75, 1.05] },
+  groot: { delen: [{ tot: 7, fps: 6 }, { tot: 20, fps: 8.2 }, { tot: 24, fps: 9.5 }], van: 6, vol: 1, rate: 0.85,
+           bij: 7, voor: 0.06, tril: { van: 7, tot: 20, sterk: 0.1, aan: 0.25, af: 0.4 } }
+};
 const bavSchudDuur = () => { let van = 0, s = 0; for (const d of BAV_SCHUD.delen){ s += (d.tot - van) / d.fps; van = d.tot; } return s; };
 // Stormen: 17 frames als lus, na het verloop met het hoofdschudden. Canvas 790 bij 592, breder dan de 542
 // van de brul en de idles: het begint 108 bronpixels links daarvan, dus `links` is 44 plus 108. Grondlijn
@@ -5993,7 +6011,9 @@ let baviaanImg = null, bavAfzetImgs = null, bavValImgs = null, bavLandingImgs = 
 // (allebei in seconden sinds het begin van de idle), keer hoe vaak hij al geschud heeft, nu: K is gedrukt
 const bavRust = new WeakMap();
 // hoe lang het stuk idle na `keer` keer schudden duurt; voorbij het verloop Infinity (dan stormt hij, BAV_RUN)
-function bavWacht(keer){ const w = BAV_SCHUD.wacht[keer]; return w ? w[0] + Math.random() * (w[1] - w[0]) : Infinity; }
+function bavWacht(keer){ const w = BAV_VERLOOP.wacht[keer]; return w ? w[0] + Math.random() * (w[1] - w[0]) : Infinity; }
+// hoe lang een stap uit het verloop duurt
+const bavStapDuur = soort => { const R = BAV_ROAR[soort]; return R ? deelTijd(R.delen, BAV_BRUL.n) - deelTijd(R.delen, R.van) : bavSchudDuur(); };
 function bavReeks(map, n){
   const r = [];
   for (let i = 0; i < n; i++){
@@ -6132,21 +6152,44 @@ function bavStand(b, scale){
 // de idle na de brul als lus (de grom of de opgefokte, BAV_NA_BRUL), af en toe onderbroken door het hoofdschudden
 function bavRustStand(b, tIdle, dx, dy, scale, lijn){
   let r = bavRust.get(b);
-  if (!r || tIdle < r.t0){ r = { t0: 0, wacht: bavWacht(0), schud: null, keer: 0, nu: !!(r && r.nu) }; bavRust.set(b, r); }
+  if (!r || tIdle < r.t0){ r = { t0: 0, wacht: bavWacht(0), schud: null, soort: null, keer: 0, nu: !!(r && r.nu) }; bavRust.set(b, r); }
   const grom = BAV_NA_BRUL === 'grom', I = grom ? BAV_IDLE_GROM : BAV_IDLE_OP, imgs = grom ? bavGromImgs : bavIdleOpImgs;
-  const lus = I.n / I.fps, lang = bavSchudDuur();
-  if (r.schud != null && tIdle >= r.schud + lang){             // klaar met schudden: de idle weer vanaf frame 0
-    r.t0 = r.schud + lang; r.schud = null; r.keer++; r.wacht = bavWacht(r.keer);
+  const lus = I.n / I.fps;
+  // r.schud is wanneer de lopende stap begon, r.soort welke het is (een stap uit BAV_VERLOOP, of een extra schud met K)
+  if (r.schud != null && tIdle >= r.schud + bavStapDuur(r.soort)){   // klaar: de idle weer vanaf frame 0
+    r.t0 = r.schud + bavStapDuur(r.soort);
+    if (!r.extra) r.keer++;
+    r.schud = null; r.soort = null; r.extra = false; r.wacht = bavWacht(r.keer);
   }
   const ti = tIdle - r.t0;
-  if (r.schud == null && r.keer >= BAV_SCHUD.wacht.length)    // het verloop is klaar: hij stormt
+  if (r.schud == null && r.keer >= BAV_VERLOOP.stappen.length)  // het verloop is klaar: hij stormt
     return bavVecht(b, r, tIdle, dx, scale, lijn);
   if (r.schud == null && (ti >= r.wacht || r.nu)){
     const tNu = r.nu ? ti : r.wacht;                           // de grom meteen, de opgefokte op het einde van de lus
-    r.schud = r.t0 + (grom ? tNu : lus * Math.max(1, Math.ceil(tNu / lus - 1e-9))); r.nu = false;
+    r.schud = r.t0 + (grom ? tNu : lus * Math.max(1, Math.ceil(tNu / lus - 1e-9)));
+    r.extra = r.nu; r.soort = r.nu ? 'schud' : BAV_VERLOOP.stappen[r.keer]; r.nu = false; r.snd = false;
   }
-  if (r.schud != null && tIdle >= r.schud)
-    return { img: bavSchudImgs[Math.max(0, bavSchudFrame(tIdle - r.schud))], dx, dy, ox: BAV_SCHUD.links };
+  if (r.schud != null && tIdle >= r.schud){
+    const R = BAV_ROAR[r.soort];
+    if (!R) return { img: bavSchudImgs[Math.max(0, bavSchudFrame(tIdle - r.schud))], dx, dy, ox: BAV_SCHUD.links };
+    const ts = tIdle - r.schud + deelTijd(R.delen, R.van);      // de tijd in de brul, vanaf frame 0 gerekend
+    // een brul uit het verloop: het geluid een keer, de klein dooft uit, bij de groot trilt het scherm
+    const tGeluid = deelTijd(R.delen, R.bij) - R.voor;
+    if (!r.snd && ts >= tGeluid){ r.snd = true; bavBrulSpeel(R.vol, R.rate); }
+    if (R.uit && r.snd && wantSound){
+      const tg = ts - tGeluid, k = Math.min(1, Math.max(0, (tg - R.uit[0]) / (R.uit[1] - R.uit[0])));
+      bavBrulSnd.volume = R.vol * (1 - k);
+      if (k >= 1) bavBrulSnd.pause();
+    }
+    if (R.tril){
+      const T = R.tril, t1 = deelTijd(R.delen, T.van), t2 = deelTijd(R.delen, T.tot);
+      if (ts >= t1 && ts < t2){
+        const env = Math.min(1, (ts - t1) / T.aan, (t2 - ts) / T.af);
+        shake = Math.max(shake, T.sterk * env);
+      }
+    }
+    return { img: bavBrulImgs[Math.min(BAV_BRUL.n - 1, deelFrame(R.delen, ts))], dx, dy, ox: BAV_BRUL.links };
+  }
   return { img: imgs[Math.floor(ti * I.fps) % I.n], dx, dy, ox: I.links };
 }
 // kader van de baviaan in een frame (bronpixels, alfa boven de helft), een keer per plaatje uitgerekend
@@ -6349,10 +6392,12 @@ function bavKooi(b){
 // aan welke kant van de kooi x ligt: -1 links, 0 erin (ook boven een van de ravijnen), 1 rechts
 const bavKooiKant = (K, x) => x < K.L ? -1 : x > K.R ? 1 : 0;
 // de brul met het geluid, een keer per keer dat hij brult
-function bavBrulSpeel(){
+function bavBrulSpeel(vol = BAV_BRUL.geluid.vol, rate = 1){
   if (!wantSound) return;
   try { bavBrulSnd.currentTime = 0; } catch (e) {}
-  bavBrulSnd.volume = BAV_BRUL.geluid.vol; bavBrulSnd.play().catch(() => {});
+  bavBrulSnd.preservesPitch = bavBrulSnd.mozPreservesPitch = bavBrulSnd.webkitPreservesPitch = false;   // trager is dieper
+  bavBrulSnd.playbackRate = rate;
+  bavBrulSnd.volume = vol; bavBrulSnd.play().catch(() => {});
 }
 // een klap van Amir: hij is dood
 function bavRaak(b, r, img, ox){
@@ -6401,7 +6446,8 @@ function bavSchudNu(){
   if (!b || b.afzet == null) return;
   const r = bavRust.get(b);
   if (r && r.fase) return;                                   // hij stormt al
-  if (r) r.nu = true; else bavRust.set(b, { t0: 0, wacht: bavWacht(0), schud: null, keer: 0, nu: true });
+  if (r){ if (r.schud == null) r.nu = true; }                // niet midden in een schud of een brul
+  else bavRust.set(b, { t0: 0, wacht: bavWacht(0), schud: null, soort: null, keer: 0, nu: true });
 }
 const bavGeo = new WeakMap();                                // waar hij dit beeld getekend is (bavGevecht)
 function baviaanTeken(groundY, scale, cx){
