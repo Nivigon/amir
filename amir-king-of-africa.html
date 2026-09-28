@@ -2531,7 +2531,7 @@ const TEST_16 = {
 // het begin. Vlak achter die doorgang ligt een zegel, en er is geen weg eromheen (een zegel met plafond: 'zak'
 // telt ook als je eroverheen springt). Stap je erop, dan valt de doorgang achter je dicht, zakt de doorgang
 // aan het eind tot een spleet van 170 (Amir is 251, gebukt loop je niet), en komt het plafond van de kamer met
-// een klap en dan langzaam op je af: van 510 naar 251 in zo'n zestien seconden, en dan ben je geplet. Achter de
+// een klap en dan langzaam op je af: van 510 naar 251 in zo'n 23 seconden, en dan ben je geplet. Achter de
 // spleet ligt het tweede zegel. Een vlakke worp gaat onder de spleet door (de punt vertrekt op 225 en is daar
 // al onder de 170), een boog niet: die komt tegen het plafond. Hoe ver een vlakke worp komt hangt aan het
 // scherm (zo'n 1900 keer de schaal), dus de kamer is 2900 lang: van een telefoon tot een groot scherm is er een
@@ -2548,7 +2548,7 @@ const TEST_17 = {
   holtes: [ {r: -640, l: -5900, diep: 700} ],   // de gang: 510 hoog onder het dak
   zakplafond: [
     {r: -1900, l: -2050, rust: 300, dicht: 0, v: 900, duw: -1},       // de lage doorgang: valt achter je dicht
-    {r: -2050, l: -4950, rust: 510, dicht: 0, v: 13, schok: 50},      // het plafond van de kamer
+    {r: -2050, l: -4950, rust: 510, dicht: 0, v: 9, schok: 50},       // het plafond van de kamer
     {r: -4950, l: -5050, rust: 510, dicht: 170, v: 700, duw: 1} ],    // de doorgang aan het eind: een spleet
   zegels: [ {x: -2140, plafond: 'zak'},         // vlak achter de lage doorgang
             {x: -5170, plafond: 'op'} ],        // achter de spleet: raak het met je speer
@@ -5211,6 +5211,7 @@ function zakBodem(s){ return zakVloer(s) + (s.vrij === undefined ? s.rust : s.vr
 function zakReset(){
   if (zakStand === 'zakt'){ clearTimeout(deurSnd.cutT); deurSnd.pause(); }   // het gerommel houdt op
   zakStand = 'rust';
+  dwarrel.length = 0;
   for (const s of zakLijst()){ s.vrij = s.rust; s.t = 0; }
   for (const z of (level && level.zegels) || []) if (z.plafond) z.aan = false;
 }
@@ -5260,6 +5261,52 @@ const STEEN_STOF = {
   gruis: 14,         // zoveel korrels gruis bij kracht 1
   schok: 0.2         // zo hard schokt het scherm als het steen stilvalt
 };
+// Fijn stof dat van steen boven je loslaat en langzaam naar beneden dwarrelt: licht, klein, iets wiegend, in
+// de kleur van stoffig steen, en het verdwijnt voor het de vloer raakt. Hoeveel per wereld-px: `start` en `klap`
+// in een keer, `stroom` per seconde zolang het steen beweegt.
+const DWARREL = {
+  start: 0.05, klap: 0.08, stroom: 0.05,   // korrels per wereld-px
+  max: 500,                               // nooit meer dan dit tegelijk
+  val: [14, 34],                          // zo snel vallen ze, eenheden per seconde
+  zwaai: 10,                              // zo ver wiegen ze opzij, wereld-px
+  r: [1.3, 3.0],                          // straal op het scherm, als je Amir 180 px hoog is
+  a: [0.14, 0.32],                        // hoe zichtbaar: licht
+  kleur: [178, 162, 140],                 // stoffig grijsbruin, als het steen van het plafond
+  leven: 7                                // hoogstens zo lang
+};
+const dwarrel = [];
+function dwarrelStrooi(x0, x1, h, vloer, perPx){
+  if (building || h <= vloer + 20) return;
+  let n = (x1 - x0) * perPx;
+  n = Math.floor(n) + (Math.random() < n % 1 ? 1 : 0);
+  const D = DWARREL;
+  for (let i = 0; i < n && dwarrel.length < D.max; i++)
+    dwarrel.push({ wx: x0 + Math.random() * (x1 - x0), h: h - Math.random() * 6, vloer,
+                   v: D.val[0] + Math.random() * (D.val[1] - D.val[0]), fase: Math.random() * 6.28,
+                   r: D.r[0] + Math.random() * (D.r[1] - D.r[0]), a: D.a[0] + Math.random() * (D.a[1] - D.a[0]), age: 0 });
+}
+function dwarrelUpdate(dt){
+  for (let i = dwarrel.length - 1; i >= 0; i--){
+    const d = dwarrel[i];
+    d.age += dt; d.h -= d.v * dt;
+    if (d.age > DWARREL.leven || d.h <= d.vloer) dwarrel.splice(i, 1);
+  }
+}
+function dwarrelTeken(groundY, scale, cx){
+  if (!dwarrel.length) return;
+  const k = CHAR_H * scale / 180, [r, g, b] = DWARREL.kleur;
+  ctx.save();
+  ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
+  for (const d of dwarrel){
+    // zacht erin, en weg voor de vloer (de laatste 40 eenheden) of aan het eind van zijn leven
+    const vis = Math.min(1, d.age / 0.4) * Math.min(1, (d.h - d.vloer) / 40) * Math.min(1, (DWARREL.leven - d.age) / 1);
+    if (vis <= 0) continue;
+    const x = cx + (d.wx + Math.sin(d.age * 1.4 + d.fase) * DWARREL.zwaai - world), y = groundY - d.h * scale;
+    ctx.globalAlpha = d.a * vis;
+    ctx.beginPath(); ctx.arc(x, y, d.r * k, 0, 7); ctx.fill();
+  }
+  ctx.restore();
+}
 function steenStof(x0, x1, vloer, kracht, h){
   if (building || kracht <= 0) return;
   const n = Math.max(2, Math.min(STEEN_STOF.maxPunt, Math.round((x1 - x0) / STEEN_STOF.punt)));
@@ -5289,13 +5336,14 @@ function zakUpdate(dt){
     if (s.gaat) beweegt = true;
     if (building) continue;
     // stof: een wolk bij het vertrek, wat gruis zolang hij beweegt, en een klap als hij stilvalt
+    // Het stof komt van boven: het maakt zich los van de onderkant van het steen en dwarrelt licht naar
+    // beneden (dwarrelStrooi). Alleen een poort die op de vloer slaat, geeft daar een wolk.
     const vloer = zakVloer(s);
-    if (s.gaat && !was) steenStof(s.l, s.r, vloer, STEEN_STOF.start, vloer + s.vrij);
-    else if (s.gaat){
-      s.stofT = (s.stofT || 0) + dt;
-      if (s.stofT >= STEEN_STOF.elke){ s.stofT = 0; steenStof(s.l, s.r, vloer, STEEN_STOF.onderweg, vloer + s.vrij); }
-    } else if (was){
-      steenStof(s.l, s.r, vloer, STEEN_STOF.klap * (was > 0 ? 0.5 : 1), vloer + s.vrij);   // terug in het dak: minder
+    if (s.gaat && !was) dwarrelStrooi(s.l, s.r, vloer + s.vrij, vloer, DWARREL.start);
+    else if (s.gaat) dwarrelStrooi(s.l, s.r, vloer + s.vrij, vloer, DWARREL.stroom * dt);
+    else if (was){
+      dwarrelStrooi(s.l, s.r, vloer + s.vrij, vloer, DWARREL.klap * (was > 0 ? 0.6 : 1));
+      if (s.vrij < 40) steenStof(s.l, s.r, vloer, STEEN_STOF.klap * 0.6);   // op de vloer geslagen
       shake = Math.max(shake, STEEN_STOF.schok * (s.vrij < CHAR_H ? 1 : 0.6));
     }
   }
@@ -18078,6 +18126,7 @@ function loop(now){
   if (dt > 0) ravijnDecorStap(dt);                // en dat vallen en vervagen zelf, ook na het dichtgaan
   if (dt > 0) zegelUpdate(dt, scaleNow);          // erop stappen zet een zegel aan of uit
   if (dt > 0) zakUpdate(dt);                      // het zakkende plafond: omlaag of weer omhoog
+  if (dt > 0) dwarrelUpdate(dt);                  // en het stof dat ervan af dwarrelt
   if (dt > 0) rijsUpdate(dt);                     // de rijzende grond: uit het ravijn omhoog, of terug
   if (dt > 0) speervalUpdate(dt, scaleNow);       // de speer in de rotswand: trillen, vliegen, vallen
   if (dt > 0) skeletUpdate(dt, scaleNow);         // instorten, en de schedel die wegrolt
@@ -18172,6 +18221,7 @@ function loop(now){
     drawGrotten(groundY, scale, cx);               // grotten en ravijnen: het steen om de opening heen
     drawHolte(groundY, scale, cx);                 // een gang onder de grond: donker, met licht uit het gat
     zakTeken(groundY, scale, cx);                  // het zakkende plafond
+    dwarrelTeken(groundY, scale, cx);              // en het stof dat ervan af dwarrelt
 
     // De schaduw ligt op dezelfde vloer als waar zijn voeten op komen (zie updateJump): een rots of
     // een trede, en anders de grond, en beneden in een gang de bodem daarvan. Een gewoon ravijn
@@ -21724,7 +21774,7 @@ function sbZak(){
   if (!level.zegels) level.zegels = [];
   const Z = SB_ZAK, r = world - 40, dl = r - Z.doorgang, kl = dl - Z.kamer, sl = kl - Z.spleet;
   level.zakplafond.push({ r, l: dl, rust: 300, dicht: 0, v: 900, schok: 0, duw: -1 },
-                        { r: dl, l: kl, rust: 510, dicht: 0, v: 13, schok: 50, duw: 0 },
+                        { r: dl, l: kl, rust: 510, dicht: 0, v: 9, schok: 50, duw: 0 },
                         { r: kl, l: sl, rust: 510, dicht: 170, v: 700, schok: 0, duw: 1 });
   level.zegels.push({ x: dl - Z.zegel, ravijn: null, plafond: 'zak' }, { x: sl - Z.doel, ravijn: null, plafond: 'op' });
   zakReset();
