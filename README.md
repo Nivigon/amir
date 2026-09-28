@@ -58,7 +58,16 @@ In de sandbox staat het bij Terrein onder **Zakplafond**: **Neerzetten** zet de 
 `zakplafond: [ {r, l, rust, dicht, v, schok, duw} ]` en twee zegels, `{x, plafond: 'zak'}` en `{x, plafond: 'op'}`.
 
 De Test levels staan in het menu per zes op een blad. Met de pijltjes eronder ga je naar de volgende zes (7 t/m 12,
-13 t/m 17) en terug.
+13 t/m 18) en terug.
+
+**Test 18: De zuil** gaat over precies springen. Midden in een ravijn is een smalle zuil grond blijven staan, en daar moet
+je op landen. Een sprong die net te kort is, wordt hier niet gered: bij de overkant van een gewoon ravijn zet het spel je
+weer op de rand als je er net onder zakt, maar de zijkant van een zuil is een wand, en daar glijd je langs naar beneden.
+Eerst een brede zuil over twee gaten die je lopend haalt. Dan een zuil van een halve Amir breed achter een gat dat je
+alleen met Shift haalt: zet vlak voor de rand af, want wie te vroeg springt komt tegen de wand en wie te laat springt
+vliegt eroverheen. Tot slot twee van die zuilen achter elkaar, en de tweede staat zo dichtbij dat je daar juist niet
+moet sprinten. Elke strook grond van hoogstens 300 px tussen twee ravijnen werkt zo. In de sandbox zet **Zuil** (bij
+Terrein) er een neer, smal of breed.
 
 **Baboon tests** is een episode met proefstukken voor de baviaan, en net als Testrun begin je met de tribekeuze. In
 **Baboon 1: De speerbeet** (dezelfde vlakte als Test 15) hangt hij niet aan de wand maar staat hij grommend op de grond,
@@ -659,7 +668,7 @@ zon schuin naar binnen, uit dezelfde richting als waar hij in de lucht staat. Da
 Test 1, onder het rotsdak.
 
 In de sandbox staat het onder **Ravijn**: **Smal** en **Breed** zetten een breuk neer waar je
-staat.
+staat. Onder **Zuil** staan twee ravijnen met een smalle strook grond ertussen (zie Test 18).
 
 ## Onder de grond
 
