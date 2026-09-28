@@ -6714,7 +6714,8 @@ function bavDoodNu(){
 // (beetSpeerMaak). Alles loopt op bavKlok, dus op speltijd.
 const BAV_BEET = {
   slag: 1.7,        // Amir steekt: binnen zoveel Amir uitval pakt hij de speer
-  vast: 1.1,        // zo dichtbij met de speer in de hand: Amir staat vast en steekt vanzelf
+  vast: 0.6,        // zo dichtbij met de speer in de hand: Amir staat vast en steekt vanzelf (later dan
+                    // `slag`: wie zelf op raakafstand steekt, is hem voor; wie gewoon doorloopt, komt dichterbij)
   diep: 45,         // zo ver (sprite-eenheden) zit de punt voorbij zijn lip
   lip: 38,          // de lip in hap_16, bronpixel x op het canvas van de hap
   klemFrame: 16,    // de kaken dicht
@@ -6724,9 +6725,13 @@ const BAV_BEET = {
   ruk: 420,         // Amir struikelt mee (knock, wereld-px per seconde)
   knap: 44,         // in dit schudframe breekt de schacht af, in de laatste ronde van de shake (BAV_SCHUD.herhaal)
   werp: 50,         // en in dit frame, met zijn kop omhoog, smijt hij de punt naar de camera
-  werpDuur: 0.42,   // zo lang vliegt de punt naar de camera
-  groei: 0.94,      // tot 1 / (1 - groei) keer zo groot (16), dan schiet hij langs de lens
-  spin: 5,          // zoveel radialen draait de punt onderweg
+  werpDuur: 0.34,   // zo lang vliegt de punt naar de camera: hard en snel
+  groei: 0.975,     // tot 1 / (1 - groei) keer zo groot (40), dan slaat hij in de lens
+  draai: 0.12,      // in dit deel van de vlucht draait het blad naar voren, naar jou toe
+  kort: 0.5,        // en zoveel korter wordt hij in het deel `kortIn` daarna: hij wijst recht in de camera
+  kortIn: 0.25,
+  midden: 0.35,     // zoveel van de weg naar het midden van het beeld schuift hij op
+  zoef: { van: 350, tot: 2600, vol: 0.9 },   // de zoef (bavZoef): ruis die aanzwelt en hoger wordt
   greep: 70,        // waar hij de speer vastheeft, vanaf de linkerrand van het speerbeeld (sprite-eenheden)
   breuk: 175,       // waar de schacht afbreekt
   veer: 140, demp: 7, zwaar: 500   // hoe de speer in zijn bek meezwiept (schermpixels per seconde kwadraat); na de
@@ -6909,7 +6914,8 @@ function bavBeetSpeer(b, st, mx, my, scale, groundY, cx){
   if (st.ts != null && st.ts >= bavSchudTijd(B.werp) && r.punt){   // de punt naar de camera
     r.punt = false;
     beetWerp = { t0: bavKlok, x: mx, y: my, hoek: Math.atan2(ny, nx), fd, schok: false };
-    if (wantSound){ const s = document.getElementById('thrust'); s.currentTime = 0; s.volume = 1; s.playbackRate = 0.8; s.play().catch(() => {}); }
+    if (wantSound){ const s = document.getElementById('thrust'); s.currentTime = 0; s.volume = 0.6; s.playbackRate = 0.8; s.play().catch(() => {}); }
+    bavZoef(B.werpDuur);
     return;
   }
   const img = r.heel ? S.heel : S.punt;
@@ -6953,25 +6959,64 @@ function bavBeetStukken(groundY, scale, cx){
     ctx.restore();
   }
 }
-// de punt op weg naar de camera, over alles heen (na de voorgrond): hij komt op je af, dus hij groeit en loopt
-// weg van het midden van het beeld, en wordt onscherp en donker zoals de voorgrond (de trappen uit beetSpeerMaak)
+// de punt op weg naar de camera, over alles heen (na de voorgrond). Wat recht op de lens af vliegt, blijft in beeld
+// bijna op zijn plek en wordt alleen groter, steeds harder: op constante snelheid is zijn maat 1 / (1 - afgelegd).
+// Hij schuift dus maar een stukje (`midden`) naar het midden van het beeld. Meteen draait het blad naar voren
+// (`draai`), en daarna wordt hij korter langs zijn eigen lengte (`kort`): hij wijst in de camera, zodat je het blad
+// op je af ziet komen en niet een speer die opzij langs vliegt. Hoe groter, hoe onscherper en donkerder, zoals de
+// voorgrond (de trappen uit beetSpeerMaak); op het laatst een donkere schaduw over het beeld en een schok.
 function bavWerpTeken(scale){
   if (!beetWerp) return;
   const S = beetSpeerMaak(), B = BAV_BEET, w = beetWerp;
   const p = (bavKlok - w.t0) / 1000 / B.werpDuur;
   if (!S || p >= 1){ beetWerp = null; return; }
-  const e = Math.pow(Math.max(0, p), 1.6), groot = 1 / (1 - B.groei * e);
-  const doelX = W * 0.5 + w.fd * W * 0.08, doelY = H * 0.66;
-  const x = w.x + (doelX - w.x) * e, y = w.y + (doelY - w.y) * e;
-  const trap = S.trap[Math.min(S.trap.length - 1, Math.floor(e * S.trap.length))];
-  if (p > 0.8 && !w.schok){ w.schok = true; shake = Math.max(shake, 0.14); }   // hij schiet langs de lens
-  const sc = scale * groot;
+  const groot = 1 / (1 - B.groei * Math.max(0, p));   // op constante snelheid naar de lens
+  const doelX = W * 0.5, doelY = H * 0.46, m = B.midden * p * (2 - p);
+  const x = w.x + (doelX - w.x) * m, y = w.y + (doelY - w.y) * m;
+  const trede = Math.log(groot) / Math.log(1 / (1 - B.groei));   // 0 bij het begin, 1 op de lens
+  const trap = S.trap[Math.min(S.trap.length - 1, Math.floor(trede * S.trap.length))];
+  if (p > 0.9 && !w.schok){ w.schok = true; shake = Math.max(shake, 0.2); }    // hij slaat in de lens
+  // de richting: van zijn bek naar het midden; het blad zit links in het beeld, dus die kant wijst vooruit
+  const vlucht = Math.atan2(doelY - w.y, doelX - w.x) + Math.PI;
+  let d = vlucht - w.hoek; d = Math.atan2(Math.sin(d), Math.cos(d));
+  const q = Math.min(1, p / B.draai), zacht = q * q * (3 - 2 * q);
+  const kort = 1 - B.kort * Math.min(1, Math.max(0, (p - B.draai) / B.kortIn));
+  const sc = scale * groot, pw = S.punt.width / 2;
   ctx.save();
-  ctx.globalAlpha = p > 0.85 ? (1 - p) / 0.15 : 1;
-  ctx.translate(x, y); ctx.rotate(w.hoek + w.fd * B.spin * e);
-  const pw = S.punt.width / 2;                   // om zijn midden
+  ctx.globalAlpha = p > 0.94 ? (1 - p) / 0.06 : 1;   // pas vlak voor de lens weg
+  ctx.translate(x, y); ctx.rotate(w.hoek + d * zacht); ctx.scale(kort, 1);
   ctx.drawImage(trap, -(pw + S.m) * sc, -(BAV_SPEER.midden + S.m) * sc, trap.width * sc, trap.height * sc);
   ctx.restore();
+  if (p > 0.75){                                  // de schaduw van wat er vlak voor de lens hangt
+    const a = Math.min(1, (p - 0.75) / 0.17) * Math.min(1, (1 - p) / 0.08) * 0.6, r = Math.max(W, H) * 0.7;
+    const g = ctx.createRadialGradient(doelX, doelY, 0, doelX, doelY, r);
+    g.addColorStop(0, 'rgba(18,12,8,' + a.toFixed(3) + ')'); g.addColorStop(1, 'rgba(18,12,8,0)');
+    ctx.save(); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore();
+  }
+}
+// De zoef van de punt die op je af komt: witte ruis door een bandfilter dat van `van` naar `tot` Hz loopt en steeds
+// harder wordt, en vlak na de lens snel wegvalt, zoals iets wat vlak langs je oor schiet. Geen bestand: dezelfde
+// aanpak als de regen en de donder, op de versterker van de baviaan (bavAc, in geluidOntgrendel).
+function bavZoef(duur){
+  if (!wantSound) return;
+  bavBrulVersterker();
+  if (!bavAc) return;
+  try {
+    const ac = bavAc, Z = BAV_BEET.zoef, t = ac.currentTime, lang = duur + 0.35;
+    if (ac.state === 'suspended') ac.resume().catch(() => {});
+    const buf = ac.createBuffer(1, Math.ceil(ac.sampleRate * lang), ac.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = ac.createBufferSource(); src.buffer = buf;
+    const bf = ac.createBiquadFilter(); bf.type = 'bandpass'; bf.Q.value = 1.4;
+    bf.frequency.setValueAtTime(Z.van, t); bf.frequency.exponentialRampToValueAtTime(Z.tot, t + duur);
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(Z.vol * 0.15, t + duur * 0.5);
+    g.gain.exponentialRampToValueAtTime(Z.vol, t + duur * 0.95);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + lang);
+    src.connect(bf); bf.connect(g); g.connect(ac.destination);
+    src.start(t); src.stop(t + lang);
+  } catch (e) {}
 }
 // K in de sandbox: het hoofdschudden meteen (bij de opgefokte idle op het eerstvolgende einde van de lus)
 function bavSchudNu(){
