@@ -104,6 +104,8 @@ Doe die download vanuit het beginscherm-icoon, niet vanuit Safari: iOS geeft een
 
 Ook zonder op die knop te drukken wordt alles wat je tijdens het spelen tegenkomt bewaard, dus een tweede potje laadt sowieso sneller.
 
+Een level begint pas als alle plaatjes binnen zijn. Is er nog iets onderweg (op een trage verbinding, of bij een level dat eigen plaatjes heeft, zoals de baviaan), dan staat het spel stil en zie je **Laden** met een balk tot alles er is. Loopt het vlot, dan zie je daar niets van. Na 25 seconden gaat het spel toch verder, met wat er dan is.
+
 ### Beeld: scherp of licht
 
 Van een deel van de sprites staan twee versies op schijf: het origineel, en een halve versie met dezelfde mappen en namen in `klein/`. Het spel kiest bij het starten: een telefoon krijgt de kleine set, een laptop en een tablet de grote. In het startmenu staat onder **Beeld** een schakelaar (Automatisch, Scherp, Licht) om dat te overrulen; wisselen herlaadt de pagina, want de sprites zijn dan al geladen.

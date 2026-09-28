@@ -272,6 +272,14 @@
   body.touch #pzcfg .hint{font-size:11px;max-width:300px}
   body.touch #pzcfg input[type=range]{width:130px;height:24px}
   #pause.on ~ #hint{display:none}                 /* de toetsenbordhint niet over het menu */
+  /* de laadpoort: een level loopt pas als alle plaatjes binnen zijn (laadPoort) */
+  #laad{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;
+    justify-content:center;gap:14px;background:rgba(10,6,14,.93);text-align:center;z-index:7}
+  #laad.on{display:flex}
+  #laad strong{font-size:30px;font-weight:800;color:var(--sun)}
+  #laad .balk{width:min(320px,70vw);height:6px;border-radius:3px;background:rgba(242,232,213,.15);overflow:hidden}
+  #laad .balk i{display:block;height:100%;width:0;background:var(--sun);transition:width .15s linear}
+  #laad span{font-size:14px;color:rgba(242,232,213,.6)}
   #win{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;
     justify-content:center;gap:14px;background:rgba(10,6,14,.93);text-align:center;z-index:6}
   #win.on{display:flex;animation:winfade 1.4s ease both}
@@ -1025,6 +1033,7 @@
     <button id="wnreplay">Opnieuw spelen</button>
     <button id="wnmenu">Hoofdmenu</button>
   </div>
+  <div id="laad"><strong>Laden</strong><div class="balk"><i id="laadbalk"></i></div><span id="laadtel"></span></div>
   <div id="pause">
     <strong>Pauze</strong>
     <button id="pzresume">Verder</button>
@@ -1268,6 +1277,56 @@ const TRIBE_CONFIG = {
 // en ook de woedemeter.
 // abilities: wat je in de talent tree geleerd hebt; punten: talentpunten die je nog kunt uitgeven.
 const RUN = { tribeId: null, abilities: [], gehaald: 0, punten: 0, woede: 0 };   // woede: de meter, 0 tot 1
+
+// ---- laadpoort: een level loopt pas als alles binnen is ----------------------
+// Plaatjes laden op veel plekken, en veel pas als een level ze nodig heeft (de winter, de baviaan,
+// het skelet, de ravijnwand). Het spel startte meteen, dus op een trage verbinding liep Amir al
+// terwijl er nog stukken ontbraken. Nu houdt elk plaatje zich vanzelf aan: het zetten van src
+// (op welke plek ook) zet het in laadOpen, tot het geladen is of ontbreekt. Na restart staat het
+// spel stil (laadWacht, net als de pauze) tot laadOpen twee beelden achter elkaar leeg is: het
+// eerste beeld tekent het level en haalt zo ook op wat pas bij het tekenen geladen wordt. Duurt
+// het langer dan LAAD.toon, dan komt het scherm Laden (#laad) met een balk. Geluid telt niet mee:
+// een telefoon laadt dat pas na een tik, dus daar valt niet op te wachten.
+const LAAD = { toon: 0.25, max: 25 };            // pas na een kwart seconde in beeld, nooit langer wachten dan 25 s
+const laadOpen = new Set();
+let laadGedaan = 0;                               // plaatjes die binnen zijn sinds het begin
+(function(){
+  const d = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+  if (!d || !d.set) return;
+  // Pas na de andere handlers kijken: bij een fout zet onerror vaak meteen het volgende pad, en dan
+  // is dat plaatje nog niet klaar.
+  function klaar(){ const img = this; setTimeout(() => { if (img.complete && laadOpen.delete(img)) laadGedaan++; }, 0); }
+  Object.defineProperty(HTMLImageElement.prototype, 'src', {
+    configurable: true, enumerable: d.enumerable, get: d.get,
+    set(v){
+      d.set.call(this, v);
+      if (!this._laadVolg){ this._laadVolg = true; this.addEventListener('load', klaar); this.addEventListener('error', klaar); }
+      if (!this.complete) laadOpen.add(this);
+    }
+  });
+})();
+let laadWacht = false, laadT = 0, laadLeeg = 0, laadVan = 0;
+function laadPoort(){ laadWacht = true; laadT = 0; laadLeeg = 0; laadVan = laadGedaan; }
+// in de lus, met de echte tijd: true zolang het spel moet wachten
+function laadStap(echt){
+  if (!laadWacht) return false;
+  const el = document.getElementById('laad');
+  laadT += echt;
+  laadLeeg = laadOpen.size ? 0 : laadLeeg + 1;
+  const inSpel = startEl.classList.contains('off') && !building;   // in het menu en de bouwer niet
+  if (laadLeeg >= 2 || laadT > LAAD.max || !inSpel){
+    if (laadOpen.size) console.warn('laadpoort: verder zonder ' + laadOpen.size + ' plaatjes');
+    laadWacht = false; el.classList.remove('on');
+    return false;
+  }
+  if (laadT > LAAD.toon){
+    const binnen = laadGedaan - laadVan, n = binnen + laadOpen.size;
+    el.classList.add('on');
+    document.getElementById('laadbalk').style.width = (n ? Math.round(binnen / n * 100) : 100) + '%';
+    document.getElementById('laadtel').textContent = binnen + ' van ' + n;
+  }
+  return true;
+}
 
 // ---- versie: welke update er live staat ----------------------------------
 // Er staat geen versienummer meer in de code: dat was een regel die elke pull request aanpaste,
@@ -3915,7 +3974,7 @@ function geluidOntgrendel(){
   }
   if (geluidVrij) return;
   geluidVrij = true;
-  for (const a of [deurSnd, skeletSnd, neeSnd, stormSnd, bavBrulSnd, bavGromSnd, bavRenSnd, bavBijtSnd]){
+  for (const a of [deurSnd, skeletSnd, neeSnd, stormSnd, bavBrulSnd, bavGromSnd, bavRenSnd, bavBijtSnd, bavLandSnd]){
     if (!a.paused) continue;
     a.muted = true;
     const p = a.play();
@@ -5987,13 +6046,18 @@ function bavGromSpeel(){
 }
 // De hap (`BAV_BIJT`, sounds/bavbijt.mp3, de aangeleverde bijtmonster.mp3 met de 0,4 seconde stilte vooraan eraf)
 // start met de hap zelf: de aanzet valt op de uitval, de volle klap net na de beet (frame 11, 0,12 seconde).
-// Onder het rennen gromt hij (`BAV_REN_GROM`): dezelfde grom als bij het hoofdschudden, maar sneller en hoger
-// (`rate`, elke keer willekeurig) en iets zachter, met een pauze ertussen (`pauze`), zodat het hijgend klinkt en
-// niet als een lus. Een eigen audio-element, zodat het de grom van het schudden niet afkapt; bij een hap valt hij stil.
+// Aan het begin van elke aanval gromt hij een keer (`BAV_REN_GROM`): na de grote brul en na elke rust. Dezelfde
+// grom als bij het hoofdschudden, maar trager en dus dieper (`rate`), `eerst` seconden nadat hij wegrent. Tijdens
+// het rennen zelf gromt hij niet (sneller en hoger afgespeeld klonk het hijgerig); dan hoor je zijn poten
+// (BAV_POOT). Een eigen audio-element, zodat het de grom van het schudden niet afkapt; bij een hap valt hij stil.
+// De klap op de grond (`BAV_LAND`, sounds/bavland.mp3, de aangeleverde "babboon fall en land" met de 0,22 seconde
+// stilte vooraan eraf): als hij van de wand neerkomt, na een sprong (zachter, `sprong`) en als hij dood voorover
+// klapt (dood_18, `doodF`). De klap zit `voor` seconden na het begin van het bestand, dus zo ver vooraf start het.
 const BAV_BIJT = { src: 'sounds/bavbijt.mp3', vol: 1.4 };
-const BAV_REN_GROM = { vol: 0.8, rate: [1.1, 1.25], pauze: [0.6, 1.6], eerst: 0.3, naHap: 1 };
-const bavBijtSnd = new Audio(BAV_BIJT.src), bavRenSnd = new Audio(BAV_SCHUD.geluid.src);
-bavBijtSnd.preload = bavRenSnd.preload = 'auto';
+const BAV_REN_GROM = { vol: 1, rate: 0.85, eerst: 0.25 };
+const BAV_LAND = { src: 'sounds/bavland.mp3', vol: 1.2, voor: 0.1, sprong: 0.7, doodF: 18, doodX: 442, handF: 16, handX: 170 };
+const bavBijtSnd = new Audio(BAV_BIJT.src), bavRenSnd = new Audio(BAV_SCHUD.geluid.src), bavLandSnd = new Audio(BAV_LAND.src);
+bavBijtSnd.preload = bavRenSnd.preload = bavLandSnd.preload = 'auto';
 // een geluid van de baviaan via zijn eigen gain op de versterker van de brul, of zonder, tot 1
 function bavSpeelVia(a, gain, vol, rate = 1){
   if (!wantSound) return;
@@ -6010,14 +6074,43 @@ function bavSpeelVia(a, gain, vol, rate = 1){
   a.play().catch(() => {});
 }
 function bavBijtSpeel(){ bavRenStil(); bavSpeelVia(bavBijtSnd, () => bavBijtGain, BAV_BIJT.vol); }
-function bavRenGrom(){
-  const R = BAV_REN_GROM, rate = R.rate[0] + Math.random() * (R.rate[1] - R.rate[0]);
-  bavSpeelVia(bavRenSnd, () => bavRenGain, R.vol, rate);
-  return bavSchudDuur() / rate + R.pauze[0] + Math.random() * (R.pauze[1] - R.pauze[0]);   // wanneer de volgende
-}
+function bavRenGrom(){ bavSpeelVia(bavRenSnd, () => bavRenGain, BAV_REN_GROM.vol, BAV_REN_GROM.rate); }
 function bavRenStil(){ bavRenSnd.pause(); }
+function bavLandSpeel(kracht = 1){ bavSpeelVia(bavLandSnd, () => bavLandGain, BAV_LAND.vol * kracht); }
 function bavGromStop(){
-  for (const a of [bavGromSnd, bavRenSnd, bavBijtSnd]){ a.pause(); try { a.currentTime = 0; } catch (e) {} }
+  for (const a of [bavGromSnd, bavRenSnd, bavBijtSnd, bavLandSnd]){ a.pause(); try { a.currentTime = 0; } catch (e) {} }
+}
+// Zijn poten op de grond onder het rennen, gemaakt met de Web Audio API (zoals de regen en de donder): een korte
+// dreun die in toonhoogte zakt (`hz`, naar `zak` ervan in `duur` seconden) en een tik zand erbovenop (ruis door een
+// laagdoorlaatfilter dat dichtgaat, `ruis`). Op de frames van de run waar een poot neerkomt (`frames`: de ene hand
+// op 4, de andere op 6, de achterpoten op 10, het zwaarst), elke keer iets anders van toon en sterkte, en zachter
+// naarmate hij verder van Amir is (tot `ver` schermbreedtes, nooit zachter dan `min`), zodat je hem hoort aankomen.
+const BAV_POOT = { vol: 0.55, hz: 95, zak: 0.4, duur: 0.18, ruis: 0.6, filter: [1100, 260], frames: { 4: 0.7, 6: 0.55, 10: 1 }, ver: 1.2, min: 0.35 };
+let bavRuis = null;
+function bavPoot(kracht, wx){
+  if (!wantSound) return;
+  bavBrulVersterker();
+  const ac = bavAc;
+  if (!ac) return;
+  if (ac.state === 'suspended') ac.resume().catch(() => {});
+  const P = BAV_POOT, t = ac.currentTime + 0.005;
+  const af = Math.max(P.min, 1 - Math.abs(wx - playerX()) / (P.ver * W));
+  const v = P.vol * kracht * af * (0.85 + Math.random() * 0.3), f0 = P.hz * (0.9 + Math.random() * 0.2);
+  const o = ac.createOscillator(), og = ac.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f0 * P.zak, t + P.duur * 0.7);
+  og.gain.setValueAtTime(0.0001, t); og.gain.exponentialRampToValueAtTime(v, t + 0.005); og.gain.exponentialRampToValueAtTime(0.0001, t + P.duur);
+  o.connect(og); og.connect(ac.destination); o.start(t); o.stop(t + P.duur + 0.02);
+  if (!bavRuis){
+    bavRuis = ac.createBuffer(1, Math.floor(ac.sampleRate * 0.12), ac.sampleRate);
+    const d = bavRuis.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  const n = ac.createBufferSource(), lp = ac.createBiquadFilter(), ng = ac.createGain();
+  n.buffer = bavRuis; lp.type = 'lowpass';
+  lp.frequency.setValueAtTime(P.filter[0], t); lp.frequency.exponentialRampToValueAtTime(P.filter[1], t + 0.07);
+  ng.gain.setValueAtTime(v * P.ruis, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+  n.connect(lp); lp.connect(ng); ng.connect(ac.destination); n.start(t); n.stop(t + 0.11);
 }
 // welk frame van het hoofdschudden er t seconden na zijn begin staat, of -1 als hij klaar is
 // de frames op volgorde met hun duur: 0 tot 45, de ronde 18 tot 45 nog `keer` keer, en dan 46 tot 63
@@ -6200,10 +6293,13 @@ function baviaanLaad(){
 // `rem` (hij remt: aan het eind van de uitval van een hap, als hij stilhoudt of omdraait). `kracht` schaalt het
 // geheel. De plek komt uit de frames: in bronpixels op het canvas van dat frame (`voet`), met bavBronX.
 const BAV_STOF = {
-  land: { wolk: 16, grootte: 2.6, korrel: 30, breed: 150, sneeuw: 1.25, schop: 200 },
+  land: { wolk: 24, grootte: 3.2, korrel: 36, breed: 170, sneeuw: 1.25, schop: 220, lang: 1.5 },
   stap: { wolk: 2, grootte: 1.2, korrel: 4, breed: 40, sneeuw: 0.3, schop: 110 },
   rem:  { wolk: 6, grootte: 1.7, korrel: 12, breed: 70, sneeuw: 0.6, schop: 150 },
+  // hij ploft dood neer: een brede wolk langs zijn hele lijf, die langzamer wegschuift en langer blijft hangen (`lang`)
+  plof: { wolk: 36, grootte: 3.3, korrel: 50, breed: 380, sneeuw: 1.7, schop: 120, lang: 2.2 },
   dicht: 0.9,                                               // stofwolk.png is ijl, vandaar groot en dicht (net als bij het skelet)
+  zweef: 18,                                                // de wolken remmen af en stijgen langzaam op (px per seconde), in plaats van te vallen
   sneeuwVanaf: 0.45,                                        // vanaf zoveel dek stuift het sneeuw in plaats van zand
   voet: { land: 185, landVoet: 60, run: [110, 370], sprong: 600, afzet: 515, hap: 355 }
 };
@@ -6219,12 +6315,16 @@ function bavStof(wx, soort, dir, kracht = 1){
   if (!S || building || inGap(wx) || waterDepthAt(wx, base) > 0.2) return;
   const schop = (S.schop || 0) * (dir || 0) * kracht;
   if (winterOn() || sneeuwAt(wx) >= BAV_STOF.sneeuwVanaf){
-    if (soort === 'land'){ snowBurst(wx, base, S.sneeuw * kracht); return; }
+    if (soort === 'land' || soort === 'plof'){
+      if (soort === 'plof') for (const d of [-1, 1]) snowBurst(wx + d * S.breed / 3, base, S.sneeuw * kracht / 2);
+      else snowBurst(wx, base, S.sneeuw * kracht);
+      if (soort === 'land') return;
+    }
     const n = Math.max(1, Math.round(S.wolk * kracht));
     for (let i = 0; i < n; i++)
       snowFxPush({ kind: 'cloud', shade: i % 3 === 0, x: wx + (Math.random() - 0.5) * S.breed, h: 2 + Math.random() * 8, base,
                    vx: schop * (0.6 + Math.random() * 0.8) + (Math.random() - 0.5) * 60, vh: 30 + Math.random() * 50,
-                   r: (10 + Math.random() * 10) * S.grootte, age: 0, life: 0.6 + Math.random() * 0.5,
+                   r: (10 + Math.random() * 10) * S.grootte, age: 0, life: (0.6 + Math.random() * 0.5) * (S.lang || 1),
                    rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 2 });
     for (let i = 0; i < S.korrel; i++){
       const vx = ((dir || 0) * (60 + Math.random() * 160) + (Math.random() - 0.5) * 120) * kracht, vh = (140 + Math.random() * 200) * kracht;
@@ -6239,8 +6339,8 @@ function bavStof(wx, soort, dir, kracht = 1){
     const zij = dir || (i % 2 ? 1 : -1), kant = dir ? 0.4 + Math.random() * 0.9 : 1;
     wdust.push({ wx: wx + (Math.random() - 0.5) * S.breed, y: -Math.random() * 10, base,
                  vx: zij * kant * ((S.schop || 150) * (0.6 + Math.random() * 0.9)) * kracht + (Math.random() - 0.5) * 50,
-                 vy: -20 - Math.random() * 60 * kracht, r: (11 + Math.random() * 12) * S.grootte, a: BAV_STOF.dicht,
-                 life: 0.7 + Math.random() * 0.5, age: 0, rot: Math.random() * 6.28 });
+                 vy: -20 - Math.random() * 60 * kracht, r: (11 + Math.random() * 12) * S.grootte, a: BAV_STOF.dicht, zweef: BAV_STOF.zweef,
+                 life: (0.7 + Math.random() * 0.5) * (S.lang || 1), age: 0, rot: Math.random() * 6.28 });
   }
   for (let i = 0; i < Math.round(S.korrel * kracht); i++){
     const zij = dir || (Math.random() < 0.5 ? -1 : 1);
@@ -6280,6 +6380,7 @@ function bavStand(b, scale){
   if (vorig && vorig.afzet === b.afzet){
     const anker = b.x + (b.f ? 1 : -1) * dx * CHAR_H * scale, vIn = g * tGrond - V.op;   // hoe hard hij neerkomt, in Amir per seconde
     const kracht = Math.max(0.7, Math.min(1.4, vIn / 7));
+    if (bavLangs(vorig.tLand, tLand, deelTijd(LD.delen, 3) - BAV_LAND.voor)) bavLandSpeel();   // de klap, zo dat hij op frame 3 valt
     if (bavLangs(vorig.tLand, tLand, deelTijd(LD.delen, 3))) bavStof(bavBronX(b, anker, BAV_STOF.voet.land, 0, scale, bavGroei(tLand)), 'land', 0, kracht);
     if (bavLangs(vorig.tLand, tLand, deelTijd(LD.delen, 5))) bavStof(bavBronX(b, anker, BAV_STOF.voet.landVoet, 0, scale, bavGroei(tLand)), 'rem', b.f ? 1 : -1, 0.8 * kracht);
   }
@@ -6364,7 +6465,7 @@ function bavKader(img){
 // van de kant waar hij op kijkt, want hij draait om. dx gaat terug in Amir langs b.f, zoals de rest van bavStand.
 function bavVecht(b, r, t, dx0, scale, lijn){
   const u = CHAR_H * scale, k = b.s * u / BAV_AFZET.kader.h;           // schermpixels per Amir, per bronpixel
-  if (r.fase == null){ r.fase = 'run'; r.fT = t; r.tL = t; r.wx = (b.f ? 1 : -1) * dx0 * u; }
+  if (r.fase == null){ r.fase = 'run'; r.fT = t; r.tL = t; r.wx = (b.f ? 1 : -1) * dx0 * u; r.aanval = true; }
   const dt = Math.max(0, Math.min(0.1, t - r.tL)); r.tL = t;
   // stof onder een voet: px in bronpixels op het canvas met verschuiving ox (BAV_STOF)
   const stof = (px, ox, soort, dir, kracht) => bavStof(bavBronX(b, b.x + r.wx, px, ox, scale), soort, dir, kracht);
@@ -6378,7 +6479,10 @@ function bavVecht(b, r, t, dx0, scale, lijn){
     const tb = t - r.fT + t0, fb = deelFrame(BAV_BRUL.delen, tb);
     if (!r.brulSnd && tb >= deelTijd(BAV_BRUL.delen, G.bij) - G.voor){ r.brulSnd = true; bavBrulSpeel(); }
     if (fb < BAV_BRUL.n) return uit(bavBrulImgs[fb], { ox: BAV_BRUL.links });
-    const f = Math.min(D.n - 1, Math.floor((tb - deelTijd(BAV_BRUL.delen, BAV_BRUL.n)) * D.fps));
+    const td = tb - deelTijd(BAV_BRUL.delen, BAV_BRUL.n), f = Math.min(D.n - 1, Math.floor(td * D.fps));
+    if (!r.landSnd && td >= BAV_LAND.doodF / D.fps - BAV_LAND.voor){ r.landSnd = true; bavLandSpeel(); }   // voorover op de grond
+    if (!r.handStof && f >= BAV_LAND.handF){ r.handStof = true; stof(BAV_LAND.handX, D.links, 'rem', b.f ? 1 : -1, 0.8); }   // zijn handen schuiven weg
+    if (!r.landStof && f >= BAV_LAND.doodF){ r.landStof = true; stof(BAV_LAND.doodX, D.links, 'plof', 0, 1.2); }   // het lijf ploft neer
     if (f >= D.rust && !r.rustGezegd){ r.rustGezegd = true; vijandDood(true); }
     return uit(bavDoodImgs[f], { ox: D.links });
   }
@@ -6388,6 +6492,7 @@ function bavVecht(b, r, t, dx0, scale, lijn){
   if (r.fase === 'sprong'){
     const S = BAV_SPRONG, ts = t - r.fT, f = deelFrame(r.delen, ts), vorigT = r.stofT; r.stofT = ts;
     if (bavLangs(vorigT, ts, deelTijd(r.delen, 6))) stof(BAV_STOF.voet.afzet, S.links, 'stap', b.f ? -1 : 1, 1.6);   // de afzet
+    if (bavLangs(vorigT, ts, deelTijd(r.delen, S.lucht[1] + 1) - BAV_LAND.voor)) bavLandSpeel(r.kooiSprong ? 1 : BAV_LAND.sprong);
     if (bavLangs(vorigT, ts, deelTijd(r.delen, S.lucht[1] + 1))) stof(BAV_STOF.voet.sprong, S.links, 'land', 0, r.kooiSprong ? 1 : 0.8);
     if (f > (r.kooiSprong ? S.n - 1 : S.terug)){
       // over de kooi: tot het laatste frame, dan omdraaien naar Amir en brullen; anders terug naar run_00
@@ -6411,7 +6516,7 @@ function bavVecht(b, r, t, dx0, scale, lijn){
   }
   const draai = () => { if (voor < 0) b.f = !b.f; };
   if (r.fase === 'rust'){
-    if (t - r.fT >= BAV_HAP.rust){ naarRun(); draai(); }
+    if (t - r.fT >= BAV_HAP.rust){ naarRun(); draai(); r.aanval = true; }
     else return uit(bavGromImgs[Math.floor((t - r.fT) * BAV_IDLE_GROM.fps) % BAV_IDLE_GROM.n], { ox: BAV_IDLE_GROM.links });
   }
   if (r.fase === 'hap'){
@@ -6434,10 +6539,7 @@ function bavVecht(b, r, t, dx0, scale, lijn){
   }
   // rennen, even snel als Amir sprint; de voeten glijden niet (zie BAV_RUN)
   r.bijt = false;
-  if (r.fase === 'run'){                                              // grommen onder het rennen (BAV_REN_GROM)
-    if (r.renGrom == null) r.renGrom = t + BAV_REN_GROM.eerst;
-    if (t >= r.renGrom) r.renGrom = t + bavRenGrom();
-  }
+  if (r.fase === 'run' && r.aanval && t - r.fT >= BAV_REN_GROM.eerst){ r.aanval = false; bavRenGrom(); }   // een grom per aanval
   const fps = Math.min(BAV_RUN.fpsMax, Math.max(BAV_RUN.fpsMin, bavV() / (BAV_RUN.pas * k)));
   const runImg = bavRunImgs[Math.floor((r.pasT || 0) + dt * fps) % BAV_RUN.n];
   const hapImg = bavHapImgs[BAV_HAP.raak[0]];
@@ -6494,6 +6596,7 @@ function bavVecht(b, r, t, dx0, scale, lijn){
     const f = q % BAV_RUN.n;
     if (f === 4) stof(BAV_STOF.voet.run[0], BAV_RUN.links, 'stap', 0, 0.6);
     if (f === 10) stof(BAV_STOF.voet.run[1], BAV_RUN.links, 'stap', -fd, 1);
+    if (BAV_POOT.frames[f]) bavPoot(BAV_POOT.frames[f], b.x + r.wx);   // de poot op de grond, te horen
   }
   // een kei voor hem: hij kan er niet door, dus hij springt (regel 7)
   if (runKd && level && level.rocks.length && zelfdeKant){
@@ -6516,7 +6619,7 @@ function bavVecht(b, r, t, dx0, scale, lijn){
     const lijf = reik(runKd), bek = reik(hapKd);
     if (voor - lijf <= BAV_HAP.speer * scale + BAV_HAP.marge * u){   // binnen Amirs speerstoot: hap, meteen
       r.fase = 'hap'; r.fT = t; r.stofT = 0; r.raak = false; r.bijt = false;
-      bavBijtSpeel(); r.renGrom = Math.max(r.renGrom || 0, t + BAV_REN_GROM.naHap);   // eerst de hap laten klinken
+      bavBijtSpeel(); r.aanval = false;
       r.uitval = Math.min(Math.max(0, voor - bek * 0.85), BAV_HAP.uitval * u); r.wx0 = r.wx;
       return uit(bavHapImgs[0], { ox: BAV_HAP.links });
     }
@@ -6554,7 +6657,7 @@ const bavKooiKant = (K, x) => x < K.L ? -1 : x > K.R ? 1 : 0;
 // de brul met het geluid, een keer per keer dat hij brult
 // een audio-element komt niet boven 1, en de grote brul moet veel harder dan de kleine: net als bij het skelet
 // een versterker (in geluidOntgrendel, anders blijft hij op een telefoon stil)
-let bavAc = null, bavGain = null, bavGromGain = null, bavRenGain = null, bavBijtGain = null;
+let bavAc = null, bavGain = null, bavGromGain = null, bavRenGain = null, bavBijtGain = null, bavLandGain = null;
 function bavBrulVersterker(){
   if (bavGain || bavAc === false) return bavGain;
   try {
@@ -6565,8 +6668,8 @@ function bavBrulVersterker(){
     bavGain.connect(bavAc.destination);
     // het grommen bij het hoofdschudden, het grommen onder het rennen en de hap: elk een eigen volume
     const eigen = a => { const g = bavAc.createGain(); bavAc.createMediaElementSource(a).connect(g); g.connect(bavAc.destination); return g; };
-    bavGromGain = eigen(bavGromSnd); bavRenGain = eigen(bavRenSnd); bavBijtGain = eigen(bavBijtSnd);
-  } catch (e){ bavAc = false; bavGain = null; bavGromGain = bavRenGain = bavBijtGain = null; }
+    bavGromGain = eigen(bavGromSnd); bavRenGain = eigen(bavRenSnd); bavBijtGain = eigen(bavBijtSnd); bavLandGain = eigen(bavLandSnd);
+  } catch (e){ bavAc = false; bavGain = null; bavGromGain = bavRenGain = bavBijtGain = bavLandGain = null; }
   return bavGain;
 }
 function bavBrulSpeel(vol = BAV_BRUL.geluid.vol, rate = 1){
@@ -6648,7 +6751,7 @@ function bavStenenTeken(groundY, scale, cx){
 // een klap van Amir: hij is dood
 function bavRaak(b, r){
   if (!r || r.fase === 'dood') return;
-  r.fase = 'dood'; r.fT = r.tL; r.bijt = false; r.brulSnd = false; r.rustGezegd = false; bavRenStil();
+  r.fase = 'dood'; r.fT = r.tL; r.bijt = false; r.brulSnd = false; r.rustGezegd = false; r.landSnd = r.landStof = r.handStof = false; bavRenStil();
   hits++; hitsEl.textContent = hits;
   puffWorld(b.x + r.wx, 8, 0, 1.2);                          // vijandDood komt als hij neerligt (BAV_DOOD.rust)
 }
@@ -8574,7 +8677,7 @@ let perfSom = 0, perfN = 0, perfTraag = 0, perfPrev = 0;
 function perfTick(now){
   const d = now - perfPrev; perfPrev = now;
   // alleen op een aanraakscherm: op een laptop blijft het beeld scherp, ook als hij even traag is
-  if (!(d > 0) || d > 200 || !running || paused || DPR <= 1 || !touchOn()) return;
+  if (!(d > 0) || d > 200 || !running || paused || laadWacht || DPR <= 1 || !touchOn()) return;
   perfSom += d; perfN++;
   if (perfN < PERF.venster) return;
   const gem = perfSom / perfN; perfSom = 0; perfN = 0;
@@ -8931,7 +9034,7 @@ addEventListener('keydown', e => {
     if (paused) resumeGame(); else pauseGame();
     return;
   }
-  if (paused) return;                            // tijdens de pauze doet de rest niets
+  if (paused || laadWacht) return;               // tijdens de pauze en het laden doet de rest niets
   if (typing(e)) return;                         // in een tekstvak typ je gewoon
   if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W'){
     e.preventDefault();
@@ -12542,6 +12645,7 @@ function hurtPlayer(fromLeft){
   if (lives <= 0){ dead = true; deadEl.classList.add('on'); }
 }
 function restart(){
+  laadPoort();                                      // pas verder als alles binnen is (zie laadpoort)
   won = false; document.getElementById('win').classList.remove('on');
   lives = levensStart(); invuln = 0; hurt = 0; knock = 0; shake = 0; dead = false;
   woedeStop();                                      // de woede houdt op bij een nieuw begin
@@ -13306,7 +13410,9 @@ function updateScorps(dt, plats, cliff){
     d.age += dt;
     if (d.age >= d.life){ wdust.splice(i, 1); continue; }
     d.wx += d.vx * dt; d.y += d.vy * dt;
-    d.vy += 260 * dt; d.vx *= 0.94;
+    if (d.zweef){                                   // de baviaan: een wolk die blijft hangen en langzaam opstijgt
+      d.vy += (-d.zweef - d.vy) * 3 * dt; d.vx *= Math.pow(0.12, dt); if (d.y > 0) d.y = 0;
+    } else { d.vy += 260 * dt; d.vx *= 0.94; }
   }
   if (!running || (dead && !sandbox)) return;
   for (let i = scorps.length - 1; i >= 0; i--){
@@ -16722,7 +16828,8 @@ function winLevel(){
 document.getElementById('wnreplay').onclick = () => { restart(); cv.focus(); };
 document.getElementById('wnmenu').onclick = () => { won = false; document.getElementById('win').classList.remove('on'); toMenu(); };
 function loop(now){
-  let dt = (paused || won) ? 0 : Math.max(0, Math.min((now - last) / 1000, 0.05)); last = now;
+  const wacht = laadStap(Math.max(0, Math.min((now - last) / 1000, 0.1)));   // nog aan het laden: stilstaan
+  let dt = (paused || won || wacht) ? 0 : Math.max(0, Math.min((now - last) / 1000, 0.05)); last = now;
   if (!building) dt *= gameTempo;                // het tempo uit de instellingen
   const left = keys['ArrowLeft'] || keys['a'] || keys['A'];
   const right = keys['ArrowRight'] || keys['d'] || keys['D'];
@@ -17706,8 +17813,9 @@ function loop(now){
     if (wdust.length){
       ctx.save();
       for (const d of wdust){
-        const k = 1 - d.age / d.life;
+        let k = 1 - d.age / d.life;
         const rr = d.r * scale * (1.7 - k * 0.7);
+        if (d.zweef) k = Math.min(1, d.age / 0.06) * Math.sqrt(k);   // zacht erin, en hij blijft langer dicht
         const px = cx + (d.wx - world), py = groundY + d.y * scale - (d.base || 0) * scale;
         const pimg = puffPic();
         if (imgReady(pimg)){
@@ -21664,7 +21772,7 @@ const TOUCH = {
 };
 function touchOn(){ return TOUCH.mode === 'on' || (TOUCH.mode === 'auto' && TOUCH.sawTouch); }
 function touchPlaying(){
-  return touchOn() && running && !building && !paused && !won && !turnEl.classList.contains('on');
+  return touchOn() && running && !building && !paused && !laadWacht && !won && !turnEl.classList.contains('on');
 }
 // de grondlijn iets hoger in beeld, zodat kruipende vijanden boven de knoppen blijven
 function touchLift(){ return (touchOn() && !building) ? -H * 0.07 : 0; }
