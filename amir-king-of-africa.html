@@ -5063,7 +5063,8 @@ function speervalTeken(groundY, scale, cx, achter){
   const len = javLen(scale), kk = len / JAV.w, t = performance.now() / 1000;
   for (const sp of level.speervallen){
     const st = sp.st || 'wand';
-    const inWand = st === 'wand' || st === 'tril' || (st === 'vlucht' && sp.px - len < sp.px0 - len * (1 - SPEERVAL.steek));
+    const lang = len * DRAAI.w.val / JAV.w;                  // de gekartelde speer is langer: zijn staart zit dieper
+    const inWand = st === 'wand' || st === 'tril' || (st === 'vlucht' && sp.px - lang < sp.px0 - len * (1 - SPEERVAL.steek));
     if (inWand !== !!achter || sp.px == null) continue;
     const tx = cx + (sp.px - world);
     if (tx < -W || tx - len > W / viewZoom() + W) continue;
@@ -5078,7 +5079,9 @@ function speervalTeken(groundY, scale, cx, achter){
     ctx.save();
     ctx.globalAlpha *= alfa;
     ctx.translate(tx + dx, groundY - hy * scale); ctx.rotate(hoek);
-    ctx.drawImage(javImg, -JAV.tipX * kk, -JAV.tipY * kk, JAV.w * kk, JAV.h * kk);   // punt naar rechts
+    const beeld = draaiBeeld('val', st === 'vlucht' ? sp.t : 0);   // in de vlucht draait hij, verder ligt hij plat
+    if (beeld) draaiTeken(beeld, 'val', kk);                     // punt naar rechts
+    else ctx.drawImage(javImg, -JAV.tipX * kk, -JAV.tipY * kk, JAV.w * kk, JAV.h * kk);
     ctx.restore();
   }
 }
@@ -5399,7 +5402,7 @@ function skeletStof(s, n, groot, van, tot){
 let vaanRij = null;
 function vaanVoorwerk(){
   if (!speerBlauw){ vaanRij = null; return; }
-  if (!vaanRij) vaanRij = [javImg, spearImg, sets.sp.idle, ...thrImgs, ...sets.sp.idleAnim, ...sets.sp.run];
+  if (!vaanRij) vaanRij = [javImg, spearImg, sets.sp.idle, ...thrImgs, ...sets.sp.idleAnim, ...sets.sp.run, ...draaiImgs.gewoon];
   while (vaanRij.length){
     const im = vaanRij.shift();
     if (im && imgReady(im) && !vaanKopieen.has(im)){ vaanBlauw(im); return; }
@@ -7947,6 +7950,25 @@ const JAV = {
 };
 const javImg = loadQuiet(uniq([AMIR_OLD + 'speer_projectiel.png', AMIR + 'speer_projectiel.png',
                                AMIR_GROOT + 'speer_projectiel.png']));
+// De draaiende speer: in de vlucht rolt een speer om zijn lengteas. 36 frames per omwenteling uit
+// tools/draaispeer.py (uit een video van Grok): `gewoon` is Amirs eigen speer, even lang als javImg,
+// `val` de gekartelde speer van de speerval. Frame 0 is plat; de punt zit rechts op `tipY`.
+const DRAAI = { map: 'design/speer/draai/', n: 36, h: 140, tipY: 70, w: { gewoon: 624, val: 758 },
+                rps: 2.5 };          // omwentelingen per seconde
+const draaiImgs = {};
+for (const soort of ['gewoon', 'val'])
+  draaiImgs[soort] = Array.from({ length: DRAAI.n }, (_, i) =>
+    loadQuiet([DRAAI.map + soort + '_' + String(i).padStart(2, '0') + '.png']));
+// het frame op t seconden draaien, of null als het er (nog) niet is
+function draaiBeeld(soort, t){
+  const f = draaiImgs[soort][Math.floor(Math.max(0, t) * DRAAI.rps * DRAAI.n) % DRAAI.n];
+  return imgReady(f) ? f : null;
+}
+// tekenen met de punt op (0, 0), op dezelfde schaal k als javImg (k = javLen / JAV.w)
+function draaiTeken(img, soort, k){
+  const w = DRAAI.w[soort];
+  ctx.drawImage(img, -(w - 1) * k, -DRAAI.tipY * k, w * k, DRAAI.h * k);
+}
 let jav = null;        // de geworpen speer: 'vlucht', 'val' (na een treffer), 'grond', 'muur' of 'bos'
 let javLost = 0;       // aftellen tot hij terugkomt uit water of ravijn
 let javOver = null;    // {g, dir}: in welk ravijn hij viel, en van welke kant
@@ -8433,7 +8455,9 @@ function javSchacht(tx, ty, scale){                         // de speer zelf, op
   ctx.translate(tx, ty);
   if (jav.dir === -1){ ctx.scale(-1, 1); a = Math.PI - a; }
   ctx.rotate(a + wob + wrik - jav.sag / L);                 // doorbuigen: het uiteinde zakt
-  if (imgReady(javImg)) ctx.drawImage(vaanBlauw(javImg), -JAV.tipX * s, -JAV.tipY * s, JAV.w * s, JAV.h * s);
+  const draai = jav.state === 'vlucht' ? draaiBeeld('gewoon', jav.t) : null;   // in de vlucht rolt hij om zijn as
+  if (draai) draaiTeken(vaanBlauw(draai), 'gewoon', s);
+  else if (imgReady(javImg)) ctx.drawImage(vaanBlauw(javImg), -JAV.tipX * s, -JAV.tipY * s, JAV.w * s, JAV.h * s);
   else {                                                   // reserve, zodat je hem altijd ziet
     ctx.strokeStyle = '#6b4a2b'; ctx.lineWidth = Math.max(2, 5 * scale); ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-L, 0); ctx.stroke();

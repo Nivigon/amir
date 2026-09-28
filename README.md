@@ -220,7 +220,8 @@ houdt hij zijn speer; vanaf frame 7 gaat hij door. Laat je los in de laatste 0,1
 seconde voordat Amir geraakt wordt, dan gaat de speer alsnog weg.
 
 De geworpen speer zakt door onder een derde van de zwaartekracht op Amir en
-wijst elk frame de kant van zijn snelheid op. Raakt hij een dier, dan doet hij
+wijst elk frame de kant van zijn snelheid op. In de vlucht rolt hij om zijn eigen as, zodat je het
+blad zo nu en dan plat en dan weer op zijn kant ziet; zodra hij ergens in steekt ligt hij stil. Raakt hij een dier, dan doet hij
 schade en valt hij neer. Raakt hij grond of muur, dan blijft hij steken en
 natrillen, en een speer die in een muur steekt is een dun platform waar je op
 kunt staan (alleen van bovenaf; de schacht buigt 3 px door onder Amir). In een
@@ -487,7 +488,8 @@ grond verderop openscheurt.
 
 ## De speerval
 
-Een speer zit horizontaal in de rotswand aan het eind van het level, met de punt naar jou toe. Stap je op het zegel dat
+Een speer zit horizontaal in de rotswand aan het eind van het level, met de punt naar jou toe. Het is niet Amirs
+speer maar een oude valspeer met een gekarteld ijzeren blad, en in de vlucht draait hij om zijn eigen as. Stap je op het zegel dat
 erbij hoort, dan licht het op, trilt de speer even in de wand en schiet hij dan recht op je af, op heuphoogte van een
 staande Amir. Buk (pijl omlaag of S): dan vliegt hij over je heen. Blijf je staan, dan raakt hij jou, en springen helpt
 niet. Wat achter je loopt raakt hij wel: de baviaan, die verder niet te verslaan is, gaat er dood van. Mist de speer, dan
@@ -807,6 +809,11 @@ amir runc/
                            metadata.json (canvas 984x814, grondlijn rij 803, anker_x 330,
                            Amir 620 px hoog, spannen 0-6, uithaal 7-10, los op 10, herstel 11-19)
     speer_projectiel.png   de geworpen speer, 624x67, punt naar rechts op pixel (623, 33)
+
+design/speer/
+  draai/                   gewoon_00..35.png (Amirs speer, 624x140) en val_00..35.png (de speerval,
+                           758x140): een hele rol om de lengteas, frame 0 plat, punt rechts op (w-1, 70)
+  bron/draaispeer.mp4      de video van Grok waar tools/draaispeer.py de frames uit maakt
 
 items/
   potions/                 hppotion.png (de drinkkalebas die gezondheid teruggeeft)
