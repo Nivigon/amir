@@ -13611,7 +13611,12 @@ const HY_PAIR_MIN = 1.0, HY_PAIR_MAX = 2.0;   // bij twee hyena's wacht de tweed
                                               // voor hij ook het beeld op komt
 const HY_ENTER = 260;          // zo ver buiten beeld komt hij opzetten
 const HY_EDGE = 150;           // en zo ver blijft zijn opkomstplek van een ravijnrand vandaan
-const HY_LEAVE = 420;          // en zo ver voorbij de rand is hij weg
+const HY_LEAVE = 420;          // en zo ver voorbij de rand draait hij om (of is hij weg, na zijn laatste ronde)
+// Een hyena stormt niet een keer langs je heen en is dan weg: buiten beeld draait hij om, wacht even
+// en komt van die kant terug om opnieuw te dreigen. Zo is een roedel een gevecht en geen hindernis
+// waar je twee keer overheen springt. Na HY_RONDES stormen geeft hij het op en verdwijnt hij.
+const HY_RONDES = 3;
+const HY_TERUG_MIN = 0.8, HY_TERUG_MAX = 1.6;   // zo lang wacht hij buiten beeld voor hij terugkomt
 // de bek is tijdens de storm de raakzone: canvaspixels vanaf het canvasmidden in
 // de kijkrichting, en boven de grondlijn. Laag genoeg om overheen te springen.
 const HY_BITE = { from: 60, to: 100, low: 150, high: 250 };
@@ -13787,8 +13792,11 @@ function hyStorm(s){
   s.kop = 0; s.kopAcc = 0; s.hitUsed = false;
   hyPlay(SFX_HYENA_BITE);
   // de ander van de roedel doet soms meteen mee
+  // alleen een maat die in beeld staat: anders begon zijn storm buiten beeld, en zie je de 0,2 s dat hij
+  // bevriest (zijn enige waarschuwing) niet
   const maat = hyenas.find(o => o !== s && o.enc === s.enc && o.forceT < 0 && o.wacht <= 0
-                             && (o.state === 'komen' || o.state === 'dreigen'));
+                             && (o.state === 'komen' || o.state === 'dreigen')
+                             && Math.abs(o.x - world) < W * 0.5 / viewZoom() - HY.bodyW * hyScale() * 0.3);
   if (maat && Math.random() < HY_DOUBLE_CHANCE)
     maat.forceT = HY_DOUBLE_MIN + Math.random() * (HY_DOUBLE_MAX - HY_DOUBLE_MIN);
 }
@@ -13857,7 +13865,16 @@ function updateHyena(s, dt, plats, cliff){
       s.kop = (s.kop + 1) % HY.n.ren_kop; s.kopAcc -= 1;
       if (HY.hapFrames.indexOf(s.kop) !== -1) hyPlay(SFX_HYENA_BITE);   // daar klapt de bek dicht
     }
-    if (gap > W * 0.5 / viewZoom() + HY_LEAVE) s.state = 'gone';        // voorbij en het beeld uit
+    if (gap > W * 0.5 / viewZoom() + HY_LEAVE){                         // voorbij en het beeld uit
+      s.rondes = (s.rondes || 0) + 1;
+      if (s.rondes >= HY_RONDES){ s.state = 'gone'; return; }
+      // omdraaien: buiten beeld aan deze kant wachten (wacht, net als de tweede van een roedel, en daarmee
+      // ook nooit over een kei of ravijn, zie hierboven), en dan opnieuw aanlopen en dreigen
+      s.side = s.x > world ? 1 : -1;
+      hySet(s, 'komen'); s.show = 'loop'; s.stuck = 0; s.hitUsed = false; s.forceT = -1;
+      s.threatT = HY_THREAT_MIN + Math.random() * (HY_THREAT_MAX - HY_THREAT_MIN);
+      s.wacht = hyRand(HY_TERUG_MIN, HY_TERUG_MAX);
+    }
     return;
   }
 

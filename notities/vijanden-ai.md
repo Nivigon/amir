@@ -47,14 +47,12 @@ Wat er gemeten is, voor en na:
 - **Een slang of schorpioen naast een kei** bijt en steekt Amir bovenop de kei, zoals regel 7 zegt.
 - **De baviaan** springt over een kei heen en hapt Amir daarbovenop (een eindbaas mag dat).
 
-## Voorstellen (niet ingebouwd, eerst jouw oordeel)
+## Voorstellen, en wat ermee gedaan is
 
-Zet er een oordeel achter, net als in `combinaties.md`.
-
-| # | wat | waarom | oordeel |
-| --- | --- | --- | --- |
-| 1 | **De zwarte slang spuwt over een ravijn.** Nu kijkt hij aan de rand even, draait om en loopt drie seconden weg, telkens opnieuw: over een ravijn spuwt hij nooit (gemeten: 14 s lang geen enkel schot). | Juist de spuwer is de vijand die over een gat heen iets kan; het ravijn blijft een schuilplek tegen zijn beet. | ? |
-| 2 | **Bukken ontwijkt het gif.** Het gif mikt op 0,55 van Amirs lengte en gebukt is hij 0,68 hoog, dus gebukt word je gewoon geraakt (5 van de 5 keer). | Nu is weglopen of springen de enige verdediging; bukken zou een tweede zijn, en het is wat een speler als eerste probeert. Mikken op 0,8 is genoeg. | ? |
-| 3 | **Hyena's komen terug.** Een hyena stormt een keer langs je heen het beeld uit en is dan weg; een roedel is dus twee keer springen. | Een tweede ronde (omdraaien buiten beeld, nog een keer dreigen) maakt een roedel een gevecht in plaats van een hindernis. | ? |
-| 4 | **De zwarte slang spuwt niet buiten beeld.** Hij blijft je volgen tot 1700 px en spuwt dan ook, maar gif dat meer dan 200 px buiten beeld begint wordt meteen weggegooid. | Nu staat hij buiten beeld voor niets te spuwen; het scheelt niets in het spel, alleen in wat hij doet. | ? |
-| 5 | **De panter klauwt minder vaak als je stilstaat.** Stilstaan naast de panter kost acht klappen in zestien seconden: de klauw heeft geen afkoeltijd (dat is de harde regel). | Met een korte afkoeltijd na een klauw die mist of raakt zie je zijn andere aanvallen vaker. Kan ook zo blijven: het straft stilstaan, en dat is de bedoeling. | ? |
+| # | wat | oordeel |
+| --- | --- | --- |
+| 1 | **De zwarte slang spuwt niet over een ravijn.** Aan de rand kijkt hij even, draait om en loopt drie seconden weg, telkens opnieuw (gemeten: 14 s lang geen schot). | **Keuze, blijft zo.** Het mag allebei; spuwen over het ravijn zou het moeilijker maken, en dat is een keuze per spel, geen fout. |
+| 2 | **Bukken ontwijkt het gif niet altijd.** Het gif mikt op 0,55 van Amirs lengte en gebukt is hij 0,68 hoog; wie stilstaat en bukt wordt geraakt (5 van de 5 keer). | **Zo bedoeld, blijft zo.** Bukken werkt alleen soms: als je ver genoeg staat en even bewogen hebt, dan gaat de boog over je heen. Wie er recht op af loopt of springt, wordt sowieso geraakt: je moet timen. Wat werkt is schuin terug springen als hij schiet en dan meteen rennen, of hem met een geworpen speer raken. |
+| 3 | **Hyena's komen terug.** Een hyena stormde een keer langs je heen het beeld uit en was dan weg; een roedel was twee keer springen. | **Ingebouwd.** Buiten beeld draait hij om, wacht even (`HY_TERUG_MIN` tot `HY_TERUG_MAX`, 0,8 tot 1,6 s, met `wacht`, dus nooit over een kei of ravijn) en komt van die kant terug om opnieuw te dreigen. Na `HY_RONDES` (3) stormen verdwijnt hij. Stilstaan tegen een roedel van twee kost nu 6 beten in 30 s, in plaats van 2. Daarbij: een hyena stormt alleen mee met zijn maat als hij zelf in beeld staat, anders zag je zijn waarschuwing niet. |
+| 4 | **De zwarte slang spuwt buiten beeld.** Hij volgt je tot 1700 px en spuwt dan ook, maar gif dat meer dan 200 px buiten beeld begint wordt meteen weggegooid. | **Blijft zo.** Het hangt aan de afstand, en het bereik waarin hij wel raakt is bedoeld. |
+| 5 | **De panter klauwt zonder afkoeltijd.** Stilstaan naast de panter kost acht klappen in zestien seconden. | Nog geen oordeel; het straft stilstaan, en dat is de harde regel. |

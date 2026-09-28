@@ -287,7 +287,9 @@ te rennen. Fosforslangen die in hun aanval tegen een ravijnrand lopen, richten z
 aanstaren tot je van plek verandert. De schorpioen begint zijn aanloop pas als hij in beeld staat,
 ook op een telefoon, zodat je zijn staart altijd ziet zakken. Sta je op een kei naast de panter, dan
 klauwt hij niet meer eindeloos in de lucht onder je door, maar ligt hij aan de voet te loeren. En de
-baviaan rent niet meer door de lucht over een ravijn: aan de rand blijft hij grommend staan.
+baviaan rent niet meer door de lucht over een ravijn: aan de rand blijft hij grommend staan. Hyena's komen terug: een hyena die langs je
+heen het beeld uit is gestormd, draait buiten beeld om en komt van die kant weer dreigen, tot drie keer
+toe. Een roedel moet je dus echt verslaan, niet alleen ontwijken.
 
 ## Het decor staat een stap naar achteren
 

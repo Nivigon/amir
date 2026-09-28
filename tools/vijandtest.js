@@ -114,11 +114,12 @@ const SCENARIOS = [
     verwacht: {} },
   { naam: 'zwaard: aanlopen, telefoon', level: vlak({ spawns: [{ x: -1800, k: 'zwaard' }] }), gedrag: 'naar', duur: 8, scherm: [852, 393], verwacht: {} },
   // --- de hyena's ---
-  { naam: 'hyena: stilstaan', level: vlak({ spawns: [{ x: -300, k: 'hyenas', n: 2 }] }), gedrag: 'stil', duur: 16,
-    verwacht: { minRaak: 1 } },
+  // een hyena komt na zijn storm terug (HY_RONDES): stilstaan kost dus meer dan twee beten
+  { naam: 'hyena: stilstaan', level: vlak({ spawns: [{ x: -300, k: 'hyenas', n: 2 }] }), gedrag: 'stil', duur: 30,
+    verwacht: { minRaak: 3 } },
   { naam: 'hyena: vechter', level: vlak({ spawns: [{ x: -300, k: 'hyenas', n: 2 }] }), gedrag: 'vechter', duur: 16,
     verwacht: { doden: 2 } },
-  { naam: 'hyena: springer', level: vlak({ spawns: [{ x: -300, k: 'hyenas', n: 2 }] }), gedrag: 'springer', duur: 16,
+  { naam: 'hyena: springer', level: vlak({ spawns: [{ x: -300, k: 'hyenas', n: 2 }] }), gedrag: 'springer', duur: 30,
     verwacht: {} },
   { naam: 'hyena: op een kei', level: vlak({ rocks: [{ x: -200, s: 1 }], spawns: [{ x: -300, k: 'hyenas', n: 2 }] }),
     start: -200, gedrag: 'stil', duur: 16, verwacht: { geenRegel7: true } },
