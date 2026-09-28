@@ -52,6 +52,45 @@ Ideeën die er nog niet in zitten. Zet een oordeel of een sterretje bij wat je w
 - Een terras met een richel waar een schorpioen op wacht.
 - Onweer 's nachts (`dark_hart`) met hyena's.
 
+## Proeven: combinaties die mechanieken op elkaar laten inwerken
+
+Losse levels in `notities/proeven/` (hetzelfde JSON-formaat als de bouwer, dus te openen onder
+Level maken). Ze staan niet in de HTML: het zijn metingen, geen levels. `overzicht.jpg` laat van
+elke proef de belangrijke momenten zien. Opnieuw draaien:
+
+```
+node tools/speelrobot.js notities/proeven/p1_dakluik.json --taai --wacht -600:6
+node tools/speelrobot.js notities/proeven/p2_luik_dicht.json --taai --wacht -600:6,-2200:4
+node tools/speelrobot.js notities/proeven/p3_rotstop.json --taai
+node tools/speelrobot.js notities/proeven/p5_val_voor_kei.json --taai --vredig --wacht -1200:14
+```
+
+Proef 4 haalt de robot niet (hij springt te vroeg van het terras); die is met de hand gemeten, zie
+de sprongtabel hieronder.
+
+| # | proef | de maten | uitkomst | oordeel |
+| --- | --- | --- | --- | --- |
+| P1 | dakluik: zegel op de savanne opent een ravijn boven een gang | zegel -600, ravijn -1500 breed 450, gang -1000 tot -3400 diep 600 | werkt: het gat wordt een luik, licht valt op de vechter beneden | ? |
+| P2 | het luik gaat dicht: sluitzegel in de gang | als P1, plus zegel `sluit: -1500` op -2200 (gangbodem) | werkt: dicht in 1,3 s, de gang wordt donker, terug kan niet meer | ? |
+| P3 | zegel op de top van een rotsraster opent de rotswand | raster x -2400, rijen `....##....` / `..######..` / `##########`, zegel -1800 op 452, `muur: true`, muur -3000 | werkte niet (zie lessen), na de fix wel | ? |
+| P4 | zegel op een terras opent een ravijn dat je alleen vanaf het terras haalt | terras -1000 tot -1800 op 150, zegel -1500, ravijn -2050 breed 500 | werkt: geland op -2381, overkant begint op -2300 | ? |
+| P5 | val-zegel voor de kei waar Amir op staat | kei -1200, zegel `vijand` met ravijn op -1650 breed 300, vechter op -1800 | werkt: hij rent op Amir af, stapt erop, staat vast en valt erin | ? |
+| P5b | hetzelfde met hyena's | hyenas n 2 op -2200 | half: de eerste valt erin, de tweede komt van achteren | ? |
+
+### Hoe breed mag een ravijn aan de rand van een terras zijn
+
+Gemeten met de echte spelfysica, op 1280 bij 720, volle sprint, afzet op de rand (coyote),
+stappen van 25:
+
+| hoogte van het terras | breedste ravijn dat je haalt |
+| --- | --- |
+| 0 (savanne) | 425 |
+| 150 | 525 |
+| 300 | 575 |
+| 450 | 600 |
+
+Een ravijn van 450 tot 525 aan een terras van 150 is dus alleen vanaf het terras te halen.
+
 ## Voorstellen van Claude
 
 Wat Claude uit een testrun haalt en voorstelt. Pas na een ja gaat het een level in.
@@ -62,4 +101,16 @@ Wat Claude uit een testrun haalt en voorstelt. Pas na een ja gaat het een level 
 
 Wat we geleerd hebben en wat dus vast staat.
 
-- (nog leeg)
+- Een vijand boven een gang zetten kan niet: `terrainH` zet hem op de bodem van de gang. Een vijand
+  die door een dakluik naar beneden valt zit er dus niet in.
+- Een zwaardvechter komt pas als hij Amir ziet, ongeveer een halve schermbreedte (640 op 1280).
+  Staat hij verder van de val, dan blijft hij staan en gaat de val nooit af.
+- Hyena's komen van beide kanten van het beeld. Een val aan een kant van de kei vangt er een; voor
+  een roedel moet er aan elke kant een liggen.
+- Een zegel op de hoogste kolom van een rotsraster lag eerst onder de rots op de savanne en ging
+  nooit aan: `grotTerrein` gaf voor een kolom die tot bovenaan vol is geen vloer. Nu is de
+  bovenkant van het raster daar de vloer (proef P3).
+- Onder de treden van een rotsraster schemert op een paar plekken de lucht door (smalle kieren,
+  zie P3 in `overzicht.jpg`). Tekenfout, nog niet opgelost.
+- In P1 lag er bij een klap van de vechter in de gang even een rood doorzichtig vlak om hem en Amir
+  heen. Nog niet uitgezocht.
