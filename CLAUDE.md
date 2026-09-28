@@ -55,7 +55,9 @@ die titel is wat de speler onder Updates leest.
 **9. Een speer in een houten runeschijf blijft vastzitten.** Op een rots, in de rotswand of bij de
 grot: wie de schijf raakt is zijn speer kwijt, en E haalt hem er niet uit. Het spel geeft er niet
 vanzelf een nieuwe voor terug; of en waar de speler een nieuwe krijgt (een skelet, een speer in de
-grond) is een keuze van het level, en een level zonder mag juist de uitdaging zijn.
+grond) is een keuze van het level, en een level zonder mag juist de uitdaging zijn. Wel moet die nieuwe
+speer te halen zijn: een doornbos na de rune en voor het skelet houdt je voorgoed tegen, want zonder
+speer kap je het niet (behalve met het mes van Jackal Fang). `levelcheck.py` meldt dat onder `speer na een rune`.
 
 ## Waar wat staat
 
@@ -1167,7 +1169,8 @@ openscheurt, ravijnen tegen de echte
 sprong (met het plafond en het water erbij), decor boven een ravijn met dezelfde maten als
 `schoonLevel`, het plafond boven keien en treden, rechtop kunnen lopen, of elke trede met
 een sprong, een richel of een kei te halen is, of de klif achter de fakkels staat, alles
-rond een gang onder de grond (zie "hoogteverschil onder de grond"), en met `valschade` of Amir
+rond een gang onder de grond (zie "hoogteverschil onder de grond"), of er na een rune een doornbos voor het
+volgende skelet staat (`speer na een rune`), en met `valschade` of Amir
 de vallen langs de route overleeft.
 
 **De sprong.** `JUMP_V` en `GRAVITY` geven op papier 208, maar het spel rekent per beeld (eerst

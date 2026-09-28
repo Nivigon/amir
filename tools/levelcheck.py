@@ -1101,6 +1101,40 @@ def komend_ravijn(lv, sp):
             yield m
 
 
+@regel('speer na een rune')
+def speer_na_rune(lv, sp):
+    """Een speer in een runeschijf zit vast (regel 9): na de rune heeft Amir geen speer meer, tot
+    hij een nieuwe pakt uit een skelet. Of dat nodig is, is een keuze van het level, maar een
+    doornbos kap je alleen met een speer (de stoot en de lage zwaai willen er allebei een). Een
+    doornbos dat na een rune komt en voor het volgende skelet, houdt hem dus voorgoed tegen, en
+    de speer daarachter krijgt hij nooit. Zo stond het in Jager 4.
+
+    Het mes (Jackal Fang van Impungushe) kapt een doornbos ook, zonder speer. Kan de speler dat
+    mes in dit level hebben, dan is het een LET OP: het werkt alleen met het mes. Nu is dat alleen
+    een level met talentKeuze (Test 14), want Impungushe staat op slot. Komt er een level voor de
+    jakhals, zet het dan bij mes_kan."""
+    runes = lv.d.get('runes') or sp.RAVIJN_PROEF.get(lv.d.get('name'), [])   # zoals ravijnProef
+    mes_kan = bool(lv.d.get('talentKeuze'))
+    # Amir loopt naar links: alles op volgorde van hoog naar laag
+    wat = [(e['x'], 0, 'rune') for e in runes if isinstance(e.get('x'), (int, float))]
+    wat += [(o['x'], 1, 'skelet') for o in lv.d.get('skeletten') or [] if isinstance(o.get('x'), (int, float))]
+    wat += [(t['x'], 2, 'doornbos') for t in lv.d.get('thickets') or [] if isinstance(t.get('x'), (int, float))]
+    wat.sort(key=lambda w: (-w[0], w[1]))
+    kwijt = None                                   # de x van de rune waar de speer in bleef
+    for x, _, soort in wat:
+        if soort == 'rune':
+            kwijt = x
+        elif soort == 'skelet':
+            kwijt = None
+        elif kwijt is not None:
+            tekst = ('doornbos op %s komt na de rune op %s en voor een skelet: de speer zit in de schijf, '
+                     'en zonder speer kap je dit doornbos niet' % (n0(x), n0(kwijt)))
+            if mes_kan:
+                yield letop(x, tekst + ' (alleen met het mes, Jackal Fang)')
+            else:
+                yield fout(x, tekst)
+
+
 @regel('zegels')
 def zegels(lv, sp):
     """Een zegel ligt plat op de grond en gaat aan als Amir erop stapt. Boven een ravijn of in
