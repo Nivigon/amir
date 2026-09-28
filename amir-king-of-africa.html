@@ -3872,7 +3872,7 @@ function geluidOntgrendel(){
   }
   if (geluidVrij) return;
   geluidVrij = true;
-  for (const a of [deurSnd, skeletSnd, neeSnd, stormSnd, bavBrulSnd]){
+  for (const a of [deurSnd, skeletSnd, neeSnd, stormSnd, bavBrulSnd, bavGromSnd]){
     if (!a.paused) continue;
     a.muted = true;
     const p = a.play();
@@ -5920,8 +5920,21 @@ const BAV_NA_BRUL = 'grom';
 // Niet op een vast tempo: `delen` zegt per stuk tot welk frame het loopt en hoe snel. Omlaag (0 tot 17)
 // en weer omhoog (48 tot 63) snel, en de shake met de kop omlaag (18 tot 47) nog sneller: kort en fel,
 // alsof hij iets van zich afschudt. Samen zo'n 1,6 seconden.
+// Het grommen erbij (`geluid`, sounds/bavgrom.mp3) is een stuk van 1,6 seconden uit de aangeleverde monkey growl
+// (van 0,65 tot 2,25 seconde, met een korte fade in en uit), zo geknipt dat het luide stuk samenvalt met de
+// shake zelf (frame 18 tot 47) en het uitsterven met het weer omhoog komen. Het start met het schudden.
 const BAV_SCHUD = { map: 'enemies/baviaan/hoofdschudden/hoofdschudden_', n: 64, links: 44,
-  delen: [{ tot: 18, fps: 40 }, { tot: 48, fps: 42 }, { tot: 64, fps: 40 }] };
+  delen: [{ tot: 18, fps: 40 }, { tot: 48, fps: 42 }, { tot: 64, fps: 40 }],
+  geluid: { src: 'sounds/bavgrom.mp3', vol: 1 } };
+const bavGromSnd = new Audio(BAV_SCHUD.geluid.src);
+bavGromSnd.preload = 'auto';
+function bavGromSpeel(){
+  if (!wantSound) return;
+  try { bavGromSnd.currentTime = 0; } catch (e) {}
+  bavGromSnd.volume = BAV_SCHUD.geluid.vol;
+  bavGromSnd.play().catch(() => {});
+}
+function bavGromStop(){ bavGromSnd.pause(); try { bavGromSnd.currentTime = 0; } catch (e) {} }
 // welk frame van het hoofdschudden er t seconden na zijn begin staat, of -1 als hij klaar is
 function bavSchudFrame(t){
   let van = 0;
@@ -6209,7 +6222,10 @@ function bavRustStand(b, tIdle, dx, dy, scale, lijn){
   }
   if (r.schud != null && tIdle >= r.schud){
     const R = BAV_ROAR[r.soort];
-    if (!R) return { img: bavSchudImgs[Math.max(0, bavSchudFrame(tIdle - r.schud))], dx, dy, ox: BAV_SCHUD.links };
+    if (!R){                                                    // hoofdschudden, met het grommen erbij
+      if (!r.snd){ r.snd = true; bavGromSpeel(); }
+      return { img: bavSchudImgs[Math.max(0, bavSchudFrame(tIdle - r.schud))], dx, dy, ox: BAV_SCHUD.links };
+    }
     const ts = tIdle - r.schud + deelTijd(R.delen, R.van);      // de tijd in de brul, vanaf frame 0 gerekend
     // de grote brul: het geluid een keer, en over het luide stuk trilt het scherm, rommelt de aarde en springen de steentjes
     const tGeluid = deelTijd(R.delen, R.bij) - R.voor;
@@ -6626,7 +6642,7 @@ function bavAfzetWissel(){
   b.afzet = b.afzet == null ? bavKlok : null;
   bavRust.delete(b);
   bavStenen.lijst = [];
-  if (b.afzet == null){ bavBrulSnd.pause(); try { bavBrulSnd.currentTime = 0; } catch (e) {} }
+  if (b.afzet == null){ bavBrulSnd.pause(); try { bavBrulSnd.currentTime = 0; } catch (e) {} bavGromStop(); }
   sbBavInfo();
 }
 
@@ -12083,7 +12099,7 @@ function restart(){
   losseSperen.length = 0;                           // geen losse speren meer op de grond
   skeletReset();                                    // de skeletten weer overeind, met hun speer
   const bav = level && level.baviaan;               // de baviaan van een level weer hoog aan de wand
-  if (bav && bav.lvl){ baviaanLaad(); bav.afzet = null; bav.f = bav.f0; bavRust.delete(bav); bavBrulSnd.pause(); }
+  if (bav && bav.lvl){ baviaanLaad(); bav.afzet = null; bav.f = bav.f0; bavRust.delete(bav); bavBrulSnd.pause(); bavGromStop(); }
   bavStenen.lijst = []; bavKijkNu = true;              // geen steentjes meer, en de camera meteen omhoog naar de baviaan
   jump = null; dust.length = 0; ph = 0; pvh = 0; onGround = true; fell = false; coyote = 0; valVan = 0;
   camDiep = 0;
