@@ -963,12 +963,13 @@ def rijs_gaten(lv, g):
 
 @regel('rijzende grond')
 def rijzende_grond(lv, sp):
-    """Elk blok rijzende grond heeft een zegel met zijn naam, en staat in een ravijn."""
+    """Elk blok rijzende grond heeft een zegel of een rune met zijn naam, en staat in een ravijn."""
     zegels = lv.d.get('zegels') or []
+    bronnen = zegels + [r for r in lv.d.get('runes') or [] if isinstance(r, dict)]
     for b in lv.d.get('rijzers') or []:
         x = b.get('r')
-        if not any(str(z.get('rijs')) == str(b.get('id')) for z in zegels):
-            yield fout(x, 'rijzende grond %s zonder zegel met rijs: \'%s\': hij komt nooit omhoog' % (b.get('id'), b.get('id')))
+        if not any(str(z.get('rijs')) == str(b.get('id')) for z in bronnen):
+            yield fout(x, 'rijzende grond %s zonder zegel of rune met rijs: \'%s\': hij komt nooit omhoog' % (b.get('id'), b.get('id')))
         if not any(g['x'] - g['w'] / 2 <= b.get('l', 0) and b.get('r', 0) <= g['x'] + g['w'] / 2 for g in lv.gaps):
             yield letop(x, 'rijzende grond %s staat niet helemaal in een ravijn' % b.get('id'))
     for z in zegels:
