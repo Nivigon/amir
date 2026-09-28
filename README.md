@@ -40,13 +40,16 @@ Er komt een nieuwe eindbaas aan: een baviaan. In **Test 15** hangt hij hoog aan 
 In **Test 16: De speerval** is hij wel te verslaan. Hij hangt weer achter je aan de rotswand, springt neer, brult, schudt
 twee keer zijn kop en stormt dan op je af. In de rotswand aan het eind zit een speer met de punt naar jou, met een zegel
 ervoor (zie de speerval hieronder). Stap op het zegel als hij achter je aan komt en buk meteen: de speer vliegt over je
-heen en recht in de baviaan. De fakkels staan voor het zegel en blijven dicht zolang hij leeft; daarna loop je terug.
+heen en recht in de baviaan. Denk niet te snel dat je gewonnen hebt: hij deinst terug, gromt, brult je nog een keer
+aan en twijfelt, en pas dan zakt hij in elkaar. Zolang dat duurt sta je stil en kijkt de camera naar hem. De fakkels
+staan voor het zegel en blijven dicht zolang hij leeft; daarna loop je terug. In de sandbox laat **Dood** (onder Baviaan)
+het hele stuk zien.
 
 **Baboon tests** is een episode met proefstukken voor de baviaan, en net als Testrun begin je met de tribekeuze. In
 **Baboon 1: De speerbeet** (dezelfde vlakte als Test 15) hangt hij niet aan de wand maar staat hij grommend op de grond,
 een stuk voor je uit, en kijkt je aan. Pak je speer en loop naar hem toe. Steek je naar hem, of kom je met je speer in de
 hand te dichtbij, dan pakt hij je speer: je staat even vast en steekt vanzelf, hij bijt op de punt, rukt de speer uit je
-handen, schudt hem grommend kapot, en smijt de punt recht naar je toe, zo dat hij groot en donker langs het scherm schiet. De
+handen, schudt hem grommend kapot, en smijt de punt recht naar je toe: het blad komt met een aanzwellende zoef op je af tot het groot en donker in de lens slaat. Loop je gewoon door zonder te steken, dan grijpt hij pas als je wat dichterbij bent. Buk je en zwaai je laag, dan slaat hij met zijn poot op je speer: die breekt onder zijn poot, de punt vliegt op je af, en je laat de stomp vallen. In de sandbox laat **Pootslag lang** de langzame versie met de arm hoog zien, die nog niet in het spel zit. De
 schacht blijft in het zand liggen. Daarna loop je zonder speer verder, over twee ravijnen naar de fakkels. In de sandbox
 zet **Speerbeet** (bij Vijanden, onder Baviaan) hem zo op de grond, een stuk voor je, en geeft je je speer terug.
 
@@ -103,6 +106,8 @@ Open hem vanaf het beginscherm en druk in het startmenu op **Download voor offli
 Doe die download vanuit het beginscherm-icoon, niet vanuit Safari: iOS geeft een geinstalleerde webapp een eigen opslag, dus wat je in Safari downloadt telt daar niet mee.
 
 Ook zonder op die knop te drukken wordt alles wat je tijdens het spelen tegenkomt bewaard, dus een tweede potje laadt sowieso sneller.
+
+Een level begint pas als alle plaatjes binnen zijn. Is er nog iets onderweg (op een trage verbinding, of bij een level dat eigen plaatjes heeft, zoals de baviaan), dan staat het spel stil en zie je **Laden** met een balk tot alles er is. Loopt het vlot, dan zie je daar niets van. Na 25 seconden gaat het spel toch verder, met wat er dan is.
 
 ### Beeld: scherp of licht
 
