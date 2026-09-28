@@ -37,6 +37,11 @@ Test levels zijn korte proefstukken: een enkel level waarin je een mechaniek los
 
 Er komt een nieuwe eindbaas aan: een baviaan. In **Test 15** hangt hij hoog aan de rotswand achter je en springt hij neer zodra je gaat lopen. Verderop liggen twee ravijnen met een stuk grond ertussen: spring je daarop, dan springt hij over allebei heen en brult hij je van de overkant aan, en ga je eraf, dan landt hij voor je neus en brult weer. Zo houdt hij je op dat stuk vast. In de sandbox staat hij bij Vijanden onder **Baviaan**: **Neerzetten** zet hem een stukje voor je neer, met zijn gezicht naar Amir. Met de pijltjes schuif je hem naar links, rechts, omhoog en omlaag, met min en plus maak je hem kleiner of groter, en **Spiegel** draait hem om. Houd je een knop vast, dan gaat hij door, steeds sneller. Naast de knoppen staan de getallen: waar hij staat, hoe hoog hij boven de grond hangt en hoe groot hij is, allebei in Amir, zodat je ze kunt doorgeven als hij goed staat. Het plaatje is uit de magenta achtergrond geknipt met `tools/baviaan_knip.py` en staat in `enemies/baviaan/`.
 
+In **Test 16: De speerval** is hij wel te verslaan. Hij hangt weer achter je aan de rotswand, springt neer, brult, schudt
+twee keer zijn kop en stormt dan op je af. In de rotswand aan het eind zit een speer met de punt naar jou, met een zegel
+ervoor (zie de speerval hieronder). Stap op het zegel als hij achter je aan komt en buk meteen: de speer vliegt over je
+heen en recht in de baviaan. De fakkels staan voor het zegel en blijven dicht zolang hij leeft; daarna loop je terug.
+
 In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen naar het volgende level van dezelfde reeks. Onder **Instellingen** staan daar ook het tempo van het spel, het looptempo van Amir, het formaat van het beeld en de muziek. Tijdens een level is het speelveld verder leeg: de testbalk met schuifjes staat alleen in de sandbox (met B haal je hem er tijdens het spelen en in de bouwer alsnog bij).
 
 ## Tribes
@@ -466,6 +471,20 @@ uit, dan blijft het gat open. Zonder `ravijn` licht hij alleen op.
 
 In de sandbox staat hij onder **Zegel**: **Neerzetten** legt er een voor je neer, **Met ravijn erachter** een die de
 grond verderop openscheurt.
+
+## De speerval
+
+Een speer zit horizontaal in de rotswand aan het eind van het level, met de punt naar jou toe. Stap je op het zegel dat
+erbij hoort, dan licht het op, trilt de speer even in de wand en schiet hij dan recht op je af, op heuphoogte van een
+staande Amir. Buk (pijl omlaag of S): dan vliegt hij over je heen. Blijf je staan, dan raakt hij jou, en springen helpt
+niet. Wat achter je loopt raakt hij wel: de baviaan, die verder niet te verslaan is, gaat er dood van. Mist de speer, dan
+valt hij na een eind neer, ligt hij even, en zit hij daarna weer in de wand; het zegel gaat dan uit en werkt opnieuw.
+
+Een level zet hem met `speervallen: [ {x: -2900} ]` (de x van de klif waar hij in zit) en een zegel dat ernaar wijst:
+`zegels: [ {x: -2400, speerval: -2900} ]`. Staat er een baviaan in het level, dan gaan de fakkels pas open als hij dood
+is. In de sandbox staat hij bij Speer en spullen onder **Speerval**: **Neerzetten** zet een stuk rotswand met de speer
+voor je uit en een zegel daartussen, **Losschieten** schiet hem meteen los. Met de baviaan achter je (Van rechts,
+Neerzetten, dan J) kun je zo de hele truc proberen.
 
 ## Het skelet met de speer
 
