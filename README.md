@@ -56,7 +56,7 @@ Elke tribe heeft een **talent tree**: een verticale boom zoals in World of Warcr
 | **Thorn Breaker** | een doornbos gaat in een klap om in plaats van drie |
 | **Twin Sweep** | de lage zwaai heeft twee ladingen in plaats van een: de tweede is een reserve terwijl de eerste herlaadt |
 
-De lage zwaai zelf (bukken en aanvallen) heeft iedereen, bij elke tribe. Hij raakt slangen, fosforslangen, de schorpioen, hyena's, zwaardvechters en de panter als hij na een sprong plat ligt. Na een zwaai herlaadt hij 1,4 seconde voor je hem opnieuw kunt doen; dat zie je rechtsboven, links van de kalebas, aan het icoon met de speer in de wervel, dat donker wordt en weer vrijdraait. Met Twin Sweep staan er twee stipjes naast: een per lading. De ladingen laden een voor een bij, en een misser kost er ook een.
+De lage zwaai zelf (bukken en aanvallen) heeft iedereen, bij elke tribe. Hij raakt slangen, fosforslangen, de schorpioen, hyena's, zwaardvechters en de panter als hij na een sprong plat ligt. Na een zwaai herlaadt hij 1,4 seconde voor je hem opnieuw kunt doen; dat zie je rechtsboven, links van de kalebas, aan het icoon met de speer in de wervel, dat donker wordt en weer vrijdraait. Met Twin Sweep staan er twee stipjes naast: een per lading. De ladingen laden een voor een bij, en een misser kost er ook een. Doe je hem in een poel, dan waait er geen stof op maar spat het water: langs de punt van je speer spetters en rimpels, met druppels die naar buiten vliegen en met een ringetje terugvallen, en een plons als de punt het water raakt. In de sandbox legt **Poel onder je** (onder Lage zwaai) een poel neer waar je staat.
 
 ### Bhubesi en de woede
 

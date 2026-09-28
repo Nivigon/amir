@@ -104,6 +104,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | Amir zegt iets als een vijand sterft | `SFX_RUST`, `vijandDood(baas)` (het bestand is 9 dB harder gemaakt, met een limiter): "ta soul, rest" na elke verslagen eindbaas en na een op de `DOOD_KANS` (7) andere vijanden; elke plek waar een vijand sterft roept `vijandDood` aan |
 | stap voor stap leren spelen | het `tutorial`-systeem (staat klaar, geen level gebruikt het nu) |
 | gaten in de grond | `gaps`, de overkant, de nevel en de diepte; de laag die eronder doorloopt is `grondDoorlopen`, in de bodemsectie |
+| de lage zwaai in het water | `SWEEP_WATER`, `spawnSweepWater`, `druppels`: in een poel (`waterDepthAt`) spat de punt van de speer in plaats van stof, met de spetters en rimpels van een pas in de poel (`splashes`, met `dx`, `dy` en `back`, zodat wat achter Amir langs gaat achter hem getekend wordt: `drawSplashes(..., true)` vlak na het stof erachter), druppels die met een ringetje terugvallen en een plons per zwaai (`swPlonsId`). In de sandbox Poel onder je (`sbpoel`), onder Lage zwaai |
 | stof, sneeuwval, het weer | deeltjes en het weerplan per potje |
 | het weer: regen, onweer, zandstorm, sneeuw en sneeuwstorm | `WEER`, `weerDoel`, `updateWeer`, `drawWeer`, `weerWind`, `weerGeluid`: het veld `weer` van een level (zie "het weer" hieronder) |
 | vegetatie, water, doornbos | `props`, `water`, `thickets` |
