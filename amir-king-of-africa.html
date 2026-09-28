@@ -758,7 +758,8 @@
         <button data-bav="s:1" title="groter">+</button>
         <button id="sbbavafzet" title="toets J">Afzet (J)</button>
         <button id="sbbavschud" title="toets K: bij het eerstvolgende einde van de idle">Hoofdschudden (K)</button>
-        <button id="sbbavbeet" title="hij staat op de grond; steek naar hem of kom te dichtbij, en hij pakt je speer">Speerbeet</button>
+        <button id="sbbavbeet" title="hij staat op de grond; steek naar hem of kom te dichtbij, en hij pakt je speer; zwaai laag, en hij slaat erop">Speerbeet</button>
+        <button id="sbbavslag" title="de lange pootslag, met de arm hoog: alleen om te zien (bij de speerbeet)">Pootslag lang</button>
         <button id="sbbavdood" title="de fatale klap: nog een brul, en dan zakt hij in elkaar">Dood</button>
         <button id="sbbavspiegel">Spiegel</button>
         <button id="sbbavweg">Weg</button>
@@ -2577,7 +2578,8 @@ const RUN_LEVELS = [RUN_1, RUN_2, RUN_3];
 //
 // Baboon 1: de speerbeet. Een kopie van Test 15 (hetzelfde uitzicht, dezelfde twee ravijnen, de kalebas, het decor
 // en het einde), maar de baviaan hangt niet aan de wand: hij staat grommend op de grond, een stuk voor je uit, en
-// kijkt je aan (beet, zie BAV_BEET). Steek naar hem, of loop met je speer in de hand te dichtbij, en hij pakt de
+// kijkt je aan (beet, zie BAV_BEET). Zwaai laag, en hij slaat met zijn poot je speer kapot (BAV_SLAG). Steek naar
+// hem, of loop met je speer in de hand te dichtbij, en hij pakt de
 // speer, schudt hem kapot en smijt de punt naar de camera. De schacht blijft in het zand liggen. Daarna ben je je
 // speer kwijt en loop je zonder verder, over de twee ravijnen naar de fakkels. Geen kooi: hij vecht niet.
 const BAB_1 = {
@@ -2595,7 +2597,7 @@ const BAB_1 = {
   cliffs: [ {x: -7200} ],
   ends: [ {x: -6700} ],
   tips: [ { x: -120,  t: 'Baboon test: pak je speer en loop naar de baviaan' },
-          { x: -700,  t: 'Steek naar hem, of kom gewoon te dichtbij' },
+          { x: -700,  t: 'Steek naar hem, zwaai laag (bukken en slaan), of kom gewoon te dichtbij' },
           { x: -2200, t: 'Zonder speer verder, over de ravijnen' } ]
 };
 const BAB_LEVELS = [BAB_1];
@@ -6257,6 +6259,7 @@ function startWereld(){
   return Math.round(Math.max(0, Math.min(cliffAt().wall - 50, b.x - (b.zicht - 0.5) * W)));
 }
 const BAV_KOOI = { afzet: 260, ver: 900, land: 300, voorAmir: 550, rand: 300, rekMacht: 0.6, piek: [0.5, 0.45] };
+let bavSlagImgs = null;                             // de pootslag: { kort, lang }
 let baviaanImg = null, bavAfzetImgs = null, bavValImgs = null, bavLandingImgs = null, bavBrulImgs = null, bavIdleOpImgs = null, bavSchudImgs = null, bavGromImgs = null, bavRunImgs = null, bavHapImgs = null, bavSprongImgs = null, bavDoodImgs = null;
 // per baviaan waar de idle staat, los van level.baviaan zodat het niet mee het level in gaat:
 // t0 het begin van het lopende stuk idle, wacht hoe lang dat duurt, schud het begin van het hoofdschudden
@@ -6291,6 +6294,7 @@ function baviaanLaad(){
   bavHapImgs = bavReeks(BAV_HAP.map, BAV_HAP.n);
   bavSprongImgs = bavReeks(BAV_SPRONG.map, BAV_SPRONG.n);
   bavDoodImgs = bavReeks(BAV_DOOD.map, BAV_DOOD.n);
+  bavSlagImgs = { kort: bavReeks(BAV_SLAG.kort.map, BAV_SLAG.kort.n), lang: bavReeks(BAV_SLAG.lang.map, BAV_SLAG.lang.n) };
   if (BAV_NA_BRUL === 'grom') bavGromImgs = bavReeks(BAV_IDLE_GROM.map, BAV_IDLE_GROM.n);
 }
 // wat er nu staat: het frame, en hoe ver het canvas is verschoven (dx vooruit, dy omlaag, in Amir;
@@ -6850,6 +6854,30 @@ function bavDoodNu(){
   if (!r.fase){ r.schud = null; r.soort = null; r.keer = BAV_VERLOOP.stappen.length; }
   r.doodNu = true;
 }
+// ---- pootslag: de baviaan slaat met zijn poot op de speer ----
+// Twee reeksen, allebei een keer (geen lus), op `fps`. Canvas 840 bij 680 met de grondlijn op rij 640 (`grond`),
+// 190 bronpixels links en 65 boven het canvas van de brul en de idles (`links` 44 plus 190, `boven` 65), dus 82 links
+// van de run, de hap en de dood. De frames zijn aangeleverd zoals ze zijn: niet bijsnijden, schalen of opnieuw opslaan.
+//   kort: de snelle reactie, zonder pauze bovenin: 00 houding, 01-07 arm omhoog, 08-10 omlaag, 11 de klap (`klap`),
+//         12-16 de poot plat op de grond (tot `plat`), 17-19 terug, 20-22 weer in de houding;
+//   lang: aangekondigd, met de arm hoog: 01-06 omhoog, 07-08 hoog (`hoog`: die twee herhalen zolang het dreigen duurt),
+//         09-12 omlaag, 13 de klap, 14-18 plat, 19-21 terug, 22-23 houding.
+// `raak` is waar de poot op de grond neerkomt, in bronpixels, op het klapframe. slag_kort_22 is dezelfde pose als
+// slag_lang_00, dus de twee zijn aan elkaar te rijgen tot een dubbele slag. De speerbeet gebruikt nu kort (het antwoord
+// op de lage zwaai); lang staat klaar voor later, en is in de sandbox te zien (Pootslag lang).
+const BAV_SLAG = {
+  kort: { map: 'enemies/baviaan/slag_kort/slag_kort_', n: 23, klap: 11, plat: 16, raak: [181, 262] },
+  lang: { map: 'enemies/baviaan/slag_lang/slag_lang_', n: 24, klap: 13, plat: 18, raak: [92, 183], hoog: [7, 8] },
+  fps: 24, links: 234, boven: 65, grond: 640, dreig: 0.8   // dreig: zo lang houdt lang de arm hoog, in seconden
+};
+// het frame van slag_lang op tijd t, met de arm `dreig` seconden hoog (07 en 08 om en om), of -1 als hij klaar is
+function bavSlagLangFrame(t){
+  const L = BAV_SLAG.lang, fps = BAV_SLAG.fps, op = L.hoog[0] / fps;
+  if (t < op) return Math.floor(t * fps);
+  if (t < op + BAV_SLAG.dreig) return L.hoog[Math.floor((t - op) * fps / 2) % 2];
+  const f = L.hoog[1] + 1 + Math.floor((t - op - BAV_SLAG.dreig) * fps);
+  return f < L.n ? f : -1;
+}
 // ---- speerbeet: de baviaan pakt je speer en smijt de punt naar de camera ----
 // Een baviaan met `beet: true` (level.baviaan, of Speerbeet in de sandbox) hangt niet aan de wand maar staat
 // grommend op de grond (de grom-idle) en kijkt Amir aan. Steekt Amir naar hem (binnen `slag` Amir uitval), of
@@ -6864,6 +6892,10 @@ function bavDoodNu(){
 //          de schacht af en vliegt weg, en blijft in het zand liggen; in frame `werp`, met zijn kop omhoog, smijt hij
 //          de punt naar de camera (bavWerpTeken): groter, donkerder en onscherper tot hij langs de lens schiet;
 //   klaar: weer de grom-idle. Amir is los en heeft geen speer meer.
+// Doet Amir binnen `pootslag` Amir de lage zwaai, dan slaat hij in plaats daarvan met zijn poot op de speer (BAV_SLAG,
+// kort): Amir blijft liggen in zwaaiframe `zwaai`, met de speer laag vooruit, de baviaan schuift tot zijn poot `poot`
+// voor Amir neerkomt, en op de klap breekt de speer daar: wat ervoor zat vliegt recht naar de camera, net als bij de
+// beet (bavWerpTeken), en Amir laat de stomp vallen als de poot weer omhoog komt.
 // De mond per frame (BAV_MOND) is gemeten op de tanden, in bronpixels van het canvas van die reeks. De speer is
 // Amirs eigen speer uit stootframe `steek`: de punt met de rode omwikkeling, en de schacht erachter doorgetrokken
 // (beetSpeerMaak). Alles loopt op bavKlok, dus op speltijd.
@@ -6887,6 +6919,12 @@ const BAV_BEET = {
   kortIn: 0.25,
   midden: 0.35,     // zoveel van de weg naar het midden van het beeld schuift hij op
   zoef: { van: 350, tot: 2600, vol: 0.9 },   // de zoef (bavZoef): ruis die aanzwelt en hoger wordt
+  pootslag: 1.8,    // de lage zwaai binnen zoveel Amir van waar de poot moet komen: hij slaat erop (ruimer dan
+                    // `vast`, anders grijpt hij al met zijn bek voor je kunt zwaaien); hij schuift er snel heen
+  zwaai: 7,         // Amirs zwaaiframe waarin hij blijft liggen, met de speer laag vooruit
+  poot: 150,        // zo ver voor Amir (sprite-eenheden) komt de poot op de speer; de punt zit op 202 (sweep_8)
+  speerHoog: 67,    // zo hoog ligt de speer daar, in sprite-eenheden
+  schuifVan: 1, schuifTot: 8,   // tussen deze slagframes schuift hij naar zijn plek (terwijl de arm omhoog gaat)
   greep: 70,        // waar hij de speer vastheeft, vanaf de linkerrand van het speerbeeld (sprite-eenheden)
   breuk: 175,       // waar de schacht afbreekt
   veer: 140, demp: 7, zwaar: 500   // hoe de speer in zijn bek meezwiept (schermpixels per seconde kwadraat); na de
@@ -6937,7 +6975,8 @@ function beetSpeerMaak(){
 }
 const bavBeet = new WeakMap();                     // per baviaan waar de speerbeet staat
 let beetVast = null;                               // de baviaan die Amir nu vasthoudt: zolang staat Amir stil
-let beetKnipX = null;                              // wereld-x van zijn lip: daar houdt Amirs speer op
+let beetKnipX = null;                              // wereld-x van zijn lip (of poot): daar houdt Amirs speer op
+let beetKnipZwaai = false;                         // en dan in een zwaaiframe, niet in een stootframe (pootslag)
 const beetStukken = [];                            // de afgebroken schacht en de splinters
 let beetWerp = null;                               // de punt op weg naar de camera
 function beetStaat(b){
@@ -6952,14 +6991,14 @@ function bavSchudTijd(f){
   return laatst;
 }
 function beetReset(){
-  beetVast = null; beetKnipX = null; beetStukken.length = 0; beetWerp = null; bavGromStop();
+  beetVast = null; beetKnipX = null; beetKnipZwaai = false; beetStukken.length = 0; beetWerp = null; bavGromStop();
   const b = level && level.baviaan;
   if (b) bavBeet.delete(b);
 }
 // in de lus, na de stoot van Amir: wanneer het begint, Amir vasthouden, en de stappen van de reeks
 function bavBeetStap(scale){
   const b = level && level.baviaan;
-  if (!b || !b.beet || building || !running || !baviaanImg){ beetVast = null; beetKnipX = null; return; }
+  if (!b || !b.beet || building || !running || !baviaanImg){ beetVast = null; beetKnipX = null; beetKnipZwaai = false; return; }
   const r = beetStaat(b), t = (bavKlok - r.t0) / 1000, u = CHAR_H * scale, B = BAV_BEET;
   const lip = wx => bavBronX(b, b.x + wx, B.lip, BAV_HAP.links, scale);   // zijn lip in hap_16
   if (r.fase === 'rust'){
@@ -6968,6 +7007,14 @@ function bavBeetStap(scale){
     const naar = Math.sign(lip(r.wx) - world) || 1;                 // van Amir naar hem
     const punt = world + naar * -TIP_DX[B.steek] * scale;          // waar zijn speerpunt komt
     const uitval = (lip(r.wx) - (punt - naar * B.diep * scale)) * naar;   // zo ver moet hij naar voren
+    if (swFrame >= 0 && swFrame <= 2){             // de lage zwaai: hij slaat met zijn poot op de speer
+      const K = BAV_SLAG.kort, poot = bavBronX(b, b.x + r.wx, (K.raak[0] + K.raak[1]) / 2, BAV_SLAG.links, scale);
+      const naarP = Math.sign(poot - world) || 1, schuif = (poot - (world + naarP * B.poot * scale)) * naarP;
+      if (facing !== naarP || Math.abs(schuif) > B.pootslag * u) return;
+      r.fase = 'slag'; r.t0 = bavKlok; r.wx0 = r.wx; r.uitval = schuif; r.naar = naarP; r.punt = true; r.heel = false;
+      beetVast = b; glij = 0;
+      return;
+    }
     const slaat = atkFrame >= 0 && atkFrame <= 3 && !atkMes && facing === naar;
     const zelf = !slaat && atkFrame < 0 && uitval <= B.vast * u;
     if (!(slaat && uitval <= B.slag * u) && !zelf) return;
@@ -6981,6 +7028,42 @@ function bavBeetStap(scale){
     r.heel = true; r.punt = true; r.sp = null; r.spT = null;
     beetVast = b;
     bavBijtSpeel();                               // de hap: de aanzet op de uitval, de klap op de beet
+    return;
+  }
+  if (r.fase === 'slag' || r.fase === 'druk'){ facing = r.naar; duckT = 1; }
+  if (r.fase === 'slag'){
+    const S = BAV_SLAG, K = S.kort, f = Math.floor(t * S.fps);
+    const p = Math.min(1, Math.max(0, (t - B.schuifVan / S.fps) / ((B.schuifTot - B.schuifVan) / S.fps)));
+    r.wx = r.wx0 - r.naar * r.uitval * p;          // naar zijn plek, terwijl de arm omhoog gaat
+    if (f < K.klap) return;
+    r.fase = 'druk'; r.t0 = bavKlok;               // de klap: de poot op de speer, en de speer breekt
+    const poot = world + r.naar * B.poot * scale, h = terrainH(poot) + B.speerHoog;
+    beetKnipX = poot; beetKnipZwaai = true;
+    beetWerp = { t0: bavKlok, wx: poot + r.naar * 40 * scale, h, hoek: r.naar > 0 ? Math.PI : 0, fd: -r.naar, schok: false };
+    for (let i = 0; i < 14; i++)
+      beetStukken.push({ soort: 'splinter', x: poot, h, vx: (Math.random() - 0.5) * 520, vh: 150 + Math.random() * 420,
+                         hoek: Math.random() * 6.28, vr: (Math.random() - 0.5) * 30, lang: 5 + Math.random() * 9, leeft: 0 });
+    hyPlay(SFX_HYENA_BITE); bavLandSpeel(0.8); bavZoef(B.werpDuur);
+    shake = Math.max(shake, 0.25);
+    bavStof(poot, 'land', 0, 0.6);
+    return;
+  }
+  if (r.fase === 'druk'){
+    const K = BAV_SLAG.kort;
+    if (t < (K.plat + 1 - K.klap) / BAV_SLAG.fps) return;
+    r.fase = 'terug'; r.t0 = bavKlok; beetKnipX = null; beetKnipZwaai = false;   // de poot omhoog: Amir laat de stomp vallen
+    spearFound = false; spear = false; setSpearLabel();
+    swFrame = -1; swAcc = 0; swRecover = SWEEP_RECOVER; atkCooldown = SWEEP_COOLDOWN;
+    beetStukken.push({ soort: 'schacht', x: world - r.naar * 30 * scale, h: terrainH(world) + B.speerHoog, vx: -r.naar * 90,
+                       vh: 160, hoek: 0, vr: (Math.random() < 0.5 ? -1 : 1) * 3 });
+    return;
+  }
+  if (r.fase === 'terug'){
+    if (Math.floor(t * BAV_SLAG.fps) >= BAV_SLAG.kort.n - (BAV_SLAG.kort.plat + 1)){ r.fase = 'klaar'; r.t0 = bavKlok; }
+    return;
+  }
+  if (r.fase === 'toon'){                          // de sandbox: slag_lang, alleen om te zien
+    if (bavSlagLangFrame(t) < 0){ r.fase = 'rust'; r.t0 = bavKlok; }
     return;
   }
   if (r.fase === 'grijp' || r.fase === 'klem'){
@@ -7017,7 +7100,13 @@ function bavBeetStand(b, scale){
   const lijn = b.y + (K.t + K.h - BAV_VAL.grond) * b.s / K.h;    // de grondlijn van het canvas op de grond
   const rel = (terrainH(b.x + r.wx) - terrainH(b.x)) / CHAR_H;
   const st = (img, ox, mond, frame) => ({ img, dx: r.wx * (b.f ? 1 : -1) / u, dy: lijn - rel, ox, mond, frame, beet: r });
-  const I = BAV_IDLE_GROM;
+  const I = BAV_IDLE_GROM, S = BAV_SLAG, SK = S.kort, f24 = Math.floor(t * S.fps);
+  // de pootslag: een hoger canvas (oy) met een eigen grondlijn, voor de schaduw (grond)
+  const slag = img => Object.assign(st(img, S.links), { oy: S.boven, grond: S.grond });
+  if (r.fase === 'slag') return slag(bavSlagImgs.kort[Math.min(SK.klap - 1, f24)]);
+  if (r.fase === 'druk') return slag(bavSlagImgs.kort[Math.min(SK.plat, SK.klap + f24)]);
+  if (r.fase === 'terug') return slag(bavSlagImgs.kort[Math.min(SK.n - 1, SK.plat + 1 + f24)]);
+  if (r.fase === 'toon') return slag(bavSlagImgs.lang[Math.max(0, bavSlagLangFrame(t))]);
   if (r.fase === 'grijp') return st(bavHapImgs[Math.min(BAV_BEET.klemFrame - 1, bavHapFrame(t))], BAV_HAP.links);
   if (r.fase === 'klem') return st(bavHapImgs[BAV_BEET.klemFrame], BAV_HAP.links);
   if (r.fase === 'ruk'){
@@ -7123,6 +7212,7 @@ function bavBeetStukken(groundY, scale, cx){
 function bavWerpTeken(scale){
   if (!beetWerp) return;
   const S = beetSpeerMaak(), B = BAV_BEET, w = beetWerp;
+  if (w.x == null) return;                        // nog niet op het scherm gezet (pootslag, baviaanTeken)
   const p = (bavKlok - w.t0) / 1000 / B.werpDuur;
   if (!S || p >= 1){ beetWerp = null; return; }
   const groot = 1 / (1 - B.groei * Math.max(0, p));   // op constante snelheid naar de lens
@@ -7224,6 +7314,9 @@ function baviaanTeken(groundY, scale, cx){
   } else bavGeo.delete(b);
   if (!fr) ctx.drawImage(baviaanImg, -w / 2, -h, w, h);
   ctx.restore();
+  if (beetWerp && beetWerp.x == null){                       // de pootslag zet hem in de wereld: nu op het scherm
+    beetWerp.x = cx + (beetWerp.wx - world); beetWerp.y = groundY - beetWerp.h * scale;
+  }
   bavBeetStukken(groundY, scale, cx);                        // de afgebroken schacht en de splinters (speerbeet)
 }
 // het frame als wit silhouet, voor het oplichten bij de klap; een keer per frame gemaakt
@@ -7252,7 +7345,7 @@ function bavSchaduw(b, st, fr, sx, voet, h, w, groei, shY, scale, wx, vloer){
   if (fr){
     lx = -w / 2 - (K.l + (st.ox || 0)) * k; ly = -h - (K.t + (st.oy || 0)) * k;
     fw = fr.naturalWidth * k; fh = fr.naturalHeight * k;
-    grondRij = st.oy ? BAV_SPRONG.grond : BAV_VAL.grond;
+    grondRij = st.grond || (st.oy ? BAV_SPRONG.grond : BAV_VAL.grond);
   } else { lx = -w / 2; ly = -h; fw = w; fh = h; grondRij = img.naturalHeight; }
   const py = (BAV_VAL.grond - K.t - K.h) * k;               // de groei gaat om de grondlijn van het canvas
   lx *= groei; fw *= groei; fh *= groei; ly = py + (ly - py) * groei;
@@ -16913,6 +17006,7 @@ function loop(now){
   // tijdens het spannen: de andere kant op of bukken breekt de worp af (zie WORP_WACHT)
   if (thr && ((dir !== 0 && dir !== facing) || keys['ArrowDown'] || keys['s'] || keys['S'])) thrAfbreken();
   houdingZet(dir);                                 // Bared Teeth: in de dreighouding kijkt hij de vijand aan
+  if (beetVast) dir = 0;                           // de baviaan heeft de speer: Amir draait zich ook niet om
   if (houding.aan) facing = houding.kant;
   else if (dir !== 0) facing = dir;
 
@@ -16968,6 +17062,7 @@ function loop(now){
   if (swFrame >= 0){
     swAcc += dt * SWEEP_FPS;
     while (swAcc >= 1){ swFrame++; swAcc -= 1; }
+    if (beetVast && swFrame >= BAV_BEET.zwaai){ swFrame = BAV_BEET.zwaai; swAcc = 0; }   // pootslag: hij blijft liggen
     if (swFrame >= SWEEP_N){ swFrame = -1; swAcc = 0; atkCooldown = SWEEP_COOLDOWN; swRecover = SWEEP_RECOVER; }
   } else if (swRecover > 0) swRecover = Math.max(0, swRecover - dt);
   sweepLaden(dt);                                // de ladingen van de lage zwaai komen terug
@@ -17664,11 +17759,14 @@ function loop(now){
     if (useThrow) thrWachtZet(pcx, groundY + lift);   // wachten met de speer: ademen en trillen
     ctx.translate(x, y);
     if (useThrow ? thrFlip() : (autoFlip && facing === 1)){ ctx.translate(w, 0); ctx.scale(-1, 1); }
-    if (beetKnipX !== null && attacking && !atkMes){   // speerbeet: zijn speerpunt zit in de bek van de baviaan
-      const px = w / SPR_W, lip = (cx + (beetKnipX - world) - x) / px;   // de lip in bronpixels van het frame
-      const tot = autoFlip && facing === 1 ? SPR_W - lip : lip;
+    if (beetKnipX !== null && (beetKnipZwaai ? useSweep : attacking && !atkMes)){
+      // speerbeet: zijn speerpunt zit in de bek van de baviaan; pootslag: hij is onder de poot afgebroken
+      const bw = beetKnipZwaai ? SWEEP_W : SPR_W, bh = beetKnipZwaai ? DUCK_H : SPR_H;
+      const strook = beetKnipZwaai ? [405, 100] : [95, 70];        // de rijen van de speer in dat frame
+      const px = w / bw, lip = (cx + (beetKnipX - world) - x) / px;   // de lip in bronpixels van het frame
+      const tot = autoFlip && facing === 1 ? bw - lip : lip;
       ctx.beginPath(); ctx.rect(-w, -h, w * 3, h * 3);
-      ctx.rect(0, 95 * h / SPR_H, Math.max(0, tot) * px, 70 * h / SPR_H);   // alleen de strook van de speer
+      ctx.rect(0, strook[0] * h / bh, Math.max(0, tot) * px, strook[1] * h / bh);   // alleen de strook van de speer
       ctx.clip('evenodd');
     }
     if (attacking && atkMes) ctx.translate(mesLeun(Math.min(atkFrame, MES.steek.length - 1)) * scale, 0);   // de uitval
@@ -20184,7 +20282,7 @@ const SUBS = {
   'Testrun 1: Regen bij de rivier': 'Een poel, een kei, onweer en twee vechters',
   'Testrun 2: De zandstorm': 'Schilden in de wind, een zegel, fosforslangen en een rune',
   'Testrun 3: Nacht in de gang': 'Een gang in het donker, dan sneeuw en een laag dak',
-  'Baboon 1: De speerbeet': 'Steek naar de baviaan: hij pakt je speer en smijt de punt naar je toe'
+  'Baboon 1: De speerbeet': 'Steek naar de baviaan of zwaai laag: hij pakt je speer of slaat hem kapot'
 };
 function buildCards(el, list){
   el.innerHTML = '';
@@ -20541,6 +20639,13 @@ document.getElementById('sbbavbeet').onclick = () => {
   beetReset();
   spearFound = true; spear = true; jav = null; javLost = 0; spearX = null; setSpearLabel();
   sbBavInfo(); cv.focus();
+};
+// de lange pootslag (BAV_SLAG.lang) bij een baviaan van de speerbeet die stilstaat: alleen om te zien
+document.getElementById('sbbavslag').onclick = () => {
+  if (!level.baviaan || !level.baviaan.beet) document.getElementById('sbbavbeet').click();
+  const r = beetStaat(level.baviaan);
+  if (r.fase === 'rust' || r.fase === 'klaar'){ r.fase = 'toon'; r.t0 = bavKlok; }
+  cv.focus();
 };
 document.getElementById('sbbavdood').onclick = () => { if (!level.baviaan) sbBaviaan(); bavDoodNu(); sbBavInfo(); cv.focus(); };
 document.getElementById('sbbavspiegel').onclick = () => { if (!level.baviaan) sbBaviaan(); level.baviaan.f = !level.baviaan.f; sbBavInfo(); cv.focus(); };
