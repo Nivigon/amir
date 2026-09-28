@@ -935,6 +935,14 @@
         <span class="hint">een lage doorgang, een zegel, een kamer en een spleet met een zegel erachter: raak het met een vlakke worp</span>
       </div>
       <div class="row">
+        <label>Rijzende grond</label>
+        <button id="sbrijs">Neerzetten</button>
+        <button id="sbrijsduur">Zakt weer</button>
+        <button id="sbrijsop">Omhoog</button>
+        <button id="sbrijsweg">Weg</button>
+        <span class="hint">een ravijn voor je uit met een zegel ervoor: stap erop en er komt steen omhoog</span>
+      </div>
+      <div class="row">
         <label>Onder de grond</label>
         <button data-holte="gang">Gang</button>
         <button data-holte="trap">Gang met trap omhoog</button>
@@ -2546,7 +2554,42 @@ const TEST_17 = {
           { x: -1600, t: 'Een lage doorgang, en daarachter een zegel. Er is maar een weg' },
           { x: -2600, t: 'Het zegel achter de spleet haalt het plafond op. Gooi vlak, een boog raakt het plafond' } ]
 };
-const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17];
+// Test 18: de rijzende grond. Drie ravijnen die te breed zijn om over te springen, en elke keer brengt een zegel
+// steen uit de diepte omhoog (rijzers, zie "rijzende grond"). Eerst gewoon: stap op het zegel en in het midden van het
+// ravijn komt een blok omhoog, met aan weerszijden een gat van 220 dat je met een sprong haalt. Dan ligt het zegel aan
+// de overkant, waar je niet komt: raak het met je speer (speer: true). Op een laptop of een groot scherm haal je het met
+// een vlakke worp; op een telefoon komt die niet ver genoeg (de worp schaalt met het scherm) en gaat het met de boog,
+// van zo'n 1450 px ervoor. Er is op elk scherm een plek, nagespeeld op 1280 bij 720 en op 844 bij 390. Mis je, dan zet
+// het spel je speer naast je neer
+// (speerNaastAmir, het ravijn is te breed), en raak je, dan ligt je speer daarna aan de overkant, op de weg. Tot slot
+// twee blokken na elkaar (wacht) die samen het hele ravijn vullen, een brug zonder sprong, maar die zes seconden nadat
+// hij boven is weer zakt (duur): stap op het zegel en ren. Wie blijft staan zakt mee het ravijn in. Stap je opnieuw op het
+// zegel als ze beneden zijn, dan komen ze weer. Geen vijanden: het gaat om het steen.
+const TEST_18 = {
+  name: 'Test 18: De rijzende grond',
+  lagen: 'renew_vlakte',
+  rocks: [],
+  spawns: [ {x: -60000, k: 'groen'} ],          // heel ver weg: houdt de vrije modus uit
+  props: [ {x: -500, k: 'gras', s: 1.1, f: 0, v: 0}, {x: -2300, k: 'struik', s: 1.0, f: 1, v: 0},
+           {x: -3900, k: 'gras', s: 1.0, f: 1, v: 0}, {x: -5700, k: 'struik', s: 1.0, f: 0, v: 0} ],
+  gaps: [ {x: -1500, w: 700},                   // van -1850 tot -1150
+          {x: -3000, w: 700},                   // van -3350 tot -2650
+          {x: -4700, w: 900} ],                 // van -5150 tot -4250
+  rijzers: [ {id: 'a', r: -1370, l: -1630},
+             {id: 'b', r: -2870, l: -3130},
+             {id: 'c', r: -4250, l: -4700, duur: 6},              // samen het hele ravijn: een brug
+             {id: 'c', r: -4700, l: -5150, wacht: 0.6, duur: 6} ],
+  zegels: [ {x: -950, rijs: 'a'},
+            {x: -3620, rijs: 'b', speer: true},  // aan de overkant: raak het met je speer
+            {x: -4050, rijs: 'c'} ],
+  terraces: [], ledges: [], village: [], npcs: [], water: [], thickets: [], hppotions: [],
+  cliffs: [ {x: -6500} ],
+  ends: [ {x: -6000} ],
+  tips: [ { x: -60,   t: 'Testlevel. Pak je speer. Het ravijn is te breed: stap op het zegel' },
+          { x: -2200, t: 'Dit zegel ligt aan de overkant. Raak het met je speer: vlak, of met een boog' },
+          { x: -3800, t: 'Deze brug zakt na een paar tellen weer terug. Stap op het zegel en ren' } ]
+};
+const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18];
 // ---- Episode Testrun: drie snelle combinatielevels ----
 // Gebouwd om combinaties van bestaande dingen uit te proberen (zie notities/combinaties.md): wat
 // werkt, gaat daar in het lijstje. Net als de Test levels vallen ze niet onder regel 1, maar het is
@@ -2918,6 +2961,7 @@ function platsNear(scale, bereik = 2600){
   const out = terracePlats(scale);
   for (const p of grotPlats(scale)) out.push(p);      // richels en opgetilde grotvloeren
   for (const p of plafondPlats(scale)) out.push(p);   // en de richels die onder de plafondlijn hangen
+  for (const p of rijsPlats()) out.push(p);           // en de rijzende grond
   const jp = javPlat(scale);                  // een speer die in een muur steekt draagt ook
   if (jp) out.push(jp);
   const wall = cliffAt().wall;
@@ -5023,6 +5067,7 @@ function zegelUpdate(dt, scale){
     z.px = world;
     if (op && !z.op){
       if (z.plafond) zegelPlafond(z);                                  // zie "zakplafond"
+      else if (z.rijs) zegelRijs(z);                                   // zie "rijzende grond"
       else if (z.sluit !== null && z.sluit !== undefined) zegelSluit(z);   // een sluitzegel: zie zegelSluit
       else if (z.speerval !== null && z.speerval !== undefined) speervalZegel(z);   // zie "speerval"
       else {
@@ -5159,30 +5204,72 @@ function zakOp(z){
   playDeur();
   flashHint(was === 'zakt' ? 'Raak! Het plafond gaat weer omhoog' : 'Het zegel licht op: de val gaat niet meer dicht');
 }
-// een zegel van het plafond: vanuit zegelUpdate (erop gestapt) en zakSpeer (een speer erop)
+// een zegel van het plafond: vanuit zegelUpdate (erop gestapt) en zegelSpeer (een speer erop)
 function zegelPlafond(z){
   if (z.plafond === 'op') zakOp(z);
   else if (zakStand === 'rust') zakStart(z);
 }
-// Een geworpen speer die in de grond komt (javStick): ligt de punt op een zegel met plafond: 'op'?
-function zakSpeer(x, scale){
+// Een geworpen speer die in de grond komt (javStick): ligt de punt op een zegel dat op een speer reageert?
+// Dat is een zegel met plafond: 'op' (zie hierboven) of met speer: true (zie "rijzende grond").
+function zegelSpeer(x, scale){
   const r = ZEGEL.r * CHAR_H * scale * ZAK.raak;
-  for (const z of (level && level.zegels) || [])
-    if (z.plafond === 'op' && Math.abs(x - z.x) < r) zegelPlafond(z);
+  for (const z of (level && level.zegels) || []){
+    if (z.weg || Math.abs(x - z.x) >= r) continue;
+    if (z.plafond === 'op') zegelPlafond(z);
+    else if (z.speer && z.rijs) zegelRijs(z);
+  }
+}
+// Stof van steen dat beweegt, voor het zakkende plafond en de rijzende grond: een wolk langs de vloer
+// tussen x0 en x1 (bavStof, dus in de sneeuw poedersneeuw) en gruis dat van hoogte h naar beneden valt.
+// kracht schaalt het geheel; STEEN_STOF zegt hoeveel bij het vertrek, onderweg en bij de klap.
+const STEEN_STOF = {
+  start: 0.7, onderweg: 0.18, klap: 1.1,
+  elke: 0.14,        // zo vaak een beetje stof zolang hij beweegt, in seconden
+  punt: 150,         // om de zoveel wereld-px een wolk langs het steen
+  maxPunt: 12,       // en hoogstens zoveel per stuk, ook onder een lange kamer
+  gruis: 14,         // zoveel korrels gruis bij kracht 1
+  schok: 0.2         // zo hard schokt het scherm als het steen stilvalt
+};
+function steenStof(x0, x1, vloer, kracht, h){
+  if (building || kracht <= 0) return;
+  const n = Math.max(2, Math.min(STEEN_STOF.maxPunt, Math.round((x1 - x0) / STEEN_STOF.punt)));
+  for (let i = 0; i <= n; i++){
+    const wx = x0 + (x1 - x0) * i / n;
+    bavStof(wx, 'land', i === 0 ? 1 : i === n ? -1 : 0, kracht * 0.35);
+  }
+  if (h === undefined || h <= vloer + 4) return;
+  for (let i = 0; i < Math.round(STEEN_STOF.gruis * kracht); i++)
+    grains.push({ wx: x0 + Math.random() * (x1 - x0), base: vloer, h: h - vloer,
+                  vx: (Math.random() - 0.5) * 60, vh: -Math.random() * 80,
+                  r: 1.2 + Math.random() * 2, age: 0, life: 0.6 + Math.random() * 0.6, dark: Math.random() < 0.5 });
 }
 function zakUpdate(dt){
-  let zakt = false;
+  let beweegt = false;
   for (const s of zakLijst()){
     if (s.vrij === undefined) s.vrij = s.rust;
     const doel = zakStand === 'zakt' ? s.dicht : s.rust;
+    const was = s.gaat;
     if (s.vrij > doel){
       s.t = (s.t || 0) + dt;
       const v = (s.schok && s.t <= ZAK.schokT) ? s.schok / ZAK.schokT : (s.v || ZAK.v);
       s.vrij = Math.max(doel, s.vrij - v * dt);
-      zakt = true;
-    } else if (s.vrij < doel) s.vrij = Math.min(doel, s.vrij + ZAK.op * dt);
+      s.gaat = -1;
+    } else if (s.vrij < doel){ s.vrij = Math.min(doel, s.vrij + ZAK.op * dt); s.gaat = 1; }
+    else s.gaat = 0;
+    if (s.gaat) beweegt = true;
+    if (building) continue;
+    // stof: een wolk bij het vertrek, wat gruis zolang hij beweegt, en een klap als hij stilvalt
+    const vloer = zakVloer(s);
+    if (s.gaat && !was) steenStof(s.l, s.r, vloer, STEEN_STOF.start, vloer + s.vrij);
+    else if (s.gaat){
+      s.stofT = (s.stofT || 0) + dt;
+      if (s.stofT >= STEEN_STOF.elke){ s.stofT = 0; steenStof(s.l, s.r, vloer, STEEN_STOF.onderweg, vloer + s.vrij); }
+    } else if (was){
+      steenStof(s.l, s.r, vloer, STEEN_STOF.klap * (was > 0 ? 0.5 : 1), vloer + s.vrij);   // terug in het dak: minder
+      shake = Math.max(shake, STEEN_STOF.schok * (s.vrij < CHAR_H ? 1 : 0.6));
+    }
   }
-  if (zakt && !building) shake = Math.max(shake, ZAK.tril);
+  if (beweegt && !building) shake = Math.max(shake, ZAK.tril);
 }
 // zo hoog mogen zijn voeten komen in een sprong: onder het laagste stuk boven hem, als hij daar past
 function zakKop(halfW){
@@ -5298,6 +5385,161 @@ function zakTeken(groundY, scale, cx){
       ctx.save();
       ctx.globalAlpha = 0.7; ctx.strokeStyle = '#7fd4ff'; ctx.lineWidth = 2 / zoom;
       ctx.strokeRect(x0, top, x1 - x0, bodem - top);
+      ctx.restore();
+    }
+  }
+}
+
+// ---- rijzende grond: een blok steen dat op een zegel uit een ravijn omhoog komt ----------
+// Het omgekeerde van het zakkende plafond: stap op een zegel met rijs, en uit het ravijn komt een blok
+// steen omhoog tot aan de grond, zodat je kunt oversteken. Het is dezelfde grond als de savanne
+// (bodemPic, zie rijsTeken), het draagt Amir en een speer (rijsPlats, in platsNear), en het neemt je mee
+// als het beweegt. Test 18 is het proefstuk.
+//
+//   rijzers: [ {id, r, l, tot, van, v, wacht, duur} ]
+//     id       de naam waar een zegel naar wijst (rijs: 'a'); meer blokken mogen dezelfde naam hebben
+//     r, l     rechter- en linkerrand, in wereld-x
+//     tot      waar de bovenkant komt, in sprite-eenheden (standaard RIJS.tot, net onder de grondlijn)
+//     van      waar hij begint, diep in het ravijn (standaard RIJS.van)
+//     v        zo snel komt hij omhoog, eenheden per seconde (standaard RIJS.v)
+//     wacht    (mag weg) zoveel seconden na het zegel begint hij pas
+//     duur     (mag weg) zoveel seconden blijft hij boven, en dan zakt hij terug: wie erop staat valt mee
+//
+//   zegels: [ {x, rijs: 'a'}, {x, rijs: 'b', speer: true} ]
+//
+// Een zegel met rijs gaat aan als hij de blokken omhoog stuurt, en weer uit als ze teruggezakt zijn;
+// dan werkt hij opnieuw. Met speer: true zet ook een geworpen speer hem aan (zegelSpeer), voor een zegel
+// aan de overkant. De bovenkant ligt standaard een eenheid onder de grondlijn: op precies 0 zou
+// supportHeight hem niet van de grond onderscheiden, en dan val je door het blok het ravijn in.
+const RIJS = {
+  tot: -1,        // de bovenkant boven: een eenheid onder de grondlijn (zie hierboven)
+  van: -900,      // en onder, uit beeld in het ravijn
+  v: 300,         // eenheden per seconde omhoog
+  terug: 160,     // en zo snel zakt hij terug na duur
+  los: 120,       // zakt hij dieper dan dit onder de grondlijn, dan draagt hij je niet meer: je valt
+  zij: 0.14,      // de donkere zijkant van een blok, als deel van Amirs lengte
+  zijA: 0.6,      // en zo donker
+  tril: 0.05,     // zo hard trilt het scherm zolang er een blok beweegt
+  beving: 0.5     // het gerommel, als deel van het volume van SFX_DEUR
+};
+function rijsLijst(){ return (level && level.rijzers) || []; }
+function rijsReset(){
+  for (const b of rijsLijst()){ b.h = b.van; b.op = false; b.t = 0; b.gaat = 0; b.stofT = 0; }
+  for (const z of (level && level.zegels) || []) if (z.rijs) z.aan = false;
+}
+// een zegel met rijs: alle blokken met die naam omhoog, als ze beneden zijn
+function zegelRijs(z){
+  const lijst = rijsLijst().filter(b => b.id === z.rijs);
+  if (!lijst.length || lijst.some(b => b.op)) return;
+  let duur = 0;
+  for (const b of lijst){ b.op = true; b.t = 0; duur = Math.max(duur, (b.wacht || 0) + (b.tot - b.van) / b.v); }
+  z.aan = true;
+  shake = Math.max(shake, 0.18);
+  bavBeving(Math.min(12, duur), RIJS.beving);
+  flashHint(z.speer ? 'Raak! Uit het ravijn komt steen omhoog' : 'Het zegel licht op: uit het ravijn komt steen omhoog');
+}
+function rijsUpdate(dt){
+  let beweegt = false;
+  for (const b of rijsLijst()){
+    if (b.h === undefined) b.h = b.van;
+    const was = b.gaat;
+    b.t = (b.t || 0) + dt;
+    if (b.op && b.duur && b.h >= b.tot && b.t > (b.wacht || 0) + (b.tot - b.van) / b.v + b.duur){
+      b.op = false;                                  // de tijd is om: terug het ravijn in
+      for (const z of (level.zegels || [])) if (z.rijs === b.id) z.aan = false;
+      flashHint('Het steen zakt terug');
+    }
+    const doel = b.op && b.t >= (b.wacht || 0) ? b.tot : b.van;
+    const h0 = b.h;
+    if (b.h < doel){ b.h = Math.min(doel, b.h + b.v * dt); b.gaat = 1; }
+    else if (b.h > doel){ b.h = Math.max(doel, b.h - RIJS.terug * dt); b.gaat = -1; }
+    else b.gaat = 0;
+    // een speer die erop ligt gaat mee
+    if (b.gaat && jav && jav.state === 'grond' && jav.x > b.l && jav.x < b.r && Math.abs(jav.h + JAV.inTile - h0) < 3){
+      jav.h += b.h - h0;
+      if (spearH !== null) spearH = jav.h;
+    }
+    if (!b.gaat || building) { if (was && !building) rijsStof(b, STEEN_STOF.klap, true); continue; }
+    beweegt = true;
+    if (!was) rijsStof(b, STEEN_STOF.start, false);
+    b.stofT = (b.stofT || 0) + dt;
+    if (b.stofT >= STEEN_STOF.elke){ b.stofT = 0; rijsStof(b, STEEN_STOF.onderweg, false); }
+  }
+  if (beweegt && !building) shake = Math.max(shake, RIJS.tril);
+}
+// Stof aan de randen van het ravijn, waar het steen langs de wand schuurt, en gruis dat van de bovenkant
+// valt. Bij de klap boven een wolk over het hele blok en een schok.
+function rijsStof(b, kracht, klap){
+  const g = inGap((b.l + b.r) / 2);
+  const gl = g ? g.x - g.w / 2 : b.l, gr = g ? g.x + g.w / 2 : b.r;
+  const boven = b.h > -CHAR_H * 1.5;                 // pas als hij bijna boven is zie je het stof aan de rand
+  if (boven){
+    for (const [x, d] of [[gl - 20, -1], [gr + 20, 1]]) bavStof(x, 'land', d, kracht * 0.4);
+  }
+  if (klap && b.h >= b.tot - 1){
+    for (let i = 0; i < Math.round(STEEN_STOF.gruis * kracht); i++)
+      grains.push({ wx: b.l + Math.random() * (b.r - b.l), base: b.h, h: 4,
+                    vx: (Math.random() - 0.5) * 220, vh: 120 + Math.random() * 180,
+                    r: 1.2 + Math.random() * 2, age: 0, life: 0.5 + Math.random() * 0.4, dark: Math.random() < 0.5 });
+    shake = Math.max(shake, STEEN_STOF.schok);
+  } else if (boven){
+    for (let i = 0; i < Math.round(STEEN_STOF.gruis * kracht); i++)
+      grains.push({ wx: b.l + Math.random() * (b.r - b.l), base: b.h, h: 2,
+                    vx: (Math.random() - 0.5) * 120, vh: 60 + Math.random() * 120,
+                    r: 1 + Math.random() * 1.8, age: 0, life: 0.4 + Math.random() * 0.3, dark: Math.random() < 0.5 });
+  }
+}
+// De blokken als platform: een brede kei zonder plaatje. Een blok dat terugzakt draagt tot RIJS.los onder de
+// grondlijn; daarna glijdt het onder je voeten weg en val je het ravijn in.
+function rijsPlats(){
+  const uit = [];
+  for (const b of rijsLijst()){
+    const h = b.h === undefined ? b.van : b.h;
+    if (b.gaat < 0 && h < -RIJS.los) continue;
+    uit.push({ x: (b.l + b.r) / 2, left: b.l, right: b.r, topH: h, base: h, wPx: b.r - b.l, hPx: 0, rijs: true });
+  }
+  return uit;
+}
+// Getekend met de grondrand zelf (bodemPic, op de maat en het ankerpunt van de grond), zodat een blok dat boven
+// staat precies overloopt in de savanne ernaast; daaronder de donkere bodem, tot onder uit beeld. Aan een kant die
+// niet tegen de rand van het ravijn staat een donkere zijkant: dan lees je het als een blok dat uit de diepte komt.
+function rijsTeken(groundY, scale, cx){
+  const lijst = rijsLijst();
+  if (!lijst.length || !edgeReady()) return;
+  const eimg = bodemPic();
+  const zoom = viewZoom();
+  const bottom = groundY + Math.max(H * 0.2, (H - groundY) / zoom) + 40;
+  const sE = edgeScale(H * 0.18);
+  const tw = eimg.naturalWidth * sE, th = eimg.naturalHeight * sE;
+  const zijW = Math.max(6, RIJS.zij * CHAR_H * scale);
+  for (const b of lijst){
+    const h = b.h === undefined ? b.van : b.h;
+    const xr = cx + (b.r - world), xl = cx + (b.l - world);
+    if (xl > W / zoom + W || xr < -W) continue;
+    const top = groundY - h * scale - EDGE.walk * sE;
+    if (top > bottom) continue;
+    const g = inGap((b.l + b.r) / 2);
+    const aanL = g && Math.abs(b.l - (g.x - g.w / 2)) < 2, aanR = g && Math.abs(b.r - (g.x + g.w / 2)) < 2;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(xl, top, xr - xl, bottom - top); ctx.clip();
+    ctx.fillStyle = bodemDonker();
+    ctx.fillRect(xl, top + th * 0.9, xr - xl, bottom - top);
+    let x = cx - (((world % tw) + tw) % tw);                // vast aan de wereld, net als de grond
+    while (x > xl) x -= tw;
+    for (; x < xr; x += tw) ctx.drawImage(eimg, x, top, tw + 1, th);
+    const lichtOnder = groundY - h * scale;                  // de looplijn
+    for (const [a, k, aan] of [[xl, 1, aanL], [xr, -1, aanR]]){
+      if (aan) continue;
+      const gz = ctx.createLinearGradient(a, 0, a + k * zijW, 0);
+      gz.addColorStop(0, 'rgba(0,0,0,' + RIJS.zijA + ')'); gz.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = gz;
+      ctx.fillRect(Math.min(a, a + k * zijW), lichtOnder, zijW, bottom - lichtOnder);
+    }
+    ctx.restore();
+    if (showBoxes || building){
+      ctx.save();
+      ctx.globalAlpha = 0.6; ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2 / zoom;
+      ctx.beginPath(); ctx.moveTo(xl, groundY - h * scale); ctx.lineTo(xr, groundY - h * scale); ctx.stroke();
       ctx.restore();
     }
   }
@@ -8591,8 +8833,8 @@ function looseSpear(){
 
 // ---- de geworpen speer ---------------------------------------------------
 function javFloor(x, plats){                 // hoogte van de vaste grond op deze plek
-  if (!building && inGap(x) && !holteAt(x)) return -Infinity;
-  let s = terrainH(x);
+  // boven een ravijn is er geen grond, maar wel wat erin staat (de rijzende grond)
+  let s = (!building && inGap(x) && !holteAt(x)) ? -Infinity : terrainH(x);
   for (const p of plats){
     if (p.thin) continue;                    // richels en de speer zelf zijn geen wand
     if (x > p.left && x < p.right && p.topH > s) s = p.topH;
@@ -8655,7 +8897,7 @@ function javStick(x, h, soort, scale){
   jav.wob = 1; jav.sag = 0; jav.stand = false;
   if (!muur && !bos && jav.hit) jav.sa = jav.dir === 1 ? 0 : Math.PI;   // plat neergevallen
   spearFound = false; spearX = jav.x; spearH = jav.h;                   // vanaf nu weer op te pakken
-  if (!building && soort === 'grond') zakSpeer(jav.x, scale);            // op een zegel van het zakkende plafond
+  if (!building && soort === 'grond') zegelSpeer(jav.x, scale);          // op een zegel dat op een speer reageert
 }
 // In een doornbos richt de speer niets aan: hij blijft ertussen hangen en je moet
 // hem er met E weer uit trekken. Amir kan niet in het struweel staan, dus het
@@ -8795,6 +9037,7 @@ function speerNaastAmir(dt, plats){
   if (building || !running || dead || spearFound || spearX === null){ speerKijkT = 0; return; }
   if (javLost > 0 || (jav && jav.state !== 'grond' && jav.state !== 'bos')) return;   // onderweg, of in een muur
   if (!onGround) return;                             // pas kijken als hij ergens staat
+  if (rijsLijst().some(b => b.gaat)) return;         // er komt steen omhoog: wacht tot het staat
   speerKijkT += dt;
   if (speerKijkT < SPEER_KIJK.elke) return;
   speerKijkT = 0;
@@ -12469,6 +12712,8 @@ function supportHeight(plats, halfW){          // waar je voeten steun vinden
   const opDak = ph >= -1 && !building && holteAt(world) && !inGap(world);
   for (const p of plats){
     if (opDak && p.topH < -1) continue;
+    // de rijzende grond draagt pas als hij boven het ravijn staat: diep in het ravijn trekt hij je niet van de rand
+    if (p.rijs && p.topH < -1 && !inGap(world)) continue;
     if (world + halfW > p.left && world - halfW < p.right && p.topH <= ph + 1 && (!raak || p.topH > s)){ s = p.topH; raak = true; }
   }
   return s;
@@ -12539,6 +12784,7 @@ function updateJump(dt, plats, halfW){
     const s = supportHeight(plats, halfW);
     const floor = s !== 0 ? s : (building ? 0 : grondVloer(world, ph));
     if (floor !== null && floor >= ph - 1) ph = floor;   // meelopen met de rots
+    else if (s !== 0 && floor !== null && ph - floor < RIJS.terug * dt + 2) ph = floor;   // en mee omlaag met steen dat zakt
     else if (jump && (jump.phase === 'crouch' || jump.phase === 'push')) takeOff();   // al aan het afzetten: gewoon springen
     else { onGround = false; pvh = 0;                    // van de rand of het gat in
            if (overGap) coyote = COYOTE_T;                 // nog heel even kans om te springen
@@ -13390,6 +13636,7 @@ function restart(){
   ravijnReset();                                    // het ravijn weer dicht, de rune weer uit
   zegelReset();                                     // en de zegels weer uit
   zakReset();                                       // en het zakkende plafond weer omhoog
+  rijsReset();                                      // en de rijzende grond weer in het ravijn
   speervalReset();                                  // de speervallen weer in de wand
   losseSperen.length = 0;                           // geen losse speren meer op de grond
   skeletReset();                                    // de skeletten weer overeind, met hun speer
@@ -17772,6 +18019,7 @@ function loop(now){
   if (dt > 0) ravijnDecorStap(dt);                // en dat vallen en vervagen zelf, ook na het dichtgaan
   if (dt > 0) zegelUpdate(dt, scaleNow);          // erop stappen zet een zegel aan of uit
   if (dt > 0) zakUpdate(dt);                      // het zakkende plafond: omlaag of weer omhoog
+  if (dt > 0) rijsUpdate(dt);                     // de rijzende grond: uit het ravijn omhoog, of terug
   if (dt > 0) speervalUpdate(dt, scaleNow);       // de speer in de rotswand: trillen, vliegen, vallen
   if (dt > 0) skeletUpdate(dt, scaleNow);         // instorten, en de schedel die wegrolt
   if (dt > 0) tekenUpdate(dt);                    // het doek aan een speerteken, in de wind
@@ -18098,6 +18346,7 @@ function loop(now){
       }
     }
     drawClimb(groundY, scale, cx, true);           // treden onder de grond: na de ravijnen, zie drawClimb
+    rijsTeken(groundY, scale, cx);                 // de rijzende grond: steen dat uit een ravijn komt
 
     if (level && level.props){
       const propTerug = (groundY - edgeCrust(groundY)) * PROP_ACHTER;
@@ -19776,6 +20025,8 @@ function syncLevel(){
       if (o.muur) z.muur = true;
       if (o.speerval !== null && o.speerval !== undefined) z.speerval = Math.round(o.speerval);
       if (o.plafond) z.plafond = o.plafond;
+      if (o.rijs !== undefined) z.rijs = o.rijs;
+      if (o.speer) z.speer = true;
       if (o.vijand) z.vijand = true;
       if (o.teken && ZEGEL_TEKENS[o.teken]) z.teken = o.teken;
       return z;
@@ -19945,7 +20196,17 @@ function readLevel(txt){
                                                 // het teken op het hout (ZEGEL_TEKENS); zonder: rune, of teken2 met vijand
                                                 teken: ZEGEL_TEKENS[q.teken] ? q.teken : undefined,
                                                 // laat het zakkende plafond zakken ('zak') of weer omhoog gaan ('op')
-                                                plafond: (q.plafond === 'zak' || q.plafond === 'op') ? q.plafond : undefined })),
+                                                plafond: (q.plafond === 'zak' || q.plafond === 'op') ? q.plafond : undefined,
+                                                // stuurt de rijzende grond met die naam omhoog; speer: ook een speer zet hem aan
+                                                rijs: (q.rijs === undefined || q.rijs === null) ? undefined : String(q.rijs),
+                                                speer: q.speer === true })),
+           // blokken steen die op een zegel uit een ravijn omhoog komen, zie "rijzende grond"
+           rijzers: (o.rijzers || []).map(q => ({ id: String(q.id), r: Number(q.r), l: Number(q.l),
+                                                  tot: Number.isFinite(Number(q.tot)) && q.tot !== undefined ? Number(q.tot) : RIJS.tot,
+                                                  van: Number.isFinite(Number(q.van)) && q.van !== undefined ? Number(q.van) : RIJS.van,
+                                                  v: Number(q.v) > 0 ? Number(q.v) : RIJS.v,
+                                                  wacht: Math.max(0, Number(q.wacht) || 0),
+                                                  duur: Math.max(0, Number(q.duur) || 0) })),
            // stukken rots die zakken als je op een zegel stapt, zie "zakplafond"
            zakplafond: (o.zakplafond || []).map(q => ({ r: Number(q.r), l: Number(q.l),
                                                         rust: Math.max(0, Number(q.rust) || 0),
@@ -20876,6 +21137,7 @@ const SUBS = {
   'Test 15: De baviaan': 'Hij springt van de wand en houdt je vast tussen twee ravijnen',
   'Test 16: De speerval': 'Een zegel, een speer in de wand, en bukken als de baviaan achter je is',
   'Test 17: Het zakkende plafond': 'Een zegel onder de grond, en dan komt het plafond naar beneden',
+  'Test 18: De rijzende grond': 'Een zegel, en uit het ravijn komt steen omhoog om over te steken',
   'Test 10: Licht onder de grond': 'Een gang met drie gaten in het dak, om het licht te bekijken',
   'Testrun 1: Regen bij de rivier': 'Een poel, een kei, onweer en twee vechters',
   'Testrun 2: De zandstorm': 'Schilden in de wind, een zegel, fosforslangen en een rune',
@@ -21409,6 +21671,37 @@ document.getElementById('sbzakop').onclick = () => {
   cv.focus();
 };
 document.getElementById('sbzakweg').onclick = () => { sbZakWeg(); cv.focus(); };
+// De rijzende grond van Test 18 in het klein, voor je uit (naar links): een zegel, en daarachter een ravijn van
+// SB_RIJS.ravijn met een blok in het midden. Zakt weer: het blok zakt na SB_RIJS.duur seconden terug.
+const SB_RIJS = { zegel: 250, ravijn: 700, blok: 260, afstand: 750, duur: 6 };
+function sbRijsWeg(){
+  const oud = level.rijzers || [];
+  level.gaps = level.gaps.filter(g => !g.sbRijs);
+  level.rijzers = [];
+  if (level.zegels) level.zegels = level.zegels.filter(z => !z.rijs);
+  if (oud.length) rijsReset();
+}
+function sbRijs(duur){
+  sbRijsWeg();
+  if (!level.zegels) level.zegels = [];
+  const Z = SB_RIJS, gx = world - Z.afstand - Z.ravijn / 2;
+  level.gaps.push({ x: gx, w: Z.ravijn, sbRijs: true });
+  level.rijzers.push({ id: 'sb', r: gx + Z.blok / 2, l: gx - Z.blok / 2, tot: RIJS.tot, van: RIJS.van, v: RIJS.v,
+                       wacht: 0, duur: duur ? Z.duur : 0 });
+  level.zegels.push({ x: world - Z.zegel, ravijn: null, rijs: 'sb' });
+  rijsReset();
+  flashHint('Stap op het zegel');
+  cv.focus();
+}
+document.getElementById('sbrijs').onclick = () => sbRijs(false);
+document.getElementById('sbrijsduur').onclick = () => sbRijs(true);
+document.getElementById('sbrijsop').onclick = () => {
+  if (!rijsLijst().length) sbRijs(false);
+  const z = level.zegels.find(q => q.rijs);
+  if (z) zegelRijs(z);
+  cv.focus();
+};
+document.getElementById('sbrijsweg').onclick = () => { sbRijsWeg(); cv.focus(); };
 // Een gang onder de grond om los te bekijken, in de richting waarin je kijkt (is daar geen plek
 // voor, dan naar links, zoals je door een level loopt): een ravijn dat te
 // breed is om over te springen, met de gang eronder. De trap-versie heeft verderop een tweede gat

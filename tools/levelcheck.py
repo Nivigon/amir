@@ -940,6 +940,41 @@ def vijanden(lv, sp):
             yield letop(o['x'], 'vijand %s start boven een ravijn' % o.get('k'))
 
 
+def rijs_in(lv, g):
+    """De blokken rijzende grond die in dit ravijn staan."""
+    l, r = g['x'] - g['w'] / 2, g['x'] + g['w'] / 2
+    return [b for b in lv.d.get('rijzers') or [] if isinstance(b.get('l'), (int, float)) and isinstance(b.get('r'), (int, float))
+            and b['l'] < r and b['r'] > l]
+
+
+def rijs_gaten(lv, g):
+    """De stukken ravijn tussen de randen en de blokken, als die boven zijn."""
+    l, r = g['x'] - g['w'] / 2, g['x'] + g['w'] / 2
+    uit, x = [], r
+    for b in sorted(rijs_in(lv, g), key=lambda b: -b['r']):
+        if b['r'] < x:
+            uit.append(x - b['r'])
+        x = min(x, b['l'])
+    if x > l:
+        uit.append(x - l)
+    return uit
+
+
+@regel('rijzende grond')
+def rijzende_grond(lv, sp):
+    """Elk blok rijzende grond heeft een zegel met zijn naam, en staat in een ravijn."""
+    zegels = lv.d.get('zegels') or []
+    for b in lv.d.get('rijzers') or []:
+        x = b.get('r')
+        if not any(str(z.get('rijs')) == str(b.get('id')) for z in zegels):
+            yield fout(x, 'rijzende grond %s zonder zegel met rijs: \'%s\': hij komt nooit omhoog' % (b.get('id'), b.get('id')))
+        if not any(g['x'] - g['w'] / 2 <= b.get('l', 0) and b.get('r', 0) <= g['x'] + g['w'] / 2 for g in lv.gaps):
+            yield letop(x, 'rijzende grond %s staat niet helemaal in een ravijn' % b.get('id'))
+    for z in zegels:
+        if z.get('rijs') is not None and not any(str(b.get('id')) == str(z.get('rijs')) for b in lv.d.get('rijzers') or []):
+            yield fout(z.get('x'), 'zegel met rijs: \'%s\', maar er is geen rijzende grond met die naam' % z.get('rijs'))
+
+
 @regel('ravijnen')
 def ravijnen(lv, sp):
     """Het breedste gat dat de sprong haalt, met het plafond en het water erbij."""
@@ -970,6 +1005,16 @@ def ravijnen(lv, sp):
                        % (n0(w), 'lopend' if w <= schoon_l else 'met sprint'))
         elif ingang:
             yield info(g['x'], 'ravijn van %s breed boven een gang: de ingang, je valt erin' % n0(w))
+        elif rijs_in(lv, g):
+            # rijzende grond in het ravijn (zie "rijzende grond"): dan tellen de stukken tussen de blokken
+            stukken = rijs_gaten(lv, g)
+            breedst = max(stukken) if stukken else 0
+            if breedst > red_r:
+                yield fout(g['x'], 'ravijn met rijzende grond: het breedste stuk ernaast is %s, met sprint haalt Amir '
+                                   'hoogstens %s' % (n0(breedst), n0(red_r)))
+            else:
+                yield info(g['x'], 'ravijn van %s breed met rijzende grond: stukken van %s'
+                           % (n0(w), ', '.join(n0(x) for x in stukken)))
         elif w > red_r:
             yield fout(g['x'], 'ravijn van %s breed: met sprint haalt Amir hoogstens %s%s' % (n0(w), n0(red_r), erbij))
         elif w > schoon_r:

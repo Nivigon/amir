@@ -57,8 +57,24 @@ In de sandbox staat het bij Terrein onder **Zakplafond**: **Neerzetten** zet de 
 **Zakken** laat hem meteen dichtgaan, **Omhoog** haalt hem op en **Weg** ruimt hem op. Een level zet het met
 `zakplafond: [ {r, l, rust, dicht, v, schok, duw} ]` en twee zegels, `{x, plafond: 'zak'}` en `{x, plafond: 'op'}`.
 
+Bij het zakkende plafond komt het stof mee: een wolk langs de vloer als het steen vertrekt, gruis dat eraf valt
+zolang het beweegt, en een klap met stof en een schok als het stilvalt. Dat gebeurt bij het zakken en ook als het
+weer omhooggaat, en zolang er iets beweegt trilt het scherm licht.
+
+In **Test 18: De rijzende grond** gaat het andersom: drie ravijnen die te breed zijn om over te springen, en elke keer
+brengt een zegel steen uit de diepte omhoog. Bij het eerste stap je op het zegel en komt er in het midden een blok
+omhoog, met aan weerszijden een gat dat je met een sprong haalt. Bij het tweede ligt het zegel aan de overkant: raak het
+met je speer. Op een laptop gaat dat met een vlakke worp, op een telefoon met een boog. Mis je, dan staat je speer
+meteen weer naast je. Bij het derde komen twee blokken na elkaar omhoog die samen een brug vormen, maar zes seconden
+later zakt die weer: ren. Wie blijft staan, zakt mee het ravijn in. Stap je opnieuw op het zegel, dan komt hij terug.
+Het steen komt met gerommel, stof langs de rand van het ravijn en een trillend scherm, en boven een klap. In de sandbox
+staat het bij Terrein onder **Rijzende grond**: **Neerzetten** zet een ravijn met een zegel voor je uit, **Zakt weer**
+hetzelfde met een blok dat na een tijd terugzakt, **Omhoog** laat het meteen komen en **Weg** ruimt het op. Een level zet
+het met `rijzers: [ {id, r, l, tot, van, v, wacht, duur} ]` en een zegel `{x, rijs: 'id'}`, met `speer: true` als een
+speer hem ook aanzet.
+
 De Test levels staan in het menu per zes op een blad. Met de pijltjes eronder ga je naar de volgende zes (7 t/m 12,
-13 t/m 17) en terug.
+13 t/m 18) en terug.
 
 **Baboon tests** is een episode met proefstukken voor de baviaan, en net als Testrun begin je met de tribekeuze. In
 **Baboon 1: De speerbeet** (dezelfde vlakte als Test 15) hangt hij niet aan de wand maar staat hij grommend op de grond,
