@@ -2428,15 +2428,19 @@ const TEST_14 = {
           { x: -12650, t: 'Een skelet met een nieuwe speer: houd E vast' },
           { x: -13300, t: 'Het zware slot. Met Feign Death speel je dood bij je laatste klap' } ]
 };
-// Test 15: de baviaan. Hij hangt aan de rotswand achter je, en je begint zo dicht bij hem dat je hem meteen ziet
-// hangen (zicht, startWereld: op een telefoon dichterbij dan op een laptop). Hij springt neer zodra je gaat lopen, met de
-// landing, de brul en het hoofdschudden zoals in de sandbox, en zet dan de achtervolging in. Verderop twee
+// Test 15: de baviaan. Hij hangt aan de rotswand achter je en beweegt (BAV_HANG), en je begint zo ver van hem als
+// kan terwijl je hem nog ziet (zicht: 'ver', startWereld: op een telefoon dichterbij dan op een laptop), en je kijkt
+// naar hem. Je hebt geen speer: die zit in een skelet tussen jou en hem in (skelet, BAV_VER). Trek je hem eruit, of
+// kom je te dichtbij, dan springt hij neer, met de landing, de brul en het hoofdschudden zoals in de sandbox, en zet
+// dan de achtervolging in. Verderop twee
 // ravijnen met een stuk grond ertussen: de kooi (BAV_KOOI). Spring je erin, dan springt hij over allebei heen
 // en brult je aan van de overkant; ga je eruit, dan landt hij voor je en brult weer. Zo houdt hij je erop.
 const TEST_15 = {
   name: 'Test 15: De baviaan',
   lagen: 'renew_vlakte',
-  baviaan: { x: 720, y: 1.6, s: 1.4, f: 0, zicht: 0.68, kooi: [-2600, -3620] },   // tegen de rotswand, en meteen in beeld (startWereld)
+  baviaan: { x: 720, y: 1.6, s: 1.4, f: 0, zicht: 'ver', skelet: 0.45, kooi: [-2600, -3620] },   // tegen de rotswand, zo ver als kan in beeld
+  geenSpeer: true,                              // de speer zit in het skelet
+  skeletten: [ {x: 450, f: 1} ],                // x zet restart: tussen Amir en de baviaan (skelet in baviaan)
   gaps: [ {x: -2600, w: 240}, {x: -3620, w: 240} ],
   rocks: [],
   spawns: [ {x: -60000, k: 'groen'} ],          // heel ver weg: houdt de vrije modus uit
@@ -2447,7 +2451,7 @@ const TEST_15 = {
   hppotions: [ {x: -3200, y: null} ],
   cliffs: [ {x: -7200} ],
   ends: [ {x: -6700} ],
-  tips: [ { x: 300,   t: 'Testlevel: de baviaan springt van de rotswand' },
+  tips: [ { x: 300,   t: 'Testlevel: daar hangt de baviaan. Je speer zit in het skelet: houd E vast' },
           { x: -1900, t: 'Twee ravijnen: spring in het stuk ertussen' },
           { x: -3000, t: 'Hij laat je er niet af' } ]
 };
@@ -6250,16 +6254,35 @@ function bavSprongDelen(rek = 1, maal){
 // en de boog hoger: piek[0] plus piek[1] maal rek, in Amir.
 // in een level: zoveel wereld-px van het begin gelopen, en hij laat de wand los
 const BAV_START = 30;
+// Hangen aan de rotswand: 36 frames als naadloze lus op 12 per seconde, zolang hij nog niet afzet. Canvas 600 bij
+// 960, niet bijgesneden en zonder grondlijn: het hangt aan de hand waarmee hij zich vasthoudt (`greep`, in
+// bronpixels, in elk frame op dezelfde pixel). Die greep komt precies waar zijn hand in afzet_00 zit (`afzetGreep`,
+// bronpixels van het afzetcanvas), dus hij schuift niet van de wand en bij de afzet springt er niets.
+// `maat`: een bronpixel hier is zoveel bronpixels van de afzet (van de vingertoppen tot zijn voet: 464 tegen 827).
+const BAV_HANG = { map: 'enemies/baviaan/hang_idle/hang_idle_', n: 36, fps: 12,
+  greep: { x: 545, y: 28 }, afzetGreep: { x: 430, y: 39 }, maat: 464 / 827 };
+// Een level met `zicht: 'ver'` zet Amir zo ver van de baviaan als kan terwijl hij hem nog ziet hangen: zijn anker
+// (b.x) komt `rand` keer zijn grootte (b.s Amir) van de rechterrand van het scherm, en zijn rechterkant reikt tot
+// zo'n 0,45 Amir voorbij dat anker. Op een telefoon is het scherm smaller, dus begint Amir daar dichterbij.
+// Met `skelet` (0 tot 1) staat het eerste skelet van het level op dat deel van de weg van Amir naar de baviaan,
+// en Amir kijkt naar hem: trekt hij de speer eruit (of valt het skelet om), dan zet de baviaan af. Dat doet hij
+// ook als Amir voorbij `nader` van de weg naar hem toe komt, of `weg` wereld-px de andere kant op loopt (dan zie je hem
+// niet meer).
+const BAV_VER = { rand: 0.55, nader: 0.8, weg: 450 };
 // Waar Amir begint. Zonder meer op 0, maar hangt er een baviaan met `zicht` (een deel van de schermbreedte, 0 is
 // links, 1 rechts), dan zo dat de baviaan daar in beeld hangt: Amir staat in het midden, dus op een smal scherm (een
 // telefoon) begint hij dichter bij de baviaan dan op een laptop. Nooit tegen de rotswand aan, en nooit links van 0.
 function startWereld(){
   const b = level && !sandbox && !building && level.baviaan;
   if (!b || b.zicht == null) return 0;
+  if (b.zicht === 'ver'){                                    // zo ver weg als kan, met hem nog in beeld (BAV_VER)
+    const u = CHAR_H * nowScale();
+    return Math.round(Math.max(0, Math.min(cliffAt().wall - 50, b.x + BAV_VER.rand * b.s * u - W / 2)));
+  }
   return Math.round(Math.max(0, Math.min(cliffAt().wall - 50, b.x - (b.zicht - 0.5) * W)));
 }
 const BAV_KOOI = { afzet: 260, ver: 900, land: 300, voorAmir: 550, rand: 300, rekMacht: 0.6, piek: [0.5, 0.45] };
-let bavSlagImgs = null;                             // de pootslag: { kort, lang }
+let bavSlagImgs = null, bavHangImgs = null;                             // de pootslag: { kort, lang }
 let baviaanImg = null, bavAfzetImgs = null, bavValImgs = null, bavLandingImgs = null, bavBrulImgs = null, bavIdleOpImgs = null, bavSchudImgs = null, bavGromImgs = null, bavRunImgs = null, bavHapImgs = null, bavSprongImgs = null, bavDoodImgs = null;
 // per baviaan waar de idle staat, los van level.baviaan zodat het niet mee het level in gaat:
 // t0 het begin van het lopende stuk idle, wacht hoe lang dat duurt, schud het begin van het hoofdschudden
@@ -6284,6 +6307,7 @@ function baviaanLaad(){
   baviaanImg = new Image();
   baviaanImg.onerror = () => console.warn('ontbreekt: ' + BAVIAAN.src);
   baviaanImg.src = BAVIAAN.src;
+  bavHangImgs = bavReeks(BAV_HANG.map, BAV_HANG.n);
   bavAfzetImgs = bavReeks(BAV_AFZET.map, BAV_AFZET.n);
   bavValImgs = bavReeks(BAV_VAL.map, BAV_VAL.n);
   bavLandingImgs = bavReeks(BAV_LANDING.map, BAV_LANDING.n);
@@ -6380,7 +6404,11 @@ function bavLandPlek(b, scale, lijn, g){
 }
 function bavStand(b, scale){
   if (b.beet){ b.geland = true; return bavBeetStand(b, scale); }   // hij staat al op de grond (speerbeet)
-  if (b.afzet == null){ b.geland = false; return { img: null, dx: 0, dy: 0, groei: BAV_GROEI.hang }; }
+  if (b.afzet == null){                                     // hij hangt: de idle aan de wand (BAV_HANG)
+    b.geland = false;
+    const hang = bavHangImgs && bavHangImgs[Math.floor(bavKlok / 1000 * BAV_HANG.fps) % BAV_HANG.n];
+    return { img: null, hang, dx: 0, dy: 0, groei: BAV_GROEI.hang };
+  }
   const A = BAV_AFZET, V = BAV_VAL, LD = BAV_LANDING;
   const t = (bavKlok - b.afzet) / 1000, tVal = t - deelTijd(A.delen, A.los);   // tVal: hoe lang hij al los van de wand is
   if (tVal < 0) return { img: bavAfzetImgs[Math.min(A.los - 1, deelFrame(A.delen, t))], dx: 0, dy: 0, groei: BAV_GROEI.hang };
@@ -7277,11 +7305,21 @@ function bavSchudNu(){
   else bavRust.set(b, { t0: 0, wacht: bavWacht(0), schud: null, soort: null, keer: 0, nu: true });
 }
 const bavGeo = new WeakMap();                                // waar hij dit beeld getekend is (bavGevecht)
+// zet hij af? Zonder `skelet` zodra Amir gaat lopen; met `skelet` pas als de speer uit het skelet is (of het
+// skelet omvalt), als Amir dichtbij komt, of als hij zo ver wegloopt dat de baviaan uit beeld is (BAV_VER)
+function bavWakker(b){
+  const van = b.start || 0;
+  if (b.skelet == null) return Math.abs(world - van) > BAV_START;
+  const sk = level.skeletten && level.skeletten[0];
+  if (sk && sk.staat && sk.staat !== 'speer' && sk.staat !== 'trek') return true;
+  const dichter = (b.x - van) * (b.x > van ? 1 : -1);
+  return (world - van) * (b.x > van ? 1 : -1) > BAV_VER.nader * dichter || (world - van) * (b.x > van ? -1 : 1) > BAV_VER.weg;
+}
 function baviaanTeken(groundY, scale, cx){
   const b = level && level.baviaan;
   if (!b || !baviaanImg || !imgReady(baviaanImg)) return;
   // in een level springt hij neer zodra Amir gaat lopen (BAV_START wereld-px van waar hij begon, startWereld)
-  if (b.lvl && b.afzet == null && running && !building && !sandbox && Math.abs(world - (b.start || 0)) > BAV_START) b.afzet = bavKlok;
+  if (b.lvl && b.afzet == null && running && !building && !sandbox && bavWakker(b)) b.afzet = bavKlok;
   const u = CHAR_H * scale;                                  // schermpixels per Amir
   const st = bavStand(b, scale), fr = st.img && imgReady(st.img) ? st.img : null;
   const vooruit = (b.f ? 1 : -1) * st.dx * u;                // vooruit is de kant waar hij op kijkt
@@ -7316,7 +7354,13 @@ function baviaanTeken(groundY, scale, cx){
     }
     bavGeo.set(b, { img: fr, sx, lx, top, k, dir: b.f ? -1 : 1, ox: st.ox, oy: st.oy });   // voor bavGevecht
   } else bavGeo.delete(b);
-  if (!fr) ctx.drawImage(baviaanImg, -w / 2, -h, w, h);
+  if (!fr){
+    if (st.hang && imgReady(st.hang)){                       // de hang-idle, met de greep waar zijn hand in afzet_00 zit
+      const A = BAV_AFZET.kader, G = BAV_HANG, k = h / A.h, kh = k * G.maat;
+      const gx = -w / 2 + (G.afzetGreep.x - A.l) * k, gy = -h + (G.afzetGreep.y - A.t) * k;
+      ctx.drawImage(st.hang, gx - G.greep.x * kh, gy - G.greep.y * kh, st.hang.naturalWidth * kh, st.hang.naturalHeight * kh);
+    } else ctx.drawImage(baviaanImg, -w / 2, -h, w, h);
+  }
   ctx.restore();
   if (beetWerp && beetWerp.x == null){                       // de pootslag zet hem in de wereld: nu op het scherm
     beetWerp.x = cx + (beetWerp.wx - world); beetWerp.y = groundY - beetWerp.h * scale;
@@ -12834,6 +12878,11 @@ function restart(){
   camDiep = 0;
   world = startWereld(); facing = -1; frame = 0; frameAcc = 0; idleFrame = 0; idleAcc = 0;   // altijd weer bij het startpunt
   lastSolid = world; if (bav) bav.start = world;
+  if (bav && bav.lvl && bav.skelet != null && !sandbox && !building){   // het skelet tussen Amir en de baviaan, en Amir kijkt naar hem
+    const sk = level.skeletten && level.skeletten[0];
+    if (sk) sk.x = Math.round(world + (bav.x - world) * bav.skelet);
+    facing = bav.x > world ? 1 : -1;
+  }
   camY = 0; camFloor = 0;
   drawLives(); deadEl.classList.remove('on');
   snakes.length = 0; scorps.length = 0; panthers.length = 0; hyenas.length = 0; zwaarden.length = 0; arena = null; camEase = null; spawnTimer = 0.6;
@@ -12856,7 +12905,7 @@ function restart(){
   speerBlauw = false;                               // weer je eigen speer, met het rode lint
   if (level && !sandbox){
     spearFound = false; spear = false;
-    spearX = world + SPEAR_AHEAD;                   // voor je, ook als je verder naar rechts begint (startWereld)
+    spearX = level.geenSpeer ? null : world + SPEAR_AHEAD;   // voor je, ook als je verder naar rechts begint (startWereld)
   }
   else { spearFound = true; spearX = null; }
   setSpearLabel();
@@ -19390,10 +19439,13 @@ function readLevel(txt){
            // de baviaan hoog aan de rotswand: springt neer zodra Amir gaat lopen, zie BAV_KOOI voor de kooi
            baviaan: o.baviaan ? { x: Number(o.baviaan.x), y: Math.max(BAVIAAN.minHang, Number(o.baviaan.y) || BAVIAAN.hang),
                                   s: Number(o.baviaan.s) || BAVIAAN.s, f: !!o.baviaan.f, f0: !!o.baviaan.f, lvl: true,
-                                  zicht: o.baviaan.zicht != null ? Number(o.baviaan.zicht) : null,
+                                  zicht: o.baviaan.zicht === 'ver' ? 'ver' : o.baviaan.zicht != null ? Number(o.baviaan.zicht) : null,
+                                  // het eerste skelet op dit deel van de weg naar hem toe, en dat wekt hem (BAV_VER)
+                                  skelet: o.baviaan.skelet != null ? Number(o.baviaan.skelet) : null,
                                   kooi: Array.isArray(o.baviaan.kooi) && o.baviaan.kooi.length === 2
                                         ? o.baviaan.kooi.map(Number) : null,
                                   beet: !!o.baviaan.beet } : null,   // staat op de grond en pakt je speer (BAV_BEET)
+           geenSpeer: !!o.geenSpeer,                    // geen speer voor je in de grond (haal er een uit een skelet)
            valschade: !!o.valschade,                    // een diepe val kost levens (standaard uit)
            onsterfelijk: !!o.onsterfelijk,              // om iets te proberen: je raakt geen levens kwijt
            talentKeuze: !!o.talentKeuze,                // aan het begin kies je zelf de talents (Test 14)
