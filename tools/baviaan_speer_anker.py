@@ -2,15 +2,15 @@
 """Waar de speer uit de speerval in de borst van de baviaan zit, per frame.
 
 De speerval raakt hem van voren (hij rent op Amir af, en Amir staat bij het zegel voor de klif). De speer
-blijft dan in zijn borst zitten, door het drama heen tot hij als lijk ligt (BAV_SPEER in het spel). Daarvoor
+blijft dan in zijn borst zitten, door het drama heen tot hij als lijk ligt (BAV_VALSPEER in het spel). Daarvoor
 moet per frame bekend zijn waar die plek op zijn borst is. Dit script volgt een stukje vacht van frame tot
 frame (het kleinste kwadratisch verschil in een zoekvenster), vanaf een punt dat met de hand is gekozen, en
-print de tabel die in BAV_SPEER.anker hoort.
+print de tabel die in BAV_VALSPEER.anker hoort.
 
 Alleen de reeksen waarin de speer hem kan raken (run, hap, brul, idle_grom: dan bevriest hij op dat frame)
 en die van het drama erna (idle_grom, brul, dood). De sprong niet: daar schiet zijn lijf zo over het canvas
-dat het volgen de weg kwijtraakt, en het spel zet de speer dan waar hij hem raakte. Coordinaten in bronpixels van het eigen canvas van
-elke reeks, zoals de frames zijn aangeleverd.
+dat het volgen de weg kwijtraakt, en het spel zet de speer dan waar hij hem raakte. Coordinaten in
+bronpixels van het eigen canvas van elke reeks, zoals de frames zijn aangeleverd.
 
     python3 tools/baviaan_speer_anker.py
 """
