@@ -770,7 +770,7 @@
         <button id="sbbavbeet" title="hij staat op de grond; steek naar hem of kom te dichtbij, en hij pakt je speer; zwaai laag, en hij slaat erop">Speerbeet</button>
         <button id="sbbavslag" title="de lange pootslag, met de arm hoog: alleen om te zien (bij de speerbeet)">Pootslag lang</button>
         <button id="sbbavdood" title="de fatale klap: nog een brul, en dan zakt hij in elkaar">Dood</button>
-        <button id="sbbavspeer" title="alsof de speerval hem raakt: de speer blijft in zijn borst zitten, tot hij als lijk ligt">Dood door speerval</button>
+        <button id="sbbavspeer" title="alsof de speerval hem van links raakt: de speer blijft in zijn borst zitten, of met Spiegel in zijn rug, tot hij als lijk ligt">Dood door speerval</button>
         <button id="sbbavspiegel">Spiegel</button>
         <button id="sbbavweg">Weg</button>
         <span class="hint" id="sbbavinfo">de eindbaas in wording, alleen het plaatje: vasthouden gaat door</span>
@@ -872,6 +872,21 @@
         <button data-zegel="0">Neerzetten</button>
         <button data-zegel="1">Met ravijn erachter</button>
         <button data-zegel="2">Die het ravijn sluit</button>
+        <button data-zegel="3">Val voor vijanden</button>
+        <span class="hint">een val: stapt een vijand erop, dan scheurt de grond onder hem open</span>
+      </div>
+      <div class="row">
+        <label>Zegelteken</label>
+        <button data-zegelteken="rune">Rune</button>
+        <button data-zegelteken="teken1">1</button>
+        <button data-zegelteken="teken2">2</button>
+        <button data-zegelteken="teken3">3</button>
+        <button data-zegelteken="teken4">4</button>
+        <button data-zegelteken="teken5">5</button>
+        <button data-zegelteken="teken6">6</button>
+        <button data-zegelteken="teken7">7</button>
+        <button data-zegelteken="teken8">8</button>
+        <span class="hint">voor alle zegels die er liggen, en de volgende</span>
       </div>
       <div class="row">
         <label>Doornbos</label>
@@ -4798,6 +4813,10 @@ function runeSchijf(ctx, px, py, r, o){
 //     ravijn   (mag weg) de plek waar de grond openscheurt zodra hij aangaat; een keer per
 //              potje, uitzetten maakt het gat niet meer dicht
 //     speerval (mag weg) de x van een speer in de rotswand die losschiet (zie "speerval")
+//     teken    (mag weg) het teken op het hout, uit ZEGEL_TEKENS
+//     vijand   (mag weg) true: ook een vijand die erop stapt zet hem aan. Met een ravijn is dat een
+//              val: wie in dat stuk staat terwijl de grond openscheurt, staat vast en valt erin
+//              (ravijnVangt), en ligt het zegel zelf in het ravijn, dan valt het mee
 //
 // Hij ligt echt plat: de schijf, de planken en de vorm van de rune worden allemaal in een
 // platgedrukte ruimte getekend (ZEGEL.plat, hoogte gedeeld door breedte, zoals de steentjes
@@ -4816,18 +4835,46 @@ const ZEGEL = {
 const ZEGEL_KLEUR = { grond: [218, 140, 66], donker: [150, 86, 34] };
 function zegelKleur(c, a){ return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'; }
 function zegelRnd(z){ return () => (z = (z * 16807) % 2147483647) / 2147483647; }
+// De tekens op het hout, in een vak van -15 tot 15 (y naar beneden): lijnen en cirkels, alleen
+// getrokken, nooit gevuld, zodat de gleuf, de lichte onderlip en de gloed voor elk teken hetzelfde
+// werken. Ze betekenen met opzet niets: geen dier, geen ding, geen letter. De speler leert ze
+// herkennen aan wat ze doen, dus elk teken krijgt een vaste bestemming en houdt die:
+//   rune     de speler activeert iets (zo zijn alle zegels begonnen); ook ravijnen en grotten openen
+//   teken2   ook een vijand of een dorpeling activeert hem (vijand: true), de val
+//   teken1, teken3 tot en met teken8: nog zonder bestemming. Wijs er later elk een ding aan, en
+//            zet dat dan hier en in notities/zegeltekens.md.
+// Een zegel kiest met het veld teken; zonder dat veld is het rune, of teken2 met vijand.
+// Alles is breder dan hoog, want plat gedrukt (ZEGEL.plat) lopen stukken boven elkaar in elkaar.
+const ZEGEL_TEKENS = {
+  rune:   { lijnen: [[[0, -15], [-12, 4], [0, 0], [12, 4], [0, 15]]] },
+  teken1: { lijnen: [[[-14, 8], [-6, -8], [2, 8]], [[-2, 0], [14, 0]], [[14, -7], [10, 7]]] },
+  teken2: { lijnen: [[[-14, -8], [-2, -8], [-8, 8]], [[4, -8], [4, 8], [14, 1]]] },
+  teken3: { lijnen: [[[-15, 0], [-8, -9], [-1, 0], [-8, 9]], [[5, -9], [5, 9]], [[5, 0], [14, -8]]] },
+  teken4: { lijnen: [[[-13, -9], [-13, 9]], [[-13, -1], [-4, -9]], [[2, -9], [9, -9], [9, 9], [15, 9]], [[9, 0], [14, -5]]] },
+  teken5: { lijnen: [[[-14, 0], [-7, -8], [0, 0], [7, 8], [14, 0]], [[-7, -8], [-7, 6]], [[7, 8], [7, -6]]] },
+  teken6: { lijnen: [[[-15, -6], [-6, -6], [-6, 6], [3, 6], [3, -2], [15, -2]]], cirkels: [[10, 7, 2.4]] },
+  teken7: { lijnen: [[[-14, 6], [-8, -9], [-2, 6], [-2, -4], [8, -4], [14, 9]]] },
+  teken8: { lijnen: [[[-14, -8], [6, -8]], [[-10, -8], [-10, 8], [-2, 0]], [[2, 0], [14, 8]], [[10, -8], [14, -3]]] }
+};
+function zegelTekenVan(z){ return ZEGEL_TEKENS[z.teken] ? z.teken : z.vijand ? 'teken2' : 'rune'; }
 // het teken als pad, in de platte ruimte; getekend op het scherm, dus even dik
-function zegelRunePad(ctx, x, y, k, p){
+function zegelRunePad(ctx, x, y, k, p, soort){
+  const T = ZEGEL_TEKENS[soort] || ZEGEL_TEKENS.rune;
   ctx.beginPath();
-  [[0, -15], [-12, 4], [0, 0], [12, 4], [0, 15]].forEach(([u, v], i) =>
-    ctx[i ? 'lineTo' : 'moveTo'](x + u * k, y + v * k * p));
+  for (const l of T.lijnen || [])
+    l.forEach(([u, v], i) => ctx[i ? 'lineTo' : 'moveTo'](x + u * k, y + v * k * p));
+  for (const [u, v, c] of T.cirkels || []){
+    ctx.moveTo(x + (u + c) * k, y + v * k * p);
+    ctx.ellipse(x + u * k, y + v * k * p, c * k, c * k * p, 0, 0, Math.PI * 2);
+  }
 }
-//   zegelGrond(ctx, x, y, r, { aan })
+//   zegelGrond(ctx, x, y, r, { aan, teken })
 //     x, y   het midden op de grond, in de pixels van het canvas
 //     r      de straal van het hout in pixels
 //     aan    0 tot 1: hoe ver hij opgelicht is
+//     teken  een sleutel uit ZEGEL_TEKENS (standaard rune)
 function zegelGrond(ctx, px, py, r, o){
-  const aan = Math.max(0, Math.min(1, (o && o.aan) || 0));
+  const aan = Math.max(0, Math.min(1, (o && o.aan) || 0)), teken = (o && o.teken) || 'rune';
   const p = ZEGEL.plat, R = 34, k = r / R, K = ZEGEL_KLEUR, rnd = zegelRnd(11);
   ctx.save(); ctx.translate(px, py);
   ctx.save(); ctx.scale(k, k * p);
@@ -4914,10 +4961,10 @@ function zegelGrond(ctx, px, py, r, o){
   const ry = ZEGEL.zak * k, dikte = Math.max(2, 3.6 * k);
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   ctx.save(); ctx.translate(0, Math.max(1, k));
-  zegelRunePad(ctx, 0, ry, k * .95, p);
+  zegelRunePad(ctx, 0, ry, k * .95, p, teken);
   ctx.strokeStyle = 'rgba(255,214,150,' + (.35 * (1 - aan)) + ')'; ctx.lineWidth = dikte; ctx.stroke();
   ctx.restore();
-  zegelRunePad(ctx, 0, ry, k * .95, p);
+  zegelRunePad(ctx, 0, ry, k * .95, p, teken);
   ctx.strokeStyle = '#2a190b'; ctx.lineWidth = dikte; ctx.stroke();
   if (aan > 0){
     // de gloed: een waas over het hout, plat zoals de schijf, en het teken zelf dat oplicht
@@ -4931,19 +4978,45 @@ function zegelGrond(ctx, px, py, r, o){
     ctx.restore(); ctx.restore();
     ctx.globalAlpha = aan;
     ctx.shadowColor = '#ffb347'; ctx.shadowBlur = 18 * puls;
-    zegelRunePad(ctx, 0, ry, k * .95, p);
+    zegelRunePad(ctx, 0, ry, k * .95, p, teken);
     ctx.strokeStyle = '#ffd98a'; ctx.lineWidth = dikte; ctx.stroke();
   }
   ctx.restore();
 }
 // Erop staan: met de voeten op de grond, binnen ZEGEL.op van het midden. Aan of uit gaat bij
 // het erop stappen, niet bij het eraf stappen, dus wie blijft staan zet hem maar een keer om.
+// Met vijand telt ook een vijand die op de grond loopt en in beeld is (zegelVijand); wie buiten
+// beeld op zijn beurt wacht (een hyena met wacht) niet, anders gaat de val af zonder dat je het ziet.
+const ZEGEL_VAL = { diep: 260 };   // een zegel dat in zijn ravijn valt: zo diep (sprite-eenheden) is hij weg
+function zegelVijand(z, rPx){
+  const zicht = W / viewZoom() / 2 + rPx;
+  for (const l of [snakes, scorps, zwaarden, hyenas, panthers, fosforSlangen])
+    for (const v of l){
+      if (v.ravijnVal || v.wacht > 0 || ['gone', 'dying', 'weg', 'dood'].includes(v.state)) continue;
+      if (Math.abs((v.base || 0) - terrainH(z.x)) > 2 || Math.abs(v.x - world) > zicht) continue;
+      if (Math.abs(v.x - z.x) < rPx * ZEGEL.op) return true;
+    }
+  return false;
+}
 function zegelUpdate(dt, scale){
   if (!level || !level.zegels || !level.zegels.length) return;
   const rPx = ZEGEL.r * CHAR_H * scale;
   for (const z of level.zegels){
+    if (z.weg) continue;
+    if (z.val){                                     // in zijn ravijn gevallen: zakken en vervagen
+      z.val.v += GRAVITY * dt; z.val.h += z.val.v * dt;
+      if (z.val.h > ZEGEL_VAL.diep) z.weg = true;
+      continue;
+    }
+    // gaat er een ravijn open onder het zegel, dan valt het mee zodra het gat bij zijn midden is
+    if (ravijnenNu().some(fx => { const [l, r] = ravijnRanden(fx); return fx.p > 0.05 && z.x > l && z.x < r; })){
+      z.val = { v: 0, h: 0 }; z.op = false;
+      continue;
+    }
     const vloer = terrainH(z.x);
-    let op = !building && onGround && Math.abs(ph - vloer) < 2 && Math.abs(world - z.x) < rPx * ZEGEL.op;
+    const amir = !building && onGround && Math.abs(ph - vloer) < 2 && Math.abs(world - z.x) < rPx * ZEGEL.op;
+    const vijand = !building && !amir && !!z.vijand && zegelVijand(z, rPx);
+    let op = amir || vijand;
     // een zegel van het zakkende plafond telt ook als hij er in een keer overheen gaat (zie "zakplafond")
     if (z.plafond && !building && z.px !== undefined && Math.abs(ph - vloer) < CHAR_H * 0.5
         && (z.px - z.x) * (world - z.x) < 0) op = true;
@@ -4954,7 +5027,7 @@ function zegelUpdate(dt, scale){
       else if (z.speerval !== null && z.speerval !== undefined) speervalZegel(z);   // zie "speerval"
       else {
         z.aan = !z.aan;
-        if (z.aan) zegelDoe(z);
+        if (z.aan) zegelDoe(z, vijand);
       }
     }
     z.op = op;
@@ -4965,11 +5038,12 @@ function zegelUpdate(dt, scale){
     z.t = Math.max(0, Math.min(1, (z.t || 0) + (z.aan ? 1 : -1) * dt / ZEGEL.licht));
   }
 }
-// wat een zegel doet als hij aangaat
-function zegelDoe(z){
+// wat een zegel doet als hij aangaat; doorVijand: een vijand stapte erop
+function zegelDoe(z, doorVijand){
   if (z.ravijn !== null && z.ravijn !== undefined && !ravijnBij(z.ravijn)){
-    ravijnOpen(z.ravijn, z.breed || RAVIJN_MAAT.breed);
-    flashHint('Het zegel licht op: de grond scheurt open');
+    const fx = ravijnOpen(z.ravijn, z.breed || RAVIJN_MAAT.breed);
+    if (fx && z.vijand) fx.vangt = true;            // een val: wie erop staat komt niet meer weg (ravijnVangt)
+    flashHint(doorVijand ? 'Een vijand stapt op het zegel: de grond scheurt open' : 'Het zegel licht op: de grond scheurt open');
   }
   if (z.muur) zegelMuur();
 }
@@ -5001,13 +5075,18 @@ function zegelTeken(groundY, scale, cx){
   if (!level || !level.zegels) return;
   const r = ZEGEL.r * CHAR_H * scale;
   for (const z of level.zegels){
+    if (z.weg) continue;
     const sx = cx + (z.x - world);
     if (sx < -r * 2 || sx > W / viewZoom() + r * 2) continue;
-    zegelGrond(ctx, sx, groundY - terrainH(z.x) * scale, r, { aan: z.t || 0 });
+    const h = z.val ? z.val.h : 0;
+    ctx.save();
+    if (z.val) ctx.globalAlpha = Math.max(0, 1 - h / ZEGEL_VAL.diep);
+    zegelGrond(ctx, sx, groundY - (terrainH(z.x) - h) * scale, r, { aan: z.t || 0, teken: zegelTekenVan(z) });
+    ctx.restore();
   }
 }
 function zegelReset(){
-  if (level && level.zegels) for (const z of level.zegels){ z.aan = false; z.op = false; z.t = 0; z.px = undefined; }
+  if (level && level.zegels) for (const z of level.zegels){ z.aan = false; z.op = false; z.t = 0; z.val = null; z.weg = false; z.px = undefined; }
 }
 
 // ---- zakplafond: een plafond dat zakt als je op een zegel stapt ------------------
@@ -6822,7 +6901,8 @@ function bavVecht(b, r, t, dx0, scale, lijn){
   };
   if (r.doodNu){                                                      // de knop Dood in de sandbox
     r.doodNu = false; bavRaak(b, r);
-    if (r.doodSpeer){ r.doodSpeer = false; r.valSpeer = { img: null }; }   // Dood door speerval: met de speer in zijn borst
+    // Dood door speerval: de speer komt van links, zoals uit de klif, dus kijkt hij naar rechts, dan in zijn rug
+    if (r.doodSpeer){ r.doodSpeer = false; r.valSpeer = { img: null, achter: !!b.f }; }
   }
   if (r.fase === 'dood'){                                             // het drama (BAV_DRAMA), dan in elkaar zakken (BAV_DOOD)
     const D = BAV_DOOD, Q = BAV_DRAMA, R = BAV_ROAR.groot, tt = t - r.fT, fd = b.f ? 1 : -1;
@@ -7160,12 +7240,11 @@ function bavGevecht({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, valRaak
   if (val){
     // hij blijft in zijn borst zitten (BAV_VALSPEER). Waar de punt hem raakte, in bronpixels op het canvas van dit
     // frame, is voor een frame zonder anker (de sprong). De speer vliegt naar rechts: kijkt hij ook naar rechts, dan
-    // raakt hij hem van achteren, en dan valt de speer zoals na een misser
+    // raakt hij hem van achteren, in zijn rug
     const tx = cx + (val.px - world), ty = groundY - val.hy * scale;
     bavRaak(b, r);
-    if (b.f){ speervalVal(val); return; }
     val.st = 'baviaan'; val.t = 0;
-    r.valSpeer = { img: g.img, x: ((tx - g.sx) * g.dir - g.lx) / g.k, y: (ty - g.top) / g.k };
+    r.valSpeer = { img: g.img, x: ((tx - g.sx) * g.dir - g.lx) / g.k, y: (ty - g.top) / g.k, achter: !!b.f };
     return;
   }
   if (r.bijt && !r.raak && hitBy(bek, pbox)){ r.raak = true; hurtPlayer(bek.l + bek.r < pbox.l + pbox.r); }
@@ -7691,16 +7770,29 @@ function baviaanTeken(groundY, scale, cx){
 // voorkant omlaag. Valt hij voorover, dan komt het uiteinde op de grond (`grond`, de grondlijn van de canvassen) en
 // wordt de speer dieper zijn lijf in gedrukt, tot hoogstens `maxDiep`. Een frame zonder anker (de sprong: daar schiet
 // zijn lijf zo over het canvas dat het volgen de weg kwijtraakt) krijgt de plek waar de punt hem raakte.
+// Van achteren (hij kijkt dezelfde kant op als de speer vliegt) zit de speer in zijn rug: dezelfde tekening
+// gespiegeld, met `rug` in plaats van `anker` en `hoekRug` in plaats van `hoek` (ook daar is + het uiteinde omlaag,
+// dus min steekt hij schuin omhoog). Het punt ligt net onder de bovenrand van zijn rug.
 const BAV_VALSPEER = {
   diep: 0.30, maxDiep: 0.85, grond: 575,
   hoek: { idle_grom: { 0: 4 }, brul: { 0: 0, 6: 2, 7: -6, 8: -14, 19: -14, 23: -4 },
           dood: { 0: 2, 5: 3, 10: 12, 13: 16, 16: 16, 21: 14 } },
-  anker: {   // uit tools/baviaan_speer_anker.py: x, y per frame, achter elkaar
+  // van achteren, in de rug: de schacht steekt schuin omhoog naar achteren
+  hoekRug: { run: { 0: -22 }, hap: { 0: -22 }, idle_grom: { 0: -22 }, brul: { 0: -22, 7: -10, 20: -10, 23: -18 },
+             dood: { 0: -22, 10: -26, 16: -30, 21: -30 } },
+  anker: {   // de borst, uit tools/baviaan_speer_anker.py: x, y per frame, achter elkaar
     run: [184,313, 178,321, 184,326, 186,339, 199,355, 210,365, 240,373, 258,394, 228,364, 237,334, 242,315, 242,304, 238,294, 237,285, 222,268, 206,273, 179,289],
     hap: [230,340, 235,345, 240,353, 242,359, 242,364, 242,369, 239,372, 236,375, 233,377, 230,378, 227,378, 226,378, 226,378, 226,378, 228,382, 229,383, 231,383, 231,381, 231,376, 231,370, 229,364, 226,356, 223,349, 220,342, 217,337, 217,332],
     idle_grom: [140,291, 142,294, 143,296, 144,297, 144,296, 144,295, 143,293, 142,291, 141,289, 140,286, 138,283, 137,280, 136,278, 135,276, 134,274, 133,273, 133,273, 133,273, 133,273, 133,274, 134,275, 135,277, 136,279, 137,281, 138,284, 139,287, 141,290, 143,293, 144,293, 145,296, 146,298, 146,298, 146,298, 146,298, 146,298, 146,297, 146,296, 145,294, 145,296],
-    brul: [255,470, 249,459, 258,463, 274,468, 205,305, 235,321, 149,290, 119,275, 116,278, 116,278, 116,278, 116,277, 116,275, 116,274, 116,274, 116,274, 116,274, 116,274, 116,274, 116,274, 116,274, 116,274, 116,275, 116,275],
+    brul: [290,470, 284,459, 293,463, 309,468, 240,305, 270,321, 184,290, 154,275, 151,278, 151,278, 151,278, 151,277, 151,275, 151,274, 151,274, 151,274, 151,274, 151,274, 151,274, 151,274, 151,274, 151,274, 151,275, 151,275],
     dood: [300,303, 291,294, 285,288, 284,286, 284,289, 285,305, 287,327, 298,353, 307,363, 314,391, 322,421, 332,449, 342,469, 348,478, 349,480, 350,483, 352,487, 353,490, 354,486, 354,483, 353,483, 353,483]
+  },
+  rug: {   // de rug, uit tools/baviaan_speer_anker.py: x, y per frame, achter elkaar
+    run: [392,166, 383,171, 382,186, 375,183, 383,191, 380,185, 393,184, 395,178, 400,166, 407,160, 434,171, 455,184, 479,208, 481,218, 483,234, 477,239, 463,235],
+    hap: [380,148, 382,153, 378,166, 374,169, 368,174, 361,180, 354,182, 345,182, 337,182, 330,180, 324,180, 322,180, 380,228, 380,228, 404,255, 404,257, 407,257, 399,244, 407,243, 415,241, 410,222, 407,204, 428,219, 433,204, 438,209, 443,212],
+    idle_grom: [350,264, 350,263, 350,262, 350,262, 350,262, 350,262, 350,262, 350,262, 350,264, 350,265, 350,267, 350,267, 350,267, 350,267, 350,267, 350,269, 350,269, 350,269, 350,269, 350,269, 350,267, 350,267, 350,267, 350,267, 350,267, 350,264, 350,264, 350,263, 350,262, 350,262, 357,269, 357,269, 357,269, 357,269, 357,269, 357,269, 357,269, 357,269, 357,269],
+    brul: [338,350, 338,339, 350,304, 357,274, 357,241, 350,216, 338,204, 308,203, 303,206, 301,197, 301,197, 301,197, 295,189, 297,192, 297,192, 297,192, 297,192, 297,192, 297,192, 295,189, 293,187, 290,185, 287,187, 298,201],
+    dood: [470,196, 465,192, 462,183, 462,181, 462,193, 459,202, 453,212, 447,231, 443,249, 440,269, 510,333, 480,340, 450,330, 505,373, 508,379, 502,376, 500,374, 501,373, 501,371, 501,370, 501,370, 501,370]
   },
 };
 // welke reeks en welk frame dit plaatje is, of null
@@ -7709,8 +7801,8 @@ function bavSpeerFrame(img){
   for (const naam in reeksen){ const i = reeksen[naam] ? reeksen[naam].indexOf(img) : -1; if (i >= 0) return { naam, i }; }
   return null;
 }
-function bavSpeerHoek(naam, i){
-  const s = BAV_VALSPEER.hoek[naam];
+function bavSpeerHoek(naam, i, achter){
+  const s = (achter ? BAV_VALSPEER.hoekRug : BAV_VALSPEER.hoek)[naam];
   if (!s) return 0;
   const ks = Object.keys(s).map(Number).sort((a, b) => a - b);
   if (i <= ks[0]) return s[ks[0]];
@@ -7723,9 +7815,9 @@ let bavSpeerCv = null;
 function bavSpeerTeken(r, fr, lx, ty, k, scale){
   const img = draaiImgs.val[0];
   if (!r.valSpeer || !imgReady(img)) return;
-  const f = bavSpeerFrame(fr), A = f && BAV_VALSPEER.anker[f.naam];
+  const achter = !!r.valSpeer.achter, f = bavSpeerFrame(fr), A = f && BAV_VALSPEER[achter ? 'rug' : 'anker'][f.naam];
   let ax, ay, hoek = 0;
-  if (A){ ax = A[f.i * 2]; ay = A[f.i * 2 + 1]; hoek = bavSpeerHoek(f.naam, f.i); }
+  if (A){ ax = A[f.i * 2]; ay = A[f.i * 2 + 1]; hoek = bavSpeerHoek(f.naam, f.i, achter); }
   else if (fr === r.valSpeer.img){ ax = r.valSpeer.x; ay = r.valSpeer.y; }
   else return;
   const kk = javLen(scale) / JAV.w, len = DRAAI.w.val * kk, lenBron = len / k, a = hoek * Math.PI / 180;
@@ -7739,12 +7831,16 @@ function bavSpeerTeken(r, fr, lx, ty, k, scale){
   const g = c.getContext('2d');
   g.clearRect(0, 0, W2, H2);
   g.save();
-  g.translate(m + ax * k, m + ay * k); g.rotate(-a);               // om de ingang: + laat de voorkant zakken
+  g.translate(m + ax * k, m + ay * k);
+  if (achter) g.scale(-1, 1);                                       // van achteren: de punt wijst naar links, zijn rug in
+  g.rotate(-a);                                                     // om de ingang: + laat het uiteinde zakken
   const w = DRAAI.w.val;
   g.drawImage(img, diep * len - (w - 1) * kk, -DRAAI.tipY * kk, w * kk, DRAAI.h * kk);   // de punt diep in zijn lijf
   g.restore();
-  g.save();                                                         // wat in zijn lijf zit weg: rechts van de ingang
-  g.beginPath(); g.rect(m + ax * k, 0, W2, H2); g.clip();
+  g.save();                                                         // wat in zijn lijf zit weg: voorbij de ingang
+  g.beginPath();
+  if (achter) g.rect(0, 0, m + ax * k, H2); else g.rect(m + ax * k, 0, W2, H2);
+  g.clip();
   g.globalCompositeOperation = 'destination-out';
   g.drawImage(fr, m, m, fw, fh);
   g.restore();
@@ -11371,8 +11467,21 @@ function ravijnLaatVallen(fx){
     for (const v of lijst)
       if (!v.ravijnVal && (v.base || 0) >= -1 && v.x > l && v.x < r) v.ravijnVal = { v: 0 };
 }
+// Een ravijn dat een zegel met vijand opende (fx.vangt) is een val: zolang de grond nog openscheurt,
+// staat elke vijand in dat stuk vast (zijn update slaat alles over), en als het open is valt hij erin
+// (ravijnLaatVallen). Ook wie er tijdens het scheuren in loopt. Amir niet: die kan nog wegrennen.
+function ravijnVangt(s){
+  if ((s.base || 0) < -1) return false;             // beneden in een gang: dat gaat hem niet aan
+  for (const fx of ravijnenNu()){
+    if (!fx.vangt || fx.colliderActive || fx.sluiten) continue;
+    const h = fx.half * (fx.s || 1);
+    if (s.x > fx.x - h && s.x < fx.x + h) return true;
+  }
+  return false;
+}
 function ravijnValt(s, dt, weg){
-  const val = s.ravijnVal; if (!val) return false;
+  const val = s.ravijnVal;
+  if (!val) return ravijnVangt(s);
   val.v += GRAVITY * dt;
   s.base = (s.base || 0) - val.v * dt;
   if (s.lift) s.lift = 0;
@@ -19667,6 +19776,8 @@ function syncLevel(){
       if (o.muur) z.muur = true;
       if (o.speerval !== null && o.speerval !== undefined) z.speerval = Math.round(o.speerval);
       if (o.plafond) z.plafond = o.plafond;
+      if (o.vijand) z.vijand = true;
+      if (o.teken && ZEGEL_TEKENS[o.teken]) z.teken = o.teken;
       return z;
     }),
     runes: (level.runes || []).length ? level.runes.map(runeUit) : undefined,
@@ -19830,6 +19941,9 @@ function readLevel(txt){
                                                 // schiet de speer in de rotswand op die x los (zie "speerval")
                                                 speerval: (q.speerval === undefined || q.speerval === null)
                                                           ? null : Number(q.speerval),
+                                                vijand: q.vijand === true,   // ook een vijand zet hem aan
+                                                // het teken op het hout (ZEGEL_TEKENS); zonder: rune, of teken2 met vijand
+                                                teken: ZEGEL_TEKENS[q.teken] ? q.teken : undefined,
                                                 // laat het zakkende plafond zakken ('zak') of weer omhoog gaan ('op')
                                                 plafond: (q.plafond === 'zak' || q.plafond === 'op') ? q.plafond : undefined })),
            // stukken rots die zakken als je op een zegel stapt, zie "zakplafond"
@@ -20971,11 +21085,21 @@ function sbZegel(soort){
     if (!open.length){ flashHint('Er staat geen ravijn open om te sluiten'); cv.focus(); return; }
     let fx = open[0];
     for (const f of open) if (Math.abs(f.x - world) < Math.abs(fx.x - world)) fx = f;
-    level.zegels.push({ x, ravijn: null, sluit: fx.x });
-  } else level.zegels.push({ x, ravijn: soort === 1 ? x + side * 450 : null });
+    level.zegels.push({ x, ravijn: null, sluit: fx.x, teken: sbZegelTeken });
+  } else if (soort === 3){                          // de val: het ravijn onder het zegel zelf, ook voor vijanden
+    level.zegels.push({ x, ravijn: x, vijand: true, teken: sbZegelTeken });
+    flashHint('Spring eroverheen en laat een vijand erop stappen');
+  } else level.zegels.push({ x, ravijn: soort === 1 ? x + side * 450 : null, teken: sbZegelTeken });
   cv.focus();
 }
 sandboxEl.querySelectorAll('button[data-zegel]').forEach(b => b.onclick = () => sbZegel(Number(b.dataset.zegel)));
+// het teken op het hout: voor de zegels die er liggen, en de volgende (zonder keuze: rune, of teken2 bij een val)
+let sbZegelTeken;
+sandboxEl.querySelectorAll('button[data-zegelteken]').forEach(b => b.onclick = () => {
+  sbZegelTeken = b.dataset.zegelteken;
+  for (const z of level.zegels || []) z.teken = sbZegelTeken;
+  cv.focus();
+});
 // een speerval voor je uit (naar links, want de klif wijst altijd naar rechts): een klif met de speer erin, en
 // een zegel daartussen dat hem losschiet. Staat de baviaan achter je (Van rechts), dan kun je zo proberen of
 // de speer over je heen vliegt en hem raakt. Een eerdere speerval met zijn klif en zegel gaat weg.
@@ -22103,6 +22227,24 @@ function bouwExtra(k){
       syncLevel(); bouwInfo(); cv.focus();
     };
     rij.appendChild(sel); binfoEl.appendChild(rij);
+    // wie hem aanzet: alleen Amir, of ook een vijand die erop stapt
+    const rv = document.createElement('div'); rv.className = 'bveld';
+    const lv = document.createElement('label'); lv.textContent = 'ook vijanden'; rv.appendChild(lv);
+    const vk = document.createElement('input'); vk.type = 'checkbox'; vk.checked = !!o.vijand;
+    vk.onchange = () => { o.vijand = vk.checked || undefined; syncLevel(); bouwInfo(); cv.focus(); };
+    rv.appendChild(vk); binfoEl.appendChild(rv);
+    // het teken op het hout
+    const rt = document.createElement('div'); rt.className = 'bveld';
+    const lt = document.createElement('label'); lt.textContent = 'teken'; rt.appendChild(lt);
+    const st = document.createElement('select');
+    for (const w of Object.keys(ZEGEL_TEKENS)){
+      const op = document.createElement('option'); op.value = w; op.textContent = w; st.appendChild(op);
+    }
+    st.value = zegelTekenVan(o);
+    st.onchange = () => { o.teken = st.value; syncLevel(); bouwInfo(); cv.focus(); };
+    rt.appendChild(st); binfoEl.appendChild(rt);
+    if (o.vijand && doet === 'open')
+      knop('Maak er een val van: het ravijn onder het zegel', () => { o.ravijn = Math.round(o.x); syncLevel(); bouwInfo(); cv.focus(); });
     if (doet === 'open' || doet === 'sluit'){
       const sleutel = doet === 'open' ? 'ravijn' : 'sluit';
       const r2 = document.createElement('div'); r2.className = 'bveld';
@@ -22130,7 +22272,8 @@ function bouwExtra(k){
       if (doet === 'open' && g) regel('! daar ligt al een ravijn', 'blet');
       if (doet === 'open' && holteAt(o.ravijn)) regel('het ravijn opent boven een gang: je valt dan de gang in', 'bgoed');
       const bij = Math.abs(o[sleutel] - o.x) < (o.breed || RAVIJN_MAAT.breed) / 2 + ZEGEL.r * CHAR_H + 40;
-      if (doet === 'open' && bij) regel('! het ravijn gaat open onder het zegel zelf: wie erop stapt valt erin', 'blet');
+      if (doet === 'open' && bij && o.vijand) regel('een val: het ravijn gaat open onder het zegel, en een vijand die erop stapt staat vast tot hij erin valt', 'bgoed');
+      else if (doet === 'open' && bij) regel('! het ravijn gaat open onder het zegel zelf: wie erop stapt valt erin', 'blet');
     }
     if (doet === 'muur' && !level.muur) regel('! dit level heeft geen rotswand: zet er een neer (Schakelaars)', 'blet');
     regel('het raakvlak: de groene streep op de grond, waar Amirs voeten tellen');
