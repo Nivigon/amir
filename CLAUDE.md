@@ -757,11 +757,16 @@ sneeuwrand. Het effect wordt per ravijn bewaard (`ravijnVast`) en pas opnieuw ge
 schaal, de wandplaat of het level verandert. Botsen gaat zoals altijd over `gaps`, daar is niets
 aan veranderd.
 
-Een gat boven een gang houdt de oude tekening met `holteSchacht`, want daar hoort de wand door te
-lopen tot het dak. Dat geldt ook voor een ravijn dat boven een gang openscheurt (een rune of een
-zegel): zolang het scheurt tekent het effect zichzelf, maar zodra het open staat is het een gat in
-het dak (`ravijnBovenGang`) en telt het mee in `gatenTeken()`, de lijst waar de gatenlus, `drawHolte`
-en de grond op tekenen. Botsen gaat nog steeds via `gatenMetRavijn` en `inGap`. Zonder dat bleef het
+Een gat boven een gang is hetzelfde ravijn, met dezelfde lage rand aan de overkant, maar de wand
+houdt op bij het dak en daaronder zie je de gang. Dat tekent niet `scene()` maar de gatenlus, met
+`ravijnGangTeken`: het effect (`ravijnTekenEen`, hetzelfde als in `scene()`) afgeknipt twee pixels onder
+het dak, en daarover binnen de breuk `holteSchacht`, de overgang van aarde naar het steen van de gang.
+De zon op de wand staat daar uit, want het licht komt uit de lichtkaart. Eerst had zo'n gat een eigen
+tekening met de overkant op de kruin, en lag de rand in Jager 3, Test 4, Test 10 en Test 11 dus even
+hoog als de grond vooraan. Dat geldt ook voor een ravijn dat boven een gang openscheurt (een rune of een
+zegel): zolang het scheurt tekent het effect zichzelf in `scene()`, maar zodra het open staat is het een
+gat in het dak (`ravijnBovenGang`) en telt het mee in `gatenTeken()` (met zijn effect in `g.fx`), de lijst
+waar de gatenlus, `drawHolte` en de grond op tekenen. Botsen gaat nog steeds via `gatenMetRavijn` en `inGap`. Zonder dat bleef het
 dak onder het gat dicht en zag je van boven een ondiepe kuil.
 
 Een vijand die in een ravijn staat dat al openscheurde voor hij verscheen (zijn spawn ligt in
