@@ -3,6 +3,7 @@
 Leest uit de hoofdmap en schrijft naar design/regenwoud/:
 
     regenwoudboom_magenta.jpg          regenwoudboom.png      de boom (PROPS.regenwoudboom)
+    regenwoudstruik_magenta.jpg        regenwoudstruik.png    de struik (PROPS.regenwoudstruik)
     regenwoudbodem_magenta.jpg         bodem.png              de bodem: bovenvlak en wand
     regenwoudbodem_water_magenta.jpg   bodem_water.png        dezelfde strook met een poel erin
 
@@ -19,9 +20,9 @@ hangt er nog roze in de dunne lianen en in de gaatjes van de kroon. Wat daarna n
 achtergrond op wijst, wordt er daarom ook uit gehaald (`ontroze`): dat raakt alleen pixels waar
 rood en blauw allebei boven groen liggen, en die komen in de stukken zelf niet voor.
 
-De boom wordt bijgesneden en verkleind tot BRON_H hoog: zo komen er evenveel bronpixels op een Amir
-als bij de gewone boom (design/tree.png, 943 hoog op 2,4 Amir), en hoeft hij net als die niet in de
-kleine set. De twee bodems worden met hetzelfde kader bijgesneden (wat van allebei samen staat),
+De boom en de struik worden bijgesneden en verkleind tot evenveel bronpixels op een Amir als hun
+tegenhanger op de savanne (design/tree.png, 943 hoog op 2,4 Amir; design/struik.png, 710 hoog op
+0,85 Amir), en hoeven net als die niet in de kleine set. De twee bodems worden met hetzelfde kader bijgesneden (wat van allebei samen staat),
 zodat ze even groot zijn en de strook met water precies over de gewone valt. Die blijven op hun
 eigen maat; hoe ze in het spel komen is nog niet gekozen.
 
@@ -33,8 +34,8 @@ from PIL import Image
 HIER = Path(__file__).resolve().parent.parent
 MAP = HIER / 'design' / 'regenwoud'
 VOL, WEG = 0.25, 0.65       # onder VOL helemaal voorgrond, boven WEG helemaal achtergrond
-HOOG = 3.3                  # de hoogte van de boom in Amir, zoals in PROPS
-BRON_H = round(943 / 2.4 * HOOG)
+# per plant: de hoogte in Amir zoals in PROPS, en bronpixels per Amir van de savanneversie
+PLANTEN = [('regenwoudboom', 3.3, 943 / 2.4), ('regenwoudstruik', 1.1, 710 / 0.85)]
 
 
 def knip(naam):
@@ -80,10 +81,12 @@ def bewaar(im, naam, K):
     print((MAP / naam).relative_to(HIER), im.size, 'achtergrond', tuple(round(k) for k in K))
 
 
-boom, K = knip('regenwoudboom_magenta.jpg')
-boom = boom.crop(boom.getbbox())
-boom = boom.resize((round(boom.width * BRON_H / boom.height), BRON_H), Image.LANCZOS)
-bewaar(boom, 'regenwoudboom.png', K)
+for naam, hoog, dicht in PLANTEN:
+    im, K = knip(naam + '_magenta.jpg')
+    im = im.crop(im.getbbox())
+    bron_h = round(dicht * hoog)
+    im = im.resize((round(im.width * bron_h / im.height), bron_h), Image.LANCZOS)
+    bewaar(im, naam + '.png', K)
 
 bodem, K1 = knip('regenwoudbodem_magenta.jpg')
 water, K2 = knip('regenwoudbodem_water_magenta.jpg')

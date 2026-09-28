@@ -105,7 +105,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | stof, sneeuwval, het weer | deeltjes en het weerplan per potje |
 | het weer: regen, onweer, zandstorm, sneeuw en sneeuwstorm | `WEER`, `weerDoel`, `updateWeer`, `drawWeer`, `weerWind`, `weerGeluid`: het veld `weer` van een level (zie "het weer" hieronder) |
 | vegetatie, water, doornbos | `props`, `water`, `thickets` |
-| het regenwoud | de regenwoudboom: `regenwoudboom` in `PROPS` (3,3 Amir, een plant, alleen met de hand), in de bouwer en in de sandbox onder Decor, Regenwoud (`sbDecor`, dat ook de schilden neerzet). Nog zonder frames, dus hij buigt niet mee in de wind. De bodem (`design/regenwoud/bodem.png`, en `bodem_water.png` met een poel) staat klaar maar wordt nog nergens getekend; nog geen uitzicht of level |
+| het regenwoud | de regenwoudboom en de regenwoudstruik: `regenwoudboom` (3,3 Amir) en `regenwoudstruik` (1,1 Amir) in `PROPS` (planten, alleen met de hand), in de bouwer en in de sandbox onder Decor, Regenwoud (`sbDecor`, dat ook de schilden neerzet). Nog zonder frames, dus ze buigen niet mee in de wind. De bodem (`design/regenwoud/bodem.png`, en `bodem_water.png` met een poel) staat klaar maar wordt nog nergens getekend; nog geen uitzicht of level |
 | schilden in de wind | `SCHILD`, `schildStofUpdate`, `schildTil`, `drawSchildStof`: een schild (`schild: true` in `PROPS`) is een windscherm; bij een vlaag stuwt er stof tegen de windkant op, dat eroverheen waait. De plaatjes in `design/schilden/` zijn zelf de bron (het donkere motief van het klauwenschild is er met de hand in teruggezet) |
 | slangen: kleur, zicht en patrouille | `SNAKE_DIRS`, `slangZiet`, `startPatrouille`, `slangSchuif` |
 | zwarte panter, de witte panter, de hyena | de grote vijanden |
@@ -1096,11 +1096,11 @@ set: `grondrand.png` staat daar ook niet in, en een dek dat anders geschaald wor
 bodem eronder gaat schuiven.
 
 De stukken van het regenwoud komen uit `tools/regenwoud_knip.py`: dat haalt de donkerroze achtergrond
-uit de jpg's in de hoofdmap (`regenwoudboom_magenta.jpg`, `regenwoudbodem_magenta.jpg` en
+uit de jpg's in de hoofdmap (`regenwoudboom_magenta.jpg`, `regenwoudstruik_magenta.jpg`, `regenwoudbodem_magenta.jpg` en
 `regenwoudbodem_water_magenta.jpg`; geen zuiver magenta, dus het meet de kleur per plaatje in de hoeken
 en rekent op kleurtoon, ook in de beschaduwde gaatjes van de kroon) en schrijft ze naar
-`design/regenwoud/`. De boom komt op dezelfde dichtheid als de gewone boom, daarom staat hij niet in de
-kleine set. De twee bodems (`bodem.png` en `bodem_water.png`, een strook met een poel erin) worden met
+`design/regenwoud/`. De boom en de struik komen op dezelfde dichtheid als de gewone boom en struik, daarom staan ze
+niet in de kleine set. De twee bodems (`bodem.png` en `bodem_water.png`, een strook met een poel erin) worden met
 hetzelfde kader bijgesneden, zodat de ene precies over de andere valt. Ze zijn nog niet naadloos: rechts
 is een varen doormidden gesneden. Verandert een bron, draai het dan opnieuw.
 
