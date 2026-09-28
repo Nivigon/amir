@@ -383,6 +383,9 @@ class Spel:
         # het zegel in de grond: zijn straal, en de breedte van het ravijn dat hij opent
         m = b.regex(r'const ZEGEL = \{\s*r: ([\d.]+)', 'de maat van het zegel')
         self.ZEGEL_R = float(m.group(1))
+        # de schijf in de wand: zijn straal en standaardhoogte, in Amir
+        m = b.regex(r'const SCHIJF = \{\s*r: ([\d.]+)(?s:.*?)hoog: ([\d.]+)', 'de maat van de schijf')
+        self.SCHIJF_R, self.SCHIJF_HOOG = float(m.group(1)), float(m.group(2))
         m = b.regex(r'const RAVIJN_MAAT = \{ breed: (\d+)', 'de breedte van het open ravijn')
         self.RAVIJN_BREED = int(m.group(1))
         # de soorten weer (het veld weer): de sleutels van WEER.soorten
@@ -1099,6 +1102,42 @@ def komend_ravijn(lv, sp):
     for m in uit:
         if m:
             yield m
+
+
+@regel('schijven')
+def schijven(lv, sp):
+    """Een schijf hangt rechtop op een wand die naar Amir kijkt: de rechterkant van een terras, de
+    eindwand van een gang, of de klif. Daar moet hij helemaal op passen: niet hoger dan de wand.
+    Van waar je hem raakt rekent het spel (schijfStroken, de knoppen in de sandbox); de tabel met
+    hoogtes staat in notities/combinaties.md."""
+    for o in lv.d.get('schijven') or []:
+        x = o.get('x')
+        if not isinstance(x, (int, float)):
+            continue
+        h = (o.get('h') or sp.SCHIJF_HOOG) * sp.CHAR_H
+        r = sp.SCHIJF_R * sp.CHAR_H
+        vloer = lv.terrein(x + 40)
+        wand = None
+        for t in lv.terraces:
+            if abs(t['r'] - x) <= 5:
+                wand = ('terras', t['h'] - vloer)
+        for g in lv.holtes:
+            if abs(g['l'] - x) <= 5:
+                wand = ('eindwand van de gang', g['diep'] - sp.HOLTE_DAK)
+        for c in lv.d.get('cliffs') or []:
+            if abs(c.get('x', 1e9) - x) <= 200:
+                wand = ('klif', 1e9)
+        grot = any(q.get('x', 0) - 5 <= x <= q.get('x', 0) + (q.get('cel') or 120) * max((len(r0) for r0 in q.get('grid') or ['']), default=0) + 5
+                   for q in lv.d.get('grotten') or [])
+        if wand is None:
+            if grot:
+                yield info(x, 'schijf op een rotsraster: of de wand hoog genoeg is, kijkt dit script niet na')
+            else:
+                yield fout(x, 'schijf hangt niet aan een wand: zet x op de rechterkant van een terras, de eindwand van een gang of de klif')
+        elif h + r > wand[1]:
+            yield fout(x, 'schijf op %s Amir steekt boven de %s uit (die is %s hoog)' % (('%.2f' % (h / sp.CHAR_H)).replace('.', ','), wand[0], n0(wand[1])))
+        if o.get('muur') and not lv.muur:
+            yield fout(x, 'schijf met muur, maar dit level heeft geen rotswand: hij doet niets')
 
 
 @regel('zegels')
