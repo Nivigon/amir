@@ -143,6 +143,11 @@ Wat eruit volgt:
 | R4 | de scheve boog op een terras, en een val daarachter | terras -1800 tot -3400 op 300, boog van 2,5 met voet op -2900, rune op 1,0 met ravijn -3675 breed 550, vechter op -3450 | werkt: raak vanaf het terras (220 px), de vechter valt, en vanaf het terras spring je over de 550 | ? |
 | R5 | de spits van verre, een val onder een nietsvermoedende vechter | spits van 3,5 met voet op -3000, rune op 2,0 met ravijn -1750 breed 300, vechter op -1750, gooien vanaf 2000 px | werkt, maar blind, en alleen als de vechter al verschenen is | ? |
 
+Test 17 (Hoog mikken) zet vier hoge runes achter elkaar in een level: de pieken op 2,25 met een kei ervoor
+(`kei: 3.05`, ligt op 1280 bij 720 op 549 px, op 1920 bij 1080 op 824, op een telefoon op 300: telkens in de
+strook en met de schijf in beeld), de zuilen op 2,0 vanaf de grond, de spits op 2,0 op een terras van 300, en
+de scheve boog op 2,0 in een gang van 800. Alle vier geraakt op de drie schermen.
+
 Opnieuw bekijken: zet een proef open in de bouwer, of gebruik de knoppen onder **Rune op een rots** in de
 sandbox: de knop **Doet** kiest wat de rune doet, en na het neerzetten zegt de hint vanaf hoe ver je raakt.
 
@@ -179,3 +184,7 @@ Wat we geleerd hebben en wat dus vast staat.
 - Een schorpioen komt van de rand van het beeld, niet van zijn plek: hem voor een schijf zetten kan
   niet.
 - Een rune op een terras is van de grond soms toch te raken, blind met de verre boog (R4: 770 tot 820 px).
+- Afstanden in dit spel lopen in twee soorten: wat aan Amir hangt (rotsen, de worp, de sprong in hoogte)
+  schaalt mee met het scherm, wat in het level staat (keien, ravijnen, vijanden) niet. Een kei die bij een
+  rune hoort, moet daarom aan de rune hangen (`kei`), anders ligt hij op een groot scherm in de rots en op
+  een telefoon te ver. Het zegel dat op 1280 vrij lag, lag op 1920 onder die kei.
