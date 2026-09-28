@@ -40,7 +40,10 @@ Er komt een nieuwe eindbaas aan: een baviaan. In **Test 15** hangt hij hoog aan 
 In **Test 16: De speerval** is hij wel te verslaan. Hij hangt weer achter je aan de rotswand, springt neer, brult, schudt
 twee keer zijn kop en stormt dan op je af. In de rotswand aan het eind zit een speer met de punt naar jou, met een zegel
 ervoor (zie de speerval hieronder). Stap op het zegel als hij achter je aan komt en buk meteen: de speer vliegt over je
-heen en recht in de baviaan. De fakkels staan voor het zegel en blijven dicht zolang hij leeft; daarna loop je terug.
+heen en recht in de baviaan. Denk niet te snel dat je gewonnen hebt: hij deinst terug, gromt, brult je nog een keer
+aan en twijfelt, en pas dan zakt hij in elkaar. Zolang dat duurt sta je stil en kijkt de camera naar hem. De fakkels
+staan voor het zegel en blijven dicht zolang hij leeft; daarna loop je terug. In de sandbox laat **Dood** (onder Baviaan)
+het hele stuk zien.
 
 **Baboon tests** is een episode met proefstukken voor de baviaan, en net als Testrun begin je met de tribekeuze. In
 **Baboon 1: De speerbeet** (dezelfde vlakte als Test 15) hangt hij niet aan de wand maar staat hij grommend op de grond,
