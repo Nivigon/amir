@@ -9,7 +9,7 @@ laatste vijf updates, rechtstreeks van GitHub, met bij elke of hij al in jouw ve
 
 ## Episodes
 
-In het menu onder **Levels** staan drie reeksen: de episode **De Jagers**, de Test levels en **Testrun**. De episodes De Runen en De Vorst zijn eruit, net als eerder Renew, Winter World en De Diepte; wat ze gebruikten (de uitzichten, de nachtmuziek, de winteruitrusting, de witte panter, zegels, runes en de poort in de rots) zit nog in het spel, en De Jagers gebruikt het weer.
+In het menu onder **Levels** staan vier reeksen: de episode **De Jagers**, de Test levels, **Testrun** en **Baboon tests**. De episodes De Runen en De Vorst zijn eruit, net als eerder Renew, Winter World en De Diepte; wat ze gebruikten (de uitzichten, de nachtmuziek, de winteruitrusting, de witte panter, zegels, runes en de poort in de rots) zit nog in het spel, en De Jagers gebruikt het weer.
 
 **De Jagers** is een episode van vijf pittige levels. De jagers van het dorp zijn de doornen in getrokken en niet teruggekomen, en Amir volgt hun speertekens. Begin je bij level 1, dan staat voor elk level een stukje verhaal op een zwart scherm, en na het laatste level het slot. Er ligt weinig te drinken, en elk level gebruikt wat de vorige leerde. **Jager 1: Het spoor** begint in het dorp en gaat meteen los: een zwarte slang achter een kei, een doornbos, twee zwaardvechters kort na elkaar, een ravijn, een groep fosforslangen en een roedel hyena's. **Jager 2: De kloof** heeft vier ravijnen die je alleen met een aanloop haalt, met steeds iets aan de overkant, een trap met een vechter bovenop en een zegel dat vlak voor je de grond openscheurt terwijl de hyena's komen. **Jager 3: Onder de aarde** speelt in het donker, met valschade: een gang van 800 diep met een richel onder de ingang, een bult met een vechter erop, hyena's beneden en een trap naar buiten, en boven wachten er nog twee. **Jager 4: De witte pas** is winter: twee vechters wachten in een kuil onder een rots met een rune (raak de rune en ze vallen erin), dan een wand die je via een richel op komt, witte hyena's en fosforslangen, en aan het eind de grot met de kei. **Jager 5: De koning van de jacht** is de nacht: een zegel, een roedel, drie vechters, twee groepen fosforslangen, en dan de zwarte panter in het hoge gras. Achter hem de rotswand met de rune; raak de schijf en druk op E. Met **Nightmare** is alles nog scherper. Vanaf Jager 2 staan er in elk level vier doornbossen, ook een in de gang van Jager 3: zonder Thorn Breaker (die je na level 2 krijgt) kost elk drie klappen.
 
@@ -41,6 +41,14 @@ In **Test 16: De speerval** is hij wel te verslaan. Hij hangt weer achter je aan
 twee keer zijn kop en stormt dan op je af. In de rotswand aan het eind zit een speer met de punt naar jou, met een zegel
 ervoor (zie de speerval hieronder). Stap op het zegel als hij achter je aan komt en buk meteen: de speer vliegt over je
 heen en recht in de baviaan. De fakkels staan voor het zegel en blijven dicht zolang hij leeft; daarna loop je terug.
+
+**Baboon tests** is een episode met proefstukken voor de baviaan, en net als Testrun begin je met de tribekeuze. In
+**Baboon 1: De speerbeet** (dezelfde vlakte als Test 15) hangt hij niet aan de wand maar staat hij grommend op de grond,
+een stuk voor je uit, en kijkt je aan. Pak je speer en loop naar hem toe. Steek je naar hem, of kom je met je speer in de
+hand te dichtbij, dan pakt hij je speer: je staat even vast en steekt vanzelf, hij bijt op de punt, rukt de speer uit je
+handen, schudt hem kapot, en smijt de punt recht naar je toe, zo dat hij groot en donker langs het scherm schiet. De
+schacht blijft in het zand liggen. Daarna loop je zonder speer verder, over twee ravijnen naar de fakkels. In de sandbox
+zet **Speerbeet** (bij Vijanden, onder Baviaan) hem zo op de grond, een stuk voor je, en geeft je je speer terug.
 
 In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen naar het volgende level van dezelfde reeks. Onder **Instellingen** staan daar ook het tempo van het spel, het looptempo van Amir, het formaat van het beeld en de muziek. Tijdens een level is het speelveld verder leeg: de testbalk met schuifjes staat alleen in de sandbox (met B haal je hem er tijdens het spelen en in de bouwer alsnog bij). Het menu van de sandbox klap je weg met **Verberg** rechtsboven in het paneel, en met **Toon** haal je het terug; het spel onthoudt hoe je het liet. Op een telefoon staat het onder de pauzeknop, zonder de uitlegregel, en weggeklapt ligt de joystick vrij.
 
