@@ -2324,7 +2324,29 @@ const TEST_14 = {
           { x: -12650, t: 'Een skelet met een nieuwe speer: houd E vast' },
           { x: -13300, t: 'Het zware slot. Met Feign Death speel je dood bij je laatste klap' } ]
 };
-const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14];
+// Test 15: de baviaan. Hij hangt hoog aan de rotswand achter je en springt neer zodra je gaat lopen, met de
+// landing, de brul en het hoofdschudden zoals in de sandbox, en zet dan de achtervolging in. Verderop twee
+// ravijnen met een stuk grond ertussen: de kooi (BAV_KOOI). Spring je erin, dan springt hij over allebei heen
+// en brult je aan van de overkant; ga je eruit, dan landt hij voor je en brult weer. Zo houdt hij je erop.
+const TEST_15 = {
+  name: 'Test 15: De baviaan',
+  lagen: 'renew_vlakte',
+  baviaan: { x: 540, y: 1.45, s: 1.4, f: 0, kooi: [-2600, -3620] },   // boven de hut, tegen de rots
+  gaps: [ {x: -2600, w: 240}, {x: -3620, w: 240} ],
+  rocks: [],
+  spawns: [ {x: -60000, k: 'groen'} ],          // heel ver weg: houdt de vrije modus uit
+  props: [ {x: -700, k: 'gras', s: 1.1, f: 0, v: 0}, {x: -1500, k: 'struik', s: 1.0, f: 1, v: 0},
+           {x: -3100, k: 'gras', s: 1.0, f: 1, v: 0}, {x: -4600, k: 'struik', s: 1.0, f: 0, v: 0},
+           {x: -5600, k: 'gras', s: 1.2, f: 1, v: 0} ],
+  terraces: [], ledges: [], village: [], npcs: [], water: [], thickets: [],
+  hppotions: [ {x: -3200, y: null} ],
+  cliffs: [ {x: -7200} ],
+  ends: [ {x: -6700} ],
+  tips: [ { x: -40,   t: 'Testlevel: achter je, hoog aan de rotswand, hangt de baviaan' },
+          { x: -1900, t: 'Twee ravijnen: spring in het stuk ertussen' },
+          { x: -3000, t: 'Hij laat je er niet af' } ]
+};
+const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15];
 let levelIdx = 0;
 
 // ---- terrassen en richels: omhoog klimmen --------------------------------
@@ -5634,7 +5656,26 @@ const BAV_VECHT = { raakbaar: false, dood: 0.8, krimp: 0.12, bek: { l: 0, r: 140
 // terug naar run_00; alleen als hij daarna stil moet staan speelt hij tot 31 door.
 const BAV_SPRONG = { map: 'enemies/baviaan/sprong/sprong_', n: 32, fps: 24, links: 198, boven: 195, lucht: [10, 22],
   terug: 29, marge: 0.12, zweeft: 91,
-  snel: [{ tot: 5, maal: 0.35 }, { tot: 23, maal: 1.7 }, { tot: 32, maal: 0.35 }], boog: 0.5 };
+  snel: [{ tot: 5, maal: 0.35 }, { tot: 10, maal: 1.7 }, { tot: 23, maal: 1.7, lucht: true }, { tot: 32, maal: 0.35 }], boog: 0.5 };
+// de sprong als stukken (tot welk frame, hoe snel, hoe hard vooruit maal zijn rensnelheid), voor deelFrame en
+// deelTijd. Het stuk in de lucht (frames 10 tot 22) duurt `rek` keer zo lang en gaat op `maal`: bij een kei 1
+// en 1,7, bij de sprong over de kooi langer en sneller (BAV_KOOI)
+function bavSprongDelen(rek = 1, maal){
+  return BAV_SPRONG.snel.map(d => ({ tot: d.tot, fps: d.lucht ? BAV_SPRONG.fps / rek : BAV_SPRONG.fps,
+                                     maal: d.lucht && maal ? maal : d.maal, lucht: !!d.lucht }));
+}
+// De kooi: twee ravijnen met een stuk grond ertussen (level.baviaan.kooi, de x van die twee ravijnen). De
+// baviaan komt daar nooit op, maar hij houdt Amir erop vast (Test 15). Vlucht Amir de kooi in van de kant waar
+// de baviaan staat, dan rent hij tot `afzet` wereld-px voor de rand en springt hij over allebei de ravijnen,
+// `land` voorbij de overkant; gaat Amir de kooi uit aan de kant waar hij niet staat, dan springt hij meteen
+// (tot `ver` van de rand, verder weg rent hij eerst), en landt hij voor Amir, `voorAmir` voorbij hem. Na zo'n
+// sprong draait hij zich om naar Amir en brult (BAV_BRUL, met het geluid). Staat Amir in de kooi, dan wacht hij
+// grommend en kijkt hem aan; aan zijn eigen kant is het het gewone gevecht. Hij hapt nooit over een ravijn.
+// De lucht wordt langer en sneller naarmate de sprong verder is (rek is de verhouding tot de macht `rekMacht`),
+// en de boog hoger: piek[0] plus piek[1] maal rek, in Amir.
+// in een level: zoveel wereld-px van het begin gelopen, en hij laat de wand los
+const BAV_START = 30;
+const BAV_KOOI = { afzet: 260, ver: 900, land: 300, voorAmir: 550, rand: 300, rekMacht: 0.6, piek: [0.5, 0.45] };
 let baviaanImg = null, bavAfzetImgs = null, bavValImgs = null, bavLandingImgs = null, bavBrulImgs = null, bavIdleOpImgs = null, bavSchudImgs = null, bavGromImgs = null, bavRunImgs = null, bavHapImgs = null, bavSprongImgs = null;
 // per baviaan waar de idle staat, los van level.baviaan zodat het niet mee het level in gaat:
 // t0 het begin van het lopende stuk idle, wacht hoe lang dat duurt, schud het begin van het hoofdschudden
@@ -5698,7 +5739,7 @@ function bavStand(b, scale){
   const G = BAV_BRUL.geluid, tGeluid = deelTijd(BAV_BRUL.delen, G.bij) - G.voor;
   if (tBrul >= tGeluid && tIdle < 0.5 && bavBrulGespeeld.get(b) !== b.afzet){   // de brul klinkt, een keer per afzet
     bavBrulGespeeld.set(b, b.afzet);
-    if (wantSound){ try { bavBrulSnd.currentTime = 0; } catch (e) {} bavBrulSnd.volume = G.vol; bavBrulSnd.play().catch(() => {}); }
+    bavBrulSpeel();
   }
   if (tIdle < 0) return { img: bavBrulImgs[Math.min(BAV_BRUL.n - 1, deelFrame(BAV_BRUL.delen, tBrul))], dx, dy, ox: BAV_BRUL.links };
   return bavRustStand(b, tIdle, dx, dy, scale, lijn);
@@ -5757,21 +5798,33 @@ function bavVecht(b, r, t, dx0, scale, lijn){
     return uit(img, { ox: r.doodOx, alfa: Math.max(0, 1 - (t - r.fT) / BAV_VECHT.dood) });
   }
   const amirX = playerX(), voor = (amirX - (b.x + r.wx)) * (b.f ? 1 : -1);   // hoe ver Amir voor hem staat
+  const naarAmir = () => { b.f = amirX > b.x + r.wx; };               // omdraaien naar Amir
+  const naarRun = () => { r.fase = 'run'; r.fT = t; r.pas = -1; r.pasT = 0; };
   if (r.fase === 'sprong'){
-    const S = BAV_SPRONG, ts = t - r.fT, f = Math.floor(ts * S.fps);
-    if (f > S.terug){ r.fase = 'run'; r.fT = t; r.pas = -1; r.pasT = 0; }   // terug naar run_00
+    const S = BAV_SPRONG, ts = t - r.fT, f = deelFrame(r.delen, ts);
+    if (f > (r.kooiSprong ? S.n - 1 : S.terug)){
+      // over de kooi: tot het laatste frame, dan omdraaien naar Amir en brullen; anders terug naar run_00
+      if (r.kooiSprong){ r.kooiSprong = false; r.fase = 'brul'; r.fT = t; r.brulSnd = false; naarAmir(); }
+      else naarRun();
+    }
     else {
-      r.wx = r.wx0 + (b.f ? 1 : -1) * bavSprongWeg(ts);
-      const t1 = S.lucht[0] / S.fps, t2 = (S.lucht[1] + 1) / S.fps, q = (ts - t1) / (t2 - t1);
+      r.wx = r.wx0 + (b.f ? 1 : -1) * bavSprongWeg(ts, r.delen);
+      const t1 = deelTijd(r.delen, S.lucht[0]), t2 = deelTijd(r.delen, S.lucht[1] + 1), q = (ts - t1) / (t2 - t1);
       const til = q > 0 && q < 1 ? r.piek * 4 * q * (1 - q) : 0;      // het spel tilt hem op, in Amir
       const st = uit(bavSprongImgs[f], { ox: S.links, oy: S.boven });
       st.dy -= til;
       return st;
     }
   }
+  if (r.fase === 'brul'){                                             // na de sprong over de kooi
+    const tb = t - r.fT, G = BAV_BRUL.geluid, f = deelFrame(BAV_BRUL.delen, tb);
+    if (!r.brulSnd && tb >= deelTijd(BAV_BRUL.delen, G.bij) - G.voor){ r.brulSnd = true; bavBrulSpeel(); }
+    if (f < BAV_BRUL.n) return uit(bavBrulImgs[f], { ox: BAV_BRUL.links });
+    naarRun();
+  }
   const draai = () => { if (voor < 0) b.f = !b.f; };
   if (r.fase === 'rust'){
-    if (t - r.fT >= BAV_HAP.rust){ r.fase = 'run'; r.fT = t; r.pas = -1; r.pasT = 0; draai(); }
+    if (t - r.fT >= BAV_HAP.rust){ naarRun(); draai(); }
     else return uit(bavGromImgs[Math.floor((t - r.fT) * BAV_IDLE_GROM.fps) % BAV_IDLE_GROM.n], { ox: BAV_IDLE_GROM.links });
   }
   if (r.fase === 'hap'){
@@ -5793,15 +5846,56 @@ function bavVecht(b, r, t, dx0, scale, lijn){
   // rennen, even snel als Amir sprint; de voeten glijden niet (zie BAV_RUN)
   r.bijt = false;
   const fps = Math.min(BAV_RUN.fpsMax, Math.max(BAV_RUN.fpsMin, BAV_RUN.v / (BAV_RUN.pas * k)));
-  r.pasT = (r.pasT || 0) + dt * fps;
-  const runImg = bavRunImgs[Math.floor(r.pasT) % BAV_RUN.n];
+  const runImg = bavRunImgs[Math.floor((r.pasT || 0) + dt * fps) % BAV_RUN.n];
   const hapImg = bavHapImgs[BAV_HAP.raak[0]];
   const hapKd = hapImg && imgReady(hapImg) ? bavKader(hapImg) : null, runKd = runImg && imgReady(runImg) ? bavKader(runImg) : null;
+  const w0 = b.s * u * baviaanImg.naturalWidth / baviaanImg.naturalHeight, fd = b.f ? 1 : -1;
+  // het midden van zijn lijf in de wereld (zonder het frame: zijn anker)
+  const lijfMidden = b.x + r.wx + (runKd ? fd * -(-w0 / 2 - (BAV_AFZET.kader.l + BAV_RUN.links) * k + (runKd.l + runKd.r) / 2 * k) : 0);
+  // de sprong beginnen, de kant op waar hij kijkt: piek in Amir, delen uit bavSprongDelen, kooi: over de kooi
+  const springen = (piek, delen, kooi) => {
+    r.fase = 'sprong'; r.fT = t; r.wx0 = r.wx; r.bijt = false; r.piek = piek; r.delen = delen; r.kooiSprong = !!kooi;
+    return uit(bavSprongImgs[0], { ox: BAV_SPRONG.links, oy: BAV_SPRONG.boven });
+  };
+  // de kooi: twee ravijnen waar hij Amir op vasthoudt (BAV_KOOI)
+  const K = bavKooi(b);
+  let zelfdeKant = true;
+  if (K){
+    const ak = bavKooiKant(K, amirX), bk = lijfMidden > (K.L + K.R) / 2 ? 1 : -1;
+    if (r.amirKant == null) r.amirKant = bk;                          // Amir begint aan zijn kant
+    if (ak !== 0) r.amirKant = ak;
+    zelfdeKant = ak === bk;
+    let doel = 0;                                                      // naar welke kant hij moet: over de kooi heen
+    if (ak === 0 && r.amirKant === bk) doel = -bk;                    // Amir vlucht de kooi in, van zijn kant
+    if (ak !== 0 && ak !== bk) doel = ak;                             // Amir gaat de kooi uit, aan de andere kant
+    const rand = bk === 1 ? K.R : K.L, totRand = Math.abs(lijfMidden - rand);
+    if (doel && (totRand <= BAV_KOOI.afzet || (ak !== 0 && totRand <= BAV_KOOI.ver))){
+      // waar zijn lijf landt: voorbij de overkant, en is Amir de kooi uit, voor Amir
+      let doelX = doel === 1 ? K.R + BAV_KOOI.land : K.L - BAV_KOOI.land;
+      if (ak !== 0) doelX = doel === 1 ? Math.max(doelX, amirX + BAV_KOOI.voorAmir) : Math.min(doelX, amirX - BAV_KOOI.voorAmir);
+      doelX = Math.min(doelX, cliffAt().wall - BAV_KOOI.rand);         // niet tegen of in een rotswand
+      doelX = Math.max(doelX, endWall() + BAV_KOOI.rand);
+      b.f = doel === 1;                                                // kijkt de kant op waar hij heen springt
+      const basis = bavSprongDelen(), lucht = bavSprongWeg(Infinity, basis, true);
+      const vast = bavSprongWeg(Infinity, basis) - lucht;
+      const lijfNu = b.x + r.wx + (lijfMidden - b.x - r.wx) * (b.f === (fd === 1) ? 1 : -1);   // na het omdraaien
+      const verhouding = Math.max(1, (Math.abs(doelX - lijfNu) - vast) / lucht);
+      const rek = Math.pow(verhouding, BAV_KOOI.rekMacht);
+      return springen(BAV_KOOI.piek[0] + BAV_KOOI.piek[1] * rek, bavSprongDelen(rek, basis[2].maal * verhouding / rek), true);
+    }
+    if (doel){ if ((rand - lijfMidden) * fd < 0) b.f = !b.f; }        // eerst naar de rand rennen
+    else if (ak === 0){                                                // Amir staat in de kooi: wachten, hem aankijken
+      naarAmir();
+      if (r.fase !== 'wacht'){ r.fase = 'wacht'; r.fT = t; }
+      return uit(bavGromImgs[Math.floor((t - r.fT) * BAV_IDLE_GROM.fps) % BAV_IDLE_GROM.n], { ox: BAV_IDLE_GROM.links });
+    }
+    if (r.fase === 'wacht') naarRun();
+  }
+  r.pasT = (r.pasT || 0) + dt * fps;
   // een kei voor hem: hij kan er niet door, dus hij springt (regel 7)
-  if (runKd && level && level.rocks.length){
-    const w0 = b.s * u * baviaanImg.naturalWidth / baviaanImg.naturalHeight, fd = b.f ? 1 : -1;
-    const lijfMidden = b.x + r.wx + fd * -(-w0 / 2 - (BAV_AFZET.kader.l + BAV_RUN.links) * k + (runKd.l + runKd.r) / 2 * k);
-    const S = BAV_SPRONG, tMid = (S.lucht[0] + S.lucht[1] + 1) / 2 / S.fps, dMid = bavSprongWeg(tMid);
+  if (runKd && level && level.rocks.length && zelfdeKant){
+    const S = BAV_SPRONG, basis = bavSprongDelen();
+    const tMid = (deelTijd(basis, S.lucht[0]) + deelTijd(basis, S.lucht[1] + 1)) / 2, dMid = bavSprongWeg(tMid, basis);
     let kei = null, kd = Infinity;
     const amirD = (amirX - lijfMidden) * fd;                        // alleen een kei tussen hem en Amir telt
     for (const p of level.rocks){
@@ -5810,13 +5904,11 @@ function bavVecht(b, r, t, dx0, scale, lijn){
     }
     if (kei && kd <= dMid + 8){
       const hoog = (kei.topH - terrainH(kei.x)) / CHAR_H, zweeft = S.zweeft * b.s / BAV_AFZET.kader.h;   // in Amir
-      r.fase = 'sprong'; r.fT = t; r.wx0 = r.wx; r.bijt = false;
-      r.piek = Math.max(0.15, (hoog + S.marge - zweeft) / S.boog);   // de rand van de lucht zit op `boog` van de top
-      return uit(bavSprongImgs[0], { ox: S.links, oy: S.boven });
+      // de rand van de lucht zit op `boog` van de top
+      return springen(Math.max(0.15, (hoog + S.marge - zweeft) / S.boog), basis, false);
     }
   }
-  if (hapKd && runKd && voor >= 0){
-    const w0 = b.s * u * baviaanImg.naturalWidth / baviaanImg.naturalHeight;
+  if (hapKd && runKd && voor >= 0 && zelfdeKant){                    // nooit over een ravijn van de kooi heen
     const reik = kd => w0 / 2 + (BAV_AFZET.kader.l + BAV_HAP.links - kd.l) * k;   // hoe ver hij voor zijn anker reikt
     const lijf = reik(runKd), bek = reik(hapKd);
     if (voor - lijf <= BAV_HAP.speer * scale + BAV_HAP.marge * u){   // binnen Amirs speerstoot: hap, meteen
@@ -5826,19 +5918,37 @@ function bavVecht(b, r, t, dx0, scale, lijn){
     }
   }
   const pas = Math.floor(r.pasT / BAV_RUN.n);
-  if (pas !== r.pas){ r.pas = pas; if (voor < 0) b.f = !b.f; }   // omdraaien aan het begin van een pas
+  if (pas !== r.pas){ r.pas = pas; if (voor < 0 && zelfdeKant) b.f = !b.f; }   // omdraaien aan het begin van een pas
   r.wx += (b.f ? 1 : -1) * BAV_RUN.v * dt;
   return uit(runImg, { ox: BAV_RUN.links });
 }
-// hoe ver hij vooruit is t seconden na het begin van de sprong, in wereld-px
-function bavSprongWeg(t){
+// hoe ver hij vooruit is t seconden na het begin van de sprong, in wereld-px (delen uit bavSprongDelen);
+// met alleenLucht telt alleen het stuk in de lucht
+function bavSprongWeg(t, delen = bavSprongDelen(), alleenLucht){
   let van = 0, weg = 0;
-  for (const d of BAV_SPRONG.snel){
-    const duur = (d.tot - van) / BAV_SPRONG.fps, dt = Math.min(Math.max(0, t), duur);
-    weg += dt * d.maal * BAV_RUN.v; t -= duur; van = d.tot;
+  for (const d of delen){
+    const duur = (d.tot - van) / d.fps, dt = Math.min(Math.max(0, t), duur);
+    if (!alleenLucht || d.lucht) weg += dt * d.maal * BAV_RUN.v;
+    t -= duur; van = d.tot;
     if (t <= 0) break;
   }
   return weg;
+}
+// de kooi van level.baviaan: de buitenranden van de twee ravijnen (L links, R rechts), of null
+function bavKooi(b){
+  if (!b.kooi || !level || !level.gaps) return null;
+  const gs = b.kooi.map(x => { let best = null; for (const g of level.gaps) if (!best || Math.abs(g.x - x) < Math.abs(best.x - x)) best = g; return best; });
+  if (!gs[0] || !gs[1]) return null;
+  const L = Math.min(gs[0].x - gs[0].w / 2, gs[1].x - gs[1].w / 2), R = Math.max(gs[0].x + gs[0].w / 2, gs[1].x + gs[1].w / 2);
+  return { L, R };
+}
+// aan welke kant van de kooi x ligt: -1 links, 0 erin (ook boven een van de ravijnen), 1 rechts
+const bavKooiKant = (K, x) => x < K.L ? -1 : x > K.R ? 1 : 0;
+// de brul met het geluid, een keer per keer dat hij brult
+function bavBrulSpeel(){
+  if (!wantSound) return;
+  try { bavBrulSnd.currentTime = 0; } catch (e) {}
+  bavBrulSnd.volume = BAV_BRUL.geluid.vol; bavBrulSnd.play().catch(() => {});
 }
 // een klap van Amir: hij is dood
 function bavRaak(b, r, img, ox){
@@ -5889,6 +5999,8 @@ const bavGeo = new WeakMap();                                // waar hij dit bee
 function baviaanTeken(groundY, scale, cx){
   const b = level && level.baviaan;
   if (!b || !baviaanImg || !imgReady(baviaanImg)) return;
+  // in een level springt hij neer zodra Amir gaat lopen (BAV_START wereld-px van het begin)
+  if (b.lvl && b.afzet == null && running && !building && !sandbox && Math.abs(world) > BAV_START) b.afzet = performance.now();
   const u = CHAR_H * scale;                                  // schermpixels per Amir
   const st = bavStand(b, scale), fr = st.img && imgReady(st.img) ? st.img : null;
   const vooruit = (b.f ? 1 : -1) * st.dx * u;                // vooruit is de kant waar hij op kijkt
@@ -11370,6 +11482,8 @@ function restart(){
   zegelReset();                                     // en de zegels weer uit
   losseSperen.length = 0;                           // geen losse speren meer op de grond
   skeletReset();                                    // de skeletten weer overeind, met hun speer
+  const bav = level && level.baviaan;               // de baviaan van een level weer hoog aan de wand
+  if (bav && bav.lvl){ baviaanLaad(); bav.afzet = null; bav.f = bav.f0; bavRust.delete(bav); bavBrulSnd.pause(); }
   jump = null; dust.length = 0; ph = 0; pvh = 0; onGround = true; fell = false; coyote = 0; valVan = 0;
   camDiep = 0;
   world = 0; facing = -1; frame = 0; frameAcc = 0; idleFrame = 0; idleAcc = 0;   // altijd weer bij het startpunt
@@ -16200,7 +16314,7 @@ function loop(now){
     }
     zegelTeken(groundY, scale, cx);               // de zegels plat in de grond
     tekenTeken(groundY, scale, cx);               // speertekens: een speer met een zwart doek en schedels
-    baviaanTeken(groundY, scale, cx);             // de baviaan om te passen (alleen de sandbox)
+    baviaanTeken(groundY, scale, cx);             // de baviaan (sandbox, en een level met het veld baviaan)
     skeletTeken(groundY, scale, cx);              // skeletten, met of zonder speer
     losTeken(groundY, scale, cx);                 // speren die los op de grond liggen
     ravijnRuneTeken(groundY, scale, cx);          // de rots met de rune bij het ravijn
@@ -17853,6 +17967,11 @@ function readLevel(txt){
            // gangen onder de grond: zie "holte onder de grond"
            holtes: (o.holtes || []).map(q => ({ r: Number(q.r), l: Number(q.l),
                                                 diep: Math.max(HOLTE_DAK + CHAR_H, Number(q.diep) || 600) })),
+           // de baviaan hoog aan de rotswand: springt neer zodra Amir gaat lopen, zie BAV_KOOI voor de kooi
+           baviaan: o.baviaan ? { x: Number(o.baviaan.x), y: Math.max(BAVIAAN.minHang, Number(o.baviaan.y) || BAVIAAN.hang),
+                                  s: Number(o.baviaan.s) || BAVIAAN.s, f: !!o.baviaan.f, f0: !!o.baviaan.f, lvl: true,
+                                  kooi: Array.isArray(o.baviaan.kooi) && o.baviaan.kooi.length === 2
+                                        ? o.baviaan.kooi.map(Number) : null } : null,
            valschade: !!o.valschade,                    // een diepe val kost levens (standaard uit)
            onsterfelijk: !!o.onsterfelijk,              // om iets te proberen: je raakt geen levens kwijt
            talentKeuze: !!o.talentKeuze,                // aan het begin kies je zelf de talents (Test 14)
@@ -18739,6 +18858,7 @@ const SUBS = {
   'Test 12: Mikken': 'Vijf runes op verschillende rotsen en hoogtes, en na elke rots een skelet met een nieuwe speer',
   'Test 13: Het weer': 'Na elk ravijn slaat het weer om: regen, onweer, zandstorm, sneeuw en sneeuwstorm',
   'Test 14: De drie stammen': 'Kies je talents en probeer ze alle negen, ook de drie van Impungushe',
+  'Test 15: De baviaan': 'Hij springt van de wand en houdt je vast tussen twee ravijnen',
   'Test 10: Licht onder de grond': 'Een gang met drie gaten in het dak, om het licht te bekijken'
 };
 function buildCards(el, list){
