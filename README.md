@@ -49,7 +49,7 @@ het hele stuk zien.
 **Baboon 1: De speerbeet** (dezelfde vlakte als Test 15) hangt hij niet aan de wand maar staat hij grommend op de grond,
 een stuk voor je uit, en kijkt je aan. Pak je speer en loop naar hem toe. Steek je naar hem, of kom je met je speer in de
 hand te dichtbij, dan pakt hij je speer: je staat even vast en steekt vanzelf, hij bijt op de punt, rukt de speer uit je
-handen, schudt hem grommend kapot, en smijt de punt recht naar je toe: het blad komt met een aanzwellende zoef op je af tot het groot en donker in de lens slaat. Loop je gewoon door zonder te steken, dan grijpt hij pas als je wat dichterbij bent. De
+handen, schudt hem grommend kapot, en smijt de punt recht naar je toe: het blad komt met een aanzwellende zoef op je af tot het groot en donker in de lens slaat. Loop je gewoon door zonder te steken, dan grijpt hij pas als je wat dichterbij bent. Buk je en zwaai je laag, dan slaat hij met zijn poot op je speer: die breekt onder zijn poot, de punt vliegt op je af, en je laat de stomp vallen. In de sandbox laat **Pootslag lang** de langzame versie met de arm hoog zien, die nog niet in het spel zit. De
 schacht blijft in het zand liggen. Daarna loop je zonder speer verder, over twee ravijnen naar de fakkels. In de sandbox
 zet **Speerbeet** (bij Vijanden, onder Baviaan) hem zo op de grond, een stuk voor je, en geeft je je speer terug.
 
