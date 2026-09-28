@@ -1112,8 +1112,9 @@ def zegels(lv, sp):
             continue
         if lv.in_gat(x - sp.zegelR, x + sp.zegelR):
             yield fout(x, 'zegel boven een ravijn: daar kan Amir niet op staan')
-        if lv.holte(x):
-            yield fout(x, 'zegel boven een gang: hij wordt op de bodem getekend, maar gaat alleen aan op de savanne')
+        if lv.holte(x) and lv.in_gat(x - sp.zegelR - 200, x + sp.zegelR + 200):
+            yield letop(x, 'zegel in een gang vlak bij een gat in het dak: hij ligt op de bodem, en wie op de '
+                           'savanne boven langs loopt zet hem niet aan')
         r = z.get('ravijn')
         if not isinstance(r, (int, float)):
             continue
@@ -1126,6 +1127,41 @@ def zegels(lv, sp):
     for z in lv.d.get('zegels') or []:
         if z.get('muur') and not lv.muur:
             yield fout(z.get('x'), 'zegel met muur, maar dit level heeft geen rotswand: hij doet niets')
+
+
+@regel('zakplafond')
+def zakplafond(lv, sp):
+    """Het zakkende plafond (zie "zakplafond"): er moet een zegel zijn dat het laat zakken, en een
+    zegel dat het weer ophaalt, anders zit je er voorgoed onder. In een gang hangt een stuk aan het
+    dak: meer ruimte eronder dan tot het dak kan niet. Een stuk dat al in rust lager hangt dan Amir
+    houdt hem tegen voor er iets gebeurd is."""
+    stukken = lv.d.get('zakplafond') or []
+    if not stukken:
+        return
+    zegels = lv.d.get('zegels') or []
+    x0 = stukken[0].get('r')
+    if not any(z.get('plafond') == 'zak' for z in zegels):
+        yield fout(x0, 'zakplafond zonder zegel met plafond: \'zak\': het zakt nooit')
+    if not any(z.get('plafond') == 'op' for z in zegels):
+        yield letop(x0, 'zakplafond zonder zegel met plafond: \'op\': eenmaal gezakt gaat het nooit meer omhoog')
+    for s in stukken:
+        r, l = s.get('r'), s.get('l')
+        if not isinstance(r, (int, float)) or not isinstance(l, (int, float)) or l >= r:
+            yield fout(x0, 'stuk van het zakplafond zonder goede r en l (l moet links van r liggen)')
+            continue
+        rust, dicht = s.get('rust') or 0, s.get('dicht') or 0
+        o = lv.holte((l + r) / 2)
+        if o:
+            ruimte = (o.get('diep') or 600) - sp.HOLTE_DAK
+            if rust > ruimte + 1:
+                yield letop(r, 'stuk van het zakplafond op %s tot %s: rust %s, maar tot het dak is het maar %s'
+                               % (n0(r), n0(l), n0(rust), n0(ruimte)))
+        if rust < sp.CHAR_H:
+            yield fout(r, 'stuk van het zakplafond op %s tot %s hangt in rust op %s, lager dan Amir (%s): '
+                          'daar kom je nooit langs' % (n0(r), n0(l), n0(rust), n0(sp.CHAR_H)))
+        if dicht > rust:
+            yield letop(r, 'stuk van het zakplafond op %s tot %s: dicht (%s) is hoger dan rust (%s)'
+                           % (n0(r), n0(l), n0(dicht), n0(rust)))
 
 
 @regel('plafond')
