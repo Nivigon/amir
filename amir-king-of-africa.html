@@ -2361,7 +2361,7 @@ const TEST_14 = {
 const TEST_15 = {
   name: 'Test 15: De baviaan',
   lagen: 'renew_vlakte',
-  baviaan: { x: 720, y: 1.3, s: 1.4, f: 0, zicht: 0.68, kooi: [-2600, -3620] },   // tegen de rotswand, en meteen in beeld (startWereld)
+  baviaan: { x: 720, y: 1.6, s: 1.4, f: 0, zicht: 0.68, kooi: [-2600, -3620] },   // tegen de rotswand, en meteen in beeld (startWereld)
   gaps: [ {x: -2600, w: 240}, {x: -3620, w: 240} ],
   rocks: [],
   spawns: [ {x: -60000, k: 'groen'} ],          // heel ver weg: houdt de vrije modus uit
@@ -2372,7 +2372,7 @@ const TEST_15 = {
   hppotions: [ {x: -3200, y: null} ],
   cliffs: [ {x: -7200} ],
   ends: [ {x: -6700} ],
-  tips: [ { x: 600,   t: 'Testlevel: achter je, hoog aan de rotswand, hangt de baviaan' },
+  tips: [ { x: 300,   t: 'Testlevel: de baviaan springt van de rotswand' },
           { x: -1900, t: 'Twee ravijnen: spring in het stuk ertussen' },
           { x: -3000, t: 'Hij laat je er niet af' } ]
 };
@@ -2387,7 +2387,7 @@ const TEST_15 = {
 const TEST_16 = {
   name: 'Test 16: De speerval',
   lagen: 'renew_vlakte',
-  baviaan: { x: 720, y: 1.3, s: 1.4, f: 0, zicht: 0.68 },   // net als in Test 15: tegen de rotswand, meteen in beeld
+  baviaan: { x: 720, y: 1.6, s: 1.4, f: 0, zicht: 0.68 },   // net als in Test 15: tegen de rotswand, meteen in beeld
   zegels: [ {x: -2400, speerval: -2900} ],
   speervallen: [ {x: -2900} ],                   // in de klif op -2900
   gaps: [], rocks: [],
@@ -2398,7 +2398,7 @@ const TEST_16 = {
   hppotions: [ {x: -800, y: null} ],
   cliffs: [ {x: -2900} ],
   ends: [ {x: -1500} ],                         // voor het zegel: open zodra de baviaan dood is
-  tips: [ { x: 600,   t: 'Testlevel: achter je hangt de baviaan. Loop een stukje en kijk wat hij doet' },
+  tips: [ { x: 300,   t: 'Testlevel: de baviaan springt van de rotswand. Kijk wat hij doet' },
           { x: -1800, t: 'In de rotswand zit een speer, met de punt naar jou. Het zegel schiet hem los' },
           { x: -2100, t: 'Stap op het zegel als de baviaan achter je aan komt, en buk meteen' } ]
 };
@@ -2710,6 +2710,17 @@ function drawClimb(groundY, scale, cx, onder){
 }
 // de camera klimt mee: hij volgt de grond waar je op staat, niet elke sprong
 let camY = 0, camFloor = 0, camDiep = 0;
+// Zolang de baviaan van een level met `zicht` nog aan de wand hangt of valt, kijkt de camera wat omhoog (de grond
+// zakt in beeld), zodat hij ook op een telefoon met de knoppen erbij helemaal in beeld hangt; bij de landing
+// zakt hij weer terug. Hoeveel: zijn bovenkant plus `marge` onder de bovenrand, hoogstens `max` van het scherm.
+const BAV_KIJK = { boven: 0.05, marge: 0.12, max: 0.17 };
+let bavKijkNu = false;                                       // na een herstart meteen, niet langzaam aanschuiven
+function bavKijk(scale){
+  const b = level && !sandbox && !building && level.baviaan;
+  if (!b || b.zicht == null || b.geland) return 0;
+  const nodig = (b.y + b.s + BAV_KIJK.marge) * CHAR_H * scale + H * BAV_KIJK.boven - (H * 0.82 + touchLift());
+  return Math.max(0, Math.min(H * BAV_KIJK.max, nodig));
+}
 function updateCamera(dt, scale){
   if (onGround) camFloor = ph; else camFloor = Math.min(camFloor, ph);
   // Sta je op een vloer onder de grondlijn (de bodem van een rotskloof), dan zakt de
@@ -2720,7 +2731,9 @@ function updateCamera(dt, scale){
   // en zie je pas na de landing waar je bent. Alleen omlaag: springen laat hem met rust.
   else if (!building && ph < 0 && holteAt(world)) camDiep = Math.min(camDiep, Math.max(ph, -holteAt(world).diep));
   // in de bouwer kijk je zelf omhoog of omlaag (bouwD, de geest): diepte d komt dan op de gewone grondlijn
-  const target = (building ? -bouwD * scale * viewZoom() : (hasClimb() ? Math.max(0, camFloor * scale - H * 0.10) : 0) + camDiep * scale);
+  const target = (building ? -bouwD * scale * viewZoom() : (hasClimb() ? Math.max(0, camFloor * scale - H * 0.10) : 0) + camDiep * scale)
+                 + bavKijk(scale);
+  if (bavKijkNu){ camY = target; bavKijkNu = false; }
   camY += (target - camY) * Math.min(1, dt * 3.2);
   if (Math.abs(target - camY) < 0.3) camY = target;
 }
@@ -3851,7 +3864,8 @@ function playBeving(fx){
 let geluidVrij = false;
 function geluidOntgrendel(){
   if (!wantSound) return;
-  for (const [maak, ac] of [[deurVersterker, () => deurAc], [skeletVersterker, () => skeletAc], [weerVersterker, () => weerAc]]){
+  for (const [maak, ac] of [[deurVersterker, () => deurAc], [skeletVersterker, () => skeletAc], [weerVersterker, () => weerAc],
+                            [bavBrulVersterker, () => bavAc]]){
     maak();
     const c = ac();
     if (c && c.state === 'suspended') c.resume().catch(() => {});
@@ -5813,26 +5827,23 @@ function tekenTeken(groundY, scale, cx){
 // hang: hoe hoog hij na Neerzetten aan de wand hangt, minHang: lager kan hij in de sandbox niet, zodat
 // er na de afzet altijd een echte val komt en hij goed op de grond landt (allebei in Amir)
 const BAVIAAN = { src: 'enemies/baviaan/baviaan.png', s: 1.4, schaduw: 0.9, hang: 1.5, minHang: 0.8 };
-// De afzet: hij laat de rotswand los en springt naar beneden. 44 frames op een gedeeld canvas van
-// 493 bij 592, een keer, met het tempo per stuk in `delen`: het loslaten en omdraaien (0 tot 20) op 15 per seconde,
-// het korte stilhangen (21 tot 24, vier bijna gelijke frames) op 16, de hurk voor de sprong (25 tot 31) op 18,
-// en de rest in de lucht op `luchtFps`. Eerst liep alles op 12 en duurde het stuk aan de wand 2,7 seconden, nu 2.
-// Daarna volgt de val (BAV_VAL). Frame 0 is
-// dezelfde hangpose als het losse plaatje; `kader` is waar de baviaan daarin zit (gemeten op de
-// alfa: x 146 tot 442, y 38 tot 558). De hele reeks krijgt een schaal, zo dat dat kader precies
-// even hoog is als het losse plaatje en op dezelfde plek ligt, dus de overgang springt niet.
-// Bij frame `los` zet hij af (in afzet_33 is hij ineens helemaal gestrekt): vanaf daar beweegt het
-// canvas al, en de rest van de afzet speelt in de lucht op `luchtFps`. Zo hangt hij niet eerst een
-// seconde in duikhouding op zijn plek voor de val begint.
-const BAV_AFZET = { map: 'enemies/baviaan/afzet/afzet_', n: 44, los: 32, luchtFps: 18, kader: { l: 146, t: 38, h: 520 },
-  delen: [{ tot: 21, fps: 15 }, { tot: 25, fps: 16 }, { tot: 32, fps: 18 }] };
-// De val: 8 frames op hetzelfde canvas en dezelfde schaal, als lus op 12 per seconde, na de rest van de
-// afzet. De duikpose beweegt nauwelijks; de val zelf is het hele canvas langs een boog: vooruit met
-// `vx` (Amir per seconde, de kant waar hij op kijkt), eerst `op` (Amir per seconde) omhoog van de afzet,
-// en omlaag met `zwaar` keer de zwaartekracht van Amir: met die van Amir zweefde hij naar beneden.
+// De afzet: hij laat de rotswand los en valt naar beneden. 44 frames op een gedeeld canvas van 493 bij 592, een
+// keer. Frame 0 is dezelfde hangpose als het losse plaatje; `kader` is waar de baviaan daarin zit (gemeten op de
+// alfa: x 146 tot 442, y 38 tot 558). De hele reeks krijgt een schaal, zo dat dat kader precies even hoog is als
+// het losse plaatje en op dezelfde plek ligt, dus de overgang springt niet.
+// Tot frame 8 heeft hij zijn arm nog omhoog aan de wand; bij frame `los` (10) laat hij los, en vanaf daar valt
+// hij (BAV_VAL): het oprollen en weer uitstrekken (10 tot 43) speelt in de lucht, uitgerekt over de valtijd, op
+// minstens `luchtMin` per seconde. Eerst viel hij pas bij frame 32, en hing hij daarvoor opgerold en los van de
+// wand nog anderhalve seconde stil in de lucht. Het stuk aan de wand (0 tot 9) staat in `delen`.
+const BAV_AFZET = { map: 'enemies/baviaan/afzet/afzet_', n: 44, los: 10, luchtMin: 12, kader: { l: 146, t: 38, h: 520 },
+  delen: [{ tot: 10, fps: 15 }] };
+// De val: het hele canvas langs een boog, vanaf het loslaten: vooruit met `vx` (Amir per seconde, de kant waar
+// hij op kijkt), eerst `op` (Amir per seconde) omhoog, want hij zet zich even af, en omlaag met `zwaar` keer de
+// zwaartekracht van Amir: met die van Amir zweefde hij naar beneden. De 8 frames zijn een lus op 12 per seconde
+// voor als de val langer duurt dan de rest van de afzet (hij hangt heel hoog); de duikpose beweegt nauwelijks.
 // De val stopt als de grondlijn van het canvas (`grond`, de onderkant van bronrij 575) de grond
 // raakt; zijn handen (rij 535) hangen dan nog 40 bronpixels hoger, en die zakken in de landing zelf.
-const BAV_VAL = { map: 'enemies/baviaan/val/val_', n: 8, fps: 12, vx: 3.2, op: 1.0, zwaar: 2.2, grond: 576 };
+const BAV_VAL = { map: 'enemies/baviaan/val/val_', n: 8, fps: 12, vx: 3.2, op: 0.4, zwaar: 1.9, grond: 576 };
 // De landing: 25 frames, een keer, daarna het laatste. Het tempo per stuk staat in `delen`: in frame 0 tot 4
 // reiken zijn handen de laatste 40 bronpixels naar de grond en vangt hij de klap, dus die gaan snel (anders
 // remt hij in een beeld af van volle valsnelheid tot slow motion); het opvangen en overeind komen op 24 (op 12
@@ -5854,7 +5865,7 @@ const BAV_LANDING = { map: 'enemies/baviaan/landing/landing_', n: 25,
 // het uitsterven. Het geluid start `voor` seconden voor frame 7, want het eerste stukje is nog stil.
 const BAV_BRUL = { map: 'enemies/baviaan/brul/brul_', n: 24, links: 44,
   delen: [{ tot: 7, fps: 20 }, { tot: 20, fps: 10 }, { tot: 24, fps: 11.4 }],
-  geluid: { src: 'sounds/babrawr.mp3', vol: 1, bij: 7, voor: 0.05 } };
+  geluid: { src: 'sounds/babrawr.mp3', vol: 0.3, bij: 7, voor: 0.05 } };   // de kleine, zachte brul: de grote komt in BAV_ROAR
 // algemeen voor een reeks met `delen` (tot welk frame, hoe snel): het frame op tijd t (of n als hij voorbij
 // is), wanneer frame f begint, en hoe lang de hele reeks duurt
 function deelFrame(delen, t){
@@ -5910,25 +5921,28 @@ function bavSchudFrame(t){
   return -1;
 }
 // Het verloop na de brul: `stappen` op volgorde, en voor elke stap eerst een stuk idle (`wacht`, in seconden,
-// elk keer willekeurig tussen de twee getallen). Een stap is `schud` (BAV_SCHUD) of een brul uit BAV_ROAR.
-const BAV_VERLOOP = { stappen: ['schud', 'klein', 'schud', 'groot'],
-  wacht: [[0.9, 1.4], [0.8, 1.2], [0.8, 1.2], [0.9, 1.3]] };
-// De twee extra brullen in het verloop: dezelfde 24 frames als de brul bij de landing (BAV_BRUL, hetzelfde canvas)
-// en hetzelfde geluid, maar met een eigen tempo per stuk (`delen`), een eigen volume en afspeelsnelheid (`rate`,
-// zonder de toonhoogte vast te houden: sneller is hoger en korter, trager is dieper en langer). Het geluid start
-// `voor` seconden voor frame `bij`, zoals bij de brul. De bek wijd open (7 tot 19) valt over het luide stuk.
-// Ze beginnen bij frame `van` (6): brul_00 is de lage houding van de landing, en uit de idle, die rechtop staat,
-// zakte hij dan eerst ineens door zijn knieen. brul_06 staat al rechtop, net als brul_23 waarmee hij eindigt.
-//   klein: kort en zachter. Het geluid dooft uit tussen `uit[0]` en `uit[1]` seconden na zijn begin.
-//   groot: groter en langer, de bek langer open, dieper. Van frame `tril.van` tot `tril.tot` trilt het scherm
-//          licht (`shake`, tot `tril.sterk`; Amir die geraakt wordt is 0,28), met `tril.aan` en `tril.af`
-//          seconden in- en uitlopen.
+// elk keer willekeurig tussen de twee getallen). Een stap is `schud` (BAV_SCHUD) of een brul uit BAV_ROAR. Er zijn
+// twee brullen: de kleine bij de landing (BAV_BRUL, zacht) en de grote hier aan het eind.
+const BAV_VERLOOP = { stappen: ['schud', 'groot'], wacht: [[0.6, 1.0], [0.5, 0.8]] };
+// De grote brul voor hij stormt: dezelfde 24 frames als de brul bij de landing (BAV_BRUL, hetzelfde canvas) en
+// hetzelfde geluid, maar met een eigen tempo per stuk (`delen`), veel harder (`vol`, boven 1 via bavBrulVersterker)
+// en trager en dieper (`rate`, zonder de toonhoogte vast te houden), zodat hij langer duurt en angst inboezemt. Het
+// geluid start `voor` seconden voor frame `bij`; de bek wijd open (7 tot 19) valt over het luide stuk. Hij begint
+// bij frame `van` (6): brul_00 is de lage houding van de landing, en uit de idle, die rechtop staat, zakte hij dan
+// eerst ineens door zijn knieen; brul_06 staat al rechtop, net als brul_23 waarmee hij eindigt.
+// Van frame `tril.van` tot `tril.tot` trilt het scherm licht (`shake`, tot `tril.sterk`; Amir die geraakt wordt is
+// 0,28, met `tril.aan` en `tril.af` seconden in- en uitlopen), rommelt de aarde zacht (`beving`: het geluid van een
+// ravijn dat openscheurt, op dat deel van zijn volume) en springen er steentjes op de grond (BAV_STENEN).
 const BAV_ROAR = {
-  klein: { delen: [{ tot: 7, fps: 10 }, { tot: 20, fps: 18 }, { tot: 24, fps: 16 }], van: 6, vol: 0.45, rate: 1.2,
-           bij: 7, voor: 0.04, uit: [0.75, 1.05] },
-  groot: { delen: [{ tot: 7, fps: 6 }, { tot: 20, fps: 8.2 }, { tot: 24, fps: 9.5 }], van: 6, vol: 1, rate: 0.85,
-           bij: 7, voor: 0.06, tril: { van: 7, tot: 20, sterk: 0.1, aan: 0.25, af: 0.4 } }
+  groot: { delen: [{ tot: 7, fps: 6 }, { tot: 20, fps: 7.7 }, { tot: 24, fps: 8.7 }], van: 6, vol: 2.2, rate: 0.8,
+           bij: 7, voor: 0.06, beving: 0.3, tril: { van: 7, tot: 20, sterk: 0.12, aan: 0.25, af: 0.45 } }
 };
+// De steentjes die bij de grote brul op de grond springen: dezelfde als rond een ravijn dat openscheurt
+// (ravijnStenenNu, op dezelfde schaal), `n` stuks verspreid over het beeld, tussen de bovenkant van de zandband en
+// de looplijn. Ze komen in `in` seconden op, trillen op zolang het scherm trilt (hoe harder, hoe vaker en hoe hoger:
+// `hop` is de beginsnelheid omhoog in schermpixels per seconde bij volle sterkte, dus hoogstens zo'n 6 px, net als
+// rond het ravijn; `kans` keer per seconde) en vervagen daarna in `uit` seconden.
+const BAV_STENEN = { n: 18, in: 0.3, uit: 0.8, hop: 48, kans: 12 };
 const bavSchudDuur = () => { let van = 0, s = 0; for (const d of BAV_SCHUD.delen){ s += (d.tot - van) / d.fps; van = d.tot; } return s; };
 // Stormen: 17 frames als lus, na het verloop met het hoofdschudden. Canvas 790 bij 592, breder dan de 542
 // van de brul en de idles: het begint 108 bronpixels links daarvan, dus `links` is 44 plus 108. Grondlijn
@@ -6125,7 +6139,7 @@ function bavLandPlek(b, scale, lijn, g){
   return bavValDuur(lijn - rel, g);
 }
 function bavStand(b, scale){
-  if (b.afzet == null) return { img: null, dx: 0, dy: 0 };
+  if (b.afzet == null){ b.geland = false; return { img: null, dx: 0, dy: 0 }; }
   const A = BAV_AFZET, V = BAV_VAL, LD = BAV_LANDING;
   const t = (bavKlok - b.afzet) / 1000, tVal = t - deelTijd(A.delen, A.los);   // tVal: hoe lang hij al los van de wand is
   if (tVal < 0) return { img: bavAfzetImgs[Math.min(A.los - 1, deelFrame(A.delen, t))], dx: 0, dy: 0 };
@@ -6135,6 +6149,7 @@ function bavStand(b, scale){
   const na = Math.min(Math.max(0, tVal - tGrond), LD.uit);      // uitglijden na de klap
   const dx = V.vx * (tv + na - na * na / (2 * LD.uit)), dy = g * tv * tv / 2 - V.op * tv;
   const tLand = tVal - Math.max(0, tGrond - LD.vroeg);
+  b.geland = tVal >= tGrond;                                     // de camera mag weer omlaag (bavKijk)
   const vorig = bavStofVan.get(b);                              // de klap: stof bij zijn handen, dan bij zijn voeten
   bavStofVan.set(b, { afzet: b.afzet, tLand });
   if (vorig && vorig.afzet === b.afzet){
@@ -6143,10 +6158,11 @@ function bavStand(b, scale){
     if (bavLangs(vorig.tLand, tLand, deelTijd(LD.delen, 3))) bavStof(bavBronX(b, anker, BAV_STOF.voet.land, 0, scale), 'land', 0, kracht);
     if (bavLangs(vorig.tLand, tLand, deelTijd(LD.delen, 5))) bavStof(bavBronX(b, anker, BAV_STOF.voet.landVoet, 0, scale), 'rem', b.f ? 1 : -1, 0.8 * kracht);
   }
-  if (tLand < 0){                                              // in de lucht: de rest van de afzet, dan de val-lus
-    const f = A.los + Math.floor(tVal * A.luchtFps);
+  if (tLand < 0){                                              // in de lucht: de rest van de afzet over de valtijd, dan de val-lus
+    const fps = Math.max(A.luchtMin, (A.n - A.los) / Math.max(0.05, tGrond - LD.vroeg));
+    const f = A.los + Math.floor(tVal * fps);
     if (f < A.n) return { img: bavAfzetImgs[f], dx, dy };
-    return { img: bavValImgs[Math.floor((tVal - (A.n - A.los) / A.luchtFps) * V.fps) % V.n], dx, dy };
+    return { img: bavValImgs[Math.floor((tVal - (A.n - A.los) / fps) * V.fps) % V.n], dx, dy };
   }
   const tBrul = tLand - deelTijd(LD.delen, LD.n);
   if (tBrul < 0) return { img: bavLandingImgs[Math.min(LD.n - 1, deelFrame(LD.delen, tLand))], dx, dy };
@@ -6177,26 +6193,21 @@ function bavRustStand(b, tIdle, dx, dy, scale, lijn){
   if (r.schud == null && (ti >= r.wacht || r.nu)){
     const tNu = r.nu ? ti : r.wacht;                           // de grom meteen, de opgefokte op het einde van de lus
     r.schud = r.t0 + (grom ? tNu : lus * Math.max(1, Math.ceil(tNu / lus - 1e-9)));
-    r.extra = r.nu; r.soort = r.nu ? 'schud' : BAV_VERLOOP.stappen[r.keer]; r.nu = false; r.snd = false;
+    r.extra = r.nu; r.soort = r.nu ? 'schud' : BAV_VERLOOP.stappen[r.keer]; r.nu = false; r.snd = false; r.beving = false;
   }
   if (r.schud != null && tIdle >= r.schud){
     const R = BAV_ROAR[r.soort];
     if (!R) return { img: bavSchudImgs[Math.max(0, bavSchudFrame(tIdle - r.schud))], dx, dy, ox: BAV_SCHUD.links };
     const ts = tIdle - r.schud + deelTijd(R.delen, R.van);      // de tijd in de brul, vanaf frame 0 gerekend
-    // een brul uit het verloop: het geluid een keer, de klein dooft uit, bij de groot trilt het scherm
+    // de grote brul: het geluid een keer, en over het luide stuk trilt het scherm, rommelt de aarde en springen de steentjes
     const tGeluid = deelTijd(R.delen, R.bij) - R.voor;
     if (!r.snd && ts >= tGeluid){ r.snd = true; bavBrulSpeel(R.vol, R.rate); }
-    if (R.uit && r.snd && wantSound){
-      const tg = ts - tGeluid, k = Math.min(1, Math.max(0, (tg - R.uit[0]) / (R.uit[1] - R.uit[0])));
-      bavBrulSnd.volume = R.vol * (1 - k);
-      if (k >= 1) bavBrulSnd.pause();
-    }
     if (R.tril){
       const T = R.tril, t1 = deelTijd(R.delen, T.van), t2 = deelTijd(R.delen, T.tot);
-      if (ts >= t1 && ts < t2){
-        const env = Math.min(1, (ts - t1) / T.aan, (t2 - ts) / T.af);
-        shake = Math.max(shake, T.sterk * env);
-      }
+      if (!r.beving && ts >= t1 - T.aan){ r.beving = true; bavBeving(t2 - t1, R.beving); bavStenenStart(scale); }
+      const env = ts >= t1 && ts < t2 ? Math.min(1, (ts - t1) / T.aan, (t2 - ts) / T.af) : 0;
+      shake = Math.max(shake, T.sterk * env);
+      bavStenen.env = env; bavStenen.klaar = ts >= t2;
     }
     return { img: bavBrulImgs[Math.min(BAV_BRUL.n - 1, deelFrame(R.delen, ts))], dx, dy, ox: BAV_BRUL.links };
   }
@@ -6402,12 +6413,95 @@ function bavKooi(b){
 // aan welke kant van de kooi x ligt: -1 links, 0 erin (ook boven een van de ravijnen), 1 rechts
 const bavKooiKant = (K, x) => x < K.L ? -1 : x > K.R ? 1 : 0;
 // de brul met het geluid, een keer per keer dat hij brult
+// een audio-element komt niet boven 1, en de grote brul moet veel harder dan de kleine: net als bij het skelet
+// een versterker (in geluidOntgrendel, anders blijft hij op een telefoon stil)
+let bavAc = null, bavGain = null;
+function bavBrulVersterker(){
+  if (bavGain || bavAc === false) return bavGain;
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    bavAc = new AC();
+    bavGain = bavAc.createGain();
+    bavAc.createMediaElementSource(bavBrulSnd).connect(bavGain);
+    bavGain.connect(bavAc.destination);
+  } catch (e){ bavAc = false; bavGain = null; }
+  return bavGain;
+}
 function bavBrulSpeel(vol = BAV_BRUL.geluid.vol, rate = 1){
   if (!wantSound) return;
   try { bavBrulSnd.currentTime = 0; } catch (e) {}
   bavBrulSnd.preservesPitch = bavBrulSnd.mozPreservesPitch = bavBrulSnd.webkitPreservesPitch = false;   // trager is dieper
   bavBrulSnd.playbackRate = rate;
-  bavBrulSnd.volume = vol; bavBrulSnd.play().catch(() => {});
+  const g = bavBrulVersterker();
+  if (g){
+    if (bavAc.state === 'suspended') bavAc.resume().catch(() => {});
+    bavBrulSnd.volume = 1;
+    g.gain.setValueAtTime(vol, bavAc.currentTime);
+  } else bavBrulSnd.volume = Math.min(1, vol);
+  bavBrulSnd.play().catch(() => {});
+}
+// zacht gerommel onder de grote brul: het geluid van een ravijn dat openscheurt (deurSnd, zoals playBeving), op
+// `sterk` van zijn volume, `duur` seconden vol, met een korte aanloop en een uitloop
+function bavBeving(duur, sterk){
+  if (!wantSound) return;
+  const a = deurSnd, aan = 0.3, uit = 0.9, vol = SFX_DEUR.vol * sterk;
+  clearTimeout(a.cutT); clearInterval(a.fadeT); a.cutT = 0; a.fadeT = 0;
+  try { a.currentTime = 0; } catch (e) {}
+  const g = deurVersterker();
+  if (g){
+    if (deurAc.state === 'suspended') deurAc.resume().catch(() => {});
+    const t = deurAc.currentTime;
+    a.volume = 1;
+    g.gain.cancelScheduledValues(t);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t + aan);
+    g.gain.setValueAtTime(vol, t + aan + duur);
+    g.gain.linearRampToValueAtTime(0, t + aan + duur + uit);
+    a.cutT = setTimeout(() => { a.pause(); try { a.currentTime = 0; } catch (e) {} }, (aan + duur + uit + 0.1) * 1000);
+  } else {
+    a.volume = 0; sndRamp(a, Math.min(1, vol), aan, false);
+    a.fadeT = setTimeout(() => sndRamp(a, 0, uit, true), (aan + duur) * 1000);
+  }
+  a.play().catch(() => {});
+}
+// de steentjes van de grote brul (BAV_STENEN): verspreid over het beeld, in wereld-x
+const bavStenen = { lijst: [], env: 0, klaar: false, klok: null, t: 0 };
+function bavStenenStart(scale){
+  const S = BAV_STENEN, beeld = ravijnStenenNu();
+  const keien = (level && level.rocks || []).map(p => measurePlat(p, scale));   // niet op een kei: daar hangt hij in de lucht
+  bavStenen.lijst = [];
+  bavStenen.env = 0; bavStenen.klaar = false; bavStenen.t = 0; bavStenen.uitT = 0; bavStenen.klok = null;
+  for (let i = 0; i < S.n; i++){
+    const x = world + (Math.random() - 0.5) * W * 1.1;
+    if (inGap(x) || keien.some(m => x > m.left - 20 && x < m.right + 20)) continue;
+    bavStenen.lijst.push({ x, v: 0.2 + Math.random() * 0.7, img: beeld[i % beeld.length], h: 0, vh: 0,
+                           rot: 0, vr: 0, f: Math.random() < 0.5 });
+  }
+}
+function bavStenenTeken(groundY, scale, cx){
+  const B = bavStenen, S = BAV_STENEN;
+  if (!B.lijst.length) return;
+  const dt = B.klok == null ? 0 : Math.max(0, Math.min(0.1, (bavKlok - B.klok) / 1000)); B.klok = bavKlok;
+  B.t += dt;
+  if (B.klaar) B.uitT += dt;
+  if (B.uitT >= S.uit){ B.lijst = []; return; }               // uitgevaagd: weg
+  const alfa = Math.min(1, B.t / S.in) * Math.max(0, 1 - B.uitT / S.uit);
+  const sch = scale / RAVIJN_MAAT.ref;
+  ctx.save(); ctx.globalAlpha *= alfa;
+  for (const st of B.lijst){
+    // springen zolang het trilt: hoe harder, hoe vaker en hoe hoger (schermpixels, zoals bij het ravijn)
+    if (st.h <= 0 && B.env > 0.05 && Math.random() < S.kans * B.env * dt){
+      st.vh = (0.5 + Math.random() * 0.5) * S.hop * B.env; st.vr = (Math.random() - 0.5) * 6;
+    }
+    st.h += st.vh * dt; st.vh -= 175 * dt; st.rot += st.vr * dt;
+    if (st.h <= 0){ st.h = 0; st.vh = 0; st.vr = 0; }
+    if (!st.img || !imgReady(st.img)) continue;
+    const gy = groundY - terrainH(st.x) * scale, zand = edgeCrust(gy), w = st.img.naturalWidth * sch, h = st.img.naturalHeight * sch;
+    const x = cx + (st.x - world), y = zand + st.v * (gy - zand) - st.h;
+    ctx.save(); ctx.translate(x, y - h / 2); ctx.rotate(st.rot); if (st.f) ctx.scale(-1, 1);
+    ctx.drawImage(st.img, -w / 2, -h / 2, w, h); ctx.restore();
+  }
+  ctx.restore();
 }
 // een klap van Amir: hij is dood
 function bavRaak(b, r, img, ox){
@@ -6493,6 +6587,7 @@ function bavAfzetWissel(){
   const b = level.baviaan;
   b.afzet = b.afzet == null ? bavKlok : null;
   bavRust.delete(b);
+  bavStenen.lijst = [];
   if (b.afzet == null){ bavBrulSnd.pause(); try { bavBrulSnd.currentTime = 0; } catch (e) {} }
   sbBavInfo();
 }
@@ -11951,6 +12046,7 @@ function restart(){
   skeletReset();                                    // de skeletten weer overeind, met hun speer
   const bav = level && level.baviaan;               // de baviaan van een level weer hoog aan de wand
   if (bav && bav.lvl){ baviaanLaad(); bav.afzet = null; bav.f = bav.f0; bavRust.delete(bav); bavBrulSnd.pause(); }
+  bavStenen.lijst = []; bavKijkNu = true;              // geen steentjes meer, en de camera meteen omhoog naar de baviaan
   jump = null; dust.length = 0; ph = 0; pvh = 0; onGround = true; fell = false; coyote = 0; valVan = 0;
   camDiep = 0;
   world = startWereld(); facing = -1; frame = 0; frameAcc = 0; idleFrame = 0; idleAcc = 0;   // altijd weer bij het startpunt
@@ -15799,6 +15895,7 @@ function scene(groundY){
   ravijnZoom(groundY);
   for (const fx of ravijnenTeken()) if (!ravijnBovenGang(fx)) ravijnTekenEen(fx, groundY);
   ctx.restore();
+  bavStenenTeken(groundY, propUnit, W / 2);         // de steentjes van de grote brul: op de grond, onder het decor
   drawProps(groundY, propUnit, true);               // near scenery, standing on the line
 }
 
