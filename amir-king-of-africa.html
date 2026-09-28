@@ -5668,6 +5668,11 @@ function deelTijd(delen, f){
 }
 const bavBrulSnd = new Audio(BAV_BRUL.geluid.src);
 bavBrulSnd.preload = 'auto';
+// de klok van de baviaan, in ms speltijd: loopt mee met het tempo uit de instellingen (op een telefoon
+// trager, gameTempo) en staat stil in de pauze, net als Amir
+let bavKlok = 0;
+// zijn rensnelheid: Amirs sprint, ook als je Amir in de instellingen trager of sneller laat lopen (walkTempo)
+const bavV = () => BAV_RUN.v * walkK();
 const bavBrulGespeeld = new WeakMap();                      // per baviaan: bij welke afzet de brul al klonk
 // Opgefokt stilstaan: 12 frames als lus op 12 per seconde, direct na de brul. Precies hetzelfde canvas,
 // dezelfde oorsprong en dezelfde schaal als de brul (dus ook 44 bronpixels naar links). Tussen de brul
@@ -5833,7 +5838,7 @@ function bavLandPlek(b, scale, lijn, g){
 }
 function bavStand(b, scale){
   if (b.afzet == null) return { img: null, dx: 0, dy: 0 };
-  const t = (performance.now() - b.afzet) / 1000, tVal = t - BAV_AFZET.n / BAV_AFZET.fps;
+  const t = (bavKlok - b.afzet) / 1000, tVal = t - BAV_AFZET.n / BAV_AFZET.fps;
   if (tVal < 0) return { img: bavAfzetImgs[Math.floor(t * BAV_AFZET.fps)], dx: 0, dy: 0 };
   const K = BAV_AFZET.kader, g = GRAVITY / CHAR_H;           // zwaartekracht in Amir per seconde kwadraat
   const lijn = b.y + (K.t + K.h - BAV_VAL.grond) * b.s / K.h;   // hoe hoog de grondlijn van het canvas begint
@@ -5952,7 +5957,7 @@ function bavVecht(b, r, t, dx0, scale, lijn){
   }
   // rennen, even snel als Amir sprint; de voeten glijden niet (zie BAV_RUN)
   r.bijt = false;
-  const fps = Math.min(BAV_RUN.fpsMax, Math.max(BAV_RUN.fpsMin, BAV_RUN.v / (BAV_RUN.pas * k)));
+  const fps = Math.min(BAV_RUN.fpsMax, Math.max(BAV_RUN.fpsMin, bavV() / (BAV_RUN.pas * k)));
   const runImg = bavRunImgs[Math.floor((r.pasT || 0) + dt * fps) % BAV_RUN.n];
   const hapImg = bavHapImgs[BAV_HAP.raak[0]];
   const hapKd = hapImg && imgReady(hapImg) ? bavKader(hapImg) : null, runKd = runImg && imgReady(runImg) ? bavKader(runImg) : null;
@@ -6026,7 +6031,7 @@ function bavVecht(b, r, t, dx0, scale, lijn){
   }
   const pas = Math.floor(r.pasT / BAV_RUN.n);
   if (pas !== r.pas){ r.pas = pas; if (voor < 0 && zelfdeKant) b.f = !b.f; }   // omdraaien aan het begin van een pas
-  r.wx += (b.f ? 1 : -1) * BAV_RUN.v * dt;
+  r.wx += (b.f ? 1 : -1) * bavV() * dt;
   return uit(runImg, { ox: BAV_RUN.links });
 }
 // hoe ver hij vooruit is t seconden na het begin van de sprong, in wereld-px (delen uit bavSprongDelen);
@@ -6035,7 +6040,7 @@ function bavSprongWeg(t, delen = bavSprongDelen(), alleenLucht){
   let van = 0, weg = 0;
   for (const d of delen){
     const duur = (d.tot - van) / d.fps, dt = Math.min(Math.max(0, t), duur);
-    if (!alleenLucht || d.lucht) weg += dt * d.maal * BAV_RUN.v;
+    if (!alleenLucht || d.lucht) weg += dt * d.maal * bavV();
     t -= duur; van = d.tot;
     if (t <= 0) break;
   }
@@ -6107,7 +6112,7 @@ function baviaanTeken(groundY, scale, cx){
   const b = level && level.baviaan;
   if (!b || !baviaanImg || !imgReady(baviaanImg)) return;
   // in een level springt hij neer zodra Amir gaat lopen (BAV_START wereld-px van het begin)
-  if (b.lvl && b.afzet == null && running && !building && !sandbox && Math.abs(world) > BAV_START) b.afzet = performance.now();
+  if (b.lvl && b.afzet == null && running && !building && !sandbox && Math.abs(world) > BAV_START) b.afzet = bavKlok;
   const u = CHAR_H * scale;                                  // schermpixels per Amir
   const st = bavStand(b, scale), fr = st.img && imgReady(st.img) ? st.img : null;
   const vooruit = (b.f ? 1 : -1) * st.dx * u;                // vooruit is de kant waar hij op kijkt
@@ -6134,7 +6139,7 @@ function baviaanTeken(groundY, scale, cx){
 function bavAfzetWissel(){
   if (!level.baviaan) sbBaviaan();
   const b = level.baviaan;
-  b.afzet = b.afzet == null ? performance.now() : null;
+  b.afzet = b.afzet == null ? bavKlok : null;
   bavRust.delete(b);
   if (b.afzet == null){ bavBrulSnd.pause(); try { bavBrulSnd.currentTime = 0; } catch (e) {} }
   sbBavInfo();
@@ -15785,6 +15790,7 @@ function loop(now){
   if (invuln > 0) invuln = Math.max(0, invuln - dt);
   woedeUpdate(dt);                               // de woede van Bhubesi loopt af (en de meter mee)
   mesKlok += dt;                                 // de klok van het afweren met het mes
+  bavKlok += dt * 1000;                          // en die van de baviaan
   if (raakKoel > 0) raakKoel = Math.max(0, raakKoel - dt);
   if (hurt > 0) hurt = Math.max(0, hurt - dt);
   if (shake > 0) shake = Math.max(0, shake - dt);
