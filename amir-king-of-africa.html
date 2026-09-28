@@ -3872,7 +3872,7 @@ function geluidOntgrendel(){
   }
   if (geluidVrij) return;
   geluidVrij = true;
-  for (const a of [deurSnd, skeletSnd, neeSnd, stormSnd, bavBrulSnd, bavGromSnd]){
+  for (const a of [deurSnd, skeletSnd, neeSnd, stormSnd, bavBrulSnd, bavGromSnd, bavRenSnd, bavBijtSnd]){
     if (!a.paused) continue;
     a.muted = true;
     const p = a.play();
@@ -5942,7 +5942,40 @@ function bavGromSpeel(){
   } else bavGromSnd.volume = Math.min(1, BAV_SCHUD.geluid.vol);
   bavGromSnd.play().catch(() => {});
 }
-function bavGromStop(){ bavGromSnd.pause(); try { bavGromSnd.currentTime = 0; } catch (e) {} }
+// De hap (`BAV_BIJT`, sounds/bavbijt.mp3, de aangeleverde bijtmonster.mp3 met de 0,4 seconde stilte vooraan eraf)
+// start met de hap zelf: de aanzet valt op de uitval, de volle klap net na de beet (frame 11, 0,12 seconde).
+// Onder het rennen gromt hij (`BAV_REN_GROM`): dezelfde grom als bij het hoofdschudden, maar sneller en hoger
+// (`rate`, elke keer willekeurig) en iets zachter, met een pauze ertussen (`pauze`), zodat het hijgend klinkt en
+// niet als een lus. Een eigen audio-element, zodat het de grom van het schudden niet afkapt; bij een hap valt hij stil.
+const BAV_BIJT = { src: 'sounds/bavbijt.mp3', vol: 1.4 };
+const BAV_REN_GROM = { vol: 0.8, rate: [1.1, 1.25], pauze: [0.6, 1.6], eerst: 0.3, naHap: 1 };
+const bavBijtSnd = new Audio(BAV_BIJT.src), bavRenSnd = new Audio(BAV_SCHUD.geluid.src);
+bavBijtSnd.preload = bavRenSnd.preload = 'auto';
+// een geluid van de baviaan via zijn eigen gain op de versterker van de brul, of zonder, tot 1
+function bavSpeelVia(a, gain, vol, rate = 1){
+  if (!wantSound) return;
+  try { a.currentTime = 0; } catch (e) {}
+  a.preservesPitch = a.mozPreservesPitch = a.webkitPreservesPitch = rate === 1;
+  a.playbackRate = rate;
+  bavBrulVersterker();
+  const g = gain();
+  if (g){
+    if (bavAc.state === 'suspended') bavAc.resume().catch(() => {});
+    a.volume = 1;
+    g.gain.setValueAtTime(vol, bavAc.currentTime);
+  } else a.volume = Math.min(1, vol);
+  a.play().catch(() => {});
+}
+function bavBijtSpeel(){ bavRenStil(); bavSpeelVia(bavBijtSnd, () => bavBijtGain, BAV_BIJT.vol); }
+function bavRenGrom(){
+  const R = BAV_REN_GROM, rate = R.rate[0] + Math.random() * (R.rate[1] - R.rate[0]);
+  bavSpeelVia(bavRenSnd, () => bavRenGain, R.vol, rate);
+  return bavSchudDuur() / rate + R.pauze[0] + Math.random() * (R.pauze[1] - R.pauze[0]);   // wanneer de volgende
+}
+function bavRenStil(){ bavRenSnd.pause(); }
+function bavGromStop(){
+  for (const a of [bavGromSnd, bavRenSnd, bavBijtSnd]){ a.pause(); try { a.currentTime = 0; } catch (e) {} }
+}
 // welk frame van het hoofdschudden er t seconden na zijn begin staat, of -1 als hij klaar is
 // de frames op volgorde met hun duur: 0 tot 45, de ronde 18 tot 45 nog `keer` keer, en dan 46 tot 63
 let bavSchudLijst = null;
@@ -6342,6 +6375,10 @@ function bavVecht(b, r, t, dx0, scale, lijn){
   }
   // rennen, even snel als Amir sprint; de voeten glijden niet (zie BAV_RUN)
   r.bijt = false;
+  if (r.fase === 'run'){                                              // grommen onder het rennen (BAV_REN_GROM)
+    if (r.renGrom == null) r.renGrom = t + BAV_REN_GROM.eerst;
+    if (t >= r.renGrom) r.renGrom = t + bavRenGrom();
+  }
   const fps = Math.min(BAV_RUN.fpsMax, Math.max(BAV_RUN.fpsMin, bavV() / (BAV_RUN.pas * k)));
   const runImg = bavRunImgs[Math.floor((r.pasT || 0) + dt * fps) % BAV_RUN.n];
   const hapImg = bavHapImgs[BAV_HAP.raak[0]];
@@ -6420,6 +6457,7 @@ function bavVecht(b, r, t, dx0, scale, lijn){
     const lijf = reik(runKd), bek = reik(hapKd);
     if (voor - lijf <= BAV_HAP.speer * scale + BAV_HAP.marge * u){   // binnen Amirs speerstoot: hap, meteen
       r.fase = 'hap'; r.fT = t; r.stofT = 0; r.raak = false; r.bijt = false;
+      bavBijtSpeel(); r.renGrom = Math.max(r.renGrom || 0, t + BAV_REN_GROM.naHap);   // eerst de hap laten klinken
       r.uitval = Math.min(Math.max(0, voor - bek * 0.85), BAV_HAP.uitval * u); r.wx0 = r.wx;
       return uit(bavHapImgs[0], { ox: BAV_HAP.links });
     }
@@ -6457,7 +6495,7 @@ const bavKooiKant = (K, x) => x < K.L ? -1 : x > K.R ? 1 : 0;
 // de brul met het geluid, een keer per keer dat hij brult
 // een audio-element komt niet boven 1, en de grote brul moet veel harder dan de kleine: net als bij het skelet
 // een versterker (in geluidOntgrendel, anders blijft hij op een telefoon stil)
-let bavAc = null, bavGain = null, bavGromGain = null;
+let bavAc = null, bavGain = null, bavGromGain = null, bavRenGain = null, bavBijtGain = null;
 function bavBrulVersterker(){
   if (bavGain || bavAc === false) return bavGain;
   try {
@@ -6466,10 +6504,10 @@ function bavBrulVersterker(){
     bavGain = bavAc.createGain();
     bavAc.createMediaElementSource(bavBrulSnd).connect(bavGain);
     bavGain.connect(bavAc.destination);
-    bavGromGain = bavAc.createGain();                         // het grommen bij het hoofdschudden, eigen volume
-    bavAc.createMediaElementSource(bavGromSnd).connect(bavGromGain);
-    bavGromGain.connect(bavAc.destination);
-  } catch (e){ bavAc = false; bavGain = null; bavGromGain = null; }
+    // het grommen bij het hoofdschudden, het grommen onder het rennen en de hap: elk een eigen volume
+    const eigen = a => { const g = bavAc.createGain(); bavAc.createMediaElementSource(a).connect(g); g.connect(bavAc.destination); return g; };
+    bavGromGain = eigen(bavGromSnd); bavRenGain = eigen(bavRenSnd); bavBijtGain = eigen(bavBijtSnd);
+  } catch (e){ bavAc = false; bavGain = null; bavGromGain = bavRenGain = bavBijtGain = null; }
   return bavGain;
 }
 function bavBrulSpeel(vol = BAV_BRUL.geluid.vol, rate = 1){
@@ -6551,7 +6589,7 @@ function bavStenenTeken(groundY, scale, cx){
 // een klap van Amir: hij is dood
 function bavRaak(b, r, img, ox){
   if (!r || r.fase === 'dood') return;
-  r.fase = 'dood'; r.fT = r.tL; r.bijt = false; r.doodImg = img; r.doodOx = ox;
+  r.fase = 'dood'; r.fT = r.tL; r.bijt = false; r.doodImg = img; r.doodOx = ox; bavRenStil();
   hits++; hitsEl.textContent = hits;
   puffWorld(b.x + r.wx, 8, 0, 1.2);
   vijandDood(true);
