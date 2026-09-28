@@ -5803,21 +5803,30 @@ function tekenTeken(groundY, scale, cx){
 // er na de afzet altijd een echte val komt en hij goed op de grond landt (allebei in Amir)
 const BAVIAAN = { src: 'enemies/baviaan/baviaan.png', s: 1.4, schaduw: 0.9, hang: 1.5, minHang: 0.8 };
 // De afzet: hij laat de rotswand los en springt naar beneden. 44 frames op een gedeeld canvas van
-// 493 bij 592, een keer afgespeeld op 12 per seconde, daarna volgt de val (BAV_VAL). Frame 0 is
+// 493 bij 592, op 12 per seconde, daarna volgt de val (BAV_VAL). Frame 0 is
 // dezelfde hangpose als het losse plaatje; `kader` is waar de baviaan daarin zit (gemeten op de
 // alfa: x 146 tot 442, y 38 tot 558). De hele reeks krijgt een schaal, zo dat dat kader precies
 // even hoog is als het losse plaatje en op dezelfde plek ligt, dus de overgang springt niet.
-const BAV_AFZET = { map: 'enemies/baviaan/afzet/afzet_', n: 44, fps: 12, kader: { l: 146, t: 38, h: 520 } };
-// De val: 8 frames op hetzelfde canvas en dezelfde schaal, als lus op 12 per seconde, direct na de
+// Bij frame `los` zet hij af (in afzet_33 is hij ineens helemaal gestrekt): vanaf daar beweegt het
+// canvas al, en de rest van de afzet speelt in de lucht op `luchtFps`. Zo hangt hij niet eerst een
+// seconde in duikhouding op zijn plek voor de val begint.
+const BAV_AFZET = { map: 'enemies/baviaan/afzet/afzet_', n: 44, fps: 12, los: 32, luchtFps: 18, kader: { l: 146, t: 38, h: 520 } };
+// De val: 8 frames op hetzelfde canvas en dezelfde schaal, als lus op 12 per seconde, na de rest van de
 // afzet. De duikpose beweegt nauwelijks; de val zelf is het hele canvas langs een boog: vooruit met
-// `vx` (Amir per seconde, de kant waar hij op kijkt) en omlaag met dezelfde zwaartekracht als Amir.
+// `vx` (Amir per seconde, de kant waar hij op kijkt), eerst `op` (Amir per seconde) omhoog van de afzet,
+// en omlaag met `zwaar` keer de zwaartekracht van Amir: met die van Amir zweefde hij naar beneden.
 // De val stopt als de grondlijn van het canvas (`grond`, de onderkant van bronrij 575) de grond
 // raakt; zijn handen (rij 535) hangen dan nog 40 bronpixels hoger, en die zakken in de landing zelf.
-const BAV_VAL = { map: 'enemies/baviaan/val/val_', n: 8, fps: 12, vx: 2.5, grond: 576 };
-// De landing: 25 frames, een keer op 12 per seconde, daarna het laatste. Het canvas blijft staan
-// waar de val ophield; alle beweging zit in de frames. In landing_04 tot 06 zakken zijn handen tot
-// 10 bronpixels onder de grondlijn: de klap, hij drukt zich in de grond. Zo bedoeld.
-const BAV_LANDING = { map: 'enemies/baviaan/landing/landing_', n: 25, fps: 12 };
+const BAV_VAL = { map: 'enemies/baviaan/val/val_', n: 8, fps: 12, vx: 3.2, op: 1.0, zwaar: 2.2, grond: 576 };
+// De landing: 25 frames, een keer, daarna het laatste. Het tempo per stuk staat in `delen`: in frame 0 tot 4
+// reiken zijn handen de laatste 40 bronpixels naar de grond en vangt hij de klap, dus die gaan snel (anders
+// remt hij in een beeld af van volle valsnelheid tot slow motion); het opvangen en overeind komen op 12.
+// De landing begint `vroeg` seconden voor het canvas de grond raakt, zodat zijn handen nog in de val naar
+// de grond reiken. Daarna blijft het canvas staan, op wat uitglijden na: de vaart vooruit loopt in `uit`
+// seconden uit tot stilstand. In landing_04 tot 06 zakken zijn handen tot 10 bronpixels onder de
+// grondlijn: de klap, hij drukt zich in de grond. Zo bedoeld.
+const BAV_LANDING = { map: 'enemies/baviaan/landing/landing_', n: 25,
+  delen: [{ tot: 5, fps: 40 }, { tot: 25, fps: 12 }], vroeg: 0.05, uit: 0.12 };
 // De brul: 24 frames, direct na de landing, een keer, daarna het laatste. brul_00 is dezelfde pose als het
 // laatste landingsframe. Het canvas is 542 bij 592, breder dan de 493 van de rest: het begint `links` (44)
 // bronpixels links van het landingscanvas, met de bovenkant en de grondlijn (rij 575) gelijk. Op dezelfde
@@ -6002,26 +6011,100 @@ function baviaanLaad(){
 // canvas de grond raakt op de plek waar hij neerkomt, niet waar hij afzette: ligt daar een terras,
 // dan komt hij er bovenop, ligt de grond lager, dan valt hij langer. Die plek hangt van de valtijd af
 // en andersom, dus een paar keer over elkaar heen gerekend (op een helling is dat na drie keer vast).
+// Stof onder de baviaan, zoals bij Amir: zand en korrels op de savanne, poedersneeuw en kristallen in de sneeuw
+// (Winter World, of het veld `sneeuw` waar het dek dicht genoeg is), en niets in het water of boven een ravijn.
+// Per soort hoeveel en hoe groot: `land` (van de wand of na een sprong), `stap` (een poot die afzet in de run),
+// `rem` (hij remt: aan het eind van de uitval van een hap, als hij stilhoudt of omdraait). `kracht` schaalt het
+// geheel. De plek komt uit de frames: in bronpixels op het canvas van dat frame (`voet`), met bavBronX.
+const BAV_STOF = {
+  land: { wolk: 16, grootte: 2.6, korrel: 30, breed: 150, sneeuw: 1.25, schop: 200 },
+  stap: { wolk: 2, grootte: 1.2, korrel: 4, breed: 40, sneeuw: 0.3, schop: 110 },
+  rem:  { wolk: 6, grootte: 1.7, korrel: 12, breed: 70, sneeuw: 0.6, schop: 150 },
+  dicht: 0.9,                                               // stofwolk.png is ijl, vandaar groot en dicht (net als bij het skelet)
+  sneeuwVanaf: 0.45,                                        // vanaf zoveel dek stuift het sneeuw in plaats van zand
+  voet: { land: 185, landVoet: 60, run: [110, 370], sprong: 600, afzet: 515, hap: 355 }
+};
+// waar bronpixel px van het frame in de wereld ligt: anker is b.x plus zijn verschuiving, ox die van het canvas
+function bavBronX(b, anker, px, ox, scale){
+  const u = CHAR_H * scale, k = b.s * u / BAV_AFZET.kader.h;
+  const w0 = b.s * u * (baviaanImg && baviaanImg.naturalHeight ? baviaanImg.naturalWidth / baviaanImg.naturalHeight : 0.6);
+  return anker + (b.f ? -1 : 1) * (-w0 / 2 + (px - BAV_AFZET.kader.l - (ox || 0)) * k);
+}
+// dir: de kant waar het stof heen schopt (1 rechts, -1 links, 0 naar twee kanten)
+function bavStof(wx, soort, dir, kracht = 1){
+  const S = BAV_STOF[soort], base = terrainH(wx);
+  if (!S || building || inGap(wx) || waterDepthAt(wx, base) > 0.2) return;
+  const schop = (S.schop || 0) * (dir || 0) * kracht;
+  if (winterOn() || sneeuwAt(wx) >= BAV_STOF.sneeuwVanaf){
+    if (soort === 'land'){ snowBurst(wx, base, S.sneeuw * kracht); return; }
+    const n = Math.max(1, Math.round(S.wolk * kracht));
+    for (let i = 0; i < n; i++)
+      snowFxPush({ kind: 'cloud', shade: i % 3 === 0, x: wx + (Math.random() - 0.5) * S.breed, h: 2 + Math.random() * 8, base,
+                   vx: schop * (0.6 + Math.random() * 0.8) + (Math.random() - 0.5) * 60, vh: 30 + Math.random() * 50,
+                   r: (10 + Math.random() * 10) * S.grootte, age: 0, life: 0.6 + Math.random() * 0.5,
+                   rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 2 });
+    for (let i = 0; i < S.korrel; i++){
+      const vx = ((dir || 0) * (60 + Math.random() * 160) + (Math.random() - 0.5) * 120) * kracht, vh = (140 + Math.random() * 200) * kracht;
+      snowFxPush({ kind: 'crystal', x: wx + (Math.random() - 0.5) * S.breed * 0.6, h: 2, base, vx, vh,
+                   r: 1.2 + Math.random() * 1.6, age: 0, life: 0.5 + Math.random() * 0.5, tw: Math.random() * 6.28 });
+    }
+    return;
+  }
+  // zand: een lage wolk die over de grond wegschuift (bij een landing naar twee kanten), zoals de sneeuw hierboven
+  const n = Math.max(1, Math.round(S.wolk * kracht));
+  for (let i = 0; i < n; i++){
+    const zij = dir || (i % 2 ? 1 : -1), kant = dir ? 0.4 + Math.random() * 0.9 : 1;
+    wdust.push({ wx: wx + (Math.random() - 0.5) * S.breed, y: -Math.random() * 10, base,
+                 vx: zij * kant * ((S.schop || 150) * (0.6 + Math.random() * 0.9)) * kracht + (Math.random() - 0.5) * 50,
+                 vy: -20 - Math.random() * 60 * kracht, r: (11 + Math.random() * 12) * S.grootte, a: BAV_STOF.dicht,
+                 life: 0.7 + Math.random() * 0.5, age: 0, rot: Math.random() * 6.28 });
+  }
+  for (let i = 0; i < Math.round(S.korrel * kracht); i++){
+    const zij = dir || (Math.random() < 0.5 ? -1 : 1);
+    grains.push({ wx: wx + (Math.random() - 0.5) * S.breed, base, h: 0,
+                  vx: zij * (50 + Math.random() * 160) * kracht, vh: (60 + Math.random() * 140) * kracht,
+                  r: 1.2 + Math.random() * 1.8, age: 0, life: 0.4 + Math.random() * 0.35, dark: Math.random() < 0.35 });
+  }
+}
+// een moment voorbij in de tijd van een reeks: was het er het vorige beeld nog niet, en nu wel
+const bavLangs = (van, nu, moment) => van < moment && nu >= moment;
+const bavStofVan = new WeakMap();                          // per baviaan: waar de tijd van de afzet het vorige beeld stond
+function bavValDuur(hoog, g){ const op = BAV_VAL.op; return (op + Math.sqrt(op * op + 2 * g * Math.max(0, hoog))) / g; }
 function bavLandPlek(b, scale, lijn, g){
   const dir = b.f ? 1 : -1, h0 = terrainH(b.x);
   let rel = 0, tG = 0;
   for (let i = 0; i < 4; i++){
-    tG = Math.sqrt(2 * Math.max(0, lijn - rel) / g);
+    tG = bavValDuur(lijn - rel, g);
     rel = (terrainH(b.x + dir * BAV_VAL.vx * tG * CHAR_H * scale) - h0) / CHAR_H;
   }
-  return Math.sqrt(2 * Math.max(0, lijn - rel) / g);
+  return bavValDuur(lijn - rel, g);
 }
 function bavStand(b, scale){
   if (b.afzet == null) return { img: null, dx: 0, dy: 0 };
-  const t = (bavKlok - b.afzet) / 1000, tVal = t - BAV_AFZET.n / BAV_AFZET.fps;
-  if (tVal < 0) return { img: bavAfzetImgs[Math.floor(t * BAV_AFZET.fps)], dx: 0, dy: 0 };
-  const K = BAV_AFZET.kader, g = GRAVITY / CHAR_H;           // zwaartekracht in Amir per seconde kwadraat
-  const lijn = b.y + (K.t + K.h - BAV_VAL.grond) * b.s / K.h;   // hoe hoog de grondlijn van het canvas begint
+  const A = BAV_AFZET, V = BAV_VAL, LD = BAV_LANDING;
+  const t = (bavKlok - b.afzet) / 1000, tVal = t - A.los / A.fps;   // tVal: hoe lang hij al los van de wand is
+  if (tVal < 0) return { img: bavAfzetImgs[Math.floor(t * A.fps)], dx: 0, dy: 0 };
+  const K = A.kader, g = V.zwaar * GRAVITY / CHAR_H;            // zwaartekracht in Amir per seconde kwadraat
+  const lijn = b.y + (K.t + K.h - V.grond) * b.s / K.h;        // hoe hoog de grondlijn van het canvas begint
   const tGrond = bavLandPlek(b, scale, lijn, g), tv = Math.min(tVal, tGrond);
-  const dx = BAV_VAL.vx * tv, dy = g * tv * tv / 2;
-  if (tVal < tGrond) return { img: bavValImgs[Math.floor(tv * BAV_VAL.fps) % BAV_VAL.n], dx, dy };
-  const tLand = tVal - tGrond, tBrul = tLand - BAV_LANDING.n / BAV_LANDING.fps;
-  if (tBrul < 0) return { img: bavLandingImgs[Math.floor(tLand * BAV_LANDING.fps)], dx, dy };   // het canvas staat stil, de frames bewegen
+  const na = Math.min(Math.max(0, tVal - tGrond), LD.uit);      // uitglijden na de klap
+  const dx = V.vx * (tv + na - na * na / (2 * LD.uit)), dy = g * tv * tv / 2 - V.op * tv;
+  const tLand = tVal - Math.max(0, tGrond - LD.vroeg);
+  const vorig = bavStofVan.get(b);                              // de klap: stof bij zijn handen, dan bij zijn voeten
+  bavStofVan.set(b, { afzet: b.afzet, tLand });
+  if (vorig && vorig.afzet === b.afzet){
+    const anker = b.x + (b.f ? 1 : -1) * dx * CHAR_H * scale, vIn = g * tGrond - V.op;   // hoe hard hij neerkomt, in Amir per seconde
+    const kracht = Math.max(0.7, Math.min(1.4, vIn / 7));
+    if (bavLangs(vorig.tLand, tLand, deelTijd(LD.delen, 3))) bavStof(bavBronX(b, anker, BAV_STOF.voet.land, 0, scale), 'land', 0, kracht);
+    if (bavLangs(vorig.tLand, tLand, deelTijd(LD.delen, 5))) bavStof(bavBronX(b, anker, BAV_STOF.voet.landVoet, 0, scale), 'rem', b.f ? 1 : -1, 0.8 * kracht);
+  }
+  if (tLand < 0){                                              // in de lucht: de rest van de afzet, dan de val-lus
+    const f = A.los + Math.floor(tVal * A.luchtFps);
+    if (f < A.n) return { img: bavAfzetImgs[f], dx, dy };
+    return { img: bavValImgs[Math.floor((tVal - (A.n - A.los) / A.luchtFps) * V.fps) % V.n], dx, dy };
+  }
+  const tBrul = tLand - deelTijd(LD.delen, LD.n);
+  if (tBrul < 0) return { img: bavLandingImgs[Math.min(LD.n - 1, deelFrame(LD.delen, tLand))], dx, dy };
   const tIdle = tBrul - deelTijd(BAV_BRUL.delen, BAV_BRUL.n);
   const G = BAV_BRUL.geluid, tGeluid = deelTijd(BAV_BRUL.delen, G.bij) - G.voor;
   if (tBrul >= tGeluid && tIdle < 0.5 && bavBrulGespeeld.get(b) !== b.afzet){   // de brul klinkt, een keer per afzet
@@ -6076,6 +6159,8 @@ function bavVecht(b, r, t, dx0, scale, lijn){
   const u = CHAR_H * scale, k = b.s * u / BAV_AFZET.kader.h;           // schermpixels per Amir, per bronpixel
   if (r.fase == null){ r.fase = 'run'; r.fT = t; r.tL = t; r.wx = (b.f ? 1 : -1) * dx0 * u; }
   const dt = Math.max(0, Math.min(0.1, t - r.tL)); r.tL = t;
+  // stof onder een voet: px in bronpixels op het canvas met verschuiving ox (BAV_STOF)
+  const stof = (px, ox, soort, dir, kracht) => bavStof(bavBronX(b, b.x + r.wx, px, ox, scale), soort, dir, kracht);
   const uit = (img, extra) => {
     const bx = b.x + r.wx, rel = (terrainH(bx) - terrainH(b.x)) / CHAR_H;
     return Object.assign({ img, dx: r.wx * (b.f ? 1 : -1) / u, dy: lijn - rel }, extra);
@@ -6088,7 +6173,9 @@ function bavVecht(b, r, t, dx0, scale, lijn){
   const naarAmir = () => { b.f = amirX > b.x + r.wx; };               // omdraaien naar Amir
   const naarRun = () => { r.fase = 'run'; r.fT = t; r.pas = -1; r.pasT = 0; };
   if (r.fase === 'sprong'){
-    const S = BAV_SPRONG, ts = t - r.fT, f = deelFrame(r.delen, ts);
+    const S = BAV_SPRONG, ts = t - r.fT, f = deelFrame(r.delen, ts), vorigT = r.stofT; r.stofT = ts;
+    if (bavLangs(vorigT, ts, deelTijd(r.delen, 6))) stof(BAV_STOF.voet.afzet, S.links, 'stap', b.f ? -1 : 1, 1.6);   // de afzet
+    if (bavLangs(vorigT, ts, deelTijd(r.delen, S.lucht[1] + 1))) stof(BAV_STOF.voet.sprong, S.links, 'land', 0, r.kooiSprong ? 1 : 0.8);
     if (f > (r.kooiSprong ? S.n - 1 : S.terug)){
       // over de kooi: tot het laatste frame, dan omdraaien naar Amir en brullen; anders terug naar run_00
       if (r.kooiSprong){ r.kooiSprong = false; r.fase = 'brul'; r.fT = t; r.brulSnd = false; naarAmir(); }
@@ -6115,7 +6202,9 @@ function bavVecht(b, r, t, dx0, scale, lijn){
     else return uit(bavGromImgs[Math.floor((t - r.fT) * BAV_IDLE_GROM.fps) % BAV_IDLE_GROM.n], { ox: BAV_IDLE_GROM.links });
   }
   if (r.fase === 'hap'){
-    const f = bavHapFrame(t - r.fT);
+    const f = bavHapFrame(t - r.fT), vorigT = r.stofT; r.stofT = t - r.fT;
+    // de uitval: zijn achterpoten schuiven en remmen hem af, het stof schiet mee naar voren
+    if (bavLangs(vorigT, r.stofT, bavHapTijd(BAV_HAP.uit[1]))) stof(BAV_STOF.voet.hap, BAV_HAP.links, 'rem', b.f ? 1 : -1, 1);
     if (f >= BAV_HAP.n){
       r.fase = r.raak ? 'rust' : 'run'; r.fT = t;
       if (r.fase === 'rust') return uit(bavGromImgs[0], { ox: BAV_IDLE_GROM.links });
@@ -6141,7 +6230,7 @@ function bavVecht(b, r, t, dx0, scale, lijn){
   const lijfMidden = b.x + r.wx + (runKd ? fd * -(-w0 / 2 - (BAV_AFZET.kader.l + BAV_RUN.links) * k + (runKd.l + runKd.r) / 2 * k) : 0);
   // de sprong beginnen, de kant op waar hij kijkt: piek in Amir, delen uit bavSprongDelen, kooi: over de kooi
   const springen = (piek, delen, kooi) => {
-    r.fase = 'sprong'; r.fT = t; r.wx0 = r.wx; r.bijt = false; r.piek = piek; r.delen = delen; r.kooiSprong = !!kooi;
+    r.fase = 'sprong'; r.fT = t; r.stofT = 0; r.wx0 = r.wx; r.bijt = false; r.piek = piek; r.delen = delen; r.kooiSprong = !!kooi;
     return uit(bavSprongImgs[0], { ox: BAV_SPRONG.links, oy: BAV_SPRONG.boven });
   };
   // de kooi: twee ravijnen waar hij Amir op vasthoudt (BAV_KOOI)
@@ -6173,12 +6262,22 @@ function bavVecht(b, r, t, dx0, scale, lijn){
     if (doel){ if ((rand - lijfMidden) * fd < 0) b.f = !b.f; }        // eerst naar de rand rennen
     else if (ak === 0){                                                // Amir staat in de kooi: wachten, hem aankijken
       naarAmir();
-      if (r.fase !== 'wacht'){ r.fase = 'wacht'; r.fT = t; }
+      if (r.fase !== 'wacht'){
+        if (r.fase === 'run') stof(BAV_STOF.voet.hap, BAV_RUN.links, 'rem', fd, 1);   // hij remt uit zijn run
+        r.fase = 'wacht'; r.fT = t;
+      }
       return uit(bavGromImgs[Math.floor((t - r.fT) * BAV_IDLE_GROM.fps) % BAV_IDLE_GROM.n], { ox: BAV_IDLE_GROM.links });
     }
     if (r.fase === 'wacht') naarRun();
   }
-  r.pasT = (r.pasT || 0) + dt * fps;
+  const pasVan = r.pasT || 0;
+  r.pasT = pasVan + dt * fps;
+  // de run: de voorpoten komen neer (frame 4), de achterpoten zetten af en schoppen zand naar achteren (frame 10)
+  for (let q = Math.floor(pasVan) + 1; q <= Math.floor(r.pasT); q++){
+    const f = q % BAV_RUN.n;
+    if (f === 4) stof(BAV_STOF.voet.run[0], BAV_RUN.links, 'stap', 0, 0.6);
+    if (f === 10) stof(BAV_STOF.voet.run[1], BAV_RUN.links, 'stap', -fd, 1);
+  }
   // een kei voor hem: hij kan er niet door, dus hij springt (regel 7)
   if (runKd && level && level.rocks.length && zelfdeKant){
     const S = BAV_SPRONG, basis = bavSprongDelen();
@@ -6199,13 +6298,16 @@ function bavVecht(b, r, t, dx0, scale, lijn){
     const reik = kd => w0 / 2 + (BAV_AFZET.kader.l + BAV_HAP.links - kd.l) * k;   // hoe ver hij voor zijn anker reikt
     const lijf = reik(runKd), bek = reik(hapKd);
     if (voor - lijf <= BAV_HAP.speer * scale + BAV_HAP.marge * u){   // binnen Amirs speerstoot: hap, meteen
-      r.fase = 'hap'; r.fT = t; r.raak = false; r.bijt = false;
+      r.fase = 'hap'; r.fT = t; r.stofT = 0; r.raak = false; r.bijt = false;
       r.uitval = Math.min(Math.max(0, voor - bek * 0.85), BAV_HAP.uitval * u); r.wx0 = r.wx;
       return uit(bavHapImgs[0], { ox: BAV_HAP.links });
     }
   }
   const pas = Math.floor(r.pasT / BAV_RUN.n);
-  if (pas !== r.pas){ r.pas = pas; if (voor < 0 && zelfdeKant) b.f = !b.f; }   // omdraaien aan het begin van een pas
+  if (pas !== r.pas){                                                 // omdraaien aan het begin van een pas: hij remt
+    r.pas = pas;
+    if (voor < 0 && zelfdeKant){ stof(BAV_STOF.voet.hap, BAV_RUN.links, 'rem', fd, 0.8); b.f = !b.f; }
+  }
   r.wx += (b.f ? 1 : -1) * bavV() * dt;
   return uit(runImg, { ox: BAV_RUN.links });
 }
@@ -16918,7 +17020,7 @@ function loop(now){
         const px = cx + (d.wx - world), py = groundY + d.y * scale - (d.base || 0) * scale;
         const pimg = puffPic();
         if (imgReady(pimg)){
-          ctx.globalAlpha = 0.55 * k;
+          ctx.globalAlpha = (d.a || 0.55) * k;          // d.a: een dichtere wolk (de baviaan)
           const pw = rr * 2.6, phh = pw * pimg.naturalHeight / pimg.naturalWidth;
           ctx.save(); ctx.translate(px, py); ctx.rotate(d.rot + d.age * 1.5);
           ctx.drawImage(pimg, -pw / 2, -phh / 2, pw, phh); ctx.restore();
