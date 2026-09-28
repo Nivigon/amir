@@ -479,6 +479,9 @@ Een houten schijf met een rune, plat in de grond, in een ring van platte stenen 
 erop, dan licht de rune op en gloeit het hout warm; stap je er later nog eens op, dan gaat hij weer uit. Eraf stappen doet
 niets, dus wie blijft staan zet hem maar een keer om. Opgesprongen telt niet: je voeten moeten op de grond staan.
 
+Een zegel ligt op de vloer waar hij staat: de savanne, een terras, de vloer van een rotsgebied, of onder de grond op de
+bodem van een gang of op een trede van de trap naar buiten. Op een kei om op te springen of een richel ligt hij niet.
+
 Een zegel is een schakelaar: wat er gebeurt als hij aangaat, zet een level erbij. Nu kan hij de grond openscheuren, met
 hetzelfde ravijn als in Test 6: `zegels: [ {x: -900, ravijn: -1350} ]`. Dat gebeurt een keer per potje; zet je hem weer
 uit, dan blijft het gat open. Zonder `ravijn` licht hij alleen op.

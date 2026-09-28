@@ -1103,18 +1103,19 @@ def komend_ravijn(lv, sp):
 
 @regel('zegels')
 def zegels(lv, sp):
-    """Een zegel ligt plat op de grond en gaat aan als Amir erop stapt. Boven een ravijn of in
-    een gang kan dat niet, en een ravijn dat opengaat onder het zegel zelf laat hem meteen vallen,
-    behalve bij een val (vijand: true): daar is dat juist de bedoeling."""
+    """Een zegel ligt plat op de grond en gaat aan als Amir erop stapt. Boven een ravijn kan dat
+    niet (in een gang wel: daar ligt hij op de bodem of een trede, ook onder een gat in het dak),
+    en een ravijn dat opengaat onder het zegel zelf laat hem meteen vallen, behalve bij een val
+    (vijand: true): daar is dat juist de bedoeling."""
     for z in lv.d.get('zegels') or []:
         half = (z.get('breed') or sp.RAVIJN_BREED) / 2
         x = z.get('x')
         if not isinstance(x, (int, float)):
             continue
-        if lv.in_gat(x - sp.zegelR, x + sp.zegelR):
-            yield fout(x, 'zegel boven een ravijn: daar kan Amir niet op staan')
         if lv.holte(x):
-            yield fout(x, 'zegel boven een gang: hij wordt op de bodem getekend, maar gaat alleen aan op de savanne')
+            yield info(x, 'zegel in de gang: hij ligt op de bodem of op een trede')
+        elif lv.in_gat(x - sp.zegelR, x + sp.zegelR):
+            yield fout(x, 'zegel boven een ravijn: daar kan Amir niet op staan')
         r = z.get('ravijn')
         if not isinstance(r, (int, float)):
             continue
