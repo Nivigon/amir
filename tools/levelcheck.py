@@ -337,6 +337,7 @@ class Spel:
         self.HOLTE_DAK = b.getal('HOLTE_DAK')
         self.FAR_GAP_LIFT = b.getal('FAR_GAP_LIFT')
         self.PLAYER_HALF_W = b.getal('PLAYER_HALF_W')
+        self.ZUIL_MAX = float(b.regex(r'const ZUIL = \{ max: ([\d.]+)', 'ZUIL.max').group(1))
         self.THICKET_BOX = b.getal('THICKET_BOX')
         self.THICKET_OVERLAP = b.getal('THICKET_OVERLAP')
         self.THICKET_BACK_S = b.getal('THICKET_BACK_S')
@@ -975,6 +976,31 @@ def rijzende_grond(lv, sp):
             yield fout(z.get('x'), 'zegel met rijs: \'%s\', maar er is geen rijzende grond met die naam' % z.get('rijs'))
 
 
+@regel('zuil')
+def zuil(lv, sp):
+    """Een strook grond van hoogstens ZUIL.max tussen twee ravijnen is een zuil (zie ZUIL in de HTML).
+    Daar redt het spel een te korte sprong niet: wie onder de rand zakt glijdt langs de wand naar
+    beneden. Het gat ervoor moet dus met een schone sprong te halen zijn, zonder wegzakken."""
+    gaps = sorted(lv.gaps, key=lambda g: -g['x'])
+    for a, b in zip(gaps, gaps[1:]):                 # a ligt rechts (daar komt hij vandaan), b links
+        r, l = a['x'] - a['w'] / 2, b['x'] + b['w'] / 2
+        breed = r - l
+        if breed <= 0 or breed > sp.ZUIL_MAX:
+            continue
+        if any(h['l'] < r and h['r'] > l for h in lv.holtes):
+            continue
+        kop = lambda x: lv.kop(x) - lv.terrein(x)
+        rand = a['x'] + a['w'] / 2
+        schoon_r, _ = sp.sprong(sp.LOOP * sp.SPRINT, kop, rand)
+        schoon_l, _ = sp.sprong(sp.LOOP, kop, rand)
+        if a['w'] > schoon_r:
+            yield fout((r + l) / 2, 'zuil van %s breed achter een gat van %s: met sprint komt Amir %s ver, en te kort '
+                       'springen wordt op een zuil niet gered' % (n0(breed), n0(a['w']), n0(schoon_r)))
+        else:
+            yield info((r + l) / 2, 'zuil van %s breed achter een gat van %s (%s)'
+                       % (n0(breed), n0(a['w']), 'lopend te halen' if a['w'] <= schoon_l else 'alleen met sprint'))
+
+
 @regel('ravijnen')
 def ravijnen(lv, sp):
     """Het breedste gat dat de sprong haalt, met het plafond en het water erbij."""
@@ -1144,6 +1170,40 @@ def komend_ravijn(lv, sp):
     for m in uit:
         if m:
             yield m
+
+
+@regel('speer na een rune')
+def speer_na_rune(lv, sp):
+    """Een speer in een runeschijf zit vast (regel 9): na de rune heeft Amir geen speer meer, tot
+    hij een nieuwe pakt uit een skelet. Of dat nodig is, is een keuze van het level, maar een
+    doornbos kap je alleen met een speer (de stoot en de lage zwaai willen er allebei een). Een
+    doornbos dat na een rune komt en voor het volgende skelet, houdt hem dus voorgoed tegen, en
+    de speer daarachter krijgt hij nooit. Zo stond het in Jager 4.
+
+    Het mes (Jackal Fang van Impungushe) kapt een doornbos ook, zonder speer. Kan de speler dat
+    mes in dit level hebben, dan is het een LET OP: het werkt alleen met het mes. Nu is dat alleen
+    een level met talentKeuze (Test 14), want Impungushe staat op slot. Komt er een level voor de
+    jakhals, zet het dan bij mes_kan."""
+    runes = lv.d.get('runes') or sp.RAVIJN_PROEF.get(lv.d.get('name'), [])   # zoals ravijnProef
+    mes_kan = bool(lv.d.get('talentKeuze'))
+    # Amir loopt naar links: alles op volgorde van hoog naar laag
+    wat = [(e['x'], 0, 'rune') for e in runes if isinstance(e.get('x'), (int, float))]
+    wat += [(o['x'], 1, 'skelet') for o in lv.d.get('skeletten') or [] if isinstance(o.get('x'), (int, float))]
+    wat += [(t['x'], 2, 'doornbos') for t in lv.d.get('thickets') or [] if isinstance(t.get('x'), (int, float))]
+    wat.sort(key=lambda w: (-w[0], w[1]))
+    kwijt = None                                   # de x van de rune waar de speer in bleef
+    for x, _, soort in wat:
+        if soort == 'rune':
+            kwijt = x
+        elif soort == 'skelet':
+            kwijt = None
+        elif kwijt is not None:
+            tekst = ('doornbos op %s komt na de rune op %s en voor een skelet: de speer zit in de schijf, '
+                     'en zonder speer kap je dit doornbos niet' % (n0(x), n0(kwijt)))
+            if mes_kan:
+                yield letop(x, tekst + ' (alleen met het mes, Jackal Fang)')
+            else:
+                yield fout(x, tekst)
 
 
 @regel('zegels')
