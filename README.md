@@ -45,7 +45,22 @@ aan en twijfelt, met de speer nog in zijn borst, en pas dan zakt hij in elkaar, 
 staan voor het zegel en blijven dicht zolang hij leeft; daarna loop je terug. In de sandbox laat **Dood** (onder Baviaan)
 het hele stuk zien, en **Dood door speerval** hetzelfde met de speer in zijn borst (of met **Spiegel** in zijn rug).
 
-**Test 17: De zuil** gaat over precies springen. Midden in een ravijn is een smalle zuil grond blijven staan, en daar moet
+In **Test 17: Het zakkende plafond** laat je je in een ravijn vallen en loop je onder de grond door een lage doorgang.
+Vlak daarachter ligt een zegel, en daar kun je niet omheen: ook wie eroverheen springt, zet hem aan. Dan valt de doorgang
+achter je dicht, zakt de doorgang aan het eind van de kamer tot een smalle spleet waar je niet onderdoor kunt, en komt het
+plafond met een klap en daarna langzaam op je af. Na zo'n zestien seconden ben je geplet (bukken rekt het nog even). Door
+de spleet zie je een tweede zegel liggen. Raak het met je speer: een vlakke worp (kort vasthouden) gaat onder de spleet
+door, een boog raakt het plafond en valt terug. Hoe ver een vlakke worp komt hangt aan je scherm, dus zoek de plek in de
+kamer waar hij precies op het zegel valt. Gooi je te kort, dan ligt je speer in de kamer en raap je hem op; gooi je te
+ver, dan zet het spel hem naast je neer. Raak je het zegel, dan gaat alles weer omhoog en loop je door naar de fakkels.
+In de sandbox staat het bij Terrein onder **Zakplafond**: **Neerzetten** zet de val in het klein voor je uit,
+**Zakken** laat hem meteen dichtgaan, **Omhoog** haalt hem op en **Weg** ruimt hem op. Een level zet het met
+`zakplafond: [ {r, l, rust, dicht, v, schok, duw} ]` en twee zegels, `{x, plafond: 'zak'}` en `{x, plafond: 'op'}`.
+
+De Test levels staan in het menu per zes op een blad. Met de pijltjes eronder ga je naar de volgende zes (7 t/m 12,
+13 t/m 18) en terug.
+
+**Test 18: De zuil** gaat over precies springen. Midden in een ravijn is een smalle zuil grond blijven staan, en daar moet
 je op landen. Een sprong die net te kort is, wordt hier niet gered: bij de overkant van een gewoon ravijn zet het spel je
 weer op de rand als je er net onder zakt, maar de zijkant van een zuil is een wand, en daar glijd je langs naar beneden.
 Eerst een brede zuil over twee gaten die je lopend haalt. Dan een zuil van een halve Amir breed achter een gat dat je
@@ -653,7 +668,7 @@ zon schuin naar binnen, uit dezelfde richting als waar hij in de lucht staat. Da
 Test 1, onder het rotsdak.
 
 In de sandbox staat het onder **Ravijn**: **Smal** en **Breed** zetten een breuk neer waar je
-staat. Onder **Zuil** staan twee ravijnen met een smalle strook grond ertussen (zie Test 17).
+staat. Onder **Zuil** staan twee ravijnen met een smalle strook grond ertussen (zie Test 18).
 
 ## Onder de grond
 

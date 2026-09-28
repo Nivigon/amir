@@ -1127,6 +1127,40 @@ def komend_ravijn(lv, sp):
             yield m
 
 
+@regel('speer na een rune')
+def speer_na_rune(lv, sp):
+    """Een speer in een runeschijf zit vast (regel 9): na de rune heeft Amir geen speer meer, tot
+    hij een nieuwe pakt uit een skelet. Of dat nodig is, is een keuze van het level, maar een
+    doornbos kap je alleen met een speer (de stoot en de lage zwaai willen er allebei een). Een
+    doornbos dat na een rune komt en voor het volgende skelet, houdt hem dus voorgoed tegen, en
+    de speer daarachter krijgt hij nooit. Zo stond het in Jager 4.
+
+    Het mes (Jackal Fang van Impungushe) kapt een doornbos ook, zonder speer. Kan de speler dat
+    mes in dit level hebben, dan is het een LET OP: het werkt alleen met het mes. Nu is dat alleen
+    een level met talentKeuze (Test 14), want Impungushe staat op slot. Komt er een level voor de
+    jakhals, zet het dan bij mes_kan."""
+    runes = lv.d.get('runes') or sp.RAVIJN_PROEF.get(lv.d.get('name'), [])   # zoals ravijnProef
+    mes_kan = bool(lv.d.get('talentKeuze'))
+    # Amir loopt naar links: alles op volgorde van hoog naar laag
+    wat = [(e['x'], 0, 'rune') for e in runes if isinstance(e.get('x'), (int, float))]
+    wat += [(o['x'], 1, 'skelet') for o in lv.d.get('skeletten') or [] if isinstance(o.get('x'), (int, float))]
+    wat += [(t['x'], 2, 'doornbos') for t in lv.d.get('thickets') or [] if isinstance(t.get('x'), (int, float))]
+    wat.sort(key=lambda w: (-w[0], w[1]))
+    kwijt = None                                   # de x van de rune waar de speer in bleef
+    for x, _, soort in wat:
+        if soort == 'rune':
+            kwijt = x
+        elif soort == 'skelet':
+            kwijt = None
+        elif kwijt is not None:
+            tekst = ('doornbos op %s komt na de rune op %s en voor een skelet: de speer zit in de schijf, '
+                     'en zonder speer kap je dit doornbos niet' % (n0(x), n0(kwijt)))
+            if mes_kan:
+                yield letop(x, tekst + ' (alleen met het mes, Jackal Fang)')
+            else:
+                yield fout(x, tekst)
+
+
 @regel('zegels')
 def zegels(lv, sp):
     """Een zegel ligt plat op de grond en gaat aan als Amir erop stapt. Boven een ravijn of in
@@ -1139,8 +1173,9 @@ def zegels(lv, sp):
             continue
         if lv.in_gat(x - sp.zegelR, x + sp.zegelR):
             yield fout(x, 'zegel boven een ravijn: daar kan Amir niet op staan')
-        if lv.holte(x):
-            yield fout(x, 'zegel boven een gang: hij wordt op de bodem getekend, maar gaat alleen aan op de savanne')
+        if lv.holte(x) and lv.in_gat(x - sp.zegelR - 200, x + sp.zegelR + 200):
+            yield letop(x, 'zegel in een gang vlak bij een gat in het dak: hij ligt op de bodem, en wie op de '
+                           'savanne boven langs loopt zet hem niet aan')
         r = z.get('ravijn')
         if not isinstance(r, (int, float)):
             continue
@@ -1157,6 +1192,41 @@ def zegels(lv, sp):
     for z in lv.d.get('zegels') or []:
         if z.get('muur') and not lv.muur:
             yield fout(z.get('x'), 'zegel met muur, maar dit level heeft geen rotswand: hij doet niets')
+
+
+@regel('zakplafond')
+def zakplafond(lv, sp):
+    """Het zakkende plafond (zie "zakplafond"): er moet een zegel zijn dat het laat zakken, en een
+    zegel dat het weer ophaalt, anders zit je er voorgoed onder. In een gang hangt een stuk aan het
+    dak: meer ruimte eronder dan tot het dak kan niet. Een stuk dat al in rust lager hangt dan Amir
+    houdt hem tegen voor er iets gebeurd is."""
+    stukken = lv.d.get('zakplafond') or []
+    if not stukken:
+        return
+    zegels = lv.d.get('zegels') or []
+    x0 = stukken[0].get('r')
+    if not any(z.get('plafond') == 'zak' for z in zegels):
+        yield fout(x0, 'zakplafond zonder zegel met plafond: \'zak\': het zakt nooit')
+    if not any(z.get('plafond') == 'op' for z in zegels):
+        yield letop(x0, 'zakplafond zonder zegel met plafond: \'op\': eenmaal gezakt gaat het nooit meer omhoog')
+    for s in stukken:
+        r, l = s.get('r'), s.get('l')
+        if not isinstance(r, (int, float)) or not isinstance(l, (int, float)) or l >= r:
+            yield fout(x0, 'stuk van het zakplafond zonder goede r en l (l moet links van r liggen)')
+            continue
+        rust, dicht = s.get('rust') or 0, s.get('dicht') or 0
+        o = lv.holte((l + r) / 2)
+        if o:
+            ruimte = (o.get('diep') or 600) - sp.HOLTE_DAK
+            if rust > ruimte + 1:
+                yield letop(r, 'stuk van het zakplafond op %s tot %s: rust %s, maar tot het dak is het maar %s'
+                               % (n0(r), n0(l), n0(rust), n0(ruimte)))
+        if rust < sp.CHAR_H:
+            yield fout(r, 'stuk van het zakplafond op %s tot %s hangt in rust op %s, lager dan Amir (%s): '
+                          'daar kom je nooit langs' % (n0(r), n0(l), n0(rust), n0(sp.CHAR_H)))
+        if dicht > rust:
+            yield letop(r, 'stuk van het zakplafond op %s tot %s: dicht (%s) is hoger dan rust (%s)'
+                           % (n0(r), n0(l), n0(dicht), n0(rust)))
 
 
 @regel('plafond')
