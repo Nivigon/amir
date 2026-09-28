@@ -43,7 +43,7 @@ ervoor (zie de speerval hieronder). Stap op het zegel als hij achter je aan komt
 heen en recht in de borst van de baviaan, en daar blijft hij in zitten. Denk niet te snel dat je gewonnen hebt: hij deinst terug, gromt, brult je nog een keer
 aan en twijfelt, met de speer nog in zijn borst, en pas dan zakt hij in elkaar, voorover op de speer. Zolang dat duurt sta je stil en kijkt de camera naar hem. De fakkels
 staan voor het zegel en blijven dicht zolang hij leeft; daarna loop je terug. In de sandbox laat **Dood** (onder Baviaan)
-het hele stuk zien, en **Dood door speerval** hetzelfde met de speer in zijn borst.
+het hele stuk zien, en **Dood door speerval** hetzelfde met de speer in zijn borst (of met **Spiegel** in zijn rug).
 
 **Baboon tests** is een episode met proefstukken voor de baviaan, en net als Testrun begin je met de tribekeuze. In
 **Baboon 1: De speerbeet** (dezelfde vlakte als Test 15) hangt hij niet aan de wand maar staat hij grommend op de grond,
@@ -496,7 +496,7 @@ recht op je af, op heuphoogte van een
 staande Amir. Buk (pijl omlaag of S): dan vliegt hij over je heen. Blijf je staan, dan raakt hij jou, en springen helpt
 niet. Wat achter je loopt raakt hij wel: de baviaan, die verder niet te verslaan is, gaat er dood van. Raakt hij hem van
 voren, dan blijft de speer in zijn borst steken tot hij als lijk ligt; raakt hij hem van achteren (hij had zich net
-omgedraaid), dan valt de speer zoals na een misser. Mist de speer, dan
+omgedraaid), dan blijft hij schuin in zijn rug steken. Mist de speer, dan
 valt hij na een eind neer, ligt hij even, en zit hij daarna weer in de wand; het zegel gaat dan uit en werkt opnieuw.
 
 Een level zet hem met `speervallen: [ {x: -2900} ]` (de x van de klif waar hij in zit) en een zegel dat ernaar wijst:
