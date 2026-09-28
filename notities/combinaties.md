@@ -91,53 +91,60 @@ stappen van 25:
 
 Een ravijn van 450 tot 525 aan een terras van 150 is dus alleen vanaf het terras te halen.
 
-## Schijven in de wand: gooien op een doel
+## Runes op een rots: gooien op een doel
 
-Een schijf (`schijven` in een level, zie `CLAUDE.md`) is de runeschijf rechtop op een wand die naar
-Amir kijkt, en dezelfde schakelaar als een zegel: je raakt hem met een geworpen speer in plaats van
-erop te stappen. De speer blijft erin zitten (regel 9). Proeven in `notities/proeven/s*.json`,
-beelden in `schijven.jpg`.
+Een rune op een rots als doel (`runes` met `doel: true`) kan nu ook iets doen als je hem raakt, net als
+een zegel: een ravijn openen op een andere plek (`ravijn`, `breed`), een open ravijn sluiten (`sluit`),
+de rotswand openen (`muur`) of de speerval losschieten (`speerval`). De rots staat op de vloer onder
+zijn midden: de savanne, een terras, of in een gang de bodem. Proeven in `notities/proeven/r*.json`,
+beelden in `runes.jpg`.
 
-### Van waar raak je een schijf
+### Van waar raak je de rune
 
-Gemeten met de worp uit het spel (`schijfStroken`, en elke strook nagegooid met de echte speer), op
-1280 bij 720: je ziet 640 px voor je uit. De getallen zijn de afstand van Amir tot de wand, in px.
-Vlak is de korte tik, boog de lang vastgehouden worp. Vetgedrukt: de schijf is dan niet in beeld.
+Gemeten met de worp uit het spel (`runeStroken`, de stroken nagegooid met de echte speer), rotsen van
+3,5 Amir, op 1280 bij 720: je ziet 640 px voor je uit. De getallen zijn de afstand van Amir tot de
+schijf in px, vanaf de vloer en vanaf een kei (114 hoog) die op die afstand ligt. Vetgedrukt: de
+schijf is dan niet in beeld.
 
-| hoogte schijf | vanaf de vloer | vanaf een kei (114) | vanaf een terras 150 hoger | vanaf een terras 300 hoger |
+| hoogte rune | spits | pieken | zuilen | scheve boog |
 | --- | --- | --- | --- | --- |
-| 0,5 Amir | vlak **760-1130** | vlak **1210-1450** | vlak **1310-1530** | vlak **1660-1840** |
-| 0,75 | vlak 160-890, boog 170-200 | vlak **1000-1290** | vlak **1130-1380** | vlak **1530-1720** |
-| 1,0 | vlak 150-530, boog 140-280 | vlak **700-1090** | vlak **880-1210** | vlak **1380-1590** |
-| 1,25 | boog 240-370 | vlak 150-850, boog 150-210 | vlak 500-1000 | vlak **1190-1440** |
-| 1,5 | boog 320-460, **2160-2300** | vlak 160-410, boog 150-290 | vlak 140-710, boog 140-250 | vlak **980-1280** |
-| 1,75 | boog 420-570, **2050-2210** | boog 250-380 | boog 210-330 | vlak 680-1090 |
-| 2,0 | boog 520-700, **1920-2100** | boog 340-480 | boog 300-420 | vlak 150-840, boog 150-220 |
-| 2,25 | boog **640-870**, **1760-1980** | boog 440-590 | boog 380-530 | vlak 160-380, boog 150-300 |
-| 2,5 | boog **790-1160**, **1460-1830** | boog 540-730 | boog 480-650 | boog 260-390 |
-| 3,0 | niet | boog **820-1800** | boog **730-1010** | boog 440-600 |
+| 0,75 Amir, vloer | 180-760 | 180-820 | 510-780 | 180-780 |
+| 0,75, kei | **1040-1200** | **1020-1240** | **1060-1200** | **1000-1240** |
+| 1,0, vloer | 170-360 | 170-280 | 170-410 | 170-290 |
+| 1,0, kei | **740-1040** | **720-1040** | **740-1040** | **740-980** |
+| 1,5, vloer | 390-460 | 410-460 | 390-460 | 390-460 |
+| 1,5, kei | 180-280 | 180-280 | 180-280 | 180-280 |
+| 2,0, vloer | 580-700 | 590-700 | 580-690 | 610-700 |
+| 2,0, kei | 380-480 | 420-480 | 380-480 | 440-480 |
+| 2,25, vloer | **720-820** | **720-870** | **690-870** | **770-870** |
+| 2,25, kei | 520-560 | 500-600 | 480-600 | 560-600 |
+| 2,5, vloer | **800-1040** | **970-1140** | **890-1080** | **890-1160** |
+| 2,5, kei | 580-700 | **700-720** | 640-700 | 640-720 |
+
+Daarnaast is er bij 1,5 tot 2,5 Amir een verre boog vanaf de vloer, rond 1500 tot 2300 px, ver buiten beeld.
 
 Wat eruit volgt:
 
-- Vlak gooien vanaf de vloer raakt alleen tot 1 Amir. Daarboven is het de boog, of hoger gaan staan.
-- Vanaf 2,25 Amir moet je vanaf de vloer blind gooien; vanaf een kei zie je hem wel. Zo'n schijf
-  dwingt je eerst hoger te komen. Op 3 Amir raak je hem vanaf de vloer helemaal niet.
-- Een lage schijf (0,5) is juist lastig: de vlakke worp zakt, dus je moet ver weg staan.
-- Een schijf moet helemaal op zijn wand passen: `levelcheck.py` meldt een schijf die boven zijn
-  terras uitsteekt of niet aan een wand hangt.
+- Anders dan bij een rechte wand vangt de brede voet van de rots een verre vlakke worp op: een rune op
+  1 Amir raak je vanaf de vloer alleen van dichtbij.
+- Een rune op 2,25 Amir is de "eerst hoger"-hoogte: vanaf de vloer gooi je blind, vanaf een kei zie je
+  hem. Op 2,5 is ook de kei krap.
+- Een kei te dichtbij is net zo slecht als geen kei: dan kom je te hoog uit en gaat de boog erover.
+- De maten van een rots hangen aan het scherm (zie `CLAUDE.md`), de afstanden hierboven dus ook.
+  Ontwerp met ruimte, en kijk op een ander scherm na met de knoppen in de sandbox.
 
 ### De vijf proeven
 
 | # | proef | de maten | uitkomst | oordeel |
 | --- | --- | --- | --- | --- |
-| S1 | terug over het ravijn: een schijf met `sluit` achter een ravijn dat een zegel opende | terras -2000 tot -2800 op 300, richel op 150, zegel -1150 met ravijn -1750 breed 500, schijf -2000 op 0,75 | werkt: vlak vanaf 600 px, het ravijn gaat dicht | ? |
-| S2 | boven de doorgang: een hoge schijf op een rotstoren opent de rotswand | rotsraster x -2600, drie kolommen, vier rijen rots boven twee rijen doorgang; kei -1740; schijf -2240 op 2,25 met `muur` | werkt vanaf de kei; vanaf de vloer op 600 px mis | ? |
-| S3 | licht in de gang: een schijf op de eindwand opent het dak | gang -800 tot -3600 diep 600, schijf -3600 op 1,0 met ravijn -3050 breed 400 | werkt (na de twee reparaties hieronder) | ? |
-| S4 | achter de vechter: een vijand tussen jou en de schijf | terras op 300, schijf -2000 op 1,0, vechter op -1850 | de speer raakt de vechter; de schijf is zo niet te raken | ? |
-| S5 | van verre: de verre boog opent een ravijn onder een nietsvermoedende vechter | rotstoren als S2, schijf op 2,0 met ravijn -1940 breed 300, vechter op -1940, gooien vanaf 1940 px | werkt: hij valt erin zonder je te zien, maar je gooit blind | ? |
+| R1 | de zuilen sluiten het ravijn dat een zegel opende | zegel -1150 met ravijn -1700 breed 450, zuilen met voet op -2848, rune op 0,75 met `sluit: -1700` | werkt: vlak vanaf 584 px, het ravijn gaat dicht | ? |
+| R2 | pieken, alleen vanaf de kei | pieken met voet op -3000, rune op 2,25 met `muur`, kei op -1844 (550 px ervoor) | werkt vanaf de kei; vanaf de vloer op 640 px onder de schijf tegen de rots | ? |
+| R3 | een kleine spits in een donkere gang opent het dak | gang -800 tot -3800 diep 700, spits van 1,5 met voet op -3700, rune op 1,0 met ravijn -3000 breed 400 | werkt: raak vanaf 225 px, licht in de gang | ? |
+| R4 | de scheve boog op een terras, en een val daarachter | terras -1800 tot -3400 op 300, boog van 2,5 met voet op -2900, rune op 1,0 met ravijn -3675 breed 550, vechter op -3450 | werkt: raak vanaf het terras (220 px), de vechter valt, en vanaf het terras spring je over de 550 | ? |
+| R5 | de spits van verre, een val onder een nietsvermoedende vechter | spits van 3,5 met voet op -3000, rune op 2,0 met ravijn -1750 breed 300, vechter op -1750, gooien vanaf 2000 px | werkt, maar blind, en alleen als de vechter al verschenen is | ? |
 
-Opnieuw bekijken: zet een proef open in de bouwer, of gebruik de knoppen onder **Schijf in de wand**
-in de sandbox (Speer en spullen): die zeggen na elke klik vanaf hoe ver je raakt.
+Opnieuw bekijken: zet een proef open in de bouwer, of gebruik de knoppen onder **Rune op een rots** in de
+sandbox: de knop **Doet** kiest wat de rune doet, en na het neerzetten zegt de hint vanaf hoe ver je raakt.
 
 ## Voorstellen van Claude
 
@@ -160,15 +167,15 @@ Wat we geleerd hebben en wat dus vast staat.
   bovenkant van het raster daar de vloer (proef P3).
 - Onder de treden van een rotsraster schemert op een paar plekken de lucht door (smalle kieren,
   zie P3 in `overzicht.jpg`). Tekenfout, nog niet opgelost.
-- Het rode doorzichtige vlak (P1 en S3) was de rode flits als Amir geraakt wordt: die kleurde de
+- Het rode doorzichtige vlak (P1 en een eerdere proef in de gang) was de rode flits als Amir geraakt wordt: die kleurde de
   hele rechthoek van zijn plaatje, ook bovengronds. Opgelost (`amirRood`).
 - Een speer in een gang vloog met een boog dwars door het dak, en een speer die bovengronds boven
   een gang neerkwam zakte door de grond de gang in. Opgelost (`javTegenDak`, `javFloor` met de
   hoogte van de speer).
 - Vijanden verschijnen pas als Amir op zo'n 1,1 schermbreedte van hun plek komt, en een vijand
   wiens plek dan al in een open ravijn ligt komt niet. Een val van verre werkt dus alleen op een
-  vijand die al verschenen is (S5: eerst dichterbij komen, dan terug en gooien).
+  vijand die al verschenen is (R5: eerst dichterbij komen, dan terug en gooien). Die grens is scherp:
+  in R4 stond de vechter eerst op 1427 px van Amir, net buiten de 1408, en verscheen hij pas later.
 - Een schorpioen komt van de rand van het beeld, niet van zijn plek: hem voor een schijf zetten kan
   niet.
-- Een doorgang onder een rotsraster maakt van de toren een zwevend blok zonder pijlers (S2). Werkt,
-  maar ziet er niet uit als rots.
+- Een rune op een terras is van de grond soms toch te raken, blind met de verre boog (R4: 770 tot 820 px).

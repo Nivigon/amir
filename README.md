@@ -489,18 +489,19 @@ uit, dan blijft het gat open. Zonder `ravijn` licht hij alleen op.
 In de sandbox staat hij onder **Zegel**: **Neerzetten** legt er een voor je neer, **Met ravijn erachter** een die de
 grond verderop openscheurt.
 
-## De schijf in de wand
+## Een rune op een rots als schakelaar
 
-Dezelfde houten schijf, maar rechtop op een wand: de zijkant van een terras, het eind van een gang onder de grond,
-een rotstoren of de klif. Je stapt er niet op, je gooit erop. Raakt je speer het hout, dan licht de schijf op en doet
-hij wat een zegel ook kan: de grond openscheuren (ook het dak van een gang, dan valt er licht in), een open ravijn
-weer dichtdoen, de rotswand openen of de speerval losschieten. Je speer blijft in het hout zitten, net als bij elke
-runeschijf. Hoe hoger de schijf, hoe lastiger: tot ongeveer een lichaamslengte raak je hem met een gewone worp, hoger
-moet het met een boog, en een schijf hoog op een wand raak je alleen goed als je eerst ergens op klimt, op een kei of
-een terras. Een vijand tussen jou en de schijf vangt de speer op.
+Een rune op een rots (de scheve spits, de pieken, de twee zuilen of de scheve boog) was een doel: raak je
+hem, dan gloeit hij. Nu kan hij ook iets doen, net als een zegel in de grond: de grond verderop openscheuren
+(ook het dak van een gang, dan valt er licht in), een open ravijn weer dichtdoen, de rotswand openen of de
+speerval losschieten. Je speer blijft in het hout zitten. De rots staat op de vloer waar hij staat: op een
+terras erbovenop, en in een gang op de bodem, dan een kleinere. Hoe hoger de rune, hoe lastiger: tot een
+lichaamslengte raak je hem met een gewone worp van dichtbij, en een rune op ruim twee lichaamslengtes raak je
+vanaf de grond alleen blind, maar vanaf een kei ervoor zie je hem wel. Een vijand tussen jou en de rune vangt de
+speer op.
 
-In de sandbox staat hij onder **Schijf in de wand** (Speer en spullen): op een terras, met een ravijn, een die het
-ravijn sluit, en een in een gang, met **Hoger** en **Lager**. Na elke klik zegt het spel vanaf hoe ver je hem raakt.
+In de sandbox staat hij onder **Rune op een rots** (Speer en spullen): kies de rots, de maat en de hoogte, en met
+**Doet** wat hij doet. Na het neerzetten zegt het spel vanaf hoe ver je hem raakt.
 
 Onder de grond houdt het dak van een gang nu ook je speer tegen: een boog valt er terug de gang in, en een speer die
 je bovengronds boven een gang gooit, blijft op de savanne liggen in plaats van door de grond te zakken. En als Amir
