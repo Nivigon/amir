@@ -272,6 +272,14 @@
   body.touch #pzcfg .hint{font-size:11px;max-width:300px}
   body.touch #pzcfg input[type=range]{width:130px;height:24px}
   #pause.on ~ #hint{display:none}                 /* de toetsenbordhint niet over het menu */
+  /* de laadpoort: een level loopt pas als alle plaatjes binnen zijn (laadPoort) */
+  #laad{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;
+    justify-content:center;gap:14px;background:rgba(10,6,14,.93);text-align:center;z-index:7}
+  #laad.on{display:flex}
+  #laad strong{font-size:30px;font-weight:800;color:var(--sun)}
+  #laad .balk{width:min(320px,70vw);height:6px;border-radius:3px;background:rgba(242,232,213,.15);overflow:hidden}
+  #laad .balk i{display:block;height:100%;width:0;background:var(--sun);transition:width .15s linear}
+  #laad span{font-size:14px;color:rgba(242,232,213,.6)}
   #win{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;
     justify-content:center;gap:14px;background:rgba(10,6,14,.93);text-align:center;z-index:6}
   #win.on{display:flex;animation:winfade 1.4s ease both}
@@ -1011,6 +1019,7 @@
     <button id="wnreplay">Opnieuw spelen</button>
     <button id="wnmenu">Hoofdmenu</button>
   </div>
+  <div id="laad"><strong>Laden</strong><div class="balk"><i id="laadbalk"></i></div><span id="laadtel"></span></div>
   <div id="pause">
     <strong>Pauze</strong>
     <button id="pzresume">Verder</button>
@@ -1254,6 +1263,56 @@ const TRIBE_CONFIG = {
 // en ook de woedemeter.
 // abilities: wat je in de talent tree geleerd hebt; punten: talentpunten die je nog kunt uitgeven.
 const RUN = { tribeId: null, abilities: [], gehaald: 0, punten: 0, woede: 0 };   // woede: de meter, 0 tot 1
+
+// ---- laadpoort: een level loopt pas als alles binnen is ----------------------
+// Plaatjes laden op veel plekken, en veel pas als een level ze nodig heeft (de winter, de baviaan,
+// het skelet, de ravijnwand). Het spel startte meteen, dus op een trage verbinding liep Amir al
+// terwijl er nog stukken ontbraken. Nu houdt elk plaatje zich vanzelf aan: het zetten van src
+// (op welke plek ook) zet het in laadOpen, tot het geladen is of ontbreekt. Na restart staat het
+// spel stil (laadWacht, net als de pauze) tot laadOpen twee beelden achter elkaar leeg is: het
+// eerste beeld tekent het level en haalt zo ook op wat pas bij het tekenen geladen wordt. Duurt
+// het langer dan LAAD.toon, dan komt het scherm Laden (#laad) met een balk. Geluid telt niet mee:
+// een telefoon laadt dat pas na een tik, dus daar valt niet op te wachten.
+const LAAD = { toon: 0.25, max: 25 };            // pas na een kwart seconde in beeld, nooit langer wachten dan 25 s
+const laadOpen = new Set();
+let laadGedaan = 0;                               // plaatjes die binnen zijn sinds het begin
+(function(){
+  const d = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+  if (!d || !d.set) return;
+  // Pas na de andere handlers kijken: bij een fout zet onerror vaak meteen het volgende pad, en dan
+  // is dat plaatje nog niet klaar.
+  function klaar(){ const img = this; setTimeout(() => { if (img.complete && laadOpen.delete(img)) laadGedaan++; }, 0); }
+  Object.defineProperty(HTMLImageElement.prototype, 'src', {
+    configurable: true, enumerable: d.enumerable, get: d.get,
+    set(v){
+      d.set.call(this, v);
+      if (!this._laadVolg){ this._laadVolg = true; this.addEventListener('load', klaar); this.addEventListener('error', klaar); }
+      if (!this.complete) laadOpen.add(this);
+    }
+  });
+})();
+let laadWacht = false, laadT = 0, laadLeeg = 0, laadVan = 0;
+function laadPoort(){ laadWacht = true; laadT = 0; laadLeeg = 0; laadVan = laadGedaan; }
+// in de lus, met de echte tijd: true zolang het spel moet wachten
+function laadStap(echt){
+  if (!laadWacht) return false;
+  const el = document.getElementById('laad');
+  laadT += echt;
+  laadLeeg = laadOpen.size ? 0 : laadLeeg + 1;
+  const inSpel = startEl.classList.contains('off') && !building;   // in het menu en de bouwer niet
+  if (laadLeeg >= 2 || laadT > LAAD.max || !inSpel){
+    if (laadOpen.size) console.warn('laadpoort: verder zonder ' + laadOpen.size + ' plaatjes');
+    laadWacht = false; el.classList.remove('on');
+    return false;
+  }
+  if (laadT > LAAD.toon){
+    const binnen = laadGedaan - laadVan, n = binnen + laadOpen.size;
+    el.classList.add('on');
+    document.getElementById('laadbalk').style.width = (n ? Math.round(binnen / n * 100) : 100) + '%';
+    document.getElementById('laadtel').textContent = binnen + ' van ' + n;
+  }
+  return true;
+}
 
 // ---- versie: welke update er live staat ----------------------------------
 // Er staat geen versienummer meer in de code: dat was een regel die elke pull request aanpaste,
@@ -8200,7 +8259,7 @@ let perfSom = 0, perfN = 0, perfTraag = 0, perfPrev = 0;
 function perfTick(now){
   const d = now - perfPrev; perfPrev = now;
   // alleen op een aanraakscherm: op een laptop blijft het beeld scherp, ook als hij even traag is
-  if (!(d > 0) || d > 200 || !running || paused || DPR <= 1 || !touchOn()) return;
+  if (!(d > 0) || d > 200 || !running || paused || laadWacht || DPR <= 1 || !touchOn()) return;
   perfSom += d; perfN++;
   if (perfN < PERF.venster) return;
   const gem = perfSom / perfN; perfSom = 0; perfN = 0;
@@ -8557,7 +8616,7 @@ addEventListener('keydown', e => {
     if (paused) resumeGame(); else pauseGame();
     return;
   }
-  if (paused) return;                            // tijdens de pauze doet de rest niets
+  if (paused || laadWacht) return;               // tijdens de pauze en het laden doet de rest niets
   if (typing(e)) return;                         // in een tekstvak typ je gewoon
   if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W'){
     e.preventDefault();
@@ -12167,6 +12226,7 @@ function hurtPlayer(fromLeft){
   if (lives <= 0){ dead = true; deadEl.classList.add('on'); }
 }
 function restart(){
+  laadPoort();                                      // pas verder als alles binnen is (zie laadpoort)
   won = false; document.getElementById('win').classList.remove('on');
   lives = levensStart(); invuln = 0; hurt = 0; knock = 0; shake = 0; dead = false;
   woedeStop();                                      // de woede houdt op bij een nieuw begin
@@ -16346,7 +16406,8 @@ function winLevel(){
 document.getElementById('wnreplay').onclick = () => { restart(); cv.focus(); };
 document.getElementById('wnmenu').onclick = () => { won = false; document.getElementById('win').classList.remove('on'); toMenu(); };
 function loop(now){
-  let dt = (paused || won) ? 0 : Math.max(0, Math.min((now - last) / 1000, 0.05)); last = now;
+  const wacht = laadStap(Math.max(0, Math.min((now - last) / 1000, 0.1)));   // nog aan het laden: stilstaan
+  let dt = (paused || won || wacht) ? 0 : Math.max(0, Math.min((now - last) / 1000, 0.05)); last = now;
   if (!building) dt *= gameTempo;                // het tempo uit de instellingen
   const left = keys['ArrowLeft'] || keys['a'] || keys['A'];
   const right = keys['ArrowRight'] || keys['d'] || keys['D'];
@@ -21260,7 +21321,7 @@ const TOUCH = {
 };
 function touchOn(){ return TOUCH.mode === 'on' || (TOUCH.mode === 'auto' && TOUCH.sawTouch); }
 function touchPlaying(){
-  return touchOn() && running && !building && !paused && !won && !turnEl.classList.contains('on');
+  return touchOn() && running && !building && !paused && !laadWacht && !won && !turnEl.classList.contains('on');
 }
 // de grondlijn iets hoger in beeld, zodat kruipende vijanden boven de knoppen blijven
 function touchLift(){ return (touchOn() && !building) ? -H * 0.07 : 0; }
