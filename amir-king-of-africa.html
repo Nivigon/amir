@@ -6197,14 +6197,26 @@ function bavHapFrame(t){
 // (`bek`: de kop met open kaken, niet de voorpoten eronder). Die zit op 0,55 tot 1,06 Amir hoog, dus springen
 // of bukken ontwijkt hem niet: je redt het door hem eerst te raken, of de speer te gooien voor hij er is.
 const BAV_VECHT = { raakbaar: false, krimp: 0.12, bek: { l: 0, r: 140, t: 180, b: 370 } };
-// Dood: na de fatale klap brult hij nog een keer (de brulframes vanaf `brulVan`, op het tempo van BAV_BRUL, met
-// het geluid op gewoon volume) en dan 22 frames in enemies/baviaan/dood/ op `fps`, een keer, zo'n 0,92 seconde:
+// Dood: na de fatale klap eerst het drama (BAV_DRAMA hieronder) en dan 22 frames in enemies/baviaan/dood/ op
+// `fps`, een keer, zo'n 0,92 seconde:
 // 00 tot 03 de klap, hij komt omhoog; 04 tot 09 hij zakt; 10 tot 15 zijn poten begeven het; 16 tot 19 hij klapt
 // voorover op de grond; 20 en 21 dood. Daarna blijft dood_21 liggen: het lijk, zonder te vervagen. Canvas 830 bij
 // 592 met de grondlijn op rij 575, zoals de rest; het begint 140 bronpixels links van het canvas van de brul
-// (`links` is dus 44 plus 140, en 32 links van de run en de hap). "Ta soul, rest" (vijandDood) komt als hij
-// neerligt (`rust`, frame 20), niet op de klap, zodat het niet door de brul heen klinkt.
-const BAV_DOOD = { map: 'enemies/baviaan/dood/dood_', n: 22, fps: 24, links: 184, brulVan: 6, rust: 20 };
+// (`links` is dus 44 plus 140, en 32 links van de run en de hap). "Ta soul, rest" (vijandDood) komt pas na een
+// stilte (BAV_DRAMA.stil), niet op de klap, zodat het niet door de brul heen klinkt.
+const BAV_DOOD = { map: 'enemies/baviaan/dood/dood_', n: 22, fps: 24, links: 184 };
+// Het drama rond de fatale klap (BAV_DRAMA), zodat de speler even denkt dat hij het nog niet gehaald heeft:
+// 1. de klap: `klap` seconden bevroren op het frame waarin hij geraakt werd, wit oplichtend, het scherm schokt
+//    (`schokKlap`) en hij deinst `terug` Amir achteruit;
+// 2. dreigen: `dreig` seconden de grom-idle, met de grom van het hoofdschudden;
+// 3. de grote brul (BAV_ROAR.groot, met het trillen, het gerommel en de steentjes), alsof hij weer komt;
+// 4. twijfel: `twijfel` seconden de grom-idle op `twijfelTempo` van zijn gewone tempo, stil;
+// 5. bam: nog een witte flits en een schok (`schokBam`), en dan de dood (dood_00 tot 21, BAV_DOOD);
+// 6. `stil` seconden stilte na dood_21, dan "ta soul, rest", en `los` seconden later krijg je Amir terug.
+// Van de klap tot het eind staat Amir vast (bavDramaNu, net als bij de speerbeet) en schuift de camera `camera`
+// van de weg naar de baviaan toe (bavFocusX, via camEase zoals de arena), nooit verder dan `camMax` schermbreedte.
+const BAV_DRAMA = { klap: 0.22, terug: 0.35, schokKlap: 0.32, dreig: 1.0, twijfel: 1.1, twijfelTempo: 0.45,
+  schokBam: 0.24, flits: 0.18, stil: 0.8, los: 0.4, camera: 0.55, camMax: 0.3 };
 // De sprong: 32 frames op 24 per seconde, over een kei die hem de weg verspert (regel 7: hij loopt er niet
 // doorheen). Canvas 900 bij 800, grondlijn op rij 770: 154 bronpixels links en 195 boven het canvas van de
 // brul en de idles (`links` is dus 44 plus 154, `boven` 195), 46 links en 195 boven dat van de run. De frames
@@ -6402,6 +6414,19 @@ function bavStand(b, scale){
   return bavRustStand(b, tIdle, dx, dy, scale, lijn);
 }
 // de idle na de brul als lus (de grom of de opgefokte, BAV_NA_BRUL), af en toe onderbroken door het hoofdschudden
+// de grote brul: het geluid een keer, en over het luide stuk trilt het scherm, rommelt de aarde en springen de
+// steentjes. ts is de tijd in de brul vanaf frame 0; r.snd en r.beving houden bij wat er al gebeurd is
+function bavBrulEffect(r, R, ts, scale){
+  const tGeluid = deelTijd(R.delen, R.bij) - R.voor;
+  if (!r.snd && ts >= tGeluid){ r.snd = true; bavBrulSpeel(R.vol, R.rate); }
+  if (R.tril){
+    const T = R.tril, t1 = deelTijd(R.delen, T.van), t2 = deelTijd(R.delen, T.tot);
+    if (!r.beving && ts >= t1 - T.aan){ r.beving = true; bavBeving(t2 - t1, R.beving); bavStenenStart(scale); }
+    const env = ts >= t1 && ts < t2 ? Math.min(1, (ts - t1) / T.aan, (t2 - ts) / T.af) : 0;
+    shake = Math.max(shake, T.sterk * env);
+    bavStenen.env = env; bavStenen.klaar = ts >= t2;
+  }
+}
 function bavRustStand(b, tIdle, dx, dy, scale, lijn){
   let r = bavRust.get(b);
   if (!r || tIdle < r.t0){ r = { t0: 0, wacht: bavWacht(0), schud: null, soort: null, keer: 0, nu: !!(r && r.nu) }; bavRust.set(b, r); }
@@ -6428,16 +6453,7 @@ function bavRustStand(b, tIdle, dx, dy, scale, lijn){
       return { img: bavSchudImgs[Math.max(0, bavSchudFrame(tIdle - r.schud))], dx, dy, ox: BAV_SCHUD.links };
     }
     const ts = tIdle - r.schud + deelTijd(R.delen, R.van);      // de tijd in de brul, vanaf frame 0 gerekend
-    // de grote brul: het geluid een keer, en over het luide stuk trilt het scherm, rommelt de aarde en springen de steentjes
-    const tGeluid = deelTijd(R.delen, R.bij) - R.voor;
-    if (!r.snd && ts >= tGeluid){ r.snd = true; bavBrulSpeel(R.vol, R.rate); }
-    if (R.tril){
-      const T = R.tril, t1 = deelTijd(R.delen, T.van), t2 = deelTijd(R.delen, T.tot);
-      if (!r.beving && ts >= t1 - T.aan){ r.beving = true; bavBeving(t2 - t1, R.beving); bavStenenStart(scale); }
-      const env = ts >= t1 && ts < t2 ? Math.min(1, (ts - t1) / T.aan, (t2 - ts) / T.af) : 0;
-      shake = Math.max(shake, T.sterk * env);
-      bavStenen.env = env; bavStenen.klaar = ts >= t2;
-    }
+    bavBrulEffect(r, R, ts, scale);
     return { img: bavBrulImgs[Math.min(BAV_BRUL.n - 1, deelFrame(R.delen, ts))], dx, dy, ox: BAV_BRUL.links };
   }
   return { img: imgs[Math.floor(ti * I.fps) % I.n], dx, dy, ox: I.links };
@@ -6474,17 +6490,35 @@ function bavVecht(b, r, t, dx0, scale, lijn){
     return Object.assign({ img, dx: r.wx * (b.f ? 1 : -1) / u, dy: lijn - rel }, extra);
   };
   if (r.doodNu){ r.doodNu = false; bavRaak(b, r); }                  // de knop Dood in de sandbox
-  if (r.fase === 'dood'){                                             // eerst de brul, dan in elkaar zakken (BAV_DOOD)
-    const D = BAV_DOOD, G = BAV_BRUL.geluid, t0 = deelTijd(BAV_BRUL.delen, D.brulVan);
-    const tb = t - r.fT + t0, fb = deelFrame(BAV_BRUL.delen, tb);
-    if (!r.brulSnd && tb >= deelTijd(BAV_BRUL.delen, G.bij) - G.voor){ r.brulSnd = true; bavBrulSpeel(); }
-    if (fb < BAV_BRUL.n) return uit(bavBrulImgs[fb], { ox: BAV_BRUL.links });
-    const td = tb - deelTijd(BAV_BRUL.delen, BAV_BRUL.n), f = Math.min(D.n - 1, Math.floor(td * D.fps));
+  if (r.fase === 'dood'){                                             // het drama (BAV_DRAMA), dan in elkaar zakken (BAV_DOOD)
+    const D = BAV_DOOD, Q = BAV_DRAMA, R = BAV_ROAR.groot, tt = t - r.fT, fd = b.f ? 1 : -1;
+    const brulDuur = deelTijd(R.delen, BAV_BRUL.n) - deelTijd(R.delen, R.van);
+    const t1 = Q.klap, t2 = t1 + Q.dreig, t3 = t2 + brulDuur, t4 = t3 + Q.twijfel, t5 = t4 + D.n / D.fps;
+    const grom = (tg, tempo = 1) => uit((bavGromImgs || bavIdleOpImgs)[Math.floor(tg * BAV_IDLE_GROM.fps * tempo) % BAV_IDLE_GROM.n], { ox: BAV_IDLE_GROM.links });
+    if (tt < t1){                                                     // 1. de klap: bevroren, wit, hij deinst terug
+      const p = tt / t1;
+      r.wx = r.wx0 - fd * Q.terug * u * (1 - (1 - p) * (1 - p));
+      return uit(r.klapImg || bavGromImgs[0], { ox: r.klapOx, oy: r.klapOy, flits: 1 - p });
+    }
+    if (tt < t2){                                                     // 2. dreigen, met de grom
+      if (!r.dreigSnd){ r.dreigSnd = true; bavGromSpeel(); }
+      return grom(tt - t1);
+    }
+    if (tt < t3){                                                     // 3. de grote brul, alsof hij weer komt
+      if (!r.brulStil){ r.brulStil = true; bavGromSnd.pause(); }
+      const ts = tt - t2 + deelTijd(R.delen, R.van);
+      bavBrulEffect(r, R, ts, scale);
+      return uit(bavBrulImgs[Math.min(BAV_BRUL.n - 1, deelFrame(R.delen, ts))], { ox: BAV_BRUL.links });
+    }
+    if (tt < t4) return grom(tt - t3, Q.twijfelTempo);                 // 4. twijfel
+    if (!r.bam){ r.bam = true; shake = Math.max(shake, Q.schokBam); }  // 5. bam
+    const td = tt - t4, f = Math.min(D.n - 1, Math.floor(td * D.fps));
+    if (!r.rustGezegd && tt >= t5 + Q.stil - DOOD_WACHT){ r.rustGezegd = true; vijandDood(true); }   // 6. stilte, dan "ta soul, rest"
+    if (!r.dramaKlaar && tt >= t5 + Q.stil + Q.los) r.dramaKlaar = true;
     if (!r.landSnd && td >= BAV_LAND.doodF / D.fps - BAV_LAND.voor){ r.landSnd = true; bavLandSpeel(); }   // voorover op de grond
     if (!r.handStof && f >= BAV_LAND.handF){ r.handStof = true; stof(BAV_LAND.handX, D.links, 'rem', b.f ? 1 : -1, 0.8); }   // zijn handen schuiven weg
     if (!r.landStof && f >= BAV_LAND.doodF){ r.landStof = true; stof(BAV_LAND.doodX, D.links, 'plof', 0, 1.2); }   // het lijf ploft neer
-    if (f >= D.rust && !r.rustGezegd){ r.rustGezegd = true; vijandDood(true); }
-    return uit(bavDoodImgs[f], { ox: D.links });
+    return uit(bavDoodImgs[f], { ox: D.links, flits: td < Q.flits ? 1 - td / Q.flits : 0 });
   }
   const amirX = playerX(), voor = (amirX - (b.x + r.wx)) * (b.f ? 1 : -1);   // hoe ver Amir voor hem staat
   const naarAmir = () => { b.f = amirX > b.x + r.wx; };               // omdraaien naar Amir
@@ -6751,10 +6785,28 @@ function bavStenenTeken(groundY, scale, cx){
 // een klap van Amir: hij is dood
 function bavRaak(b, r){
   if (!r || r.fase === 'dood') return;
-  r.fase = 'dood'; r.fT = r.tL; r.bijt = false; r.brulSnd = false; r.rustGezegd = false; r.landSnd = r.landStof = r.handStof = false; bavRenStil();
+  const g = bavGeo.get(b);                                   // het frame waarin hij geraakt werd: daarop bevriest hij
+  r.klapImg = g && g.img; r.klapOx = g && g.ox; r.klapOy = g && g.oy;
+  r.fase = 'dood'; r.fT = r.tL; r.bijt = false; r.wx0 = r.wx || 0;
+  r.rustGezegd = r.landSnd = r.landStof = r.handStof = r.dreigSnd = r.brulStil = r.bam = r.dramaKlaar = false;
+  r.snd = r.beving = false;
+  bavRenStil(); bavBijtSnd.pause();
+  shake = Math.max(shake, BAV_DRAMA.schokKlap);
   hits++; hitsEl.textContent = hits;
-  puffWorld(b.x + r.wx, 8, 0, 1.2);                          // vijandDood komt als hij neerligt (BAV_DOOD.rust)
+  puffWorld(b.x + r.wx, 8, 0, 1.2);                          // vijandDood komt na het drama (BAV_DRAMA.stil)
 }
+// loopt het drama rond zijn dood nog: dan staat Amir vast en kijkt de camera naar de baviaan
+function bavDramaNu(){
+  const b = level && level.baviaan, r = b && bavRust.get(b);
+  return !!(r && r.fase === 'dood' && !r.dramaKlaar && !building);
+}
+// waar de camera naartoe schuift tijdens het drama, of null
+function bavFocusX(p){
+  if (!bavDramaNu()) return null;
+  const b = level.baviaan, r = bavRust.get(b), m = W * BAV_DRAMA.camMax;
+  return p + Math.max(-m, Math.min(m, (b.x + (r.wx || 0) - p) * BAV_DRAMA.camera));
+}
+const amirVast = () => beetVast || bavDramaNu();           // de speerbeet of het drama: Amir staat vast
 // het gevecht in de tekenlus, na de andere vijanden: raakt zijn bek Amir, en raakt Amir hem
 function bavGevecht({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, valRaakt, attacking, hitBy }){
   const b = level && level.baviaan, r = b && bavRust.get(b), g = b && bavGeo.get(b);
@@ -7164,11 +7216,28 @@ function baviaanTeken(groundY, scale, cx){
       ctx.restore();
     }
     ctx.drawImage(fr, lx, -h - oy, fr.naturalWidth * k, fr.naturalHeight * k);
-    bavGeo.set(b, { img: fr, sx, lx, top, k, dir: b.f ? -1 : 1, ox: st.ox });   // voor bavGevecht
+    if (st.flits > 0){                                       // wit oplichten bij de klap (BAV_DRAMA)
+      const wit = bavWit(fr);
+      if (wit){ ctx.globalAlpha *= Math.min(1, st.flits) * 0.85; ctx.drawImage(wit, lx, -h - oy, fr.naturalWidth * k, fr.naturalHeight * k); }
+    }
+    bavGeo.set(b, { img: fr, sx, lx, top, k, dir: b.f ? -1 : 1, ox: st.ox, oy: st.oy });   // voor bavGevecht
   } else bavGeo.delete(b);
   if (!fr) ctx.drawImage(baviaanImg, -w / 2, -h, w, h);
   ctx.restore();
   bavBeetStukken(groundY, scale, cx);                        // de afgebroken schacht en de splinters (speerbeet)
+}
+// het frame als wit silhouet, voor het oplichten bij de klap; een keer per frame gemaakt
+const bavWitten = new WeakMap();
+function bavWit(img){
+  let c = bavWitten.get(img);
+  if (c !== undefined) return c;
+  try {
+    c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+    g.globalCompositeOperation = 'source-in'; g.fillStyle = '#fff8ec'; g.fillRect(0, 0, c.width, c.height);
+  } catch (e){ c = null; }
+  bavWitten.set(img, c);
+  return c;
 }
 // Zijn schaduw, net als die van Amir (drawAmirSchaduw): zijn eigen frame als silhouet op de grond, een zachte
 // omgevingsschaduw recht onder hem en een zonneschaduw van de zon af. Daarvoor de plek van het frame op het scherm
@@ -7754,7 +7823,7 @@ function canThrow(){
 }
 function thrPress(){
   thrPressT = performance.now();
-  if (beetVast) return;                            // de baviaan heeft je speer vast
+  if (amirVast()) return;                          // de baviaan heeft je speer vast, of hij sterft net
   if (schijnLigt()) return;                        // Feign Death: hij ligt nog
   glijStart();                                     // in volle sprint: hij glijdt door (zie renstoot)
   if (canThrow()){ thr = { frame: 0, acc: 0, held: true, rel: 0, gone: false, lob: false, glint: 0,
@@ -8935,7 +9004,7 @@ function toggleSpear(){
 spearBtn.onclick = () => { toggleSpear(); cv.focus(); };
 // E, van het toetsenbord en van de knop op de telefoon: eerst de deur uit, anders de speer
 // (en daarin gaat een skelet met een speer weer voor). Zo doen ze altijd hetzelfde.
-function eDruk(){ if (beetVast) return; if (!muurUitgang()) toggleSpear(); }
+function eDruk(){ if (amirVast()) return; if (!muurUitgang()) toggleSpear(); }
 // Is er iets om E voor te gebruiken? Dan staat de E-knop op de telefoon erbij.
 function eNodig(){ return spearNear() || muurVoorDeur(world) || !!skeletBij() || !!losBij() || tribeHeeft('jackal_fang'); }   // met het mes wissel je altijd
 
@@ -9005,7 +9074,7 @@ function startAttack(){
     if (swLading >= 1) sweepBuf = SWEEP_BUFFER; else sweepLeeg();
     return;
   }
-  if (dead || hurt > 0 || schijnLigt() || jump || building || beetVast) return;
+  if (dead || hurt > 0 || schijnLigt() || jump || building || amirVast()) return;
   if (atkFrame >= 0) return;                     // already thrusting
   if (swRecover > 0) return;                     // nog aan het herstellen van de zwaai
   if (duckT > 0){                                // gebukt: lage zwaai in plaats van een stoot
@@ -9089,7 +9158,7 @@ function takeOff(){
   jump = { phase: 'air', t: 0 }; pvh = jumpV() * (1 - (1 - POOL.jump) * waterDepthAt(world, ph)); onGround = false; fell = false; coyote = 0; puffDust(4);
 }
 function startJump(){
-  if (beetVast) return;                            // de baviaan heeft je speer vast
+  if (amirVast()) return;                            // de baviaan heeft je speer vast
   if (typeof tutEvent === 'function') tutEvent('jump');
   thrAfbreken();                                   // springen tijdens het spannen: de worp gaat niet door
   if (dead || hurt > 0 || schijnLigt() || atkFrame >= 0 || swFrame >= 0 || swRecover > 0 || thr) return;
@@ -16892,7 +16961,7 @@ function loop(now){
     }
   }
   bavBeetStap(scaleNow);                         // de speerbeet: de baviaan pakt de speer, en Amir staat vast
-  if (beetVast) dir = 0;
+  if (amirVast()) dir = 0;
   const attacking = atkFrame >= 0;               // re-checked AFTER the frame advance
   const throwing = !!thr;                        // spannen of werpen: hij staat vast
   if (attacking || throwing) dir = 0;            // feet stay planted during the thrust
@@ -16912,7 +16981,7 @@ function loop(now){
   // bukken: omlaag of S ingedrukt houden terwijl je op de grond staat
   {
     const downHeld = keys['ArrowDown'] || keys['s'] || keys['S'];
-    const canDuck = downHeld && onGround && !jump && !dead && hurt <= 0 && !schijnLigt() && !attacking && !throwing && !building && !fell && !beetVast;
+    const canDuck = downHeld && onGround && !jump && !dead && hurt <= 0 && !schijnLigt() && !attacking && !throwing && !building && !fell && !amirVast();
     if (canDuck) duckT = Math.min(1, duckT + dt / DUCK_IN_T);
     else duckT = Math.max(0, duckT - dt / DUCK_OUT_T);
     if (duckT >= 1) duckHoldAcc += dt * DUCK_HOLD_FPS; else duckHoldAcc = 0;
@@ -16961,7 +17030,7 @@ function loop(now){
   if (sweepBuf > 0){
     sweepBuf = Math.max(0, sweepBuf - dt);
     if (onGround && !fell && swFrame < 0 && swRecover <= 0 && atkFrame < 0 && spear && !dead && hurt <= 0 && sweepReady()
-        && swLading >= 1 && (!jump || jump.phase === 'land')){
+        && swLading >= 1 && !amirVast() && (!jump || jump.phase === 'land')){
       jump = null; duckT = 1; duckHoldAcc = 0; sweepBuf = 0;   // meteen vanuit de landing de zwaai in
       startSweep();
     }
@@ -17038,10 +17107,13 @@ function loop(now){
   ctx.translate(shakeX + ravijnSX, shakeY + ravijnSY);
   // boss-arena: de camera staat (bijna) stil en Amir loopt over het scherm. Tijdens het tekenen
   // is 'world' dus de camera; pcx is waar Amir zelf op het scherm staat
-  const pWorld = world;
+  const pWorld = world, bavFocus = building ? null : bavFocusX(pWorld);
   if (arena && !building){                      // zacht naar de arena-camera toe glijden
     if (camEase === null) camEase = pWorld;
     camEase += (arenaCam(pWorld) - camEase) * Math.min(1, dt * 3);
+  } else if (bavFocus !== null){                // de baviaan sterft: de camera schuift naar hem toe (BAV_DRAMA)
+    if (camEase === null) camEase = pWorld;
+    camEase += (bavFocus - camEase) * Math.min(1, dt * 2.2);
   } else if (camEase !== null){                 // en na het gevecht weer terug naar Amir
     camEase += (pWorld - camEase) * Math.min(1, dt * 3);
     if (Math.abs(pWorld - camEase) < 1 || building) camEase = null;
