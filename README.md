@@ -42,7 +42,7 @@ twee keer zijn kop en stormt dan op je af. In de rotswand aan het eind zit een s
 ervoor (zie de speerval hieronder). Stap op het zegel als hij achter je aan komt en buk meteen: de speer vliegt over je
 heen en recht in de baviaan. De fakkels staan voor het zegel en blijven dicht zolang hij leeft; daarna loop je terug.
 
-In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen naar het volgende level van dezelfde reeks. Onder **Instellingen** staan daar ook het tempo van het spel, het looptempo van Amir, het formaat van het beeld en de muziek. Tijdens een level is het speelveld verder leeg: de testbalk met schuifjes staat alleen in de sandbox (met B haal je hem er tijdens het spelen en in de bouwer alsnog bij).
+In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen naar het volgende level van dezelfde reeks. Onder **Instellingen** staan daar ook het tempo van het spel, het looptempo van Amir, het formaat van het beeld en de muziek. Tijdens een level is het speelveld verder leeg: de testbalk met schuifjes staat alleen in de sandbox (met B haal je hem er tijdens het spelen en in de bouwer alsnog bij). Het menu van de sandbox klap je weg met **Verberg** rechtsboven in het paneel, en met **Toon** haal je het terug; het spel onthoudt hoe je het liet. Op een telefoon staat het onder de pauzeknop, zonder de uitlegregel, en weggeklapt ligt de joystick vrij.
 
 ## Tribes
 
