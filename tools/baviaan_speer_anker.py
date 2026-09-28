@@ -5,7 +5,8 @@ De speerval raakt hem van voren (hij rent op Amir af, en Amir staat bij het zege
 blijft dan in zijn borst zitten, door het drama heen tot hij als lijk ligt (BAV_VALSPEER in het spel). Daarvoor
 moet per frame bekend zijn waar die plek op zijn borst is. Dit script volgt een stukje vacht van frame tot
 frame (het kleinste kwadratisch verschil in een zoekvenster), vanaf een punt dat met de hand is gekozen, en
-print de tabel die in BAV_VALSPEER.anker hoort.
+print de tabel die in BAV_VALSPEER.anker hoort. Raakt de speer hem van achteren, dan zit hij in zijn rug:
+daarvoor volgt het op dezelfde manier een plek op zijn rug (RUG, de tabel BAV_VALSPEER.rug).
 
 Alleen de reeksen waarin de speer hem kan raken (run, hap, brul, idle_grom: dan bevriest hij op dat frame)
 en die van het drama erna (idle_grom, brul, dood). De sprong niet: daar schiet zijn lijf zo over het canvas
@@ -28,6 +29,21 @@ REEKSEN = {
     'brul':      (24, [(0, 255, 470), (4, 205, 305), (6, 149, 290)]),
     'dood':      (22, [(0, 300, 303)]),
 }
+# van achteren (hij kijkt dezelfde kant op als de speer vliegt): de speer zit in zijn rug, BAV_VALSPEER.rug. Het
+# punt ligt net onder de bovenrand van zijn rug, tussen zijn schouders en zijn bil
+RUG = {
+    'run':       (17, [(5, 380, 172)]),
+    'hap':       (26, [(0, 380, 182), (12, 380, 178)]),
+    'idle_grom': (39, [(0, 350, 212)]),
+    'brul':      (24, [(2, 350, 330), (12, 295, 205)]),
+    'dood':      (22, [(0, 470, 200), (10, 510, 280), (13, 505, 320), (16, 500, 355)]),
+}
+# de rug is een rand: het volgen glijdt daar soms de lucht in. Daarom komt het punt daarna op de bovenrand van
+# zijn lijf in die kolom, zoveel bronpixels eronder
+RUG_ONDER = 16
+# na het volgen nog zoveel bronpixels opschuiven: bij de brul zit het gevolgde punt op de rand van zijn borst,
+# en de speer hoort in het rood
+SCHUIF = {('anker', 'brul'): (35, 0)}
 R, ZOEK = 24, 30
 
 
@@ -53,6 +69,12 @@ def stap(reeks, van, naar, xy):
     return best[1], best[2]
 
 
+def opRug(reeks, i, x):
+    a = np.asarray(Image.open(os.path.join(MAP, reeks, f'{reeks}_{i:02d}.png')).convert('RGBA'))[..., 3]
+    rij = np.nonzero(a[:, x] > 128)[0]
+    return int(rij[0]) + RUG_ONDER if len(rij) else None
+
+
 def volg(reeks, n, starts):
     pos = {}
     starts = sorted(starts)
@@ -68,10 +90,14 @@ def volg(reeks, n, starts):
 
 
 if __name__ == '__main__':
-    regels = []
-    for reeks, (n, starts) in REEKSEN.items():
-        p = volg(reeks, n, starts)
-        regels.append(f"    {reeks}: [{', '.join(f'{x},{y}' for x, y in p)}]")
-    print('  anker: {   // uit tools/baviaan_speer_anker.py: x, y per frame, achter elkaar')
-    print(',\n'.join(regels))
-    print('  },')
+    for naam, reeksen, wat in (('anker', REEKSEN, 'de borst'), ('rug', RUG, 'de rug')):
+        regels = []
+        for reeks, (n, starts) in reeksen.items():
+            dx, dy = SCHUIF.get((naam, reeks), (0, 0))
+            p = [(x + dx, y + dy) for x, y in volg(reeks, n, starts)]
+            if naam == 'rug':
+                p = [(x, opRug(reeks, i, x) or y) for i, (x, y) in enumerate(p)]
+            regels.append(f"    {reeks}: [{', '.join(f'{x},{y}' for x, y in p)}]")
+        print(f'  {naam}: {{   // {wat}, uit tools/baviaan_speer_anker.py: x, y per frame, achter elkaar')
+        print(',\n'.join(regels))
+        print('  },')
