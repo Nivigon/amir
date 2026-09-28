@@ -280,6 +280,15 @@ In de sandbox staat onder **Slangen** de knop **Op patrouille**: die zet alles w
 meteen op patrouille en houdt het daar, zodat je het kunt bekijken zonder zelf uit beeld te
 lopen. Nog een keer drukken en ze komen weer op je af.
 
+**Wat de vijanden doen als ze niet bij je kunnen.** Twee of drie slangen van dezelfde kant liggen
+niet meer op elkaar, maar achter elkaar: valt de voorste, dan kruipt de volgende door. Een
+zwaardvechter die een kei of ravijn tussen jullie heeft, blijft daar dreigen in plaats van ter plekke
+te rennen. Fosforslangen die in hun aanval tegen een ravijnrand lopen, richten zich op en blijven je
+aanstaren tot je van plek verandert. De schorpioen begint zijn aanloop pas als hij in beeld staat,
+ook op een telefoon, zodat je zijn staart altijd ziet zakken. Sta je op een kei naast de panter, dan
+klauwt hij niet meer eindeloos in de lucht onder je door, maar ligt hij aan de voet te loeren. En de
+baviaan rent niet meer door de lucht over een ravijn: aan de rand blijft hij grommend staan.
+
 ## Het decor staat een stap naar achteren
 
 De grond is geen lijn maar een band. De tegel `design/grondrand.png` heeft 49 rijen

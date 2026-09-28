@@ -6176,8 +6176,21 @@ function bavVecht(b, r, t, dx0, scale, lijn){
       if (r.fase !== 'wacht'){ r.fase = 'wacht'; r.fT = t; }
       return uit(bavGromImgs[Math.floor((t - r.fT) * BAV_IDLE_GROM.fps) % BAV_IDLE_GROM.n], { ox: BAV_IDLE_GROM.links });
     }
-    if (r.fase === 'wacht') naarRun();
+    if (r.fase === 'wacht' && !r.randWacht) naarRun();
   }
+  // Een ravijn tussen hem en Amir dat niet bij de kooi hoort: daar rende hij gewoon overheen, door de lucht,
+  // en hapte hij aan de overkant. Nu remt hij aan de rand af en blijft hij grommend staan, Amir aankijkend,
+  // tot die aan zijn kant komt (regel 7: ook voor hem is een ravijn een schuilplek). Zijn voorkant telt,
+  // niet zijn anker: hij staat met zijn neus aan de rand, niet erover.
+  const rand = zelfdeKant ? bavRavijnRand(b, K, lijfMidden, amirX) : null;
+  const neus = runKd ? w0 / 2 + (BAV_AFZET.kader.l + BAV_RUN.links - runKd.l) * k : 0;
+  if (rand !== null && (rand - (b.x + r.wx)) * (rand > b.x + r.wx ? 1 : -1) <= neus + BAV_RAND.stop * u){
+    naarAmir();
+    if (r.fase !== 'wacht'){ r.fase = 'wacht'; r.fT = t; }
+    r.randWacht = true;
+    return uit(bavGromImgs[Math.floor((t - r.fT) * BAV_IDLE_GROM.fps) % BAV_IDLE_GROM.n], { ox: BAV_IDLE_GROM.links });
+  }
+  if (r.randWacht){ r.randWacht = false; if (r.fase === 'wacht') naarRun(); }
   r.pasT = (r.pasT || 0) + dt * fps;
   // een kei voor hem: hij kan er niet door, dus hij springt (regel 7)
   if (runKd && level && level.rocks.length && zelfdeKant){
@@ -6195,7 +6208,7 @@ function bavVecht(b, r, t, dx0, scale, lijn){
       return springen(Math.max(0.15, (hoog + S.marge - zweeft) / S.boog), basis, false);
     }
   }
-  if (hapKd && runKd && voor >= 0 && zelfdeKant){                    // nooit over een ravijn van de kooi heen
+  if (hapKd && runKd && voor >= 0 && zelfdeKant && rand === null){   // nooit over een ravijn heen, ook niet dat van de kooi
     const reik = kd => w0 / 2 + (BAV_AFZET.kader.l + BAV_HAP.links - kd.l) * k;   // hoe ver hij voor zijn anker reikt
     const lijf = reik(runKd), bek = reik(hapKd);
     if (voor - lijf <= BAV_HAP.speer * scale + BAV_HAP.marge * u){   // binnen Amirs speerstoot: hap, meteen
@@ -6208,6 +6221,21 @@ function bavVecht(b, r, t, dx0, scale, lijn){
   if (pas !== r.pas){ r.pas = pas; if (voor < 0 && zelfdeKant) b.f = !b.f; }   // omdraaien aan het begin van een pas
   r.wx += (b.f ? 1 : -1) * bavV() * dt;
   return uit(runImg, { ox: BAV_RUN.links });
+}
+// De dichtstbijzijnde rand van een ravijn tussen x (het midden van zijn lijf) en Amir, zonder de ravijnen
+// van de kooi K (daar springt hij overheen, zie BAV_KOOI). null als er geen tussen ligt.
+const BAV_RAND = { stop: 0.1 };                    // zo ver voor de rand blijft zijn neus, in Amir
+function bavRavijnRand(b, K, x, amirX){
+  const lo = Math.min(x, amirX), hi = Math.max(x, amirX), d = amirX > x ? 1 : -1;
+  let rand = null;
+  for (const g of gatenMetRavijn()){
+    const gl = g.x - g.w / 2, gr = g.x + g.w / 2;
+    if (K && gl >= K.L - 1 && gr <= K.R + 1) continue;         // een ravijn van de kooi
+    if (gr <= lo || gl >= hi) continue;
+    const e = d === 1 ? gl : gr;                                // de rand aan zijn kant
+    if (rand === null || (e - rand) * d < 0) rand = e;
+  }
+  return rand;
 }
 // hoe ver hij vooruit is t seconden na het begin van de sprong, in wereld-px (delen uit bavSprongDelen);
 // met alleenLucht telt alleen het stuk in de lucht
@@ -12399,6 +12427,18 @@ function slangSchuif(s, dt, plats, cliff, tempo){
   return { edge, vast: Math.abs(s.x - voor) < snakeSpeed() * tempo * dt * 0.4 };
 }
 
+// Twee slangen van dezelfde kant liepen naar precies dezelfde plek en lagen dan op elkaar, drie
+// ook. Nu sluit een slang aan achter de slang die al voor hem ligt (tussen hem en Amir, op dezelfde
+// hoogte), SLANG_RIJ lengtes erachter. Valt de voorste weg, dan kruipt hij door. De zwarte doet niet
+// mee: die blijft op afstand spuwen en ligt nooit vooraan.
+const SLANG_RIJ = 0.6;
+function slangInRij(s){
+  if (s.kind === 'zwart') return false;
+  const ruim = SNK_W * snakeSScale() * SLANG_RIJ, mijn = Math.abs(s.x - world);
+  return snakes.some(o => o !== s && o.kind !== 'zwart' && (o.state === 'walk' || o.state === 'wait' || o.state === 'bite')
+                       && Math.abs((o.base || 0) - (s.base || 0)) < 2 && (o.x - world) * (s.x - world) > 0
+                       && Math.abs(o.x - world) < mijn && Math.abs(o.x - s.x) < ruim);
+}
 function updateSnake(s, dt, plats, cliff){
   if (ravijnValt(s, dt, 'gone')) return;            // in het open ravijn gevallen
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
@@ -12447,6 +12487,12 @@ function updateSnake(s, dt, plats, cliff){
   }
 
   const gap = Math.abs(world - s.x);             // distance to the player, whichever side
+  if (s.state === 'walk' && slangInRij(s)){        // er ligt al een slang voor hem: aansluiten, niet erin
+    s.edge = true; s.stuck = 0;                    // edge: hij ligt stil in zijn idle
+    s.acc += dt * 10;
+    while (s.acc >= 1){ s.frame = (s.frame + 1) % 8; s.acc -= 1; }
+    return;
+  }
   if (s.state === 'walk'){
     const r = slangSchuif(s, dt, plats, cliff, 1);   // always crawls toward the player
     s.edge = r.edge;
@@ -12600,7 +12646,10 @@ const PAN_TACKLE_CHANCE = 0.45, PAN_TACKLE_SPD = 700, PAN_TACKLE_H = 0.45;
 const CLAW_FPS = 24, CLAW_FROM = 4, CLAW_TO = 6, CLAW_REACH = 1.28, CLAW_BACK = 0.35, CLAW_HIGH = 0.25;
 const CLAW_RANGE = 1.15;                         // kom je hier binnen, dan haalt hij uit (deel van Amirs lengte)
 const CLAW_DASH = 620;                           // snelle uitval naar voren
-const CLAW_SAFE_H = 0.5;                         // sta je zo veel hoger dan hij (plateau), dan laat hij je met rust
+// Sta je zo veel hoger dan hij, dan laat hij je met rust: zijn klauw komt niet hoger dan CLAW_HIGH, dus
+// wie op een kei staat (0,45) raakt hij niet. Stond dit op 0,5, dan klauwde hij onder een Amir op een kei
+// eindeloos door de lucht, zonder afkoeltijd en dus zonder ooit in zijn herstel te komen.
+const CLAW_SAFE_H = CLAW_HIGH;
 const PAN_STANDING = ['walk', 'spot', 'notice', 'prowl', 'run', 'wind'];   // op zijn poten = klauwklaar
 const panthers = [];
 // ---- de witte panter (Winter World) ----------------------------------------
@@ -12787,13 +12836,16 @@ function panBaan(s, a, b, plats){
   const d = b >= a ? 1 : -1, lo = Math.min(a, b), hi = Math.max(a, b);
   let x = b;
   const base = s ? (s.base || 0) : vloerBij(a, ph);
+  // Vanaf Amir (s leeg): staat hij zelf op een kei, dan is dat geen kei tussen hem en de panter. Anders
+  // kwam er niets anders uit dan 'nooit achteruit', dus a zelf, en verscheen de panter in de kei.
+  const onderAmir = p => !s && a > p.left && a < p.right;
   for (const g of gatenMetRavijn()){
     if (!gatOp(g.x, base)) continue;             // beneden in een gang is een gat erboven geen rand
     const gl = g.x - g.w / 2, gr = g.x + g.w / 2;
     if (gr > lo && gl < hi) x = d === 1 ? Math.min(x, gl - 60) : Math.max(x, gr + 60);
   }
   for (const p of plats || []){
-    if (!blocksMonster(p, base)) continue;
+    if (!blocksMonster(p, base) || onderAmir(p)) continue;
     const m = 60 * (p.wPx / 400) + 20;
     if (p.right > lo && p.left < hi) x = d === 1 ? Math.min(x, p.left - m) : Math.max(x, p.right + m);
   }
@@ -12975,8 +13027,10 @@ function updatePanther(s, dt, plats, cliff){
   } else if (s.state === 'prowl' || s.state === 'run'){
     s.face = toward; s.dir = toward;
     if (s.state === 'prowl'){
-      panAnim(s, dt, s.sneak ? 16 : 12, PAN_N.prowl, true);
-      panStep(s, dt, s.sneak ? PAN_SNEAK_SPD : PAN_PROWL_SPD, plats, cliff);
+      // loopt hij tegen een kei of een ravijnrand, dan blijft hij daar ingedoken liggen loeren, en sluipt
+      // hij niet ter plekke door
+      if (panStep(s, dt, s.sneak ? PAN_SNEAK_SPD : PAN_PROWL_SPD, plats, cliff))
+        panAnim(s, dt, s.sneak ? 16 : 12, PAN_N.prowl, true);
       if (s.sneak && gap < 700) s.sneak = false;
       if (gap > PAN_RUN_FROM) panSet(s, 'run');
       // te dichtbij om te springen: gewoon doorsluipen, dan komt de klauw vanzelf (zie de regel bovenin)
@@ -14073,6 +14127,12 @@ function zwTegenKei(s, nx, plats, halfL){
   }
   return false;
 }
+// Kan hij een pas naar je toe zetten? Zo niet (een kei, een ravijnrand, de wand), dan heeft rennen geen
+// zin: hij bleef dan ter plekke rennen, een seconde lang, en begon daarna opnieuw.
+function zwKanStap(s, naarJe, plats, cliff){
+  const nx = s.x + naarJe * ZW_RUN_SPD / 60;
+  return !knockBlocked(s, nx, plats, cliff, ZW_LIJF.half * zwScale(), 80) && !zwTegenKei(s, nx, plats, ZW_VOET_VOOR * zwScale());
+}
 // Staat er een maat tussen hem en jou, dan gaat hij daar niet doorheen. Wie het
 // dichtst bij je staat vecht; de rest blijft er een lijf vandaan staan dreigen.
 function zwInDeWeg(s, nx){
@@ -14146,6 +14206,7 @@ function updateZwaard(s, dt, plats, cliff){
     if (s.t < ZW_DREIG_T) return;
     if (gap <= zwReik() * ZW_SLAG_DEEL) zwSet(s, 'slag');
     else if (zwInDeWeg(s, s.x + naarJe * ZW_RUIMTE * zwScale())) s.t = ZW_DREIG_T - 0.3;   // wachten op zijn beurt
+    else if (!zwKanStap(s, naarJe, plats, cliff)) s.t = ZW_DREIG_T - 0.3;   // een kei of ravijnrand: hier blijven dreigen
     else zwSet(s, 'rennen');
     return;
   }
@@ -14157,8 +14218,9 @@ function updateZwaard(s, dt, plats, cliff){
     const stap = naarJe * ZW_RUN_SPD * dt;
     if (zwInDeWeg(s, s.x + stap)){ zwSet(s, 'dreigen'); return; }   // zijn maat vecht eerst
     const voor = s.x;
-    zwMove(s, stap, plats, cliff);
-    // een rots, een ravijnrand of de klifwand: daar blijft hij staan dreigen
+    // een rots, een ravijnrand of de klifwand: daar blijft hij staan dreigen, meteen, en niet eerst
+    // nog ter plekke rennen
+    if (!zwMove(s, stap, plats, cliff)){ zwSet(s, 'dreigen'); return; }
     if (Math.abs(s.x - voor) < ZW_RUN_SPD * dt * 0.4){
       s.stuck += dt;
       if (s.stuck >= ZW_STUCK_T){ s.stuck = 0; zwSet(s, 'dreigen'); }
@@ -14425,8 +14487,13 @@ function fosforGroepStap(g, dt){
   if (g.fase === 'zie'){
     if (g.t < g.staar) return true;
     // de aanval: de dichtstbijzijnde eerst, en de rest volgens FOSFOR.golf
-    const klaar = leden.filter(s => s.state === 'zie').sort((p, q) => Math.abs(p.x - world) - Math.abs(q.x - world));
+    // wie de vorige keer vastliep (een ravijnrand, een kei) en Amir staat nog op dezelfde plek, blijft
+    // staren: anders begon hij steeds opnieuw aan een aanval die niet kan, en schoof de groep bij elke
+    // poging een stukje verder in elkaar tot ze op dezelfde pixel lagen
+    const klaar = leden.filter(s => s.state === 'zie' && !(s.klemW !== undefined && Math.abs(world - s.klemW) < 40))
+                       .sort((p, q) => Math.abs(p.x - world) - Math.abs(q.x - world));
     if (!klaar.length) return true;
+    for (const s of klaar) s.klemW = undefined;
     const golf = FOSFOR.golf[klaar.length] || [0];
     const v = fosforStorm(), stop = fosforReik() * 0.78;
     const nodig = klaar.map((s, k) => Math.max(0, Math.abs(s.x - world) - stop * (1 + k * FOSFOR.achter)) / v);
@@ -14500,7 +14567,12 @@ function updateFosfor(s, dt, plats, cliff){
   if (s.state === 'aanval'){
     if (s.t > 0){ s.t -= dt; anim(8); return; }    // zijn beurt komt zo
     if (gap <= s.stop){ fosforSet(s, 'dreig', FOSFOR.dreig); return; }
-    slangSchuif(s, dt, plats, cliff, s.v / snakeSpeed());
+    // Een ravijnrand, een kei of een maat die daar al staat: dan komt hij niet verder. Hij richt zich
+    // op en kijkt je aan (wacht), en valt pas opnieuw aan als jij van plek bent veranderd (klemW, in
+    // fosforGroepStap). Zonder dit bleef hij voorgoed tegen de rand aan kronkelen, en stond de hele
+    // groep op dezelfde pixel.
+    const r = slangSchuif(s, dt, plats, cliff, s.v / snakeSpeed());
+    if (r.edge || r.vast || fosforMaatVoor(s)){ fosforSet(s, 'wacht'); s.side = s.x > world ? 1 : -1; s.klemW = world; return; }
     anim(12 * s.v / snakeSpeed());
     return;
   }
@@ -14521,6 +14593,13 @@ function updateFosfor(s, dt, plats, cliff){
     anim(14);
     if (s.t >= FOSFOR.terug){ fosforSet(s, 'wacht'); s.side = s.x > world ? 1 : -1; }
   }
+}
+// staat er een maat van zijn groep vlak voor hem (tussen hem en Amir) die al niet verder kon? Dan
+// sluit hij daarachter aan, een halve lengte ervandaan, in plaats van erin te schuiven
+function fosforMaatVoor(s){
+  if (!s.groep) return false;
+  const ruim = SNK_W * fosforScale() * 0.5, mijn = Math.abs(s.x - world);
+  return s.groep.leden.some(o => o !== s && o.state === 'wacht' && Math.abs(o.x - s.x) < ruim && Math.abs(o.x - world) < mijn);
 }
 // zijn beet raakt: jij versteent, en hij verstijft mee
 function fosforBijt(s){
@@ -14733,7 +14812,7 @@ function updateScorp(s, dt, plats, cliff){
       if (s.frame % 3 === 0) kickSand(s, 3, 0);      // een pootje raakt de grond
     }
     // hij ziet je: stoppen, naar je toe draaien, staart strekken
-    if (s.cool <= 0 && gap < SCP_SEE && !dead && !gapBetween(s.x, world)
+    if (s.cool <= 0 && gap < scpZicht() && !dead && !gapBetween(s.x, world)
         && Math.abs(ph - (s.base || 0)) < 220){      // alleen als je op zijn hoogte bent
       s.state = 'stance'; s.t = 0; s.acc = 0; s.fade = 0;   // s.frame blijft: tijdens het draaien staat hij in zijn looppose
       const before = scpMir(s);                       // hoe hij nu staat (lopend)
@@ -14776,6 +14855,10 @@ function updateScorp(s, dt, plats, cliff){
     }
   }
 }
+// Hij ziet je pas als hij zelf in beeld staat, met zijn hele lijf, net als de zwaardvechter (zwZicht).
+// SCP_SEE is groter dan een half scherm: zonder deze klem stond hij al buiten beeld te dreigen, en
+// op een telefoon viel zijn hele aanloop buiten beeld en kwam hij uit het niets aanstormen.
+function scpZicht(){ return Math.min(SCP_SEE, W / 2 / viewZoom() - SCP_WALK.w * scpScale() * 0.5); }
 function scpMir(s){
   const toPlayer = s.side === 1 ? -1 : 1;          // -1 = gespiegeld, kop naar links
   return s.state === 'walk' ? toPlayer : -toPlayer;  // aanvallen: staart naar de speler
