@@ -6939,12 +6939,15 @@ const BAV_MOND = {
 // het speerbeeld uit stootframe `steek`: tot `tot` de punt met de omwikkeling zoals hij is, daarna de schacht
 // (`schacht`, een stuk zonder handen) herhaald tot `lang`, telkens `zak` lager, zoals de speer in het frame afloopt.
 // `top` en `hoog` is de strook van het frame, `midden` de hoogte van de punt daarin.
+// Met `blauw` het blauwe vaantje van de speer uit het skelet (vaanBlauw), apart bewaard.
 const BAV_SPEER = { top: 100, hoog: 60, tot: 150, schacht: [150, 240], zak: 3, lang: 495, midden: 27 };
-let beetSpeer = null;
-function beetSpeerMaak(){
-  if (beetSpeer) return beetSpeer;
-  const img = atkImgs[BAV_BEET.steek];
-  if (!imgReady(img)) return null;
+const beetSpeer = {};
+function beetSpeerMaak(blauw){
+  const sl = blauw ? 'blauw' : 'rood';
+  if (beetSpeer[sl]) return beetSpeer[sl];
+  const bron = atkImgs[BAV_BEET.steek];
+  if (!imgReady(bron)) return null;
+  const img = vaanBlauw(bron, !!blauw);
   const P = BAV_SPEER, c = document.createElement('canvas');
   c.width = P.lang; c.height = P.hoog + 20;
   const g = c.getContext('2d');
@@ -6970,8 +6973,7 @@ function beetSpeerMaak(){
     tg.fillRect(0, 0, t.width, t.height);
     trap.push(t);
   }
-  beetSpeer = { heel: c, punt, schacht, trap, m };
-  return beetSpeer;
+  return beetSpeer[sl] = { heel: c, punt, schacht, trap, m };
 }
 const bavBeet = new WeakMap();                     // per baviaan waar de speerbeet staat
 let beetVast = null;                               // de baviaan die Amir nu vasthoudt: zolang staat Amir stil
@@ -7026,6 +7028,7 @@ function bavBeetStap(scale){
     swingUsed = true;                             // deze stoot raakt verder niets
     r.fase = 'grijp'; r.t0 = bavKlok; r.wx0 = r.wx; r.uitval = uitval; r.naar = naar;
     r.heel = true; r.punt = true; r.sp = null; r.spT = null;
+    r.blauw = speerBlauw;                         // de speer die hij pakt houdt zijn kleur
     beetVast = b;
     bavBijtSpeel();                               // de hap: de aanzet op de uitval, de klap op de beet
     return;
@@ -7039,7 +7042,8 @@ function bavBeetStap(scale){
     r.fase = 'druk'; r.t0 = bavKlok;               // de klap: de poot op de speer, en de speer breekt
     const poot = world + r.naar * B.poot * scale, h = terrainH(poot) + B.speerHoog;
     beetKnipX = poot; beetKnipZwaai = true;
-    beetWerp = { t0: bavKlok, wx: poot + r.naar * 40 * scale, h, hoek: r.naar > 0 ? Math.PI : 0, fd: -r.naar, schok: false };
+    beetWerp = { t0: bavKlok, wx: poot + r.naar * 40 * scale, h, hoek: r.naar > 0 ? Math.PI : 0, fd: -r.naar, schok: false,
+                 blauw: speerBlauw };             // de punt houdt de kleur van zijn vaantje
     for (let i = 0; i < 14; i++)
       beetStukken.push({ soort: 'splinter', x: poot, h, vx: (Math.random() - 0.5) * 520, vh: 150 + Math.random() * 420,
                          hoek: Math.random() * 6.28, vr: (Math.random() - 0.5) * 30, lang: 5 + Math.random() * 9, leeft: 0 });
@@ -7124,7 +7128,7 @@ function bavBeetStand(b, scale){
 // meezwiept met het schudden. Hier breekt ook de schacht af (knap) en vertrekt de punt naar de camera (werp).
 // In schermcoordinaten: mx, my is zijn mond, groundY de grondlijn.
 function bavBeetSpeer(b, st, mx, my, scale, groundY, cx){
-  const r = st.beet, S = beetSpeerMaak(), B = BAV_BEET;
+  const r = st.beet, S = beetSpeerMaak(r.blauw), B = BAV_BEET;
   if (!S || (!r.heel && !r.punt)) return;
   const nu = bavKlok, dt = r.spT == null ? 0 : Math.max(0, Math.min(0.05, (nu - r.spT) / 1000)); r.spT = nu;
   const fd = b.f ? 1 : -1;                        // de speer steekt naar voren uit zijn bek
@@ -7157,7 +7161,7 @@ function bavBeetSpeer(b, st, mx, my, scale, groundY, cx){
   const hoek = Math.atan2(ny, nx * fd);           // gespiegeld getekend als hij naar links kijkt
   if (st.ts != null && st.ts >= bavSchudTijd(B.werp) && r.punt){   // de punt naar de camera
     r.punt = false;
-    beetWerp = { t0: bavKlok, x: mx, y: my, hoek: Math.atan2(ny, nx), fd, schok: false };
+    beetWerp = { t0: bavKlok, x: mx, y: my, hoek: Math.atan2(ny, nx), fd, schok: false, blauw: r.blauw };
     if (wantSound){ const s = document.getElementById('thrust'); s.currentTime = 0; s.volume = 0.6; s.playbackRate = 0.8; s.play().catch(() => {}); }
     bavZoef(B.werpDuur);
     return;
@@ -7211,7 +7215,7 @@ function bavBeetStukken(groundY, scale, cx){
 // voorgrond (de trappen uit beetSpeerMaak); op het laatst een donkere schaduw over het beeld en een schok.
 function bavWerpTeken(scale){
   if (!beetWerp) return;
-  const S = beetSpeerMaak(), B = BAV_BEET, w = beetWerp;
+  const S = beetSpeerMaak(beetWerp.blauw), B = BAV_BEET, w = beetWerp;
   if (w.x == null) return;                        // nog niet op het scherm gezet (pootslag, baviaanTeken)
   const p = (bavKlok - w.t0) / 1000 / B.werpDuur;
   if (!S || p >= 1){ beetWerp = null; return; }

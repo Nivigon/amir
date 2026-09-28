@@ -19,7 +19,12 @@ Per frame:
    de linkerkant, bij de punt;
 5. losse stipjes die in het oude lintvak zijn blijven staan weghalen.
 
-Het rode lint blijft rood; het spel kleurt het blauw bij het tekenen.
+Het lint wordt daarbij vooral platter gemaakt, strak naar achteren in de wind, zodat het
+niet meer als een groot doek uitwappert: zo'n 55 bij 15 in frame 4 tot en met 6, 48 bij 24 in
+frame 7 (daar blijft de haak). Frame 7 is ook de speer in de bek van de baviaan (BAV_SPEER).
+
+Het rode lint blijft rood; het spel kleurt het blauw bij het tekenen (vaanBlauw vindt het
+platte lint nog helemaal, nagekeken).
 
 Het is een aanpassing van een keer, en die is al gedaan: de frames in de repository zijn
 bijgewerkt. Draai het alleen op de oorspronkelijke frames (uit de geschiedenis van git);
@@ -48,10 +53,10 @@ MAP = 'karakters/amir/aanval/speerstrike'
 # per frame: (breedte, hoogte) van het lint, en hoeveel pixels aan de kant van de hand
 # niet leeggemaakt worden (in frame 4 en 5 ligt de hand tegen het lint aan)
 SCHAAL = {
-    4: ((0.60, 0.70), 25),
-    5: ((0.45, 0.65), 25),
-    6: ((0.40, 0.62), 25),
-    7: ((0.55, 0.55), -4),
+    4: ((0.51, 0.29), 25),
+    5: ((0.36, 0.25), 25),
+    6: ((0.32, 0.24), 25),
+    7: ((0.50, 0.30), -4),
 }
 TE_KLEIN = 70              # een lint dat al smaller is dan dit is al verkleind
 
