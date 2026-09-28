@@ -48,7 +48,7 @@ het hele stuk zien, en **Dood door speerval** hetzelfde met de speer in zijn bor
 In **Test 17: Het zakkende plafond** laat je je in een ravijn vallen en loop je onder de grond door een lage doorgang.
 Vlak daarachter ligt een zegel, en daar kun je niet omheen: ook wie eroverheen springt, zet hem aan. Dan valt de doorgang
 achter je dicht, zakt de doorgang aan het eind van de kamer tot een smalle spleet waar je niet onderdoor kunt, en komt het
-plafond met een klap en daarna langzaam op je af. Na zo'n zestien seconden ben je geplet (bukken rekt het nog even). Door
+plafond met een klap en daarna langzaam op je af. Na zo'n 23 seconden ben je geplet (bukken rekt het nog even). Door
 de spleet zie je een tweede zegel liggen. Raak het met je speer: een vlakke worp (kort vasthouden) gaat onder de spleet
 door, een boog raakt het plafond en valt terug. Hoe ver een vlakke worp komt hangt aan je scherm, dus zoek de plek in de
 kamer waar hij precies op het zegel valt. Gooi je te kort, dan ligt je speer in de kamer en raap je hem op; gooi je te
@@ -57,8 +57,25 @@ In de sandbox staat het bij Terrein onder **Zakplafond**: **Neerzetten** zet de 
 **Zakken** laat hem meteen dichtgaan, **Omhoog** haalt hem op en **Weg** ruimt hem op. Een level zet het met
 `zakplafond: [ {r, l, rust, dicht, v, schok, duw} ]` en twee zegels, `{x, plafond: 'zak'}` en `{x, plafond: 'op'}`.
 
+Bij het zakkende plafond komt het stof van boven: zolang het steen beweegt maakt er zich fijn stof van de onderkant
+los dat licht en langzaam naar beneden dwarrelt, in de kleur van het steen, en als het stilvalt komt er een vlaag bij en
+schokt het scherm. Alleen de poort die op de vloer slaat geeft daar een wolk. Dat gebeurt bij het zakken en ook als het
+weer omhooggaat, en zolang er iets beweegt trilt het scherm licht.
+
+In **Test 19: De rijzende grond** gaat het andersom: drie ravijnen die te breed zijn om over te springen, en elke keer
+brengt een zegel steen uit de diepte omhoog. Bij het eerste stap je op het zegel en komt er in het midden een blok
+omhoog, met aan weerszijden een gat dat je met een sprong haalt. Bij het tweede ligt het zegel aan de overkant: raak het
+met je speer. Op een laptop gaat dat met een vlakke worp, op een telefoon met een boog. Mis je, dan staat je speer
+meteen weer naast je. Bij het derde komen twee blokken na elkaar omhoog die samen een brug vormen, maar zes seconden
+later zakt die weer: ren. Wie blijft staan, zakt mee het ravijn in. Stap je opnieuw op het zegel, dan komt hij terug.
+Het steen komt met gerommel, stof langs de rand van het ravijn en een trillend scherm, en boven een klap. In de sandbox
+staat het bij Terrein onder **Rijzende grond**: **Neerzetten** zet een ravijn met een zegel voor je uit, **Zakt weer**
+hetzelfde met een blok dat na een tijd terugzakt, **Omhoog** laat het meteen komen en **Weg** ruimt het op. Een level zet
+het met `rijzers: [ {id, r, l, tot, van, v, wacht, duur} ]` en een zegel `{x, rijs: 'id'}`, met `speer: true` als een
+speer hem ook aanzet.
+
 De Test levels staan in het menu per zes op een blad. Met de pijltjes eronder ga je naar de volgende zes (7 t/m 12,
-13 t/m 18) en terug.
+13 t/m 18, 19) en terug.
 
 **Test 18: De zuil** gaat over precies springen. Midden in een ravijn is een smalle zuil grond blijven staan, en daar moet
 je op landen. Een sprong die net te kort is, wordt hier niet gered: bij de overkant van een gewoon ravijn zet het spel je
