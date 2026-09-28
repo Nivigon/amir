@@ -761,6 +761,7 @@
         <button id="sbbavbeet" title="hij staat op de grond; steek naar hem of kom te dichtbij, en hij pakt je speer; zwaai laag, en hij slaat erop">Speerbeet</button>
         <button id="sbbavslag" title="de lange pootslag, met de arm hoog: alleen om te zien (bij de speerbeet)">Pootslag lang</button>
         <button id="sbbavdood" title="de fatale klap: nog een brul, en dan zakt hij in elkaar">Dood</button>
+        <button id="sbbavspeer" title="alsof de speerval hem raakt: de speer blijft in zijn borst zitten, tot hij als lijk ligt">Dood door speerval</button>
         <button id="sbbavspiegel">Spiegel</button>
         <button id="sbbavweg">Weg</button>
         <span class="hint" id="sbbavinfo">de eindbaas in wording, alleen het plaatje: vasthouden gaat door</span>
@@ -5047,8 +5048,9 @@ function speervalZegel(z){
   flashHint('Het zegel licht op: in de rotswand komt een speer los');
 }
 const speervalKlaar = x => { const sp = speervalZoek(x); return !!sp && (!sp.st || sp.st === 'wand'); };
-// hij valt: na een treffer of een misser. dood: hij raakte de baviaan, dan blijft hij liggen
-function speervalVal(sp, dood){ sp.st = 'val'; sp.t = 0; sp.vy = 0; sp.dood = !!dood; }
+// hij valt: na een treffer op Amir of een misser. Raakt hij de baviaan, dan blijft hij in zijn borst zitten
+// (st 'baviaan', BAV_VALSPEER) en tekent de baviaan hem
+function speervalVal(sp){ sp.st = 'val'; sp.t = 0; sp.vy = 0; }
 function speervalUpdate(dt, scale){
   if (!level || !level.speervallen) return;
   const u = CHAR_H * scale;
@@ -5072,7 +5074,7 @@ function speervalUpdate(dt, scale){
       const g = terrainH(sp.px);
       if (sp.hy <= g + 4){ sp.hy = g + 4; sp.st = 'lig'; sp.t = 0; puffWorld(sp.px, 4, 0, 0.7); }
     }
-    else if (sp.st === 'lig' && !sp.dood && sp.t >= SPEERVAL.lig + SPEERVAL.terug){ sp.st = 'wand'; sp.t = 0; }
+    else if (sp.st === 'lig' && sp.t >= SPEERVAL.lig + SPEERVAL.terug){ sp.st = 'wand'; sp.t = 0; }
   }
 }
 // het raakvlak in schermpixels: de punt en een stuk van de schacht erachter, of null als hij niet vliegt
@@ -5087,6 +5089,7 @@ function speervalTeken(groundY, scale, cx, achter){
   const len = javLen(scale), kk = len / JAV.w, t = performance.now() / 1000;
   for (const sp of level.speervallen){
     const st = sp.st || 'wand';
+    if (st === 'baviaan') continue;                           // hij zit in de baviaan: die tekent hem (bavSpeerTeken)
     const lang = len * DRAAI.w.val / JAV.w;                  // de gekartelde speer is langer: zijn staart zit dieper
     const inWand = st === 'wand' || st === 'tril' || (st === 'vlucht' && sp.px - lang < sp.px0 - len * (1 - SPEERVAL.steek));
     if (inWand !== !!achter || sp.px == null) continue;
@@ -5099,7 +5102,7 @@ function speervalTeken(groundY, scale, cx, achter){
       hoek = Math.sin(t * 55) * (1 + 3 * p) * Math.PI / 180; dx = -Math.abs(Math.sin(t * 31)) * 5 * p * scale;
     }
     if (st === 'val') hoek = Math.min(0.25, sp.t * 0.8);        // de punt zakt wat voorover
-    if (st === 'lig'){ hoek = 0.04; if (!sp.dood) alfa = Math.max(0, 1 - Math.max(0, sp.t - SPEERVAL.lig) / SPEERVAL.terug); }
+    if (st === 'lig'){ hoek = 0.04; alfa = Math.max(0, 1 - Math.max(0, sp.t - SPEERVAL.lig) / SPEERVAL.terug); }
     ctx.save();
     ctx.globalAlpha *= alfa;
     ctx.translate(tx + dx, groundY - hy * scale); ctx.rotate(hoek);
@@ -5111,7 +5114,7 @@ function speervalTeken(groundY, scale, cx, achter){
 }
 function speervalReset(){
   speervalStil();
-  if (level && level.speervallen) for (const sp of level.speervallen){ sp.st = 'wand'; sp.t = 0; sp.dood = false; sp.px = null; }
+  if (level && level.speervallen) for (const sp of level.speervallen){ sp.st = 'wand'; sp.t = 0; sp.px = null; }
 }
 // de baviaan houdt de fakkels dicht, maar alleen als er een speerval is: anders is hij niet te verslaan
 function bavBlokkeert(){
@@ -6549,7 +6552,10 @@ function bavVecht(b, r, t, dx0, scale, lijn){
     const bx = b.x + r.wx, rel = (terrainH(bx) - terrainH(b.x)) / CHAR_H;
     return Object.assign({ img, dx: r.wx * (b.f ? 1 : -1) / u, dy: lijn - rel }, extra);
   };
-  if (r.doodNu){ r.doodNu = false; bavRaak(b, r); }                  // de knop Dood in de sandbox
+  if (r.doodNu){                                                      // de knop Dood in de sandbox
+    r.doodNu = false; bavRaak(b, r);
+    if (r.doodSpeer){ r.doodSpeer = false; r.valSpeer = { img: null }; }   // Dood door speerval: met de speer in zijn borst
+  }
   if (r.fase === 'dood'){                                             // het drama (BAV_DRAMA), dan in elkaar zakken (BAV_DOOD)
     const D = BAV_DOOD, Q = BAV_DRAMA, R = BAV_ROAR.groot, tt = t - r.fT, fd = b.f ? 1 : -1;
     const brulDuur = deelTijd(R.delen, BAV_BRUL.n) - deelTijd(R.delen, R.van);
@@ -6883,7 +6889,17 @@ function bavGevecht({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, valRaak
   // de speer uit de speerval doodt hem, ook als hij verder niet te raken is; zolang hij nog niet stormt vliegt
   // hij erlangs. Voor de beet gekeken: valt het in hetzelfde beeld, dan was de speer eerst.
   const val = r.fase && valRaakt ? valRaakt(lijf) : null;
-  if (val){ speervalVal(val, true); bavRaak(b, r); return; }
+  if (val){
+    // hij blijft in zijn borst zitten (BAV_VALSPEER). Waar de punt hem raakte, in bronpixels op het canvas van dit
+    // frame, is voor een frame zonder anker (de sprong). De speer vliegt naar rechts: kijkt hij ook naar rechts, dan
+    // raakt hij hem van achteren, en dan valt de speer zoals na een misser
+    const tx = cx + (val.px - world), ty = groundY - val.hy * scale;
+    bavRaak(b, r);
+    if (b.f){ speervalVal(val); return; }
+    val.st = 'baviaan'; val.t = 0;
+    r.valSpeer = { img: g.img, x: ((tx - g.sx) * g.dir - g.lx) / g.k, y: (ty - g.top) / g.k };
+    return;
+  }
   if (r.bijt && !r.raak && hitBy(bek, pbox)){ r.raak = true; hurtPlayer(bek.l + bek.r < pbox.l + pbox.r); }
   if (showBoxes){
     ctx.save(); ctx.globalAlpha = 0.5; ctx.lineWidth = 2;
@@ -6901,14 +6917,14 @@ function bavGevecht({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, valRaak
   if (geraakt && BAV_VECHT.raakbaar) bavRaak(b, r);
 }
 // de knop Dood in de sandbox: de fatale klap, ook als hij nog niet stormt (dan slaat hij de rest van het verloop over)
-function bavDoodNu(){
+function bavDoodNu(speer){
   const b = level && level.baviaan;
   if (!b) return;
   if (b.afzet == null) b.afzet = bavKlok - 60000;           // aan de wand: meteen beneden, het verloop voorbij
   let r = bavRust.get(b);
   if (!r){ r = { t0: 0, wacht: bavWacht(0), schud: null, soort: null, keer: 0 }; bavRust.set(b, r); }
   if (!r.fase){ r.schud = null; r.soort = null; r.keer = BAV_VERLOOP.stappen.length; }
-  r.doodNu = true;
+  r.doodNu = true; r.doodSpeer = !!speer;
 }
 // ---- pootslag: de baviaan slaat met zijn poot op de speer ----
 // Twee reeksen, allebei een keer (geen lus), op `fps`. Canvas 840 bij 680 met de grondlijn op rij 640 (`grond`),
@@ -7378,8 +7394,10 @@ function baviaanTeken(groundY, scale, cx){
     ctx.drawImage(fr, lx, -h - oy, fr.naturalWidth * k, fr.naturalHeight * k);
     if (st.flits > 0){                                       // wit oplichten bij de klap (BAV_DRAMA)
       const wit = bavWit(fr);
-      if (wit){ ctx.globalAlpha *= Math.min(1, st.flits) * 0.85; ctx.drawImage(wit, lx, -h - oy, fr.naturalWidth * k, fr.naturalHeight * k); }
+      if (wit){ ctx.save(); ctx.globalAlpha *= Math.min(1, st.flits) * 0.85; ctx.drawImage(wit, lx, -h - oy, fr.naturalWidth * k, fr.naturalHeight * k); ctx.restore(); }
     }
+    const rs = bavRust.get(b);
+    if (rs && rs.valSpeer) bavSpeerTeken(rs, fr, lx, -h - oy, k, scale);   // de speer uit de speerval, in zijn borst
     bavGeo.set(b, { img: fr, sx, lx, top, k, dir: b.f ? -1 : 1, ox: st.ox, oy: st.oy });   // voor bavGevecht
   } else bavGeo.delete(b);
   if (!fr){
@@ -7394,6 +7412,75 @@ function baviaanTeken(groundY, scale, cx){
     beetWerp.x = cx + (beetWerp.wx - world); beetWerp.y = groundY - beetWerp.h * scale;
   }
   bavBeetStukken(groundY, scale, cx);                        // de afgebroken schacht en de splinters (speerbeet)
+}
+// ---- speer in de baviaan: de speerval blijft in zijn borst steken ----
+// De speerval raakt hem van voren: hij rent op Amir af, en Amir staat bij het zegel voor de klif. De speer blijft
+// dan in zijn borst zitten, door het hele drama heen (BAV_DRAMA: de klap, dreigen, de grote brul, twijfel, de dood)
+// tot hij als lijk ligt. Per frame staat in `anker` waar die plek op zijn borst is, in bronpixels op het canvas van
+// die reeks (tools/baviaan_speer_anker.py volgt een stukje vacht van frame tot frame). De punt wijst in het frame
+// naar rechts, zijn lijf in: `diep` van de speer zit erin, en dat stuk wordt weggegumd waar zijn lijf is. `hoek`
+// (graden, per reeks op een paar frames, daartussen verlopend): hoe de schacht meedraait met zijn lijf, + is de
+// voorkant omlaag. Valt hij voorover, dan komt het uiteinde op de grond (`grond`, de grondlijn van de canvassen) en
+// wordt de speer dieper zijn lijf in gedrukt, tot hoogstens `maxDiep`. Een frame zonder anker (de sprong: daar schiet
+// zijn lijf zo over het canvas dat het volgen de weg kwijtraakt) krijgt de plek waar de punt hem raakte.
+const BAV_VALSPEER = {
+  diep: 0.30, maxDiep: 0.85, grond: 575,
+  hoek: { idle_grom: { 0: 4 }, brul: { 0: 0, 6: 2, 7: -6, 8: -14, 19: -14, 23: -4 },
+          dood: { 0: 2, 5: 3, 10: 12, 13: 16, 16: 16, 21: 14 } },
+  anker: {   // uit tools/baviaan_speer_anker.py: x, y per frame, achter elkaar
+    run: [184,313, 178,321, 184,326, 186,339, 199,355, 210,365, 240,373, 258,394, 228,364, 237,334, 242,315, 242,304, 238,294, 237,285, 222,268, 206,273, 179,289],
+    hap: [230,340, 235,345, 240,353, 242,359, 242,364, 242,369, 239,372, 236,375, 233,377, 230,378, 227,378, 226,378, 226,378, 226,378, 228,382, 229,383, 231,383, 231,381, 231,376, 231,370, 229,364, 226,356, 223,349, 220,342, 217,337, 217,332],
+    idle_grom: [140,291, 142,294, 143,296, 144,297, 144,296, 144,295, 143,293, 142,291, 141,289, 140,286, 138,283, 137,280, 136,278, 135,276, 134,274, 133,273, 133,273, 133,273, 133,273, 133,274, 134,275, 135,277, 136,279, 137,281, 138,284, 139,287, 141,290, 143,293, 144,293, 145,296, 146,298, 146,298, 146,298, 146,298, 146,298, 146,297, 146,296, 145,294, 145,296],
+    brul: [255,470, 249,459, 258,463, 274,468, 205,305, 235,321, 149,290, 119,275, 116,278, 116,278, 116,278, 116,277, 116,275, 116,274, 116,274, 116,274, 116,274, 116,274, 116,274, 116,274, 116,274, 116,274, 116,275, 116,275],
+    dood: [300,303, 291,294, 285,288, 284,286, 284,289, 285,305, 287,327, 298,353, 307,363, 314,391, 322,421, 332,449, 342,469, 348,478, 349,480, 350,483, 352,487, 353,490, 354,486, 354,483, 353,483, 353,483]
+  },
+};
+// welke reeks en welk frame dit plaatje is, of null
+function bavSpeerFrame(img){
+  const reeksen = { run: bavRunImgs, hap: bavHapImgs, idle_grom: bavGromImgs, brul: bavBrulImgs, dood: bavDoodImgs };
+  for (const naam in reeksen){ const i = reeksen[naam] ? reeksen[naam].indexOf(img) : -1; if (i >= 0) return { naam, i }; }
+  return null;
+}
+function bavSpeerHoek(naam, i){
+  const s = BAV_VALSPEER.hoek[naam];
+  if (!s) return 0;
+  const ks = Object.keys(s).map(Number).sort((a, b) => a - b);
+  if (i <= ks[0]) return s[ks[0]];
+  for (let j = 1; j < ks.length; j++) if (i <= ks[j]) return s[ks[j - 1]] + (s[ks[j]] - s[ks[j - 1]]) * (i - ks[j - 1]) / (ks[j] - ks[j - 1]);
+  return s[ks[ks.length - 1]];
+}
+// de speer in de baviaan, in het assenstelsel van baviaanTeken (het frame kijkt naar links, gespiegeld als hij
+// naar rechts kijkt): het frame staat op (lx, ty) met k schermpixels per bronpixel
+let bavSpeerCv = null;
+function bavSpeerTeken(r, fr, lx, ty, k, scale){
+  const img = draaiImgs.val[0];
+  if (!r.valSpeer || !imgReady(img)) return;
+  const f = bavSpeerFrame(fr), A = f && BAV_VALSPEER.anker[f.naam];
+  let ax, ay, hoek = 0;
+  if (A){ ax = A[f.i * 2]; ay = A[f.i * 2 + 1]; hoek = bavSpeerHoek(f.naam, f.i); }
+  else if (fr === r.valSpeer.img){ ax = r.valSpeer.x; ay = r.valSpeer.y; }
+  else return;
+  const kk = javLen(scale) / JAV.w, len = DRAAI.w.val * kk, lenBron = len / k, a = hoek * Math.PI / 180;
+  let diep = BAV_VALSPEER.diep;
+  const eind = ay + Math.sin(a) * (1 - diep) * lenBron;            // het uiteinde, in bronrijen
+  if (a > 0 && eind > BAV_VALSPEER.grond - 6) diep = Math.min(BAV_VALSPEER.maxDiep, 1 - (BAV_VALSPEER.grond - 6 - ay) / (Math.sin(a) * lenBron));
+  const m = Math.ceil(len), fw = fr.naturalWidth * k, fh = fr.naturalHeight * k;
+  if (!bavSpeerCv) bavSpeerCv = document.createElement('canvas');
+  const c = bavSpeerCv, W2 = Math.ceil(fw + 2 * m), H2 = Math.ceil(fh + 2 * m);
+  if (c.width !== W2 || c.height !== H2){ c.width = W2; c.height = H2; }
+  const g = c.getContext('2d');
+  g.clearRect(0, 0, W2, H2);
+  g.save();
+  g.translate(m + ax * k, m + ay * k); g.rotate(-a);               // om de ingang: + laat de voorkant zakken
+  const w = DRAAI.w.val;
+  g.drawImage(img, diep * len - (w - 1) * kk, -DRAAI.tipY * kk, w * kk, DRAAI.h * kk);   // de punt diep in zijn lijf
+  g.restore();
+  g.save();                                                         // wat in zijn lijf zit weg: rechts van de ingang
+  g.beginPath(); g.rect(m + ax * k, 0, W2, H2); g.clip();
+  g.globalCompositeOperation = 'destination-out';
+  g.drawImage(fr, m, m, fw, fh);
+  g.restore();
+  ctx.drawImage(c, lx - m, ty - m);
 }
 // het frame als wit silhouet, voor het oplichten bij de klap; een keer per frame gemaakt
 const bavWitten = new WeakMap();
@@ -20753,6 +20840,7 @@ document.getElementById('sbbavslag').onclick = () => {
   cv.focus();
 };
 document.getElementById('sbbavdood').onclick = () => { if (!level.baviaan) sbBaviaan(); bavDoodNu(); sbBavInfo(); cv.focus(); };
+document.getElementById('sbbavspeer').onclick = () => { if (!level.baviaan) sbBaviaan(); bavDoodNu(true); sbBavInfo(); cv.focus(); };
 document.getElementById('sbbavspiegel').onclick = () => { if (!level.baviaan) sbBaviaan(); level.baviaan.f = !level.baviaan.f; sbBavInfo(); cv.focus(); };
 document.getElementById('sbbavweg').onclick = () => { level.baviaan = null; sbBavInfo(); cv.focus(); };
 sandboxEl.querySelectorAll('button[data-bav]').forEach(bt => {
