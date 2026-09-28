@@ -3980,7 +3980,8 @@ function geluidOntgrendel(){
   }
   if (geluidVrij) return;
   geluidVrij = true;
-  for (const a of [deurSnd, skeletSnd, neeSnd, stormSnd, bavBrulSnd, bavGromSnd, bavRenSnd, bavBijtSnd, bavLandSnd]){
+  for (const a of [deurSnd, skeletSnd, neeSnd, stormSnd, bavBrulSnd, bavGromSnd, bavRenSnd, bavBijtSnd, bavLandSnd,
+                   valSpanSnd, valVuurSnd]){
     if (!a.paused) continue;
     a.muted = true;
     const p = a.play();
@@ -4975,7 +4976,7 @@ function zegelReset(){
 const SPEERVAL = {
   h: 0.82,        // hoogte van de schacht boven de grond, in Amir
   steek: 0.3,     // zo veel van zijn lengte zit in het steen
-  wacht: 0.45,    // zo lang trilt hij na het zegel, in seconden
+  wacht: 0.8,     // zo lang trilt hij na het zegel, in seconden: zo lang duurt het opspannen in het geluid
   v: 14,          // snelheid in Amir per seconde, recht vooruit
   r: 0.06,        // straal van het raakvlak rond de punt, in Amir
   voor: 0.3,      // en zo veel van zijn lengte achter de punt telt ook mee (anders vliegt hij door iets heen)
@@ -4983,6 +4984,22 @@ const SPEERVAL = {
   lig: 1.6,       // zo lang ligt hij na een misser, en dan
   terug: 0.6      // vervaagt hij in zoveel seconden en zit hij weer in de wand
 };
+// Het geluid (sounds/speerval.mp3, aangeleverd als "sound sprung") heeft twee stukken: eerst het opspannen, een
+// kraken van 0,05 tot 0,9 seconde, dan stilte, en dan het vuren, met de klap op 1,8. Het opspannen start op het
+// zegel en stopt als hij losschiet; het vuren start `voor` seconden eerder op `vuur`, zodat de klap op het moment
+// valt dat hij uit de wand komt. Twee audio-elementen, want de stukken mogen elkaar raken.
+const SPEERVAL_SND = { src: 'sounds/speerval.mp3', span: 0.05, vuur: 1.7, voor: 0.1, tot: 2.6, vol: 1 };
+const valSpanSnd = new Audio(SPEERVAL_SND.src), valVuurSnd = new Audio(SPEERVAL_SND.src);
+valSpanSnd.preload = valVuurSnd.preload = 'auto';
+function speervalSpeel(a, van){
+  if (!wantSound) return;
+  clearTimeout(a.stopT);
+  try { a.currentTime = van; } catch (e) {}
+  a.volume = SPEERVAL_SND.vol;
+  a.play().catch(() => {});
+  if (a === valVuurSnd) a.stopT = setTimeout(() => a.pause(), (SPEERVAL_SND.tot - van) * 1000);
+}
+function speervalStil(){ for (const a of [valSpanSnd, valVuurSnd]){ clearTimeout(a.stopT); a.pause(); } }
 // De rand van de klif op een hoogte boven de grond (schermpixels), in wereld-x. De klif is gespiegeld
 // getekend (zie "jouw eigen kliffen"), dus de rand is de eerste kolom van de plaat met steen op die rij.
 const klifAlfa = new WeakMap();
@@ -5025,7 +5042,8 @@ function speervalZegel(z){
     return;
   }
   z.aan = true;
-  sp.st = 'tril'; sp.t = 0;
+  sp.st = 'tril'; sp.t = 0; sp.vuur = false;
+  speervalSpeel(valSpanSnd, SPEERVAL_SND.span);                   // hij spant
   flashHint('Het zegel licht op: in de rotswand komt een speer los');
 }
 const speervalKlaar = x => { const sp = speervalZoek(x); return !!sp && (!sp.st || sp.st === 'wand'); };
@@ -5038,7 +5056,13 @@ function speervalUpdate(dt, scale){
     sp.t = (sp.t || 0) + dt;
     if (!sp.st) sp.st = 'wand';
     if (sp.st === 'wand' || sp.st === 'tril') sp.px = speervalWandX(sp, scale);
-    if (sp.st === 'tril' && sp.t >= SPEERVAL.wacht){ sp.st = 'vlucht'; sp.t = 0; sp.px0 = sp.px; sp.hy = speervalH(sp) * CHAR_H; }
+    if (sp.st === 'tril' && !sp.vuur && sp.t >= SPEERVAL.wacht - SPEERVAL_SND.voor){   // het vuren, net voor hij los is
+      sp.vuur = true; speervalSpeel(valVuurSnd, SPEERVAL_SND.vuur);
+    }
+    if (sp.st === 'tril' && sp.t >= SPEERVAL.wacht){
+      sp.st = 'vlucht'; sp.t = 0; sp.px0 = sp.px; sp.hy = speervalH(sp) * CHAR_H;
+      clearTimeout(valSpanSnd.stopT); valSpanSnd.pause();          // het spannen is voorbij
+    }
     else if (sp.st === 'vlucht'){
       sp.px += SPEERVAL.v * u * dt;
       if (sp.px - sp.px0 > SPEERVAL.ver * u || sp.px > cliffAt().wall) speervalVal(sp);
@@ -5086,6 +5110,7 @@ function speervalTeken(groundY, scale, cx, achter){
   }
 }
 function speervalReset(){
+  speervalStil();
   if (level && level.speervallen) for (const sp of level.speervallen){ sp.st = 'wand'; sp.t = 0; sp.dood = false; sp.px = null; }
 }
 // de baviaan houdt de fakkels dicht, maar alleen als er een speerval is: anders is hij niet te verslaan

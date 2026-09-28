@@ -491,7 +491,8 @@ grond verderop openscheurt.
 Een speer zit horizontaal in de rotswand aan het eind van het level, met de punt naar jou toe. Het is niet Amirs
 speer maar een oude valspeer uit de verloren stad: een gekarteld blad van zwart staal met een lichte, geslepen snede,
 en wat goud om de schacht. In de vlucht draait hij om zijn eigen as. Stap je op het zegel dat
-erbij hoort, dan licht het op, trilt de speer even in de wand en schiet hij dan recht op je af, op heuphoogte van een
+erbij hoort, dan licht het op, hoor je hem kraken en spannen, trilt de speer even in de wand en schiet hij dan met een klap
+recht op je af, op heuphoogte van een
 staande Amir. Buk (pijl omlaag of S): dan vliegt hij over je heen. Blijf je staan, dan raakt hij jou, en springen helpt
 niet. Wat achter je loopt raakt hij wel: de baviaan, die verder niet te verslaan is, gaat er dood van. Mist de speer, dan
 valt hij na een eind neer, ligt hij even, en zit hij daarna weer in de wand; het zegel gaat dan uit en werkt opnieuw.
