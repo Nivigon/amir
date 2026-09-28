@@ -5996,7 +5996,7 @@ function bavGromSpeel(){
 // klapt (dood_18, `doodF`). De klap zit `voor` seconden na het begin van het bestand, dus zo ver vooraf start het.
 const BAV_BIJT = { src: 'sounds/bavbijt.mp3', vol: 1.4 };
 const BAV_REN_GROM = { vol: 1, rate: 0.85, eerst: 0.25 };
-const BAV_LAND = { src: 'sounds/bavland.mp3', vol: 1.2, voor: 0.1, sprong: 0.7, doodF: 18, doodX: 442 };
+const BAV_LAND = { src: 'sounds/bavland.mp3', vol: 1.2, voor: 0.1, sprong: 0.7, doodF: 18, doodX: 442, handF: 16, handX: 170 };
 const bavBijtSnd = new Audio(BAV_BIJT.src), bavRenSnd = new Audio(BAV_SCHUD.geluid.src), bavLandSnd = new Audio(BAV_LAND.src);
 bavBijtSnd.preload = bavRenSnd.preload = bavLandSnd.preload = 'auto';
 // een geluid van de baviaan via zijn eigen gain op de versterker van de brul, of zonder, tot 1
@@ -6234,10 +6234,13 @@ function baviaanLaad(){
 // `rem` (hij remt: aan het eind van de uitval van een hap, als hij stilhoudt of omdraait). `kracht` schaalt het
 // geheel. De plek komt uit de frames: in bronpixels op het canvas van dat frame (`voet`), met bavBronX.
 const BAV_STOF = {
-  land: { wolk: 16, grootte: 2.6, korrel: 30, breed: 150, sneeuw: 1.25, schop: 200 },
+  land: { wolk: 24, grootte: 3.2, korrel: 36, breed: 170, sneeuw: 1.25, schop: 220, lang: 1.5 },
   stap: { wolk: 2, grootte: 1.2, korrel: 4, breed: 40, sneeuw: 0.3, schop: 110 },
   rem:  { wolk: 6, grootte: 1.7, korrel: 12, breed: 70, sneeuw: 0.6, schop: 150 },
+  // hij ploft dood neer: een brede wolk langs zijn hele lijf, die langzamer wegschuift en langer blijft hangen (`lang`)
+  plof: { wolk: 36, grootte: 3.3, korrel: 50, breed: 380, sneeuw: 1.7, schop: 120, lang: 2.2 },
   dicht: 0.9,                                               // stofwolk.png is ijl, vandaar groot en dicht (net als bij het skelet)
+  zweef: 18,                                                // de wolken remmen af en stijgen langzaam op (px per seconde), in plaats van te vallen
   sneeuwVanaf: 0.45,                                        // vanaf zoveel dek stuift het sneeuw in plaats van zand
   voet: { land: 185, landVoet: 60, run: [110, 370], sprong: 600, afzet: 515, hap: 355 }
 };
@@ -6253,12 +6256,16 @@ function bavStof(wx, soort, dir, kracht = 1){
   if (!S || building || inGap(wx) || waterDepthAt(wx, base) > 0.2) return;
   const schop = (S.schop || 0) * (dir || 0) * kracht;
   if (winterOn() || sneeuwAt(wx) >= BAV_STOF.sneeuwVanaf){
-    if (soort === 'land'){ snowBurst(wx, base, S.sneeuw * kracht); return; }
+    if (soort === 'land' || soort === 'plof'){
+      if (soort === 'plof') for (const d of [-1, 1]) snowBurst(wx + d * S.breed / 3, base, S.sneeuw * kracht / 2);
+      else snowBurst(wx, base, S.sneeuw * kracht);
+      if (soort === 'land') return;
+    }
     const n = Math.max(1, Math.round(S.wolk * kracht));
     for (let i = 0; i < n; i++)
       snowFxPush({ kind: 'cloud', shade: i % 3 === 0, x: wx + (Math.random() - 0.5) * S.breed, h: 2 + Math.random() * 8, base,
                    vx: schop * (0.6 + Math.random() * 0.8) + (Math.random() - 0.5) * 60, vh: 30 + Math.random() * 50,
-                   r: (10 + Math.random() * 10) * S.grootte, age: 0, life: 0.6 + Math.random() * 0.5,
+                   r: (10 + Math.random() * 10) * S.grootte, age: 0, life: (0.6 + Math.random() * 0.5) * (S.lang || 1),
                    rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 2 });
     for (let i = 0; i < S.korrel; i++){
       const vx = ((dir || 0) * (60 + Math.random() * 160) + (Math.random() - 0.5) * 120) * kracht, vh = (140 + Math.random() * 200) * kracht;
@@ -6273,8 +6280,8 @@ function bavStof(wx, soort, dir, kracht = 1){
     const zij = dir || (i % 2 ? 1 : -1), kant = dir ? 0.4 + Math.random() * 0.9 : 1;
     wdust.push({ wx: wx + (Math.random() - 0.5) * S.breed, y: -Math.random() * 10, base,
                  vx: zij * kant * ((S.schop || 150) * (0.6 + Math.random() * 0.9)) * kracht + (Math.random() - 0.5) * 50,
-                 vy: -20 - Math.random() * 60 * kracht, r: (11 + Math.random() * 12) * S.grootte, a: BAV_STOF.dicht,
-                 life: 0.7 + Math.random() * 0.5, age: 0, rot: Math.random() * 6.28 });
+                 vy: -20 - Math.random() * 60 * kracht, r: (11 + Math.random() * 12) * S.grootte, a: BAV_STOF.dicht, zweef: BAV_STOF.zweef,
+                 life: (0.7 + Math.random() * 0.5) * (S.lang || 1), age: 0, rot: Math.random() * 6.28 });
   }
   for (let i = 0; i < Math.round(S.korrel * kracht); i++){
     const zij = dir || (Math.random() < 0.5 ? -1 : 1);
@@ -6415,7 +6422,8 @@ function bavVecht(b, r, t, dx0, scale, lijn){
     if (fb < BAV_BRUL.n) return uit(bavBrulImgs[fb], { ox: BAV_BRUL.links });
     const td = tb - deelTijd(BAV_BRUL.delen, BAV_BRUL.n), f = Math.min(D.n - 1, Math.floor(td * D.fps));
     if (!r.landSnd && td >= BAV_LAND.doodF / D.fps - BAV_LAND.voor){ r.landSnd = true; bavLandSpeel(); }   // voorover op de grond
-    if (!r.landStof && f >= BAV_LAND.doodF){ r.landStof = true; stof(BAV_LAND.doodX, D.links, 'land', 0, 1.2); }
+    if (!r.handStof && f >= BAV_LAND.handF){ r.handStof = true; stof(BAV_LAND.handX, D.links, 'rem', b.f ? 1 : -1, 0.8); }   // zijn handen schuiven weg
+    if (!r.landStof && f >= BAV_LAND.doodF){ r.landStof = true; stof(BAV_LAND.doodX, D.links, 'plof', 0, 1.2); }   // het lijf ploft neer
     if (f >= D.rust && !r.rustGezegd){ r.rustGezegd = true; vijandDood(true); }
     return uit(bavDoodImgs[f], { ox: D.links });
   }
@@ -6684,7 +6692,7 @@ function bavStenenTeken(groundY, scale, cx){
 // een klap van Amir: hij is dood
 function bavRaak(b, r){
   if (!r || r.fase === 'dood') return;
-  r.fase = 'dood'; r.fT = r.tL; r.bijt = false; r.brulSnd = false; r.rustGezegd = false; r.landSnd = r.landStof = false; bavRenStil();
+  r.fase = 'dood'; r.fT = r.tL; r.bijt = false; r.brulSnd = false; r.rustGezegd = false; r.landSnd = r.landStof = r.handStof = false; bavRenStil();
   hits++; hitsEl.textContent = hits;
   puffWorld(b.x + r.wx, 8, 0, 1.2);                          // vijandDood komt als hij neerligt (BAV_DOOD.rust)
 }
@@ -13297,7 +13305,9 @@ function updateScorps(dt, plats, cliff){
     d.age += dt;
     if (d.age >= d.life){ wdust.splice(i, 1); continue; }
     d.wx += d.vx * dt; d.y += d.vy * dt;
-    d.vy += 260 * dt; d.vx *= 0.94;
+    if (d.zweef){                                   // de baviaan: een wolk die blijft hangen en langzaam opstijgt
+      d.vy += (-d.zweef - d.vy) * 3 * dt; d.vx *= Math.pow(0.12, dt); if (d.y > 0) d.y = 0;
+    } else { d.vy += 260 * dt; d.vx *= 0.94; }
   }
   if (!running || (dead && !sandbox)) return;
   for (let i = scorps.length - 1; i >= 0; i--){
@@ -17697,8 +17707,9 @@ function loop(now){
     if (wdust.length){
       ctx.save();
       for (const d of wdust){
-        const k = 1 - d.age / d.life;
+        let k = 1 - d.age / d.life;
         const rr = d.r * scale * (1.7 - k * 0.7);
+        if (d.zweef) k = Math.min(1, d.age / 0.06) * Math.sqrt(k);   // zacht erin, en hij blijft langer dicht
         const px = cx + (d.wx - world), py = groundY + d.y * scale - (d.base || 0) * scale;
         const pimg = puffPic();
         if (imgReady(pimg)){
