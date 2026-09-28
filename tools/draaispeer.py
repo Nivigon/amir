@@ -10,6 +10,12 @@ Een hele omwenteling maken we uit dat ene stuk: plat -> kant (A), dan verticaal 
 van kant naar plat (de andere kant van het blad), weer gespiegeld naar de kant, en normaal terug.
 Het blad is symmetrisch, dus zo is het een echte rol om de as, en de lus sluit naadloos.
 
+De valspeer krijgt daarna zijn eigen uiterlijk (`zwart_staal`): een blad van zwart staal met
+een geslepen, lichte snede langs de kartels en een middenrib, de ring onder het blad in goud, een
+smalle gouden ring op de schacht en een gouden kap achteraan. Dat gebeurt op de frames van plat
+naar kant, voor het spiegelen, met de maten en het licht van frame 0 voor alle frames, zodat niets
+flikkert als hij rolt.
+
 Per frame: magenta eruit (met de roze rand), de lichte scheefstand recht, in het midden doorknippen,
 en elke helft aanvullen met een langere schacht en het achtereind van Amirs werpspeer. Beide sets
 krijgen de schacht even dik als die werpspeer (18 bronpixels), de punt rechts.
@@ -24,7 +30,7 @@ Vereist Pillow, numpy en imageio: pip install pillow numpy imageio imageio-ffmpe
 """
 import os, sys
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 
 try:
     import imageio
@@ -53,6 +59,77 @@ def uitknippen(f):
     a[..., 2] = np.where(paars, b - m, b)
     al = np.where(al < 0.43, 0, al)
     return Image.fromarray(np.dstack([a, al * 255]).clip(0, 255).astype(np.uint8))
+
+
+GOUD = [(0, (70, 48, 14)), (0.4, (176, 132, 50)), (0.75, (230, 196, 106)), (1, (255, 244, 196))]
+HOUT = [(0, (18, 12, 10)), (0.6, (52, 36, 28)), (1, (92, 66, 50))]
+STAAL = ((8, 8, 10), (150, 152, 160), 3.2)       # donker, licht, en hoe steil: alleen de bolle plekken glimmen
+SNEDE = ((196, 198, 204), 0.85)                  # de geslepen rand langs de kartels
+RIB = ((120, 122, 130), 0.5)                     # de middenrib
+
+
+def helder(a):
+    return (0.3 * a[..., 0] + 0.59 * a[..., 1] + 0.11 * a[..., 2]) / 255
+
+
+def verloop(a, m, stops, lo, hi):
+    l = np.clip((helder(a) - lo) / max(1e-3, hi - lo), 0, 1)
+    ps = [s[0] for s in stops]; cs = np.array([s[1] for s in stops], float)
+    for c in range(3):
+        a[..., c] = np.where(m, np.interp(l, ps, cs[:, c]), a[..., c])
+
+
+def krimp(m, n):
+    im = Image.fromarray((m * 255).astype(np.uint8))
+    for _ in range(n):
+        im = im.filter(ImageFilter.MinFilter(3))
+    return np.array(im) > 128
+
+
+def zwart_staal(frames, cy):
+    """de valspeer: zwart staal, geslepen snede, goud op de ring, de schacht en de kap"""
+    a0 = np.array(frames[0]).astype(float)
+    H, W = a0.shape[:2]
+    xx = np.tile(np.arange(W), (H, 1)); yy = np.tile(np.arange(H)[:, None], (1, W))
+    hoog = (a0[..., 3] > 128).sum(0)
+    schacht = int(np.median(hoog[W // 4:W // 2]))
+    kx = next(x for x in range(W // 2, W) if hoog[x] >= schacht + 5)      # de ring onder het blad
+    bx = next(x for x in range(kx, W) if hoog[x] > 35)                  # de voet van het blad
+    # de maten van het licht, een keer uit frame 0
+    def bereik(m):
+        l = helder(a0)[m]
+        return np.percentile(l, 3), np.percentile(l, 97)
+    vol0 = a0[..., 3] > 20
+    blad0, ring0 = vol0 & (xx >= bx), vol0 & (xx >= kx - 4) & (xx < bx)
+    hout0 = vol0 & (xx < kx - 4)
+    lr, lh = bereik(ring0), bereik(hout0)
+    lo_b, hi_b = np.percentile(helder(a0)[blad0], 3), np.percentile(helder(a0)[blad0], 99)
+    # een smalle gouden ring: een plakje van de ring onder het blad
+    plak = a0[:, kx + 8:kx + 17].copy()
+    verloop(plak, plak[..., 3] > 0, GOUD, *lr)
+    plak = Image.fromarray(plak.clip(0, 255).astype(np.uint8)); plak = plak.crop(plak.getbbox())
+    plak = plak.resize((max(3, round(plak.width * 0.8)), plak.height), Image.LANCZOS)
+    uit = []
+    for f in frames:
+        a = np.array(f).astype(float)
+        vol = a[..., 3] > 20
+        blad = vol & (xx >= bx)
+        l = np.clip((helder(a) - lo_b) / max(1e-3, hi_b - lo_b), 0, 1) ** STAAL[2]
+        for c in range(3):
+            a[..., c] = np.where(blad, STAAL[0][c] + (STAAL[1][c] - STAAL[0][c]) * l, a[..., c])
+        ijzer = (a[..., 3] > 128) & (xx >= kx - 4)
+        rand = krimp(ijzer, 2) & ~krimp(ijzer, 5) & (xx >= bx + 15)
+        f_r = np.where(rand, SNEDE[1] * np.clip((xx - bx - 15) / 90, 0.25, 1), 0)[..., None]
+        a[..., :3] = a[..., :3] * (1 - f_r) + np.array(SNEDE[0]) * f_r
+        rib = blad & (np.abs(yy - cy) <= 1) & (xx < W - 18)
+        a[..., :3] = np.where(rib[..., None], a[..., :3] * (1 - RIB[1]) + np.array(RIB[0]) * RIB[1], a[..., :3])
+        verloop(a, vol & (xx >= kx - 4) & (xx < bx), GOUD, *lr)              # de ring onder het blad
+        verloop(a, vol & (xx < kx - 4) & (xx >= 16), HOUT, *lh)              # de schacht, donker hout
+        verloop(a, vol & (xx < 16), GOUD, *lh)                               # de kap achteraan
+        im = Image.fromarray(a.clip(0, 255).astype(np.uint8))
+        im.alpha_composite(plak, (round(kx - 25 - plak.width / 2), round(cy - plak.height / 2)))
+        uit.append(im)
+    return uit
 
 
 def schacht_midden(im, x):
@@ -126,6 +203,8 @@ def main(video, uit):
             return c
 
         A = [bouw(s) for s in stukken]
+        if naam == 'val':
+            A = zwart_staal(A, cy)
         V = [im.transpose(Image.FLIP_TOP_BOTTOM) for im in A]
         rol = A + V[::-1][1:] + V[1:] + A[::-1][1:-1]
         for i, im in enumerate(rol):

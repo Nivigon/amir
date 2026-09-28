@@ -489,7 +489,8 @@ grond verderop openscheurt.
 ## De speerval
 
 Een speer zit horizontaal in de rotswand aan het eind van het level, met de punt naar jou toe. Het is niet Amirs
-speer maar een oude valspeer met een gekarteld ijzeren blad, en in de vlucht draait hij om zijn eigen as. Stap je op het zegel dat
+speer maar een oude valspeer uit de verloren stad: een gekarteld blad van zwart staal met een lichte, geslepen snede,
+en wat goud om de schacht. In de vlucht draait hij om zijn eigen as. Stap je op het zegel dat
 erbij hoort, dan licht het op, trilt de speer even in de wand en schiet hij dan recht op je af, op heuphoogte van een
 staande Amir. Buk (pijl omlaag of S): dan vliegt hij over je heen. Blijf je staan, dan raakt hij jou, en springen helpt
 niet. Wat achter je loopt raakt hij wel: de baviaan, die verder niet te verslaan is, gaat er dood van. Mist de speer, dan
@@ -812,7 +813,8 @@ amir runc/
 
 design/speer/
   draai/                   gewoon_00..35.png (Amirs speer, 624x140) en val_00..35.png (de speerval,
-                           758x140): een hele rol om de lengteas, frame 0 plat, punt rechts op (w-1, 70)
+                           758x140, zwart staal met goud): een hele rol om de lengteas, frame 0 plat,
+                           punt rechts op (w-1, 70)
   bron/draaispeer.mp4      de video van Grok waar tools/draaispeer.py de frames uit maakt
 
 items/
