@@ -64,6 +64,7 @@ regelnummer, want die schuiven bij elke wijziging.
 
 | kop | wat er staat |
 | --- | --- |
+| laadpoort: een level loopt pas als alles binnen is | `LAAD`, `laadOpen`, `laadPoort`, `laadStap`, `#laad`: het zetten van `src` op elk plaatje zet het vanzelf in `laadOpen` tot het binnen is of ontbreekt (een haakje op `HTMLImageElement.prototype`), dus een nieuwe lader hoeft niets aan te melden. `restart` zet de poort dicht; de lus staat stil (`dt` 0, geen toetsen) tot `laadOpen` twee beelden achter elkaar leeg is, met na `LAAD.toon` het scherm Laden en na `LAAD.max` gaat hij toch door. In het menu en de bouwer wacht hij niet. Geluid telt niet mee |
 | versie: welke update er live staat | `versieTijd` (uit `document.lastModified`) heel klein linksboven, en `toonUpdates`: de laatste vijf samengevoegde pull requests van GitHub (`VERSIE_REPO`), met of ze erin zitten (regel 8) |
 | de zon: schijf, krans en ademende ring | `ZON`, `drawZon`: de zon in de lucht, met een lichte kern, een krans, een gloed op de horizon en een zachte ring die langzaam ademt (`ringAdem`, `ringT`). Plek, straal en kleur blijven uit `sun` in `SCENES`. Daarnaast `drawWaas`: overdag lucht tussen jou en de verte, met het veld `waas` in `SCENES` (het uitzicht `middag`). In de sandbox onder Tijd van de dag (`sbLagen`) en Zon |
 | globale lichtlaag | kleurwaas over het beeld, volgt de zon van het level; een level stelt hem bij met `licht` in `SCENES` |
