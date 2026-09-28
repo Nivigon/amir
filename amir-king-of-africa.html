@@ -509,7 +509,7 @@
 </style>
 </head>
 <body>
-<audio id="bg" src="music/bg.mp3" loop preload="auto"></audio>
+<audio id="bg" src="music/darkafrica.mp3" loop preload="auto"></audio>
 <audio id="voice1" src="music/iamtheking.mp3" preload="auto"></audio>
 <audio id="voice2" src="music/iamamir.mp3" preload="auto"></audio>
 <audio id="voice3" src="music/iamamirfatherson.mp3" preload="auto"></audio>
@@ -947,8 +947,8 @@
       </div>
       <div class="row">
         <label>Muziek</label>
-        <button data-muziek="bg" class="on">Thema</button>
-        <button data-muziek="darkafrica">Nacht</button>
+        <button data-muziek="bg">Thema</button>
+        <button data-muziek="darkafrica" class="on">Nacht</button>
         <button id="sbraak">Kreet bij een klap</button>
       </div>
       <div class="row">
@@ -5919,30 +5919,44 @@ const BAV_NA_BRUL = 'grom';
 // de idle vanaf frame 0. K in de sandbox schudt meteen, zolang hij nog niet stormt (bavSchudNu).
 // Niet op een vast tempo: `delen` zegt per stuk tot welk frame het loopt en hoe snel. Omlaag (0 tot 17)
 // en weer omhoog (48 tot 63) snel, en de shake met de kop omlaag (18 tot 47) nog sneller: kort en fel,
-// alsof hij iets van zich afschudt. Samen zo'n 1,6 seconden.
-// Het grommen erbij (`geluid`, sounds/bavgrom.mp3) is een stuk van 1,6 seconden uit de aangeleverde monkey growl
-// (van 0,65 tot 2,25 seconde, met een korte fade in en uit), zo geknipt dat het luide stuk samenvalt met de
-// shake zelf (frame 18 tot 47) en het uitsterven met het weer omhoog komen. Het start met het schudden.
+// alsof hij iets van zich afschudt. De shake gaat `herhaal.keer` keer extra rond: frame 46 is precies frame
+// 18, dus 18 tot 45 is een naadloze ronde. Samen zo'n 2,2 seconden.
+// Het grommen erbij (`geluid`, sounds/bavgrom.mp3) is de aangeleverde monkey growl, geknipt tot 2,23 seconden
+// (van 0,03 tot 2,26, met een korte fade in en uit), even lang als het schudden: de eerste uithaal valt op het
+// begin van de shake, de luidste in de tweede ronde en het uitsterven op het weer omhoog komen. Het speelt via
+// dezelfde versterker als de brul (bavBrulVersterker), die de speler zeker hoort.
 const BAV_SCHUD = { map: 'enemies/baviaan/hoofdschudden/hoofdschudden_', n: 64, links: 44,
   delen: [{ tot: 18, fps: 40 }, { tot: 48, fps: 42 }, { tot: 64, fps: 40 }],
-  geluid: { src: 'sounds/bavgrom.mp3', vol: 1 } };
+  herhaal: { van: 18, tot: 46, keer: 1 },
+  geluid: { src: 'sounds/bavgrom.mp3', vol: 1.3 } };
 const bavGromSnd = new Audio(BAV_SCHUD.geluid.src);
 bavGromSnd.preload = 'auto';
 function bavGromSpeel(){
   if (!wantSound) return;
   try { bavGromSnd.currentTime = 0; } catch (e) {}
-  bavGromSnd.volume = BAV_SCHUD.geluid.vol;
+  bavBrulVersterker();
+  if (bavGromGain){
+    if (bavAc.state === 'suspended') bavAc.resume().catch(() => {});
+    bavGromSnd.volume = 1;
+    bavGromGain.gain.setValueAtTime(BAV_SCHUD.geluid.vol, bavAc.currentTime);
+  } else bavGromSnd.volume = Math.min(1, BAV_SCHUD.geluid.vol);
   bavGromSnd.play().catch(() => {});
 }
 function bavGromStop(){ bavGromSnd.pause(); try { bavGromSnd.currentTime = 0; } catch (e) {} }
 // welk frame van het hoofdschudden er t seconden na zijn begin staat, of -1 als hij klaar is
+// de frames op volgorde met hun duur: 0 tot 45, de ronde 18 tot 45 nog `keer` keer, en dan 46 tot 63
+let bavSchudLijst = null;
+function bavSchudReeks(){
+  if (bavSchudLijst) return bavSchudLijst;
+  const fps = f => { for (const d of BAV_SCHUD.delen) if (f < d.tot) return d.fps; return 40; };
+  const H = BAV_SCHUD.herhaal, fr = [];
+  for (let f = 0; f < H.tot; f++) fr.push(f);
+  for (let k = 0; k < H.keer; k++) for (let f = H.van; f < H.tot; f++) fr.push(f);
+  for (let f = H.tot; f < BAV_SCHUD.n; f++) fr.push(f);
+  return (bavSchudLijst = fr.map(f => ({ f, dt: 1 / fps(f) })));
+}
 function bavSchudFrame(t){
-  let van = 0;
-  for (const d of BAV_SCHUD.delen){
-    const duur = (d.tot - van) / d.fps;
-    if (t < duur) return van + Math.floor(t * d.fps);
-    t -= duur; van = d.tot;
-  }
+  for (const e of bavSchudReeks()){ if (t < e.dt) return e.f; t -= e.dt; }
   return -1;
 }
 // Het verloop na de brul: `stappen` op volgorde, en voor elke stap eerst een stuk idle (`wacht`, in seconden,
@@ -5968,7 +5982,7 @@ const BAV_ROAR = {
 // `hop` is de beginsnelheid omhoog in schermpixels per seconde bij volle sterkte, dus hoogstens zo'n 6 px, net als
 // rond het ravijn; `kans` keer per seconde) en vervagen daarna in `uit` seconden.
 const BAV_STENEN = { n: 18, in: 0.3, uit: 0.8, hop: 48, kans: 12 };
-const bavSchudDuur = () => { let van = 0, s = 0; for (const d of BAV_SCHUD.delen){ s += (d.tot - van) / d.fps; van = d.tot; } return s; };
+const bavSchudDuur = () => bavSchudReeks().reduce((s, e) => s + e.dt, 0);
 // Stormen: 17 frames als lus, na het verloop met het hoofdschudden. Canvas 790 bij 592, breder dan de 542
 // van de brul en de idles: het begint 108 bronpixels links daarvan, dus `links` is 44 plus 108. Grondlijn
 // ook op rij 575, dus in de hoogte verandert niets. Hij rent even snel als Amir sprint (`v`, wereld-px per
@@ -6443,7 +6457,7 @@ const bavKooiKant = (K, x) => x < K.L ? -1 : x > K.R ? 1 : 0;
 // de brul met het geluid, een keer per keer dat hij brult
 // een audio-element komt niet boven 1, en de grote brul moet veel harder dan de kleine: net als bij het skelet
 // een versterker (in geluidOntgrendel, anders blijft hij op een telefoon stil)
-let bavAc = null, bavGain = null;
+let bavAc = null, bavGain = null, bavGromGain = null;
 function bavBrulVersterker(){
   if (bavGain || bavAc === false) return bavGain;
   try {
@@ -6452,7 +6466,10 @@ function bavBrulVersterker(){
     bavGain = bavAc.createGain();
     bavAc.createMediaElementSource(bavBrulSnd).connect(bavGain);
     bavGain.connect(bavAc.destination);
-  } catch (e){ bavAc = false; bavGain = null; }
+    bavGromGain = bavAc.createGain();                         // het grommen bij het hoofdschudden, eigen volume
+    bavAc.createMediaElementSource(bavGromSnd).connect(bavGromGain);
+    bavGromGain.connect(bavAc.destination);
+  } catch (e){ bavAc = false; bavGain = null; bavGromGain = null; }
   return bavGain;
 }
 function bavBrulSpeel(vol = BAV_BRUL.geluid.vol, rate = 1){
@@ -6633,7 +6650,10 @@ function bavSchaduw(b, st, fr, sx, voet, h, w, groei, shY, scale, wx, vloer){
   lx *= groei; fw *= groei; fh *= groei; ly = py + (ly - py) * groei;
   const X = b.f ? sx - (lx + fw) : sx + lx, Y = voet + ly;
   const voetY = Y + grondRij * fh / img.naturalHeight;
+  const a0 = ctx.globalAlpha;
+  if (st.alfa != null) ctx.globalAlpha = a0 * st.alfa;      // dood: de schaduw vervaagt met hem
   drawAmirSchaduw(img, X, Y, fw, fh, !!b.f, sx, voetY, shY, (shY - voetY) / scale, scale, amirZon(vloer, wx), 1);
+  ctx.globalAlpha = a0;
 }
 // J in de sandbox: de afzet starten (met de val, de landing, de brul en de opgefokte idle erachteraan), en nog een keer terug naar het losse plaatje
 function bavAfzetWissel(){
@@ -12051,7 +12071,7 @@ function stopRaak(){
 // Een kans en geen teller, anders hoor je hem na precies elke zevende. Hij komt
 // DOOD_WACHT seconden na de klap, zodat hij niet over het geraakt-geluid heen valt,
 // en niet als Amir zelf net aan het roepen is.
-const SFX_RUST = { src: 'sounds/tausouldrest.mp3', vol: 0.9 };
+const SFX_RUST = { src: 'sounds/tausouldrest.mp3', vol: 1 };   // het bestand zelf is 9 dB harder gemaakt
 const DOOD_KANS = 7, DOOD_WACHT = 0.4;
 const rustSnd = new Audio();
 rustSnd.onerror = () => console.warn('ontbreekt: ' + SFX_RUST.src);
@@ -17798,19 +17818,21 @@ const bg = document.getElementById('bg'), soundBtn = document.getElementById('so
 let wantSound = true, started = false;
 const pzSoundBtn = document.getElementById('pzsound');
 // ---- muziek per level ----------------------------------------------------
-// Onder alles door loopt bg.mp3. Een level mag met muziek: 'darkafrica' een eigen
-// deuntje vragen; in het menu, de bouwer en de sandbox klinkt altijd weer het
-// gewone thema. Wil je er een nummer bij, zet het dan hier neer: de sleutel is
+// Onder alles door loopt MUZIEK_BASIS (darkafrica): bij de start, in het menu, de bouwer,
+// de sandbox en in elk level zonder eigen veld muziek. Een level mag met muziek: 'bg' het
+// oude thema vragen. Wil je er een nummer bij, zet het dan hier neer: de sleutel is
 // wat een level in zijn veld muziek schrijft.
 const MUZIEK = {
   bg:         { src: 'music/bg.mp3',         vol: 0.28 },
   darkafrica: { src: 'music/darkafrica.mp3', vol: 0.30 }
 };
-let muziekNu = 'bg';
-let sbMuziek = 'bg';                    // in de sandbox kies je zelf, met de knoppen onder Muziek
+const MUZIEK_BASIS = 'darkafrica';
+let muziekNu = MUZIEK_BASIS;
+let sbMuziek = MUZIEK_BASIS;                    // in de sandbox kies je zelf, met de knoppen onder Muziek
 function muziekSleutel(){
-  const k = sandbox ? sbMuziek : ((running && !building && level && level.muziek) || 'bg');
-  return (MUZIEK[k] && !MUZIEK[k].weg) ? k : 'bg';
+  const k = sandbox ? sbMuziek : ((running && !building && level && level.muziek) || MUZIEK_BASIS);
+  if (MUZIEK[k] && !MUZIEK[k].weg) return k;
+  return MUZIEK[MUZIEK_BASIS].weg ? 'bg' : MUZIEK_BASIS;
 }
 // Wisselen alleen als er echt een ander nummer hoort te klinken: dezelfde src
 // opnieuw zetten gooit het deuntje bij elke levelwissel terug naar het begin.
@@ -19600,7 +19622,7 @@ function startSandbox(){
   level = { rocks: [], spawns: [], props: [], gaps: [], grotten: [], plafond: [] };
   sandbox = true; building = false; running = true;
   zetMuziek();
-  sbMuziek = 'bg'; sbMuziekToon();
+  sbMuziek = MUZIEK_BASIS; sbMuziekToon();
   sbSneeuw = { soort: null, dek: 1 }; sbSneeuwToon();   // kale grond, zoals de rest van de sandbox
   sbWeer = null; sbWeerToon();                          // droog
   sbLagen = ''; lichtMengKey = null; sbLagenToon();     // het gewone avonduitzicht
@@ -19615,7 +19637,7 @@ function startSandbox(){
 function stopSandbox(){
   sandbox = false; godMode = false; setGodLabel();
   sbPatrouille = false; sbPatBtn.classList.remove('on');
-  sbMuziek = 'bg';
+  sbMuziek = MUZIEK_BASIS;
   sbWeer = null; sbWeerToon();
   sbVal = false; setValLabel();
   document.getElementById('lives').style.display = '';
