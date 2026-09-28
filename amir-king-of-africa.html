@@ -5836,10 +5836,12 @@ const BAVIAAN = { src: 'enemies/baviaan/baviaan.png', s: 1.4, schaduw: 0.9, hang
 // minstens `luchtMin` per seconde. Eerst viel hij pas bij frame 32, en hing hij daarvoor opgerold en los van de
 // wand nog anderhalve seconde stil in de lucht. Het stuk aan de wand (0 tot 9) staat in `delen`.
 // De frames van het hangen, de afzet en de val zijn kleiner getekend dan de staande: zijn kop is daar zo'n 60
-// bronpixels, staand (brul, idle, run) 80 tot 90. Daarom tekent het spel ze `hang` keer zo groot, vanuit de grondlijn
+// bronpixels, staand (brul, idle, run) 80 tot 90. Daarom tekent het spel ze `hang` keer zo groot (1,25 maakte ze even
+// groot, maar dan was hij hangend te fors: zo lijkt hij aan de wand nog wat kleiner en richt hij zich na de landing op
+// tot iets groters dan je dacht), vanuit de grondlijn
 // van het canvas, en loopt dat in de landing tot frame `tot` terug naar 1 (bavGroei): het krimpen valt dan in het
 // opvangen van de klap, en de overgang naar de brul (brul_00 is landing_24) blijft naadloos.
-const BAV_GROEI = { hang: 1.25, tot: 10 };
+const BAV_GROEI = { hang: 1.12, tot: 10 };
 function bavGroei(tLand){
   if (tLand == null || tLand <= 0) return BAV_GROEI.hang;
   const u = Math.min(1, tLand / deelTijd(BAV_LANDING.delen, BAV_GROEI.tot));
@@ -6009,7 +6011,7 @@ const BAV_VECHT = { raakbaar: false, dood: 0.8, krimp: 0.12, bek: { l: 0, r: 140
 // zijn rensnelheid): in de hurk en de landing afgeremd, bij het afzetten en in de lucht sneller. Hij zet af
 // als het midden van zijn lijf halverwege de lucht boven het midden van de kei komt. Na `terug` (29) gaat hij
 // terug naar run_00; alleen als hij daarna stil moet staan speelt hij tot 31 door.
-const BAV_SPRONG = { map: 'enemies/baviaan/sprong/sprong_', n: 32, fps: 24, links: 198, boven: 195, lucht: [10, 22],
+const BAV_SPRONG = { map: 'enemies/baviaan/sprong/sprong_', n: 32, fps: 24, links: 198, boven: 195, grond: 770, lucht: [10, 22],
   terug: 29, marge: 0.12, zweeft: 91,
   snel: [{ tot: 5, maal: 0.35 }, { tot: 10, maal: 1.7 }, { tot: 23, maal: 1.7, lucht: true }, { tot: 32, maal: 0.35 }], boog: 0.5 };
 // de sprong als stukken (tot welk frame, hoe snel, hoe hard vooruit maal zijn rensnelheid), voor deelFrame en
@@ -6577,7 +6579,7 @@ function baviaanTeken(groundY, scale, cx){
   const h = b.s * u, w = h * baviaanImg.naturalWidth / baviaanImg.naturalHeight;
   const hNu = terrainH(b.x + vooruit), boven = b.y - st.dy - (hNu - terrainH(b.x)) / CHAR_H;   // de schaduw ligt op de grond onder hem
   const groei = st.groei || 1;                              // het hangen en vallen groter getekend (BAV_GROEI)
-  skeletSchaduw(sx, groundY - hNu * scale, BAVIAAN.schaduw * b.s * u * groei / Math.max(1, 1 + Math.max(0, boven)));
+  bavSchaduw(b, st, fr, sx, voet, h, w, groei, groundY - hNu * scale, scale, b.x + vooruit, hNu);
   ctx.save();
   if (st.alfa != null) ctx.globalAlpha *= st.alfa;          // dood: hij vervaagt
   ctx.translate(sx, voet); ctx.scale(b.f ? -1 : 1, 1);      // het plaatje kijkt naar links
@@ -6595,6 +6597,27 @@ function baviaanTeken(groundY, scale, cx){
   } else bavGeo.delete(b);
   if (!fr) ctx.drawImage(baviaanImg, -w / 2, -h, w, h);
   ctx.restore();
+}
+// Zijn schaduw, net als die van Amir (drawAmirSchaduw): zijn eigen frame als silhouet op de grond, een zachte
+// omgevingsschaduw recht onder hem en een zonneschaduw van de zon af. Daarvoor de plek van het frame op het scherm
+// zoals baviaanTeken hem tekent (met de groei om de grondlijn van het canvas), en waar zijn voeten zijn: de grondlijn
+// van dat canvas (`grond`: rij 576, of 770 bij de sprong). Hoog aan de wand is er nog geen schaduw, net als bij Amir
+// in een hoge sprong (AMIR_SCHADUW.weg); die komt op in de val.
+function bavSchaduw(b, st, fr, sx, voet, h, w, groei, shY, scale, wx, vloer){
+  const img = fr || baviaanImg;
+  if (!img || !imgReady(img)) return;
+  const K = BAV_AFZET.kader, k = h / K.h;
+  let lx, ly, fw, fh, grondRij;
+  if (fr){
+    lx = -w / 2 - (K.l + (st.ox || 0)) * k; ly = -h - (K.t + (st.oy || 0)) * k;
+    fw = fr.naturalWidth * k; fh = fr.naturalHeight * k;
+    grondRij = st.oy ? BAV_SPRONG.grond : BAV_VAL.grond;
+  } else { lx = -w / 2; ly = -h; fw = w; fh = h; grondRij = img.naturalHeight; }
+  const py = (BAV_VAL.grond - K.t - K.h) * k;               // de groei gaat om de grondlijn van het canvas
+  lx *= groei; fw *= groei; fh *= groei; ly = py + (ly - py) * groei;
+  const X = b.f ? sx - (lx + fw) : sx + lx, Y = voet + ly;
+  const voetY = Y + grondRij * fh / img.naturalHeight;
+  drawAmirSchaduw(img, X, Y, fw, fh, !!b.f, sx, voetY, shY, (shY - voetY) / scale, scale, amirZon(vloer, wx), 1);
 }
 // J in de sandbox: de afzet starten (met de val, de landing, de brul en de opgefokte idle erachteraan), en nog een keer terug naar het losse plaatje
 function bavAfzetWissel(){
