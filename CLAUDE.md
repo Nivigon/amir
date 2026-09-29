@@ -82,13 +82,14 @@ regelnummer, want die schuiven bij elke wijziging.
 | bodem en sneeuwdek | het veld `sneeuw`: savanne of rots, en het dek in vier standen |
 | het verhaal bij een episode | `VERHAAL` en `SLOT`, `verhaalToon()`: tekst op een zwart scherm voor elk level en na het laatste, alleen als je bij het eerste level begint. Op de naam van het level, dus een nieuwe episode hoeft alleen tekst toe te voegen en `verhaalAan` te zetten in zijn speelknop |
 | Episode De Poorten | `POORT_1` tot en met `POORT_6` en `POORT_LEVELS`: zes zware levels met een verhaal (`VERHAAL`, `SLOT`) en Nightmare; menu `menuPoort`, `cardsPoort`. Elk level heeft een poort die opengaat met een zegel, een runeschijf, rijzende grond of een zakkend plafond, elk level een ander uitzicht en ander weer, en samen alle vijanden, de panter en de baviaan. Wat de speler met zijn speer moet raken staat er altijd rechtop (een `runes`-schijf op een rots), nooit plat: een zegel stap je op. `tools/runecheck.js` rekent per schermformaat na of elke schijf te raken is met de schijf in beeld. Wat werkt en wat niet staat in `notities/combinaties.md`: lees dat voor je een nieuw level of een nieuwe combinatie bedenkt, en stel ideeën daaruit voor in plaats van ze zomaar in te bouwen |
-| Episode Test levels | `TEST_1` tot en met `TEST_21`: korte proefstukken, los van de echte episodes. In het menu per zes op een blad (`KAART_BLAD`, `testBlad`, `testBladZet`, de pijltjes in `#testblad`; `markCards` zet het blad waar het gekozen level op staat). Test 14 heeft `talentKeuze`: een scherm voor het begin (`talentKeuzeToon`, `testTalents`, in de pauze `pzkeuze`) waarop je de talents kiest, ook die van een tribe op slot |
+| Episode Test levels | `TEST_1` tot en met `TEST_22`: korte proefstukken, los van de echte episodes. In het menu per zes op een blad (`KAART_BLAD`, `testBlad`, `testBladZet`, de pijltjes in `#testblad`; `markCards` zet het blad waar het gekozen level op staat). Test 14 heeft `talentKeuze`: een scherm voor het begin (`talentKeuzeToon`, `testTalents`, in de pauze `pzkeuze`) waarop je de talents kiest, ook die van een tribe op slot |
 | Episode Baboon tests | `BAB_1` tot en met `BAB_3` en `BAB_LEVELS`: proefstukken voor de baviaan, met de tribekeuze (`runStart`) zoals De Poorten; menu `menuBab`, `cardsBab`. Baboon 1 is de wand en de kooi, Baboon 2 dezelfde vlakte met de speerbeet in plaats daarvan, Baboon 3 de speerval. De eerste en de derde stonden eerst tussen de Test levels |
 | het mes: Jackal Fang van Impungushe | `MES`, `mesInHand`, `mesTeken`, `mesPunt`: E wisselt rond in `toggleSpear` (speer, mes, niets). Een steek is de gewone stoot met `atkMes`; alles wat de punt ergens tegen houdt vraagt `steekLive`, `steekDX`, `steekY`, `steekR` en `steekRaakt(soort)`, dus een nieuwe vijand gebruikt die en niet `TIP_DX`. Het mes doodt niets: op elke plek waar de punt een vijand raakt gaat het met `atkMes` naar `mesAfweer(s, soort)`, die hem terugduwt, zijn aanval afbreekt en hem meteen weer laat komen, met een afkoeltijd per vijand (`s.afweerTot`, op `mesKlok`). Het terugdeinzen loopt in de update van de slang, schorpioen en hyena via `afweerStap` (met `knockBlocked` of `hyMove`, dus nooit over een kei of ravijn), bij de zwaardvechter via zijn eigen `knock` en bij de fosforslang via `vx`. Een nieuwe vijand krijgt dus een tak in `mesAfweer`. Het mes snijdt ook de kalebas aan een koordje los (`tekenSnij`, dat was eerst het talent Scavenger). Bared Teeth, de dreighouding: `houding`, `houdingZet` (in de update van Amir: aan of uit, en waar hij heen kijkt), `houdingStap` (bovenin de update van de slang, schorpioen, hyena en zwaardvechter), `houdingLos` (hij valt aan) en per soort `BEDWING` (wanneer hij mag, hoe hij beweegt, hoe hij aanvalt). De getallen van beide talents staan in `TRIBE_CONFIG` en zijn in de pauze bij te stellen (Instellingen, Mes: reacties: `MES_SCHUIF`, `mesAfstelZet`, bewaard onder `MES_KEY`). |
 | T-splitsing in de talent tree | een talent met `varianten` in `TRIBE_CONFIG` krijgt naast zijn naam een gestippelde splitsing met de namen (`tbSplit`, `.tbsplit`) en in het venster de varianten met hun tekst (`.tbivar`). Nog niets te kiezen; nu alleen bij Jackal Fang. Een tribe op slot laat zijn talents dicht zien; `TB_LEEG` alleen als hij er nog geen heeft Tijdelijk getekend: het plaatje komt uit `tools/mes.py` (`design/mes/mes.png`), zijn lijf schiet naar voren omdat er geen frames met een mes zijn. De kalebas is de speertekenvariant `kalebas` |
 | Feign Death | `SCHIJN`, `schijnDoodVang` (vanuit `hurtPlayer`, `valLand` en `fosforBijt`), `schijnDoodZet` (kantelt zijn frame), `schijnHud` (`#schijn`); per level terug in `restart` |
 | lichtkaart: het licht onder de grond | `LK`, `drawLichtkaart`: een lichtbron (de hemel en de zon) voor alles onder de grond en onder rots boven je, per level een keer uitgerekend |
 | terrassen en richels | `terraces`, `ledges`, klimmen |
+| hogere savannelaag: een terras van grond | `SAV_LAAG`, `savanneLaag` (in `drawClimb`, voor de rotslus): een terras met `grond: true` is geen rotsplateau maar savanne die hoger ligt. Botsen, dragen en `terrainH` blijven wat ze bij een terras waren; alleen het tekenen is anders: de grondtegel van het level (`bodemPic`, vast aan de wereld, net als `zuilTeken` en `rijsTeken`, zodat een blok rijzende grond er naadloos in overloopt) met daaronder de aarde die wegzakt in het donker, en het silhouet van een terras (`terClipPath`), zodat de zijkanten net zo openbreken en een hoger terras dat ertegenaan staat de rand afdekt. De winter en een rotsbodem (`sneeuw`) lopen vanzelf mee, want die zitten al in `bodemPic` en `bodemDonker`. Test 22 is het proefstuk; in de sandbox onder Terrein, Savannelaag (`SB_SAV`, `sbSavLaag`) |
 | de rotswand rechts | `cliffs`, het einde van het level |
 | grotten: rots als een raster van cellen | `grotten`: het raster, de randen, de verstrooiing, de botsingen |
 | plafond: de rots boven je, als hoogtelijn | `plafond`: de lijn, de vulling, de band, de losse blokken |
@@ -158,7 +159,7 @@ precies hetzelfde formaat naar JSON.
 | `gaps` | ravijnen: `{x, w}` |
 | `water` | poelen: `{x, n}` met `n` = aantal middenstukken |
 | `thickets` | doornbossen: `{x, n, seed}` |
-| `terraces` | terrassen om op te klimmen: `{r, l, h}` (rechterrand, linkerrand, hoogte); met een negatieve `h` een trede in een gang |
+| `terraces` | terrassen om op te klimmen: `{r, l, h}` (rechterrand, linkerrand, hoogte); met een negatieve `h` een trede in een gang, en met `grond: true` geen rots maar een hogere savannelaag (zie hieronder) |
 | `holtes` | gangen onder de grond: `{r, l, diep}`, een ravijn erboven is de ingang, een gat met treden de uitgang (zie hieronder) |
 | `putten` | ravijnen in de vloer van een gang: `{x, w}`, helemaal binnen een holte (zie "put") |
 | `zuilen` | zuilen met een hoogte in een ravijn of put: `{x, w, h}`, `h` van -250 tot 180 boven de grond of de vloer (zie "zuil met een hoogte") |
@@ -967,6 +968,41 @@ Wat het spel zelf regelt, zodat je er als ontwerper niet op hoeft te letten:
   beneden is, en komen dan uit de gang aanrennen (`hyBuitenBeeld`), niet van de savanne erboven.
 - **Vijanden blijven in hun gang.** Voor wie beneden staat is de eindwand van de gang een rand
   (`dropAhead`): daar lopen ze niet doorheen naar boven.
+
+### Een hogere savannelaag
+
+Een terras is grijze rots, en dat is goed voor een klif of een mesa. Wil je dat een level niet één
+savanne heeft maar twee of drie boven elkaar, dan is rots het verkeerde materiaal: je rijdt met een
+blok savanne omhoog en stapt boven op steen. Daarom heeft een terras het veld `grond`:
+
+```
+terraces: [ {r: -2020, l: -3800, h: 300, grond: true} ]
+```
+
+Dat verandert alleen het tekenen. De looplijn, de wand, `terrainH`, `terracePlats`, de sprong erop en
+de rand waar vijanden stoppen (regel 7) zijn precies wat ze bij een terras waren, en `levelcheck.py`
+rekent hem na met dezelfde regel `terrassen`. Wat je ziet is de grondtegel van het level (`bodemPic`)
+op die hoogte, met daaronder de aarde die wegzakt in het donker, en het silhouet van een terras
+(`terClipPath`): de zijkanten breken net zo open, en sluit er een hoger terras op aan, dan heeft deze
+laag aan die kant geen rand.
+
+Drie dingen die ertoe doen:
+
+- **De tegel hangt aan de wereld, niet aan het scherm.** `savanneLaag` legt hem neer met dezelfde
+  ankerberekening als de grond zelf, als `zuilTeken` en als `rijsTeken`. Daardoor loopt een blok
+  rijzende grond dat tot de hoogte van de laag komt er naadloos in over: dezelfde tegel, dezelfde
+  looplijn. Reken je vanaf de rand van de laag, dan verspringt het patroon zodra de camera beweegt.
+- **Het donker hangt aan de tegel, niet aan Amir.** `SAV_LAAG.donker` telt in tegelhoogtes, zodat het
+  donker precies vol is waar `grondrand.png` ophoudt. In Amir gerekend viel dat bij een laag van 600
+  net naast de onderrand van het plaatje, en dan ligt er een streep in de wand.
+- **De weg omhoog is de rijzende grond.** Amir springt 200, dus een laag van 300 haal je niet zelf.
+  Zet er een ravijn tegen de rand van de laag met een rijzer die tot die hoogte komt en een zegel
+  ervoor (zie "rijzende grond"), precies zoals Test 21 dat met rotsterrassen doet.
+
+Test 22 is het proefstuk: de lage savanne, een laag op 300 en een op 600, met op elke laag gras, een
+struik en een vijand, zodat je ziet dat decor en dieren daar gewoon op de grond staan. In de sandbox
+staat het onder Terrein, **Savannelaag**: Op 300, Op 600, en Met een lift erheen, die er het ravijn,
+het blok en het zegel bij zet.
 
 ### Een level donker maken
 
