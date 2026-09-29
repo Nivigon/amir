@@ -76,7 +76,7 @@ terugzakt, **Omhoog** laat het meteen komen en **Weg** ruimt het op. Een level z
 alleen aan met een speer, niet door erop te stappen), of een rune op een rots als doel met `rijs: 'id'`.
 
 De Test levels staan in het menu per zes op een blad. Met de pijltjes eronder ga je naar de volgende zes (7 t/m 12,
-13 t/m 18, 19) en terug.
+13 t/m 18, 19 t/m 22) en terug.
 
 **Test 18: De zuil** gaat over precies springen. Midden in een ravijn is een smalle zuil grond blijven staan, en daar moet
 je op landen. Een sprong die net te kort is, wordt hier niet gered: bij de overkant van een gewoon ravijn zet het spel je
@@ -86,6 +86,24 @@ alleen met Shift haalt: zet vlak voor de rand af, want wie te vroeg springt komt
 vliegt eroverheen. Tot slot twee van die zuilen achter elkaar, en de tweede staat zo dichtbij dat je daar juist niet
 moet sprinten. Elke strook grond van hoogstens 300 px tussen twee ravijnen werkt zo. In de sandbox zet **Zuil** (bij
 Terrein) er een neer, smal of breed.
+
+**Test 20: De zuil in de sneeuw** is Test 18 op een besneeuwde bergvlakte (`winter: true`): de wanden van de ravijnen en
+de zuilen zijn blauwgrijze steen met sneeuw op de rand. De sprongen zijn precies even lang.
+
+**Test 21: De zuil onder de grond** begint met een ravijn waar je in valt, en beneden in de gang liggen de ravijnen in
+de vloer: putten, in het donkere steen van de gang, die naar beneden in het zwart weglopen. Eerst een brede zuil tussen
+twee putten, dan een smalle achter een put waar je alleen met Shift overheen komt. Het dak zit vlak boven je, maar de
+sprong past eronder. Daarna ligt er een zegel in de vloer: stap erop en de vloer verderop scheurt open, met de barst,
+het stof en de brokken in het grijs van de gang in plaats van de rode aarde. Die put spring je over met Shift. De
+fakkels staan onder de grond.
+
+**Test 22: Hoog en laag** heeft zuilen van verschillende hoogte. Eerst een trap van zuilen omhoog, steeds hoger dan de
+grond, en dan een sprong naar beneden naar de overkant. Dan een dal: de zuilen liggen lager dan de grond, je springt
+omlaag, nog verder omlaag, en via een lage zuil weer omhoog naar de grond; die laatste sprong gaat alleen met Shift.
+En tot slot onder de grond een put met een hoge en een lage zuil erin, met het dak vlak boven je. Zo heeft een level
+drie niveaus boven elkaar. Spring je te kort of te laag tegen een zuil, dan glijd je langs de wand naar beneden.
+Een level zet zo'n zuil met `zuilen: [ {x, w, h} ]` in een ravijn of een put, met `h` hoe hoog hij boven de grond
+staat (negatief is lager). In de sandbox zetten **Hoger** en **Lager** (bij Terrein, Zuil) er een neer.
 
 **Baboon tests** is een episode met proefstukken voor de baviaan, en net als Testrun begin je met de tribekeuze. In
 **Baboon 1: De speerbeet** (dezelfde vlakte als Test 15) hangt hij niet aan de wand maar staat hij grommend op de grond,
@@ -689,6 +707,12 @@ In de sandbox staat het onder **Ravijn**: **Smal** en **Breed** zetten een breuk
 staat. Onder **Zuil** staan twee ravijnen met een smalle strook grond ertussen (zie Test 18).
 
 ## Onder de grond
+
+Een gang kan zelf ook ravijnen in zijn vloer hebben: putten. Val je erin, dan ben je dood, net als in een ravijn op de
+savanne, en een smalle strook vloer tussen twee putten is een zuil (zie Test 18 en Test 21). Een zegel dat in een gang
+ligt en een ravijn in diezelfde gang opent, scheurt de vloer open in plaats van het dak. Een level zet een put met
+`putten: [ {x, w} ]`, binnen een gang. In de sandbox staat het onder **Put in de gang**: een put, een zuil, of een zegel
+dat de vloer verderop openscheurt; is er nog geen gang, dan komt die er eerst.
 
 Een ravijn kan een gang eronder hebben. Dan val je er niet dood in maar kom je beneden op de
 vloer terecht, in het donker, met alleen het daglicht dat door het gat naar binnen valt. Wat

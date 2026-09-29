@@ -524,6 +524,22 @@ class Spel:
         return (links + self.POOL['wetL'] * s, links + (self.POOL['wetR'] + (o.get('n') or 0) * self.POOL['MW']) * s)
 
     # -- de sprong --
+    def bereik(self, snelheid, dh, kop=math.inf):
+        """Hoe ver hij komt tot hij op hoogte dh (ten opzichte van waar hij afzette) weer neerkomt, per
+        beeld zoals updateJump, met kop als plafond. 0 als hij daar niet eens komt."""
+        dt = 1 / 60
+        x, ph, pvh = 0.0, 0.0, self.JUMP_V
+        while True:
+            pvh -= self.GRAVITY * dt
+            ph += pvh * dt
+            x += snelheid * dt
+            if ph > kop:
+                ph, pvh = kop, min(pvh, 0)
+            if pvh <= 0 and ph <= dh:
+                return x if ph > dh - 40 or dh <= 0 else 0.0
+            if ph < -self.GAP_DEATH - 400:
+                return 0.0
+
     def sprong_top(self, dt):
         """Hoe hoog de sprong komt als het spel per beeld dt verder rekent (updateJump)."""
         v, h, top = self.JUMP_V, 0.0, 0.0
@@ -572,6 +588,8 @@ class Level:
         self.naam, self.d, self.spel = naam, d, spel
         g = lambda k: d.get(k) or []
         self.gaps = [q for q in g('gaps') if isinstance(q, dict)]
+        self.putten = [q for q in g('putten') if isinstance(q, dict)]   # ravijnen in de vloer van een gang (PUT)
+        self.zuilen = [q for q in g('zuilen') if isinstance(q, dict)]   # zuilen met een hoogte (ZUIL_HOOG)
         for q in self.gaps:
             q['w'] = max(40, q.get('w') or spel.GAP_BASE)
         self.terraces = g('terraces')
@@ -977,20 +995,94 @@ def rijzende_grond(lv, sp):
             yield fout(z.get('x'), 'zegel met rijs: \'%s\', maar er is geen rijzende grond met die naam' % z.get('rijs'))
 
 
+@regel('putten')
+def putten(lv, sp):
+    """Een put is een ravijn in de vloer van een gang (PUT in de HTML): hij moet helemaal in een gang
+    liggen, niet onder een gat in het dak, en met het dak erboven over te springen zijn."""
+    for q in lv.putten:
+        l, r = q['x'] - q['w'] / 2, q['x'] + q['w'] / 2
+        o = lv.holte(q['x'])
+        if not o or l < o['l'] or r > o['r']:
+            yield fout(q['x'], 'put van %s breed ligt niet helemaal in een gang: buiten een gang telt hij niet' % n0(q['w']))
+            continue
+        if lv.in_gat(l, r):
+            yield fout(q['x'], 'put onder een gat in het dak: wie door dat gat valt, valt meteen de put in')
+        if any(l <= z['x'] <= r for z in lv.zuilen):
+            continue                                    # met zuilen erin: zie de regel 'zuilen'
+        kop = o['diep'] - sp.HOLTE_DAK - sp.CHAR_H
+        schoon_r, red_r = sp.sprong(sp.LOOP * sp.SPRINT, lambda x: kop, 0)
+        schoon_l, _ = sp.sprong(sp.LOOP, lambda x: kop, 0)
+        if q['w'] > red_r:
+            yield fout(q['x'], 'put van %s breed: met sprint haalt Amir onder dit dak hoogstens %s' % (n0(q['w']), n0(red_r)))
+        elif q['w'] > schoon_r:
+            yield letop(q['x'], 'put van %s breed: een sprintsprong komt %s ver, hij haalt de overkant alleen door '
+                                'onder de rand te zakken' % (n0(q['w']), n0(schoon_r)))
+        else:
+            yield info(q['x'], 'put van %s breed (%s)' % (n0(q['w']), 'lopend te halen' if q['w'] <= schoon_l else 'alleen met sprint'))
+
+
+@regel('zuilen')
+def zuilen(lv, sp):
+    """Zuilen met een hoogte (ZUIL_HOOG in de HTML) staan in een ravijn of in een put. Het ravijn moet ze
+    helemaal bedekken, en elke sprong van de rand over de zuilen naar de overkant moet te halen zijn:
+    op een zuil wordt een te korte sprong niet gered, dus met een schone sprong. Alleen op de overkant
+    zelf, de gewone grond, mag hij onder de rand zakken."""
+    lopen, rennen = sp.LOOP, sp.LOOP * sp.SPRINT
+    gaten = [(g, None) for g in lv.gaps if not lv.holte(g['x'])]
+    gaten += [(q, lv.holte(q['x'])) for q in lv.putten if lv.holte(q['x'])]
+    for q in lv.zuilen:
+        l, r = q['x'] - q['w'] / 2, q['x'] + q['w'] / 2
+        if not any(g['x'] - g['w'] / 2 <= l and r <= g['x'] + g['w'] / 2 for g, o in gaten):
+            yield fout(q['x'], 'zuil op %s staat niet helemaal in een ravijn of een put: waar geen gat is, staat hij in de grond'
+                       % n0(q['x']))
+    for g, o in gaten:
+        gl, gr = g['x'] - g['w'] / 2, g['x'] + g['w'] / 2
+        erin = sorted([q for q in lv.zuilen if gl <= q['x'] <= gr], key=lambda q: -q['x'])
+        if not erin:
+            continue
+        kop = (o['diep'] - sp.HOLTE_DAK - sp.CHAR_H) if o else math.inf   # onder het dak van een gang
+        # de stappen: rand, zuilen, overkant; (rechterrand, linkerrand, hoogte) van elk stuk
+        stukken = [(gr + 200, gr, 0)] + [(q['x'] + q['w'] / 2, q['x'] - q['w'] / 2, q.get('h') or 0) for q in erin] + [(gl, gl - 200, 0)]
+        for (ar, al, ah), (br, bl, bh) in zip(stukken, stukken[1:]):
+            afstand = al - br
+            if bh - ah > sp.SPRONG_H - 10:
+                yield fout((al + br) / 2, 'van %s naar %s omhoog is %s: hoger dan de sprong (%s)'
+                           % (n0(ah), n0(bh), n0(bh - ah), n0(sp.SPRONG_H)))
+                continue
+            rl = sp.bereik(lopen, bh - ah, kop - ah)
+            rr = sp.bereik(rennen, bh - ah, kop - ah)
+            naar = 'de overkant' if (br, bl) == stukken[-1][:2] else 'de zuil op %s (hoogte %s)' % (n0((br + bl) / 2), n0(bh))
+            if afstand > rr:
+                if naar == 'de overkant':
+                    yield letop((al + br) / 2, 'naar de overkant is %s: met sprint %s, hij haalt het alleen door onder de rand te zakken'
+                                % (n0(afstand), n0(rr)))
+                else:
+                    yield fout((al + br) / 2, 'naar %s is %s: met sprint komt Amir %s ver, en op een zuil wordt een te korte sprong niet gered'
+                               % (naar, n0(afstand), n0(rr)))
+            else:
+                yield info((al + br) / 2, 'naar %s: %s ver, %s' % (naar, n0(afstand), 'lopend' if afstand <= rl else 'met sprint'))
+
+
 @regel('zuil')
 def zuil(lv, sp):
     """Een strook grond van hoogstens ZUIL.max tussen twee ravijnen is een zuil (zie ZUIL in de HTML).
     Daar redt het spel een te korte sprong niet: wie onder de rand zakt glijdt langs de wand naar
     beneden. Het gat ervoor moet dus met een schone sprong te halen zijn, zonder wegzakken."""
-    gaps = sorted(lv.gaps, key=lambda g: -g['x'])
-    for a, b in zip(gaps, gaps[1:]):                 # a ligt rechts (daar komt hij vandaan), b links
+    reeksen = [(sorted(lv.gaps, key=lambda g: -g['x']), None)]
+    for o in lv.holtes:                              # en in een gang de putten (PUT)
+        reeksen.append((sorted([q for q in lv.putten if o['l'] <= q['x'] <= o['r']], key=lambda g: -g['x']), o))
+    paren = [(a, b, o) for gaps, o in reeksen for a, b in zip(gaps, gaps[1:])]
+    for a, b, o in paren:                            # a ligt rechts (daar komt hij vandaan), b links
         r, l = a['x'] - a['w'] / 2, b['x'] + b['w'] / 2
         breed = r - l
         if breed <= 0 or breed > sp.ZUIL_MAX:
             continue
-        if any(h['l'] < r and h['r'] > l for h in lv.holtes):
+        if o is None and any(h['l'] < r and h['r'] > l for h in lv.holtes):
             continue
-        kop = lambda x: lv.kop(x) - lv.terrein(x)
+        if o is None:
+            kop = lambda x: lv.kop(x) - lv.terrein(x)
+        else:
+            kop = lambda x, o=o: o['diep'] - sp.HOLTE_DAK - sp.CHAR_H
         rand = a['x'] + a['w'] / 2
         schoon_r, _ = sp.sprong(sp.LOOP * sp.SPRINT, kop, rand)
         schoon_l, _ = sp.sprong(sp.LOOP, kop, rand)
@@ -1009,6 +1101,8 @@ def ravijnen(lv, sp):
     rennen = sp.LOOP * sp.SPRINT
     gaps = sorted(lv.gaps, key=lambda g: -g['x'])
     for i, g in enumerate(gaps):
+        if any(g['x'] - g['w'] / 2 <= q['x'] <= g['x'] + g['w'] / 2 for q in lv.zuilen):
+            continue                                    # met zuilen erin: zie de regel 'zuilen'
         rand = g['x'] + g['w'] / 2                      # hier zet hij af, hij komt van rechts
         kop = lambda x: lv.kop(x) - lv.terrein(x)
         schoon_r, red_r = sp.sprong(rennen, kop, rand)
@@ -1233,7 +1327,17 @@ def zegels(lv, sp):
                 yield fout(x, 'het ravijn op %s gaat open onder het zegel zelf: wie erop stapt valt er meteen in' % n0(r))
         if lv.in_gat(r - half, r + half):
             yield letop(r, 'het ravijn van het zegel gaat open over een ravijn dat er al ligt')
-        if lv.holte(r):
+        if lv.holte(r) and lv.holte(r) is lv.holte(x):
+            # zegel en ravijn in dezelfde gang: de vloer scheurt open, een put (zie PUT in de HTML)
+            o = lv.holte(r)
+            kop = o['diep'] - sp.HOLTE_DAK - sp.CHAR_H
+            schoon_r, _ = sp.sprong(sp.LOOP * sp.SPRINT, lambda q: kop, 0)
+            if 2 * half > schoon_r:
+                yield letop(r, 'het zegel scheurt de vloer van de gang open, %s breed: met sprint haalt Amir '
+                               'onder dit dak %s' % (n0(2 * half), n0(schoon_r)))
+            else:
+                yield info(r, 'het zegel scheurt de vloer van de gang open: een put van %s breed' % n0(2 * half))
+        elif lv.holte(r):
             yield letop(r, 'het ravijn van het zegel gaat open boven een gang: je valt dan de gang in')
     for z in lv.d.get('zegels') or []:
         if z.get('muur') and not lv.muur:
