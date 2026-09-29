@@ -175,6 +175,10 @@ Doe die download vanuit het beginscherm-icoon, niet vanuit Safari: iOS geeft een
 
 Ook zonder op die knop te drukken wordt alles wat je tijdens het spelen tegenkomt bewaard, dus een tweede potje laadt sowieso sneller.
 
+### De hoogte van het beeld
+
+Het spel vult de hele hoogte van je scherm. In Safari staat bovenin de adresbalk, en die schuift weg zodra je gaat spelen. Het spel groeit daarin mee, zodat er onderin geen bruine strook overblijft; eerder rekende het zijn hoogte een keer uit terwijl de adresbalk er nog stond en bleef er zo'n 46 punten leeg. Onderaan blijft alleen het smalle stukje dat iOS vrijhoudt voor het veegstreepje. Zet je het spel op je beginscherm, dan is er helemaal geen adresbalk en speel je van rand tot rand op dat streepje na.
+
 Een level begint pas als alle plaatjes binnen zijn. Is er nog iets onderweg (op een trage verbinding, of bij een level dat eigen plaatjes heeft, zoals de baviaan), dan staat het spel stil en zie je **Laden** met een balk tot alles er is. Loopt het vlot, dan zie je daar niets van. Na 25 seconden gaat het spel toch verder, met wat er dan is.
 
 ### Geluid op een telefoon
