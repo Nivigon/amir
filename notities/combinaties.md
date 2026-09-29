@@ -6,7 +6,7 @@ ideeën voortbouwen.
 
 ## Hoe het werkt
 
-- **Jij** speelt een level (vooral de episode Testrun) en zet achter een combinatie wat je ervan vond:
+- **Jij** speelt een level (vooral de episode De Poorten) en zet achter een combinatie wat je ervan vond:
   een oordeel en eventueel een regel waarom. Zet er gerust nieuwe regels bij.
 - **Claude** leest dit bestand voor een nieuw level, bouwt vooral op wat hier als goed staat, en doet
   wat als slecht staat niet opnieuw. Ziet Claude in een testrun (of met de speelrobot) iets wat een
@@ -21,31 +21,44 @@ Oordelen:
 | `slecht` | niet meer doen (zeg waarom) |
 | `?` | nog niet gespeeld |
 
-## Gespeeld in Testrun
+## Gespeeld in De Poorten
+
+De episode Testrun is eruit; de combinaties die daar goed genoeg voor waren staan nu in De Poorten,
+en de rest van de tabel is meegegaan zodat het oordeel niet verdwijnt.
 
 | # | combinatie | waar | oordeel | waarom |
 | --- | --- | --- | --- | --- |
-| 1 | poel vlak voor een kei, slang erachter: je springt traag uit het water | Testrun 1, -1500 tot -2700 | ? | |
-| 2 | regen die overgaat in onweer net voor een gevecht met twee zwaardvechters | Testrun 1, -4800 | ? | |
-| 3 | zwarte slang boven op een terras van 150 | Testrun 1, -3900 | ? | |
-| 4 | skelet met een speer vlak voor een doornbos aan het eind | Testrun 1, -6700 | ? | |
-| 5 | kalebas aan een koordje in de regen (alleen met het mes los te snijden) | Testrun 1, -6300 | ? | |
-| 6 | schilden in een zandstorm, het stof stuift ertegen op | Testrun 2, -1200 | ? | |
-| 7 | zegel dat een ravijn openscheurt terwijl er hyena's aankomen | Testrun 2, -2600 | ? | |
-| 8 | fosforslangen net achter een ravijn | Testrun 2, -5400 | ? | |
-| 9 | rune als doel aan het eind, skelet erachter voor een nieuwe speer | Testrun 2, -8600 | ? | |
-| 10 | val in een donkere gang met valschade, schorpioen en vechter beneden | Testrun 3, -1000 | ? | |
-| 11 | sneeuw die begint net als je uit de gang komt, rode grond wordt wit | Testrun 3, -5200 | ? | |
-| 12 | laag plafond (460) boven een kei met een zwarte slang erachter | Testrun 3, -6000 | ? | |
-| 13 | nachtuitzicht met de donkere muziek in een kort level | Testrun 3 | ? | |
+| 1 | poel vlak voor een kei, slang erachter: je springt traag uit het water | Poort 2, -1300 tot -2500 | ? | |
+| 2 | regen die overgaat in onweer halverwege het level | Poort 2, -9000 | ? | |
+| 3 | zwarte slang boven op een terras van 150 | Poort 2, -3500 | ? | |
+| 4 | skelet met een speer vlak na een rune (regel 9) | Poort 1, -6650 | ? | |
+| 5 | kalebas aan een koordje in de regen (alleen met het mes los te snijden) | Poort 2, -8600 | ? | |
+| 7 | zegel als val: de vijand stapt er zelf op en scheurt de grond onder zichzelf open | Poort 1, -3600 en Poort 5, -3400 | ? | |
+| 8 | fosforslangen naast een schorpioen aan het eind van een level | Poort 2, -10800 | ? | |
+| 9 | runeschijf op een rots die rijzende grond omhoog stuurt, met een skelet erachter | Poort 1, -5550 | ? | |
+| 10 | val in een gang met valschade, via een richel, met een schorpioen en een vechter beneden | Poort 3, -2600 | ? | |
+| 12 | drie zuilen in een ravijn, steeds hoger, en dan naar beneden de overkant op | Poort 2, -4700 | ? | |
+| 13 | nachtuitzicht met de donkere muziek en onweer erbij | Poort 5 | ? | |
+| 14 | zandstorm boven de grond, stilte in de gang eronder (contrast) | Poort 3 | ? | |
+| 15 | zakkend plafond met een uitgang die dichtzakt: rennen, met twee vijanden in de kamer | Poort 3, -4050 tot -6950 | ? | |
+| 16 | rijzende grond als lift naar een terras met een roedel erop | Poort 4, -6500 | ? | |
+| 17 | dal van zuilen in de sneeuwstorm (omlaag en weer omhoog) | Poort 4, -4300 | ? | |
+| 18 | brug van twee blokken steen die na zes seconden weer zakt | Poort 2, -9400 | ? | |
+| 19 | de baviaan die je het hele level achtervolgt, met de speerval als enige uitweg | Poort 6 | ? | |
+| 20 | de kooi (twee ravijnen) midden in een achtervolging, met een kei ervoor waar hij overheen springt | Poort 6, -1600 tot -3600 | ? | |
+
+Uit Testrun, nog niet in een level terug:
+
+| # | combinatie | waar stond het | oordeel | waarom |
+| --- | --- | --- | --- | --- |
+| 6 | schilden in een zandstorm, het stof stuift ertegen op | Testrun 2 | ? | |
+| 11 | sneeuw die begint net als je uit de gang komt, rode grond wordt wit | Testrun 3 | ? | |
 
 ## Nog te proberen
 
 Ideeën die er nog niet in zitten. Zet een oordeel of een sterretje bij wat je wilt zien.
 
 - De baviaan in een level met een zegel: je sluit hem op door een ravijn open te laten scheuren.
-- Een zandstorm in een gang: onder de grond is het stil, boven raast het (contrast).
-- Twee zwaardvechters aan de overkant van een ravijn dat pas later openscheurt (valkuil zoals de oude Vorst).
 - Een poel onder een laag plafond: trager én geen sprong.
 - Fosforslangen in de sneeuw, 's nachts: groene gloed op wit.
 - Een rij kalebassen aan koordjes als beloning voor wie het mes meeneemt.

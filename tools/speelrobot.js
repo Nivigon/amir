@@ -139,6 +139,10 @@ function robot([lopen, taai, wachten, vredig]){
     }
     const wacht = wachtTot !== null && t < wachtTot;
     if (wacht){ keys['ArrowLeft'] = false; vastT = t; }
+    // de laadpoort staat dicht (een winterlevel haalt zijn plaatjes op): de lus staat stil en
+    // toetsen doen niets. Niet meetellen als vastlopen, anders springt hij zodra hij weer mag en
+    // vliegt hij over zijn eigen speer heen
+    if (typeof laadWacht !== 'undefined' && laadWacht){ stuckT = 0; lastX = world; vastT = t; return; }
     // een kalebas bij zich en niet vol: drinken
     if (hppotionCarry > 0 && lives < 3 && !dead) drinkHppotion();
     // de speer oppakken, en steken naar wat voor hem staat
@@ -223,7 +227,7 @@ function robot([lopen, taai, wachten, vredig]){
   const naam = await page.evaluate(([doel, def]) => {
     let lijst = null, i = 0;
     if (def) lijst = [def];
-    else for (const l of [JAGER_LEVELS, TEST_LEVELS, RUN_LEVELS, BAB_LEVELS])
+    else for (const l of [POORT_LEVELS, TEST_LEVELS, BAB_LEVELS])
       l.forEach((d, j) => { if (!lijst && d.name.toLowerCase().includes(doel.toLowerCase())){ lijst = l; i = j; } });
     if (!lijst) return null;
     setLevel(i, lijst);
