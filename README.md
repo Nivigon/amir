@@ -76,7 +76,7 @@ terugzakt, **Omhoog** laat het meteen komen en **Weg** ruimt het op. Een level z
 alleen aan met een speer, niet door erop te stappen), of een rune op een rots als doel met `rijs: 'id'`.
 
 De Test levels staan in het menu per zes op een blad. Met de pijltjes eronder ga je naar de volgende zes (7 t/m 12,
-13 t/m 18, 19 t/m 22) en terug.
+13 t/m 18, 19 t/m 23) en terug.
 
 **Test 18: De zuil** gaat over precies springen. Midden in een ravijn is een smalle zuil grond blijven staan, en daar moet
 je op landen. Een sprong die net te kort is, wordt hier niet gered: bij de overkant van een gewoon ravijn zet het spel je
@@ -104,6 +104,14 @@ En tot slot onder de grond een put met een hoge en een lage zuil erin, met het d
 drie niveaus boven elkaar. Spring je te kort of te laag tegen een zuil, dan glijd je langs de wand naar beneden.
 Een level zet zo'n zuil met `zuilen: [ {x, w, h} ]` in een ravijn of een put, met `h` hoe hoog hij boven de grond
 staat (negatief is lager). In de sandbox zetten **Hoger** en **Lager** (bij Terrein, Zuil) er een neer.
+
+**Test 23: Vijf niveaus** gaat niet alleen naar links maar ook vier keer een verdieping omhoog: eerst de grond, dan
+terrassen op 300, 600, 900 en 1200, elk met vijanden. Zo'n stap is te hoog om te springen. Aan het eind van elk niveau
+ligt een zegel, en daarachter een ravijn: stap op het zegel en uit het ravijn komt een blok steen omhoog dat doorgaat
+tot het niveau erboven. Spring erop terwijl het langskomt, dan neemt het je mee naar boven en stap je het volgende terras
+op. Wacht je te lang, dan is het al te hoog en spring je ertegenaan; mis je het, dan zakt het na een paar tellen terug
+en kun je opnieuw op het zegel stappen. Een level maakt zo'n lift met rijzende grond (`rijzers`) waarvan `tot` hoger
+ligt dan de grond, tegen de wand van het terras erboven.
 
 **Baboon tests** is een episode met proefstukken voor de baviaan, en net als Testrun begin je met de tribekeuze. In
 **Baboon 1: De speerbeet** (dezelfde vlakte als Test 15) hangt hij niet aan de wand maar staat hij grommend op de grond,

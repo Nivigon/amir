@@ -1475,6 +1475,15 @@ def terrassen(lv, sp):
                 if b not in bereikt and b > a and b - a < apex(a):
                     bereikt.add(b)
                     rij.append(b)
+        # rijzende grond die tegen deze wand omhoog komt, tot vlak onder of op de hoogte van het terras:
+        # een lift. Wie erop staat (of erop springt terwijl hij langskomt) gaat mee naar boven.
+        lift = [b for b in lv.d.get('rijzers') or [] if isinstance(b.get('l'), (int, float)) and isinstance(b.get('r'), (int, float))
+                and b['l'] - 60 <= t['r'] <= b['r'] + 60
+                and (b.get('tot') if isinstance(b.get('tot'), (int, float)) else -1) + sp.SPRONG_H - 10 > t['h']]
+        if t['h'] not in bereikt and lift:
+            yield info(t['r'], 'terras van %s hoog op %s: te halen met de rijzende grond %s (tot %s)'
+                       % (n0(t['h']), n0(t['r']), lift[0].get('id'), n0(lift[0].get('tot', -1))))
+            continue
         if t['h'] not in bereikt:
             waarom = 'Amir springt %s' % n0(sp.SPRONG_H)
             if kop(vloer) - vloer < sp.SPRONG_H:
