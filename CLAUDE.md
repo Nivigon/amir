@@ -603,13 +603,37 @@ op de klap, houdt aan tot het gat open is en de stenen liggen, en zakt dan weg i
 komen van het effect (`fx.tCrack`, `fx.tOpen`), dus een breder ravijn rommelt langer. Voor een gewoon
 ravijn is dat van 0 tot 5,3 seconden; eerst was het van 1,6 tot 4,1.
 
-**Geluid op een telefoon.** Een telefoon laat geluid alleen starten vlak na een tik. De versterkers
-(`deurVersterker`, `skeletVersterker`) werden pas aangemaakt als het spel ze nodig had, midden in het
-spel en zonder tik, en bleven dan stil: op een telefoon hoorde je de aardbeving, de rotswand en het
-skelet niet. `geluidOntgrendel` maakt ze bij elke tik of toets aan en zet ze op gang, en geeft de
-audio-elementen een keer een stil begin. Maak je een nieuw geluid met een eigen versterker of een
-eigen audio-element dat het spel zelf start, zet het daar dan bij. Headless Chromium past die regel
-niet toe, dus in de speelrobot is dit niet na te spelen: controleer het op een echte telefoon.
+**Geluid op een telefoon.** Een telefoon laat geluid alleen starten vlak na een tik, en er is maar
+een versterker voor het hele spel. Alles staat bij elkaar boven `SFX_DEUR`, en het komt op drie dingen
+neer:
+
+- **Een gedeelde `AudioContext`** (`geluidAc`, `acWek`, `acLoopt`). Wat harder moet dan volume 1 (de
+  brul van de baviaan, het instortende skelet, de aardbeving, de storm) loopt door een gain van de Web
+  Audio API. Dat deed elk geluid eerst met een eigen context: vier stuks. Een telefoon staat er maar
+  een paar toe, en een context die stilstaat neemt al zijn geluiden mee, dus nu is er een. Een nieuwe
+  versterker maakt dus geen `new AudioContext()` meer maar vraagt `acLoopt()`.
+- **`interrupted` is niet `suspended`.** Een context begint stil (`suspended`) en mag alleen tijdens
+  een tik op gang komen, maar na een telefoontje, het wegleggen van het toestel of het wisselen van
+  app staat hij op `interrupted`. Wie alleen op `suspended` kijkt, laat hem daarna voorgoed stilstaan:
+  de brul, het skelet, de aardbeving en de storm bleven de rest van het potje weg terwijl de gewone
+  geluiden wel klonken. `acWek` hervat alles wat niet `running` is, bij elke tik en als het scherm
+  terugkomt (`visibilitychange`).
+- **Elk audio-element krijgt een stil begin** (`geluidOntgrendel`). Dat geldt per element: eentje dat
+  nog nooit tijdens een tik gespeeld heeft, blijft stil als het spel het later zelf wil spelen. De
+  lijst wordt niet met de hand bijgehouden, want dan mist er altijd een: de `<audio>`'s uit de HTML
+  worden opgehaald, en elk element dat het script maakt meldt zich aan met `geluidAan(new Audio())`,
+  op de regel waar het gemaakt wordt. Doe dat dus ook bij een nieuw geluid. De muziek (`bg`) blijft
+  erbuiten, die start `tryPlay`.
+
+Een element dat eenmaal via `createMediaElementSource` aan de context hangt, gaat voorgoed door die
+context: staat hij dan stil, dan hoor je niets meer, ook niet door `volume` te zetten. Daarom wordt een
+element er pas aan gehangen als de context echt loopt (`acLoopt`); tot die tijd speelt het rechtstreeks,
+hoogstens op volume 1, dus zachter dan bedoeld maar te horen.
+
+Headless Chromium past de autoplay-regel niet vanzelf toe. Met `--autoplay-policy=document-user-activation-required`
+komt het in de buurt, en daarmee is na te kijken dat na een enkele tik elk geluid speelt en dat de
+context na een onderbreking weer aangaat; het echte gedrag van Safari op een iPhone is dat niet, dus
+controleer het daarnaast op een echte telefoon.
 
 ### Runes op elke rots, op elke hoogte
 

@@ -4163,6 +4163,61 @@ const MUUR = {
 const muurImg = new Image();
 zetBron(muurImg, MUUR.src, () => console.warn('ontbreekt: ' + MUUR.src));
 
+// ---- geluid op een telefoon: een gedeelde versterker en een lijst van alles ----
+// Een audio-element komt niet boven volume 1, dus wat harder moet (de brul van de baviaan, het
+// instortende skelet, de aardbeving, de storm) loopt door een gain van de Web Audio API. Dat deed
+// elk geluid eerst met een eigen AudioContext: vier stuks. Een telefoon staat er maar een paar toe,
+// en elke context die blijft stilstaan neemt al zijn geluiden mee. Daarom is er nu een, voor alles.
+//
+// Twee dingen die op een telefoon anders zijn dan op een laptop:
+//
+//   - een context begint stil (`suspended`) en mag alleen tijdens een tik op gang komen;
+//   - na een telefoontje, het wegleggen van het toestel of het wisselen van app staat hij op
+//     `interrupted`, en dat is iets anders dan `suspended`. Wie alleen op `suspended` kijkt, laat
+//     hem daarna voorgoed stilstaan, en dan hoor je de brul, het skelet, de aardbeving en de storm
+//     de rest van het potje niet meer, terwijl de gewone geluiden wel blijven klinken. Dat is wat
+//     er misging. Dus: alles wat niet `running` is proberen we te hervatten, bij elke tik en als
+//     het scherm terugkomt.
+let acRuimte = null;                                 // de gedeelde context, of false als het niet lukt
+function geluidAc(maak){
+  if (acRuimte !== null) return acRuimte || null;
+  if (!maak) return null;                            // alleen wie er een wil maken krijgt er een
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    acRuimte = new AC();
+  } catch (e){ acRuimte = false; }
+  return acRuimte || null;
+}
+// Hervatten, ook vanuit interrupted. Zelf aanmaken doet dit niet: een context die buiten een tik
+// wordt gemaakt begint stil, en dan is die tik verspild.
+function acWek(){
+  const ac = geluidAc();
+  if (ac && ac.state !== 'running') ac.resume().then(acVersterkers, () => {});
+  return ac;
+}
+// Loopt hij echt? Zo niet, dan gaat een geluid rechtstreeks naar de speakers: hoogstens volume 1,
+// dus zachter dan bedoeld, maar te horen. Zodra een element via createMediaElementSource aan de
+// context hangt gaat al zijn geluid door die context, en dat is niet terug te draaien: staat hij
+// dan stil, dan hoor je niets meer. Daarom hangen we een element er pas aan als hij loopt.
+function acLoopt(){
+  const ac = geluidAc(true);
+  if (!ac) return null;
+  if (ac.state !== 'running'){ ac.resume().then(acVersterkers, () => {}); return null; }
+  return ac;
+}
+// De vier versterkers aanhangen, zodra dat mag. Dit hoort bij het hervatten en niet alleen bij de
+// tik: resume() is een belofte die later pas afloopt, dus een context die al stilstond was anders
+// pas bij de tik daarna aan de beurt, en dan hoorde je het geluid dat ertussen viel niet.
+function acVersterkers(){
+  for (const maak of [deurVersterker, skeletVersterker, weerVersterker, bavBrulVersterker]) maak();
+}
+// Elk audio-element van het spel. Een telefoon laat een element pas spelen als het een keer tijdens
+// een tik gespeeld heeft, en dat geldt per element: eentje dat hier niet in staat blijft stil.
+// De <audio>'s in de HTML komen er vanzelf bij; wat het script zelf maakt meld je hier aan met
+// geluidAan(...), meteen op de regel waar je het maakt.
+const alleGeluiden = new Set();
+function geluidAan(...lijst){ for (const a of lijst) if (a) alleGeluiden.add(a); return lijst[0]; }
+
 // Het geluid van de rots die opengaat. De opname duurt 42 seconden en staat van begin tot
 // eind even hard, zonder aanzet en zonder uitklank, terwijl het blok maar een halve seconde
 // schuift. Daarom nemen we de kop ervan, net als bij het windgeluid: hij begint op het moment
@@ -4177,20 +4232,20 @@ zetBron(muurImg, MUUR.src, () => console.warn('ontbreekt: ' + MUUR.src));
 // muziek weg tot demp van haar gewone sterkte, en daarna komt ze in terug weer op.
 const SFX_DEUR = { src: 'sounds/deuropen.mp3', vol: 2.55, duur: 1.6, uit: 0.9,
                    demp: 0.2, terug: 1.2 };
-const deurSnd = new Audio();
+const deurSnd = geluidAan(new Audio());
 deurSnd.onerror = () => console.warn('ontbreekt: ' + SFX_DEUR.src);
 deurSnd.preload = 'auto';
 deurSnd.src = SFX_DEUR.src;
-let deurAc = null, deurGain = null;
+let deurGain = null;
 function deurVersterker(){
-  if (deurGain || deurAc === false) return deurGain;
+  if (deurGain){ acWek(); return deurGain; }
+  const ac = acLoopt();
+  if (!ac) return null;
   try {
-    const AC = window.AudioContext || window.webkitAudioContext;
-    deurAc = new AC();
-    deurGain = deurAc.createGain();
-    deurAc.createMediaElementSource(deurSnd).connect(deurGain);
-    deurGain.connect(deurAc.destination);
-  } catch (e){ deurAc = false; deurGain = null; }
+    deurGain = ac.createGain();
+    ac.createMediaElementSource(deurSnd).connect(deurGain);
+    deurGain.connect(ac.destination);
+  } catch (e){ deurGain = null; }
   return deurGain;
 }
 // de muziek even wegdrukken en daarna weer laten opkomen
@@ -4216,8 +4271,7 @@ function playBeving(fx){
   try { a.currentTime = 0; } catch (e) {}
   const g = deurVersterker();
   if (g){
-    if (deurAc.state === 'suspended') deurAc.resume().catch(() => {});
-    const t = deurAc.currentTime, vol = SFX_DEUR.vol;
+    const t = geluidAc().currentTime, vol = SFX_DEUR.vol;
     a.volume = 1;
     g.gain.cancelScheduledValues(t);
     g.gain.setValueAtTime(vol * SFX_BEVING.begin, t);
@@ -4233,32 +4287,49 @@ function playBeving(fx){
   a.play().catch(() => {});
   deurDemp(klaar + SFX_BEVING.uit);
 }
-// Een telefoon laat geluid alleen starten vlak na een tik. De versterkers (deur, skelet) worden
-// pas gebruikt als het spel iets doet (een ravijn scheurt open, een skelet stort in), en dan is
-// er geen tik: ze bleven stil. Daarom worden ze bij elke tik of toets aangemaakt en weer op gang
-// gezet, en krijgen de audio-elementen een keer een stil begin, zodat ze daarna mogen spelen.
-let geluidVrij = false;
+// Een telefoon laat geluid alleen starten vlak na een tik, en dat geldt per audio-element: eentje
+// dat nog nooit tijdens een tik gespeeld heeft, blijft stil als het spel het later zelf wil spelen
+// (een hyena die lacht, een panter die brult, Amir die het uitschreeuwt). Daarom krijgt elk element
+// bij de eerste tik een stil begin: even spelen op mute, en meteen weer terug naar nul. Dat is nooit
+// een lijst met de hand, want dan mist er altijd een: de <audio>'s uit de HTML worden opgehaald en
+// alles wat het script maakt heeft zich met geluidAan() aangemeld.
+//
+// De muziek (bg) blijft erbuiten: die start tryPlay bij dezelfde tik, en een stil begin dat daarna
+// afloopt zou haar meteen weer op pauze zetten.
+//
+// En de gedeelde versterker wordt hier gewekt (zie geluidAc): op een telefoon begint hij stil en
+// staat hij na een onderbreking op interrupted, en alleen een tik mag hem weer aanzetten.
+const geluidVrij = new WeakSet();
+let geluidAlles = false;                           // alles een keer vrij? dan hoeft de ronde niet meer
+function geluidLijst(){
+  const lijst = new Set(document.querySelectorAll('audio'));
+  for (const a of alleGeluiden) lijst.add(a);
+  lijst.delete(bg);
+  return lijst;
+}
 function geluidOntgrendel(){
   if (!wantSound) return;
-  for (const [maak, ac] of [[deurVersterker, () => deurAc], [skeletVersterker, () => skeletAc], [weerVersterker, () => weerAc],
-                            [bavBrulVersterker, () => bavAc]]){
-    maak();
-    const c = ac();
-    if (c && c.state === 'suspended') c.resume().catch(() => {});
-  }
-  if (geluidVrij) return;
-  geluidVrij = true;
-  for (const a of [deurSnd, skeletSnd, neeSnd, stormSnd, bavBrulSnd, bavGromSnd, bavRenSnd, bavBijtSnd, bavLandSnd,
-                   valSpanSnd, valVuurSnd]){
-    if (!a.paused) continue;
+  acWek();
+  acVersterkers();
+  if (geluidAlles) return;                         // en dan is elke volgende tik gratis
+  geluidAlles = true;
+  for (const a of geluidLijst()){
+    if (geluidVrij.has(a)) continue;
+    geluidVrij.add(a);                             // een die weigert komt hieronder weer uit de lijst
+    if (!a.paused) continue;                       // speelt al, dus hij mag al
     a.muted = true;
     const p = a.play();
     const terug = () => { a.pause(); try { a.currentTime = 0; } catch (e) {} a.muted = false; };
-    if (p && p.then) p.then(terug, () => { a.muted = false; geluidVrij = false; }); else terug();
+    if (p && p.then) p.then(terug, () => { a.muted = false; geluidVrij.delete(a); geluidAlles = false; }); else terug();
   }
 }
 for (const soort of ['pointerdown', 'pointerup', 'touchend', 'keydown'])
   addEventListener(soort, geluidOntgrendel, { passive: true });
+// Terug uit een ander scherm of een andere app: de versterker staat dan op interrupted en moet
+// weer aan. Dit is geen tik, dus het mag geweigerd worden; lukt het niet, dan doet de eerste tik
+// daarna het alsnog. Ook op pageshow, want een webapp op het beginscherm komt soms zo terug.
+document.addEventListener('visibilitychange', () => { if (!document.hidden && wantSound) acWek(); });
+addEventListener('pageshow', () => { if (wantSound) acWek(); });
 function playDeur(){
   if (!wantSound) return;
   const a = deurSnd;
@@ -4266,8 +4337,7 @@ function playDeur(){
   try { a.currentTime = 0; } catch (e) {}
   const g = deurVersterker();
   if (g){
-    if (deurAc.state === 'suspended') deurAc.resume().catch(() => {});
-    const t = deurAc.currentTime;
+    const t = geluidAc().currentTime;
     a.volume = 1;
     g.gain.cancelScheduledValues(t);
     g.gain.setValueAtTime(SFX_DEUR.vol, t);
@@ -5807,7 +5877,7 @@ const SPEERVAL = {
 // zegel en stopt als hij losschiet; het vuren start `voor` seconden eerder op `vuur`, zodat de klap op het moment
 // valt dat hij uit de wand komt. Twee audio-elementen, want de stukken mogen elkaar raken.
 const SPEERVAL_SND = { src: 'sounds/speerval.mp3', span: 0.05, vuur: 1.7, voor: 0.1, tot: 2.6, vol: 1 };
-const valSpanSnd = new Audio(SPEERVAL_SND.src), valVuurSnd = new Audio(SPEERVAL_SND.src);
+const valSpanSnd = geluidAan(new Audio(SPEERVAL_SND.src)), valVuurSnd = geluidAan(new Audio(SPEERVAL_SND.src));
 valSpanSnd.preload = valVuurSnd.preload = 'auto';
 function speervalSpeel(a, van){
   if (!wantSound) return;
@@ -6030,22 +6100,22 @@ const skDelenKlaar = () => skImg && SKELET.delen.every(d => imgReady(skImg.delen
 
 // Geluid. Een tweede instorting start het opnieuw in plaats van er een tweede overheen te leggen.
 function skGeluid(q){
-  const a = new Audio();
+  const a = geluidAan(new Audio());
   a.onerror = () => console.warn('ontbreekt: ' + q.src);
   a.preload = 'auto'; a.src = q.src;
   return a;
 }
 const skeletSnd = skGeluid(SKELET.geluid), neeSnd = skGeluid(SKELET.nee);
-let skeletAc = null, skeletGain = null;
+let skeletGain = null;
 function skeletVersterker(){                       // net als bij de deur: een audio-element komt niet boven 1
-  if (skeletGain || skeletAc === false) return skeletGain;
+  if (skeletGain){ acWek(); return skeletGain; }
+  const ac = acLoopt();
+  if (!ac) return null;
   try {
-    const AC = window.AudioContext || window.webkitAudioContext;
-    skeletAc = new AC();
-    skeletGain = skeletAc.createGain();
-    skeletAc.createMediaElementSource(skeletSnd).connect(skeletGain);
-    skeletGain.connect(skeletAc.destination);
-  } catch (e){ skeletAc = false; skeletGain = null; }
+    skeletGain = ac.createGain();
+    ac.createMediaElementSource(skeletSnd).connect(skeletGain);
+    skeletGain.connect(ac.destination);
+  } catch (e){ skeletGain = null; }
   return skeletGain;
 }
 function playSkelet(){
@@ -6053,9 +6123,8 @@ function playSkelet(){
   try { skeletSnd.currentTime = 0; } catch (e) {}
   const g = skeletVersterker();
   if (g){
-    if (skeletAc.state === 'suspended') skeletAc.resume().catch(() => {});
     skeletSnd.volume = 1;
-    g.gain.setValueAtTime(SKELET.geluid.vol, skeletAc.currentTime);
+    g.gain.setValueAtTime(SKELET.geluid.vol, geluidAc().currentTime);
   } else skeletSnd.volume = Math.min(1, SKELET.geluid.vol);
   skeletSnd.play().catch(() => {});
 }
@@ -6846,7 +6915,7 @@ function deelTijd(delen, f){
   for (const d of delen){ const tot = Math.min(f, d.tot); if (tot > van) t += (tot - van) / d.fps; van = d.tot; if (f <= d.tot) break; }
   return t;
 }
-const bavBrulSnd = new Audio(BAV_BRUL.geluid.src);
+const bavBrulSnd = geluidAan(new Audio(BAV_BRUL.geluid.src));
 bavBrulSnd.preload = 'auto';
 // de klok van de baviaan, in ms speltijd: loopt mee met het tempo uit de instellingen (op een telefoon
 // trager, gameTempo) en staat stil in de pauze, net als Amir
@@ -6885,16 +6954,15 @@ const BAV_SCHUD = { map: 'enemies/baviaan/hoofdschudden/hoofdschudden_', n: 64, 
   delen: [{ tot: 18, fps: 40 }, { tot: 48, fps: 42 }, { tot: 64, fps: 40 }],
   herhaal: { van: 18, tot: 46, keer: 1 },
   geluid: { src: 'sounds/bavgrom.mp3', vol: 1.3 } };
-const bavGromSnd = new Audio(BAV_SCHUD.geluid.src);
+const bavGromSnd = geluidAan(new Audio(BAV_SCHUD.geluid.src));
 bavGromSnd.preload = 'auto';
 function bavGromSpeel(){
   if (!wantSound) return;
   try { bavGromSnd.currentTime = 0; } catch (e) {}
   bavBrulVersterker();
   if (bavGromGain){
-    if (bavAc.state === 'suspended') bavAc.resume().catch(() => {});
     bavGromSnd.volume = 1;
-    bavGromGain.gain.setValueAtTime(BAV_SCHUD.geluid.vol, bavAc.currentTime);
+    bavGromGain.gain.setValueAtTime(BAV_SCHUD.geluid.vol, geluidAc().currentTime);
   } else bavGromSnd.volume = Math.min(1, BAV_SCHUD.geluid.vol);
   bavGromSnd.play().catch(() => {});
 }
@@ -6910,7 +6978,8 @@ function bavGromSpeel(){
 const BAV_BIJT = { src: 'sounds/bavbijt.mp3', vol: 1.4 };
 const BAV_REN_GROM = { vol: 1, rate: 0.85, eerst: 0.25 };
 const BAV_LAND = { src: 'sounds/bavland.mp3', vol: 1.2, voor: 0.1, sprong: 0.7, doodF: 18, doodX: 442, handF: 16, handX: 170 };
-const bavBijtSnd = new Audio(BAV_BIJT.src), bavRenSnd = new Audio(BAV_SCHUD.geluid.src), bavLandSnd = new Audio(BAV_LAND.src);
+const bavBijtSnd = geluidAan(new Audio(BAV_BIJT.src)), bavRenSnd = geluidAan(new Audio(BAV_SCHUD.geluid.src)),
+      bavLandSnd = geluidAan(new Audio(BAV_LAND.src));
 bavBijtSnd.preload = bavRenSnd.preload = bavLandSnd.preload = 'auto';
 // een geluid van de baviaan via zijn eigen gain op de versterker van de brul, of zonder, tot 1
 function bavSpeelVia(a, gain, vol, rate = 1){
@@ -6921,9 +6990,8 @@ function bavSpeelVia(a, gain, vol, rate = 1){
   bavBrulVersterker();
   const g = gain();
   if (g){
-    if (bavAc.state === 'suspended') bavAc.resume().catch(() => {});
     a.volume = 1;
-    g.gain.setValueAtTime(vol, bavAc.currentTime);
+    g.gain.setValueAtTime(vol, geluidAc().currentTime);
   } else a.volume = Math.min(1, vol);
   a.play().catch(() => {});
 }
@@ -6943,10 +7011,8 @@ const BAV_POOT = { vol: 0.55, hz: 95, zak: 0.4, duur: 0.18, ruis: 0.6, filter: [
 let bavRuis = null;
 function bavPoot(kracht, wx){
   if (!wantSound) return;
-  bavBrulVersterker();
-  const ac = bavAc;
+  const ac = acLoopt();
   if (!ac) return;
-  if (ac.state === 'suspended') ac.resume().catch(() => {});
   const P = BAV_POOT, t = ac.currentTime + 0.005;
   const af = Math.max(P.min, 1 - Math.abs(wx - playerX()) / (P.ver * W));
   const v = P.vol * kracht * af * (0.85 + Math.random() * 0.3), f0 = P.hz * (0.9 + Math.random() * 0.2);
@@ -7575,19 +7641,19 @@ const bavKooiKant = (K, x) => x < K.L ? -1 : x > K.R ? 1 : 0;
 // de brul met het geluid, een keer per keer dat hij brult
 // een audio-element komt niet boven 1, en de grote brul moet veel harder dan de kleine: net als bij het skelet
 // een versterker (in geluidOntgrendel, anders blijft hij op een telefoon stil)
-let bavAc = null, bavGain = null, bavGromGain = null, bavRenGain = null, bavBijtGain = null, bavLandGain = null;
+let bavGain = null, bavGromGain = null, bavRenGain = null, bavBijtGain = null, bavLandGain = null;
 function bavBrulVersterker(){
-  if (bavGain || bavAc === false) return bavGain;
+  if (bavGain){ acWek(); return bavGain; }
+  const ac = acLoopt();
+  if (!ac) return null;
   try {
-    const AC = window.AudioContext || window.webkitAudioContext;
-    bavAc = new AC();
-    bavGain = bavAc.createGain();
-    bavAc.createMediaElementSource(bavBrulSnd).connect(bavGain);
-    bavGain.connect(bavAc.destination);
+    bavGain = ac.createGain();
+    ac.createMediaElementSource(bavBrulSnd).connect(bavGain);
+    bavGain.connect(ac.destination);
     // het grommen bij het hoofdschudden, het grommen onder het rennen en de hap: elk een eigen volume
-    const eigen = a => { const g = bavAc.createGain(); bavAc.createMediaElementSource(a).connect(g); g.connect(bavAc.destination); return g; };
+    const eigen = a => { const g = ac.createGain(); ac.createMediaElementSource(a).connect(g); g.connect(ac.destination); return g; };
     bavGromGain = eigen(bavGromSnd); bavRenGain = eigen(bavRenSnd); bavBijtGain = eigen(bavBijtSnd); bavLandGain = eigen(bavLandSnd);
-  } catch (e){ bavAc = false; bavGain = null; bavGromGain = bavRenGain = bavBijtGain = bavLandGain = null; }
+  } catch (e){ bavGain = null; bavGromGain = bavRenGain = bavBijtGain = bavLandGain = null; }
   return bavGain;
 }
 function bavBrulSpeel(vol = BAV_BRUL.geluid.vol, rate = 1){
@@ -7597,9 +7663,8 @@ function bavBrulSpeel(vol = BAV_BRUL.geluid.vol, rate = 1){
   bavBrulSnd.playbackRate = rate;
   const g = bavBrulVersterker();
   if (g){
-    if (bavAc.state === 'suspended') bavAc.resume().catch(() => {});
     bavBrulSnd.volume = 1;
-    g.gain.setValueAtTime(vol, bavAc.currentTime);
+    g.gain.setValueAtTime(vol, geluidAc().currentTime);
   } else bavBrulSnd.volume = Math.min(1, vol);
   bavBrulSnd.play().catch(() => {});
 }
@@ -7612,8 +7677,7 @@ function bavBeving(duur, sterk){
   try { a.currentTime = 0; } catch (e) {}
   const g = deurVersterker();
   if (g){
-    if (deurAc.state === 'suspended') deurAc.resume().catch(() => {});
-    const t = deurAc.currentTime;
+    const t = geluidAc().currentTime;
     a.volume = 1;
     g.gain.cancelScheduledValues(t);
     g.gain.setValueAtTime(0, t);
@@ -8134,14 +8198,13 @@ function bavWerpTeken(scale){
 }
 // De zoef van de punt die op je af komt: witte ruis door een bandfilter dat van `van` naar `tot` Hz loopt en steeds
 // harder wordt, en vlak na de lens snel wegvalt, zoals iets wat vlak langs je oor schiet. Geen bestand: dezelfde
-// aanpak als de regen en de donder, op de versterker van de baviaan (bavAc, in geluidOntgrendel).
+// aanpak als de regen en de donder, op de gedeelde versterker (geluidAc, die geluidOntgrendel wekt).
 function bavZoef(duur){
   if (!wantSound) return;
-  bavBrulVersterker();
-  if (!bavAc) return;
+  const ac = acLoopt();
+  if (!ac) return;
   try {
-    const ac = bavAc, Z = BAV_BEET.zoef, t = ac.currentTime, lang = duur + 0.35;
-    if (ac.state === 'suspended') ac.resume().catch(() => {});
+    const Z = BAV_BEET.zoef, t = ac.currentTime, lang = duur + 0.35;
     const buf = ac.createBuffer(1, Math.ceil(ac.sampleRate * lang), ac.sampleRate), d = buf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     const src = ac.createBufferSource(); src.buffer = buf;
@@ -10433,7 +10496,7 @@ function sndRamp(a, naar, secs, stop){
 const SFX_WIND = { src: 'music/woestijnwind.mp3', vol: 0.30,   // was 0,20: anderhalf keer zo hard
                    aan: 0.6, duur: 2.4, uit: 1.2, span: 22 };
 const windSnd = [0, 1].map(i => {
-  const a = new Audio();
+  const a = geluidAan(new Audio());
   if (i === 0) a.onerror = () => console.warn('ontbreekt: ' + SFX_WIND.src);
   a.preload = 'auto'; a.src = SFX_WIND.src;
   return a;
@@ -10789,31 +10852,30 @@ function weerWind(dt, k){
 // De storm: dezelfde woestijnwind als de vlagen (SFX_WIND), maar als lus en veel harder, door
 // een versterker (een audio-element komt niet boven 1). De regen en de donder zijn ruis uit de
 // Web Audio API, gefilterd: er is geen opname van, en zo klinkt het nergens hetzelfde. Onder de
-// grond klinkt het gedempt. Alles gaat via weerAc, die geluidOntgrendel bij een tik op gang zet.
-const stormSnd = new Audio();
+// grond klinkt het gedempt. Alles gaat via de gedeelde versterker (geluidAc), die geluidOntgrendel wekt.
+const stormSnd = geluidAan(new Audio());
 stormSnd.preload = 'auto'; stormSnd.loop = true; stormSnd.src = SFX_WIND.src;
-let weerAc = null, stormGain = null, regenGain = null, weerRuis = null, weerVol = { regen: 0, storm: 0 }, weerKlok = null;
+let stormGain = null, regenGain = null, weerRuis = null, weerVol = { regen: 0, storm: 0 }, weerKlok = null;
 function weerVersterker(){
-  if (weerAc === false) return null;
-  if (weerAc) return weerAc;
+  if (stormGain) return acWek();
+  const ac = acLoopt();
+  if (!ac) return null;
   try {
-    const AC = window.AudioContext || window.webkitAudioContext;
-    weerAc = new AC();
-    stormGain = weerAc.createGain(); stormGain.gain.value = 0;
-    weerAc.createMediaElementSource(stormSnd).connect(stormGain);
-    stormGain.connect(weerAc.destination);
+    stormGain = ac.createGain(); stormGain.gain.value = 0;
+    ac.createMediaElementSource(stormSnd).connect(stormGain);
+    stormGain.connect(ac.destination);
     // ruis voor de regen en de donder: twee seconden, in een lus
-    const n = weerAc.sampleRate * 2, buf = weerAc.createBuffer(1, n, weerAc.sampleRate), d = buf.getChannelData(0);
+    const n = ac.sampleRate * 2, buf = ac.createBuffer(1, n, ac.sampleRate), d = buf.getChannelData(0);
     for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
     weerRuis = buf;
-    const bron = weerAc.createBufferSource(); bron.buffer = buf; bron.loop = true;
-    const hoog = weerAc.createBiquadFilter(); hoog.type = 'highpass'; hoog.frequency.value = 900;
-    const laag = weerAc.createBiquadFilter(); laag.type = 'lowpass'; laag.frequency.value = 6500;
-    regenGain = weerAc.createGain(); regenGain.gain.value = 0;
-    bron.connect(hoog); hoog.connect(laag); laag.connect(regenGain); regenGain.connect(weerAc.destination);
+    const bron = ac.createBufferSource(); bron.buffer = buf; bron.loop = true;
+    const hoog = ac.createBiquadFilter(); hoog.type = 'highpass'; hoog.frequency.value = 900;
+    const laag = ac.createBiquadFilter(); laag.type = 'lowpass'; laag.frequency.value = 6500;
+    regenGain = ac.createGain(); regenGain.gain.value = 0;
+    bron.connect(hoog); hoog.connect(laag); laag.connect(regenGain); regenGain.connect(ac.destination);
     bron.start();
-  } catch (e){ weerAc = false; stormGain = null; regenGain = null; }
-  return weerAc;
+  } catch (e){ stormGain = null; regenGain = null; }
+  return stormGain ? ac : null;
 }
 function weerGeluid(regen, storm, onder){
   const nu = performance.now() / 1000, dt = weerKlok === null ? 0 : Math.min(0.2, nu - weerKlok);
@@ -10822,7 +10884,7 @@ function weerGeluid(regen, storm, onder){
   const demp = 1 - 0.75 * onder;
   const doel = { regen: aan ? regen * demp : 0, storm: aan ? storm * demp : 0 };
   for (const k in weerVol) weerVol[k] += (doel[k] - weerVol[k]) * Math.min(1, dt * (aan ? 1.5 : 6));
-  const S = WEER.storm, ac = weerAc || null;
+  const S = WEER.storm, ac = stormGain ? geluidAc() : null;
   if (weerVol.storm > 0.005){
     if (stormSnd.paused){
       try { stormSnd.currentTime = Math.random() * SFX_WIND.span; } catch (e) {}
@@ -10834,8 +10896,10 @@ function weerGeluid(regen, storm, onder){
   if (regenGain) regenGain.gain.value = 0.16 * weerVol.regen;
 }
 function playDonder(k){
-  if (!wantSound || !running || paused || !weerAc || !weerRuis || !weerNu || weerNu.onweer < 0.1) return;
-  const ac = weerAc, t = ac.currentTime, demp = 1 - 0.75 * holteDiepT(nowScale());
+  if (!wantSound || !running || paused || !weerRuis || !weerNu || weerNu.onweer < 0.1) return;
+  const ac = acLoopt();
+  if (!ac) return;
+  const t = ac.currentTime, demp = 1 - 0.75 * holteDiepT(nowScale());
   const bron = ac.createBufferSource(); bron.buffer = weerRuis; bron.loop = true;
   const laag = ac.createBiquadFilter(); laag.type = 'lowpass'; laag.frequency.value = 140 + Math.random() * 80;
   const g = ac.createGain();
@@ -11484,7 +11548,7 @@ function drawWaterStrips(groundY){
 const WATER_SND = { step: 'music/watersplash.mp3', plons: 'music/watersplash.mp3' };
 function waterVoices(src, n){
   return Array.from({ length: n }, (_, i) => {
-    const a = new Audio();
+    const a = geluidAan(new Audio());
     if (i === 0) a.onerror = () => console.warn('ontbreekt: ' + src);   // een waarschuwing is genoeg
     a.preload = 'auto'; a.src = src;
     return a;
@@ -14008,7 +14072,7 @@ function valLand(diep){
 // zelf duurt, anders praat hij de hele hyenaroedel door.
 const SFX_RAAK = [ { src: 'sounds/ahhit.mp3', vol: 0.9 }, { src: 'sounds/stopit.mp3', vol: 0.9 } ];
 const raakSnd = SFX_RAAK.map(q => {
-  const a = new Audio();
+  const a = geluidAan(new Audio());
   a.onerror = () => console.warn('ontbreekt: ' + q.src);
   a.preload = 'auto'; a.src = q.src;
   return a;
@@ -14038,7 +14102,7 @@ function stopRaak(){
 // en niet als Amir zelf net aan het roepen is.
 const SFX_RUST = { src: 'sounds/tausouldrest.mp3', vol: 1 };   // het bestand zelf is 9 dB harder gemaakt
 const DOOD_KANS = 7, DOOD_WACHT = 0.4;
-const rustSnd = new Audio();
+const rustSnd = geluidAan(new Audio());
 rustSnd.onerror = () => console.warn('ontbreekt: ' + SFX_RUST.src);
 rustSnd.preload = 'auto'; rustSnd.src = SFX_RUST.src;
 function vijandDood(baas){
@@ -14899,7 +14963,7 @@ const PAN_FLEE_SPD = 780, PAN_FLEE_T = 0.7, PAN_BOLT_T = 0.6;   // sneller dan j
 function panSound(file){
   const paths = ['enemies/blackpanther/' + file, 'enemies/blackpanther/' + file.replace(/ /g, '%20'),
                  'enemies/blackpanther/' + file.replace(/ /g, '_'), 'enemies/blackpanther/blackpanther/' + file];
-  const a = new Audio(); let k = 0;
+  const a = geluidAan(new Audio()); let k = 0;
   a.onerror = () => { k++; if (k < paths.length) a.src = paths[k]; else console.warn('ontbreekt: ' + paths[0]); };
   a.preload = 'auto'; a.src = paths[0];
   return a;
@@ -15936,7 +16000,7 @@ const SFX_HYENA_BITE  = { src: 'sounds/hyena_bite.mp3',  from: HY_BITE_CLIP.from
 const SFX_HYENA_LAUGH = { src: 'sounds/hyena_laugh.mp3', from: 0,    to: 0,    vol: 0.8 };
 function hyVoices(sfx, n){
   return Array.from({ length: n }, (_, i) => {
-    const a = new Audio();
+    const a = geluidAan(new Audio());
     if (i === 0) a.onerror = () => console.warn('ontbreekt: ' + sfx.src);   // een waarschuwing is genoeg
     a.preload = 'auto'; a.src = sfx.src;
     return a;
@@ -16272,7 +16336,7 @@ const ZW_LIJF = { mid: 40, half: 180 };
 // zijn zwaard van je eigen speer kunt onderscheiden.
 const SFX_ZWAARD = { src: 'music/spearthrust.mp3', vol: 0.7, rate: 0.82 };
 const zwSnd = Array.from({ length: 3 }, (_, i) => {
-  const a = new Audio();
+  const a = geluidAan(new Audio());
   if (i === 0) a.onerror = () => console.warn('ontbreekt: ' + SFX_ZWAARD.src);
   a.preload = 'auto'; a.src = SFX_ZWAARD.src;
   return a;
@@ -21162,14 +21226,13 @@ function woedeVolFx(){
   woedeEl.classList.remove('puls'); void woedeEl.offsetWidth;   // de animatie opnieuw laten lopen
   woedeKlank('vol');
 }
-// Korte klanken, gemaakt met de Web Audio API (via weerAc, die geluidOntgrendel bij een tik al op
-// gang zet): vol is een doffe trommelslag met een warme toon erboven, aan een lage brul van ruis, en
+// Korte klanken, gemaakt met de Web Audio API (via de gedeelde versterker, die geluidOntgrendel bij
+// een tik al op gang zet): vol is een doffe trommelslag met een warme toon erboven, aan een lage brul van ruis, en
 // leer (een talent in de boom) twee zachte slagen met een oplopend akkoord.
 function woedeKlank(soort){
   if (!wantSound) return;
   const ac = weerVersterker();
   if (!ac) return;
-  if (ac.state === 'suspended') ac.resume().catch(() => {});
   const t0 = ac.currentTime + 0.01;
   const uit = ac.createGain(); uit.gain.value = 0.55; uit.connect(ac.destination);
   if (soort === 'leer'){

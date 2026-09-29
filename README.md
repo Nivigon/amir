@@ -177,6 +177,12 @@ Ook zonder op die knop te drukken wordt alles wat je tijdens het spelen tegenkom
 
 Een level begint pas als alle plaatjes binnen zijn. Is er nog iets onderweg (op een trage verbinding, of bij een level dat eigen plaatjes heeft, zoals de baviaan), dan staat het spel stil en zie je **Laden** met een balk tot alles er is. Loopt het vlot, dan zie je daar niets van. Na 25 seconden gaat het spel toch verder, met wat er dan is.
 
+### Geluid op een telefoon
+
+Een telefoon laat geluid pas toe nadat je het scherm hebt aangeraakt, en dan nog per geluid apart. Het spel geeft daarom bij je eerste tik elk geluid stilletjes even zijn beurt, zodat het later gewoon klinkt als het aan de beurt is: de brul van de baviaan, het instortende skelet, de aardbeving als een ravijn openscheurt, de rotswand die opengaat, de storm, de hyena's, de panter, het water, en Amir die het uitschreeuwt.
+
+Leg je je telefoon weg, komt er een telefoontje tussendoor of ga je naar een andere app, dan zet iOS het geluid stil. Daarna doet je eerstvolgende aanraking het weer aan, en kom je terug op het scherm dan probeert het spel het uit zichzelf. Eerder bleven juist de harde geluiden (de brul, het skelet, de aardbeving, de storm) daarna de rest van het potje weg, terwijl de rest gewoon doorspeelde.
+
 ### Beeld: scherp of licht
 
 Van een deel van de sprites staan twee versies op schijf: het origineel, en een halve versie met dezelfde mappen en namen in `klein/`. Het spel kiest bij het starten: een telefoon krijgt de kleine set, een laptop en een tablet de grote. In het startmenu staat onder **Beeld** een schakelaar (Automatisch, Scherp, Licht) om dat te overrulen; wisselen herlaadt de pagina, want de sprites zijn dan al geladen.
