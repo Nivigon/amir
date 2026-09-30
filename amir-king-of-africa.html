@@ -762,6 +762,12 @@
         <button id="sbbavweg">Weg</button>
         <span class="hint" id="sbbavinfo">de eindbaas in wording, alleen het plaatje: vasthouden gaat door</span>
       </div>
+      <div class="row">
+        <label>Goudaap</label>
+        <button id="sbgaap">Los aapje</button>
+        <button id="sbgaapweg">Alle apen weg</button>
+        <span class="hint">een klein gouden aapje (honinggoud, blauw gezicht): het springt van de zijkant naar beneden, rent op je af en hapt. Een klap is dood</span>
+      </div>
     </div>
     <div class="sbcat" data-cat="speer">
       <div class="row">
@@ -8492,6 +8498,255 @@ function bavAfzetWissel(){
   sbBavInfo();
 }
 
+// ---- goudaapje: het kleine gouden aapje, met meer tegelijk (arena) ----
+// Een omgekleurde, geschaalde baviaan (enemies/goudaapje/, uit tools/goudaapje_kleur.js): honinggoud met een blauw
+// gezicht. Hij hergebruikt de hele baviaan-animatiegeometrie (dezelfde canvassen, alleen omgekleurd), maar heeft een
+// eigen, licht systeem zodat er veel tegelijk kunnen lopen, los van de eindbaas-baviaan. Gedrag: hij komt aan een muur
+// in beeld, hangt heel even en springt naar beneden (afzet, val, landing), rent dan op Amir af, dreigt soms kort (een
+// korte brul) of loopt even, en hapt als hij dichtbij is op een rustig tempo, zodat een enkele aap goed te doen is. Een
+// klap (stoot of lage zwaai) is dood, met de doodanimatie; het lijk blijft heel even liggen en vervaagt. In de lucht is
+// hij raakbaar met een geworpen speer (op de grond vliegt die eroverheen): dan gaat de speer erin en valt hij dood neer
+// (Milestone B: de speer blijft er dan in steken en is met E terug te halen).
+const GAAP = {
+  s: 0.5,                 // hoogte in Amir (tot een halve Amir)
+  hang: 1.7,              // hoe hoog boven de grond hij aan de muur verschijnt (Amir)
+  hangWacht: [0.25, 0.7], // seconden hangen voor hij loslaat
+  v: 300,                 // rensnelheid in wereld-px/s (Amirs sprint is 495: kwiek, maar te verslaan)
+  loop: 150,              // rustig looptempo als hij niet stormt
+  biteRange: 1.2,         // binnen zoveel Amir begint hij te happen
+  biteBox: { t: 0.16, b: 0.60, voor: 0.95 },  // de bekzone voor hem, in Amir
+  cool: 1.6,              // seconden na een hap voor de volgende
+  keer: 0.35,             // hij draait pas om als hij Amir zo lang aan de andere kant ziet
+  doodLig: 1.4,           // seconden dat het lijk blijft liggen (zonder speer)
+  doodVerv: 0.5,          // seconden vervagen
+  luchtRaak: 0.5,         // met de speer raakbaar zolang zijn voeten hoger dan dit boven de grond zijn (Amir)
+  speerLig: 30,           // een lijk met een speer erin blijft liggen tot je hem eruit haalt (dan pas weg)
+};
+// het happen: een leesbare telegraaf (bek open) en dan de snap; de raak-frames zijn dezelfde als de baviaan (11 tot 13)
+const GAAP_HAP = { delen: [ { tot: 4, fps: 12 }, { tot: 11, fps: 18 }, { tot: 14, fps: 40 }, { tot: 26, fps: 28 } ], raak: [11, 13] };
+function gaapHapFrame(t){ let van = 0; for (const d of GAAP_HAP.delen){ const dur = (d.tot - van) / d.fps; if (t < dur) return van + Math.floor(t * d.fps); t -= dur; van = d.tot; } return BAV_HAP.n; }
+function gaapHapDuur(){ let van = 0, t = 0; for (const d of GAAP_HAP.delen){ t += (d.tot - van) / d.fps; van = d.tot; } return t; }
+
+let goudapen = [];
+let gaapImg = null, gaapHangImgs = null, gaapAfzetImgs = null, gaapValImgs = null, gaapLandingImgs = null,
+    gaapRunImgs = null, gaapHapImgs = null, gaapBrulImgs = null, gaapGromImgs = null, gaapDoodImgs = null, gaapSprongImgs = null;
+function gReeks(reel, n){ return bavReeks('enemies/goudaapje/' + reel + '/' + reel + '_', n); }
+function goudaapLaad(){
+  if (gaapImg) return;
+  gaapImg = new Image();
+  gaapImg.onerror = () => console.warn('ontbreekt: enemies/goudaapje/baviaan.png');
+  gaapImg.src = 'enemies/goudaapje/baviaan.png';
+  gaapHangImgs = gReeks('hang_idle', BAV_HANG.n);
+  gaapAfzetImgs = gReeks('afzet', BAV_AFZET.n);
+  gaapValImgs = gReeks('val', BAV_VAL.n);
+  gaapLandingImgs = gReeks('landing', BAV_LANDING.n);
+  gaapRunImgs = gReeks('run', BAV_RUN.n);
+  gaapHapImgs = gReeks('hap', BAV_HAP.n);
+  gaapBrulImgs = gReeks('brul', BAV_BRUL.n);
+  gaapGromImgs = gReeks('idle_grom', BAV_IDLE_GROM.n);
+  gaapDoodImgs = gReeks('dood', BAV_DOOD.n);
+  gaapSprongImgs = gReeks('sprong', BAV_SPRONG.n);
+}
+// een aapje aan een muur hangen: side 1 rechts (kijkt naar links, f=0), -1 links (kijkt naar rechts, f=1)
+function gaapSpawn(wx, side){
+  goudaapLaad();
+  const m = { x: wx, s: GAAP.s, f: side < 0 ? 1 : 0, y: GAAP.hang, fase: 'hang', afzet: null,
+              hangTot: bavKlok + 1000 * (GAAP.hangWacht[0] + Math.random() * (GAAP.hangWacht[1] - GAAP.hangWacht[0])),
+              geland: false, act: 'run', actT0: bavKlok, vx: 0, coolTot: 0, sweptId: -1, biteRaak: false,
+              doodT0: 0, valDood: false, vh: 0, speerIn: null, wegTot: 0, draai: 0, roarTot: 0, loopTot: 0, box: null };
+  goudapen.push(m);
+  return m;
+}
+function gaapMik(m){ return playerX() - m.x; }
+function gaapRunFps(m, scale, v){ const k = (m.s * CHAR_H * scale) / BAV_AFZET.kader.h; return Math.max(11, Math.min(26, Math.abs(v) / (BAV_RUN.pas * k))); }
+
+function updateGoudapen(dt){
+  if (!goudapen.length || !running || building) return;
+  const scale = nowScale();
+  for (let i = goudapen.length - 1; i >= 0; i--){
+    const m = goudapen[i];
+    if (m.fase === 'dood'){
+      if (m.valDood){                                       // in de lucht met de speer geraakt: hij valt nog naar de grond
+        const g = BAV_VAL.zwaar * GRAVITY / CHAR_H;
+        m.vh += g * dt; m.y -= m.vh * dt; m.x += (m.vx || 0) * dt;
+        if (m.y <= 0){ m.y = 0; m.valDood = false; m.doodT0 = bavKlok; m.wegTot = bavKlok + 1000 * (m.speerIn ? GAAP.speerLig : GAAP.doodLig + GAAP.doodVerv); }
+      }
+      if (m.wegTot && bavKlok >= m.wegTot && !m.speerIn){ goudapen.splice(i, 1); }
+      continue;
+    }
+    if (m.fase === 'hang'){ if (bavKlok >= m.hangTot){ m.afzet = bavKlok; m.fase = 'drop'; } continue; }
+    if (m.fase === 'drop') continue;                        // het rekenwerk staat in gaapStand (tekenlus), zoals bij de baviaan
+    // ---- op de grond ----
+    const naarAmir = gaapMik(m), wilF = naarAmir < 0 ? 0 : 1;
+    if (wilF !== m.f){ m.draai += dt; if (m.draai >= GAAP.keer){ m.f = wilF; m.draai = 0; } } else m.draai = 0;
+    if (m.act === 'bite'){
+      if (bavKlok - m.actT0 >= 1000 * gaapHapDuur()){ m.act = 'run'; m.actT0 = bavKlok; m.coolTot = bavKlok + 1000 * GAAP.cool; }
+      continue;
+    }
+    if (m.act === 'roar'){ if (bavKlok >= m.roarTot){ m.act = 'run'; m.actT0 = bavKlok; } continue; }
+    const dichtbij = Math.abs(naarAmir) < GAAP.biteRange * CHAR_H * scale;
+    if (dichtbij && m.f === wilF && bavKlok >= m.coolTot){ m.act = 'bite'; m.actT0 = bavKlok; m.biteRaak = false; continue; }
+    if (m.act === 'run' && !dichtbij && bavKlok >= (m.loopTot || 0) && Math.random() < dt * 0.35){
+      if (Math.random() < 0.5){ m.act = 'roar'; m.actT0 = bavKlok; m.roarTot = bavKlok + 1000 * deelTijd(BAV_BRUL.delen, BAV_BRUL.n); }
+      else { m.act = 'walk'; m.actT0 = bavKlok; m.loopTot = bavKlok + 1000 * (0.6 + Math.random() * 0.9); }
+      continue;
+    }
+    if (m.act === 'walk' && bavKlok >= m.loopTot){ m.act = 'run'; m.actT0 = bavKlok; }
+    if ((m.act === 'run' || m.act === 'walk') && m.f === wilF){
+      const v = (m.act === 'walk' ? GAAP.loop : GAAP.v) * walkK() * (naarAmir < 0 ? -1 : 1);
+      const rem = GAAP.biteRange * 0.6 * CHAR_H * scale;
+      if (Math.abs(naarAmir) > rem) m.x += v * dt;
+      m.vx = v;
+    }
+  }
+}
+
+function gaapStand(m, scale){
+  if (m.fase === 'dood') return gaapDoodStand(m, scale);
+  if (m.fase === 'hang' || m.afzet == null){
+    const hang = gaapHangImgs && gaapHangImgs[Math.floor(bavKlok / 1000 * BAV_HANG.fps) % BAV_HANG.n];
+    return { img: null, hang, dx: 0, dy: 0, groei: BAV_GROEI.hang };
+  }
+  if (m.fase === 'drop'){
+    const A = BAV_AFZET, V = BAV_VAL, LD = BAV_LANDING;
+    const t = (bavKlok - m.afzet) / 1000, tVal = t - deelTijd(A.delen, A.los);
+    if (tVal < 0) return { img: gaapAfzetImgs[Math.min(A.los - 1, deelFrame(A.delen, t))], dx: 0, dy: 0, groei: BAV_GROEI.hang };
+    const K = A.kader, g = V.zwaar * GRAVITY / CHAR_H;
+    const lijn = m.y + (K.t + K.h - V.grond) * m.s / K.h;
+    const tGrond = bavLandPlek(m, scale, lijn, g), tv = Math.min(tVal, tGrond);
+    const na = Math.min(Math.max(0, tVal - tGrond), LD.uit);
+    const dx = V.vx * (tv + na - na * na / (2 * LD.uit)), dy = g * tv * tv / 2 - V.op * tv;
+    const tLand = tVal - Math.max(0, tGrond - LD.vroeg);
+    m.geland = tVal >= tGrond;
+    if (tLand < 0){
+      const fps = Math.max(A.luchtMin, (A.n - A.los) / Math.max(0.05, tGrond - LD.vroeg));
+      const f = A.los + Math.floor(tVal * fps);
+      if (f < A.n) return { img: gaapAfzetImgs[f], dx, dy, groei: BAV_GROEI.hang };
+      return { img: gaapValImgs[Math.floor((tVal - (A.n - A.los) / fps) * V.fps) % V.n], dx, dy, groei: BAV_GROEI.hang };
+    }
+    const tBrul = tLand - deelTijd(LD.delen, LD.n);
+    if (tBrul < 0) return { img: gaapLandingImgs[Math.min(LD.n - 1, deelFrame(LD.delen, tLand))], dx, dy, groei: bavGroei(tLand) };
+    const tKort = tBrul - deelTijd(BAV_BRUL.delen, 8);        // een korte brul (frames 0 tot 8), dan de grond
+    if (tKort < 0) return { img: gaapBrulImgs[Math.min(7, deelFrame(BAV_BRUL.delen, tBrul))], dx, dy, ox: BAV_BRUL.links };
+    m.x = m.x + (m.f ? 1 : -1) * dx * CHAR_H * scale;         // de landingsplek wordt zijn wereld-x
+    m.y = 0; m.fase = 'grond'; m.act = 'run'; m.actT0 = bavKlok; m.coolTot = bavKlok + 400;
+    return { img: gaapBrulImgs[7], dx: 0, dy: 0, ox: BAV_BRUL.links };
+  }
+  if (m.act === 'bite'){ const tf = (bavKlok - m.actT0) / 1000; return { img: gaapHapImgs[Math.min(BAV_HAP.n - 1, gaapHapFrame(tf))], dx: 0, dy: 0, ox: BAV_HAP.links }; }
+  if (m.act === 'roar'){ const tf = (bavKlok - m.actT0) / 1000; return { img: gaapBrulImgs[Math.min(BAV_BRUL.n - 1, deelFrame(BAV_BRUL.delen, tf))], dx: 0, dy: 0, ox: BAV_BRUL.links }; }
+  const v = (m.act === 'walk' ? GAAP.loop : GAAP.v) * walkK();
+  const fps = gaapRunFps(m, scale, v);
+  return { img: gaapRunImgs[Math.floor((bavKlok - m.actT0) / 1000 * fps) % BAV_RUN.n], dx: 0, dy: 0, ox: BAV_RUN.links };
+}
+function gaapDoodStand(m){
+  const t = (bavKlok - m.doodT0) / 1000;
+  const f = m.valDood ? 21 : Math.min(BAV_DOOD.n - 1, Math.floor(t * BAV_DOOD.fps));
+  let alfa = 1;
+  if (m.wegTot && !m.speerIn){ const over = (m.wegTot - bavKlok) / 1000; if (over < GAAP.doodVerv) alfa = Math.max(0, over / GAAP.doodVerv); }
+  return { img: gaapDoodImgs[f], dx: 0, dy: 0, ox: BAV_DOOD.links, grond: BAV_VAL.grond, alfa };
+}
+
+function gaapSchaduw(m, st, fr, sx, voet, h, w, groei, shY, scale, wx, vloer){
+  const img = fr || gaapImg;
+  if (!img || !imgReady(img)) return;
+  const K = BAV_AFZET.kader, k = h / K.h;
+  let lx, ly, fw, fh, grondRij;
+  if (fr){
+    lx = -w / 2 - (K.l + (st.ox || 0)) * k; ly = -h - (K.t + (st.oy || 0)) * k;
+    fw = fr.naturalWidth * k; fh = fr.naturalHeight * k;
+    grondRij = st.grond || (st.oy ? BAV_SPRONG.grond : BAV_VAL.grond);
+  } else { lx = -w / 2; ly = -h; fw = w; fh = h; grondRij = img.naturalHeight; }
+  const py = (BAV_VAL.grond - K.t - K.h) * k;
+  lx *= groei; fw *= groei; fh *= groei; ly = py + (ly - py) * groei;
+  const X = m.f ? sx - (lx + fw) : sx + lx, Y = voet + ly;
+  const voetY = Y + grondRij * fh / img.naturalHeight;
+  const a0 = ctx.globalAlpha;
+  if (st.alfa != null) ctx.globalAlpha = a0 * st.alfa;
+  drawAmirSchaduw(img, X, Y, fw, fh, !!m.f, sx, voetY, shY, (shY - voetY) / scale, scale, amirZon(vloer, wx), 1);
+  ctx.globalAlpha = a0;
+}
+
+function goudapenTeken(o){
+  if (!goudapen.length) return;
+  const { cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, attacking, hitBy } = o;
+  const u = CHAR_H * scale;
+  for (const m of goudapen){
+    const st = gaapStand(m, scale), fr = st.img && imgReady(st.img) ? st.img : null;
+    const vooruit = (m.f ? 1 : -1) * (st.dx || 0) * u;
+    const sx = cx + (m.x - world) + vooruit;
+    const gy = groundY - terrainH(m.x) * scale, voet = gy - (m.y - (st.dy || 0)) * u;
+    const h = m.s * u, w = h * (gaapImg.naturalWidth / gaapImg.naturalHeight);
+    const groei = st.groei || 1;
+    gaapSchaduw(m, st, fr, sx, voet, h, w, groei, gy, scale, m.x, terrainH(m.x));
+    ctx.save();
+    if (st.alfa != null) ctx.globalAlpha *= st.alfa;
+    ctx.translate(sx, voet); ctx.scale(m.f ? -1 : 1, 1);
+    if (groei !== 1){ const py = (BAV_VAL.grond - BAV_AFZET.kader.t - BAV_AFZET.kader.h) * h / BAV_AFZET.kader.h; ctx.translate(0, py); ctx.scale(groei, groei); ctx.translate(0, -py); }
+    let box = null;
+    if (fr){
+      const k = h / BAV_AFZET.kader.h;
+      const lx = -w / 2 - (BAV_AFZET.kader.l + (st.ox || 0)) * k, oy = (BAV_AFZET.kader.t + (st.oy || 0)) * k, top = voet - h - oy;
+      ctx.drawImage(fr, lx, -h - oy, fr.naturalWidth * k, fr.naturalHeight * k);
+      const kd = bavKader(fr);
+      if (kd){
+        const X = xx => sx + (m.f ? -1 : 1) * (lx + xx * k), Y = yy => top + yy * k;
+        const x1 = X(kd.l), x2 = X(kd.r);
+        box = { l: Math.min(x1, x2), r: Math.max(x1, x2), t: Y(kd.t), b: Y(kd.b) };
+      }
+    }
+    ctx.restore();
+    if (!fr && st.hang && imgReady(st.hang)){
+      ctx.save(); ctx.translate(sx, voet); ctx.scale(m.f ? -1 : 1, 1);
+      const A = BAV_AFZET.kader, G = BAV_HANG, k = h / A.h, kh = k * G.maat;
+      const gx = -w / 2 + (G.afzetGreep.x - A.l) * k, gyy = -h + (G.afzetGreep.y - A.t) * k;
+      ctx.drawImage(st.hang, gx - G.greep.x * kh, gyy - G.greep.y * kh, st.hang.naturalWidth * kh, st.hang.naturalHeight * kh);
+      ctx.restore();
+    } else if (!fr){ ctx.save(); ctx.translate(sx, voet); ctx.scale(m.f ? -1 : 1, 1); ctx.drawImage(gaapImg, -w / 2, -h, w, h); ctx.restore(); }
+
+    m.box = box;
+    if (!box || m.fase === 'dood') continue;
+    // ---- de aap raakt Amir (de hap) ----
+    if (m.act === 'bite' && !m.biteRaak && !dead){
+      const tf = (bavKlok - m.actT0) / 1000, f = gaapHapFrame(tf);
+      if (f >= GAAP_HAP.raak[0] && f <= GAAP_HAP.raak[1]){
+        const dir = m.f ? 1 : -1;
+        const bek = { l: Math.min(sx, sx + dir * GAAP.biteBox.voor * u), r: Math.max(sx, sx + dir * GAAP.biteBox.voor * u),
+                      t: gy - GAAP.biteBox.b * u, b: gy - GAAP.biteBox.t * u };
+        if (hitBy(bek, pbox)){ m.biteRaak = true; hurtPlayer(m.x < playerX()); }
+        if (showBoxes){ ctx.save(); ctx.globalAlpha = 0.5; ctx.strokeStyle = '#ff6b6b'; ctx.lineWidth = 2; ctx.strokeRect(bek.l, bek.t, bek.r - bek.l, bek.b - bek.t); ctx.restore(); }
+      }
+    }
+    if (showBoxes){ ctx.save(); ctx.globalAlpha = 0.5; ctx.strokeStyle = '#ffd27f'; ctx.lineWidth = 2; ctx.strokeRect(box.l, box.t, box.r - box.l, box.b - box.t); ctx.restore(); }
+    // ---- Amir raakt de aap ----
+    const inLucht = m.fase === 'drop' && !m.geland && (m.y - (st.dy || 0)) > GAAP.luchtRaak;
+    let dood = false, doorSpeer = false;
+    if (inLucht && jav && jav.state === 'vlucht' && !jav.hit && javRaakt(box)){ dood = true; doorSpeer = true; }
+    if (!dood && attacking && !swingUsed && steekLive()){
+      const dxv = steekDX() * scale, tipX = pcx + (facing === 1 ? -dxv : dxv), tipY = y + steekY() * scale, re = steekR() * scale;
+      if (tipX + re > box.l && tipX - re < box.r && tipY + re > box.t && tipY - re < box.b){ swingUsed = true; dood = true; }
+    }
+    if (!dood && m.sweptId !== sweepId && hitBy(zwaaiVak(swbox, 'goudaap'), box)){ m.sweptId = sweepId; dood = true; }
+    if (dood) gaapDood(m, doorSpeer);
+  }
+}
+// de aap gaat dood: de doodanimatie. Door een speer in de lucht valt hij nog naar de grond (Milestone B: de speer
+// blijft er dan in steken en is met E terug te halen; nu valt de speer gewoon en gaat de aap dood).
+function gaapDood(m, doorSpeer){
+  m.fase = 'dood'; m.act = null; m.doodT0 = bavKlok;
+  vijandDood(false);
+  if (doorSpeer && jav){
+    javHitEnemy();                                            // de speer valt neer (voorlopig)
+    m.valDood = true; m.vh = 0; m.vx = (m.f ? 1 : -1) * 0.6 * CHAR_H;
+  } else {
+    m.wegTot = bavKlok + 1000 * (GAAP.doodLig + GAAP.doodVerv);
+  }
+}
+
+// ---- arena van goudaapjes: twee muren, Amir in het midden, oneindig meer apen ----
+// (wordt in de arena-mijlpaal ingevuld: de spawner met plafond, de teller en de talentpunten)
+let arenaAap = null;                                          // {c, links, rechts, ...} of null
+function arenaReset(){ arenaAap = null; }
+
 // ---- de rotswand rechts: het einde van het level ----------------------
 const CLIFF = { src: 'design/cliff.png', l: 0.14, wall: 620, sink: 0.03 };
 // een hut aan de voet van de klif; dekt de naad af waar het gesteente omhoog loopt
@@ -14205,6 +14460,8 @@ function restart(){
   schijnT = 0; schijnKeer = abilityWaarde('feign_death', 'keer', 0);   // Feign Death: weer klaar
   if (level && level.tekens) for (const t of level.tekens) t.gesneden = false;   // de kalebassen hangen weer
   hits = 0; hitsEl.textContent = 0;
+  goudapen = [];                                     // de goudaapjes weg bij een nieuw begin
+  arenaReset();                                      // de arena-spawner weer op nul
   atkFrame = -1; atkAcc = 0; atkCooldown = 0; swFrame = -1; swAcc = 0; sweepBuf = 0; duckT = 0; swRecover = 0; sand.length = 0; sweepVol();
   thr = null; jav = null; javLost = 0; javOver = null; spearH = null; lastSolid = 0; glij = 0;
   muurReset();                                      // de rotswand weer dicht, zonder speer erin
@@ -18537,6 +18794,7 @@ function loop(now){
   updateHyenas(dt, platsV, cliff);
   updateZwaarden(dt, platsV, cliff);
   updateFosforSlangen(dt, platsV, cliff);
+  updateGoudapen(dt);
   if (!building) updateVenom(dt, scaleNow); else { venom.length = 0; splat.length = 0; }
   if (!building) updateWind(dt); else { wind.length = 0; gust = null; }
   if (!building) schildStofUpdate(dt, scaleNow); else schildStof.length = 0;
@@ -19817,6 +20075,9 @@ function loop(now){
 
     // ---- de baviaan -------------------------------------------------------
     bavGevecht({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, valRaakt, attacking, hitBy });
+
+    // ---- de goudaapjes ----------------------------------------------------
+    goudapenTeken({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, attacking, hitBy });
 
     // ---- de fosforslang ----------------------------------------------------
     drawFosforSlangen({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, attacking, hitBy });
@@ -22170,6 +22431,13 @@ document.getElementById('sbbavdood').onclick = () => { if (!level.baviaan) sbBav
 document.getElementById('sbbavspeer').onclick = () => { if (!level.baviaan) sbBaviaan(); bavDoodNu(true); sbBavInfo(); cv.focus(); };
 document.getElementById('sbbavspiegel').onclick = () => { if (!level.baviaan) sbBaviaan(); level.baviaan.f = !level.baviaan.f; sbBavInfo(); cv.focus(); };
 document.getElementById('sbbavweg').onclick = () => { level.baviaan = null; sbBavInfo(); cv.focus(); };
+document.getElementById('sbgaap').onclick = () => {
+  const side = sbFromRight ? 1 : -1;
+  let x = world + side * W * 0.42;
+  x = Math.min(x, cliffAt().wall - 220); x = Math.max(x, endWall() + 220);
+  gaapSpawn(x, side); cv.focus();
+};
+document.getElementById('sbgaapweg').onclick = () => { goudapen = []; arenaReset(); cv.focus(); };
 sandboxEl.querySelectorAll('button[data-bav]').forEach(bt => {
   const [k, r] = bt.dataset.bav.split(':');
   let klok = null, tel = 0;
