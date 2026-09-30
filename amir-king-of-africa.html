@@ -8521,6 +8521,8 @@ const GAAP = {
   doodVerv: 0.5,          // seconden vervagen
   luchtRaak: 0.5,         // met de speer raakbaar zolang zijn voeten hoger dan dit boven de grond zijn (Amir)
   speerLig: 30,           // een lijk met een speer erin blijft liggen tot je hem eruit haalt (dan pas weg)
+  speerAnker: { x: 430, y: 380 },   // waar de speer in het dode aapje steekt, in bronpixels op het doodcanvas
+  speerHoek: 70,          // de hoek van de schacht (graden): tip in het lijf, schacht schuin omhoog eruit
 };
 // het happen: een leesbare telegraaf (bek open) en dan de snap; de raak-frames zijn dezelfde als de baviaan (11 tot 13)
 const GAAP_HAP = { delen: [ { tot: 4, fps: 12 }, { tot: 11, fps: 18 }, { tot: 14, fps: 40 }, { tot: 26, fps: 28 } ], raak: [11, 13] };
@@ -8687,6 +8689,7 @@ function goudapenTeken(o){
       const k = h / BAV_AFZET.kader.h;
       const lx = -w / 2 - (BAV_AFZET.kader.l + (st.ox || 0)) * k, oy = (BAV_AFZET.kader.t + (st.oy || 0)) * k, top = voet - h - oy;
       ctx.drawImage(fr, lx, -h - oy, fr.naturalWidth * k, fr.naturalHeight * k);
+      if (m.speerIn) gaapSpeerTeken(m, -h - oy, lx, k, scale);
       const kd = bavKader(fr);
       if (kd){
         const X = xx => sx + (m.f ? -1 : 1) * (lx + xx * k), Y = yy => top + yy * k;
@@ -8735,11 +8738,43 @@ function gaapDood(m, doorSpeer){
   m.fase = 'dood'; m.act = null; m.doodT0 = bavKlok;
   vijandDood(false);
   if (doorSpeer && jav){
-    javHitEnemy();                                            // de speer valt neer (voorlopig)
-    m.valDood = true; m.vh = 0; m.vx = (m.f ? 1 : -1) * 0.6 * CHAR_H;
+    // de speer blijft in de aap steken; hij valt dood neer en E haalt de speer eruit (gaapSpeerTrek)
+    m.speerIn = { hoek: GAAP.speerHoek };
+    m.valDood = true; m.vh = 0; m.vx = (m.f ? 1 : -1) * 0.5 * CHAR_H;
+    jav = null; spear = false; spearFound = false; spearX = null; spearH = null; setSpearLabel();
   } else {
     m.wegTot = bavKlok + 1000 * (GAAP.doodLig + GAAP.doodVerv);
   }
+}
+// de speer die in het dode aapje steekt: op een vaste plek op het lijf (bronpixels op het doodcanvas), met een hoek.
+// Getekend in het al verschoven en gespiegelde assenstelsel van de aap (het frame staat op (lx, ty), k px per bronpixel).
+function gaapSpeerTeken(m, ty, lx, k, scale){
+  const img = draaiImgs && draaiImgs.gewoon && draaiImgs.gewoon[0];
+  if (!m.speerIn || !imgReady(img)) return;
+  const A = GAAP.speerAnker, kk = javLen(scale) / JAV.w, w = DRAAI.w.gewoon;
+  ctx.save();
+  ctx.translate(lx + A.x * k, ty + A.y * k);
+  ctx.rotate((m.speerIn.hoek || GAAP.speerHoek) * Math.PI / 180);
+  ctx.drawImage(img, -(w - 1) * kk, -DRAAI.tipY * kk, w * kk, DRAAI.h * kk);   // tip in het lijf, schacht eruit
+  ctx.restore();
+}
+// een dood aapje met een speer erin, binnen handbereik; en E om de speer eruit te trekken (zoals een losse speer)
+function gaapSpeerBij(){
+  if (building || !goudapen.length) return null;
+  const reik = javReach() * 1.3;
+  for (const m of goudapen) if (m.fase === 'dood' && m.speerIn && !m.valDood && Math.abs(playerX() - m.x) < reik) return m;
+  return null;
+}
+function gaapSpeerTrek(){
+  const m = gaapSpeerBij();
+  if (!m) return false;
+  if (spearFound){ playNee(); flashHint('Je hebt al een speer'); return true; }
+  eigenSpeerNeer();
+  m.speerIn = null; m.wegTot = bavKlok + 1000 * GAAP.doodVerv;
+  spearFound = true; spear = true; setSpearLabel();
+  puffDust(5);
+  flashHint('Speer uit het aapje getrokken');
+  return true;
 }
 
 // ---- arena van goudaapjes: twee muren, Amir in het midden, oneindig meer apen ----
@@ -10483,6 +10518,7 @@ function setSpearLabel(){
 }
 function toggleSpear(){
   if (skeletTrek()) return;                         // een skelet met een speer erin gaat voor
+  if (gaapSpeerTrek()) return;                       // en een dood aapje met je speer erin
   if (losTrek()) return;                            // en dan een speer die los op de grond ligt
   if (!spearFound){
     if (spearNear()){
@@ -10508,7 +10544,7 @@ spearBtn.onclick = () => { toggleSpear(); cv.focus(); };
 // (en daarin gaat een skelet met een speer weer voor). Zo doen ze altijd hetzelfde.
 function eDruk(){ if (amirVast()) return; if (!muurUitgang()) toggleSpear(); }
 // Is er iets om E voor te gebruiken? Dan staat de E-knop op de telefoon erbij.
-function eNodig(){ return spearNear() || muurVoorDeur(world) || !!skeletBij() || !!losBij() || tribeHeeft('jackal_fang'); }   // met het mes wissel je altijd
+function eNodig(){ return spearNear() || muurVoorDeur(world) || !!skeletBij() || !!losBij() || !!gaapSpeerBij() || tribeHeeft('jackal_fang'); }   // met het mes wissel je altijd
 
 let showBoxes = false;
 const boxBtn = document.getElementById('boxbtn');
