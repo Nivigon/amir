@@ -765,6 +765,7 @@
       <div class="row">
         <label>Goudaap</label>
         <button id="sbgaap">Los aapje</button>
+        <button id="sbgaaparena">Arena aan/uit</button>
         <button id="sbgaapweg">Alle apen weg</button>
         <span class="hint">een klein gouden aapje (honinggoud, blauw gezicht): het springt van de zijkant naar beneden, rent op je af en hapt. Een klap is dood</span>
       </div>
@@ -2877,7 +2878,22 @@ const BAB_3 = {
           { x: -1800, t: 'In de rotswand zit een speer, met de punt naar jou. Het zegel schiet hem los' },
           { x: -2100, t: 'Stap op het zegel als de baviaan achter je aan komt, en buk meteen' } ]
 };
-const BAB_LEVELS = [BAB_1, BAB_2, BAB_3];
+// Baboon 4: de arena. Twee stenen muren, Amir in het midden. Het begint met een aapje; daarna komen er steeds meer
+// uit de muren, oneindig, tot je dood bent (rustige oploop met een plafond, arenaStart/arenaTick). Een teller in beeld
+// (kills en tijd), en elke paar kills een talentpunt dat je in de pauze onder Talents kunt uitgeven. De linker rotswand
+// en het midden worden door arenaStart op de schermbreedte gezet (cliffs hieronder is een vangnet); geen fakkels, want
+// het level eindigt niet. Begint met de tribekeuze, net als de rest van Baboon.
+const BAB_4 = {
+  name: 'Baboon 4: De arena',
+  lagen: 'renew_vlakte',
+  apenArena: true,
+  spawns: [ {x: -60000, k: 'groen'} ],          // heel ver weg: houdt de vrije modus uit
+  rocks: [], gaps: [], terraces: [], ledges: [], village: [], npcs: [], water: [], thickets: [], hppotions: [],
+  props: [ {x: -300, k: 'gras', s: 1.1, f: 0, v: 0}, {x: 300, k: 'struik', s: 1.0, f: 1, v: 0} ],
+  cliffs: [ {x: -1200} ],                        // vangnet: arenaStart zet de echte linkerwand op de schermbreedte
+  tips: [ { x: 120, t: 'De arena: overleef zo lang je kunt. Elke paar kills een talentpunt (pauze, Talents)' } ]
+};
+const BAB_LEVELS = [BAB_1, BAB_2, BAB_3, BAB_4];
 let levelIdx = 0;
 
 // ---- terrassen en richels: omhoog klimmen --------------------------------
@@ -7258,6 +7274,7 @@ const BAV_VER = { rand: 0.55, nader: 0.8, weg: 450 };
 // links, 1 rechts), dan zo dat de baviaan daar in beeld hangt: Amir staat in het midden, dus op een smal scherm (een
 // telefoon) begint hij dichter bij de baviaan dan op een laptop. Nooit tegen de rotswand aan, en nooit links van 0.
 function startWereld(){
+  if (level && level.apenArena && !sandbox && !building) return Math.round(arenaMidden());   // in het midden van de arena
   const b = level && !sandbox && !building && level.baviaan;
   if (!b || b.zicht == null) return 0;
   if (b.zicht === 'ver'){                                    // zo ver weg als kan, met hem nog in beeld (BAV_VER)
@@ -8737,6 +8754,7 @@ function goudapenTeken(o){
 function gaapDood(m, doorSpeer){
   m.fase = 'dood'; m.act = null; m.doodT0 = bavKlok;
   vijandDood(false);
+  arenaKill();
   if (doorSpeer && jav){
     // de speer blijft in de aap steken; hij valt dood neer en E haalt de speer eruit (gaapSpeerTrek)
     m.speerIn = { hoek: GAAP.speerHoek };
@@ -8778,9 +8796,57 @@ function gaapSpeerTrek(){
 }
 
 // ---- arena van goudaapjes: twee muren, Amir in het midden, oneindig meer apen ----
-// (wordt in de arena-mijlpaal ingevuld: de spawner met plafond, de teller en de talentpunten)
-let arenaAap = null;                                          // {c, links, rechts, ...} of null
+// Twee stenen muren (de vaste rechter rotswand op CLIFF.wall en een linker rotswand die op de schermbreedte wordt
+// afgestemd), Amir in het midden via het bestaande arena-camerasysteem (arena, arenaCam, arenaHalf). Het begint met
+// een aap, en elke `capElke` seconden mag er een meer tegelijk (tot `capMax`); daartussen komen er steeds nieuwe uit
+// de muren als er ruimte is (`tussen` seconden), oneindig, tot Amir dood is. Een teller in beeld (kills en tijd), en
+// elke `perKill` kills een talentpunt (RUN.punten) dat je in de pauze onder Talents kunt uitgeven.
+const ARENA = { tussen: [1.4, 2.6], capMax: 6, capElke: 9, perKill: 5, eerste: 0.6, rand: 34 };
+let arenaAap = null;                                          // {c, links, rechts, t0, kills, cap, ...} of null
+function arenaMidden(){ const span = Math.min(W - 260, 1200); return (CLIFF.wall - ARENA.rand) - span / 2; }
+function arenaStart(){
+  goudaapLaad();
+  const span = Math.min(W - 260, 1200);
+  const rechts = CLIFF.wall - ARENA.rand, links = rechts - span;
+  if (level) level.cliffs = [ { x: links } ];                 // de linker rotswand (de rechter staat vast op CLIFF.wall)
+  arenaAap = { c: (rechts + links) / 2, links, rechts, t0: bavKlok, kills: 0, cap: 1, levend: 0,
+               volgende: bavKlok + 1000 * ARENA.eerste, capTot: bavKlok + 1000 * ARENA.capElke };
+  arena = { c: arenaAap.c };
+}
 function arenaReset(){ arenaAap = null; }
+function arenaTick(dt){
+  const A = arenaAap;
+  if (!A || !running || building || paused) return;
+  A.levend = 0; for (const m of goudapen) if (m.fase !== 'dood') A.levend++;
+  if (bavKlok >= A.capTot && A.cap < ARENA.capMax){ A.cap++; A.capTot = bavKlok + 1000 * ARENA.capElke; }
+  if (!dead && bavKlok >= A.volgende && A.levend < A.cap){
+    const side = Math.random() < 0.5 ? 1 : -1;
+    const wx = side > 0 ? A.rechts - 30 : A.links + 30;
+    gaapSpawn(wx, side);
+    A.volgende = bavKlok + 1000 * (ARENA.tussen[0] + Math.random() * (ARENA.tussen[1] - ARENA.tussen[0]));
+  }
+}
+// een aap in de arena is dood: de teller op, en elke perKill kills een talentpunt (niet in de sandbox)
+function arenaKill(){
+  const A = arenaAap; if (!A) return;
+  A.kills++;
+  if (!sandbox && RUN.tribeId && A.kills % ARENA.perKill === 0){ RUN.punten++; flashHint('Talentpunt verdiend! In de pauze onder Talents'); }
+}
+// de teller in beeld: kills en tijd (en de talentpunten in een echte run), als een zacht pilletje bovenaan
+function arenaHudTeken(){
+  const A = arenaAap; if (!A) return;
+  const tsec = Math.max(0, Math.floor((bavKlok - A.t0) / 1000)), mm = Math.floor(tsec / 60), ss = String(tsec % 60).padStart(2, '0');
+  const tekst = 'Kills ' + A.kills + '     Tijd ' + mm + ':' + ss + (!sandbox && RUN.tribeId ? '     Punten ' + RUN.punten : '');
+  ctx.save();
+  ctx.font = '600 22px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const w = ctx.measureText(tekst).width + 44, h = 40, x = W / 2, yTop = 74;
+  ctx.globalAlpha = 0.72; ctx.fillStyle = '#1c150c';
+  if (ctx.roundRect){ ctx.beginPath(); ctx.roundRect(x - w / 2, yTop, w, h, 10); ctx.fill(); }
+  else ctx.fillRect(x - w / 2, yTop, w, h);
+  ctx.globalAlpha = 1; ctx.fillStyle = '#f3e6c4';
+  ctx.fillText(tekst, x, yTop + h / 2 + 1);
+  ctx.restore();
+}
 
 // ---- de rotswand rechts: het einde van het level ----------------------
 const CLIFF = { src: 'design/cliff.png', l: 0.14, wall: 620, sink: 0.03 };
@@ -14524,6 +14590,7 @@ function restart(){
   camY = 0; camFloor = 0;
   drawLives(); deadEl.classList.remove('on');
   snakes.length = 0; scorps.length = 0; panthers.length = 0; hyenas.length = 0; zwaarden.length = 0; arena = null; camEase = null; spawnTimer = 0.6;
+  if (level && level.apenArena && !sandbox && !building) arenaStart();   // de goudaap-arena: muren, camera in het midden, de spawner
   fosforSlangen.length = 0; fosforGroepen.length = 0; fosforBrok.length = 0; fosforStilT = 0; amirSteen = 0;
   snowPuffs.length = 0; snowFx.length = 0; snowflakes.length = 0; snowWorldPrev = null;
   planSnow();                                       // nieuw potje, nieuw weer
@@ -15901,6 +15968,7 @@ function arenaCam(p){
 const PAN_LURK_MIN = 3, PAN_LURK_MAX = 5;      // zo lang blijft hij weg na een treffer
 const PAN_SNEAK_SPD = 140;                     // terugsluipen door het gras
 function updateArena(){
+  if (arenaAap){ if (!arena) arena = { c: arenaAap.c }; else arena.c = arenaAap.c; return; }   // de goudaap-arena stuurt de camera
   const boss = panthers.find(p => p.boss && p.state !== 'dying' && p.state !== 'gone');
   if (!boss){ arena = null; return; }
   if (!arena) arena = { c: world };
@@ -18830,6 +18898,7 @@ function loop(now){
   updateHyenas(dt, platsV, cliff);
   updateZwaarden(dt, platsV, cliff);
   updateFosforSlangen(dt, platsV, cliff);
+  arenaTick(dt);
   updateGoudapen(dt);
   if (!building) updateVenom(dt, scaleNow); else { venom.length = 0; splat.length = 0; }
   if (!building) updateWind(dt); else { wind.length = 0; gust = null; }
@@ -20234,6 +20303,7 @@ function loop(now){
     drawVoorgrond(groundY, scaleNow);               // het gras vlak voor de camera
     bavWerpTeken(scaleNow);                         // de speerpunt die de baviaan naar de camera smijt
     drawBossBar();
+    arenaHudTeken();                                // de teller van de goudaap-arena (kills, tijd, punten)
     drawMuurE(camSwap !== null ? camSwap : world);   // voor de open deur: Press E
   } else {
     drawLichtlaag();
@@ -21137,6 +21207,7 @@ function readLevel(txt){
                                   beet: !!o.baviaan.beet } : null,   // staat op de grond en pakt je speer (BAV_BEET)
            geenSpeer: !!o.geenSpeer,                    // geen speer voor je in de grond (haal er een uit een skelet)
            valschade: !!o.valschade,                    // een diepe val kost levens (standaard uit)
+           apenArena: !!o.apenArena,                     // de arena van goudaapjes (Baboon 4): twee muren, oneindig meer apen
            onsterfelijk: !!o.onsterfelijk,              // om iets te proberen: je raakt geen levens kwijt
            talentKeuze: !!o.talentKeuze,                // aan het begin kies je zelf de talents (Test 14)
            worp: o.worp === 'schaal' ? 'schaal' : '',   // 'schaal': de hoek loopt op zolang je vasthoudt
@@ -22028,6 +22099,7 @@ const SUBS = {
   'Test 14: De drie stammen': 'Kies je talents en probeer ze alle negen, ook de drie van Impungushe',
   'Baboon 1: De baviaan': 'Hij springt van de wand en houdt je vast tussen twee ravijnen',
   'Baboon 3: De speerval': 'Een zegel, een speer in de wand, en bukken als de baviaan achter je is',
+  'Baboon 4: De arena': 'Twee muren, jij in het midden, en steeds meer gouden aapjes tot je valt',
   'Test 15: Het zakkende plafond': 'Een zegel onder de grond, en dan komt het plafond naar beneden',
   'Test 16: De zuil': 'Een smalle zuil grond midden in een ravijn: precies springen, en blijven staan',
   'Test 17: De rijzende grond': 'Een zegel, en uit het ravijn komt steen omhoog om over te steken',
@@ -22473,6 +22545,7 @@ document.getElementById('sbgaap').onclick = () => {
   x = Math.min(x, cliffAt().wall - 220); x = Math.max(x, endWall() + 220);
   gaapSpawn(x, side); cv.focus();
 };
+document.getElementById('sbgaaparena').onclick = () => { if (arenaAap){ arenaReset(); goudapen = []; } else arenaStart(); cv.focus(); };
 document.getElementById('sbgaapweg').onclick = () => { goudapen = []; arenaReset(); cv.focus(); };
 sandboxEl.querySelectorAll('button[data-bav]').forEach(bt => {
   const [k, r] = bt.dataset.bav.split(':');
