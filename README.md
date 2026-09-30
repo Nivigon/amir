@@ -140,6 +140,8 @@ op. Wacht je te lang, dan is het al te hoog en spring je ertegenaan; mis je het,
 en kun je opnieuw op het zegel stappen. Een level maakt zo'n lift met rijzende grond (`rijzers`) waarvan `tot` hoger
 ligt dan de grond, tegen de wand van het terras erboven.
 
+**Test 23: De klim** zet die twee manieren om omhoog te gaan naast elkaar in een savanneklim, en overal geldt: mis je een sprong, dan val je in het ravijn en ben je dood. Vanaf de grond spring je van zuil naar zuil (losse verhoginkjes boven een dodelijk ravijn) omhoog naar de eerste laag. Daar tilt een lift (het steen dat op een zegel omhoog komt) je naar de tweede laag. Op die laag spring je over een dodelijk gat naar het volgende plateau, en een laatste lift brengt je naar de top met de fakkels. Zo klim je door savannelagen met beide middelen door elkaar. `levelcheck.py` kent nu ook een plateau dat je met een sprong van een buurplateau over een gat bereikt.
+
 In de episode **Baboon tests** staan drie proefstukken voor de baviaan, met de tribekeuze voor het begin. In
 **Baboon 2: De speerbeet** (dezelfde vlakte als Baboon 1) hangt hij niet aan de wand maar staat hij grommend op de grond,
 een stuk voor je uit, en kijkt je aan. Pak je speer en loop naar hem toe. Steek je naar hem, of kom je met je speer in de

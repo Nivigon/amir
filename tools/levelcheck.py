@@ -1486,6 +1486,26 @@ def terrassen(lv, sp):
             yield info(t['r'], 'terras van %s hoog op %s: te halen met de rijzende grond %s (tot %s)'
                        % (n0(t['h']), n0(t['r']), lift[0].get('id'), n0(lift[0].get('tot', -1))))
             continue
+        # een buurterras aan de overkant van een dodelijk gat: je springt van dat plateau hierheen
+        # (mis is dan vallen in het gat). Reikbaar als het hoogteverschil binnen de sprong valt en het
+        # gat met sprint te halen is.
+        brug = None
+        for t2 in lv.terraces:
+            if t2 is t or t2['h'] <= 0:
+                continue
+            for g in lv.gaps:
+                gl, gr = g['x'] - g['w'] / 2, g['x'] + g['w'] / 2
+                tussen = (abs(t['r'] - gl) < 40 and abs(t2['l'] - gr) < 40) or (abs(t2['r'] - gl) < 40 and abs(t['l'] - gr) < 40)
+                if not tussen:
+                    continue
+                kop2 = lambda x: math.inf
+                schoon_r, red_r = sp.sprong(sp.LOOP * sp.SPRINT, kop2, 0)
+                if abs(t['h'] - t2['h']) <= sp.SPRONG_H - 10 and g['w'] <= red_r:
+                    brug = (t2, g)
+        if t['h'] not in bereikt and brug:
+            yield info(t['r'], 'terras van %s hoog op %s: te bereiken met een sprong van het terras op %s over het gat van %s'
+                       % (n0(t['h']), n0(t['r']), n0(brug[0]['r']), n0(brug[1]['w'])))
+            continue
         if t['h'] not in bereikt:
             waarom = 'Amir springt %s' % n0(sp.SPRONG_H)
             if kop(vloer) - vloer < sp.SPRONG_H:
