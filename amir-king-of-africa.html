@@ -8540,6 +8540,10 @@ const GAAP = {
   speerLig: 30,           // een lijk met een speer erin blijft liggen tot je hem eruit haalt (dan pas weg)
   speerAnker: { x: 430, y: 380 },   // waar de speer in het dode aapje steekt, in bronpixels op het doodcanvas
   speerHoek: 70,          // de hoek van de schacht (graden): tip in het lijf, schacht schuin omhoog eruit
+  springKans: 0.28,       // kans dat hij, in plaats van te happen, over Amir heen springt
+  springDuur: 0.62,       // hoe lang de sprong duurt (seconden)
+  springHoog: 1.15,       // hoe hoog de boog komt (Amir)
+  springVer: 1.3,         // hoe ver voorbij Amir hij landt (Amir)
 };
 // het happen: een leesbare telegraaf (bek open) en dan de snap; de raak-frames zijn dezelfde als de baviaan (11 tot 13)
 const GAAP_HAP = { delen: [ { tot: 4, fps: 12 }, { tot: 11, fps: 18 }, { tot: 14, fps: 40 }, { tot: 26, fps: 28 } ], raak: [11, 13] };
@@ -8603,8 +8607,19 @@ function updateGoudapen(dt){
       continue;
     }
     if (m.act === 'roar'){ if (bavKlok >= m.roarTot){ m.act = 'run'; m.actT0 = bavKlok; } continue; }
+    if (m.act === 'jump'){
+      const u = (bavKlok - m.actT0) / 1000 / GAAP.springDuur;
+      if (u >= 1){ m.x = m.jumpTot; m.y = 0; m.act = 'run'; m.actT0 = bavKlok; m.coolTot = bavKlok + 1000 * GAAP.cool; }
+      else { m.x = m.jumpVan + (m.jumpTot - m.jumpVan) * u; m.y = GAAP.springHoog * Math.sin(Math.PI * u); }
+      continue;
+    }
     const dichtbij = Math.abs(naarAmir) < GAAP.biteRange * CHAR_H * scale;
-    if (dichtbij && m.f === wilF && bavKlok >= m.coolTot){ m.act = 'bite'; m.actT0 = bavKlok; m.biteRaak = false; continue; }
+    if (dichtbij && m.f === wilF && bavKlok >= m.coolTot){
+      if (Math.random() < GAAP.springKans){                   // soms springt hij over Amir heen in plaats van te happen
+        m.act = 'jump'; m.actT0 = bavKlok; m.jumpVan = m.x; m.jumpTot = playerX() + (naarAmir < 0 ? -1 : 1) * GAAP.springVer * CHAR_H * scale; m.y = 0;
+      } else { m.act = 'bite'; m.actT0 = bavKlok; m.biteRaak = false; }
+      continue;
+    }
     if (m.act === 'run' && !dichtbij && bavKlok >= (m.loopTot || 0) && Math.random() < dt * 0.35){
       if (Math.random() < 0.5){ m.act = 'roar'; m.actT0 = bavKlok; m.roarTot = bavKlok + 1000 * deelTijd(BAV_BRUL.delen, BAV_BRUL.n); }
       else { m.act = 'walk'; m.actT0 = bavKlok; m.loopTot = bavKlok + 1000 * (0.6 + Math.random() * 0.9); }
@@ -8651,6 +8666,7 @@ function gaapStand(m, scale){
     m.y = 0; m.fase = 'grond'; m.act = 'run'; m.actT0 = bavKlok; m.coolTot = bavKlok + 400;
     return { img: gaapBrulImgs[7], dx: 0, dy: 0, ox: BAV_BRUL.links };
   }
+  if (m.act === 'jump'){ const tf = (bavKlok - m.actT0) / 1000; const f = Math.min(BAV_SPRONG.n - 1, Math.floor(tf * BAV_SPRONG.fps)); return { img: gaapSprongImgs[f], dx: 0, dy: 0, ox: BAV_SPRONG.links, oy: BAV_SPRONG.boven, grond: BAV_SPRONG.grond }; }
   if (m.act === 'bite'){ const tf = (bavKlok - m.actT0) / 1000; return { img: gaapHapImgs[Math.min(BAV_HAP.n - 1, gaapHapFrame(tf))], dx: 0, dy: 0, ox: BAV_HAP.links }; }
   if (m.act === 'roar'){ const tf = (bavKlok - m.actT0) / 1000; return { img: gaapBrulImgs[Math.min(BAV_BRUL.n - 1, deelFrame(BAV_BRUL.delen, tf))], dx: 0, dy: 0, ox: BAV_BRUL.links }; }
   const v = (m.act === 'walk' ? GAAP.loop : GAAP.v) * walkK();
