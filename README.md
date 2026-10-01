@@ -60,7 +60,8 @@ staan voor het zegel en blijven dicht zolang hij leeft; daarna loop je terug. In
 het hele stuk zien, en **Dood door speerval** hetzelfde met de speer in zijn borst (of met **Spiegel** in zijn rug).
 
 **Baboon 4: De arena** is een overlevingsronde. Twee stenen muren, jij in het midden, en van weerszijden springen kleine
-gouden aapjes (honinggoud met een blauw gezicht, een halve Amir groot) van de muur naar beneden. Ze rennen op je af,
+gouden aapjes (honinggoud met een blauw gezicht, ruim een halve Amir groot) van de muur naar beneden. Ze hangen eerst
+even op een rots op wisselende hoogtes, en springen dan naar beneden. Ze rennen op je af,
 dreigen soms kort of lopen even, springen af en toe over je heen, en happen als ze dichtbij zijn, op een tempo waarop één
 aap goed te doen is. Eén klap, een stoot of de lage zwaai, is genoeg: dan gaat hij dood. Springt er een naar beneden, dan
 kun je hem in de lucht met een geworpen speer raken; op de grond vliegt de speer eroverheen. Een aap die je zo raakt valt
