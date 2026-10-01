@@ -624,7 +624,16 @@ neer:
   lijst wordt niet met de hand bijgehouden, want dan mist er altijd een: de `<audio>`'s uit de HTML
   worden opgehaald, en elk element dat het script maakt meldt zich aan met `geluidAan(new Audio())`,
   op de regel waar het gemaakt wordt. Doe dat dus ook bij een nieuw geluid. De muziek (`bg`) blijft
-  erbuiten, die start `tryPlay`.
+  erbuiten, die start `tryPlay`. Dat stille startje zet `a.muted` aan voor het afspelen, en dat werkt
+  alleen voor een element dat rechtstreeks speelt. Een element dat via `createMediaElementSource` aan
+  de versterker hangt gaat niet meer door het element maar door de context, dus `a.muted` doet daar
+  niets: het stille startje zou dan het geluid zelf zijn. Op een telefoon loopt de context al tijdens
+  de tik, dus die elementen zijn op dat moment al aangesloten, en zo klonken aan het begin de deur, het
+  skelet, de storm en alle geluiden van de baviaan en het goudaapje door elkaar. Die elementen staan nu
+  in `geluidViaAc` (ze melden zich aan met `viaAc(a)` op de regel van de `createMediaElementSource`), en
+  `geluidOntgrendel` slaat ze over: ze hebben het stille startje ook niet nodig, want de tik ontgrendelt
+  de context waar ze aan hangen al. Een nieuw geluid dat je aan de versterker hangt, wikkel je dus in
+  `viaAc(...)`.
 
 Een element dat eenmaal via `createMediaElementSource` aan de context hangt, gaat voorgoed door die
 context: staat hij dan stil, dan hoor je niets meer, ook niet door `volume` te zetten. Daarom wordt een
