@@ -66,7 +66,7 @@ function server(){
 async function meet(filter){
   const uit = [];
   const wacht = ms => new Promise(r => setTimeout(r, ms));
-  const lijsten = [POORT_LEVELS, TEST_LEVELS, BAB_LEVELS];
+  const lijsten = [POORT_LEVELS, HON_LEVELS, TEST_LEVELS, BAB_LEVELS];
   const werk = [];
   for (const lijst of lijsten) lijst.forEach((def, i) => werk.push([lijst, def, i]));
   for (const [lijst, def, i] of werk){
@@ -87,10 +87,12 @@ async function meet(filter){
     }
     if (level.muur){
       const S = muurSet(sc);
+      // opent een zegel de muur/grot (muur: true), dan hoef je de schijf niet met de speer te raken
+      const zegelOpent = (level.zegels || []).some(z => z.muur);
       rij.schijven.push({ wat: (level.muur.soort === 'grot' ? 'grot' : 'rotswand') + ' op x=' + Math.round(level.muur.x),
                           hoog: S ? Math.round((S.voetY - S.symY) / sc) : null, strook: S ? muurStrook(sc) : null,
                           rots: S ? [Math.round(level.muur.x - S.w), Math.round(level.muur.x)] : null,
-                          schijfX: S ? Math.round(level.muur.x - (S.w - S.symX)) : null });
+                          schijfX: S ? Math.round(level.muur.x - (S.w - S.symX)) : null, zegelOpent });
     }
     uit.push(rij);
   }
@@ -163,7 +165,8 @@ async function meet(filter){
       for (const d of r.schijven){
         const st = d.strook;
         let melding = '', soort = '';
-        if (!st){ melding = 'niet na te meten: de plaat is er niet'; soort = 'FOUT'; }
+        if (d.zegelOpent){ melding = 'wordt met een zegel geopend, speer niet nodig'; soort = ''; }
+        else if (!st){ melding = 'niet na te meten: de plaat is er niet'; soort = 'FOUT'; }
         else if (!st.length){ melding = 'nergens te raken: het steen of de boog zit ervoor'; soort = 'FOUT'; }
         else {
           const past = st.filter(([a]) => a <= r.inBeeld);
