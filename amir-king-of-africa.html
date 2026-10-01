@@ -952,6 +952,14 @@
         <span class="hint">een stuk savanne dat hoger ligt, geen rots: met de lift komt er een zegel en een blok steen bij dat je erheen brengt</span>
       </div>
       <div class="row">
+        <label>Zwevende laag</label>
+        <button data-zweef="laag">Laag (plafond)</button>
+        <button data-zweef="dik">Dik blok</button>
+        <button data-zweef="hoog">Hoog zwevend</button>
+        <button id="sbzweefweg">Weg</button>
+        <span class="hint">een dik savanneblok in de lucht met lucht eronder: loop eronderdoor, en bovenop kom je via de rand of een lift</span>
+      </div>
+      <div class="row">
         <label>Onder de grond</label>
         <button data-holte="gang">Gang</button>
         <button data-holte="trap">Gang met trap omhoog</button>
@@ -3006,7 +3014,16 @@ function terFadePic(){ return (winterOn() && terPic() !== terImg && winterTerFad
 function ledgePic(){ return winterPic('ledge', ledgeImg); }
 function terraceList(){ return (level && level.terraces) ? level.terraces : []; }
 function ledgeList(){ return (level && level.ledges) ? level.ledges : []; }
-function hasClimb(){ return terraceList().length > 0; }
+// Een zwevende savannelaag: hetzelfde dikke savanneblok als een hogere savannelaag (grond: true),
+// maar opgetild zodat er lucht onder zit. Je loopt eronderdoor (als er plek is) en je landt bovenop
+// via de rand of een lift, net als bij een richel. Het veld is zwevers: [{r, l, h, onder}]: h is de
+// looplijn bovenop, onder de onderkant van het blok (daaronder lucht). Zet onder hoog genoeg en je
+// ziet of raakt de onderkant nooit; zet hem laag en het wordt een plafond waar je onderdoor loopt.
+// Het staat los van terraces, want terrainH is enkelvoudig (één hoogte per x) en kan geen twee
+// vloeren boven elkaar; vandaar een eigen lijst, net als zuilen en rijzers.
+const ZWEEF = { dik: 180 };          // standaarddikte als een laag geen onder meekrijgt (in sprite-eenheden)
+function zweefList(){ return (level && level.zwevers) ? level.zwevers : []; }
+function hasClimb(){ return terraceList().length > 0 || ledgeList().length > 0 || zweefList().length > 0; }
 function terScale(scale){ return TER.depth * CHAR_H * scale / TER.walk; }
 function ledgeScale(scale, o){ return terScale(scale) * LEDGE.k * (o.s || 1); }
 function terrainH(x){                        // hoogte van het terras op deze plek (0 = grond)
@@ -3035,6 +3052,8 @@ function terracePlats(scale){
     out.push({ x: q.x, left: q.x - q.w / 2 + hw, right: q.x + q.w / 2 - hw, topH: zuilTop(q), wPx: q.w, hPx: 0, zuil: q });
   for (const o of ledgeList())                // richels: van onderen spring je erdoorheen
     out.push({ x: o.x, left: o.x, right: o.x + ledgeLen(o, scale), topH: o.h, wPx: 400, hPx: 0, thin: true });
+  for (const z of zweefList())                // zwevende savannelaag: bovenop landen, eronderdoor lopen
+    out.push({ x: (z.l + z.r) / 2, left: z.l, right: z.r, topH: z.h, floatBot: z.onder, zweef: true, wPx: 400, hPx: 0 });
   return out;
 }
 // één kolom uit het terrasplaatje, met de wand eronder herhaald tot onder het scherm
@@ -3076,9 +3095,12 @@ function drawTerCol(sx, sw, dx, dw, flip, top, bottom, st, img){
 const SAV_LAAG = {
   soil: 0.35,          // hieronder breekt de zijkant open: net onder de looplijn, zoals bij een terras
   donker: [0.55, 1.0], // van waar tot waar het donker aanzwelt
-  diep: [0, 0.94]      // en hoe donker het daar is
+  diep: [0, 0.94],     // en hoe donker het daar is
+  // een zwevende laag zakt niet in de grond weg, dus de aardrand moet zichtbaar blijven: veel
+  // milder donker dan een laag die op de grond staat, met alleen een schaduw aan de onderkant
+  zweef: { donker: [0.78, 1.0], diep: [0, 0.4] }
 };
-function savanneLaag(t, groundY, scale, cx, bottom, st){
+function savanneLaag(t, groundY, scale, cx, bottom, st, floating){
   const eimg = bodemPic();
   if (!imgReady(eimg) || !edgeReady()) return;
   const zoom = viewZoom(), xr = cx + (t.r - world), xl = cx + (t.l - world);
@@ -3099,13 +3121,33 @@ function savanneLaag(t, groundY, scale, cx, bottom, st){
   let x = cx - (((world % tw) + tw) % tw);           // vast aan de wereld, net als de grond zelf
   while (x > xl) x -= tw;
   for (; x < xr; x += tw) ctx.drawImage(eimg, x, top, tw + 1, th);
-  const y0 = top + th * D.donker[0], y1 = top + th * D.donker[1];
+  if (floating && top + th < bottom){                // de dikte onder de tegel: de aardrand doorgetegeld
+    const bandY = EDGE.walk, bandH = eimg.naturalHeight - bandY, dh = bandH * s;   // alleen de aarde, niet het gras
+    let k = 0;
+    for (let yy = top + th; yy < bottom && dh > 1; yy += dh, k++){
+      let xx = cx - (((world % tw) + tw) % tw); while (xx > xl) xx -= tw;
+      for (; xx < xr; xx += tw){
+        if (k % 2 === 1){                            // om en om gespiegeld, zodat de herhaalnaad verdwijnt
+          ctx.save(); ctx.translate(0, yy + dh); ctx.scale(1, -1);
+          ctx.drawImage(eimg, 0, bandY, eimg.naturalWidth, bandH, xx, 0, tw + 1, dh + 0.6);
+          ctx.restore();
+        } else ctx.drawImage(eimg, 0, bandY, eimg.naturalWidth, bandH, xx, yy, tw + 1, dh + 0.6);
+      }
+    }
+  }
+  const dk = floating ? D.zweef : D;
+  const y0 = top + th * dk.donker[0], y1 = top + th * dk.donker[1];
   const v = ctx.createLinearGradient(0, y0, 0, y1);
-  v.addColorStop(0, 'rgba(8,6,6,' + D.diep[0] + ')'); v.addColorStop(1, 'rgba(8,6,6,' + D.diep[1] + ')');
+  v.addColorStop(0, 'rgba(8,6,6,' + dk.diep[0] + ')'); v.addColorStop(1, 'rgba(8,6,6,' + dk.diep[1] + ')');
   ctx.fillStyle = v;
   ctx.fillRect(xl - 40, y0, xr - xl + 80, y1 - y0);
-  ctx.fillStyle = 'rgba(8,6,6,' + D.diep[1] + ')';
+  ctx.fillStyle = 'rgba(8,6,6,' + dk.diep[1] + ')';
   ctx.fillRect(xl - 40, y1, xr - xl + 80, bottom - y1 + 40);
+  if (floating){                                     // zweeft hij, dan is de onderkant een schaduwrand
+    const sch = ctx.createLinearGradient(0, bottom - 60, 0, bottom);
+    sch.addColorStop(0, 'rgba(8,6,6,0)'); sch.addColorStop(1, 'rgba(8,6,6,0.6)');
+    ctx.fillStyle = sch; ctx.fillRect(xl - 40, bottom - 60, xr - xl + 80, 64);
+  }
   ctx.restore();
 }
 function drawClimb(groundY, scale, cx, onder){
@@ -3139,6 +3181,20 @@ function drawClimb(groundY, scale, cx, onder){
       ctx.globalAlpha = 0.6; ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2 / zoom;
       const ty = groundY - t.h * scale;
       ctx.beginPath(); ctx.moveTo(cx + (t.l - world), ty); ctx.lineTo(cx + (t.r - world), ty); ctx.stroke();
+      ctx.restore();
+    }
+  }
+  // zwevende savannelagen: hetzelfde dikke blok, maar afgesneden op de onderkant met lucht eronder
+  for (const z of zweefList().filter(z => hier(z.h)).sort((a, b) => a.h - b.h)){
+    const floorY = groundY - z.onder * scale;        // de onderkant van het blok op het scherm
+    savanneLaag(z, groundY, scale, cx, floorY, st, true);
+    if (showBoxes || building){
+      ctx.save();
+      ctx.globalAlpha = 0.6; ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2 / zoom;
+      const ty = groundY - z.h * scale;
+      ctx.beginPath(); ctx.moveTo(cx + (z.l - world), ty); ctx.lineTo(cx + (z.r - world), ty); ctx.stroke();
+      ctx.strokeStyle = '#ef476f';                    // de onderkant waar je onderdoor loopt
+      ctx.beginPath(); ctx.moveTo(cx + (z.l - world), floorY); ctx.lineTo(cx + (z.r - world), floorY); ctx.stroke();
       ctx.restore();
     }
   }
@@ -4179,6 +4235,16 @@ function drawPlafond(groundY, scale, cx){
 function plafondKop(halfW){
   const m = plafondMin(world - halfW, world + halfW);
   return m === Infinity ? Infinity : m - CHAR_H;
+}
+// de onderkant van een zwevende savannelaag is een plafond: je kruin komt er niet doorheen
+function zweefKop(halfW){
+  let cap = Infinity;
+  for (const z of zweefList()){
+    if (world + halfW <= z.l || world - halfW >= z.r) continue;
+    const t = z.onder - CHAR_H;
+    if (t < cap) cap = t;
+  }
+  return cap;
 }
 // vanaf x die kant op zoeken naar de plek waar de lijn weer op kruinhoogte hangt
 function plafondGrens(x, kant, kop){
@@ -13518,7 +13584,7 @@ function updateJump(dt, plats, halfW){
     ph += pvh * dt;
   }
   if (!building){                               // onder massieve rots stoot je je hoofd
-    const kop = Math.min(grotKop(halfW, schoonScale()), plafondKop(halfW));
+    const kop = Math.min(grotKop(halfW, schoonScale()), plafondKop(halfW), zweefKop(halfW));
     // Is de ruimte lager dan Amir, dan kan hij er helemaal niet zijn; dan houdt de wand
     // hem tegen en mag de plafondcap hem niet de grond in duwen.
     if (ph > kop && kop > Math.max(0, supportHeight(plats, halfW))){ ph = kop; if (pvh > 0) pvh = 0; }
@@ -13572,6 +13638,9 @@ function blockByPlatforms(plats, halfW){     // je loopt niet dwars door een rot
   for (const p of plats){
     if (p.thin) continue;                    // onder een richel loop je gewoon door
     if (p.cel) continue;                     // rastercellen duwen zelf, per cel (grotBlok)
+    // onder een zwevende savannelaag loop je door als er een hele Amir ruimte onder zit; past hij er
+    // niet onder, dan is zijn zijkant gewoon een wand (anders zou je door de rots heen lopen)
+    if (p.zweef && p.floatBot >= CHAR_H && ph < p.floatBot - 2) continue;
     if (ph >= p.topH - 2 - (p.stijg || 0)) continue;   // je staat erboven (of een stijgend blok kwam net onder je)
     if (world + halfW > p.left && world - halfW < p.right){
       if (world < (p.left + p.right) / 2) world = p.left - halfW;
@@ -21240,6 +21309,13 @@ function readLevel(txt){
            // grond: true maakt er geen rots van maar een hogere savannelaag (zie "hogere savannelaag")
            terraces: (o.terraces || []).map(q => ({ r: Number(q.r), l: Number(q.l), h: Number(q.h) || 0,
                                                     grond: q.grond === true })),
+           // zwevende savannelagen: een dik savanneblok in de lucht, zie "zwevende savannelaag"
+           zwevers: (o.zwevers || []).map(q => {
+             const h = Number(q.h) || 0;
+             let onder = q.onder != null ? Number(q.onder) : h - ZWEEF.dik;
+             if (onder >= h) onder = h - ZWEEF.dik;          // de onderkant ligt altijd onder de looplijn
+             return { r: Number(q.r), l: Number(q.l), h, onder };
+           }),
            // gangen onder de grond: zie "holte onder de grond"
            holtes: (o.holtes || []).map(q => ({ r: Number(q.r), l: Number(q.l),
                                                 diep: Math.max(HOLTE_DAK + CHAR_H, Number(q.diep) || 600) })),
@@ -22791,6 +22867,21 @@ function sbSavLaag(h, lift){
 sandboxEl.querySelectorAll('button[data-savlaag]').forEach(b => b.onclick = () => sbSavLaag(Number(b.dataset.savlaag), false));
 document.getElementById('sbsavlift').onclick = () => sbSavLaag(300, true);
 document.getElementById('sbsavweg').onclick = () => { sbSavWeg(); cv.focus(); };
+// een zwevende savannelaag om los te bekijken: een dik savanneblok links voor je in de lucht
+const SB_ZWEEF = { breed: 1600, rand: 420,
+                   laag: { h: 430, onder: 270 }, dik: { h: 650, onder: 360 }, hoog: { h: 900, onder: 600 } };
+function sbZweefWeg(){ level.zwevers = (level.zwevers || []).filter(z => !z.sbZweef); }
+function sbZweef(soort){
+  sbZweefWeg();
+  if (!level.zwevers) level.zwevers = [];
+  const S = SB_ZWEEF, p = S[soort] || S.laag;
+  const r = world - S.rand;
+  level.zwevers.push({ r, l: r - S.breed, h: p.h, onder: p.onder, sbZweef: true });
+  flashHint('Loop eronderdoor; bovenop kom je via de rand of een lift');
+  cv.focus();
+}
+sandboxEl.querySelectorAll('button[data-zweef]').forEach(b => b.onclick = () => sbZweef(b.dataset.zweef));
+document.getElementById('sbzweefweg').onclick = () => { sbZweefWeg(); cv.focus(); };
 // Een gang onder de grond om los te bekijken, in de richting waarin je kijkt (is daar geen plek
 // voor, dan naar links, zoals je door een level loopt): een ravijn dat te
 // breed is om over te springen, met de gang eronder. De trap-versie heeft verderop een tweede gat
