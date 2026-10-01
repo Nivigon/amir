@@ -932,6 +932,10 @@ def voorbij(lv, sp):
     wand = lv.muurlijn()
     if eind is None:
         return
+    # een level kan ook naar rechts eindigen (een lus die boven je eigen pad terugkomt, Test 24):
+    # dan ligt het einde rechts van de start en loopt de heenweg naar links, dus staat niets "voorbij"
+    # het einde aan de linkerkant. "Voorbij" is dan juist rechts van het einde.
+    rechts = isinstance(eind, (int, float)) and eind > 0
     for veld, naam in (('spawns', 'vijand'), ('hppotions', 'kalebas'), ('rocks', 'kei'),
                        ('tips', 'tip'), ('thickets', 'doornbos'), ('gaps', 'ravijn'), ('zegels', 'zegel'),
                        ('skeletten', 'skelet'), ('tekens', 'speerteken')):
@@ -941,7 +945,9 @@ def voorbij(lv, sp):
                 continue                                  # zie Test 3: een vijand heel ver weg als noodgreep
             if x < wand:
                 yield letop(x, '%s op %s staat achter de klif: daar kom je nooit' % (naam, n0(x)))
-            elif x < eind - 50 and veld != 'tips':
+            elif not rechts and x < eind - 50 and veld != 'tips':
+                yield letop(x, '%s op %s staat voorbij het einde (%s)' % (naam, n0(x), n0(eind)))
+            elif rechts and x > eind + 50 and veld != 'tips':
                 yield letop(x, '%s op %s staat voorbij het einde (%s)' % (naam, n0(x), n0(eind)))
     for o in lv.d.get('spawns') or []:
         if isinstance(o.get('x'), (int, float)) and o['x'] > 0:
@@ -1486,6 +1492,38 @@ def terrassen(lv, sp):
             yield info(t['r'], 'terras van %s hoog op %s: te halen met de rijzende grond %s (tot %s)'
                        % (n0(t['h']), n0(t['r']), lift[0].get('id'), n0(lift[0].get('tot', -1))))
             continue
+        # een buurterras aan de overkant van een dodelijk gat: je springt van dat plateau hierheen
+        # (mis is dan vallen in het gat). Reikbaar als het hoogteverschil binnen de sprong valt en het
+        # gat met sprint te halen is.
+        brug = None
+        for t2 in lv.terraces:
+            if t2 is t or t2['h'] <= 0:
+                continue
+            for g in lv.gaps:
+                gl, gr = g['x'] - g['w'] / 2, g['x'] + g['w'] / 2
+                tussen = (abs(t['r'] - gl) < 40 and abs(t2['l'] - gr) < 40) or (abs(t2['r'] - gl) < 40 and abs(t['l'] - gr) < 40)
+                if not tussen:
+                    continue
+                kop2 = lambda x: math.inf
+                schoon_r, red_r = sp.sprong(sp.LOOP * sp.SPRINT, kop2, 0)
+                if abs(t['h'] - t2['h']) <= sp.SPRONG_H - 10 and g['w'] <= red_r:
+                    brug = (t2, g)
+        if t['h'] not in bereikt and brug:
+            yield info(t['r'], 'terras van %s hoog op %s: te bereiken met een sprong van het terras op %s over het gat van %s'
+                       % (n0(t['h']), n0(t['r']), n0(brug[0]['r']), n0(brug[1]['w'])))
+            continue
+        # een zwevende savannelaag vlak naast dit terras op ongeveer dezelfde hoogte: je stapt er vanaf
+        # op het terras (de lus in Test 24 eindigt zo op een massief blok)
+        zwever_op = None
+        for z in lv.d.get('zwevers') or []:
+            if not all(isinstance(z.get(k), (int, float)) for k in ('l', 'r', 'h')):
+                continue
+            naast = abs(z['r'] - t['l']) < 340 or abs(t['r'] - z['l']) < 340
+            if naast and abs(z['h'] - t['h']) <= sp.SPRONG_H - 10:
+                zwever_op = z
+        if t['h'] not in bereikt and zwever_op:
+            yield info(t['r'], 'terras van %s hoog op %s: te bereiken vanaf de zwevende laag ernaast' % (n0(t['h']), n0(t['r'])))
+            continue
         if t['h'] not in bereikt:
             waarom = 'Amir springt %s' % n0(sp.SPRONG_H)
             if kop(vloer) - vloer < sp.SPRONG_H:
@@ -1502,6 +1540,33 @@ def terrassen(lv, sp):
     for o in lv.ledges:
         if not any(abs(o['x'] - t['r']) < 60 and t['h'] > o['h'] for t in lv.terraces):
             yield letop(o['x'], 'richel op %s hangt niet aan een terraswand' % n0(o['x']))
+
+
+@regel('zwevende lagen')
+def zwevende_lagen(lv, sp):
+    """Een zwevende savannelaag (Test 24): je landt erbovenop en loopt er onderdoor. De sprongen
+    tussen de blokken moeten met een sprint te halen zijn, en onder een blok waar je doorloopt hoort
+    een hele Amir ruimte te zitten (anders is zijn zijkant gewoon een wand)."""
+    zs = [z for z in lv.d.get('zwevers') or [] if all(isinstance(z.get(k), (int, float)) for k in ('l', 'r', 'h', 'onder'))]
+    if not zs:
+        return
+    _, red = sp.sprong(sp.LOOP * sp.SPRINT, lambda x: math.inf, 0)   # hoe breed een gat je met een sprint haalt
+    zs = sorted(zs, key=lambda z: z['l'])
+    for i in range(len(zs) - 1):
+        a, b = zs[i], zs[i + 1]                       # a ligt links van b (negatiever)
+        if b['l'] <= a['r']:
+            continue                                   # ze raken of overlappen: geen sprong ertussen
+        gat, dh = b['l'] - a['r'], abs(b['h'] - a['h'])
+        if dh > sp.SPRONG_H - 10:
+            yield letop(a['r'], 'de stap tussen de zwevende lagen op %s en %s is %s hoog: bijna de hele sprong van %s'
+                        % (n0(a['r']), n0(b['l']), n0(dh), n0(sp.SPRONG_H)))
+        if gat > red:
+            yield fout(a['r'], 'het gat tussen de zwevende lagen op %s en %s is %s breed: met een sprint haal je maar %s'
+                       % (n0(a['r']), n0(b['l']), n0(gat), n0(red)))
+    for z in zs:
+        if z['onder'] < sp.CHAR_H:
+            yield letop(z['l'], 'onder de zwevende laag op %s is maar %s ruimte (Amir is %s hoog): daar loop je niet '
+                        'onderdoor, zijn zijkant is dan een wand' % (n0(z['l']), n0(z['onder']), n0(sp.CHAR_H)))
 
 
 @regel('onder de grond')
