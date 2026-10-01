@@ -59,6 +59,17 @@ aan en twijfelt, met de speer nog in zijn borst, en pas dan zakt hij in elkaar, 
 staan voor het zegel en blijven dicht zolang hij leeft; daarna loop je terug. In de sandbox laat **Dood** (onder Baviaan)
 het hele stuk zien, en **Dood door speerval** hetzelfde met de speer in zijn borst (of met **Spiegel** in zijn rug).
 
+**Baboon 4: De arena** is een overlevingsronde. Twee stenen muren, jij in het midden, en van weerszijden springen kleine
+gouden aapjes (honinggoud met een blauw gezicht, een halve Amir groot) van de muur naar beneden. Ze rennen op je af,
+dreigen soms kort of lopen even, springen af en toe over je heen, en happen als ze dichtbij zijn, op een tempo waarop één
+aap goed te doen is. Eén klap, een stoot of de lage zwaai, is genoeg: dan gaat hij dood. Springt er een naar beneden, dan
+kun je hem in de lucht met een geworpen speer raken; op de grond vliegt de speer eroverheen. Een aap die je zo raakt valt
+met je speer in zich neer en blijft liggen tot je met E je speer eruit trekt. Het begint met één aap en het worden er
+steeds meer, oneindig, tot je dood bent. Bovenaan lopen je kills en je tijd mee, en elke paar kills verdien je een
+talentpunt dat je in de pauze onder Talents kunt uitgeven. Het level begint met de tribekeuze, net als de rest van Baboon.
+In de sandbox staan de aapjes bij Vijanden onder **Goudaap**: **Los aapje** zet er een neer, **Arena aan/uit** start de
+hele arena, en **Alle apen weg** ruimt ze op. De spriteset is de baviaan omgekleurd met `tools/goudaapje_kleur.js`.
+
 In **Test 15: Het zakkende plafond** laat je je in een ravijn vallen en loop je onder de grond door een lage doorgang.
 Vlak daarachter ligt een zegel, en daar kun je niet omheen: ook wie eroverheen springt, zet hem aan. Dan valt de doorgang
 achter je dicht, zakt de doorgang aan het eind van de kamer tot een smalle spleet waar je niet onderdoor kunt, en komt het
