@@ -3131,7 +3131,10 @@ const SAV_LAAG = {
   diep: [0, 0.94],     // en hoe donker het daar is
   // een zwevende laag zakt niet in de grond weg, dus de aardrand moet zichtbaar blijven: veel
   // milder donker dan een laag die op de grond staat, met alleen een schaduw aan de onderkant
-  zweef: { donker: [0.78, 1.0], diep: [0, 0.4] }
+  zweef: { donker: [0.78, 1.0], diep: [0, 0.4] },
+  // met hoogUitzicht klemt de camera tegen de laag (je ziet de diepte niet), dus geen donker:
+  // de aardrand blijft vol, net als de gewone grond
+  hoog: { donker: [0.9, 1.0], diep: [0, 0] }
 };
 function savanneLaag(t, groundY, scale, cx, bottom, st, floating){
   const eimg = bodemPic();
@@ -3168,7 +3171,7 @@ function savanneLaag(t, groundY, scale, cx, bottom, st, floating){
       }
     }
   }
-  const dk = floating ? D.zweef : D;
+  const dk = floating ? D.zweef : ((level && level.hoogUitzicht) ? D.hoog : D);
   const y0 = top + th * dk.donker[0], y1 = top + th * dk.donker[1];
   const v = ctx.createLinearGradient(0, y0, 0, y1);
   v.addColorStop(0, 'rgba(8,6,6,' + dk.diep[0] + ')'); v.addColorStop(1, 'rgba(8,6,6,' + dk.diep[1] + ')');
@@ -3318,7 +3321,11 @@ function updateCamera(dt, scale){
   // en zie je pas na de landing waar je bent. Alleen omlaag: springen laat hem met rust.
   else if (!building && ph < 0 && holteAt(world)) camDiep = Math.min(camDiep, Math.max(ph, -holteAt(world).diep));
   // in de bouwer kijk je zelf omhoog of omlaag (bouwD, de geest): diepte d komt dan op de gewone grondlijn
-  const target = (building ? -bouwD * scale * viewZoom() : (hasClimb() ? Math.max(0, camFloor * scale - H * 0.10) : 0) + camDiep * scale)
+  // op een klimlevel kijkt de camera iets omhoog (je ziet de diepte onder je); met hoogUitzicht
+  // klemt hij juist tegen de laag waar je op staat, net als tegen de gewone grond, zodat een hoge
+  // laag er net zo uitziet als de basis (geen zwarte diepte eronder in beeld)
+  const klimLift = (level && level.hoogUitzicht) ? 0 : H * 0.10;
+  const target = (building ? -bouwD * scale * viewZoom() : (hasClimb() ? Math.max(0, camFloor * scale - klimLift) : 0) + camDiep * scale)
                  + bavKijk(scale);
   if (bavKijkNu){ camY = target; bavKijkNu = false; }
   camY += (target - camY) * Math.min(1, dt * 3.2);
@@ -18431,8 +18438,11 @@ function scene(groundY){
   // de horizon zakt maar een klein stukje mee als je klimt: ver weg beweegt trager.
   // De heuvelrij (laag 2) staat dichtbij en hangt daarom grotendeels aan de grond, niet aan die
   // horizon: anders gaapt er op een hoog terras een kale band tussen de heuvels en de grond
-  const horizonY = groundY - camY * 0.72;
-  let nearY = groundY - camY * MID_CAM_PAR;
+  // ver weg beweegt trager met je hoogte mee; met hoogUitzicht bijna niet, zodat de bergen en
+  // heuvels ook op een hoge laag blijven staan (je kijkt uit over het landschap, niet in de leegte)
+  const verPar = (level && level.hoogUitzicht) ? 0.96 : 0.72;
+  const horizonY = groundY - camY * verPar;
+  let nearY = groundY - camY * ((level && level.hoogUitzicht) ? Math.min(MID_CAM_PAR, 1.05) : MID_CAM_PAR);
   // maar ze laat de bergen ook niet los: zakt haar rug meer dan MID_MAX_GAT onder de bergvoet,
   // dan houden we haar daar. Het gat dat het klimmen oplevert valt zo onder de heuvels in plaats
   // van erboven, en daar hoort het: dat is de vlakte waar je vanaf het terras op neerkijkt
@@ -21368,6 +21378,7 @@ function readLevel(txt){
                                   beet: !!o.baviaan.beet } : null,   // staat op de grond en pakt je speer (BAV_BEET)
            geenSpeer: !!o.geenSpeer,                    // geen speer voor je in de grond (haal er een uit een skelet)
            valschade: !!o.valschade,                    // een diepe val kost levens (standaard uit)
+           hoogUitzicht: !!o.hoogUitzicht,              // gestapelde grondlagen: de camera klemt tegen de laag (geen zwarte diepte) en de achtergrond blijft staan, zodat een hoge laag er net zo uitziet als de basis
            apenArena: !!o.apenArena,                     // de arena van goudaapjes (Baboon 4): twee muren, oneindig meer apen
            onsterfelijk: !!o.onsterfelijk,              // om iets te proberen: je raakt geen levens kwijt
            talentKeuze: !!o.talentKeuze,                // aan het begin kies je zelf de talents (Test 14)

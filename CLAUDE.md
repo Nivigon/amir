@@ -153,6 +153,7 @@ precies hetzelfde formaat naar JSON.
 | `sneeuw` | sneeuw op de grond, los van `winter`: `{soort, dek, van, tot}` (zie hieronder) |
 | `weer` | het weer onderweg: `[{x, soort, sterkte}]`, `soort` uit `WEER.soorten` (`droog`, `regen`, `onweer`, `zandstorm`, `sneeuw`, `sneeuwstorm`); voorbij `x` slaat het om (zie "het weer") |
 | `valschade` | `true` laat een diepe val een of twee levens kosten (standaard uit) |
+| `hoogUitzicht` | `true`: gestapelde dikke grondlagen zien er op hoogte hetzelfde uit als de basis. De camera klemt tegen de laag waar je op staat (geen zwarte diepte eronder in beeld, `klimLift` 0 in `updateCamera`), de achtergrond blijft staan (`verPar` in `scene()`, bergen en heuvels zakken niet weg) en een massieve grondlaag krijgt geen donkere onderkant (`SAV_LAAG.hoog`). Per level, dus de bestaande levels veranderen niet |
 | `worp` | `'schaal'` zet de schaalworp aan: de hoek loopt op zolang je vasthoudt, van vlak tot 30 graden (`THR_HOEK_MAX`); zonder dit veld de twee trappen. In de sandbox de knop Worp onder Speerworp |
 | `rocks` | keien om op te springen: `{x, s}` |
 | `spawns` | vijanden: `{x, k}` met `k` = `groen`, `zwart`, `scorp`, `hyenas`, `panter`, `zwaard` (met `c`), `fosfor`; een panter met `over: true` mag over keien en ravijnen (zie regel 7) |
