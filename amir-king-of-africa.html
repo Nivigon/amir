@@ -4310,6 +4310,13 @@ function acVersterkers(){
 // geluidAan(...), meteen op de regel waar je het maakt.
 const alleGeluiden = new Set();
 function geluidAan(...lijst){ for (const a of lijst) if (a) alleGeluiden.add(a); return lijst[0]; }
+// Elementen die via createMediaElementSource aan de versterker hangen. Hun geluid gaat door de
+// AudioContext, dus a.muted op het element zelf doet niets meer. geluidOntgrendel slaat ze daarom
+// over bij het stille startje: dat zou hier geen stil startje zijn maar het geluid zelf, en ze
+// hebben het ook niet nodig, want de tik ontgrendelt de context waar ze aan hangen al. Melden doet
+// de koppelcode met viaAc(a), op de regel van de createMediaElementSource.
+const geluidViaAc = new Set();
+function viaAc(a){ geluidViaAc.add(a); return a; }
 
 // Het geluid van de rots die opengaat. De opname duurt 42 seconden en staat van begin tot
 // eind even hard, zonder aanzet en zonder uitklank, terwijl het blok maar een halve seconde
@@ -4336,7 +4343,7 @@ function deurVersterker(){
   if (!ac) return null;
   try {
     deurGain = ac.createGain();
-    ac.createMediaElementSource(deurSnd).connect(deurGain);
+    ac.createMediaElementSource(viaAc(deurSnd)).connect(deurGain);
     deurGain.connect(ac.destination);
   } catch (e){ deurGain = null; }
   return deurGain;
@@ -4408,6 +4415,7 @@ function geluidOntgrendel(){
   geluidAlles = true;
   for (const a of geluidLijst()){
     if (geluidVrij.has(a)) continue;
+    if (geluidViaAc.has(a)) continue;              // hangt al aan de versterker: muted helpt daar niet, en de tik ontgrendelt de context al
     geluidVrij.add(a);                             // een die weigert komt hieronder weer uit de lijst
     if (!a.paused) continue;                       // speelt al, dus hij mag al
     a.muted = true;
@@ -6206,7 +6214,7 @@ function skeletVersterker(){                       // net als bij de deur: een a
   if (!ac) return null;
   try {
     skeletGain = ac.createGain();
-    ac.createMediaElementSource(skeletSnd).connect(skeletGain);
+    ac.createMediaElementSource(viaAc(skeletSnd)).connect(skeletGain);
     skeletGain.connect(ac.destination);
   } catch (e){ skeletGain = null; }
   return skeletGain;
@@ -7742,10 +7750,10 @@ function bavBrulVersterker(){
   if (!ac) return null;
   try {
     bavGain = ac.createGain();
-    ac.createMediaElementSource(bavBrulSnd).connect(bavGain);
+    ac.createMediaElementSource(viaAc(bavBrulSnd)).connect(bavGain);
     bavGain.connect(ac.destination);
     // het grommen bij het hoofdschudden, het grommen onder het rennen en de hap: elk een eigen volume
-    const eigen = a => { const g = ac.createGain(); ac.createMediaElementSource(a).connect(g); g.connect(ac.destination); return g; };
+    const eigen = a => { const g = ac.createGain(); ac.createMediaElementSource(viaAc(a)).connect(g); g.connect(ac.destination); return g; };
     bavGromGain = eigen(bavGromSnd); bavRenGain = eigen(bavRenSnd); bavBijtGain = eigen(bavBijtSnd); bavLandGain = eigen(bavLandSnd);
   } catch (e){ bavGain = null; bavGromGain = bavRenGain = bavBijtGain = bavLandGain = null; }
   return bavGain;
@@ -8575,8 +8583,8 @@ function gaapGeluidVersterker(){
     const pk = ac.createBiquadFilter(); pk.type = 'peaking'; pk.frequency.value = 3200; pk.Q.value = 1.1; pk.gain.value = 11;
     const hs = ac.createBiquadFilter(); hs.type = 'highshelf'; hs.frequency.value = 2600; hs.gain.value = 7;
     gaapRoarGain = ac.createGain();
-    ac.createMediaElementSource(gaapRoarSnd).connect(hp); hp.connect(pk); pk.connect(hs); hs.connect(gaapRoarGain); gaapRoarGain.connect(ac.destination);
-    gaapBijtGain = ac.createGain(); ac.createMediaElementSource(gaapBijtSnd).connect(gaapBijtGain); gaapBijtGain.connect(ac.destination);
+    ac.createMediaElementSource(viaAc(gaapRoarSnd)).connect(hp); hp.connect(pk); pk.connect(hs); hs.connect(gaapRoarGain); gaapRoarGain.connect(ac.destination);
+    gaapBijtGain = ac.createGain(); ac.createMediaElementSource(viaAc(gaapBijtSnd)).connect(gaapBijtGain); gaapBijtGain.connect(ac.destination);
   } catch (e){ gaapRoarGain = gaapBijtGain = null; }
 }
 function gaapDichtbijGenoeg(wx){ return Math.abs(wx - playerX()) < GAAP_SND.ver * W; }
@@ -11384,7 +11392,7 @@ function weerVersterker(){
   if (!ac) return null;
   try {
     stormGain = ac.createGain(); stormGain.gain.value = 0;
-    ac.createMediaElementSource(stormSnd).connect(stormGain);
+    ac.createMediaElementSource(viaAc(stormSnd)).connect(stormGain);
     stormGain.connect(ac.destination);
     // ruis voor de regen en de donder: twee seconden, in een lus
     const n = ac.sampleRate * 2, buf = ac.createBuffer(1, n, ac.sampleRate), d = buf.getChannelData(0);
