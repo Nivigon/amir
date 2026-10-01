@@ -8597,7 +8597,7 @@ function gaapRoarSpeel(wx){
 let goudapen = [];
 let gaapImg = null, gaapHangImgs = null, gaapAfzetImgs = null, gaapValImgs = null, gaapLandingImgs = null,
     gaapRunImgs = null, gaapHapImgs = null, gaapBrulImgs = null, gaapGromImgs = null, gaapDoodImgs = null, gaapSprongImgs = null,
-    gaapRotsImg = null;   // de rots waar hij aan hangt (achtergrond, zodat hij niet in de lucht hangt)
+    gaapWandImg = null, gaapWandTegel = null;   // de rotswand achterin de arena, waar de aapjes op hangen
 function gReeks(reel, n){ return bavReeks('enemies/goudaapje/' + reel + '/' + reel + '_', n); }
 function goudaapLaad(){
   if (gaapImg) return;
@@ -8614,9 +8614,9 @@ function goudaapLaad(){
   gaapGromImgs = gReeks('idle_grom', BAV_IDLE_GROM.n);
   gaapDoodImgs = gReeks('dood', BAV_DOOD.n);
   gaapSprongImgs = gReeks('sprong', BAV_SPRONG.n);
-  gaapRotsImg = new Image();
-  gaapRotsImg.onerror = () => console.warn('ontbreekt: design/boulder.png');
-  gaapRotsImg.src = 'design/boulder.png';
+  gaapWandImg = new Image();
+  gaapWandImg.onerror = () => console.warn('ontbreekt: design/grot/rots_vulling.png');
+  gaapWandImg.src = 'design/grot/rots_vulling.png';
 }
 // een aapje aan een muur hangen: side 1 rechts (kijkt naar links, f=0), -1 links (kijkt naar rechts, f=1)
 function gaapSpawn(wx, side){
@@ -8779,10 +8779,6 @@ function goudapenTeken(o){
       }
     }
     ctx.restore();
-    if (m.fase === 'hang' && gaapRotsImg && imgReady(gaapRotsImg)){   // een rots achter hem, zodat hij niet in de lucht hangt
-      const rh = 1.55 * u, rw = rh * (gaapRotsImg.naturalWidth / gaapRotsImg.naturalHeight);
-      ctx.drawImage(gaapRotsImg, sx - rw / 2 + (m.f ? -1 : 1) * 0.14 * u, voet - h * 0.5, rw, rh);
-    }
     if (!fr && st.hang && imgReady(st.hang)){
       ctx.save(); ctx.translate(sx, voet); ctx.scale(m.f ? -1 : 1, 1);
       const A = BAV_AFZET.kader, G = BAV_HANG, k = h / A.h, kh = k * G.maat;
@@ -8864,13 +8860,15 @@ function gaapSpeerTrek(){
   return true;
 }
 
-// ---- arena van goudaapjes: twee muren, Amir in het midden, oneindig meer apen ----
-// Twee stenen muren (de vaste rechter rotswand op CLIFF.wall en een linker rotswand die op de schermbreedte wordt
-// afgestemd), Amir in het midden via het bestaande arena-camerasysteem (arena, arenaCam, arenaHalf). Het begint met
-// een aap, en elke `capElke` seconden mag er een meer tegelijk (tot `capMax`); daartussen komen er steeds nieuwe uit
-// de muren als er ruimte is (`tussen` seconden), oneindig, tot Amir dood is. Een teller in beeld (kills en tijd), en
-// elke `perKill` kills een talentpunt (RUN.punten) dat je in de pauze onder Talents kunt uitgeven.
-const ARENA = { tussen: [1.4, 2.6], capMax: 6, capElke: 9, perKill: 5, eerste: 0.6, rand: 34 };
+// ---- arena van goudaapjes: een rotswand achterin, Amir in het midden, oneindig meer apen ----
+// Een rotswand als achtergrond (arenaWandTeken, `wandHoog` Amir hoog, met een grillige bovenrand), waar de aapjes
+// op verschillende hoogtes op hangen voor ze naar beneden springen, zodat ze op steen hangen en niet in de lucht.
+// Daarnaast twee stenen zijmuren (de vaste rechter rotswand op CLIFF.wall en een linker op de schermbreedte) die Amir
+// binnen de arena houden; Amir in het midden via het bestaande arena-camerasysteem (arena, arenaCam, arenaHalf). Het
+// begint met een aap, en elke `capElke` seconden mag er een meer tegelijk (tot `capMax`); daartussen komen er steeds
+// nieuwe van de wand als er ruimte is (`tussen` seconden), oneindig, tot Amir dood is. Een teller in beeld (kills en
+// tijd), en elke `perKill` kills een talentpunt (RUN.punten) dat je in de pauze onder Talents kunt uitgeven.
+const ARENA = { tussen: [1.4, 2.6], capMax: 6, capElke: 9, perKill: 5, eerste: 0.6, rand: 34, wandHoog: 3.0, wandMarge: 0.5 };
 let arenaAap = null;                                          // {c, links, rechts, t0, kills, cap, ...} of null
 function arenaMidden(){ const span = Math.min(W - 260, 1200); return (CLIFF.wall - ARENA.rand) - span / 2; }
 function arenaStart(){
@@ -8883,14 +8881,41 @@ function arenaStart(){
   arena = { c: arenaAap.c };
 }
 function arenaReset(){ arenaAap = null; }
+// de rotswand achterin de arena: een naadloos getegelde rotsvulling met een grillige bovenrand, donker gezet want hij
+// staat achter alles. De aapjes hangen hierop. Getekend na het uitzicht en voor de dieren.
+function arenaWandTeken(groundY, scale, cx){
+  const A = arenaAap;
+  if (!A || !gaapWandImg || !imgReady(gaapWandImg)) return;
+  if (!gaapWandTegel){ try { gaapWandTegel = ctx.createPattern(gaapWandImg, 'repeat'); } catch (e){ gaapWandTegel = null; } }
+  const u = CHAR_H * scale;
+  const x0 = cx + (A.links - world), x1 = cx + (A.rechts - world);
+  const top = groundY - ARENA.wandHoog * u, bot = groundY + 4;
+  ctx.save();
+  ctx.beginPath();                                            // een grillige bovenrand, geen rechte streep
+  ctx.moveTo(x0 - 2, bot); ctx.lineTo(x0 - 2, top + 0.22 * u);
+  let seed = 101; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  const step = 0.55 * u;
+  for (let x = x0 - 2; x <= x1 + 2; x += step) ctx.lineTo(x, top + rnd() * 0.34 * u);
+  ctx.lineTo(x1 + 2, top + 0.22 * u); ctx.lineTo(x1 + 2, bot); ctx.closePath();
+  ctx.clip();
+  if (gaapWandTegel){ ctx.fillStyle = gaapWandTegel; ctx.fillRect(x0 - 2, top, x1 - x0 + 4, bot - top); }
+  else { ctx.fillStyle = '#4a3a2b'; ctx.fillRect(x0 - 2, top, x1 - x0 + 4, bot - top); }
+  ctx.fillStyle = 'rgba(16,11,6,0.5)'; ctx.fillRect(x0 - 2, top, x1 - x0 + 4, bot - top);   // donker: hij staat achterin
+  const g = ctx.createLinearGradient(0, bot - 1.2 * u, 0, bot);   // naar de voet toe nog iets donkerder
+  g.addColorStop(0, 'rgba(16,11,6,0)'); g.addColorStop(1, 'rgba(10,7,4,0.45)');
+  ctx.fillStyle = g; ctx.fillRect(x0 - 2, bot - 1.2 * u, x1 - x0 + 4, 1.2 * u);
+  ctx.restore();
+}
 function arenaTick(dt){
   const A = arenaAap;
   if (!A || !running || building || paused) return;
   A.levend = 0; for (const m of goudapen) if (m.fase !== 'dood') A.levend++;
   if (bavKlok >= A.capTot && A.cap < ARENA.capMax){ A.cap++; A.capTot = bavKlok + 1000 * ARENA.capElke; }
   if (!dead && bavKlok >= A.volgende && A.levend < A.cap){
-    const side = Math.random() < 0.5 ? 1 : -1;
-    const wx = side > 0 ? A.rechts - 30 : A.links + 30;
+    // verspreid over de rotswand achterin, niet alleen bij de zijmuren
+    const marge = ARENA.wandMarge * CHAR_H * nowScale();
+    const wx = A.links + marge + Math.random() * (A.rechts - A.links - 2 * marge);
+    const side = wx > A.c ? 1 : -1;                            // kijkt naar het midden/Amir toe
     gaapSpawn(wx, side);
     A.volgende = bavKlok + 1000 * (ARENA.tussen[0] + Math.random() * (ARENA.tussen[1] - ARENA.tussen[0]));
   }
@@ -19050,6 +19075,7 @@ function loop(now){
   }
   if (camEase !== null){ camSwap = pWorld; world = camEase; }
   scene(groundY);
+  if (arenaAap) arenaWandTeken(groundY, nowScale(), W / 2);   // de rotswand achterin de arena, achter de dieren
 
   if (loaded >= total){
     const zoom = viewZoom();
