@@ -1710,8 +1710,9 @@ def gangen(lv, sp):
         if isinstance(t.get('x'), (int, float)) and door_dak(t['x'], sp.doornbos_hoog(t)):
             yield fout(t['x'], 'doornbos op %s staat in de gang en is %s hoog: hij steekt door het dak'
                        % (n0(t['x']), n0(sp.doornbos_hoog(t))))
-    # de speer: aan het begin staat hij op SPEAR_AHEAD in de grond, en in een gang staat hij beneden
-    if not lv.muur and lv.holte(sp.SPEAR_AHEAD) and not lv.in_gat(sp.SPEAR_AHEAD - 30, sp.SPEAR_AHEAD + 30):
+    # de speer: aan het begin staat hij op SPEAR_AHEAD in de grond, en in een gang staat hij beneden.
+    # Met geenSpeer staat er geen startspeer (je haalt er een uit een skelet), dus dan geldt dit niet.
+    if not lv.muur and not lv.d.get('geenSpeer') and lv.holte(sp.SPEAR_AHEAD) and not lv.in_gat(sp.SPEAR_AHEAD - 30, sp.SPEAR_AHEAD + 30):
         yield fout(sp.SPEAR_AHEAD, 'je speer staat aan het begin op %s, en daar ligt een gang: hij staat beneden op de '
                    'bodem, onder de savanne waar Amir begint. Laat de gang verderop beginnen' % n0(sp.SPEAR_AHEAD))
 
