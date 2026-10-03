@@ -1402,7 +1402,9 @@ let laadGedaan = 0;                               // plaatjes die binnen zijn si
   });
 })();
 let laadWacht = false, laadT = 0, laadLeeg = 0, laadVan = 0;
-function laadPoort(){ laadWacht = true; laadT = 0; laadLeeg = 0; laadVan = laadGedaan; }
+let warmRij = null, warmTotaal = 0;               // de wachtrij met bak-taken, of null: niets te warmen (zie warmBouw)
+const WARM_BUDGET = 8;                            // hoogstens zoveel ms per beeld warmen, zodat het laadscherm leeft
+function laadPoort(){ laadWacht = true; laadT = 0; laadLeeg = 0; laadVan = laadGedaan; warmRij = null; }
 // in de lus, met de echte tijd: true zolang het spel moet wachten
 function laadStap(echt){
   if (!laadWacht) return false;
@@ -1411,8 +1413,24 @@ function laadStap(echt){
   laadLeeg = laadOpen.size ? 0 : laadLeeg + 1;
   const inSpel = startEl.classList.contains('off') && !building;   // in het menu en de bouwer niet
   if (laadLeeg >= 2 || laadT > LAAD.max || !inSpel){
+    // Plaatjes binnen. Voor we verdergaan: vooraf bakken wat anders bij de eerste aanblik een schok
+    // geeft (de voorgrond, het ravijngras, de fosforslang, de plafondband, de baviaan; zie warmBouw).
+    // In stukjes achter het laadscherm, zodat het scherm blijft leven; pas verder als de rij leeg is.
+    // In het menu en de bouwer warmen we niet (daar is geen level om voor te bakken).
+    if (inSpel && warmRij === null){ try { warmRij = warmBouw(); } catch (e) { warmRij = []; } warmTotaal = warmRij.length; }
+    if (warmRij && warmRij.length){
+      const grens = performance.now() + WARM_BUDGET;
+      while (warmRij.length && performance.now() < grens){ const taak = warmRij.shift(); try { taak(); } catch (e) {} }
+      if (laadT > LAAD.toon){
+        el.classList.add('on');
+        const af = Math.max(0, warmTotaal - warmRij.length), pct = Math.max(0, Math.min(100, Math.round(af / Math.max(1, warmTotaal) * 100)));
+        document.getElementById('laadbalk').style.width = pct + '%';
+        document.getElementById('laadtel').textContent = 'klaarmaken, ' + Math.min(af, warmTotaal) + ' van ' + warmTotaal;
+      }
+      return true;
+    }
     if (laadOpen.size) console.warn('laadpoort: verder zonder ' + laadOpen.size + ' plaatjes');
-    laadWacht = false; el.classList.remove('on');
+    laadWacht = false; warmRij = null; el.classList.remove('on');
     return false;
   }
   if (laadT > LAAD.toon){
@@ -7872,14 +7890,26 @@ function bavKader(img){
   if (kd !== undefined) return kd;
   kd = null;
   try {
-    const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
-    const g = c.getContext('2d'); g.drawImage(img, 0, 0);
-    const a = g.getImageData(0, 0, c.width, c.height).data;
-    let l = c.width, r = -1, t = c.height, o = -1;
-    for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if (a[(y * c.width + x) * 4 + 3] > 128){
+    const bw = img.naturalWidth, bh = img.naturalHeight;
+    // Niet op volle resolutie meten. getImageData loopt over elke pixel, en op een frame van 790x592
+    // (de run, de hap, de sprong is nog groter) is dat een schok van ruim 150 ms, telkens als de
+    // baviaan een nieuw gevechtsframe laat zien. De omtrek op een verkleinde kopie (hoogstens zo'n
+    // 220 px breed) is net zo bruikbaar voor de hitbox, en scheelt een factor tien of meer. We
+    // rekenen de randen terug naar bronpixels en ronden een cel naar buiten af, zodat de hitbox
+    // nooit krapper uitvalt dan voorheen (het kader voedt alleen de treffer, niet het tekenen).
+    const f = Math.min(1, 220 / bw), cw = Math.max(1, Math.round(bw * f)), ch = Math.max(1, Math.round(bh * f));
+    const c = document.createElement('canvas'); c.width = cw; c.height = ch;
+    const g = c.getContext('2d'); g.drawImage(img, 0, 0, cw, ch);
+    const a = g.getImageData(0, 0, cw, ch).data;
+    let l = cw, r = -1, t = ch, o = -1;
+    for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) if (a[(y * cw + x) * 4 + 3] > 64){
       if (x < l) l = x; if (x > r) r = x; if (y < t) t = y; if (y > o) o = y;
     }
-    if (r >= 0) kd = { l, r, t, b: o };
+    if (r >= 0){
+      const inv = 1 / f;
+      kd = { l: Math.max(0, Math.floor((l - 1) * inv)), r: Math.min(bw, Math.ceil((r + 1) * inv)),
+             t: Math.max(0, Math.floor((t - 1) * inv)), b: Math.min(bh, Math.ceil((o + 1) * inv)) };
+    }
   } catch (e) {}
   bavKaders.set(img, kd);
   return kd;
@@ -15171,6 +15201,62 @@ function hurtPlayer(fromLeft){
   if (!onsterfelijk()){ lives--; drawLives(); }     // een level kan je onsterfelijk maken om iets te proberen
   invuln = 1.3; hurt = 0.38; shake = 0.28;
   if (lives <= 0){ dead = true; deadEl.classList.add('on'); }
+}
+// ---- warming-up: vooraf bakken tegen schokken ----------------------------
+// Veel sprites worden pas bij hun eerste aanblik gebakken (onscherp gemaakt, omgekleurd, de omtrek
+// gemeten) en dat resultaat blijft bewaard. De eerste keer is een schok midden in het spel. Deze
+// warming-up doet dat bakken vooraf, achter het laadscherm, voor alles wat dit level nodig heeft.
+// De laadpoort draait de taken in stukjes af (zie laadStap). Elke bak-functie hieronder is zuiver:
+// ze tekent naar haar eigen canvas en vult haar eigen cache, dus dit raakt de spelstaat niet. Een
+// taak die een lui geladen plaatje nog niet binnen heeft, zet zichzelf opnieuw in de rij.
+// Het ravijngras valt hier buiten: zijn kleur komt uit de al getekende achtergrond (en verschuift
+// met het licht en het weer onderweg), dus die cache is pas te vullen als het ravijn in beeld is.
+function warmBouw(){
+  const rij = [], klaar = img => img && imgReady(img);
+  if (!level) return rij;
+  // de voorgrond: elk soort begroeiing in beide lagen, op de schaduwkleur van dit level. vgImg nu
+  // vast aanroepen laat een winterversie alvast laden; de taak leest hem bij het bakken opnieuw.
+  for (const k in VG_SOORT) try { vgImg(VG_SOORT[k]); } catch (e) {}
+  const tint = vgSchaduw();
+  for (const L of VG_LAGEN){
+    const lt = tint.map(v => Math.round((1 - (1 - v) * L.schaduw) * 100) / 100);
+    for (const k in VG_SOORT){
+      const S = VG_SOORT[k];
+      rij.push(() => { const img = vgImg(S); if (klaar(img)) vgPlaatje(img, false, S.voet, lt, L.vaag); });
+    }
+  }
+  // de schaduw van Amir: de veelgebruikte frames (idle en de loop), allebei de schaduwen
+  const sKleur = winterOn() ? AMIR_SCHADUW.kleurWinter : AMIR_SCHADUW.kleur, O = AMIR_SCHADUW.omgeving;
+  const amFrames = [];
+  for (const set of [sets.ns, sets.sp]){ if (set.idle) amFrames.push(set.idle); if (set.run) for (const f of set.run) amFrames.push(f); }
+  for (const img of amFrames) rij.push(() => { if (klaar(img)){ amirSilhouet(img, sKleur, O.vaag, O.dik); amirSilhouet(img, sKleur); } });
+  // de fosforslang: alleen als er een in het level staat (hij hergebruikt de groene slang)
+  if (level.spawns && level.spawns.some(sp => sp.k === 'fosfor' || sp.kind === 'fosfor')){
+    const g = snk.groen, ff = [].concat(g.idle || [], g.move || [], g.atk || []);
+    for (const img of ff) rij.push(() => { if (klaar(img)){ fosforKopie(img, 'fosfor'); fosforKopie(img, 'steen'); fosforKopie(img, 'ogen'); } });
+  }
+  // de plafond- en grotband: de grotset laadt lui, dus eerst laden en dan bakken zodra hij binnen is
+  if (level.grotten || level.holtes || level.plafond){
+    rij.push(() => { try { grotLaad(); } catch (e) {} });
+    const bak = () => {
+      if (!klaar(grotPic('plafond_strook'))){ if ((bak.n = (bak.n || 0) + 1) < 900) rij.push(bak); return; }
+      grotBandSet();
+      if (level.plafond){ plafondBandSet(); if (klaar(grotPic('rots_vulling'))) plafondVulTegel(); }
+    };
+    rij.push(bak);
+  }
+  // de baviaan: elk gevechtsframe zijn kader (nu goedkoop, maar vooraf is de eerste schok helemaal weg)
+  const b = level.baviaan;
+  if (b && b.lvl){
+    rij.push(() => { try { baviaanLaad(); } catch (e) {} });
+    const bak = () => {
+      const reeksen = [bavRunImgs, bavHapImgs, bavSprongImgs, bavGromImgs, bavBrulImgs, bavDoodImgs];
+      if (reeksen.some(a => !a)){ if ((bak.n = (bak.n || 0) + 1) < 900) rij.push(bak); return; }
+      for (const a of reeksen) for (const img of a) if (klaar(img)) bavKader(img);
+    };
+    rij.push(bak);
+  }
+  return rij;
 }
 function restart(){
   laadPoort();                                      // pas verder als alles binnen is (zie laadpoort)
