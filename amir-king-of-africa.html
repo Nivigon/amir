@@ -1381,7 +1381,17 @@ let laadGedaan = 0;                               // plaatjes die binnen zijn si
   if (!d || !d.set) return;
   // Pas na de andere handlers kijken: bij een fout zet onerror vaak meteen het volgende pad, en dan
   // is dat plaatje nog niet klaar.
-  function klaar(){ const img = this; setTimeout(() => { if (img.complete && laadOpen.delete(img)) laadGedaan++; }, 0); }
+  // Binnen is niet hetzelfde als klaar om te tekenen: het plaatje is dan wel gedownload, maar de
+  // browser pakt het pas uit (decodeert het) bij de eerste keer tekenen, en voor een grote plaat
+  // (de begroeiing is er een van megabytes) is dat een schok midden in het spel. Daarom pakken we
+  // het hier al uit, achter het laadscherm, en laten de poort daar op wachten (decode loopt op een
+  // eigen draad, dus het laadscherm blijft soepel). Mislukt het uitpakken, dan tellen we het toch
+  // als binnen, zodat de poort nooit blijft hangen.
+  function klaar(){ const img = this; setTimeout(() => {
+    if (!img.complete || !laadOpen.has(img)) return;
+    const af = () => { if (laadOpen.delete(img)) laadGedaan++; };
+    if (typeof img.decode === 'function') img.decode().then(af, af); else af();
+  }, 0); }
   Object.defineProperty(HTMLImageElement.prototype, 'src', {
     configurable: true, enumerable: d.enumerable, get: d.get,
     set(v){
