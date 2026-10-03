@@ -11734,6 +11734,13 @@ function weerDoel(){
 // de deeltjes, in schermruimte maar in de wereld gehangen (zoals de sneeuwvlokken): beweegt
 // de camera, dan schuiven ze de andere kant op, dichtbij volledig, ver weg voor een deel
 const weerDruppels = [], weerSpat = [], weerKorrels = [], weerSlierten = [];
+// de druppels en korrels worden per diepte in bundels getekend: één stroke en één kleur-tekst
+// per bundel in plaats van per deeltje. Dat scheelt honderden teken-opdrachten en evenzoveel
+// korte kleur-teksten per beeld (het opruimen daarvan gaf de schokken). De bundels worden een
+// keer gemaakt en elk beeld hergebruikt.
+const WEER_BZ = 8;
+const regenBuckets = Array.from({ length: WEER_BZ }, () => []);
+const zandBuckets = Array.from({ length: WEER_BZ }, () => []);
 let weerCamPrev = null, weerCamYPrev = 0, weerFlits = 0, weerFlitsT = 0, weerSchicht = null;
 function weerReset(){
   weerNu = null; weerCamPrev = null; weerFlits = 0; weerFlitsT = 0; weerSchicht = null;
@@ -11930,13 +11937,27 @@ function drawWeer(grensY, onder){
     ctx.globalCompositeOperation = 'source-over';
     const schuin = WEER.regen.schuin + (gust ? gust.dir * gust.amp : 0) * 0.35;
     ctx.lineCap = 'round';
+    for (const bk of regenBuckets) bk.length = 0;
     for (const p of weerDruppels){
       const weg = p.y > grensY ? onder : 0;
       if (weg >= 1) continue;
-      const len = 8 + 30 * p.z;
-      ctx.strokeStyle = `rgba(222,230,242,${(0.16 + 0.34 * p.z * p.z) * (1 - weg)})`;
-      ctx.lineWidth = 0.5 + p.z * p.z;
-      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - schuin * len, p.y - len); ctx.stroke();
+      if (weg > 0){                                   // onder de grond (in een gang): apart, want gedimd
+        const len = 8 + 30 * p.z;
+        ctx.strokeStyle = `rgba(222,230,242,${(0.16 + 0.34 * p.z * p.z) * (1 - weg)})`;
+        ctx.lineWidth = 0.5 + p.z * p.z;
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - schuin * len, p.y - len); ctx.stroke();
+        continue;
+      }
+      regenBuckets[Math.min(WEER_BZ - 1, p.z * WEER_BZ | 0)].push(p);
+    }
+    for (let bi = 0; bi < WEER_BZ; bi++){             // per diepte-bundel één stroke
+      const bk = regenBuckets[bi]; if (!bk.length) continue;
+      const z = (bi + 0.5) / WEER_BZ, len = 8 + 30 * z;
+      ctx.strokeStyle = `rgba(222,230,242,${0.16 + 0.34 * z * z})`;
+      ctx.lineWidth = 0.5 + z * z;
+      ctx.beginPath();
+      for (const p of bk){ ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - schuin * len, p.y - len); }
+      ctx.stroke();
     }
     ctx.lineWidth = 1;
     for (const s of weerSpat){
@@ -11967,13 +11988,27 @@ function drawWeer(grensY, onder){
   if (stormK > 0.01){
     const zand = N.zand >= N.jacht, S = zand ? WEER.zand : WEER.jacht, kl = S.kleur.join(',');
     ctx.lineCap = 'round';
+    for (const bk of zandBuckets) bk.length = 0;
     for (const p of weerKorrels){
       const weg = p.y > grensY ? onder : 0;
       if (weg >= 1) continue;
-      const len = zand ? 3 + 16 * p.z * p.z : 1 + 9 * p.z * p.z;
-      ctx.strokeStyle = `rgba(${kl},${((zand ? 0.22 : 0.35) + (zand ? 0.4 : 0.5) * p.z) * (1 - weg)})`;
-      ctx.lineWidth = zand ? 0.5 + 0.9 * p.z : 1 + 2.4 * p.z;
-      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - WEER.storm.dir * len, p.y - len * 0.12); ctx.stroke();
+      if (weg > 0){                                   // onder de grond: apart, want gedimd
+        const len = zand ? 3 + 16 * p.z * p.z : 1 + 9 * p.z * p.z;
+        ctx.strokeStyle = `rgba(${kl},${((zand ? 0.22 : 0.35) + (zand ? 0.4 : 0.5) * p.z) * (1 - weg)})`;
+        ctx.lineWidth = zand ? 0.5 + 0.9 * p.z : 1 + 2.4 * p.z;
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - WEER.storm.dir * len, p.y - len * 0.12); ctx.stroke();
+        continue;
+      }
+      zandBuckets[Math.min(WEER_BZ - 1, p.z * WEER_BZ | 0)].push(p);
+    }
+    for (let bi = 0; bi < WEER_BZ; bi++){             // per diepte-bundel één stroke
+      const bk = zandBuckets[bi]; if (!bk.length) continue;
+      const z = (bi + 0.5) / WEER_BZ, len = zand ? 3 + 16 * z * z : 1 + 9 * z * z;
+      ctx.strokeStyle = `rgba(${kl},${(zand ? 0.22 : 0.35) + (zand ? 0.4 : 0.5) * z})`;
+      ctx.lineWidth = zand ? 0.5 + 0.9 * z : 1 + 2.4 * z;
+      ctx.beginPath();
+      for (const p of bk){ ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - WEER.storm.dir * len, p.y - len * 0.12); }
+      ctx.stroke();
     }
     // slierten: het plaatje van de windvlaag, in een sneeuwstorm wit gemaakt (stuifsneeuw)
     const img = zand ? dustWisp : weerSneeuwSliert();
