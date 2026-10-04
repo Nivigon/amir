@@ -789,6 +789,12 @@
         <button id="sbgaapweg">Alle apen weg</button>
         <span class="hint">een klein gouden aapje (honinggoud, blauw gezicht): het springt van de zijkant naar beneden, rent op je af en hapt. Een klap is dood</span>
       </div>
+      <div class="row">
+        <label>Proefmob</label>
+        <button id="sbproefmob">Platformvijand</button>
+        <button id="sbproefmobweg">Weg</button>
+        <span class="hint">proof of concept: een vijand met zwaartekracht die op de hoogste laag uit de platformlijst landt (ook boven op een grotcel of terras) en daar heen en weer loopt. Zet er een grot of terras bij en spawn hem erboven. Een klap is dood</span>
+      </div>
     </div>
     <div class="sbcat" data-cat="speer">
       <div class="row">
@@ -9265,6 +9271,95 @@ function gaapSpeerTrek(){
   return true;
 }
 
+// ---- platformvijand: een proefmob met zwaartekracht (sandbox, proof of concept) ----
+// Een vijand die NIET aan terrainH vastgeplakt zit, maar valt met de zwaartekracht en landt op de
+// hoogste vloer uit de gedeelde platformlijst (platsNear): dus ook boven op een grotcel, een terras,
+// een zuil of een zwevende laag, net als Amir zelf. Hij patrouilleert op die laag en draait om aan
+// de rand of voor een wand, zodat je hem op een hogere laag kunt neerzetten. Dit is het proof of
+// concept voor "vijanden op meerdere lagen": nog een los testding met een eenvoudige placeholder-
+// tekening (geen echte sprite), alleen in de sandbox, zodat geen echte episode hem raakt. Werkt het
+// prettig, dan gaat dit gedrag (zwaartekracht + vloer uit de platformlijst) over naar de echte
+// vijanden. Zie CLAUDE.md.
+const PROEFMOB = {
+  s: 0.7,            // hoogte in Amir
+  halfW: 0.26,       // halve breedte in Amir, voor de vloer- en wandcheck
+  v: 150,            // looptempo in wereld-px/s
+  stap: 60,          // een afstapje dat hij nog aflopt zonder het een rand te noemen (sprite-eenheden)
+};
+let proefmobs = [];
+// De hoogste vloer op x die op of net onder fromH ligt: de laag waar hij op staat of naartoe valt.
+// Bewust NIET terrainH, want die geeft de HOOGSTE laag van alles en zou hem door een bovenliggende
+// cel omhoog trekken; hier kijken we juist naar wat onder zijn voeten zit, zodat meerdere lagen op
+// dezelfde x werken.
+function proefVloer(x, fromH, plats){
+  let best = -Infinity;
+  const g = grondVloer(x, fromH);                 // savanne (0), bodem van een gang, of null boven een ravijn
+  if (g != null && g <= fromH + 1) best = g;
+  for (const p of plats){
+    if (x <= p.left || x >= p.right) continue;
+    if (p.topH <= fromH + 1 && p.topH > best) best = p.topH;
+  }
+  return best;                                     // -Infinity: niets eronder, hij valt in een gat
+}
+function proefmobSpawn(x, f){
+  const scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H;
+  const top = proefVloer(x, 4000, platsNear(scale, Infinity));   // begin boven alles, dan valt hij op de bovenste vloer
+  proefmobs.push({ x, h: (top > -Infinity ? top : 0) + 400, vy: 0, dir: f ? -1 : 1, f: !!f, dood: false, doodT: 0 });
+}
+function updateProefmobs(dt, plats, scale){
+  if (!running || dead || building || !proefmobs.length) return;
+  const hw = PROEFMOB.halfW * CHAR_H;
+  const left = endWall(), wall = cliffAt().wall;
+  for (const m of proefmobs){
+    if (m.dood){ m.doodT += dt; continue; }
+    const floor = proefVloer(m.x, m.h, plats);    // de laag onder zijn voeten
+    m.vy += GRAVITY * dt;
+    m.h -= m.vy * dt;
+    const grounded = floor > -Infinity && m.h <= floor;
+    if (grounded){ m.h = floor; m.vy = 0; }
+    if (m.h < -GAP_DEATH){ m.dood = true; continue; }   // in een gat gevallen
+    if (!grounded) continue;                             // in de lucht loopt hij niet
+    // lopen en omdraaien aan de rand van de laag of voor een wand
+    const voor = m.x + m.dir * (hw + 6);
+    const ahead = proefVloer(voor, m.h + PROEFMOB.stap, plats);
+    const rand = ahead <= -Infinity || ahead < m.h - PROEFMOB.stap;   // niets, of een diepe afstap
+    const muur = ahead > m.h + PROEFMOB.stap;                          // een wand omhoog
+    const nx = m.x + m.dir * PROEFMOB.v * dt;
+    if (rand || muur || nx - hw < left || nx + hw > wall){ m.dir = -m.dir; m.f = m.dir < 0; }
+    else m.x = nx;
+  }
+  proefmobs = proefmobs.filter(m => !(m.dood && m.doodT > 0.5));
+}
+function proefmobsTeken(o){
+  if (!proefmobs.length) return;
+  const { cx, groundY, scale, pbox, pcx, y, swbox, attacking, hitBy } = o;
+  const u = CHAR_H * scale, hh = PROEFMOB.s * u, hw = PROEFMOB.halfW * u * 1.1;
+  for (const m of proefmobs){
+    const sx = cx + (m.x - world), gy = groundY - m.h * scale, top = gy - hh;
+    const box = { l: sx - hw, r: sx + hw, t: top, b: gy };
+    // placeholder-tekening: een paars lijfje met een oog, duidelijk een testding
+    ctx.save();
+    ctx.globalAlpha = m.dood ? Math.max(0, 1 - m.doodT / 0.5) : 1;
+    ctx.fillStyle = '#7a4bc4'; ctx.strokeStyle = '#2a1150'; ctx.lineWidth = Math.max(2, 3 * scale);
+    ctx.beginPath(); ctx.ellipse(sx, gy - hh / 2, hw, hh / 2, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(sx + m.dir * hw * 0.45, gy - hh * 0.62, Math.max(2, 4 * scale), 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    if (showBoxes){ ctx.save(); ctx.globalAlpha = 0.5; ctx.strokeStyle = '#c08bff'; ctx.lineWidth = 2; ctx.strokeRect(box.l, box.t, box.r - box.l, box.b - box.t); ctx.restore(); }
+    if (m.dood) continue;
+    // de proefmob doet Amir pijn bij lijfcontact
+    if (!dead && invuln <= 0 && !godMode && !woedeAan() && hitBy(box, pbox)) hurtPlayer(m.x < playerX());
+    // Amir raakt de proefmob: de stoot of de lage zwaai is dood
+    let dood = false;
+    if (attacking && !swingUsed && steekLive()){
+      const dxv = steekDX() * scale, tipX = pcx + (facing === 1 ? -dxv : dxv), tipY = y + steekY() * scale, re = steekR() * scale;
+      if (tipX + re > box.l && tipX - re < box.r && tipY + re > box.t && tipY - re < box.b){ swingUsed = true; dood = true; }
+    }
+    if (!dood && m.sweptId !== sweepId && hitBy(zwaaiVak(swbox, 'goudaap'), box)){ m.sweptId = sweepId; dood = true; }
+    if (dood){ m.dood = true; m.doodT = 0; vijandDood(false); }
+  }
+}
+
 // ---- arena van goudaapjes: aan de twee zijwanden hangen apen, Amir in het midden, oneindig meer apen ----
 // De aapjes hangen aan de grijze linker en rechter rotswand (de zijkliffen), niet in het midden: `perKant` per kant
 // (aan het begin 3 links en 3 rechts), op verschillende hoogtes en met een beetje spreiding naar links en rechts
@@ -15267,6 +15362,7 @@ function restart(){
   if (level && level.tekens) for (const t of level.tekens) t.gesneden = false;   // de kalebassen hangen weer
   hits = 0; hitsEl.textContent = 0;
   goudapen = [];                                     // de goudaapjes weg bij een nieuw begin
+  proefmobs = [];                                    // en de proefmobs
   arenaReset();                                      // de arena-spawner weer op nul
   atkFrame = -1; atkAcc = 0; atkCooldown = 0; swFrame = -1; swAcc = 0; sweepBuf = 0; duckT = 0; swRecover = 0; sand.length = 0; sweepVol();
   thr = null; jav = null; javLost = 0; javOver = null; spearH = null; lastSolid = 0; glij = 0;
@@ -19617,6 +19713,7 @@ function loop(now){
   updateFosforSlangen(dt, platsV, cliff);
   arenaTick(dt);
   updateGoudapen(dt);
+  updateProefmobs(dt, platsV, scaleNow);
   if (!building) updateVenom(dt, scaleNow); else { venom.length = 0; splat.length = 0; }
   if (!building) updateWind(dt); else { wind.length = 0; gust = null; }
   if (!building) schildStofUpdate(dt, scaleNow); else schildStof.length = 0;
@@ -20900,6 +20997,9 @@ function loop(now){
 
     // ---- de goudaapjes ----------------------------------------------------
     goudapenTeken({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, attacking, hitBy });
+
+    // ---- de proefmob (platformvijand met zwaartekracht) --------------------
+    proefmobsTeken({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, attacking, hitBy });
 
     // ---- de fosforslang ----------------------------------------------------
     drawFosforSlangen({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, attacking, hitBy });
@@ -23325,6 +23425,13 @@ document.getElementById('sbgaap').onclick = () => {
 };
 document.getElementById('sbgaaparena').onclick = () => { if (arenaAap){ arenaReset(); goudapen = []; } else arenaStart(); cv.focus(); };
 document.getElementById('sbgaapweg').onclick = () => { goudapen = []; arenaReset(); cv.focus(); };
+document.getElementById('sbproefmob').onclick = () => {
+  const side = sbFromRight ? 1 : -1;
+  let x = world + side * W * 0.42;
+  x = Math.min(x, cliffAt().wall - 220); x = Math.max(x, endWall() + 220);
+  proefmobSpawn(x, sbFromRight); cv.focus();
+};
+document.getElementById('sbproefmobweg').onclick = () => { proefmobs = []; cv.focus(); };
 sandboxEl.querySelectorAll('button[data-bav]').forEach(bt => {
   const [k, r] = bt.dataset.bav.split(':');
   let klok = null, tel = 0;
@@ -23883,7 +23990,7 @@ sbPatBtn.onclick = () => {
 const sbGodBtn = document.getElementById('sbgod');
 function setGodLabel(){ sbGodBtn.textContent = godMode ? 'Onsterfelijk aan' : 'Onsterfelijk uit'; sbGodBtn.classList.toggle('on', godMode); }
 sbGodBtn.onclick = () => { godMode = !godMode; setGodLabel(); cv.focus(); };
-document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; hppotions.length = 0; hppotionFx.length = 0; level.rocks.length = 0; if (level.gaps) level.gaps.length = 0; if (level.grotten) level.grotten.length = 0; if (level.plafond) level.plafond.length = 0; if (level.terraces) level.terraces.length = 0; if (level.skeletten) level.skeletten.length = 0; if (level.tekens) level.tekens.length = 0; level.baviaan = null; sbBavInfo(); sbSpeervalWeg(); if (level.runes) level.runes.length = 0; ravijnReset(); losseSperen.length = 0; arena = null; thr = null; jav = null; javLost = 0; cv.focus(); };
+document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; hppotions.length = 0; hppotionFx.length = 0; level.rocks.length = 0; if (level.gaps) level.gaps.length = 0; if (level.grotten) level.grotten.length = 0; if (level.plafond) level.plafond.length = 0; if (level.terraces) level.terraces.length = 0; if (level.skeletten) level.skeletten.length = 0; if (level.tekens) level.tekens.length = 0; proefmobs = []; level.baviaan = null; sbBavInfo(); sbSpeervalWeg(); if (level.runes) level.runes.length = 0; ravijnReset(); losseSperen.length = 0; arena = null; thr = null; jav = null; javLost = 0; cv.focus(); };
 document.getElementById('sbback').onclick = stopSandbox;
 document.getElementById('btnsandbox').onclick = startSandbox;
 document.getElementById('btnstop').onclick = () => { building = false; buildEl.classList.remove('on'); };
