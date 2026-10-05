@@ -24222,12 +24222,25 @@ cv.addEventListener('pointermove', e => {
     press.dragging = true; clearTimeout(press.timer); bcount.textContent = 'verplaatsen...';
   }
   if (press.dragging){
-    press.obj.x = pointerWorldX(e) + press.off;       // de tekening volgt meteen
-    if (press.kind === 'thicket') rebuildThickets();  // die komt uit de wereldlijst
-    if ((press.kind === 'prop' && press.obj.far) || press.kind === 'npc'){   // ook omhoog en omlaag
-      let ny = Math.max(-60, Math.min(H, pointerLift(e) + press.offY));
-      if (press.kind === 'npc' && Math.abs(ny) < 18) ny = 0;               // klikt vast op de grond
-      press.obj.y = ny;
+    if (press.slab){
+      // een laag (terras of zwever): het hele blok schuift mee, l en r samen op x, de hoogte op y
+      const nwx = pointerWorldX(e), nlift = pointerLift(e), o = press.obj;
+      o.l = Math.round((nwx + press.offL) / 10) * 10;
+      o.r = Math.round((nwx + press.offR) / 10) * 10;
+      o.h = Math.round(Math.max(press.kind === 'zweef' ? 80 : 20, nlift + press.offH) / 10) * 10;
+      if (press.kind === 'zweef') o.onder = Math.round(Math.max(20, nlift + press.offOnder) / 10) * 10;
+    } else {
+      press.obj.x = pointerWorldX(e) + press.off;       // de tekening volgt meteen
+      if (press.kind === 'thicket') rebuildThickets();  // die komt uit de wereldlijst
+      if ((press.kind === 'prop' && press.obj.far) || press.kind === 'npc'){   // ook omhoog en omlaag
+        let ny = Math.max(-60, Math.min(H, pointerLift(e) + press.offY));
+        if (press.kind === 'npc' && Math.abs(ny) < 18) ny = 0;               // klikt vast op de grond
+        press.obj.y = ny;
+      } else if (press.kind === 'richel'){                                    // een richel ook op de hoogte
+        press.obj.h = Math.round(Math.max(0, pointerLift(e) + press.offH) / 10) * 10;
+      } else if (press.kind === 'kalebas'){                                   // een kalebas vrij op y
+        press.obj.y = Math.round(pointerLift(e) + press.offY);
+      }
     }
   }
 });
@@ -24245,7 +24258,11 @@ function endPress(e, cancel){
     return;
   }
   const why = placeProblem(p.kind, p.obj, p.scale);
-  if (why){ p.obj.x = p.origX; if (p.obj.far || p.kind === 'npc') p.obj.y = p.origY; syncLevel(); bcount.textContent = why + ', teruggezet'; return; }
+  if (why){
+    if (p.slab){ p.obj.l = p.oL; p.obj.r = p.oR; p.obj.h = p.oH; if (p.kind === 'zweef') p.obj.onder = p.oOnder; }
+    else { p.obj.x = p.origX; if (p.obj.far || p.kind === 'npc' || p.kind === 'kalebas') p.obj.y = p.origY; if (p.kind === 'richel') p.obj.h = p.oH; }
+    syncLevel(); bcount.textContent = why + ', teruggezet'; return;
+  }
   syncLevel();
   bouwKies(p);                                       // wat je net versleept hebt, is gekozen
 }
@@ -24759,9 +24776,13 @@ cv.addEventListener('pointerdown', e => {
   if (!hit && gekozen){ bouwKies(null); return; }    // naast iets klikken: eerst de keuze los
   if (hit && hit.kind === 'holte'){ bouwKies(hit); return; }   // een gang versleep je niet: verander hem in het venster
   if (hit){
+    const slab = hit.kind === 'terras' || hit.kind === 'zweef';   // een laag: als heel blok slepen (l en r samen), met de hoogte op y
     press = { list: hit.list, kind: hit.kind, obj: hit.obj, origX: hit.obj.x, off: hit.obj.x - wx,
               origY: hit.obj.y || 0, offY: (hit.obj.y || 0) - lift, downY: e.clientY,
-              downX: e.clientX, dragging: false, id: e.pointerId, scale };
+              downX: e.clientX, dragging: false, id: e.pointerId, scale,
+              slab, offL: hit.obj.l - wx, offR: hit.obj.r - wx,
+              offH: (hit.obj.h || 0) - lift, offOnder: (hit.obj.onder || 0) - lift,
+              oL: hit.obj.l, oR: hit.obj.r, oH: hit.obj.h, oOnder: hit.obj.onder };
     press.timer = setTimeout(() => { if (press){ press.dragging = true; bcount.textContent = 'verplaatsen...'; } }, 280);
     try { cv.setPointerCapture(e.pointerId); } catch (err) {}
     return;
