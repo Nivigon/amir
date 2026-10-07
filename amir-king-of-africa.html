@@ -741,7 +741,8 @@
       <div class="row">
         <label>Slangen</label>
         <button id="sbpat">Op patrouille</button>
-        <span class="hint">alsof ze je kwijt zijn: omdraaien en heen en weer, tot je hem weer uitzet</span>
+        <button id="sbklim">Klimt terrassen</button>
+        <span class="hint">op patrouille: alsof ze je kwijt zijn. Klimt: nieuwe slangen en fosforslangen stappen terrassen op en af (zet er een Terras bij)</span>
       </div>
       <div class="row">
         <label>Panter</label>
@@ -3122,12 +3123,12 @@ const HON_3 = {
   // de treden omhoog uit de gang (genest tegen de linkerrand, zoals Test 4: je klimt naar links en komt links boven)
   terraces: [ {r: -4700, l: -5600, h: -550}, {r: -4900, l: -5600, h: -400},
               {r: -5100, l: -5600, h: -250}, {r: -5300, l: -5600, h: -100} ],
-  rijzers: [ {id: 'a', r: -7000, l: -7420, tot: 2100, van: -100, v: 300, duur: 16} ],
+  rijzers: [ {id: 'a', r: -7000, l: -7420, tot: 2100, van: -100, v: 300, duur: 15} ],   // staat 15 s boven en zakt dan terug
   zegels: [ {x: -6800, rijs: 'a'} ],
   spawns: [ // op de begane grond (de middelste), waar je start
             {x: -900, k: 'zwart'}, {x: -1400, k: 'scorp'},
             // beneden in de gang (de lage weg), die je naar links afwerkt
-            {x: -2600, k: 'scorp'}, {x: -3600, k: 'zwaard', c: 'rood'}, {x: -4900, k: 'fosfor'},
+            {x: -2600, k: 'scorp'}, {x: -3600, k: 'zwaard', c: 'rood'}, {x: -4900, k: 'fosfor', klim: true},
             // op de hoge laag (boven: true), die je naar rechts afwerkt
             {x: -4500, k: 'zwaard', c: 'rood', boven: true}, {x: -2800, k: 'zwart', boven: true},
             {x: -1400, k: 'scorp', boven: true}, {x: -100, k: 'groen', boven: true} ],
@@ -15916,16 +15917,38 @@ function triggerDist(kind){ return W * (TRIGGER[kind] || 1.10); }
 // een monster verschijnt nooit midden in beeld: stond zijn plek al in beeld
 // (omdat hij moest wachten), dan komt hij net buiten de rand binnen
 // monsters op een terras: 'base' is de hoogte waar ze op staan (0 = gewone grond)
-function blocksMonster(p, base){
+// Een vijand met `klim` (opt-in, zie "plateau-traversal" hieronder) stapt een terras op en af. Een
+// terras dat niet hoger dan KLIM_STAP boven hem uitsteekt is voor hem geen muur, en een trede naar
+// beneden van hoogstens KLIM_STAP geen rand. Keien (die hebben geen `terrace`), zuilen, een zwevende
+// laag en ravijnen blijven dat wel: regel 7 geldt onverkort. KLIM_STAP ligt net boven een terrastrede
+// (150); KLIM_V is hoe snel zijn hoogte de trede volgt (px/s), zodat hij de stap op loopt in plaats van
+// erheen te springen. `klim` is undefined voor elke bestaande aanroeper, dus die verandert niets.
+const KLIM_STAP = 170, KLIM_V = 420;
+function blocksMonster(p, base, klim){
   if (p.thin) return false;
   // een zwevende savannelaag is geen muur over zijn hele hoogte: een vijand op de grond loopt
   // eronderdoor. Alleen wie met zijn lijf tot aan het blok reikt wordt tegengehouden.
   if (p.zweef){ const fb = p.floatBot != null ? p.floatBot : p.topH; return base < p.topH && base + CHAR_H > fb; }
+  if (klim && p.terrace && p.topH > base + 1) return p.topH - base > KLIM_STAP;   // een trede: alleen een te hoge blijft een muur
   return p.topH > base + 1;   // alleen wat boven hem uitsteekt
 }
 // Hier houdt zijn vloer op: de rand van zijn terras, of voor wie beneden in een gang staat de
-// eindwand van die gang (daarbuiten is het massief grondpakket, daar loopt niemand doorheen).
-function dropAhead(x, base){ return (base < -1 && !holteAt(x)) || vloerBij(x, base) < base - 1; }
+// eindwand van die gang (daarbuiten is het massief grondpakket, daar loopt niemand doorheen). Een
+// klimmer loopt een kleine trede naar beneden wel af; een ravijn (gatOp) blijft los hiervan een rand.
+function dropAhead(x, base, klim){
+  if (base < -1 && !holteAt(x)) return true;                   // de eindwand van een gang: altijd
+  const vf = vloerBij(x, base);
+  if (vf < base - 1) return klim ? base - vf > KLIM_STAP : true;
+  return false;
+}
+// Laat de hoogte van een klimmende vijand naar de trede onder hem toe lopen (op en af); een vijand
+// zonder klim staat gewoon op zijn vloer, net als voorheen.
+function klimBase(s, dt){
+  const doel = vloerBij(s.x, s.base || 0);
+  if (!s.klim){ s.base = doel; return; }
+  const st = KLIM_V * dt;
+  s.base = s.base < doel ? Math.min(doel, s.base + st) : Math.max(doel, s.base - st);
+}
 function spawnOK(x, base){ return !gatOp(x, base) && vloerBij(x, base) === base; }
 function spawnPoint(x){
   const minD = W / 2 / viewZoom() + 260;
@@ -15985,13 +16008,13 @@ function updateSnakes(dt, plats, halfWNow, cliff){
       }
       if (sp.kind === 'fosfor'){                   // altijd een groep van drie
         const lx = spawnPoint(sp.x);
-        fosforGroep(lx, lx > world ? 1 : -1); continue;
+        fosforGroep(lx, lx > world ? 1 : -1, undefined, !!sp.klim); continue;
       }
       const x = (sp.boven || sp.y != null) ? sp.x : spawnPoint(sp.x);
       const vl = sp.boven ? bovenVloer(x) : terrainH(x);
       if (sp.kind === 'scorp'){ const k = makeScorp(x, x > world ? 1 : -1); k.base = vl; scorps.push(k); continue; }
       const s = makeSnake(sp.kind);
-      s.x = x; s.side = x > world ? 1 : -1;
+      s.x = x; s.side = x > world ? 1 : -1; s.klim = !!sp.klim;   // opt-in: terrassen op en af (zie "plateau-traversal")
       if (sp.y != null){                            // een vaste hoogte: op een laag gezet, of uit de lucht laten vallen
         s.base = sp.y; s.vy = 0; s.ymode = true;
         const f = proefVloer(x, s.base, plats);
@@ -16063,8 +16086,8 @@ function slangSchuif(s, dt, plats, cliff, tempo){
   s.x -= s.side * snakeSpeed() * tempo * dt;
   if (cliff && s.x > cliff.wall - 60) s.x = Math.min(s.x, cliff.wall - 60);
   if (s.x < endWall() + 60) s.x = endWall() + 60;
-  for (const p of plats){                      // a rock stops it
-    if (!blocksMonster(p, s.base || 0)) continue;
+  for (const p of plats){                      // a rock stops it (een terras niet, als hij kan klimmen)
+    if (!blocksMonster(p, s.base || 0, s.klim)) continue;
     const half = 60 * (p.wPx / 400);
     if (s.x + half > p.left && s.x - half < p.right){
       s.x = s.side === 1 ? p.right + half : p.left - half;
@@ -16077,9 +16100,10 @@ function slangSchuif(s, dt, plats, cliff, tempo){
   if (pit){
     s.x = s.side === 1 ? pit.x + pit.w / 2 + halfL : pit.x - pit.w / 2 - halfL;
     edge = true;
-  } else if (dropAhead(s.x - s.side * halfL, s.base || 0)){   // de rand van zijn terras
+  } else if (dropAhead(s.x - s.side * halfL, s.base || 0, s.klim)){   // de rand van zijn terras (een klimmer stapt af)
     s.x = voor; edge = true;
   }
+  if (s.klim) klimBase(s, dt);                  // zijn hoogte loopt de trede op of af
   return { edge, vast: Math.abs(s.x - voor) < snakeSpeed() * tempo * dt * 0.4 };
 }
 
@@ -17720,6 +17744,12 @@ function zwScale(){
   return (CHAR_H * scale * ZW_H_SHARE) / ZW.fig;
 }
 function zwReik(){ return ZW_ZWAARD.to * zwScale(); }          // hoe ver zijn zwaard komt, in wereld-px
+// Hij haalt niet uit naar een Amir die op een duidelijk ander niveau staat (een terras hoger of lager,
+// de hoge laag, de gang): daar kan hij met zijn zwaard niet bij, en anders zwaaide hij in de lucht
+// terwijl je hem van bovenaf alleen hoorde. De vloer onder Amir vergelijken met zijn eigen vloer, niet
+// Amirs hoogte zelf, zodat een sprong vanaf zijn eigen niveau hem niet uitschakelt.
+const ZW_HOOGTE = 90;
+function zwZelfdeHoogte(s){ return Math.abs(vloerBij(playerX(), ph) - (s.base || 0)) <= ZW_HOOGTE; }
 // Hij wordt niet wakker van iets wat hij niet kan zien. Zonder deze klem staat hij
 // op een smal scherm al te dreigen terwijl hij nog buiten beeld is, en komt hij
 // even later aanstormen uit het niets.
@@ -17848,6 +17878,7 @@ function updateZwaard(s, dt, plats, cliff){
     zwAnim(s, dt);
     if (gap > ZW_VERGEET || dead){ zwSet(s, 'idle'); return; }
     if (s.t < ZW_DREIG_T) return;
+    if (!zwZelfdeHoogte(s)) return;                 // Amir staat op een ander niveau: dreigen, maar niet uithalen
     if (gap <= zwReik() * ZW_SLAG_DEEL) zwSet(s, 'slag');
     else if (zwInDeWeg(s, s.x + naarJe * ZW_RUIMTE * zwScale())) s.t = ZW_DREIG_T - 0.3;   // wachten op zijn beurt
     else zwSet(s, 'rennen');
@@ -17857,6 +17888,7 @@ function updateZwaard(s, dt, plats, cliff){
   if (s.state === 'rennen'){
     zwAnim(s, dt);
     if (gap > ZW_VERGEET || dead){ zwSet(s, 'idle'); return; }
+    if (!zwZelfdeHoogte(s)){ zwSet(s, 'dreigen'); return; }   // Amir ging naar een ander niveau: hij kan er niet bij
     if (gap <= zwReik() * ZW_SLAG_DEEL){ zwSet(s, 'slag'); return; }
     const stap = naarJe * ZW_RUN_SPD * dt;
     if (zwInDeWeg(s, s.x + stap)){ zwSet(s, 'dreigen'); return; }   // zijn maat vecht eerst
@@ -18041,7 +18073,7 @@ function amirStil(){
 }
 function makeFosfor(x, side){
   return { x, side, base: 0, state: 'rond', frame: 0, acc: 0, t: 0, groep: null, fase: 0, v: 0, stop: 0,
-           hp: FOSFOR.hp, flash: 0, inv: 0, alpha: 1, vx: 0,
+           hp: FOSFOR.hp, flash: 0, inv: 0, alpha: 1, vx: 0, klim: false,
            zag: true, naBeet: false, geraakt: false, biteUsed: false, sweptId: -1,
            steenImg: null, hissed: false, schud: 0 };
 }
@@ -18051,11 +18083,12 @@ function makeFosfor(x, side){
 // Een groep van drie rond plek x. Ze beginnen te kronkelen, elk in een andere fase, en
 // wachten tot je langskomt.
 const fosforGroepen = [];
-function fosforGroep(x, side, base){
+function fosforGroep(x, side, base, klim){
   const g = { c: x, fase: 'rond', t: 0, zag: true, leden: [] };
   for (let i = 0; i < FOSFOR.groep; i++){
     const s = makeFosfor(x, side);
     s.groep = g; s.fase = (i / FOSFOR.groep) * Math.PI * 2 + Math.random() * 0.6;
+    s.klim = !!klim;                              // opt-in: deze groep stapt terrassen op en af
     s.x = x + Math.sin(s.fase) * SNK_W * fosforScale() * FOSFOR.rondBreed;
     s.base = base === undefined ? terrainH(s.x) : base; s.state = 'rond';
     g.leden.push(s); fosforSlangen.push(s);
@@ -21863,6 +21896,7 @@ function syncLevel(){
               : s.kind === 'panter' && s.over ? { x: Math.round(s.x), k: s.kind, over: true }
               : { x: Math.round(s.x), k: s.kind };
       if (s.boven) o.boven = true;              // op een zwevende savannelaag (Honingjacht 3)
+      if (s.klim) o.klim = true;                // opt-in: terrassen op en af (zie "plateau-traversal")
       if (s.y != null) o.y = Math.round(s.y);   // een vaste hoogte: op een laag, of uit de lucht (alleen slangen)
       return o;
     }),
@@ -22043,6 +22077,8 @@ function readLevel(txt){
                                                 over: s.over === true,
                                                 // boven: op een zwevende savannelaag in plaats van op de grond (Honingjacht 3)
                                                 boven: s.boven === true,
+                                                // klim: opt-in, deze vijand stapt terrassen op en af (zie "plateau-traversal")
+                                                klim: s.klim === true,
                                                 y: (s.y === null || s.y === undefined) ? null : Number(s.y) })),
            props: (o.props || []).filter(q => PROPS[q.k])
                                  .map(q => ({ x: Number(q.x), kind: q.k,
@@ -23230,17 +23266,21 @@ function sbSpawn(kind){
     zwaarden.push(z);
   }
   else if (kind === 'scorp'){ const k = makeScorp(x, side); k.base = vloerBij(x, ph); scorps.push(k); }
-  else if (kind === 'fosfor') fosforGroep(x, side, vloerBij(x, ph));     // altijd met z'n drieen
+  else if (kind === 'fosfor') fosforGroep(x, side, vloerBij(x, ph), sbKlim);   // altijd met z'n drieen
   else if (kind === 'panter'){
     const p = makePanther(x, side);
     p.base = vloerBij(x, ph);                       // staat er een terras, dan begint hij daarop
     panthers.push(p);
   }
   else {
-    const sn = makeSnake(kind); sn.x = x; sn.side = side; sn.base = vloerBij(x, ph); snakes.push(sn);
+    const sn = makeSnake(kind); sn.x = x; sn.side = side; sn.base = vloerBij(x, ph); sn.klim = sbKlim; snakes.push(sn);
   }
   cv.focus();
 }
+// opt-in plateau-traversal in de sandbox: nieuwe slangen en fosforslangen stappen terrassen op en af
+let sbKlim = false;
+const sbKlimBtn = document.getElementById('sbklim');
+sbKlimBtn.onclick = () => { sbKlim = !sbKlim; sbKlimBtn.classList.toggle('on', sbKlim); cv.focus(); };
 sandboxEl.querySelectorAll('button[data-spawn]').forEach(b => b.onclick = () => sbSpawn(b.dataset.spawn));
 // De zwaardvechter los bekijken. Met zijn AI uit speelt hij alleen de set die je kiest:
 // een lus loopt rond, een eenmalige set (slag, geraakt, dood) blijft op zijn laatste

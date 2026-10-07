@@ -45,6 +45,16 @@ een eindbaas als je daar zelf voor kiest omdat het dat gevecht beter maakt; zeg 
 achteraf dat en waarom. Voor de panter is dat het veld `over: true` in zijn spawn
 (`panBaan`); zonder dat veld blijft hij aan zijn kant.
 
+**Vijanden over plateaus (opt-in).** Regel 7 gaat over keien en ravijnen; terrassen houden vijanden
+standaard ook tegen. Met `klim: true` in een spawn stapt een slang of fosforslang wel terrassen op en
+af en wisselt hij van plateau, stap voor stap (hoogstens `KLIM_STAP` per trede, de hoogte loopt mee via
+`klimBase`). Keien, zuilen, een zwevende laag en ravijnen blijven hem tegenhouden. Het zit in
+`blocksMonster` en `dropAhead` (het argument `klim`, dat undefined is voor elke bestaande aanroeper, dus
+die verandert niets) en loopt voor slangen en fosfor via `slangSchuif`. Nu aan voor de fosforgroep in de
+gang van Honingjacht 3. In de sandbox onder Vijanden, bij Slangen, **Klimt terrassen** (`sbKlim`), met een
+Terras erbij. De zwaardvechter krijgt dit niet: die blijft op zijn eigen niveau en haalt niet uit over
+een hoogteverschil (`zwZelfdeHoogte`, de vloer onder Amir vergeleken met zijn eigen vloer).
+
 **8. Geen versienummer in de code.** Linksboven staat vanzelf van wanneer de versie is die je
 speelt, en onder **Updates** in het menu staan de laatste vijf samengevoegde pull requests, van
 GitHub zelf, met per stuk of hij al in die versie zit. Zet dus nergens een nummer bij: vroeger
@@ -156,7 +166,7 @@ precies hetzelfde formaat naar JSON.
 | `hoogUitzicht` | `true`: gestapelde dikke grondlagen zien er op hoogte hetzelfde uit als de basis. De camera klemt tegen de laag waar je op staat (geen zwarte diepte eronder in beeld, `klimLift` 0 in `updateCamera`), de achtergrond blijft staan (`verPar` in `scene()`, bergen en heuvels zakken niet weg) en een massieve grondlaag krijgt geen donkere onderkant (`SAV_LAAG.hoog`). Per level, dus de bestaande levels veranderen niet |
 | `worp` | `'schaal'` zet de schaalworp aan: de hoek loopt op zolang je vasthoudt, van vlak tot 30 graden (`THR_HOEK_MAX`); zonder dit veld de twee trappen. In de sandbox de knop Worp onder Speerworp |
 | `rocks` | keien om op te springen: `{x, s}` |
-| `spawns` | vijanden: `{x, k}` met `k` = `groen`, `zwart`, `scorp`, `hyenas`, `panter`, `zwaard` (met `c`), `fosfor`; een panter met `over: true` mag over keien en ravijnen (zie regel 7) |
+| `spawns` | vijanden: `{x, k}` met `k` = `groen`, `zwart`, `scorp`, `hyenas`, `panter`, `zwaard` (met `c`), `fosfor`; een panter met `over: true` mag over keien en ravijnen (zie regel 7); een slang of fosforslang met `klim: true` stapt terrassen op en af (opt-in, zie "vijanden over plateaus") |
 | `props` | decor: `{x, k, s, f, v}`, `k` uit `PROPS`, `f` spiegelen, `v` verre laag |
 | `village` | dorpsplaten uit `VILLAGE`: `{id, x, depth, flip}` |
 | `gaps` | ravijnen: `{x, w}` |
