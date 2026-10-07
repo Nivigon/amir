@@ -1144,6 +1144,10 @@
       <span class="hint">Tempo vertraagt het hele spel, looptempo alleen Amir.
         Je sprong houdt altijd dezelfde afstand, dus je blijft elk ravijn halen.
         Formaat verandert alleen hoe groot alles getekend wordt.</span>
+      <button id="pzbeeld">Beeld: automatisch</button>
+      <span class="hint">Scherp tekent altijd op volle resolutie. Automatisch houdt het beeld scherp en
+        verlaagt de resolutie alleen als je toestel de beelden niet haalt. Soepel tekent lichter, voor
+        een trage machine.</span>
       <button id="pzsound">Muziek aan</button>
       <button id="pzcfgreset">Terug naar standaard</button>
       <button id="pzmesbtn">Mes: reacties</button>
@@ -11018,7 +11022,15 @@ let W = 0, H = 0, DPR = 1, lastW = -1, lastH = -1;
 // met 2 niet, en het scheelt bijna de helft van de pixels. Blijft het toestel toch
 // traag, dan zakt het plafond vanzelf verder (zie perfTick), tot 1.
 let DPR_MAX = 2;
-function dprCap(){ return Math.min(window.devicePixelRatio || 1, DPR_MAX, touchOn() ? 1.5 : 2); }
+// Beeld: 'scherp' tekent altijd op volle resolutie, 'auto' zakt alleen bij aanhoudende traagheid
+// (zie perfTick) met een scherpe ondergrens, 'soepel' tekent op 1x. Zo blijft een sterke machine
+// vol scherp en wordt een zwakke soepel in plaats van schokkerig. Standaard 'auto' (uit loadGameCfg).
+let beeldModus = 'auto';
+function dprCap(){
+  const dpr = window.devicePixelRatio || 1;
+  if (beeldModus === 'soepel') return Math.min(dpr, 1);
+  return Math.min(dpr, DPR_MAX, touchOn() ? 1.5 : 2);
+}
 function resize(){
   DPR = dprCap();
   const r = cv.parentElement.getBoundingClientRect();
@@ -11050,15 +11062,18 @@ const PERF = { venster: 90, traag: 21, reeks: 2 };   // 90 frames, gemiddeld bov
 let perfSom = 0, perfN = 0, perfTraag = 0, perfPrev = 0;
 function perfTick(now){
   const d = now - perfPrev; perfPrev = now;
-  // alleen op een aanraakscherm: op een laptop blijft het beeld scherp, ook als hij even traag is
-  if (!(d > 0) || d > 200 || !running || paused || laadWacht || DPR <= 1 || !touchOn()) return;
+  // alleen in de stand Automatisch. Op een laptop met een scherpe ondergrens (1,25x: nog duidelijk
+  // scherp, maar een stuk minder pixels dan 2x), op een aanraakscherm tot 1x zoals voorheen.
+  if (!(d > 0) || d > 200 || !running || paused || laadWacht || beeldModus !== 'auto') return;
+  const vloer = touchOn() ? 1 : 1.25;
+  if (DPR <= vloer) return;
   perfSom += d; perfN++;
   if (perfN < PERF.venster) return;
   const gem = perfSom / perfN; perfSom = 0; perfN = 0;
   perfTraag = gem > PERF.traag ? perfTraag + 1 : 0;
   if (perfTraag < PERF.reeks) return;
   perfTraag = 0;
-  DPR_MAX = Math.max(1, Math.round((DPR - 0.5) * 2) / 2);
+  DPR_MAX = Math.max(vloer, Math.round((DPR - 0.5) * 2) / 2);
   console.log('traag (' + gem.toFixed(1) + ' ms per frame): resolutie omlaag naar ' + DPR_MAX + 'x');
   resize();
 }
@@ -21349,17 +21364,28 @@ function loadGameCfg(){
     sizeEl.value = Math.min(90, Math.max(15, o.formaat));
     sizeEl.oninput();
   }
+  beeldModus = (o && (o.beeld === 'scherp' || o.beeld === 'auto' || o.beeld === 'soepel')) ? o.beeld : 'auto';
+  DPR_MAX = 2; resize();                          // het plafond weer omhoog; de bewaarde stand toepassen
+  toonBeeld();
 }
 function saveGameCfg(){
   try {
     localStorage.setItem(SKEY, JSON.stringify({ tempo: gameTempo, walk: walkTempo,
-                                                formaat: Number(sizeEl.value) }));
+                                                formaat: Number(sizeEl.value), beeld: beeldModus }));
   } catch (err) {}
+}
+const BEELD_NAAM = { scherp: 'scherp', auto: 'automatisch', soepel: 'soepel' };
+function toonBeeld(){ const b = document.getElementById('pzbeeld'); if (b) b.textContent = 'Beeld: ' + BEELD_NAAM[beeldModus]; }
+function zetBeeld(m){
+  beeldModus = m;
+  DPR_MAX = 2; perfTraag = 0; perfSom = 0; perfN = 0;   // plafond terug omhoog, opnieuw gaan meten
+  resize(); toonBeeld(); saveGameCfg();
 }
 function showGameCfg(){
   pztempo.value = Math.round(gameTempo * 100); pztempov.textContent = pztempo.value + '%';
   pzwalk.value = Math.round(walkTempo * 100);  pzwalkv.textContent = pzwalk.value + '%';
   pzsize.value = sizeEl.value;                 pzsizev.textContent = pzsize.value;
+  toonBeeld();
 }
 pztempo.addEventListener('input', () => { gameTempo = Number(pztempo.value) / 100; showGameCfg(); saveGameCfg(); });
 pzwalk.addEventListener('input', () => { walkTempo = Number(pzwalk.value) / 100; showGameCfg(); saveGameCfg(); });
@@ -21368,9 +21394,12 @@ pzsize.addEventListener('input', () => {       // hetzelfde schuifje als Formaat
   showGameCfg(); saveGameCfg();
 });
 document.getElementById('pzcfgbtn').onclick = () => pzcfgEl.classList.toggle('on');
+document.getElementById('pzbeeld').onclick = () =>
+  zetBeeld(beeldModus === 'scherp' ? 'auto' : beeldModus === 'auto' ? 'soepel' : 'scherp');
 document.getElementById('pzcfgreset').onclick = () => {
   gameTempo = tempoAdvies(); walkTempo = 1;
   sizeEl.value = 25; sizeEl.oninput();
+  beeldModus = 'auto'; DPR_MAX = 2; perfTraag = 0; perfSom = 0; perfN = 0; resize();
   showGameCfg(); saveGameCfg();
 };
 // ---- het mes afstellen, midden in het spel (pauze, Instellingen, Mes: reacties) ----
