@@ -664,6 +664,7 @@
         <strong>Bouwen</strong>
         <input id="bname" type="text" placeholder="naam van je level">
         <span class="hint" id="bcount">leeg</span>
+        <button id="btnnew">Nieuw</button>
         <button id="btnopen">Openen</button>
         <input id="bfile" type="file" accept=".json,application/json" style="display:none">
         <button id="btnsave">Opslaan</button>
@@ -22143,13 +22144,11 @@ function startBuild(terug){
   building = true; running = true;
   ravijnReset();                                   // open ravijnen dicht, en wat opzij schoof weer op zijn plek
   zetMuziek();                                     // in de bouwer het gewone thema
+  // De bouwer begint leeg: een verse, neutrale wereld, geen assets uit het laatst gespeelde of
+  // opgeslagen level. Alleen bij terugkeren uit een test (terug) houden we het level dat je test.
+  // Een bestaand level laad je met Openen; Nieuw maakt hem weer leeg.
+  if (!terug) level = { name: '', rocks: [], spawns: [], props: [] };
   ensureLevel();
-  if (!level.rocks.length){
-    try {
-      const saved = localStorage.getItem('amir_level');
-      if (saved) level = readLevel(saved);
-    } catch (e) {}
-  }
   world = 0; ph = 0; pvh = 0; onGround = true; fell = false; snakes.length = 0;
   bouwD = 0;
   if (terug && terug.x !== undefined){ world = terug.x; bouwD = terug.d || 0; }
@@ -24077,6 +24076,17 @@ document.getElementById('btnsave').onclick = () => {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   bcount.textContent = 'opgeslagen als ' + file + '.json';
 };
+document.getElementById('btnnew').onclick = () => {
+  const leeg = !(level && ((level.rocks && level.rocks.length) || (level.spawns && level.spawns.length) ||
+    (level.props && level.props.length) || (level.gaps && level.gaps.length) || (level.terraces && level.terraces.length) ||
+    (level.zwevers && level.zwevers.length) || (level.grotten && level.grotten.length) || (level.ends && level.ends.length)));
+  if (!leeg && !confirm('Alles wissen en met een leeg level beginnen?')) return;
+  level = { name: '', rocks: [], spawns: [], props: [] };
+  ensureLevel();
+  bname.value = ''; world = 0; bouwD = 0; bhover = null;
+  bouwKies(null); syncLevel(); bcount.textContent = 'leeg';
+  cv.focus();
+};
 const bfile = document.getElementById('bfile');
 document.getElementById('btnopen').onclick = () => bfile.click();
 bfile.onchange = () => {
@@ -24120,12 +24130,24 @@ function pointerLift(e){                             // hoogte boven de grondlij
   const sy = (e.clientY - r.top) * (H / r.height);
   return (H * 0.82 + camY - sy) / viewZoom();          // camY: in de bouwer kun je omlaag kijken
 }
+// hoogte boven de grondlijn in sprite-eenheden, net als de tekening (groundY - h * scale). pointerLift
+// deelt door de zoom en klopt horizontaal, maar hoogtes als h/onder/terrainH staan in sprite-eenheden
+// (getekend met scale), dus die vergelijk je hiermee, niet met pointerLift.
+function bHoogte(e){
+  const r = cv.getBoundingClientRect();
+  const sy = (e.clientY - r.top) * (H / r.height);
+  const scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H;
+  return (H * 0.82 + camY - sy) / scale;
+}
 function pointerWorldX(e){
   const r = cv.getBoundingClientRect();
   const sx = (e.clientX - r.left) * (W / r.width);
   return world + (sx - W / 2) / viewZoom();
 }
 function builderHit(wx, scale, lift){
+  // de muishoogte in sprite-eenheden, zodat hij klopt met waar lagen getekend staan (zie bHoogte);
+  // lift zelf deelt door de zoom en zit er verticaal naast voor dingen die op h/onder worden gemeten
+  const hgt = lift === undefined ? undefined : lift * viewZoom() / scale;
   const tp = (level.tips || []).find(t => Math.abs(t.x - wx) < 60 && lift !== undefined && lift > 180 * scale);
   if (tp) return { list: level.tips, kind: 'tip', obj: tp };
   const kb = (level.hppotions || []).find(o => Math.abs(o.x - wx) < 50);
@@ -24138,7 +24160,7 @@ function builderHit(wx, scale, lift){
   if (ri) return { list: level.ledges, kind: 'richel', obj: ri };
   const te = (level.terraces || []).find(t => t.h > 0 && wx > t.l && wx < t.r);
   if (te) return { list: level.terraces, kind: 'terras', obj: te };
-  const zw = (level.zwevers || []).find(z => wx > z.l && wx < z.r && lift > z.onder - 60 && lift < z.h + 60);
+  const zw = (level.zwevers || []).find(z => wx > z.l && wx < z.r && (hgt === undefined || (hgt > z.onder - 70 && hgt < z.h + 70)));
   if (zw) return { list: level.zwevers, kind: 'zweef', obj: zw };
   const zg = (level.zegels || []).find(z => Math.abs(z.x - wx) < 70);
   if (zg) return { list: level.zegels, kind: 'zegel', obj: zg };
@@ -24184,9 +24206,9 @@ function builderHit(wx, scale, lift){
   const gr = (level.grotten || []).find(g => {
     const R = grotRaster(g), breed = R.kol * R.cel;
     if (!(wx > g.x && wx < g.x + breed)) return false;
-    if (lift === undefined) return true;
+    if (hgt === undefined) return true;
     const onder = R.y * R.celH, boven = (R.y + R.n) * R.celH;
-    return lift > onder - 60 && lift < boven + 60;
+    return hgt > onder - 70 && hgt < boven + 70;
   });
   if (gr) return { list: level.grotten, kind: 'grot', obj: gr };
   return null;
@@ -24294,11 +24316,15 @@ function placeProblem(kind, o, scale){               // mag dit hier staan? zo n
   return '';
 }
 let bodemSleep = null;                               // de bodem van een gang die je versleept
+let bhover = null;                                   // waar de muis overheen zweeft (voor het cyaan kader)
 cv.addEventListener('pointermove', e => {
   if (bodemSleep && e.pointerId === bodemSleep.id){
     const o = bodemSleep.o;
     o.diep = Math.round(Math.max(HOLTE_DAK + CHAR_H, Math.min(3000, -pointerLift(e) / bodemSleep.scale)) / 10) * 10;
     return;
+  }
+  if (!press){                                       // niet aan het slepen: toon wat een klik zou pakken
+    bhover = building ? builderHit(pointerWorldX(e), (H * (Number(sizeEl.value) / 100)) / CHAR_H, pointerLift(e)) : null;
   }
   if (!press || e.pointerId !== press.id) return;
   if (!press.dragging && (Math.abs(e.clientX - press.downX) > 6 || Math.abs(e.clientY - press.downY) > 6)){
@@ -24307,24 +24333,24 @@ cv.addEventListener('pointermove', e => {
   if (press.dragging){
     if (press.slab){
       // een laag (terras of zwever): het hele blok schuift mee, l en r samen op x, de hoogte op y
-      const nwx = pointerWorldX(e), nlift = pointerLift(e), o = press.obj;
+      const nwx = pointerWorldX(e), nh = bHoogte(e), o = press.obj;
       o.l = Math.round((nwx + press.offL) / 10) * 10;
       o.r = Math.round((nwx + press.offR) / 10) * 10;
-      o.h = Math.round(Math.max(press.kind === 'zweef' ? 80 : 20, nlift + press.offH) / 10) * 10;
-      if (press.kind === 'zweef') o.onder = Math.round(Math.max(20, nlift + press.offOnder) / 10) * 10;
+      o.h = Math.round(Math.max(press.kind === 'zweef' ? 80 : 20, nh + press.offH) / 10) * 10;
+      if (press.kind === 'zweef') o.onder = Math.round(Math.max(20, nh + press.offOnder) / 10) * 10;
     } else {
       press.obj.x = pointerWorldX(e) + press.off;       // de tekening volgt meteen
       if (press.kind === 'thicket') rebuildThickets();  // die komt uit de wereldlijst
-      if ((press.kind === 'prop' && press.obj.far) || press.kind === 'npc'){   // ook omhoog en omlaag
+      if ((press.kind === 'prop' && press.obj.far) || press.kind === 'npc'){   // ook omhoog en omlaag (oude schaal)
         let ny = Math.max(-60, Math.min(H, pointerLift(e) + press.offY));
         if (press.kind === 'npc' && Math.abs(ny) < 18) ny = 0;               // klikt vast op de grond
         press.obj.y = ny;
       } else if (press.kind === 'richel'){                                    // een richel ook op de hoogte
-        press.obj.h = Math.round(Math.max(0, pointerLift(e) + press.offH) / 10) * 10;
+        press.obj.h = Math.round(Math.max(0, bHoogte(e) + press.offH) / 10) * 10;
       } else if (press.kind === 'kalebas'){                                   // een kalebas vrij op y
-        press.obj.y = Math.round(pointerLift(e) + press.offY);
+        press.obj.y = Math.round(bHoogte(e) + press.offYs);
       } else if (press.kind === 'spawn' && (press.obj.kind === 'groen' || press.obj.kind === 'zwart')){
-        press.obj.y = Math.round(Math.max(-60, Math.min(2600, pointerLift(e) + press.offY)) / 10) * 10;   // slang op hoogte, of uit de lucht
+        press.obj.y = Math.round(Math.max(-60, Math.min(2600, bHoogte(e) + press.offYs)) / 10) * 10;   // slang op hoogte, of uit de lucht
       }
     }
   }
@@ -24823,29 +24849,50 @@ function bouwSchakelTeken(groundY, cx, scale){
   ctx.restore();
 }
 // wat gekozen is krijgt in de wereld een gele haak, een ravijn een kader over zijn breedte
-function bouwKeuzeTeken(groundY, cx, scale){
-  if (!building || !gekozen) return;
-  const o = gekozen.obj, z = viewZoom();
-  ctx.save();
-  ctx.strokeStyle = '#ffd166'; ctx.fillStyle = '#ffd166'; ctx.lineWidth = 3 / z;
-  ctx.setLineDash([10 / z, 7 / z]);
-  if (gekozen.kind === 'holte'){                       // een gang: van het dak tot de bodem
+// het kader om een object, in het assenstelsel van de bouwer (cx + (wx - world), hoogtes * scale,
+// vaste maten / z). Ook terras, zwever en grot krijgen nu een kader (die hebben geen o.x, dus die
+// misten voorheen hun markering); zo zie je duidelijk wat je hebt aangewezen of gekozen.
+function bouwMarkeer(kind, o, groundY, cx, scale){
+  const z = viewZoom();
+  if (kind === 'terras' || kind === 'zweef'){
+    const top = groundY - (o.h || 0) * scale, bot = kind === 'zweef' ? groundY - (o.onder || 0) * scale : groundY;
+    ctx.strokeRect(cx + (o.l - world), top, o.r - o.l, bot - top);
+  } else if (kind === 'grot'){
+    const R = grotRaster(o), top = groundY - (R.y + R.n) * R.celH * scale, bot = groundY - R.y * R.celH * scale;
+    ctx.strokeRect(cx + (o.x - world), top, R.kol * R.cel, bot - top);
+  } else if (kind === 'holte'){
     const t = groundY + HOLTE_DAK * scale, b = groundY + o.diep * scale;
     ctx.strokeRect(cx + (o.l - world), t, o.r - o.l, b - t);
-    ctx.setLineDash([]);
-    ctx.font = 'bold ' + Math.round(15 / z) + 'px Archivo, sans-serif';
     ctx.fillText('diep ' + Math.round(o.diep), cx + ((o.l + o.r) / 2 - world), b - 12 / z);
-  } else if (gekozen.kind === 'gap'){
-    const l = cx + (o.x - o.w / 2 - world);
-    ctx.strokeRect(l, groundY - 40 / z, o.w, 240 / z);
+  } else if (kind === 'gap'){
+    ctx.strokeRect(cx + (o.x - o.w / 2 - world), groundY - 40 / z, o.w, 240 / z);
   } else {
-    const x = cx + (o.x - world);
-    ctx.beginPath(); ctx.moveTo(x, groundY - 260 / z); ctx.lineTo(x, groundY + 10 / z); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.beginPath(); ctx.moveTo(x - 12 / z, groundY - 280 / z); ctx.lineTo(x + 12 / z, groundY - 280 / z);
-    ctx.lineTo(x, groundY - 260 / z); ctx.closePath(); ctx.fill();
+    // puntobject: een pijl op zijn hoogte (een slang op y, anders de vloer op zijn x)
+    const hh = kind === 'spawn' ? (o.y != null ? o.y : (o.boven ? bovenVloer(o.x) : terrainH(o.x)))
+             : (o.y != null ? o.y : (o.h != null ? o.h : (o.x != null ? terrainH(o.x) : 0)));
+    const x = cx + ((o.x != null ? o.x : 0) - world), y = groundY - (hh || 0) * scale;
+    ctx.beginPath(); ctx.moveTo(x, y - 250 / z); ctx.lineTo(x, y + 10 / z); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - 12 / z, y - 270 / z); ctx.lineTo(x + 12 / z, y - 270 / z);
+    ctx.lineTo(x, y - 250 / z); ctx.closePath(); ctx.fill();
   }
-  ctx.restore();
+}
+function bouwKeuzeTeken(groundY, cx, scale){
+  if (!building) return;
+  const z = viewZoom();
+  ctx.font = 'bold ' + Math.round(15 / z) + 'px Archivo, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  // waar je overheen zweeft: een cyaan kader, zodat je ziet dat een klik dat pakt (niet een nieuwe plaatst)
+  if (bhover && (!gekozen || bhover.obj !== gekozen.obj) && (!press || press.obj !== bhover.obj)){
+    ctx.save(); ctx.strokeStyle = '#7cf0ff'; ctx.fillStyle = '#7cf0ff'; ctx.lineWidth = 3 / z; ctx.globalAlpha = 0.75;
+    ctx.setLineDash([6 / z, 6 / z]);
+    bouwMarkeer(bhover.kind, bhover.obj, groundY, cx, scale);
+    ctx.restore();
+  }
+  if (gekozen){
+    ctx.save(); ctx.strokeStyle = '#ffd166'; ctx.fillStyle = '#ffd166'; ctx.lineWidth = 3 / z;
+    ctx.setLineDash([10 / z, 7 / z]);
+    bouwMarkeer(gekozen.kind, gekozen.obj, groundY, cx, scale);
+    ctx.restore();
+  }
 }
 cv.addEventListener('pointerup', e => endPress(e, false));
 cv.addEventListener('pointercancel', e => endPress(e, true));
@@ -24887,11 +24934,12 @@ cv.addEventListener('pointerdown', e => {
   if (hit && hit.kind === 'holte'){ bouwKies(hit); return; }   // een gang versleep je niet: verander hem in het venster
   if (hit){
     const slab = hit.kind === 'terras' || hit.kind === 'zweef';   // een laag: als heel blok slepen (l en r samen), met de hoogte op y
+    const bh = bHoogte(e);                                         // hoogte in sprite-eenheden (klopt met de tekening)
     press = { list: hit.list, kind: hit.kind, obj: hit.obj, origX: hit.obj.x, off: hit.obj.x - wx,
-              origY: hit.obj.y || 0, offY: (hit.obj.y || 0) - lift, downY: e.clientY,
+              origY: hit.obj.y || 0, offY: (hit.obj.y || 0) - lift, offYs: (hit.obj.y || 0) - bh, downY: e.clientY,
               downX: e.clientX, dragging: false, id: e.pointerId, scale,
               slab, offL: hit.obj.l - wx, offR: hit.obj.r - wx,
-              offH: (hit.obj.h || 0) - lift, offOnder: (hit.obj.onder || 0) - lift,
+              offH: (hit.obj.h || 0) - bh, offOnder: (hit.obj.onder || 0) - bh,
               oL: hit.obj.l, oR: hit.obj.r, oH: hit.obj.h, oOnder: hit.obj.onder };
     press.timer = setTimeout(() => { if (press){ press.dragging = true; bcount.textContent = 'verplaatsen...'; } }, 280);
     try { cv.setPointerCapture(e.pointerId); } catch (err) {}
