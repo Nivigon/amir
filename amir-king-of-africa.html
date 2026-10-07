@@ -24330,11 +24330,20 @@ function placeProblem(kind, o, scale){               // mag dit hier staan? zo n
   return '';
 }
 let bodemSleep = null;                               // de bodem van een gang die je versleept
+let randSleep = null;                                // een rand van een gekozen terras of laag die je trekt
+const RAND_MIN = 100;                                // zo smal mag een laag op zijn smalst worden (wereld-px)
 let bhover = null;                                   // waar de muis overheen zweeft (voor het cyaan kader)
 cv.addEventListener('pointermove', e => {
   if (bodemSleep && e.pointerId === bodemSleep.id){
     const o = bodemSleep.o;
     o.diep = Math.round(Math.max(HOLTE_DAK + CHAR_H, Math.min(3000, -pointerLift(e) / bodemSleep.scale)) / 10) * 10;
+    return;
+  }
+  if (randSleep && e.pointerId === randSleep.id){     // een rand langer of korter trekken: alleen l of r schuift
+    const o = randSleep.o, nx = Math.round(pointerWorldX(e) / 10) * 10;
+    if (randSleep.rand === 'l') o.l = Math.min(o.r - RAND_MIN, nx);
+    else o.r = Math.max(o.l + RAND_MIN, nx);
+    bcount.textContent = 'breedte ' + Math.round(o.r - o.l);
     return;
   }
   if (!press){                                       // niet aan het slepen: toon wat een klik zou pakken
@@ -24373,6 +24382,12 @@ function endPress(e, cancel){
   if (bodemSleep && (!e || e.pointerId === bodemSleep.id)){  // losgelaten: de trap past zich aan
     const o = bodemSleep.o; bodemSleep = null;
     if (holteUitgang(o)) holteTrap(o);
+    syncLevel(); bouwInfo(); return;
+  }
+  if (randSleep && (!e || e.pointerId === randSleep.id)){    // een getrokken rand: mag hij hier staan?
+    const r = randSleep; randSleep = null;
+    const why = placeProblem(r.kind, r.o, r.scale);
+    if (why){ r.o.l = r.oL; r.o.r = r.oR; bcount.textContent = why + ', teruggezet'; }
     syncLevel(); bouwInfo(); return;
   }
   if (!press || (e && e.pointerId !== press.id)) return;
@@ -24905,6 +24920,18 @@ function bouwKeuzeTeken(groundY, cx, scale){
     ctx.save(); ctx.strokeStyle = '#ffd166'; ctx.fillStyle = '#ffd166'; ctx.lineWidth = 3 / z;
     ctx.setLineDash([10 / z, 7 / z]);
     bouwMarkeer(gekozen.kind, gekozen.obj, groundY, cx, scale);
+    // een terras of laag krijgt een greep op elke rand: pak een greep en trek hem langer of korter
+    if (gekozen.kind === 'terras' || gekozen.kind === 'zweef'){
+      const o = gekozen.obj, xl = cx + (o.l - world), xr = cx + (o.r - world), ly = groundY - (o.h || 0) * scale;
+      const by = gekozen.kind === 'zweef' ? groundY - (o.onder || 0) * scale : groundY + 10 / z;
+      ctx.setLineDash([]);
+      for (const hx of [xl, xr]){
+        ctx.lineWidth = 3 / z; ctx.strokeStyle = '#ffd166';
+        ctx.beginPath(); ctx.moveTo(hx, ly - 6 / z); ctx.lineTo(hx, by); ctx.stroke();
+        ctx.beginPath(); ctx.arc(hx, ly, 9 / z, 0, Math.PI * 2); ctx.fillStyle = '#ffd166'; ctx.fill();
+        ctx.lineWidth = 2 / z; ctx.strokeStyle = '#7a4a00'; ctx.stroke();
+      }
+    }
     ctx.restore();
   }
 }
@@ -24932,6 +24959,20 @@ cv.addEventListener('pointerdown', e => {
     bodemSleep = { id: e.pointerId, o: gekozen.obj, scale };
     try { cv.setPointerCapture(e.pointerId); } catch (err) {}
     return;
+  }
+  // een gekozen terras of laag: pak een rand en trek hem langer of korter, in plaats van het hele blok te slepen
+  if (gekozen && (gekozen.kind === 'terras' || gekozen.kind === 'zweef')){
+    const o = gekozen.obj, tol = 22 / viewZoom();
+    const inY = gekozen.kind === 'zweef' ? (lift > (o.onder || 0) - 80 && lift < o.h + 80)
+                                         : (lift > -80 && lift < o.h + 80);
+    if (inY){
+      const dl = Math.abs(wx - o.l), dr = Math.abs(wx - o.r);
+      if (dl < tol || dr < tol){
+        randSleep = { id: e.pointerId, o, kind: gekozen.kind, rand: dl <= dr ? 'l' : 'r', scale, oL: o.l, oR: o.r };
+        try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+        return;
+      }
+    }
   }
   const hit = builderHit(wx, scale, lift);
   if (tool === 'gum'){
