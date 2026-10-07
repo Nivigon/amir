@@ -9312,7 +9312,8 @@ function updateProefmobs(dt, plats, scale){
   const left = endWall(), wall = cliffAt().wall;
   for (const m of proefmobs){
     if (m.dood){ m.doodT += dt; continue; }
-    const floor = proefVloer(m.x, m.h, plats);    // de laag onder zijn voeten
+    const prev = m.h;                             // vanaf hier kwam hij, zodat een dunne laag niet overschoten wordt
+    const floor = proefVloer(m.x, prev, plats);   // de laag onder zijn voeten
     m.vy += GRAVITY * dt;
     m.h -= m.vy * dt;
     const grounded = floor > -Infinity && m.h <= floor;
@@ -15764,8 +15765,13 @@ function updateVenom(dt, scale){
       hurtPlayer(v.x < world); makeSplat(v.x, v.h); venom.splice(i, 1); continue;
     }
     const floorV = terrainH(v.x);
-    if (v.h <= floorV || v.age > 4 || px < -200 || px > W + 200){
-      if (v.h <= floorV) makeSplat(v.x, v.h);          // op de grond, een terras of tegen de wand
+    // een zwevende laag is massief: terrainH kent hem niet, dus het gif zou er dwars doorheen vliegen.
+    // raakt het gif de laag (tussen de onderkant en de looplijn, over de x-breedte), dan spat het daar
+    // (Honingjacht 3: lagen met vijanden, waar het gif anders door de laag heen raakte)
+    let slab = false;
+    for (const z of zweefList()) if (v.x > z.l && v.x < z.r && v.h >= z.onder - 2 && v.h <= z.h){ slab = true; break; }
+    if (v.h <= floorV || slab || v.age > 4 || px < -200 || px > W + 200){
+      if (v.h <= floorV || slab) makeSplat(v.x, v.h);  // op de grond, een terras, een zwevende laag of tegen de wand
       venom.splice(i, 1);
     }
   }
@@ -15928,12 +15934,16 @@ function updateSnakes(dt, plats, halfWNow, cliff){
         const lx = spawnPoint(sp.x);
         fosforGroep(lx, lx > world ? 1 : -1); continue;
       }
-      const x = sp.boven ? sp.x : spawnPoint(sp.x);
+      const x = (sp.boven || sp.y != null) ? sp.x : spawnPoint(sp.x);
       const vl = sp.boven ? bovenVloer(x) : terrainH(x);
       if (sp.kind === 'scorp'){ const k = makeScorp(x, x > world ? 1 : -1); k.base = vl; scorps.push(k); continue; }
       const s = makeSnake(sp.kind);
-      s.x = x; s.base = vl;
-      s.side = x > world ? 1 : -1;
+      s.x = x; s.side = x > world ? 1 : -1;
+      if (sp.y != null){                            // een vaste hoogte: op een laag gezet, of uit de lucht laten vallen
+        s.base = sp.y; s.vy = 0; s.ymode = true;
+        const f = proefVloer(x, s.base, plats);
+        s.falling = !(f > -Infinity && s.base <= f + 1);
+      } else s.base = vl;
       snakes.push(s);
     }
   } else if (!sandbox) {
@@ -16023,6 +16033,23 @@ function slangSchuif(s, dt, plats, cliff, tempo){
 function updateSnake(s, dt, plats, cliff){
   if (ravijnValt(s, dt, 'gone')) return;            // in het open ravijn gevallen
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
+
+  // y-modus: op een vaste hoogte gezet (op een laag, of uit de lucht). Valt met de zwaartekracht en
+  // landt op de hoogste vloer uit de platformlijst; eenmaal geland volgt hij die laag (ook een zwever,
+  // die terrainH niet kent). Alleen als een spawn een y heeft; zonder y verandert er niets.
+  if (s.ymode && s.state !== 'dying' && s.state !== 'gone'){
+    if (s.falling){
+      const prev = s.base;                            // vanaf hier kwam hij, zodat een dunne laag niet overschoten wordt
+      s.vy = (s.vy || 0) + GRAVITY * dt; s.base -= s.vy * dt;
+      const f = proefVloer(s.x, prev, plats);
+      if (f > -Infinity && s.base <= f){ s.base = f; s.vy = 0; s.falling = false; }
+      else if (s.base < -GAP_DEATH) s.state = 'gone';
+      return;                                         // in de lucht loopt of bijt hij niet
+    }
+    const f = proefVloer(s.x, s.base + 1, plats);
+    if (f > -Infinity && f >= s.base - 2) s.base = f;   // volg de laag onder hem
+    else { s.falling = true; s.vy = 0; }                // van de laag af gelopen: val verder
+  }
 
   if (!s.hissed && s.state === 'walk'){
     const sx = W / 2 + (s.x - world);
@@ -20301,8 +20328,12 @@ function loop(now){
     if (building && level && level.spawns){
       for (const sp of level.spawns){
         const px = cx + (sp.x - world);
-        // in een gang staat hij op de bodem, en daar tekent de bouwer hem ook
-        const gy = groundY + (holteAt(sp.x) ? holteAt(sp.x).diep * scale : 0);
+        // op de hoogte waar hij landt: een vaste y (op een laag of uit de lucht), de bovenlaag, de
+        // bodem van een gang, of de grond/het terras op zijn x
+        const baseH = sp.y != null ? sp.y
+                    : sp.boven ? bovenVloer(sp.x)
+                    : holteAt(sp.x) ? -holteAt(sp.x).diep : terrainH(sp.x);
+        const gy = groundY - baseH * scale;
         ctx.save();
         ctx.globalAlpha = 0.9;
         ctx.fillStyle = sp.kind === 'zwart' ? '#2b1020' : sp.kind === 'scorp' ? '#4a3a22'
@@ -21762,6 +21793,7 @@ function syncLevel(){
               : s.kind === 'panter' && s.over ? { x: Math.round(s.x), k: s.kind, over: true }
               : { x: Math.round(s.x), k: s.kind };
       if (s.boven) o.boven = true;              // op een zwevende savannelaag (Honingjacht 3)
+      if (s.y != null) o.y = Math.round(s.y);   // een vaste hoogte: op een laag, of uit de lucht (alleen slangen)
       return o;
     }),
     props: level.props.map(o => ({ x: Math.round(o.x), k: o.kind,
@@ -21940,7 +21972,8 @@ function readLevel(txt){
                                                 // een panter mag alleen over keien en ravijnen als het level dat zegt
                                                 over: s.over === true,
                                                 // boven: op een zwevende savannelaag in plaats van op de grond (Honingjacht 3)
-                                                boven: s.boven === true })),
+                                                boven: s.boven === true,
+                                                y: (s.y === null || s.y === undefined) ? null : Number(s.y) })),
            props: (o.props || []).filter(q => PROPS[q.k])
                                  .map(q => ({ x: Number(q.x), kind: q.k,
                                               scale: Number(q.s) || 1,
@@ -24261,6 +24294,8 @@ cv.addEventListener('pointermove', e => {
         press.obj.h = Math.round(Math.max(0, pointerLift(e) + press.offH) / 10) * 10;
       } else if (press.kind === 'kalebas'){                                   // een kalebas vrij op y
         press.obj.y = Math.round(pointerLift(e) + press.offY);
+      } else if (press.kind === 'spawn' && (press.obj.kind === 'groen' || press.obj.kind === 'zwart')){
+        press.obj.y = Math.round(Math.max(-60, Math.min(2600, pointerLift(e) + press.offY)) / 10) * 10;   // slang op hoogte, of uit de lucht
       }
     }
   }
@@ -24281,7 +24316,7 @@ function endPress(e, cancel){
   const why = placeProblem(p.kind, p.obj, p.scale);
   if (why){
     if (p.slab){ p.obj.l = p.oL; p.obj.r = p.oR; p.obj.h = p.oH; if (p.kind === 'zweef') p.obj.onder = p.oOnder; }
-    else { p.obj.x = p.origX; if (p.obj.far || p.kind === 'npc' || p.kind === 'kalebas') p.obj.y = p.origY; if (p.kind === 'richel') p.obj.h = p.oH; }
+    else { p.obj.x = p.origX; if (p.obj.far || p.kind === 'npc' || p.kind === 'kalebas' || p.kind === 'spawn') p.obj.y = p.origY; if (p.kind === 'richel') p.obj.h = p.oH; }
     syncLevel(); bcount.textContent = why + ', teruggezet'; return;
   }
   syncLevel();
@@ -24314,6 +24349,8 @@ function bouwVelden(k){
     if (o.kind === 'hyenas') v.push(['aantal', 'keuze', 'n', { keuzes: [[1, '1'], [2, '2']] }]);
     if (o.kind === 'zwaard') v.push(['kleur', 'keuze', 'kleur', { keuzes: Object.keys(ZW_KLEUREN).map(c => [c, c]) }]);
     if (o.kind === 'panter') v.push(['mag over keien en ravijnen', 'vink', 'over']);
+    if (o.kind !== 'hyenas') v.push(['op de bovenlaag (zwevende laag of savanne boven een gang)', 'vink', 'boven']);
+    if (o.kind === 'groen' || o.kind === 'zwart') v.push(['hoogte y (leeg = op de grond; hoger = uit de lucht)', 'getal', 'y', { stap: 10, standaard: 0 }]);
   }
   if (k.kind === 'rock' || k.kind === 'prop' || k.kind === 'npc') v.push(['grootte', 'getal', 'scale', { stap: 0.05, min: 0.25, max: 3 }]);
   if (k.kind === 'prop' || k.kind === 'npc') v.push(['gespiegeld', 'vink', 'flip']);
@@ -24527,6 +24564,13 @@ function bouwExtra(k){
   const knop = (tekst, doe) => { const b = document.createElement('button'); b.textContent = tekst; b.onclick = () => { doe(); syncLevel(); bouwInfo(); cv.focus(); }; binfoEl.appendChild(b); };
   const prijs = d => level.valschade ? (valKosten(d) ? 'kost ' + valKosten(d) + (valKosten(d) === 1 ? ' leven' : ' levens') : 'kost niets')
                                      : 'valschade staat uit';
+  if (k.kind === 'spawn' && o.kind !== 'hyenas'){
+    const zw = zweefTopBij(o.x);
+    if ((o.kind === 'groen' || o.kind === 'zwart') && o.y != null){
+      regel('op hoogte ' + Math.round(o.y) + ': valt met de zwaartekracht en landt op de laag eronder (sleep hem omhoog voor uit de lucht)', 'bgoed');
+    } else if (o.boven) regel(zw > -Infinity ? 'staat op de zwevende laag hier' : (holteAt(o.x) ? 'staat op de savanne boven de gang' : '! geen bovenlaag hier: hij staat gewoon op de grond'), zw > -Infinity || holteAt(o.x) ? 'bgoed' : 'blet');
+    else regel('staat op de vloer op zijn x; een terras, zuil of grotraster eronder tilt hem mee omhoog, of sleep hem omhoog voor een hoogte', 'hint');
+  }
   if (k.kind === 'gap'){
     const h = holteUnder(o);
     if (h === 'half') regel('! maar half boven een gang: wie aan de kant zonder gang erin stapt, valt dood', 'blet');
