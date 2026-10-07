@@ -838,6 +838,12 @@ wat je eraan kunt veranderen, zoals de breedte van een ravijn, de kleur van een 
 de tekst van een tip. Slepen verplaatst het, **Wis** of de Delete-toets haalt het weg. Past iets
 niet waar je het zet (boven een ravijn, achter de klif), dan zegt de balk bovenin waarom.
 
+**Een terras, een savannelaag of een zwevende laag** krijgt als je het kiest een greep op de
+linker- en de rechterrand (een geel bolletje op de looplijn). Pak zo'n greep en trek, en je maakt
+de laag langer of korter, zonder de getallen in het venster te hoeven typen; de rest van de laag
+blijft staan. Pak je het midden, dan schuift het hele blok mee, zoals altijd. De textuur en de
+rotsrand lopen vanzelf mee met de lengte die je trekt.
+
 **Een gang onder de grond** maak je onder een ravijn. Kies het ravijn: het venster zegt wat eronder
 zit. Staat er niets, dan val je daar dood; met **Maak er een ingang van** komt er een gang onder.
 Kijk omlaag en klik de gang aan: je ziet de ingang, de uitgang en wat de val kost als valschade
