@@ -4386,7 +4386,7 @@ function drawGrotten(groundY, scale, cx){
     grotMassa(R, X, Y, ch, scale, groundY, g.schacht);   // 1. het steen, en het vlak om op te lopen
     grotPlafonds(R, X, Y, T);                     // 2. buur onder leeg: de plafondband
     if (g.schacht){
-      schachtTanden(R, X, Y, ch, scale, groundY);          // de tanden langs de binnenranden
+      schachtTanden(R, X, Y, ch, scale, groundY, cx);      // de tanden langs de binnenranden
       schachtKap(R, X, Y, ch, scale, cx);                  // savanne-grond bovenop de wand (de rots is de ondergrond)
     }
     drawGrotDecor(g, R, groundY, scale, cx);      // 3. hangblokken, richels en keien
@@ -4397,19 +4397,52 @@ function drawGrotten(groundY, scale, cx){
 // elke verticale binnenrand van de schacht: waar een volle cel een lege buur binnen het raster heeft.
 // De uitlopende kant gaat de wand in, zodat de band in de vulling opgaat (geen naad); de tanden steken
 // de opening in. side -1: rand aan de rechterkant van de cel (tanden naar rechts), +1: linkerkant.
-function schachtTanden(R, X, Y, ch, scale, groundY){
+function schachtTanden(R, X, Y, ch, scale, groundY, cx){
   const B = plafondBandSet(); if (!B) return;
-  const band = B.strook; if (!band || !band.width) return;
+  const band = B.strook, rand = B.strookRand; if (!band || !band.width) return;
   const bw = band.width, bh = band.height;
-  const D = Math.max(6, 0.5 * R.celH * scale);      // diepte van de tanden de opening in: forse tanden (de strook gedraaid)
-  const ts = D / bh, tile = bw * ts, ov = D * 0.5;  // ov: hoe diep de gefadede kant de wand in schuift
+  const D = Math.max(10, 1.45 * R.celH * scale);    // diepte van de tanden de opening in: forse tanden (de strook gedraaid)
+  const ts = D / bh, tile = bw * ts * 1.6;          // *1.6: elke tand wat breder, zodat het forse tanden zijn en geen kam
+  const ov = D * 0.47;                              // de doorzichtige massieve kop valt in de wand, de tanden steken eruit
   const gy = Math.round(groundY);
-  // ex is de rand van de cel, dir +1 = tanden naar rechts (de opening rechts), -1 = naar links
+  // ex is de rand van de cel, dir +1 = tanden naar rechts (de opening rechts), -1 = naar links. De donkere
+  // contour (strookRand) iets dieper de opening in geeft de tanden hun rand, zodat ze op de grijze wand lezen.
   const strip = (ex, yTop, yBot, dir) => {
+    if (yBot - yTop < 2) return;
     ctx.save();
     ctx.translate(ex, yTop); if (dir > 0) ctx.scale(-1, 1); ctx.rotate(Math.PI / 2);
-    for (let y = 0; y < yBot - yTop; y += tile){ const seg = Math.min(tile, yBot - yTop - y) + 1; ctx.drawImage(band, 0, 0, bw, bh, y, -ov, seg, D); }
+    for (let y = 0; y < yBot - yTop; y += tile){
+      const seg = Math.min(tile, yBot - yTop - y) + 1;
+      ctx.drawImage(rand, 0, 0, bw, bh, y, -ov + 4, seg, D);
+      ctx.drawImage(band, 0, 0, bw, bh, y, -ov, seg, D);
+    }
     ctx.restore();
+  };
+  // waar een plateau (achter-richel) uit deze rand steekt komen geen tanden: het plateau groeit
+  // daar vlak uit de rots. Per rand de Y-banden van de plateaus op die rand.
+  const plateauBanden = (ex) => {
+    const uit = [];
+    for (const o of ledgeList()){
+      if (!o.achter || o.h < 0) continue;
+      if (Math.abs((cx + (o.x - world)) - ex) > R.cel * 0.5) continue;
+      const py = gy - o.h * scale;                  // de looplijn van het plateau op het scherm
+      uit.push([py - 0.30 * ch, py + 0.95 * ch]);   // iets erboven tot het hangende lijf eronder
+    }
+    return uit;
+  };
+  // teken de tanden over [yTop,yBot], maar sla de plateau-banden over
+  const stripMet = (ex, yTop, yBot, dir, skip) => {
+    let segs = [[yTop, yBot]];
+    for (const [a, b] of skip){
+      const volgend = [];
+      for (const [s, e] of segs){
+        if (b <= s || a >= e){ volgend.push([s, e]); continue; }
+        if (a > s) volgend.push([s, a]);
+        if (b < e) volgend.push([b, e]);
+      }
+      segs = volgend;
+    }
+    for (const [s, e] of segs) strip(ex, s, e, dir);
   };
   // per kolom de open verticale randen binnen het raster verzamelen tot verticale stukken
   for (let c = 0; c < R.kol; c++){
@@ -4422,7 +4455,7 @@ function schachtTanden(R, X, Y, ch, scale, groundY){
         let e = r; while (e + 1 < R.n && grotVol(R, c, e + 1) && !grotVol(R, nb, e + 1)) e++;
         const yTop = Y(r) - ch, yBot = Math.min(gy, Y(e));    // van de bovenkant van rij r tot onder rij e
         const ex = zij > 0 ? X(c + 1) : X(c);         // de rand aan de kant van de opening
-        strip(ex, yTop, yBot, zij > 0 ? 1 : -1);      // opening rechts -> tanden naar rechts (dir +1)
+        stripMet(ex, yTop, yBot, zij > 0 ? 1 : -1, plateauBanden(ex));   // opening rechts -> tanden naar rechts
         r = e + 1;
       }
     }
