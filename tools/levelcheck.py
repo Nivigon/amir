@@ -1666,6 +1666,11 @@ def onder_de_grond(lv, sp):
             for t in lv.terraces:
                 if t['h'] < 0 and t['l'] <= gl + sp.halfW and t['r'] > gl and -t['h'] < sp.SPRONG_H:
                     uit = True
+            # of een lift: rijzende grond in het gat die van de bodem (binnen een sprong) tot de grondlijn komt
+            for b in rijs_in(lv, g):
+                van, tot = b.get('van', -900), b.get('tot', -1)
+                if not b.get('zak') and van <= -o['diep'] + sp.SPRONG_H and tot > -sp.SPRONG_H:
+                    uit = True
         if not uit:
             yield fout(o['l'], 'het einde (%s) ligt voorbij de gang van %s tot %s, maar er is geen weg naar boven: '
                        'een gat in het dak met treden erin, de bovenste tegen de linkerrand van het gat en '

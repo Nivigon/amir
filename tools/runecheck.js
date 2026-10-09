@@ -66,7 +66,7 @@ function server(){
 async function meet(filter){
   const uit = [];
   const wacht = ms => new Promise(r => setTimeout(r, ms));
-  const lijsten = [POORT_LEVELS, HON_LEVELS, TEST_LEVELS, BAB_LEVELS];
+  const lijsten = [POORT_LEVELS, HON_LEVELS, HOOG_LEVELS, TEST_LEVELS, BAB_LEVELS];
   const werk = [];
   for (const lijst of lijsten) lijst.forEach((def, i) => werk.push([lijst, def, i]));
   for (const [lijst, def, i] of werk){
@@ -77,6 +77,7 @@ async function meet(filter){
                      && (!level.muur || !!muurSet(nowScale()));
     for (let n = 0; n < 60 && !klaar(); n++) await wacht(100);
     const sc = nowScale(), rPx = RAVIJN_RUNE.r * CHAR_H * sc, inBeeld = W / 2 - rPx;
+    if (typeof runeKeiZet === 'function') runeKeiZet(sc);   // de kei voor een hoge schijf ligt op deze maat
     const rij = { naam: def.name, breed: W, hoog: H, inBeeld: Math.round(inBeeld), schijven: [] };
     for (const e of (level.runes || [])){
       const M = ravijnRotsMaat(sc, e), R = M && ravijnRune(sc, e);

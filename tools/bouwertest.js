@@ -84,7 +84,7 @@ async function start(){
     };
     const uit = [];
     // elke episode die er is: De Runen, De Vorst (als die er staat) en de testlevels
-    const reeksen = [POORT_LEVELS, HON_LEVELS, TEST_LEVELS, BAB_LEVELS];
+    const reeksen = [POORT_LEVELS, HON_LEVELS, HOOG_LEVELS, TEST_LEVELS, BAB_LEVELS];
     for (const lijst of reeksen){
       for (const def of lijst){
         if (filter && !def.name.toLowerCase().includes(filter.toLowerCase())) continue;

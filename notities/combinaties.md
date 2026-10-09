@@ -215,3 +215,21 @@ Wat we geleerd hebben en wat dus vast staat.
   schaalt mee met het scherm, wat in het level staat (keien, ravijnen, vijanden) niet. Een kei die bij een
   rune hoort, moet daarom aan de rune hangen (`kei`), anders ligt hij op een groot scherm in de rots en op
   een telefoon te ver. Het zegel dat op 1280 vrij lag, lag op 1920 onder die kei.
+
+## De Hoge Schijven: wat het bouwen leerde
+
+- **De plek vanwaar je raakt moet op vaste grond liggen.** De strook van een rune schaalt met het scherm, een
+  ravijn niet. In Hoog 3 lag de strook op 1280 bij 720 boven het ravijn met de zakkende stenen; tussen de
+  rechterrand van de rots en een ravijn ervoor hoort op 1920 bij 1080 minstens de strook plus een Amir.
+- **Hoog 1,9 in plaats van 2,0.** Op 2,0 ligt de strook voor `terras`, `gang` en de zuilen grotendeels buiten
+  beeld (de laatste 8 tot 58 px). Op 1,9 ligt hij op alle drie de schermen helemaal in beeld, en dat is nog
+  boven wat Amir springend haalt (1,83). De opstellingen `boog`, `terras` en `gang` staan nu op 1,9; `boog`
+  is de zuilen op 2,5, want de pieken op 3,5 waren op 1920 bij 1080 nergens te raken.
+- **Zakkende stenen: een sprintsprong uit elkaar.** Een sprintsprong is zo'n 425 tot 445, en een speler (en de
+  bot) springt na een landing pas na zo'n 100 px opnieuw. Met stenen van 350 breed en kieren van 200 tot 250
+  is er per sprong een venster van ongeveer 250 px; dichter op elkaar vlieg je over de eerste heen.
+- **Een lift na een rune moet traag zijn.** De afstand van de werpplek naar de lift verschilt per scherm (op
+  1920 bij 1080 bijna twee keer zo ver), dus een lift die in drie seconden boven is, is daar al weg. Hoog 3:
+  `v` 80 van -400, dan is hij van 3,5 tot 7,5 seconden na de treffer te bespringen. Hoog 4: `wacht` 4,5.
+- **De runecheck legt de kei zelf.** `runeKeiZet` liep alleen in de spellus, dus de strook vanaf de kei telde
+  soms niet mee; nu roept `tools/runecheck.js` hem aan voor hij meet.
