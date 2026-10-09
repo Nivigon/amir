@@ -161,10 +161,11 @@ Wat Claude uit een testrun haalt en voorstelt. Pas na een ja gaat het een level 
   terras of gang) en de strook als deel van wat je ziet. Voorstel voor de vorm: een lijst in de HTML naast
   `RUNE_ROTSEN`, die je in een level of in de bouwer op naam kiest. De precieze vorm bespreken we bij de PR.
 - **Hoger of lager komen (schets, nog niets gebouwd):** zes opties in `proeven/opties_hoger_lager.jpg`.
-  Kan nu al: eerst op een kei (Test 17), een rots in een kuil of gang waar je eerst naar beneden moet, en
-  een rots met een hoge en een lage rune. Vraagt iets nieuws: een rijzend platform (via een zegel, of
-  vanzelf op en neer), een lage rots uit de set die draagt zodat je erop staat, en een platform dat
-  zakt als je erop staat.
+  Alle zes goedgekeurd. Kan nu al: op een grote kei staan (`s: 2.5`, bovenkant 1,1 Amir, met een gewone
+  kei ervoor als trapje), eerst op een kei (Test 17), een rots in een kuil of gang waar je eerst naar
+  beneden moet, en een rots met een hoge en een lage rune. Vraagt iets nieuws: een rijzend platform (via
+  een zegel, of vanzelf op en neer) en een platform dat zakt als je erop staat. Niet doen: de rotsen uit
+  `RUNE_ROTSEN` (zoals de twee zuilen) laten dragen. Een opstap is een kei.
 
 - (nog leeg)
 
