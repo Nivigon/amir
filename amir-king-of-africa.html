@@ -968,8 +968,9 @@
         <button id="sbrijs">Neerzetten</button>
         <button id="sbrijsduur">Zakt weer</button>
         <button id="sbrijsop">Omhoog</button>
+        <button id="sbrijsmob">Met een slang erop</button>
         <button id="sbrijsweg">Weg</button>
-        <span class="hint">een ravijn voor je uit met een zegel ervoor: stap erop en er komt steen omhoog</span>
+        <span class="hint">een ravijn voor je uit met een zegel ervoor: stap erop en er komt steen omhoog. Met een slang erop: een lift op grondniveau met een slang erop, die met de lift mee omhoog en weer omlaag gaat (geldt voor alle vijanden)</span>
       </div>
       <div class="row">
         <label>Savannelaag</label>
@@ -3205,7 +3206,7 @@ const HON_3 = {
   spawns: [ // op de begane grond (de middelste), waar je start
             {x: -900, k: 'zwart'}, {x: -1400, k: 'scorp'},
             // beneden in de gang (de lage weg), die je naar links afwerkt
-            {x: -2600, k: 'scorp'}, {x: -3600, k: 'zwaard', c: 'rood'}, {x: -4900, k: 'fosfor', klim: true},
+            {x: -2600, k: 'scorp'}, {x: -3600, k: 'zwaard', c: 'rood'}, {x: -4900, k: 'fosfor'},
             // op de hoge laag (boven: true), die je naar rechts afwerkt
             {x: -4500, k: 'zwaard', c: 'rood', boven: true}, {x: -2800, k: 'zwart', boven: true},
             {x: -1400, k: 'scorp', boven: true}, {x: -100, k: 'groen', boven: true} ],
@@ -6435,9 +6436,35 @@ function rijsPlats(){
     const h = b.h === undefined ? b.van : b.h;
     if (b.gaat < 0 && h < -RIJS.los) continue;
     uit.push({ x: (b.l + b.r) / 2, left: b.l, right: b.r, topH: h, base: h, wPx: b.r - b.l, hPx: 0, rijs: true,
-               stijg: b.stijg || 0 });                   // zo ver kwam hij er het laatste beeld bij (landen, supportHeight)
+               id: b.id, stijg: b.stijg || 0 });          // zo ver kwam hij er het laatste beeld bij (landen, supportHeight)
   }
   return uit;
+}
+// Een lift of rijzend/zakkend blok onder een mob draagt hem mee omhoog en omlaag, net zoals het Amir
+// draagt (supportHeight en "meelopen met de rots" in updateJump). Alleen wie er met zijn voeten op
+// staat: een blok naast hem blijft gewoon een wand (blocksMonster). Zo is de enige weg omhoog voor
+// een mob een lift, geen trede. Geeft terug of hij gedragen wordt.
+function rijsDraagtMob(e, dt){
+  // Staat hij er al op, dan blijft hij eraan vastzitten zolang hij er met zijn midden boven staat: zo
+  // volgt hij het blok omhoog en omlaag ook als een haperend beeld hem anders los zou laten (het blok
+  // zakt per beeld verder dan een krappe vangmarge). Hij laat pas los als hij eraf loopt of het blok
+  // onder -RIJS.los uit beeld zakt (dan staat het niet meer in rijsPlats).
+  if (e.rijsId != null){
+    for (const p of rijsPlats())
+      if (p.id === e.rijsId && e.x > p.left && e.x < p.right){ e.base = p.topH; return true; }
+    e.rijsId = null;
+  }
+  // Nog niet: hij stapt erop zodra de bovenkant bij of boven zijn voeten komt. Een massief blok op zijn
+  // x betekent dat hij erop staat (ernaast houdt het blok hem tegen, blocksMonster; eronder kan hij niet
+  // komen). De ondergrens houdt een vijand die een trede of laag hoger staat los van een blok diep beneden.
+  const base = e.base || 0;
+  let best = null;
+  for (const p of rijsPlats()){
+    if (e.x <= p.left || e.x >= p.right) continue;
+    if (p.topH >= base - (RIJS.terug * dt + 2) && (best === null || p.topH > best.topH)) best = p;
+  }
+  if (best){ e.rijsId = best.id; e.base = best.topH; return true; }
+  return false;
 }
 // Getekend met de grondrand zelf (bodemPic, op de maat en het ankerpunt van de grond), zodat een blok dat boven
 // staat precies overloopt in de savanne ernaast; daaronder de donkere bodem, tot onder uit beeld. Aan een kant die
@@ -16296,6 +16323,7 @@ function slangSchuif(s, dt, plats, cliff, tempo){
 function updateSnake(s, dt, plats, cliff){
   if (ravijnValt(s, dt, 'gone')) return;            // in het open ravijn gevallen
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
+  rijsDraagtMob(s, dt);                             // een lift of rijzend blok onder hem draagt hem mee omhoog en omlaag
 
   // y-modus: op een vaste hoogte gezet (op een laag, of uit de lucht). Valt met de zwaartekracht en
   // landt op de hoogste vloer uit de platformlijst; eenmaal geland volgt hij die laag (ook een zwever,
@@ -16828,6 +16856,7 @@ function updatePanther(s, dt, plats, cliff){
         }
       }
     } else s.fallV = 0;
+    if (rijsDraagtMob(s, dt)) s.fallV = 0;          // een lift of rijzend blok wint: mee omhoog en omlaag
   }
   // Vangnet: een baas die je niet kunt bereiken hoort terug te komen. Anders staat het level op
   // slot, want jij komt de arena niet uit en zonder hem gaan de fakkels niet open.
@@ -17691,6 +17720,7 @@ function updateHyena(s, dt, plats, cliff){
     s.x = Math.abs(s.x - links) < Math.abs(s.x - rechts) ? links : rechts;
   }
   s.base = vloerBij(s.x, s.base || 0);
+  rijsDraagtMob(s, dt);                             // mee omhoog en omlaag met een lift of rijzend blok
 
   // in beeld gelopen: de roedel lacht, één keer, niet per hyena
   if (!s.enc.laughed && Math.abs(s.x - world) < W * 0.5 / viewZoom() + 120){
@@ -18020,6 +18050,7 @@ function updateZwaard(s, dt, plats, cliff){
   if (s.inv > 0) s.inv = Math.max(0, s.inv - dt);
   s.t += dt;
   s.base = vloerBij(s.x, s.base);
+  rijsDraagtMob(s, dt);                             // mee omhoog en omlaag met een lift of rijzend blok
 
   if (s.state === 'dood'){                          // neergaan, blijven liggen, wegzakken
     zwAnim(s, dt);
@@ -18381,6 +18412,7 @@ function updateFosfor(s, dt, plats, cliff){
   if (ravijnValt(s, dt, 'weg')) return;            // in het open ravijn gevallen
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
   if (s.inv > 0) s.inv = Math.max(0, s.inv - dt);
+  rijsDraagtMob(s, dt);                             // mee omhoog en omlaag met een lift of rijzend blok
   if (s.vx !== 0) knockStep(s, dt, plats, cliff, SNK_W * fosforScale() * 0.45, 60);
   const gap = Math.abs(world - s.x);
   const anim = (fps) => { s.acc += dt * fps; while (s.acc >= 1){ s.frame = (s.frame + 1) % 8; s.acc -= 1; } };
@@ -18633,6 +18665,7 @@ function updateScorp(s, dt, plats, cliff){
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
   if (s.cool > 0) s.cool = Math.max(0, s.cool - dt);
   s.glow += dt;
+  rijsDraagtMob(s, dt);                             // mee omhoog en omlaag met een lift of rijzend blok
   const gap = Math.abs(world - s.x);
 
   if (s.state === 'dying'){
@@ -23947,6 +23980,20 @@ document.getElementById('sbrijsop').onclick = () => {
   if (z) zegelRijs(z);
   cv.focus();
 };
+// Een lift op grondniveau (geen ravijn eronder) met een slang erop, zodat je ziet dat een vijand met de
+// lift mee omhoog en weer omlaag gaat (rijsDraagtMob). Stap op het zegel, of druk op Omhoog.
+function sbRijsMob(){
+  sbRijsWeg();
+  if (!level.zegels) level.zegels = [];
+  const Z = SB_RIJS, gx = world - Z.afstand - Z.blok / 2;
+  level.rijzers.push({ id: 'sb', r: gx + Z.blok / 2, l: gx - Z.blok / 2, tot: 350, van: -1, v: RIJS.v, wacht: 0, duur: Z.duur });
+  level.zegels.push({ x: world - Z.zegel, ravijn: null, rijs: 'sb' });
+  rijsReset();
+  const sn = makeSnake('groen'); sn.x = gx; sn.side = 1; sn.base = vloerBij(gx, 0); snakes.push(sn);
+  flashHint('Stap op het zegel: de slang gaat mee omhoog en weer omlaag');
+  cv.focus();
+}
+document.getElementById('sbrijsmob').onclick = sbRijsMob;
 document.getElementById('sbrijsweg').onclick = () => { sbRijsWeg(); cv.focus(); };
 // Een hogere savannelaag voor je uit: een terras met grond: true, dus geen rots maar savanne die
 // hoger ligt (zie "hogere savannelaag"). Met de lift komt er het hele setje bij waar het om gaat:
