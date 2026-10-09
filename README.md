@@ -83,6 +83,8 @@ door, een boog raakt het plafond en valt terug. Hoe ver een vlakke worp komt han
 kamer waar hij precies op het zegel valt. Gooi je te kort, dan ligt je speer in de kamer en raap je hem op; gooi je te
 ver, dan zet het spel hem naast je neer. Raak je het zegel, dan gaat alles weer omhoog en loop je door naar de fakkels.
 In de sandbox staat het bij Terrein onder **Zakplafond**: **Neerzetten** zet de val in het klein voor je uit,
+
+Voor wie levels bouwt zijn er twee nieuwe bouwstenen. Een rune op een rots kan een **opstelling** krijgen: een rots, een maat en een hoogte die gemeten zijn en waarvan bekend is van waar je hem raakt (vlak, zuilen, boog, op een kei, op een terras, in een gang en van ver). In de bouwer kies je die in het venster van een rune, samen met wat hij doet: een ravijn openen of sluiten, de rotswand of een speerval, of rijzende grond. En rijzende grond kan andersom werken: een **zakkend platform** staat boven een ravijn en zakt weg zodra je erop staat, dus je moet er snel weer af. In de sandbox staan ze onder Terrein, Rijzende grond, **Zakt onder je**, en onder Rune, **Opstelling**.
 **Zakken** laat hem meteen dichtgaan, **Omhoog** haalt hem op en **Weg** ruimt hem op. Een level zet het met
 `zakplafond: [ {r, l, rust, dicht, v, schok, duw} ]` en twee zegels, `{x, plafond: 'zak'}` en `{x, plafond: 'op'}`.
 

@@ -168,17 +168,15 @@ sandbox: de knop **Doet** kiest wat de rune doet, en na het neerzetten zegt de h
 
 Wat Claude uit een testrun haalt en voorstelt. Pas na een ja gaat het een level in.
 
-- **Voor de PR (afgesproken, nog niet gebouwd):** de opstellingen die werken opslaan, zodat een level ze
-  kan gebruiken zonder alles opnieuw te meten. Dat zijn de vijf proeven R1 tot en met R5 en de vier
-  stations van Test 28: per opstelling de rots, `groot`, `hoog`, waar Amir staat (vloer, `kei` in Amir,
-  terras of gang) en de strook als deel van wat je ziet. Voorstel voor de vorm: een lijst in de HTML naast
-  `RUNE_ROTSEN`, die je in een level of in de bouwer op naam kiest. De precieze vorm bespreken we bij de PR.
+- **Opgeslagen als bouwsteen (gebouwd):** de opstellingen die werken staan in `RUNE_OPSTELLINGEN`:
+  `vlak`, `zuilen`, `boog`, `kei`, `terras`, `gang` en `ver`, met de rots, `groot`, `hoog`, de kei en de strook.
+  Een level zet `opstelling: 'kei'` bij een rune, de bouwer kiest hem in het venster van een rune.
 - **Hoger of lager komen (schets, nog niets gebouwd):** zes opties in `proeven/opties_hoger_lager.jpg`,
   alle zes goedgekeurd. Een opstap is nooit een rots met een rune en geen vergrote kei, maar iets wat er al
   is. Op main bestaan al: de rijzende grond (`rijzers`, ook te starten met een rune als doel) voor optie 1,
   en de zuilen met een hoogte uit Test 20 (Hoog en laag) voor optie 2: hop naar de zuil van waar je de rune
   raakt. Kan op deze branch al: eerst op een kei (Test 28), een rots in een kuil of gang, en een rots
-  met een hoge en een lage rune. Optie 6 (een platform dat zakt) is deels een rijzer die na `duur` terugzakt.
+  met een hoge en een lage rune. Optie 6 (een platform dat zakt) is nu een rijzer met `zak: true`: hij zakt als je erop staat.
 - **Voor de PR, let op:** main is sinds deze branch ver doorgegroeid (tot Test 27, met rijzers, zuilen,
   savannelagen en liften). Bij het samenvoegen: mijn Test 28 (Hoog mikken) krijgt een nieuw nummer, want
   main heeft al een Test 17 (De rijzende grond); en mijn `runeDoet` (een rune als schakelaar) moet samen

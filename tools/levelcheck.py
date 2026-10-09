@@ -384,6 +384,11 @@ class Spel:
         # het zegel in de grond: zijn straal, en de breedte van het ravijn dat hij opent
         m = b.regex(r'const ZEGEL = \{\s*r: ([\d.]+)', 'de maat van het zegel')
         self.ZEGEL_R = float(m.group(1))
+        # de opstellingen van een rune (RUNE_OPSTELLINGEN): rots, groot, hoog en kei per naam
+        m = b.regex(r'(?s)const RUNE_OPSTELLINGEN = \{(.*?)\n\};', 'de opstellingen van een rune')
+        self.OPSTELLINGEN = {}
+        for o_naam, o_rots, o_groot, o_hoog, o_kei in re.findall(r"(\w+):\s*\{ naam: '[^']*',\s*rots: '(\w+)',\s*groot: ([\d.]+),\s*hoog: ([\d.]+)(?:,\s*kei: ([\d.]+))?", m.group(1)):
+            self.OPSTELLINGEN[o_naam] = {'rots': o_rots, 'groot': float(o_groot), 'hoog': float(o_hoog), 'kei': float(o_kei) if o_kei else None}
         m = b.regex(r'const RAVIJN_MAAT = \{ breed: (\d+)', 'de breedte van het open ravijn')
         self.RAVIJN_BREED = int(m.group(1))
         # de soorten weer (het veld weer): de sleutels van WEER.soorten
@@ -989,11 +994,18 @@ def rijs_gaten(lv, g):
 
 @regel('rijzende grond')
 def rijzende_grond(lv, sp):
-    """Elk blok rijzende grond heeft een zegel of een rune met zijn naam, en staat in een ravijn."""
+    """Elk blok rijzende grond heeft een zegel of een rune met zijn naam, en staat in een ravijn. Een
+    platform dat zakt (zak: true) niet: dat zakt als Amir erop staat, waar het ook staat."""
     zegels = lv.d.get('zegels') or []
     bronnen = zegels + [r for r in lv.d.get('runes') or [] if isinstance(r, dict)]
     for b in lv.d.get('rijzers') or []:
         x = b.get('r')
+        if b.get('zak'):
+            tot = b.get('tot') if isinstance(b.get('tot'), (int, float)) else -1
+            if tot > sp.SPRONG_H:
+                yield info(x, 'zakkend platform %s staat op %s: van de grond spring je er niet op (%s), dus via een terras of kei'
+                           % (b.get('id'), n0(tot), n0(sp.SPRONG_H)))
+            continue
         if not any(str(z.get('rijs')) == str(b.get('id')) for z in bronnen):
             yield fout(x, 'rijzende grond %s zonder zegel of rune met rijs: \'%s\': hij komt nooit omhoog' % (b.get('id'), b.get('id')))
         if not any(g['x'] - g['w'] / 2 <= b.get('l', 0) and b.get('r', 0) <= g['x'] + g['w'] / 2 for g in lv.gaps):
@@ -1288,6 +1300,14 @@ def runes(lv, sp):
         x = e.get('x')
         if not isinstance(x, (int, float)):
             continue
+        P = sp.OPSTELLINGEN.get(e.get('opstelling')) if e.get('opstelling') is not None else None
+        if e.get('opstelling') is not None and P is None:
+            yield fout(x, 'rune met opstelling \'%s\': die bestaat niet (wel: %s)' % (e.get('opstelling'), ', '.join(sp.OPSTELLINGEN)))
+        if P:
+            e = dict(e)
+            for k in ('groot', 'hoog', 'kei'):
+                if e.get(k) is None and P.get(k) is not None:
+                    e[k] = P[k]
         if e.get('muur') and not lv.muur:
             yield fout(x, 'rune met muur, maar dit level heeft geen rotswand: hij doet niets')
         if not e.get('doel') and any(e.get(k) is not None for k in ('ravijn', 'sluit', 'speerval', 'muur')):
