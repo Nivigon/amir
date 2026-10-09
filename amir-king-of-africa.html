@@ -2969,7 +2969,41 @@ const TEST_26 = {
   tips: [ { x: -300,  t: 'Testlevel: flink uitgezoomd (view 0,6). Alles kleiner, veel meer wereld in beeld' },
           { x: -1700, t: 'Vergelijk met Test 25: hier zie je het verst vooruit' } ]
 };
-const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26];
+// Test 27: De schacht. Amir begint onderin tussen twee rotswanden (opt-in schacht: de wand is de
+// plafondvulling, met de tanden van plafond_strook langs de binnenranden). Hij klimt de gespiegelde
+// richels omhoog, om en om links en rechts (achter: true, dus achter de wand getekend), en stapt
+// bovenaan op de linkerwand en van daar op een zwevende savannelaag met de fakkels. Geen speer nodig;
+// de bodem is savanne (veilig). Een dodelijke kloof eronder komt later. Zelf ontworpen (regel 3):
+// een wand van 4 cellen per kant, een gat van 3, negen treden van 150 omhoog, en een uitgang naar links.
+const TEST_27 = {
+  name: 'Test 27: De schacht',
+  lagen: 'tafelbergen',
+  start: -1200,                                    // tussen de wanden, onderin de schacht
+  geenSpeer: true,
+  rocks: [], spawns: [ {x: -60000, k: 'groen'} ],  // heel ver weg: houdt de vrije modus uit
+  props: [],
+  // een gat van 2 cellen: de treden liggen dicht bij elkaar (licht overlappend), zodat de zig-zag haalbaar
+  // blijft (180 px zijwaarts bij 150 omhoog was te ver voor de sprongboog). Wand 4 cellen per kant.
+  grotten: [ { x: -1800, cel: 120, y: 0, schacht: true, massief: true, strooi: false,
+               grid: [ '####..####', '####..####', '####..####', '####..####', '####..####',
+                       '####..####', '####..####', '####..####', '####..####' ] } ],
+  ledges: [ {x: -1320, h:  150, s: 0.5, achter: true},                 // de treden, om en om; links op de
+            {x: -1080, h:  300, s: 0.5, f: true, achter: true},        // wand-binnenkant (-1320), rechts (-1080)
+            {x: -1320, h:  450, s: 0.5, achter: true},
+            {x: -1080, h:  600, s: 0.5, f: true, achter: true},
+            {x: -1320, h:  750, s: 0.5, achter: true},
+            {x: -1080, h:  900, s: 0.5, f: true, achter: true},
+            {x: -1320, h: 1050, s: 0.5, achter: true},
+            {x: -1080, h: 1200, s: 0.5, f: true, achter: true},
+            {x: -1320, h: 1350, s: 0.5, achter: true} ],               // de laatste, links, op de wandtop
+  zwevers: [ { r: -1800, l: -2940, h: 1350, onder: 1150 } ],           // de zwevende savannelaag, links van de wand
+  village: [], npcs: [], water: [], thickets: [],
+  cliffs: [ {x: -3500} ],
+  ends: [ {x: -2500} ],
+  tips: [ { x: -1200, t: 'Testlevel: klim de schacht uit. Spring om en om naar de richels omhoog' },
+          { x: -1700, t: 'Bovenaan loop je links de wand op, naar de zwevende laag en de fakkels' } ]
+};
+const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27];
 // ---- Episode Baboon tests: de baviaan, stuk voor stuk ----
 // Proefstukken voor de baviaan, los van de echte episodes (regel 1 geldt niet). Het is een episode, dus met de
 // tribekeuze voor het begin, net als De Poorten. Ze stonden eerst tussen de Test levels; de baviaan hoort bij elkaar.
@@ -3374,8 +3408,11 @@ function terracePlats(scale){
   const hw = PLAYER_HALF_W * CHAR_H * scale;
   for (const q of zuilLijst())
     out.push({ x: q.x, left: q.x - q.w / 2 + hw, right: q.x + q.w / 2 - hw, topH: zuilTop(q), wPx: q.w, hPx: 0, zuil: q });
-  for (const o of ledgeList())                // richels: van onderen spring je erdoorheen
-    out.push({ x: o.x, left: o.x, right: o.x + ledgeLen(o, scale), topH: o.h, wPx: 400, hPx: 0, thin: true });
+  for (const o of ledgeList()){               // richels: van onderen spring je erdoorheen
+    const len = ledgeLen(o, scale);           // gespiegeld (f): de richel steekt naar links uit o.x in plaats van naar rechts
+    out.push(o.f ? { x: o.x, left: o.x - len, right: o.x, topH: o.h, wPx: 400, hPx: 0, thin: true }
+                 : { x: o.x, left: o.x, right: o.x + len, topH: o.h, wPx: 400, hPx: 0, thin: true });
+  }
   for (const z of zweefList())                // zwevende savannelaag: bovenop landen, eronderdoor lopen
     out.push({ x: (z.l + z.r) / 2, left: z.l, right: z.r, topH: z.h, floatBot: z.onder, zweef: true, wPx: 400, hPx: 0 });
   return out;
@@ -3480,26 +3517,36 @@ function savanneLaag(t, groundY, scale, cx, bottom, st, floating){
   }
   ctx.restore();
 }
+// één richel tekenen. Zonder f: vlakke kant links (op o.x), punt naar rechts. Met f: hetzelfde beeld
+// gespiegeld om o.x (vlakke kant rechts, punt naar links), zodat hij tegen de rechterwand van een
+// schacht past. De gespiegelde versie is precies de spiegeling van de gewone om de lijn x = o.x,
+// dus de botsing in terracePlats klopt ermee (left/right wisselen om o.x).
+function drawLedge(o, groundY, scale, cx){
+  const img = ledgePic(); if (!imgReady(img)) return;
+  const sl = ledgeScale(scale, o);
+  const lw = img.naturalWidth * sl, lh = img.naturalHeight * sl;
+  const x0 = cx + (o.x - world) - LEDGE.into * sl;
+  const ax = cx + (o.x - world);
+  if ((o.f ? ax - lw : x0) > W / viewZoom() + W || (o.f ? ax : x0 + lw) < -W) return;
+  const top = groundY - o.h * scale - LEDGE.walk * sl;
+  ctx.save();
+  if (o.f){ ctx.translate(2 * ax, 0); ctx.scale(-1, 1); }   // spiegel om o.x
+  ctx.translate(x0 + lw, top); ctx.scale(-1, 1);
+  ctx.drawImage(img, 0, 0, lw, lh);
+  ctx.restore();
+}
 function drawClimb(groundY, scale, cx, onder){
   if (!hasClimb()) return;
   const hier = h => onder ? h < 0 : h >= 0;
   const zoom = viewZoom();
   const bottom = groundY + Math.max(H * 0.2, (H - groundY) / zoom) + 40;
   const viewL = -W, viewR = W / zoom + W;
-  // richels eerst: hun rechte kant verdwijnt achter de wand
-  const ledgeImgNow = ledgePic();
-  if (imgReady(ledgeImgNow)){
+  // richels eerst: hun rechte kant verdwijnt achter de wand. Een richel met achter: true hoort bij een
+  // schacht en wordt daar achter de wand getekend (drawGrotten), dus hier overslaan.
+  if (imgReady(ledgePic())){
     for (const o of ledgeList()){
-      if (!hier(o.h)) continue;
-      const sl = ledgeScale(scale, o);
-      const lw = ledgeImgNow.naturalWidth * sl, lh = ledgeImgNow.naturalHeight * sl;
-      const x0 = cx + (o.x - world) - LEDGE.into * sl;
-      if (x0 > viewR || x0 + lw < viewL) continue;
-      const top = groundY - o.h * scale - LEDGE.walk * sl;
-      ctx.save();
-      ctx.translate(x0 + lw, top); ctx.scale(-1, 1);
-      ctx.drawImage(ledgeImgNow, 0, 0, lw, lh);
-      ctx.restore();
+      if (!hier(o.h) || o.achter) continue;
+      drawLedge(o, groundY, scale, cx);
     }
   }
   const st = terScale(scale);
@@ -3971,7 +4018,29 @@ function grotStukken(R){
 // gespiegeld, en aan een open kant de afbrokkelende rand van het plaatje. Die rand wordt
 // op ware breedte getekend en door het silhouet afgesneden; hem samendrukken tot de
 // celbreedte maakt er een streepjescode van.
-function grotMassa(R, X, Y, ch, scale, groundY){
+function grotMassa(R, X, Y, ch, scale, groundY, schacht){
+  // een schacht-wand is hetzelfde gesteente als de tanden: de plafondvulling (rots_vulling), getegeld
+  // binnen het silhouet van elk stuk. De tanden komen er in drawGrotten langs (schachtTanden).
+  if (schacht){
+    const tile = plafondVulTegel(); if (!tile) return;
+    const st = terScale(scale);
+    for (const u of grotStukken(R)){
+      const xl = X(u.c), xr = X(u.e + 1);
+      const top = Y(u.r) - ch - (TER.walk - TER.trimTop) * st;
+      const diep = u.b === R.n - 1 ? Math.max(Y(u.b), Math.round(groundY)) : Y(u.b);
+      const bottom = diep + 4;
+      const soilY = top + (TER.soil - TER.trimTop) * st;
+      ctx.save();
+      grotSilPad(R, u, X, Y, ch, top - 4, bottom, st, soilY);
+      ctx.clip();
+      const tw = tile.width, th = tile.height, ax = X(0), ay = Y(0);
+      const bx = Math.round(ax - Math.ceil((ax - xl) / tw) * tw);
+      const by = Math.round(ay - Math.ceil((ay - (top - 4)) / th) * th);
+      for (let y = by; y < bottom; y += th) for (let x = bx; x < xr; x += tw) ctx.drawImage(tile, x, y);
+      ctx.restore();
+    }
+    return;
+  }
   const tp = terPic();
   if (!imgReady(tp)) return;
   const st = terScale(scale);
@@ -4045,6 +4114,9 @@ function drawGrotten(groundY, scale, cx){
   const lijst = grotLijst();
   if (!lijst.length) return;
   grotLaad();
+  // de schacht-plateaus (richels met achter: true) komen achter de wand, dus voor de steenmassa
+  if (lijst.some(g => g.schacht) && imgReady(ledgePic()))
+    for (const o of ledgeList()) if (o.achter && o.h >= 0) drawLedge(o, groundY, scale, cx);
   const viewL = -W, viewR = W / viewZoom() + W;
   for (const g of lijst){
     const R = grotRaster(g);
@@ -4056,10 +4128,46 @@ function drawGrotten(groundY, scale, cx){
     const Y = r => Math.round(groundY) - grotRijH(R, r) * ch;      // onderkant van rij r
     if (X(R.kol) < viewL || X(0) > viewR) continue;
     const T = grotBandSet();
-    grotMassa(R, X, Y, ch, scale, groundY);       // 1. het steen, en het vlak om op te lopen
+    grotMassa(R, X, Y, ch, scale, groundY, g.schacht);   // 1. het steen, en het vlak om op te lopen
     grotPlafonds(R, X, Y, T);                     // 2. buur onder leeg: de plafondband
+    if (g.schacht) schachtTanden(R, X, Y, ch, scale, groundY);   // de tanden langs de binnenranden
     drawGrotDecor(g, R, groundY, scale, cx);      // 3. hangblokken, richels en keien
     if (showBoxes || building) grotHitboxen(g, R, X, Y, ch);
+  }
+}
+// de tanden (plafond_strook, met uitlopende massieve kant, zie plafondBandSet) 90 graden gedraaid langs
+// elke verticale binnenrand van de schacht: waar een volle cel een lege buur binnen het raster heeft.
+// De uitlopende kant gaat de wand in, zodat de band in de vulling opgaat (geen naad); de tanden steken
+// de opening in. side -1: rand aan de rechterkant van de cel (tanden naar rechts), +1: linkerkant.
+function schachtTanden(R, X, Y, ch, scale, groundY){
+  const B = plafondBandSet(); if (!B) return;
+  const band = B.strook; if (!band || !band.width) return;
+  const bw = band.width, bh = band.height;
+  const D = Math.max(6, 0.22 * R.celH * scale);     // diepte van de tanden de opening in
+  const ts = D / bh, tile = bw * ts, ov = D * 0.55; // ov: hoe diep de gefadede kant de wand in schuift
+  const gy = Math.round(groundY);
+  // ex is de rand van de cel, dir +1 = tanden naar rechts (de opening rechts), -1 = naar links
+  const strip = (ex, yTop, yBot, dir) => {
+    ctx.save();
+    ctx.translate(ex, yTop); if (dir > 0) ctx.scale(-1, 1); ctx.rotate(Math.PI / 2);
+    for (let y = 0; y < yBot - yTop; y += tile){ const seg = Math.min(tile, yBot - yTop - y) + 1; ctx.drawImage(band, 0, 0, bw, bh, y, -ov, seg, D); }
+    ctx.restore();
+  };
+  // per kolom de open verticale randen binnen het raster verzamelen tot verticale stukken
+  for (let c = 0; c < R.kol; c++){
+    for (const zij of [-1, 1]){                     // zij -1: lege linkerbuur (opening links), +1: lege rechterbuur
+      const nb = c + zij;
+      if (nb < 0 || nb >= R.kol) continue;          // alleen binnen het raster (niet de buitenranden)
+      let r = 0;
+      while (r < R.n){
+        if (!(grotVol(R, c, r) && !grotVol(R, nb, r))){ r++; continue; }
+        let e = r; while (e + 1 < R.n && grotVol(R, c, e + 1) && !grotVol(R, nb, e + 1)) e++;
+        const yTop = Y(r) - ch, yBot = Math.min(gy, Y(e));    // van de bovenkant van rij r tot onder rij e
+        const ex = zij > 0 ? X(c + 1) : X(c);         // de rand aan de kant van de opening
+        strip(ex, yTop, yBot, zij > 0 ? 1 : -1);      // opening rechts -> tanden naar rechts (dir +1)
+        r = e + 1;
+      }
+    }
   }
 }
 
@@ -7721,6 +7829,7 @@ const BAV_VER = { rand: 0.55, nader: 0.8, weg: 450 };
 // telefoon) begint hij dichter bij de baviaan dan op een laptop. Nooit tegen de rotswand aan, en nooit links van 0.
 function startWereld(){
   if (level && level.apenArena && !sandbox && !building) return Math.round(arenaMidden());   // in het midden van de arena
+  if (level && level.start != null && !sandbox && !building) return Math.round(level.start); // een vaste startplek (schacht)
   const b = level && !sandbox && !building && level.baviaan;
   if (!b || b.zicht == null) return 0;
   if (b.zicht === 'ver'){                                    // zo ver weg als kan, met hem nog in beeld (BAV_VER)
@@ -21974,10 +22083,14 @@ function syncLevel(){
     holtes: (level.holtes || []).map(o => ({ r: o.r, l: o.l, diep: o.diep })),
     valschade: level.valschade || undefined,
     worp: level.worp || undefined,            // zonder schaalworp valt het veld weg
-    ledges: (level.ledges || []).map(o => ({ x: o.x, h: o.h, s: o.s })),
+    // f (gespiegeld) en achter (achter de schacht-wand) alleen meeschrijven als ze er zijn, zodat
+    // bestaande richels ongemoeid blijven (zie "schacht")
+    ledges: (level.ledges || []).map(o => { const e = { x: o.x, h: o.h, s: o.s };
+                                            if (o.f) e.f = true; if (o.achter) e.achter = true; return e; }),
     grotten: (level.grotten || []).map(o => ({
       x: Math.round(o.x), y: o.y || 0, cel: o.cel || GROT_CEL, hoog: o.hoog || 1,
       grid: (o.grid || []).slice(), massief: o.massief !== false,
+      schacht: o.schacht || undefined,       // de schacht-wand (plafondvulling + tanden), zonder valt het veld weg
       seed: o.seed, strooi: o.strooi !== false,
       decor: (o.decor || []).map(d => ({ k: d.k, x: Math.round(d.x), y: Math.round(d.y || 0),
                                          f: d.f ? 1 : 0, s: +(d.s || 1).toFixed(2) })) })),
@@ -22232,6 +22345,9 @@ function readLevel(txt){
                                   kooi: Array.isArray(o.baviaan.kooi) && o.baviaan.kooi.length === 2
                                         ? o.baviaan.kooi.map(Number) : null,
                                   beet: !!o.baviaan.beet } : null,   // staat op de grond en pakt je speer (BAV_BEET)
+           // waar Amir begint (wereld-x); zonder dit veld begint hij op 0. Voor een schacht waar hij
+           // tussen de wanden start in plaats van ernaartoe te lopen (zie "schacht")
+           start: (o.start === undefined || o.start === null) ? null : Number(o.start),
            geenSpeer: !!o.geenSpeer,                    // geen speer voor je in de grond (haal er een uit een skelet)
            valschade: !!o.valschade,                    // een diepe val kost levens (standaard uit)
            hoogUitzicht: !!o.hoogUitzicht,              // gestapelde grondlagen: de camera klemt tegen de laag (geen zwarte diepte) en de achtergrond blijft staan, zodat een hoge laag er net zo uitziet als de basis
@@ -22241,7 +22357,10 @@ function readLevel(txt){
            onsterfelijk: !!o.onsterfelijk,              // om iets te proberen: je raakt geen levens kwijt
            talentKeuze: !!o.talentKeuze,                // aan het begin kies je zelf de talents (Test 14)
            worp: o.worp === 'schaal' ? 'schaal' : '',   // 'schaal': de hoek loopt op zolang je vasthoudt
-           ledges: (o.ledges || []).map(q => ({ x: Number(q.x), h: Number(q.h) || 0, s: Number(q.s) || 1 })),
+           // f spiegelt de richel (vlakke kant rechts, punt naar links), achter tekent hem achter de
+           // schacht-wand (zie "schacht"); bestaande levels hebben die velden niet en veranderen dus niet
+           ledges: (o.ledges || []).map(q => ({ x: Number(q.x), h: Number(q.h) || 0, s: Number(q.s) || 1,
+                                                f: !!q.f, achter: !!q.achter })),
            // rotsgebieden als raster: zie de sectie "grotten: rots als een raster van cellen"
            grotten: (o.grotten || []).map(q => ({
              x: Number(q.x), y: Number(q.y) || 0,
@@ -22249,6 +22368,7 @@ function readLevel(txt){
              hoog: Number(q.hoog) || 1,
              grid: (q.grid || []).map(String),
              massief: q.massief !== false,
+             schacht: q.schacht === true,          // wand als plafondvulling met tanden erlangs (zie "schacht")
              seed: (q.seed === undefined || q.seed === null) ? undefined : Number(q.seed),
              strooi: q.strooi !== false,
              decor: (q.decor || []).map(d => ({ k: String(d.k || '').replace(/\.png$/, ''),
@@ -23178,7 +23298,8 @@ const SUBS = {
   'Test 10: Licht onder de grond': 'Een gang met drie gaten in het dak, om het licht te bekijken',
   'Baboon 2: De speerbeet': 'Steek naar de baviaan of zwaai laag: hij pakt je speer of slaat hem kapot',
   'Test 25: Uitgezoomd, licht': 'Een beetje uitgezoomd (view 0,8): je ziet wat verder vooruit',
-  'Test 26: Uitgezoomd, ver': 'Flink uitgezoomd (view 0,6): alles kleiner, veel meer wereld in beeld'
+  'Test 26: Uitgezoomd, ver': 'Flink uitgezoomd (view 0,6): alles kleiner, veel meer wereld in beeld',
+  'Test 27: De schacht': 'Klim tussen twee rotswanden omhoog, om en om, naar de zwevende laag met de fakkels'
 };
 function buildCards(el, list){
   el.innerHTML = '';
