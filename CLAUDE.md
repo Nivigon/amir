@@ -104,7 +104,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | Feign Death | `SCHIJN`, `schijnDoodVang` (vanuit `hurtPlayer`, `valLand` en `fosforBijt`), `schijnDoodZet` (kantelt zijn frame), `schijnHud` (`#schijn`); per level terug in `restart` |
 | lichtkaart: het licht onder de grond | `LK`, `drawLichtkaart`: een lichtbron (de hemel en de zon) voor alles onder de grond en onder rots boven je, per level een keer uitgerekend |
 | terrassen en richels | `terraces`, `ledges`, klimmen. Een richel kan gespiegeld (`drawLedge` met `o.f`, de botsing in `terracePlats`) en achter de schacht-wand (`o.achter`, getekend in `drawGrotten` voor de massa); zie "De schacht" |
-| schacht: een kloof om uit te klimmen | de opt-in `schacht`: een grot-raster met `schacht: true` tekent `grotMassa` als de plafondvulling (`plafondVulTegel`) met een rechte rand, met de plafond-tandenband erlangs (`schachtTanden`, `grotBandSet` een kwartslag gedraaid zoals `plafondBand`, geen tanden waar een plateau uitsteekt) en savanne-grond bovenop de wand (`schachtKap`, `bodemPic` met een vervagende onderkant). De gespiegelde richels (`ledges` met `f` en `achter`) klimmen ertussen, achter de wand getekend, met een echte zijwaartse afstand ertussen. De wanden lopen schermbreed door met een lege bovenrij, zodat `grotTerrein` de wandtop teruggeeft. `start` zet Amir onderin tussen de wanden. Test 27 is het proefstuk; zie "De schacht" hieronder |
+| schacht: een kloof om uit te klimmen | de opt-in `schacht`: een grot-raster met `schacht: true` tekent `grotMassa` als de plafondvulling (`plafondVulTegel`) met een rechte rand, met de plafond-tandenband erlangs (`schachtTanden`, `grotBandSet` een kwartslag gedraaid zoals `plafondBand`, over de hele rand) en savanne-grond bovenop de wand (`schachtKap`, `bodemPic` met een vervagende onderkant). De gespiegelde richels (`ledges` met `f`) klimmen ertussen, vóór de tanden getekend zodat ze de tanden erachter afdekken, met een echte zijwaartse afstand ertussen. De wanden lopen schermbreed door met een lege bovenrij, zodat `grotTerrein` de wandtop teruggeeft. `start` zet Amir onderin tussen de wanden. Test 27 is het proefstuk; zie "De schacht" hieronder |
 | hogere savannelaag: een terras van grond | `SAV_LAAG`, `savanneLaag` (in `drawClimb`, voor de rotslus): een terras met `grond: true` is geen rotsplateau maar savanne die hoger ligt. Botsen, dragen en `terrainH` blijven wat ze bij een terras waren; alleen het tekenen is anders: de grondtegel van het level (`bodemPic`, vast aan de wereld, net als `zuilTeken` en `rijsTeken`, zodat een blok rijzende grond er naadloos in overloopt) met daaronder de aarde die wegzakt in het donker, en het silhouet van een terras (`terClipPath`), zodat de zijkanten net zo openbreken en een hoger terras dat ertegenaan staat de rand afdekt. De winter en een rotsbodem (`sneeuw`) lopen vanzelf mee, want die zitten al in `bodemPic` en `bodemDonker`. Test 22 is het proefstuk; in de sandbox onder Terrein, Savannelaag (`SB_SAV`, `sbSavLaag`) |
 | zwevende savannelaag: een dik savanneblok in de lucht | `ZWEEF`, `zweefList`, `savanneLaag` (met `floating`), `zweefKop`: het veld `zwevers: [{r, l, h, onder}]`, los van `terraces` want `terrainH` is enkelvoudig. Een dik stuk savanne dat zweeft met lucht eronder: je loopt eronderdoor als er een hele Amir ruimte onder zit (`onder >= CHAR_H`, anders is zijn zijkant een wand, in `blockByPlatforms`), je landt bovenop via de rand of een lift (`terracePlats`, `supportHeight`), en van onderaf stoot je je hoofd (`zweefKop` in `updateJump`). `onder` dicht bij `h` geeft een dunne plateau, laag geeft een dik blok met een diepe aardrand. Zo vouwt een route: op de heenweg onderdoor, op de terugweg eroverheen. Puur zwevend leest fantasy (goed voor een ruïne); voor een natuurlijke "deel van het gebergte" is een overhang of een gang beter. Getekend als savanne met de aardrand doorgetegeld en een schaduw-onderkant. Test 24 is het proefstuk; in de sandbox onder Terrein, Zwevende laag (`SB_ZWEEF`, `sbZweef`) |
 | de rotswand rechts | `cliffs`, het einde van het level |
@@ -1108,23 +1108,24 @@ Vier kleine toevoegingen maken het:
   met de donkere rand `strookRand` eronder), een kwartslag gedraaid zodat de tanden de kloof in steken. Het
   tekent net als `plafondBand`: het massieve bovenstuk van de band (`GROT.band.dicht`) valt in de wand achter
   de vulling, de tanden hangen eruit, dus ze sluiten net zo netjes op de rots aan als aan een plafond. De
-  diepte de kloof in is een vast deel van de celbreedte (gemiddeld `1.05 * R.cel`, wereld-px), niet de
-  sprite-schaal, want de kloof is schermbreed-vast; anders zijn de tanden op een hoog scherm veel te lang.
-  Elke tand krijgt een eigen diepte (seeded met `rnd`, verankerd op de grondlijn zodat hij bij het klimmen
-  niet schuift), zodat ze niet mechanisch herhalen maar als echt gesteente lezen. Daarnaast legt `schaduw`
-  een zachte donkere gradient (multiply) op de wand vlak langs de kloofrand, over de hele hoogte, zodat de
-  spleet diep oogt in plaats van vlak. De fase hangt aan de wereld-y zodat de tanden over een overgeslagen
-  stuk doorlopen. Het zijn decor: ze doen Amir niets.
+  diepte de kloof in is een vast deel van de celbreedte (`0.8 * R.cel`, wereld-px, normaal formaat), niet de
+  sprite-schaal, want de kloof is schermbreed-vast; anders zijn de tanden op een hoog scherm veel te lang. De
+  band wordt uniform met die diepte mee geschaald (`k`) en verankerd op de grondlijn zodat hij bij het klimmen
+  niet schuift. De tanden lopen over de hele rand door, ook waar een plateau zit: het plateau wordt er in
+  `drawClimb` overheen getekend (zie hieronder) en dekt de tanden erachter af, dus geen skip nodig. Daarnaast
+  legt `schaduw` een zachte donkere gradient (multiply) op de wand vlak langs de kloofrand, over de hele
+  hoogte, zodat de spleet diep oogt in plaats van vlak. Het zijn decor: ze doen Amir niets.
 - **Savanne-grond bovenop de wand.** `schachtKap` (in `drawGrotten`, na de tanden) legt de grondtegel van het
   level (`bodemPic`, vast aan de wereld zoals de grond zelf) als een band op de bovenrand van elke volle
   kolomrij, met de looplijn precies op de wandtop; de onderkant vervaagt met `destination-out` in de rots, dus
   de grijze rots blijft de ondergrond en de bovenkant is savanne. Zo land je er netjes op en loop je door naar
   de fakkels. De bovenste steenrij vindt hij met `grotReeksH` (`tr`).
-- **Gespiegelde treden, achter de wand.** Een richel met `f` wordt gespiegeld getekend (`drawLedge`: de
-  spiegeling om `x`, met de botsing in `terracePlats` die meeklapt), zodat hij tegen de rechterwand past. Met
-  `achter: true` wordt hij in `drawGrotten` voor de massa getekend, dus achter de wand: zijn platte eind
-  verdwijnt onder de rots en die kier is weg. De botsing (`terracePlats`) staat daar los van, dus ze dragen
-  gewoon.
+- **Gespiegelde treden, over de tanden.** Een richel met `f` wordt gespiegeld getekend (`drawLedge`: de
+  spiegeling om `x`, met de botsing in `terracePlats` die meeklapt), zodat hij tegen de rechterwand past. De
+  richels van de schacht staan niet op `achter`, dus `drawClimb` tekent ze ná `drawGrotten`, bovenop de tanden:
+  het plateau steekt uit de wand en dekt de tanden erachter af. Zo lezen het plateau en de tanden als één
+  geheel. De botsing (`terracePlats`) staat daar los van, dus ze dragen gewoon. (`achter: true` bestaat nog om
+  een richel juist achter de wand te zetten, maar de schacht gebruikt het niet meer.)
 
 **De wanden lopen schermbreed door.** Het raster is veel breder dan het beeld (veertien cellen per kant), met
 het gat van drie cellen in het midden. De eerste rij van het raster is leeg (lucht), de rest steen: zo vindt

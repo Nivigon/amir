@@ -2989,7 +2989,7 @@ const TEST_26 = {
 };
 // Test 27: De schacht. Amir begint onderin tussen twee rotswanden (opt-in schacht: de wand is de
 // plafondvulling, met de tanden van plafond_strook langs de binnenranden). Hij klimt de gespiegelde
-// richels omhoog, om en om links en rechts (achter: true, dus achter de wand getekend), en stapt
+// richels omhoog, om en om links en rechts (vóór de tanden getekend, dus ze dekken de tanden erachter af), en stapt
 // bovenaan op de linkerwand en van daar op een zwevende savannelaag met de fakkels. Geen speer nodig;
 // de bodem is savanne (veilig). Een dodelijke kloof eronder komt later. Zelf ontworpen (regel 3):
 // een wand van 4 cellen per kant, een gat van 3, negen treden van 150 omhoog, en een uitgang naar links.
@@ -3013,15 +3013,15 @@ const TEST_27 = {
                        '##############...##############' ] } ],
   // de treden om en om, met een echte horizontale afstand ertussen (ook zijwaarts hoppen): links tegen de
   // wand-binnenkant (-1380), rechts tegen de andere (-1020)
-  ledges: [ {x: -1380, h:  150, s: 0.5, achter: true},
-            {x: -1020, h:  300, s: 0.5, f: true, achter: true},
-            {x: -1380, h:  450, s: 0.5, achter: true},
-            {x: -1020, h:  600, s: 0.5, f: true, achter: true},
-            {x: -1380, h:  750, s: 0.5, achter: true},
-            {x: -1020, h:  900, s: 0.5, f: true, achter: true},
-            {x: -1380, h: 1050, s: 0.5, achter: true},
-            {x: -1020, h: 1200, s: 0.5, f: true, achter: true},
-            {x: -1380, h: 1350, s: 0.5, achter: true} ],               // de laatste, links, net onder de wandtop
+  ledges: [ {x: -1380, h:  150, s: 0.5},
+            {x: -1020, h:  300, s: 0.5, f: true},
+            {x: -1380, h:  450, s: 0.5},
+            {x: -1020, h:  600, s: 0.5, f: true},
+            {x: -1380, h:  750, s: 0.5},
+            {x: -1020, h:  900, s: 0.5, f: true},
+            {x: -1380, h: 1050, s: 0.5},
+            {x: -1020, h: 1200, s: 0.5, f: true},
+            {x: -1380, h: 1350, s: 0.5} ],               // de laatste, links, net onder de wandtop
   village: [], npcs: [], water: [], thickets: [],
   cliffs: [ {x: -2900} ],                                              // achter de fakkels op de savanne-kap
   ends: [ {x: -2200} ],                                                // de fakkels op de savanne bovenop de linkerwand
@@ -4406,12 +4406,11 @@ function schachtTanden(R, X, Y, ch, scale, groundY, cx){
   // sprite-schaal: anders zijn de tanden op een hoog scherm veel te lang (de kloof is schermbreed-vast,
   // de schaal groeit mee met de hoogte). De hoogte langs de wand ook in wereld-px, zodat de tanden overal
   // hetzelfde formaat hebben. Het massieve bovenstuk valt mee geschaald in de wand.
-  const Dworld = 1.05 * R.cel;                        // gemiddelde diepte van de tanden de kloof in (wereld-px)
-  const k = Dworld / (h - dicht);                     // de tanden houden hun vorm (geen kam)
-  const base = w * k;                                 // tegelbreedte langs de wand, mee geschaald
-  const maxD = Dworld * 1.45;                         // ruimte in de clip voor de langste tand
+  const Dworld = 0.8 * R.cel;                         // diepte van de tanden de kloof in (wereld-px, normaal formaat)
+  const k = Dworld / (h - dicht);                     // uniform geschaald: de tanden houden hun vorm (geen kam)
+  const tw = w * k;                                   // tegelbreedte langs de wand, mee geschaald
   // Diepte: een zachte schaduw op de wand vlak langs de kloofrand (ambient occlusion), zodat de spleet
-  // diep oogt in plaats van vlak. Over de hele hoogte, ook achter een plateau.
+  // diep oogt in plaats van vlak. Over de hele hoogte.
   const Wsh = 0.55 * R.cel;
   const schaduw = (ex, yTop, yBot, dir) => {
     const inner = ex - dir * Wsh;
@@ -4424,51 +4423,22 @@ function schachtTanden(R, X, Y, ch, scale, groundY, cx){
     ctx.restore();
   };
   // een rij tanden langs de rand ex, dir +1 = naar rechts de opening in, -1 = naar links. De band tegelt
-  // langs de rand (verticaal), elke tand een eigen diepte (seeded, verankerd op de grondlijn zodat hij bij
-  // het klimmen niet schuift), zodat ze niet mechanisch herhalen maar als echt gesteente lezen.
+  // langs de rand (verticaal); verankerd op de grondlijn zodat de tanden bij het klimmen niet schuiven. De
+  // plateaus worden er in drawClimb overheen getekend en dekken de tanden erachter af (geen skip nodig).
   const strip = (ex, yTop, yBot, dir) => {
     const len = yBot - yTop;
     if (len < 4) return;
-    const seed = Math.round(((ex - cx) + world) * 0.13);   // vast per wand
     ctx.save();
     ctx.translate(ex, yTop);
     ctx.rotate(Math.PI / 2); if (dir > 0) ctx.scale(1, -1);
-    ctx.beginPath(); ctx.rect(-2, -2, len + 4, maxD + 6); ctx.clip();
-    let sy = gy; while (sy > yTop) sy -= base;              // grootste grens <= yTop, verankerd op gy
-    for (; sy < yBot; sy += base){
-      const n = Math.round((gy - sy) / base);
-      const kk = k * (0.55 + 0.85 * rnd(seed, n));          // de diepte van deze tand
+    ctx.beginPath(); ctx.rect(-2, -2, len + 4, Dworld + 6); ctx.clip();
+    let sy = gy; while (sy > yTop) sy -= tw;              // grootste grens <= yTop, verankerd op gy
+    for (; sy < yBot; sy += tw){
       const lx = sy - yTop;
-      ctx.drawImage(donker, 0, 0, w, h, lx, -dicht * kk + 3, base, h * kk);
-      ctx.drawImage(im, 0, 0, w, h, lx, -dicht * kk, base, h * kk);
+      ctx.drawImage(donker, 0, 0, w, h, lx, -dicht * k + 3, tw, h * k);
+      ctx.drawImage(im, 0, 0, w, h, lx, -dicht * k, tw, h * k);
     }
     ctx.restore();
-  };
-  // waar een plateau (achter-richel) uit deze rand steekt komen geen tanden: het plateau groeit
-  // daar vlak uit de rots. Per rand de Y-banden van de plateaus op die rand.
-  const plateauBanden = (ex) => {
-    const uit = [];
-    for (const o of ledgeList()){
-      if (!o.achter || o.h < 0) continue;
-      if (Math.abs((cx + (o.x - world)) - ex) > R.cel * 0.5) continue;
-      const py = gy - o.h * scale;                  // de looplijn van het plateau op het scherm
-      uit.push([py - 0.20 * ch, py + 0.70 * ch]);   // iets erboven tot het hangende lijf eronder
-    }
-    return uit;
-  };
-  // teken de tanden over [yTop,yBot], maar sla de plateau-banden over
-  const stripMet = (ex, yTop, yBot, dir, skip) => {
-    let segs = [[yTop, yBot]];
-    for (const [a, b] of skip){
-      const volgend = [];
-      for (const [s, e] of segs){
-        if (b <= s || a >= e){ volgend.push([s, e]); continue; }
-        if (a > s) volgend.push([s, a]);
-        if (b < e) volgend.push([b, e]);
-      }
-      segs = volgend;
-    }
-    for (const [s, e] of segs) strip(ex, s, e, dir);
   };
   // per kolom de open verticale randen binnen het raster verzamelen tot verticale stukken
   for (let c = 0; c < R.kol; c++){
@@ -4482,8 +4452,8 @@ function schachtTanden(R, X, Y, ch, scale, groundY, cx){
         const yTop = Y(r) - ch, yBot = Math.min(gy, Y(e));    // van de bovenkant van rij r tot onder rij e
         const ex = zij > 0 ? X(c + 1) : X(c);         // de rand aan de kant van de opening
         const dir = zij > 0 ? 1 : -1;
-        schaduw(ex, yTop, yBot, dir);                          // eerst de wandschaduw (hele hoogte)
-        stripMet(ex, yTop, yBot, dir, plateauBanden(ex));      // dan de tanden, niet bij een plateau
+        schaduw(ex, yTop, yBot, dir);                 // eerst de wandschaduw (hele hoogte)
+        strip(ex, yTop, yBot, dir);                   // dan de tanden over de hele rand
         r = e + 1;
       }
     }
