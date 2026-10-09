@@ -113,7 +113,8 @@ function robot([lopen, taai, wachten, vredig]){
         for (const e of l){ const d = Math.abs(e.x - world); if (d < dmin){ dmin = d; wie = naam + ' op ' + r2(e.x) + (e.state ? ' (' + e.state + ')' : ''); } }
       B.ev.push({ t: +t.toFixed(2), wat: 'levens ' + lastLives + ' naar ' + lives, x: r2(world), h: r2(ph), wie: wie + (venom.length ? ', gif in de lucht' : '') });
       if (taai && lives < lastLives){
-        if (ph < -200 && !holteAt(world)){              // in een ravijn: terug naar vaste grond
+        const put = typeof putBij === 'function' && ph < -1 && putBij(world);
+        if ((ph < -200 && !holteAt(world)) || put){      // in een ravijn of een put: terug naar vaste grond
           B.ev.push({ t: +t.toFixed(2), wat: 'in een ravijn, teruggezet', x: r2(world) });
           world = lastSolid; ph = Math.min(0, terrainH(world)); pvh = 0; onGround = true; fell = false; jump = null; coyote = 0;
         }
@@ -138,6 +139,10 @@ function robot([lopen, taai, wachten, vredig]){
     }
     const wacht = wachtTot !== null && t < wachtTot;
     if (wacht){ keys['ArrowLeft'] = false; vastT = t; }
+    // de laadpoort staat dicht (een winterlevel haalt zijn plaatjes op): de lus staat stil en
+    // toetsen doen niets. Niet meetellen als vastlopen, anders springt hij zodra hij weer mag en
+    // vliegt hij over zijn eigen speer heen
+    if (typeof laadWacht !== 'undefined' && laadWacht){ stuckT = 0; lastX = world; vastT = t; return; }
     // een kalebas bij zich en niet vol: drinken
     if (hppotionCarry > 0 && lives < 3 && !dead) drinkHppotion();
     // de speer oppakken, en steken naar wat voor hem staat
@@ -159,6 +164,8 @@ function robot([lopen, taai, wachten, vredig]){
         const k7 = kant.get(e) || new Map(); kant.set(e, k7);
         const obst = [];
         for (const g of gapList()) if (gatOp(g.x, b)) obst.push(['ravijn op ' + r2(g.x), g.x - g.w / 2, g.x + g.w / 2]);
+        if (typeof putLijst === 'function' && b < -1)   // beneden in een gang: de putten
+          for (const g of putLijst()) obst.push(['put op ' + r2(g.x), g.x - g.w / 2, g.x + g.w / 2]);
         for (const p of keien) if (Math.abs((p.base || 0) - b) < 2) obst.push(['kei op ' + r2(p.x), p.left, p.right]);
         for (const [wat, l, r] of obst){
           const z = e.x < l ? -1 : e.x > r ? 1 : 0;
@@ -172,6 +179,9 @@ function robot([lopen, taai, wachten, vredig]){
     // een ravijn voor hem zonder gang eronder: aan de rand springen
     const g = inGap(world - 60);
     if (!wacht && onGround && ph >= -1 && g && !holteAt(g.x) && !inGap(world)) startJump();
+    // en beneden in een gang een put in de vloer (PUT): ook aan de rand springen
+    const pu = typeof putBij === 'function' && ph < -1 ? putBij(world - 60) : null;
+    if (!wacht && onGround && pu && !putBij(world)) startJump();
     // op een kei: eerst neerkomen, dan aan de rand eraf springen
     if (onGround){
       const ps = platsNear(sc).filter(p => !p.terrace);
@@ -217,7 +227,7 @@ function robot([lopen, taai, wachten, vredig]){
   const naam = await page.evaluate(([doel, def]) => {
     let lijst = null, i = 0;
     if (def) lijst = [def];
-    else for (const l of [JAGER_LEVELS, TEST_LEVELS, RUN_LEVELS, BAB_LEVELS])
+    else for (const l of [POORT_LEVELS, HON_LEVELS, TEST_LEVELS, BAB_LEVELS])
       l.forEach((d, j) => { if (!lijst && d.name.toLowerCase().includes(doel.toLowerCase())){ lijst = l; i = j; } });
     if (!lijst) return null;
     setLevel(i, lijst);
