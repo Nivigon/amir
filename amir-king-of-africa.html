@@ -4393,30 +4393,34 @@ function drawGrotten(groundY, scale, cx){
     if (showBoxes || building) grotHitboxen(g, R, X, Y, ch);
   }
 }
-// de tanden (plafond_strook, met uitlopende massieve kant, zie plafondBandSet) 90 graden gedraaid langs
-// elke verticale binnenrand van de schacht: waar een volle cel een lege buur binnen het raster heeft.
-// De uitlopende kant gaat de wand in, zodat de band in de vulling opgaat (geen naad); de tanden steken
-// de opening in. side -1: rand aan de rechterkant van de cel (tanden naar rechts), +1: linkerkant.
+// de spikes langs elke verticale binnenrand van de schacht: lange, puntige tanden die de kloof in steken.
+// Een gedraaide plafond_strook werd een dunne kam van streepjes; daarom zijn het hier echte driehoeken,
+// gesneden uit hetzelfde steen als de wand (rots_vulling, vast aan de wereld), met tussen de punten de
+// kloof zichtbaar en een donkere rand op de schuine kanten. side +1: naar rechts de opening in, -1: links.
 function schachtTanden(R, X, Y, ch, scale, groundY, cx){
-  const B = plafondBandSet(); if (!B) return;
-  const band = B.strook, rand = B.strookRand; if (!band || !band.width) return;
-  const bw = band.width, bh = band.height;
-  const D = Math.max(10, 1.45 * R.celH * scale);    // diepte van de tanden de opening in: forse tanden (de strook gedraaid)
-  const ts = D / bh, tile = bw * ts * 1.6;          // *1.6: elke tand wat breder, zodat het forse tanden zijn en geen kam
-  const ov = D * 0.47;                              // de doorzichtige massieve kop valt in de wand, de tanden steken eruit
+  const tile = plafondVulTegel(); if (!tile) return;
+  const L = Math.max(12, 1.05 * R.celH * scale);    // lengte van de spike de kloof in (lange spikes, maar het midden blijft vrij)
+  const S = Math.max(10, 0.58 * R.celH * scale);    // hoogte van elke spike langs de rand
   const gy = Math.round(groundY);
-  // ex is de rand van de cel, dir +1 = tanden naar rechts (de opening rechts), -1 = naar links. De donkere
-  // contour (strookRand) iets dieper de opening in geeft de tanden hun rand, zodat ze op de grijze wand lezen.
+  const tw = tile.width, th = tile.height, ax = X(0), ay = Y(0);
+  // een rij spikes langs de rand ex, dir +1 = naar rechts de opening in
   const strip = (ex, yTop, yBot, dir) => {
-    if (yBot - yTop < 2) return;
-    ctx.save();
-    ctx.translate(ex, yTop); if (dir > 0) ctx.scale(-1, 1); ctx.rotate(Math.PI / 2);
-    for (let y = 0; y < yBot - yTop; y += tile){
-      const seg = Math.min(tile, yBot - yTop - y) + 1;
-      ctx.drawImage(rand, 0, 0, bw, bh, y, -ov + 4, seg, D);
-      ctx.drawImage(band, 0, 0, bw, bh, y, -ov, seg, D);
+    if (yBot - yTop < 4) return;
+    const base = ex - dir * 2;                        // iets de wand in, zodat er geen naad met het steen staat
+    for (let y = yTop; y < yBot - 2; y += S){
+      const h = Math.min(S, yBot - y), tipX = ex + dir * L, midY = y + h / 2;
+      const driehoek = () => { ctx.beginPath(); ctx.moveTo(base, y); ctx.lineTo(tipX, midY); ctx.lineTo(base, y + h); ctx.closePath(); };
+      ctx.save();
+      driehoek(); ctx.clip();                         // de spike gevuld met het wandsteen (vast aan de wereld)
+      const lo = Math.min(base, tipX), hi = Math.max(base, tipX);
+      const bx = Math.round(ax - Math.ceil((ax - lo) / tw) * tw);
+      const by = Math.round(ay - Math.ceil((ay - y) / th) * th);
+      for (let yy = by; yy < y + h + th; yy += th) for (let xx = bx; xx < hi + tw; xx += tw) ctx.drawImage(tile, xx, yy);
+      ctx.restore();
+      ctx.save();                                     // donkere rand op de schuine kanten, geeft de punt reliëf
+      driehoek(); ctx.strokeStyle = 'rgba(28,20,16,0.55)'; ctx.lineWidth = Math.max(1, ch * 0.03); ctx.stroke();
+      ctx.restore();
     }
-    ctx.restore();
   };
   // waar een plateau (achter-richel) uit deze rand steekt komen geen tanden: het plateau groeit
   // daar vlak uit de rots. Per rand de Y-banden van de plateaus op die rand.
