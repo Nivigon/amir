@@ -1108,11 +1108,13 @@ Vier kleine toevoegingen maken het:
   met de donkere rand `strookRand` eronder), een kwartslag gedraaid zodat de tanden de kloof in steken. Het
   tekent net als `plafondBand`: het massieve bovenstuk van de band (`GROT.band.dicht`) valt in de wand achter
   de vulling, de tanden hangen eruit, dus ze sluiten net zo netjes op de rots aan als aan een plafond. De
-  diepte de kloof in is een vast deel van de celbreedte (`1.05 * R.cel`, wereld-px), niet de sprite-schaal,
-  want de kloof is schermbreed-vast; anders zijn de tanden op een hoog scherm veel te lang. De band wordt
-  uniform met die diepte mee geschaald (`k`), dus de tanden houden hun vorm en hebben op elk scherm hetzelfde
-  formaat. De fase hangt aan de wereld-y zodat de tanden over een overgeslagen stuk doorlopen. Het zijn
-  decor: ze doen Amir niets.
+  diepte de kloof in is een vast deel van de celbreedte (gemiddeld `1.05 * R.cel`, wereld-px), niet de
+  sprite-schaal, want de kloof is schermbreed-vast; anders zijn de tanden op een hoog scherm veel te lang.
+  Elke tand krijgt een eigen diepte (seeded met `rnd`, verankerd op de grondlijn zodat hij bij het klimmen
+  niet schuift), zodat ze niet mechanisch herhalen maar als echt gesteente lezen. Daarnaast legt `schaduw`
+  een zachte donkere gradient (multiply) op de wand vlak langs de kloofrand, over de hele hoogte, zodat de
+  spleet diep oogt in plaats van vlak. De fase hangt aan de wereld-y zodat de tanden over een overgeslagen
+  stuk doorlopen. Het zijn decor: ze doen Amir niets.
 - **Savanne-grond bovenop de wand.** `schachtKap` (in `drawGrotten`, na de tanden) legt de grondtegel van het
   level (`bodemPic`, vast aan de wereld zoals de grond zelf) als een band op de bovenrand van elke volle
   kolomrij, met de looplijn precies op de wandtop; de onderkant vervaagt met `destination-out` in de rots, dus
