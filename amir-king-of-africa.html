@@ -12047,6 +12047,20 @@ function weerReset(){
   if (gust && gust.weer) gust = null;
 }
 
+// De grondlaag van het weer (de spatjes en de natte looprand) hoort op de echte grond, niet op
+// een vaste schermlijn: een schermkolom terug naar de wereld, de bovenste begaanbare laag
+// (terrainH, geklemd op 0 zodat een gang eronder niet meetelt) en dan terug naar schermhoogte,
+// met de zoom erin net als bij de rest van de wereld. Null boven een ravijn: daar is geen grond
+// om op te spatten, en buiten beeld.
+function weerOppervlakY(sx){
+  const zoom = viewZoom();
+  const wx = world + (sx - W / 2) / zoom;              // scherm-x naar wereld-x (zoals de bouwer en klikken)
+  if (inGap(wx)) return null;                          // boven een ravijn: geen grond
+  const h = Math.max(0, terrainH(wx));                 // de bovenste laag savanne/terras/zuil, niet de gangbodem
+  const oy = (H * 0.82 + camY + touchLift()) - h * nowScale() * zoom;
+  return (oy < -20 || oy > H + 20) ? null : oy;        // buiten beeld telt niet mee
+}
+
 function updateWeer(dt){
   const doel = weerDoel();
   if (!doel && !weerNu){ weerGeluid(0, 0, 0); return; }
@@ -12079,10 +12093,13 @@ function updateWeer(dt){
     }
     if (p.x < -40) p.x += W + 80; else if (p.x > W + 40) p.x -= W + 80;
   }
-  const grondY = H * 0.82 + camY;
-  for (let i = 0, n = R.spat * N.regen * W / 1280 * dt * 8; i < n; i++)
-    weerSpat.push({ x: Math.random() * W, y: grondY + 4 + Math.pow(Math.random(), 1.5) * (H - grondY) * 0.5,
+  const grondY = H * 0.82 + camY;                     // de schermlijn (nog voor de schicht hieronder)
+  for (let i = 0, n = R.spat * N.regen * W / 1280 * dt * 8; i < n; i++){
+    const sx = Math.random() * W, oy = weerOppervlakY(sx);     // op de looplijn van de echte grond, niet in de wand
+    if (oy === null) continue;                        // geen grond hier (een ravijn) of buiten beeld
+    weerSpat.push({ x: sx, y: oy - 2 + Math.random() * 8,
                     age: 0, life: 0.18 + Math.random() * 0.12, s: 0.6 + Math.random() * 0.8 });
+  }
   for (let i = weerSpat.length - 1; i >= 0; i--){
     const s = weerSpat[i]; s.age += dt; s.x -= dx; s.y += dy;
     if (s.age > s.life) weerSpat.splice(i, 1);
@@ -12265,10 +12282,22 @@ function drawWeer(grensY, onder){
       ctx.strokeStyle = `rgba(232,238,246,${0.6 * (1 - f) * boven})`;
       ctx.beginPath(); ctx.ellipse(s.x, s.y, rr, rr * 0.32, 0, Math.PI, 2 * Math.PI); ctx.stroke();
     }
-    // natte looprand: een glansrandje, dat maakt het eerder lichter dan donkerder
-    const ng = ctx.createLinearGradient(0, grensY - 2, 0, grensY + 22);
-    ng.addColorStop(0, `rgba(190,205,225,${0.2 * N.regen * boven})`); ng.addColorStop(1, 'rgba(190,205,225,0)');
-    ctx.globalCompositeOperation = 'screen'; ctx.fillStyle = ng; ctx.fillRect(0, grensY - 2, W, 24);
+    // natte looprand: een glansrandje op de echte grond (volgt terrainH, breekt bij een ravijn of
+    // een terrasrand af), dat maakt het eerder lichter dan donkerder
+    ctx.globalCompositeOperation = 'screen';
+    ctx.strokeStyle = `rgba(190,205,225,${0.24 * N.regen * boven})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    let vx = null, vy = 0, open = false;
+    for (let sx = 0; sx <= W; sx += 18){
+      const oy = weerOppervlakY(sx);
+      if (oy !== null && vx !== null && Math.abs(oy - vy) < 60){   // niet over een gat of een verticale terrasrand
+        if (!open){ ctx.moveTo(vx, vy); open = true; }
+        ctx.lineTo(sx, oy);
+      } else open = false;
+      vx = oy === null ? null : sx; vy = oy === null ? 0 : oy;
+    }
+    ctx.stroke();
     ctx.globalCompositeOperation = 'source-over';
   }
   if (weerFlits > 0){
