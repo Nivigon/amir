@@ -2998,19 +2998,29 @@ const TEST_27 = {
   lagen: 'tafelbergen',
   start: -1200,                                    // tussen de wanden, onderin de schacht
   geenSpeer: true,
-  rocks: [], spawns: [ {x: -60000, k: 'groen'} ],  // heel ver weg: houdt de vrije modus uit
-  props: [],
-  // De wanden lopen schermbreed door (14 cellen per kant), met een gat van 3 cellen ertussen. De bovenkant
-  // van de rots is savanne (schachtKap): je klimt de schacht uit en loopt links over de savanne naar de
-  // fakkels. De eerste rij is leeg (lucht), zodat grotTerrein de wandtop teruggeeft (op 1500); daaronder
-  // tien rijen steen.
-  grotten: [ { x: -3060, cel: 120, y: 0, schacht: true, massief: true, strooi: false,
-               grid: [ '...............................', '##############...##############',
-                       '##############...##############', '##############...##############',
-                       '##############...##############', '##############...##############',
-                       '##############...##############', '##############...##############',
-                       '##############...##############', '##############...##############',
-                       '##############...##############' ] } ],
+  // Boven op de savanne-kap, links van de schacht: een kei als schuilplek (vijanden komen er niet voorbij,
+  // regel 7), en daarachter de vijanden. Alles staat op de kap (terrainH geeft daar de wandtop).
+  rocks: [ {x: -1750, s: 1.0} ],
+  spawns: [ {x: -2050, k: 'groen'}, {x: -2450, k: 'scorp'},
+            {x: -2900, k: 'zwart'}, {x: -3300, k: 'zwaard', c: 'rood'} ],
+  props: [ {x: -2250, k: 'gras', s: 1.1, f: 0, v: 0}, {x: -3050, k: 'struik', s: 1.0, f: 1, v: 0},
+           {x: -3550, k: 'gras', s: 1.0, f: 0, v: 0} ],
+  skeletten: [ {x: -1500, f: 1} ],                 // je klimt zonder speer; hier trek je er een uit het skelet
+  // De wanden lopen schermbreed door; links breed genoeg voor de savanne-kap met de vijanden (g.x -4140, 23
+  // cellen links, een gat van 3, 14 rechts). De eerste rij is leeg (lucht), zodat grotTerrein de wandtop
+  // teruggeeft (op 1500); daaronder tien rijen steen.
+  grotten: [ { x: -4140, cel: 120, y: 0, schacht: true, massief: true, strooi: false,
+               grid: [ '........................................',
+                       '#######################...##############',
+                       '#######################...##############',
+                       '#######################...##############',
+                       '#######################...##############',
+                       '#######################...##############',
+                       '#######################...##############',
+                       '#######################...##############',
+                       '#######################...##############',
+                       '#######################...##############',
+                       '#######################...##############' ] } ],
   // de treden om en om, met een echte horizontale afstand ertussen (ook zijwaarts hoppen): links tegen de
   // wand-binnenkant (-1380), rechts tegen de andere (-1020)
   ledges: [ {x: -1380, h:  150, s: 0.5},
@@ -3023,10 +3033,11 @@ const TEST_27 = {
             {x: -1020, h: 1200, s: 0.5, f: true},
             {x: -1380, h: 1350, s: 0.5} ],               // de laatste, links, net onder de wandtop
   village: [], npcs: [], water: [], thickets: [],
-  cliffs: [ {x: -2900} ],                                              // achter de fakkels op de savanne-kap
-  ends: [ {x: -2200} ],                                                // de fakkels op de savanne bovenop de linkerwand
+  cliffs: [ {x: -4100} ],                                              // achter de fakkels op de savanne-kap
+  ends: [ {x: -3650} ],                                                // de fakkels, voorbij de vijanden
   tips: [ { x: -1200, t: 'Testlevel: klim de schacht uit. Spring om en om naar de richels omhoog' },
-          { x: -1380, t: 'Bovenaan stap je op de savanne en loop je links naar de fakkels' } ]
+          { x: -1450, t: 'Bovenaan: trek de speer uit het skelet en spring de kei over' },
+          { x: -2000, t: 'Versla de vijanden en loop door naar de fakkels' } ]
 };
 // Test 28: hoog mikken. Vier runes op een rots, allemaal hoog, elk op een andere plek, en elk doet iets
 // (zie "runes op elke rots" en de tabel in notities/combinaties.md). Na elke rune een skelet met een nieuwe
@@ -4473,19 +4484,25 @@ function schachtKap(R, X, Y, ch, scale, cx){
   const tw = eimg.naturalWidth * s, th = eimg.naturalHeight * s;
   const surf = Y(tr) - ch;                            // de bovenkant van de rots = het savanne-oppervlak
   const top = surf - EDGE.walk * s;                  // de tegel zo dat de looplijn op surf valt
-  const band = (EDGE.solid - EDGE.walk) * s;         // zichtbare savanneband; daaronder loopt de rots door
-  const bottom = surf + band;
+  const band = (EDGE.solid - EDGE.walk) * s;         // zichtbare savanneband
+  const bottom = surf + band + ch * 0.8;             // de aarde loopt een stuk door en vervaagt in de rots
+  const fade = band * 0.6 + ch * 0.8;                // over dit stuk vervaagt de aarde onderaan
+  // De savanne eerst op een los canvas tekenen en daar de onderkant wegvagen (destination-out), en dat dan
+  // overzetten: zo komt de ROTS eronder tevoorschijn. Een destination-out op het hoofdcanvas zou door de
+  // rots heen naar de lucht gummen, en dat gaf de lichte band aan de voet van de kap.
   for (const [c0, c1] of grotReeksH(R, tr, (c, r) => grotVol(R, c, r))){
-    const xl = X(c0), xr = X(c1 + 1);
-    ctx.save();
-    ctx.beginPath(); ctx.rect(xl, top - 2, xr - xl, bottom - top + 4); ctx.clip();
-    let x = cx - (((world % tw) + tw) % tw); while (x > xl) x -= tw;   // vast aan de wereld, net als de grond
-    for (; x < xr; x += tw) ctx.drawImage(eimg, x, top, tw + 1, th);
-    const vaag = ctx.createLinearGradient(0, bottom - band * 0.5, 0, bottom);
+    const xl = Math.round(X(c0)), xr = Math.round(X(c1 + 1));
+    const w = xr - xl, hh = Math.round(bottom - top + 6);
+    if (w <= 0 || hh <= 0) continue;
+    const cv2 = document.createElement('canvas'); cv2.width = w; cv2.height = hh;
+    const g2 = cv2.getContext('2d');
+    let x = (cx - (((world % tw) + tw) % tw)) - xl; while (x > 0) x -= tw;   // zelfde wereld-anker als de grond
+    for (; x < w; x += tw) g2.drawImage(eimg, x, 0, tw + 1, Math.max(th, hh));
+    const vaag = g2.createLinearGradient(0, hh - fade, 0, hh);
     vaag.addColorStop(0, 'rgba(0,0,0,0)'); vaag.addColorStop(1, 'rgba(0,0,0,1)');
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.fillStyle = vaag; ctx.fillRect(xl, bottom - band * 0.5, xr - xl, band * 0.5 + 2);
-    ctx.restore();
+    g2.globalCompositeOperation = 'destination-out';
+    g2.fillStyle = vaag; g2.fillRect(0, hh - fade, w, fade);
+    ctx.drawImage(cv2, xl, top);
   }
 }
 // met Hitboxen aan: de volle cellen in het blauw, de looprand van elke richel in het groen

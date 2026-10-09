@@ -1117,9 +1117,11 @@ Vier kleine toevoegingen maken het:
   hoogte, zodat de spleet diep oogt in plaats van vlak. Het zijn decor: ze doen Amir niets.
 - **Savanne-grond bovenop de wand.** `schachtKap` (in `drawGrotten`, na de tanden) legt de grondtegel van het
   level (`bodemPic`, vast aan de wereld zoals de grond zelf) als een band op de bovenrand van elke volle
-  kolomrij, met de looplijn precies op de wandtop; de onderkant vervaagt met `destination-out` in de rots, dus
-  de grijze rots blijft de ondergrond en de bovenkant is savanne. Zo land je er netjes op en loop je door naar
-  de fakkels. De bovenste steenrij vindt hij met `grotReeksH` (`tr`).
+  kolomrij, met de looplijn precies op de wandtop; de aarde loopt een stuk door en vervaagt onderaan in de
+  rots, dus de grijze rots blijft de ondergrond en de bovenkant is savanne. Zo land je er netjes op en loop je
+  door. De bovenste steenrij vindt hij met `grotReeksH` (`tr`). De vervaging gebeurt op een los canvas
+  (`destination-out` daar, dan overzetten): op het hoofdcanvas zou `destination-out` door de rots heen naar de
+  lucht gummen, en dat gaf een lichte band aan de voet van de kap.
 - **Gespiegelde treden, over de tanden.** Een richel met `f` wordt gespiegeld getekend (`drawLedge`: de
   spiegeling om `x`, met de botsing in `terracePlats` die meeklapt), zodat hij tegen de rechterwand past. De
   richels van de schacht staan niet op `achter`, dus `drawClimb` tekent ze ná `drawGrotten`, bovenop de tanden:
@@ -1142,9 +1144,12 @@ overkant in de wand. Een klim-botje (`tools/speelrobot.js` kan dit niet, het loo
 het van onder tot boven.
 
 `start` zet Amir onderin tussen de wanden neer in plaats van ernaartoe te laten lopen (de wand zou de aanloop
-blokkeren). Boven klimt Amir op de wandtop (de savanne-kap) en loopt links over de savanne naar de fakkels.
-Test 27 is het proefstuk, met een savanne-bodem (veilig); een dodelijke kloof eronder kan er later bij. Nog
-niet in de sandbox: een knop om de schacht-wand los te proberen.
+blokkeren). Boven klimt Amir op de wandtop (de savanne-kap) en loopt links over de savanne. In Test 27 is de
+linkerwand daarvoor breed (g.x -4140, 23 cellen): op de kap trekt hij een speer uit een skelet, springt over
+een kei (schuilplek, regel 7: vijanden komen er niet voorbij) en verslaat een paar vijanden (twee slangen, een
+schorpioen, een zwaardvechter) voor de fakkels. Alles op de kap staat op de wandtop (`terrainH` geeft daar de
+wandtop, zo'n 1500). Test 27 is het proefstuk, met een savanne-bodem (veilig); een dodelijke kloof eronder kan
+er later bij. Nog niet in de sandbox: een knop om de schacht-wand los te proberen.
 
 ### Een level donker maken
 
