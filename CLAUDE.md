@@ -104,7 +104,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | Feign Death | `SCHIJN`, `schijnDoodVang` (vanuit `hurtPlayer`, `valLand` en `fosforBijt`), `schijnDoodZet` (kantelt zijn frame), `schijnHud` (`#schijn`); per level terug in `restart` |
 | lichtkaart: het licht onder de grond | `LK`, `drawLichtkaart`: een lichtbron (de hemel en de zon) voor alles onder de grond en onder rots boven je, per level een keer uitgerekend |
 | terrassen en richels | `terraces`, `ledges`, klimmen. Een richel kan gespiegeld (`drawLedge` met `o.f`, de botsing in `terracePlats`) en achter de schacht-wand (`o.achter`, getekend in `drawGrotten` voor de massa); zie "De schacht" |
-| schacht: een kloof om uit te klimmen | de opt-in `schacht`: een grot-raster met `schacht: true` tekent `grotMassa` als de plafondvulling (`plafondVulTegel`), met de tanden erlangs (`schachtTanden`, `plafondBandSet` gedraaid met uitlopende aanhechting). De gespiegelde richels (`ledges` met `f` en `achter`) klimmen ertussen, achter de wand getekend. `start` zet Amir onderin tussen de wanden. Test 27 is het proefstuk; zie "De schacht" hieronder |
+| schacht: een kloof om uit te klimmen | de opt-in `schacht`: een grot-raster met `schacht: true` tekent `grotMassa` als de plafondvulling (`plafondVulTegel`), met de forse tanden erlangs (`schachtTanden`, `plafondBandSet` gedraaid met uitlopende aanhechting) en savanne-grond bovenop de wand (`schachtKap`, `bodemPic` met een vervagende onderkant). De gespiegelde richels (`ledges` met `f` en `achter`) klimmen ertussen, achter de wand getekend, met een echte zijwaartse afstand ertussen. De wanden lopen schermbreed door met een lege bovenrij, zodat `grotTerrein` de wandtop teruggeeft. `start` zet Amir onderin tussen de wanden. Test 27 is het proefstuk; zie "De schacht" hieronder |
 | hogere savannelaag: een terras van grond | `SAV_LAAG`, `savanneLaag` (in `drawClimb`, voor de rotslus): een terras met `grond: true` is geen rotsplateau maar savanne die hoger ligt. Botsen, dragen en `terrainH` blijven wat ze bij een terras waren; alleen het tekenen is anders: de grondtegel van het level (`bodemPic`, vast aan de wereld, net als `zuilTeken` en `rijsTeken`, zodat een blok rijzende grond er naadloos in overloopt) met daaronder de aarde die wegzakt in het donker, en het silhouet van een terras (`terClipPath`), zodat de zijkanten net zo openbreken en een hoger terras dat ertegenaan staat de rand afdekt. De winter en een rotsbodem (`sneeuw`) lopen vanzelf mee, want die zitten al in `bodemPic` en `bodemDonker`. Test 22 is het proefstuk; in de sandbox onder Terrein, Savannelaag (`SB_SAV`, `sbSavLaag`) |
 | zwevende savannelaag: een dik savanneblok in de lucht | `ZWEEF`, `zweefList`, `savanneLaag` (met `floating`), `zweefKop`: het veld `zwevers: [{r, l, h, onder}]`, los van `terraces` want `terrainH` is enkelvoudig. Een dik stuk savanne dat zweeft met lucht eronder: je loopt eronderdoor als er een hele Amir ruimte onder zit (`onder >= CHAR_H`, anders is zijn zijkant een wand, in `blockByPlatforms`), je landt bovenop via de rand of een lift (`terracePlats`, `supportHeight`), en van onderaf stoot je je hoofd (`zweefKop` in `updateJump`). `onder` dicht bij `h` geeft een dunne plateau, laag geeft een dik blok met een diepe aardrand. Zo vouwt een route: op de heenweg onderdoor, op de terugweg eroverheen. Puur zwevend leest fantasy (goed voor een ruïne); voor een natuurlijke "deel van het gebergte" is een overhang of een gang beter. Getekend als savanne met de aardrand doorgetegeld en een schaduw-onderkant. Test 24 is het proefstuk; in de sandbox onder Terrein, Zwevende laag (`SB_ZWEEF`, `sbZweef`) |
 | de rotswand rechts | `cliffs`, het einde van het level |
@@ -1093,32 +1093,50 @@ het blok en het zegel bij zet.
 
 ### De schacht
 
-Een smalle kloof tussen twee rotswanden waar Amir van onder naar boven uit klimt, om en om naar links en
-naar rechts springend. Het is geen nieuw systeem maar een opt-in samenstelling van wat er al is, zodat de
-bestaande episodes (regel 1) er niets van merken: een grot-raster voor de wanden en de botsing, richels voor
-de treden, en een zwevende laag voor de uitgang.
+Een smalle kloof tussen twee schermbrede rotswanden waar Amir van onder naar boven uit klimt, om en om naar
+links en naar rechts springend. Het is geen nieuw systeem maar een opt-in samenstelling van wat er al is, zodat
+de bestaande episodes (regel 1) er niets van merken: een grot-raster voor de wanden en de botsing, richels voor
+de treden.
 
-Drie kleine toevoegingen maken het:
+Vier kleine toevoegingen maken het:
 
 - **De wand is ander gesteente.** Een grot met `schacht: true` tekent `grotMassa` niet met de terrasplaat
   (`klif_bovenrand`, die las als golvend kaarsvet) maar met de plafondvulling (`plafondVulTegel`,
   `rots_vulling`), hetzelfde steen als de tanden. Bestaande grotten zonder dat veld blijven de terrasplaat.
-- **Tanden als zijafwerking.** `schachtTanden` (in `drawGrotten`, na de massa) zet langs elke verticale
+- **Grote tanden als zijafwerking.** `schachtTanden` (in `drawGrotten`, na de massa) zet langs elke verticale
   binnenrand van het raster de tandenband (`plafondBandSet().strook`, `plafond_strook` met de massieve kant
   uitgelopen zoals `PLAFOND_VERVAAG`) 90 graden gedraaid: de uitgelopen kant gaat de wand in en gaat op in de
-  vulling (geen naad), de tanden steken de opening in. De diepte is een deel van de celhoogte.
+  vulling (geen naad), de tanden steken de opening in. De diepte is een halve celhoogte (`0.5 * celH`), dus
+  forse tanden zoals in de strook zelf, niet de fijne randjes van een eerdere versie.
+- **Savanne-grond bovenop de wand.** `schachtKap` (in `drawGrotten`, na de tanden) legt de grondtegel van het
+  level (`bodemPic`, vast aan de wereld zoals de grond zelf) als een band op de bovenrand van elke volle
+  kolomrij, met de looplijn precies op de wandtop; de onderkant vervaagt met `destination-out` in de rots, dus
+  de grijze rots blijft de ondergrond en de bovenkant is savanne. Zo land je er netjes op en loop je door naar
+  de fakkels. De bovenste steenrij vindt hij met `grotReeksH` (`tr`).
 - **Gespiegelde treden, achter de wand.** Een richel met `f` wordt gespiegeld getekend (`drawLedge`: de
   spiegeling om `x`, met de botsing in `terracePlats` die meeklapt), zodat hij tegen de rechterwand past. Met
   `achter: true` wordt hij in `drawGrotten` voor de massa getekend, dus achter de wand: zijn platte eind
   verdwijnt onder de rots en die kier is weg. De botsing (`terracePlats`) staat daar los van, dus ze dragen
   gewoon.
 
+**De wanden lopen schermbreed door.** Het raster is veel breder dan het beeld (veertien cellen per kant), met
+het gat van drie cellen in het midden. De eerste rij van het raster is leeg (lucht), de rest steen: zo vindt
+`grotTerrein` de lege cel boven de wand en geeft hij de wandtop terug (op zo'n 1500), zodat de fakkels
+(`ends`) en de savanne-kap daar op de goede hoogte komen en Amir er bovenop kan staan en lopen. Zonder die
+lege rij is een kolom helemaal vol en geeft `grotTerrein` `-Infinity` (geen vloer).
+
+**De treden liggen om en om, met een echte zijwaartse afstand.** De linker tegen de linkerwand (bij -1380), de
+rechter tegen de rechter (bij -1020), elke 150 hoger. Dat je ook in de breedte moet hoppen was de bedoeling:
+er zit een dode zone tussen de tips van twee treden. Het haalbaar houden doet de luchtsturing: in dit spel
+stuurt de richting ook in de lucht (zie de loop, `world += dir * 330 ...`), dus je springt van een trede, drijft
+in de lucht naar de volgende en landt op de daalboog. Loopsnelheid, niet sprint: met sprint schiet je de
+overkant in de wand. Een klim-botje (`tools/speelrobot.js` kan dit niet, het loopt alleen naar links) haalt
+het van onder tot boven.
+
 `start` zet Amir onderin tussen de wanden neer in plaats van ernaartoe te laten lopen (de wand zou de aanloop
-blokkeren). Het gat is twee cellen breed: de treden liggen dan dicht genoeg bij elkaar (licht overlappend) dat
-de zig-zag haalbaar is; bij drie cellen was 180 px zijwaarts bij 150 omhoog te ver voor de sprongboog, en viel
-je steeds terug (gemeten met een klim-botje). Boven klimt Amir op de wandtop en loopt links de zwevende laag op
-naar de fakkels. Test 27 is het proefstuk, met een savanne-bodem (veilig); een dodelijke kloof eronder kan er
-later bij. Nog niet in de sandbox: een knop om de schacht-wand los te proberen.
+blokkeren). Boven klimt Amir op de wandtop (de savanne-kap) en loopt links over de savanne naar de fakkels.
+Test 27 is het proefstuk, met een savanne-bodem (veilig); een dodelijke kloof eronder kan er later bij. Nog
+niet in de sandbox: een knop om de schacht-wand los te proberen.
 
 ### Een level donker maken
 
