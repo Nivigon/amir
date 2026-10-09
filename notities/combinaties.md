@@ -160,12 +160,16 @@ Wat Claude uit een testrun haalt en voorstelt. Pas na een ja gaat het een level 
   stations van Test 17: per opstelling de rots, `groot`, `hoog`, waar Amir staat (vloer, `kei` in Amir,
   terras of gang) en de strook als deel van wat je ziet. Voorstel voor de vorm: een lijst in de HTML naast
   `RUNE_ROTSEN`, die je in een level of in de bouwer op naam kiest. De precieze vorm bespreken we bij de PR.
-- **Hoger of lager komen (schets, nog niets gebouwd):** zes opties in `proeven/opties_hoger_lager.jpg`.
-  Alle zes goedgekeurd. Kan nu al: op een grote kei staan (`s: 2.5`, bovenkant 1,1 Amir, met een gewone
-  kei ervoor als trapje), eerst op een kei (Test 17), een rots in een kuil of gang waar je eerst naar
-  beneden moet, en een rots met een hoge en een lage rune. Vraagt iets nieuws: een rijzend platform (via
-  een zegel, of vanzelf op en neer) en een platform dat zakt als je erop staat. Niet doen: de rotsen uit
-  `RUNE_ROTSEN` (zoals de twee zuilen) laten dragen. Een opstap is een kei.
+- **Hoger of lager komen (schets, nog niets gebouwd):** zes opties in `proeven/opties_hoger_lager.jpg`,
+  alle zes goedgekeurd. Een opstap is nooit een rots met een rune en geen vergrote kei, maar iets wat er al
+  is. Op main bestaan al: de rijzende grond (`rijzers`, ook te starten met een rune als doel) voor optie 1,
+  en de zuilen met een hoogte uit Test 20 (Hoog en laag) voor optie 2: hop naar de zuil van waar je de rune
+  raakt. Kan op deze branch al: eerst op een kei (Test 17 hier), een rots in een kuil of gang, en een rots
+  met een hoge en een lage rune. Optie 6 (een platform dat zakt) is deels een rijzer die na `duur` terugzakt.
+- **Voor de PR, let op:** main is sinds deze branch ver doorgegroeid (tot Test 27, met rijzers, zuilen,
+  savannelagen en liften). Bij het samenvoegen: mijn Test 17 (Hoog mikken) krijgt een nieuw nummer, want
+  main heeft al een Test 17 (De rijzende grond); en mijn `runeDoet` (een rune als schakelaar) moet samen
+  met wat main al met een rune doet (`rijs`), zodat er geen twee manieren naast elkaar komen.
 
 - (nog leeg)
 
