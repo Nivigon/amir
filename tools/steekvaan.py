@@ -26,10 +26,16 @@ frame 7 (daar blijft de haak). Frame 7 is ook de speer in de bek van de baviaan 
 Het rode lint blijft rood; het spel kleurt het blauw bij het tekenen (vaanBlauw vindt het
 platte lint nog helemaal, nagekeken).
 
-Het is een aanpassing van een keer, en die is al gedaan: de frames in de repository zijn
-bijgewerkt. Draai het alleen op de oorspronkelijke frames (uit de geschiedenis van git);
-op frames die al klein zijn weigert het. Daarna de kleine set bijwerken (die frames zijn
-lager dan 400 en worden alleen gekopieerd):
+Frame 8 (de speer helemaal uitgestoken) is geen brede veeg maar een naar beneden hangend
+dubbel lint. Dat werd eerst overgeslagen en bleef groter dan het platte lint van frame 7,
+wat midden in de steek opviel (vooral op een telefoon, waar het spel trager loopt en dat
+frame langer in beeld staat). plat_frame8 drukt dat hangende lint verticaal plat.
+
+Het script is idempotent: frames die al verkleind zijn slaat het over (de veeg-frames op
+hun lintbreedte, frame 8 op zijn linthoogte), dus herhaald draaien kan geen kwaad. De
+veeg-frames 4 tot en met 7 zijn een eerdere eenmalige aanpassing; draai die op de
+oorspronkelijke frames uit de geschiedenis van git. Daarna de kleine set bijwerken (die
+frames zijn lager dan 400 en worden alleen gekopieerd):
 
     python3 tools/steekvaan.py
     python3 tools/gen-klein.py
@@ -59,6 +65,15 @@ SCHAAL = {
     7: ((0.50, 0.30), -4),
 }
 TE_KLEIN = 70              # een lint dat al smaller is dan dit is al verkleind
+
+# Frame 8 (de speer helemaal uitgestoken) is geen brede veeg maar een naar beneden hangend
+# dubbel lint; de veeg-logica hierboven past er niet op. Het werd daardoor bij de eerste fix
+# overgeslagen en bleef groter dan het platte lint van frame 7, wat midden in de steek opviel
+# (op een telefoon loopt het spel trager, dus dat frame staat er langer). plat_frame8 drukt dat
+# hangende lint verticaal plat zodat het even klein is als frame 7.
+FRAME8 = 8
+FRAME8_SY = 0.5            # het hangdeel half zo lang
+FRAME8_HOOG = 28          # staat het lint hoger dan dit, dan is het nog niet platgedrukt (guard)
 
 # dezelfde drempels als VAAN in de HTML
 ZEKER = dict(v=115, s=0.55, t=(-20, 25), oranje=8, oranjeS=0.72)
@@ -160,8 +175,8 @@ def pas_aan(pad, nr):
         sys.exit(f'{pad}: geen lint gevonden')
     x0, x1, y0, y1 = xs.min(), xs.max(), ys.min(), ys.max()
     if x1 - x0 < TE_KLEIN:
-        sys.exit(f'{pad}: het lint is al {x1 - x0} breed, dit frame is al verkleind. '
-                 'Draai het script op de oorspronkelijke frames uit git.')
+        print(f'{os.path.relpath(pad, ROOT)}: lint is {x1 - x0} breed, al verkleind, overgeslagen')
+        return
     m = rand_erbij(a, m)
     m[max(0, y0 - 3):min(h, y1 + 4), x0:x1 - marge + 1] = True
 
@@ -222,9 +237,50 @@ def pas_aan(pad, nr):
           f'{nw} bij {nh}, schacht {xl}..{xr}, {weg} stipjes weg')
 
 
+def plat_frame8(pad):
+    """Frame 8: het naar beneden hangende lint verticaal platdrukken, zodat het even klein is
+    als frame 7. Anker is de bovenkant (bij de schacht), zodat het aan de speer vast blijft."""
+    im = Image.open(pad).convert('RGBA')
+    a = np.array(im)
+    m = rand_erbij(a, lint(a))
+    ys, xs = np.nonzero(m)
+    if not len(xs):
+        print(f'{os.path.relpath(pad, ROOT)}: geen lint gevonden'); return
+    x0, x1, y0, y1 = xs.min(), xs.max(), ys.min(), ys.max()
+    if y1 - y0 + 1 <= FRAME8_HOOG:
+        print(f'{os.path.relpath(pad, ROOT)}: lint is {y1 - y0 + 1} hoog, al platgedrukt, overgeslagen')
+        return
+
+    # het losse lint en de rest zonder lint
+    vaan = a.copy(); vaan[~m] = 0
+    rest = a.copy(); rest[m] = 0
+
+    crop = Image.fromarray(vaan).crop((x0, y0, x1 + 1, y1 + 1))
+    nh = max(1, round(crop.height * FRAME8_SY))
+    small = crop.resize((crop.width, nh), Image.LANCZOS)
+    out = Image.fromarray(rest)
+    out.alpha_composite(small, (x0, y0))
+
+    # losse stipjes die in het oude lintvak zijn blijven staan weghalen (zie pas_aan)
+    b = np.array(out)
+    h, w = b.shape[:2]
+    vak = np.zeros((h, w), bool)
+    vak[max(0, y0 - 3):min(h, y1 + 4), max(0, x0 - 2):min(w, x1 + 3)] = True
+    weg = 0
+    for stuk in stukken(b[..., 3] > 20):
+        if len(stuk) < STIPJE and all(vak[y, x] for y, x in stuk):
+            for y, x in stuk:
+                b[max(0, y - 1):y + 2, max(0, x - 1):x + 2, 3] = 0
+            weg += 1
+    Image.fromarray(b).save(pad, optimize=True)
+    print(f'{os.path.relpath(pad, ROOT)}: lint {x1 - x0 + 1} bij {y1 - y0 + 1} -> '
+          f'{x1 - x0 + 1} bij {nh}, {weg} stipjes weg')
+
+
 def main():
     for nr in SCHAAL:
         pas_aan(os.path.join(ROOT, MAP, f'attack_sp_{nr}.png'), nr)
+    plat_frame8(os.path.join(ROOT, MAP, f'attack_sp_{FRAME8}.png'))
 
 
 if __name__ == '__main__':
