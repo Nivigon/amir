@@ -3764,6 +3764,15 @@ ledgeImg.src = LEDGE.src;
 function terPic(){ return winterPic('ter', terImg); }
 function terFadePic(){ return (winterOn() && terPic() !== terImg && winterTerFade) ? winterTerFade : terFade; }
 function ledgePic(){ return winterPic('ledge', ledgeImg); }
+// het geschilderde hoekstuk bovenin de schacht: het verzacht de rechte snede tussen de savanne-kap en de
+// rotswand tot een ronde hoek, over de tanden heen (zie "De schacht"). w/h/crest/lip komen uit
+// tools/schacht_hoek.py (crest = het grondoppervlak, lip = waar de soil in de klif overgaat); korrel is de
+// uniforme schaal als deel van de bandschaal, zodat de korrel gelijk is aan de savanneband.
+const SCHACHT_HOEK = { src: 'design/klimmen/schacht_hoek.png', w: 1050, h: 698, crest: 63, lip: 307, korrel: 0.4375 };
+const schachtHoekImg = new Image();
+schachtHoekImg.onerror = () => console.warn('ontbreekt: ' + SCHACHT_HOEK.src);
+schachtHoekImg.src = SCHACHT_HOEK.src;
+function schachtHoekPic(){ return imgReady(schachtHoekImg) ? schachtHoekImg : null; }
 function terraceList(){ return (level && level.terraces) ? level.terraces : []; }
 function ledgeList(){ return (level && level.ledges) ? level.ledges : []; }
 // Een zwevende savannelaag: hetzelfde dikke savanneblok als een hogere savannelaag (grond: true),
@@ -4434,14 +4443,14 @@ function grotMassa(R, X, Y, ch, scale, groundY, schacht){
       // Geen terras-overstek boven de celrand: bij een gewoon terras steekt het steen tot boven de
       // looplijn uit voor het bovenvlak, maar hier ligt de savanne-kap (schachtKap) als bovenvlak op
       // de wand. Stak het steen daar bovenuit, dan piekte er een grijze rotsrand boven het gras, over
-      // de hele wandtop. Het steen stopt nu op de celrand (de kaplijn) en de kap dekt het af.
+      // de hele wandtop. Het steen stopt nu op de celrand (de kaplijn) en de kap dekt het af. Bovenin
+      // dekken de savanneband en het ronde hoekstuk (schachtKap) de rots aan de kloofrand af.
       const top = Y(u.r) - ch;
       const diep = u.b === R.n - 1 ? Math.max(Y(u.b), Math.round(groundY)) : Y(u.b);
       const bottom = diep + 4;
       ctx.save();
       // De zijkanten blijven recht (geen grotSilPad): de tanden (schachtTanden) zijn hier de afwerking
-      // van de rand en zitten op de celrand. Met een grillige, teruggetrokken rand zou er lucht tussen
-      // het steen en de tanden staan. Recht gevuld sluiten de tanden vlak op het steen aan.
+      // van de rand en zitten op de celrand. Recht gevuld sluiten de tanden vlak op het steen aan.
       ctx.beginPath(); ctx.rect(xl, top - 4, xr - xl, bottom - (top - 4)); ctx.clip();
       const tw = tile.width, th = tile.height, ax = X(0), ay = Y(0);
       const bx = Math.round(ax - Math.ceil((ax - xl) / tw) * tw);
@@ -4554,6 +4563,10 @@ function drawGrotten(groundY, scale, cx){
 // de tanden sluiten net zo netjes op de rots aan als aan een plafond. side +1: naar rechts de opening in.
 function schachtTanden(R, X, Y, ch, scale, groundY, cx){
   const T = grotBandSet(); if (!T || !T.strook || !T.strook.width) return;
+  // het hoekstuk dekt de bovenkant van de kloofranden af; daar slaan we de tanden over, zodat er geen grijze
+  // tandpunten boven de ronde hoek uitsteken. earthBot is waar de klif van de hoek uitvervaagt.
+  const hd = schachtHoekData(R, X, Y, ch);
+  const earthBot = hd ? hd.earthBot : -Infinity;
   const im = T.strook, donker = T.strookRand, w = im.width, h = im.height;
   const dicht = Math.round(GROT.band.dicht * h);     // het massieve deel; dat valt in de wand
   const gy = Math.round(groundY);
@@ -4604,11 +4617,13 @@ function schachtTanden(R, X, Y, ch, scale, groundY, cx){
       while (r < R.n){
         if (!(grotVol(R, c, r) && !grotVol(R, nb, r))){ r++; continue; }
         let e = r; while (e + 1 < R.n && grotVol(R, c, e + 1) && !grotVol(R, nb, e + 1)) e++;
-        const yTop = Y(r) - ch, yBot = Math.min(gy, Y(e));    // van de bovenkant van rij r tot onder rij e
+        const yTop = Math.max(Y(r) - ch, earthBot), yBot = Math.min(gy, Y(e));    // onder de hoek beginnen
         const ex = zij > 0 ? X(c + 1) : X(c);         // de rand aan de kant van de opening
         const dir = zij > 0 ? 1 : -1;
-        schaduw(ex, yTop, yBot, dir);                 // eerst de wandschaduw (hele hoogte)
-        strip(ex, yTop, yBot, dir);                   // dan de tanden over de hele rand
+        if (yBot - yTop > 4){
+          schaduw(ex, yTop, yBot, dir);               // eerst de wandschaduw (hele hoogte)
+          strip(ex, yTop, yBot, dir);                 // dan de tanden over de hele rand
+        }
         r = e + 1;
       }
     }
@@ -4647,6 +4662,50 @@ function schachtKap(R, X, Y, ch, scale, cx){
     g2.globalCompositeOperation = 'destination-out';
     g2.fillStyle = vaag; g2.fillRect(0, hh - fade, w, fade);
     ctx.drawImage(cv2, xl, top);
+  }
+  schachtHoekTeken(R, X, Y, ch);                     // de ronde hoek over de tanden, aan de kloofranden
+}
+// De geometrie van het hoekstuk, gedeeld door schachtTanden (de tanden onder de hoek overslaan) en
+// schachtKap (het stuk tekenen). Per wand die aan de kloof grenst een hoek: de linkerwand (kloof rechts,
+// niet gespiegeld) en de rechterwand (kloof links, gespiegeld). De soil wordt verticaal gerekt zodat de
+// kruin op de wandtop (surf) valt en de soil-lip op de onderkant van de savanneband; de klif eronder op de
+// uniforme schaal, blendend in de getande rots eronder. earthBot is waar de klif van de hoek uitvervaagt.
+function schachtHoekData(R, X, Y, ch){
+  const img = schachtHoekPic(); if (!img) return null;
+  const eimg = bodemPic(); if (!imgReady(eimg) || !edgeReady()) return null;
+  const s = edgeScale(H * 0.18);
+  let tr = 0; while (tr < R.n && !grotReeksH(R, tr, (c, r) => grotVol(R, c, r)).length) tr++;
+  if (tr >= R.n) return null;
+  const surf = Y(tr) - ch;
+  const band = (EDGE.solid - EDGE.walk) * s;         // de zichtbare savanneband, net als in schachtKap
+  const hs = SCHACHT_HOEK.korrel * s;                // uniforme schaal, korrel gelijk aan de band
+  const hw = SCHACHT_HOEK.w * hs;
+  const lip = SCHACHT_HOEK.lip, crest = SCHACHT_HOEK.crest;
+  const yLip = surf + band;
+  const vss = (yLip - surf) / (lip - crest);         // soil verticaal gerekt (crest -> surf, lip -> yLip)
+  const aTop = surf - crest * vss;                   // schermrij van sprite-rij 0
+  const soilH = lip * vss, cliffH = (SCHACHT_HOEK.h - lip) * hs;
+  const earthBot = yLip + cliffH;
+  const geos = [];
+  for (const [c0, c1] of grotReeksH(R, tr, (c, r) => grotVol(R, c, r))){
+    if (c1 + 1 < R.kol && !grotVol(R, c1 + 1, tr))     // kloof rechts: de linkerwand, de hoek rondt naar rechts
+      geos.push({ flip: false, nx: Math.round(X(c1 + 1)) - hw });
+    if (c0 - 1 >= 0 && !grotVol(R, c0 - 1, tr))        // kloof links: de rechterwand, gespiegeld
+      geos.push({ flip: true, nx: Math.round(X(c0)) + hw });
+  }
+  return { hs, hw, aTop, yLip, soilH, cliffH, earthBot, geos };
+}
+// het hoekstuk tekenen: de soil (gerekt) en daaronder de klif (uniform), gespiegeld voor de rechterwand
+function schachtHoekTeken(R, X, Y, ch){
+  const d = schachtHoekData(R, X, Y, ch); if (!d) return;
+  const img = schachtHoekPic(); if (!img) return;
+  for (const g of d.geos){
+    ctx.save();
+    let nx = g.nx;
+    if (g.flip){ ctx.translate(g.nx, 0); ctx.scale(-1, 1); nx = 0; }
+    ctx.drawImage(img, 0, 0, SCHACHT_HOEK.w, SCHACHT_HOEK.lip, nx, d.aTop, d.hw, d.soilH);
+    ctx.drawImage(img, 0, SCHACHT_HOEK.lip, SCHACHT_HOEK.w, SCHACHT_HOEK.h - SCHACHT_HOEK.lip, nx, d.yLip, d.hw, d.cliffH);
+    ctx.restore();
   }
 }
 // met Hitboxen aan: de volle cellen in het blauw, de looprand van elke richel in het groen
