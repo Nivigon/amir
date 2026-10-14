@@ -1356,17 +1356,20 @@ def speer_na_rune(lv, sp):
                 yield fout(x, tekst)
 
 
-# Zoveel wereld-px moet het eerste skelet na een rune vrij zijn van een snelle melee-charger, aan de
-# verre kant (waar Amir na het oversteken heen loopt). Een speer uit een skelet trekken kost ~2
-# seconden stilstaan met lege handen (SKELET.trek.duur), en een bandiet (net onder sprint) rent je
-# daar meteen onder; een zwaardvechter is trager maar nog steeds krap. Een slang, schorpioen,
-# fosforslang of hyena mag dichterbij: die zijn traag of wachten, en de lage zwaai (werkt zonder
-# speer) maakt zelf ruimte. Zo doet De Poorten het ook.
+# De pull-zone van het eerste skelet na een rune (zie CLAUDE.md regel 9). Een speer uit een skelet
+# trekken kost ~2 seconden stilstaan met lege handen (SKELET.trek.duur). Binnen SPEER_HAAL_DICHT
+# staat de charger zo dicht dat je geen raam kunt maken: dat is onmogelijk, dus FOUT. Tussen daar en
+# SPEER_HAAL_VRIJ is het krap maar te doen als je eerst ruimte maakt (de lage zwaai werkt zonder
+# speer, of je rent even weg): dat mag een bewuste uitdaging zijn, dus LET OP. Een bandiet is zo snel
+# en aanhoudend (net onder sprint) dat weglopen geen raam geeft, dus die is binnen de hele vrije zone
+# een FOUT. Een slang, schorpioen, fosforslang of hyena mag wel dichtbij: traag of wachtend.
+SPEER_HAAL_DICHT = 450
 SPEER_HAAL_VRIJ = 1200
 def skelet_pull_vrij(lv, skx, runex):
-    """Het skelet op `skx` geeft de nieuwe speer na de rune op `runex`. Kijk of er een bandiet of
-    zwaardvechter te dicht aan de verre kant staat om de speer nog te kunnen trekken (stelregel:
-    'een speer halen bij een skelet na een rune moet te doen zijn')."""
+    """Het skelet op `skx` geeft de nieuwe speer na de rune op `runex`. De speer moet te trekken zijn
+    (stelregel 'een speer halen bij een skelet na een rune moet te doen zijn'). Een bewust krappe
+    situatie mag: de vijand doet iets, maar je kunt eerst ruimte maken en dan trekken, zolang dat
+    echt haalbaar is en niet onmogelijk."""
     for s in lv.d.get('spawns') or []:
         sx, k = s.get('x'), s.get('k')
         if not isinstance(sx, (int, float)):
@@ -1377,11 +1380,15 @@ def skelet_pull_vrij(lv, skx, runex):
         if k == 'bandiet':
             yield fout(sx, 'bandiet op %s staat maar %d px voorbij het skelet op %s: de speer zit na de rune op %s '
                            'vast, en die uit het skelet trekken kost ~2 seconden stilstaan met lege handen. Een '
-                           'bandiet rent je daar meteen onder, dus de nieuwe speer is niet te halen. Zet de '
-                           'bandieten verder weg (zoals De Poorten doet)' % (n0(sx), round(d), n0(skx), n0(runex)))
+                           'bandiet rent je daar meteen onder, ook als je wegloopt, dus de nieuwe speer is niet te '
+                           'halen. Zet de bandieten verder weg (zoals De Poorten doet)' % (n0(sx), round(d), n0(skx), n0(runex)))
+        elif k == 'zwaard' and d < SPEER_HAAL_DICHT:
+            yield fout(sx, 'zwaardvechter op %s staat maar %d px voorbij het skelet op %s dat de speer na de rune '
+                           'geeft: te dicht om er nog een raam voor te maken, dus de speer is niet te trekken' % (n0(sx), round(d), n0(skx)))
         elif k == 'zwaard':
-            yield letop(sx, 'zwaardvechter op %s staat maar %d px voorbij het skelet op %s dat de speer na de rune '
-                            'geeft: krap om er de speer te trekken (een charger vlak bij de pull-zone)' % (n0(sx), round(d), n0(skx)))
+            yield letop(sx, 'zwaardvechter op %s staat %d px voorbij het skelet op %s dat de speer na de rune geeft: '
+                            'krap, maar te doen als je eerst ruimte maakt (de lage zwaai werkt zonder speer). Mag een '
+                            'bewuste uitdaging zijn, als hij maar haalbaar blijft' % (n0(sx), round(d), n0(skx)))
 
 
 @regel('zegels')
