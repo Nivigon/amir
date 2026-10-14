@@ -543,9 +543,10 @@ neer met `{x, k: 'bandiet', hurk: true}`; in de sandbox met de knop **Hinderlaag
 
 **Over een kei heen vaulten.** Een kei houdt een bandiet gewoon tegen (regel 7), en zo is hij voor
 jou een schuilplek. Maar met de optie `vault` is dat anders: komt zo'n bandiet bij een kei aan en
-sta jij aan de overkant, dan zet hij zich bij de kei op de grond af en vliegt hij er in een eenhandige
-radslag in een boog overheen (met stof bij het afzetten en bij het neerkomen), landt vlak voor je en
-gaat meteen weer in de aanval. Voor hem is de kei dan geen schuilplek meer: je moet hem van je af houden of neersteken, niet
+schuil jij erachter of spring je erop, dan zet hij zich bij de kei op de grond af en vliegt hij er in
+een eenhandige radslag in een boog overheen (met stof bij het afzetten en bij het neerkomen), landt
+vlak voor je en gaat meteen weer in de aanval. Blijf je op de kei zitten, dan springt hij er met rust
+ertussen keer op keer overheen: een kei is voor hem dus echt geen veilige plek meer. Voor hem is de kei dan geen schuilplek meer: je moet hem van je af houden of neersteken, niet
 erachter wegkruipen. In de lucht raak je hem niet. Je zet het aan met `{x, k: 'bandiet', vault: true}`
 (ook samen met `hurk`), en in de sandbox met de knop **Vault**. In Test 31 kunnen de gehurkte
 bandieten het: de kei op jouw kant is daar dus geen veilige plek meer.

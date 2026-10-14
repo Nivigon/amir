@@ -3218,7 +3218,7 @@ const TEST_31 = {
   ends: [ {x: -10700} ],
   tips: [ { x: -120, t: 'Testlevel: de hinderlaag. Pak eerst je speer op' },
           { x: -800, t: 'Sommige bandieten zitten gehurkt met de rug naar je. Komen ze overeind, dan werpen ze hun dolk op kophoogte: buk ervoor, of steek ze neer terwijl ze opspringen' },
-          { x: -1900, t: 'Daarna rennen ze op je af. Let op: een kei houdt ze niet tegen, ze vaulten eroverheen. Buk voor de dolk en steek ze neer' } ]
+          { x: -1900, t: 'Daarna rennen ze op je af. Buk voor de dolk. Schuil je achter of op de kei, dan vaulten ze er in een radslag overheen: een kei is voor hen geen veilige plek' } ]
 };
 const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31];
 // ---- Episode Baboon tests: de baviaan, stuk voor stuk ----
@@ -18888,6 +18888,7 @@ const BAN_VAULT_GROND = [462,495,495,498,498,498,498,498,487,501,501,501,503,503
 const BAN_VAULT_AFZET = 6;     // het frame waarop hij afzet (hij zet zich af van de grond en lanceert): daar valt het afzetgeluid
 const BAN_VAULT_LAND  = 58;    // het frame waarop hij neerkomt: lift terug op nul, en daar stuift het stof op
 const BAN_VAULT_PIEK  = 1.35;  // de top van de sprongboog boven de kei, als deel van de obstakelhoogte (ruim eroverheen)
+const BAN_VAULT_COOLDOWN = 1.0; // zo lang na een vault springt hij niet opnieuw (geen heen-en-weer als Amir op de kei blijft zitten)
 // de liftcurve, deel van de obstakelhoogte per frame: hij blijft op de grond tot de afzet (0-6), dan een
 // echte sprongboog (sinus) op tot boven de kei en weer omlaag naar de landing (58). Zo gaat hij eerst naar
 // de grond, zet zich daar af, vliegt in een boog over de steen en landt erachter, in plaats van recht
@@ -19109,7 +19110,7 @@ function makeBandiet(x, side, dolk, hurk, vault){
            geroepen: false,                               // heeft hij zijn strijdkreet al geroepen (één keer, bij de eerste charge)
            ambush: !!hurk,                                // hij zit gehurkt in een hinderlaag en springt op met een dolkworp
            vault: !!vault,                                // mag hij over een kei heen vaulten (regel 7-uitzondering)?
-           vaultH: 0, vaultX0: 0, vaultDoel: 0, vaultExtra: 0, landStof: false,   // lopende waarden van een vault
+           vaultH: 0, vaultX0: 0, vaultDoel: 0, vaultExtra: 0, landStof: false, vaultCool: 0,   // lopende waarden van een vault
            hitUsed: false, sweptId: -1, klaar: false, vrij: false };
   if (hurk){ b.state = 'hurk_idle'; b.dolk = false; }     // gehurkt wachten, met de rug naar Amir; de worp gaat via 'spot'
   return b;
@@ -19169,8 +19170,11 @@ function banKeiVoor(s, naarJe, plats){
     if (!blocksMonster(p, s.base || 0)) continue;
     const mid = (p.left + p.right) / 2;
     if (!(nx + halfL > p.left && nx - halfL < p.right && Math.abs(nx - mid) < Math.abs(s.x - mid))) continue;
-    const far = naarJe < 0 ? p.left : p.right;            // de overkant van de kei, in looprichting
-    const amirOver = naarJe < 0 ? playerX() < far - 4 : playerX() > far + 4;
+    // Amir staat niet meer aan de kant van de bandiet: op de kei of aan de overkant. Dan is de kei voor
+    // Amir een schuilplek en springt de bandiet erover. (De rand aan de kant van de bandiet, want hij
+    // vault ook als Amir er bovenop zit, niet alleen als Amir al helemaal aan de overkant staat.)
+    const nabij = naarJe < 0 ? p.right : p.left;
+    const amirOver = naarJe < 0 ? playerX() < nabij - 4 : playerX() > nabij + 4;
     if (amirOver) return p;
   }
   return null;
@@ -19230,6 +19234,7 @@ function updateBandiet(s, dt, plats, cliff){
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
   if (s.inv > 0) s.inv = Math.max(0, s.inv - dt);
   if (s.rust > 0) s.rust = Math.max(0, s.rust - dt);
+  if (s.vaultCool > 0) s.vaultCool = Math.max(0, s.vaultCool - dt);
   s.t += dt;
   s.base = vloerBij(s.x, s.base);
   rijsDraagtMob(s, dt);                              // mee omhoog en omlaag met een lift of rijzend blok
@@ -19319,7 +19324,7 @@ function updateBandiet(s, dt, plats, cliff){
     if (s.frame >= BAN_VAULT_LAND && !s.landStof){   // neerkomen: een stofwolk bij de landing
       s.landStof = true; banStofWolk(s.vaultDoel, s.base || 0, 10, 0, 1.6);
     }
-    if (s.klaar){ s.x = s.vaultDoel; banSet(s, 'run'); }   // op de overkant, en meteen weer achter Amir aan
+    if (s.klaar){ s.x = s.vaultDoel; banSet(s, 'run'); s.vaultCool = BAN_VAULT_COOLDOWN; }   // op de overkant, en meteen weer achter Amir aan (even geen nieuwe vault)
     return;
   }
 
@@ -19351,8 +19356,8 @@ function updateBandiet(s, dt, plats, cliff){
   if (s.rust > 0) return;                            // even na-hijgen: hij staat stil op het eerste renframe
   if (!s.geroepen){ s.geroepen = true; banRoep(); }  // zijn strijdkreet, één keer, zodra hij echt op Amir af rent
   // een kei houdt hem tegen (regel 7), maar een vault-bandiet springt er bij de kei overheen zodra Amir
-  // aan de overkant staat, zodat de kei voor hem geen schuilplek meer is
-  if (s.vault && banZelfdeHoogte(s)){
+  // aan de overkant staat (of erop), zodat de kei voor hem geen schuilplek meer is
+  if (s.vault && s.vaultCool <= 0 && banZelfdeHoogte(s)){
     const kei = banKeiVoor(s, naarJe, plats);
     if (kei){ banStartVault(s, kei, naarJe); return; }
   }
