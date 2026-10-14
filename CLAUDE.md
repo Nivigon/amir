@@ -72,6 +72,23 @@ grond) is een keuze van het level, en een level zonder mag juist de uitdaging zi
 speer te halen zijn: een doornbos na de rune en voor het skelet houdt je voorgoed tegen, want zonder
 speer kap je het niet (behalve met het mes van Jackal Fang). `levelcheck.py` meldt dat onder `speer na een rune`.
 
+En de speer bij dat skelet moet ook echt te trekken zijn: E vasthouden kost zo'n 2 seconden stilstaan
+met lege handen (`SKELET.trek.duur`), dus het eerste skelet na een rune hoort een vrije pull-zone te
+hebben. Een slang, schorpioen, fosforslang of hyena mag er dichtbij staan (traag of wachtend, en de
+lage zwaai werkt zonder speer), maar een charger niet zomaar.
+
+Een krappe pull mag wel een bewuste uitdaging zijn, en dat geldt breder, ook voor toekomstige
+mechanieken: een situatie mag zwaar en krap zijn als bewuste keuze, de vijand mag dus wel wat doen,
+zolang hij te doen blijft en niet onmogelijk is. Bij de speer na een rune is het verschil: een
+zwaardvechter wat verderop is krap maar haalbaar (je maakt eerst ruimte met de lage zwaai of je rent
+even weg en trekt dan de speer), een zwaardvechter boven op het skelet geeft geen enkel raam, en een
+bandiet (net onder sprint, blijft je op de hielen) geeft ook met weglopen geen raam. `levelcheck.py`
+(onder `speer na een rune`, met `SPEER_HAAL_DICHT` en `SPEER_HAAL_VRIJ`) meldt daarom een bandiet binnen
+1200 px voorbij het skelet als FOUT, een zwaardvechter binnen 450 px ook als FOUT, en een zwaardvechter
+daarbuiten tot 1200 px als LET OP (de bewuste uitdaging: bevestig dat hij haalbaar is). Zo blijft De
+Poorten schoon, want die zet de charger-golf al ver voorbij het skelet. Dit kwam uit Valse Koning 1,
+waar twee bandieten op het skelet stonden.
+
 ## Waar wat staat
 
 De HTML is opgedeeld met commentaarkoppen (`// ---- ... ----`). Zoek daarop, niet op
