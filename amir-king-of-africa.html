@@ -25113,7 +25113,7 @@ function builderHit(wx, scale, lift){
   const tp = (level.tips || []).find(t => Math.abs(t.x - wx) < 60 && lift !== undefined && lift > 180 * scale);
   if (tp) return { list: level.tips, kind: 'tip', obj: tp };
   // een punt van de plafondlijn: hangt hoog, dus eerst, zodat hij niet achter grondobjecten wegvalt
-  const pp = (level.plafond || []).find(o => Math.abs(o.x - wx) < 70 && (hgt === undefined || Math.abs(o.y - hgt) < 90));
+  const pp = (level.plafond || []).find(o => Math.abs(o.x - wx) < 70 && (hgt === undefined || Math.abs(plafGripY(o) - hgt) < 90));
   if (pp) return { list: level.plafond, kind: 'plafondpunt', obj: pp };
   const kb = (level.hppotions || []).find(o => Math.abs(o.x - wx) < 50);
   if (kb) return { list: level.hppotions, kind: 'kalebas', obj: kb };
@@ -25361,8 +25361,9 @@ cv.addEventListener('pointermove', e => {
         press.obj.y = Math.round(bHoogte(e) + press.offYs);
       } else if (press.kind === 'spawn' && (press.obj.kind === 'groen' || press.obj.kind === 'zwart')){
         press.obj.y = Math.round(Math.max(-60, Math.min(2600, bHoogte(e) + press.offYs)) / 10) * 10;   // slang op hoogte, of uit de lucht
-      } else if (press.kind === 'plafondpunt'){                                 // de rots boven je: plek en hoe laag hij hangt
-        press.obj.y = Math.round(Math.max(0, Math.min(PLAFOND_WEG, bHoogte(e) + press.offYs)) / 10) * 10;
+      } else if (press.kind === 'plafondpunt'){                                 // de rots boven je: plek, en de hoogte als hij niet open is
+        if (press.obj.y < PLAFOND_WEG)   // een open punt (geen rots) sleep je alleen opzij; de hoogte zet je in het venster
+          press.obj.y = Math.round(Math.max(0, Math.min(PLAFOND_WEG - 10, bHoogte(e) + press.offYs)) / 10) * 10;
         plafondVuil();
       }
     }
@@ -25442,6 +25443,11 @@ function platformVoorZegel(z){
 // de plafondlijn wordt op x gesorteerd met een cache op de lengte; sleep je een punt opzij, dan
 // verandert de lengte niet, dus zet de cache vuil zodat plafondLijn opnieuw sorteert
 function plafondVuil(){ if (level && level.plafond) level.plafond._srt = -1; }
+// Een open punt (geen rots, y op PLAFOND_WEG) hangt ver buiten beeld en zou onbereikbaar zijn. Daarom
+// tonen we zijn greep op een vaste, altijd zichtbare hoogte (als holle stip), zodat je hem kunt kiezen,
+// opzij slepen en wissen; de hoogte zelf zet je in het venster. plafGripY geeft de hoogte van de greep.
+const PLAF_OPEN_Y = 420;
+function plafGripY(o){ return o.y >= PLAFOND_WEG ? PLAF_OPEN_Y : o.y; }
 const binfoEl = document.getElementById('binfo');
 const SPAWN_NAAM = { groen: 'Zandslang', zwart: 'Zwarte slang', scorp: 'Schorpioen', hyenas: 'Hyena',
                      panter: 'Panter', zwaard: 'Zwaardvechter', fosfor: 'Fosforslangen' };
@@ -25904,10 +25910,15 @@ function bouwSchakelTeken(groundY, cx, scale){
   }
   // plafond: een greep op elk punt van de rots boven je, zodat je ze ziet en kunt pakken en slepen
   for (const o of level.plafond || []){
-    const px = X(o.x), py = groundY - o.y * scale;
+    const open = o.y >= PLAFOND_WEG, px = X(o.x), py = groundY - plafGripY(o) * scale;
     ctx.beginPath(); ctx.arc(px, py, 7 / z, 0, 7);
-    ctx.fillStyle = '#c9b48a'; ctx.fill();
-    ctx.lineWidth = 2 / z; ctx.strokeStyle = '#3a2d20'; ctx.stroke();
+    if (open){                                         // open punt (geen rots): een holle greep, altijd zichtbaar
+      ctx.fillStyle = 'rgba(30,22,18,0.4)'; ctx.fill();
+      ctx.lineWidth = 2 / z; ctx.strokeStyle = '#c9b48a'; ctx.setLineDash([3 / z, 3 / z]); ctx.stroke(); ctx.setLineDash([]);
+    } else {
+      ctx.fillStyle = '#c9b48a'; ctx.fill();
+      ctx.lineWidth = 2 / z; ctx.strokeStyle = '#3a2d20'; ctx.stroke();
+    }
   }
   ctx.lineWidth = 3 / z;
   const kader = (x, w, kleur) => {                    // een ravijn dat nog open moet
@@ -26002,6 +26013,10 @@ function bouwMarkeer(kind, o, groundY, cx, scale){
   } else if (kind === 'water'){
     const mid = waterWetMid(o), half = waterHalfW(o);
     ctx.strokeRect(cx + (mid - half - world), groundY - 30 / z, 2 * half, 60 / z);
+  } else if (kind === 'plafondpunt'){
+    const x = cx + (o.x - world), y = groundY - plafGripY(o) * scale;   // op de greep-hoogte, ook als het punt open is
+    ctx.beginPath(); ctx.moveTo(x, y - 55 / z); ctx.lineTo(x, y + 55 / z);
+    ctx.moveTo(x - 55 / z, y); ctx.lineTo(x + 55 / z, y); ctx.stroke();
   } else {
     // puntobject: een pijl op zijn hoogte (een slang op y, anders de vloer op zijn x)
     const hh = kind === 'spawn' ? (o.y != null ? o.y : (o.boven ? bovenVloer(o.x) : terrainH(o.x)))
@@ -26199,7 +26214,7 @@ cv.addEventListener('pointerdown', e => {
   } else if (tool === 'richel'){
     level.ledges.push({ x: Math.round(wx), h: 250, s: 1 });
   } else if (tool === 'plafond'){                   // een punt van de rots boven je; op de hoogte waar je klikt
-    const y = Math.round(Math.max(120, Math.min(PLAFOND_WEG, bHoogte(e))) / 10) * 10;
+    const y = Math.round(Math.max(120, Math.min(PLAFOND_WEG - 10, bHoogte(e))) / 10) * 10;
     const nw = { x: Math.round(wx), y };
     (level.plafond || (level.plafond = [])).push(nw);
     plafondVuil();
