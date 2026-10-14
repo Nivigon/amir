@@ -18854,7 +18854,38 @@ function banPlaySlag(){
   a.volume = SFX_BAN.vol; a.playbackRate = SFX_BAN.rate;
   a.play().catch(() => {});
 }
-function stopBan(){ for (const a of banSnd) a.pause(); }
+function stopBan(){ for (const a of banSnd) a.pause(); for (const k of banRoepSnd) for (const a of k.pool) a.pause(); }
+
+// De strijdkreet: zodra een bandiet op Amir af gaat rennen, roept hij er een van twee (willekeurig),
+// "Die!" of "False king!" (sounds/banditdie.mp3 en banditfalseking.mp3). Een paar stemmen per kreet,
+// zodat twee bandieten die tegelijk inzetten elkaar niet afsnijden. Spelen rechtstreeks (volume <= 1),
+// dus met het stille startje van geluidOntgrendel (geluidAan) werkt het ook op een telefoon.
+const SFX_BAN_ROEP = { bronnen: ['sounds/banditdie.mp3', 'sounds/banditfalseking.mp3'], vol: 0.95, stemmen: 2 };
+const banRoepSnd = SFX_BAN_ROEP.bronnen.map(src => ({
+  beurt: 0,
+  pool: Array.from({ length: SFX_BAN_ROEP.stemmen }, () => {
+    const a = geluidAan(new Audio());
+    a.preload = 'auto'; a.src = src;
+    return a;
+  })
+}));
+function banRoep(){
+  if (!wantSound) return;
+  const k = banRoepSnd[Math.random() < 0.5 ? 0 : 1];   // Die! of False king!
+  const a = k.pool[k.beurt++ % k.pool.length];
+  try { a.currentTime = 0; } catch (e) {}
+  a.volume = SFX_BAN_ROEP.vol;
+  a.play().catch(() => {});
+}
+// de doodskreet als hij sterft: dezelfde "Die!"-stem (banditdie.mp3)
+function banSterf(){
+  if (!wantSound) return;
+  const k = banRoepSnd[0];                              // banditdie.mp3
+  const a = k.pool[k.beurt++ % k.pool.length];
+  try { a.currentTime = 0; } catch (e) {}
+  a.volume = SFX_BAN_ROEP.vol;
+  a.play().catch(() => {});
+}
 
 // een gedeelde bank frames, pas geladen als een level of de sandbox erom vraagt
 const banBank = {};
@@ -18909,6 +18940,7 @@ function makeBandiet(x, side, dolk){
            hp: BAN_HP, inv: 0, flash: 0, knock: 0, base: 0, stuck: 0, lig: 0, alpha: 1,
            lunge: 0, lungeOn: false, rust: 0, dustT: 0, deadFace: -1,
            dolk: !!dolk, gegooid: false, dolkUit: false,  // gooit hij eerst zijn dolk; heeft hij de worp al gebruikt; is de dolk al los
+           geroepen: false,                               // heeft hij zijn strijdkreet al geroepen (één keer, bij de eerste charge)
            hitUsed: false, sweptId: -1, klaar: false, vrij: false };
 }
 function banSet(s, state){
@@ -19060,6 +19092,7 @@ function updateBandiet(s, dt, plats, cliff){
   }
   if (banInDeWeg(s, s.x + naarJe * BAN_RUN_SPD * dt)){ banSet(s, 'look'); return; }   // zijn maat vecht eerst
   if (s.rust > 0) return;                            // even na-hijgen: hij staat stil op het eerste renframe
+  if (!s.geroepen){ s.geroepen = true; banRoep(); }  // zijn strijdkreet, één keer, zodra hij echt op Amir af rent
   const voor = s.x;
   banMove(s, naarJe * BAN_RUN_SPD * dt, plats, cliff);
   if (Math.abs(s.x - voor) < BAN_RUN_SPD * dt * 0.4){   // een kei, een ravijnrand of de klifwand
@@ -19075,6 +19108,7 @@ function hitBandiet(s){
   if (s.hp > 0){ s.flash = 0.3; s.inv = BAN_INV_T; banSet(s, 'run'); s.rust = 0.2; return true; }
   s.deadFace = s.face;                                // de kant waar hij op keek: zo valt hij
   banSet(s, 'dood'); s.flash = 0.3; s.lig = 0;        // de doodanimatie speelt nu (63 frames)
+  banSterf();                                         // zijn doodskreet
   puffWorld(s.x, 6, 0, 0.9, s.base || 0);
   if (level && level.bandietGolf) golfKill();
   vijandDood(false);

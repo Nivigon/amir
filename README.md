@@ -512,7 +512,8 @@ iets langzamer dan jij sprint, maar in een groep komt hij van twee kanten, dus w
 helpt maar half. Staan er meer bij elkaar, dan vecht wie het dichtst bij je staat en kijken de
 anderen rond (de look-set) tot het hun beurt is. Een kei en een ravijn houden hem tegen zoals
 elke vijand (regel 7): een kei is ook voor hem een schuilplek, en voor een ravijn stopt zijn
-uitval.
+uitval. Zodra hij op je af gaat rennen, slaakt hij een strijdkreet ("Die!" of "False king!"),
+en als je hem velt klinkt zijn doodskreet.
 
 **De dolk.** Met de optie `dolk` gooit een bandiet eerst zijn dolk voor hij in de aanval gaat:
 zodra hij in beeld binnen werpbereik komt maar nog niet in zwaardbereik is, blijft hij staan,
