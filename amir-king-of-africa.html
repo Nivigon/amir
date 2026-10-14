@@ -3894,11 +3894,18 @@ function savanneLaag(t, groundY, scale, cx, bottom, st, floating){
   const loop = groundY - t.h * scale, top = loop - EDGE.walk * s;
   if (top > bottom) return;
   // sluit er een hoger terras op aan, dan heeft deze laag aan die kant geen rand (zie drawClimb)
-  const leftHidden = terraceList().some(o => o !== t && o.h > t.h && o.l <= t.l + 1 && o.r >= t.l - 1);
-  const rightHidden = terraceList().some(o => o !== t && o.h > t.h && o.l <= t.r + 1 && o.r >= t.r - 1);
+  let leftHidden = terraceList().some(o => o !== t && o.h > t.h && o.l <= t.l + 1 && o.r >= t.l - 1);
+  let rightHidden = terraceList().some(o => o !== t && o.h > t.h && o.l <= t.r + 1 && o.r >= t.r - 1);
+  // een kant met een ronde afsluiting (t.rond): de band kort daar in en loopt vlak door (geen gekartelde
+  // breukrand), zodat het ronde hoekstuk het uiteinde afdekt en afrondt. De snede valt in het midden van de hoek.
+  const capL = rondL(t) && imgReady(schachtHoekPic()), capR = rondR(t) && imgReady(schachtHoekPic());
+  const inset = grondHoekInset();
+  let xlD = xl, xrD = xr;
+  if (capL){ xlD = xl + inset; leftHidden = true; }
+  if (capR){ xrD = xr - inset; rightHidden = true; }
   ctx.save();
   const D = SAV_LAAG;
-  terClipPath(xl, xr, top - 4, bottom, st, top + th * D.soil, leftHidden, t.l, t.r, rightHidden);
+  terClipPath(xlD, xrD, top - 4, bottom, st, top + th * D.soil, leftHidden, t.l, t.r, rightHidden);
   ctx.clip();
   ctx.fillStyle = bodemDonker();                     // de massa onder de tegel
   ctx.fillRect(xl - 40, top + th - 2, xr - xl + 80, bottom - top + 40);
@@ -3936,6 +3943,9 @@ function savanneLaag(t, groundY, scale, cx, bottom, st, floating){
     ctx.fillStyle = sch; ctx.fillRect(xl - 40, bottom - 60, xr - xl + 80, 64);
   }
   ctx.restore();
+  // de ronde afsluiting(en) erover: het hoekstuk dekt het ingekorte, vlakke uiteinde af en rondt het af
+  if (capR) grondHoekTeken(xr, loop, s, +1);
+  if (capL) grondHoekTeken(xl, loop, s, -1);
 }
 // één richel tekenen. Zonder f: vlakke kant links (op o.x), punt naar rechts. Met f: hetzelfde beeld
 // gespiegeld om o.x (vlakke kant rechts, punt naar links), zodat hij tegen de rechterwand van een
@@ -4761,6 +4771,37 @@ function schachtHoekTeken(R, X, Y, ch){
     ctx.restore();
   }
 }
+// Algemeen afsluit-hoekstuk op de rand van een grondstuk (savannelaag, terras, zwever), los van de schacht:
+// hetzelfde ronde hoekstuk, maar op de aardrand van een laag in plaats van op de grijze schachtwand. De band
+// staat hier op natuurlijke schaal (zoals savanneLaag tekent), dus de kruin en de kruimelige voorrand liggen op
+// EDGE.kruin en SCHACHT_HOEK.voorrand maal s onder de tegeltop. Zelfde wereld-vaste breedte en verankering als
+// de schacht-hoek, zodat de ronding op elk scherm hetzelfde is. surfY is de schermrij van de looplijn.
+function grondHoekData(surfY, s){
+  const top = surfY - EDGE.walk * s;
+  const bandCrest = top + EDGE.kruin * s;
+  const bandLip = top + SCHACHT_HOEK.voorrand * s;
+  const hs = SCHACHT_HOEK.breed, hw = SCHACHT_HOEK.w * hs;
+  const vss = (bandLip - bandCrest) / (SCHACHT_HOEK.lip - SCHACHT_HOEK.crest);
+  return { hs, hw, aTop: bandCrest - SCHACHT_HOEK.crest * vss, yLip: bandLip,
+           soilH: SCHACHT_HOEK.lip * vss, cliffH: (SCHACHT_HOEK.h - SCHACHT_HOEK.lip) * hs };
+}
+// kant +1: rechteruiteinde (de hoek rondt naar rechts, de aarde ligt links); -1: linkeruiteinde (gespiegeld).
+function grondHoekTeken(edgeX, surfY, s, kant){
+  const img = schachtHoekPic(); if (!img) return;
+  const d = grondHoekData(surfY, s);
+  ctx.save();
+  let nx = kant > 0 ? edgeX - d.hw : edgeX + d.hw;
+  if (kant < 0){ ctx.translate(nx, 0); ctx.scale(-1, 1); nx = 0; }
+  ctx.drawImage(img, 0, 0, SCHACHT_HOEK.w, SCHACHT_HOEK.lip, nx, d.aTop, d.hw, d.soilH);
+  ctx.drawImage(img, 0, SCHACHT_HOEK.lip, SCHACHT_HOEK.w, SCHACHT_HOEK.h - SCHACHT_HOEK.lip, nx, d.yLip, d.hw, d.cliffH);
+  ctx.restore();
+}
+// de wereld-vaste breedte waarmee de band aan een afgesloten kant inkort (een halve hoekbreedte), zodat de
+// rechte kruin niet boven de ronde hoek uitsteekt: de hoek dekt de rest af, met de snede in zijn midden.
+function grondHoekInset(){ return SCHACHT_HOEK.w * SCHACHT_HOEK.breed * 0.5; }
+// welke kanten een laag rond afsluit: het veld rond is 'l', 'r' of 'lr'
+function rondL(t){ return t && (t.rond === 'l' || t.rond === 'lr'); }
+function rondR(t){ return t && (t.rond === 'r' || t.rond === 'lr'); }
 // met Hitboxen aan: de volle cellen in het blauw, de looprand van elke richel in het groen
 function grotHitboxen(g, R, X, Y, ch){
   ctx.save();
@@ -23633,8 +23674,8 @@ function syncLevel(){
                                                    y: (o.y === null || o.y === undefined) ? null : Math.round(o.y) })),
     plafond: (level.plafond || []).map(o => ({ x: Math.round(o.x), y: Math.round(o.y) })),
     muur: level.muur || undefined,           // zonder rotswand valt het veld weg
-    terraces: (level.terraces || []).map(o => ({ r: o.r, l: o.l, h: o.h, grond: o.grond || undefined })),
-    zwevers: (level.zwevers || []).map(o => ({ r: o.r, l: o.l, h: o.h, onder: o.onder })),
+    terraces: (level.terraces || []).map(o => ({ r: o.r, l: o.l, h: o.h, grond: o.grond || undefined, rond: o.rond || undefined })),
+    zwevers: (level.zwevers || []).map(o => ({ r: o.r, l: o.l, h: o.h, onder: o.onder, rond: o.rond || undefined })),
     holtes: (level.holtes || []).map(o => ({ r: o.r, l: o.l, diep: o.diep })),
     valschade: level.valschade || undefined,
     worp: level.worp || undefined,            // zonder schaalworp valt het veld weg
@@ -23893,13 +23934,15 @@ function readLevel(txt){
                             soort: o.muur.soort === 'grot' ? 'grot' : undefined } : null,
            // grond: true maakt er geen rots van maar een hogere savannelaag (zie "hogere savannelaag")
            terraces: (o.terraces || []).map(q => ({ r: Number(q.r), l: Number(q.l), h: Number(q.h) || 0,
-                                                    grond: q.grond === true })),
+                                                    grond: q.grond === true,
+                                                    rond: (q.rond === 'l' || q.rond === 'r' || q.rond === 'lr') ? q.rond : undefined })),
            // zwevende savannelagen: een dik savanneblok in de lucht, zie "zwevende savannelaag"
            zwevers: (o.zwevers || []).map(q => {
              const h = Number(q.h) || 0;
              let onder = q.onder != null ? Number(q.onder) : h - ZWEEF.dik;
              if (onder >= h) onder = h - ZWEEF.dik;          // de onderkant ligt altijd onder de looplijn
-             return { r: Number(q.r), l: Number(q.l), h, onder };
+             return { r: Number(q.r), l: Number(q.l), h, onder,
+                      rond: (q.rond === 'l' || q.rond === 'r' || q.rond === 'lr') ? q.rond : undefined };
            }),
            // gangen onder de grond: zie "holte onder de grond"
            holtes: (o.holtes || []).map(q => ({ r: Number(q.r), l: Number(q.l),
@@ -26545,12 +26588,17 @@ function bouwVelden(k){
     v.push(['rechterrand (r)', 'getal', 'r', { stap: 10 }], ['linkerrand (l)', 'getal', 'l', { stap: 10 }],
            ['hoogte', 'getal', 'h', { stap: 10, min: 20, max: 1500 }],
            ['savannelaag (geen rots)', 'vink', 'grond']);
+    // een savannelaag mag je rond afsluiten aan een kant (het ronde hoekstuk, zie "De schacht")
+    if (o.grond) v.push(['afsluiten met ronde hoek', 'keuze', 'rond',
+                         { keuzes: [['', 'niet'], ['l', 'links'], ['r', 'rechts'], ['lr', 'beide']] }]);
   }
   if (k.kind === 'zweef'){
     v.length = 0;
     v.push(['rechterrand (r)', 'getal', 'r', { stap: 10 }], ['linkerrand (l)', 'getal', 'l', { stap: 10 }],
            ['loophoogte bovenop (h)', 'getal', 'h', { stap: 10, min: 80, max: 2500 }],
-           ['onderkant (onder)', 'getal', 'onder', { stap: 10, min: 20, max: 2500 }]);
+           ['onderkant (onder)', 'getal', 'onder', { stap: 10, min: 20, max: 2500 }],
+           ['afsluiten met ronde hoek', 'keuze', 'rond',
+            { keuzes: [['', 'niet'], ['l', 'links'], ['r', 'rechts'], ['lr', 'beide']] }]);
   }
   if (k.kind === 'rijzer'){
     v.length = 0;

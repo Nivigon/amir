@@ -937,6 +937,13 @@ de laag langer of korter, zonder de getallen in het venster te hoeven typen; de 
 blijft staan. Pak je het midden, dan schuift het hele blok mee, zoals altijd. De textuur en de
 rotsrand lopen vanzelf mee met de lengte die je trekt.
 
+Een **savannelaag** of een **zwevende laag** sluit je in het venster netjes rond af met het veld
+**afsluiten met ronde hoek**: niet, links, rechts of beide. Dan rondt hetzelfde geschilderde
+hoekstuk als bovenin de schacht dat uiteinde af over de rand heen, in plaats van de rechte
+afgebroken kant, aansluitend op de grondtegel en de kruimelige voorrand van de laag. Zo dek je een
+stuk grond gemakkelijk en aansluitend af. De ronding is wereld-vast, dus hij ziet er op elk scherm
+hetzelfde uit.
+
 **Een gang onder de grond** maak je onder een ravijn. Kies het ravijn: het venster zegt wat eronder
 zit. Staat er niets, dan val je daar dood; met **Maak er een ingang van** komt er een gang onder.
 Kijk omlaag en klik de gang aan: je ziet de ingang, de uitgang en wat de val kost als valschade
