@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Renderproef: 2D-canvas versus GPU</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #0d0b08; color: #f3e6c4;
+               font: 14px/1.4 system-ui, sans-serif; overflow: hidden; }
+  #veld { position: fixed; inset: 0; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #c2d { z-index: 1; } #cgl { z-index: 1; }
+  .verborgen { display: none !important; }
+  #paneel { position: fixed; left: 12px; top: 12px; z-index: 10; width: 300px;
+            background: rgba(20,16,10,.82); border: 1px solid #4a3c24; border-radius: 10px;
+            padding: 12px 14px; backdrop-filter: blur(3px); }
+  #paneel h1 { font-size: 15px; margin: 0 0 8px; }
+  .rij { display: flex; align-items: center; gap: 8px; margin: 7px 0; }
+  .rij label { flex: 0 0 120px; color: #c9b98f; }
+  .rij input[type=range] { flex: 1; }
+  .knoppen { display: flex; gap: 6px; margin: 8px 0 4px; }
+  button { flex: 1; cursor: pointer; background: #2a2114; color: #f3e6c4;
+           border: 1px solid #5a4a2c; border-radius: 7px; padding: 7px 8px; font: inherit; }
+  button.aan { background: #7a5a1c; border-color: #caa44a; }
+  button.meet { background: #26406a; border-color: #4a7ad0; flex: 1 0 100%; }
+  #uit { margin-top: 8px; border-top: 1px solid #4a3c24; padding-top: 8px; }
+  .cijfer { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
+  .cijfer b { color: #ffe9a8; }
+  .klein { color: #a9966a; font-size: 12px; }
+  #meetuit { margin-top: 8px; white-space: pre-wrap; font-variant-numeric: tabular-nums;
+             background: #140f08; border-radius: 6px; padding: 8px; min-height: 18px; }
+  .groen { color: #9fe08a; } .rood { color: #f0a08a; }
+</style>
+</head>
+<body>
+<div id="veld">
+  <canvas id="c2d"></canvas>
+  <canvas id="cgl" class="verborgen"></canvas>
+</div>
+
+<div id="paneel">
+  <h1>Renderproef: 2D versus GPU</h1>
+  <div class="knoppen">
+    <button id="b2d" class="aan">2D-canvas</button>
+    <button id="bgl">GPU (PixiJS)</button>
+  </div>
+  <div class="rij"><label>Grasbosjes</label><input id="sGras" type="range" min="0" max="2000" step="50" value="600"><span id="vGras">600</span></div>
+  <div class="rij"><label>Lichtlagen</label><input id="sLicht" type="range" min="0" max="8" step="1" value="4"><span id="vLicht">4</span></div>
+  <div class="rij"><label>Wind</label><input id="cWind" type="checkbox" checked></div>
+  <div class="rij"><label>Scherpte (DPR)</label><input id="sDpr" type="range" min="1" max="3" step="0.5" value="2"><span id="vDpr">2</span></div>
+  <div class="knoppen"><button id="bMeet" class="meet">Meet beide, 6 seconden elk</button></div>
+  <div id="uit">
+    <div class="cijfer">Renderer<b id="uRenderer">2D-canvas</b></div>
+    <div class="cijfer">FPS (beeld)<b id="uFps">-</b></div>
+    <div class="cijfer">JS per beeld<b id="uMs">-</b></div>
+    <div class="cijfer klein">resolutie<span id="uRes">-</span></div>
+  </div>
+  <div id="meetuit"></div>
+</div>
+
+<script type="module">
+import * as PIXI from './lib/pixi.min.mjs';
+
+// ---- gedeelde scene-opbouw (dezelfde last voor beide renderers) ----------
+// Representatief voor een zwaar Honingjacht-level: parallax-bergen, een herhaalde
+// grondtegel, honderden buigende grasbosjes uit een spritesheet, en een paar
+// full-screen lichtlagen. Precies de mix die de lag veroorzaakt.
+const GRAS = { src: '../design/vegetatie/drygrass_sheet.png', n: 24, cols: 8, lean: 0.085 };
+const GROND = '../design/grondrand.png';
+const BERG1 = '../design/bg/laag1/verre_bergen_4_breuklijn.png';
+const BERG2 = '../design/bg/laag2/midden_4.png';
+
+let W = 0, H = 0, DPR = 2;
+const kwart = document.getElementById('veld');
+
+// één gedeelde lucht-verlooptegel (klein canvas), zodat 2D en GPU exact dezelfde lucht
+// tonen zonder van de gradient-API af te hangen
+const luchtCanvas = document.createElement('canvas');
+luchtCanvas.width = 4; luchtCanvas.height = 256;
+{ const g = luchtCanvas.getContext('2d'); const grad = g.createLinearGradient(0, 0, 0, 256);
+  grad.addColorStop(0, '#3a4e6b'); grad.addColorStop(1, '#b98a5a'); g.fillStyle = grad; g.fillRect(0, 0, 4, 256); }
+
+// elk grasbosje: vaste wereld-x, hoogte, spiegel, eigen fase; beweegt mee met een
+// windvlaag die over het veld trekt. Identiek voor 2D en GPU.
+let bosjes = [];
+function maakBosjes(aantal){
+  bosjes = [];
+  for (let i = 0; i < aantal; i++){
+    bosjes.push({
+      wx: Math.random() * 6000,            // plek in de wereld
+      baan: 0.55 + Math.random() * 0.4,    // hoogte als deel van referentie
+      flip: Math.random() < 0.5,
+      seed: Math.random() * 6.28,
+      rij: Math.random(),                  // hoe ver naar voren (grootte/overlap)
+      frame: Math.floor(Math.random() * GRAS.n),
+      lean: 0
+    });
+  }
+}
+
+let camera = 0, windT = 0, klok = 0;
+function stapScene(dt){
+  klok += dt;
+  camera = (camera + dt * 230) % 6000;     // de wereld schuift, zoals lopen
+  windT += dt;
+  const windAan = document.getElementById('cWind').checked;
+  // één golvende windvlaag over het hele veld
+  const amp = windAan ? (0.5 + 0.5 * Math.sin(windT * 0.6)) : 0;
+  for (const b of bosjes){
+    const faseWind = amp * (0.6 + 0.4 * Math.sin(windT * 2.3 + b.seed));
+    b.lean += (faseWind * GRAS.lean * (b.flip ? -1 : 1) - b.lean) * Math.min(1, dt * 6);
+    if (windAan) b.frame = (b.frame + dt * 12) % GRAS.n;
+  }
+}
+
+// schermpositie van een bosje (gedeeld)
+function bosjePos(b){
+  const par = 0.6 + b.rij * 0.7;                 // voorgrond schuift sneller
+  let sx = (b.wx - camera * par) % 6000;
+  if (sx < -200) sx += 6000; if (sx > W + 200) sx -= 6000;
+  const grond = H * 0.78;
+  const hoogte = H * (0.10 + b.rij * 0.16) * (0.8 + b.baan * 0.4);
+  return { sx, sy: grond + b.rij * H * 0.06, h: hoogte };
+}
+
+// ====================== 2D-CANVAS RENDERER ===============================
+const c2d = document.getElementById('c2d');
+const ctx = c2d.getContext('2d');
+const img2d = {};
+function laad2d(){
+  for (const [k, src] of [['gras', GRAS.src], ['grond', GROND], ['berg1', BERG1], ['berg2', BERG2]]){
+    const im = new Image(); im.src = src; img2d[k] = im;
+  }
+}
+function teken2d(){
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  // lucht (gedeelde verlooptegel, uitgerekt)
+  ctx.drawImage(luchtCanvas, 0, 0, W, H);
+  // parallax-bergen (grote plaatjes, elk beeld opnieuw geschaald getekend)
+  const b1 = img2d.berg1, b2 = img2d.berg2;
+  if (b1.naturalWidth){ const w = W * 1.4, h = w * b1.naturalHeight / b1.naturalWidth;
+    const x = -((camera * 0.12) % w); for (let i = -1; i <= 1; i++) ctx.drawImage(b1, x + i * w, H * 0.40 - h, w, h); }
+  if (b2.naturalWidth){ const w = W * 1.2, h = w * b2.naturalHeight / b2.naturalWidth;
+    const x = -((camera * 0.26) % w); for (let i = -1; i <= 1; i++) ctx.drawImage(b2, x + i * w, H * 0.56 - h, w, h); }
+  // grondband (herhaalde tegel)
+  const g = img2d.grond;
+  if (g.naturalWidth){ const h = H * 0.30, w = h * g.naturalWidth / g.naturalHeight;
+    const x = -((camera) % w); for (let i = -1; i * w + x < W + w; i++) ctx.drawImage(g, x + i * w, H * 0.78 - h * 0.18, w, h); }
+  // grasbosjes: frame uit het sheet, met shear-transform (zoals drawVeg)
+  if (img2d.gras.naturalWidth){
+    const sheet = img2d.gras, sw = sheet.naturalWidth / GRAS.cols, sh = sheet.naturalHeight / Math.ceil(GRAS.n / GRAS.cols);
+    for (const b of bosjes){
+      const p = bosjePos(b); const f = Math.floor(b.frame) % GRAS.n;
+      const sxr = (f % GRAS.cols) * sw, syr = Math.floor(f / GRAS.cols) * sh;
+      const w = sw / sh * p.h;
+      ctx.save(); ctx.translate(p.sx, p.sy);
+      if (b.lean) ctx.transform(1, 0, -b.lean, 1, 0, 0);
+      if (b.flip) ctx.scale(-1, 1);
+      ctx.drawImage(sheet, sxr, syr, sw, sh, -w / 2, -p.h, w, p.h);
+      ctx.restore();
+    }
+  }
+  // full-screen lichtlagen (belichting, waas, weer): fillRect over het hele canvas
+  const m = +document.getElementById('sLicht').value;
+  for (let i = 0; i < m; i++){
+    ctx.globalAlpha = 0.06 + 0.02 * i;
+    ctx.fillStyle = i % 2 ? '#1a2740' : '#5a3a1a';
+    ctx.fillRect(0, 0, W, H);
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ====================== GPU (PIXIJS) RENDERER ============================
+const cgl = document.getElementById('cgl');
+let app = null, glKlaar = false;
+let glLagen = null;
+async function bouwGl(){
+  app = new PIXI.Application();
+  await app.init({ canvas: cgl, width: W * DPR, height: H * DPR, resolution: 1,
+                   backgroundColor: 0x3a4e6b, antialias: false, powerPreference: 'high-performance' });
+  // textures laden
+  const [tGras, tGrond, tB1, tB2] = await Promise.all([
+    PIXI.Assets.load(GRAS.src), PIXI.Assets.load(GROND), PIXI.Assets.load(BERG1), PIXI.Assets.load(BERG2)
+  ]);
+  // sub-textures per grasframe (één keer, hergebruikt): dit is precies waarom de GPU
+  // goedkoper is, het frame wordt niet elk beeld opnieuw uitgesneden
+  const sw = tGras.width / GRAS.cols, sh = tGras.height / Math.ceil(GRAS.n / GRAS.cols);
+  const frames = [];
+  for (let f = 0; f < GRAS.n; f++)
+    frames.push(new PIXI.Texture({ source: tGras.source,
+      frame: new PIXI.Rectangle((f % GRAS.cols) * sw, Math.floor(f / GRAS.cols) * sh, sw, sh) }));
+
+  const root = new PIXI.Container(); app.stage.addChild(root);
+  const lucht = new PIXI.Sprite(PIXI.Texture.from(luchtCanvas)); root.addChild(lucht);
+  const berg2 = new PIXI.TilingSprite({ texture: tB2, width: W, height: H }); root.addChild(berg2);
+  const berg1 = new PIXI.TilingSprite({ texture: tB1, width: W, height: H }); root.addChild(berg1);
+  const grond = new PIXI.TilingSprite({ texture: tGrond, width: W, height: H }); root.addChild(grond);
+  const grasLaag = new PIXI.Container(); root.addChild(grasLaag);
+  const grasSprites = [];
+  const overlays = [];
+  for (let i = 0; i < 8; i++){ const gfx = new PIXI.Graphics(); gfx.visible = false; root.addChild(gfx); overlays.push(gfx); }
+  glLagen = { root, lucht, berg1, berg2, grond, grasLaag, grasSprites, frames, tGras, overlays,
+              sw, sh, tB1, tB2, tGrond };
+  glKlaar = true;
+}
+function syncGrasSprites(){
+  const L = glLagen; const n = bosjes.length;
+  while (L.grasSprites.length < n){
+    const s = new PIXI.Sprite(L.frames[0]); s.anchor.set(0.5, 1); L.grasLaag.addChild(s); L.grasSprites.push(s);
+  }
+  while (L.grasSprites.length > n){ const s = L.grasSprites.pop(); s.destroy(); }
+}
+function tekenGl(){
+  const L = glLagen; if (!L) return;
+  // lucht (dezelfde verlooptegel als 2D, uitgerekt)
+  L.lucht.x = 0; L.lucht.y = 0; L.lucht.width = W; L.lucht.height = H;
+  // parallax via tilePosition (geen herverdeling van geometrie)
+  const r1 = L.tB1, s1 = (W * 1.4) / r1.width; L.berg1.tileScale.set(s1); L.berg1.tilePosition.x = -camera * 0.12;
+  L.berg1.y = H * 0.40 - W * 1.4 * r1.height / r1.width; L.berg1.height = W * 1.4 * r1.height / r1.width; L.berg1.width = W;
+  const r2 = L.tB2, s2 = (W * 1.2) / r2.width; L.berg2.tileScale.set(s2); L.berg2.tilePosition.x = -camera * 0.26;
+  L.berg2.y = H * 0.56 - W * 1.2 * r2.height / r2.width; L.berg2.height = W * 1.2 * r2.height / r2.width; L.berg2.width = W;
+  const gh = H * 0.30, gs = gh / L.tGrond.height; L.grond.tileScale.set(gs); L.grond.tilePosition.x = -camera;
+  L.grond.y = H * 0.78 - gh * 0.18; L.grond.height = gh; L.grond.width = W;
+  // gras
+  syncGrasSprites();
+  for (let i = 0; i < bosjes.length; i++){
+    const b = bosjes[i], s = L.grasSprites[i], p = bosjePos(b);
+    s.texture = L.frames[Math.floor(b.frame) % GRAS.n];
+    s.x = p.sx; s.y = p.sy; s.height = p.h; s.width = (L.sw / L.sh) * p.h * (b.flip ? -1 : 1);
+    s.skew.x = -b.lean;                       // shear, zoals de 2D-transform
+  }
+  // full-screen lichtlagen
+  const m = +document.getElementById('sLicht').value;
+  for (let i = 0; i < L.overlays.length; i++){
+    const o = L.overlays[i];
+    if (i < m){ o.visible = true; o.clear(); o.rect(0, 0, W, H).fill({ color: i % 2 ? 0x1a2740 : 0x5a3a1a, alpha: 0.06 + 0.02 * i }); }
+    else o.visible = false;
+  }
+  app.renderer.render(app.stage);
+}
+
+// ====================== maat, lus en meting ==============================
+function zetMaat(){
+  const r = kwart.getBoundingClientRect();
+  W = Math.round(r.width); H = Math.round(r.height);
+  DPR = Math.min(window.devicePixelRatio || 1, +document.getElementById('sDpr').value);
+  for (const c of [c2d, cgl]){ c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); }
+  if (app){ app.renderer.resolution = 1; app.renderer.resize(W * DPR, H * DPR);
+            app.stage.scale.set(DPR); }
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.imageSmoothingQuality = 'medium';
+  document.getElementById('uRes').textContent = (W * DPR) + '×' + (H * DPR) + ' (' + DPR + '×)';
+}
+
+let modus = '2d';            // '2d' of 'gl'
+let metenBezig = false;      // tijdens een meting staat de hoofdlus stil
+let laatste = performance.now();
+let fpsGem = 60, msGem = 8, msVenster = [];
+function lus(now){
+  if (metenBezig){ laatste = now; requestAnimationFrame(lus); return; }
+  const echt = Math.max(0, Math.min(0.05, (now - laatste) / 1000)); laatste = now;
+  stapScene(echt);
+  const t0 = performance.now();
+  if (modus === '2d') teken2d();
+  else if (glKlaar) tekenGl();
+  const js = performance.now() - t0;
+  // voortschrijdend gemiddelde
+  const fps = echt > 0 ? 1 / echt : 60;
+  fpsGem += (fps - fpsGem) * 0.08;
+  msGem += (js - msGem) * 0.08;
+  msVenster.push(js); if (msVenster.length > 180) msVenster.shift();
+  document.getElementById('uFps').textContent = fpsGem.toFixed(0);
+  document.getElementById('uMs').textContent = msGem.toFixed(1) + ' ms';
+  requestAnimationFrame(lus);
+}
+
+function p95(a){ const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.floor(0.95 * s.length)] : 0; }
+
+// vaste meting: 6 seconden per renderer, dan het verschil tonen
+async function meetBeide(){
+  const knop = document.getElementById('bMeet'); knop.disabled = true;
+  const out = document.getElementById('meetuit'); out.textContent = 'Meten...';
+  const grasN = +document.getElementById('sGras').value;
+  metenBezig = true;                                   // hoofdlus pauzeren, geen dubbel tekenwerk
+  async function run(welke){
+    kiesModus(welke);
+    if (welke === 'gl' && !glKlaar) await wachtGl();
+    await new Promise(r => setTimeout(r, 400));         // warmlopen
+    const start = performance.now(); const frames = []; let prev = performance.now(); let jsSom = 0, jsN = 0, jsMax = 0;
+    await new Promise(res => {
+      function tik(nu){
+        const echt = Math.max(0, Math.min(0.05, (nu - prev) / 1000)); frames.push(nu - prev); prev = nu;
+        stapScene(echt);                               // de scene beweegt mee, zoals bij echt spelen
+        const t0 = performance.now();
+        if (welke === '2d') teken2d(); else tekenGl();
+        const js = performance.now() - t0; jsSom += js; jsN++; if (js > jsMax) jsMax = js;
+        if (nu - start < 6000) requestAnimationFrame(tik); else res();
+      }
+      requestAnimationFrame(tik);
+    });
+    frames.shift();                                    // eerste interval is onbetrouwbaar
+    frames.sort((a, b) => a - b);
+    const med = frames[Math.floor(frames.length / 2)] || 1;
+    return { fps: 1000 / med, jsGem: jsSom / jsN, jsMax, p95int: p95(frames) };
+  }
+  const a = await run('2d');
+  const b = await run('gl');
+  metenBezig = false; laatste = performance.now();
+  const factor = (a.jsGem / b.jsGem);
+  out.innerHTML =
+    `grasbosjes: ${grasN}   lichtlagen: ${document.getElementById('sLicht').value}   ${W*DPR}×${H*DPR}\n` +
+    `                FPS    JS/beeld   JS-piek\n` +
+    `2D-canvas   ${a.fps.toFixed(0).padStart(5)}   ${a.jsGem.toFixed(1).padStart(6)}ms  ${a.jsMax.toFixed(0).padStart(4)}ms\n` +
+    `GPU (Pixi)  ${b.fps.toFixed(0).padStart(5)}   ${b.jsGem.toFixed(1).padStart(6)}ms  ${b.jsMax.toFixed(0).padStart(4)}ms\n` +
+    `<span class="${factor>=1.5?'groen':'rood'}">GPU doet het teken-JS ${factor.toFixed(1)}× goedkoper</span>`;
+  knop.disabled = false;
+}
+function wachtGl(){ return new Promise(r => { (function w(){ glKlaar ? r() : setTimeout(w, 50); })(); }); }
+
+// ---- knoppen en schuiven ----
+function kiesModus(m){
+  modus = m;
+  c2d.classList.toggle('verborgen', m !== '2d');
+  cgl.classList.toggle('verborgen', m !== 'gl');
+  document.getElementById('b2d').classList.toggle('aan', m === '2d');
+  document.getElementById('bgl').classList.toggle('aan', m === 'gl');
+  document.getElementById('uRenderer').textContent = m === '2d' ? '2D-canvas' : 'GPU (PixiJS)';
+  msVenster = [];
+}
+document.getElementById('b2d').onclick = () => kiesModus('2d');
+document.getElementById('bgl').onclick = async () => { if (!glKlaar) await wachtGl(); kiesModus('gl'); };
+document.getElementById('bMeet').onclick = meetBeide;
+document.getElementById('sGras').oninput = e => { document.getElementById('vGras').textContent = e.target.value; maakBosjes(+e.target.value); };
+document.getElementById('sLicht').oninput = e => { document.getElementById('vLicht').textContent = e.target.value; };
+document.getElementById('sDpr').oninput = e => { document.getElementById('vDpr').textContent = e.target.value; zetMaat(); };
+addEventListener('resize', zetMaat);
+
+// ---- start ----
+laad2d();
+maakBosjes(+document.getElementById('sGras').value);
+zetMaat();
+bouwGl().then(zetMaat).catch(e => { document.getElementById('meetuit').textContent = 'GPU-fout: ' + e.message; });
+requestAnimationFrame(lus);
+</script>
+</body>
+</html>

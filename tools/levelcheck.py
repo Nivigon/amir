@@ -337,6 +337,7 @@ class Spel:
         self.HOLTE_DAK = b.getal('HOLTE_DAK')
         self.FAR_GAP_LIFT = b.getal('FAR_GAP_LIFT')
         self.PLAYER_HALF_W = b.getal('PLAYER_HALF_W')
+        self.ZUIL_MAX = float(b.regex(r'const ZUIL = \{ max: ([\d.]+)', 'ZUIL.max').group(1))
         self.THICKET_BOX = b.getal('THICKET_BOX')
         self.THICKET_OVERLAP = b.getal('THICKET_OVERLAP')
         self.THICKET_BACK_S = b.getal('THICKET_BACK_S')
@@ -383,6 +384,11 @@ class Spel:
         # het zegel in de grond: zijn straal, en de breedte van het ravijn dat hij opent
         m = b.regex(r'const ZEGEL = \{\s*r: ([\d.]+)', 'de maat van het zegel')
         self.ZEGEL_R = float(m.group(1))
+        # de opstellingen van een rune (RUNE_OPSTELLINGEN): rots, groot, hoog en kei per naam
+        m = b.regex(r'(?s)const RUNE_OPSTELLINGEN = \{(.*?)\n\};', 'de opstellingen van een rune')
+        self.OPSTELLINGEN = {}
+        for o_naam, o_rots, o_groot, o_hoog, o_kei in re.findall(r"(\w+):\s*\{ naam: '[^']*',\s*rots: '(\w+)',\s*groot: ([\d.]+),\s*hoog: ([\d.]+)(?:,\s*kei: ([\d.]+))?", m.group(1)):
+            self.OPSTELLINGEN[o_naam] = {'rots': o_rots, 'groot': float(o_groot), 'hoog': float(o_hoog), 'kei': float(o_kei) if o_kei else None}
         m = b.regex(r'const RAVIJN_MAAT = \{ breed: (\d+)', 'de breedte van het open ravijn')
         self.RAVIJN_BREED = int(m.group(1))
         # de soorten weer (het veld weer): de sleutels van WEER.soorten
@@ -523,6 +529,22 @@ class Spel:
         return (links + self.POOL['wetL'] * s, links + (self.POOL['wetR'] + (o.get('n') or 0) * self.POOL['MW']) * s)
 
     # -- de sprong --
+    def bereik(self, snelheid, dh, kop=math.inf):
+        """Hoe ver hij komt tot hij op hoogte dh (ten opzichte van waar hij afzette) weer neerkomt, per
+        beeld zoals updateJump, met kop als plafond. 0 als hij daar niet eens komt."""
+        dt = 1 / 60
+        x, ph, pvh = 0.0, 0.0, self.JUMP_V
+        while True:
+            pvh -= self.GRAVITY * dt
+            ph += pvh * dt
+            x += snelheid * dt
+            if ph > kop:
+                ph, pvh = kop, min(pvh, 0)
+            if pvh <= 0 and ph <= dh:
+                return x if ph > dh - 40 or dh <= 0 else 0.0
+            if ph < -self.GAP_DEATH - 400:
+                return 0.0
+
     def sprong_top(self, dt):
         """Hoe hoog de sprong komt als het spel per beeld dt verder rekent (updateJump)."""
         v, h, top = self.JUMP_V, 0.0, 0.0
@@ -571,6 +593,8 @@ class Level:
         self.naam, self.d, self.spel = naam, d, spel
         g = lambda k: d.get(k) or []
         self.gaps = [q for q in g('gaps') if isinstance(q, dict)]
+        self.putten = [q for q in g('putten') if isinstance(q, dict)]   # ravijnen in de vloer van een gang (PUT)
+        self.zuilen = [q for q in g('zuilen') if isinstance(q, dict)]   # zuilen met een hoogte (ZUIL_HOOG)
         for q in self.gaps:
             q['w'] = max(40, q.get('w') or spel.GAP_BASE)
         self.terraces = g('terraces')
@@ -869,6 +893,8 @@ def velden(lv, sp):
 @regel('einde')
 def einde(lv, sp):
     """Het level moet uit te spelen zijn, en de klif staat achter de fakkels."""
+    if lv.d.get('apenArena'):
+        return                        # de arena van goudaapjes eindigt niet: oneindig tot je dood bent
     if not lv.ends and not lv.muur:
         yield fout(None, 'geen ends en geen muur: dit level is niet uit te spelen')
         return
@@ -911,6 +937,10 @@ def voorbij(lv, sp):
     wand = lv.muurlijn()
     if eind is None:
         return
+    # een level kan ook naar rechts eindigen (een lus die boven je eigen pad terugkomt, Test 24):
+    # dan ligt het einde rechts van de start en loopt de heenweg naar links, dus staat niets "voorbij"
+    # het einde aan de linkerkant. "Voorbij" is dan juist rechts van het einde.
+    rechts = isinstance(eind, (int, float)) and eind > 0
     for veld, naam in (('spawns', 'vijand'), ('hppotions', 'kalebas'), ('rocks', 'kei'),
                        ('tips', 'tip'), ('thickets', 'doornbos'), ('gaps', 'ravijn'), ('zegels', 'zegel'),
                        ('skeletten', 'skelet'), ('tekens', 'speerteken')):
@@ -920,7 +950,9 @@ def voorbij(lv, sp):
                 continue                                  # zie Test 3: een vijand heel ver weg als noodgreep
             if x < wand:
                 yield letop(x, '%s op %s staat achter de klif: daar kom je nooit' % (naam, n0(x)))
-            elif x < eind - 50 and veld != 'tips':
+            elif not rechts and x < eind - 50 and veld != 'tips':
+                yield letop(x, '%s op %s staat voorbij het einde (%s)' % (naam, n0(x), n0(eind)))
+            elif rechts and x > eind + 50 and veld != 'tips':
                 yield letop(x, '%s op %s staat voorbij het einde (%s)' % (naam, n0(x), n0(eind)))
     for o in lv.d.get('spawns') or []:
         if isinstance(o.get('x'), (int, float)) and o['x'] > 0:
@@ -940,6 +972,148 @@ def vijanden(lv, sp):
             yield letop(o['x'], 'vijand %s start boven een ravijn' % o.get('k'))
 
 
+def rijs_in(lv, g):
+    """De blokken rijzende grond die in dit ravijn staan."""
+    l, r = g['x'] - g['w'] / 2, g['x'] + g['w'] / 2
+    return [b for b in lv.d.get('rijzers') or [] if isinstance(b.get('l'), (int, float)) and isinstance(b.get('r'), (int, float))
+            and b['l'] < r and b['r'] > l]
+
+
+def rijs_gaten(lv, g):
+    """De stukken ravijn tussen de randen en de blokken, als die boven zijn."""
+    l, r = g['x'] - g['w'] / 2, g['x'] + g['w'] / 2
+    uit, x = [], r
+    for b in sorted(rijs_in(lv, g), key=lambda b: -b['r']):
+        if b['r'] < x:
+            uit.append(x - b['r'])
+        x = min(x, b['l'])
+    if x > l:
+        uit.append(x - l)
+    return uit
+
+
+@regel('rijzende grond')
+def rijzende_grond(lv, sp):
+    """Elk blok rijzende grond heeft een zegel of een rune met zijn naam, en staat in een ravijn. Een
+    platform dat zakt (zak: true) niet: dat zakt als Amir erop staat, waar het ook staat."""
+    zegels = lv.d.get('zegels') or []
+    bronnen = zegels + [r for r in lv.d.get('runes') or [] if isinstance(r, dict)]
+    for b in lv.d.get('rijzers') or []:
+        x = b.get('r')
+        if b.get('zak'):
+            tot = b.get('tot') if isinstance(b.get('tot'), (int, float)) else -1
+            if tot > sp.SPRONG_H:
+                yield info(x, 'zakkend platform %s staat op %s: van de grond spring je er niet op (%s), dus via een terras of kei'
+                           % (b.get('id'), n0(tot), n0(sp.SPRONG_H)))
+            continue
+        if not any(str(z.get('rijs')) == str(b.get('id')) for z in bronnen):
+            yield fout(x, 'rijzende grond %s zonder zegel of rune met rijs: \'%s\': hij komt nooit omhoog' % (b.get('id'), b.get('id')))
+        if not any(g['x'] - g['w'] / 2 <= b.get('l', 0) and b.get('r', 0) <= g['x'] + g['w'] / 2 for g in lv.gaps):
+            yield letop(x, 'rijzende grond %s staat niet helemaal in een ravijn' % b.get('id'))
+    for z in zegels:
+        if z.get('rijs') is not None and not any(str(b.get('id')) == str(z.get('rijs')) for b in lv.d.get('rijzers') or []):
+            yield fout(z.get('x'), 'zegel met rijs: \'%s\', maar er is geen rijzende grond met die naam' % z.get('rijs'))
+
+
+@regel('putten')
+def putten(lv, sp):
+    """Een put is een ravijn in de vloer van een gang (PUT in de HTML): hij moet helemaal in een gang
+    liggen, niet onder een gat in het dak, en met het dak erboven over te springen zijn."""
+    for q in lv.putten:
+        l, r = q['x'] - q['w'] / 2, q['x'] + q['w'] / 2
+        o = lv.holte(q['x'])
+        if not o or l < o['l'] or r > o['r']:
+            yield fout(q['x'], 'put van %s breed ligt niet helemaal in een gang: buiten een gang telt hij niet' % n0(q['w']))
+            continue
+        if lv.in_gat(l, r):
+            yield fout(q['x'], 'put onder een gat in het dak: wie door dat gat valt, valt meteen de put in')
+        if any(l <= z['x'] <= r for z in lv.zuilen):
+            continue                                    # met zuilen erin: zie de regel 'zuilen'
+        kop = o['diep'] - sp.HOLTE_DAK - sp.CHAR_H
+        schoon_r, red_r = sp.sprong(sp.LOOP * sp.SPRINT, lambda x: kop, 0)
+        schoon_l, _ = sp.sprong(sp.LOOP, lambda x: kop, 0)
+        if q['w'] > red_r:
+            yield fout(q['x'], 'put van %s breed: met sprint haalt Amir onder dit dak hoogstens %s' % (n0(q['w']), n0(red_r)))
+        elif q['w'] > schoon_r:
+            yield letop(q['x'], 'put van %s breed: een sprintsprong komt %s ver, hij haalt de overkant alleen door '
+                                'onder de rand te zakken' % (n0(q['w']), n0(schoon_r)))
+        else:
+            yield info(q['x'], 'put van %s breed (%s)' % (n0(q['w']), 'lopend te halen' if q['w'] <= schoon_l else 'alleen met sprint'))
+
+
+@regel('zuilen')
+def zuilen(lv, sp):
+    """Zuilen met een hoogte (ZUIL_HOOG in de HTML) staan in een ravijn of in een put. Het ravijn moet ze
+    helemaal bedekken, en elke sprong van de rand over de zuilen naar de overkant moet te halen zijn:
+    op een zuil wordt een te korte sprong niet gered, dus met een schone sprong. Alleen op de overkant
+    zelf, de gewone grond, mag hij onder de rand zakken."""
+    lopen, rennen = sp.LOOP, sp.LOOP * sp.SPRINT
+    gaten = [(g, None) for g in lv.gaps if not lv.holte(g['x'])]
+    gaten += [(q, lv.holte(q['x'])) for q in lv.putten if lv.holte(q['x'])]
+    for q in lv.zuilen:
+        l, r = q['x'] - q['w'] / 2, q['x'] + q['w'] / 2
+        if not any(g['x'] - g['w'] / 2 <= l and r <= g['x'] + g['w'] / 2 for g, o in gaten):
+            yield fout(q['x'], 'zuil op %s staat niet helemaal in een ravijn of een put: waar geen gat is, staat hij in de grond'
+                       % n0(q['x']))
+    for g, o in gaten:
+        gl, gr = g['x'] - g['w'] / 2, g['x'] + g['w'] / 2
+        erin = sorted([q for q in lv.zuilen if gl <= q['x'] <= gr], key=lambda q: -q['x'])
+        if not erin:
+            continue
+        kop = (o['diep'] - sp.HOLTE_DAK - sp.CHAR_H) if o else math.inf   # onder het dak van een gang
+        # de stappen: rand, zuilen, overkant; (rechterrand, linkerrand, hoogte) van elk stuk
+        stukken = [(gr + 200, gr, 0)] + [(q['x'] + q['w'] / 2, q['x'] - q['w'] / 2, q.get('h') or 0) for q in erin] + [(gl, gl - 200, 0)]
+        for (ar, al, ah), (br, bl, bh) in zip(stukken, stukken[1:]):
+            afstand = al - br
+            if bh - ah > sp.SPRONG_H - 10:
+                yield fout((al + br) / 2, 'van %s naar %s omhoog is %s: hoger dan de sprong (%s)'
+                           % (n0(ah), n0(bh), n0(bh - ah), n0(sp.SPRONG_H)))
+                continue
+            rl = sp.bereik(lopen, bh - ah, kop - ah)
+            rr = sp.bereik(rennen, bh - ah, kop - ah)
+            naar = 'de overkant' if (br, bl) == stukken[-1][:2] else 'de zuil op %s (hoogte %s)' % (n0((br + bl) / 2), n0(bh))
+            if afstand > rr:
+                if naar == 'de overkant':
+                    yield letop((al + br) / 2, 'naar de overkant is %s: met sprint %s, hij haalt het alleen door onder de rand te zakken'
+                                % (n0(afstand), n0(rr)))
+                else:
+                    yield fout((al + br) / 2, 'naar %s is %s: met sprint komt Amir %s ver, en op een zuil wordt een te korte sprong niet gered'
+                               % (naar, n0(afstand), n0(rr)))
+            else:
+                yield info((al + br) / 2, 'naar %s: %s ver, %s' % (naar, n0(afstand), 'lopend' if afstand <= rl else 'met sprint'))
+
+
+@regel('zuil')
+def zuil(lv, sp):
+    """Een strook grond van hoogstens ZUIL.max tussen twee ravijnen is een zuil (zie ZUIL in de HTML).
+    Daar redt het spel een te korte sprong niet: wie onder de rand zakt glijdt langs de wand naar
+    beneden. Het gat ervoor moet dus met een schone sprong te halen zijn, zonder wegzakken."""
+    reeksen = [(sorted(lv.gaps, key=lambda g: -g['x']), None)]
+    for o in lv.holtes:                              # en in een gang de putten (PUT)
+        reeksen.append((sorted([q for q in lv.putten if o['l'] <= q['x'] <= o['r']], key=lambda g: -g['x']), o))
+    paren = [(a, b, o) for gaps, o in reeksen for a, b in zip(gaps, gaps[1:])]
+    for a, b, o in paren:                            # a ligt rechts (daar komt hij vandaan), b links
+        r, l = a['x'] - a['w'] / 2, b['x'] + b['w'] / 2
+        breed = r - l
+        if breed <= 0 or breed > sp.ZUIL_MAX:
+            continue
+        if o is None and any(h['l'] < r and h['r'] > l for h in lv.holtes):
+            continue
+        if o is None:
+            kop = lambda x: lv.kop(x) - lv.terrein(x)
+        else:
+            kop = lambda x, o=o: o['diep'] - sp.HOLTE_DAK - sp.CHAR_H
+        rand = a['x'] + a['w'] / 2
+        schoon_r, _ = sp.sprong(sp.LOOP * sp.SPRINT, kop, rand)
+        schoon_l, _ = sp.sprong(sp.LOOP, kop, rand)
+        if a['w'] > schoon_r:
+            yield fout((r + l) / 2, 'zuil van %s breed achter een gat van %s: met sprint komt Amir %s ver, en te kort '
+                       'springen wordt op een zuil niet gered' % (n0(breed), n0(a['w']), n0(schoon_r)))
+        else:
+            yield info((r + l) / 2, 'zuil van %s breed achter een gat van %s (%s)'
+                       % (n0(breed), n0(a['w']), 'lopend te halen' if a['w'] <= schoon_l else 'alleen met sprint'))
+
+
 @regel('ravijnen')
 def ravijnen(lv, sp):
     """Het breedste gat dat de sprong haalt, met het plafond en het water erbij."""
@@ -947,6 +1121,8 @@ def ravijnen(lv, sp):
     rennen = sp.LOOP * sp.SPRINT
     gaps = sorted(lv.gaps, key=lambda g: -g['x'])
     for i, g in enumerate(gaps):
+        if any(g['x'] - g['w'] / 2 <= q['x'] <= g['x'] + g['w'] / 2 for q in lv.zuilen):
+            continue                                    # met zuilen erin: zie de regel 'zuilen'
         rand = g['x'] + g['w'] / 2                      # hier zet hij af, hij komt van rechts
         kop = lambda x: lv.kop(x) - lv.terrein(x)
         schoon_r, red_r = sp.sprong(rennen, kop, rand)
@@ -970,6 +1146,16 @@ def ravijnen(lv, sp):
                        % (n0(w), 'lopend' if w <= schoon_l else 'met sprint'))
         elif ingang:
             yield info(g['x'], 'ravijn van %s breed boven een gang: de ingang, je valt erin' % n0(w))
+        elif rijs_in(lv, g):
+            # rijzende grond in het ravijn (zie "rijzende grond"): dan tellen de stukken tussen de blokken
+            stukken = rijs_gaten(lv, g)
+            breedst = max(stukken) if stukken else 0
+            if breedst > red_r:
+                yield fout(g['x'], 'ravijn met rijzende grond: het breedste stuk ernaast is %s, met sprint haalt Amir '
+                                   'hoogstens %s' % (n0(breedst), n0(red_r)))
+            else:
+                yield info(g['x'], 'ravijn van %s breed met rijzende grond: stukken van %s'
+                           % (n0(w), ', '.join(n0(x) for x in stukken)))
         elif w > red_r:
             yield fout(g['x'], 'ravijn van %s breed: met sprint haalt Amir hoogstens %s%s' % (n0(w), n0(red_r), erbij))
         elif w > schoon_r:
@@ -1061,7 +1247,11 @@ def komend_ravijn(lv, sp):
     speerteken. schoonKomend schuift ze in het spel naar de rand, maar zet het meteen goed. Wat
     los ligt (botten, kalebassen, planten, dorpelingen) mag er wel: dat valt of schuift (ravijnDecor)."""
     runes = lv.d.get('runes') or sp.RAVIJN_PROEF.get(lv.d.get('name'), [])   # zoals ravijnProef
-    komend = [(e['x'], e.get('breed') or sp.RAVIJN_BREED) for e in runes if not e.get('doel')]   # een doel opent niets
+    komend = [(e['x'], e.get('breed') or sp.RAVIJN_BREED) for e in runes if not e.get('doel')]   # een doel opent zijn eigen plek niet
+    for e in runes:                                                 # maar met ravijn wel een andere
+        r = e.get('ravijn')
+        if e.get('doel') and isinstance(r, (int, float)) and not any(abs(x - r) < 1 for x, _ in komend):
+            komend.append((r, e.get('breed') or sp.RAVIJN_BREED))
     for z in lv.d.get('zegels') or []:
         r = z.get('ravijn')
         if isinstance(r, (int, float)) and not any(abs(x - r) < 1 for x, _ in komend):
@@ -1101,21 +1291,87 @@ def komend_ravijn(lv, sp):
             yield m
 
 
+@regel('runes')
+def runes(lv, sp):
+    """Een rune op een rots als doel (doel: true) kan ook iets doen als je hem raakt, net als een zegel:
+    ravijn, sluit, muur of speerval. Met muur moet er een rotswand zijn. De rots staat op de vloer
+    onder zijn midden (een terras, of in een gang de bodem): in een gang moet hij er dan ook in passen."""
+    for e in lv.d.get('runes') or []:
+        x = e.get('x')
+        if not isinstance(x, (int, float)):
+            continue
+        P = sp.OPSTELLINGEN.get(e.get('opstelling')) if e.get('opstelling') is not None else None
+        if e.get('opstelling') is not None and P is None:
+            yield fout(x, 'rune met opstelling \'%s\': die bestaat niet (wel: %s)' % (e.get('opstelling'), ', '.join(sp.OPSTELLINGEN)))
+        if P:
+            e = dict(e)
+            for k in ('groot', 'hoog', 'kei'):
+                if e.get(k) is None and P.get(k) is not None:
+                    e[k] = P[k]
+        if e.get('muur') and not lv.muur:
+            yield fout(x, 'rune met muur, maar dit level heeft geen rotswand: hij doet niets')
+        if not e.get('doel') and any(e.get(k) is not None for k in ('ravijn', 'sluit', 'speerval', 'muur')):
+            yield letop(x, 'rune zonder doel: true opent zijn eigen ravijn; ravijn, sluit, muur en speerval gelden alleen voor een doel')
+        o = lv.holte(x)
+        if o and e.get('doel'):
+            ruimte = o['diep'] - sp.HOLTE_DAK
+            groot = (e.get('groot') or 3.5) * sp.CHAR_H
+            if groot > ruimte:
+                yield fout(x, 'rots van %s hoog in een gang van %s onder het dak: hij steekt door het dak (maak groot kleiner)' % (n0(groot), n0(ruimte)))
+
+
+@regel('speer na een rune')
+def speer_na_rune(lv, sp):
+    """Een speer in een runeschijf zit vast (regel 9): na de rune heeft Amir geen speer meer, tot
+    hij een nieuwe pakt uit een skelet. Of dat nodig is, is een keuze van het level, maar een
+    doornbos kap je alleen met een speer (de stoot en de lage zwaai willen er allebei een). Een
+    doornbos dat na een rune komt en voor het volgende skelet, houdt hem dus voorgoed tegen, en
+    de speer daarachter krijgt hij nooit. Zo stond het in Jager 4.
+
+    Het mes (Jackal Fang van Impungushe) kapt een doornbos ook, zonder speer. Kan de speler dat
+    mes in dit level hebben, dan is het een LET OP: het werkt alleen met het mes. Nu is dat alleen
+    een level met talentKeuze (Test 14), want Impungushe staat op slot. Komt er een level voor de
+    jakhals, zet het dan bij mes_kan."""
+    runes = lv.d.get('runes') or sp.RAVIJN_PROEF.get(lv.d.get('name'), [])   # zoals ravijnProef
+    mes_kan = bool(lv.d.get('talentKeuze'))
+    # Amir loopt naar links: alles op volgorde van hoog naar laag
+    wat = [(e['x'], 0, 'rune') for e in runes if isinstance(e.get('x'), (int, float))]
+    wat += [(o['x'], 1, 'skelet') for o in lv.d.get('skeletten') or [] if isinstance(o.get('x'), (int, float))]
+    wat += [(t['x'], 2, 'doornbos') for t in lv.d.get('thickets') or [] if isinstance(t.get('x'), (int, float))]
+    wat.sort(key=lambda w: (-w[0], w[1]))
+    kwijt = None                                   # de x van de rune waar de speer in bleef
+    for x, _, soort in wat:
+        if soort == 'rune':
+            kwijt = x
+        elif soort == 'skelet':
+            kwijt = None
+        elif kwijt is not None:
+            tekst = ('doornbos op %s komt na de rune op %s en voor een skelet: de speer zit in de schijf, '
+                     'en zonder speer kap je dit doornbos niet' % (n0(x), n0(kwijt)))
+            if mes_kan:
+                yield letop(x, tekst + ' (alleen met het mes, Jackal Fang)')
+            else:
+                yield fout(x, tekst)
+
+
 @regel('zegels')
 def zegels(lv, sp):
-    """Een zegel ligt plat op de grond en gaat aan als Amir erop stapt. Boven een ravijn of in
-    een gang kan dat niet, en een ravijn dat opengaat onder het zegel zelf laat hem meteen vallen,
-    behalve bij een val (vijand: true): daar is dat juist de bedoeling."""
+    """Een zegel ligt plat op de grond en gaat aan als Amir erop stapt. Boven een ravijn kan dat
+    niet (in een gang wel: daar ligt hij op de bodem of een trede, ook onder een gat in het dak),
+    en een ravijn dat opengaat onder het zegel zelf laat hem meteen vallen, behalve bij een val
+    (vijand: true): daar is dat juist de bedoeling."""
     for z in lv.d.get('zegels') or []:
         half = (z.get('breed') or sp.RAVIJN_BREED) / 2
         x = z.get('x')
         if not isinstance(x, (int, float)):
             continue
-        if lv.in_gat(x - sp.zegelR, x + sp.zegelR):
+        if lv.holte(x):
+            yield info(x, 'zegel in de gang: hij ligt op de bodem of op een trede')
+            if lv.in_gat(x - sp.zegelR - 200, x + sp.zegelR + 200):
+                yield letop(x, 'zegel in een gang vlak bij een gat in het dak: hij ligt op de bodem, en wie op de '
+                               'savanne boven langs loopt zet hem niet aan')
+        elif lv.in_gat(x - sp.zegelR, x + sp.zegelR):
             yield fout(x, 'zegel boven een ravijn: daar kan Amir niet op staan')
-        if lv.holte(x) and lv.in_gat(x - sp.zegelR - 200, x + sp.zegelR + 200):
-            yield letop(x, 'zegel in een gang vlak bij een gat in het dak: hij ligt op de bodem, en wie op de '
-                           'savanne boven langs loopt zet hem niet aan')
         r = z.get('ravijn')
         if not isinstance(r, (int, float)):
             continue
@@ -1127,7 +1383,17 @@ def zegels(lv, sp):
                 yield fout(x, 'het ravijn op %s gaat open onder het zegel zelf: wie erop stapt valt er meteen in' % n0(r))
         if lv.in_gat(r - half, r + half):
             yield letop(r, 'het ravijn van het zegel gaat open over een ravijn dat er al ligt')
-        if lv.holte(r):
+        if lv.holte(r) and lv.holte(r) is lv.holte(x):
+            # zegel en ravijn in dezelfde gang: de vloer scheurt open, een put (zie PUT in de HTML)
+            o = lv.holte(r)
+            kop = o['diep'] - sp.HOLTE_DAK - sp.CHAR_H
+            schoon_r, _ = sp.sprong(sp.LOOP * sp.SPRINT, lambda q: kop, 0)
+            if 2 * half > schoon_r:
+                yield letop(r, 'het zegel scheurt de vloer van de gang open, %s breed: met sprint haalt Amir '
+                               'onder dit dak %s' % (n0(2 * half), n0(schoon_r)))
+            else:
+                yield info(r, 'het zegel scheurt de vloer van de gang open: een put van %s breed' % n0(2 * half))
+        elif lv.holte(r):
             yield letop(r, 'het ravijn van het zegel gaat open boven een gang: je valt dan de gang in')
     for z in lv.d.get('zegels') or []:
         if z.get('muur') and not lv.muur:
@@ -1265,6 +1531,47 @@ def terrassen(lv, sp):
                 if b not in bereikt and b > a and b - a < apex(a):
                     bereikt.add(b)
                     rij.append(b)
+        # rijzende grond die tegen deze wand omhoog komt, tot vlak onder of op de hoogte van het terras:
+        # een lift. Wie erop staat (of erop springt terwijl hij langskomt) gaat mee naar boven.
+        lift = [b for b in lv.d.get('rijzers') or [] if isinstance(b.get('l'), (int, float)) and isinstance(b.get('r'), (int, float))
+                and b['l'] - 60 <= t['r'] <= b['r'] + 60
+                and (b.get('tot') if isinstance(b.get('tot'), (int, float)) else -1) + sp.SPRONG_H - 10 > t['h']]
+        if t['h'] not in bereikt and lift:
+            yield info(t['r'], 'terras van %s hoog op %s: te halen met de rijzende grond %s (tot %s)'
+                       % (n0(t['h']), n0(t['r']), lift[0].get('id'), n0(lift[0].get('tot', -1))))
+            continue
+        # een buurterras aan de overkant van een dodelijk gat: je springt van dat plateau hierheen
+        # (mis is dan vallen in het gat). Reikbaar als het hoogteverschil binnen de sprong valt en het
+        # gat met sprint te halen is.
+        brug = None
+        for t2 in lv.terraces:
+            if t2 is t or t2['h'] <= 0:
+                continue
+            for g in lv.gaps:
+                gl, gr = g['x'] - g['w'] / 2, g['x'] + g['w'] / 2
+                tussen = (abs(t['r'] - gl) < 40 and abs(t2['l'] - gr) < 40) or (abs(t2['r'] - gl) < 40 and abs(t['l'] - gr) < 40)
+                if not tussen:
+                    continue
+                kop2 = lambda x: math.inf
+                schoon_r, red_r = sp.sprong(sp.LOOP * sp.SPRINT, kop2, 0)
+                if abs(t['h'] - t2['h']) <= sp.SPRONG_H - 10 and g['w'] <= red_r:
+                    brug = (t2, g)
+        if t['h'] not in bereikt and brug:
+            yield info(t['r'], 'terras van %s hoog op %s: te bereiken met een sprong van het terras op %s over het gat van %s'
+                       % (n0(t['h']), n0(t['r']), n0(brug[0]['r']), n0(brug[1]['w'])))
+            continue
+        # een zwevende savannelaag vlak naast dit terras op ongeveer dezelfde hoogte: je stapt er vanaf
+        # op het terras (de lus in Test 24 eindigt zo op een massief blok)
+        zwever_op = None
+        for z in lv.d.get('zwevers') or []:
+            if not all(isinstance(z.get(k), (int, float)) for k in ('l', 'r', 'h')):
+                continue
+            naast = abs(z['r'] - t['l']) < 340 or abs(t['r'] - z['l']) < 340
+            if naast and abs(z['h'] - t['h']) <= sp.SPRONG_H - 10:
+                zwever_op = z
+        if t['h'] not in bereikt and zwever_op:
+            yield info(t['r'], 'terras van %s hoog op %s: te bereiken vanaf de zwevende laag ernaast' % (n0(t['h']), n0(t['r'])))
+            continue
         if t['h'] not in bereikt:
             waarom = 'Amir springt %s' % n0(sp.SPRONG_H)
             if kop(vloer) - vloer < sp.SPRONG_H:
@@ -1281,6 +1588,33 @@ def terrassen(lv, sp):
     for o in lv.ledges:
         if not any(abs(o['x'] - t['r']) < 60 and t['h'] > o['h'] for t in lv.terraces):
             yield letop(o['x'], 'richel op %s hangt niet aan een terraswand' % n0(o['x']))
+
+
+@regel('zwevende lagen')
+def zwevende_lagen(lv, sp):
+    """Een zwevende savannelaag (Test 24): je landt erbovenop en loopt er onderdoor. De sprongen
+    tussen de blokken moeten met een sprint te halen zijn, en onder een blok waar je doorloopt hoort
+    een hele Amir ruimte te zitten (anders is zijn zijkant gewoon een wand)."""
+    zs = [z for z in lv.d.get('zwevers') or [] if all(isinstance(z.get(k), (int, float)) for k in ('l', 'r', 'h', 'onder'))]
+    if not zs:
+        return
+    _, red = sp.sprong(sp.LOOP * sp.SPRINT, lambda x: math.inf, 0)   # hoe breed een gat je met een sprint haalt
+    zs = sorted(zs, key=lambda z: z['l'])
+    for i in range(len(zs) - 1):
+        a, b = zs[i], zs[i + 1]                       # a ligt links van b (negatiever)
+        if b['l'] <= a['r']:
+            continue                                   # ze raken of overlappen: geen sprong ertussen
+        gat, dh = b['l'] - a['r'], abs(b['h'] - a['h'])
+        if dh > sp.SPRONG_H - 10:
+            yield letop(a['r'], 'de stap tussen de zwevende lagen op %s en %s is %s hoog: bijna de hele sprong van %s'
+                        % (n0(a['r']), n0(b['l']), n0(dh), n0(sp.SPRONG_H)))
+        if gat > red:
+            yield fout(a['r'], 'het gat tussen de zwevende lagen op %s en %s is %s breed: met een sprint haal je maar %s'
+                       % (n0(a['r']), n0(b['l']), n0(gat), n0(red)))
+    for z in zs:
+        if z['onder'] < sp.CHAR_H:
+            yield letop(z['l'], 'onder de zwevende laag op %s is maar %s ruimte (Amir is %s hoog): daar loop je niet '
+                        'onderdoor, zijn zijkant is dan een wand' % (n0(z['l']), n0(z['onder']), n0(sp.CHAR_H)))
 
 
 @regel('onder de grond')
@@ -1331,6 +1665,11 @@ def onder_de_grond(lv, sp):
             gl = g['x'] - g['w'] / 2
             for t in lv.terraces:
                 if t['h'] < 0 and t['l'] <= gl + sp.halfW and t['r'] > gl and -t['h'] < sp.SPRONG_H:
+                    uit = True
+            # of een lift: rijzende grond in het gat die van de bodem (binnen een sprong) tot de grondlijn komt
+            for b in rijs_in(lv, g):
+                van, tot = b.get('van', -900), b.get('tot', -1)
+                if not b.get('zak') and van <= -o['diep'] + sp.SPRONG_H and tot > -sp.SPRONG_H:
                     uit = True
         if not uit:
             yield fout(o['l'], 'het einde (%s) ligt voorbij de gang van %s tot %s, maar er is geen weg naar boven: '
@@ -1424,8 +1763,9 @@ def gangen(lv, sp):
         if isinstance(t.get('x'), (int, float)) and door_dak(t['x'], sp.doornbos_hoog(t)):
             yield fout(t['x'], 'doornbos op %s staat in de gang en is %s hoog: hij steekt door het dak'
                        % (n0(t['x']), n0(sp.doornbos_hoog(t))))
-    # de speer: aan het begin staat hij op SPEAR_AHEAD in de grond, en in een gang staat hij beneden
-    if not lv.muur and lv.holte(sp.SPEAR_AHEAD) and not lv.in_gat(sp.SPEAR_AHEAD - 30, sp.SPEAR_AHEAD + 30):
+    # de speer: aan het begin staat hij op SPEAR_AHEAD in de grond, en in een gang staat hij beneden.
+    # Met geenSpeer staat er geen startspeer (je haalt er een uit een skelet), dus dan geldt dit niet.
+    if not lv.muur and not lv.d.get('geenSpeer') and lv.holte(sp.SPEAR_AHEAD) and not lv.in_gat(sp.SPEAR_AHEAD - 30, sp.SPEAR_AHEAD + 30):
         yield fout(sp.SPEAR_AHEAD, 'je speer staat aan het begin op %s, en daar ligt een gang: hij staat beneden op de '
                    'bodem, onder de savanne waar Amir begint. Laat de gang verderop beginnen' % n0(sp.SPEAR_AHEAD))
 

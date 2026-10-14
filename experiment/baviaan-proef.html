@@ -1,0 +1,163 @@
+<title>Baviaan renderproef</title>
+<style>
+  :root{ color-scheme:dark; --bg:#0d0b08; --inkt:#f3e6c4; --zacht:#c9b98f; --flauw:#9c8a62;
+         --rand:#4a3c24; --paneel:rgba(22,17,10,.9); --geel:#ffe9a8; --groen:#9fe08a; --rood:#f0a07a;
+         --blauw:#4a7ad0; }
+  html,body{ height:100%; margin:0; background:var(--bg); color:var(--inkt);
+             font:14px/1.5 system-ui,-apple-system,sans-serif; }
+  .wrap{ max-width:720px; margin:0 auto; padding-block:20px; padding-left:16px; padding-right:16px; box-sizing:border-box; }
+  h1{ font-size:19px; margin:0 0 4px; }
+  p.sub{ color:var(--zacht); margin:0 0 16px; }
+  .paneel{ background:var(--paneel); border:1px solid var(--rand); border-radius:12px; padding:14px 16px; margin-bottom:14px; }
+  .toneel{ position:relative; width:100%; aspect-ratio:16/9; background:#161009; border-radius:8px; overflow:hidden; }
+  .toneel canvas{ position:absolute; inset:0; width:100%; height:100%; }
+  .knoppen{ display:flex; gap:8px; flex-wrap:wrap; margin:12px 0 4px; }
+  button{ flex:1 1 180px; cursor:pointer; background:#2a2114; color:var(--inkt); border:1px solid #5a4a2c;
+          border-radius:8px; padding:10px 12px; font:inherit; }
+  button:focus-visible{ outline:2px solid var(--blauw); outline-offset:2px; }
+  button.bezig{ opacity:.6; cursor:default; }
+  .meta{ display:flex; gap:18px; flex-wrap:wrap; margin-top:10px; font-variant-numeric:tabular-nums; }
+  .meta b{ color:var(--geel); }
+  .strip{ width:100%; height:70px; background:#120d07; border-radius:6px; margin-top:10px; display:block; }
+  .legend{ color:var(--flauw); font-size:12px; margin-top:6px; }
+  .uitleg{ color:var(--zacht); font-size:13px; }
+  .uitleg b{ color:var(--inkt); }
+  code{ background:#1c150c; padding:1px 5px; border-radius:4px; color:var(--geel); font-size:12px; }
+  .goed{ color:var(--groen); } .slecht{ color:var(--rood); }
+  #fout{ display:none; color:var(--rood); margin-top:8px; }
+</style>
+
+<div class="wrap">
+  <h1>Baviaan renderproef</h1>
+  <p class="sub">Zelfde animatie, twee manieren van tekenen. Let op de frametijd-strook: pieken zijn schokken.</p>
+
+  <div class="paneel">
+    <div class="toneel"><canvas id="c2d"></canvas><canvas id="cgl" hidden></canvas></div>
+    <div class="knoppen">
+      <button id="b2d">Speel koud, 2D-canvas</button>
+      <button id="bgl">Speel koud, WebGL (vooraf geladen)</button>
+    </div>
+    <canvas id="strip" class="strip"></canvas>
+    <div class="legend">elk balkje is een beeld; hoog = lang; de <span class="slecht">rode lijn</span> is 16 ms (de grens voor 60 beelden per seconde)</div>
+    <div class="meta">
+      <span>modus <b id="uMod">-</b></span>
+      <span>langste beeld <b id="uMax">-</b></span>
+      <span>schokken (&gt;16 ms) <b id="uPiek">-</b></span>
+    </div>
+    <div id="fout"></div>
+  </div>
+
+  <div class="paneel uitleg">
+    <p><b>Wat je doet.</b> Klik een knop. De 17 run-frames van de baviaan worden eerst vers ingeladen (buiten de meting), daarna speelt de animatie een paar rondes en meet hij elk beeld.</p>
+    <p><b>Wat je verwacht.</b> Bij <b>2D-canvas</b> wordt elk frame pas naar de grafische kaart gestuurd op het moment dat het voor het eerst getekend wordt: in de eerste ronde zie je daardoor een rij pieken, precies de schokken die je in het spel voelt. Bij <b>WebGL</b> zijn alle frames al vóór het afspelen naar de kaart gestuurd (<code>vooraf laden</code>), dus de strook hoort vlak te blijven.</p>
+    <p class="legend">Draai dit op een echte laptop, niet in een omgeving zonder grafische kaart. Zonder kaart valt alles terug op trage software en is het verschil niet zuiver te zien.</p>
+  </div>
+</div>
+
+<script type="module">
+import * as PIXI from './lib/pixi.min.mjs';
+'use strict';
+const N = 17;
+const urls = [];
+for (let i = 0; i < N; i++) urls.push('../enemies/baviaan/run/run_' + String(i).padStart(2, '0') + '.png');
+const FPS = 14;          // tempo van de loopanimatie
+const RONDES = 4;        // zoveel keer de hele cyclus afspelen en meten
+
+const c2d = document.getElementById('c2d'), ctx = c2d.getContext('2d');
+const cgl = document.getElementById('cgl');
+const strip = document.getElementById('strip'), sctx = strip.getContext('2d');
+function maat(cv){ const r = cv.getBoundingClientRect(); cv.width = Math.round(r.width); cv.height = Math.round(r.height); }
+function maten(){ maat(c2d); maat(cgl); maat(strip); }
+addEventListener('resize', maten); maten();
+
+let app = null;
+function toonFout(m){ const f = document.getElementById('fout'); f.textContent = m; f.style.display = 'block'; }
+
+// vers inladen (cache-buster), zodat de grafische kaart het echt opnieuw moet verwerken
+function versImgs(){
+  const stamp = '?v=' + Date.now() + Math.random();
+  return Promise.all(urls.map(u => new Promise((res, rej) => {
+    const im = new Image(); im.onload = () => (im.decode ? im.decode().then(() => res(im), () => res(im)) : res(im));
+    im.onerror = () => rej(new Error('plaatje laadt niet: ' + u)); im.src = u + stamp;
+  })));
+}
+
+function tekenStrip(tijden){
+  const w = strip.width, h = strip.height;
+  sctx.clearRect(0, 0, w, h);
+  const schaal = h / 40;                       // 40 ms vult de hoogte
+  const y16 = h - 16 * schaal;
+  const bw = Math.max(1, w / Math.max(tijden.length, 60));
+  for (let i = 0; i < tijden.length; i++){
+    const t = tijden[i], bh = Math.min(h, t * schaal);
+    sctx.fillStyle = t > 16 ? '#f0a07a' : '#9fe08a';
+    sctx.fillRect(i * bw, h - bh, Math.max(1, bw - 1), bh);
+  }
+  sctx.strokeStyle = 'rgba(240,120,80,.7)'; sctx.lineWidth = 1;
+  sctx.beginPath(); sctx.moveTo(0, y16 + .5); sctx.lineTo(w, y16 + .5); sctx.stroke();
+}
+
+function teken2d(img){
+  const w = c2d.width, h = c2d.height;
+  ctx.clearRect(0, 0, w, h);
+  const s = (h * 0.9) / img.naturalHeight, iw = img.naturalWidth * s, ih = img.naturalHeight * s;
+  ctx.drawImage(img, (w - iw) / 2, h - ih, iw, ih);
+}
+
+async function speel(modus){
+  const btns = [document.getElementById('b2d'), document.getElementById('bgl')];
+  btns.forEach(b => { b.disabled = true; b.classList.add('bezig'); });
+  document.getElementById('uMod').textContent = modus === '2d' ? '2D-canvas' : 'WebGL (vooraf geladen)';
+  document.getElementById('uMax').textContent = '...'; document.getElementById('uPiek').textContent = '...';
+  try {
+    const imgs = await versImgs();                 // vers ingeladen, buiten de meting
+    c2d.hidden = modus !== '2d'; cgl.hidden = modus !== 'gl';
+    maten();                                        // nu het juiste canvas zichtbaar is: maat (anders 0 bij verborgen start)
+
+    let frames = null;
+    if (modus === 'gl'){
+      if (typeof PIXI === 'undefined') throw new Error('WebGL-bibliotheek kon niet laden');
+      if (!app){ app = new PIXI.Application(); await app.init({ canvas: cgl, width: cgl.width, height: cgl.height, backgroundAlpha: 0, antialias: false }); }
+      app.renderer.resize(cgl.width, cgl.height);
+      // alle frames nu al naar de grafische kaart (het hele punt): teken ze een keer op de renderer
+      frames = imgs.map(im => PIXI.Texture.from(im));
+      const warm = new PIXI.Sprite(frames[0]);
+      app.stage.addChild(warm);
+      for (const t of frames){ warm.texture = t; app.renderer.render(app.stage); }  // forceer upload van elk frame
+      app.stage.removeChildren();
+      var sp = new PIXI.Sprite(frames[0]); sp.anchor.set(0.5, 1); app.stage.addChild(sp);
+    }
+
+    const tijden = [];
+    const totaal = RONDES * N;
+    await new Promise(res => {
+      let k = 0, acc = 0, prev = performance.now();
+      function tik(now){
+        const dt = now - prev; prev = now;
+        acc += dt / 1000;
+        const stap = acc >= 1 / FPS; if (stap) acc = 0;
+        const fi = k % N, img = imgs[fi];
+        const t0 = performance.now();
+        if (modus === '2d') teken2d(img);
+        else { const h = cgl.height; const s = (h * 0.9) / img.naturalHeight;
+               sp.texture = frames[fi]; sp.height = img.naturalHeight * s; sp.width = img.naturalWidth * s;
+               sp.x = cgl.width / 2; sp.y = h; app.renderer.render(app.stage); }
+        const js = performance.now() - t0;
+        tijden.push(js);
+        if (tijden.length % 2 === 0) tekenStrip(tijden);
+        if (stap) k++;
+        if (k < totaal) requestAnimationFrame(tik); else res();
+      }
+      requestAnimationFrame(tik);
+    });
+    tekenStrip(tijden);
+    const mx = Math.max(...tijden), piek = tijden.filter(t => t > 16).length;
+    document.getElementById('uMax').innerHTML = mx.toFixed(1) + ' ms';
+    document.getElementById('uPiek').innerHTML = '<span class="' + (piek ? 'slecht' : 'goed') + '">' + piek + '</span>';
+  } catch (e){ toonFout('Fout: ' + e.message); }
+  btns.forEach(b => { b.disabled = false; b.classList.remove('bezig'); });
+}
+
+document.getElementById('b2d').onclick = () => speel('2d');
+document.getElementById('bgl').onclick = () => speel('gl');
+</script>
