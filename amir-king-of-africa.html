@@ -3784,6 +3784,12 @@ const grondHoekImg = new Image();
 grondHoekImg.onerror = () => console.warn('ontbreekt: design/klimmen/grond_hoek.png');
 grondHoekImg.src = 'design/klimmen/grond_hoek.png';
 function grondHoekPic(){ return imgReady(grondHoekImg) ? grondHoekImg : null; }
+// verticaal naadloze aarde-vultegel (uit tools/grond_vulling.py): de doorlopende onderkant van een afgesloten
+// laag, zodat die als één vulling doorloopt in plaats van herhaalde tegels met donkere banden
+const grondVulImg = new Image();
+grondVulImg.onerror = () => console.warn('ontbreekt: design/klimmen/grond_vulling.png');
+grondVulImg.src = 'design/klimmen/grond_vulling.png';
+function grondVulPic(){ return imgReady(grondVulImg) ? grondVulImg : null; }
 function terraceList(){ return (level && level.terraces) ? level.terraces : []; }
 function ledgeList(){ return (level && level.ledges) ? level.ledges : []; }
 // Een zwevende savannelaag: hetzelfde dikke savanneblok als een hogere savannelaag (grond: true),
@@ -3918,14 +3924,22 @@ function savanneLaag(t, groundY, scale, cx, bottom, st, floating){
   let x = cx - (((world % tw) + tw) % tw);           // vast aan de wereld, net als de grond zelf
   while (x > xl) x -= tw;
   for (; x < xr; x += tw) ctx.drawImage(eimg, x, top, tw + 1, th);
-  // Een afgesloten laag krijgt (net als een zwevende laag) de aardrand doorgetegeld als onderkant, zodat hij
-  // niet in het zwart wegzakt maar als aflopende grondtextuur doorloopt, zoals de wand in de schacht.
-  const texOnder = floating || capL || capR;
-  if (texOnder && top + th < bottom){                // de dikte onder de tegel: de aardrand doorgetegeld
-    // bij een afsluiting een diepere snee (pure aarde, onder de kruimelige voorrand), zodat er geen vals
-    // oppervlak-bandje terugkomt op de herhaalnaad; een zwevende laag houdt zijn bestaande snede
-    const bandY = (capL || capR) ? Math.round(SCHACHT_HOEK.voorrand + 30) : EDGE.walk;
-    const bandH = eimg.naturalHeight - bandY, dh = bandH * s;   // alleen de aarde, niet het gras
+  // De dikte onder de tegel. Een afgesloten laag krijgt de naadloze aarde-vultegel (grond_vulling) als één
+  // doorlopende vulling, zodat hij niet in het zwart wegzakt maar als aflopende grondtextuur doorloopt, zoals
+  // de wand in de schacht, zonder herhaalnaden. Een zwevende laag houdt zijn bestaande aardrand-tegeling.
+  const gv = (capL || capR) ? grondVulPic() : null;
+  if (gv){
+    // de naadloze vulling begint net onder de kruimelige voorrand van de boventegel (niet pas op top+th, want
+    // daar zit de doorzichtige onderrand van grondrand, die anders als paarse naad doorschijnt) en loopt door
+    const gw = gv.naturalWidth * s, gh = gv.naturalHeight * s;
+    const yAnk = top + (SCHACHT_HOEK.voorrand + 40) * s;
+    if (yAnk < bottom && gh > 1){
+      let xAnk = cx - (((world % gw) + gw) % gw); while (xAnk > xl) xAnk -= gw;   // horizontaal aan de wereld
+      for (let yy = yAnk; yy < bottom; yy += gh)
+        for (let xx = xAnk; xx < xr; xx += gw) ctx.drawImage(gv, xx, yy, gw + 1, gh + 1);
+    }
+  } else if (floating && top + th < bottom){         // een zwevende laag: de aardrand doorgetegeld
+    const bandY = EDGE.walk, bandH = eimg.naturalHeight - bandY, dh = bandH * s;   // alleen de aarde, niet het gras
     let k = 0;
     for (let yy = top + th; yy < bottom && dh > 1; yy += dh, k++){
       let xx = cx - (((world % tw) + tw) % tw); while (xx > xl) xx -= tw;
