@@ -22317,6 +22317,7 @@ const GEREEDSCHAP = [
   { id: 'terras',   cat: 'terrein', naam: 'Terras om op te klimmen' },
   { id: 'zweef',    cat: 'terrein', naam: 'Zwevende laag (lopen in de lucht)' },
   { id: 'grot',     cat: 'terrein', naam: 'Grotraster (rots, gangen en lagen)' },
+  { id: 'plafond',  cat: 'terrein', naam: 'Plafond (rots boven je)' },
   { id: 'richel',   cat: 'terrein', naam: 'Richel' },
   { id: 'boulder',  cat: 'decor',   naam: 'Kei', sneeuw: 'boulder_sneeuw' },
   { id: 'tree',     cat: 'decor',   naam: 'Boom', sneeuw: 'tree_sneeuw' },
@@ -25111,6 +25112,9 @@ function builderHit(wx, scale, lift){
   const hgt = lift === undefined ? undefined : lift * viewZoom() / scale;
   const tp = (level.tips || []).find(t => Math.abs(t.x - wx) < 60 && lift !== undefined && lift > 180 * scale);
   if (tp) return { list: level.tips, kind: 'tip', obj: tp };
+  // een punt van de plafondlijn: hangt hoog, dus eerst, zodat hij niet achter grondobjecten wegvalt
+  const pp = (level.plafond || []).find(o => Math.abs(o.x - wx) < 70 && (hgt === undefined || Math.abs(o.y - hgt) < 90));
+  if (pp) return { list: level.plafond, kind: 'plafondpunt', obj: pp };
   const kb = (level.hppotions || []).find(o => Math.abs(o.x - wx) < 50);
   if (kb) return { list: level.hppotions, kind: 'kalebas', obj: kb };
   const sk = (level.skeletten || []).find(o => Math.abs(o.x - wx) < skeletHalfW(scale));
@@ -25211,6 +25215,7 @@ function placeProblem(kind, o, scale){               // mag dit hier staan? zo n
     if (Math.abs(o.r - o.l) < 60) return 'te smal';
     return '';
   }
+  if (kind === 'plafondpunt') return '';               // een punt van de rots boven je: mag overal hangen
   if (kind === 'skelet' || kind === 'teken'){
     // vast in de grond: nooit boven een ravijn, niet waar er later een openscheurt, en in een gang niet hoger dan de gang
     const v = kind === 'teken' ? tekenVoet(o, scale) : { dx: 0, hw: skeletHalfW(scale) };
@@ -25356,6 +25361,9 @@ cv.addEventListener('pointermove', e => {
         press.obj.y = Math.round(bHoogte(e) + press.offYs);
       } else if (press.kind === 'spawn' && (press.obj.kind === 'groen' || press.obj.kind === 'zwart')){
         press.obj.y = Math.round(Math.max(-60, Math.min(2600, bHoogte(e) + press.offYs)) / 10) * 10;   // slang op hoogte, of uit de lucht
+      } else if (press.kind === 'plafondpunt'){                                 // de rots boven je: plek en hoe laag hij hangt
+        press.obj.y = Math.round(Math.max(0, Math.min(PLAFOND_WEG, bHoogte(e) + press.offYs)) / 10) * 10;
+        plafondVuil();
       }
     }
   }
@@ -25431,6 +25439,9 @@ function platformVoorZegel(z){
   if (typeof b === 'string'){ bcount.textContent = b + ': zet eerst een platform neer en wijs het aan'; z.rijs = undefined; return; }
   z.rijs = b.id;
 }
+// de plafondlijn wordt op x gesorteerd met een cache op de lengte; sleep je een punt opzij, dan
+// verandert de lengte niet, dus zet de cache vuil zodat plafondLijn opnieuw sorteert
+function plafondVuil(){ if (level && level.plafond) level.plafond._srt = -1; }
 const binfoEl = document.getElementById('binfo');
 const SPAWN_NAAM = { groen: 'Zandslang', zwart: 'Zwarte slang', scorp: 'Schorpioen', hyenas: 'Hyena',
                      panter: 'Panter', zwaard: 'Zwaardvechter', fosfor: 'Fosforslangen' };
@@ -25443,6 +25454,7 @@ function bouwNaam(k){
   return { rock: 'Kei om op te springen', thicket: 'Doornbos', gap: 'Ravijn', water: 'Water', holte: 'Gang onder de grond',
            end: 'Einde (de fakkels)', cliff: 'Klif', zegel: 'Zegel in de grond', tip: 'Tip',
            kalebas: 'Drinkkalebas', skelet: 'Skelet met speer', teken: 'Speerteken', terras: 'Terras', zweef: 'Zwevende laag', grot: 'Grotraster', richel: 'Richel', rijzer: 'Platform (rijst omhoog)',
+           plafondpunt: 'Plafondpunt (rots boven je)',
            rune: 'Ravijn met rune op een rots', muur: o.soort === 'grot' ? 'Grot met kei' : 'Rotswand met rune' }[k.kind] || k.kind;
 }
 // de velden per soort: [naam, invoer, sleutel, extra]; invoer is getal, vink of keuze
@@ -25489,6 +25501,7 @@ function bouwVelden(k){
            ['raster (# is rots, de rest lucht)', 'tekst', 'grid']);
   }
   if (k.kind === 'richel') v.push(['hoogte', 'getal', 'h', { stap: 10, min: 0, max: 1500 }], ['grootte', 'getal', 's', { stap: 0.05, min: 0.3, max: 3 }]);
+  if (k.kind === 'plafondpunt') v.push(['hoogte (hoe laag de rots hangt)', 'getal', 'y', { stap: 10, min: 0, max: PLAFOND_WEG }]);
   if (k.kind === 'skelet' || k.kind === 'teken') v.push(['gespiegeld', 'vink', 'f']);
   if (k.kind === 'teken') v.push(['soort', 'keuze', 'v', { keuzes: Object.keys(TEKEN.varianten).map(q => [q, q]) }]);
   if (k.kind === 'tip') v.push(['tekst', 'tekst', 't']);
@@ -25582,6 +25595,7 @@ function bouwInfo(){
       else if (k.kind === 'rune' && (w === undefined || w === false)) delete o[sleutel];   // de rune schrijft alleen weg wat afwijkt
       else o[sleutel] = w;
       if (k.kind === 'grot') grotLaad();
+      if (k.kind === 'plafondpunt') plafondVuil();
       const scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H;
       const why = placeProblem(k.kind, o, scale);
       if (why){ o[sleutel] = oud; bcount.textContent = why + ', niet veranderd'; }
@@ -25805,6 +25819,19 @@ function bouwExtra(k){
       regel('op grondhoogte: steen om een ravijn mee over te steken', 'hint');
     if (o.duur) regel('zakt na ' + o.duur + ' s vanzelf terug (op en neer)', 'hint');
   }
+  if (k.kind === 'plafondpunt'){
+    if ((level.plafond || []).length < 2) regel('! een plafond heeft minstens twee punten: zet er nog een neer', 'blet');
+    const y = o.y;
+    regel(y >= PLAFOND_WEG ? 'open: hier hangt geen rots (' + PLAFOND_WEG + ' of hoger)'
+        : y >= 460 ? 'Amir merkt er niets van'
+        : y >= 400 ? 'Amir stoot bij een sprong zijn hoofd'
+        : y >= 280 ? 'springen zit er niet meer in'
+        : y >= 251 ? 'Amir loopt er net rechtop onderdoor'
+        : '! te laag: Amir past er niet langs (minstens 251)',
+          (y >= 251 || y >= PLAFOND_WEG) ? 'hint' : 'blet');
+    regel('twee punten op dezelfde hoogte is recht, verschillend is schuin of dieper; zet de hoogte op ' + PLAFOND_WEG + ' voor open (geen rots)', 'hint');
+    regel('alles boven de lijn is vanzelf vol gesteente, tot buiten beeld', 'hint');
+  }
   if (k.kind === 'rune'){
     regel(o.doel ? 'licht op als de punt van de speer de schijf raakt, en blijft aan'
                  : 'gaat open als de punt van de speer de schijf raakt');
@@ -25874,6 +25901,13 @@ function bouwSchakelTeken(groundY, cx, scale){
     ctx.fillStyle = 'rgba(20,14,26,.85)'; ctx.fillRect(x - 10 / z, y - 14 / z, w, 28 / z);
     ctx.beginPath(); ctx.moveTo(x, y + 14 / z); ctx.lineTo(x + 10 / z, y + 14 / z); ctx.lineTo(x, y + 26 / z); ctx.fill();
     ctx.fillStyle = '#f2e8d5'; ctx.fillText(tekst, x, y);
+  }
+  // plafond: een greep op elk punt van de rots boven je, zodat je ze ziet en kunt pakken en slepen
+  for (const o of level.plafond || []){
+    const px = X(o.x), py = groundY - o.y * scale;
+    ctx.beginPath(); ctx.arc(px, py, 7 / z, 0, 7);
+    ctx.fillStyle = '#c9b48a'; ctx.fill();
+    ctx.lineWidth = 2 / z; ctx.strokeStyle = '#3a2d20'; ctx.stroke();
   }
   ctx.lineWidth = 3 / z;
   const kader = (x, w, kleur) => {                    // een ravijn dat nog open moet
@@ -26164,6 +26198,14 @@ cv.addEventListener('pointerdown', e => {
     grotLaad();
   } else if (tool === 'richel'){
     level.ledges.push({ x: Math.round(wx), h: 250, s: 1 });
+  } else if (tool === 'plafond'){                   // een punt van de rots boven je; op de hoogte waar je klikt
+    const y = Math.round(Math.max(120, Math.min(PLAFOND_WEG, bHoogte(e))) / 10) * 10;
+    const nw = { x: Math.round(wx), y };
+    (level.plafond || (level.plafond = [])).push(nw);
+    plafondVuil();
+    syncLevel(); bouwDicht();
+    bouwKies({ list: level.plafond, kind: 'plafondpunt', obj: nw });   // meteen het venster, met de uitleg over de hoogte
+    return;
   } else if (tool === 'rune'){                      // de klik is het midden van het ravijn, de rots komt ervoor
     const nw = { x: wx, breed: RAVIJN_MAAT.breed };
     const why = placeProblem('rune', nw, scale);
