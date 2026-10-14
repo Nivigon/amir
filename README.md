@@ -283,7 +283,7 @@ De versie in `offline-assets.json` verandert mee, en de service worker ziet daar
 | lopen, rennen | pijltjes, Shift sprint | joystick (duim links) |
 | springen | pijl omhoog | ▲, of joystick omhoog |
 | bukken | pijl omlaag | joystick omlaag |
-| kruipen | gebukt (met een speer) een pijltje links of rechts | joystick omlaag en opzij |
+| kruipen | gebukt een pijltje links of rechts | joystick omlaag en opzij |
 | lage zwaai | bukken en spatie | joystick omlaag en ✦ |
 | stoten | spatie (korte tik) | ✦ (korte tik) |
 | stoten vanuit een sprint | Shift en een pijltje, dan spatie: hij glijdt remmend door | joystick ver uit, dan ✦ |
