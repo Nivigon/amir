@@ -16,7 +16,8 @@ from PIL import Image, ImageFilter
 
 ROOT = '/home/user/amir'
 BRON = ROOT + '/design/klimmen/bron/schacht_hoek.jpg'
-UIT = ROOT + '/design/klimmen/schacht_hoek.png'
+UIT = ROOT + '/design/klimmen/schacht_hoek.png'       # grijze klif, voor de schachtwand
+GROND = ROOT + '/design/klimmen/grond_hoek.png'       # warme aardklif, voor een savannelaag/zwever
 VOL, WEG = 30, 235
 LIPFRAC = 0.44   # soil -> klif overgang, als fractie van de hoogte (gemeten uit de bron)
 
@@ -76,6 +77,23 @@ def randweg(spr):
     a = a.filter(ImageFilter.MinFilter(3))
     return Image.merge('RGBA', (r, g, b, a))
 
+def randen_vagen(spr):
+    # linkerrand ruim in de band laten overlopen (smoothstep), onderrand in de rots laten vervagen
+    w, h = spr.size; px = spr.load()
+    fw = int(w * 0.40)
+    for x in range(fw):
+        tt = x / fw; k = tt * tt * (3 - 2 * tt)
+        for y in range(h):
+            r, g, b, a = px[x, y]
+            if a: px[x, y] = (r, g, b, int(a * k))
+    fb = int(h * 0.22); h0 = h - fb
+    for y in range(h0, h):
+        k = 1 - (y - h0) / fb
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a: px[x, y] = (r, g, b, int(a * k))
+    return spr
+
 def main():
     im = Image.open(BRON).convert('RGB')
     spr = randweg(grootste(knip(im)))
@@ -94,9 +112,11 @@ def main():
         for x in range(w):
             r, g, b, a = px[x, y]
             if a: px[x, y] = (round(r * rr[0]), round(g * rr[1]), round(b * rr[2]), a)
-    # de klif (onder de lip) is te warm/rood naast de grijze schachtwand: trek hem naar een koele grijstint,
-    # oplopend met de diepte zodat de soil-rand bij de lip ongemoeid blijft. mengen naar de luminantie met een
-    # koele weging (minder rood, iets meer blauw), zodat de klif op de grijze rots van de wand lijkt.
+    # Twee varianten uit dezelfde bron. De aarde-variant (grond_hoek) houdt de warme aardkleur, voor het
+    # afsluiten van een savannelaag of zwevende laag, waar de klif ernaast ook aarde is. De schacht-variant
+    # koelt de klif met de diepte naar een grijstint, zodat hij op de grijze rots van de schachtwand lijkt.
+    aarde = randen_vagen(spr.copy())
+    aarde.save(GROND)
     for y in range(lip, h):
         amt = 0.52 * max(0.0, min(1.0, (y - lip) / (0.35 * (h - lip))))   # 0 bij de lip -> vol dieper
         for x in range(w):
@@ -107,22 +127,9 @@ def main():
             px[x, y] = (round(r * (1 - amt) + gr[0] * amt),
                         round(g * (1 - amt) + gr[1] * amt),
                         round(b * (1 - amt) + gr[2] * amt), a)
-    # linkerrand ruim laten overlopen in de band (brede, zachte cross-fade met een smoothstep-curve)
-    fw = int(w * 0.40)
-    for x in range(fw):
-        tt = x / fw; k = tt * tt * (3 - 2 * tt)
-        for y in range(h):
-            r, g, b, a = px[x, y]
-            if a: px[x, y] = (r, g, b, int(a * k))
-    # onderrand laten vervagen in de rots (laatste 22%)
-    fb = int(h * 0.22); h0 = h - fb
-    for y in range(h0, h):
-        k = 1 - (y - h0) / fb
-        for x in range(w):
-            r, g, b, a = px[x, y]
-            if a: px[x, y] = (r, g, b, int(a * k))
+    randen_vagen(spr)
     spr.save(UIT)
-    print('geschreven:', UIT)
+    print('geschreven:', UIT, 'en', GROND)
     print('SCHACHT_HOEK: w=%d h=%d crest=%d lip=%d' % (w, h, crest, lip))
 
 if __name__ == '__main__':

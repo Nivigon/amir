@@ -3778,6 +3778,12 @@ const schachtHoekImg = new Image();
 schachtHoekImg.onerror = () => console.warn('ontbreekt: ' + SCHACHT_HOEK.src);
 schachtHoekImg.src = SCHACHT_HOEK.src;
 function schachtHoekPic(){ return imgReady(schachtHoekImg) ? schachtHoekImg : null; }
+// dezelfde hoek met een warme aardklif in plaats van de grijze: voor het afsluiten van een savannelaag of
+// zwevende laag, waar de klif ernaast ook aarde is (de grijze past daar niet, zie de bouwer-afsluiting)
+const grondHoekImg = new Image();
+grondHoekImg.onerror = () => console.warn('ontbreekt: design/klimmen/grond_hoek.png');
+grondHoekImg.src = 'design/klimmen/grond_hoek.png';
+function grondHoekPic(){ return imgReady(grondHoekImg) ? grondHoekImg : null; }
 function terraceList(){ return (level && level.terraces) ? level.terraces : []; }
 function ledgeList(){ return (level && level.ledges) ? level.ledges : []; }
 // Een zwevende savannelaag: hetzelfde dikke savanneblok als een hogere savannelaag (grond: true),
@@ -3943,9 +3949,11 @@ function savanneLaag(t, groundY, scale, cx, bottom, st, floating){
     ctx.fillStyle = sch; ctx.fillRect(xl - 40, bottom - 60, xr - xl + 80, 64);
   }
   ctx.restore();
-  // de ronde afsluiting(en) erover: het hoekstuk dekt het ingekorte, vlakke uiteinde af en rondt het af
-  if (capR) grondHoekTeken(xr, loop, s, +1);
-  if (capL) grondHoekTeken(xl, loop, s, -1);
+  // de ronde afsluiting(en) erover: het hoekstuk dekt het ingekorte, vlakke uiteinde af en rondt het af, met
+  // dezelfde diepte-donkering als de laag zodat de kopse kant even hard verkleurt als de klif ernaast
+  const donker = { y0, y1, d0: dk.diep[0], d1: dk.diep[1] };
+  if (capR) grondHoekTeken(xr, loop, s, +1, donker);
+  if (capL) grondHoekTeken(xl, loop, s, -1, donker);
 }
 // één richel tekenen. Zonder f: vlakke kant links (op o.x), punt naar rechts. Met f: hetzelfde beeld
 // gespiegeld om o.x (vlakke kant rechts, punt naar links), zodat hij tegen de rechterwand van een
@@ -4786,15 +4794,32 @@ function grondHoekData(surfY, s){
            soilH: SCHACHT_HOEK.lip * vss, cliffH: (SCHACHT_HOEK.h - SCHACHT_HOEK.lip) * hs };
 }
 // kant +1: rechteruiteinde (de hoek rondt naar rechts, de aarde ligt links); -1: linkeruiteinde (gespiegeld).
-function grondHoekTeken(edgeX, surfY, s, kant){
-  const img = schachtHoekPic(); if (!img) return;
+// donker is optioneel {y0, y1, d0, d1}: dezelfde diepte-donkering als de laag (SAV_LAAG), zodat de kopse kant
+// even hard verkleurt met de diepte als de klif ernaast. Het hoekstuk gaat naar een los canvas, krijgt daar
+// de donkering met source-atop (alleen op de hoek-pixels), en gaat dan over het hoofdcanvas.
+function grondHoekTeken(edgeX, surfY, s, kant, donker){
+  const img = grondHoekPic(); if (!img) return;
   const d = grondHoekData(surfY, s);
-  ctx.save();
-  let nx = kant > 0 ? edgeX - d.hw : edgeX + d.hw;
-  if (kant < 0){ ctx.translate(nx, 0); ctx.scale(-1, 1); nx = 0; }
-  ctx.drawImage(img, 0, 0, SCHACHT_HOEK.w, SCHACHT_HOEK.lip, nx, d.aTop, d.hw, d.soilH);
-  ctx.drawImage(img, 0, SCHACHT_HOEK.lip, SCHACHT_HOEK.w, SCHACHT_HOEK.h - SCHACHT_HOEK.lip, nx, d.yLip, d.hw, d.cliffH);
-  ctx.restore();
+  const ox = Math.floor(kant > 0 ? edgeX - d.hw : edgeX) - 2, oy = Math.floor(d.aTop) - 2;
+  const cw = Math.ceil(d.hw) + 4, chh = Math.ceil(d.yLip + d.cliffH - d.aTop) + 4;
+  if (cw <= 0 || chh <= 0) return;
+  const cc = document.createElement('canvas'); cc.width = cw; cc.height = chh;
+  const g = cc.getContext('2d');
+  g.save();
+  let nx = kant > 0 ? (edgeX - d.hw) - ox : 0;
+  if (kant < 0){ g.translate((edgeX + d.hw) - ox, 0); g.scale(-1, 1); nx = 0; }
+  g.drawImage(img, 0, 0, SCHACHT_HOEK.w, SCHACHT_HOEK.lip, nx, d.aTop - oy, d.hw, d.soilH);
+  g.drawImage(img, 0, SCHACHT_HOEK.lip, SCHACHT_HOEK.w, SCHACHT_HOEK.h - SCHACHT_HOEK.lip, nx, d.yLip - oy, d.hw, d.cliffH);
+  g.restore();
+  if (donker){                                        // de diepte-donkering van de laag op de klif van de hoek
+    const lipY = d.yLip - oy, botY = d.yLip + d.cliffH - oy;
+    const grad = g.createLinearGradient(0, donker.y0 - oy, 0, donker.y1 - oy);
+    grad.addColorStop(0, 'rgba(8,6,6,' + donker.d0 + ')'); grad.addColorStop(1, 'rgba(8,6,6,' + donker.d1 + ')');
+    g.save(); g.globalCompositeOperation = 'source-atop';
+    g.fillStyle = grad; g.fillRect(0, lipY, cw, botY - lipY);
+    g.restore();
+  }
+  ctx.drawImage(cc, ox, oy);
 }
 // de wereld-vaste breedte waarmee de band aan een afgesloten kant inkort (een halve hoekbreedte), zodat de
 // rechte kruin niet boven de ronde hoek uitsteekt: de hoek dekt de rest af, met de snede in zijn midden.
