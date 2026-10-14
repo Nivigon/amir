@@ -938,11 +938,12 @@ blijft staan. Pak je het midden, dan schuift het hele blok mee, zoals altijd. De
 rotsrand lopen vanzelf mee met de lengte die je trekt.
 
 Een **savannelaag** of een **zwevende laag** sluit je in het venster netjes rond af met het veld
-**afsluiten met ronde hoek**: niet, links, rechts of beide. Dan rondt hetzelfde geschilderde
-hoekstuk als bovenin de schacht dat uiteinde af over de rand heen, in plaats van de rechte
-afgebroken kant, aansluitend op de grondtegel en de kruimelige voorrand van de laag. Zo dek je een
-stuk grond gemakkelijk en aansluitend af. De ronding is wereld-vast, dus hij ziet er op elk scherm
-hetzelfde uit.
+**afsluiten met ronde hoek**: niet, links, rechts of beide. Dan wordt dat uiteinde als de wand
+bovenin de schacht: hetzelfde geschilderde ronde hoekstuk rondt de rand af over de kant heen, en
+onder de savannetegel loopt de grijze rotsvulling (dezelfde als de schachtwand) als één doorlopend
+stuk naar beneden, met de kruimelige voorrand die eroverheen hangt en in de rots vervaagt. Zo dek je
+een stuk grond gemakkelijk en aansluitend af, zonder de rechte afgebroken kant of een zwart gat
+eronder. De ronding is wereld-vast, dus hij ziet er op elk scherm hetzelfde uit.
 
 **Een gang onder de grond** maak je onder een ravijn. Kies het ravijn: het venster zegt wat eronder
 zit. Staat er niets, dan val je daar dood; met **Maak er een ingang van** komt er een gang onder.

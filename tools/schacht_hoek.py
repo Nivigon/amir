@@ -16,8 +16,7 @@ from PIL import Image, ImageFilter
 
 ROOT = '/home/user/amir'
 BRON = ROOT + '/design/klimmen/bron/schacht_hoek.jpg'
-UIT = ROOT + '/design/klimmen/schacht_hoek.png'       # grijze klif, voor de schachtwand
-GROND = ROOT + '/design/klimmen/grond_hoek.png'       # warme aardklif, voor een savannelaag/zwever
+UIT = ROOT + '/design/klimmen/schacht_hoek.png'       # grijze klif, voor de schacht en de laag-afsluiting
 VOL, WEG = 30, 235
 LIPFRAC = 0.44   # soil -> klif overgang, als fractie van de hoogte (gemeten uit de bron)
 
@@ -112,11 +111,8 @@ def main():
         for x in range(w):
             r, g, b, a = px[x, y]
             if a: px[x, y] = (round(r * rr[0]), round(g * rr[1]), round(b * rr[2]), a)
-    # Twee varianten uit dezelfde bron. De aarde-variant (grond_hoek) houdt de warme aardkleur, voor het
-    # afsluiten van een savannelaag of zwevende laag, waar de klif ernaast ook aarde is. De schacht-variant
-    # koelt de klif met de diepte naar een grijstint, zodat hij op de grijze rots van de schachtwand lijkt.
-    aarde = randen_vagen(spr.copy())
-    aarde.save(GROND)
+    # De klif koelt met de diepte naar een grijstint, zodat de hoek op de grijze rots lijkt die eronder staat
+    # (de schachtwand, en de afsluiting van een savannelaag gebruikt dezelfde grijze rotsvulling).
     for y in range(lip, h):
         amt = 0.52 * max(0.0, min(1.0, (y - lip) / (0.35 * (h - lip))))   # 0 bij de lip -> vol dieper
         for x in range(w):
@@ -129,7 +125,7 @@ def main():
                         round(b * (1 - amt) + gr[2] * amt), a)
     randen_vagen(spr)
     spr.save(UIT)
-    print('geschreven:', UIT, 'en', GROND)
+    print('geschreven:', UIT)
     print('SCHACHT_HOEK: w=%d h=%d crest=%d lip=%d' % (w, h, crest, lip))
 
 if __name__ == '__main__':

@@ -3778,18 +3778,6 @@ const schachtHoekImg = new Image();
 schachtHoekImg.onerror = () => console.warn('ontbreekt: ' + SCHACHT_HOEK.src);
 schachtHoekImg.src = SCHACHT_HOEK.src;
 function schachtHoekPic(){ return imgReady(schachtHoekImg) ? schachtHoekImg : null; }
-// dezelfde hoek met een warme aardklif in plaats van de grijze: voor het afsluiten van een savannelaag of
-// zwevende laag, waar de klif ernaast ook aarde is (de grijze past daar niet, zie de bouwer-afsluiting)
-const grondHoekImg = new Image();
-grondHoekImg.onerror = () => console.warn('ontbreekt: design/klimmen/grond_hoek.png');
-grondHoekImg.src = 'design/klimmen/grond_hoek.png';
-function grondHoekPic(){ return imgReady(grondHoekImg) ? grondHoekImg : null; }
-// verticaal naadloze aarde-vultegel (uit tools/grond_vulling.py): de doorlopende onderkant van een afgesloten
-// laag, zodat die als één vulling doorloopt in plaats van herhaalde tegels met donkere banden
-const grondVulImg = new Image();
-grondVulImg.onerror = () => console.warn('ontbreekt: design/klimmen/grond_vulling.png');
-grondVulImg.src = 'design/klimmen/grond_vulling.png';
-function grondVulPic(){ return imgReady(grondVulImg) ? grondVulImg : null; }
 function terraceList(){ return (level && level.terraces) ? level.terraces : []; }
 function ledgeList(){ return (level && level.ledges) ? level.ledges : []; }
 // Een zwevende savannelaag: hetzelfde dikke savanneblok als een hogere savannelaag (grond: true),
@@ -3923,32 +3911,47 @@ function savanneLaag(t, groundY, scale, cx, bottom, st, floating){
   ctx.fillRect(xl - 40, top + th - 2, xr - xl + 80, bottom - top + 40);
   let x = cx - (((world % tw) + tw) % tw);           // vast aan de wereld, net als de grond zelf
   while (x > xl) x -= tw;
-  for (; x < xr; x += tw) ctx.drawImage(eimg, x, top, tw + 1, th);
-  // De dikte onder de tegel. Een afgesloten laag krijgt de naadloze aarde-vultegel (grond_vulling) als één
-  // doorlopende vulling, zodat hij niet in het zwart wegzakt maar als aflopende grondtextuur doorloopt, zoals
-  // de wand in de schacht, zonder herhaalnaden. Een zwevende laag houdt zijn bestaande aardrand-tegeling.
-  const gv = (capL || capR) ? grondVulPic() : null;
-  if (gv){
-    // de naadloze vulling begint net onder de kruimelige voorrand van de boventegel (niet pas op top+th, want
-    // daar zit de doorzichtige onderrand van grondrand, die anders als paarse naad doorschijnt) en loopt door
-    const gw = gv.naturalWidth * s, gh = gv.naturalHeight * s;
-    const yAnk = top + (SCHACHT_HOEK.voorrand + 40) * s;
-    if (yAnk < bottom && gh > 1){
-      let xAnk = cx - (((world % gw) + gw) % gw); while (xAnk > xl) xAnk -= gw;   // horizontaal aan de wereld
-      for (let yy = yAnk; yy < bottom; yy += gh)
-        for (let xx = xAnk; xx < xr; xx += gw) ctx.drawImage(gv, xx, yy, gw + 1, gh + 1);
-    }
-  } else if (floating && top + th < bottom){         // een zwevende laag: de aardrand doorgetegeld
-    const bandY = EDGE.walk, bandH = eimg.naturalHeight - bandY, dh = bandH * s;   // alleen de aarde, niet het gras
-    let k = 0;
-    for (let yy = top + th; yy < bottom && dh > 1; yy += dh, k++){
-      let xx = cx - (((world % tw) + tw) % tw); while (xx > xl) xx -= tw;
-      for (; xx < xr; xx += tw){
-        if (k % 2 === 1){                            // om en om gespiegeld, zodat de herhaalnaad verdwijnt
-          ctx.save(); ctx.translate(0, yy + dh); ctx.scale(1, -1);
-          ctx.drawImage(eimg, 0, bandY, eimg.naturalWidth, bandH, xx, 0, tw + 1, dh + 0.6);
-          ctx.restore();
-        } else ctx.drawImage(eimg, 0, bandY, eimg.naturalWidth, bandH, xx, yy, tw + 1, dh + 0.6);
+  // De band en de onderkant. Een afgesloten laag wordt als de schachtwand: eerst de grijze rots (dezelfde
+  // vulling, rots_vulling) als één doorlopende onderkant, dan de savanneband erover met zijn onderkant
+  // vervaagd in de rots, zodat de kruimelige voorrand eroverheen hangt en geleidelijk in de rots overgaat.
+  const gv = (capL || capR) ? plafondVulTegel() : null;
+  if (gv && gv.width > 0 && gv.height > 0){
+    const gw = gv.width, gh = gv.height;
+    const yRock = Math.max(top, top + (SCHACHT_HOEK.voorrand - 40) * s);   // iets boven de voorrand; de band vervaagt eroverheen
+    ctx.save();
+    ctx.beginPath(); ctx.rect(xl - 40, yRock, xr - xl + 80, bottom - yRock + 40); ctx.clip();
+    let bx = cx - (((world % gw) + gw) % gw); while (bx > xl - 40) bx -= gw;
+    let by = Math.round(groundY); while (by > yRock) by -= gh;
+    for (let y = by; y < bottom; y += gh)
+      for (let gx = bx; gx < xr; gx += gw) ctx.drawImage(gv, gx, y, gw + 1, gh + 1);
+    ctx.restore();
+    // de savanneband op een los canvas, onderkant vervaagd (destination-out), dan erover: zo blendt de aarde
+    // in de rots in plaats van een harde lijn, net als schachtKap de kap in de schachtwand laat vervagen
+    const bw = Math.max(1, Math.ceil(xr - xl) + 2), bh = Math.max(1, Math.ceil(th) + 2);
+    const cvB = document.createElement('canvas'); cvB.width = bw; cvB.height = bh;
+    const gB = cvB.getContext('2d');
+    let xb = (cx - (((world % tw) + tw) % tw)) - xl; while (xb > 0) xb -= tw;
+    for (; xb < bw; xb += tw) gB.drawImage(eimg, xb, 0, tw + 1, th);
+    const f0 = SCHACHT_HOEK.voorrand * s, f1 = th;    // van de voorrand tot de onderkant van de band
+    const vg = gB.createLinearGradient(0, f0, 0, f1);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,1)');
+    gB.globalCompositeOperation = 'destination-out';
+    gB.fillStyle = vg; gB.fillRect(0, f0, bw, f1 - f0);
+    ctx.drawImage(cvB, xl, top);
+  } else {
+    for (; x < xr; x += tw) ctx.drawImage(eimg, x, top, tw + 1, th);
+    if (floating && top + th < bottom){              // een zwevende laag: de aardrand doorgetegeld
+      const bandY = EDGE.walk, bandH = eimg.naturalHeight - bandY, dh = bandH * s;   // alleen de aarde, niet het gras
+      let k = 0;
+      for (let yy = top + th; yy < bottom && dh > 1; yy += dh, k++){
+        let xx = cx - (((world % tw) + tw) % tw); while (xx > xl) xx -= tw;
+        for (; xx < xr; xx += tw){
+          if (k % 2 === 1){                          // om en om gespiegeld, zodat de herhaalnaad verdwijnt
+            ctx.save(); ctx.translate(0, yy + dh); ctx.scale(1, -1);
+            ctx.drawImage(eimg, 0, bandY, eimg.naturalWidth, bandH, xx, 0, tw + 1, dh + 0.6);
+            ctx.restore();
+          } else ctx.drawImage(eimg, 0, bandY, eimg.naturalWidth, bandH, xx, yy, tw + 1, dh + 0.6);
+        }
       }
     }
   }
@@ -4818,7 +4821,7 @@ function grondHoekData(surfY, s){
 // even hard verkleurt met de diepte als de klif ernaast. Het hoekstuk gaat naar een los canvas, krijgt daar
 // de donkering met source-atop (alleen op de hoek-pixels), en gaat dan over het hoofdcanvas.
 function grondHoekTeken(edgeX, surfY, s, kant, donker){
-  const img = grondHoekPic(); if (!img) return;
+  const img = schachtHoekPic(); if (!img) return;     // de grijze hoek, passend bij de grijze rots eronder
   const d = grondHoekData(surfY, s);
   const ox = Math.floor(kant > 0 ? edgeX - d.hw : edgeX) - 2, oy = Math.floor(d.aTop) - 2;
   const cw = Math.ceil(d.hw) + 4, chh = Math.ceil(d.yLip + d.cliffH - d.aTop) + 4;
