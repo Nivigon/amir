@@ -18810,14 +18810,17 @@ const BAN_LIJK_T    = 5.0;    // zo lang blijft hij liggen voor hij wegzakt
 const BAN_LIJK_FADE = 0.7;
 const BAN_RUIMTE    = 360;    // zo veel ruimte houdt hij van een maat (canvaspixels): wie verder van je staat kijkt rond en wacht
 const BAN_VOET_VOOR = 210;    // zijn voorste voet, voor het blokkeren op een kei (regel 7)
-// de uitval: hij schiet naar voren TERWIJL hij de neerwaartse haal maakt, niet erna. De voorwaartse
-// vaart loopt dus mee met de zichtbare slag (frame BAN_LUNGE_VAN tot BAN_LUNGE_TOT: het stuk waarin
-// de kling naar voren en omlaag zwiept) en stopt voor de herstelframes, zodat hij niet na de slag nog
-// nadrijft. Stopt ook voor een kei of een ravijn (knockBlocked, regel 7).
-const BAN_LUNGE_V     = 820;  // wereld-px/s aan het begin van de haal
-const BAN_LUNGE_DECAY = 0.10; // en zo zakt die vaart (per seconde): traag genoeg om de hele haal mee te lopen
-const BAN_LUNGE_VAN   = 17;   // de kling begint omlaag te komen: hier zet hij zich af
-const BAN_LUNGE_TOT   = 28;   // en hier is de haal uitgestrekt: daarna geen voorwaartse vaart meer
+// de uitval is één doorgaande beweging: hij neemt zijn loopvaart mee het moment dat hij uithaalt
+// (geen stilstand voor de slag), remt tijdens het uithalen af, en zet zich bij de neerwaartse haal
+// opnieuw af (frame BAN_LUNGE_VAN tot BAN_LUNGE_TOT). Zo glijdt hij van de aanloop in de slag door
+// in plaats van stil te staan en pas daarna te schuiven. De vaart stopt voor de herstelframes, zodat
+// hij niet na de slag nadrijft, en voor een kei of een ravijn (knockBlocked, regel 7).
+const BAN_LUNGE_IN    = 480;    // de loopvaart die hij meeneemt bij het inzetten van de slag (= BAN_RUN_SPD)
+const BAN_WIND_DECAY  = 0.004;  // die loopvaart bloedt snel weg tijdens het uithalen (per seconde): hij remt af
+const BAN_LUNGE_V     = 560;    // en bij de neerwaartse haal zet hij zich opnieuw af
+const BAN_LUNGE_DECAY = 0.10;   // zo zakt die lunge-vaart (per seconde): traag genoeg om de hele haal mee te lopen
+const BAN_LUNGE_VAN   = 17;     // de kling begint omlaag te komen: hier zet hij zich opnieuw af
+const BAN_LUNGE_TOT   = 28;     // en hier is de haal uitgestrekt: daarna geen voorwaartse vaart meer
 // de kling als raakzone tijdens de raakframes: canvaspixels vanaf het anker in de kijkrichting, boven
 // de grond. Korter dan het langzwaard van de zwaardvechter (een kromzwaard), zodat jouw speer verder
 // reikt dan zijn haal en er altijd een stuk is waarin jij wel kunt en hij nog niet. De haal zwiept
@@ -18867,11 +18870,13 @@ function banLaadLevel(lv){
 const BAN_DOLK = {
   recht: { w: 74, h: 20 }, spin: { w: 84, h: 84, n: 8 },
   fps: 26,               // hoe snel hij tolt
+  teken: 1.6,            // extra tekenmaat, zodat hij ook op een telefoon goed te volgen is
+  spoor: 4,              // zoveel vervagende nabeelden erachter (een spoor helpt het oog hem volgen)
   v: 760,                // werpsnelheid (scherm-px/s)
-  g: 0.28,               // deel van de zwaartekracht: licht, dus een vlakke worp met een kleine boog
-  handDX: 120, handH: 190,// waar de dolk de hand verlaat: voor hem (canvas-px op banScale), op borsthoogte (sprite-eenheden)
-  doelH: 110,            // en waar hij op mikt: Amirs romp (boven ph)
-  r: 26,                 // de raakstraal om de dolk (scherm-px op banScale), ruim want hij tolt
+  g: 0.015,              // bijna geen zwaartekracht: een vlakke worp, zodat hij op kophoogte blijft en te bukken is
+  handDX: 120, handH: 224,// waar de dolk de hand verlaat: voor hem (canvas-px op banScale), op schouderhoogte (sprite-eenheden)
+  doelH: 232,            // en waar hij op mikt: Amirs kop (boven ph). Staand (hitbox tot 251) raakt hij, gebukt (tot 171) gaat hij overheen
+  r: 26,                 // de raakstraal om de dolk (scherm-px op banScale)
   lig: 0.9               // zo lang blijft hij in de grond steken na een misser, dan vervaagt hij
 };
 const banDolkRecht = loadQuiet([BAN_ROOT + 'dolk/dolk_recht.png']);
@@ -19007,20 +19012,19 @@ function updateBandiet(s, dt, plats, cliff){
 
   const dx = playerX() - s.x, gap = Math.abs(dx), naarJe = dx >= 0 ? 1 : -1;
 
-  if (s.state === 'slag'){                           // hij staat vast tot de hele haal erdoor is
+  if (s.state === 'slag'){                           // één doorgaande beweging: aanloop glijdt door in de haal
     banAnim(s, dt);
-    // de uitval loopt mee met de haal: alleen tussen BAN_LUNGE_VAN en BAN_LUNGE_TOT schiet hij naar voren
     const inHaal = s.frame >= BAN_LUNGE_VAN && s.frame <= BAN_LUNGE_TOT;
-    if (inHaal && !s.lungeOn && !s.klaar){            // hij zet zich af: een duidelijke opstuivende zandwolk, zoals bij een landing
+    if (inHaal && !s.lungeOn && !s.klaar){            // de neerwaartse haal: hij zet zich opnieuw af, met een duidelijke zandwolk
       s.lunge = BAN_LUNGE_V * s.face; s.lungeOn = true; s.dustT = 0;
       banStofWolk(s.x - s.face * 20, s.base || 0, 14, -s.lunge * 0.09, 1.8);
     }
-    if (s.lunge !== 0 && inHaal){                     // tijdens de haal glijdt hij naar voren, met een dichte stofsliert
+    if (s.frame <= BAN_LUNGE_TOT && s.lunge !== 0){   // tot het eind van de haal beweegt hij vooruit; daarvoor remt de aanloop af
       s.dustT += dt;
       if (!banMove(s, s.lunge * dt, plats, cliff)){ s.lunge = 0; banStofWolk(s.x, s.base || 0, 8, 0, 1.5); }
-      else { s.lunge *= Math.pow(BAN_LUNGE_DECAY, dt);
+      else { s.lunge *= Math.pow(inHaal ? BAN_LUNGE_DECAY : BAN_WIND_DECAY, dt);
              if (s.dustT >= 0.03){ s.dustT = 0; banGlijStof(s); } }
-    } else if (s.lunge !== 0){                         // de haal is voorbij: meteen stoppen (geen nadrift), met een laatste wolk
+    } else if (s.lunge !== 0){                         // de haal is voorbij: planten (geen nadrift), met een laatste wolk
       s.lunge = 0; banStofWolk(s.x, s.base || 0, 7, 0, 1.4);
     }
     if (s.klaar){ banSet(s, 'run'); s.rust = BAN_NA_SLAG; }   // na-hijgen, dan omdraaien en weer op je af
@@ -19048,7 +19052,10 @@ function updateBandiet(s, dt, plats, cliff){
   // eerst de dolk gooien, zodra hij je ziet maar nog niet in zwaardbereik: hij blijft staan en gooit
   if (s.dolk && !s.gegooid && banZelfdeHoogte(s) && gap <= BAN_WORP_RANGE && gap > banReik() * 1.3
       && !banInDeWeg(s, s.x)){ s.gegooid = true; banSet(s, 'worp'); s.face = naarJe; return; }
-  if (banZelfdeHoogte(s) && s.rust <= 0 && gap <= banReik() * BAN_SLAG_DEEL){ banSet(s, 'slag'); return; }
+  if (banZelfdeHoogte(s) && s.rust <= 0 && gap <= banReik() * BAN_SLAG_DEEL){
+    banSet(s, 'slag'); s.lunge = BAN_LUNGE_IN * s.face; s.lungeOn = false; s.dustT = 0;  // de loopvaart gaat mee de slag in
+    return;
+  }
   if (banInDeWeg(s, s.x + naarJe * BAN_RUN_SPD * dt)){ banSet(s, 'look'); return; }   // zijn maat vecht eerst
   if (s.rust > 0) return;                            // even na-hijgen: hij staat stil op het eerste renframe
   const voor = s.x;
@@ -19101,6 +19108,10 @@ function banDolkenUpdate(dt){
     d.spinT += dt; d.t += dt;
     d.vh -= g * dt;
     d.x += d.vx * dt; d.h += d.vh * dt;
+    // een spoor van recente plekken, zodat het oog de dolk volgt (vooral op een telefoon)
+    if (!d.trail) d.trail = [];
+    d.trail.unshift({ x: d.x, h: d.h });
+    if (d.trail.length > BAN_DOLK.spoor * 3) d.trail.pop();
     const vloer = vloerBij(d.x, d.h);
     if (vloer > -Infinity && d.h <= vloer){ d.h = vloer; d.stuck = true; d.lig = 0; }   // in de grond gestoken
     else if (d.t > 3 || d.h < -3000 || Math.abs(d.x - world) > W * 2) banDolken.splice(i, 1);
@@ -22453,13 +22464,32 @@ function loop(now){
 
     // ---- de geworpen dolken ---------------------------------------------
     if (banDolken.length){
-      const dsc = banScale();
+      const dscol = banScale();                          // de botsing: de echte maat van de dolk
+      const dsc = dscol * BAN_DOLK.teken;                // getekend groter, zodat hij ook op een telefoon te volgen is (alleen beeld)
       for (let i = banDolken.length - 1; i >= 0; i--){
         const d = banDolken[i];
         const dx = cx + (d.x - world), dy = groundY - d.h * scale;
         if (!d.stuck && invuln <= 0 && !dead && !godMode && !woedeAan()){   // raakt hij Amir?
-          const r = BAN_DOLK.r * dsc, dbox = { l: dx - r, r: dx + r, t: dy - r, b: dy + r };
+          const r = BAN_DOLK.r * dscol, dbox = { l: dx - r, r: dx + r, t: dy - r, b: dy + r };
           if (hitBy(dbox, pbox)){ hurtPlayer(d.vx > 0); banDolken.splice(i, 1); continue; }
+        }
+        const sw = BAN_DOLK.spin.w * dsc, sh = BAN_DOLK.spin.h * dsc;
+        if (!d.stuck && d.trail && d.trail.length > 3){  // het spoor: vervagende, krimpende nabeelden erachter
+          const sfr = Math.floor(d.spinT * BAN_DOLK.fps);
+          for (let k = BAN_DOLK.spoor; k >= 1; k--){
+            const tp = d.trail[k * 3]; if (!tp) continue;
+            const img = banDolkSpin[((sfr - k) % BAN_DOLK.spin.n + BAN_DOLK.spin.n) % BAN_DOLK.spin.n];
+            if (!img || !imgReady(img)) continue;
+            const tx = cx + (tp.x - world), ty = groundY - tp.h * scale;
+            const f = 1 - k / (BAN_DOLK.spoor + 1);      // dichterbij het heden = sterker en groter
+            ctx.save();
+            ctx.globalAlpha = 0.28 * f;
+            ctx.translate(tx, ty);
+            if (d.face === 1) ctx.scale(-1, 1);
+            const w = sw * (0.55 + 0.4 * f), h = sh * (0.55 + 0.4 * f);
+            ctx.drawImage(img, -w * 0.5, -h * 0.5, w, h);
+            ctx.restore();
+          }
         }
         ctx.save();
         ctx.translate(dx, dy);
@@ -22472,12 +22502,11 @@ function loop(now){
         } else {                                         // tollend in de vlucht
           const fr = Math.floor(d.spinT * BAN_DOLK.fps) % BAN_DOLK.spin.n;
           const img = banDolkSpin[fr];
-          const w = BAN_DOLK.spin.w * dsc, h = BAN_DOLK.spin.h * dsc;
-          if (img && imgReady(img)) ctx.drawImage(img, -w * 0.5, -h * 0.5, w, h);
+          if (img && imgReady(img)) ctx.drawImage(img, -sw * 0.5, -sh * 0.5, sw, sh);
         }
         ctx.restore();
         if (showBoxes && !d.stuck){
-          const r = BAN_DOLK.r * dsc;
+          const r = BAN_DOLK.r * dscol;
           ctx.save(); ctx.globalAlpha = 0.5; ctx.lineWidth = 2; ctx.strokeStyle = '#ffd166';
           ctx.strokeRect(dx - r, dy - r, r * 2, r * 2); ctx.restore();
         }

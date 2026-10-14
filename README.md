@@ -515,12 +515,15 @@ elke vijand (regel 7): een kei is ook voor hem een schuilplek, en voor een ravij
 uitval.
 
 **De dolk.** Met de optie `dolk` gooit een bandiet eerst zijn dolk voor hij in de aanval gaat:
-zodra hij je ziet maar nog niet in zwaardbereik is, blijft hij staan, slingert zijn dolk naar
-je romp (de worp-set, met het release-frame waarop hij loslaat), en rent dan pas in om uit te
-halen. Hij gooit maar één keer. De dolk tolt door de lucht (de spin-frames uit `dolk/`) met een
-lichte boog, en raakt hij je, dan kost dat een leven; mist hij, dan steekt hij in de grond
-(`dolk_recht`) en vervaagt. Ontwijken doe je met een sprong of een stap opzij. De dolkplaatjes
-zijn afgestemd op de hoofdset, dus ze worden op de maat van de bandiet getekend.
+zodra hij je ziet maar nog niet in zwaardbereik is, blijft hij staan, slingert zijn dolk op
+kophoogte naar je toe (de worp-set, met het release-frame waarop hij loslaat), en rent dan pas
+in om uit te halen. Hij gooit maar één keer. De dolk tolt door de lucht (de spin-frames uit
+`dolk/`) in een bijna vlakke baan, en raakt hij je, dan kost dat een leven; mist hij, dan steekt
+hij in de grond (`dolk_recht`) en vervaagt. Ontwijken doe je door te bukken: hij vliegt op
+kophoogte, dus staand raakt hij je en gebukt scheert hij over je heen. Je moet er net op kunnen
+reageren. Om hem ook op een telefoon goed te kunnen volgen is hij wat groter getekend en heeft hij
+een kort spoor; de botsing blijft op de echte maat van de dolk. De dolkplaatjes zijn afgestemd op
+de hoofdset, dus ze worden op de maat van de bandiet getekend.
 
 In de sandbox staat hij onder **Bandiet**: neerzetten, **AI uit** om de stekker eruit te
 trekken, **Dolk aan** om hem eerst te laten gooien, en onder **Zijn animaties** de set die hij
