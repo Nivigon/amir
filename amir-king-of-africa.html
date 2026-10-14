@@ -799,6 +799,7 @@
         <button data-bananim="hurk_idle">Gehurkt</button>
         <button data-bananim="schouder">Schouder</button>
         <button data-bananim="spot">Opspringen</button>
+        <button data-bananim="vault">Vault</button>
       </div>
       <div class="row">
         <label>Baviaan</label>
@@ -18827,14 +18828,14 @@ const BAN = {
   anker: 231,                     // het midden van het canvas: hier staat hij, zo klapt hij symmetrisch om
   fig: 351,                       // de staande figuur van kruin tot zool, in canvaspixels
   n:   { run: 14, slag: 33, look: 48, worp: 81, dood: 63,
-         hurk_in: 28, hurk_idle: 24, schouder: 16, spot: 70 },   // het hurkpakket (ambush)
+         hurk_in: 28, hurk_idle: 24, schouder: 16, spot: 70, vault: 68 },   // het hurkpakket (ambush) en de vault
   fps: { run: 24, slag: 26, look: 18, worp: 32, dood: 30,
-         hurk_in: 12, hurk_idle: 8, schouder: 12, spot: 24 },    // eigen fps per set (zie LEESMIJ_hurk.txt)
+         hurk_in: 12, hurk_idle: 8, schouder: 12, spot: 24, vault: 24 },    // eigen fps per set; de vault gaat op ticks (BAN_VAULT_TICKS)
   raak: [21, 27],                 // de frames van de slag waarop de kling schade doet
   klap: 20                        // hier begint de neerwaartse haal: daar valt het zwaaigeluid, en de uitval naar voren
 };
 const BAN_LOOP = { run: true, slag: false, look: false, worp: false, dood: false,
-                   hurk_in: false, hurk_idle: true, schouder: false, spot: false };
+                   hurk_in: false, hurk_idle: true, schouder: false, spot: false, vault: false };
 // De werp- en doodset staan op een eigen canvas met een eigen maat (sprites_los.json). Ze worden zo
 // geschaald dat de figuur even groot op het scherm komt als de hoofdset (via de figuurhoogte `fig`),
 // en uitgelijnd op hun eigen voetpunt (`anker`, `ground`), opgemeten uit de sprites. Een set die hier
@@ -18848,6 +18849,10 @@ const BAN_SETGEO = {
 // als de hoofdset via de schaalfactor 1,275 uit LEESMIJ_hurk.txt (fig = 351 * 1,275).
 const BAN_HURK_GEO = { w: 414, h: 536, anker: 240, ground: 527, fig: Math.round(351 * 1.275) };
 for (const k of ['hurk_in', 'hurk_idle', 'schouder', 'spot']) BAN_SETGEO[k] = BAN_HURK_GEO;
+// de vault staat al op de schaal van de hoofdset (fig 351), op een eigen canvas (699x510). Het anker is
+// de cx van frame 0 (408), zodat de figuur vanzelf vooruit loopt; de verticale uitlijning gaat per frame
+// via BAN_VAULT_GROND (zie de tekenlus), niet via dit vaste `ground`.
+BAN_SETGEO.vault = { w: 699, h: 510, anker: 408, ground: 462, fig: 351 };
 function banGeo(state){ return BAN_SETGEO[state] || BAN; }
 // de werpset: wanneer de dolk de hand verlaat, en tot waar de animatie loopt voor hij weer rent
 const BAN_WORP_RELEASE = 58;   // op dit frame verlaat de dolk zijn hand
@@ -18866,6 +18871,27 @@ const BAN_SPOT_START   = 20;   // uit schouder spring je op dit frame op (de geh
 const BAN_SPOT_WORP    = 69;   // op dit frame laat hij de dolk los (daarna vliegt het projectiel)
 // nooit verder dan wat in beeld staat, zodat je het opspringen op elk scherm (ook een telefoon) ziet
 function banAmbushRange(){ return Math.min(BAN_AMBUSH_RANGE, (W / 2) / viewZoom() * BAN_WORP_RAND); }
+
+// de vault: een eenhandige radslag over een obstakel (enemies/bandiet/vault/, sprites_vault.json). 68
+// frames op een eigen canvas (699x510), al op de schaal van de hoofdset. Eigen duur per frame (ticks op
+// 24 fps, samen 96 ticks = 4 s). De sprite verplaatst zichzelf (zijn hand staat geplant), dus hij wordt
+// op een VASTE wereldpositie getekend (het canvas-anker is de cx van frame 0); de figuur loopt vanzelf
+// vooruit doordat zijn cx per frame verschuift. De hoogte komt uit de engine: het hele beeld wordt
+// verticaal opgetild (banVaultLift01, deel van de obstakelhoogte) zodat zijn hand op de bovenkant van het
+// obstakel landt, en zo werkt dezelfde animatie voor elke obstakelhoogte. Per frame staat het laagste
+// punt (grond) in de json, zodat de hand/voet netjes op de (opgetilde) grondlijn ligt.
+const BAN_VAULT_TICKS = [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,3,2,2,1,3,3,2,2,2,3,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1];
+const BAN_VAULT_GROND = [462,495,495,498,498,498,498,498,487,501,501,501,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,501,501,501,501,501,501,501,501,501,501,503,501,501];
+const BAN_VAULT_AFZET = 6;     // het frame waarop hij afzet (de hand plant en hij lanceert): daar valt het afzetgeluid
+const BAN_VAULT_H0    = 462;   // het laagste punt van frame 0 (staand): de referentie voor de liftcurve
+// de liftcurve, deel (0..1) van de obstakelhoogte per frame: afzet (0-8) omhoog, overheen (8-50) boven,
+// neerkomen (50-62) omlaag, landen daarna op de grond (ruwe verdeling uit LEESMIJ_vault.txt, op het oog)
+function banVaultLift01(frame){
+  if (frame <= 8) return frame / 8;
+  if (frame <= 50) return 1;
+  if (frame <= 62) return 1 - (frame - 50) / 12;
+  return 0;
+}
 
 // ---- knoppen om aan te draaien -------------------------------------------
 const BAN_H_SHARE   = 1.22;   // iets langer dan Amir: een volwassen man tegen een jongen van zestien
@@ -18928,7 +18954,7 @@ const banSlagGeluid = banStemmen('sounds/banditslag.mp3', 3);
 const banWorpGeluid = banStemmen('sounds/banditdolkworp.mp3', 2);
 function banPlaySlag(){ banStemSpeel(banSlagGeluid, BAN_SLAG_VOL); }   // de korte zwaardslag op het klap-frame
 function banPlayWorp(){ banStemSpeel(banWorpGeluid, BAN_WORP_VOL); }   // de dolk die wordt geworpen
-function stopBan(){ for (const k of [banSlagGeluid, banWorpGeluid, ...banRoepSnd, banDoodSnd]) for (const a of k.pool) a.pause(); }
+function stopBan(){ for (const k of [banSlagGeluid, banWorpGeluid, ...banRoepSnd, banDoodSnd, banAfzetSnd]) for (const a of k.pool) a.pause(); }
 
 // Drie stemmen. Zodra een bandiet op Amir af gaat rennen, roept hij er een van twee strijdkreten
 // (willekeurig): "Die!" of "False king!" (sounds/banditdie.mp3 en banditfalseking.mp3). Als hij
@@ -18950,12 +18976,15 @@ function banStemSpeel(k, vol){
 const BAN_ROEP_VOL = 0.95;
 const banRoepSnd = [banStemmen('sounds/banditdie.mp3', 2), banStemmen('sounds/banditfalseking.mp3', 2)];  // charge: 1 van 2
 const banDoodSnd = banStemmen('sounds/banditdeath.mp3', 2);                                                // dood
+const banAfzetSnd = banStemmen('sounds/banditafzet.mp3', 2);                                                // de afzet van de vault (physical effort)
 function banRoep(){ banStemSpeel(banRoepSnd[Math.random() < 0.5 ? 0 : 1], BAN_ROEP_VOL); }   // Die! of False king!, bij de charge
 function banSterf(){ banStemSpeel(banDoodSnd, BAN_ROEP_VOL); }                                // de doodskreet
+function banAfzet(){ banStemSpeel(banAfzetSnd, BAN_ROEP_VOL); }                               // de kreun bij het afzetten van de vault
 
 // een gedeelde bank frames, pas geladen als een level of de sandbox erom vraagt
 const banBank = {};
 const BAN_HURK_SETS = ['hurk_in', 'hurk_idle', 'schouder', 'spot'];
+const BAN_EXTRA_SETS = [...BAN_HURK_SETS, 'vault'];   // zware sets die niet standaard meeladen
 function banLaadSet(k){
   if (banBank[k]) return;
   banBank[k] = Array.from({ length: BAN.n[k] }, (_, i) =>
@@ -18963,10 +18992,12 @@ function banLaadSet(k){
 }
 function banLaad(){
   if (banBank.run) return;
-  for (const k in BAN.n) if (!BAN_HURK_SETS.includes(k)) banLaadSet(k);   // de hurksets pas bij een ambush-bandiet
+  for (const k in BAN.n) if (!BAN_EXTRA_SETS.includes(k)) banLaadSet(k);   // de hurk- en vaultsets pas als ze nodig zijn
 }
 // het zware hurkpakket (138 frames) alleen laden als een level of de sandbox een ambush-bandiet zet
 function banLaadHurk(){ banLaad(); for (const k of BAN_HURK_SETS) banLaadSet(k); }
+// de vault (68 frames) alleen laden als een bandiet hem kan gebruiken
+function banLaadVault(){ banLaad(); banLaadSet('vault'); }
 // de plaatjes alvast ophalen als dit level bandieten gebruikt (een golf of een spawn), zodat
 // er niemand zonder frame opkomt
 function banLaadLevel(lv){
@@ -19018,6 +19049,7 @@ function makeBandiet(x, side, dolk, hurk){
            dolk: !!dolk, gegooid: false, dolkUit: false,  // gooit hij eerst zijn dolk; heeft hij de worp al gebruikt; is de dolk al los
            geroepen: false,                               // heeft hij zijn strijdkreet al geroepen (één keer, bij de eerste charge)
            ambush: !!hurk,                                // hij zit gehurkt in een hinderlaag en springt op met een dolkworp
+           vaultH: 0,                                     // de obstakelhoogte waar de vault overheen tilt (sprite-eenheden)
            hitUsed: false, sweptId: -1, klaar: false, vrij: false };
   if (hurk){ b.state = 'hurk_idle'; b.dolk = false; }     // gehurkt wachten, met de rug naar Amir; de worp gaat via 'spot'
   return b;
@@ -19028,6 +19060,16 @@ function banSet(s, state){
 }
 function banAnim(s, dt){
   const n = BAN.n[s.state] || 1;
+  if (s.state === 'vault'){                                  // eigen duur per frame (ticks op 24 fps)
+    s.acc += dt * BAN.fps.vault;
+    while (s.frame < n - 1 && s.acc >= BAN_VAULT_TICKS[s.frame]){
+      s.acc -= BAN_VAULT_TICKS[s.frame];
+      s.frame++;
+      if (s.frame === BAN_VAULT_AFZET) banAfzet();           // het afzetgeluid: de hand plant, hij lanceert
+    }
+    if (s.frame >= n - 1) s.klaar = true;
+    return;
+  }
   s.acc += dt * (s.state === 'slag' ? banSlagFps(s.frame) : (BAN.fps[s.state] || 24));
   while (s.acc >= 1){
     s.acc -= 1;
@@ -22556,13 +22598,18 @@ function loop(now){
         ctx.save();
         const bBlink = s.inv > 0 && s.state !== 'dood' && Math.floor(s.inv * 14) % 2 === 0;
         ctx.globalAlpha = Math.max(0, s.alpha) * (bBlink ? 0.45 : 1);
-        ctx.translate(bodyX, voeten);
+        // de vault lijnt per frame uit op zijn laagste punt (BAN_VAULT_GROND) en wordt door de engine
+        // verticaal opgetild (de liftcurve maal de obstakelhoogte), zodat zijn hand op het obstakel landt
+        const vault = s.state === 'vault';
+        const vaultLift = vault ? banVaultLift01(s.frame) * (s.vaultH || 0) * scale : 0;
+        const grondRij = vault ? BAN_VAULT_GROND[Math.min(s.frame, BAN_VAULT_GROND.length - 1)] : geo.ground;
+        ctx.translate(bodyX, voeten - vaultLift);
         if (face === 1) ctx.scale(-1, 1);               // de frames kijken naar links
         const img = banFrameImg(s);
         // het voetpunt van de set hoort op zijn voeten te liggen, anders verspringt hij bij een wissel
         if (img && imgReady(img))
           ctx.drawImage(s.flash > 0 ? whiteCopy(img, s.flash * 4) : img,
-                        -geo.anker * gs, -geo.ground * gs, geo.w * gs, geo.h * gs);
+                        -geo.anker * gs, -grondRij * gs, geo.w * gs, geo.h * gs);
         ctx.restore();
         if (s.state === 'dood') continue;                // het lijk doet verder niets meer
 
@@ -24975,11 +25022,13 @@ sbBanBtn.onclick = () => {
 sbBanLabel();
 function sbBanAnim(set){
   if (BAN_HURK_SETS.includes(set)) banLaadHurk();    // het hurkpakket pas laden als je het bekijkt
+  if (set === 'vault') banLaadVault();               // de vault-set pas laden als je hem bekijkt
   sbBanVrij = true; sbBanLabel();                   // anders neemt zijn AI het meteen weer over
   if (!bandieten.length) sbSpawn('bandiet');        // nog niemand neergezet: dan doen we dat nu
   for (const s of bandieten){
     s.vrij = true;
     banSet(s, set); s.hp = BAN_HP; s.inv = 0; s.flash = set === 'dood' ? 0.3 : 0; s.knock = 0; s.alpha = 1; s.lig = 0; s.dolkUit = false;
+    if (set === 'vault') s.vaultH = 1.0 * CHAR_H * 0.55;   // een voorbeeldobstakel om overheen te tillen (ongeveer een kei)
   }
   cv.focus();
 }
