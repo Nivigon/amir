@@ -18835,6 +18835,15 @@ const BAN_SCHEID    = 290;    // zachte scheiding: zo dicht mogen twee bandieten
 const BAN_LUNGE_IN    = 480;    // de loopvaart die hij meeneemt bij het inzetten van de slag (= BAN_RUN_SPD)
 const BAN_LUNGE_DECAY = 0.18;   // en zo zakt die vaart geleidelijk (per seconde): hij glijdt nog door tijdens de haal
 const BAN_LUNGE_TOT   = 28;     // tot hier schuift hij door; daarna plant hij voor de herstelframes
+// Hij glijdt niet door Amir heen: zodra zijn lijf op zwaardafstand komt, plant hij en vangt de haal
+// Amir in de kling in plaats van erlangs. Amir is geen obstakel voor hem (banMove kent hem niet) en de
+// kling gaat pas live op de raakframes (21 tot 27), dus zonder dit schoof de front-loaded glij hem er al
+// voorbij voor de kling telde en haalde hij door de lucht achter Amir. `deel` is de plantafstand van zijn
+// anker tot Amir, als deel van zijn reik. Op zijn volle reik (1,0): de uitval zit in de frames zelf (zijn
+// voorste been en arm schieten vooruit), dus op minder stond zijn lijf alsnog ín Amir; op 1,0 staan de
+// rompen op duelafstand naast elkaar en reikt alleen zijn arm met de kling naar Amir. De kling raakt nog
+// tot ongeveer 1,4 reik, dus hier is ruimte over.
+const BAN_PLANT_DEEL  = 1.00;
 // De slag heeft een eigen tempo per stuk (zoals de baviaan), want op één vaste fps bleef hij te lang
 // met de kling boven zijn hoofd hangen (frame 6 tot 19) en dat las als stilstaan. Nu snelt hij door
 // het uithalen en de hoge houding heen en is de neerwaartse haal (frame 20 tot 28) kort maar leesbaar;
@@ -19047,8 +19056,17 @@ function updateBandiet(s, dt, plats, cliff){
     banAnim(s, dt);
     if (s.frame <= BAN_LUNGE_TOT && s.lunge !== 0){   // de vaart loopt gestaag terug; hij glijdt remmend door de hele haal
       s.dustT += dt;
-      if (!banMove(s, s.lunge * dt, plats, cliff)){ s.lunge = 0; banStofWolk(s.x, s.base || 0, 8, 0, 1.5); }
-      else { s.lunge *= Math.pow(BAN_LUNGE_DECAY, dt);
+      let stap = s.lunge * dt;
+      const naarAmir = playerX() < s.x ? -1 : 1;       // de kant waar Amir nu staat
+      if (Math.sign(stap) === naarAmir){               // hij glijdt naar Amir toe: niet erdoorheen, maar planten op zwaardafstand
+        const ruimte = Math.abs(s.x - playerX()) - banReik() * BAN_PLANT_DEEL;
+        if (Math.abs(stap) >= ruimte){                 // deze stap zou te dichtbij of erdoorheen komen: plant zijn lijf
+          stap = Math.max(0, ruimte) * naarAmir;
+          s.lunge = 0; banStofWolk(s.x + stap, s.base || 0, 7, 0, 1.4);
+        }
+      }
+      if (stap !== 0 && !banMove(s, stap, plats, cliff)){ s.lunge = 0; banStofWolk(s.x, s.base || 0, 8, 0, 1.5); }
+      else if (s.lunge !== 0){ s.lunge *= Math.pow(BAN_LUNGE_DECAY, dt);
              if (s.dustT >= 0.03){ s.dustT = 0; banGlijStof(s); } }
     } else if (s.lunge !== 0){                         // de haal is voorbij: planten (geen nadrift), met een laatste wolk
       s.lunge = 0; banStofWolk(s.x, s.base || 0, 7, 0, 1.4);
