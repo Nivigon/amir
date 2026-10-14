@@ -547,7 +547,7 @@
     <h1>Amir<br><small>King of Africa</small></h1>
 
     <div id="menuMain" class="on">
-      <p>Pijltjes rennen, pijl omhoog springen, Shift sprinten,<br>E speer, spatie stoten, spatie vasthouden werpen, langer vasthouden in een boog,<br>pijl omlaag bukken, Q drinken, R opnieuw</p>
+      <p>Pijltjes rennen, pijl omhoog springen, Shift sprinten,<br>E speer, spatie stoten, spatie vasthouden werpen, langer vasthouden in een boog,<br>pijl omlaag bukken, gebukt met een speer links of rechts om te kruipen, Q drinken, R opnieuw</p>
       <div class="row">
         <button id="btnLevels" class="bigbtn">Levels<small>Kies je avontuur</small></button>
       </div>
@@ -1222,7 +1222,7 @@
     <strong>Draai je telefoon</strong>
     <span>Amir speelt liggend, met het scherm in de breedte.</span>
   </div>
-  <div id="hint">Pijltjes om te rennen, pijl omhoog om te springen, Shift sprint, E speer, spatie stoot, spatie vasthouden werpt, langer vasthouden in een boog, Q drinken, R opnieuw</div>
+  <div id="hint">Pijltjes om te rennen, pijl omhoog om te springen, Shift sprint, E speer, spatie stoot, spatie vasthouden werpt, langer vasthouden in een boog, pijl omlaag bukken, gebukt met een speer links of rechts om te kruipen, Q drinken, R opnieuw</div>
 </div>
 <div id="bar" class="hide">
   <div class="field"><label for="fps">Beelden per seconde</label><input id="fps" type="range" min="6" max="24" step="1" value="12"><span class="read" id="fpsv">12</span></div>
@@ -1767,6 +1767,26 @@ let swLading = 1, swLaad = 0;                 // ladingen klaar, en hoe ver de v
 const sweepImgs = Array.from({ length: SWEEP_N }, (_, i) =>
   loadQuiet(SWEEP_DIRS.map(d => d + 'sweep_' + (i + 1) + '.png')));
 let swFrame = -1, swAcc = 0, sweepId = 0, swRecover = 0;
+// ---- sluipen (crawlen): gebukt met de speer naar links of rechts kruipen -----------------
+// De frames komen uit crawlt3spear.mp4 (zie sluipen_speer.json). Er is alleen een speerversie,
+// dus kruipen kan alleen met een speer in de hand; zonder speer blijft hij gebukt stilstaan.
+// Zelfde schaal en manier van tekenen als de sprongposes en het bukken (JMP_S), zodat Amir
+// even groot blijft bij de overgang van staand naar gebukt naar kruipend. Het rode lint op de
+// speer zit er ook hier in gebakken, dus vaanBlauw kleurt het vanzelf om naar het blauwe vaantje
+// als Amir de blauwe speer uit een skelet heeft (speerBlauw).
+const CRAWL_DIRS = uniq([AMIR + 'beweging/sluipen/', AMIR_GROOT + 'beweging/sluipen/',
+                    AMIR_OLD + 'sluipen_speer/', 'sluipen_speer/']);
+const CRAWL_N = 22, CRAWL_FPS = 12;                 // uit sluipen_speer.json: 22 frames, 12 fps, lus
+const CRAWL_W = 622, CRAWL_H = 438;                 // het canvas uit die json
+// De grondlijn: de json noemt 434, maar dat is de diepste duw; de rustvoet (en de meeste frames)
+// zit rond rij 416. Op 434 zweeft hij daardoor het grootste deel van de lus. 416 is de mediaan van
+// de laagste voetrij over de lus, zodat de rustpose en de overgang vanuit bukken op de grond staan,
+// net als de loop- en bukframes; alleen de paar diepste duwframes zakken een ietsje in.
+const CRAWL_GROUND = 416;
+const CRAWL_SPEED = 0.5;                            // kruipen gaat half zo snel als lopen, en niet sneller met Shift
+const crawlImgs = Array.from({ length: CRAWL_N }, (_, i) =>
+  loadQuiet(CRAWL_DIRS.map(d => d + 'sluipen_speer_' + (i < 10 ? '0' : '') + i + '.png')));
+let crawlFrame = 0, crawlAcc = 0;
 // opwaaiend stof bij de lage zwaai: zachte wolken die opbollen, uitdijen en langzaam wegtrekken
 const sand = [];
 function sweepAngle(){
@@ -7360,7 +7380,7 @@ function skeletStof(s, n, groot, van, tot){
 let vaanRij = null;
 function vaanVoorwerk(){
   if (!speerBlauw){ vaanRij = null; return; }
-  if (!vaanRij) vaanRij = [javImg, spearImg, sets.sp.idle, ...thrImgs, ...sets.sp.idleAnim, ...sets.sp.run, ...draaiImgs.gewoon];
+  if (!vaanRij) vaanRij = [javImg, spearImg, sets.sp.idle, ...thrImgs, ...sets.sp.idleAnim, ...sets.sp.run, ...draaiImgs.gewoon, ...crawlImgs];
   while (vaanRij.length){
     const im = vaanRij.shift();
     if (im && imgReady(im) && !vaanKopieen.has(im)){ vaanBlauw(im); return; }
@@ -20501,20 +20521,26 @@ function loop(now){
   updateSand(dt);
   updateSnowFx(dt);
   // bukken: omlaag of S ingedrukt houden terwijl je op de grond staat
+  // kruipen: helemaal gebukt met een speer en dan links of rechts, dan sluipt hij traag voort
+  let crawling = false;
   {
     const downHeld = keys['ArrowDown'] || keys['s'] || keys['S'];
     const canDuck = downHeld && onGround && !jump && !dead && hurt <= 0 && !schijnLigt() && !attacking && !throwing && !building && !fell && !amirVast();
     if (canDuck) duckT = Math.min(1, duckT + dt / DUCK_IN_T);
     else duckT = Math.max(0, duckT - dt / DUCK_OUT_T);
     if (duckT >= 1) duckHoldAcc += dt * DUCK_HOLD_FPS; else duckHoldAcc = 0;
-    if (duckT > 0) dir = 0;                      // gebukt loop je niet, omdraaien mag wel
-    if (swFrame >= 0){ duckT = 1; duckHoldAcc = 0; dir = 0; }   // tijdens de zwaai blijft hij laag
-    else if (swRecover > 0){ duckT = 1; dir = 0; }               // en daarna nog even
+    // helemaal gebukt met een speer en een richting ingedrukt: kruipen (de crawlset is speer-only).
+    // dir is hier nog de toets; facing is er net boven al op gezet, dus hij kruipt de kant op die hij kijkt.
+    crawling = canDuck && duckT >= 1 && dir !== 0 && spear && swFrame < 0 && swRecover <= 0;
+    if (duckT > 0 && !crawling) dir = 0;         // gebukt loop je niet, tenzij je kruipt; omdraaien mag wel
+    if (swFrame >= 0){ duckT = 1; duckHoldAcc = 0; dir = 0; crawling = false; }   // tijdens de zwaai blijft hij laag
+    else if (swRecover > 0){ duckT = 1; dir = 0; crawling = false; }               // en daarna nog even
     duckShare = 1 - (1 - DUCK_BOX) * duckT;
   }
   const wetNow = (!building && ph < 2) ? waterDepthAt(world, ph) : 0;   // tot je knieën in het water
   const houdTempo = houding.aan ? houdingWaarde('tempo') : 1;   // in de dreighouding loopt hij langzaam
-  if (!fell) world += dir * 330 * walkK() * houdTempo * (wetNow > 0.3 ? 1 : sprint) * (1 - (1 - POOL.slow) * wetNow) * dt;
+  const loopFactor = crawling ? CRAWL_SPEED : (wetNow > 0.3 ? 1 : sprint);   // kruipen gaat traag en niet sneller met Shift
+  if (!fell) world += dir * 330 * walkK() * houdTempo * loopFactor * (1 - (1 - POOL.slow) * wetNow) * dt;
   if (glij !== 0) glijUpdate(dt, halfWNow);      // de renstoot: remmend doorglijden
   const cliff = cliffAt();
   if (world + halfWNow > cliff.wall) world = cliff.wall - halfWNow;   // je komt er niet voorbij
@@ -20582,12 +20608,19 @@ function loop(now){
   const moving = dir !== 0;
   updateSplashes(dt, wetNow, moving);
   if (moving){
-    frameAcc += dt * Number(fpsEl.value) * (wetNow > 0.3 ? 1 : sprint) * (1 - 0.3 * wetNow) * (houding.aan ? houdingWaarde('tempo') : 1);
-    const achteruit = houding.aan && dir === -facing;   // in de houding achteruit: de looppas achterstevoren
-    while (frameAcc >= 1){ frame = (frame + (achteruit ? set.run.length - 1 : 1)) % set.run.length; frameAcc -= 1; }
     idleFrame = 0; idleAcc = 0;
+    if (crawling){                               // de crawllus loopt op zijn eigen tempo
+      frame = 0; frameAcc = 0;
+      crawlAcc += dt * CRAWL_FPS * (houding.aan ? houdingWaarde('tempo') : 1);
+      while (crawlAcc >= 1){ crawlFrame = (crawlFrame + 1) % CRAWL_N; crawlAcc -= 1; }
+    } else {
+      crawlFrame = 0; crawlAcc = 0;
+      frameAcc += dt * Number(fpsEl.value) * (wetNow > 0.3 ? 1 : sprint) * (1 - 0.3 * wetNow) * (houding.aan ? houdingWaarde('tempo') : 1);
+      const achteruit = houding.aan && dir === -facing;   // in de houding achteruit: de looppas achterstevoren
+      while (frameAcc >= 1){ frame = (frame + (achteruit ? set.run.length - 1 : 1)) % set.run.length; frameAcc -= 1; }
+    }
   } else {
-    frame = 0; frameAcc = 0;
+    frame = 0; frameAcc = 0; crawlFrame = 0; crawlAcc = 0;
     if (set.idleAnim){
       idleAcc += dt * IDLE_SP_FPS;
       while (idleAcc >= 1){ idleFrame = (idleFrame + 1) % set.idleAnim.length; idleAcc -= 1; }
@@ -20595,7 +20628,7 @@ function loop(now){
   }
   // alleen naar de DOM schrijven als de tekst echt verandert: elke schrijfactie maakt de
   // layout ongeldig, en de meting hieronder dwingt hem dan meteen weer af
-  const frvNu = thr ? ('W' + (thr.frame + 1)) : attacking ? ('A' + (atkFrame + 1)) : swFrame >= 0 ? ('S' + (swFrame + 1)) : (duckT > 0 ? 'buk' : (moving ? String(frame + 1) : (set.idleAnim ? 'I' + (idleFrame + 1) : 'idle')));
+  const frvNu = thr ? ('W' + (thr.frame + 1)) : attacking ? ('A' + (atkFrame + 1)) : swFrame >= 0 ? ('S' + (swFrame + 1)) : crawling ? ('K' + (crawlFrame + 1)) : (duckT > 0 ? 'buk' : (moving ? String(frame + 1) : (set.idleAnim ? 'I' + (idleFrame + 1) : 'idle')));
   if (frvNu !== frvLast){ frvLast = frvNu; frv.textContent = frvNu; }
 
   // getBoundingClientRect dwingt een layout af; de resize-events en de ResizeObserver
@@ -20679,19 +20712,23 @@ function loop(now){
     const useJump = jimg && jimg.complete && jimg.naturalWidth;
     const swImg = (!useJump && swFrame >= 0) ? sweepImgs[swFrame] : null;
     const useSweep = !!(swImg && swImg.complete && swImg.naturalWidth);
+    // kruipen: de crawlset (speer-only), voor het bukken, want gebukt geeft duckFrame ook een beeld terug
+    const crawlImg = (crawling && !useJump && !attacking && !useSweep) ? crawlImgs[crawlFrame] : null;
+    const useCrawl = !!(crawlImg && crawlImg.complete && crawlImg.naturalWidth);
     const dSp = spear && !!duckFrame(true);
-    const dimg = (!useJump && !attacking && !useSweep) ? (dSp ? duckFrame(true) : duckFrame(false)) : null;
+    const dimg = (!useJump && !attacking && !useSweep && !useCrawl) ? (dSp ? duckFrame(true) : duckFrame(false)) : null;
     const useDuck = !!dimg;
     const img = useThrow ? thrImg
               : useJump ? jimg
               : useSweep ? swImg
+              : useCrawl ? crawlImg
               : useDuck ? dimg
               : (attacking ? (atkMes ? sets.ns.idle : atkImgs[atkFrame])   // het mes: stilstaand, het mes doet de steek
                            : (moving ? set.run[frame] : idleImg(set)));
-    // het mes in zijn hand: bij een steek, stilstaand of lopend (in een sprong of gebukt zit het weg)
+    // het mes in zijn hand: bij een steek, stilstaand of lopend (in een sprong, gebukt of kruipend zit het weg)
     const mesHand = building || !mesInHand() || amirSteen > 0 ? null
                   : attacking && atkMes ? mesSteekHand(Math.min(atkFrame, MES.steek.length - 1))
-                  : (useThrow || useJump || useSweep || useDuck || attacking) ? null
+                  : (useThrow || useJump || useSweep || useCrawl || useDuck || attacking) ? null
                   : moving ? MES.hand.loop[frame % MES.hand.loop.length] : houding.aan ? MES.hand.dreig : MES.hand.stil;
     if (mesHand) mesLaad();
     if (img && img.complete){
@@ -20721,6 +20758,11 @@ function loop(now){
       const js = JMP_S * scale;
       w = SWEEP_W * js; h = DUCK_H * js;
       x = pcx - w / 2; y = groundY - (DUCK_GROUND - SWEEP_DROP) * js + lift;
+    } else if (useCrawl){
+      // zelfde schaal als de sprongposes en het bukken; eigen canvas en grondlijn uit sluipen_speer.json
+      const js = JMP_S * scale;
+      w = CRAWL_W * js; h = CRAWL_H * js;
+      x = pcx - w / 2; y = groundY - CRAWL_GROUND * js + lift;
     } else if (useDuck){
       // zelfde schaal en grondlijn als de sprongposes
       const js = JMP_S * scale;
