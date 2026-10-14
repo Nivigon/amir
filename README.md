@@ -528,9 +528,18 @@ reageren. Om hem ook op een telefoon goed te kunnen volgen is hij wat groter get
 een kort spoor; de botsing blijft op de echte maat van de dolk. De dolkplaatjes zijn afgestemd op
 de hoofdset, dus ze worden op de maat van de bandiet getekend.
 
-In de sandbox staat hij onder **Bandiet**: neerzetten, **AI uit** om de stekker eruit te
+**De hinderlaag.** Met de optie `hurk` zit een bandiet gehurkt met de rug naar je op een vaste
+plek. Kom je dichtbij, dan hoort hij je, kijkt over zijn schouder, springt op en keert zich naar
+je toe, en werpt zijn dolk op kophoogte: buk ervoor. Omdat het opspringen en uithalen een lange
+aanloop is, kun je hem er ook mee verrassen en neersteken terwijl hij overeind komt. Daarna
+vecht hij als een gewone bandiet. In een level zet je er een neer met `{x, k: 'bandiet', hurk: true}`;
+in de sandbox met de knop **Hinderlaag**. Test 31 (De hinderlaag) is het proefstuk.
+
+In de sandbox staat hij onder **Bandiet**: neerzetten, **Hinderlaag** voor de gehurkte variant,
+**AI uit** om de stekker eruit te
 trekken, **Dolk aan** om hem eerst te laten gooien, en onder **Zijn animaties** de set die hij
-dan speelt (rennen, dolk gooien, slag, rondkijken, dood). Met **Golf aan** komen er, net als in
+dan speelt (rennen, dolk gooien, slag, rondkijken, dood, en de hurk-sets: hurken, gehurkt,
+schouder, opspringen). Met **Golf aan** komen er, net als in
 het testlevel, telkens meer bij, van twee kanten en steeds sneller. In een leveldefinitie zet je
 een losse neer met `{x: -1900, k: 'bandiet'}` (met `dolk: true` gooit hij eerst), en een
 oplopende golf met het veld `bandietGolf: {van, tot, ramp, max, dolk}`: om de zoveel seconden een
