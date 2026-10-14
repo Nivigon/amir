@@ -532,14 +532,25 @@ de hoofdset, dus ze worden op de maat van de bandiet getekend.
 plek. Kom je dichtbij, dan hoort hij je, kijkt over zijn schouder, springt op en keert zich naar
 je toe, en werpt zijn dolk op kophoogte: buk ervoor. Omdat het opspringen en uithalen een lange
 aanloop is, kun je hem er ook mee verrassen en neersteken terwijl hij overeind komt. Daarna
-vecht hij als een gewone bandiet. In een level zet je er een neer met `{x, k: 'bandiet', hurk: true}`;
-in de sandbox met de knop **Hinderlaag**. Test 31 (De hinderlaag) is het proefstuk.
+wacht hij een kwart seconde en rent op je af als een gewone bandiet. In een level zet je er een
+neer met `{x, k: 'bandiet', hurk: true}`; in de sandbox met de knop **Hinderlaag**. Test 31
+(De hinderlaag) is het proefstuk.
+
+**Over een kei heen vaulten.** Een kei houdt een bandiet gewoon tegen (regel 7), en zo is hij voor
+jou een schuilplek. Maar met de optie `vault` is dat anders: komt zo'n bandiet bij een kei aan en
+sta jij aan de overkant, dan springt hij er in een eenhandige radslag overheen (met stof bij het
+afzetten en bij het neerkomen, en zijn hand op de kei), landt vlak voor je en gaat meteen weer in de
+aanval. Voor hem is de kei dan geen schuilplek meer: je moet hem van je af houden of neersteken, niet
+erachter wegkruipen. In de lucht raak je hem niet. Je zet het aan met `{x, k: 'bandiet', vault: true}`
+(ook samen met `hurk`), en in de sandbox met de knop **Vault**. In Test 31 kunnen de gehurkte
+bandieten het: de kei op jouw kant is daar dus geen veilige plek meer.
 
 In de sandbox staat hij onder **Bandiet**: neerzetten, **Hinderlaag** voor de gehurkte variant,
 **AI uit** om de stekker eruit te
-trekken, **Dolk aan** om hem eerst te laten gooien, en onder **Zijn animaties** de set die hij
-dan speelt (rennen, dolk gooien, slag, rondkijken, dood, en de hurk-sets: hurken, gehurkt,
-schouder, opspringen). Met **Golf aan** komen er, net als in
+trekken, **Dolk aan** om hem eerst te laten gooien, **Vault aan** zodat hij over een kei heen springt
+als jij aan de overkant staat, en onder **Zijn animaties** de set die hij
+dan speelt (rennen, dolk gooien, slag, rondkijken, dood, de hurk-sets: hurken, gehurkt,
+schouder, opspringen, en de vault: de radslag over een obstakel). Met **Golf aan** komen er, net als in
 het testlevel, telkens meer bij, van twee kanten en steeds sneller. In een leveldefinitie zet je
 een losse neer met `{x: -1900, k: 'bandiet'}` (met `dolk: true` gooit hij eerst), en een
 oplopende golf met het veld `bandietGolf: {van, tot, ramp, max, dolk}`: om de zoveel seconden een
