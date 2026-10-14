@@ -18513,6 +18513,7 @@ const ZW_ZWAARD = { from: 60, to: 690, low: 0, high: 520 };
 // ruimer dan zijn silhouet, en dat is met opzet: de stoot rekent alleen met de punt
 // van je speer, en een smalle kist schiet je op korte afstand voorbij.
 const ZW_LIJF = { mid: 40, half: 180 };
+const ZW_SCHEID = 330;        // zachte scheiding: zo dicht mogen twee zwaardvechters bij elkaar (canvaspixels), anders duwen ze elkaar zacht opzij
 
 // Zijn zwaai klinkt als jouw stoot: hetzelfde bestand als music/spearthrust.mp3, want het
 // is dezelfde klap van staal door de lucht. Eigen stemmen, niet het gedeelde audio-element
@@ -18647,6 +18648,28 @@ function zwTegenKei(s, nx, plats, halfL){
   }
   return false;
 }
+// Zachte scheiding: maten lopen door elkaar heen, maar krijgen een klein duwtje uit elkaar zodat ze
+// niet precies op dezelfde plek staan. Geen harde wand en geen wachten, dus ze blijven allemaal op je
+// af komen; ze stapelen alleen niet meer. De duw gaat via hun eigen move (met de botsing), dus nooit
+// door een kei, ravijn of wand heen. Easing per beeld, zodat het soepel uit elkaar glijdt.
+const MOB_SCHEID_K = 6;       // hoe snel ze uit elkaar glijden (per seconde)
+function scheidMobs(list, gap, move, dt, plats, cliff){
+  const ease = Math.min(1, MOB_SCHEID_K * dt);
+  for (let i = 0; i < list.length; i++){
+    const a = list[i];
+    if (a.state === 'dood' || a.vrij) continue;
+    for (let j = i + 1; j < list.length; j++){
+      const b = list[j];
+      if (b.state === 'dood' || b.vrij) continue;
+      const d = b.x - a.x, afst = Math.abs(d);
+      if (afst >= gap) continue;
+      const dir = d >= 0 ? 1 : -1;                 // b staat rechts van (of op) a
+      const duw = (gap - afst) * 0.5 * ease;
+      move(b, dir * duw, plats, cliff);
+      move(a, -dir * duw, plats, cliff);
+    }
+  }
+}
 function updateZwaarden(dt, plats, cliff){
   if (!running || (dead && !sandbox)) return;
   for (let i = zwaarden.length - 1; i >= 0; i--){
@@ -18654,6 +18677,7 @@ function updateZwaarden(dt, plats, cliff){
     updateZwaard(s, dt, plats, cliff);
     if (s.state === 'weg') zwaarden.splice(i, 1);
   }
+  scheidMobs(zwaarden, ZW_SCHEID * zwScale(), zwMove, dt, plats, cliff);
 }
 function updateZwaard(s, dt, plats, cliff){
   if (ravijnValt(s, dt, 'weg')) return;            // in het open ravijn gevallen
@@ -18801,6 +18825,7 @@ const BAN_STUCK_T   = 1.0;    // komt hij zo lang niet vooruit (een kei, een rav
 const BAN_LIJK_T    = 5.0;    // zo lang blijft hij liggen voor hij wegzakt
 const BAN_LIJK_FADE = 0.7;
 const BAN_VOET_VOOR = 210;    // zijn voorste voet, voor het blokkeren op een kei (regel 7)
+const BAN_SCHEID    = 290;    // zachte scheiding: zo dicht mogen twee bandieten bij elkaar (canvaspixels), anders duwen ze elkaar zacht opzij
 // De uitval is één vloeiende glijbeweging: hij neemt zijn volle loopvaart mee het moment dat hij
 // uithaalt (geen stilstand voor de slag) en remt dan geleidelijk af over de hele haal, zodat de
 // slag en het doorschuiven samen één beweging zijn. Geen aparte afzet halverwege meer: die gaf een
@@ -18995,6 +19020,7 @@ function updateBandieten(dt, plats, cliff){
     updateBandiet(s, dt, plats, cliff);
     if (s.state === 'weg') bandieten.splice(i, 1);
   }
+  scheidMobs(bandieten, BAN_SCHEID * banScale(), banMove, dt, plats, cliff);
 }
 function updateBandiet(s, dt, plats, cliff){
   if (ravijnValt(s, dt, 'weg')) return;              // in het open ravijn gevallen
