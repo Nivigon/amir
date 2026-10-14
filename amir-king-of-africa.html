@@ -3190,15 +3190,19 @@ const TEST_30 = {
 };
 // Test 31: De hinderlaag. Voornamelijk gehurkte ambush-bandieten (spawn hurk: true): ze zitten met de
 // rug naar je op een vaste plek, horen je aankomen, springen op, werpen hun dolk op kophoogte (buk ervoor),
-// wachten een kwart seconde en rennen dan op je af. Komen ze bij de kei tussen jullie in en sta jij aan de
-// overkant, dan vaulten ze eroverheen (vault: true, regel 7-uitzondering): de kei is voor hen dus geen
-// schuilplek. Zelf ontworpen (regel 3): vier hinderlagen op een aride hoogvlakte, met telkens een kei op
-// jouw aankomstkant van de gehurkte bandiet (niet erop), en voor de afwisseling een slang en een gewone
-// dolkwerper ertussen. Vlak, geen ravijnen.
+// wachten een kwart seconde en rennen dan op je af. Komt er een kei tussen jullie in te liggen en sta jij
+// aan de overkant (of erop), dan vaulten ze eroverheen (vault: true, regel 7-uitzondering), zonder afkoeling:
+// de kei is voor hen dus nergens een schuilplek. Zelf ontworpen (regel 3): vier hinderlagen op een aride
+// hoogvlakte, met elke gehurkte bandiet geflankeerd door twee keien (een op jouw aankomstkant, een op zijn
+// vluchtkant), zodat hij er ook overheen springt als je hem al voorbij bent, en voor de afwisseling een
+// slang en een gewone dolkwerper ertussen. Vlak, geen ravijnen.
 const TEST_31 = {
   name: 'Test 31: De hinderlaag',
   lagen: 'tafelbergen',
-  rocks: [ {x: -2000, s: 1.0}, {x: -4200, s: 1.05}, {x: -6800, s: 1.0}, {x: -8800, s: 1.1} ],
+  rocks: [ {x: -2000, s: 1.0}, {x: -2600, s: 1.0},     // elke hinderlaag tussen twee keien: schuil je ervoor of ren je er voorbij, hij vault
+           {x: -4200, s: 1.05}, {x: -4800, s: 1.05},
+           {x: -6800, s: 1.0}, {x: -7400, s: 1.0},
+           {x: -8800, s: 1.1}, {x: -9400, s: 1.1} ],
   spawns: [ {x: -2250, k: 'bandiet', hurk: true, vault: true},   // eerste hinderlaag
             {x: -3400, k: 'groen'},                  // een slang ertussen
             {x: -4450, k: 'bandiet', hurk: true, vault: true},
@@ -3218,7 +3222,7 @@ const TEST_31 = {
   ends: [ {x: -10700} ],
   tips: [ { x: -120, t: 'Testlevel: de hinderlaag. Pak eerst je speer op' },
           { x: -800, t: 'Sommige bandieten zitten gehurkt met de rug naar je. Komen ze overeind, dan werpen ze hun dolk op kophoogte: buk ervoor, of steek ze neer terwijl ze opspringen' },
-          { x: -1900, t: 'Daarna rennen ze op je af. Let op: een kei houdt ze niet tegen, ze vaulten eroverheen. Buk voor de dolk en steek ze neer' } ]
+          { x: -1900, t: 'Daarna rennen ze op je af. Buk voor de dolk. Schuil je voor een kei, erop, of ren je er voorbij: zolang de kei tussen jullie in ligt vaulten ze er in een radslag overheen. Een kei is voor hen nergens een veilige plek' } ]
 };
 const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31];
 // ---- Episode Baboon tests: de baviaan, stuk voor stuk ----
@@ -18542,8 +18546,7 @@ const ZW_INV_T     = 0.6;     // onkwetsbaar na een treffer
 const ZW_GERAAKT_T = 0.30;    // zo lang staat hij in zijn pijnpose, met de flits eroverheen
 const ZW_KNOCK     = 130;     // en zo hard stuitert hij achteruit (wereld-px/s, dooft uit)
 const ZW_STUCK_T   = 1.2;     // komt hij zo lang niet vooruit (een rots, een ravijn), dan dreigt hij daar
-const ZW_LIJK_T    = 6.0;     // zo lang blijft hij liggen nadat hij neer is gekomen
-const ZW_LIJK_FADE = 0.8;     // en in die laatste seconde zakt hij weg
+const ZW_LIJK_FADE = 0.8;     // het lijk blijft liggen; pas als een lage zwaai het wegveegt zakt het in zoveel seconden weg
 // het zwaard is tijdens de raakframes de raakzone: canvaspixels vanaf het anker in
 // de kijkrichting, en boven de grondlijn. De kling zwiept laag naar voren, dus
 // bukken helpt niet: je moet buiten zijn bereik blijven of eerder toeslaan.
@@ -18649,7 +18652,7 @@ function makeZwaard(x, side, kleur){
   zwLaadKleur(kleur);
   return { x, kleur, face: -side, state: 'idle', frame: 0, acc: 0, t: 0,
            hp: ZW_HP, inv: 0, flash: 0, knock: 0, base: 0, stuck: 0, lig: 0, alpha: 1,
-           hitUsed: false, sweptId: -1, klaar: false, vrij: false };
+           hitUsed: false, sweptId: -1, klaar: false, vrij: false, veeg: false };
 }
 function zwSet(s, state){ s.state = state; s.frame = 0; s.acc = 0; s.t = 0; s.klaar = false; s.hitUsed = false; }
 // een lus loopt rond, een eenmalige set blijft op zijn laatste frame staan en zet klaar
@@ -18727,14 +18730,15 @@ function updateZwaard(s, dt, plats, cliff){
   s.base = vloerBij(s.x, s.base);
   rijsDraagtMob(s, dt);                             // mee omhoog en omlaag met een lift of rijzend blok
 
-  if (s.state === 'dood'){                          // neergaan, blijven liggen, wegzakken
+  if (s.state === 'dood'){                          // neergaan, dan blijft het lijk liggen
     zwAnim(s, dt);
     if (!s.klaar) return;                           // hij komt nog neer
     if (s.vrij) return;                             // sandbox met de AI uit: hij blijft liggen
-    s.lig += dt;                                    // de klok loopt pas als hij stil ligt
-    if (s.lig >= ZW_LIJK_T - ZW_LIJK_FADE)
-      s.alpha = Math.max(0, (ZW_LIJK_T - s.lig) / ZW_LIJK_FADE);
-    if (s.lig >= ZW_LIJK_T) s.state = 'weg';
+    if (s.veeg){                                    // met de lage zwaai weggeveegd: nu pas wegzakken
+      s.lig += dt;
+      s.alpha = Math.max(0, 1 - s.lig / ZW_LIJK_FADE);
+      if (s.lig >= ZW_LIJK_FADE) s.state = 'weg';
+    }                                               // anders blijft hij liggen (geen tijdklok meer)
     return;
   }
   // in de sandbox mag je de stekker uit zijn kop trekken: dan speelt hij alleen
@@ -18832,7 +18836,7 @@ const BAN = {
   n:   { run: 14, slag: 33, look: 48, worp: 81, dood: 63,
          hurk_in: 28, hurk_idle: 24, schouder: 16, spot: 70, vault: 68 },   // het hurkpakket (ambush) en de vault
   fps: { run: 24, slag: 26, look: 18, worp: 32, dood: 30,
-         hurk_in: 12, hurk_idle: 8, schouder: 12, spot: 24, vault: 90 },    // eigen fps per set; de vault gaat op ticks (BAN_VAULT_TICKS), rap: ~1,07 s
+         hurk_in: 12, hurk_idle: 8, schouder: 18, spot: 38, vault: 90 },    // eigen fps per set; de vault gaat op ticks (BAN_VAULT_TICKS), rap: ~1,07 s; schouder en spot zijn vlot zodat hij snel opkomt en werpt
   raak: [21, 27],                 // de frames van de slag waarop de kling schade doet
   klap: 20                        // hier begint de neerwaartse haal: daar valt het zwaaigeluid, en de uitval naar voren
 };
@@ -18888,6 +18892,8 @@ const BAN_VAULT_GROND = [462,495,495,498,498,498,498,498,487,501,501,501,503,503
 const BAN_VAULT_AFZET = 6;     // het frame waarop hij afzet (hij zet zich af van de grond en lanceert): daar valt het afzetgeluid
 const BAN_VAULT_LAND  = 58;    // het frame waarop hij neerkomt: lift terug op nul, en daar stuift het stof op
 const BAN_VAULT_PIEK  = 1.35;  // de top van de sprongboog boven de kei, als deel van de obstakelhoogte (ruim eroverheen)
+// geen afkoeling: zodra er weer een kei tussen hem en Amir ligt, vault hij er meteen opnieuw overheen,
+// zodat ook een tweede of derde bandiet niet staat te wachten en Amir nergens achter een kei veilig is
 // de liftcurve, deel van de obstakelhoogte per frame: hij blijft op de grond tot de afzet (0-6), dan een
 // echte sprongboog (sinus) op tot boven de kei en weer omlaag naar de landing (58). Zo gaat hij eerst naar
 // de grond, zet zich daar af, vliegt in een boog over de steen en landt erachter, in plaats van recht
@@ -18927,8 +18933,7 @@ const BAN_KNOCK     = 240;    // zo hard stuitert hij achteruit als jij hem raak
 // (nog eens ~0,56 s vast) loopt daar voorbij, dus dan staat hij op je als de klap komt.
 const BAN_NA_HIT    = 0.45;   // zo lang herstelt hij na een treffer van jou, voor hij weer inzet
 const BAN_STUCK_T   = 1.0;    // komt hij zo lang niet vooruit (een kei, een ravijn), dan kijkt hij rond
-const BAN_LIJK_T    = 5.0;    // zo lang blijft hij liggen voor hij wegzakt
-const BAN_LIJK_FADE = 0.7;
+const BAN_LIJK_FADE = 0.7;    // het lijk blijft liggen; pas als een lage zwaai het wegveegt zakt het in zoveel seconden weg
 const BAN_VOET_VOOR = 210;    // zijn voorste voet, voor het blokkeren op een kei (regel 7)
 const BAN_SCHEID    = 290;    // zachte scheiding: zo dicht mogen twee bandieten bij elkaar (canvaspixels), anders duwen ze elkaar zacht opzij
 // De doorschuif in twee fasen, zodat hij raakt tijdens de slide en er een stukje doorglijdt, in
@@ -19110,8 +19115,8 @@ function makeBandiet(x, side, dolk, hurk, vault){
            ambush: !!hurk,                                // hij zit gehurkt in een hinderlaag en springt op met een dolkworp
            vault: !!vault,                                // mag hij over een kei heen vaulten (regel 7-uitzondering)?
            vaultH: 0, vaultX0: 0, vaultDoel: 0, vaultExtra: 0, landStof: false,   // lopende waarden van een vault
-           hitUsed: false, sweptId: -1, klaar: false, vrij: false };
-  if (hurk){ b.state = 'hurk_idle'; b.dolk = false; }     // gehurkt wachten, met de rug naar Amir; de worp gaat via 'spot'
+           hitUsed: false, sweptId: -1, klaar: false, vrij: false, veeg: false };
+  if (hurk){ b.state = 'hurk_idle'; b.dolk = true; }      // gehurkt wachten, rug naar Amir; de worp gaat via 'spot', en raak je hem eerder, dan werpt hij alsnog staand (run) voor hij aanvalt
   return b;
 }
 function banSet(s, state){
@@ -19169,8 +19174,11 @@ function banKeiVoor(s, naarJe, plats){
     if (!blocksMonster(p, s.base || 0)) continue;
     const mid = (p.left + p.right) / 2;
     if (!(nx + halfL > p.left && nx - halfL < p.right && Math.abs(nx - mid) < Math.abs(s.x - mid))) continue;
-    const far = naarJe < 0 ? p.left : p.right;            // de overkant van de kei, in looprichting
-    const amirOver = naarJe < 0 ? playerX() < far - 4 : playerX() > far + 4;
+    // Amir staat niet meer aan de kant van de bandiet: op de kei of aan de overkant. Dan is de kei voor
+    // Amir een schuilplek en springt de bandiet erover. (De rand aan de kant van de bandiet, want hij
+    // vault ook als Amir er bovenop zit, niet alleen als Amir al helemaal aan de overkant staat.)
+    const nabij = naarJe < 0 ? p.right : p.left;
+    const amirOver = naarJe < 0 ? playerX() < nabij - 4 : playerX() > nabij + 4;
     if (amirOver) return p;
   }
   return null;
@@ -19234,14 +19242,15 @@ function updateBandiet(s, dt, plats, cliff){
   s.base = vloerBij(s.x, s.base);
   rijsDraagtMob(s, dt);                              // mee omhoog en omlaag met een lift of rijzend blok
 
-  if (s.state === 'dood'){                           // de doodanimatie, dan blijven liggen en wegzakken
+  if (s.state === 'dood'){                           // de doodanimatie, dan blijft het lijk liggen
     banAnim(s, dt);                                  // hij zakt in elkaar (63 frames), houdt dan het laatste frame
     if (s.vrij) return;                              // sandbox met de AI uit: hij blijft liggen
     if (!s.klaar) return;                            // nog bezig met neergaan
-    s.lig += dt;                                     // de klok loopt pas als hij stil ligt
-    if (s.lig >= BAN_LIJK_T - BAN_LIJK_FADE)
-      s.alpha = Math.max(0, (BAN_LIJK_T - s.lig) / BAN_LIJK_FADE);
-    if (s.lig >= BAN_LIJK_T) s.state = 'weg';
+    if (s.veeg){                                     // met de lage zwaai weggeveegd: nu pas wegzakken
+      s.lig += dt;
+      s.alpha = Math.max(0, 1 - s.lig / BAN_LIJK_FADE);
+      if (s.lig >= BAN_LIJK_FADE) s.state = 'weg';
+    }                                                // anders blijft hij liggen (geen tijdklok meer)
     return;
   }
   // sandbox met de AI uit: alleen de gekozen set spelen, zodat je de pose kunt bekijken
@@ -19340,8 +19349,9 @@ function updateBandiet(s, dt, plats, cliff){
 
   // 'run': op je af rennen
   banAnim(s, dt);
-  // eerst de dolk gooien, zodra hij je ziet maar nog niet in zwaardbereik: hij blijft staan en gooit
-  if (s.dolk && !s.gegooid && banZelfdeHoogte(s) && gap <= banWorpRange() && gap > banReik() * 1.3){
+  // eerst de dolk gooien: een dolkbandiet wil altijd eerst werpen voor hij met het zwaard aanvalt, ook van
+  // dichtbij en ook als je hem raakte voor de dolk weg was. Pas als de dolk weg is (s.gegooid) valt hij aan
+  if (s.dolk && !s.gegooid && banZelfdeHoogte(s) && gap <= banWorpRange()){
     s.gegooid = true; banSet(s, 'worp'); s.face = naarJe; return; }
   if (banZelfdeHoogte(s) && s.rust <= 0 && gap <= banReik() * BAN_SLAG_DEEL){
     banSet(s, 'slag'); s.lunge = BAN_LUNGE_IN * s.face; s.dustT = 0;   // de opzwaai begint: hij glijdt nog in op zijn aanlooprest
@@ -19351,7 +19361,7 @@ function updateBandiet(s, dt, plats, cliff){
   if (s.rust > 0) return;                            // even na-hijgen: hij staat stil op het eerste renframe
   if (!s.geroepen){ s.geroepen = true; banRoep(); }  // zijn strijdkreet, één keer, zodra hij echt op Amir af rent
   // een kei houdt hem tegen (regel 7), maar een vault-bandiet springt er bij de kei overheen zodra Amir
-  // aan de overkant staat, zodat de kei voor hem geen schuilplek meer is
+  // aan de overkant staat (of erop), zodat de kei voor hem geen schuilplek meer is
   if (s.vault && banZelfdeHoogte(s)){
     const kei = banKeiVoor(s, naarJe, plats);
     if (kei){ banStartVault(s, kei, naarJe); return; }
@@ -22649,7 +22659,16 @@ function loop(now){
           ctx.drawImage(s.flash > 0 ? whiteCopy(img, s.flash * 4) : img,
                         -ZW.anker * zS, -ZW.ground * zS + (ZW_ZAK[s.state] || 0) * zS, zw, zh);
         ctx.restore();
-        if (s.state === 'dood') continue;                // het lijk doet verder niets meer
+        if (s.state === 'dood'){                         // het lijk blijft liggen; alleen een lage zwaai veegt het weg
+          if (s.klaar && !s.veeg && s.sweptId !== sweepId){
+            const cxl = bodyX + s.face * 90 * zS;        // het midden van het liggende lijf (zoals de schaduw)
+            const lbox = { l: cxl - 470 * zS, r: cxl + 470 * zS, t: voeten - 80 * zS, b: voeten + 14 * zS };
+            if (hitBy(zwaaiVak(swbox, 'zwaard'), lbox)){
+              s.sweptId = sweepId; s.veeg = true; s.lig = 0; puffWorld(cxl, 7, 0, 1.0, s.base || 0);
+            }
+          }
+          continue;
+        }
 
         const lmid = bodyX + s.face * ZW_LIJF.mid * zS, lhalf = ZW_LIJF.half * zS;
         const nbox = { l: lmid - lhalf, r: lmid + lhalf, t: voeten - ZW.fig * zS, b: voeten };
@@ -22729,7 +22748,16 @@ function loop(now){
           ctx.drawImage(s.flash > 0 ? whiteCopy(img, s.flash * 4) : img,
                         -geo.anker * gs, -grondRij * gs, geo.w * gs, geo.h * gs);
         ctx.restore();
-        if (s.state === 'dood') continue;                // het lijk doet verder niets meer
+        if (s.state === 'dood'){                         // het lijk blijft liggen; alleen een lage zwaai veegt het weg
+          if (s.klaar && !s.veeg && s.sweptId !== sweepId){
+            const cxl = bodyX - face * 90 * bS;          // het midden van het liggende lijf (zoals de schaduw)
+            const lbox = { l: cxl - 300 * bS, r: cxl + 300 * bS, t: voeten - 70 * bS, b: voeten + 12 * bS };
+            if (hitBy(zwaaiVak(swbox, 'bandiet'), lbox)){
+              s.sweptId = sweepId; s.veeg = true; s.lig = 0; puffWorld(cxl, 7, 0, 1.0, s.base || 0);
+            }
+          }
+          continue;
+        }
 
         const lmid = bodyX + s.face * BAN_LIJF.mid * bS, lhalf = BAN_LIJF.half * bS;
         const nbox = { l: lmid - lhalf, r: lmid + lhalf, t: voeten - BAN.fig * bS, b: voeten };

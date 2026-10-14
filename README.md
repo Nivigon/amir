@@ -468,8 +468,9 @@ vast. Je hoort hem ook: zijn zwaai speelt hetzelfde geluid als jouw stoot, maar 
 zachter, want het is dezelfde klap van staal door de lucht. Jouw speer reikt bovendien
 verder dan zijn zwaard, dus er is altijd een stuk waarin jij hem wel kunt raken en hij jou
 nog niet. Raak je hem, dan flitst hij wit op, stuitert hij een stukje achteruit en staat hij
-even in zijn pijnpose; na drie treffers gaat hij neer. Het lichaam blijft zes seconden
-liggen en zakt dan weg.
+even in zijn pijnpose; na drie treffers gaat hij neer. Het lichaam blijft liggen waar het valt, de
+rest van het level; alleen de lage zwaai veegt het weg, want een lijk ligt te laag voor je stoot of
+je speer.
 
 De metadata geeft alle zes de sets op 12 beelden per seconde. Twee daarvan spelen op dat
 tempo te sloom en draaien daarom sneller (`ZW_SET_FPS`): de slag op 18 en zijn dood op 20.
@@ -520,10 +521,16 @@ uitval. Zodra hij op je af gaat rennen, slaakt hij een strijdkreet ("Die!" of "F
 en als je hem velt klinkt zijn doodskreet. Onder het rennen hoor je zijn voetstappen op de grond,
 zachter naarmate hij verder weg is, zodat je hem hoort aankomen.
 
-**De dolk.** Met de optie `dolk` gooit een bandiet eerst zijn dolk voor hij in de aanval gaat:
-zodra hij in beeld binnen werpbereik komt maar nog niet in zwaardbereik is, blijft hij staan,
-slingert zijn dolk op kophoogte naar je toe (de worp-set, met het release-frame waarop hij
-loslaat), en rent dan pas in om uit te halen. Hij gooit pas als hij echt in beeld staat, ook op
+**Zijn lijk blijft liggen.** Vel je een bandiet (of een zwaardvechter), dan zakt hij in elkaar en
+blijft het lijk liggen waar het valt, de rest van het level. Alleen de lage zwaai veegt het weg: een
+lijk ligt te laag voor je stoot of je speer, dus je ruimt het op met een zwaai over de grond, en dan
+zakt het weg. Zo blijft een slagveld een slagveld.
+
+**De dolk.** Met de optie `dolk` wil een bandiet altijd eerst zijn dolk werpen voor hij met het
+zwaard aanvalt: zodra hij je in beeld binnen werpbereik ziet, blijft hij staan, slingert zijn dolk
+op kophoogte naar je toe (de worp-set, met het release-frame waarop hij loslaat), en rent dan pas in
+om uit te halen. Dat werpen gaat voor: ook van dichtbij, en ook als je hem raakte voor de dolk weg
+was, wil hij hem er eerst uit gooien, en pas daarna komt het zwaard. Hij gooit pas als hij echt in beeld staat, ook op
 een telefoon (waar je maar een smalle strook opzij ziet), zodat de dolk nooit van buiten beeld
 komt aanvliegen. Hij gooit maar één keer. De dolk tolt niet: hij vliegt met de punt vooruit
 in een bijna vlakke baan, en raakt hij je, dan kost dat een leven; mist hij, dan steekt
@@ -534,21 +541,25 @@ een kort spoor; de botsing blijft op de echte maat van de dolk. De dolkplaatjes 
 de hoofdset, dus ze worden op de maat van de bandiet getekend.
 
 **De hinderlaag.** Met de optie `hurk` zit een bandiet gehurkt met de rug naar je op een vaste
-plek. Kom je dichtbij, dan hoort hij je, kijkt over zijn schouder, springt op en keert zich naar
-je toe, en werpt zijn dolk op kophoogte: buk ervoor. Omdat het opspringen en uithalen een lange
-aanloop is, kun je hem er ook mee verrassen en neersteken terwijl hij overeind komt. Daarna
-wacht hij een kwart seconde en rent op je af als een gewone bandiet. In een level zet je er een
+plek. Kom je dichtbij, dan hoort hij je, kijkt over zijn schouder, springt vlot op en keert zich naar
+je toe, en werpt zijn dolk op kophoogte: buk ervoor. Je kunt hem nog neersteken terwijl hij overeind
+komt, maar hij komt sneller op dan voorheen, dus je moet er vlotter bij zijn. En raak je hem voor de
+dolk weg is, dan werpt hij hem er alsnog eerst uit voor hij met het zwaard komt. Daarna wacht hij een
+kwart seconde en rent op je af als een gewone bandiet. In een level zet je er een
 neer met `{x, k: 'bandiet', hurk: true}`; in de sandbox met de knop **Hinderlaag**. Test 31
 (De hinderlaag) is het proefstuk.
 
 **Over een kei heen vaulten.** Een kei houdt een bandiet gewoon tegen (regel 7), en zo is hij voor
-jou een schuilplek. Maar met de optie `vault` is dat anders: komt zo'n bandiet bij een kei aan en
-sta jij aan de overkant, dan zet hij zich bij de kei op de grond af en vliegt hij er in een eenhandige
-radslag in een boog overheen (met stof bij het afzetten en bij het neerkomen), landt vlak voor je en
-gaat meteen weer in de aanval. Voor hem is de kei dan geen schuilplek meer: je moet hem van je af houden of neersteken, niet
-erachter wegkruipen. In de lucht raak je hem niet. Je zet het aan met `{x, k: 'bandiet', vault: true}`
-(ook samen met `hurk`), en in de sandbox met de knop **Vault**. In Test 31 kunnen de gehurkte
-bandieten het: de kei op jouw kant is daar dus geen veilige plek meer.
+jou een schuilplek. Maar met de optie `vault` is dat anders: zolang er een kei tussen jullie in ligt
+en jij aan de overkant staat, erop zit, of hem al voorbij bent, zet hij zich bij de kei op de grond af
+en vliegt hij er in een eenhandige radslag in een boog overheen (met stof bij het afzetten en bij het
+neerkomen), landt vlak voor je en gaat meteen weer in de aanval. Er is geen afkoeling: blijf je achter
+of op de kei, dan springt hij er zo vaak als nodig overheen, en een tweede bandiet staat niet te
+wachten. Een kei is voor hem dus nergens een veilige plek: je moet hem van je af houden of neersteken,
+niet erachter wegkruipen. In de lucht raak je hem niet. Je zet het aan met
+`{x, k: 'bandiet', vault: true}` (ook samen met `hurk`), en in de sandbox met de knop **Vault**. In
+Test 31 staat elke hinderlaag tussen twee keien, dus hij vault of je er nu voor schuilt, erop staat of
+hem al voorbij bent.
 
 In de sandbox staat hij onder **Bandiet**: neerzetten, **Hinderlaag** voor de gehurkte variant,
 **AI uit** om de stekker eruit te
