@@ -18877,35 +18877,38 @@ function banAmbushRange(){ return Math.min(BAN_AMBUSH_RANGE, (W / 2) / viewZoom(
 // de vault: een eenhandige radslag over een obstakel (enemies/bandiet/vault/, sprites_vault.json). 68
 // frames op een eigen canvas (699x510), al op de schaal van de hoofdset. Eigen duur per frame (ticks,
 // samen 96 ticks; op BAN.fps.vault 90 is dat ~1,07 s, een rappe sprong). De sprite verplaatst zichzelf
-// (zijn hand staat geplant op de kei), de engine drijft de rest erbij (banVaultP); hij wordt
-// op een VASTE wereldpositie getekend (het canvas-anker is de cx van frame 0); de figuur loopt vanzelf
-// vooruit doordat zijn cx per frame verschuift. De hoogte komt uit de engine: het hele beeld wordt
-// verticaal opgetild (banVaultLift01, deel van de obstakelhoogte) zodat zijn hand op de bovenkant van het
-// obstakel landt, en zo werkt dezelfde animatie voor elke obstakelhoogte. Per frame staat het laagste
-// punt (grond) in de json, zodat de hand/voet netjes op de (opgetilde) grondlijn ligt.
+// een stukje vooruit, de engine drijft de rest erbij (banVaultP); hij wordt op een VASTE wereldpositie
+// getekend (het canvas-anker is de cx van frame 0), zodat de figuur vanzelf vooruit loopt doordat zijn cx
+// per frame verschuift. De hoogte komt uit de engine: het hele beeld wordt verticaal opgetild in een
+// sprongboog (banVaultLift01, deel van de obstakelhoogte), zodat hij zich op de grond afzet, over de steen
+// vliegt en erachter landt, en zo werkt dezelfde animatie voor elke obstakelhoogte. Per frame staat het
+// laagste punt (grond) in de json, zodat zijn voet netjes op de (opgetilde) grondlijn ligt.
 const BAN_VAULT_TICKS = [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,3,2,2,1,3,3,2,2,2,3,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1];
 const BAN_VAULT_GROND = [462,495,495,498,498,498,498,498,487,501,501,501,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,503,501,501,501,501,501,501,501,501,501,501,503,501,501];
-const BAN_VAULT_AFZET = 6;     // het frame waarop hij afzet (de hand plant en hij lanceert): daar valt het afzetgeluid
-const BAN_VAULT_H0    = 462;   // het laagste punt van frame 0 (staand): de referentie voor de liftcurve
-// de liftcurve, deel (0..1) van de obstakelhoogte per frame: afzet (0-8) omhoog, overheen (8-50) boven,
-// neerkomen (50-62) omlaag, landen daarna op de grond (ruwe verdeling uit LEESMIJ_vault.txt, op het oog)
+const BAN_VAULT_AFZET = 6;     // het frame waarop hij afzet (hij zet zich af van de grond en lanceert): daar valt het afzetgeluid
+const BAN_VAULT_LAND  = 58;    // het frame waarop hij neerkomt: lift terug op nul, en daar stuift het stof op
+const BAN_VAULT_PIEK  = 1.35;  // de top van de sprongboog boven de kei, als deel van de obstakelhoogte (ruim eroverheen)
+// de liftcurve, deel van de obstakelhoogte per frame: hij blijft op de grond tot de afzet (0-6), dan een
+// echte sprongboog (sinus) op tot boven de kei en weer omlaag naar de landing (58). Zo gaat hij eerst naar
+// de grond, zet zich daar af, vliegt in een boog over de steen en landt erachter, in plaats van recht
+// omhoog te zweven voor de kei. Op de top (piek > 1) ligt zijn laagste punt boven de kei, dus hij raakt hem
+// niet. Per frame staat het laagste punt (grond) in de json, zodat zijn voet op de opgetilde grondlijn ligt.
 function banVaultLift01(frame){
-  if (frame <= 8) return frame / 8;
-  if (frame <= 50) return 1;
-  if (frame <= 62) return 1 - (frame - 50) / 12;
-  return 0;
+  if (frame <= BAN_VAULT_AFZET || frame >= BAN_VAULT_LAND) return 0;
+  const u = (frame - BAN_VAULT_AFZET) / (BAN_VAULT_LAND - BAN_VAULT_AFZET);
+  return Math.sin(Math.PI * u) * BAN_VAULT_PIEK;
 }
 // De sprite verplaatst zichzelf: tussen frame 0 en het laatste frame schuift zijn figuur 193,5 canvas-px
 // vooruit (de cx uit sprites_vault.json). Op zijn eigen schaal is dat ~121 wereld-px, en dat is te weinig
 // om over een echte kei (zo'n 140 px breed) heen aan de overkant te landen. De engine drijft de rest erbij
-// (s.vaultExtra), verdeeld met deze curve: niets tijdens de plant (zijn hand staat op de kei, frame 0-14,
-// anders glijdt die weg), dan vloeiend naar 1 over de luchtfase. Zo landt hij altijd netjes voorbij de kei.
+// (s.vaultExtra), met dezelfde timing als de boog: niets tot de afzet (hij staat nog op de grond), dan
+// vloeiend naar 1 over de luchtfase. Zo gaan omhoog en vooruit samen en wordt het één sprongboog, en landt
+// hij altijd netjes voorbij de kei.
 const BAN_VAULT_ZELF = 193.5;  // de zelf-verplaatsing in canvas-px (cx frame 0 min cx laatste frame)
-const BAN_VAULT_LAND = 58;     // het frame waarop hij neerkomt: daar stuift het stof op
 function banVaultP(frame){
-  if (frame <= 14) return 0;
+  if (frame <= BAN_VAULT_AFZET) return 0;
   if (frame >= BAN_VAULT_LAND) return 1;
-  const u = (frame - 14) / (BAN_VAULT_LAND - 14);
+  const u = (frame - BAN_VAULT_AFZET) / (BAN_VAULT_LAND - BAN_VAULT_AFZET);
   return u * u * (3 - 2 * u);    // smoothstep
 }
 
@@ -19002,6 +19005,38 @@ const banAfzetSnd = banStemmen('sounds/banditafzet.mp3', 2);                    
 function banRoep(){ banStemSpeel(banRoepSnd[Math.random() < 0.5 ? 0 : 1], BAN_ROEP_VOL); }   // Die! of False king!, bij de charge
 function banSterf(){ banStemSpeel(banDoodSnd, BAN_ROEP_VOL); }                                // de doodskreet
 function banAfzet(){ banStemSpeel(banAfzetSnd, BAN_ROEP_VOL); }                               // de kreun bij het afzetten van de vault
+
+// Zijn voetstappen onder het rennen, gemaakt met de Web Audio API zoals de poten van de baviaan (`bavPoot`),
+// maar lichter: een mens op droge grond, niet de dreun van een poot. Een korte, snelle toon die in toonhoogte
+// zakt, met een tik zand erbovenop (ruis door een laagdoorlaatfilter dat dichtgaat). Op de twee neerkom-frames
+// van de run (4 en 11, dezelfde als het loopstof), elke keer iets anders en zachter naarmate hij verder van
+// Amir is (tot `ver` schermbreedtes, nooit zachter dan `min`), zodat je hem hoort aankomen. Via `acLoopt`, dus
+// hij start pas als de gedeelde context loopt (op een telefoon na de eerste tik), net als de baviaan.
+const BAN_STAP = { vol: 0.3, hz: 150, zak: 0.5, duur: 0.075, ruis: 0.7, filter: [2400, 600], ver: 1.0, min: 0.3 };
+let banRuis = null;
+function banVoetstap(wx){
+  if (!wantSound) return;
+  const ac = acLoopt();
+  if (!ac) return;
+  const P = BAN_STAP, t = ac.currentTime + 0.005;
+  const af = Math.max(P.min, 1 - Math.abs(wx - playerX()) / (P.ver * W));
+  const v = P.vol * af * (0.8 + Math.random() * 0.4), f0 = P.hz * (0.88 + Math.random() * 0.24);
+  const o = ac.createOscillator(), og = ac.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f0 * P.zak, t + P.duur * 0.7);
+  og.gain.setValueAtTime(0.0001, t); og.gain.exponentialRampToValueAtTime(v, t + 0.004); og.gain.exponentialRampToValueAtTime(0.0001, t + P.duur);
+  o.connect(og); og.connect(ac.destination); o.start(t); o.stop(t + P.duur + 0.02);
+  if (!banRuis){
+    banRuis = ac.createBuffer(1, Math.floor(ac.sampleRate * 0.1), ac.sampleRate);
+    const d = banRuis.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  const n = ac.createBufferSource(), lp = ac.createBiquadFilter(), ng = ac.createGain();
+  n.buffer = banRuis; lp.type = 'lowpass';
+  lp.frequency.setValueAtTime(P.filter[0], t); lp.frequency.exponentialRampToValueAtTime(P.filter[1], t + 0.05);
+  ng.gain.setValueAtTime(v * P.ruis, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+  n.connect(lp); lp.connect(ng); ng.connect(ac.destination); n.start(t); n.stop(t + 0.08);
+}
 
 // een gedeelde bank frames, pas geladen als een level of de sandbox erom vraagt
 const banBank = {};
@@ -19102,7 +19137,7 @@ function banAnim(s, dt){
     else if (s.frame < n - 1) s.frame++;
     else s.klaar = true;
     if (s.state === 'slag' && s.frame === BAN.klap) banPlaySlag();           // staal door de lucht
-    if (s.state === 'run' && (s.frame === 4 || s.frame === 11)) banLoopStof(s);   // een voetje zet neer
+    if (s.state === 'run' && (s.frame === 4 || s.frame === 11)){ banLoopStof(s); banVoetstap(s.x); }   // een voetje zet neer, met stof en geluid
   }
   if (!BAN_LOOP[s.state] && s.frame >= n - 1) s.klaar = true;
 }
