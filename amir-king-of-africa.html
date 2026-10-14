@@ -934,6 +934,14 @@
         <button data-thicket="4">4</button>
         <button data-thicket="5">5</button>
       </div>
+      <div class="row">
+        <label>Waterval</label>
+        <button id="sbwaterval">Op de grond</button>
+        <button id="sbwatervalwater">Op water</button>
+        <button id="sbwatervalnevel">Nevel aan/uit</button>
+        <button id="sbwatervalweg">Weg</button>
+        <span class="hint">valt van boven de rechter rotswand af; op water komt er een poel onder met rimpels</span>
+      </div>
     </div>
     <div class="sbcat" data-cat="terrein">
       <div class="row">
@@ -10106,6 +10114,110 @@ function arenaHudTeken(){
   ctx.globalAlpha = 1; ctx.fillStyle = '#f3e6c4';
   ctx.fillText(tekst, x, yTop + h / 2 + 1);
   ctx.restore();
+}
+
+// ---- waterval: water dat de rotswand af valt ------------------------------
+// Een proefstuk voor de sandbox (CLAUDE.md regel 2): een kolom vallend water tegen de
+// rechter rotswand. Volledig in code getekend, zodat het los staat van een asset: een
+// koele blauwwitte kolom met naar beneden lopende strepen (op speltijd, watervalT), een
+// warme rand aan de zonkant, een pulserende schuimkraag waar hij landt, en opstijgende
+// nevel. Komt van boven uit beeld. Landt op de grond, of met het veld water op een poel
+// (dan zet de sandbox er een poel onder) met rimpels op het oppervlak. Een level zet ze in
+// het veld watervallen: [{x, nevel, water}], x de wereld-x van het midden van de kolom.
+const WATERVAL = {
+  breed: 0.42,            // breedte als deel van Amir
+  val: 520,               // tempo van de strepen omlaag (px/s)
+  kleur: [206, 228, 239], // koel blauwwit
+  schuim: [242, 248, 251],
+  nevelKleur: [219, 218, 215],
+  strepen: 26,
+  streepLang: 34, streepGat: 60,   // een streep is 34 lang met 60 ertussen
+  nevelN: 8, nevelHoog: 1.2        // nevelwolkjes, en hoe hoog ze stijgen (deel van Amir)
+};
+let watervalT = 0;
+function watervalReset(){ watervalT = 0; }
+function watervalTeken(groundY, scale, cx){
+  const lijst = (level && level.watervallen) ? level.watervallen : [];
+  if (!lijst.length) return;
+  const rechts = zonRechts();                       // de warme rand ligt aan de zonkant
+  const kl = WATERVAL.kleur.join(','), sc = WATERVAL.schuim.join(','), nv = WATERVAL.nevelKleur.join(',');
+  for (const wv of lijst){
+    const bx = cx + (wv.x - world);
+    const w = WATERVAL.breed * CHAR_H * scale;
+    if (bx + w < -60 || bx - w > W / viewZoom() + 60) continue;
+    const by = groundY - terrainH(wv.x) * scale;    // de waterlijn of de grond
+    // de vallende kolom, van boven uit beeld tot de landing
+    ctx.save();
+    ctx.beginPath(); ctx.rect(bx - w / 2, -40, w, by + 40); ctx.clip();
+    const g = ctx.createLinearGradient(bx - w / 2, 0, bx + w / 2, 0);
+    g.addColorStop(0, 'rgba(' + kl + ',0.12)');
+    g.addColorStop(0.5, 'rgba(' + kl + ',0.55)');
+    g.addColorStop(1, 'rgba(' + kl + ',0.12)');
+    ctx.fillStyle = g; ctx.fillRect(bx - w / 2, -40, w, by + 40);
+    // de strepen schuiven naar beneden (op speltijd, dus ook op een telefoon goed)
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineCap = 'round';
+    const per = WATERVAL.streepLang + WATERVAL.streepGat;
+    const off = ((watervalT * WATERVAL.val) % per + per) % per;
+    for (let i = 0; i < WATERVAL.strepen; i++){
+      const t = (i + 0.5) / WATERVAL.strepen;
+      const fx = bx - w / 2 + t * w + Math.sin(i * 2.1) * w * 0.03;
+      const a = 0.05 + 0.13 * Math.abs(Math.sin(i * 1.7));
+      ctx.strokeStyle = 'rgba(' + kl + ',' + a.toFixed(3) + ')';
+      ctx.lineWidth = Math.max(1, w / WATERVAL.strepen * 0.55);
+      ctx.beginPath();
+      for (let y = -per + off + i * 13 % per; y < by; y += per){
+        ctx.moveTo(fx, y); ctx.lineTo(fx, Math.min(by, y + WATERVAL.streepLang));
+      }
+      ctx.stroke();
+    }
+    // de warme rand aan de zonkant
+    const ex = rechts ? bx + w / 2 : bx - w / 2, inX = rechts ? bx + w * 0.2 : bx - w * 0.2;
+    const wg = ctx.createLinearGradient(inX, 0, ex, 0);
+    wg.addColorStop(0, 'rgba(255,200,120,0)');
+    wg.addColorStop(1, 'rgba(255,200,120,0.5)');
+    ctx.fillStyle = wg; ctx.fillRect(bx - w / 2, -40, w, by + 40);
+    ctx.restore();
+    // de schuimkraag waar hij landt, pulserend
+    const fl = 0.8 + 0.2 * Math.sin(watervalT * 8 + wv.x * 0.01);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const fr = w * 0.95 * fl;
+    const fg = ctx.createRadialGradient(bx, by, 0, bx, by, fr);
+    fg.addColorStop(0, 'rgba(' + sc + ',' + (0.55 * fl).toFixed(3) + ')');
+    fg.addColorStop(0.5, 'rgba(' + sc + ',' + (0.22 * fl).toFixed(3) + ')');
+    fg.addColorStop(1, 'rgba(' + sc + ',0)');
+    ctx.fillStyle = fg; ctx.beginPath(); ctx.ellipse(bx, by, fr, fr * 0.45, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    // rimpels op het water
+    if (wv.water){
+      ctx.save();
+      ctx.strokeStyle = 'rgba(' + sc + ',0.5)'; ctx.lineWidth = Math.max(1, scale * 1.5);
+      for (let k = 0; k < 3; k++){
+        const prog = ((watervalT * 0.5 + k / 3) % 1);
+        const rr = w * (0.4 + prog * 1.6);
+        ctx.globalAlpha = 0.5 * (1 - prog);
+        ctx.beginPath(); ctx.ellipse(bx, by + 6 * scale, rr, rr * 0.22, 0, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.restore();
+    }
+    // opstijgende nevel
+    if (wv.nevel !== false){
+      ctx.save();
+      for (let i = 0; i < WATERVAL.nevelN; i++){
+        const prog = ((watervalT * 0.3 + i / WATERVAL.nevelN) % 1);
+        const mx = bx + Math.sin(i * 1.3 + watervalT * 0.6) * w * 0.55;
+        const my = by - prog * CHAR_H * scale * WATERVAL.nevelHoog;
+        const mr = w * (0.45 + prog * 0.75);
+        const a = 0.26 * (1 - prog) * Math.min(1, prog * 5);
+        const mg = ctx.createRadialGradient(mx, my, 0, mx, my, mr);
+        mg.addColorStop(0, 'rgba(' + nv + ',' + a.toFixed(3) + ')');
+        mg.addColorStop(1, 'rgba(' + nv + ',0)');
+        ctx.fillStyle = mg; ctx.beginPath(); ctx.arc(mx, my, mr, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
 }
 
 // ---- de rotswand rechts: het einde van het level ----------------------
@@ -20628,6 +20740,7 @@ function loop(now){
   if (dt > 0) speervalUpdate(dt, scaleNow);       // de speer in de rotswand: trillen, vliegen, vallen
   if (dt > 0) skeletUpdate(dt, scaleNow);         // instorten, en de schedel die wegrolt
   if (dt > 0) tekenUpdate(dt);                    // het doek aan een speerteken, in de wind
+  if (dt > 0) watervalT += dt;                    // de waterval: strepen, schuim en nevel lopen op speltijd
   ctx.clearRect(0, 0, W, H);
   ctx.save();
   ctx.translate(shakeX + ravijnSX, shakeY + ravijnSY);
@@ -20808,6 +20921,7 @@ function loop(now){
       }
     }
 
+    watervalTeken(groundY, scale, cx);             // de waterval tegen de rechter rotswand (sandbox)
     speervalTeken(groundY, scale, cx, true);       // de speer in de rotswand: het steen ligt over zijn staart
     // jouw eigen kliffen: gespiegeld, de muur wijst naar rechts (naar je start)
     if (!arenaAap && level && level.cliffs && level.cliffs.length && cliffImgNow.complete && cliffImgNow.naturalWidth){
@@ -24494,6 +24608,33 @@ document.getElementById('sbplafondweg').onclick = () => {
   if (level.plafond) level.plafond.length = 0;
   cv.focus();
 };
+// De waterval tegen de rechter rotswand: van boven uit beeld, net links van de wand.
+// Op water zet hij er een poel onder (zoals level.water), met rimpels op het oppervlak.
+function sbWatervalWeg(){
+  level.watervallen = [];
+  if (level.water) level.water = level.water.filter(w => !w.sbWaterval);
+}
+function sbWaterval(opWater){
+  sbWatervalWeg();
+  if (!level.watervallen) level.watervallen = [];
+  const w = WATERVAL.breed * CHAR_H * nowScale();
+  const x = cliffAt().wall - w / 2 - 12;                 // net links van de rotswand
+  level.watervallen.push({ x, nevel: true, water: !!opWater });
+  if (opWater){
+    if (!level.water) level.water = [];
+    level.water.push({ x, n: 2, sbWaterval: true });     // een poel onder de waterval
+  }
+  watervalReset();
+  flashHint(opWater ? 'Een waterval die in een poel valt' : 'Een waterval die de rotswand af valt');
+  cv.focus();
+}
+document.getElementById('sbwaterval').onclick = () => sbWaterval(false);
+document.getElementById('sbwatervalwater').onclick = () => sbWaterval(true);
+document.getElementById('sbwatervalnevel').onclick = () => {
+  for (const wv of (level.watervallen || [])) wv.nevel = wv.nevel === false;
+  cv.focus();
+};
+document.getElementById('sbwatervalweg').onclick = () => { sbWatervalWeg(); cv.focus(); };
 // Het zakkende plafond van Test 15 in het klein, voor je uit (naar links): een lage doorgang, het zegel dat
 // hem laat zakken, een kamer van SB_ZAK.kamer, de spleet en het zegel erachter. Op de savanne hangt het steen
 // uit de lucht; in de sandbox plet het je niet, dan gaat het weer omhoog.
