@@ -857,7 +857,7 @@ def velden(lv, sp):
         if o.get('k') not in sp.NPCS:
             yield fout(o.get('x'), "npc '%s' staat niet in NPCS en wordt weggelaten" % o.get('k'))
     for o in lv.d.get('spawns') or []:
-        if o.get('k') not in ('groen', 'zwart', 'scorp', 'panter', 'hyenas', 'zwaard', 'fosfor'):
+        if o.get('k') not in ('groen', 'zwart', 'scorp', 'panter', 'hyenas', 'zwaard', 'fosfor', 'bandiet'):
             yield fout(o.get('x'), "vijand '%s' bestaat niet: het spel maakt er een groene slang van" % o.get('k'))
         if o.get('c') and o.get('c') not in sp.ZW_KLEUREN:
             yield fout(o.get('x'), "kleur '%s' bestaat niet: het wordt rood" % o.get('c'))
@@ -961,7 +961,7 @@ def voorbij(lv, sp):
 
 @regel('vijanden')
 def vijanden(lv, sp):
-    if not lv.d.get('spawns'):
+    if not lv.d.get('spawns') and not lv.d.get('bandietGolf'):
         yield letop(None, 'lege spawns: het spel valt dan terug op de vrije modus en stuurt zelf slangen op je af')
     for o in lv.d.get('spawns') or []:
         if not isinstance(o.get('x'), (int, float)):
