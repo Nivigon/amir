@@ -19582,12 +19582,13 @@ const BAN_NA_SLAG   = 0.45;   // en zo lang hijgt hij na, voor hij weer op je af
 const BAN_HP        = 2;      // twee treffers; de eerste breekt zijn slag af
 const BAN_INV_T     = 0.5;    // onkwetsbaar na een treffer
 const BAN_KNOCK     = 240;    // zo hard stuitert hij achteruit als jij hem raakt (wereld-px/s, dooft uit): genoeg dat je de spacing ziet
-// Na een rake steek op hem moet jij net kunnen wegstappen voor zijn tegenklap valt (en wie blijft staan
-// om meteen nog eens te steken, wordt gestraft). Daarom wacht hij BAN_NA_HIT voor hij weer op je af komt:
-// zo zet zijn opzwaai pas zo'n 0,6 s na jouw treffer in, terwijl jij na je stoot al na ~0,26 s los bent,
-// dus je hebt net de tijd om in beweging te komen zodat zijn doorschuif je onderschiet. Een tweede steek
-// (nog eens ~0,56 s vast) loopt daar voorbij, dus dan staat hij op je als de klap komt.
-const BAN_NA_HIT    = 0.45;   // zo lang herstelt hij na een treffer van jou, voor hij weer inzet
+// De mechanic is spacing: steek, pak afstand, steek. Na een rake steek stuitert hij terug (BAN_KNOCK)
+// en herstelt hij kort (BAN_NA_HIT); daarna komt hij meteen weer in. Omdat hij BAN_INV_T onkwetsbaar is,
+// doet nog eens steken niets (je stoot telt niet), dus je MOET wegstappen voor je weer kunt raken. Blijf
+// je staan, dan is zijn herstel korter dan jouw herhaalde stoot en staat hij op je met zijn slag: wie
+// facetankt verliest. Het venster om weg te komen is dus kort (je bent na ~0,26 s los uit je stoot, en
+// de terugstoot geeft je net wat ruimte). Voelt hij te meedogenloos, zet BAN_NA_HIT dan iets hoger.
+const BAN_NA_HIT    = 0.22;   // zo kort herstelt hij na een treffer van jou, voor hij weer inzet (kort, zodat facetanken straft)
 const BAN_STUCK_T   = 1.0;    // komt hij zo lang niet vooruit (een kei, een ravijn), dan kijkt hij rond
 const BAN_LIJK_FADE = 0.7;    // het lijk blijft liggen; pas als een lage zwaai het wegveegt zakt het in zoveel seconden weg
 const BAN_VOET_VOOR = 210;    // zijn voorste voet, voor het blokkeren op een kei (regel 7)
@@ -19612,12 +19613,12 @@ const BAN_SLIDE_IN    = 600;    // de vaart van de doorschuif die bij de klap be
 const BAN_SLIDE_DECAY = 0.30;   // en zo remt die af: hij glijdt na de treffer nog een stukje door
 // De slag heeft een eigen tempo per stuk (zoals de baviaan), want op één vaste fps bleef hij te lang
 // met de kling boven zijn hoofd hangen (frame 6 tot 19) en dat las als stilstaan. Nu snelt hij door
-// het uithalen en de hoge houding heen en is de neerwaartse haal (frame 20 tot 28) kort maar leesbaar;
-// samen is de slag korter (zo'n 0,8 s in plaats van 1,3) en dus sneller. `tot` is de bovengrens (exclusief).
-const BAN_SLAG_TEMPO = [ { tot: 6, fps: 38 },    // hurken en de kling omhoog
-                         { tot: 20, fps: 50 },   // de hoge houding: snel erdoorheen, geen lange hangpauze
-                         { tot: 29, fps: 33 },   // de neerwaartse haal: kort maar te zien (en te ontwijken)
-                         { tot: 33, fps: 44 } ]; // herstel
+// het uithalen en de hoge houding heen en is de neerwaartse haal (frame 20 tot 28) leesbaar en te
+// ontwijken; samen duurt de slag zo'n 1,0 s (was 1,3, en even 0,8 maar dat las te snel). `tot` is de bovengrens (exclusief).
+const BAN_SLAG_TEMPO = [ { tot: 6, fps: 30 },    // hurken en de kling omhoog
+                         { tot: 20, fps: 40 },   // de hoge houding: vlot erdoorheen, maar wel te lezen als tell
+                         { tot: 29, fps: 26 },   // de neerwaartse haal: wat trager, zodat je hem ziet en kunt ontwijken
+                         { tot: 33, fps: 40 } ]; // herstel
 function banSlagFps(frame){
   for (const seg of BAN_SLAG_TEMPO) if (frame < seg.tot) return seg.fps;
   return 33;
@@ -19941,8 +19942,10 @@ function updateBandiet(s, dt, plats, cliff){
     s.face = naarJe;
     banAnim(s, dt);
     if (!s.gegooid && s.frame >= BAN_SPOT_WORP){ s.gegooid = true; banGooiDolk(s); }  // de dolk vertrekt
-    if (s.klaar){ s.naworp = (s.naworp || 0) + dt;   // na de worp een kwart seconde wachten, dan rent hij op Amir af
-      if (s.naworp > 0.25){ banSet(s, 'run'); s.rust = BAN_NA_SLAG; } }
+    // meteen door naar run zodra hij geworpen heeft: het laatste spotframe heeft de dolk nog bij zijn
+    // hand (de wegvliegframes zitten niet in de set), dus bleef die hangen terwijl het projectiel al
+    // vloog, en zag je twee dolken. In run staat hij met lege hand na te hijgen (BAN_NA_SLAG)
+    if (s.klaar){ banSet(s, 'run'); s.rust = BAN_NA_SLAG; }
     return;
   }
 
