@@ -517,7 +517,8 @@ helpt maar half. Staan er meer bij elkaar, dan vecht wie het dichtst bij je staa
 anderen rond (de look-set) tot het hun beurt is. Een kei en een ravijn houden hem tegen zoals
 elke vijand (regel 7): een kei is ook voor hem een schuilplek, en voor een ravijn stopt zijn
 uitval. Zodra hij op je af gaat rennen, slaakt hij een strijdkreet ("Die!" of "False king!"),
-en als je hem velt klinkt zijn doodskreet.
+en als je hem velt klinkt zijn doodskreet. Onder het rennen hoor je zijn voetstappen op de grond,
+zachter naarmate hij verder weg is, zodat je hem hoort aankomen.
 
 **De dolk.** Met de optie `dolk` gooit een bandiet eerst zijn dolk voor hij in de aanval gaat:
 zodra hij in beeld binnen werpbereik komt maar nog niet in zwaardbereik is, blijft hij staan,
@@ -542,9 +543,9 @@ neer met `{x, k: 'bandiet', hurk: true}`; in de sandbox met de knop **Hinderlaag
 
 **Over een kei heen vaulten.** Een kei houdt een bandiet gewoon tegen (regel 7), en zo is hij voor
 jou een schuilplek. Maar met de optie `vault` is dat anders: komt zo'n bandiet bij een kei aan en
-sta jij aan de overkant, dan springt hij er in een eenhandige radslag overheen (met stof bij het
-afzetten en bij het neerkomen, en zijn hand op de kei), landt vlak voor je en gaat meteen weer in de
-aanval. Voor hem is de kei dan geen schuilplek meer: je moet hem van je af houden of neersteken, niet
+sta jij aan de overkant, dan zet hij zich bij de kei op de grond af en vliegt hij er in een eenhandige
+radslag in een boog overheen (met stof bij het afzetten en bij het neerkomen), landt vlak voor je en
+gaat meteen weer in de aanval. Voor hem is de kei dan geen schuilplek meer: je moet hem van je af houden of neersteken, niet
 erachter wegkruipen. In de lucht raak je hem niet. Je zet het aan met `{x, k: 'bandiet', vault: true}`
 (ook samen met `hurk`), en in de sandbox met de knop **Vault**. In Test 31 kunnen de gehurkte
 bandieten het: de kei op jouw kant is daar dus geen veilige plek meer.
