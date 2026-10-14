@@ -72,6 +72,15 @@ grond) is een keuze van het level, en een level zonder mag juist de uitdaging zi
 speer te halen zijn: een doornbos na de rune en voor het skelet houdt je voorgoed tegen, want zonder
 speer kap je het niet (behalve met het mes van Jackal Fang). `levelcheck.py` meldt dat onder `speer na een rune`.
 
+En de speer bij dat skelet moet ook echt te trekken zijn: E vasthouden kost zo'n 2 seconden stilstaan
+met lege handen (`SKELET.trek.duur`), dus het eerste skelet na een rune hoort een vrije pull-zone te
+hebben. Een bandiet (net onder sprint, rent meteen aan) vlak voorbij het skelet maakt het onmogelijk,
+een zwaardvechter maakt het krap; een slang, schorpioen, fosforslang of hyena mag dichterbij, want die
+zijn traag of wachten, en de lage zwaai (werkt zonder speer) maakt zelf ruimte. Zet de charger-golf dus
+pas een stuk voorbij het skelet, zoals De Poorten doet. `levelcheck.py` meldt een bandiet binnen 1200 px
+voorbij het skelet als FOUT en een zwaardvechter daar als LET OP, ook onder `speer na een rune`
+(`SPEER_HAAL_VRIJ`). Dit kwam uit Valse Koning 1, waar twee bandieten op het skelet stonden.
+
 ## Waar wat staat
 
 De HTML is opgedeeld met commentaarkoppen (`// ---- ... ----`). Zoek daarop, niet op
