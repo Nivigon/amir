@@ -18504,9 +18504,6 @@ const ZW_KNOCK     = 130;     // en zo hard stuitert hij achteruit (wereld-px/s,
 const ZW_STUCK_T   = 1.2;     // komt hij zo lang niet vooruit (een rots, een ravijn), dan dreigt hij daar
 const ZW_LIJK_T    = 6.0;     // zo lang blijft hij liggen nadat hij neer is gekomen
 const ZW_LIJK_FADE = 0.8;     // en in die laatste seconde zakt hij weg
-const ZW_RUIMTE    = 420;     // zo veel ruimte houdt hij van zijn maat (canvaspixels), anders
-                              // rennen ze bij een groepje allebei naar dezelfde plek en staan
-                              // ze in elkaar; nu wacht de tweede zijn beurt af en blijft dreigen
 // het zwaard is tijdens de raakframes de raakzone: canvaspixels vanaf het anker in
 // de kijkrichting, en boven de grondlijn. De kling zwiept laag naar voren, dus
 // bukken helpt niet: je moet buiten zijn bereik blijven of eerder toeslaan.
@@ -18650,18 +18647,6 @@ function zwTegenKei(s, nx, plats, halfL){
   }
   return false;
 }
-// Staat er een maat tussen hem en jou, dan gaat hij daar niet doorheen. Wie het
-// dichtst bij je staat vecht; de rest blijft er een lijf vandaan staan dreigen.
-function zwInDeWeg(s, nx){
-  const ruim = ZW_RUIMTE * zwScale();
-  const mijn = Math.abs(s.x - playerX());
-  for (const o of zwaarden){
-    if (o === s || o.state === 'dood') continue;
-    if (Math.abs(o.x - nx) > ruim) continue;
-    if (Math.abs(o.x - playerX()) < mijn) return true;      // hij was er eerder
-  }
-  return false;
-}
 function updateZwaarden(dt, plats, cliff){
   if (!running || (dead && !sandbox)) return;
   for (let i = zwaarden.length - 1; i >= 0; i--){
@@ -18724,7 +18709,6 @@ function updateZwaard(s, dt, plats, cliff){
     if (s.t < ZW_DREIG_T) return;
     if (!zwZelfdeHoogte(s)) return;                 // Amir staat op een ander niveau: dreigen, maar niet uithalen
     if (gap <= zwReik() * ZW_SLAG_DEEL) zwSet(s, 'slag');
-    else if (zwInDeWeg(s, s.x + naarJe * ZW_RUIMTE * zwScale())) s.t = ZW_DREIG_T - 0.3;   // wachten op zijn beurt
     else zwSet(s, 'rennen');
     return;
   }
@@ -18735,7 +18719,6 @@ function updateZwaard(s, dt, plats, cliff){
     if (!zwZelfdeHoogte(s)){ zwSet(s, 'dreigen'); return; }   // Amir ging naar een ander niveau: hij kan er niet bij
     if (gap <= zwReik() * ZW_SLAG_DEEL){ zwSet(s, 'slag'); return; }
     const stap = naarJe * ZW_RUN_SPD * dt;
-    if (zwInDeWeg(s, s.x + stap)){ zwSet(s, 'dreigen'); return; }   // zijn maat vecht eerst
     const voor = s.x;
     zwMove(s, stap, plats, cliff);
     // een rots, een ravijnrand of de klifwand: daar blijft hij staan dreigen
@@ -18817,7 +18800,6 @@ const BAN_KNOCK     = 150;    // zo hard stuitert hij achteruit (wereld-px/s, do
 const BAN_STUCK_T   = 1.0;    // komt hij zo lang niet vooruit (een kei, een ravijn), dan kijkt hij rond
 const BAN_LIJK_T    = 5.0;    // zo lang blijft hij liggen voor hij wegzakt
 const BAN_LIJK_FADE = 0.7;
-const BAN_RUIMTE    = 360;    // zo veel ruimte houdt hij van een maat (canvaspixels): wie verder van je staat kijkt rond en wacht
 const BAN_VOET_VOOR = 210;    // zijn voorste voet, voor het blokkeren op een kei (regel 7)
 // De uitval is één vloeiende glijbeweging: hij neemt zijn volle loopvaart mee het moment dat hij
 // uithaalt (geen stilstand voor de slag) en remt dan geleidelijk af over de hele haal, zodat de
@@ -18982,17 +18964,6 @@ function banTegenKei(s, nx, plats, halfL){
   }
   return false;
 }
-// staat er een maat dichter bij je dan hij, dan wacht hij op zijn beurt (hij kijkt dan rond, 'look')
-function banInDeWeg(s, nx){
-  const ruim = BAN_RUIMTE * banScale();
-  const mijn = Math.abs(s.x - playerX());
-  for (const o of bandieten){
-    if (o === s || o.state === 'dood') continue;
-    if (Math.abs(o.x - nx) > ruim) continue;
-    if (Math.abs(o.x - playerX()) < mijn) return true;      // hij was er eerder
-  }
-  return false;
-}
 function banLoopStof(s){ puffWorld(s.x - s.face * 20, 1, 0, 0.42, s.base || 0); }
 // een duidelijke, dichte zandwolk, zoals bij de landing van de baviaan en bij Amir: dichtere wolkjes die
 // afremmen en langzaam opstijgen (zweef) in plaats van meteen te vallen, met wat zandkorrels erbij voor de
@@ -19077,24 +19048,22 @@ function updateBandiet(s, dt, plats, cliff){
 
   s.face = naarJe;                                   // buiten de slag en de worp draait hij altijd naar je toe
 
-  if (s.state === 'look'){                           // op zijn beurt wachten: over de schouder kijken
+  if (s.state === 'look'){                           // taunt als hij op een kei of ravijn stuit (BAN_STUCK_T)
     banAnim(s, dt);
-    if (!banInDeWeg(s, s.x + naarJe * BAN_RUIMTE * banScale())){ banSet(s, 'run'); return; }
-    if (s.klaar) banSet(s, 'look');                  // nog in de weg: nog eens kijken
+    if (s.klaar) banSet(s, 'run');                   // klaar met rondkijken, weer op je af
     return;
   }
 
   // 'run': op je af rennen
   banAnim(s, dt);
   // eerst de dolk gooien, zodra hij je ziet maar nog niet in zwaardbereik: hij blijft staan en gooit
-  if (s.dolk && !s.gegooid && banZelfdeHoogte(s) && gap <= banWorpRange() && gap > banReik() * 1.3
-      && !banInDeWeg(s, s.x)){ s.gegooid = true; banSet(s, 'worp'); s.face = naarJe; return; }
+  if (s.dolk && !s.gegooid && banZelfdeHoogte(s) && gap <= banWorpRange() && gap > banReik() * 1.3){
+    s.gegooid = true; banSet(s, 'worp'); s.face = naarJe; return; }
   if (banZelfdeHoogte(s) && s.rust <= 0 && gap <= banReik() * BAN_SLAG_DEEL){
     banSet(s, 'slag'); s.lunge = BAN_LUNGE_IN * s.face; s.dustT = 0;   // de volle loopvaart gaat mee de slag in
     banStofWolk(s.x - s.face * 20, s.base || 0, 14, s.face * 60, 1.8); // en een duidelijke opstuivende zandwolk bij de afzet
     return;
   }
-  if (banInDeWeg(s, s.x + naarJe * BAN_RUN_SPD * dt)){ banSet(s, 'look'); return; }   // zijn maat vecht eerst
   if (s.rust > 0) return;                            // even na-hijgen: hij staat stil op het eerste renframe
   if (!s.geroepen){ s.geroepen = true; banRoep(); }  // zijn strijdkreet, één keer, zodra hij echt op Amir af rent
   const voor = s.x;
