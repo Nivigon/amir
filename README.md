@@ -507,7 +507,11 @@ opstuivende zandwolk bij zijn voeten, zoals bij een landing. Dat doorschieten is
 stap of spring weg, laat hem voorbijglijden, en steek hem in de rug terwijl hij nahijgt en zich
 omdraait. Daarna komt hij
 weer. Zijn kromzwaard reikt korter dan het langzwaard van de zwaardvechter, dus je speer komt
-er makkelijker langs; hij houdt twee treffers, en de eerste breekt zijn haal af. Hij rent net
+er makkelijker langs; hij houdt twee treffers, en de eerste breekt zijn haal af. Raak je hem,
+dan stuitert hij terug en herstelt hij even voor hij weer inzet: dat venster is net lang genoeg
+om weg te stappen, maar niet om meteen nog een keer te steken. Blijf je staan om door te rammen,
+dan staat hij op je als zijn tegenklap valt, dus het ritme is raken, even uit zijn bereik, en dan
+weer raken. Hij rent net
 iets langzamer dan jij sprint, maar in een groep komt hij van twee kanten, dus wegrennen
 helpt maar half. Staan er meer bij elkaar, dan vecht wie het dichtst bij je staat en kijken de
 anderen rond (de look-set) tot het hun beurt is. Een kei en een ravijn houden hem tegen zoals
