@@ -18906,24 +18906,24 @@ const BAN_LIJK_T    = 5.0;    // zo lang blijft hij liggen voor hij wegzakt
 const BAN_LIJK_FADE = 0.7;
 const BAN_VOET_VOOR = 210;    // zijn voorste voet, voor het blokkeren op een kei (regel 7)
 const BAN_SCHEID    = 290;    // zachte scheiding: zo dicht mogen twee bandieten bij elkaar (canvaspixels), anders duwen ze elkaar zacht opzij
-// De uitval is één vloeiende glijbeweging: hij neemt zijn volle loopvaart mee het moment dat hij
-// uithaalt (geen stilstand voor de slag) en remt dan geleidelijk af over de hele haal, zodat de
-// slag en het doorschuiven samen één beweging zijn. Geen aparte afzet halverwege meer: die gaf een
-// hapering (eerst snel in, bijna stilstand, dan opnieuw vooruit). Nu loopt de vaart van begin tot
-// eind gestaag terug en plant hij voor de herstelframes (frame BAN_LUNGE_TOT). Stopt ook voor een
-// kei of een ravijn (knockBlocked, regel 7).
-const BAN_LUNGE_IN    = 480;    // de loopvaart die hij meeneemt bij het inzetten van de slag (= BAN_RUN_SPD)
-const BAN_LUNGE_DECAY = 0.18;   // en zo zakt die vaart geleidelijk (per seconde): hij glijdt nog door tijdens de haal
+// De doorschuif in twee fasen, zodat hij raakt tijdens de slide en er een stukje doorglijdt, in
+// plaats van er al voorbij te zijn voor de kling telt. Het probleem was: zijn glij zat vooraan in de
+// opzwaai (front-loaded), terwijl de kling pas live gaat op de raakframes (21 tot 27), en Amir is geen
+// obstakel voor hem (banMove kent hem niet). Zo lag zijn lijf al voorbij Amir voor de kling telde en
+// haalde hij door de lucht achter hem.
+// 1. Opzwaai (frame < BAN.klap): hij glijdt in op zijn aanlooprest (BAN_LUNGE_IN, decay BAN_LUNGE_DECAY),
+//    maar niet verder dan net voor Amir (BAN_SLIDE_STAND van zijn reik), zodat hij niet vroeg door hem
+//    heen schiet en niet in hem blijft staan.
+// 2. De haal (vanaf BAN.klap): de doorschuif begint precies als de kling zakt. Hij schiet vooruit
+//    (BAN_SLIDE_IN, decay BAN_SLIDE_DECAY), snijdt door Amir heen op het moment dat hij hem kruist (de
+//    kling reikt ongeveer 1,4 reik, dus van net voor Amir dekt ze hem al bij frame 21), en glijdt
+//    daarna remmend nog een stukje door. Stopt ook voor een kei of ravijn (knockBlocked, regel 7).
+const BAN_LUNGE_IN    = 480;    // de aanloopvaart waarmee hij in de opzwaai nog inglijdt (= BAN_RUN_SPD)
+const BAN_LUNGE_DECAY = 0.18;   // en zo zakt die vaart geleidelijk (per seconde): hij komt tot net voor Amir
 const BAN_LUNGE_TOT   = 28;     // tot hier schuift hij door; daarna plant hij voor de herstelframes
-// Hij glijdt niet door Amir heen: zodra zijn lijf op zwaardafstand komt, plant hij en vangt de haal
-// Amir in de kling in plaats van erlangs. Amir is geen obstakel voor hem (banMove kent hem niet) en de
-// kling gaat pas live op de raakframes (21 tot 27), dus zonder dit schoof de front-loaded glij hem er al
-// voorbij voor de kling telde en haalde hij door de lucht achter Amir. `deel` is de plantafstand van zijn
-// anker tot Amir, als deel van zijn reik. Op zijn volle reik (1,0): de uitval zit in de frames zelf (zijn
-// voorste been en arm schieten vooruit), dus op minder stond zijn lijf alsnog ín Amir; op 1,0 staan de
-// rompen op duelafstand naast elkaar en reikt alleen zijn arm met de kling naar Amir. De kling raakt nog
-// tot ongeveer 1,4 reik, dus hier is ruimte over.
-const BAN_PLANT_DEEL  = 1.00;
+const BAN_SLIDE_STAND = 0.80;   // tot zo dicht voor Amir glijdt hij in de opzwaai (deel van zijn reik): geen overlap
+const BAN_SLIDE_IN    = 600;    // de vaart van de doorschuif die bij de klap begint (wereld-px/s)
+const BAN_SLIDE_DECAY = 0.30;   // en zo remt die af: hij glijdt na de treffer nog een stukje door
 // De slag heeft een eigen tempo per stuk (zoals de baviaan), want op één vaste fps bleef hij te lang
 // met de kling boven zijn hoofd hangen (frame 6 tot 19) en dat las als stilstaan. Nu snelt hij door
 // het uithalen en de hoge houding heen en is de neerwaartse haal (frame 20 tot 28) kort maar leesbaar;
@@ -19045,7 +19045,7 @@ function makeBandiet(x, side, dolk, hurk){
   // side 1 = hij staat rechts van je. De frames kijken naar LINKS, dus face 1 (naar rechts) = gespiegeld
   const b = { x, face: -side, state: 'run', frame: 0, acc: 0, t: 0,
            hp: BAN_HP, inv: 0, flash: 0, knock: 0, base: 0, stuck: 0, lig: 0, alpha: 1,
-           lunge: 0, lungeOn: false, rust: 0, dustT: 0, deadFace: -1,
+           lunge: 0, lungeOn: false, drive: false, rust: 0, dustT: 0, deadFace: -1,
            dolk: !!dolk, gegooid: false, dolkUit: false,  // gooit hij eerst zijn dolk; heeft hij de worp al gebruikt; is de dolk al los
            geroepen: false,                               // heeft hij zijn strijdkreet al geroepen (één keer, bij de eerste charge)
            ambush: !!hurk,                                // hij zit gehurkt in een hinderlaag en springt op met een dolkworp
@@ -19056,7 +19056,7 @@ function makeBandiet(x, side, dolk, hurk){
 }
 function banSet(s, state){
   s.state = state; s.frame = 0; s.acc = 0; s.t = 0; s.klaar = false; s.hitUsed = false;
-  s.lunge = 0; s.lungeOn = false;
+  s.lunge = 0; s.lungeOn = false; s.drive = false;
 }
 function banAnim(s, dt){
   const n = BAN.n[s.state] || 1;
@@ -19188,22 +19188,31 @@ function updateBandiet(s, dt, plats, cliff){
     return;
   }
 
-  if (s.state === 'slag'){                           // één vloeiende glijbeweging: hij schuift door terwijl hij slaat
+  if (s.state === 'slag'){                           // de doorschuif in twee fasen (zie boven): inglijden, dan door de haal
     banAnim(s, dt);
-    if (s.frame <= BAN_LUNGE_TOT && s.lunge !== 0){   // de vaart loopt gestaag terug; hij glijdt remmend door de hele haal
-      s.dustT += dt;
-      let stap = s.lunge * dt;
-      const naarAmir = playerX() < s.x ? -1 : 1;       // de kant waar Amir nu staat
-      if (Math.sign(stap) === naarAmir){               // hij glijdt naar Amir toe: niet erdoorheen, maar planten op zwaardafstand
-        const ruimte = Math.abs(s.x - playerX()) - banReik() * BAN_PLANT_DEEL;
-        if (Math.abs(stap) >= ruimte){                 // deze stap zou te dichtbij of erdoorheen komen: plant zijn lijf
-          stap = Math.max(0, ruimte) * naarAmir;
-          s.lunge = 0; banStofWolk(s.x + stap, s.base || 0, 7, 0, 1.4);
+    s.dustT += dt;
+    if (s.frame < BAN.klap){                          // opzwaai: glijd in op de aanlooprest, tot net voor Amir
+      if (s.lunge !== 0){
+        let stap = s.lunge * dt;
+        const naarAmir = playerX() < s.x ? -1 : 1;
+        if (Math.sign(stap) === naarAmir){             // tegenhouden op zwaardafstand, zodat hij niet vroeg door Amir schiet
+          const ruimte = Math.abs(s.x - playerX()) - banReik() * BAN_SLIDE_STAND;
+          if (Math.abs(stap) >= ruimte){ stap = Math.max(0, ruimte) * naarAmir; s.lunge = 0; banStofWolk(s.x + stap, s.base || 0, 6, 0, 1.3); }
         }
+        if (stap !== 0 && !banMove(s, stap, plats, cliff)){ s.lunge = 0; banStofWolk(s.x, s.base || 0, 7, 0, 1.4); }
+        else if (s.lunge !== 0){ s.lunge *= Math.pow(BAN_LUNGE_DECAY, dt);
+               if (s.dustT >= 0.03){ s.dustT = 0; banGlijStof(s); } }
       }
-      if (stap !== 0 && !banMove(s, stap, plats, cliff)){ s.lunge = 0; banStofWolk(s.x, s.base || 0, 8, 0, 1.5); }
-      else if (s.lunge !== 0){ s.lunge *= Math.pow(BAN_LUNGE_DECAY, dt);
-             if (s.dustT >= 0.03){ s.dustT = 0; banGlijStof(s); } }
+    } else if (s.frame <= BAN_LUNGE_TOT){              // de haal: schiet door Amir heen, dan remmend een stukje door
+      if (!s.drive){                                  // de doorschuif begint bij de klap, met een opstuivende wolk
+        s.drive = true; s.lunge = BAN_SLIDE_IN * s.face;
+        banStofWolk(s.x - s.face * 20, s.base || 0, 12, s.face * 55, 1.7);
+      }
+      if (s.lunge !== 0){
+        if (!banMove(s, s.lunge * dt, plats, cliff)){ s.lunge = 0; banStofWolk(s.x, s.base || 0, 8, 0, 1.5); }
+        else { s.lunge *= Math.pow(BAN_SLIDE_DECAY, dt);
+               if (s.dustT >= 0.03){ s.dustT = 0; banGlijStof(s); } }
+      }
     } else if (s.lunge !== 0){                         // de haal is voorbij: planten (geen nadrift), met een laatste wolk
       s.lunge = 0; banStofWolk(s.x, s.base || 0, 7, 0, 1.4);
     }
@@ -19232,8 +19241,8 @@ function updateBandiet(s, dt, plats, cliff){
   if (s.dolk && !s.gegooid && banZelfdeHoogte(s) && gap <= banWorpRange() && gap > banReik() * 1.3){
     s.gegooid = true; banSet(s, 'worp'); s.face = naarJe; return; }
   if (banZelfdeHoogte(s) && s.rust <= 0 && gap <= banReik() * BAN_SLAG_DEEL){
-    banSet(s, 'slag'); s.lunge = BAN_LUNGE_IN * s.face; s.dustT = 0;   // de volle loopvaart gaat mee de slag in
-    banStofWolk(s.x - s.face * 20, s.base || 0, 14, s.face * 60, 1.8); // en een duidelijke opstuivende zandwolk bij de afzet
+    banSet(s, 'slag'); s.lunge = BAN_LUNGE_IN * s.face; s.dustT = 0;   // de opzwaai begint: hij glijdt nog in op zijn aanlooprest
+    banStofWolk(s.x - s.face * 20, s.base || 0, 8, s.face * 40, 1.5);  // een wolkje bij de afzet; de grote komt bij de klap (de doorschuif)
     return;
   }
   if (s.rust > 0) return;                            // even na-hijgen: hij staat stil op het eerste renframe
