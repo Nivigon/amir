@@ -3771,7 +3771,9 @@ function ledgePic(){ return winterPic('ledge', ledgeImg); }
 // per cel, 1:1 wereld naar scherm): schaalde de hoek mee met de schermhoogte, dan werd hij op een ander
 // venster te smal t.o.v. de wand en oogde de hoek recht afgesneden in plaats van rond. Zo dekt hij op elk
 // scherm dezelfde ~2,4 cellen af. De breedte (w * breed) komt zo op ~283 px, de ronding uit screenshot 2.
-const SCHACHT_HOEK = { src: 'design/klimmen/schacht_hoek.png', w: 1050, h: 698, crest: 63, lip: 307, breed: 0.27 };
+// voorrand is de rij in grondrand.png (EDGE) waar de soil in de klifrand overgaat (de kruimelige voorrand):
+// daarop verankeren we de soil-lip van de hoek, zodat die kruimelrand vloeiend doorloopt met de band.
+const SCHACHT_HOEK = { src: 'design/klimmen/schacht_hoek.png', w: 1050, h: 698, crest: 63, lip: 307, breed: 0.27, voorrand: 169 };
 const schachtHoekImg = new Image();
 schachtHoekImg.onerror = () => console.warn('ontbreekt: ' + SCHACHT_HOEK.src);
 schachtHoekImg.src = SCHACHT_HOEK.src;
@@ -4680,13 +4682,22 @@ function schachtHoekData(R, X, Y, ch){
   let tr = 0; while (tr < R.n && !grotReeksH(R, tr, (c, r) => grotVol(R, c, r)).length) tr++;
   if (tr >= R.n) return null;
   const surf = Y(tr) - ch;
-  const band = (EDGE.solid - EDGE.walk) * s;         // de zichtbare savanneband, net als in schachtKap
+  // dezelfde bandgeometrie als in schachtKap, zodat we op de echte kruin- en voorrandrijen van de band
+  // kunnen verankeren (niet op surf + band, want dan zakt de kruimelige voorrand van de hoek weg onder die
+  // van de band en loopt de kliprand niet door).
+  const top = surf - EDGE.walk * s;
+  const band = (EDGE.solid - EDGE.walk) * s;
+  const bottom = surf + band + ch * 0.8;
+  const nH = eimg.naturalHeight;
+  const drawH = Math.max(nH * s, Math.round(bottom - top + 6));
+  const bandCrest = top + (EDGE.kruin / nH) * drawH;          // de kruin (het grondoppervlak) van de band
+  const bandLip = top + (SCHACHT_HOEK.voorrand / nH) * drawH; // de kruimelige voorrand (soil -> klif) van de band
   const hs = SCHACHT_HOEK.breed;                     // horizontale schaal, VAST in wereld-px (wand is wereld-vast)
   const hw = SCHACHT_HOEK.w * hs;
   const lip = SCHACHT_HOEK.lip, crest = SCHACHT_HOEK.crest;
-  const yLip = surf + band;
-  const vss = (yLip - surf) / (lip - crest);         // soil verticaal gerekt (crest -> surf, lip -> yLip)
-  const aTop = surf - crest * vss;                   // schermrij van sprite-rij 0
+  const vss = (bandLip - bandCrest) / (lip - crest); // soil verticaal gerekt: crest -> bandCrest, lip -> bandLip
+  const aTop = bandCrest - crest * vss;              // schermrij van sprite-rij 0
+  const yLip = bandLip;
   const soilH = lip * vss, cliffH = (SCHACHT_HOEK.h - lip) * hs;
   const earthBot = yLip + cliffH;
   const geos = [];
