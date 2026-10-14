@@ -94,6 +94,19 @@ def main():
         for x in range(w):
             r, g, b, a = px[x, y]
             if a: px[x, y] = (round(r * rr[0]), round(g * rr[1]), round(b * rr[2]), a)
+    # de klif (onder de lip) is te warm/rood naast de grijze schachtwand: trek hem naar een koele grijstint,
+    # oplopend met de diepte zodat de soil-rand bij de lip ongemoeid blijft. mengen naar de luminantie met een
+    # koele weging (minder rood, iets meer blauw), zodat de klif op de grijze rots van de wand lijkt.
+    for y in range(lip, h):
+        amt = 0.52 * max(0.0, min(1.0, (y - lip) / (0.35 * (h - lip))))   # 0 bij de lip -> vol dieper
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if not a: continue
+            lum = 0.3 * r + 0.59 * g + 0.11 * b
+            gr = (lum * 0.90, lum * 0.90, lum * 1.02)                     # koele grijstint
+            px[x, y] = (round(r * (1 - amt) + gr[0] * amt),
+                        round(g * (1 - amt) + gr[1] * amt),
+                        round(b * (1 - amt) + gr[2] * amt), a)
     # linkerrand ruim laten overlopen in de band (brede, zachte cross-fade met een smoothstep-curve)
     fw = int(w * 0.40)
     for x in range(fw):

@@ -4443,25 +4443,57 @@ function grotMassa(R, X, Y, ch, scale, groundY, schacht){
   // binnen het silhouet van elk stuk. De tanden komen er in drawGrotten langs (schachtTanden).
   if (schacht){
     const tile = plafondVulTegel(); if (!tile) return;
+    const hd = schachtHoekData(R, X, Y, ch);          // de ronde hoek bovenin
+    const img = schachtHoekPic();
+    const tw = tile.width, th = tile.height, ax = X(0), ay = Y(0);
     for (const u of grotStukken(R)){
       const xl = X(u.c), xr = X(u.e + 1);
       // Geen terras-overstek boven de celrand: bij een gewoon terras steekt het steen tot boven de
       // looplijn uit voor het bovenvlak, maar hier ligt de savanne-kap (schachtKap) als bovenvlak op
-      // de wand. Stak het steen daar bovenuit, dan piekte er een grijze rotsrand boven het gras, over
-      // de hele wandtop. Het steen stopt nu op de celrand (de kaplijn) en de kap dekt het af. Bovenin
-      // dekken de savanneband en het ronde hoekstuk (schachtKap) de rots aan de kloofrand af.
+      // de wand. Het steen stopt op de celrand (de kaplijn) en de kap dekt het af.
       const top = Y(u.r) - ch;
       const diep = u.b === R.n - 1 ? Math.max(Y(u.b), Math.round(groundY)) : Y(u.b);
       const bottom = diep + 4;
-      ctx.save();
-      // De zijkanten blijven recht (geen grotSilPad): de tanden (schachtTanden) zijn hier de afwerking
-      // van de rand en zitten op de celrand. Recht gevuld sluiten de tanden vlak op het steen aan.
-      ctx.beginPath(); ctx.rect(xl, top - 4, xr - xl, bottom - (top - 4)); ctx.clip();
-      const tw = tile.width, th = tile.height, ax = X(0), ay = Y(0);
-      const bx = Math.round(ax - Math.ceil((ax - xl) / tw) * tw);
-      const by = Math.round(ay - Math.ceil((ay - (top - 4)) / th) * th);
-      for (let y = by; y < bottom; y += th) for (let x = bx; x < xr; x += tw) ctx.drawImage(tile, x, y);
-      ctx.restore();
+      const vul = (g, ox, oy) => {
+        const bx = Math.round(ax - Math.ceil((ax - xl) / tw) * tw);
+        const by = Math.round(ay - Math.ceil((ay - (top - 4)) / th) * th);
+        for (let y = by; y < bottom; y += th) for (let x = bx; x < xr; x += tw) g.drawImage(tile, x - ox, y - oy);
+      };
+      // Grenst dit stuk aan de kloof? Dan ligt er in de soil-zone (boven de kruimelige voorrand) aan de
+      // kloofkant een grijze rotsdriehoek naast de ronde hoek. Die knippen we weg op het silhouet van de
+      // soil van het hoekstuk, zodat de hoek tegen de lucht rondt. Onder de voorrand blijft ALLE rots staan
+      // (de klif wordt volledig door rots gesteund, geen doorschijnende plekken).
+      const gapR = hd && img && u.e + 1 < R.kol && !grotVol(R, u.e + 1, u.r);
+      const gapL = hd && img && u.c - 1 >= 0 && !grotVol(R, u.c - 1, u.r);
+      if (gapR || gapL){
+        const ox = Math.round(xl) - 2, oy = Math.round(top - 4) - 2;
+        const cw = Math.ceil(xr - ox) + 4, chh = Math.ceil(bottom - oy) + 4;
+        const rc = document.createElement('canvas'); rc.width = cw; rc.height = chh;
+        const rg = rc.getContext('2d'); vul(rg, ox, oy);
+        const mk = document.createElement('canvas'); mk.width = cw; mk.height = chh;
+        const mg = mk.getContext('2d'); mg.fillStyle = '#fff';
+        const lipY = Math.round(hd.yLip) - oy, aTopY = Math.round(hd.aTop) - oy;
+        mg.fillRect(0, lipY, cw, chh - lipY);         // onder de voorrand: alle rots
+        if (gapR){                                    // kloof rechts: de bandkant is links
+          const sprL = Math.round(xr) - hd.hw - ox;
+          mg.fillRect(0, 0, Math.max(0, sprL), lipY);
+          mg.drawImage(img, 0, 0, SCHACHT_HOEK.w, SCHACHT_HOEK.lip, sprL, aTopY, hd.hw, hd.soilH);
+        }
+        if (gapL){                                    // kloof links: de bandkant is rechts, de soil gespiegeld
+          const sprL = Math.round(xl) - ox;
+          mg.fillRect(sprL + hd.hw, 0, Math.max(0, cw - (sprL + hd.hw)), lipY);
+          mg.save(); mg.translate(sprL + hd.hw, 0); mg.scale(-1, 1);
+          mg.drawImage(img, 0, 0, SCHACHT_HOEK.w, SCHACHT_HOEK.lip, 0, aTopY, hd.hw, hd.soilH);
+          mg.restore();
+        }
+        rg.globalCompositeOperation = 'destination-in'; rg.drawImage(mk, 0, 0);
+        ctx.drawImage(rc, ox, oy);
+      } else {
+        ctx.save();
+        ctx.beginPath(); ctx.rect(xl, top - 4, xr - xl, bottom - (top - 4)); ctx.clip();
+        vul(ctx, 0, 0);
+        ctx.restore();
+      }
     }
     return;
   }
@@ -4651,11 +4683,18 @@ function schachtKap(R, X, Y, ch, scale, cx){
   const band = (EDGE.solid - EDGE.walk) * s;         // zichtbare savanneband
   const bottom = surf + band + ch * 0.8;             // de aarde loopt een stuk door en vervaagt in de rots
   const fade = band * 0.6 + ch * 0.8;                // over dit stuk vervaagt de aarde onderaan
+  // De band stopt net binnen de kloofrand, zodat zijn rechte kruin niet boven de ronde hoek uitsteekt (de
+  // "rare hoek"): het hoekstuk dekt de rest tot de kloofrand af. De snede valt in het ondoorzichtige midden
+  // van de hoek, dus je ziet er niets van. inset is een halve hoekbreedte.
+  const hd = schachtHoekData(R, X, Y, ch);
+  const inset = hd ? hd.hw * 0.5 : 0;
   // De savanne eerst op een los canvas tekenen en daar de onderkant wegvagen (destination-out), en dat dan
   // overzetten: zo komt de ROTS eronder tevoorschijn. Een destination-out op het hoofdcanvas zou door de
   // rots heen naar de lucht gummen, en dat gaf de lichte band aan de voet van de kap.
   for (const [c0, c1] of grotReeksH(R, tr, (c, r) => grotVol(R, c, r))){
-    const xl = Math.round(X(c0)), xr = Math.round(X(c1 + 1));
+    let xl = Math.round(X(c0)), xr = Math.round(X(c1 + 1));
+    if (hd && c1 + 1 < R.kol && !grotVol(R, c1 + 1, tr)) xr -= inset;   // kloof rechts: de hoek neemt het over
+    if (hd && c0 - 1 >= 0 && !grotVol(R, c0 - 1, tr)) xl += inset;      // kloof links
     const w = xr - xl, hh = Math.round(bottom - top + 6);
     if (w <= 0 || hh <= 0) continue;
     const cv2 = document.createElement('canvas'); cv2.width = w; cv2.height = hh;
