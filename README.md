@@ -501,9 +501,11 @@ Geen idle en geen pijnpose: hij rent altijd, en een treffer die hem niet velt is
 een duw die zijn slag afbreekt.
 
 Anders dan de zwaardvechter wacht hij nergens op: hij rent meteen op je af, remt, en haalt
-uit met een neerwaartse haal. In die uitval schiet hij een stuk door, remmend, met stof bij
-zijn voeten (de "doorschuif"). Dat doorschieten is je opening: stap of spring weg, laat hem
-voorbijglijden, en steek hem in de rug terwijl hij nahijgt en zich omdraait. Daarna komt hij
+uit met een neerwaartse haal. Terwijl hij die haal maakt schiet hij naar voren en glijdt hij
+remmend door (de "doorschuif" loopt dus mee met de slag zelf, niet erna), met een duidelijke
+opstuivende zandwolk bij zijn voeten, zoals bij een landing. Dat doorschieten is je opening:
+stap of spring weg, laat hem voorbijglijden, en steek hem in de rug terwijl hij nahijgt en zich
+omdraait. Daarna komt hij
 weer. Zijn kromzwaard reikt korter dan het langzwaard van de zwaardvechter, dus je speer komt
 er makkelijker langs; hij houdt twee treffers, en de eerste breekt zijn haal af. Hij rent net
 iets langzamer dan jij sprint, maar in een groep komt hij van twee kanten, dus wegrennen

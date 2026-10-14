@@ -18810,10 +18810,14 @@ const BAN_LIJK_T    = 5.0;    // zo lang blijft hij liggen voor hij wegzakt
 const BAN_LIJK_FADE = 0.7;
 const BAN_RUIMTE    = 360;    // zo veel ruimte houdt hij van een maat (canvaspixels): wie verder van je staat kijkt rond en wacht
 const BAN_VOET_VOOR = 210;    // zijn voorste voet, voor het blokkeren op een kei (regel 7)
-// de uitval na de haal: hij schiet naar voren en glijdt remmend door, met stof bij zijn voeten.
-// Stopt voor een kei of een ravijn (knockBlocked, regel 7).
-const BAN_LUNGE_V     = 820;  // wereld-px/s op het moment van de haal
-const BAN_LUNGE_DECAY = 0.015;// en zo snel zakt die vaart (per seconde), dus hij glijdt uit in plaats van hard te stoppen
+// de uitval: hij schiet naar voren TERWIJL hij de neerwaartse haal maakt, niet erna. De voorwaartse
+// vaart loopt dus mee met de zichtbare slag (frame BAN_LUNGE_VAN tot BAN_LUNGE_TOT: het stuk waarin
+// de kling naar voren en omlaag zwiept) en stopt voor de herstelframes, zodat hij niet na de slag nog
+// nadrijft. Stopt ook voor een kei of een ravijn (knockBlocked, regel 7).
+const BAN_LUNGE_V     = 820;  // wereld-px/s aan het begin van de haal
+const BAN_LUNGE_DECAY = 0.10; // en zo zakt die vaart (per seconde): traag genoeg om de hele haal mee te lopen
+const BAN_LUNGE_VAN   = 17;   // de kling begint omlaag te komen: hier zet hij zich af
+const BAN_LUNGE_TOT   = 28;   // en hier is de haal uitgestrekt: daarna geen voorwaartse vaart meer
 // de kling als raakzone tijdens de raakframes: canvaspixels vanaf het anker in de kijkrichting, boven
 // de grond. Korter dan het langzwaard van de zwaardvechter (een kromzwaard), zodat jouw speer verder
 // reikt dan zijn haal en er altijd een stuk is waarin jij wel kunt en hij nog niet. De haal zwiept
@@ -18943,8 +18947,25 @@ function banInDeWeg(s, nx){
   return false;
 }
 function banLoopStof(s){ puffWorld(s.x - s.face * 20, 1, 0, 0.42, s.base || 0); }
-// het stof van de doorschuif: wolkjes bij zijn voeten die naar achteren trekken (tegen zijn vaart in)
-function banGlijStof(s){ puffWorld(s.x - s.face * 34, 3, -s.lunge * 0.14, 0.78, s.base || 0); }
+// een duidelijke, dichte zandwolk, zoals bij de landing van de baviaan en bij Amir: dichtere wolkjes die
+// afremmen en langzaam opstijgen (zweef) in plaats van meteen te vallen, met wat zandkorrels erbij voor de
+// scherpte. `kick` is de zijwaartse schop (tegen de loop in), `grootte` de maat van de wolk.
+function banStofWolk(wx, base, n, kick, grootte){
+  if (building || inGap(wx) || waterDepthAt(wx, base) > 0.2) return;
+  for (let i = 0; i < n; i++)
+    wdust.push({ wx: wx + (Math.random() - 0.5) * 90, y: -Math.random() * 8, base,
+                 vx: (kick || 0) * (0.5 + Math.random() * 0.8) + (Math.random() - 0.5) * 80,
+                 vy: -20 - Math.random() * 55, r: (13 + Math.random() * 13) * (grootte || 1),
+                 a: 0.9, zweef: 16, life: 0.7 + Math.random() * 0.5, age: 0, rot: Math.random() * 6.28 });
+  const kd = kick ? Math.sign(kick) : 0;
+  for (let i = 0; i < Math.round(n * 1.3); i++)
+    grains.push({ wx: wx + (Math.random() - 0.5) * 80, base, h: 0,
+                  vx: (kd || (Math.random() < 0.5 ? -1 : 1)) * (60 + Math.random() * 180) + (Math.random() - 0.5) * 60,
+                  vh: 80 + Math.random() * 190, r: 1.3 + Math.random() * 1.9, age: 0, life: 0.4 + Math.random() * 0.4,
+                  dark: Math.random() < 0.35 });
+}
+// het stof van de doorschuif onderweg: een dichte zandsliert bij zijn voeten, tegen zijn vaart in
+function banGlijStof(s){ banStofWolk(s.x - s.face * 28, s.base || 0, 4, -s.lunge * 0.12, 1.3); }
 function banFrameImg(s){
   const set = banBank[s.state] || banBank.run;
   return set && set[Math.min(s.frame, set.length - 1)];
@@ -18988,17 +19009,19 @@ function updateBandiet(s, dt, plats, cliff){
 
   if (s.state === 'slag'){                           // hij staat vast tot de hele haal erdoor is
     banAnim(s, dt);
-    // de uitval: vanaf de haal schiet hij naar voren en glijdt remmend door
-    if (s.frame >= BAN.klap && !s.lungeOn && !s.klaar){   // de haal: een opstuivende wolk en hij schiet weg
+    // de uitval loopt mee met de haal: alleen tussen BAN_LUNGE_VAN en BAN_LUNGE_TOT schiet hij naar voren
+    const inHaal = s.frame >= BAN_LUNGE_VAN && s.frame <= BAN_LUNGE_TOT;
+    if (inHaal && !s.lungeOn && !s.klaar){            // hij zet zich af: een duidelijke opstuivende zandwolk, zoals bij een landing
       s.lunge = BAN_LUNGE_V * s.face; s.lungeOn = true; s.dustT = 0;
-      puffWorld(s.x - s.face * 30, 5, -s.lunge * 0.1, 0.9, s.base || 0);
+      banStofWolk(s.x - s.face * 20, s.base || 0, 14, -s.lunge * 0.09, 1.8);
     }
-    if (s.lunge !== 0){
+    if (s.lunge !== 0 && inHaal){                     // tijdens de haal glijdt hij naar voren, met een dichte stofsliert
       s.dustT += dt;
-      if (!banMove(s, s.lunge * dt, plats, cliff)) { s.lunge = 0; puffWorld(s.x, 4, 0, 0.85, s.base || 0); }
+      if (!banMove(s, s.lunge * dt, plats, cliff)){ s.lunge = 0; banStofWolk(s.x, s.base || 0, 8, 0, 1.5); }
       else { s.lunge *= Math.pow(BAN_LUNGE_DECAY, dt);
-             if (Math.abs(s.lunge) < 40){ s.lunge = 0; puffWorld(s.x, 4, 0, 0.8, s.base || 0); }   // hij valt stil: een laatste wolkje
-             else if (s.dustT >= 0.03){ s.dustT = 0; banGlijStof(s); } }
+             if (s.dustT >= 0.03){ s.dustT = 0; banGlijStof(s); } }
+    } else if (s.lunge !== 0){                         // de haal is voorbij: meteen stoppen (geen nadrift), met een laatste wolk
+      s.lunge = 0; banStofWolk(s.x, s.base || 0, 7, 0, 1.4);
     }
     if (s.klaar){ banSet(s, 'run'); s.rust = BAN_NA_SLAG; }   // na-hijgen, dan omdraaien en weer op je af
     return;
