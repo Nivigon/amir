@@ -3315,7 +3315,7 @@ const TEST_33 = {
   spawns: [ {x: -60000, k: 'groen'} ],          // heel ver weg: houdt de vrije modus uit
   gaps: [ {x: -1250, w: 700} ],
   takel: { x: -1780, px: -1250, breed: 700, laag: -280, hoog: 0, stappen: 5, beginLaag: true,
-           takelaar: true, passagiers: 2 },
+           takelaar: true, passagiers: 2, passagierRollen: ['hurk', 'dolk'] },
   props: [ {x: -200, k: 'gras', s: 1.1, f: 0, v: 0}, {x: -520, k: 'struik', s: 1.0, f: 1, v: 0},
            {x: -2150, k: 'gras', s: 1.2, f: 1, v: 0}, {x: -2450, k: 'tree', s: 1.05, f: 0, v: 1} ],
   terraces: [], ledges: [], village: [], npcs: [], water: [], thickets: [],
@@ -3323,7 +3323,7 @@ const TEST_33 = {
   ends: [ {x: -2300} ],
   tips: [ { x: -120, t: 'Testlevel: de bandieten op het plateau. Pak eerst je speer op' },
           { x: -700, t: 'Aan de overkant slaat een bandiet het takelwiel. Het plateau met twee bandieten erop stijgt tot het de kloof overbrugt' },
-          { x: -860, t: 'Boven stormen ze eraf en vallen je aan (voorlopig met een vault als afspringsprong). Reken ze af, en steek dan zelf over' } ]
+          { x: -860, t: 'Een van hen zit gehurkt en springt pas op als de brug er staat, de ander gooit meteen zijn dolk: buk ervoor. Daarna steekt de takelaar zelf ook over' } ]
 };
 const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31, TEST_32, TEST_33];
 // ---- Episode Baboon tests: de baviaan, stuk voor stuk ----
@@ -8214,10 +8214,13 @@ function takelBandietenZet(){
     b.base = terrainH(cx); b.face = t.x > cx ? 1 : -1;
     bandieten.push(b);
   }
-  const n = Math.max(0, Math.round(t.passagiers || 0));
+  const rollen = Array.isArray(t.passagierRollen) ? t.passagierRollen : null;
+  const n = Math.max(rollen ? rollen.length : 0, Math.round(t.passagiers || 0));
   for (let i = 0; i < n; i++){
+    const rol = rollen && rollen[i] ? rollen[i] : 'ren';   // hurk (gehurkt, springt op bij de brug), dolk (gooit direct) of ren
+    const hurk = rol === 'hurk', dolk = rol === 'dolk';
     const px = t.px + t.breed * (0.12 + 0.22 * i);        // op de Amir-kant van het dek, uit elkaar
-    const b = makeBandiet(px, -1, false, false, false, false, true);
+    const b = makeBandiet(px, -1, dolk, hurk, false, false, true, rol);
     b.base = t.top; b.rijsId = 'takel'; b.face = 1;       // meteen aan het plateau vast, zodat hij meerijdt
     bandieten.push(b);
   }
@@ -8247,6 +8250,18 @@ function takelUpdate(dt){
   t.stijg = Math.max(0, t.top - (t.prevTop == null ? t.top : t.prevTop));
   t.prevTop = t.top;
   if (draait) takelKraak(dt);
+}
+// de rand van het dek en de hoogte, voor wie erover loopt (een bandiet die de brug oversteekt)
+function takelDek(){
+  const t = takelLevel(); if (!t) return null;
+  const top = t.top == null ? takelHoogte(t, t.angle) : t.top;
+  return { l: t.px - t.breed / 2, r: t.px + t.breed / 2, top };
+}
+// Staat een voetstap op het brug-dek (op zijn hoogte)? Dan is het gat daar overbrugd: de ravijn-rand telt
+// niet, zodat een vijand (en Amir) eroverheen kan lopen in plaats van bij de rand te blijven staan.
+function takelDraagt(x, base){
+  const d = takelDek(); if (!d) return false;
+  return x > d.l && x < d.r && Math.abs((base || 0) - d.top) < 20;
 }
 // het dunne platform: draagt Amir en de speer, en van onderaf loop je eronderdoor (thin)
 function takelPlats(){
@@ -20459,10 +20474,10 @@ function banReik(){ return BAN_ZWAARD.to * banScale(); }          // hoe ver zij
 // kan zijn kling niet bij. De vloer onder Amir vergelijken met zijn eigen vloer.
 const BAN_HOOGTE = 90;
 function banZelfdeHoogte(s){ return Math.abs(vloerBij(playerX(), ph) - (s.base || 0)) <= BAN_HOOGTE; }
-function makeBandiet(x, side, dolk, hurk, vault, takelaar, passagier){
+function makeBandiet(x, side, dolk, hurk, vault, takelaar, passagier, rol){
   banLaad();
   if (hurk) banLaadHurk();
-  if (vault || passagier) banLaadVault();                 // de vaultframes als deze bandiet over keien springt of van het plateau af springt
+  if (vault) banLaadVault();                              // de vaultframes als deze bandiet over keien springt
   // side 1 = hij staat rechts van je. De frames kijken naar LINKS, dus face 1 (naar rechts) = gespiegeld
   const b = { x, face: -side, state: 'run', frame: 0, acc: 0, t: 0,
            hp: BAN_HP, inv: 0, flash: 0, knock: 0, base: 0, stuck: 0, lig: 0, alpha: 1,
@@ -20473,7 +20488,7 @@ function makeBandiet(x, side, dolk, hurk, vault, takelaar, passagier){
            vault: !!vault,                                // mag hij over een kei heen vaulten (regel 7-uitzondering)?
            vaultH: 0, vaultX0: 0, vaultDoel: 0, vaultExtra: 0, landStof: false,   // lopende waarden van een vault
            takelaar: !!takelaar,                          // hij staat bij een takelwiel en slaat het rad (zodat het plateau stijgt)
-           passagier: !!passagier,                        // hij staat op het plateau en rijdt mee omhoog, dan stormt hij eraf
+           passagier: !!passagier, rol: rol || null,      // hij staat op het plateau en rijdt mee omhoog, dan komt hij in actie (rol: hurk, dolk of ren)
            hitUsed: false, sweptId: -1, klaar: false, vrij: false, veeg: false };
   if (hurk){ b.state = 'hurk_idle'; b.dolk = true; }      // gehurkt wachten, rug naar Amir; de worp gaat via 'spot', en raak je hem eerder, dan werpt hij alsnog staand (run) voor hij aanvalt
   return b;
@@ -20634,17 +20649,21 @@ function updateBandiet(s, dt, plats, cliff){
     }
     if (s.rust > 0){ s.frame = 0; s.acc = 0; return; }     // tussen twee slagen even wachten (stilstaan)
     if (!bovenKlaar){ banSet(s, 'slag'); return; }         // een nieuwe slag
-    s.frame = 0; s.acc = 0; return;                        // klaar: hij blijft staan bij het wiel
+    s.takelaar = false; banSet(s, 'run');                  // de brug staat: hij steekt zelf ook over en valt aan
+    return;
   }
-  if (s.passagier){                                  // op het plateau, meerijden omhoog (tijdelijk een stilstaande pose)
-    s.frame = 0; s.acc = 0;
-    s.face = playerX() >= s.x ? 1 : -1;
-    if ((s.base || 0) >= -6){                        // het plateau is op mijn niveau (de grond) gekomen: eraf stormen
+  if (s.passagier){                                  // op het plateau, meerijden omhoog
+    const naarJe0 = playerX() >= s.x ? 1 : -1;
+    if ((s.base || 0) >= -6){                        // de brug staat op mijn niveau: de passagier komt in actie
       s.passagier = false; s.rijsId = null;
-      const naarJe = playerX() >= s.x ? 1 : -1;
-      const rechts = tk ? tk.px + tk.breed / 2 : s.x, links = tk ? tk.px - tk.breed / 2 : s.x;
-      banStartVault(s, { left: links, right: rechts, topH: (s.base || 0) + 50 }, naarJe);   // tijdelijk de vault als afspring-animatie
+      // een gehurkte passagier (rol hurk) springt nu pas op en gooit zijn dolk (de hurk-logica neemt het over,
+      // zijn state staat al op hurk_idle); een staande (rol dolk) gooit direct en valt dan aan; anders rent hij eraf
+      if (!s.ambush) banSet(s, 'run');
+      return;
     }
+    // nog aan het stijgen: een gehurkte passagier zit laag met de rug naar je, een staande wacht rechtop
+    if (s.ambush){ s.face = -naarJe0; banAnim(s, dt); }   // de gehurkte idle loopt
+    else { s.frame = 0; s.acc = 0; s.face = naarJe0; }
     return;
   }
 
@@ -21377,6 +21396,8 @@ function hardBlocked(s, nx, plats, cliff, wallGap){
 function knockBlocked(s, nx, plats, cliff, halfL, wallGap){
   const d = nx >= s.x ? 1 : -1;
   if (hardBlocked(s, nx, plats, cliff, wallGap)) return true;
+  // staat de volgende voetstap op een takel-brug die het gat overbrugt, dan telt de ravijn-rand daar niet
+  if (takelDraagt(nx + d * halfL, s.base)) return false;
   if (gatOp(nx + d * halfL, s.base || 0)) return true;      // en de rand van een ravijn
   if (dropAhead(nx + d * halfL, s.base || 0)) return true;
   return false;
@@ -25416,6 +25437,8 @@ function readLevel(txt){
                               // een takelaar-bandiet bij het wiel, en zoveel passagier-bandieten op het plateau (zie "takelwiel met plateau")
                               takelaar: o.takel.takelaar === true,
                               passagiers: Number(o.takel.passagiers) > 0 ? Math.round(Number(o.takel.passagiers)) : undefined,
+                              // de rol per passagier: 'hurk' (gehurkt, springt op als de brug staat), 'dolk' (gooit direct) of 'ren'
+                              passagierRollen: Array.isArray(o.takel.passagierRollen) ? o.takel.passagierRollen.map(String) : undefined,
                               takelaarZij: o.takel.takelaarZij != null ? Number(o.takel.takelaarZij) : undefined } : null,
            fg: o.fg ? { from: Number(o.fg.from), to: Number(o.fg.to) } : null,
            arena: o.arena ? { c: Number(o.arena.c) } : null,
@@ -27374,7 +27397,7 @@ function sbTakelBand(){
   if (!level.gaps) level.gaps = [];
   level.gaps.push({ x: gx, w: 600, sbTakel: true });
   level.takel = { x: gx - 530, px: gx, breed: 600, laag: -260, hoog: 0, stappen: 5, beginLaag: true,
-                  takelaar: true, passagiers: 2 };
+                  takelaar: true, passagiers: 2, passagierRollen: ['hurk', 'dolk'] };
   takelReset();
   takelBandietenZet();
   flashHint('De takelaar tilt twee bandieten omhoog; boven stormen ze eraf');
