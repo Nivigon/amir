@@ -8229,6 +8229,7 @@ const TAKEL = {
   wielH: 0.95,               // wielhoogte als deel van CHAR_H
   breed: 320,                // standaard plateaubreedte in wereld-px (9-slice: alleen het midden rekt mee)
   dekH: 0.34,                // plateauhoogte als deel van CHAR_H
+  sta: 0.2,                  // de looplijn: de voorrand van het bovenvlak, als deel van de plaathoogte (anders zweef je op de achterrand)
   touwDik: 0.08,             // touwbreedte als deel van CHAR_H
   spread: 150,               // zo ver lopen de twee touwen naar boven uit elkaar (wereld-px bij de katrol)
   pulleyH: 1100,             // de verborgen katrol, sprite-eenheden boven de grondlijn (ruim boven beeld)
@@ -8239,8 +8240,25 @@ const TAKEL = {
   // de veer van het plateau
   zak: 11,                   // zo diep zakt het onder Amirs gewicht (sprite-eenheden)
   veerK: 70, veerC: 8,       // veerconstante en demping
-  stoot: 34                  // extra duw omlaag bij een landing
+  stoot: 34,                 // extra duw omlaag bij het erop lopen (een landing op gelijke hoogte)
+  // erop springen geeft een hevigere reactie: dieper inzakken en een beetje schommelen (schommel),
+  // geschaald met hoe hard je neerkomt. Erop lopen blijft de lichte stoot hierboven.
+  springStoot: 0.09,         // de duw omlaag per eenheid landingssnelheid (vIn), bovenop stoot
+  springMax: 130,            // niet harder dan dit omlaag duwen
+  schommel: 0.00034,         // de kanteling (rad) per eenheid landingssnelheid: het dek schommelt naar de kant waar je landt
+  schommelMax: 0.14,         // hoogstens zoveel schommelen (rad)
+  schommelK: 42, schommelC: 5.5   // de veer van de schommel (traag genoeg om zichtbaar na te wiegen)
 };
+// het geluid van het takelen: speelt (herhaald) zolang het plateau op of neer beweegt, en stopt als het stilstaat
+const takelSnd = geluidAan(new Audio('sounds/takelen.mp3'));
+takelSnd.loop = true; takelSnd.preload = 'auto';
+takelSnd.onerror = () => console.warn('ontbreekt: sounds/takelen.mp3');
+let takelSndAan = false;
+function takelGeluid(spelen){
+  if (spelen && wantSound && !building && !paused){
+    if (!takelSndAan){ takelSndAan = true; try { takelSnd.currentTime = 0; } catch (e){} takelSnd.volume = 0.6; const p = takelSnd.play(); if (p && p.catch) p.catch(() => {}); }
+  } else if (takelSndAan){ takelSndAan = false; try { takelSnd.pause(); } catch (e){} }
+}
 const TAKEL_QUART = Math.PI / 2;
 // de 24 wielframes, het plateau (9-slice), het touw en de spijkerknop: pas geladen als een level of de
 // sandbox een takel neerzet
@@ -8265,6 +8283,11 @@ function takelLaad(){
 }
 function takelLevel(){ return (level && level.takel) || null; }
 function takelHoogte(t, a){ return t.laag + (t.hoog - t.laag) * Math.max(0, Math.min(1, a / t.maxA)); }
+// De looplijn van het plateau ligt niet op de bovenrand van de plaat maar op de voorkant van het
+// bovenvlak: de plank is in perspectief getekend, dus het bovenvlak wijkt terug en je voeten horen
+// op de voorste rand ervan te staan, niet op de achterste (anders zweeft Amir erboven, TAKEL.sta is
+// de rij van die voorrand als deel van de plaathoogte). Alleen voor de steun; het tekenen blijft op t.top.
+function takelOpp(t){ return (t.top == null ? takelHoogte(t, t.angle) : t.top) - TAKEL.sta * TAKEL.dekH * CHAR_H; }
 // bij het laden en bij een herstart: alle maten op standaard, het wiel op zijn beginstand
 function takelReset(){
   const t = takelLevel();
@@ -8280,6 +8303,7 @@ function takelReset(){
   t.doel = t.angle;
   t.richting = t.angle >= t.maxA - 1e-6 ? -1 : 1;    // dan zakt hij bij de eerste slag
   t.bob = 0; t.bobV = 0; t.op = false; t.kraakT = 0; t.haper = 0;
+  t.sway = 0; t.swayV = 0;                            // de schommel (kanteling) als je erop springt
   t.valt = false; t.weg = false; t.tilt = 0; t.valV = 0; t.snijKant = 0; t.snijJav = false;   // de brug valt niet, de touwen heel
   t.top = takelHoogte(t, t.angle); t.prevTop = t.top; t.stijg = 0;
 }
@@ -8344,7 +8368,7 @@ function takelBandietenZet(){
   const t = takelLevel(); if (!t || building) return;
   const elite = !!t.elite;                                 // de garde: de takelaar en de passagiers in de elite-set
   if (t.takelaar){
-    const cx = t.x + (t.takelaarZij != null ? t.takelaarZij : -170);   // naast het wiel, aan de verre kant
+    const cx = t.x + (t.takelaarZij != null ? t.takelaarZij : -150);   // naast het wiel, aan de verre kant (iets dichterbij zodat zijn slag het rad raakt)
     const b = makeBandiet(cx, 1, false, false, false, true, false, null, elite);
     b.base = terrainH(cx); b.face = t.x > cx ? 1 : -1;
     bandieten.push(b);
@@ -8356,20 +8380,31 @@ function takelBandietenZet(){
     const hurk = rol === 'hurk', dolk = rol === 'dolk';
     const px = t.px + t.breed * (0.12 + 0.22 * i);        // op de Amir-kant van het dek, uit elkaar
     const b = makeBandiet(px, -1, dolk, hurk, false, false, true, rol, elite);
-    b.base = t.top; b.rijsId = 'takel'; b.face = 1;       // meteen aan het plateau vast, zodat hij meerijdt
+    b.base = takelOpp(t); b.rijsId = 'takel'; b.face = 1;       // meteen aan het plateau vast, zodat hij meerijdt
     bandieten.push(b);
   }
+}
+// een hevige landing op het plateau (erop springen): dieper inzakken en een beetje schommelen, allebei
+// geschaald met hoe hard je neerkomt (vIn, eenheden per seconde). kant: -1 links van het midden, 1 rechts,
+// zodat het dek naar de kant kantelt waar je landt. Erop lopen gaat niet via deze functie (geen landing).
+function takelBons(vIn, kant){
+  const t = takelLevel(); if (!t || t.valt || t.weg) return;
+  const v = Math.max(0, vIn);
+  t.bobV -= Math.min(TAKEL.springMax, TAKEL.stoot + TAKEL.springStoot * v);   // de duw omlaag, steviger dan bij het lopen
+  const sw = Math.min(TAKEL.schommelMax, TAKEL.schommel * v) * (kant >= 0 ? 1 : -1);
+  t.swayV += sw * 9;                                 // een schommel-impuls naar de landingskant
 }
 function takelUpdate(dt){
   const t = takelLevel(); if (!t) return;
   if (!takelGeladen) takelLaad();
-  if (t.weg) return;
-  if (building){ t.angle = t.doel = t.maxA; t.bob = 0; t.top = takelHoogte(t, t.angle); t.prevTop = t.top; t.stijg = 0; return; }
+  if (t.weg){ takelGeluid(false); return; }
+  if (building){ t.angle = t.doel = t.maxA; t.bob = 0; t.sway = 0; t.swayV = 0; t.top = takelHoogte(t, t.angle); t.prevTop = t.top; t.stijg = 0; takelGeluid(false); return; }
   if (t.valt){                                       // een touw is doorgesneden: de brug kantelt en stort het ravijn in
     t.tilt += (t.snijKant * 0.85 - t.tilt) * Math.min(1, dt * 3.5);   // leunt naar de doorgesneden kant
     t.valV += GRAVITY * 1.3 * dt;
     t.prevTop = t.top; t.top -= t.valV * dt; t.stijg = 0;             // schiet naar beneden (passagiers rijden mee de diepte in)
     if (t.top < -(GAP_DEATH + 450)){ t.weg = true; takelBrugWeg(); }  // diep genoeg: weg, en de passagiers storten mee
+    takelGeluid(false);
     return;
   }
   // het wiel draait naar zijn doel, maar pas na de korte krak-hapering: zolang die loopt houdt het rad in
@@ -8380,14 +8415,19 @@ function takelUpdate(dt){
     const dA = t.doel - t.angle;
     if (Math.abs(dA) > 1e-4){ t.angle += Math.sign(dA) * Math.min(Math.abs(dA), TAKEL.angV * dt); draait = true; }
   }
-  // de veer: zakt onder Amirs gewicht en wiebelt (ook als Amir eraf springt veert hij terug)
-  const basis = takelHoogte(t, t.angle);
-  const op = onGround && world > t.px - t.breed / 2 && world < t.px + t.breed / 2 && Math.abs(ph - (basis + t.bob)) < 8;
-  if (op && !t.op) t.bobV -= TAKEL.stoot;            // net geland: een duw omlaag
+  takelGeluid(draait || t.haper > 1e-6);             // het takelgeluid loopt zolang het plateau op of neer gaat
+  // de veer: zakt onder Amirs gewicht en wiebelt (ook als Amir eraf springt veert hij terug). De looplijn
+  // ligt op takelOpp (de voorrand van het bovenvlak), dus daar vergelijken we Amirs voeten mee, niet met basis.
+  const basis = takelHoogte(t, t.angle), opp = TAKEL.sta * TAKEL.dekH * CHAR_H;
+  const op = onGround && world > t.px - t.breed / 2 && world < t.px + t.breed / 2 && Math.abs(ph - (basis + t.bob - opp)) < 10;
+  if (op && !t.op) t.bobV -= TAKEL.stoot;            // net erop gelopen (gelijke hoogte): de lichte duw omlaag
   t.op = op;
   const doelBob = op ? -TAKEL.zak : 0;
   t.bobV += (-TAKEL.veerK * (t.bob - doelBob) - TAKEL.veerC * t.bobV) * dt;
   t.bob += t.bobV * dt;
+  // de schommel: een gedempte veer die naar nul terugloopt (de impuls komt uit takelBons bij een sprong-landing)
+  t.swayV += (-TAKEL.schommelK * t.sway - TAKEL.schommelC * t.swayV) * dt;
+  t.sway += t.swayV * dt;
   // de hoogte voor platsNear, en hoeveel het er dit beeld bij kreeg (voor het meeliften, als bij de rijzende grond)
   t.top = basis + t.bob;
   t.stijg = Math.max(0, t.top - (t.prevTop == null ? t.top : t.prevTop));
@@ -8397,8 +8437,7 @@ function takelUpdate(dt){
 // de rand van het dek en de hoogte, voor wie erover loopt (een bandiet die de brug oversteekt)
 function takelDek(){
   const t = takelLevel(); if (!t) return null;
-  const top = t.top == null ? takelHoogte(t, t.angle) : t.top;
-  return { l: t.px - t.breed / 2, r: t.px + t.breed / 2, top };
+  return { l: t.px - t.breed / 2, r: t.px + t.breed / 2, top: takelOpp(t) };
 }
 // Staat een voetstap op het brug-dek (op zijn hoogte)? Dan is het gat daar overbrugd: de ravijn-rand telt
 // niet, zodat een vijand (en Amir) eroverheen kan lopen in plaats van bij de rand te blijven staan.
@@ -8409,7 +8448,7 @@ function takelDraagt(x, base){
 // het dunne platform: draagt Amir en de speer, en van onderaf loop je eronderdoor (thin)
 function takelPlats(){
   const t = takelLevel(); if (!t || t.weg) return [];
-  const top = t.top == null ? takelHoogte(t, t.angle) : t.top;
+  const top = takelOpp(t);                           // de looplijn (voorrand van het bovenvlak)
   return [{ x: t.px, left: t.px - t.breed / 2, right: t.px + t.breed / 2,
             topH: top, base: top, wPx: t.breed, hPx: 0, thin: true, takel: true, id: 'takel', stijg: t.stijg || 0 }];
 }
@@ -8417,16 +8456,16 @@ function takelPlats(){
 function wielSplinters(hx, hh, from, n){
   const t = takelLevel();
   const base = t ? terrainH(t.x) : terrainH(world);
-  const away = -from;
   for (let i = 0; i < n; i++){
     if (chips.length >= CHIP_MAX) chips.shift();
     const list = chipImg.tak;
+    const kant = Math.random() < 0.5 ? -1 : 1;        // naar beide kanten vanaf het rad
     chips.push({ img: list[Math.floor(Math.random() * list.length)], leaf: false,
                  hS: CHIP_H.tak * CHAR_H * (0.7 + Math.random() * 0.45),
-                 wx: hx + (Math.random() - 0.5) * 22, base,
+                 wx: hx + (Math.random() - 0.5) * 16, base,
                  h: Math.max(6, hh + (Math.random() - 0.5) * 26),
-                 vx: away * (90 + Math.random() * 200) + (Math.random() - 0.5) * 70,
-                 vh: 140 + Math.random() * 190,
+                 vx: kant * (50 + Math.random() * 115) + (Math.random() - 0.5) * 45,   // wat dichterbij dan eerst
+                 vh: 150 + Math.random() * 200,
                  rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 13,
                  sway: 0, swayPh: 0, bounce: 0, rest: false,
                  age: 0, fadeAt: 1.4 + Math.random(), fade: 0.5 });
@@ -8524,6 +8563,21 @@ function takelTeken(groundY, scale, cx){
     t.jx = jx; t.jy = jy; t.snijJav = true;
   } else t.snijJav = false;
   const fase = t.angle * 70;                            // de draad scrolt met de draaistand van het rad
+  // In de bandiet-arena (na de aankomst) hoort het wiel en zijn drijftouw niet in beeld: je bent dan boven,
+  // het wiel stond beneden in de aankomst. De twee plateau-touwen lopen daar (en overal) boven uit beeld door.
+  const arenaMode = !!(arenaAap && arenaAap.ban && !arenaAap.staging);
+  const ropeTopY = Math.min(puY, -0.15 * H);            // het touw eindigt altijd boven de schermrand (niet in de lucht)
+  // het wiel op de grond
+  const wB = terrainH(t.x);
+  const wielH = TAKEL.wielH * CHAR_H * scale, wielW = wielH * 274 / 325;
+  const wx = cx + (t.x - world), wBaseY = groundY - wB * scale;
+  const hubY = wBaseY - wielH * 194 / 325;              // de hub op 131 van boven (grondlijn 324) in het canvas
+  // ---- het drijftouw van het wiel: als eerste getekend, dus achterlangs de plateau-touwen en achter het wiel ----
+  if (!arenaMode){
+    // het loopt schuin achter het wiel omhoog naar een eigen katrol, een stukje opzij (de kant van het plateau);
+    // vooraan getekend (voor de plateau-touwen en het wiel), zodat het er echt achterlangs loopt
+    takelTouw(wx - wielW * 0.08, hubY - wielH * 0.04, wx - sp * 1.1, Math.min(groundY - (wB + TAKEL.pulleyH) * scale, -0.15 * H), touwW, -fase);
+  }
   if (t.valt){
     // de doorgesneden brug: de touwen zijn geknapt (weg), het dek kantelt om zijn midden terwijl het valt
     const midX = (left + right) / 2, midY = dekTop + dekH / 2;
@@ -8532,27 +8586,31 @@ function takelTeken(groundY, scale, cx){
     takelPlateauTeken(-(right - left) / 2, -dekH / 2, right - left, dekH, capW);
     ctx.restore();
   } else {
-    takelTouw(aL, aY, aL - sp, puY, touwW, fase);
-    takelTouw(aR, aY, aR + sp, puY, touwW, fase);
-    takelPlateauTeken(left, dekTop, right - left, dekH, capW);
+    // de schommel: het dek kantelt een beetje om zijn midden, en de touwen en de knoppen kantelen mee
+    const sway = t.sway || 0;
+    const midX = (left + right) / 2, midY = dekTop + dekH / 2;
+    const rot = (ax, ay) => { const dx = ax - midX, dy = ay - midY, c = Math.cos(sway), s = Math.sin(sway);
+      return [midX + dx * c - dy * s, midY + dx * s + dy * c]; };
+    const [raLx, raLy] = rot(aL, aY), [raRx, raRy] = rot(aR, aY);
+    const fracL = (ropeTopY - raLy) / ((puY - raLy) || -1), fracR = (ropeTopY - raRy) / ((puY - raRy) || -1);
+    takelTouw(raLx, raLy, raLx - sp * fracL, ropeTopY, touwW, fase);     // de plateau-touwen: voor het drijftouw
+    takelTouw(raRx, raRy, raRx + sp * fracR, ropeTopY, touwW, fase);
+    ctx.save();
+    ctx.translate(midX, midY); ctx.rotate(sway);
+    takelPlateauTeken(-(right - left) / 2, -dekH / 2, right - left, dekH, capW);
+    ctx.restore();
     const kn = TAKEL.knop * CHAR_H * scale;
     if (imgReady(takelKnop)){
-      ctx.drawImage(takelKnop, aL - kn / 2, aY - kn / 2, kn, kn);
-      ctx.drawImage(takelKnop, aR - kn / 2, aY - kn / 2, kn, kn);
+      ctx.drawImage(takelKnop, raLx - kn / 2, raLy - kn / 2, kn, kn);
+      ctx.drawImage(takelKnop, raRx - kn / 2, raRy - kn / 2, kn, kn);
     }
   }
-  // ---- het wiel op de grond, met zijn drijftouw erachter naar boven ----
-  const wB = terrainH(t.x);
-  const wielH = TAKEL.wielH * CHAR_H * scale, wielW = wielH * 274 / 325;
-  const wx = cx + (t.x - world), wBaseY = groundY - wB * scale;
-  const hubY = wBaseY - wielH * 194 / 325;              // de hub op 131 van boven (grondlijn 324) in het canvas
-  // het drijftouw loopt schuin achter het wiel omhoog naar een eigen katrol, een stukje opzij (de kant van het
-  // plateau), zodat het lijkt alsof het daar achter het wiel is vastgezet in plaats van er recht bovenuit te komen.
-  // Getekend voor het wiel, dus de rand dekt de voet van het touw af.
-  takelTouw(wx - wielW * 0.08, hubY - wielH * 0.04, wx - sp * 1.1, groundY - (wB + TAKEL.pulleyH) * scale, touwW, -fase);
-  const fr = ((Math.round(t.angle / (2 * Math.PI) * TAKEL.wielN) % TAKEL.wielN) + TAKEL.wielN) % TAKEL.wielN;
-  const wim = takelImgs[fr];
-  if (imgReady(wim)) ctx.drawImage(wim, wx - wielW / 2, wBaseY - wielH, wielW, wielH);
+  // ---- het wiel zelf: voor zijn eigen drijftouw, zodat de rand de voet van het touw afdekt ----
+  if (!arenaMode){
+    const fr = ((Math.round(t.angle / (2 * Math.PI) * TAKEL.wielN) % TAKEL.wielN) + TAKEL.wielN) % TAKEL.wielN;
+    const wim = takelImgs[fr];
+    if (imgReady(wim)) ctx.drawImage(wim, wx - wielW / 2, wBaseY - wielH, wielW, wielH);
+  }
   if (showBoxes || building){
     ctx.save();
     ctx.globalAlpha = 0.6; ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2 / viewZoom();
@@ -11659,33 +11717,42 @@ function arenaReset(){ arenaAap = null; }
 // twee nieuwe garde terugkomt. Zijn ook die verslagen, dan is het level uit. Hergebruikt het
 // arena-camerasysteem (de camera klemt op het midden, de grijze zijwanden, de teller) en de takel.
 const BANDARENA = {
-  breed: 300,            // het plateau: wat smaller dan de put, zodat er vechtruimte overblijft
+  breed: 320,            // het plateau: breder dan de put, zodat het de put overbrugt met een randje op de vaste grond (geen naad om in te vallen)
+  put: 180,             // de open put in het midden van de arena: smaller dan het plateau (de rest is vechtruimte op de vaste grond)
   diep: -1700,           // zo diep begint het plateau in de arena: onder beeld, dan takelt het omhoog
   uit: 1300,             // zo hoog takelt het in de aankomst voor het uit beeld is en naar zwart fadet
   terug: 3.0,            // seconden dat het plateau beneden blijft voor het met twee garde terugkomt
   fadeV: 2.4,            // snelheid van de fade (per seconde)
 };
+// de looplijn van het plateau ligt sta onder de bovenrand; zo diep laat het plateau in de arena op gelijke
+// hoogte met de vaste grond aansluiten (de looplijn op 0), zodat Amir er netjes vanaf en weer op stapt
+function takelDekOffset(){ return TAKEL.sta * TAKEL.dekH * CHAR_H; }
 function bandArenaStart(){
   banLaad(true); banLaadHurk(true); banLaadVault(true);                // de elite-sets
   const span = Math.min(W - 260, 1200);
   const rechts = CLIFF.wall - ARENA.rand, links = rechts - span;
   const c = Math.round((rechts + links) / 2);
-  const breed = Math.min(BANDARENA.breed, Math.round(span * 0.3));
-  const wielX = Math.min(c + 120, rechts - 120);
+  const breed = BANDARENA.breed;
+  // de aankomst: het wiel staat op vaste grond, en het plateau hangt er links van boven een ravijn. Amir komt
+  // van rechts over de vaste grond, loopt naar het wiel en slaat het; dan takelt het plateau naast hem omhoog.
+  const wielX = c;
+  const px = wielX - 260;                                              // het plateau links van het wiel
+  const putBreed = 360;                                               // de ravijn onder het plateau, iets breder dan het plateau (de put flankeert het, dus zichtbaar)
   if (level){
     level.cliffs = [ { x: links } ];
-    level.gaps = [];                                                   // in de aankomst nog geen put; die komt bij de arena
+    level.gaps = [ { x: px, w: putBreed } ];                           // het plateau hangt boven een ravijn; het wiel staat er rechts van op vaste grond
     level.hppotions = [];
     level.ledges = [];                                                 // de twee rotsrichels komen pas bij de arena (met de wanden)
-    // de aankomst: het wiel met het plateau eronder, op de grond; slaan laat het stijgen en uit beeld takelen
-    level.takel = { x: wielX, px: wielX, breed, laag: 0, hoog: BANDARENA.uit + 400, stappen: 6, beginLaag: true };
+    level.takel = { x: wielX, px, breed, laag: 0, hoog: BANDARENA.uit + 400, stappen: 6, beginLaag: true };
     takelReset();
   }
   arenaAap = { ban: true, staging: true, fase: 'aankomst', c, links, rechts, wielX, breed,
                t0: bavKlok, kills: 0, fade: 0, fadeDoel: 0, klok: 0, terug: false, terugTot: 0, gewonnen: false };
   arena = null;                                                        // in de aankomst volgt de camera Amir gewoon
-  // Amir op het plateau onder het wiel, op de grond; het wiel slaan takelt hem omhoog
-  world = wielX; ph = 0; pvh = 0; onGround = true; fell = false;
+  // Amir op de vaste grond rechts van het wiel; hij loopt naar links naar het wiel en slaat het
+  world = wielX + 170; ph = 0; pvh = 0; onGround = true; fell = false; facing = -1;
+  // zijn speer staat op vaste grond tussen hem en het wiel (niet boven de put, zoals de standaardplek zou doen)
+  spear = false; spearFound = false; spearX = wielX + 90; spearH = null;
   flashHint('Sla het tandwiel met je speer of stoot: het plateau takelt je omhoog');
 }
 // twee garde die staan te wachten, een aan elke wand; ze bewegen pas als Amir uitgetekend is (s.wacht)
@@ -11715,11 +11782,15 @@ function bandArenaOpPlateau(A){
   for (let i = 0; i < 2; i++){
     const px = t.px + (i === 0 ? -1 : 1) * t.breed * 0.22;
     const b = makeBandiet(px, i === 0 ? 1 : -1, rollen[i] === 'dolk', false, false, false, true, rollen[i], true);
-    b.base = t.top; b.rijsId = 'takel'; b.face = px < A.c ? 1 : -1;
+    b.base = takelOpp(t); b.rijsId = 'takel'; b.face = px < A.c ? 1 : -1;
     bandieten.push(b);
   }
 }
 const bandArenaLevend = () => bandieten.filter(b => b.state !== 'dood' && b.state !== 'weg').length;
+// tijdens het optakelen de arena in (arena_in) is Amir een passagier: hij staat vast op het plateau zodat hij
+// er niet af kan rennen voor het boven is (hij stapt pas vrij als het plateau aangekomen is, golfA). Blokkeert
+// lopen en springen, niet het aanvallen (dat is in de aankomst niet van toepassing, hij staat daar op vaste grond).
+function arenaRitVast(){ const A = arenaAap; return !!(A && A.ban && A.fase === 'arena_in'); }
 function bandArenaTick(A, dt){
   if (!running || building || paused) return;
   const t = takelLevel();
@@ -11738,14 +11809,17 @@ function bandArenaTick(A, dt){
     if (A.fade >= 0.99){                                              // zwart: zet de arena klaar en takel van onderaf in
       A.staging = false; A.fase = 'arena_in';
       if (level){
-        level.gaps = [ { x: A.c, w: A.breed } ];
+        // de put is smaller dan het plateau: boven aangekomen overbrugt het plateau de put met een randje op
+        // de vaste grond, zodat de vloer doorloopt (geen naad om tussen plateau en grond in te vallen)
+        level.gaps = [ { x: A.c, w: BANDARENA.put } ];
         // twee rotsrichels hoog op de wanden, als decor (zoals in het schacht-level): te hoog om op te komen
         const u = CHAR_H * nowScale();
         level.ledges = [ { x: A.links + 0.7 * u, h: 430, s: 1.0 },
                          { x: A.rechts - 0.7 * u, h: 430, s: 1.0, f: true } ];
-        if (t){ t.px = A.c; t.laag = BANDARENA.diep; t.hoog = 0; takelReset(); t.doel = t.maxA; }
+        // hoog op takelDekOffset: dan ligt de looplijn boven precies op de grondlijn (0), gelijk met de vaste grond
+        if (t){ t.px = A.c; t.laag = BANDARENA.diep; t.hoog = takelDekOffset(); takelReset(); t.doel = t.maxA; }
       }
-      world = A.c; ph = t ? t.top : 0; pvh = 0; onGround = true; fell = false;
+      world = A.c; ph = t ? takelOpp(t) : 0; pvh = 0; onGround = true; fell = false;
       spearX = Math.round(A.links + 1.6 * CHAR_H * nowScale()); spearH = null; spearFound = false;   // een speer op de arenavloer bij de linkerwand
       bandArenaWachters(A);                                           // de twee die staan te wachten
       A.fadeDoel = 0;                                                 // weer in beeld
@@ -11764,6 +11838,12 @@ function bandArenaTick(A, dt){
     if (!bandArenaLevend()){                                          // de twee verslagen
       bandArenaUitLucht(A);                                           // twee uit de lucht, links en rechts
       if (t) t.doel = 0;                                              // het plateau zakt weer uit beeld
+      // Amir van de put af op de vaste grond zetten, zodat het zakkende plateau hem niet meeneemt de put in
+      const putHalf = BANDARENA.put / 2;
+      if (Math.abs(world - A.c) < putHalf + 60){
+        const kant = (world - A.c) >= 0 ? 1 : -1;
+        world = A.c + kant * (putHalf + 70); ph = 0; pvh = 0; onGround = true; fell = false;
+      }
       A.terugTot = A.klok + BANDARENA.terug; A.terug = false;
       A.fase = 'golfB';
       flashHint('Twee van boven! De brug zakt weg: blijf op de vloer');
@@ -13938,6 +14018,7 @@ function takeOff(){
 }
 function startJump(){
   if (amirVast()) return;                            // de baviaan heeft je speer vast
+  if (arenaRitVast()) return;                        // tijdens het optakelen de arena in staat Amir vast op het plateau
   if (typeof tutEvent === 'function') tutEvent('jump');
   thrAfbreken();                                   // springen tijdens het spannen: de worp gaat niet door
   if (dead || hurt > 0 || schijnLigt() || atkFrame >= 0 || swFrame >= 0 || swRecover > 0 || thr) return;
@@ -16851,13 +16932,13 @@ function updateJump(dt, plats, halfW){
   // een gang zakt de laatste stap van een sprong een paar eenheden onder de grondlijn, en met ph
   // koos grondVloer dan de bodem van de gang, zodat je dwars door het dak viel
   const bodem = building ? 0 : grondVloer(world, Math.max(ph, prevH));   // grond, bodem van een gang, of niets
-  let target = bodem === null ? -Infinity : bodem;
+  let target = bodem === null ? -Infinity : bodem, targetPlat = null;
   for (const p of plats){
     if (world + halfW <= p.left || world - halfW >= p.right) continue;
     // Van bovenaf. Een blok dat stijgt kan hem in een beeld inhalen, ook als hij zelf nog omhoog gaat:
     // stonden zijn voeten boven waar de bovenkant het vorige beeld was, dan landt hij erop (p.stijg).
     const oud = p.topH - (p.stijg || 0);
-    if ((pvh <= 0 || p.stijg) && prevH >= oud - 1 && ph <= p.topH && p.topH > target) target = p.topH;
+    if ((pvh <= 0 || p.stijg) && prevH >= oud - 1 && ph <= p.topH && p.topH > target){ target = p.topH; targetPlat = p; }
   }
   if (!onGround && target > -Infinity && ph <= target){
     const vIn = -pvh;                                 // hoe hard je neerkomt
@@ -16867,6 +16948,7 @@ function updateJump(dt, plats, halfW){
     if (jump){ jump.phase = 'land'; jump.t = 0; }
     puffDust(9);
     if (winterOn() && !building && waterDepthAt(world, target) < 0.2) snowBurst(world, target, vIn / 900);   // de sneeuw stuift op
+    if (targetPlat && targetPlat.takel) takelBons(vIn, world >= takelLevel().px ? 1 : -1);   // op het plateau springen: inzakken plus schommelen naar de landingskant
     valLand(diep);
   }
   if (!onGround && ph < valGrens(world)) fallDeath();   // in het gat gevallen (niet als er een gang onder zit, wel in een put)
@@ -18051,6 +18133,7 @@ function restart(){
   zegelReset();                                     // en de zegels weer uit
   zakReset();                                       // en het zakkende plafond weer omhoog
   rijsReset();                                      // en de rijzende grond weer in het ravijn
+  takelGeluid(false);                               // het takelgeluid uit bij een herstart
   takelReset();                                     // en het takelwiel met het plateau weer op zijn beginstand
   speervalReset();                                  // de speervallen weer in de wand
   losseSperen.length = 0;                           // geen losse speren meer op de grond
@@ -18091,7 +18174,10 @@ function restart(){
   // rots aan het eind van het level: bij de eerste keer laden was de plaat nog niet binnen en
   // kwam hij wel voor je te staan, bij een herstart niet meer.
   speerBlauw = false;                               // weer je eigen speer, met het rode lint
-  if (level && !sandbox){
+  if (level && level.bandArena && !sandbox){
+    // de bandiet-arena zet de speer zelf neer (op vaste grond bij de aankomst, zie bandArenaStart)
+  }
+  else if (level && !sandbox){
     spearFound = false; spear = false;
     spearX = level.geenSpeer ? null : world + SPEAR_AHEAD;   // voor je, ook als je verder naar rechts begint (startWereld)
   }
@@ -21073,7 +21159,7 @@ function updateBandiet(s, dt, plats, cliff){
     const bovenKlaar = !tk || tk.doel >= tk.maxA - 1e-6 || tk.valt || tk.weg;   // de brug is boven of gevallen: stoppen met slaan
     if (s.state === 'slag'){
       banAnim(s, dt);
-      if (!s.hitUsed && s.frame >= BAN.klap){ s.hitUsed = true; if (tk && !bovenKlaar) takelSlag(); }
+      if (!s.hitUsed && s.frame >= BAN.klap){ s.hitUsed = true; if (tk && !bovenKlaar){ takelSlag(); wielSplinters(tk.x, terrainH(tk.x) + 0.42 * CHAR_H, s.x < tk.x ? -1 : 1, 9 + (Math.random() * 4 | 0)); } }   // splinters bij de klap, zodat de slag echt contact maakt
       if (s.klaar){ banSet(s, 'run'); s.rust = 0.6; }
       return;
     }
@@ -23169,6 +23255,7 @@ function loop(now){
   }
   bavBeetStap(scaleNow);                         // de speerbeet: de baviaan pakt de speer, en Amir staat vast
   if (amirVast()) dir = 0;
+  if (arenaRitVast()) dir = 0;                    // tijdens het optakelen de arena in staat Amir vast op het plateau
   const attacking = atkFrame >= 0;               // re-checked AFTER the frame advance
   const throwing = !!thr;                        // spannen of werpen: hij staat vast
   if (attacking || throwing) dir = 0;            // feet stay planted during the thrust
@@ -24746,13 +24833,13 @@ function loop(now){
         if (spR > box.l && spL < box.r && tipY + reach > box.t && tipY - reach < box.b){
           swingUsed = true;
           takelSlag();
-          wielSplinters(tk.x, wB + 0.45 * CHAR_H, pWorld < tk.x ? -1 : 1, 7 + (Math.random() * 4 | 0));
+          wielSplinters(tk.x, wB + 0.45 * CHAR_H, pWorld < tk.x ? -1 : 1, 10 + (Math.random() * 4 | 0));
         }
       }
       if (tk.sweptId !== sweepId && hitBy(swbox, box)){
         tk.sweptId = sweepId;
         takelSlag();
-        wielSplinters(tk.x, wB + 0.25 * CHAR_H, pWorld < tk.x ? -1 : 1, 6);
+        wielSplinters(tk.x, wB + 0.25 * CHAR_H, pWorld < tk.x ? -1 : 1, 9);
       }
     }
 
@@ -25000,6 +25087,7 @@ const pauseEl = document.getElementById('pause');
 function pauseGame(){
   if (!running && !building) return;             // in het hoofdmenu valt niets te pauzeren
   paused = true;
+  takelGeluid(false);                             // het takelgeluid stopt tijdens de pauze (takelUpdate loopt dan niet)
   for (const k in keys) keys[k] = false;          // geen toets blijft 'ingedrukt' hangen
   atkKeyHeld = false;
   // overslaan kan alleen in een echt level met een volgend level in de lijst
