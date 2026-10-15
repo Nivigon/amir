@@ -4108,7 +4108,7 @@ const VK_8 = {
   props: [],                                           // geen los decor: de put in het midden zou het opslokken (bandArenaStart zet de put)
   fg: { from: -500, to: 500 },
   cliffs: [ { x: -1400 } ],                            // vangnet: bandArenaStart zet de echte linkerwand op de schermbreedte (de rechter is CLIFF.wall)
-  tips: [ { x: 0, t: 'De arena van de valse koning. Je wordt met de brug de arena in getakeld; zijn garde komt van alle kanten en van boven. Versla ze allemaal' } ]
+  tips: []                                             // de hints komen uit bandArenaStart (de takel-entree)
 };
 const VK_LEVELS = [VK_1, VK_2, VK_3, VK_4, VK_5, VK_6, VK_7, VK_8];
 // ---- Episode De Klim: tien levels omhoog, van de diepe kloof tot de top ----
@@ -5101,6 +5101,15 @@ function bavKijk(scale){
   return Math.max(0, Math.min(H * BAV_KIJK.max, nodig));
 }
 function updateCamera(dt, scale){
+  // de bandiet-arena klemt de camera op de arenavloer: zo takelt Amir in de aankomst uit beeld naar boven
+  // en in de arena van onderaf in beeld, terwijl de camera blijft staan (niet met hem mee omhoog of omlaag)
+  if (arenaAap && arenaAap.ban){
+    camFloor = 0; camDiep = 0;
+    const tgt = 0;
+    camY += (tgt - camY) * Math.min(1, dt * 3.2);
+    if (Math.abs(tgt - camY) < 0.3) camY = tgt;
+    return;
+  }
   if (onGround) camFloor = ph; else camFloor = Math.min(camFloor, ph);
   // Sta je op een vloer onder de grondlijn (de bodem van een rotskloof), dan zakt de
   // camera mee, anders loop je onder uit beeld. Alleen terwijl je erop staat: een val
@@ -11612,97 +11621,148 @@ function arenaBinnen(sec){
 }
 function arenaReset(){ arenaAap = null; }
 
-// ---- de bandiet-arena: het eindgevecht tegen de garde van de valse koning -----------
-// Hergebruikt het arena-camerasysteem (de camera klemt Amir in het midden, de twee grijze
-// zijwanden, de teller), maar met de elite-garde in plaats van de goudapen. De garde komt
-// een voor een, snel achter elkaar en soms twee tegelijk (een wachtrij met een plafond op
-// hoeveel er tegelijk leven), een paar vallen van boven in (banStartDrop), en de takel
-// brengt er met de brug twee omhoog als opening. Alles op speltijd.
-const BANDARENA = { perKant: 3, neer: 2,
-                    tussen: 0.8,            // seconden tussen twee golfjes (snel achter elkaar)
-                    tegelijk: 0,            // zoveel mogen er al leven voor de volgende komt (0 = een voor een)
-                    dubbelKans: 0.25,       // kans dat er twee tegelijk komen in plaats van een
-                    rollenL: ['ren', 'hurk', 'dolk'], rollenR: ['dolk', 'ren', 'hurk'],
-                    putBreed: 360, putDiep: -250, rijsSlag: 0.55 };   // de put in het midden en het ritme van het omhoog takelen
+// ---- de bandiet-arena: het geënsceneerde eindgevecht tegen de garde van de valse koning -----
+// Amir komt aan bij een takelwiel met een plateau op de grond. Slaat hij het wiel, dan takelt het
+// plateau hem omhoog en uit beeld (fade naar zwart). Hij fadet weer in terwijl hetzelfde plateau hem
+// van onderaf de arena in takelt, waar twee garde staan te wachten; zodra hij uitgetekend is vallen
+// ze aan. Daarna komen er twee uit de lucht terwijl het plateau weer zakt en drie tellen later met
+// twee nieuwe garde terugkomt. Zijn ook die verslagen, dan is het level uit. Hergebruikt het
+// arena-camerasysteem (de camera klemt op het midden, de grijze zijwanden, de teller) en de takel.
+const BANDARENA = {
+  breed: 300,            // het plateau: wat smaller dan de put, zodat er vechtruimte overblijft
+  diep: -1700,           // zo diep begint het plateau in de arena: onder beeld, dan takelt het omhoog
+  uit: 1300,             // zo hoog takelt het in de aankomst voor het uit beeld is en naar zwart fadet
+  terug: 3.0,            // seconden dat het plateau beneden blijft voor het met twee garde terugkomt
+  fadeV: 2.4,            // snelheid van de fade (per seconde)
+};
 function bandArenaStart(){
   banLaad(true); banLaadHurk(true); banLaadVault(true);                // de elite-sets
   const span = Math.min(W - 260, 1200);
   const rechts = CLIFF.wall - ARENA.rand, links = rechts - span;
   const c = Math.round((rechts + links) / 2);
-  if (level) level.cliffs = [ { x: links } ];                         // de linker rotswand (de rechter staat op CLIFF.wall)
-  // de takel in het midden: een put met het plateau erin. Amir en twee elite-passagiers rijden erop omhoog
-  // (de brug als middelpunt), en het rad draait zichzelf (bandArenaTick), zodat er geen takelaar in de put hoeft.
+  const breed = Math.min(BANDARENA.breed, Math.round(span * 0.3));
+  const wielX = Math.min(c + 120, rechts - 120);
   if (level){
-    const breed = Math.min(BANDARENA.putBreed, Math.round(span * 0.42));
-    level.gaps = [ { x: c, w: breed } ];
-    level.takel = { x: Math.min(c + Math.round(breed / 2) + 90, rechts - 70), px: c, breed,
-                    laag: BANDARENA.putDiep, hoog: 0, stappen: 6, beginLaag: true,
-                    passagiers: 2, passagierRollen: ['dolk', 'ren'], elite: true };
-    takelReset();                                                     // de takelstaat opzetten (maxA, beginstand, t.top)
-    // de twee kalebassen op de open vloer tussen de put en elke wand, nooit boven het gat (y uit terrainH na dit)
-    const half = breed / 2;
-    level.hppotions = [ { x: Math.round((links + (c - half)) / 2), y: null },
-                        { x: Math.round((rechts + (c + half)) / 2), y: null } ];
+    level.cliffs = [ { x: links } ];
+    level.gaps = [];                                                   // in de aankomst nog geen put; die komt bij de arena
+    level.hppotions = [];
+    level.ledges = [];                                                 // de twee rotsrichels komen pas bij de arena (met de wanden)
+    // de aankomst: het wiel met het plateau eronder, op de grond; slaan laat het stijgen en uit beeld takelen
+    level.takel = { x: wielX, px: wielX, breed, laag: 0, hoog: BANDARENA.uit + 400, stappen: 6, beginLaag: true };
+    takelReset();
   }
-  arenaAap = { ban: true, c, links, rechts, t0: bavKlok, kills: 0,
-               wacht: bandArenaWachtrij(), spawnTot: 0, rijst: true, rijsTot: bavKlok + 700,
-               gewonnen: false, stop: false };
-  arena = { c };
-  // Amir onderin de put op het plateau; hij wordt omhoog getakeld, en pas boven komt de eerste garde
-  world = c; ph = (level && level.takel) ? level.takel.top : 0; pvh = 0; onGround = true; fell = false;
-  flashHint('De garde van de koning. Je wordt de arena in getakeld: versla ze een voor een');
+  arenaAap = { ban: true, staging: true, fase: 'aankomst', c, links, rechts, wielX, breed,
+               t0: bavKlok, kills: 0, fade: 0, fadeDoel: 0, klok: 0, terug: false, terugTot: 0, gewonnen: false };
+  arena = null;                                                        // in de aankomst volgt de camera Amir gewoon
+  // Amir op het plateau onder het wiel, op de grond; het wiel slaan takelt hem omhoog
+  world = wielX; ph = 0; pvh = 0; onGround = true; fell = false;
+  flashHint('Sla het tandwiel met je speer of stoot: het plateau takelt je omhoog');
 }
-// de wachtrij: de garde om en om van links en rechts met hun rol, en achteraan de invallers van boven
-function bandArenaWachtrij(){
-  const rij = [];
-  for (let i = 0; i < BANDARENA.perKant; i++){
-    rij.push({ side: -1, rol: BANDARENA.rollenL[i % 3] });   // linkerwand
-    rij.push({ side: 1, rol: BANDARENA.rollenR[i % 3] });    // rechterwand
-  }
-  for (let i = 0; i < BANDARENA.neer; i++) rij.push({ neer: true });   // als finale van boven
-  return rij;
-}
-// de volgende uit de wachtrij neerzetten: bij een wand net binnen de rand, of van boven invallend
-function bandArenaRelease(A){
-  const e = A.wacht.shift(); if (!e) return;
-  if (e.neer){ bandArenaDrop(A); return; }
+// twee garde die staan te wachten, een aan elke wand; ze bewegen pas als Amir uitgetekend is (s.wacht)
+function bandArenaWachters(A){
   const u = CHAR_H * nowScale();
-  const wx = e.side < 0 ? A.links + 1.3 * u : A.rechts - 1.3 * u;     // net binnen de wand, kijkt naar het midden
-  const hurk = e.rol === 'hurk';
-  const b = makeBandiet(wx, e.side, e.rol === 'dolk', hurk, false, false, false, null, true);
-  b.base = terrainH(wx); b.arena = true; bandieten.push(b);
+  for (const side of [-1, 1]){
+    const wx = side < 0 ? A.links + 1.4 * u : A.rechts - 1.4 * u;
+    const b = makeBandiet(wx, side, false, false, false, false, false, null, true);
+    b.base = terrainH(wx); b.arena = true; b.wacht = true; bandieten.push(b);
+  }
 }
-// een van boven invallende elite: buiten de put in het midden neer, aan een willekeurige kant tussen de wand en de rand van de put
-function bandArenaDrop(A){
-  const t = takelLevel();
-  const putHalf = t ? t.breed / 2 : 0, marge = CHAR_H * nowScale() * 0.9;
-  const kant = Math.random() < 0.5 ? -1 : 1;
-  const binnen = A.c + kant * (putHalf + marge);                 // net buiten de put
-  const buiten = kant < 0 ? A.links + marge : A.rechts - marge;  // net binnen de wand
-  const wx = Math.round(binnen + Math.random() * (buiten - binnen));
-  const b = makeBandiet(wx, wx > world ? 1 : -1, false, false, false, false, false, null, true);
-  b.base = terrainH(wx); b.arena = true; banStartDrop(b); bandieten.push(b);
+// twee garde die van boven invallen, een links en een rechts van het midden, buiten de put
+function bandArenaUitLucht(A){
+  const t = takelLevel(), putHalf = t ? t.breed / 2 : 0, marge = CHAR_H * nowScale();
+  for (const side of [-1, 1]){
+    const binnen = A.c + side * (putHalf + marge);
+    const buiten = side < 0 ? A.links + marge : A.rechts - marge;
+    const wx = Math.round(binnen + (buiten - binnen) * 0.45);
+    const b = makeBandiet(wx, side, false, false, false, false, false, null, true);
+    b.base = terrainH(wx); b.arena = true; banStartDrop(b); bandieten.push(b);
+  }
 }
+// twee garde als passagiers op het plateau, die mee omhoog takelen en boven afstormen
+function bandArenaOpPlateau(A){
+  const t = takelLevel(); if (!t) return;
+  const rollen = ['dolk', 'ren'];
+  for (let i = 0; i < 2; i++){
+    const px = t.px + (i === 0 ? -1 : 1) * t.breed * 0.22;
+    const b = makeBandiet(px, i === 0 ? 1 : -1, rollen[i] === 'dolk', false, false, false, true, rollen[i], true);
+    b.base = t.top; b.rijsId = 'takel'; b.face = px < A.c ? 1 : -1;
+    bandieten.push(b);
+  }
+}
+const bandArenaLevend = () => bandieten.filter(b => b.state !== 'dood' && b.state !== 'weg').length;
 function bandArenaTick(A, dt){
   if (!running || building || paused) return;
   const t = takelLevel();
-  // de brug takelt zichzelf omhoog (het middelpunt van de arena): om de rijsSlag seconden een slag, tot hij boven is
-  if (A.rijst){
-    if (!t || t.doel >= t.maxA - 1e-6) A.rijst = false;
-    else if (bavKlok >= (A.rijsTot || 0)){ takelSlag(); A.rijsTot = bavKlok + 1000 * BANDARENA.rijsSlag; }
+  A.klok += dt;
+  // de fade naar/uit zwart
+  A.fade += Math.max(-1, Math.min(1, A.fadeDoel - A.fade)) * Math.min(1, BANDARENA.fadeV * dt);
+  if (Math.abs(A.fadeDoel - A.fade) < 0.02) A.fade = A.fadeDoel;
+
+  if (A.fase === 'aankomst'){
+    // wacht tot Amir het wiel een keer slaat (dan is t.doel van 0 af); dan takelt het door naar boven
+    if (t && t.doel > 1e-6){ t.doel = t.maxA; A.fase = 'stijg_uit'; flashHint('Omhoog! Blijf op het plateau'); }
+    return;
   }
-  const levend = bandieten.filter(b => b.state !== 'dood' && b.state !== 'weg').length;
-  // de wachtrij: pas als de brug boven is (de twee passagiers zijn de opening), en dan een voor een,
-  // snel achter elkaar maar nooit meer dan BANDARENA.tegelijk tegelijk, met soms een tweede erbij
-  if (!A.rijst && A.wacht.length && levend <= BANDARENA.tegelijk && bavKlok >= (A.spawnTot || 0)){
-    bandArenaRelease(A);
-    if (A.wacht.length && Math.random() < BANDARENA.dubbelKans) bandArenaRelease(A);   // soms twee tegelijk
-    A.spawnTot = bavKlok + 1000 * BANDARENA.tussen;
+  if (A.fase === 'stijg_uit'){
+    if (t && t.top >= BANDARENA.uit) A.fadeDoel = 1;                   // bijna uit beeld: naar zwart
+    if (A.fade >= 0.99){                                              // zwart: zet de arena klaar en takel van onderaf in
+      A.staging = false; A.fase = 'arena_in';
+      if (level){
+        level.gaps = [ { x: A.c, w: A.breed } ];
+        // twee rotsrichels hoog op de wanden, als decor (zoals in het schacht-level): te hoog om op te komen
+        const u = CHAR_H * nowScale();
+        level.ledges = [ { x: A.links + 0.7 * u, h: 430, s: 1.0 },
+                         { x: A.rechts - 0.7 * u, h: 430, s: 1.0, f: true } ];
+        if (t){ t.px = A.c; t.laag = BANDARENA.diep; t.hoog = 0; takelReset(); t.doel = t.maxA; }
+      }
+      world = A.c; ph = t ? t.top : 0; pvh = 0; onGround = true; fell = false;
+      spearX = Math.round(A.links + 1.6 * CHAR_H * nowScale()); spearH = null; spearFound = false;   // een speer op de arenavloer bij de linkerwand
+      bandArenaWachters(A);                                           // de twee die staan te wachten
+      A.fadeDoel = 0;                                                 // weer in beeld
+    }
+    return;
   }
-  // gewonnen: de brug staat boven, de wachtrij is leeg en de hele garde is verslagen
-  if (!A.gewonnen && !dead && !won && !A.rijst && !A.wacht.length && !levend){
-    A.gewonnen = true; winLevel();
+  if (A.fase === 'arena_in'){
+    // het plateau takelt Amir van onderaf de arena in; is hij boven en in beeld, dan vallen de twee aan
+    if (t && t.top >= -8 && A.fade <= 0.01){
+      for (const b of bandieten) if (b.wacht) b.wacht = false;        // ze vallen aan
+      A.fase = 'golfA'; flashHint('De garde van de koning. Versla ze allemaal');
+    }
+    return;
   }
+  if (A.fase === 'golfA'){
+    if (!bandArenaLevend()){                                          // de twee verslagen
+      bandArenaUitLucht(A);                                           // twee uit de lucht, links en rechts
+      if (t) t.doel = 0;                                              // het plateau zakt weer uit beeld
+      A.terugTot = A.klok + BANDARENA.terug; A.terug = false;
+      A.fase = 'golfB';
+      flashHint('Twee van boven! De brug zakt weg: blijf op de vloer');
+    }
+    return;
+  }
+  if (A.fase === 'golfB'){
+    // het plateau is beneden en de drie tellen zijn om: het komt met twee nieuwe garde terug
+    if (!A.terug && t && t.top <= t.laag + 20 && A.klok >= A.terugTot){
+      bandArenaOpPlateau(A); t.doel = t.maxA; A.terug = true; A.fase = 'golfC';
+    }
+    return;
+  }
+  if (A.fase === 'golfC'){
+    if (!A.gewonnen && !dead && !won && !bandArenaLevend() && t && t.angle >= t.maxA - 0.05){
+      A.gewonnen = true; A.fase = 'klaar'; winLevel();
+    }
+    return;
+  }
+}
+// de fade naar zwart over het hele scherm, als laatste getekend (alleen in de bandiet-arena)
+function bandArenaFadeTeken(){
+  const A = arenaAap; if (!A || !A.ban || !(A.fade > 0.001)) return;
+  ctx.save();
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.globalAlpha = Math.min(1, A.fade);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
 }
 // een hanger aan de linker- (side -1) of rechterwand (side 1), op een willekeurige hoogte en met een beetje spreiding
 // naar links en rechts; hij hangt tot arenaTick hem laat vallen (hangTot op oneindig), niet vanzelf zoals in de sandbox
@@ -11828,9 +11888,10 @@ function arenaHudTeken(){
   const A = arenaAap; if (!A) return;
   const tsec = Math.max(0, Math.floor((bavKlok - A.t0) / 1000)), mm = Math.floor(tsec / 60), ss = String(tsec % 60).padStart(2, '0');
   let tekst = 'Kills ' + A.kills + '     Tijd ' + mm + ':' + ss + (!sandbox && RUN.tribeId ? '     Punten ' + RUN.punten : '');
-  if (A.ban){                                                   // de bandiet-arena: hoeveel garde er nog over is (in beeld plus in de wachtrij)
-    const over = bandieten.filter(b => b.state !== 'dood' && b.state !== 'weg').length + (A.wacht ? A.wacht.length : 0);
-    tekst = 'Garde ' + over + '     Kills ' + A.kills;
+  if (A.ban){                                                   // de bandiet-arena: geen teller tijdens de entree, daarna hoeveel garde er nog staat
+    if (A.staging || A.fase === 'arena_in') return;
+    const lev = bandieten.filter(b => b.state !== 'dood' && b.state !== 'weg').length;
+    tekst = 'Garde ' + lev + '     Kills ' + A.kills;
   }
   // een overleef-arena (grotArena) toont hoe lang je nog stand moet houden, of "Maak ze af!" als ze stoppen
   if (A.overleef){
@@ -19366,7 +19427,7 @@ function arenaCam(p){
 const PAN_LURK_MIN = 3, PAN_LURK_MAX = 5;      // zo lang blijft hij weg na een treffer
 const PAN_SNEAK_SPD = 140;                     // terugsluipen door het gras
 function updateArena(){
-  if (arenaAap){ if (!arena) arena = { c: arenaAap.c }; else arena.c = arenaAap.c; return; }   // de goudaap-arena stuurt de camera
+  if (arenaAap && !arenaAap.staging){ if (!arena) arena = { c: arenaAap.c }; else arena.c = arenaAap.c; return; }   // de arena stuurt de camera (niet in de aankomst van de bandiet-arena)
   const boss = panthers.find(p => p.boss && p.state !== 'dying' && p.state !== 'gone');
   if (!boss){ arena = null; return; }
   if (!arena) arena = { c: world };
@@ -20854,6 +20915,10 @@ function updateBandiet(s, dt, plats, cliff){
   s.t += dt;
   s.base = vloerBij(s.x, s.base);
   if (!s.dropping) rijsDraagtMob(s, dt);             // mee omhoog en omlaag met een lift of rijzend blok
+
+  if (s.wacht){                                      // staat in de arena te wachten tot Amir uitgetekend is: stilstaan, naar hem kijken
+    s.frame = 0; s.acc = 0; s.face = playerX() >= s.x ? 1 : -1; return;
+  }
 
   if (s.dropping){                                   // van boven de arena in: hij valt in de run-pose en landt met stof
     banAnim(s, dt);
@@ -22503,7 +22568,7 @@ function scene(groundY){
   if (sc.waas) drawWaas(sc, horizonY, groundY);     // overdag: de verte in de lucht
   drawProps(on2 ? nearY : horizonY, propUnit, false);   // far scenery, behind the ground (voor de heuvels: op hun lijn)
   drawPlacedFar(groundY);                           // jouw achtergronddecor staat op de savanne, niet op de horizon
-  if (arenaAap) arenaAchtergrond(groundY);          // de arena: midrots en de twee grijze zijwanden, achter de grond
+  if (arenaAap && !arenaAap.staging) arenaAchtergrond(groundY);          // de arena: midrots en de twee grijze zijwanden, achter de grond (niet in de aankomst)
   const bandH = H * 0.18;
   const eimg = bodemPic();                                 // savanne, rotsbodem, of de ingebakken wintergrond
   grondDoorlopen(groundY);                   // de laag op de grondlijn doorgetrokken, voor wie in een ravijn kijkt
@@ -24677,6 +24742,7 @@ function loop(now){
     drawBossBar();
     arenaHudTeken();                                // de teller van de goudaap-arena (kills, tijd, punten)
     golfHudTeken();                                 // de teller van de bandietgolf (verslagen, tijd)
+    bandArenaFadeTeken();                           // de fade naar zwart van de takel-entree (bandiet-arena)
     drawMuurE(camSwap !== null ? camSwap : world);   // voor de open deur: Press E
   } else {
     drawLichtlaag();
