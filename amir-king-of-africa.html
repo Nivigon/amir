@@ -8270,7 +8270,10 @@ const TAKEL = {
   breed: 320,                // standaard plateaubreedte in wereld-px (9-slice: alleen het midden rekt mee)
   dekH: 0.34,                // plateauhoogte als deel van CHAR_H
   sta: 0.2,                  // de looplijn: de voorrand van het bovenvlak, als deel van de plaathoogte (anders zweef je op de achterrand)
-  touwDik: 0.08,             // touwbreedte als deel van CHAR_H
+  touwDik: 0.09,             // touwbreedte als deel van CHAR_H (gedeeld door viewZoom in takelTeken, zodat de uitzoom ze niet dun maakt)
+  touwScroll: 1,             // de draad scrolt met de verticale beweging van het plateau (texture-px per scherm-px dat het stijgt), zodat het touw lijkt te bewegen tijdens het takelen
+  rijSway: 0.045,            // terwijl een star plateau (de arena-brug) stijgt of daalt wiegt het cosmetisch een beetje heen en weer (rad); staat het stil, dan ligt het weer recht
+  rijSwayF: 2.2,             // de snelheid van dat wiegen (rad/s)
   spread: 150,               // zo ver lopen de twee touwen naar boven uit elkaar (wereld-px bij de katrol)
   pulleyH: 1100,             // de verborgen katrol, sprite-eenheden boven de grondlijn (ruim boven beeld)
   knop: 0.17,                // spijkerknop als deel van CHAR_H
@@ -8459,9 +8462,15 @@ function takelUpdate(dt){
   takelGeluid(draait || t.haper > 1e-6);             // het takelgeluid loopt zolang het plateau op of neer gaat
   const basis = takelHoogte(t, t.angle);
   if (t.rigide){
-    // een star plateau (de bandiet-arena-brug die het ravijn precies vult): geen veer en geen schommel, zodat
-    // de looplijn altijd vlak met de vaste grond ligt en je er naadloos op en af loopt (geen naad om in te vallen)
-    t.bob = 0; t.bobV = 0; t.sway = 0; t.swayV = 0; t.op = false;
+    // een star plateau (de bandiet-arena-brug die het ravijn precies vult): geen veer, zodat de looplijn altijd
+    // vlak met de vaste grond ligt en je er naadloos op en af loopt (geen naad om in te vallen). Terwijl het stijgt
+    // of daalt mag het wel een beetje heen en weer wiegen (cosmetisch: de schommel kantelt alleen de tekening,
+    // takelOpp blijft vlak). Staat het stil (aangekomen), dan wiegt het uit naar nul, zodat de brug recht ligt.
+    t.bob = 0; t.bobV = 0; t.op = false;
+    if (draait) t.swayKlok = (t.swayKlok || 0) + dt;
+    const doelSway = draait ? Math.sin(t.swayKlok * TAKEL.rijSwayF) * TAKEL.rijSway : 0;
+    t.swayV += (-TAKEL.schommelK * (t.sway - doelSway) - TAKEL.schommelC * t.swayV) * dt;
+    t.sway += t.swayV * dt;
   } else {
     // de veer: zakt onder Amirs gewicht en wiebelt (ook als Amir eraf springt veert hij terug). De looplijn
     // ligt op takelOpp (de voorrand van het bovenvlak), dus daar vergelijken we Amirs voeten mee, niet met basis.
@@ -8599,7 +8608,7 @@ function takelTeken(groundY, scale, cx){
   const aR = right - 158 / 259 * capW;
   const aY = dekTop + 6 / 322 * dekH;
   const puY = groundY - (top + TAKEL.pulleyH) * scale;  // de verborgen katrol boven het scherm
-  const touwW = TAKEL.touwDik * CHAR_H * scale;
+  const touwW = TAKEL.touwDik * CHAR_H * scale / viewZoom();   // gedeeld door de uitzoom, zodat het touw op het scherm even dik blijft (de arena speelt op view 0,7)
   const sp = TAKEL.spread * scale;
   // ---- een geworpen speer die dwars door een touw vliegt snijdt het door (touwSnijbaar) ----
   if (t.touwSnijbaar && !t.valt && jav && jav.state === 'vlucht'){
@@ -8610,7 +8619,7 @@ function takelTeken(groundY, scale, cx){
     }
     t.jx = jx; t.jy = jy; t.snijJav = true;
   } else t.snijJav = false;
-  const fase = t.angle * 70;                            // de draad scrolt met de draaistand van het rad
+  const fase = top * scale * TAKEL.touwScroll;          // de draad scrolt met de verticale beweging van het plateau, zodat het touw lijkt te bewegen terwijl het takelt (werkt ook in de arena, waar het wiel verborgen is)
   // In de bandiet-arena (na de aankomst) hoort het wiel en zijn drijftouw niet in beeld: je bent dan boven,
   // het wiel stond beneden in de aankomst. De twee plateau-touwen lopen daar (en overal) boven uit beeld door.
   const arenaMode = !!(arenaAap && arenaAap.ban && !arenaAap.staging);
@@ -11828,6 +11837,8 @@ function proefmobsTeken(o){
 // elke `perKill` kills een talentpunt (RUN.punten) dat je in de pauze onder Talents kunt uitgeven.
 const ARENA = { perKant: 3, vul: 3.0, springVan: 3.2, springTot: 1.2, grondVan: 1, grondMax: 5, ramp: 150, eerste: 0.9,
                 perKill: 5, rand: 34, hangJit: 0.1, wandHoog: 3.2, wandSchaal: 1.85, wandOnder: 0.18,
+                overlap: 0.85,   // in de bandiet-arena mag Amir de rotswanden een stuk (deel van CHAR_H) overlappen voor hij stopt, zodat er aan beide kanten meer ruimte is om te vechten
+
                 // per slot een eigen plek op de grijze rots (x in Amir vanaf de wandlijn, min = naar buiten; y de hoogte in Amir).
                 // Bewust verspringend, zodat de drie niet op een rechte lijn staan.
                 hangSlots: [ { x: -0.26, y: 2.2 }, { x: -0.02, y: 1.72 }, { x: -0.19, y: 1.22 } ] };
@@ -11925,8 +11936,8 @@ function bandArenaStart(){
 function bandArenaWachters(A){
   const u = CHAR_H * nowScale();
   // hoe verder uitgezoomd (view 0,7 op een laptop), hoe meer wereld in beeld, dus de garde starten verder naar
-  // de hoeken toe. Op een telefoon (view 1) blijven ze op 1,4 Amir van de wand, zodat ze daar in beeld blijven.
-  const inzet = 1.4 * u * viewZoom();
+  // de hoeken toe. Op een telefoon (view 1) blijven ze dichter bij het midden, zodat ze daar in beeld blijven.
+  const inzet = 0.8 * u * viewZoom();
   for (const side of [-1, 1]){
     const wx = side < 0 ? A.links + inzet : A.rechts - inzet;
     const hurk = side < 0;                                            // links gehurkt, rechts staand
@@ -23658,8 +23669,15 @@ function loop(now){
   if (!fell) world += dir * 330 * walkK() * houdTempo * loopFactor * (1 - (1 - POOL.slow) * wetNow) * dt;
   if (glij !== 0) glijUpdate(dt, halfWNow);      // de renstoot: remmend doorglijden
   const cliff = cliffAt();
-  if (world + halfWNow > cliff.wall) world = cliff.wall - halfWNow;   // je komt er niet voorbij
-  if (world - halfWNow < endWall()) world = endWall() + halfWNow;    // en ook niet voorbij je eigen klif
+  if (level && level.bandArena && arenaAap && arenaAap.ban && !arenaAap.staging && !building){
+    // in de arena (boven, na de aankomst) mag Amir de twee rotswanden een stuk overlappen voor hij stopt, zodat
+    // er aan beide kanten meer ruimte is om te vechten. Symmetrisch om het midden, los van de gewone klif-grenzen.
+    const ov = ARENA.overlap * CHAR_H * nowScale();
+    world = Math.max(arenaAap.links - ov + halfWNow, Math.min(arenaAap.rechts + ov - halfWNow, world));
+  } else {
+    if (world + halfWNow > cliff.wall) world = cliff.wall - halfWNow;   // je komt er niet voorbij
+    if (world - halfWNow < endWall()) world = endWall() + halfWNow;    // en ook niet voorbij je eigen klif
+  }
   updateArena();
   checkTips();
   updateTut(dt);
