@@ -8413,21 +8413,29 @@ function takelUpdate(dt){
   if (t.haper > 0){ t.haper = Math.max(0, t.haper - dt); }
   else {
     const dA = t.doel - t.angle;
-    if (Math.abs(dA) > 1e-4){ t.angle += Math.sign(dA) * Math.min(Math.abs(dA), TAKEL.angV * dt); draait = true; }
+    const angV = t.angV || TAKEL.angV;                 // een level kan het rad trager zetten (de bandiet-arena)
+    if (Math.abs(dA) > 1e-4){ t.angle += Math.sign(dA) * Math.min(Math.abs(dA), angV * dt); draait = true; }
   }
   takelGeluid(draait || t.haper > 1e-6);             // het takelgeluid loopt zolang het plateau op of neer gaat
-  // de veer: zakt onder Amirs gewicht en wiebelt (ook als Amir eraf springt veert hij terug). De looplijn
-  // ligt op takelOpp (de voorrand van het bovenvlak), dus daar vergelijken we Amirs voeten mee, niet met basis.
-  const basis = takelHoogte(t, t.angle), opp = TAKEL.sta * TAKEL.dekH * CHAR_H;
-  const op = onGround && world > t.px - t.breed / 2 && world < t.px + t.breed / 2 && Math.abs(ph - (basis + t.bob - opp)) < 10;
-  if (op && !t.op) t.bobV -= TAKEL.stoot;            // net erop gelopen (gelijke hoogte): de lichte duw omlaag
-  t.op = op;
-  const doelBob = op ? -TAKEL.zak : 0;
-  t.bobV += (-TAKEL.veerK * (t.bob - doelBob) - TAKEL.veerC * t.bobV) * dt;
-  t.bob += t.bobV * dt;
-  // de schommel: een gedempte veer die naar nul terugloopt (de impuls komt uit takelBons bij een sprong-landing)
-  t.swayV += (-TAKEL.schommelK * t.sway - TAKEL.schommelC * t.swayV) * dt;
-  t.sway += t.swayV * dt;
+  const basis = takelHoogte(t, t.angle);
+  if (t.rigide){
+    // een star plateau (de bandiet-arena-brug die het ravijn precies vult): geen veer en geen schommel, zodat
+    // de looplijn altijd vlak met de vaste grond ligt en je er naadloos op en af loopt (geen naad om in te vallen)
+    t.bob = 0; t.bobV = 0; t.sway = 0; t.swayV = 0; t.op = false;
+  } else {
+    // de veer: zakt onder Amirs gewicht en wiebelt (ook als Amir eraf springt veert hij terug). De looplijn
+    // ligt op takelOpp (de voorrand van het bovenvlak), dus daar vergelijken we Amirs voeten mee, niet met basis.
+    const opp = TAKEL.sta * TAKEL.dekH * CHAR_H;
+    const op = onGround && world > t.px - t.breed / 2 && world < t.px + t.breed / 2 && Math.abs(ph - (basis + t.bob - opp)) < 10;
+    if (op && !t.op) t.bobV -= TAKEL.stoot;            // net erop gelopen (gelijke hoogte): de lichte duw omlaag
+    t.op = op;
+    const doelBob = op ? -TAKEL.zak : 0;
+    t.bobV += (-TAKEL.veerK * (t.bob - doelBob) - TAKEL.veerC * t.bobV) * dt;
+    t.bob += t.bobV * dt;
+    // de schommel: een gedempte veer die naar nul terugloopt (de impuls komt uit takelBons bij een sprong-landing)
+    t.swayV += (-TAKEL.schommelK * t.sway - TAKEL.schommelC * t.swayV) * dt;
+    t.sway += t.swayV * dt;
+  }
   // de hoogte voor platsNear, en hoeveel het er dit beeld bij kreeg (voor het meeliften, als bij de rijzende grond)
   t.top = basis + t.bob;
   t.stijg = Math.max(0, t.top - (t.prevTop == null ? t.top : t.prevTop));
@@ -11717,12 +11725,13 @@ function arenaReset(){ arenaAap = null; }
 // twee nieuwe garde terugkomt. Zijn ook die verslagen, dan is het level uit. Hergebruikt het
 // arena-camerasysteem (de camera klemt op het midden, de grijze zijwanden, de teller) en de takel.
 const BANDARENA = {
-  breed: 320,            // het plateau: breder dan de put, zodat het de put overbrugt met een randje op de vaste grond (geen naad om in te vallen)
-  put: 180,             // de open put in het midden van de arena: smaller dan het plateau (de rest is vechtruimte op de vaste grond)
+  breed: 320,            // het plateau, en meteen de breedte van de put in de arena: het plateau vult het ravijn precies
   diep: -1700,           // zo diep begint het plateau in de arena: onder beeld, dan takelt het omhoog
   uit: 1300,             // zo hoog takelt het in de aankomst voor het uit beeld is en naar zwart fadet
   terug: 3.0,            // seconden dat het plateau beneden blijft voor het met twee garde terugkomt
   fadeV: 2.4,            // snelheid van de fade (per seconde)
+  traag: 0.4,            // het takelen in de arena gaat trager dan een gewone takel (zo'n 2,5 keer zo traag), zodat de rit leesbaar is
+  zak: 1,               // de brug dokt een eenheid onder de grondlijn: onzichtbaar, maar supportHeight herkent hem wel (0 = "geen plateau")
 };
 // de looplijn van het plateau ligt sta onder de bovenrand; zo diep laat het plateau in de arena op gelijke
 // hoogte met de vaste grond aansluiten (de looplijn op 0), zodat Amir er netjes vanaf en weer op stapt
@@ -11733,27 +11742,29 @@ function bandArenaStart(){
   const rechts = CLIFF.wall - ARENA.rand, links = rechts - span;
   const c = Math.round((rechts + links) / 2);
   const breed = BANDARENA.breed;
-  // de aankomst: het wiel staat op vaste grond, en het plateau hangt er links van boven een ravijn. Amir komt
-  // van rechts over de vaste grond, loopt naar het wiel en slaat het; dan takelt het plateau naast hem omhoog.
-  const wielX = c;
-  const px = wielX - 260;                                              // het plateau links van het wiel
-  const putBreed = 360;                                               // de ravijn onder het plateau, iets breder dan het plateau (de put flankeert het, dus zichtbaar)
+  // de aankomst: Amir staat op het plateau, dat boven een ravijn hangt. Het wiel staat er rechts van op vaste
+  // grond, net buiten de put. Amir loopt naar de rand bij het wiel, slaat het, en takelt daarna mee omhoog.
+  const px = c - 120;                                                 // het plateau iets links van het midden
+  const putBreed = breed + 60;                                       // de ravijn onder het plateau, iets breder (dus je stapt er niet naast op vaste grond)
+  const wielX = Math.round(px + breed / 2 + 120);                     // het wiel rechts naast het plateau op vaste grond, binnen stootbereik vanaf de plateaurand (ook op een telefoon)
   if (level){
     level.cliffs = [ { x: links } ];
     level.gaps = [ { x: px, w: putBreed } ];                           // het plateau hangt boven een ravijn; het wiel staat er rechts van op vaste grond
     level.hppotions = [];
     level.ledges = [];                                                 // de twee rotsrichels komen pas bij de arena (met de wanden)
-    level.takel = { x: wielX, px, breed, laag: 0, hoog: BANDARENA.uit + 400, stappen: 6, beginLaag: true };
+    // angV trager dan een gewone takel: het takelen in de arena is traag en leesbaar. rigide: de brug veert en
+    // schommelt niet, zodat hij het ravijn precies vult en je er naadloos op en af loopt.
+    level.takel = { x: wielX, px, breed, laag: 0, hoog: BANDARENA.uit + 400, stappen: 6, beginLaag: true, angV: TAKEL.angV * BANDARENA.traag, rigide: true };
     takelReset();
   }
   arenaAap = { ban: true, staging: true, fase: 'aankomst', c, links, rechts, wielX, breed,
                t0: bavKlok, kills: 0, fade: 0, fadeDoel: 0, klok: 0, terug: false, terugTot: 0, gewonnen: false };
   arena = null;                                                        // in de aankomst volgt de camera Amir gewoon
-  // Amir op de vaste grond rechts van het wiel; hij loopt naar links naar het wiel en slaat het
-  world = wielX + 170; ph = 0; pvh = 0; onGround = true; fell = false; facing = -1;
-  // zijn speer staat op vaste grond tussen hem en het wiel (niet boven de put, zoals de standaardplek zou doen)
-  spear = false; spearFound = false; spearX = wielX + 90; spearH = null;
-  flashHint('Sla het tandwiel met je speer of stoot: het plateau takelt je omhoog');
+  // Amir op het plateau boven het ravijn; hij loopt naar de rand bij het wiel en slaat het, dan takelt hij mee omhoog
+  world = px; ph = takelOpp(level.takel); pvh = 0; onGround = true; fell = false; facing = 1;
+  // de speer in zijn hand: op een plateau boven een ravijn kan hij er geen uit de grond gaan halen
+  spear = true; spearFound = true; spearX = null; spearH = null;
+  flashHint('Loop naar het tandwiel en sla het: dan takel je met het plateau omhoog');
 }
 // twee garde die staan te wachten, een aan elke wand; ze bewegen pas als Amir uitgetekend is (s.wacht)
 function bandArenaWachters(A){
@@ -11787,10 +11798,13 @@ function bandArenaOpPlateau(A){
   }
 }
 const bandArenaLevend = () => bandieten.filter(b => b.state !== 'dood' && b.state !== 'weg').length;
-// tijdens het optakelen de arena in (arena_in) is Amir een passagier: hij staat vast op het plateau zodat hij
-// er niet af kan rennen voor het boven is (hij stapt pas vrij als het plateau aangekomen is, golfA). Blokkeert
-// lopen en springen, niet het aanvallen (dat is in de aankomst niet van toepassing, hij staat daar op vaste grond).
-function arenaRitVast(){ const A = arenaAap; return !!(A && A.ban && A.fase === 'arena_in'); }
+// tijdens het optakelen (stijg_uit, de aankomst, en arena_in, van onderaf) is Amir een passagier: hij staat vast
+// op het plateau zodat hij er niet af kan rennen terwijl het takelt (hij stapt pas vrij als het boven aangekomen is,
+// golfA). Blokkeert lopen en springen, niet het aanvallen.
+function arenaRitVast(){ const A = arenaAap; return !!(A && A.ban && (A.fase === 'stijg_uit' || A.fase === 'arena_in')); }
+// springen is in de hele aankomst uit (ook voor Amir het wiel slaat), zodat hij niet van het plateau af het ravijn in
+// of op de vaste grond bij het wiel springt (en het plateau dan zonder hem zou vertrekken)
+function arenaGeenSprong(){ const A = arenaAap; return !!(A && A.ban && (A.fase === 'aankomst' || A.fase === 'stijg_uit' || A.fase === 'arena_in')); }
 function bandArenaTick(A, dt){
   if (!running || building || paused) return;
   const t = takelLevel();
@@ -11809,17 +11823,20 @@ function bandArenaTick(A, dt){
     if (A.fade >= 0.99){                                              // zwart: zet de arena klaar en takel van onderaf in
       A.staging = false; A.fase = 'arena_in';
       if (level){
-        // de put is smaller dan het plateau: boven aangekomen overbrugt het plateau de put met een randje op
-        // de vaste grond, zodat de vloer doorloopt (geen naad om tussen plateau en grond in te vallen)
-        level.gaps = [ { x: A.c, w: BANDARENA.put } ];
+        // de put is precies zo breed als het plateau: boven aangekomen vult het plateau het ravijn exact (geen
+        // randje op de vaste grond). Omdat de looplijn gelijk met de grond uitkomt (takelDekOffset) loopt de
+        // vloer toch naadloos door, zonder naad om tussen plateau en grond in te vallen
+        level.gaps = [ { x: A.c, w: A.breed } ];
         // twee rotsrichels hoog op de wanden, als decor (zoals in het schacht-level): te hoog om op te komen
         const u = CHAR_H * nowScale();
         level.ledges = [ { x: A.links + 0.7 * u, h: 430, s: 1.0 },
                          { x: A.rechts - 0.7 * u, h: 430, s: 1.0, f: true } ];
-        // hoog op takelDekOffset: dan ligt de looplijn boven precies op de grondlijn (0), gelijk met de vaste grond
-        if (t){ t.px = A.c; t.laag = BANDARENA.diep; t.hoog = takelDekOffset(); takelReset(); t.doel = t.maxA; }
+        // hoog zo dat de looplijn boven net onder de grondlijn ligt (een paar eenheden, onzichtbaar), gelijk met de
+        // vaste grond maar niet exact op 0: supportHeight geeft 0 terug als "geen plateau", dus een brug op precies
+        // 0 zou niet herkend worden en je viel er dwars doorheen. Net eronder wordt hij wel herkend.
+        if (t){ t.px = A.c; t.laag = BANDARENA.diep; t.hoog = takelDekOffset() - BANDARENA.zak; takelReset(); t.doel = t.maxA; }
       }
-      world = A.c; ph = t ? takelOpp(t) : 0; pvh = 0; onGround = true; fell = false;
+      world = A.c; ph = t ? takelOpp(t) : 0; pvh = 0; onGround = true; fell = false;   // precies op de looplijn van de brug
       spearX = Math.round(A.links + 1.6 * CHAR_H * nowScale()); spearH = null; spearFound = false;   // een speer op de arenavloer bij de linkerwand
       bandArenaWachters(A);                                           // de twee die staan te wachten
       A.fadeDoel = 0;                                                 // weer in beeld
@@ -11839,10 +11856,10 @@ function bandArenaTick(A, dt){
       bandArenaUitLucht(A);                                           // twee uit de lucht, links en rechts
       if (t) t.doel = 0;                                              // het plateau zakt weer uit beeld
       // Amir van de put af op de vaste grond zetten, zodat het zakkende plateau hem niet meeneemt de put in
-      const putHalf = BANDARENA.put / 2;
-      if (Math.abs(world - A.c) < putHalf + 60){
+      const putHalf = A.breed / 2;
+      if (Math.abs(world - A.c) < putHalf + 20){
         const kant = (world - A.c) >= 0 ? 1 : -1;
-        world = A.c + kant * (putHalf + 70); ph = 0; pvh = 0; onGround = true; fell = false;
+        world = A.c + kant * (putHalf + 60); ph = 0; pvh = 0; onGround = true; fell = false;
       }
       A.terugTot = A.klok + BANDARENA.terug; A.terug = false;
       A.fase = 'golfB';
@@ -14018,7 +14035,7 @@ function takeOff(){
 }
 function startJump(){
   if (amirVast()) return;                            // de baviaan heeft je speer vast
-  if (arenaRitVast()) return;                        // tijdens het optakelen de arena in staat Amir vast op het plateau
+  if (arenaGeenSprong()) return;                     // in de bandiet-arena-aankomst en tijdens het takelen springt Amir niet van het plateau af
   if (typeof tutEvent === 'function') tutEvent('jump');
   thrAfbreken();                                   // springen tijdens het spannen: de worp gaat niet door
   if (dead || hurt > 0 || schijnLigt() || atkFrame >= 0 || swFrame >= 0 || swRecover > 0 || thr) return;
@@ -24814,7 +24831,9 @@ function loop(now){
     drawFosforSlangen({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, attacking, hitBy });
 
     // ---- de speer (of de lage zwaai) tegen het takelwiel ----
-    if (takelLevel() && takelGeladen){
+    // In de bandiet-arena (na de aankomst) is het wiel weg: dan beweegt het plateau alleen de fasemachine (golfB/golfC),
+    // en mag een treffer het niet verzetten. Alleen in de aankomst (en in gewone takel-levels) slaat Amir het rad.
+    if (takelLevel() && takelGeladen && !(arenaAap && arenaAap.ban && !arenaAap.staging)){
       const tk = takelLevel();
       const wB = terrainH(tk.x);
       const wielH = TAKEL.wielH * CHAR_H * scale, wielW = wielH * 274 / 325;
