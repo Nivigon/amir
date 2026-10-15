@@ -53,6 +53,10 @@ open staan.
 
 In het spel staat de deur in de rotswand `design/rotswand_kaal.png`, geschaald op
 Amir (zie `DEUR` in de HTML, kop "deur in de rotswand"). Op het moment dat hij
-openvliegt klinkt `sounds/deurslam.mp3`. Test 35 is het proefstuk: Amir loopt naar
-links, bij de rotswand vliegt de deur open en een bandiet komt uit de deuropening
-op hem af. In de sandbox onder Terrein, Deur.
+openvliegt klinkt `sounds/deurslam.mp3`. Onder de deur ligt een dun stenen
+drempeltje: dat is de donkerbruine rotssokkel uit de fakkel-plaat (`design/einde.png`),
+met zijn aflopende randen, geschaald tot een strook. Een level kan met de deur ook
+eindigen (`uitgang`): na het gevecht speel je met E op de open deur uit, zonder
+fakkels. Test 35 is het proefstuk: Amir loopt naar links, bij de rotswand vliegt de
+deur open en een bandiet komt uit de deuropening op hem af; daarna loop je naar de
+open deur en drukt op E. In de sandbox onder Terrein, Deur.
