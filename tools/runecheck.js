@@ -76,7 +76,10 @@ async function meet(filter){
     const klaar = () => (level.runes || []).every(e => !!ravijnRotsMaat(nowScale(), e))
                      && (!level.muur || !!muurSet(nowScale()));
     for (let n = 0; n < 60 && !klaar(); n++) await wacht(100);
-    const sc = nowScale(), rPx = RAVIJN_RUNE.r * CHAR_H * sc, inBeeld = W / 2 - rPx;
+    // de wereldlaag is 1 wereld-px = 1 scherm-px (de camera doet cx + (worldX - world), zonder schaal),
+    // en die laag wordt daarna met viewZoom geschaald: het zichtbare stuk vooruit is dus (W/2)/viewZoom,
+    // niet W/2. Een uitgezoomd level (view < 1) laat de schijf eerder in beeld komen.
+    const sc = nowScale(), rPx = RAVIJN_RUNE.r * CHAR_H * sc, inBeeld = (W / 2) / viewZoom() - rPx;
     if (typeof runeKeiZet === 'function') runeKeiZet(sc);   // de kei voor een hoge schijf ligt op deze maat
     const rij = { naam: def.name, breed: W, hoog: H, inBeeld: Math.round(inBeeld), schijven: [] };
     for (const e of (level.runes || [])){

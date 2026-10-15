@@ -92,6 +92,15 @@ daarbuiten tot 1200 px als LET OP (de bewuste uitdaging: bevestig dat hij haalba
 Poorten schoon, want die zet de charger-golf al ver voorbij het skelet. Dit kwam uit Valse Koning 1,
 waar twee bandieten op het skelet stonden.
 
+**10. Nieuwe levels bouw je op `view: 0,7`.** Dat geeft op de laptop meer zicht om je heen (ongeveer 1,4
+keer zoveel wereld in beeld, in de breedte en de hoogte), wat past bij levels die ook naar rechts gaan
+of heen en weer, waar dreiging van twee kanten komt. Zet er dan ook `voorgrond: false` bij, of stel de
+voorgrond opnieuw af: die staat in schermruimte en dekt bij uitzoomen naar verhouding te veel af (zie
+Test 25 en 26). De bestaande episodes blijven op hun eigen `view` (meestal 1): die zijn bevroren (regel
+1), dus die zoom je niet mee, en de standaard in `viewZoom()` blijft daarom 1. Het is dus het veld per
+nieuw level dat telt, niet een globale knop. Loop een nieuw level met een rune of een muur daarna na met
+`tools/runecheck.js`: op 0,7 blijft een schijf meestal makkelijker in beeld, maar bevestig het.
+
 ## Waar wat staat
 
 De HTML is opgedeeld met commentaarkoppen (`// ---- ... ----`). Zoek daarop, niet op
@@ -1225,12 +1234,12 @@ beeld: de plaatjes worden per soort, laag en tint een keer onscherp gemaakt en b
 
 ### Een level toevoegen (alleen na toestemming)
 
-1. De definitie erbij, na de laatste van die reeks.
+1. De definitie erbij, na de laatste van die reeks, met `view: 0,7` en `voorgrond: false` (regel 10).
 2. De naam in de array van die reeks (`POORT_LEVELS`, `TEST_LEVELS` of `BAB_LEVELS`).
 3. Een ondertitel in `SUBS`, op de naam van het level.
 4. Een eigen uitzicht in `SCENES` als het level er anders uit moet zien.
-   De voorgrond komt er vanzelf bij (zie hierboven); zet alleen een eigen `voorgrond` als het level
-   daar iets mee wil.
+   Zet de voorgrond uit (`voorgrond: false`, regel 10) of stel hem opnieuw af; laat je hem aan, dan dekt
+   hij op `view: 0,7` naar verhouding te veel af.
 5. `python3 tools/levelcheck.py` draaien, en elke FOUT oplossen voor je commit (zie
    hieronder).
 
@@ -1489,10 +1498,12 @@ overbodig: de rots hangt aan Amirs maat, dus op 1920 bij 1080 staat hij ruim 500
 rechts dan op een telefoon. Zet dus niets in de strook waarvan je niet wil dat Amir er staat (een
 ravijn, een terras: vanaf een terras gooit hij van een andere hoogte en dan klopt de strook niet).
 
-Nu meldt hij een FOUT in **Test 3**, en dat is er een van voor deze tools: de schijf op de grotboog
-is daar alleen van 692 px te raken en dan staat hij op 1280 bij 720 net buiten beeld. Datzelfde geldt
-als LET OP voor de rotswand in Test 7. Die twee zijn zo gelaten; De Poorten gebruikt daarom alleen
-schijven op een rots.
+De schijf op de grotboog van **Test 3** was alleen van 692 px te raken en stond op 1280 bij 720 net
+buiten beeld (een FOUT van voor deze tools). Sinds Test 3 op `view: 0,7` staat (regel 10) is dat weg:
+uitgezoomd zie je `(W/2)/view` vooruit (in beeld tot 893 px op 1280 bij 720), dus de schijf ligt er ruim
+in. `runecheck` rekent die view nu mee (`inBeeld = (W/2)/viewZoom() - rPx`); een level zonder view (de
+meeste) verandert daar niet van. De rotswand in **Test 7** blijft een LET OP (op view 1); De Poorten
+gebruikt daarom alleen schijven op een rots.
 
 ## Hetzelfde beeld nameten: tools/beeldgelijk.js
 
