@@ -979,6 +979,26 @@ def rijs_in(lv, g):
             and b['l'] < r and b['r'] > l]
 
 
+def takel_dek(lv):
+    """De linker- en rechterrand van het takel-plateau (wereld-x), of None."""
+    t = lv.d.get('takel')
+    if not t or not isinstance(t.get('x'), (int, float)):
+        return None
+    breed = t['breed'] if isinstance(t.get('breed'), (int, float)) and t['breed'] > 0 else 320
+    px = t['px'] if isinstance(t.get('px'), (int, float)) else t['x'] - 520
+    return (px - breed / 2, px + breed / 2)
+
+
+def takel_dekt(lv, g):
+    """Overbrugt het takel-plateau dit ravijn? (het dek overlapt het gat)"""
+    dek = takel_dek(lv)
+    if not dek:
+        return False
+    dl, dr = dek
+    gl, gr = g['x'] - g['w'] / 2, g['x'] + g['w'] / 2
+    return dr > gl and dl < gr
+
+
 def rijs_gaten(lv, g):
     """De stukken ravijn tussen de randen en de blokken, als die boven zijn."""
     l, r = g['x'] - g['w'] / 2, g['x'] + g['w'] / 2
@@ -1128,6 +1148,20 @@ def ravijnen(lv, sp):
         schoon_r, red_r = sp.sprong(rennen, kop, rand)
         schoon_l, _ = sp.sprong(lopen, kop, rand)
         w = g['w']
+        # een takel-plateau dat dit gat overbrugt (zie "takelwiel met plateau"): de stukken van de rand
+        # naar het dek moeten de sprong halen, net als bij de rijzende grond
+        if takel_dekt(lv, g):
+            dl, dr = takel_dek(lv)
+            gl, gr = g['x'] - w / 2, g['x'] + w / 2
+            stukken = [x for x in (max(0, dl - gl), max(0, gr - dr)) if x > 0]
+            breedst = max(stukken) if stukken else 0
+            if breedst > red_r:
+                yield fout(g['x'], 'ravijn met een takel-plateau: het breedste stuk ernaast is %s, met sprint haalt '
+                                   'Amir hoogstens %s' % (n0(breedst), n0(red_r)))
+            else:
+                yield info(g['x'], 'ravijn van %s breed, overbrugd door een takel-plateau%s'
+                           % (n0(w), (': stukken van %s' % ', '.join(n0(x) for x in stukken)) if stukken else ''))
+            continue
         plafond = lv.plafond_min(g['x'] - w / 2, rand) < sp.PLAFOND_WEG
         erbij = ' onder dit plafond' if plafond and schoon_r < sp.sprong(rennen, lambda x: math.inf, 0)[0] - 1 else ''
         # ligt er een gang onder (holtes), dan is dit de ingang: erin vallen is de bedoeling
