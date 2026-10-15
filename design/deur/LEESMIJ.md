@@ -52,6 +52,7 @@ open staan.
 ## In het spel
 
 In het spel staat de deur in de rotswand `design/rotswand_kaal.png`, geschaald op
-Amir (zie `DEUR` in de HTML, kop "deur in de rotswand"). Test 35 is het proefstuk:
-Amir loopt naar links, bij de rotswand vliegt de deur open en een bandiet komt uit
-de deuropening op hem af. In de sandbox onder Terrein, Deur.
+Amir (zie `DEUR` in de HTML, kop "deur in de rotswand"). Op het moment dat hij
+openvliegt klinkt `sounds/deurslam.mp3`. Test 35 is het proefstuk: Amir loopt naar
+links, bij de rotswand vliegt de deur open en een bandiet komt uit de deuropening
+op hem af. In de sandbox onder Terrein, Deur.
