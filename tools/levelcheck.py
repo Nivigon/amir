@@ -897,6 +897,9 @@ def einde(lv, sp):
         return                        # de arena van goudaapjes eindigt niet: oneindig tot je dood bent
     if lv.d.get('bandArena'):
         return                        # de bandiet-arena speelt uit als de hele garde verslagen is (winLevel), geen fakkels
+    _deur = lv.d.get('deur')
+    if _deur and _deur.get('uitgang'):
+        return                        # de houten deur als uitgang: na het gevecht speel je met E op de open deur het level uit (winLevel), geen fakkels
     if not lv.ends and not lv.muur:
         yield fout(None, 'geen ends en geen muur: dit level is niet uit te spelen')
         return
