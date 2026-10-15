@@ -8685,6 +8685,8 @@ const DEUR = {
   plekX: 0.44,       // de deuropening zit op dit deel van de rotsbreedte (vanaf links)
   spiegel: false,    // de rots zoals de referentie: de hoge overhang-flank links
   hoogAmir: 1.55,    // deurhoogte (canvas) als deel van CHAR_H
+  voetDek: 0.14,     // een lage talud over de voet van de rots en de deur, zoveel boven de grond op zijn piek (deel van CHAR_H), zodat de deur in de grond geplant staat
+  voetBreed: 0.46,   // de halve breedte van die talud als deel van de rotsbreedte (loopt net binnen de rotsranden uit, dus geen trede)
   fps: 30,           // snel afgespeeld: hij vliegt open
   trigger: 520,      // Amir binnen zoveel wereld-px van de deuropening: de deur vliegt open
   freeze: 0.4,       // op de klap (deur helemaal open) staat het beeld even stil (hitstop); de bandiet verschijnt dan en rent pas als de freeze afloopt
@@ -8757,10 +8759,11 @@ function deurTeken(groundY, scale, cx){
   deurLaad();
   const openScreenX = cx + (L.x - world);
   // 1. de rots eromheen, zodat de deur erin leest
+  let rockW = 0, rockLeftS = 0;
   if (muurImg && muurImg.complete && muurImg.naturalWidth){
     const rockScale = DEUR.rotsHoog * CHAR_H * scale / muurImg.naturalHeight;
-    const rockW = muurImg.naturalWidth * rockScale, rockH = muurImg.naturalHeight * rockScale;
-    const rockLeftS = openScreenX - DEUR.plekX * rockW;
+    rockW = muurImg.naturalWidth * rockScale; const rockH = muurImg.naturalHeight * rockScale;
+    rockLeftS = openScreenX - DEUR.plekX * rockW;
     const rockTopS = groundY - DEUR.rotsVoet * rockH;
     if (rockLeftS < W / viewZoom() + W && rockLeftS + rockW > -W){
       ctx.save();
@@ -8770,14 +8773,46 @@ function deurTeken(groundY, scale, cx){
     }
   }
   // 2. de deur zelf, op het huidige frame; de opening (openCx) valt op L.x, de grondlijn op de grond
+  const dScale = DEUR.hoogAmir * CHAR_H * scale / DEUR.canvas[1];
+  const dW = DEUR.canvas[0] * dScale;
   const idx = deurState.fase === 'dicht' ? 0 : deurState.f;
   const im = deurImgs && deurImgs[idx];
   if (im && im.complete && im.naturalWidth){
-    const dScale = DEUR.hoogAmir * CHAR_H * scale / DEUR.canvas[1];
-    const dW = DEUR.canvas[0] * dScale, dH = DEUR.canvas[1] * dScale;
+    const dH = DEUR.canvas[1] * dScale;
     const leftS = openScreenX - DEUR.openCx * dScale;
     const topS = groundY - DEUR.grond * dScale;
     if (leftS < W / viewZoom() + W && leftS + dW > -W) ctx.drawImage(im, leftS, topS, dW, dH);
+  }
+  // 3. een lage talud over de voet van de rots en de deur: een brede, flauwe boog van dezelfde grondtegel
+  // (bodemPic, wereld-verankerd zoals de grond en rijsTeken), gecentreerd op de rots en net binnen zijn randen
+  // uitlopend, zodat er geen trede ontstaat. Zo staat de deur in de grond geplant in plaats van er plat op,
+  // net als het puin aan de voet van een rotswand. Getekend na de rots en de deur, dus hij overdekt hun voet.
+  if (DEUR.voetDek > 0 && edgeReady() && rockW > 0){
+    const eimg = bodemPic();
+    const sE = edgeScale(H * 0.18);
+    const tw = eimg.naturalWidth * sE, th = eimg.naturalHeight * sE;
+    const dek = DEUR.voetDek * CHAR_H * scale;                 // zoveel komt de talud op zijn piek boven de grond
+    const midX = rockLeftS + rockW / 2;                        // gecentreerd op de rots
+    const halfW = DEUR.voetBreed * rockW;
+    const l = midX - halfW, r = midX + halfW;
+    if (l < W / viewZoom() + W && r > -W){
+      const bottom = groundY + Math.max(H * 0.2, (H - groundY) / viewZoom()) + 40;
+      ctx.save();
+      // de taludvorm: een brede boog die in het midden `dek` boven de grond piekt (de controlepunt-offset is
+      // tweemaal dek, want een quadratic haalt maar de helft) en aan beide randen op de grondlijn uitkomt
+      ctx.beginPath();
+      ctx.moveTo(l, groundY + 2);
+      ctx.quadraticCurveTo(midX, groundY - 2 * dek, r, groundY + 2);
+      ctx.lineTo(r, bottom); ctx.lineTo(l, bottom); ctx.closePath();
+      ctx.clip();
+      ctx.fillStyle = bodemDonker();
+      ctx.fillRect(l, groundY - dek + th * 0.9, r - l, bottom);
+      const top = (groundY - dek) - EDGE.walk * sE;             // de looplijn van de tegel op de piek van de talud
+      let x = cx - (((world % tw) + tw) % tw);                  // vast aan de wereld, net als de grond
+      while (x > l) x -= tw;
+      for (; x < r; x += tw) ctx.drawImage(eimg, x, top, tw + 1, th);
+      ctx.restore();
+    }
   }
 }
 
