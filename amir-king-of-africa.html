@@ -3378,6 +3378,8 @@ const TEST_34 = {
 const TEST_35 = {
   name: 'Test 35: De deur in de rotswand',
   lagen: 'tafelbergen',
+  view: 0.7,                                     // uitgezoomd, zodat de hele rotswand met de deur in beeld past
+  voorgrond: false,                              // de voorgrond staat in schermruimte, dus uit bij een uitgezoomd level
   rocks: [],
   spawns: [ {x: -60000, k: 'groen'} ],          // heel ver weg: houdt de vrije modus uit (geen willekeurige slangen)
   deur: { x: -1600, bandiet: true },
@@ -8664,11 +8666,13 @@ function takelTeken(groundY, scale, cx){
 // ---- deur in de rotswand: een houten deur die openvliegt, en een bandiet komt eruit ----
 // Een verweerde houten plankdeur, ingehakt in de rotswand (design/rotswand_kaal.png, dezelfde plaat als MUUR),
 // geschaald op Amir. Komt Amir in de buurt, dan vliegt de deur open (de 20 frames uit design/deur/, snel
-// afgespeeld) en blijft open staan. Vlak daarna komt er een bandiet uit de donkere deuropening tevoorschijn
-// (hij faadt uit het donker op en rent dan op Amir af, de gewone bandiet-AI). De deur weet niets van de
-// bandiet, precies zoals de LEESMIJ zegt: het opengaan en de bandiet staan los van elkaar. Een level zet hem
-// neer met `deur: {x, bandiet, dolk, elite}`, waarbij x het midden van de deuropening is (daar komt de bandiet
-// uit). In de sandbox onder Terrein, Deur. Test 35 is het proefstuk.
+// afgespeeld). Op de klap, als hij helemaal open staat, staat het beeld even stil (een hitstop, deurFreeze in
+// de lus): de klap klinkt en schokt, en de bandiet verschijnt meteen in de donkere deuropening. Hij faadt op
+// tijdens die freeze (vFade op echte tijd) en rent pas op Amir af als de freeze afloopt, met de gewone
+// bandiet-AI. Zo krijgt de speler een tel om de dreiging te zien voor hij losrent. De deur en de bandiet staan
+// verder los van elkaar, precies zoals de LEESMIJ zegt. Een level zet hem neer met `deur: {x, bandiet, dolk,
+// elite}`, waarbij x het midden van de deuropening is (daar komt de bandiet uit). In de sandbox onder Terrein,
+// Deur. Test 35 is het proefstuk.
 const DEUR = {
   dir: 'design/deur/',
   frames: 20,
@@ -8683,8 +8687,9 @@ const DEUR = {
   hoogAmir: 1.55,    // deurhoogte (canvas) als deel van CHAR_H
   fps: 30,           // snel afgespeeld: hij vliegt open
   trigger: 520,      // Amir binnen zoveel wereld-px van de deuropening: de deur vliegt open
-  bandietNa: 0.25,   // zoveel seconden nadat de deur open is komt de bandiet naar buiten
-  verschijn: 0.45    // zoveel seconden doet de bandiet erover om uit het donker op te faden
+  freeze: 0.4,       // op de klap (deur helemaal open) staat het beeld even stil (hitstop); de bandiet verschijnt dan en rent pas als de freeze afloopt
+  schok: 0.18,       // de shake op die klap
+  verschijn: 0.45    // zoveel seconden doet de bandiet erover om uit het donker op te faden (loopt ook door tijdens de freeze)
 };
 // het geluid van de deur die openvliegt: een eenmalige klap op het moment dat hij opengaat.
 // via geluidAan, zodat geluidOntgrendel hem op een telefoon na de eerste tik aanzet.
@@ -8710,8 +8715,10 @@ function deurLaad(){
 }
 // de staat van de deur in dit potje: dicht, bezig met opengaan (open), of helemaal open (uit)
 let deurState = { fase: 'dicht', f: 0, t: 0, bandietGedaan: false };
+let deurFreeze = 0;                 // loopt op de klap: zolang hij loopt staat de wereld stil (zie de lus)
 function deurReset(){
   deurState = { fase: 'dicht', f: 0, t: 0, bandietGedaan: false };
+  deurFreeze = 0;
   if (level && level.deur) deurLaad();
 }
 function deurLevel(){ return (level && level.deur) || null; }
@@ -8729,14 +8736,19 @@ function deurUpdate(dt){
   deurLaad();
   const st = deurState;
   if (st.fase === 'dicht'){
-    if (Math.abs(L.x - world) <= DEUR.trigger){ st.fase = 'open'; st.t = 0; st.f = 0; deurSlamSpeel(); }
+    if (Math.abs(L.x - world) <= DEUR.trigger){ st.fase = 'open'; st.t = 0; st.f = 0; }
   } else if (st.fase === 'open'){
     st.t += dt;
     st.f = Math.min(DEUR.frames - 1, Math.floor(st.t * DEUR.fps));
-    if (st.f >= DEUR.frames - 1){ st.fase = 'uit'; st.t = 0; }
-  } else if (st.fase === 'uit'){
-    st.t += dt;
-    if (L.bandiet && !st.bandietGedaan && st.t >= DEUR.bandietNa){ st.bandietGedaan = true; deurSpawnBandiet(L); }
+    if (st.f >= DEUR.frames - 1){
+      // de klap: de deur staat helemaal open. Het beeld staat even stil (deurFreeze), de klap klinkt en schokt,
+      // en de bandiet verschijnt meteen in de deuropening. Hij faadt op tijdens de freeze en rent pas als die afloopt.
+      st.fase = 'uit'; st.t = 0;
+      deurSlamSpeel();
+      if (!building) shake = Math.max(shake, DEUR.schok);
+      deurFreeze = DEUR.freeze;
+      if (L.bandiet && !st.bandietGedaan){ st.bandietGedaan = true; deurSpawnBandiet(L); }
+    }
   }
 }
 function deurTeken(groundY, scale, cx){
@@ -23347,8 +23359,17 @@ document.getElementById('wnreplay').onclick = () => { restart(); cv.focus(); };
 document.getElementById('wnmenu').onclick = () => { won = false; document.getElementById('win').classList.remove('on'); toMenu(); };
 function loop(now){
   const wacht = laadStap(Math.max(0, Math.min((now - last) / 1000, 0.1)));   // nog aan het laden: stilstaan
+  const realDt = Math.max(0, Math.min((now - last) / 1000, 0.1));   // echte verstreken tijd, ook tijdens een freeze
   let dt = (paused || won || wacht) ? 0 : Math.max(0, Math.min((now - last) / 1000, 0.05)); last = now;
-  if (!building) dt *= gameTempo;                // het tempo uit de instellingen
+  if (!building) dt *= gameTempo;
+  // de deur-freeze (hitstop): op de klap staat het beeld even stil. De wereld bevriest (dt 0), maar de bandiet
+  // komt wel op uit het donker (vFade op echte tijd) en de shake zakt weg, zodat de klap narommelt.
+  if (deurFreeze > 0){
+    deurFreeze = Math.max(0, deurFreeze - realDt);
+    dt = 0;
+    if (shake > 0) shake = Math.max(0, shake - realDt);
+    for (const b of bandieten) if (b.vFade != null && b.vFade < 1) b.vFade = Math.min(1, b.vFade + realDt / DEUR.verschijn);
+  }                // het tempo uit de instellingen
   const left = keys['ArrowLeft'] || keys['a'] || keys['A'];
   const right = keys['ArrowRight'] || keys['d'] || keys['D'];
   // Was 1.85, oftewel 610 px/s tegen 330 wandelend. Dat is op een telefoonscherm
