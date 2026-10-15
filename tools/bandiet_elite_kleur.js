@@ -7,10 +7,14 @@
 // wordt per pixel op een kleurladder gelegd (een gradient-map), zodat de plooien, de
 // schaduwen en de contour precies blijven zoals ze getekend zijn.
 //
-// Twee vlakken, herkend aan helderheid en verzadiging van het origineel:
+// Drie vlakken, herkend aan tint, verzadiging en helderheid van het origineel:
+//   huid    de warme bruine huid (gezicht, handen, voeten) -> blijft onveranderd
 //   metaal  de lichte, weinig verzadigde glans (het kromzwaard, de gespen) -> goud
-//   doek    al het andere (het bruine lijf, de kleding)                    -> houtskool
-// De donkere contour (heel donker) blijft met opzet zwart staan.
+//   doek    al het andere (de kleding, de sjerp, de broek)                 -> houtskool
+// De donkere contour (heel donker) blijft met opzet zwart staan. De huid houdt dus
+// zijn eigen kleur: de garde is zwart met goud, maar de bandiet zelf blijft herkenbaar.
+// De huid is redder (lagere tint, R groter dan G) dan de olijf-khaki broek, en niet zo
+// verzadigd rood als de sjerp, dus die twee gaan gewoon naar houtskool.
 //
 // Alle reeksen worden omgezet (run, slag, look, worp, dood, hurk, schouder, spot, vault,
 // en de dolk), en de json-metadata wordt meegekopieerd. De originelen in enemies/bandiet/
@@ -51,8 +55,9 @@ const SCH = { doek: houtskool, metaal: goud };
       for (let i = 0; i < p.length; i += 4){ if (p[i + 3] === 0) continue;
         const [h, s, v] = r2h(p[i], p[i + 1], p[i + 2]); let key = 'doek';
         if (v < 0.12) continue;                                   // donkere contour: zwart laten
+        if (h >= 7 && h <= 38 && (p[i] - p[i + 1]) >= 14 && s >= 0.22 && s <= 0.74) continue;  // huid: zelfde huidskleur houden (redder dan de khaki broek, niet de rode sjerp)
         else if (v > 0.50 && s < 0.38) key = 'metaal';            // de lichte glans van het staal en de gespen -> goud (ruimer, dus wat meer goud)
-        else key = 'doek';                                        // het lijf en de kleding -> houtskool
+        else key = 'doek';                                        // de kleding, de sjerp en de broek -> houtskool
         const L = Math.pow((0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2]) / 255, 0.82);
         const o = mapRamp(L, S[key]); p[i] = o[0]; p[i + 1] = o[1]; p[i + 2] = o[2];
       }
