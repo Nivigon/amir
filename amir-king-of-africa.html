@@ -11847,7 +11847,7 @@ function arenaStart(midLevel){
 // seconden, dan stoppen de apen en speel je het level uit (zie arenaTick). De aanloop-vijanden ruimen we
 // op, en Amir teleporteert naar het midden van de arena.
 function arenaBinnen(sec){
-  snakes.length = 0; scorps.length = 0; panthers.length = 0; hyenas.length = 0; zwaarden.length = 0; bandieten.length = 0; banDolken.length = 0;
+  snakes.length = 0; scorps.length = 0; panthers.length = 0; hyenas.length = 0; zwaarden.length = 0; bandieten.length = 0; banDolken.length = 0; banVonken.length = 0;
   arenaStart(true);
   if (arenaAap) arenaAap.overleef = Math.max(1, sec || 60);
   world = Math.round(arenaMidden());
@@ -18310,7 +18310,7 @@ function restart(){
   }
   camY = 0; camFloor = 0;
   drawLives(); deadEl.classList.remove('on');
-  snakes.length = 0; scorps.length = 0; panthers.length = 0; hyenas.length = 0; zwaarden.length = 0; bandieten.length = 0; banDolken.length = 0; golfReset(); arena = null; camEase = null; spawnTimer = 0.6;
+  snakes.length = 0; scorps.length = 0; panthers.length = 0; hyenas.length = 0; zwaarden.length = 0; bandieten.length = 0; banDolken.length = 0; banVonken.length = 0; golfReset(); arena = null; camEase = null; spawnTimer = 0.6;
   if (level && level.apenArena && !sandbox && !building) arenaStart();   // de goudaap-arena: muren, camera in het midden, de spawner
   if (level && level.bandArena && !sandbox && !building) bandArenaStart();   // de bandiet-arena: de garde van de valse koning
   if (level && level.takel && !sandbox && !building) takelBandietenZet();   // een takelaar bij het wiel en passagiers op het plateau
@@ -20933,16 +20933,16 @@ const BAN_RUN_SPD   = 480;    // net onder jouw sprint (495): wegrennen kan, maa
 const BAN_SLAG_DEEL = 0.90;   // van zo dicht bij (als deel van zijn zwaardreik) haalt hij uit
 const BAN_NA_SLAG   = 0.45;   // en zo lang hijgt hij na, voor hij weer op je af komt (je rugsteek-venster)
 const BAN_HP        = 2;      // twee treffers; de eerste breekt zijn slag af
-const BAN_INV_T     = 0.9;    // onkwetsbaar na een treffer (zie hieronder: moet zijn tegenklap overspannen)
+const BAN_INV_T     = 0.9;    // na een treffer staat hij zo lang in dekking: in dat venster pareert hij (zie banPareer)
 const BAN_KNOCK     = 240;    // zo hard stuitert hij achteruit als jij hem raakt (wereld-px/s, dooft uit): genoeg dat je de spacing ziet
-// De mechanic is spacing: steek, pak afstand, steek. Na een rake steek stuitert hij terug (BAN_KNOCK),
-// herstelt hij kort (BAN_NA_HIT) en zet dan zijn tegenklap in. Die slag landt pas ~0,9 s na jouw treffer
-// (herstel, opzwaai en de haal samen), terwijl jouw stootcadans ~0,74 s is. BAN_INV_T moet dus langer
-// zijn dan die 0,74 s: anders telt je tweede stoot wel (hij is dan al kwetsbaar) en ligt hij neer voor
-// zijn tegenklap valt, en dat is precies het facetanken dat eerder lukte (BAN_INV_T stond op 0,5). Nu
-// overspant zijn onkwetsbaarheid je tweede stoot: die doet niets, en terwijl je eraan vastzit valt zijn
-// slag op je. Wie afstand pakt na elke steek (zodat zijn haal door de lucht onderschiet) wint; wie blijft
-// staan verliest. Voelt hij te meedogenloos, zet BAN_INV_T dan iets lager (maar boven 0,74 s).
+// De mechanic is spacing: steek, pak afstand, steek. Je eerste rake steek laat hem wankelen (BAN_KNOCK terug,
+// herstel BAN_NA_HIT); daarna staat hij BAN_INV_T in dekking. Stoot je in dat venster gretig door in plaats van
+// afstand te pakken, dan pareert hij: hij tikt je speer opzij (clang + vonk) en zet meteen zijn tegenklap in
+// (banPareer). Die counter landt ~0,3 s later, dus hoor je de clang en stap je terug, dan schiet de haal onder
+// je door; blijf je staan, dan valt hij op je. BAN_INV_T is daarom bewust langer dan je stootcadans (~0,74 s):
+// anders zou je tweede stoot wel tellen en lag hij neer voor zijn counter viel, en dat was precies het
+// facetanken dat eerder lukte (BAN_INV_T stond op 0,5). Voelt hij te meedogenloos, zet BAN_INV_T dan iets lager
+// (maar boven 0,74 s).
 const BAN_NA_HIT    = 0.22;   // zo kort herstelt hij na een treffer van jou, voor hij weer inzet (kort, zodat facetanken straft)
 const BAN_STUCK_T   = 1.0;    // komt hij zo lang niet vooruit (een kei, een ravijn), dan kijkt hij rond
 const BAN_LIJK_FADE = 0.7;    // het lijk blijft liggen; pas als een lage zwaai het wegveegt zakt het in zoveel seconden weg
@@ -20974,9 +20974,19 @@ const BAN_SLAG_TEMPO = [ { tot: 6, fps: 30 },    // hurken en de kling omhoog
                          { tot: 20, fps: 40 },   // de hoge houding: vlot erdoorheen, maar wel te lezen als tell
                          { tot: 29, fps: 26 },   // de neerwaartse haal: wat trager, zodat je hem ziet en kunt ontwijken
                          { tot: 33, fps: 40 } ]; // herstel
-function banSlagFps(frame){
-  for (const seg of BAN_SLAG_TEMPO) if (frame < seg.tot) return seg.fps;
-  return 33;
+// De tegenklap na een parry gaat een stuk vlotter: hij start al bij de voorwaartse kling (BAN_PAREER_FRAME),
+// dus de trage opzwaai valt weg, en de frames whippen voorbij zodat je de (niet mega vloeiende) hergebruikte
+// slagframes niet bestudeert. De waarschuwing is de clang, niet de kling, dus snel mag: hoor je hem en stap
+// je terug, dan schiet de haal onder je door; blijf je staan, dan landt hij.
+const BAN_COUNTER_TEMPO = [ { tot: 20, fps: 70 },  // de parry-flits: kling omhoog, bijna een enkel beeld
+                            { tot: 29, fps: 34 },  // de haal: vlot maar net te volgen
+                            { tot: 33, fps: 50 } ]; // herstel
+const BAN_PAREER_FRAME = 17;    // vanaf dit slagframe start de tegenklap: de kling staat al voor (afweerpose)
+const BAN_PAREER_INV   = 0.5;   // bij een parry houdt hij zo lang zijn dekking op, zodat je de counter niet kunt onderbreken
+function banSlagFps(frame, counter){
+  const tbl = counter ? BAN_COUNTER_TEMPO : BAN_SLAG_TEMPO;
+  for (const seg of tbl) if (frame < seg.tot) return seg.fps;
+  return counter ? 50 : 33;
 }
 // de kling als raakzone tijdens de raakframes: canvaspixels vanaf het anker in de kijkrichting, boven
 // de grond. Korter dan het langzwaard van de zwaardvechter (een kromzwaard), zodat jouw speer verder
@@ -21053,6 +21063,82 @@ function banVoetstap(wx){
   lp.frequency.setValueAtTime(P.filter[0], t); lp.frequency.exponentialRampToValueAtTime(P.filter[1], t + 0.05);
   ng.gain.setValueAtTime(v * P.ruis, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
   n.connect(lp); lp.connect(ng); ng.connect(ac.destination); n.start(t); n.stop(t + 0.08);
+}
+
+// ---- de parry: staal op staal ----
+// Een metaal-op-metaalklang, puur met de Web Audio API (zoals banVoetstap en takelSnap, geen bestand). Het
+// kenmerk van metaal is dat de boventonen inharmonisch zijn (niet op een nette toonladder): drie, vier hoge
+// partialen op niet-hele verhoudingen geven die "tsjing". Daarbovenop een korte, heldere ruisflits: de chink
+// van het contact zelf. Elke keer iets anders verstemd, en zachter naarmate het verder van Amir gebeurt.
+let banClangRuis = null;
+function banClang(wx){
+  if (!wantSound) return;
+  const ac = acLoopt(); if (!ac) return;
+  const t = ac.currentTime + 0.004;
+  const af = Math.max(0.28, 1 - Math.abs(wx - playerX()) / (1.2 * W));
+  const v = 0.34 * af;
+  const partialen = [1, 1.42, 2.73, 3.86];                 // inharmonisch: dat maakt het metaal
+  const basis = 2300 * (0.92 + Math.random() * 0.16);
+  partialen.forEach((r, i) => {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = i === 0 ? 'triangle' : 'sine';
+    o.frequency.value = basis * r * (0.99 + Math.random() * 0.02);
+    const vol = v * (i === 0 ? 1 : 0.45 / i);              // de hogere partialen zachter
+    const duur = 0.26 * (i === 0 ? 1 : 0.5 / i + 0.2);     // en ze klinken korter uit (het narinkelen)
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + duur);
+    o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + duur + 0.02);
+  });
+  if (!banClangRuis){
+    banClangRuis = ac.createBuffer(1, Math.floor(ac.sampleRate * 0.1), ac.sampleRate);
+    const d = banClangRuis.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  const n = ac.createBufferSource(), bp = ac.createBiquadFilter(), ng = ac.createGain();
+  n.buffer = banClangRuis; bp.type = 'bandpass'; bp.frequency.value = 3800; bp.Q.value = 0.8;
+  ng.gain.setValueAtTime(v * 0.85, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+  n.connect(bp); bp.connect(ng); ng.connect(ac.destination); n.start(t); n.stop(t + 0.07);
+}
+// de vonken op het snijpunt speer x kling: korte heldere strepen die wegspatten en vallen, plus een felle kern.
+// Wereldverankerd (wx), zodat ze niet met het scherm meeschuiven; de hoogte in schermpixels (het gevecht staat
+// op vlakke grond, de vonk leeft maar ~0,15 s).
+const banVonken = [];
+function banVonk(wx, sy){
+  const n = 8 + (Math.random() * 5 | 0);
+  for (let i = 0; i < n; i++){
+    const a = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.25;   // vooral opzij en omhoog
+    const sp = 200 + Math.random() * 320;
+    banVonken.push({ wx, y: sy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, duur: 0.09 + Math.random() * 0.13 });
+  }
+  banVonken.push({ wx, y: sy, flits: true, t: 0, duur: 0.06, r: 14 + Math.random() * 10 });
+}
+function banVonkenTeken(groundY, scale, cx, dt){
+  if (!banVonken.length) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';                // vonken zijn licht: ze tellen op
+  for (let i = banVonken.length - 1; i >= 0; i--){
+    const v = banVonken[i];
+    v.t += dt;
+    if (v.t >= v.duur){ banVonken.splice(i, 1); continue; }
+    const k = 1 - v.t / v.duur;
+    if (v.flits){
+      const px = cx + (v.wx - world), r = v.r * scale * (0.5 + k * 0.5);
+      const g = ctx.createRadialGradient(px, v.y, 0, px, v.y, r);
+      g.addColorStop(0, 'rgba(255,255,230,' + (0.9 * k) + ')');
+      g.addColorStop(0.5, 'rgba(255,205,110,' + (0.5 * k) + ')');
+      g.addColorStop(1, 'rgba(255,160,50,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px, v.y, r, 0, Math.PI * 2); ctx.fill();
+      continue;
+    }
+    v.vy += 900 * dt; v.wx += v.vx * dt; v.y += v.vy * dt;
+    const px = cx + (v.wx - world);
+    const x2 = px - v.vx * 0.012 * scale, y2 = v.y - v.vy * 0.012 * scale;   // een korte streep in de bewegingsrichting
+    ctx.strokeStyle = 'rgba(255,' + (200 + (55 * k | 0)) + ',' + (110 * k | 0) + ',' + (0.85 * k) + ')';
+    ctx.lineWidth = Math.max(1, 2 * scale * k);
+    ctx.beginPath(); ctx.moveTo(px, v.y); ctx.lineTo(x2, y2); ctx.stroke();
+  }
+  ctx.restore();
 }
 
 // een gedeelde bank frames, pas geladen als een level of de sandbox erom vraagt
@@ -21150,7 +21236,7 @@ function makeBandiet(x, side, dolk, hurk, vault, takelaar, passagier, rol, elite
 }
 function banSet(s, state){
   s.state = state; s.frame = 0; s.acc = 0; s.t = 0; s.klaar = false; s.hitUsed = false;
-  s.lunge = 0; s.lungeOn = false; s.drive = false;
+  s.lunge = 0; s.lungeOn = false; s.drive = false; s.counter = false;
 }
 // van boven de arena in: hij verschijnt hoog boven zijn vloer en valt in de run-pose naar beneden, landt met
 // stof en rent dan op Amir af. Zolang hij valt (s.air > 0) is hij niet raakbaar en doet hij geen schade.
@@ -21168,7 +21254,7 @@ function banAnim(s, dt){
     if (s.frame >= n - 1) s.klaar = true;
     return;
   }
-  s.acc += dt * (s.state === 'slag' ? banSlagFps(s.frame) : (BAN.fps[s.state] || 24));
+  s.acc += dt * (s.state === 'slag' ? banSlagFps(s.frame, s.counter) : (BAN.fps[s.state] || 24));
   while (s.acc >= 1){
     s.acc -= 1;
     if (BAN_LOOP[s.state]) s.frame = (s.frame + 1) % n;
@@ -21457,6 +21543,19 @@ function updateBandiet(s, dt, plats, cliff){
     s.stuck += dt;
     if (s.stuck >= BAN_STUCK_T){ s.stuck = 0; banSet(s, 'look'); }
   } else s.stuck = 0;
+}
+// Een parry: tijdens zijn herstel na een treffer (s.inv > 0) is hij niet dood maar in dekking. Stoot je gretig
+// door in plaats van afstand te pakken, dan tikt hij je speer opzij (clang + vonk op het snijpunt) en zet
+// meteen zijn snelle tegenklap in. Stond hij al te slaan, dan loopt die slag gewoon door (alleen de clang).
+// Zo kun je hem niet vastzetten door te blijven rammen: elke stoot pareert alleen maar, en de haal valt op je.
+function banPareer(s, vonkWx, vonkY){
+  banClang(s.x);
+  banVonk(vonkWx, vonkY);
+  if (s.state === 'run' || s.state === 'look'){    // nog niet aan het slaan: hij vangt je speer en countert direct
+    banSet(s, 'slag'); s.frame = BAN_PAREER_FRAME; s.counter = true;
+    s.face = s.x < playerX() ? 1 : -1;             // naar je toe
+    s.inv = Math.max(s.inv, BAN_PAREER_INV);       // dekking vasthouden, zodat je de counter niet kunt onderbreken
+  }
 }
 function hitBandiet(s){
   if (s.inv > 0 || s.state === 'dood' || s.state === 'vault') return false;   // in de lucht (de vault) is hij niet te raken
@@ -24895,7 +24994,21 @@ function loop(now){
           if (zbox){ ctx.strokeStyle = '#ff6b6b'; ctx.strokeRect(zbox.l, zbox.t, zbox.r - zbox.l, zbox.b - zbox.t); }
           ctx.restore();
         }
-        if (s.inv > 0) continue;                         // net geraakt: even met rust laten
+        if (s.inv > 0){                                  // net geraakt: hij ligt niet, hij is in dekking en pareert
+          if (s.state !== 'vault' && attacking && !swingUsed && !atkMes && steekLive() && steekRaakt('bandiet')){
+            const dxv = steekDX() * scale;
+            const tipX = pcx + (facing === 1 ? -dxv : dxv);
+            const tipY = y + steekY() * scale;
+            const reach = steekR() * scale;
+            if (tipX + reach > nbox.l && tipX - reach < nbox.r && tipY + reach > nbox.t && tipY - reach < nbox.b){
+              const front = bodyX + s.face * BAN_LIJF.half * bS;    // de kant van zijn lijf naar jou toe: daar zit zijn dekking
+              const vonkX = s.face === 1 ? Math.max(tipX, front) : Math.min(tipX, front);
+              banPareer(s, s.x + (vonkX - bodyX), tipY);            // clang, vonk op het snijpunt, en zijn snelle counter
+              swingUsed = true; atkFrame = -1; atkAcc = 0; atkCooldown = ATK_COOLDOWN;   // je stoot kaatst af; Amir schuift niet weg (afstand pak je zelf)
+            }
+          }
+          continue;
+        }
         // de speerpunt: in elke staat raak
         if (attacking && !swingUsed && steekLive() && steekRaakt('bandiet')){
           const dxv = steekDX() * scale;
@@ -25055,6 +25168,7 @@ function loop(now){
     drawFgGrass(groundY, cx, scale, pcx);
     drawHppotionFx(groundY, scale, cx, pcx, lift);   // oppak- en drinkeffecten
     drawChips(groundY, scale, cx);
+    banVonkenTeken(groundY, scale, cx, dt);          // de parry-vonken: staal op staal
     drawGrains(groundY, scale, cx);
     drawVenom(groundY, scale);
     drawVillageFg(groundY, scale, cx, pWorld, dt);   // dorpsdecor dat vóór Amir langs staat
@@ -27474,7 +27588,7 @@ function stopSandbox(){
   document.getElementById('lives').style.display = '';
   sandboxEl.classList.remove('on');
   level = savedLevel; savedLevel = null;
-  scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; zwaarden.length = 0; bandieten.length = 0; banDolken.length = 0; fosforSlangen.length = 0; fosforGroepen.length = 0;
+  scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; zwaarden.length = 0; bandieten.length = 0; banDolken.length = 0; banVonken.length = 0; fosforSlangen.length = 0; fosforGroepen.length = 0;
   deadEl.classList.remove('on'); restart();
   startEl.classList.remove('off');
   barEl.classList.add('hide');
