@@ -895,6 +895,8 @@ def einde(lv, sp):
     """Het level moet uit te spelen zijn, en de klif staat achter de fakkels."""
     if lv.d.get('apenArena'):
         return                        # de arena van goudaapjes eindigt niet: oneindig tot je dood bent
+    if lv.d.get('bandArena'):
+        return                        # de bandiet-arena speelt uit als de hele garde verslagen is (winLevel), geen fakkels
     if not lv.ends and not lv.muur:
         yield fout(None, 'geen ends en geen muur: dit level is niet uit te spelen')
         return
