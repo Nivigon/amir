@@ -5276,12 +5276,19 @@ const grotPic = n => grotImgs[n] || null;
 function grotLijst(){ return (level && level.grotten) ? level.grotten : []; }
 
 // het raster uit de tekstregels, één keer klaargezet
+const GROT_LEEG = [];                 // een vaste lege lijst, zodat de vergelijking hieronder klopt
 function grotRaster(g){
-  const sleutel = (g.grid || []).join('|') + '#' + (g.cel || 0) + '#' + (g.y || 0) + '#' + (g.hoog || 0);
-  if (g._r && g._r.sleutel === sleutel) return g._r;
-  const rijen = (g.grid || []).map(String);
-  const kol = rijen.reduce((m, s) => Math.max(m, s.length), 0);
-  g._r = { sleutel, n: rijen.length, kol,
+  // De sleutel was het hele raster als een string (grid.join). Op een schacht is dat kilobytes,
+  // en grotVol, grotTerrein, grotStukken en de lichtkaart vragen het raster tientallen keren per
+  // beeld: dat was in Klim 9 een negende van alle rekentijd. Niets verandert een rij in het
+  // raster ter plekke (readLevel, syncLevel en de bouwer zetten er altijd een nieuwe lijst neer),
+  // dus de lijst zelf vergelijken is net zo scherp en kost niets.
+  const grid = g.grid || GROT_LEEG;
+  if (g._r && g._r.grid === grid && g._r.sCel === (g.cel || 0)
+      && g._r.sY === (g.y || 0) && g._r.sHoog === (g.hoog || 0)) return g._r;
+  const rijen = grid.map(String);
+  const kol = rijen.reduce((m, r) => Math.max(m, r.length), 0);
+  g._r = { grid, sCel: (g.cel || 0), sY: (g.y || 0), sHoog: (g.hoog || 0), n: rijen.length, kol,
            vol: rijen.map(s => { const a = []; for (let c = 0; c < kol; c++) a.push(s[c] === '#'); return a; }),
            cel: Math.max(24, Math.round(Number(g.cel) || GROT_CEL)),       // breedte, wereld-px
            celH: GROT_HOOG * CHAR_H * (Number(g.hoog) || 1),              // hoogte, sprite-eenheden
@@ -5475,6 +5482,7 @@ function grotMassa(R, X, Y, ch, scale, groundY, schacht){
     const hd = schachtHoekData(R, X, Y, ch);          // de ronde hoek bovenin
     const img = schachtHoekPic();
     const tw = tile.width, th = tile.height, ax = X(0), ay = Y(0);
+    const zicht = zichtVak(2);                        // een keer per raster, niet per stuk
     for (const u of grotStukken(R)){
       const xl = X(u.c), xr = X(u.e + 1);
       // Geen terras-overstek boven de celrand: bij een gewoon terras steekt het steen tot boven de
@@ -5483,10 +5491,14 @@ function grotMassa(R, X, Y, ch, scale, groundY, schacht){
       const top = Y(u.r) - ch;
       const diep = u.b === R.n - 1 ? Math.max(Y(u.b), Math.round(groundY)) : Y(u.b);
       const bottom = diep + 4;
-      const vul = (g, ox, oy) => {
-        const bx = Math.round(ax - Math.ceil((ax - xl) / tw) * tw);
-        const by = Math.round(ay - Math.ceil((ay - (top - 4)) / th) * th);
-        for (let y = by; y < bottom; y += th) for (let x = bx; x < xr; x += tw) g.drawImage(tile, x - ox, y - oy);
+      // vlak: alleen dit stuk hoeft getegeld, in schermcoordinaten. De tegels hangen aan het
+      // rasteranker (ax, ay), dus het patroon blijft precies liggen waar het lag.
+      const vul = (g, ox, oy, vlak) => {
+        const l = vlak ? Math.max(xl, vlak.l) : xl, r = vlak ? Math.min(xr, vlak.r) : xr;
+        const t = vlak ? Math.max(top - 4, vlak.t) : top - 4, b = vlak ? Math.min(bottom, vlak.b) : bottom;
+        const bx = Math.round(ax - Math.ceil((ax - l) / tw) * tw);
+        const by = Math.round(ay - Math.ceil((ay - t) / th) * th);
+        for (let y = by; y < b; y += th) for (let x = bx; x < r; x += tw) g.drawImage(tile, x - ox, y - oy);
       };
       // Grenst dit stuk aan de kloof? Dan ligt er in de soil-zone (boven de kruimelige voorrand) aan de
       // kloofkant een grijze rotsdriehoek naast de ronde hoek. Die knippen we weg op het silhouet van de
@@ -5495,11 +5507,17 @@ function grotMassa(R, X, Y, ch, scale, groundY, schacht){
       const gapR = hd && img && u.e + 1 < R.kol && !grotVol(R, u.e + 1, u.r);
       const gapL = hd && img && u.c - 1 >= 0 && !grotVol(R, u.c - 1, u.r);
       if (gapR || gapL){
-        const ox = Math.round(xl) - 2, oy = Math.round(top - 4) - 2;
-        const cw = Math.ceil(xr - ox) + 4, chh = Math.ceil(bottom - oy) + 4;
-        const rc = document.createElement('canvas'); rc.width = cw; rc.height = chh;
-        const rg = rc.getContext('2d'); vul(rg, ox, oy);
-        const mk = document.createElement('canvas'); mk.width = cw; mk.height = chh;
+        let ox = Math.round(xl) - 2, oy = Math.round(top - 4) - 2;
+        let xe = ox + Math.ceil(xr - ox) + 4, ye = oy + Math.ceil(bottom - oy) + 4;
+        if (zicht){                                 // niet groter dan wat in beeld komt
+          ox = Math.max(ox, Math.floor(zicht.l)); oy = Math.max(oy, Math.floor(zicht.t));
+          xe = Math.min(xe, Math.ceil(zicht.r)); ye = Math.min(ye, Math.ceil(zicht.b));
+        }
+        const cw = xe - ox, chh = ye - oy;
+        if (cw <= 0 || chh <= 0) continue;           // dit stuk staat helemaal buiten beeld
+        const rc = werkDoek('grotRots', cw, chh);
+        const rg = rc.getContext('2d'); vul(rg, ox, oy, { l: ox, r: xe, t: oy, b: ye });
+        const mk = werkDoek('grotMasker', cw, chh);
         const mg = mk.getContext('2d'); mg.fillStyle = '#fff';
         const lipY = Math.round(hd.yLip) - oy, aTopY = Math.round(hd.aTop) - oy;
         mg.fillRect(0, lipY, cw, chh - lipY);         // onder de voorrand: alle rots
@@ -5520,7 +5538,7 @@ function grotMassa(R, X, Y, ch, scale, groundY, schacht){
       } else {
         ctx.save();
         ctx.beginPath(); ctx.rect(xl, top - 4, xr - xl, bottom - (top - 4)); ctx.clip();
-        vul(ctx, 0, 0);
+        vul(ctx, 0, 0, zicht);
         ctx.restore();
       }
     }
@@ -5720,13 +5738,21 @@ function schachtKap(R, X, Y, ch, scale, cx){
   // De savanne eerst op een los canvas tekenen en daar de onderkant wegvagen (destination-out), en dat dan
   // overzetten: zo komt de ROTS eronder tevoorschijn. Een destination-out op het hoofdcanvas zou door de
   // rots heen naar de lucht gummen, en dat gaf de lichte band aan de voet van de kap.
+  const zk = zichtVak(2);                             // een keer, niet per reeks
   for (const [c0, c1] of grotReeksH(R, tr, (c, r) => grotVol(R, c, r))){
     let xl = Math.round(X(c0)), xr = Math.round(X(c1 + 1));
     if (hd && c1 + 1 < R.kol && !grotVol(R, c1 + 1, tr)) xr -= inset;   // kloof rechts: de hoek neemt het over
     if (hd && c0 - 1 >= 0 && !grotVol(R, c0 - 1, tr)) xl += inset;      // kloof links
-    const w = xr - xl, hh = Math.round(bottom - top + 6);
+    const hh = Math.round(bottom - top + 6);
+    // De kap van een schachtwand is schermbreed; alleen het stuk in beeld hoeft getekend. Het
+    // wereldanker van de tegels hangt aan xl, dus met xl mee schuift het patroon niet.
+    if (zk){
+      if (top >= zk.b || top + hh <= zk.t) continue;        // boven of onder het beeld
+      xl = Math.max(xl, Math.floor(zk.l)); xr = Math.min(xr, Math.ceil(zk.r));
+    }
+    const w = xr - xl;
     if (w <= 0 || hh <= 0) continue;
-    const cv2 = document.createElement('canvas'); cv2.width = w; cv2.height = hh;
+    const cv2 = werkDoek('schachtKap', w, hh);
     const g2 = cv2.getContext('2d');
     let x = (cx - (((world % tw) + tw) % tw)) - xl; while (x > 0) x -= tw;   // zelfde wereld-anker als de grond
     for (; x < w; x += tw) g2.drawImage(eimg, x, 0, tw + 1, Math.max(th, hh));
@@ -13351,6 +13377,58 @@ function perfTick(now){
   resize();
 }
 
+// ---- het zichtbare vak: niet verder tekenen dan er in beeld komt ---------
+// Bijna elke laag in dit spel wordt op wereldmaat getekend en door een clip op zijn plek
+// gehouden: de donkere grondvulling is drie schermen breed, de wand van een schacht loopt door
+// tot ver onder het beeld, en een gang wordt over zijn hele lengte getegeld. Voor een enkele
+// vulling kost dat weinig (het canvas knipt het overschot zelf al weg), maar voor een tegellus
+// wel: die doet duizenden pixels per stap, en loopt dus honderden keren voor niets. Datzelfde
+// geldt voor een doek dat op de maat van het hele stuk wordt klaargezet. In Klim 9 en Test 27 was
+// dat zo zwaar dat het beeld tot stilstand kwam (gemeten 145 en 137 ms per beeld; nu 9).
+//
+// zichtVak geeft het stuk dat echt in beeld komt, in de coordinaten die op dat moment gelden: de
+// zoom van de bouwer, het uitzoomen van een level (view) en de schok van het schudden zitten er
+// dus in verrekend. Staat de ruimte scheef (de schaduw van Amir, een plant die buigt), dan geeft
+// hij null en tekent de aanroeper zoals hij altijd deed.
+//
+// Elke stap hieronder is nagelopen met tools/beeldgelijk.js: pixel voor pixel hetzelfde beeld.
+function zichtVak(marge = 0){
+  const m = ctx.getTransform();
+  if (m.b !== 0 || m.c !== 0 || !m.a || !m.d) return null;
+  const cw = ctx.canvas.width, chh = ctx.canvas.height;
+  const x0 = -m.e / m.a, x1 = (cw - m.e) / m.a;
+  const y0 = -m.f / m.d, y1 = (chh - m.f) / m.d;
+  return { l: Math.min(x0, x1) - marge, r: Math.max(x0, x1) + marge,
+           t: Math.min(y0, y1) - marge, b: Math.max(y0, y1) + marge };
+}
+// Een doek om op te werken, steeds hetzelfde. Elk beeld een nieuw canvas maken kost een nieuwe
+// textuur en straks opruimwerk, en dat is precies wat een telefoon laat haperen: de wand van een
+// schacht maakte er vier per beeld. Een doek op naam, want twee doeken kunnen tegelijk in gebruik
+// zijn. De maat zetten wist hem al; blijft hij gelijk, dan wissen we zelf.
+const WERK_DOEK = {};
+function werkDoek(naam, w, h){
+  let d = WERK_DOEK[naam];
+  if (!d) d = WERK_DOEK[naam] = document.createElement('canvas');
+  const g = d.getContext('2d');
+  if (d.width !== w || d.height !== h){ d.width = w; d.height = h; }
+  else g.clearRect(0, 0, w, h);
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.globalCompositeOperation = 'source-over';
+  g.globalAlpha = 1;
+  return d;
+}
+// Een vulling die niet buiten het beeld reikt. Het resultaat blijft hetzelfde: een verloop hangt
+// aan de ruimte en niet aan de rechthoek, dus het kleurt precies zoals het kleurde, en pixels
+// buiten het canvas bestaan niet.
+function vulVak(x, y, w, h){
+  const v = zichtVak(1);
+  if (!v){ ctx.fillRect(x, y, w, h); return; }
+  const l = Math.max(Math.min(x, x + w), v.l), r = Math.min(Math.max(x, x + w), v.r);
+  const t = Math.max(Math.min(y, y + h), v.t), b = Math.min(Math.max(y, y + h), v.b);
+  if (r <= l || b <= t) return;
+  ctx.fillRect(l, t, r - l, b - t);
+}
+
 const hintEl = document.getElementById('hint');
 let hintTimer = null;
 function flashHint(msg, ms){
@@ -16344,7 +16422,7 @@ function ravijnBodemVul(fx, groundY){
   traceGap({ x: fx.x, w: wr - wl }, gl, gr, van, groundY + H * 4, groundY);
   ctx.clip();
   ctx.fillStyle = bodemDonker();
-  ctx.fillRect(gl - 40, van, gr - gl + 80, groundY + H * 4 - van);
+  vulVak(gl - 40, van, gr - gl + 80, groundY + H * 4 - van);
   ctx.restore();
 }
 function ravijnAchterTeken(fx, groundY){
@@ -17397,6 +17475,11 @@ function drawLichtkaart(groundY, scale, cx, dt, deel){
   const sx = a - K.i0, sw = b - a + 1;
   // de cellen zijn middelpunten: het plaatje ligt een halve cel verschoven, zodat het verloop klopt
   const dx = X(a * C), dy = Y((K.j1 + 1) * C), dw = sw * C, dh = K.nr * C * scale;
+  // De rijen snijden we niet af. Dat kan wel (de kaart loopt van de rotstop tot diep onder de
+  // vloer, dus er valt veel buiten beeld), maar met een stuk van de bron klemt het filter op de
+  // sneelijn in plaats van op de rij ernaast, en dan verschilt er aan de beeldrand een handvol
+  // pixels een stap in helderheid. Gemeten won het daar hoogstens een paar procent mee, dus niet
+  // gedaan: het canvas snijdt het overschot zelf al weg.
   const open = 1 - lkGewend;                       // het donker, na de ooggewenning
   ctx.save();
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
@@ -17565,6 +17648,11 @@ function drawHolte(groundY, scale, cx){
   const tegel = (T, x0, x1, y0, y1) => {                // een tegel vast aan de wereld
     const tw = T.width, th = T.height;
     const ax = Math.round(X(0)), ay = Math.round(Y(0));
+    // Een gang is duizenden pixels breed en diep; alleen het stuk in beeld hoeft getegeld.
+    // De tegels hangen aan het wereldanker (ax, ay), dus het patroon blijft precies liggen.
+    const v = zichtVak(0);
+    if (v){ x0 = Math.max(x0, v.l); x1 = Math.min(x1, v.r); y0 = Math.max(y0, v.t); y1 = Math.min(y1, v.b); }
+    if (x1 <= x0 || y1 <= y0) return;
     const xs = ax - Math.ceil((ax - x0) / tw) * tw, ys = ay - Math.ceil((ay - y0) / th) * th;
     for (let y = ys; y < y1; y += th)
       for (let x = xs; x < x1; x += tw) ctx.drawImage(T, x, y);
@@ -17616,8 +17704,12 @@ function drawHolte(groundY, scale, cx){
         ctx.clip('evenodd');
       }
       ctx.fillStyle = 'rgb(10,8,9)';
-      ctx.fillRect(xl, top + th - 2, xr - xl, onder - top + H);
-      for (; x < xr; x += tw) ctx.drawImage(S.vloer, x, top, tw + 1, th);
+      vulVak(xl, top + th - 2, xr - xl, onder - top + H);
+      const vv = zichtVak(0);                        // de vloer loopt door tot buiten beeld
+      const vr = vv ? Math.min(xr, vv.r) : xr;
+      if (vv){ while (x + tw < vv.l) x += tw; }
+      if (!vv || (top < vv.b && top + th > vv.t))
+        for (; x < vr; x += tw) ctx.drawImage(S.vloer, x, top, tw + 1, th);
       ctx.restore();
       putTeken(o, vloer, cx);                        // de putten in de vloer
       for (const q of zuilLijst()) if (holteAt(q.x) === o) zuilTeken(q, vloer, scale, cx);   // en een zuil erin
@@ -20626,7 +20718,12 @@ function banLaadLevel(lv){
   const sp = lv.spawns || [];
   if (lv.bandietGolf || sp.some(s => s.kind === 'bandiet')) banLaad();
   if (sp.some(s => s.kind === 'bandiet' && s.hurk)) banLaadHurk();
-  if (sp.some(s => s.kind === 'bandiet' && s.vault)) banLaadVault();
+  // Elke rover vault standaard over een kei (alleen vault: false zet het uit), dus een golf heeft
+  // de vaultset net zo goed nodig. Zonder deze regel kwamen die 68 frames pas binnen op het moment
+  // dat de eerste bandiet van de golf opkwam, en dat is midden in het spel: een hapering waar de
+  // laadpoort niet meer voor kan wachten. Een bandiet uit een spawn of van het takelwiel komt er
+  // wel langs, want die wordt in restart gezet, nog achter de poort.
+  if (lv.bandietGolf || sp.some(s => s.kind === 'bandiet' && s.vault)) banLaadVault();
   if (lv.bandArena || sp.some(s => s.kind === 'bandiet' && s.elite)) banLaad(true);          // de elite-garde
   if (sp.some(s => s.kind === 'bandiet' && s.elite && (s.hurk || lv.bandArena))) banLaadHurk(true);
   if (sp.some(s => s.kind === 'bandiet' && s.elite && (s.vault || lv.bandArena))) banLaadVault(true);
@@ -22360,6 +22457,7 @@ function drawLayer(L, imgs, seq, horizonY, lift, par, size, vloer){
   const pos = world * (par === undefined ? L.par : par);
   let i = Math.floor(pos / step) - 1;              // een paneel extra links: de zachte rand heeft er een nodig
   let x = i * step - pos;
+  const vl = zichtVak(4);                          // een keer per laag, niet per paneel
   for (; x < W; x += step, i++){
     const k = seq[((i % n) + n) % n];
     const img = imgs[k];
@@ -22367,7 +22465,20 @@ function drawLayer(L, imgs, seq, horizonY, lift, par, size, vloer){
     const bottom = horizonY - lift * H + (L.edge[k] - L.base) * s;
     const dh = Math.round(img.height * s);
     const pc = onScale(img, Math.round(img.width * s) + 1, dh);
-    ctx.drawImage(pc, x, bottom - dh);
+    // Een paneel is vaak veel hoger dan het beeld, en links en rechts valt er een buiten. Het
+    // paneel staat al op maat (onScale), dus bron- en doelmaat blijven gelijk: nog steeds een
+    // rechte overzet, alleen van de rijen die in beeld komen.
+    const py = bottom - dh;
+    let sy = 0, sh = pc.height;
+    if (vl){
+      if (x + pc.width <= vl.l || x >= vl.r) sh = 0;
+      else {
+        const y0 = Math.max(py, Math.floor(vl.t)), y1 = Math.min(bottom, Math.ceil(vl.b));
+        sy = Math.max(0, Math.min(pc.height, Math.round(y0 - py)));
+        sh = Math.max(0, Math.min(pc.height - sy, Math.round(y1 - y0)));
+      }
+    }
+    if (sh > 0) ctx.drawImage(pc, 0, sy, pc.width, sh, x, py + sy, pc.width, sh);
     const kier = vloer === undefined ? 0 : Math.min(dh, Math.ceil(vloer - bottom));
     if (kier > 0){
       ctx.save();
@@ -22488,7 +22599,7 @@ function scene(groundY){
       ctx.clip('evenodd');
     }
     ctx.fillStyle = bodemDonker();
-    ctx.fillRect(bl - W, groundY, br - bl + 2 * W, Math.max(bandH, H - groundY) + H);
+    vulVak(bl - W, groundY, br - bl + 2 * W, Math.max(bandH, H - groundY) + H);
     ctx.restore();
   }
   diepGesteente(groundY, bandH);             // kijk je dieper dan de grondrand reikt, dan gesteente
@@ -22514,7 +22625,10 @@ function scene(groundY){
     let x = W / 2 - (((world % tw) + tw) % tw);          // vast aan de wereld
     while (x > left) x -= tw;
     const x0 = x;
-    for (; x < right; x += tw) ctx.drawImage(eimg, x, top, tw + 1, th);
+    const vg = zichtVak(0);                              // de tegel is veel hoger dan de band in beeld
+    const tegelR = vg ? Math.min(right, vg.r) : right;
+    if (vg) while (x + tw < vg.l) x += tw;
+    for (; x < tegelR; x += tw) ctx.drawImage(eimg, x, top, tw + 1, th);
     drawSneeuwdek(top, tw, th, x0, left, right, s);      // de sneeuw die erop ligt, op dezelfde tegelmaat
     drawWaterStrips(groundY);                            // poelen liggen over de grond heen
     ctx.restore();
@@ -22824,7 +22938,7 @@ function drawLichtlaag(){
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'multiply';
   ctx.fillStyle = c.hor;
-  ctx.fillRect(-m, -m, W + m * 2, H + m * 2);
+  vulVak(-m, -m, W + m * 2, H + m * 2);
   const zx = zonScherm.geldig ? zonScherm.x : L.zonX * W;
   const zy = zonScherm.geldig ? zonScherm.y : L.zonY * H;
   ctx.save();
@@ -22834,11 +22948,11 @@ function drawLichtlaag(){
   // onder de grond schijnt de zon niet door de rots: daar komt het licht uit de lichtkaart
   ctx.globalAlpha = 1 - holteDiepT(nowScale());
   ctx.fillStyle = c.gl;
-  ctx.fillRect(-c.r, -c.r, c.r * 2, c.r * 2);
+  vulVak(-c.r, -c.r, c.r * 2, c.r * 2);
   ctx.restore();                    // de uitgerekte ruimte weer los
   ctx.globalCompositeOperation = 'multiply';
   ctx.fillStyle = c.bod;
-  ctx.fillRect(-m, c.top, W + m * 2, H - c.top + m);
+  vulVak(-m, c.top, W + m * 2, H - c.top + m);
   ctx.globalCompositeOperation = 'source-over';
   ctx.restore();
 }

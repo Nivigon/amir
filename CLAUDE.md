@@ -101,6 +101,7 @@ regelnummer, want die schuiven bij elke wijziging.
 | --- | --- |
 | laadpoort: een level loopt pas als alles binnen is | `LAAD`, `laadOpen`, `laadPoort`, `laadStap`, `#laad`: het zetten van `src` op elk plaatje zet het vanzelf in `laadOpen` tot het binnen is of ontbreekt (een haakje op `HTMLImageElement.prototype`), dus een nieuwe lader hoeft niets aan te melden. `restart` zet de poort dicht; de lus staat stil (`dt` 0, geen toetsen) tot `laadOpen` twee beelden achter elkaar leeg is, met na `LAAD.toon` het scherm Laden en na `LAAD.max` gaat hij toch door. In het menu en de bouwer wacht hij niet. Geluid telt niet mee |
 | versie: welke update er live staat | `versieTijd` (uit `document.lastModified`) heel klein linksboven, en `toonUpdates`: de laatste vijf samengevoegde pull requests van GitHub (`VERSIE_REPO`), met of ze erin zitten (regel 8) |
+| niet verder tekenen dan er in beeld komt | `zichtVak(marge)` geeft het zichtbare vak in de coordinaten die nu gelden (de zoom van de bouwer, `view` van een level en de schok van het schudden zitten erin verrekend), of `null` als de ruimte scheef staat; `vulVak(x, y, w, h)` is een `fillRect` die daar niet buiten reikt; `werkDoek(naam, w, h)` geeft een doek dat hergebruikt wordt in plaats van elk beeld een nieuw canvas. Elke laag die op wereldmaat tekent en door een clip op zijn plek wordt gehouden, hoort hier tegenaan te lopen: de tegellussen van een gang (`tegel` in `drawHolte`), de grondtegel in `scene`, de achtergrondpanelen (`drawLayer`) en de wand en de kap van een schacht (`grotMassa`, `schachtKap`). Dat was het haperen: niet de pixels (het canvas knipt het overschot zelf weg) maar de lussen en de doeken eromheen, in Klim 9 en Test 27 145 en 137 ms per beeld, nu 9. Verander je hier iets, draai dan `tools/beeldgelijk.js` |
 | de zon: schijf, krans en ademende ring | `ZON`, `drawZon`: de zon in de lucht, met een lichte kern, een krans, een gloed op de horizon en een zachte ring die langzaam ademt (`ringAdem`, `ringT`). Plek, straal en kleur blijven uit `sun` in `SCENES`. Daarnaast `drawWaas`: overdag lucht tussen jou en de verte, met het veld `waas` in `SCENES` (het uitzicht `middag`). In de sandbox onder Tijd van de dag (`sbLagen`) en Zon |
 | globale lichtlaag | kleurwaas over het beeld, volgt de zon van het level; een level stelt hem bij met `licht` in `SCENES` |
 | de schaduw van Amir | `AMIR_SCHADUW`, `amirSilhouet`, `amirSilLeg`, `drawAmirSchaduw`: zijn eigen frame als silhouet op de grond, in twee lagen en nergens een ronde vlek. De omgevingsschaduw (`omgeving`) is het silhouet recht naar beneden platgedrukt, dikker gemaakt en zacht, half achter en half voor de voeten; die is er altijd, ook onder de grond, even sterk als het licht rond hem (`amirLicht`, uit `lkRondAmir`). De zonneschaduw: richting en lengte uit de zon van het uitzicht (`zonSchaduw`, `sun` in `SCENES`): naar voren, want de zon staat achter het landschap, opzij van de zon af, en langer naarmate de zon lager staat, tot 1,2 keer zijn lengte. Onder de grond of onder rots alleen waar de zon komt (`amirZon`, uit `lkZon`). In een sprong blijven beide recht onder hem; de zonneschaduw vervaagt snel (`wegSil`), zodat de omgevingsschaduw de landing aanwijst. Getekend na de terrassen, treden en keien (`amirSchaduw`, vlak voor de lichtkaart), anders vallen die eroverheen. Bij een ravijn en op een zuil knipt hij de schaduw af langs dezelfde grillige breukrand als het steen (`traceGap`), op een zuil over zijn hele breedte (de platformrand van een zuil is een halve Amir smaller, zie `terracePlats`), anders staat er een rechte kant in de schaduw. Een keer per frame gebakken. De ravijnen en de lichtkaart gebruiken nog de vaste `LK.zonHoek` |
@@ -1492,6 +1493,31 @@ Nu meldt hij een FOUT in **Test 3**, en dat is er een van voor deze tools: de sc
 is daar alleen van 692 px te raken en dan staat hij op 1280 bij 720 net buiten beeld. Datzelfde geldt
 als LET OP voor de rotswand in Test 7. Die twee zijn zo gelaten; De Poorten gebruikt daarom alleen
 schijven op een rots.
+
+## Hetzelfde beeld nameten: tools/beeldgelijk.js
+
+Raak je de tekencode aan om hem sneller te maken, dan hoort het beeld niet te veranderen. Dat is
+niet met het oog na te kijken: twee potjes lopen nooit gelijk, want het spel ademt op de echte klok
+en trekt toeval. Daarom zet je de oude en de nieuwe weg samen in de code achter een vlag, en tekent
+dit script hetzelfde bevroren beeld twee keer in hetzelfde potje: een keer met de vlag uit, een keer
+met de vlag aan. Daartussen verandert niets (de beeldlus is overgenomen, de klok staat stil, het spel
+staat op pauze en de toevalsreeks begint weer vooraan), dus elk pixelverschil komt van de wijziging.
+
+```
+node tools/beeldgelijk.js --vlag LAGFIX                een vaste reeks van twaalf levels
+node tools/beeldgelijk.js --vlag LAGFIX "Klim 9"       alleen dit level
+node tools/beeldgelijk.js --vlag LAGFIX --plekken -300,-2000
+node tools/beeldgelijk.js --vlag LAGFIX --breed 852 --hoog 393
+```
+
+`gelijk` op elke plek betekent: geen enkele pixel anders. Staat er `max 12 op 1723 bytes`, dan weet je
+ook meteen hoeveel het scheelt en waar. Zet de vlag na het nameten weer uit de code; hij is er om een
+wijziging te verantwoorden, niet om te blijven staan.
+
+Reken niet met het aantal pixels dat een vulling vraagt: een `fillRect` die buiten het canvas valt
+kost bijna niets, want het canvas knipt dat zelf weg. Wat wel kost is een lus die honderden keren
+tekent en een doek dat elk beeld opnieuw wordt klaargezet. Meet dus beeldtijden, niet oppervlakte, en
+meet de versies om en om, want een enkele ronde is vooral ruis.
 
 ## De bouwertest: tools/bouwertest.js
 

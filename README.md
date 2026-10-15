@@ -262,6 +262,31 @@ Het eerste script print aan het eind de lijst die in de HTML onder `KLEIN_FAM` h
 
 Op een aanraakscherm tekent het spel op anderhalve canvaspixel per schermpixel in plaats van twee: op zo'n klein scherm zie je dat niet, en het scheelt bijna de helft van het werk per frame. Haalt het toestel de frames dan nog niet, dan zakt het spel vanzelf nog een stap (naar 1) en blijft daar; in de console staat dan een regel met "resolutie omlaag".
 
+### Waarom het soms haperde
+
+Er zat een echte hapering in, en die zat niet in de resolutie maar in de tekencode. Bijna elke laag wordt op wereldmaat getekend en daarna door een clip op zijn plek gehouden: de donkere grondvulling was drie schermen breed, een gang werd over zijn hele lengte getegeld, en de wand van een schacht liep door tot ver onder het beeld. Voor een enkele vulling kost dat weinig, want het canvas knipt het overschot zelf al weg. Voor een tegellus kost het wel: die zet duizenden pixels per stap, en liep dus honderden stappen voor niets. En de wand van een schacht zette elk beeld vier verse doeken klaar op de maat van de hele wand.
+
+In de schachtlevels liep dat helemaal vast. Gemeten in Chromium, met Amir die het level afloopt:
+
+| level | was | nu |
+| --- | --- | --- |
+| Klim 9: De grote schacht | 145 ms per beeld | 9 ms |
+| Test 27: De schacht | 137 ms per beeld | 9 ms |
+| Diepte 1: De afdaling | 30 ms | 29 ms, met een kortere staart |
+| Poort 1: Het rode zand | 12 ms | 12 ms |
+
+Dus: wie De Klim, Valse Koning 6 tot 8, Diepte 6 en 7 of de schacht-tests speelde, zat in het zwaarste geval van het spel. Een vlak savannelevel merkte er weinig van, en dat klopt met waar het haperen opviel.
+
+Wat eraan gedaan is, allemaal zonder dat het beeld verandert:
+
+- `zichtVak()` geeft het stuk dat echt in beeld komt, met de zoom en de schok van het schudden erin verrekend. De tegellussen van een gang, de grondtegel, de achtergrondpanelen en de wand van een schacht lopen daar nu tegenaan in plaats van tot aan het eind van de wereld.
+- `vulVak()` is een vulling die daar niet buiten reikt, voor de paar lagen die het hele beeld dekken.
+- `werkDoek()` houdt de doeken vast in plaats van er elk beeld nieuwe te maken. Een nieuw canvas per beeld kost een nieuwe textuur en straks opruimwerk, en dat zijn precies de hikjes.
+- `grotRaster()` plakte het hele raster elke aanroep tot een string aan elkaar om te kijken of zijn sleutel nog klopte. Op een schacht is dat kilobytes, en het raster wordt tientallen keren per beeld gevraagd: in Klim 9 was dat een negende van alle rekentijd. Nu vergelijkt hij de lijst zelf.
+- De vaultframes van de bandiet (68 stuks) kwamen in een golflevel pas binnen toen de eerste rover opkwam, dus midden in het spel. Nu laden ze mee achter het laadscherm.
+
+Dat het beeld niet verandert is nagemeten, niet aangenomen: `tools/beeldgelijk.js` tekent hetzelfde bevroren beeld twee keer, een keer langs de oude weg en een keer langs de nieuwe, en vergelijkt pixel voor pixel.
+
 ### Hoe het werkt
 
 | bestand | rol |
