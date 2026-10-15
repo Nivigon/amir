@@ -8273,8 +8273,9 @@ const TAKEL = {
   breed: 320,                // standaard plateaubreedte in wereld-px (9-slice: alleen het midden rekt mee)
   dekH: 0.34,                // plateauhoogte als deel van CHAR_H
   sta: 0.2,                  // de looplijn: de voorrand van het bovenvlak, als deel van de plaathoogte (anders zweef je op de achterrand)
-  touwDik: 0.09,             // touwbreedte als deel van CHAR_H (gedeeld door viewZoom in takelTeken, zodat de uitzoom ze niet dun maakt)
+  touwDik: 0.065,            // touwbreedte als deel van CHAR_H (gedeeld door viewZoom in takelTeken, zodat de uitzoom ze niet dun maakt, maar niet te dominant)
   touwScroll: 1,             // de draad scrolt met de verticale beweging van het plateau (texture-px per scherm-px dat het stijgt), zodat het touw lijkt te bewegen tijdens het takelen
+  touwAmbient: 26,           // en daarbovenop een rustige, doorlopende draai (scherm-px per seconde, voor schaal), zodat het touw ook boven in de arena (waar het plateau stilstaat) blijft leven
   rijSway: 0.045,            // terwijl een star plateau (de arena-brug) stijgt of daalt wiegt het cosmetisch een beetje heen en weer (rad); staat het stil, dan ligt het weer recht
   rijSwayF: 2.2,             // de snelheid van dat wiegen (rad/s)
   spread: 150,               // zo ver lopen de twee touwen naar boven uit elkaar (wereld-px bij de katrol)
@@ -8453,6 +8454,7 @@ function takelUpdate(dt){
     takelGeluid(false);
     return;
   }
+  t.touwKlok = (t.touwKlok || 0) + dt;               // loopt altijd door, voor de rustige doorlopende touwdraai
   // het wiel draait naar zijn doel, maar pas na de korte krak-hapering: zolang die loopt houdt het rad in
   // (het plateau blijft dan ook staan, dus wie erop staat blijft netjes staan)
   let draait = false;
@@ -8622,11 +8624,17 @@ function takelTeken(groundY, scale, cx){
     }
     t.jx = jx; t.jy = jy; t.snijJav = true;
   } else t.snijJav = false;
-  const fase = top * scale * TAKEL.touwScroll;          // de draad scrolt met de verticale beweging van het plateau, zodat het touw lijkt te bewegen terwijl het takelt (werkt ook in de arena, waar het wiel verborgen is)
+  // de draad scrolt met de verticale beweging van het plateau (zodat het touw meebeweegt terwijl het takelt),
+  // plus een rustige doorlopende draai, zodat het touw ook boven in de arena (plateau stil) blijft leven
+  const fase = top * scale * TAKEL.touwScroll + (t.touwKlok || 0) * TAKEL.touwAmbient * scale;
   // In de bandiet-arena (na de aankomst) hoort het wiel en zijn drijftouw niet in beeld: je bent dan boven,
   // het wiel stond beneden in de aankomst. De twee plateau-touwen lopen daar (en overal) boven uit beeld door.
   const arenaMode = !!(arenaAap && arenaAap.ban && !arenaAap.staging);
-  const ropeTopY = Math.min(puY, -0.15 * H);            // het touw eindigt altijd boven de schermrand (niet in de lucht)
+  // het touw moet altijd boven de schermrand eindigen. De zoom-transform schaalt om (W/2, groundY), dus een
+  // schermpunt T ligt op wereld-y = groundY + (T - groundY) / viewZoom(); met T net boven de rand (-0,08 H)
+  // loopt het touw ook bij de uitzoom (view 0,7) echt uit beeld in plaats van halverwege te stoppen.
+  const schermTopY = groundY + (-0.08 * H - groundY) / viewZoom();
+  const ropeTopY = Math.min(puY, schermTopY);           // het touw eindigt altijd boven de schermrand (niet in de lucht)
   // het wiel op de grond
   const wB = terrainH(t.x);
   const wielH = TAKEL.wielH * CHAR_H * scale, wielW = wielH * 274 / 325;
@@ -8636,7 +8644,7 @@ function takelTeken(groundY, scale, cx){
   if (!arenaMode){
     // het loopt schuin achter het wiel omhoog naar een eigen katrol, een stukje opzij (de kant van het plateau);
     // vooraan getekend (voor de plateau-touwen en het wiel), zodat het er echt achterlangs loopt
-    takelTouw(wx - wielW * 0.08, hubY - wielH * 0.04, wx - sp * 1.1, Math.min(groundY - (wB + TAKEL.pulleyH) * scale, -0.15 * H), touwW, -fase);
+    takelTouw(wx - wielW * 0.08, hubY - wielH * 0.04, wx - sp * 1.1, Math.min(groundY - (wB + TAKEL.pulleyH) * scale, schermTopY), touwW, -fase);
   }
   if (t.valt){
     // de doorgesneden brug: de touwen zijn geknapt (weg), het dek kantelt om zijn midden terwijl het valt
@@ -12074,10 +12082,11 @@ function bandArenaTick(A, dt){
         // randje op de vaste grond). Omdat de looplijn gelijk met de grond uitkomt (takelDekOffset) loopt de
         // vloer toch naadloos door, zonder naad om tussen plateau en grond in te vallen
         level.gaps = [ { x: A.c, w: A.breed } ];
-        // twee rotsrichels hoog op de wanden, als decor (zoals in het schacht-level): te hoog om op te komen
-        const u = CHAR_H * nowScale();
-        level.ledges = [ { x: A.links + 0.7 * u, h: 430, s: 1.0 },
-                         { x: A.rechts - 0.7 * u, h: 430, s: 1.0, f: true } ];
+        // twee rotsrichels hoog tegen de zijwanden, als decor (zoals in het schacht-level): te hoog om op te komen.
+        // De vlakke kant zit tegen de wand (links de gewone richel, rechts de gespiegelde), zodat ze uit de rots
+        // steken in plaats van los in de lucht te zweven.
+        level.ledges = [ { x: A.links, h: 430, s: 1.0 },
+                         { x: A.rechts, h: 430, s: 1.0, f: true } ];
         // hoog zo dat de looplijn boven net onder de grondlijn ligt (een paar eenheden, onzichtbaar), gelijk met de
         // vaste grond maar niet exact op 0: supportHeight geeft 0 terug als "geen plateau", dus een brug op precies
         // 0 zou niet herkend worden en je viel er dwars doorheen. Net eronder wordt hij wel herkend.
