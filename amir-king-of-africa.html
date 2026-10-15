@@ -846,6 +846,10 @@
         <button data-bananim="schouder">Schouder</button>
         <button data-bananim="spot">Opspringen</button>
         <button data-bananim="vault">Vault</button>
+        <button data-bananim="walk">Lopen</button>
+        <button data-bananim="idle">Idle</button>
+        <button data-bananim="idle_in">Zwaard omhoog</button>
+        <button data-bananim="schouder_sta">Schouder staand</button>
       </div>
       <div class="row">
         <label>Baviaan</label>
@@ -10700,7 +10704,9 @@ function bavFocusX(p){
   const b = level.baviaan, r = bavRust.get(b), m = W * BAV_DRAMA.camMax;
   return p + Math.max(-m, Math.min(m, (b.x + (r.wx || 0) - p) * BAV_DRAMA.camera));
 }
-const amirVast = () => beetVast || bavDramaNu();           // de speerbeet of het drama: Amir staat vast
+// de entree van de bandiet-arena: Amir staat vast en kijkt toe terwijl de garde hem opmerken, tot het gevecht vrij is
+const arenaIntroVast = () => { const A = arenaAap; return !!(A && A.ban && A.fase === 'intro'); };
+const amirVast = () => beetVast || bavDramaNu() || arenaIntroVast();   // de speerbeet, het drama of de arena-entree: Amir staat vast
 // het gevecht in de tekenlus, na de andere vijanden: raakt zijn bek Amir, en raakt Amir hem
 function bavGevecht({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, valRaakt, attacking, hitBy }){
   const b = level && level.baviaan, r = b && bavRust.get(b), g = b && bavGeo.get(b);
@@ -11876,12 +11882,14 @@ const BANDARENA = {
   fadeV: 2.4,            // snelheid van de fade (per seconde)
   traag: 0.4,            // het takelen in de arena gaat trager dan een gewone takel (zo'n 2,5 keer zo traag), zodat de rit leesbaar is
   zak: 0.5,             // de brug dokt een halve eenheid onder de grondlijn: onzichtbaar, maar supportHeight herkent hem wel (0 = "geen plateau"). Niet een hele eenheid, want takelOpp komt dan door afrondingsfout net onder -1 uit, en dropAhead leest base < -1 als de eindwand van een gang (de garde komt dan niet van de brug af)
+  introRust: 0.8,        // de entree: zo lang staan de twee garde idle met de rug naar je voor ze je horen
+  introMerk: 1.7,        // dan kijken ze over hun schouder (de staande schouder_sta komt rond frame 10 bij de look-back); daarna gaat het gevecht vrij
 };
 // de looplijn van het plateau ligt sta onder de bovenrand; zo diep laat het plateau in de arena op gelijke
 // hoogte met de vaste grond aansluiten (de looplijn op 0), zodat Amir er netjes vanaf en weer op stapt
 function takelDekOffset(){ return TAKEL.sta * TAKEL.dekH * CHAR_H; }
 function bandArenaStart(){
-  banLaad(true); banLaadHurk(true); banLaadVault(true);                // de elite-sets
+  banLaad(true); banLaadHurk(true); banLaadVault(true); banLaadIdle(true);   // de elite-sets (ook de staande idle voor de entree)
   const span = Math.min(W - 260, 1200);
   const rechts = CLIFF.wall - ARENA.rand, links = rechts - span;
   const c = Math.round((rechts + links) / 2);
@@ -11910,13 +11918,23 @@ function bandArenaStart(){
   spear = true; spearFound = true; spearX = null; spearH = null;
   flashHint('Loop naar het tandwiel en sla het: dan takel je met het plateau omhoog');
 }
-// twee garde die staan te wachten, een aan elke wand; ze bewegen pas als Amir uitgetekend is (s.wacht)
+// de twee garde van de entree, een aan elke wand: links gehurkt in de hoek, rechts staand met de rug naar
+// Amir. Ze idlen (introKind) tot Amir boven is; dan kijken ze over hun schouder en gaan los (bandArenaTick,
+// fase 'intro'). Allebei openen met een dolkworp (dolk: true). De gehurkte neemt daarna de ambush-logica over
+// (spot), de staande draait en gooit (worp).
 function bandArenaWachters(A){
   const u = CHAR_H * nowScale();
+  // hoe verder uitgezoomd (view 0,7 op een laptop), hoe meer wereld in beeld, dus de garde starten verder naar
+  // de hoeken toe. Op een telefoon (view 1) blijven ze op 1,4 Amir van de wand, zodat ze daar in beeld blijven.
+  const inzet = 1.4 * u * viewZoom();
   for (const side of [-1, 1]){
-    const wx = side < 0 ? A.links + 1.4 * u : A.rechts - 1.4 * u;
-    const b = makeBandiet(wx, side, false, false, false, false, false, null, true);
-    b.base = terrainH(wx); b.arena = true; b.wacht = true; bandieten.push(b);
+    const wx = side < 0 ? A.links + inzet : A.rechts - inzet;
+    const hurk = side < 0;                                            // links gehurkt, rechts staand
+    const b = makeBandiet(wx, side, true, hurk, false, false, false, null, true);
+    b.base = terrainH(wx); b.arena = true;
+    b.introKind = hurk ? 'hurk' : 'staan';
+    b.state = hurk ? 'hurk_idle' : 'idle'; b.frame = 0; b.acc = 0;    // idle met de rug naar Amir
+    bandieten.push(b);
   }
 }
 // twee garde die van boven invallen, een links en een rechts van het midden, buiten de put
@@ -11988,10 +12006,24 @@ function bandArenaTick(A, dt){
     return;
   }
   if (A.fase === 'arena_in'){
-    // het plateau takelt Amir van onderaf de arena in; is hij boven en in beeld, dan vallen de twee aan
+    // het plateau takelt Amir van onderaf de arena in; is hij boven en in beeld, dan begint de entree:
+    // de twee garde staan nog met de rug naar hem (idle), Amir staat vast en kijkt toe
     if (t && t.top >= -8 && A.fade <= 0.01){
-      for (const b of bandieten) if (b.wacht) b.wacht = false;        // ze vallen aan
-      A.fase = 'golfA'; flashHint('De garde van de koning. Versla ze allemaal');
+      A.fase = 'intro'; A.introStap = 'rust'; A.introKlok = 0;
+      flashHint('De garde van de koning heeft je nog niet gezien...');
+    }
+    return;
+  }
+  if (A.fase === 'intro'){
+    // de entree: rust (rug naar je), dan merk (over de schouder kijken), dan los (het gevecht is vrij, Amir
+    // kan weer bewegen en de garde draaien zich om en openen met een dolkworp). Amir staat vast (arenaIntroVast)
+    // tot 'los'. De garde zelf idlen/kijken op introStap (zie updateBandiet).
+    A.introKlok += dt;
+    if (A.introStap === 'rust' && A.introKlok >= BANDARENA.introRust){
+      A.introStap = 'merk';
+    } else if (A.introStap === 'merk' && A.introKlok >= BANDARENA.introRust + BANDARENA.introMerk){
+      A.introStap = 'los'; A.fase = 'golfA';
+      flashHint('Ze hebben je gezien. Versla ze allemaal');
     }
     return;
   }
@@ -20849,14 +20881,29 @@ const BAN = {
   anker: 231,                     // het midden van het canvas: hier staat hij, zo klapt hij symmetrisch om
   fig: 351,                       // de staande figuur van kruin tot zool, in canvaspixels
   n:   { run: 14, slag: 33, look: 48, worp: 81, dood: 63,
-         hurk_in: 28, hurk_idle: 24, schouder: 16, spot: 70, vault: 68 },   // het hurkpakket (ambush) en de vault
+         hurk_in: 28, hurk_idle: 24, schouder: 16, spot: 70, vault: 68,
+         walk: 16, idle: 15, idle_in: 10, schouder_sta: 14 },   // het hurkpakket (ambush), de vault en de staande patrouille/idle (sprites_idle.json)
   fps: { run: 24, slag: 26, look: 18, worp: 32, dood: 30,
-         hurk_in: 12, hurk_idle: 8, schouder: 18, spot: 38, vault: 90 },    // eigen fps per set; de vault gaat op ticks (BAN_VAULT_TICKS), rap: ~1,07 s; schouder en spot zijn vlot zodat hij snel opkomt en werpt
+         hurk_in: 12, hurk_idle: 8, schouder: 18, spot: 38, vault: 90,
+         walk: 24, idle: 24, idle_in: 24, schouder_sta: 24 },   // eigen fps per set; de vault en de idle-sets gaan op ticks (BAN_VAULT_TICKS / BAN_IDLE_TICKS) op 24 fps; schouder en spot zijn vlot zodat hij snel opkomt en werpt
   raak: [21, 27],                 // de frames van de slag waarop de kling schade doet
   klap: 20                        // hier begint de neerwaartse haal: daar valt het zwaaigeluid, en de uitval naar voren
 };
 const BAN_LOOP = { run: true, slag: false, look: false, worp: false, dood: false,
-                   hurk_in: false, hurk_idle: true, schouder: false, spot: false, vault: false };
+                   hurk_in: false, hurk_idle: true, schouder: false, spot: false, vault: false,
+                   walk: true, idle: true, idle_in: false, schouder_sta: false };
+// de staande patrouille- en idle-sets (walk, idle, idle_in, schouder_sta) staan op een eigen canvas
+// (397x563, voetlijn 555), op dezelfde schaal als de hoofdset (fig 351, geen correctie), uit sprites_idle.json
+// en LEESMIJ_idle.txt. Elk frame heeft een eigen duur in ticks op 24 fps (BAN_IDLE_TICKS), net als de vault.
+const BAN_IDLE_GEO = { w: 397, h: 563, anker: 199, ground: 555, fig: 351 };
+const BAN_IDLE_TICKS = {
+  walk:         [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
+  idle:         [2, 1, 1, 2, 5, 1, 2, 4, 1, 1, 3, 1, 1, 2, 2],
+  idle_in:      [4, 7, 7, 2, 2, 1, 2, 2, 2, 1],
+  schouder_sta: [8, 5, 6, 3, 3, 4, 5, 3, 3, 9, 15, 4, 4, 4]
+};
+// op dit frame kijkt hij in schouder_sta over zijn schouder achterom (de lange hold); daar heeft hij Amir gezien
+const BAN_SCHOUDER_MERK = 10;
 // De werp- en doodset staan op een eigen canvas met een eigen maat (sprites_los.json). Ze worden zo
 // geschaald dat de figuur even groot op het scherm komt als de hoofdset (via de figuurhoogte `fig`),
 // en uitgelijnd op hun eigen voetpunt (`anker`, `ground`), opgemeten uit de sprites. Een set die hier
@@ -20874,6 +20921,7 @@ for (const k of ['hurk_in', 'hurk_idle', 'schouder', 'spot']) BAN_SETGEO[k] = BA
 // de cx van frame 0 (408), zodat de figuur vanzelf vooruit loopt; de verticale uitlijning gaat per frame
 // via BAN_VAULT_GROND (zie de tekenlus), niet via dit vaste `ground`.
 BAN_SETGEO.vault = { w: 699, h: 510, anker: 408, ground: 462, fig: 351 };
+for (const k of ['walk', 'idle', 'idle_in', 'schouder_sta']) BAN_SETGEO[k] = BAN_IDLE_GEO;
 function banGeo(state){ return BAN_SETGEO[state] || BAN; }
 // de werpset: wanneer de dolk de hand verlaat, en tot waar de animatie loopt voor hij weer rent
 const BAN_WORP_RELEASE = 58;   // op dit frame verlaat de dolk zijn hand
@@ -21156,7 +21204,8 @@ const banBank = {};
 const banBankElite = {};   // de elite-garde tekent uit een eigen cache (enemies/bandiet_elite/), apart van de gewone rovers
 const BAN_ROOT_ELITE = 'enemies/bandiet_elite/';   // zwart met een goud accent, uit tools/bandiet_elite_kleur.js
 const BAN_HURK_SETS = ['hurk_in', 'hurk_idle', 'schouder', 'spot'];
-const BAN_EXTRA_SETS = [...BAN_HURK_SETS, 'vault'];   // zware sets die niet standaard meeladen
+const BAN_IDLE_SETS = ['walk', 'idle', 'idle_in', 'schouder_sta'];   // de staande patrouille/idle (sprites_idle.json)
+const BAN_EXTRA_SETS = [...BAN_HURK_SETS, 'vault', ...BAN_IDLE_SETS];   // zware sets die niet standaard meeladen
 function banLaadSet(k, elite){
   const bank = elite ? banBankElite : banBank, root = elite ? BAN_ROOT_ELITE : BAN_ROOT;
   if (bank[k]) return;
@@ -21172,6 +21221,9 @@ function banLaad(elite){
 function banLaadHurk(elite){ banLaad(elite); for (const k of BAN_HURK_SETS) banLaadSet(k, elite); }
 // de vault (68 frames) alleen laden als een bandiet hem kan gebruiken
 function banLaadVault(elite){ banLaad(elite); banLaadSet('vault', elite); }
+// de staande patrouille/idle (walk, idle, idle_in, schouder_sta) alleen laden waar ze gebruikt worden
+// (nu de arena-entree en de sandbox), zodat ze de laadpoort van een gewoon bandietlevel niet vertragen
+function banLaadIdle(elite){ banLaad(elite); for (const k of BAN_IDLE_SETS) banLaadSet(k, elite); }
 // de plaatjes alvast ophalen als dit level bandieten gebruikt (een golf of een spawn), zodat
 // er niemand zonder frame opkomt
 function banLaadLevel(lv){
@@ -21188,6 +21240,7 @@ function banLaadLevel(lv){
   if (lv.bandArena || sp.some(s => s.kind === 'bandiet' && s.elite)) banLaad(true);          // de elite-garde
   if (sp.some(s => s.kind === 'bandiet' && s.elite && (s.hurk || lv.bandArena))) banLaadHurk(true);
   if (sp.some(s => s.kind === 'bandiet' && s.elite && (s.vault || lv.bandArena))) banLaadVault(true);
+  if (lv.bandArena) banLaadIdle(true);                                                        // de entree: garde die staand en gehurkt idlen voor het gevecht
 }
 
 // de dolk als projectiel (enemies/bandiet/dolk/, met dolk.json en LEESMIJ_dolk.txt als bron). Hij tolt
@@ -21227,6 +21280,7 @@ function makeBandiet(x, side, dolk, hurk, vault, takelaar, passagier, rol, elite
   banLaad(elite);
   if (hurk) banLaadHurk(elite);
   if (wilVault) banLaadVault(elite);                      // de vaultframes als deze bandiet over keien springt
+  if (passagier) banLaadIdle(elite);                      // een passagier idle't staand terwijl hij omhoog getakeld wordt
   // side 1 = hij staat rechts van je. De frames kijken naar LINKS, dus face 1 (naar rechts) = gespiegeld
   const b = { x, face: -side, state: 'run', frame: 0, acc: 0, t: 0,
            hp: BAN_HP, inv: 0, flash: 0, knock: 0, base: 0, stuck: 0, lig: 0, alpha: 1,
@@ -21262,6 +21316,17 @@ function banAnim(s, dt){
       if (s.frame === BAN_VAULT_AFZET) banAfzet();           // het afzetgeluid: de hand plant, hij lanceert
     }
     if (s.frame >= n - 1) s.klaar = true;
+    return;
+  }
+  const tk = BAN_IDLE_TICKS[s.state];
+  if (tk){                                                   // de staande patrouille/idle: eigen duur per frame (ticks op 24 fps)
+    s.acc += dt * 24;
+    while (s.acc >= tk[s.frame]){
+      s.acc -= tk[s.frame];
+      if (BAN_LOOP[s.state]) s.frame = (s.frame + 1) % n;
+      else if (s.frame < n - 1) s.frame++;
+      else { s.klaar = true; break; }
+    }
     return;
   }
   s.acc += dt * (s.state === 'slag' ? banSlagFps(s.frame, s.counter) : (BAN.fps[s.state] || 24));
@@ -21376,6 +21441,23 @@ function updateBandiet(s, dt, plats, cliff){
   if (s.wacht){                                      // staat in de arena te wachten tot Amir uitgetekend is: stilstaan, naar hem kijken
     s.frame = 0; s.acc = 0; s.face = playerX() >= s.x ? 1 : -1; return;
   }
+  if (s.introKind){                                  // de arena-entree: idle met de rug naar Amir, over de schouder kijken, dan losgaan
+    const A = arenaAap, stap = (A && A.ban) ? A.introStap : 'los';
+    const naarJe = playerX() >= s.x ? 1 : -1;
+    const hurk = s.introKind === 'hurk';
+    if (stap === 'los'){                             // het gevecht is vrij: draaien en openen met de dolk
+      s.introKind = null;
+      s.face = naarJe;
+      if (hurk){ banSet(s, 'spot'); s.frame = BAN_SPOT_START; s.acc = 0; }   // springt op en werpt; de spot-logica neemt het over (zet daar s.gegooid)
+      else { s.gegooid = true; s.dolkUit = false; banSet(s, 'worp'); }   // staand: draait naar je toe en gooit zijn dolk (gegooid, anders werpt run er nog een)
+      return;
+    }
+    s.face = -naarJe;                                // rug naar Amir (alleen in schouder_sta draait zijn kop)
+    const wil = stap === 'merk' ? (hurk ? 'schouder' : 'schouder_sta') : (hurk ? 'hurk_idle' : 'idle');
+    if (s.state !== wil){ banSet(s, wil); }
+    banAnim(s, dt);
+    return;
+  }
 
   if (s.dropping){                                   // van boven de arena in: hij valt in de run-pose en landt met stof
     banAnim(s, dt);
@@ -21434,9 +21516,10 @@ function updateBandiet(s, dt, plats, cliff){
       if (!s.ambush) banSet(s, 'run');
       return;
     }
-    // nog aan het stijgen: een gehurkte passagier zit laag met de rug naar je, een staande wacht rechtop
-    if (s.ambush){ s.face = -naarJe0; banAnim(s, dt); }   // de gehurkte idle loopt
-    else { s.frame = 0; s.acc = 0; s.face = naarJe0; }
+    // nog aan het stijgen: een gehurkte passagier zit laag met de rug naar je (de gehurkte idle), een staande
+    // staat rechtop te wachten met de staande idle (sprites_idle.json)
+    if (s.ambush){ s.face = -naarJe0; banAnim(s, dt); }
+    else { if (s.state !== 'idle') banSet(s, 'idle'); s.face = naarJe0; banAnim(s, dt); }
     return;
   }
 
@@ -27698,6 +27781,7 @@ sbBanLabel();
 function sbBanAnim(set){
   if (BAN_HURK_SETS.includes(set)) banLaadHurk();    // het hurkpakket pas laden als je het bekijkt
   if (set === 'vault') banLaadVault();               // de vault-set pas laden als je hem bekijkt
+  if (BAN_IDLE_SETS.includes(set)) banLaadIdle();    // de staande patrouille/idle pas laden als je ze bekijkt
   sbBanVrij = true; sbBanLabel();                   // anders neemt zijn AI het meteen weer over
   if (!bandieten.length) sbSpawn('bandiet');        // nog niemand neergezet: dan doen we dat nu
   for (const s of bandieten){
