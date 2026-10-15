@@ -3325,7 +3325,34 @@ const TEST_33 = {
           { x: -700, t: 'Aan de overkant slaat een bandiet het takelwiel. Het plateau met twee bandieten erop stijgt tot het de kloof overbrugt' },
           { x: -860, t: 'Een van hen zit gehurkt en springt pas op als de brug er staat, de ander gooit meteen zijn dolk: buk ervoor. Daarna steekt de takelaar zelf ook over' } ]
 };
-const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31, TEST_32, TEST_33];
+// Test 34: De brug doorsnijden. Dezelfde opzet als Test 33 (een takelaar tilt twee bandieten omhoog), maar de
+// touwen van de brug zijn met een geworpen speer door te snijden. Raak je een touw, dan knapt het, kantelt de
+// brug en stort hij met de bandieten erop het ravijn in. Daarmee reken je ze in een keer af, maar het gat is nu
+// te breed om overheen te springen: verderop verschijnt een zegel, en stap je daarop, dan komt er rijzende grond
+// omhoog die het ravijn dicht en kun je door. Fight je de bandieten liever gewoon, laat de touwen dan heel en
+// steek over op de brug zoals in Test 33. Keuzes: het ravijn 700 breed (de brug telt echt), de zegel op de
+// nabije kant (-480) zodat je even terug moet, en de rijzende grond vult het gat op grondniveau.
+const TEST_34 = {
+  name: 'Test 34: De brug doorsnijden',
+  lagen: 'tafelbergen',
+  rocks: [],
+  spawns: [ {x: -60000, k: 'groen'} ],          // heel ver weg: houdt de vrije modus uit
+  gaps: [ {x: -1250, w: 700} ],
+  takel: { x: -1780, px: -1250, breed: 700, laag: -280, hoog: 0, stappen: 5, beginLaag: true,
+           takelaar: true, passagiers: 2, passagierRollen: ['hurk', 'dolk'], touwSnijbaar: true },
+  // de zegel verschijnt pas als de brug gevallen is, en zet dan de rijzende grond op die het gat dicht
+  zegels: [ {x: -480, rijs: 'brug', naTakelVal: true} ],
+  rijzers: [ {id: 'brug', r: -950, l: -1550, tot: 0, van: -900} ],
+  props: [ {x: -180, k: 'gras', s: 1.1, f: 0, v: 0}, {x: -700, k: 'struik', s: 0.9, f: 1, v: 0},
+           {x: -2150, k: 'gras', s: 1.2, f: 1, v: 0}, {x: -2400, k: 'tree', s: 1.05, f: 0, v: 1} ],
+  terraces: [], ledges: [], village: [], npcs: [], water: [], thickets: [],
+  cliffs: [ {x: -2800} ],
+  ends: [ {x: -2300} ],
+  tips: [ { x: -120, t: 'Testlevel: de brug doorsnijden. Pak eerst je speer op' },
+          { x: -700, t: 'De touwen van de brug zijn door te snijden: gooi je speer dwars door een touw terwijl de bandieten erop staan, en de hele brug stort het ravijn in' },
+          { x: -880, t: 'Daarna is het gat te breed. Verderop verschijnt een zegel: stap erop, dan komt er rijzende grond omhoog die het ravijn dicht' } ]
+};
+const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31, TEST_32, TEST_33, TEST_34];
 // ---- Episode Baboon tests: de baviaan, stuk voor stuk ----
 // Proefstukken voor de baviaan, los van de echte episodes (regel 1 geldt niet). Het is een episode, dus met de
 // tribekeuze voor het begin, net als De Poorten. Ze stonden eerst tussen de Test levels; de baviaan hoort bij elkaar.
@@ -7494,6 +7521,7 @@ function zegelUpdate(dt, scale){
   const rPx = ZEGEL.r * CHAR_H * scale;
   for (const z of level.zegels){
     if (z.weg) continue;
+    if (z.naTakelVal && !z.onthuld) continue;       // verschijnt pas als de takel-brug gevallen is
     if (z.val){                                     // in zijn ravijn gevallen: zakken en vervagen
       z.val.v += GRAVITY * dt; z.val.h += z.val.v * dt;
       if (z.val.h > ZEGEL_VAL.diep) z.weg = true;
@@ -7578,6 +7606,7 @@ function zegelTeken(groundY, scale, cx){
   const r = ZEGEL.r * CHAR_H * scale;
   for (const z of level.zegels){
     if (z.weg) continue;
+    if (z.naTakelVal && !z.onthuld) continue;       // nog niet verschenen
     const sx = cx + (z.x - world);
     if (sx < -r * 2 || sx > W / viewZoom() + r * 2) continue;
     const h = z.val ? z.val.h : 0;
@@ -7588,7 +7617,7 @@ function zegelTeken(groundY, scale, cx){
   }
 }
 function zegelReset(){
-  if (level && level.zegels) for (const z of level.zegels){ z.aan = false; z.op = false; z.t = 0; z.val = null; z.weg = false; z.px = undefined; }
+  if (level && level.zegels) for (const z of level.zegels){ z.aan = false; z.op = false; z.t = 0; z.val = null; z.weg = false; z.px = undefined; z.onthuld = false; }
 }
 
 // ---- zakplafond: een plafond dat zakt als je op een zegel stapt ------------------
@@ -8186,19 +8215,59 @@ function takelReset(){
   t.doel = t.angle;
   t.richting = t.angle >= t.maxA - 1e-6 ? -1 : 1;    // dan zakt hij bij de eerste slag
   t.bob = 0; t.bobV = 0; t.op = false; t.kraakT = 0; t.haper = 0;
+  t.valt = false; t.weg = false; t.tilt = 0; t.valV = 0; t.snijKant = 0; t.snijJav = false;   // de brug valt niet, de touwen heel
   t.top = takelHoogte(t, t.angle); t.prevTop = t.top; t.stijg = 0;
 }
 // een slag: het doel een kwartslag verder in de huidige richting, en aan de uiteindes draait hij om. Het rad
 // draait niet meteen door: eerst een korte krak-hapering (t.haper), met de tik en een kleine schok, en dan
 // draait het de slag verder (zo voelt elke slag als hout dat vangt en dan doorschiet).
 function takelSlag(){
-  const t = takelLevel(); if (!t) return;
+  const t = takelLevel(); if (!t || t.valt || t.weg) return;   // een gevallen brug draait niet meer
   let next = t.doel + t.richting * TAKEL_QUART;
   if (next > t.maxA + 1e-6 || next < -1e-6){ t.richting *= -1; next = t.doel + t.richting * TAKEL_QUART; }
   t.doel = Math.max(0, Math.min(t.maxA, next));
   t.haper = TAKEL.haper;
   if (!building) shake = Math.max(shake, 0.03);
   takelTik();
+}
+// Een touw is doorgesneden (met een geworpen speer): de brug kantelt naar die kant en stort het ravijn in.
+// kant is -1 (linkertouw) of 1 (rechtertouw). De speer vliegt gewoon verder (geen verloren speer).
+function takelSnijden(kant){
+  const t = takelLevel(); if (!t || t.valt || t.weg) return;
+  t.valt = true; t.snijKant = kant || -1; t.valV = 40;
+  if (!building){ shake = Math.max(shake, 0.18); flashHint('Het touw knapt: de brug stort het ravijn in'); }
+  takelSnap();
+}
+// De brug is diep genoeg gevallen: weg. De passagiers die er nog op stonden storten mee het ravijn in, en
+// een zegel dat het gat weer dicht maakt verschijnt (naTakelVal).
+function takelBrugWeg(){
+  for (let i = bandieten.length - 1; i >= 0; i--){
+    const b = bandieten[i];
+    if (b.rijsId === 'takel'){ vijandDood(false); bandieten.splice(i, 1); }   // alleen wie nog op het dek rijdt stort mee; wie al afstapte vecht door
+  }
+  let onthuld = false;
+  for (const z of (level && level.zegels) || []) if (z.naTakelVal && !z.onthuld){ z.onthuld = true; onthuld = true; }
+  if (onthuld && !building) flashHint('Verderop verschijnt een zegel: stap erop om het ravijn te dichten');
+}
+// de knap van een touw: een korte ruisflits door een bandpass die snel in toonhoogte zakt (als een snaar die breekt)
+function takelSnap(){
+  if (!wantSound) return;
+  const ac = acLoopt(); if (!ac) return;
+  const t = takelLevel();
+  const pan = takelPan(t ? t.px : world), t0 = ac.currentTime + 0.005, dur = 0.22;
+  const n = ac.createBufferSource(), bp = ac.createBiquadFilter(), ng = ac.createGain();
+  n.buffer = takelRuisBuf(ac); bp.type = 'bandpass';
+  const f0 = 900 * (0.9 + Math.random() * 0.2);
+  bp.frequency.setValueAtTime(f0, t0); bp.frequency.exponentialRampToValueAtTime(f0 * 0.3, t0 + dur); bp.Q.value = 5;
+  ng.gain.setValueAtTime(0.5 * pan, t0); ng.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  n.connect(bp); bp.connect(ng); ng.connect(ac.destination); n.start(t0); n.stop(t0 + dur + 0.02);
+}
+// snijdt het lijnstuk a-b het lijnstuk c-d? (voor een geworpen speer die dwars door een touw vliegt)
+function segKruist(ax, ay, bx, by, cx1, cy1, dx1, dy1){
+  const o = (px, py, qx, qy, rx, ry) => Math.sign((qx - px) * (ry - py) - (qy - py) * (rx - px));
+  const o1 = o(ax, ay, bx, by, cx1, cy1), o2 = o(ax, ay, bx, by, dx1, dy1);
+  const o3 = o(cx1, cy1, dx1, dy1, ax, ay), o4 = o(cx1, cy1, dx1, dy1, bx, by);
+  return o1 !== o2 && o3 !== o4;
 }
 // De takelaar begint pas te draaien als Amir zo dichtbij is (wereld-px), zodat de bandieten niet al boven
 // staan voor je de scene ziet.
@@ -8228,7 +8297,15 @@ function takelBandietenZet(){
 function takelUpdate(dt){
   const t = takelLevel(); if (!t) return;
   if (!takelGeladen) takelLaad();
+  if (t.weg) return;
   if (building){ t.angle = t.doel = t.maxA; t.bob = 0; t.top = takelHoogte(t, t.angle); t.prevTop = t.top; t.stijg = 0; return; }
+  if (t.valt){                                       // een touw is doorgesneden: de brug kantelt en stort het ravijn in
+    t.tilt += (t.snijKant * 0.85 - t.tilt) * Math.min(1, dt * 3.5);   // leunt naar de doorgesneden kant
+    t.valV += GRAVITY * 1.3 * dt;
+    t.prevTop = t.top; t.top -= t.valV * dt; t.stijg = 0;             // schiet naar beneden (passagiers rijden mee de diepte in)
+    if (t.top < -(GAP_DEATH + 450)){ t.weg = true; takelBrugWeg(); }  // diep genoeg: weg, en de passagiers storten mee
+    return;
+  }
   // het wiel draait naar zijn doel, maar pas na de korte krak-hapering: zolang die loopt houdt het rad in
   // (het plateau blijft dan ook staan, dus wie erop staat blijft netjes staan)
   let draait = false;
@@ -8265,7 +8342,7 @@ function takelDraagt(x, base){
 }
 // het dunne platform: draagt Amir en de speer, en van onderaf loop je eronderdoor (thin)
 function takelPlats(){
-  const t = takelLevel(); if (!t) return [];
+  const t = takelLevel(); if (!t || t.weg) return [];
   const top = t.top == null ? takelHoogte(t, t.angle) : t.top;
   return [{ x: t.px, left: t.px - t.breed / 2, right: t.px + t.breed / 2,
             topH: top, base: top, wPx: t.breed, hPx: 0, thin: true, takel: true, id: 'takel', stijg: t.stijg || 0 }];
@@ -8357,7 +8434,7 @@ function takelPlateauTeken(left, top, breedte, hoogte, capW){
   ctx.drawImage(P.rechts, left + breedte - cw, top, cw, hoogte);
 }
 function takelTeken(groundY, scale, cx){
-  const t = takelLevel(); if (!t || !takelGeladen) return;
+  const t = takelLevel(); if (!t || !takelGeladen || t.weg) return;
   const top = t.top == null ? takelHoogte(t, t.angle) : t.top;
   // ---- het plateau en de twee touwen ----
   const dekTop = groundY - top * scale;
@@ -8371,14 +8448,32 @@ function takelTeken(groundY, scale, cx){
   const puY = groundY - (top + TAKEL.pulleyH) * scale;  // de verborgen katrol boven het scherm
   const touwW = TAKEL.touwDik * CHAR_H * scale;
   const sp = TAKEL.spread * scale;
+  // ---- een geworpen speer die dwars door een touw vliegt snijdt het door (touwSnijbaar) ----
+  if (t.touwSnijbaar && !t.valt && jav && jav.state === 'vlucht'){
+    const jx = cx + (jav.x - world), jy = groundY - jav.h * scale;
+    if (t.snijJav){
+      if (segKruist(t.jx, t.jy, jx, jy, aL, aY, aL - sp, puY)) takelSnijden(-1);
+      else if (segKruist(t.jx, t.jy, jx, jy, aR, aY, aR + sp, puY)) takelSnijden(1);
+    }
+    t.jx = jx; t.jy = jy; t.snijJav = true;
+  } else t.snijJav = false;
   const fase = t.angle * 70;                            // de draad scrolt met de draaistand van het rad
-  takelTouw(aL, aY, aL - sp, puY, touwW, fase);
-  takelTouw(aR, aY, aR + sp, puY, touwW, fase);
-  takelPlateauTeken(left, dekTop, right - left, dekH, capW);
-  const kn = TAKEL.knop * CHAR_H * scale;
-  if (imgReady(takelKnop)){
-    ctx.drawImage(takelKnop, aL - kn / 2, aY - kn / 2, kn, kn);
-    ctx.drawImage(takelKnop, aR - kn / 2, aY - kn / 2, kn, kn);
+  if (t.valt){
+    // de doorgesneden brug: de touwen zijn geknapt (weg), het dek kantelt om zijn midden terwijl het valt
+    const midX = (left + right) / 2, midY = dekTop + dekH / 2;
+    ctx.save();
+    ctx.translate(midX, midY); ctx.rotate(t.tilt || 0);
+    takelPlateauTeken(-(right - left) / 2, -dekH / 2, right - left, dekH, capW);
+    ctx.restore();
+  } else {
+    takelTouw(aL, aY, aL - sp, puY, touwW, fase);
+    takelTouw(aR, aY, aR + sp, puY, touwW, fase);
+    takelPlateauTeken(left, dekTop, right - left, dekH, capW);
+    const kn = TAKEL.knop * CHAR_H * scale;
+    if (imgReady(takelKnop)){
+      ctx.drawImage(takelKnop, aL - kn / 2, aY - kn / 2, kn, kn);
+      ctx.drawImage(takelKnop, aR - kn / 2, aY - kn / 2, kn, kn);
+    }
   }
   // ---- het wiel op de grond, met zijn drijftouw erachter naar boven ----
   const wB = terrainH(t.x);
@@ -20640,7 +20735,7 @@ function updateBandiet(s, dt, plats, cliff){
   if (s.takelaar){                                   // hij staat bij het wiel en slaat er ritmisch op
     if (tk) s.face = tk.x > s.x ? 1 : -1;            // naar het wiel kijken
     if (!sandbox && Math.abs(playerX() - s.x) > TAKEL_CRANK_RANGE){ s.frame = 0; s.acc = 0; return; }   // pas draaien als Amir in de buurt is (in de sandbox meteen)
-    const bovenKlaar = !tk || tk.doel >= tk.maxA - 1e-6;   // het plateau is boven: stoppen met slaan
+    const bovenKlaar = !tk || tk.doel >= tk.maxA - 1e-6 || tk.valt || tk.weg;   // de brug is boven of gevallen: stoppen met slaan
     if (s.state === 'slag'){
       banAnim(s, dt);
       if (!s.hitUsed && s.frame >= BAN.klap){ s.hitUsed = true; if (tk && !bovenKlaar) takelSlag(); }
@@ -25130,6 +25225,7 @@ function syncLevel(){
       if (o.rijs !== undefined) z.rijs = o.rijs;
       if (o.speer) z.speer = true;
       if (o.vijand) z.vijand = true;
+      if (o.naTakelVal) z.naTakelVal = true;      // verschijnt pas als de takel-brug gevallen is
       if (o.teken && ZEGEL_TEKENS[o.teken]) z.teken = o.teken;
       return z;
     }),
@@ -25325,6 +25421,8 @@ function readLevel(txt){
                                                 plafond: (q.plafond === 'zak' || q.plafond === 'op') ? q.plafond : undefined,
                                                 // stuurt de rijzende grond met die naam omhoog; speer: ook een speer zet hem aan
                                                 rijs: (q.rijs === undefined || q.rijs === null) ? undefined : String(q.rijs),
+                                                // verschijnt pas als de takel-brug in het ravijn is gestort (zie "takelwiel met plateau")
+                                                naTakelVal: q.naTakelVal === true,
                                                 speer: q.speer === true })),
            // blokken steen die op een zegel uit een ravijn omhoog komen, zie "rijzende grond"
            rijzers: (o.rijzers || []).map(q => ({ id: String(q.id), r: Number(q.r), l: Number(q.l),
@@ -25439,6 +25537,8 @@ function readLevel(txt){
                               passagiers: Number(o.takel.passagiers) > 0 ? Math.round(Number(o.takel.passagiers)) : undefined,
                               // de rol per passagier: 'hurk' (gehurkt, springt op als de brug staat), 'dolk' (gooit direct) of 'ren'
                               passagierRollen: Array.isArray(o.takel.passagierRollen) ? o.takel.passagierRollen.map(String) : undefined,
+                              // de touwen van de brug zijn met een geworpen speer door te snijden (dan valt de brug in het ravijn)
+                              touwSnijbaar: o.takel.touwSnijbaar === true,
                               takelaarZij: o.takel.takelaarZij != null ? Number(o.takel.takelaarZij) : undefined } : null,
            fg: o.fg ? { from: Number(o.fg.from), to: Number(o.fg.to) } : null,
            arena: o.arena ? { c: Number(o.arena.c) } : null,
@@ -26565,6 +26665,7 @@ const SUBS = {
   'Test 31: De hinderlaag': 'Gehurkte bandieten die opspringen en hun dolk werpen, dan als een gewone bandiet vechten',
   'Test 32: Het takelwiel': 'Sla het tandwiel met je speer: het draait en laat een hangend plateau een stap zakken of stijgen, en het plateau veert',
   'Test 33: De bandieten op het plateau': 'Een bandiet aan de overkant slaat het takelwiel, het plateau tilt twee bandieten tot op je niveau, en dan stormen ze eraf',
+  'Test 34: De brug doorsnijden': 'Snijd de touwen van de brug met je speer door en de bandieten storten het ravijn in, en dicht daarna het te brede gat met een zegel',
   'Test 10: Licht onder de grond': 'Een gang met drie gaten in het dak, om het licht te bekijken',
   'Baboon 2: De speerbeet': 'Steek naar de baviaan of zwaai laag: hij pakt je speer of slaat hem kapot',
   'Test 25: Uitgezoomd, licht': 'Een beetje uitgezoomd (view 0,8): je ziet wat verder vooruit',
@@ -27397,10 +27498,10 @@ function sbTakelBand(){
   if (!level.gaps) level.gaps = [];
   level.gaps.push({ x: gx, w: 600, sbTakel: true });
   level.takel = { x: gx - 530, px: gx, breed: 600, laag: -260, hoog: 0, stappen: 5, beginLaag: true,
-                  takelaar: true, passagiers: 2, passagierRollen: ['hurk', 'dolk'] };
+                  takelaar: true, passagiers: 2, passagierRollen: ['hurk', 'dolk'], touwSnijbaar: true };
   takelReset();
   takelBandietenZet();
-  flashHint('De takelaar tilt twee bandieten omhoog; boven stormen ze eraf');
+  flashHint('De takelaar tilt twee bandieten omhoog. Gooi een speer door een touw: de brug stort in');
   cv.focus();
 }
 document.getElementById('sbtakel').onclick = () => { sbTakel(); };
