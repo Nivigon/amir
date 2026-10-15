@@ -27,7 +27,7 @@ const SRC = path.join(ROOT, 'enemies', 'bandiet');
 const DST = path.join(ROOT, 'enemies', 'bandiet_elite');
 
 // helderheid -> kleur ladder (gradient-map), per vlak
-const houtskool = [[0, [10, 10, 12]], [0.42, [28, 29, 34]], [0.70, [54, 56, 64]], [1, [96, 99, 112]]];
+const houtskool = [[0, [10, 10, 12]], [0.42, [30, 28, 26]], [0.70, [64, 58, 44]], [1, [116, 102, 66]]];   // de hogere lichten iets warmer, zodat het zwart een goudzweem krijgt
 const goud      = [[0, [86, 60, 18]], [0.50, [172, 130, 42]], [0.80, [218, 176, 72]], [1, [248, 224, 150]]];
 const SCH = { doek: houtskool, metaal: goud };
 
@@ -51,7 +51,7 @@ const SCH = { doek: houtskool, metaal: goud };
       for (let i = 0; i < p.length; i += 4){ if (p[i + 3] === 0) continue;
         const [h, s, v] = r2h(p[i], p[i + 1], p[i + 2]); let key = 'doek';
         if (v < 0.12) continue;                                   // donkere contour: zwart laten
-        else if (v > 0.60 && s < 0.30) key = 'metaal';            // de lichte glans van het staal en de gespen -> goud
+        else if (v > 0.50 && s < 0.38) key = 'metaal';            // de lichte glans van het staal en de gespen -> goud (ruimer, dus wat meer goud)
         else key = 'doek';                                        // het lijf en de kleding -> houtskool
         const L = Math.pow((0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2]) / 255, 0.82);
         const o = mapRamp(L, S[key]); p[i] = o[0]; p[i + 1] = o[1]; p[i + 2] = o[2];
