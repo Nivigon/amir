@@ -825,11 +825,13 @@
         <label>Bandiet</label>
         <button data-spawn="bandiet">Neerzetten</button>
         <button id="sbanhurk">Hinderlaag</button>
+        <button data-spawn="bandiet_neer">Van boven</button>
         <button id="sbanvrij">AI uit</button>
         <button id="sbandolk">Dolk uit</button>
         <button id="sbanvault">Vault uit</button>
+        <button id="sbanelite">Elite uit</button>
         <button id="sbangolf">Golf aan</button>
-        <span class="hint">rent op je af, haalt uit en schiet in de uitval door (met stof); dan draait hij om en komt weer. Dolk aan: hij gooit eerst zijn dolk. Hinderlaag: hij zit gehurkt met de rug naar je, hoort je, springt op en werpt zijn dolk. Vault aan: komt hij bij een kei en sta jij aan de overkant, dan springt hij er in een radslag overheen (regel 7-uitzondering). Golf: telkens een erbij, van twee kanten, steeds sneller</span>
+        <span class="hint">rent op je af, haalt uit en schiet in de uitval door (met stof); dan draait hij om en komt weer. Dolk aan: hij gooit eerst zijn dolk. Hinderlaag: hij zit gehurkt met de rug naar je, hoort je, springt op en werpt zijn dolk. Van boven: hij komt van boven de arena in en landt met stof. Vault aan: komt hij bij een kei en sta jij aan de overkant, dan springt hij er in een radslag overheen (regel 7-uitzondering). Elite aan: de zwarte garde van de valse koning (zwart met goud). Golf: telkens een erbij, van twee kanten, steeds sneller</span>
       </div>
       <div class="row">
         <label>Zijn animaties</label>
@@ -18354,10 +18356,12 @@ function updateSnakes(dt, plats, halfWNow, cliff){
         z.base = sp.boven ? bovenVloer(zx) : terrainH(zx); zwaarden.push(z); continue;
       }
       if (sp.kind === 'bandiet'){
-        // een ambush-bandiet (hurk) zit op een vaste plek gehurkt te wachten, dus niet net buiten beeld
-        const bx = (sp.boven || sp.hurk) ? sp.x : spawnPoint(sp.x);
-        const b = makeBandiet(bx, bx > world ? 1 : -1, sp.dolk, sp.hurk, sp.vault);
-        b.base = sp.boven ? bovenVloer(bx) : terrainH(bx); bandieten.push(b); continue;
+        // een ambush-bandiet (hurk) en een die van boven invalt (neer) staan op een vaste plek, niet net buiten beeld
+        const bx = (sp.boven || sp.hurk || sp.neer) ? sp.x : spawnPoint(sp.x);
+        const b = makeBandiet(bx, bx > world ? 1 : -1, sp.dolk, sp.hurk, sp.vault, false, false, null, sp.elite);
+        b.base = sp.boven ? bovenVloer(bx) : terrainH(bx);
+        if (sp.neer) banStartDrop(b);           // van boven de arena in
+        bandieten.push(b); continue;
       }
       if (sp.kind === 'fosfor'){                   // altijd een groep van drie
         const lx = spawnPoint(sp.x);
@@ -20516,21 +20520,25 @@ function banVoetstap(wx){
 
 // een gedeelde bank frames, pas geladen als een level of de sandbox erom vraagt
 const banBank = {};
+const banBankElite = {};   // de elite-garde tekent uit een eigen cache (enemies/bandiet_elite/), apart van de gewone rovers
+const BAN_ROOT_ELITE = 'enemies/bandiet_elite/';   // zwart met een goud accent, uit tools/bandiet_elite_kleur.js
 const BAN_HURK_SETS = ['hurk_in', 'hurk_idle', 'schouder', 'spot'];
 const BAN_EXTRA_SETS = [...BAN_HURK_SETS, 'vault'];   // zware sets die niet standaard meeladen
-function banLaadSet(k){
-  if (banBank[k]) return;
-  banBank[k] = Array.from({ length: BAN.n[k] }, (_, i) =>
-    loadQuiet([BAN_ROOT + k + '/' + k + '_' + pad2(i) + '.png']));
+function banLaadSet(k, elite){
+  const bank = elite ? banBankElite : banBank, root = elite ? BAN_ROOT_ELITE : BAN_ROOT;
+  if (bank[k]) return;
+  bank[k] = Array.from({ length: BAN.n[k] }, (_, i) =>
+    loadQuiet([root + k + '/' + k + '_' + pad2(i) + '.png']));
 }
-function banLaad(){
-  if (banBank.run) return;
-  for (const k in BAN.n) if (!BAN_EXTRA_SETS.includes(k)) banLaadSet(k);   // de hurk- en vaultsets pas als ze nodig zijn
+function banLaad(elite){
+  const bank = elite ? banBankElite : banBank;
+  if (bank.run) return;
+  for (const k in BAN.n) if (!BAN_EXTRA_SETS.includes(k)) banLaadSet(k, elite);   // de hurk- en vaultsets pas als ze nodig zijn
 }
 // het zware hurkpakket (138 frames) alleen laden als een level of de sandbox een ambush-bandiet zet
-function banLaadHurk(){ banLaad(); for (const k of BAN_HURK_SETS) banLaadSet(k); }
+function banLaadHurk(elite){ banLaad(elite); for (const k of BAN_HURK_SETS) banLaadSet(k, elite); }
 // de vault (68 frames) alleen laden als een bandiet hem kan gebruiken
-function banLaadVault(){ banLaad(); banLaadSet('vault'); }
+function banLaadVault(elite){ banLaad(elite); banLaadSet('vault', elite); }
 // de plaatjes alvast ophalen als dit level bandieten gebruikt (een golf of een spawn), zodat
 // er niemand zonder frame opkomt
 function banLaadLevel(lv){
@@ -20539,6 +20547,9 @@ function banLaadLevel(lv){
   if (lv.bandietGolf || sp.some(s => s.kind === 'bandiet')) banLaad();
   if (sp.some(s => s.kind === 'bandiet' && s.hurk)) banLaadHurk();
   if (sp.some(s => s.kind === 'bandiet' && s.vault)) banLaadVault();
+  if (lv.bandArena || sp.some(s => s.kind === 'bandiet' && s.elite)) banLaad(true);          // de elite-garde
+  if (sp.some(s => s.kind === 'bandiet' && s.elite && (s.hurk || lv.bandArena))) banLaadHurk(true);
+  if (sp.some(s => s.kind === 'bandiet' && s.elite && (s.vault || lv.bandArena))) banLaadVault(true);
 }
 
 // de dolk als projectiel (enemies/bandiet/dolk/, met dolk.json en LEESMIJ_dolk.txt als bron). Hij tolt
@@ -20573,10 +20584,10 @@ function banReik(){ return BAN_ZWAARD.to * banScale(); }          // hoe ver zij
 // kan zijn kling niet bij. De vloer onder Amir vergelijken met zijn eigen vloer.
 const BAN_HOOGTE = 90;
 function banZelfdeHoogte(s){ return Math.abs(vloerBij(playerX(), ph) - (s.base || 0)) <= BAN_HOOGTE; }
-function makeBandiet(x, side, dolk, hurk, vault, takelaar, passagier, rol){
-  banLaad();
-  if (hurk) banLaadHurk();
-  if (vault) banLaadVault();                              // de vaultframes als deze bandiet over keien springt
+function makeBandiet(x, side, dolk, hurk, vault, takelaar, passagier, rol, elite){
+  banLaad(elite);
+  if (hurk) banLaadHurk(elite);
+  if (vault) banLaadVault(elite);                         // de vaultframes als deze bandiet over keien springt
   // side 1 = hij staat rechts van je. De frames kijken naar LINKS, dus face 1 (naar rechts) = gespiegeld
   const b = { x, face: -side, state: 'run', frame: 0, acc: 0, t: 0,
            hp: BAN_HP, inv: 0, flash: 0, knock: 0, base: 0, stuck: 0, lig: 0, alpha: 1,
@@ -20588,6 +20599,8 @@ function makeBandiet(x, side, dolk, hurk, vault, takelaar, passagier, rol){
            vaultH: 0, vaultX0: 0, vaultDoel: 0, vaultExtra: 0, landStof: false,   // lopende waarden van een vault
            takelaar: !!takelaar,                          // hij staat bij een takelwiel en slaat het rad (zodat het plateau stijgt)
            passagier: !!passagier, rol: rol || null,      // hij staat op het plateau en rijdt mee omhoog, dan komt hij in actie (rol: hurk, dolk of ren)
+           elite: !!elite,                                // de garde van de valse koning: tekent uit enemies/bandiet_elite/
+           air: 0, airV: 0,                               // van boven neerkomen: hoogte boven zijn vloer en de valsnelheid
            hitUsed: false, sweptId: -1, klaar: false, vrij: false, veeg: false };
   if (hurk){ b.state = 'hurk_idle'; b.dolk = true; }      // gehurkt wachten, rug naar Amir; de worp gaat via 'spot', en raak je hem eerder, dan werpt hij alsnog staand (run) voor hij aanvalt
   return b;
@@ -20596,6 +20609,10 @@ function banSet(s, state){
   s.state = state; s.frame = 0; s.acc = 0; s.t = 0; s.klaar = false; s.hitUsed = false;
   s.lunge = 0; s.lungeOn = false; s.drive = false;
 }
+// van boven de arena in: hij verschijnt hoog boven zijn vloer en valt in de run-pose naar beneden, landt met
+// stof en rent dan op Amir af. Zolang hij valt (s.air > 0) is hij niet raakbaar en doet hij geen schade.
+const BAN_DROP = { hoog: 760, g: 2600 };           // de valhoogte (wereld-eenheden boven zijn vloer) en de valversnelling
+function banStartDrop(s){ s.dropping = true; s.air = BAN_DROP.hoog; s.airV = 0; banSet(s, 'run'); }
 function banAnim(s, dt){
   const n = BAN.n[s.state] || 1;
   if (s.state === 'vault'){                                  // eigen duur per frame (ticks op 24 fps)
@@ -20694,7 +20711,8 @@ function banStofWolk(wx, base, n, kick, grootte){
 // het stof van de doorschuif onderweg: een dichte zandsliert bij zijn voeten, tegen zijn vaart in
 function banGlijStof(s){ banStofWolk(s.x - s.face * 28, s.base || 0, 4, -s.lunge * 0.12, 1.3); }
 function banFrameImg(s){
-  const set = banBank[s.state] || banBank.run;
+  const bank = s.elite ? banBankElite : banBank;
+  const set = bank[s.state] || bank.run;
   return set && set[Math.min(s.frame, set.length - 1)];
 }
 function updateBandieten(dt, plats, cliff){
@@ -20713,7 +20731,18 @@ function updateBandiet(s, dt, plats, cliff){
   if (s.rust > 0) s.rust = Math.max(0, s.rust - dt);
   s.t += dt;
   s.base = vloerBij(s.x, s.base);
-  rijsDraagtMob(s, dt);                              // mee omhoog en omlaag met een lift of rijzend blok
+  if (!s.dropping) rijsDraagtMob(s, dt);             // mee omhoog en omlaag met een lift of rijzend blok
+
+  if (s.dropping){                                   // van boven de arena in: hij valt in de run-pose en landt met stof
+    banAnim(s, dt);
+    s.airV += BAN_DROP.g * dt;
+    s.air -= s.airV * dt;
+    if (s.air <= 0){
+      s.air = 0; s.dropping = false; banSet(s, 'run');
+      banStofWolk(s.x, s.base || 0, 10, 0, 1.6); puffWorld(s.x, 8, 0, 1.2, s.base || 0);   // de klap bij het neerkomen
+    }
+    return;
+  }
 
   if (s.state === 'dood'){                           // de doodanimatie, dan blijft het lijk liggen
     banAnim(s, dt);                                  // hij zakt in elkaar (63 frames), houdt dan het laatste frame
@@ -24238,8 +24267,9 @@ function loop(now){
           ctx.globalAlpha = 0.24 * Math.max(0, s.alpha);
           ctx.ellipse(bodyX - face * 90 * bS, voeten - 6 * bS, 300 * bS, 22 * bS, 0, 0, Math.PI * 2);
         } else {                                        // staand: zijn eigen breedte, dus hij schaalt mee
-          ctx.globalAlpha = 0.22;
-          ctx.ellipse(bodyX, voeten, BAN_LIJF.half * bS * 1.15, BAN_LIJF.half * bS * 0.17, 0, 0, Math.PI * 2);
+          const dropK = s.air > 0 ? Math.max(0.3, 1 - s.air / BAN_DROP.hoog) : 1;   // hoog in de lucht: kleine, vage schaduw die aanwijst waar hij landt
+          ctx.globalAlpha = 0.22 * dropK;
+          ctx.ellipse(bodyX, voeten, BAN_LIJF.half * bS * 1.15 * dropK, BAN_LIJF.half * bS * 0.17 * dropK, 0, 0, Math.PI * 2);
         }
         ctx.fill(); ctx.restore();
 
@@ -24250,8 +24280,9 @@ function loop(now){
         // verticaal opgetild (de liftcurve maal de obstakelhoogte), zodat zijn hand op het obstakel landt
         const vault = s.state === 'vault';
         const vaultLift = vault ? banVaultLift01(s.frame) * (s.vaultH || 0) * scale : 0;
+        const dropLift = (s.air || 0) * scale;          // van boven neerkomend: zo hoog hangt hij nog boven zijn vloer
         const grondRij = vault ? BAN_VAULT_GROND[Math.min(s.frame, BAN_VAULT_GROND.length - 1)] : geo.ground;
-        ctx.translate(bodyX, voeten - vaultLift);
+        ctx.translate(bodyX, voeten - vaultLift - dropLift);
         if (face === 1) ctx.scale(-1, 1);               // de frames kijken naar links
         const img = banFrameImg(s);
         // het voetpunt van de set hoort op zijn voeten te liggen, anders verspringt hij bij een wissel
@@ -24269,6 +24300,7 @@ function loop(now){
           }
           continue;
         }
+        if (s.air > 0) continue;                         // nog in de lucht (van boven neerkomend): nog niet raakbaar en niet gevaarlijk
 
         const lmid = bodyX + s.face * BAN_LIJF.mid * bS, lhalf = BAN_LIJF.half * bS;
         const nbox = { l: lmid - lhalf, r: lmid + lhalf, t: voeten - BAN.fig * bS, b: voeten };
@@ -25181,6 +25213,8 @@ function syncLevel(){
       if (s.dolk) o.dolk = true;                // een bandiet die eerst zijn dolk gooit
       if (s.hurk) o.hurk = true;                // de gehurkte hinderlaag-bandiet (springt op en werpt)
       if (s.vault) o.vault = true;              // een bandiet die over een kei heen vault (regel 7-uitzondering)
+      if (s.elite) o.elite = true;              // de garde van de valse koning (elite-set)
+      if (s.neer) o.neer = true;                // komt van boven de arena in
       if (s.y != null) o.y = Math.round(s.y);   // een vaste hoogte: op een laag, of uit de lucht (alleen slangen)
       return o;
     }),   // de kei bij een rune zet het spel zelf (runeKeiZet)
@@ -25387,6 +25421,10 @@ function readLevel(txt){
                                                 hurk: s.hurk === true,
                                                 // vault: een bandiet die over een kei heen vault als Amir aan de overkant staat
                                                 vault: s.vault === true,
+                                                // elite: de garde van de valse koning (zwart met goud), uit de elite-set
+                                                elite: s.elite === true,
+                                                // neer: een bandiet die van boven de arena in valt in plaats van van de zijkant te komen
+                                                neer: s.neer === true,
                                                 y: (s.y === null || s.y === undefined) ? null : Number(s.y) })),
            props: (o.props || []).filter(q => PROPS[q.k])
                                  .map(q => ({ x: Number(q.x), kind: q.k,
@@ -26862,13 +26900,20 @@ function sbSpawn(kind){
     zwaarden.push(z);
   }
   else if (kind === 'bandiet'){
-    const b = makeBandiet(x, side, sbBanDolk, false, sbBanVault);
+    const b = makeBandiet(x, side, sbBanDolk, false, sbBanVault, false, false, null, sbBanElite);
     b.base = vloerBij(x, ph);
     b.vrij = sbBanVrij;
     bandieten.push(b);
   }
+  else if (kind === 'bandiet_neer'){                 // van boven de arena in: valt en landt met stof
+    const b = makeBandiet(x, side, sbBanDolk, false, sbBanVault, false, false, null, sbBanElite);
+    b.base = vloerBij(x, ph);
+    b.vrij = false;                                  // AI aan, anders valt hij niet
+    banStartDrop(b);
+    bandieten.push(b);
+  }
   else if (kind === 'bandiet_hurk'){                 // de hinderlaag: gehurkt, springt op en werpt
-    const b = makeBandiet(x, side, false, true);
+    const b = makeBandiet(x, side, false, true, false, false, false, null, sbBanElite);
     b.base = vloerBij(x, ph);
     b.vrij = false;                                  // AI aan, anders komt de hinderlaag niet op gang
     bandieten.push(b);
@@ -26964,6 +27009,17 @@ sbBanVaultBtn.onclick = () => {
   sbBanVaultLabel(); cv.focus();
 };
 sbBanVaultLabel();
+// elite aan of uit: de garde van de valse koning (zwart met goud), uit de elite-set
+let sbBanElite = false;
+const sbBanEliteBtn = document.getElementById('sbanelite');
+function sbBanEliteLabel(){ sbBanEliteBtn.textContent = sbBanElite ? 'Elite aan' : 'Elite uit'; sbBanEliteBtn.classList.toggle('on', sbBanElite); }
+sbBanEliteBtn.onclick = () => {
+  sbBanElite = !sbBanElite;
+  if (sbBanElite){ banLaad(true); banLaadHurk(true); banLaadVault(true); }   // de elite-frames (ook de zware sets) laden
+  for (const s of bandieten) s.elite = sbBanElite;   // ook de al neergezette tekenen dan uit de elite-set
+  sbBanEliteLabel(); cv.focus();
+};
+sbBanEliteLabel();
 // een oploop-golf in de sandbox, los van een level: om en om links en rechts een bandiet, steeds sneller
 let sbGolfOn = false, sbGolfT = 0, sbGolfElapsed = 0, sbGolfKant = -1;
 const sbGolfBtn = document.getElementById('sbangolf');
@@ -26986,7 +27042,7 @@ function sbGolfTick(dt){
   let x = world + sbGolfKant * (W / 2 / viewZoom() + 320);
   x = Math.min(x, cliffAt().wall - 200);
   x = Math.max(x, endWall() + 200);
-  const b = makeBandiet(x, x > world ? 1 : -1, sbBanDolk);
+  const b = makeBandiet(x, x > world ? 1 : -1, sbBanDolk, false, sbBanVault, false, false, null, sbBanElite);
   b.base = vloerBij(x, ph); b.vrij = false;
   bandieten.push(b);
 }
