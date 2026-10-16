@@ -8293,7 +8293,7 @@ const TAKEL = {
   breed: 320,                // standaard plateaubreedte in wereld-px (9-slice: alleen het midden rekt mee)
   dekH: 0.34,                // plateauhoogte als deel van CHAR_H
   sta: 0.2,                  // de looplijn: de voorrand van het bovenvlak, als deel van de plaathoogte (anders zweef je op de achterrand)
-  touwDik: 0.065,            // touwbreedte als deel van CHAR_H (gedeeld door viewZoom in takelTeken, zodat de uitzoom ze niet dun maakt, maar niet te dominant)
+  touwDik: 0.045,            // touwbreedte als deel van CHAR_H (gedeeld door viewZoom in takelTeken, zodat de uitzoom ze niet dun maakt, maar wel dun en niet dominant)
   touwScroll: 1,             // de draad scrolt met de verticale beweging van het plateau (texture-px per scherm-px dat het stijgt), zodat het touw lijkt te bewegen tijdens het takelen
   touwAmbient: 26,           // en daarbovenop een rustige, doorlopende draai (scherm-px per seconde, voor schaal), zodat het touw ook boven in de arena (waar het plateau stilstaat) blijft leven
   rijSway: 0.045,            // terwijl een star plateau (de arena-brug) stijgt of daalt wiegt het cosmetisch een beetje heen en weer (rad); staat het stil, dan ligt het weer recht
@@ -12079,9 +12079,10 @@ const bandArenaLevend = () => bandieten.filter(b => b.state !== 'dood' && b.stat
 // op het plateau zodat hij er niet af kan rennen terwijl het takelt (hij stapt pas vrij als het boven aangekomen is,
 // golfA). Blokkeert lopen en springen, niet het aanvallen.
 function arenaRitVast(){ const A = arenaAap; return !!(A && A.ban && (A.fase === 'stijg_uit' || A.fase === 'arena_in')); }
-// springen is in de hele aankomst uit (ook voor Amir het wiel slaat), zodat hij niet van het plateau af het ravijn in
-// of op de vaste grond bij het wiel springt (en het plateau dan zonder hem zou vertrekken)
-function arenaGeenSprong(){ const A = arenaAap; return !!(A && A.ban && (A.fase === 'aankomst' || A.fase === 'stijg_uit' || A.fase === 'arena_in')); }
+// springen is uit zodra het plateau takelt (stijg_uit, arena_in): daar is Amir een vaste passagier. In de aankomst
+// zelf mag hij wel springen en van het plateau af lopen; dat het plateau dan niet zonder hem vertrekt vangt
+// bandArenaTick af (het wiel takelt alleen omhoog als Amir op het plateau staat).
+function arenaGeenSprong(){ const A = arenaAap; return !!(A && A.ban && (A.fase === 'stijg_uit' || A.fase === 'arena_in')); }
 function bandArenaTick(A, dt){
   if (!running || building || paused) return;
   const t = takelLevel();
@@ -12091,8 +12092,16 @@ function bandArenaTick(A, dt){
   if (Math.abs(A.fadeDoel - A.fade) < 0.02) A.fade = A.fadeDoel;
 
   if (A.fase === 'aankomst'){
-    // wacht tot Amir het wiel een keer slaat (dan is t.doel van 0 af); dan takelt het door naar boven
-    if (t && t.doel > 1e-6){ t.doel = t.maxA; A.fase = 'stijg_uit'; flashHint('Omhoog! Blijf op het plateau'); }
+    // wacht tot Amir het wiel een keer slaat (dan is t.doel van 0 af); dan takelt het door naar boven, maar
+    // alleen als Amir op het plateau staat. Sla je het wiel van de vaste grond af (je bent eraf gesprongen),
+    // dan zakt het weer terug in plaats van zonder je te vertrekken. Van het plateau af gelden de gewone regels:
+    // op de grond valschade, in het ravijn dood.
+    if (t && t.doel > 1e-6){
+      const halfP = t.breed / 2 + 10;
+      const opPlateau = world >= t.px - halfP && world <= t.px + halfP;   // binnen de plateaubreedte is er alleen het plateau (eronder is ravijn)
+      if (opPlateau){ t.doel = t.maxA; A.fase = 'stijg_uit'; flashHint('Omhoog! Blijf op het plateau'); }
+      else t.doel = 0;                                                    // van het plateau af geslagen: het wiel zakt terug
+    }
     return;
   }
   if (A.fase === 'stijg_uit'){
