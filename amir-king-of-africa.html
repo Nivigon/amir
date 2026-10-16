@@ -11922,7 +11922,6 @@ function proefmobsTeken(o){
 // elke `perKill` kills een talentpunt (RUN.punten) dat je in de pauze onder Talents kunt uitgeven.
 const ARENA = { perKant: 3, vul: 3.0, springVan: 3.2, springTot: 1.2, grondVan: 1, grondMax: 5, ramp: 150, eerste: 0.9,
                 perKill: 5, rand: 34, hangJit: 0.1, wandHoog: 3.2, wandSchaal: 1.85, wandOnder: 0.18,
-                overlap: 0.85,   // in de bandiet-arena mag Amir de rotswanden een stuk (deel van CHAR_H) overlappen voor hij stopt, zodat er aan beide kanten meer ruimte is om te vechten
 
                 // per slot een eigen plek op de grijze rots (x in Amir vanaf de wandlijn, min = naar buiten; y de hoogte in Amir).
                 // Bewust verspringend, zodat de drie niet op een rechte lijn staan.
@@ -12090,10 +12089,13 @@ function bandArenaTick(A, dt){
         // zodat ze echt uit de wand steken in plaats van los in de lucht te zweven. De twee staan bewust net
         // anders: een andere hoogte en maat, zodat het geen symmetrisch paar is.
         const u = CHAR_H * nowScale();
-        const cA = cliffAt(), inzetRots = CLIFF.l * cA.wPx * ARENA.wandSchaal;   // afstand van de botslijn tot de zichtbare binnenkant van de arenawand
-        const rotsL = A.links + inzetRots, rotsR = A.rechts - inzetRots;         // de binnenkant van de linker- en rechterrots
-        level.ledges = [ { x: rotsL - 1.6 * u, h: 600, s: 1.05 },                // de vlakke kant een stuk de rots in, zodat de richel op de rots rust (links dieper, want de rots is daar smaller)
-                         { x: rotsR + 0.6 * u, h: 760, s: 0.88, f: true } ];
+        // De rotswanden vullen (met de randvulling in arenaZijwand) betrouwbaar tot aan de schermranden, dus
+        // de richels worden daar verankerd: hun vlakke kant ligt een eind binnen de schermrand, diep genoeg in de
+        // rots dat ze op elk scherm op de rots rusten en vandaar de arena in steken. (De geschilderde rotsrand
+        // zelf uitlezen lukt niet: arenaZijwand rekt de rand met een sliver door, dus de alfa klopt niet.)
+        const mid = arenaMidden(), halfVis = (W / 2) / viewZoom();
+        level.ledges = [ { x: mid - halfVis + 1.0 * u, h: 600, s: 1.05 },        // links: vlakke kant tegen de linkerrots, iets lager en groter
+                         { x: mid + halfVis - 1.0 * u, h: 760, s: 0.88, f: true } ];   // rechts: hoger en kleiner, zodat de twee net anders zijn
         // hoog zo dat de looplijn boven net onder de grondlijn ligt (een paar eenheden, onzichtbaar), gelijk met de
         // vaste grond maar niet exact op 0: supportHeight geeft 0 terug als "geen plateau", dus een brug op precies
         // 0 zou niet herkend worden en je viel er dwars doorheen. Net eronder wordt hij wel herkend.
@@ -19907,6 +19909,7 @@ const ARENA_KEEP = 0.62;                       // en zo ver mag Amir daarbij van
 // buiten beeld: zijn hele aanloop speelde zich naast het scherm af en je zag hem pas als hij al
 // sprong. De camera kijkt nu naar het midden tussen jullie, maar laat Amir nooit tegen de rand aan.
 function arenaCam(p){
+  if (arenaAap && arenaAap.ban) return arena.c;   // de bandiet-arena: de camera staat vast in het midden en schuift niet mee met Amir
   let c = arena.c + (p - arena.c) * ARENA_DRIFT;
   const b = panthers.find(q => q.engaged && q.state !== 'dying' && q.state !== 'gone');
   if (b){
@@ -23769,10 +23772,11 @@ function loop(now){
   if (glij !== 0) glijUpdate(dt, halfWNow);      // de renstoot: remmend doorglijden
   const cliff = cliffAt();
   if (level && level.bandArena && arenaAap && arenaAap.ban && !arenaAap.staging && !building){
-    // in de arena (boven, na de aankomst) mag Amir de twee rotswanden een stuk overlappen voor hij stopt, zodat
-    // er aan beide kanten meer ruimte is om te vechten. Symmetrisch om het midden, los van de gewone klif-grenzen.
-    const ov = ARENA.overlap * CHAR_H * nowScale();
-    world = Math.max(arenaAap.links - ov + halfWNow, Math.min(arenaAap.rechts + ov - halfWNow, world));
+    // in de arena (boven, na de aankomst) staat de camera vast in het midden (arenaMidden); Amir mag tot aan de
+    // schermranden rennen, zodat je de hele breedte kunt gebruiken om te vechten. De zichtbare wereldhelft is
+    // (W/2)/viewZoom om dat midden heen. Los van de gewone klif-grenzen.
+    const mid = arenaMidden(), halfVis = (W / 2) / viewZoom();
+    world = Math.max(mid - halfVis + halfWNow, Math.min(mid + halfVis - halfWNow, world));
   } else {
     if (world + halfWNow > cliff.wall) world = cliff.wall - halfWNow;   // je komt er niet voorbij
     if (world - halfWNow < endWall()) world = endWall() + halfWNow;    // en ook niet voorbij je eigen klif
