@@ -21378,8 +21378,17 @@ const KOOI_VS_BAN    = 0.72;    // de kooiman tegen de bandiet: een kop kleiner 
 let kooiBij          = 1;       // sandbox-fijnafstelling (alleen in de sandbox anders dan 1)
 function kooiRatio(){ return KOOI_VS_BAN * kooiBij; }
 function kooiShare(){ return BAN_H_SHARE * kooiRatio(); }   // zijn figuurhoogte als deel van Amir, via de bandiet
-const KOOI_RUN_SPD   = 165;     // traag, hij sleept een zware kooi: wegrennen kan altijd, maar hij houdt de grond bezet
+const KOOI_RUN_SPD   = 120;     // traag, hij sleept een zware kooi: gemiddelde snelheid, maar in heaves (zie hieronder)
 const KOOI_SEE       = 1100;    // vanaf hier (wereld-px) komt hij op je af, maar nooit buiten beeld
+// De sleeplus loopt trager dan de rest (een zware, lurende gang), en hij schuift alleen vooruit
+// tijdens de frames waarin zijn benen echt stappen (gemeten in de frames: 0-11 en 25-28 staan zijn
+// voeten stil, 12-24 stapt hij). Zo glijdt hij niet meer vooruit terwijl zijn benen stilstaan: hij
+// heaves naar voren in de stap en houdt daartussen stil. De gemiddelde snelheid blijft KOOI_RUN_SPD,
+// geconcentreerd in het stap-venster (daar dus KOOI.n.drag / KOOI_STAP_FRAMES keer zo snel).
+const KOOI_FPS       = { drag: 18 };   // de sleeplus trager dan de 24 van de smash en het herstel
+const KOOI_STAP_VAN  = 12;
+const KOOI_STAP_TOT  = 24;
+const KOOI_STAP_FRAMES = KOOI_STAP_TOT - KOOI_STAP_VAN + 1;   // 13 van de 29 sleepframes
 const KOOI_HP        = 4;       // vier rake klappen, en alleen in het strafvenster
 const KOOI_INV_T     = 0.5;     // onkwetsbaar na een treffer
 const KOOI_KNOCK     = 70;      // hij is zwaar: weinig terugstoot
@@ -21413,7 +21422,7 @@ function kooiSet(s, state){ s.state = state; s.frame = 0; s.acc = 0; s.t = 0; s.
 function kooiAnim(s, dt){
   const ticks = KOOI_TICKS[s.state] || null;
   const n = KOOI.n[s.state] || 1;
-  s.acc += dt * KOOI.fps;
+  s.acc += dt * (KOOI_FPS[s.state] || KOOI.fps);
   let guard = 0;
   while (guard++ < 300){
     const need = ticks ? (ticks[Math.min(s.frame, ticks.length - 1)] || 1) : 1;
@@ -21510,7 +21519,7 @@ function kooiSleepGeluid(){
   } else kooiSleepStop();
 }
 // op welke frames van de sleeplus de kooi hoorbaar/zichtbaar over de grond schraapt (een pluk stof)
-const KOOI_SCHRAAP = [7, 21];
+const KOOI_SCHRAAP = [15, 21];   // frames in het stap-venster waarop de kooi hoorbaar/zichtbaar over de grond schraapt
 const KOOI_CAGE_ACHTER = 215;                         // de kooi sleept zo'n 215 canvas achter zijn anker (gemeten in de sleephouding)
 function kooiSchraap(a, b){                            // kwam de animatie dit beeld langs een schraap-frame (met de lus-wrap mee)?
   if (a === b) return false;
@@ -21593,12 +21602,17 @@ function updateKooiman(s, dt, plats, cliff){
   s.face = naarJe;                                    // buiten de smash draait hij altijd naar je toe
   const f0 = s.frame;
   kooiAnim(s, dt);
-  if (dead || gap > KOOI_SEE) return;                 // te ver of je bent dood: hij sleept ter plekke
+  if (dead || gap > KOOI_SEE) return;                 // te ver of je bent dood: hij sleept ter plekke (geen geluid, geen beweging)
   if (kooiKanSlaan(s, gap, plats)){ kooiSet(s, 'smash'); return; }
-  s.beweegt = kooiMove(s, naarJe * KOOI_RUN_SPD * dt, plats, cliff);   // een rots, ravijnrand of wand houdt hem tegen: dan blijft hij ter plekke slepen
-  // op een logisch moment in de sleepcyclus schraapt de kooi over de grond: een kleine pluk stof erachter
-  if (s.beweegt && kooiSchraap(f0, s.frame))
-    puffWorld(s.x - s.face * KOOI_CAGE_ACHTER * kooiScale(), 2, 0, 0.5, s.base || 0);
+  s.beweegt = true;                                   // binnen zicht is hij aan het slepen: het sleepgeluid loopt, ook tussen de heaves
+  // hij schuift alleen vooruit terwijl zijn benen echt stappen (het stap-venster); daarbuiten staat
+  // hij stil, zodat hij niet meer vooruit glijdt terwijl zijn benen stilstaan. De snelheid in het
+  // venster is daarom hoger, zodat de gemiddelde gang KOOI_RUN_SPD blijft.
+  if (s.frame >= KOOI_STAP_VAN && s.frame <= KOOI_STAP_TOT){
+    const bewoog = kooiMove(s, naarJe * KOOI_RUN_SPD * (KOOI.n.drag / KOOI_STAP_FRAMES) * dt, plats, cliff);
+    if (bewoog && kooiSchraap(f0, s.frame))           // de kooi schraapt: een kleine pluk stof erachter
+      puffWorld(s.x - s.face * KOOI_CAGE_ACHTER * kooiScale(), 2, 0, 0.5, s.base || 0);
+  }
 }
 function kooiFrameImg(s){
   const naam = s.state === 'dood' ? (s.doodSet || 'drag') : s.state;
