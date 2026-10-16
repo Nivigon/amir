@@ -895,6 +895,13 @@
         <span class="hint">een gebukte man die een zware kooi meesleept: traag op je af, en binnen bereik ramt hij de kooi neer op de grond voor hem (lange telegraaf, dan de klap). Gepantserd tijdens slepen en smash (je speer ketst af); alleen in het herstel na de klap ligt hij open. Vier rake klappen dan</span>
       </div>
       <div class="row">
+        <label>Grootte</label>
+        <button data-kooigroei="-1">kleiner</button>
+        <button data-kooigroei="1">groter</button>
+        <button id="sbkooiban">Bandiet ernaast</button>
+        <span class="hint" id="sbkooigrootte"></span>
+      </div>
+      <div class="row">
         <label>Zijn animaties</label>
         <button data-kooianim="drag">Slepen</button>
         <button data-kooianim="smash">Smash</button>
@@ -18750,6 +18757,7 @@ function restart(){
   zakReset();                                       // en het zakkende plafond weer omhoog
   rijsReset();                                      // en de rijzende grond weer in het ravijn
   takelGeluid(false);                               // het takelgeluid uit bij een herstart
+  kooiSleepStop();                                  // en het sleepgeluid van de kooiman ook
   takelReset();                                     // en het takelwiel met het plateau weer op zijn beginstand
   deurReset();                                       // de deur in de rotswand weer dicht
   fakkelReset();                                     // de vonken weg en het vuurgeluid uit
@@ -21357,7 +21365,15 @@ function kooiLaadLevel(lv){
 }
 
 // ---- knoppen om aan te draaien -------------------------------------------
-const KOOI_H_SHARE   = 1.10;    // een gebukte volwassen man: ongeveer zo lang als de staande Amir, groter als hij zich opricht voor de smash
+// Zijn grootte staat tov de normale bandiet: KOOI_VS_BAN is hoe hoog hij komt vergeleken met de
+// staande bandiet, want hij is een kleiner, tengerder mannetje. 1,0 zou even groot zijn, lager is
+// kleiner. In de sandbox onder Kooiman stel je het bij met kleiner/groter; de hint toont de
+// uitkomst, die je hier in KOOI_VS_BAN zet. kooiBij is de live-afstelling van de sandbox (1 = deze
+// waarde) en staat in gewoon spel altijd op 1.
+const KOOI_VS_BAN    = 0.72;    // de kooiman tegen de bandiet: een kop kleiner en tengerder
+let kooiBij          = 1;       // sandbox-fijnafstelling (alleen in de sandbox anders dan 1)
+function kooiRatio(){ return KOOI_VS_BAN * kooiBij; }
+function kooiShare(){ return BAN_H_SHARE * kooiRatio(); }   // zijn figuurhoogte als deel van Amir, via de bandiet
 const KOOI_RUN_SPD   = 165;     // traag, hij sleept een zware kooi: wegrennen kan altijd, maar hij houdt de grond bezet
 const KOOI_SEE       = 1100;    // vanaf hier (wereld-px) komt hij op je af, maar nooit buiten beeld
 const KOOI_HP        = 4;       // vier rake klappen, en alleen in het strafvenster
@@ -21378,7 +21394,7 @@ const KOOI_SCHEID    = 380;     // zachte scheiding: zo dicht mogen twee kooiman
 const kooimannen = [];
 function kooiScale(){
   const scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H;
-  return (CHAR_H * scale * KOOI_H_SHARE) / KOOI.fig;
+  return (CHAR_H * scale * kooiShare()) / KOOI.fig;
 }
 function makeKooiman(x, side){
   kooiLaad();
@@ -21443,6 +21459,68 @@ function kooiKanSlaan(s, gap, plats){
 // ligt hij open? Alleen in het herstel, en in de laatste hold van de smash (daar hangt hij al
 // gebukt over de kooi; die hold loopt in het herstel over)
 function kooiOpen(s){ return s.state === 'recovery' || (s.state === 'smash' && s.frame >= 30); }
+// De klap van de kooi op de grond, gemaakt met de Web Audio API zoals de poten van de baviaan
+// (bavPoot): een zware, lage dreun die in toonhoogte zakt, met een harde ruisflits erbovenop voor
+// het opspattende zand en het hout. Zwaarder en lager dan een poot, en zachter naarmate hij verder
+// van Amir staat. Geen bestand, dus hij start ook op een telefoon zodra de gedeelde context loopt.
+const KOOI_SLAG_SND = { vol: 0.8, hz: 60, zak: 0.35, duur: 0.5, ruis: 0.9, filter: [1700, 170], ver: 1.4, min: 0.4 };
+let kooiRuis = null;
+function kooiSlagGeluid(wx){
+  if (!wantSound) return;
+  const ac = acLoopt(); if (!ac) return;
+  const P = KOOI_SLAG_SND, t = ac.currentTime + 0.005;
+  const af = Math.max(P.min, 1 - Math.abs(wx - playerX()) / (P.ver * W));
+  const v = P.vol * af * (0.9 + Math.random() * 0.2), f0 = P.hz * (0.92 + Math.random() * 0.16);
+  const o = ac.createOscillator(), og = ac.createGain();   // de lage dreun
+  o.type = 'sine';
+  o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f0 * P.zak, t + P.duur * 0.6);
+  og.gain.setValueAtTime(0.0001, t); og.gain.exponentialRampToValueAtTime(v, t + 0.006); og.gain.exponentialRampToValueAtTime(0.0001, t + P.duur);
+  o.connect(og); og.connect(ac.destination); o.start(t); o.stop(t + P.duur + 0.02);
+  if (!kooiRuis){                                          // het opspattende zand en hout: ruis door een laagdoorlaatfilter dat dichtgaat
+    kooiRuis = ac.createBuffer(1, Math.floor(ac.sampleRate * 0.25), ac.sampleRate);
+    const d = kooiRuis.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  const n = ac.createBufferSource(), lp = ac.createBiquadFilter(), ng = ac.createGain();
+  n.buffer = kooiRuis; lp.type = 'lowpass';
+  lp.frequency.setValueAtTime(P.filter[0], t); lp.frequency.exponentialRampToValueAtTime(P.filter[1], t + 0.16);
+  ng.gain.setValueAtTime(v * P.ruis, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+  n.connect(lp); lp.connect(ng); ng.connect(ac.destination); n.start(t); n.stop(t + 0.22);
+}
+// Het sleepgeluid: de kooi die over de grond schraapt, een korte lus (sounds/kooislepen.mp3) die
+// loopt zolang een kooiman sleept en beweegt. Subtiel aanwezig en luider naarmate hij dichterbij
+// staat; uit zodra hij stilstaat, aanvalt of herstelt. Net als het takelgeluid stopt hij in de
+// pauze (de lus loopt dan niet), zie pauseGame en restart.
+const kooiSleepSnd = geluidAan(new Audio('sounds/kooislepen.mp3'));
+kooiSleepSnd.loop = true; kooiSleepSnd.preload = 'auto';
+kooiSleepSnd.onerror = () => console.warn('ontbreekt: sounds/kooislepen.mp3');
+let kooiSleepAan = false;
+const KOOI_SLEEP = { vol: 0.5, ver: 1.3 };            // subtiel maar hoorbaar van dichtbij; zakt naar nul buiten `ver` schermbreedtes
+function kooiSleepStop(){ if (kooiSleepAan){ kooiSleepAan = false; try { kooiSleepSnd.pause(); } catch (e) {} } }
+function kooiSleepGeluid(){
+  let v = 0;
+  if (wantSound && !paused && !building && !(dead && !sandbox))
+    for (const s of kooimannen){
+      if (s.state !== 'drag' || !s.beweegt) continue;
+      const af = Math.max(0, 1 - Math.abs(s.x - playerX()) / (KOOI_SLEEP.ver * W));
+      if (af > v) v = af;
+    }
+  if (v > 0){
+    kooiSleepSnd.volume = Math.min(1, KOOI_SLEEP.vol * v);
+    if (!kooiSleepAan){ kooiSleepAan = true; const p = kooiSleepSnd.play(); if (p && p.catch) p.catch(() => {}); }
+  } else kooiSleepStop();
+}
+// op welke frames van de sleeplus de kooi hoorbaar/zichtbaar over de grond schraapt (een pluk stof)
+const KOOI_SCHRAAP = [7, 21];
+const KOOI_CAGE_ACHTER = 215;                         // de kooi sleept zo'n 215 canvas achter zijn anker (gemeten in de sleephouding)
+function kooiSchraap(a, b){                            // kwam de animatie dit beeld langs een schraap-frame (met de lus-wrap mee)?
+  if (a === b) return false;
+  for (const f of KOOI_SCHRAAP){
+    if (a < b){ if (f > a && f <= b) return true; }
+    else if (f > a || f <= b) return true;            // de lus sloeg om
+  }
+  return false;
+}
 function updateKooimannen(dt, plats, cliff){
   if (!running || (dead && !sandbox)) return;
   for (let i = kooimannen.length - 1; i >= 0; i--){
@@ -21457,6 +21535,7 @@ function updateKooiman(s, dt, plats, cliff){
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
   if (s.inv > 0) s.inv = Math.max(0, s.inv - dt);
   s.t += dt;
+  s.beweegt = false;                                  // alleen de drag-tak zet dit op true als hij echt sleept (voor het geluid)
   s.base = vloerBij(s.x, s.base);
   rijsDraagtMob(s, dt);                               // mee omhoog en omlaag met een lift of rijzend blok
 
@@ -21478,11 +21557,15 @@ function updateKooiman(s, dt, plats, cliff){
 
   if (s.state === 'smash'){                           // vast op zijn plek tot de hele haal erdoor is
     kooiAnim(s, dt);
-    if (!s.impactDone && s.frame >= KOOI.impact){      // de kooi raakt de grond: stof en een korte schok
+    if (!s.impactDone && s.frame >= KOOI.impact){      // de kooi raakt de grond: de dreun, flink wat stof en een schok
       s.impactDone = true;
-      const cageX = s.x + s.face * ((KOOI_SMASH.near + KOOI_SMASH.far) / 2) * kooiScale();
-      puffWorld(cageX, 9, 0, 1.1, s.base || 0);
-      shake = Math.max(shake, 0.18);
+      const zS = kooiScale(), vloer = s.base || 0;
+      const a = s.x + s.face * KOOI_SMASH.near * zS, bX = s.x + s.face * KOOI_SMASH.far * zS;
+      const x0 = Math.min(a, bX), x1 = Math.max(a, bX), mid = (x0 + x1) / 2;
+      steenStof(x0, x1, vloer, 1.3, vloer + 90);        // een wolk langs de grond met opspattend gruis (gedeeld met de rijzende grond)
+      puffWorld(mid, 10, 0, 1.2, vloer);                // en een extra wolk omhoog bij de kooi
+      kooiSlagGeluid(mid);                              // de zware dreun van de kooi op de grond
+      shake = Math.max(shake, 0.22);
     }
     if (s.klaar) kooiSet(s, 'recovery');
     return;
@@ -21496,10 +21579,14 @@ function updateKooiman(s, dt, plats, cliff){
 
   // drag: slepen is zijn rust en zijn gang
   s.face = naarJe;                                    // buiten de smash draait hij altijd naar je toe
+  const f0 = s.frame;
   kooiAnim(s, dt);
   if (dead || gap > KOOI_SEE) return;                 // te ver of je bent dood: hij sleept ter plekke
   if (kooiKanSlaan(s, gap, plats)){ kooiSet(s, 'smash'); return; }
-  kooiMove(s, naarJe * KOOI_RUN_SPD * dt, plats, cliff);   // een rots, ravijnrand of wand houdt hem tegen: dan blijft hij ter plekke slepen
+  s.beweegt = kooiMove(s, naarJe * KOOI_RUN_SPD * dt, plats, cliff);   // een rots, ravijnrand of wand houdt hem tegen: dan blijft hij ter plekke slepen
+  // op een logisch moment in de sleepcyclus schraapt de kooi over de grond: een kleine pluk stof erachter
+  if (s.beweegt && kooiSchraap(f0, s.frame))
+    puffWorld(s.x - s.face * KOOI_CAGE_ACHTER * kooiScale(), 2, 0, 0.5, s.base || 0);
 }
 function kooiFrameImg(s){
   const naam = s.state === 'dood' ? (s.doodSet || 'drag') : s.state;
@@ -24431,6 +24518,7 @@ function loop(now){
   updateHyenas(dt, platsV, cliff);
   updateZwaarden(dt, platsV, cliff);
   updateKooimannen(dt, platsV, cliff);
+  kooiSleepGeluid();                                // het sleepgeluid loopt zolang een kooiman sleept en beweegt
   updateBandieten(dt, platsV, cliff);
   banDolkenUpdate(dt);                             // de geworpen dolken vliegen en steken in de grond
   updateBandietGolf(dt);                           // de oplopende golf: telkens een bandiet erbij
@@ -26277,6 +26365,7 @@ function pauseGame(){
   if (!running && !building) return;             // in het hoofdmenu valt niets te pauzeren
   paused = true;
   takelGeluid(false);                             // het takelgeluid stopt tijdens de pauze (takelUpdate loopt dan niet)
+  kooiSleepStop();                                // en het sleepgeluid van de kooiman ook
   for (const k in keys) keys[k] = false;          // geen toets blijft 'ingedrukt' hangen
   atkKeyHeld = false;
   // overslaan kan alleen in een echt level met een volgend level in de lijst
@@ -28492,6 +28581,7 @@ function startSandbox(){
   sbVoorgrond = 0; sbVoorgrondScherp = false; sbVoorgrondToon();
   sbZwVrij = false; sbZwLabel();                        // de zwaardvechter doet weer zijn eigen werk
   sbKooiVrij = false; sbKooiLabel();                    // en de kooiman ook
+  kooiBij = 1; sbKooiGrootteToon();                     // de grootte-afstelling terug op de code-waarde
   RUN.woede = 0; woedeStop();                           // de woedemeter van de sandbox begint leeg
   document.getElementById('lives').style.display = 'none';   // geen levens in de sandbox
   restart();
@@ -28617,6 +28707,23 @@ function sbKooiAnim(set){
   cv.focus();
 }
 sandboxEl.querySelectorAll('button[data-kooianim]').forEach(b => b.onclick = () => sbKooiAnim(b.dataset.kooianim));
+// Zijn grootte afstellen tov de normale bandiet. De knoppen verschuiven de verhouding, de hint
+// toont de uitkomst om in KOOI_VS_BAN te zetten, en Bandiet ernaast zet er een gewone bandiet bij
+// om mee te vergelijken. kooiBij werkt meteen door op alle kooimannen in beeld.
+const KOOI_GROEI_STAP = 0.03;
+const sbKooiGrootteEl = document.getElementById('sbkooigrootte');
+function sbKooiGrootteToon(){
+  sbKooiGrootteEl.textContent = 'nu ' + kooiRatio().toFixed(2).replace('.', ',')
+    + ' x de bandiet (zet deze waarde in KOOI_VS_BAN)';
+}
+sandboxEl.querySelectorAll('button[data-kooigroei]').forEach(b => b.onclick = () => {
+  const r = Math.max(0.40, Math.min(1.50, kooiRatio() + Number(b.dataset.kooigroei) * KOOI_GROEI_STAP));
+  kooiBij = r / KOOI_VS_BAN;
+  if (!kooimannen.length) sbSpawn('kooiman');   // niets te zien zonder kooiman: zet er een neer
+  sbKooiGrootteToon(); cv.focus();
+});
+document.getElementById('sbkooiban').onclick = () => { sbSpawn('bandiet'); cv.focus(); };
+sbKooiGrootteToon();
 // De bandiet los bekijken, net als de zwaardvechter: AI uit speelt alleen de gekozen set.
 let sbBanVrij = false;
 const sbBanBtn = document.getElementById('sbanvrij');

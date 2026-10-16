@@ -609,12 +609,18 @@ je het volhoudt.
 ## De kooiman
 
 De derde menselijke tegenstander is een heel ander soort vijand: een gebukte man die een zware
-kooi aan een handvat achter zich aan sleept. Dat slepen is tegelijk zijn gang en zijn rust, hij
-staat nooit echt stil. Hij is traag, dus wegrennen kan altijd, maar hij houdt de grond voor zich
+kooi aan een handvat achter zich aan sleept. Hij is een kleiner, tengerder mannetje dan de normale
+bandiet: zijn grootte staat tov de bandiet in `KOOI_VS_BAN` (0,72, oftewel een kop kleiner), en in
+de sandbox onder Vijanden, Kooiman stel je hem bij met **kleiner** en **groter**, met **Bandiet
+ernaast** om te vergelijken; de hint toont de waarde die je dan in `KOOI_VS_BAN` zet. Dat slepen is
+tegelijk zijn gang en zijn rust, hij staat nooit echt stil. Hij is traag, dus wegrennen kan altijd, maar hij houdt de grond voor zich
 bezet. Kom je binnen bereik, dan tilt hij de kooi langzaam boven zijn hoofd en ramt hem neer op de
 grond voor hem. Die smash heeft een lange, leesbare aanloop (hij zakt eerst diep door, houdt daar
 even in, komt dan omhoog en slaat neer), en hij raakt je op het moment dat de kooi de grond raakt,
-met een wolk stof en een korte schok. Loop weg tijdens die aanloop en de klap mist.
+met een zware dreun, een wolk stof langs de grond (opspattend gruis erbij) en een schok. Loop weg
+tijdens die aanloop en de klap mist. Onder het slepen schraapt de kooi hoorbaar over de grond (een
+zachte lus, luider naarmate hij dichterbij komt) en stuift er af en toe een plukje stof op achter
+hem.
 
 Het bijzondere is hoe je hem verslaat. Tijdens het slepen en de hele smash is hij gepantserd door
 de kooi: je stoot, je lage zwaai en een geworpen speer doen hem niets, en de speer ketst af op de
