@@ -90,7 +90,7 @@ DOELEN = [
 
 # Bronmateriaal dat het spel nooit opvraagt. Een bestand dat hierboven bij naam
 # staat wordt altijd verwerkt, ook als het "sheet" heet.
-SKIP_DIRS = ('preview', 'docs')
+SKIP_DIRS = ('preview', 'docs', 'bron')   # bron bewaart aangeleverde frames; de speelversie staat ernaast
 SKIP_NAME = ('_magenta', '_preview', 'sheet', 'startframe')
 KEEP_EXT = ('.png',)
 
