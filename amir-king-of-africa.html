@@ -989,6 +989,13 @@
         <span class="hint">decor, het doek waait mee met de vlagen</span>
       </div>
       <div class="row">
+        <label>Fakkel</label>
+        <button data-fakkel="grond">Op de grond</button>
+        <button data-fakkel="wand">Op de wand</button>
+        <button data-fakkel="spiegel">Gespiegeld</button>
+        <span class="hint">een brandende wandfakkel: gloed, vonken, schaduw en een vuurgeluid</span>
+      </div>
+      <div class="row">
         <label>Zegel</label>
         <button data-zegel="0">Neerzetten</button>
         <button data-zegel="1">Met ravijn erachter</button>
@@ -3398,6 +3405,8 @@ const TEST_35 = {
   rocks: [],
   spawns: [ {x: -60000, k: 'groen'} ],          // heel ver weg: houdt de vrije modus uit (geen willekeurige slangen)
   deur: { x: -1600, bandiet: true, uitgang: true },
+  // een brandende wandfakkel naast de deur, op de rots gemonteerd (om de nieuwe fakkel-animatie te proberen)
+  fakkels: [ {x: -1330, y: 0.5, s: 1.0, f: 0} ],
   props: [ {x: -200, k: 'gras', s: 1.1, f: 0, v: 0}, {x: -520, k: 'struik', s: 1.0, f: 1, v: 0},
            {x: -900, k: 'gras', s: 1.2, f: 0, v: 0}, {x: -1150, k: 'tree', s: 1.05, f: 0, v: 1},
            {x: -2500, k: 'gras', s: 1.1, f: 1, v: 0} ],
@@ -12393,6 +12402,198 @@ function finSize(scale){
   const w = (finImg.naturalWidth ? finImg.naturalWidth / finImg.naturalHeight : 1482 / 822) * h;
   return { w, h };
 }
+// ---- fakkel: een geanimeerde wandfakkel, decor dat brandt -------------------
+// Een wandfakkel met een ijzeren beugel (design/fakkel/, uit tools/fakkel.py; de 24 frames komen
+// uit de aangeleverde magenta-reeks in design/fakkel/bron/, zie de LEESMIJ daar). De eerste 16
+// frames zijn de brandende loop; 17 tot 24 is het uitgaan (de vlam buigt, dooft, rookt na). Nu
+// brandt hij alleen: de loop draait rond. Hij is puur decor (houdt Amir niet tegen) en hangt in de
+// wereld, dus hij schaalt mee met Amir en met de zoom van een level (viewZoom). Een level zet hem met
+//   fakkels: [{x, y, s, f}]
+// x de wereld-x van de schacht, y de hoogte van de voet boven de grond in Amir (0 = op de grond,
+// hoger = tegen een wand gemonteerd), s een schaal, f spiegelen. Levend gemaakt met een flikkerende
+// warme gloed (zoals de fakkels aan het eind, FIN.flames), opstijgende vonken (fakkelVonken) en een
+// zachte schaduw die met de vlam meeademt, plus een knetterend vuurgeluid uit de Web Audio API
+// (fakkelGeluid, zoals bavPoot en de donder, geen bestand). In de sandbox onder Decor, Fakkel.
+const FAKKEL = {
+  dir: 'design/fakkel/', frames: 24, loop: 16,       // frame 0..15 is de brandende loop
+  fps: 11,                                            // ~10-12, zoals de LEESMIJ aanraadt
+  h: 0.78,                                            // sprite-hoogte als deel van CHAR_H (een wandfakkel, kleiner dan Amir)
+  w: 258 / 457,                                       // breedte/hoogte uit de gedeelde bbox (tools/fakkel.py)
+  kern: [61 / 258, 0.40],                             // de vlamkern in het frame (deel van breedte, hoogte): hieruit komt het licht
+  gloed: { straal: 0.95, warm: 'rgba(255,186,96,', binnen: 0.6, mid: 0.26, rand: 'rgba(255,120,36,',
+           pool: 2.0, poolAlfa: 0.14, poolKleur: 'rgba(255,150,70,' },   // de brede omgevingsgloed op de wand
+  vonk: { per: 15, zijspreid: 0.24, opMin: 1.7, opMax: 3.1, zwaarte: 30, leven: [0.7, 1.4], straal: 0.038, max: 60 },
+  schaduw: { alfa: 0.20, breed: 0.5, hoog: 0.16, zak: 0.5, zij: 0.14 },   // de zachte schaduw achter de schacht op de wand
+  geluid: { bereik: 560, bed: 0.085, hp: 540, lp: 900, krakMin: 0.05, krakSpreid: 0.22, krakVol: 0.5 }
+};
+let fakkelImgs = null, fakkelGeladen = false;
+function fakkelLaad(){
+  if (fakkelGeladen) return;
+  fakkelGeladen = true;
+  fakkelImgs = [];
+  for (let i = 1; i <= FAKKEL.frames; i++){
+    const im = new Image();
+    zetBron(im, FAKKEL.dir + 'frame_' + String(i).padStart(2, '0') + '.png', () => console.warn('ontbreekt: fakkel frame ' + i));
+    fakkelImgs.push(im);
+  }
+}
+let fakkelKlok = 0;                                    // op speltijd (dt), dus pauze en gameTempo lopen mee
+const fakkelVonken = [];                               // opstijgende vonken, in wereldcoordinaten
+function fakkelReset(){ fakkelVonken.length = 0; fakkelGeluidStop(); }
+// het frame van de brandende loop, met een faseverschil per fakkel zodat twee fakkels niet gelijk flikkeren
+function fakkelFrame(o){
+  const fase = Math.abs(o.x) * 0.021;
+  return Math.floor(fakkelKlok * FAKKEL.fps + fase) % FAKKEL.loop;
+}
+// een flikkerwaarde rond 1, uit twee sinussen met een eigen fase per fakkel (zoals FIN.flames)
+function fakkelFlik(o){
+  const s = Math.abs(o.x) * 0.5;
+  return 0.78 + 0.14 * Math.sin(fakkelKlok * 9 + s) + 0.08 * Math.sin(fakkelKlok * 23 + s * 2.1);
+}
+// alles van de fakkels: de schaduw, het frame, de gloed en de vonken, en het geluid van de dichtstbijzijnde.
+// Getekend na de deur (fakkelTeken), binnen de zoom-transform, met dezelfde (groundY, scale, cx) als de rest.
+function fakkelTeken(groundY, scale, cx, dt){
+  if (!level || !level.fakkels || !level.fakkels.length) return;
+  fakkelLaad();
+  fakkelKlok += dt;
+  const unit = CHAR_H * scale;
+  let nabij = 0;                                       // 0..1: hoe dicht de dichtstbijzijnde fakkel in beeld is
+  // eerst de vonken bijwerken (ze leven los van wat er in beeld staat)
+  for (let i = fakkelVonken.length - 1; i >= 0; i--){
+    const v = fakkelVonken[i];
+    v.t += dt;
+    if (v.t >= v.duur){ fakkelVonken.splice(i, 1); continue; }
+    v.vy += FAKKEL.vonk.zwaarte * dt;                  // de opwaartse vaart zakt langzaam weg
+    v.yPx -= v.vy * dt * scale;                         // vy is negatief (omhoog), yPx telt omhoog
+    v.wx += (v.vx + windAt(v.wx) * 0.5) * dt;
+  }
+  for (const o of level.fakkels){
+    const s = (o.s || 1), spriteH = unit * FAKKEL.h * s, spriteW = spriteH * FAKKEL.w;
+    const flip = !!o.f;
+    const footScreenY = groundY - (o.y || 0) * unit;
+    const topY = footScreenY - spriteH;
+    const sx = cx + (o.x - world);                     // de schacht valt op de wereld-x
+    const leftX = sx - (flip ? (1 - FAKKEL.kern[0]) : FAKKEL.kern[0]) * spriteW;
+    if (leftX > W / viewZoom() + W || leftX + spriteW < -W) continue;
+    const coreX = sx, coreY = topY + FAKKEL.kern[1] * spriteH;
+    const flik = fakkelFlik(o);
+    // 1. de zachte schaduw achter de schacht op de wand: een donkere ellips die met de vlam meeademt
+    const Sh = FAKKEL.schaduw;
+    ctx.save();
+    ctx.globalAlpha = Sh.alfa * (0.85 + 0.3 * flik);
+    const shW = spriteW * Sh.breed, shH = spriteH * Sh.hoog * (0.9 + 0.2 * flik);
+    const shX = sx + (flip ? -1 : 1) * spriteW * Sh.zij, shY = footScreenY - spriteH * Sh.zak;
+    const sg = ctx.createRadialGradient(shX, shY, 0, shX, shY, Math.max(shW, shH));
+    sg.addColorStop(0, 'rgba(20,10,4,0.9)'); sg.addColorStop(1, 'rgba(20,10,4,0)');
+    ctx.fillStyle = sg;
+    ctx.translate(shX, shY); ctx.scale(1, shH / Math.max(shW, shH));
+    ctx.beginPath(); ctx.arc(0, 0, Math.max(shW, shH), 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    // 2. het frame zelf
+    const im = fakkelImgs[fakkelFrame(o)];
+    if (im && im.complete && im.naturalWidth){
+      if (flip){ ctx.save(); ctx.translate(leftX + spriteW, topY); ctx.scale(-1, 1); ctx.drawImage(im, 0, 0, spriteW, spriteH); ctx.restore(); }
+      else ctx.drawImage(im, leftX, topY, spriteW, spriteH);
+    }
+    // 3. de warme gloed om de vlam, additief (zoals FIN.flames), met een grote zachte pool eromheen
+    const G = FAKKEL.gloed;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    // eerst een brede, zachte pool die de rots eromheen warm aanlicht, dan de fellere kern bij de vlam
+    const poolR = unit * FAKKEL.h * s * G.pool * (0.9 + 0.2 * flik);
+    const pg = ctx.createRadialGradient(coreX, coreY, 0, coreX, coreY, poolR);
+    pg.addColorStop(0, G.poolKleur + (G.poolAlfa * flik) + ')');
+    pg.addColorStop(0.5, G.poolKleur + (G.poolAlfa * 0.4 * flik) + ')');
+    pg.addColorStop(1, 'rgba(255,120,40,0)');
+    ctx.fillStyle = pg;
+    ctx.beginPath(); ctx.arc(coreX, coreY, poolR, 0, Math.PI * 2); ctx.fill();
+    const rad = unit * FAKKEL.h * s * G.straal * (0.82 + 0.3 * flik);
+    const g = ctx.createRadialGradient(coreX, coreY, 0, coreX, coreY, rad);
+    g.addColorStop(0, G.warm + (G.binnen * flik) + ')');
+    g.addColorStop(0.35, G.rand + (G.mid * flik) + ')');
+    g.addColorStop(1, 'rgba(255,110,30,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(coreX, coreY, rad, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    // de vonken die bij deze fakkel horen bijvullen (op speltijd, dus niet in de pauze)
+    if (dt > 0 && fakkelVonken.length < FAKKEL.vonk.max && Math.random() < FAKKEL.vonk.per * dt){
+      const V = FAKKEL.vonk, uh = s * FAKKEL.h;   // alles meeschalen met de fakkelgrootte
+      fakkelVonken.push({
+        wx: o.x + (Math.random() - 0.5) * spriteW * V.zijspreid,
+        yPx: (groundY - coreY) + (Math.random() * 0.1) * spriteH,   // hoogte boven de grondlijn, in schermpx
+        vx: (Math.random() - 0.5) * 30 * uh,
+        vy: -(V.opMin + Math.random() * (V.opMax - V.opMin)) * 60 * uh,
+        t: 0, duur: V.leven[0] + Math.random() * (V.leven[1] - V.leven[0]),
+        r: unit * V.straal * uh * (0.6 + Math.random() * 0.8)
+      });
+    }
+    // hoe dichtbij deze fakkel voor het geluid: het dichtst bij Amir telt
+    nabij = Math.max(nabij, Math.max(0, 1 - Math.abs(o.x - playerX()) / FAKKEL.geluid.bereik));
+  }
+  // 4. de vonken tekenen, additief; ze doven oranje naar donker uit
+  if (fakkelVonken.length){
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (const v of fakkelVonken){
+      const ex = cx + (v.wx - world), ey = groundY - v.yPx;
+      if (ex < -W || ex > W / viewZoom() + W) continue;
+      const leef = 1 - v.t / v.duur;
+      ctx.globalAlpha = Math.min(1, leef * 1.6);
+      const r = v.r * (0.4 + 0.6 * leef);
+      const g2 = ctx.createRadialGradient(ex, ey, 0, ex, ey, r);
+      g2.addColorStop(0, 'rgba(255,' + Math.round(150 + 90 * leef) + ',90,0.95)');
+      g2.addColorStop(1, 'rgba(255,90,20,0)');
+      ctx.fillStyle = g2;
+      ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+  fakkelGeluid(dt, nabij);
+}
+// het knetterende vuurgeluid uit de Web Audio API: een bed van ruis door een laagdoorlaat (de warme
+// roffel) met een gain die met de afstand meeschaalt, plus af en toe een korte knetter. Geen bestand,
+// zoals bavPoot en de donder. nabij is 0..1 van de dichtstbijzijnde fakkel in beeld.
+let fakkelRuis = null, fakkelBron = null, fakkelBedGain = null, fakkelVol = 0, fakkelKrak = 0, fakkelGeluidKlok = null;
+function fakkelGeluidStop(){ if (fakkelBedGain) fakkelBedGain.gain.value = 0; fakkelVol = 0; }
+function fakkelGeluid(dtSpel, nabij){
+  const nu = performance.now() / 1000;                 // op de wandklok, zodat de pauze het netjes uitdempt
+  const dt = fakkelGeluidKlok === null ? 0 : Math.min(0.2, nu - fakkelGeluidKlok);
+  fakkelGeluidKlok = nu;
+  const aan = wantSound && running && !paused && !won && !building && nabij > 0.002;
+  const demp = 1 - 0.7 * holteDiepT(nowScale());       // onder de grond gedempt
+  const doel = aan ? nabij * demp : 0;
+  fakkelVol += (doel - fakkelVol) * Math.min(1, dt * (aan ? 3 : 6));
+  if (fakkelVol < 0.003 && !fakkelBron) return;
+  const ac = acLoopt();
+  if (!ac) return;
+  if (!fakkelBron){
+    if (!fakkelRuis){
+      fakkelRuis = ac.createBuffer(1, Math.floor(ac.sampleRate * 1.7), ac.sampleRate);
+      const d = fakkelRuis.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    fakkelBron = ac.createBufferSource(); fakkelBron.buffer = fakkelRuis; fakkelBron.loop = true;
+    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 520;
+    fakkelBedGain = ac.createGain(); fakkelBedGain.gain.value = 0;
+    fakkelBron.connect(lp); lp.connect(fakkelBedGain); fakkelBedGain.connect(ac.destination);
+    fakkelBron.start();
+  }
+  fakkelBedGain.gain.value = FAKKEL.geluid.bed * fakkelVol;
+  fakkelKrak -= dt;
+  if (fakkelVol > 0.05 && fakkelKrak <= 0){
+    fakkelKrak = FAKKEL.geluid.krakMin + Math.random() * FAKKEL.geluid.krakSpreid;
+    const t = ac.currentTime + 0.005, v = FAKKEL.geluid.krakVol * fakkelVol * (0.5 + Math.random());
+    const n = ac.createBufferSource(); n.buffer = fakkelRuis;
+    n.loop = true; n.playbackRate.value = 0.8 + Math.random() * 0.8;
+    const bp = ac.createBiquadFilter(); bp.type = 'bandpass';
+    bp.frequency.value = FAKKEL.geluid.hp + Math.random() * FAKKEL.geluid.lp; bp.Q.value = 1.2;
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05 + Math.random() * 0.05);
+    n.connect(bp); bp.connect(g); g.connect(ac.destination);
+    const stop = t + 0.14; try { n.start(t + Math.random() * 0.02); n.stop(stop); } catch (e){}
+  }
+}
 function cliffAt(){
   const gY = H * 0.82;
   const hPx = (gY + 2) / (1 - CLIFF.sink);       // van boven het scherm tot in de grond
@@ -18481,6 +18682,7 @@ function restart(){
   takelGeluid(false);                               // het takelgeluid uit bij een herstart
   takelReset();                                     // en het takelwiel met het plateau weer op zijn beginstand
   deurReset();                                       // de deur in de rotswand weer dicht
+  fakkelReset();                                     // de vonken weg en het vuurgeluid uit
   speervalReset();                                  // de speervallen weer in de wand
   losseSperen.length = 0;                           // geen losse speren meer op de grond
   skeletReset();                                    // de skeletten weer overeind, met hun speer
@@ -24391,6 +24593,9 @@ function loop(now){
     // bandiet die eruit komt er netjes voorlangs loopt.
     deurTeken(groundY, scale, cx);
 
+    // de wandfakkels: op de rots (dus na de deur, bovenop het steen), met hun gloed, vonken en geluid
+    fakkelTeken(groundY, scale, cx, dt);
+
     // personages: staan rustig te ademen, achter Amir. Geen botsing, geen schade:
     // Amir loopt er gewoon doorheen.
     if (level && level.npcs && level.npcs.length){
@@ -26567,6 +26772,10 @@ function readLevel(txt){
                             elite: o.deur.elite === true,
                             // uitgang: na het gevecht speel je met E op de open deur het level uit (geen fakkels nodig)
                             uitgang: o.deur.uitgang === true } : null,
+           // geanimeerde wandfakkels: decor dat brandt, zie "fakkel". x de schacht, y de hoogte van de
+           // voet boven de grond in Amir (0 = op de grond), s een schaal, f spiegelen
+           fakkels: (o.fakkels || []).map(q => ({ x: Number(q.x), y: Number(q.y) || 0,
+                                                  s: Number(q.s) > 0 ? Number(q.s) : 1, f: !!q.f })),
            fg: o.fg ? { from: Number(o.fg.from), to: Number(o.fg.to) } : null,
            arena: o.arena ? { c: Number(o.arena.c) } : null,
            winter: !!o.winter,                          // sneeuw, grijze rots, witte dieren (Winter World)
@@ -28272,6 +28481,17 @@ function sbTeken(v){
   cv.focus();
 }
 sandboxEl.querySelectorAll('button[data-teken]').forEach(b => b.onclick = () => sbTeken(b.dataset.teken));
+// een brandende wandfakkel aan de gekozen kant: op de grond, of hoger op de wand gemonteerd
+function sbFakkel(soort){
+  const side = sbFromRight ? 1 : -1;
+  let x = world + side * 320;
+  x = Math.min(x, cliffAt().wall - 200);
+  x = Math.max(x, endWall() + 200);
+  if (!level.fakkels) level.fakkels = [];
+  level.fakkels.push({ x, y: soort === 'grond' ? 0 : 0.6, s: 1, f: soort === 'spiegel' });
+  cv.focus();
+}
+sandboxEl.querySelectorAll('button[data-fakkel]').forEach(b => b.onclick = () => sbFakkel(b.dataset.fakkel));
 // de baviaan: een keer neerzetten, dan met de pijltjes verschuiven en met min en plus van maat
 // veranderen. Knop vasthouden herhaalt, steeds sneller. Onder de knoppen staan de getallen, om over
 // te nemen als hij goed staat.
