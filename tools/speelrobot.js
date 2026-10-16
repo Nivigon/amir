@@ -109,7 +109,7 @@ function robot([lopen, taai, wachten, vredig]){
     if (lives !== lastLives){
       // wie was het? de dichtstbijzijnde vijand, en of er gif of een steekje onderweg was
       let wie = '', dmin = 1e9;
-      for (const [naam, l] of [['slang', snakes], ['schorpioen', scorps], ['zwaard', zwaarden], ['hyena', hyenas], ['panter', panthers], ['fosfor', fosforSlangen]])
+      for (const [naam, l] of [['slang', snakes], ['schorpioen', scorps], ['zwaard', zwaarden], ['kooiman', kooimannen], ['hyena', hyenas], ['panter', panthers], ['fosfor', fosforSlangen]])
         for (const e of l){ const d = Math.abs(e.x - world); if (d < dmin){ dmin = d; wie = naam + ' op ' + r2(e.x) + (e.state ? ' (' + e.state + ')' : ''); } }
       B.ev.push({ t: +t.toFixed(2), wat: 'levens ' + lastLives + ' naar ' + lives, x: r2(world), h: r2(ph), wie: wie + (venom.length ? ', gif in de lucht' : '') });
       if (taai && lives < lastLives){
@@ -149,11 +149,11 @@ function robot([lopen, taai, wachten, vredig]){
     if (!spearFound && spearNear()) toggleSpear();
     const voor = [];
     for (const b of thickets) if (b.stage < THICKET_HITS) voor.push([b.x, b.base]);
-    for (const l of [snakes, scorps, zwaarden, hyenas, panthers, fosforSlangen]) for (const e of l) if (!e.dead) voor.push([e.x, e.base || 0]);
+    for (const l of [snakes, scorps, zwaarden, kooimannen, hyenas, panthers, fosforSlangen]) for (const e of l) if (!e.dead) voor.push([e.x, e.base || 0]);
     const iets = voor.some(([x, b]) => x < world + 40 && x > world - 200 && Math.abs(b - ph) < 60);
     if (!vredig && spear && iets && onGround && !jump) startAttack();
     // de vijanden: op welke hoogte liepen ze, en hoe hoog kwamen ze
-    for (const [naam, l] of [['slang', snakes], ['schorpioen', scorps], ['zwaard', zwaarden], ['hyena', hyenas], ['panter', panthers], ['fosfor', fosforSlangen]]){
+    for (const [naam, l] of [['slang', snakes], ['schorpioen', scorps], ['zwaard', zwaarden], ['kooiman', kooimannen], ['hyena', hyenas], ['panter', panthers], ['fosfor', fosforSlangen]]){
       l.forEach((e, i) => {
         if (!ids.has(e)) ids.set(e, ++volg);
         const k = naam + ' ' + ids.get(e), v = B.vijand[k] || (B.vijand[k] = { laag: 1e9, hoog: -1e9, top: -1e9, van: r2(e.x), tot: r2(e.x) });
