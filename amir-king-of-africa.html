@@ -11499,8 +11499,9 @@ function bavSchaduw(b, st, fr, sx, voet, h, w, groei, shY, scale, wx, vloer){
   const voetY = Y + grondRij * fh / img.naturalHeight;
   const a0 = ctx.globalAlpha;
   if (st.alfa != null) ctx.globalAlpha = a0 * st.alfa;      // dood: de schaduw vervaagt met hem
-  drawAmirSchaduw(img, X, Y, fw, fh, !!b.f, sx, voetY, shY, (shY - voetY) / scale, scale, amirZon(vloer, wx), 1);
-  fakkelSchaduw(img, X, Y, fw, fh, !!b.f, sx, voetY, shY, scale, wx, vloer);   // de fakkel als lichtbron
+  const fc = fakkelCast(wx, vloer);                  // de fakkel neemt de richtingsschaduw over waar het donker is
+  drawAmirSchaduw(img, X, Y, fw, fh, !!b.f, sx, voetY, shY, (shY - voetY) / scale, scale, amirZon(vloer, wx) * (1 - fc.w), 1);
+  fakkelSchaduw(fc, img, X, Y, fw, fh, !!b.f, sx, voetY, shY, scale, wx);
   ctx.globalAlpha = a0;
 }
 // De schaduw van een staande bandiet, net als die van Amir en de baviaan (drawAmirSchaduw): zijn eigen
@@ -11519,9 +11520,10 @@ function banSchaduw(s, bodyX, voeten, scale, bS){
   const Y = voetY - grondRij * gs;                  // de bovenkant van het frame op het scherm
   const lx = -geo.anker * gs;                        // de linkerrand van het ongespiegelde frame, t.o.v. bodyX
   const X = face === 1 ? bodyX - (lx + fw) : bodyX + lx;
+  const fc = fakkelCast(s.x, s.base || 0);            // de fakkel neemt de richtingsschaduw over waar het donker is
   drawAmirSchaduw(img, X, Y, fw, fh, face === 1, bodyX, voetY, voeten,
-                  (voeten - voetY) / scale, scale, amirZon(s.base || 0, s.x), 1);
-  fakkelSchaduw(img, X, Y, fw, fh, face === 1, bodyX, voetY, voeten, scale, s.x, s.base || 0);   // de fakkel als lichtbron
+                  (voeten - voetY) / scale, scale, amirZon(s.base || 0, s.x) * (1 - fc.w), 1);
+  fakkelSchaduw(fc, img, X, Y, fw, fh, face === 1, bodyX, voetY, voeten, scale, s.x);
 }
 // J in de sandbox: de afzet starten (met de val, de landing, de brul en de opgefokte idle erachteraan), en nog een keer terug naar het losse plaatje
 function bavAfzetWissel(){
@@ -12449,7 +12451,7 @@ const FAKKEL = {
   // de schaduw die de fakkel als lichtbron van Amir, de bandiet en de baviaan werpt, van de vlam af.
   // Alleen zichtbaar waar de zon het niet wint: ondergronds, 's nachts of in een donker uitzicht
   // (kracht maal donker maal nabijheid, zie fakkelSchaduw).
-  cast: { bereik: 640, kracht: 0.72, lang: 1.0, plat: 0.16 },
+  cast: { bereik: 640, kracht: 0.72, lang: 1.0, plat: 0.16, over: 2.2 },   // over: hoe snel de fakkel de richtingsschaduw van de zon overneemt
   geluid: { bereik: 560, bed: 0.085, hp: 540, lp: 900, krakMin: 0.05, krakSpreid: 0.22, krakVol: 0.5 }
 };
 let fakkelImgs = null, fakkelGeladen = false;
@@ -23840,27 +23842,38 @@ function drawAmirSchaduw(img, x, y, w, h, flip, pcx, voetY, shY, hoog, scale, zo
   }
   ctx.globalAlpha = a0;
 }
-// De schaduw die een brandende fakkel van een personage werpt, van de vlam af. Hij hergebruikt het
-// silhouet-systeem (amirSilhouet, amirSilLeg) net als de zonneschaduw, maar leunt weg van de
-// dichtstbijzijnde fakkel. Hij telt alleen waar de zon het niet wint: `donker` is 1 min hoeveel zon
-// er hier valt (amirZon: ondergronds of overdekt bijna 0) maal het daglicht van het uitzicht (nacht
-// laag). Zo zie je er in vol daglicht bijna niets van en werpt een fakkel in een gang of nachtlevel
-// een echte, meeflikkerende schaduw. In een hoge sprong vervaagt hij, net als de zonneschaduw.
-function fakkelSchaduw(img, x, y, w, h, flip, pcx, voetY, shY, scale, wx, vloer){
-  if (!level || !level.fakkels || !level.fakkels.length) return;
-  if (!img || !img.complete || !img.naturalWidth) return;
+// Hoeveel een fakkel de richtingsschaduw hier overneemt (w, 0..1) en welke fakkel dat is (best). De
+// fakkel telt alleen waar de zon het niet wint: `donker` is 1 min hoeveel zon er valt (amirZon:
+// ondergronds of overdekt bijna 0) maal het daglicht van het uitzicht (nacht laag), en dan dichterbij
+// de vlam sterker (`over` laat hem het sneller overnemen). Met `w` dempen de aanroepers de zonschaduw
+// (zonHier maal 1 - w) en kleurt fakkelSchaduw zijn eigen schaduw in, zodat er nooit twee volle
+// richtingsschaduwen tegelijk staan: in het donker bij een fakkel wint de vlam, verder weg de zon,
+// en in vol daglicht is w nul en verandert er niets.
+function fakkelCast(wx, vloer){
+  if (!level || !level.fakkels || !level.fakkels.length) return { w: 0, best: null };
   const C = FAKKEL.cast;
   let best = null, bestD = C.bereik;
   for (const o of level.fakkels){ const d = Math.abs(o.x - wx); if (d < bestD){ bestD = d; best = o; } }
-  if (!best) return;
+  if (!best) return { w: 0, best: null };
   const L = lichtNu();
   const dag = Math.max(0, Math.min(1, (L.gloedSterkte || LICHT.gloedSterkte) / LICHT.gloedSterkte));
   const donker = Math.max(0, 1 - amirZon(vloer, wx) * dag);
+  const w = Math.max(0, Math.min(1, donker * (1 - bestD / C.bereik) * C.over));
+  return { w, best };
+}
+// De schaduw die een brandende fakkel van een personage werpt, van de vlam af. Hij hergebruikt het
+// silhouet-systeem (amirSilhouet, amirSilLeg) net als de zonneschaduw. Zijn sterkte is de overname w
+// uit fakkelCast (zodat hij met de zonschaduw kruisvervaagt), maal de flikker en, in een sprong, de
+// hoogtevervaging. In een hoge sprong vervaagt hij dus net als de zonneschaduw.
+function fakkelSchaduw(fc, img, x, y, w, h, flip, pcx, voetY, shY, scale, wx){
+  if (!fc.best || fc.w <= 0) return;
+  if (!img || !img.complete || !img.naturalWidth) return;
+  const C = FAKKEL.cast;
   const hoog = Math.max(0, (shY - voetY) / scale);
   const blijft = Math.max(0, 1 - hoog / AMIR_SCHADUW.wegSil);     // in een sprong weg, net als de zonneschaduw
-  const kracht = C.kracht * donker * (1 - bestD / C.bereik) * blijft * fakkelFlik(best);
+  const kracht = C.kracht * fc.w * blijft * fakkelFlik(fc.best);
   if (kracht < 0.015) return;
-  const kant = (wx - best.x) < 0 ? -1 : 1;                        // het silhouet leunt van de fakkel af
+  const kant = (wx - fc.best.x) < 0 ? -1 : 1;                      // het silhouet leunt van de fakkel af
   const kleur = winterOn() ? AMIR_SCHADUW.kleurWinter : AMIR_SCHADUW.kleur;
   const a0 = ctx.globalAlpha;
   ctx.globalAlpha = a0 * Math.min(1, kracht);
@@ -24376,9 +24389,10 @@ function loop(now){
         ctx.clip();
       }
       const flipNu = useThrow ? thrFlip() : (autoFlip && facing === 1);
+      const fc = fakkelCast(pWorld, vloer);          // de fakkel als lichtbron: neemt de richtingsschaduw over waar het donker is
       drawAmirSchaduw(img, x, y, w, h, flipNu, pcx, groundY + lift, shY,
-                      ph - (vloer === null ? 0 : vloer), scale, amirZon(vloer, pWorld), amirLicht());
-      fakkelSchaduw(img, x, y, w, h, flipNu, pcx, groundY + lift, shY, scale, pWorld, vloer);   // de fakkel als lichtbron
+                      ph - (vloer === null ? 0 : vloer), scale, amirZon(vloer, pWorld) * (1 - fc.w), amirLicht());
+      fakkelSchaduw(fc, img, x, y, w, h, flipNu, pcx, groundY + lift, shY, scale, pWorld);
       ctx.restore();
     } };
     const cliffImgNow = cliffPic();
