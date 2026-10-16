@@ -606,6 +606,34 @@ seconden krimpt over `ramp` seconden, en hoogstens `max` tegelijk in leven; met 
 gooien ze allemaal eerst. Een teller in beeld houdt bij hoeveel je er verslagen hebt en hoe lang
 je het volhoudt.
 
+## De kooiman
+
+De derde menselijke tegenstander is een heel ander soort vijand: een gebukte man die een zware
+kooi aan een handvat achter zich aan sleept. Dat slepen is tegelijk zijn gang en zijn rust, hij
+staat nooit echt stil. Hij is traag, dus wegrennen kan altijd, maar hij houdt de grond voor zich
+bezet. Kom je binnen bereik, dan tilt hij de kooi langzaam boven zijn hoofd en ramt hem neer op de
+grond voor hem. Die smash heeft een lange, leesbare aanloop (hij zakt eerst diep door, houdt daar
+even in, komt dan omhoog en slaat neer), en hij raakt je op het moment dat de kooi de grond raakt,
+met een wolk stof en een korte schok. Loop weg tijdens die aanloop en de klap mist.
+
+Het bijzondere is hoe je hem verslaat. Tijdens het slepen en de hele smash is hij gepantserd door
+de kooi: je stoot, je lage zwaai en een geworpen speer doen hem niets, en de speer ketst af op de
+kooi en valt gewoon terug op de grond (je raakt hem niet kwijt). Alleen in het trage herstel na de
+klap, als hij uitgezakt over de kooi hangt en hem terugsleept, ligt hij open. Daar sla je toe, en
+vier rake klappen in dat venster vellen hem. Hij is dus strafbaar, maar niet gratis: je moet de
+smash afwachten en dan snel zijn.
+
+Net als de andere grondvijanden komt hij niet over een kei of een ravijn (regel 7). Een kei tussen
+jou en hem is een echte schuilplek: hij stopt ervoor en slaat er niet overheen. Een ravijn houdt
+hem net zo tegen. In een leveldefinitie zet je hem neer met `{x: -1500, k: 'kooiman'}`. In de
+sandbox staat hij onder Vijanden, **Kooiman**: neerzetten, de AI uit om zijn drie sets (slepen,
+smash, herstel) los te bekijken. **Test 37: De kooiman** is het proefstuk: eerst eentje op de open
+vlakte om het ritme te leren, dan een kei als schuilplek met een speer die erop afketst, en tot
+slot een ravijn dat hem tegenhoudt met twee kooimannen aan de overkant. Hij sleept de kooi naar
+links, dus gespiegeld sleept hij naar rechts. De frames staan in `enemies/kooiman/` (drag/, smash/
+en recovery/, met `sprites.json` en `LEESMIJ.md` als bron). Er zijn nog geen doodframes: valt hij,
+dan zakt hij in en vaagt hij weg op het frame waar hij stierf.
+
 ## Rots boven en naast je
 
 Een rotsgebied is geen losse grotkamer maar terrein: een raster waarin elke cel vol of
@@ -1083,6 +1111,13 @@ enemies/
                            sprites.json en de LEESMIJ-bestanden als bron. De frames kijken
                            naar links; het spel spiegelt ze als hij naar rechts kijkt. De
                            maten staan opgemeten in de HTML (BAN, BAN_SETGEO, BAN_DOLK)
+  kooiman/                 de kooiman: een gebukte man die een zware kooi meesleept en neerramt
+                           drag/ (29, lus: slepen/rust), smash/ (31, de aanval met holds per
+                           frame) en recovery/ (21, het herstel) op een canvas van 726x648,
+                           grondlijn rij 598. Plus sprites.json (per frame de ticks, het
+                           bronframe en het zwaartepunt) en LEESMIJ.md als bron. De frames
+                           kijken naar links; het spel spiegelt ze als hij naar rechts kijkt.
+                           De maten staan opgemeten in de HTML (KOOI, KOOI_SMASH, KOOI_LIJF)
   hyena/
     loop/                  loop_00..19.png (aankomen en achteruit stappen)
     dreigen/               dreigen_00..21.png (op afstand blijven grommen)
