@@ -18757,6 +18757,7 @@ function restart(){
   zakReset();                                       // en het zakkende plafond weer omhoog
   rijsReset();                                      // en de rijzende grond weer in het ravijn
   takelGeluid(false);                               // het takelgeluid uit bij een herstart
+  kooiSleepStop();                                  // en het sleepgeluid van de kooiman ook
   takelReset();                                     // en het takelwiel met het plateau weer op zijn beginstand
   deurReset();                                       // de deur in de rotswand weer dicht
   fakkelReset();                                     // de vonken weg en het vuurgeluid uit
@@ -21486,6 +21487,40 @@ function kooiSlagGeluid(wx){
   ng.gain.setValueAtTime(v * P.ruis, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
   n.connect(lp); lp.connect(ng); ng.connect(ac.destination); n.start(t); n.stop(t + 0.22);
 }
+// Het sleepgeluid: de kooi die over de grond schraapt, een korte lus (sounds/kooislepen.mp3) die
+// loopt zolang een kooiman sleept en beweegt. Subtiel aanwezig en luider naarmate hij dichterbij
+// staat; uit zodra hij stilstaat, aanvalt of herstelt. Net als het takelgeluid stopt hij in de
+// pauze (de lus loopt dan niet), zie pauseGame en restart.
+const kooiSleepSnd = geluidAan(new Audio('sounds/kooislepen.mp3'));
+kooiSleepSnd.loop = true; kooiSleepSnd.preload = 'auto';
+kooiSleepSnd.onerror = () => console.warn('ontbreekt: sounds/kooislepen.mp3');
+let kooiSleepAan = false;
+const KOOI_SLEEP = { vol: 0.5, ver: 1.3 };            // subtiel maar hoorbaar van dichtbij; zakt naar nul buiten `ver` schermbreedtes
+function kooiSleepStop(){ if (kooiSleepAan){ kooiSleepAan = false; try { kooiSleepSnd.pause(); } catch (e) {} } }
+function kooiSleepGeluid(){
+  let v = 0;
+  if (wantSound && !paused && !building && !(dead && !sandbox))
+    for (const s of kooimannen){
+      if (s.state !== 'drag' || !s.beweegt) continue;
+      const af = Math.max(0, 1 - Math.abs(s.x - playerX()) / (KOOI_SLEEP.ver * W));
+      if (af > v) v = af;
+    }
+  if (v > 0){
+    kooiSleepSnd.volume = Math.min(1, KOOI_SLEEP.vol * v);
+    if (!kooiSleepAan){ kooiSleepAan = true; const p = kooiSleepSnd.play(); if (p && p.catch) p.catch(() => {}); }
+  } else kooiSleepStop();
+}
+// op welke frames van de sleeplus de kooi hoorbaar/zichtbaar over de grond schraapt (een pluk stof)
+const KOOI_SCHRAAP = [7, 21];
+const KOOI_CAGE_ACHTER = 215;                         // de kooi sleept zo'n 215 canvas achter zijn anker (gemeten in de sleephouding)
+function kooiSchraap(a, b){                            // kwam de animatie dit beeld langs een schraap-frame (met de lus-wrap mee)?
+  if (a === b) return false;
+  for (const f of KOOI_SCHRAAP){
+    if (a < b){ if (f > a && f <= b) return true; }
+    else if (f > a || f <= b) return true;            // de lus sloeg om
+  }
+  return false;
+}
 function updateKooimannen(dt, plats, cliff){
   if (!running || (dead && !sandbox)) return;
   for (let i = kooimannen.length - 1; i >= 0; i--){
@@ -21500,6 +21535,7 @@ function updateKooiman(s, dt, plats, cliff){
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
   if (s.inv > 0) s.inv = Math.max(0, s.inv - dt);
   s.t += dt;
+  s.beweegt = false;                                  // alleen de drag-tak zet dit op true als hij echt sleept (voor het geluid)
   s.base = vloerBij(s.x, s.base);
   rijsDraagtMob(s, dt);                               // mee omhoog en omlaag met een lift of rijzend blok
 
@@ -21543,10 +21579,14 @@ function updateKooiman(s, dt, plats, cliff){
 
   // drag: slepen is zijn rust en zijn gang
   s.face = naarJe;                                    // buiten de smash draait hij altijd naar je toe
+  const f0 = s.frame;
   kooiAnim(s, dt);
   if (dead || gap > KOOI_SEE) return;                 // te ver of je bent dood: hij sleept ter plekke
   if (kooiKanSlaan(s, gap, plats)){ kooiSet(s, 'smash'); return; }
-  kooiMove(s, naarJe * KOOI_RUN_SPD * dt, plats, cliff);   // een rots, ravijnrand of wand houdt hem tegen: dan blijft hij ter plekke slepen
+  s.beweegt = kooiMove(s, naarJe * KOOI_RUN_SPD * dt, plats, cliff);   // een rots, ravijnrand of wand houdt hem tegen: dan blijft hij ter plekke slepen
+  // op een logisch moment in de sleepcyclus schraapt de kooi over de grond: een kleine pluk stof erachter
+  if (s.beweegt && kooiSchraap(f0, s.frame))
+    puffWorld(s.x - s.face * KOOI_CAGE_ACHTER * kooiScale(), 2, 0, 0.5, s.base || 0);
 }
 function kooiFrameImg(s){
   const naam = s.state === 'dood' ? (s.doodSet || 'drag') : s.state;
@@ -24478,6 +24518,7 @@ function loop(now){
   updateHyenas(dt, platsV, cliff);
   updateZwaarden(dt, platsV, cliff);
   updateKooimannen(dt, platsV, cliff);
+  kooiSleepGeluid();                                // het sleepgeluid loopt zolang een kooiman sleept en beweegt
   updateBandieten(dt, platsV, cliff);
   banDolkenUpdate(dt);                             // de geworpen dolken vliegen en steken in de grond
   updateBandietGolf(dt);                           // de oplopende golf: telkens een bandiet erbij
@@ -26324,6 +26365,7 @@ function pauseGame(){
   if (!running && !building) return;             // in het hoofdmenu valt niets te pauzeren
   paused = true;
   takelGeluid(false);                             // het takelgeluid stopt tijdens de pauze (takelUpdate loopt dan niet)
+  kooiSleepStop();                                // en het sleepgeluid van de kooiman ook
   for (const k in keys) keys[k] = false;          // geen toets blijft 'ingedrukt' hangen
   atkKeyHeld = false;
   // overslaan kan alleen in een echt level met een volgend level in de lijst
