@@ -63,6 +63,7 @@ DOELEN = [
     ('enemies/bandiet', 400),           # 95 frames op een canvas van 461x504; de figuur is 351
                                         # hoog en wordt op iets boven Amir zijn hoogte getekend
     ('enemies/bandiet_elite', 400),     # de elite-garde (omgekleurd uit bandiet), zelfde maat en canvas
+    ('enemies/bandiet_duin', 400),      # de Duinwacht (omgekleurd uit bandiet), zelfde maat en canvas
     ('karakters/dorpeling1', 400),      # 2,5x
     ('amir runc/amir_sprites/design/amir', 400),    # de speerworp (814 hoog); het
                                         # projectiel is 67 hoog en wordt ongewijzigd gekopieerd
