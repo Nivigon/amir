@@ -620,7 +620,7 @@ Het bijzondere is hoe je hem verslaat. Tijdens het slepen en de hele smash is hi
 de kooi: je stoot, je lage zwaai en een geworpen speer doen hem niets, en de speer ketst af op de
 kooi en valt gewoon terug op de grond (je raakt hem niet kwijt). Alleen in het trage herstel na de
 klap, als hij uitgezakt over de kooi hangt en hem terugsleept, ligt hij open. Daar sla je toe, en
-twee rake klappen in dat venster vellen hem. Hij is dus strafbaar, maar niet gratis: je moet de
+vier rake klappen in dat venster vellen hem. Hij is dus strafbaar, maar niet gratis: je moet de
 smash afwachten en dan snel zijn.
 
 Net als de andere grondvijanden komt hij niet over een kei of een ravijn (regel 7). Een kei tussen
