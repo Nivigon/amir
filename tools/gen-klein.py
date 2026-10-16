@@ -66,6 +66,8 @@ DOELEN = [
     ('enemies/bandiet_duin', 400),      # de Duinwacht (omgekleurd uit bandiet), zelfde maat en canvas
     ('enemies/kooiman', 400),           # 81 frames op een canvas van 726x648; de gebukte figuur is 301
                                         # hoog en wordt op ongeveer Amir zijn hoogte getekend
+    ('enemies/vogel', 400),             # de secretarisvogel uit de kooi: 50 frames op 536x405,
+                                        # klein getekend (ongeveer Amir-grootte met wings)
     ('karakters/dorpeling1', 400),      # 2,5x
     ('amir runc/amir_sprites/design/amir', 400),    # de speerworp (814 hoog); het
                                         # projectiel is 67 hoog en wordt ongewijzigd gekopieerd
