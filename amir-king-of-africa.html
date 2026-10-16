@@ -21458,6 +21458,34 @@ function kooiKanSlaan(s, gap, plats){
 // ligt hij open? Alleen in het herstel, en in de laatste hold van de smash (daar hangt hij al
 // gebukt over de kooi; die hold loopt in het herstel over)
 function kooiOpen(s){ return s.state === 'recovery' || (s.state === 'smash' && s.frame >= 30); }
+// De klap van de kooi op de grond, gemaakt met de Web Audio API zoals de poten van de baviaan
+// (bavPoot): een zware, lage dreun die in toonhoogte zakt, met een harde ruisflits erbovenop voor
+// het opspattende zand en het hout. Zwaarder en lager dan een poot, en zachter naarmate hij verder
+// van Amir staat. Geen bestand, dus hij start ook op een telefoon zodra de gedeelde context loopt.
+const KOOI_SLAG_SND = { vol: 0.8, hz: 60, zak: 0.35, duur: 0.5, ruis: 0.9, filter: [1700, 170], ver: 1.4, min: 0.4 };
+let kooiRuis = null;
+function kooiSlagGeluid(wx){
+  if (!wantSound) return;
+  const ac = acLoopt(); if (!ac) return;
+  const P = KOOI_SLAG_SND, t = ac.currentTime + 0.005;
+  const af = Math.max(P.min, 1 - Math.abs(wx - playerX()) / (P.ver * W));
+  const v = P.vol * af * (0.9 + Math.random() * 0.2), f0 = P.hz * (0.92 + Math.random() * 0.16);
+  const o = ac.createOscillator(), og = ac.createGain();   // de lage dreun
+  o.type = 'sine';
+  o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f0 * P.zak, t + P.duur * 0.6);
+  og.gain.setValueAtTime(0.0001, t); og.gain.exponentialRampToValueAtTime(v, t + 0.006); og.gain.exponentialRampToValueAtTime(0.0001, t + P.duur);
+  o.connect(og); og.connect(ac.destination); o.start(t); o.stop(t + P.duur + 0.02);
+  if (!kooiRuis){                                          // het opspattende zand en hout: ruis door een laagdoorlaatfilter dat dichtgaat
+    kooiRuis = ac.createBuffer(1, Math.floor(ac.sampleRate * 0.25), ac.sampleRate);
+    const d = kooiRuis.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  const n = ac.createBufferSource(), lp = ac.createBiquadFilter(), ng = ac.createGain();
+  n.buffer = kooiRuis; lp.type = 'lowpass';
+  lp.frequency.setValueAtTime(P.filter[0], t); lp.frequency.exponentialRampToValueAtTime(P.filter[1], t + 0.16);
+  ng.gain.setValueAtTime(v * P.ruis, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+  n.connect(lp); lp.connect(ng); ng.connect(ac.destination); n.start(t); n.stop(t + 0.22);
+}
 function updateKooimannen(dt, plats, cliff){
   if (!running || (dead && !sandbox)) return;
   for (let i = kooimannen.length - 1; i >= 0; i--){
@@ -21493,11 +21521,15 @@ function updateKooiman(s, dt, plats, cliff){
 
   if (s.state === 'smash'){                           // vast op zijn plek tot de hele haal erdoor is
     kooiAnim(s, dt);
-    if (!s.impactDone && s.frame >= KOOI.impact){      // de kooi raakt de grond: stof en een korte schok
+    if (!s.impactDone && s.frame >= KOOI.impact){      // de kooi raakt de grond: de dreun, flink wat stof en een schok
       s.impactDone = true;
-      const cageX = s.x + s.face * ((KOOI_SMASH.near + KOOI_SMASH.far) / 2) * kooiScale();
-      puffWorld(cageX, 9, 0, 1.1, s.base || 0);
-      shake = Math.max(shake, 0.18);
+      const zS = kooiScale(), vloer = s.base || 0;
+      const a = s.x + s.face * KOOI_SMASH.near * zS, bX = s.x + s.face * KOOI_SMASH.far * zS;
+      const x0 = Math.min(a, bX), x1 = Math.max(a, bX), mid = (x0 + x1) / 2;
+      steenStof(x0, x1, vloer, 1.3, vloer + 90);        // een wolk langs de grond met opspattend gruis (gedeeld met de rijzende grond)
+      puffWorld(mid, 10, 0, 1.2, vloer);                // en een extra wolk omhoog bij de kooi
+      kooiSlagGeluid(mid);                              // de zware dreun van de kooi op de grond
+      shake = Math.max(shake, 0.22);
     }
     if (s.klaar) kooiSet(s, 'recovery');
     return;
