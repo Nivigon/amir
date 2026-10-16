@@ -52,9 +52,27 @@ drag (loop)  --start aanval-->  smash  --> recovery  --> drag (loop)
   rest wordt verbloemd door de stofwolk op impact.
 
 ## Kooi
-De binnenkant van de kooi is donker (32,32,38) op 50 procent alpha, dus
+De binnenkant van de kooi is puur zwart (0,0,0) op 50 procent alpha, dus
 doorschijnend: je ziet er vaag doorheen maar niet of er iets in zit. Pas de alpha
 desgewenst aan per achtergrond.
+
+## Kleuren: het bandietpalet
+De speelframes in drag/, smash/ en recovery/ worden gemaakt uit de aangeleverde
+frames in bron/ met `tools/kooiman_kleur.py`, zodat de kooiman in exact dezelfde
+kleuren loopt als de bandiet (enemies/bandiet):
+
+- hoofddoek en gewaad: marineblauw, de kleurtrap van de bandietjas (#201f3c,
+  plooien tot #15152d);
+- broek: kaki-olijf (#534b39, lichte kant #74725d);
+- de rode sjerp, de huid en de sandalen blijven ongemoeid;
+- de kooivulling gaat naar zwart op 50 procent alpha;
+- de gele glinsteringen die nog in de tralies zaten (restant van de oude gele
+  kooi) worden geneutraliseerd naar een taupe tralie-tint.
+
+De bron (teal doek, blauw gewaad, groene broek, grijze kooivulling) staat in
+bron/ en wordt door het spel nooit geladen. Verander je een bronframe, draai dan
+`tools/kooiman_kleur.py` opnieuw, en daarna `tools/gen-klein.py` en
+`tools/gen-offline-manifest.py`.
 
 ## Hitbox
 Per frame staat het zwaartepunt (centroid) in sprites.json, als startpunt voor de
