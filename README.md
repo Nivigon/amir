@@ -640,6 +640,20 @@ links, dus gespiegeld sleept hij naar rechts. De frames staan in `enemies/kooima
 en recovery/, met `sprites.json` en `LEESMIJ.md` als bron). Er zijn nog geen doodframes: valt hij,
 dan zakt hij in en vaagt hij weg op het frame waar hij stierf.
 
+### De vogel uit de kooi
+
+Een kooiman met `vogel: true` doet er een tweede, bijzondere aanval bij. Zodra hij volledig in beeld
+staat, blijft hij even staan, opent de kooi (hij roept "dinner time") en er schiet een secretarisvogel
+uit. Die stijgt op en cirkelt een seconde of drie hoog in de lucht: in die fase is hij ongevaarlijk,
+puur de telegraaf. Dan stopt hij, legt de plek vast waar jij op dat moment staat, en duikt daar snel
+op af. Blijf in beweging, dan mist hij en slaat hij kapot op de grond (veren en stof); raakt hij je,
+dan kost dat een leven en is hij weg. De vogel is niet te raken: wegduiken is het enige antwoord, en
+het is eenmalig per kooiman (daarna is de kooi leeg en gaat hij door als de gewone kooi-rammer). De
+frames staan in `enemies/vogel/` (fly/ als lus, dive/ voor de duik; de crash doet het spel met stof,
+want crash-frames zijn er nog niet). In een leveldefinitie zet je hem aan met `{x, k: 'kooiman',
+vogel: true}`; in de sandbox is er bij Kooiman een knop **Vogel aan/uit**. In Test 37 heeft de eerste
+kooiman een vogel.
+
 ## Rots boven en naast je
 
 Een rotsgebied is geen losse grotkamer maar terrein: een raster waarin elke cel vol of
