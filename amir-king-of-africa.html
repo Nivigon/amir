@@ -11501,6 +11501,25 @@ function bavSchaduw(b, st, fr, sx, voet, h, w, groei, shY, scale, wx, vloer){
   drawAmirSchaduw(img, X, Y, fw, fh, !!b.f, sx, voetY, shY, (shY - voetY) / scale, scale, amirZon(vloer, wx), 1);
   ctx.globalAlpha = a0;
 }
+// De schaduw van een staande bandiet, net als die van Amir en de baviaan (drawAmirSchaduw): zijn eigen
+// frame als silhouet op de grond, met de zonneschaduw van de zon af. bodyX is zijn plek, voeten de
+// grondlijn van zijn canvas, bS de bandietschaal. De frames kijken naar links, dus face === 1 spiegelt.
+// Tijdens een vault staat hij in de lucht (vaultLift) en vervaagt de schaduw met de hoogte, net als bij Amir.
+function banSchaduw(s, bodyX, voeten, scale, bS){
+  const img = banFrameImg(s);
+  if (!img || !imgReady(img)) return;
+  const geo = banGeo(s.state), gs = banSetScale(s.state), face = s.face;
+  const vault = s.state === 'vault';
+  const vaultLift = vault ? banVaultLift01(s.frame) * (s.vaultH || 0) * scale : 0;
+  const grondRij = vault ? BAN_VAULT_GROND[Math.min(s.frame, BAN_VAULT_GROND.length - 1)] : geo.ground;
+  const fw = geo.w * gs, fh = geo.h * gs;
+  const voetY = voeten - vaultLift;                 // zijn voeten (tijdens een vault opgetild)
+  const Y = voetY - grondRij * gs;                  // de bovenkant van het frame op het scherm
+  const lx = -geo.anker * gs;                        // de linkerrand van het ongespiegelde frame, t.o.v. bodyX
+  const X = face === 1 ? bodyX - (lx + fw) : bodyX + lx;
+  drawAmirSchaduw(img, X, Y, fw, fh, face === 1, bodyX, voetY, voeten,
+                  (voeten - voetY) / scale, scale, amirZon(s.base || 0, s.x), 1);
+}
 // J in de sandbox: de afzet starten (met de val, de landing, de brul en de opgefokte idle erachteraan), en nog een keer terug naar het losse plaatje
 function bavAfzetWissel(){
   if (!level.baviaan) sbBaviaan();
@@ -25417,18 +25436,21 @@ function loop(now){
         const voeten = groundY - bBase;                 // hier ligt de grondlijn van zijn canvas
         const face = s.state === 'dood' ? s.deadFace : s.face;
         const geo = banGeo(s.state), gs = banSetScale(s.state);   // de werp- en doodset hebben een eigen canvas en maat
-        ctx.save();                                     // schaduw blijft op de grond
-        ctx.fillStyle = '#1d140f';
-        ctx.beginPath();
+        // Schaduw: zijn eigen frame als silhouet op de grond (banSchaduw, zoals Amir en de baviaan).
+        // Liggend als lijk een platte ellips over zijn lengte, en hoog in de lucht (van boven neerkomend)
+        // een kleine vage ellips die de landing aanwijst; staand en tijdens een vault het silhouet.
         if (s.state === 'dood' && s.klaar){              // liggend raakt hij de grond over zijn lengte
-          ctx.globalAlpha = 0.24 * Math.max(0, s.alpha);
-          ctx.ellipse(bodyX - face * 90 * bS, voeten - 6 * bS, 300 * bS, 22 * bS, 0, 0, Math.PI * 2);
-        } else {                                        // staand: zijn eigen breedte, dus hij schaalt mee
-          const dropK = s.air > 0 ? Math.max(0.3, 1 - s.air / BAN_DROP.hoog) : 1;   // hoog in de lucht: kleine, vage schaduw die aanwijst waar hij landt
-          ctx.globalAlpha = 0.22 * dropK;
-          ctx.ellipse(bodyX, voeten, BAN_LIJF.half * bS * 1.15 * dropK, BAN_LIJF.half * bS * 0.17 * dropK, 0, 0, Math.PI * 2);
+          ctx.save(); ctx.fillStyle = '#1d140f'; ctx.globalAlpha = 0.24 * Math.max(0, s.alpha);
+          ctx.beginPath(); ctx.ellipse(bodyX - face * 90 * bS, voeten - 6 * bS, 300 * bS, 22 * bS, 0, 0, Math.PI * 2);
+          ctx.fill(); ctx.restore();
+        } else if (s.air > 0){                           // hoog in de lucht: een kleine schaduw die de landing aanwijst
+          const dropK = Math.max(0.3, 1 - s.air / BAN_DROP.hoog);
+          ctx.save(); ctx.fillStyle = '#1d140f'; ctx.globalAlpha = 0.22 * dropK;
+          ctx.beginPath(); ctx.ellipse(bodyX, voeten, BAN_LIJF.half * bS * 1.15 * dropK, BAN_LIJF.half * bS * 0.17 * dropK, 0, 0, Math.PI * 2);
+          ctx.fill(); ctx.restore();
+        } else {
+          banSchaduw(s, bodyX, voeten, scale, bS);       // staand: zijn eigen silhouet
         }
-        ctx.fill(); ctx.restore();
 
         ctx.save();
         const bBlink = s.inv > 0 && s.state !== 'dood' && Math.floor(s.inv * 14) % 2 === 0;
