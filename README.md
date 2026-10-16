@@ -9,7 +9,7 @@ laatste vijf updates, rechtstreeks van GitHub, met bij elke of hij al in jouw ve
 
 ## Episodes
 
-In het menu onder **Levels** staan acht reeksen: de episodes **De Poorten**, **De Honingjacht**, **De Hoge Schijven**, **De Valse Koning**, **De Klim** en **De Diepte**, de Test levels en **Baboon tests**. De episodes De Jagers en Testrun zijn eruit, net als eerder De Runen, De Vorst, Renew, Winter World en De Diepte; wat ze gebruikten (de uitzichten, de nachtmuziek, de winteruitrusting, de witte panter, zegels, runes en de poort in de rots) zit nog in het spel. De Poorten gebruikt daar het meeste van; de poort in de rots zelf staat nog in Test 3 en Test 7.
+In het menu onder **Levels** staan drie knoppen: **Episodes** (met de zes episodes **De Poorten**, **De Honingjacht**, **De Hoge Schijven**, **De Valse Koning**, **De Klim** en **De Diepte**), de **Test levels** en **Baboon tests**. De episodes De Jagers en Testrun zijn eruit, net als eerder De Runen, De Vorst, Renew, Winter World en De Diepte; wat ze gebruikten (de uitzichten, de nachtmuziek, de winteruitrusting, de witte panter, zegels, runes en de poort in de rots) zit nog in het spel. De Poorten gebruikt daar het meeste van; de poort in de rots zelf staat nog in Test 3 en Test 7.
 
 **De Poorten** is een episode van zes zware levels. De ouden lieten geen huizen achter en geen graven, alleen steen dat opengaat: ronde schijven van hout, plat in het zand of rechtop tegen een rots. Er zijn er zes, en achter de zesde ligt wat ze bewaakten. Begin je bij level 1, dan staat voor elk level een stukje verhaal op een zwart scherm, en na het laatste level het slot. Elk level heeft zijn eigen uitzicht en zijn eigen weer, en bijna alles wat het spel kan komt erin voorbij, vaak twee dingen tegelijk. Met **Nightmare** is alles nog scherper.
 
@@ -121,8 +121,8 @@ level zet het met
 `rijzers: [ {id, r, l, tot, van, v, wacht, duur} ]` en een zegel `{x, rijs: 'id'}` (met `speer: true` gaat het zegel
 alleen aan met een speer, niet door erop te stappen), of een rune op een rots als doel met `rijs: 'id'`.
 
-De Test levels staan in het menu per zes op een blad. Met de pijltjes eronder ga je naar de volgende zes (7 t/m 12,
-13 t/m 18, 19 t/m 23) en terug.
+Het Test levels-scherm toont de zes nieuwste tests. De knop **Oude tests** eronder klapt het archief met alle oudere open.
+Omdat dat venster uit de volgorde van de lijst komt, duwt elk nieuw testlevel vanzelf het oudste uit de zes het archief in.
 
 **Test 16: De zuil** gaat over precies springen. Midden in een ravijn is een smalle zuil grond blijven staan, en daar moet
 je op landen. Een sprong die net te kort is, wordt hier niet gered: bij de overkant van een gewoon ravijn zet het spel je
@@ -223,7 +223,7 @@ Alle getallen en teksten staan in `TRIBE_CONFIG`, bovenin de HTML. In de sandbox
 
 Het spel is een installeerbare webapp. Open de Pages-link in Safari, deel, "Zet op beginscherm". Daarna staat Amir als icoon tussen je apps en start hij zonder browserbalken, liggend.
 
-Open hem vanaf het beginscherm en druk in het startmenu op **Download voor offline**. Dat haalt alle sprites en geluiden in een keer binnen (ruim 2200 bestanden, ongeveer 230 MB; het precieze aantal staat in `offline-assets.json`). Vanaf dat moment laadt het spel meteen en speelt het ook zonder internet.
+Open hem vanaf het beginscherm en druk onder **Instellingen** op **Download voor offline**. Dat haalt alle sprites en geluiden in een keer binnen (ruim 2200 bestanden, ongeveer 230 MB; het precieze aantal staat in `offline-assets.json`). Vanaf dat moment laadt het spel meteen en speelt het ook zonder internet.
 
 Doe die download vanuit het beginscherm-icoon, niet vanuit Safari: iOS geeft een geinstalleerde webapp een eigen opslag, dus wat je in Safari downloadt telt daar niet mee.
 
@@ -243,7 +243,7 @@ Leg je je telefoon weg, komt er een telefoontje tussendoor of ga je naar een and
 
 ### Beeld: scherp of licht
 
-Van een deel van de sprites staan twee versies op schijf: het origineel, en een halve versie met dezelfde mappen en namen in `klein/`. Het spel kiest bij het starten: een telefoon krijgt de kleine set, een laptop en een tablet de grote. In het startmenu staat onder **Beeld** een schakelaar (Automatisch, Scherp, Licht) om dat te overrulen; wisselen herlaadt de pagina, want de sprites zijn dan al geladen.
+Van een deel van de sprites staan twee versies op schijf: het origineel, en een halve versie met dezelfde mappen en namen in `klein/`. Het spel kiest bij het starten: een telefoon krijgt de kleine set, een laptop en een tablet de grote. Onder **Instellingen** staat bij **Beeld** een schakelaar (Automatisch, Scherp, Licht) om dat te overrulen; wisselen herlaadt de pagina, want de sprites zijn dan al geladen.
 
 Waarom: de grote frames zijn op een telefoon vele malen groter dan ze getekend worden. Safari houdt ze niet allemaal uitgepakt in het geheugen en decodeert ze midden in het spel opnieuw, en dat zijn de hikjes. De tekencode rekt elk plaatje naar vaste maten, dus beide sets werken met dezelfde code. Ontbreekt een klein frame, dan valt het spel terug op het grote.
 
