@@ -21401,7 +21401,8 @@ function makeKooiman(x, side){
   // side 1 = hij staat rechts van je. De frames kijken naar links, dus face 1 (naar rechts) = gespiegeld
   return { x, face: -side, state: 'drag', frame: 0, acc: 0, t: 0,
            hp: KOOI_HP, inv: 0, flash: 0, knock: 0, base: 0, alpha: 1,
-           klaar: false, hitUsed: false, impactDone: false, sweptId: -1, vrij: false, doodT: 0 };
+           klaar: false, hitUsed: false, impactDone: false, sweptId: -1, vrij: false, doodT: 0,
+           geroepen: false };
 }
 function kooiSet(s, state){ s.state = state; s.frame = 0; s.acc = 0; s.t = 0; s.klaar = false; s.hitUsed = false; s.impactDone = false; }
 function kooiAnim(s, dt){
@@ -21459,34 +21460,27 @@ function kooiKanSlaan(s, gap, plats){
 // ligt hij open? Alleen in het herstel, en in de laatste hold van de smash (daar hangt hij al
 // gebukt over de kooi; die hold loopt in het herstel over)
 function kooiOpen(s){ return s.state === 'recovery' || (s.state === 'smash' && s.frame >= 30); }
-// De klap van de kooi op de grond, gemaakt met de Web Audio API zoals de poten van de baviaan
-// (bavPoot): een zware, lage dreun die in toonhoogte zakt, met een harde ruisflits erbovenop voor
-// het opspattende zand en het hout. Zwaarder en lager dan een poot, en zachter naarmate hij verder
-// van Amir staat. Geen bestand, dus hij start ook op een telefoon zodra de gedeelde context loopt.
-const KOOI_SLAG_SND = { vol: 0.8, hz: 60, zak: 0.35, duur: 0.5, ruis: 0.9, filter: [1700, 170], ver: 1.4, min: 0.4 };
-let kooiRuis = null;
-function kooiSlagGeluid(wx){
+// De klap van de kooi op de grond: het aangeleverde geluid sounds/kooihitground.mp3, met het
+// volume naar afstand (zachter naarmate hij verder van Amir staat, nooit onder `min`). Een paar
+// stemmen zodat twee kooimannen die vlak na elkaar neerkomen elkaar niet afsnijden. Via geluidAan
+// (banStemmen), dus het stille startje zet hem ook op een telefoon aan.
+const KOOI_HIT = { vol: 1.0, ver: 1.4, min: 0.4 };
+const kooiHitSnd = banStemmen('sounds/kooihitground.mp3', 2);
+function kooiGrondGeluid(wx){
   if (!wantSound) return;
-  const ac = acLoopt(); if (!ac) return;
-  const P = KOOI_SLAG_SND, t = ac.currentTime + 0.005;
-  const af = Math.max(P.min, 1 - Math.abs(wx - playerX()) / (P.ver * W));
-  const v = P.vol * af * (0.9 + Math.random() * 0.2), f0 = P.hz * (0.92 + Math.random() * 0.16);
-  const o = ac.createOscillator(), og = ac.createGain();   // de lage dreun
-  o.type = 'sine';
-  o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f0 * P.zak, t + P.duur * 0.6);
-  og.gain.setValueAtTime(0.0001, t); og.gain.exponentialRampToValueAtTime(v, t + 0.006); og.gain.exponentialRampToValueAtTime(0.0001, t + P.duur);
-  o.connect(og); og.connect(ac.destination); o.start(t); o.stop(t + P.duur + 0.02);
-  if (!kooiRuis){                                          // het opspattende zand en hout: ruis door een laagdoorlaatfilter dat dichtgaat
-    kooiRuis = ac.createBuffer(1, Math.floor(ac.sampleRate * 0.25), ac.sampleRate);
-    const d = kooiRuis.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-  }
-  const n = ac.createBufferSource(), lp = ac.createBiquadFilter(), ng = ac.createGain();
-  n.buffer = kooiRuis; lp.type = 'lowpass';
-  lp.frequency.setValueAtTime(P.filter[0], t); lp.frequency.exponentialRampToValueAtTime(P.filter[1], t + 0.16);
-  ng.gain.setValueAtTime(v * P.ruis, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
-  n.connect(lp); lp.connect(ng); ng.connect(ac.destination); n.start(t); n.stop(t + 0.22);
+  const af = Math.max(KOOI_HIT.min, 1 - Math.abs(wx - playerX()) / (KOOI_HIT.ver * W));
+  const k = kooiHitSnd, a = k.pool[k.beurt++ % k.pool.length];
+  try { a.currentTime = 0; } catch (e) {}
+  a.volume = Math.min(1, KOOI_HIT.vol * af);
+  a.play().catch(() => {});
 }
+// Zijn stem als hij in beeld komt: een van twee kreten (willekeurig), "down you go" of "weak boy"
+// (sounds/kooidownyougo.mp3 en kooiweakboy.mp3). Een derde, dinnertime, hoort bij het loslaten van
+// een vogel uit de kooi en komt later. Eigen stemmen (banStemmen) zodat ze elkaar en jouw stoot
+// niet afsnijden, net als de kreten van de bandiet.
+const KOOI_ROEP_VOL = 0.95;
+const kooiRoepSnd = [banStemmen('sounds/kooidownyougo.mp3', 2), banStemmen('sounds/kooiweakboy.mp3', 2)];
+function kooiRoep(){ banStemSpeel(kooiRoepSnd[Math.random() < 0.5 ? 0 : 1], KOOI_ROEP_VOL); }
 // Het sleepgeluid: de kooi die over de grond schraapt, een korte lus (sounds/kooislepen.mp3) die
 // loopt zolang een kooiman sleept en beweegt. Subtiel aanwezig en luider naarmate hij dichterbij
 // staat; uit zodra hij stilstaat, aanvalt of herstelt. Net als het takelgeluid stopt hij in de
@@ -21555,6 +21549,9 @@ function updateKooiman(s, dt, plats, cliff){
 
   const dx = playerX() - s.x, gap = Math.abs(dx), naarJe = dx >= 0 ? 1 : -1;
 
+  // zijn stem, een keer, zodra hij in beeld komt (binnen een halve schermbreedte, de uitzoom mee)
+  if (!s.geroepen && !dead && gap < (W * 0.5) / viewZoom()){ s.geroepen = true; kooiRoep(); }
+
   if (s.state === 'smash'){                           // vast op zijn plek tot de hele haal erdoor is
     kooiAnim(s, dt);
     if (!s.impactDone && s.frame >= KOOI.impact){      // de kooi raakt de grond: de dreun, flink wat stof en een schok
@@ -21564,7 +21561,7 @@ function updateKooiman(s, dt, plats, cliff){
       const x0 = Math.min(a, bX), x1 = Math.max(a, bX), mid = (x0 + x1) / 2;
       steenStof(x0, x1, vloer, 1.3, vloer + 90);        // een wolk langs de grond met opspattend gruis (gedeeld met de rijzende grond)
       puffWorld(mid, 10, 0, 1.2, vloer);                // en een extra wolk omhoog bij de kooi
-      kooiSlagGeluid(mid);                              // de zware dreun van de kooi op de grond
+      kooiGrondGeluid(mid);                             // het grond-geluid van de kooi (sounds/kooihitground.mp3)
       shake = Math.max(shake, 0.22);
     }
     if (s.klaar) kooiSet(s, 'recovery');
