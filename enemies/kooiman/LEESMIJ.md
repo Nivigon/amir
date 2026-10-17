@@ -58,16 +58,19 @@ desgewenst aan per achtergrond.
 
 ## Kleuren: het bandietpalet
 De speelframes in drag/, smash/ en recovery/ worden gemaakt uit de aangeleverde
-frames in bron/ met `tools/kooiman_kleur.py`, zodat de kooiman in exact dezelfde
-kleuren loopt als de bandiet (enemies/bandiet):
+frames in bron/ met `tools/kooiman_kleur.py`, zodat de kooiman in dezelfde kleuren
+loopt als de bandiet (enemies/bandiet). Dezelfde aanpak als `tools/slang_kleur.py`
+(`hertint`): de tekening zelf blijft staan, per kleurvlak worden alleen de tint en
+de verzadiging vervangen en de helderheid over een nieuw bereik uitgesmeerd, dus de
+inktlijnen, de plooien en de schaduwen blijven precies zoals ze getekend zijn.
 
-- hoofddoek en gewaad: marineblauw, de kleurtrap van de bandietjas (#201f3c,
-  plooien tot #15152d);
-- broek: kaki-olijf (#534b39, lichte kant #74725d);
-- de rode sjerp, de huid en de sandalen blijven ongemoeid;
+- hoofddoek en gewaad: marineblauw (de bandietjas, #201f3c);
+- broek: kaki-olijf (de bandietbroek, #534b39);
+- de rode sjerp, de huid en de sandalen blijven ongemoeid (de zwarte contour, met
+  lage verzadiging, valt vanzelf buiten de maskers);
 - de kooivulling gaat naar zwart op 50 procent alpha;
-- de gele glinsteringen die nog in de tralies zaten (restant van de oude gele
-  kooi) worden geneutraliseerd naar een taupe tralie-tint.
+- de gele glinsteringen die nog in de tralies zaten (restant van de oude gele kooi)
+  worden geneutraliseerd naar een taupe tralie-tint (op hue gescheiden van de huid).
 
 De bron (teal doek, blauw gewaad, groene broek, grijze kooivulling) staat in
 bron/ en wordt door het spel nooit geladen. Verander je een bronframe, draai dan
