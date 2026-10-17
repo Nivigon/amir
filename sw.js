@@ -19,7 +19,12 @@
  */
 
 const SHELL_CACHE = 'amir-shell-v1';
-const ASSET_CACHE = 'amir-assets-v1';
+// v2: de assetcache is cache-first en revalideert nooit, dus een vervangen sprite (zelfde
+// bestandsnaam) bleef als oude versie in de cache hangen tot je hard herlaadde. Het ophogen van
+// deze naam gooit de oude cache (v1) in een keer weg bij activate, zodat iedereen schoon opnieuw
+// begint. Voor latere wijzigingen doet syncAssetVersion de rest (zie hieronder), zonder dat deze
+// naam elke keer mee hoeft.
+const ASSET_CACHE = 'amir-assets-v2';
 
 // Sleutel waaronder we in de assetcache bijhouden welke assetversie erin zit.
 // Geen echt bestand, alleen een plek om een string te bewaren.
@@ -274,6 +279,28 @@ async function loadManifest() {
   throw new Error('de bestandslijst is niet te bereiken');
 }
 
+// De assetcache is cache-first en haalt een bestand nooit opnieuw op zodra het erin staat. Dat is
+// goed voor de honderd megabyte sprites en geluiden, maar het betekent ook dat een vervangen sprite
+// (zelfde bestandsnaam, andere inhoud) als oude versie blijft hangen. gen-offline-manifest.py geeft
+// bij elke assetwijziging een nieuwe versie-hash; zodra die verandert, gooien we de assetcache weg,
+// zodat verse sprites binnenkomen in plaats van de oude. De cache vult zich daarna vanzelf weer
+// tijdens het spelen (of met de downloadknop). Dit draait op elke start (vanuit reportStatus), niet
+// alleen bij het downloaden, want juist de gewone speler liep tegen de oude cache aan. Een eerste
+// keer (nog geen stempel) gooit niets weg: dan onthouden we alleen de huidige versie.
+async function syncAssetVersion(manifest) {
+  let cache = await caches.open(ASSET_CACHE);
+  const stamp = await cache.match(VERSION_KEY);
+  const seen = stamp ? await stamp.text() : null;
+  if (seen !== null && seen !== manifest.version) {
+    await caches.delete(ASSET_CACHE);
+    cache = await caches.open(ASSET_CACHE);
+  }
+  if (seen !== manifest.version) {
+    await cache.put(VERSION_KEY, new Response(manifest.version));
+  }
+  return cache;
+}
+
 /** Hoeveel bytes de lijst voor deze set telt; zonder opgave het hele totaal. */
 function bytesVoor(manifest, set) {
   const per = manifest.bytesSet;
@@ -285,7 +312,9 @@ async function reportStatus(set) {
   try {
     const manifest = await loadManifest();
     const assets = voorSet(manifest.assets, set);
-    const cache = await caches.open(ASSET_CACHE);
+    // zijn de assets sinds de vorige keer vervangen, dan hier de oude cache weggooien, zodat de
+    // gewone speler na een update verse sprites krijgt in plaats van de oude uit de cache
+    const cache = await syncAssetVersion(manifest);
     const keys = await cache.keys();
     const have = new Set(keys.map((r) => new URL(r.url).pathname));
     // Via de URL-parser vergelijken, niet via plakken: bestandsnamen met een
@@ -322,15 +351,9 @@ async function precacheAll(set) {
   }
   const assets = voorSet(manifest.assets, set);
 
-  // Zijn de assets sinds de vorige download vervangen, dan is wat we hebben
-  // niet meer te vertrouwen en beginnen we schoon opnieuw.
-  let cache = await caches.open(ASSET_CACHE);
-  const stamp = await cache.match(VERSION_KEY);
-  const seen = stamp ? await stamp.text() : null;
-  if (seen && seen !== manifest.version) {
-    await caches.delete(ASSET_CACHE);
-    cache = await caches.open(ASSET_CACHE);
-  }
+  // Zijn de assets sinds de vorige keer vervangen, dan is wat we hebben niet meer te vertrouwen en
+  // beginnen we schoon opnieuw (gedeeld met de gewone start, zie syncAssetVersion).
+  const cache = await syncAssetVersion(manifest);
 
   const total = assets.length;
   let done = 0;
