@@ -623,7 +623,8 @@ snelle slag). Zo loop je niet zomaar door hem heen zoals bij de gewone bandiet: 
 langs te glippen, dan snauwt de kooi neer voor je voorbij bent. De klap zelf en het herstel blijven
 even snel, dus het strafvenster is gelijk: de slag baiten en in zijn herstel langs glippen kan nog
 steeds. Hij raakt je op het moment dat de kooi de grond raakt, met een zware dreun, een wolk stof
-langs de grond (opspattend gruis erbij) en een schok. Onder het slepen schraapt de kooi hoorbaar over de grond (een
+langs de grond (opspattend gruis erbij) en een schok. De trage harde klap kost een heel leven; de
+snelle slag, die je tegenhoudt als je te dicht langs loopt, kost er een half. Onder het slepen schraapt de kooi hoorbaar over de grond (een
 zachte lus, luider naarmate hij dichterbij komt) en stuift er af en toe een plukje stof op achter
 hem.
 
