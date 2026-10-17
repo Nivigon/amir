@@ -893,7 +893,7 @@
         <button data-spawn="kooiman">Neerzetten</button>
         <button id="sbkooivrij">AI uit</button>
         <button id="sbkooivogel">Vogel uit</button>
-        <span class="hint">een gebukte man die een zware kooi meesleept: traag op je af, en binnen bereik ramt hij de kooi neer op de grond voor hem (lange telegraaf, dan de klap). Gepantserd tijdens slepen en smash (je speer ketst af); alleen in het herstel na de klap ligt hij open. Vier rake klappen dan. Vogel aan: zodra hij volledig in beeld staat schiet er een vogel uit de kooi die cirkelt en dan op je af duikt (puur ontwijken)</span>
+        <span class="hint">een gebukte man die een zware kooi meesleept: traag op je af, en binnen bereik ramt hij de kooi neer op de grond voor hem (lange telegraaf, dan de klap). Gepantserd tijdens slepen en smash (je speer ketst af); alleen in het herstel na de klap ligt hij open. Vier rake klappen dan. Vogel aan: zodra hij volledig in beeld staat schiet er een vogel uit de kooi die boven je patrouilleert, even stilhangt en dan op je af duikt (puur ontwijken)</span>
       </div>
       <div class="row">
         <label>Grootte</label>
@@ -3485,7 +3485,7 @@ const TEST_37 = {
   cliffs: [ {x: -6500} ],
   ends: [ {x: -6000} ],
   tips: [ { x: -120, t: 'Testlevel: de kooiman. Pak eerst je speer op' },
-          { x: -700, t: 'Zodra de eerste volledig in beeld staat, schiet er een vogel uit zijn kooi. Hij cirkelt even hoog in de lucht en duikt dan op de plek af waar jij staat: blijf in beweging, dan mist hij en slaat hij kapot op de grond' },
+          { x: -700, t: 'Zodra de eerste volledig in beeld staat, schiet er een vogel uit zijn kooi. Hij patrouilleert hoog boven je, hangt dan even stil en duikt op de plek af waar jij op dat moment stond: beweeg tijdens dat stilhangen weg, dan mist hij en slaat hij kapot op de grond' },
           { x: -850, t: 'Een gebukte man sleept een zware kooi mee. Komt hij dichtbij, dan tilt hij hem omhoog en ramt hem neer op de grond voor hem. Loop weg tijdens die lange aanloop' },
           { x: -1700, t: 'Hij is gepantserd door de kooi: je speer, stoot en lage zwaai doen hem niets, behalve in het trage herstel na de klap. Wacht de smash af en sla dan toe, vier keer' },
           { x: -2500, t: 'Achter de kei ben je veilig: hij komt er niet overheen en slaat er niet overheen. Een geworpen speer ketst af op de kooi en valt terug' },
@@ -21400,6 +21400,11 @@ const KOOI_LIJF      = { half: 150, hoog: 330 };
 // zo'n 18 tot 280 canvas (anker 386), dus 106 tot 368 vooruit; iets ruimer genomen.
 const KOOI_SMASH     = { near: 55, far: 400, hoog: 215 };
 const KOOI_SMASH_REACH = 400;   // van zo dicht bij (canvaspixels vooruit) zet hij de smash in
+// de klap van de kooi op de grond is zwaar: veel stof, een stevige schok en een korte gedeelde
+// hitstop (die bevriest alles, ook de vogel, dus eerlijk). Geen gedwongen verplaatsing van Amir,
+// want dat pakt controle af net als je een vogel ontwijkt (zie notities/kooiman-baas.md)
+const KOOI_SMASH_SHAKE = 0.34;  // de schermschok op de klap
+const KOOI_SMASH_STOP  = 0.06;  // de hitstop op de klap (seconden), bevriest alles even
 const KOOI_VOET_VOOR = 110;     // zijn voorste voet: daarmee stopt hij voor een kei (regel 7), niet met zijn anker
 const KOOI_SCHEID    = 380;     // zachte scheiding: zo dicht mogen twee kooimannen bij elkaar (canvaspixels)
 
@@ -21583,10 +21588,15 @@ function updateKooiman(s, dt, plats, cliff){
       const zS = kooiScale(), vloer = s.base || 0;
       const a = s.x + s.face * KOOI_SMASH.near * zS, bX = s.x + s.face * KOOI_SMASH.far * zS;
       const x0 = Math.min(a, bX), x1 = Math.max(a, bX), mid = (x0 + x1) / 2;
-      steenStof(x0, x1, vloer, 1.3, vloer + 90);        // een wolk langs de grond met opspattend gruis (gedeeld met de rijzende grond)
-      puffWorld(mid, 10, 0, 1.2, vloer);                // en een extra wolk omhoog bij de kooi
+      // heavy impact: een brede, dichte wolk langs de grond, een hoge pluim bij de kooi, en naar
+      // weerszijden opspattend stof vanaf de randen van de inslag
+      steenStof(x0, x1, vloer, 2.2, vloer + 110);       // zwaardere wolk met veel opspattend gruis
+      puffWorld(mid, 22, 0, 1.5, vloer);                // een hoge, brede pluim omhoog bij de kooi
+      puffWorld(x0, 9, -140, 1.1, vloer);               // stof dat naar links wegspat vanaf de rand
+      puffWorld(x1, 9, 140, 1.1, vloer);                // en naar rechts
       kooiGrondGeluid(mid);                             // het grond-geluid van de kooi (sounds/kooihitground.mp3)
-      shake = Math.max(shake, 0.22);
+      shake = Math.max(shake, KOOI_SMASH_SHAKE);
+      hitstop = Math.max(hitstop, KOOI_SMASH_STOP);     // een korte gedeelde freeze voor de dreun (ook de vogel)
     }
     if (s.klaar) kooiSet(s, 'recovery');
     return;
@@ -21643,9 +21653,10 @@ function kooiVolledigInBeeld(s){
 // ---------- de vogel: de secretarisvogel uit de kooi ----------------------
 // Een kooiman met vogel: true laat, zodra hij volledig in beeld is, een vogel uit zijn kooi
 // schieten (de 'release'-staat in updateKooiman). De vogel schiet recht omhoog uit de kooi naar een
-// hoogte die net in beeld blijft (ook op een telefoon), vliegt dan naar boven Amir en cirkelt daar
-// zo'n 3 seconden hoog in de lucht (het midden volgt Amir, ongevaarlijk, puur de telegraaf), legt
-// dan de plek vast waar Amir op dat moment staat en duikt daar snel op af. Raakt hij Amir, dan kost
+// hoogte die net in beeld blijft (ook op een telefoon), vliegt dan naar boven Amir en patrouilleert
+// daar zo'n 3 seconden heen en weer op X met een hele lichte Y-dein (het midden volgt Amir,
+// ongevaarlijk, puur de telegraaf). Dan legt hij de plek van Amir vast, hangt daar even stil boven
+// (de mik-fase, zodat je kunt wegkomen) en duikt op die vastgelegde plek. Raakt hij Amir, dan kost
 // dat een leven en verdwijnt hij; mist hij,
 // dan slaat hij kapot op de grond (veren en stof). Hij is niet te raken: wegduiken is het antwoord.
 // Opt-in en eenmalig per kooiman. De frames (enemies/vogel/, fly 25 lus en dive 25 eenmalig, canvas
@@ -21684,13 +21695,16 @@ function kooiDinnertime(){ banStemSpeel(kooiDinnerSnd, 0.95); }
 
 // ---- knoppen om aan te draaien ----
 const VOGEL_SHARE    = 0.95;   // de hoogte van zijn canvas (wings mee) tov Amir
-const VOGEL_OP_T     = 0.6;    // seconden om op te stijgen naar de cirkel
-const VOGEL_CIRKEL_T = 3.0;    // seconden cirkelen (de telegraaf)
-const VOGEL_CIRKEL_V = 4.2;    // rad per seconde (zo'n twee rondjes in 3 s)
-const VOGEL_VOLG     = 2.5;    // hoe snel hij naar boven Amir vliegt en het cirkelmidden hem volgt (per seconde)
-const VOGEL_NAAR_MAX = 1.5;    // na zo lang toch gaan cirkelen, ook als Amir wegloopt (vangnet)
-const VOGEL_HOOG     = 1.5;    // de onderkant van de cirkel, in Amir-hoogtes boven de grond
-const VOGEL_PLAT     = 0.6;    // de cirkel iets platgedrukt (ellips), zodat hij in de lucht boven het scherm past
+const VOGEL_OP_T     = 0.6;    // seconden om recht omhoog te schieten naar de patrouillehoogte
+const VOGEL_PATROL_T = 3.0;    // seconden patrouilleren boven Amir (de telegraaf)
+const VOGEL_SWEEP_V  = 2.2;    // rad per seconde van de heen-en-weer sweep op X
+const VOGEL_SWEEP_X  = 6;      // horizontale uitslag: (W/viewZoom)/dit naar weerszijden van Amir
+const VOGEL_BOB_Y    = 0.10;   // hele lichte Y-dein tijdens de patrouille, in Amir-hoogtes
+const VOGEL_VOLG     = 2.5;    // hoe snel hij naar boven Amir vliegt en het midden hem volgt (per seconde)
+const VOGEL_NAAR_MAX = 1.5;    // na zo lang toch gaan patrouilleren, ook als Amir wegloopt (vangnet)
+const VOGEL_HOOG     = 2.0;    // de patrouillehoogte, in Amir-hoogtes boven de grond
+const VOGEL_MIK_T    = 0.6;    // seconden stilhangen boven de vastgelegde plek (de tell) voor hij duikt
+const VOGEL_MIK_EASE = 5.0;    // hoe snel hij boven die plek gaat hangen
 const VOGEL_DUIK_V   = 850;    // duiksnelheid (schermsnelheid): dodgebaar maar krap
 const VOGEL_DUIK_MAX = 2.2;    // na zo lang duiken toch kapot (vangnet tegen een eindeloze vlucht)
 const VOGEL_RAAK     = 60;     // de raakstraal (schermpixels) van de vogel tijdens de duik
@@ -21701,19 +21715,19 @@ function vogelScale(){ return (CHAR_H * nowScale() * VOGEL_SHARE) / VOGEL.h; }
 function spawnVogel(s){
   vogelLaad();
   const sc = nowScale();
-  const Rx = (W / viewZoom()) / 6;                    // horizontale straal: doorsnee ~1/3 scherm
-  const Rh = (Rx / sc) * VOGEL_PLAT;                  // verticale straal, iets platgedrukt zodat hij in de lucht past
-  // de hoogte klemmen zodat de top van de cirkel (cy + Rh) net in beeld blijft, ook op een telefoon
-  // (waar het scherm lager is en de knoppen de grond optillen): reken met de live grondlijn en schaal
+  const bob = VOGEL_BOB_Y * CHAR_H;                   // de hele lichte Y-dein
+  const ampX = (W / viewZoom()) / VOGEL_SWEEP_X;      // uitslag van de sweep naar weerszijden van Amir
+  // de hoogte klemmen zodat de patrouille net in beeld blijft, ook op een telefoon (waar het scherm
+  // lager is en de knoppen de grond optillen): reken met de live grondlijn en schaal
   const groundY = H * 0.82 + camY + touchLift();
-  const maxTopH = (groundY - H * 0.06) / sc;          // hoogste wereldhoogte die nog net boven in beeld valt
-  const cy = Math.min(VOGEL_HOOG * CHAR_H + Rh, maxTopH - Rh);   // de cirkel hangt hoog, maar in beeld
+  const maxTopH = (groundY - H * 0.06) / sc;          // hoogste wereldhoogte die nog net in beeld valt
+  const cy = Math.min(VOGEL_HOOG * CHAR_H, maxTopH - bob);   // de patrouillehoogte, maar in beeld
   const cageX = s.x - s.face * KOOI_CAGE_ACHTER * kooiScale();   // uit de kooi (achter de kooiman)
   const h0 = (s.base || 0) + 0.4 * CHAR_H;
-  // cx start op de kooi: zo stijgt hij recht omhoog en komt hij precies op de top van de cirkel uit
-  // (hoek PI/2), en daarna schuift het midden naar boven Amir
+  // cx start op de kooi: zo stijgt hij recht omhoog, en daarna vliegt hij naar boven Amir
   vogels.push({ x: cageX, h: h0, sh: h0, phase: 'op', t: 0,
-                cx: cageX, cy, Rx, Rh, hoek: Math.PI / 2, vx: 0, vh: 0, face: -1, frame: 0, acc: 0, weg: false });
+                cx: cageX, cy, ampX, bob, hoek: 0, vx: 0, vh: 0, lockX: 0, lockH: 0,
+                face: -1, frame: 0, acc: 0, weg: false });
 }
 function vogelAnim(v, dt){
   const set = v.phase === 'duik' ? 'dive' : 'fly';
@@ -21742,30 +21756,38 @@ function updateVogels(dt){
     if (v.phase === 'op'){
       const u = Math.min(1, v.t / VOGEL_OP_T);
       v.x = v.cx;                                     // recht omhoog uit de kooi: x blijft staan
-      v.h = v.sh + ((v.cy + v.Rh) - v.sh) * u;        // stijg naar de hoogte van de cirkel-top (hoek PI/2)
+      v.h = v.sh + (v.cy - v.sh) * u;                 // stijg naar de patrouillehoogte
       v.face = (playerX() - v.x) >= 0 ? 1 : -1;       // kijkt naar Amir
       vogelAnim(v, dt);
       if (u >= 1){ v.phase = 'naar'; v.t = 0; }
-    } else if (v.phase === 'naar'){                   // dan naar boven Amir vliegen, op de hoogte van de cirkel-top
+    } else if (v.phase === 'naar'){                   // dan naar boven Amir vliegen, op patrouillehoogte
       const px = v.x;
       v.x += (playerX() - v.x) * Math.min(1, VOGEL_VOLG * dt);
-      v.h = v.cy + v.Rh;
+      v.h = v.cy;
       v.face = (v.x - px) >= 0 ? 1 : -1;
       vogelAnim(v, dt);
       if (Math.abs(v.x - playerX()) < 12 || v.t >= VOGEL_NAAR_MAX){
-        v.cx = v.x; v.phase = 'cirkel'; v.t = 0; v.hoek = Math.PI / 2;   // en daar cirkelen (vanaf de top)
+        v.cx = v.x; v.phase = 'patrouille'; v.t = 0; v.hoek = 0;   // en daar patrouilleren (vanuit het midden)
       }
-    } else if (v.phase === 'cirkel'){
+    } else if (v.phase === 'patrouille'){             // heen en weer op X boven Amir, met een hele lichte Y-dein
       const px = v.x;
       v.cx += (playerX() - v.cx) * Math.min(1, VOGEL_VOLG * dt);   // boven Amir blijven en hem volgen
-      v.hoek += VOGEL_CIRKEL_V * dt;
-      v.x = v.cx + v.Rx * Math.cos(v.hoek);
-      v.h = v.cy + v.Rh * Math.sin(v.hoek);
+      v.hoek += VOGEL_SWEEP_V * dt;
+      v.x = v.cx + v.ampX * Math.sin(v.hoek);
+      v.h = v.cy + v.bob * Math.sin(v.hoek * 2);
       v.face = (v.x - px) >= 0 ? 1 : -1;
       vogelAnim(v, dt);
-      if (v.t >= VOGEL_CIRKEL_T){                     // de plek van Amir vastleggen en duiken
-        const tx = playerX(), th = ph + CHAR_H * 0.45;
-        const dx = tx - v.x, dhp = (th - v.h) * sc, L = Math.hypot(dx, dhp) || 1;
+      if (v.t >= VOGEL_PATROL_T){                     // de plek van Amir vastleggen (nu kun je nog weg) en gaan mikken
+        v.lockX = playerX(); v.lockH = ph + CHAR_H * 0.45;
+        v.phase = 'mik'; v.t = 0;
+      }
+    } else if (v.phase === 'mik'){                    // stilhangen boven de vastgelegde plek: de tell, dan duiken
+      v.x += (v.lockX - v.x) * Math.min(1, VOGEL_MIK_EASE * dt);
+      v.h = v.cy;
+      if (Math.abs(v.lockX - v.x) > 6) v.face = (v.lockX - v.x) >= 0 ? 1 : -1;   // kijkt naar de doelplek
+      vogelAnim(v, dt);
+      if (v.t >= VOGEL_MIK_T){                         // duiken op de vastgelegde plek (beweeg weg = hij mist)
+        const dx = v.lockX - v.x, dhp = (v.lockH - v.h) * sc, L = Math.hypot(dx, dhp) || 1;
         v.vx = VOGEL_DUIK_V * dx / L;
         v.vh = (VOGEL_DUIK_V * dhp / L) / sc;
         v.face = v.vx >= 0 ? 1 : -1;
