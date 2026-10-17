@@ -21642,9 +21642,11 @@ function kooiVolledigInBeeld(s){
 
 // ---------- de vogel: de secretarisvogel uit de kooi ----------------------
 // Een kooiman met vogel: true laat, zodra hij volledig in beeld is, een vogel uit zijn kooi
-// schieten (de 'release'-staat in updateKooiman). De vogel stijgt op, cirkelt zo'n 3 seconden hoog
-// in de lucht (ongevaarlijk, puur de telegraaf), legt dan de plek vast waar Amir op dat moment
-// staat en duikt daar snel op af. Raakt hij Amir, dan kost dat een leven en verdwijnt hij; mist hij,
+// schieten (de 'release'-staat in updateKooiman). De vogel schiet recht omhoog uit de kooi naar een
+// hoogte die net in beeld blijft (ook op een telefoon), vliegt dan naar boven Amir en cirkelt daar
+// zo'n 3 seconden hoog in de lucht (het midden volgt Amir, ongevaarlijk, puur de telegraaf), legt
+// dan de plek vast waar Amir op dat moment staat en duikt daar snel op af. Raakt hij Amir, dan kost
+// dat een leven en verdwijnt hij; mist hij,
 // dan slaat hij kapot op de grond (veren en stof). Hij is niet te raken: wegduiken is het antwoord.
 // Opt-in en eenmalig per kooiman. De frames (enemies/vogel/, fly 25 lus en dive 25 eenmalig, canvas
 // 536x405, pivot 279,207, kijkt naar links) en de ticks komen uit sprites.json.
@@ -21685,6 +21687,8 @@ const VOGEL_SHARE    = 0.95;   // de hoogte van zijn canvas (wings mee) tov Amir
 const VOGEL_OP_T     = 0.6;    // seconden om op te stijgen naar de cirkel
 const VOGEL_CIRKEL_T = 3.0;    // seconden cirkelen (de telegraaf)
 const VOGEL_CIRKEL_V = 4.2;    // rad per seconde (zo'n twee rondjes in 3 s)
+const VOGEL_VOLG     = 2.5;    // hoe snel hij naar boven Amir vliegt en het cirkelmidden hem volgt (per seconde)
+const VOGEL_NAAR_MAX = 1.5;    // na zo lang toch gaan cirkelen, ook als Amir wegloopt (vangnet)
 const VOGEL_HOOG     = 1.5;    // de onderkant van de cirkel, in Amir-hoogtes boven de grond
 const VOGEL_PLAT     = 0.6;    // de cirkel iets platgedrukt (ellips), zodat hij in de lucht boven het scherm past
 const VOGEL_DUIK_V   = 850;    // duiksnelheid (schermsnelheid): dodgebaar maar krap
@@ -21699,11 +21703,17 @@ function spawnVogel(s){
   const sc = nowScale();
   const Rx = (W / viewZoom()) / 6;                    // horizontale straal: doorsnee ~1/3 scherm
   const Rh = (Rx / sc) * VOGEL_PLAT;                  // verticale straal, iets platgedrukt zodat hij in de lucht past
-  const cy = VOGEL_HOOG * CHAR_H + Rh;               // de cirkel hangt hoog in de lucht, boven Amir
+  // de hoogte klemmen zodat de top van de cirkel (cy + Rh) net in beeld blijft, ook op een telefoon
+  // (waar het scherm lager is en de knoppen de grond optillen): reken met de live grondlijn en schaal
+  const groundY = H * 0.82 + camY + touchLift();
+  const maxTopH = (groundY - H * 0.06) / sc;          // hoogste wereldhoogte die nog net boven in beeld valt
+  const cy = Math.min(VOGEL_HOOG * CHAR_H + Rh, maxTopH - Rh);   // de cirkel hangt hoog, maar in beeld
   const cageX = s.x - s.face * KOOI_CAGE_ACHTER * kooiScale();   // uit de kooi (achter de kooiman)
   const h0 = (s.base || 0) + 0.4 * CHAR_H;
-  vogels.push({ x: cageX, h: h0, sx: cageX, sh: h0, phase: 'op', t: 0,
-                cx: s.x, cy, Rx, Rh, hoek: 0, vx: 0, vh: 0, face: -1, frame: 0, acc: 0, weg: false });
+  // cx start op de kooi: zo stijgt hij recht omhoog en komt hij precies op de top van de cirkel uit
+  // (hoek PI/2), en daarna schuift het midden naar boven Amir
+  vogels.push({ x: cageX, h: h0, sh: h0, phase: 'op', t: 0,
+                cx: cageX, cy, Rx, Rh, hoek: Math.PI / 2, vx: 0, vh: 0, face: -1, frame: 0, acc: 0, weg: false });
 }
 function vogelAnim(v, dt){
   const set = v.phase === 'duik' ? 'dive' : 'fly';
@@ -21731,13 +21741,23 @@ function updateVogels(dt){
     v.t += dt;
     if (v.phase === 'op'){
       const u = Math.min(1, v.t / VOGEL_OP_T);
-      const ex = v.cx + v.Rx, eh = v.cy;             // de cirkel-ingang (rechterkant, hoek 0)
-      v.x = v.sx + (ex - v.sx) * u; v.h = v.sh + (eh - v.sh) * u;
-      v.face = (ex - v.sx) >= 0 ? 1 : -1;
+      v.x = v.cx;                                     // recht omhoog uit de kooi: x blijft staan
+      v.h = v.sh + ((v.cy + v.Rh) - v.sh) * u;        // stijg naar de hoogte van de cirkel-top (hoek PI/2)
+      v.face = (playerX() - v.x) >= 0 ? 1 : -1;       // kijkt naar Amir
       vogelAnim(v, dt);
-      if (u >= 1){ v.phase = 'cirkel'; v.t = 0; v.hoek = 0; }
+      if (u >= 1){ v.phase = 'naar'; v.t = 0; }
+    } else if (v.phase === 'naar'){                   // dan naar boven Amir vliegen, op de hoogte van de cirkel-top
+      const px = v.x;
+      v.x += (playerX() - v.x) * Math.min(1, VOGEL_VOLG * dt);
+      v.h = v.cy + v.Rh;
+      v.face = (v.x - px) >= 0 ? 1 : -1;
+      vogelAnim(v, dt);
+      if (Math.abs(v.x - playerX()) < 12 || v.t >= VOGEL_NAAR_MAX){
+        v.cx = v.x; v.phase = 'cirkel'; v.t = 0; v.hoek = Math.PI / 2;   // en daar cirkelen (vanaf de top)
+      }
     } else if (v.phase === 'cirkel'){
       const px = v.x;
+      v.cx += (playerX() - v.cx) * Math.min(1, VOGEL_VOLG * dt);   // boven Amir blijven en hem volgen
       v.hoek += VOGEL_CIRKEL_V * dt;
       v.x = v.cx + v.Rx * Math.cos(v.hoek);
       v.h = v.cy + v.Rh * Math.sin(v.hoek);
