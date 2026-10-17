@@ -52,9 +52,9 @@ drag (loop)  --start aanval-->  smash  --> recovery  --> drag (loop)
   rest wordt verbloemd door de stofwolk op impact.
 
 ## Kooi
-De binnenkant van de kooi is puur zwart (0,0,0) op 50 procent alpha, dus
-doorschijnend: je ziet er vaag doorheen maar niet of er iets in zit. Pas de alpha
-desgewenst aan per achtergrond.
+De binnenkant van de kooi is puur zwart (0,0,0), licht opgevoerd in alpha (van zo'n
+40-65% naar 55-80%) zodat je er nog vaag doorheen kijkt maar niet ziet wat erin zit.
+De weef-variatie in de alpha blijft behouden.
 
 ## Kleuren: het bandietpalet
 De speelframes in drag/, smash/ en recovery/ worden gemaakt uit de aangeleverde
@@ -68,9 +68,10 @@ inktlijnen, de plooien en de schaduwen blijven precies zoals ze getekend zijn.
 - broek: kaki-olijf (de bandietbroek, #534b39);
 - de rode sjerp, de huid en de sandalen blijven ongemoeid (de zwarte contour, met
   lage verzadiging, valt vanzelf buiten de maskers);
-- de kooivulling gaat naar zwart op 50 procent alpha;
-- de gele glinsteringen die nog in de tralies zaten (restant van de oude gele kooi)
-  worden geneutraliseerd naar een taupe tralie-tint (op hue gescheiden van de huid).
+- de kooivulling gaat naar zwart en wordt iets minder doorschijnend;
+- het geel/tan van de tralies en de kooirand (restant van de oude gele kooi) wordt
+  geneutraliseerd naar een taupe tint (hue 34-80, op hue gescheiden van de roodbruine
+  huid en sandalen die lager in hue zitten, dus die blijven ongemoeid).
 
 De bron (teal doek, blauw gewaad, groene broek, grijze kooivulling) staat in
 bron/ en wordt door het spel nooit geladen. Verander je een bronframe, draai dan

@@ -94,20 +94,25 @@ def maak(beeld):
     blauw = op & (s > 0.25) & (h >= 160) & (h < 258)
     # de broek (groen in de bron)
     groen = op & (s > 0.20) & (h >= 78) & (h < 150)
-    # de gele glinsteringen in de tralies (restant van de oude gele kooi). De huid en de sandalen
-    # zijn gedempt bruin op hue 15-40; de glinsters zitten op hue 40-80, dus daar scheidt het. Zo
-    # blijft de hand die de kooi vasthoudt ongemoeid.
-    geel = op & (h >= 40) & (h < 80) & (s > 0.20)
+    # het geel/tan van de tralies en de rand van de kooi (de oude gele kooi zat hier nog in). De huid
+    # en de sandalen zijn roodbruin op hue < 34; het tan van de kooi loopt van ongeveer 34 tot 74, dus
+    # daar scheidt het. Vroeger stond de ondergrens op 40, waardoor de warme kooirand (hue 34-40) bleef
+    # staan en de kooi nog geel oogde; nu valt die er ook onder, terwijl de hand en het gezicht (lager
+    # in hue) ongemoeid blijven.
+    geel = op & (h >= 34) & (h < 80) & (s > 0.20)
 
     rgb = hertint(rgb, blauw, tint=242, verz=0.46, laag=0.09, hoog=0.30)   # bandietjas #201f3c
     rgb = hertint(rgb, groen, tint=41,  verz=0.28, laag=0.22, hoog=0.46)   # bandietbroek #534b39
-    rgb = hertint(rgb, geel,  tint=40,  verz=0.05, laag=0.18, hoog=0.40)   # geel weg: neutrale taupe tralie
+    rgb = hertint(rgb, geel,  tint=40,  verz=0.05, laag=0.16, hoog=0.36)   # geel weg: neutrale, iets donkerder taupe tralie
     arr[..., :3] = rgb
 
-    # de kooivulling: semi-transparant en donker -> puur zwart, de alpha (50%) blijft
+    # de kooivulling: semi-transparant en donker -> puur zwart, en iets minder doorschijnend (tussen de
+    # spijlen wat donkerder), zodat je nog net vaag doorheen kijkt maar niet ziet wat erin zit. De alpha
+    # gaat van zo'n 40-65% naar zo'n 55-80%, met de weef-variatie erin behouden.
     rgba = arr
     fill = (al > 100) & (al < 165) & (rgb.max(-1) < 80)
     rgba[..., 0][fill] = 0; rgba[..., 1][fill] = 0; rgba[..., 2][fill] = 0
+    rgba[..., 3][fill] = np.minimum(205.0, al[fill] * 1.3)
     return Image.fromarray(np.clip(rgba, 0, 255).astype(np.uint8))
 
 
