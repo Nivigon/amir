@@ -9,6 +9,46 @@ het idee niet wegzakt.
 Een zoner-baas die de grond controleert en de lucht met vogels. De tegenstelling met de bandiet:
 de bandiet wil close komen, de kooiman houdt je juist op afstand. Als baas wordt dat uitvergroot.
 
+## Vechtopzet (concreter, uit het brainstormen)
+Een arena, geen open vlakte. De aanname is **arena-als-kooi**: een begrensd vak met tralies als rand,
+Amir beweegt erbinnen (niet letterlijk vast, anders valt het dansen om de vogels weg). Nog te
+beslissen: arena-kooi of Amir echt vast.
+
+- **De boss staat hoog aan de zijkant** en stuurt constant vogels. Je beschadigt hem met
+  **speerworpen**, maar je moet eerst **plateaus op springen** om zijn hoogte/strook te halen.
+- **Speer-economie met verticaliteit.** Beneden haal je een speer (de aanvoer). Je klimt onder
+  vogeldruk omhoog, en de worp is de kwetsbare commit (stilstaan tussen de vogels door). Of je nu
+  **raakt of mist, je speer is op** en je moet weer naar beneden voor een nieuwe. Zo ontstaat een
+  grond-plateau-top ritme.
+- **Twee kooimannen** aan weerszijden slaan regelmatig; een **kooislag kan je van een plateau af
+  knikkeren**, zodat je je hoogte (en je klim) verliest. Zo zijn ze de verticale verstoring.
+- **Plateaus als echte, tijdelijke dekking**: een plateau kan een duik blokkeren (je schuilt eronder),
+  maar de kooimannen slaan je er weer af en de boss verlegt zijn vogels, dus cover is adem, geen haven.
+- **Af en toe een ander creature** als kruiding, niet als vierde gelijktijdige dreiging.
+
+### Tuning die het maakt of breekt
+- De aanvoer-trip kort houden (speerrek of skelet onderaan, of aangroeiende speren); de klim ~10 tot
+  20 s per cyclus; niet te veel treffers nodig (4 a 6), anders rekt het.
+- **Raak moet belonen**: bij een treffer deinst de boss en pauzeren de vogels heel even, zodat je adem
+  hebt om af te dalen. Anders voelt raken net zo straffend als missen.
+- **Van een plateau geknikkerd kost vooral positie**, niet elke keer een leven (lichte valschade mag,
+  maar stapel het niet met vogel + boss tot iets onontwijkbaars).
+- **De worp moet de boss echt kunnen raken** vanaf een plateau: met een tool (zoals runecheck.js)
+  nameten dat er een echte strook is waar je hem raakt en in beeld hebt.
+- **Pacing tegen overload**: kooimannen slaan om en om, een maximum vogels tegelijk, en altijd een
+  haalbaar gaatje om te gooien (een onmogelijke combo is het enige echte risico).
+
+### Fases (natuurlijk verloop)
+1. Rustig: 1 a 2 vogels, kooimannen slaan af en toe. Je leert het ritme en gooit in de gaten.
+2. Midden (boss ~2/3): meer/snellere vogels, de creature duikt op, plateaus misschien deels kapot.
+3. Eind: beide kooimannen actiever, vogels constant, maar de boss stelt zich vaker bloot: daar zit je
+   echte opening.
+
+### Open vragen
+- Arena-kooi of Amir echt vast (advies: arena-kooi).
+- Win via speerworp (advies) of via klimmen tot bij de boss.
+- De tuning hierboven: aanvoer-tempo, raak-beloning, knock-off-straf.
+
 ## Mechanieken (de zware set, niet in de lichte versie)
 - **Standhouden met leash.** Hij blijft op zijn plek en slaat de kooi neer om je op afstand te
   houden, draait zich naar je toe (de kooi blijft tussen jullie), en rukt pas op als je een eind
