@@ -21400,6 +21400,13 @@ const KOOI_LIJF      = { half: 150, hoog: 330 };
 // zo'n 18 tot 280 canvas (anker 386), dus 106 tot 368 vooruit; iets ruimer genomen.
 const KOOI_SMASH     = { near: 55, far: 400, hoog: 215 };
 const KOOI_SMASH_REACH = 400;   // van zo dicht bij (canvaspixels vooruit) zet hij de smash in
+// twee snelheden, één aanval. Op afstand (de trage harde klap) is de aanloop lang en leesbaar: dat
+// is zoning, je hebt tijd om te reageren. Point-blank (hier binnen KOOI_SNEL_REACH, of als Amir er
+// tijdens een trage klap recht in loopt) versnelt de aanloop (de snelle slag), zodat de kooi neerkomt
+// voor je er langs bent: zo loop je niet meer door hem heen zoals door de gewone bandiet. De klap en
+// het herstel blijven op tempo, dus het strafvenster is gelijk en baiten-en-langs-glippen blijft kunnen.
+const KOOI_SNEL_REACH = 200;    // point-blank: hier versnelt hij de aanloop (de snelle slag)
+const KOOI_SNEL_BOOST = 3;      // zoveel sneller loopt de aanloop van de snelle slag (klap en herstel niet)
 // de klap van de kooi op de grond is zwaar: veel stof, een stevige schok en een korte gedeelde
 // hitstop (die bevriest alles, ook de vogel, dus eerlijk). Geen gedwongen verplaatsing van Amir,
 // want dat pakt controle af net als je een vogel ontwijkt (zie notities/kooiman-baas.md)
@@ -21425,7 +21432,7 @@ function makeKooiman(x, side, vogel){
   return { x, face: -side, state: 'drag', frame: 0, acc: 0, t: 0,
            hp: KOOI_HP, inv: 0, flash: 0, knock: 0, base: 0, alpha: 1,
            klaar: false, hitUsed: false, impactDone: false, sweptId: -1, vrij: false, doodT: 0,
-           geroepen: false, vogel: !!vogel, vogelGedaan: false, vogelGespawnd: false };
+           snel: false, geroepen: false, vogel: !!vogel, vogelGedaan: false, vogelGespawnd: false };
 }
 function kooiSet(s, state){ s.state = state; s.frame = 0; s.acc = 0; s.t = 0; s.klaar = false; s.hitUsed = false; s.impactDone = false; }
 function kooiAnim(s, dt){
@@ -21595,7 +21602,14 @@ function updateKooiman(s, dt, plats, cliff){
   }
 
   if (s.state === 'smash'){                           // vast op zijn plek tot de hele haal erdoor is
-    kooiAnim(s, dt);
+    // begon hij de trage klap maar loopt Amir er recht in (point-blank en nog aan zijn voorkant), dan
+    // versnelt de aanloop alsnog: de snelle slag, zodat je er niet langs glipt tijdens de wind-up
+    if (!s.snel && s.frame < KOOI.impact){
+      const d = playerX() - s.x;
+      if (Math.abs(d) <= KOOI_SNEL_REACH * kooiScale() && Math.sign(d) === s.face) s.snel = true;
+    }
+    const spoed = (s.snel && s.frame < KOOI.impact) ? KOOI_SNEL_BOOST : 1;   // alleen de aanloop versnelt
+    kooiAnim(s, dt * spoed);
     if (!s.impactDone && s.frame >= KOOI.impact){      // de kooi raakt de grond: de dreun, flink wat stof en een schok
       s.impactDone = true;
       const zS = kooiScale(), vloer = s.base || 0;
@@ -21636,7 +21650,11 @@ function updateKooiman(s, dt, plats, cliff){
     kooiAnim(s, dt);
   }
   if (dead || gap > KOOI_SEE) return;                 // te ver of je bent dood: hij sleept ter plekke (geen geluid, geen beweging)
-  if (kooiKanSlaan(s, gap, plats)){ kooiSet(s, 'smash'); return; }
+  if (kooiKanSlaan(s, gap, plats)){                   // point-blank meteen de snelle slag, verder de trage klap
+    s.snel = gap <= KOOI_SNEL_REACH * kooiScale();
+    kooiSet(s, 'smash');
+    return;
+  }
   s.beweegt = true;                                   // binnen zicht is hij aan het slepen: het sleepgeluid loopt, ook tussen de heaves
   // hij schuift alleen vooruit terwijl zijn benen echt stappen (het stap-venster); daarbuiten staat
   // hij stil, zodat hij niet meer vooruit glijdt terwijl zijn benen stilstaan. De snelheid in het

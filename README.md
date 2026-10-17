@@ -614,11 +614,16 @@ bandiet: zijn grootte staat tov de bandiet in `KOOI_VS_BAN` (0,72, oftewel een k
 de sandbox onder Vijanden, Kooiman stel je hem bij met **kleiner** en **groter**, met **Bandiet
 ernaast** om te vergelijken; de hint toont de waarde die je dan in `KOOI_VS_BAN` zet. Dat slepen is
 tegelijk zijn gang en zijn rust, hij staat nooit echt stil. Hij is traag, dus wegrennen kan altijd, maar hij houdt de grond voor zich
-bezet. Kom je binnen bereik, dan tilt hij de kooi langzaam boven zijn hoofd en ramt hem neer op de
-grond voor hem. Die smash heeft een lange, leesbare aanloop (hij zakt eerst diep door, houdt daar
-even in, komt dan omhoog en slaat neer), en hij raakt je op het moment dat de kooi de grond raakt,
-met een zware dreun, een wolk stof langs de grond (opspattend gruis erbij) en een schok. Loop weg
-tijdens die aanloop en de klap mist. Onder het slepen schraapt de kooi hoorbaar over de grond (een
+bezet. Kom je binnen bereik, dan tilt hij de kooi boven zijn hoofd en ramt hem neer op de grond
+voor hem. Die smash heeft twee snelheden, maar is één aanval. Op afstand is het een trage, harde
+klap met een lange, leesbare aanloop (hij zakt eerst diep door, houdt daar even in, komt dan omhoog
+en slaat neer): dat is zoning, loop weg tijdens die aanloop en de klap mist. Maar point-blank, of
+als je er tijdens die trage klap recht in loopt, versnelt de aanloop en komt de kooi snel neer (de
+snelle slag). Zo loop je niet zomaar door hem heen zoals bij de gewone bandiet: probeer je er vlak
+langs te glippen, dan snauwt de kooi neer voor je voorbij bent. De klap zelf en het herstel blijven
+even snel, dus het strafvenster is gelijk: de slag baiten en in zijn herstel langs glippen kan nog
+steeds. Hij raakt je op het moment dat de kooi de grond raakt, met een zware dreun, een wolk stof
+langs de grond (opspattend gruis erbij) en een schok. Onder het slepen schraapt de kooi hoorbaar over de grond (een
 zachte lus, luider naarmate hij dichterbij komt) en stuift er af en toe een plukje stof op achter
 hem.
 
