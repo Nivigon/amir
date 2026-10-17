@@ -21432,7 +21432,7 @@ function makeKooiman(x, side, vogel){
   return { x, face: -side, state: 'drag', frame: 0, acc: 0, t: 0,
            hp: KOOI_HP, inv: 0, flash: 0, knock: 0, base: 0, alpha: 1,
            klaar: false, hitUsed: false, impactDone: false, sweptId: -1, vrij: false, doodT: 0,
-           snel: false, geroepen: false, vogel: !!vogel, vogelGedaan: false, vogelGespawnd: false };
+           snel: false, grrT: kooiGromInterval(), geroepen: false, vogel: !!vogel, vogelGedaan: false, vogelGespawnd: false };
 }
 function kooiSet(s, state){ s.state = state; s.frame = 0; s.acc = 0; s.t = 0; s.klaar = false; s.hitUsed = false; s.impactDone = false; }
 function kooiAnim(s, dt){
@@ -21520,6 +21520,18 @@ function kooiGrondGeluid(wx){
 const KOOI_ROEP_VOL = 0.95;
 const kooiRoepSnd = [banStemmen('sounds/kooidownyougo.mp3', 2), banStemmen('sounds/kooiweakboy.mp3', 2)];
 function kooiRoep(){ banStemSpeel(kooiRoepSnd[Math.random() < 0.5 ? 0 : 1], KOOI_ROEP_VOL); }
+// Af en toe gromt hij tijdens het slepen (sounds/kooigrr.mp3), op een willekeurig interval, luider
+// naarmate hij dichterbij staat. Elke kooiman heeft zijn eigen teller (s.grrT) die in de sleep-tak
+// afloopt, zodat twee kooimannen niet tegelijk grommen. Eigen stemmen (banStemmen) zodat ze elkaar
+// en de andere geluiden niet afsnijden.
+const KOOI_GRR = { vol: 0.8, ver: 1.3, min: 0.3, van: 4.0, tot: 8.0 };   // volume, draagafstand, en het interval in seconden
+const kooiGrrSnd = banStemmen('sounds/kooigrr.mp3', 3);
+function kooiGromInterval(){ return KOOI_GRR.van + Math.random() * (KOOI_GRR.tot - KOOI_GRR.van); }
+function kooiGrom(wx){
+  if (!wantSound) return;
+  const af = Math.max(KOOI_GRR.min, 1 - Math.abs(wx - playerX()) / (KOOI_GRR.ver * W));
+  banStemSpeel(kooiGrrSnd, Math.min(1, KOOI_GRR.vol * af));
+}
 // Het sleepgeluid: de kooi die over de grond schraapt, een korte lus (sounds/kooislepen.mp3) die
 // loopt zolang een kooiman sleept en beweegt. Subtiel aanwezig en luider naarmate hij dichterbij
 // staat; uit zodra hij stilstaat, aanvalt of herstelt. Net als het takelgeluid stopt hij in de
@@ -21650,6 +21662,8 @@ function updateKooiman(s, dt, plats, cliff){
     kooiAnim(s, dt);
   }
   if (dead || gap > KOOI_SEE) return;                 // te ver of je bent dood: hij sleept ter plekke (geen geluid, geen beweging)
+  s.grrT -= dt;                                       // af en toe grommen tijdens het slepen (in beeld, ook geblokkeerd)
+  if (s.grrT <= 0){ kooiGrom(s.x); s.grrT = kooiGromInterval(); }
   if (kooiKanSlaan(s, gap, plats)){                   // point-blank meteen de snelle slag, verder de trage klap
     s.snel = gap <= KOOI_SNEL_REACH * kooiScale();
     kooiSet(s, 'smash');
