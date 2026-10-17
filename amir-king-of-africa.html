@@ -3473,9 +3473,9 @@ const TEST_37 = {
   lagen: 'vlakte',
   rocks: [ {x: -2700, s: 1.0} ],                           // een kei als schuilplek (regel 7)
   spawns: [ {x: -60000, k: 'groen'},                       // heel ver weg: houdt de vrije modus uit
-            {x: -1500, k: 'kooiman', vogel: true},         // de eerste, op de open vlakte: laat een vogel los
-            {x: -3300, k: 'kooiman'},                      // de tweede, achter de kei
-            {x: -5000, k: 'kooiman'}, {x: -5500, k: 'kooiman'} ],   // twee aan de overkant van het ravijn
+            {x: -1500, k: 'kooiman', vogel: true},         // de eerste, op de open vlakte
+            {x: -3300, k: 'kooiman', vogel: true},         // de tweede, achter de kei
+            {x: -5000, k: 'kooiman', vogel: true}, {x: -5500, k: 'kooiman', vogel: true} ],   // twee aan de overkant van het ravijn, allemaal met een vogel
   props: [ {x: -200, k: 'gras', s: 1.1, f: 0, v: 0}, {x: -620, k: 'struik', s: 1.0, f: 1, v: 0},
            {x: -1100, k: 'gras', s: 1.2, f: 0, v: 0}, {x: -2100, k: 'gras', s: 1.1, f: 1, v: 0},
            {x: -3700, k: 'gras', s: 1.1, f: 0, v: 0}, {x: -4800, k: 'struik', s: 1.0, f: 0, v: 0},
@@ -21405,6 +21405,10 @@ const KOOI_SMASH_REACH = 400;   // van zo dicht bij (canvaspixels vooruit) zet h
 // want dat pakt controle af net als je een vogel ontwijkt (zie notities/kooiman-baas.md)
 const KOOI_SMASH_SHAKE = 0.34;  // de schermschok op de klap
 const KOOI_SMASH_STOP  = 0.06;  // de hitstop op de klap (seconden), bevriest alles even
+// de kooi zwiept hoog door de lucht tijdens de slag: spring je er midden in de slag overheen, dan
+// raakt de kooi je toch en zet je terug (hurtPlayer). Alleen als je echt in de lucht bent (ph >
+// lucht), zodat een speler op de grond ernaast niet geraakt wordt; de grond-klap doet de rest.
+const KOOI_SWING = { van: 12, lucht: 30, voor: 260, hoog: 600, laag: 150 };
 const KOOI_VOET_VOOR = 110;     // zijn voorste voet: daarmee stopt hij voor een kei (regel 7), niet met zijn anker
 const KOOI_SCHEID    = 380;     // zachte scheiding: zo dicht mogen twee kooimannen bij elkaar (canvaspixels)
 
@@ -21455,6 +21459,15 @@ function kooiMove(s, stap, plats, cliff){
   if (knockBlocked(s, nx, plats, cliff, halfL, 80)) return false;
   if (kooiTegenKei(s, nx, plats, KOOI_VOET_VOOR * kooiScale())) return false;
   s.x = nx;
+  return true;
+}
+// kan hij een piepklein stapje vooruit (richting Amir), of houdt een kei of ravijn hem tegen? niet-
+// muterend, puur om de sleepanimatie te sturen als hij geblokkeerd staat (dan blijft hij trekken)
+function kooiVooruitVrij(s, naarJe, plats, cliff){
+  const nx = s.x + naarJe * 2;
+  const halfL = KOOI_LIJF.half * kooiScale();
+  if (knockBlocked(s, nx, plats, cliff, halfL, 80)) return false;
+  if (kooiTegenKei(s, nx, plats, KOOI_VOET_VOOR * kooiScale())) return false;
   return true;
 }
 // Hij haalt niet uit naar een Amir op een duidelijk ander niveau (een terras, de gang): daar komt
@@ -21611,14 +21624,25 @@ function updateKooiman(s, dt, plats, cliff){
   // drag: slepen is zijn rust en zijn gang
   s.face = naarJe;                                    // buiten de smash draait hij altijd naar je toe
   const f0 = s.frame;
-  kooiAnim(s, dt);
+  // staat hij door een kei of ravijn vast terwijl Amir erachter is, dan blijft hij zichtbaar trekken:
+  // de sleep-lus houdt zich in de trek-frames (het stap-venster) in plaats van weg te zakken in de
+  // rust-poses van de heave, want een geblokkeerde kooiman die rust leest als idle
+  const geblok = gap <= KOOI_SEE && !kooiVooruitVrij(s, naarJe, plats, cliff);
+  if (geblok){
+    s.acc += dt * (KOOI_FPS.drag || KOOI.fps);
+    let g = 0;
+    while (g++ < 300 && s.acc >= 1){ s.acc -= 1; s.frame = (s.frame < KOOI_STAP_VAN || s.frame >= KOOI_STAP_TOT) ? KOOI_STAP_VAN : s.frame + 1; }
+  } else {
+    kooiAnim(s, dt);
+  }
   if (dead || gap > KOOI_SEE) return;                 // te ver of je bent dood: hij sleept ter plekke (geen geluid, geen beweging)
   if (kooiKanSlaan(s, gap, plats)){ kooiSet(s, 'smash'); return; }
   s.beweegt = true;                                   // binnen zicht is hij aan het slepen: het sleepgeluid loopt, ook tussen de heaves
   // hij schuift alleen vooruit terwijl zijn benen echt stappen (het stap-venster); daarbuiten staat
   // hij stil, zodat hij niet meer vooruit glijdt terwijl zijn benen stilstaan. De snelheid in het
-  // venster is daarom hoger, zodat de gemiddelde gang KOOI_RUN_SPD blijft.
-  if (s.frame >= KOOI_STAP_VAN && s.frame <= KOOI_STAP_TOT){
+  // venster is daarom hoger, zodat de gemiddelde gang KOOI_RUN_SPD blijft. Geblokkeerd beweegt hij
+  // niet vooruit (hij trekt alleen), dus dan slaan we het stappen over.
+  if (!geblok && s.frame >= KOOI_STAP_VAN && s.frame <= KOOI_STAP_TOT){
     const bewoog = kooiMove(s, naarJe * KOOI_RUN_SPD * (KOOI.n.drag / KOOI_STAP_FRAMES) * dt, plats, cliff);
     if (bewoog && kooiSchraap(f0, s.frame))           // de kooi schraapt: een kleine pluk stof erachter
       puffWorld(s.x - s.face * KOOI_CAGE_ACHTER * kooiScale(), 2, 0, 0.5, s.base || 0);
@@ -26092,6 +26116,16 @@ function loop(now){
         // zijn lijf: hier raak je hem, maar alleen als hij openligt (herstel)
         const lhalf = KOOI_LIJF.half * kS;
         const nbox = { l: bodyX - lhalf, r: bodyX + lhalf, t: voeten - KOOI_LIJF.hoog * kS, b: voeten };
+        // de kooi hoog in de swing: spring je er tijdens de slag overheen, dan raakt hij je toch (alleen
+        // in de lucht, zodat een speler op de grond ernaast vrij blijft; de grond-klap doet de rest)
+        if (s.state === 'smash' && s.frame >= KOOI_SWING.van && s.frame < KOOI.impact && !s.hitUsed && ph > KOOI_SWING.lucht){
+          const back = bodyX - s.face * lhalf * 1.1, front = bodyX + s.face * KOOI_SWING.voor * kS;
+          const hbox = { l: Math.min(back, front), r: Math.max(back, front),
+                         t: voeten - KOOI_SWING.hoog * kS, b: voeten - KOOI_SWING.laag * kS };
+          if (invuln <= 0 && !dead && hitBy(hbox, pbox)){ s.hitUsed = true; hurtPlayer(s.x < playerX()); }
+          if (showBoxes){ ctx.save(); ctx.globalAlpha = 0.5; ctx.lineWidth = 2; ctx.strokeStyle = '#ffb347';
+                          ctx.strokeRect(hbox.l, hbox.t, hbox.r - hbox.l, hbox.b - hbox.t); ctx.restore(); }
+        }
         // de smash: de kooi slaat de grond voor hem, alleen in de raakframes rond de klap
         if (s.state === 'smash' && s.frame >= KOOI.impact && s.frame <= KOOI.impact + 1 && !s.hitUsed){
           const a1 = bodyX + s.face * KOOI_SMASH.near * kS, a2 = bodyX + s.face * KOOI_SMASH.far * kS;
