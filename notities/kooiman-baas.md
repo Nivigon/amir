@@ -85,11 +85,12 @@ Een geensceneerd een-op-een duel, los van de gewone sleep-kooiman. Opt-in met `d
 of de knop **Duel** onder Vijanden, Kooiman in de sandbox. De getallen staan in `KOOI_DUEL` (laptop-waarden,
 bedoeld om in het spelen bij te stellen). Het idee: een leesbaar ritme-duel, geen beuken.
 
-- **Intro.** Zodra hij volledig in beeld komt stampt hij op de grond (de stamp-plus-vogel-keten `stomp`,
-  `hatch`, `stomp_out`): op de klap bevriest het hele spel (`kooiVries`), het luikje gaat open, de vogel schiet
-  eruit, het luikje slaat dicht, unfreeze, een korte uitloop en dan terug naar slepen. Daarna begint het gevecht.
-  Die intro is apart gebouwd (zie `enemies/kooiman/LEESMIJ.md`, de stamp-sectie); het gevecht hieronder start op
-  het overdrachtspunt: na `stomp_out` staat hij in `drag` met `vogelGedaan`, en de slag-cadans begint.
+- **Intro.** Zodra hij volledig in beeld komt bevriest meteen het hele spel (`kooiVries`, ook Amir), en loopt de
+  hele stamp-plus-vogel-keten tijdens die freeze (`kooiVriesStap`, de states `stomp`, `hatch`, `stomp_out`): hij
+  heft zijn knie en stampt, op de klap stof en geluid, het luikje gaat open, de vogel schiet eruit, het luikje
+  slaat dicht, unfreeze, een korte uitloop en dan terug naar slepen. Zo kan Amir er tijdens de telegraaf niet
+  naartoe rennen (vroeger liep de stamp unfrozen en stond je al bij hem voor de freeze begon). Daarna begint het
+  gevecht; na `stomp_out` staat hij in `drag` met `vogelGedaan`, en de slag-cadans begint.
 - **Afstand houden.** Hij blijft op een scherm-relatieve standoff (`KOOI_DUEL.afstand` maal de zichtbare halve
   breedte), zodat je hem altijd ziet slepen. Loop je weg, dan sleept hij je achterna tot hij zijn afstand terug
   heeft (`volg`). Nader je, dan laat hij je komen en wijkt hij niet terug. Zo kun je kiezen: op afstand blijven
@@ -100,9 +101,13 @@ bedoeld om in het spelen bij te stellen). Het idee: een leesbaar ritme-duel, gee
   (`schok`, een knock op de speler, binnen `schokVer`), los van schade. Dat is de spacing: ren je op hem af,
   dan word je per slag teruggezet. Op het idee van de melee-gauntlet: ren, slag zet je terug, ren (netto
   dichterbij), slag zet je terug, en zo haal je hem in een paar golven. Afstellen op ongeveer drie met `schok`.
-- **Kwetsbaar na zijn eerste slag.** Pas na zijn eerste slag komt hij in zijn herstel (`recovery`), en daar ligt
-  hij open voor een worp of een klap. Een rake treffer is dodelijk (`hp` 1). Gooi je voor die eerste slag, dan
-  versnelt hij zijn slag (de `snel`-boost) en ramt hij je speer de grond in (de speer valt bij hem, op te halen).
+- **Kwetsbaar na zijn eerste slag.** Na zijn eerste slag ligt hij blijvend open voor een worp of een klap
+  (`kooiRaakbaar`: `slagen >= 1`), behalve tijdens een slag zelf, want dan is de kooi zijn pantser. Een rake
+  treffer is dodelijk (`hp` 1). Dat de kwetsbaarheid blijft (en niet alleen het krappe herstelraam is) was nodig:
+  een worp vanaf de standoff-afstand kwam anders net na het herstel aan en kaatste af. De echte uitdaging blijft
+  de vogel ontwijken terwijl je gooit. Gooi je voor die eerste slag, dan versnelt hij zijn slag (de `snel`-boost)
+  en ramt hij je speer de grond in (de speer valt bij hem, op te halen); die geforceerde slag telt als zijn
+  eerste, dus daarna ligt hij open.
 - **De vogel komt steeds terug.** Na elke vogel komt er na `vogelPauze` een nieuwe. Die overlapt het slag-ritme
   en maakt zowel het worp-raam als het naderen lastig. Het mooiste raam is: hij ligt open EN er duikt net geen
   vogel; time je het en beweeg je weg, dan gooi je de kill en ontwijk je de duik in dezelfde beweging.

@@ -895,7 +895,7 @@
         <button id="sbkooivogel">Vogel uit</button>
         <button id="sbkooiduel">Duel uit</button>
         <button id="sbkooistamp">Stamp + vogel</button>
-        <span class="hint">een gebukte man die een zware kooi meesleept: traag op je af, en binnen bereik ramt hij de kooi neer op de grond voor hem (lange telegraaf, dan de klap). Gepantserd tijdens slepen en smash (je speer ketst af); alleen in het herstel na de klap ligt hij open. Vier rake klappen dan. Vogel aan: zodra hij volledig in beeld staat schiet er een vogel uit de kooi die boven je patrouilleert, even stilhangt en dan op je af duikt (puur ontwijken). Duel aan: de geensceneerde variant (een rake treffer is dodelijk). Hij opent met een stamp: op de klap bevriest het spel, het luikje van de kooi klapt open en de vogel vliegt eruit; daarna houdt hij afstand (altijd in beeld), volgt alleen als je wegloopt, en slaat op een vaste cadans. Elke slag stuurt een trilling die je terugzet. Na zijn eerste slag ligt hij in zijn herstel open voor een worp of klap; gooi je eerder, dan versnelt hij zijn slag en ramt je speer de grond in. De vogel komt steeds terug</span>
+        <span class="hint">een gebukte man die een zware kooi meesleept: traag op je af, en binnen bereik ramt hij de kooi neer op de grond voor hem (lange telegraaf, dan de klap). Gepantserd tijdens slepen en smash (je speer ketst af); alleen in het herstel na de klap ligt hij open. Vier rake klappen dan. Vogel aan: zodra hij volledig in beeld staat schiet er een vogel uit de kooi die boven je patrouilleert, even stilhangt en dan op je af duikt (puur ontwijken). Duel aan: de geensceneerde variant (een rake treffer is dodelijk). Hij opent met een stamp: zodra hij volledig in beeld is bevriest meteen alles (ook Amir) en loopt de hele stamp tijdens die freeze, het luikje van de kooi klapt open en de vogel vliegt eruit; daarna houdt hij afstand (altijd in beeld), volgt alleen als je wegloopt, en slaat op een vaste cadans. Elke slag stuurt een trilling die je terugzet. Na zijn eerste slag ligt hij open voor een worp of klap (alleen tijdens een slag zelf ketst hij af); gooi je eerder, dan versnelt hij zijn slag en ramt je speer de grond in. De vogel komt steeds terug</span>
       </div>
       <div class="row">
         <label>Grootte</label>
@@ -3518,7 +3518,7 @@ const TEST_38 = {
   ends: [ {x: -3800} ],
   tips: [ { x: -120, t: 'Testlevel: de kooiman als duel. Pak eerst je speer op' },
           { x: -700, t: 'Verderop staat een kooiman met een kooi op zijn rug. Zodra hij volledig in beeld komt, stampt hij op de grond: het hele beeld bevriest, de kooi klapt open en er schiet een vogel uit. Dan begint het' },
-          { x: -1400, t: 'Hij komt niet op je af, hij houdt afstand en ramt de kooi op de grond. De trilling zet je telkens een stuk terug. Na zijn eerste slag ligt hij heel even open: gooi dan je speer, en duik meteen weg voor de vogel. Eén rake treffer is genoeg' },
+          { x: -1400, t: 'Hij komt niet op je af, hij houdt afstand en ramt de kooi op de grond. De trilling zet je telkens een stuk terug. Na zijn eerste slag ligt hij open: gooi dan je speer (alleen tijdens een slag zelf ketst hij af), en duik meteen weg voor de vogel. Eén rake treffer is genoeg' },
           { x: -1800, t: 'Gooi je te vroeg (voor zijn eerste slag), dan slaat hij je speer de grond in: raap hem weer op. Of kom in golven dichterbij, tussen zijn slagen door, en steek hem van dichtbij' } ]
 };
 const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31, TEST_32, TEST_33, TEST_34, TEST_35, TEST_36, TEST_37, TEST_38];
@@ -21650,6 +21650,7 @@ function updateKooimannen(dt, plats, cliff){
   scheidMobs(kooimannen, KOOI_SCHEID * kooiScale(), kooiMove, dt, plats, cliff);
 }
 function updateKooiman(s, dt, plats, cliff){
+  if (kooiVries > 0 && s === kooiVriesS) return;     // de stampende kooiman loopt tijdens de freeze via kooiVriesStap
   if (ravijnValt(s, dt, 'weg')) return;              // in het open ravijn gevallen
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
   if (s.inv > 0) s.inv = Math.max(0, s.inv - dt);
@@ -21683,9 +21684,14 @@ function updateKooiman(s, dt, plats, cliff){
   // frame 0, want stomp_00 sluit daar exact op aan. Een niet-duel vogel-kooiman houdt de simpele release.
   if (s.vogel && !s.vogelGedaan && !dead && kooiVolledigInBeeld(s)){
     if (s.duel){
+      // de duel-intro: zodra hij volledig in beeld is bevriest meteen alles (ook Amir), en loopt de hele
+      // stamp-keten tijdens die freeze (kooiVriesStap). Zo kan Amir er tijdens de telegraaf niet naartoe
+      // rennen; vroeger wachtte hij eerst op drag-frame 0 en liep de stamp bovendien unfrozen, en dan stond
+      // je al bij hem voor de freeze begon.
       if (!kooiVries && s.state === 'drag'){
-        if (s.frame === 0) kooiSet(s, 'stomp');        // al op frame 0: meteen stampen
-        else s.wilStamp = true;                        // anders start de drag-tak hieronder hem op frame 0
+        kooiSet(s, 'stomp');
+        kooiVries = KOOI_HATCH_CAP; kooiVriesS = s;
+        return;
       }
     } else if (s.state !== 'release') kooiSet(s, 'release');
   }
@@ -21696,22 +21702,12 @@ function updateKooiman(s, dt, plats, cliff){
     return;
   }
 
-  // de stamp: de telegraaf, en op de laatste frame (de voet op de grond) de klap. Dan bevriest de wereld
-  // en begint de hatch; de freeze zelf loopt in de hoofdlus (kooiVries, net als deurFreeze).
+  // de stamp: de telegraaf, en op de laatste frame (de voet op de grond) de klap (kooiStampKlap). Deze tak
+  // loopt alleen nog voor de sandbox-stampknop (die bevriest niet vooraf); in het duel loopt de stamp tijdens
+  // de freeze via kooiVriesStap, en dan is deze kooiman hier al overgeslagen (de guard bovenin).
   if (s.state === 'stomp'){
     kooiAnim(s, dt);
-    if (!s.impactDone && s.frame >= KOOI_STOMP_IMPACT){
-      s.impactDone = true;
-      const vloer = s.base || 0, zS = kooiScale();
-      steenStof(s.x - 70 * zS, s.x + 70 * zS, vloer, 1.3, vloer + 60);   // de stofwolk onder de stampende voet
-      puffWorld(s.x, 9, 0, 1.0, vloer);
-      kooiGrondGeluid(s.x);                            // de kooislag (hetzelfde als bij de smash)
-      shake = Math.max(shake, KOOI_STAMP_SHAKE);
-      s.vogelGespawnd = false; s.deurDicht = false;
-      kooiSet(s, 'hatch');                             // het luikje gaat open...
-      kooiVries = KOOI_HATCH_CAP; kooiVriesS = s;       // ...en de wereld bevriest (de hatch loopt in de lus)
-      kooiDeurGeluid();                                // het luikje klapt open
-    }
+    if (!s.impactDone && s.frame >= KOOI_STOMP_IMPACT) kooiStampKlap(s);
     return;
   }
   // de hatch loopt tijdens de freeze (zie de lus); hier alleen het doorschakelen als de freeze klaar is
@@ -21778,12 +21774,10 @@ function updateKooiman(s, dt, plats, cliff){
     s.lastPX = playerX();
     const wegVan = Math.sign(dPX) === naarJe && Math.abs(dPX) > 0.3;   // Amir beweegt van hem af
     if (!s.vogelGedaan){
-      // nog in de intro: hij staat op zijn plek en sleept ter plekke (de hele lus, dus frame bereikt 0),
-      // tot hij volledig in beeld is en stampt. Niet volgen: anders blijft de frame in het stap-venster
-      // hangen en wordt frame 0 nooit geraakt, en komt er geen stamp en geen vogel.
+      // nog in de intro: hij sleept ter plekke tot hij volledig in beeld is. Dan bevriest de trigger hierboven
+      // meteen alles en loopt de stamp tijdens de freeze. Niet volgen: hij wacht gewoon tot je hem ziet.
       kooiAnim(s, dt);
       s.grrT -= dt; if (s.grrT <= 0){ kooiGrom(s.x); s.grrT = kooiGromInterval(); }
-      if (s.wilStamp && !kooiVries && s.frame === 0){ s.wilStamp = false; kooiSet(s, 'stomp'); }
       return;
     }
     // na de intro: hij komt niet op je af. Nader je of sta je stil, dan blijft hij staan. Loop je van hem
@@ -21837,6 +21831,36 @@ function updateKooiman(s, dt, plats, cliff){
       puffWorld(s.x - s.face * KOOI_CAGE_ACHTER * kooiScale(), 2, 0, 0.5, s.base || 0);
   }
 }
+// de klap van de stamp: stof onder de voet, het kooislag-geluid, de schermschok, en het luikje gaat open.
+// Wordt vanuit twee plekken aangeroepen: de duel-stamp loopt al bevroren (kooiVriesStap), de sandbox-knop
+// stampt onbevroren en laat de wereld hier pas bevriezen.
+function kooiStampKlap(s){
+  s.impactDone = true;
+  const vloer = s.base || 0, zS = kooiScale();
+  steenStof(s.x - 70 * zS, s.x + 70 * zS, vloer, 1.3, vloer + 60);   // de stofwolk onder de stampende voet
+  puffWorld(s.x, 9, 0, 1.0, vloer);
+  kooiGrondGeluid(s.x);                                // de kooislag (hetzelfde als bij de smash)
+  shake = Math.max(shake, KOOI_STAMP_SHAKE);
+  s.vogelGespawnd = false; s.deurDicht = false;
+  kooiSet(s, 'hatch');                                 // het luikje gaat open...
+  if (!kooiVries){ kooiVries = KOOI_HATCH_CAP; kooiVriesS = s; }   // ...en de wereld bevriest als dat nog niet zo was
+  kooiDeurGeluid();                                    // het luikje klapt open
+}
+// de hele stamp-keten loopt tijdens de freeze op echte tijd (de wereld staat stil): eerst de stamp zelf met
+// de klap, dan de hatch met het luikje en de vogel. Zo bevriest alles al zodra hij besluit te stampen.
+function kooiVriesStap(rdt){
+  const s = kooiVriesS;
+  if (!s){ kooiVries = 0; return; }
+  if (s.state === 'stomp'){
+    kooiAnim(s, rdt);
+    if (!s.impactDone && s.frame >= KOOI_STOMP_IMPACT) kooiStampKlap(s);
+  } else if (s.state === 'hatch'){
+    kooiAnim(s, rdt);
+    kooiHatchStap(s);                                  // vogel los op frame 9, luikje dicht op frame 10
+    vogelVriesStap(rdt);                               // de vogel stijgt op (nog zonder AI)
+    if (s.klaar) kooiVriesEinde();                     // unfreeze: naar stomp_out, de vogel-AI mag beginnen
+  } else kooiVriesEinde();                             // vangnet: geen geldige staat meer
+}
 // tijdens de stamp-freeze loopt de hatch van de stampende kooiman door op echte tijd (zie de hoofdlus):
 // op frame 9 staat het luikje open en schiet de vogel eruit, op frame 10 slaat het luikje weer dicht
 function kooiHatchStap(s){
@@ -21860,8 +21884,17 @@ function kooiFrameImg(s){
   if (!set) return null;
   return set[Math.min(frame, set.length - 1)];
 }
+// wanneer is hij te raken? Het gewone herstelvenster na de smash (kooiOpen, ook de niet-duel kooiman). In het
+// duel ligt hij na zijn eerste slag blijvend open (voor een worp of een klap), behalve tijdens een slag zelf:
+// dan is de kooi zijn pantser. Zo kaatst een worp na de eerste slag niet meer af omdat het krappe herstelraam
+// net voorbij was voor de speer aankwam; de echte uitdaging blijft de vogel ontwijken terwijl je gooit.
+function kooiRaakbaar(s){
+  if (s.inv > 0 || s.state === 'dood') return false;
+  if (kooiOpen(s)) return true;
+  return s.duel && s.slagen >= 1 && s.state !== 'smash';
+}
 function hitKooiman(s){
-  if (s.inv > 0 || s.state === 'dood' || !kooiOpen(s)) return false;
+  if (!kooiRaakbaar(s)) return false;
   s.hp--;
   hits++; hitsEl.textContent = hits;
   s.knock = (s.x < playerX() ? -1 : 1) * KOOI_KNOCK;   // altijd bij jou vandaan
@@ -24827,14 +24860,8 @@ function loop(now){
     dt = 0;
     if (running && !paused && !won){
       if (shake > 0) shake = Math.max(0, shake - realDt);   // de stamp rommelt na
-      const s = kooiVriesS;
-      if (s && s.state === 'hatch'){
-        kooiAnim(s, realDt);
-        kooiHatchStap(s);                                   // vogel los op frame 9, luikje dicht op frame 10
-        vogelVriesStap(realDt);                             // de vogel stijgt op (nog zonder AI)
-        if (s.klaar) kooiVriesEinde();                      // unfreeze: naar stomp_out, de vogel-AI mag beginnen
-        else kooiVries = Math.max(realDt, kooiVries - realDt);
-      } else kooiVriesEinde();                              // vangnet: geen geldige hatcher meer
+      kooiVriesStap(realDt);                                // de stamp en de hatch lopen door op echte tijd
+      if (kooiVries > 0) kooiVries = Math.max(realDt, kooiVries - realDt);   // vangnet-cap (de hatch beslist echt)
     }
   }
   const left = keys['ArrowLeft'] || keys['a'] || keys['A'];
@@ -26335,6 +26362,7 @@ function loop(now){
         const kBase = (s.base || 0) * scale;
         const voeten = groundY - kBase;                 // hier ligt de grondlijn van zijn canvas
         const open = kooiOpen(s);
+        const raak = kooiRaakbaar(s);                    // raakbaar: het herstelraam, of in het duel blijvend na zijn eerste slag
         // schaduw op de grond, zijn eigen breedte (schaalt mee), vervaagt bij de dood
         ctx.save();
         ctx.fillStyle = '#1d140f';
@@ -26387,7 +26415,7 @@ function loop(now){
         }
         if (showBoxes){
           ctx.save(); ctx.globalAlpha = 0.5; ctx.lineWidth = 2;
-          ctx.strokeStyle = open ? '#7fd4ff' : '#888';   // grijs = gepantserd, blauw = openligt
+          ctx.strokeStyle = raak ? '#7fd4ff' : '#888';   // grijs = gepantserd, blauw = raakbaar
           ctx.strokeRect(nbox.l, nbox.t, nbox.r - nbox.l, nbox.b - nbox.t); ctx.restore();
         }
         if (s.inv > 0) continue;                        // net geraakt: even met rust laten
@@ -26397,15 +26425,15 @@ function loop(now){
           const tipX = pcx + (facing === 1 ? -dxv : dxv);
           const tipY = y + steekY() * scale;
           const reach = steekR() * scale;
-          if (tipX + reach > nbox.l && tipX - reach < nbox.r && tipY + reach > nbox.t && tipY - reach < nbox.b && open){
+          if (tipX + reach > nbox.l && tipX - reach < nbox.r && tipY + reach > nbox.t && tipY - reach < nbox.b && raak){
             if (atkMes){ if (mesAfweer(s, 'kooiman')) swingUsed = true; continue; }
             swingUsed = true; hitKooiman(s); continue;
           }
         }
-        // de geworpen speer: openligt = treffer, anders ketst hij af en valt op de grond (geen softlock)
+        // de geworpen speer: raakbaar = treffer, anders ketst hij af en valt op de grond (geen softlock)
         if (javRaakt(nbox)){
           javHitEnemy();
-          if (open) hitKooiman(s);
+          if (raak) hitKooiman(s);
           else {
             puffWorld(bodyX + s.face * 40 * kS, 4, 0, 0.6, s.base || 0);       // klank tegen de kooi
             // duel: gooi je voor zijn eerste slag, dan versnelt hij zijn slag en ramt je speer de grond in
@@ -26414,8 +26442,8 @@ function loop(now){
           }
           continue;
         }
-        // lage zwaai: één keer per zwaai, alleen als hij openligt
-        if (open && s.sweptId !== sweepId && hitBy(zwaaiVak(swbox, 'kooiman'), nbox)){ s.sweptId = sweepId; hitKooiman(s); }
+        // lage zwaai: één keer per zwaai, alleen als hij raakbaar is
+        if (raak && s.sweptId !== sweepId && hitBy(zwaaiVak(swbox, 'kooiman'), nbox)){ s.sweptId = sweepId; hitKooiman(s); }
       }
     }
 
@@ -29247,7 +29275,7 @@ document.getElementById('sbkooistamp').onclick = () => {
   sbKooiVrij = false; sbKooiLabel();                   // de AI aan, zodat de keten vanzelf doorschakelt
   if (!kooimannen.length) sbSpawn('kooiman');
   for (const s of kooimannen){
-    s.vrij = false; s.vogelGedaan = false; s.wilStamp = false;
+    s.vrij = false; s.vogelGedaan = false;
     if (!kooiVries) kooiSet(s, 'stomp');               // de eerste de beste stampt (één freeze tegelijk)
     break;
   }
