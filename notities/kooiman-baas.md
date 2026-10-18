@@ -83,53 +83,46 @@ kooi-boog), dan is de gewone terugstoot van `hurtPlayer` terecht.
 
 Een geensceneerd een-op-een duel, los van de gewone sleep-kooiman. Opt-in met `duel: true` in een spawn,
 of de knop **Duel** onder Vijanden, Kooiman in de sandbox. De getallen staan in `KOOI_DUEL` (laptop-waarden,
-bedoeld om in het spelen bij te stellen). Het idee: een leesbaar ritme-duel, geen beuken.
+in het spelen bij te stellen, zie **Live afstellen**). Het idee: een leesbare bait-en-punish, geen ritme-maatwerk.
+Bewust simpel gehouden zodat hij combineert met andere mobs en hindernissen; de rijke zoner-set hierboven is
+voor de eindbaas-arena, niet voor deze mob.
 
-- **Intro.** Zodra hij volledig in beeld komt bevriest meteen het hele spel (`kooiVries`, ook Amir), en loopt de
-  hele stamp-plus-vogel-keten tijdens die freeze (`kooiVriesStap`, de states `stomp`, `hatch`, `stomp_out`): hij
-  heft zijn knie en stampt, op de klap stof en geluid, het luikje gaat open, de vogel schiet eruit, het luikje
-  slaat dicht, unfreeze, een korte uitloop en dan terug naar slepen. Zo kan Amir er tijdens de telegraaf niet
-  naartoe rennen (vroeger liep de stamp unfrozen en stond je al bij hem voor de freeze begon). Daarna begint het
-  gevecht; na `stomp_out` staat hij in `drag` met `vogelGedaan`, en de slag-cadans begint.
-- **Afstand houden.** Hij blijft op een scherm-relatieve standoff (`KOOI_DUEL.afstand` maal de zichtbare halve
-  breedte), zodat je hem altijd ziet slepen. Loop je weg, dan sleept hij je achterna tot hij zijn afstand terug
-  heeft (`volg`). Nader je, dan laat hij je komen en wijkt hij niet terug. Zo kun je kiezen: op afstand blijven
-  en gooien, of naar binnen voor een melee.
-- **Vaste slag-cadans.** Hij slaat op een tijd-drumbeat (`eersteNa` voor de eerste, daarna `cadans`), los van
-  afstand. Afstand bepaalt alleen of zijn klap-zone je bereikt.
-- **De trilling zet je terug, in de lucht net zo goed als op de grond.** Elke keer dat de kooi de grond raakt
-  stuurt de trilling je een stuk terug (`schok`, een knock op de speler, binnen `schokVer`), of je nu springt of
-  loopt (een schokgolf ren je niet door). Die knock dooft trager uit dan een gewone klap (`knockTraag`, factor
-  0,95 in plaats van 0,86), zodat "hoe ver" echt met `schok` meeschaalt: zet je hem hoog genoeg, dan haalt een
-  mindless rush de rust niet meer, want hij wordt te ver teruggezet om op tijd terug te komen.
-- **Een ritme van twee slagen, met twee aparte vensters.** Hij slaat in paren: `eersteNa`, dan snel de tweede
-  (`paar`), dan een langere `rust`, dan weer twee. De aanloop loopt sneller (`slagTempo`, de eerste twee
-  `slagTempo1`).
-  - Met een **worp** raak je hem alleen in het raam TUSSEN een oneven en de volgende slag (`kooiRaakbaar`:
-    `slagen % 2 === 1`), dus tussen zijn eerste en tweede (en tussen de derde en vierde, enz.). Gooi je erbuiten
-    OF midden in zijn slag, dan herlaadt hij een verse, snelle slag en ramt hij je speer de grond in (de worp-tak:
-    `if (s.duel){ kooiSet smash; s.snel }`, altijd, ook tijdens een slag); de speer valt bij hem, op te halen. En
-    de schok gooit je uit evenwicht: komt er een slag-schok op je terwijl je nog opspant, dan vervalt de worp
-    (`thrCancel` in de smash-impact). Zo kun je niet door zijn slag heen pre-aimen. Een rake treffer is dodelijk
-    (`hp` 1).
-  - Van **dichtbij** (stoot, lage zwaai) alleen in de rust NA een heel paar (`kooiMeleeRaak`: `slagen >= 2 &&
-    slagen % 2 === 0`), niet in het korte herstel tussen de eerste en de tweede slag. Geen harde "gepantserd"-regel
-    meer: dat je er rennend niet komt, komt uit de mechaniek. De schok zet je terug, en vanaf de tweede slag is de
-    klap van dichtbij ook dodelijk (`KOOI_DUEL.schade`, een half leven; de eerste slag zet alleen terug zodat je
-    niet goedkoop sterft in de intro). Ren je blind op hem af, dan sta je bij een slag te dichtbij en word je
-    geraakt; alleen vanuit een afstand getimed in de rust haal je het.
-- **De vogel is eenmalig.** Hij komt uit de intro, duikt een keer net na je eerste worp-raam (`KOOI_DUEL.vogelDuik`
-  seconden patrouille voor hij duikt), en is daarna dood: geen nieuwe vogel. Zo is de eerste worp-kans de
-  spannende (vogel erbij), en daarna niet meer. (`spawnVogel` alleen nog vanuit de hatch van de intro.)
+- **Intro.** Zodra hij volledig in beeld komt bevriest het beeld, maar alleen Amir en de andere vijanden
+  (`kooiVries`, `kooiVriesStap`, de states `stomp`, `hatch`, `stomp_out`); de stamp zelf loopt door, met zijn
+  stofwolk en de omhoog schietende steentjes. Hij heft zijn knie en stampt, de kooi klapt open, de vogel schiet
+  eruit, unfreeze, een korte uitloop en dan `drag` met `vogelGedaan`. Zo kan Amir er tijdens de telegraaf niet
+  naartoe rennen.
+- **Eén afstand-ram (de opener).** Na de intro houdt hij een scherm-relatieve standoff (`KOOI_DUEL.afstand`) en
+  slaat hij na `eersteNa` eenmalig de kooi op de grond. De klap zet Amir terug (`schok`, binnen `schokVer`, dooft
+  gewoon uit zoals een gewone klap, zodat hij zelf in beeld blijft) en kost een heel leven als je in de klap-zone
+  staat (`schade`, net als de grond-hit). Een worp die je al opspant breekt af door de schok (`thrCancel`), dus je
+  kunt pas na het terugzetten een verse worp inzetten (niet tijdens zijn animatie voor-mikken).
+- **Daarna de nadering, en pareren.** Vanaf `s.slagen >= 1` komt hij op je af (`volg`) en slaat hij reactief zodra
+  je binnen `slagBereik` komt (ruimer dan je steek, dus naar binnen rennen en steken lukt niet: je vangt eerst zijn
+  slag). Buiten zijn herstel pareert hij alles, worp en melee (`kooiPareer`, een flits en terugstoot, tijdelijk
+  zoals de bandiet; later een korte animatie waarin hij de kooi omhoog houdt). Hij ligt alleen open in zijn
+  **herstel** (`kooiRaakbaar`/`kooiMeleeRaak`: `state === 'recovery'`).
+- **De weg om hem te slopen: bait, stapterug, punish.** Lok zijn slag uit, stap terug zodat hij misslaat, en raak
+  hem in zijn herstel, een worp of een steek, een rake treffer is dodelijk (`hp` 1). Naar de overkant glippen
+  helpt niet: hij draait altijd naar je toe en op gelijke hoogte slaat hij versneld terug als je er vlak langs
+  wil (`s.snel` als je binnen een lijf-breedte komt). Op een hogere laag (terras, zwevende laag) telt de slag niet
+  (`kooiZelfdeHoogte`) en loop je er gewoon overheen.
+- **De geparede worp ketst terug naar Amir.** `kooiSpeerKaats` laat hem `speerKaats` px voor Amir vallen, altijd
+  aan Amirs kant van de kooiman (nooit erachter, geen softlock). Snel oppakken wel: loopt de kooiman er eerst bij,
+  dan kost het je een hit.
+- **De vogel is eenmalig, een half leven.** Hij komt uit de intro, duikt een keer (`KOOI_DUEL.vogelDuik` seconden
+  patrouille, zo gezet dat hij op je eerste nadering valt) en is daarna dood. Zo is de eerste poging de spannende.
+  (`spawnVogel` alleen nog vanuit de hatch van de intro; de duik doet een half leven, `v.duel`.)
 
 **Live afstellen.** In de pauze onder Instellingen staat **Kooiman-duel: afstelling** (`pzkooibtn`, `KOOI_SCHUIF`):
 schuifjes die `KOOI_DUEL` meteen aanpassen, ook bij een herstart, bewaard in de browser (`KOOI_DUEL_KEY`). Zo zoek
-je de balans in het spelen (afstand, knockback en bereik, de slag-tempo's, de rust en het paar, de schade van een
-rake slag, en wanneer de vogel duikt). Ben je tevreden, neem de getallen dan over in `KOOI_DUEL`. De knop staat er
-alleen in een level (of de sandbox) met een duel-kooiman.
+je de balans in het spelen (de standoff, de loop/volgsnelheid, de tijd tot de opener, het slagbereik van de
+nadering, de knockback en zijn bereik, het slagtempo, de schade van een rake slag, hoe ver de geparede speer
+terugketst, en wanneer de vogel duikt). Ben je tevreden, neem de getallen dan over in `KOOI_DUEL`. De knop staat
+er alleen in een level (of de sandbox) met een duel-kooiman.
 
-Nog niet gedaan: een echte blokkade (hij houdt je nu tegen met de trilling en de hazard, niet met een muur), en de
-telefoon-afstelling (nu laptop-first). Test 38 is het proefstuk.
+Nog te doen: een echte parry-animatie (nu een tijdelijke flits plus terugstoot; later houdt hij de kooi snel
+omhoog), en de telefoon-afstelling (nu laptop-first). Test 38 is het proefstuk.
 
 ## De lichte versie (de gewone kooiman, wel nu gebouwd)
 - Zoner-smaak, maar simpel: hij houdt stand en slaat als je in bereik bent, draait naar je toe, en
