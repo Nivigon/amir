@@ -3,6 +3,9 @@
 Dit pakket bevat de bloed-assets en de spec voor het bloed-systeem. Alles is al
 op kleur (rood, met alpha), dus gewoon gebruiken zoals het is.
 
+Alles staat in `design/bloed/`, het geluid in `sounds/bloedspuit.mp3` (dat speelt
+tijdens het opspuiten van bloed).
+
 ## Inhoud
 
 - `snedes/` : 3 statische snee-decals (PNG met alpha).
@@ -10,9 +13,11 @@ op kleur (rood, met alpha), dus gewoon gebruiken zoals het is.
   - `snee_haal.png` (164x620), kortere kronkelige haal met drip
   - `snee_dwars.png` (480x136), lange horizontale haal
   - `snedes.json` : maten en vorm per snee
-- `spuit_donker/` : bloedspuit-animatie, donkere variant. 27 frames, canvas 360x456.
-- `spuit_fel/` : bloedspuit-animatie, iets fellere variant. 27 frames, canvas 360x424.
+- `spuit_donker/` : bloedspuit-animatie, donkere variant. 27 frames, canvas 360x454.
+- `spuit_fel/` : bloedspuit-animatie, iets fellere variant. 27 frames, canvas 360x420.
   - elke map heeft een `<naam>.json` met frames, canvas, anker en per frame de `ticks`.
+- `sounds/bloedspuit.mp3` : het geluid bij de bloedspuit (één keer afspelen bij het
+  opspuiten, frames 0 tot 6).
 
 Kies zelf een van de twee spuiten (donker of fel) voor de death-spuit.
 
