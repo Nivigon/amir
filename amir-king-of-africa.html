@@ -5142,6 +5142,33 @@ function savanneLaag(t, groundY, scale, cx, bottom, st, floating){
   }
   ctx.restore();
 }
+// steunpilaar achter een zwevende savannelaag (proef). Wereld-vast, de platte top net onder de
+// dek-looplijn zodat het dek er overheen valt (hij staat erachter), en naar beneden lost hij op in
+// de nevel, zodat de voet niet logisch de grond hoeft te raken. Getekend voor savanneLaag van die z.
+function zweefSteun(z, groundY, scale, cx){
+  if (!z.steun || !imgReady(pilaarImg)) return;
+  const st = z.steun === true ? {} : z.steun;
+  const cxw = st.x != null ? st.x : (z.l + z.r) / 2;
+  const topY = groundY - z.h * scale - 10;                         // net onder de dek-looplijn
+  const drawH = Math.round((st.hoog != null ? st.hoog : 2.8) * CHAR_H * scale);
+  const drawW = Math.round(pilaarImg.naturalWidth * (drawH / pilaarImg.naturalHeight) * (st.breedF || 1));
+  if (drawW < 2 || drawH < 2) return;
+  const zoom = viewZoom();
+  const sx = Math.round(cx + (cxw - world) - drawW / 2);
+  if (sx > W / zoom + W || sx + drawW < -W) return;
+  const wc = werkDoek('zweefsteun', drawW, drawH), wx = wc.getContext('2d');
+  wx.drawImage(pilaarImg, 0, 0, drawW, drawH);
+  const start = drawH * (st.fade != null ? st.fade : 0.4);
+  const weg = wx.createLinearGradient(0, start, 0, drawH);         // alfa weg naar beneden
+  weg.addColorStop(0, 'rgba(0,0,0,0)'); weg.addColorStop(1, 'rgba(0,0,0,1)');
+  wx.globalCompositeOperation = 'destination-out'; wx.fillStyle = weg; wx.fillRect(0, start, drawW, drawH - start);
+  wx.globalCompositeOperation = 'source-atop';                     // en een lichte waas eroverheen
+  const hz = wx.createLinearGradient(0, start, 0, drawH);
+  hz.addColorStop(0, 'rgba(214,206,186,0)'); hz.addColorStop(1, 'rgba(214,206,186,0.55)');
+  wx.fillStyle = hz; wx.fillRect(0, start, drawW, drawH - start);
+  wx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(wc, sx, Math.round(topY));
+}
 // één richel tekenen. Zonder f: vlakke kant links (op o.x), punt naar rechts. Met f: hetzelfde beeld
 // gespiegeld om o.x (vlakke kant rechts, punt naar links), zodat hij tegen de rechterwand van een
 // schacht past. De gespiegelde versie is precies de spiegeling van de gewone om de lijn x = o.x,
@@ -5189,6 +5216,7 @@ function drawClimb(groundY, scale, cx, onder){
   // zwevende savannelagen: hetzelfde dikke blok, maar afgesneden op de onderkant met lucht eronder
   for (const z of zweefList().filter(z => hier(z.h)).sort((a, b) => a.h - b.h)){
     const floorY = groundY - z.onder * scale;        // de onderkant van het blok op het scherm
+    zweefSteun(z, groundY, scale, cx);               // de steunpilaar erachter, voor het dek
     savanneLaag(z, groundY, scale, cx, floorY, st, true);
     if (showBoxes || building){
       ctx.save();
@@ -14780,6 +14808,10 @@ const sandTex = new Image();
 sandTex.onload = () => { sandStrip = null; sandStripH = -1; };   // strook opnieuw opbouwen
 sandTex.onerror = () => console.warn('ontbreekt: design/savannesand.jpg');
 sandTex.src = 'design/savannesand.jpg';
+// steunpilaar achter een zwevende savannelaag (proef): rots die de laag lijkt te dragen
+const pilaarImg = new Image();
+pilaarImg.onerror = () => console.warn('ontbreekt: design/rotswand_pilaar.png');
+pilaarImg.src = 'design/rotswand_pilaar.png';
 // De tegel is eigenlijk een rotswand: de nerf loopt verticaal. Voor grond wil je
 // horizontale lagen, dus draaien we hem een kwartslag. En om en om gespiegeld,
 // anders zie je het ritme van de herhaling meteen.
@@ -27493,7 +27525,7 @@ function syncLevel(){
     plafond: (level.plafond || []).map(o => ({ x: Math.round(o.x), y: Math.round(o.y) })),
     muur: level.muur || undefined,           // zonder rotswand valt het veld weg
     terraces: (level.terraces || []).map(o => ({ r: o.r, l: o.l, h: o.h, grond: o.grond || undefined })),
-    zwevers: (level.zwevers || []).map(o => ({ r: o.r, l: o.l, h: o.h, onder: o.onder })),
+    zwevers: (level.zwevers || []).map(o => ({ r: o.r, l: o.l, h: o.h, onder: o.onder, steun: o.steun })),
     holtes: (level.holtes || []).map(o => ({ r: o.r, l: o.l, diep: o.diep })),
     valschade: level.valschade || undefined,
     worp: level.worp || undefined,            // zonder schaalworp valt het veld weg
@@ -27773,7 +27805,7 @@ function readLevel(txt){
              const h = Number(q.h) || 0;
              let onder = q.onder != null ? Number(q.onder) : h - ZWEEF.dik;
              if (onder >= h) onder = h - ZWEEF.dik;          // de onderkant ligt altijd onder de looplijn
-             return { r: Number(q.r), l: Number(q.l), h, onder };
+             return { r: Number(q.r), l: Number(q.l), h, onder, steun: q.steun };
            }),
            // gangen onder de grond: zie "holte onder de grond"
            holtes: (o.holtes || []).map(q => ({ r: Number(q.r), l: Number(q.l),
