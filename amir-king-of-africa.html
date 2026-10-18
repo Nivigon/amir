@@ -19676,7 +19676,10 @@ function makeScorp(x, side){
            flash: 0, alpha: 1, vx: 0, hitUsed: false, chargeFrom: 0, glow: 0,
            turnT: 1, mirFrom: (side === 1 ? -1 : 1) };
 }
-function updateScorps(dt, plats, cliff){
+// het stof en de korrels in de wereld (van steenStof en puffWorld) lopen op hun eigen tijd. Apart gezet zodat
+// ze tijdens een freeze (de stamp van de kooiman) gewoon doorlopen: de environment bevriest niet, alleen Amir
+// en de creatures.
+function updateWereldStof(dt){
   updateGrains(dt);
   for (let i = wdust.length - 1; i >= 0; i--){
     const d = wdust[i];
@@ -19687,6 +19690,9 @@ function updateScorps(dt, plats, cliff){
       d.vy += (-d.zweef - d.vy) * 3 * dt; d.vx *= Math.pow(0.12, dt); if (d.y > 0) d.y = 0;
     } else { d.vy += 260 * dt; d.vx *= 0.94; }
   }
+}
+function updateScorps(dt, plats, cliff){
+  updateWereldStof(dt);
   if (!running || (dead && !sandbox)) return;
   for (let i = scorps.length - 1; i >= 0; i--){
     const s = scorps[i];
@@ -21787,12 +21793,12 @@ function updateKooiman(s, dt, plats, cliff){
       hitstop = Math.max(hitstop, KOOI_SMASH_STOP);     // een korte gedeelde freeze voor de dreun (ook de vogel)
       if (s.duel){
         s.slagen++;                                     // zijn ene opener gehad: vanaf nu komt hij op je af (de nadering)
-        // de klap zet Amir een stuk terug, los van schade, in de lucht net zo goed als op de grond (een schokgolf
-        // ren je niet door): zo houdt de opener je op afstand en blijft hij zelf in beeld. De schade van een echte
-        // treffer doet de klap-box in de tekenlus; hier alleen de schok en het afbreken van je worp.
         if (!dead && Math.abs(playerX() - s.x) < KOOI_DUEL.schokVer * W){
           if (thr && thr.held && !thr.gone) thrCancel();  // de schok gooit je uit evenwicht: een opspannende worp vervalt, dus je kunt pas na het terugzetten een verse worp inzetten
-          knock = (playerX() >= s.x ? 1 : -1) * KOOI_DUEL.schok;
+          // alleen de opener zet je wijd terug (los van schade), zodat hij afstand maakt en zelf in beeld blijft. De
+          // slagen daarna zetten je alleen terug als ze je echt raken (de klap-box in de tekenlus): dodge je ze door
+          // terug te stappen, dan word je niet weggeduwd en kun je in zijn herstel binnenvallen en toeslaan.
+          if (s.slagen === 1) knock = (playerX() >= s.x ? 1 : -1) * KOOI_DUEL.schok;
         }
       }
     }
@@ -24944,6 +24950,7 @@ function loop(now){
     if (running && !paused && !won){
       if (shake > 0) shake = Math.max(0, shake - realDt);   // de stamp rommelt na
       kooiVriesStap(realDt);                                // de stamp en de hatch lopen door op echte tijd
+      updateWereldStof(realDt);                             // het stof en de steentjes van de stamp lopen gewoon door: de environment bevriest niet, alleen Amir en de creatures
       if (kooiVries > 0) kooiVries = Math.max(realDt, kooiVries - realDt);   // vangnet-cap (de hatch beslist echt)
     }
   }
