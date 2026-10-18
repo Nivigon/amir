@@ -85,10 +85,17 @@ collisionbox.
 ## Stamp + vogel loslaten (aanvulling, 2026-10-18)
 
 Drie extra sets voor de beweging waarbij de kooiman stampt en er een vogel uit de kooi
-vliegt. Nog niet in de spelcode verwerkt (dat gebeurt apart); dit zijn de frames en de
-metadata, klaar om op aan te sluiten. De sets staan in dezelfde `sprites.json` onder
-`sets`, met de volgorde van gebeurtenissen in `events` en de placeringsgegevens van de
-stofwolk in `dust`.
+vliegt. In het spel is dit de **intro van de duel-variant** (`duel: true`): de stamp met de
+freeze vervangt de eerdere placeholder-intro. Een niet-duel vogel-kooiman houdt de simpele
+`release`. De sets staan in dezelfde `sprites.json` onder `sets`, met de volgorde van
+gebeurtenissen in `events` en de placeringsgegevens van de stofwolk in `dust`.
+
+In de code: de states `stomp`, `hatch` en `stomp_out` in `updateKooiman`, de selectieve
+freeze `kooiVries` in de hoofdlus (de wereld staat stil, maar de hatch en de vogel lopen op
+echte tijd, net als `deurFreeze`), en het deurgeluid `kooiDeurGeluid`. Tijdens de freeze is
+hij, zoals altijd, niet te raken (dat kan alleen in het herstel na de smash). In de sandbox
+onder Vijanden, Kooiman: **Stamp + vogel** speelt de hele keten, en onder Zijn animaties
+staan **Stamp**, **Luikje** en **Uitloop** om de sets los te bekijken.
 
 Net als drag/smash/recovery komen de speelframes uit `bron/<set>/` via
 `tools/kooiman_kleur.py` (de bron is nog teal/blauw/groen; het script hertint naar het
