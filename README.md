@@ -626,7 +626,7 @@ steeds. Hij raakt je op het moment dat de kooi de grond raakt, met een zware dre
 langs de grond (opspattend gruis erbij) en een schok. De trage harde klap kost een heel leven; de
 snelle slag, die je tegenhoudt als je te dicht langs loopt, kost er een half. Onder het slepen schraapt de kooi hoorbaar over de grond (een
 zachte lus, luider naarmate hij dichterbij komt) en stuift er af en toe een plukje stof op achter
-hem. Af en toe gromt hij er laag bij (een grr, op een willekeurig interval, luider van dichtbij).
+hem. Vrij vaak gromt hij er laag bij (een grr, elke 2,5 tot 5 seconden, luider van dichtbij). Hij begint altijd met een van twee kreten zodra hij in beeld komt ("down you go" of "weak boy"); "dinner time" is er alleen voor als de kooi opengaat en de vogel eruit schiet.
 
 Het bijzondere is hoe je hem verslaat. Tijdens het slepen en de hele smash is hij gepantserd door
 de kooi: je stoot, je lage zwaai en een geworpen speer doen hem niets, en de speer ketst af op de
