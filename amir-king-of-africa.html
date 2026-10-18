@@ -893,7 +893,8 @@
         <button data-spawn="kooiman">Neerzetten</button>
         <button id="sbkooivrij">AI uit</button>
         <button id="sbkooivogel">Vogel uit</button>
-        <span class="hint">een gebukte man die een zware kooi meesleept: traag op je af, en binnen bereik ramt hij de kooi neer op de grond voor hem (lange telegraaf, dan de klap). Gepantserd tijdens slepen en smash (je speer ketst af); alleen in het herstel na de klap ligt hij open. Vier rake klappen dan. Vogel aan: zodra hij volledig in beeld staat schiet er een vogel uit de kooi die boven je patrouilleert, even stilhangt en dan op je af duikt (puur ontwijken)</span>
+        <button id="sbkooiduel">Duel uit</button>
+        <span class="hint">een gebukte man die een zware kooi meesleept: traag op je af, en binnen bereik ramt hij de kooi neer op de grond voor hem (lange telegraaf, dan de klap). Gepantserd tijdens slepen en smash (je speer ketst af); alleen in het herstel na de klap ligt hij open. Vier rake klappen dan. Vogel aan: zodra hij volledig in beeld staat schiet er een vogel uit de kooi die boven je patrouilleert, even stilhangt en dan op je af duikt (puur ontwijken). Duel aan: de geensceneerde variant (een rake treffer is dodelijk). Het spel vriest even als hij in beeld komt en de vogel loslaat; daarna houdt hij afstand (altijd in beeld), volgt alleen als je wegloopt, en slaat op een vaste cadans. Elke slag stuurt een trilling die je terugzet. Na zijn eerste slag ligt hij in zijn herstel open voor een worp of klap; gooi je eerder, dan versnelt hij zijn slag en ramt je speer de grond in. De vogel komt steeds terug</span>
       </div>
       <div class="row">
         <label>Grootte</label>
@@ -19377,7 +19378,7 @@ function updateSnakes(dt, plats, halfWNow, cliff){
       }
       if (sp.kind === 'kooiman'){
         const kx = spawnPoint(sp.x);
-        const k = makeKooiman(kx, kx > world ? 1 : -1, sp.vogel);
+        const k = makeKooiman(kx, kx > world ? 1 : -1, sp.vogel, sp.duel);
         k.base = terrainH(kx); kooimannen.push(k); continue;
       }
       const x = (sp.boven || sp.y != null) ? sp.x : spawnPoint(sp.x);
@@ -21418,6 +21419,23 @@ const KOOI_SMASH_STOP  = 0.06;  // de hitstop op de klap (seconden), bevriest al
 const KOOI_SWING = { van: 12, lucht: 30, voor: 260, hoog: 600, laag: 150 };
 const KOOI_VOET_VOOR = 110;     // zijn voorste voet: daarmee stopt hij voor een kei (regel 7), niet met zijn anker
 const KOOI_SCHEID    = 380;     // zachte scheiding: zo dicht mogen twee kooimannen bij elkaar (canvaspixels)
+// ---- de duel-variant: een geensceneerd gevecht (opt-in met duel: true) ----
+// Hij blijft op afstand (scherm-relatief, zodat je hem altijd ziet slepen), volgt alleen als je wegloopt
+// en laat je naderen. Een vaste slag-cadans is de drumbeat: elke keer dat de kooi de grond raakt stuurt de
+// trilling je een stuk terug (los van schade, alleen positioneel). Na zijn eerste slag ligt hij in zijn
+// herstel open voor een worp of klap; gooi je voor die eerste slag, dan versnelt hij zijn slag en ramt je
+// speer de grond in. Eén rake treffer is dodelijk. De vogel komt steeds terug en maakt het worp-raam en het
+// naderen lastig. Dit zijn laptop-waarden, bedoeld om in het spelen bij te stellen.
+const KOOI_DUEL = {
+  afstand:    0.34,   // standoff: zijn lijf tot Amir, als deel van de zichtbare halve breedte (dus altijd in beeld)
+  volg:       170,    // volgsnelheid als je wegloopt (world px/s)
+  eersteNa:   1.1,    // seconden na de intro voor zijn eerste slag
+  cadans:     2.4,    // seconden tussen de slagen daarna (de vaste drumbeat)
+  schok:      1500,   // de trilling zet je terug: beginsnelheid van de knock (world px/s), dooft snel uit
+  schokVer:   1.15,   // tot zover reikt de trilling, als deel van de schermbreedte
+  introVries: 0.5,    // de freeze bij binnenkomst (seconden)
+  vogelPauze: 2.0,    // seconden tussen een vogel weg en de volgende los
+};
 
 // ---- de kooimannen zelf --------------------------------------------------
 const kooimannen = [];
@@ -21425,14 +21443,16 @@ function kooiScale(){
   const scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H;
   return (CHAR_H * scale * kooiShare()) / KOOI.fig;
 }
-function makeKooiman(x, side, vogel){
+function makeKooiman(x, side, vogel, duel){
   kooiLaad();
-  if (vogel) vogelLaad();
+  const d = !!duel;
+  if (vogel || d) vogelLaad();                          // de duel heeft altijd een vogel
   // side 1 = hij staat rechts van je. De frames kijken naar links, dus face 1 (naar rechts) = gespiegeld
   return { x, face: -side, state: 'drag', frame: 0, acc: 0, t: 0,
-           hp: KOOI_HP, inv: 0, flash: 0, knock: 0, base: 0, alpha: 1,
+           hp: d ? 1 : KOOI_HP, inv: 0, flash: 0, knock: 0, base: 0, alpha: 1,   // in het duel is een rake treffer dodelijk
            klaar: false, hitUsed: false, impactDone: false, sweptId: -1, vrij: false, doodT: 0,
-           snel: false, grrT: kooiGromInterval(), geroepen: false, vogel: !!vogel, vogelGedaan: false, vogelGespawnd: false };
+           snel: false, grrT: kooiGromInterval(), geroepen: false, vogel: d || !!vogel, vogelGedaan: false, vogelGespawnd: false,
+           duel: d, slagen: 0, slagT: 0, vogelT: 0 };   // duel: aantal slagen gehad, de slag-cadans en de vogel-herstarttimer
 }
 function kooiSet(s, state){ s.state = state; s.frame = 0; s.acc = 0; s.t = 0; s.klaar = false; s.hitUsed = false; s.impactDone = false; }
 function kooiAnim(s, dt){
@@ -21605,7 +21625,10 @@ function updateKooiman(s, dt, plats, cliff){
   if (!s.geroepen && !dead && gap < (W * 0.5) / viewZoom()){ s.geroepen = true; if (!s.vogel) kooiRoep(); }
 
   // een vogel-kooiman laat, zodra hij helemaal in beeld staat, eenmalig een vogel uit de kooi schieten
-  if (s.vogel && !s.vogelGedaan && s.state !== 'release' && !dead && kooiVolledigInBeeld(s)) kooiSet(s, 'release');
+  if (s.vogel && !s.vogelGedaan && s.state !== 'release' && !dead && kooiVolledigInBeeld(s)){
+    kooiSet(s, 'release');
+    if (s.duel) hitstop = Math.max(hitstop, KOOI_DUEL.introVries);   // het hele spel vriest even: dan begint het
+  }
   if (s.state === 'release'){                          // hij staat stil en opent de kooi (de open-animatie komt nog)
     s.frame = 0;                                       // tijdelijke stand: de sleeppose vastgehouden
     if (!s.vogelGespawnd && s.t >= VOGEL_RELEASE_SPAWN){ s.vogelGespawnd = true; kooiDinnertime(); spawnVogel(s); }
@@ -21636,6 +21659,13 @@ function updateKooiman(s, dt, plats, cliff){
       kooiGrondGeluid(mid);                             // het grond-geluid van de kooi (sounds/kooihitground.mp3)
       shake = Math.max(shake, KOOI_SMASH_SHAKE);
       hitstop = Math.max(hitstop, KOOI_SMASH_STOP);     // een korte gedeelde freeze voor de dreun (ook de vogel)
+      if (s.duel){
+        s.slagen++;                                     // zijn Xe slag gehad: na de eerste ligt hij in het herstel open
+        // de trilling zet Amir een stuk terug, los van schade: alleen op de grond en binnen bereik. Zo is dit
+        // de spacing (ren je op hem af, dan word je telkens teruggezet), niet telkens een leven.
+        if (!dead && onGround && Math.abs(playerX() - s.x) < KOOI_DUEL.schokVer * W)
+          knock = (playerX() >= s.x ? 1 : -1) * KOOI_DUEL.schok;
+      }
     }
     if (s.klaar) kooiSet(s, 'recovery');
     return;
@@ -21644,6 +21674,27 @@ function updateKooiman(s, dt, plats, cliff){
   if (s.state === 'recovery'){                        // het strafvenster: traag herstel, hij ligt open
     kooiAnim(s, dt);
     if (s.klaar) kooiSet(s, 'drag');
+    return;
+  }
+
+  // het duel: hij houdt afstand (scherm-relatief, zodat je hem ziet slepen), volgt alleen als je wegloopt,
+  // laat je naderen, en slaat op een vaste cadans (de drumbeat). De slag zelf en het herstel lopen via de
+  // gewone smash/recovery hierboven; dit stuurt alleen het standhouden, het volgen en de timing.
+  if (s.duel){
+    s.face = naarJe;
+    const want = KOOI_DUEL.afstand * (W / viewZoom());   // gewenste afstand in world px, altijd binnen beeld
+    if (gap > want){                                     // Amir loopt weg: hij sleept hem achterna tot hij zijn afstand terug heeft
+      if (kooiMove(s, Math.min(gap - want, KOOI_DUEL.volg * dt) * naarJe, plats, cliff)) s.beweegt = true;
+      s.acc += dt * (KOOI_FPS.drag || KOOI.fps);          // de sleep-animatie in de stap-frames
+      let g = 0; while (g++ < 300 && s.acc >= 1){ s.acc -= 1; s.frame = (s.frame < KOOI_STAP_VAN || s.frame >= KOOI_STAP_TOT) ? KOOI_STAP_VAN : s.frame + 1; }
+    } else kooiAnim(s, dt);                               // binnen zijn afstand (je nadert): ter plekke de sleeplus
+    s.grrT -= dt; if (s.grrT <= 0){ kooiGrom(s.x); s.grrT = kooiGromInterval(); }   // af en toe grommen
+    // de vaste slag-cadans, los van afstand (de eerste wat later, zodat de intro kan ademen)
+    s.slagT += dt;
+    if (s.slagT >= (s.slagen === 0 ? KOOI_DUEL.eersteNa : KOOI_DUEL.cadans) && kooiZelfdeHoogte(s)){ s.slagT = 0; kooiSet(s, 'smash'); return; }
+    // de vogel komt steeds terug: zodra er geen vogel leeft, na een pauze de volgende los
+    if (vogels.length) s.vogelT = 0;
+    else { s.vogelT += dt; if (s.vogelT >= KOOI_DUEL.vogelPauze){ s.vogelT = 0; spawnVogel(s); } }
     return;
   }
 
@@ -26202,7 +26253,12 @@ function loop(now){
         if (javRaakt(nbox)){
           javHitEnemy();
           if (open) hitKooiman(s);
-          else puffWorld(bodyX + s.face * 40 * kS, 4, 0, 0.6, s.base || 0);   // klank tegen de kooi
+          else {
+            puffWorld(bodyX + s.face * 40 * kS, 4, 0, 0.6, s.base || 0);       // klank tegen de kooi
+            // duel: gooi je voor zijn eerste slag, dan versnelt hij zijn slag en ramt je speer de grond in
+            // (de speer valt bij hem, binnen bereik maar op te halen). Pas na die slag ligt hij open.
+            if (s.duel && s.slagen === 0 && s.state !== 'smash'){ kooiSet(s, 'smash'); s.snel = true; s.slagT = 0; }
+          }
           continue;
         }
         // lage zwaai: één keer per zwaai, alleen als hij openligt
@@ -28883,6 +28939,7 @@ function startSandbox(){
   sbZwVrij = false; sbZwLabel();                        // de zwaardvechter doet weer zijn eigen werk
   sbKooiVrij = false; sbKooiLabel();                    // en de kooiman ook
   sbKooiVogel = false; sbKooiVogelLabel();              // de vogel-optie begint uit
+  sbKooiDuel = false; sbKooiDuelLabel();                // en de duel-variant ook
   kooiBij = 1; sbKooiGrootteToon();                     // de grootte-afstelling terug op de code-waarde
   RUN.woede = 0; woedeStop();                           // de woedemeter van de sandbox begint leeg
   document.getElementById('lives').style.display = 'none';   // geen levens in de sandbox
@@ -28940,7 +28997,7 @@ function sbSpawn(kind){
   }
   else if (kind === 'scorp'){ const k = makeScorp(x, side); k.base = vloerBij(x, ph); scorps.push(k); }
   else if (kind === 'kooiman'){
-    const k = makeKooiman(x, side, sbKooiVogel);
+    const k = makeKooiman(x, side, sbKooiVogel || sbKooiDuel, sbKooiDuel);
     k.base = vloerBij(x, ph);                        // op een terras, of op jouw hoogte bij een gang
     k.vrij = sbKooiVrij;
     kooimannen.push(k);
@@ -29008,6 +29065,16 @@ function sbKooiVogelLabel(){
 }
 sbKooiVogelBtn.onclick = () => { sbKooiVogel = !sbKooiVogel; if (sbKooiVogel) vogelLaad(); sbKooiVogelLabel(); cv.focus(); };
 sbKooiVogelLabel();
+// Duel aan/uit: een nieuwe kooiman is dan de geensceneerde duel-variant (afstand houden, vaste slag-cadans
+// met trilling die je terugzet, vogel die steeds terugkomt, een rake treffer is dodelijk). Heeft altijd een vogel.
+let sbKooiDuel = false;
+const sbKooiDuelBtn = document.getElementById('sbkooiduel');
+function sbKooiDuelLabel(){
+  sbKooiDuelBtn.textContent = sbKooiDuel ? 'Duel aan' : 'Duel uit';
+  sbKooiDuelBtn.classList.toggle('on', sbKooiDuel);
+}
+sbKooiDuelBtn.onclick = () => { sbKooiDuel = !sbKooiDuel; if (sbKooiDuel) vogelLaad(); sbKooiDuelLabel(); cv.focus(); };
+sbKooiDuelLabel();
 function sbKooiAnim(set){
   sbKooiVrij = true; sbKooiLabel();                   // anders neemt zijn AI het meteen weer over
   if (!kooimannen.length) sbSpawn('kooiman');         // nog niemand neergezet: dan doen we dat nu
