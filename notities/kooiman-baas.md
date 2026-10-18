@@ -85,8 +85,11 @@ Een geensceneerd een-op-een duel, los van de gewone sleep-kooiman. Opt-in met `d
 of de knop **Duel** onder Vijanden, Kooiman in de sandbox. De getallen staan in `KOOI_DUEL` (laptop-waarden,
 bedoeld om in het spelen bij te stellen). Het idee: een leesbaar ritme-duel, geen beuken.
 
-- **Intro.** Zodra hij volledig in beeld komt vriest het hele spel even (`KOOI_DUEL.introVries`, via de
-  gedeelde `hitstop`), hij opent de kooi en laat de vogel los (de bestaande `release`-staat). Daarna begint het.
+- **Intro.** Zodra hij volledig in beeld komt stampt hij op de grond (de stamp-plus-vogel-keten `stomp`,
+  `hatch`, `stomp_out`): op de klap bevriest het hele spel (`kooiVries`), het luikje gaat open, de vogel schiet
+  eruit, het luikje slaat dicht, unfreeze, een korte uitloop en dan terug naar slepen. Daarna begint het gevecht.
+  Die intro is apart gebouwd (zie `enemies/kooiman/LEESMIJ.md`, de stamp-sectie); het gevecht hieronder start op
+  het overdrachtspunt: na `stomp_out` staat hij in `drag` met `vogelGedaan`, en de slag-cadans begint.
 - **Afstand houden.** Hij blijft op een scherm-relatieve standoff (`KOOI_DUEL.afstand` maal de zichtbare halve
   breedte), zodat je hem altijd ziet slepen. Loop je weg, dan sleept hij je achterna tot hij zijn afstand terug
   heeft (`volg`). Nader je, dan laat hij je komen en wijkt hij niet terug. Zo kun je kiezen: op afstand blijven
