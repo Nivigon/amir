@@ -21772,17 +21772,29 @@ function updateKooiman(s, dt, plats, cliff){
   // gewone smash/recovery hierboven; dit stuurt alleen het standhouden, het volgen en de timing.
   if (s.duel){
     s.face = naarJe;
+    // Amir zijn verplaatsing sinds vorig beeld: alleen als hij echt van de kooiman wegloopt sleept die
+    // hem achterna. Los van de kooiman zijn eigen beweging, zodat het volgen niet hapert.
+    const dPX = playerX() - (s.lastPX != null ? s.lastPX : playerX());
+    s.lastPX = playerX();
+    const wegVan = Math.sign(dPX) === naarJe && Math.abs(dPX) > 0.3;   // Amir beweegt van hem af
+    if (!s.vogelGedaan){
+      // nog in de intro: hij staat op zijn plek en sleept ter plekke (de hele lus, dus frame bereikt 0),
+      // tot hij volledig in beeld is en stampt. Niet volgen: anders blijft de frame in het stap-venster
+      // hangen en wordt frame 0 nooit geraakt, en komt er geen stamp en geen vogel.
+      kooiAnim(s, dt);
+      s.grrT -= dt; if (s.grrT <= 0){ kooiGrom(s.x); s.grrT = kooiGromInterval(); }
+      if (s.wilStamp && !kooiVries && s.frame === 0){ s.wilStamp = false; kooiSet(s, 'stomp'); }
+      return;
+    }
+    // na de intro: hij komt niet op je af. Nader je of sta je stil, dan blijft hij staan. Loop je van hem
+    // weg, dan sleept hij je achterna tot hij zijn afstand terug heeft.
     const want = KOOI_DUEL.afstand * (W / viewZoom());   // gewenste afstand in world px, altijd binnen beeld
-    if (gap > want){                                     // Amir loopt weg: hij sleept hem achterna tot hij zijn afstand terug heeft
+    if (gap > want && wegVan){
       if (kooiMove(s, Math.min(gap - want, KOOI_DUEL.volg * dt) * naarJe, plats, cliff)) s.beweegt = true;
       s.acc += dt * (KOOI_FPS.drag || KOOI.fps);          // de sleep-animatie in de stap-frames
       let g = 0; while (g++ < 300 && s.acc >= 1){ s.acc -= 1; s.frame = (s.frame < KOOI_STAP_VAN || s.frame >= KOOI_STAP_TOT) ? KOOI_STAP_VAN : s.frame + 1; }
-    } else kooiAnim(s, dt);                               // binnen zijn afstand (je nadert): ter plekke de sleeplus
+    } else kooiAnim(s, dt);                               // hij nadert niet, hij blijft op afstand staan
     s.grrT -= dt; if (s.grrT <= 0){ kooiGrom(s.x); s.grrT = kooiGromInterval(); }   // af en toe grommen
-    if (!s.vogelGedaan){                                  // nog in de intro: wachten tot de drag-lus op frame 0 is, dan stampen
-      if (s.wilStamp && !kooiVries && s.frame === 0){ s.wilStamp = false; kooiSet(s, 'stomp'); }
-      return;                                             // geen slag en geen vogel-respawn voor de intro-stamp
-    }
     // de vaste slag-cadans, los van afstand (de eerste wat later, zodat de intro kan ademen)
     s.slagT += dt;
     if (s.slagT >= (s.slagen === 0 ? KOOI_DUEL.eersteNa : KOOI_DUEL.cadans) && kooiZelfdeHoogte(s)){ s.slagT = 0; kooiSet(s, 'smash'); return; }
@@ -27399,6 +27411,7 @@ function syncLevel(){
       if (s.duin) o.duin = true;                // de Duinwacht (duin-set)
       if (s.neer) o.neer = true;                // komt van boven de arena in
       if (s.vogel) o.vogel = true;              // een kooiman met een vogel in de kooi
+      if (s.duel) o.duel = true;                // de geensceneerde duel-variant van de kooiman
       if (s.y != null) o.y = Math.round(s.y);   // een vaste hoogte: op een laag, of uit de lucht (alleen slangen)
       return o;
     }),   // de kei bij een rune zet het spel zelf (runeKeiZet)
@@ -27613,6 +27626,8 @@ function readLevel(txt){
                                                 neer: s.neer === true,
                                                 // vogel: een kooiman die een vogel uit zijn kooi laat (opt-in)
                                                 vogel: s.vogel === true,
+                                                // duel: de geensceneerde duel-variant van de kooiman (opt-in)
+                                                duel: s.duel === true,
                                                 y: (s.y === null || s.y === undefined) ? null : Number(s.y) })),
            props: (o.props || []).filter(q => PROPS[q.k])
                                  .map(q => ({ x: Number(q.x), kind: q.k,
