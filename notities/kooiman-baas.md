@@ -101,22 +101,19 @@ bedoeld om in het spelen bij te stellen). Het idee: een leesbaar ritme-duel, gee
   stuurt de trilling je een stuk terug (`schok`, een knock op de speler, binnen `schokVer`), los van schade, of
   je nu springt of loopt (een schokgolf ren je niet door). Dat is de spacing: ren je op hem af, dan zet elke
   slag je terug en kom je maar net verder.
-- **De worp na de eerste slag, de klap pas na de tweede.** Twee aparte vensters:
-  - Met een **worp** ligt hij na zijn eerste slag blijvend open (`kooiRaakbaar`: `slagen >= 1`), behalve tijdens
-    een slag zelf (dan is de kooi zijn pantser). Een rake treffer is dodelijk (`hp` 1). Dat de kwetsbaarheid
-    blijft (en niet alleen het krappe herstelraam is) was nodig: een worp vanaf de standoff-afstand kwam anders
-    net na het herstel aan en kaatste af. De echte uitdaging daar is de vogel ontwijken terwijl je gooit.
-  - Van **dichtbij** (stoot, lage zwaai) pas na zijn tweede slag (`kooiMeleeRaak`: `slagen >= 2`). Hij slaat zijn
-    eerste twee snel achter elkaar (het ritme: `eersteNa`, dan `paar`, dan de langere `rust`, dan weer twee), dus
-    al rennend kom je er door die twee slagen niet langs; de langere rust na het paar is je raam om te steken.
-    De aanloop van de slag loopt sneller (`slagTempo`) en de schokgolf (`schok`) zet je terug. Zo is hij krap maar
-    niet onaantastbaar: besluit je te rennen en te steken, dan houden zijn twee snelle slagen je tegen, maar in de
-    rust daarna kun je erbij; en de worp blijft de route na een slag.
-  - Gooi je voor zijn eerste slag, dan versnelt hij zijn slag (de `snel`-boost) en ramt hij je speer de grond in
-    (de speer valt bij hem, op te halen); die geforceerde slag telt als zijn eerste, dus daarna gaat het worp-raam open.
-- **De vogel komt steeds terug.** Na elke vogel komt er na `vogelPauze` een nieuwe. Die overlapt het slag-ritme
-  en maakt zowel het worp-raam als het naderen lastig. Het mooiste raam is: hij ligt open EN er duikt net geen
-  vogel; time je het en beweeg je weg, dan gooi je de kill en ontwijk je de duik in dezelfde beweging.
+- **Een ritme van twee slagen, met twee aparte vensters.** Hij slaat in paren: `eersteNa`, dan snel de tweede
+  (`paar`), dan een langere `rust`, dan weer twee. De aanloop loopt sneller (`slagTempo`), de schokgolf (`schok`)
+  zet je terug, en sta je in de klap-zone als een slag landt, dan kost dat ook een leven (niet alleen knockback).
+  - Met een **worp** raak je hem alleen in het raam TUSSEN een oneven en de volgende slag (`kooiRaakbaar`:
+    `slagen % 2 === 1`), dus tussen zijn eerste en tweede (en tussen de derde en vierde, enz.). Gooi je erbuiten,
+    dan ramt hij je speer met een hele snelle slag de grond in (`s.state !== 'smash'` in de worp-tak: `kooiSet
+    smash`, `s.snel`); de speer valt bij hem, op te halen. Een rake treffer is dodelijk (`hp` 1).
+  - Van **dichtbij** (stoot, lage zwaai) pas na zijn tweede slag (`kooiMeleeRaak`: `slagen >= 2`). Door de twee
+    snelle slagen kom je er rennend niet langs; de langere rust daarna is je raam om naar hem toe te rennen en te
+    steken. Te laat, en er volgen weer twee slagen. Zo is hij krap maar niet onaantastbaar.
+- **De vogel is eenmalig.** Hij komt uit de intro, duikt een keer net na je eerste worp-raam (tussen slag een en
+  twee), en is daarna dood: geen nieuwe vogel. Zo is de eerste worp-kans de spannende (vogel erbij), en daarna
+  niet meer. (`spawnVogel` alleen nog vanuit de hatch van de intro, geen herstart meer in de duel-tak.)
 
 Nog open / te tunen (vraagt jouw playtest): de precieze cadans en het worp-raam, de kracht van de trilling (de
 drie-golven-gauntlet), en of de vogel-timer netjes een offset houdt op de slagen (nu lopen het twee losse timers).
