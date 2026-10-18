@@ -106,10 +106,12 @@ bedoeld om in het spelen bij te stellen). Het idee: een leesbaar ritme-duel, gee
     een slag zelf (dan is de kooi zijn pantser). Een rake treffer is dodelijk (`hp` 1). Dat de kwetsbaarheid
     blijft (en niet alleen het krappe herstelraam is) was nodig: een worp vanaf de standoff-afstand kwam anders
     net na het herstel aan en kaatste af. De echte uitdaging daar is de vogel ontwijken terwijl je gooit.
-  - Van **dichtbij** (stoot, lage zwaai) raak je hem pas na zijn tweede slag (`kooiMeleeRaak`: `slagen >= 2`): je
-    kunt wel naar hem toe lopen, maar een steek ketst af tot de tweede slag, en de schokgolf van elke slag zet je
-    ondertussen terug. Zo is het bewust niet mogelijk hem al na een slag neer te steken; na de tweede slag kun je
-    bij hem. De aanloop van de slag loopt sneller (`slagTempo`), zodat de slag snappig is en de schok eerder landt.
+  - Van **dichtbij** (stoot, lage zwaai) pas na zijn tweede slag (`kooiMeleeRaak`: `slagen >= 2`). Hij slaat zijn
+    eerste twee snel achter elkaar (het ritme: `eersteNa`, dan `paar`, dan de langere `rust`, dan weer twee), dus
+    al rennend kom je er door die twee slagen niet langs; de langere rust na het paar is je raam om te steken.
+    De aanloop van de slag loopt sneller (`slagTempo`) en de schokgolf (`schok`) zet je terug. Zo is hij krap maar
+    niet onaantastbaar: besluit je te rennen en te steken, dan houden zijn twee snelle slagen je tegen, maar in de
+    rust daarna kun je erbij; en de worp blijft de route na een slag.
   - Gooi je voor zijn eerste slag, dan versnelt hij zijn slag (de `snel`-boost) en ramt hij je speer de grond in
     (de speer valt bij hem, op te halen); die geforceerde slag telt als zijn eerste, dus daarna gaat het worp-raam open.
 - **De vogel komt steeds terug.** Na elke vogel komt er na `vogelPauze` een nieuwe. Die overlapt het slag-ritme
