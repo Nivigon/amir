@@ -113,6 +113,20 @@ def maak(beeld):
     fill = (al > 100) & (al < 165) & (rgb.max(-1) < 80)
     rgba[..., 0][fill] = 0; rgba[..., 1][fill] = 0; rgba[..., 2][fill] = 0
     rgba[..., 3][fill] = np.minimum(205.0, al[fill] * 1.3)
+
+    # magenta-ontspilling, als losse eindstap. De aangeleverde frames zijn uit een magenta
+    # achtergrond geknipt en houden op de randen, en in de handvat-ring van de kooi, nog magenta
+    # vast; over de savanne las dat als een roze gloed. Hoeveel magenta: min(rood, blauw) min groen
+    # (de chroma-key tilt rood en blauw samen op). Dat trek je er weer uit, zodat de hue naar
+    # neutraal grijs zakt. De hue-maskers hierboven slaan magenta (hue rond 300) juist over, dus dit
+    # staat er los achteraan. De alpha blijft staan: de ring is een echt, bijna-ondoorzichtig object,
+    # alpha laten zakken zou hem dun en kapot maken. De marineblauwe jas (rood is gelijk aan groen)
+    # en de huid (groen hoger dan het minimum van rood en blauw) blijven ongemoeid; de rode sjerp
+    # verliest alleen zijn paarse randspikkels en blijft helder rood.
+    rr, gg, bb = rgba[..., 0], rgba[..., 1], rgba[..., 2]
+    mag = np.clip(np.minimum(rr, bb) - gg, 0, None)
+    rgba[..., 0] = rr - mag
+    rgba[..., 2] = bb - mag
     return Image.fromarray(np.clip(rgba, 0, 255).astype(np.uint8))
 
 
