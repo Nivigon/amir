@@ -98,27 +98,38 @@ bedoeld om in het spelen bij te stellen). Het idee: een leesbaar ritme-duel, gee
 - **Vaste slag-cadans.** Hij slaat op een tijd-drumbeat (`eersteNa` voor de eerste, daarna `cadans`), los van
   afstand. Afstand bepaalt alleen of zijn klap-zone je bereikt.
 - **De trilling zet je terug, in de lucht net zo goed als op de grond.** Elke keer dat de kooi de grond raakt
-  stuurt de trilling je een stuk terug (`schok`, een knock op de speler, binnen `schokVer`), los van schade, of
-  je nu springt of loopt (een schokgolf ren je niet door). Dat is de spacing: ren je op hem af, dan zet elke
-  slag je terug en kom je maar net verder.
+  stuurt de trilling je een stuk terug (`schok`, een knock op de speler, binnen `schokVer`), of je nu springt of
+  loopt (een schokgolf ren je niet door). Die knock dooft trager uit dan een gewone klap (`knockTraag`, factor
+  0,95 in plaats van 0,86), zodat "hoe ver" echt met `schok` meeschaalt: zet je hem hoog genoeg, dan haalt een
+  mindless rush de rust niet meer, want hij wordt te ver teruggezet om op tijd terug te komen.
 - **Een ritme van twee slagen, met twee aparte vensters.** Hij slaat in paren: `eersteNa`, dan snel de tweede
-  (`paar`), dan een langere `rust`, dan weer twee. De aanloop loopt sneller (`slagTempo`), de schokgolf (`schok`)
-  zet je terug, en sta je in de klap-zone als een slag landt, dan kost dat ook een leven (niet alleen knockback).
+  (`paar`), dan een langere `rust`, dan weer twee. De aanloop loopt sneller (`slagTempo`, de eerste twee
+  `slagTempo1`).
   - Met een **worp** raak je hem alleen in het raam TUSSEN een oneven en de volgende slag (`kooiRaakbaar`:
-    `slagen % 2 === 1`), dus tussen zijn eerste en tweede (en tussen de derde en vierde, enz.). Gooi je erbuiten,
-    dan ramt hij je speer met een hele snelle slag de grond in (`s.state !== 'smash'` in de worp-tak: `kooiSet
-    smash`, `s.snel`); de speer valt bij hem, op te halen. Een rake treffer is dodelijk (`hp` 1).
-  - Van **dichtbij** (stoot, lage zwaai) pas na zijn tweede slag (`kooiMeleeRaak`: `slagen >= 2`). Door de twee
-    snelle slagen kom je er rennend niet langs; de langere rust daarna is je raam om naar hem toe te rennen en te
-    steken. Te laat, en er volgen weer twee slagen. Zo is hij krap maar niet onaantastbaar.
-- **De vogel is eenmalig.** Hij komt uit de intro, duikt een keer net na je eerste worp-raam (tussen slag een en
-  twee), en is daarna dood: geen nieuwe vogel. Zo is de eerste worp-kans de spannende (vogel erbij), en daarna
-  niet meer. (`spawnVogel` alleen nog vanuit de hatch van de intro, geen herstart meer in de duel-tak.)
+    `slagen % 2 === 1`), dus tussen zijn eerste en tweede (en tussen de derde en vierde, enz.). Gooi je erbuiten
+    OF midden in zijn slag, dan herlaadt hij een verse, snelle slag en ramt hij je speer de grond in (de worp-tak:
+    `if (s.duel){ kooiSet smash; s.snel }`, altijd, ook tijdens een slag); de speer valt bij hem, op te halen. En
+    de schok gooit je uit evenwicht: komt er een slag-schok op je terwijl je nog opspant, dan vervalt de worp
+    (`thrCancel` in de smash-impact). Zo kun je niet door zijn slag heen pre-aimen. Een rake treffer is dodelijk
+    (`hp` 1).
+  - Van **dichtbij** (stoot, lage zwaai) alleen in de rust NA een heel paar (`kooiMeleeRaak`: `slagen >= 2 &&
+    slagen % 2 === 0`), niet in het korte herstel tussen de eerste en de tweede slag. Geen harde "gepantserd"-regel
+    meer: dat je er rennend niet komt, komt uit de mechaniek. De schok zet je terug, en vanaf de tweede slag is de
+    klap van dichtbij ook dodelijk (`KOOI_DUEL.schade`, een half leven; de eerste slag zet alleen terug zodat je
+    niet goedkoop sterft in de intro). Ren je blind op hem af, dan sta je bij een slag te dichtbij en word je
+    geraakt; alleen vanuit een afstand getimed in de rust haal je het.
+- **De vogel is eenmalig.** Hij komt uit de intro, duikt een keer net na je eerste worp-raam (`KOOI_DUEL.vogelDuik`
+  seconden patrouille voor hij duikt), en is daarna dood: geen nieuwe vogel. Zo is de eerste worp-kans de
+  spannende (vogel erbij), en daarna niet meer. (`spawnVogel` alleen nog vanuit de hatch van de intro.)
 
-Nog open / te tunen (vraagt jouw playtest): de precieze cadans en het worp-raam, de kracht van de trilling (de
-drie-golven-gauntlet), en of de vogel-timer netjes een offset houdt op de slagen (nu lopen het twee losse timers).
-Nog niet gedaan: een echte blokkade (hij houdt je nu tegen met de trilling en de hazard, niet met een muur), een
-eigen testlevel (vraagt toestemming), en de telefoon-afstelling (nu laptop-first).
+**Live afstellen.** In de pauze onder Instellingen staat **Kooiman-duel: afstelling** (`pzkooibtn`, `KOOI_SCHUIF`):
+schuifjes die `KOOI_DUEL` meteen aanpassen, ook bij een herstart, bewaard in de browser (`KOOI_DUEL_KEY`). Zo zoek
+je de balans in het spelen (afstand, knockback en bereik, de slag-tempo's, de rust en het paar, de schade van een
+rake slag, en wanneer de vogel duikt). Ben je tevreden, neem de getallen dan over in `KOOI_DUEL`. De knop staat er
+alleen in een level (of de sandbox) met een duel-kooiman.
+
+Nog niet gedaan: een echte blokkade (hij houdt je nu tegen met de trilling en de hazard, niet met een muur), en de
+telefoon-afstelling (nu laptop-first). Test 38 is het proefstuk.
 
 ## De lichte versie (de gewone kooiman, wel nu gebouwd)
 - Zoner-smaak, maar simpel: hij houdt stand en slaat als je in bereik bent, draait naar je toe, en
