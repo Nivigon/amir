@@ -81,3 +81,71 @@ bron/ en wordt door het spel nooit geladen. Verander je een bronframe, draai dan
 ## Hitbox
 Per frame staat het zwaartepunt (centroid) in sprites.json, als startpunt voor de
 collisionbox.
+
+## Stamp + vogel loslaten (aanvulling, 2026-10-18)
+
+Drie extra sets voor de beweging waarbij de kooiman stampt en er een vogel uit de kooi
+vliegt. Nog niet in de spelcode verwerkt (dat gebeurt apart); dit zijn de frames en de
+metadata, klaar om op aan te sluiten. De sets staan in dezelfde `sprites.json` onder
+`sets`, met de volgorde van gebeurtenissen in `events` en de placeringsgegevens van de
+stofwolk in `dust`.
+
+Net als drag/smash/recovery komen de speelframes uit `bron/<set>/` via
+`tools/kooiman_kleur.py` (de bron is nog teal/blauw/groen; het script hertint naar het
+bandietpalet en haalt de magenta-gloed eraf). De drie sets zijn aan dat script
+toegevoegd. Verander je een bronframe, draai het dan opnieuw, en daarna `gen-klein.py` en
+`gen-offline-manifest.py`.
+
+| set | frames | soort | duur | wanneer |
+|---|---|---|---|---|
+| stomp | 13 | one-shot | 16 ticks (0,67 s) | start alleen vanaf **drag frame 0** (stomp_00 sluit daar exact op aan) |
+| hatch | 19 | one-shot | 57 ticks (2,4 s) | direct na de stamp, speelt **tijdens de freeze** |
+| stomp_out | 2 | one-shot | 2 ticks | na de freeze, korte uitloop |
+
+### Verloop
+1. De kooiman sleept (drag).
+2. Hij heft zijn knie en stampt hard op de grond. `stomp` frame 8 (knie omhoog) blijft 4
+   ticks staan: dat is de tell voor de speler dat er een vogel aankomt.
+3. Op `stomp` frame 12 (impact): speel het kooislag-geluid (hetzelfde als bij de smash),
+   spawn de stofwolk op de groundline onder de stampende voet, en **bevries de wereld**
+   (Amir, vijanden, projectielen, physics, timers, input). Start dan `hatch`.
+4. Tijdens de freeze lopen alleen door: `hatch`, de stofwolk en de vogel.
+5. `hatch` frame 0 houdt het deurtje verstopt, daarna klapt het open en veert na. Op
+   frame 9 staat het deurtje open (36 ticks = 1,5 s); hier spawnt de vogel. Frame 10 tot
+   18 slaat het deurtje weer dicht. Aan het einde van frame 18: **unfreeze**, start
+   `stomp_out`.
+6. Na `stomp_out`: terug naar `drag`, maar start op **drag frame 11** (niet 0) en schuif
+   de kooiman 24 px naar voren (x -24 bij links kijken, +24 bij rechts). Hij heeft tijdens
+   de stamp een stapje gezet, zo loopt het naadloos door.
+
+### De vogel
+Spawnt op `hatch` frame 9, op canvaspunt (592, 464), net in het luikje. Hij vliegt schuin
+omhoog weg van de kooi (richting 0.488, -0.873; x omdraaien bij spiegelen) en groeit uit de
+kooi: van schaal ~0,12 naar normaal in de eerste 0,35 s. Hij beweegt al tijdens de freeze
+(hij hoort bij het moment); zijn eigen AI (cirkelen, dive) begint pas bij de unfreeze.
+Gebruik de `fly`-set uit `enemies/vogel/`.
+
+### De stofwolk
+De stamp gebruikt de stofwolk die al in het spel zit (de geleverde dust-frames zijn
+bewust weggelaten). In `sprites.json` staan onder `dust` alleen de plaatsingsgegevens:
+anker (280, 206) in de wolk op canvaspunt (343, 598), op de groundline onder de voet.
+
+### Het deurgeluid
+`sounds/kooideur.mp3` (het aangeleverde "openmetaldoor"): het metalen luikje dat openklapt
+en dichtslaat. Af te spelen op het openklappen (begin `hatch`) en op het dichtslaan (rond
+`hatch` frame 10).
+
+### Let op: canvasbreedte
+De nieuwe frames (stomp, hatch, stomp_out) zijn **728 x 648**, de bestaande sets (drag,
+smash, recovery) zijn **726 x 648**. De `sprites.json` houdt `canvas` op 726 (wat het spel
+nu voor de kooiman gebruikt). Twee pixels verschil in de breedte, dus bij het aansluiten
+even nalopen of de nieuwe sets goed op het anker vallen, of de frames gelijktrekken naar
+726.
+
+### Preview
+`preview/stomp_chain_preview.gif` toont de hele keten (stamp, stof, vogel, deur) zoals het
+ingame moet ogen. Niet geladen door het spel.
+
+### Bron
+Clip `stapvooropen.mp4`, frames 1 tot 24 (frame 22 is het freezeframe). Het deurtje komt
+uit `deur_dicht.mp4` (frames 1 tot 19), met de scharnieren op dezelfde rail van de kooi.
