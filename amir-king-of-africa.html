@@ -21467,7 +21467,7 @@ const KOOI_DUEL = {
   cadans:     2.4,    // seconden tussen de slagen daarna (de vaste drumbeat)
   schok:      1500,   // de trilling zet je terug: beginsnelheid van de knock (world px/s), dooft snel uit
   schokVer:   1.15,   // tot zover reikt de trilling, als deel van de schermbreedte
-  vogelPauze: 2.0,    // seconden tussen een vogel weg en de volgende los
+  vogelPauze: 1.3,    // seconden tussen een vogel weg en de volgende los (kort, zodat er bijna altijd een vogel over je worp-raam hangt)
 };
 
 // ---- de stamp-plus-vogel-intro (stomp/hatch/stomp_out) -------------------
@@ -21482,6 +21482,7 @@ const KOOI_STOMP_IMPACT = 12;   // laatste stomp-frame: de voet raakt de grond, 
 const KOOI_HATCH_VOGEL  = 9;    // hatch-frame waarop het luikje open staat en de vogel eruit komt
 const KOOI_HATCH_DICHT  = 10;   // hatch-frame waarop het luikje weer dichtslaat
 const KOOI_STAMP_SHAKE  = 0.28; // de schermschok op de stamp
+const KOOI_STAMP_VOL    = 0.55; // de stamp klinkt als een zachtere kooislag (de echte slag is harder)
 const KOOI_STAMP_STAP   = 24;   // canvas-px die hij met de stamp vooruit zet (daarna drag vanaf frame 11)
 const KOOI_HATCH_CAP    = 4.0;  // veiligheidscap op de freeze (sec); de hatch-animatie (s.klaar) beslist echt
 let kooiVries  = 0;             // > 0: de stamp-freeze loopt (de wereld staat stil)
@@ -21579,12 +21580,12 @@ function kooiOpen(s){ return s.state === 'recovery' || (s.state === 'smash' && s
 // (banStemmen), dus het stille startje zet hem ook op een telefoon aan.
 const KOOI_HIT = { vol: 1.0, ver: 1.4, min: 0.4 };
 const kooiHitSnd = banStemmen('sounds/kooihitground.mp3', 2);
-function kooiGrondGeluid(wx){
+function kooiGrondGeluid(wx, vol = 1){
   if (!wantSound) return;
   const af = Math.max(KOOI_HIT.min, 1 - Math.abs(wx - playerX()) / (KOOI_HIT.ver * W));
   const k = kooiHitSnd, a = k.pool[k.beurt++ % k.pool.length];
   try { a.currentTime = 0; } catch (e) {}
-  a.volume = Math.min(1, KOOI_HIT.vol * af);
+  a.volume = Math.min(1, KOOI_HIT.vol * af * vol);
   a.play().catch(() => {});
 }
 // Zijn stem als hij in beeld komt: een van twee kreten (willekeurig), "down you go" of "weak boy"
@@ -21837,9 +21838,9 @@ function updateKooiman(s, dt, plats, cliff){
 function kooiStampKlap(s){
   s.impactDone = true;
   const vloer = s.base || 0, zS = kooiScale();
-  steenStof(s.x - 70 * zS, s.x + 70 * zS, vloer, 1.3, vloer + 60);   // de stofwolk onder de stampende voet
-  puffWorld(s.x, 9, 0, 1.0, vloer);
-  kooiGrondGeluid(s.x);                                // de kooislag (hetzelfde als bij de smash)
+  steenStof(s.x - 80 * zS, s.x + 80 * zS, vloer, 1.5, vloer + 70);   // een brede stofwolk onder de stampende voet
+  puffWorld(s.x, 11, 0, 1.1, vloer);
+  kooiGrondGeluid(s.x, KOOI_STAMP_VOL);                // een zachtere kooislag dan de echte smash
   shake = Math.max(shake, KOOI_STAMP_SHAKE);
   s.vogelGespawnd = false; s.deurDicht = false;
   kooiSet(s, 'hatch');                                 // het luikje gaat open...
@@ -21959,6 +21960,7 @@ function kooiDinnertime(){ banStemSpeel(kooiDinnerSnd, 0.95); }
 const VOGEL_SHARE    = 0.95;   // de hoogte van zijn canvas (wings mee) tov Amir
 const VOGEL_OP_T     = 0.6;    // seconden om recht omhoog te schieten naar de patrouillehoogte
 const VOGEL_PATROL_T = 3.0;    // seconden patrouilleren boven Amir (de telegraaf)
+const VOGEL_PATROL_DUEL = 1.6; // in het duel korter: de duik komt eerder, zodat hij over je worp-raam hangt en de timing scherp blijft
 const VOGEL_SWEEP_V  = 2.2;    // rad per seconde van de heen-en-weer sweep op X
 const VOGEL_SWEEP_X  = 6;      // horizontale uitslag: (W/viewZoom)/dit naar weerszijden van Amir
 const VOGEL_BOB_Y    = 0.10;   // hele lichte Y-dein tijdens de patrouille, in Amir-hoogtes
@@ -21995,7 +21997,7 @@ function spawnVogel(s){
   // cx start op de kooi: zo stijgt hij recht omhoog, en daarna vliegt hij naar boven Amir
   vogels.push({ x: cageX, h: h0, sh: h0, phase: 'op', t: 0,
                 cx: cageX, cy, ampX, bob, hoek: 0, vx: 0, vh: 0, lockX: 0, lockH: 0,
-                face: -1, frame: 0, acc: 0, weg: false });
+                face: -1, frame: 0, acc: 0, weg: false, duel: !!s.duel });
 }
 function vogelAnim(v, dt){
   const set = v.phase === 'duik' ? 'dive' : 'fly';
@@ -22059,7 +22061,7 @@ function updateVogels(dt){
       v.h = v.cy + v.bob * Math.sin(v.hoek * 2);
       v.face = (v.x - px) >= 0 ? 1 : -1;
       vogelAnim(v, dt);
-      if (v.t >= VOGEL_PATROL_T){                     // de plek van Amir vastleggen (nu kun je nog weg) en gaan mikken
+      if (v.t >= (v.duel ? VOGEL_PATROL_DUEL : VOGEL_PATROL_T)){   // de plek van Amir vastleggen (nu kun je nog weg) en gaan mikken
         v.lockX = playerX(); v.lockH = ph + CHAR_H * 0.45;
         v.phase = 'mik'; v.t = 0;
       }
@@ -27083,7 +27085,7 @@ const BUILD_ZOOM = 0.42;                 // in de bouwer kijk je van verder weg
 // vooruit wil zien); het spel rekent de view daaruit per scherm uit (W / zichtBreed), zodat een telefoon
 // evenveel vooruit ziet als een laptop. Geklemd zodat Amir op een klein scherm niet onleesbaar klein wordt
 // (ondergrens) en een groot scherm niet voorbij native inzoomt (bovengrens). Een vast `view` blijft werken.
-const ZICHT_MIN = 0.6, ZICHT_MAX = 1.0;
+const ZICHT_MIN = 0.7, ZICHT_MAX = 1.0;
 function zichtView(breed){ return Math.max(ZICHT_MIN, Math.min(ZICHT_MAX, W / breed)); }
 function viewZoom(){
   if (building) return BUILD_ZOOM;
