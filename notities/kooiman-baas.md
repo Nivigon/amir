@@ -97,17 +97,20 @@ bedoeld om in het spelen bij te stellen). Het idee: een leesbaar ritme-duel, gee
   en gooien, of naar binnen voor een melee.
 - **Vaste slag-cadans.** Hij slaat op een tijd-drumbeat (`eersteNa` voor de eerste, daarna `cadans`), los van
   afstand. Afstand bepaalt alleen of zijn klap-zone je bereikt.
-- **De trilling zet je terug.** Elke keer dat de kooi de grond raakt stuurt de trilling je een stuk terug
-  (`schok`, een knock op de speler, binnen `schokVer`), los van schade. Dat is de spacing: ren je op hem af,
-  dan word je per slag teruggezet. Op het idee van de melee-gauntlet: ren, slag zet je terug, ren (netto
-  dichterbij), slag zet je terug, en zo haal je hem in een paar golven. Afstellen op ongeveer drie met `schok`.
-- **Kwetsbaar na zijn eerste slag.** Na zijn eerste slag ligt hij blijvend open voor een worp of een klap
-  (`kooiRaakbaar`: `slagen >= 1`), behalve tijdens een slag zelf, want dan is de kooi zijn pantser. Een rake
-  treffer is dodelijk (`hp` 1). Dat de kwetsbaarheid blijft (en niet alleen het krappe herstelraam is) was nodig:
-  een worp vanaf de standoff-afstand kwam anders net na het herstel aan en kaatste af. De echte uitdaging blijft
-  de vogel ontwijken terwijl je gooit. Gooi je voor die eerste slag, dan versnelt hij zijn slag (de `snel`-boost)
-  en ramt hij je speer de grond in (de speer valt bij hem, op te halen); die geforceerde slag telt als zijn
-  eerste, dus daarna ligt hij open.
+- **De trilling zet je terug, in de lucht net zo goed als op de grond.** Elke keer dat de kooi de grond raakt
+  stuurt de trilling je een stuk terug (`schok`, een knock op de speler, binnen `schokVer`), los van schade, of
+  je nu springt of loopt (een schokgolf ren je niet door). Dat is de spacing: ren je op hem af, dan zet elke
+  slag je terug en kom je maar net verder.
+- **De worp na de eerste slag, de klap pas na de tweede.** Twee aparte vensters:
+  - Met een **worp** ligt hij na zijn eerste slag blijvend open (`kooiRaakbaar`: `slagen >= 1`), behalve tijdens
+    een slag zelf (dan is de kooi zijn pantser). Een rake treffer is dodelijk (`hp` 1). Dat de kwetsbaarheid
+    blijft (en niet alleen het krappe herstelraam is) was nodig: een worp vanaf de standoff-afstand kwam anders
+    net na het herstel aan en kaatste af. De echte uitdaging daar is de vogel ontwijken terwijl je gooit.
+  - Van **dichtbij** (stoot, lage zwaai) raak je hem pas na zijn tweede slag (`kooiMeleeRaak`: `slagen >= 2`): al
+    rennend bereik je hem niet, want elke slag zet je met de schokgolf terug. Zo is het bewust niet mogelijk om
+    hem al na een slag neer te steken; na de tweede slag kun je bij hem.
+  - Gooi je voor zijn eerste slag, dan versnelt hij zijn slag (de `snel`-boost) en ramt hij je speer de grond in
+    (de speer valt bij hem, op te halen); die geforceerde slag telt als zijn eerste, dus daarna gaat het worp-raam open.
 - **De vogel komt steeds terug.** Na elke vogel komt er na `vogelPauze` een nieuwe. Die overlapt het slag-ritme
   en maakt zowel het worp-raam als het naderen lastig. Het mooiste raam is: hij ligt open EN er duikt net geen
   vogel; time je het en beweeg je weg, dan gooi je de kill en ontwijk je de duik in dezelfde beweging.
