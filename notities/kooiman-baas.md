@@ -101,8 +101,8 @@ voor de eindbaas-arena, niet voor deze mob.
   je binnen `slagBereik` komt (ruimer dan je steek, dus naar binnen rennen en steken lukt niet: je vangt eerst zijn
   slag). Buiten zijn herstel pareert hij alles, worp en melee (`kooiPareer`), met precies hetzelfde effect als de
   bandiet-parry: de clang en de vonken op het snijpunt plus de korte hitstop en schok (`banClang`, `banVonk`,
-  `BAN_PAREER_STOP`/`SHAKE`), zodat je hoort en ziet dat het een parry is; later een eigen animatie waarin hij de
-  kooi omhoog houdt. Hij ligt alleen open in zijn
+  `BAN_PAREER_STOP`/`SHAKE`), zodat je hoort en ziet dat het een parry is, met daarbovenop zijn eigen afweer-animatie
+  (set `parry`, zie onder) waarin de vrije hand je speer opzij mept. Hij ligt alleen open in zijn
   **herstel** (`kooiRaakbaar`/`kooiMeleeRaak`: `state === 'recovery'`).
 - **De weg om hem te slopen: bait, stapterug, punish.** Lok zijn slag uit, stap terug zodat hij misslaat, en raak
   hem in zijn herstel, een worp of een steek, een rake treffer is dodelijk (`hp` 1). Naar de overkant glippen
@@ -125,21 +125,24 @@ er alleen in een level (of de sandbox) met een duel-kooiman.
 
 Nog te doen: de telefoon-afstelling (nu laptop-first). Test 38 is het proefstuk.
 
-**Animaties nog te maken (kooiman-duel).** Zelfde canvas en grondlijn als de sleepset (726x648, grondlijn 598),
-hij kijkt naar links (gespiegeld voor rechts), zodat ze over de bestaande frames vallen.
-
-- **Parry (afweer), eenmalig, snel (~6 tot 10 frames).** Start in zijn sleep/sta-houding. Hij staat 1 beeld
-  stil, dan tikt hij met zijn vrije hand (de niet-kooi-hand) je speer opzij, een snelle backhand, met een halve
-  stap terug. Moet als reflex lezen. Nu nog de clang en vonken van de bandiet-parry als placeholder-effect; het
-  geluid is tijdelijk zodat je weet dat het een parry is.
-- **Worstel: kooi lostrekken na een slag, korte lus (~8 tot 14 frames).** Na de grondslag zit de kooi vast en
-  rukt hij er een paar keer aan om hem los te krijgen. Dit is zijn kwetsbare moment op afstand (het worp-raam);
-  als lus zodat het zo lang kan lopen als het venster duurt, hij eindigt los en gaat dan verder (de nadering).
+De **parry-animatie is gebouwd**: 11 frames in `enemies/kooiman/parry/` (set `parry` in `sprites.json`, ticks
+`[1,1,1,1,4,1,1,1,1,1,2]` in `KOOI_TICKS.parry`, eenmalig, ~0,6 s). Hij staat een beeld stil en mept dan met zijn
+vrije hand (de niet-kooi-hand) je speer opzij, een snelle backhand als reflex; de kooi blijft bevroren in de
+frames. `kooiPareer` speelt hem af bovenop de clang en de vonken van de bandiet-parry (nog het tijdelijke placeholder-geluid),
+en keert daarna terug naar `drag` (de parry-tak in `updateKooiman`). Bij de overgang van `drag` naar `parry`
+verspringt zijn houding een tikje; dat is zo gelaten. In de sandbox onder Vijanden, Kooiman, Zijn animaties: **Parry**.
 
 De **sterf-animatie is gebouwd**: 24 frames in `enemies/kooiman/dood/` (set `dood` in `sprites.json`, ticks in
 `KOOI_TICKS.dood`, eenmalig, ~1,6 s), met de witte flits op frame 0 zoals de bandiet, de kooi valt mee en het
 laatste frame blijft als lijk liggen. Tijdelijk het doodsgeluid van de bandiet (`banSterf`). In de sandbox onder
 Vijanden, Kooiman, Zijn animaties: **Dood**.
+
+**Animatie nog te maken (kooiman-duel).** Zelfde canvas en grondlijn als de sleepset (726x648, grondlijn 598),
+hij kijkt naar links (gespiegeld voor rechts), zodat ze over de bestaande frames vallen.
+
+- **Worstel: kooi lostrekken na een slag, korte lus (~8 tot 14 frames).** Na de grondslag zit de kooi vast en
+  rukt hij er een paar keer aan om hem los te krijgen. Dit is zijn kwetsbare moment op afstand (het worp-raam);
+  als lus zodat het zo lang kan lopen als het venster duurt, hij eindigt los en gaat dan verder (de nadering).
 
 ## De lichte versie (de gewone kooiman, wel nu gebouwd)
 - Zoner-smaak, maar simpel: hij houdt stand en slaat als je in bereik bent, draait naar je toe, en
