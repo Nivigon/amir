@@ -933,6 +933,15 @@
         <button id="sbworpwacht" class="on">Spannen: nieuw</button>
       </div>
       <div class="row">
+        <label>Reserve op de rug</label>
+        <button id="sbrug0" class="on">Rug: uit</button>
+        <button data-rug="1">Rug: 1</button>
+        <button data-rug="2">Rug: 2</button>
+        <button data-rug="3">Rug: 3</button>
+        <button id="sbrugvul">Rug vol</button>
+        <span class="hint">1 in de hand plus de rug: zoveel worpen voor je melee-loos bent. Gooi je de speer, dan trek je de volgende van je rug. Bijvullen: loop over een losse speer of trek er een uit een skelet</span>
+      </div>
+      <div class="row">
         <label>Tribe Mkuki</label>
         <button data-ability="quick_hand" class="on">Quick Hand: aan</button>
         <button data-ability="thorn_breaker" class="on">Thorn Breaker: aan</button>
@@ -9370,7 +9379,15 @@ function eigenSpeerNeer(){
 function losTrek(){
   const sp = losBij();
   if (!sp) return false;
-  if (spearFound){ sp.wiebel = 0.5; playNee(); flashHint('Je hebt al een speer'); return true; }
+  if (spearFound){                                    // hand is vol: op de rug, als daar nog plek is
+    if (rugErbij(sp.blauw)){
+      losseSperen.splice(losseSperen.indexOf(sp), 1);
+      puffDust(4);
+      flashHint('Speer op je rug (' + rugSperen.length + ' van de ' + RUG_MAX + ')');
+      return true;
+    }
+    sp.wiebel = 0.5; playNee(); flashHint(rugAan() ? 'Je hand en je rug zijn vol' : 'Je hebt al een speer'); return true;
+  }
   eigenSpeerNeer();
   losseSperen.splice(losseSperen.indexOf(sp), 1);
   spearFound = true; spear = true; speerBlauw = sp.blauw; setSpearLabel();
@@ -9460,7 +9477,7 @@ function skeletTrek(){
   const s = skeletBij();
   if (!s) return false;
   if (s.staat === 'trek') return true;
-  if (spearFound){ s.wiebel = 0.5; playNee(); flashHint('Je hebt al een speer'); return true; }
+  if (spearFound && !(rugAan() && !rugVol())){ s.wiebel = 0.5; playNee(); flashHint(rugAan() ? 'Je hand en je rug zijn vol' : 'Je hebt al een speer'); return true; }
   s.staat = 'trek'; s.t = 0; skTrek = s;
   flashHint('Houd E vast om de speer eruit te trekken');
   return true;
@@ -9471,6 +9488,11 @@ function skeletTrekLos(){                            // E losgelaten
 }
 function skeletTrekKlaar(s, scale){                 // hij laat los: de speer is van jou, het skelet ploft in elkaar
   skTrek = null;
+  if (spearFound && rugErbij(true)){                // hand al vol: de skeletspeer (blauw) gaat op de rug
+    skeletValt(s, scale);
+    flashHint('Speer van het skelet op je rug (' + rugSperen.length + ' van de ' + RUG_MAX + ')');
+    return;
+  }
   eigenSpeerNeer();                                 // je eigen speer blijft liggen waar hij lag
   spearFound = true; spear = true; setSpearLabel();
   speerBlauw = true;                                // met het blauwe vaantje van het skelet eraan
@@ -9528,7 +9550,7 @@ function skeletUpdate(dt, scale){
     }
     if (s.staat === 'trek'){
       s.t += dt;
-      if (skeletBij() !== s || spearFound){ s.staat = 'speer'; s.t = 0; skTrek = null; }   // weggelopen
+      if (skeletBij() !== s || (spearFound && !(rugAan() && !rugVol()))){ s.staat = 'speer'; s.t = 0; skTrek = null; }   // weggelopen, of hand en rug vol
       else {
         if (Math.random() < dt * (3 + 10 * s.t / SKELET.trek.duur)) skeletStof(s, 1, 0.35);   // gruis dat eraf trilt
         if (s.t >= SKELET.trek.duur) skeletTrekKlaar(s, scale);
@@ -13262,6 +13284,87 @@ let javLost = 0;       // aftellen tot hij terugkomt uit water of ravijn
 let javOver = null;    // {g, dir}: in welk ravijn hij viel, en van welke kant
 let lastSolid = 0;     // laatste vaste grond waar Amir stond: daar komt hij terug
 
+// ---- reserve-speren op de rug (prototype, alleen in de sandbox) ----------
+// Standaard 1 speer in de hand plus de rug: zoveel worpen voor je melee-loos bent. Gooi je de speer
+// uit je hand, dan trek je na een korte beat (RUG.trek) de volgende van je rug: naadloos maar
+// zichtbaar, een half tellertje. Bijvullen gaat met een losse speer, een skelet, of je eigen
+// opgeraapte speer (die gaat terug in de hand of, is de hand vol, op de rug). De rug zelf is de HUD:
+// zichtbaar op Amir betekent reserve, een lege rug betekent ophalen of melee.
+// RUG_MAX 0 houdt het hele systeem uit, dus de echte episodes (rule 1) merken er niets van; de
+// sandbox zet het aan met een knop. Later kan een level of een talent de capaciteit zetten.
+const RUG = { trek: 0.38 };          // de beat van het over-de-schouder grijpen, in seconden
+let RUG_MAX = 0;                     // capaciteit van de rug; 0 = het systeem uit
+const rugSperen = [];                // de reserve: [{blauw}], lengte hoogstens RUG_MAX
+let rugTrekT = 0;                    // > 0: de trek-beat loopt
+function rugAan(){ return sandbox && RUG_MAX > 0; }
+function rugVol(){ return rugSperen.length >= RUG_MAX; }
+// een reserve erbij (bij het bijvullen): past hij nog op de rug?
+function rugErbij(blauw){
+  if (!rugAan() || rugVol()) return false;
+  rugSperen.push({ blauw: !!blauw });
+  return true;
+}
+// de beat is om: trek er een van de rug in je hand, als je hand intussen nog leeg is
+function rugTrekKlaar(){
+  rugTrekT = 0;
+  if (spear || spearFound || !rugSperen.length) return;   // je hebt alweer een speer in de hand
+  const r = rugSperen.shift();
+  spearFound = true; spear = true; speerBlauw = r.blauw; setSpearLabel();
+  puffDust(4);
+  flashHint(rugSperen.length ? ('Speer van je rug getrokken (' + rugSperen.length + ' nog op de rug)')
+                             : 'Laatste speer van je rug: de rug is nu leeg');
+}
+function rugUpdate(dt){
+  if (rugTrekT > 0){ rugTrekT = Math.max(0, rugTrekT - dt); if (rugTrekT <= 0) rugTrekKlaar(); }
+}
+// De reserve als placeholder op zijn rug: de bestaande speer klein en schuin, per reserve gestapeld,
+// zodat je ze kunt tellen. Dit is tegelijk de HUD (geen apart schermpje). Getekend in schermruimte
+// vlak voor het lijf, dus hij valt er deels achter weg, als een speer op de rug. De echte geankerde
+// tekening per Amir-frame komt later (zie het anker-patroon van BAV_VALSPEER); dit is om de loop te
+// voelen. Tijdens de trek-beat glijdt de bovenste van de rug naar zijn hand.
+function rugSpeerTeken(pcx, feetY, scale){
+  if (!rugAan() || building || dead) return;
+  const n = rugSperen.length;
+  if (!n && rugTrekT <= 0) return;
+  const ah = CHAR_H * scale;
+  const back = facing >= 0 ? -1 : 1;                   // de rug is de kant waar hij niet heen kijkt
+  const front = -back;
+  const lerp = (a, b, t) => a + (b - a) * t;
+  ctx.save();
+  ctx.lineCap = 'round';
+  for (let i = n - 1; i >= 0; i--){                    // de achterste eerst, zodat de voorste erbovenop ligt
+    const r = rugSperen[i];
+    const off = back * ah * (0.13 + i * 0.05);
+    // de rug-pose: schuin over zijn rug, de punt boven bij de schouder
+    let tx = pcx + off + back * ah * 0.09, ty = feetY - ah * (0.92 - i * 0.02);
+    let bx = pcx + off - back * ah * 0.05, by = feetY - ah * 0.30;
+    let a = 1;
+    if (i === 0 && rugTrekT > 0){                       // de bovenste wordt net over de schouder gegrepen
+      const p = Math.min(1, 1 - rugTrekT / RUG.trek);
+      tx = lerp(tx, pcx + front * ah * 0.16, p); ty = lerp(ty, feetY - ah * 1.04, p);
+      bx = lerp(bx, pcx + front * ah * 0.16, p); by = lerp(by, feetY - ah * 0.12, p);
+      a = lerp(1, 0.35, p);
+    }
+    ctx.globalAlpha = a;
+    const dx = bx - tx, dy = by - ty, len = Math.hypot(dx, dy) || 1;
+    const bl = ah * 0.16;                               // de bladlengte boven de schacht uit
+    const px = -dx / len * bl, py = -dy / len * bl;     // voorbij de top, in de richting van de schacht
+    ctx.strokeStyle = '#6b4a2b'; ctx.lineWidth = Math.max(2, 5 * scale);   // de houten schacht
+    ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(bx, by); ctx.stroke();
+    ctx.fillStyle = '#c3c8cd';                          // het metalen blad
+    const nxp = -py / bl, nyp = px / bl;                // dwars op de schacht
+    ctx.beginPath();
+    ctx.moveTo(tx + px, ty + py);
+    ctx.lineTo(tx + nxp * bl * 0.16, ty + nyp * bl * 0.16);
+    ctx.lineTo(tx - nxp * bl * 0.16, ty - nyp * bl * 0.16);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = r.blauw ? '#3a7bd0' : '#b23a2c';  // het lint, blauw als het de skeletspeer is
+    ctx.lineWidth = Math.max(2, 3.5 * scale);
+    ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx - nxp * bl * 0.5 + px * 0.3, ty - nyp * bl * 0.5 + py * 0.3); ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function nowScale(){ return (H * (Number(sizeEl.value) / 100)) / CHAR_H; }
 function javLen(scale){ return CHAR_H * scale * JAV.len; }   // schermlengte van de speer
 function thrFlip(){ return autoFlip ? facing !== 1 : false; }
@@ -13378,6 +13481,7 @@ function looseSpear(){
   thr.gone = true;
   spear = false; spearFound = false; spearX = null; spearH = null;
   setSpearLabel();
+  if (rugAan() && rugSperen.length && !rugTrekT) rugTrekT = RUG.trek;   // je grijpt de volgende van je rug
   const scale = nowScale(), dir = thrDir();
   const lob = !!thr.lob, schaal = worpSchaal();
   const graden = schaal ? thr.hoek : lob ? THR_LOB_DEG : 0;
@@ -18833,6 +18937,8 @@ function restart(){
   fakkelReset();                                     // de vonken weg en het vuurgeluid uit
   speervalReset();                                  // de speervallen weer in de wand
   losseSperen.length = 0;                           // geen losse speren meer op de grond
+  if (!sandbox) RUG_MAX = 0;                         // het reserve-systeem is er alleen in de sandbox (rule 1)
+  rugSperen.length = 0; rugTrekT = 0;               // de rug weer leeg bij een nieuw begin
   skeletReset();                                    // de skeletten weer overeind, met hun speer
   const bav = level && level.baviaan;               // de baviaan van een level weer hoog aan de wand
   if (bav && bav.lvl){ baviaanLaad(); bav.afzet = null; bav.f = bav.f0; bavRust.delete(bav); bavBrulSnd.pause(); bavGromStop(); }
@@ -18878,6 +18984,7 @@ function restart(){
     spearX = level.geenSpeer ? null : world + SPEAR_AHEAD;   // voor je, ook als je verder naar rechts begint (startWereld)
   }
   else { spearFound = true; spearX = null; }
+  if (rugAan()) while (!rugVol()) rugSperen.push({ blauw: false });   // in de sandbox begin je met een volle rug
   setSpearLabel();
 }
 
@@ -25021,6 +25128,7 @@ function loop(now){
   }
   if (atkCooldown > 0) atkCooldown = Math.max(0, atkCooldown - dt);
   updateThrow(dt);                               // spannen, uithalen, herstellen
+  rugUpdate(dt);                                 // de beat van het van je rug trekken na een worp
   javUpdate(dt, plats, scaleNow);                // en de speer die onderweg is
   speerNaastAmir(dt, plats);                     // achter een doornbos of boven op een berg: naast je
   muurUpdate(dt, scaleNow);                      // het rotsblok schuift, en de speer komt terug in de grond
@@ -25811,6 +25919,7 @@ function loop(now){
     javDraw(groundY, scale, cx, 'rust');              // een speer in de grond of in een wand: achter Amir
     drawSweepDust(true, cx, groundY, lift, scale);    // stof achter Amir langs
     amirSchaduw();                                    // zijn schaduw: na de terrassen, treden en keien
+    rugSpeerTeken(pcx, groundY + lift, scale);        // de reserve op zijn rug: achter zijn lijf, dus voor Amir getekend
     drawLichtkaart(groundY, scale, cx, dt, 'wereld'); // het licht onder de grond, over de wereld achter hem
     const blink = invuln > 0 && !dead && amirSteen <= 0 && Math.floor(invuln * 14) % 2 === 0;
     ctx.save();
@@ -29297,6 +29406,7 @@ function startSandbox(){
   sbKooiDuel = false; sbKooiDuelLabel();                // en de duel-variant ook
   kooiBij = 1; sbKooiGrootteToon();                     // de grootte-afstelling terug op de code-waarde
   RUN.woede = 0; woedeStop();                           // de woedemeter van de sandbox begint leeg
+  RUG_MAX = 0; rugSperen.length = 0; rugTrekT = 0; rugToon();   // de reserve op de rug begint uit
   document.getElementById('lives').style.display = 'none';   // geen levens in de sandbox
   restart();
   hudToon();
@@ -29304,6 +29414,7 @@ function startSandbox(){
 }
 function stopSandbox(){
   sandbox = false; godMode = false; setGodLabel();
+  RUG_MAX = 0; rugSperen.length = 0; rugTrekT = 0;      // het reserve-systeem weer uit buiten de sandbox
   sbPatrouille = false; sbPatBtn.classList.remove('on');
   sbMuziek = MUZIEK_BASIS;
   sbWeer = null; sbWeerToon();
@@ -30332,9 +30443,36 @@ document.getElementById('sbglij').onclick = e => {
   cv.focus();
 };
 document.getElementById('sbspear').onclick = () => {          // weer met een speer in de hand
-  thr = null; jav = null; javLost = 0;
+  thr = null; jav = null; javLost = 0; rugTrekT = 0;
   spearFound = true; spear = true; spearX = null; spearH = null;
+  if (rugAan()) while (!rugVol()) rugSperen.push({ blauw: false });   // en de rug meteen weer vol
   setSpearLabel(); cv.focus();
+};
+// ---- reserve op de rug: de capaciteit zetten, en de rug vullen (zie RUG) ----------
+const sbRug0 = document.getElementById('sbrug0');
+function rugToon(){
+  sbRug0.classList.toggle('on', RUG_MAX <= 0);
+  for (const o of document.querySelectorAll('[data-rug]')) o.classList.toggle('on', +o.dataset.rug === RUG_MAX);
+}
+sbRug0.onclick = () => {
+  RUG_MAX = 0; rugSperen.length = 0; rugTrekT = 0; rugToon();
+  flashHint('Reserve op de rug: uit'); cv.focus();
+};
+for (const b of document.querySelectorAll('[data-rug]')) b.onclick = e => {
+  RUG_MAX = +e.currentTarget.dataset.rug; rugTrekT = 0;
+  thr = null; jav = null; javLost = 0;
+  spearFound = true; spear = true; spearX = null; spearH = null;                       // 1 speer in de hand
+  rugSperen.length = 0; while (!rugVol()) rugSperen.push({ blauw: false });            // en de rug vol
+  rugToon(); setSpearLabel();
+  flashHint('Rug: ' + RUG_MAX + ' reserve, dus ' + (RUG_MAX + 1) + ' worpen'); cv.focus();
+};
+document.getElementById('sbrugvul').onclick = () => {
+  if (!rugAan()){ flashHint('Zet eerst de rug aan'); cv.focus(); return; }
+  thr = null; jav = null; javLost = 0; rugTrekT = 0;
+  spearFound = true; spear = true; spearX = null; spearH = null;
+  rugSperen.length = 0; while (!rugVol()) rugSperen.push({ blauw: false });
+  setSpearLabel();
+  flashHint('Hand en rug weer vol'); cv.focus();
 };
 document.getElementById('sbrock').onclick = () => {           // een rots om op te mikken
   const side = sbFromRight ? 1 : -1;
