@@ -135,9 +135,11 @@ hij kijkt naar links (gespiegeld voor rechts), zodat ze over de bestaande frames
 - **Worstel: kooi lostrekken na een slag, korte lus (~8 tot 14 frames).** Na de grondslag zit de kooi vast en
   rukt hij er een paar keer aan om hem los te krijgen. Dit is zijn kwetsbare moment op afstand (het worp-raam);
   als lus zodat het zo lang kan lopen als het venster duurt, hij eindigt los en gaat dan verder (de nadering).
-- **Sterf (dood), eenmalig (~10 tot 16 frames).** Hij zakt in elkaar en laat de kooi los, eindigend op een
-  lig-pose die als lijk blijft liggen. Nu heeft hij nog geen doodframes (hij zakt en vervaagt alleen, `kooiSet
-  'dood'` met een alpha-fade).
+
+De **sterf-animatie is gebouwd**: 24 frames in `enemies/kooiman/dood/` (set `dood` in `sprites.json`, ticks in
+`KOOI_TICKS.dood`, eenmalig, ~1,6 s), met de witte flits op frame 0 zoals de bandiet, de kooi valt mee en het
+laatste frame blijft als lijk liggen. Tijdelijk het doodsgeluid van de bandiet (`banSterf`). In de sandbox onder
+Vijanden, Kooiman, Zijn animaties: **Dood**.
 
 ## De lichte versie (de gewone kooiman, wel nu gebouwd)
 - Zoner-smaak, maar simpel: hij houdt stand en slaat als je in bereik bent, draait naar je toe, en
