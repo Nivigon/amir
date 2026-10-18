@@ -19497,13 +19497,28 @@ function nextKind(){
   return 'groen';
 }
 
+// Een treffer op een slang of schorpioen. Zonder health-balk (hpBalk uit) is hij in een klap dood, zoals
+// altijd: geeft true terug. Met de balk telt hij een leven af en is hij daarna even onkwetsbaar (s.inv),
+// zodat een lage zwaai of een steek die over meerdere beelden raakt niet alle levens in een keer pakt.
+// true betekent: dit was zijn laatste leven, dus laat hem doodgaan.
+const HP_BALK_INV = 0.4;
+function enemyTakeHit(s){
+  if (!s.hpBalk) return true;
+  if (s.inv > 0) return false;
+  s.hp--;
+  s.inv = HP_BALK_INV;
+  if (s.hp <= 0) return true;
+  s.flash = Math.max(s.flash || 0, 0.18);          // een niet-dodelijke treffer is een witte flits
+  return false;
+}
 function makeSnake(kind){
   const fromRight = allowRight && Math.random() < 0.5;
   const side = fromRight ? 1 : -1;               // 1 = enters from the right, faces left
   return { x: world + side * (W * 0.75 + 420), side,
            state: 'walk', frame: 0, acc: 0,
            flash: 0, alpha: 1, vx: 0, cool: 0,
-           hissed: false, biteUsed: false, stuck: 0, kind, spat: false };
+           hissed: false, biteUsed: false, stuck: 0, kind, spat: false,
+           hp: HP_BALK ? HP_BALK_LEVENS : 1, maxHp: HP_BALK ? HP_BALK_LEVENS : 1, hpBalk: !!HP_BALK, inv: 0 };
 }
 
 // hoe ver vooruit een geplaatste slang wakker wordt, in schermbreedtes.
@@ -19721,6 +19736,7 @@ function slangSchuif(s, dt, plats, cliff, tempo){
 function updateSnake(s, dt, plats, cliff){
   if (ravijnValt(s, dt, 'gone')) return;            // in het open ravijn gevallen
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
+  if (s.inv > 0) s.inv -= dt;
   rijsDraagtMob(s, dt);                             // een lift of rijzend blok onder hem draagt hem mee omhoog en omlaag
 
   // y-modus: op een vaste hoogte gezet (op een laag, of uit de lucht). Valt met de zwaartekracht en
@@ -19851,7 +19867,8 @@ function makeScorp(x, side){
   return { x, home: x, side, dir: -side,        // dir = looprichting in de wereld
            state: 'walk', frame: 0, acc: 0, t: 0, cool: 0,
            flash: 0, alpha: 1, vx: 0, hitUsed: false, chargeFrom: 0, glow: 0,
-           turnT: 1, mirFrom: (side === 1 ? -1 : 1) };
+           turnT: 1, mirFrom: (side === 1 ? -1 : 1),
+           hp: HP_BALK ? HP_BALK_LEVENS : 1, maxHp: HP_BALK ? HP_BALK_LEVENS : 1, hpBalk: !!HP_BALK, inv: 0 };
 }
 // het stof en de korrels in de wereld (van steenStof en puffWorld) lopen op hun eigen tijd. Apart gezet zodat
 // ze tijdens een freeze (de stamp van de kooiman) gewoon doorlopen: de environment bevriest niet, alleen Amir
@@ -21001,12 +21018,13 @@ function hyScale(){
 function hyThreatGap(){ return HY_THREAT_GAP * HY.bodyW * hyScale(); }
 function makeHyena(x, side, enc){
   // side 1 = hij komt van rechts. De frames kijken naar links, dus face 1 = gespiegeld
+  const hhp = HP_BALK ? HP_BALK_LEVENS : HY_HP;         // met de health-balk HP_BALK_LEVENS levens
   return { x, side, face: -side, dir: -side, enc, skin: winterOn() ? 'wit' : 'zwart',
            state: 'komen', show: 'loop', wacht: 0, frame: 0, acc: 0,
            dreig: 0, dreigAcc: 0, kop: 0, kopAcc: 0,
            t: 0, threatT: HY_THREAT_MIN + Math.random() * (HY_THREAT_MAX - HY_THREAT_MIN),
            forceT: -1,
-           hp: HY_HP, inv: 0, flash: 0, alpha: 1, base: 0, fall: 0, stuck: 0,
+           hp: hhp, maxHp: hhp, hpBalk: !!HP_BALK, inv: 0, flash: 0, alpha: 1, base: 0, fall: 0, stuck: 0,
            hitUsed: false, sweptId: -1 };
 }
 // een encounter is één roedel: de lach klinkt één keer voor de hele roedel
@@ -21385,8 +21403,9 @@ function makeZwaard(x, side, kleur){
   // side 1 = hij staat rechts van je. De frames kijken naar rechts, dus face -1 = gespiegeld
   if (!ZW_KLEUREN[kleur]) kleur = 'rood';
   zwLaadKleur(kleur);
+  const zhp = HP_BALK ? HP_BALK_LEVENS : ZW_HP;         // met de health-balk HP_BALK_LEVENS levens
   return { x, kleur, face: -side, state: 'idle', frame: 0, acc: 0, t: 0,
-           hp: ZW_HP, inv: 0, flash: 0, knock: 0, base: 0, stuck: 0, lig: 0, alpha: 1,
+           hp: zhp, maxHp: zhp, hpBalk: !!HP_BALK, inv: 0, flash: 0, knock: 0, base: 0, stuck: 0, lig: 0, alpha: 1,
            hitUsed: false, sweptId: -1, klaar: false, vrij: false, veeg: false };
 }
 function zwSet(s, state){ s.state = state; s.frame = 0; s.acc = 0; s.t = 0; s.klaar = false; s.hitUsed = false; }
@@ -23499,8 +23518,9 @@ function amirStil(){
   return duckT >= 1 && onGround && !jump && swFrame < 0 && swRecover <= 0 && atkFrame < 0 && !thr && hurt <= 0;
 }
 function makeFosfor(x, side){
+  const fhp = HP_BALK ? HP_BALK_LEVENS : FOSFOR.hp;     // met de health-balk HP_BALK_LEVENS levens
   return { x, side, base: 0, state: 'rond', frame: 0, acc: 0, t: 0, groep: null, fase: 0, v: 0, stop: 0,
-           hp: FOSFOR.hp, flash: 0, inv: 0, alpha: 1, vx: 0, klim: false,
+           hp: fhp, maxHp: fhp, hpBalk: !!HP_BALK, flash: 0, inv: 0, alpha: 1, vx: 0, klim: false,
            zag: true, naBeet: false, geraakt: false, biteUsed: false, sweptId: -1,
            steenImg: null, hissed: false, schud: 0 };
 }
@@ -23784,6 +23804,7 @@ function drawFosforSlangen(o){
     const bl = s.side === 1 ? SNK_W - SNK_BOX.r : SNK_BOX.l;
     const br = s.side === 1 ? SNK_W - SNK_BOX.l : SNK_BOX.r;
     const sbox = { l: sx + bl * sS, r: sx + br * sS, t: sy + SNK_BOX.t * sS, b: sy + SNK_BOX.b * sS };
+    vijandHpBalk((sbox.l + sbox.r) / 2, sbox.t, s, sS);   // het health-balkje boven de kop (met hpBalk)
 
     let strike = null;
     if (s.state === 'beet' && SNK_STRIKE[s.frame] !== undefined){
@@ -23874,6 +23895,7 @@ function updateScorp(s, dt, plats, cliff){
   if (ravijnValt(s, dt, 'gone')) return;            // in het open ravijn gevallen
   plats_ = plats; cliff_ = cliff;
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
+  if (s.inv > 0) s.inv -= dt;
   if (s.cool > 0) s.cool = Math.max(0, s.cool - dt);
   s.glow += dt;
   rijsDraagtMob(s, dt);                             // mee omhoog en omlaag met een lift of rijzend blok
@@ -26175,6 +26197,7 @@ function loop(now){
       const br = s.side === 1 ? SNK_W - SNK_BOX.l : SNK_BOX.r;
       const sbox = { l: sx + bl * sScale, r: sx + br * sScale,
                      t: sy + SNK_BOX.t * sScale, b: sy + SNK_BOX.b * sScale };
+      vijandHpBalk((sbox.l + sbox.r) / 2, sbox.t, s, sScale);   // het health-balkje boven de kop (met hpBalk)
 
       if (s.kind === 'zwart' && s.state === 'bite' && s.frame >= SPIT_FRAME && !s.spat
           && s.state !== 'dying' && !dead){
@@ -26228,11 +26251,13 @@ function loop(now){
           if (atkMes){ if (mesAfweer(s, 'slang')) swingUsed = true; }   // het mes weert af, het doodt niet
           else {
           swingUsed = true;
+          if (enemyTakeHit(s)){
           hits++; hitsEl.textContent = hits;
           s.state = 'dying'; s.flash = 0.25;
           s.vx = (facing === 1 ? 420 : -420);
           vijandDood(false);
           s.frame = 0; s.acc = 0;
+          }
           tutEvent('thrust');
           }
         }
@@ -26240,20 +26265,24 @@ function loop(now){
       // ---- de geworpen speer ------------------------------------------
       if (s.state !== 'dying' && javRaakt(sbox)){
         javHitEnemy();
+        if (enemyTakeHit(s)){
         hits++; hitsEl.textContent = hits;
         s.state = 'dying'; s.flash = 0.25;
         s.vx = (jav.dir === 1 ? 420 : -420);
         vijandDood(false);
         s.frame = 0; s.acc = 0;
+        }
       }
       // ---- lage zwaai: raakt alles laag om hem heen, elke slang één keer ----
       if (s.state !== 'dying' && s.sweptId !== sweepId && hitBy(zwaaiVak(swbox, 'slang'), sbox)){
         s.sweptId = sweepId;
+        if (enemyTakeHit(s)){
         hits++; hitsEl.textContent = hits;
         s.state = 'dying'; s.flash = 0.25;
         s.vx = (s.x < playerX() ? -420 : 420);
         vijandDood(false);
         s.frame = 0; s.acc = 0;
+        }
         tutEvent('sweep');
       }
     }
@@ -26350,6 +26379,7 @@ function loop(now){
       const br = mirNow ? set.w - set.box.l : set.box.r;
       const kbox = { l: sx + bl * kScale, r: sx + br * kScale,
                      t: sy + set.box.t * kScale, b: sy + set.box.b * kScale };
+      vijandHpBalk((kbox.l + kbox.r) / 2, kbox.t, s, kScale);   // het health-balkje boven zijn kop (met hpBalk)
 
       // raken tijdens de charge is auw
       if (s.state === 'charge' && !s.hitUsed && invuln <= 0 && !dead){
@@ -26378,29 +26408,35 @@ function loop(now){
           if (atkMes){ if (mesAfweer(s, 'schorpioen')) swingUsed = true; }   // het mes weert af
           else {
           swingUsed = true;
+          if (enemyTakeHit(s)){
           hits++; hitsEl.textContent = hits;
           s.state = 'dying'; s.flash = 0.25;
           s.vx = (facing === 1 ? 420 : -420);
           vijandDood(false);
           if (!scorps.some(o => o.state === 'charge')) document.getElementById('scatter').pause();
           }
+          }
         }
       }
       if (s.state !== 'dying' && javRaakt(kbox)){
         javHitEnemy();
+        if (enemyTakeHit(s)){
         hits++; hitsEl.textContent = hits;
         s.state = 'dying'; s.flash = 0.25;
         s.vx = (jav.dir === 1 ? 420 : -420);
         vijandDood(false);
         if (!scorps.some(o => o.state === 'charge')) document.getElementById('scatter').pause();
+        }
       }
       if (s.state !== 'dying' && s.sweptId !== sweepId && hitBy(zwaaiVak(swbox, 'schorpioen'), kbox)){
         s.sweptId = sweepId;
+        if (enemyTakeHit(s)){
         hits++; hitsEl.textContent = hits;
         s.state = 'dying'; s.flash = 0.25;
         s.vx = (s.x < playerX() ? -420 : 420);
         vijandDood(false);
         if (!scorps.some(o => o.state === 'charge')) document.getElementById('scatter').pause();
+        }
       }
     }
 
@@ -26566,6 +26602,7 @@ function loop(now){
 
         const bhw = HY.bodyW * hS * 0.42;               // zijn lijf: hier raakt de speer hem
         const nbox = { l: bodyX - bhw, r: bodyX + bhw, t: voeten - HY.fig * hS, b: voeten };
+        vijandHpBalk(bodyX, nbox.t, s, scale);           // het health-balkje boven zijn kop (met hpBalk)
         let bbox = null;
         if (s.state === 'storm'){                       // de bek: laag, dus je springt eroverheen
           const a1 = bodyX + s.face * HY_BITE.from * hS, a2 = bodyX + s.face * HY_BITE.to * hS;
@@ -26647,6 +26684,7 @@ function loop(now){
 
         const lmid = bodyX + s.face * ZW_LIJF.mid * zS, lhalf = ZW_LIJF.half * zS;
         const nbox = { l: lmid - lhalf, r: lmid + lhalf, t: voeten - ZW.fig * zS, b: voeten };
+        vijandHpBalk((nbox.l + nbox.r) / 2, nbox.t, s, scale);   // het health-balkje boven zijn kop (met hpBalk)
         let zbox = null;
         if (s.state === 'slag'){                        // het zwaard: alleen tijdens de raakframes
           const a1 = bodyX + s.face * ZW_ZWAARD.from * zS, a2 = bodyX + s.face * ZW_ZWAARD.to * zS;
@@ -30603,7 +30641,7 @@ document.getElementById('sbrugvul').onclick = () => {
   setSpearLabel();
   flashHint('Hand en rug weer vol'); cv.focus();
 };
-// ---- health-balk: de bandiet en de kooiman 3 levens met een balkje boven hun hoofd (zie HP_BALK) ----
+// ---- health-balk: bandiet, kooiman, slang, schorpioen, fosforslang, zwaardvechter en hyena 3 levens met een balkje boven hun hoofd (zie HP_BALK) ----
 const sbHpBalk = document.getElementById('sbhpbalk');
 function hpBalkToon(){
   sbHpBalk.textContent = 'Health-balk: ' + (HP_BALK ? 'aan' : 'uit');
@@ -30614,8 +30652,11 @@ sbHpBalk.onclick = () => {
   // ook de al neergezette vijanden meteen bijwerken, zodat je het verschil ziet zonder opnieuw neer te zetten
   for (const s of bandieten){ const m = HP_BALK ? HP_BALK_LEVENS : BAN_HP; s.hpBalk = !!HP_BALK; s.maxHp = m; s.hp = m; }
   for (const s of kooimannen){ const m = HP_BALK ? HP_BALK_LEVENS : (s.duel ? 1 : KOOI_HP); s.hpBalk = !!HP_BALK; s.maxHp = m; s.hp = m; }
+  // de gewone vijanden: met de balk 3 levens, zonder hun eigen HP (slang en schorpioen één klap)
+  const hpZet = (lijst, uit) => { const m = HP_BALK ? HP_BALK_LEVENS : uit; for (const s of lijst){ s.hpBalk = !!HP_BALK; s.maxHp = m; s.hp = m; s.inv = 0; } };
+  hpZet(snakes, 1); hpZet(scorps, 1); hpZet(fosforSlangen, FOSFOR.hp); hpZet(zwaarden, ZW_HP); hpZet(hyenas, HY_HP);
   hpBalkToon();
-  flashHint('Health-balk: ' + (HP_BALK ? 'aan (bandiet en kooiman 3 levens)' : 'uit'));
+  flashHint('Health-balk: ' + (HP_BALK ? 'aan (3 levens, behalve panter en baviaan)' : 'uit'));
   cv.focus();
 };
 document.getElementById('sbrock').onclick = () => {           // een rots om op te mikken
