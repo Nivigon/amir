@@ -34,7 +34,7 @@ from PIL import Image
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BRON = os.path.join(ROOT, 'enemies/kooiman/bron')
 UIT  = os.path.join(ROOT, 'enemies/kooiman')
-SETS = ('drag', 'smash', 'recovery', 'stomp', 'hatch', 'stomp_out', 'dood', 'parry')
+SETS = ('drag', 'smash', 'recovery', 'stomp', 'hatch', 'stomp_out', 'dood', 'parry', 'struggle')
 
 
 # ---------------------------------------------------------------- kleurruimte (uit slang_kleur.py)

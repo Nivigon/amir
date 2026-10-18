@@ -914,6 +914,7 @@
         <button data-kooianim="stomp_out">Uitloop</button>
         <button data-kooianim="dood">Dood</button>
         <button data-kooianim="parry">Parry</button>
+        <button data-kooianim="struggle">Worstel</button>
       </div>
       <div class="row">
         <label>Proefmob</label>
@@ -21506,13 +21507,19 @@ const KOOI = {
   w: 726, h: 648, ground: 598,   // canvas en grondlijn (rij 598, waar zijn voeten staan)
   anker: 386,                     // zijn voeten in de sleephouding, canvas-x (gemeten: tussen zijn twee voeten)
   fig: 301,                       // de gebukte sleephouding, kruin tot zool in canvaspixels (gemeten)
-  n:   { drag: 29, smash: 31, recovery: 21, stomp: 13, hatch: 19, stomp_out: 2, dood: 24, parry: 11 },
+  n:   { drag: 29, smash: 31, recovery: 21, stomp: 13, hatch: 19, stomp_out: 2, dood: 24, parry: 11, struggle: 12 },
   fps: 24,                        // fps_base; het tempo loopt per frame op ticks (de holds zitten daarin)
   impact: 25                      // het frame waarop de kooi de grond raakt (de klap)
 };
-const KOOI_LOOP = { drag: true, smash: false, recovery: false, stomp: false, hatch: false, stomp_out: false, dood: false, parry: false };
+const KOOI_LOOP = { drag: true, smash: false, recovery: false, stomp: false, hatch: false, stomp_out: false, dood: false, parry: false, struggle: true };
 const KOOI_DOOD_SPOED  = 1.3;   // de dood-animatie loopt wat sneller (iets snappier neervallen)
 const KOOI_DOOD_GELUID = 3;     // op dit dood-frame klinkt de doodskreet, zodat hij op de pijnscheut valt en niet op de treffer-flits
+const KOOI_WORSTEL_RAAM = 0.875; // hoe lang de worstel-lus (het kwetsbare worp-raam) loopt voor hij terug naar slepen gaat; gelijk aan het oude herstelvenster (21 frames op 24 fps), zodat de balans gelijk blijft
+// sets met een eigen, breder canvas en grondlijn: de worstel legt de kooi VOOR hem (links), dus hij staat
+// anders in het beeld dan de sleepset. Het foot-anker (anker_x, grondlijn) valt op dezelfde wereldplek als
+// bij drag, zodat hij niet verspringt bij het wisselen. De meta-loader vult dit aan uit sprites.json.
+const KOOI_SETGEO = { struggle: { w: 733, h: 499, ground: 416, anker: 428 } };
+function kooiGeo(state){ return KOOI_SETGEO[state] || KOOI; }
 // per-frame ticks op 24 fps, uit sprites.json: de anticipatie-hold (frame 9), de hitstop op de
 // klap (frame 25) en de end-hold die in het herstel overloopt (frame 30) zitten in deze getallen
 const KOOI_TICKS = {
@@ -21527,7 +21534,9 @@ const KOOI_TICKS = {
   // de dood: 24 frames, eenmalig (38 ticks, zo'n 1,6 s op 24 fps), het laatste frame blijft als lijk liggen
   dood: [2,1,2,1,1,1,1,1,3,1,1,1,1,1,1,8,2,2,1,1,1,1,2,1],
   // de parry: 11 frames, eenmalig (15 ticks, ~0,6 s), de vrije hand mept je speer weg, dan terug naar drag
-  parry: [1,1,1,1,4,1,1,1,1,1,2]
+  parry: [1,1,1,1,4,1,1,1,1,1,2],
+  // de worstel: 12 frames, lus (15 ticks per ronde, ~0,63 s), de kooi zit vast en hij rukt eraan (ping-pong)
+  struggle: [2,1,1,1,1,1,3,1,1,1,1,1]
 };
 // uit sprites.json: zo past hij zich aan als de maker de frames, de grondlijn of de holds wijzigt
 fetch(KOOI_META).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(m => {
@@ -21541,6 +21550,12 @@ fetch(KOOI_META).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(m =>
     if (KOOI_TICKS[k]) KOOI_TICKS[k] = s.frames.map(f => Math.max(1, Math.round(f.ticks || 1)));
     if (s.loop !== undefined) KOOI_LOOP[k] = !!s.loop;
     if (k === 'smash' && s.impact_frame !== undefined) KOOI.impact = s.impact_frame;
+    // een set met een eigen canvas (de worstel): de per-set geometrie overnemen, zodat de maker hem kan bijstellen
+    if (Array.isArray(s.canvas) && s.canvas.length === 2){
+      KOOI_SETGEO[k] = { w: s.canvas[0], h: s.canvas[1],
+                         ground: s.groundline != null ? s.groundline : KOOI.ground,
+                         anker:  s.anchor_x  != null ? s.anchor_x  : KOOI.anker };
+    }
   }
 }).catch(() => console.warn('niet gelezen, de ingebouwde waarden gelden: ' + KOOI_META));
 
@@ -21916,13 +21931,21 @@ function updateKooiman(s, dt, plats, cliff){
         }
       }
     }
-    if (s.klaar) kooiSet(s, 'recovery');
+    // in het duel zit de kooi na de slag vast (de worstel-lus, zijn kwetsbare worp-raam); de gewone kooiman
+    // houdt zijn eenmalige herstel
+    if (s.klaar) kooiSet(s, s.duel ? 'struggle' : 'recovery');
     return;
   }
 
   if (s.state === 'recovery'){                        // het strafvenster: traag herstel, hij ligt open
     kooiAnim(s, dt);
     if (s.klaar) kooiSet(s, 'drag');
+    return;
+  }
+
+  if (s.state === 'struggle'){                        // de kooi zit vast: hij rukt eraan (lus), zijn kwetsbare worp-raam
+    kooiAnim(s, dt);                                  // de ping-pong lus loopt zo lang het raam duurt
+    if (s.t >= KOOI_WORSTEL_RAAM) kooiSet(s, 'drag'); // raam voorbij (s.t loopt bovenaan updateKooiman): de kooi 'zakt terug', hij gaat weer slepen
     return;
   }
 
@@ -22072,14 +22095,14 @@ function kooiFrameImg(s){
 // herstel te raken. De niet-duel kooiman blijft op zijn gewone herstelvenster.
 function kooiRaakbaar(s){
   if (s.inv > 0 || s.state === 'dood') return false;
-  if (s.duel) return s.state === 'recovery';
+  if (s.duel) return s.state === 'struggle';          // na de slag zit de kooi vast (de worstel): zijn kwetsbare worp-raam
   return kooiOpen(s);
 }
-// van DICHTBIJ (stoot, lage zwaai): hetzelfde raam. In zijn herstel raakt je steek hem (en doodt hem, hp 1);
+// van DICHTBIJ (stoot, lage zwaai): hetzelfde raam. Zit de kooi vast (de worstel) dan raakt je steek hem (en doodt hem, hp 1);
 // daarbuiten pareert hij. Zo kun je hem na een gebaite slag ook van dichtbij uitschakelen, niet alleen met een worp.
 function kooiMeleeRaak(s){
   if (s.inv > 0 || s.state === 'dood') return false;
-  if (s.duel) return s.state === 'recovery';
+  if (s.duel) return s.state === 'struggle';
   return kooiOpen(s);
 }
 // de parry: raak je hem buiten zijn herstel, dan weert hij af met precies hetzelfde effect als de bandiet-parry,
@@ -26568,8 +26591,9 @@ function loop(now){
     // ---- de kooimannen --------------------------------------------------
     {
       const kS = kooiScale();
-      const kw = KOOI.w * kS, kh = KOOI.h * kS;
       for (const s of kooimannen){
+        const g = kooiGeo(s.state);                     // de worstel heeft een eigen, breder canvas en grondlijn
+        const kw = g.w * kS, kh = g.h * kS;
         const bodyX = cx + (s.x - world);
         if (bodyX < -kw - W || bodyX > W / viewZoom() + W + kw) continue;
         const kBase = (s.base || 0) * scale;
@@ -26593,7 +26617,7 @@ function loop(now){
         const img = kooiFrameImg(s);
         if (img && imgReady(img))
           ctx.drawImage(s.flash > 0 ? whiteCopy(img, s.flash * 4) : img,
-                        -KOOI.anker * kS, -KOOI.ground * kS, kw, kh);
+                        -g.anker * kS, -g.ground * kS, kw, kh);
         ctx.restore();
         if (s.state === 'dood') continue;               // dood: alleen nog wegvagen, niet meer te raken
 

@@ -102,10 +102,10 @@ voor de eindbaas-arena, niet voor deze mob.
   slag). Buiten zijn herstel pareert hij alles, worp en melee (`kooiPareer`), met precies hetzelfde effect als de
   bandiet-parry: de clang en de vonken op het snijpunt plus de korte hitstop en schok (`banClang`, `banVonk`,
   `BAN_PAREER_STOP`/`SHAKE`), zodat je hoort en ziet dat het een parry is, met daarbovenop zijn eigen afweer-animatie
-  (set `parry`, zie onder) waarin de vrije hand je speer opzij mept. Hij ligt alleen open in zijn
-  **herstel** (`kooiRaakbaar`/`kooiMeleeRaak`: `state === 'recovery'`).
+  (set `parry`, zie onder) waarin de vrije hand je speer opzij mept. Hij ligt alleen open als na zijn slag de kooi
+  **vast zit** (de worstel, `kooiRaakbaar`/`kooiMeleeRaak`: `state === 'struggle'`, zie onder).
 - **De weg om hem te slopen: bait, stapterug, punish.** Lok zijn slag uit, stap terug zodat hij misslaat, en raak
-  hem in zijn herstel, een worp of een steek, een rake treffer is dodelijk (`hp` 1). Naar de overkant glippen
+  hem terwijl de kooi vast zit (de worstel), een worp of een steek, een rake treffer is dodelijk (`hp` 1). Naar de overkant glippen
   helpt niet: hij draait altijd naar je toe en op gelijke hoogte slaat hij versneld terug als je er vlak langs
   wil (`s.snel` als je binnen een lijf-breedte komt). Op een hogere laag (terras, zwevende laag) telt de slag niet
   (`kooiZelfdeHoogte`) en loop je er gewoon overheen.
@@ -125,6 +125,17 @@ er alleen in een level (of de sandbox) met een duel-kooiman.
 
 Nog te doen: de telefoon-afstelling (nu laptop-first). Test 38 is het proefstuk.
 
+De **worstel-animatie is gebouwd**: 12 frames in `enemies/kooiman/struggle/` (set `struggle` in `sprites.json`, ticks
+`[2,1,1,1,1,1,3,1,1,1,1,1]` in `KOOI_TICKS.struggle`, **lus**, een ronde ~0,63 s). Na een grondslag zit de kooi vast
+en rukt hij eraan (ping-pong, de kooi komt niet los). Dit is zijn kwetsbare worp-raam: in het duel gaat hij na de smash
+naar `struggle` in plaats van naar `recovery` (de gewone kooiman houdt `recovery`), en daar is hij te raken
+(`kooiRaakbaar`/`kooiMeleeRaak` geven voor een duel-kooiman `state === 'struggle'`). De lus loopt `KOOI_WORSTEL_RAAM`
+(0,875 s, gelijk aan het oude herstelvenster zodat de balans gelijk blijft), dan 'zakt de kooi terug' en gaat hij weer
+slepen. De set heeft een eigen, breder canvas (733x499, grondlijn 416, anker 428, in `KOOI_SETGEO` en uit `sprites.json`),
+want de kooi ligt hier VOOR hem; het foot-anker valt op dezelfde wereldplek als bij drag, dus hij verspringt niet van plek.
+Een echt "kooi schiet los" moment zit er niet in (daar is later een apart clipje voor nodig); nu springt de houding bij de
+overgang `struggle` -> `drag`. In de sandbox onder Vijanden, Kooiman, Zijn animaties: **Worstel**.
+
 De **parry-animatie is gebouwd**: 11 frames in `enemies/kooiman/parry/` (set `parry` in `sprites.json`, ticks
 `[1,1,1,1,4,1,1,1,1,1,2]` in `KOOI_TICKS.parry`, eenmalig, ~0,6 s). Hij staat een beeld stil en mept dan met zijn
 vrije hand (de niet-kooi-hand) je speer opzij, een snelle backhand als reflex; de kooi blijft bevroren in de
@@ -137,12 +148,8 @@ De **sterf-animatie is gebouwd**: 24 frames in `enemies/kooiman/dood/` (set `doo
 laatste frame blijft als lijk liggen. Tijdelijk het doodsgeluid van de bandiet (`banSterf`). In de sandbox onder
 Vijanden, Kooiman, Zijn animaties: **Dood**.
 
-**Animatie nog te maken (kooiman-duel).** Zelfde canvas en grondlijn als de sleepset (726x648, grondlijn 598),
-hij kijkt naar links (gespiegeld voor rechts), zodat ze over de bestaande frames vallen.
-
-- **Worstel: kooi lostrekken na een slag, korte lus (~8 tot 14 frames).** Na de grondslag zit de kooi vast en
-  rukt hij er een paar keer aan om hem los te krijgen. Dit is zijn kwetsbare moment op afstand (het worp-raam);
-  als lus zodat het zo lang kan lopen als het venster duurt, hij eindigt los en gaat dan verder (de nadering).
+**De duel-animaties zijn nu compleet** (slepen, smash, stamp-keten, parry, worstel en dood). Het enige dat nog kan
+komen is een kort "kooi schiet los" clipje als overgang van de worstel naar het slepen; nu springt de houding daar.
 
 ## De lichte versie (de gewone kooiman, wel nu gebouwd)
 - Zoner-smaak, maar simpel: hij houdt stand en slaat als je in bereik bent, draait naar je toe, en
