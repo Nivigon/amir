@@ -99,8 +99,10 @@ voor de eindbaas-arena, niet voor deze mob.
   kunt pas na het terugzetten een verse worp inzetten (niet tijdens zijn animatie voor-mikken).
 - **Daarna de nadering, en pareren.** Vanaf `s.slagen >= 1` komt hij op je af (`volg`) en slaat hij reactief zodra
   je binnen `slagBereik` komt (ruimer dan je steek, dus naar binnen rennen en steken lukt niet: je vangt eerst zijn
-  slag). Buiten zijn herstel pareert hij alles, worp en melee (`kooiPareer`, een flits en terugstoot, tijdelijk
-  zoals de bandiet; later een korte animatie waarin hij de kooi omhoog houdt). Hij ligt alleen open in zijn
+  slag). Buiten zijn herstel pareert hij alles, worp en melee (`kooiPareer`), met precies hetzelfde effect als de
+  bandiet-parry: de clang en de vonken op het snijpunt plus de korte hitstop en schok (`banClang`, `banVonk`,
+  `BAN_PAREER_STOP`/`SHAKE`), zodat je hoort en ziet dat het een parry is; later een eigen animatie waarin hij de
+  kooi omhoog houdt. Hij ligt alleen open in zijn
   **herstel** (`kooiRaakbaar`/`kooiMeleeRaak`: `state === 'recovery'`).
 - **De weg om hem te slopen: bait, stapterug, punish.** Lok zijn slag uit, stap terug zodat hij misslaat, en raak
   hem in zijn herstel, een worp of een steek, een rake treffer is dodelijk (`hp` 1). Naar de overkant glippen
@@ -121,7 +123,7 @@ nadering, de knockback en zijn bereik, het slagtempo, de schade van een rake sla
 terugketst, en wanneer de vogel duikt). Ben je tevreden, neem de getallen dan over in `KOOI_DUEL`. De knop staat
 er alleen in een level (of de sandbox) met een duel-kooiman.
 
-Nog te doen: een echte parry-animatie (nu een tijdelijke flits plus terugstoot; later houdt hij de kooi snel
+Nog te doen: een echte parry-animatie (nu de clang en vonken van de bandiet-parry, later houdt hij de kooi snel
 omhoog), en de telefoon-afstelling (nu laptop-first). Test 38 is het proefstuk.
 
 ## De lichte versie (de gewone kooiman, wel nu gebouwd)
