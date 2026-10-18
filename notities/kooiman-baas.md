@@ -123,8 +123,23 @@ nadering, de knockback en zijn bereik, het slagtempo, de schade van een rake sla
 terugketst, en wanneer de vogel duikt). Ben je tevreden, neem de getallen dan over in `KOOI_DUEL`. De knop staat
 er alleen in een level (of de sandbox) met een duel-kooiman.
 
-Nog te doen: een echte parry-animatie (nu de clang en vonken van de bandiet-parry, later houdt hij de kooi snel
-omhoog), en de telefoon-afstelling (nu laptop-first). Test 38 is het proefstuk.
+Nog te doen: de telefoon-afstelling (nu laptop-first). Test 38 is het proefstuk.
+
+**Animaties nog te maken (kooiman-duel).** Zelfde canvas en grondlijn als de sleepset (726x648, grondlijn 598),
+hij kijkt naar links (gespiegeld voor rechts), zodat ze over de bestaande frames vallen.
+
+- **Parry (afweer), eenmalig, snel (~6 tot 10 frames).** Start in zijn sleep/sta-houding. Hij staat 1 beeld
+  stil, dan tikt hij met zijn vrije hand (de niet-kooi-hand) je speer opzij, een snelle backhand, met een halve
+  stap terug. Moet als reflex lezen. Nu nog de clang en vonken van de bandiet-parry als placeholder-effect; het
+  geluid is tijdelijk zodat je weet dat het een parry is.
+- **Worstel: kooi lostrekken na een slag, korte lus (~8 tot 14 frames).** Na de grondslag zit de kooi vast en
+  rukt hij er een paar keer aan om hem los te krijgen. Dit is zijn kwetsbare moment op afstand (het worp-raam);
+  als lus zodat het zo lang kan lopen als het venster duurt, hij eindigt los en gaat dan verder (de nadering).
+
+De **sterf-animatie is gebouwd**: 24 frames in `enemies/kooiman/dood/` (set `dood` in `sprites.json`, ticks in
+`KOOI_TICKS.dood`, eenmalig, ~1,6 s), met de witte flits op frame 0 zoals de bandiet, de kooi valt mee en het
+laatste frame blijft als lijk liggen. Tijdelijk het doodsgeluid van de bandiet (`banSterf`). In de sandbox onder
+Vijanden, Kooiman, Zijn animaties: **Dood**.
 
 ## De lichte versie (de gewone kooiman, wel nu gebouwd)
 - Zoner-smaak, maar simpel: hij houdt stand en slaat als je in bereik bent, draait naar je toe, en

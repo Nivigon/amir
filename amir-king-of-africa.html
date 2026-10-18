@@ -912,6 +912,7 @@
         <button data-kooianim="stomp">Stamp</button>
         <button data-kooianim="hatch">Luikje</button>
         <button data-kooianim="stomp_out">Uitloop</button>
+        <button data-kooianim="dood">Dood</button>
       </div>
       <div class="row">
         <label>Proefmob</label>
@@ -21397,11 +21398,11 @@ const KOOI = {
   w: 726, h: 648, ground: 598,   // canvas en grondlijn (rij 598, waar zijn voeten staan)
   anker: 386,                     // zijn voeten in de sleephouding, canvas-x (gemeten: tussen zijn twee voeten)
   fig: 301,                       // de gebukte sleephouding, kruin tot zool in canvaspixels (gemeten)
-  n:   { drag: 29, smash: 31, recovery: 21, stomp: 13, hatch: 19, stomp_out: 2 },
+  n:   { drag: 29, smash: 31, recovery: 21, stomp: 13, hatch: 19, stomp_out: 2, dood: 24 },
   fps: 24,                        // fps_base; het tempo loopt per frame op ticks (de holds zitten daarin)
   impact: 25                      // het frame waarop de kooi de grond raakt (de klap)
 };
-const KOOI_LOOP = { drag: true, smash: false, recovery: false, stomp: false, hatch: false, stomp_out: false };
+const KOOI_LOOP = { drag: true, smash: false, recovery: false, stomp: false, hatch: false, stomp_out: false, dood: false };
 // per-frame ticks op 24 fps, uit sprites.json: de anticipatie-hold (frame 9), de hitstop op de
 // klap (frame 25) en de end-hold die in het herstel overloopt (frame 30) zitten in deze getallen
 const KOOI_TICKS = {
@@ -21412,7 +21413,9 @@ const KOOI_TICKS = {
   // luikje tijdens de freeze (frame 9 staat 36 ticks open, daar komt de vogel), stomp_out de uitloop
   stomp: [1,1,1,1,1,1,1,1,4,1,1,1,1],
   hatch: [2,1,1,1,1,1,2,1,1,36,1,1,1,1,1,1,1,1,2],
-  stomp_out: [1,1]
+  stomp_out: [1,1],
+  // de dood: 24 frames, eenmalig (38 ticks, zo'n 1,6 s op 24 fps), het laatste frame blijft als lijk liggen
+  dood: [2,1,2,1,1,1,1,1,3,1,1,1,1,1,1,8,2,2,1,1,1,1,2,1]
 };
 // uit sprites.json: zo past hij zich aan als de maker de frames, de grondlijn of de holds wijzigt
 fetch(KOOI_META).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(m => {
@@ -21703,10 +21706,8 @@ function updateKooiman(s, dt, plats, cliff){
   s.base = vloerBij(s.x, s.base);
   rijsDraagtMob(s, dt);                               // mee omhoog en omlaag met een lift of rijzend blok
 
-  if (s.state === 'dood'){                            // inzakken en wegvagen (er zijn nog geen doodframes)
-    s.doodT += dt;
-    s.alpha = Math.max(0, 1 - s.doodT / 0.7);
-    if (s.doodT >= 0.7) s.state = 'weg';
+  if (s.state === 'dood'){                            // de dood-animatie speelt een keer af; het laatste frame blijft als lijk liggen
+    kooiAnim(s, dt);
     return;
   }
   // in de sandbox mag je zijn AI uitzetten: dan speelt hij alleen de gekozen set, om te bekijken
@@ -21942,11 +21943,9 @@ function kooiVriesEinde(){
   if (s && s.state === 'hatch') kooiSet(s, 'stomp_out');
 }
 function kooiFrameImg(s){
-  const naam = s.state === 'dood' ? (s.doodSet || 'drag') : s.state;
-  const frame = s.state === 'dood' ? (s.doodFrame || 0) : s.frame;
-  const set = kooiBank[naam] || kooiBank.drag;
+  const set = kooiBank[s.state] || kooiBank.drag;   // ook 'dood' is nu een echte set (de dood-animatie)
   if (!set) return null;
-  return set[Math.min(frame, set.length - 1)];
+  return set[Math.min(s.frame, set.length - 1)];
 }
 // wanneer is hij met een WORP te raken? Het gewone herstelvenster na de smash (kooiOpen, ook de niet-duel
 // kooiman). In het duel ligt hij alleen open in zijn herstel: daarbuiten (ook voor de opener, en terwijl hij
@@ -21990,8 +21989,8 @@ function hitKooiman(s){
   hits++; hitsEl.textContent = hits;
   s.knock = (s.x < playerX() ? -1 : 1) * KOOI_KNOCK;   // altijd bij jou vandaan
   if (s.hp > 0){ s.inv = KOOI_INV_T; s.flash = 0.3; return true; }
-  s.doodSet = s.state; s.doodFrame = s.frame;          // de houding waarin hij stierf bevriezen (er zijn geen doodframes)
-  s.state = 'dood'; s.doodT = 0; s.alpha = 1; s.flash = 0.25;
+  kooiSet(s, 'dood'); s.alpha = 1; s.flash = 0.25; s.knock = 0;   // de dood-animatie, met de witte flits op frame 0 (zoals de bandiet); in de plek blijven, niet wegglijden
+  banSterf();                                          // tijdelijk de doodskreet van de bandiet, zodat hij een eigen dood-geluid heeft
   puffWorld(s.x, 7, 0, 1.0, s.base || 0);
   vijandDood(false);
   return true;
