@@ -79,6 +79,36 @@ verkoop je met beeld en geluid (stof, trillende steentjes, schermschok, een kort
 die ook de vogel bevriest), niet door de speler te duwen. Word je wel geraakt (je stond in de
 kooi-boog), dan is de gewone terugstoot van `hurtPlayer` terecht.
 
+## De duel-variant (gebouwd, nu in de sandbox)
+
+Een geensceneerd een-op-een duel, los van de gewone sleep-kooiman. Opt-in met `duel: true` in een spawn,
+of de knop **Duel** onder Vijanden, Kooiman in de sandbox. De getallen staan in `KOOI_DUEL` (laptop-waarden,
+bedoeld om in het spelen bij te stellen). Het idee: een leesbaar ritme-duel, geen beuken.
+
+- **Intro.** Zodra hij volledig in beeld komt vriest het hele spel even (`KOOI_DUEL.introVries`, via de
+  gedeelde `hitstop`), hij opent de kooi en laat de vogel los (de bestaande `release`-staat). Daarna begint het.
+- **Afstand houden.** Hij blijft op een scherm-relatieve standoff (`KOOI_DUEL.afstand` maal de zichtbare halve
+  breedte), zodat je hem altijd ziet slepen. Loop je weg, dan sleept hij je achterna tot hij zijn afstand terug
+  heeft (`volg`). Nader je, dan laat hij je komen en wijkt hij niet terug. Zo kun je kiezen: op afstand blijven
+  en gooien, of naar binnen voor een melee.
+- **Vaste slag-cadans.** Hij slaat op een tijd-drumbeat (`eersteNa` voor de eerste, daarna `cadans`), los van
+  afstand. Afstand bepaalt alleen of zijn klap-zone je bereikt.
+- **De trilling zet je terug.** Elke keer dat de kooi de grond raakt stuurt de trilling je een stuk terug
+  (`schok`, een knock op de speler, binnen `schokVer`), los van schade. Dat is de spacing: ren je op hem af,
+  dan word je per slag teruggezet. Op het idee van de melee-gauntlet: ren, slag zet je terug, ren (netto
+  dichterbij), slag zet je terug, en zo haal je hem in een paar golven. Afstellen op ongeveer drie met `schok`.
+- **Kwetsbaar na zijn eerste slag.** Pas na zijn eerste slag komt hij in zijn herstel (`recovery`), en daar ligt
+  hij open voor een worp of een klap. Een rake treffer is dodelijk (`hp` 1). Gooi je voor die eerste slag, dan
+  versnelt hij zijn slag (de `snel`-boost) en ramt hij je speer de grond in (de speer valt bij hem, op te halen).
+- **De vogel komt steeds terug.** Na elke vogel komt er na `vogelPauze` een nieuwe. Die overlapt het slag-ritme
+  en maakt zowel het worp-raam als het naderen lastig. Het mooiste raam is: hij ligt open EN er duikt net geen
+  vogel; time je het en beweeg je weg, dan gooi je de kill en ontwijk je de duik in dezelfde beweging.
+
+Nog open / te tunen (vraagt jouw playtest): de precieze cadans en het worp-raam, de kracht van de trilling (de
+drie-golven-gauntlet), en of de vogel-timer netjes een offset houdt op de slagen (nu lopen het twee losse timers).
+Nog niet gedaan: een echte blokkade (hij houdt je nu tegen met de trilling en de hazard, niet met een muur), een
+eigen testlevel (vraagt toestemming), en de telefoon-afstelling (nu laptop-first).
+
 ## De lichte versie (de gewone kooiman, wel nu gebouwd)
 - Zoner-smaak, maar simpel: hij houdt stand en slaat als je in bereik bent, draait naar je toe, en
   rukt op als je buiten bereik komt. Geen kooi-boog-muur, geen leash-finesse van de baas.
