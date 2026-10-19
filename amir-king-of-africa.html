@@ -248,9 +248,10 @@
   #mkobjnote{height:60px}
   #mkobjnote:disabled{opacity:.5}
   #mkobjinfo{color:rgba(242,232,213,.75)}
-  #mkmodus{gap:4px}
-  #mkmodus button{padding:3px 7px;font-size:11px}
-  #mkmodus button.on,#mkplatctl button.on{background:var(--sun);border-color:var(--sun);color:#241a2b}
+  #mkplatctl button.on{background:var(--sun);border-color:var(--sun);color:#241a2b}
+  #mktandctl .mkveld{display:flex;align-items:center;gap:8px;margin:4px 0}
+  #mktandctl .mkveld label{min-width:84px;color:rgba(242,232,213,.65)}
+  #mktandctl select{flex:1;background:rgba(0,0,0,.4);color:var(--bone);border:1px solid rgba(242,232,213,.25);border-radius:2px;font:inherit;font-size:11px;padding:3px 5px}
   #mkstage{position:absolute;left:208px;top:46px;right:0;bottom:0}
   #mkcanvas{display:block;width:100%;height:100%;background:#140e1a;cursor:crosshair;touch-action:none}
   body.touch #mklegend{width:168px}
@@ -592,7 +593,7 @@
       </div>
       <div class="row">
         <button id="btnbuild">Level maken</button>
-        <button id="btnmaker">Level Maker</button>
+        <button id="btnmaker">Maker nieuwstijl</button>
         <button id="btnsandbox">Sandbox</button>
         <button id="btnupdates">Updates</button>
         <button id="btninstellingen">Instellingen</button>
@@ -763,7 +764,7 @@
     <span id="lvname" hidden></span><button id="lvprev" hidden></button><button id="lvnext" hidden></button>
   </div>
   <button id="bterug">Terug naar de bouwer</button>
-  <button id="mkterug">Terug naar Level Maker</button>
+  <button id="mkterug">Terug naar de Maker</button>
   <div id="build">
     <!-- de bovenbalk: naam, opslaan en testen, en daaronder de levellijn (het hele level van opzij) -->
     <div id="bbalk">
@@ -825,7 +826,7 @@
   <!-- Level Maker: een los, simpel grid om de ruwe vorm van een level te schetsen (skelet dat Claude uitbouwt). Raakt het spel, de levels en de bouwer niet aan. -->
   <div id="maker">
     <div id="mkbalk">
-      <strong>Level Maker</strong>
+      <strong>Maker nieuwstijl</strong>
       <span class="mkfield"><label for="mkcols">Breed</label><input id="mkcols" type="number" min="4" max="400" step="1" value="48"></span>
       <span class="mkfield"><label for="mkrows">Hoog</label><input id="mkrows" type="number" min="4" max="200" step="1" value="20"></span>
       <span class="mkfield"><label for="mkground">Grondlijn</label><input id="mkground" type="number" min="0" max="199" step="1" value="12"></span>
@@ -837,15 +838,14 @@
     <div id="mklegend">
       <div class="mkkop">Legenda</div>
       <div id="mklegbtns"></div>
-      <div class="mkhint">klik of sleep = schilderen &middot; wiel = zoomen &middot; rechts slepen of spatie = schuiven</div>
+      <div class="mkhint">klik of sleep = schilderen &middot; wiel = zoomen &middot; rechts slepen of spatie = schuiven &middot; Gum of Delete = voorwerp weg</div>
       <div class="mkkop">Object</div>
       <div id="mkobjinfo" class="mkhint">Kies een object (Vijand, Zegel, Rune, Prop, Platform of Tandwiel) en klik het aan.</div>
       <div id="mkplatctl" class="mkrij" style="display:none"><button id="mkdoel">Zet doelhoogte</button><button id="mkdoelwis">Wis doel</button></div>
       <div id="mkdoelinfo" class="mkhint" style="display:none"></div>
       <div id="mktandctl" style="display:none">
-        <div class="mkhint">Stand van dit wiel (verbindt met het dichtstbijzijnde platform):</div>
-        <div id="mkmodus" class="mkrij"></div>
-        <div id="mktandinfo" class="mkhint"></div>
+        <div class="mkveld"><label for="mktandplat">Verbonden met</label><select id="mktandplat"></select></div>
+        <div class="mkveld"><label for="mktandmodus">Wat het doet</label><select id="mktandmodus"></select></div>
       </div>
       <textarea id="mkobjnote" spellcheck="false" disabled placeholder="opmerking (bv: bandiet die vault, of: dit wiel takelt het platform helemaal omhoog)"></textarea>
       <div class="mkkop">Opslaan</div>
@@ -8067,6 +8067,7 @@ function zegelUpdate(dt, scale){
 }
 // De schakelaar zelf. De rune op een rots gebruikt dezelfde acties (runeDoet), maar gaat om door een speer.
 function zegelSchakel(z, doorVijand){
+  if (z.stuurt){ z.aan = !z.aan; return; }                         // koppel-zegel: alleen de latch om, koppelUpdate doet de acties
   if (z.plafond) zegelPlafond(z);                                  // zie "zakplafond"
   else if (z.rijs) zegelRijs(z);                                   // zie "rijzende grond"
   else if (z.sluit !== null && z.sluit !== undefined) zegelSluit(z);   // een sluitzegel: zie zegelSluit
@@ -8139,6 +8140,56 @@ function zegelTeken(groundY, scale, cx){
 function zegelReset(){
   if (level && level.zegels) for (const z of level.zegels){ z.aan = false; z.op = false; z.t = 0; z.val = null; z.weg = false; z.px = undefined; z.onthuld = false; }
 }
+
+// ---- koppelingen: seinen van triggers (zegels, runes, tandwielen) naar acties ----
+// Opt-in: alleen een level met het veld `acties` en triggers met `stuurt` doet mee; zonder die velden
+// verandert er niets (regel 1). Een trigger stuurt een of meer named seinen zolang hij aan staat; een
+// actie luistert naar een of meer seinen. Zo is alles veel-op-veel: een trigger kan meerdere acties
+// aansturen (meerdere seinen), en een actie kan aan meerdere triggers hangen (zelfde sein, of meerdere
+// in `bij`). Met `alle: true` gaat de actie pas af als alle seinen aan staan (AND), anders is een sein
+// genoeg (OR). De takel-acties komen bij de multi-platform-takel.
+function seinAan(naam){
+  if (!level) return false;
+  for (const z of (level.zegels || [])) if (z.aan && z.stuurt && z.stuurt.indexOf(naam) >= 0) return true;
+  for (const e of (ravijnProef() || [])) if (e.stuurt && e.stuurt.indexOf(naam) >= 0 && runeGeraakt.has(e)) return true;
+  for (const t of takelLijst()) if (t.aan && t.stuurt && t.stuurt.indexOf(naam) >= 0) return true;   // een platform dat helemaal boven staat
+  return false;
+}
+function koppelActief(a){ const b = a.bij || []; return b.length ? (a.alle ? b.every(seinAan) : b.some(seinAan)) : false; }
+function koppelUpdate(){
+  if (!level || !level.acties || !level.acties.length || building) return;
+  for (const a of level.acties){
+    const nu = koppelActief(a);
+    if (nu === a._was) continue;                     // alleen op een flank iets doen
+    a._was = nu;
+    if (nu) koppelDoe(a); else koppelUndo(a);
+  }
+}
+function koppelDoe(a){
+  if (a.soort === 'ravijn' && a.x != null){ if (!ravijnBij(a.x)) ravijnOpen(a.x, a.breed || RAVIJN_MAAT.breed); }
+  else if (a.soort === 'muur') koppelMuur();
+  else if (a.soort === 'speerval' && a.x != null) koppelSpeerval(a.x);
+  else if (a.soort === 'rijs' && a.rijs) rijsOmhoog(a.rijs, 'De grond komt omhoog');
+  else if (a.soort === 'takel' && a.takel) takelKoppel(a.takel, a.richting || 'op');
+}
+function koppelUndo(a){
+  if (a.soort === 'ravijn' && a.x != null) ravijnSluit(a.x);
+  else if (a.soort === 'rijs' && a.rijs) rijsOmlaag(a.rijs);
+  else if (a.soort === 'takel' && a.takel && (a.richting || 'op') !== 'slag') takelKoppel(a.takel, (a.richting || 'op') === 'op' ? 'neer' : 'op');
+  // muur en speerval zijn niet terug te draaien
+}
+// een koppel-actie beweegt de takel-platforms met dat id: helemaal omhoog, omlaag, of een stap (slag)
+function takelKoppel(id, richting){
+  for (const t of takelLijst()){
+    if ((t.id || 'takel') !== id || t.valt || t.weg) continue;
+    if (richting === 'slag') takelSlag(t);
+    else t.doel = richting === 'neer' ? 0 : t.maxA;
+  }
+}
+function koppelMuur(){ const m = muurNu(); if (!m || muurOpen) return; muurOpen = true; shake = Math.max(shake, 0.22); playDeur(); }
+function koppelSpeerval(x){ const sp = speervalZoek(x); if (!sp || (sp.st && sp.st !== 'wand')) return; sp.st = 'tril'; sp.t = 0; sp.vuur = false; speervalSpeel(valSpanSnd, SPEERVAL_SND.span); }
+function rijsOmlaag(id){ for (const b of rijsLijst()) if (b.id === id && b.op){ b.op = false; b.t = 0; } }
+function koppelReset(){ if (level && level.acties) for (const a of level.acties) a._was = false; }
 
 // ---- zakplafond: een plafond dat zakt als je op een zegel stapt ------------------
 // Stukken rots die aan het plafond hangen en naar beneden komen zodra Amir op een zegel met
@@ -8742,7 +8793,12 @@ function takelLaad(){
   takelTouwImg = zetBron(new Image(), TAKEL.dir + 'touw/touw_tegel.png');
   takelKnop = zetBron(new Image(), TAKEL.dir + 'spijkerknop/spijkerknop.png');
 }
-function takelLevel(){ return (level && level.takel) || null; }
+// De takels van het level. Meerdere platforms kan via level.takels (een lijst); de enkele level.takel
+// (de bandiet-arena, de sandbox, de oude levels) blijft werken en telt als een lijst van één. Elk
+// platform is een los object met al zijn eigen staat (angle, doel, top, bob, sway), dus meerdere
+// platforms zijn gewoon meerdere van die objecten.
+function takelLijst(){ if (!level) return []; if (Array.isArray(level.takels) && level.takels.length) return level.takels; return level.takel ? [level.takel] : []; }
+function takelLevel(){ return takelLijst()[0] || null; }   // de eerste, voor pan en losse aanroepen
 function takelHoogte(t, a){ return t.laag + (t.hoog - t.laag) * Math.max(0, Math.min(1, a / t.maxA)); }
 // De looplijn van het plateau ligt niet op de bovenrand van de plaat maar op de voorkant van het
 // bovenvlak: de plank is in perspectief getekend, dus het bovenvlak wijkt terug en je voeten horen
@@ -8751,9 +8807,12 @@ function takelHoogte(t, a){ return t.laag + (t.hoog - t.laag) * Math.max(0, Math
 function takelOpp(t){ return (t.top == null ? takelHoogte(t, t.angle) : t.top) - TAKEL.sta * TAKEL.dekH * CHAR_H; }
 // bij het laden en bij een herstart: alle maten op standaard, het wiel op zijn beginstand
 function takelReset(){
-  const t = takelLevel();
-  if (!t) return;
+  const lijst = takelLijst(); if (!lijst.length) return;
   takelLaad();
+  for (const t of lijst) takelResetEen(t);
+}
+function takelResetEen(t){
+  if (t.id === undefined) t.id = 'takel';            // elk platform een id (voor de plats-id en de koppelingen)
   if (!(t.breed > 0)) t.breed = TAKEL.breed;
   if (!(t.stappen > 0)) t.stappen = TAKEL.stappen;
   if (t.laag === undefined) t.laag = 0;
@@ -8771,8 +8830,8 @@ function takelReset(){
 // een slag: het doel een kwartslag verder in de huidige richting, en aan de uiteindes draait hij om. Het rad
 // draait niet meteen door: eerst een korte krak-hapering (t.haper), met de tik en een kleine schok, en dan
 // draait het de slag verder (zo voelt elke slag als hout dat vangt en dan doorschiet).
-function takelSlag(dir){
-  const t = takelLevel(); if (!t || t.valt || t.weg) return;   // een gevallen brug draait niet meer
+function takelSlag(t, dir){
+  if (!t || t.valt || t.weg) return;   // een gevallen brug draait niet meer
   if (t.lift){
     // lift-modus: een keer raken takelt het plateau in een keer helemaal omhoog of omlaag. Twee wielen (zie
     // takelTeken): het onderste stuurt omhoog (dir 1), het bovenste omlaag (dir -1); zonder dir naar het andere eind
@@ -8790,15 +8849,15 @@ function takelSlag(dir){
   }
   t.haper = TAKEL.haper;
   if (!building) shake = Math.max(shake, 0.03);
-  takelTik();
+  takelTik(t);
 }
 // Een touw is doorgesneden (met een geworpen speer): de brug kantelt naar die kant en stort het ravijn in.
 // kant is -1 (linkertouw) of 1 (rechtertouw). De speer vliegt gewoon verder (geen verloren speer).
-function takelSnijden(kant){
-  const t = takelLevel(); if (!t || t.valt || t.weg) return;
+function takelSnijden(t, kant){
+  if (!t || t.valt || t.weg) return;
   t.valt = true; t.snijKant = kant || -1; t.valV = 40;
   if (!building){ shake = Math.max(shake, 0.18); flashHint('Het touw knapt: de brug stort het ravijn in'); }
-  takelSnap();
+  takelSnap(t);
 }
 // De brug is diep genoeg gevallen: weg. De passagiers die er nog op stonden storten mee het ravijn in, en
 // een zegel dat het gat weer dicht maakt verschijnt (naTakelVal).
@@ -8812,10 +8871,9 @@ function takelBrugWeg(){
   if (onthuld && !building) flashHint('Verderop verschijnt een zegel: stap erop om het ravijn te dichten');
 }
 // de knap van een touw: een korte ruisflits door een bandpass die snel in toonhoogte zakt (als een snaar die breekt)
-function takelSnap(){
+function takelSnap(t){
   if (!wantSound) return;
   const ac = acLoopt(); if (!ac) return;
-  const t = takelLevel();
   const pan = takelPan(t ? t.px : world), t0 = ac.currentTime + 0.005, dur = 0.22;
   const n = ac.createBufferSource(), bp = ac.createBiquadFilter(), ng = ac.createGain();
   n.buffer = takelRuisBuf(ac); bp.type = 'bandpass';
@@ -8838,47 +8896,54 @@ const TAKEL_CRANK_RANGE = 1300;
 // takelaar draait het rad zodra Amir in de buurt is, het plateau stijgt met de passagiers mee, en boven
 // stormen die eraf (de tijdelijke vault als afspring-animatie). Alleen in een echt level, niet in de bouwer.
 function takelBandietenZet(){
-  const t = takelLevel(); if (!t || building) return;
-  const elite = !!t.elite;                                 // de garde: de takelaar en de passagiers in de elite-set
-  if (t.takelaar){
-    const cx = t.x + (t.takelaarZij != null ? t.takelaarZij : -150);   // naast het wiel, aan de verre kant (iets dichterbij zodat zijn slag het rad raakt)
-    const b = makeBandiet(cx, 1, false, false, false, true, false, null, elite);
-    b.base = terrainH(cx); b.face = t.x > cx ? 1 : -1;
-    bandieten.push(b);
-  }
-  const rollen = Array.isArray(t.passagierRollen) ? t.passagierRollen : null;
-  const n = Math.max(rollen ? rollen.length : 0, Math.round(t.passagiers || 0));
-  for (let i = 0; i < n; i++){
-    const rol = rollen && rollen[i] ? rollen[i] : 'ren';   // hurk (gehurkt, springt op bij de brug), dolk (gooit direct) of ren
-    const hurk = rol === 'hurk', dolk = rol === 'dolk';
-    const px = t.px + t.breed * (0.12 + 0.22 * i);        // op de Amir-kant van het dek, uit elkaar
-    const b = makeBandiet(px, -1, dolk, hurk, false, false, true, rol, elite);
-    b.base = takelOpp(t); b.rijsId = 'takel'; b.face = 1;       // meteen aan het plateau vast, zodat hij meerijdt
-    bandieten.push(b);
+  if (building) return;
+  for (const t of takelLijst()){
+    const elite = !!t.elite;                                 // de garde: de takelaar en de passagiers in de elite-set
+    if (t.takelaar){
+      const cx = t.x + (t.takelaarZij != null ? t.takelaarZij : -150);   // naast het wiel, aan de verre kant (iets dichterbij zodat zijn slag het rad raakt)
+      const b = makeBandiet(cx, 1, false, false, false, true, false, null, elite);
+      b.base = terrainH(cx); b.face = t.x > cx ? 1 : -1;
+      bandieten.push(b);
+    }
+    const rollen = Array.isArray(t.passagierRollen) ? t.passagierRollen : null;
+    const n = Math.max(rollen ? rollen.length : 0, Math.round(t.passagiers || 0));
+    for (let i = 0; i < n; i++){
+      const rol = rollen && rollen[i] ? rollen[i] : 'ren';   // hurk (gehurkt, springt op bij de brug), dolk (gooit direct) of ren
+      const hurk = rol === 'hurk', dolk = rol === 'dolk';
+      const px = t.px + t.breed * (0.12 + 0.22 * i);        // op de Amir-kant van het dek, uit elkaar
+      const b = makeBandiet(px, -1, dolk, hurk, false, false, true, rol, elite);
+      b.base = takelOpp(t); b.rijsId = t.id || 'takel'; b.face = 1;       // meteen aan het plateau vast, zodat hij meerijdt
+      bandieten.push(b);
+    }
   }
 }
 // een hevige landing op het plateau (erop springen): dieper inzakken en een beetje schommelen, allebei
 // geschaald met hoe hard je neerkomt (vIn, eenheden per seconde). kant: -1 links van het midden, 1 rechts,
 // zodat het dek naar de kant kantelt waar je landt. Erop lopen gaat niet via deze functie (geen landing).
-function takelBons(vIn, kant){
-  const t = takelLevel(); if (!t || t.valt || t.weg) return;
+function takelById(id){ return takelLijst().find(t => (t.id || 'takel') === id) || null; }
+function takelBons(t, vIn, kant){
+  if (!t || t.valt || t.weg) return;
   const v = Math.max(0, vIn);
   t.bobV -= Math.min(TAKEL.springMax, TAKEL.stoot + TAKEL.springStoot * v);   // de duw omlaag, steviger dan bij het lopen
   const sw = Math.min(TAKEL.schommelMax, TAKEL.schommel * v) * (kant >= 0 ? 1 : -1);
   t.swayV += sw * 9;                                 // een schommel-impuls naar de landingskant
 }
 function takelUpdate(dt){
-  const t = takelLevel(); if (!t) return;
+  const lijst = takelLijst(); if (!lijst.length) return;
   if (!takelGeladen) takelLaad();
-  if (t.weg){ takelGeluid(false); return; }
-  if (building){ t.angle = t.doel = t.maxA; t.bob = 0; t.sway = 0; t.swayV = 0; t.top = takelHoogte(t, t.angle); t.prevTop = t.top; t.stijg = 0; takelGeluid(false); return; }
+  let actief = false;
+  for (const t of lijst) if (takelUpdateEen(t, dt)) actief = true;
+  takelGeluid(actief);                               // het takelgeluid loopt zolang er ergens een plateau op of neer gaat
+}
+function takelUpdateEen(t, dt){                       // werkt één platform bij; geeft terug of het beweegt (voor het geluid)
+  if (t.weg) return false;
+  if (building){ t.angle = t.doel = t.maxA; t.bob = 0; t.sway = 0; t.swayV = 0; t.top = takelHoogte(t, t.angle); t.prevTop = t.top; t.stijg = 0; return false; }
   if (t.valt){                                       // een touw is doorgesneden: de brug kantelt en stort het ravijn in
     t.tilt += (t.snijKant * 0.85 - t.tilt) * Math.min(1, dt * 3.5);   // leunt naar de doorgesneden kant
     t.valV += GRAVITY * 1.3 * dt;
     t.prevTop = t.top; t.top -= t.valV * dt; t.stijg = 0;             // schiet naar beneden (passagiers rijden mee de diepte in)
     if (t.top < -(GAP_DEATH + 450)){ t.weg = true; takelBrugWeg(); }  // diep genoeg: weg, en de passagiers storten mee
-    takelGeluid(false);
-    return;
+    return false;
   }
   t.touwKlok = (t.touwKlok || 0) + dt;               // loopt altijd door, voor de rustige doorlopende touwdraai
   // het wiel draait naar zijn doel, maar pas na de korte krak-hapering: zolang die loopt houdt het rad in
@@ -8890,7 +8955,6 @@ function takelUpdate(dt){
     const angV = t.angV || TAKEL.angV;                 // een level kan het rad trager zetten (de bandiet-arena)
     if (Math.abs(dA) > 1e-4){ t.angle += Math.sign(dA) * Math.min(Math.abs(dA), angV * dt); draait = true; }
   }
-  takelGeluid(draait || t.haper > 1e-6);             // het takelgeluid loopt zolang het plateau op of neer gaat
   const basis = takelHoogte(t, t.angle);
   if (t.rigide){
     // een star plateau (de bandiet-arena-brug die het ravijn precies vult): geen veer, zodat de looplijn altijd
@@ -8920,30 +8984,33 @@ function takelUpdate(dt){
   t.top = basis + t.bob;
   t.stijg = Math.max(0, t.top - (t.prevTop == null ? t.top : t.prevTop));
   t.prevTop = t.top;
-  if (draait) takelKraak(dt);
+  if (draait) takelKraak(t, dt);
+  if (t.stuurt) t.aan = t.angle >= t.maxA - 1e-4;    // trigger: een platform dat helemaal boven staat stuurt zijn seinen
+  return draait || t.haper > 1e-6;
 }
 // de rand van het dek en de hoogte, voor wie erover loopt (een bandiet die de brug oversteekt)
-function takelDek(){
-  const t = takelLevel(); if (!t) return null;
-  return { l: t.px - t.breed / 2, r: t.px + t.breed / 2, top: takelOpp(t) };
-}
+function takelDekVoor(t){ if (!t || t.weg) return null; return { l: t.px - t.breed / 2, r: t.px + t.breed / 2, top: takelOpp(t) }; }
+function takelDek(){ return takelDekVoor(takelLevel()); }   // de eerste, voor losse aanroepen
 // Staat een voetstap op het brug-dek (op zijn hoogte)? Dan is het gat daar overbrugd: de ravijn-rand telt
 // niet, zodat een vijand (en Amir) eroverheen kan lopen in plaats van bij de rand te blijven staan.
 function takelDraagt(x, base){
-  const d = takelDek(); if (!d) return false;
-  return x > d.l && x < d.r && Math.abs((base || 0) - d.top) < 20;
+  for (const t of takelLijst()){ const d = takelDekVoor(t); if (d && x > d.l && x < d.r && Math.abs((base || 0) - d.top) < 20) return true; }
+  return false;
 }
 // het dunne platform: draagt Amir en de speer, en van onderaf loop je eronderdoor (thin)
 function takelPlats(){
-  const t = takelLevel(); if (!t || t.weg) return [];
-  const top = takelOpp(t);                           // de looplijn (voorrand van het bovenvlak)
-  return [{ x: t.px, left: t.px - t.breed / 2, right: t.px + t.breed / 2,
-            topH: top, base: top, wPx: t.breed, hPx: 0, thin: true, takel: true, id: 'takel', stijg: t.stijg || 0 }];
+  const out = [];
+  for (const t of takelLijst()){
+    if (t.weg) continue;
+    const top = takelOpp(t);                         // de looplijn (voorrand van het bovenvlak)
+    out.push({ x: t.px, left: t.px - t.breed / 2, right: t.px + t.breed / 2,
+               topH: top, base: top, wPx: t.breed, hPx: 0, thin: true, takel: true, id: t.id || 'takel', stijg: t.stijg || 0 });
+  }
+  return out;
 }
 // de brokstukken van een slag: alleen hout (de tak-stukjes, geen blaadjes), met dezelfde deeltjes als het doornbos
 function wielSplinters(hx, hh, from, n){
-  const t = takelLevel();
-  const base = t ? terrainH(t.x) : terrainH(world);
+  const base = terrainH(hx);
   for (let i = 0; i < n; i++){
     if (chips.length >= CHIP_MAX) chips.shift();
     const list = chipImg.tak;
@@ -8969,10 +9036,9 @@ function takelRuisBuf(ac){
 }
 function takelPan(wx){ return Math.max(0.22, 1 - Math.abs(wx - playerX()) / (0.9 * W)); }
 // de houten tik van een slag: een lage bonk plus een korte ratel
-function takelTik(){
+function takelTik(t){
   if (!wantSound) return;
   const ac = acLoopt(); if (!ac) return;
-  const t = takelLevel();
   const pan = takelPan(t ? t.x : world), t0 = ac.currentTime + 0.005;
   const o = ac.createOscillator(), og = ac.createGain();
   o.type = 'triangle';
@@ -8986,8 +9052,8 @@ function takelTik(){
   n.connect(bp); bp.connect(ng); ng.connect(ac.destination); n.start(t0); n.stop(t0 + 0.11);
 }
 // het touw dat kraakt zolang het rad draait: een kort ruisje door een smalle bandpass, getemperd
-function takelKraak(dt){
-  const t = takelLevel(); if (!t) return;
+function takelKraak(t, dt){
+  if (!t) return;
   t.kraakT = (t.kraakT || 0) - dt;
   if (t.kraakT > 0) return;
   t.kraakT = 0.15 + Math.random() * 0.12;
@@ -9027,7 +9093,10 @@ function takelPlateauTeken(left, top, breedte, hoogte, capW){
   ctx.drawImage(P.rechts, left + breedte - cw, top, cw, hoogte);
 }
 function takelTeken(groundY, scale, cx){
-  const t = takelLevel(); if (!t || !takelGeladen || t.weg) return;
+  if (!takelGeladen) return;
+  for (const t of takelLijst()) if (!t.weg) takelTekenEen(t, groundY, scale, cx);
+}
+function takelTekenEen(t, groundY, scale, cx){
   const top = t.top == null ? takelHoogte(t, t.angle) : t.top;
   // ---- het plateau en de twee touwen ----
   const dekTop = groundY - top * scale;
@@ -9048,8 +9117,8 @@ function takelTeken(groundY, scale, cx){
   if (t.touwSnijbaar && !t.valt && jav && jav.state === 'vlucht'){
     const jx = cx + (jav.x - world), jy = groundY - jav.h * scale;
     if (t.snijJav){
-      if (segKruist(t.jx, t.jy, jx, jy, aL, aY, aL - sp, puY)) takelSnijden(-1);
-      else if (segKruist(t.jx, t.jy, jx, jy, aR, aY, aR + sp, puY)) takelSnijden(1);
+      if (segKruist(t.jx, t.jy, jx, jy, aL, aY, aL - sp, puY)) takelSnijden(t, -1);
+      else if (segKruist(t.jx, t.jy, jx, jy, aR, aY, aR + sp, puY)) takelSnijden(t, 1);
     }
     t.jx = jx; t.jy = jy; t.snijJav = true;
   } else t.snijJav = false;
@@ -17055,6 +17124,7 @@ function runeIn(q){
   if (Number(q.groot) > 0) e.groot = tussen(q.groot, RUNE_MAAT.grootMin, RUNE_MAAT.grootMax);
   if (Number(q.hoog) > 0) e.hoog = tussen(q.hoog, RUNE_MAAT.hoogMin, RUNE_MAAT.hoogMax);
   if (q.doel === true) e.doel = true;
+  if (Array.isArray(q.stuurt)){ e.stuurt = q.stuurt.map(String); e.doel = true; }   // koppelingen: deze rune stuurt seinen (en blijft dan gloeien)
   if (q.rijs !== undefined && q.rijs !== null) e.rijs = String(q.rijs);   // stuurt de rijzende grond met die naam omhoog
   // wat een doel doet als je hem raakt (runeDoet): dezelfde velden als een zegel
   for (const k of ['ravijn', 'sluit', 'speerval']) if (q[k] !== undefined && q[k] !== null && isFinite(Number(q[k]))) e[k] = Number(q[k]);
@@ -17302,6 +17372,8 @@ function ravijnRuneTreffer(x, h, scale, e){
     runeSperen.push(Object.assign({}, jav, { rune: true, blauw: speerBlauw, stand: false, wob: 0, sag: 0 }));
     jav = null; javLost = 0; spearX = null; spearH = null;
   }
+  // een koppel-rune stuurt alleen seinen (koppelUpdate doet de acties); hij latcht aan en gloeit
+  if (e.stuurt){ if (!runeGeraakt.has(e)){ runeGeraakt.add(e); runeFlits.set(e, performance.now() / 1000); flashHint('De rune licht op'); } return; }
   if (ravijnRuneAan(e)) return;                     // al open (of nog aan het dichtgaan): de speer hangt er alleen in
   runeFlits.set(e, performance.now() / 1000);
   if (runeDoel(e)){
@@ -18028,7 +18100,7 @@ function updateJump(dt, plats, halfW){
     if (jump){ jump.phase = 'land'; jump.t = 0; }
     puffDust(9);
     if (winterOn() && !building && waterDepthAt(world, target) < 0.2) snowBurst(world, target, vIn / 900);   // de sneeuw stuift op
-    if (targetPlat && targetPlat.takel) takelBons(vIn, world >= takelLevel().px ? 1 : -1);   // op het plateau springen: inzakken plus schommelen naar de landingskant
+    if (targetPlat && targetPlat.takel){ const tk = takelById(targetPlat.id); if (tk) takelBons(tk, vIn, world >= tk.px ? 1 : -1); }   // op het plateau springen: inzakken plus schommelen naar de landingskant
     valLand(diep);
   }
   if (!onGround && ph < valGrens(world)) fallDeath();   // in het gat gevallen (niet als er een gang onder zit, wel in een put)
@@ -19216,6 +19288,7 @@ function restart(){
   muurReset();                                      // de rotswand weer dicht, zonder speer erin
   ravijnReset();                                    // het ravijn weer dicht, de rune weer uit
   zegelReset();                                     // en de zegels weer uit
+  koppelReset();                                    // de koppel-acties weer op hun beginstand
   zakReset();                                       // en het zakkende plafond weer omhoog
   rijsReset();                                      // en de rijzende grond weer in het ravijn
   takelGeluid(false);                               // het takelgeluid uit bij een herstart
@@ -19252,7 +19325,7 @@ function restart(){
   snakes.length = 0; scorps.length = 0; panthers.length = 0; hyenas.length = 0; zwaarden.length = 0; kooimannen.length = 0; vogels.length = 0; bandieten.length = 0; banDolken.length = 0; banVonken.length = 0; golfReset(); arena = null; camEase = null; spawnTimer = 0.6;
   if (level && level.apenArena && !sandbox && !building) arenaStart();   // de goudaap-arena: muren, camera in het midden, de spawner
   if (level && level.bandArena && !sandbox && !building) bandArenaStart();   // de bandiet-arena: de garde van de valse koning
-  if (level && level.takel && !sandbox && !building) takelBandietenZet();   // een takelaar bij het wiel en passagiers op het plateau
+  if (takelLijst().length && !sandbox && !building) takelBandietenZet();   // een takelaar bij het wiel en passagiers op het plateau
   fosforSlangen.length = 0; fosforGroepen.length = 0; fosforBrok.length = 0; fosforStilT = 0; amirSteen = 0;
   snowPuffs.length = 0; snowFx.length = 0; snowflakes.length = 0; snowWorldPrev = null;
   planSnow();                                       // nieuw potje, nieuw weer
@@ -23354,7 +23427,7 @@ function updateBandiet(s, dt, plats, cliff){
     const bovenKlaar = !tk || tk.doel >= tk.maxA - 1e-6 || tk.valt || tk.weg;   // de brug is boven of gevallen: stoppen met slaan
     if (s.state === 'slag'){
       banAnim(s, dt);
-      if (!s.hitUsed && s.frame >= BAN.klap){ s.hitUsed = true; if (tk && !bovenKlaar){ takelSlag(); wielSplinters(tk.x, terrainH(tk.x) + 0.42 * CHAR_H, s.x < tk.x ? -1 : 1, 9 + (Math.random() * 4 | 0)); } }   // splinters bij de klap, zodat de slag echt contact maakt
+      if (!s.hitUsed && s.frame >= BAN.klap){ s.hitUsed = true; if (tk && !bovenKlaar){ takelSlag(tk); wielSplinters(tk.x, terrainH(tk.x) + 0.42 * CHAR_H, s.x < tk.x ? -1 : 1, 9 + (Math.random() * 4 | 0)); } }   // splinters bij de klap, zodat de slag echt contact maakt
       if (s.klaar){ banSet(s, 'run'); s.rust = 0.6; }
       return;
     }
@@ -25822,6 +25895,7 @@ function loop(now){
   if (dt > 0) ravijnDecorStap(dt);                // en dat vallen en vervagen zelf, ook na het dichtgaan
   runeKeiZet(scaleNow);                            // de kei bij een rune schuift mee met het scherm
   if (dt > 0) zegelUpdate(dt, scaleNow);          // erop stappen zet een zegel aan of uit
+  koppelUpdate();                                 // koppelingen: seinen van triggers naar acties (opt-in)
   if (dt > 0) zakUpdate(dt);                      // het zakkende plafond: omlaag of weer omhoog
   if (dt > 0) dwarrelUpdate(dt);                  // en het stof dat ervan af dwarrelt
   if (dt > 0) rijsUpdate(dt);                     // de rijzende grond: uit het ravijn omhoog, of terug
@@ -27370,7 +27444,8 @@ function loop(now){
     // In de bandiet-arena (na de aankomst) is het wiel weg: dan beweegt het plateau alleen de fasemachine (golfB/golfC),
     // en mag een treffer het niet verzetten. Alleen in de aankomst (en in gewone takel-levels) slaat Amir het rad.
     if (takelLevel() && takelGeladen && !(arenaAap && arenaAap.ban && !arenaAap.staging)){
-      const tk = takelLevel();
+     for (const tk of takelLijst()){
+      if (tk.weg || tk.valt) continue;
       const wB = terrainH(tk.x);
       const wielH = TAKEL.wielH * CHAR_H * scale, wielW = wielH * 274 / 325;
       const wxs = cx + (tk.x - world), rw = wielW * 0.42;         // de schijf: het ronde deel rond de hub
@@ -27392,7 +27467,7 @@ function loop(now){
         for (const w of wielen){
           if (spR > w.box.l && spL < w.box.r && tipY + reach > w.box.t && tipY - reach < w.box.b){
             swingUsed = true;
-            takelSlag(w.dir);
+            takelSlag(tk, w.dir);
             wielSplinters(tk.x, wB + 0.45 * CHAR_H + (w.dir < 0 ? tk.hoog : 0), pWorld < tk.x ? -1 : 1, 10 + (Math.random() * 4 | 0));
             break;
           }
@@ -27402,12 +27477,13 @@ function loop(now){
         for (const w of wielen){
           if (hitBy(swbox, w.box)){
             tk.sweptId = sweepId;
-            takelSlag(w.dir);
+            takelSlag(tk, w.dir);
             wielSplinters(tk.x, wB + 0.25 * CHAR_H + (w.dir < 0 ? tk.hoog : 0), pWorld < tk.x ? -1 : 1, 9);
             break;
           }
         }
       }
+     }
     }
 
     // ---- de speer tegen het doornbos ----------------------------------
@@ -28439,6 +28515,25 @@ function leesSneeuw(o){
   if (o.van !== undefined && o.tot !== undefined){ s.van = Number(o.van); s.tot = Number(o.tot); }
   return s;
 }
+// een takel-platform uit een leveldefinitie, voor zowel `takel` (enkel) als `takels` (lijst)
+function leesTakel(q){
+  return { x: Number(q.x),
+           id: q.id != null ? String(q.id) : undefined,                 // het id waarmee een koppeling dit platform aanstuurt
+           px: (q.px === undefined || q.px === null) ? undefined : Number(q.px),
+           breed: Number(q.breed) > 0 ? Number(q.breed) : undefined,
+           laag: q.laag !== undefined ? Number(q.laag) : undefined,
+           hoog: q.hoog !== undefined ? Number(q.hoog) : undefined,
+           stappen: Number(q.stappen) > 0 ? Math.round(Number(q.stappen)) : undefined,
+           beginLaag: q.beginLaag === true,
+           lift: q.lift === true,                                       // twee wielen (onder omhoog, boven omlaag), een keer raken takelt helemaal
+           takelaar: q.takelaar === true,
+           passagiers: Number(q.passagiers) > 0 ? Math.round(Number(q.passagiers)) : undefined,
+           passagierRollen: Array.isArray(q.passagierRollen) ? q.passagierRollen.map(String) : undefined,
+           touwSnijbaar: q.touwSnijbaar === true,
+           elite: q.elite === true,
+           stuurt: Array.isArray(q.stuurt) ? q.stuurt.map(String) : undefined,   // seinen die dit platform stuurt als het helemaal boven staat
+           takelaarZij: q.takelaarZij != null ? Number(q.takelaarZij) : undefined };
+}
 function readLevel(txt){
   const o = JSON.parse(txt);
   const arr = Array.isArray(o) ? o : o.rocks || [];
@@ -28517,6 +28612,8 @@ function readLevel(txt){
                                                 rijs: (q.rijs === undefined || q.rijs === null) ? undefined : String(q.rijs),
                                                 // verschijnt pas als de takel-brug in het ravijn is gestort (zie "takelwiel met plateau")
                                                 naTakelVal: q.naTakelVal === true,
+                                                // koppelingen: de seinen die dit zegel stuurt als het aan staat (zie "koppelingen")
+                                                stuurt: Array.isArray(q.stuurt) ? q.stuurt.map(String) : undefined,
                                                 speer: q.speer === true })),
            // blokken steen die op een zegel uit een ravijn omhoog komen, zie "rijzende grond"
            rijzers: (o.rijzers || []).map(q => ({ id: String(q.id), r: Number(q.r), l: Number(q.l),
@@ -28535,6 +28632,18 @@ function readLevel(txt){
                                                         duw: (q.duw === 1 || q.duw === -1) ? q.duw : 0 })),
            // speren in de rotswand die een zegel losschiet: x is de klif, h de hoogte in Amir
            speervallen: (o.speervallen || []).map(q => ({ x: Number(q.x), h: Number(q.h) > 0 ? Number(q.h) : undefined })),
+           // koppelingen: acties die afgaan op seinen van zegels, runes en tandwielen (zie "koppelingen"). Opt-in,
+           // dus een level zonder dit veld werkt precies als voorheen. soort: ravijn (open/dicht op het sein), muur,
+           // speerval (x), rijs (naam van de rijzer), takel (id van het platform, richting op/neer/slag). bij: de
+           // seinen; alle: true betekent AND (pas als alle seinen aan staan), anders OR (een sein is genoeg)
+           acties: (o.acties || []).map(q => ({ soort: String(q.soort || ''),
+                                                bij: Array.isArray(q.bij) ? q.bij.map(String) : [],
+                                                alle: q.alle === true,
+                                                x: (q.x === undefined || q.x === null) ? undefined : Number(q.x),
+                                                breed: Number(q.breed) > 0 ? Number(q.breed) : undefined,
+                                                rijs: (q.rijs === undefined || q.rijs === null) ? undefined : String(q.rijs),
+                                                takel: (q.takel === undefined || q.takel === null) ? undefined : String(q.takel),
+                                                richting: q.richting === 'neer' ? 'neer' : q.richting === 'slag' ? 'slag' : 'op' })),
            // ravijnen met een rune op een rots ervoor: x is het midden van het ravijn, zie RAVIJN_PROEF
            // met rots, groot en hoog een andere plaat, maat of schijfhoogte; met doel: true opent hij niets
            runes: (o.runes || []).map(runeIn),
@@ -28623,26 +28732,11 @@ function readLevel(txt){
                                                 x: Number(d.x), y: Number(d.y) || 0,
                                                 f: !!d.f, s: Number(d.s) || 1 }))
                                    .filter(d => GROT_DEEL[d.k]) })),
-           // het takelwiel met het hangende plateau, zie "takelwiel met plateau": x is het wiel op de
-           // grond, px het midden van het plateau, laag/hoog de twee hoogtes, stappen het aantal slagen ertussen
-           takel: o.takel ? { x: Number(o.takel.x),
-                              px: (o.takel.px === undefined || o.takel.px === null) ? undefined : Number(o.takel.px),
-                              breed: Number(o.takel.breed) > 0 ? Number(o.takel.breed) : undefined,
-                              laag: o.takel.laag !== undefined ? Number(o.takel.laag) : undefined,
-                              hoog: o.takel.hoog !== undefined ? Number(o.takel.hoog) : undefined,
-                              stappen: Number(o.takel.stappen) > 0 ? Math.round(Number(o.takel.stappen)) : undefined,
-                              beginLaag: o.takel.beginLaag === true,
-                              // lift: twee wielen (onder en boven naast het plateau), een keer raken takelt helemaal op of neer
-                              lift: o.takel.lift === true,
-                              // een takelaar-bandiet bij het wiel, en zoveel passagier-bandieten op het plateau (zie "takelwiel met plateau")
-                              takelaar: o.takel.takelaar === true,
-                              passagiers: Number(o.takel.passagiers) > 0 ? Math.round(Number(o.takel.passagiers)) : undefined,
-                              // de rol per passagier: 'hurk' (gehurkt, springt op als de brug staat), 'dolk' (gooit direct) of 'ren'
-                              passagierRollen: Array.isArray(o.takel.passagierRollen) ? o.takel.passagierRollen.map(String) : undefined,
-                              // de touwen van de brug zijn met een geworpen speer door te snijden (dan valt de brug in het ravijn)
-                              touwSnijbaar: o.takel.touwSnijbaar === true,
-                              elite: o.takel.elite === true,                 // de takelaar en de passagiers in de elite-set
-                              takelaarZij: o.takel.takelaarZij != null ? Number(o.takel.takelaarZij) : undefined } : null,
+           // het takelwiel met het hangende plateau, zie "takelwiel met plateau": x is het wiel op de grond,
+           // px het midden van het plateau, laag/hoog de twee hoogtes, stappen het aantal slagen ertussen.
+           // Een enkel platform in `takel`, of meerdere in `takels` (elk een eigen object, met een `id`)
+           takel: o.takel ? leesTakel(o.takel) : null,
+           takels: Array.isArray(o.takels) ? o.takels.map(leesTakel) : undefined,
            // een deur in de rotswand (zie "deur in de rotswand"): x is het midden van de deuropening, daar komt
            // de bandiet uit; bandiet/dolk/elite sturen die bandiet aan
            deur: o.deur ? { x: Number(o.deur.x),
@@ -29945,6 +30039,7 @@ setLevel(TEST_LEVELS.length - KAART_BLAD);   // start op de nieuwste test, zodat
 const MK_CEL_PX = 175, MK_CEL_EENH = 150;         // de maat van één cel in spelmaat (voor de export)
 const MK_BASIS = 24;                              // celgrootte op het scherm bij zoom 1
 const MK_TYPES = [
+  { id:'select',  naam:'Selecteren',         kleur:null, sel:true },   // een cel of voorwerp aanklikken om te bewerken (Escape gaat hierheen)
   { id:'savanne', naam:'Grond: savanne',     kleur:'#c67a3e', ch:'S' },
   { id:'rots',    naam:'Grond: rots',        kleur:'#8a8a93', ch:'R' },
   { id:'sneeuw',  naam:'Grond: sneeuw',      kleur:'#dfe8f1', ch:'W' },
@@ -29976,6 +30071,8 @@ function mkNearestPlatform(w){ let best = null, bd = Infinity;
   for (const o of MK.objects){ if (o.k !== 'platform') continue; const d = (o.c - w.c) ** 2 + (o.r - w.r) ** 2; if (d < bd){ bd = d; best = o; } }
   return best;
 }
+// het platform waaraan een wiel hangt: een expliciete keuze (w.plat) als die nog bestaat, anders het dichtstbijzijnde
+function mkConnectedPlatform(w){ if (w && w.plat && MK.objects.indexOf(w.plat) >= 0 && w.plat.k === 'platform') return w.plat; return mkNearestPlatform(w); }
 const MK = { cols:48, rows:20, ground:12, grid:null, start:null, eind:null, objects:[], sel:null,
              tool:'savanne', zoom:1, panX:0, panY:0 };
 let makerOpen = false, mkCtx = null, mkPaint = false, mkPan = false, mkPanX = 0, mkPanY = 0, mkSpace = false, mkDoelMode = false;
@@ -30064,7 +30161,7 @@ function mkTeken(){
     mkCtx.textAlign = 'center'; mkCtx.textBaseline = 'middle'; mkCtx.fillText(letter, x, y + 1);
   }
   // de verbindingslijnen van elk tandwiel naar zijn dichtstbijzijnde platform (eerst, zodat de iconen erover liggen)
-  for (const w of MK.objects){ if (w.k !== 'tandwiel') continue; const p = mkNearestPlatform(w); if (!p) continue;
+  for (const w of MK.objects){ if (w.k !== 'tandwiel') continue; const p = mkConnectedPlatform(w); if (!p) continue;
     mkCtx.strokeStyle = 'rgba(216,178,74,.55)'; mkCtx.lineWidth = 1.5; mkCtx.setLineDash([4, 3]);
     mkCtx.beginPath(); mkCtx.moveTo(gx + (w.c + 0.5) * cel, gy + (w.r + 0.5) * cel); mkCtx.lineTo(gx + (p.c + 0.5) * cel, gy + (p.r + 0.5) * cel); mkCtx.stroke(); mkCtx.setLineDash([]);
   }
@@ -30100,6 +30197,7 @@ function mkKlik(ev){
     MK.sel.doel = { c, r }; mkDoelMode = false; mkNotePaneel(); mkTeken(); mkBewaar(); return;
   }
   const t = MK.tool;
+  if (t === 'select'){ MK.sel = MK.objects.find(o => o.c === c && o.r === r) || null; mkNotePaneel(); mkTeken(); return; }   // een voorwerp aanklikken om te bewerken
   if (t === 'start'){ MK.start = (MK.start && MK.start.c === c && MK.start.r === r) ? null : { c, r }; }
   else if (t === 'eind'){ MK.eind = (MK.eind && MK.eind.c === c && MK.eind.r === r) ? null : { c, r }; }
   else if (mkIsObj(t)){
@@ -30124,12 +30222,16 @@ function mkVerf(ev){
 }
 // het opmerking-paneel bij het geselecteerde object
 function mkHoogteTekst(restR, doelR){ const d = restR - doelR; return Math.abs(d) + ' ' + (Math.abs(d) === 1 ? 'cel' : 'cellen') + ' ' + (d > 0 ? 'omhoog' : d < 0 ? 'omlaag' : 'gelijk'); }
-function mkModusKnoppen(){
-  const box = document.getElementById('mkmodus'); box.innerHTML = '';
-  for (const [id, naam] of MK_MODI){ const b = document.createElement('button'); b.textContent = naam;
-    b.classList.toggle('on', MK.sel && MK.sel.modus === id);
-    b.onclick = () => { if (MK.sel){ MK.sel.modus = id; mkModusKnoppen(); mkBewaar(); } };
-    box.appendChild(b); }
+// de twee dropdowns van een tandwiel: waaraan het verbonden is (een platform of auto), en wat het doet (de stand)
+function mkVulTandSelects(){
+  const psel = document.getElementById('mktandplat'), msel = document.getElementById('mktandmodus');
+  const platforms = MK.objects.filter(o => o.k === 'platform');
+  psel.innerHTML = '';
+  const auto = document.createElement('option'); auto.value = 'auto'; auto.textContent = 'dichtstbijzijnde (auto)'; psel.appendChild(auto);
+  platforms.forEach((p, i) => { const o = document.createElement('option'); o.value = 'i' + i; o.textContent = 'platform op (' + p.c + ', ' + p.r + ')'; if (MK.sel.plat === p) o.selected = true; psel.appendChild(o); });
+  if (!(MK.sel.plat && platforms.indexOf(MK.sel.plat) >= 0)) auto.selected = true;
+  msel.innerHTML = '';
+  for (const [id, naam] of MK_MODI){ const o = document.createElement('option'); o.value = id; o.textContent = naam; if ((MK.sel.modus || 'liftop') === id) o.selected = true; msel.appendChild(o); }
 }
 function mkNotePaneel(){
   const info = document.getElementById('mkobjinfo'), ta = document.getElementById('mkobjnote');
@@ -30144,9 +30246,9 @@ function mkNotePaneel(){
   const isPlat = MK.sel.k === 'platform', isTand = MK.sel.k === 'tandwiel';
   platctl.style.display = isPlat ? '' : 'none'; doelinfo.style.display = isPlat ? '' : 'none'; tandctl.style.display = isTand ? '' : 'none';
   if (isPlat){ const d = MK.sel.doel;
-    doelinfo.textContent = d ? ('reist naar rij ' + d.r + ' (' + mkHoogteTekst(MK.sel.r, d.r) + ')') : 'nog geen doelhoogte: klik Zet doelhoogte en tik dan de vloer aan waar hij heen moet'; }
-  if (isTand){ mkModusKnoppen(); const p = mkNearestPlatform(MK.sel);
-    document.getElementById('mktandinfo').textContent = p ? ('verbonden met het platform op (' + p.c + ', ' + p.r + ')') : 'geen platform in de buurt: zet er een neer'; }
+    const wn = MK.objects.filter(o => o.k === 'tandwiel' && mkConnectedPlatform(o) === MK.sel).length;
+    doelinfo.textContent = (d ? ('reist naar rij ' + d.r + ' (' + mkHoogteTekst(MK.sel.r, d.r) + ')') : 'nog geen doelhoogte: klik Zet doelhoogte en tik de vloer aan') + ' · ' + wn + ' wiel' + (wn === 1 ? '' : 'en'); }
+  if (isTand) mkVulTandSelects();
 }
 // de legenda-knoppen, een per type
 function mkLegenda(){
@@ -30174,7 +30276,7 @@ function mkNaarJSON(){
            objecten: MK.objects.map(o => {
              const b = { c:o.c, r:o.r, k:o.k, note:o.note || '' };
              if (o.k === 'platform') b.doel = o.doel ? { c:o.doel.c, r:o.doel.r } : null;
-             if (o.k === 'tandwiel'){ b.modus = o.modus || 'liftop'; const p = mkNearestPlatform(o); if (p) b.platform = { c:p.c, r:p.r }; }
+             if (o.k === 'tandwiel'){ b.modus = o.modus || 'liftop'; const p = mkConnectedPlatform(o); if (p) b.platform = { c:p.c, r:p.r }; }
              return b;
            }) };
 }
@@ -30188,9 +30290,14 @@ function mkUitJSON(o){
   MK.objects = Array.isArray(o.objecten) ? o.objecten.filter(q => mkIsObj(q.k)).map(q => {
     const b = { c:q.c|0, r:q.r|0, k:q.k, note:String(q.note || '') };
     if (q.k === 'platform') b.doel = (q.doel && q.doel.c != null) ? { c:q.doel.c|0, r:q.doel.r|0 } : null;
-    if (q.k === 'tandwiel') b.modus = MK_MODI.some(m => m[0] === q.modus) ? q.modus : 'liftop';
+    if (q.k === 'tandwiel'){ b.modus = MK_MODI.some(m => m[0] === q.modus) ? q.modus : 'liftop';
+      if (q.platform && q.platform.c != null) b._plat = { c:q.platform.c|0, r:q.platform.r|0 }; }
     return b;
   }) : [];
+  for (const w of MK.objects) if (w._plat){   // een wiel zijn gekozen platform terugkoppelen (op celpositie)
+    const p = MK.objects.find(q => q.k === 'platform' && q.c === w._plat.c && q.r === w._plat.r);
+    if (p) w.plat = p; delete w._plat;
+  }
   MK.sel = null;
 }
 function mkBewaar(){ try { localStorage.setItem('amir-mk', JSON.stringify(mkNaarJSON())); } catch (e){} }
@@ -30327,7 +30434,19 @@ mkCanvas.addEventListener('wheel', ev => {
   const cel = mkCel(); MK.panX = sx - cx * cel; MK.panY = sy - cy * cel; mkTeken();
 }, { passive:false });
 // spatie ingedrukt = schuiven in plaats van schilderen (alleen in de Maker, buiten de tekstvakken)
-addEventListener('keydown', ev => { if (makerOpen && ev.code === 'Space' && !/^(INPUT|TEXTAREA)$/.test((ev.target||{}).tagName)){ mkSpace = true; ev.preventDefault(); } });
+addEventListener('keydown', ev => {
+  if (!makerOpen) return;
+  if (ev.key === 'Escape'){   // deselecteren en naar de selecteer-modus, ook vanuit een plaats-modus of het tekstvak
+    if (ev.target && ev.target.blur) ev.target.blur();
+    MK.tool = 'select'; MK.sel = null; mkDoelMode = false; mkLegenda(); mkNotePaneel(); mkTeken(); ev.preventDefault(); return;
+  }
+  if (/^(INPUT|TEXTAREA)$/.test((ev.target || {}).tagName)) return;
+  if (ev.code === 'Space'){ mkSpace = true; ev.preventDefault(); return; }
+  if ((ev.key === 'Delete' || ev.key === 'Backspace') && MK.sel){   // het geselecteerde voorwerp weghalen
+    const i = MK.objects.indexOf(MK.sel); if (i >= 0) MK.objects.splice(i, 1);
+    MK.sel = null; mkNotePaneel(); mkTeken(); mkBewaar(); ev.preventDefault();
+  }
+});
 addEventListener('keyup',   ev => { if (ev.code === 'Space') mkSpace = false; });
 // knoppen
 document.getElementById('mkfit').onclick = mkPassend;
@@ -30339,11 +30458,18 @@ document.getElementById('mkload').onclick = () => {
   catch (e){ alert('Kon dit grid niet lezen: ' + e.message); }
 };
 document.getElementById('mkwis').onclick = () => {
-  if (!confirm('Het hele grid leegmaken?')) return;
-  MK.grid = mkMaakGrid(MK.cols, MK.rows); MK.start = null; MK.eind = null; MK.objects = []; MK.sel = null;
-  mkNotePaneel(); mkTeken(); mkBewaar();
+  if (!confirm('Weet je zeker dat je alles wil wissen?')) return;   // leeg beginnen, met bevestiging ertussen
+  mkZetMaat(48, 20, 12); MK.grid = mkMaakGrid(MK.cols, MK.rows); MK.start = null; MK.eind = null; MK.objects = []; MK.sel = null; MK.tool = 'savanne';
+  mkLegenda(); mkNotePaneel(); mkPassend(); mkBewaar();
 };
 document.getElementById('mkobjnote').addEventListener('input', e => { if (MK.sel){ MK.sel.note = e.target.value; mkBewaar(); mkTeken(); } });
+document.getElementById('mktandplat').onchange = e => {
+  if (!MK.sel || MK.sel.k !== 'tandwiel') return;
+  const v = e.target.value;
+  MK.sel.plat = v === 'auto' ? null : MK.objects.filter(o => o.k === 'platform')[parseInt(v.slice(1), 10)] || null;
+  mkTeken(); mkBewaar();
+};
+document.getElementById('mktandmodus').onchange = e => { if (MK.sel && MK.sel.k === 'tandwiel'){ MK.sel.modus = e.target.value; mkBewaar(); } };
 document.getElementById('mkdoel').onclick = () => { if (MK.sel && MK.sel.k === 'platform'){ mkDoelMode = true; document.getElementById('mkobjinfo').textContent = 'Tik nu de vloer aan waar het platform heen moet reizen.'; } };
 document.getElementById('mkdoelwis').onclick = () => { if (MK.sel && MK.sel.k === 'platform'){ MK.sel.doel = null; mkDoelMode = false; mkNotePaneel(); mkTeken(); mkBewaar(); } };
 function mkOpen(){
@@ -31229,7 +31355,7 @@ function sbTakelLift(){
 }
 document.getElementById('sbtakel').onclick = () => { sbTakel(); };
 document.getElementById('sbtakellift').onclick = () => { sbTakelLift(); };
-document.getElementById('sbtakelslag').onclick = () => { if (!takelLevel()) sbTakel(); takelSlag(); cv.focus(); };
+document.getElementById('sbtakelslag').onclick = () => { if (!takelLevel()) sbTakel(); takelSlag(takelLevel()); cv.focus(); };
 document.getElementById('sbtakelband').onclick = () => { sbTakelBand(); };
 document.getElementById('sbtakelweg').onclick = () => { sbTakelWeg(); cv.focus(); };
 // Een deur in de rotswand voor je uit: loop ernaartoe en hij vliegt open. Met een bandiet komt er een
