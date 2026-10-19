@@ -837,7 +837,7 @@
     <div id="mklegend">
       <div class="mkkop">Legenda</div>
       <div id="mklegbtns"></div>
-      <div class="mkhint">klik of sleep = schilderen &middot; wiel = zoomen &middot; rechts slepen of spatie = schuiven</div>
+      <div class="mkhint">klik of sleep = schilderen &middot; wiel = zoomen &middot; rechts slepen of spatie = schuiven &middot; Gum of Delete = voorwerp weg</div>
       <div class="mkkop">Object</div>
       <div id="mkobjinfo" class="mkhint">Kies een object (Vijand, Zegel, Rune, Prop, Platform of Tandwiel) en klik het aan.</div>
       <div id="mkplatctl" class="mkrij" style="display:none"><button id="mkdoel">Zet doelhoogte</button><button id="mkdoelwis">Wis doel</button></div>
@@ -8067,6 +8067,7 @@ function zegelUpdate(dt, scale){
 }
 // De schakelaar zelf. De rune op een rots gebruikt dezelfde acties (runeDoet), maar gaat om door een speer.
 function zegelSchakel(z, doorVijand){
+  if (z.stuurt){ z.aan = !z.aan; return; }                         // koppel-zegel: alleen de latch om, koppelUpdate doet de acties
   if (z.plafond) zegelPlafond(z);                                  // zie "zakplafond"
   else if (z.rijs) zegelRijs(z);                                   // zie "rijzende grond"
   else if (z.sluit !== null && z.sluit !== undefined) zegelSluit(z);   // een sluitzegel: zie zegelSluit
@@ -8139,6 +8140,45 @@ function zegelTeken(groundY, scale, cx){
 function zegelReset(){
   if (level && level.zegels) for (const z of level.zegels){ z.aan = false; z.op = false; z.t = 0; z.val = null; z.weg = false; z.px = undefined; z.onthuld = false; }
 }
+
+// ---- koppelingen: seinen van triggers (zegels, runes, tandwielen) naar acties ----
+// Opt-in: alleen een level met het veld `acties` en triggers met `stuurt` doet mee; zonder die velden
+// verandert er niets (regel 1). Een trigger stuurt een of meer named seinen zolang hij aan staat; een
+// actie luistert naar een of meer seinen. Zo is alles veel-op-veel: een trigger kan meerdere acties
+// aansturen (meerdere seinen), en een actie kan aan meerdere triggers hangen (zelfde sein, of meerdere
+// in `bij`). Met `alle: true` gaat de actie pas af als alle seinen aan staan (AND), anders is een sein
+// genoeg (OR). De takel-acties komen bij de multi-platform-takel.
+function seinAan(naam){
+  if (!level) return false;
+  for (const z of (level.zegels || [])) if (z.aan && z.stuurt && z.stuurt.indexOf(naam) >= 0) return true;
+  for (const e of (ravijnProef() || [])) if (e.stuurt && e.stuurt.indexOf(naam) >= 0 && runeGeraakt.has(e)) return true;
+  return false;
+}
+function koppelActief(a){ const b = a.bij || []; return b.length ? (a.alle ? b.every(seinAan) : b.some(seinAan)) : false; }
+function koppelUpdate(){
+  if (!level || !level.acties || !level.acties.length || building) return;
+  for (const a of level.acties){
+    const nu = koppelActief(a);
+    if (nu === a._was) continue;                     // alleen op een flank iets doen
+    a._was = nu;
+    if (nu) koppelDoe(a); else koppelUndo(a);
+  }
+}
+function koppelDoe(a){
+  if (a.soort === 'ravijn' && a.x != null){ if (!ravijnBij(a.x)) ravijnOpen(a.x, a.breed || RAVIJN_MAAT.breed); }
+  else if (a.soort === 'muur') koppelMuur();
+  else if (a.soort === 'speerval' && a.x != null) koppelSpeerval(a.x);
+  else if (a.soort === 'rijs' && a.rijs) rijsOmhoog(a.rijs, 'De grond komt omhoog');
+}
+function koppelUndo(a){
+  if (a.soort === 'ravijn' && a.x != null) ravijnSluit(a.x);
+  else if (a.soort === 'rijs' && a.rijs) rijsOmlaag(a.rijs);
+  // muur en speerval zijn niet terug te draaien
+}
+function koppelMuur(){ const m = muurNu(); if (!m || muurOpen) return; muurOpen = true; shake = Math.max(shake, 0.22); playDeur(); }
+function koppelSpeerval(x){ const sp = speervalZoek(x); if (!sp || (sp.st && sp.st !== 'wand')) return; sp.st = 'tril'; sp.t = 0; sp.vuur = false; speervalSpeel(valSpanSnd, SPEERVAL_SND.span); }
+function rijsOmlaag(id){ for (const b of rijsLijst()) if (b.id === id && b.op){ b.op = false; b.t = 0; } }
+function koppelReset(){ if (level && level.acties) for (const a of level.acties) a._was = false; }
 
 // ---- zakplafond: een plafond dat zakt als je op een zegel stapt ------------------
 // Stukken rots die aan het plafond hangen en naar beneden komen zodra Amir op een zegel met
@@ -17055,6 +17095,7 @@ function runeIn(q){
   if (Number(q.groot) > 0) e.groot = tussen(q.groot, RUNE_MAAT.grootMin, RUNE_MAAT.grootMax);
   if (Number(q.hoog) > 0) e.hoog = tussen(q.hoog, RUNE_MAAT.hoogMin, RUNE_MAAT.hoogMax);
   if (q.doel === true) e.doel = true;
+  if (Array.isArray(q.stuurt)){ e.stuurt = q.stuurt.map(String); e.doel = true; }   // koppelingen: deze rune stuurt seinen (en blijft dan gloeien)
   if (q.rijs !== undefined && q.rijs !== null) e.rijs = String(q.rijs);   // stuurt de rijzende grond met die naam omhoog
   // wat een doel doet als je hem raakt (runeDoet): dezelfde velden als een zegel
   for (const k of ['ravijn', 'sluit', 'speerval']) if (q[k] !== undefined && q[k] !== null && isFinite(Number(q[k]))) e[k] = Number(q[k]);
@@ -17302,6 +17343,8 @@ function ravijnRuneTreffer(x, h, scale, e){
     runeSperen.push(Object.assign({}, jav, { rune: true, blauw: speerBlauw, stand: false, wob: 0, sag: 0 }));
     jav = null; javLost = 0; spearX = null; spearH = null;
   }
+  // een koppel-rune stuurt alleen seinen (koppelUpdate doet de acties); hij latcht aan en gloeit
+  if (e.stuurt){ if (!runeGeraakt.has(e)){ runeGeraakt.add(e); runeFlits.set(e, performance.now() / 1000); flashHint('De rune licht op'); } return; }
   if (ravijnRuneAan(e)) return;                     // al open (of nog aan het dichtgaan): de speer hangt er alleen in
   runeFlits.set(e, performance.now() / 1000);
   if (runeDoel(e)){
@@ -19216,6 +19259,7 @@ function restart(){
   muurReset();                                      // de rotswand weer dicht, zonder speer erin
   ravijnReset();                                    // het ravijn weer dicht, de rune weer uit
   zegelReset();                                     // en de zegels weer uit
+  koppelReset();                                    // de koppel-acties weer op hun beginstand
   zakReset();                                       // en het zakkende plafond weer omhoog
   rijsReset();                                      // en de rijzende grond weer in het ravijn
   takelGeluid(false);                               // het takelgeluid uit bij een herstart
@@ -25822,6 +25866,7 @@ function loop(now){
   if (dt > 0) ravijnDecorStap(dt);                // en dat vallen en vervagen zelf, ook na het dichtgaan
   runeKeiZet(scaleNow);                            // de kei bij een rune schuift mee met het scherm
   if (dt > 0) zegelUpdate(dt, scaleNow);          // erop stappen zet een zegel aan of uit
+  koppelUpdate();                                 // koppelingen: seinen van triggers naar acties (opt-in)
   if (dt > 0) zakUpdate(dt);                      // het zakkende plafond: omlaag of weer omhoog
   if (dt > 0) dwarrelUpdate(dt);                  // en het stof dat ervan af dwarrelt
   if (dt > 0) rijsUpdate(dt);                     // de rijzende grond: uit het ravijn omhoog, of terug
@@ -28517,6 +28562,8 @@ function readLevel(txt){
                                                 rijs: (q.rijs === undefined || q.rijs === null) ? undefined : String(q.rijs),
                                                 // verschijnt pas als de takel-brug in het ravijn is gestort (zie "takelwiel met plateau")
                                                 naTakelVal: q.naTakelVal === true,
+                                                // koppelingen: de seinen die dit zegel stuurt als het aan staat (zie "koppelingen")
+                                                stuurt: Array.isArray(q.stuurt) ? q.stuurt.map(String) : undefined,
                                                 speer: q.speer === true })),
            // blokken steen die op een zegel uit een ravijn omhoog komen, zie "rijzende grond"
            rijzers: (o.rijzers || []).map(q => ({ id: String(q.id), r: Number(q.r), l: Number(q.l),
@@ -28535,6 +28582,18 @@ function readLevel(txt){
                                                         duw: (q.duw === 1 || q.duw === -1) ? q.duw : 0 })),
            // speren in de rotswand die een zegel losschiet: x is de klif, h de hoogte in Amir
            speervallen: (o.speervallen || []).map(q => ({ x: Number(q.x), h: Number(q.h) > 0 ? Number(q.h) : undefined })),
+           // koppelingen: acties die afgaan op seinen van zegels, runes en tandwielen (zie "koppelingen"). Opt-in,
+           // dus een level zonder dit veld werkt precies als voorheen. soort: ravijn (open/dicht op het sein), muur,
+           // speerval (x), rijs (naam van de rijzer), takel (id van het platform, richting op/neer/slag). bij: de
+           // seinen; alle: true betekent AND (pas als alle seinen aan staan), anders OR (een sein is genoeg)
+           acties: (o.acties || []).map(q => ({ soort: String(q.soort || ''),
+                                                bij: Array.isArray(q.bij) ? q.bij.map(String) : [],
+                                                alle: q.alle === true,
+                                                x: (q.x === undefined || q.x === null) ? undefined : Number(q.x),
+                                                breed: Number(q.breed) > 0 ? Number(q.breed) : undefined,
+                                                rijs: (q.rijs === undefined || q.rijs === null) ? undefined : String(q.rijs),
+                                                takel: (q.takel === undefined || q.takel === null) ? undefined : String(q.takel),
+                                                richting: q.richting === 'neer' ? 'neer' : q.richting === 'slag' ? 'slag' : 'op' })),
            // ravijnen met een rune op een rots ervoor: x is het midden van het ravijn, zie RAVIJN_PROEF
            // met rots, groot en hoog een andere plaat, maat of schijfhoogte; met doel: true opent hij niets
            runes: (o.runes || []).map(runeIn),
@@ -30327,7 +30386,14 @@ mkCanvas.addEventListener('wheel', ev => {
   const cel = mkCel(); MK.panX = sx - cx * cel; MK.panY = sy - cy * cel; mkTeken();
 }, { passive:false });
 // spatie ingedrukt = schuiven in plaats van schilderen (alleen in de Maker, buiten de tekstvakken)
-addEventListener('keydown', ev => { if (makerOpen && ev.code === 'Space' && !/^(INPUT|TEXTAREA)$/.test((ev.target||{}).tagName)){ mkSpace = true; ev.preventDefault(); } });
+addEventListener('keydown', ev => {
+  if (!makerOpen || /^(INPUT|TEXTAREA)$/.test((ev.target || {}).tagName)) return;
+  if (ev.code === 'Space'){ mkSpace = true; ev.preventDefault(); return; }
+  if ((ev.key === 'Delete' || ev.key === 'Backspace') && MK.sel){   // het geselecteerde voorwerp weghalen
+    const i = MK.objects.indexOf(MK.sel); if (i >= 0) MK.objects.splice(i, 1);
+    MK.sel = null; mkNotePaneel(); mkTeken(); mkBewaar(); ev.preventDefault();
+  }
+});
 addEventListener('keyup',   ev => { if (ev.code === 'Space') mkSpace = false; });
 // knoppen
 document.getElementById('mkfit').onclick = mkPassend;
