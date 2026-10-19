@@ -30077,40 +30077,72 @@ function mkDownload(){
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = 'level-maker.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
-// het grid omzetten naar een echt, speelbaar level om het meteen te kunnen testen. Een eerste
-// pass voor het parcours: de grond is standaard dicht, ravijn-cellen op de grondlijn worden gaten,
-// grond boven de grondlijn wordt een verhoogd plateau (terras), en start/eind zetten Amir en de
-// afsluitende klif. Muur, gang en takel doen in deze test nog niets (die komen daarna).
+// het grid omzetten naar een echt, speelbaar level om het meteen te kunnen testen. De grond is
+// standaard dicht; ravijn-cellen op de grondlijn worden gaten; grond of muur boven de grondlijn
+// wordt een verhoogd terras (muur en rots als grijs steen, savanne als grondlaag); gang-cellen
+// onder de grondlijn worden een holte met een ingang (gat) en een trap naar boven; en een
+// takel-cel wordt een lift tussen de grond en het dichtstbijzijnde hogere plateau. Start en eind
+// zetten Amir en de afsluitende klif. De exacte afstelling reken ik na met de tools.
 function mkNaarLevel(){
-  const C = MK.cols, R = MK.rows, gR = MK.ground, G = MK.grid;
+  const C = MK.cols, gR = MK.ground, G = MK.grid;
   const startCol = MK.start ? MK.start.c : C - 1;
   const eindCol  = MK.eind  ? MK.eind.c  : 0;
   const dir = (eindCol <= startCol) ? 1 : -1;               // Amir loopt naar links; zo wordt de x naar het eind toe negatiever
   const rand = gc => (gc - startCol) * MK_CEL_PX * dir;     // wereld-x van een kolomrand
   const lr = c => { const a = rand(c), b = rand(c + 1); return [Math.min(a, b), Math.max(a, b)]; };
-  const grond = id => id === 'savanne' || id === 'rots' || id === 'sneeuw';
+  const spanLR = (cA, cB) => { const [la] = lr(cA), [, rb] = lr(cB); return [Math.min(la, rb), Math.max(la, rb)]; };
+  const savanne = id => id === 'savanne' || id === 'sneeuw';
+  const solid = id => savanne(id) || id === 'rots' || id === 'muur';   // telt mee als verhoogd terras of blokkade
+  const gaps = [], terraces = [], holtes = [];
+  let takel = null;
   // gaten: aaneengesloten ravijn-cellen op de grondlijn
-  const gaps = [];
   for (let c = 0; c < C;){
     if (G[gR] && G[gR][c] === 'ravijn'){ let c2 = c; while (c2 < C && G[gR][c2] === 'ravijn') c2++;
-      const [l1] = lr(c), [, r2] = lr(c2 - 1), l = Math.min(l1, r2), r = Math.max(l1, r2);
-      gaps.push({ x: Math.round((l + r) / 2), w: Math.round(r - l) }); c = c2; }
+      const [l, r] = spanLR(c, c2 - 1); gaps.push({ x: Math.round((l + r) / 2), w: Math.round(r - l) }); c = c2; }
     else c++;
   }
-  // terrassen: per kolom de hoogste grond-cel boven de grondlijn, gelijke buren samengevoegd
+  // terrassen en muren: per kolom de hoogste solide cel boven de grondlijn, gelijke buren samengevoegd
   const top = new Array(C).fill(0), soort = new Array(C).fill(null);
-  for (let c = 0; c < C; c++) for (let r = 0; r < gR; r++) if (G[r] && grond(G[r][c])){ top[c] = gR - r; soort[c] = G[r][c]; break; }
-  const terraces = [];
+  for (let c = 0; c < C; c++) for (let r = 0; r < gR; r++) if (G[r] && solid(G[r][c])){ top[c] = gR - r; soort[c] = G[r][c]; break; }
   for (let c = 0; c < C;){
     if (top[c] > 0){ const h = top[c], s = soort[c]; let c2 = c; while (c2 < C && top[c2] === h && soort[c2] === s) c2++;
-      const [la] = lr(c), [, rb] = lr(c2 - 1);
-      terraces.push({ r: Math.round(Math.max(la, rb)), l: Math.round(Math.min(la, rb)), h: h * MK_CEL_EENH, grond: s !== 'rots' }); c = c2; }
+      const [l, r] = spanLR(c, c2 - 1);
+      terraces.push({ r: Math.round(r), l: Math.round(l), h: h * MK_CEL_EENH, grond: savanne(s) }); c = c2; }
     else c++;
   }
+  // gangen: aaneengesloten kolommen met een gang-cel onder de grondlijn, met ingang en trap
+  const gangDiep = new Array(C).fill(0);
+  for (let c = 0; c < C; c++) for (let r = MK.rows - 1; r >= gR; r--) if (G[r] && G[r][c] === 'gang'){ gangDiep[c] = r - gR + 1; break; }
+  for (let c = 0; c < C;){
+    if (gangDiep[c] > 0){ let c2 = c, maxd = 0; while (c2 < C && gangDiep[c2] > 0){ maxd = Math.max(maxd, gangDiep[c2]); c2++; }
+      const numSteps = Math.max(3, Math.ceil(maxd * MK_CEL_EENH / 150)), diep = numSteps * 150;
+      const [gangLx, gangRx] = spanLR(c, c2 - 1);           // gangLx is de eindkant (negatiefst), gangRx de startkant
+      holtes.push({ r: Math.round(gangRx + MK_CEL_PX), l: Math.round(gangLx), diep });
+      // ingang: een gat in de grondlijn aan de startkant, met de gangwand er net voorbij
+      gaps.push({ x: Math.round(gangRx - MK_CEL_PX * 0.8), w: Math.round(MK_CEL_PX * 1.6) });
+      // trap omhoog aan de eindkant (de opzet uit CLAUDE.md: dezelfde l, r stapt 200 naar links, h met 150 omhoog)
+      const r1 = gangLx + (numSteps - 1) * 200, exitR = r1 + 100;   // het uitgang-gat dekt alle treden (hun voeten zitten boven het dak)
+      for (let i = 1; i < numSteps; i++) terraces.push({ r: Math.round(gangLx + (numSteps - i) * 200), l: Math.round(gangLx), h: -(diep - i * 150) });
+      gaps.push({ x: Math.round((gangLx + exitR) / 2), w: Math.round(exitR - gangLx) });
+      c = c2; }
+    else c++;
+  }
+  // takel: de eerste takel-cel wordt een lift tussen de grond en het dichtstbijzijnde hogere terras
+  outer: for (let c = 0; c < C && !takel; c++) for (let r = 0; r < MK.rows; r++) if (G[r] && G[r][c] === 'takel'){
+    const [l, r2] = lr(c), px = Math.round((l + r2) / 2);
+    let hoog = 2 * MK_CEL_EENH;
+    for (const t of terraces) if (t.h > 0 && Math.abs(((t.r + t.l) / 2) - px) < 4 * MK_CEL_PX) hoog = Math.max(hoog, t.h);
+    takel = { x: Math.round(r2 + MK_CEL_PX * 0.9), px, breed: Math.round(MK_CEL_PX * 1.6), laag: 0, hoog, stappen: 6, beginLaag: true };
+    break outer;
+  }
   const [sl, sr] = lr(startCol), startX = Math.round((sl + sr) / 2);
-  const [el, er] = lr(eindCol), eindX = Math.round(Math.min(el, er) - MK_CEL_PX);   // de klif net voorbij het eind
-  return { name:'Level Maker test', view:0.8, rocks:[], spawns:[], props:[],
-           gaps, terraces, start:startX, cliffs:[{ x:eindX }] };
+  const [el, er] = lr(eindCol), eindX = Math.round(Math.min(el, er));   // de fakkels (einde) op de eind-cel, met de klif erachter
+  // een verre dummy-spawn houdt de vrije modus uit (anders stuurt het spel zelf slangen op je af); een parcours-test is leeg
+  const lvl = { name:'Level Maker test', view:0.8, rocks:[], props:[], spawns:[{ x: eindX - 5000, k:'groen' }],
+                gaps, terraces, start:startX, ends:[{ x:eindX }], cliffs:[{ x:eindX - 450 }] };
+  if (holtes.length) lvl.holtes = holtes;
+  if (takel) lvl.takel = takel;
+  return lvl;
 }
 let mkTestActief = false;
 function mkTest(){
