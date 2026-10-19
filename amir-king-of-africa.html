@@ -226,6 +226,9 @@
   #mkbalk input[type=number]{width:62px;background:rgba(0,0,0,.4);color:var(--bone);border:1px solid rgba(242,232,213,.25);border-radius:2px;font:inherit;padding:3px 6px}
   #mkbalk #mkback{margin-left:auto}
   #mkbalk #mkexport{border-color:var(--sun);color:var(--sun)}
+  #mkbalk #mktest{background:var(--sun);border-color:var(--sun);color:#241a2b}
+  #mkterug{position:absolute;left:50%;top:10px;transform:translateX(-50%);z-index:8;display:none;background:rgba(20,14,26,.85)}
+  #mkterug.on{display:block}
   #mklegend{position:absolute;left:0;top:46px;bottom:0;width:208px;box-sizing:border-box;background:rgba(27,20,32,.96);
     padding:12px 12px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;z-index:2}
   #mklegend .mkkop{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(242,232,213,.6)}
@@ -752,6 +755,7 @@
     <span id="lvname" hidden></span><button id="lvprev" hidden></button><button id="lvnext" hidden></button>
   </div>
   <button id="bterug">Terug naar de bouwer</button>
+  <button id="mkterug">Terug naar Level Maker</button>
   <div id="build">
     <!-- de bovenbalk: naam, opslaan en testen, en daaronder de levellijn (het hele level van opzij) -->
     <div id="bbalk">
@@ -818,6 +822,7 @@
       <span class="mkfield"><label for="mkrows">Hoog</label><input id="mkrows" type="number" min="4" max="200" step="1" value="20"></span>
       <span class="mkfield"><label for="mkground">Grondlijn</label><input id="mkground" type="number" min="0" max="199" step="1" value="12"></span>
       <button id="mkfit" title="Pas de hele kaart in beeld">Passend</button>
+      <button id="mktest" class="mkspeel" title="Speel dit grid meteen als level">Test &#9654;</button>
       <button id="mkexport">Exporteren</button>
       <button id="mkback">Terug naar menu</button>
     </div>
@@ -27839,6 +27844,7 @@ function kooiDuelKnopToon(){
 }
 function toMenu(){
   verhaalAan = false;
+  if (mkTestActief){ mkTestActief = false; document.getElementById('mkterug').classList.remove('on'); }   // een test uit de Level Maker netjes opruimen
   paused = false; pauseEl.classList.remove('on');
   won = false; document.getElementById('win').classList.remove('on');
   if (sandbox){ stopSandbox(); return; }
@@ -29927,6 +29933,7 @@ const MK_TYPES = [
   { id:'muur',    naam:'Muur / massief',     kleur:'#5f4a36', ch:'M' },
   { id:'laag',    naam:'Laag obstakel',      kleur:'#b07a40', ch:'L' },
   { id:'gang',    naam:'Gang (ondergronds)', kleur:'#2f2838', ch:'G' },
+  { id:'ravijn',  naam:'Ravijn (kloof)',     kleur:'#394557', ch:'V' },
   { id:'takel',   naam:'Takel (hoogte)',     kleur:'#d8b24a', ch:'T' },
   { id:'lucht',   naam:'Gum (leeg maken)',   kleur:null,      ch:'.' },
   { id:'start',   naam:'Startpunt',          kleur:'#5fcf6a', punt:true },
@@ -30049,7 +30056,7 @@ function mkNaarJSON(){
   const grid = MK.grid.map(rij => rij.map(id => MK_IDCH[id] || '.').join(''));
   return { type:'amir-levelmaker-grid', versie:1, cols:MK.cols, rows:MK.rows, groundRow:MK.ground,
            cel:{ breedPx:MK_CEL_PX, hoogEenheden:MK_CEL_EENH },
-           legenda:{ '.':'lucht', S:'savanne', R:'rots', W:'sneeuw', M:'muur', L:'laag obstakel', G:'gang', T:'takel' },
+           legenda:{ '.':'lucht', S:'savanne', R:'rots', W:'sneeuw', M:'muur', L:'laag obstakel', G:'gang', V:'ravijn', T:'takel' },
            grid, start:MK.start, eind:MK.eind };
 }
 function mkUitJSON(o){
@@ -30069,6 +30076,57 @@ function mkDownload(){
   const blob = new Blob([JSON.stringify(mkNaarJSON(), null, 0)], { type:'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = 'level-maker.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+// het grid omzetten naar een echt, speelbaar level om het meteen te kunnen testen. Een eerste
+// pass voor het parcours: de grond is standaard dicht, ravijn-cellen op de grondlijn worden gaten,
+// grond boven de grondlijn wordt een verhoogd plateau (terras), en start/eind zetten Amir en de
+// afsluitende klif. Muur, gang en takel doen in deze test nog niets (die komen daarna).
+function mkNaarLevel(){
+  const C = MK.cols, R = MK.rows, gR = MK.ground, G = MK.grid;
+  const startCol = MK.start ? MK.start.c : C - 1;
+  const eindCol  = MK.eind  ? MK.eind.c  : 0;
+  const dir = (eindCol <= startCol) ? 1 : -1;               // Amir loopt naar links; zo wordt de x naar het eind toe negatiever
+  const rand = gc => (gc - startCol) * MK_CEL_PX * dir;     // wereld-x van een kolomrand
+  const lr = c => { const a = rand(c), b = rand(c + 1); return [Math.min(a, b), Math.max(a, b)]; };
+  const grond = id => id === 'savanne' || id === 'rots' || id === 'sneeuw';
+  // gaten: aaneengesloten ravijn-cellen op de grondlijn
+  const gaps = [];
+  for (let c = 0; c < C;){
+    if (G[gR] && G[gR][c] === 'ravijn'){ let c2 = c; while (c2 < C && G[gR][c2] === 'ravijn') c2++;
+      const [l1] = lr(c), [, r2] = lr(c2 - 1), l = Math.min(l1, r2), r = Math.max(l1, r2);
+      gaps.push({ x: Math.round((l + r) / 2), w: Math.round(r - l) }); c = c2; }
+    else c++;
+  }
+  // terrassen: per kolom de hoogste grond-cel boven de grondlijn, gelijke buren samengevoegd
+  const top = new Array(C).fill(0), soort = new Array(C).fill(null);
+  for (let c = 0; c < C; c++) for (let r = 0; r < gR; r++) if (G[r] && grond(G[r][c])){ top[c] = gR - r; soort[c] = G[r][c]; break; }
+  const terraces = [];
+  for (let c = 0; c < C;){
+    if (top[c] > 0){ const h = top[c], s = soort[c]; let c2 = c; while (c2 < C && top[c2] === h && soort[c2] === s) c2++;
+      const [la] = lr(c), [, rb] = lr(c2 - 1);
+      terraces.push({ r: Math.round(Math.max(la, rb)), l: Math.round(Math.min(la, rb)), h: h * MK_CEL_EENH, grond: s !== 'rots' }); c = c2; }
+    else c++;
+  }
+  const [sl, sr] = lr(startCol), startX = Math.round((sl + sr) / 2);
+  const [el, er] = lr(eindCol), eindX = Math.round(Math.min(el, er) - MK_CEL_PX);   // de klif net voorbij het eind
+  return { name:'Level Maker test', view:0.8, rocks:[], spawns:[], props:[],
+           gaps, terraces, start:startX, cliffs:[{ x:eindX }] };
+}
+let mkTestActief = false;
+function mkTest(){
+  level = readLevel(JSON.stringify(mkNaarLevel()));
+  mkTestActief = true; makerOpen = false;
+  makerEl.classList.remove('on'); barEl.classList.add('hide');
+  sandbox = false; building = false; running = true;
+  document.getElementById('mkterug').classList.add('on');
+  restart(); zetMuziek(); hudToon(); cv.focus();
+}
+function mkTerug(){
+  mkTestActief = false; running = false; paused = false;
+  pauseEl.classList.remove('on'); deadEl.classList.remove('on');
+  document.getElementById('mkterug').classList.remove('on');
+  makerOpen = true; startEl.classList.add('off'); makerEl.classList.add('on');
+  mkMaatCanvas(); mkTeken(); zetMuziek();
 }
 
 mkZetMaat(MK.cols, MK.rows, MK.ground);   // een leeg grid klaarzetten
@@ -30122,6 +30180,8 @@ function mkOpen(){
 function mkDicht(){ makerOpen = false; makerEl.classList.remove('on'); startEl.classList.remove('off'); showMenu('menuMain'); }
 document.getElementById('btnmaker').onclick = mkOpen;
 document.getElementById('mkback').onclick = mkDicht;
+document.getElementById('mktest').onclick = mkTest;
+document.getElementById('mkterug').onclick = mkTerug;
 addEventListener('resize', () => { if (makerOpen){ mkMaatCanvas(); mkTeken(); } });
 
 // ---------- sandbox ----------
