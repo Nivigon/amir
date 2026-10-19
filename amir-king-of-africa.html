@@ -248,9 +248,10 @@
   #mkobjnote{height:60px}
   #mkobjnote:disabled{opacity:.5}
   #mkobjinfo{color:rgba(242,232,213,.75)}
-  #mkmodus{gap:4px}
-  #mkmodus button{padding:3px 7px;font-size:11px}
-  #mkmodus button.on,#mkplatctl button.on{background:var(--sun);border-color:var(--sun);color:#241a2b}
+  #mkplatctl button.on{background:var(--sun);border-color:var(--sun);color:#241a2b}
+  #mktandctl .mkveld{display:flex;align-items:center;gap:8px;margin:4px 0}
+  #mktandctl .mkveld label{min-width:84px;color:rgba(242,232,213,.65)}
+  #mktandctl select{flex:1;background:rgba(0,0,0,.4);color:var(--bone);border:1px solid rgba(242,232,213,.25);border-radius:2px;font:inherit;font-size:11px;padding:3px 5px}
   #mkstage{position:absolute;left:208px;top:46px;right:0;bottom:0}
   #mkcanvas{display:block;width:100%;height:100%;background:#140e1a;cursor:crosshair;touch-action:none}
   body.touch #mklegend{width:168px}
@@ -843,9 +844,8 @@
       <div id="mkplatctl" class="mkrij" style="display:none"><button id="mkdoel">Zet doelhoogte</button><button id="mkdoelwis">Wis doel</button></div>
       <div id="mkdoelinfo" class="mkhint" style="display:none"></div>
       <div id="mktandctl" style="display:none">
-        <div class="mkhint">Stand van dit wiel (verbindt met het dichtstbijzijnde platform):</div>
-        <div id="mkmodus" class="mkrij"></div>
-        <div id="mktandinfo" class="mkhint"></div>
+        <div class="mkveld"><label for="mktandplat">Verbonden met</label><select id="mktandplat"></select></div>
+        <div class="mkveld"><label for="mktandmodus">Wat het doet</label><select id="mktandmodus"></select></div>
       </div>
       <textarea id="mkobjnote" spellcheck="false" disabled placeholder="opmerking (bv: bandiet die vault, of: dit wiel takelt het platform helemaal omhoog)"></textarea>
       <div class="mkkop">Opslaan</div>
@@ -30039,6 +30039,7 @@ setLevel(TEST_LEVELS.length - KAART_BLAD);   // start op de nieuwste test, zodat
 const MK_CEL_PX = 175, MK_CEL_EENH = 150;         // de maat van één cel in spelmaat (voor de export)
 const MK_BASIS = 24;                              // celgrootte op het scherm bij zoom 1
 const MK_TYPES = [
+  { id:'select',  naam:'Selecteren',         kleur:null, sel:true },   // een cel of voorwerp aanklikken om te bewerken (Escape gaat hierheen)
   { id:'savanne', naam:'Grond: savanne',     kleur:'#c67a3e', ch:'S' },
   { id:'rots',    naam:'Grond: rots',        kleur:'#8a8a93', ch:'R' },
   { id:'sneeuw',  naam:'Grond: sneeuw',      kleur:'#dfe8f1', ch:'W' },
@@ -30070,6 +30071,8 @@ function mkNearestPlatform(w){ let best = null, bd = Infinity;
   for (const o of MK.objects){ if (o.k !== 'platform') continue; const d = (o.c - w.c) ** 2 + (o.r - w.r) ** 2; if (d < bd){ bd = d; best = o; } }
   return best;
 }
+// het platform waaraan een wiel hangt: een expliciete keuze (w.plat) als die nog bestaat, anders het dichtstbijzijnde
+function mkConnectedPlatform(w){ if (w && w.plat && MK.objects.indexOf(w.plat) >= 0 && w.plat.k === 'platform') return w.plat; return mkNearestPlatform(w); }
 const MK = { cols:48, rows:20, ground:12, grid:null, start:null, eind:null, objects:[], sel:null,
              tool:'savanne', zoom:1, panX:0, panY:0 };
 let makerOpen = false, mkCtx = null, mkPaint = false, mkPan = false, mkPanX = 0, mkPanY = 0, mkSpace = false, mkDoelMode = false;
@@ -30158,7 +30161,7 @@ function mkTeken(){
     mkCtx.textAlign = 'center'; mkCtx.textBaseline = 'middle'; mkCtx.fillText(letter, x, y + 1);
   }
   // de verbindingslijnen van elk tandwiel naar zijn dichtstbijzijnde platform (eerst, zodat de iconen erover liggen)
-  for (const w of MK.objects){ if (w.k !== 'tandwiel') continue; const p = mkNearestPlatform(w); if (!p) continue;
+  for (const w of MK.objects){ if (w.k !== 'tandwiel') continue; const p = mkConnectedPlatform(w); if (!p) continue;
     mkCtx.strokeStyle = 'rgba(216,178,74,.55)'; mkCtx.lineWidth = 1.5; mkCtx.setLineDash([4, 3]);
     mkCtx.beginPath(); mkCtx.moveTo(gx + (w.c + 0.5) * cel, gy + (w.r + 0.5) * cel); mkCtx.lineTo(gx + (p.c + 0.5) * cel, gy + (p.r + 0.5) * cel); mkCtx.stroke(); mkCtx.setLineDash([]);
   }
@@ -30194,6 +30197,7 @@ function mkKlik(ev){
     MK.sel.doel = { c, r }; mkDoelMode = false; mkNotePaneel(); mkTeken(); mkBewaar(); return;
   }
   const t = MK.tool;
+  if (t === 'select'){ MK.sel = MK.objects.find(o => o.c === c && o.r === r) || null; mkNotePaneel(); mkTeken(); return; }   // een voorwerp aanklikken om te bewerken
   if (t === 'start'){ MK.start = (MK.start && MK.start.c === c && MK.start.r === r) ? null : { c, r }; }
   else if (t === 'eind'){ MK.eind = (MK.eind && MK.eind.c === c && MK.eind.r === r) ? null : { c, r }; }
   else if (mkIsObj(t)){
@@ -30218,12 +30222,16 @@ function mkVerf(ev){
 }
 // het opmerking-paneel bij het geselecteerde object
 function mkHoogteTekst(restR, doelR){ const d = restR - doelR; return Math.abs(d) + ' ' + (Math.abs(d) === 1 ? 'cel' : 'cellen') + ' ' + (d > 0 ? 'omhoog' : d < 0 ? 'omlaag' : 'gelijk'); }
-function mkModusKnoppen(){
-  const box = document.getElementById('mkmodus'); box.innerHTML = '';
-  for (const [id, naam] of MK_MODI){ const b = document.createElement('button'); b.textContent = naam;
-    b.classList.toggle('on', MK.sel && MK.sel.modus === id);
-    b.onclick = () => { if (MK.sel){ MK.sel.modus = id; mkModusKnoppen(); mkBewaar(); } };
-    box.appendChild(b); }
+// de twee dropdowns van een tandwiel: waaraan het verbonden is (een platform of auto), en wat het doet (de stand)
+function mkVulTandSelects(){
+  const psel = document.getElementById('mktandplat'), msel = document.getElementById('mktandmodus');
+  const platforms = MK.objects.filter(o => o.k === 'platform');
+  psel.innerHTML = '';
+  const auto = document.createElement('option'); auto.value = 'auto'; auto.textContent = 'dichtstbijzijnde (auto)'; psel.appendChild(auto);
+  platforms.forEach((p, i) => { const o = document.createElement('option'); o.value = 'i' + i; o.textContent = 'platform op (' + p.c + ', ' + p.r + ')'; if (MK.sel.plat === p) o.selected = true; psel.appendChild(o); });
+  if (!(MK.sel.plat && platforms.indexOf(MK.sel.plat) >= 0)) auto.selected = true;
+  msel.innerHTML = '';
+  for (const [id, naam] of MK_MODI){ const o = document.createElement('option'); o.value = id; o.textContent = naam; if ((MK.sel.modus || 'liftop') === id) o.selected = true; msel.appendChild(o); }
 }
 function mkNotePaneel(){
   const info = document.getElementById('mkobjinfo'), ta = document.getElementById('mkobjnote');
@@ -30238,9 +30246,9 @@ function mkNotePaneel(){
   const isPlat = MK.sel.k === 'platform', isTand = MK.sel.k === 'tandwiel';
   platctl.style.display = isPlat ? '' : 'none'; doelinfo.style.display = isPlat ? '' : 'none'; tandctl.style.display = isTand ? '' : 'none';
   if (isPlat){ const d = MK.sel.doel;
-    doelinfo.textContent = d ? ('reist naar rij ' + d.r + ' (' + mkHoogteTekst(MK.sel.r, d.r) + ')') : 'nog geen doelhoogte: klik Zet doelhoogte en tik dan de vloer aan waar hij heen moet'; }
-  if (isTand){ mkModusKnoppen(); const p = mkNearestPlatform(MK.sel);
-    document.getElementById('mktandinfo').textContent = p ? ('verbonden met het platform op (' + p.c + ', ' + p.r + ')') : 'geen platform in de buurt: zet er een neer'; }
+    const wn = MK.objects.filter(o => o.k === 'tandwiel' && mkConnectedPlatform(o) === MK.sel).length;
+    doelinfo.textContent = (d ? ('reist naar rij ' + d.r + ' (' + mkHoogteTekst(MK.sel.r, d.r) + ')') : 'nog geen doelhoogte: klik Zet doelhoogte en tik de vloer aan') + ' · ' + wn + ' wiel' + (wn === 1 ? '' : 'en'); }
+  if (isTand) mkVulTandSelects();
 }
 // de legenda-knoppen, een per type
 function mkLegenda(){
@@ -30268,7 +30276,7 @@ function mkNaarJSON(){
            objecten: MK.objects.map(o => {
              const b = { c:o.c, r:o.r, k:o.k, note:o.note || '' };
              if (o.k === 'platform') b.doel = o.doel ? { c:o.doel.c, r:o.doel.r } : null;
-             if (o.k === 'tandwiel'){ b.modus = o.modus || 'liftop'; const p = mkNearestPlatform(o); if (p) b.platform = { c:p.c, r:p.r }; }
+             if (o.k === 'tandwiel'){ b.modus = o.modus || 'liftop'; const p = mkConnectedPlatform(o); if (p) b.platform = { c:p.c, r:p.r }; }
              return b;
            }) };
 }
@@ -30282,9 +30290,14 @@ function mkUitJSON(o){
   MK.objects = Array.isArray(o.objecten) ? o.objecten.filter(q => mkIsObj(q.k)).map(q => {
     const b = { c:q.c|0, r:q.r|0, k:q.k, note:String(q.note || '') };
     if (q.k === 'platform') b.doel = (q.doel && q.doel.c != null) ? { c:q.doel.c|0, r:q.doel.r|0 } : null;
-    if (q.k === 'tandwiel') b.modus = MK_MODI.some(m => m[0] === q.modus) ? q.modus : 'liftop';
+    if (q.k === 'tandwiel'){ b.modus = MK_MODI.some(m => m[0] === q.modus) ? q.modus : 'liftop';
+      if (q.platform && q.platform.c != null) b._plat = { c:q.platform.c|0, r:q.platform.r|0 }; }
     return b;
   }) : [];
+  for (const w of MK.objects) if (w._plat){   // een wiel zijn gekozen platform terugkoppelen (op celpositie)
+    const p = MK.objects.find(q => q.k === 'platform' && q.c === w._plat.c && q.r === w._plat.r);
+    if (p) w.plat = p; delete w._plat;
+  }
   MK.sel = null;
 }
 function mkBewaar(){ try { localStorage.setItem('amir-mk', JSON.stringify(mkNaarJSON())); } catch (e){} }
@@ -30422,7 +30435,12 @@ mkCanvas.addEventListener('wheel', ev => {
 }, { passive:false });
 // spatie ingedrukt = schuiven in plaats van schilderen (alleen in de Maker, buiten de tekstvakken)
 addEventListener('keydown', ev => {
-  if (!makerOpen || /^(INPUT|TEXTAREA)$/.test((ev.target || {}).tagName)) return;
+  if (!makerOpen) return;
+  if (ev.key === 'Escape'){   // deselecteren en naar de selecteer-modus, ook vanuit een plaats-modus of het tekstvak
+    if (ev.target && ev.target.blur) ev.target.blur();
+    MK.tool = 'select'; MK.sel = null; mkDoelMode = false; mkLegenda(); mkNotePaneel(); mkTeken(); ev.preventDefault(); return;
+  }
+  if (/^(INPUT|TEXTAREA)$/.test((ev.target || {}).tagName)) return;
   if (ev.code === 'Space'){ mkSpace = true; ev.preventDefault(); return; }
   if ((ev.key === 'Delete' || ev.key === 'Backspace') && MK.sel){   // het geselecteerde voorwerp weghalen
     const i = MK.objects.indexOf(MK.sel); if (i >= 0) MK.objects.splice(i, 1);
@@ -30445,6 +30463,13 @@ document.getElementById('mkwis').onclick = () => {
   mkLegenda(); mkNotePaneel(); mkPassend(); mkBewaar();
 };
 document.getElementById('mkobjnote').addEventListener('input', e => { if (MK.sel){ MK.sel.note = e.target.value; mkBewaar(); mkTeken(); } });
+document.getElementById('mktandplat').onchange = e => {
+  if (!MK.sel || MK.sel.k !== 'tandwiel') return;
+  const v = e.target.value;
+  MK.sel.plat = v === 'auto' ? null : MK.objects.filter(o => o.k === 'platform')[parseInt(v.slice(1), 10)] || null;
+  mkTeken(); mkBewaar();
+};
+document.getElementById('mktandmodus').onchange = e => { if (MK.sel && MK.sel.k === 'tandwiel'){ MK.sel.modus = e.target.value; mkBewaar(); } };
 document.getElementById('mkdoel').onclick = () => { if (MK.sel && MK.sel.k === 'platform'){ mkDoelMode = true; document.getElementById('mkobjinfo').textContent = 'Tik nu de vloer aan waar het platform heen moet reizen.'; } };
 document.getElementById('mkdoelwis').onclick = () => { if (MK.sel && MK.sel.k === 'platform'){ MK.sel.doel = null; mkDoelMode = false; mkNotePaneel(); mkTeken(); mkBewaar(); } };
 function mkOpen(){
