@@ -8851,6 +8851,24 @@ function takelSlag(t, dir){
   if (!building) shake = Math.max(shake, 0.03);
   takelTik(t);
 }
+// de wielen van een takel, voor het tekenen en de raakdetectie: de losse lijst (t.wielen, elk op zijn eigen plek
+// en met een vaste stand), of, zonder die lijst, het oude model: één wiel op t.x (per slag, keert om), of twee
+// bij een lift (het onderste omhoog, het bovenste omlaag).
+function takelWielLijst(t){
+  if (t.wielen) return t.wielen;
+  if (t.lift) return [{ x: t.x, off: 0, dir: 1 }, { x: t.x, off: t.hoog, dir: -1 }];
+  return [{ x: t.x, off: 0, dir: 0 }];
+}
+// een losse-wiel-slag: elk wiel heeft een vaste stand, los van de omkerende enkel-wiel-logica van takelSlag
+function takelWielSlag(t, modus){
+  if (!t || t.valt || t.weg) return;
+  if (modus === 'liftop') t.doel = t.maxA;
+  else if (modus === 'liftneer') t.doel = 0;
+  else if (modus === 'slagop') t.doel = Math.min(t.maxA, t.doel + TAKEL_QUART);
+  else if (modus === 'slagneer') t.doel = Math.max(0, t.doel - TAKEL_QUART);
+  else return;
+  t.haper = TAKEL.haper; if (!building) shake = Math.max(shake, 0.03); takelTik(t);
+}
 // Een touw is doorgesneden (met een geworpen speer): de brug kantelt naar die kant en stort het ravijn in.
 // kant is -1 (linkertouw) of 1 (rechtertouw). De speer vliegt gewoon verder (geen verloren speer).
 function takelSnijden(t, kant){
@@ -9133,20 +9151,12 @@ function takelTekenEen(t, groundY, scale, cx){
   // loopt het touw ook bij de uitzoom (view 0,7) echt uit beeld in plaats van halverwege te stoppen.
   const schermTopY = groundY + (-0.08 * H - groundY) / viewZoom();
   const ropeTopY = Math.min(puY, schermTopY);           // het touw eindigt altijd boven de schermrand (niet in de lucht)
-  // het wiel op de grond
-  const wB = terrainH(t.x);
   const wielH = TAKEL.wielH * CHAR_H * scale, wielW = wielH * 274 / 325;
-  const wx = cx + (t.x - world), wBaseY = groundY - wB * scale;
-  const hubY = wBaseY - wielH * 194 / 325;              // de hub op 131 van boven (grondlijn 324) in het canvas
-  // ---- het drijftouw van het wiel: als eerste getekend, dus achterlangs de plateau-touwen en achter het wiel ----
-  if (!arenaMode){
-    // het loopt schuin achter het wiel omhoog naar een eigen katrol, een stukje opzij (de kant van het plateau);
-    // vooraan getekend (voor de plateau-touwen en het wiel), zodat het er echt achterlangs loopt
-    takelTouw(wx - wielW * 0.08, hubY - wielH * 0.04, wx - sp * 1.1, Math.min(groundY - (wB + TAKEL.pulleyH) * scale, schermTopY), touwW, -fase);
-    if (t.lift){   // lift: het bovenste wiel heeft zijn eigen drijftouw schuin omhoog
-      const tHubY = groundY - (wB + t.hoog) * scale - wielH * 194 / 325;
-      takelTouw(wx - wielW * 0.08, tHubY - wielH * 0.04, wx - sp * 1.1, Math.min(groundY - (wB + t.hoog + TAKEL.pulleyH) * scale, schermTopY), touwW, -fase);
-    }
+  const radLijst = takelWielLijst(t);                   // elk wiel op zijn eigen plek (x) en hoogte (off)
+  // ---- de drijftouwen van de wielen: als eerste getekend, dus achterlangs de plateau-touwen en achter de wielen ----
+  if (!arenaMode) for (const rad of radLijst){
+    const rwB = terrainH(rad.x), rwx = cx + (rad.x - world), hubY = groundY - (rwB + (rad.off || 0)) * scale - wielH * 194 / 325;
+    takelTouw(rwx - wielW * 0.08, hubY - wielH * 0.04, rwx - sp * 1.1, Math.min(groundY - (rwB + (rad.off || 0) + TAKEL.pulleyH) * scale, schermTopY), touwW, -fase);
   }
   if (t.valt){
     // de doorgesneden brug: de touwen zijn geknapt (weg), het dek kantelt om zijn midden terwijl het valt
@@ -9175,27 +9185,23 @@ function takelTekenEen(t, groundY, scale, cx){
       ctx.drawImage(takelKnop, raRx - kn / 2, raRy - kn / 2, kn, kn);
     }
   }
-  // ---- het wiel zelf: voor zijn eigen drijftouw, zodat de rand de voet van het touw afdekt ----
+  // ---- de wielen zelf: voor hun eigen drijftouw, zodat de rand de voet van het touw afdekt ----
   if (!arenaMode){
     const fr = ((Math.round(t.angle / (2 * Math.PI) * TAKEL.wielN) % TAKEL.wielN) + TAKEL.wielN) % TAKEL.wielN;
     const wim = takelImgs[fr];
-    if (imgReady(wim)){
-      ctx.drawImage(wim, wx - wielW / 2, wBaseY - wielH, wielW, wielH);                   // het onderste wiel
-      if (t.lift){                                                                         // lift: een tweede wiel naast het plateau boven
-        const topBaseY = groundY - (wB + t.hoog) * scale;
-        ctx.drawImage(wim, wx - wielW / 2, topBaseY - wielH, wielW, wielH);
-      }
+    if (imgReady(wim)) for (const rad of radLijst){
+      const rwB = terrainH(rad.x), rwx = cx + (rad.x - world), baseY = groundY - (rwB + (rad.off || 0)) * scale;
+      ctx.drawImage(wim, rwx - wielW / 2, baseY - wielH, wielW, wielH);
     }
   }
   if (showBoxes || building){
     ctx.save();
     ctx.globalAlpha = 0.6; ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2 / viewZoom();
     ctx.beginPath(); ctx.moveTo(left, dekTop); ctx.lineTo(right, dekTop); ctx.stroke();   // de looplijn van het plateau
-    const rw = wielW * 0.42, cyw = wBaseY - wielH * 194 / 325;
+    const rw = wielW * 0.42;
     ctx.strokeStyle = '#ff6b6b';
-    ctx.beginPath(); ctx.arc(wx, cyw, rw, 0, 6.2832); ctx.stroke();                        // het raakvlak van het rad
-    if (t.lift){ const cyw2 = groundY - (wB + t.hoog) * scale - wielH * 194 / 325;         // het bovenste wiel van de lift
-                 ctx.beginPath(); ctx.arc(wx, cyw2, rw, 0, 6.2832); ctx.stroke(); }
+    for (const rad of radLijst){ const rwB = terrainH(rad.x), rwx = cx + (rad.x - world), cyw = groundY - (rwB + (rad.off || 0)) * scale - wielH * 194 / 325;
+      ctx.beginPath(); ctx.arc(rwx, cyw, rw, 0, 6.2832); ctx.stroke(); }           // het raakvlak van elk rad
     ctx.restore();
   }
 }
@@ -27446,15 +27452,12 @@ function loop(now){
     if (takelLevel() && takelGeladen && !(arenaAap && arenaAap.ban && !arenaAap.staging)){
      for (const tk of takelLijst()){
       if (tk.weg || tk.valt) continue;
-      const wB = terrainH(tk.x);
-      const wielH = TAKEL.wielH * CHAR_H * scale, wielW = wielH * 274 / 325;
-      const wxs = cx + (tk.x - world), rw = wielW * 0.42;         // de schijf: het ronde deel rond de hub
-      // het raakvlak van een wiel op wereldhoogte off boven de grond. Een lift-takel heeft twee wielen: het
-      // onderste (off 0, dir 1 = omhoog) en het bovenste naast het plateau boven (off hoog, dir -1 = omlaag)
-      const wielBox = (off) => { const by = groundY - (wB + off) * scale, cy = by - wielH * 194 / 325;
-                                 return { l: wxs - rw, r: wxs + rw, t: cy - rw, b: cy + rw }; };
-      const wielen = tk.lift ? [{ box: wielBox(0), dir: 1 }, { box: wielBox(tk.hoog), dir: -1 }]
-                             : [{ box: wielBox(0), dir: 0 }];
+      const wielH = TAKEL.wielH * CHAR_H * scale, wielW = wielH * 274 / 325, rw = wielW * 0.42;   // de schijf: het ronde deel rond de hub
+      // elk wiel op zijn eigen plek (x) en hoogte (off); een lijst-wiel heeft een modus, een oud wiel een dir
+      const wielen = takelWielLijst(tk).map(rad => {
+        const rwB = terrainH(rad.x), rwx = cx + (rad.x - world), cy = groundY - (rwB + (rad.off || 0)) * scale - wielH * 194 / 325;
+        return { box: { l: rwx - rw, r: rwx + rw, t: cy - rw, b: cy + rw }, dir: rad.dir, modus: rad.modus, x: rad.x, off: rad.off || 0 };
+      });
       if (attacking && !atkMes && !swingUsed && steekLive()){
         const dxv = steekDX() * scale;
         const tipX = pcx + (facing === 1 ? -dxv : dxv);
@@ -27467,8 +27470,8 @@ function loop(now){
         for (const w of wielen){
           if (spR > w.box.l && spL < w.box.r && tipY + reach > w.box.t && tipY - reach < w.box.b){
             swingUsed = true;
-            takelSlag(tk, w.dir);
-            wielSplinters(tk.x, wB + 0.45 * CHAR_H + (w.dir < 0 ? tk.hoog : 0), pWorld < tk.x ? -1 : 1, 10 + (Math.random() * 4 | 0));
+            if (w.modus) takelWielSlag(tk, w.modus); else takelSlag(tk, w.dir);
+            wielSplinters(w.x, terrainH(w.x) + 0.45 * CHAR_H + w.off, pWorld < w.x ? -1 : 1, 10 + (Math.random() * 4 | 0));
             break;
           }
         }
@@ -27477,8 +27480,8 @@ function loop(now){
         for (const w of wielen){
           if (hitBy(swbox, w.box)){
             tk.sweptId = sweepId;
-            takelSlag(tk, w.dir);
-            wielSplinters(tk.x, wB + 0.25 * CHAR_H + (w.dir < 0 ? tk.hoog : 0), pWorld < tk.x ? -1 : 1, 9);
+            if (w.modus) takelWielSlag(tk, w.modus); else takelSlag(tk, w.dir);
+            wielSplinters(w.x, terrainH(w.x) + 0.25 * CHAR_H + w.off, pWorld < w.x ? -1 : 1, 9);
             break;
           }
         }
@@ -28532,6 +28535,10 @@ function leesTakel(q){
            touwSnijbaar: q.touwSnijbaar === true,
            elite: q.elite === true,
            stuurt: Array.isArray(q.stuurt) ? q.stuurt.map(String) : undefined,   // seinen die dit platform stuurt als het helemaal boven staat
+           // losse wielen op hun eigen plek: {x (op de grond), off (hoogte boven de grond), modus}. Zonder dit
+           // veld blijft het oude model (één wiel op x, of twee bij lift). Zie "takelwiel met plateau"
+           wielen: Array.isArray(q.wielen) ? q.wielen.map(w => ({ x: Number(w.x), off: Math.max(0, Number(w.off) || 0),
+                     modus: ['slagop', 'slagneer', 'liftop', 'liftneer'].includes(w.modus) ? w.modus : 'liftop' })) : undefined,
            takelaarZij: q.takelaarZij != null ? Number(q.takelaarZij) : undefined };
 }
 function readLevel(txt){
@@ -30326,8 +30333,7 @@ function mkNaarLevel(){
   const spanLR = (cA, cB) => { const [la] = lr(cA), [, rb] = lr(cB); return [Math.min(la, rb), Math.max(la, rb)]; };
   const savanne = id => id === 'savanne' || id === 'sneeuw';
   const solid = id => savanne(id) || id === 'rots' || id === 'muur';   // telt mee als verhoogd terras of blokkade
-  const gaps = [], terraces = [], holtes = [], zwevers = [];
-  let takel = null;
+  const gaps = [], terraces = [], holtes = [], zwevers = [], takels = [];
   // gaten: aaneengesloten ravijn-cellen op de grondlijn
   for (let c = 0; c < C;){
     if (G[gR] && G[gR][c] === 'ravijn'){ let c2 = c; while (c2 < C && G[gR][c2] === 'ravijn') c2++;
@@ -30371,20 +30377,18 @@ function mkNaarLevel(){
       c = c2; }
     else c++;
   }
-  // takel: het eerste platform met een doelhoogte wordt de takel (de engine kent er één per level). De wielen
-  // die er het dichtst bij liggen bepalen de modus: een lift-wiel (helemaal omhoog of omlaag) maakt er een
-  // lift van (twee wielen), anders is het per slag (één wiel dat op en neer gaat).
+  // takel: elk platform met een doelhoogte wordt een eigen takel-platform (met een id). De wielen die eraan
+  // hangen komen als lijst mee, elk op de plek waar jij ze zet, met hun eigen stand (per slag of helemaal).
+  let takelNr = 0;
   for (const p of MK.objects){
     if (p.k !== 'platform' || !p.doel) continue;
     const [pl, pr] = lr(p.c), px = Math.round((pl + pr) / 2);
     const restH = (gR - p.r) * MK_CEL_EENH, doelH = (gR - p.doel.r) * MK_CEL_EENH;
     const laag = Math.min(restH, doelH), hoog = Math.max(restH, doelH);
-    const wielen = MK.objects.filter(o => o.k === 'tandwiel' && mkNearestPlatform(o) === p);
-    const lift = wielen.some(w => w.modus === 'liftop' || w.modus === 'liftneer');
-    let wx = px + Math.round(MK_CEL_PX * 1.2);                 // standaard een wiel net naast het platform
-    if (wielen.length){ const [wl, wr] = lr(wielen[0].c); wx = Math.round((wl + wr) / 2); }
-    takel = { x: wx, px, breed: Math.round(MK_CEL_PX * 2.4), laag, hoog, stappen: 6, beginLaag: restH <= doelH, lift };
-    break;
+    const wielen = MK.objects.filter(o => o.k === 'tandwiel' && mkConnectedPlatform(o) === p)
+      .map(o => { const [wl, wr] = lr(o.c); return { x: Math.round((wl + wr) / 2), off: Math.max(0, (gR - 1 - o.r) * MK_CEL_EENH), modus: o.modus || 'liftop' }; });
+    takels.push({ id: 'p' + (++takelNr), px, breed: Math.round(MK_CEL_PX * 2.4), laag, hoog, stappen: 6, beginLaag: restH <= doelH,
+                  x: wielen.length ? wielen[0].x : px + Math.round(MK_CEL_PX * 1.2), wielen: wielen.length ? wielen : undefined });
   }
   const [sl, sr] = lr(startCol), startX = Math.round((sl + sr) / 2);
   const [el, er] = lr(eindCol), eindX = Math.round(Math.min(el, er));   // de fakkels (einde) op de eind-cel, met de klif erachter
@@ -30394,11 +30398,17 @@ function mkNaarLevel(){
   const spawns = vijanden.length
     ? vijanden.map(o => { const [l, r2] = lr(o.c); return { x: Math.round((l + r2) / 2), k:'groen' }; })
     : [{ x: eindX - 5000, k:'groen' }];
+  // de grond-afwerking: sneeuw (ergens geschilderd) maakt het level besneeuwd, rots op de grondlijn een rotsbodem
+  let afwerking = null;
+  for (const rij of G) for (const id of rij) if (id === 'sneeuw'){ afwerking = 'sneeuw'; break; }
+  if (!afwerking) for (let c = 0; c < C; c++) if (G[gR] && G[gR][c] === 'rots'){ afwerking = 'rots'; break; }
   const lvl = { name:'Level Maker test', view:0.8, rocks:[], props:[], spawns,
                 gaps, terraces, start:startX, ends:[{ x:eindX }], cliffs:[{ x:eindX - 450 }] };
   if (holtes.length) lvl.holtes = holtes;
   if (zwevers.length) lvl.zwevers = zwevers;
-  if (takel) lvl.takel = takel;
+  if (takels.length) lvl.takels = takels;
+  if (afwerking === 'sneeuw') lvl.sneeuw = { soort: 'savanne', dek: 1 };
+  else if (afwerking === 'rots') lvl.sneeuw = { soort: 'rots', dek: 0 };
   return lvl;
 }
 let mkTestActief = false;
