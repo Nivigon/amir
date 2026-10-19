@@ -30047,9 +30047,10 @@ const MK_CEL_PX = 175, MK_CEL_EENH = 150;         // de maat van één cel in sp
 const MK_BASIS = 24;                              // celgrootte op het scherm bij zoom 1
 const MK_TYPES = [
   { id:'select',  naam:'Selecteren',         kleur:null, sel:true },   // een cel of voorwerp aanklikken om te bewerken (Escape gaat hierheen)
-  { id:'savanne', naam:'Grond: savanne',     kleur:'#c67a3e', ch:'S' },
-  { id:'rots',    naam:'Grond: rots',        kleur:'#8a8a93', ch:'R' },
-  { id:'sneeuw',  naam:'Grond: sneeuw',      kleur:'#dfe8f1', ch:'W' },
+  { id:'savanne', naam:'Grond: savanne',       kleur:'#c67a3e', ch:'S' },
+  { id:'rots',    naam:'Grond: rots',          kleur:'#8a8a93', ch:'R' },
+  { id:'sneeuw',  naam:'Sneeuw op savanne',    kleur:'#eef3f8', ch:'W' },
+  { id:'sneeuwrots', naam:'Sneeuw op rots',    kleur:'#cfd6de', ch:'X' },
   { id:'muur',    naam:'Muur / massief',     kleur:'#5f4a36', ch:'M' },
   { id:'laag',    naam:'Laag obstakel',      kleur:'#b07a40', ch:'L' },
   { id:'gang',    naam:'Gang (ondergronds)', kleur:'#2f2838', ch:'G' },
@@ -30072,7 +30073,7 @@ const MK_MODI = [['slagop','Omhoog per slag'], ['liftop','Helemaal omhoog'], ['l
 const MK_CH = {}, MK_KLEUR = {};
 for (const t of MK_TYPES){ if (t.ch) MK_CH[t.ch] = t.id; if (t.kleur) MK_KLEUR[t.id] = t.kleur; }
 const MK_IDCH = {}; for (const t of MK_TYPES) if (t.ch) MK_IDCH[t.id] = t.ch;
-const MK_TERREIN = new Set(['savanne','rots','sneeuw','muur','laag','gang','ravijn','lucht']);
+const MK_TERREIN = new Set(['savanne','rots','sneeuw','sneeuwrots','muur','laag','gang','ravijn','lucht']);
 const mkIsObj = id => MK_TYPES.some(t => t.id === id && t.obj);
 function mkNearestPlatform(w){ let best = null, bd = Infinity;
   for (const o of MK.objects){ if (o.k !== 'platform') continue; const d = (o.c - w.c) ** 2 + (o.r - w.r) ** 2; if (d < bd){ bd = d; best = o; } }
@@ -30278,7 +30279,7 @@ function mkNaarJSON(){
   const grid = MK.grid.map(rij => rij.map(id => MK_IDCH[id] || '.').join(''));
   return { type:'amir-levelmaker-grid', versie:1, cols:MK.cols, rows:MK.rows, groundRow:MK.ground,
            cel:{ breedPx:MK_CEL_PX, hoogEenheden:MK_CEL_EENH },
-           legenda:{ '.':'lucht', S:'savanne', R:'rots', W:'sneeuw', M:'muur', L:'laag obstakel', G:'gang', V:'ravijn' },
+           legenda:{ '.':'lucht', S:'savanne', R:'rots', W:'sneeuw op savanne', X:'sneeuw op rots', M:'muur', L:'laag obstakel', G:'gang', V:'ravijn' },
            grid, start:MK.start, eind:MK.eind,
            objecten: MK.objects.map(o => {
              const b = { c:o.c, r:o.r, k:o.k, note:o.note || '' };
@@ -30331,8 +30332,8 @@ function mkNaarLevel(){
   const rand = gc => (gc - startCol) * MK_CEL_PX * dir;     // wereld-x van een kolomrand
   const lr = c => { const a = rand(c), b = rand(c + 1); return [Math.min(a, b), Math.max(a, b)]; };
   const spanLR = (cA, cB) => { const [la] = lr(cA), [, rb] = lr(cB); return [Math.min(la, rb), Math.max(la, rb)]; };
-  const savanne = id => id === 'savanne' || id === 'sneeuw';
-  const solid = id => savanne(id) || id === 'rots' || id === 'muur';   // telt mee als verhoogd terras of blokkade
+  const savanne = id => id === 'savanne' || id === 'sneeuw';            // savanne-achtig (grond:true), rots en sneeuwrots zijn steen
+  const solid = id => savanne(id) || id === 'rots' || id === 'sneeuwrots' || id === 'muur';   // telt mee als verhoogd terras of blokkade
   const gaps = [], terraces = [], holtes = [], zwevers = [], takels = [];
   // gaten: aaneengesloten ravijn-cellen op de grondlijn
   for (let c = 0; c < C;){
@@ -30398,23 +30399,28 @@ function mkNaarLevel(){
   const spawns = vijanden.length
     ? vijanden.map(o => { const [l, r2] = lr(o.c); return { x: Math.round((l + r2) / 2), k:'groen' }; })
     : [{ x: eindX - 5000, k:'groen' }];
-  // de grond-afwerking: sneeuw (ergens geschilderd) maakt het level besneeuwd, rots op de grondlijn een rotsbodem
+  // de grond-afwerking op de grondlijn-rij: een sneeuwlaag op de bodem (op savanne of op rots), of een kale rotsbodem
   let afwerking = null;
-  for (const rij of G) for (const id of rij) if (id === 'sneeuw'){ afwerking = 'sneeuw'; break; }
-  if (!afwerking) for (let c = 0; c < C; c++) if (G[gR] && G[gR][c] === 'rots'){ afwerking = 'rots'; break; }
+  for (let c = 0; c < C; c++){ const id = G[gR] && G[gR][c];
+    if (id === 'sneeuwrots'){ afwerking = 'sneeuwrots'; break; }
+    if (id === 'sneeuw') afwerking = 'sneeuw';
+    else if (id === 'rots' && !afwerking) afwerking = 'rots';
+  }
   const lvl = { name:'Level Maker test', view:0.8, rocks:[], props:[], spawns,
                 gaps, terraces, start:startX, ends:[{ x:eindX }], cliffs:[{ x:eindX - 450 }] };
   if (holtes.length) lvl.holtes = holtes;
   if (zwevers.length) lvl.zwevers = zwevers;
   if (takels.length) lvl.takels = takels;
-  if (afwerking === 'sneeuw') lvl.winter = true;                        // volledige Winter World: egaal wit, witte dieren en decor
-  else if (afwerking === 'rots') lvl.sneeuw = { soort: 'rots', dek: 0 };   // een kale rotsbodem
+  if (afwerking === 'sneeuw') lvl.sneeuw = { soort: 'savanne', dek: 1 };        // een sneeuwlaag op de savanne (alleen de bodem, geen weer)
+  else if (afwerking === 'sneeuwrots') lvl.sneeuw = { soort: 'rots', dek: 1 };  // een sneeuwlaag op de rotsbodem
+  else if (afwerking === 'rots') lvl.sneeuw = { soort: 'rots', dek: 0 };        // een kale rotsbodem
   return lvl;
 }
 let mkTestActief = false;
 function mkTest(){
   level = readLevel(JSON.stringify(mkNaarLevel()));
-  if (level.winter) loadWinter();                  // de winterplaatjes ophalen als de Test besneeuwd is
+  if (level.winter) loadWinter();                  // de winterplaatjes als het een winterlevel is
+  if (level.sneeuw && level.sneeuw.soort) loadSneeuw();   // en het sneeuwdek voor een besneeuwde bodem
   mkTestActief = true; makerOpen = false;
   makerEl.classList.remove('on'); barEl.classList.add('hide');
   sandbox = false; building = false; running = true;
