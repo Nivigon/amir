@@ -241,8 +241,13 @@
   #mklegbtns button:hover{background:rgba(242,232,213,.08)}
   #mklegbtns button.on{border-color:var(--bone);background:rgba(242,232,213,.14);font-weight:700}
   #mklegbtns .mkstaal{width:18px;height:18px;border-radius:3px;border:1px solid rgba(242,232,213,.35);flex:none}
-  #mkjson{width:100%;box-sizing:border-box;height:84px;background:rgba(0,0,0,.35);color:var(--bone);
+  #mklegbtns .mksub{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:rgba(242,232,213,.45);margin:8px 0 2px}
+  #mkjson,#mkobjnote{width:100%;box-sizing:border-box;background:rgba(0,0,0,.35);color:var(--bone);
     border:1px solid rgba(242,232,213,.25);border-radius:2px;font-family:inherit;font-size:11px;padding:6px}
+  #mkjson{height:84px}
+  #mkobjnote{height:60px}
+  #mkobjnote:disabled{opacity:.5}
+  #mkobjinfo{color:rgba(242,232,213,.75)}
   #mkstage{position:absolute;left:208px;top:46px;right:0;bottom:0}
   #mkcanvas{display:block;width:100%;height:100%;background:#140e1a;cursor:crosshair;touch-action:none}
   body.touch #mklegend{width:168px}
@@ -830,6 +835,9 @@
       <div class="mkkop">Legenda</div>
       <div id="mklegbtns"></div>
       <div class="mkhint">klik of sleep = schilderen &middot; wiel = zoomen &middot; rechts slepen of spatie = schuiven</div>
+      <div class="mkkop">Opmerking</div>
+      <div id="mkobjinfo" class="mkhint">Kies een object (Vijand, Zegel, Rune of Prop) en klik het aan om er een opmerking bij te zetten.</div>
+      <textarea id="mkobjnote" spellcheck="false" disabled placeholder="wat moet hier gebeuren? (bv: bandiet die vault, of: zegel opent het ravijn rechts)"></textarea>
       <div class="mkkop">Opslaan</div>
       <div class="mkrij"><button id="mkcopy">Kopieer JSON</button><button id="mkdl">Download</button></div>
       <textarea id="mkjson" spellcheck="false" placeholder="grid als tekst; hier komt de export, of plak een eerder grid en druk op Laden"></textarea>
@@ -29938,11 +29946,20 @@ const MK_TYPES = [
   { id:'lucht',   naam:'Gum (leeg maken)',   kleur:null,      ch:'.' },
   { id:'start',   naam:'Startpunt',          kleur:'#5fcf6a', punt:true },
   { id:'eind',    naam:'Eindpunt',           kleur:'#d64b4b', punt:true },
+  // objecten: je zet er een op een cel en geeft er een opmerking bij (die gaat mee in de export,
+  // zodat Claude precies weet wat er moet gebeuren). In de Test wordt een Vijand een plaatshouder-
+  // slang; Zegel, Rune en Prop blijven voorlopig aantekeningen.
+  { id:'vijand',  naam:'Vijand',             kleur:'#d6553f', obj:true, letter:'V' },
+  { id:'zegel',   naam:'Zegel (schakelaar)', kleur:'#4a8fd6', obj:true, letter:'Z' },
+  { id:'rune',    naam:'Rune',               kleur:'#9a6ad6', obj:true, letter:'R' },
+  { id:'prop',    naam:'Prop / decor',       kleur:'#6aae5a', obj:true, letter:'P' },
 ];
 const MK_CH = {}, MK_KLEUR = {};
 for (const t of MK_TYPES){ if (t.ch) MK_CH[t.ch] = t.id; if (t.kleur) MK_KLEUR[t.id] = t.kleur; }
 const MK_IDCH = {}; for (const t of MK_TYPES) if (t.ch) MK_IDCH[t.id] = t.ch;
-const MK = { cols:48, rows:20, ground:12, grid:null, start:null, eind:null,
+const MK_TERREIN = new Set(['savanne','rots','sneeuw','muur','laag','gang','ravijn','takel','lucht']);
+const mkIsObj = id => MK_TYPES.some(t => t.id === id && t.obj);
+const MK = { cols:48, rows:20, ground:12, grid:null, start:null, eind:null, objects:[], sel:null,
              tool:'savanne', zoom:1, panX:0, panY:0 };
 let makerOpen = false, mkCtx = null, mkPaint = false, mkPan = false, mkPanX = 0, mkPanY = 0, mkSpace = false;
 const makerEl = document.getElementById('maker');
@@ -29961,6 +29978,8 @@ function mkZetMaat(cols, rows, ground){
   MK.cols = cols; MK.rows = rows; MK.ground = ground; MK.grid = nieuw;
   if (MK.start && (MK.start.c >= cols || MK.start.r >= rows)) MK.start = null;
   if (MK.eind && (MK.eind.c >= cols || MK.eind.r >= rows)) MK.eind = null;
+  MK.objects = (MK.objects || []).filter(o => o.c < cols && o.r < rows);
+  if (MK.sel && MK.objects.indexOf(MK.sel) < 0) MK.sel = null;
   mkColsEl.value = cols; mkRowsEl.value = rows; mkGroundEl.value = ground;
 }
 function mkCel(){ return MK_BASIS * MK.zoom; }
@@ -30027,19 +30046,59 @@ function mkTeken(){
     mkCtx.fillStyle = '#140e1a'; mkCtx.font = `bold ${Math.round(cel * 0.6)}px sans-serif`;
     mkCtx.textAlign = 'center'; mkCtx.textBaseline = 'middle'; mkCtx.fillText(letter, x, y + 1);
   }
+  // objecten (vijand, zegel, rune, prop) met een stip als ze een opmerking hebben
+  for (const o of MK.objects){
+    if (o.c < cMin || o.c >= cMax || o.r < rMin || o.r >= rMax) continue;
+    const t = MK_TYPES.find(x => x.id === o.k); if (!t) continue;
+    const x = gx + (o.c + 0.5) * cel, y = gy + (o.r + 0.5) * cel, rad = cel * 0.36;
+    mkCtx.fillStyle = t.kleur; mkCtx.beginPath(); mkCtx.arc(x, y, rad, 0, 7); mkCtx.fill();
+    if (o === MK.sel){ mkCtx.strokeStyle = '#fff'; mkCtx.lineWidth = 2; mkCtx.beginPath(); mkCtx.arc(x, y, rad + 2, 0, 7); mkCtx.stroke(); }
+    mkCtx.fillStyle = '#140e1a'; mkCtx.font = `bold ${Math.round(cel * 0.5)}px sans-serif`;
+    mkCtx.textAlign = 'center'; mkCtx.textBaseline = 'middle'; mkCtx.fillText(t.letter || '?', x, y + 1);
+    if (o.note){ mkCtx.fillStyle = '#ffd24a'; mkCtx.beginPath(); mkCtx.arc(x + rad * 0.85, y - rad * 0.85, Math.max(2, cel * 0.12), 0, 7); mkCtx.fill(); }
+  }
 }
+// een enkele klik: grond schilderen, start/eind zetten, of een object plaatsen of selecteren
+function mkKlik(ev){
+  const { c, r } = mkCelOp(ev);
+  if (c < 0 || r < 0 || c >= MK.cols || r >= MK.rows) return;
+  const t = MK.tool;
+  if (t === 'start'){ MK.start = (MK.start && MK.start.c === c && MK.start.r === r) ? null : { c, r }; }
+  else if (t === 'eind'){ MK.eind = (MK.eind && MK.eind.c === c && MK.eind.r === r) ? null : { c, r }; }
+  else if (mkIsObj(t)){
+    const bestaand = MK.objects.find(o => o.c === c && o.r === r);
+    if (bestaand) MK.sel = bestaand;                              // bestaand object: selecteren om de opmerking te bewerken
+    else { const o = { c, r, k: t, note: '' }; MK.objects.push(o); MK.sel = o; }
+    mkNotePaneel();
+  }
+  else if (t === 'lucht'){                                        // gum: eerst een object weg, anders de grond leeg
+    const i = MK.objects.findIndex(o => o.c === c && o.r === r);
+    if (i >= 0){ if (MK.sel === MK.objects[i]){ MK.sel = null; mkNotePaneel(); } MK.objects.splice(i, 1); }
+    else MK.grid[r][c] = 'lucht';
+  }
+  else MK.grid[r][c] = t;
+  mkTeken(); mkBewaar();
+}
+// slepen: alleen grond schilderen (objecten en start/eind zijn één klik)
 function mkVerf(ev){
   const { c, r } = mkCelOp(ev);
   if (c < 0 || r < 0 || c >= MK.cols || r >= MK.rows) return;
-  if (MK.tool === 'start'){ MK.start = (MK.start && MK.start.c === c && MK.start.r === r) ? null : { c, r }; }
-  else if (MK.tool === 'eind'){ MK.eind = (MK.eind && MK.eind.c === c && MK.eind.r === r) ? null : { c, r }; }
-  else { MK.grid[r][c] = MK.tool; }
-  mkTeken(); mkBewaar();
+  MK.grid[r][c] = MK.tool; mkTeken(); mkBewaar();
+}
+// het opmerking-paneel bij het geselecteerde object
+function mkNotePaneel(){
+  const info = document.getElementById('mkobjinfo'), ta = document.getElementById('mkobjnote');
+  if (MK.sel){ const t = MK_TYPES.find(x => x.id === MK.sel.k);
+    info.textContent = (t ? t.naam : MK.sel.k) + ' op (' + MK.sel.c + ', ' + MK.sel.r + ')';
+    ta.disabled = false; ta.value = MK.sel.note || ''; }
+  else { info.textContent = 'Kies een object (Vijand, Zegel, Rune of Prop) en klik het aan om er een opmerking bij te zetten.';
+    ta.disabled = true; ta.value = ''; }
 }
 // de legenda-knoppen, een per type
 function mkLegenda(){
-  const box = document.getElementById('mklegbtns'); box.innerHTML = '';
+  const box = document.getElementById('mklegbtns'); box.innerHTML = ''; let objKop = false;
   for (const t of MK_TYPES){
+    if (t.obj && !objKop){ const h = document.createElement('div'); h.className = 'mksub'; h.textContent = 'Objecten (met opmerking)'; box.appendChild(h); objKop = true; }
     const b = document.createElement('button'); b.dataset.tool = t.id;
     const staal = document.createElement('span'); staal.className = 'mkstaal';
     staal.style.background = t.kleur || 'transparent';
@@ -30057,7 +30116,8 @@ function mkNaarJSON(){
   return { type:'amir-levelmaker-grid', versie:1, cols:MK.cols, rows:MK.rows, groundRow:MK.ground,
            cel:{ breedPx:MK_CEL_PX, hoogEenheden:MK_CEL_EENH },
            legenda:{ '.':'lucht', S:'savanne', R:'rots', W:'sneeuw', M:'muur', L:'laag obstakel', G:'gang', V:'ravijn', T:'takel' },
-           grid, start:MK.start, eind:MK.eind };
+           grid, start:MK.start, eind:MK.eind,
+           objecten: MK.objects.map(o => ({ c:o.c, r:o.r, k:o.k, note:o.note || '' })) };
 }
 function mkUitJSON(o){
   if (!o || !Array.isArray(o.grid)) throw new Error('geen grid');
@@ -30066,6 +30126,8 @@ function mkUitJSON(o){
   for (let r = 0; r < rows; r++){ const s = o.grid[r] || ''; for (let c = 0; c < cols; c++) MK.grid[r][c] = MK_CH[s[c]] || 'lucht'; }
   MK.start = (o.start && o.start.c != null) ? { c:o.start.c, r:o.start.r } : null;
   MK.eind  = (o.eind  && o.eind.c  != null) ? { c:o.eind.c,  r:o.eind.r  } : null;
+  MK.objects = Array.isArray(o.objecten) ? o.objecten.filter(q => mkIsObj(q.k)).map(q => ({ c:q.c|0, r:q.r|0, k:q.k, note:String(q.note || '') })) : [];
+  MK.sel = null;
 }
 function mkBewaar(){ try { localStorage.setItem('amir-mk', JSON.stringify(mkNaarJSON())); } catch (e){} }
 function mkExport(){ const s = JSON.stringify(mkNaarJSON()); mkJsonEl.value = s;
@@ -30137,8 +30199,13 @@ function mkNaarLevel(){
   }
   const [sl, sr] = lr(startCol), startX = Math.round((sl + sr) / 2);
   const [el, er] = lr(eindCol), eindX = Math.round(Math.min(el, er));   // de fakkels (einde) op de eind-cel, met de klif erachter
-  // een verre dummy-spawn houdt de vrije modus uit (anders stuurt het spel zelf slangen op je af); een parcours-test is leeg
-  const lvl = { name:'Level Maker test', view:0.8, rocks:[], props:[], spawns:[{ x: eindX - 5000, k:'groen' }],
+  // Vijand-objecten worden in de Test een plaatshouder-slang op hun x; de opmerking zegt wat het echt moet worden.
+  // Zonder vijanden houdt een verre dummy-spawn de vrije modus uit (anders stuurt het spel zelf slangen op je af).
+  const vijanden = MK.objects.filter(o => o.k === 'vijand');
+  const spawns = vijanden.length
+    ? vijanden.map(o => { const [l, r2] = lr(o.c); return { x: Math.round((l + r2) / 2), k:'groen' }; })
+    : [{ x: eindX - 5000, k:'groen' }];
+  const lvl = { name:'Level Maker test', view:0.8, rocks:[], props:[], spawns,
                 gaps, terraces, start:startX, ends:[{ x:eindX }], cliffs:[{ x:eindX - 450 }] };
   if (holtes.length) lvl.holtes = holtes;
   if (takel) lvl.takel = takel;
@@ -30171,11 +30238,11 @@ for (const el of [mkColsEl, mkRowsEl, mkGroundEl]) el.addEventListener('change',
 mkCanvas.addEventListener('pointerdown', ev => {
   mkCanvas.setPointerCapture(ev.pointerId);
   if (ev.button === 2 || ev.button === 1 || mkSpace){ mkPan = true; mkPanX = ev.clientX; mkPanY = ev.clientY; }
-  else { mkPaint = true; mkVerf(ev); }
+  else { mkPaint = true; mkKlik(ev); }
 });
 mkCanvas.addEventListener('pointermove', ev => {
   if (mkPan){ MK.panX += ev.clientX - mkPanX; MK.panY += ev.clientY - mkPanY; mkPanX = ev.clientX; mkPanY = ev.clientY; mkTeken(); }
-  else if (mkPaint) mkVerf(ev);
+  else if (mkPaint && MK_TERREIN.has(MK.tool)) mkVerf(ev);   // slepen schildert alleen grond, niet objecten of start/eind
 });
 function mkStop(){ mkPaint = false; mkPan = false; }
 mkCanvas.addEventListener('pointerup', mkStop);
@@ -30197,17 +30264,19 @@ document.getElementById('mkexport').onclick = mkExport;
 document.getElementById('mkcopy').onclick = mkExport;
 document.getElementById('mkdl').onclick = mkDownload;
 document.getElementById('mkload').onclick = () => {
-  try { mkUitJSON(JSON.parse(mkJsonEl.value)); mkPassend(); mkBewaar(); }
+  try { mkUitJSON(JSON.parse(mkJsonEl.value)); mkNotePaneel(); mkPassend(); mkBewaar(); }
   catch (e){ alert('Kon dit grid niet lezen: ' + e.message); }
 };
 document.getElementById('mkwis').onclick = () => {
   if (!confirm('Het hele grid leegmaken?')) return;
-  MK.grid = mkMaakGrid(MK.cols, MK.rows); MK.start = null; MK.eind = null; mkTeken(); mkBewaar();
+  MK.grid = mkMaakGrid(MK.cols, MK.rows); MK.start = null; MK.eind = null; MK.objects = []; MK.sel = null;
+  mkNotePaneel(); mkTeken(); mkBewaar();
 };
+document.getElementById('mkobjnote').addEventListener('input', e => { if (MK.sel){ MK.sel.note = e.target.value; mkBewaar(); mkTeken(); } });
 function mkOpen(){
   makerOpen = true; startEl.classList.add('off'); barEl.classList.add('hide'); makerEl.classList.add('on');
   try { const bew = localStorage.getItem('amir-mk'); if (bew) mkUitJSON(JSON.parse(bew)); } catch (e){}
-  mkLegenda(); mkMaatCanvas(); mkPassend();
+  mkLegenda(); mkNotePaneel(); mkMaatCanvas(); mkPassend();
 }
 function mkDicht(){ makerOpen = false; makerEl.classList.remove('on'); startEl.classList.remove('off'); showMenu('menuMain'); }
 document.getElementById('btnmaker').onclick = mkOpen;
