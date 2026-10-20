@@ -900,6 +900,7 @@
         <div id="mkplatctl" class="mkrij" style="display:none"><button id="mkdoel">Zet doelhoogte</button><button id="mkdoelwis">Wis doel</button></div>
         <div id="mkplatbreed" class="mkknop" style="display:none"><label>Breedte</label><input id="mkbreed" type="range" min="1" max="5" step="1"><span class="read" id="mkbreedv"></span></div>
         <div id="mkplatstam" class="mkknop" style="display:none"><label>Paalhoogte</label><input id="mkstam" type="range" min="1" max="40" step="1"><span class="read" id="mkstamv"></span></div>
+        <div id="mkplatstamzij" class="mkrij" style="display:none"><button id="mkstamzij">Paal: rechts</button></div>
         <div id="mkdoelinfo" class="mkhint" style="display:none"></div>
         <div id="mktandctl" style="display:none">
           <div class="mkveld"><label for="mktandplat">Verbonden met</label><select id="mktandplat"></select></div>
@@ -9396,7 +9397,9 @@ function takelTeken(groundY, scale, cx){
 }
 // de paal staat aan de wielkant van het plateau (side) en overlapt de hoek ervan. De tekening en de botsing
 // rekenen met dezelfde maten, zodat het loopvlak precies tot de zichtbare rand van het dek loopt.
-function stamSide(t){ return Math.sign(t.x - t.px) || -1; }        // de kant van het plateau waar de paal staat
+// de kant van het plateau waar de paal staat: een eigen veld (t.stamZij), los van waar het wiel staat. Zonder
+// dat veld valt hij terug op de wielkant (oude takels), maar de Maker zet hem altijd zelf
+function stamSide(t){ return (t.stamZij === 1 || t.stamZij === -1) ? t.stamZij : (Math.sign(t.x - t.px) || -1); }
 function stamMidW(t){ return t.px + stamSide(t) * (t.breed / 2 - STAM.breed * CHAR_H * 0.3); }   // de paal (midden) in wereld-x
 // de binnenrand van de paal in wereld-x: daar houdt het zichtbare dek op, dus daar houdt het loopvlak op
 function stamInnerW(t){ return stamMidW(t) - stamSide(t) * STAM.breed * CHAR_H / 2; }
@@ -9514,7 +9517,10 @@ function takelTekenEen(t, groundY, scale, cx){
       ctx.drawImage(takelKnop, raRx - kn / 2, raRy - kn / 2, kn, kn);
     }
   }
-  // ---- de wielen zelf: voor hun eigen drijftouw, zodat de rand de voet van het touw afdekt ----
+  // de draagpaal met het mini-tandwiel: voor het plateau, maar achter het wiel (het wiel staat altijd vooraan,
+  // ook als je het in de Maker over de paal heen zet). De kant komt uit stamSide, niet uit de wielpositie
+  if (t.stam && !t.valt) takelStamTeken(t, groundY, scale, cx, stamSide(t), top);
+  // ---- de wielen zelf: als laatste, zodat ze altijd voor het plateau en de paal staan ----
   if (!arenaMode){
     const fr = ((Math.round(t.angle / (2 * Math.PI) * TAKEL.wielN) % TAKEL.wielN) + TAKEL.wielN) % TAKEL.wielN;
     const wim = takelImgs[fr];
@@ -9523,8 +9529,6 @@ function takelTekenEen(t, groundY, scale, cx){
       ctx.drawImage(wim, rwx - wielW / 2, baseY - wielH, wielW, wielH);
     }
   }
-  // de draagpaal met het mini-tandwiel, als laatste (voor het wiel en zijn touw, met het mini-wiel erbovenop)
-  if (t.stam && !t.valt) takelStamTeken(t, groundY, scale, cx, Math.sign(t.x - t.px) || -1, top);
   if (showBoxes || building){
     ctx.save();
     ctx.globalAlpha = 0.6; ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2 / viewZoom();
@@ -29324,6 +29328,7 @@ function leesTakel(q){
            passagierRollen: Array.isArray(q.passagierRollen) ? q.passagierRollen.map(String) : undefined,
            touwSnijbaar: q.touwSnijbaar === true,
            stam: q.stam === true,                                       // de draagpaal met het mini-tandwiel in plaats van de twee touwen (zie "stam")
+           stamZij: (q.stamZij === 1 || q.stamZij === -1) ? q.stamZij : undefined,  // de kant van de paal (1 rechts, -1 links), los van het wiel
            stamH: q.stamH !== undefined ? Number(q.stamH) : undefined,  // de hoogte van de paal (de pen bovenaan), sprite-eenheden boven de grond
            stamBot: q.stamBot !== undefined ? Number(q.stamBot) : undefined,  // de voet van de paal (zonder dit veld rust hij op de vloer eronder)
            elite: q.elite === true,
@@ -31138,8 +31143,7 @@ function mkStamBotCel(p){ return p.stamBotCel != null ? p.stamBotCel : mkStamBot
 // de schermgeometrie van de paal en zijn twee sleep-handvatten (pen boven, voet onder), voor tekenen en aanklikken
 function mkStamGeo(p){
   const cel = mkCel(), gx = MK.panX, gy = MK.panY;
-  const wiel = MK.objects.find(o => o.k === 'tandwiel' && mkConnectedPlatform(o) === p);
-  const side = wiel ? (Math.sign(wiel.c - p.c) || 1) : 1;         // de paal staat aan de wielkant (anders rechts)
+  const side = p.stamZij === -1 ? -1 : 1;                         // de kant van de paal (eigen keuze, los van het wiel)
   const cx = gx + (p.c + 0.5) * cel, bw = (p.breed || MK_PLAT_BREED) * cel;
   const poleW = Math.max(3, (STAM.breed * CHAR_H / MK_CEL_PX) * cel);
   const poleX = cx + side * (bw / 2 - 0.3 * poleW);               // het midden van de paal, zoals stamMidW
@@ -31207,6 +31211,8 @@ function mkNotePaneel(){
   platctl.style.display = isPlat ? '' : 'none'; doelinfo.style.display = isPlat ? '' : 'none'; tandctl.style.display = isTand ? '' : 'none';
   document.getElementById('mkplatbreed').style.display = isPlat ? '' : 'none';
   document.getElementById('mkplatstam').style.display = isPlat ? '' : 'none';
+  document.getElementById('mkplatstamzij').style.display = isPlat ? '' : 'none';
+  if (isPlat) document.getElementById('mkstamzij').textContent = 'Paal: ' + (MK.sel.stamZij === -1 ? 'links' : 'rechts');
   if (isVij){ mkVulVijSelect(); mkVulVijKnoppen(); }
   else document.getElementById('mkvijknop').innerHTML = '';
   if (isPlat){ const d = MK.sel.doel;
@@ -31353,7 +31359,7 @@ function mkNaarJSON(){
            objecten: MK.objects.map(o => {
              const b = { c:o.c, r:o.r, k:o.k, note:o.note || '' };
              if (o.k === 'vijand'){ b.soort = o.soort || 'groen'; if (o.params && Object.keys(o.params).length) b.params = o.params; }
-             if (o.k === 'platform'){ b.doel = o.doel ? { c:o.doel.c, r:o.doel.r } : null; b.breed = o.breed || MK_PLAT_BREED; if (o.stamCel) b.stamCel = o.stamCel; if (o.stamBotCel != null) b.stamBotCel = o.stamBotCel; }
+             if (o.k === 'platform'){ b.doel = o.doel ? { c:o.doel.c, r:o.doel.r } : null; b.breed = o.breed || MK_PLAT_BREED; if (o.stamCel) b.stamCel = o.stamCel; if (o.stamBotCel != null) b.stamBotCel = o.stamBotCel; if (o.stamZij === -1) b.stamZij = -1; }
              if (o.k === 'tandwiel'){ b.modus = o.modus || 'schakellift'; const p = mkConnectedPlatform(o); if (p) b.platform = { c:p.c, r:p.r }; }
              if (o.k === 'overhang'){ b.breed = o.breed || 3; b.dik = o.dik || 2; b.fijn = o.fijn || 0; b.look = o.look === 'savanne' ? 'savanne' : 'rots'; }
              return b;
@@ -31373,7 +31379,7 @@ function mkUitJSON(o){
   MK.objects = Array.isArray(o.objecten) ? o.objecten.filter(q => mkIsObj(q.k)).map(q => {
     const b = { c:q.c|0, r:q.r|0, k:q.k, note:String(q.note || '') };
     if (q.k === 'vijand'){ b.soort = MK_VIJ_INFO[q.soort] ? q.soort : 'groen'; if (q.params && typeof q.params === 'object'){ b.params = {}; for (const kk in q.params) if (typeof q.params[kk] === 'number') b.params[kk] = q.params[kk]; } }
-    if (q.k === 'platform'){ b.doel = (q.doel && q.doel.c != null) ? { c:q.doel.c|0, r:q.doel.r|0 } : null; b.breed = Math.max(1, Math.min(5, Math.round(Number(q.breed) || MK_PLAT_BREED))); if (Number(q.stamCel) > 0) b.stamCel = Math.max(1, Math.min(40, Math.round(Number(q.stamCel)))); if (q.stamBotCel != null && Number(q.stamBotCel) >= 0) b.stamBotCel = Math.max(0, Math.min(40, Math.round(Number(q.stamBotCel)))); }
+    if (q.k === 'platform'){ b.doel = (q.doel && q.doel.c != null) ? { c:q.doel.c|0, r:q.doel.r|0 } : null; b.breed = Math.max(1, Math.min(5, Math.round(Number(q.breed) || MK_PLAT_BREED))); if (Number(q.stamCel) > 0) b.stamCel = Math.max(1, Math.min(40, Math.round(Number(q.stamCel)))); if (q.stamBotCel != null && Number(q.stamBotCel) >= 0) b.stamBotCel = Math.max(0, Math.min(40, Math.round(Number(q.stamBotCel)))); if (Number(q.stamZij) === -1) b.stamZij = -1; }
     if (q.k === 'tandwiel'){ b.modus = MK_MODI.some(m => m[0] === q.modus) ? q.modus : 'schakellift';
       if (q.platform && q.platform.c != null) b._plat = { c:q.platform.c|0, r:q.platform.r|0 }; }
     if (q.k === 'overhang'){ b.breed = Math.max(1, Math.min(12, Math.round(Number(q.breed) || 3)));
@@ -31525,7 +31531,7 @@ function mkNaarLevel(){
     // de Maker bouwt voortaan met de stam (de draagpaal met het mini-tandwiel), niet met de twee touwen; de
     // paalhoogte komt uit stamCel (de speler) of vanzelf net boven de hoogste plateaustand (mkStamAuto)
     takels.push({ id: 'p' + (++takelNr), px, breed, laag, hoog, stappen: 6, beginLaag: restH <= doelH,
-                  stam: true, stamH: (p.stamCel || mkStamAuto(p)) * MK_CEL_EENH,
+                  stam: true, stamZij: p.stamZij === -1 ? -1 : 1, stamH: (p.stamCel || mkStamAuto(p)) * MK_CEL_EENH,
                   stamBot: p.stamBotCel != null ? p.stamBotCel * MK_CEL_EENH : undefined,   // zonder sleep rust hij op de vloer eronder (terrainH)
                   x: wielen.length ? wielen[0].x : px + Math.round(MK_CEL_PX * 1.2), wielen: wielen.length ? wielen : undefined });
   }
@@ -31723,6 +31729,12 @@ document.getElementById('mkstam').addEventListener('input', e => {
   const sv = document.getElementById('mkstamv'); sv.textContent = MK.sel.stamCel + (MK.sel.stamCel === 1 ? ' cel' : ' cellen');
   mkTeken(); mkBewaar();
 });
+document.getElementById('mkstamzij').onclick = () => {        // de kant van de paal wisselen (los van het wiel)
+  if (!MK.sel || MK.sel.k !== 'platform') return;
+  MK.sel.stamZij = MK.sel.stamZij === -1 ? 1 : -1;
+  document.getElementById('mkstamzij').textContent = 'Paal: ' + (MK.sel.stamZij === -1 ? 'links' : 'rechts');
+  mkTeken(); mkBewaar();
+};
 function mkOpen(){
   makerOpen = true; startEl.classList.add('off'); barEl.classList.add('hide'); makerEl.classList.add('on');
   try { const bew = localStorage.getItem('amir-mk'); if (bew) mkUitJSON(JSON.parse(bew)); } catch (e){}
