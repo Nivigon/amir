@@ -868,6 +868,7 @@
       <span class="mkfield"><label for="mkrows">Hoog</label><input id="mkrows" type="number" min="4" max="200" step="1" value="20"></span>
       <span class="mkfield"><label for="mkground">Grondlijn</label><input id="mkground" type="number" min="0" max="199" step="1" value="12"></span>
       <span class="mkfield"><label for="mkmuziek">Muziek</label><select id="mkmuziek"></select></span>
+      <span class="mkfield"><label><input id="mkvalschade" type="checkbox" checked> Valschade</label></span>
       <button id="mkfit" title="Pas de hele kaart in beeld">Passend</button>
       <button id="mktest" class="mkspeel" title="Speel dit grid meteen als level">Test &#9654;</button>
       <button id="mkexport">Exporteren</button>
@@ -5685,6 +5686,10 @@ function drawClimb(groundY, scale, cx, onder){
     if (xl > viewR || xr < viewL) continue;
     const top = groundY - t.h * scale - (TER.walk - TER.trimTop) * st;
     if (top > bottom) continue;
+    // Een rots-mesa met af (uit de Maker) stopt op de grondlijn in plaats van door de savanne heen naar
+    // beneden het donker in te lopen: het steen staat op de grond, en de grondband eronder (al getekend)
+    // blijft zichtbaar. De gewone terrassen van de bestaande levels hebben geen af en veranderen niet.
+    const onderT = t.af ? groundY : bottom;
     // past de rand niet in het terras, dan drukken we hem samen tot de breedte die er is, niet
     // verder: anders wordt de rotsribbeling een fijne streepjescode. De twee randen mogen elkaar
     // overlappen, want de linker wordt als laatste getekend en vloeit naar rechts uit
@@ -5701,25 +5706,25 @@ function drawClimb(groundY, scale, cx, onder){
     const onder = t.h < 0 && winterOn();
     const tp = onder ? terImg : terPic(), tf = onder ? terFade : (terFadePic() || terPic());
     ctx.save();
-    terClipPath(xl, xr, top - 4, bottom, st, soilY, leftHidden, t.l, t.r, rightHidden);        // gebroken zijkanten
+    terClipPath(xl, xr, top - 4, onderT, st, soilY, leftHidden, t.l, t.r, rightHidden);        // gebroken zijkanten
     ctx.clip();
     ctx.save();
     ctx.beginPath();
     const midL = xl + (leftHidden ? 0 : edgePx);
     const midR = rightHidden ? xr + 40 : xr - edgePx;
-    ctx.rect(midL, top - 4, midR - midL, bottom - top + 4);
+    ctx.rect(midL, top - 4, midR - midL, onderT - top + 4);
     ctx.clip();
     // middenstukken van rechts naar links, om en om gespiegeld: dan sluiten de naden
     let x = rightHidden ? xr + 40 : xr - capW, k = 0;
     while (x > xl && x > viewL - midW){
-      drawTerCol(TER.midX, iw - TER.midX, x - midW, midW, k % 2 === 1, top, bottom, st, tp);
+      drawTerCol(TER.midX, iw - TER.midX, x - midW, midW, k % 2 === 1, top, onderT, st, tp);
       x -= midW; k++;
     }
     ctx.restore();
-    if (!rightHidden) drawTerCol(0, iw, xr - capW, capW, true, top, bottom, st, tp);   // afbrokkelende rand rechts, naar je start toe
+    if (!rightHidden) drawTerCol(0, iw, xr - capW, capW, true, top, onderT, st, tp);   // afbrokkelende rand rechts, naar je start toe
     // en links als laatste, met de zachte rechterkant: zo houdt hij zijn eigen rand, ook als
     // het terras zo smal is dat de twee randen over elkaar heen vallen
-    if (!leftHidden) drawTerCol(0, iw, xl, capW, false, top, bottom, st, tf);
+    if (!leftHidden) drawTerCol(0, iw, xl, capW, false, top, onderT, st, tf);
     ctx.restore();
     if (showBoxes || building){
       ctx.save();
@@ -15400,10 +15405,14 @@ const COYOTE_T = 0.12;
 // de botsing en de val-schade blijven wat ze waren. Gelijk aan PROEFMOB.stap, het afstapje van een vijand.
 const STAP_POSE = 60;
 let onGround = true;
+// Het bewegende plateau (takel of rijzende grond) waar je op staat, op id. Daaraan blijf je kleven en
+// zak of stijg je mee, ook als het sneller zakt dan RIJS.terug, zodat je er niet elk beeld even af
+// "valt". Springen of eraf lopen laat je los (zie updateJump en takeOff).
+let amirPlat = null;
 const dust = [];
 
 function takeOff(){
-  jump = { phase: 'air', t: 0 }; pvh = jumpV() * (1 - (1 - POOL.jump) * waterDepthAt(world, ph)); onGround = false; fell = false; coyote = 0; puffDust(4);
+  jump = { phase: 'air', t: 0 }; pvh = jumpV() * (1 - (1 - POOL.jump) * waterDepthAt(world, ph)); onGround = false; fell = false; coyote = 0; amirPlat = null; puffDust(4);
 }
 function startJump(){
   if (amirVast()) return;                            // de baviaan heeft je speer vast
@@ -18347,19 +18356,35 @@ function updateJump(dt, plats, halfW){
     puffDust(9);
     if (winterOn() && !building && waterDepthAt(world, target) < 0.2) snowBurst(world, target, vIn / 900);   // de sneeuw stuift op
     if (targetPlat && targetPlat.takel){ const tk = takelById(targetPlat.id); if (tk) takelBons(tk, vIn, world >= tk.px ? 1 : -1); }   // op het plateau springen: inzakken plus schommelen naar de landingskant
+    amirPlat = (targetPlat && (targetPlat.takel || targetPlat.rijs)) ? (targetPlat.id || null) : null;   // beland je op een bewegend plateau, dan bind je je eraan
     valLand(diep);
   }
   if (!onGround && ph < valGrens(world)) fallDeath();   // in het gat gevallen (niet als er een gang onder zit, wel in een put)
 
   if (onGround){
+    // Sta je op een bewegend plateau (takel of rijzende grond), dan blijf je eraan vastzitten zolang je
+    // er met je voeten boven staat: je zakt (en stijgt) ermee mee op zijn eigen snelheid, niet geklemd op
+    // RIJS.terug, zodat je er niet elk beeld even afvalt. valVan loopt zo mee omlaag (zie boven), dus
+    // meerijden kost geen valschade. Pas bij springen (takeOff wist amirPlat) of eraf lopen laat je los.
+    const drager = amirPlat != null
+      ? plats.find(p => (p.id || null) === amirPlat && world + halfW > p.left && world - halfW < p.right && p.topH <= ph + 1)
+      : null;
     const s = supportHeight(plats, halfW);
     const floor = s !== 0 ? s : (building ? 0 : grondVloer(world, ph));
-    if (floor !== null && floor >= ph - 1) ph = floor;   // meelopen met de rots
+    if (drager) ph = drager.topH;                        // mee omlaag met het plateau, elke snelheid
+    else if (floor !== null && floor >= ph - 1) ph = floor;   // meelopen met de rots (ook mee omhoog met het plateau)
     else if (s !== 0 && floor !== null && ph - floor < RIJS.terug * dt + 2) ph = floor;   // en mee omlaag met steen dat zakt
     else if (jump && (jump.phase === 'crouch' || jump.phase === 'push')) takeOff();   // al aan het afzetten: gewoon springen
     else { onGround = false; pvh = 0;                    // van de rand of het gat in
+           amirPlat = null;
            if (overGap) coyote = COYOTE_T;                 // nog heel even kans om te springen
            if (!jump) jump = { phase: 'air', t: 0, step: true }; }   // step: een afstapje, geen sprong (zie jumpFrame)
+    // op welk bewegend plateau sta je nu? daaraan bind je je voor het volgende beeld (ook als je er net
+    // vanaf de grond op bent gelopen, zonder landing-event)
+    if (onGround){
+      const op = plats.find(p => (p.takel || p.rijs) && world + halfW > p.left && world - halfW < p.right && Math.abs(p.topH - ph) < 2);
+      amirPlat = op ? (op.id || null) : null;
+    }
   }
 }
 
@@ -29026,7 +29051,7 @@ function syncLevel(){
                                                    y: (o.y === null || o.y === undefined) ? null : Math.round(o.y) })),
     plafond: (level.plafond || []).map(o => ({ x: Math.round(o.x), y: Math.round(o.y) })),
     muur: level.muur || undefined,           // zonder rotswand valt het veld weg
-    terraces: (level.terraces || []).map(o => ({ r: o.r, l: o.l, h: o.h, grond: o.grond || undefined })),
+    terraces: (level.terraces || []).map(o => ({ r: o.r, l: o.l, h: o.h, grond: o.grond || undefined, af: o.af || undefined })),
     zwevers: (level.zwevers || []).map(o => ({ r: o.r, l: o.l, h: o.h, onder: o.onder, look: o.look })),
     holtes: (level.holtes || []).map(o => ({ r: o.r, l: o.l, diep: o.diep })),
     valschade: level.valschade || undefined,
@@ -29344,7 +29369,7 @@ function readLevel(txt){
                             soort: o.muur.soort === 'grot' ? 'grot' : undefined } : null,
            // grond: true maakt er geen rots van maar een hogere savannelaag (zie "hogere savannelaag")
            terraces: (o.terraces || []).map(q => ({ r: Number(q.r), l: Number(q.l), h: Number(q.h) || 0,
-                                                    grond: q.grond === true })),
+                                                    grond: q.grond === true, af: q.af === true })),
            // zwevende savannelagen: een dik savanneblok in de lucht, zie "zwevende savannelaag"
            zwevers: (o.zwevers || []).map(q => {
              const h = Number(q.h) || 0;
@@ -30813,7 +30838,7 @@ function mkNearestPlatform(w){ let best = null, bd = Infinity;
 function mkConnectedPlatform(w){ if (w && w.plat && MK.objects.indexOf(w.plat) >= 0 && w.plat.k === 'platform') return w.plat; return mkNearestPlatform(w); }
 const MK = { cols:48, rows:20, ground:12, grid:null, start:null, eind:null, objects:[], sel:null,
              tool:'savanne', zoom:1, panX:0, panY:0,
-             cat:'terrein', sub:null, vijandSoort:'groen', inspectDicht:true, muziek:MUZIEK_BASIS };
+             cat:'terrein', sub:null, vijandSoort:'groen', inspectDicht:true, muziek:MUZIEK_BASIS, valschade:true };
 let makerOpen = false, mkCtx = null, mkPaint = false, mkPan = false, mkPanX = 0, mkPanY = 0, mkSpace = false, mkDoelMode = false, mkDrag = null;
 const makerEl = document.getElementById('maker');
 const mkCanvas = document.getElementById('mkcanvas');
@@ -30823,6 +30848,11 @@ const mkMuziekEl = document.getElementById('mkmuziek');
 for (const [id, naam] of MK_MUZIEK){ const o = document.createElement('option'); o.value = id; o.textContent = naam; mkMuziekEl.appendChild(o); }
 mkMuziekEl.value = MK.muziek;
 mkMuziekEl.addEventListener('change', () => { MK.muziek = mkMuziekEl.value; mkBewaar(); });
+// Valschade staat bij het testen standaard aan, met een vinkje om het uit te zetten. Een diepe val
+// kost dan levens (zie valschade); het vinkje gaat mee in de export als lvl.valschade.
+const mkValschadeEl = document.getElementById('mkvalschade');
+mkValschadeEl.checked = MK.valschade;
+mkValschadeEl.addEventListener('change', () => { MK.valschade = mkValschadeEl.checked; mkBewaar(); });
 
 function mkMaakGrid(cols, rows){ return Array.from({ length: rows }, () => Array(cols).fill('lucht')); }
 // het grid aanpassen tijdens het bouwen, met behoud van wat je al getekend hebt (linksboven verankerd)
@@ -31175,7 +31205,7 @@ function mkNaarJSON(){
   return { type:'amir-levelmaker-grid', versie:1, cols:MK.cols, rows:MK.rows, groundRow:MK.ground,
            cel:{ breedPx:MK_CEL_PX, hoogEenheden:MK_CEL_EENH },
            legenda:{ '.':'lucht', S:'savanne', R:'rots', W:'sneeuw op savanne', X:'sneeuw op rots', M:'muur', L:'laag obstakel', F:'zwevende laag', G:'gang', V:'ravijn' },
-           grid, start:MK.start, eind:MK.eind, muziek:MK.muziek,
+           grid, start:MK.start, eind:MK.eind, muziek:MK.muziek, valschade:MK.valschade,
            objecten: MK.objects.map(o => {
              const b = { c:o.c, r:o.r, k:o.k, note:o.note || '' };
              if (o.k === 'vijand'){ b.soort = o.soort || 'groen'; if (o.params && Object.keys(o.params).length) b.params = o.params; }
@@ -31194,6 +31224,8 @@ function mkUitJSON(o){
   MK.eind  = (o.eind  && o.eind.c  != null) ? { c:o.eind.c,  r:o.eind.r  } : null;
   MK.muziek = MK_MUZIEK.some(m => m[0] === o.muziek) ? o.muziek : MUZIEK_BASIS;
   if (mkMuziekEl) mkMuziekEl.value = MK.muziek;
+  MK.valschade = o.valschade !== undefined ? !!o.valschade : true;
+  if (mkValschadeEl) mkValschadeEl.checked = MK.valschade;
   MK.objects = Array.isArray(o.objecten) ? o.objecten.filter(q => mkIsObj(q.k)).map(q => {
     const b = { c:q.c|0, r:q.r|0, k:q.k, note:String(q.note || '') };
     if (q.k === 'vijand'){ b.soort = MK_VIJ_INFO[q.soort] ? q.soort : 'groen'; if (q.params && typeof q.params === 'object'){ b.params = {}; for (const kk in q.params) if (typeof q.params[kk] === 'number') b.params[kk] = q.params[kk]; } }
@@ -31271,7 +31303,11 @@ function mkNaarLevel(){
       if (lucht <= 0) terraces.push({ r: Math.round(r), l: Math.round(l), h, grond: true });   // raakt de grond: massief
       else zwevers.push({ r: Math.round(r), l: Math.round(l), h, onder: Math.round(lucht) });
     } else {
-      terraces.push({ r: Math.round(r), l: Math.round(l), h, grond: savanne(a.soort) });   // savanne/rots/muur: altijd massief tot de grond (een mesa, vult onderin)
+      const g = savanne(a.soort);
+      // een rots-mesa (muur/rots/sneeuwrots) krijgt af: true, zodat zijn steen op de grondlijn stopt en niet
+      // door de savanne heen naar beneden het donker in loopt (zie drawClimb). Een savanne-mesa niet: die
+      // tekent aarde eronder die vanzelf in de grondband overloopt.
+      terraces.push({ r: Math.round(r), l: Math.round(l), h, grond: g, af: !g });   // savanne/rots/muur: altijd massief tot de grond (een mesa, vult onderin)
     }
     i = j;
   }
@@ -31357,6 +31393,14 @@ function mkNaarLevel(){
       else if (s === 'bandiet:elite') sp.elite = true;
       else if (s === 'bandiet:hurk') sp.hurk = true;
     } else sp = { x, k: s };
+    // Staat de vijand boven de grondlijn op een zwevende laag of een verhoogd terras, dan zet hij daar
+    // ook neer (boven: het spel plaatst hem met bovenVloer op die laag, net als in Honingjacht 3), in
+    // plaats van op de echte grond onder de laag. Zijn voeten liggen op de onderrand van zijn cel, dat is
+    // precies de bovenkant van de laag eronder (z.h / t.h). Zonder laag op die hoogte blijft hij gewoon.
+    const voet = (gR - o.r - 1) * MK_CEL_EENH;
+    if (voet > 1 && (zwevers.some(z => x > z.l && x < z.r && Math.abs(z.h - voet) < 80)
+                  || terraces.some(t => t.h > 1 && x > t.l && x < t.r && Math.abs(t.h - voet) < 80)))
+      sp.boven = true;
     // de bijgestelde gedrag-getallen (nu de snelheid), alleen de knoppen die bij deze soort horen
     for (const k of (MK_VIJ_KNOP[s] || [])) if (o.params && o.params[k.key] != null && o.params[k.key] !== k.def) sp[k.key] = o.params[k.key];
     return sp;
@@ -31388,6 +31432,7 @@ function mkNaarLevel(){
   const lvl = { name:'Level Maker test', view:0.8, rocks:[], props:[], spawns, kaleKlif:true, voorgrond:false,
                 gaps, terraces, start:startX, ends:[{ x:eindX }], cliffs:[{ x:Math.round(linksX - 450) }] };
   if (MK.muziek && MK.muziek !== MUZIEK_BASIS) lvl.muziek = MK.muziek;   // de gekozen achtergrondmuziek (Dark Africa is de standaard)
+  if (MK.valschade) lvl.valschade = true;                               // bij het testen standaard aan (het vinkje in de Maker-balk)
   if (holtes.length) lvl.holtes = holtes;
   if (zwevers.length) lvl.zwevers = zwevers;
   if (takels.length) lvl.takels = takels;
@@ -31473,6 +31518,7 @@ document.getElementById('mkload').onclick = () => {
 document.getElementById('mkwis').onclick = () => {
   if (!confirm('Weet je zeker dat je alles wil wissen?')) return;   // leeg beginnen, met bevestiging ertussen
   mkZetMaat(48, 20, 12); MK.grid = mkMaakGrid(MK.cols, MK.rows); MK.start = null; MK.eind = null; MK.objects = []; MK.sel = null; MK.tool = 'savanne'; MK.cat = 'terrein'; MK.sub = null; MK.inspectDicht = true; MK.muziek = MUZIEK_BASIS; mkMuziekEl.value = MK.muziek;
+  MK.valschade = true; mkValschadeEl.checked = true;
   mkLegenda(); mkNotePaneel(); mkPassend(); mkBewaar();
 };
 document.getElementById('mkobjnote').addEventListener('input', e => { if (MK.sel){ MK.sel.note = e.target.value; mkBewaar(); mkTeken(); } });
