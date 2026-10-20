@@ -345,6 +345,7 @@ class Spel:
         self.VAL_VRIJ = b.getal('VAL_VRIJ')
         self.VAL_ZWAAR = b.getal('VAL_ZWAAR')
         self.VAL_MAX = b.getal('VAL_MAX')
+        self.VAL_DOOD = b.getal('VAL_DOOD')
         self.HPPOTION_HEAL = b.getal('HPPOTION_HEAL')
         self.LEVENS = b.getal('HPPOTION_HP_MAX')
         self.SPEAR_AHEAD = b.getal('SPEAR_AHEAD')
@@ -1865,11 +1866,15 @@ def vallen(lv, sp):
         if naar is None:
             continue                                    # een ravijn: dat is voor de regel ravijnen
         diep = van - naar
+        waar = 'de ingang van de gang' if lv.in_gat(x, x) and lv.holte(x) else 'de rand op %s' % n0(x)
+        if diep >= sp.VAL_DOOD:                         # zes Amir of dieper: dodelijk, ongeacht de levens
+            yield fout(x, 'val van %s naar %s bij %s is %s Amir diep: dat is dodelijk (vanaf %s Amir), ook met alle levens en kalebassen'
+                       % (n0(van), n0(naar), waar, round(diep / sp.CHAR_H, 1), round(sp.VAL_DOOD / sp.CHAR_H)))
+            return
         kost = 0 if diep < sp.VAL_VRIJ else (1 if diep < sp.VAL_ZWAAR else sp.VAL_MAX)
         if not kost:
             continue
         levens -= kost
-        waar = 'de ingang van de gang' if lv.in_gat(x, x) and lv.holte(x) else 'de rand op %s' % n0(x)
         if levens <= 0:
             yield fout(x, 'val van %s naar %s bij %s kost %s: dan is hij dood, ook met de kalebassen die hij tot hier '
                        'heeft gevonden. Onderweg kost vallen alleen al meer dan de %s levens die hij heeft'
