@@ -3732,8 +3732,8 @@ const TEST_38 = {
 // je rug. Een lange, vlakke open vlakte (geen ravijnen, geen plafond) met bandieten en een paar keer de
 // kooiman (de duel-variant uit Test 38) ertussen, en onderweg skeletten met een extra speer, zodat het
 // over het werpen, bijvullen en melee gaat over een hele tocht. De bandiet en de kooiman hebben hier 3
-// levens met een health-balkje boven hun hoofd (hpBalk: true, zie HP_BALK): vol groen, een derde eraf
-// oranje, nog een derde over rood. Zelf ontworpen (regel 3, op verzoek).
+// levens met een doorlopende health-bar boven hun hoofd (hpBalk: true, zie HP_BALK): vol groen, en per
+// klap een derde korter en roder (groen via geel naar rood). Zelf ontworpen (regel 3, op verzoek).
 const TEST_39 = {
   name: 'Test 39: Speer reserve test',
   lagen: 'vlakte',
@@ -22198,8 +22198,9 @@ const KOOI_STAP_VAN  = 12;
 const KOOI_STAP_TOT  = 24;
 const KOOI_STAP_FRAMES = KOOI_STAP_TOT - KOOI_STAP_VAN + 1;   // 13 van de 29 sleepframes
 const KOOI_HP        = 4;       // vier rake klappen, en alleen in het strafvenster
-// Health-balk: een level met hpBalk geeft vijanden HP_BALK_LEVENS levens met een balkje boven hun hoofd (vol groen,
-// een derde eraf oranje, nog een derde over rood). hpBalk: true geldt voor elke vijand (bandiet, kooiman, slang,
+// Health-balk: een level met hpBalk geeft vijanden HP_BALK_LEVENS levens met een doorlopende bar boven hun hoofd (de
+// breedte en de kleur hangen aan hp/maxHp: vol groen, per klap een derde korter en roder, zie hpBalkKleur/vijandHpBalk).
+// hpBalk: true geldt voor elke vijand (bandiet, kooiman, slang,
 // schorpioen, fosforslang, zwaardvechter, hyena); een lijst soorten (hpBalk: ['bandiet','kooiman']) geeft alleen die
 // soorten de balk en laat de rest in een klap dood gaan. Standaard uit (geen veld), dus een episode zonder het veld
 // houdt de eigen HP. HP_BALK 0 = uit, HP_BALK_SOORTEN is de lijst (null = allemaal), hpBalkAan(soort) beslist per
@@ -22210,25 +22211,43 @@ let HP_BALK = 0;
 let HP_BALK_SOORTEN = null;
 // Krijgt deze vijandsoort de health-balk? HP_BALK moet aan staan en de soort in de lijst zitten (of de lijst is null = allemaal).
 function hpBalkAan(soort){ return !!HP_BALK && (!HP_BALK_SOORTEN || HP_BALK_SOORTEN.indexOf(soort) !== -1); }
-// Een health-balkje boven het hoofd van een vijand met s.hpBalk: zoveel segmenten als zijn maxHp, de
-// gevulde (nog levende) in kleur, de lege donker. Vol is groen, een derde eraf oranje, nog een derde
-// over rood (de kleur hangt aan hoeveel er nog over is). sx is zijn x op het scherm, topY zijn kruin.
+// De kleur van de health-bar hangt aan het deel leven dat nog over is: vol (100%) groen, halverwege
+// (50%) geel, de laatste 20% rood, en vloeiend ertussen (groen wordt geleidelijk geler, geel geleidelijk
+// roder). Geinterpoleerd in HSL tussen drie ankers, zodat de bar elk aantal levens aankan en niet aan
+// drie segmenten vastzit: een treffer van 2 op een vijand van 70 haalt er net een stukje af, nog groen.
+function hpBalkKleur(f){
+  f = f < 0 ? 0 : (f > 1 ? 1 : f);
+  let h, sa, l;
+  if (f >= 0.5){ const t = (f - 0.5) / 0.5; h = 44 + t * (115 - 44); sa = 82 + t * (48 - 82); l = 50 + t * (37 - 50); }     // 50%..100%: amber -> mossig groen
+  else if (f >= 0.2){ const t = (f - 0.2) / 0.3; h = 6 + t * (44 - 6); sa = 75 + t * (82 - 75); l = 39 + t * (50 - 39); }   // 20%..50%: baksteenrood -> amber
+  else { h = 6; sa = 75; l = 39; }                                                                                          // <20%: baksteenrood
+  return 'hsl(' + h.toFixed(1) + ',' + sa.toFixed(1) + '%,' + l.toFixed(1) + '%)';
+}
+// Een doorlopende health-bar boven het hoofd van een vijand met s.hpBalk: de gevulde breedte is het
+// deel leven dat nog over is (s.hp / s.maxHp), de kleur komt uit hpBalkKleur. Een vijand met drie
+// levens gaat zo met elke klap een derde omlaag (de derde klap is dood) en verkleurt mee; een met meer
+// levens krimpt fijner, een met een enkel leven toont een volle bar tot hij in een klap weg is. sx is
+// zijn x op het scherm, topY zijn kruin.
 function vijandHpBalk(sx, topY, s, scale){
   if (building || !s || !s.hpBalk || s.hp <= 0 || s.state === 'dood') return;
   const max = s.maxHp || s.hp || 1;
+  const f = Math.max(0, Math.min(1, s.hp / max));
   const ah = CHAR_H * scale;
-  const w = ah * 0.5, h = Math.max(4, ah * 0.045), gap = Math.max(1, ah * 0.012);
+  const w = ah * 0.5, h = Math.max(4, ah * 0.045);
   const x0 = sx - w / 2, y0 = topY - h - ah * 0.1;         // een stukje boven zijn hoofd
-  const kleur = s.hp >= max ? '#4ec34e' : (s.hp * 3 <= max ? '#e1463c' : '#ef9a2a');   // vol groen, derde eraf oranje, laatste derde rood
-  const segW = (w - gap * (max - 1)) / max;
   ctx.save();
-  for (let i = 0; i < max; i++){
-    const x = x0 + i * (segW + gap);
-    ctx.fillStyle = 'rgba(16,10,14,0.6)'; ctx.fillRect(x, y0, segW, h);          // de lege bak
-    if (i < s.hp){ ctx.fillStyle = kleur; ctx.fillRect(x, y0, segW, h); }        // nog over: in kleur
-    ctx.strokeStyle = 'rgba(8,5,7,0.85)'; ctx.lineWidth = Math.max(1, ah * 0.006);
-    ctx.strokeRect(x, y0, segW, h);
+  ctx.fillStyle = 'rgba(16,10,14,0.6)'; ctx.fillRect(x0, y0, w, h);             // de lege bak
+  if (f > 0){
+    const fw = w * f;
+    ctx.fillStyle = hpBalkKleur(f); ctx.fillRect(x0, y0, fw, h);               // het deel dat nog over is, in kleur
+    const g = ctx.createLinearGradient(0, y0, 0, y0 + h);                      // een zachte glans zodat de bar leest
+    g.addColorStop(0, 'rgba(255,255,255,0.22)');
+    g.addColorStop(0.5, 'rgba(255,255,255,0)');
+    g.addColorStop(1, 'rgba(0,0,0,0.18)');
+    ctx.fillStyle = g; ctx.fillRect(x0, y0, fw, h);
   }
+  ctx.strokeStyle = 'rgba(8,5,7,0.85)'; ctx.lineWidth = Math.max(1, ah * 0.006);
+  ctx.strokeRect(x0, y0, w, h);                                                 // het randje
   ctx.restore();
 }
 const KOOI_INV_T     = 0.5;     // onkwetsbaar na een treffer
