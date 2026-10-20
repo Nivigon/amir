@@ -1290,11 +1290,12 @@
       </div>
       <div class="row">
         <label>Zwevende laag</label>
+        <button data-zweef="kruip">Kruipen (cel lucht)</button>
         <button data-zweef="laag">Laag (plafond)</button>
         <button data-zweef="dik">Dik blok</button>
         <button data-zweef="hoog">Hoog zwevend</button>
         <button id="sbzweefweg">Weg</button>
-        <span class="hint">een dik savanneblok in de lucht met lucht eronder: loop eronderdoor, en bovenop kom je via de rand of een lift</span>
+        <span class="hint">een dik savanneblok in de lucht met lucht eronder: loop eronderdoor, en bovenop kom je via de rand of een lift. Kruipen: maar een cel lucht eronder, dus je moet gebukt (pijl omlaag) eronderdoor kruipen</span>
       </div>
       <div class="row">
         <label>Onder de grond</label>
@@ -6890,11 +6891,19 @@ function plafondKop(halfW){
   return m === Infinity ? Infinity : m - CHAR_H;
 }
 // de onderkant van een zwevende savannelaag is een plafond: je kruin komt er niet doorheen
+// Hoeveel verticale ruimte Amir nodig heeft om onder een zwevende laag door te komen. Staand is dat zijn
+// volle lengte (CHAR_H), hoe verder hij bukt hoe minder, en helemaal gebukt (kruipend) net binnen een
+// celhoogte: zo kruip je onder een laag met een cel lucht (150) door, maar niet onder minder. Zo geeft de
+// Maker uit de tiles vanzelf drie standen: tot de grond is massief, een cel lucht eronderdoor kruipen, twee
+// cellen gewoon lopen. Omdat kruipen pas kan als hij helemaal gebukt zit (duckT >= 1, net als crawling), gaat
+// de laag met een cel lucht precies op dat moment open, dus je stapt er niet lopend al half onder.
+const KRUIP_RUIMTE = 0.56;                    // deel van CHAR_H dat hij kruipend nog nodig heeft (onder een cel van 150)
+function amirOnderRuimte(){ return duckT >= 1 ? CHAR_H * KRUIP_RUIMTE : CHAR_H * duckShare; }
 function zweefKop(halfW){
   let cap = Infinity;
   for (const z of zweefList()){
     if (world + halfW <= z.l || world - halfW >= z.r) continue;
-    const t = z.onder - CHAR_H;
+    const t = z.onder - amirOnderRuimte();
     if (t < cap) cap = t;
   }
   return cap;
@@ -18253,9 +18262,10 @@ function blockByPlatforms(plats, halfW){     // je loopt niet dwars door een rot
   for (const p of plats){
     if (p.thin) continue;                    // onder een richel loop je gewoon door
     if (p.cel) continue;                     // rastercellen duwen zelf, per cel (grotBlok)
-    // onder een zwevende savannelaag loop je door als er een hele Amir ruimte onder zit; past hij er
-    // niet onder, dan is zijn zijkant gewoon een wand (anders zou je door de rots heen lopen)
-    if (p.zweef && p.floatBot >= CHAR_H && ph < p.floatBot - 2) continue;
+    // onder een zwevende savannelaag loop je door als er genoeg ruimte onder zit: staand een hele Amir,
+    // gebukt of kruipend minder (amirOnderRuimte). Past hij er niet onder, dan is zijn zijkant een wand
+    // (anders zou je door de rots heen lopen). Zo kun je onder een laag met een cel lucht (150) door kruipen.
+    if (p.zweef && p.floatBot >= amirOnderRuimte() && ph < p.floatBot - 2) continue;
     if (ph >= p.topH - 2 - (p.stijg || 0)) continue;   // je staat erboven (of een stijgend blok kwam net onder je)
     if (world + halfW > p.left && world - halfW < p.right){
       if (world < (p.left + p.right) / 2) world = p.left - halfW;
@@ -32246,7 +32256,7 @@ document.getElementById('sbsavlift').onclick = () => sbSavLaag(300, true);
 document.getElementById('sbsavweg').onclick = () => { sbSavWeg(); cv.focus(); };
 // een zwevende savannelaag om los te bekijken: een dik savanneblok links voor je in de lucht
 const SB_ZWEEF = { breed: 1600, rand: 420,
-                   laag: { h: 430, onder: 270 }, dik: { h: 650, onder: 360 }, hoog: { h: 900, onder: 600 } };
+                   kruip: { h: 430, onder: 150 }, laag: { h: 430, onder: 270 }, dik: { h: 650, onder: 360 }, hoog: { h: 900, onder: 600 } };
 function sbZweefWeg(){ level.zwevers = (level.zwevers || []).filter(z => !z.sbZweef); }
 function sbZweef(soort){
   sbZweefWeg();
@@ -32254,7 +32264,8 @@ function sbZweef(soort){
   const S = SB_ZWEEF, p = S[soort] || S.laag;
   const r = world - S.rand;
   level.zwevers.push({ r, l: r - S.breed, h: p.h, onder: p.onder, sbZweef: true });
-  flashHint('Loop eronderdoor; bovenop kom je via de rand of een lift');
+  flashHint(soort === 'kruip' ? 'Gebukt (pijl omlaag) eronderdoor kruipen; bovenop kom je via de rand'
+                              : 'Loop eronderdoor; bovenop kom je via de rand of een lift');
   cv.focus();
 }
 sandboxEl.querySelectorAll('button[data-zweef]').forEach(b => b.onclick = () => sbZweef(b.dataset.zweef));
