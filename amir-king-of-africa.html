@@ -19491,6 +19491,7 @@ function drawHolte(groundY, scale, cx){
 const VAL_VRIJ = CHAR_H;             // tot een Amir diep kost een val niets
 const VAL_ZWAAR = CHAR_H * 2;        // vanaf twee Amir diep kost hij het dubbele
 const VAL_MAX = 2;                   // en meer dan twee levens nooit, hoe diep ook
+const VAL_DOOD = CHAR_H * 6;         // zes Amir diep of meer is dodelijk, ongeacht je levens
 let valVan = 0;                      // de hoogte van de vloer waar je van losliet
 function valSchadeAan(){ return !building && (sandbox ? sbVal : !!(level && level.valschade)); }
 function valKosten(diep){ return diep < VAL_VRIJ ? 0 : (diep < VAL_ZWAAR ? 1 : VAL_MAX); }
@@ -19499,17 +19500,19 @@ function valKosten(diep){ return diep < VAL_VRIJ ? 0 : (diep < VAL_ZWAAR ? 1 : V
 // bodem zie je van bovenaf aankomen.
 function valLand(diep){
   if (!valSchadeAan() || waterDepthAt(world, ph) > 0.3) return;
+  const dodelijk = diep >= VAL_DOOD;                // zes Amir of dieper: niet te overleven
   const n = valKosten(diep);
   if (n <= 0) return;
   if (sandbox)                       // geen levens in de sandbox: daar lees je af wat het gekost zou hebben
     flashHint('Val van ' + (diep / CHAR_H).toFixed(1).replace('.', ',') + ' Amir: '
-              + n + (n === 1 ? ' leven' : ' levens'));
+              + (dodelijk ? 'dodelijk' : n + (n === 1 ? ' leven' : ' levens')));
   if (!running || invuln > 0 || dead || godMode || woedeAan()) return;
   thrHurt();                                       // de hele worp is kwetsbaar (zie thrHurt)
   playRaak();
   invuln = 1.3; hurt = 0.38; shake = 0.34; puffDust(14);
   if (sandbox || onsterfelijk()) return;
-  if (schijnDoodVang(n)) return;                    // Feign Death
+  if (schijnDoodVang(n)) return;                    // Feign Death vangt ook een dodelijke val
+  if (dodelijk){ fallDeath(); return; }             // alle levens weg, ongeacht hoeveel je er had
   lives = Math.max(0, lives - n); drawLives();
   if (lives <= 0){ dead = true; deadEl.classList.add('on'); }
 }
@@ -31383,7 +31386,7 @@ function mkUitJSON(o){
   MK.objects = Array.isArray(o.objecten) ? o.objecten.filter(q => mkIsObj(q.k)).map(q => {
     const b = { c:q.c|0, r:q.r|0, k:q.k, note:String(q.note || '') };
     if (q.k === 'vijand'){ b.soort = MK_VIJ_INFO[q.soort] ? q.soort : 'groen'; if (q.params && typeof q.params === 'object'){ b.params = {}; for (const kk in q.params) if (typeof q.params[kk] === 'number') b.params[kk] = q.params[kk]; } }
-    if (q.k === 'platform'){ b.doel = (q.doel && q.doel.c != null) ? { c:q.doel.c|0, r:q.doel.r|0 } : null; b.breed = Math.max(1, Math.min(5, Math.round(Number(q.breed) || MK_PLAT_BREED))); if (Number(q.stamCel) > 0) b.stamCel = Math.max(1, Math.min(40, Math.round(Number(q.stamCel)))); if (q.stamBotCel != null && Number(q.stamBotCel) >= 0) b.stamBotCel = Math.max(0, Math.min(40, Math.round(Number(q.stamBotCel)))); if (Number(q.stamZij) === -1) b.stamZij = -1; }
+    if (q.k === 'platform'){ b.doel = (q.doel && q.doel.c != null) ? { c:q.doel.c|0, r:q.doel.r|0 } : null; b.breed = Math.max(1, Math.min(5, Math.round(Number(q.breed) || MK_PLAT_BREED))); if (Number(q.stamCel) > 0) b.stamCel = Math.max(1, Math.min(40, Math.round(Number(q.stamCel)))); if (q.stamBotCel != null && !isNaN(Number(q.stamBotCel))) b.stamBotCel = Math.max(-40, Math.min(40, Math.round(Number(q.stamBotCel)))); if (Number(q.stamZij) === -1) b.stamZij = -1; }
     if (q.k === 'tandwiel'){ b.modus = MK_MODI.some(m => m[0] === q.modus) ? q.modus : 'schakellift';
       if (q.platform && q.platform.c != null) b._plat = { c:q.platform.c|0, r:q.platform.r|0 }; }
     if (q.k === 'overhang'){ b.breed = Math.max(1, Math.min(12, Math.round(Number(q.breed) || 3)));
@@ -31648,7 +31651,7 @@ mkCanvas.addEventListener('pointermove', ev => {
   else if (mkStamDrag){ const { r } = mkCelOp(ev), o = mkStamDrag.o;   // de paal groter/kleiner slepen
     const cells = MK.ground - r;                    // cellen boven de grond onder de muis
     if (mkStamDrag.end === 'top') o.stamCel = Math.max(mkPlatHoogCel(o) + 1, Math.min(MK.rows, cells));   // de pen blijft boven de hoogste plateaustand
-    else o.stamBotCel = Math.max(0, Math.min(mkStamTopCel(o) - 1, cells));                                 // de voet blijft onder de pen
+    else o.stamBotCel = Math.max(MK.ground - MK.rows, Math.min(mkStamTopCel(o) - 1, cells));                // de voet mag onder de grond (negatief), tot de bodem van het grid, en blijft onder de pen
     mkNotePaneel(); mkTeken(); }
   else if (mkDrag){ const { c, r } = mkCelOp(ev);   // een geselecteerd voorwerp verslepen naar een andere cel
     if (c >= 0 && r >= 0 && c < MK.cols && r < MK.rows && (mkDrag.c !== c || mkDrag.r !== r)){ mkDrag.c = c; mkDrag.r = r; mkNotePaneel(); mkTeken(); } }
