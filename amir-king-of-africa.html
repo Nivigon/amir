@@ -8959,6 +8959,10 @@ function takelWielLijst(t){
   if (t.lift) return [{ x: t.x, off: 0, dir: 1 }, { x: t.x, off: t.hoog, dir: -1 }];
   return [{ x: t.x, off: 0, dir: 0 }];
 }
+// de hoogte boven de grondlijn waarop een wiel staat. Normaal terrainH(x) + off, maar met een absolute hoogte
+// (absH) staat het wiel daar los van terrainH. Dat is nodig in een gang: terrainH geeft daar de gang-vloer, dus
+// een wiel dat je hoog boven een gang zet zou anders naar de gang-vloer zakken (de Maker zet absH).
+function wielBasis(rad){ return rad.absH != null ? rad.absH : (terrainH(rad.x) + (rad.off || 0)); }
 // een losse-wiel-slag. Twee soorten: een wiel met een vaste richting (liftop/liftneer/slagop/slagneer, altijd
 // dezelfde kant op), en een schakelaar die beide kanten op kan (schakellift/schakelslag). Bij een schakelaar bepaalt
 // de huidige stand waar hij heen gaat, dus een tweede tik draait hem om, ook midden in de rit.
@@ -9270,8 +9274,8 @@ function takelTekenEen(t, groundY, scale, cx){
   const radLijst = takelWielLijst(t);                   // elk wiel op zijn eigen plek (x) en hoogte (off)
   // ---- de drijftouwen van de wielen: als eerste getekend, dus achterlangs de plateau-touwen en achter de wielen ----
   if (!arenaMode) for (const rad of radLijst){
-    const rwB = terrainH(rad.x), rwx = cx + (rad.x - world), hubY = groundY - (rwB + (rad.off || 0)) * scale - wielH * 194 / 325;
-    takelTouw(rwx - wielW * 0.08, hubY - wielH * 0.04, rwx - sp * 1.1, Math.min(groundY - (rwB + (rad.off || 0) + TAKEL.pulleyH) * scale, schermTopY), touwW, -fase);
+    const wb = wielBasis(rad), rwx = cx + (rad.x - world), hubY = groundY - wb * scale - wielH * 194 / 325;
+    takelTouw(rwx - wielW * 0.08, hubY - wielH * 0.04, rwx - sp * 1.1, Math.min(groundY - (wb + TAKEL.pulleyH) * scale, schermTopY), touwW, -fase);
   }
   if (t.valt){
     // de doorgesneden brug: de touwen zijn geknapt (weg), het dek kantelt om zijn midden terwijl het valt
@@ -9305,7 +9309,7 @@ function takelTekenEen(t, groundY, scale, cx){
     const fr = ((Math.round(t.angle / (2 * Math.PI) * TAKEL.wielN) % TAKEL.wielN) + TAKEL.wielN) % TAKEL.wielN;
     const wim = takelImgs[fr];
     if (imgReady(wim)) for (const rad of radLijst){
-      const rwB = terrainH(rad.x), rwx = cx + (rad.x - world), baseY = groundY - (rwB + (rad.off || 0)) * scale;
+      const rwx = cx + (rad.x - world), baseY = groundY - wielBasis(rad) * scale;
       ctx.drawImage(wim, rwx - wielW / 2, baseY - wielH, wielW, wielH);
     }
   }
@@ -9315,7 +9319,7 @@ function takelTekenEen(t, groundY, scale, cx){
     ctx.beginPath(); ctx.moveTo(left, dekTop); ctx.lineTo(right, dekTop); ctx.stroke();   // de looplijn van het plateau
     const rw = wielW * 0.42;
     ctx.strokeStyle = '#ff6b6b';
-    for (const rad of radLijst){ const rwB = terrainH(rad.x), rwx = cx + (rad.x - world), cyw = groundY - (rwB + (rad.off || 0)) * scale - wielH * 194 / 325;
+    for (const rad of radLijst){ const rwx = cx + (rad.x - world), cyw = groundY - wielBasis(rad) * scale - wielH * 194 / 325;
       ctx.beginPath(); ctx.arc(rwx, cyw, rw, 0, 6.2832); ctx.stroke(); }           // het raakvlak van elk rad
     ctx.restore();
   }
@@ -27951,7 +27955,7 @@ function loop(now){
       const wielH = TAKEL.wielH * CHAR_H * scale, wielW = wielH * 274 / 325, rw = wielW * 0.42;   // de schijf: het ronde deel rond de hub
       // elk wiel op zijn eigen plek (x) en hoogte (off); een lijst-wiel heeft een modus, een oud wiel een dir
       const wielen = takelWielLijst(tk).map(rad => {
-        const rwB = terrainH(rad.x), rwx = cx + (rad.x - world), cy = groundY - (rwB + (rad.off || 0)) * scale - wielH * 194 / 325;
+        const rwx = cx + (rad.x - world), cy = groundY - wielBasis(rad) * scale - wielH * 194 / 325;
         return { box: { l: rwx - rw, r: rwx + rw, t: cy - rw, b: cy + rw }, dir: rad.dir, modus: rad.modus, x: rad.x, off: rad.off || 0 };
       });
       if (attacking && !atkMes && !swingUsed && steekLive()){
@@ -29050,6 +29054,7 @@ function leesTakel(q){
            // losse wielen op hun eigen plek: {x (op de grond), off (hoogte boven de grond), modus}. Zonder dit
            // veld blijft het oude model (één wiel op x, of twee bij lift). Zie "takelwiel met plateau"
            wielen: Array.isArray(q.wielen) ? q.wielen.map(w => ({ x: Number(w.x), off: Math.max(0, Number(w.off) || 0),
+                     absH: w.absH != null ? Number(w.absH) : undefined,   // absolute hoogte boven de grondlijn, los van terrainH (zie wielBasis)
                      modus: ['slagop', 'slagneer', 'liftop', 'liftneer', 'schakellift', 'schakelslag'].includes(w.modus) ? w.modus : 'schakellift' })) : undefined,
            takelaarZij: q.takelaarZij != null ? Number(q.takelaarZij) : undefined };
 }
@@ -31069,12 +31074,14 @@ function mkNaarLevel(){
     const [l, r] = spanLR(a.c, cEnd);
     const h = (gR - a.rTop) * MK_CEL_EENH;
     if (a.soort === 'zweef'){
-      // een zwevende laag: een drijvend stuk savanne waar je onderdoor loopt. We garanderen minstens een hele Amir
-      // ruimte eronder (CHAR_H), zodat je er altijd onderdoor kunt, zolang je 'm hoog genoeg tekent. De onderkant
-      // ligt hoger als je er weinig lucht onder tekent, maar nooit zo dat je er niet onder past.
-      const getekend = (gR - (a.rBot + 1)) * MK_CEL_EENH;                 // de lucht onder de getekende cellen
-      const onder = Math.max(1, Math.min(h - 60, Math.max(getekend, CHAR_H + 20)));
-      zwevers.push({ r: Math.round(r), l: Math.round(l), h, onder: Math.round(onder) });
+      // een zwevende laag, WYSIWYG: de onderkant volgt precies de getekende tiles. Zoveel lege cellen als je
+      // onder het blok laat, zoveel lucht komt er onder. Laat je er een hele Amir (ruim twee cellen, CHAR_H)
+      // lucht onder, dan loop je er onderdoor; laat je minder, dan is de zijkant een wand. Raakt het blok de
+      // grondlijn (geen lege cel eronder), dan is het massief tot de grond, geen zwever maar een mesa. Zo
+      // bepaal je zelf met de tiles of het onderdoor begaanbaar is, zonder een automatisch zwart gat.
+      const lucht = (gR - (a.rBot + 1)) * MK_CEL_EENH;                    // de lege ruimte onder de getekende cellen
+      if (lucht <= 0) terraces.push({ r: Math.round(r), l: Math.round(l), h, grond: true });   // raakt de grond: massief
+      else zwevers.push({ r: Math.round(r), l: Math.round(l), h, onder: Math.round(lucht) });
     } else {
       terraces.push({ r: Math.round(r), l: Math.round(l), h, grond: savanne(a.soort) });   // savanne/rots/muur: altijd massief tot de grond (een mesa, vult onderin)
     }
@@ -31125,23 +31132,16 @@ function mkNaarLevel(){
   }
   // takel: elk platform met een doelhoogte wordt een eigen takel-platform (met een id). De wielen die eraan
   // hangen komen als lijst mee, elk op de plek waar jij ze zet, met hun eigen stand (per slag of helemaal).
-  // de grondhoogte (een terras of een zwevende laag) op de kolom van een wiel: het spel tekent een wiel op
-  // terrainH(x) + off, dus als er een terras onder het wiel zit telt dat al mee. Zonder dit zou een wiel dat je
-  // op een terras zet twee keer zo hoog zweven (de off is de hoogte boven de grond, terrainH is al het terras).
-  const grondBijCol = wc => {
-    const [wl, wr] = lr(wc), wx = (wl + wr) / 2; let m = 0;
-    for (const t of terraces) if (t.h > 0 && t.l - 1 <= wx && t.r + 1 >= wx) m = Math.max(m, t.h);
-    for (const z of zwevers) if (z.h > 0 && z.l - 1 <= wx && z.r + 1 >= wx) m = Math.max(m, z.h);
-    return m;
-  };
   let takelNr = 0;
   for (const p of MK.objects){
     if (p.k !== 'platform' || !p.doel) continue;
     const [pl, pr] = lr(p.c), px = Math.round((pl + pr) / 2);
     const restH = (gR - p.r) * MK_CEL_EENH, doelH = (gR - p.doel.r) * MK_CEL_EENH;
     const laag = Math.min(restH, doelH), hoog = Math.max(restH, doelH);
+    // het wiel krijgt een absolute hoogte (absH) op de plek waar je het tekent, los van terrainH. Anders zakt een
+    // wiel dat je hoog boven een gang zet naar de gang-vloer, want terrainH geeft daar -diep (zie wielBasis).
     const wielen = MK.objects.filter(o => o.k === 'tandwiel' && mkConnectedPlatform(o) === p)
-      .map(o => { const [wl, wr] = lr(o.c); return { x: Math.round((wl + wr) / 2), off: Math.max(0, (gR - 1 - o.r) * MK_CEL_EENH - grondBijCol(o.c)), modus: o.modus || 'schakellift' }; });
+      .map(o => { const [wl, wr] = lr(o.c); return { x: Math.round((wl + wr) / 2), absH: (gR - 1 - o.r) * MK_CEL_EENH, modus: o.modus || 'schakellift' }; });
     const breed = Math.round((p.breed || MK_PLAT_BREED) * MK_CEL_PX);   // de breedte van het plateau in cellen (het 9-slice dek rekt mee)
     takels.push({ id: 'p' + (++takelNr), px, breed, laag, hoog, stappen: 6, beginLaag: restH <= doelH,
                   x: wielen.length ? wielen[0].x : px + Math.round(MK_CEL_PX * 1.2), wielen: wielen.length ? wielen : undefined });
