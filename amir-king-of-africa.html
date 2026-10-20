@@ -903,6 +903,13 @@
           <div class="mkveld"><label for="mktandplat">Verbonden met</label><select id="mktandplat"></select></div>
           <div class="mkveld"><label for="mktandmodus">Wat het doet</label><select id="mktandmodus"></select></div>
         </div>
+        <div id="mkoverctl" style="display:none">
+          <div class="mkknop"><label>Breedte</label><input id="mkobreed" type="range" min="1" max="12" step="1"><span class="read" id="mkobreedv"></span></div>
+          <div class="mkknop"><label>Dikte</label><input id="mkodik" type="range" min="1" max="8" step="1"><span class="read" id="mkodikv"></span></div>
+          <div class="mkknop"><label>Onderkant</label><input id="mkofijn" type="range" min="-140" max="140" step="5"><span class="read" id="mkofijnv"></span></div>
+          <div class="mkrij"><button id="mkolook">Look: rots</button></div>
+          <div id="mkoinfo" class="mkhint"></div>
+        </div>
         <textarea id="mkobjnote" spellcheck="false" disabled placeholder="opmerking (bv: bandiet die vault, of: dit wiel takelt het platform helemaal omhoog)"></textarea>
       </div>
     </div>
@@ -1290,11 +1297,13 @@
       </div>
       <div class="row">
         <label>Zwevende laag</label>
+        <button data-zweef="kruip">Kruipen (cel lucht)</button>
+        <button data-zweef="rotskruip">Rotsoverhang (kruipen)</button>
         <button data-zweef="laag">Laag (plafond)</button>
         <button data-zweef="dik">Dik blok</button>
         <button data-zweef="hoog">Hoog zwevend</button>
         <button id="sbzweefweg">Weg</button>
-        <span class="hint">een dik savanneblok in de lucht met lucht eronder: loop eronderdoor, en bovenop kom je via de rand of een lift</span>
+        <span class="hint">een dik savanneblok in de lucht met lucht eronder: loop eronderdoor, en bovenop kom je via de rand of een lift. Kruipen: maar een cel lucht eronder, dus je moet gebukt (pijl omlaag) eronderdoor kruipen</span>
       </div>
       <div class="row">
         <label>Onder de grond</label>
@@ -5522,6 +5531,55 @@ function savanneLaag(t, groundY, scale, cx, bottom, st, floating){
   }
   ctx.restore();
 }
+// Een zwevende laag met look 'rots': hetzelfde gesteente als een terras (drawTerCol), maar afgesneden op de
+// onderkant (z.onder), met de plafond-tandenband eronder. Zo leest het als een rotsoverhang om onder te
+// kruipen in plaats van een stuk zwevende savanne. De botsing blijft die van een gewone zwever (z.h, z.onder,
+// z.l, z.r); alleen het tekenen is anders. Model naar het rotsterras in drawClimb, maar met de onderkant op
+// floorY in plaats van de grond, en de tanden en een schaduwrand eronder.
+function rotsLaag(z, groundY, scale, cx, st){
+  const tp = terPic();
+  if (!imgReady(tp)) return;
+  const zoom = viewZoom();
+  const xr = cx + (z.r - world), xl = cx + (z.l - world);
+  if (xl > W / zoom + W || xr < -W) return;
+  const iw = tp.naturalWidth - TER.trim;
+  const fullCap = iw * st, midW = (iw - TER.midX) * st;
+  const top = groundY - z.h * scale - (TER.walk - TER.trimTop) * st;
+  const floorY = groundY - z.onder * scale;          // de onderkant van de rots (waar de tanden hangen)
+  if (top > floorY) return;
+  const capW = Math.min(fullCap, xr - xl);
+  const edgePx = TER.edge * (capW / iw);
+  const soilY = top + (TER.soil - TER.trimTop) * st;
+  ctx.save();
+  terClipPath(xl, xr, top - 4, floorY, st, soilY, false, z.l, z.r, false);   // beide zijkanten breken open
+  ctx.clip();
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(xl + edgePx, top - 4, (xr - edgePx) - (xl + edgePx), floorY - top + 4);
+  ctx.clip();
+  let x = xr - capW, k = 0;                            // middenstukken van rechts naar links, om en om gespiegeld
+  while (x > xl && x > -W - midW){
+    drawTerCol(TER.midX, iw - TER.midX, x - midW, midW, k % 2 === 1, top, floorY, st, tp);
+    x -= midW; k++;
+  }
+  ctx.restore();
+  drawTerCol(0, iw, xr - capW, capW, true, top, floorY, st, tp);              // afbrokkelende rand rechts
+  drawTerCol(0, iw, xl, capW, false, top, floorY, st, terFadePic() || tp);    // en links
+  ctx.restore();
+  // de tandenband onder de rots: dezelfde tanden als een plafond, horizontaal langs de onderkant, vast aan
+  // de wereld zodat ze niet meeschuiven, en geklemd op de breedte van de laag
+  const T = plafondBandSet();
+  if (T){
+    const im = T.strook, bw = im.width, bh = im.height, dicht = Math.round(GROT.band.dicht * bh);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(xl, floorY - 2, xr - xl, bh); ctx.clip();
+    const ax = cx + (0 - world);
+    const x0 = Math.round(ax - Math.ceil((ax - xl) / bw) * bw);
+    for (let xx = x0; xx < xr; xx += bw) ctx.drawImage(T.strookRand, xx, floorY - dicht + 3);
+    for (let xx = x0; xx < xr; xx += bw) ctx.drawImage(im, xx, floorY - dicht);
+    ctx.restore();
+  }
+}
 // één richel tekenen. Zonder f: vlakke kant links (op o.x), punt naar rechts. Met f: hetzelfde beeld
 // gespiegeld om o.x (vlakke kant rechts, punt naar links), zodat hij tegen de rechterwand van een
 // schacht past. De gespiegelde versie is precies de spiegeling van de gewone om de lijn x = o.x,
@@ -5569,7 +5627,8 @@ function drawClimb(groundY, scale, cx, onder){
   // zwevende savannelagen: hetzelfde dikke blok, maar afgesneden op de onderkant met lucht eronder
   for (const z of zweefList().filter(z => hier(z.h)).sort((a, b) => a.h - b.h)){
     const floorY = groundY - z.onder * scale;        // de onderkant van het blok op het scherm
-    savanneLaag(z, groundY, scale, cx, floorY, st, true);
+    if (z.look === 'rots') rotsLaag(z, groundY, scale, cx, st);   // een rotsoverhang in plaats van zwevende savanne
+    else savanneLaag(z, groundY, scale, cx, floorY, st, true);
     if (showBoxes || building){
       ctx.save();
       ctx.globalAlpha = 0.6; ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2 / zoom;
@@ -6890,14 +6949,33 @@ function plafondKop(halfW){
   return m === Infinity ? Infinity : m - CHAR_H;
 }
 // de onderkant van een zwevende savannelaag is een plafond: je kruin komt er niet doorheen
+// Hoeveel verticale ruimte Amir nodig heeft om onder een zwevende laag door te komen. Staand is dat zijn
+// volle lengte (CHAR_H), hoe verder hij bukt hoe minder, en helemaal gebukt (kruipend) net binnen een
+// celhoogte: zo kruip je onder een laag met een cel lucht (150) door, maar niet onder minder. Zo geeft de
+// Maker uit de tiles vanzelf drie standen: tot de grond is massief, een cel lucht eronderdoor kruipen, twee
+// cellen gewoon lopen. Omdat kruipen pas kan als hij helemaal gebukt zit (duckT >= 1, net als crawling), gaat
+// de laag met een cel lucht precies op dat moment open, dus je stapt er niet lopend al half onder.
+const KRUIP_RUIMTE = 0.56;                    // deel van CHAR_H dat hij kruipend nog nodig heeft (onder een cel van 150)
+function amirOnderRuimte(){ return duckT >= 1 ? CHAR_H * KRUIP_RUIMTE : CHAR_H * duckShare; }
 function zweefKop(halfW){
   let cap = Infinity;
   for (const z of zweefList()){
     if (world + halfW <= z.l || world - halfW >= z.r) continue;
-    const t = z.onder - CHAR_H;
+    const t = z.onder - amirOnderRuimte();
     if (t < cap) cap = t;
   }
   return cap;
+}
+// de onderkant van de laagste zwevende laag recht boven Amir (wereld-eenheden boven de grond), of Infinity.
+// Hiermee houdt de lus hem gebukt zolang er een lage laag boven hem hangt (dichttimmeren), zodat hij niet
+// rechtop door de rots steekt.
+function zweefDakBoven(halfW){
+  let dak = Infinity;
+  for (const z of zweefList()){
+    if (world + halfW <= z.l || world - halfW >= z.r) continue;
+    if (z.onder < dak && ph < z.onder - 2) dak = z.onder;      // alleen een laag waar hij echt onder zit
+  }
+  return dak;
 }
 // vanaf x die kant op zoeken naar de plek waar de lijn weer op kruinhoogte hangt
 function plafondGrens(x, kant, kop){
@@ -18253,9 +18331,10 @@ function blockByPlatforms(plats, halfW){     // je loopt niet dwars door een rot
   for (const p of plats){
     if (p.thin) continue;                    // onder een richel loop je gewoon door
     if (p.cel) continue;                     // rastercellen duwen zelf, per cel (grotBlok)
-    // onder een zwevende savannelaag loop je door als er een hele Amir ruimte onder zit; past hij er
-    // niet onder, dan is zijn zijkant gewoon een wand (anders zou je door de rots heen lopen)
-    if (p.zweef && p.floatBot >= CHAR_H && ph < p.floatBot - 2) continue;
+    // onder een zwevende savannelaag loop je door als er genoeg ruimte onder zit: staand een hele Amir,
+    // gebukt of kruipend minder (amirOnderRuimte). Past hij er niet onder, dan is zijn zijkant een wand
+    // (anders zou je door de rots heen lopen). Zo kun je onder een laag met een cel lucht (150) door kruipen.
+    if (p.zweef && p.floatBot >= amirOnderRuimte() && ph < p.floatBot - 2) continue;
     if (ph >= p.topH - 2 - (p.stijg || 0)) continue;   // je staat erboven (of een stijgend blok kwam net onder je)
     if (world + halfW > p.left && world - halfW < p.right){
       if (world < (p.left + p.right) / 2) world = p.left - halfW;
@@ -26174,6 +26253,18 @@ function loop(now){
     if (swFrame >= 0){ duckT = 1; duckHoldAcc = 0; dir = 0; crawling = false; }   // tijdens de zwaai blijft hij laag
     else if (swRecover > 0){ duckT = 1; dir = 0; crawling = false; }               // en daarna nog even
     duckShare = 1 - (1 - DUCK_BOX) * duckT;
+    // dichttimmeren: hangt er een lage zwevende laag boven hem, dan houden we hem zo ver gebukt dat zijn kop er
+    // net onder blijft, zodat hij niet rechtop door de rots steekt. Hij komt vanzelf overeind zodra er weer
+    // ruimte boven hem is. Nooit lager dan de bukhouding (DUCK_BOX); past hij er dan nog niet onder, dan is het
+    // een echte kruipruimte en kruipt hij er gebukt doorheen (amirOnderRuimte rekent met KRUIP_RUIMTE).
+    const dak = zweefDakBoven(halfWNow);
+    if (dak < Infinity){
+      const maxShare = (dak - ph) / CHAR_H;                    // zo veel van zijn lengte past er nog onder
+      if (duckShare > maxShare){
+        duckShare = Math.max(DUCK_BOX, maxShare);
+        duckT = Math.min(1, Math.max(duckT, (1 - duckShare) / (1 - DUCK_BOX)));
+      }
+    }
   }
   const wetNow = (!building && ph < 2) ? waterDepthAt(world, ph) : 0;   // tot je knieën in het water
   const houdTempo = houding.aan ? houdingWaarde('tempo') : 1;   // in de dreighouding loopt hij langzaam
@@ -28874,7 +28965,7 @@ function syncLevel(){
     plafond: (level.plafond || []).map(o => ({ x: Math.round(o.x), y: Math.round(o.y) })),
     muur: level.muur || undefined,           // zonder rotswand valt het veld weg
     terraces: (level.terraces || []).map(o => ({ r: o.r, l: o.l, h: o.h, grond: o.grond || undefined })),
-    zwevers: (level.zwevers || []).map(o => ({ r: o.r, l: o.l, h: o.h, onder: o.onder })),
+    zwevers: (level.zwevers || []).map(o => ({ r: o.r, l: o.l, h: o.h, onder: o.onder, look: o.look })),
     holtes: (level.holtes || []).map(o => ({ r: o.r, l: o.l, diep: o.diep })),
     valschade: level.valschade || undefined,
     view: level.view || undefined,            // uitgezoomd spelen; nieuwe levels staan standaard op 0,8 (zie viewZoom)
@@ -29197,7 +29288,7 @@ function readLevel(txt){
              const h = Number(q.h) || 0;
              let onder = q.onder != null ? Number(q.onder) : h - ZWEEF.dik;
              if (onder >= h) onder = h - ZWEEF.dik;          // de onderkant ligt altijd onder de looplijn
-             return { r: Number(q.r), l: Number(q.l), h, onder };
+             return { r: Number(q.r), l: Number(q.l), h, onder, look: q.look === 'rots' ? 'rots' : undefined };   // 'rots' = een rotsoverhang i.p.v. savanne
            }),
            // gangen onder de grond: zie "holte onder de grond"
            holtes: (o.holtes || []).map(q => ({ r: Number(q.r), l: Number(q.l),
@@ -30592,6 +30683,8 @@ const MK_TYPES = [
   // de takel: een platform dat reist, met losse tandwielen ernaast die het aandrijven (zie mkNotePaneel/mkNaarLevel)
   { id:'platform',naam:'Platform (takel)',   kleur:'#d8b24a', obj:true },
   { id:'tandwiel',naam:'Tandwiel',           kleur:'#b98a2e', obj:true },
+  // een overhang: een rotsoverhang of zwevende savannelaag met een vrije onderkant-hoogte om onder te kruipen
+  { id:'overhang',naam:'Overhang (kruipruimte)', kleur:'#7d6a86', obj:true, letter:'O' },
 ];
 // wat een tandwiel doet bij een slag. Een schakelaar kan beide kanten op (als een lichtschakelaar); een vast wiel
 // gaat altijd dezelfde kant op. Zie takelWielSlag.
@@ -30642,7 +30735,7 @@ const MK_CATS = [
   { id:'terrein',  naam:'Terrein',    items:['savanne','rots','sneeuw','sneeuwrots','muur','laag','zweef','gang','ravijn'] },
   { id:'punten',   naam:'Start/eind', items:['start','eind'] },
   { id:'vijanden', naam:'Vijanden',   vijand:true },
-  { id:'objecten', naam:'Objecten',   items:['zegel','rune','platform','tandwiel'] },
+  { id:'objecten', naam:'Objecten',   items:['zegel','rune','platform','tandwiel','overhang'] },
   { id:'decor',    naam:'Decor',      items:['prop'] },
 ];
 const MK_CH = {}, MK_KLEUR = {};
@@ -30768,6 +30861,19 @@ function mkTeken(){
       if (o.note){ mkCtx.fillStyle = '#ffd24a'; mkCtx.beginPath(); mkCtx.arc(cx + bw / 2 - 3, cy - bh / 2, Math.max(2, cel * 0.1), 0, 7); mkCtx.fill(); }
       continue;
     }
+    if (o.k === 'overhang'){                                 // een balk zo breed als zijn breedte, met de onderkant (ceiling) op zijn vrije hoogte
+      const bw = Math.max(1, o.breed || 3) * cel, dikPx = Math.max(1, o.dik || 2) * cel;
+      const onderU = (MK.ground - o.r) * MK_CEL_EENH + (o.fijn || 0);
+      const under = gy + MK.ground * cel - onderU / MK_CEL_EENH * cel;   // de onderkant in schermpixels, net als mkNaarLevel
+      const left = cx - bw / 2, topY = under - dikPx;
+      mkCtx.fillStyle = o.look === 'savanne' ? '#b07a40' : '#8a8a93';
+      mkCtx.fillRect(left, topY, bw, dikPx);
+      mkCtx.strokeStyle = 'rgba(20,14,26,.85)'; mkCtx.lineWidth = 1.5;
+      mkCtx.beginPath(); mkCtx.moveTo(left, under); mkCtx.lineTo(left + bw, under); mkCtx.stroke();   // de ceiling-lijn waar je onder kruipt
+      if (o === MK.sel){ mkCtx.strokeStyle = '#fff'; mkCtx.lineWidth = 2; mkCtx.strokeRect(left - 2, topY - 2, bw + 4, dikPx + 4); }
+      if (o.note){ mkCtx.fillStyle = '#ffd24a'; mkCtx.beginPath(); mkCtx.arc(left + bw - 3, topY, Math.max(2, cel * 0.1), 0, 7); mkCtx.fill(); }
+      continue;
+    }
     const rad = cel * 0.36;
     const vinf = o.k === 'vijand' ? MK_VIJ_INFO[o.soort || 'groen'] : null;
     mkCtx.fillStyle = vinf ? vinf.kleur : t.kleur; mkCtx.beginPath(); mkCtx.arc(cx, cy, rad, 0, 7); mkCtx.fill();
@@ -30792,7 +30898,7 @@ function mkKlik(ev){
   else if (mkIsObj(t)){
     const bestaand = MK.objects.find(o => o.c === c && o.r === r);
     if (bestaand) MK.sel = bestaand;                              // bestaand object: selecteren om het te bewerken
-    else { const o = { c, r, k: t, note: '' }; if (t === 'vijand') o.soort = MK.vijandSoort || 'groen'; if (t === 'platform'){ o.doel = null; o.breed = MK_PLAT_BREED; } if (t === 'tandwiel') o.modus = 'schakellift'; MK.objects.push(o); MK.sel = o; }
+    else { const o = { c, r, k: t, note: '' }; if (t === 'vijand') o.soort = MK.vijandSoort || 'groen'; if (t === 'platform'){ o.doel = null; o.breed = MK_PLAT_BREED; } if (t === 'tandwiel') o.modus = 'schakellift'; if (t === 'overhang'){ o.breed = 3; o.dik = 2; o.fijn = 30; o.look = 'rots'; } MK.objects.push(o); MK.sel = o; }
     MK.inspectDicht = false; mkNotePaneel();
   }
   else if (t === 'lucht'){                                        // gum: eerst een object weg, anders de grond leeg
@@ -30876,11 +30982,26 @@ function mkNotePaneel(){
     const br = MK.sel.breed || MK_PLAT_BREED, bv = document.getElementById('mkbreedv');
     document.getElementById('mkbreed').value = br; bv.textContent = br + (br === 1 ? ' cel' : ' cellen'); }
   if (isTand) mkVulTandSelects();
+  const isOver = MK.sel.k === 'overhang';
+  document.getElementById('mkoverctl').style.display = isOver ? '' : 'none';
+  if (isOver) mkVulOver();
   // het tabje toont de letter en de kleur van de selectie als het paneel dicht is
   const vi = isVij ? MK_VIJ_INFO[MK.sel.soort || 'groen'] : null;
   tablet.textContent = isVij ? 'V' : ((t && t.letter) || '•');
   tablet.style.background = vi ? vi.kleur : (t ? t.kleur : '#d6553f'); tablet.style.display = 'flex';
   insp.classList.toggle('dicht', MK.inspectDicht);
+}
+// het eigenschappen-paneel van een overhang: de schuifjes en de look-knop, plus een hint met de ruimte eronder
+function mkVulOver(){
+  const o = MK.sel; if (!o) return;
+  const br = Math.max(1, o.breed || 3), dk = Math.max(1, o.dik || 2), fj = o.fijn || 0;
+  document.getElementById('mkobreed').value = br; document.getElementById('mkobreedv').textContent = br + (br === 1 ? ' cel' : ' cellen');
+  document.getElementById('mkodik').value = dk;  document.getElementById('mkodikv').textContent  = dk + (dk === 1 ? ' cel' : ' cellen');
+  document.getElementById('mkofijn').value = fj; document.getElementById('mkofijnv').textContent = (fj > 0 ? '+' : '') + fj;
+  document.getElementById('mkolook').textContent = 'Look: ' + (o.look === 'savanne' ? 'savanne' : 'rots');
+  const onder = Math.max(20, (MK.ground - o.r) * MK_CEL_EENH + fj);
+  const soort = onder < CHAR_H ? 'kruipen (gebukt)' : 'lopen';
+  document.getElementById('mkoinfo').textContent = 'ruimte eronder: ' + Math.round(onder) + ' = ' + soort + '. Sleep hem op zijn plek; de rij zet de grove hoogte, Onderkant stelt fijn bij.';
 }
 // een kleurvierkantje voor in de knoppen
 function mkStaal(kleur, dashed){
@@ -30998,6 +31119,7 @@ function mkNaarJSON(){
              if (o.k === 'vijand'){ b.soort = o.soort || 'groen'; if (o.params && Object.keys(o.params).length) b.params = o.params; }
              if (o.k === 'platform'){ b.doel = o.doel ? { c:o.doel.c, r:o.doel.r } : null; b.breed = o.breed || MK_PLAT_BREED; }
              if (o.k === 'tandwiel'){ b.modus = o.modus || 'schakellift'; const p = mkConnectedPlatform(o); if (p) b.platform = { c:p.c, r:p.r }; }
+             if (o.k === 'overhang'){ b.breed = o.breed || 3; b.dik = o.dik || 2; b.fijn = o.fijn || 0; b.look = o.look === 'savanne' ? 'savanne' : 'rots'; }
              return b;
            }) };
 }
@@ -31016,6 +31138,10 @@ function mkUitJSON(o){
     if (q.k === 'platform'){ b.doel = (q.doel && q.doel.c != null) ? { c:q.doel.c|0, r:q.doel.r|0 } : null; b.breed = Math.max(1, Math.min(5, Math.round(Number(q.breed) || MK_PLAT_BREED))); }
     if (q.k === 'tandwiel'){ b.modus = MK_MODI.some(m => m[0] === q.modus) ? q.modus : 'schakellift';
       if (q.platform && q.platform.c != null) b._plat = { c:q.platform.c|0, r:q.platform.r|0 }; }
+    if (q.k === 'overhang'){ b.breed = Math.max(1, Math.min(12, Math.round(Number(q.breed) || 3)));
+      b.dik = Math.max(1, Math.min(8, Math.round(Number(q.dik) || 2)));
+      b.fijn = Math.max(-140, Math.min(140, Math.round(Number(q.fijn) || 0)));
+      b.look = q.look === 'savanne' ? 'savanne' : 'rots'; }
     return b;
   }) : [];
   for (const w of MK.objects) if (w._plat){   // een wiel zijn gekozen platform terugkoppelen (op celpositie)
@@ -31129,6 +31255,17 @@ function mkNaarLevel(){
     const [l, r] = spanLR(a.c, cEnd);
     terraces.push({ r: Math.round(r), l: Math.round(l), h: -(a.rTop - gR) * MK_CEL_EENH, grond: savanne(a.soort) });
     i = j;
+  }
+  // overhang-voorwerpen: een rotsoverhang of zwevende savannelaag met een vrije onderkant-hoogte om onder te
+  // kruipen. Vertaalt naar een zwever: de onderkant (onder) komt uit de rij plus de fijne nudge, de bovenkant
+  // (h) ligt dik cellen hoger, en de breedte staat om de cel heen. Een lage onder (< CHAR_H) is een kruipruimte.
+  for (const o of MK.objects){
+    if (o.k !== 'overhang') continue;
+    const [cl, cr] = lr(o.c), px = (cl + cr) / 2, half = Math.max(1, o.breed || 3) * MK_CEL_PX / 2;
+    const onder = Math.max(20, (gR - o.r) * MK_CEL_EENH + (o.fijn || 0));
+    const h = onder + Math.max(1, o.dik || 2) * MK_CEL_EENH;
+    zwevers.push({ r: Math.round(px + half), l: Math.round(px - half), h: Math.round(h), onder: Math.round(onder),
+                   look: o.look === 'savanne' ? undefined : 'rots' });
   }
   // takel: elk platform met een doelhoogte wordt een eigen takel-platform (met een id). De wielen die eraan
   // hangen komen als lijst mee, elk op de plek waar jij ze zet, met hun eigen stand (per slag of helemaal).
@@ -31284,6 +31421,19 @@ document.getElementById('mktandplat').onchange = e => {
   mkTeken(); mkBewaar();
 };
 document.getElementById('mktandmodus').onchange = e => { if (MK.sel && MK.sel.k === 'tandwiel'){ MK.sel.modus = e.target.value; mkBewaar(); } };
+// de schuifjes en de look-knop van een overhang
+for (const [id, veld, mn, mx] of [['mkobreed','breed',1,12],['mkodik','dik',1,8],['mkofijn','fijn',-140,140]]){
+  document.getElementById(id).addEventListener('input', e => {
+    if (!MK.sel || MK.sel.k !== 'overhang') return;
+    MK.sel[veld] = Math.max(mn, Math.min(mx, Math.round(Number(e.target.value) || 0)));
+    mkVulOver(); mkTeken(); mkBewaar();
+  });
+}
+document.getElementById('mkolook').onclick = () => {
+  if (!MK.sel || MK.sel.k !== 'overhang') return;
+  MK.sel.look = MK.sel.look === 'savanne' ? 'rots' : 'savanne';
+  mkVulOver(); mkTeken(); mkBewaar();
+};
 document.getElementById('mkvijsoort').onchange = e => { if (MK.sel && MK.sel.k === 'vijand'){ MK.sel.soort = e.target.value; mkTeken(); mkBewaar(); mkNotePaneel(); } };
 document.getElementById('mkinsptab').onclick = () => { MK.inspectDicht = false; mkNotePaneel(); };
 document.getElementById('mkinspclose').onclick = () => { MK.inspectDicht = true; mkNotePaneel(); };
@@ -32246,6 +32396,7 @@ document.getElementById('sbsavlift').onclick = () => sbSavLaag(300, true);
 document.getElementById('sbsavweg').onclick = () => { sbSavWeg(); cv.focus(); };
 // een zwevende savannelaag om los te bekijken: een dik savanneblok links voor je in de lucht
 const SB_ZWEEF = { breed: 1600, rand: 420,
+                   kruip: { h: 430, onder: 150 }, rotskruip: { h: 430, onder: 180, look: 'rots' },
                    laag: { h: 430, onder: 270 }, dik: { h: 650, onder: 360 }, hoog: { h: 900, onder: 600 } };
 function sbZweefWeg(){ level.zwevers = (level.zwevers || []).filter(z => !z.sbZweef); }
 function sbZweef(soort){
@@ -32253,8 +32404,9 @@ function sbZweef(soort){
   if (!level.zwevers) level.zwevers = [];
   const S = SB_ZWEEF, p = S[soort] || S.laag;
   const r = world - S.rand;
-  level.zwevers.push({ r, l: r - S.breed, h: p.h, onder: p.onder, sbZweef: true });
-  flashHint('Loop eronderdoor; bovenop kom je via de rand of een lift');
+  level.zwevers.push({ r, l: r - S.breed, h: p.h, onder: p.onder, look: p.look, sbZweef: true });
+  flashHint(soort === 'kruip' || soort === 'rotskruip' ? 'Gebukt (pijl omlaag) eronderdoor kruipen; bovenop kom je via de rand'
+                              : 'Loop eronderdoor; bovenop kom je via de rand of een lift');
   cv.focus();
 }
 sandboxEl.querySelectorAll('button[data-zweef]').forEach(b => b.onclick = () => sbZweef(b.dataset.zweef));
