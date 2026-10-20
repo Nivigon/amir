@@ -914,6 +914,7 @@
           <div class="mkrij"><button id="mkolook">Look: rots</button></div>
           <div id="mkoinfo" class="mkhint"></div>
         </div>
+        <div id="mkmaskctl" class="mkveld" style="display:none"><label for="mkmasksel">Onthult masker</label><select id="mkmasksel"></select></div>
         <textarea id="mkobjnote" spellcheck="false" disabled placeholder="opmerking (bv: bandiet die vault, of: dit wiel takelt het platform helemaal omhoog)"></textarea>
       </div>
     </div>
@@ -1310,6 +1311,15 @@
         <button data-zweef="hoog">Hoog zwevend</button>
         <button id="sbzweefweg">Weg</button>
         <span class="hint">een dik savanneblok in de lucht met lucht eronder: loop eronderdoor, en bovenop kom je via de rand of een lift. Kruipen: maar een cel lucht eronder, dus je moet gebukt (pijl omlaag) eronderdoor kruipen</span>
+      </div>
+      <div class="row">
+        <label>Masker</label>
+        <button id="sbmasker">Neerzetten</button>
+        <button id="sbmaskerslang">Met een slang erachter</button>
+        <button id="sbmaskerzegel">Grond-zegel onthult</button>
+        <button id="sbmaskerverborgen">Verborgen zegel erachter</button>
+        <button id="sbmaskerweg">Weg</button>
+        <span class="hint">een stuk level dat eruitziet als de ondergrondse rotswand: loop erin en het valt stil weg (eenmaal gezien voorgoed weg). Een slang erachter staat bevroren tot het weg is. Het grond-zegel ervoor onthult het met beven en het ravijn-geluid (zoals een tandwiel gekoppeld). Een verborgen zegel erachter is pas te activeren als het masker weg is</span>
       </div>
       <div class="row">
         <label>Onder de grond</label>
@@ -8288,6 +8298,7 @@ function zegelVloer(z, scale){
     const m = measurePlat(r, scale || nowScale());
     if (z.x > m.left && z.x < m.right && m.topH > h) h = m.topH;
   }
+  const zw = zweefTopBij(z.x); if (zw > h) h = zw;   // een zegel op een zwevende savannelaag: op de looplijn van die laag
   return h;
 }
 function zegelUpdate(dt, scale){
@@ -8296,6 +8307,7 @@ function zegelUpdate(dt, scale){
   for (const z of level.zegels){
     if (z.weg) continue;
     if (z.naTakelVal && !z.onthuld) continue;       // verschijnt pas als de takel-brug gevallen is
+    if (achterMasker(z.x, zegelVloer(z, scale))) continue;   // verborgen binnen een masker: onzichtbaar en niet te activeren tot het weg is
     if (z.val){                                     // in zijn ravijn gevallen: zakken en vervagen
       z.val.v += GRAVITY * dt; z.val.h += z.val.v * dt;
       if (z.val.h > ZEGEL_VAL.diep) z.weg = true;
@@ -8384,6 +8396,7 @@ function zegelTeken(groundY, scale, cx){
   for (const z of level.zegels){
     if (z.weg) continue;
     if (z.naTakelVal && !z.onthuld) continue;       // nog niet verschenen
+    if (achterMasker(z.x, zegelVloer(z, scale))) continue;   // verborgen binnen een masker
     const sx = cx + (z.x - world);
     if (sx < -r * 2 || sx > W / viewZoom() + r * 2) continue;
     const h = z.val ? z.val.h : 0;
@@ -8427,6 +8440,7 @@ function koppelDoe(a){
   else if (a.soort === 'speerval' && a.x != null) koppelSpeerval(a.x);
   else if (a.soort === 'rijs' && a.rijs) rijsOmhoog(a.rijs, 'De grond komt omhoog');
   else if (a.soort === 'takel' && a.takel) takelKoppel(a.takel, a.richting || 'op');
+  else if (a.soort === 'masker' && a.masker) maskerReveal(maskerVan(a.masker), true);   // het masker scheurt weg, met beven en geluid
 }
 function koppelUndo(a){
   if (a.soort === 'ravijn' && a.x != null) ravijnSluit(a.x);
@@ -8446,6 +8460,105 @@ function koppelMuur(){ const m = muurNu(); if (!m || muurOpen) return; muurOpen 
 function koppelSpeerval(x){ const sp = speervalZoek(x); if (!sp || (sp.st && sp.st !== 'wand')) return; sp.st = 'tril'; sp.t = 0; sp.vuur = false; speervalSpeel(valSpanSnd, SPEERVAL_SND.span); }
 function rijsOmlaag(id){ for (const b of rijsLijst()) if (b.id === id && b.op){ b.op = false; b.t = 0; } }
 function koppelReset(){ if (level && level.acties) for (const a of level.acties) a._was = false; }
+
+// ---- masker: een tekenlaag die een stuk level verbergt --------------------------
+// Opt-in: een level met het veld `maskers` legt over een stuk level geverfde cellen die eruitzien
+// als iets anders (nu de ondergrondse rotswand, look 'grot'), zodat de speler niet doorheeft dat
+// daar een doorgang of een zijpad ligt. Een masker heeft een naam (`id`, bv. 'Verborgen1') en een
+// lijst geverfde cellen (`vakken: [{cx, cy}]`, cellen van `cel` px breed en `celH` eenheden hoog, op
+// een vast wereldraster). Het houdt niemand tegen: je loopt er zo in, en dan valt het stil weg. Een
+// zegel of rune onthult het via het koppelsysteem (een actie `{soort: 'masker', masker: id}`, net als
+// de takel): dan beeft het scherm zoals een ravijn dat openscheurt, met hetzelfde geluid. Eenmaal
+// onthuld blijft het weg (m.onthuld). Zolang het er nog ligt is alles binnen de geverfde cellen
+// verborgen: de vijanden erbinnen zijn bevroren (achterMasker, boven in hun update), en een zegel of
+// rune erbinnen is onzichtbaar en niet te activeren. Een level zonder maskers merkt er niets van
+// (regel 1). Een ouder masker met l/r/boven/onder (één rechthoek) werkt ook nog.
+const MASKER = { fade: 0.55, beving: 0.6, marge: 60 };     // fade/beving (sterkte van het ravijn-geluid)/marge voor het inlopen
+function maskerLijst(){ return (level && level.maskers) || []; }
+function maskerVan(id){ for (const m of maskerLijst()) if (String(m.id || '') === String(id)) return m; return null; }
+// de rechthoeken van een masker, in wereld-px (l, r) en sprite-eenheden boven de grond (onder, boven). De Maker
+// levert de geverfde cellen als vakken (per cel of per rij samengevoegd); een ouder masker is één rechthoek
+function maskerRects(m){
+  if (m.vakken && m.vakken.length)
+    return m.vakken.map(v => ({ l: Math.min(v.l, v.r), r: Math.max(v.l, v.r), onder: Number(v.onder) || 0, boven: Number(v.boven) || 150 }));
+  return [{ l: Math.min(m.l, m.r), r: Math.max(m.l, m.r), onder: m.onder || 0, boven: m.boven || 600 }];
+}
+// een punt (x, met hoogte h) ligt binnen een masker dat er nog ligt (niet onthuld). Zonder h telt
+// alleen de kolom (de x), zodat een rune of rots die in een geverfde kolom staat verborgen is.
+function achterMasker(x, h){
+  for (const m of maskerLijst()){
+    if (m.onthuld) continue;
+    for (const R of maskerRects(m))
+      if (x >= R.l && x <= R.r && (h === undefined || (h >= R.onder - 4 && h <= R.boven + 4))) return true;
+  }
+  return false;
+}
+// het masker onthullen: via het inlopen (dramatisch false, stil) of een zegel/rune (true: beven en geluid)
+function maskerReveal(m, dramatisch){
+  if (!m || m.onthuld) return;
+  m.onthuld = true;
+  if (dramatisch){
+    shake = Math.max(shake, 0.26);
+    bavBeving(2.2, MASKER.beving);                 // het geluid van een ravijn dat openscheurt (deurSnd via de versterker)
+    flashHint('De grond beeft: het masker scheurt weg');
+  }
+}
+function maskerUpdate(dt){
+  if (building) return;
+  for (const m of maskerLijst()){
+    if (m.t === undefined) m.t = 1;
+    if (!m.onthuld){                                // erin lopen onthult het, stil (eenmaal gezien voorgoed weg)
+      for (const R of maskerRects(m))
+        if (world >= R.l && world <= R.r && ph <= R.boven + MASKER.marge && ph >= R.onder - MASKER.marge){ maskerReveal(m, false); break; }
+    }
+    const doel = m.onthuld ? 0 : 1;
+    if (m.t > doel) m.t = Math.max(doel, m.t - dt / MASKER.fade);
+  }
+}
+function maskerReset(){ for (const m of maskerLijst()){ m.onthuld = false; m.t = 1; } }
+// het masker tekenen, in wereldruimte over alles heen (ook over Amir en de vijanden), binnen de zoom.
+// De textuur is vast aan de wereld (translate cx - world), zodat hij niet met de camera meeschuift.
+// In de bouwer tekent de maker zelf de geverfde cellen met een groene tint (bouwMaskerTeken).
+function maskerTeken(groundY, scale, cx){
+  if (building) return;
+  const lijst = maskerLijst(); if (!lijst.length) return;
+  const tile = plafondVulTegel();                  // de ondergrondse rotswand, naadloos getegeld
+  for (const m of lijst){
+    const a = m.t === undefined ? 1 : m.t;
+    if (a <= 0.004) continue;
+    const rects = maskerRects(m);
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, any = false;
+    for (const R of rects){
+      const sxL = cx + (R.l - world), sxR = cx + (R.r - world);
+      if (sxR < -4 || sxL > W + 4) continue;
+      const top = groundY - R.boven * scale, bot = groundY - R.onder * scale;
+      any = true;
+      if (R.l < minX) minX = R.l; if (R.r > maxX) maxX = R.r;
+      if (top < minY) minY = top; if (bot > maxY) maxY = bot;
+    }
+    if (!any) continue;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.translate(cx - world, 0);                   // wereld-x: een punt op wereld-x komt nu gewoon op x
+    ctx.beginPath();
+    for (const R of rects){
+      const top = groundY - R.boven * scale, bot = groundY - R.onder * scale;
+      ctx.rect(R.l, top, R.r - R.l, bot - top);     // alle geverfde cellen samen als clippad
+    }
+    ctx.clip();
+    if (tile && (m.look || 'grot') === 'grot'){
+      const p = ctx.createPattern(tile, 'repeat');
+      ctx.fillStyle = p || '#2b2621';
+    } else ctx.fillStyle = '#2b2621';
+    ctx.fillRect(minX - 2, minY - 2, (maxX - minX) + 4, (maxY - minY) + 4);
+    // een beetje diepte over de hele regio (geen naad tussen de cellen): donker langs boven en onder
+    const g = ctx.createLinearGradient(0, minY, 0, maxY);
+    g.addColorStop(0, 'rgba(0,0,0,0.30)'); g.addColorStop(0.16, 'rgba(0,0,0,0)');
+    g.addColorStop(0.84, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.42)');
+    ctx.fillStyle = g; ctx.fillRect(minX - 2, minY - 2, (maxX - minX) + 4, (maxY - minY) + 4);
+    ctx.restore();
+  }
+}
 
 // ---- zakplafond: een plafond dat zakt als je op een zegel stapt ------------------
 // Stukken rots die aan het plafond hangen en naar beneden komen zodra Amir op een zegel met
@@ -17536,6 +17649,7 @@ function runeUit(o){
   if (o.hoog) e.hoog = r2(o.hoog);
   if (o.doel) e.doel = true;
   if (o.rijs) e.rijs = o.rijs;
+  if (o.stuurt && o.stuurt.length) e.stuurt = o.stuurt.map(String);   // koppelingen: seinen (bv. een masker wegnemen)
   for (const k of ['ravijn', 'sluit', 'speerval']) if (runeHeeft(o[k])) e[k] = Math.round(o[k]);
   if (o.muur) e.muur = true;
   if (o.kei) e.kei = r2(o.kei);
@@ -17708,11 +17822,13 @@ function ravijnRotsMaat(scale, e){                 // de plaat in de wereld: lin
   // b: de vloer onder het midden, in sprite-eenheden: de savanne, een terras, of in een gang de bodem
   // (terrainH). Alle hoogtes van de rots en de schijf tellen vanaf daar.
   const l = runeVoet(e);
-  return { l, wPx, hPx, k: B.h / hPx, B, b: terrainH(l + wPx / 2) };   // k: bronpixels per schermpixel
+  const mid = l + wPx / 2;
+  return { l, wPx, hPx, k: B.h / hPx, B, b: Math.max(terrainH(mid), zweefTopBij(mid)) };   // k: bronpixels per schermpixel; op een zwevende laag staat de rots erop
 }
 function ravijnRotsVol(x, h, scale){               // zit dit punt in het steen van een van de rotsen?
   if (!ravijnRotsHier()) return false;
   for (const e of ravijnProef()){
+    if (achterMasker(e.x)) continue;               // verborgen achter een masker: de speer vliegt er doorheen
     const M = ravijnRotsMaat(scale, e); if (!M) continue;
     const B = M.B, u = Math.floor((x - M.l) * M.k), v = Math.floor(B.h - (h - M.b) * scale * M.k);
     if (u >= 0 && v >= 0 && u < B.w && v < B.h && B.alfa[v * B.w + u] > 128) return true;
@@ -17741,6 +17857,7 @@ function ravijnRuneAan(e){                          // een ravijn: aan zolang he
 function ravijnRuneRaak(x, h, scale){              // welke rune raakt dit punt, of null
   if (!ravijnRotsHier()) return null;
   for (const e of ravijnProef()){
+    if (achterMasker(e.x)) continue;               // verborgen achter een masker: niet te raken tot het weg is
     const R = ravijnRune(scale, e); if (!R) continue;
     const du = x - R.x, dv = (h - R.h) * scale;
     if (du * du + dv * dv < R.raakPx * R.raakPx) return e;
@@ -17876,6 +17993,7 @@ function ravijnRuneTeken(groundY, scale, cx){      // de rotsen, de schijf op el
     if (B && !runeLichtCache[runeLichtSleutel(e, zonRechts())]){ runeLichtMaak(e, B, zonRechts()); break; }
   }
   for (const e of ravijnProef()){
+    if (achterMasker(e.x)) continue;               // verborgen achter een masker: de rots en de schijf zijn er nog niet
     const M = ravijnRotsMaat(scale, e); if (!M) continue;
     const sx = cx + (M.l - world);
     if (sx > W / viewZoom() + W || sx + M.wPx < -W) continue;
@@ -19665,12 +19783,13 @@ function warmBouw(){
     rij.push(bak);
   }
   // de plafond- en grotband: de grotset laadt lui, dus eerst laden en dan bakken zodra hij binnen is
-  if (level.grotten || level.holtes || level.plafond){
+  if (level.grotten || level.holtes || level.plafond || maskerLijst().some(m => (m.look || 'grot') === 'grot')){
     rij.push(() => { try { grotLaad(); } catch (e) {} });
     const bak = () => {
       if (!klaar(grotPic('plafond_strook'))){ if ((bak.n = (bak.n || 0) + 1) < 900) rij.push(bak); return; }
       grotBandSet();
-      if (level.plafond){ plafondBandSet(); if (klaar(grotPic('rots_vulling'))) plafondVulTegel(); }
+      if (level.plafond) plafondBandSet();
+      if (klaar(grotPic('rots_vulling'))) plafondVulTegel();   // ook de masker-textuur vast bakken zodra hij binnen is
     };
     rij.push(bak);
   }
@@ -19704,6 +19823,7 @@ function restart(){
   ravijnReset();                                    // het ravijn weer dicht, de rune weer uit
   zegelReset();                                     // en de zegels weer uit
   koppelReset();                                    // de koppel-acties weer op hun beginstand
+  maskerReset();                                    // de maskers weer compleet over hun stuk level
   zakReset();                                       // en het zakkende plafond weer omhoog
   rijsReset();                                      // en de rijzende grond weer in het ravijn
   takelGeluid(false);                               // het takelgeluid uit bij een herstart
@@ -20475,6 +20595,7 @@ function slangSchuif(s, dt, plats, cliff, tempo){
 }
 
 function updateSnake(s, dt, plats, cliff){
+  if (achterMasker(s.x, s.base)) return;                    // bevroren achter een masker dat er nog ligt
   if (ravijnValt(s, dt, 'gone')) return;            // in het open ravijn gevallen
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
   if (s.inv > 0) s.inv -= dt;
@@ -20992,6 +21113,7 @@ function updatePanthers(dt, plats, cliff){
   }
 }
 function updatePanther(s, dt, plats, cliff){
+  if (achterMasker(s.x, s.base)) return;                    // bevroren achter een masker dat er nog ligt
   if (ravijnValt(s, dt, 'gone')) return;            // in het open ravijn gevallen
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
   if (s.cool > 0) s.cool = Math.max(0, s.cool - dt);
@@ -21857,6 +21979,7 @@ function updateHyenas(dt, plats, cliff){
   }
 }
 function updateHyena(s, dt, plats, cliff){
+  if (achterMasker(s.x, s.base)) return;                    // bevroren achter een masker dat er nog ligt
   if (ravijnValt(s, dt, 'gone')) return;            // in het open ravijn gevallen
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
   if (s.inv > 0) s.inv = Math.max(0, s.inv - dt);
@@ -22219,6 +22342,7 @@ function updateZwaarden(dt, plats, cliff){
   scheidMobs(zwaarden, ZW_SCHEID * zwScale(), zwMove, dt, plats, cliff);
 }
 function updateZwaard(s, dt, plats, cliff){
+  if (achterMasker(s.x, s.base)) return;                    // bevroren achter een masker dat er nog ligt
   if (ravijnValt(s, dt, 'weg')) return;            // in het open ravijn gevallen
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
   if (s.inv > 0) s.inv = Math.max(0, s.inv - dt);
@@ -22711,6 +22835,7 @@ function updateKooimannen(dt, plats, cliff){
   scheidMobs(kooimannen, KOOI_SCHEID * kooiScale(), kooiMove, dt, plats, cliff);
 }
 function updateKooiman(s, dt, plats, cliff){
+  if (achterMasker(s.x, s.base)) return;                     // bevroren achter een masker dat er nog ligt
   if (kooiVries > 0 && s === kooiVriesS) return;     // de stampende kooiman loopt tijdens de freeze via kooiVriesStap
   if (ravijnValt(s, dt, 'weg')) return;              // in het open ravijn gevallen
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
@@ -23409,6 +23534,7 @@ function meelZakUpdate(dt){
   }
 }
 function updateMeelman(s, dt, plats, cliff){
+  if (achterMasker(s.x, s.base)) return;                     // bevroren achter een masker dat er nog ligt
   if (ravijnValt(s, dt, 'weg')) return;             // in een open ravijn gevallen
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
   if (s.inv > 0)   s.inv   = Math.max(0, s.inv - dt);
@@ -24095,6 +24221,7 @@ function updateBandieten(dt, plats, cliff){
   scheidMobs(bandieten, BAN_SCHEID * banScale(), banMove, dt, plats, cliff);
 }
 function updateBandiet(s, dt, plats, cliff){
+  if (achterMasker(s.x, s.base)) return;                     // bevroren achter een masker dat er nog ligt
   if (ravijnValt(s, dt, 'weg')) return;              // in het open ravijn gevallen
   if (s.vFade != null && s.vFade < 1) s.vFade = Math.min(1, s.vFade + dt / DEUR.verschijn);   // uit de deuropening: faadt uit het donker op
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
@@ -24826,6 +24953,7 @@ function fosforGroepStap(g, dt){
   return true;
 }
 function updateFosfor(s, dt, plats, cliff){
+  if (achterMasker(s.x, s.base)) return;                    // bevroren achter een masker dat er nog ligt
   if (ravijnValt(s, dt, 'weg')) return;            // in het open ravijn gevallen
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
   if (s.inv > 0) s.inv = Math.max(0, s.inv - dt);
@@ -25080,6 +25208,7 @@ function knockStep(s, dt, plats, cliff, halfL, wallGap){
   s.vx *= 0.90;
 }
 function updateScorp(s, dt, plats, cliff){
+  if (achterMasker(s.x, s.base)) return;                    // bevroren achter een masker dat er nog ligt
   if (ravijnValt(s, dt, 'gone')) return;            // in het open ravijn gevallen
   plats_ = plats; cliff_ = cliff;
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
@@ -26658,6 +26787,7 @@ function loop(now){
   runeKeiZet(scaleNow);                            // de kei bij een rune schuift mee met het scherm
   if (dt > 0) zegelUpdate(dt, scaleNow);          // erop stappen zet een zegel aan of uit
   koppelUpdate();                                 // koppelingen: seinen van triggers naar acties (opt-in)
+  if (dt > 0) maskerUpdate(dt);                    // het masker: erin lopen onthult het, en de fade loopt
   if (dt > 0) zakUpdate(dt);                      // het zakkende plafond: omlaag of weer omhoog
   if (dt > 0) dwarrelUpdate(dt);                  // en het stof dat ervan af dwarrelt
   if (dt > 0) rijsUpdate(dt);                     // de rijzende grond: uit het ravijn omhoog, of terug
@@ -28437,6 +28567,7 @@ function loop(now){
       ctx.restore();
     }
     }
+    maskerTeken(groundY, scaleNow, W / 2);           // het masker over alles heen (ook Amir en de vijanden), binnen de zoom
     ctx.restore();                                  // zoom weer los
     for (const fx of ravijnenNu()){                 // ravijn opent: stof, barst en steentjes, na de personages
       ctx.save(); ctx.translate(Math.round(W / 2 - world), 0);
@@ -29249,6 +29380,7 @@ function syncLevel(){
       if (o.vijand) z.vijand = true;
       if (o.naTakelVal) z.naTakelVal = true;      // verschijnt pas als de takel-brug gevallen is
       if (o.teken && ZEGEL_TEKENS[o.teken]) z.teken = o.teken;
+      if (o.stuurt && o.stuurt.length) z.stuurt = o.stuurt.map(String);   // koppelingen: seinen (bv. een masker wegnemen)
       return z;
     }),
     // blokken steen die uit een ravijn omhoog komen (zie "rijzende grond"); alleen wat van de standaard
@@ -29264,6 +29396,26 @@ function syncLevel(){
       return b;
     }),
     runes: (level.runes || []).length ? level.runes.map(runeUit) : undefined,
+    // maskers: geverfde cellen die een stuk level verbergen (zie "masker"); alleen als er zijn
+    maskers: (level.maskers || []).length ? level.maskers.map(m => {
+      const o = { id: String(m.id || 'Verborgen1'), look: m.look || 'grot' };
+      if (m.vakken && m.vakken.length)
+        o.vakken = m.vakken.map(v => ({ l: Math.round(v.l), r: Math.round(v.r), onder: Math.round(v.onder || 0), boven: Math.round(v.boven || 150) }));
+      else { o.l = Math.round(m.l); o.r = Math.round(m.r); o.boven = Math.round(m.boven || 600); o.onder = Math.round(m.onder || 0); }
+      return o;
+    }).filter(m => (m.vakken && m.vakken.length) || m.l !== undefined) : undefined,
+    // koppelingen: acties die afgaan op seinen van zegels, runes en tandwielen (zie "koppelingen"); alleen als er zijn
+    acties: (level.acties || []).length ? level.acties.map(a => {
+      const o = { soort: a.soort, bij: (a.bij || []).map(String) };
+      if (a.alle) o.alle = true;
+      if (a.x !== undefined && a.x !== null) o.x = Math.round(a.x);
+      if (a.breed) o.breed = Math.round(a.breed);
+      if (a.rijs !== undefined && a.rijs !== null) o.rijs = String(a.rijs);
+      if (a.takel !== undefined && a.takel !== null) o.takel = String(a.takel);
+      if (a.masker !== undefined && a.masker !== null) o.masker = String(a.masker);
+      if (a.richting && a.richting !== 'op') o.richting = a.richting;
+      return o;
+    }) : undefined,
     skeletten: (level.skeletten || []).map(o => ({ x: Math.round(o.x), f: o.f ? 1 : 0 })),
     tekens: (level.tekens || []).map(o => ({ x: Math.round(o.x), v: o.v, f: o.f ? 1 : 0 })),
     tips: (level.tips || []).map(t => ({ x: Math.round(t.x), t: t.t })),
@@ -29518,7 +29670,24 @@ function readLevel(txt){
                                                 breed: Number(q.breed) > 0 ? Number(q.breed) : undefined,
                                                 rijs: (q.rijs === undefined || q.rijs === null) ? undefined : String(q.rijs),
                                                 takel: (q.takel === undefined || q.takel === null) ? undefined : String(q.takel),
+                                                masker: (q.masker === undefined || q.masker === null) ? undefined : String(q.masker),
                                                 richting: q.richting === 'neer' ? 'neer' : q.richting === 'slag' ? 'slag' : 'op' })),
+           // maskers: geverfde stukken die een stuk level verbergen tot je erin loopt of het met een zegel/rune
+           // onthult (zie "masker"). id de naam (bv. 'Verborgen1') waar een actie naar wijst, vakken de rechthoeken
+           // (l, r in wereld-x; onder, boven in sprite-eenheden), look de textuur (nu 'grot'). Een ouder masker met
+           // l/r/boven/onder (één rechthoek) werkt ook nog
+           maskers: (o.maskers || []).map(q => {
+             const m = { id: q.id != null ? String(q.id) : undefined, look: q.look ? String(q.look) : 'grot' };
+             if (Array.isArray(q.vakken)){
+               m.vakken = q.vakken.map(v => ({ l: Number(v.l), r: Number(v.r), onder: Number(v.onder) || 0, boven: Number(v.boven) > 0 ? Number(v.boven) : 150 }))
+                                  .filter(v => isFinite(v.l) && isFinite(v.r));
+             } else {
+               m.r = Number(q.r); m.l = Number(q.l);
+               m.boven = Number(q.boven) > 0 ? Number(q.boven) : 600;
+               m.onder = Number(q.onder) || 0;
+             }
+             return m;
+           }),
            // ravijnen met een rune op een rots ervoor: x is het midden van het ravijn, zie RAVIJN_PROEF
            // met rots, groot en hoog een andere plaat, maat of schijfhoogte; met doel: true opent hij niets
            runes: (o.runes || []).map(runeIn),
@@ -30944,6 +31113,9 @@ const MK_TYPES = [
   { id:'tandwiel',naam:'Tandwiel',           kleur:'#b98a2e', obj:true },
   // een overhang: een rotsoverhang of zwevende savannelaag met een vrije onderkant-hoogte om onder te kruipen
   { id:'overhang',naam:'Overhang (kruipruimte)', kleur:'#7d6a86', obj:true, letter:'O' },
+  // een masker: verf cellen om ze in het spel te verbergen (ze zien eruit als de ondergrondse rotswand) tot
+  // je erin loopt of hem met een zegel/rune onthult. Geen terrein en geen voorwerp: een eigen verf-laag (MK.maskers)
+  { id:'masker',  naam:'Masker (verbergen)',   kleur:'#5ad66e', mask:true },
 ];
 // wat een tandwiel doet bij een slag. Een schakelaar kan beide kanten op (als een lichtschakelaar); een vast wiel
 // gaat altijd dezelfde kant op. Zie takelWielSlag.
@@ -30998,6 +31170,7 @@ const MK_CATS = [
   { id:'vijanden', naam:'Vijanden',   vijand:true },
   { id:'objecten', naam:'Objecten',   items:['zegel','rune','platform','tandwiel','overhang'] },
   { id:'decor',    naam:'Decor',      items:['prop'] },
+  { id:'verbergen',naam:'Verbergen',  items:['masker'] },
 ];
 const MK_CH = {}, MK_KLEUR = {};
 for (const t of MK_TYPES){ if (t.ch) MK_CH[t.ch] = t.id; if (t.kleur) MK_KLEUR[t.id] = t.kleur; }
@@ -31011,8 +31184,29 @@ function mkNearestPlatform(w){ let best = null, bd = Infinity;
 // het platform waaraan een wiel hangt: een expliciete keuze (w.plat) als die nog bestaat, anders het dichtstbijzijnde
 function mkConnectedPlatform(w){ if (w && w.plat && MK.objects.indexOf(w.plat) >= 0 && w.plat.k === 'platform') return w.plat; return mkNearestPlatform(w); }
 const MK = { cols:48, rows:20, ground:12, grid:null, start:null, eind:null, objects:[], sel:null,
-             tool:'savanne', zoom:1, panX:0, panY:0,
+             tool:'savanne', zoom:1, panX:0, panY:0, maskers:[], maskId:'Verborgen1',
              cat:'terrein', sub:null, vijandSoort:'groen', inspectDicht:true, muziek:MUZIEK_BASIS, valschade:true };
+// ---- maskers in de Maker: verf cellen onder een naam (Verborgen1, ...) om ze te verbergen ----
+function mkMaskObj(id){ let m = MK.maskers.find(q => q.id === id); if (!m){ m = { id, cells:[] }; MK.maskers.push(m); } return m; }
+function mkMaskNamen(){ const n = MK.maskers.filter(m => m.cells.length).map(m => m.id); if (!n.includes(MK.maskId)) n.push(MK.maskId); return n; }
+function mkMaskNieuw(){ const had = new Set(MK.maskers.map(m => m.id)); for (let i = 1; i < 999; i++) if (!had.has('Verborgen' + i)) return 'Verborgen' + i; return 'Verborgen' + Date.now(); }
+function mkMaskInCel(c, r){ for (const m of MK.maskers){ const i = m.cells.findIndex(p => p.c === c && p.r === r); if (i >= 0) return { m, i }; } return null; }
+function mkVulMaskSelect(){                           // het keuzemenu "onthult masker" op een zegel of rune
+  const sel = document.getElementById('mkmasksel'); if (!sel || !MK.sel) return;
+  sel.innerHTML = '';
+  const namen = MK.maskers.filter(m => m.cells.length).map(m => m.id);
+  const leeg = document.createElement('option'); leeg.value = ''; leeg.textContent = namen.length ? '(geen)' : '(nog geen maskers)'; sel.appendChild(leeg);
+  for (const n of namen){ const op = document.createElement('option'); op.value = n; op.textContent = n; sel.appendChild(op); }
+  sel.value = (MK.sel.masker && namen.includes(MK.sel.masker)) ? MK.sel.masker : '';
+  sel.onchange = () => { MK.sel.masker = sel.value || undefined; mkBewaar(); };
+}
+function mkMaskVerf(c, r, erase){                     // een cel in het huidige masker zetten of wissen (een cel hoort bij één masker)
+  const had = mkMaskInCel(c, r);
+  if (erase){ if (had) had.m.cells.splice(had.i, 1); return; }
+  if (had && had.m.id === MK.maskId) return;          // zit al in dit masker
+  if (had) had.m.cells.splice(had.i, 1);              // uit een ander masker halen
+  mkMaskObj(MK.maskId).cells.push({ c, r });
+}
 let makerOpen = false, mkCtx = null, mkPaint = false, mkPan = false, mkPanX = 0, mkPanY = 0, mkSpace = false, mkDoelMode = false, mkDrag = null, mkStamDrag = null;
 const makerEl = document.getElementById('maker');
 const mkCanvas = document.getElementById('mkcanvas');
@@ -31142,6 +31336,26 @@ function mkTeken(){
       mkCtx.fillText('⚙', gx + (c + 0.5) * cel, gy + (r + 0.55) * cel);
     }
   }
+  // maskers: de geverfde cellen als groene tint (het huidige masker feller), met het label linksboven
+  for (const m of MK.maskers){
+    if (!m.cells.length) continue;
+    const actief = m.id === MK.maskId;
+    mkCtx.fillStyle = actief ? 'rgba(90,220,110,.42)' : 'rgba(90,220,110,.24)';
+    mkCtx.strokeStyle = actief ? 'rgba(150,255,170,.95)' : 'rgba(120,220,150,.55)';
+    mkCtx.lineWidth = actief ? 2 : 1;
+    let lab = null;
+    for (const p of m.cells){
+      const x = gx + p.c * cel, y = gy + p.r * cel;
+      mkCtx.fillRect(x + 0.5, y + 0.5, cel - 1, cel - 1);
+      mkCtx.strokeRect(x + 1, y + 1, cel - 2, cel - 2);
+      if (!lab || p.r < lab.r || (p.r === lab.r && p.c < lab.c)) lab = p;
+    }
+    if (lab && cel >= 12){
+      mkCtx.fillStyle = actief ? '#dfffe6' : '#9fe0ab';
+      mkCtx.font = `bold ${Math.round(Math.min(cel * 0.5, 14))}px sans-serif`; mkCtx.textAlign = 'left'; mkCtx.textBaseline = 'bottom';
+      mkCtx.fillText(m.id, gx + lab.c * cel + 2, gy + lab.r * cel - 2);
+    }
+  }
   // rasterlijnen als de cellen groot genoeg zijn
   if (cel >= 9){
     mkCtx.strokeStyle = 'rgba(242,232,213,.09)'; mkCtx.lineWidth = 1; mkCtx.beginPath();
@@ -31222,6 +31436,10 @@ function mkKlik(ev){
     MK.sel.doel = { c, r }; mkDoelMode = false; mkNotePaneel(); mkTeken(); mkBewaar(); return;
   }
   const t = MK.tool;
+  if (t === 'masker'){                                 // een cel verven (of, als hij al in dit masker zit, wissen); slepen verft door
+    const had = mkMaskInCel(c, r); mkMaskErase = !!(had && had.m.id === MK.maskId);
+    mkMaskVerf(c, r, mkMaskErase); mkTeken(); mkBewaar(); return;
+  }
   if (t === 'select'){ MK.sel = MK.objects.find(o => o.c === c && o.r === r) || null; mkDrag = MK.sel; if (MK.sel) MK.inspectDicht = false; mkNotePaneel(); mkTeken(); return; }   // aanklikken om te bewerken, en slepen om te verschuiven
   if (t === 'start'){ MK.start = (MK.start && MK.start.c === c && MK.start.r === r) ? null : { c, r }; }
   else if (t === 'eind'){ MK.eind = (MK.eind && MK.eind.c === c && MK.eind.r === r) ? null : { c, r }; }
@@ -31239,10 +31457,12 @@ function mkKlik(ev){
   else MK.grid[r][c] = t;
   mkTeken(); mkBewaar();
 }
-// slepen: alleen grond schilderen (objecten en start/eind zijn één klik)
+// slepen: grond schilderen (of masker-cellen verven); objecten en start/eind zijn één klik
+let mkMaskErase = false;
 function mkVerf(ev){
   const { c, r } = mkCelOp(ev);
   if (c < 0 || r < 0 || c >= MK.cols || r >= MK.rows) return;
+  if (MK.tool === 'masker'){ mkMaskVerf(c, r, mkMaskErase); mkTeken(); mkBewaar(); return; }
   MK.grid[r][c] = MK.tool; mkTeken(); mkBewaar();
 }
 // het opmerking-paneel bij het geselecteerde object
@@ -31352,6 +31572,9 @@ function mkNotePaneel(){
   const isOver = MK.sel.k === 'overhang';
   document.getElementById('mkoverctl').style.display = isOver ? '' : 'none';
   if (isOver) mkVulOver();
+  const isKop = MK.sel.k === 'zegel' || MK.sel.k === 'rune';   // een schakelaar die een masker kan wegnemen
+  document.getElementById('mkmaskctl').style.display = isKop ? '' : 'none';
+  if (isKop) mkVulMaskSelect();
   // het tabje toont de letter en de kleur van de selectie als het paneel dicht is
   const vi = isVij ? MK_VIJ_INFO[MK.sel.soort || 'groen'] : null;
   tablet.textContent = isVij ? 'V' : ((t && t.letter) || '•');
@@ -31435,6 +31658,23 @@ function mkLegenda(){
     b.onclick = () => mkKies(e);
     box.appendChild(b);
   }
+  if (MK.tool === 'masker'){                           // de masker-bediening: welk masker je verft, nieuw en leegmaken
+    const pan = document.createElement('div'); pan.className = 'mksub'; pan.textContent = 'Masker: ';
+    const sel = document.createElement('select');
+    for (const n of mkMaskNamen()){ const op = document.createElement('option'); op.value = n; op.textContent = n; sel.appendChild(op); }
+    sel.value = MK.maskId;
+    sel.onchange = () => { MK.maskId = sel.value; mkLegenda(); mkTeken(); };
+    pan.appendChild(sel); box.appendChild(pan);
+    const rij = document.createElement('div'); rij.className = 'mkrij';
+    const bNew = document.createElement('button'); bNew.textContent = 'Nieuw';
+    bNew.onclick = () => { MK.maskId = mkMaskNieuw(); mkMaskObj(MK.maskId); mkLegenda(); mkTeken(); mkBewaar(); };
+    const bClr = document.createElement('button'); bClr.textContent = 'Dit leegmaken';
+    bClr.onclick = () => { const m = MK.maskers.find(q => q.id === MK.maskId); if (m) m.cells = []; mkTeken(); mkBewaar(); };
+    rij.appendChild(bNew); rij.appendChild(bClr); box.appendChild(rij);
+    const hint = document.createElement('div'); hint.className = 'mkhint';
+    hint.textContent = 'Verf cellen om ze te verbergen (ze worden de ondergrondse rotswand). Klik een geverfde cel om hem te wissen. Koppel een zegel of rune aan dit masker om het te laten wegnemen; erin lopen neemt het ook weg.';
+    box.appendChild(hint);
+  }
 }
 // de zwevende dropdown onder een categorie, en de zij-flyout van een subcategorie (bandiet)
 let mkMenuCat = null;
@@ -31481,8 +31721,10 @@ function mkNaarJSON(){
            cel:{ breedPx:MK_CEL_PX, hoogEenheden:MK_CEL_EENH },
            legenda:{ '.':'lucht', S:'savanne', R:'rots', W:'sneeuw op savanne', X:'sneeuw op rots', M:'muur', L:'laag obstakel', F:'zwevende laag', G:'gang', V:'ravijn' },
            grid, start:MK.start, eind:MK.eind, muziek:MK.muziek, valschade:MK.valschade,
+           maskers: MK.maskers.filter(m => m.cells.length).map(m => ({ id:m.id, cells:m.cells.map(p => [p.c, p.r]) })),
            objecten: MK.objects.map(o => {
              const b = { c:o.c, r:o.r, k:o.k, note:o.note || '' };
+             if ((o.k === 'zegel' || o.k === 'rune') && o.masker) b.masker = String(o.masker);   // onthult dit masker (zie "masker")
              if (o.k === 'vijand'){ b.soort = o.soort || 'groen'; if (o.params && Object.keys(o.params).length) b.params = o.params; }
              if (o.k === 'platform'){ b.doel = o.doel ? { c:o.doel.c, r:o.doel.r } : null; b.breed = o.breed || MK_PLAT_BREED; if (o.stamCel) b.stamCel = o.stamCel; if (o.stamBotCel != null) b.stamBotCel = o.stamBotCel; if (o.stamZij === -1) b.stamZij = -1; }
              if (o.k === 'tandwiel'){ b.modus = o.modus || 'schakellift'; const p = mkConnectedPlatform(o); if (p) b.platform = { c:p.c, r:p.r }; }
@@ -31501,8 +31743,13 @@ function mkUitJSON(o){
   if (mkMuziekEl) mkMuziekEl.value = MK.muziek;
   MK.valschade = o.valschade !== undefined ? !!o.valschade : true;
   if (mkValschadeEl) mkValschadeEl.checked = MK.valschade;
+  MK.maskers = Array.isArray(o.maskers) ? o.maskers.filter(m => m && Array.isArray(m.cells)).map(m => ({
+    id: String(m.id || 'Verborgen1'),
+    cells: m.cells.map(p => Array.isArray(p) ? { c:p[0]|0, r:p[1]|0 } : { c:(p.c)|0, r:(p.r)|0 }) })) : [];
+  MK.maskId = MK.maskers[0] ? MK.maskers[0].id : 'Verborgen1';
   MK.objects = Array.isArray(o.objecten) ? o.objecten.filter(q => mkIsObj(q.k)).map(q => {
     const b = { c:q.c|0, r:q.r|0, k:q.k, note:String(q.note || '') };
+    if ((q.k === 'zegel' || q.k === 'rune') && q.masker) b.masker = String(q.masker);
     if (q.k === 'vijand'){ b.soort = MK_VIJ_INFO[q.soort] ? q.soort : 'groen'; if (q.params && typeof q.params === 'object'){ b.params = {}; for (const kk in q.params) if (typeof q.params[kk] === 'number') b.params[kk] = q.params[kk]; } }
     if (q.k === 'platform'){ b.doel = (q.doel && q.doel.c != null) ? { c:q.doel.c|0, r:q.doel.r|0 } : null; b.breed = Math.max(1, Math.min(5, Math.round(Number(q.breed) || MK_PLAT_BREED))); if (Number(q.stamCel) > 0) b.stamCel = Math.max(1, Math.min(40, Math.round(Number(q.stamCel)))); if (q.stamBotCel != null && !isNaN(Number(q.stamBotCel))) b.stamBotCel = Math.max(-40, Math.min(40, Math.round(Number(q.stamBotCel)))); if (Number(q.stamZij) === -1) b.stamZij = -1; }
     if (q.k === 'tandwiel'){ b.modus = MK_MODI.some(m => m[0] === q.modus) ? q.modus : 'schakellift';
@@ -31726,6 +31973,32 @@ function mkNaarLevel(){
   if (afwerking === 'sneeuw') lvl.sneeuw = { soort: 'savanne', dek: 1, vol: true };        // een dichte sneeuwlaag op de savanne (alleen de bodem, geen weer)
   else if (afwerking === 'sneeuwrots') lvl.sneeuw = { soort: 'rots', dek: 1, vol: true };  // een dichte sneeuwlaag op de rotsbodem
   else if (afwerking === 'rots') lvl.sneeuw = { soort: 'rots', dek: 0 };        // een kale rotsbodem
+  // maskers: de geverfde cellen per masker, per rij samengevoegd tot rechthoeken (l, r in wereld-x; onder, boven
+  // in sprite-eenheden). Een cel op grid-rij row dekt de wereldhoogte [(gR-row-1)*150, (gR-row)*150].
+  const maskers = [];
+  for (const m of MK.maskers){
+    if (!m.cells.length) continue;
+    const byRow = {};
+    for (const p of m.cells){ if (p.c < 0 || p.c >= C) continue; (byRow[p.r] = byRow[p.r] || []).push(p.c); }
+    const vakken = [];
+    for (const rr in byRow){ const row = Number(rr), cols = byRow[rr].sort((a, b) => a - b);
+      let i = 0; while (i < cols.length){ let j = i; while (j + 1 < cols.length && cols[j + 1] === cols[j] + 1) j++;
+        const [l, r2] = spanLR(cols[i], cols[j]);
+        vakken.push({ l: Math.round(l), r: Math.round(r2), onder: Math.round((gR - row - 1) * MK_CEL_EENH), boven: Math.round((gR - row) * MK_CEL_EENH) });
+        i = j + 1; } }
+    if (vakken.length) maskers.push({ id: m.id, look: 'grot', vakken });
+  }
+  if (maskers.length) lvl.maskers = maskers;
+  // een zegel of rune dat aan een masker gekoppeld is, wordt een echte schakelaar die het wegneemt (stuurt + acties)
+  const maskIds = new Set(maskers.map(m => m.id)), acties = [];
+  for (const o of MK.objects){
+    if ((o.k !== 'zegel' && o.k !== 'rune') || !o.masker || !maskIds.has(o.masker)) continue;
+    const [ol, or2] = lr(o.c), ox = Math.round((ol + or2) / 2);
+    if (o.k === 'zegel'){ (lvl.zegels = lvl.zegels || []).push({ x: ox, teken: 'rune', stuurt: [o.masker] }); }
+    else { (lvl.runes = lvl.runes || []).push({ x: ox, doel: true, opstelling: 'vlak', stuurt: [o.masker] }); }
+    if (!acties.some(a => a.masker === o.masker)) acties.push({ soort: 'masker', masker: o.masker, bij: [o.masker] });
+  }
+  if (acties.length) lvl.acties = acties;
   return lvl;
 }
 let mkTestActief = false;
@@ -31785,7 +32058,7 @@ mkCanvas.addEventListener('pointermove', ev => {
     mkNotePaneel(); mkTeken(); }
   else if (mkDrag){ const { c, r } = mkCelOp(ev);   // een geselecteerd voorwerp verslepen naar een andere cel
     if (c >= 0 && r >= 0 && c < MK.cols && r < MK.rows && (mkDrag.c !== c || mkDrag.r !== r)){ mkDrag.c = c; mkDrag.r = r; mkNotePaneel(); mkTeken(); } }
-  else if (mkPaint && MK_TERREIN.has(MK.tool)) mkVerf(ev);   // slepen schildert alleen grond, niet objecten of start/eind
+  else if (mkPaint && (MK_TERREIN.has(MK.tool) || MK.tool === 'masker')) mkVerf(ev);   // slepen schildert grond of masker-cellen, niet objecten of start/eind
 });
 function mkStop(){ mkPaint = false; mkPan = false; if (mkStamDrag){ mkStamDrag = null; mkBewaar(); } if (mkDrag){ mkDrag = null; mkBewaar(); } }
 mkCanvas.addEventListener('pointerup', mkStop);
@@ -31834,7 +32107,7 @@ document.getElementById('mkvijwis').onclick = () => {
 };
 document.getElementById('mkwis').onclick = () => {
   if (!confirm('Weet je zeker dat je alles wil wissen?')) return;   // leeg beginnen, met bevestiging ertussen
-  mkZetMaat(48, 20, 12); MK.grid = mkMaakGrid(MK.cols, MK.rows); MK.start = null; MK.eind = null; MK.objects = []; MK.sel = null; MK.tool = 'savanne'; MK.cat = 'terrein'; MK.sub = null; MK.inspectDicht = true; MK.muziek = MUZIEK_BASIS; mkMuziekEl.value = MK.muziek;
+  mkZetMaat(48, 20, 12); MK.grid = mkMaakGrid(MK.cols, MK.rows); MK.start = null; MK.eind = null; MK.objects = []; MK.maskers = []; MK.maskId = 'Verborgen1'; MK.sel = null; MK.tool = 'savanne'; MK.cat = 'terrein'; MK.sub = null; MK.inspectDicht = true; MK.muziek = MUZIEK_BASIS; mkMuziekEl.value = MK.muziek;
   MK.valschade = true; mkValschadeEl.checked = true;
   mkLegenda(); mkNotePaneel(); mkPassend(); mkBewaar();
 };
@@ -32851,6 +33124,46 @@ function sbZweef(soort){
 }
 sandboxEl.querySelectorAll('button[data-zweef]').forEach(b => b.onclick = () => sbZweef(b.dataset.zweef));
 document.getElementById('sbzweefweg').onclick = () => { sbZweefWeg(); cv.focus(); };
+// een masker om los te bekijken: een stuk level links voor je dat eruitziet als de ondergrondse rotswand.
+// Loop erin en het valt stil weg; een grond-zegel ervoor onthult het met beven en het ravijn-geluid (de
+// koppeling werkt net als bij een tandwiel). Een slang erachter staat bevroren tot het weg is. Een verborgen
+// zegel erachter is pas te activeren als het masker weg is (opent dan een ravijn verderop).
+const SB_MASKER = { breed: 900, voor: 500, boven: 720, onder: 0 };
+function sbMaskerWeg(){
+  level.maskers = (level.maskers || []).filter(m => !m.sbMasker);
+  level.zegels = (level.zegels || []).filter(z => !z.sbMasker);
+  level.acties = (level.acties || []).filter(a => !a.sbMasker);
+  for (let i = snakes.length - 1; i >= 0; i--) if (snakes[i].sbMasker) snakes.splice(i, 1);   // de bevroren slang erachter weg
+}
+function sbMasker(soort){
+  sbMaskerWeg();
+  grotLaad();                                        // de rotstextuur laden als dat nog niet gebeurd is
+  if (!level.maskers) level.maskers = [];
+  const S = SB_MASKER, id = 'sbmask';
+  const r = world - S.voor, l = r - S.breed, mid = (l + r) / 2;
+  level.maskers.push({ id, r, l, boven: S.boven, onder: S.onder, look: 'grot', sbMasker: true, onthuld: false, t: 1 });
+  if (soort === 'slang'){
+    const sn = makeSnake('groen'); sn.x = mid; sn.side = -1; sn.base = vloerBij(mid, 0); sn.sbMasker = true; snakes.push(sn);
+  }
+  if (soort === 'zegel' || soort === 'slang'){        // een grond-zegel voor het masker dat het onthult (zoals een tandwiel gekoppeld)
+    if (!level.zegels) level.zegels = [];
+    if (!level.acties) level.acties = [];
+    level.zegels.push({ x: world - 120, stuurt: ['sbmask'], teken: 'rune', sbMasker: true });
+    level.acties.push({ soort: 'masker', masker: id, bij: ['sbmask'], sbMasker: true });
+    koppelReset();
+    flashHint('Stap op het zegel: het masker scheurt weg met beven. Of loop er gewoon in');
+  } else if (soort === 'verborgen'){                  // een zegel verborgen achter het masker: pas te activeren als het weg is
+    if (!level.zegels) level.zegels = [];
+    level.zegels.push({ x: mid, ravijn: l - 400, teken: 'rune', sbMasker: true });
+    flashHint('Loop in het masker: er ligt een zegel achter dat je dan pas kunt gebruiken');
+  } else flashHint('Loop in het masker; het valt stil weg (eenmaal gezien voorgoed weg)');
+  cv.focus();
+}
+document.getElementById('sbmasker').onclick = () => sbMasker('leeg');
+document.getElementById('sbmaskerslang').onclick = () => sbMasker('slang');
+document.getElementById('sbmaskerzegel').onclick = () => sbMasker('zegel');
+document.getElementById('sbmaskerverborgen').onclick = () => sbMasker('verborgen');
+document.getElementById('sbmaskerweg').onclick = () => { sbMaskerWeg(); cv.focus(); };
 // Een gang onder de grond om los te bekijken, in de richting waarin je kijkt (is daar geen plek
 // voor, dan naar links, zoals je door een level loopt): een ravijn dat te
 // breed is om over te springen, met de gang eronder. De trap-versie heeft verderop een tweede gat
