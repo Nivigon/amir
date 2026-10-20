@@ -5490,12 +5490,15 @@ function savanneLaag(t, groundY, scale, cx, bottom, st, floating){
   const D = SAV_LAAG;
   terClipPath(xl, xr, top - 4, bottom, st, top + th * D.soil, leftHidden, t.l, t.r, rightHidden);
   ctx.clip();
-  // Ligt er onder de laag een gang, dan is daar geen aarde maar de holte zelf: de donkere onderkant
-  // stopt bij het dak van de gang, zodat het steen van de gang (drawHolte tekent het al, vlak ervoor)
-  // zichtbaar blijft in plaats van zwart overschilderd te worden. Zonder gang eronder verandert er niets.
-  const gangOnder = holteLijst().filter(o => o.r > t.l && o.l < t.r);
+  // Ligt er onder de laag een gang, en zit de laag op of boven het dak van die gang (geen vloer-trede
+  // diep in de gang, want die heeft wel aarde onder zich), dan is onder de laag geen aarde maar de
+  // holte zelf. De donkere onderkant stopt bij het dak, zodat het steen van de gang (drawHolte tekent
+  // het al, vlak ervoor) zichtbaar blijft in plaats van zwart overschilderd te worden, en de onderrand
+  // krijgt straks de tandenband van het gangplafond. Zonder gang eronder verandert er niets.
+  const dakY = groundY + HOLTE_DAK * scale;
+  const gangOnder = (top < dakY) ? holteLijst().filter(o => o.r > t.l && o.l < t.r) : [];
+  ctx.save();
   if (gangOnder.length){
-    const dakY = groundY + HOLTE_DAK * scale;
     ctx.beginPath();
     ctx.rect(xl - 60, top - 10, xr - xl + 120, bottom - top + 80);
     for (const o of gangOnder) ctx.rect(cx + (o.l - world), dakY, o.r - o.l, bottom - dakY + 80);
@@ -5539,6 +5542,29 @@ function savanneLaag(t, groundY, scale, cx, bottom, st, floating){
     const sch = ctx.createLinearGradient(0, bottom - 60, 0, bottom);
     sch.addColorStop(0, 'rgba(8,6,6,0)'); sch.addColorStop(1, 'rgba(8,6,6,0.6)');
     ctx.fillStyle = sch; ctx.fillRect(xl - 40, bottom - 60, xr - xl + 80, 64);
+  }
+  ctx.restore();                                     // de gang-clip eraf, nog binnen het laag-silhouet
+  // De onderrand sluit af als het gangplafond naast een gat: eerst loopt de aarde over in het steen van
+  // de gang (holteOvergang), en daaronder hangt de tandenband (plafondBand op -HOLTE_DAK). Allebei vast
+  // aan de wereld en op dezelfde hoogte en helderheid als het dak in drawHolte, zodat ze naadloos
+  // aansluiten op het gangplafond ernaast in plaats van een rechte snede te geven.
+  if (gangOnder.length){
+    const S = holteSet(), T = plafondBandSet();
+    const boven = groundY - groundY / zoom - 4;
+    const Xw = wx => cx + (wx - world), Yh = hh => groundY - hh * scale;
+    for (const o of gangOnder){
+      const a = Math.max(t.l, o.l), b = Math.min(t.r, o.r);
+      if (b - a < 10) continue;
+      const xa = Xw(a), xb = Xw(b);
+      if (S) holteOvergang(S, Xw, Yh, scale, xa, xb);          // aarde die overloopt in het steen
+      if (T){                                                   // en de tanden eronder
+        ctx.save();
+        ctx.filter = 'brightness(' + (1 - HOLTE_LICHT.dak * 0.75) + ')';
+        ctx.beginPath(); ctx.rect(xa - 2, dakY - 220, (xb - xa) + 4, 440); ctx.clip();
+        plafondBand([{ x: a, y: -HOLTE_DAK }, { x: b, y: -HOLTE_DAK }], Xw, Yh, T, boven, scale);
+        ctx.restore();
+      }
+    }
   }
   ctx.restore();
 }
