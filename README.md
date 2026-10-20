@@ -439,6 +439,16 @@ de tekening blijft staan, want per kleurvlak worden alleen de tint en de verzadi
 Twee dingen houden met opzet hun eigen kleur: het amberen oog van de zandslang en het vlees in de
 muil van de zwarte. In een leveldefinitie heten ze nog steeds `k: 'groen'` en `k: 'zwart'`.
 
+Er is een derde spuwer: de **knockslang** (`k: 'knock'`), jade met violette zadels. Hij doet
+precies hetzelfde als de zwarte slang (blijft op afstand, draait om bij een ravijn, volgt je ook
+buiten beeld), maar zijn gif is jade/violet en doet geen schade: een druppel duwt je 6 cellen (zo'n
+900 eenheden) naar achter. Die terugstoot duwt gewoon door, dus bij een ravijn of een platformrand
+kan hij je er echt in of af duwen, net als elke andere terugstoot. Zijn frames komen ook uit
+`tools/slang_kleur.py` (`enemies/slang1_knock/`, met een eigen `venom.png` in jade/violet). In de
+sandbox staat hij onder **Knockslang**, en je zet hem neer in de bouwer en de Maker net als de
+andere slangen. **Test 43: De knockslang** is het proefstuk: een op open vlakte om de worp te
+leren, en een voorbij een ravijn zodat de terugstoot je naar de rand kan duwen.
+
 **Ze verdwijnen niet meer bij een rots, en ze kunnen je kwijtraken.** Loopt een slang tegen een
 kei of een wand, dan blijft hij daar duwen tot jij dichtbij genoeg komt. Vroeger gaf hij het na
 vijf seconden op en loste hij ter plekke op, en dat was precies wat je zag gebeuren als er een
@@ -1106,6 +1116,7 @@ karakters/
 enemies/
   slang1/                  de originele groengele slang: idle_1..8, move_1..8, attack_1..8.png (+ mp4 referenties)
   slang1_zand/             de zandslang die het spel tekent (uit slang1/, via tools/slang_kleur.py)
+  slang1_knock/            de knockslang: jade met violette zadels (uit slang1/, via tools/slang_kleur.py), met een eigen venom.png in jade/violet
   slang2/                  de originele zwartrode slang: idem, plus venom.png (het gif) en sprite sheets
   slang2_roet/             de zwarte slang die het spel tekent; venom.png blijft uit slang2/ komen
   schorpioen1/
