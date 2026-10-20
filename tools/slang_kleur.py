@@ -8,6 +8,10 @@ Uit enemies/slang1/ (geel met groene zadels) komt enemies/slang1_zand/: een
 zandslang in de kleur van de savannebodem, bleek zand met roestbruine zadels.
 Uit enemies/slang2/ (zwart met felrode zadels) komt enemies/slang2_roet/: dezelfde
 slang met leisteengrijze zadels, dus zwart op zwart in plaats van rood.
+Uit enemies/slang1/ komt ook enemies/slang1_knock/: de knockslang, jade lijf met
+violette zadels. Die set krijgt er een eigen goo bij (venom.png), de zwarte druppel
+van slang2 omgekleurd naar jade met een violette kern, zodat zijn spuug jade/violet is
+in plaats van zwart.
 
 De tekening zelf blijft staan. Per kleurvlak wordt alleen de tint en de
 verzadiging vervangen en de helderheid over een nieuw bereik uitgesmeerd, dus
@@ -194,9 +198,42 @@ def roetslang(beeld):
     return Image.fromarray(arr.astype(np.uint8))
 
 
+# ---------------------------------------------------------------- de knockslang
+# Jade lijf, violette zadels (de "Jade & violet"-recolour). Dezelfde vlakken als de
+# zandslang (geel = lijf, groen = zadels), en het amberen oog en de rode muil blijven.
+def knockslang(beeld):
+    arr = np.array(beeld.convert("RGBA")).astype(float)
+    rgb = arr[..., :3]
+    h, s, _ = naar_hsv(rgb)
+    zichtbaar = arr[..., 3] > 128
+    geel = zichtbaar & (s > 0.25) & (h >= 25) & (h < 72)
+    groen = zichtbaar & (s > 0.25) & (h >= 72) & (h < 150)
+    oog = iris(rgb, zichtbaar, geel)
+    rgb = hertint(rgb, geel & ~oog, tint=165, verz=0.45, laag=0.45, hoog=0.90, gamma=0.95)
+    rgb = hertint(rgb, groen, tint=275, verz=0.58, laag=0.28, hoog=0.52)
+    arr[..., :3] = rgb
+    return Image.fromarray(arr.astype(np.uint8))
+
+
+# De goo van de knockslang: de zwarte druppel van slang2 omgekleurd. Het donkere lijf
+# van de druppel wordt jade, het paarse oogje erin violet, zodat de spuug jade/violet is.
+def knockvenom(beeld):
+    arr = np.array(beeld.convert("RGBA")).astype(float)
+    rgb = arr[..., :3]
+    h, s, v = naar_hsv(rgb)
+    zichtbaar = arr[..., 3] > 128
+    spot = zichtbaar & (s > 0.28) & (h >= 230) & (h < 320)   # het paarse oogje
+    blob = zichtbaar & ~spot                                 # de rest van de druppel
+    rgb = hertint(rgb, blob, tint=158, verz=0.62, laag=0.10, hoog=0.62)   # jade
+    rgb = hertint(rgb, spot, tint=280, verz=0.55, laag=0.45, hoog=0.85)   # violette kern
+    arr[..., :3] = rgb
+    return Image.fromarray(arr.astype(np.uint8))
+
+
 SETS = {
     "zand": ("enemies/slang1", "enemies/slang1_zand", zandslang),
     "roet": ("enemies/slang2", "enemies/slang2_roet", roetslang),
+    "knock": ("enemies/slang1", "enemies/slang1_knock", knockslang),
 }
 
 
@@ -214,7 +251,15 @@ def main():
                 print(f"ontbreekt: {bron}/{frame}")
                 continue
             maak(Image.open(pad)).save(os.path.join(ROOT, doel, frame))
-        print(f"{doel}/: {len(FRAMES)} frames")
+        extra = ""
+        if naam == "knock":                                  # de knockslang krijgt zijn eigen goo
+            vbron = os.path.join(ROOT, "enemies/slang2/venom.png")
+            if os.path.exists(vbron):
+                knockvenom(Image.open(vbron)).save(os.path.join(ROOT, doel, "venom.png"))
+                extra = " + venom.png"
+            else:
+                print("ontbreekt: enemies/slang2/venom.png")
+        print(f"{doel}/: {len(FRAMES)} frames{extra}")
 
 
 if __name__ == "__main__":
