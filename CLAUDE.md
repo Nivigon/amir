@@ -1063,8 +1063,14 @@ proefgang, en `levelcheck.py` meldt ze:
 - **Twee gangen tegen elkaar** (de ene dieper dan de andere). `holteBlok` houdt Amir in allebei
   tegelijk vast: op de naad duwt de ene wand hem terug en de andere ook, en daar staat hij voorgoed
   klem, ook als hij er net in is gevallen.
-- **Een terras op de savanne boven een gang.** Zijn wand wordt tot onder in beeld getekend en
-  houdt hem ook tegen, dus in de gang staat een lichte stenen pilaar waar hij niet langs komt.
+- **Een terras op de savanne boven een gang** (en een trede die boven de gang-vloer zweeft).
+  Vroeger werd zijn wand tot onder in beeld getekend en hield hij Amir tegen, een onzichtbare
+  stenen pilaar in de gang. Nu loopt Amir er onderdoor: `blockByPlatforms` slaat de wand van een
+  terras over voor wie onder de grond in een gang loopt en met zijn kop onder de terras-bovenkant
+  past (`ph < -40 && p.topH > ph + CHAR_H && holteAt`). Boven de grond blijft een mesa gewoon een
+  wand, en een trede die je van onderaf opklimt (een trap in een gang, Test 4) blokkeert nog, want
+  dan zit de volgende trede niet boven zijn kop maar op kniehoogte. Zo werkt een savanne-laag (of
+  mesa) boven een gang uit de Maker nu gewoon.
 - **Een kei in de gang die tot in het dak reikt.** Op een trede van -520 staat de bovenkant van
   een kei op -406, en daar mogen zijn voeten niet komen: hij komt er niet overheen en niet langs.
 - **Decor dat hoger is dan de gang.** Alles staat op de bodem, ook een boom, en die steekt dan
