@@ -5434,6 +5434,10 @@ function savanneLaag(t, groundY, scale, cx, bottom, st, floating){
   let x = cx - (((world % tw) + tw) % tw);           // vast aan de wereld, net als de grond zelf
   while (x > xl) x -= tw;
   for (; x < xr; x += tw) ctx.drawImage(eimg, x, top, tw + 1, th);
+  if (sneeuwOn()){                                   // de sneeuwlaag ligt ook op een hogere of zwevende savannelaag
+    let sx = cx - (((world % tw) + tw) % tw); while (sx > xl) sx -= tw;
+    drawSneeuwdek(top, tw, th, sx, xl, xr, s);
+  }
   if (floating && top + th < bottom){                // de dikte onder de tegel: de aardrand doorgetegeld
     const bandY = EDGE.walk, bandH = eimg.naturalHeight - bandY, dh = bandH * s;   // alleen de aarde, niet het gras
     let k = 0;
@@ -8903,13 +8907,28 @@ function takelWielLijst(t){
   if (t.lift) return [{ x: t.x, off: 0, dir: 1 }, { x: t.x, off: t.hoog, dir: -1 }];
   return [{ x: t.x, off: 0, dir: 0 }];
 }
-// een losse-wiel-slag: elk wiel heeft een vaste stand, los van de omkerende enkel-wiel-logica van takelSlag
+// een losse-wiel-slag. Twee soorten: een wiel met een vaste richting (liftop/liftneer/slagop/slagneer, altijd
+// dezelfde kant op), en een schakelaar die beide kanten op kan (schakellift/schakelslag). Bij een schakelaar bepaalt
+// de huidige stand waar hij heen gaat, dus een tweede tik draait hem om, ook midden in de rit.
 function takelWielSlag(t, modus){
   if (!t || t.valt || t.weg) return;
   if (modus === 'liftop') t.doel = t.maxA;
   else if (modus === 'liftneer') t.doel = 0;
   else if (modus === 'slagop') t.doel = Math.min(t.maxA, t.doel + TAKEL_QUART);
   else if (modus === 'slagneer') t.doel = Math.max(0, t.doel - TAKEL_QUART);
+  else if (modus === 'schakellift'){
+    // schakelaar in een keer: naar het andere eind. Staat het doel al boven (onderweg of aangekomen), dan weer
+    // omlaag, en andersom. Zo draait hem aanraken terwijl hij nog op weg is hem meteen terug.
+    t.doel = t.doel >= t.maxA - 1e-6 ? 0 : t.maxA;
+  }
+  else if (modus === 'schakelslag'){
+    // schakelaar per tik: een kwartslag verder in de huidige richting, aan de uiteindes draait hij om. Van onderen
+    // gaat hij dus altijd eerst omhoog voor hij omlaag kan (t.richting is onder 1, boven -1, net als bij takelSlag).
+    if (t.richting === undefined) t.richting = t.doel >= t.maxA - 1e-6 ? -1 : 1;
+    let next = t.doel + t.richting * TAKEL_QUART;
+    if (next > t.maxA + 1e-6 || next < -1e-6){ t.richting *= -1; next = t.doel + t.richting * TAKEL_QUART; }
+    t.doel = Math.max(0, Math.min(t.maxA, next));
+  }
   else return;
   t.haper = TAKEL.haper; if (!building) shake = Math.max(shake, 0.03); takelTik(t);
 }
@@ -16763,6 +16782,12 @@ function drawSneeuwdek(top, tw, th, x0, left, right, s){
   loadSneeuw();
   const loopt = p.van !== undefined && p.tot !== undefined;
   const onder = top + th + H;
+  // een dichte laag (vol): eerst een egale sneeuwvloer onder de standen, zodat de kale plekjes die de
+  // standen vrijlaten dicht zijn. Alleen bij een gelijkmatig dek (geen van/tot), dus de overgang blijft heel.
+  if (p.vol && !loopt && sneeuwAt(0, p) > 0){
+    ctx.fillStyle = 'rgb(240,245,252)';
+    for (let x = x0; x < right; x += tw) ctx.fillRect(x, top, tw + 1, th);
+  }
   for (let i = 0; i < SNEEUW_STANDEN.length; i++){
     const im = sneeuwImg.lagen[i];
     if (!im || !imgReady(im)) continue;
@@ -28894,6 +28919,7 @@ function leesSneeuw(o){
   const s = { soort: o.soort };
   if (o.dek !== undefined) s.dek = Math.max(0, Math.min(1, Number(o.dek) || 0));
   if (o.van !== undefined && o.tot !== undefined){ s.van = Number(o.van); s.tot = Number(o.tot); }
+  if (o.vol === true) s.vol = true;   // een dichte sneeuwlaag zonder kale plekken (geen savanne erdoorheen)
   return s;
 }
 // een takel-platform uit een leveldefinitie, voor zowel `takel` (enkel) als `takels` (lijst)
@@ -28916,7 +28942,7 @@ function leesTakel(q){
            // losse wielen op hun eigen plek: {x (op de grond), off (hoogte boven de grond), modus}. Zonder dit
            // veld blijft het oude model (één wiel op x, of twee bij lift). Zie "takelwiel met plateau"
            wielen: Array.isArray(q.wielen) ? q.wielen.map(w => ({ x: Number(w.x), off: Math.max(0, Number(w.off) || 0),
-                     modus: ['slagop', 'slagneer', 'liftop', 'liftneer'].includes(w.modus) ? w.modus : 'liftop' })) : undefined,
+                     modus: ['slagop', 'slagneer', 'liftop', 'liftneer', 'schakellift', 'schakelslag'].includes(w.modus) ? w.modus : 'schakellift' })) : undefined,
            takelaarZij: q.takelaarZij != null ? Number(q.takelaarZij) : undefined };
 }
 function readLevel(txt){
@@ -30450,7 +30476,16 @@ const MK_TYPES = [
   { id:'platform',naam:'Platform (takel)',   kleur:'#d8b24a', obj:true },
   { id:'tandwiel',naam:'Tandwiel',           kleur:'#b98a2e', obj:true },
 ];
-const MK_MODI = [['slagop','Omhoog per slag'], ['liftop','Helemaal omhoog'], ['liftneer','Helemaal omlaag'], ['slagneer','Omlaag per slag']];
+// wat een tandwiel doet bij een slag. Een schakelaar kan beide kanten op (als een lichtschakelaar); een vast wiel
+// gaat altijd dezelfde kant op. Zie takelWielSlag.
+const MK_MODI = [
+  ['schakellift','Schakelaar: in één keer'],
+  ['schakelslag','Schakelaar: per tik'],
+  ['liftop','Alleen omhoog (in één keer)'],
+  ['liftneer','Alleen omlaag (in één keer)'],
+  ['slagop','Alleen omhoog (per tik)'],
+  ['slagneer','Alleen omlaag (per tik)'],
+];
 const MK_CH = {}, MK_KLEUR = {};
 for (const t of MK_TYPES){ if (t.ch) MK_CH[t.ch] = t.id; if (t.kleur) MK_KLEUR[t.id] = t.kleur; }
 const MK_IDCH = {}; for (const t of MK_TYPES) if (t.ch) MK_IDCH[t.id] = t.ch;
@@ -30592,7 +30627,7 @@ function mkKlik(ev){
   else if (mkIsObj(t)){
     const bestaand = MK.objects.find(o => o.c === c && o.r === r);
     if (bestaand) MK.sel = bestaand;                              // bestaand object: selecteren om het te bewerken
-    else { const o = { c, r, k: t, note: '' }; if (t === 'platform') o.doel = null; if (t === 'tandwiel') o.modus = 'liftop'; MK.objects.push(o); MK.sel = o; }
+    else { const o = { c, r, k: t, note: '' }; if (t === 'platform') o.doel = null; if (t === 'tandwiel') o.modus = 'schakellift'; MK.objects.push(o); MK.sel = o; }
     mkNotePaneel();
   }
   else if (t === 'lucht'){                                        // gum: eerst een object weg, anders de grond leeg
@@ -30620,7 +30655,7 @@ function mkVulTandSelects(){
   platforms.forEach((p, i) => { const o = document.createElement('option'); o.value = 'i' + i; o.textContent = 'platform op (' + p.c + ', ' + p.r + ')'; if (MK.sel.plat === p) o.selected = true; psel.appendChild(o); });
   if (!(MK.sel.plat && platforms.indexOf(MK.sel.plat) >= 0)) auto.selected = true;
   msel.innerHTML = '';
-  for (const [id, naam] of MK_MODI){ const o = document.createElement('option'); o.value = id; o.textContent = naam; if ((MK.sel.modus || 'liftop') === id) o.selected = true; msel.appendChild(o); }
+  for (const [id, naam] of MK_MODI){ const o = document.createElement('option'); o.value = id; o.textContent = naam; if ((MK.sel.modus || 'schakellift') === id) o.selected = true; msel.appendChild(o); }
 }
 function mkNotePaneel(){
   const info = document.getElementById('mkobjinfo'), ta = document.getElementById('mkobjnote');
@@ -30665,7 +30700,7 @@ function mkNaarJSON(){
            objecten: MK.objects.map(o => {
              const b = { c:o.c, r:o.r, k:o.k, note:o.note || '' };
              if (o.k === 'platform') b.doel = o.doel ? { c:o.doel.c, r:o.doel.r } : null;
-             if (o.k === 'tandwiel'){ b.modus = o.modus || 'liftop'; const p = mkConnectedPlatform(o); if (p) b.platform = { c:p.c, r:p.r }; }
+             if (o.k === 'tandwiel'){ b.modus = o.modus || 'schakellift'; const p = mkConnectedPlatform(o); if (p) b.platform = { c:p.c, r:p.r }; }
              return b;
            }) };
 }
@@ -30679,7 +30714,7 @@ function mkUitJSON(o){
   MK.objects = Array.isArray(o.objecten) ? o.objecten.filter(q => mkIsObj(q.k)).map(q => {
     const b = { c:q.c|0, r:q.r|0, k:q.k, note:String(q.note || '') };
     if (q.k === 'platform') b.doel = (q.doel && q.doel.c != null) ? { c:q.doel.c|0, r:q.doel.r|0 } : null;
-    if (q.k === 'tandwiel'){ b.modus = MK_MODI.some(m => m[0] === q.modus) ? q.modus : 'liftop';
+    if (q.k === 'tandwiel'){ b.modus = MK_MODI.some(m => m[0] === q.modus) ? q.modus : 'schakellift';
       if (q.platform && q.platform.c != null) b._plat = { c:q.platform.c|0, r:q.platform.r|0 }; }
     return b;
   }) : [];
@@ -30768,7 +30803,7 @@ function mkNaarLevel(){
     const restH = (gR - p.r) * MK_CEL_EENH, doelH = (gR - p.doel.r) * MK_CEL_EENH;
     const laag = Math.min(restH, doelH), hoog = Math.max(restH, doelH);
     const wielen = MK.objects.filter(o => o.k === 'tandwiel' && mkConnectedPlatform(o) === p)
-      .map(o => { const [wl, wr] = lr(o.c); return { x: Math.round((wl + wr) / 2), off: Math.max(0, (gR - 1 - o.r) * MK_CEL_EENH), modus: o.modus || 'liftop' }; });
+      .map(o => { const [wl, wr] = lr(o.c); return { x: Math.round((wl + wr) / 2), off: Math.max(0, (gR - 1 - o.r) * MK_CEL_EENH), modus: o.modus || 'schakellift' }; });
     takels.push({ id: 'p' + (++takelNr), px, breed: Math.round(MK_CEL_PX * 2.4), laag, hoog, stappen: 6, beginLaag: restH <= doelH,
                   x: wielen.length ? wielen[0].x : px + Math.round(MK_CEL_PX * 1.2), wielen: wielen.length ? wielen : undefined });
   }
@@ -30792,8 +30827,8 @@ function mkNaarLevel(){
   if (holtes.length) lvl.holtes = holtes;
   if (zwevers.length) lvl.zwevers = zwevers;
   if (takels.length) lvl.takels = takels;
-  if (afwerking === 'sneeuw') lvl.sneeuw = { soort: 'savanne', dek: 1 };        // een sneeuwlaag op de savanne (alleen de bodem, geen weer)
-  else if (afwerking === 'sneeuwrots') lvl.sneeuw = { soort: 'rots', dek: 1 };  // een sneeuwlaag op de rotsbodem
+  if (afwerking === 'sneeuw') lvl.sneeuw = { soort: 'savanne', dek: 1, vol: true };        // een dichte sneeuwlaag op de savanne (alleen de bodem, geen weer)
+  else if (afwerking === 'sneeuwrots') lvl.sneeuw = { soort: 'rots', dek: 1, vol: true };  // een dichte sneeuwlaag op de rotsbodem
   else if (afwerking === 'rots') lvl.sneeuw = { soort: 'rots', dek: 0 };        // een kale rotsbodem
   return lvl;
 }
