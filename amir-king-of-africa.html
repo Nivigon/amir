@@ -867,6 +867,7 @@
       <span class="mkfield"><label for="mkcols">Breed</label><input id="mkcols" type="number" min="4" max="400" step="1" value="48"></span>
       <span class="mkfield"><label for="mkrows">Hoog</label><input id="mkrows" type="number" min="4" max="200" step="1" value="20"></span>
       <span class="mkfield"><label for="mkground">Grondlijn</label><input id="mkground" type="number" min="0" max="199" step="1" value="12"></span>
+      <span class="mkfield"><label>Rijen</label><button id="mkrijbovenins" title="Een rij erbij aan de luchtkant (boven de middenlijn); je getekende inhoud blijft op dezelfde hoogte staan, er komt alleen ruimte boven bij">boven +</button><button id="mkrijbovendel" title="De bovenste rij weghalen (moet leeg zijn)">boven -</button><button id="mkrijonderins" title="Een rij erbij aan de ondergrondse kant (onder de middenlijn)">onder +</button><button id="mkrijonderdel" title="De onderste rij weghalen (moet leeg zijn)">onder -</button></span>
       <span class="mkfield"><label for="mkmuziek">Muziek</label><select id="mkmuziek"></select></span>
       <span class="mkfield"><label><input id="mkvalschade" type="checkbox" checked> Valschade</label></span>
       <button id="mkfit" title="Pas de hele kaart in beeld">Passend</button>
@@ -5784,7 +5785,8 @@ function updateCamera(dt, scale){
   // klemt hij juist tegen de laag waar je op staat, net als tegen de gewone grond, zodat een hoge
   // laag er net zo uitziet als de basis (geen zwarte diepte eronder in beeld)
   const klimLift = (level && level.hoogUitzicht) ? 0 : H * 0.10;
-  const target = (building ? -bouwD * scale * viewZoom() : (hasClimb() ? Math.max(0, camFloor * scale - klimLift) : 0) + camDiep * scale)
+  const vz = viewZoom();   // de wereldlaag (en Amir) wordt met viewZoom getekend, dus de verticale tilt moet dat ook, anders zakt Amir op een uitgezoomd level (view < 1) weg naarmate hij hoger komt
+  const target = (building ? -bouwD * scale * vz : (hasClimb() ? Math.max(0, camFloor * scale * vz - klimLift) : 0) + camDiep * scale * vz)
                  + bavKijk(scale);
   if (bavKijkNu){ camY = target; bavKijkNu = false; }
   camY += (target - camY) * Math.min(1, dt * 3.2);
@@ -30980,6 +30982,61 @@ function mkZetMaat(cols, rows, ground){
   if (MK.sel && MK.objects.indexOf(MK.sel) < 0) MK.sel = null;
   mkColsEl.value = cols; mkRowsEl.value = rows; mkGroundEl.value = ground;
 }
+// rijen erbij of eraf t.o.v. de middenlijn (MK.ground). Aan de luchtkant (boven) schuift de grondlijn mee,
+// zodat alle getekende inhoud op dezelfde hoogte blijft en er alleen ruimte boven bij komt; aan de
+// ondergrondse kant (onder) komt de ruimte er onderin bij. Zo kun je een bestaand grid vergroten zonder
+// dat de hoogtes van wat je al tekende opschuiven.
+function mkRijRefSchuif(d){            // alle absolute rij-verwijzingen (start, eind, objecten en hun doel/platform) een rij op
+  if (MK.start) MK.start.r += d;
+  if (MK.eind) MK.eind.r += d;
+  for (const o of (MK.objects || [])){
+    o.r += d;
+    if (o.doel) o.doel.r += d;
+    if (o.platform) o.platform.r += d;
+  }
+}
+function mkRijVrij(r){                 // staat er niets op rij r (leeg, en geen start/eind/object of verwijzing)?
+  if (r < 0 || r >= MK.rows) return true;
+  if (MK.grid[r].some(v => v !== 'lucht')) return false;
+  if (MK.start && MK.start.r === r) return false;
+  if (MK.eind && MK.eind.r === r) return false;
+  for (const o of (MK.objects || []))
+    if (o.r === r || (o.doel && o.doel.r === r) || (o.platform && o.platform.r === r)) return false;
+  return true;
+}
+function mkNaMaat(){                   // de invoervelden, het paneel, de tekening en de opslag bijwerken
+  mkColsEl.value = MK.cols; mkRowsEl.value = MK.rows; mkGroundEl.value = MK.ground;
+  mkNotePaneel(); mkTeken(); mkBewaar();
+}
+function mkRijBoven(d){                // d = +1 erbij, -1 eraf, aan de luchtkant (boven de middenlijn)
+  const cel = mkCel();
+  if (d > 0){
+    if (MK.rows >= 200){ alert('Het grid is al zo hoog als het mag (200 rijen).'); return; }
+    MK.grid.unshift(Array(MK.cols).fill('lucht'));
+    MK.rows += 1; MK.ground += 1; mkRijRefSchuif(1);
+    MK.panY -= cel;                   // de inhoud en de grondlijn blijven op hun plek, de nieuwe ruimte komt erboven
+  } else {
+    if (MK.rows <= 4){ alert('Het grid is al zo klein als het mag (4 rijen).'); return; }
+    if (!mkRijVrij(0)){ alert('De bovenste rij is niet leeg; maak hem eerst leeg.'); return; }
+    MK.grid.shift();
+    MK.rows -= 1; MK.ground = Math.max(0, MK.ground - 1); mkRijRefSchuif(-1);
+    MK.panY += cel;
+  }
+  mkNaMaat();
+}
+function mkRijOnder(d){                // d = +1 erbij, -1 eraf, aan de ondergrondse kant (onder de middenlijn)
+  if (d > 0){
+    if (MK.rows >= 200){ alert('Het grid is al zo hoog als het mag (200 rijen).'); return; }
+    MK.grid.push(Array(MK.cols).fill('lucht'));
+    MK.rows += 1;
+  } else {
+    if (MK.rows <= 4){ alert('Het grid is al zo klein als het mag (4 rijen).'); return; }
+    if (!mkRijVrij(MK.rows - 1)){ alert('De onderste rij is niet leeg; maak hem eerst leeg.'); return; }
+    MK.grid.pop();
+    MK.rows -= 1; if (MK.ground > MK.rows - 1) MK.ground = MK.rows - 1;
+  }
+  mkNaMaat();
+}
 function mkCel(){ return MK_BASIS * MK.zoom; }
 function mkMaatCanvas(){
   const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -31627,6 +31684,10 @@ for (const el of [mkColsEl, mkRowsEl, mkGroundEl]) el.addEventListener('change',
   mkZetMaat(parseInt(mkColsEl.value, 10), parseInt(mkRowsEl.value, 10), parseInt(mkGroundEl.value, 10));
   mkTeken(); mkBewaar();
 });
+document.getElementById('mkrijbovenins').onclick = () => mkRijBoven(1);
+document.getElementById('mkrijbovendel').onclick = () => mkRijBoven(-1);
+document.getElementById('mkrijonderins').onclick = () => mkRijOnder(1);
+document.getElementById('mkrijonderdel').onclick = () => mkRijOnder(-1);
 // schilderen, zoomen en schuiven op het canvas
 mkCanvas.addEventListener('pointerenter', mkMenuSluit);   // naar de kaart = de categorie-dropdown dicht
 // klikt de muis op een van de twee paal-handvatten van het geselecteerde platform? Dan wordt dat een paal-sleep
