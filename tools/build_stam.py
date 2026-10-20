@@ -8,7 +8,7 @@ import numpy as np
 from PIL import Image
 
 HERE=os.path.dirname(os.path.abspath(__file__))
-ASSETS=os.path.join(HERE,"..","assets")
+ASSETS=os.path.join(HERE,"..","design","takelwiel","stam")
 
 def load(name): return Image.open(os.path.join(ASSETS,name)).convert("RGBA")
 

@@ -898,6 +898,7 @@
         <div id="mkvijknop"></div>
         <div id="mkplatctl" class="mkrij" style="display:none"><button id="mkdoel">Zet doelhoogte</button><button id="mkdoelwis">Wis doel</button></div>
         <div id="mkplatbreed" class="mkknop" style="display:none"><label>Breedte</label><input id="mkbreed" type="range" min="1" max="5" step="1"><span class="read" id="mkbreedv"></span></div>
+        <div id="mkplatstam" class="mkknop" style="display:none"><label>Paalhoogte</label><input id="mkstam" type="range" min="1" max="24" step="1"><span class="read" id="mkstamv"></span></div>
         <div id="mkdoelinfo" class="mkhint" style="display:none"></div>
         <div id="mktandctl" style="display:none">
           <div class="mkveld"><label for="mktandplat">Verbonden met</label><select id="mktandplat"></select></div>
@@ -1276,6 +1277,7 @@
         <button id="sbtakel">Neerzetten</button>
         <button id="sbtakellift">Lift: 2 wielen</button>
         <button id="sbtakelslag">Sla het rad</button>
+        <button id="sbtakelstam">Stam: aan</button>
         <button id="sbtakelband">Met bandieten</button>
         <button id="sbtakelweg">Weg</button>
         <span class="hint">een houten tandwiel op de grond en een plateau dat eraan hangt: sla het rad met je speer (of druk op Sla het rad), dan draait het en zakt of stijgt het plateau een stap. Spring op het plateau: het veert. Lift: 2 wielen zet een lift neer (een wiel naast het plateau onder, een boven); een keer raken takelt het plateau in een keer helemaal omhoog of omlaag</span>
@@ -8976,6 +8978,32 @@ const TAKEL = {
   schommelMax: 0.14,         // hoogstens zoveel schommelen (rad)
   schommelK: 42, schommelC: 5.5   // de veer van de schommel (traag genoeg om zichtbaar na te wiegen)
 };
+// ---- de stam: een houten draagpaal onder het plateau, met een roestig mini-tandwiel op de pen ----
+// De nieuwe manier om een plateau te dragen (zie design/takelwiel/LEESMIJ_stam.md): in plaats van twee
+// touwen staat er een houten paal aan de kant van het wiel onder het plateau. Op de pen bovenaan zit een
+// klein tandwiel dat meedraait zodra het plateau beweegt. Het grote wiel en zijn ene touw blijven. De paal
+// is decor (loopt door hem heen) en wordt uit drie stukken gestapeld (top met de pen, mid herhaald, bottom),
+// zodat elke hoogte kan. Opt-in met t.stam; de Maker zet het standaard aan, de oude touw-takels (Test 32 tot
+// 34, de arena) hebben het niet en blijven de twee touwen.
+const STAM = {
+  dir: 'design/takelwiel/stam/',
+  bronBreed: 342, bronVol: 981,                 // de bronmaten van de paal (stam_vol)
+  topH: 294, midH: 235, bottomH: 138, overlap: 14,   // de drie stukken en de overlap bij het stapelen
+  pegX: 0.48, pegY: 107,                         // de pen: deel van de breedte, en px vanaf de top van de paal
+  breed: 0.62,                                   // paalbreedte als deel van CHAR_H
+  miniN: 510,                                    // het canvas van het mini-tandwiel (naaf in het midden)
+  miniD: 0.62,                                   // diameter van het mini-tandwiel als deel van de paalbreedte
+  miniK: 0.022,                                  // draaihoek (rad) per sprite-eenheid dat het plateau beweegt (tegengesteld aan het grote wiel)
+  boven: 0.22                                    // de pen staat zo veel CHAR_H boven de hoogste plateaustand (zodat het mini-wiel vrij staat)
+};
+let stamTop = null, stamMid = null, stamBottom = null, stamMini = null;
+function stamLaad(){
+  if (stamTop) return;
+  stamTop = zetBron(new Image(), STAM.dir + 'stam_top.png');
+  stamMid = zetBron(new Image(), STAM.dir + 'stam_mid.png');
+  stamBottom = zetBron(new Image(), STAM.dir + 'stam_bottom.png');
+  stamMini = zetBron(new Image(), STAM.dir + 'minitandwiel.png');
+}
 // het geluid van het takelen: speelt (herhaald) zolang het plateau op of neer beweegt, en stopt als het stilstaat
 const takelSnd = geluidAan(new Audio('sounds/takelen.mp3'));
 takelSnd.loop = true; takelSnd.preload = 'auto';
@@ -9007,6 +9035,7 @@ function takelLaad(){
   };
   takelTouwImg = zetBron(new Image(), TAKEL.dir + 'touw/touw_tegel.png');
   takelKnop = zetBron(new Image(), TAKEL.dir + 'spijkerknop/spijkerknop.png');
+  stamLaad();
 }
 // De takels van het level. Meerdere platforms kan via level.takels (een lijst); de enkele level.takel
 // (de bandiet-arena, de sandbox, de oude levels) blijft werken en telt als een lijst van één. Elk
@@ -9033,6 +9062,9 @@ function takelResetEen(t){
   if (t.laag === undefined) t.laag = 0;
   if (t.hoog === undefined) t.hoog = 360;
   if (t.px === undefined) t.px = t.x - 520;          // het plateau standaard links van het wiel
+  // de paalhoogte (stam): standaard net boven de hoogste plateaustand, zodat het mini-wiel vrij staat. Een
+  // level of de Maker kan hem zelf zetten (hoe hoog de balk wordt). Alleen van belang als t.stam aan is.
+  if (t.stamH === undefined) t.stamH = t.hoog + STAM.boven * CHAR_H;
   t.maxA = t.stappen * TAKEL_QUART;
   t.angle = (t.beginLaag ? 0 : t.maxA);              // standaard begint hij boven, uit de weg
   t.doel = t.angle;
@@ -9348,6 +9380,42 @@ function takelTeken(groundY, scale, cx){
   if (!takelGeladen) return;
   for (const t of takelLijst()) if (!t.weg) takelTekenEen(t, groundY, scale, cx);
 }
+// De draagpaal onder het plateau, aan de kant van het wiel, met het mini-tandwiel op de pen. Decor: hij
+// draagt niets en houdt niemand tegen. De paal staat vast (van de grond tot zijn eigen hoogte, t.stamH), en
+// het plateau schuift er verticaal langs; de paal wordt ervoor getekend zodat hij het aanhechtpunt afdekt.
+function takelStamTeken(t, groundY, scale, cx, side, top){
+  if (!imgReady(stamTop) || !imgReady(stamMid) || !imgReady(stamBottom)) return;
+  const poleWw = STAM.breed * CHAR_H, poleW = poleWw * scale;
+  const ps = poleW / STAM.bronBreed;                                // schaal van de bronstukken
+  const topHs = STAM.topH * ps, midHs = STAM.midH * ps, bottomHs = STAM.bottomH * ps, ovS = STAM.overlap * ps;
+  const xw = t.px + side * (t.breed / 2 - poleWw * 0.3);            // de paal net binnen de wiel-kant van het plateau
+  const poleCx = cx + (xw - world);
+  const lx = poleCx - poleW / 2;
+  const baseY = groundY - terrainH(xw) * scale;                    // de voet op de grond onder de paal
+  const topY = groundY - t.stamH * scale;                          // de bovenkant van de paal
+  ctx.save();
+  // de drie stukken: top (met de pen) boven, mid herhaald, bottom op de grond. Mid is naadloos, dus butt-to-butt
+  ctx.drawImage(stamTop, lx, topY, poleW, topHs);
+  const bottomStart = baseY - bottomHs;
+  let y = topY + topHs - ovS;
+  while (y < bottomStart - 1){
+    const h = Math.min(midHs, bottomStart - y + ovS);
+    ctx.drawImage(stamMid, 0, 0, STAM.bronBreed, Math.max(1, Math.round(STAM.midH * (h / midHs))), lx, y, poleW, h);
+    y += h - ovS;
+  }
+  ctx.drawImage(stamBottom, lx, bottomStart, poleW, bottomHs);
+  // het roestige mini-tandwiel op de pen: het draait mee met de verticale beweging van het plateau (hoek
+  // evenredig aan t.top), tegengesteld aan het grote wiel. De naaf zit in het midden van het plaatje.
+  if (imgReady(stamMini)){
+    const pegX = lx + STAM.pegX * poleW, pegY = topY + STAM.pegY * ps;
+    const d = STAM.miniD * poleW, ang = -(top || 0) * STAM.miniK;
+    ctx.save();
+    ctx.translate(pegX, pegY); ctx.rotate(ang);
+    ctx.drawImage(stamMini, -d / 2, -d / 2, d, d);
+    ctx.restore();
+  }
+  ctx.restore();
+}
 function takelTekenEen(t, groundY, scale, cx){
   const top = t.top == null ? takelHoogte(t, t.angle) : t.top;
   // ---- het plateau en de twee touwen ----
@@ -9407,14 +9475,17 @@ function takelTekenEen(t, groundY, scale, cx){
       return [midX + dx * c - dy * s, midY + dx * s + dy * c]; };
     const [raLx, raLy] = rot(aL, aY), [raRx, raRy] = rot(aR, aY);
     const fracL = (ropeTopY - raLy) / ((puY - raLy) || -1), fracR = (ropeTopY - raRy) / ((puY - raRy) || -1);
-    takelTouw(raLx, raLy, raLx - sp * fracL, ropeTopY, touwW, fase);     // de plateau-touwen: voor het drijftouw
-    takelTouw(raRx, raRy, raRx + sp * fracR, ropeTopY, touwW, fase);
+    // met een stam dragen de twee plateau-touwen niet; alleen het grote wiel met zijn ene drijftouw blijft
+    if (!t.stam){
+      takelTouw(raLx, raLy, raLx - sp * fracL, ropeTopY, touwW, fase);     // de plateau-touwen: voor het drijftouw
+      takelTouw(raRx, raRy, raRx + sp * fracR, ropeTopY, touwW, fase);
+    }
     ctx.save();
     ctx.translate(midX, midY); ctx.rotate(sway);
     takelPlateauTeken(-(right - left) / 2, -dekH / 2, right - left, dekH, capW);
     ctx.restore();
     const kn = TAKEL.knop * CHAR_H * scale;
-    if (imgReady(takelKnop)){
+    if (!t.stam && imgReady(takelKnop)){
       ctx.drawImage(takelKnop, raLx - kn / 2, raLy - kn / 2, kn, kn);
       ctx.drawImage(takelKnop, raRx - kn / 2, raRy - kn / 2, kn, kn);
     }
@@ -9428,6 +9499,8 @@ function takelTekenEen(t, groundY, scale, cx){
       ctx.drawImage(wim, rwx - wielW / 2, baseY - wielH, wielW, wielH);
     }
   }
+  // de draagpaal met het mini-tandwiel, als laatste (voor het wiel en zijn touw, met het mini-wiel erbovenop)
+  if (t.stam && !t.valt) takelStamTeken(t, groundY, scale, cx, Math.sign(t.x - t.px) || -1, top);
   if (showBoxes || building){
     ctx.save();
     ctx.globalAlpha = 0.6; ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2 / viewZoom();
@@ -29202,6 +29275,8 @@ function leesTakel(q){
            passagiers: Number(q.passagiers) > 0 ? Math.round(Number(q.passagiers)) : undefined,
            passagierRollen: Array.isArray(q.passagierRollen) ? q.passagierRollen.map(String) : undefined,
            touwSnijbaar: q.touwSnijbaar === true,
+           stam: q.stam === true,                                       // de draagpaal met het mini-tandwiel in plaats van de twee touwen (zie "stam")
+           stamH: q.stamH !== undefined ? Number(q.stamH) : undefined,  // de hoogte van de paal (de pen bovenaan), sprite-eenheden boven de grond
            elite: q.elite === true,
            stuurt: Array.isArray(q.stuurt) ? q.stuurt.map(String) : undefined,   // seinen die dit platform stuurt als het helemaal boven staat
            // losse wielen op hun eigen plek: {x (op de grond), off (hoogte boven de grond), modus}. Zonder dit
@@ -30979,6 +31054,12 @@ function mkVerf(ev){
 }
 // het opmerking-paneel bij het geselecteerde object
 function mkHoogteTekst(restR, doelR){ const d = restR - doelR; return Math.abs(d) + ' ' + (Math.abs(d) === 1 ? 'cel' : 'cellen') + ' ' + (d > 0 ? 'omhoog' : d < 0 ? 'omlaag' : 'gelijk'); }
+// de paalhoogte van een takel in cellen als de bouwer hem vanzelf kiest: net boven de hoogste plateaustand
+// (de pen met het mini-tandwiel staat zo vrij). Een stamCel van de speler gaat hiervoor.
+function mkStamAuto(p){
+  const restH = (MK.ground - p.r) * MK_CEL_EENH, doelH = p.doel ? (MK.ground - p.doel.r) * MK_CEL_EENH : restH;
+  return Math.max(1, Math.ceil((Math.max(restH, doelH) + STAM.boven * CHAR_H) / MK_CEL_EENH));
+}
 // de twee dropdowns van een tandwiel: waaraan het verbonden is (een platform of auto), en wat het doet (de stand)
 function mkVulTandSelects(){
   const psel = document.getElementById('mktandplat'), msel = document.getElementById('mktandmodus');
@@ -31036,13 +31117,17 @@ function mkNotePaneel(){
   vijctl.style.display = isVij ? '' : 'none';
   platctl.style.display = isPlat ? '' : 'none'; doelinfo.style.display = isPlat ? '' : 'none'; tandctl.style.display = isTand ? '' : 'none';
   document.getElementById('mkplatbreed').style.display = isPlat ? '' : 'none';
+  document.getElementById('mkplatstam').style.display = isPlat ? '' : 'none';
   if (isVij){ mkVulVijSelect(); mkVulVijKnoppen(); }
   else document.getElementById('mkvijknop').innerHTML = '';
   if (isPlat){ const d = MK.sel.doel;
     const wn = MK.objects.filter(o => o.k === 'tandwiel' && mkConnectedPlatform(o) === MK.sel).length;
     doelinfo.textContent = (d ? ('reist naar rij ' + d.r + ' (' + mkHoogteTekst(MK.sel.r, d.r) + ')') : 'nog geen doelhoogte: klik Zet doelhoogte en tik de vloer aan') + ' · ' + wn + ' wiel' + (wn === 1 ? '' : 'en');
     const br = MK.sel.breed || MK_PLAT_BREED, bv = document.getElementById('mkbreedv');
-    document.getElementById('mkbreed').value = br; bv.textContent = br + (br === 1 ? ' cel' : ' cellen'); }
+    document.getElementById('mkbreed').value = br; bv.textContent = br + (br === 1 ? ' cel' : ' cellen');
+    const sc = MK.sel.stamCel || mkStamAuto(MK.sel), sv = document.getElementById('mkstamv');
+    document.getElementById('mkstam').value = Math.max(1, Math.min(24, sc));
+    sv.textContent = sc + (sc === 1 ? ' cel' : ' cellen') + (MK.sel.stamCel ? '' : ' (vanzelf)'); }
   if (isTand) mkVulTandSelects();
   const isOver = MK.sel.k === 'overhang';
   document.getElementById('mkoverctl').style.display = isOver ? '' : 'none';
@@ -31179,7 +31264,7 @@ function mkNaarJSON(){
            objecten: MK.objects.map(o => {
              const b = { c:o.c, r:o.r, k:o.k, note:o.note || '' };
              if (o.k === 'vijand'){ b.soort = o.soort || 'groen'; if (o.params && Object.keys(o.params).length) b.params = o.params; }
-             if (o.k === 'platform'){ b.doel = o.doel ? { c:o.doel.c, r:o.doel.r } : null; b.breed = o.breed || MK_PLAT_BREED; }
+             if (o.k === 'platform'){ b.doel = o.doel ? { c:o.doel.c, r:o.doel.r } : null; b.breed = o.breed || MK_PLAT_BREED; if (o.stamCel) b.stamCel = o.stamCel; }
              if (o.k === 'tandwiel'){ b.modus = o.modus || 'schakellift'; const p = mkConnectedPlatform(o); if (p) b.platform = { c:p.c, r:p.r }; }
              if (o.k === 'overhang'){ b.breed = o.breed || 3; b.dik = o.dik || 2; b.fijn = o.fijn || 0; b.look = o.look === 'savanne' ? 'savanne' : 'rots'; }
              return b;
@@ -31197,7 +31282,7 @@ function mkUitJSON(o){
   MK.objects = Array.isArray(o.objecten) ? o.objecten.filter(q => mkIsObj(q.k)).map(q => {
     const b = { c:q.c|0, r:q.r|0, k:q.k, note:String(q.note || '') };
     if (q.k === 'vijand'){ b.soort = MK_VIJ_INFO[q.soort] ? q.soort : 'groen'; if (q.params && typeof q.params === 'object'){ b.params = {}; for (const kk in q.params) if (typeof q.params[kk] === 'number') b.params[kk] = q.params[kk]; } }
-    if (q.k === 'platform'){ b.doel = (q.doel && q.doel.c != null) ? { c:q.doel.c|0, r:q.doel.r|0 } : null; b.breed = Math.max(1, Math.min(5, Math.round(Number(q.breed) || MK_PLAT_BREED))); }
+    if (q.k === 'platform'){ b.doel = (q.doel && q.doel.c != null) ? { c:q.doel.c|0, r:q.doel.r|0 } : null; b.breed = Math.max(1, Math.min(5, Math.round(Number(q.breed) || MK_PLAT_BREED))); if (Number(q.stamCel) > 0) b.stamCel = Math.max(1, Math.min(24, Math.round(Number(q.stamCel)))); }
     if (q.k === 'tandwiel'){ b.modus = MK_MODI.some(m => m[0] === q.modus) ? q.modus : 'schakellift';
       if (q.platform && q.platform.c != null) b._plat = { c:q.platform.c|0, r:q.platform.r|0 }; }
     if (q.k === 'overhang'){ b.breed = Math.max(1, Math.min(12, Math.round(Number(q.breed) || 3)));
@@ -31342,7 +31427,10 @@ function mkNaarLevel(){
     const wielen = MK.objects.filter(o => o.k === 'tandwiel' && mkConnectedPlatform(o) === p)
       .map(o => { const [wl, wr] = lr(o.c); return { x: Math.round((wl + wr) / 2), absH: (gR - 1 - o.r) * MK_CEL_EENH, modus: o.modus || 'schakellift' }; });
     const breed = Math.round((p.breed || MK_PLAT_BREED) * MK_CEL_PX);   // de breedte van het plateau in cellen (het 9-slice dek rekt mee)
+    // de Maker bouwt voortaan met de stam (de draagpaal met het mini-tandwiel), niet met de twee touwen; de
+    // paalhoogte komt uit stamCel (de speler) of vanzelf net boven de hoogste plateaustand (mkStamAuto)
     takels.push({ id: 'p' + (++takelNr), px, breed, laag, hoog, stappen: 6, beginLaag: restH <= doelH,
+                  stam: true, stamH: (p.stamCel || mkStamAuto(p)) * MK_CEL_EENH,
                   x: wielen.length ? wielen[0].x : px + Math.round(MK_CEL_PX * 1.2), wielen: wielen.length ? wielen : undefined });
   }
   const [sl, sr] = lr(startCol), startX = Math.round((sl + sr) / 2);
@@ -31505,6 +31593,12 @@ document.getElementById('mkbreed').addEventListener('input', e => {
   if (!MK.sel || MK.sel.k !== 'platform') return;
   MK.sel.breed = Number(e.target.value);
   const bv = document.getElementById('mkbreedv'); bv.textContent = MK.sel.breed + (MK.sel.breed === 1 ? ' cel' : ' cellen');
+  mkTeken(); mkBewaar();
+});
+document.getElementById('mkstam').addEventListener('input', e => {
+  if (!MK.sel || MK.sel.k !== 'platform') return;
+  MK.sel.stamCel = Number(e.target.value);            // de paalhoogte die de speler zelf zet, in cellen
+  const sv = document.getElementById('mkstamv'); sv.textContent = MK.sel.stamCel + (MK.sel.stamCel === 1 ? ' cel' : ' cellen');
   mkTeken(); mkBewaar();
 });
 function mkOpen(){
@@ -32369,11 +32463,12 @@ function sbTakelWeg(){
   if (level.gaps) level.gaps = level.gaps.filter(g => !g.sbTakel);
   for (let i = bandieten.length - 1; i >= 0; i--) if (bandieten[i].takelaar || bandieten[i].passagier) bandieten.splice(i, 1);
 }
+let sbStam = true;   // de sandbox-takel krijgt standaard de stam (de draagpaal met het mini-tandwiel); de knop zet hem uit
 function sbTakel(){
   sbTakelWeg();
   const Z = SB_TAKEL;
   level.takel = { x: world - Z.afstand, px: world - Z.plateau, breed: TAKEL.breed,
-                  laag: 20, hoog: 420, stappen: TAKEL.stappen, beginLaag: true };
+                  laag: 20, hoog: 420, stappen: TAKEL.stappen, beginLaag: true, stam: sbStam };
   takelReset();
   flashHint('Sla het rad met je speer: het plateau stijgt, en zakt weer aan de top');
   cv.focus();
@@ -32406,6 +32501,8 @@ function sbTakelLift(){
 document.getElementById('sbtakel').onclick = () => { sbTakel(); };
 document.getElementById('sbtakellift').onclick = () => { sbTakelLift(); };
 document.getElementById('sbtakelslag').onclick = () => { if (!takelLevel()) sbTakel(); takelSlag(takelLevel()); cv.focus(); };
+document.getElementById('sbtakelstam').onclick = () => { sbStam = !sbStam; document.getElementById('sbtakelstam').textContent = 'Stam: ' + (sbStam ? 'aan' : 'uit');
+  const t = takelLevel(); if (t){ t.stam = sbStam; } cv.focus(); };
 document.getElementById('sbtakelband').onclick = () => { sbTakelBand(); };
 document.getElementById('sbtakelweg').onclick = () => { sbTakelWeg(); cv.focus(); };
 // Een deur in de rotswand voor je uit: loop ernaartoe en hij vliegt open. Met een bandiet komt er een
