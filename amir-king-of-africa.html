@@ -22336,12 +22336,18 @@ const KOOI_SLEEP = { vol: 0.5, ver: 1.3 };            // subtiel maar hoorbaar v
 function kooiSleepStop(){ if (kooiSleepAan){ kooiSleepAan = false; try { kooiSleepSnd.pause(); } catch (e) {} } }
 function kooiSleepGeluid(){
   let v = 0;
-  if (wantSound && !paused && !building && !(dead && !sandbox))
+  if (wantSound && !paused && !building && !(dead && !sandbox)){
     for (const s of kooimannen){
       if (s.state !== 'drag' || !s.beweegt) continue;
       const af = Math.max(0, 1 - Math.abs(s.x - playerX()) / (KOOI_SLEEP.ver * W));
       if (af > v) v = af;
     }
+    for (const s of meelmannen){                       // de meelman die met zijn zak terugsleept: hetzelfde geluid
+      if (s.state !== 'terug' || !s.beweegt) continue;
+      const af = Math.max(0, 1 - Math.abs(s.x - playerX()) / (KOOI_SLEEP.ver * W));
+      if (af > v) v = af;
+    }
+  }
   if (v > 0){
     kooiSleepSnd.volume = Math.min(1, KOOI_SLEEP.vol * v);
     if (!kooiSleepAan){ kooiSleepAan = true; const p = kooiSleepSnd.play(); if (p && p.catch) p.catch(() => {}); }
@@ -22897,11 +22903,12 @@ const MEEL = {
   n:    { idle: 1, opricht: 30, worp: 43, ren: 23, drag: 18 },
   fps:  { idle: 1, opricht: 38, worp: 27, ren: 38, drag: 16 },
   loop: { idle: true, opricht: false, worp: false, ren: true, drag: true },
-  // de per-set tekenschaal die de man gelijk maakt (metadata "scale"): idle/opricht groter getekend,
-  // ren juist kleiner, worp/drag op ware grootte. De worp stond op 1,0 (de metadata), maar zijn kop
-  // rendert daar zo'n 80% van de idle, waardoor hij klein oogt tijdens het gooien; op 1,25 is hij in
-  // de worp even fors als staand.
-  scale: { idle: 1.37, opricht: 1.37, worp: 1.25, ren: 0.638, drag: 1.0 },
+  // de per-set tekenschaal die de man over alle sets even groot maakt. De metadata-schalen (idle 1,37,
+  // ren 0,638, drag 1,0, worp 1,0) klopten niet: de haar-kop is in de bron bijna gelijk (73 tot 81 px),
+  // dus die schalen lieten hem enorm van grootte verspringen (ren rendert dan half zo groot als idle).
+  // Hier geijkt op de gemeten kop (hairW maal scale gelijk aan idle): idle 73*1,37, en de rest navenant,
+  // zodat idle, oprichten, worp, rennen en slepen even groot op het scherm komen.
+  scale: { idle: 1.37, opricht: 1.333, worp: 1.361, ren: 1.235, drag: 1.37 },
   release: 30,            // worp-frame waarop de zak de hand verlaat (zie LEESMIJ)
   hitVan: 28, hitTot: 40, // het raakvenster van de melee-slag (de worp-set doet dubbel werk)
   see:    1500,           // vanaf hier (wereld-px) doet hij iets
@@ -22909,7 +22916,7 @@ const MEEL = {
   melee:  360,            // van zo dichtbij (canvas-px maal zijn tekenschaal) slaat hij met de zak
   run:    170,            // loopsnelheid om een zak te halen of je te naderen (wereld-px/s)
   voet:   95,             // zijn voorste voet: daarmee stopt hij voor een kei of ravijn (regel 7)
-  stashDx: 230,           // zover achter zijn rand ligt zijn stapel zakken (wereld-px, van de afgrond af)
+  stashDx: 380,           // zover achter zijn rand ligt zijn stapel zakken (wereld-px): verder weg = langer onderweg
   randKijk: 160,          // zover vooruit kijkt hij of er een afgrond is om overheen te gooien
   pakTijd: 0.55,          // zo lang bukt hij om een nieuwe zak te pakken
   cool:   0.3,            // korte rust aan de rand voor hij opnieuw gooit
@@ -22930,6 +22937,7 @@ const MEEL_ZAK = {
   knock: 470,   // de inslag duwt Amir een flink stuk terug (meer dan de gewone 260)
   kaats: 430,   // terugketsen omhoog bij de inslag (sprite-eenheden/s)
   valG:  0.9,   // zwaartekracht nadat hij geketst heeft
+  landVol: 0.5, // het grondgeluid bij het landen van de zak: een zachtere kooislag (zoals de stamp)
   rek:   1.3,   // uitrekken langs de vliegrichting
   lig:   0.5    // zo lang ligt hij (indikkend) voor hij verdwijnt
 };
@@ -22972,7 +22980,7 @@ function makeMeelman(x, side){
   const face = -side;
   return { x, face, post: x, stash: x - face * MEEL.stashDx, state: 'wacht', frame: 0, acc: 0, t: 0, klaar: false,
            hp: 3, maxHp: 3, hpBalk: true, inv: 0, flash: 0, knock: 0, base: 0, alpha: 1,
-           actie: null, gegooid: false, hitUsed: false, pakT: 0, cool: 0, vrij: false, doodT: 0 };
+           actie: null, gegooid: false, hitUsed: false, pakT: 0, cool: 0, beweegt: false, vrij: false, doodT: 0 };
 }
 function meelSet(s, state){ s.state = state; s.frame = 0; s.acc = 0; s.klaar = false; }
 function meelAnim(s, dt){
@@ -22993,6 +23001,15 @@ function meelOpRand(s){
   const vooruit = s.x + s.face * MEEL.randKijk;
   if (gatOp(vooruit, s.base || 0)) return true;                  // een ravijn vlak voor hem
   return vloerBij(vooruit, s.base || 0) < (s.base || 0) - 40;    // of een afstap naar een lager niveau
+}
+// kwam de sleep-animatie dit beeld langs een schraap-frame (met de lus-wrap mee), zoals kooiSchraap
+function meelSchraap(a, b){
+  if (a === b) return false;
+  for (const f of [6, 14]){
+    if (a < b){ if (f > a && f <= b) return true; }
+    else if (f > a || f <= b) return true;
+  }
+  return false;
 }
 function meelKeiVoor(s, nx, plats){
   const d = nx - s.x >= 0 ? 1 : -1;
@@ -23020,7 +23037,19 @@ function meelZakGooi(s){
   const vScreen = MEEL_ZAK.v * ey / dist;           // scherm-px/s omlaag
   meelzakken.push({ x: handX, h: handH, vx, vh: -vScreen / scale, t: 0, st: 'vlieg', squash: 1 });
 }
-function meelFlour(x, h){ puffWorld(x, 9, 0, 1.2, h); }   // de meelwolk is er nog niet: een gewone stofwolk (zie LEESMIJ)
+// de stofwolken, in dezelfde stijl als de kooiman (steenStof + puffWorld). De meelwolk is er nog niet;
+// dit is de gewone stofwolk (zie LEESMIJ).
+function meelFlour(x, h){ puffWorld(x, 8, 0, 1.0, h); }                  // een losse wolk (bij de inslag op Amir)
+function meelWerpStof(s){                                               // stof bij zijn voeten als hij gooit of slaat
+  const base = s.base || 0;
+  steenStof(s.x - 45, s.x + 45, base, 1.1, base + 60);
+  puffWorld(s.x, 8, 0, 1.0, base);
+}
+function meelZakLand(x, vloer){                                         // de zak slaat op de grond: stof en een zacht grondgeluid
+  steenStof(x - 55, x + 55, vloer, 1.3, vloer + 70);
+  puffWorld(x, 10, 0, 1.2, vloer);
+  kooiGrondGeluid(x, MEEL_ZAK.landVol);                                 // een zachtere kooislag, zoals de stamp
+}
 function meelZakUpdate(dt){
   if (building){ meelzakken.length = 0; return; }
   if (!running || (dead && !sandbox)) return;
@@ -23033,9 +23062,8 @@ function meelZakUpdate(dt){
     const vloer = vloerBij(z.x, z.h);
     if (vloer > -Infinity && z.h <= vloer){
       z.h = vloer;
-      meelFlour(z.x, vloer);
-      if (z.st !== 'stuit'){ z.st = 'stuit'; z.vx *= -0.35; z.vh = MEEL_ZAK.kaats; }   // ketst terug en omhoog
-      else { z.st = 'weg'; z.lig = 0; z.vx = 0; z.vh = 0; }                            // en valt dan stil
+      if (z.st !== 'stuit'){ meelZakLand(z.x, vloer); z.st = 'stuit'; z.vx *= -0.35; z.vh = MEEL_ZAK.kaats; }   // de klap: stof en geluid, dan ketst hij terug en omhoog
+      else { meelFlour(z.x, vloer); z.st = 'weg'; z.lig = 0; z.vx = 0; z.vh = 0; }                              // en valt dan stil (alleen nog wat stof)
     } else if (z.t > 4 || Math.abs(z.x - world) > W * 2.5) meelzakken.splice(i, 1);
   }
 }
@@ -23051,29 +23079,36 @@ function updateMeelman(s, dt, plats, cliff){
   }
   s.base = vloerBij(s.x, s.base);
   rijsDraagtMob(s, dt);                              // mee omhoog op een lift of rijzend blok
+  s.beweegt = false;                                // alleen de 'terug'-tak zet dit op true (voor het sleepgeluid)
   if (s.vrij){ meelAnim(s, dt); return; }           // sandbox: AI uit, speel de gekozen set
   s.t += dt;
   if (s.cool > 0) s.cool -= dt;
   if (s.knock !== 0){ meelMove(s, s.knock * dt, plats, cliff); s.knock *= Math.pow(0.02, dt); if (Math.abs(s.knock) < 4) s.knock = 0; }
   const dx = playerX() - s.x, gap = Math.abs(dx), naarJe = dx >= 0 ? 1 : -1;
   const meleeR = MEEL.melee * meelDrawScale('worp');
-  const zelfde = meelZelfdeHoogte(s);               // staat Amir op zijn niveau?
+  // staat Amir duidelijk lager (op de grond of op een trapje), dan blijft hij gooien; pas als Amir echt op
+  // zijn plateauhoogte staat, gaat hij naar de slag
+  const amirLager = vloerBij(playerX(), ph) < (s.base || 0) - 110;
 
   // een lopende worp of het oprichten eerst afmaken
   if (s.state === 'worp'){
     meelAnim(s, dt);
-    if (s.actie === 'gooi' && !s.gegooid && s.frame >= MEEL.release){ s.gegooid = true; meelZakGooi(s); }
-    if (s.klaar){ if (s.actie === 'gooi') meelSet(s, 'opricht'); else meelSet(s, 'wacht'); }   // na een gooi een nieuwe zak halen; na een mep gewoon verder
+    if (s.actie === 'gooi'){
+      if (!s.gegooid && s.frame >= MEEL.release){ s.gegooid = true; meelZakGooi(s); meelWerpStof(s); }   // de zak los, met stof bij zijn voeten
+    } else if (!s.gegooid && s.frame >= MEEL.hitVan){                                                     // de melee-slag: hetzelfde grondgeluid als de kooiman, plus stof
+      s.gegooid = true; meelWerpStof(s); kooiGrondGeluid(s.x);
+    }
+    if (s.klaar){ if (s.actie === 'gooi') meelSet(s, 'opricht'); else meelSet(s, 'wacht'); }              // na een gooi een nieuwe zak halen; na een mep gewoon verder
     return;
   }
-  if (s.state === 'opricht'){ meelAnim(s, dt); if (s.klaar) meelSet(s, 'haal'); return; }      // na de worp: een nieuwe zak gaan halen
+  if (s.state === 'opricht'){ meelAnim(s, dt); if (s.klaar) meelSet(s, 'haal'); return; }                 // na de worp: een nieuwe zak gaan halen
 
-  // de slag heeft voorrang: zodra Amir op zijn niveau en dichtbij is, slaat hij (ook midden in het halen)
-  if (zelfde && gap <= meleeR){ s.face = naarJe; meelStartWorp(s, 'mep'); return; }
-  // op zijn niveau maar nog te ver: hij komt naar je toe om te slaan
-  if (zelfde && gap <= MEEL.see){ s.face = naarJe; meelSet(s, 'ren'); meelAnim(s, dt); meelMove(s, naarJe * MEEL.run * dt, plats, cliff); return; }
+  // de slag heeft voorrang: pas als Amir echt op zijn niveau staat (niet op een lager trapje) en op de grond
+  if (!amirLager && onGround && gap <= meleeR){ s.face = naarJe; meelStartWorp(s, 'mep'); return; }
   // sandbox: ook op vlakke grond gooit hij van afstand, zodat je de worp en de zak kunt zien
   if (sandbox && s.cool <= 0 && gap > meleeR && gap <= MEEL.worpVer){ s.face = naarJe; meelStartWorp(s, 'gooi'); return; }
+  // op zijn niveau maar nog te ver: hij komt naar je toe om te slaan
+  if (!amirLager && gap <= MEEL.see){ s.face = naarJe; meelSet(s, 'ren'); meelAnim(s, dt); meelMove(s, naarJe * MEEL.run * dt, plats, cliff); return; }
 
   // de gooi-lus (Amir is lager of over een afgrond): gooien vanaf de rand, dan een zak halen, dan terug
   if (s.state === 'haal'){                           // naar de stapel lopen (van de rand af) voor een nieuwe zak
@@ -23084,11 +23119,14 @@ function updateMeelman(s, dt, plats, cliff){
     return;
   }
   if (s.state === 'pak'){ meelAnim(s, dt); s.pakT += dt; if (s.pakT >= MEEL.pakTijd) meelSet(s, 'terug'); return; }   // bukken en pakken
-  if (s.state === 'terug'){                          // met de zak terug naar de rand
+  if (s.state === 'terug'){                          // met de zak terug naar de rand: zoals de kooiman die zijn kooi sleept
     const d = Math.sign(s.post - s.x) || 1;
-    const bewoog = meelMove(s, d * MEEL.run * dt, plats, cliff);
-    s.face = d; meelAnim(s, dt);
-    if (Math.abs(s.x - s.post) <= MEEL.voet + 30 || !bewoog){ meelSet(s, 'wacht'); s.cool = MEEL.cool; }
+    const f0 = s.frame;
+    const bewoog = meelMove(s, d * KOOI_RUN_SPD * dt, plats, cliff);   // dezelfde sleepsnelheid als de kooiman
+    s.face = d; s.beweegt = bewoog; meelAnim(s, dt);
+    if (bewoog && meelSchraap(f0, s.frame))          // schraap-stof achter de zak, zoals de kooiman achter zijn kooi
+      puffWorld(s.x - s.face * 80, 2, 0, 0.5, s.base || 0);
+    if (Math.abs(s.x - s.post) <= MEEL.voet + 30 || !bewoog){ meelSet(s, 'wacht'); s.cool = MEEL.cool; s.beweegt = false; }
     return;
   }
   // wacht aan de rand: zodra Amir in zicht is en hij echt op de rand van een afgrond staat, gooit hij naar beneden
