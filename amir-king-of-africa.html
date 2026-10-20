@@ -224,6 +224,7 @@
   #mkbalk strong{font-size:15px}
   #mkbalk .mkfield{display:flex;align-items:center;gap:5px;color:rgba(242,232,213,.7)}
   #mkbalk input[type=number]{width:62px;background:rgba(0,0,0,.4);color:var(--bone);border:1px solid rgba(242,232,213,.25);border-radius:2px;font:inherit;padding:3px 6px}
+  #mkbalk select{background:rgba(0,0,0,.4);color:var(--bone);border:1px solid rgba(242,232,213,.25);border-radius:2px;font:inherit;padding:3px 6px}
   #mkbalk #mkback{margin-left:auto}
   #mkbalk #mkexport{border-color:var(--sun);color:var(--sun)}
   #mkbalk #mktest{background:var(--sun);border-color:var(--sun);color:#241a2b}
@@ -866,6 +867,7 @@
       <span class="mkfield"><label for="mkcols">Breed</label><input id="mkcols" type="number" min="4" max="400" step="1" value="48"></span>
       <span class="mkfield"><label for="mkrows">Hoog</label><input id="mkrows" type="number" min="4" max="200" step="1" value="20"></span>
       <span class="mkfield"><label for="mkground">Grondlijn</label><input id="mkground" type="number" min="0" max="199" step="1" value="12"></span>
+      <span class="mkfield"><label for="mkmuziek">Muziek</label><select id="mkmuziek"></select></span>
       <button id="mkfit" title="Pas de hele kaart in beeld">Passend</button>
       <button id="mktest" class="mkspeel" title="Speel dit grid meteen als level">Test &#9654;</button>
       <button id="mkexport">Exporteren</button>
@@ -30611,6 +30613,8 @@ const MK_VIJ_KNOP = {
 };
 // de categorieën in de menubalk. Klik je er een aan (of een subcategorie), dan komt de lijst in de linkerkolom;
 // zweef je erover, dan klapt dezelfde lijst als dropdown uit (en een vijand met varianten als zij-flyout).
+// de achtergrond-deuntjes die een level kan kiezen (zie MUZIEK); Dark Africa is de standaard (MUZIEK_BASIS)
+const MK_MUZIEK = [['darkafrica', 'Dark Africa'], ['bg', 'Oude thema']];
 const MK_CATS = [
   { id:'terrein',  naam:'Terrein',    items:['savanne','rots','sneeuw','sneeuwrots','muur','laag','gang','ravijn'] },
   { id:'punten',   naam:'Start/eind', items:['start','eind'] },
@@ -30631,12 +30635,16 @@ function mkNearestPlatform(w){ let best = null, bd = Infinity;
 function mkConnectedPlatform(w){ if (w && w.plat && MK.objects.indexOf(w.plat) >= 0 && w.plat.k === 'platform') return w.plat; return mkNearestPlatform(w); }
 const MK = { cols:48, rows:20, ground:12, grid:null, start:null, eind:null, objects:[], sel:null,
              tool:'savanne', zoom:1, panX:0, panY:0,
-             cat:'terrein', sub:null, vijandSoort:'groen', inspectDicht:true };
+             cat:'terrein', sub:null, vijandSoort:'groen', inspectDicht:true, muziek:MUZIEK_BASIS };
 let makerOpen = false, mkCtx = null, mkPaint = false, mkPan = false, mkPanX = 0, mkPanY = 0, mkSpace = false, mkDoelMode = false, mkDrag = null;
 const makerEl = document.getElementById('maker');
 const mkCanvas = document.getElementById('mkcanvas');
 const mkColsEl = document.getElementById('mkcols'), mkRowsEl = document.getElementById('mkrows'), mkGroundEl = document.getElementById('mkground');
 const mkJsonEl = document.getElementById('mkjson');
+const mkMuziekEl = document.getElementById('mkmuziek');
+for (const [id, naam] of MK_MUZIEK){ const o = document.createElement('option'); o.value = id; o.textContent = naam; mkMuziekEl.appendChild(o); }
+mkMuziekEl.value = MK.muziek;
+mkMuziekEl.addEventListener('change', () => { MK.muziek = mkMuziekEl.value; mkBewaar(); });
 
 function mkMaakGrid(cols, rows){ return Array.from({ length: rows }, () => Array(cols).fill('lucht')); }
 // het grid aanpassen tijdens het bouwen, met behoud van wat je al getekend hebt (linksboven verankerd)
@@ -30958,7 +30966,7 @@ function mkNaarJSON(){
   return { type:'amir-levelmaker-grid', versie:1, cols:MK.cols, rows:MK.rows, groundRow:MK.ground,
            cel:{ breedPx:MK_CEL_PX, hoogEenheden:MK_CEL_EENH },
            legenda:{ '.':'lucht', S:'savanne', R:'rots', W:'sneeuw op savanne', X:'sneeuw op rots', M:'muur', L:'laag obstakel', G:'gang', V:'ravijn' },
-           grid, start:MK.start, eind:MK.eind,
+           grid, start:MK.start, eind:MK.eind, muziek:MK.muziek,
            objecten: MK.objects.map(o => {
              const b = { c:o.c, r:o.r, k:o.k, note:o.note || '' };
              if (o.k === 'vijand'){ b.soort = o.soort || 'groen'; if (o.params && Object.keys(o.params).length) b.params = o.params; }
@@ -30974,6 +30982,8 @@ function mkUitJSON(o){
   for (let r = 0; r < rows; r++){ const s = o.grid[r] || ''; for (let c = 0; c < cols; c++) MK.grid[r][c] = MK_CH[s[c]] || 'lucht'; }
   MK.start = (o.start && o.start.c != null) ? { c:o.start.c, r:o.start.r } : null;
   MK.eind  = (o.eind  && o.eind.c  != null) ? { c:o.eind.c,  r:o.eind.r  } : null;
+  MK.muziek = MK_MUZIEK.some(m => m[0] === o.muziek) ? o.muziek : MUZIEK_BASIS;
+  if (mkMuziekEl) mkMuziekEl.value = MK.muziek;
   MK.objects = Array.isArray(o.objecten) ? o.objecten.filter(q => mkIsObj(q.k)).map(q => {
     const b = { c:q.c|0, r:q.r|0, k:q.k, note:String(q.note || '') };
     if (q.k === 'vijand'){ b.soort = MK_VIJ_INFO[q.soort] ? q.soort : 'groen'; if (q.params && typeof q.params === 'object'){ b.params = {}; for (const kk in q.params) if (typeof q.params[kk] === 'number') b.params[kk] = q.params[kk]; } }
@@ -31117,6 +31127,7 @@ function mkNaarLevel(){
   // alleen wat je zelf tekent, plus het eind met de fakkels op je eindplateau. De speer bij de start blijft.
   const lvl = { name:'Level Maker test', view:0.8, rocks:[], props:[], spawns, kaleKlif:true, voorgrond:false,
                 gaps, terraces, start:startX, ends:[{ x:eindX }], cliffs:[{ x:Math.round(linksX - 450) }] };
+  if (MK.muziek && MK.muziek !== MUZIEK_BASIS) lvl.muziek = MK.muziek;   // de gekozen achtergrondmuziek (Dark Africa is de standaard)
   if (holtes.length) lvl.holtes = holtes;
   if (zwevers.length) lvl.zwevers = zwevers;
   if (takels.length) lvl.takels = takels;
@@ -31201,7 +31212,7 @@ document.getElementById('mkload').onclick = () => {
 };
 document.getElementById('mkwis').onclick = () => {
   if (!confirm('Weet je zeker dat je alles wil wissen?')) return;   // leeg beginnen, met bevestiging ertussen
-  mkZetMaat(48, 20, 12); MK.grid = mkMaakGrid(MK.cols, MK.rows); MK.start = null; MK.eind = null; MK.objects = []; MK.sel = null; MK.tool = 'savanne'; MK.cat = 'terrein'; MK.sub = null; MK.inspectDicht = true;
+  mkZetMaat(48, 20, 12); MK.grid = mkMaakGrid(MK.cols, MK.rows); MK.start = null; MK.eind = null; MK.objects = []; MK.sel = null; MK.tool = 'savanne'; MK.cat = 'terrein'; MK.sub = null; MK.inspectDicht = true; MK.muziek = MUZIEK_BASIS; mkMuziekEl.value = MK.muziek;
   mkLegenda(); mkNotePaneel(); mkPassend(); mkBewaar();
 };
 document.getElementById('mkobjnote').addEventListener('input', e => { if (MK.sel){ MK.sel.note = e.target.value; mkBewaar(); mkTeken(); } });
