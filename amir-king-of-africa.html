@@ -9273,7 +9273,12 @@ function takelUpdateEen(t, dt){                       // werkt één platform bi
   return draait || t.haper > 1e-6;
 }
 // de rand van het dek en de hoogte, voor wie erover loopt (een bandiet die de brug oversteekt)
-function takelDekVoor(t){ if (!t || t.weg) return null; return { l: t.px - t.breed / 2, r: t.px + t.breed / 2, top: takelOpp(t) }; }
+function takelDekVoor(t){ if (!t || t.weg) return null;
+  let l = t.px - t.breed / 2, r = t.px + t.breed / 2;
+  // met een stam dekt de paal de hoek van het dek af; daar houdt het zichtbare (en begaanbare) dek op, zodat
+  // Amir alleen op het zichtbare plateau staat en niet op of achter de paal
+  if (t.stam){ const inner = stamInnerW(t); if (stamSide(t) > 0) r = Math.min(r, inner); else l = Math.max(l, inner); }
+  return { l, r, top: takelOpp(t) }; }
 function takelDek(){ return takelDekVoor(takelLevel()); }   // de eerste, voor losse aanroepen
 // Staat een voetstap op het brug-dek (op zijn hoogte)? Dan is het gat daar overbrugd: de ravijn-rand telt
 // niet, zodat een vijand (en Amir) eroverheen kan lopen in plaats van bij de rand te blijven staan.
@@ -9287,8 +9292,12 @@ function takelPlats(){
   for (const t of takelLijst()){
     if (t.weg) continue;
     const top = takelOpp(t);                         // de looplijn (voorrand van het bovenvlak)
-    out.push({ x: t.px, left: t.px - t.breed / 2, right: t.px + t.breed / 2,
-               topH: top, base: top, wPx: t.breed, hPx: 0, thin: true, takel: true, id: t.id || 'takel', stijg: t.stijg || 0 });
+    let left = t.px - t.breed / 2, right = t.px + t.breed / 2;
+    // met een stam loopt het begaanbare dek maar tot de binnenrand van de paal: daar houdt het zichtbare
+    // plateau op, dus Amir staat nooit op of achter de paal (de paal is decor en draagt niet)
+    if (t.stam){ const inner = stamInnerW(t); if (stamSide(t) > 0) right = Math.min(right, inner); else left = Math.max(left, inner); }
+    out.push({ x: (left + right) / 2, left, right,
+               topH: top, base: top, wPx: right - left, hPx: 0, thin: true, takel: true, id: t.id || 'takel', stijg: t.stijg || 0 });
   }
   return out;
 }
@@ -9380,6 +9389,12 @@ function takelTeken(groundY, scale, cx){
   if (!takelGeladen) return;
   for (const t of takelLijst()) if (!t.weg) takelTekenEen(t, groundY, scale, cx);
 }
+// de paal staat aan de wielkant van het plateau (side) en overlapt de hoek ervan. De tekening en de botsing
+// rekenen met dezelfde maten, zodat het loopvlak precies tot de zichtbare rand van het dek loopt.
+function stamSide(t){ return Math.sign(t.x - t.px) || -1; }        // de kant van het plateau waar de paal staat
+function stamMidW(t){ return t.px + stamSide(t) * (t.breed / 2 - STAM.breed * CHAR_H * 0.3); }   // de paal (midden) in wereld-x
+// de binnenrand van de paal in wereld-x: daar houdt het zichtbare dek op, dus daar houdt het loopvlak op
+function stamInnerW(t){ return stamMidW(t) - stamSide(t) * STAM.breed * CHAR_H / 2; }
 // De draagpaal onder het plateau, aan de kant van het wiel, met het mini-tandwiel op de pen. Decor: hij
 // draagt niets en houdt niemand tegen. De paal staat vast (van de grond tot zijn eigen hoogte, t.stamH), en
 // het plateau schuift er verticaal langs; de paal wordt ervoor getekend zodat hij het aanhechtpunt afdekt.
@@ -9388,7 +9403,7 @@ function takelStamTeken(t, groundY, scale, cx, side, top){
   const poleWw = STAM.breed * CHAR_H, poleW = poleWw * scale;
   const ps = poleW / STAM.bronBreed;                                // schaal van de bronstukken
   const topHs = STAM.topH * ps, midHs = STAM.midH * ps, bottomHs = STAM.bottomH * ps, ovS = STAM.overlap * ps;
-  const xw = t.px + side * (t.breed / 2 - poleWw * 0.3);            // de paal net binnen de wiel-kant van het plateau
+  const xw = stamMidW(t);                                           // de paal net binnen de wiel-kant van het plateau
   const poleCx = cx + (xw - world);
   const lx = poleCx - poleW / 2;
   const baseY = groundY - terrainH(xw) * scale;                    // de voet op de grond onder de paal
