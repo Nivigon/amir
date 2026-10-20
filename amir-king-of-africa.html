@@ -868,6 +868,7 @@
       <span class="mkfield"><label for="mkrows">Hoog</label><input id="mkrows" type="number" min="4" max="200" step="1" value="20"></span>
       <span class="mkfield"><label for="mkground">Grondlijn</label><input id="mkground" type="number" min="0" max="199" step="1" value="12"></span>
       <span class="mkfield"><label for="mkmuziek">Muziek</label><select id="mkmuziek"></select></span>
+      <span class="mkfield"><label><input id="mkvalschade" type="checkbox" checked> Valschade</label></span>
       <button id="mkfit" title="Pas de hele kaart in beeld">Passend</button>
       <button id="mktest" class="mkspeel" title="Speel dit grid meteen als level">Test &#9654;</button>
       <button id="mkexport">Exporteren</button>
@@ -898,7 +899,8 @@
         <div id="mkvijknop"></div>
         <div id="mkplatctl" class="mkrij" style="display:none"><button id="mkdoel">Zet doelhoogte</button><button id="mkdoelwis">Wis doel</button></div>
         <div id="mkplatbreed" class="mkknop" style="display:none"><label>Breedte</label><input id="mkbreed" type="range" min="1" max="5" step="1"><span class="read" id="mkbreedv"></span></div>
-        <div id="mkplatstam" class="mkknop" style="display:none"><label>Paalhoogte</label><input id="mkstam" type="range" min="1" max="24" step="1"><span class="read" id="mkstamv"></span></div>
+        <div id="mkplatstam" class="mkknop" style="display:none"><label>Paalhoogte</label><input id="mkstam" type="range" min="1" max="40" step="1"><span class="read" id="mkstamv"></span></div>
+        <div id="mkplatstamzij" class="mkrij" style="display:none"><button id="mkstamzij">Paal: rechts</button></div>
         <div id="mkdoelinfo" class="mkhint" style="display:none"></div>
         <div id="mktandctl" style="display:none">
           <div class="mkveld"><label for="mktandplat">Verbonden met</label><select id="mktandplat"></select></div>
@@ -5687,6 +5689,10 @@ function drawClimb(groundY, scale, cx, onder){
     if (xl > viewR || xr < viewL) continue;
     const top = groundY - t.h * scale - (TER.walk - TER.trimTop) * st;
     if (top > bottom) continue;
+    // Een rots-mesa met af (uit de Maker) stopt op de grondlijn in plaats van door de savanne heen naar
+    // beneden het donker in te lopen: het steen staat op de grond, en de grondband eronder (al getekend)
+    // blijft zichtbaar. De gewone terrassen van de bestaande levels hebben geen af en veranderen niet.
+    const onderT = t.af ? groundY : bottom;
     // past de rand niet in het terras, dan drukken we hem samen tot de breedte die er is, niet
     // verder: anders wordt de rotsribbeling een fijne streepjescode. De twee randen mogen elkaar
     // overlappen, want de linker wordt als laatste getekend en vloeit naar rechts uit
@@ -5703,25 +5709,25 @@ function drawClimb(groundY, scale, cx, onder){
     const onder = t.h < 0 && winterOn();
     const tp = onder ? terImg : terPic(), tf = onder ? terFade : (terFadePic() || terPic());
     ctx.save();
-    terClipPath(xl, xr, top - 4, bottom, st, soilY, leftHidden, t.l, t.r, rightHidden);        // gebroken zijkanten
+    terClipPath(xl, xr, top - 4, onderT, st, soilY, leftHidden, t.l, t.r, rightHidden);        // gebroken zijkanten
     ctx.clip();
     ctx.save();
     ctx.beginPath();
     const midL = xl + (leftHidden ? 0 : edgePx);
     const midR = rightHidden ? xr + 40 : xr - edgePx;
-    ctx.rect(midL, top - 4, midR - midL, bottom - top + 4);
+    ctx.rect(midL, top - 4, midR - midL, onderT - top + 4);
     ctx.clip();
     // middenstukken van rechts naar links, om en om gespiegeld: dan sluiten de naden
     let x = rightHidden ? xr + 40 : xr - capW, k = 0;
     while (x > xl && x > viewL - midW){
-      drawTerCol(TER.midX, iw - TER.midX, x - midW, midW, k % 2 === 1, top, bottom, st, tp);
+      drawTerCol(TER.midX, iw - TER.midX, x - midW, midW, k % 2 === 1, top, onderT, st, tp);
       x -= midW; k++;
     }
     ctx.restore();
-    if (!rightHidden) drawTerCol(0, iw, xr - capW, capW, true, top, bottom, st, tp);   // afbrokkelende rand rechts, naar je start toe
+    if (!rightHidden) drawTerCol(0, iw, xr - capW, capW, true, top, onderT, st, tp);   // afbrokkelende rand rechts, naar je start toe
     // en links als laatste, met de zachte rechterkant: zo houdt hij zijn eigen rand, ook als
     // het terras zo smal is dat de twee randen over elkaar heen vallen
-    if (!leftHidden) drawTerCol(0, iw, xl, capW, false, top, bottom, st, tf);
+    if (!leftHidden) drawTerCol(0, iw, xl, capW, false, top, onderT, st, tf);
     ctx.restore();
     if (showBoxes || building){
       ctx.save();
@@ -9273,7 +9279,12 @@ function takelUpdateEen(t, dt){                       // werkt één platform bi
   return draait || t.haper > 1e-6;
 }
 // de rand van het dek en de hoogte, voor wie erover loopt (een bandiet die de brug oversteekt)
-function takelDekVoor(t){ if (!t || t.weg) return null; return { l: t.px - t.breed / 2, r: t.px + t.breed / 2, top: takelOpp(t) }; }
+function takelDekVoor(t){ if (!t || t.weg) return null;
+  let l = t.px - t.breed / 2, r = t.px + t.breed / 2;
+  // met een stam dekt de paal de hoek van het dek af; daar houdt het zichtbare (en begaanbare) dek op, zodat
+  // Amir alleen op het zichtbare plateau staat en niet op of achter de paal
+  if (t.stam){ const inner = stamInnerW(t); if (stamSide(t) > 0) r = Math.min(r, inner); else l = Math.max(l, inner); }
+  return { l, r, top: takelOpp(t) }; }
 function takelDek(){ return takelDekVoor(takelLevel()); }   // de eerste, voor losse aanroepen
 // Staat een voetstap op het brug-dek (op zijn hoogte)? Dan is het gat daar overbrugd: de ravijn-rand telt
 // niet, zodat een vijand (en Amir) eroverheen kan lopen in plaats van bij de rand te blijven staan.
@@ -9287,8 +9298,12 @@ function takelPlats(){
   for (const t of takelLijst()){
     if (t.weg) continue;
     const top = takelOpp(t);                         // de looplijn (voorrand van het bovenvlak)
-    out.push({ x: t.px, left: t.px - t.breed / 2, right: t.px + t.breed / 2,
-               topH: top, base: top, wPx: t.breed, hPx: 0, thin: true, takel: true, id: t.id || 'takel', stijg: t.stijg || 0 });
+    let left = t.px - t.breed / 2, right = t.px + t.breed / 2;
+    // met een stam loopt het begaanbare dek maar tot de binnenrand van de paal: daar houdt het zichtbare
+    // plateau op, dus Amir staat nooit op of achter de paal (de paal is decor en draagt niet)
+    if (t.stam){ const inner = stamInnerW(t); if (stamSide(t) > 0) right = Math.min(right, inner); else left = Math.max(left, inner); }
+    out.push({ x: (left + right) / 2, left, right,
+               topH: top, base: top, wPx: right - left, hPx: 0, thin: true, takel: true, id: t.id || 'takel', stijg: t.stijg || 0 });
   }
   return out;
 }
@@ -9380,6 +9395,18 @@ function takelTeken(groundY, scale, cx){
   if (!takelGeladen) return;
   for (const t of takelLijst()) if (!t.weg) takelTekenEen(t, groundY, scale, cx);
 }
+// de paal staat aan de wielkant van het plateau (side) en overlapt de hoek ervan. De tekening en de botsing
+// rekenen met dezelfde maten, zodat het loopvlak precies tot de zichtbare rand van het dek loopt.
+// de kant van het plateau waar de paal staat: een eigen veld (t.stamZij), los van waar het wiel staat. Zonder
+// dat veld valt hij terug op de wielkant (oude takels), maar de Maker zet hem altijd zelf
+function stamSide(t){ return (t.stamZij === 1 || t.stamZij === -1) ? t.stamZij : (Math.sign(t.x - t.px) || -1); }
+function stamMidW(t){ return t.px + stamSide(t) * (t.breed / 2 - STAM.breed * CHAR_H * 0.3); }   // de paal (midden) in wereld-x
+// de binnenrand van de paal in wereld-x: daar houdt het zichtbare dek op, dus daar houdt het loopvlak op
+function stamInnerW(t){ return stamMidW(t) - stamSide(t) * STAM.breed * CHAR_H / 2; }
+// de voet van de paal (hoogte boven de grondlijn): standaard rust hij op de vloer eronder (terrainH), maar
+// een level of de Maker kan hem zelf zetten (t.stamBot), zodat hij in een hoger level niet tot de basisgrond
+// doorloopt
+function stamBotH(t){ return t.stamBot != null ? t.stamBot : terrainH(stamMidW(t)); }
 // De draagpaal onder het plateau, aan de kant van het wiel, met het mini-tandwiel op de pen. Decor: hij
 // draagt niets en houdt niemand tegen. De paal staat vast (van de grond tot zijn eigen hoogte, t.stamH), en
 // het plateau schuift er verticaal langs; de paal wordt ervoor getekend zodat hij het aanhechtpunt afdekt.
@@ -9388,10 +9415,10 @@ function takelStamTeken(t, groundY, scale, cx, side, top){
   const poleWw = STAM.breed * CHAR_H, poleW = poleWw * scale;
   const ps = poleW / STAM.bronBreed;                                // schaal van de bronstukken
   const topHs = STAM.topH * ps, midHs = STAM.midH * ps, bottomHs = STAM.bottomH * ps, ovS = STAM.overlap * ps;
-  const xw = t.px + side * (t.breed / 2 - poleWw * 0.3);            // de paal net binnen de wiel-kant van het plateau
+  const xw = stamMidW(t);                                           // de paal net binnen de wiel-kant van het plateau
   const poleCx = cx + (xw - world);
   const lx = poleCx - poleW / 2;
-  const baseY = groundY - terrainH(xw) * scale;                    // de voet op de grond onder de paal
+  const baseY = groundY - stamBotH(t) * scale;                     // de voet van de paal (vloer eronder, of t.stamBot)
   const topY = groundY - t.stamH * scale;                          // de bovenkant van de paal
   ctx.save();
   // de drie stukken: top (met de pen) boven, mid herhaald, bottom op de grond. Mid is naadloos, dus butt-to-butt
@@ -9490,7 +9517,10 @@ function takelTekenEen(t, groundY, scale, cx){
       ctx.drawImage(takelKnop, raRx - kn / 2, raRy - kn / 2, kn, kn);
     }
   }
-  // ---- de wielen zelf: voor hun eigen drijftouw, zodat de rand de voet van het touw afdekt ----
+  // de draagpaal met het mini-tandwiel: voor het plateau, maar achter het wiel (het wiel staat altijd vooraan,
+  // ook als je het in de Maker over de paal heen zet). De kant komt uit stamSide, niet uit de wielpositie
+  if (t.stam && !t.valt) takelStamTeken(t, groundY, scale, cx, stamSide(t), top);
+  // ---- de wielen zelf: als laatste, zodat ze altijd voor het plateau en de paal staan ----
   if (!arenaMode){
     const fr = ((Math.round(t.angle / (2 * Math.PI) * TAKEL.wielN) % TAKEL.wielN) + TAKEL.wielN) % TAKEL.wielN;
     const wim = takelImgs[fr];
@@ -9499,8 +9529,6 @@ function takelTekenEen(t, groundY, scale, cx){
       ctx.drawImage(wim, rwx - wielW / 2, baseY - wielH, wielW, wielH);
     }
   }
-  // de draagpaal met het mini-tandwiel, als laatste (voor het wiel en zijn touw, met het mini-wiel erbovenop)
-  if (t.stam && !t.valt) takelStamTeken(t, groundY, scale, cx, Math.sign(t.x - t.px) || -1, top);
   if (showBoxes || building){
     ctx.save();
     ctx.globalAlpha = 0.6; ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2 / viewZoom();
@@ -15473,10 +15501,14 @@ const COYOTE_T = 0.12;
 // de botsing en de val-schade blijven wat ze waren. Gelijk aan PROEFMOB.stap, het afstapje van een vijand.
 const STAP_POSE = 60;
 let onGround = true;
+// Het bewegende plateau (takel of rijzende grond) waar je op staat, op id. Daaraan blijf je kleven en
+// zak of stijg je mee, ook als het sneller zakt dan RIJS.terug, zodat je er niet elk beeld even af
+// "valt". Springen of eraf lopen laat je los (zie updateJump en takeOff).
+let amirPlat = null;
 const dust = [];
 
 function takeOff(){
-  jump = { phase: 'air', t: 0 }; pvh = jumpV() * (1 - (1 - POOL.jump) * waterDepthAt(world, ph)); onGround = false; fell = false; coyote = 0; puffDust(4);
+  jump = { phase: 'air', t: 0 }; pvh = jumpV() * (1 - (1 - POOL.jump) * waterDepthAt(world, ph)); onGround = false; fell = false; coyote = 0; amirPlat = null; puffDust(4);
 }
 function startJump(){
   if (amirVast()) return;                            // de baviaan heeft je speer vast
@@ -18420,19 +18452,35 @@ function updateJump(dt, plats, halfW){
     puffDust(9);
     if (winterOn() && !building && waterDepthAt(world, target) < 0.2) snowBurst(world, target, vIn / 900);   // de sneeuw stuift op
     if (targetPlat && targetPlat.takel){ const tk = takelById(targetPlat.id); if (tk) takelBons(tk, vIn, world >= tk.px ? 1 : -1); }   // op het plateau springen: inzakken plus schommelen naar de landingskant
+    amirPlat = (targetPlat && (targetPlat.takel || targetPlat.rijs)) ? (targetPlat.id || null) : null;   // beland je op een bewegend plateau, dan bind je je eraan
     valLand(diep);
   }
   if (!onGround && ph < valGrens(world)) fallDeath();   // in het gat gevallen (niet als er een gang onder zit, wel in een put)
 
   if (onGround){
+    // Sta je op een bewegend plateau (takel of rijzende grond), dan blijf je eraan vastzitten zolang je
+    // er met je voeten boven staat: je zakt (en stijgt) ermee mee op zijn eigen snelheid, niet geklemd op
+    // RIJS.terug, zodat je er niet elk beeld even afvalt. valVan loopt zo mee omlaag (zie boven), dus
+    // meerijden kost geen valschade. Pas bij springen (takeOff wist amirPlat) of eraf lopen laat je los.
+    const drager = amirPlat != null
+      ? plats.find(p => (p.id || null) === amirPlat && world + halfW > p.left && world - halfW < p.right && p.topH <= ph + 1)
+      : null;
     const s = supportHeight(plats, halfW);
     const floor = s !== 0 ? s : (building ? 0 : grondVloer(world, ph));
-    if (floor !== null && floor >= ph - 1) ph = floor;   // meelopen met de rots
+    if (drager) ph = drager.topH;                        // mee omlaag met het plateau, elke snelheid
+    else if (floor !== null && floor >= ph - 1) ph = floor;   // meelopen met de rots (ook mee omhoog met het plateau)
     else if (s !== 0 && floor !== null && ph - floor < RIJS.terug * dt + 2) ph = floor;   // en mee omlaag met steen dat zakt
     else if (jump && (jump.phase === 'crouch' || jump.phase === 'push')) takeOff();   // al aan het afzetten: gewoon springen
     else { onGround = false; pvh = 0;                    // van de rand of het gat in
+           amirPlat = null;
            if (overGap) coyote = COYOTE_T;                 // nog heel even kans om te springen
            if (!jump) jump = { phase: 'air', t: 0, step: true }; }   // step: een afstapje, geen sprong (zie jumpFrame)
+    // op welk bewegend plateau sta je nu? daaraan bind je je voor het volgende beeld (ook als je er net
+    // vanaf de grond op bent gelopen, zonder landing-event)
+    if (onGround){
+      const op = plats.find(p => (p.takel || p.rijs) && world + halfW > p.left && world - halfW < p.right && Math.abs(p.topH - ph) < 2);
+      amirPlat = op ? (op.id || null) : null;
+    }
   }
 }
 
@@ -29107,7 +29155,7 @@ function syncLevel(){
                                                    y: (o.y === null || o.y === undefined) ? null : Math.round(o.y) })),
     plafond: (level.plafond || []).map(o => ({ x: Math.round(o.x), y: Math.round(o.y) })),
     muur: level.muur || undefined,           // zonder rotswand valt het veld weg
-    terraces: (level.terraces || []).map(o => ({ r: o.r, l: o.l, h: o.h, grond: o.grond || undefined })),
+    terraces: (level.terraces || []).map(o => ({ r: o.r, l: o.l, h: o.h, grond: o.grond || undefined, af: o.af || undefined })),
     zwevers: (level.zwevers || []).map(o => ({ r: o.r, l: o.l, h: o.h, onder: o.onder, look: o.look })),
     holtes: (level.holtes || []).map(o => ({ r: o.r, l: o.l, diep: o.diep })),
     valschade: level.valschade || undefined,
@@ -29284,7 +29332,9 @@ function leesTakel(q){
            passagierRollen: Array.isArray(q.passagierRollen) ? q.passagierRollen.map(String) : undefined,
            touwSnijbaar: q.touwSnijbaar === true,
            stam: q.stam === true,                                       // de draagpaal met het mini-tandwiel in plaats van de twee touwen (zie "stam")
+           stamZij: (q.stamZij === 1 || q.stamZij === -1) ? q.stamZij : undefined,  // de kant van de paal (1 rechts, -1 links), los van het wiel
            stamH: q.stamH !== undefined ? Number(q.stamH) : undefined,  // de hoogte van de paal (de pen bovenaan), sprite-eenheden boven de grond
+           stamBot: q.stamBot !== undefined ? Number(q.stamBot) : undefined,  // de voet van de paal (zonder dit veld rust hij op de vloer eronder)
            elite: q.elite === true,
            stuurt: Array.isArray(q.stuurt) ? q.stuurt.map(String) : undefined,   // seinen die dit platform stuurt als het helemaal boven staat
            // losse wielen op hun eigen plek: {x (op de grond), off (hoogte boven de grond), modus}. Zonder dit
@@ -29427,7 +29477,7 @@ function readLevel(txt){
                             soort: o.muur.soort === 'grot' ? 'grot' : undefined } : null,
            // grond: true maakt er geen rots van maar een hogere savannelaag (zie "hogere savannelaag")
            terraces: (o.terraces || []).map(q => ({ r: Number(q.r), l: Number(q.l), h: Number(q.h) || 0,
-                                                    grond: q.grond === true })),
+                                                    grond: q.grond === true, af: q.af === true })),
            // zwevende savannelagen: een dik savanneblok in de lucht, zie "zwevende savannelaag"
            zwevers: (o.zwevers || []).map(q => {
              const h = Number(q.h) || 0;
@@ -30896,8 +30946,8 @@ function mkNearestPlatform(w){ let best = null, bd = Infinity;
 function mkConnectedPlatform(w){ if (w && w.plat && MK.objects.indexOf(w.plat) >= 0 && w.plat.k === 'platform') return w.plat; return mkNearestPlatform(w); }
 const MK = { cols:48, rows:20, ground:12, grid:null, start:null, eind:null, objects:[], sel:null,
              tool:'savanne', zoom:1, panX:0, panY:0,
-             cat:'terrein', sub:null, vijandSoort:'groen', inspectDicht:true, muziek:MUZIEK_BASIS };
-let makerOpen = false, mkCtx = null, mkPaint = false, mkPan = false, mkPanX = 0, mkPanY = 0, mkSpace = false, mkDoelMode = false, mkDrag = null;
+             cat:'terrein', sub:null, vijandSoort:'groen', inspectDicht:true, muziek:MUZIEK_BASIS, valschade:true };
+let makerOpen = false, mkCtx = null, mkPaint = false, mkPan = false, mkPanX = 0, mkPanY = 0, mkSpace = false, mkDoelMode = false, mkDrag = null, mkStamDrag = null;
 const makerEl = document.getElementById('maker');
 const mkCanvas = document.getElementById('mkcanvas');
 const mkColsEl = document.getElementById('mkcols'), mkRowsEl = document.getElementById('mkrows'), mkGroundEl = document.getElementById('mkground');
@@ -30906,6 +30956,11 @@ const mkMuziekEl = document.getElementById('mkmuziek');
 for (const [id, naam] of MK_MUZIEK){ const o = document.createElement('option'); o.value = id; o.textContent = naam; mkMuziekEl.appendChild(o); }
 mkMuziekEl.value = MK.muziek;
 mkMuziekEl.addEventListener('change', () => { MK.muziek = mkMuziekEl.value; mkBewaar(); });
+// Valschade staat bij het testen standaard aan, met een vinkje om het uit te zetten. Een diepe val
+// kost dan levens (zie valschade); het vinkje gaat mee in de export als lvl.valschade.
+const mkValschadeEl = document.getElementById('mkvalschade');
+mkValschadeEl.checked = MK.valschade;
+mkValschadeEl.addEventListener('change', () => { MK.valschade = mkValschadeEl.checked; mkBewaar(); });
 
 function mkMaakGrid(cols, rows){ return Array.from({ length: rows }, () => Array(cols).fill('lucht')); }
 // het grid aanpassen tijdens het bouwen, met behoud van wat je al getekend hebt (linksboven verankerd)
@@ -31001,6 +31056,15 @@ function mkTeken(){
         mkCtx.fillStyle = 'rgba(216,178,74,.28)'; mkCtx.fillRect(cx - bw / 2, dy - bh / 2, bw, bh);
         mkCtx.strokeStyle = 'rgba(216,178,74,.7)'; mkCtx.lineWidth = 1.5; mkCtx.setLineDash([3, 3]);
         mkCtx.beginPath(); mkCtx.moveTo(cx, cy); mkCtx.lineTo(cx, dy); mkCtx.stroke(); mkCtx.setLineDash([]); }
+      // de draagpaal (stam) met het mini-tandwieltje op de pen: zichtbaar in de grid, en met twee sleep-handvatten
+      // (pen boven, voet onder) om hem groter of kleiner te slepen als het platform geselecteerd is
+      { const g = mkStamGeo(o), py0 = Math.min(g.topY, g.botY), ph = Math.abs(g.botY - g.topY);
+        mkCtx.fillStyle = 'rgba(150,120,86,.8)'; mkCtx.fillRect(g.poleX - g.poleW / 2, py0, g.poleW, ph);
+        mkCtx.strokeStyle = 'rgba(20,14,26,.6)'; mkCtx.lineWidth = 1; mkCtx.strokeRect(g.poleX - g.poleW / 2, py0, g.poleW, ph);
+        mkCtx.fillStyle = '#b06a3a'; mkCtx.beginPath(); mkCtx.arc(g.poleX, g.topY, Math.max(3, g.poleW * 0.32), 0, 7); mkCtx.fill();   // de pen
+        if (o === MK.sel){ for (const hh of [g.topHandle, g.botHandle]){
+          mkCtx.fillStyle = '#fff'; mkCtx.fillRect(hh.x, hh.y, hh.w, hh.h);
+          mkCtx.strokeStyle = '#2a1e12'; mkCtx.lineWidth = 1; mkCtx.strokeRect(hh.x, hh.y, hh.w, hh.h); } } }
       mkCtx.fillStyle = t.kleur; mkCtx.fillRect(cx - bw / 2, cy - bh / 2, bw, bh);
       if (o === MK.sel){ mkCtx.strokeStyle = '#fff'; mkCtx.lineWidth = 2; mkCtx.strokeRect(cx - bw / 2 - 2, cy - bh / 2 - 2, bw + 4, bh + 4); }
       if (o.note){ mkCtx.fillStyle = '#ffd24a'; mkCtx.beginPath(); mkCtx.arc(cx + bw / 2 - 3, cy - bh / 2, Math.max(2, cel * 0.1), 0, 7); mkCtx.fill(); }
@@ -31068,6 +31132,31 @@ function mkStamAuto(p){
   const restH = (MK.ground - p.r) * MK_CEL_EENH, doelH = p.doel ? (MK.ground - p.doel.r) * MK_CEL_EENH : restH;
   return Math.max(1, Math.ceil((Math.max(restH, doelH) + STAM.boven * CHAR_H) / MK_CEL_EENH));
 }
+// de cellen waar het platform het hoogst komt (rust of doel), zodat de pen daar net boven moet blijven
+function mkPlatHoogCel(p){ return Math.max(MK.ground - p.r, p.doel ? MK.ground - p.doel.r : 0); }
+// volle terreincel: daar kan de paal op rusten
+const MK_STAM_SOLID = new Set(['savanne', 'rots', 'sneeuw', 'sneeuwrots', 'muur', 'zweef', 'laag']);
+// de voet van de paal in cellen boven de grond als de bouwer hem vanzelf kiest: de eerste volle cel recht onder
+// het platform (een terras/hogere laag telt), anders de basisgrond. Een stamBotCel van de speler gaat hiervoor.
+function mkStamBotAuto(p){
+  for (let r = p.r + 1; r <= MK.ground; r++) if (MK.grid[r] && MK_STAM_SOLID.has(MK.grid[r][p.c])) return Math.max(0, MK.ground - r);
+  return 0;
+}
+function mkStamTopCel(p){ return p.stamCel || mkStamAuto(p); }
+function mkStamBotCel(p){ return p.stamBotCel != null ? p.stamBotCel : mkStamBotAuto(p); }
+// de schermgeometrie van de paal en zijn twee sleep-handvatten (pen boven, voet onder), voor tekenen en aanklikken
+function mkStamGeo(p){
+  const cel = mkCel(), gx = MK.panX, gy = MK.panY;
+  const side = p.stamZij === -1 ? -1 : 1;                         // de kant van de paal (eigen keuze, los van het wiel)
+  const cx = gx + (p.c + 0.5) * cel, bw = (p.breed || MK_PLAT_BREED) * cel;
+  const poleW = Math.max(3, (STAM.breed * CHAR_H / MK_CEL_PX) * cel);
+  const poleX = cx + side * (bw / 2 - 0.3 * poleW);               // het midden van de paal, zoals stamMidW
+  const topY = gy + (MK.ground - mkStamTopCel(p)) * cel, botY = gy + (MK.ground - mkStamBotCel(p)) * cel;
+  const hw = Math.max(6, cel * 0.32);
+  return { side, poleX, poleW, topY, botY, hw,
+           topHandle: { x: poleX - hw / 2, y: topY - hw / 2, w: hw, h: hw },
+           botHandle: { x: poleX - hw / 2, y: botY - hw / 2, w: hw, h: hw } };
+}
 // de twee dropdowns van een tandwiel: waaraan het verbonden is (een platform of auto), en wat het doet (de stand)
 function mkVulTandSelects(){
   const psel = document.getElementById('mktandplat'), msel = document.getElementById('mktandmodus');
@@ -31126,6 +31215,8 @@ function mkNotePaneel(){
   platctl.style.display = isPlat ? '' : 'none'; doelinfo.style.display = isPlat ? '' : 'none'; tandctl.style.display = isTand ? '' : 'none';
   document.getElementById('mkplatbreed').style.display = isPlat ? '' : 'none';
   document.getElementById('mkplatstam').style.display = isPlat ? '' : 'none';
+  document.getElementById('mkplatstamzij').style.display = isPlat ? '' : 'none';
+  if (isPlat) document.getElementById('mkstamzij').textContent = 'Paal: ' + (MK.sel.stamZij === -1 ? 'links' : 'rechts');
   if (isVij){ mkVulVijSelect(); mkVulVijKnoppen(); }
   else document.getElementById('mkvijknop').innerHTML = '';
   if (isPlat){ const d = MK.sel.doel;
@@ -31134,7 +31225,7 @@ function mkNotePaneel(){
     const br = MK.sel.breed || MK_PLAT_BREED, bv = document.getElementById('mkbreedv');
     document.getElementById('mkbreed').value = br; bv.textContent = br + (br === 1 ? ' cel' : ' cellen');
     const sc = MK.sel.stamCel || mkStamAuto(MK.sel), sv = document.getElementById('mkstamv');
-    document.getElementById('mkstam').value = Math.max(1, Math.min(24, sc));
+    document.getElementById('mkstam').value = Math.max(1, Math.min(40, sc));
     sv.textContent = sc + (sc === 1 ? ' cel' : ' cellen') + (MK.sel.stamCel ? '' : ' (vanzelf)'); }
   if (isTand) mkVulTandSelects();
   const isOver = MK.sel.k === 'overhang';
@@ -31268,11 +31359,11 @@ function mkNaarJSON(){
   return { type:'amir-levelmaker-grid', versie:1, cols:MK.cols, rows:MK.rows, groundRow:MK.ground,
            cel:{ breedPx:MK_CEL_PX, hoogEenheden:MK_CEL_EENH },
            legenda:{ '.':'lucht', S:'savanne', R:'rots', W:'sneeuw op savanne', X:'sneeuw op rots', M:'muur', L:'laag obstakel', F:'zwevende laag', G:'gang', V:'ravijn' },
-           grid, start:MK.start, eind:MK.eind, muziek:MK.muziek,
+           grid, start:MK.start, eind:MK.eind, muziek:MK.muziek, valschade:MK.valschade,
            objecten: MK.objects.map(o => {
              const b = { c:o.c, r:o.r, k:o.k, note:o.note || '' };
              if (o.k === 'vijand'){ b.soort = o.soort || 'groen'; if (o.params && Object.keys(o.params).length) b.params = o.params; }
-             if (o.k === 'platform'){ b.doel = o.doel ? { c:o.doel.c, r:o.doel.r } : null; b.breed = o.breed || MK_PLAT_BREED; if (o.stamCel) b.stamCel = o.stamCel; }
+             if (o.k === 'platform'){ b.doel = o.doel ? { c:o.doel.c, r:o.doel.r } : null; b.breed = o.breed || MK_PLAT_BREED; if (o.stamCel) b.stamCel = o.stamCel; if (o.stamBotCel != null) b.stamBotCel = o.stamBotCel; if (o.stamZij === -1) b.stamZij = -1; }
              if (o.k === 'tandwiel'){ b.modus = o.modus || 'schakellift'; const p = mkConnectedPlatform(o); if (p) b.platform = { c:p.c, r:p.r }; }
              if (o.k === 'overhang'){ b.breed = o.breed || 3; b.dik = o.dik || 2; b.fijn = o.fijn || 0; b.look = o.look === 'savanne' ? 'savanne' : 'rots'; }
              return b;
@@ -31287,10 +31378,12 @@ function mkUitJSON(o){
   MK.eind  = (o.eind  && o.eind.c  != null) ? { c:o.eind.c,  r:o.eind.r  } : null;
   MK.muziek = MK_MUZIEK.some(m => m[0] === o.muziek) ? o.muziek : MUZIEK_BASIS;
   if (mkMuziekEl) mkMuziekEl.value = MK.muziek;
+  MK.valschade = o.valschade !== undefined ? !!o.valschade : true;
+  if (mkValschadeEl) mkValschadeEl.checked = MK.valschade;
   MK.objects = Array.isArray(o.objecten) ? o.objecten.filter(q => mkIsObj(q.k)).map(q => {
     const b = { c:q.c|0, r:q.r|0, k:q.k, note:String(q.note || '') };
     if (q.k === 'vijand'){ b.soort = MK_VIJ_INFO[q.soort] ? q.soort : 'groen'; if (q.params && typeof q.params === 'object'){ b.params = {}; for (const kk in q.params) if (typeof q.params[kk] === 'number') b.params[kk] = q.params[kk]; } }
-    if (q.k === 'platform'){ b.doel = (q.doel && q.doel.c != null) ? { c:q.doel.c|0, r:q.doel.r|0 } : null; b.breed = Math.max(1, Math.min(5, Math.round(Number(q.breed) || MK_PLAT_BREED))); if (Number(q.stamCel) > 0) b.stamCel = Math.max(1, Math.min(24, Math.round(Number(q.stamCel)))); }
+    if (q.k === 'platform'){ b.doel = (q.doel && q.doel.c != null) ? { c:q.doel.c|0, r:q.doel.r|0 } : null; b.breed = Math.max(1, Math.min(5, Math.round(Number(q.breed) || MK_PLAT_BREED))); if (Number(q.stamCel) > 0) b.stamCel = Math.max(1, Math.min(40, Math.round(Number(q.stamCel)))); if (q.stamBotCel != null && Number(q.stamBotCel) >= 0) b.stamBotCel = Math.max(0, Math.min(40, Math.round(Number(q.stamBotCel)))); if (Number(q.stamZij) === -1) b.stamZij = -1; }
     if (q.k === 'tandwiel'){ b.modus = MK_MODI.some(m => m[0] === q.modus) ? q.modus : 'schakellift';
       if (q.platform && q.platform.c != null) b._plat = { c:q.platform.c|0, r:q.platform.r|0 }; }
     if (q.k === 'overhang'){ b.breed = Math.max(1, Math.min(12, Math.round(Number(q.breed) || 3)));
@@ -31364,7 +31457,11 @@ function mkNaarLevel(){
       if (lucht <= 0) terraces.push({ r: Math.round(r), l: Math.round(l), h, grond: true });   // raakt de grond: massief
       else zwevers.push({ r: Math.round(r), l: Math.round(l), h, onder: Math.round(lucht) });
     } else {
-      terraces.push({ r: Math.round(r), l: Math.round(l), h, grond: savanne(a.soort) });   // savanne/rots/muur: altijd massief tot de grond (een mesa, vult onderin)
+      const g = savanne(a.soort);
+      // een rots-mesa (muur/rots/sneeuwrots) krijgt af: true, zodat zijn steen op de grondlijn stopt en niet
+      // door de savanne heen naar beneden het donker in loopt (zie drawClimb). Een savanne-mesa niet: die
+      // tekent aarde eronder die vanzelf in de grondband overloopt.
+      terraces.push({ r: Math.round(r), l: Math.round(l), h, grond: g, af: !g });   // savanne/rots/muur: altijd massief tot de grond (een mesa, vult onderin)
     }
     i = j;
   }
@@ -31438,7 +31535,8 @@ function mkNaarLevel(){
     // de Maker bouwt voortaan met de stam (de draagpaal met het mini-tandwiel), niet met de twee touwen; de
     // paalhoogte komt uit stamCel (de speler) of vanzelf net boven de hoogste plateaustand (mkStamAuto)
     takels.push({ id: 'p' + (++takelNr), px, breed, laag, hoog, stappen: 6, beginLaag: restH <= doelH,
-                  stam: true, stamH: (p.stamCel || mkStamAuto(p)) * MK_CEL_EENH,
+                  stam: true, stamZij: p.stamZij === -1 ? -1 : 1, stamH: (p.stamCel || mkStamAuto(p)) * MK_CEL_EENH,
+                  stamBot: p.stamBotCel != null ? p.stamBotCel * MK_CEL_EENH : undefined,   // zonder sleep rust hij op de vloer eronder (terrainH)
                   x: wielen.length ? wielen[0].x : px + Math.round(MK_CEL_PX * 1.2), wielen: wielen.length ? wielen : undefined });
   }
   const [sl, sr] = lr(startCol), startX = Math.round((sl + sr) / 2);
@@ -31453,6 +31551,14 @@ function mkNaarLevel(){
       else if (s === 'bandiet:elite') sp.elite = true;
       else if (s === 'bandiet:hurk') sp.hurk = true;
     } else sp = { x, k: s };
+    // Staat de vijand boven de grondlijn op een zwevende laag of een verhoogd terras, dan zet hij daar
+    // ook neer (boven: het spel plaatst hem met bovenVloer op die laag, net als in Honingjacht 3), in
+    // plaats van op de echte grond onder de laag. Zijn voeten liggen op de onderrand van zijn cel, dat is
+    // precies de bovenkant van de laag eronder (z.h / t.h). Zonder laag op die hoogte blijft hij gewoon.
+    const voet = (gR - o.r - 1) * MK_CEL_EENH;
+    if (voet > 1 && (zwevers.some(z => x > z.l && x < z.r && Math.abs(z.h - voet) < 80)
+                  || terraces.some(t => t.h > 1 && x > t.l && x < t.r && Math.abs(t.h - voet) < 80)))
+      sp.boven = true;
     // de bijgestelde gedrag-getallen (nu de snelheid), alleen de knoppen die bij deze soort horen
     for (const k of (MK_VIJ_KNOP[s] || [])) if (o.params && o.params[k.key] != null && o.params[k.key] !== k.def) sp[k.key] = o.params[k.key];
     return sp;
@@ -31484,6 +31590,7 @@ function mkNaarLevel(){
   const lvl = { name:'Level Maker test', view:0.8, rocks:[], props:[], spawns, kaleKlif:true, voorgrond:false,
                 gaps, terraces, start:startX, ends:[{ x:eindX }], cliffs:[{ x:Math.round(linksX - 450) }] };
   if (MK.muziek && MK.muziek !== MUZIEK_BASIS) lvl.muziek = MK.muziek;   // de gekozen achtergrondmuziek (Dark Africa is de standaard)
+  if (MK.valschade) lvl.valschade = true;                               // bij het testen standaard aan (het vinkje in de Maker-balk)
   if (holtes.length) lvl.holtes = holtes;
   if (zwevers.length) lvl.zwevers = zwevers;
   if (takels.length) lvl.takels = takels;
@@ -31519,19 +31626,35 @@ for (const el of [mkColsEl, mkRowsEl, mkGroundEl]) el.addEventListener('change',
 });
 // schilderen, zoomen en schuiven op het canvas
 mkCanvas.addEventListener('pointerenter', mkMenuSluit);   // naar de kaart = de categorie-dropdown dicht
+// klikt de muis op een van de twee paal-handvatten van het geselecteerde platform? Dan wordt dat een paal-sleep
+// (de pen hoger/lager, of de voet hoger/lager) in plaats van een gewone klik
+function mkStamHandleOp(ev){
+  if (MK.tool !== 'select' || !MK.sel || MK.sel.k !== 'platform') return null;
+  const r = mkCanvas.getBoundingClientRect(), mx = ev.clientX - r.left, my = ev.clientY - r.top;
+  const g = mkStamGeo(MK.sel), hit = h => mx >= h.x - 3 && mx <= h.x + h.w + 3 && my >= h.y - 3 && my <= h.y + h.h + 3;
+  if (hit(g.topHandle)) return { o: MK.sel, end: 'top' };
+  if (hit(g.botHandle)) return { o: MK.sel, end: 'bot' };
+  return null;
+}
 mkCanvas.addEventListener('pointerdown', ev => {
   mkMenuSluit();
   mkCanvas.setPointerCapture(ev.pointerId);
   if (ev.button === 2 || ev.button === 1 || mkSpace){ mkPan = true; mkPanX = ev.clientX; mkPanY = ev.clientY; }
-  else { mkPaint = true; mkKlik(ev); }
+  else { const hs = mkStamHandleOp(ev); if (hs){ mkStamDrag = hs; return; }   // een paal-handvat slepen gaat voor
+    mkPaint = true; mkKlik(ev); }
 });
 mkCanvas.addEventListener('pointermove', ev => {
   if (mkPan){ MK.panX += ev.clientX - mkPanX; MK.panY += ev.clientY - mkPanY; mkPanX = ev.clientX; mkPanY = ev.clientY; mkTeken(); }
+  else if (mkStamDrag){ const { r } = mkCelOp(ev), o = mkStamDrag.o;   // de paal groter/kleiner slepen
+    const cells = MK.ground - r;                    // cellen boven de grond onder de muis
+    if (mkStamDrag.end === 'top') o.stamCel = Math.max(mkPlatHoogCel(o) + 1, Math.min(MK.rows, cells));   // de pen blijft boven de hoogste plateaustand
+    else o.stamBotCel = Math.max(0, Math.min(mkStamTopCel(o) - 1, cells));                                 // de voet blijft onder de pen
+    mkNotePaneel(); mkTeken(); }
   else if (mkDrag){ const { c, r } = mkCelOp(ev);   // een geselecteerd voorwerp verslepen naar een andere cel
     if (c >= 0 && r >= 0 && c < MK.cols && r < MK.rows && (mkDrag.c !== c || mkDrag.r !== r)){ mkDrag.c = c; mkDrag.r = r; mkNotePaneel(); mkTeken(); } }
   else if (mkPaint && MK_TERREIN.has(MK.tool)) mkVerf(ev);   // slepen schildert alleen grond, niet objecten of start/eind
 });
-function mkStop(){ mkPaint = false; mkPan = false; if (mkDrag){ mkDrag = null; mkBewaar(); } }
+function mkStop(){ mkPaint = false; mkPan = false; if (mkStamDrag){ mkStamDrag = null; mkBewaar(); } if (mkDrag){ mkDrag = null; mkBewaar(); } }
 mkCanvas.addEventListener('pointerup', mkStop);
 mkCanvas.addEventListener('pointercancel', mkStop);
 mkCanvas.addEventListener('contextmenu', ev => ev.preventDefault());
@@ -31569,6 +31692,7 @@ document.getElementById('mkload').onclick = () => {
 document.getElementById('mkwis').onclick = () => {
   if (!confirm('Weet je zeker dat je alles wil wissen?')) return;   // leeg beginnen, met bevestiging ertussen
   mkZetMaat(48, 20, 12); MK.grid = mkMaakGrid(MK.cols, MK.rows); MK.start = null; MK.eind = null; MK.objects = []; MK.sel = null; MK.tool = 'savanne'; MK.cat = 'terrein'; MK.sub = null; MK.inspectDicht = true; MK.muziek = MUZIEK_BASIS; mkMuziekEl.value = MK.muziek;
+  MK.valschade = true; mkValschadeEl.checked = true;
   mkLegenda(); mkNotePaneel(); mkPassend(); mkBewaar();
 };
 document.getElementById('mkobjnote').addEventListener('input', e => { if (MK.sel){ MK.sel.note = e.target.value; mkBewaar(); mkTeken(); } });
@@ -31609,6 +31733,12 @@ document.getElementById('mkstam').addEventListener('input', e => {
   const sv = document.getElementById('mkstamv'); sv.textContent = MK.sel.stamCel + (MK.sel.stamCel === 1 ? ' cel' : ' cellen');
   mkTeken(); mkBewaar();
 });
+document.getElementById('mkstamzij').onclick = () => {        // de kant van de paal wisselen (los van het wiel)
+  if (!MK.sel || MK.sel.k !== 'platform') return;
+  MK.sel.stamZij = MK.sel.stamZij === -1 ? 1 : -1;
+  document.getElementById('mkstamzij').textContent = 'Paal: ' + (MK.sel.stamZij === -1 ? 'links' : 'rechts');
+  mkTeken(); mkBewaar();
+};
 function mkOpen(){
   makerOpen = true; startEl.classList.add('off'); barEl.classList.add('hide'); makerEl.classList.add('on');
   try { const bew = localStorage.getItem('amir-mk'); if (bew) mkUitJSON(JSON.parse(bew)); } catch (e){}
