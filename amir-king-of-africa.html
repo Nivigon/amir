@@ -23407,7 +23407,10 @@ const MEEL = {
   scale: { idle: 1.37, opricht: 1.37, worp: 1.361, ren: 1.30, drag: 1.65 },
   grondBij: { ren: 11 },  // de ren-frames staan 11 canvas-px boven de grondlijn (435); zo plant de looppas weer op de grond in plaats van te zweven
   release: 30,            // worp-frame waarop de zak de hand verlaat (zie LEESMIJ)
-  hitVan: 28, hitTot: 40, // het raakvenster van de melee-slag (de worp-set doet dubbel werk)
+  hitVan: 28, hitTot: 31, // het korte raakvenster van de melee-slag (de worp-set doet dubbel werk): een paar frames rond de inslag, zoals de kooiman-duel (2 frames), daarna is de zak-nazwaai onschadelijk
+  herstel: 0.875,         // na de slag staat hij zo lang overstrekt open: het enige raam om hem te raken (als de kooiman-worstel, KOOI_WORSTEL_RAAM)
+  pareerCool: 0.35,       // minimale tijd tussen twee parry-klappen, zodat het geen geratel wordt
+  speerKaats: 350,        // een geweerde worp ketst zover voor Amir terug (als KOOI_DUEL.speerKaats)
   see:    1500,           // vanaf hier (wereld-px) doet hij iets
   worpVer: 1400,          // tot zover gooit hij een zak naar beneden
   melee:  360,            // van zo dichtbij (canvas-px maal zijn tekenschaal) slaat hij met de zak
@@ -23465,6 +23468,7 @@ function meelAnimSet(s){
     case 'opricht': return 'opricht';  // na de worp overeind komen
     case 'haal':    return 'ren';      // leeg naar de stapel rennen om een nieuwe zak te halen (de enige keer dat hij rent)
     case 'jaag':    return 'drag';     // je naderen met de zak in de hand: sleep-pas, geen ren (hij heeft zijn zak nog)
+    case 'herstel': return 'worp';     // na de slag overstrekt open (het laatste worp-frame, bevroren)
     case 'ren':     return 'ren';      // los bekijken in de sandbox (de knop Rennen)
     case 'pak':     return 'drag';     // gebukt een zak pakken
     case 'terug':   return 'drag';     // met de zak terug naar de rand slepen
@@ -23479,7 +23483,33 @@ function makeMeelman(x, side){
   const face = -side;
   return { x, face, post: x, stash: x - face * MEEL.stashDx, state: 'wacht', frame: 0, acc: 0, t: 0, klaar: false,
            hp: 3, maxHp: 3, hpBalk: true, inv: 0, flash: 0, knock: 0, base: 0, alpha: 1,
-           actie: null, gegooid: false, hitUsed: false, pakT: 0, cool: 0, beweegt: false, vrij: false, doodT: 0 };
+           actie: null, gegooid: false, hitUsed: false, pakT: 0, cool: 0, beweegt: false, vrij: false, doodT: 0,
+           herstelT: 0, pareerT: 0 };
+}
+// als de kooiman-duel: naderen met de zak (jaag) en de slag zelf (worp 'mep') zijn gedekt, alleen in zijn herstel
+// is hij te raken. Zijn gooi- en haal-standen (van onderaf te speren) blijven gewoon raakbaar.
+function meelRaakbaar(s){
+  if (s.state === 'dood' || s.state === 'weg' || s.inv > 0) return false;
+  if (s.state === 'jaag') return false;                               // sleept met de zak op je af: gedekt
+  if (s.state === 'worp' && s.actie === 'mep') return false;          // midden in de slag: gedekt
+  return true;                                                        // herstel (het raam), en wacht/gooi/haal/pak/terug
+}
+// de parry: raak je hem buiten zijn herstel, dan weert hij af met de bandiet-clang en vonken (zoals kooiPareer),
+// zonder eigen pose. Een kleine afkoeling (pareerCool) houdt het bij een klap in plaats van geratel.
+function meelPareer(s, wx, sy){
+  if (s.pareerT > 0) return;
+  s.pareerT = MEEL.pareerCool;
+  banClang(s.x); banVonk(wx, sy);
+  hitstop = Math.max(hitstop, BAN_PAREER_STOP);
+  shake = Math.max(shake, BAN_PAREER_SHAKE);
+}
+// een geweerde worp ketst terug naar Amir, aan zijn kant, zodat hij hem kan oppakken (zoals kooiSpeerKaats)
+function meelSpeerKaats(s){
+  const dirK = Math.sign(s.x - playerX()) || -1;
+  let kx = playerX() + dirK * MEEL.speerKaats;
+  kx = dirK < 0 ? Math.max(kx, s.x + 60) : Math.min(kx, s.x - 60);
+  losseSperen.push({ x: kx, h: terrainH(kx), zij: 1, soort: 'eigen', blauw: speerBlauw, wiebel: 0 });
+  jav = null; javLost = 0; spearX = null; spearH = null;
 }
 function meelSet(s, state){ s.state = state; s.frame = 0; s.acc = 0; s.klaar = false; }
 function meelAnim(s, dt){
@@ -23583,6 +23613,7 @@ function updateMeelman(s, dt, plats, cliff){
   if (s.vrij){ meelAnim(s, dt); return; }           // sandbox: AI uit, speel de gekozen set
   s.t += dt;
   if (s.cool > 0) s.cool -= dt;
+  if (s.pareerT > 0) s.pareerT -= dt;
   if (s.knock !== 0){ meelMove(s, s.knock * dt, plats, cliff); s.knock *= Math.pow(0.02, dt); if (Math.abs(s.knock) < 4) s.knock = 0; }
   const dx = playerX() - s.x, gap = Math.abs(dx), naarJe = dx >= 0 ? 1 : -1;
   const meleeR = MEEL.melee * meelDrawScale('worp');
@@ -23599,9 +23630,14 @@ function updateMeelman(s, dt, plats, cliff){
     } else if (!s.gegooid && s.frame >= MEEL.hitVan){                                                     // de melee-slag: hetzelfde grondgeluid als de kooiman, plus stof
       s.gegooid = true; meelWerpStof(s); kooiGrondGeluid(s.x);
     }
-    if (s.klaar){ if (s.actie === 'gooi') meelSet(s, 'opricht'); else meelSet(s, 'wacht'); }              // na een gooi een nieuwe zak halen; na een mep gewoon verder
+    if (s.klaar){
+      if (s.actie === 'gooi') meelSet(s, 'opricht');                                                      // na een gooi een nieuwe zak halen
+      else { meelSet(s, 'herstel'); s.frame = MEEL.n.worp - 1; s.herstelT = 0; }                          // na een mep staat hij overstrekt open (het raam om hem te raken)
+    }
     return;
   }
+  // het herstel na de slag: hij staat bevroren open en doet niets; dit is het enige raam waarin hij te raken is
+  if (s.state === 'herstel'){ s.herstelT += dt; if (s.herstelT >= MEEL.herstel) meelSet(s, 'wacht'); return; }
   if (s.state === 'opricht'){ meelAnim(s, dt); if (s.klaar) meelSet(s, 'haal'); return; }                 // na de worp: een nieuwe zak gaan halen
 
   // een al begonnen haal-cyclus maakt hij eerst af (een zak halen en terugslepen), ook als Amir ondertussen
@@ -28239,6 +28275,7 @@ function loop(now){
         }
         if (showBoxes){ ctx.save(); ctx.globalAlpha = 0.5; ctx.lineWidth = 2; ctx.strokeStyle = '#7fd4ff'; ctx.strokeRect(nbox.l, nbox.t, nbox.r - nbox.l, nbox.b - nbox.t); ctx.restore(); }
         if (s.inv > 0) continue;                            // net geraakt: even met rust laten
+        const parWx = s.x + s.face * 50, parSy = voeten - fh * 0.5;   // het snijpunt voor de parry-vonken (als kooiPareer)
         // de speerpunt (stoot)
         if (attacking && !swingUsed && steekLive() && steekRaakt('meelman')){
           const dxv = steekDX() * scale;
@@ -28247,13 +28284,22 @@ function loop(now){
           const reach = steekR() * scale;
           if (tipX + reach > nbox.l && tipX - reach < nbox.r && tipY + reach > nbox.t && tipY - reach < nbox.b){
             if (atkMes){ if (mesAfweer(s, 'meelman')) swingUsed = true; continue; }   // het mes weert af
-            swingUsed = true; hitMeelman(s); continue;
+            swingUsed = true;
+            if (meelRaakbaar(s)) hitMeelman(s); else meelPareer(s, parWx, tipY);      // alleen in zijn herstel raak, anders pareert hij
+            continue;
           }
         }
-        // de geworpen speer
-        if (javRaakt(nbox)){ javHitEnemy(); hitMeelman(s); continue; }
+        // de geworpen speer: in zijn herstel raak, anders pareert hij en ketst de speer terug naar Amir
+        if (javRaakt(nbox)){
+          if (meelRaakbaar(s)){ javHitEnemy(); hitMeelman(s); }
+          else { meelPareer(s, parWx, parSy); meelSpeerKaats(s); }
+          continue;
+        }
         // lage zwaai: een keer per zwaai
-        if (s.sweptId !== sweepId && hitBy(zwaaiVak(swbox, 'meelman'), nbox)){ s.sweptId = sweepId; hitMeelman(s); }
+        if (s.sweptId !== sweepId && hitBy(zwaaiVak(swbox, 'meelman'), nbox)){
+          s.sweptId = sweepId;
+          if (meelRaakbaar(s)) hitMeelman(s); else meelPareer(s, parWx, parSy);
+        }
       }
     }
 
