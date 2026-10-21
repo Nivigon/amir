@@ -285,6 +285,13 @@
   #mkinspect .mkveld label{min-width:84px;color:rgba(242,232,213,.65);font-size:11px}
   #mkinspect select{flex:1;background:rgba(0,0,0,.4);color:var(--bone);border:1px solid rgba(242,232,213,.25);border-radius:2px;font:inherit;font-size:11px;padding:3px 5px}
   #mkvijknop{display:flex;flex-direction:column;gap:4px}
+  #mkstacklist{display:flex;flex-direction:column;gap:3px;margin-bottom:4px}
+  #mkstacklist .mksub{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:rgba(242,232,213,.5);margin:0 0 2px}
+  .mkstackrij{display:flex;align-items:center;gap:6px}
+  .mkstacknaam{flex:1;text-align:left;font-size:11px;padding:4px 7px;border:1px solid rgba(242,232,213,.18);border-radius:3px;background:rgba(242,232,213,.04)}
+  .mkstackrij.aan .mkstacknaam{border-color:var(--bone);background:rgba(242,232,213,.14);font-weight:700}
+  .mkstackx{flex:none;width:22px;height:22px;padding:0;font-size:15px;line-height:1;border:1px solid rgba(214,75,75,.5);border-radius:3px;background:rgba(214,75,75,.14);color:#f3b0ab}
+  .mkstackx:hover{background:rgba(214,75,75,.3)}
   #mkinspect .mkknop{display:flex;align-items:center;gap:7px}
   #mkinspect .mkknop label{flex:1;color:rgba(242,232,213,.7);font-size:11px}
   #mkinspect .mkknop input[type=range]{flex:1;min-width:0}
@@ -895,6 +902,7 @@
       <div id="mkinspbody">
         <button id="mkinspclose" title="Dichtklappen">&#8250;</button>
         <div class="mkkop">Eigenschappen</div>
+        <div id="mkstacklist" style="display:none"></div>
         <div id="mkobjinfo" class="mkhint">Niets geselecteerd. Kies Selecteren en klik een voorwerp op de kaart aan.</div>
         <div id="mkvijctl" style="display:none"><div class="mkveld"><label for="mkvijsoort">Soort vijand</label><select id="mkvijsoort"></select></div></div>
         <div id="mkvijknop"></div>
@@ -31140,6 +31148,8 @@ const MK_TYPES = [
   // een richel: de uitstekende steen-opstap uit de schacht (design/klimmen/klif_richel.png). Je landt erop
   // en springt ervandaan; vaste plek per cel, met X/Y fijn bij te stellen in het zijpaneel (zie mkNaarLevel -> ledges)
   { id:'richel',  naam:'Richel (opstap)',    kleur:'#9a8470', obj:true, letter:'K' },
+  // een health-kalebas: een drinkflesje dat Amir oppakt (level-veld hppotions, {x, y})
+  { id:'hppotion', naam:'Health-kalebas',    kleur:'#d64b6a', obj:true, letter:'H' },
   // een masker: verf cellen om ze in het spel te verbergen (ze zien eruit als de ondergrondse rotswand) tot
   // je erin loopt of hem met een zegel/rune onthult. Geen terrein en geen voorwerp: een eigen verf-laag (MK.maskers)
   { id:'masker',  naam:'Masker (verbergen)',   kleur:'#5ad66e', mask:true },
@@ -31195,7 +31205,7 @@ const MK_CATS = [
   { id:'terrein',  naam:'Terrein',    items:['savanne','rots','sneeuw','sneeuwrots','muur','laag','zweef','gang','ravijn'] },
   { id:'punten',   naam:'Start/eind', items:['start','eind'] },
   { id:'vijanden', naam:'Vijanden',   vijand:true },
-  { id:'objecten', naam:'Objecten',   items:['zegel','rune','platform','tandwiel','overhang','richel'] },
+  { id:'objecten', naam:'Objecten',   items:['zegel','rune','platform','tandwiel','overhang','richel','hppotion'] },
   { id:'decor',    naam:'Decor',      items:['prop'] },
   { id:'verbergen',naam:'Verbergen',  items:['masker'] },
 ];
@@ -31466,6 +31476,19 @@ function mkTeken(){
     mkCtx.fillText(o.k === 'tandwiel' ? '⚙' : (t.letter || '?'), cx, cy + 1);
     if (o.note){ mkCtx.fillStyle = '#ffd24a'; mkCtx.beginPath(); mkCtx.arc(cx + rad * 0.85, cy - rad * 0.85, Math.max(2, cel * 0.12), 0, 7); mkCtx.fill(); }
   }
+  // stapel-badge: een cel met meer dan één voorwerp krijgt rechtsboven een genummerd rondje, zodat je ziet
+  // dat er meerdere dingen op dezelfde plek staan (selecteer de cel om de lijst in het zijpaneel te zien)
+  const stapelTel = {};
+  for (const o of MK.objects) stapelTel[o.c + ',' + o.r] = (stapelTel[o.c + ',' + o.r] || 0) + 1;
+  for (const key in stapelTel){
+    const n = stapelTel[key]; if (n < 2) continue;
+    const sc = Number(key.split(',')[0]), sr = Number(key.split(',')[1]);
+    const rb = Math.max(6, cel * 0.24), px = gx + (sc + 1) * cel - rb - 1, py = gy + sr * cel + rb + 1;
+    mkCtx.fillStyle = '#241a2b'; mkCtx.strokeStyle = '#ffd24a'; mkCtx.lineWidth = 1.5;
+    mkCtx.beginPath(); mkCtx.arc(px, py, rb, 0, 7); mkCtx.fill(); mkCtx.stroke();
+    mkCtx.fillStyle = '#ffd24a'; mkCtx.font = `bold ${Math.round(rb * 1.15)}px sans-serif`;
+    mkCtx.textAlign = 'center'; mkCtx.textBaseline = 'middle'; mkCtx.fillText(String(n), px, py + 0.5);
+  }
 }
 // een enkele klik: grond schilderen, start/eind zetten, of een object plaatsen of selecteren
 function mkKlik(ev){
@@ -31486,10 +31509,12 @@ function mkKlik(ev){
   if (t === 'start'){ MK.start = (MK.start && MK.start.c === c && MK.start.r === r) ? null : { c, r }; }
   else if (t === 'eind'){ MK.eind = (MK.eind && MK.eind.c === c && MK.eind.r === r) ? null : { c, r }; }
   else if (mkIsObj(t)){
-    const bestaand = MK.objects.find(o => o.c === c && o.r === r);
-    if (bestaand) MK.sel = bestaand;                              // bestaand object: selecteren om het te bewerken
+    // meerdere dingen mogen op dezelfde cel (stapelen). Staat er al eentje van precies deze soort, dan
+    // selecteren we die (geen dubbel); anders komt het voorwerp erbij, ook als er al iets anders staat.
+    const zelfde = MK.objects.find(o => o.c === c && o.r === r && o.k === t && (t !== 'vijand' || o.soort === (MK.vijandSoort || 'groen')));
+    if (zelfde) MK.sel = zelfde;
     else { const o = { c, r, k: t, note: '' }; if (t === 'vijand') o.soort = MK.vijandSoort || 'groen'; if (t === 'platform'){ o.doel = null; o.breed = MK_PLAT_BREED; } if (t === 'tandwiel') o.modus = 'schakellift'; if (t === 'overhang'){ o.breed = 3; o.dik = 2; o.fijn = 30; o.look = 'rots'; } if (t === 'richel'){ o.s = 0.5; o.f = false; o.dx = 0; o.dy = 0; } MK.objects.push(o); MK.sel = o; }
-    MK.inspectDicht = false; mkNotePaneel();
+    MK.selMask = null; MK.inspectDicht = false; mkNotePaneel();
   }
   else if (t === 'lucht'){                                        // gum: eerst een object weg, anders de grond leeg
     const i = MK.objects.findIndex(o => o.c === c && o.r === r);
@@ -31579,6 +31604,34 @@ function mkVulVijKnoppen(){
     rij.appendChild(inp); rij.appendChild(read); box.appendChild(rij);
   }
 }
+// de naam van een voorwerp voor in de lijst (een vijand toont zijn soort)
+function mkObjNaam(o){
+  if (o.k === 'vijand'){ const vi = MK_VIJ_INFO[o.soort || 'groen']; return vi ? vi.naam : 'Vijand'; }
+  const t = MK_TYPES.find(x => x.id === o.k); return t ? t.naam : o.k;
+}
+// de stapel-lijst: staan er meerdere voorwerpen op dezelfde cel als het geselecteerde, dan toont het paneel
+// ze allemaal; je klikt er een aan om die te bewerken, of op het kruisje om er een weg te halen
+function mkVulStapel(){
+  const box = document.getElementById('mkstacklist'); box.innerHTML = '';
+  if (!MK.sel){ box.style.display = 'none'; return; }
+  const hier = MK.objects.filter(o => o.c === MK.sel.c && o.r === MK.sel.r);
+  if (hier.length < 2){ box.style.display = 'none'; return; }
+  box.style.display = '';
+  const kop = document.createElement('div'); kop.className = 'mksub'; kop.textContent = hier.length + ' dingen op deze plek';
+  box.appendChild(kop);
+  for (const o of hier){
+    const rij = document.createElement('div'); rij.className = 'mkstackrij' + (o === MK.sel ? ' aan' : '');
+    const naam = document.createElement('button'); naam.className = 'mkstacknaam'; naam.textContent = mkObjNaam(o);
+    naam.onclick = () => { MK.sel = o; MK.selMask = null; MK.inspectDicht = false; mkNotePaneel(); mkTeken(); };
+    const del = document.createElement('button'); del.className = 'mkstackx'; del.textContent = '×'; del.title = 'Dit voorwerp weghalen';
+    del.onclick = () => {
+      const i = MK.objects.indexOf(o); if (i >= 0) MK.objects.splice(i, 1);
+      if (MK.sel === o){ const rest = MK.objects.filter(q => q.c === o.c && q.r === o.r); MK.sel = rest[0] || null; }
+      mkNotePaneel(); mkTeken(); mkBewaar();
+    };
+    rij.appendChild(naam); rij.appendChild(del); box.appendChild(rij);
+  }
+}
 function mkNotePaneel(){
   const info = document.getElementById('mkobjinfo'), ta = document.getElementById('mkobjnote');
   const platctl = document.getElementById('mkplatctl'), doelinfo = document.getElementById('mkdoelinfo'), tandctl = document.getElementById('mktandctl');
@@ -31597,15 +31650,17 @@ function mkNotePaneel(){
       looktl.style.display = '';
       document.getElementById('mkmasklook').value = m.look === 'zwart' ? 'zwart' : 'grot';
       document.getElementById('mkmasklookinfo').textContent = 'Geldt voor het hele masker ' + m.id + '. Grotwand oogt als de ondergrondse rots; Helemaal zwart is een donker vlak zoals diep onder de grond.';
+      document.getElementById('mkstacklist').style.display = 'none';
       tablet.textContent = 'M'; tablet.style.background = '#5ad66e'; tablet.style.display = 'flex';
       insp.classList.toggle('dicht', MK.inspectDicht); return;
     }
     info.textContent = 'Niets geselecteerd. Kies Selecteren en klik een voorwerp (of een geverfde masker-cel) op de kaart aan.';
     ta.disabled = true; ta.value = ''; platctl.style.display = 'none'; doelinfo.style.display = 'none'; tandctl.style.display = 'none'; vijctl.style.display = 'none';
-    looktl.style.display = 'none';
+    looktl.style.display = 'none'; document.getElementById('mkstacklist').style.display = 'none';
     tablet.style.display = 'none'; insp.classList.toggle('dicht', MK.inspectDicht); return;
   }
   MK.selMask = null; looktl.style.display = 'none';   // een voorwerp geselecteerd: geen masker
+  mkVulStapel();                                      // staan er meer dingen op deze cel, dan de lijst met kruisjes tonen
   const t = MK_TYPES.find(x => x.id === MK.sel.k);
   const isVij = MK.sel.k === 'vijand', isPlat = MK.sel.k === 'platform', isTand = MK.sel.k === 'tandwiel';
   let titel = t ? t.naam : MK.sel.k;
@@ -31868,7 +31923,7 @@ function mkNaarLevel(){
   const spanLR = (cA, cB) => { const [la] = lr(cA), [, rb] = lr(cB); return [Math.min(la, rb), Math.max(la, rb)]; };
   const savanne = id => id === 'savanne' || id === 'sneeuw' || id === 'zweef';   // savanne-achtig (grond:true); rots en sneeuwrots zijn steen
   const solid = id => savanne(id) || id === 'rots' || id === 'sneeuwrots' || id === 'muur';   // telt mee als verhoogd terras, zwevende laag of blokkade
-  const gaps = [], terraces = [], holtes = [], zwevers = [], takels = [], ledges = [];
+  const gaps = [], terraces = [], holtes = [], zwevers = [], takels = [], ledges = [], hppotions = [];
   // gaten: aaneengesloten ravijn-cellen op de grondlijn
   for (let c = 0; c < C;){
     if (G[gR] && G[gR][c] === 'ravijn'){ let c2 = c; while (c2 < C && G[gR][c2] === 'ravijn') c2++;
@@ -31972,6 +32027,13 @@ function mkNaarLevel(){
     const h = Math.round((gR - o.r) * MK_CEL_EENH + (o.dy || 0));
     const e = { x, h, s: o.s || 0.5 }; if (o.f) e.f = true; ledges.push(e);
   }
+  // health-kalebassen: elk hppotion-voorwerp wordt een hppotions-entry. Staat hij boven de grondlijn, dan krijgt
+  // hij die hoogte (y in sprite-eenheden); op of onder de grond laten we y null, dan zet het spel hem op het terrein.
+  for (const o of MK.objects){
+    if (o.k !== 'hppotion') continue;
+    const [l, r2] = lr(o.c), x = Math.round((l + r2) / 2), voet = (gR - o.r - 1) * MK_CEL_EENH;
+    hppotions.push({ x, y: voet > 1 ? Math.round(voet) : null });
+  }
   // takel: elk platform met een doelhoogte wordt een eigen takel-platform (met een id). De wielen die eraan
   // hangen komen als lijst mee, elk op de plek waar jij ze zet, met hun eigen stand (per slag of helemaal).
   let takelNr = 0;
@@ -32056,6 +32118,7 @@ function mkNaarLevel(){
   if (zwevers.length) lvl.zwevers = zwevers;
   if (takels.length) lvl.takels = takels;
   if (ledges.length) lvl.ledges = ledges;
+  if (hppotions.length) lvl.hppotions = hppotions;
   if (afwerking === 'sneeuw') lvl.sneeuw = { soort: 'savanne', dek: 1, vol: true };        // een dichte sneeuwlaag op de savanne (alleen de bodem, geen weer)
   else if (afwerking === 'sneeuwrots') lvl.sneeuw = { soort: 'rots', dek: 1, vol: true };  // een dichte sneeuwlaag op de rotsbodem
   else if (afwerking === 'rots') lvl.sneeuw = { soort: 'rots', dek: 0 };        // een kale rotsbodem
