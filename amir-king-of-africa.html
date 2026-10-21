@@ -920,7 +920,18 @@
           <div class="mkrij"><button id="mkolook">Look: rots</button></div>
           <div id="mkoinfo" class="mkhint"></div>
         </div>
+        <div id="mkrichelctl" style="display:none">
+          <div class="mkknop"><label>X (opzij)</label><input id="mkrichelx" type="range" min="-200" max="200" step="5"><span class="read" id="mkrichelxv"></span></div>
+          <div class="mkknop"><label>Y (hoogte)</label><input id="mkrichely" type="range" min="-150" max="150" step="5"><span class="read" id="mkrichelyv"></span></div>
+          <div class="mkknop"><label>Grootte</label><input id="mkrichels" type="range" min="0.3" max="1.2" step="0.05"><span class="read" id="mkrichelsv"></span></div>
+          <div class="mkrij"><button id="mkrichelf">Gespiegeld: nee</button></div>
+          <div id="mkrichelinfo" class="mkhint"></div>
+        </div>
         <div id="mkmaskctl" class="mkveld" style="display:none"><label for="mkmasksel">Onthult masker</label><select id="mkmasksel"></select></div>
+        <div id="mkmasklookctl" style="display:none">
+          <div class="mkveld"><label for="mkmasklook">Hoe het eruitziet</label><select id="mkmasklook"><option value="grot">Grotwand (rots)</option><option value="zwart">Helemaal zwart</option></select></div>
+          <div id="mkmasklookinfo" class="mkhint"></div>
+        </div>
         <textarea id="mkobjnote" spellcheck="false" disabled placeholder="opmerking (bv: bandiet die vault, of: dit wiel takelt het platform helemaal omhoog)"></textarea>
       </div>
     </div>
@@ -8554,7 +8565,8 @@ function maskerTeken(groundY, scale, cx){
       ctx.rect(R.l, top, R.r - R.l, bot - top);     // alle geverfde cellen samen als clippad
     }
     ctx.clip();
-    if (tile && (m.look || 'grot') === 'grot'){
+    if (m.look === 'zwart') ctx.fillStyle = '#05040a';         // helemaal zwart, zoals diep onder de grond
+    else if (tile && (m.look || 'grot') === 'grot'){
       const p = ctx.createPattern(tile, 'repeat');
       ctx.fillStyle = p || '#2b2621';
     } else ctx.fillStyle = '#2b2621';
@@ -25092,6 +25104,7 @@ function drawFosforSlangen(o){
   const sw = SNK_W * sS, sh = SNK_H * sS;
   let zwaaiDoel = null;                            // een lage zwaai raakt alleen de dichtstbijzijnde
   for (const s of fosforSlangen){
+    if (achterMasker(s.x, s.base)) continue;        // nog achter een niet-onthuld masker: niet tekenen (en niet raakbaar)
     const schud = s.schud > 0 ? (Math.random() - 0.5) * 6 * s.schud * scale : 0;
     const sx = cx + (s.x - world) - sw / 2 + schud;
     const sBase = (s.base || 0) * scale;
@@ -26682,7 +26695,7 @@ function loop(now){
   // telt erboven langs lopen op de savanne niet (de grens ligt een dak en een Amir boven de bodem)
   if (running && !building && !sandbox && !won && !dead && level && level.ends &&
       level.ends.some(f => { const vl = Math.max(terrainH(f.x), zweefTopBij(f.x));   // ook bovenop een zwevende laag
-                             return Math.abs(world - f.x) < 50 && ph >= vl - 5 && ph < vl + HOLTE_DAK + CHAR_H; })){
+                             return !achterMasker(f.x) && Math.abs(world - f.x) < 50 && ph >= vl - 5 && ph < vl + HOLTE_DAK + CHAR_H; })){
     if (bossBlocking()){ if (!bossHintT || now - bossHintT > 2500){ bossHintT = now; flashHint(bavBlokkeert() ? 'Versla eerst de baviaan' : winterOn() ? 'Versla eerst de witte panter' : 'Versla eerst de zwarte panter'); } }
     else winLevel();
   }
@@ -27205,6 +27218,7 @@ function loop(now){
       const fs = finSize(scale);
       const now = performance.now() / 1000;
       for (const f of level.ends){
+        if (achterMasker(f.x)) continue;               // achter een nog niet onthuld masker: het eind blijft verborgen (zoals zegel/rune/vijanden)
         const fx = cx + (f.x - world) - fs.w / 2;
         if (fx > W / viewZoom() + W || fx + fs.w < -W) continue;
         const fy = groundY - fs.h + FIN.sink * fs.h - Math.max(terrainH(f.x), zweefTopBij(f.x)) * scale;   // ook bovenop een zwevende laag
@@ -27515,6 +27529,7 @@ function loop(now){
     }
 
     for (const s of snakes){
+      if (achterMasker(s.x, s.base)) continue;      // nog achter een niet-onthuld masker: niet tekenen (en niet raakbaar)
       const sx = cx + (s.x - world) - sw / 2;
       const sBase = (s.base || 0) * scale;
       const sy = groundY - SNK_GROUND * sScale - sBase;
@@ -27658,6 +27673,7 @@ function loop(now){
     // ---- de schorpioenen ---------------------------------------------
     const kScale = scpScale();
     for (const s of scorps){
+      if (achterMasker(s.x, s.base)) continue;      // nog achter een niet-onthuld masker: niet tekenen (en niet raakbaar)
       const set = scpSet(s);
       const kw = set.w * kScale, kh = set.h * kScale;
       // de sprite hangt aan de grondlijn; bij de charge-set zit het lijf rechts, dus we
@@ -27787,6 +27803,7 @@ function loop(now){
       const pS = panScale();
       drawSnowPuffs(groundY, scale, cx);            // opstuivende sneeuw (witte panter)
       for (const s of panthers){
+        if (achterMasker(s.x, s.base)) continue;    // nog achter een niet-onthuld masker: niet tekenen (en niet raakbaar)
         if (s.state === 'lurk') continue;           // uit beeld aan het loeren
         const img = panFrameImg(s);
         if (!img) continue;
@@ -27899,6 +27916,7 @@ function loop(now){
       const hS = hyScale();
       const hw = HY.w * hS, hh = HY.h * hS;
       for (const s of hyenas){
+        if (achterMasker(s.x, s.base)) continue;    // nog achter een niet-onthuld masker: niet tekenen (en niet raakbaar)
         if (s.wacht > 0) continue;                  // staat nog achter de rand te wachten
         const bodyX = cx + (s.x - world);
         if (bodyX < -hw - W || bodyX > W / viewZoom() + W + hw) continue;
@@ -27985,6 +28003,7 @@ function loop(now){
       const zS = zwScale();
       const zw = ZW.w * zS, zh = ZW.h * zS;
       for (const s of zwaarden){
+        if (achterMasker(s.x, s.base)) continue;    // nog achter een niet-onthuld masker: niet tekenen (en niet raakbaar)
         const bodyX = cx + (s.x - world);
         if (bodyX < -zw - W || bodyX > W / viewZoom() + W + zw) continue;
         const zBase = (s.base || 0) * scale;
@@ -28069,6 +28088,7 @@ function loop(now){
     {
       const kS = kooiScale();
       for (const s of kooimannen){
+        if (achterMasker(s.x, s.base)) continue;    // nog achter een niet-onthuld masker: niet tekenen (en niet raakbaar)
         const g = kooiGeo(s.state);                     // de worstel heeft een eigen, breder canvas en grondlijn
         const kw = g.w * kS, kh = g.h * kS;
         const bodyX = cx + (s.x - world);
@@ -28169,6 +28189,7 @@ function loop(now){
     // ---- de meelmannen --------------------------------------------------
     {
       for (const s of meelmannen){
+        if (achterMasker(s.x, s.base)) continue;    // nog achter een niet-onthuld masker: niet tekenen (en niet raakbaar)
         const k = meelDrawScale(meelAnimSet(s));
         const kw = MEEL.w * k, kh = MEEL.h * k;
         const bodyX = cx + (s.x - world);
@@ -28256,6 +28277,7 @@ function loop(now){
     {
       const bS = banScale();
       for (const s of bandieten){
+        if (achterMasker(s.x, s.base)) continue;    // nog achter een niet-onthuld masker: niet tekenen (en niet raakbaar)
         const bodyX = cx + (s.x - world);
         if (bodyX < -BAN.w * bS - W || bodyX > W / viewZoom() + W + BAN.w * bS) continue;
         const bBase = (s.base || 0) * scale;
@@ -31121,6 +31143,9 @@ const MK_TYPES = [
   { id:'tandwiel',naam:'Tandwiel',           kleur:'#b98a2e', obj:true },
   // een overhang: een rotsoverhang of zwevende savannelaag met een vrije onderkant-hoogte om onder te kruipen
   { id:'overhang',naam:'Overhang (kruipruimte)', kleur:'#7d6a86', obj:true, letter:'O' },
+  // een richel: de uitstekende steen-opstap uit de schacht (design/klimmen/klif_richel.png). Je landt erop
+  // en springt ervandaan; vaste plek per cel, met X/Y fijn bij te stellen in het zijpaneel (zie mkNaarLevel -> ledges)
+  { id:'richel',  naam:'Richel (opstap)',    kleur:'#9a8470', obj:true, letter:'K' },
   // een masker: verf cellen om ze in het spel te verbergen (ze zien eruit als de ondergrondse rotswand) tot
   // je erin loopt of hem met een zegel/rune onthult. Geen terrein en geen voorwerp: een eigen verf-laag (MK.maskers)
   { id:'masker',  naam:'Masker (verbergen)',   kleur:'#5ad66e', mask:true },
@@ -31180,7 +31205,7 @@ const MK_CATS = [
   { id:'terrein',  naam:'Terrein',    items:['savanne','rots','sneeuw','sneeuwrots','muur','laag','zweef','gang','ravijn'] },
   { id:'punten',   naam:'Start/eind', items:['start','eind'] },
   { id:'vijanden', naam:'Vijanden',   vijand:true },
-  { id:'objecten', naam:'Objecten',   items:['zegel','rune','platform','tandwiel','overhang'] },
+  { id:'objecten', naam:'Objecten',   items:['zegel','rune','platform','tandwiel','overhang','richel'] },
   { id:'decor',    naam:'Decor',      items:['prop'] },
   { id:'verbergen',naam:'Verbergen',  items:['masker'] },
 ];
@@ -31197,9 +31222,9 @@ function mkNearestPlatform(w){ let best = null, bd = Infinity;
 function mkConnectedPlatform(w){ if (w && w.plat && MK.objects.indexOf(w.plat) >= 0 && w.plat.k === 'platform') return w.plat; return mkNearestPlatform(w); }
 const MK = { cols:48, rows:20, ground:12, grid:null, start:null, eind:null, objects:[], sel:null,
              tool:'savanne', zoom:1, panX:0, panY:0, maskers:[], maskId:'Verborgen1',
-             cat:'terrein', sub:null, vijandSoort:'groen', inspectDicht:true, muziek:MUZIEK_BASIS, valschade:true };
+             cat:'terrein', sub:null, vijandSoort:'groen', inspectDicht:true, muziek:MUZIEK_BASIS, valschade:true, selMask:null };
 // ---- maskers in de Maker: verf cellen onder een naam (Verborgen1, ...) om ze te verbergen ----
-function mkMaskObj(id){ let m = MK.maskers.find(q => q.id === id); if (!m){ m = { id, cells:[] }; MK.maskers.push(m); } return m; }
+function mkMaskObj(id){ let m = MK.maskers.find(q => q.id === id); if (!m){ m = { id, cells:[], look:'grot' }; MK.maskers.push(m); } return m; }
 function mkMaskNamen(){ const n = MK.maskers.filter(m => m.cells.length).map(m => m.id); if (!n.includes(MK.maskId)) n.push(MK.maskId); return n; }
 function mkMaskNieuw(){ const had = new Set(MK.maskers.map(m => m.id)); for (let i = 1; i < 999; i++) if (!had.has('Verborgen' + i)) return 'Verborgen' + i; return 'Verborgen' + Date.now(); }
 function mkMaskInCel(c, r){ for (const m of MK.maskers){ const i = m.cells.findIndex(p => p.c === c && p.r === r); if (i >= 0) return { m, i }; } return null; }
@@ -31430,6 +31455,18 @@ function mkTeken(){
       if (o.note){ mkCtx.fillStyle = '#ffd24a'; mkCtx.beginPath(); mkCtx.arc(left + bw - 3, topY, Math.max(2, cel * 0.1), 0, 7); mkCtx.fill(); }
       continue;
     }
+    if (o.k === 'richel'){                                   // een opstap-plank: op de celbovenkant, met de X/Y-nudge, naar links als gespiegeld
+      const len = Math.max(0.8, (o.s || 0.5) * 2.4) * cel, th = Math.max(5, 0.22 * cel);
+      const ax = cx + (o.dx || 0) / MK_CEL_PX * cel;
+      const topY = gy + o.r * cel - (o.dy || 0) / MK_CEL_EENH * cel;   // bovenkant van de cel = de loopstreep; +Y = hoger
+      const x0 = o.f ? ax - len : ax;
+      mkCtx.fillStyle = t.kleur; mkCtx.fillRect(x0, topY, len, th);
+      mkCtx.strokeStyle = 'rgba(20,14,26,.7)'; mkCtx.lineWidth = 1; mkCtx.strokeRect(x0, topY, len, th);
+      mkCtx.strokeStyle = 'rgba(242,232,213,.55)'; mkCtx.beginPath(); mkCtx.moveTo(x0, topY + 0.5); mkCtx.lineTo(x0 + len, topY + 0.5); mkCtx.stroke();   // de loopstreep bovenop
+      if (o === MK.sel){ mkCtx.strokeStyle = '#fff'; mkCtx.lineWidth = 2; mkCtx.strokeRect(x0 - 2, topY - 2, len + 4, th + 4); }
+      if (o.note){ mkCtx.fillStyle = '#ffd24a'; mkCtx.beginPath(); mkCtx.arc(x0 + len - 3, topY, Math.max(2, cel * 0.1), 0, 7); mkCtx.fill(); }
+      continue;
+    }
     const rad = cel * 0.36;
     const vinf = o.k === 'vijand' ? MK_VIJ_INFO[o.soort || 'groen'] : null;
     mkCtx.fillStyle = vinf ? vinf.kleur : t.kleur; mkCtx.beginPath(); mkCtx.arc(cx, cy, rad, 0, 7); mkCtx.fill();
@@ -31452,13 +31489,16 @@ function mkKlik(ev){
     const had = mkMaskInCel(c, r); mkMaskErase = !!(had && had.m.id === MK.maskId);
     mkMaskVerf(c, r, mkMaskErase); mkTeken(); mkBewaar(); return;
   }
-  if (t === 'select'){ MK.sel = MK.objects.find(o => o.c === c && o.r === r) || null; mkDrag = MK.sel; if (MK.sel) MK.inspectDicht = false; mkNotePaneel(); mkTeken(); return; }   // aanklikken om te bewerken, en slepen om te verschuiven
+  if (t === 'select'){ MK.sel = MK.objects.find(o => o.c === c && o.r === r) || null; mkDrag = MK.sel;   // aanklikken om te bewerken, en slepen om te verschuiven
+    if (MK.sel){ MK.selMask = null; MK.inspectDicht = false; }
+    else { const hm = mkMaskInCel(c, r); MK.selMask = hm ? hm.m : null; if (MK.selMask) MK.inspectDicht = false; }   // geen voorwerp maar een geverfde masker-cel: het masker selecteren
+    mkNotePaneel(); mkTeken(); return; }
   if (t === 'start'){ MK.start = (MK.start && MK.start.c === c && MK.start.r === r) ? null : { c, r }; }
   else if (t === 'eind'){ MK.eind = (MK.eind && MK.eind.c === c && MK.eind.r === r) ? null : { c, r }; }
   else if (mkIsObj(t)){
     const bestaand = MK.objects.find(o => o.c === c && o.r === r);
     if (bestaand) MK.sel = bestaand;                              // bestaand object: selecteren om het te bewerken
-    else { const o = { c, r, k: t, note: '' }; if (t === 'vijand') o.soort = MK.vijandSoort || 'groen'; if (t === 'platform'){ o.doel = null; o.breed = MK_PLAT_BREED; } if (t === 'tandwiel') o.modus = 'schakellift'; if (t === 'overhang'){ o.breed = 3; o.dik = 2; o.fijn = 30; o.look = 'rots'; } MK.objects.push(o); MK.sel = o; }
+    else { const o = { c, r, k: t, note: '' }; if (t === 'vijand') o.soort = MK.vijandSoort || 'groen'; if (t === 'platform'){ o.doel = null; o.breed = MK_PLAT_BREED; } if (t === 'tandwiel') o.modus = 'schakellift'; if (t === 'overhang'){ o.breed = 3; o.dik = 2; o.fijn = 30; o.look = 'rots'; } if (t === 'richel'){ o.s = 0.5; o.f = false; o.dx = 0; o.dy = 0; } MK.objects.push(o); MK.sel = o; }
     MK.inspectDicht = false; mkNotePaneel();
   }
   else if (t === 'lucht'){                                        // gum: eerst een object weg, anders de grond leeg
@@ -31553,11 +31593,29 @@ function mkNotePaneel(){
   const info = document.getElementById('mkobjinfo'), ta = document.getElementById('mkobjnote');
   const platctl = document.getElementById('mkplatctl'), doelinfo = document.getElementById('mkdoelinfo'), tandctl = document.getElementById('mktandctl');
   const vijctl = document.getElementById('mkvijctl'), insp = document.getElementById('mkinspect'), tablet = document.getElementById('mkinsptablet');
+  const looktl = document.getElementById('mkmasklookctl');
   if (!MK.sel){
-    info.textContent = 'Niets geselecteerd. Kies Selecteren en klik een voorwerp op de kaart aan.';
+    // een geselecteerd masker (een geverfde cel aangeklikt met Selecteren): de look-keuze voor het hele masker
+    if (MK.selMask){
+      const m = MK.selMask, n = m.cells.length;
+      info.textContent = 'Masker ' + m.id + ' (' + n + ' cel' + (n === 1 ? '' : 'len') + ')';
+      ta.disabled = true; ta.value = '';
+      platctl.style.display = 'none'; doelinfo.style.display = 'none'; tandctl.style.display = 'none'; vijctl.style.display = 'none';
+      document.getElementById('mkplatbreed').style.display = 'none'; document.getElementById('mkplatstam').style.display = 'none'; document.getElementById('mkplatstamzij').style.display = 'none';
+      document.getElementById('mkvijknop').innerHTML = ''; document.getElementById('mkoverctl').style.display = 'none';
+      document.getElementById('mkrichelctl').style.display = 'none'; document.getElementById('mkmaskctl').style.display = 'none';
+      looktl.style.display = '';
+      document.getElementById('mkmasklook').value = m.look === 'zwart' ? 'zwart' : 'grot';
+      document.getElementById('mkmasklookinfo').textContent = 'Geldt voor het hele masker ' + m.id + '. Grotwand oogt als de ondergrondse rots; Helemaal zwart is een donker vlak zoals diep onder de grond.';
+      tablet.textContent = 'M'; tablet.style.background = '#5ad66e'; tablet.style.display = 'flex';
+      insp.classList.toggle('dicht', MK.inspectDicht); return;
+    }
+    info.textContent = 'Niets geselecteerd. Kies Selecteren en klik een voorwerp (of een geverfde masker-cel) op de kaart aan.';
     ta.disabled = true; ta.value = ''; platctl.style.display = 'none'; doelinfo.style.display = 'none'; tandctl.style.display = 'none'; vijctl.style.display = 'none';
+    looktl.style.display = 'none';
     tablet.style.display = 'none'; insp.classList.toggle('dicht', MK.inspectDicht); return;
   }
+  MK.selMask = null; looktl.style.display = 'none';   // een voorwerp geselecteerd: geen masker
   const t = MK_TYPES.find(x => x.id === MK.sel.k);
   const isVij = MK.sel.k === 'vijand', isPlat = MK.sel.k === 'platform', isTand = MK.sel.k === 'tandwiel';
   let titel = t ? t.naam : MK.sel.k;
@@ -31584,6 +31642,9 @@ function mkNotePaneel(){
   const isOver = MK.sel.k === 'overhang';
   document.getElementById('mkoverctl').style.display = isOver ? '' : 'none';
   if (isOver) mkVulOver();
+  const isRichel = MK.sel.k === 'richel';
+  document.getElementById('mkrichelctl').style.display = isRichel ? '' : 'none';
+  if (isRichel) mkVulRichel();
   const isKop = MK.sel.k === 'zegel' || MK.sel.k === 'rune';   // een schakelaar die een masker kan wegnemen
   document.getElementById('mkmaskctl').style.display = isKop ? '' : 'none';
   if (isKop) mkVulMaskSelect();
@@ -31604,6 +31665,16 @@ function mkVulOver(){
   const onder = Math.max(20, (MK.ground - o.r) * MK_CEL_EENH + fj);
   const soort = onder < CHAR_H ? 'kruipen (gebukt)' : 'lopen';
   document.getElementById('mkoinfo').textContent = 'ruimte eronder: ' + Math.round(onder) + ' = ' + soort + '. Sleep hem op zijn plek; de rij zet de grove hoogte, Onderkant stelt fijn bij.';
+}
+// het eigenschappen-paneel van een richel (de schacht-opstap): X/Y fijn bijstellen, de grootte en gespiegeld
+function mkVulRichel(){
+  const o = MK.sel; if (!o) return;
+  const dx = o.dx || 0, dy = o.dy || 0, s = o.s || 0.5;
+  document.getElementById('mkrichelx').value = dx; document.getElementById('mkrichelxv').textContent = (dx > 0 ? '+' : '') + dx;
+  document.getElementById('mkrichely').value = dy; document.getElementById('mkrichelyv').textContent = (dy > 0 ? '+' : '') + dy;
+  document.getElementById('mkrichels').value = s;  document.getElementById('mkrichelsv').textContent = s.toFixed(2).replace('.', ',');
+  document.getElementById('mkrichelf').textContent = 'Gespiegeld: ' + (o.f ? 'ja' : 'nee');
+  document.getElementById('mkrichelinfo').textContent = 'De richel staat op zijn cel; sleep hem of stel X (opzij) en Y (hoogte) bij voor de fijne plek. Gespiegeld zet hem tegen de andere wand.';
 }
 // een kleurvierkantje voor in de knoppen
 function mkStaal(kleur, dashed){
@@ -31734,7 +31805,7 @@ function mkNaarJSON(){
            cel:{ breedPx:MK_CEL_PX, hoogEenheden:MK_CEL_EENH },
            legenda:{ '.':'lucht', S:'savanne', R:'rots', W:'sneeuw op savanne', X:'sneeuw op rots', M:'muur', L:'laag obstakel', F:'zwevende laag', G:'gang', V:'ravijn' },
            grid, start:MK.start, eind:MK.eind, muziek:MK.muziek, valschade:MK.valschade,
-           maskers: MK.maskers.filter(m => m.cells.length).map(m => ({ id:m.id, cells:m.cells.map(p => [p.c, p.r]) })),
+           maskers: MK.maskers.filter(m => m.cells.length).map(m => ({ id:m.id, look:m.look === 'zwart' ? 'zwart' : 'grot', cells:m.cells.map(p => [p.c, p.r]) })),
            objecten: MK.objects.map(o => {
              const b = { c:o.c, r:o.r, k:o.k, note:o.note || '' };
              if ((o.k === 'zegel' || o.k === 'rune') && o.masker) b.masker = String(o.masker);   // onthult dit masker (zie "masker")
@@ -31742,6 +31813,7 @@ function mkNaarJSON(){
              if (o.k === 'platform'){ b.doel = o.doel ? { c:o.doel.c, r:o.doel.r } : null; b.breed = o.breed || MK_PLAT_BREED; if (o.stamCel) b.stamCel = o.stamCel; if (o.stamBotCel != null) b.stamBotCel = o.stamBotCel; if (o.stamZij === -1) b.stamZij = -1; }
              if (o.k === 'tandwiel'){ b.modus = o.modus || 'schakellift'; const p = mkConnectedPlatform(o); if (p) b.platform = { c:p.c, r:p.r }; }
              if (o.k === 'overhang'){ b.breed = o.breed || 3; b.dik = o.dik || 2; b.fijn = o.fijn || 0; b.look = o.look === 'savanne' ? 'savanne' : 'rots'; }
+             if (o.k === 'richel'){ b.s = o.s || 0.5; if (o.f) b.f = true; if (o.dx) b.dx = o.dx; if (o.dy) b.dy = o.dy; }
              return b;
            }) };
 }
@@ -31757,7 +31829,7 @@ function mkUitJSON(o){
   MK.valschade = o.valschade !== undefined ? !!o.valschade : true;
   if (mkValschadeEl) mkValschadeEl.checked = MK.valschade;
   MK.maskers = Array.isArray(o.maskers) ? o.maskers.filter(m => m && Array.isArray(m.cells)).map(m => ({
-    id: String(m.id || 'Verborgen1'),
+    id: String(m.id || 'Verborgen1'), look: m.look === 'zwart' ? 'zwart' : 'grot',
     cells: m.cells.map(p => Array.isArray(p) ? { c:p[0]|0, r:p[1]|0 } : { c:(p.c)|0, r:(p.r)|0 }) })) : [];
   MK.maskId = MK.maskers[0] ? MK.maskers[0].id : 'Verborgen1';
   MK.objects = Array.isArray(o.objecten) ? o.objecten.filter(q => mkIsObj(q.k)).map(q => {
@@ -31771,6 +31843,8 @@ function mkUitJSON(o){
       b.dik = Math.max(1, Math.min(8, Math.round(Number(q.dik) || 2)));
       b.fijn = Math.max(-140, Math.min(140, Math.round(Number(q.fijn) || 0)));
       b.look = q.look === 'savanne' ? 'savanne' : 'rots'; }
+    if (q.k === 'richel'){ b.s = Math.max(0.3, Math.min(1.2, Number(q.s) || 0.5)); b.f = !!q.f;
+      b.dx = Math.max(-200, Math.min(200, Math.round(Number(q.dx) || 0))); b.dy = Math.max(-150, Math.min(150, Math.round(Number(q.dy) || 0))); }
     return b;
   }) : [];
   for (const w of MK.objects) if (w._plat){   // een wiel zijn gekozen platform terugkoppelen (op celpositie)
@@ -31805,7 +31879,7 @@ function mkNaarLevel(){
   const spanLR = (cA, cB) => { const [la] = lr(cA), [, rb] = lr(cB); return [Math.min(la, rb), Math.max(la, rb)]; };
   const savanne = id => id === 'savanne' || id === 'sneeuw' || id === 'zweef';   // savanne-achtig (grond:true); rots en sneeuwrots zijn steen
   const solid = id => savanne(id) || id === 'rots' || id === 'sneeuwrots' || id === 'muur';   // telt mee als verhoogd terras, zwevende laag of blokkade
-  const gaps = [], terraces = [], holtes = [], zwevers = [], takels = [];
+  const gaps = [], terraces = [], holtes = [], zwevers = [], takels = [], ledges = [];
   // gaten: aaneengesloten ravijn-cellen op de grondlijn
   for (let c = 0; c < C;){
     if (G[gR] && G[gR][c] === 'ravijn'){ let c2 = c; while (c2 < C && G[gR][c2] === 'ravijn') c2++;
@@ -31900,6 +31974,15 @@ function mkNaarLevel(){
     zwevers.push({ r: Math.round(px + half), l: Math.round(px - half), h: Math.round(h), onder: Math.round(onder),
                    look: o.look === 'savanne' ? undefined : 'rots' });
   }
+  // richel-voorwerpen: elke richel wordt een ledges-entry (de schacht-opstap, design/klimmen/klif_richel.png).
+  // x = celmidden plus de X-nudge (maal dir, zodat de nudge op het scherm klopt met de wereldrichting), h = de
+  // bovenkant van de cel plus de Y-nudge (hoger = omhoog), s de grootte, f gespiegeld (tegen de andere wand).
+  for (const o of MK.objects){
+    if (o.k !== 'richel') continue;
+    const [l, r2] = lr(o.c), x = Math.round((l + r2) / 2 + (o.dx || 0) * dir);
+    const h = Math.round((gR - o.r) * MK_CEL_EENH + (o.dy || 0));
+    const e = { x, h, s: o.s || 0.5 }; if (o.f) e.f = true; ledges.push(e);
+  }
   // takel: elk platform met een doelhoogte wordt een eigen takel-platform (met een id). De wielen die eraan
   // hangen komen als lijst mee, elk op de plek waar jij ze zet, met hun eigen stand (per slag of helemaal).
   let takelNr = 0;
@@ -31986,6 +32069,7 @@ function mkNaarLevel(){
   if (holtes.length) lvl.holtes = holtes;
   if (zwevers.length) lvl.zwevers = zwevers;
   if (takels.length) lvl.takels = takels;
+  if (ledges.length) lvl.ledges = ledges;
   if (afwerking === 'sneeuw') lvl.sneeuw = { soort: 'savanne', dek: 1, vol: true };        // een dichte sneeuwlaag op de savanne (alleen de bodem, geen weer)
   else if (afwerking === 'sneeuwrots') lvl.sneeuw = { soort: 'rots', dek: 1, vol: true };  // een dichte sneeuwlaag op de rotsbodem
   else if (afwerking === 'rots') lvl.sneeuw = { soort: 'rots', dek: 0 };        // een kale rotsbodem
@@ -32002,7 +32086,7 @@ function mkNaarLevel(){
         const [l, r2] = spanLR(cols[i], cols[j]);
         vakken.push({ l: Math.round(l), r: Math.round(r2), onder: Math.round((gR - row - 1) * MK_CEL_EENH), boven: Math.round((gR - row) * MK_CEL_EENH) });
         i = j + 1; } }
-    if (vakken.length) maskers.push({ id: m.id, look: 'grot', vakken });
+    if (vakken.length) maskers.push({ id: m.id, look: m.look === 'zwart' ? 'zwart' : 'grot', vakken });
   }
   if (maskers.length) lvl.maskers = maskers;
   // een zegel of rune dat aan een masker gekoppeld is, wordt een echte schakelaar die het wegneemt (stuurt + acties)
@@ -32148,7 +32232,24 @@ document.getElementById('mkolook').onclick = () => {
   MK.sel.look = MK.sel.look === 'savanne' ? 'rots' : 'savanne';
   mkVulOver(); mkTeken(); mkBewaar();
 };
+for (const [id, veld, mn, mx] of [['mkrichelx','dx',-200,200],['mkrichely','dy',-150,150]]){
+  document.getElementById(id).addEventListener('input', e => {
+    if (!MK.sel || MK.sel.k !== 'richel') return;
+    MK.sel[veld] = Math.max(mn, Math.min(mx, Math.round(Number(e.target.value) || 0)));
+    mkVulRichel(); mkTeken(); mkBewaar();
+  });
+}
+document.getElementById('mkrichels').addEventListener('input', e => {
+  if (!MK.sel || MK.sel.k !== 'richel') return;
+  MK.sel.s = Math.max(0.3, Math.min(1.2, Number(e.target.value) || 0.5));
+  mkVulRichel(); mkTeken(); mkBewaar();
+});
+document.getElementById('mkrichelf').onclick = () => {
+  if (!MK.sel || MK.sel.k !== 'richel') return;
+  MK.sel.f = !MK.sel.f; mkVulRichel(); mkTeken(); mkBewaar();
+};
 document.getElementById('mkvijsoort').onchange = e => { if (MK.sel && MK.sel.k === 'vijand'){ MK.sel.soort = e.target.value; mkTeken(); mkBewaar(); mkNotePaneel(); } };
+document.getElementById('mkmasklook').onchange = e => { if (MK.selMask){ MK.selMask.look = e.target.value === 'zwart' ? 'zwart' : 'grot'; mkTeken(); mkBewaar(); } };   // de look voor het hele masker
 document.getElementById('mkinsptab').onclick = () => { MK.inspectDicht = false; mkNotePaneel(); };
 document.getElementById('mkinspclose').onclick = () => { MK.inspectDicht = true; mkNotePaneel(); };
 document.getElementById('mkdoel').onclick = () => { if (MK.sel && MK.sel.k === 'platform'){ mkDoelMode = true; document.getElementById('mkobjinfo').textContent = 'Tik nu de vloer aan waar het platform heen moet reizen.'; } };
