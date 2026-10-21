@@ -23394,15 +23394,17 @@ const MEEL = {
   fps:  { idle: 1, opricht: 38, worp: 27, ren: 38, drag: 16 },
   loop: { idle: true, opricht: false, worp: false, ren: true, drag: true },
   // de per-set tekenschaal die de man over alle sets even groot maakt. De metadata-schalen (idle 1,37,
-  // ren 0,638, drag 1,0, worp 1,0) klopten niet: de haar-kop is in de bron bijna gelijk (73 tot 81 px),
+  // ren 0,638, drag 1,0, worp 1,0) klopten niet: de haar-kop is in de bron bijna gelijk (76 tot 82 px),
   // dus die schalen lieten hem enorm van grootte verspringen (ren rendert dan half zo groot als idle).
-  // Hier geijkt op de gemeten kop (hairW maal scale gelijk aan idle): idle 73*1,37, en de rest navenant,
-  // zodat idle, oprichten, worp en rennen even groot op het scherm komen. De slepen-set is de uitzondering:
-  // daar staat hij voorovergebogen, dus zijn kop is verkort (foreshortened) en de kop-gematchte schaal
-  // onderschat die pose, waardoor de slepende man schrikbarend klein oogde. 1,85 brengt zijn kruin bij het
-  // slepen weer op idle-hoogte, zodat hij even groot oogt als staand. De worp kan niet mee omhoog (dan wordt
-  // de worp-reach gigantisch), dus het slepen heeft bewust zijn eigen maat.
-  scale: { idle: 1.37, opricht: 1.333, worp: 1.361, ren: 1.235, drag: 1.85 },
+  // Daarom is alles op de kop geijkt, precies zoals metadata.json het bedoelt ("gematcht op kophoogte"):
+  // de gemeten kop (ongeveer 78 px) maal de schaal is in elke set gelijk aan idle (78 maal 1,37), zodat idle,
+  // oprichten, worp, rennen en slepen even groot op het scherm komen. Ook het slepen hoort daarbij: eerder
+  // stond dat op 1,85 om zijn gebukte kruin op staande hoogte te brengen, maar dan werd zijn kop zo'n 30% te
+  // groot en sprong hij zichtbaar van maat zodra hij ging slepen. Op 1,40 (kop-gematcht) is het dezelfde man,
+  // voorovergebogen: zijn kop klopt en zijn lijf is terecht wat lager, want hij staat gebukt. De worp blijft
+  // op 1,361, want daar hangt de melee-reach aan (meleeR); een hogere worp-schaal zou die reach meerekken.
+  scale: { idle: 1.37, opricht: 1.37, worp: 1.361, ren: 1.30, drag: 1.40 },
+  grondBij: { ren: 11 },  // de ren-frames staan 11 canvas-px boven de grondlijn (435); zo plant de looppas weer op de grond in plaats van te zweven
   release: 30,            // worp-frame waarop de zak de hand verlaat (zie LEESMIJ)
   hitVan: 28, hitTot: 40, // het raakvenster van de melee-slag (de worp-set doet dubbel werk)
   see:    1500,           // vanaf hier (wereld-px) doet hij iets
@@ -23464,6 +23466,7 @@ function meelAnimSet(s){
     case 'ren':     return 'ren';      // je naderen om te slaan
     case 'pak':     return 'drag';     // gebukt een zak pakken
     case 'terug':   return 'drag';     // met de zak terug naar de rand slepen
+    case 'drag':    return 'drag';     // los bekijken in de sandbox (de knop Slepen)
     default:        return 'idle';     // wacht, dood
   }
 }
@@ -23627,7 +23630,7 @@ function updateMeelman(s, dt, plats, cliff){
   // sandbox: ook op vlakke grond gooit hij van afstand, zodat je de worp en de zak kunt zien
   if (sandbox && s.cool <= 0 && gap > meleeR && gap <= MEEL.worpVer){ s.face = naarJe; meelStartWorp(s, 'gooi'); return; }
   // op zijn niveau maar nog te ver: hij komt naar je toe om te slaan
-  if (bereikbaar && gap <= MEEL.see){ s.face = naarJe; meelSet(s, 'ren'); meelAnim(s, dt); meelMove(s, naarJe * MEEL.run * dt, plats, cliff); return; }
+  if (bereikbaar && gap <= MEEL.see){ s.face = naarJe; if (s.state !== 'ren') meelSet(s, 'ren'); meelAnim(s, dt); meelMove(s, naarJe * MEEL.run * dt, plats, cliff); return; }
 
   // wacht aan de rand: Amir is hier per definitie lager of over een afgrond, dus zodra hij in zicht is gooit hij naar beneden
   s.face = naarJe;
@@ -28198,8 +28201,10 @@ function loop(now){
     {
       for (const s of meelmannen){
         if (achterMasker(s.x, s.base)) continue;    // nog achter een niet-onthuld masker: niet tekenen (en niet raakbaar)
-        const k = meelDrawScale(meelAnimSet(s));
+        const set = meelAnimSet(s);
+        const k = meelDrawScale(set);
         const kw = MEEL.w * k, kh = MEEL.h * k;
+        const grondY = (MEEL.ground - (MEEL.grondBij[set] || 0)) * k;   // per-set grondlijn: ren staat hoger in zijn canvas, dus zak hem op de grond
         const bodyX = cx + (s.x - world);
         if (bodyX < -kw - W || bodyX > W / viewZoom() + W + kw) continue;
         const voeten = groundY - (s.base || 0) * scale;
@@ -28217,7 +28222,7 @@ function loop(now){
         if (s.face === 1) ctx.scale(-1, 1);                 // de frames kijken naar links; naar rechts = gespiegeld
         const img = meelFrameImg(s);
         if (img && imgReady(img))
-          ctx.drawImage(s.flash > 0 ? whiteCopy(img, s.flash * 4) : img, -MEEL.anker * k, -MEEL.ground * k, kw, kh);
+          ctx.drawImage(s.flash > 0 ? whiteCopy(img, s.flash * 4) : img, -MEEL.anker * k, -grondY, kw, kh);
         ctx.restore();
         if (s.state === 'dood' || s.state === 'weg') continue;
         const nbox = { l: bodyX - half, r: bodyX + half, t: voeten - fh * 0.98, b: voeten };
