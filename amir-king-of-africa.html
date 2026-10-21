@@ -31192,6 +31192,10 @@ const MK_TYPES = [
   // een masker: verf cellen om ze in het spel te verbergen (ze zien eruit als de ondergrondse rotswand) tot
   // je erin loopt of hem met een zegel/rune onthult. Geen terrein en geen voorwerp: een eigen verf-laag (MK.maskers)
   { id:'masker',  naam:'Masker (verbergen)',   kleur:'#5ad66e', mask:true },
+  // vrije zwarte voorgrond-vormen (de schaduwtruc): geen grid, geen botsing, puur decor dat over alles heen ligt.
+  // Je plaatst ze, versleept en schaalt ze vrij (zie MK.vormen, mkVormGrijp, mkVormGeo). Nog niet in een echt level.
+  { id:'zwartblok', naam:'Zwart blok',        kleur:'#101014', vorm:'blok' },
+  { id:'zwartblob', naam:'Zwarte blob',       kleur:'#101014', vorm:'blob' },
 ];
 // wat een tandwiel doet bij een slag. Een schakelaar kan beide kanten op (als een lichtschakelaar); een vast wiel
 // gaat altijd dezelfde kant op. Zie takelWielSlag.
@@ -31251,12 +31255,17 @@ const MK_CATS = [
   { id:'objecten', naam:'Objecten',   items:['zegel','rune','platform','tandwiel','overhang','richel','hppotion'] },
   { id:'decor',    naam:'Decor',      items:['prop'] },
   { id:'verbergen',naam:'Verbergen',  items:['masker'] },
+  { id:'vormen',   naam:'Vormen',     items:['zwartblok','zwartblob'] },
 ];
 const MK_CH = {}, MK_KLEUR = {};
 for (const t of MK_TYPES){ if (t.ch) MK_CH[t.ch] = t.id; if (t.kleur) MK_KLEUR[t.id] = t.kleur; }
 const MK_IDCH = {}; for (const t of MK_TYPES) if (t.ch) MK_IDCH[t.id] = t.ch;
 const MK_TERREIN = new Set(['savanne','rots','sneeuw','sneeuwrots','muur','laag','zweef','gang','ravijn','lucht']);
 const mkIsObj = id => MK_TYPES.some(t => t.id === id && t.obj);
+const mkIsVorm = id => MK_TYPES.some(t => t.id === id && t.vorm);
+// deterministische toevals voor een blob-vorm, zodat dezelfde seed altijd dezelfde grillige vorm geeft
+function mkMulberry(a){ return function(){ a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function mkBlobPts(seed){ const rnd = mkMulberry((seed | 0) || 1), n = 14, p = []; for (let i = 0; i < n; i++){ const a = i / n * Math.PI * 2, rr = 0.34 + rnd() * 0.16; p.push([Math.cos(a) * rr, Math.sin(a) * rr]); } return p; }
 function mkNearestPlatform(w){ let best = null, bd = Infinity;
   for (const o of MK.objects){ if (o.k !== 'platform') continue; const d = (o.c - w.c) ** 2 + (o.r - w.r) ** 2; if (d < bd){ bd = d; best = o; } }
   return best;
@@ -31265,7 +31274,8 @@ function mkNearestPlatform(w){ let best = null, bd = Infinity;
 function mkConnectedPlatform(w){ if (w && w.plat && MK.objects.indexOf(w.plat) >= 0 && w.plat.k === 'platform') return w.plat; return mkNearestPlatform(w); }
 const MK = { cols:48, rows:20, ground:12, grid:null, start:null, eind:null, objects:[], sel:null,
              tool:'savanne', zoom:1, panX:0, panY:0, maskers:[], maskId:'Verborgen1',
-             cat:'terrein', sub:null, vijandSoort:'groen', inspectDicht:true, muziek:MUZIEK_BASIS, valschade:true, selMask:null };
+             cat:'terrein', sub:null, vijandSoort:'groen', inspectDicht:true, muziek:MUZIEK_BASIS, valschade:true, selMask:null,
+             vormen:[], selVorm:null };
 // ---- maskers in de Maker: verf cellen onder een naam (Verborgen1, ...) om ze te verbergen ----
 function mkMaskObj(id){ let m = MK.maskers.find(q => q.id === id); if (!m){ m = { id, cells:[], look:'grot' }; MK.maskers.push(m); } return m; }
 function mkMaskNamen(){ const n = MK.maskers.filter(m => m.cells.length).map(m => m.id); if (!n.includes(MK.maskId)) n.push(MK.maskId); return n; }
@@ -31287,7 +31297,7 @@ function mkMaskVerf(c, r, erase){                     // een cel in het huidige 
   if (had) had.m.cells.splice(had.i, 1);              // uit een ander masker halen
   mkMaskObj(MK.maskId).cells.push({ c, r });
 }
-let makerOpen = false, mkCtx = null, mkPaint = false, mkPan = false, mkPanX = 0, mkPanY = 0, mkSpace = false, mkDoelMode = false, mkDrag = null, mkStamDrag = null;
+let makerOpen = false, mkCtx = null, mkPaint = false, mkPan = false, mkPanX = 0, mkPanY = 0, mkSpace = false, mkDoelMode = false, mkDrag = null, mkStamDrag = null, mkVormDrag = null;
 const makerEl = document.getElementById('maker');
 const mkCanvas = document.getElementById('mkcanvas');
 const mkColsEl = document.getElementById('mkcols'), mkRowsEl = document.getElementById('mkrows'), mkGroundEl = document.getElementById('mkground');
@@ -31392,6 +31402,20 @@ function mkCelOp(ev){                               // welke cel ligt onder de m
   const c = Math.floor((ev.clientX - r.left - MK.panX) / cel);
   const rr = Math.floor((ev.clientY - r.top - MK.panY) / cel);
   return { c, r: rr };
+}
+// het punt onder de muis in vrije cel-coordinaten (floats), voor de vrije vormen die zich niet aan het grid houden
+function mkPuntOp(ev){ const r = mkCanvas.getBoundingClientRect(), cel = mkCel(); return { x:(ev.clientX - r.left - MK.panX) / cel, y:(ev.clientY - r.top - MK.panY) / cel }; }
+// de schermgeometrie van een vrije vorm: midden, halve maten, de vier hoeken (voor schalen) en het draai-bolletje
+function mkVormGeo(v){
+  const cel = mkCel(), cx = MK.panX + v.x * cel, cy = MK.panY + v.y * cel, hw = v.w * cel / 2, hh = v.h * cel / 2, rot = v.rot || 0;
+  const co = Math.cos(rot), si = Math.sin(rot), W = (lx, ly) => [cx + lx * co - ly * si, cy + lx * si + ly * co];
+  return { cx, cy, hw, hh, rot, corners:[W(-hw, -hh), W(hw, -hh), W(hw, hh), W(-hw, hh)], rotH:W(0, -hh - 22) };
+}
+// ligt (mx, my) in schermpixels binnen een vorm (meegedraaid)?
+function mkVormHit(v, mx, my){
+  const cel = mkCel(), cx = MK.panX + v.x * cel, cy = MK.panY + v.y * cel, hw = v.w * cel / 2, hh = v.h * cel / 2, rot = v.rot || 0;
+  const c = Math.cos(-rot), s = Math.sin(-rot), dx = mx - cx, dy = my - cy, lx = dx * c - dy * s, ly = dx * s + dy * c;
+  return Math.abs(lx) <= hw && Math.abs(ly) <= hh;
 }
 function mkTeken(){
   if (!mkCtx) return;
@@ -31532,10 +31556,36 @@ function mkTeken(){
     mkCtx.fillStyle = '#ffd24a'; mkCtx.font = `bold ${Math.round(rb * 1.15)}px sans-serif`;
     mkCtx.textAlign = 'center'; mkCtx.textBaseline = 'middle'; mkCtx.fillText(String(n), px, py + 0.5);
   }
+  // de vrije zwarte voorgrond-vormen: als laatste, dus over alles heen (de schaduwtruc)
+  for (const v of MK.vormen){
+    const g = mkVormGeo(v);
+    mkCtx.save(); mkCtx.translate(g.cx, g.cy); mkCtx.rotate(g.rot); mkCtx.fillStyle = '#000';
+    if (v.t === 'blob'){
+      const pts = mkBlobPts(v.seed); mkCtx.beginPath();
+      for (let i = 0; i < pts.length; i++){ const X = pts[i][0] * v.w * cel, Y = pts[i][1] * v.h * cel; i ? mkCtx.lineTo(X, Y) : mkCtx.moveTo(X, Y); }
+      mkCtx.closePath(); mkCtx.fill();
+    } else mkCtx.fillRect(-g.hw, -g.hh, g.hw * 2, g.hh * 2);
+    mkCtx.restore();
+    if (v === MK.selVorm){
+      mkCtx.strokeStyle = '#4ea1ff'; mkCtx.lineWidth = 1.5; mkCtx.setLineDash([5, 4]);
+      mkCtx.beginPath(); g.corners.forEach((p, i) => i ? mkCtx.lineTo(p[0], p[1]) : mkCtx.moveTo(p[0], p[1])); mkCtx.closePath(); mkCtx.stroke(); mkCtx.setLineDash([]);
+      const topMid = [(g.corners[0][0] + g.corners[1][0]) / 2, (g.corners[0][1] + g.corners[1][1]) / 2];
+      mkCtx.beginPath(); mkCtx.moveTo(topMid[0], topMid[1]); mkCtx.lineTo(g.rotH.x, g.rotH.y); mkCtx.stroke();
+      mkCtx.fillStyle = '#4ea1ff';
+      g.corners.forEach(p => { mkCtx.beginPath(); mkCtx.rect(p[0] - 5, p[1] - 5, 10, 10); mkCtx.fill(); });
+      mkCtx.beginPath(); mkCtx.arc(g.rotH.x, g.rotH.y, 6, 0, 7); mkCtx.fill();
+    }
+  }
 }
 // een enkele klik: grond schilderen, start/eind zetten, of een object plaatsen of selecteren
 function mkKlik(ev){
   const { c, r } = mkCelOp(ev);
+  if (mkIsVorm(MK.tool)){                              // een vrije zwarte vorm neerzetten (geen grid, dus ook buiten het raster)
+    const p = mkPuntOp(ev), def = MK_TYPES.find(x => x.id === MK.tool).vorm;
+    const v = { t:def, x:p.x, y:p.y, w: def === 'blob' ? 7 : 6, h:6, rot:0, seed:(Math.random() * 1e9) | 0 };
+    MK.vormen.push(v); MK.selVorm = v; MK.sel = null; MK.selMask = null; MK.inspectDicht = false;
+    mkLegenda(); mkNotePaneel(); mkTeken(); mkBewaar(); return;
+  }
   if (c < 0 || r < 0 || c >= MK.cols || r >= MK.rows) return;
   if (mkDoelMode && MK.sel && MK.sel.k === 'platform'){   // de doelhoogte: de aangeklikte cel is waar het platform heen reist
     MK.sel.doel = { c, r }; mkDoelMode = false; mkNotePaneel(); mkTeken(); mkBewaar(); return;
@@ -31545,7 +31595,7 @@ function mkKlik(ev){
     const had = mkMaskInCel(c, r); mkMaskErase = !!(had && had.m.id === MK.maskId);
     mkMaskVerf(c, r, mkMaskErase); mkTeken(); mkBewaar(); return;
   }
-  if (t === 'select'){ MK.sel = MK.objects.find(o => o.c === c && o.r === r) || null; mkDrag = MK.sel;   // aanklikken om te bewerken, en slepen om te verschuiven
+  if (t === 'select'){ MK.selVorm = null; MK.sel = MK.objects.find(o => o.c === c && o.r === r) || null; mkDrag = MK.sel;   // aanklikken om te bewerken, en slepen om te verschuiven
     if (MK.sel){ MK.selMask = null; MK.inspectDicht = false; }
     else { const hm = mkMaskInCel(c, r); MK.selMask = hm ? hm.m : null; if (MK.selMask) MK.inspectDicht = false; }   // geen voorwerp maar een geverfde masker-cel: het masker selecteren
     mkNotePaneel(); mkTeken(); return; }
@@ -31847,6 +31897,17 @@ function mkLegenda(){
     hint.textContent = 'Verf cellen om ze te verbergen (ze worden de ondergrondse rotswand). Klik een geverfde cel om hem te wissen. Koppel een zegel of rune aan dit masker om het te laten wegnemen; erin lopen neemt het ook weg.';
     box.appendChild(hint);
   }
+  if (MK.selVorm){                                     // de bediening bij een geselecteerde vrije vorm
+    const rij = document.createElement('div'); rij.className = 'mkrij';
+    if (MK.selVorm.t === 'blob'){ const bR = document.createElement('button'); bR.textContent = 'Andere blob';
+      bR.onclick = () => { MK.selVorm.seed = (Math.random() * 1e9) | 0; mkTeken(); mkBewaar(); }; rij.appendChild(bR); }
+    const bD = document.createElement('button'); bD.textContent = 'Verwijder vorm';
+    bD.onclick = () => { const i = MK.vormen.indexOf(MK.selVorm); if (i >= 0) MK.vormen.splice(i, 1); MK.selVorm = null; mkLegenda(); mkTeken(); mkBewaar(); };
+    rij.appendChild(bD); box.appendChild(rij);
+    const h = document.createElement('div'); h.className = 'mkhint';
+    h.textContent = 'Sleep de vorm om te verplaatsen, een hoekje om te schalen, het bolletje erboven om te draaien. Delete haalt hem weg.';
+    box.appendChild(h);
+  }
 }
 // de zwevende dropdown onder een categorie, en de zij-flyout van een subcategorie (bandiet)
 let mkMenuCat = null;
@@ -31894,6 +31955,7 @@ function mkNaarJSON(){
            legenda:{ '.':'lucht', S:'savanne', R:'rots', W:'sneeuw op savanne', X:'sneeuw op rots', M:'muur', L:'laag obstakel', F:'zwevende laag', G:'gang', V:'ravijn' },
            grid, start:MK.start, eind:MK.eind, muziek:MK.muziek, valschade:MK.valschade,
            maskers: MK.maskers.filter(m => m.cells.length).map(m => ({ id:m.id, look:m.look === 'zwart' ? 'zwart' : 'grot', cells:m.cells.map(p => [p.c, p.r]) })),
+           vormen: MK.vormen.map(v => ({ t:v.t, x:v.x, y:v.y, w:v.w, h:v.h, rot:v.rot || 0, seed:v.seed || 0 })),
            objecten: MK.objects.map(o => {
              const b = { c:o.c, r:o.r, k:o.k, note:o.note || '' };
              if ((o.k === 'zegel' || o.k === 'rune') && o.masker) b.masker = String(o.masker);   // onthult dit masker (zie "masker")
@@ -31920,6 +31982,10 @@ function mkUitJSON(o){
     id: String(m.id || 'Verborgen1'), look: m.look === 'zwart' ? 'zwart' : 'grot',
     cells: m.cells.map(p => Array.isArray(p) ? { c:p[0]|0, r:p[1]|0 } : { c:(p.c)|0, r:(p.r)|0 }) })) : [];
   MK.maskId = MK.maskers[0] ? MK.maskers[0].id : 'Verborgen1';
+  MK.vormen = Array.isArray(o.vormen) ? o.vormen.filter(v => v && (v.t === 'blok' || v.t === 'blob')).map(v => ({
+    t:v.t, x:Number(v.x) || 0, y:Number(v.y) || 0,
+    w:Math.max(0.2, Number(v.w) || 4), h:Math.max(0.2, Number(v.h) || 4),
+    rot:Number(v.rot) || 0, seed:(v.seed | 0) })) : [];
   MK.objects = Array.isArray(o.objecten) ? o.objecten.filter(q => mkIsObj(q.k)).map(q => {
     const b = { c:q.c|0, r:q.r|0, k:q.k, note:String(q.note || '') };
     if ((q.k === 'zegel' || q.k === 'rune') && q.masker) b.masker = String(q.masker);
@@ -31939,7 +32005,7 @@ function mkUitJSON(o){
     const p = MK.objects.find(q => q.k === 'platform' && q.c === w._plat.c && q.r === w._plat.r);
     if (p) w.plat = p; delete w._plat;
   }
-  MK.sel = null;
+  MK.sel = null; MK.selVorm = null;
 }
 function mkBewaar(){ try { localStorage.setItem('amir-mk', JSON.stringify(mkNaarJSON())); } catch (e){} }
 function mkExport(){ const s = JSON.stringify(mkNaarJSON()); mkJsonEl.value = s;
@@ -32238,15 +32304,42 @@ function mkStamHandleOp(ev){
   if (hit(g.botHandle)) return { o: MK.sel, end: 'bot' };
   return null;
 }
+// pakt de muis een vrije vorm (een handvat van de geselecteerde, of het lijf van een vorm)? Dan een vorm-sleep
+// (verplaatsen, schalen of draaien) in plaats van een gewone klik. Werkt met Selecteren en met een vorm-gereedschap.
+function mkVormGrijp(ev){
+  const r = mkCanvas.getBoundingClientRect(), mx = ev.clientX - r.left, my = ev.clientY - r.top;
+  if (MK.selVorm){                                     // handvatten van de geselecteerde vorm gaan voor
+    const g = mkVormGeo(MK.selVorm);
+    if (Math.hypot(mx - g.rotH.x, my - g.rotH.y) <= 9) return { o:MK.selVorm, mode:'draai', startRot:MK.selVorm.rot || 0, startA:Math.atan2(my - g.cy, mx - g.cx) };
+    for (let i = 0; i < 4; i++) if (Math.hypot(mx - g.corners[i][0], my - g.corners[i][1]) <= 9) return { o:MK.selVorm, mode:'schaal', anchor:g.corners[(i + 2) % 4] };
+  }
+  if (MK.tool === 'select' || mkIsVorm(MK.tool)){      // het lijf van een vorm pakken om te selecteren en te verslepen
+    for (let i = MK.vormen.length - 1; i >= 0; i--){ const v = MK.vormen[i]; if (mkVormHit(v, mx, my)){
+      MK.selVorm = v; MK.sel = null; MK.selMask = null; MK.inspectDicht = false;
+      const cel = mkCel(); mkLegenda(); mkNotePaneel(); mkTeken();
+      return { o:v, mode:'move', offx:(mx - MK.panX) / cel - v.x, offy:(my - MK.panY) / cel - v.y };
+    } }
+  }
+  return null;
+}
 mkCanvas.addEventListener('pointerdown', ev => {
   mkMenuSluit();
   mkCanvas.setPointerCapture(ev.pointerId);
   if (ev.button === 2 || ev.button === 1 || mkSpace){ mkPan = true; mkPanX = ev.clientX; mkPanY = ev.clientY; }
-  else { const hs = mkStamHandleOp(ev); if (hs){ mkStamDrag = hs; return; }   // een paal-handvat slepen gaat voor
+  else { const vg = mkVormGrijp(ev); if (vg){ mkVormDrag = vg; return; }   // een vrije vorm pakken gaat voor
+    const hs = mkStamHandleOp(ev); if (hs){ mkStamDrag = hs; return; }   // een paal-handvat slepen gaat voor
     mkPaint = true; mkKlik(ev); }
 });
 mkCanvas.addEventListener('pointermove', ev => {
   if (mkPan){ MK.panX += ev.clientX - mkPanX; MK.panY += ev.clientY - mkPanY; mkPanX = ev.clientX; mkPanY = ev.clientY; mkTeken(); }
+  else if (mkVormDrag){                               // een vrije vorm verplaatsen, schalen of draaien (geen grid)
+    const r = mkCanvas.getBoundingClientRect(), mx = ev.clientX - r.left, my = ev.clientY - r.top, cel = mkCel(), v = mkVormDrag.o;
+    if (mkVormDrag.mode === 'move'){ v.x = (mx - MK.panX) / cel - mkVormDrag.offx; v.y = (my - MK.panY) / cel - mkVormDrag.offy; }
+    else if (mkVormDrag.mode === 'schaal'){ const a = mkVormDrag.anchor, rot = v.rot || 0, c = Math.cos(-rot), s = Math.sin(-rot), dx = mx - a[0], dy = my - a[1];
+      const ux = dx * c - dy * s, uy = dx * s + dy * c; v.w = Math.max(10, Math.abs(ux)) / cel; v.h = Math.max(10, Math.abs(uy)) / cel;
+      v.x = ((a[0] + mx) / 2 - MK.panX) / cel; v.y = ((a[1] + my) / 2 - MK.panY) / cel; }
+    else { const g = mkVormGeo(v); v.rot = mkVormDrag.startRot + (Math.atan2(my - g.cy, mx - g.cx) - mkVormDrag.startA); }
+    mkTeken(); }
   else if (mkStamDrag){ const { r } = mkCelOp(ev), o = mkStamDrag.o;   // de paal groter/kleiner slepen
     const cells = MK.ground - r;                    // cellen boven de grond onder de muis
     if (mkStamDrag.end === 'top') o.stamCel = Math.max(mkPlatHoogCel(o) + 1, Math.min(MK.rows, cells));   // de pen blijft boven de hoogste plateaustand
@@ -32256,7 +32349,7 @@ mkCanvas.addEventListener('pointermove', ev => {
     if (c >= 0 && r >= 0 && c < MK.cols && r < MK.rows && (mkDrag.c !== c || mkDrag.r !== r)){ mkDrag.c = c; mkDrag.r = r; mkNotePaneel(); mkTeken(); } }
   else if (mkPaint && (MK_TERREIN.has(MK.tool) || MK.tool === 'masker')) mkVerf(ev);   // slepen schildert grond of masker-cellen, niet objecten of start/eind
 });
-function mkStop(){ mkPaint = false; mkPan = false; if (mkStamDrag){ mkStamDrag = null; mkBewaar(); } if (mkDrag){ mkDrag = null; mkBewaar(); } }
+function mkStop(){ mkPaint = false; mkPan = false; if (mkStamDrag){ mkStamDrag = null; mkBewaar(); } if (mkVormDrag){ mkVormDrag = null; mkBewaar(); } if (mkDrag){ mkDrag = null; mkBewaar(); } }
 mkCanvas.addEventListener('pointerup', mkStop);
 mkCanvas.addEventListener('pointercancel', mkStop);
 mkCanvas.addEventListener('contextmenu', ev => ev.preventDefault());
@@ -32276,6 +32369,10 @@ addEventListener('keydown', ev => {
   }
   if (/^(INPUT|TEXTAREA)$/.test((ev.target || {}).tagName)) return;
   if (ev.code === 'Space'){ mkSpace = true; ev.preventDefault(); return; }
+  if ((ev.key === 'Delete' || ev.key === 'Backspace') && MK.selVorm){   // de geselecteerde vrije vorm weghalen
+    const i = MK.vormen.indexOf(MK.selVorm); if (i >= 0) MK.vormen.splice(i, 1);
+    MK.selVorm = null; mkLegenda(); mkTeken(); mkBewaar(); ev.preventDefault(); return;
+  }
   if ((ev.key === 'Delete' || ev.key === 'Backspace') && MK.sel){   // het geselecteerde voorwerp weghalen
     const i = MK.objects.indexOf(MK.sel); if (i >= 0) MK.objects.splice(i, 1);
     MK.sel = null; mkNotePaneel(); mkTeken(); mkBewaar(); ev.preventDefault();
@@ -32303,7 +32400,7 @@ document.getElementById('mkvijwis').onclick = () => {
 };
 document.getElementById('mkwis').onclick = () => {
   if (!confirm('Weet je zeker dat je alles wil wissen?')) return;   // leeg beginnen, met bevestiging ertussen
-  mkZetMaat(48, 20, 12); MK.grid = mkMaakGrid(MK.cols, MK.rows); MK.start = null; MK.eind = null; MK.objects = []; MK.maskers = []; MK.maskId = 'Verborgen1'; MK.sel = null; MK.tool = 'savanne'; MK.cat = 'terrein'; MK.sub = null; MK.inspectDicht = true; MK.muziek = MUZIEK_BASIS; mkMuziekEl.value = MK.muziek;
+  mkZetMaat(48, 20, 12); MK.grid = mkMaakGrid(MK.cols, MK.rows); MK.start = null; MK.eind = null; MK.objects = []; MK.maskers = []; MK.maskId = 'Verborgen1'; MK.vormen = []; MK.selVorm = null; MK.sel = null; MK.tool = 'savanne'; MK.cat = 'terrein'; MK.sub = null; MK.inspectDicht = true; MK.muziek = MUZIEK_BASIS; mkMuziekEl.value = MK.muziek;
   MK.valschade = true; mkValschadeEl.checked = true;
   mkLegenda(); mkNotePaneel(); mkPassend(); mkBewaar();
 };
