@@ -1,7 +1,8 @@
 # Kooiman - duw-mechaniek
 
 > In deze repo: de 28 frames staan in `enemies/kooiman/duw/`, de losse kooi in
-> `enemies/kooiman/kooi/kooi.png`, en de set is als `duw` toegevoegd aan
+> `enemies/kooiman/kooi/kooi.png` (grijs met doorschijnend interieur, uit `tools/kooi_kleur.py`;
+> de aangeleverde gele versie staat als bron in `bron/kooi/kooi.png`), en de set is als `duw` toegevoegd aan
 > `enemies/kooiman/sprites.json` (eigen canvas en de kooi-uitlijning onder `kooi_laag`).
 > In de HTML is het de gevechts-loop van de **duel-kooiman** nadat de kooi open is (hij
 > duwt de lege kooi voor zich uit als schild); hij is dan alleen in zijn herstel raakbaar.

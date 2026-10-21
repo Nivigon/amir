@@ -1407,6 +1407,14 @@ tekent die map op de elite-vlag (zie "de bandiet"). Verandert een bronframe, dra
 script dan opnieuw, en daarna `gen-klein.py` en `gen-offline-manifest.py`. De elite-set
 staat wel in de kleine set (zoals de gewone bandiet).
 
+De losse kooi-plaat van de kooiman (de duw-lus) komt uit `tools/kooi_kleur.py`: de aangeleverde
+bron `enemies/kooiman/bron/kooi/kooi.png` heeft grijze spaken maar een massief gele vulling; het
+script haalt het geel eruit en maakt er het interieur uit `sprites.json` van (`cage_interior`, dark
+32,32,38 op ~50% alpha), zodat de kooi grijs is met wat doorzichtigheid tussen de spaken, net als de
+ingebakken kooien van de man. Het schrijft `enemies/kooiman/kooi/kooi.png`. Verandert de bron, draai
+het opnieuw, en daarna `gen-klein.py` en `gen-offline-manifest.py`. De plaat staat wel in de kleine
+set; de bron in `bron/` niet.
+
 Winterversies komen uit `tools/sneeuw.py` (rotsen en klimstukken), `sneeuw_bg.py`
 (achtergrondpanelen), `sneeuw_dorp.py` (hutten, boom, struik) en `winter_art.py`
 (dieren, grond, gras). Verandert een origineel, draai het bijbehorende script dan
