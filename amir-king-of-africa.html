@@ -1337,6 +1337,12 @@
         <span class="hint">een stuk savanne dat hoger ligt, geen rots: met de lift komt er een zegel en een blok steen bij dat je erheen brengt</span>
       </div>
       <div class="row">
+        <label>Overloopje</label>
+        <button id="sboverloop">Lage grond tegen een muur</button>
+        <button id="sboverloopweg">Weg</button>
+        <span class="hint">een lagere savannelaag die direct tegen een hogere laag aan ligt: aan de naad steekt de rand met een lipje over de muur, in plaats van kaarsrecht af te lopen</span>
+      </div>
+      <div class="row">
         <label>Zwevende laag</label>
         <button data-zweef="kruip">Kruipen (cel lucht)</button>
         <button data-zweef="rotskruip">Rotsoverhang (kruipen)</button>
@@ -5938,6 +5944,7 @@ function drawClimb(groundY, scale, cx, onder){
       ctx.restore();
     }
   }
+  if (!onder) overloopTeken(groundY, scale, cx);   // het overloopje op elk raakvlak lage-grond-tegen-hogere-muur
   if (showBoxes || building){
     ctx.save();
     ctx.globalAlpha = 0.6; ctx.strokeStyle = '#8ef2a0'; ctx.lineWidth = 2 / zoom;
@@ -5948,6 +5955,56 @@ function drawClimb(groundY, scale, cx, onder){
     }
     ctx.restore();
   }
+}
+// ---- overloopje: de rand van lage grond steekt over de muur ----------------
+// Waar een lagere grond (terras of savannelaag) met zijn rand direct tegen een hogere laag aan ligt,
+// loopt de wand nu kaarsrecht af. Hier steekt de rand van de lage grond met een klein lipje over de
+// muur, puur decor. Dezelfde situatie die leftHidden/rightHidden al herkennen: een hogere laag die
+// precies tegen de l- of r-rand van deze lagere laag aansluit. Getekend als laatste in de bovengrondse
+// ronde van drawClimb, dus over de muur van de hogere laag heen en achter Amir.
+const OVERLOOP = { uit: 0.30, laag: 185 };   // hoe ver uit (deel van Amir), en tot welke tegelrij: de toplaag plus de brokkelige zijrand, niet de diepe wand
+function overloopTeken(groundY, scale, cx){
+  const zoom = viewZoom();
+  for (const t of terraceList()){
+    if (t.h < 0) continue;                                 // een trede in een gang niet
+    for (const dir of [-1, 1]){                            // -1 = linkerrand, +1 = rechterrand
+      const edgeX = dir < 0 ? t.l : t.r;
+      const muur = terraceList().some(o => o !== t && o.h > t.h && o.l <= edgeX + 1 && o.r >= edgeX - 1);
+      if (!muur) continue;
+      const xj = cx + (edgeX - world);
+      if (xj < -W || xj > W / zoom + W) continue;
+      lipTeken(t, xj, dir, groundY, scale, cx);
+    }
+  }
+}
+function lipTeken(t, xj, dir, groundY, scale, cx){
+  // het hele grond-randstuk (de savannelaag met zijn dikte eronder) steekt uit over de muur, zonder
+  // extra schaduw en zonder de diepe donkere massa: de muur erachter blijft gewoon staan
+  if (!t.grond || !imgReady(bodemPic()) || !edgeReady()) return;
+  const eimg = bodemPic(), s = edgeScale(H * 0.18);
+  const tw = eimg.naturalWidth * s;
+  const loopY = groundY - t.h * scale;
+  const top = loopY - EDGE.walk * s;                 // de tegel staat met rij walk op de looplijn
+  const bandH = OVERLOOP.laag * s;                    // de toplaag plus de brokkelige zijrand, niet de diepe wand
+  const uit = OVERLOOP.uit * CHAR_H * scale;          // zover steekt het randstuk uit over de muur
+  const bx = xj + dir * uit, yb = top + bandH;
+  ctx.save();
+  // de uitstekende strook over de muur, met een grillige buiten- en onderrand (een afgebroken stuk grond)
+  ctx.beginPath();
+  ctx.moveTo(xj, top);
+  ctx.lineTo(bx, top + bandH * 0.05);
+  ctx.lineTo(bx - dir * uit * 0.10, top + bandH * 0.42);
+  ctx.lineTo(bx + dir * uit * 0.05, yb - bandH * 0.12);
+  ctx.lineTo(xj + dir * uit * 0.58, yb);
+  ctx.lineTo(xj + dir * uit * 0.28, yb - bandH * 0.06);
+  ctx.lineTo(xj, yb - bandH * 0.02);
+  ctx.closePath();
+  ctx.clip();
+  // alleen de bovenste rijen van de grondtegel (toplaag + brokkelige zijrand), wereld-vast getegeld
+  const lo = Math.min(xj, bx) - tw, hi = Math.max(xj, bx) + tw;
+  let x = cx - (((world % tw) + tw) % tw); while (x > lo) x -= tw;
+  for (; x < hi; x += tw) ctx.drawImage(eimg, 0, 0, eimg.naturalWidth, OVERLOOP.laag, x, top, tw + 1, bandH);
+  ctx.restore();
 }
 // de camera klimt mee: hij volgt de grond waar je op staat, niet elke sprong
 let camY = 0, camFloor = 0, camDiep = 0;
@@ -33799,6 +33856,19 @@ function sbSavLaag(h, lift){
 sandboxEl.querySelectorAll('button[data-savlaag]').forEach(b => b.onclick = () => sbSavLaag(Number(b.dataset.savlaag), false));
 document.getElementById('sbsavlift').onclick = () => sbSavLaag(300, true);
 document.getElementById('sbsavweg').onclick = () => { sbSavWeg(); cv.focus(); };
+// het overloopje los bekijken: een lagere savannelaag die direct tegen een hogere laag aan ligt
+function sbOverloopWeg(){ level.terraces = (level.terraces || []).filter(t => !t.sbOver); }
+function sbOverloop(){
+  sbOverloopWeg();
+  if (!level.terraces) level.terraces = [];
+  const muurX = world - 750;                                                               // de naad: de muur
+  level.terraces.push({ r: world - 400, l: muurX, h: 260, grond: true, sbOver: true });    // de lage laag (savanne), vlak links van je
+  level.terraces.push({ r: muurX, l: world - 2800, h: 620, sbOver: true });                // de hoge laag erachter: de muur (rots)
+  flashHint('Loop naar links tot de muur: aan de naad steekt het lipje over de muur');
+  cv.focus();
+}
+document.getElementById('sboverloop').onclick = sbOverloop;
+document.getElementById('sboverloopweg').onclick = () => { sbOverloopWeg(); cv.focus(); };
 // een zwevende savannelaag om los te bekijken: een dik savanneblok links voor je in de lucht
 const SB_ZWEEF = { breed: 1600, rand: 420,
                    kruip: { h: 430, onder: 150 }, rotskruip: { h: 430, onder: 180, look: 'rots' },
