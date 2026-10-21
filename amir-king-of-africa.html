@@ -28639,6 +28639,7 @@ function loop(now){
     }
     }
     maskerTeken(groundY, scaleNow, W / 2);           // het masker over alles heen (ook Amir en de vijanden), binnen de zoom
+    vormenTeken(groundY, scaleNow);                  // de vrije zwarte voorgrond-vormen uit de Maker: bovenste laag
     ctx.restore();                                  // zoom weer los
     for (const fx of ravijnenNu()){                 // ravijn opent: stof, barst en steentjes, na de personages
       ctx.save(); ctx.translate(Math.round(W / 2 - world), 0);
@@ -29634,6 +29635,8 @@ function readLevel(txt){
   const arr = Array.isArray(o) ? o : o.rocks || [];
   return schoonLevel({ rocks: arr.map(r => ({ x: Number(r.x), scale: Number(r.s) || 1 })),
            bron: Array.isArray(o) ? {} : o,          // het level zoals het binnenkwam: zie syncLevel
+           // de vrije zwarte voorgrond-vormen uit de Maker (al in wereld-coordinaten); puur decor, zie vormenTeken
+           vormen: Array.isArray(o.vormen) ? o.vormen.map(v => ({ t:String(v.t || 'blok'), x:Number(v.x) || 0, y:Number(v.y) || 0, w:Math.max(1, Number(v.w) || 100), h:Math.max(1, Number(v.h) || 100), rot:Number(v.rot) || 0, seed:(v.seed | 0) })) : [],
            name: o.name || '',
            lagen: SCENES[o.lagen] ? o.lagen : '',      // welk uitzicht dit level krijgt
            muziek: MUZIEK[o.muziek] ? o.muziek : '',    // en welk deuntje eronder loopt
@@ -31196,6 +31199,13 @@ const MK_TYPES = [
   // Je plaatst ze, versleept en schaalt ze vrij (zie MK.vormen, mkVormGrijp, mkVormGeo). Nog niet in een echt level.
   { id:'zwartblok', naam:'Zwart blok',        kleur:'#101014', vorm:'blok' },
   { id:'zwartblob', naam:'Zwarte blob',       kleur:'#101014', vorm:'blob' },
+  // de zwarte terreinstukken, vrij te plaatsen als beeld-vorm (zie VORM_IMG)
+  { id:'zwartvloer',   naam:'Zwarte vloer',            kleur:'#101014', vorm:'vloer' },
+  { id:'zwartvloerrots', naam:'Zwarte vloer (rots)',   kleur:'#101014', vorm:'vloerrots' },
+  { id:'zwartplafond', naam:'Zwart plafond (tandjes)', kleur:'#101014', vorm:'plafond' },
+  { id:'zwartwand',    naam:'Zwarte wand',             kleur:'#101014', vorm:'wand' },
+  { id:'zwartklif',    naam:'Zwarte klif-rand',        kleur:'#101014', vorm:'klif' },
+  { id:'zwartrichel',  naam:'Zwarte richel',           kleur:'#101014', vorm:'richel' },
 ];
 // wat een tandwiel doet bij een slag. Een schakelaar kan beide kanten op (als een lichtschakelaar); een vast wiel
 // gaat altijd dezelfde kant op. Zie takelWielSlag.
@@ -31255,7 +31265,7 @@ const MK_CATS = [
   { id:'objecten', naam:'Objecten',   items:['zegel','rune','platform','tandwiel','overhang','richel','hppotion'] },
   { id:'decor',    naam:'Decor',      items:['prop'] },
   { id:'verbergen',naam:'Verbergen',  items:['masker'] },
-  { id:'vormen',   naam:'Vormen',     items:['zwartblok','zwartblob'] },
+  { id:'vormen',   naam:'Vormen',     items:['zwartblok','zwartblob','zwartvloer','zwartvloerrots','zwartplafond','zwartwand','zwartklif','zwartrichel'] },
 ];
 const MK_CH = {}, MK_KLEUR = {};
 for (const t of MK_TYPES){ if (t.ch) MK_CH[t.ch] = t.id; if (t.kleur) MK_KLEUR[t.id] = t.kleur; }
@@ -31266,6 +31276,29 @@ const mkIsVorm = id => MK_TYPES.some(t => t.id === id && t.vorm);
 // deterministische toevals voor een blob-vorm, zodat dezelfde seed altijd dezelfde grillige vorm geeft
 function mkMulberry(a){ return function(){ a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function mkBlobPts(seed){ const rnd = mkMulberry((seed | 0) || 1), n = 14, p = []; for (let i = 0; i < n; i++){ const a = i / n * Math.PI * 2, rr = 0.34 + rnd() * 0.16; p.push([Math.cos(a) * rr, Math.sin(a) * rr]); } return p; }
+// de zwarte terreinstukken als plaatsbare beeld-vormen (design/zwart/, uit tools/zwart_terrein.py). Gedeeld door de
+// Maker (voorbeeld) en het spel (de echte tekening). Lazy geladen: een vorm verschijnt zodra zijn plaatje binnen is.
+const VORM_IMG = { vloer:'design/zwart/grondrand.png', vloerrots:'design/zwart/grondrand_rots.png',
+  plafond:'design/zwart/plafond_strook.png', wand:'design/zwart/wand_rand.png',
+  klif:'design/zwart/klif_bovenrand.png', richel:'design/zwart/wand_richel.png' };
+const vormImgCache = {};
+function vormImg(k){ if (!VORM_IMG[k]) return null; let im = vormImgCache[k]; if (!im){ im = new Image(); im.onload = () => { if (makerOpen) mkTeken(); }; im.src = VORM_IMG[k]; vormImgCache[k] = im; } return im; }
+// de vrije zwarte voorgrond-vormen in het echte spel tekenen: bovenste laag, wereld-verankerd, binnen de zoom
+// (aangeroepen na maskerTeken). x in wereld-px, y de hoogte boven de grondlijn in eenheden, w in wereld-px, h in
+// eenheden. Alleen een level met vormen (uit de Maker) heeft dit; de episodes niet (rule 1).
+function vormenTeken(groundY, scale){
+  const vs = (typeof level !== 'undefined' && level) ? level.vormen : null; if (!vs || !vs.length) return;
+  for (const v of vs){
+    const sx = W / 2 + (v.x - world), sy = groundY - v.y * scale, w = v.w, h = v.h * scale;
+    if (sx + w / 2 < -W || sx - w / 2 > W / viewZoom() + W) continue;
+    ctx.save(); ctx.translate(sx, sy); if (v.rot) ctx.rotate(v.rot); ctx.fillStyle = '#000';
+    if (v.t === 'blob'){ const pts = mkBlobPts(v.seed); ctx.beginPath();
+      for (let i = 0; i < pts.length; i++){ const X = pts[i][0] * w, Y = pts[i][1] * h; i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); } ctx.closePath(); ctx.fill(); }
+    else if (VORM_IMG[v.t]){ const im = vormImg(v.t); if (im && im.complete && im.width) ctx.drawImage(im, -w / 2, -h / 2, w, h); }
+    else ctx.fillRect(-w / 2, -h / 2, w, h);
+    ctx.restore();
+  }
+}
 function mkNearestPlatform(w){ let best = null, bd = Infinity;
   for (const o of MK.objects){ if (o.k !== 'platform') continue; const d = (o.c - w.c) ** 2 + (o.r - w.r) ** 2; if (d < bd){ bd = d; best = o; } }
   return best;
@@ -31564,6 +31597,9 @@ function mkTeken(){
       const pts = mkBlobPts(v.seed); mkCtx.beginPath();
       for (let i = 0; i < pts.length; i++){ const X = pts[i][0] * v.w * cel, Y = pts[i][1] * v.h * cel; i ? mkCtx.lineTo(X, Y) : mkCtx.moveTo(X, Y); }
       mkCtx.closePath(); mkCtx.fill();
+    } else if (VORM_IMG[v.t]){ const im = vormImg(v.t);
+      if (im && im.complete && im.width) mkCtx.drawImage(im, -g.hw, -g.hh, g.hw * 2, g.hh * 2);
+      else { mkCtx.fillStyle = 'rgba(16,16,20,.6)'; mkCtx.fillRect(-g.hw, -g.hh, g.hw * 2, g.hh * 2); }   // nog aan het laden
     } else mkCtx.fillRect(-g.hw, -g.hh, g.hw * 2, g.hh * 2);
     mkCtx.restore();
     if (v === MK.selVorm){
@@ -31582,7 +31618,9 @@ function mkKlik(ev){
   const { c, r } = mkCelOp(ev);
   if (mkIsVorm(MK.tool)){                              // een vrije zwarte vorm neerzetten (geen grid, dus ook buiten het raster)
     const p = mkPuntOp(ev), def = MK_TYPES.find(x => x.id === MK.tool).vorm;
-    const v = { t:def, x:p.x, y:p.y, w: def === 'blob' ? 7 : 6, h:6, rot:0, seed:(Math.random() * 1e9) | 0 };
+    let w = def === 'blob' ? 7 : 6, h = 6;
+    if (VORM_IMG[def]){ const im = vormImg(def), ar = (im && im.width) ? im.height / im.width : 0.4; w = 10; h = Math.max(1, w * ar); }   // beeldvorm op zijn eigen verhouding
+    const v = { t:def, x:p.x, y:p.y, w, h, rot:0, seed:(Math.random() * 1e9) | 0 };
     MK.vormen.push(v); MK.selVorm = v; MK.sel = null; MK.selMask = null; MK.inspectDicht = false;
     mkLegenda(); mkNotePaneel(); mkTeken(); mkBewaar(); return;
   }
@@ -31982,7 +32020,7 @@ function mkUitJSON(o){
     id: String(m.id || 'Verborgen1'), look: m.look === 'zwart' ? 'zwart' : 'grot',
     cells: m.cells.map(p => Array.isArray(p) ? { c:p[0]|0, r:p[1]|0 } : { c:(p.c)|0, r:(p.r)|0 }) })) : [];
   MK.maskId = MK.maskers[0] ? MK.maskers[0].id : 'Verborgen1';
-  MK.vormen = Array.isArray(o.vormen) ? o.vormen.filter(v => v && (v.t === 'blok' || v.t === 'blob')).map(v => ({
+  MK.vormen = Array.isArray(o.vormen) ? o.vormen.filter(v => v && (v.t === 'blok' || v.t === 'blob' || VORM_IMG[v.t])).map(v => ({
     t:v.t, x:Number(v.x) || 0, y:Number(v.y) || 0,
     w:Math.max(0.2, Number(v.w) || 4), h:Math.max(0.2, Number(v.h) || 4),
     rot:Number(v.rot) || 0, seed:(v.seed | 0) })) : [];
@@ -32261,6 +32299,11 @@ function mkNaarLevel(){
     if (!acties.some(a => a.masker === o.masker)) acties.push({ soort: 'masker', masker: o.masker, bij: [o.masker] });
   }
   if (acties.length) lvl.acties = acties;
+  // de vrije zwarte voorgrond-vormen naar wereld-coordinaten: x in wereld-px, y de hoogte boven de grondlijn in
+  // eenheden, w in wereld-px, h in eenheden (zie vormenTeken). Puur decor dat het spel als bovenste laag tekent.
+  if (MK.vormen.length) lvl.vormen = MK.vormen.map(v => ({
+    t:v.t, x:Math.round((v.x - startCol) * MK_CEL_PX * dir), y:Math.round((gR - v.y) * MK_CEL_EENH),
+    w:Math.round(v.w * MK_CEL_PX), h:Math.round(v.h * MK_CEL_EENH), rot:v.rot || 0, seed:v.seed || 0 }));
   return lvl;
 }
 let mkTestActief = false;
