@@ -1092,6 +1092,7 @@
       <div class="row">
         <label>Zijn animaties</label>
         <button data-kooianim="drag">Slepen</button>
+        <button data-kooianim="duw">Duwen</button>
         <button data-kooianim="smash">Smash</button>
         <button data-kooianim="recovery">Herstel</button>
         <button data-kooianim="stomp">Stamp</button>
@@ -22487,23 +22488,30 @@ const KOOI = {
   w: 726, h: 648, ground: 598,   // canvas en grondlijn (rij 598, waar zijn voeten staan)
   anker: 386,                     // zijn voeten in de sleephouding, canvas-x (gemeten: tussen zijn twee voeten)
   fig: 301,                       // de gebukte sleephouding, kruin tot zool in canvaspixels (gemeten)
-  n:   { drag: 29, smash: 31, recovery: 21, stomp: 13, hatch: 19, stomp_out: 2, dood: 24, parry: 11, struggle: 12 },
+  n:   { drag: 29, duw: 28, smash: 31, recovery: 21, stomp: 13, hatch: 19, stomp_out: 2, dood: 24, parry: 11, struggle: 12 },
   fps: 24,                        // fps_base; het tempo loopt per frame op ticks (de holds zitten daarin)
   impact: 25                      // het frame waarop de kooi de grond raakt (de klap)
 };
-const KOOI_LOOP = { drag: true, smash: false, recovery: false, stomp: false, hatch: false, stomp_out: false, dood: false, parry: false, struggle: true };
+const KOOI_LOOP = { drag: true, duw: true, smash: false, recovery: false, stomp: false, hatch: false, stomp_out: false, dood: false, parry: false, struggle: true };
 const KOOI_DOOD_SPOED  = 1.3;   // de dood-animatie loopt wat sneller (iets snappier neervallen)
 const KOOI_DOOD_GELUID = 3;     // op dit dood-frame klinkt de doodskreet, zodat hij op de pijnscheut valt en niet op de treffer-flits
 const KOOI_WORSTEL_RAAM = 0.875; // hoe lang de worstel-lus (het kwetsbare worp-raam) loopt voor hij terug naar slepen gaat; gelijk aan het oude herstelvenster (21 frames op 24 fps), zodat de balans gelijk blijft
 // sets met een eigen, breder canvas en grondlijn: de worstel legt de kooi VOOR hem (links), dus hij staat
 // anders in het beeld dan de sleepset. Het foot-anker (anker_x, grondlijn) valt op dezelfde wereldplek als
 // bij drag, zodat hij niet verspringt bij het wisselen. De meta-loader vult dit aan uit sprites.json.
-const KOOI_SETGEO = { struggle: { w: 733, h: 499, ground: 416, anker: 428 } };
+const KOOI_SETGEO = { duw: { w: 760, h: 455, ground: 415, anker: 509 }, struggle: { w: 733, h: 499, ground: 416, anker: 428 } };
 function kooiGeo(state){ return KOOI_SETGEO[state] || KOOI; }
+// de duw-lus (zijn gevechtsgang nadat de kooi open is): hij duwt de LEGE kooi voor zich uit. De frames zijn
+// ALLEEN de man; de kooi is een losse laag (kooi/kooi.png) die in de tekenlus OVER de man komt, met de
+// rechterrand op zijn voorste-hand-contactpunt (canvas 262, 241) en de onderkant op de grondlijn (415).
+const KOOI_DUW_KOOI = { rechtsX: 262, onderY: 415, w: 193, h: 300 };
+let kooiKooiImg = null;          // de losse kooi-plaat (kooi/kooi.png), geladen met kooiLaad
 // per-frame ticks op 24 fps, uit sprites.json: de anticipatie-hold (frame 9), de hitstop op de
 // klap (frame 25) en de end-hold die in het herstel overloopt (frame 30) zitten in deze getallen
 const KOOI_TICKS = {
   drag: Array(29).fill(1),
+  duw: Array(28).fill(1),      // de duw-lus (de kooi vooruit), gelijkmatig
+
   smash: [1,1,1,1,1,1,1,1,1,5, 1,1,1,1,1,1,1,1,1,1, 1,1,1,1,1,4, 1,1,1,1, 13],
   recovery: Array(21).fill(1),
   // de stamp-plus-vogel-keten (uit sprites.json): stomp de telegraaf (frame 8 de knie-hold), hatch het
@@ -22548,6 +22556,7 @@ function kooiLaad(){
   for (const k in KOOI.n)
     kooiBank[k] = Array.from({ length: KOOI.n[k] }, (_, i) =>
       loadQuiet([KOOI_ROOT + k + '/' + k + '_' + pad2(i) + '.png']));
+  kooiKooiImg = loadQuiet([KOOI_ROOT + 'kooi/kooi.png']);   // de losse kooi-plaat voor de duw-lus
 }
 function kooiLaadLevel(lv){
   if (lv && (lv.spawns || []).some(s => s.kind === 'kooiman')) kooiLaad();
@@ -22570,7 +22579,7 @@ const KOOI_SEE       = 1100;    // vanaf hier (wereld-px) komt hij op je af, maa
 // voeten stil, 12-24 stapt hij). Zo glijdt hij niet meer vooruit terwijl zijn benen stilstaan: hij
 // heaves naar voren in de stap en houdt daartussen stil. De gemiddelde snelheid blijft KOOI_RUN_SPD,
 // geconcentreerd in het stap-venster (daar dus KOOI.n.drag / KOOI_STAP_FRAMES keer zo snel).
-const KOOI_FPS       = { drag: 18 };   // de sleeplus trager dan de 24 van de smash en het herstel
+const KOOI_FPS       = { drag: 18, duw: 15 };   // de sleeplus op 18, de duw-lus (de kooi vooruit) op 15; de rest 24
 const KOOI_STAP_VAN  = 12;
 const KOOI_STAP_TOT  = 24;
 const KOOI_STAP_FRAMES = KOOI_STAP_TOT - KOOI_STAP_VAN + 1;   // 13 van de 29 sleepframes
@@ -22827,7 +22836,7 @@ function kooiSleepGeluid(){
   let v = 0;
   if (wantSound && !paused && !building && !(dead && !sandbox)){
     for (const s of kooimannen){
-      if (s.state !== 'drag' || !s.beweegt) continue;
+      if ((s.state !== 'drag' && s.state !== 'duw') || !s.beweegt) continue;   // slepen (de intro) en duwen (het gevecht) schrapen allebei
       const af = Math.max(0, 1 - Math.abs(s.x - playerX()) / (KOOI_SLEEP.ver * W));
       if (af > v) v = af;
     }
@@ -22896,18 +22905,16 @@ function updateKooiman(s, dt, plats, cliff){
   // de vogel-intro, eenmalig zodra hij helemaal in beeld staat. De duel-variant doet de geensceneerde
   // stamp (stomp -> freeze + hatch -> stomp_out -> drag, zie hieronder); hij start netjes vanaf drag
   // frame 0, want stomp_00 sluit daar exact op aan. Een niet-duel vogel-kooiman houdt de simpele release.
-  if (s.vogel && !s.vogelGedaan && !dead && kooiVolledigInBeeld(s)){
-    if (s.duel){
-      // de duel-intro: zodra hij volledig in beeld is bevriest meteen alles (ook Amir), en loopt de hele
-      // stamp-keten tijdens die freeze (kooiVriesStap). Zo kan Amir er tijdens de telegraaf niet naartoe
-      // rennen; vroeger wachtte hij eerst op drag-frame 0 en liep de stamp bovendien unfrozen, en dan stond
-      // je al bij hem voor de freeze begon.
-      if (!kooiVries && s.state === 'drag'){
-        kooiSet(s, 'stomp');
-        kooiVries = KOOI_HATCH_CAP; kooiVriesS = s;
-        return;
-      }
-    } else if (s.state !== 'release') kooiSet(s, 'release');
+  // de duel-intro: zodra hij HALF in beeld is bevriest meteen alles (ook Amir), en hij sleept dan op echte
+  // tijd nog door tot hij volledig in beeld staat (kooiVriesStap); pas daar stampt hij en gaat de kooi open.
+  // Zo begint het tafereel zodra je hem ziet en loopt hij zelf de arena in voor de stamp. Een niet-duel
+  // vogel-kooiman houdt de simpele release zodra hij volledig in beeld is.
+  if (s.duel && !s.vogelGedaan && !dead && !kooiVries && s.state === 'drag' && kooiHalfInBeeld(s)){
+    kooiVries = KOOI_HATCH_CAP; kooiVriesS = s;
+    return;
+  }
+  if (s.vogel && !s.duel && !s.vogelGedaan && !dead && kooiVolledigInBeeld(s)){
+    if (s.state !== 'release') kooiSet(s, 'release');
   }
   if (s.state === 'release'){                          // hij staat stil en opent de kooi (de open-animatie komt nog)
     s.frame = 0;                                       // tijdelijke stand: de sleeppose vastgehouden
@@ -22926,11 +22933,11 @@ function updateKooiman(s, dt, plats, cliff){
   }
   // de hatch loopt tijdens de freeze (zie de lus); hier alleen het doorschakelen als de freeze klaar is
   if (s.state === 'hatch'){ if (s.klaar || !kooiVries) kooiSet(s, 'stomp_out'); return; }
-  if (s.state === 'stomp_out'){                        // de uitloop na de freeze, dan terug naar het slepen
+  if (s.state === 'stomp_out'){                        // de uitloop na de freeze, dan over naar het duwen
     kooiAnim(s, dt);
     if (s.klaar){
-      kooiSet(s, 'drag'); s.frame = 11;                // drag vanaf frame 11 (hij heeft een stapje gezet)
-      s.x += s.face * KOOI_STAMP_STAP * kooiScale();   // en schuift die stap vooruit, zodat het naadloos doorloopt
+      kooiSet(s, 'duw');                               // de kooi is leeg: vanaf nu duwt hij hem voor zich uit
+      s.x += s.face * KOOI_STAMP_STAP * kooiScale();   // de stap van de stamp schuift mee vooruit, zodat het doorloopt
       s.vogelGedaan = true; s.slagT = 0; s.vogelT = 0; // de intro is klaar: de duel-cadans begint nu
     }
     return;
@@ -22972,15 +22979,15 @@ function updateKooiman(s, dt, plats, cliff){
         }
       }
     }
-    // in het duel zit de kooi na de slag vast (de worstel-lus, zijn kwetsbare worp-raam); de gewone kooiman
-    // houdt zijn eenmalige herstel
-    if (s.klaar) kooiSet(s, s.duel ? 'struggle' : 'recovery');
+    // na de slag ligt hij open in zijn herstel: het enige raam om hem te raken (duel en gewone kooiman gelijk).
+    // De oude worstel-lus (struggle) is er niet meer tussengeschoven; die animatie blijft als asset/sandbox.
+    if (s.klaar) kooiSet(s, 'recovery');
     return;
   }
 
   if (s.state === 'recovery'){                        // het strafvenster: traag herstel, hij ligt open
     kooiAnim(s, dt);
-    if (s.klaar) kooiSet(s, 'drag');
+    if (s.klaar) kooiSet(s, s.duel ? 'duw' : 'drag'); // duel: terug naar het duwen; de gewone kooiman gaat weer slepen
     return;
   }
 
@@ -23007,8 +23014,9 @@ function updateKooiman(s, dt, plats, cliff){
     s.lastPX = playerX();
     const wegVan = Math.sign(dPX) === naarJe && Math.abs(dPX) > 0.3;   // Amir beweegt van hem af
     if (!s.vogelGedaan){
-      // nog in de intro: hij sleept ter plekke tot hij volledig in beeld is. Dan bevriest de trigger hierboven
-      // meteen alles en loopt de stamp tijdens de freeze. Niet volgen: hij wacht gewoon tot je hem ziet.
+      // nog in de intro: hij sleept ter plekke tot hij HALF in beeld is. Dan bevriest de trigger hierboven alles
+      // en sleept hij tijdens de freeze nog door tot hij volledig in beeld staat, waarna hij stampt en de kooi
+      // opengaat. Niet volgen: hij wacht gewoon tot je hem ziet.
       kooiAnim(s, dt);
       s.grrT -= dt; if (s.grrT <= 0){ kooiGrom(s.x); s.grrT = kooiGromInterval(); }
       return;
@@ -23019,9 +23027,8 @@ function updateKooiman(s, dt, plats, cliff){
       const want = KOOI_DUEL.afstand * (W / viewZoom());   // standoff in world px, altijd in beeld
       if (gap > want && wegVan){
         if (kooiMove(s, Math.min(gap - want, KOOI_DUEL.volg * dt) * naarJe, plats, cliff)) s.beweegt = true;
-        s.acc += dt * (KOOI_FPS.drag || KOOI.fps);
-        let g = 0; while (g++ < 300 && s.acc >= 1){ s.acc -= 1; s.frame = (s.frame < KOOI_STAP_VAN || s.frame >= KOOI_STAP_TOT) ? KOOI_STAP_VAN : s.frame + 1; }
-      } else kooiAnim(s, dt);
+      }
+      kooiAnim(s, dt);                                    // de duw-lus loopt (hij duwt de kooi voor zich uit)
       s.grrT -= dt; if (s.grrT <= 0){ kooiGrom(s.x); s.grrT = kooiGromInterval(); }
       s.slagT += dt;
       if (s.slagT >= KOOI_DUEL.eersteNa && kooiZelfdeHoogte(s)){ s.slagT = 0; kooiSet(s, 'smash'); return; }
@@ -23036,8 +23043,7 @@ function updateKooiman(s, dt, plats, cliff){
     const langs = KOOI_LIJF.half * kooiScale() + 40;      // vlak langs zijn lijf: de versnelde anti-flank-slag
     if (gap > dichtbij){
       if (kooiMove(s, Math.min(gap - dichtbij, KOOI_DUEL.volg * dt) * naarJe, plats, cliff)) s.beweegt = true;
-      s.acc += dt * (KOOI_FPS.drag || KOOI.fps);
-      let g = 0; while (g++ < 300 && s.acc >= 1){ s.acc -= 1; s.frame = (s.frame < KOOI_STAP_VAN || s.frame >= KOOI_STAP_TOT) ? KOOI_STAP_VAN : s.frame + 1; }
+      kooiAnim(s, dt);                                    // hij duwt de kooi voor zich uit terwijl hij nadert
     } else {
       kooiAnim(s, dt);
       if (kooiZelfdeHoogte(s)){ s.snel = (gap <= langs); kooiSet(s, 'smash'); return; }
@@ -23099,6 +23105,15 @@ function kooiStampKlap(s){
 function kooiVriesStap(rdt){
   const s = kooiVriesS;
   if (!s){ kooiVries = 0; return; }
+  if (s.state === 'drag'){                             // de inloop: alles staat stil, maar hij sleept op echte
+    if (kooiVolledigInBeeld(s)){ kooiSet(s, 'stomp'); return; }   // tijd door tot hij volledig in beeld staat, dan stampt hij
+    const naarJe = Math.sign(playerX() - s.x) || s.face; s.face = naarJe;
+    s.acc += rdt * (KOOI_FPS.drag || KOOI.fps);         // de sleep-lus en de voorwaartse heave, net als de gewone sleeptak
+    let g = 0; while (g++ < 300 && s.acc >= 1){ s.acc -= 1; s.frame = (s.frame + 1) % KOOI.n.drag; }
+    if (s.frame >= KOOI_STAP_VAN && s.frame <= KOOI_STAP_TOT)
+      s.x += naarJe * KOOI_RUN_SPD * (KOOI.n.drag / KOOI_STAP_FRAMES) * rdt;
+    return;
+  }
   if (s.state === 'stomp'){
     kooiAnim(s, rdt);
     if (!s.impactDone && s.frame >= KOOI_STOMP_IMPACT) kooiStampKlap(s);
@@ -23130,42 +23145,33 @@ function kooiFrameImg(s){
   if (!set) return null;
   return set[Math.min(s.frame, set.length - 1)];
 }
-// wanneer is hij met een WORP te raken? Het gewone herstelvenster na de smash (kooiOpen, ook de niet-duel
-// kooiman). In het duel ligt hij alleen open in zijn herstel: daarbuiten (ook voor de opener, en terwijl hij
-// nadert) pareert hij alles, worp en melee. Je maakt dus een opening door zijn slag uit te lokken en in zijn
-// herstel te raken. De niet-duel kooiman blijft op zijn gewone herstelvenster.
+// wanneer is hij te raken? Alleen in zijn herstel na de slag (kooiOpen: het herstel, en de laatste hold van de
+// smash die daarin overloopt). Dat geldt nu voor zowel het duel als de gewone kooiman. Buiten dat raam dekt de
+// kooi hem (hij duwt haar voor zich uit) of mept hij een worp uit de lucht; je maakt dus een opening door zijn
+// slag uit te lokken en in zijn herstel te raken, van afstand of door een slag te baiten.
 function kooiRaakbaar(s){
   if (s.inv > 0 || s.state === 'dood') return false;
-  if (s.duel) return s.state === 'struggle';          // na de slag zit de kooi vast (de worstel): zijn kwetsbare worp-raam
-  return kooiOpen(s);
+  return kooiOpen(s);                                 // worp: alleen in zijn herstel
 }
-// van DICHTBIJ (stoot, lage zwaai): hetzelfde raam. Zit de kooi vast (de worstel) dan raakt je steek hem (en doodt hem, hp 1);
-// daarbuiten pareert hij. Zo kun je hem na een gebaite slag ook van dichtbij uitschakelen, niet alleen met een worp.
+// van DICHTBIJ (stoot, lage zwaai): hetzelfde raam. Daarbuiten klinkt het af op de kooi (de afweer-tik).
 function kooiMeleeRaak(s){
   if (s.inv > 0 || s.state === 'dood') return false;
-  if (s.duel) return s.state === 'struggle';
   return kooiOpen(s);
 }
-// de parry: raak je hem buiten zijn herstel, dan weert hij af met precies hetzelfde effect als de bandiet-parry,
-// de clang en de vonken op het snijpunt plus de korte hitstop en schok, zodat je hoort en ziet dat het een parry
-// is (`banClang`, `banVonk`). `wx`/`sy` zijn het snijpunt (wereld-x, scherm-y). Later komt er een eigen animatie
-// bij waarin hij de kooi omhoog houdt. Een geparede worp ketst daarna terug naar Amir (de call-site, kooiSpeerKaats).
-function kooiPareer(s, wx, sy){
-  if (s.state === 'parry') return;                    // al aan het pareren: niet opnieuw
+// buiten zijn herstel is hij gedekt: de kooi staat voor hem (het duwen) of hij is midden in zijn slag. Een stoot
+// of lage zwaai klinkt dan af op de kooi (een clang, geen effect). Komt er een worp aan terwijl hij slaat, dan
+// versnelt die slag zodat hij de speer uit de lucht mept; de speer stuitert licht een klein stukje voor hem neer,
+// zodat je hem alleen met gevaar weer oppakt. De parry-animatie blijft als asset (de sandbox); in het gevecht dekt
+// de kooi hem, en het enige raam om hem te raken is zijn herstel. `wx`/`sy` zijn het snijpunt (wereld-x, scherm-y).
+const KOOI_KAATS_VOOR   = 110;   // de neergeslagen speer belandt zoveel canvas-px voor de kooiman (een klein stukje)
+const KOOI_KAATS_WIEBEL = 0.5;   // en stuitert licht uit als hij neerkomt
+function kooiAfweerTik(s, wx, sy){ banClang(s.x); banVonk(wx, sy); }   // de kooi vangt het af: alleen de clang en de vonk
+function kooiKaatsSpeer(s){
+  if (s.state === 'smash' && s.frame < KOOI.impact) s.snel = true;     // midden in de slag: versnel, hij mept de speer neer
   banClang(s.x);
-  banVonk(wx, sy);
-  hitstop = Math.max(hitstop, BAN_PAREER_STOP);
-  shake = Math.max(shake, BAN_PAREER_SHAKE);
-  kooiSet(s, 'parry');                                // de vrije hand mept je speer weg, daarna terug naar slepen
-}
-// de geparede worp ketst terug naar Amir: de speer valt speerKaats px voor hem, altijd aan Amirs kant van de
-// kooiman (nooit erachter), zodat hij hem kan oppakken. Snel pakken wel: loopt de kooiman er eerst bij, dan
-// moet je er een hit voor nemen.
-function kooiSpeerKaats(s){
-  const dirK = Math.sign(s.x - playerX()) || -1;          // richting naar de kooiman
-  let kx = playerX() + dirK * KOOI_DUEL.speerKaats;
-  kx = dirK < 0 ? Math.max(kx, s.x + 60) : Math.min(kx, s.x - 60);   // aan Amirs kant blijven
-  losseSperen.push({ x: kx, h: terrainH(kx), zij: 1, soort: 'eigen', blauw: speerBlauw, wiebel: 0 });
+  const naarJe = Math.sign(playerX() - s.x) || s.face;                 // Amir is aan de naarJe-kant; 'voor hem' = die kant op
+  const kx = s.x + naarJe * KOOI_KAATS_VOOR * kooiScale();             // een klein stukje voor de kooiman
+  losseSperen.push({ x: kx, h: terrainH(kx), zij: 1, soort: 'eigen', blauw: speerBlauw, wiebel: KOOI_KAATS_WIEBEL });
   jav = null; javLost = 0; spearX = null; spearH = null;
 }
 function hitKooiman(s){
@@ -23185,6 +23191,10 @@ function kooiVolledigInBeeld(s){
   const half = (KOOI_LIJF.half + KOOI_CAGE_ACHTER) * kooiScale();
   return Math.abs(s.x - playerX()) + half <= (W / 2) / viewZoom() - 20;
 }
+// half in beeld: zijn midden is binnen een halve zichtbare breedte van Amir (een deel van hem staat op het
+// scherm). Zodra dat zo is begint de duel-intro (de freeze); daarna sleept hij nog door tot hij volledig in beeld
+// staat (kooiVolledigInBeeld) en stampt hij.
+function kooiHalfInBeeld(s){ return Math.abs(s.x - playerX()) <= (W / 2) / viewZoom(); }
 
 // ---------- de vogel: de secretarisvogel uit de kooi ----------------------
 // Een kooiman met vogel: true laat, zodra hij volledig in beeld is, een vogel uit zijn kooi
@@ -28124,6 +28134,21 @@ function loop(now){
           ctx.drawImage(s.flash > 0 ? whiteCopy(img, s.flash * 4) : img,
                         -g.anker * kS, -g.ground * kS, kw, kh);
         ctx.restore();
+        // de losse kooilaag: alleen bij het duwen (de andere sets hebben de kooi ingebakken). Over de man, zodat
+        // zijn achterste hand erachter valt en zijn voorste hand ervoor. Rechterrand op zijn contactpunt (canvas
+        // 262, 241), onderkant op de grondlijn (415), uit KOOI_DUW_KOOI.
+        if (s.state === 'duw' && kooiKooiImg && imgReady(kooiKooiImg)){
+          const kg = KOOI_SETGEO.duw;
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, s.alpha) * (kBlink ? 0.5 : 1);
+          ctx.translate(bodyX, voeten);
+          if (s.face === 1) ctx.scale(-1, 1);
+          ctx.drawImage(kooiKooiImg,
+                        (KOOI_DUW_KOOI.rechtsX - KOOI_DUW_KOOI.w - kg.anker) * kS,
+                        (KOOI_DUW_KOOI.onderY - KOOI_DUW_KOOI.h - kg.ground) * kS,
+                        KOOI_DUW_KOOI.w * kS, KOOI_DUW_KOOI.h * kS);
+          ctx.restore();
+        }
         if (s.state === 'dood') continue;               // dood: alleen nog wegvagen, niet meer te raken
 
         // zijn lijf: hier raak je hem, maar alleen als hij openligt (herstel)
@@ -28174,22 +28199,23 @@ function loop(now){
           if (inBox && raakM){
             if (atkMes){ if (mesAfweer(s, 'kooiman')) swingUsed = true; continue; }
             swingUsed = true; hitKooiman(s); continue;
-          } else if (inBox && s.duel && !atkMes){        // buiten zijn herstel pareert hij de steek: close komen helpt niet
-            swingUsed = true; kooiPareer(s, s.x + (playerX() < s.x ? -1 : 1) * lhalf, voeten - KOOI_LIJF.hoog * kS * 0.5); continue;
+          } else if (inBox && s.duel && !atkMes){        // buiten zijn herstel dekt de kooi hem: de stoot klinkt af (clang)
+            swingUsed = true; kooiAfweerTik(s, s.x + (playerX() < s.x ? -1 : 1) * lhalf, voeten - KOOI_LIJF.hoog * kS * 0.5); continue;
           }
         }
-        // de geworpen speer: in zijn herstel een treffer; daarbuiten pareert hij. In het duel ketst de geparede
-        // speer terug naar Amir (kooiSpeerKaats, geen softlock); bij de gewone kooiman valt hij waar hij hem raakt.
+        // de geworpen speer: in zijn herstel een treffer; daarbuiten slaat hij hem neer. In het duel mept hij hem uit
+        // de lucht (versnelt zijn slag als hij er middenin zit) en stuitert de speer een klein stukje voor hem neer
+        // (kooiKaatsSpeer, geen softlock); bij de gewone kooiman valt hij waar hij hem raakt.
         if (javRaakt(nbox)){
           if (raak){ javHitEnemy(); hitKooiman(s); }
-          else if (s.duel){ kooiPareer(s, s.x + (playerX() < s.x ? -1 : 1) * lhalf, voeten - KOOI_LIJF.hoog * kS * 0.5); kooiSpeerKaats(s); }
+          else if (s.duel){ kooiKaatsSpeer(s); }
           else { javHitEnemy(); puffWorld(bodyX + s.face * 40 * kS, 4, 0, 0.6, s.base || 0); }
           continue;
         }
-        // lage zwaai: één keer per zwaai, alleen raak in zijn herstel; in het duel pareert hij hem daarbuiten
+        // lage zwaai: één keer per zwaai, alleen raak in zijn herstel; daarbuiten dekt de kooi hem (de afweer-tik)
         if (s.sweptId !== sweepId && hitBy(zwaaiVak(swbox, 'kooiman'), nbox)){
           if (raakM){ s.sweptId = sweepId; hitKooiman(s); }
-          else if (s.duel){ s.sweptId = sweepId; kooiPareer(s, s.x + (playerX() < s.x ? -1 : 1) * lhalf, voeten - KOOI_LIJF.hoog * kS * 0.4); }
+          else if (s.duel){ s.sweptId = sweepId; kooiAfweerTik(s, s.x + (playerX() < s.x ? -1 : 1) * lhalf, voeten - KOOI_LIJF.hoog * kS * 0.4); }
         }
       }
     }
