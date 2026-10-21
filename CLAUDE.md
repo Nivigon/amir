@@ -92,6 +92,19 @@ daarbuiten tot 1200 px als LET OP (de bewuste uitdaging: bevestig dat hij haalba
 Poorten schoon, want die zet de charger-golf al ver voorbij het skelet. Dit kwam uit Valse Koning 1,
 waar twee bandieten op het skelet stonden.
 
+**10. Werk zuinig, maar hou de kwaliteit.** Deze HTML is groot en de hele geschiedenis gaat elke beurt opnieuw
+mee, dus token-verbruik telt. Houd je aan deze volgorde:
+
+- **Breed of diep uitzoekwerk door de codebase** (iets vinden dat over veel secties verspreid zit, een bug
+  diagnosticeren waarvan je alleen de conclusie nodig hebt) delegeer je naar een Sonnet-subagent, zodat dat zware
+  lezen buiten de dure hoofdcontext blijft en alleen de conclusie terugkomt.
+- **Kleine gerichte lookups** (een bestandsnaam, één functie, een paar regels) doe je zelf met grep en een
+  gerichte read: een subagent kost daar meer dan hij bespaart.
+- **Implementatie en edits** doe je zelf, niet in een subagent, zeker niet in een bestand dat je tegelijk bewerkt.
+- Weeg het per taak af: delegeer alleen als het echt tokens scheelt, en zeg kort waarom.
+- Een losstaande taak hoort in een eigen, korte chat: een lange chat met veel features betaalt de opgebouwde
+  context telkens opnieuw. Stel een verse chat voor als een nieuw verzoek los staat van wat er nu loopt.
+
 ## Waar wat staat
 
 De HTML is opgedeeld met commentaarkoppen (`// ---- ... ----`). Zoek daarop, niet op
