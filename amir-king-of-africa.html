@@ -5461,6 +5461,53 @@ const ZWEEF = { dik: 180 };          // standaarddikte als een laag geen onder m
 function zweefList(){ return (level && level.zwevers) ? level.zwevers : []; }
 // de zwarte terreinlagen (uit de Maker): egale zwarte silhouetten die het licht niet mag bijkleuren (zie drawLichtkaart)
 function zwarteLagen(){ return (level && level.zwevers) ? level.zwevers.filter(z => z.zwart) : []; }
+// --- zwarte lagen uit de nieuwe-stijl maker naadloos laten aansluiten en naar beneden laten aflopen (alleen z.zwart) ---
+// twee zwarte blokken grenzen aan elkaar als hun randen elkaar raken en hun hoogtes overlappen; dan breekt de
+// grillige zijkant daar niet open (zoals leftHidden/rightHidden bij een hoger terras), zodat het een doorlopend
+// zwart vlak wordt in plaats van twee kartelranden met een spleet ertussen.
+function zwartVOverlap(a, b){ return a.h > b.onder + 1 && a.onder < b.h - 1; }       // hoogtes overlappen
+function zwartLinksDicht(z){ return zwarteLagen().some(o => o !== z && Math.abs(o.r - z.l) < 10 && zwartVOverlap(o, z)); }
+function zwartRechtsDicht(z){ return zwarteLagen().some(o => o !== z && Math.abs(o.l - z.r) < 10 && zwartVOverlap(o, z)); }
+// de bovenkant van de verticaal aaneengesloten zwarte kolom boven dit blok: de grillige zijkant rekent vanaf
+// daar (via soilY), zodat de kartel doorloopt over de grens tussen twee gestapelde zwarte blokken (een muur
+// boven een plafond) in plaats van bij elk blok opnieuw te beginnen en daar een knik in de rand te zetten.
+function zwartKolomTopH(z){
+  const bs = zwarteLagen(); let top = z, ok = true;
+  while (ok){ ok = false;
+    for (const o of bs){ if (o !== top && o.l < top.r - 1 && o.r > top.l + 1 && Math.abs(o.onder - top.h) < 10 && o.h > top.h){ top = o; ok = true; break; } }
+  }
+  return top.h;
+}
+// de hoogte van de eerstvolgende gevulde tegel onder dit blok (een ander zwart blok of een terras), of null
+function zwartOnderDoelH(z){
+  let best = null;
+  const neem = h => { if (h <= z.onder + 1 && (best === null || h > best)) best = h; };
+  for (const o of zwarteLagen()) if (o !== z && o.l < z.r - 1 && o.r > z.l + 1) neem(o.h);
+  for (const t of terraceList()) if (t.l < z.r - 1 && t.r > z.l + 1) neem(t.h);
+  return best;
+}
+// het zwart onder een zwarte laag naar beneden laten doorlopen: massief tot een gevulde tegel vlak eronder
+// (tot ZWART_AF.dicht cellen), anders zacht uitvervagen over ZWART_AF.fade cellen. Zo stopt een zwarte grondlaag
+// niet met een harde rand maar loopt hij mooi zwart af tot hij een ingevulde tegel treft.
+const ZWART_AF = { dicht: 3, fade: 1.5 };          // cellen: massief aansluiten tot zoveel diep, anders zo ver uitvervagen
+function zwartAfloop(z, groundY, scale, cx){
+  const xl = cx + (z.l - world), xr = cx + (z.r - world);
+  if (xr < -W || xl > W / viewZoom() + W) return;
+  const botY = groundY - z.onder * scale;
+  const doel = zwartOnderDoelH(z);
+  const gap = doel === null ? Infinity : (z.onder - doel);
+  ctx.save();
+  if (gap <= ZWART_AF.dicht * MK_CEL_EENH){         // een tegel vlak eronder: massief zwart ertussen (dicht aansluiten)
+    const doelY = groundY - doel * scale;
+    ctx.fillStyle = '#000'; ctx.fillRect(xl, botY - 1, xr - xl, doelY - botY + 2);
+  } else {                                          // niets eronder: zacht uitvervagen naar beneden
+    const fadeH = ZWART_AF.fade * MK_CEL_EENH * scale;
+    const g = ctx.createLinearGradient(0, botY, 0, botY + fadeH);
+    g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(xl, botY - 1, xr - xl, fadeH + 1);
+  }
+  ctx.restore();
+}
 // De onderkant van de savanne laten doorlopen (drapen) tot een zwart blok eronder. Het gras (de toplaag) blijft
 // bovenop onaangetast; alleen de aarde onder het gras loopt door tot de bovenkant van het blok, in volle savanne-
 // kleur (geen kleurverloop, zoals gevraagd). De aardtegel wordt verticaal uitgerekt tot het blok, zodat de
@@ -5593,11 +5640,19 @@ function savanneLaag(t, groundY, scale, cx, bottom, st, floating){
   const loop = groundY - t.h * scale, top = loop - EDGE.walk * s;
   if (top > bottom) return;
   // sluit er een hoger terras op aan, dan heeft deze laag aan die kant geen rand (zie drawClimb)
-  const leftHidden = terraceList().some(o => o !== t && o.h > t.h && o.l <= t.l + 1 && o.r >= t.l - 1);
-  const rightHidden = terraceList().some(o => o !== t && o.h > t.h && o.l <= t.r + 1 && o.r >= t.r - 1);
-  ctx.save();
+  let leftHidden = terraceList().some(o => o !== t && o.h > t.h && o.l <= t.l + 1 && o.r >= t.l - 1);
+  let rightHidden = terraceList().some(o => o !== t && o.h > t.h && o.l <= t.r + 1 && o.r >= t.r - 1);
   const D = SAV_LAAG;
-  terClipPath(xl, xr, top - 4, bottom, st, top + th * D.soil, leftHidden, t.l, t.r, rightHidden);
+  // een zwarte laag uit de nieuwe-stijl maker sluit naadloos aan: geen kartelrand waar een ander zwart blok
+  // tegenaan ligt, en de kartel rekent vanaf de top van de hele zwarte kolom (zwartKolomTopH)
+  let soilY = top + th * D.soil;
+  if (zwart){
+    leftHidden = leftHidden || zwartLinksDicht(t);
+    rightHidden = rightHidden || zwartRechtsDicht(t);
+    soilY = ((groundY - zwartKolomTopH(t) * scale) - EDGE.walk * s) + th * D.soil;
+  }
+  ctx.save();
+  terClipPath(xl, xr, top - 4, bottom, st, soilY, leftHidden, t.l, t.r, rightHidden);
   ctx.clip();
   // Ligt er onder de laag een gang, en zit de laag op of boven het dak van die gang (geen vloer-trede
   // diep in de gang, want die heeft wel aarde onder zich), dan is onder de laag geen aarde maar de
@@ -5647,7 +5702,7 @@ function savanneLaag(t, groundY, scale, cx, bottom, st, floating){
   ctx.fillRect(xl - 40, y0, xr - xl + 80, y1 - y0);
   ctx.fillStyle = 'rgba(8,6,6,' + dk.diep[1] + ')';
   ctx.fillRect(xl - 40, y1, xr - xl + 80, bottom - y1 + 40);
-  if (floating && !hoogUit){                         // zweeft hij, dan is de onderkant een schaduwrand
+  if (floating && !hoogUit && !zwart){               // zweeft hij, dan is de onderkant een schaduwrand (zwart krijgt zijn afloop, zie zwartAfloop)
     const sch = ctx.createLinearGradient(0, bottom - 60, 0, bottom);
     sch.addColorStop(0, 'rgba(8,6,6,0)'); sch.addColorStop(1, 'rgba(8,6,6,0.6)');
     ctx.fillStyle = sch; ctx.fillRect(xl - 40, bottom - 60, xr - xl + 80, 64);
@@ -5676,6 +5731,7 @@ function savanneLaag(t, groundY, scale, cx, bottom, st, floating){
     }
   }
   ctx.restore();
+  if (zwart && floating) zwartAfloop(t, groundY, scale, cx);   // het zwart naar beneden laten doorlopen/uitvervagen
 }
 // Een zwevende laag met look 'rots': hetzelfde gesteente als een terras (drawTerCol), maar afgesneden op de
 // onderkant (z.onder), met de plafond-tandenband eronder. Zo leest het als een rotsoverhang om onder te
@@ -5707,9 +5763,17 @@ function rotsLaag(z, groundY, scale, cx, st){
   if (top > floorY) return;
   const capW = Math.min(fullCap, xr - xl);
   const edgePx = TER.edge * (capW / iw);
-  const soilY = top + (TER.soil - TER.trimTop) * st;
+  let soilY = top + (TER.soil - TER.trimTop) * st;
+  // zwarte lagen uit de nieuwe-stijl maker: geen kartelrand waar een ander zwart blok tegenaan ligt, en de
+  // kartel rekent vanaf de top van de hele zwarte kolom, zodat de rand doorloopt over de grens tussen twee
+  // gestapelde blokken (een muur boven een plafond) in plaats van daar een naad te geven
+  let zLeft = false, zRight = false;
+  if (zwart){
+    zLeft = zwartLinksDicht(z); zRight = zwartRechtsDicht(z);
+    soilY = (groundY - zwartKolomTopH(z) * scale - (TER.walk - TER.trimTop) * st) + (TER.soil - TER.trimTop) * st;
+  }
   ctx.save();
-  terClipPath(xl, xr, top - 4, floorY, st, soilY, false, z.l, z.r, false);   // beide zijkanten breken open
+  terClipPath(xl, xr, top - 4, floorY, st, soilY, zLeft, z.l, z.r, zRight);   // zijkanten breken open (behalve tegen een ander zwart blok)
   ctx.clip();
   if (zwart){
     // een zwart blok onder de grond: een egaal zwart silhouet in de vorm van de tegel (de grillige terClipPath),
@@ -5725,6 +5789,8 @@ function rotsLaag(z, groundY, scale, cx, st){
       ctx.save(); ctx.beginPath(); ctx.rect(xl, floorY - 2, xr - xl, 80); ctx.clip();
       zwartTanden(ctx, xl, xr, floorY, cx - world);
       ctx.restore();
+    } else {                                            // een muur: het zwart naar beneden laten doorlopen/uitvervagen
+      zwartAfloop(z, groundY, scale, cx);
     }
     return;
   }
