@@ -5459,6 +5459,32 @@ function ledgeList(){ return (level && level.ledges) ? level.ledges : []; }
 // vloeren boven elkaar; vandaar een eigen lijst, net als zuilen en rijzers.
 const ZWEEF = { dik: 180 };          // standaarddikte als een laag geen onder meekrijgt (in sprite-eenheden)
 function zweefList(){ return (level && level.zwevers) ? level.zwevers : []; }
+// de zwarte terreinlagen (uit de Maker): egale zwarte silhouetten die het licht niet mag bijkleuren (zie drawLichtkaart)
+function zwarteLagen(){ return (level && level.zwevers) ? level.zwevers.filter(z => z.zwart) : []; }
+// De onderkant van de savanne laten doorlopen (drapen) tot een zwart blok eronder. Het gras (de toplaag) blijft
+// bovenop onaangetast; alleen de aarde onder het gras loopt door tot de bovenkant van het blok, in volle savanne-
+// kleur (geen kleurverloop, zoals gevraagd). De aardtegel wordt verticaal uitgerekt tot het blok, zodat de
+// verticale streperige textuur meeloopt zonder horizontale naden. Drape van z.drapeVan (het savanne-oppervlak op 0,
+// of de onderkant van een zwevende savannelaag) tot z.h (de bovenkant van het zwarte blok).
+function zwartDrapeTeken(groundY, scale, cx){
+  const zs = zwarteLagen().filter(z => z.drape);
+  if (!zs.length) return;
+  const eimg = bodemPic(); if (!imgReady(eimg) || !edgeReady()) return;
+  const s = edgeScale(H * 0.18), tw = eimg.naturalWidth * s;
+  const bandY = EDGE.walk, bandH = eimg.naturalHeight - bandY;   // de aarde onder het gras
+  const zoom = viewZoom();
+  for (const z of zs){
+    const xl = cx + (z.l - world), xr = cx + (z.r - world);
+    if (xr < -40 || xl > W / zoom + 40) continue;
+    const topY = groundY - (z.drapeVan || 0) * scale, botY = groundY - z.h * scale;
+    if (botY - topY < 2) continue;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(xl, topY, xr - xl, botY - topY); ctx.clip();
+    let xx = cx - (((world % tw) + tw) % tw); while (xx > xl) xx -= tw;
+    for (; xx < xr; xx += tw) ctx.drawImage(eimg, 0, bandY, eimg.naturalWidth, bandH, xx, topY, tw + 1, botY - topY);
+    ctx.restore();
+  }
+}
 // de hoogste zwevende savannelaag die deze x bedekt (of -Infinity): een fakkel kan erbovenop staan,
 // zodat een uitgang op zo'n laag (de rechtse uitgang van Honingjacht 3) de hoogtecheck haalt
 function zweefTopBij(x){ let h = -Infinity; for (const z of zweefList()) if (x >= z.l && x <= z.r && z.h > h) h = z.h; return h; }
@@ -5692,6 +5718,9 @@ function rotsLaag(z, groundY, scale, cx, st){
     ctx.fillStyle = '#000';
     ctx.fillRect(xl - 60, top - 20, (xr - xl) + 120, (floorY - top) + 40);
     ctx.restore();                                      // de silhouet-clip eraf
+    if (z.tot0 && top > groundY){                       // direct onder het oppervlak: dek de aardrand van de savanne af tot de grondlijn
+      ctx.fillStyle = '#000'; ctx.fillRect(xl, groundY, xr - xl, top - groundY);
+    }
     if (zwart === 'plafond'){                           // zwart plafond: onregelmatige zwarte tandjes langs de onderkant
       ctx.save(); ctx.beginPath(); ctx.rect(xl, floorY - 2, xr - xl, 80); ctx.clip();
       zwartTanden(ctx, xl, xr, floorY, cx - world);
@@ -7109,11 +7138,16 @@ function plafondKop(halfW){
 // de laag met een cel lucht precies op dat moment open, dus je stapt er niet lopend al half onder.
 const KRUIP_RUIMTE = 0.56;                    // deel van CHAR_H dat hij kruipend nog nodig heeft (onder een cel van 150)
 function amirOnderRuimte(){ return duckT >= 1 ? CHAR_H * KRUIP_RUIMTE : CHAR_H * duckShare; }
+// de zwarte tandjes hangen onder een zwart plafond: laat Amir zijn kop net zo veel lager stoten, zodat hij er
+// niet bovenlangs doorheen piept. Klein gehouden (onder de speling van een kamer van twee cellen, ~49), zodat je
+// onder een plafond van twee cellen nog gewoon rechtop kunt staan.
+const ZWART_TAND_KOP = 20;
 function zweefKop(halfW){
   let cap = Infinity;
   for (const z of zweefList()){
     if (world + halfW <= z.l || world - halfW >= z.r) continue;
-    const t = z.onder - amirOnderRuimte();
+    const tand = z.zwart === 'plafond' ? ZWART_TAND_KOP : 0;
+    const t = z.onder - tand - amirOnderRuimte();
     if (t < cap) cap = t;
   }
   return cap;
@@ -18644,8 +18678,11 @@ function updateJump(dt, plats, halfW){
   if (!building){                               // onder massieve rots stoot je je hoofd
     const kop = Math.min(grotKop(halfW, schoonScale()), plafondKop(halfW), zweefKop(halfW));
     // Is de ruimte lager dan Amir, dan kan hij er helemaal niet zijn; dan houdt de wand
-    // hem tegen en mag de plafondcap hem niet de grond in duwen.
-    if (ph > kop && kop > Math.max(0, supportHeight(plats, halfW))){ ph = kop; if (pvh > 0) pvh = 0; }
+    // hem tegen en mag de plafondcap hem niet de grond in duwen. We vergelijken met de echte steun
+    // (supportHeight), niet met max(0, ...): onder de grond is die steun negatief (een gang-vloer of een
+    // zwart platform), en met de klem op 0 greep de plafondcap daar nooit, zodat Amir dwars door een zwart
+    // plafond heen naar boven sprong. Nu stopt hij ook onder de grond tegen de onderkant van de laag.
+    if (ph > kop && kop > supportHeight(plats, halfW)){ ph = kop; if (pvh > 0) pvh = 0; }
     const hk = holteKop();                      // en in een gang onder de grond tegen het dak
     if (ph > hk){ ph = hk; if (pvh > 0) pvh = 0; }
     const zk = zakKop(halfW);                   // en tegen het zakkende plafond (zakBlok doet de rest)
@@ -19452,6 +19489,20 @@ function drawLichtkaart(groundY, scale, cx, dt, deel){
     ctx.globalAlpha = open;
     ctx.drawImage(K.allen, sx, 0, sw, K.nr, dx, dy, dw, dh);
     ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'lighter';
+    // de zonnegloed/lichtbundel niet over de zwarte terreinlagen: die blijven egaal zwart (silhouet), anders
+    // kleurt het licht ze lelijk bruin. We knippen hun vakken uit de zon-laag (evenodd: alles behalve die vakken).
+    const zl = zwarteLagen();
+    if (zl.length){
+      ctx.beginPath();
+      ctx.rect(dx - 10, dy - 10, dw + 20, dh + 20);
+      for (const z of zl){
+        const x0 = X(z.l), x1 = X(z.r);
+        const yT = z.tot0 ? Math.min(Y(z.h), groundY) : Y(z.h);
+        const yB = Y(z.onder) + (z.zwart === 'plafond' ? 70 : 0);   // plafond: ook onder de tandjes
+        ctx.rect(x0, yT, x1 - x0, yB - yT);
+      }
+      ctx.clip('evenodd');
+    }
     ctx.drawImage(K.zonC, sx, 0, sw, K.nr, dx, dy, dw, dh);
   }
   ctx.restore();
@@ -27242,6 +27293,7 @@ function loop(now){
       }
     }
     drawClimb(groundY, scale, cx, true);           // treden onder de grond: na de ravijnen, zie drawClimb
+    zwartDrapeTeken(groundY, scale, cx);           // de savanne-aarde drapeert vol door tot een zwart blok eronder (over een savanne-laag heen, onder de zwarte blokken die hoger starten)
     rijsTeken(groundY, scale, cx);                 // de rijzende grond: steen dat uit een ravijn komt
     takelTeken(groundY, scale, cx);                // het takelwiel, de touwen en het hangende plateau
 
@@ -29839,7 +29891,9 @@ function readLevel(txt){
              let onder = q.onder != null ? Number(q.onder) : h - ZWEEF.dik;
              if (onder >= h) onder = h - ZWEEF.dik;          // de onderkant ligt altijd onder de looplijn
              return { r: Number(q.r), l: Number(q.l), h, onder, look: q.look === 'rots' ? 'rots' : undefined,
-                      zwart: (q.zwart === 'plafond' || q.zwart === 'vulling' || q.zwart === 'savanne') ? q.zwart : undefined };   // 'rots' = een rotsoverhang i.p.v. savanne; zwart: een zwevend zwart blok (savanne-vloer, muur, of plafond met tandjes)
+                      zwart: (q.zwart === 'plafond' || q.zwart === 'vulling' || q.zwart === 'savanne') ? q.zwart : undefined,   // 'rots' = een rotsoverhang i.p.v. savanne; zwart: een zwevend zwart blok (savanne-vloer, muur, of plafond met tandjes)
+                      tot0: q.tot0 === true,   // een zwart blok direct onder het oppervlak: teken door tot de grondlijn (dekt de aardrand af)
+                      drape: q.drape === true, drapeVan: Number(q.drapeVan) || 0 };   // de savanne-aarde loopt van drapeVan door tot dit blok (zie zwartDrapeTeken)
            }),
            // gangen onder de grond: zie "holte onder de grond"
            holtes: (o.holtes || []).map(q => ({ r: Number(q.r), l: Number(q.l),
@@ -32265,9 +32319,34 @@ function mkNaarLevel(){
     const [l, r] = spanLR(a.c, cEnd);
     const top = -(a.rTop - gR) * MK_CEL_EENH, onder = -(a.rBot + 1 - gR) * MK_CEL_EENH;   // boven- en onderkant in eenheden (negatief = onder de grond)
     const zw = zwartSoort(a.soort);
+    // een zwart blok dat direct onder het oppervlak begint (rTop = gR+1) met savanne-grond erboven: teken het zwart
+    // door tot de grondlijn (tot0), zodat het de oranje aardrand van de savanne afdekt in plaats van hem eronderuit
+    // te laten steken (optie 1). Alleen het tekenen; de botsing blijft op de geschilderde hoogte.
+    let tot0 = false;
+    if (zw && a.rTop === gR + 1){
+      tot0 = true;
+      for (let c = a.c; c <= cEnd; c++){ const id = G[gR] && G[gR][c]; if (!(id === 'savanne' || id === 'sneeuw' || id === 'rots' || id === 'sneeuwrots' || id === 'muur')){ tot0 = false; break; } }
+    }
+    // drape: zit er boven dit zwarte blok lege ruimte met savanne erboven (het oppervlak op de grondlijn, of een
+    // hogere/zwevende savannelaag), dan laat de aarde van die savanne naar beneden doorlopen tot dit blok (bereik 2,
+    // zie zwartDrapeTeken). drapeVan is de hoogte van die savanne; voor het oppervlak is dat 0.
+    let drape = false, drapeVan = 0;
+    if (zw && a.rTop > gR + 1){
+      const savCel = id => id === 'savanne' || id === 'sneeuw' || id === 'zsavanne';
+      let vanRow = null, ok = true;
+      for (let c = a.c; c <= cEnd && ok; c++){
+        let rr = a.rTop - 1;
+        while (rr > gR && !(G[rr] && solid(G[rr][c]))) rr--;   // omhoog door lege cellen tot een solide cel of de grondlijn
+        const sav = rr <= gR ? (G[gR] && savCel(G[gR][c])) : (G[rr] && savCel(G[rr][c]));
+        const vr = rr <= gR ? gR : rr;
+        if (!sav || vr >= a.rTop - 1){ ok = false; break; }   // geen savanne erboven, of geen lege ruimte ertussen
+        if (vanRow === null) vanRow = vr; else if (vr !== vanRow){ ok = false; break; }   // alle kolommen op dezelfde hoogte
+      }
+      if (ok && vanRow !== null){ drape = true; drapeVan = -(vanRow - gR) * MK_CEL_EENH; }
+    }
     if (zw)                                            // een zwevend zwart blok op zijn geschilderde hoogte: savanne is een
       // vloer (savanne-look), vulling en plafond zijn rots (plafond met tandjes eronder). Zo stapel je niveaus.
-      zwevers.push({ r: Math.round(r), l: Math.round(l), h: top, onder, look: zw === 'savanne' ? undefined : 'rots', zwart: zw });
+      zwevers.push({ r: Math.round(r), l: Math.round(l), h: top, onder, look: zw === 'savanne' ? undefined : 'rots', zwart: zw, ...(tot0 ? { tot0: true } : {}), ...(drape ? { drape: true, drapeVan: Math.round(drapeVan) } : {}) });
     else                                               // een gewone (niet-zwarte) trede: een terras op zijn diepte
       terraces.push({ r: Math.round(r), l: Math.round(l), h: top, grond: savanne(a.soort) });
     i = j;
