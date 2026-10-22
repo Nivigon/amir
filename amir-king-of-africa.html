@@ -8644,7 +8644,9 @@ function maskerVan(id){ for (const m of maskerLijst()) if (String(m.id || '') ==
 // levert de geverfde cellen als vakken (per cel of per rij samengevoegd); een ouder masker is één rechthoek
 function maskerRects(m){
   if (m.vakken && m.vakken.length)
-    return m.vakken.map(v => ({ l: Math.min(v.l, v.r), r: Math.max(v.l, v.r), onder: Number(v.onder) || 0, boven: Number(v.boven) || 150 }));
+    // boven mag echt 0 zijn (de maskertop op de grondlijn) of negatief (onder de grond); || 150 maakte daar
+    // onterecht 150 van, waardoor de bevroren zone een cel hoger reikte dan geverfd. Alleen bij ontbreken 150.
+    return m.vakken.map(v => ({ l: Math.min(v.l, v.r), r: Math.max(v.l, v.r), onder: Number(v.onder) || 0, boven: Number.isFinite(Number(v.boven)) ? Number(v.boven) : 150 }));
   return [{ l: Math.min(m.l, m.r), r: Math.max(m.l, m.r), onder: m.onder || 0, boven: m.boven || 600 }];
 }
 // een punt (x, met hoogte h) ligt binnen een masker dat er nog ligt (niet onthuld). Zonder h telt
@@ -29922,7 +29924,7 @@ function readLevel(txt){
            maskers: (o.maskers || []).map(q => {
              const m = { id: q.id != null ? String(q.id) : undefined, look: q.look ? String(q.look) : 'grot' };
              if (Array.isArray(q.vakken)){
-               m.vakken = q.vakken.map(v => ({ l: Number(v.l), r: Number(v.r), onder: Number(v.onder) || 0, boven: Number(v.boven) > 0 ? Number(v.boven) : 150 }))
+               m.vakken = q.vakken.map(v => ({ l: Number(v.l), r: Number(v.r), onder: Number(v.onder) || 0, boven: Number.isFinite(Number(v.boven)) ? Number(v.boven) : 150 }))   // boven 0 (op de grondlijn) of negatief (onder de grond) blijft staan; alleen bij ontbreken 150
                                   .filter(v => isFinite(v.l) && isFinite(v.r));
              } else {
                m.r = Number(q.r); m.l = Number(q.l);
@@ -32200,9 +32202,13 @@ function mkFlyToon(list, rowBtn){
 }
 function mkMenuSluit(){ document.getElementById('mkmenu').classList.remove('on'); document.getElementById('mkfly').classList.remove('on'); }
 // opslaan en inlezen
+// de opslagversie van de Maker. Zet hem hoger zodra je het grid-systeem of de celbetekenis verandert: dan gooit
+// mkOpen een oudere localStorage-blob weg in plaats van hem verschoven in te laden (vijanden en maskers op de
+// verkeerde hoogte). Zie mkOpen; dit is het versieslot dat er eerst niet was.
+const MK_VERSIE = 2;
 function mkNaarJSON(){
   const grid = MK.grid.map(rij => rij.map(id => MK_IDCH[id] || '.').join(''));
-  return { type:'amir-levelmaker-grid', versie:1, cols:MK.cols, rows:MK.rows, groundRow:MK.ground,
+  return { type:'amir-levelmaker-grid', versie:MK_VERSIE, cols:MK.cols, rows:MK.rows, groundRow:MK.ground,
            cel:{ breedPx:MK_CEL_PX, hoogEenheden:MK_CEL_EENH },
            legenda:{ '.':'lucht', S:'savanne', R:'rots', W:'sneeuw op savanne', X:'sneeuw op rots', M:'muur', L:'laag obstakel', F:'zwevende laag', G:'gang', V:'ravijn' },
            grid, start:MK.start, eind:MK.eind, muziek:MK.muziek, valschade:MK.valschade,
@@ -32805,7 +32811,17 @@ document.getElementById('mkstamzij').onclick = () => {        // de kant van de 
 };
 function mkOpen(){
   makerOpen = true; startEl.classList.add('off'); barEl.classList.add('hide'); makerEl.classList.add('on');
-  try { const bew = localStorage.getItem('amir-mk'); if (bew) mkUitJSON(JSON.parse(bew)); } catch (e){}
+  // versieslot: alleen een blob van dit type en deze opslagversie terugladen. Een oudere of andere blob komt van
+  // voor een grid-systeemwijziging en zou verschoven inladen (vijanden en maskers op de verkeerde hoogte), dus die
+  // gooien we weg en beginnen we vers, in plaats van hem blind te vertrouwen (zie MK_VERSIE).
+  try {
+    const bew = localStorage.getItem('amir-mk');
+    if (bew){
+      const o = JSON.parse(bew);
+      if (o && o.type === 'amir-levelmaker-grid' && Number(o.versie) === MK_VERSIE) mkUitJSON(o);
+      else localStorage.removeItem('amir-mk');
+    }
+  } catch (e){ try { localStorage.removeItem('amir-mk'); } catch (e2){} }
   mkLegenda(); mkNotePaneel(); mkMaatCanvas(); mkPassend();
 }
 function mkDicht(){ makerOpen = false; makerEl.classList.remove('on'); startEl.classList.remove('off'); showMenu('menuMain'); }
