@@ -938,6 +938,7 @@
         <div id="mkmaskctl" class="mkveld" style="display:none"><label for="mkmasksel">Onthult masker</label><select id="mkmasksel"></select></div>
         <div id="mkmasklookctl" style="display:none">
           <div class="mkveld"><label for="mkmasklook">Hoe het eruitziet</label><select id="mkmasklook"><option value="grot">Grotwand (rots)</option><option value="rots">Rotswand (cliff)</option><option value="savanne">Savanne (grond)</option><option value="zwart">Helemaal zwart</option></select></div>
+          <div class="mkveld"><label><input id="mkmaskvulzwart" type="checkbox"> Blijft zwart na onthullen</label></div>
           <div id="mkmasklookinfo" class="mkhint"></div>
         </div>
         <div id="mkvormctl" style="display:none">
@@ -1358,8 +1359,9 @@
         <button id="sbmaskerslang">Met een slang erachter</button>
         <button id="sbmaskerzegel">Grond-zegel onthult</button>
         <button id="sbmaskerverborgen">Verborgen zegel erachter</button>
+        <button id="sbmaskergang">Met een gang erachter</button>
         <button id="sbmaskerweg">Weg</button>
-        <span class="hint">een stuk level dat eruitziet als de ondergrondse rotswand: loop erin en het valt stil weg (eenmaal gezien voorgoed weg). Een slang erachter staat bevroren tot het weg is. Het grond-zegel ervoor onthult het met beven en het ravijn-geluid (zoals een tandwiel gekoppeld). Een verborgen zegel erachter is pas te activeren als het masker weg is</span>
+        <span class="hint">een stuk level dat eruitziet als de ondergrondse rotswand: loop erin en het valt stil weg (eenmaal gezien voorgoed weg). Een slang erachter staat bevroren tot het weg is. Het grond-zegel ervoor onthult het met beven en het ravijn-geluid (zoals een tandwiel gekoppeld). Een verborgen zegel erachter is pas te activeren als het masker weg is. Met een gang erachter: een zwart plafond en een zwarte vloer met de gang ertussen, verborgen achter het masker; het zegel scheurt het weg en de gang komt vrij, met de tandjes van het plafond erboven</span>
       </div>
       <div class="row">
         <label>Onder de grond</label>
@@ -5524,17 +5526,40 @@ function zwartAfloop(z, groundY, scale, cx){
   const botY = groundY - z.onder * scale;
   const doel = zwartOnderDoelH(z);
   const gap = doel === null ? Infinity : (z.onder - doel);
+  const solid = gap <= ZWART_AF.dicht * MK_CEL_EENH;
+  const fadeH = ZWART_AF.fade * MK_CEL_EENH * scale;
+  const yTop = botY - 1, yBot = solid ? (groundY - doel * scale) + 1 : botY + fadeH + 1;
   ctx.save();
-  if (gap <= ZWART_AF.dicht * MK_CEL_EENH){         // een tegel vlak eronder: massief zwart ertussen (dicht aansluiten)
+  // de verborgen plekken (maskers zonder vulZwart) uit de zwarte invulling knippen: dan onthult een masker de
+  // gang eronder (met de tandjes van het zwarte plafond erboven) in plaats van massief zwart. De maskeroverlay
+  // dekt het gat tot het wegscheurt (maskerTeken, over alles heen). Geen overlappend masker = ongewijzigd (regel 1).
+  const gaten = zwartMaskerGaten(xl, yTop, xr, yBot, groundY, scale, cx);
+  if (gaten){ ctx.beginPath(); ctx.rect(xl, yTop, xr - xl, yBot - yTop); for (const g of gaten) ctx.rect(g[0], g[1], g[2], g[3]); ctx.clip('evenodd'); }
+  if (solid){                                       // een tegel vlak eronder: massief zwart ertussen (dicht aansluiten)
     const doelY = groundY - doel * scale;
     ctx.fillStyle = '#000'; ctx.fillRect(xl, botY - 1, xr - xl, doelY - botY + 2);
   } else {                                          // niets eronder: zacht uitvervagen naar beneden
-    const fadeH = ZWART_AF.fade * MK_CEL_EENH * scale;
     const g = ctx.createLinearGradient(0, botY, 0, botY + fadeH);
     g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = g; ctx.fillRect(xl, botY - 1, xr - xl, fadeH + 1);
   }
   ctx.restore();
+}
+// de schermrechthoeken waar de zwarte invulling een gat moet laten: elk vak van een masker dat geen vulZwart
+// heeft, begrensd tot het invulvak (x0..x1, y0..y1). null als er niets overlapt, zodat een level zonder masker
+// precies tekent als voorheen. Onafhankelijk van onthuld: voor het wegscheuren dekt de maskeroverlay het gat.
+function zwartMaskerGaten(x0, y0, x1, y1, groundY, scale, cx){
+  const ms = maskerLijst(); if (!ms.length) return null;
+  const gaten = [];
+  for (const m of ms){
+    if (m.vulZwart) continue;                        // dit masker wil juist zwart blijven (opt-in)
+    for (const R of maskerRects(m)){
+      const a0 = Math.max(x0, cx + (R.l - world)), a1 = Math.min(x1, cx + (R.r - world));
+      const b0 = Math.max(y0, groundY - R.boven * scale), b1 = Math.min(y1, groundY - R.onder * scale);
+      if (a1 > a0 + 0.5 && b1 > b0 + 0.5) gaten.push([a0, b0, a1 - a0, b1 - b0]);
+    }
+  }
+  return gaten.length ? gaten : null;
 }
 // De onderkant van de savanne laten doorlopen (drapen) tot een zwart blok eronder. Het gras (de toplaag) blijft
 // bovenop onaangetast; alleen de aarde onder het gras loopt door tot de bovenkant van het blok, in volle savanne-
@@ -8731,6 +8756,11 @@ function koppelReset(){ if (level && level.acties) for (const a of level.acties)
 // verborgen: de vijanden erbinnen zijn bevroren (achterMasker, boven in hun update), en een zegel of
 // rune erbinnen is onzichtbaar en niet te activeren. Een level zonder maskers merkt er niets van
 // (regel 1). Een ouder masker met l/r/boven/onder (één rechthoek) werkt ook nog.
+// Ligt er een gang (holte) achter het masker met zwart-terrein eromheen (zwart plafond en vloer uit de
+// Maker), dan zou de zwarte invulling (zwartAfloop) de gang massief zwart maken, en onthul je bij het
+// wegscheuren dus zwart. Daarom knipt zwartAfloop de maskervakken uit die invulling: het masker onthult
+// de open gang, met de tandjes van het zwarte plafond erboven als overgang. Wil je dat het juist zwart
+// blijft (een verborgen donker gat achter een rotsmuur, look 'grot'), zet dan `vulZwart: true` op het masker.
 const MASKER = { fade: 0.55, beving: 0.6, marge: 60 };     // fade/beving (sterkte van het ravijn-geluid)/marge voor het inlopen
 function maskerLijst(){ return (level && level.maskers) || []; }
 function maskerVan(id){ for (const m of maskerLijst()) if (String(m.id || '') === String(id)) return m; return null; }
@@ -29751,6 +29781,7 @@ function syncLevel(){
     // maskers: geverfde cellen die een stuk level verbergen (zie "masker"); alleen als er zijn
     maskers: (level.maskers || []).length ? level.maskers.map(m => {
       const o = { id: String(m.id || 'Verborgen1'), look: m.look || 'grot' };
+      if (m.vulZwart) o.vulZwart = true;
       if (m.vakken && m.vakken.length)
         o.vakken = m.vakken.map(v => ({ l: Math.round(v.l), r: Math.round(v.r), onder: Math.round(v.onder || 0), boven: Math.round(v.boven || 150) }));
       else { o.l = Math.round(m.l); o.r = Math.round(m.r); o.boven = Math.round(m.boven || 600); o.onder = Math.round(m.onder || 0); }
@@ -30032,6 +30063,7 @@ function readLevel(txt){
            // l/r/boven/onder (één rechthoek) werkt ook nog
            maskers: (o.maskers || []).map(q => {
              const m = { id: q.id != null ? String(q.id) : undefined, look: q.look ? String(q.look) : 'grot' };
+             if (q.vulZwart) m.vulZwart = true;        // blijft zwart na onthullen (zie zwartAfloop/zwartMaskerGaten)
              if (Array.isArray(q.vakken)){
                m.vakken = q.vakken.map(v => ({ l: Number(v.l), r: Number(v.r), onder: Number(v.onder) || 0, boven: Number.isFinite(Number(v.boven)) ? Number(v.boven) : 150 }))   // boven 0 (op de grondlijn) of negatief (onder de grond) blijft staan; alleen bij ontbreken 150
                                   .filter(v => isFinite(v.l) && isFinite(v.r));
@@ -32116,7 +32148,8 @@ function mkNotePaneel(){
       document.getElementById('mkrichelctl').style.display = 'none'; document.getElementById('mkmaskctl').style.display = 'none';
       looktl.style.display = '';
       document.getElementById('mkmasklook').value = mkLookOf(m.look);
-      document.getElementById('mkmasklookinfo').textContent = 'Geldt voor het hele masker ' + m.id + '. Kies waar de verborgen plek op lijkt: grotwand, rotswand, savanne of helemaal zwart.';
+      document.getElementById('mkmaskvulzwart').checked = !!m.vulZwart;
+      document.getElementById('mkmasklookinfo').textContent = 'Geldt voor het hele masker ' + m.id + '. Kies waar de verborgen plek op lijkt: grotwand, rotswand, savanne of helemaal zwart. Ligt er een gang achter, dan onthult het masker die gang; vink "Blijft zwart na onthullen" aan als het juist zwart moet blijven (een verborgen donker gat).';
       document.getElementById('mkstacklist').style.display = 'none';
       tablet.textContent = 'M'; tablet.style.background = '#5ad66e'; tablet.style.display = 'flex';
       insp.classList.toggle('dicht', MK.inspectDicht); return;
@@ -32332,7 +32365,7 @@ function mkNaarJSON(){
            cel:{ breedPx:MK_CEL_PX, hoogEenheden:MK_CEL_EENH },
            legenda:{ '.':'lucht', S:'savanne', R:'rots', W:'sneeuw op savanne', X:'sneeuw op rots', M:'muur', L:'laag obstakel', F:'zwevende laag', G:'gang', V:'ravijn' },
            grid, start:MK.start, eind:MK.eind, muziek:MK.muziek, valschade:MK.valschade,
-           maskers: MK.maskers.filter(m => m.cells.length).map(m => ({ id:m.id, look:mkLookOf(m.look), cells:m.cells.map(p => [p.c, p.r]) })),
+           maskers: MK.maskers.filter(m => m.cells.length).map(m => ({ id:m.id, look:mkLookOf(m.look), ...(m.vulZwart ? { vulZwart:true } : {}), cells:m.cells.map(p => [p.c, p.r]) })),
            vormen: MK.vormen.map(v => ({ t:v.t, x:v.x, y:v.y, w:v.w, h:v.h, rot:v.rot || 0, seed:v.seed || 0 })),
            zwart: MK.zwart.map(p => [p.c, p.r]),
            objecten: MK.objects.map(o => {
@@ -32358,7 +32391,7 @@ function mkUitJSON(o){
   MK.valschade = o.valschade !== undefined ? !!o.valschade : true;
   if (mkValschadeEl) mkValschadeEl.checked = MK.valschade;
   MK.maskers = Array.isArray(o.maskers) ? o.maskers.filter(m => m && Array.isArray(m.cells)).map(m => ({
-    id: String(m.id || 'Verborgen1'), look: mkLookOf(m.look),
+    id: String(m.id || 'Verborgen1'), look: mkLookOf(m.look), vulZwart: !!m.vulZwart,
     cells: m.cells.map(p => Array.isArray(p) ? { c:p[0]|0, r:p[1]|0 } : { c:(p.c)|0, r:(p.r)|0 }) })) : [];
   MK.maskId = MK.maskers[0] ? MK.maskers[0].id : 'Verborgen1';
   MK.vormen = Array.isArray(o.vormen) ? o.vormen.filter(v => v && (v.t === 'blok' || v.t === 'blob' || VORM_IMG[v.t])).map(v => ({
@@ -32682,7 +32715,7 @@ function mkNaarLevel(){
         const [l, r2] = spanLR(cols[i], cols[j]);
         vakken.push({ l: Math.round(l), r: Math.round(r2), onder: Math.round((gR - row - 1) * MK_CEL_EENH), boven: Math.round((gR - row) * MK_CEL_EENH) });
         i = j + 1; } }
-    if (vakken.length) maskers.push({ id: m.id, look: mkLookOf(m.look), vakken });
+    if (vakken.length) maskers.push({ id: m.id, look: mkLookOf(m.look), vakken, ...(m.vulZwart ? { vulZwart: true } : {}) });
   }
   if (maskers.length) lvl.maskers = maskers;
   // een zegel of rune dat aan een masker gekoppeld is, wordt een echte schakelaar die het wegneemt (stuurt + acties)
@@ -32911,6 +32944,7 @@ document.getElementById('mkrichelf').onclick = () => {
 };
 document.getElementById('mkvijsoort').onchange = e => { if (MK.sel && MK.sel.k === 'vijand'){ MK.sel.soort = e.target.value; mkTeken(); mkBewaar(); mkNotePaneel(); } };
 document.getElementById('mkmasklook').onchange = e => { if (MK.selMask){ MK.selMask.look = mkLookOf(e.target.value); mkTeken(); mkBewaar(); } };   // de look voor het hele masker
+document.getElementById('mkmaskvulzwart').onchange = e => { if (MK.selMask){ MK.selMask.vulZwart = e.target.checked; mkBewaar(); } };   // blijft zwart na onthullen (geen gang laten zien)
 document.getElementById('mkinsptab').onclick = () => { MK.inspectDicht = false; mkNotePaneel(); };
 document.getElementById('mkinspclose').onclick = () => { MK.inspectDicht = true; mkNotePaneel(); };
 document.getElementById('mkdoel').onclick = () => { if (MK.sel && MK.sel.k === 'platform'){ mkDoelMode = true; document.getElementById('mkobjinfo').textContent = 'Tik nu de vloer aan waar het platform heen moet reizen.'; } };
@@ -33935,6 +33969,10 @@ function sbMaskerWeg(){
   level.maskers = (level.maskers || []).filter(m => !m.sbMasker);
   level.zegels = (level.zegels || []).filter(z => !z.sbMasker);
   level.acties = (level.acties || []).filter(a => !a.sbMasker);
+  level.gaps = (level.gaps || []).filter(g => !g.sbMasker);        // de gang-ingang van de variant Met een gang erachter
+  level.holtes = (level.holtes || []).filter(o => !o.sbMasker);
+  level.zwevers = (level.zwevers || []).filter(z => !z.sbMasker);  // het zwarte plafond en de zwarte vloer eromheen
+  if (ph < -1){ ph = 0; pvh = 0; onGround = true; camDiep = 0; }   // sta je beneden in die gang, dan weer boven
   for (let i = snakes.length - 1; i >= 0; i--) if (snakes[i].sbMasker) snakes.splice(i, 1);   // de bevroren slang erachter weg
 }
 function sbMasker(soort){
@@ -33942,6 +33980,31 @@ function sbMasker(soort){
   grotLaad();                                        // de rotstextuur laden als dat nog niet gebeurd is
   if (!level.maskers) level.maskers = [];
   const S = SB_MASKER, id = 'sbmask';
+  if (soort === 'gang'){
+    // een gang met een zwart plafond en een zwarte vloer eromheen; het masker zit in de opening ertussen.
+    // Zonder de masker-uitzondering zou de invulling dit massief zwart maken; nu onthult het de gang met
+    // de tandjes van het zwarte plafond erboven. Het grond-zegel scheurt het weg (zoals een tandwiel gekoppeld).
+    const side = (facing === 1 && cliffAt().wall - world > 3200) ? 1 : -1;
+    const x0 = side === 1 ? world : Math.max(world, endWall() + 300 + 2700);
+    const X = d => x0 + side * d;
+    const bereik = (a, b) => ({ r: Math.max(X(a), X(b)), l: Math.min(X(a), X(b)) });
+    if (!level.gaps) level.gaps = [];
+    if (!level.holtes) level.holtes = [];
+    if (!level.zwevers) level.zwevers = [];
+    if (!level.zegels) level.zegels = [];
+    if (!level.acties) level.acties = [];
+    level.gaps.push({ x: X(500), w: 620, sbMasker: true });                                 // de ingang: te breed, je valt erin
+    level.holtes.push(Object.assign(bereik(40, 2600), { diep: 1050, sbMasker: true }));
+    level.zwevers.push(Object.assign(bereik(900, 2400), { h: -300, onder: -450, look: 'rots', zwart: 'plafond', sbMasker: true }),   // het zwarte plafond (tandjes)
+                       Object.assign(bereik(900, 2400), { h: -900, onder: -1050, zwart: 'savanne', sbMasker: true }));                // de zwarte vloer, 3 cellen eronder
+    const mb = bereik(1150, 2050);                                                           // het masker over de opening ertussen
+    level.maskers.push({ id, r: mb.r, l: mb.l, boven: -450, onder: -900, look: 'zwart', sbMasker: true, onthuld: false, t: 1 });
+    level.zegels.push({ x: X(1400), stuurt: ['sbmask'], teken: 'rune', sbMasker: true });
+    level.acties.push({ soort: 'masker', masker: id, bij: ['sbmask'], sbMasker: true });
+    koppelReset();
+    flashHint('Val in de gang en stap op het zegel: het masker scheurt weg en de gang erachter komt vrij, met de tandjes van het zwarte plafond erboven');
+    cv.focus(); return;
+  }
   const r = world - S.voor, l = r - S.breed, mid = (l + r) / 2;
   level.maskers.push({ id, r, l, boven: S.boven, onder: S.onder, look: 'grot', sbMasker: true, onthuld: false, t: 1 });
   if (soort === 'slang'){
@@ -33965,6 +34028,7 @@ document.getElementById('sbmasker').onclick = () => sbMasker('leeg');
 document.getElementById('sbmaskerslang').onclick = () => sbMasker('slang');
 document.getElementById('sbmaskerzegel').onclick = () => sbMasker('zegel');
 document.getElementById('sbmaskerverborgen').onclick = () => sbMasker('verborgen');
+document.getElementById('sbmaskergang').onclick = () => sbMasker('gang');
 document.getElementById('sbmaskerweg').onclick = () => { sbMaskerWeg(); cv.focus(); };
 // Een gang onder de grond om los te bekijken, in de richting waarin je kijkt (is daar geen plek
 // voor, dan naar links, zoals je door een level loopt): een ravijn dat te
