@@ -3975,7 +3975,29 @@ const TEST_43 = {
           { x: -1900, t: 'Gooi je speer om hem te doden. Daarna ligt er een skelet met een nieuwe speer' },
           { x: -4600, t: 'Voorbij het ravijn staat er nog een. Zijn gif duwt je terug, en bij een rand kan dat je het ravijn in duwen (of van een platform af): hou afstand van de rand terwijl je vecht' } ]
 };
-const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31, TEST_32, TEST_33, TEST_34, TEST_35, TEST_36, TEST_37, TEST_38, TEST_39, TEST_40, TEST_41, TEST_42, TEST_43];
+// Test 44: het overloopje op elke plek waar savanne omhoog stapt tegen een hogere wand. Een klein trapje:
+// basis -> savannelaag (situatie 3) -> rotsmesa (situatie 2) -> savanne (op de rots komt niets) ->
+// hogere savannelaag (situatie 1). De opt-in vlag overloop staat aan, de stappen zijn 150 (te beklimmen).
+const TEST_44 = {
+  name: 'Test 44: Overloop',
+  lagen: 'tafelbergen',
+  view: 0.8,
+  overloop: true,
+  terraces: [
+    { r: -900,  l: -2000, h: 150, grond: true },             // savannelaag: de basis stapt erop (situatie 3)
+    { r: -2000, l: -3100, h: 300 },                          // rotsmesa: savanne stapt erop (situatie 2)
+    { r: -3100, l: -4200, h: 450, grond: true },             // savanne boven de rots: op de rotswand eronder komt niets
+    { r: -4200, l: -6300, h: 600, grond: true }              // hogere savannelaag: savanne stapt erop (situatie 1); loopt door tot de klif
+  ],
+  spawns: [ {x: -60000, k: 'groen'} ],                       // heel ver weg: houdt de vrije (random) modus uit
+  rocks: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
+  cliffs: [ {x: -6100} ],
+  ends: [ {x: -5650} ],
+  tips: [ { x: -120,  t: 'Testlevel: overloop. Klim het trapje op. Waar savanne omhoog stapt tegen een hogere wand, steekt de bovenste laag over de muur' },
+          { x: -2100, t: 'Savanne op een rotsmesa (situatie 2). Een trede hoger, op de rotswand zelf, komt geen overloop: alleen savanne krijgt hem' },
+          { x: -4300, t: 'Savanne tegen een hogere savannelaag (situatie 1)' } ]
+};
+const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31, TEST_32, TEST_33, TEST_34, TEST_35, TEST_36, TEST_37, TEST_38, TEST_39, TEST_40, TEST_41, TEST_42, TEST_43, TEST_44];
 // ---- Episode Baboon tests: de baviaan, stuk voor stuk ----
 // Proefstukken voor de baviaan, los van de echte episodes (regel 1 geldt niet). Het is een episode, dus met de
 // tribekeuze voor het begin, net als De Poorten. Ze stonden eerst tussen de Test levels; de baviaan hoort bij elkaar.
@@ -5956,34 +5978,49 @@ function drawClimb(groundY, scale, cx, onder){
     ctx.restore();
   }
 }
-// ---- overloopje: de rand van lage grond steekt over de muur ----------------
-// Waar een lagere grond (terras of savannelaag) met zijn rand direct tegen een hogere laag aan ligt,
-// loopt de wand nu kaarsrecht af. Hier steekt de rand van de lage grond met een klein lipje over de
-// muur, puur decor. Dezelfde situatie die leftHidden/rightHidden al herkennen: een hogere laag die
-// precies tegen de l- of r-rand van deze lagere laag aansluit. Getekend als laatste in de bovengrondse
-// ronde van drawClimb, dus over de muur van de hogere laag heen en achter Amir.
-const OVERLOOP = { uit: 0.30, laag: 185 };   // hoe ver uit (deel van Amir), en tot welke tegelrij: de toplaag plus de brokkelige zijrand, niet de diepe wand
+// ---- overloopje: savannegrond steekt over de muur waar hij omhoog stapt -------
+// Waar savannegrond (de basisgrond of een savannelaag) omhoog stapt tegen een hogere, massieve wand
+// (een hogere savannelaag, of een rots-terras/mesa), liep de rand kaarsrecht af. Hier steekt de
+// bovenste savannelaag met zijn brokkelige zijrand een stukje over die wand, puur tekenwerk; de diepe
+// gladde wand eronder steekt niet uit, dus de muur erachter blijft staan. Getekend als laatste in de
+// bovengrondse ronde van drawClimb, over de muur en achter Amir. Opt-in met het veld level.overloop,
+// zodat de bestaande episodes (regel 1) ongemoeid blijven; een nieuw level zet de vlag en krijgt het
+// op elke plek waar savanne tegen een hogere wand eindigt.
+const OVERLOOP = { uit: 0.225, laag: 185, stap: 40 };   // hoe ver uit (deel van Amir), tot welke tegelrij (toplaag + brokkelrand, niet de diepe wand), en de minimale hoogtesprong die als muur telt
+// het oppervlak op x: savannegrond (basisgrond of een grond-terras) of rots (rots-terras, grotraster, zuil)
+function savanneOpp(x){
+  let h = 0, grond = true;
+  for (const t of terraceList()) if (x >= t.l && x <= t.r && t.h > h){ h = t.h; grond = !!t.grond; }
+  const g = grotTerrein(x); if (g > h){ h = g; grond = false; }
+  for (const q of zuilLijst()) if (x >= q.x - q.w / 2 && x <= q.x + q.w / 2 && zuilTop(q) > h) grond = false;
+  return grond;
+}
 function overloopTeken(groundY, scale, cx){
+  if (!(level && level.overloop) || !imgReady(bodemPic()) || !edgeReady()) return;
   const zoom = viewZoom();
-  for (const t of terraceList()){
-    if (t.h < 0) continue;                                 // een trede in een gang niet
-    for (const dir of [-1, 1]){                            // -1 = linkerrand, +1 = rechterrand
-      const edgeX = dir < 0 ? t.l : t.r;
-      const muur = terraceList().some(o => o !== t && o.h > t.h && o.l <= edgeX + 1 && o.r >= edgeX - 1);
-      if (!muur) continue;
+  // elke terras-wand die omhoog stapt vanaf de grond ernaast; ligt daar savanne, dan legt die zijn
+  // bovenste laag met een lipje over de muur (situaties 1 tot en met 3 uit het overzicht)
+  for (const o of terraceList()){
+    if (o.h <= 0) continue;
+    for (const dir of [1, -1]){                            // 1: wand rechts (o.l), -1: wand links (o.r)
+      const edgeX = dir > 0 ? o.l : o.r;
+      const buiten = edgeX - dir * 2;                      // net buiten de wand, aan de lage kant
+      const hLo = terrainH(buiten);
+      if (o.h <= hLo + OVERLOOP.stap) continue;            // geen echte stap omhoog
+      if (!savanneOpp(buiten)) continue;                   // de lage kant moet savanne zijn
       const xj = cx + (edgeX - world);
       if (xj < -W || xj > W / zoom + W) continue;
-      lipTeken(t, xj, dir, groundY, scale, cx);
+      lipTeken(edgeX, hLo, dir, groundY, scale, cx);
     }
   }
 }
-function lipTeken(t, xj, dir, groundY, scale, cx){
-  // het hele grond-randstuk (de savannelaag met zijn dikte eronder) steekt uit over de muur, zonder
-  // extra schaduw en zonder de diepe donkere massa: de muur erachter blijft gewoon staan
-  if (!t.grond || !imgReady(bodemPic()) || !edgeReady()) return;
+function lipTeken(wx, hLo, dir, groundY, scale, cx){
+  // de bovenste savannelaag met zijn brokkelige zijrand steekt uit over de muur, zonder schaduw en
+  // zonder de diepe gladde wand eronder; die blijft terug zodat de muur erachter staat
   const eimg = bodemPic(), s = edgeScale(H * 0.18);
   const tw = eimg.naturalWidth * s;
-  const loopY = groundY - t.h * scale;
+  const xj = cx + (wx - world);
+  const loopY = groundY - hLo * scale;
   const top = loopY - EDGE.walk * s;                 // de tegel staat met rij walk op de looplijn
   const bandH = OVERLOOP.laag * s;                    // de toplaag plus de brokkelige zijrand, niet de diepe wand
   const uit = OVERLOOP.uit * CHAR_H * scale;          // zover steekt het randstuk uit over de muur
@@ -30062,6 +30099,7 @@ function readLevel(txt){
            valschade: !!o.valschade,                    // een diepe val kost levens (standaard uit)
            valDood: o.valDood != null ? Number(o.valDood) : undefined,   // een level kan de dodelijke valhoogte zelf zetten (de Level Maker: 4 gridcellen); zonder dit veld geldt VAL_DOOD (6 Amir)
            hoogUitzicht: !!o.hoogUitzicht,              // gestapelde grondlagen: de camera klemt tegen de laag (geen zwarte diepte) en de achtergrond blijft staan, zodat een hoge laag er net zo uitziet als de basis
+           overloop: !!o.overloop,                      // savanne steekt met de bovenste laag over elke hogere wand waar hij tegenaan stapt (opt-in, zie "overloopje")
            view: o.view ? Math.max(0.5, Math.min(1, Number(o.view))) : undefined,   // uitgezoomd spelen: kleiner dan 1 laat meer wereld vooruit zien (zie viewZoom)
            zichtBreed: o.zichtBreed ? Math.max(600, Number(o.zichtBreed)) : undefined,   // doel-wereldbreedte in beeld: het spel rekent de view per scherm uit (zie viewZoom), zodat elk scherm evenveel vooruit ziet
            apenArena: !!o.apenArena,                     // de arena van goudaapjes (Baboon 4): twee muren, oneindig meer apen
@@ -31181,6 +31219,7 @@ window.addEventListener('keydown', e => {
 }, true);
 // ---- menu: kaartjes per level ----
 const SUBS = {
+  'Test 44: Overloop': 'Een trapje omhoog: overal waar savanne tegen een hogere wand stapt, steekt de bovenste laag over de muur',
   'Test 40: Bloed': 'Elke klap een snee op de bandiet, de derde treffer een death-spuit uit zijn borst',
   'Hoog 1: De kei voor de schijf': 'Van de grond gooi je blind: klim op de kei. En stenen die onder je wegzakken',
   'Hoog 2: Van zuil naar terras': 'Zuilen omhoog, een schijf op het terras, en een brug van steen op die hoogte',
@@ -33857,9 +33896,10 @@ sandboxEl.querySelectorAll('button[data-savlaag]').forEach(b => b.onclick = () =
 document.getElementById('sbsavlift').onclick = () => sbSavLaag(300, true);
 document.getElementById('sbsavweg').onclick = () => { sbSavWeg(); cv.focus(); };
 // het overloopje los bekijken: een lagere savannelaag die direct tegen een hogere laag aan ligt
-function sbOverloopWeg(){ level.terraces = (level.terraces || []).filter(t => !t.sbOver); }
+function sbOverloopWeg(){ level.terraces = (level.terraces || []).filter(t => !t.sbOver); level.overloop = false; }
 function sbOverloop(){
   sbOverloopWeg();
+  level.overloop = true;                                                                   // de opt-in vlag aan
   if (!level.terraces) level.terraces = [];
   const muurX = world - 750;                                                               // de naad: de muur
   level.terraces.push({ r: world - 400, l: muurX, h: 260, grond: true, sbOver: true });    // de lage laag (savanne), vlak links van je
