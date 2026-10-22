@@ -5549,7 +5549,8 @@ const SAV_LAAG = {
   hoog: { donker: [0.9, 1.0], diep: [0, 0] }
 };
 function savanneLaag(t, groundY, scale, cx, bottom, st, floating){
-  const eimg = bodemPic();
+  const zwart = t && t.zwart;                          // een zwarte savanne-tegel: zelfde maat/ankering, maar zwart
+  const eimg = zwart ? vormImg('vloer') : bodemPic();  // de zwarte grondrand heeft dezelfde afmetingen als de gewone
   if (!imgReady(eimg) || !edgeReady()) return;
   const zoom = viewZoom(), xr = cx + (t.r - world), xl = cx + (t.l - world);
   if (xl > W / zoom + W || xr < -W) return;
@@ -5578,12 +5579,12 @@ function savanneLaag(t, groundY, scale, cx, bottom, st, floating){
     for (const o of gangOnder) ctx.rect(cx + (o.l - world), dakY, o.r - o.l, bottom - dakY + 80);
     ctx.clip('evenodd');
   }
-  ctx.fillStyle = bodemDonker();                     // de massa onder de tegel
+  ctx.fillStyle = zwart ? '#000' : bodemDonker();    // de massa onder de tegel (zwart voor een zwarte tegel)
   ctx.fillRect(xl - 40, top + th - 2, xr - xl + 80, bottom - top + 40);
   let x = cx - (((world % tw) + tw) % tw);           // vast aan de wereld, net als de grond zelf
   while (x > xl) x -= tw;
   for (; x < xr; x += tw) ctx.drawImage(eimg, x, top, tw + 1, th);
-  if (sneeuwOn()){                                   // de sneeuwlaag ligt ook op een hogere of zwevende savannelaag
+  if (sneeuwOn() && !zwart){                          // de sneeuwlaag ligt ook op een hogere of zwevende savannelaag (niet op zwart)
     let sx = cx - (((world % tw) + tw) % tw); while (sx > xl) sx -= tw;
     drawSneeuwdek(top, tw, th, sx, xl, xr, s);
   }
@@ -5647,8 +5648,20 @@ function savanneLaag(t, groundY, scale, cx, bottom, st, floating){
 // kruipen in plaats van een stuk zwevende savanne. De botsing blijft die van een gewone zwever (z.h, z.onder,
 // z.l, z.r); alleen het tekenen is anders. Model naar het rotsterras in drawClimb, maar met de onderkant op
 // floorY in plaats van de grond, en de tanden en een schaduwrand eronder.
+// zwarte tandjes: onregelmatige zwarte spikes die onder een rand hangen, vast aan de wereld zodat ze niet schuiven
+function zwartFrac(n){ n = Math.sin(n) * 43758.5453; return n - Math.floor(n); }
+function zwartTanden(c, xl, xr, y, phase){
+  const tw = 26;
+  c.fillStyle = '#000';
+  let startX = xl - (((xl - phase) % tw) + tw) % tw;
+  for (let x = startX - tw; x < xr + tw; x += tw){
+    const s = Math.floor((x - phase) / tw), len = 16 + zwartFrac(s * 1.37) * 40, mid = 0.34 + zwartFrac(s * 2.11) * 0.32;
+    c.beginPath(); c.moveTo(x - 2, y - 1); c.lineTo(x + tw + 2, y - 1); c.lineTo(x + tw * mid, y + len); c.closePath(); c.fill();
+  }
+}
 function rotsLaag(z, groundY, scale, cx, st){
-  const tp = terPic();
+  const zwart = z && z.zwart;                           // zwart plafond: zwart rots-lijf en zwarte tandjes
+  const tp = (zwart && imgReady(vormImg('klif'))) ? vormImg('klif') : terPic();
   if (!imgReady(tp)) return;
   const zoom = viewZoom();
   const xr = cx + (z.r - world), xl = cx + (z.l - world);
@@ -5679,6 +5692,12 @@ function rotsLaag(z, groundY, scale, cx, st){
   ctx.restore();
   // de tandenband onder de rots: dezelfde tanden als een plafond, horizontaal langs de onderkant, vast aan
   // de wereld zodat ze niet meeschuiven, en geklemd op de breedte van de laag
+  if (zwart){                                           // zwart plafond: onregelmatige zwarte tandjes langs de onderkant
+    ctx.save(); ctx.beginPath(); ctx.rect(xl, floorY - 2, xr - xl, 80); ctx.clip();
+    zwartTanden(ctx, xl, xr, floorY, cx - world);
+    ctx.restore();
+    return;
+  }
   const T = plafondBandSet();
   if (T){
     const im = T.strook, bw = im.width, bh = im.height, dicht = Math.round(GROT.band.dicht * bh);
@@ -5777,7 +5796,8 @@ function drawClimb(groundY, scale, cx, onder){
     const rightHidden = terraceList().some(o => o !== t && o.h > t.h && o.l <= t.r + 1 && o.r >= t.r - 1);
     // een trede in een gang ligt onder de grond: daar ligt ook in de winter geen sneeuw op
     const onder = t.h < 0 && winterOn();
-    const tp = onder ? terImg : terPic(), tf = onder ? terFade : (terFadePic() || terPic());
+    const zwartKlif = t.zwart && imgReady(vormImg('klif'));   // zwarte vulling/muur: dezelfde vorm, maar de zwarte klif-rand
+    const tp = zwartKlif ? vormImg('klif') : (onder ? terImg : terPic()), tf = zwartKlif ? vormImg('klif') : (onder ? terFade : (terFadePic() || terPic()));
     ctx.save();
     terClipPath(xl, xr, top - 4, onderT, st, soilY, leftHidden, t.l, t.r, rightHidden);        // gebroken zijkanten
     ctx.clip();
@@ -19879,6 +19899,12 @@ function restart(){
   camDiep = 0;
   world = startWereld(); facing = -1; frame = 0; frameAcc = 0; idleFrame = 0; idleAcc = 0;   // altijd weer bij het startpunt
   lastSolid = world; if (bav) bav.start = world;
+  // op een level met zwarte terreintegels (uit de Maker) spawnt Amir op de vloer die er is, bv. boven op een
+  // zwarte savanne-mesa, zodat hij niet in een solide tegel belandt en er daarnaast uit geduwd wordt. De echte
+  // episodes hebben geen zwarte tegels en houden ph = 0 (rule 1).
+  if (level && !building && ((level.terraces && level.terraces.some(t => t.zwart)) || (level.zwevers && level.zwevers.some(z => z.zwart)))){
+    const f = terrainH(world); if (f > 0) ph = f;
+  }
   if (bav && bav.lvl && bav.skelet != null && !sandbox && !building){   // het skelet tussen Amir en de baviaan, en Amir kijkt naar hem
     const sk = level.skeletten && level.skeletten[0];
     if (sk) sk.x = Math.round(world + (bav.x - world) * bav.skelet);
@@ -29782,13 +29808,15 @@ function readLevel(txt){
                             soort: o.muur.soort === 'grot' ? 'grot' : undefined } : null,
            // grond: true maakt er geen rots van maar een hogere savannelaag (zie "hogere savannelaag")
            terraces: (o.terraces || []).map(q => ({ r: Number(q.r), l: Number(q.l), h: Number(q.h) || 0,
-                                                    grond: q.grond === true, af: q.af === true })),
+                                                    grond: q.grond === true, af: q.af === true,
+                                                    zwart: (q.zwart === 'savanne' || q.zwart === 'vulling') ? q.zwart : undefined })),   // zwarte terrein-variant, zie de tekenlagen
            // zwevende savannelagen: een dik savanneblok in de lucht, zie "zwevende savannelaag"
            zwevers: (o.zwevers || []).map(q => {
              const h = Number(q.h) || 0;
              let onder = q.onder != null ? Number(q.onder) : h - ZWEEF.dik;
              if (onder >= h) onder = h - ZWEEF.dik;          // de onderkant ligt altijd onder de looplijn
-             return { r: Number(q.r), l: Number(q.l), h, onder, look: q.look === 'rots' ? 'rots' : undefined };   // 'rots' = een rotsoverhang i.p.v. savanne
+             return { r: Number(q.r), l: Number(q.l), h, onder, look: q.look === 'rots' ? 'rots' : undefined,
+                      zwart: q.zwart === 'plafond' ? 'plafond' : undefined };   // 'rots' = een rotsoverhang i.p.v. savanne; zwart plafond = zwarte tandjes
            }),
            // gangen onder de grond: zie "holte onder de grond"
            holtes: (o.holtes || []).map(q => ({ r: Number(q.r), l: Number(q.l),
@@ -31199,9 +31227,12 @@ const MK_TYPES = [
   // Je plaatst ze, versleept en schaalt ze vrij (zie MK.vormen, mkVormGrijp, mkVormGeo). Nog niet in een echt level.
   { id:'zwartblok', naam:'Zwart blok',        kleur:'#101014', vorm:'blok' },
   { id:'zwartblob', naam:'Zwarte blob',       kleur:'#101014', vorm:'blob' },
-  // de zwarte cel: per cel geschilderd, net als terrein (steentje voor steentje). Geen botsing, puur zwart decor
-  // dat in het spel als bovenste laag verschijnt (mkNaarLevel voegt de cellen per rij samen tot zwarte blokken).
-  { id:'zwartcel',  naam:'Zwarte cel',        kleur:'#101014' },
+  // zwarte terreintegels: echt terrein met botsing, per cel geschilderd net als savanne/muur, maar helemaal zwart.
+  // savanne-zwart = de regels van savanne (grond, je loopt erop); vulling = muur (massief, speer blijft erin steken);
+  // plafond = muur met zwarte tandjes onderaan (zwevende rotsoverhang). Zie mkNaarLevel (zwart-vlag) en de tekenlagen.
+  { id:'zsavanne', naam:'Zwarte savanne (vloer)',  kleur:'#243024', ch:'b' },
+  { id:'zvulling', naam:'Zwarte vulling (muur)',   kleur:'#141418', ch:'n' },
+  { id:'zplafond', naam:'Zwart plafond (tandjes)', kleur:'#1a1420', ch:'p' },
 ];
 // wat een tandwiel doet bij een slag. Een schakelaar kan beide kanten op (als een lichtschakelaar); een vast wiel
 // gaat altijd dezelfde kant op. Zie takelWielSlag.
@@ -31261,12 +31292,13 @@ const MK_CATS = [
   { id:'objecten', naam:'Objecten',   items:['zegel','rune','platform','tandwiel','overhang','richel','hppotion'] },
   { id:'decor',    naam:'Decor',      items:['prop'] },
   { id:'verbergen',naam:'Verbergen',  items:['masker'] },
-  { id:'vormen',   naam:'Vormen',     items:['zwartcel','zwartblok','zwartblob'] },
+  { id:'zwart',    naam:'Zwart terrein', items:['zsavanne','zvulling','zplafond'] },
+  { id:'vormen',   naam:'Vormen',     items:['zwartblok','zwartblob'] },
 ];
 const MK_CH = {}, MK_KLEUR = {};
 for (const t of MK_TYPES){ if (t.ch) MK_CH[t.ch] = t.id; if (t.kleur) MK_KLEUR[t.id] = t.kleur; }
 const MK_IDCH = {}; for (const t of MK_TYPES) if (t.ch) MK_IDCH[t.id] = t.ch;
-const MK_TERREIN = new Set(['savanne','rots','sneeuw','sneeuwrots','muur','laag','zweef','gang','ravijn','lucht']);
+const MK_TERREIN = new Set(['savanne','rots','sneeuw','sneeuwrots','muur','laag','zweef','gang','ravijn','lucht','zsavanne','zvulling','zplafond']);
 const mkIsObj = id => MK_TYPES.some(t => t.id === id && t.obj);
 const mkIsVorm = id => MK_TYPES.some(t => t.id === id && t.vorm);
 // deterministische toevals voor een blob-vorm, zodat dezelfde seed altijd dezelfde grillige vorm geeft
@@ -32089,8 +32121,8 @@ function mkNaarLevel(){
   const rand = gc => (gc - startCol) * MK_CEL_PX * dir;     // wereld-x van een kolomrand
   const lr = c => { const a = rand(c), b = rand(c + 1); return [Math.min(a, b), Math.max(a, b)]; };
   const spanLR = (cA, cB) => { const [la] = lr(cA), [, rb] = lr(cB); return [Math.min(la, rb), Math.max(la, rb)]; };
-  const savanne = id => id === 'savanne' || id === 'sneeuw' || id === 'zweef';   // savanne-achtig (grond:true); rots en sneeuwrots zijn steen
-  const solid = id => savanne(id) || id === 'rots' || id === 'sneeuwrots' || id === 'muur';   // telt mee als verhoogd terras, zwevende laag of blokkade
+  const savanne = id => id === 'savanne' || id === 'sneeuw' || id === 'zweef' || id === 'zsavanne';   // savanne-achtig (grond:true); rots en sneeuwrots zijn steen
+  const solid = id => savanne(id) || id === 'rots' || id === 'sneeuwrots' || id === 'muur' || id === 'zvulling' || id === 'zplafond';   // telt mee als verhoogd terras, zwevende laag of blokkade
   const gaps = [], terraces = [], holtes = [], zwevers = [], takels = [], ledges = [], hppotions = [];
   // gaten: aaneengesloten ravijn-cellen op de grondlijn
   for (let c = 0; c < C;){
@@ -32123,12 +32155,18 @@ function mkNaarLevel(){
       const lucht = (gR - (a.rBot + 1)) * MK_CEL_EENH;                    // de lege ruimte onder de getekende cellen
       if (lucht <= 0) terraces.push({ r: Math.round(r), l: Math.round(l), h, grond: true });   // raakt de grond: massief
       else zwevers.push({ r: Math.round(r), l: Math.round(l), h, onder: Math.round(lucht) });
+    } else if (a.soort === 'zplafond'){
+      // zwart plafond: een zwevende rotsoverhang (look rots) met zwarte tandjes onderaan; als muur solide, niet
+      // doorheen. Hangt in de lucht met de ruimte eronder die je tekent.
+      const lucht = (gR - (a.rBot + 1)) * MK_CEL_EENH;
+      zwevers.push({ r: Math.round(r), l: Math.round(l), h, onder: Math.round(Math.max(1, lucht)), look: 'rots', zwart: 'plafond' });
     } else {
       const g = savanne(a.soort);
+      const zw = a.soort === 'zsavanne' ? 'savanne' : a.soort === 'zvulling' ? 'vulling' : null;
       // een rots-mesa (muur/rots/sneeuwrots) krijgt af: true, zodat zijn steen op de grondlijn stopt en niet
       // door de savanne heen naar beneden het donker in loopt (zie drawClimb). Een savanne-mesa niet: die
       // tekent aarde eronder die vanzelf in de grondband overloopt.
-      terraces.push({ r: Math.round(r), l: Math.round(l), h, grond: g, af: !g });   // savanne/rots/muur: altijd massief tot de grond (een mesa, vult onderin)
+      terraces.push({ r: Math.round(r), l: Math.round(l), h, grond: g, af: !g, ...(zw ? { zwart: zw } : {}) });   // savanne/muur, zwart-variant met de vlag
     }
     i = j;
   }
