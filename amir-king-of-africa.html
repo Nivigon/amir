@@ -5461,6 +5461,30 @@ const ZWEEF = { dik: 180 };          // standaarddikte als een laag geen onder m
 function zweefList(){ return (level && level.zwevers) ? level.zwevers : []; }
 // de zwarte terreinlagen (uit de Maker): egale zwarte silhouetten die het licht niet mag bijkleuren (zie drawLichtkaart)
 function zwarteLagen(){ return (level && level.zwevers) ? level.zwevers.filter(z => z.zwart) : []; }
+// De onderkant van de savanne laten doorlopen (drapen) tot een zwart blok eronder. Het gras (de toplaag) blijft
+// bovenop onaangetast; alleen de aarde onder het gras loopt door tot de bovenkant van het blok, in volle savanne-
+// kleur (geen kleurverloop, zoals gevraagd). De aardtegel wordt verticaal uitgerekt tot het blok, zodat de
+// verticale streperige textuur meeloopt zonder horizontale naden. Drape van z.drapeVan (het savanne-oppervlak op 0,
+// of de onderkant van een zwevende savannelaag) tot z.h (de bovenkant van het zwarte blok).
+function zwartDrapeTeken(groundY, scale, cx){
+  const zs = zwarteLagen().filter(z => z.drape);
+  if (!zs.length) return;
+  const eimg = bodemPic(); if (!imgReady(eimg) || !edgeReady()) return;
+  const s = edgeScale(H * 0.18), tw = eimg.naturalWidth * s;
+  const bandY = EDGE.walk, bandH = eimg.naturalHeight - bandY;   // de aarde onder het gras
+  const zoom = viewZoom();
+  for (const z of zs){
+    const xl = cx + (z.l - world), xr = cx + (z.r - world);
+    if (xr < -40 || xl > W / zoom + 40) continue;
+    const topY = groundY - (z.drapeVan || 0) * scale, botY = groundY - z.h * scale;
+    if (botY - topY < 2) continue;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(xl, topY, xr - xl, botY - topY); ctx.clip();
+    let xx = cx - (((world % tw) + tw) % tw); while (xx > xl) xx -= tw;
+    for (; xx < xr; xx += tw) ctx.drawImage(eimg, 0, bandY, eimg.naturalWidth, bandH, xx, topY, tw + 1, botY - topY);
+    ctx.restore();
+  }
+}
 // de hoogste zwevende savannelaag die deze x bedekt (of -Infinity): een fakkel kan erbovenop staan,
 // zodat een uitgang op zo'n laag (de rechtse uitgang van Honingjacht 3) de hoogtecheck haalt
 function zweefTopBij(x){ let h = -Infinity; for (const z of zweefList()) if (x >= z.l && x <= z.r && z.h > h) h = z.h; return h; }
@@ -27269,6 +27293,7 @@ function loop(now){
       }
     }
     drawClimb(groundY, scale, cx, true);           // treden onder de grond: na de ravijnen, zie drawClimb
+    zwartDrapeTeken(groundY, scale, cx);           // de savanne-aarde drapeert vol door tot een zwart blok eronder (over een savanne-laag heen, onder de zwarte blokken die hoger starten)
     rijsTeken(groundY, scale, cx);                 // de rijzende grond: steen dat uit een ravijn komt
     takelTeken(groundY, scale, cx);                // het takelwiel, de touwen en het hangende plateau
 
@@ -29867,7 +29892,8 @@ function readLevel(txt){
              if (onder >= h) onder = h - ZWEEF.dik;          // de onderkant ligt altijd onder de looplijn
              return { r: Number(q.r), l: Number(q.l), h, onder, look: q.look === 'rots' ? 'rots' : undefined,
                       zwart: (q.zwart === 'plafond' || q.zwart === 'vulling' || q.zwart === 'savanne') ? q.zwart : undefined,   // 'rots' = een rotsoverhang i.p.v. savanne; zwart: een zwevend zwart blok (savanne-vloer, muur, of plafond met tandjes)
-                      tot0: q.tot0 === true };   // een zwart blok direct onder het oppervlak: teken door tot de grondlijn (dekt de aardrand af)
+                      tot0: q.tot0 === true,   // een zwart blok direct onder het oppervlak: teken door tot de grondlijn (dekt de aardrand af)
+                      drape: q.drape === true, drapeVan: Number(q.drapeVan) || 0 };   // de savanne-aarde loopt van drapeVan door tot dit blok (zie zwartDrapeTeken)
            }),
            // gangen onder de grond: zie "holte onder de grond"
            holtes: (o.holtes || []).map(q => ({ r: Number(q.r), l: Number(q.l),
@@ -32301,9 +32327,26 @@ function mkNaarLevel(){
       tot0 = true;
       for (let c = a.c; c <= cEnd; c++){ const id = G[gR] && G[gR][c]; if (!(id === 'savanne' || id === 'sneeuw' || id === 'rots' || id === 'sneeuwrots' || id === 'muur')){ tot0 = false; break; } }
     }
+    // drape: zit er boven dit zwarte blok lege ruimte met savanne erboven (het oppervlak op de grondlijn, of een
+    // hogere/zwevende savannelaag), dan laat de aarde van die savanne naar beneden doorlopen tot dit blok (bereik 2,
+    // zie zwartDrapeTeken). drapeVan is de hoogte van die savanne; voor het oppervlak is dat 0.
+    let drape = false, drapeVan = 0;
+    if (zw && a.rTop > gR + 1){
+      const savCel = id => id === 'savanne' || id === 'sneeuw' || id === 'zsavanne';
+      let vanRow = null, ok = true;
+      for (let c = a.c; c <= cEnd && ok; c++){
+        let rr = a.rTop - 1;
+        while (rr > gR && !(G[rr] && solid(G[rr][c]))) rr--;   // omhoog door lege cellen tot een solide cel of de grondlijn
+        const sav = rr <= gR ? (G[gR] && savCel(G[gR][c])) : (G[rr] && savCel(G[rr][c]));
+        const vr = rr <= gR ? gR : rr;
+        if (!sav || vr >= a.rTop - 1){ ok = false; break; }   // geen savanne erboven, of geen lege ruimte ertussen
+        if (vanRow === null) vanRow = vr; else if (vr !== vanRow){ ok = false; break; }   // alle kolommen op dezelfde hoogte
+      }
+      if (ok && vanRow !== null){ drape = true; drapeVan = -(vanRow - gR) * MK_CEL_EENH; }
+    }
     if (zw)                                            // een zwevend zwart blok op zijn geschilderde hoogte: savanne is een
       // vloer (savanne-look), vulling en plafond zijn rots (plafond met tandjes eronder). Zo stapel je niveaus.
-      zwevers.push({ r: Math.round(r), l: Math.round(l), h: top, onder, look: zw === 'savanne' ? undefined : 'rots', zwart: zw, ...(tot0 ? { tot0: true } : {}) });
+      zwevers.push({ r: Math.round(r), l: Math.round(l), h: top, onder, look: zw === 'savanne' ? undefined : 'rots', zwart: zw, ...(tot0 ? { tot0: true } : {}), ...(drape ? { drape: true, drapeVan: Math.round(drapeVan) } : {}) });
     else                                               // een gewone (niet-zwarte) trede: een terras op zijn diepte
       terraces.push({ r: Math.round(r), l: Math.round(l), h: top, grond: savanne(a.soort) });
     i = j;
