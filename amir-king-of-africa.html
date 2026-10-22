@@ -937,7 +937,7 @@
         </div>
         <div id="mkmaskctl" class="mkveld" style="display:none"><label for="mkmasksel">Onthult masker</label><select id="mkmasksel"></select></div>
         <div id="mkmasklookctl" style="display:none">
-          <div class="mkveld"><label for="mkmasklook">Hoe het eruitziet</label><select id="mkmasklook"><option value="grot">Grotwand (rots)</option><option value="zwart">Helemaal zwart</option></select></div>
+          <div class="mkveld"><label for="mkmasklook">Hoe het eruitziet</label><select id="mkmasklook"><option value="grot">Grotwand (rots)</option><option value="rots">Rotswand (cliff)</option><option value="savanne">Savanne (grond)</option><option value="zwart">Helemaal zwart</option></select></div>
           <div id="mkmasklookinfo" class="mkhint"></div>
         </div>
         <div id="mkvormctl" style="display:none">
@@ -8713,10 +8713,13 @@ function maskerTeken(groundY, scale, cx){
     }
     ctx.clip();
     if (m.look === 'zwart') ctx.fillStyle = '#05040a';         // helemaal zwart, zoals diep onder de grond
-    else if (tile && (m.look || 'grot') === 'grot'){
-      const p = ctx.createPattern(tile, 'repeat');
+    else {
+      // waar de verborgen plek op lijkt: grotwand (ondergrondse rots), savanne (de grondtegel) of rots (de
+      // terrasplaat), zodat hij opgaat in zijn omgeving. Lukt een tegel niet, dan een neutrale bruine vulling.
+      const bron = m.look === 'savanne' ? bodemPic() : m.look === 'rots' ? terPic() : tile;
+      const p = bron ? ctx.createPattern(bron, 'repeat') : null;
       ctx.fillStyle = p || '#2b2621';
-    } else ctx.fillStyle = '#2b2621';
+    }
     ctx.fillRect(minX - 2, minY - 2, (maxX - minX) + 4, (maxY - minY) + 4);
     // een beetje diepte over de hele regio (geen naad tussen de cellen): donker langs boven en onder
     const g = ctx.createLinearGradient(0, minY, 0, maxY);
@@ -31490,6 +31493,7 @@ let mkZwartErase = false;
 function mkZwartIdx(c, r){ return MK.zwart.findIndex(p => p.c === c && p.r === r); }
 // ---- maskers in de Maker: verf cellen onder een naam (Verborgen1, ...) om ze te verbergen ----
 function mkMaskObj(id){ let m = MK.maskers.find(q => q.id === id); if (!m){ m = { id, cells:[], look:'grot' }; MK.maskers.push(m); } return m; }
+function mkLookOf(v){ return (v === 'zwart' || v === 'savanne' || v === 'rots') ? v : 'grot'; }   // geldige masker-look (waar de verborgen plek op lijkt), anders de grotwand
 function mkMaskNamen(){ const n = MK.maskers.filter(m => m.cells.length).map(m => m.id); if (!n.includes(MK.maskId)) n.push(MK.maskId); return n; }
 function mkMaskNieuw(){ const had = new Set(MK.maskers.map(m => m.id)); for (let i = 1; i < 999; i++) if (!had.has('Verborgen' + i)) return 'Verborgen' + i; return 'Verborgen' + Date.now(); }
 function mkMaskInCel(c, r){ for (const m of MK.maskers){ const i = m.cells.findIndex(p => p.c === c && p.r === r); if (i >= 0) return { m, i }; } return null; }
@@ -31995,8 +31999,8 @@ function mkNotePaneel(){
       document.getElementById('mkvijknop').innerHTML = ''; document.getElementById('mkoverctl').style.display = 'none';
       document.getElementById('mkrichelctl').style.display = 'none'; document.getElementById('mkmaskctl').style.display = 'none';
       looktl.style.display = '';
-      document.getElementById('mkmasklook').value = m.look === 'zwart' ? 'zwart' : 'grot';
-      document.getElementById('mkmasklookinfo').textContent = 'Geldt voor het hele masker ' + m.id + '. Grotwand oogt als de ondergrondse rots; Helemaal zwart is een donker vlak zoals diep onder de grond.';
+      document.getElementById('mkmasklook').value = mkLookOf(m.look);
+      document.getElementById('mkmasklookinfo').textContent = 'Geldt voor het hele masker ' + m.id + '. Kies waar de verborgen plek op lijkt: grotwand, rotswand, savanne of helemaal zwart.';
       document.getElementById('mkstacklist').style.display = 'none';
       tablet.textContent = 'M'; tablet.style.background = '#5ad66e'; tablet.style.display = 'flex';
       insp.classList.toggle('dicht', MK.inspectDicht); return;
@@ -32212,7 +32216,7 @@ function mkNaarJSON(){
            cel:{ breedPx:MK_CEL_PX, hoogEenheden:MK_CEL_EENH },
            legenda:{ '.':'lucht', S:'savanne', R:'rots', W:'sneeuw op savanne', X:'sneeuw op rots', M:'muur', L:'laag obstakel', F:'zwevende laag', G:'gang', V:'ravijn' },
            grid, start:MK.start, eind:MK.eind, muziek:MK.muziek, valschade:MK.valschade,
-           maskers: MK.maskers.filter(m => m.cells.length).map(m => ({ id:m.id, look:m.look === 'zwart' ? 'zwart' : 'grot', cells:m.cells.map(p => [p.c, p.r]) })),
+           maskers: MK.maskers.filter(m => m.cells.length).map(m => ({ id:m.id, look:mkLookOf(m.look), cells:m.cells.map(p => [p.c, p.r]) })),
            vormen: MK.vormen.map(v => ({ t:v.t, x:v.x, y:v.y, w:v.w, h:v.h, rot:v.rot || 0, seed:v.seed || 0 })),
            zwart: MK.zwart.map(p => [p.c, p.r]),
            objecten: MK.objects.map(o => {
@@ -32238,7 +32242,7 @@ function mkUitJSON(o){
   MK.valschade = o.valschade !== undefined ? !!o.valschade : true;
   if (mkValschadeEl) mkValschadeEl.checked = MK.valschade;
   MK.maskers = Array.isArray(o.maskers) ? o.maskers.filter(m => m && Array.isArray(m.cells)).map(m => ({
-    id: String(m.id || 'Verborgen1'), look: m.look === 'zwart' ? 'zwart' : 'grot',
+    id: String(m.id || 'Verborgen1'), look: mkLookOf(m.look),
     cells: m.cells.map(p => Array.isArray(p) ? { c:p[0]|0, r:p[1]|0 } : { c:(p.c)|0, r:(p.r)|0 }) })) : [];
   MK.maskId = MK.maskers[0] ? MK.maskers[0].id : 'Verborgen1';
   MK.vormen = Array.isArray(o.vormen) ? o.vormen.filter(v => v && (v.t === 'blok' || v.t === 'blob' || VORM_IMG[v.t])).map(v => ({
@@ -32558,7 +32562,7 @@ function mkNaarLevel(){
         const [l, r2] = spanLR(cols[i], cols[j]);
         vakken.push({ l: Math.round(l), r: Math.round(r2), onder: Math.round((gR - row - 1) * MK_CEL_EENH), boven: Math.round((gR - row) * MK_CEL_EENH) });
         i = j + 1; } }
-    if (vakken.length) maskers.push({ id: m.id, look: m.look === 'zwart' ? 'zwart' : 'grot', vakken });
+    if (vakken.length) maskers.push({ id: m.id, look: mkLookOf(m.look), vakken });
   }
   if (maskers.length) lvl.maskers = maskers;
   // een zegel of rune dat aan een masker gekoppeld is, wordt een echte schakelaar die het wegneemt (stuurt + acties)
@@ -32786,7 +32790,7 @@ document.getElementById('mkrichelf').onclick = () => {
   MK.sel.f = !MK.sel.f; mkVulRichel(); mkTeken(); mkBewaar();
 };
 document.getElementById('mkvijsoort').onchange = e => { if (MK.sel && MK.sel.k === 'vijand'){ MK.sel.soort = e.target.value; mkTeken(); mkBewaar(); mkNotePaneel(); } };
-document.getElementById('mkmasklook').onchange = e => { if (MK.selMask){ MK.selMask.look = e.target.value === 'zwart' ? 'zwart' : 'grot'; mkTeken(); mkBewaar(); } };   // de look voor het hele masker
+document.getElementById('mkmasklook').onchange = e => { if (MK.selMask){ MK.selMask.look = mkLookOf(e.target.value); mkTeken(); mkBewaar(); } };   // de look voor het hele masker
 document.getElementById('mkinsptab').onclick = () => { MK.inspectDicht = false; mkNotePaneel(); };
 document.getElementById('mkinspclose').onclick = () => { MK.inspectDicht = true; mkNotePaneel(); };
 document.getElementById('mkdoel').onclick = () => { if (MK.sel && MK.sel.k === 'platform'){ mkDoelMode = true; document.getElementById('mkobjinfo').textContent = 'Tik nu de vloer aan waar het platform heen moet reizen.'; } };
