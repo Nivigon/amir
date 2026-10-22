@@ -29825,7 +29825,7 @@ function readLevel(txt){
              let onder = q.onder != null ? Number(q.onder) : h - ZWEEF.dik;
              if (onder >= h) onder = h - ZWEEF.dik;          // de onderkant ligt altijd onder de looplijn
              return { r: Number(q.r), l: Number(q.l), h, onder, look: q.look === 'rots' ? 'rots' : undefined,
-                      zwart: (q.zwart === 'plafond' || q.zwart === 'vulling') ? q.zwart : undefined };   // 'rots' = een rotsoverhang i.p.v. savanne; zwart: een zwart blok (plafond met tandjes, vulling zonder)
+                      zwart: (q.zwart === 'plafond' || q.zwart === 'vulling' || q.zwart === 'savanne') ? q.zwart : undefined };   // 'rots' = een rotsoverhang i.p.v. savanne; zwart: een zwevend zwart blok (savanne-vloer, muur, of plafond met tandjes)
            }),
            // gangen onder de grond: zie "holte onder de grond"
            holtes: (o.holtes || []).map(q => ({ r: Number(q.r), l: Number(q.l),
@@ -32221,15 +32221,18 @@ function mkNaarLevel(){
   }
   // solide cellen ONDER de grondlijn worden terrein op hun diepte (zie "een trede in een gang"). De zwarte
   // terreintegels horen hier thuis ("zwart boven de vloer is raar"): de gang eronder geeft de donkere achtergrond
-  // die zichtbaar blijft, en de zwarte tegels zijn de vloer, de muur en het plafond eromheen.
-  //  - zwarte savanne (zsavanne) -> een terras met grond: je loopt erop, zwart getekend. Zo is het de zwarte vloer.
-  //  - zwarte vulling (zvulling) -> een solide zwart blok (een zwever met rots-look zonder tandjes) dat zijn
-  //    geschilderde hoogte houdt: een muur waar je niet doorheen komt en een speer in blijft steken.
+  // die zichtbaar blijft, en de zwarte tegels zijn de vloer, de muur en het plafond eromheen. Elke zwarte tegel is
+  // een zwevend zwart blok dat zijn geschilderde hoogte houdt, zodat je meerdere niveaus op elkaar kunt stapelen
+  // (een vloer met lucht eronder is het plafond van het niveau daaronder), met de gang-achtergrond ertussen:
+  //  - zwarte savanne (zsavanne) -> een zwevende savannelaag, zwart: een vloer waar je bovenop loopt, met de ruimte
+  //    eronder als het niveau daaronder (laat twee cellen hoog voor headroom, dan loop je er rechtop onderdoor).
+  //  - zwarte vulling (zvulling) -> een solide zwart blok (een zwever met rots-look zonder tandjes): een muur waar je
+  //    niet doorheen komt en een speer in blijft steken.
   //  - zwart plafond (zplafond) -> hetzelfde blok, maar met zwarte tandjes aan de onderkant.
   // Een run splitst per soort (een muur boven een plafond is twee stukken) en onthoudt boven- en onderkant, zodat
-  // een muur of plafond zijn hoogte precies houdt in plaats van tot de bodem door te lopen. Een gewone (niet-zwarte)
-  // trede blijft wat hij was: een terras op zijn diepte, en de gang-vloer slaan we voor die over (de holte maakt
-  // hem al). Een zwarte tegel emit altijd, ook op de gang-vloerrij, want daar wil je juist de zwarte vloer zien.
+  // elk blok zijn hoogte precies houdt in plaats van tot de bodem door te lopen. Een gewone (niet-zwarte) trede
+  // blijft wat hij was: een terras op zijn diepte, en de gang-vloer slaan we voor die over (de holte maakt hem al).
+  // Een zwarte tegel emit altijd, ook op de gang-vloerrij, want daar wil je juist de zwarte vloer zien.
   const zwartSoort = s => s === 'zsavanne' ? 'savanne' : s === 'zvulling' ? 'vulling' : s === 'zplafond' ? 'plafond' : null;
   const onderRuns = [];
   for (let c = 0; c < C; c++){ let r = gR + 1;
@@ -32248,10 +32251,11 @@ function mkNaarLevel(){
     const [l, r] = spanLR(a.c, cEnd);
     const top = -(a.rTop - gR) * MK_CEL_EENH, onder = -(a.rBot + 1 - gR) * MK_CEL_EENH;   // boven- en onderkant in eenheden (negatief = onder de grond)
     const zw = zwartSoort(a.soort);
-    if (zw === 'vulling' || zw === 'plafond')          // een zwart blok dat zijn geschilderde hoogte houdt
-      zwevers.push({ r: Math.round(r), l: Math.round(l), h: top, onder, look: 'rots', zwart: zw });
-    else                                               // zwarte vloer (zsavanne) of een gewone trede: een terras op zijn diepte
-      terraces.push({ r: Math.round(r), l: Math.round(l), h: top, grond: savanne(a.soort), ...(zw ? { zwart: zw } : {}) });
+    if (zw)                                            // een zwevend zwart blok op zijn geschilderde hoogte: savanne is een
+      // vloer (savanne-look), vulling en plafond zijn rots (plafond met tandjes eronder). Zo stapel je niveaus.
+      zwevers.push({ r: Math.round(r), l: Math.round(l), h: top, onder, look: zw === 'savanne' ? undefined : 'rots', zwart: zw });
+    else                                               // een gewone (niet-zwarte) trede: een terras op zijn diepte
+      terraces.push({ r: Math.round(r), l: Math.round(l), h: top, grond: savanne(a.soort) });
     i = j;
   }
   // overhang-voorwerpen: een rotsoverhang of zwevende savannelaag met een vrije onderkant-hoogte om onder te
