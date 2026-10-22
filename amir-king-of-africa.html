@@ -5700,12 +5700,13 @@ function rotsLaag(z, groundY, scale, cx, st){
   ctx.restore();
   // de tandenband onder de rots: dezelfde tanden als een plafond, horizontaal langs de onderkant, vast aan
   // de wereld zodat ze niet meeschuiven, en geklemd op de breedte van de laag
-  if (zwart){                                           // zwart plafond: onregelmatige zwarte tandjes langs de onderkant
+  if (zwart === 'plafond'){                             // zwart plafond: onregelmatige zwarte tandjes langs de onderkant
     ctx.save(); ctx.beginPath(); ctx.rect(xl, floorY - 2, xr - xl, 80); ctx.clip();
     zwartTanden(ctx, xl, xr, floorY, cx - world);
     ctx.restore();
     return;
   }
+  if (zwart) return;                                    // zwarte muur/vulling: een egaal zwart blok, geen tandenband eronder
   const T = plafondBandSet();
   if (T){
     const im = T.strook, bw = im.width, bh = im.height, dicht = Math.round(GROT.band.dicht * bh);
@@ -29824,7 +29825,7 @@ function readLevel(txt){
              let onder = q.onder != null ? Number(q.onder) : h - ZWEEF.dik;
              if (onder >= h) onder = h - ZWEEF.dik;          // de onderkant ligt altijd onder de looplijn
              return { r: Number(q.r), l: Number(q.l), h, onder, look: q.look === 'rots' ? 'rots' : undefined,
-                      zwart: q.zwart === 'plafond' ? 'plafond' : undefined };   // 'rots' = een rotsoverhang i.p.v. savanne; zwart plafond = zwarte tandjes
+                      zwart: (q.zwart === 'plafond' || q.zwart === 'vulling') ? q.zwart : undefined };   // 'rots' = een rotsoverhang i.p.v. savanne; zwart: een zwart blok (plafond met tandjes, vulling zonder)
            }),
            // gangen onder de grond: zie "holte onder de grond"
            holtes: (o.holtes || []).map(q => ({ r: Number(q.r), l: Number(q.l),
@@ -32218,26 +32219,39 @@ function mkNaarLevel(){
       c = c2; }
     else c++;
   }
-  // solide cellen ONDER de grondlijn worden een richel/trede op hun diepte: een terras met een negatieve h (zie
-  // "een trede in een gang"). Zo kun je een platform op diepte tekenen en val je er niet meer doorheen. De vloer
-  // van een gang slaan we over, die maakt de holte al: een run die op of onder de gang-vloer (rij gR + gangDiep)
-  // ligt telt niet mee. De diepte komt van de bovenste cel van de run (de loopvlak-rij).
+  // solide cellen ONDER de grondlijn worden terrein op hun diepte (zie "een trede in een gang"). De zwarte
+  // terreintegels horen hier thuis ("zwart boven de vloer is raar"): de gang eronder geeft de donkere achtergrond
+  // die zichtbaar blijft, en de zwarte tegels zijn de vloer, de muur en het plafond eromheen.
+  //  - zwarte savanne (zsavanne) -> een terras met grond: je loopt erop, zwart getekend. Zo is het de zwarte vloer.
+  //  - zwarte vulling (zvulling) -> een solide zwart blok (een zwever met rots-look zonder tandjes) dat zijn
+  //    geschilderde hoogte houdt: een muur waar je niet doorheen komt en een speer in blijft steken.
+  //  - zwart plafond (zplafond) -> hetzelfde blok, maar met zwarte tandjes aan de onderkant.
+  // Een run splitst per soort (een muur boven een plafond is twee stukken) en onthoudt boven- en onderkant, zodat
+  // een muur of plafond zijn hoogte precies houdt in plaats van tot de bodem door te lopen. Een gewone (niet-zwarte)
+  // trede blijft wat hij was: een terras op zijn diepte, en de gang-vloer slaan we voor die over (de holte maakt
+  // hem al). Een zwarte tegel emit altijd, ook op de gang-vloerrij, want daar wil je juist de zwarte vloer zien.
+  const zwartSoort = s => s === 'zsavanne' ? 'savanne' : s === 'zvulling' ? 'vulling' : s === 'zplafond' ? 'plafond' : null;
   const onderRuns = [];
   for (let c = 0; c < C; c++){ let r = gR + 1;
     while (r < MK.rows){
       if (G[r] && solid(G[r][c])){
-        const rTop = r, s = G[r][c]; while (r < MK.rows && G[r] && solid(G[r][c])) r++;
-        const vloerRij = gangDiep[c] > 0 ? gR + gangDiep[c] : Infinity;   // de rij waar de gang-vloer zit
-        if (rTop < vloerRij) onderRuns.push({ c, rTop, soort: s });
+        const rTop = r, s = G[r][c]; while (r < MK.rows && G[r] && solid(G[r][c]) && G[r][c] === s) r++;
+        const rBot = r - 1, vloerRij = gangDiep[c] > 0 ? gR + gangDiep[c] : Infinity;   // de rij waar de gang-vloer zit
+        if (rTop < vloerRij || zwartSoort(s)) onderRuns.push({ c, rTop, rBot, soort: s });
       } else r++;
     }
   }
-  onderRuns.sort((a, b) => a.rTop - b.rTop || a.c - b.c);                 // gelijke diepte bij elkaar, op kolom
+  onderRuns.sort((a, b) => a.rTop - b.rTop || a.rBot - b.rBot || a.c - b.c);   // gelijke stukken bij elkaar, op kolom
   for (let i = 0; i < onderRuns.length;){
     const a = onderRuns[i]; let cEnd = a.c, j = i + 1;
-    while (j < onderRuns.length && onderRuns[j].rTop === a.rTop && onderRuns[j].soort === a.soort && onderRuns[j].c === cEnd + 1){ cEnd = onderRuns[j].c; j++; }
+    while (j < onderRuns.length && onderRuns[j].rTop === a.rTop && onderRuns[j].rBot === a.rBot && onderRuns[j].soort === a.soort && onderRuns[j].c === cEnd + 1){ cEnd = onderRuns[j].c; j++; }
     const [l, r] = spanLR(a.c, cEnd);
-    terraces.push({ r: Math.round(r), l: Math.round(l), h: -(a.rTop - gR) * MK_CEL_EENH, grond: savanne(a.soort) });
+    const top = -(a.rTop - gR) * MK_CEL_EENH, onder = -(a.rBot + 1 - gR) * MK_CEL_EENH;   // boven- en onderkant in eenheden (negatief = onder de grond)
+    const zw = zwartSoort(a.soort);
+    if (zw === 'vulling' || zw === 'plafond')          // een zwart blok dat zijn geschilderde hoogte houdt
+      zwevers.push({ r: Math.round(r), l: Math.round(l), h: top, onder, look: 'rots', zwart: zw });
+    else                                               // zwarte vloer (zsavanne) of een gewone trede: een terras op zijn diepte
+      terraces.push({ r: Math.round(r), l: Math.round(l), h: top, grond: savanne(a.soort), ...(zw ? { zwart: zw } : {}) });
     i = j;
   }
   // overhang-voorwerpen: een rotsoverhang of zwevende savannelaag met een vrije onderkant-hoogte om onder te
