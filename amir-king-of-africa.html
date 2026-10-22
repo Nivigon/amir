@@ -13889,7 +13889,11 @@ function cliffAt(){
   const cim = cliffPic();
   const wPx = (cim.naturalWidth && cim.naturalHeight
                ? cim.naturalWidth / cim.naturalHeight : 1652 / 969) * hPx;
-  return { wPx, hPx, wall: CLIFF.wall, leftWorld: CLIFF.wall - CLIFF.l * wPx };
+  // de rechterwand: standaard de vaste CLIFF.wall, maar een Maker-level mag hem uit zijn tekening zetten
+  // (level.rechtsWall), zodat je content en je eindpunt rechts van de start kunt leggen zonder tegen de
+  // vaste 620-grens te lopen. Zonder dat veld verandert er niets (alle bestaande levels, arena, baviaan).
+  const w = (level && level.rechtsWall != null) ? level.rechtsWall : CLIFF.wall;
+  return { wPx, hPx, wall: w, leftWorld: w - CLIFF.l * wPx };
 }
 
 const SNAKE_DIRS = { groen: 'enemies/slang1_zand/', zwart: 'enemies/slang2_roet/', knock: 'enemies/slang1_knock/' };
@@ -30130,6 +30134,7 @@ function readLevel(txt){
            kaleKlif: !!o.kaleKlif,                       // de klifwand en de hut aan start en eind niet tekenen (de grenzen blijven onzichtbaar bestaan); nu alleen de Maker (kale start en eind)
            valschade: !!o.valschade,                    // een diepe val kost levens (standaard uit)
            valDood: o.valDood != null ? Number(o.valDood) : undefined,   // een level kan de dodelijke valhoogte zelf zetten (de Level Maker: 4 gridcellen); zonder dit veld geldt VAL_DOOD (6 Amir)
+           rechtsWall: o.rechtsWall != null ? Number(o.rechtsWall) : undefined,   // de rechtergrens (de onzichtbare wand achter je); zonder dit veld de vaste CLIFF.wall. De Maker zet hem uit de tekening, zodat een eind rechts van de start bereikbaar is (zie cliffAt)
            hoogUitzicht: !!o.hoogUitzicht,              // gestapelde grondlagen: de camera klemt tegen de laag (geen zwarte diepte) en de achtergrond blijft staan, zodat een hoge laag er net zo uitziet als de basis
            overloop: !!o.overloop,                      // savanne steekt met de bovenste laag over elke hogere wand waar hij tegenaan stapt (opt-in, zie "overloopje")
            view: o.view ? Math.max(0.5, Math.min(1, Number(o.view))) : undefined,   // uitgezoomd spelen: kleiner dan 1 laat meer wereld vooruit zien (zie viewZoom)
@@ -32440,7 +32445,11 @@ function mkNaarLevel(){
   const C = MK.cols, gR = MK.ground, G = MK.grid;
   const startCol = MK.start ? MK.start.c : C - 1;
   const eindCol  = MK.eind  ? MK.eind.c  : 0;
-  const dir = (eindCol <= startCol) ? 1 : -1;               // Amir loopt naar links; zo wordt de x naar het eind toe negatiever
+  // altijd WYSIWYG: links op het grid is links in het spel, rechts is rechts. Het eindpunt bepaalt niet meer de
+  // looprichting (dat spiegelde vroeger de hele wereld zodra je het eind rechts van de start zette); het is nu puur
+  // een finish-markering op zijn getekende plek. Zo mag het eind ook rechts van de start liggen, en loopt de speler
+  // er naartoe of eromheen (de rechtergrens komt uit de tekening, zie rechtsWall onderaan).
+  const dir = 1;
   const rand = gc => (gc - startCol) * MK_CEL_PX * dir;     // wereld-x van een kolomrand
   const lr = c => { const a = rand(c), b = rand(c + 1); return [Math.min(a, b), Math.max(a, b)]; };
   const spanLR = (cA, cB) => { const [la] = lr(cA), [, rb] = lr(cB); return [Math.min(la, rb), Math.max(la, rb)]; };
@@ -32679,19 +32688,24 @@ function mkNaarLevel(){
   // lift die verder naar links reikt dan E, zoals bij een hoog eindplateau dat je via een lift bereikt). De
   // fakkels (het winnen) blijven op je eindpunt staan; de grens is alleen het achtervangnet zodat je niet de
   // lege savanne in loopt. We nemen de meest-linkse (negatiefste) x van elke getekende cel, elk voorwerp en zijn
-  // doelhoogte, en zetten de klif daar nog 450 px voorbij.
-  let linksX = Math.min(eindX, startX);
+  // doelhoogte, en zetten de klif daar nog 450 px voorbij. Tegelijk nemen we de meest-rechtse (rechtsX): die geeft
+  // de rechtergrens, zodat een eind of content rechts van de start niet achter de vaste CLIFF.wall (620) wegvalt.
+  let linksX = Math.min(eindX, startX), rechtsX = Math.max(eindX, startX);
   for (let c = 0; c < C; c++){
     let drawn = false; for (let r = 0; r < MK.rows; r++) if (G[r] && G[r][c] && G[r][c] !== 'lucht'){ drawn = true; break; }
-    if (drawn){ const [l] = lr(c); linksX = Math.min(linksX, l); }
+    if (drawn){ const [l, r] = lr(c); linksX = Math.min(linksX, l); rechtsX = Math.max(rechtsX, r); }
   }
-  for (const o of MK.objects){ const [l] = lr(o.c); linksX = Math.min(linksX, l); if (o.doel){ const [dl] = lr(o.doel.c); linksX = Math.min(linksX, dl); } }
+  for (const o of MK.objects){ const [l, r] = lr(o.c); linksX = Math.min(linksX, l); rechtsX = Math.max(rechtsX, r);
+    if (o.doel){ const [dl, dr] = lr(o.doel.c); linksX = Math.min(linksX, dl); rechtsX = Math.max(rechtsX, dr); } }
   // kaleKlif: geen grijze klifwand en geen hut aan start en eind (de grenzen blijven onzichtbaar bestaan), en
   // voorgrond: false haalt de standaard voorgrond-keien en -struiken weg. Zo is een Maker-level kaal: je ziet
   // alleen wat je zelf tekent, plus het eind met de fakkels op je eindplateau. De speer bij de start blijft.
   const lvl = { name:'Level Maker test', view:0.8, rocks:[], props:[], spawns, kaleKlif:true, voorgrond:false,
                 valDood: 4 * MK_CEL_EENH,   // in de Maker is een val van 4 gridhoogtes (600 eenheden) al dodelijk, strenger dan de standaard VAL_DOOD (6 Amir)
                 gaps, terraces, start:startX, ends:[{ x:eindX }], cliffs:[{ x:Math.round(linksX - 450) }] };
+  // de rechtergrens uit de tekening, maar alleen als je iets rechts van de vaste CLIFF.wall (620) hebt getekend of
+  // je eind daar ligt; anders laten we hem weg en blijft de vaste wand gelden (bestaande Maker-levels onveranderd).
+  if (rechtsX + 450 > CLIFF.wall) lvl.rechtsWall = Math.round(rechtsX + 450);
   if (MK.muziek && MK.muziek !== MUZIEK_BASIS) lvl.muziek = MK.muziek;   // de gekozen achtergrondmuziek (Dark Africa is de standaard)
   if (MK.valschade) lvl.valschade = true;                               // bij het testen standaard aan (het vinkje in de Maker-balk)
   if (holtes.length) lvl.holtes = holtes;
