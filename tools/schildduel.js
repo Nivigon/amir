@@ -9,6 +9,7 @@
 //   --spoor                                  per beeld de staat van de schildbandiet en Amir
 //   --fotos map                              schermafdrukken op vaste frames van de sprong (het beeld staat dan stil)
 //   --level "Test 46"                        speelt dat testlevel uit in plaats van een los duel
+//   --start -14500                           en begint daar (alleen voor de robot, het level verandert niet)
 //   --breed 1280 --hoog 720                  het scherm (standaard 960x540, dat is sneller; Amir is daar kleiner,
 //                                            dus ontwijken is er makkelijker dan op een laptop)
 //
@@ -90,9 +91,25 @@ function duel([stijl, reactie, seed, spoorAan]){
     // nieuwe schildbandieten melden (wanneer, waar, welk niveau)
     for (const m of schildmannen) if (!m.__id){ m.__id = ++B.nr; B.ev.push([+t.toFixed(2), 'schildbandiet ' + m.__id + ' (' + m.niveau + ') verschijnt', Math.round(m.x), 'Amir ' + Math.round(world)]); }
     for (const m of schildmannen) if (m.state === 'dood' && !m.__dood){ m.__dood = 1; B.ev.push([+t.toFixed(2), 'schildbandiet ' + m.__id + ' verslagen', Math.round(m.x)]); }
+    // de andere vijanden (bandiet, kooiman): melden, en als die het dichtst bij is gewoon ernaartoe en steken
+    for (const [naam, l] of [['bandiet', bandieten], ['kooiman', kooimannen]]) for (const m of l){
+      if (!m.__id){ m.__id = ++B.nr; m.__naam = naam; B.ev.push([+t.toFixed(2), naam + ' ' + m.__id + ' verschijnt', Math.round(m.x), 'Amir ' + Math.round(world)]); }
+      if ((m.dead || m.state === 'dood' || m.hp <= 0) && !m.__dood){ m.__dood = 1; B.ev.push([+t.toFixed(2), naam + ' ' + m.__id + ' verslagen', Math.round(m.x)]); }
+    }
+    for (const m of kooimannen) if (m.state !== m.__st){ m.__st = m.state; if (window.__duelKooiLog) B.ev.push([+t.toFixed(2), 'kooiman ' + m.state, Math.round(m.x), 'Amir ' + Math.round(world)]); }
+    const ander = [...bandieten, ...kooimannen].filter(m => !m.__dood).sort((a, b) => Math.abs(a.x - world) - Math.abs(b.x - world))[0];
     // de dichtstbijzijnde die nog leeft
     let s = null;
     for (const m of schildmannen) if (m.state !== 'dood' && m.state !== 'weg' && (!s || Math.abs(m.x - world) < Math.abs(s.x - world))) s = m;
+    if (ander && (!s || Math.abs(ander.x - world) < Math.abs(s.x - world) - 60)){
+      B.gezien = true;
+      const dx2 = ander.x - world, naar2 = dx2 < 0 ? 'ArrowLeft' : 'ArrowRight';
+      keys['Shift'] = false;
+      if (Math.abs(dx2) > 1.25 * CHAR_H * (H * (Number(sizeEl.value) / 100)) / CHAR_H){ keys['ArrowLeft'] = naar2 === 'ArrowLeft'; keys['ArrowRight'] = naar2 === 'ArrowRight'; return; }
+      const moet = dx2 < 0 ? -1 : 1;
+      if (facing !== moet){ keys['ArrowLeft'] = naar2 === 'ArrowLeft'; keys['ArrowRight'] = naar2 === 'ArrowRight'; return; }
+      keys['ArrowLeft'] = keys['ArrowRight'] = false; startAttack(); return;
+    }
     if (!s){
       if (B.gezien && !window.__duelLevel){ B.klaar = { uitkomst: 'verslagen', t }; for (const k in keys) keys[k] = false; return; }
       keys['ArrowLeft'] = true; keys['ArrowRight'] = false; keys['Shift'] = false;
@@ -168,9 +185,11 @@ function duel([stijl, reactie, seed, spoorAan]){
     await page.waitForFunction(() => typeof setLevel === 'function');
     await page.waitForTimeout(800);
     const lvNaam = opt('--level', null);
+    if (args.includes('--kooilog')) await page.evaluate(() => { window.__duelKooiLog = true; });
+    if (opt('--start', null)) await page.evaluate(v => { window.__duelStart = v; }, Number(opt('--start')));
     await page.evaluate(n => {
       window.__duelLevel = n;
-      if (n){ const i = TEST_LEVELS.findIndex(d => d.name.toLowerCase().includes(n.toLowerCase())); laadVorig = TEST_LEVELS[i].name; setLevel(i, TEST_LEVELS); beginPlay('medium'); return; }
+      if (n){ const i = TEST_LEVELS.findIndex(d => d.name.toLowerCase().includes(n.toLowerCase())); if (window.__duelStart) TEST_LEVELS[i].start = window.__duelStart; laadVorig = TEST_LEVELS[i].name; setLevel(i, TEST_LEVELS); beginPlay('medium'); return; }
       const def = { name: 'Schildduel', lagen: 'tafelbergen', view: 0.8,
         spawns: [ {x: -1300, k: 'schildman'} ], rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
         cliffs: [ {x: -9000} ], ends: [ {x: -8500} ], tips: [] };
@@ -188,7 +207,7 @@ function duel([stijl, reactie, seed, spoorAan]){
       const klaar = await page.evaluate(() => window.__duel.klaar);
       if (args.includes('--dbg')) console.log(await page.evaluate(() => JSON.stringify({ vt: Math.round(window.__vt()), t0: window.__duel.t0,
         w: Math.round(world), sp: spear, lw: typeof laadWacht !== 'undefined' && laadWacht, n: schildmannen.length, s: schildmannen[0] && schildmannen[0].state })));
-      if (klaar || Date.now() - klok > 240000) break;
+      if (klaar || Date.now() - klok > Math.max(240000, maxS * 5000)) break;
     }
     const D = await page.evaluate(() => window.__duel);
     const k2 = D.klaar || { uitkomst: 'afgebroken', t: 0 };
