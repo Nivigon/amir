@@ -349,6 +349,10 @@ piekt bijna drie keer Amirs lengte en landt rond 1,6 scherm. Lang vasthouden is
 daarmee niet gewoon beter, want de boog zeilt over alles heen wat dichtbij
 staat en je staat er een halve seconde langer kwetsbaar voor stil.
 
+Een geworpen speer raakt maar een tegenstander. Staan er twee op dezelfde plek,
+dan houdt de eerste hem op en loopt de tweede ongedeerd door. Dat geldt ook voor
+een gewone stoot; alleen de lage zwaai raakt alles wat binnen zijn bereik staat.
+
 Je hoeft niet te gooien als je eenmaal spant. Spring, buk of loop de andere kant op
 en de worp gaat niet door: je houdt je speer en Amir doet meteen wat je vraagt. Er
 wordt ook nooit vanzelf gegooid, hoe lang je ook vasthoudt. Wacht je met een
