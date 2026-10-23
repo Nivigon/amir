@@ -64,6 +64,9 @@ DOELEN = [
                                         # hoog en wordt op iets boven Amir zijn hoogte getekend
     ('enemies/bandiet_elite', 400),     # de elite-garde (omgekleurd uit bandiet), zelfde maat en canvas
     ('enemies/bandiet_duin', 400),      # de Duinwacht (omgekleurd uit bandiet), zelfde maat en canvas
+    ('enemies/schildbandiet', 400),     # de schildbandiet: 52 frames op een canvas van 544x860; de
+                                        # figuur is 340 hoog en wordt op iets boven Amir zijn hoogte getekend
+                                        # (alleen loop_metschild en strike_metschild; de zonderschild-sets volgen)
     ('enemies/kooiman', 400),           # 81 frames op een canvas van 726x648; de gebukte figuur is 301
                                         # hoog en wordt op ongeveer Amir zijn hoogte getekend
     ('enemies/vogel', 400),             # de secretarisvogel uit de kooi: 50 frames op 536x405,
