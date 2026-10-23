@@ -1128,7 +1128,7 @@
         <label>Schildbandiet</label>
         <button data-spawn="schildman">Neerzetten</button>
         <button id="sbschvrij">AI uit</button>
-        <span class="hint">loopt met zijn houten schild op je af en valt aan met een sprong: hij zakt door zijn knieen (tell), springt naar waar je stond (dan is hij onstuitbaar en onaantastbaar) en landt met zijn speer. Stap weg om de sprong te ontwijken. Zijn schild vangt drie treffers op (witte flits, houtklap, houtsnippers); daarna is hij in een klap dood. Komt hij bij een kei met jou aan de overkant, dan springt hij er met dezelfde sprong overheen (een ravijn houdt hem wel tegen). Testversie: na de schildbreuk blijft het schild nog zichtbaar (de zonderschild-art volgt)</span>
+        <span class="hint">loopt met zijn houten schild op je af en valt aan met een sprong: hij zakt door zijn knieen (tell), springt naar waar je stond (dan is hij onstuitbaar en onaantastbaar) en landt met zijn speer. Stap weg om de sprong te ontwijken. Zijn schild vangt drie treffers op (witte flits, houtklap, houtsnippers); daarna is hij in een klap dood. Komt hij bij een kei met jou aan de overkant, dan springt hij er met dezelfde sprong overheen (een ravijn houdt hem wel tegen). Na de schildbreuk loopt en slaat hij zonder schild (alleen zijn flinch heeft nog geen eigen zonderschild-art)</span>
       </div>
       <div class="row">
         <label>Meelman</label>
@@ -28739,7 +28739,14 @@ function loop(now){
     const javBox = (jav && jav.state === 'vlucht' && !jav.hit)
                  ? { l: cx + (jav.x - world) - javR, r: cx + (jav.x - world) + javR,
                      t: groundY - jav.h * scale - javR, b: groundY - jav.h * scale + javR } : null;
-    const javRaakt = box => !!javBox && hitBy(javBox, box);
+    // een geworpen speer raakt maar een vijand: de eerste die hij raakt houdt hem op (javHitEnemy zet jav.hit), en
+    // javOp sluit hem ook af als die vijand hem terugkaatst. Zo raakt hij er geen twee die op dezelfde plek staan.
+    // Alleen de lage zwaai (swbox) raakt er meer tegelijk.
+    let javOp = false;
+    const javRaakt = box => {
+      if (!javBox || javOp || !jav || jav.hit || jav.state !== 'vlucht' || !hitBy(javBox, box)) return false;
+      javOp = true; return true;
+    };
     if (showBoxes){
       ctx.save();
       ctx.globalAlpha = 0.45; ctx.strokeStyle = '#8ef2a0'; ctx.lineWidth = 2;
@@ -30815,6 +30822,8 @@ function syncLevel(){
       if (s.neer) o.neer = true;                // komt van boven de arena in
       if (s.vogel) o.vogel = true;              // een kooiman met een vogel in de kooi
       if (s.duel === false) o.duel = false;     // de duel staat standaard aan: alleen het bewust uitzetten bewaren
+      if (s.niveau === 'makkelijk') o.niveau = 'makkelijk';   // de makkelijke schildbandiet (moeilijk is de standaard)
+      if (s.achter > 0) o.achter = Math.round(s.achter);      // zoveel px verder weg starten, een tel later in het gevecht
       if (s.y != null) o.y = Math.round(s.y);   // een vaste hoogte: op een laag, of uit de lucht (alleen slangen)
       return o;
     }),   // de kei bij een rune zet het spel zelf (runeKeiZet)
@@ -32672,6 +32681,11 @@ const MK_VIJANDEN = [
       { soort:'bandiet:elite', naam:'Elite (garde)' },
       { soort:'bandiet:hurk',  naam:'Hinderlaag (gehurkt)' },
   ] },
+  // de schildbandiet: de moeilijke is de standaard (k: 'schildman'), de makkelijke krijgt niveau: 'makkelijk'
+  { id:'schildman', naam:'Schildbandiet', kleur:'#8a6a44', varianten:[
+      { soort:'schildman',           naam:'Moeilijk' },
+      { soort:'schildman:makkelijk', naam:'Makkelijk' },
+  ] },
 ];
 // een platte lijst soort -> {naam, kleur}, voor het tekenen en de dropdown
 const MK_VIJ_INFO = {};
@@ -33767,6 +33781,8 @@ function mkNaarLevel(){
     } else if (s.indexOf('kooiman') === 0){ sp = { x, k:'kooiman' };   // plain = de duel-variant (standaard); smash/vogel zetten duel uit
       if (s === 'kooiman:smash') sp.duel = false;
       else if (s === 'kooiman:vogel'){ sp.vogel = true; sp.duel = false; }
+    } else if (s.indexOf('schildman') === 0){ sp = { x, k:'schildman' };   // plain = de moeilijke (standaard)
+      if (s === 'schildman:makkelijk') sp.niveau = 'makkelijk';
     } else sp = { x, k: s };
     // Staat de vijand boven de grondlijn op een zwevende laag of een verhoogd terras, dan zet hij daar
     // ook neer (boven: het spel plaatst hem met bovenVloer op die laag, net als in Honingjacht 3), in
