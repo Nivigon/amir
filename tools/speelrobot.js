@@ -2,8 +2,12 @@
 // De speelrobot: speelt een level in het echte spel, en meldt wat er gebeurt.
 //
 // levelcheck.py rekent een level na; de robot loopt het. Hij laadt het spel in Chromium, zet
-// het level klaar en loopt naar links, op een vaste 60 beelden per seconde (virtuele tijd: los
-// van hoe snel deze computer is, dus een sprong is hier even hoog als bij een speler). Hij
+// het level klaar en loopt naar het eind toe, op een vaste 60 beelden per seconde (virtuele tijd:
+// los van hoe snel deze computer is, dus een sprong is hier even hoog als bij een speler). Welke
+// kant op leidt hij af uit de finish (de fakkels, level.ends): ligt die links van de start, dan
+// loopt hij naar links (zoals altijd), ligt die rechts, dan naar rechts. Zonder finish (arena, de
+// baviaan) loopt hij naar links. Loopt hij ergens helemaal vast, dan draait hij een paar keer om
+// en probeert de andere kant (een level met een bocht erin). Hij
 //
 //   - springt als hij ergens tegenaan loopt,
 //   - springt over een ravijn zonder gang eronder, en laat zich in een ingang vallen,
@@ -21,6 +25,8 @@
 //   node tools/speelrobot.js level.json            een level uit de bouwer
 //   --taai            levens komen terug (en uit een ravijn wordt hij teruggezet), zo speelt hij door
 //   --lopen           zonder sprint
+//   --rechts          forceer naar rechts (anders uit de finish afgeleid)
+//   --links           forceer naar links
 //   --max 90          hoogstens zoveel seconden speeltijd
 //   --shots map       schermafdrukken, elke --elke seconden (standaard 1,5)
 //   --spoor           elke tiende seconde: tijd, x, hoogte, op de grond, levens
@@ -87,7 +93,7 @@ async function start(){
 }
 
 // Dit draait in de pagina, na elk beeld. Het gebruikt de globale namen van het spel.
-function robot([lopen, taai, wachten, vredig]){
+function robot([lopen, taai, wachten, vredig, richtForce]){
   const B = window.__robot = { spoor: [], ev: [], klaar: null, t0: null, beelden: 0, vijand: {}, regel7: [] };
   // regel 7: een vijand komt niet over een kei of een ravijn. Per vijand onthouden we aan welke
   // kant van elk obstakel hij stond; staat hij ineens aan de andere kant, dan is hij erover.
@@ -98,12 +104,21 @@ function robot([lopen, taai, wachten, vredig]){
   let lastX = world, stuckT = 0, lastT = null, lastLives = lives, wasGround = true, top = 0;
   let vastX = null, vastT = 0, laatsteSp = -1;
   const schaal = () => (H * (Number(sizeEl.value) / 100)) / CHAR_H;
-  keys['ArrowLeft'] = true; if (!lopen) keys['Shift'] = true;
+  // de looprichting: -1 naar links (x zakt), +1 naar rechts (x stijgt). Standaard links; --rechts/--links
+  // forceert; anders uit de finish (de fakkels, level.ends) afgeleid: naar het eind toe. world staat nu op
+  // de startplek, dus het teken van (eind - start) zegt welke kant het eind op ligt.
+  let dir = -1;
+  if (richtForce) dir = richtForce;
+  else if (level && level.ends && level.ends.length) dir = Math.sign(level.ends[0].x - world) || -1;
+  const gaKey = () => dir < 0 ? 'ArrowLeft' : 'ArrowRight';
+  let draais = 0; const MAX_DRAAI = 2;                 // bij helemaal vastlopen de andere kant proberen, hoogstens zo vaak
+  keys[gaKey()] = true; if (!lopen) keys['Shift'] = true;
   window.__robotStap = tt => {
     if (B.klaar) return;
     if (B.t0 === null){ B.t0 = tt; lastT = tt; }
     const dt = tt - lastT; lastT = tt; B.beelden++;
     const t = tt - B.t0, r2 = v => Math.round(v);
+    let go = true;                                     // of hij deze beurt in zijn looprichting mag; de toetsen worden onderaan hieruit gezet
     if (won){ B.klaar = { uitkomst: 'gewonnen', t, x: r2(world), h: r2(ph) }; return; }
     if (dead && !taai){ B.klaar = { uitkomst: 'dood', t, x: r2(world), h: r2(ph) }; return; }
     if (lives !== lastLives){
@@ -132,13 +147,14 @@ function robot([lopen, taai, wachten, vredig]){
     if (!onGround && pvh < 0)
       for (const p of platsNear(sc))
         if (world + hw > p.left && world - hw < p.right && ph > p.topH && p.topH > (vl === null ? -1e9 : vl) + 20) loslaten = true;
-    keys['ArrowLeft'] = !loslaten;
+    if (loslaten) go = false;
     // --wacht x:t  op x even blijven staan, zodat de vijanden hem kunnen bereiken
     for (const [wx, wt] of wachten){
-      if (!wachtKlaar.has(wx) && world <= wx && onGround){ wachtKlaar.add(wx); wachtTot = t + wt; B.ev.push({ t: +t.toFixed(2), wat: 'blijft ' + wt + ' s staan', x: r2(world), h: r2(ph) }); }
+      const bereikt = dir < 0 ? world <= wx : world >= wx;   // op wx aangekomen, in de looprichting
+      if (!wachtKlaar.has(wx) && bereikt && onGround){ wachtKlaar.add(wx); wachtTot = t + wt; B.ev.push({ t: +t.toFixed(2), wat: 'blijft ' + wt + ' s staan', x: r2(world), h: r2(ph) }); }
     }
     const wacht = wachtTot !== null && t < wachtTot;
-    if (wacht){ keys['ArrowLeft'] = false; vastT = t; }
+    if (wacht){ go = false; vastT = t; }
     // de laadpoort staat dicht (een winterlevel haalt zijn plaatjes op): de lus staat stil en
     // toetsen doen niets. Niet meetellen als vastlopen, anders springt hij zodra hij weer mag en
     // vliegt hij over zijn eigen speer heen
@@ -150,7 +166,7 @@ function robot([lopen, taai, wachten, vredig]){
     const voor = [];
     for (const b of thickets) if (b.stage < THICKET_HITS) voor.push([b.x, b.base]);
     for (const l of [snakes, scorps, zwaarden, kooimannen, hyenas, panthers, fosforSlangen]) for (const e of l) if (!e.dead) voor.push([e.x, e.base || 0]);
-    const iets = voor.some(([x, b]) => x < world + 40 && x > world - 200 && Math.abs(b - ph) < 60);
+    const iets = voor.some(([x, b]) => { const d = (x - world) * dir; return d > -40 && d < 200 && Math.abs(b - ph) < 60; });
     if (!vredig && spear && iets && onGround && !jump) startAttack();
     // de vijanden: op welke hoogte liepen ze, en hoe hoog kwamen ze
     for (const [naam, l] of [['slang', snakes], ['schorpioen', scorps], ['zwaard', zwaarden], ['kooiman', kooimannen], ['hyena', hyenas], ['panter', panthers], ['fosfor', fosforSlangen]]){
@@ -177,26 +193,36 @@ function robot([lopen, taai, wachten, vredig]){
       });
     }
     // een ravijn voor hem zonder gang eronder: aan de rand springen
-    const g = inGap(world - 60);
+    const g = inGap(world + dir * 60);
     if (!wacht && onGround && ph >= -1 && g && !holteAt(g.x) && !inGap(world)) startJump();
     // en beneden in een gang een put in de vloer (PUT): ook aan de rand springen
-    const pu = typeof putBij === 'function' && ph < -1 ? putBij(world - 60) : null;
+    const pu = typeof putBij === 'function' && ph < -1 ? putBij(world + dir * 60) : null;
     if (!wacht && onGround && pu && !putBij(world)) startJump();
     // op een kei: eerst neerkomen, dan aan de rand eraf springen
     if (onGround){
       const ps = platsNear(sc).filter(p => !p.terrace);
       const op = ps.some(p => world + hw > p.left && world - hw < p.right && Math.abs(p.topH - ph) < 2);
-      const verder = ps.some(p => world - 12 > p.left && world - 12 < p.right + 2 * hw && p.topH >= ph - 2);   // nog kei voor hem
-      if (op && jump && jump.phase === 'land') keys['ArrowLeft'] = false;
+      const pb = world + dir * 12;                                   // net voor zijn voeten, in de looprichting
+      const verder = ps.some(p => (dir < 0 ? (pb > p.left && pb < p.right + 2 * hw)     // nog kei voor hem (naar links)
+                                           : (pb < p.right && pb > p.left - 2 * hw))    // of naar rechts
+                                  && p.topH >= ph - 2);
+      if (op && jump && jump.phase === 'land') go = false;
       else if (op && !verder && vl !== null && ph > vl + 1 && !wacht) startJump();
     }
     // vast tegen iets: springen (behalve voor een doornbos, dat steekt hij weg)
     if (Math.abs(world - lastX) < 0.3 && onGround) stuckT += dt; else stuckT = 0;
     lastX = world;
     if (!wacht && stuckT > 0.1 && onGround && !(iets && spear && !vredig)){ startJump(); stuckT = 0; }
-    // helemaal vast: acht seconden niet meer dan 30 px verder
-    if (vastX === null || world < vastX - 30){ vastX = world; vastT = t; }
-    if (t - vastT > 8){ B.klaar = { uitkomst: 'vast', t, x: r2(world), h: r2(ph), grond: onGround }; return; }
+    // helemaal vast: acht seconden niet meer dan 30 px verder in de looprichting
+    const prog = dir < 0 ? vastX - world : world - vastX;
+    if (vastX === null || prog > 30){ vastX = world; vastT = t; }
+    if (t - vastT > 8){
+      if (draais < MAX_DRAAI){                         // misschien een bocht: de andere kant proberen
+        draais++; dir = -dir; vastX = null; vastT = t; stuckT = 0;
+        B.ev.push({ t: +t.toFixed(2), wat: 'vast, draait om naar ' + (dir < 0 ? 'links' : 'rechts'), x: r2(world), h: r2(ph) });
+      } else { B.klaar = { uitkomst: 'vast', t, x: r2(world), h: r2(ph), grond: onGround }; return; }
+    }
+    keys['ArrowLeft'] = go && dir < 0; keys['ArrowRight'] = go && dir > 0;   // de toetsen uit de looprichting en go
     if (t - laatsteSp >= 0.1){ laatsteSp = t; B.spoor.push([+t.toFixed(1), r2(world), r2(ph), onGround ? 1 : 0, lives]); }
   };
 }
@@ -237,7 +263,8 @@ function robot([lopen, taai, wachten, vredig]){
   if (!naam){ console.log('geen level gevonden: ' + doel); await browser.close(); srv.close(); process.exit(2); }
   console.log(naam + ' (' + fps + ' beelden per seconde, ' + breed + ' bij ' + hoog + ')');
   const wachten = (opt('--wacht', '') || '').split(',').filter(Boolean).map(w => w.split(':').map(Number));
-  await page.evaluate(robot, [args.includes('--lopen'), args.includes('--taai'), wachten, args.includes('--vredig')]);
+  await page.evaluate(robot, [args.includes('--lopen'), args.includes('--taai'), wachten, args.includes('--vredig'),
+                              args.includes('--rechts') ? 1 : args.includes('--links') ? -1 : 0]);
   const klok = Date.now();
   let n = 0, volgende = 0;
   for (;;){
