@@ -17626,8 +17626,20 @@ function grondDoorlopen(groundY){
   // De regel die gekopieerd wordt is ook de eerste regel die overgetekend wordt, en het
   // verloop begint daar op nul. Zo is er op de naad per kolom geen enkel verschil.
   const top = groundY - 2;
-  ctx.drawImage(cv, Math.round(x0 * DPR), Math.round(top * DPR), Math.max(1, Math.round((x1 - x0) * DPR)), 1,
-                x0, top, x1 - x0, diep + 4);
+  const sw = Math.max(1, Math.round((x1 - x0) * DPR));
+  const sx = Math.round(x0 * DPR), sy = Math.round(top * DPR);
+  // Niet het canvas op zichzelf tekenen (bron en doel dezelfde buffer): dat dwingt een readback
+  // af en kost per beeld 20 tot 170 ms zodra er een gat in beeld staat. Daarom eerst die ene
+  // bronregel naar een klein doek (geen overlap, blijft op de GPU) en van daaraf uitrekken. Het
+  // doek krijgt een randpixel mee aan elke kant, want aan de randen van de bronregel mengt de
+  // bilineaire sampling de buurpixels van het canvas mee; met die rand is de uitrekking per
+  // pixel gelijk aan de oude weg (nagemeten met tools/beeldgelijk.js).
+  const bx = Math.max(0, sx - 1), by = Math.max(0, sy - 1);
+  const ox = sx - bx, oy = sy - by;
+  const bw = Math.min(cv.width - bx, ox + sw + 1), bh = Math.min(cv.height - by, oy + 2);
+  const doek = werkDoek('grondstrook', bw, bh);
+  doek.getContext('2d').drawImage(cv, bx, by, bw, bh, 0, 0, bw, bh);
+  ctx.drawImage(doek, ox, oy, sw, 1, x0, top, x1 - x0, diep + 4);
   const d = ravijnDiep();
   const g = ctx.createLinearGradient(0, top, 0, groundY + diep);
   g.addColorStop(0, 'rgba(' + d + ',0)');
