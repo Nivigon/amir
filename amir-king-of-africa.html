@@ -29982,8 +29982,141 @@ function stopKing(){
   kingStart = null; kingTimer = null; voices.forEach(v => v.pause());
 }
 
+// ---- kaarslicht: de startfoto van onderen belicht ----
+// De foto achter het startscherm (design/menu/held.jpg, als achtergrond van .startart) wordt
+// opnieuw belicht door een kaars onder zijn kin, zoals een standbeeld bij kaarslicht. Het relief
+// komt uit de helderheid van de foto zelf (klein en vervaagd, `KAARS.hoogte`): daaruit volgt per
+// punt welke kant het opkijkt, en de vlam die zacht heen en weer gaat en flakkert laat de lichte
+// kanten en de schaduwen meeschuiven. Geen echte slagschaduw: de speer werpt niets op zijn gezicht.
+// Het canvas ligt in .startart onder de verlopen van ::before en ::after, en legt de foto net zo
+// neer als de CSS (cover, met dezelfde background-position), dus alle menu's houden hun indeling.
+// Geen WebGL, of het lukt niet: dan blijft gewoon de foto staan. De lus draait alleen zolang het
+// startscherm open is en het tabblad zichtbaar.
+const KAARS = {
+  foto: 'design/menu/held.jpg',
+  hoogte: [336, 189],           // maat van de hoogtekaart
+  vervaag: 2.5,                 // px vervaging op die kaart
+  relief: 5,                    // hoe sterk de helderheid als hoogte telt
+  plek: [0.30, 1.08],           // de vlam, in foto-coordinaten (0..1, y naar onder: net onder zijn kin)
+  hoogteVlam: 0.28,             // hoe ver de vlam voor het beeld staat
+  kleur: [1.0, 0.72, 0.42],     // warm kaarsgeel
+  donker: [0.2, 0.16, 0.14],    // wat er zonder kaars van de foto overblijft
+  sterk: 3.3,
+  val: 5,                       // hoe snel het licht met de afstand wegvalt
+  gloed: 0.28,                  // de gloed van de vlam zelf, onderin
+  flakker: 0.5,                 // hoe onrustig de vlam is
+  dpr: 1.5                      // hoogstens zoveel beeldpunten per css-pixel
+};
+const kaars = { cv: null, gl: null, u: {}, img: null, loopt: false, mix: 0, ruis: 0, vlaag: 0, pos: [0.16, 0.5], posT: 0 };
+function kaarsStart(){
+  const art = document.querySelector('#start .startart');
+  if (!art || kaars.cv) return;
+  const cv = document.createElement('canvas');
+  cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .8s';
+  const gl = cv.getContext('webgl', { alpha: false, antialias: false });
+  if (!gl) return;
+  const VS = 'attribute vec2 p;void main(){gl_Position=vec4(p,0,1);}';
+  const FS = `precision mediump float;
+uniform sampler2D uImg,uH;uniform vec2 uOff,uMaat,uCv,uTx,uLicht;uniform float uI,uMix,uIa,uRel,uHoog,uSterk,uVal,uGloed;
+uniform vec3 uKleur,uDonker;
+void main(){
+  vec2 px=vec2(gl_FragCoord.x,uCv.y-gl_FragCoord.y);
+  vec2 uv=(px-uOff)/uMaat;
+  vec3 c=texture2D(uImg,uv).rgb;
+  float hl=texture2D(uH,uv-vec2(uTx.x,0.)).r, hr=texture2D(uH,uv+vec2(uTx.x,0.)).r;
+  float hu=texture2D(uH,uv-vec2(0.,uTx.y)).r, hd=texture2D(uH,uv+vec2(0.,uTx.y)).r;
+  vec3 n=normalize(vec3((hl-hr)*uRel,(hu-hd)*uRel,1.));
+  vec3 L=vec3(uLicht.x*uIa,uLicht.y,uHoog)-vec3(uv.x*uIa,uv.y,0.);
+  float d=length(L); L/=d;
+  float diff=max(dot(n,L),0.);
+  float val=1./(1.+d*d*uVal);
+  float onder=smoothstep(-.1,1.05,uv.y);
+  vec3 uit=c*(uDonker+uKleur*uI*diff*val*(.5+onder)*uSterk);
+  float g=exp(-pow(length((uv-uLicht)*vec2(uIa,1.))*2.2,2.));
+  uit+=uKleur*g*uGloed*uI;
+  uit+=uKleur*pow(diff,6.)*val*uI*.18*c.r;
+  gl_FragColor=vec4(mix(c,uit,uMix),1.);
+}`;
+  const sh = (t, src) => { const s = gl.createShader(t); gl.shaderSource(s, src); gl.compileShader(s); return gl.getShaderParameter(s, gl.COMPILE_STATUS) ? s : null; };
+  const vs = sh(gl.VERTEX_SHADER, VS), fs = sh(gl.FRAGMENT_SHADER, FS);
+  if (!vs || !fs) return;
+  const P = gl.createProgram(); gl.attachShader(P, vs); gl.attachShader(P, fs); gl.linkProgram(P);
+  if (!gl.getProgramParameter(P, gl.LINK_STATUS)) return;
+  gl.useProgram(P);
+  const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  const a = gl.getAttribLocation(P, 'p'); gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, 2, gl.FLOAT, false, 0, 0);
+  for (const n of ['uImg','uH','uOff','uMaat','uCv','uTx','uLicht','uI','uMix','uIa','uRel','uHoog','uSterk','uVal','uGloed','uKleur','uDonker'])
+    kaars.u[n] = gl.getUniformLocation(P, n);
+  kaars.cv = cv; kaars.gl = gl;
+  const img = new Image();
+  img.onload = () => {
+    const tex = (eenheid, bron) => {
+      gl.activeTexture(eenheid); const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+      for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR],
+                            [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]])
+        gl.texParameteri(gl.TEXTURE_2D, k, v);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, bron);
+    };
+    const h = document.createElement('canvas'); [h.width, h.height] = KAARS.hoogte;
+    const hx = h.getContext('2d'); hx.filter = `grayscale(1) blur(${KAARS.vervaag}px)`; hx.drawImage(img, 0, 0, h.width, h.height);
+    tex(gl.TEXTURE0, img); tex(gl.TEXTURE1, h);
+    const u = kaars.u;
+    gl.uniform1i(u.uImg, 0); gl.uniform1i(u.uH, 1);
+    gl.uniform2f(u.uTx, 1 / h.width, 1 / h.height);
+    gl.uniform1f(u.uIa, img.width / img.height);
+    gl.uniform1f(u.uRel, KAARS.relief); gl.uniform1f(u.uHoog, KAARS.hoogteVlam);
+    gl.uniform1f(u.uSterk, KAARS.sterk); gl.uniform1f(u.uVal, KAARS.val); gl.uniform1f(u.uGloed, KAARS.gloed);
+    gl.uniform3fv(u.uKleur, KAARS.kleur); gl.uniform3fv(u.uDonker, KAARS.donker);
+    kaars.img = img;
+    art.insertBefore(cv, art.firstChild);       // voor ::after, dus de verlopen blijven erover liggen
+    kaarsWek();
+  };
+  img.src = KAARS.foto;
+}
+// de background-position van de foto, in delen (0..1); die verschilt per scherm en per menu
+function kaarsPositie(art){
+  const cs = getComputedStyle(art);
+  const deel = s => { s = (s || '').trim(); if (s.endsWith('%')) return parseFloat(s) / 100;
+    return s === 'left' || s === 'top' ? 0 : s === 'right' || s === 'bottom' ? 1 : 0.5; };
+  return [deel(cs.backgroundPositionX), deel(cs.backgroundPositionY)];
+}
+function kaarsWek(){
+  if (!kaars.img || kaars.loopt) return;
+  if (startEl.classList.contains('off') || document.hidden) return;
+  kaars.loopt = true; kaars.posT = 0;
+  requestAnimationFrame(kaarsLus);
+}
+function kaarsLus(ms){
+  if (startEl.classList.contains('off') || document.hidden){ kaars.loopt = false; return; }
+  const { cv, gl, u, img } = kaars, art = cv.parentNode;
+  const r = Math.min(devicePixelRatio || 1, KAARS.dpr);
+  const w = Math.max(1, Math.round(art.clientWidth * r)), h = Math.max(1, Math.round(art.clientHeight * r));
+  if (cv.width !== w || cv.height !== h){ cv.width = w; cv.height = h; gl.viewport(0, 0, w, h); kaars.posT = 0; }
+  if (--kaars.posT <= 0){ kaars.pos = kaarsPositie(art); kaars.posT = 30; }   // menu's wisselen de positie, niet elk beeld nodig
+  const s = Math.max(w / img.width, h / img.height), dw = img.width * s, dh = img.height * s;
+  gl.uniform2f(u.uCv, w, h); gl.uniform2f(u.uMaat, dw, dh);
+  gl.uniform2f(u.uOff, (w - dw) * kaars.pos[0], (h - dh) * kaars.pos[1]);
+  // de vlam: een paar sinussen, wat ruis en af en toe een tochtje dat hem even laat zakken
+  const t = ms / 1000, f = KAARS.flakker;
+  kaars.ruis = (kaars.ruis + (Math.random() - 0.5) * 0.25) * 0.88;
+  if (Math.random() < 0.004) kaars.vlaag = 1;
+  kaars.vlaag *= 0.96;
+  const I = 1 + f * (0.09 * Math.sin(t * 7.3) + 0.06 * Math.sin(t * 13.7 + 1.3) + 0.05 * Math.sin(t * 23.1 + 0.4) + kaars.ruis * 0.6) - kaars.vlaag * 0.35 * f;
+  const lx = KAARS.plek[0] + f * (0.025 * Math.sin(t * 1.7) + 0.012 * Math.sin(t * 5.1) + kaars.ruis * 0.03) + kaars.vlaag * 0.04;
+  const ly = KAARS.plek[1] + f * (0.015 * Math.sin(t * 2.3 + 2) + kaars.ruis * 0.02);
+  kaars.mix = Math.min(1, kaars.mix + 0.02);      // zacht aan, zodat het niet in een keer omslaat
+  gl.uniform2f(u.uLicht, lx, ly); gl.uniform1f(u.uI, I); gl.uniform1f(u.uMix, kaars.mix);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  cv.style.opacity = '1';
+  requestAnimationFrame(kaarsLus);
+}
+
 // ---------- startscherm ----------
 const startEl = document.getElementById('start');
+new MutationObserver(kaarsWek).observe(startEl, { attributes: true, attributeFilter: ['class'] });
+document.addEventListener('visibilitychange', kaarsWek);
+kaarsStart();
 let sandbox = false, godMode = false;
 const barEl = document.getElementById('bar');
 function beginPlay(mode){
