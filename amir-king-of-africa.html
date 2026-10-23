@@ -24912,10 +24912,16 @@ const SCHB_ROOT = 'enemies/schildbandiet/';
 const SCHB = {
   w: 544, h: 860, ground: 781, anker: 272, fig: 340, hShare: 1.22,
   loopN: 22, loopFps: 10, strikeN: 30,
-  // de per-frame duur van de sprong-aanval, in ms, uit metadata.json
-  strikeDur: [41, 83, 250, 291, 420, 250, 83, 83, 41, 83, 83, 83, 83, 208, 208, 83, 83, 41, 41, 41, 41, 41, 83, 83, 208, 420, 125, 420, 420, 600],
+  // de per-frame duur van de sprong-aanval, in ms, uit metadata.json. De staart (frame 24..29)
+  // is bewust ingekort: daar stond hij seconden lang stil op precies hetzelfde frame (364/807), een
+  // gratis mikpunt; nu is het herstel een kort, leesbaar straf-raam in plaats van een lange stop.
+  strikeDur: [41, 83, 250, 291, 420, 250, 83, 83, 41, 83, 83, 83, 83, 208, 208, 83, 83, 41, 41, 41, 41, 41, 83, 83, 110, 110, 100, 110, 120, 180],
   leapVan: 6, leapTot: 11,       // de sprong-frames: onstuitbaar en onaantastbaar, de engine verschuift hem
   hitVan: 12, hitTot: 16,        // de neerwaartse speerstoot: hier raakt hij Amir
+  landFrame: 18,                 // hier plant hij zich: de klap op de grond (stof, geluid, een zet voor Amir)
+  landVol: 0.5,                  // het grondgeluid (sounds/kooihitground.mp3, zoals de stamp van de kooiman)
+  landShake: 0.22, landVer: 1.4, // de schermschok bij de klap, en hoe ver weg hij nog voelbaar is (deel van W)
+  landDuw: 1300, landDuwR: 2.4,  // de klap duwt Amir een stukje naar achter (beginsnelheid px/s, binnen zoveel Amir-hoogtes)
   schild: 3,                     // treffers die het schild opvangt
   invHit: 0.4,                   // even met rust na een schildtreffer
   perTreffer: 6, perBreuk: 16,   // houtsnippers per schildtreffer en bij de breuk
@@ -25023,6 +25029,22 @@ function schbLeapDoel(s, target, plats, cliff){
 function schbSplinters(s, n){                      // houtsnippers van het doornbos hergebruikt (wielSplinters)
   wielSplinters(s.x, (s.base || 0) + 0.42 * CHAR_H, playerX() < s.x ? 1 : -1, n);
 }
+// de klap als hij uit de sprong op de grond plant: stofwolken rond zijn voeten, een grondgeluid (zoals
+// de stamp van de kooiman) en een zet die Amir een stukje naar achter duwt als hij dichtbij staat. Eén keer
+// per aanval (s.landed). Puur een zet, geen schade: de echte treffer zit al in de hit-frames (hurtPlayer).
+function schbLand(s, scale){
+  const vloer = s.base || 0, zS = schbScale();
+  steenStof(s.x - 90 * zS, s.x + 90 * zS, vloer, 1.3, vloer + 70);      // een brede stofwolk onder zijn voeten
+  puffWorld(s.x, 10, 0, 1.0, vloer);
+  kooiGrondGeluid(s.x, SCHB.landVol);                                   // het grondgeluid, zachter dan de kooislag
+  const nabij = Math.max(0, 1 - Math.abs(s.x - playerX()) / (SCHB.landVer * W));
+  shake = Math.max(shake, SCHB.landShake * nabij);
+  if (!dead && !godMode && !woedeAan() && schbZelfdeHoogte(s)
+      && Math.abs(playerX() - s.x) < SCHB.landDuwR * CHAR_H * scale){
+    const duw = (s.x < playerX() ? 1 : -1) * SCHB.landDuw;             // bij hem vandaan
+    if (Math.abs(duw) > Math.abs(knock)) knock = duw;                  // nooit zwakker dan een al lopende terugstoot
+  }
+}
 const schbGromSnd = banStemmen('sounds/schildgrom.mp3', 2);   // de dreigende grom als hij in beeld komt (een paar stemmen, mobiel-ontgrendeld)
 function schbGrom(){ banStemSpeel(schbGromSnd, 0.95); }
 // de houtklap als Amirs speer hout raakt (nu het schild van de schildbandiet). Eigen stemmen zodat
@@ -25042,7 +25064,7 @@ function makeSchildman(x, side){
   schbLaad();
   return { x, face: -side, state: 'loop', frame: 0, acc: 0, t: 0,
            schild: SCHB.schild, metSchild: true, inv: 0, flash: 0, base: 0, alpha: 1,
-           cool: 0, leapVan: 0, leapDoel: 0, geraaktAmir: false, geroepen: false,
+           cool: 0, leapVan: 0, leapDoel: 0, geraaktAmir: false, landed: false, geroepen: false,
            vrij: false, sweptId: -1, lig: 0 };
 }
 function updateSchildman(s, dt, plats, cliff){
@@ -25073,6 +25095,7 @@ function updateSchildman(s, dt, plats, cliff){
         hurtPlayer(s.x < playerX()); s.geraaktAmir = true;
       }
     }
+    if (!s.landed && f >= SCHB.landFrame){ s.landed = true; schbLand(s, scale); }   // de klap op de grond
     if (f >= SCHB.strikeN - 1 && s.acc >= (SCHB.strikeDur[SCHB.strikeN - 1] || 0)){
       schbSet(s, 'loop'); s.cool = SCHB.cool;
     }
@@ -25107,7 +25130,7 @@ function updateSchildman(s, dt, plats, cliff){
   }
   if (s.cool <= 0 && schbZelfdeHoogte(s) && gap < SCHB.aanval * CHAR_H * scale){
     schbSet(s, 'strike');
-    s.geraaktAmir = false;
+    s.geraaktAmir = false; s.landed = false;
     s.leapVan = s.x;
     s.leapDoel = schbLeapDoel(s, playerX(), plats, cliff);
     return;
