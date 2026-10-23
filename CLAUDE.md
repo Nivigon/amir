@@ -140,7 +140,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | het verhaal bij een episode | `VERHAAL`, `SLOT`, `verhaalToon()` | notities/episodes.md |
 | Episode De Poorten | `POORT_1`, `POORT_6`, `POORT_LEVELS` | notities/episodes.md |
 | Episode De Hoge Schijven | `HOOG_1`, `HOOG_5`, `HOOG_LEVELS` | notities/episodes.md |
-| Episode Test levels | `TEST_1`, `TEST_36`, `KAART_BLAD` | notities/episodes.md |
+| Episode Test levels | `TEST_1`, `TEST_47`, `KAART_BLAD` | notities/episodes.md |
 | Episode Baboon tests | `BAB_1`, `BAB_4`, `BAB_LEVELS` | notities/episodes.md |
 | goudaapje: het kleine gouden aapje en de arena | `GAAP`, `gaapSpawn`, `updateGoudapen` | notities/goudaapje.md |
 | het mes: Jackal Fang van Impungushe | `MES`, `mesInHand`, `mesTeken` | notities/mes.md |
@@ -157,6 +157,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | muur unlock: de rotswand met het rune-symbool | `MUUR`, `MUUR_GROT`, `muurGrotSet` | notities/muur.md |
 | ravijn in de winter | `RAVIJN_WINTER`, `ravijnWandNu()`, `ravijnSneeuwRand()` | notities/ravijn.md |
 | zegel in de grond: de runeschijf plat, als schakelaar | `ZEGEL`, `zegelGrond`, `zegelUpdate` | notities/zegel.md |
+| verstopt zegel: onder het zand, tot de lage zwaai het blootveegt | `ZEGEL_VERSTOP`, `ZEGEL_VEEG`, `zegelVeegUpdate` | notities/zegel.md |
 | speerval: een speer in de rotswand die een zegel losschiet | `SPEERVAL`, `speervalZegel`, `zegelUpdate` | notities/speerval.md |
 | zakplafond: een plafond dat zakt als je op een zegel stapt | `ZAK`, `zakStand`, `rust` | notities/zakplafond.md |
 | rijzende grond: steen dat op een zegel uit een ravijn komt | `RIJS`, `rijsUpdate`, `duur` | notities/rijzende-grond.md |
@@ -252,7 +253,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `tekens` | speertekens: `{x, v, f}`, `v` is `teken`, `gebroken`, `gekruist`, `jagers` of `kalebas`, `f` spiegelt; decor, behalve dat het mes de kalebas lossnijdt |
 | `fakkels` | geanimeerde wandfakkels: `{x, y, s, f}`, `x` de schacht, `y` de hoogte van de voet boven de grond in Amir (0 = op de grond, hoger = tegen een wand), `s` schaal, `f` spiegelen; brandend decor met gloed, vonken, schaduw en vuurgeluid (zie "fakkel") |
 | `talentKeuze` | `true`: voor het begin kies je zelf welke talents gelden, van alle tribes (alleen voor een Test level; nu Test 14) |
-| `zegels` | zegels plat in de grond: `{x, ravijn, sluit, breed, muur, speerval, teken, vijand, plafond, rijs, speer}` (zie `notities/velden.md`) |
+| `zegels` | zegels plat in de grond: `{x, ravijn, sluit, breed, muur, speerval, teken, vijand, plafond, rijs, speer, verstop, veeg}`; met `verstop` ligt hij onder het zand tot de lage zwaai hem blootveegt (zie `notities/velden.md`) |
 | `rijzers` | steen dat uit een ravijn omhoog komt: `{id, r, l, tot, van, v, wacht, duur}`, `id` de naam waar een zegel of een rune (`doel: true`) met `rijs` naar wijst, `tot` en `van` de bovenkant boven en beneden (standaard -1 en -900), `wacht` seconden voor hij begint, `duur` seconden boven voor hij terugzakt (zie "rijzende grond"); met `zak: true` staat hij boven en zakt hij onder Amir weg |
 | `takel` | een takelwiel met een hangend plateau; sla het rad met je speer, het plateau draagt en veert (zie `notities/velden.md`) |
 | `maskers` | geverfde stukken die een deel van het level verbergen: `{id, look, vakken}` (zie `notities/velden.md`) |
@@ -266,6 +267,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `ends` | de fakkels die het level uitspelen: `{x}` |
 | `npcs` | dorpelingen: `{x, k, f, s}` |
 | `tips` | tekst onderweg: `{x, t}` |
+| `pijlen` | rode pijlen in de lucht die iets aanwijzen: `{x, t}`, alleen voor testlevels (Test 47) |
 
 ### Een level toevoegen (alleen na toestemming)
 
