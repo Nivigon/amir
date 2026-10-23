@@ -8,6 +8,7 @@
 //   --keer 4   --max 40   --reactie 0.25    (reactietijd in seconden, voor de stijlen die reageren)
 //   --spoor                                  per beeld de staat van de schildbandiet en Amir
 //   --fotos map                              schermafdrukken op vaste frames van de sprong (het beeld staat dan stil)
+//   --level "Test 46"                        speelt dat testlevel uit in plaats van een los duel
 //   --breed 1280 --hoog 720                  het scherm (standaard 960x540, dat is sneller; Amir is daar kleiner,
 //                                            dus ontwijken is er makkelijker dan op een laptop)
 //
@@ -67,7 +68,7 @@ async function start(){
 function duel([stijl, reactie, seed, spoorAan]){
   let rnd = seed * 9301 + 49297;
   const rand = () => { rnd = (rnd * 9301 + 49297) % 233280; return rnd / 233280; };
-  const B = window.__duel = { klaar: null, ev: [], spoor: [], geraakt: 0, treffers: {}, aanvallen: 0, t0: null };
+  const B = window.__duel = { nr: 0, klaar: null, ev: [], spoor: [], geraakt: 0, treffers: {}, aanvallen: 0, t0: null };
   const sc = () => (H * (Number(sizeEl.value) / 100)) / CHAR_H;
   const amirH = () => CHAR_H * sc();
   const verleden = [];                     // wat de speler ziet, met vertraging
@@ -85,10 +86,20 @@ function duel([stijl, reactie, seed, spoorAan]){
       else { keys['ArrowLeft'] = true; }
       return;
     }
-    const s = schildmannen[0];
-    if (!s){ if (B.gezien){ B.klaar = { uitkomst: 'verslagen', t }; return; } keys['ArrowLeft'] = true; keys['ArrowRight'] = false; keys['Shift'] = false; if (t > 30) B.klaar = { uitkomst: 'geen vijand', t }; return; }
+    if (won){ B.klaar = { uitkomst: 'uitgespeeld', t }; return; }
+    // nieuwe schildbandieten melden (wanneer, waar, welk niveau)
+    for (const m of schildmannen) if (!m.__id){ m.__id = ++B.nr; B.ev.push([+t.toFixed(2), 'schildbandiet ' + m.__id + ' (' + m.niveau + ') verschijnt', Math.round(m.x), 'Amir ' + Math.round(world)]); }
+    for (const m of schildmannen) if (m.state === 'dood' && !m.__dood){ m.__dood = 1; B.ev.push([+t.toFixed(2), 'schildbandiet ' + m.__id + ' verslagen', Math.round(m.x)]); }
+    // de dichtstbijzijnde die nog leeft
+    let s = null;
+    for (const m of schildmannen) if (m.state !== 'dood' && m.state !== 'weg' && (!s || Math.abs(m.x - world) < Math.abs(s.x - world))) s = m;
+    if (!s){
+      if (B.gezien && !window.__duelLevel){ B.klaar = { uitkomst: 'verslagen', t }; for (const k in keys) keys[k] = false; return; }
+      keys['ArrowLeft'] = true; keys['ArrowRight'] = false; keys['Shift'] = false;
+      if (t > window.__duelMax) B.klaar = { uitkomst: 'tijd op', t };
+      return;
+    }
     B.gezien = true;
-    if (s.state === 'dood' || s.state === 'weg'){ B.klaar = { uitkomst: 'verslagen', t }; for (const k in keys) keys[k] = false; return; }
     if (t > window.__duelMax){ B.klaar = { uitkomst: 'tijd op', t }; return; }
     const st = s.state + (s.state === 'strike' ? s.frame : '');
     if (s.state === 'strike' && laatsteStaat.indexOf('strike') !== 0){ B.aanvallen++; }
@@ -156,12 +167,15 @@ function duel([stijl, reactie, seed, spoorAan]){
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 180000 });
     await page.waitForFunction(() => typeof setLevel === 'function');
     await page.waitForTimeout(800);
-    await page.evaluate(() => {
+    const lvNaam = opt('--level', null);
+    await page.evaluate(n => {
+      window.__duelLevel = n;
+      if (n){ const i = TEST_LEVELS.findIndex(d => d.name.toLowerCase().includes(n.toLowerCase())); laadVorig = TEST_LEVELS[i].name; setLevel(i, TEST_LEVELS); beginPlay('medium'); return; }
       const def = { name: 'Schildduel', lagen: 'tafelbergen', view: 0.8,
         spawns: [ {x: -1300, k: 'schildman'} ], rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
         cliffs: [ {x: -9000} ], ends: [ {x: -8500} ], tips: [] };
       laadVorig = 'Schildduel'; setLevel(0, [def]); beginPlay('medium');
-    });
+    }, lvNaam);
     await page.evaluate(m => { window.__duelMax = m; }, maxS);
     await page.evaluate(duel, [stijl, reactie, k + 1, args.includes('--spoor')]);
     const klok = Date.now();

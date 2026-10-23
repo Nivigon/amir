@@ -4138,7 +4138,37 @@ const TEST_45 = {
           { x: -3150, t: 'Een kei is voor hem geen schuilplek: komt hij erbij en sta jij aan de overkant, dan springt hij er met zijn sprong overheen' },
           { x: -5050, t: 'Over een ravijn springt hij niet (regel 7): dat is wel een schuilplek' } ]
 };
-const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31, TEST_32, TEST_33, TEST_34, TEST_35, TEST_36, TEST_37, TEST_38, TEST_39, TEST_40, TEST_41, TEST_42, TEST_43, TEST_44, TEST_45];
+const TEST_46 = {
+  name: 'Test 46: Schildbandieten oplopend',
+  lagen: 'middag',
+  view: 0.8,
+  // open vlakte zonder keien (over een kei springt hij toch), met tussen elke ontmoeting ruim twee
+  // schermen lucht, zodat de volgende pas komt als de vorige verslagen is
+  spawns: [ {x: -1900, k: 'schildman', niveau: 'makkelijk'},                 // 1: een makkelijke, alleen
+            {x: -4400, k: 'schildman', niveau: 'makkelijk'},                 // 2: twee makkelijke tegelijk,
+            {x: -4400, k: 'schildman', niveau: 'makkelijk', achter: 320},    //    de tweede een tel later
+            {x: -7200, k: 'schildman'},                                      // 3: een moeilijke, alleen
+            {x: -10000, k: 'schildman'},                                     // 4: twee moeilijke, de tweede
+            {x: -10000, k: 'schildman', achter: 620} ],                      //    stapt pas los van de eerste in
+  rocks: [], gaps: [],
+  skeletten: [ {x: -6000, f: 0}, {x: -8800, f: 1} ],                         // een reserve-speer voor elke moeilijke ronde
+  hppotions: [ {x: -3200, y: null}, {x: -6000, y: null}, {x: -8800, y: null} ],
+  ledges: [], village: [], npcs: [], water: [], thickets: [],
+  props: [ {x: -400,  k: 'gras',   s: 1.1, f: 0, v: 0},
+           {x: -1100, k: 'struik', s: 1.0, f: 1, v: 0},
+           {x: -2600, k: 'tree',   s: 1.0, f: 0, v: 1},
+           {x: -5600, k: 'gras',   s: 1.0, f: 1, v: 0},
+           {x: -8400, k: 'tree',   s: 0.9, f: 1, v: 1},
+           {x: -11200, k: 'struik', s: 1.0, f: 0, v: 0} ],
+  cliffs: [ {x: -12300} ],
+  ends: [ {x: -11800} ],
+  tips: [ { x: -120,  t: 'Testlevel: schildbandieten, van makkelijk naar moeilijk. Pak je speer op en loop naar links' },
+          { x: -1200, t: 'Een makkelijke: hij zakt lang door zijn knieen. Stap weg als hij afzet, en steek in zijn herstel' },
+          { x: -3600, t: 'Twee makkelijke: de tweede komt een tel na de eerste' },
+          { x: -6500, t: 'Een moeilijke: korte tell, snelle sprong, en hij stuurt na de afzet nog bij. Raak je hem, dan slaat hij meteen terug' },
+          { x: -9300, t: 'Twee moeilijke: de tweede stapt pas in als je met de eerste bezig bent' } ]
+};
+const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31, TEST_32, TEST_33, TEST_34, TEST_35, TEST_36, TEST_37, TEST_38, TEST_39, TEST_40, TEST_41, TEST_42, TEST_43, TEST_44, TEST_45, TEST_46];
 // ---- Episode Baboon tests: de baviaan, stuk voor stuk ----
 // Proefstukken voor de baviaan, los van de echte episodes (regel 1 geldt niet). Het is een episode, dus met de
 // tribekeuze voor het begin, net als De Poorten. Ze stonden eerst tussen de Test levels; de baviaan hoort bij elkaar.
@@ -21234,8 +21264,10 @@ function updateSnakes(dt, plats, halfWNow, cliff){
         m.base = terrainH(mx); meelmannen.push(m); continue;
       }
       if (sp.kind === 'schildman'){
-        const mx = sp.boven ? sp.x : spawnPoint(sp.x);
-        const m = makeSchildman(mx, mx > world ? 1 : -1);
+        let mx = sp.boven ? sp.x : spawnPoint(sp.x);
+        // achter: hij start tegelijk met de spawn ervoor, maar zoveel verder weg, zodat hij later het gevecht in loopt
+        if (sp.achter > 0) mx += (mx > world ? 1 : -1) * sp.achter;
+        const m = makeSchildman(mx, mx > world ? 1 : -1, sp.niveau);
         m.base = sp.boven ? bovenVloer(mx) : terrainH(mx); schildmannen.push(m); continue;
       }
       const x = (sp.boven || sp.y != null) ? sp.x : spawnPoint(sp.x);
@@ -25293,6 +25325,20 @@ const SCHB = {
   vMoveVan: 7, vMoveTot: 20,     // de frames waarover hij horizontaal de kei oversteekt (dan onaantastbaar)
   fade: 0.7                      // het lijk vervaagt (echte dood-animatie volgt later)
 };
+// het niveau per spawn (niveau: 'makkelijk'). Zonder het veld is hij 'moeilijk': de afstemming hierboven.
+// De makkelijke heeft een langere tell, een tragere sprong en een langer herstel, mikt alleen tot de
+// afzet, zet pas later door (pantser) en slaat na een flinch niet gepantserd terug.
+const SCHB_NIVEAU = {
+  makkelijk: { tell: 1.4, lucht: 1.25, herstel: 1.45, mikTot: 5, pantserVan: 4, cool: 1.9, aanval: 1.9, wraakT: 0 },
+  moeilijk:  {}
+};
+function schbN(s, k){ const n = SCHB_NIVEAU[s.niveau] || {}; return n[k] != null ? n[k] : SCHB[k]; }
+// de duur van strike-frame i voor deze schildbandiet (ms), met de tempo's van zijn niveau
+function schbDur(s, i){
+  const n = SCHB_NIVEAU[s.niveau] || {}, d = SCHB.strikeDur[i] || 0;
+  const k = i < SCHB.leapVan ? n.tell : i <= SCHB.leapTot ? n.lucht : i > SCHB.hitTot ? n.herstel : 1;
+  return d * (k || 1);
+}
 const SCHB_LIJF = { half: 85 };  // halve lijfbreedte in canvaspixels (het lijf, niet het schild), voor de botsing en de nbox
 // tijdelijke debug-markering: een groot rood rondje over het schild zodra het gebroken is, want het
 // schild zit nog in de frames gebakken (de zonderschild-art volgt). dx/h in canvaspixels vanaf het anker
@@ -25334,8 +25380,8 @@ function schbFrameImg(s){
 function schbAnim(s, dt){
   if (s.state === 'strike'){
     s.acc += dt * 1000;            // de strike loopt op ms (per-frame uit metadata)
-    while (s.frame < SCHB.strikeN - 1 && s.acc >= (SCHB.strikeDur[s.frame] || 0)){
-      s.acc -= (SCHB.strikeDur[s.frame] || 0); s.frame++;
+    while (s.frame < SCHB.strikeN - 1 && s.acc >= schbDur(s, s.frame)){
+      s.acc -= schbDur(s, s.frame); s.frame++;
     }
   } else if (s.state === 'flinch'){ // de flinch loopt ook op ms (per-frame uit metadata)
     s.acc += dt * 1000;
@@ -25358,7 +25404,7 @@ function schbSet(s, st){ if (s.state === st) return; s.state = st; s.frame = 0; 
 function schbSprongP(s){
   let tot = 0, nu = 0;
   for (let i = SCHB.leapVan; i <= SCHB.leapTot; i++){
-    const d = SCHB.strikeDur[i] || 0;
+    const d = schbDur(s, i);
     if (i < s.frame) nu += d; else if (i === s.frame) nu += Math.min(d, s.acc);
     tot += d;
   }
@@ -25454,9 +25500,9 @@ function houtRaak(){
   a.play().catch(() => {});
 }
 const schildmannen = [];
-function makeSchildman(x, side){
+function makeSchildman(x, side, niveau){
   schbLaad();
-  return { x, face: -side, state: 'loop', frame: 0, acc: 0, t: 0,
+  return { x, face: -side, niveau: niveau === 'makkelijk' ? 'makkelijk' : 'moeilijk', state: 'loop', frame: 0, acc: 0, t: 0,
            schild: SCHB.schild, metSchild: true, inv: 0, flash: 0, base: 0, alpha: 1,
            cool: 0, leapVan: 0, leapDoel: 0, geraaktAmir: false, landed: false, geroepen: false,
            vrij: false, sweptId: -1, lig: 0, knockV: 0, wraak: 0 };
@@ -25487,7 +25533,7 @@ function updateSchildman(s, dt, plats, cliff){
     }
     if (s.frame >= SCHB.flinchN - 1 && s.acc >= (SCHB.flinchDur[SCHB.flinchN - 1] || 0)){
       schbSet(s, 'loop'); s.cool = Math.max(s.cool, SCHB.flinchCool);
-      s.wraak = SCHB.wraakT;                               // zijn antwoord: de volgende sprong begint gepantserd
+      s.wraak = schbN(s, 'wraakT');                               // zijn antwoord: de volgende sprong begint gepantserd
     }
     return;
   }
@@ -25495,7 +25541,7 @@ function updateSchildman(s, dt, plats, cliff){
     schbAnim(s, dt);
     const f = s.frame, A = CHAR_H * scale;
     if (f < SCHB.leapVan) s.leapVan = s.x;                 // waar hij afzet
-    if (f <= SCHB.mikTot) schbMik(s, plats, cliff, scale);  // in de tell en net na de afzet volgt hij Amir nog
+    if (f <= schbN(s, 'mikTot')) schbMik(s, plats, cliff, scale);  // in de tell en net na de afzet volgt hij Amir nog
     if (f >= SCHB.leapVan && f <= SCHB.leapTot){           // de sprong: de engine verschuift hem naar het doel
       s.x = s.leapVan + (s.leapDoel - s.leapVan) * schbSprongP(s);
     } else if (f > SCHB.leapTot) s.x = s.leapDoel;          // geland: precies op zijn doel
@@ -25509,8 +25555,8 @@ function updateSchildman(s, dt, plats, cliff){
       }
     }
     if (!s.landed && f >= SCHB.landFrame){ s.landed = true; schbLand(s, scale); }   // de klap op de grond
-    if (f >= SCHB.strikeN - 1 && s.acc >= (SCHB.strikeDur[SCHB.strikeN - 1] || 0)){
-      schbSet(s, 'loop'); s.cool = SCHB.cool;
+    if (f >= SCHB.strikeN - 1 && s.acc >= schbDur(s, SCHB.strikeN - 1)){
+      schbSet(s, 'loop'); s.cool = schbN(s, 'cool');
     }
     return;
   }
@@ -25541,9 +25587,9 @@ function updateSchildman(s, dt, plats, cliff){
       return;
     }
   }
-  if (s.cool <= 0 && schbZelfdeHoogte(s) && gap < SCHB.aanval * CHAR_H * scale){
+  if (s.cool <= 0 && schbZelfdeHoogte(s) && gap < schbN(s, 'aanval') * CHAR_H * scale){
     schbSet(s, 'strike');
-    if (s.wraak > 0){ s.frame = SCHB.pantserVan; s.wraak = 0; }   // het antwoord op een treffer: meteen de gepantserde tell
+    if (s.wraak > 0){ s.frame = schbN(s, 'pantserVan'); s.wraak = 0; }   // het antwoord op een treffer: meteen de gepantserde tell
     s.geraaktAmir = false; s.landed = false;
     s.leapVan = s.x;
     schbMik(s, plats, cliff, scale);
@@ -25569,7 +25615,7 @@ function hitSchildman(s){
   }
   hits++; hitsEl.textContent = hits;
   // het pantser: in de late tell zet hij door. De treffer kost hem schild, maar zijn aanval loopt door.
-  const pantser = s.state === 'strike' && s.frame >= SCHB.pantserVan && s.frame < SCHB.leapVan;
+  const pantser = s.state === 'strike' && s.frame >= schbN(s, 'pantserVan') && s.frame < SCHB.leapVan;
   if (s.schild > 0){                                      // het schild vangt de treffer op
     s.schild--;
     s.flash = 0.3; s.inv = SCHB.invHit;
@@ -30831,6 +30877,9 @@ function readLevel(txt){
                                                 vogel: s.vogel === true,
                                                 // duel: de geensceneerde duel-variant van de kooiman (standaard aan, uit met duel: false)
                                                 duel: s.duel !== false,
+                                                // niveau: de schildbandiet 'makkelijk' (zonder het veld 'moeilijk'); achter: zoveel px verder weg starten
+                                                niveau: s.niveau === 'makkelijk' ? 'makkelijk' : undefined,
+                                                achter: Number(s.achter) > 0 ? Number(s.achter) : undefined,
                                                 // speed: een per-spawn snelheidsfactor (standaard 1), nu voor de slang (zie "gedrag per vijand")
                                                 speed: s.speed != null ? Math.max(0.3, Math.min(2.5, Number(s.speed) || 1)) : undefined,
                                                 y: (s.y === null || s.y === undefined) ? null : Number(s.y) })),
@@ -32103,6 +32152,7 @@ window.addEventListener('keydown', e => {
 // ---- menu: kaartjes per level ----
 const SUBS = {
   'Test 45: De schildbandiet': 'Een man met een houten schild die springend aanvalt: drie schildtreffers, dan een klap dood. Over een kei springt hij heen, een ravijn houdt hem tegen',
+  'Test 46: Schildbandieten oplopend': 'Eerst een makkelijke, dan twee makkelijke tegelijk, dan een moeilijke, en tot slot twee moeilijke die los van elkaar het gevecht in stappen',
   'Test 44: Overloop': 'Een trapje omhoog: overal waar savanne tegen een hogere wand stapt, steekt de bovenste laag over de muur',
   'Test 40: Bloed': 'Elke klap een snee op de bandiet, de derde treffer een death-spuit uit zijn borst',
   'Hoog 1: De kei voor de schijf': 'Van de grond gooi je blind: klim op de kei. En stenen die onder je wegzakken',
