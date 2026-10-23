@@ -1041,7 +1041,7 @@
         <label>Schildbandiet</label>
         <button data-spawn="schildman">Neerzetten</button>
         <button id="sbschvrij">AI uit</button>
-        <span class="hint">loopt met zijn houten schild op je af en valt aan met een sprong: hij zakt door zijn knieen (tell), springt naar waar je stond (dan is hij onstuitbaar en onaantastbaar) en landt met zijn speer. Stap weg om de sprong te ontwijken. Zijn schild vangt drie treffers op (witte flits, houtsnippers); daarna is hij in een klap dood. Testversie: na de schildbreuk blijft het schild nog zichtbaar (de zonderschild-art volgt)</span>
+        <span class="hint">loopt met zijn houten schild op je af en valt aan met een sprong: hij zakt door zijn knieen (tell), springt naar waar je stond (dan is hij onstuitbaar en onaantastbaar) en landt met zijn speer. Stap weg om de sprong te ontwijken. Zijn schild vangt drie treffers op (witte flits, houtklap, houtsnippers); daarna is hij in een klap dood. Komt hij bij een kei met jou aan de overkant, dan springt hij er met dezelfde sprong overheen (een ravijn houdt hem wel tegen). Testversie: na de schildbreuk blijft het schild nog zichtbaar (de zonderschild-art volgt)</span>
       </div>
       <div class="row">
         <label>Meelman</label>
@@ -4027,8 +4027,8 @@ const TEST_45 = {
   tips: [ { x: -120,  t: 'Testlevel: de schildbandiet. Pak je speer op en loop naar links' },
           { x: -1700, t: 'Hij loopt met zijn schild op je af en springt naar waar je staat: stap weg zodra hij door zijn knieen zakt. In de sprong is hij onaantastbaar' },
           { x: -2600, t: 'Zijn schild vangt drie treffers (witte flits, houtsnippers); daarna is hij in een klap dood' },
-          { x: -3150, t: 'Achter de kei komt hij niet, en hij springt er ook niet overheen (regel 7): even op adem komen' },
-          { x: -5050, t: 'Over het ravijn springt hij evenmin' } ]
+          { x: -3150, t: 'Een kei is voor hem geen schuilplek: komt hij erbij en sta jij aan de overkant, dan springt hij er met zijn sprong overheen' },
+          { x: -5050, t: 'Over een ravijn springt hij niet (regel 7): dat is wel een schuilplek' } ]
 };
 const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31, TEST_32, TEST_33, TEST_34, TEST_35, TEST_36, TEST_37, TEST_38, TEST_39, TEST_40, TEST_41, TEST_42, TEST_43, TEST_44, TEST_45];
 // ---- Episode Baboon tests: de baviaan, stuk voor stuk ----
@@ -24894,6 +24894,8 @@ const SCHB = {
   aanval: 2.0,                   // aanvalsafstand (in Amir-hoogtes): dan zet hij de sprong in
   raak: 1.2,                     // reik van de landende speer (in Amir-hoogtes)
   cool: 2.0,                     // seconden tussen twee aanvallen (LEESMIJ: elke 2 seconden)
+  vFrom: 4, vTo: 27, vFps: 22,   // de vault over een kei: de sprong-frames (de aanval) getrimd en sneller (~1 s)
+  vMoveVan: 7, vMoveTot: 20,     // de frames waarover hij horizontaal de kei oversteekt (dan onaantastbaar)
   fade: 0.7                      // het lijk vervaagt (echte dood-animatie volgt later)
 };
 const SCHB_LIJF = { half: 85 };  // halve lijfbreedte in canvaspixels (het lijf, niet het schild), voor de botsing en de nbox
@@ -24921,7 +24923,7 @@ function schbLaadLevel(lv){
 }
 function schbFrameImg(s){
   const met = s.metSchild;
-  if (s.state === 'strike'){
+  if (s.state === 'strike' || s.state === 'vault'){        // de vault hergebruikt de sprong-frames
     const bank = (!met && schbBank.strike_zonder) ? schbBank.strike_zonder : schbBank.strike_met;
     return bank && bank[Math.min(s.frame, bank.length - 1)];
   }
@@ -24934,6 +24936,10 @@ function schbAnim(s, dt){
     while (s.frame < SCHB.strikeN - 1 && s.acc >= (SCHB.strikeDur[s.frame] || 0)){
       s.acc -= (SCHB.strikeDur[s.frame] || 0); s.frame++;
     }
+  } else if (s.state === 'vault'){  // de vault loopt op een vaste, snelle fps over een deel van de strike-frames
+    s.acc += dt;
+    const spf = 1 / SCHB.vFps;
+    while (s.acc >= spf && s.frame < SCHB.vTo){ s.acc -= spf; s.frame++; }
   } else {
     s.acc += dt;
     const spf = 1 / SCHB.loopFps;
@@ -24942,7 +24948,29 @@ function schbAnim(s, dt){
 }
 function schbSet(s, st){ if (s.state === st) return; s.state = st; s.frame = 0; s.acc = 0; }
 function schbZelfdeHoogte(s){ return Math.abs(vloerBij(playerX(), ph) - (s.base || 0)) <= 90; }
-function schbOnaantastbaar(s){ return s.state === 'strike' && s.frame >= SCHB.leapVan && s.frame <= SCHB.leapTot; }
+function schbOnaantastbaar(s){
+  if (s.state === 'strike') return s.frame >= SCHB.leapVan && s.frame <= SCHB.leapTot;
+  if (s.state === 'vault')  return s.frame >= SCHB.vMoveVan && s.frame <= SCHB.vMoveTot;   // in de lucht boven de kei
+  return false;
+}
+// regel 7-uitzondering (expliciet gevraagd): komt hij bij een kei met Amir aan de overkant, dan is dat voor
+// Amir geen schuilplek en springt hij er met zijn sprong-frames overheen. Zoekt de kei die hem tegenhoudt
+// (alleen een echte kei, geen terras of zwevende laag), net als banKeiVoor bij de bandiet. Een ravijn blijft
+// hem wel tegenhouden.
+function schbKeiVoor(s, naarJe, plats){
+  const halfL = SCHB_LIJF.half * schbScale();
+  const nx = s.x + naarJe * SCHB.loopSpd / 60;            // één loopstap vooruit
+  for (const p of plats){
+    if (p.terrace || p.zweef || p.thin) continue;         // alleen een losse kei
+    if (!blocksMonster(p, s.base || 0)) continue;
+    const mid = (p.left + p.right) / 2;
+    if (!(nx + halfL > p.left && nx - halfL < p.right && Math.abs(nx - mid) < Math.abs(s.x - mid))) continue;
+    const nabij = naarJe < 0 ? p.right : p.left;          // Amir aan de overkant van de kei?
+    const amirOver = naarJe < 0 ? playerX() < nabij - 4 : playerX() > nabij + 4;
+    if (amirOver) return p;
+  }
+  return null;
+}
 function schbMove(s, stap, plats, cliff){        // regel 7: stopt voor kei, ravijn, trede en klif
   const nx = s.x + stap;
   const half = SCHB_LIJF.half * schbScale();
@@ -24968,6 +24996,18 @@ function schbSplinters(s, n){                      // houtsnippers van het doorn
 }
 const schbGromSnd = banStemmen('sounds/schildgrom.mp3', 2);   // de dreigende grom als hij in beeld komt (een paar stemmen, mobiel-ontgrendeld)
 function schbGrom(){ banStemSpeel(schbGromSnd, 0.95); }
+// de houtklap als Amirs speer hout raakt (nu het schild van de schildbandiet). Eigen stemmen zodat
+// snelle treffers elkaar niet afsnijden. Hij start een fractie later (HOUT_START) zodat de korte
+// stilte vooraan eraf gaat en de klap meteen op de treffer valt.
+const houtRaakSnd = banStemmen('sounds/houtraak.mp3', 3);
+const HOUT_START = 0.03, HOUT_VOL = 0.9;
+function houtRaak(){
+  if (!wantSound) return;
+  const k = houtRaakSnd, a = k.pool[k.beurt++ % k.pool.length];
+  try { a.currentTime = HOUT_START; } catch (e) {}
+  a.volume = HOUT_VOL;
+  a.play().catch(() => {});
+}
 const schildmannen = [];
 function makeSchildman(x, side){
   schbLaad();
@@ -25009,6 +25049,15 @@ function updateSchildman(s, dt, plats, cliff){
     }
     return;
   }
+  if (s.state === 'vault'){                               // over een kei: dezelfde sprong, maar als traversal (geen treffer)
+    schbAnim(s, dt);
+    const f = s.frame, a = SCHB.vMoveVan, b = SCHB.vMoveTot;
+    let u = f <= a ? 0 : f >= b ? 1 : (f - a) / (b - a);
+    u = u * u * (3 - 2 * u);                               // smoothstep: zet af, zweeft over de kei, landt erachter
+    s.x = s.leapVan + (s.leapDoel - s.leapVan) * u;
+    if (f >= SCHB.vTo){ schbSet(s, 'loop'); s.cool = Math.min(s.cool, 0.2); }
+    return;
+  }
 
   // loop: met het schild op Amir af
   if (s.vrij){ schbAnim(s, dt); return; }                 // sandbox: AI uit, speelt alleen de loop
@@ -25016,6 +25065,17 @@ function updateSchildman(s, dt, plats, cliff){
   const dx = playerX() - s.x, gap = Math.abs(dx), naarJe = dx >= 0 ? 1 : -1;
   s.face = naarJe;
   schbAnim(s, dt);
+  // regel 7-uitzondering: een kei met Amir aan de overkant springt hij over (geen ravijn)
+  const kei = schbKeiVoor(s, naarJe, plats);
+  if (kei){
+    const marge = SCHB_LIJF.half * schbScale() + 40;
+    const doel = naarJe < 0 ? kei.left - marge : kei.right + marge;
+    if (!inGap(doel)){                                     // niet via een kei een ravijn in springen
+      schbSet(s, 'vault'); s.frame = SCHB.vFrom;
+      s.leapVan = s.x; s.leapDoel = doel;
+      return;
+    }
+  }
   if (s.cool <= 0 && schbZelfdeHoogte(s) && gap < SCHB.aanval * CHAR_H * scale){
     schbSet(s, 'strike');
     s.geraaktAmir = false;
@@ -25040,6 +25100,7 @@ function hitSchildman(s){
   if (s.schild > 0){                                      // het schild vangt de treffer op
     s.schild--;
     s.flash = 0.3; s.inv = SCHB.invHit;
+    houtRaak();                                           // speer op hout: de houtklap
     schbSplinters(s, SCHB.perTreffer);
     if (s.schild === 0){                                  // de derde treffer breekt het schild
       s.metSchild = false;
@@ -31545,7 +31606,7 @@ window.addEventListener('keydown', e => {
 }, true);
 // ---- menu: kaartjes per level ----
 const SUBS = {
-  'Test 45: De schildbandiet': 'Een man met een houten schild die springend aanvalt: drie schildtreffers, dan een klap dood. Een kei en een ravijn als schuilplek',
+  'Test 45: De schildbandiet': 'Een man met een houten schild die springend aanvalt: drie schildtreffers, dan een klap dood. Over een kei springt hij heen, een ravijn houdt hem tegen',
   'Test 44: Overloop': 'Een trapje omhoog: overal waar savanne tegen een hogere wand stapt, steekt de bovenste laag over de muur',
   'Test 40: Bloed': 'Elke klap een snee op de bandiet, de derde treffer een death-spuit uit zijn borst',
   'Hoog 1: De kei voor de schijf': 'Van de grond gooi je blind: klim op de kei. En stenen die onder je wegzakken',
