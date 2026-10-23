@@ -105,91 +105,99 @@ mee, dus token-verbruik telt. Houd je aan deze volgorde:
 - Een losstaande taak hoort in een eigen, korte chat: een lange chat met veel features betaalt de opgebouwde
   context telkens opnieuw. Stel een verse chat voor als een nieuw verzoek los staat van wat er nu loopt.
 
+**11. Raak je een onderwerp uit de index aan, lees dan eerst zijn notitie.** De tabel onder
+"Waar wat staat" wijst per onderwerp naar een bestand in `notities/`; de volledige uitleg,
+de meetgeschiedenis en de sandbox-knoppen staan daar, niet meer hier. Is het breed, laat een
+subagent die notitie lezen en alleen de conclusie teruggeven (regel 10).
+
 ## Waar wat staat
 
 De HTML is opgedeeld met commentaarkoppen (`// ---- ... ----`). Zoek daarop, niet op
 regelnummer, want die schuiven bij elke wijziging.
 
-| kop | wat er staat |
-| --- | --- |
-| laadpoort: een level loopt pas als alles binnen is | `LAAD`, `laadOpen`, `laadPoort`, `laadStap`, `#laad`: het zetten van `src` op elk plaatje zet het vanzelf in `laadOpen` tot het binnen is of ontbreekt (een haakje op `HTMLImageElement.prototype`), dus een nieuwe lader hoeft niets aan te melden. `restart` zet de poort dicht; de lus staat stil (`dt` 0, geen toetsen) tot `laadOpen` twee beelden achter elkaar leeg is, met na `LAAD.toon` het scherm Laden en na `LAAD.max` gaat hij toch door. Bij een nieuw level (een andere naam dan `laadVorig`, `laadMin`) staat het scherm er meteen en minstens `LAAD.min` (5) seconden, met de naam van het level (`#laadnaam`); de balk (`laadToon`) loopt dan nooit sneller dan de tijd, dus kunstmatig door als alles al binnen is. Opnieuw in hetzelfde level wacht niet. In het menu en de bouwer wacht hij niet. Geluid telt niet mee. Daarna bakt `warmBouw` in stukjes van `WARM_BUDGET` ms per beeld vooraf wat anders een schok geeft; een taak die `false` teruggeeft is nog niet klaar, gaat achteraan en houdt het laadscherm dicht (tot `LAAD.max`). Zo meet de baviaan zijn kaders per frame (`bavKaderVooraf`: uitpakken buiten de hoofddraad via `fetch` en `createImageBitmap`) in plaats van alle 200 in een ronde. Ook wat anders pas gemaakt werd als het in beeld kwam, zit erin: de lichtkaart onder de grond (`lkKaart`, dan de kolommen in stukjes van zes vanaf de startplek, `lkKolom`), het licht op elke runerots (`runeLichtMaak`), het effect van elk ravijn (`ravijnVastVoor`, met een keer `drawGap` zodat de wand naar de kaart gaat) en de canvassen van de rotswand (`muurSet`) |
-| versie: welke update er live staat | `versieTijd` (uit `document.lastModified`) heel klein linksboven, en `toonUpdates`: de laatste vijf samengevoegde pull requests van GitHub (`VERSIE_REPO`), met of ze erin zitten (regel 8) |
-| niet verder tekenen dan er in beeld komt | `zichtVak(marge)` geeft het zichtbare vak in de coordinaten die nu gelden (de zoom van de bouwer, `view` van een level en de schok van het schudden zitten erin verrekend), of `null` als de ruimte scheef staat; `vulVak(x, y, w, h)` is een `fillRect` die daar niet buiten reikt; `werkDoek(naam, w, h)` geeft een doek dat hergebruikt wordt in plaats van elk beeld een nieuw canvas. Elke laag die op wereldmaat tekent en door een clip op zijn plek wordt gehouden, hoort hier tegenaan te lopen: de tegellussen van een gang (`tegel` in `drawHolte`), de grondtegel in `scene`, de achtergrondpanelen (`drawLayer`) en de wand en de kap van een schacht (`grotMassa`, `schachtKap`). Dat was het haperen: niet de pixels (het canvas knipt het overschot zelf weg) maar de lussen en de doeken eromheen, in Klim 9 en Test 27 145 en 137 ms per beeld, nu 9. Verander je hier iets, draai dan `tools/beeldgelijk.js` |
-| de zon: schijf, krans en ademende ring | `ZON`, `drawZon`: de zon in de lucht, met een lichte kern, een krans, een gloed op de horizon en een zachte ring die langzaam ademt (`ringAdem`, `ringT`). Plek, straal en kleur blijven uit `sun` in `SCENES`. Daarnaast `drawWaas`: overdag lucht tussen jou en de verte, met het veld `waas` in `SCENES` (het uitzicht `middag`). In de sandbox onder Tijd van de dag (`sbLagen`) en Zon |
-| globale lichtlaag | kleurwaas over het beeld, volgt de zon van het level; een level stelt hem bij met `licht` in `SCENES` |
-| de schaduw van Amir | `AMIR_SCHADUW`, `amirSilhouet`, `amirSilLeg`, `drawAmirSchaduw`: zijn eigen frame als silhouet op de grond, in twee lagen en nergens een ronde vlek. De omgevingsschaduw (`omgeving`) is het silhouet recht naar beneden platgedrukt, dikker gemaakt en zacht, half achter en half voor de voeten; die is er altijd, ook onder de grond, even sterk als het licht rond hem (`amirLicht`, uit `lkRondAmir`). De zonneschaduw: richting en lengte uit de zon van het uitzicht (`zonSchaduw`, `sun` in `SCENES`): naar voren, want de zon staat achter het landschap, opzij van de zon af, en langer naarmate de zon lager staat, tot 1,2 keer zijn lengte. Onder de grond of onder rots alleen waar de zon komt (`amirZon`, uit `lkZon`). In een sprong blijven beide recht onder hem; de zonneschaduw vervaagt snel (`wegSil`), zodat de omgevingsschaduw de landing aanwijst. Getekend na de terrassen, treden en keien (`amirSchaduw`, vlak voor de lichtkaart), anders vallen die eroverheen. Bij een ravijn en op een zuil knipt hij de schaduw af langs dezelfde grillige breukrand als het steen (`traceGap`), op een zuil over zijn hele breedte (de platformrand van een zuil is een halve Amir smaller, zie `terracePlats`), anders staat er een rechte kant in de schaduw. Een keer per frame gebakken, en dat voor elk frame van Amir vooraf in `warmBouw` (idle, loop, stoot, worp, zwaai, sprong, bukken, kruipen), zodat de eerste keer niet midden in het spel valt. De omgevingsschaduw vervaagt het silhouet een keer en stapelt die vervaagde kopie verschoven (`dik`), in plaats van elke kopie apart te vervagen: hetzelfde beeld, een derde van de tijd. De ravijnen en de lichtkaart gebruiken nog de vaste `LK.zonHoek` |
-| tribes: de keuze per run en de abilities | `TRIBE_CONFIG` (bovenin het script: alle namen, teksten en getallen) en `RUN` (tribeId, verdiende abilities, uitgespeelde levels); onder "tribes: keuzescherm, ability, HUD" `tribeKies`, `tribeNaLevel` (vanuit `winLevel`, geeft een talentpunt in `RUN.punten`), de talent tree onder "talent tree" (ontwerp 7 uit de schetsen: groeit omhoog, het thema per tribe in `boom` in `TRIBE_CONFIG`, met `TB_RING`, `tbLijn`, `TB_TEKEN` voor plaatjes die nog ontbreken en `tbVergelijk` voor zonder en met; `tribeBoomToon`, `tbStaat`, `tbKlik`, `tbBijwerken`; in `#trunlock`, ook te bekijken via `pztalents` in de pauze; op het keuzescherm opent een kaart de boom zonder te kiezen (`tribeBekijk`, `tbKijk`, `tbRun`), en `tribeVastleggen` legt de tribe pas vast bij het eerste talent of bij Join; een tribe op slot laat `TB_LEEG` lege plekken zien), `opnieuw` (na game over hetzelfde level, abilities blijven), `hudToon`, `tribeHeeft` en `abilityWaarde`. Een ability werkt alleen via die twee: Quick Hand in `updateThrow`, Thorn Breaker in `hitThicket`, Twin Sweep (id `low_sweep`, `ladingen`) in `sweepMax`; de lage zwaai zelf heeft iedereen, met ladingen die in `SWEEP_HERLAAD` seconden terugkomen (`swLading`, `sweepLaden`, `zwaaiHud` rechtsboven), en wat hij raakt staat voor iedereen in `zwaaiVak`, Fourth Life in `levensStart`. Een tribe met `bijStart` krijgt zoveel talentpunten meteen bij het kiezen; nu staat dat bij alle tribes op 1, zodat je keuze vanaf level 1 telt (`tbWanneer` zegt dan `From the start`). De woedemeter van Bhubesi (`woede` in zijn blok, stand in `RUN.woede`) staat onder "woede": `heeftWoede` (Long Breath of Blood Rush), `woedeVul` (vanuit `vijandDood` en `hitPanther`), `woedeStart` (G, de meter, de knop `woede` in `TOUCH_BTNS`), `woedeAan` houdt `hurtPlayer`, `valLand` en `fosforBijt` tegen, `woedeGloed` en `woedeVonken` bij het tekenen van Amir. Elke episode begint met de tribekeuze (`runStart` in zijn speelknoppen, en bij dubbelklikken op een kaartje in `buildCards`), nu De Poorten en Baboon tests; de Test levels niet, tenzij daar expliciet om gevraagd wordt, en daar gelden alle abilities van de tribes die niet op slot staan, net als bij testen vanuit de bouwer (Test 14 laat je kiezen, zie `talentKeuze`). Een tribe op slot (nu Impungushe) mag al abilities hebben: die gelden dan alleen in de sandbox en in Test 14; zijn boom laat ze dicht zien en zijn kaart op het keuzescherm blijft leeg. De sandbox heeft `sbAbilities`, de speelrobot speelt zonder tribe en dus zonder abilities. De plaatjes in `design/tribes/` komen uit `tools/tribe_logos.py`; de drie ability-plaatjes van Bhubesi zijn uitgeknipt (tot 400 bij 400, grijs eromheen doorzichtig) uit de JPG's in de hoofdmap, waarvan twee namen omgewisseld zijn: `fastereimmortal.jpg` is Long Breath, `longerimmortal.jpg` Blood Rush, `extralife.jpg` Fourth Life |
-| muziek per level | `MUZIEK`, `MUZIEK_BASIS` (Dark Africa: bij de start, in het menu, de bouwer, de sandbox en elk level zonder veld `muziek`), `zetMuziek()`: welk deuntje onder welk level loopt |
-| beeld: de grote of de kleine spriteset | `KLEIN_FAM`, de keuze groot of klein, `zetBron` |
-| hppotion | de drinkkalebas |
-| renstoot: sprinten en dan stoten | `RENSTOOT`, `glijStart`, `glijUpdate`, `glijWolk`: vanuit een sprint neemt hij zijn vaart mee in de stoot en glijdt hij remmend door, met het stof van de lage zwaai bij zijn voeten; stopt voor een ravijn. In de sandbox onder Renstoot |
-| reserve-speren op de rug (prototype) | `RUG`, `RUG_MAX`, `rugSperen`, `rugTrekT`, `rugAan`, `rugVol`, `rugErbij`, `rugUpdate`, `rugTrekKlaar`, `rugSpeerTeken`, `eigenSpeerLos`: 1 speer in de hand plus de rug, dus `RUG_MAX + 1` worpen voor je melee-loos bent. Gooien (`looseSpear`) zet een korte beat (`RUG.trek`); is die om, dan trek je er een van je rug in je hand (`rugTrekKlaar`). Bijvullen bij een losse speer (`losTrek`, met E als je erbij staat, niet vanzelf) of een skelet (`skeletTrek`, `skeletTrekKlaar`): is de hand vol, dan gaat hij op de rug (`rugErbij`). Je eigen gegooide speer die neerkomt terwijl je hand al weer vol is (de beat trok er een van je rug), wordt een losse speer (`eigenSpeerLos`, in `javStick` en `rugTrekKlaar`) in plaats van als `spearX` geclaimd te worden, want het spel kan maar één speer-in-de-wereld als "de jouwe" bijhouden; zo raap je hem gewoon op de rug op. De rug is de HUD: de echte speer (`javImg` met `vaanBlauw`) klein en schuin op zijn rug, per reserve gestapeld (`rugSpeerTeken`, in schermruimte voor Amir getekend zodat hij er deels achter wegvalt; de per-frame geankerde tekening komt later, zie het anker-patroon van `BAV_VALSPEER`). **`RUG_MAX` 0 houdt het hele systeem uit, dus de echte episodes (rule 1) merken er niets van.** Een level zet het aan met het veld `rugMax` (`readLevel`, `restart` leest het); de sandbox met een knop onder Speer en spullen, **Reserve op de rug** (`sbrug0`, `data-rug`, `sbrugvul`, `rugToon`). Test 39 is het proefstuk. Later kan ook een talent in de speer-tak `RUG_MAX` verhogen |
-| health-balk: 3 levens met een balkje boven het hoofd | `HP_BALK`, `HP_BALK_LEVENS` (3), `vijandHpBalk`: een level met het veld `hpBalk: true` (of de sandbox-knop) geeft de bandiet (`makeBandiet`), de kooiman (`makeKooiman`), de slang en zwarte slang (`makeSnake`), de schorpioen (`makeScorp`), de fosforslang (`makeFosfor`), de zwaardvechter (`makeZwaard`) en de hyena (`makeHyena`) `HP_BALK_LEVENS` levens (`s.hp`, `s.maxHp`, `s.hpBalk`) in plaats van hun eigen HP, en tekent een balkje boven hun hoofd (`vijandHpBalk`, in de teken-lus na hun `nbox`): zoveel segmenten als `maxHp`, de nog levende in kleur, vol groen, een derde eraf oranje, nog een derde over rood. **`HP_BALK` 0 houdt het uit, dus een episode zonder het veld (bijvoorbeeld De Poorten, rule 1) houdt zijn eigen HP en krijgt geen balk.** `readLevel` en `restart` lezen `level.hpBalk`, de sandbox zet het met de knop **Health-balk** onder Vijanden (`sbhpbalk`, `hpBalkToon`). Test 39 gebruikt het. De kooiman-fasen hangen aan afstand, niet aan HP, dus 3 levens betekent gewoon 3 rake treffers (ook de duel-kooiman, die anders in één klap dood is). De slang en de schorpioen hadden geen HP en gingen in een klap dood: zij lopen via `enemyTakeHit(s)` op de drie trefplekken (steek, geworpen speer, lage zwaai). Zonder balk geeft die meteen `true` (één klap, zoals altijd); met balk telt hij een leven af en maakt hem `HP_BALK_INV` seconden onkwetsbaar (`s.inv`, afgeteld in `updateSnake` en `updateScorp`), zodat één lage zwaai niet alle levens pakt. De fosforslang, zwaardvechter en hyena hebben al HP en hun eigen hit-handlers (`fosforRaak`, `hitZwaard`, `hitHyena`): zij krijgen bij de balk alleen `HP_BALK_LEVENS` in plaats van hun eigen HP. **De panter en de baviaan doen niet mee**: dat zijn bazen met hun eigen HP-presentatie, en de fasen van de panter hangen aan `s.hp`. Alles staat achter de per-level vlag `hpBalk` (standaard uit). `hpBalk: true` geldt voor alle bovenstaande soorten; een lijst (`hpBalk: ['bandiet','kooiman']`) geeft alleen die soorten de balk (`HP_BALK_SOORTEN`, `hpBalkAan(soort)` beslist per vijand) en laat de rest in een klap dood gaan. De Valse Koning gebruikt die lijst (alleen de bandiet en de kooiman), Test 39 gebruikt `true` |
-| bukken, jump frames, tempo | Amir zijn bewegingen |
-| rotsen om op te springen | `rocks`, en het automatisch bijgroeien |
-| winter: episode Winter World | `WINTER_SRC`, `winterOn()`, `winterPic()` |
-| bodem en sneeuwdek | het veld `sneeuw`: savanne of rots, en het dek in vier standen |
-| het verhaal bij een episode | `VERHAAL` en `SLOT`, `verhaalToon()`: tekst op een zwart scherm voor elk level en na het laatste, alleen als je bij het eerste level begint. Op de naam van het level, dus een nieuwe episode hoeft alleen tekst toe te voegen en `verhaalAan` te zetten in zijn speelknop |
-| Episode De Poorten | `POORT_1` tot en met `POORT_6` en `POORT_LEVELS`: zes zware levels met een verhaal (`VERHAAL`, `SLOT`) en Nightmare; menu `menuPoort`, `cardsPoort`. Elk level heeft een poort die opengaat met een zegel, een runeschijf, rijzende grond of een zakkend plafond, elk level een ander uitzicht en ander weer, en samen alle vijanden, de panter en de baviaan. Wat de speler met zijn speer moet raken staat er altijd rechtop (een `runes`-schijf op een rots), nooit plat: een zegel stap je op. `tools/runecheck.js` rekent per schermformaat na of elke schijf te raken is met de schijf in beeld. Wat werkt en wat niet staat in `notities/combinaties.md`: lees dat voor je een nieuw level of een nieuwe combinatie bedenkt, en stel ideeën daaruit voor in plaats van ze zomaar in te bouwen |
-| Episode De Hoge Schijven | `HOOG_1` tot en met `HOOG_5` en `HOOG_LEVELS`: vijf zware levels met een verhaal (`VERHAAL`, `SLOT`) en Nightmare; menu `menuHoog`, `cardsHoog`, knop `btnHoog`. Elke schijf is een rune op een rots met een `opstelling` uit `RUNE_OPSTELLINGEN` (`kei`, `terras`, `boog`, `gang`) en doet iets met rijzende grond: een blok in een ravijn, een brug op terrashoogte, een trage lift naar een terras, en in Hoog 4 een lift uit de gang (een rijzer met `van` op de bodem van de gang, die `levelcheck.py` als weg naar boven telt). Daartussen zakkende stenen (`zak: true`), een sprintsprong (ongeveer 425) uit elkaar en 350 breed, met kieren van 200 tot 250. Nagelopen met `tools/runecheck.js` op 1280 bij 720, 1920 bij 1080 en 852 bij 393: elke schijf te raken met de schijf in beeld, en de plek vanwaar je raakt ligt nooit boven een ravijn. De lifts zijn zo traag gezet dat je ze op elk scherm haalt |
-| Episode Test levels | `TEST_1` tot en met `TEST_36`: korte proefstukken, los van de echte episodes. Het menu toont de laatste zes (`KAART_BLAD`); de rest staat achter de knop **Oude tests** (`btnoudetests`, `testOud`, `testToon`). Dat venster komt uit de volgorde van `TEST_LEVELS`, dus een nieuw testlevel duwt vanzelf het oudste het archief in; `markCards` opent het archief als het gekozen level erin staat. Test 14 heeft `talentKeuze`: een scherm voor het begin (`talentKeuzeToon`, `testTalents`, in de pauze `pzkeuze`) waarop je de talents kiest, ook die van een tribe op slot |
-| Episode Baboon tests | `BAB_1` tot en met `BAB_4` en `BAB_LEVELS`: proefstukken voor de baviaan, met de tribekeuze (`runStart`) zoals De Poorten; menu `menuBab`, `cardsBab`. Baboon 1 is de wand en de kooi, Baboon 2 dezelfde vlakte met de speerbeet in plaats daarvan, Baboon 3 de speerval, Baboon 4 de goudaap-arena (`apenArena`, zie hieronder). De eerste en de derde stonden eerst tussen de Test levels |
-| goudaapje: het kleine gouden aapje en de arena | `GAAP`, `gaapSpawn`, `updateGoudapen`, `gaapStand`, `goudapenTeken`, `gaapDood`: een omgekleurde, geschaalde baviaan (`enemies/goudaapje/`, uit `tools/goudaapje_kleur.js`, honinggoud met blauw gezicht) die de baviaan-animatiegeometrie hergebruikt (`BAV_AFZET.kader` en de per-reel `links`/`grond`), maar met een eigen, licht systeem los van de eindbaas zodat er veel tegelijk kunnen lopen (`goudapen`, een lijst). Hij hangt aan een muur, springt neer (afzet, val, landing, korte brul), rent op Amir af, dreigt (`roar`), loopt (`walk`), springt soms over Amir (`jump`, de sprong-reel), en hapt (`GAAP_HAP`, een leesbare telegraaf en een afkoeling zodat één aap te doen is). Eén klap (stoot of lage zwaai, `'goudaap'` in `zwaaiVak`) is dood met de doodanimatie; het lijk vervaagt. In de lucht raakbaar met een geworpen speer (`luchtRaak`); dan blijft de speer erin (`speerIn`, `gaapSpeerTeken`), valt hij dood neer en trekt E hem eruit (`gaapSpeerTrek`, `gaapSpeerBij`, in `toggleSpear` en `eNodig`). De arena (`ARENA`, `arenaAap`, `arenaStart`, `arenaTick`, `gaapSpawnWand`, `arenaKill`, `arenaHudTeken`): twee grijze zijwanden (de rechter rotswand op `CLIFF.wall`, een linker op de schermbreedte, `arenaMidden`) houden Amir in het midden, en daaraan hangen de aapjes: `ARENA.perKant` (3) per kant, aan het begin 3 links en 3 rechts, op wisselende hoogtes (`GAAP.hangMin`..`hangMax`) en rond de wandlijn op de grijze rots (`ARENA.hangUit`, `hangSpreid`). Ze hangen tot `arenaTick` er willekeurig een laat vallen (de springers); een hanger die zich laat vallen valt bijna recht naar beneden (`GAAP.valVx` bijna 0, zodat hij op de muur blijft) en rent dan op Amir af. Een lege wandplek wordt na `ARENA.vul` seconden weer gevuld (`gaapSpawnWand`). Hoeveel apen tegelijk beneden mogen groeit met de tijd (`grondVan` 1 naar `grondMax`), en de tijd tussen twee springers krimpt (`springVan` naar `springTot`); de ramp loopt over `ARENA.ramp` seconden. De achtergrond tekent `arenaAchtergrond` binnen `scene()`, vlak voor de grondband (dus achter de grond): `arenaMiddenRots` (de getegelde `design/grot/rots_vulling.png`, breed zodat hij achter de zijwanden wegloopt) en `arenaZijwand` tweemaal (de gewone klifplaat `cliffPic()`, `ARENA.wandSchaal` keer groter zodat de rots ver genoeg naar binnen reikt voor de hangers, met de voet `ARENA.wandOnder` onder de grondlijn zodat de grond hem afdekt en het een echte wand is, geen lelijke voet). Omdat `arenaAchtergrond` de zijwanden zelf tekent, slaat de gewone klif-tekenlus ze over (`!arenaAap`). Amir gecentreerd via het bestaande arena-camerasysteem (`arena`, `updateArena` honoreert `arenaAap`), een teller (kills en tijd) en elke `perKill` kills een talentpunt (`RUN.punten`). Het veld `apenArena: true` zet het aan (Baboon 4); `startWereld` zet Amir dan in het midden. In de sandbox onder Vijanden, Goudaap |
-| het mes: Jackal Fang van Impungushe | `MES`, `mesInHand`, `mesTeken`, `mesPunt`: E wisselt rond in `toggleSpear` (speer, mes, niets). Een steek is de gewone stoot met `atkMes`; alles wat de punt ergens tegen houdt vraagt `steekLive`, `steekDX`, `steekY`, `steekR` en `steekRaakt(soort)`, dus een nieuwe vijand gebruikt die en niet `TIP_DX`. Het mes doodt niets: op elke plek waar de punt een vijand raakt gaat het met `atkMes` naar `mesAfweer(s, soort)`, die hem terugduwt, zijn aanval afbreekt en hem meteen weer laat komen, met een afkoeltijd per vijand (`s.afweerTot`, op `mesKlok`). Het terugdeinzen loopt in de update van de slang, schorpioen en hyena via `afweerStap` (met `knockBlocked` of `hyMove`, dus nooit over een kei of ravijn), bij de zwaardvechter via zijn eigen `knock` en bij de fosforslang via `vx`. Een nieuwe vijand krijgt dus een tak in `mesAfweer`. Het mes snijdt ook de kalebas aan een koordje los (`tekenSnij`, dat was eerst het talent Scavenger). Bared Teeth, de dreighouding: `houding`, `houdingZet` (in de update van Amir: aan of uit, en waar hij heen kijkt), `houdingStap` (bovenin de update van de slang, schorpioen, hyena en zwaardvechter), `houdingLos` (hij valt aan) en per soort `BEDWING` (wanneer hij mag, hoe hij beweegt, hoe hij aanvalt). De getallen van beide talents staan in `TRIBE_CONFIG` en zijn in de pauze bij te stellen (Instellingen, Mes: reacties: `MES_SCHUIF`, `mesAfstelZet`, bewaard onder `MES_KEY`). |
-| T-splitsing in de talent tree | een talent met `varianten` in `TRIBE_CONFIG` krijgt naast zijn naam een gestippelde splitsing met de namen (`tbSplit`, `.tbsplit`) en in het venster de varianten met hun tekst (`.tbivar`). Nog niets te kiezen; nu alleen bij Jackal Fang. Een tribe op slot laat zijn talents dicht zien; `TB_LEEG` alleen als hij er nog geen heeft Tijdelijk getekend: het plaatje komt uit `tools/mes.py` (`design/mes/mes.png`), zijn lijf schiet naar voren omdat er geen frames met een mes zijn. De kalebas is de speertekenvariant `kalebas` |
-| Feign Death | `SCHIJN`, `schijnDoodVang` (vanuit `hurtPlayer`, `valLand` en `fosforBijt`), `schijnDoodZet` (kantelt zijn frame), `schijnHud` (`#schijn`); per level terug in `restart` |
-| lichtkaart: het licht onder de grond | `LK`, `drawLichtkaart`: een lichtbron (de hemel en de zon) voor alles onder de grond en onder rots boven je, per level een keer uitgerekend |
-| terrassen en richels | `terraces`, `ledges`, klimmen. Een richel kan gespiegeld (`drawLedge` met `o.f`, de botsing in `terracePlats`) en achter de schacht-wand (`o.achter`, getekend in `drawGrotten` voor de massa); zie "De schacht" |
-| schacht: een kloof om uit te klimmen | de opt-in `schacht`: een grot-raster met `schacht: true` tekent `grotMassa` als de plafondvulling (`plafondVulTegel`) met een rechte rand, met de plafond-tandenband erlangs (`schachtTanden`, `grotBandSet` een kwartslag gedraaid zoals `plafondBand`, over de hele rand) en savanne-grond bovenop de wand (`schachtKap`, `bodemPic` met een vervagende onderkant). De gespiegelde richels (`ledges` met `f`) klimmen ertussen, vóór de tanden getekend zodat ze de tanden erachter afdekken, met een echte zijwaartse afstand ertussen. De wanden lopen schermbreed door met een lege bovenrij, zodat `grotTerrein` de wandtop teruggeeft. `start` zet Amir onderin tussen de wanden. Test 27 is het proefstuk; zie "De schacht" hieronder |
-| hogere savannelaag: een terras van grond | `SAV_LAAG`, `savanneLaag` (in `drawClimb`, voor de rotslus): een terras met `grond: true` is geen rotsplateau maar savanne die hoger ligt. Botsen, dragen en `terrainH` blijven wat ze bij een terras waren; alleen het tekenen is anders: de grondtegel van het level (`bodemPic`, vast aan de wereld, net als `zuilTeken` en `rijsTeken`, zodat een blok rijzende grond er naadloos in overloopt) met daaronder de aarde die wegzakt in het donker, en het silhouet van een terras (`terClipPath`), zodat de zijkanten net zo openbreken en een hoger terras dat ertegenaan staat de rand afdekt. De winter en een rotsbodem (`sneeuw`) lopen vanzelf mee, want die zitten al in `bodemPic` en `bodemDonker`. Ligt er onder de laag een gang (een `holte`) en zit de laag op of boven het dak van die gang (`top < dakY`, dus geen vloer-trede diep in de gang, die heeft wel aarde onder zich), dan is daaronder geen aarde maar de holte zelf: de donkere onderkant (`bodemDonker` en het donkerverloop) stopt bij het dak van de gang (`groundY + HOLTE_DAK * scale`, met een evenodd-clip op de kolommen uit `holteLijst` die onder de laag vallen), zodat het steen van de gang dat `drawHolte` er vlak ervoor al tekende zichtbaar blijft in plaats van zwart overschilderd te worden. De onderrand krijgt daarbij dezelfde afsluiting als het gangplafond naast een gat: de aarde loopt over in het steen (`holteOvergang`) en daaronder hangt de tandenband (`plafondBand` op `-HOLTE_DAK`, dezelfde helderheid als het dak in `drawHolte`), allebei vast aan de wereld zodat ze naadloos aansluiten op het gangplafond ernaast in plaats van een rechte snede te geven. Zonder gang eronder verandert er niets. Zo blijft een gang onder een hoger of lager gezette savannelaag leesbaar (de Maker zet die combinatie zo neer). Test 22 is het proefstuk; in de sandbox onder Terrein, Savannelaag (`SB_SAV`, `sbSavLaag`) |
-| zwevende savannelaag: een dik savanneblok in de lucht | `ZWEEF`, `zweefList`, `savanneLaag` (met `floating`), `zweefKop`: het veld `zwevers: [{r, l, h, onder, look}]`, los van `terraces` want `terrainH` is enkelvoudig. Een dik stuk savanne dat zweeft met lucht eronder: je loopt eronderdoor als er genoeg ruimte onder zit, je landt bovenop via de rand of een lift (`terracePlats`, `supportHeight`), en van onderaf stoot je je hoofd (`zweefKop` in `updateJump`). Hoeveel ruimte nodig is rekent `amirOnderRuimte()`: staand `CHAR_H`, en helemaal gebukt net binnen een celhoogte (`KRUIP_RUIMTE` 0,56, zo'n 140, onder een cel van 150), zodat je onder een laag met een cel lucht (`onder` ~150, onder `CHAR_H` maar boven `KRUIP_RUIMTE`) **gebukt doorkruipt**, en onder twee cellen gewoon loopt; past hij er niet onder, dan is de zijkant een wand (`blockByPlatforms`). **Dichttimmeren**: hangt er een lage laag boven hem (`zweefDakBoven`), dan houdt de lus hem zo ver gebukt dat zijn kop er net onder blijft, zodat hij niet rechtop door de rots steekt; hij komt vanzelf overeind als er weer ruimte is. `onder` dicht bij `h` geeft een dunne plateau, laag geeft een dik blok met een diepe aardrand. Met `look: 'rots'` tekent de laag als steen (`rotsLaag`: het terrasgesteente met de plafond-tandenband eronder) in plaats van savanne, voor een rotsoverhang om onder te kruipen; de botsing blijft gelijk. Getekend als savanne met de aardrand doorgetegeld en een schaduw-onderkant, of als rots. Test 24 is het proefstuk; in de sandbox onder Terrein, Zwevende laag (`SB_ZWEEF`, `sbZweef`): **Kruipen (cel lucht)** en **Rotsoverhang (kruipen)**. In de Maker zet je er een met het **Overhang**-voorwerp (Objecten), met schuifjes voor breedte, dikte en de onderkant-hoogte (vrij van het grid) en een knop voor de look; `mkNaarLevel` vertaalt het naar een zwever |
-| de rotswand rechts | `cliffs`, het einde van het level |
-| grotten: rots als een raster van cellen | `grotten`: het raster, de randen, de verstrooiing, de botsingen |
-| plafond: de rots boven je, als hoogtelijn | `plafond`: de lijn, de vulling, de band, de losse blokken |
-| muur unlock: de rotswand met het rune-symbool | `MUUR`: de plaat, het gat, het schuifblok, het masker en de schijf; en de grot met de kei (`MUUR_GROT`, `muurGrotSet`, `drawMuurGrot`) |
-| ravijn in de winter | `RAVIJN_WINTER`, `ravijnWandNu()`, `ravijnSneeuwRand()`: het openscheurende ravijn in een winterlevel, de wand bij het laden omgekleurd naar blauwgrijze steen (alleen kleur, per pixel op helderheid), een getekende sneeuwrand en het berijpte gras |
-| zegel in de grond: de runeschijf plat, als schakelaar | `ZEGEL`, `zegelGrond`, `zegelUpdate`, `zegelDoe`: erop stappen zet hem aan of uit, en wat hij dan doet (een ravijn openen of sluiten, de rotswand openen, een speerval losschieten). Het teken op het hout komt uit `ZEGEL_TEKENS` (`zegelTekenVan`, `zegelRunePad`: alleen lijnen en cirkels, in het platte vak): `rune` en `teken1` tot en met `teken8`, die met opzet niets betekenen. Elk teken krijgt een vaste bestemming, zodat de speler het leert herkennen: `rune` is activatie door de speler, `teken2` activatie ook door een vijand; de andere zijn nog open (zie `notities/zegeltekens.md`, en wijs er daar een aan voor je er een gebruikt). Met `vijand` zet ook een vijand in beeld hem aan (`zegelVijand`, niet een hyena die buiten beeld wacht), en krijgt hij standaard `teken2`; het ravijn dat hij opent is een val (`fx.vangt`, `ravijnVangt` bovenin `ravijnValt`): een vijand in dat stuk staat vast tot het open is en valt er dan in. Een zegel waar een ravijn onder opengaat valt mee (`z.val`, `ZEGEL_VAL`), behalve in een gang. Hij ligt op `terrainH`: savanne, terras, grotvloer (ook de top van een rotsraster: een kolom die tot bovenaan vol is heeft de bovenkant van het raster als vloer, `grotTerrein`), of in een gang de bodem of een trede (ook onder een gat in het dak); niet op een kei of richel. De gedeelde schakelaar is `zegelSchakel` (ook voor een rune als doel, `runeDoet`), het gloeien en weer uitgaan `zegelGloei`. In de sandbox Val voor vijanden en Zegelteken |
-| speerval: een speer in de rotswand die een zegel losschiet | `SPEERVAL`, `speervalZegel` (vanuit `zegelUpdate`, en daar begint het opspannen), het geluid `sounds/speerval.mp3` (`SPEERVAL_SND`, `speervalSpeel`, `speervalStil`, twee audio-elementen `valSpanSnd` en `valVuurSnd`, ook in `geluidOntgrendel`: het kraken van 0,05 tot 0,9 seconde tijdens het trillen, `SPEERVAL.wacht` 0,8, en het vuren vanaf `vuur` 1,7, `voor` 0,1 seconde voor hij los is, zodat de klap op 1,8 valt als hij de wand uit komt), `speervalUpdate`, `speervalTeken` (twee keer: in de wand voor de klif, zodat het steen over zijn staart ligt, en na de baviaan als hij vliegt), `speervalBox`, `speervalReset`. Waar het steen op zijn hoogte begint komt uit de alfa van de klifplaat (`klifVlak`), want de klif hangt aan het scherm en niet aan Amir. Hij zit op `h` (0,82 Amir): boven een gebukte Amir (`DUCK_BOX`), door een staande, dus bukken laat hem passeren en springen niet. In de tekenlus raakt hij Amir (`hurtPlayer`, alleen als die niet onkwetsbaar is) of de baviaan (`valRaakt` in `bavGevecht`, voor de beet gekeken): die gaat dood, ook met `BAV_VECHT.raakbaar` uit, en de speer blijft in zijn borst zitten, of van achteren in zijn rug (zie "speer in de baviaan"). Zolang de baviaan leeft houdt hij de fakkels dicht, maar alleen in een level met een speerval (`bavBlokkeert`, in `bossBlocking`), want anders is hij niet te verslaan. Een misser valt, ligt `lig` seconden, en zit dan weer in de wand; het zegel gaat dan vanzelf uit. In de sandbox onder Speer en spullen, Speerval (`sbSpeerval`, `SB_SPEERVAL`: een klif met `valKlif` en een zegel). Geen soort uit "wat mag waar": hij zit in de wand, niet op de grond. Baboon 3 is het proefstuk. Hij is de gekartelde valspeer (`val` uit `DRAAI`): zwart staal met een geslepen lichte snede langs de kartels en een middenrib, de ring onder het blad in goud, een smalle gouden ring op de schacht en een gouden kap (`zwart_staal` in `tools/draaispeer.py`, op alle draaiframes); hij rolt in de vlucht; hij is langer dan `javImg`, dus de laag voor de klif rekent met zijn eigen lengte (`lang`) |
-| zakplafond: een plafond dat zakt als je op een zegel stapt | `ZAK`, `zakStand` (`rust`, `zakt`, `op`), `zakUpdate`, `zakTeken` (na `drawHolte`: de vulling en de band van het plafond, met een slagschaduw op de achterwand), `zakKop` (in `updateJump`), `zakBlok` (tegenhouden, opzij duwen met `duw`, of pletten: `zakPlet`, dan `fallDeath`), `zakRaakt` (een vliegende speer valt ertegen neer), `zegelSpeer` (vanuit `javStick`: een speer in de grond op een zegel met `plafond: 'op'` of met `speer: true`), `zakDicht` (in `speerVloeren` en `speerBereikbaar`: achter een dichte poort kom je niet, dus `speerNaastAmir` zet je speer terug), `zakReset` (in `restart`). Een zegel met `plafond: 'zak'` telt ook als hij er in een keer overheen gaat (`z.px` in `zegelUpdate`). Stof: fijn stof dat van de onderkant van het steen neerdwarrelt (`DWARREL`, `dwarrelStrooi`, `dwarrelUpdate`, `dwarrelTeken` na `zakTeken`), bij vertrek, onderweg en bij stilvallen, ook omhoog; alleen een poort die op de vloer slaat geeft een wolk langs de vloer (`steenStof`, `STEEN_STOF`, gedeeld met de rijzende grond), en bij stilvallen een schok. Test 15 is het proefstuk; in de sandbox onder Terrein, Zakplafond (`sbZak`, `SB_ZAK`) |
-| rijzende grond: steen dat op een zegel uit een ravijn komt | `RIJS`, `rijsUpdate` (omhoog, na `duur` weer terug; een speer die erop ligt gaat mee), `rijsStof`, `rijsPlats` (in `platsNear`: draagt Amir en de speer; zakt hij dieper dan `RIJS.los`, dan draagt hij niet meer), `rijsTeken` (na de treden onder de grond: de grondrand zelf, `bodemPic`, vast aan de wereld, zodat een blok boven naadloos in de savanne overloopt), `zegelRijs` en `rijsOmhoog` (ook vanuit een rune met `rijs`, in `ravijnRuneTreffer`), `rijsReset` (in `restart`). Een zegel met `speer: true` gaat alleen aan met een speer, en ligt op een kei als daar een staat (`zegelVloer`). Op een blok dat stijgt kun je landen: `rijsPlats` geeft `stijg` mee (zoveel kwam hij er het laatste beeld bij), en de landing in `updateJump`, `supportHeight` en `blockByPlatforms` rekenen daarmee. Sta je op een bewegend plateau (rijzende grond of takel), dan bind je je eraan op `id` (`amirPlat` in `updateJump`): je zakt en stijgt ermee mee op zijn eigen snelheid, niet geklemd op `RIJS.terug`, zodat je er niet elk beeld even afvalt. Omdat je zo op de grond blijft loopt `valVan` mee omlaag en kost meerijden geen valschade; pas bij springen (`takeOff` wist `amirPlat`) of eraf lopen laat je los, en dan val je een stukje tot je er weer op landt. `supportHeight` slaat een blok over dat nog diep zit als Amir niet boven het ravijn staat, `updateJump` laat hem meezakken, `javFloor` kijkt boven een ravijn ook naar de plats, en `speerNaastAmir` wacht zolang er steen beweegt. `levelcheck.py` rekent de stukken tussen de blokken na (`rijs_gaten`). Met `tot` hoger dan de grond is het een lift naar een hoger niveau: tegen de wand van een terras komt hij tot diens hoogte, en wie erop springt terwijl hij langskomt gaat mee (in `terrassen` telt `levelcheck.py` zo'n blok als opstap). Ook een vijand die er met zijn midden op staat gaat mee omhoog en weer omlaag (`rijsDraagtMob`, aangeroepen in de update van elke mob: slang, fosfor, schorpioen, zwaardvechter, hyena, panter). Dat is de enige manier waarop een vijand van niveau wisselt, want treden stapt hij niet op (zie "vijanden gaan niet over treden"). Het blijft kleven zolang hij er met zijn midden boven staat (`e.rijsId`, `id` in `rijsPlats`), zodat een haperend beeld hem niet loslaat; een blok ernaast is gewoon een wand (`blocksMonster`). Een blok dat een ravijn vult op de hoogte waar een vijand loopt (ook een zegel dat het ravijn dicht, en het dek van een takel-brug) telt daar niet meer als ravijn-rand: `gatOp` vraagt `vloerOverGat(x, base)` en geeft dan geen gat terug, zodat de vijand eroverheen loopt in plaats van tegen een onzichtbare muur te rennen. Een blok dat nog diep in het ravijn zit (een lift onderweg) telt niet mee, dus pas als de vloer echt bij zijn voeten staat steekt hij over. Dat geldt voor iedereen die `gatOp` gebruikt, dus ook Amir (de renstoot). Test 17 is het proefstuk, Test 21 (vijf niveaus) gebruikt hem als lift; in de sandbox onder Terrein, Rijzende grond (`sbRijs`, `SB_RIJS`), met **Met een slang erop** (`sbRijsMob`) een lift op grondniveau met een slang die meerijdt. Met `zak: true` is het andersom: een platform dat boven staat (`tot`) en zakt als Amir erop staat (`rijsZakStap`): na `wacht` seconden naar `van` op `v`, en met `duur` daarna terug omhoog op `RIJS.terug`. Zakt het dieper dan `RIJS.los`, dan valt hij: blijf er niet op staan. Geen zegel nodig, en `levelcheck.py` rekent het niet als opstap; in de sandbox **Zakt onder je** (`sbRijsZak`, `SB_RIJS.zakTot`, `zakV`, `zakWacht`) |
-| takelwiel met plateau: een rad dat je met je speer slaat | `TAKEL`, `takelLaad`, `takelReset` (in `restart`), `takelUpdate` (in de lus, voor `platsNear`: het rad draait naar `doel`, het plateau zakt en veert), `takelSlag` (een kwartslag verder, draait aan de uiteindes om), `takelHoogte` (de plateauhoogte hangt recht aan de draaistand), `takelPlats` (in `platsNear`: een dun platform dat Amir en de speer draagt, met `stijg` voor het meeliften), `takelTeken` (na `rijsTeken`: de twee touwen uit katrollen boven het scherm (bij een gewone takel lopen ze uit elkaar met `TAKEL.spread`, bij een rigide brug zoals de arena hangen ze recht, `sp = 0`, want een schuine touwoverlap met de vloer waar je er qua diepte overheen rent leest onlogisch), het 9-slice plateau met de spijkerknoppen, en het wiel met zijn drijftouw erachter), `takelTouw` (de naadloze tegel geroteerd en gescrolld: de scroll (`fase`) is de reisafstand (`top * scale * TAKEL.touwScroll`) plus een doorlopende ambient-scroll (`t.touwKlok * TAKEL.touwAmbient * scale`, `t.touwKlok` opgeteld in `takelUpdate`), zodat het touw meebeweegt terwijl het takelt en ook blijft leven als de brug in de arena stilhangt (anders stond de reisafstand stil en leek het touw dood); de touwdikte `touwW` (`TAKEL.touwDik`) wordt gedeeld door `viewZoom()`, zodat de uitzoom van de arena (0,7) de touwen niet dun maakt), `wielSplinters` (de hout-brokstukken van een slag, dezelfde `chips` als het doornbos), `takelTik` en `takelKraak` (de houten tik en het kraken van het touw, Web Audio zoals `bavPoot`). De 24 wielframes, het plateau (`plateau_links/midden/rechts`), het touw en de spijkerknop staan in `design/takelwiel/`, met de LEESMIJ en de metadata ernaast. De slag raakt het rad met de hele speerlijn (van Amir tot de punt), want het rad is decor en houdt Amir niet tegen. Elke slag heeft een korte krak-hapering (`TAKEL.haper`, `t.haper`): het rad houdt even in (het plateau blijft dan staan) en draait dan de slag verder, met de tik en een kleine schok. Het drijftouw van het wiel loopt schuin achter het wiel omhoog (de voet valt achter de rand weg); het wordt als eerste getekend, dus het loopt achterlangs de twee plateau-touwen en achter het wiel. De twee plateau-touwen eindigen altijd boven de schermrand (`ropeTopY`, geklemd op `schermTopY`: de schermtop teruggerekend door de zoom-transform, `groundY + (-0.08*H - groundY)/viewZoom()`, want `takelTeken` tekent binnen de uitzoom), zodat ze ook terwijl het plateau laag takelt of in de uitgezoomde arena niet in de lucht ophouden maar boven uit beeld doorlopen. **De looplijn** ligt niet op de bovenrand van de plaat maar op de voorrand van het bovenvlak (de plank is in perspectief, `TAKEL.sta`, `takelOpp`): daar staan de voeten op (anders zweef je erboven). `takelPlats`, `takelDek` en de passagiers rekenen met `takelOpp`, het tekenen blijft op `t.top`. **Erop springen** geeft een hevigere reactie dan erop lopen: `takelBons(vIn, kant)` (vanuit `updateJump` als je op een plateau-plats landt) duwt het dieper in (`TAKEL.springStoot` maal de landingssnelheid, tot `TAKEL.springMax`) en geeft een schommel-impuls naar de landingskant (`TAKEL.schommel`, `t.sway`/`t.swayV`, een gedempte veer in `takelUpdate`, tot zo'n 6 graden); het dek, de touwen en de knoppen kantelen mee in `takelTeken`. Erop lopen blijft alleen de lichte stoot (`TAKEL.stoot`, `t.op`). Een level kan het rad trager zetten (`t.angV`, de bandiet-arena doet dat) en de veer uitzetten (`t.rigide`, een star plateau dat zijn looplijn vast houdt, voor de arena-brug die het ravijn precies moet vullen). Een star plateau veert niet, maar terwijl het stijgt of daalt (`draait`) wiegt het wel cosmetisch een beetje heen en weer (`TAKEL.rijSway`, `rijSwayF`, `t.swayKlok`): de schommel kantelt alleen de tekening (het dek, de touwen en de knoppen), de looplijn `takelOpp` blijft vlak, dus de passagiers blijven recht staan. Staat het stil (aangekomen), dan wiegt het uit naar nul en ligt de brug recht. **Het geluid** `sounds/takelen.mp3` (`takelSnd`, `takelGeluid`) loopt herhaald zolang het plateau op of neer gaat (het rad draait) en stopt als het stilstaat, ook bij pauze en herstart. **Bandieten op het plateau** (Test 33): met `takel.takelaar: true` zet `takelBandietenZet` (in `restart`) een takelaar-bandiet bij het wiel die het rad slaat zodra Amir binnen `TAKEL_CRANK_RANGE` is (in de sandbox meteen), en met `takel.passagiers: n` zoveel passagier-bandieten op het dek; `rijsDraagtMob` draagt ze mee omhoog (het plateau staat in die lijst via `takelPlats`, id `'takel'`). Boven stormen ze eraf: geen vault, ze lopen de brug af. De rol per passagier staat in `takel.passagierRollen` (`s.rol` in `makeBandiet`): `hurk` zit gehurkt tijdens de rit en springt pas op (ambush, gooit zijn dolk) als de brug staat, `dolk` staat rechtop en gooit meteen bij aankomst, `ren` rent gewoon in. Zodra de brug staat steekt de takelaar zelf ook over en valt aan. Omdat de brug het gat overbrugt telt de ravijn-rand daar niet (`takelDraagt`, `takelDek` in `knockBlocked`), zodat een bandiet (en Amir) eroverheen loopt. Alles staat in `s.takelaar`/`s.passagier` in `updateBandiet`. `levelcheck.py` telt een ravijn dat het plateau overbrugt als oversteekbaar (`takel_dekt`, regel `ravijnen`). **Door te snijden touwen** (`takel.touwSnijbaar: true`, Test 34): een geworpen speer die dwars door een van de twee brugtouwen vliegt snijdt het door (`takelTeken` kijkt met `segKruist` of het lijnstuk van de speer tussen twee beelden een touw kruist, met de speerpositie van vorig beeld in `t.jx`/`t.jy`). Dan kantelt de brug naar die kant en stort hij het ravijn in (`takelSnijden` zet `t.valt`, `takelUpdate` laat hem vallen met een kantel-`tilt`, en op diep genoeg `takelBrugWeg`: `t.weg`, de passagiers die er nog op rijden (`rijsId === 'takel'`) storten mee, wie al afstapte vecht door). De speer vliegt gewoon verder (geen verloren speer), dus geen softlock. Het geluid is `takelSnap` (een ruisflits door een bandpass die in toonhoogte zakt, als een snaar die breekt). Omdat de brug dan weg is, is het gat te breed om te springen: een zegel met `naTakelVal: true` is verborgen tot de brug valt (`z.onthuld`, overgeslagen in `zegelUpdate`/`zegelTeken`, teruggezet in `zegelReset`) en zet dan rijzende grond (`rijs`) die het ravijn dicht. Test 32 en Test 33 zijn de proefstukken, Test 34 die met de snijdbare touwen; in de sandbox onder Terrein, Takelwiel (`sbTakel`, `SB_TAKEL`, met de touwen snijbaar aan). Staat niet in de kleine set. **De stam** (`STAM`, `stamLaad`, `takelStamTeken`, het veld `t.stam`, de paalhoogte `t.stamH`): de nieuwe aandrijving in plaats van de twee plateau-touwen. Een houten draagpaal (`design/takelwiel/stam/`, uit drie stukken gestapeld: `stam_top` met de pen, `stam_mid` herhaald, `stam_bottom`, zo lang als `t.stamH`, met `build_stam.py` ook vooraf te bakken) staat aan de wielkant van het plateau (`side`); het plateau schuift er verticaal langs en de paal wordt ervoor getekend zodat hij het aanhechtpunt afdekt. Op de pen bovenaan (`STAM.pegX`, `pegY`) zit een roestig mini-tandwiel (`minitandwiel.png`, naaf in het midden) dat met de verticale beweging van het plateau meedraait (`ang = -t.top * STAM.miniK`, tegengesteld aan het grote wiel). De paal is decor: hij draagt niets en houdt niemand tegen. Het begaanbare dek loopt wel maar tot de binnenrand van de paal (`stamInnerW`, `stamSide`, `stamMidW`; in `takelPlats` en `takelDekVoor` als `t.stam`), want daar houdt het zichtbare plateau op: zo staat Amir altijd op het zichtbare deel en nooit op of achter de paal. Met een stam blijven alleen het grote wiel en zijn ene drijftouw; de twee plateau-touwen en de spijkerknoppen vallen weg (`if (!t.stam)` in `takelTekenEen`). Opt-in met `t.stam`: de Maker bouwt elk platform voortaan met de stam (`stam: true`, `stamH` uit de paalhoogte-schuif of vanzelf net boven de hoogste plateaustand, `mkStamAuto`), de oude touw-takels (Test 32 tot 34, de arena) hebben het veld niet en blijven de twee touwen (rule 1). De kant van de paal is een eigen veld (`t.stamZij`, 1 rechts of -1 links, `stamSide`), los van waar het wiel staat: het wiel bepaalt de richting niet meer, je zet het waar je wilt (ook overlappend). Het wiel wordt als laatste getekend, dus het staat altijd voor het plateau en de paal. De voet van de paal (`stamBotH`, het veld `t.stamBot`) rust standaard op de vloer eronder (`terrainH`), zodat hij in een hoger level niet tot de basisgrond doorloopt; een level of de Maker kan hem zelf zetten, ook onder de grond (negatief), zodat de paal van een plateau door een ravijn naar beneden kan lopen. De kant kies je met de knop **Paal: rechts/links** op een geselecteerd platform (`p.stamZij`, los van het wiel). De paalhoogte zet je met de schuif **Paalhoogte** op een platform, en de paal staat ook getekend in de grid (`mkStamGeo`, `mkStamTopCel`, `mkStamBotCel`, `mkStamAuto`, `mkStamBotAuto`): met een platform geselecteerd sleep je hem groter of kleiner aan de twee witte handvatten (de pen boven zet `stamCel`, de voet onder `stamBotCel`, `mkStamDrag` in de pointer-afhandeling), allebei bewaard in `mkNaarJSON`/`mkUitJSON`. In de sandbox wisselt **Stam: aan/uit** (`sbStam`). Zie `design/takelwiel/LEESMIJ_stam.md` |
-| masker: geverfde stukken die een deel van het level verbergen | `MASKER`, `maskerLijst`, `maskerVan`, `maskerRects`, `achterMasker(x, h)`, `maskerReveal(m, dramatisch)`, `maskerUpdate` (in de lus, na `koppelUpdate`), `maskerReset` (in `restart`), `maskerTeken` (in de tekenlus, als laatste binnen de zoom, dus over Amir en de vijanden heen): het veld `maskers: [{id, look, vakken: [{l, r, onder, boven}]}]` (ouder: één rechthoek `{id, l, r, boven, onder}`). Over de geverfde stukken ligt iets dat eruitziet als iets anders (`look: 'grot'` tegelt de ondergrondse rotswand `plafondVulTegel`, `rots_vulling`, vast aan de wereld; `maskerTeken` knipt op de vereniging van de vakken en bakt één verloop erover zodat er geen naad tussen de cellen staat), zodat de speler niet doorheeft dat daar een doorgang of een zijpad ligt. Het houdt niemand tegen (puur tekenwerk): erin lopen onthult het stil (`maskerUpdate` kijkt of Amir met `world`/`ph` binnen een vak komt), en een zegel of rune onthult het via het koppelsysteem (een actie `{soort: 'masker', masker: id}` in `koppelDoe`, net als de takel): dan beeft het scherm en klinkt het ravijn-geluid (`bavBeving`). Eenmaal onthuld blijft het weg (`m.onthuld`), het vervaagt over `MASKER.fade`. Zolang het er nog ligt is alles binnen de geverfde cellen **verborgen en bevroren**: `achterMasker(s.x, s.base)` bovenin elke mob-update (`updateSnake`, `updatePanther`, `updateHyena`, `updateZwaard`, `updateKooiman`, `updateMeelman`, `updateBandiet`, `updateFosfor`, `updateScorp`) geeft `return`; een zegel binnen een masker is onzichtbaar en niet te activeren (`achterMasker(z.x, zegelVloer(z))` in `zegelUpdate`/`zegelTeken`), een rune net zo (`achterMasker(e.x)` in `ravijnRuneRaak`, `ravijnRotsVol`, `ravijnRuneTeken`; `h` weggelaten = hele kolom). De textuur laadt mee met de grotset (`grotLaad`, in de laadrij van `restart`). Een zegel of rune werkt ook op een zwevende savannelaag (`zegelVloer` en de `b` van `ravijnRotsMaat` tellen `zweefTopBij` mee). Opt-in, dus een level zonder `maskers` merkt er niets van (regel 1). **Verven doe je in de nieuwe Maker** (`MK`, categorie Verbergen, het gereedschap `masker`): `MK.maskers` is een lijst `{id, cells:[{c,r}]}` (meerdere namen, Verborgen1, ...), `mkMaskVerf`/`mkMaskObj`/`mkVulMaskSelect` beheren het, `mkTeken` tekent de groene tint, en op een zegel- of rune-voorwerp kies je bij **Onthult masker** (`#mkmasksel`, `o.masker`) welk masker het wegneemt. `mkNaarLevel` voegt de cellen per rij samen tot `vakken` en maakt van een gekoppeld zegel/rune een echte schakelaar (`stuurt` + `acties`); `mkNaarJSON`/`mkUitJSON` bewaren het. In de sandbox ook los te bekijken onder Terrein, Masker (`sbMasker`, `SB_MASKER`): een slang erachter (bevroren), een grond-zegel dat het onthult, en een verborgen zegel erachter |
-| de draaiende speer: rollen om de lengteas in de vlucht | `DRAAI`, `draaiImgs`, `draaiBeeld(soort, t)`, `draaiTeken(img, soort, k)`: 36 frames per omwenteling in `design/speer/draai/`, `gewoon` (Amirs speer, even lang als `javImg`) en `val` (de speerval), op dezelfde schaal `k` als `javImg`, punt rechts op `tipY`. Amirs geworpen speer rolt alleen in de vlucht (`javSchacht`, op `jav.t`; met `vaanBlauw` ook blauw, en in `vaanVoorwerk`), de speerval alleen in de vlucht (op `sp.t`). Stilliggen, in een wand of in de grond is weer `javImg`. De frames komen uit `tools/draaispeer.py`, uit de video van Grok in `design/speer/bron/`: alleen frame 0 tot 17 daarvan was bruikbaar, de rest van de rol is dat stuk gespiegeld |
-| skelet met speer | `SKELET`, `skeletTrek`, `skeletUpdate`, `skeletTeken`, `skeletRaak`: E vasthouden trekt de speer eruit, het skelet stort in met de losse botten (`sounds/skeletvalt.mp3`); de schedel is daarna los decor; losse speren op de grond (`losseSperen`) en het blauwe vaantje (`vaanBlauw`) |
-| speerteken: een speer in de grond met een zwart doek en schedels | `TEKEN`, `tekenUpdate`, `tekenTeken`: decor in vijf varianten (`teken`, `gebroken`, `gekruist`, `jagers`, en `kalebas`: een kalebas aan een koordje die je met het mes lossnijdt, `tkKalebas`, `tekenSnij`); het doek wappert op `windAt` zoals het gras. Maten in Amir |
-| licht op de runerotsen | `RUNE_LICHT`, `runeLichtMaak`, `runeGrondSchaduw`: de zon op een rots met een rune, uit dezelfde richting als de lichtkaart (`LK.zonHoek`, `zonRechts`); zie "runes op elke rots" |
-| runeschijf: het losse symbool | `runeSchijf(ctx, x, y, r, {aan, spiegel})`: de houten schijf met de rune, los te hergebruiken |
-| vallen: schade bij een diepe val | hoe diep een val telt en wat hij kost |
-| schorpioen, het projectiel, spannen en werpen, de geworpen speer | de speerworp; onder de grond houdt het dak van een gang de speer tegen (`javTegenDak`, hij valt terug) en een speer boven het dak heeft de savanne als vloer (`javFloor` met de hoogte van de speer, via `vloerBij`); de rode flits als Amir geraakt wordt gaat over een eigen doekje (`amirRood`), anders kleurt de hele rechthoek van zijn plaatje mee; wachten met een gespannen speer (ademen, trillen, glimmen) en afbreken met springen, bukken of de andere kant op staan in `WORP_WACHT`, `thrAfbreken`, `thrWachtBij`, `thrWachtZet`, en er wordt nooit vanzelf gegooid; `speerNaastAmir` zet een speer waar Amir niet meer bij komt (achter of in een doornbos, boven op een terras dat hij van deze kant niet meer op komt) naast hem, nooit over een ravijn; `speerBereikbaar` rekent dat uit over de vloeren om hem heen |
-| fakkel: een geanimeerde wandfakkel | `FAKKEL`, `fakkelLaad`, `fakkelFrame`, `fakkelTeken` (na `deurTeken`, dus op de rots en voor de vijanden), `fakkelReset`, `fakkelGeluid`: een brandende wandfakkel met beugel (`design/fakkel/`, uit `tools/fakkel.py`, de 24 frames uit de magenta-bron in `design/fakkel/bron/`). Frame 0 tot 15 is de brandende loop; 17 tot 24 is het uitgaan, nu ongebruikt. Puur decor (houdt Amir niet tegen), in de wereld dus schaalt mee met Amir en de zoom. Een level zet hem met `fakkels: [{x, y, s, f}]` (x de schacht, y de voet boven de grond in Amir, s schaal, f spiegelen). Levend met een flikkerende warme gloed en een brede omgevingspool (`gloed`), opstijgende vonken (`fakkelVonken`), een zachte meeademende schaduw op de wand (`schaduw`) en een knetterend vuurgeluid uit de Web Audio API (`fakkelGeluid`, zoals `bavPoot`, geen bestand). Als lichtbron werpt hij ook een schaduw van Amir, de bandiet en de baviaan, van de vlam af (`cast`, `fakkelCast`, `fakkelSchaduw`, naast `drawAmirSchaduw`): alleen waar de zon het niet wint. `fakkelCast` geeft een overname `w` (0..1) uit `donker` (1 min hoeveel zon er valt maal het daglicht van het uitzicht) maal de nabijheid tot de vlam maal `over`; daarmee dempen de aanroepers de zonschaduw (zonHier maal 1 - w) en kleurt `fakkelSchaduw` zijn eigen schaduw in. Zo staat er nooit meer dan één volle richtingsschaduw: in het donker bij een fakkel wint de vlam, verder weg de zon, en in vol daglicht is `w` nul en verandert er niets (dus de echte episodes, zonder `fakkels`, blijven gelijk). Een echte, meeflikkerende schaduw dus in een gang, 's nachts of in een `dark_`-uitzicht. Test 35 heeft er een naast de deur; in de sandbox onder Decor, Fakkel (op de grond, op de wand, gespiegeld, en **In het donker** dat een nachtscene zet zodat je de cast-schaduw ziet). Staat niet in de kleine set |
-| personages, dorpsdecor | NPC's, `VILLAGE`, de dorpsplaten |
-| Amir zegt er iets van als hij geraakt wordt | `SFX_RAAK`, `playRaak()`: de twee kreten |
-| Amir zegt iets als een vijand sterft | `SFX_RUST`, `vijandDood(baas)` (het bestand is 9 dB harder gemaakt, met een limiter): "ta soul, rest" na elke verslagen eindbaas en na een op de `DOOD_KANS` (7) andere vijanden; elke plek waar een vijand sterft roept `vijandDood` aan |
-| stap voor stap leren spelen | het `tutorial`-systeem (staat klaar, geen level gebruikt het nu) |
-| gaten in de grond | `gaps`, de overkant, de nevel en de diepte; de laag die eronder doorloopt is `grondDoorlopen`, in de bodemsectie |
-| zuil: een smalle strook grond tussen twee ravijnen | `ZUIL`, `zuilBij`, `zuilWand` (in `updateJump`): hoogstens `ZUIL.max` (300) px grond tussen twee ravijnen uit `gaps` is een zuil. Een te korte sprong wordt daar niet gered zoals bij de overkant van een gewoon ravijn (wie onder de rand zakt en uit het gat schuift, wordt anders op de grond gezet): wie het vorige beeld al onder de rand zat, wordt tegen de wand teruggezet en valt. Niet boven een gang. Geen veld: het zijn gewoon twee ravijnen dicht bij elkaar. `levelcheck.py` kijkt na dat het gat ervoor met een schone sprong te halen is (regel `zuil`). In de sandbox onder Terrein, Zuil (`sbZuil`). Test 16 is het proefstuk, Test 18 dezelfde in de sneeuw. In een gang geldt het ook tussen twee putten, met de vloer van de gang als rand (`zuilBij(x, h)` geeft `vloer` mee); Test 19 |
-| zuil met een hoogte: hoger of lager dan de grond | `ZUIL_HOOG`, `zuilLijst`, `zuilBasis`, `zuilTop`, `zuilTeken`, `drawZuilen`: het veld `zuilen: [{x, w, h}]`, een zuil midden in een ravijn (of in een gang midden in een put) met zijn bovenkant `h` boven de grond of de vloer, van -250 tot 180. Hij draagt als een kei (in `terracePlats`, met de halve breedte van Amir eraf, zodat net als bij een zuil tussen twee ravijnen zijn midden telt) en zijn zijkant is een wand (`blockByPlatforms`): te kort of te laag springen is langs de wand naar beneden. `terrainH` geeft er zijn bovenkant. Getekend met de grondtegel van het level (`bodemPic`) op zijn hoogte, met de breukrand van `traceGap` en naar beneden in het donker (`ZUIL_HOOG.donker`, `diep`); op de savanne na de ravijnen in `scene()`, in een gang na de putten in `drawHolte`. Het ravijn of de put moet hem helemaal bedekken. `levelcheck.py` (regel `zuilen`) rekent elke sprong van de rand over de zuilen naar de overkant na met de hoogteverschillen en het dak (`bereik`), en slaat een ravijn of put met zuilen erin over in `ravijnen` en `putten`. In de sandbox onder Terrein, Zuil, Hoger en Lager (`sbZuilHoogte`). Test 20 is het proefstuk |
-| put: een ravijn in de bodem van een gang | `PUT`, `putLijst`, `putBij`, `afgrond`, `valGrens`, `putWand` en `putStenen` (de wand en de stenen omgekleurd naar het steen van de gang, per pixel op helderheid, zoals de winter; `putTint`), `putVastVoor`, `putTeken` en `putTekenEen` (vanuit `drawHolte`, na de vloer; de vloer wordt waar een put zit weggeknipt met `traceGap`, en daaronder loopt de put in het donker weg, `PUT.diep` over `PUT.tot` Amir). Het veld `putten: [{x, w}]` binnen een holte. Een zegel in een gang dat een ravijn in diezelfde gang opent, scheurt de vloer open: `ravijnOpen(x, breed, put)` zet `fx.put`, met `PUT.kleuren` voor het stof, de barst en de brokken; zo'n effect tekent niet `scene()` (`ravijnenTeken` slaat hem over) maar `drawHolte`, is geen gat in de savanne (`ravijnGaten`) en geen gat in het dak (`ravijnBovenGang`), en laat geen decor van de savanne vallen. Botsing: `grondVloer` geeft in een put geen vloer, `valGrens` is `GAP_DEATH` onder de vloer, `gatOp` geeft voor wie beneden staat de put, en `speerVrijePlek` zet de speer niet over een put. De lichtkaart telt een put als grond, zodat hij net zo donker is als de vloer ernaast. Nog niet: vijanden die in een put vallen als hij onder ze openscheurt (`ravijnLaatVallen` slaat een put over), en de route van `levelcheck.py` loopt over een put heen. In de sandbox onder Terrein, Put in de gang (`sbPut`). Test 19 is het proefstuk |
-| stof, sneeuwval, het weer | deeltjes en het weerplan per potje |
-| het weer: regen, onweer, zandstorm, sneeuw en sneeuwstorm | `WEER`, `weerDoel`, `updateWeer`, `drawWeer`, `weerWind`, `weerGeluid`: het veld `weer` van een level (zie "het weer" hieronder) |
-| vegetatie, water, doornbos | `props`, `water`, `thickets` |
-| schilden in de wind | `SCHILD`, `schildStofUpdate`, `schildTil`, `drawSchildStof`: een schild (`schild: true` in `PROPS`) is een windscherm; bij een vlaag stuwt er stof tegen de windkant op, dat eroverheen waait. De plaatjes in `design/schilden/` zijn zelf de bron (het donkere motief van het klauwenschild is er met de hand in teruggezet) |
-| slangen: kleur, zicht en patrouille | `SNAKE_DIRS`, `slangZiet`, `startPatrouille`, `slangSchuif`. De zwarte slang (`k: 'zwart'`) en de knockslang (`k: 'knock'`) zijn spuwers: ze bijten niet maar spuwen gif (`spit`, `updateVenom`), blijven op afstand, draaien om bij een ravijn en volgen je ook buiten beeld. Of een slang een spuwer is beslist `spuwer(s)` (gebruik die, niet `=== 'zwart'`, voor nieuw spuwer-gedrag). De knockslang is jade/violet (`enemies/slang1_knock/`, een recolour van slang1) en zijn goo (`enemies/slang1_knock/venom.png`, `venomKnockImg`, `v.knock` op elke druppel) doet geen schade maar duwt Amir `KNOCK_CELLEN` level-maker cellen terug (`knockVenomRaak`, zet de bestaande `knock`-snelheid); die terugstoot duwt gewoon door, ook een ravijn in of een platform af. Test 43 is het proefstuk |
-| zwarte panter, de witte panter, de hyena | de grote vijanden |
-| de bandiet: een rover met een kromzwaard | `BAN`, `banLaad`, `makeBandiet`, `updateBandiet`, `hitBandiet`, `banFrameImg`: de tweede menselijke tegenstander, naar het model van de zwaardvechter maar sneller. Vijf sets (`enemies/bandiet/`, met `sprites.json`, `sprites_los.json`, `dolk/dolk.json` en de `LEESMIJ`-bestanden als bron): `run` (lus, 14), `slag` (eenmalig, 33), `look` (eenmalig, 48, een taunt als hij op zijn beurt wacht), `worp` (eenmalig, 81, de dolkworp) en `dood` (eenmalig, 63, hij zakt in elkaar en blijft liggen). In een gevecht rent hij altijd (geen idle of pijnpose: een niet-dodelijke treffer is een flits met terugstoot die de slag afbreekt). Een staande idle en een patrouillegang heeft hij wel, maar alleen buiten het gevecht (de arena-entree en een passagier die omhoog getakeld wordt); zie **Staande idle en patrouille** hieronder. De frames kijken naar links, dus gespiegeld = naar rechts; het anker is het canvasmidden (231) zodat hij symmetrisch omklapt. `run`/`slag`/`look` delen het canvas (461x504, grondlijn 497, figuur 351); `worp` en `dood` staan op een eigen canvas met eigen voetpunt en maat in `BAN_SETGEO` (`banGeo`, `banSetScale`: zo geschaald dat de figuur even groot op het scherm komt als de hoofdset). Raakframes van de slag 21 tot 27, klap 20. Hij rent op Amir af (`BAN_RUN_SPD`, net onder sprint) en haalt uit met een neerwaartse haal (`banReik`, `BAN_ZWAARD`, korter dan het langzwaard zodat je speer er langs komt) in één vloeiende glijbeweging: hij neemt zijn volle loopvaart mee het moment dat hij uithaalt (`BAN_LUNGE_IN`, gelijk aan `BAN_RUN_SPD`, dus geen stilstand voor de slag) en remt dan gestaag af over de hele haal (`BAN_LUNGE_DECAY`), zodat de slag en het doorschuiven samen één beweging zijn; hij plant voor de herstelframes (`BAN_LUNGE_TOT`). Geen aparte afzet halverwege meer: die gaf een hapering (snel in, bijna stilstand, dan opnieuw vooruit). De slag-animatie zelf heeft daarbij een eigen tempo per stuk (`BAN_SLAG_TEMPO`, `banSlagFps` in `banAnim`), want op één vaste fps bleef hij te lang met de kling boven zijn hoofd hangen (frame 6 tot 19) en dat las als stilstaan: nu snelt hij door het uithalen, is de neerwaartse haal (frame 20 tot 28) leesbaar en te ontwijken, en duurt de slag zo'n 1,0 seconde (was 1,3, en even 0,8 maar dat las te snel om op te reageren). Dat schuift hij door met een duidelijke opstuivende zandwolk bij zijn voeten (`banStofWolk`, een dichte, zwevende wolk met zandkorrels in `wdust` en `grains`, zoals de landing van de baviaan en Amir; `banGlijStof` voor de sliert onderweg). Zodra hij op Amir af gaat rennen roept hij één keer een van twee strijdkreten (`banRoep`, `s.geroepen`: `sounds/banditdie.mp3` "Die!" of `sounds/banditfalseking.mp3` "False king!", willekeurig), en als hij sterft klinkt een aparte doodskreet (`banSterf`, `sounds/banditdeath.mp3`, in `hitBandiet`). Zijn slag en zijn dolkworp hebben elk een eigen geluid: de korte zwaardslag (`banPlaySlag`, `sounds/banditslag.mp3`) op het klap-frame van de slag, en de dolkworp (`banPlayWorp`, `sounds/banditdolkworp.mp3`) als hij zijn dolk loslaat. Al die geluiden gaan via `banStemmen`/`banStemSpeel` (een paar stemmen per geluid zodat ze elkaar niet afsnijden, rechtstreeks afgespeeld zodat `geluidOntgrendel` ze op een telefoon aanzet). Onder het rennen hoor je zijn voetstappen (`BAN_STAP`, `banVoetstap`): gemaakt met de Web Audio API zoals de poten van de baviaan (`bavPoot`), maar lichter (een mens op droge grond), op de twee neerkom-frames van de run (4 en 11, dezelfde als `banLoopStof`), elke keer iets anders en zachter naarmate hij verder van Amir staat; via `acLoopt`, dus hij start pas als de gedeelde context loopt. **De hinderlaag (ambush, `hurk`).** Een bandiet met `hurk: true` in zijn spawn (of de sandbox-knop Hinderlaag, `bandiet_hurk`) zit gehurkt met de rug naar Amir en springt op als die te dichtbij komt. De sets staan in `enemies/bandiet/`: `hurk_in` (28), `hurk_idle` (24, loop), `schouder` (16) en `spot` (70, opstaan, uithalen en de dolk werpen), met `sprites_hurk.json` en `LEESMIJ_hurk.txt` als bron (eigen canvas 414x536, voetlijn 527, eigen fps per set; `BAN_HURK_GEO`, schaal naar de hoofdset via fig = 351 * 1,275). Pas geladen als een level of de sandbox er een zet (`banLaadHurk`, `BAN_HURK_SETS`). Het gedrag staat in `updateBandiet`: `hurk_idle` (wacht, rug naar je, `s.face = -naarJe`) tot `banAmbushRange()` (geklemd op wat in beeld staat, zoals `banWorpRange`) → `schouder` (kijkt achterom) → `spot` vanaf `BAN_SPOT_START` (20; de gehurkte 0-19 slaan we over, en hij keert zich nu naar je toe, het omdraaien valt in de sprong) → op `BAN_SPOT_WORP` (69) werpt hij zijn dolk (`banGooiDolk`, dezelfde vlakke kophoogte-worp, dus bukken) → daarna een gewone bandiet (`run`). `schouder` en `spot` lopen vlot (`BAN.fps` 18 en 38) zodat hij snel opkomt en werpt; je kunt hem nog neersteken terwijl hij opspringt, maar je moet er vlotter bij zijn dan voorheen. Spawn met `{x, k: 'bandiet', hurk: true}` op een vaste plek (niet net buiten beeld). Test 31 is het proefstuk. In de sandbox onder Vijanden, Bandiet: knop **Hinderlaag**, en onder Zijn animaties **Hurken/Gehurkt/Schouder/Opspringen** om de sets los te bekijken. **De vault** (standaard aan voor elke bandiet, een eenhandige radslag over een kei, `enemies/bandiet/vault/`, `sprites_vault.json`, `LEESMIJ_vault.txt`). Een kei houdt een bandiet gewoon tegen (regel 7, `banTegenKei`), maar een bandiet springt er overheen zodra hij er bij een kei tegenaan rent en Amir niet meer aan zijn kant staat (op de kei of aan de overkant): dat is een regel 7-uitzondering die voor rovers altijd aanstaat (zoals de panter met `over`, maar dan standaard in plaats van opt-in), zodat de kei voor Amir nooit een schuilplek voor een rover is. Uitzetten kan alleen per spawn met `vault: false`, en alleen als de opdracht daar expliciet om vraagt (`makeBandiet` en `readLevel` nemen `vault !== false`, dus zonder het veld vault hij; `syncLevel` bewaart alleen het uitzetten). De trigger staat in de run-staat van `updateBandiet` (`banKeiVoor` zoekt met dezelfde bloktest als `banTegenKei` de kei die hem tegenhoudt; hij kijkt naar de rand aan de bandietkant, zodat hij ook vault als Amir bovenop de kei zit, niet alleen als Amir al helemaal aan de overkant staat), en `banStartVault` zet de staat `vault`. Er is geen afkoeling: zodra er weer een kei tussen hem en Amir ligt, vault hij er meteen opnieuw overheen, zodat ook een tweede of derde bandiet niet staat te wachten en Amir nergens achter of op een kei veilig is. De set is geregistreerd (`BAN.n.vault` 68, `BAN.fps.vault` 90 zodat hij rap is, ~1,07 s; `BAN_SETGEO.vault`, eigen duur per frame via `BAN_VAULT_TICKS`, per-frame grondlijn `BAN_VAULT_GROND`, pas geladen met `banLaadVault`). De hoogte komt uit de engine: het hele beeld wordt in een sprongboog opgetild (`banVaultLift01`, een sinus maal de obstakelhoogte `s.vaultH` uit de kei (`topH`), met `BAN_VAULT_PIEK` 1,35 als top boven de kei). Hij blijft op de grond tot de afzet (`BAN_VAULT_AFZET` 6), zet zich daar af, vliegt over de steen (op de piek ligt zijn laagste punt boven de kei, dus hij raakt hem niet) en landt erachter op de grond (`BAN_VAULT_LAND` 58, lift terug op nul), in plaats van recht omhoog te zweven voor de kei. De sprite tekent op een vaste wereldpositie en levert zelf een stuk van de verplaatsing (`BAN_VAULT_ZELF` 193,5 canvas-px, het anker is de cx van frame 0, ~121 wereld-px, te weinig voor een echte kei): de engine drijft de rest erbij (`s.vaultExtra`) met `banVaultP`, met dezelfde timing als de boog (niets tot de afzet, dan smoothstep naar 1, zodat omhoog en vooruit samen één boog zijn), zodat hij altijd net voorbij de overkant landt (`s.vaultDoel`). Stof bij het afzetten (`banStartVault`) en bij het neerkomen (frame `BAN_VAULT_LAND`), en op frame `BAN_VAULT_AFZET` de afzetkreun (`banAfzet`, `sounds/banditafzet.mp3`). In de lucht is hij niet te raken (`hitBandiet` slaat `vault` over). Daarna meteen weer `run`. Elke bandiet vault standaard, dus `{x, k: 'bandiet'}` volstaat (ook samen met `hurk`); met `vault: false` zet je het voor die ene spawn uit. In de sandbox de knop **Vault** (`sbanvault`, staat standaard aan), en de set los bekijken met **Vault** onder Zijn animaties. Test 31 is het proefstuk (elke hinderlaag staat tussen twee keien, dus hij vault of je er nu voor schuilt, erop staat of er al voorbij bent). Hij stopt voor een kei of ravijn (`knockBlocked`, regel 7), hijgt na (`BAN_NA_SLAG`) en komt weer. Twee treffers (`BAN_HP` 2). Zijn lijk blijft liggen (geen tijdklok meer): alleen de lage zwaai veegt het weg (`s.veeg`, de box op grondhoogte in de tekenlus, daarna zakt het in `BAN_LIJK_FADE` weg), want een lijk ligt te laag voor je stoot of speer. Datzelfde geldt voor de zwaardvechter (`ZW_LIJK_FADE`); de baviaan blijft toch al liggen. Schaduw als de zwaardvechter (een ellips), stof via `puffWorld`. Het mes weert hem af (`mesAfweer` tak `'bandiet'`); `rijsDraagtMob` draagt hem mee op een lift. **De dolk** (`b.dolk`, opt-in, en bij een `hurk`-bandiet altijd aan): een dolkbandiet wil altijd eerst werpen voor hij met het zwaard aanvalt. Ziet hij je binnen `banWorpRange()`, dan blijft hij staan en gooit (`worp`, de trigger in de run-staat, release op `BAN_WORP_RELEASE`, daarna weer rennen op `BAN_WORP_NA`), ook van dichtbij en ook als je hem raakte voor de dolk weg was (`s.gegooid` pas na de worp, dus raak je een gehurkte bandiet voor frame 69, dan werpt hij alsnog staand in `run`). Pas als de dolk weg is slaat hij toe, één keer (`s.gegooid`, `s.dolkUit`). Hij gooit pas als hij echt in beeld staat: `banWorpRange` klemt het bereik op hoogstens `BAN_WORP_RANGE` maar nooit verder dan `BAN_WORP_RAND` van de halve schermbreedte (`W / viewZoom`), want op een telefoon zie je maar ~426 wereld-px opzij en viel de worp anders van buiten beeld. De dolk als projectiel: `BAN_DOLK`, `banGooiDolk`, `banDolkenUpdate`, `banDolken` (x in wereld-px, h in sprite-eenheden zoals de geworpen speer). Hij tolt niet: de rechte dolk (`dolk_recht`) vliegt met de punt vooruit en steekt schuin in de grond bij een misser. Hij vliegt bijna vlak op kophoogte (`BAN_DOLK.g` bijna nul, `handH` en `doelH`), zodat je hem staand (hitbox tot 251) niet ontwijkt maar gebukt (tot 171) wel: bukken is het antwoord. De worp gaat altijd de kant op waar hij zich op richtte (`s.face`, horizontaal geklemd op minstens `BAN_DOLK.minVoor` vooruit): duik je er tijdens het opspannen langs zodat je achter hem staat, dan vliegt de dolk vooruit (en mist), nooit achteruit. Om hem op een telefoon te kunnen volgen is hij groter getekend (`BAN_DOLK.teken`, alleen beeld: de botsing blijft `BAN_DOLK.r` op `banScale`) met een vervagend spoor erachter (`BAN_DOLK.spoor`, `d.trail`). Getekend en de botsing met Amir in de tekenlus (`hurtPlayer`). In een level met `{x, k: 'bandiet'}` (met `dolk: true`) of de golf `bandietGolf` (met `dolk: true`); in de sandbox onder Vijanden, Bandiet (`sbanvrij` AI aan/uit, `sbandolk` Dolk aan/uit, `data-bananim` run/worp/slag/look/dood, `sbangolf` een golf). De oplopende golf: `golf`, `golfReset`, `updateBandietGolf`, `golfHudTeken` (teller: verslagen en tijd), in de sandbox `sbGolfTick`. Staat in de kleine set. Test 29 is het proefstuk, Test 30 dat van de dolkwerpers. **De elite-garde** (`elite: true`): de garde van de valse koning, zwart met een goud accent. Hij tekent uit een tweede cache (`banBankElite`, `BAN_ROOT_ELITE` = `enemies/bandiet_elite/`, uit `tools/bandiet_elite_kleur.js`), met per set een elite-variant; `makeBandiet` en `banFrameImg` kiezen de elite-cache op `s.elite`, `readLevel`/`syncLevel` dragen de vlag, en `banLaad(true)`/`banLaadHurk(true)`/`banLaadVault(true)` laden de elite-sets. In de sandbox de knop **Elite** (`sbanelite`). **Van boven neerkomen** (`neer: true`): `banStartDrop` zet hem `BAN_DROP.hoog` boven zijn vloer, hij valt in de run-pose (`s.air`, `s.airV`, `BAN_DROP.g`, in `updateBandiet`), de schaduw krimpt en wijst de landing aan, en bij het neerkomen stuift het stof op; in de lucht (`s.air > 0`) is hij niet raakbaar en doet hij geen schade. In de sandbox de knop **Van boven**. **Staande idle en patrouille** (`walk`, `idle`, `idle_in`, `schouder_sta`, uit `sprites_idle.json` en `LEESMIJ_idle.txt`, op een eigen canvas 397x563, voetlijn 555, op dezelfde schaal als de hoofdset; `BAN_IDLE_GEO`, in `BAN_SETGEO`). Elk frame heeft een eigen duur in ticks op 24 fps (`BAN_IDLE_TICKS`), net als de vault, in een eigen tak van `banAnim`. `idle` (15, loop) staat rechtop met het zwaard horizontaal in twee handen, `walk` (16, loop) is de patrouillegang, `idle_in` (10, eenmalig) brengt het zwaard omhoog naar de idle, `schouder_sta` (14, eenmalig) kijkt over de schouder achterom (rond frame `BAN_SCHOUDER_MERK`, 10, de look-back). Pas geladen waar ze nodig zijn (`banLaadIdle`, `BAN_IDLE_SETS`, in `BAN_EXTRA_SETS` zodat ze niet standaard meeladen): de arena-entree en een passagier op de takel. De elite-variant komt mee uit `tools/bandiet_elite_kleur.js` (dat loopt de hele bandietmap recursief af). In de sandbox onder Zijn animaties **Lopen/Idle/Zwaard omhoog/Schouder staand**. De sprongsets uit `LEESMIJ_idle.txt` (afzet/zweef/landing, met en zonder dolk) zijn nog niet geladen; die komen als de frames er zijn. Zie "de bandiet-arena" |
-| de schildbandiet: loopt met zijn schild op en valt springend aan | `SCHB`, `makeSchildman`, `updateSchildman`, `hitSchildman`, `schbMik`, `schbSprongP`, `schbLand`. Het ritme van het gevecht, afgestemd met `tools/schildduel.js`: hij loopt op Amir af tot `houd` (1 Amir) en zet op `aanval` (2,1 Amir) de sprong in. De tell (frame 0..5, ~0,8 s) is tot `pantserVan` (3) te onderbreken; daarna zet hij door (een treffer kost schild maar onderbreekt niet). Tot `mikTot` (7, net na de afzet) stuurt hij bij naar Amir, zo dat zijn speerpunt (`speerVoor`, 0,62 Amir voor zijn midden) op Amir de grond in gaat; de sprong (6..16, ~0,57 s) is onaantastbaar en vloeit op de klok (`schbSprongP`). Hij raakt op 17..20 rond de punt (`speerR`) of onder zijn lijf (`lijfR`) en slaat Amir dan terug (`raakDuw`); de landing geeft een hitstop (`landStop`), schok en een zet die dichtbij harder is (`landDuw`). Het herstel (21..29, ~0,8 s) is het raam om te straffen. Een treffer geeft een korte hitstop (`raakStop`, `breekStop`) en een flinch die meteen begint (`flinchVan`) met een terugstoot (`flinchDuw`); vanaf `dekVan` in de flinch ketst je speer af (geen stunlock), en binnen `wraakT` slaat hij terug met een tell die al gepantserd is. Gemeten op 1280 bij 720: met 0,2 s reactie ontwijk je alles, met 0,35 s word je bij twee van de drie sprongen geraakt, blind steken of stilstaan kost meerdere levens; het gevecht duurt zo'n 8 tot 10 seconden. Dat is het niveau `moeilijk` (zonder veld). Met `niveau: 'makkelijk'` in zijn spawn (`SCHB_NIVEAU`, `schbN`, `schbDur`) heeft hij een langere tell, een tragere sprong en een langer herstel, mikt hij alleen tot de afzet, zet hij later door en slaat hij na een flinch niet gepantserd terug. Het tempo per niveau staat in `SCHB_TEMPO` (tell, aanval = sprong en inslag, herstel; hoger is sneller, `schbDur` deelt de frameduur erdoor en de sprong beweegt vanzelf mee) en is live af te stellen in de pauze onder **Schildbandiet: tempo** (`pzschb`, `SCHB_SCHUIF`, bewaard onder `SCHB_TEMPO_KEY`, de knop alleen in een level of sandbox met een schildbandiet, `schbTempoKnopToon`); de aanval staat standaard op 125%. Met `achter` (px) start een spawn op hetzelfde moment als de spawn op zijn x, maar zoveel verder weg, zodat hij een tel later het gevecht in loopt: zo komen er twee na elkaar (werkt ook voor de bandiet en de kooiman). Test 45 is het proefstuk, Test 46 loopt op van een makkelijke via twee makkelijke en een moeilijke naar twee moeilijke, dan een bandiet met een moeilijke en een moeilijke met de kooiman (gespeeld met `tools/schildduel.js --level "Test 46"`: met 0,35 s reactie 0, 2, 2 en 4 keer geraakt); in de sandbox onder Vijanden |
-| de bandiet-arena: het geënsceneerde eindgevecht | `BANDARENA`, `bandArenaStart`, `bandArenaWachters`, `bandArenaUitLucht`, `bandArenaOpPlateau`, `bandArenaTick`, `bandArenaFadeTeken`: het veld `bandArena: true` (Valse Koning 8). Een geënsceneerd gevecht met een fasemachine in `arenaAap.fase`. Hergebruikt het arena-camerasysteem van de goudaap-arena (`arenaAap` met `ban: true`, `arena`/`updateArena` voor de camera in het midden, `arenaAchtergrond` voor de twee grijze zijwanden, `arenaHudTeken` voor de teller) en de takel (het plateau draagt en veert), met de elite-garde in plaats van de goudapen. **De aankomst** (`fase 'aankomst'`, `A.staging` aan): `bandArenaStart` (in `restart`) zet Amir op het plateau, dat boven een ravijn hangt (`level.gaps` onder het plateau, iets breder dan het plateau zodat je er niet naast op vaste grond stapt); het wiel staat er rechts van op vaste grond, net buiten de put, binnen stootbereik vanaf de plateaurand (ook op een telefoon, `px + breed/2 + 120`). Amir heeft zijn speer in de hand (op een plateau boven een ravijn kan hij er geen uit de grond halen). Hij loopt over het plateau naar de rand bij het wiel en slaat het (de stoot of de lage zwaai tegen het rad, `takelSlag`, zodat `t.doel` van 0 af is); dan takelt het plateau hem mee omhoog en uit beeld (`fase 'stijg_uit'`). In de aankomst mag hij gewoon springen en van het plateau af lopen; dat het plateau dan niet zonder hem vertrekt vangt `bandArenaTick` af: het wiel takelt alleen omhoog als Amir op het plateau staat (zijn x binnen de plateaubreedte, want eronder is ravijn), anders zakt het wiel weer terug (`t.doel = 0`). Van het plateau af gelden de gewone regels: op de grond valschade, in het ravijn dood. Pas vanaf `stijg_uit` staat springen uit (`arenaGeenSprong`, nu alleen nog `stijg_uit`/`arena_in`) en staat hij helemaal vast op het plateau (`arenaRitVast`), een passagier die mee omhoog rijdt. Het takelen in de arena gaat trager dan een gewone takel (`BANDARENA.traag` op `t.angV`, zo'n 2,5 keer zo traag), zodat de rit leesbaar is; het takelgeluid loopt eronder (`takelGeluid`). **De overgang**: boven `BANDARENA.uit` fadet het naar zwart (`A.fade`/`A.fadeDoel`, getekend door `bandArenaFadeTeken` als laatste, in schermruimte); op zwart zet `bandArenaTick` de arena klaar (de put `level.gaps` precies zo breed als het plateau, zodat de brug boven het ravijn exact vult, geen randje op de vaste grond; de brug is `rigide` (geen veer, geen schommel) en dokt op `takelDekOffset() - BANDARENA.zak`, een eenheid onder de grondlijn: onzichtbaar, maar `supportHeight` herkent hem wel, want een plateau op precies 0 leest als "geen plateau" (de 0-sentinel) en je zou er dwars doorheen vallen. Twee rotsrichels als decor `level.ledges`, het plateau diep onder beeld `BANDARENA.diep` met `takelReset`, en een speer op de vloer bij de linkerwand als reserve) en takelt Amir van onderaf de arena in (`fase 'arena_in'`), terwijl het weer infadet. De camera klemt daarbij op de arenavloer (`updateCamera` pint `camY`/`camDiep` op 0 zolang `arenaAap.ban`). Tijdens `arena_in` staat Amir vast op het plateau (`arenaRitVast`, blokkeert lopen en springen, niet het aanvallen), zodat hij er niet af kan rennen voor het boven is; hij komt pas vrij als het plateau aangekomen is. Boven in de arena tekent `takelTeken` het wiel en zijn drijftouw niet (`arenaMode`); alleen de twee plateau-touwen lopen boven uit beeld door. **De entree** (`fase 'intro'`): boven staan twee garde in de hoeken (`bandArenaWachters`), links gehurkt en rechts staand, allebei met de rug naar Amir (`introKind`, `hurk_idle`/`idle`). Amir staat vast (`arenaIntroVast` in `amirVast`) en kijkt toe. Na `BANDARENA.introRust` kijken ze over hun schouder (`schouder`/`schouder_sta`, `introStap 'merk'`), en na `BANDARENA.introMerk` gaat het gevecht vrij (`introStap 'los'`, `fase 'golfA'`): Amir komt los en de twee draaien zich om en openen allebei met een dolkworp (de gehurkte via `spot`, de staande via `worp`, met `s.gegooid` gezet zodat `run` er geen tweede gooit). Ze starten verder naar de hoeken naarmate er meer in beeld is (`inzet` schaalt met `viewZoom()`, dus op een uitgezoomde laptop verder naar buiten dan op een telefoon). **Het gevecht**: zijn die verslagen, dan komen er twee uit de lucht (`bandArenaUitLucht`, `banStartDrop`, een links en een rechts buiten de put) terwijl het plateau weer uit beeld zakt (`t.doel = 0`, `fase 'golfB'`); daarbij zet `bandArenaTick` Amir van de put af op de vaste grond als hij er nog op staat, zodat het zakkende plateau hem niet meeneemt. `BANDARENA.terug` (3) tellen later komt het met twee garde als passagiers terug (`bandArenaOpPlateau`, `fase 'golfC'`), die staand idlen terwijl ze omhoog rijden en boven afstormen. Zijn ook die verslagen en staat het plateau boven, dan `winLevel()`. `arenaTick` telt de kills via `hitBandiet` (`arenaAap.kills++` als `A.ban`); de teller staat uit tijdens de entree. Lege `spawns` zou de vrije modus starten, dus er staat een spawn heel ver weg (`{x: -60000, k: 'groen'}`). `levelcheck.py` kent `bandArena` als een level dat via `winLevel` eindigt (geen fakkels). **Vechtruimte**: boven (na de aankomst, `!A.staging`) staat de camera vast in het midden (`arenaCam` geeft voor `arenaAap.ban` gewoon `arena.c` terug, geen `ARENA_DRIFT`), en mag Amir tot aan de schermranden rennen, zodat je de hele breedte gebruikt. De zichtbare wereldhelft is `(W/2)/viewZoom()` om `arenaMidden()` heen (dat is gelijk aan `arenaAap.c`, dus het klopt met de camera), en daarop wordt `world` geklemd (in de hoofdlus, in plaats van de gewone klif-grenzen `endWall`/`cliffAt().wall`). **De twee rotsrichels** (`level.ledges`, gezet in `bandArenaTick`) worden aan diezelfde schermranden verankerd: hun vlakke kant ligt een Amir binnen de rand, diep genoeg in de rots dat ze op elk scherm op de wand rusten (de wand vult met `arenaZijwand` betrouwbaar tot de rand, dus de geschilderde rotsrand uitlezen hoeft niet, dat lukt ook niet door de sliver-rek), met links lager en groter en rechts hoger en kleiner zodat het geen symmetrisch paar is. In de sandbox onder Vijanden, Bandiet: knop **Arena** (`sbanarena`) |
-| baviaan: de eindbaas in wording | `BAVIAAN`, `baviaanLaad`, `baviaanTeken`: nog alleen een plaatje (`enemies/baviaan/baviaan.png`, uit `tools/baviaan_knip.py`, dat de magenta achtergrond van `baviaan_base_magenta.png` ontmengt), zonder gedrag. In de sandbox onder Vijanden, Baviaan (`sbBaviaan`, `sbBavStap`): neerzetten, schuiven, van maat veranderen en spiegelen; `level.baviaan = {x, y, s, f}`, `y` en `s` in Amir. De afzet (`BAV_AFZET`, `bavStand`, `bavAfzetWissel`): 44 frames in `enemies/baviaan/afzet/` op een gedeeld canvas, een keer; tot frame 8 heeft hij zijn arm nog aan de wand (op 15 per seconde, `delen`); een schaal voor de hele reeks uit het kader van de baviaan in frame 0 (`kader`), zodat hij precies over het losse plaatje valt. Het hangen, de afzet en de val zijn kleiner getekend dan de staande frames (zijn kop zo'n 60 bronpixels tegen 80 tot 90), dus die tekent het spel `BAV_GROEI.hang` (1,12) keer zo groot (1,25 maakte hem even groot, maar hangend te fors; zo lijkt hij aan de wand wat kleiner en richt hij zich na de landing op tot iets groters), vanuit de grondlijn van het canvas, ook het losse plaatje; in de landing loopt dat tot frame `tot` (10) zacht terug naar 1 (`bavGroei`, het veld `groei` uit `bavStand`), zodat het krimpen in het opvangen valt en de overgang naar de brul naadloos blijft. De schaduw, het stof bij de landing (`bavBronX`) en de camera (`bavKijk`) rekenen die groei mee. Zijn schaduw is die van Amir (`bavSchaduw` roept `drawAmirSchaduw` aan, en vervaagt met hem als hij doodgaat): zijn eigen frame als silhouet, een omgevingsschaduw recht onder hem en een zonneschaduw van de zon af, met de voeten op de grondlijn van het canvas (rij 576, bij de sprong `BAV_SPRONG.grond` 770); hoog aan de wand is er nog niets, in de val komt hij op. Bij frame `los` (10) laat hij los: vanaf daar maakt het hele canvas een valboog (vooruit met `vx`, eerst even `op` omhoog, omlaag met `zwaar` keer `GRAVITY`, want met de zwaartekracht van Amir zweefde hij naar beneden; `bavValDuur`) en speelt de rest van de afzet (oprollen en uitstrekken) in de lucht, uitgerekt over de valtijd, op minstens `luchtMin` per seconde. Eerst viel hij pas bij frame 32 en hing hij daarvoor opgerold stil in de lucht. Is de afzet op en valt hij nog, dan de val (`BAV_VAL`): 8 frames in `enemies/baviaan/val/` op hetzelfde canvas en dezelfde schaal, als lus. De val stopt als de grondlijn van het canvas (`grond`, bronrij 575) de grond raakt, 40 bronpixels onder zijn handen. De landing (`BAV_LANDING`): 25 frames in `enemies/baviaan/landing/`, een keer, en dan het laatste, met het tempo per stuk in `delen`: frame 0 tot 4 op 40 per seconde (zijn handen reiken naar de grond en vangen de klap, in frame 4 tot 6 tot 10 bronpixels eronder, zo bedoeld), de rest op 24 (op 12 zag je elke stap; samen nu 0,9 seconde). Hij begint `vroeg` (0,05) seconde voor het canvas de grond raakt, en daarna loopt de vaart vooruit in `uit` (0,12) seconde uit, zodat hij niet in een beeld stilstaat. Van 1,5 Amir hoog duurt de val zo 0,43 seconde. Waar hij de grond raakt stuift het op (`BAV_STOF`, `bavStof`, met de plek uit de frames via `bavBronX`): een lage wolk en korrels bij de klap van de wand (landing frame 3 en 5) en na een sprong (sprong frame 23, de afzet op 6), een wolkje en wat korrels achter elke pas (run frame 4 en 10), en remstof naar voren aan het eind van de uitval van een hap, als hij uit zijn run stilhoudt bij de kooi en als hij omdraait. In de sneeuw (Winter World, of het veld `sneeuw` vanaf `sneeuwVanaf`) is dat poedersneeuw en kristallen (`snowBurst`, `snowFxPush`), in het water of boven een ravijn niets. De zandwolken staan in `wdust` met een eigen dekking (`a`, `BAV_STOF.dicht`), want `stofwolk.png` is ijl, en met `zweef`: ze remmen af en stijgen langzaam op in plaats van te vallen, komen zacht op en blijven langer dicht (en `lang` per soort laat ze langer hangen), zodat het een wolk is en geen sliert. Als hij dood neerploft een brede wolk langs zijn hele lijf (`plof`, op dood_18) en eerst wat remstof bij zijn handen (dood_16). Direct daarna de brul (`BAV_BRUL`): 24 frames in `enemies/baviaan/brul/`, een keer, en dan het laatste, met het geluid `sounds/babrawr.mp3` (`bavBrulSnd`, ook in `geluidOntgrendel`), op gewoon volume (`geluid.vol` 1): de eerste van de twee brullen. Het tempo loopt mee met het geluid (`delen`, met `deelFrame` en `deelTijd`): overeind komen (0 tot 6) op 20 per seconde (daar springt hij 25 tot 33 bronpixels per frame), de bek wijd open (7 tot 19) op 10 zodat dat over het luide stuk van 1,3 seconde valt, dicht (20 tot 23) over het uitsterven; het geluid start 0,05 seconde voor frame 7, een keer per afzet; brul_00 is de pose van het laatste landingsframe. Dat canvas is 542 breed in plaats van 493 en begint 44 bronpixels links van het landingscanvas (`links`, in `bavStand` als `ox`), met dezelfde bovenkant, grondlijn en schaal; gespiegeld schuift het vanzelf naar rechts. Na de brul loopt nu de grommende idle (`BAV_IDLE_GROM`, zijn hoofd-idle op de grond): 39 frames in `enemies/baviaan/idle_grom/` als naadloze lus, op hetzelfde canvas als de brul, met `enemies/baviaan/idle_grom_metadata.json` erbij. Welke idle er na de brul loopt kiest `BAV_NA_BRUL` (`'grom'` of `'opgefokt'`); er wordt niet tussen die twee gewisseld. Met `'opgefokt'` loopt de opgefokte idle (`BAV_IDLE_OP`): 12 frames in `enemies/baviaan/idle_opgefokt/` als lus, op precies hetzelfde canvas als de brul. Daartussen komt later nog een korte opstaan-animatie; tot die er is verspringt de houding daar even. Na de brul volgt een vast verloop (`BAV_VERLOOP`, `bavRustStand`): idle, hoofdschudden (`BAV_SCHUD`, 64 frames in `enemies/baviaan/hoofdschudden/`, op hetzelfde canvas, met de shake een keer extra rond (`herhaal`: frame 46 is precies frame 18, dus 18 tot 45 is een naadloze ronde; `bavSchudReeks`), samen 2,2 seconden, en met het grommen `sounds/bavgrom.mp3` erbij: `bavGromSpeel` bij het begin van elk schudden, via een eigen gain op de versterker van de brul (`bavGromGain`), ook in `geluidOntgrendel`; de aangeleverde monkey growl geknipt tot 2,23 seconden, van 0,03 tot 2,26, zodat de uithalen op de shake vallen en het uitsterven op het weer omhoog komen), idle, en de grote brul (`BAV_ROAR.groot`), en dan stormt hij (`BAV_RUN`). Er zijn dus twee brullen: de eerste bij de landing op gewoon volume, en de grote, drie keer zo hard. De grote zijn de brulframes vanaf frame 6 (`van`: brul_00 is de lage landingshouding, en uit de rechtop staande idle zakte hij dan eerst door zijn knieen) met een eigen tempo per stuk, en `babrawr.mp3` veel harder (`vol` 3, boven 1 via `bavBrulVersterker`, ook in `geluidOntgrendel`) en trager en dieper (`rate` 0,8, zonder vaste toonhoogte), via `bavBrulSpeel(vol, rate)`. Van frame 7 tot 20 (`tril`) trilt het scherm licht (`shake`), rommelt de aarde zacht (`bavBeving`: het geluid van een ravijn dat openscheurt, `deurSnd` via `deurVersterker`, op `beving` van zijn volume) en trillen er steentjes op de grond (`BAV_STENEN`, `bavStenenStart`, `bavStenenTeken`: dezelfde steentjes als rond een openscheurend ravijn, `ravijnStenenNu`, verspreid over het beeld maar niet op een kei, getekend direct na de grond in `scene()` zodat het decor eroverheen valt, en een paar pixels hoog, zoals bij het ravijn). Van de landing tot hij stormt zo'n 7 seconden. De run: 17 frames in `enemies/baviaan/run/` als lus, canvas 790 bij 592, dat 108 bronpixels links van het canvas van de brul begint (`links` is dus 44 plus 108), met de grondlijn ook op rij 575. Hij rent even snel als Amir sprint (`bavV`: `v`, 495 wereld-px per seconde, 330 lopend maal 1,5 met Shift, maal `walkK()` als je Amir in de instellingen trager of sneller zet). Alles van de baviaan loopt op speltijd (`bavKlok`, in de lus opgeteld met `dt`), niet op `performance.now()`: op een telefoon zet het spel het tempo lager (`gameTempo`, zo'n 0,75) en daar moet hij in meelopen, anders is hij daar sneller dan Amir; in de pauze staat hij stil, zodat je hem niet ontloopt, en het tempo van de frames loopt mee zodat zijn voeten niet glijden: de voet op de grond schuift in de frames `pas` (40) bronpixels per frame naar achteren, dus v / (pas maal de schaal) frames per seconde, op 1280 bij 720 zo'n 34, geklemd tussen `fpsMin` en `fpsMax` (20 en 36). Hij volgt de grond onder zich. Na het verloop is hij een tegenstander (`bavVecht`, `bavGevecht`, `BAV_VECHT`): hij rent op Amir af en draait om aan het begin van een pas als Amir achter hem staat; zijn plek staat dan in `r.wx` (wereld-px vanaf `b.x`, los van de kant waar hij op kijkt). Komt de voorkant van zijn lijf binnen het bereik van Amirs speerstoot (`BAV_HAP.speer`: de verste punt uit `TIP_DX` plus de punt zelf, 333 eenheden, en `marge`), dan hapt hij meteen, midden in een pas (`BAV_HAP`): 26 frames in `enemies/baviaan/hap/`, op hetzelfde canvas als de run. Het tempo staat per stuk in `delen` (`bavHapFrame`, `bavHapTijd`): het opendoen en de uitval (frame 0 tot 10) in 0,12 seconde, het bijten (11 tot 13) en terugtrekken op 40 per seconde. In de uitval schiet hij het stuk tot Amir over (`uitval`, tot 1,6 Amir); zijn plek volgt daarbij de tijd, niet de beelden, zodat hij er ook bij een haperend beeld helemaal komt. Zo valt de beet samen met het moment dat je had kunnen steken, en zie je niet wie eerst was. Een kei tussen hem en Amir houdt hem tegen (regel 7), dus daar springt hij overheen (`BAV_SPRONG`): 32 frames in `enemies/baviaan/sprong/` op 24 per seconde, canvas 900 bij 800 met de grondlijn op rij 770, 154 bronpixels links en 195 boven het canvas van de brul (`links` 198, `boven` 195; `oy` in `bavStand`). De frames stijgen niet zelf: 10 tot 22 zweven al boven de grondlijn, en het spel tilt hem daarbovenop in een boog op, per kei zo hoog dat hij er met `marge` overheen komt (`zweeft`, `boog`). Vooruit per stuk in `snel` (in de hurk en de landing afgeremd, afzetten en de lucht 1,7 keer zijn rensnelheid, `bavSprongWeg`); hij zet af als het midden van zijn lijf halverwege de lucht boven het midden van de kei komt, en gaat na `sprong_29` terug naar run_00. Gemeten: in elk frame boven een kei 12 tot 105 px ruimte. Zolang hij aan de wand hangt speelt de hang-idle (`BAV_HANG`): 36 frames in `enemies/baviaan/hang_idle/`, 12 per seconde als lus, canvas 600 bij 960 zonder grondlijn, niet bijgesneden; het hangt aan de greep (bronpixel 545, 28), en die komt precies waar zijn hand in afzet_00 zit (`afzetGreep`, met `maat` voor de schaal), dus bij de afzet verspringt de hand niet. Met `zicht: 'ver'` begint Amir zo ver van hem als kan terwijl hij hem nog ziet (`BAV_VER.rand`, `startWereld`), en met `skelet` staat het eerste skelet van het level op dat deel van de weg naar hem toe, kijkt Amir naar hem, en zet de baviaan pas af als de speer eruit is, als Amir dichterbij komt (`nader`) of als hij `weg` px de andere kant op loopt (`bavWakker`). `geenSpeer: true` in een level zet er geen speer voor je in de grond. In een level staat hij in het veld `baviaan` (`{x, y, s, f, zicht, kooi, beet}`, `readLevel` zet er `lvl` en `f0` bij; met `beet: true` hangt hij niet maar staat hij op de grond voor de speerbeet, zie hieronder): hij hangt aan de wand tot Amir `BAV_START` px gelopen heeft vanaf waar hij begon (`b.start`). Met `zicht` (een deel van de schermbreedte) begint Amir niet op 0 maar zo dat de baviaan daar in beeld hangt (`startWereld`, in `restart`; zijn speer staat dan `SPEAR_AHEAD` voor die plek): Amir staat in het midden, dus op een telefoon begint hij dichter bij de baviaan dan op een laptop, en nooit dichter dan 50 px bij de rotswand. Zolang hij hangt of valt kijkt de camera wat omhoog (`bavKijk`, `BAV_KIJK`, in `updateCamera`; na een herstart meteen, `bavKijkNu`), zodat hij ook op een telefoon met de knoppen erbij helemaal in beeld hangt; bij de landing (`b.geland`) zakt hij terug. In Baboon 1 en 16 hangt hij zo op x 720 en 1,6 Amir hoog tegen de rotswand achter de hut (`zicht` 0,68), en de eerste tip komt pas als je gaat lopen (x 300), want in het begin viel hij op een telefoon over de baviaan en speelt dan het hele stuk af, en `restart` hangt hem terug. De sprong heeft stukken (`bavSprongDelen(rek, maal)`, met `deelFrame` en `deelTijd`): bij een kei is de lucht zoals hij was, over de kooi duurt de lucht langer en gaat hij sneller. De kooi (`kooi`: de x van twee ravijnen, `bavKooi`, `bavKooiKant`, `BAV_KOOI`): de baviaan komt nooit op het stuk ertussen. Vlucht Amir de kooi in van de kant waar de baviaan staat, dan rent hij naar de rand en springt over allebei de ravijnen naar de overkant; gaat Amir eruit aan de andere kant, dan springt hij meteen en landt hij voor Amir. Na zo'n sprong draait hij om en brult (fase `brul`, met het geluid via `bavBrulSpeel`); staat Amir in de kooi, dan wacht hij grommend (fase `wacht`), en over een ravijn van de kooi hapt hij nooit. Baboon 1 is het proefstuk. In de sandbox zet Neerzetten met Van rechts (achter Amir) er twee keien voor Amir bij (`BAV_KEIEN`, 520 en 1250 px voor hem uit), waar Amir overheen springt en de baviaan dus ook. Bij elke hap klinkt `sounds/bavbijt.mp3` (`BAV_BIJT`, `bavBijtSpeel`: de aangeleverde bijtmonster met de 0,4 seconde stilte vooraan eraf, zodat de aanzet op de uitval valt), en aan het begin van elke aanval (na de grote brul en na elke rust) gromt hij een keer, trager en dieper (`BAV_REN_GROM`, `bavRenGrom`, op een eigen audio-element `bavRenSnd`; een hap zet hem stil). Onder het rennen hoor je zijn poten (`BAV_POOT`, `bavPoot`): gemaakt met de Web Audio API, een korte dreun die in toonhoogte zakt met een tik zand erbovenop, op de run-frames waar een poot neerkomt (4 en 6 de handen, 10 de achterpoten), elke keer iets anders en zachter naarmate hij verder van Amir is. De klap op de grond (`BAV_LAND`, `bavLandSpeel`, `sounds/bavland.mp3`: de aangeleverde "babboon fall en land" met de 0,22 seconde stilte vooraan eraf) klinkt als hij van de wand neerkomt (op landing frame 3), na een sprong (zachter, `sprong`) en als hij dood voorover klapt (dood_18, `doodF`, met een stofwolk), `voor` seconden vooraf gestart zodat de klap op het frame valt). Alle geluiden van de baviaan gaan via een eigen gain op de versterker van de brul (`bavSpeelVia`) en staan in `geluidOntgrendel`. Raakt hij, dan staat hij `rust` (2) seconden grommend stil en rent weer; mis is meteen weer rennen. Zo is hij niet te verslaan (`BAV_VECHT.raakbaar` staat uit): een steek of de lage zwaai doet hem niets en een geworpen speer ketst af. Met `raakbaar` aan doodt een klap hem (`bavRaak`), net als de speerval, met eerst een drama (`BAV_DRAMA`) zodat de speler denkt dat hij nog leeft: bevroren op het frame van de klap, wit oplichtend (`bavWit`, `flits` in de stand), het scherm schokt en hij deinst terug; dan dreigt hij grommend (de grom-idle met de grom), brult de grote brul met het trillen, het gerommel en de steentjes (`bavBrulEffect`, hetzelfde als in het verloop), twijfelt (de grom-idle vertraagd, stil), en dan bam: een flits en een schok, en hij zakt in elkaar (`BAV_DOOD`: 22 frames in `enemies/baviaan/dood/` op 24 per seconde, een keer, zo'n 0,92 seconde; 00 tot 03 de klap, 04 tot 09 zakken, 10 tot 15 zijn poten begeven het, 16 tot 19 voorover, 20 en 21 dood). Daarna blijft `dood_21` liggen, als lijk, zonder te vervagen, met zijn schaduw. Canvas 830 bij 592, grondlijn op rij 575, 140 bronpixels links van het canvas van de brul (`links` 184, dus 32 links van de run en de hap). De frames zijn aangeleverd zoals ze zijn: niet bijsnijden, schalen of opnieuw opslaan. `vijandDood(true)` ("ta soul, rest") komt na `BAV_DRAMA.stil` seconden stilte na dood_21. Van de klap tot `los` seconden daarna staat Amir vast (`bavDramaNu`, `amirVast`: dezelfde plekken als de speerbeet, lopen, springen, stoten, zwaaien, E en bukken) en schuift de camera naar de baviaan toe (`bavFocusX`, via `camEase` zoals de arena, hoogstens `camMax` schermbreedte). Samen zo'n 6,8 seconden. In de sandbox doodt de knop Dood hem meteen (`bavDoodNu`), ook aan de wand of midden in het verloop. Het raakbare lijf komt uit het kader van zijn frame (`bavKader`, `bavGeo`), de bek is een vast vak in bronpixels (`BAV_VECHT.bek`, de kop met open kaken in hap_11 tot 13, 0,55 tot 1,06 Amir hoog: springen of bukken ontwijkt hem niet); met de hitboxen aan zie je ze. In vier van de aangeleverde frames waren handen en voeten uitgesmeerd tot een halfdoorzichtige vlek (run_00, 01 en 16) of ontbraken ze (de onderarm in run_12): `tools/baviaan_run_fix.py` maakt de speelversie in `enemies/baviaan/run/` uit de ongewijzigde bron in `enemies/baviaan/bron/run/`, door schone stukken uit andere frames erop te plakken (de hand van run_15, de achterpoot en de hand van run_02, de onderarm van run_13); de andere dertien frames kopieert het ongewijzigd. Verandert de bron, draai het dan opnieuw. De stukken idle staan in `BAV_VERLOOP.wacht` (een per stap, 0,5 tot 1,0 seconden, elke keer willekeurig). Bij de opgefokte idle begint het schudden op het einde van de lus, bij de grom meteen, want daar verspringt de houding toch al (het schudden begint en eindigt rechtop, de grom staat laag). Het tempo staat per stuk in `delen` (`bavSchudFrame`): omlaag en omhoog op 40 per seconde, de shake zelf (frame 18 tot 47) op 42, met een ronde extra samen 2,2 seconden. De stand daarvan staat in `bavRust`, niet in `level.baviaan`. K of de knop Hoofdschudden schudt meteen, zolang hij nog niet stormt (`bavSchudNu`). De val eindigt op de grond waar hij neerkomt, niet waar hij afzette (`bavLandPlek`): op een terras komt hij erbovenop, en hoe hoger hij hangt, hoe langer de val-lus doorloopt. In de sandbox hangt hij na Neerzetten op `BAVIAAN.hang` (1,5 Amir) en kan hij niet lager dan `minHang` (0,8), zodat er altijd een echte val is; J of de knop Afzet speelt het hele stuk af (afzet, val, landing, brul, het verloop met twee keer schudden, en dan stormt hij tot je nog een keer drukt), nog een keer is terug naar het plaatje. Staat niet in de kleine set |
-| speerbeet: de baviaan pakt je speer | `BAV_BEET`, `BAV_MOND`, `BAV_SPEER`, `bavBeetStap` (in de lus, na de stoot: wanneer het begint, Amir vast met `beetVast`, de uitval, de klem, de ruk), `bavBeetStand` (vanuit `bavStand` als `level.baviaan.beet` staat: de grom-idle, hap_00 tot 25, het hoofdschudden), `bavBeetSpeer` (de speer in zijn bek, achter zijn kop, met het uiteinde aan een veer; hier breekt de schacht en vertrekt de punt), `bavBeetStukken` (de schacht en de splinters), `bavWerpTeken` (de punt naar de camera, na de voorgrond: hij blijft bijna op zijn plek en groeit op constante snelheid als 1 / (1 - afgelegd), draait het blad naar voren en wordt verkort zodat hij in de camera wijst, met de onscherpe en donkere trappen uit `beetSpeerMaak`), `bavZoef` (de zoef erbij: ruis door een bandfilter dat hoger en harder wordt, geen bestand, op `bavAc`), `beetKnipX` (Amirs speer houdt op bij de lip, geknipt bij het tekenen van Amir), `beetReset` (in `restart`). Alleen bestaande frames: de speer is Amirs eigen speer uit stootframe 6, de mond per frame is gemeten op de tanden. Had Amir de blauwe speer uit het skelet, dan houdt de speer in zijn bek dat blauwe vaantje (`r.blauw`, `beetSpeerMaak(blauw)` via `vaanBlauw`), en de punt naar de camera ook, bij de beet en bij de pootslag (`beetWerp.blauw`). De pootslag (`BAV_SLAG`, `bavSlagImgs`, `bavSlagLangFrame`): doet Amir binnen `pootslag` (1,8 Amir) de lage zwaai, dan slaat hij met `slag_kort` op de speer (fases `slag`, `druk`, `terug`): Amir blijft liggen in zwaaiframe `zwaai` (de hold staat in het zwaaiblok van de lus), de baviaan schuift tussen `schuifVan` en `schuifTot` tot de poot `poot` voor Amir neerkomt, en op de klap breekt de speer (`beetKnipZwaai` knipt in het zwaaiframe, rijen 405 tot 505), vliegt de punt vanaf de poot naar de camera en laat Amir aan het eind van het platdrukken de stomp vallen. Canvas 840 bij 680, grondlijn 640, `links` 234 en `boven` 65 (als `ox` en `oy` in de stand, met `grond` voor de schaduw); de frames in `enemies/baviaan/slag_kort/` en `slag_lang/` zijn aangeleverd zoals ze zijn. `slag_lang` (de aangekondigde, met de arm `dreig` seconden hoog) doet nog niets in het spel; in de sandbox laat **Pootslag lang** hem zien. Steekt Amir zelf binnen `slag` (1,7 Amir uitval), dan grijpt hij meteen; loopt hij gewoon door, dan pas bij `vast` (0,6), dus later. Zolang `beetVast` staat, doen springen, stoten, E en bukken niets. In de sandbox **Speerbeet** onder Vijanden, Baviaan (`sbbavbeet`). Baboon 2 is het proefstuk |
-| speer in de baviaan: de speerval blijft in zijn borst zitten | `BAV_VALSPEER`, `bavSpeerTeken` (in `baviaanTeken`, na het frame en het witte oplichten), `bavSpeerFrame`, `bavSpeerHoek`: de speerval raakt hem van voren (hij rent op Amir af, Amir staat bij het zegel voor de klif), dan zet `bavGevecht` de speerval op `st: 'baviaan'` (`speervalTeken` slaat hem dan over) en `r.valSpeer` in zijn stand, en tekent de baviaan de speer, door het hele drama tot het lijk. Per frame staat in `anker` waar de plek op zijn borst is, in bronpixels van het canvas van die reeks (run, hap, idle_grom, brul, dood), uit `tools/baviaan_speer_anker.py`, dat een stukje vacht van frame tot frame volgt vanaf een paar punten die met de hand gekozen zijn; verandert een reeks, draai het dan opnieuw en plak de tabel erin. De sprong heeft geen anker (zijn lijf schiet over het canvas en het volgen raakt de weg kwijt): wordt hij daarin geraakt, dan zit de speer waar de punt hem raakte (`r.valSpeer.x`, `y`). De punt wijst zijn lijf in, `diep` zit erin en wordt weggegumd waar het frame is (rechts van de ingang, `destination-out` op een eigen canvas); de schacht draait mee met `hoek` per reeks (graden, + is de voorkant omlaag), en komt het uiteinde onder de grondlijn van het canvas (`grond`), dan gaat de speer dieper zijn lijf in, tot `maxDiep`. Kijkt hij naar rechts, dan raakt de speer hem van achteren (`r.valSpeer.achter`) en zit hij in zijn rug, schuin omhoog: dezelfde tekening gespiegeld, met de tabel `rug` en `hoekRug` (min is omhoog). Het script volgt daarvoor ook een plek op zijn rug (`RUG`), en zet die daarna op de bovenrand van zijn lijf in die kolom, `RUG_ONDER` eronder, want op een rand glijdt het volgen de lucht in. `SCHUIF` in het script schuift een gevolgde reeks na het volgen op (bij de brul van de rand van zijn borst het rood in). In de sandbox **Dood door speerval** onder Vijanden, Baviaan (`bavDoodNu(true)`): de speer komt van links, dus met Spiegel zit hij in zijn rug |
-| voorgrond: de laag tussen de camera en Amir | `VOORGROND`, `VG_SOORT`, `VG_LAGEN`, `vgStandaard`, `drawVoorgrond`: onscherp gras, struiken, keien en een schedel vlak voor de camera, in twee lagen; schuift sneller dan de wereld, ook verticaal, en valt onder de grond weg. Elk level heeft er een (zie "de voorgrond hoort bij elk level") |
-| achtergrondlagen, uitzicht per level | `SCENE0` en `SCENES` |
-| startscherm, level maken, menu: kaartjes per level | menu en bouwer |
-| kaarslicht: de startfoto van onderen belicht | `KAARS`, `kaarsStart`, `kaarsLus`, `kaarsWek`, `kaarsPositie`: de foto achter het startscherm en al zijn menu's (`design/menu/held.jpg`) wordt in een WebGL-canvas in `.startart` opnieuw belicht door een flakkerende kaars onder zijn kin. Het reliëf komt uit de helderheid van de foto (klein en vervaagd), dus de lichte kanten en schaduwen schuiven mee met de vlam; geen echte slagschaduw. Het canvas ligt onder de verlopen van `.startart` en legt de foto neer zoals de CSS (cover, dezelfde `background-position`, elke 30 beelden opnieuw gelezen). Draait alleen zolang `#start` open is en het tabblad zichtbaar (`MutationObserver` op de klasse, `visibilitychange`). Zonder WebGL blijft de gewone foto staan |
-| level maken | de bouwer: `GEREEDSCHAP` (wat je neer kunt zetten), `bouwOpen` (de rand en de lijst), `bouwVelden` en `bouwExtra` (het venster), `tekenLijn` (de levellijn), `bouwD` en `bouwGeest` (Amir als geest), `bouwTesten` (testen vanaf hier), `holteMaak` en `holteTrap` (gangen), `bouwSchakelTeken` (koppelingen en raakvlakken); zie "De bouwer" hieronder |
-| elk level nakijken op decor boven een ravijn | `schoonLevel`, draait bij elk level; `schoonKomend` en `komendeRavijnen` houden hutten, keien, doornbossen, skeletten en speertekens weg waar later een ravijn openscheurt (rune of zegel), en `placeProblem` in de bouwer ook |
-| wat er staat waar een ravijn openscheurt | `RAVIJN_DECOR`, `ravijnDecor`, `ravijnDecorStap`: kalebassen, botten en dorpelingen vallen erin, planten, keien, doornbossen en de speer schuiven naar de rand of vervagen; alles in `rv` of `x0`, dus `ravijnReset` zet het terug |
-| sandbox | de vrije testmodus |
+Per onderwerp de kop, een paar namen om op te grepen, en het notitiebestand met de
+uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
+
+| kop | grep | notitie |
+| --- | --- | --- |
+| laadpoort: een level loopt pas als alles binnen is | `LAAD`, `laadOpen`, `laadPoort` | notities/laadpoort.md |
+| versie: welke update er live staat | `versieTijd`, `document.lastModified`, `toonUpdates` | notities/wegwijzers.md |
+| niet verder tekenen dan er in beeld komt | `zichtVak(marge)`, `view`, `null` | notities/tekenlagen.md |
+| de zon: schijf, krans en ademende ring | `ZON`, `drawZon`, `ringAdem` | notities/zon.md |
+| globale lichtlaag | `licht`, `SCENES` | notities/wegwijzers.md |
+| de schaduw van Amir | `AMIR_SCHADUW`, `amirSilhouet`, `amirSilLeg` | notities/schaduw-amir.md |
+| tribes: de keuze per run en de abilities | `TRIBE_CONFIG`, `RUN`, `tribeKies` | notities/tribes.md |
+| muziek per level | `MUZIEK`, `MUZIEK_BASIS`, `muziek` | notities/wegwijzers.md |
+| beeld: de grote of de kleine spriteset | `KLEIN_FAM`, `zetBron` | notities/wegwijzers.md |
+| hppotion | de drinkkalebas |  |
+| renstoot: sprinten en dan stoten | `RENSTOOT`, `glijStart`, `glijUpdate` | notities/speer.md |
+| reserve-speren op de rug (prototype) | `RUG`, `RUG_MAX`, `rugSperen` | notities/rug-speren.md |
+| health-balk: 3 levens met een balkje boven het hoofd | `HP_BALK`, `HP_BALK_LEVENS`, `vijandHpBalk` | notities/health-balk.md |
+| bukken, jump frames, tempo | Amir zijn bewegingen |  |
+| rotsen om op te springen | `rocks` | notities/wegwijzers.md |
+| winter: episode Winter World | `WINTER_SRC`, `winterOn()`, `winterPic()` | notities/wegwijzers.md |
+| bodem en sneeuwdek | `sneeuw` | notities/wegwijzers.md |
+| het verhaal bij een episode | `VERHAAL`, `SLOT`, `verhaalToon()` | notities/episodes.md |
+| Episode De Poorten | `POORT_1`, `POORT_6`, `POORT_LEVELS` | notities/episodes.md |
+| Episode De Hoge Schijven | `HOOG_1`, `HOOG_5`, `HOOG_LEVELS` | notities/episodes.md |
+| Episode Test levels | `TEST_1`, `TEST_36`, `KAART_BLAD` | notities/episodes.md |
+| Episode Baboon tests | `BAB_1`, `BAB_4`, `BAB_LEVELS` | notities/episodes.md |
+| goudaapje: het kleine gouden aapje en de arena | `GAAP`, `gaapSpawn`, `updateGoudapen` | notities/goudaapje.md |
+| het mes: Jackal Fang van Impungushe | `MES`, `mesInHand`, `mesTeken` | notities/mes.md |
+| T-splitsing in de talent tree | `varianten`, `TRIBE_CONFIG`, `tbSplit` | notities/tribes.md |
+| Feign Death | `SCHIJN`, `schijnDoodVang`, `hurtPlayer` | notities/wegwijzers.md |
+| lichtkaart: het licht onder de grond | `LK`, `drawLichtkaart` | notities/lichtkaart.md |
+| terrassen en richels | `terraces`, `ledges`, `drawLedge` | notities/rotsraster.md |
+| schacht: een kloof om uit te klimmen | `schacht`, `schacht: true`, `grotMassa` | notities/schacht.md |
+| hogere savannelaag: een terras van grond | `SAV_LAAG`, `savanneLaag`, `drawClimb` | notities/savannelaag.md |
+| zwevende savannelaag: een dik savanneblok in de lucht | `ZWEEF`, `zweefList`, `savanneLaag` | notities/savannelaag.md |
+| de rotswand rechts | `cliffs` | notities/wegwijzers.md |
+| grotten: rots als een raster van cellen | `grotten` | notities/rotsraster.md |
+| plafond: de rots boven je, als hoogtelijn | `plafond` | notities/plafond.md |
+| muur unlock: de rotswand met het rune-symbool | `MUUR`, `MUUR_GROT`, `muurGrotSet` | notities/muur.md |
+| ravijn in de winter | `RAVIJN_WINTER`, `ravijnWandNu()`, `ravijnSneeuwRand()` | notities/ravijn.md |
+| zegel in de grond: de runeschijf plat, als schakelaar | `ZEGEL`, `zegelGrond`, `zegelUpdate` | notities/zegel.md |
+| speerval: een speer in de rotswand die een zegel losschiet | `SPEERVAL`, `speervalZegel`, `zegelUpdate` | notities/speerval.md |
+| zakplafond: een plafond dat zakt als je op een zegel stapt | `ZAK`, `zakStand`, `rust` | notities/zakplafond.md |
+| rijzende grond: steen dat op een zegel uit een ravijn komt | `RIJS`, `rijsUpdate`, `duur` | notities/rijzende-grond.md |
+| takelwiel met plateau: een rad dat je met je speer slaat | `TAKEL`, `takelLaad`, `takelReset` | notities/takelwiel.md |
+| masker: geverfde stukken die een deel van het level verbergen | `MASKER`, `maskerLijst`, `maskerVan` | notities/masker.md |
+| de draaiende speer: rollen om de lengteas in de vlucht | `DRAAI`, `draaiImgs`, `draaiBeeld(soort, t)` | notities/speer.md |
+| skelet met speer | `SKELET`, `skeletTrek`, `skeletUpdate` | notities/skelet.md |
+| speerteken: een speer in de grond met een zwart doek en schedels | `TEKEN`, `tekenUpdate`, `tekenTeken` | notities/decor.md |
+| licht op de runerotsen | `RUNE_LICHT`, `runeLichtMaak`, `runeGrondSchaduw` | notities/wegwijzers.md |
+| runeschijf: het losse symbool | `runeSchijf(ctx, x, y, r, {aan, spiegel})` | notities/wegwijzers.md |
+| vallen: schade bij een diepe val | hoe diep een val telt en wat hij kost |  |
+| schorpioen, het projectiel, spannen en werpen, de geworpen speer | `javTegenDak`, `javFloor`, `vloerBij` | notities/speer.md |
+| fakkel: een geanimeerde wandfakkel | `FAKKEL`, `fakkelLaad`, `fakkelFrame` | notities/fakkel.md |
+| personages, dorpsdecor | `VILLAGE` | notities/wegwijzers.md |
+| Amir zegt er iets van als hij geraakt wordt | `SFX_RAAK`, `playRaak()` | notities/geluid.md |
+| Amir zegt iets als een vijand sterft | `SFX_RUST`, `vijandDood(baas)`, `DOOD_KANS` | notities/geluid.md |
+| stap voor stap leren spelen | `tutorial` | notities/wegwijzers.md |
+| gaten in de grond | `gaps`, `grondDoorlopen` | notities/wegwijzers.md |
+| zuil: een smalle strook grond tussen twee ravijnen | `ZUIL`, `zuilBij`, `zuilWand` | notities/zuil.md |
+| zuil met een hoogte: hoger of lager dan de grond | `ZUIL_HOOG`, `zuilLijst`, `zuilBasis` | notities/zuil.md |
+| put: een ravijn in de bodem van een gang | `PUT`, `putLijst`, `putBij` | notities/put.md |
+| stof, sneeuwval, het weer | deeltjes en het weerplan per potje |  |
+| het weer: regen, onweer, zandstorm, sneeuw en sneeuwstorm | `WEER`, `weerDoel`, `updateWeer` | notities/wegwijzers.md |
+| vegetatie, water, doornbos | `props`, `water`, `thickets` | notities/wegwijzers.md |
+| schilden in de wind | `SCHILD`, `schildStofUpdate`, `schildTil` | notities/decor.md |
+| slangen: kleur, zicht en patrouille | `SNAKE_DIRS`, `slangZiet`, `startPatrouille` | notities/slangen.md |
+| zwarte panter, de witte panter, de hyena | de grote vijanden |  |
+| de bandiet: een rover met een kromzwaard | `BAN`, `banLaad`, `makeBandiet` | notities/bandiet.md |
+| de schildbandiet: loopt met zijn schild op en valt springend aan | `SCHB`, `makeSchildman`, `updateSchildman` | notities/schildbandiet.md |
+| de bandiet-arena: het geënsceneerde eindgevecht | `BANDARENA`, `bandArenaStart`, `bandArenaWachters` | notities/bandiet.md |
+| baviaan: de eindbaas in wording | `BAVIAAN`, `baviaanLaad`, `baviaanTeken` | notities/baviaan.md |
+| speerbeet: de baviaan pakt je speer | `BAV_BEET`, `BAV_MOND`, `BAV_SPEER` | notities/baviaan.md |
+| speer in de baviaan: de speerval blijft in zijn borst zitten | `BAV_VALSPEER`, `bavSpeerTeken`, `baviaanTeken` | notities/baviaan.md |
+| voorgrond: de laag tussen de camera en Amir | `VOORGROND`, `VG_SOORT`, `VG_LAGEN` | notities/voorgrond.md |
+| achtergrondlagen, uitzicht per level | `SCENE0`, `SCENES` | notities/wegwijzers.md |
+| startscherm, level maken, menu: kaartjes per level | menu en bouwer |  |
+| kaarslicht: de startfoto van onderen belicht | `KAARS`, `kaarsStart`, `kaarsLus` | notities/kaarslicht.md |
+| level maken | `GEREEDSCHAP`, `bouwOpen`, `bouwVelden` | notities/bouwer.md |
+| elk level nakijken op decor boven een ravijn | `schoonLevel`, `schoonKomend`, `komendeRavijnen` | notities/ravijn.md |
+| wat er staat waar een ravijn openscheurt | `RAVIJN_DECOR`, `ravijnDecor`, `ravijnDecorStap` | notities/ravijn.md |
+| sandbox | de vrije testmodus |  |
 
 Op schijf: `karakters/` (Amir, dorpeling, dorpelinge), `enemies/`, `design/` (decor,
 achtergronden, water, dorp, botten), `klein/` (dezelfde mappen op halve grootte),
@@ -202,6 +210,8 @@ Amir loopt naar links, dus alle `x` zijn negatief en lopen op naarmate je verder
 komt. Een leveldefinitie is een gewoon object; de bouwer in het spel exporteert
 precies hetzelfde formaat naar JSON.
 
+De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
+
 | veld | wat |
 | --- | --- |
 | `name` | naam op het kaartje in het menu |
@@ -211,23 +221,23 @@ precies hetzelfde formaat naar JSON.
 | `sneeuw` | sneeuw op de grond, los van `winter`: `{soort, dek, van, tot}` (zie hieronder) |
 | `weer` | het weer onderweg: `[{x, soort, sterkte}]`, `soort` uit `WEER.soorten` (`droog`, `regen`, `onweer`, `zandstorm`, `sneeuw`, `sneeuwstorm`); voorbij `x` slaat het om (zie "het weer") |
 | `valschade` | `true` laat een diepe val levens kosten (standaard uit): vanaf een Amir diep een leven, vanaf twee Amir twee (`VAL_VRIJ`, `VAL_ZWAAR`, `VAL_MAX`), en vanaf zes Amir diep is hij dodelijk (`VAL_DOOD`, `fallDeath` in `valLand`), ongeacht je levens. `levelcheck.py` (regel `vallen`) meldt een val van zes Amir of dieper als FOUT |
-| `rugMax` | reserve-speren op de rug: 1 in de hand plus zoveel op de rug, dus `rugMax + 1` worpen voor je melee-loos bent (0 tot 5, standaard 0 = uit, maar zie hieronder). Zie "reserve-speren op de rug"; Test 39 is het proefstuk. **Default sinds kort:** elk Test level (`TEST_LEVELS`) en elk Maker-level (gezet in `mkNaarLevel`) geeft Amir standaard `rugMax: 1`, tenzij het level zelf een `rugMax` zet (ook 0) of geen speer heeft (`geenSpeer`). Dat zit in `restart`, niet in de leveldefinities, dus bestaande Test-levels krijgen het vanzelf en de echte episodes (niet in `TEST_LEVELS`, rule 1) houden hun eigen waarde |
-| `hpBalk` | `true`: de bandiet, de kooiman, de slangen, de schorpioen, de fosforslang, de zwaardvechter en de hyena (niet de panter en de baviaan) krijgen 3 levens met een health-balkje boven hun hoofd (groen, oranje, rood). Een lijst soorten (`['bandiet','kooiman']`) geeft alleen die soorten de balk en laat de rest in een klap dood gaan. Standaard uit (geen veld), dus een episode zonder het veld houdt de eigen HP (rule 1). Zie "health-balk"; De Valse Koning gebruikt de lijst, Test 39 `true` |
-| `hoogUitzicht` | `true`: gestapelde dikke grondlagen zien er op hoogte hetzelfde uit als de basis. De camera klemt tegen de laag waar je op staat (geen zwarte diepte eronder in beeld, `klimLift` 0 in `updateCamera`), de achtergrond blijft staan (`verPar` in `scene()`, bergen en heuvels zakken niet weg) en een massieve grondlaag krijgt geen donkere onderkant (`SAV_LAAG.hoog`). Per level, dus de bestaande levels veranderen niet |
-| `view` | een getal van 0,5 tot 1: uitgezoomd spelen. Kleiner tekent de hele wereldlaag (en Amir en de vijanden, die zitten in dezelfde zoom-transform) kleiner, zodat je meer wereld vooruit ziet. `viewZoom()` geeft dit terug tijdens het spelen; het is dezelfde machinerie als de bouwer (`BUILD_ZOOM`), dus het loopt door alle tekenlagen en de afsnijdcode (`W / viewZoom()`). De voorgrond staat in schermruimte (buiten de zoom), dus een uitgezoomd level zet die beter uit (`voorgrond: false`). Per level; zonder dit veld zoom 1. **Een nieuw level krijgt standaard `view: 0.8` (laptop): de bouwer zet het op elk vers level (`startBuild`, `btnnew`, Leegmaken), en een met de hand geschreven leveldefinitie hoort het ook te krijgen. Dat is bewust vast en niet adaptief, zodat de uitzoom nooit terugspringt naar 1. De bestaande episodes blijven staan zoals ze zijn (rule 1): verander hun view niet mee.** In de sandbox onder Beeld en geluid, Uitzoomen (`sbView`). Test 25 (0,8) en Test 26 (0,6) zijn de proefstukken |
-| `zichtBreed` | in plaats van een vaste `view` een doel-wereldbreedte in beeld (wereld-px). Het spel rekent de `view` per scherm uit (`W / zichtBreed`, geklemd tussen `ZICHT_MIN` 0,7 en `ZICHT_MAX` 1,0, zie `viewZoom`/`zichtView`), zodat elk scherm evenveel wereld vooruit ziet: een telefoon zoomt vanzelf verder uit dan een laptop. Op 1280 geeft 1600 precies 0,8. Staat dit veld, dan gaat het voor `view`. De machinerie staat er nog, maar geen enkel level gebruikt het meer: de kooimanlevels (Test 37 en Test 38) draaiden erop, maar staan nu op een vaste `view: 0.8`, want de adaptieve klem kon de uitzoom (en daarmee de scherm-relatieve duel-afstand) laten terugspringen |
+| `rugMax` | reserve-speren op de rug: 1 in de hand plus zoveel op de rug (0 tot 5, standaard 0 = uit) (zie `notities/velden.md`) |
+| `hpBalk` | `true` of een lijst soorten: 3 levens met een health-balkje boven het hoofd (standaard uit) (zie `notities/velden.md`) |
+| `hoogUitzicht` | `true`: gestapelde dikke grondlagen zien er op hoogte hetzelfde uit als de basis (zie `notities/velden.md`) |
+| `view` | een getal van 0,5 tot 1: uitgezoomd spelen; een nieuw level krijgt standaard `view: 0.8` (zie `notities/velden.md`) |
+| `zichtBreed` | een doel-wereldbreedte in beeld in plaats van een vaste `view`; geen level gebruikt het nog (zie `notities/velden.md`) |
 | `worp` | `'schaal'` zet de schaalworp aan: de hoek loopt op zolang je vasthoudt, van vlak tot 30 graden (`THR_HOEK_MAX`); zonder dit veld de twee trappen. In de sandbox de knop Worp onder Speerworp |
 | `rocks` | keien om op te springen: `{x, s}` |
-| `spawns` | vijanden: `{x, k}` met `k` = `groen`, `zwart`, `knock` (de knockslang: spuwt jade/violet gif dat geen schade doet maar je terugduwt, zie "slangen"), `scorp`, `hyenas`, `panter`, `zwaard` (met `c`), `fosfor`, `bandiet` (met `dolk: true` gooit hij eerst zijn dolk; hij vault standaard over keien, uit met `vault: false`; `elite: true` is de zwarte garde met het goud accent, uit de elite-set; `neer: true` laat hem van boven de arena in vallen, zie "de bandiet-arena"); `schildman` (de schildbandiet, met `niveau: 'makkelijk'` en `achter`, zie "de schildbandiet"); een panter met `over: true` mag over keien en ravijnen (zie regel 7); `klim: true` (slang of fosforslang treden op en af) staat in geen level meer aan, alleen nog in de sandbox (zie "vijanden gaan niet over treden"). Met `boven: true` zet hij op een zwevende savannelaag of een verhoogd terras in plaats van op de grond eronder (`bovenVloer`, Honingjacht 3); de Maker zet dat zelf op een vijand die je boven de grondlijn op een laag tekent |
+| `spawns` | vijanden: `{x, k}`, `k` is groen/zwart/knock/scorp/hyenas/panter/zwaard/fosfor/bandiet/schildman, met vlaggen per soort (zie `notities/velden.md`) |
 | `bandArena` | `true`: het level is een bandiet-arena (Valse Koning 8), zoals de goudaap-arena maar met de elite-garde (zie "de bandiet-arena") |
-| `bandietGolf` | een oplopende golf bandieten: `{van, tot, ramp, max, dolk}` (zie "de bandiet"). Telkens komt er een bandiet bij, net buiten beeld, om en om links en rechts, met een interval dat van `van` naar `tot` seconden krimpt over `ramp` seconden, en hoogstens `max` tegelijk in leven; met `dolk: true` gooien ze allemaal eerst hun dolk. Een level met dit veld stuurt geen vrije slangen, ook met lege `spawns`. Test 29 is het proefstuk, Test 30 dat met de dolk |
-| `duel` | per kooiman-spawn: `{x, k: 'kooiman', duel}`. Standaard aan (`s.duel !== false` in `readLevel`): de kooiman is het geënsceneerde 1-op-1 duel op open vlakte (zie de kop "de duel-variant" in de code, `KOOI_DUEL`). Met `duel: false` is het de gewone kooiman (de smash en het herstel); `syncLevel` bewaart alleen dat bewust uitzetten. Test 37 zet het overal uit en is de niet-duel referentie, Test 38 en 39 hebben `duel: true` (mag blijven staan, is nu de standaard). De sandbox-knop **Duel aan/uit** (`sbKooiDuel`) kiest los daarvan wat een neergezette kooiman wordt en begint op uit. **De entree en het gevecht**: hij komt op met de dichte kooi áchter zich (`drag`, slepen). Zodra hij **half** in beeld is bevriest alles (`kooiVries`, `kooiHalfInBeeld`) en sleept hij tijdens die freeze nog door tot hij **volledig** in beeld staat (`kooiVriesStap`, de `drag`-tak), waarna hij stampt en de kooi opengaat (`stomp` → `hatch` met de vogel → `stomp_out`). Vanaf dan is zijn loop en nadering **`duw`**: hij duwt de nu lege kooi voor zich uit als schild (28 frames, `enemies/kooiman/duw/`, alleen de man; de kooi is een losse laag `enemies/kooiman/kooi/kooi.png` die in de tekenlus over de man komt, uitgelijnd met `KOOI_DUW_KOOI`). Hij is **alleen in zijn herstel raakbaar** (`kooiRaakbaar`/`kooiMeleeRaak` = `kooiOpen`, het herstel na de smash; de oude `struggle`-worstel is er niet meer tussengeschoven). Daarbuiten dekt de kooi hem: een stoot of lage zwaai klinkt af (`kooiAfweerTik`, een clang), en een worp slaat hij neer (zit hij midden in de smash, dan versnelt die; de speer stuitert een klein stukje vóór hem neer, `kooiKaatsSpeer`). De **parry-animatie** (`parry`-set) blijft als asset en in de sandbox, maar is niet meer zijn gevechtsverdediging. Het raam maak je door een slag uit te lokken en in zijn herstel te raken. In de sandbox staat de duw-lus onder Zijn animaties, **Duwen** (`data-kooianim="duw"`). Dit alles geldt alleen voor de duel-kooiman; de gewone kooiman (`duel: false`) houdt `drag` en zijn eigen herstelvenster |
+| `bandietGolf` | een oplopende golf bandieten: `{van, tot, ramp, max, dolk}` (zie `notities/velden.md`) |
+| `duel` | per kooiman-spawn `{x, k: 'kooiman', duel}`; standaard aan is het 1-op-1 duel, `duel: false` de gewone kooiman (zie `notities/velden.md`) |
 | `props` | decor: `{x, k, s, f, v}`, `k` uit `PROPS`, `f` spiegelen, `v` verre laag |
 | `village` | dorpsplaten uit `VILLAGE`: `{id, x, depth, flip}` |
 | `gaps` | ravijnen: `{x, w}` |
 | `water` | poelen: `{x, n}` met `n` = aantal middenstukken |
 | `thickets` | doornbossen: `{x, n, seed}` |
-| `terraces` | terrassen om op te klimmen: `{r, l, h}` (rechterrand, linkerrand, hoogte); met een negatieve `h` een trede in een gang, en met `grond: true` geen rots maar een hogere savannelaag (zie hieronder). Met `af: true` stopt de steen van een rots-mesa op de grondlijn in plaats van door de savanne heen het donker in te lopen (de Maker zet dat op zijn muur/rots-mesa's; bestaande levels hebben het niet en veranderen niet) |
+| `terraces` | terrassen om op te klimmen: `{r, l, h}`; negatieve `h` is een trede in een gang, `grond: true` een hogere savannelaag (zie `notities/velden.md`) |
 | `holtes` | gangen onder de grond: `{r, l, diep}`, een ravijn erboven is de ingang, een gat met treden de uitgang (zie hieronder) |
 | `putten` | ravijnen in de vloer van een gang: `{x, w}`, helemaal binnen een holte (zie "put") |
 | `zuilen` | zuilen met een hoogte in een ravijn of put: `{x, w, h}`, `h` van -250 tot 180 boven de grond of de vloer (zie "zuil met een hoogte") |
@@ -242,13 +252,13 @@ precies hetzelfde formaat naar JSON.
 | `tekens` | speertekens: `{x, v, f}`, `v` is `teken`, `gebroken`, `gekruist`, `jagers` of `kalebas`, `f` spiegelt; decor, behalve dat het mes de kalebas lossnijdt |
 | `fakkels` | geanimeerde wandfakkels: `{x, y, s, f}`, `x` de schacht, `y` de hoogte van de voet boven de grond in Amir (0 = op de grond, hoger = tegen een wand), `s` schaal, `f` spiegelen; brandend decor met gloed, vonken, schaduw en vuurgeluid (zie "fakkel") |
 | `talentKeuze` | `true`: voor het begin kies je zelf welke talents gelden, van alle tribes (alleen voor een Test level; nu Test 14) |
-| `zegels` | zegels plat in de grond: `{x, ravijn, sluit, breed, muur, speerval, teken, vijand, plafond, rijs, speer}`; `teken` is een sleutel uit `ZEGEL_TEKENS` (standaard `rune`, met `vijand` `teken2`; zie `notities/zegeltekens.md`), en met `vijand: true` zet ook een vijand hem aan: een `ravijn` op de x van het zegel zelf is dan een val (en geen FOUT in `levelcheck.py`); erop stappen zet hem aan of uit, en met `ravijn` scheurt de grond daar open als hij aangaat, `breed` breed (standaard 277). Met `sluit` gaat het open ravijn op die x juist weer dicht (staat er niets open, dan blijft hij donker). Met `muur: true` opent hij de rotswand van het level (`zegelMuur`); de rune op de wand werkt daarnaast gewoon. Met `speerval` (een x) schiet hij de speer in die rotswand los; zit die niet in de wand, dan blijft hij donker. Met `naTakelVal: true` is hij verborgen tot een takel-brug met snijdbare touwen het ravijn in valt (zie "takelwiel met plateau"); dan verschijnt hij en dicht hij met `rijs` het te brede gat |
+| `zegels` | zegels plat in de grond: `{x, ravijn, sluit, breed, muur, speerval, teken, vijand, plafond, rijs, speer}` (zie `notities/velden.md`) |
 | `rijzers` | steen dat uit een ravijn omhoog komt: `{id, r, l, tot, van, v, wacht, duur}`, `id` de naam waar een zegel of een rune (`doel: true`) met `rijs` naar wijst, `tot` en `van` de bovenkant boven en beneden (standaard -1 en -900), `wacht` seconden voor hij begint, `duur` seconden boven voor hij terugzakt (zie "rijzende grond"); met `zak: true` staat hij boven en zakt hij onder Amir weg |
-| `takel` | een takelwiel met een hangend plateau: `{x, px, breed, laag, hoog, stappen, beginLaag, lift, takelaar, passagiers, takelaarZij, touwSnijbaar, stam, stamZij, stamH, stamBot}`, `x` het wiel op de grond, `px` het midden van het plateau (standaard `x - 520`), `laag` en `hoog` de twee hoogtes in sprite-eenheden boven de grondlijn (mogen negatief zijn, dan hangt het dek in een ravijn), `stappen` het aantal slagen ertussen (standaard 6), `beginLaag: true` begint laag (anders hoog). Met `stam: true` krijgt het de draagpaal met het mini-tandwiel in plaats van de twee plateau-touwen (de Maker zet dit standaard), `stamZij` (1 rechts, -1 links) is de kant van de paal los van het wiel, `stamH` is de paalhoogte in sprite-eenheden boven de grond (zonder dit veld net boven de hoogste plateaustand), en `stamBot` de voet van de paal (zonder dit veld rust hij op de vloer eronder); zie "takelwiel met plateau". Met `takelaar: true` zet een bandiet bij het wiel die het rad slaat (en boven zelf oversteekt), en `passagiers: n` zet n bandieten op het dek die meerijden en er boven afstormen; `passagierRollen` is een lijst per passagier (`'hurk'` gehurkt en springt op bij de brug, `'dolk'` gooit direct, `'ren'` rent in), `takelaarZij` verschuift de takelaar t.o.v. het wiel (standaard -170), en `elite: true` zet de takelaar en de passagiers in de elite-set (de garde). Met `touwSnijbaar: true` zijn de twee brugtouwen met een geworpen speer door te snijden: de brug kantelt en stort met de passagiers het ravijn in (zie "takelwiel met plateau"). Sla het rad met je speer: elke slag draait een kwartslag en zet het plateau een stap; aan de uiteindes draait de richting om. Het plateau draagt en veert (zie "takelwiel met plateau"). Met `lift: true` is het een lift: twee wielen (een naast het plateau onder, een naast het plateau boven) en een keer raken takelt het plateau in een keer helemaal omhoog (onderste wiel) of omlaag (bovenste wiel), in plaats van stap voor stap; opt-in, dus Test 32 tot 34 blijven het stap-rad |
-| `maskers` | geverfde stukken die een deel van het level verbergen: `{id, look, vakken: [{l, r, onder, boven}]}` (of ouder: één rechthoek `{id, l, r, boven, onder, look}`), `l`/`r` in wereld-x, `onder`/`boven` in sprite-eenheden, `look` de textuur (nu `'grot'`, de ondergrondse rotswand), `id` de naam (bv. `Verborgen1`) waar een actie (`{soort: 'masker', masker: id}`, zoals het tandwiel) naar wijst. Het houdt niemand tegen: je loopt erin en het valt stil weg (eenmaal gezien voorgoed weg). Een zegel of rune onthult het via het koppelsysteem, met beven en het ravijn-geluid. De vijanden binnen de geverfde cellen zijn bevroren tot het weg is, en een zegel of rune die erbinnen ligt is onzichtbaar en niet te activeren tot het weg is. Je verft het in de nieuwe Maker (categorie Verbergen); zie "masker" |
-| `zakplafond` | stukken rots die zakken: `{r, l, rust, dicht, v, schok, duw}`, `rust` en `dicht` de ruimte eronder in sprite-eenheden boven de vloer, `v` eenheden per seconde, `schok` de klap waarmee hij begint, `duw` -1 of 1 voor een poort die opzij duwt in plaats van te pletten. Een zegel met `plafond: 'zak'` laat ze zakken, een met `plafond: 'op'` haalt ze op, ook als er een geworpen speer op neerkomt (zie "zakplafond") |
+| `takel` | een takelwiel met een hangend plateau; sla het rad met je speer, het plateau draagt en veert (zie `notities/velden.md`) |
+| `maskers` | geverfde stukken die een deel van het level verbergen: `{id, look, vakken}` (zie `notities/velden.md`) |
+| `zakplafond` | stukken rots die zakken: `{r, l, rust, dicht, v, schok, duw}` (zie `notities/velden.md`) |
 | `speervallen` | speren in de rotswand: `{x, h}`, `x` de klif waar hij in zit (uit `cliffs`), `h` de hoogte in Amir (standaard 0,82); een zegel met `speerval` schiet hem los (zie "speerval") |
-| `runes` | ravijnen met een rune op een rots ervoor: `{x, breed, rots, groot, hoog, doel}`, `x` het midden van het ravijn; de rots komt vanzelf aan de kant waar Amir aankomt. `rots` is de plaat uit `RUNE_ROTSEN` (standaard de spits), `groot` de hoogte van de rots en `hoog` die van de schijf, allebei in Amir (standaard 3,5 en 0,76). Met `doel: true` opent hij zijn eigen plek niet maar gloeit hij op en blijft hij aan, en is `x` de linkervoet van de rots; een doel kan dan net als een zegel `ravijn` (een x), `breed`, `sluit`, `muur` of `speerval` hebben, en met `kei` (in Amir) legt het spel een kei om op te springen zoveel voor de schijf (zie "runes op elke rots"). De rots staat op de vloer onder zijn midden: de savanne, een terras of in een gang de bodem. Oudere levels hebben ze nog op naam in `RAVIJN_PROEF` (Test 6 en Test 9); staat het veld er, dan telt het veld |
+| `runes` | ravijnen met een rune op een rots ervoor: `{x, breed, rots, groot, hoog, doel}` (zie `notities/velden.md`) |
 | `fg` | strook waarover de voorgrondbegroeiing ligt: `{from, to}` |
 | `voorgrond` | de onscherpe laag vlak voor de camera: `{stroken: [{van, tot, dicht, struik, kei}], los: [{x, k, s, f}]}`, `k` uit `VG_SOORT`; los van `fg`. Zonder dit veld krijgt het level de standaard, met `false` heeft het er geen (zie hieronder) |
 | `arena` | het veld van de eindbaas: `{c}` |
@@ -256,1003 +266,6 @@ precies hetzelfde formaat naar JSON.
 | `ends` | de fakkels die het level uitspelen: `{x}` |
 | `npcs` | dorpelingen: `{x, k, f, s}` |
 | `tips` | tekst onderweg: `{x, t}` |
-| `tutorial` | stapjes met uitleg (nu door geen level gebruikt) |
-
-### Bodem en sneeuwdek: grijs en rood zijn twee verschillende dingen
-
-`winter: true` is de complete uitrusting van episode Winter World: witte dieren, sneeuw
-op alles wat je beklimt, en een grond waarin sneeuw en grijze steen in één tegel zijn
-gebakken. Dat is de bergversie en die blijft zoals hij is.
-
-Het veld `sneeuw` beantwoordt een andere vraag: ligt hier sneeuw op de grond, en op wat
-voor grond. Twee dingen die los van elkaar staan:
-
-| | |
-| --- | --- |
-| `soort: 'savanne'` | de rode grond van de savanne, en die blijft rood onder de sneeuw |
-| `soort: 'rots'` | dezelfde grond als grijze steen: een rotsbodem, ook zonder sneeuw |
-| `dek` | hoeveel sneeuw er ligt, 0 tot 1 (standaard 1) |
-| `van` en `tot` | alleen samen: het dek loopt op van niets op `van` tot vol op `tot` |
-
-Kies dus bewust. Grijs is een steensoort, geen gevolg van sneeuw: een ondergesneeuwde
-zandvlakte is onder die sneeuw nog altijd rood zand, en dat zie je ook, want het dek
-laat overal plekken grond vrij. Vraagt iemand om een besneeuwd savannelevel, dan is dat
-`soort: 'savanne'`; gaat het om een kale steenvlakte of een hoogvlakte, dan `'rots'`.
-
-Amir loopt naar links, dus `tot` is negatiever dan `van`:
-
-```
-sneeuw: { soort: 'savanne', van: -1200, tot: -7000 }
-```
-
-Het dek zelf zijn vier doorzichtige lagen (`design/sneeuwlaag_25` tot `100`) die genest
-zijn: wat op 25 wit is, is dat op 50 ook. De overgang van de ene stand naar de volgende
-is daardoor alleen sneeuw die erbij komt, en die grens loopt grillig, zodat je nergens
-een rechte streep over de grond ziet. Zet je een nieuwe stand bij, houd die nesting dan
-intact, anders knippert er sneeuw weg terwijl je loopt.
-
-Wat nu nog niet meeloopt: de rotsen, de klimstukken, het gras en de dieren hebben alleen
-een aan-of-uit sneeuwversie. Loop je door een overgang, dan springen die er in één keer
-om. Dat is bewust buiten deze wijziging gelaten.
-
-`schoonLevel` kijkt elk level bij het laden na en schuift decor dat boven een ravijn
-staat naar de kant, of haalt het weg (behalve binnen een gang: daar staat het op de bodem). Reken daar niet op als ontwerper: zet het
-meteen goed.
-
-### Het weer
-
-Een level zet het weer met `weer: [{x, soort, sterkte}]`. Voorbij `x` geldt die soort tot het
-volgende punt, de overgang loopt over `WEER.overgang` px en voor het eerste punt is het droog.
-Zonder het veld blijft het oude gedrag: in een winterlevel het sneeuwplan per potje (`planSnow`),
-verder geen weer. `sterkte` is standaard 1, hoogstens 1,5.
-
-Elke soort is een mengsel van zes lagen (`WEER.lagen`: regen, onweer, storm, zand, sneeuw, jacht),
-zodat de ene soort in de andere overloopt. De sneeuw zijn de gewone vlokken: `updateSnowfall`
-vraagt `weerDoel()` en sneeuwt dan ook buiten een winterlevel. Wil je de grond ook wit, zet er dan
-het veld `sneeuw` bij met dezelfde `van`.
-
-Drie keuzes die vastliggen:
-
-- **Weer maakt het beeld niet donkerder.** Geen waas over de lucht en geen donkere laag: regen maakt
-  het hooguit een zweem koeler (`WEER.koel`), een storm legt alleen vlak boven de grond een stuifband.
-  Zo is het gevraagd.
-- **Een storm is een vlaag die niet ophoudt.** `weerWind` zet `gust` op een vlaag over de hele kaart
-  (`gust.weer`), met een amplitude die golft. Alles wat al op `windAt` reageert gaat zo vanzelf mee;
-  de planten gaan in een storm verder plat en fladderen sneller (`WEER.storm.buig`, `fladder`, in
-  `drawVeg`). Waait het harder dan 1, dan staat een doek strak (`tekenWind` klemt op 1). Een nieuw
-  ding dat in de wind beweegt hoeft dus alleen `windAt` te gebruiken.
-- **Geluid**: de storm is `music/woestijnwind.mp3` als lus door een versterker (`stormSnd`,
-  `weerVersterker`), de regen en de donder zijn gefilterde ruis uit de Web Audio API. Alles hangt aan
-  `weerAc`, die `geluidOntgrendel` bij een tik op gang zet. Onder de grond klinkt het gedempt, en er
-  valt geen weer (`holteDiepT`, net als de sneeuw).
-
-Nog niet: onder een plafond of in een grot regent het gewoon door, en planten en keien hebben in de
-sneeuw alleen hun aan-of-uit sneeuwversie. In de sandbox onder **Weer**; Test 13 laat alles zien.
-
-### Wat mag waar: vast, los, plant en ver
-
-Elk ding in een level valt in een van vier soorten, en de soort bepaalt wat er gebeurt bij een
-ravijn, bij een ravijn dat later openscheurt (een rune of een zegel) en in een gang.
-
-| soort | wat | boven een ravijn | waar later een ravijn openscheurt | in een gang |
-| --- | --- | --- | --- | --- |
-| vast | keien, hutten en andere props met `bouwwerk`, doornbossen, skeletten, speertekens | nooit | nooit: ze gaan naar de rand | op de bodem, en niet hoger dan de gang |
-| los | botten (`RAVIJN_DECOR.valt`), kalebassen, dorpelingen | nooit | mag: het valt erin | op de bodem |
-| plant | gras, struik, boom, schilden en ander laag decor | nooit | mag: het schuift naar de rand, of vervaagt als daar al iets staat | op de bodem, en niet hoger dan de gang |
-| ver | props met `v` die hoger staan dan `FAR_GAP_LIFT` | mag | mag | blijft boven op de savanne |
-
-Wat Amir tegenhoudt staat daar los van: een kei draagt (je springt erop), een doornbos houdt je
-tegen tot je hem kapt, en al het andere is decor waar je doorheen loopt.
-
-De soort staat niet op een plek, maar zit in vijf functies. Een nieuw ding krijgt dus eerst een
-soort, en komt dan in alle vijf:
-
-1. `schoonLevel`: schuift het uit een ravijn bij het laden (behalve ver decor);
-2. `schoonKomend`: schuift vaste dingen weg waar later een ravijn openscheurt;
-3. `ravijnDecor` en `ravijnDecorReset`: wat er gebeurt als het ravijn toch onder iets openscheurt
-   (in de sandbox), en dat een herstart het terugzet (`x0` of `rv`);
-4. `tools/levelcheck.py`: de regels `boven een ravijn`, `waar een ravijn openscheurt` en `onder de
-   grond`, met de maten uit de code;
-5. `placeProblem`, als het in de bouwer neer te zetten is. Skeletten en speertekens staan er
-   sinds de nieuwe bouwer ook in (`skelet` en `teken`).
-
-Voor een speerteken staan de maten per variant in `TEKEN.varianten`: `voet` is van waar tot waar
-het op de grond staat (het liggende stuk en de schedels in het zand tellen mee, dus niet
-symmetrisch om `x`), `hoog` tot waar de speer reikt. Een teken is 0,86 tot 1,34 Amir hoog, dus
-in een gang minder diep dan zo'n 530 steekt de speer door het dak.
-
-### Rots als een raster van cellen
-
-Een rotsgebied is geen kamer maar terrein: een raster waarin elke cel vol of leeg is.
-Amir loopt door de lege cellen, en rots kan net zo goed boven of naast hem zitten als
-eronder. Je tekent het met de hand uit.
-
-| veld | wat |
-| --- | --- |
-| `x` | wereld-x van de linkerrand van het raster (dus negatief) |
-| `cel` | celbreedte in wereld-px (standaard `GROT_CEL`, 120) |
-| `hoog` | celhoogte, als factor op de standaard (standaard 1 = 150 eenheden) |
-| `y` | onderrand van het raster boven de grondlijn, in cellen (standaard 0) |
-| `grid` | de rijen van boven naar beneden; `#` is vol, al het andere leeg |
-| `seed` | dezelfde seed geeft elke keer dezelfde verstrooiing |
-| `strooi` | hangblokken, richels en keien vanzelf neerzetten (standaard `true`) |
-| `massief` | de volle cellen blokkeren (standaard `true`) |
-| `decor` | met de hand erbij: `[{k, x, y, f, s}]` |
-
-Een cel heeft twee maten, en dat is met opzet, want het spel rekent zo overal. De
-**breedte** staat in wereld-px en ligt dus vast, net als bij `gaps`, `terraces` en `rocks`,
-en net als Amir zijn looptempo. De **hoogte** staat in sprite-eenheden (`GROT_HOOG * CHAR_H`
-= 150, precies een terrastrede) en schaalt dus mee met Amir, net als `terraces.h`.
-
-Dat verschil is niet vrijblijvend. Zou de hoogte ook in wereld-px staan, dan komt Amir op
-een kort scherm kleiner uit terwijl de cel gelijk blijft, en is een blok van één cel ineens
-niet meer te halen. Nu is een cel overal 150 eenheden en Amir zijn sprong overal 200, dus
-één cel klim je altijd, twee cellen nooit. Op een telefoon zijn cellen daardoor breder dan
-hoog en op een groot scherm hoger dan breed; rond het standaardformaat zijn ze vierkant.
-De losse stukken worden allemaal op één schaal getekend (zie hieronder), dus er wordt
-nergens iets uitgerekt.
-
-Wat dat voor het ontwerp betekent: één cel is een trede, twee cellen is een gang waar je
-rechtop door loopt maar je hoofd stoot als je springt, drie cellen is ruim, en een gat van
-één cel hoogte kun je niet in.
-
-Buiten het raster is het lucht, behalve onder de laatste rij: daar loopt de aarde door.
-De bovenkant van je rots is dus ook de bovenkant van het level, met de hemel erboven.
-Moet de massa doorlopen tot buiten beeld, maak het raster dan hoger.
-
-### Rots is hetzelfde gesteente als een terras
-
-Dit is de kern, en het is de derde poging: een rotsgebied krijgt geen eigen steensoort.
-Elke volle cel hangt onder precies een cel waarvan de buur boven leeg is (loop je van een
-volle cel omhoog, dan kom je daar altijd uit), en zo'n bovenrand met de massa eronder is
-niets anders dan een terras van een paar cellen breed. Daarom tekent `grotMassa` de massa
-met `klif_bovenrand.png` zelf, op `terScale(scale)`, precies zoals `drawClimb` een terras
-tekent: middenstukken om en om gespiegeld, en aan een open kant de afbrokkelende rand van
-het plaatje. Een rotsblok is daarmee van hetzelfde steen als de terrassen ernaast, en de
-winterversie loopt automatisch mee, want `terPic()` regelt dat al.
-
-Wat daarvoor stond, klopte niet: een eigen vlakke massa (`GROT_MASSA`) met een lichte band
-eronder, in een andere kleur en een andere korrel dan de vloer. Dat leest als een grijze
-rechthoek naast het level, hoe je die kleur ook kiest. Een getegelde textuur in plaats van
-die vlakke kleur is niet beter: elk ander plaatje is net iets lichter of donkerder dan de
-band, en dan ligt elke rand als een rechthoek in de rots.
-
-Wat een terras niet heeft is een onderkant, want daar kom je bij een terras nooit. Dat is
-het enige waar de grotset nog voor nodig is:
-
-| buur leeg | wat erop komt |
-| --- | --- |
-| boven | het bovenvlak van het terrasplaatje: je loopt erop zoals je op een terras loopt |
-| links of rechts | de afbrokkelende rand van datzelfde plaatje, over de rijen waar die kant echt open ligt |
-| onder | de tanden van `plafond_strook.png`, horizontaal getegeld |
-
-De zijkanten staan niet kaarsrecht: `grotSilPad` breekt ze open met `terJag`, dezelfde golf
-die de zijkant van een terras openbreekt, geklemd op `GROT_JAG` (0,16) van een cel. De
-botsing blijft wel op de celrand liggen, dus die hap mag niet groter worden. Waar de rots
-zijdelings doorloopt blijft de naad recht en valt hij onder het buurstuk.
-
-De ribbels van de wand liggen op een raster dat aan het hele gebied hangt, niet aan een los
-stuk massa. Doe je dat niet, dan zet een stuk de wand halverwege opnieuw in en loopt er een
-naad door het steen. Hetzelfde geldt voor de fase van de plafondtanden.
-
-Van `plafond_strook.png` komt alleen wat onder de plafondlijn hangt in beeld: rij 433 tot
-508 is massief steen (`GROT.band.dicht`) en dat deel wordt weggeknipt, rij 509 tot 592 is
-de tandenrand en die hangt in de open ruimte, met een donkere contour eronder
-(`grotSilhouet`), zoals de aardlaag van de grond er ook een heeft. Teken je dat massieve
-deel wel, dan ligt er een lichte plaat met een kaarsrechte bovenkant op de wand, en precies
-dat leest als een rechthoek op de rots.
-
-De band wordt op `grotSteen()` getekend, 1,35 keer de schaal van de grondrand: groot genoeg
-om als rots te lezen, en lichter dan de grondband. Op 2,1 zijn de brokken boven en onder
-precies even groot, maar dan wordt de band twee keer zo zwaar als de vloer en vult hij het
-halve scherm.
-
-De rijen van `GROT.band` staan in de maten van `grot.json`, dus in de grote bron. Op een
-telefoon komt hetzelfde plaatje op halve grootte uit `klein/`, en dan ligt rij 433 buiten
-het plaatje. `grotTegelSet` schaalt die snee daarom mee met de werkelijke bronbreedte. Sla
-je dat over, dan valt op een telefoon de hele band weg en hangt er niets aan het plafond,
-zonder dat er iets in de console staat.
-
-Wat de set niet heeft vullen de brokken op:
-
-- waar een vloer op een wand uitkomt komt een handvol keien over de naad;
-- waar een plafond tegen een wand aan loopt die verder naar beneden doorloopt, zit een hoek
-  van 90 graden: daar hangt een hangblok in, want `hoek_plafond_wand.png` past niet in een
-  raster en wordt niet gebruikt;
-- waar een rotspunt in de open ruimte steekt komen keien of een hangblok overheen.
-
-`wand_richel` zit met opzet niet in de verstrooiing: dat is een plank om op te springen, en
-tegen een losse celrand geplakt hangt hij als een plaat in de lucht. Zet hem met de hand
-neer, daar waar je hem als opstap wilt. `wand_rand.png` wordt sinds de terrasmassa niet meer
-gebruikt: als tegel over een cel van 120 px leest dat stuk als een lichte rechthoek.
-
-De losse stukken (hangblokken, richels, keien) hangen aan Amir (`grotDecorS`), niet aan de
-steenschaal: daarop zou een hangblok zes keer zo hoog worden als hij.
-
-Geen tint, geen overlay, geen `globalCompositeOperation` op deze sprites. Ze zijn allemaal
-hetzelfde warm grijsbruine gesteente; elke waas eroverheen maakt van de ene helft grijs en
-van de andere bruin.
-
-Tegels worden een keer op maat gezet (`grotBandSet`) en daarna op hele pixels neergelegd.
-Verklein je een naadloze tegel rechtstreeks met `drawImage`, dan klemt de resampler op de
-rand en zie je de naad alsnog als een lijn door het steen lopen.
-
-Alleen `wand_richel` draagt, met een hitbox die alleen de bovenkant van het brok beslaat.
-Hangblokken en losse keien zijn puur decor.
-
-### Het plafond als hoogtelijn
-
-Het raster hierboven is terrein in cellen, en dat geeft rechte hoeken. Voor rots boven je
-staat daarnaast de plafondlijn, en die is opgezet als de grond: `terrainH(x)` geeft per
-wereld-x hoe hoog de bodem ligt, `plafondH(x)` geeft hoe hoog de onderkant van de rots hangt,
-allebei in sprite-eenheden boven de grondlijn. Tussen twee punten loopt de lijn recht door,
-dus een schuin stuk is niet meer dan twee punten op verschillende hoogte.
-
-```
-plafond: [ {x: -1000, y: 4000},    geen plafond: PLAFOND_WEG of hoger is open lucht
-           {x: -2600, y: 360},     zakt schuin in beeld tot een gang
-           {x: -5200, y: 280},     en knijpt verder dicht
-           {x: -6600, y: 4000} ]   weer omhoog, uit beeld
-```
-
-De punten mogen in looprichting staan (x steeds negatiever); het spel zet ze zelf op volgorde.
-Reken met Amir: hij is `CHAR_H` (251) hoog en springt 200 (zie "de sprong" hieronder). Boven de 460 merkt hij niets, op
-400 loopt hij rechtop maar stoot hij bij elke sprong zijn hoofd, op 280 zit springen er niet
-meer in, en onder de 251 kan hij er helemaal niet langs, want gebukt loopt hij niet.
-
-Staat er iets onder de lijn om op te springen, tel dan door: een plafond knipt zijn sprong af,
-dus de lijn moet minstens op de hoogte van dat ding plus 251 plus ongeveer 75 liggen. Op de kei
-van Test 1 (114 hoog) is dat 440. Op 400 haalt hij het ook nog, maar alleen als hij precies op
-tijd afzet, en dan sta je de halve tijd klem voor een kei van een halve meter. Dat is gemeten,
-niet geschat: op 400 lukt de sprong vanaf 30 tot 180 px voor de kei, op 440 vanaf 30 tot 270.
-
-Drie lagen, in deze volgorde:
-
-1. **Vulling** (`plafondVulling`): alles boven de lijn, met de lijn als clippad. De tegel is
-   `design/grot/rots_vulling.png`, uit het massieve deel van `plafond_strook` geknipt
-   (`tools/rots_vulling.py`), en wordt op `grotSteen()` getekend: dezelfde schaal als de band,
-   dus per definitie dezelfde korrel. Naadloos in beide richtingen, nooit uitgerekt, en hij
-   loopt altijd door tot ruim voorbij de bovenrand van het scherm.
-2. **Band** (`plafondBand`): dezelfde tandenrand als bij de grotten (`GROT.band`, de onderste
-   160 bronrijen van `plafond_strook`), maar langs de lijn, en per stuk meegedraaid met de
-   helling. Het patroon loopt door over de knikken heen (`plafondFase`), anders begint het bij
-   elk stuk opnieuw en zie je de knik in het steen zitten. Die fase moet ook doorlopen buiten
-   de lijn: het spel tekent anderhalve schermbreedte breder dan het beeld, dus aan het eind
-   van een level ligt de rand van dat venster voorbij het eerste punt van de lijn. Daar is de
-   lijn vlak (`plafondH` klemt), dus de lengte is gewoon de afstand, en `plafondFase` geeft
-   hem negatief terug. Stopt hij daar op nul, dan staat de fase stil terwijl het stuk tussen
-   de vensterrand en het eerste punt wel meegeteld wordt, en plakt de tandenrand aan het
-   scherm in plaats van aan de wereld: hij schuift dan precies met je mee.
-3. **Losse blokken** (`plafondDecorLijst`): om de `PLAFOND_STAP` wereld-px een plek, waar
-   ongeveer een op de drie keer een hangblok of een richel hangt, met een seed uit de lijn zelf.
-   Ze worden afgesneden op de lijn: wat erboven uitsteekt zit in het steen. Hoe krapper de
-   ruimte onder de lijn, hoe kleiner ze uitvallen (`PLAFOND_HANG`), want je moet er niet
-   doorheen hoeven lopen.
-
-De band loopt aan zijn bovenkant uit in de vulling (`PLAFOND_VERVAAG`), en de vulling loopt
-daarvoor even ver door onder de lijn. Zonder die overgang ligt er een lichte plaat met een
-kaarsrechte bovenkant op de rots, en dat is precies wat er bij de grotset ook al misging.
-
-Botsen: de ruimte boven de lijn is massief. `plafondKop` is de laagste lijn over zijn breedte
-min zijn eigen lengte, en gaat samen met `grotKop` als plafond in `updateJump`. `plafondBlok`
-duwt hem terug waar de lijn onder zijn kruin duikt, zoals `grotBlok` dat bij een celwand doet.
-Hangblokken zijn decor; alleen `wand_richel` draagt, met dezelfde hitbox als in een grot
-(`plafondPlats`).
-
-`hoek_plafond_wand.png` en `wand_rand.png` worden nergens meer getekend. Ze blijven wel in
-`design/grot/` staan, voor later, als er een ravijn komt waar je in afdaalt.
-
-### De muur die je met je speer openkrijgt
-
-Een rotswand die de weg verspert, met op het steen een houten schijf met een rune. Raakt de
-punt van een geworpen speer die schijf, dan blijft die speer er voorgoed in zitten en schuift
-het rotsblok in een halve seconde omhoog de berg in. Mis je, dan blijft de speer in de rots
-steken en valt hij er na `JAV.muurT` vanzelf uit: dat is de gewone wandspeer, daar is niets
-voor aangepast.
-
-Een level zet hem neer met `muur: {x, speer}`. `x` is de rechterrand van de rots, de kant waar
-Amir aankomt; `speer` is waar zijn speer steeds terugkomt, en dat telt vanaf de lijn waar de
-wand hem tegenhoudt, niet vanaf een vaste plek in de wereld. Dat moet ook wel: de rots hangt aan
-Amirs maat, dus op een ander scherm verschuift die lijn mee en kwam een vaste plek achter de
-muur te liggen, waar je er niet meer bij kon. Verder staat er geen enkele positie in het level: waar de opening en
-de schijf komen rekent `muurSet` uit de plaat zelf uit. Alles wat je kunt afstellen zijn maten
-en verhoudingen, en die staan bij elkaar in `MUUR`.
-
-**De rots wordt in zijn geheel getekend.** Niet gesneden, niet gespiegeld, niet uitgerekt: de
-hele plaat met zijn volledige silhouet, geschaald tot hij past. Zijn maat hangt aan Amir
-(`hoogAmir`, 1,6 keer zijn lengte) en niet aan het scherm, en dat is niet vrijblijvend: de
-opening en de schijf worden uit Amir gerekend, dus hangt de rots aan het scherm, dan verspringt
-die verhouding met elk venster. Op een breed en laag scherm werd de rots groot terwijl Amir
-klein bleef, schoof de opening diep de rots in, en was de rune vanaf geen enkele plek meer te
-raken. Aan Amir gekoppeld ligt alles op elk scherm hetzelfde. `hoog` en `breed` zijn alleen nog
-een vangnet voor het geval hij niet past.
-
-Rotsformaties krijgen voortaan deze maat: 3,5 keer Amir hoog, even groot als deze rots in
-Test 3. Zo staat ook de scheve spits met de rune bij het openscheurende ravijn in Test 6
-(`RAVIJN_ROTS`).
-
-Omklappen kan met `spiegel`, maar staat uit, en dat is gemeten. Gespiegeld wijst de hoge flank
-met de overhang naar Amir en komt de opening onder dat hoge steen te liggen. De schijf hangt
-altijd net onder de bovenrand van de rots, dus daar hangt hij hoog, en een hoge schijf betekent
-een lange worp: op 1280 bij 720 moet je dan van 480 pixels gooien en staat er nog maar een
-strook rots in beeld, en op 1440 bij 620 is er helemaal geen plek meer waar je hem kunt raken.
-
-**De plek van de opening komt uit de alfawaarden.** Per kolom wordt geteld hoe hoog het steen
-vanaf de grond draagt (`massief`). Kleine gaten onderweg tellen daarbij niet als het einde: aan
-de voet staan de keien los van elkaar met lucht ertussen, en een telling die daar stopt geeft
-nul op kolommen waar in het beeld gewoon een muur van steen staat. Dat was precies waarom de
-opening met de kale plaat ineens driehonderd pixels dieper ging liggen. Vanaf dat profiel en daarna wordt van de kant waar Amir
-vandaan komt de eerste plek gezocht waar de opening past, met daar de hoogste deur die er nog
-in kan. Zo dicht mogelijk bij zijn kant dus, en dat is niet alleen netjes: hoe dieper de
-opening ligt, hoe verder je moet gaan staan om de rune te raken, en hoe minder er dan van de
-rots in beeld past. Twee eisen tegelijk:
-
-- over de volle breedte van de opening moet er genoeg steen staan (de deur plus de schijf
-  erboven plus een randje);
-- waar de schijf komt te hangen moet de bovenrand van de rots juist laag genoeg blijven, onder
-  de top van de werpboog. Het spel rekent die top uit de worpconstanten uit. Ligt de rand
-  hoger, dan kan de speer er per definitie nooit overheen en is de rune onraakbaar.
-
-Past de opening nergens, dan krimpt hij tot hij wel past, tot Amirs eigen lengte. Dat is met
-opzet: een deur die vasthoudt aan zijn maat belandt aan de rand van de rots, half in de lucht,
-en dat is precies wat er niet mag.
-
-**De schijf hangt aan de bovenrand, niet op een vaste hoogte.** In zijaanzicht is de rots een
-massief silhouet: een punt onder de bovenrand zit in het steen, en daar komt geen speer ooit,
-hoe je ook gooit. De schijf hangt dus net onder die rand (`onder`, 1 betekent dat haar
-bovenkant hem raakt), zodat het hout helemaal op de rots ligt en de punt er toch bij kan door
-er overheen te scheren. Daarom is het raakvlak (`raak`) ruimer dan het hout: de ruimte waar de
-speer kan komen ligt boven de schijf. Dat raakvlak staat los van de straal, en met opzet: `r`
-is hoe groot het hout eruitziet, `raak` is hoe nauw het luistert, allebei als deel van Amirs
-lengte. Zo maakt een kleinere schijf het spel niet meteen ook moeilijker. De punt blijft steken waar hij binnenkwam, geklemd op de
-rand van het hout, dus hij springt niet naar het midden.
-
-**Gat en blok komen uit dezelfde pixels.** Uit de plaat op maat komen drie canvassen: de muur
-met de vorm van de opening eruit gegumd (`destination-out`), het schuifblok dat precies dat
-uitgegumde stuk is met een marge eromheen, en een masker dat die vorm doorsnijdt met de rots
-zelf. Het masker is een pixel ruimer dan het gat, anders blijft er door de anti-aliasing een
-haarlijntje op de rand staan.
-
-Die snede met de rots gaat met de hand en niet met `destination-in`. Die rekent alfa maal alfa,
-en waar de omtrek van de rots zelf door het gat loopt (langs de voet, bij de steentjes) werd het
-blok daardoor doorzichtiger dan het steen eromheen. En zolang het blok stilstaat wordt de
-ongeschonden plaat getekend en verder niets: de drie canvassen weer samenstellen levert op de
-zachte randen 8-bits afrondingen op, en dat is precies het haarlijntje dat er niet mag zijn.
-
-**De speer botst op de alfawaarde**, met de punt, en dat gaat vanzelf goed omdat `jav.x` en
-`jav.h` in dit spel de punt zelf zijn. Lukt het uitlezen niet, dan telt de hele plaat als rots.
-
-**Amir loopt door de rots heen.** De hele rots is decor, ook de deur: uitspelen gaat met E als
-de deur open staat en hij ervoor staat (`muurUitgang`). Er is dus niets dat hem tegenhoudt, en
-een level dat bij de rots eindigt zonder klif erachter laat hem voorbij de rots eindeloos de lege
-savanne in lopen. Zet er een klif een stuk achter.
-
-**Controleer na elke wijziging of de rune nog te raken is.** Dat is geen gevoelskwestie: simuleer
-de boog vanaf elke plek waar Amir kan staan en kijk of er een aaneengesloten strook overblijft.
-Op een scherm van 1280 bij 720 en Formaat 25 is die strook 141 pixels breed, van 94 tot 235
-pixels voor de muurlijn, en vanaf de hele strook staat de rots in zijn geheel in beeld.
-
-Het gras aan de voet staat niet in de plaat maar wordt er los voor gezet (`MUUR.gras`), met
-dezelfde tekencode als al het andere gras, dus het buigt mee met de windvlagen. Ingebakken gras
-schaalt mee met de rots, en dan staan er sprieten van een meter hoog zodra hij groter wordt. Dichterbij gaat de speer onder de rune door tegen het steen, verder weg zakt hij er al
-voor. Er is nog een tweede strook op ruim tweeduizend pixels, maar daar staat de rots buiten
-beeld, dus die telt niet mee.
-
-**De grot met de kei** is een tweede soort muur: `muur: {x, speer, soort: 'grot'}` (nu alleen Test
-3). Instellingen in `MUUR_GROT`, de canvassen in `muurGrotSet`, tekenen in `drawMuurGrot`. De rots is
-de geschilderde boog `design/rotswand_boog.jpg`, met het wit eruit via `witKnip` (dezelfde functie
-als de rots bij het ravijn); het donker in de grot is een vulling vanuit de voet van de boog, dus het
-volgt de geschilderde rand. Voor de ingang staat `PROPS.boulder`, zo groot dat hij de grot dekt. Bij
-een treffer trilt hij, zakt hij de grond in en blijft zijn bovenkant als drempel liggen (`kei.blijf`),
-met stof (`puffPic()`) en gruis dat van de boog valt, allemaal op `muurKlok`. Zet hier geen gegumde
-opening in: een getekend gat in een geschilderde rots blijft computertekenwerk, en daar is dit de
-vervanger van. `muurSet` geeft voor de grot dezelfde velden terug (`l`, `r`, `t`, `b`, `symX`, `symY`,
-`alfa`), dus de E voor de deur, de speer in de schijf en `muur.speer` werken gewoon door.
-
-De schijf staat op `sym.hoog` 2,0 Amir, op de linkerpoot (`sym.u`). Dat is gemeten, niet gekozen: met
-de huidige boogworp raak je hem op een scherm van 1280 bij 720 van 465 tot 770 pixels, waarvan 465 tot
-620 met de schijf in beeld (de camera staat op Amir, dus je ziet 640 naar links). Op 2,28, de hoogte van
-de kale rots, begint de strook pas op 590 en valt er bijna niets meer in beeld. Op 1440 bij 620 is het
-400 tot 660, op 1920 bij 1080 690 tot 1155, op een telefoon van 844 bij 390 250 tot 420. Hoe lager de
-schijf, hoe dichterbij: de boog stijgt nog als hij bij de schijf is.
-
-Een speer blijft bij de grot pas in het steen steken als hij er van buitenaf in vliegt (`jav.buiten` in
-`muurSteen`). Amir staat hier vaak voor de rots, onder de boog of voor de kei, en dan vertrekt de speer
-al in het steen: met de gewone regel bleef hij er na een paar pixels in steken en was de schijf van
-dichtbij niet te halen. Zolang de kei staat vangt die ook een speer (`keiAlfa`).
-
-Let op: de getallen hierboven voor de kale rots (94 tot 235 pixels) kloppen niet meer met de huidige
-worp. Met dezelfde meting raak je de schijf in de oude Diepte 3 (dezelfde kale rots als in Rune 10) van 590 tot 1005 pixels.
-
-Het geluid zit in `SFX_DEUR` (`sounds/deuropen.mp3`) en speelt af op het moment van de treffer.
-De opname duurt 42 seconden en staat van begin tot eind even hard, terwijl het blok maar een
-halve seconde schuift, dus er wordt alleen de kop van gebruikt: vol tot `duur`, dan wegzakken in
-`uit`, samen zo'n drie seconden. Dezelfde aanpak als bij het windgeluid. `duur: 0` speelt hem
-wel helemaal uit.
-
-Een ravijn dat openscheurt gebruikt dezelfde opname als aardbeving (`playBeving`, `SFX_BEVING`), maar
-vanaf het eerste trillen (`onTremorStart`) in plaats van op de klap: hij zwelt aan van `begin` tot vol
-op de klap, houdt aan tot het gat open is en de stenen liggen, en zakt dan weg in `uit`. De tijden
-komen van het effect (`fx.tCrack`, `fx.tOpen`), dus een breder ravijn rommelt langer. Voor een gewoon
-ravijn is dat van 0 tot 5,3 seconden; eerst was het van 1,6 tot 4,1.
-
-**Geluid op een telefoon.** Een telefoon laat geluid alleen starten vlak na een tik, en er is maar
-een versterker voor het hele spel. Alles staat bij elkaar boven `SFX_DEUR`, en het komt op drie dingen
-neer:
-
-- **Een gedeelde `AudioContext`** (`geluidAc`, `acWek`, `acLoopt`). Wat harder moet dan volume 1 (de
-  brul van de baviaan, het instortende skelet, de aardbeving, de storm) loopt door een gain van de Web
-  Audio API. Dat deed elk geluid eerst met een eigen context: vier stuks. Een telefoon staat er maar
-  een paar toe, en een context die stilstaat neemt al zijn geluiden mee, dus nu is er een. Een nieuwe
-  versterker maakt dus geen `new AudioContext()` meer maar vraagt `acLoopt()`.
-- **`interrupted` is niet `suspended`.** Een context begint stil (`suspended`) en mag alleen tijdens
-  een tik op gang komen, maar na een telefoontje, het wegleggen van het toestel of het wisselen van
-  app staat hij op `interrupted`. Wie alleen op `suspended` kijkt, laat hem daarna voorgoed stilstaan:
-  de brul, het skelet, de aardbeving en de storm bleven de rest van het potje weg terwijl de gewone
-  geluiden wel klonken. `acWek` hervat alles wat niet `running` is, bij elke tik en als het scherm
-  terugkomt (`visibilitychange`).
-- **Elk audio-element krijgt een stil begin** (`geluidOntgrendel`). Dat geldt per element: eentje dat
-  nog nooit tijdens een tik gespeeld heeft, blijft stil als het spel het later zelf wil spelen. De
-  lijst wordt niet met de hand bijgehouden, want dan mist er altijd een: de `<audio>`'s uit de HTML
-  worden opgehaald, en elk element dat het script maakt meldt zich aan met `geluidAan(new Audio())`,
-  op de regel waar het gemaakt wordt. Doe dat dus ook bij een nieuw geluid. De muziek (`bg`) blijft
-  erbuiten, die start `tryPlay`. Dat stille startje zet `a.muted` aan voor het afspelen, en dat werkt
-  alleen voor een element dat rechtstreeks speelt. Een element dat via `createMediaElementSource` aan
-  de versterker hangt gaat niet meer door het element maar door de context, dus `a.muted` doet daar
-  niets: het stille startje zou dan het geluid zelf zijn. Op een telefoon loopt de context al tijdens
-  de tik, dus die elementen zijn op dat moment al aangesloten, en zo klonken aan het begin de deur, het
-  skelet, de storm en alle geluiden van de baviaan en het goudaapje door elkaar. Die elementen staan nu
-  in `geluidViaAc` (ze melden zich aan met `viaAc(a)` op de regel van de `createMediaElementSource`), en
-  `geluidOntgrendel` slaat ze over: ze hebben het stille startje ook niet nodig, want de tik ontgrendelt
-  de context waar ze aan hangen al. Een nieuw geluid dat je aan de versterker hangt, wikkel je dus in
-  `viaAc(...)`.
-
-Een element dat eenmaal via `createMediaElementSource` aan de context hangt, gaat voorgoed door die
-context: staat hij dan stil, dan hoor je niets meer, ook niet door `volume` te zetten. Daarom wordt een
-element er pas aan gehangen als de context echt loopt (`acLoopt`); tot die tijd speelt het rechtstreeks,
-hoogstens op volume 1, dus zachter dan bedoeld maar te horen.
-
-Headless Chromium past de autoplay-regel niet vanzelf toe. Met `--autoplay-policy=document-user-activation-required`
-komt het in de buurt, en daarmee is na te kijken dat na een enkele tik elk geluid speelt en dat de
-context na een onderbreking weer aangaat; het echte gedrag van Safari op een iPhone is dat niet, dus
-controleer het daarnaast op een echte telefoon.
-
-### Runes op elke rots, op elke hoogte
-
-Een rune hoeft niet op de scheve spits op 190 te zitten: `rots`, `groot` en `hoog` zetten hem op een
-andere plaat (`RUNE_ROTSEN`, alle met een witte achtergrond door `witKnip`, per plaat geladen in
-`runeBeeld`), op een andere maat en op een andere hoogte. De schijf komt op de flank aan Amirs kant
-(`ravijnRune` zoekt op die hoogte de rand van het steen in de alfa), en nooit hoger dan zijn eigen
-rots min twee stralen (`runeHoog`). Een rune zonder die velden is precies wat hij was.
-
-Hoe hoog is goed? Amir haalt springend 1,83; alles daarboven moet je raken met een worp. Hoe hoger,
-hoe verder je moet staan, en de camera staat op Amir: op 1280 bij 720 zie je 640 px voor je uit, en
-vanaf ongeveer 2,1 Amir begint de strook waar je hem raakt pas buiten beeld. Dat rekent `runeStroken`
-uit, met dezelfde stappen als de speer in het spel en met de worpen van het level (de twee trappen,
-of met `worp: 'schaal'` elke hoek tot 30 graden). Het venster in de bouwer laat de strook zien en
-waarschuwt als hij leeg is of buiten beeld begint.
-
-Een speer die in een rots vertrekt (Amir loopt door de rotsen heen) blijft pas in het steen steken
-als hij er eerst uit is geweest (`jav.rotsUit`), net als bij de grot met de kei. Een speer die na `JAV.muurT` uit
-het steen schiet, valt door de rots heen tot op de grond (alleen een vliegende speer blijft in een
-runerots steken): anders raakt hij de flank eronder, die naar beneden breder wordt, en zit hij een
-stukje lager weer vast. Een vallende speer zet ook geen rune aan.
-
-Met `doel: true` is een rune een doel: raken zet hem aan (`runeGeraakt`), met een felle gloed die in
-`RAVIJN_RUNE.flits` wegzakt (`runeFlits`), en hij blijft aan tot je opnieuw begint.
-
-**Een doel dat iets doet.** Een doel met `ravijn`, `sluit`, `muur` of `speerval` doet bij een treffer wat
-een zegel met die velden doet (`runeDoet`, met dezelfde functies als het zegel: `zegelDoe`, `zegelSluit`,
-`speervalZegel`; de hint zegt dan "De rune", `zegelWie`). Een `ravijn` van een doel telt mee in
-`komendeRavijnen` en in `levelcheck.py`, net als dat van een zegel.
-
-**De rots staat op zijn vloer.** `ravijnRotsMaat` geeft `b`, de vloer onder het midden van de plaat
-(`terrainH`): op een terras erop, in een gang op de bodem. De hoogte van de schijf (`hoog`), de alfa van
-de speer (`ravijnRotsVol`) en het tekenen tellen vanaf daar. Alle runes in de bestaande levels staan op 0,
-dus daar verandert niets. In een gang moet de rots onder het dak passen (`groot` kleiner dan `diep` min
-`HOLTE_DAK`); `levelcheck.py` meldt het als hij erdoorheen steekt.
-
-**Opstellingen.** Wat gemeten is staat als bouwsteen in `RUNE_OPSTELLINGEN`: `vlak`, `zuilen`, `boog`, `kei`,
-`terras`, `gang` en `ver`, elk met `rots`, `groot`, `hoog` (en `kei`), een naam en de strook waar je hem raakt.
-Een rune met `opstelling: 'kei'` krijgt die maten (`runeIn`); wat er zelf bij staat gaat voor, en `runeUit` laat
-weg wat gelijk is aan de opstelling. In de bouwer kies je hem in het venster van een rune (`doel`), samen met wat
-hij doet (`runeVeldZet`: ravijn, sluit, muur, speerval of rijs, de x, de breedte, de naam van de rijzende grond en
-de kei). In de sandbox wisselt **Opstelling** (`sbRuneOpst`) wat een nieuwe rune krijgt. `levelcheck.py` geeft een
-FOUT bij een opstelling die niet bestaat.
-
-**Een kei bij de rune.** Een rots en de worp schalen mee met Amir en dus met het scherm, een kei op een
-vaste x niet. Een kei die je nodig hebt om een hoge rune te raken, lag daardoor op 1920 bij 1080 in de rots
-en op een telefoon te ver. Met `kei` (in Amir) legt `runeKeiZet` hem elk beeld op die afstand voor de
-schijf, in `level.rocks` met `runeKei`; `syncLevel` schrijft hem niet weg. Let op wat er op zijn plek ligt:
-op elk scherm ergens anders (in Test 28 lag hij op 1920 eerst op het zegel). Test 28 is het proefstuk:
-vier hoge runes, op de grond met en zonder kei, op een terras en in een gang, nagelopen op 1280 bij 720,
-1920 bij 1080 en 852 bij 393.
-
-**Van waar je raakt.** `runeStroken` rekent vanaf de vloer op elke afstand, en die vloer kan een kei of
-terras zijn (`javFloor`, met alle keien van het level), en de speer botst daarbij zoals in het spel. De
-tabel per rots en per hoogte, vanaf de vloer en vanaf een kei, staat in `notities/combinaties.md`. In de
-sandbox kiest de knop Doet (`SB_RUNE_DOET`) wat een nieuwe rune doet, en zegt de hint vanaf hoe ver je hem
-raakt.
-
-**Een speer in een runeschijf blijft vastzitten, punt.** Dat geldt voor elke houten schijf: de rune op
-een rots, de rotswand en de grot. Bij een treffer wordt de speer meteen decor van de rune
-(`runeSperen`, in `ravijnRuneTreffer`), net als `muurSpeer` bij de rotswand: E doet er niets, en Amir
-heeft geen speer meer. Het spel geeft er niet vanzelf een nieuwe voor; dat regelt het level, met een
-skelet of met de speerplek bij de rotswand (`muurVul`). Een level zonder nieuwe speer na een rune is
-dus een keuze, en kan juist de uitdaging zijn: zet er een neer als de speler er daarna nog een nodig
-heeft. Test 9 en Test 12 hebben er een skelet voor. Test 12 is het proefstuk: vijf rotsen, en na elke rots een
-skelet voor een nieuwe speer.
-
-**Het licht op een runerots** komt van dezelfde zon als de rest (`RUNE_LICHT`). Net als bij de
-lichtkaart gaat er uit elk punt van de rots een straal naar de zon (`LK.zonHoek`, aan de kant van
-`zonRechts`), en telt hoe ver die door het steen moet (`runeLichtMaak`). Kort: een warme rand, met
-`soft-light` zodat licht steen niet wit wordt. Diep (tot `diep`, ongeveer de breedte van een zuil):
-schaduw. In een kier zakt die weg maar langzaam weg (`lucht`), anders licht een losse kei aan de
-schaduwkant op. Op de grond valt een slagschaduw naar de andere kant (`runeGrondSchaduw`), in de
-sneeuw blauwig. De sterkte volgt de gloed van het uitzicht, met `nacht` als ondergrens. De maskers
-worden een keer per plaat, kant en maat uitgerekend (zo'n 20 ms), een rots per beeld vanaf het begin
-van het level, dus voor je er bent. De grijze schaduwvloer onder de keien in de platen gaat er bij het
-laden uit (`RAVIJN_ROTS.voet` in `witKnip`); zonder dat lag er een grijze strook op de grond.
-
-De maten van een rots hangen aan Amir en dus aan het scherm, en een level niet: op 1920 bij 1080
-is een rots van 5 Amir ruim 2000 px breed. Laat tussen de rotsen genoeg ruimte voor het grootste
-scherm, anders sta je om te gooien in de vorige rots.
-
-### Het skelet met de speer
-
-De plaatjes staan in `design/botten/skelet/` en zijn allemaal op één schaal gemaakt: 0,19 bij een Amir van 237 px
-(`SKELET.schaal`), dus het zittende skelet is 0,61 Amir. Rekenen gaat in skeletcoordinaten, met (0, 0) op de
-linkerbovenhoek van het skelet zelf en de grond op 754.
-
-- **Zitten** zijn de negen losse botten uit `delen/` op hun plek, met daarover de speer,
-  `skelet_voorste_botten` en het doekframe. De voorste botten zijn niet optioneel: zonder die laag ligt de speer op
-  het skelet in plaats van erdoorheen. Tot de botten binnen zijn staat `skelet_met_speer.png` er.
-- **Instorten** speelt het spel zelf met die botten (`SKELET.delen`, `skBotten`), op de valcurve van het pakket. De
-  ingebakken sheet uit het pakket wordt niet gebruikt: daarin bleven de onderbenen met de knie in de lucht staan. Nu
-  kantelt het bovenbeen om de heup en ploft het onderbeen plat (`a` en `laat` bij de benen). Een kind draait mee met
-  zijn ouder, zoals in `onderdelen.json`.
-- **De schedel** is na het instorten, of als hij eraf getikt is, een los ding (`s.kop`): hij valt, landt met stof,
-  rolt met de hoek aan de afgelegde weg (weg gedeeld door de straal van 58) en ligt dan stil. Daarna is hij decor:
-  tegenaan lopen of erop slaan doet niets.
-- Wat Amir kan: E **vasthouden** bij de schacht trekt de speer eruit (`skeletTrek`, `skeletTrekLos` bij het
-  loslaten van de toets of de E-knop). Het skelet schudt steeds harder, de speer schuift eruit en rond de E loopt een
-  ring vol; na `SKELET.trek.duur` (2 seconden) laat hij los en ploft het in elkaar. Eerder loslaten of weglopen en hij
-  blijft erin. Alleen met lege handen: een speer die je met E hebt weggestoken telt als in je hand (dan wiebelt hij en
-  speelt `sounds/dontneedthis.mp3`); een weggegooide speer niet, die blijft liggen waar hij ligt. Een steek of een worp tegen de schedel
-  tikt die eraf (`skeletRaak`, aangeroepen vanuit de tekenlus waar ook de slangen geraakt worden). Een lage zwaai laat het
-  meteen vallen, en de speer valt eruit en blijft liggen.
-- De speer uit het skelet heeft een **blauw vaantje**. Het rode lint zit in Amirs sprites gebakken en wordt bij het
-  tekenen omgekleurd (`vaanBlauw`, `vaanMaak`). Op tint alleen gaat dat mis: in de idle is het lint oranje, en in de
-  werpframes is zijn huid net zo verzadigd als het lint. Wat scheidt is helderheid, samenhang en nabijheid; de stappen
-  en getallen staan bij `VAAN`. Verander je iets, kijk dan alle speerframes na, ook de twintig van de worp. De grote
-  werpframes kosten tot een tiende seconde, dus die worden vooraf gedaan zodra je de blauwe speer hebt (`vaanVoorwerk`).
-- **Losse speren** (`losseSperen`): er kan nu meer dan een speer zijn. Wat niet in je hand is en niet je eigen speer in
-  de wereld, ligt daar. Pak je een andere speer terwijl de jouwe ergens ligt, dan wordt de jouwe een losse speer
-  (`eigenSpeerNeer`), zodat hij niet verdwijnt.
-- Het geluid `sounds/skeletvalt.mp3` start als het valt, niet bij het trekken, en gaat via een versterker op 3,6
-  (vier keer 0,9), want een audio-element komt niet boven 1. Een tweede instorting start het opnieuw.
-- Stof: eigen wolkjes per skelet (`SKELET.stof`), want `stofwolk.png` is ijl en `puffWorld` is voor een voetstap.
-- De schaduw vermenigvuldigt de grond met (0,74, 0,80, 0,91) en ligt naar links, want de zon staat rechtsboven.
-
-De plaatjes laden pas als er een skelet in het level staat (`skeletLaad`).
-
-### Een gang onder de grond
-
-`holtes: [{r, l, diep}]` legt een gang onder de grondlijn, met de vloer `diep` sprite-eenheden
-lager. Een ravijn uit `gaps` dat erboven ligt is de ingang: daarin val je niet dood maar kom je
-op de vloer terecht. Met `valschade: true` kost een val van 600 twee levens (vanaf twee Amir,
-502). Het dak is de onderkant van het grondpakket, `HOLTE_DAK` (190) onder de grondlijn.
-Laat de gang aan de kant van het ravijn wat verder doorlopen dan het gat, anders staat de wand
-onder de rand. Alles in de gang staat op de bodem, want `terrainH` geeft daar `-diep`.
-
-Het licht onder de grond komt uit een plek: de lichtkaart (zie hieronder). De tegels van de
-gang zijn zelf maar een beetje donker gezet (`HOLTE_LICHT`), de looprand van de vloer lichter
-dan de vulling eronder. `Test 10` is het proefstuk voor het licht, `Test 4` voor de gang.
-
-### De lichtkaart: een lichtbron voor alles onder de grond
-
-Er is een lichtbron onder de grond: de hemel, met de zon als vaste richting. Voor elke cel van
-`LK.cel` bij `LK.cel` rekent `lkKolom` uit hoeveel hemel hij ziet (stralen omhoog die grond en
-rots tegenhouden, `lkZicht`) en of de zon hem raakt (`lkZon`, een smalle kegel, dus een zachte
-schaduwrand). De zon staat aan de kant waar hij in de lucht van het level staat (`zonRechts`),
-`LK.zonHoek` graden van recht boven. Daaruit volgt vanzelf wat je wilt zien: een gat is licht,
-de rand werpt een schuine schaduw van de zon af, en hoe verder de gang van een gat af loopt,
-hoe donkerder, zonder rechte streep. Vaste grond is een doorsnede: die krijgt het licht van de
-oppervlakte erboven en wordt dieper eronder donkerder (`LK.diepte`, `LK.bodem`). Lucht die zelf
-weinig hemel ziet, krijgt kaatslicht van wat eromheen ligt (`LK.kaatsR` cellen in het rond), en
-dat is warm waar de zon in de buurt iets raakt.
-
-Dit vervangt alle losse lagen die er eerst waren: de getekende lichtbundel door een gat, de
-schaduw tegen de eindwanden, het verloop in het grondpakket, `holteFilter` en `holteHelder`
-voor decor en treden, en een vervaagde donkerlaag over de rots. Die gaven elk hun eigen licht
-en dus rechte randen. Teken er dus geen nieuwe bij: een nieuw soort terrein hoeft alleen in
-`lkVastPunt` te zeggen wat vast is.
-
-Twee regels die ertoe doen:
-
-- **De zonnegloed van de lichtlaag schijnt niet door de rots.** `drawLichtlaag` telt de gloed rond
-  de zon op in schermruimte; onder de grond (`holteDiepT`) gaat die uit. Deed hij dat niet, dan lag
-  er in de gang zo'n 40 punten helderheid bovenop, en daar was het steen vlak en oranje van.
-- **Vaste grond wordt pas donker als de camera zakt.** Het plaatje met de grond (`lk.grond`)
-  krijgt `holteDiepT` als dekking: van bovenaf ziet de savanne eruit zoals altijd. Wat lucht is,
-  een gat of een gang, is altijd zo licht als het is.
-- **Een ravijn zonder gang eronder laat de kaart met rust.** Zo'n gat tekent zijn eigen diepte en
-  schaduw (zie hieronder); in `lkRuw` krijgt het geen licht of donker uit de kaart. Zonder die
-  regel kreeg een dodelijk ravijn vlak bij een gang ineens zon en kaatslicht.
-- **De zon valt pas onder het dak binnen**, en loopt daar over `LK.zonInloop` eenheden in. De wand
-  van een gat erboven is de overkant, en die hoort niet lichter te zijn dan de grond vooraan.
-- **Een open ravijn telt mee.** `lkSleutel` kijkt ook naar `ravijnGaten()`: scheurt er in een level
-  met een gang een ravijn open, dan rekent de kaart opnieuw.
-
-**De zon volgt het uitzicht** (`lkZonKleur`), net als de zon op de wand van een ravijn. De sterkte
-schaalt met `gloedSterkte` (0,30 overdag), met `LK.zonNacht` als ondergrens, en in de winter is de
-kleur koel wit (`LK.zonWinter`) in plaats van warm (`LK.zonKleur`). Anders viel er in de sneeuw oranje
-licht op grijze steen, en was de zon 's nachts beneden even fel als overdag. Kleur en sterkte zitten in
-`lkSleutel`.
-
-**Rots boven je, ook buiten.** Een plafondlijn en de volle cellen van een rotsraster zijn voor de
-kaart rots (`lkRotsPunt`), ook boven de grond, en een level met alleen een plafond of grotten krijgt
-ook een kaart. Die reikt dan tot `LK.buitenTop` omhoog en rekent buiten alleen binnen `LK.buitenBuur`
-van die rots (`lk.buur`); verder weg blijft het gewoon dag. Een punt buiten telt hoeveel hemel het
-onder de rots nog ziet, en of de zon het raakt (`lkZicht` en `lkZon` met `rots`: alleen de rots houdt
-dan de straal tegen, niet de grond en de terrassen). Het lichtste van die twee telt. De zon komt schuin
-van zijn kant, dus onder een overhang ligt een schuine schaduwrand, en aan de open kant valt hij naar
-binnen. Buiten weegt het donker minder zwaar (`LK.buiten`), want de lucht eromheen is open, en er komt
-geen zonnevlek bij: het is al dag. Een terras of een kei onder de rots is voor de kaart lucht, zodat
-de schaduw er ook overheen ligt. De rots zelf wordt boven de grond niet donkerder gemaakt.
-
-Wat het kost, gemeten in Test 1: de hele kaart 0,3 seconde, in stukjes van `LK.budget`; het eerste
-beeld van een level onder de rots eenmalig zo'n 50 ms.
-
-### Een gewoon ravijn is een ravijn dat al open staat
-
-Een ravijn uit `gaps` zonder gang eronder wordt getekend met dezelfde module als het ravijn dat
-openscheurt: `ravijnVastVoor(g)` maakt er een `RavijnEffect` van dat meteen open staat
-(`openInstantly`), en `ravijnenTeken()` geeft die samen met de openscheurende ravijnen aan de
-ravijnlus in `scene()`. Zo heeft elk ravijn dezelfde wand, dezelfde rand van de overkant die
-lager ligt dan de grond vooraan, de achtergrond erboven, het kleine gras en in de winter de
-sneeuwrand. Het effect wordt per ravijn bewaard (`ravijnVast`) en pas opnieuw gemaakt als de
-schaal, de wandplaat of het level verandert. Botsen gaat zoals altijd over `gaps`, daar is niets
-aan veranderd.
-
-Een gat boven een gang is hetzelfde ravijn, met dezelfde lage rand aan de overkant, maar de wand
-houdt op bij het dak en daaronder zie je de gang. Dat tekent niet `scene()` maar de gatenlus, met
-`ravijnGangTeken`: het effect (`ravijnTekenEen`, hetzelfde als in `scene()`) afgeknipt twee pixels onder
-het dak, en daarover binnen de breuk `holteSchacht`, de overgang van aarde naar het steen van de gang.
-De zon op de wand staat daar uit, want het licht komt uit de lichtkaart. Eerst had zo'n gat een eigen
-tekening met de overkant op de kruin, en lag de rand in Jager 3, Test 4, Test 10 en Test 11 dus even
-hoog als de grond vooraan. Dat geldt ook voor een ravijn dat boven een gang openscheurt (een rune of een
-zegel): zolang het scheurt tekent het effect zichzelf in `scene()`, maar zodra het open staat is het een
-gat in het dak (`ravijnBovenGang`) en telt het mee in `gatenTeken()` (met zijn effect in `g.fx`), de lijst
-waar de gatenlus, `drawHolte` en de grond op tekenen. Botsen gaat nog steeds via `gatenMetRavijn` en `inGap`. Zonder dat bleef het
-dak onder het gat dicht en zag je van boven een ondiepe kuil.
-
-Een vijand die in een ravijn staat dat al openscheurde voor hij verscheen (zijn spawn ligt in
-`ravijnGat`), komt niet meer: hij is erin gevallen. Anders stond hij boven het gat in de lucht. Wie
-er al stond valt erin (`ravijnValt`). Zo werkte de valkuil in de oude Vorst 2 en 5: fosforslangen en
-zwaardvechters blijven stil staan tot ze je zien, dus een rune die van verder weg de grond onder ze
-openscheurt, neemt ze mee. Hyena's vallen hier buiten, want die komen van de rand van het beeld.
-
-In de winter valt er geen sneeuw in een gang (`drawSnowfall` dooft onder de grondlijn met
-`holteDiepT`), en treden in een gang (een terras met een negatieve `h`) krijgen de kale steen, niet
-de besneeuwde.
-
-In de bouwer is het precies hetzelfde ravijn, dus ook een level dat je daar maakt krijgt alleen de
-nieuwe stijl. Twee dingen zijn er anders omdat je daar van verder weg kijkt (`viewZoom`): de ravijnen
-worden rond het midden van de grondlijn geschaald, net als de grond (`ravijnZoom`, ook bij het vangen
-van de achtergrond), en onder de wand komt de donkere bodem (`ravijnBodemVul`), want uitgezoomd reikt
-het beeld dieper dan de wand. Versleep je een ravijn, dan wordt het effect opnieuw gemaakt; dat kost
-minder dan een tiende milliseconde.
-
-### De zon op de wand van een ravijn
-
-De wand in een ravijn is de overkant: verder weg dan de grond vooraan, dus nooit lichter. De rand
-aan de kant van de zon werpt er een schuine schaduw op, onder dezelfde hoek als waaronder de zon
-in een gang binnenvalt (`LK.zonHoek`, `zonRechts`). Boven die lijn vangt de wand gedempt licht,
-eronder ligt hij in de schaduw. Zo komt het licht in elk gat uit dezelfde richting als de zon in
-de lucht. `ravijnZonLicht(g, x0, x1, top, onder, knik, open, atop)` tekent dat; de waarden staan
-in `RAVIJN_ZON`.
-
-| waar | hoe |
-| --- | --- |
-| gewoon ravijn en openscheurend ravijn | via het haakje `opLicht` van de module (`ravijn/ravijn-effect.js`), op het eigen canvas van de wand met `source-atop`: alleen op de wandpixels, nooit op de achtergrond erboven. `knik` is de verticale rek (`ravijnRek`), zodat de lijn in beeld de goede hoek heeft, en `open` is `fx.p`: de schaduw groeit mee met het openscheuren |
-| gat boven een gang | niet: daar doet de lichtkaart het |
-
-'s Nachts is het verschil kleiner: de sterkte schaalt met `gloedSterkte` van het uitzicht (0,30
-overdag), met `RAVIJN_ZON.nacht` als ondergrens. In de winter is de schaduw blauwig
-(`RAVIJN_ZON.winter`): sneeuw en steen in de schaduw worden koel, niet grauw. De sneeuwrand van het
-openscheurende ravijn komt na de wand en blijft dus wit.
-
-De kaart hangt alleen af van de vorm van het level, dus elke cel wordt een keer uitgerekend. Wat
-vast is gaat in een keer (`lkKaart`), de stralen per kolom zodra hij nodig is, en `lkVooruit`
-rekent elk beeld `LK.budget` ms vooruit, vanaf Amir naar buiten: zo is de kaart af voor je
-beneden bent. Het kaatslicht gaat met lopende sommen (`lkSom`), en de plaatjes worden eerst in
-het geheugen gezet en per beeld een keer overgezet (`lkPlaatjes`). Zonder die twee kostte het
-kaatslicht 1,2 seconde op Test 10, nu 70 ms; de hele kaart is een halve seconde, in stukjes.
-Verandert de vorm (in de sandbox) of een regelaar, dan begint hij opnieuw (`lkSleutel`).
-
-**De kaart wordt in twee delen getekend**, zodat de personages minder donker zijn dan hun
-omgeving zonder dat hun tekencode iets van licht weet. Het eerste deel (`'wereld'`) komt vlak voor
-Amir, na alles wat achter hem staat; het tweede (`'allen'`) komt na alles (na `drawWind`) en valt
-dus ook over Amir, de vijanden en wat er voor hen langs komt, en daarin zit ook de zon. Per cel
-worden de twee zo uitgerekend dat de wereld samen precies het hele donker `a` krijgt:
-`a2 = LK.personage * a` voor iedereen, en `a1 = 1 - (1 - a) / (1 - a2)` voor de wereld eronder,
-want `(1 - a1)(1 - a2) = 1 - a`. De personages krijgen alleen `a2`. Teken dus niets tussen Amir en
-het tweede deel wat bij de wereld hoort, want dat mist het eerste deel. De ooggewenning ligt als
-dekking over beide delen; dat is niet precies hetzelfde als het donker zelf verminderen, en in Test
-10 scheelt het op de wand ongeveer een punt helderheid.
-
-De regelaars staan in de sandbox onder **Licht onder de grond** (donker, ondergrens, gewenning,
-personages, zon, kaatslicht, warm); elke klik laat ze allemaal zien, zodat je ze in `LK` kunt
-overnemen.
-
-**Ooggewenning** (`lkGewenning`): hoeveel licht er rond Amir is, staat al in de kaart (`lk.licht`,
-het licht per cel zoals het getekend wordt), dus er wordt niets uit het beeld teruggelezen.
-`lkRondAmir` neemt het gemiddelde van de luchtcellen om hem heen. Hoe donkerder daar, hoe meer van
-het donker van de kaart wegvalt, tot `LK.gewenning`, en zijn ogen doen er `LK.gewenTijd` seconden
-over (op de speltijd, dus ook de speelrobot ziet het). Diep in een gang wordt het zo na een paar
-tellen lichter, en loop je naar een gat of een uitgang, dan komt het donker terug. Gemeten in Test 10:
-zonder gewenning zakt het lange donkere stuk tot helderheid 30, met gewenning blijft het rond 44;
-bij de uitgang komen beide weer bij elkaar uit. De zonnegloed in de kaart valt er niet onder.
-
-**De ondergrens** (`LK.minLicht`) houdt het spel speelbaar: donkerder dan dat deel van het licht
-wordt de kaart nergens, hoe weinig hemel een plek ook ziet. Zo blijven de vloer, de randen en de
-treden te lezen. Het is een grens op het donker van de kaart, niet op het beeld: de tegels van de
-gang zijn zelf al een beetje donker, en de lichtlaag komt er nog overheen.
-
-**De schaduw van Amir** ligt op dezelfde vloer als waar zijn voeten op komen (`grondVloer`, net
-als in `updateJump`), dus beneden in een gang op de bodem. Het gat eruit knippen gebeurt alleen
-bovengronds: beneden is een gat erboven geen rand.
-
-**Boven het dak loopt de aarde over in steen, en dat is materiaal, geen kleur.** Het grondpakket
-boven een gang en de wand van het gat erboven zijn aarde, de gang is steen. Onderin het pakket
-wordt de wandtegel van de gang zichtbaar (`holteOvergang`, over `HOLTE_OVERGANG` eenheden), op
-precies hetzelfde ankerpunt in de wereld als de gangwand. Onder een gat ligt daardoor op de
-daklijn aan beide kanten hetzelfde steen en loopt het patroon gewoon door; naast een gat hangen
-er de tanden van het dak onder. Niet proberen de naad weg te poetsen met een tint of door kleuren
-gelijk te trekken: dat is geprobeerd, en het gaat mis zodra het uitzicht of de lichtlaag anders
-is. Meten deed het wel, en dat is de manier om een wijziging hier na te kijken: helderheid per
-rij over de naad, en geen sprong van meer dan een paar punten.
-
-De opbouw, van boven naar onder:
-
-| waar | wat |
-| --- | --- |
-| naast een gat | de vloer van de savanne, dan aarde die overloopt in steen, en dan de tanden |
-| in een gat (`holteSchacht`) | de wand van het ravijn zonder de nevel en het zwart van een afgrond, onderaan de overgang naar steen |
-| buiten de gang | dichte rots, onder het dak |
-
-Hoe licht of donker elk daarvan is, komt uit de lichtkaart. Het steen zit alleen boven een gang
-en loopt voorbij de uiteinden over `HOLTE_UITLOOP` uit. Het ravijn boven een gang houdt twee
-pixels onder het dak op, op een hele beeldpixel (`heelPx`): waar twee zachte randen op dezelfde
-lijn liggen schijnt er anders een haarlijn doorheen.
-
-Alles wat binnen `r` en `l` van een gang staat, staat op de bodem: vijanden, decor,
-kalebassen en de fakkels. Een level kan dus onder de grond eindigen; de wand van
-de gang houdt je dan achter de fakkels tegen, een klif is niet nodig. Dat werkt omdat
-`grotTerrein` zonder raster `-Infinity` geeft en geen 0: gaf hij 0, dan trok `terrainH` alles in
-de gang weer naar de savanne, en dat is precies waarom de vijanden in een gang eerst boven
-stonden en de fakkels daar niet te halen waren.
-
-Twee hulpjes houden boven en beneden uit elkaar. `gatOp(x, base)` is `inGap` voor wie op
-hoogte `base` staat: beneden in een gang is een gat erboven geen rand, dus een vijand loopt er
-onderdoor. `vloerBij(x, h)` is de vloer voor wie op hoogte `h` staat: boven een gang de
-savanne, erin de bodem. De vijanden rekenen hun vloer daarmee uit, en de sandbox zet een vijand
-daarmee op jouw hoogte neer. Gebruik ze in plaats van `inGap` en `terrainH` als het om iets gaat
-dat zowel boven als beneden kan staan.
-
-**Terug naar boven** gaat via een tweede gat in het dak met treden erin. Een trede is een gewoon
-terras met een negatieve `h`, dus de klimstukken van de terrassen, en `drawClimb` tekent ze in
-een tweede ronde na de ravijnen (anders tekent de overkant van het gat over de bovenste heen).
-Hoe licht ze zijn komt uit de lichtkaart. Reken zo:
-
-- het dak ligt op 190, dus onder het dak mogen zijn voeten niet hoger dan -441 (`-HOLTE_DAK -
-  CHAR_H`). Een trede hoger dan dat moet helemaal onder het gat staan;
-- zijn rechterrand ligt minstens een halve Amir binnen het gat, anders staat hij bij het
-  afzetten nog onder het dak en haalt hij hem niet;
-- elke stap is minder dan de sprong (200); 150 is ruim;
-- de bovenste ligt binnen een sprong van de grondlijn en loopt door tot de linkerrand van het
-  gat: daar stapt hij de savanne op.
-
-Zolang zijn voeten tussen het dak en de grondlijn zitten, houdt `holteBlok` hem binnen het gat,
-want zijwaarts zit daar het grondpakket. Op de savanne boven een gang dragen de treden eronder
-niet (`supportHeight`). Test 4 heeft zo'n trap: van 900 diep in zes stappen van 150 naar boven.
-
-```
-gaps:     [ {x: -1000, w: 620}, {x: -3400, w: 900} ],       ingang, en de uitgang van -3850 tot -2950
-holtes:   [ {r: -540, l: -3850, diep: 900} ],
-terraces: [ {r: -2850, l: -3850, h: -750}, {r: -3050, l: -3850, h: -600}, ... {r: -3650, l: -3850, h: -150} ]
-```
-
-`levelcheck.py` kijkt dit na onder `onder de grond`.
-
-### Hoogteverschil onder de grond
-
-Een gang die dieper wordt, of waar je klimt en weer daalt, is **één gang** met de diepste `diep`,
-en de hogere stukken zijn treden: terrassen met een negatieve `h`, net als de trap naar buiten.
-Je landt dan op een richel, loopt eraf naar de bodem, klimt met een kei of een richel weer op,
-en daalt weer. Alles wat voor terrassen geldt, geldt hier ook; daarbovenop kapt het dak elke
-sprong af op -441.
-
-Wat niet werkt, en waarom. Elk hiervan is nagelopen met de speelrobot (zie hieronder) in een
-proefgang, en `levelcheck.py` meldt ze:
-
-- **Twee gangen tegen elkaar** (de ene dieper dan de andere). `holteBlok` houdt Amir in allebei
-  tegelijk vast: op de naad duwt de ene wand hem terug en de andere ook, en daar staat hij voorgoed
-  klem, ook als hij er net in is gevallen.
-- **Een terras op de savanne boven een gang** (en een trede die boven de gang-vloer zweeft).
-  Vroeger werd zijn wand tot onder in beeld getekend en hield hij Amir tegen, een onzichtbare
-  stenen pilaar in de gang. Nu loopt Amir er onderdoor: `blockByPlatforms` slaat de wand van een
-  terras over voor wie onder de grond in een gang loopt en met zijn kop onder de terras-bovenkant
-  past (`ph < -40 && p.topH > ph + CHAR_H && holteAt`). Boven de grond blijft een mesa gewoon een
-  wand, en een trede die je van onderaf opklimt (een trap in een gang, Test 4) blokkeert nog, want
-  dan zit de volgende trede niet boven zijn kop maar op kniehoogte. Zo werkt een savanne-laag (of
-  mesa) boven een gang uit de Maker nu gewoon.
-- **Een kei in de gang die tot in het dak reikt.** Op een trede van -520 staat de bovenkant van
-  een kei op -406, en daar mogen zijn voeten niet komen: hij komt er niet overheen en niet langs.
-- **Decor dat hoger is dan de gang.** Alles staat op de bodem, ook een boom, en die steekt dan
-  door het dak. Een doornbos of een dorpsplaat net zo.
-- **Een ingang die maar half boven de gang ligt.** Wie aan de kant zonder gang erin stapt, valt
-  recht naar beneden (in een val loop je niet meer) en is dood.
-- **Een gang die de speer overdekt.** Aan het begin staat je speer op `SPEAR_AHEAD` (-260) in de
-  grond; ligt daar een gang, dan staat hij beneden op de bodem en begin je zonder.
-- **Een gang minder diep dan 441.** `readLevel` maakt er zonder iets te zeggen 441 van, en dan
-  kloppen je treden niet meer.
-- **Vallen met `valschade`.** De val door de ingang telt ook: een ingang boven een richel op -700
-  kost al twee levens. Tel de vallen langs de hele route op tegen de drie levens en de kalebassen
-  die onderweg liggen.
-
-Wat het spel zelf regelt, zodat je er als ontwerper niet op hoeft te letten:
-
-- **Water kijkt naar de hoogte.** `waterDepthAt(x, h)` geeft 0 voor wie beneden in een gang
-  staat: een poel boven een gang maakt Amir daar niet nat, traag of zwak in de sprong.
-- **Decor in een gang is donker.** Props, keien en doornbossen beneden in een gang krijgen
-  hetzelfde licht als alles daar, want de lichtkaart ligt eroverheen. De personages krijgen er
-  een deel van (`LK.personage`), zodat je ze in het donker altijd ziet.
-- **Hyena's komen op de goede hoogte.** Hyena's in een gang worden pas losgelaten als Amir zelf
-  beneden is, en komen dan uit de gang aanrennen (`hyBuitenBeeld`), niet van de savanne erboven.
-- **Vijanden blijven in hun gang.** Voor wie beneden staat is de eindwand van de gang een rand
-  (`dropAhead`): daar lopen ze niet doorheen naar boven.
-
-### Een hogere savannelaag
-
-Een terras is grijze rots, en dat is goed voor een klif of een mesa. Wil je dat een level niet één
-savanne heeft maar twee of drie boven elkaar, dan is rots het verkeerde materiaal: je rijdt met een
-blok savanne omhoog en stapt boven op steen. Daarom heeft een terras het veld `grond`:
-
-```
-terraces: [ {r: -2020, l: -3800, h: 300, grond: true} ]
-```
-
-Dat verandert alleen het tekenen. De looplijn, de wand, `terrainH`, `terracePlats`, de sprong erop en
-de rand waar vijanden stoppen (regel 7) zijn precies wat ze bij een terras waren, en `levelcheck.py`
-rekent hem na met dezelfde regel `terrassen`. Wat je ziet is de grondtegel van het level (`bodemPic`)
-op die hoogte, met daaronder de aarde die wegzakt in het donker, en het silhouet van een terras
-(`terClipPath`): de zijkanten breken net zo open, en sluit er een hoger terras op aan, dan heeft deze
-laag aan die kant geen rand.
-
-Drie dingen die ertoe doen:
-
-- **De tegel hangt aan de wereld, niet aan het scherm.** `savanneLaag` legt hem neer met dezelfde
-  ankerberekening als de grond zelf, als `zuilTeken` en als `rijsTeken`. Daardoor loopt een blok
-  rijzende grond dat tot de hoogte van de laag komt er naadloos in over: dezelfde tegel, dezelfde
-  looplijn. Reken je vanaf de rand van de laag, dan verspringt het patroon zodra de camera beweegt.
-- **Het donker hangt aan de tegel, niet aan Amir.** `SAV_LAAG.donker` telt in tegelhoogtes, zodat het
-  donker precies vol is waar `grondrand.png` ophoudt. In Amir gerekend viel dat bij een laag van 600
-  net naast de onderrand van het plaatje, en dan ligt er een streep in de wand.
-- **De weg omhoog is de rijzende grond.** Amir springt 200, dus een laag van 300 haal je niet zelf.
-  Zet er een ravijn tegen de rand van de laag met een rijzer die tot die hoogte komt en een zegel
-  ervoor (zie "rijzende grond"), precies zoals Test 21 dat met rotsterrassen doet.
-
-Test 22 is het proefstuk: de lage savanne, een laag op 300 en een op 600, met op elke laag gras, een
-struik en een vijand, zodat je ziet dat decor en dieren daar gewoon op de grond staan. In de sandbox
-staat het onder Terrein, **Savannelaag**: Op 300, Op 600, en Met een lift erheen, die er het ravijn,
-het blok en het zegel bij zet.
-
-### De schacht
-
-Een smalle kloof tussen twee schermbrede rotswanden waar Amir van onder naar boven uit klimt, om en om naar
-links en naar rechts springend. Het is geen nieuw systeem maar een opt-in samenstelling van wat er al is, zodat
-de bestaande episodes (regel 1) er niets van merken: een grot-raster voor de wanden en de botsing, richels voor
-de treden.
-
-Vier kleine toevoegingen maken het:
-
-- **De wand is ander gesteente.** Een grot met `schacht: true` tekent `grotMassa` niet met de terrasplaat
-  (`klif_bovenrand`, die las als golvend kaarsvet) maar met de plafondvulling (`plafondVulTegel`,
-  `rots_vulling`), hetzelfde steen als de tanden. Bestaande grotten zonder dat veld blijven de terrasplaat.
-- **Tanden als zijafwerking.** `schachtTanden` (in `drawGrotten`, na de massa) zet langs elke verticale
-  binnenrand van het raster precies dezelfde tandenband als het plafond (`grotBandSet`, op grotSteen-schaal,
-  met de donkere rand `strookRand` eronder), een kwartslag gedraaid zodat de tanden de kloof in steken. Het
-  tekent net als `plafondBand`: het massieve bovenstuk van de band (`GROT.band.dicht`) valt in de wand achter
-  de vulling, de tanden hangen eruit, dus ze sluiten net zo netjes op de rots aan als aan een plafond. De
-  diepte de kloof in is een vast deel van de celbreedte (`0.8 * R.cel`, wereld-px, normaal formaat), niet de
-  sprite-schaal, want de kloof is schermbreed-vast; anders zijn de tanden op een hoog scherm veel te lang. De
-  band wordt uniform met die diepte mee geschaald (`k`) en verankerd op de grondlijn zodat hij bij het klimmen
-  niet schuift. De tanden lopen over de hele rand door, ook waar een plateau zit: het plateau wordt er in
-  `drawClimb` overheen getekend (zie hieronder) en dekt de tanden erachter af, dus geen skip nodig. Daarnaast
-  legt `schaduw` een zachte donkere gradient (multiply) op de wand vlak langs de kloofrand, over de hele
-  hoogte, zodat de spleet diep oogt in plaats van vlak. Het zijn decor: ze doen Amir niets.
-- **Savanne-grond bovenop de wand.** `schachtKap` (in `drawGrotten`, na de tanden) legt de grondtegel van het
-  level (`bodemPic`, vast aan de wereld zoals de grond zelf) als een band op de bovenrand van elke volle
-  kolomrij, met de looplijn precies op de wandtop; de aarde loopt een stuk door en vervaagt onderaan in de
-  rots, dus de grijze rots blijft de ondergrond en de bovenkant is savanne. Zo land je er netjes op en loop je
-  door. De bovenste steenrij vindt hij met `grotReeksH` (`tr`). De vervaging gebeurt op een los canvas
-  (`destination-out` daar, dan overzetten): op het hoofdcanvas zou `destination-out` door de rots heen naar de
-  lucht gummen, en dat gaf een lichte band aan de voet van de kap.
-- **Gespiegelde treden, over de tanden.** Een richel met `f` wordt gespiegeld getekend (`drawLedge`: de
-  spiegeling om `x`, met de botsing in `terracePlats` die meeklapt), zodat hij tegen de rechterwand past. De
-  richels van de schacht staan niet op `achter`, dus `drawClimb` tekent ze ná `drawGrotten`, bovenop de tanden:
-  het plateau steekt uit de wand en dekt de tanden erachter af. Zo lezen het plateau en de tanden als één
-  geheel. De botsing (`terracePlats`) staat daar los van, dus ze dragen gewoon. (`achter: true` bestaat nog om
-  een richel juist achter de wand te zetten, maar de schacht gebruikt het niet meer.)
-
-**De wanden lopen schermbreed door.** Het raster is veel breder dan het beeld (veertien cellen per kant), met
-het gat van drie cellen in het midden. De eerste rij van het raster is leeg (lucht), de rest steen: zo vindt
-`grotTerrein` de lege cel boven de wand en geeft hij de wandtop terug (op zo'n 1500), zodat de fakkels
-(`ends`) en de savanne-kap daar op de goede hoogte komen en Amir er bovenop kan staan en lopen. Zonder die
-lege rij is een kolom helemaal vol en geeft `grotTerrein` `-Infinity` (geen vloer).
-
-**De treden liggen om en om, met een echte zijwaartse afstand.** De linker tegen de linkerwand (bij -1380), de
-rechter tegen de rechter (bij -1020), elke 150 hoger. Dat je ook in de breedte moet hoppen was de bedoeling:
-er zit een dode zone tussen de tips van twee treden. Het haalbaar houden doet de luchtsturing: in dit spel
-stuurt de richting ook in de lucht (zie de loop, `world += dir * 330 ...`), dus je springt van een trede, drijft
-in de lucht naar de volgende en landt op de daalboog. Loopsnelheid, niet sprint: met sprint schiet je de
-overkant in de wand. Een klim-botje (`tools/speelrobot.js` kan dit niet, het loopt alleen naar links) haalt
-het van onder tot boven.
-
-`start` zet Amir onderin tussen de wanden neer in plaats van ernaartoe te laten lopen (de wand zou de aanloop
-blokkeren). Boven klimt Amir op de wandtop (de savanne-kap) en loopt links over de savanne. In Test 27 is de
-linkerwand daarvoor breed (g.x -4140, 23 cellen): op de kap trekt hij een speer uit een skelet, springt over
-een kei (schuilplek, regel 7: vijanden komen er niet voorbij) en verslaat een paar vijanden (twee slangen, een
-schorpioen, een zwaardvechter) voor de fakkels. Alles op de kap staat op de wandtop (`terrainH` geeft daar de
-wandtop, zo'n 1500). Test 27 is het proefstuk, met een savanne-bodem (veilig); een dodelijke kloof eronder kan
-er later bij. Nog niet in de sandbox: een knop om de schacht-wand los te proberen.
-
-### Een level donker maken
-
-De lichtlaag ligt over het hele beeld, dus ook over de grond en over Amir. Een level dat
-er anders uit moet zien zet in zijn `SCENES`-blok een veld `licht` met de waarden die
-afwijken (zie `LICHT`), en dat is hoe de nachtuitzichten (`dark_rots`, `dark_hart` en de andere
-`dark_`-blokken) donker worden: een blauwgrijze
-schaduw- en lichtkleur, een zwakkere gloed en een iets diepere onderkant. `aan` en
-`sterkte` blijven van de regelaars (`L`, en `,` en `.`), ook in zo'n level: die zijn er
-om te kunnen kijken wat de laag doet, en dat moet in elk level werken.
-
-Het veld `dim` in `SCENES` is iets anders: dat zet alleen de achtergrond dieper, tot aan
-de grondlijn. Wil je dat de hele wereld donkerder wordt, dan is `licht` het juiste veld;
-wil je alleen dat de verte wegzakt, dan `dim`. Meestal gebruik je ze samen.
-
-### De voorgrond hoort bij elk level
-
-Elk level heeft een voorgrond: de onscherpe laag vlak voor de camera die het beeld diepte geeft.
-Dat is geen keuze per level maar standaard. Zet een level er zelf geen, dan krijgt het er een van
-het spel (`vgStandaard`): ijl (`VG_STANDAARD.dicht`), over het hele level, met open plekken rond
-alles waar je naar moet kunnen kijken: ravijnen en de plekken waar er later een openscheurt, zegels,
-de rots met de rune (die reikt ver naar rechts, want de rots staat aan de kant waar Amir aankomt), de
-poort (`muur`), de fakkels en het veld van de eindbaas. Zo verbergt hij nooit een rand, een schijf of
-een vijand die je moet zien. De maten van die open plekken staan in `VG_STANDAARD`. De standaard hangt
-aan het level zelf, dus ook een level uit de bouwer krijgt hem, en verschuif je daar een ravijn, dan
-schuift de open plek mee.
-
-Een eigen `voorgrond` in de definitie gaat voor de standaard (Test 11 heeft er een). Doe dat als een
-level een plek heeft waar de voorgrond iets moet vertellen: dicht gras aan het begin, een schedel in
-het gras bij een eindbaas. `voorgrond: false` zet hem uit; doe dat alleen met een reden.
-
-De voorgrond heeft twee lagen (`VG_LAGEN`), van ver naar dichtbij, en daardoor zit er ook binnen de
-voorgrond diepte:
-
-| laag | schuift | grootte | onscherp | schaduw |
-| --- | --- | --- | --- | --- |
-| ver | 1,2 keer de wereld (1,4 verticaal) | 0,6 | een beetje (3) | 0,85 van de schaduw |
-| dichtbij | 1,45 keer (1,8 verticaal) | 1 | veel (7) | de hele schaduw |
-
-Beide lagen lezen dezelfde stroken; de verre laag heeft een eigen reeks, zodat de pollen niet op
-elkaar staan, en staat wat dichter op elkaar omdat hij kleiner is. Losse stukken (`los`) staan alleen
-in de dichtbije. In de winter staan er de besneeuwde versies (`winter` bij elke soort in `VG_SOORT`)
-met een koelere, lichtere schaduw (`VOORGROND.schaduwWinter`), anders wordt de sneeuw bruin; 's nachts
-staat hij dieper in de schaduw, naar de gloed van het uitzicht. De hele voorgrond kost zo'n 0,05 ms per
-beeld: de plaatjes worden per soort, laag en tint een keer onscherp gemaakt en bewaard.
 
 ### Een level toevoegen (alleen na toestemming)
 
@@ -1289,142 +302,47 @@ de vijf functies die daarbij horen. Pas daarna is de vraag aan de orde of er een
 
 ## De bouwer
 
-Level maken in het startmenu. Het is dezelfde wereld als het spel, met drie verschillen: je kijkt
-van verder weg (`BUILD_ZOOM`), Amir is een geest, en er ligt een laag bediening overheen.
-
-**De indeling.** Een balk boven (`#bbalk`) met de naam, openen, opslaan, de twee testknoppen en
-de levellijn (`tekenLijn`, een canvas: het hele level van opzij). Een rand links (`#brand`) met een
-knop per soort, die de lijst ernaast uitklapt (`bouwOpen`). Het venster rechtsonder (`#binfo`) is
-voor wat je aanklikt. De instellingenbalk van het spel (`#bar`) staat in de bouwer uit; B haalt hem
-terug.
-
-**Amir is een geest.** Het spel tekent hem niet (`globalAlpha` 0 in de bouwer, ook zijn schaduw),
-en de camera blijft aan hem hangen. `bouwD` is hoe diep je kijkt, in sprite-eenheden, en
-`updateCamera` zet de camera daarop. Omdat de camera in de bouwer ook met de zoom schaalt, klopt
-`-camY / scale` daar niet: gebruik `camDiepte(scale)` als iets wil weten hoe diep je kijkt. En
-reken een klik met `pointerLift`, die telt `camY` mee.
-
-**Een stuk erbij in de bouwer** is vier dingen:
-
-1. een regel in `GEREEDSCHAP` (id, soort, naam; `sneeuw` voor een winterversie, `kop` voor een
-   tussenkopje);
-2. een tak in de `pointerdown` van de bouwer, op dat id, met een `placeProblem` ervoor;
-3. een tak in `builderHit`, zodat je het kunt aanklikken, en een naam in `bouwNaam`;
-4. de velden in `bouwVelden` (getal, vink, keuze of tekst), en wat er verder bij hoort in
-   `bouwExtra`: regels die zeggen wat er geldt, en knoppen.
-
-Het wegschrijven hoef je niet bij te werken voor een veld dat de bouwer niet zelf beheert:
-`syncLevel` begint bij het level zoals het binnenkwam (`level.bron`) en zet daar alleen overheen wat
-de bouwer kent. Beheert de bouwer een veld wel, zet het dan in `syncLevel`, en draai
+Level maken in het startmenu: dezelfde wereld als het spel, met een laag bediening
+eroverheen. Hoe de indeling werkt en hoe je er een stuk aan toevoegt (`GEREEDSCHAP`,
+`bouwVelden`, `bouwExtra`, `holteMaak`, `bouwSchakelTeken`, `syncLevel`): zie
+`notities/bouwer.md`. Na een wijziging aan de bouwer, `readLevel` of `syncLevel` draai je
 `tools/bouwertest.js`.
-
-**Gangen** maakt de bouwer goed in plaats van ze achteraf na te kijken. `holteMaak` legt een gang
-onder een ravijn, laat hem aan de beginkant `HOLTE_BUUR` doorlopen, houdt hem van de speer aan het
-begin weg en voegt hem samen met een gang die hij raakt (`holteVerbind`). `holteTrap` legt de
-uitgang aan het linkereind: treden van hoogstens `HOLTE_TREDE.stap`, 200 breed, alles boven -441
-onder het gat, en raakt het gat de ingang, dan loopt de gang verder door. Verander je daar iets aan,
-draai dan `levelcheck.py` en de speelrobot op een level uit de bouwer.
-
-**Schakelaars** (`bouwSchakelTeken`): elke koppeling een kleur uit `KOPPEL_KLEUR` en een nummer, een
-stippelkader waar een ravijn later openscheurt, de stippelcirkel om de schijf van een rune
-(`RAVIJN_RUNE.raak`) en de streep onder een zegel (`ZEGEL.op`). Het raakvlak van de rotswand
-tekent `muurBoxen`.
 
 ## Sandbox
 
-De sandbox start met vlakke grond en een leeg level, geen automatische vijanden en
-geen levens. Een knop erbij is twee dingen: een `<button>` in `<div id="sandbox">`
-(een eigen `.row` met een `<label>` als het een nieuw onderwerp is) en de afhandeling
-in de sandbox-sectie van de code. De rijen staan in tabbladen per categorie (`.sbcat`:
-Vijanden, Speer en spullen, Decor, Terrein, Beeld en geluid), want alles onder elkaar past
-niet meer op het scherm. Zet een nieuwe rij in de categorie waar hij hoort; een nieuwe
-categorie is een `.sbcat` met een `data-cat` en een knop met dezelfde `data-sbcat` in `#sbtabs`.
-Van rechts, Alles weg en Terug naar menu staan eronder, buiten de tabbladen. Spawnen gebeurt net binnen beeld aan de gekozen
-kant (`sbFromRight`), altijd geklemd tussen `endWall()` en `cliffAt().wall`.
+De vrije testmodus: vlakke grond, een leeg level, geen vijanden en geen levens. Een knop
+erbij is een `<button>` in `<div id="sandbox">` plus de afhandeling in de sandbox-sectie,
+in het juiste tabblad (`.sbcat`). Zie `notities/sandbox.md`.
 
 ## Assets
 
-Sprites toegevoegd, vervangen of weggehaald? Draai daarna, in deze volgorde:
+Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/assets.md`):
 
-```
-python3 tools/gen-klein.py
-python3 tools/gen-offline-manifest.py
-```
+- **Sprites toegevoegd, vervangen of weggehaald** → `python3 tools/gen-klein.py` en daarna
+  `python3 tools/gen-offline-manifest.py` (in die volgorde). Het eerste print de lijst voor
+  `KLEIN_FAM`, het tweede werkt de offline-download bij.
+- **Bodem of sneeuwdek** (`grondrand_rots.png`, `sneeuwlaag_25..100.png`) → `tools/sneeuwdek.py`
+- **Run van de baviaan** → `tools/baviaan_run_fix.py`
+- **`design/grot/rots_vulling.png`** → `tools/rots_vulling.py`
+- **Speerteken** → `tools/speerteken.py`
+- **Slangen** (zand, roet, knock) → `tools/slang_kleur.py`
+- **Elite-garde** → `tools/bandiet_elite_kleur.js`, daarna `gen-klein.py` en `gen-offline-manifest.py`
+- **Kooi-plaat van de kooiman** → `tools/kooi_kleur.py`, daarna `gen-klein.py` en `gen-offline-manifest.py`
+- **Goudaapje** → `tools/goudaapje_kleur.js`
+- **Tribe-logo's** → `tools/tribe_logos.py`
+- **Winterversies** → `tools/sneeuw.py`, `sneeuw_bg.py`, `sneeuw_dorp.py`, `winter_art.py`
 
-Het eerste script print de lijst die in `KLEIN_FAM` hoort te staan. Loopt die niet
-gelijk, dan laadt een telefoon stilletjes de grote versie. Het tweede werkt de lijst
-bij die de downloadknop afwerkt; sla je dat over, dan mist de offline-download
-bestanden.
-
-Een plaatje hoort alleen in de kleine set als het op een telefoon nog steeds groter
-is dan het stukje scherm waar het terechtkomt. De afweging per familie staat in
-`DOELEN` in `tools/gen-klein.py` en in de README.
-
-De bodem en het dek van het veld `sneeuw` komen uit `tools/sneeuwdek.py`
-(`grondrand_rots.png` en `sneeuwlaag_25..100.png`). Die staan met opzet niet in de kleine
-set: `grondrand.png` staat daar ook niet in, en een dek dat anders geschaald wordt dan de
-bodem eronder gaat schuiven.
-
-De run van de baviaan komt uit `tools/baviaan_run_fix.py`: de aangeleverde frames staan ongewijzigd in
-`enemies/baviaan/bron/run/`, het script plakt de kapotte handen en voeten dicht met stukken uit andere
-frames en schrijft de speelversie naar `enemies/baviaan/run/`. Een map `bron/` gaat niet mee in de
-offline-download, want het spel laadt hem nooit.
-
-`design/grot/rots_vulling.png` (het steen boven een plafondlijn) komt uit `tools/rots_vulling.py`:
-dat knipt het massieve deel uit `plafond_strook.png`, haalt het licht-donkerverloop eruit en
-maakt de boven- en onderrand op elkaar aansluitend. Verandert de strook, draai het dan opnieuw.
-
-De grotset in `design/grot/` hoort wel in de kleine set: die stukken zijn de grootste
-bronnen van het spel en worden tot een tiende getekend. Dat mag hier omdat de tekencode
-met de maten uit `grot.json` rekent en elk stuk naar die maat rekt; de ankerpunten
-schuiven dus niet mee met de bronmaat. `grot.json` zelf blijft buiten de kleine set,
-want `gen-klein.py` pakt alleen png's.
-
-Geluid staat in `music/` en `sounds/`. De achtergrondnummers staan in `music/` en worden
-aangemeld in `MUZIEK`; korte geluiden van personages en dieren horen in `sounds/`. Zo staan
-`ahhit.mp3` en `stopit.mp3`, de twee kreten van Amir, bij de hyenageluiden en niet bij de
-muziek. Beide mappen zitten in de offline-download, dus draai na een nieuw bestand
+Geluid staat in `music/` (achtergrondnummers, aangemeld in `MUZIEK`) en `sounds/` (korte
+geluiden); beide zitten in de offline-download, dus draai na een nieuw bestand
 `tools/gen-offline-manifest.py` opnieuw.
 
-Het speerteken heeft maar twee soorten eigen plaatjes, en die komen uit `tools/speerteken.py`:
-het doek in drie kleuren (`design/botten/speerteken/doek_zwart`, `doek_vaal`, `doek_rood`), omgekleurd
-op helderheid uit het blauwe doek van het skelet, en `riem.png`, de rode omwikkeling onder Amir zijn
-speerpunt in `amirspear.png`, bruin gemaakt. Zo blijft het in de stijl van de rest. Teken er niets met
-de hand bij; zoek een stuk uit een bestaande sprite en kleur dat om.
+## De tools
 
-De slangen komen uit `tools/slang_kleur.py`: dat kleurt `enemies/slang1/` om naar de
-zandslang in `enemies/slang1_zand/`, `enemies/slang2/` naar de zwarte in `enemies/slang2_roet/`,
-en `enemies/slang1/` ook naar de knockslang in `enemies/slang1_knock/` (jade lijf, violette zadels).
-Die laatste set krijgt er een eigen `venom.png` bij: de zwarte druppel van `slang2/` omgekleurd naar
-jade met een violette kern, zodat de knockslang jade/violet spuugt. Het spel tekent alleen die
-omgekleurde mappen (`SNAKE_DIRS`); de originelen blijven staan als bron, en de `venom.png` van de
-zwarte komt nog steeds uit `slang2/`. Verandert er een frame, draai het script dan opnieuw. Ze staan
-niet in de kleine set.
+De volledige uitleg (rekenregels, de sprong, de route, voorbeelden) staat in `notities/tools.md`.
 
-De elite-garde komt uit `tools/bandiet_elite_kleur.js`: dat kleurt alle reeksen van
-`enemies/bandiet/` om naar `enemies/bandiet_elite/`, zwart met een goud accent (een
-gradient-map legt de lichte, weinig verzadigde glans van het staal en de gespen op een
-goudladder en al het andere op houtskool; de donkere contour blijft zwart). Het spel
-tekent die map op de elite-vlag (zie "de bandiet"). Verandert een bronframe, draai het
-script dan opnieuw, en daarna `gen-klein.py` en `gen-offline-manifest.py`. De elite-set
-staat wel in de kleine set (zoals de gewone bandiet).
+### Levels nakijken: `tools/levelcheck.py`
 
-De losse kooi-plaat van de kooiman (de duw-lus) komt uit `tools/kooi_kleur.py`: de aangeleverde
-bron `enemies/kooiman/bron/kooi/kooi.png` heeft grijze spaken maar een massief gele vulling; het
-script haalt het geel eruit en maakt er het interieur uit `sprites.json` van (`cage_interior`, dark
-32,32,38 op ~50% alpha), zodat de kooi grijs is met wat doorzichtigheid tussen de spaken, net als de
-ingebakken kooien van de man. Het schrijft `enemies/kooiman/kooi/kooi.png`. Verandert de bron, draai
-het opnieuw, en daarna `gen-klein.py` en `gen-offline-manifest.py`. De plaat staat wel in de kleine
-set; de bron in `bron/` niet.
-
-Winterversies komen uit `tools/sneeuw.py` (rotsen en klimstukken), `sneeuw_bg.py`
-(achtergrondpanelen), `sneeuw_dorp.py` (hutten, boom, struik) en `winter_art.py`
-(dieren, grond, gras). Verandert een origineel, draai het bijbehorende script dan
-opnieuw.
-
-## Levels nakijken: tools/levelcheck.py
-
-Na elk nieuw level, en na elke wijziging aan een level, draai je:
+Na elk nieuw level en na elke wijziging aan een level:
 
 ```
 python3 tools/levelcheck.py            alle levels
@@ -1433,49 +351,14 @@ python3 tools/levelcheck.py -v         ook de info-regels
 python3 tools/levelcheck.py level.json een level uit de bouwer, voor het in de HTML staat
 ```
 
-Het script leest de leveldefinities uit de HTML, samen met de getallen waar het spel
-zelf mee rekent (`CHAR_H`, `JUMP_V`, `GRAVITY`, de loopsnelheid en de sprint, `PLAFOND_WEG`,
-de maten van keien, klif en fakkels). Het verandert niets aan de levels, het meldt alleen.
-FOUT betekent: stuk, of tegen een regel uit dit document in. LET OP betekent: het werkt,
-maar krap, of het spel lost het stilletjes voor je op. Een nieuw level gaat pas de deur uit
-zonder FOUT. Wat het nakijkt: velden die `readLevel` niet kent, vaste dingen waar later een ravijn
-openscheurt, ravijnen tegen de echte
-sprong (met het plafond en het water erbij), decor boven een ravijn met dezelfde maten als
-`schoonLevel`, het plafond boven keien en treden, rechtop kunnen lopen, of elke trede met
-een sprong, een richel, een kei, de rijzende grond of een sprong van een buurterras over een dodelijk gat te halen is, of de klif achter de fakkels staat, alles
-rond een gang onder de grond (zie "hoogteverschil onder de grond"), of er na een rune een doornbos voor het
-volgende skelet staat (`speer na een rune`), en met `valschade` of Amir
-de vallen langs de route overleeft.
+FOUT betekent: stuk, of tegen een regel uit dit document in. LET OP betekent: het werkt, maar
+krap, of het spel lost het stilletjes op. Een nieuw level gaat pas de deur uit zonder FOUT.
 
-**De sprong.** `JUMP_V` en `GRAVITY` geven op papier 208, maar het spel rekent per beeld (eerst
-de zwaartekracht, dan de hoogte), en dan komt hij lager uit: op 60 beelden per seconde 200, op het
-traagste toestel (het spel neemt hoogstens 0,05 seconde per beeld) 184. Gemeten: een trede van
-199 haalt hij, een van 203 niet. Het script rekent daarom met 200, en de sprong over een ravijn
-ook per beeld.
+### De speelrobot: `tools/speelrobot.js`
 
-**De route.** Voor de vallen loopt het script het level af zoals een speler dat doet: naar links,
-over een gewoon ravijn springend, tegen een wand of kei op, en van een rand af op looptempo. Van
-een kei of een richel springt hij liever dan dat hij valt, als hij dan hoger uitkomt. Waar hij
-neerkomt rekent het per beeld uit, dus een val van een terras op een lagere trede die net verderop
-begint, telt als de kleine stap die het in het spel ook is.
-
-Maten die aan het scherm hangen rekent het uit voor 1280 bij 720 op Formaat 25; met `--hoog`
-en `--formaat` kijk je een ander scherm na.
-
-**Meldt iemand iets in een level dat niet samen kan** (een laag plafond boven een kei om op
-te springen, een poel vlak voor een ravijn), dan komt dat er als regel bij: een functie met
-`@regel('naam')` in `tools/levelcheck.py`, met de getallen uit de code en niet uit het hoofd.
-Draai daarna alle levels opnieuw en meld wat de nieuwe regel in de bestaande levels vindt,
-zonder die levels aan te passen (regel 1).
-
-## De speelrobot: tools/speelrobot.js
-
-`levelcheck.py` rekent, de speelrobot speelt. Hij laadt het echte spel in Chromium, zet een level
-klaar en loopt het naar links uit op een vaste 60 beelden per seconde, los van hoe snel de
-computer is. Hij springt als hij vastloopt, springt over een ravijn zonder gang eronder, laat zich
-in een ingang vallen, pakt zijn speer, steekt naar doornbossen en vijanden voor hem, en blijft op
-een kei staan om er vanaf te springen. Hij meldt waar hij landt, wat een val kost, waar hij
-vastloopt en wat er in de console staat.
+Laadt het echte spel in Chromium en loopt een level naar links uit op vaste 60 fps; meldt waar
+hij landt, wat een val kost, waar hij vastloopt, wat er in de console staat, en overtredingen
+van regel 7 (`REGEL 7`). Heeft Node en Playwright nodig (`npm i -g playwright`).
 
 ```
 node tools/speelrobot.js "Test 4"               een level uit de HTML, op naam
@@ -1485,43 +368,10 @@ node tools/speelrobot.js level.json --vredig --wacht -1490:12
                                                 op -1490 twaalf seconden blijven staan, zonder te steken
 ```
 
-Regel 7 kijkt hij altijd na: per vijand onthoudt hij aan welke kant van elke kei en elk ravijn
-die stond, en komt hij aan de andere kant terecht, dan staat er `REGEL 7` in de uitvoer. Met
-`--wacht` laat je Amir op een kei of voor een ravijn staan tot de vijanden er zijn, met
-`--vredig` steekt hij niet terug. Bij elk verloren leven staat erbij welke vijand het dichtst
-bij was en wat die deed. Met `--hoe` staat bij elke overtreding waar de vijand de seconde
-ervoor liep en wat hij deed.
+### Schijven nameten: `tools/runecheck.js`
 
-Zo zijn twee gaten in regel 7 gevonden, allebei op telefoonformaat (852 bij 393), waar het spel
-trager loopt en vijanden verder achter Amir raken:
-
-- de keien telden voor de vijanden alleen binnen 2600 px van Amir (`platsNear`). Een vijand die
-  verder achter hem zat, liep er dwars doorheen. De vijanden krijgen nu alle keien van het level;
-- een hyena die buiten beeld op zijn beurt wacht, schoof mee met Amir en kon zo aan de overkant
-  van een ravijn opduiken. Hij schuift nu niet meer over een ravijn of kei (`panBaan`).
-
-Daarna: in tien levels op telefoonformaat geen enkele overtreding meer, en in proefstukken met
-een kei en een ravijn kwam geen slang, zwarte slang, fosforslang, schorpioen, zwaardvechter,
-hyena of panter erover.
-
-Staat de laadpoort dicht (een winterlevel haalt zijn plaatjes op), dan telt hij dat niet als
-vastlopen. Deed hij dat wel, dan sprong hij zodra hij weer mocht, en vloog hij in elk winterlevel
-over zijn eigen speer heen; zonder speer kapt hij geen doornbos en staat hij bij het eerste vast.
-
-Hij heeft Node en Playwright nodig (`npm i -g playwright`), en start zelf een webserver. Hij is
-geen speler: een eindbaas verslaat hij niet, en een sprong die precies getimed moet worden mist
-hij. Loopt hij vast waar `levelcheck.py` niets meldt, kijk dan wat daar staat. Is het de robot,
-laat het dan; is het het level, dan hoort er een regel bij. Zo zijn de regels onder de grond
-ontstaan.
-
-## Schijven nameten: tools/runecheck.js
-
-`levelcheck.py` rekent met getallen uit de code, maar waar de schijf op een rots zit hangt aan de
-alfa van een plaat, en die moet geladen zijn. Daarom doet dit script het in het echte spel: het laadt
-de HTML in Chromium, zet elk level met een `runes`-schijf of een `muur` klaar op vier schermformaten
-en vraagt het spel zelf van welke afstanden de speer de schijf raakt (`runeStroken`, en voor de
-rotswand dezelfde boog tegen `muurSymRaak`). Daarna kijkt het of die strook ook in beeld ligt: de
-camera staat op Amir, dus verder dan een half scherm voor hem uit ziet hij de schijf niet.
+Laadt de HTML in Chromium en vraagt het spel van welke afstanden de speer elke `runes`-schijf
+of `muur` raakt, en of die strook in beeld ligt.
 
 ```
 node tools/runecheck.js                 alle levels, op 1280x720, 852x393, 1440x620 en 1920x1080
@@ -1530,25 +380,13 @@ node tools/runecheck.js --formaat 25    het schuifje Formaat
 node tools/runecheck.js --schermen 1280x720,852x393
 ```
 
-FOUT betekent: nergens te raken, of nergens te raken met de schijf in beeld. LET OP: er blijft minder
-dan 60 px over. Het meldt per schijf ook waar de rots staat en waar de schijf uitkomt, en dat is niet
-overbodig: de rots hangt aan Amirs maat, dus op 1920 bij 1080 staat hij ruim 500 px verder naar
-rechts dan op een telefoon. Zet dus niets in de strook waarvan je niet wil dat Amir er staat (een
-ravijn, een terras: vanaf een terras gooit hij van een andere hoogte en dan klopt de strook niet).
+FOUT betekent: nergens te raken, of nergens te raken met de schijf in beeld. LET OP: er blijft
+minder dan 60 px over.
 
-Nu meldt hij een FOUT in **Test 3**, en dat is er een van voor deze tools: de schijf op de grotboog
-is daar alleen van 692 px te raken en dan staat hij op 1280 bij 720 net buiten beeld. Datzelfde geldt
-als LET OP voor de rotswand in Test 7. Die twee zijn zo gelaten; De Poorten gebruikt daarom alleen
-schijven op een rots.
+### Hetzelfde beeld nameten: `tools/beeldgelijk.js`
 
-## Hetzelfde beeld nameten: tools/beeldgelijk.js
-
-Raak je de tekencode aan om hem sneller te maken, dan hoort het beeld niet te veranderen. Dat is
-niet met het oog na te kijken: twee potjes lopen nooit gelijk, want het spel ademt op de echte klok
-en trekt toeval. Daarom zet je de oude en de nieuwe weg samen in de code achter een vlag, en tekent
-dit script hetzelfde bevroren beeld twee keer in hetzelfde potje: een keer met de vlag uit, een keer
-met de vlag aan. Daartussen verandert niets (de beeldlus is overgenomen, de klok staat stil, het spel
-staat op pauze en de toevalsreeks begint weer vooraan), dus elk pixelverschil komt van de wijziging.
+Tekent hetzelfde bevroren beeld twee keer, met een snelheidsvlag uit en aan, zodat elk
+pixelverschil van de wijziging komt.
 
 ```
 node tools/beeldgelijk.js --vlag LAGFIX                een vaste reeks van twaalf levels
@@ -1557,29 +395,18 @@ node tools/beeldgelijk.js --vlag LAGFIX --plekken -300,-2000
 node tools/beeldgelijk.js --vlag LAGFIX --breed 852 --hoog 393
 ```
 
-`gelijk` op elke plek betekent: geen enkele pixel anders. Staat er `max 12 op 1723 bytes`, dan weet je
-ook meteen hoeveel het scheelt en waar. Zet de vlag na het nameten weer uit de code; hij is er om een
-wijziging te verantwoorden, niet om te blijven staan.
+`gelijk` op elke plek betekent: geen enkele pixel anders. Zet de vlag na het nameten weer uit.
 
-Reken niet met het aantal pixels dat een vulling vraagt: een `fillRect` die buiten het canvas valt
-kost bijna niets, want het canvas knipt dat zelf weg. Wat wel kost is een lus die honderden keren
-tekent en een doek dat elk beeld opnieuw wordt klaargezet. Meet dus beeldtijden, niet oppervlakte, en
-meet de versies om en om, want een enkele ronde is vooral ruis.
+### Het schildduel: `tools/schildduel.js`
 
-## Het schildduel: tools/schildduel.js
+Speelt het gevecht tegen de schildbandiet met een paar speelstijlen en meldt per potje de duur,
+de treffers en in welk stuk van zijn aanval Amir hem raakte. Draai het na een wijziging aan `SCHB`.
+`--reactie 0.3` zet de reactietijd, `--breed 1280 --hoog 720` het scherm, `--fotos map` maakt foto's.
 
-Speelt het gevecht tegen de schildbandiet in het echte spel met een paar speelstijlen (stilstaan, blind
-steken, geduldig ontwijken en straffen, onder de sprong door, en een "mens" met reactietijd), en meldt per
-potje hoe lang het duurde, hoe vaak Amir geraakt werd en in welk stuk van zijn aanval Amir hem raakte. Draai
-het na een wijziging aan de getallen in `SCHB`. `--reactie 0.3` zet de reactietijd van de mens, `--breed 1280
---hoog 720` het scherm (standaard kleiner, en daar is ontwijken makkelijker), `--fotos map` maakt
-schermafdrukken op vaste frames van de sprong.
+### De bouwertest: `tools/bouwertest.js`
 
-## De bouwertest: tools/bouwertest.js
-
-Opent elk level uit de HTML in de bouwer, slaat het op en leest het weer in, en meldt per level de
-velden die daarbij veranderd of kwijtgeraakt zijn. Draai hem na elke wijziging aan de bouwer, aan
-`readLevel` of aan `syncLevel`; hij verandert niets aan de levels.
+Opent elk level in de bouwer, slaat het op en leest het weer in, en meldt per level de velden
+die veranderd of kwijt zijn. Draai hem na elke wijziging aan de bouwer, `readLevel` of `syncLevel`.
 
 ```
 node tools/bouwertest.js              alle levels
