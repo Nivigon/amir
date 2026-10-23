@@ -27039,7 +27039,7 @@ function loop(now){
   // tussen de fakkels door: level gehaald. Wel op hun hoogte: staan ze beneden in een gang, dan
   // telt erboven langs lopen op de savanne niet (de grens ligt een dak en een Amir boven de bodem)
   if (running && !building && !sandbox && !won && !dead && level && level.ends &&
-      level.ends.some(f => { const vl = Math.max(terrainH(f.x), zweefTopBij(f.x));   // ook bovenop een zwevende laag
+      level.ends.some(f => { const vl = f.y != null ? f.y : Math.max(terrainH(f.x), zweefTopBij(f.x));   // de hoogte van het eind: de Maker geeft hem mee (de vloer onder de getekende cel), anders de grond of bovenop een zwevende laag
                              return !achterMasker(f.x) && Math.abs(world - f.x) < 50 && ph >= vl - 5 && ph < vl + HOLTE_DAK + CHAR_H; })){
     if (bossBlocking()){ if (!bossHintT || now - bossHintT > 2500){ bossHintT = now; flashHint(bavBlokkeert() ? 'Versla eerst de baviaan' : winterOn() ? 'Versla eerst de witte panter' : 'Versla eerst de zwarte panter'); } }
     else winLevel();
@@ -27567,7 +27567,8 @@ function loop(now){
         if (achterMasker(f.x)) continue;               // achter een nog niet onthuld masker: het eind blijft verborgen (zoals zegel/rune/vijanden)
         const fx = cx + (f.x - world) - fs.w / 2;
         if (fx > W / viewZoom() + W || fx + fs.w < -W) continue;
-        const fy = groundY - fs.h + FIN.sink * fs.h - Math.max(terrainH(f.x), zweefTopBij(f.x)) * scale;   // ook bovenop een zwevende laag
+        const fvl = f.y != null ? f.y : Math.max(terrainH(f.x), zweefTopBij(f.x));   // de Maker geeft de eind-vloer mee; anders de grond of bovenop een zwevende laag
+        const fy = groundY - fs.h + FIN.sink * fs.h - fvl * scale;
         ctx.drawImage(finImg, fx, fy, fs.w, fs.h);
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
@@ -30009,7 +30010,7 @@ function readLevel(txt){
            gaps: (o.gaps || []).map(q => ({ x: Number(q.x), w: Math.max(40, Number(q.w) || GAP_BASE) })),
            water: (o.water || []).map(q => ({ x: Number(q.x), n: Math.max(0, Math.round(Number(q.n) || 0)) })),
            cliffs: (o.cliffs || []).map(q => ({ x: Number(q.x) })),
-           ends: (o.ends || []).slice(0, 1).map(q => ({ x: Number(q.x) })),
+           ends: (o.ends || []).slice(0, 1).map(q => ({ x: Number(q.x), y: (q.y === undefined || q.y === null) ? undefined : Number(q.y) })),   // y: de hoogte van het eind, als de Maker hem meegeeft (de vloer onder de getekende cel)
            npcs: (o.npcs || []).filter(q => NPCS[q.k])
                                 .map(q => ({ x: Number(q.x), kind: q.k, scale: Number(q.s) || 1,
                                              flip: !!q.f, y: Number(q.y) || 0 })),
@@ -32648,6 +32649,15 @@ function mkNaarLevel(){
   }
   const [sl, sr] = lr(startCol), startX = Math.round((sl + sr) / 2);
   const [el, er] = lr(eindCol), eindX = Math.round((el + er) / 2);   // de fakkels (einde) in het midden van de eind-cel (net als de start). Op de celrand (min) viel de x samen met de rand van een mesa in de buurkolom, en pakte terrainH die mesa-top: dan stond het eind in de lucht
+  // de vloer onder de getekende eind-cel: zak vanaf de eind-rij omlaag tot de eerste solide cel; de bovenkant daarvan
+  // is de vloer waar de fakkels op horen te staan. Zo volgt het eind de rij die je tekende, in plaats van naar de
+  // hoogste zwevende laag op die x te snappen (een zwarte muur boven een gang-pocket trok het eind anders omhoog).
+  let eindY;
+  if (MK.eind){
+    let r2 = Math.max(0, MK.eind.r | 0);
+    while (r2 < MK.rows && !(G[r2] && solid(G[r2][eindCol]))) r2++;
+    if (r2 < MK.rows) eindY = (gR - r2) * MK_CEL_EENH;   // 0 op de grondlijn, negatief onder de grond
+  }
   // Vijand-objecten worden hun gekozen soort op hun x (de bandiet met zijn variant-velden). De opmerking kan extra
   // wensen bevatten. Zonder vijanden houdt een verre dummy-spawn de vrije modus uit (anders stuurt het spel zelf slangen op je af).
   const mkSpawn = o => {
@@ -32713,7 +32723,7 @@ function mkNaarLevel(){
   const lvl = { name:'Level Maker test', view:0.8, rocks:[], props:[], spawns, kaleKlif:true, voorgrond:false,
                 speerInHand: true,          // nieuwe (Maker-)levels: Amir begint met de speer in de hand
                 valDood: 4 * MK_CEL_EENH,   // in de Maker is een val van 4 gridhoogtes (600 eenheden) al dodelijk, strenger dan de standaard VAL_DOOD (6 Amir)
-                gaps, terraces, start:startX, ends:[{ x:eindX }], cliffs:[{ x:Math.round(linksX - 450) }] };
+                gaps, terraces, start:startX, ends:[eindY != null ? { x:eindX, y:eindY } : { x:eindX }], cliffs:[{ x:Math.round(linksX - 450) }] };
   // de rechtergrens uit de tekening, maar alleen als je iets rechts van de vaste CLIFF.wall (620) hebt getekend of
   // je eind daar ligt; anders laten we hem weg en blijft de vaste wand gelden (bestaande Maker-levels onveranderd).
   if (rechtsX + 450 > CLIFF.wall) lvl.rechtsWall = Math.round(rechtsX + 450);
