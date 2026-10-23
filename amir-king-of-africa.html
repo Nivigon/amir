@@ -19,7 +19,6 @@
   :root{
     box-sizing:border-box;
     padding-top:env(safe-area-inset-top,0px);
-    padding-bottom:env(safe-area-inset-bottom,0px);
     --earth:#2e211d; --bone:#f2e8d5; --sun:#e2774a; --gold:#e7ad52;
   }
   *,*::before,*::after{box-sizing:inherit}
@@ -28,7 +27,10 @@
      de browser 100% uit terwijl die balk er nog staat, en daarna komt er ruimte bij die
      de pagina niet meer pakt: onderin bleef een strook van zo'n 46 punten over in de
      kleur van body, boven op de 21 die het veegstreepje al vraagt. dvh groeit wel mee.
-     De regel hierboven blijft staan als vangnet voor een browser die dvh niet kent. */
+     De regel hierboven blijft staan als vangnet voor een browser die dvh niet kent.
+     Onderaan houden we geen ruimte vrij voor het veegstreepje van de iPhone: dat gaf een
+     bruine strook onder het spel. Het beeld loopt door tot de rand; alleen de aanraakknoppen
+     blijven erboven (TINSET.b in touchLayout). */
   html{height:100dvh}
   body{background:var(--earth);color:var(--bone);font-family:Archivo,"Helvetica Neue",Arial,sans-serif;display:flex;flex-direction:column;overflow:hidden;
     -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
@@ -78,7 +80,10 @@
   body.touch #start:not(.submenu) .startpanel{width:58%;padding:10px 18px;justify-content:center;
     background:linear-gradient(180deg, rgba(28,17,10,.3), rgba(20,12,7,.5))}
   body.touch #start:not(.submenu) .startpanel::before{display:block}
-  body.touch #start:not(.submenu) .startart{background-position:16% center}
+  /* de foto is al een close-up; met cover viel op een breed telefoonscherm de kin en het
+     voorhoofd weg. Hier past hij op de hoogte, links tegen de rand, zodat je hem heel ziet;
+     het stuk rechts dat niet gevuld is valt achter het paneel. kaarsPositie leest dit mee. */
+  body.touch #start:not(.submenu) .startart{background-position:0% center;background-size:auto 100%}
   body.touch #start:not(.submenu) .startart::after{background:
      linear-gradient(90deg, rgba(21,13,8,0) 22%, rgba(21,13,8,.5) 36%, rgba(20,12,7,.95) 46%, #150d08 56%),
      radial-gradient(135% 80% at 18% 42%, rgba(0,0,0,0) 52%, rgba(0,0,0,.55) 100%)}
@@ -89,7 +94,7 @@
   body.touch #menuMain .mainsub{grid-template-columns:1fr;gap:6px;max-width:260px}   /* onder elkaar: smaller menu, meer foto */
   body.touch #start #menuMain .mainsub button{padding:6px 14px}
   body.touch #start:not(.submenu) .startart::after{background:
-     linear-gradient(90deg, rgba(21,13,8,0) 36%, rgba(21,13,8,.5) 48%, rgba(20,12,7,.95) 58%, #150d08 68%),
+     linear-gradient(90deg, rgba(21,13,8,0) 44%, rgba(21,13,8,.45) 55%, rgba(20,12,7,.92) 63%, #150d08 70%),
      radial-gradient(135% 80% at 18% 42%, rgba(0,0,0,0) 52%, rgba(0,0,0,.55) 100%)}
   body.touch #menuMain > p{display:none}             /* de toetsenbord-uitleg heeft op een telefoon geen zin */
   body.touch .cards{max-height:40vh}
@@ -30109,6 +30114,7 @@ function kaarsPositie(art){
   const cs = getComputedStyle(art);
   const deel = s => { s = (s || '').trim(); if (s.endsWith('%')) return parseFloat(s) / 100;
     return s === 'left' || s === 'top' ? 0 : s === 'right' || s === 'bottom' ? 1 : 0.5; };
+  kaars.hoogPas = /auto 100%/.test(cs.backgroundSize);   // op de hoogte gepast in plaats van cover
   return [deel(cs.backgroundPositionX), deel(cs.backgroundPositionY)];
 }
 function kaarsWek(){
@@ -30124,7 +30130,7 @@ function kaarsLus(ms){
   const w = Math.max(1, Math.round(art.clientWidth * r)), h = Math.max(1, Math.round(art.clientHeight * r));
   if (cv.width !== w || cv.height !== h){ cv.width = w; cv.height = h; gl.viewport(0, 0, w, h); kaars.posT = 0; }
   if (--kaars.posT <= 0){ kaars.pos = kaarsPositie(art); kaars.posT = 30; }   // menu's wisselen de positie, niet elk beeld nodig
-  const s = Math.max(w / img.width, h / img.height), dw = img.width * s, dh = img.height * s;
+  const s = kaars.hoogPas ? h / img.height : Math.max(w / img.width, h / img.height), dw = img.width * s, dh = img.height * s;
   gl.uniform2f(u.uCv, w, h); gl.uniform2f(u.uMaat, dw, dh);
   gl.uniform2f(u.uOff, (w - dw) * kaars.pos[0], (h - dh) * kaars.pos[1]);
   // de vlam: een paar sinussen, wat ruis en af en toe een tochtje dat hem even laat zakken
@@ -36904,7 +36910,7 @@ function btnDim(b){                                // lege drinkknop staat er wa
 
 // --- veilige randen (notch, home-balk) ---------------------------------------
 var tcReady = false;
-let TDPR = 1, TINSET = { l: 0, r: 0 }, tcDirty = false;
+let TDPR = 1, TINSET = { l: 0, r: 0, b: 0 }, tcDirty = false;
 const safeProbe = document.createElement('div');
 safeProbe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;' +
   'padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)';
@@ -36917,7 +36923,7 @@ function tcResize(){
   tcv.height = Math.max(1, Math.round(r.height * TDPR));
   tctx.setTransform(TDPR, 0, 0, TDPR, 0, 0);
   const cs = getComputedStyle(safeProbe);
-  TINSET = { l: parseFloat(cs.paddingLeft) || 0, r: parseFloat(cs.paddingRight) || 0 };
+  TINSET = { l: parseFloat(cs.paddingLeft) || 0, r: parseFloat(cs.paddingRight) || 0, b: parseFloat(cs.paddingBottom) || 0 };
 }
 
 // --- waar staat welke knop -------------------------------------------------
@@ -36927,7 +36933,7 @@ function touchLayout(){
   const jr = TOUCH_BTNS[0].r * s;
   const edge = TC_PAD + (mirror ? TINSET.l : TINSET.r);
   const ax = mirror ? edge + jr : W - edge - jr;
-  const ay = H - TC_PAD - jr;
+  const ay = H - TC_PAD - TINSET.b - jr;
   const out = [];
   for (const b of TOUCH_BTNS){
     if (!btnVisible(b)) continue;
@@ -36940,7 +36946,7 @@ function touchLayout(){
       y = ay - Math.sin(a) * R;
     }
     x = Math.max(TC_PAD + TINSET.l + r, Math.min(W - TC_PAD - TINSET.r - r, x));
-    y = Math.max(TC_PAD + r, Math.min(H - TC_PAD - r, y));
+    y = Math.max(TC_PAD + r, Math.min(H - TC_PAD - TINSET.b - r, y));
     out.push({ b: b, x: x, y: y, r: r, hit: r * b.hit });
   }
   return out;
