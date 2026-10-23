@@ -1,52 +1,31 @@
-# Schildbandiet (block and kill) - testlevel
+# Schildbandiet: dood
 
-Nieuwe vijand voor Amir, King of Africa. Hij loopt dreigend op Amir af met een
-houten schild op, en valt aan door te springen. Dit pakket is een eerste
-testversie, nog niet de eindkwaliteit (kleuren nog niet naar vast palet gesnapt,
-schild-in-stukken en echte dood-animatie volgen later).
+39 frames, RGBA, canvas 544 x 560. Kijkrichting links. One-shot, geen loop.
+Elk frame 2 ticks op 24 fps (dus 12 fps), totaal 3,25 s. Ticks staan per frame in `dood.json`.
 
-## Bestanden
+## Canvas (hard)
+Teken elk frame als het HELE canvas van 544 x 560, op dezelfde schermschaal als de andere
+schildbandiet-sets, met de grondlijn op dezelfde scherm-y. Niet bijsnijden, niet inzoomen op
+de bounding box van een frame.
 
-- metadata.json          canvas, grondlijn, anchor, sets, fps, strike-timing, keyframes
-- loop_metschild/        dreigende loop MET schild (walk_00..walk_21)
-- loop_zonderschild/     zelfde loop ZONDER schild (na breuk)
-- strike_metschild/      sprong-aanval MET schild (strike_00..strike_29)
-- strike_zonderschild/   zelfde aanval ZONDER schild (na breuk)
-- schild/                losse schild-sprites ter referentie
-- speer/                 losse speer-sprite ter referentie
+- Grondlijn (voeten): y 481.
+- De speer ligt iets voor hem (dichter bij de camera) en reikt tot y 511. Dat is bewust.
 
-Alle frames staan op hetzelfde canvas (544x860) met dezelfde grondlijn (781) en
-anchorX (272), zodat loop en strike naadloos wisselen zonder dat hij verspringt.
-Kijkrichting is naar links; spiegel in code voor naar rechts.
+## Keten
+- Start na de laatste treffer zonder schild (schild is dan al weg).
+- Speel 00 tot en met 38 een keer af.
+- Daarna dood_38 vasthouden als lijk (ligt tot op de pixel stil).
+- Witte flits plus een paar frames hitstop op frame 00 verkopen de klap.
 
-## Gedrag (testlevel)
+## Fasering
+| frames | wat |
+|---|---|
+| 00-08 | klap, komt uit zijn guard omhoog |
+| 09-12 | speer glipt uit zijn hand en valt plat naast zijn voeten |
+| 13-23 | staat wankelend, leunt steeds verder achterover |
+| 24-32 | valt achterover op zijn rug |
+| 33-38 | ligt na, komt tot rust |
+| 38 | lijkframe |
 
-1. Hij loopt op Amir af met schild op -> set `loop_metschild` (loop, ~10 fps).
-2. Amir raakt hem: witte flits over de sprite + een paar houtsnippers
-   (hergebruik de doornbos/thornbush splinter-particles). Dit kan 3x.
-3. Na de 3e treffer valt het schild weg: wissel naar de `*_zonderschild` sets.
-   Vanaf nu is hij in 1 klap dood.
-4. Zodra hij bij Amir staat, valt hij elke 2 seconden aan met de sprong-aanval
-   (`strike_metschild`, of `strike_zonderschild` als het schild al weg is):
-   - tell: hij zakt diep door zijn knieen en houdt zich kort laag
-     (keyframes tell_crouch in metadata)
-   - sprong: hij springt naar de plek waar Amir stond op het moment van inzetten
-   - tijdens de sprong is hij ONSTUITBAAR en ONAANTASTBAAR
-   - landing + herstel: daarna weer kwetsbaar
-   Amir moet dus wegstappen om de sprong te ontwijken.
-
-De sprongboog zit al in de frames (hij komt omhoog en weer neer binnen het canvas).
-De horizontale verplaatsing naar Amir doet de engine: verplaats de sprite tijdens
-de leap-frames naar de doelpositie.
-
-## Timing
-
-- loop: fps in metadata (pas aan naar gewenste loopsnelheid)
-- strike: per-frame duur in metadata.sets.strike_metschild.durations_ms
-
-## Later verfijnen (niet in deze test)
-
-- Schild in 3 stappen laten breken (hap, half, weg) i.p.v. in 1 keer verdwijnen.
-- Echte dood-animatie.
-- Kleuren naar vast palet snappen voor recolor (losse scheidbare kleurvlakken).
-- Schild als echte losse engine-laag met per-frame plaatsing (data is er al).
+De speer zit in deze frames (geen losse laag). Hij valt naar rechts (weg van de speler);
+liggend loopt hij van x 56 tot 511.
