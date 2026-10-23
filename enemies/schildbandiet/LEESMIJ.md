@@ -12,6 +12,8 @@ schild-in-stukken en echte dood-animatie volgen later).
 - loop_zonderschild/     zelfde loop ZONDER schild (na breuk)
 - strike_metschild/      sprong-aanval MET schild (strike_00..strike_29)
 - strike_zonderschild/   zelfde aanval ZONDER schild (na breuk)
+- flinch_metschild/      hit-reactie MET schild (flinch_00..flinch_20), 21 frames
+- flinch_zonderschild/   zelfde reactie ZONDER schild (voor na de schildbreuk, volgt later)
 - schild/                losse schild-sprites ter referentie
 - speer/                 losse speer-sprite ter referentie
 
@@ -23,7 +25,11 @@ Kijkrichting is naar links; spiegel in code voor naar rechts.
 
 1. Hij loopt op Amir af met schild op -> set `loop_metschild` (loop, ~10 fps).
 2. Amir raakt hem: witte flits over de sprite + een paar houtsnippers
-   (hergebruik de doornbos/thornbush splinter-particles). Dit kan 3x.
+   (hergebruik de doornbos/thornbush splinter-particles), en hij speelt de
+   flinch (`flinch_metschild`): hij twist even naar de camera en schuift een
+   klein stukje naar achteren (knockback) met een stofwolk aan zijn voeten.
+   Speelt redelijk snel af (per-frame uit metadata.sets.flinch_metschild.durations_ms,
+   holds kort). Dit kan 3x; daarna weer de loop.
 3. Na de 3e treffer valt het schild weg: wissel naar de `*_zonderschild` sets.
    Vanaf nu is hij in 1 klap dood.
 4. Zodra hij bij Amir staat, valt hij elke 2 seconden aan met de sprong-aanval

@@ -25262,6 +25262,11 @@ const SCHB = {
   landDuw: 1300, landDuwR: 2.4,  // de klap duwt Amir een stukje naar achter (beginsnelheid px/s, binnen zoveel Amir-hoogtes)
   schild: 3,                     // treffers die het schild opvangt
   invHit: 0.4,                   // even met rust na een schildtreffer
+  flinchN: 21,                   // de geraakt-animatie (flinch_metschild), 21 frames
+  // de per-frame duur van de flinch, in ms, uit flinch_metadata.json. Redelijk snel, met korte holds.
+  flinchDur: [49, 150, 49, 150, 40, 40, 40, 40, 40, 49, 150, 150, 150, 49, 49, 75, 49, 49, 75, 99, 150],
+  flinchDuw: 240,                // beginsnelheid van het terugschuiven bij de klap (px/s), dooft snel uit
+  flinchCool: 0.6,              // na de flinch nog even geen nieuwe sprong, zodat er een leesbaar raam is
   perTreffer: 6, perBreuk: 16,   // houtsnippers per schildtreffer en bij de breuk
   loopSpd: 300,                  // looptempo (px/s), iets onder de bandiet
   aanval: 2.0,                   // aanvalsafstand (in Amir-hoogtes): dan zet hij de sprong in
@@ -25287,9 +25292,11 @@ function schbLaad(){
     loadQuiet([SCHB_ROOT + 'loop_metschild/walk_' + pad2(i) + '.png']));
   schbBank.strike_met = Array.from({ length: SCHB.strikeN }, (_, i) =>
     loadQuiet([SCHB_ROOT + 'strike_metschild/strike_' + pad2(i) + '.png']));
-  // De zonderschild-sets volgen later (LEESMIJ). Zodra enemies/schildbandiet/loop_zonderschild/ en
-  // strike_zonderschild/ er zijn, laad ze hier bij (schbFrameImg kiest ze dan vanzelf). Nu niet laden,
-  // anders staat er een 404 in de console voor bestanden die nog niet bestaan.
+  schbBank.flinch_met = Array.from({ length: SCHB.flinchN }, (_, i) =>
+    loadQuiet([SCHB_ROOT + 'flinch_metschild/flinch_' + pad2(i) + '.png']));
+  // De zonderschild-sets volgen later (LEESMIJ). Zodra enemies/schildbandiet/loop_zonderschild/,
+  // strike_zonderschild/ en flinch_zonderschild/ er zijn, laad ze hier bij (schbFrameImg kiest ze dan
+  // vanzelf). Nu niet laden, anders staat er een 404 in de console voor bestanden die nog niet bestaan.
 }
 function schbLaadLevel(lv){
   if (lv && (lv.spawns || []).some(s => s.kind === 'schildman')) schbLaad();
@@ -25300,6 +25307,10 @@ function schbFrameImg(s){
     const bank = (!met && schbBank.strike_zonder) ? schbBank.strike_zonder : schbBank.strike_met;
     return bank && bank[Math.min(s.frame, bank.length - 1)];
   }
+  if (s.state === 'flinch'){                               // de geraakt-animatie
+    const bank = (!met && schbBank.flinch_zonder) ? schbBank.flinch_zonder : schbBank.flinch_met;
+    return bank && bank[Math.min(s.frame, bank.length - 1)];
+  }
   const bank = (!met && schbBank.loop_zonder) ? schbBank.loop_zonder : schbBank.loop_met;
   return bank && bank[Math.min(s.frame, bank.length - 1)];
 }
@@ -25308,6 +25319,11 @@ function schbAnim(s, dt){
     s.acc += dt * 1000;            // de strike loopt op ms (per-frame uit metadata)
     while (s.frame < SCHB.strikeN - 1 && s.acc >= (SCHB.strikeDur[s.frame] || 0)){
       s.acc -= (SCHB.strikeDur[s.frame] || 0); s.frame++;
+    }
+  } else if (s.state === 'flinch'){ // de flinch loopt ook op ms (per-frame uit metadata)
+    s.acc += dt * 1000;
+    while (s.frame < SCHB.flinchN - 1 && s.acc >= (SCHB.flinchDur[s.frame] || 0)){
+      s.acc -= (SCHB.flinchDur[s.frame] || 0); s.frame++;
     }
   } else if (s.state === 'vault'){  // de vault loopt op een vaste, snelle fps over een deel van de strike-frames
     s.acc += dt;
@@ -25403,7 +25419,7 @@ function makeSchildman(x, side){
   return { x, face: -side, state: 'loop', frame: 0, acc: 0, t: 0,
            schild: SCHB.schild, metSchild: true, inv: 0, flash: 0, base: 0, alpha: 1,
            cool: 0, leapVan: 0, leapDoel: 0, geraaktAmir: false, landed: false, geroepen: false,
-           vrij: false, sweptId: -1, lig: 0 };
+           vrij: false, sweptId: -1, lig: 0, knockV: 0 };
 }
 function updateSchildman(s, dt, plats, cliff){
   if (achterMasker(s.x, s.base)) return;
@@ -25419,6 +25435,18 @@ function updateSchildman(s, dt, plats, cliff){
     s.lig += dt;
     s.alpha = Math.max(0, 1 - s.lig / SCHB.fade);
     if (s.lig >= SCHB.fade) s.state = 'weg';
+    return;
+  }
+  if (s.state === 'flinch'){                               // de geraakt-reactie: hij twist naar de camera en schuift terug
+    schbAnim(s, dt);
+    if (s.knockV !== 0){                                   // de knockback: naar achteren, maar nooit over een kei of ravijn (regel 7)
+      schbMove(s, s.knockV * dt, plats, cliff);
+      s.knockV *= Math.pow(0.02, dt);                      // dooft snel uit
+      if (Math.abs(s.knockV) < 12) s.knockV = 0;
+    }
+    if (s.frame >= SCHB.flinchN - 1 && s.acc >= (SCHB.flinchDur[SCHB.flinchN - 1] || 0)){
+      schbSet(s, 'loop'); s.cool = Math.max(s.cool, SCHB.flinchCool);
+    }
     return;
   }
   if (s.state === 'strike'){
@@ -25492,10 +25520,16 @@ function hitSchildman(s){
     s.flash = 0.3; s.inv = SCHB.invHit;
     houtRaak();                                           // speer op hout: de houtklap
     schbSplinters(s, SCHB.perTreffer);
+    // de flinch: hij twist naar de camera en schuift een klein stukje naar achteren, met een stofwolk aan
+    // zijn voeten. Dit onderbreekt zijn loop of zijn sprong-aanzet (in de sprong zelf is hij onaantastbaar).
+    schbSet(s, 'flinch');
+    s.knockV = Math.sign(s.x - playerX() || 1) * SCHB.flinchDuw;   // bij Amir vandaan
+    const zS = schbScale();
+    steenStof(s.x - 70 * zS, s.x + 70 * zS, s.base || 0, 1.0, (s.base || 0) + 60);   // stofwolk onder zijn voeten
+    puffWorld(s.x, 6, 0, 0.9, s.base || 0);
     if (s.schild === 0){                                  // de derde treffer breekt het schild
       s.metSchild = false;
       schbSplinters(s, SCHB.perBreuk);
-      puffWorld(s.x, 6, 0, 1.0, s.base || 0);
     }
     return true;
   }
