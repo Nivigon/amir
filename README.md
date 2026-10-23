@@ -9,7 +9,7 @@ laatste vijf updates, rechtstreeks van GitHub, met bij elke of hij al in jouw ve
 
 ## Episodes
 
-In het menu onder **Levels** staan drie knoppen: **Episodes** (met de zes episodes **De Poorten**, **De Honingjacht**, **De Hoge Schijven**, **De Valse Koning**, **De Klim** en **De Diepte**), de **Test levels** en **Baboon tests**. De episodes De Jagers en Testrun zijn eruit, net als eerder De Runen, De Vorst, Renew, Winter World en De Diepte; wat ze gebruikten (de uitzichten, de nachtmuziek, de winteruitrusting, de witte panter, zegels, runes en de poort in de rots) zit nog in het spel. De Poorten gebruikt daar het meeste van; de poort in de rots zelf staat nog in Test 3 en Test 7.
+In het menu onder **Levels** staan drie knoppen: **Episodes** (met de zes episodes **De Poorten**, **De Honingjacht**, **De Hoge Schijven**, **De Valse Koning**, **De Klim** en **De Diepte**), de **Test levels** en **Baboon tests**. De episodes De Jagers en Testrun zijn eruit, net als eerder De Runen, De Vorst, Renew, Winter World en De Diepte; wat ze gebruikten (de uitzichten, de nachtmuziek, de winteruitrusting, de witte panter, zegels, runes en de poort in de rots) zit nog in het spel. De Poorten gebruikt daar het meeste van; de poort in de rots zelf staat nog in Test 3 en Test 7. In **Test 47** liggen zegels verstopt onder het zand, heel licht zichtbaar, elk onder een rode pijl: buk en veeg het zand eraf met de lage zwaai, daarna werkt het zegel. In de sandbox staan ze onder **Verstopt zegel** en **Veeg**.
 
 **De Poorten** is een episode van zes zware levels. De ouden lieten geen huizen achter en geen graven, alleen steen dat opengaat: ronde schijven van hout, plat in het zand of rechtop tegen een rots. Er zijn er zes, en achter de zesde ligt wat ze bewaakten. Begin je bij level 1, dan staat voor elk level een stukje verhaal op een zwart scherm, en na het laatste level het slot. Elk level heeft zijn eigen uitzicht en zijn eigen weer, en bijna alles wat het spel kan komt erin voorbij, vaak twee dingen tegelijk. Met **Nightmare** is alles nog scherper.
 
@@ -348,6 +348,10 @@ geen verdragende worp. Vlak komt ongeveer 0,8 scherm verderop neer, de boog
 piekt bijna drie keer Amirs lengte en landt rond 1,6 scherm. Lang vasthouden is
 daarmee niet gewoon beter, want de boog zeilt over alles heen wat dichtbij
 staat en je staat er een halve seconde langer kwetsbaar voor stil.
+
+Een geworpen speer raakt maar een tegenstander. Staan er twee op dezelfde plek,
+dan houdt de eerste hem op en loopt de tweede ongedeerd door. Dat geldt ook voor
+een gewone stoot; alleen de lage zwaai raakt alles wat binnen zijn bereik staat.
 
 Je hoeft niet te gooien als je eenmaal spant. Spring, buk of loop de andere kant op
 en de worp gaat niet door: je houdt je speer en Amir doet meteen wat je vraagt. Er
