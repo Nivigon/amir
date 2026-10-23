@@ -10791,18 +10791,11 @@ function skeletStof(s, n, groot, van, tot){
                   vy: -rnd(S.op), r: rnd(S.r) * groot, leven: rnd(S.leven), age: 0, rot: Math.random() * 6.28 });
   }
 }
-// De werpframes zijn groot, en omkleuren kost daar tot een tiende seconde per frame. Zodra je
-// de blauwe speer hebt worden de speerframes daarom alvast gedaan, een per beeld, zodat de
-// eerste worp niet hapert.
-let vaanRij = null;
-function vaanVoorwerk(){
-  if (!speerBlauw){ vaanRij = null; return; }
-  if (!vaanRij) vaanRij = [javImg, spearImg, sets.sp.idle, ...thrImgs, ...sets.sp.idleAnim, ...sets.sp.run, ...draaiImgs.gewoon, ...crawlImgs];
-  while (vaanRij.length){
-    const im = vaanRij.shift();
-    if (im && imgReady(im) && !vaanKopieen.has(im)){ vaanBlauw(im); return; }
-  }
-}
+// De werpframes zijn groot, en de lint-detectie kost daar tot een tiende seconde per frame. Zodra
+// je de blauwe skeletspeer hebt, bakt skeletUpdate elk beeld een omgekleurd speer-frame vooraf,
+// zodat de eerste worp niet hapert. Dit is het vangnet; warmBouw doet het al op het laadscherm.
+// Het register en speerVooraf staan bij "speer-soorten".
+function vaanVoorwerk(){ speerVooraf(speerBlauw ? 'blauw' : null); }
 function skeletUpdate(dt, scale){
   vaanVoorwerk();
   if (losseSperen.length) for (const sp of losseSperen) sp.wiebel = Math.max(0, sp.wiebel - dt);
@@ -15849,17 +15842,56 @@ function spearRestH(){ return spearH !== null ? spearH : terrainH(spearX); }
 const VAAN = { zeker: { v: 115, s: 0.55, t: [-20, 25], oranje: 8, oranjeS: 0.72 }, rood: { v: 50, s: 0.3, t: [-45, 32] },
                min: 25, bij: 12, stap: 8, ref: 594 * 301 };   // gemeten op de frames van 594 bij 301
 let speerBlauw = false;
-const vaanKopieen = new WeakMap();
-function vaanBlauw(img, aan){
-  if (!(aan === undefined ? speerBlauw : aan) || !img || !imgReady(img)) return img;
-  let c = vaanKopieen.get(img);
+
+// --- speer-soorten: het register van speervarianten, en de omkleuring ------------------------
+// Een speer kan er anders uitzien zonder dat er nieuwe art bij komt: we kleuren delen van de
+// bestaande speer-frames om. Het dure is niet het verven maar het vinden van het gebied (het lint,
+// de stappen 1 tot 4 hierboven), en dat hangt alleen aan het bronplaatje, niet aan de kleur. Daarom
+// splitsen we het, zodat het meeschaalt naar veel speren:
+//   speerMask(img)           vindt het gebied een keer per plaatje (het zware werk) en bewaart het;
+//   speerVerf(img, m, soort) legt de kleur van die soort op dat gebied (goedkoop, stap 5);
+//   speerKleur(img, soort)   geeft de gekleurde kopie, bewaard per (soort, plaatje).
+// Zo kost de eerste gekleurde speer de detectie en is elke volgende kleur bijna gratis. Nu kleurt
+// een soort alleen het vaantje (de hue van het lint). Ruimte voor later: een soort kan er een tweede
+// gebied (blad, schacht) met eigen kleur bij krijgen (een extra masker in speerMask en een veld in
+// het recept), naar losse art wijzen voor een heel andere vorm, of gedrag dragen (reach, schade). De
+// staat-laag draagt nu nog de boolean speerBlauw; een derde speer draagt straks een soort-string, en
+// de tekenlaag hieronder spreekt die al.
+const SPEER_SOORTEN = {
+  standaard: { naam: 'Speer' },                          // het rode lint, geen bewerking
+  blauw:     { naam: 'Skeletspeer', vaan: SKELET.vaan }  // alleen het vaantje, blauw (de speer uit een skelet)
+};
+const speerMaskCache = new WeakMap();                    // plaatje -> {lint, w, h} of null (geen lint gevonden)
+const speerKopie = new Map();                            // soort-id -> WeakMap(plaatje -> gekleurd canvas)
+function speerMask(img){
+  let m = speerMaskCache.get(img);
+  if (m === undefined){
+    try { m = vaanMaskMaak(img); } catch (e){ m = null; }
+    speerMaskCache.set(img, m);
+  }
+  return m;
+}
+function speerKleur(img, soortId){
+  const soort = soortId && SPEER_SOORTEN[soortId];
+  if (!soort || soort.vaan === undefined || !img || !imgReady(img)) return img;   // standaard/rood: niets te doen
+  let cache = speerKopie.get(soortId);
+  if (!cache){ cache = new WeakMap(); speerKopie.set(soortId, cache); }
+  let c = cache.get(img);
   if (c === undefined){
-    try { c = vaanMaak(img); } catch (e){ c = null; }
-    vaanKopieen.set(img, c);
+    const m = speerMask(img);
+    try { c = m ? speerVerf(img, m, soort) : null; } catch (e){ c = null; }
+    cache.set(img, c);
   }
   return c || img;
 }
-function vaanMaak(img){
+// vaanBlauw was de blauwe skeletspeer; nu een dunne alias op speerKleur, zodat de aanroepplekken
+// onveranderd blijven. aan undefined = volg de huidige staat (speerBlauw), anders die vlag zelf.
+function vaanBlauw(img, aan){
+  return speerKleur(img, (aan === undefined ? speerBlauw : aan) ? 'blauw' : null);
+}
+// het zware werk: het om te kleuren gebied (het lint) vinden, een keer per bronplaatje (de stappen 1
+// tot 4 hierboven). Geen lint: null, dan houdt de speer zijn eigen kleur.
+function vaanMaskMaak(img){
   const w = img.naturalWidth, h = img.naturalHeight;
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   const g = c.getContext('2d');
@@ -15920,8 +15952,17 @@ function vaanMaak(img){
     }
     rand = volgende;
   }
-  // omkleuren: zelfde verzadiging en helderheid, de tint van het doek
-  const hue = SKELET.vaan / 60, sec = Math.floor(hue), f = hue - sec;
+  return { lint, w, h };
+}
+// het goedkope werk: de kleur van de soort op het gevonden gebied leggen (stap 5). Zelfde
+// verzadiging en helderheid, de tint (hue) van de soort. Een keer per (soort, plaatje).
+function speerVerf(img, mask, soort){
+  const { lint, w, h } = mask;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  g.drawImage(img, 0, 0);
+  const d = g.getImageData(0, 0, w, h), p = d.data, n = w * h;
+  const hue = soort.vaan / 60, sec = Math.floor(hue), f = hue - sec;
   for (let j = 0, i = 0; j < n; j++, i += 4){
     if (!lint[j]) continue;
     const r = p[i], gr = p[i + 1], b = p[i + 2];
@@ -15932,6 +15973,24 @@ function vaanMaak(img){
   }
   g.putImageData(d, 0, 0);
   return c;
+}
+// Voorbakken: de omgekleurde speer-frames alvast maken, zodat het oppakken en de eerste worp niet
+// haperen. warmBouw roept dit op het laadscherm aan (alle frames in stukjes), skeletUpdate elk beeld
+// als vangnet (een frame per keer). De lijst is elk frame waarin de speer kan zitten: in de hand
+// (javImg, spearImg), in Amirs houdingen (de sp-sets), gegooid (de worp en de rollende speer) en
+// kruipend.
+let vaanRij = null;
+function speerVoorafFrames(){
+  return [javImg, spearImg, sets.sp.idle, ...thrImgs, ...sets.sp.idleAnim, ...sets.sp.run, ...draaiImgs.gewoon, ...crawlImgs];
+}
+function speerVooraf(soortId){
+  if (!soortId){ vaanRij = null; return; }
+  if (!vaanRij) vaanRij = speerVoorafFrames();
+  const cache = speerKopie.get(soortId);
+  while (vaanRij.length){
+    const im = vaanRij.shift();
+    if (im && imgReady(im) && !(cache && cache.has(im))){ speerKleur(im, soortId); return; }
+  }
 }
 // Waar pak je hem vast? Niet aan de punt: die is scherp en zit in de grond, in een wand of in
 // een doornbos. Je loopt tegen de schacht aan, dus we zoeken het dichtstbijzijnde stuk schacht
@@ -20406,7 +20465,13 @@ function warmBouw(){
   if (heeft('meelman')){ warmDing(meelBank); warmDing(meelZakImg); warmDing(meelZakStapel); }
   if (heeft('schildman')) warmDing(schbBank);
   // het decor met eigen animaties of grote platen: het skelet, het speerteken, de fakkel, de deur en het takelwiel
-  if (level.skeletten && level.skeletten.length){ try { skeletLaad(); } catch (e) {} warmDing(skImg); }
+  if (level.skeletten && level.skeletten.length){
+    try { skeletLaad(); } catch (e) {} warmDing(skImg);
+    // de blauwe skeletspeer is hier te halen: bak de omgekleurde speer-frames al op het laadscherm,
+    // zodat het oppakken en de eerste worp nooit haperen. De lint-detectie is het dure (tot 0,1 s op
+    // een groot werpframe); WARM_BUDGET deelt ze over de beelden, een frame dat nog onderweg is wacht.
+    for (const img of new Set(speerVoorafFrames())) if (img) rij.push(() => { if (!klaar(img)) return false; speerKleur(img, 'blauw'); });
+  }
   if (level.tekens && level.tekens.length){ try { tekenLaad(); } catch (e) {} warmDing(tkImg); }
   if (level.fakkels && level.fakkels.length){ try { fakkelLaad(); } catch (e) {} warmDing(fakkelImgs); }
   if (level.deur){ try { deurLaad(); } catch (e) {} warmDing(deurImgs); }
