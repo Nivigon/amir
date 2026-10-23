@@ -14686,7 +14686,13 @@ function javFloor(x, plats, h){              // hoogte van de vaste grond op dez
         : (h !== undefined && !building) ? vloerBij(x, h > -HOLTE_DAK ? 0 : -Infinity) : terrainH(x);
   for (const p of plats){
     if (p.thin) continue;                    // richels en de speer zelf zijn geen wand
-    if (x > p.left && x < p.right && p.topH > s) s = p.topH;
+    if (x <= p.left || x >= p.right) continue;
+    // een zwevende laag (ook een zwart blok in een Maker-gang) is pas vloer voor een speer die er
+    // bovenop of in de zijkant komt; een speer die er onderdoor vliegt (de punt onder de onderkant)
+    // laat hem met rust, net als Amir die er gebukt onderdoor loopt (blockByPlatforms). Zonder dit
+    // werd een speer die onder een zwart plafond of overhang door vloog meteen op de bovenkant gezet
+    if (p.zweef && p.floatBot != null && h !== undefined && h <= p.floatBot) continue;
+    if (p.topH > s) s = p.topH;
   }
   return s;
 }
@@ -14882,7 +14888,7 @@ function speerPunten(scale){
 }
 function speerVrijePlek(x, vloer){
   if (x < endWall() + 60 || x > cliffAt().wall - 60) return false;
-  if (waterDepthAt(x) > 0.3 || terrainH(x) !== vloer || vloerBij(x, ph) !== vloer) return false;
+  if (waterDepthAt(x) > 0.3 || vloerBij(x, ph) !== vloer) return false;   // de vloer op x hoort die van Amir te zijn (ook een zwevende laag in een gang, niet alleen terrainH)
   const a = Math.min(x, world) - 40, b = Math.max(x, world) + 40;
   for (const g of gatenMetRavijn().concat(putLijst()))               // geen ravijn of put tussen hem en Amir
     if (g.x + g.w / 2 > a && g.x - g.w / 2 < b && gatOp(g.x, vloer)) return false;
@@ -14917,7 +14923,9 @@ function speerNaastAmir(dt, plats){
   if (x === null) x = speerVrijePlek(lastSolid, vloer) ? lastSolid : world;   // desnoods waar hij staat
   const bos = thickets.some(t => t.stage < THICKET_HITS && Math.abs(t.x - spearX) < 1200);
   jav = null; javLost = 0; javOver = null;
-  spearX = x; spearH = null;
+  // op de vloer waar Amir staat: op een zwevende laag in een gang is dat niet terrainH (de gang-bodem
+  // eronder), dus leg hem op vloer vast, anders staat hij onder Amirs voeten en kan hij er niet bij
+  spearX = x; spearH = (terrainH(x) === vloer) ? null : vloer;
   flashHint(bos ? 'Je speer lag achter het doornbos. Hij staat nu naast je'
                 : 'Daar kwam je niet meer bij. Je speer staat nu naast je');
 }
@@ -14996,6 +15004,7 @@ function javUpdate(dt, plats, scale){
       const zx = zakRaakt(nx, jav.h + jav.vh * sdt, jav.x);
       if (zx !== null){ jav.x = zx; jav.hit = true; jav.state = 'val'; jav.vx = 0; jav.vh = 0; return; }
     }
+    const hVoor = jav.h;                           // de hoogte voor de val van deze stap: kwam de punt van boven op de vloer?
     jav.x = nx; jav.h += jav.vh * sdt; jav.vh -= g * sdt;
     if (!building && muurNu()){                    // de rotswand met het rune-symbool
       // Eerst de schijf, dan het steen. De punt doet het werk en niet het midden van de
@@ -15012,7 +15021,11 @@ function javUpdate(dt, plats, scale){
     }
     if (!building && jav.h <= terrainH(jav.x) + 8 && waterDepthAt(jav.x, jav.h) > 0.35){ javLose(null); return; }
     if (jav.h < Math.min(0, terrainH(jav.x)) - GAP_DEATH){ javLose(javGapNear(jav.x)); return; }   // in een ravijn
-    if (fNieuw > -Infinity && jav.h <= fNieuw){ javStick(jav.x, fNieuw, 'grond', scale); return; }
+    // op de grond: alleen als de punt van boven op de vloer zakt (hVoor boven de vloer). Ontstaat de
+    // speer al onder een hogere vloer (voorbij een gang-eindwand, in het steen boven een gang), dan is
+    // dit geen landing maar steekt hij in de wand; de wandtest hierboven of het vangnet vangt hem, in
+    // plaats van hem naar de savanne boven de gang te tillen waar Amir niet bij kan
+    if (fNieuw > -Infinity && jav.h <= fNieuw && hVoor >= fNieuw - 1){ javStick(jav.x, fNieuw, 'grond', scale); return; }
   }
 }
 // een speer die in een muur steekt is een platform: alleen van bovenaf, van
@@ -20193,7 +20206,16 @@ function restart(){
   fakkelReset();                                     // de vonken weg en het vuurgeluid uit
   speervalReset();                                  // de speervallen weer in de wand
   losseSperen.length = 0;                           // geen losse speren meer op de grond
-  if (!sandbox) RUG_MAX = (level && level.rugMax) || 0;   // de rug staat uit (0), tenzij een level het veld rugMax zet; de sandbox zet het met een knop
+  // de rug staat uit (0), tenzij een level het veld rugMax zet. Standaard: elk Test level en elk Maker-level
+  // (dat zet rugMax zelf in mkNaarLevel) geeft Amir 1 reserve-speer op de rug. Een level met een eigen rugMax > 0
+  // houdt die, en een level zonder speer (geenSpeer) krijgt er geen, want een reserve zonder speer in de hand is
+  // onbruikbaar. We kijken naar de actieve reeks (levelList), niet naar level zelf: setLevel zet level =
+  // readLevel(...), een verse kopie, dus TEST_LEVELS.includes(level) klopt niet; readLevel zet rugMax bovendien
+  // altijd op een getal (0 als het veld er niet is), dus een waarde > 0 is een bewuste keuze en wint. De echte
+  // episodes spelen uit hun eigen reeks en houden hun eigen waarde, dus die veranderen niet (rule 1). De sandbox
+  // zet het met een knop
+  if (!sandbox) RUG_MAX = (level && level.rugMax) ? level.rugMax
+    : (level && !level.geenSpeer && typeof levelList !== 'undefined' && levelList === TEST_LEVELS) ? 1 : 0;
   if (!sandbox){                                    // de health-balk alleen als een level het zet; de sandbox met een knop
     HP_BALK = (level && level.hpBalk) ? HP_BALK_LEVENS : 0;
     HP_BALK_SOORTEN = (level && Array.isArray(level.hpBalk)) ? level.hpBalk : null;   // een lijst = alleen die soorten de balk, de rest blijft één klap
@@ -33062,6 +33084,7 @@ function mkNaarLevel(){
   // alleen wat je zelf tekent, plus het eind met de fakkels op je eindplateau. De speer bij de start blijft.
   const lvl = { name:'Level Maker test', view:0.8, rocks:[], props:[], spawns, kaleKlif:true, voorgrond:false,
                 speerInHand: true,          // nieuwe (Maker-)levels: Amir begint met de speer in de hand
+                rugMax: 1,                  // en met 1 reserve-speer op de rug (zie restart en "reserve-speren op de rug")
                 valDood: 4 * MK_CEL_EENH,   // in de Maker is een val van 4 gridhoogtes (600 eenheden) al dodelijk, strenger dan de standaard VAL_DOOD (6 Amir)
                 gaps, terraces, start:startX, ends:[eindY != null ? { x:eindX, y:eindY } : { x:eindX }], cliffs:[{ x:Math.round(linksX - 450) }] };
   // de rechtergrens uit de tekening, maar alleen als je iets rechts van de vaste CLIFF.wall (620) hebt getekend of
