@@ -1579,7 +1579,7 @@
     <button id="wnreplay">Opnieuw spelen</button>
     <button id="wnmenu">Hoofdmenu</button>
   </div>
-  <div id="laad"><div class="laadart"></div><div class="laadbox"><strong>Laden<small>Amir, King of Africa</small></strong><div class="balkrij"><div class="balk"><i id="laadbalk"></i></div><span class="pct" id="laadpct">0%</span></div><span id="laadtel"></span></div></div>
+  <div id="laad"><div class="laadart"></div><div class="laadbox"><strong>Laden<small id="laadnaam"></small></strong><div class="balkrij"><div class="balk"><i id="laadbalk"></i></div><span class="pct" id="laadpct">0%</span></div><span id="laadtel"></span></div></div>
   <div id="pause">
     <strong>Pauze</strong>
     <button id="pzresume">Verder</button>
@@ -1864,7 +1864,12 @@ const RUN = { tribeId: null, abilities: [], gehaald: 0, punten: 0, woede: 0 };  
 // eerste beeld tekent het level en haalt zo ook op wat pas bij het tekenen geladen wordt. Duurt
 // het langer dan LAAD.toon, dan komt het scherm Laden (#laad) met een balk. Geluid telt niet mee:
 // een telefoon laadt dat pas na een tik, dus daar valt niet op te wachten.
-const LAAD = { toon: 0.25, max: 25 };            // pas na een kwart seconde in beeld, nooit langer wachten dan 25 s
+// Bij een nieuw level (een andere naam dan het vorige dat we lieten zien) staat het laadscherm er
+// meteen en minstens LAAD.min seconden, want de plaat mag gezien worden: is alles eerder binnen, dan
+// loopt de balk kunstmatig op tot het einde (laadToon neemt het laagste van echt en tijd). Opnieuw
+// beginnen in hetzelfde level wacht niet, en toont het scherm pas na LAAD.toon, zoals altijd.
+const LAAD = { toon: 0.25, max: 25, min: 5 };    // pas na een kwart seconde in beeld, nooit langer wachten dan 25 s
+let laadMin = false, laadVorig = null;            // dit keer minstens LAAD.min, en het level dat we het laatst lieten zien
 const laadOpen = new Set();
 let laadGedaan = 0;                               // plaatjes die binnen zijn sinds het begin
 (function(){
@@ -1895,7 +1900,21 @@ let laadGedaan = 0;                               // plaatjes die binnen zijn si
 let laadWacht = false, laadT = 0, laadLeeg = 0, laadVan = 0;
 let warmRij = null, warmTotaal = 0;               // de wachtrij met bak-taken, of null: niets te warmen (zie warmBouw)
 const WARM_BUDGET = 8;                            // hoogstens zoveel ms per beeld warmen, zodat het laadscherm leeft
-function laadPoort(){ laadWacht = true; laadT = 0; laadLeeg = 0; laadVan = laadGedaan; warmRij = null; }
+function laadPoort(){
+  laadWacht = true; laadT = 0; laadLeeg = 0; laadVan = laadGedaan; warmRij = null;
+  const naam = level && level.name ? level.name : '';
+  laadMin = naam !== laadVorig;
+  const el = document.getElementById('laadnaam'); if (el) el.textContent = naam;
+}
+// De balk en de tekst. echt is 0 tot 100: het binnenhalen telt tot 60, het klaarmaken de rest.
+// Met laadMin loopt hij nooit sneller dan de tijd, zodat hij precies op LAAD.min vol is.
+function laadToon(echt, tekst){
+  const pct = Math.round(laadMin ? Math.min(echt, laadT / LAAD.min * 100) : echt);
+  document.getElementById('laad').classList.add('on');
+  document.getElementById('laadbalk').style.width = pct + '%';
+  document.getElementById('laadpct').textContent = pct + '%';
+  document.getElementById('laadtel').textContent = tekst;
+}
 // in de lus, met de echte tijd: true zolang het spel moet wachten
 function laadStap(echt){
   if (!laadWacht) return false;
@@ -1920,25 +1939,22 @@ function laadStap(echt){
         try { r = taak(); } catch (e) {}
         if (r === false && laadT <= LAAD.max){ warmRij.push(taak); wacht++; } else wacht = 0;
       }
-      if (laadT > LAAD.toon){
-        el.classList.add('on');
-        const af = Math.max(0, warmTotaal - warmRij.length), pct = Math.max(0, Math.min(100, Math.round(af / Math.max(1, warmTotaal) * 100)));
-        document.getElementById('laadbalk').style.width = pct + '%';
-        document.getElementById('laadpct').textContent = pct + '%';
-        document.getElementById('laadtel').textContent = 'klaarmaken, ' + Math.min(af, warmTotaal) + ' van ' + warmTotaal;
+      if (laadT > LAAD.toon || laadMin){
+        const af = Math.max(0, warmTotaal - warmRij.length), pct = Math.max(0, Math.min(100, af / Math.max(1, warmTotaal) * 100));
+        laadToon(60 + pct * 0.4, 'klaarmaken, ' + Math.min(af, warmTotaal) + ' van ' + warmTotaal);
       }
       return true;
     }
+    // alles klaar, maar een nieuw level blijft LAAD.min in beeld (de balk loopt dan op de tijd door)
+    if (inSpel && laadMin && laadT < LAAD.min){ laadToon(100, 'klaar'); return true; }
+    if (inSpel) laadVorig = level && level.name ? level.name : '';
     if (laadOpen.size) console.warn('laadpoort: verder zonder ' + laadOpen.size + ' plaatjes');
     laadWacht = false; warmRij = null; el.classList.remove('on');
     return false;
   }
-  if (laadT > LAAD.toon){
-    const binnen = laadGedaan - laadVan, n = binnen + laadOpen.size, pct = n ? Math.round(binnen / n * 100) : 100;
-    el.classList.add('on');
-    document.getElementById('laadbalk').style.width = pct + '%';
-    document.getElementById('laadpct').textContent = pct + '%';
-    document.getElementById('laadtel').textContent = binnen + ' van ' + n;
+  if (laadT > LAAD.toon || (laadMin && inSpel)){
+    const binnen = laadGedaan - laadVan, n = binnen + laadOpen.size, pct = n ? binnen / n * 100 : 100;
+    laadToon(pct * 0.6, binnen + ' van ' + n);
   }
   return true;
 }
