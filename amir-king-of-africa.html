@@ -4161,6 +4161,7 @@ const TEST_45 = {
   name: 'Test 45: De schildbandiet',
   lagen: 'tafelbergen',
   view: 0.8,
+  hpBalk: true,                                              // elke vijand en Amir een health-balk; de schildbandiet met zijn schildbalk erboven
   spawns: [ {x: -2200, k: 'schildman'},                      // de eerste: op open grond, zodat je de sprong leert ontwijken
             {x: -4300, k: 'schildman'},                      // de tweede: na de kei
             {x: -6600, k: 'schildman'} ],                    // de derde: voorbij het ravijn
@@ -4185,6 +4186,7 @@ const TEST_46 = {
   name: 'Test 46: Schildbandieten oplopend',
   lagen: 'middag',
   view: 0.8,
+  hpBalk: true,                                              // elke vijand en Amir een health-balk; de schildbandiet met zijn schildbalk erboven
   // open vlakte zonder keien (over een kei springt hij toch), met tussen elke ontmoeting ruim twee
   // schermen lucht, zodat de volgende pas komt als de vorige verslagen is
   spawns: [ {x: -1900, k: 'schildman', niveau: 'makkelijk'},                 // 1: een makkelijke, alleen
@@ -23844,6 +23846,38 @@ function vijandHpBalk(sx, topY, s, scale){
   ctx.strokeRect(x0, y0, w, h);                                                 // het randje
   ctx.restore();
 }
+// De schildbandiet met de health-balk: het schild vangt de klappen op, hij zelf niet. Zijn health-balk
+// blijft dus vol (hp 1 van 1) en daarboven staat een houten schildbalk met een vakje per treffer die het
+// schild nog opvangt (s.schild van SCHB.schild). Elke klap op het schild kost een vakje; is het schild
+// gebroken, dan verdwijnt die balk en is de volgende klap in een keer van vol naar dood.
+function schildHpBalk(sx, topY, s, scale){
+  if (building || !s || !s.hpBalk || s.hp <= 0 || s.state === 'dood') return;
+  vijandHpBalk(sx, topY, s, scale);
+  if (!(s.schild > 0)) return;
+  const ah = CHAR_H * scale;
+  const w = ah * 0.5, hh = Math.max(4, ah * 0.045), h = Math.max(3, ah * 0.032);
+  const n = SCHB.schild, gap = Math.max(2, ah * 0.012), seg = (w - gap * (n - 1)) / n;
+  const x0 = sx - w / 2, y0 = topY - hh - ah * 0.1 - gap - h;   // vlak boven de health-balk
+  ctx.save();
+  for (let i = 0; i < n; i++){
+    const x = x0 + i * (seg + gap);
+    ctx.fillStyle = 'rgba(16,10,14,0.6)'; ctx.fillRect(x, y0, seg, h);       // het lege vak
+    if (i < s.schild){
+      ctx.fillStyle = '#a8743f'; ctx.fillRect(x, y0, seg, h);               // hout
+      ctx.fillStyle = 'rgba(255,236,200,0.25)'; ctx.fillRect(x, y0, seg, h * 0.35);   // de nerf die het licht vangt
+    }
+    ctx.strokeStyle = 'rgba(8,5,7,0.85)'; ctx.lineWidth = Math.max(1, ah * 0.006);
+    ctx.strokeRect(x, y0, seg, h);
+  }
+  ctx.restore();
+}
+// Amir met de health-balk: hetzelfde balkje boven zijn hoofd als de vijanden, gevuld met de levens die
+// hij nog heeft (lives van levensStart, een half leven is een halve stap). Staat alleen in een level met
+// hpBalk (HP_BALK aan), naast de hartjes in de hoek.
+function amirHpBalk(sx, topY, scale){
+  if (building || sandbox || !HP_BALK || dead || lives <= 0) return;   // de sandbox heeft geen levens
+  vijandHpBalk(sx, topY, { hpBalk: true, hp: lives, maxHp: levensStart() }, scale);
+}
 const KOOI_INV_T     = 0.5;     // onkwetsbaar na een treffer
 const KOOI_KNOCK     = 70;      // hij is zwaar: weinig terugstoot
 // zijn lijf: hier raak je hem (alleen als hij openligt). Rond het anker, ruim genomen zodat de
@@ -25986,6 +26020,7 @@ function makeSchildman(x, side, niveau){
   schbLaad();
   return { x, face: -side, niveau: niveau === 'makkelijk' ? 'makkelijk' : 'moeilijk', state: 'loop', frame: 0, acc: 0, t: 0,
            schild: SCHB.schild, metSchild: true, inv: 0, flash: 0, base: 0, alpha: 1,
+           hp: 1, maxHp: 1, hpBalk: hpBalkAan('schildman'),   // zijn leven is een klap: het schild vangt de treffers, niet hij (zie schildHpBalk)
            cool: 0, leapVan: 0, leapDoel: 0, geraaktAmir: false, landed: false, geroepen: false,
            vrij: false, sweptId: -1, lig: 0, knockV: 0, wraak: 0 };
 }
@@ -26127,7 +26162,7 @@ function hitSchildman(s){
 // de doodklap: witte flits en hitstop op dood_00, de doodskreet van de bandiet, en dan valt hij achterover
 function schbSterf(s){
   s.metSchild = false; s.schild = 0; s.knockV = 0;
-  s.flash = 0.25; schbSet(s, 'dood'); s.geraaktAmir = true;
+  s.flash = 0.25; schbSet(s, 'dood'); s.geraaktAmir = true; s.hp = 0;   // ook zijn health-balk naar leeg (zie schildHpBalk)
   hitstop = Math.max(hitstop, SCHB.breekStop); shake = Math.max(shake, 0.25);
   banSterf();                                             // hetzelfde geluid als wanneer de bandiet doodgaat
   puffWorld(s.x, 6, 0, 0.9, s.base || 0);
@@ -30095,6 +30130,7 @@ function loop(now){
         if (s.state === 'dood' || s.state === 'weg') continue;
         const lhalf = SCHB_LIJF.half * gs;
         const nbox = { l: bodyX - lhalf, r: bodyX + lhalf, t: voeten - SCHB.fig * gs, b: voeten };
+        schildHpBalk(bodyX, nbox.t, s, scale);            // zijn leven (vol tot de laatste klap) met het schild erboven (met hpBalk)
         if (showBoxes){
           ctx.save(); ctx.globalAlpha = 0.5; ctx.lineWidth = 2; ctx.strokeStyle = '#c9a06b';
           ctx.strokeRect(nbox.l, nbox.t, nbox.r - nbox.l, nbox.b - nbox.t); ctx.restore();
@@ -30330,6 +30366,7 @@ function loop(now){
       ctx.fillStyle = live ? '#ffd166' : '#f2e8d5'; ctx.fill();
       ctx.restore();
     }
+    amirHpBalk(pcx, pbox.t, scale);                 // Amir zijn levens boven zijn hoofd (met hpBalk), na de vijanden zodat niets eroverheen tekent
     }
     maskerTeken(groundY, scaleNow, W / 2);           // het masker over alles heen (ook Amir en de vijanden), binnen de zoom
     vormenTeken(groundY, scaleNow);                  // de vrije zwarte voorgrond-vormen uit de Maker: bovenste laag
@@ -31288,6 +31325,7 @@ function syncLevel(){
     valschade: level.valschade || undefined,
     view: level.view || undefined,            // uitgezoomd spelen; nieuwe levels staan standaard op 0,8 (zie viewZoom)
     worp: level.worp || undefined,            // zonder schaalworp valt het veld weg
+    hpBalk: level.hpBalk || undefined,        // de health-balk (true of een lijst soorten); nieuwe levels staan standaard aan
     // f (gespiegeld) en achter (achter de schacht-wand) alleen meeschrijven als ze er zijn, zodat
     // bestaande richels ongemoeid blijven (zie "schacht")
     ledges: (level.ledges || []).map(o => { const e = { x: o.x, h: o.h, s: o.s };
@@ -31773,7 +31811,7 @@ function startBuild(terug){
   // De bouwer begint leeg: een verse, neutrale wereld, geen assets uit het laatst gespeelde of
   // opgeslagen level. Alleen bij terugkeren uit een test (terug) houden we het level dat je test.
   // Een bestaand level laad je met Openen; Nieuw maakt hem weer leeg.
-  if (!terug) level = { name: '', rocks: [], spawns: [], props: [], view: 0.8, muziek: nieuweLevelMuziek() };   // nieuwe levels staan standaard op 0,8 (laptop), nooit terug naar 1, en wisselen hun muziek af (darkafrica/bg)
+  if (!terug) level = { name: '', rocks: [], spawns: [], props: [], view: 0.8, hpBalk: true, muziek: nieuweLevelMuziek() };   // nieuwe levels staan standaard op 0,8 (laptop), nooit terug naar 1, geven elke vijand en Amir een health-balk, en wisselen hun muziek af (darkafrica/bg)
   ensureLevel();
   document.getElementById('bname').value = level.name || '';   // na het legen: een verse bouwer heeft geen naam
   world = 0; ph = 0; pvh = 0; onGround = true; fell = false; snakes.length = 0;
@@ -35849,7 +35887,7 @@ document.getElementById('sbrugvul').onclick = () => {
   setSpearLabel();
   flashHint('Hand en rug weer vol'); cv.focus();
 };
-// ---- health-balk: bandiet, kooiman, slang, schorpioen, fosforslang, zwaardvechter en hyena 3 levens met een balkje boven hun hoofd (zie HP_BALK) ----
+// ---- health-balk: bandiet, kooiman, slang, schorpioen, fosforslang, zwaardvechter en hyena 3 levens met een balkje boven hun hoofd, de schildbandiet een schildbalk erbij (zie HP_BALK) ----
 const sbHpBalk = document.getElementById('sbhpbalk');
 function hpBalkToon(){
   sbHpBalk.textContent = 'Health-balk: ' + (HP_BALK ? 'aan' : 'uit');
@@ -35864,6 +35902,7 @@ sbHpBalk.onclick = () => {
   // de gewone vijanden: met de balk 3 levens, zonder hun eigen HP (slang en schorpioen één klap)
   const hpZet = (lijst, uit) => { const m = HP_BALK ? HP_BALK_LEVENS : uit; for (const s of lijst){ s.hpBalk = !!HP_BALK; s.maxHp = m; s.hp = m; s.inv = 0; } };
   hpZet(snakes, 1); hpZet(scorps, 1); hpZet(fosforSlangen, FOSFOR.hp); hpZet(zwaarden, ZW_HP); hpZet(hyenas, HY_HP);
+  for (const s of schildmannen) s.hpBalk = !!HP_BALK;    // de schildbandiet houdt zijn ene leven, alleen de balk (met het schild erboven) gaat aan of uit
   hpBalkToon();
   flashHint('Health-balk: ' + (HP_BALK ? 'aan (3 levens, behalve panter en baviaan)' : 'uit'));
   cv.focus();
@@ -36086,7 +36125,7 @@ document.getElementById('btnnew').onclick = () => {
     (level.props && level.props.length) || (level.gaps && level.gaps.length) || (level.terraces && level.terraces.length) ||
     (level.zwevers && level.zwevers.length) || (level.grotten && level.grotten.length) || (level.ends && level.ends.length)));
   if (!leeg && !confirm('Alles wissen en met een leeg level beginnen?')) return;
-  level = { name: '', rocks: [], spawns: [], props: [], view: 0.8, muziek: nieuweLevelMuziek() };   // nieuwe levels staan standaard op 0,8 (laptop), nooit terug naar 1, en wisselen hun muziek af (darkafrica/bg)
+  level = { name: '', rocks: [], spawns: [], props: [], view: 0.8, hpBalk: true, muziek: nieuweLevelMuziek() };   // nieuwe levels staan standaard op 0,8 (laptop), nooit terug naar 1, geven elke vijand en Amir een health-balk, en wisselen hun muziek af (darkafrica/bg)
   ensureLevel();
   bname.value = ''; world = 0; bouwD = 0; bhover = null;
   bouwKies(null); syncLevel(); bcount.textContent = 'leeg';
@@ -36111,7 +36150,7 @@ bfile.onchange = () => {
 document.getElementById('btntest').onclick = () => bouwTesten(false);
 document.getElementById('btnclear').onclick = () => {
   const naam = (level && level.name) || '';
-  level = null; ensureLevel(); level.name = naam; level.view = 0.8; level.muziek = nieuweLevelMuziek();   // echt leeg: ook de gangen, zegels en tips, alleen de naam blijft; standaard 0,8 (laptop) en afwisselende muziek (darkafrica/bg)
+  level = null; ensureLevel(); level.name = naam; level.view = 0.8; level.hpBalk = true; level.muziek = nieuweLevelMuziek();   // echt leeg: ook de gangen, zegels en tips, alleen de naam blijft; standaard 0,8 (laptop), de health-balk aan en afwisselende muziek (darkafrica/bg)
   bouwKies(null); syncLevel(); rebuildThickets(); bouwLevelToon();
 };
 document.getElementById('btncopy').onclick = () => {

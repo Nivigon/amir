@@ -8,7 +8,7 @@ reserve-speren op de rug: 1 in de hand plus zoveel op de rug, dus `rugMax + 1` w
 
 ## veld `hpBalk`
 
-`true`: de bandiet, de kooiman, de slangen, de schorpioen, de fosforslang, de zwaardvechter en de hyena (niet de panter en de baviaan) krijgen 3 levens met een health-balkje boven hun hoofd (groen, oranje, rood). Een lijst soorten (`['bandiet','kooiman']`) geeft alleen die soorten de balk en laat de rest in een klap dood gaan. Standaard uit (geen veld), dus een episode zonder het veld houdt de eigen HP (rule 1). Zie "health-balk"; De Valse Koning gebruikt de lijst, Test 39 `true`
+`true`: de bandiet, de kooiman, de slangen, de schorpioen, de fosforslang, de zwaardvechter en de hyena (niet de panter en de baviaan) krijgen 3 levens met een health-balkje boven hun hoofd (groen, oranje, rood). Een lijst soorten (`['bandiet','kooiman']`) geeft alleen die soorten de balk en laat de rest in een klap dood gaan. Ook Amir krijgt dan een balkje boven zijn hoofd, en de schildbandiet een volle balk met een houten schildbalk erboven. Zonder veld uit, dus een episode zonder het veld houdt de eigen HP (rule 1); **een nieuw level krijgt `hpBalk: true`** (de bouwer zet het zelf, net als `view: 0.8`). Zie "health-balk"; De Valse Koning gebruikt de lijst, Test 39, 45 en 46 `true`
 
 ## veld `hoogUitzicht`
 

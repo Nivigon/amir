@@ -622,6 +622,19 @@ seconden krimpt over `ramp` seconden, en hoogstens `max` tegelijk in leven; met 
 gooien ze allemaal eerst. Een teller in beeld houdt bij hoeveel je er verslagen hebt en hoe lang
 je het volhoudt.
 
+## De health-balk
+
+In een level met de health-balk heeft elke vijand drie levens, met een balkje boven zijn hoofd dat bij
+elke klap een derde korter wordt en van groen naar rood kleurt. Amir heeft er dan ook een: hetzelfde
+balkje boven zijn hoofd, gevuld met de levens die hij nog heeft, naast de hartjes in de hoek. Alle
+nieuwe levels hebben hem, en ook de proefstukken van de schildbandiet (Test 45 en Test 46).
+
+De schildbandiet is de uitzondering: zijn schild vangt de klappen op, hij zelf niet. Boven zijn
+groene balk staat daarom een houten schildbalk met drie vakjes. Elke klap op het schild kost een
+vakje, zijn eigen balk blijft vol. Is het schild gebroken, dan verdwijnt die houten balk, en de
+volgende klap is in een keer van vol naar dood. De panter en de baviaan houden hun eigen balk
+bovenin beeld.
+
 ## De kooiman
 
 De derde menselijke tegenstander is een heel ander soort vijand: een gebukte man die een zware
