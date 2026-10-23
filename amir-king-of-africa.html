@@ -20245,6 +20245,24 @@ function hurtPlayer(fromLeft, schade = 1){           // schade: hoeveel levens d
 function warmBouw(){
   const rij = [], klaar = img => img && imgReady(img);
   if (!level) return rij;
+  // een plaatje één keer uitpakken en naar de GPU sturen, achter het laadscherm. Browsers pakken een plaatje
+  // pas uit (decode) en uploaden het pas bij de eerste drawImage; voor een grote sprite of een vijand die voor
+  // het eerst in beeld komt is dat een schok van 50 tot 70 ms midden in het spel. We tekenen elk frame hier
+  // alvast een keer op een los 1x1-doekje (zo blijven de hoofd-ctx en zijn transform met rust), zodat die eerste
+  // keer in het spel niets meer kost. Nog onderweg (niet complete): false, dan gaat de taak achteraan en houdt de
+  // poort dicht tot hij binnen is (zie laadStap).
+  const warmDoek = document.createElement('canvas'); warmDoek.width = warmDoek.height = 1;
+  const warmCtx = warmDoek.getContext('2d');
+  const warmTeken = img => { if (!img) return; if (!img.complete) return false; if (img.naturalWidth > 0) try { warmCtx.drawImage(img, 0, 0, 1, 1); } catch (e) {} };
+  // een frame, een reeks frames of een heel bank-object (bv. {set: [frames]} of {kind: {set: [frames]}}) in de rij
+  // zetten: een taak per frame, zodat WARM_BUDGET ze over de beelden verdeelt. Niet-plaatjes (een canvas, een getal)
+  // slaan we over; een leeg of nog niet geladen veld geeft niets.
+  const warmDing = d => {
+    if (!d) return;
+    if (d instanceof HTMLImageElement){ rij.push(() => warmTeken(d)); return; }
+    if (Array.isArray(d)){ for (const x of d) warmDing(x); return; }
+    if (typeof d === 'object') for (const k in d){ const v = d[k]; if (v instanceof HTMLImageElement || Array.isArray(v) || (v && typeof v === 'object')) warmDing(v); }
+  };
   // de voorgrond: elk soort begroeiing in beide lagen, op de schaduwkleur van dit level. vgImg nu
   // vast aanroepen laat een winterversie alvast laden; de taak leest hem bij het bakken opnieuw.
   for (const k in VG_SOORT) try { vgImg(VG_SOORT[k]); } catch (e) {}
@@ -20311,6 +20329,46 @@ function warmBouw(){
     };
     rij.push(bak);
   }
+  // Alle overige frames van het level, zodat ook de andere vijanden, Amirs eigen animaties en het decor niet bij
+  // hun eerste aanblik een schok geven. We kijken per level wat erin staat en warmen alleen dat. Vijandbanken die
+  // setLevel al laadt (zwaard, bandiet, kooiman, meelman, schildman) bestaan hier al, dus we lopen gewoon de geladen
+  // sets door; de lui geladen stukken (skelet, speerteken, fakkel, deur, takel, goudaap, de vogel van een duel-
+  // kooiman) forceren we hier even zodat hun frames er zijn om te warmen (de Laad-functies zijn idempotent).
+  const spawns = level.spawns || [], heeft = k => spawns.some(sp => (sp.kind || sp.k) === k);
+  // Amir zelf: zijn sta- en loopframes, de bukhouding, de lage zwaai, de sprong, de stoot, de worp, het sluipen en
+  // de rollende speer. In elk level, want die animaties spelen overal.
+  warmDing([sets.ns.idle, sets.ns.run, sets.sp.idle, sets.sp.run, sets.sp.idleAnim,
+            atkImgs, thrImgs, sweepImgs, jumpImg, jumpSpearImg,
+            duckNs.in, duckNs.hold, duckSp.in, duckSp.hold,
+            crawlImgs, crawlNsImgs, draaiImgs.gewoon, javImg, spearImg]);
+  if (level.speervallen && level.speervallen.length) warmDing(draaiImgs.val);   // de draaiende valspeer alleen bij een speerval
+  // de slangen (per kind), de schorpioen, de hyena en de panter; de witte huid alleen in de winter
+  for (const k of ['groen', 'zwart', 'knock']) if (heeft(k)) warmDing(snk[k]);
+  if (heeft('zwart')) warmDing(venomImg);
+  if (heeft('knock')) warmDing(venomKnockImg);
+  if (heeft('scorp')) warmDing(scp);
+  if (heeft('hyenas')){ warmDing(hyImg); if (winterOn()) warmDing(hySkins.wit); }
+  if (heeft('panter')){ warmDing(panImg); if (winterOn()) warmDing(panSkins.wit); }
+  // de zwaardvechter, de bandiet (met zijn elite- en duin-varianten en zijn dolk) en de kooiman met zijn kooi: de
+  // banken staan er al (setLevel laadde ze), dus we warmen alle geladen sets
+  if (heeft('zwaard')) warmDing(zwBanken);
+  if (heeft('bandiet') || level.bandietGolf || level.bandArena){ warmDing(banBank); warmDing(banBankElite); warmDing(banBankDuin); warmDing(banDolkRecht); }
+  if (heeft('kooiman')){
+    warmDing(kooiBank); warmDing(kooiKooiImg);
+    // de duel-kooiman heeft altijd een vogel, maar vogelLaadLevel laadt hem alleen bij s.vogel: forceer hem
+    if (spawns.some(sp => (sp.kind || sp.k) === 'kooiman' && (sp.vogel || sp.duel !== false))){ try { vogelLaad(); } catch (e) {} warmDing(vogelBank); }
+  }
+  if (heeft('meelman')){ warmDing(meelBank); warmDing(meelZakImg); warmDing(meelZakStapel); }
+  if (heeft('schildman')) warmDing(schbBank);
+  // het decor met eigen animaties of grote platen: het skelet, het speerteken, de fakkel, de deur en het takelwiel
+  if (level.skeletten && level.skeletten.length){ try { skeletLaad(); } catch (e) {} warmDing(skImg); }
+  if (level.tekens && level.tekens.length){ try { tekenLaad(); } catch (e) {} warmDing(tkImg); }
+  if (level.fakkels && level.fakkels.length){ try { fakkelLaad(); } catch (e) {} warmDing(fakkelImgs); }
+  if (level.deur){ try { deurLaad(); } catch (e) {} warmDing(deurImgs); }
+  if (takelLijst().length){ try { takelLaad(); } catch (e) {} warmDing([takelImgs, takelPlateau, takelTouwImg, takelKnop, stamTop, stamMid, stamBottom, stamMini]); }
+  // de goudaap-arena en de resterende baviaan-reeksen (de zes gevechtsreeksen deed bavKaderVooraf hierboven al)
+  if (level.apenArena){ try { goudaapLaad(); } catch (e) {} warmDing([gaapImg, gaapHangImgs, gaapAfzetImgs, gaapValImgs, gaapLandingImgs, gaapRunImgs, gaapHapImgs, gaapBrulImgs, gaapGromImgs, gaapDoodImgs, gaapSprongImgs, gaapWandImg]); }
+  if (b && b.lvl) warmDing([baviaanImg, bavHangImgs, bavAfzetImgs, bavValImgs, bavLandingImgs, bavIdleOpImgs, bavSchudImgs, bavSlagImgs]);
   return rij;
 }
 function restart(){
