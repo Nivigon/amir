@@ -20395,6 +20395,49 @@ function warmBouw(){
   // de goudaap-arena en de resterende baviaan-reeksen (de zes gevechtsreeksen deed bavKaderVooraf hierboven al)
   if (level.apenArena){ try { goudaapLaad(); } catch (e) {} warmDing([gaapImg, gaapHangImgs, gaapAfzetImgs, gaapValImgs, gaapLandingImgs, gaapRunImgs, gaapHapImgs, gaapBrulImgs, gaapGromImgs, gaapDoodImgs, gaapSprongImgs, gaapWandImg]); }
   if (b && b.lvl) warmDing([baviaanImg, bavHangImgs, bavAfzetImgs, bavValImgs, bavLandingImgs, bavIdleOpImgs, bavSchudImgs, bavSlagImgs]);
+  // Wat anders pas gemaakt wordt als het in beeld komt: de lichtkaart onder de grond, het licht op de
+  // runerotsen, elk ravijn en de rotswand. Dat kan hier allemaal al, achter het laadscherm.
+  // De lichtkaart: eerst de kaart zelf (zo'n 50 ms), dan de kolommen in stukjes, vanaf de plek waar Amir
+  // begint naar buiten, zoals lkVooruit dat in het spel doet. lkVooruit vindt daarna niets meer te doen.
+  rij.push(() => {
+    const K = lkKaart(); if (!K || !K.nogTeDoen) return;
+    const mid = Math.max(0, Math.min(K.nk - 1, Math.floor(world / LK.cel) - K.i0)), volg = [];
+    for (let d = 0; d < K.nk; d++) for (const k of d ? [mid - d, mid + d] : [mid]) if (k >= 0 && k < K.nk) volg.push(k);
+    const STUK = 6;
+    for (let a = 0; a < volg.length; a += STUK){
+      const deel = volg.slice(a, a + STUK);
+      rij.push(() => { if (lk !== K) return; for (const k of deel) if (!K.klaar[k]) lkKolom(k); });
+      warmTotaal++;
+    }
+  });
+  // het licht op de runerotsen: de maskers per rots (zo'n 20 ms per stuk). De plaat laadt lui: nog onderweg
+  // is wachten (false), ontbreekt hij, dan is er niets te maken.
+  for (const e of ravijnProef() || []){
+    rij.push(() => {
+      const B = runeBeeld(e);
+      if (!B){ const r = runeRotsBeelden[runeSoort(e)]; return r && r.img.complete ? undefined : false; }
+      runeLichtMaak(e, B, zonRechts());
+    });
+  }
+  // de ravijnen: het effect per gat, en een keer de wand in zijn buffer tekenen, zodat ook die naar de kaart gaat
+  for (const g of gapList()){
+    rij.push(() => {
+      if (!ravijnWand.complete) return false;
+      const fx = ravijnVastVoor(g);
+      if (fx && !holteAt(g.x)) try { fx.drawGap(warmCtx); } catch (e) {}
+    });
+  }
+  // de rotswand: de canvassen met het gat, het blok en het masker
+  if (level.muur){
+    rij.push(() => {
+      const S = muurSet(nowScale());
+      if (S){ try { for (const k in S) if (S[k] instanceof HTMLCanvasElement) warmCtx.drawImage(S[k], 0, 0, 1, 1); } catch (e) {} return; }
+      // nog niet binnen: wachten; ontbreekt een plaat (complete zonder breedte), dan is er niets te maken
+      const kapot = img => img && img.complete && !img.naturalWidth;
+      if (muurGrot()) return kapot(grotMuurImg) || kapot(propImg.boulder) ? undefined : false;
+      return kapot(muurImg) ? undefined : false;
+    });
+  }
   return rij;
 }
 function restart(){
