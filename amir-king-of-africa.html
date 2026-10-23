@@ -20274,11 +20274,21 @@ function warmBouw(){
       rij.push(() => { const img = vgImg(S); if (klaar(img)) vgPlaatje(img, false, S.voet, lt, L.vaag); });
     }
   }
-  // de schaduw van Amir: de veelgebruikte frames (idle en de loop), allebei de schaduwen
+  // de schaduw van Amir: elk frame dat hij kan tonen, allebei de schaduwen (de omgevingsschaduw en de
+  // zonneschaduw, die ook de fakkel gebruikt). Eerst alleen de idle en de loop: dan bakte de eerste sprong,
+  // stoot, worp, zwaai of buk zijn schaduw midden in het spel, met tien keer een blur per frame. Een frame
+  // dat nog onderweg is wacht (false); een frame dat ontbreekt slaan we over.
   const sKleur = winterOn() ? AMIR_SCHADUW.kleurWinter : AMIR_SCHADUW.kleur, O = AMIR_SCHADUW.omgeving;
-  const amFrames = [];
-  for (const set of [sets.ns, sets.sp]){ if (set.idle) amFrames.push(set.idle); if (set.run) for (const f of set.run) amFrames.push(f); }
-  for (const img of amFrames) rij.push(() => { if (klaar(img)){ amirSilhouet(img, sKleur, O.vaag, O.dik); amirSilhouet(img, sKleur); } });
+  const amFrames = [].concat(sets.ns.idle, sets.ns.run, sets.sp.idle, sets.sp.run, sets.sp.idleAnim || [],
+                             atkImgs, thrImgs, sweepImgs, jumpImg, jumpSpearImg,
+                             duckNs.in, duckNs.hold, duckSp.in, duckSp.hold, crawlImgs, crawlNsImgs);
+  for (const img of new Set(amFrames)){
+    if (!img) continue;
+    rij.push(() => {
+      if (!img.complete) return false;
+      if (img.naturalWidth > 0){ amirSilhouet(img, sKleur, O.vaag, O.dik); amirSilhouet(img, sKleur); }
+    });
+  }
   // de fosforslang: alleen als er een in het level staat (hij hergebruikt de groene slang)
   if (level.spawns && level.spawns.some(sp => sp.k === 'fosfor' || sp.kind === 'fosfor')){
     const g = snk.groen, ff = [].concat(g.idle || [], g.move || [], g.atk || []);
@@ -27181,8 +27191,19 @@ function amirSilhouet(img, kleur, vaag = AMIR_SCHADUW.vaag, dik = 0){
   tc.globalCompositeOperation = 'source-in'; tc.fillStyle = kleur; tc.fillRect(0, 0, w, h);
   c = document.createElement('canvas'); c.width = w + pad * 2; c.height = h + pad * 2;
   const cc = c.getContext('2d');
-  cc.filter = 'blur(' + vaag + 'px)';
-  for (let d = -dik; d <= dik; d++) cc.drawImage(t, pad + d, pad);   // dikker maken, zijwaarts
+  if (dik > 0){
+    // dikker maken, zijwaarts: een keer vervagen en die vervaagde kopie verschoven stapelen. Verschuiven
+    // en vervagen mogen omgedraaid, dus dit is hetzelfde beeld als elke kopie apart vervagen, maar met
+    // een blur in plaats van 2 * dik + 1.
+    const u = document.createElement('canvas'); u.width = w + pad * 2; u.height = h + pad * 2;
+    const uc = u.getContext('2d');
+    uc.filter = 'blur(' + vaag + 'px)';
+    uc.drawImage(t, pad, pad);
+    for (let d = -dik; d <= dik; d++) cc.drawImage(u, d, 0);
+  } else {
+    cc.filter = 'blur(' + vaag + 'px)';
+    for (let d = -dik; d <= dik; d++) cc.drawImage(t, pad + d, pad);
+  }
   // van de voeten naar het hoofd ijler
   const v = cc.createLinearGradient(0, c.height, 0, 0);
   v.addColorStop(0, 'rgba(0,0,0,1)'); v.addColorStop(1, 'rgba(0,0,0,' + S.kruin + ')');
