@@ -1029,8 +1029,10 @@ interval van zijn begin naar zijn eind is gekrompen, zodat het langzaam steeds m
 knop ernaast kiest de kant: om en om, alleen van links, alleen van rechts of willekeurig. Meerdere
 soorten tegelijk aan kan gewoon, en de knoppen onder Vijanden (dolk, elite, AI aan of uit) gelden
 ook voor de vijanden die de arena stuurt. **Start** zet de golven aan, dezelfde knop (**Stop**) zet ze
-stil, en **Opnieuw** zet de klok en de teller op nul en haalt alles weg. Bovenin beeld staat hoeveel
-je er verslagen hebt, hoe lang je het al volhoudt en hoe ver de opbouw is.
+stil, en **Opnieuw** zet de klok en de teller op nul en haalt alles weg. Bovenin het midden staat
+groot de klok: hoe lang je het al volhoudt. Daaronder kleiner hoeveel je er verslagen hebt, hoe ver
+de opbouw is en je beste tijd tot nu toe, die de browser onthoudt. Ga je dood, dan blijft de eindtijd
+staan tot je op R drukt.
 
 ## Zelf een level maken
 

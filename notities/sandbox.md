@@ -27,7 +27,10 @@ zet bij nul via `sbArenaSpawn` een vijand net buiten beeld (`W / 2 / viewZoom() 
 Het interval krimpt lineair van `van` naar `tot` over `ramp` seconden. `sbArenaReset` zet de klok
 en de teller op nul (en spreidt de eerste klok per soort, zodat niet alles tegelijk komt); `restart`
 roept hem aan als `sbArena` aan staat, dus R na de dood begint de golven meteen opnieuw.
-`vijandDood` telt de kills (`sbArenaKill`), `sbArenaHudTeken` tekent de teller in beeld.
+`vijandDood` telt de kills (`sbArenaKill`), `sbArenaHudTeken` tekent de teller in beeld: de klok groot
+(48 px) in het midden bovenin, daaronder klein de kills, de opbouw en de beste tijd (`sbArenaBest`, in
+`localStorage` onder `amir.arenaBest`, bijgewerkt in `sbArenaDood` zodra `sbArenaUpdate` de dood ziet,
+een keer per potje via `doodGemeld`).
 
 Het tabblad Arena (`data-cat="arena"`, knop `#sbarenatab`) staat alleen in de arena-modus aan; de
 rijen per soort bouwt de code zelf in `#sbarenalijst` (een knop plus drie `<input type=number>`). De

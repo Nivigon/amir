@@ -33731,7 +33731,7 @@ const sbArenaRampEl = document.getElementById('sbarenaramp');
 const sbArenaLijst = document.getElementById('sbarenalijst');
 // de klok en de teller op nul; de instellingen en aan/uit blijven staan
 function sbArenaReset(){
-  sbArenaCfg.t0 = 0; sbArenaCfg.kills = 0; sbArenaCfg.laatst = 1;
+  sbArenaCfg.t0 = 0; sbArenaCfg.kills = 0; sbArenaCfg.laatst = 1; sbArenaCfg.doodGemeld = false;
   for (const k in sbArenaCfg.per){ const p = sbArenaCfg.per[k]; p.t = p.van * (0.4 + 0.6 * Math.random()); }   // niet allemaal tegelijk
 }
 function sbArenaKill(){ sbArenaCfg.kills++; }
@@ -33764,8 +33764,9 @@ function sbArenaSpawn(k){
   sbSpawn(k, side, x);
 }
 function sbArenaUpdate(dt){
-  if (!sbArena || !sbArenaCfg.aan || !running || dead || paused) return;
+  if (!sbArena || !sbArenaCfg.aan || !running || paused) return;
   const c = sbArenaCfg;
+  if (dead){ if (!c.doodGemeld){ c.doodGemeld = true; sbArenaDood(); } return; }   // de klok staat stil, de beste tijd wordt bijgewerkt
   c.t0 += dt;
   const f = Math.min(1, c.t0 / Math.max(1, c.ramp));
   for (const s of SB_ARENA_SOORTEN){
@@ -33778,20 +33779,38 @@ function sbArenaUpdate(dt){
     sbArenaSpawn(s.k);
   }
 }
+// de beste tijd (hoe lang je het volhield voor je doodging) onthoudt de browser
+let sbArenaBest = 0;
+try { sbArenaBest = Number(localStorage.getItem('amir.arenaBest')) || 0; } catch (e) {}
+function sbArenaDood(){                              // bij de dood: de beste tijd bijwerken
+  if (sbArenaCfg.t0 > sbArenaBest){ sbArenaBest = sbArenaCfg.t0; try { localStorage.setItem('amir.arenaBest', String(Math.floor(sbArenaBest))); } catch (e) {} }
+}
+function sbArenaKlok(t){ const tsec = Math.max(0, Math.floor(t)); return Math.floor(tsec / 60) + ':' + String(tsec % 60).padStart(2, '0'); }
+// de teller in beeld: de tijd groot in het midden bovenin (daar gaat het om: hoe lang hou je het vol),
+// daaronder kleiner de verslagen vijanden, de opbouw en je beste tijd. Blijft na de dood staan.
 function sbArenaHudTeken(){
   if (!sbArena || (!sbArenaCfg.aan && sbArenaCfg.t0 === 0)) return;
   const c = sbArenaCfg;
-  const tsec = Math.max(0, Math.floor(c.t0)), mm = Math.floor(tsec / 60), ss = String(tsec % 60).padStart(2, '0');
   const f = Math.min(1, c.t0 / Math.max(1, c.ramp));
-  const tekst = 'Verslagen ' + c.kills + '     Tijd ' + mm + ':' + ss + '     Opbouw ' + Math.round(f * 100) + '%' + (c.aan ? '' : '     (gestopt)');
+  const groot = sbArenaKlok(c.t0) + (dead ? '  dood' : (c.aan ? '' : '  gestopt'));
+  const klein = 'Verslagen ' + c.kills + '     Opbouw ' + Math.round(f * 100) + '%' + (sbArenaBest > 0 ? '     Beste ' + sbArenaKlok(sbArenaBest) : '');
   ctx.save();
-  ctx.font = '600 22px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  const w = ctx.measureText(tekst).width + 44, h = 40, x = W / 2, yTop = 74;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = '700 48px system-ui, sans-serif';
+  const wG = ctx.measureText(groot).width;
+  ctx.font = '600 18px system-ui, sans-serif';
+  const wK = ctx.measureText(klein).width;
+  const w = Math.max(wG, wK) + 56, h = 96, x = W / 2, yTop = 92;
   ctx.globalAlpha = 0.72; ctx.fillStyle = '#1c150c';
-  if (ctx.roundRect){ ctx.beginPath(); ctx.roundRect(x - w / 2, yTop, w, h, 10); ctx.fill(); }
+  if (ctx.roundRect){ ctx.beginPath(); ctx.roundRect(x - w / 2, yTop, w, h, 12); ctx.fill(); }
   else ctx.fillRect(x - w / 2, yTop, w, h);
-  ctx.globalAlpha = 1; ctx.fillStyle = '#f3e6c4';
-  ctx.fillText(tekst, x, yTop + h / 2 + 1);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = dead ? '#e8a07a' : '#f3e6c4';
+  ctx.font = '700 48px system-ui, sans-serif';
+  ctx.fillText(groot, x, yTop + 34);
+  ctx.fillStyle = 'rgba(243,230,196,.8)';
+  ctx.font = '600 18px system-ui, sans-serif';
+  ctx.fillText(klein, x, yTop + 74);
   ctx.restore();
 }
 // de knoppen: Start/Stop, Opnieuw, de kant, de opbouw, en per soort een rij
