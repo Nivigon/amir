@@ -8,7 +8,7 @@
 
 `ZEGEL_VERSTOP`, `ZEGEL_VERBORGEN`, `ZEGEL_VEEG`, `zegelVerstopTeken`, `zegelOntwaakTeken`, `zegelVeegUpdate`, `zegelVeegStof`, `zegelKorrels`, `zvLaag`. Opt-in per zegel met `verstop` (hoe het eruitziet onder het zand) en `veeg` (hoe het zand eraf gaat, standaard `stof`). De keuze is de `gleuf` (teken en kring als ondiepe groef); `kuil`, `stenen`, `hout`, `kiezels` en `ribbels` waren de proeven en staan alleen nog in de sandbox. Zolang het verstopt is (`zegelVerstopt`) gaat het niet aan, ook niet door een vijand. Raakt de lage zwaai het (in de raakframes `SWEEP_FROM`..`SWEEP_TO`, tot `SWEEP_REACH` plus `bereik` maal de straal van Amir, op dezelfde vloer), dan begint de onthulling (`z.vegen`, van Amir af). Is het zand weg, dan is het `z.vrij` en werkt het als elk zegel; wie er dan al op staat, stapt eerst af en weer op (`z.op` loopt tijdens het verstopt zijn gewoon mee).
 
-Een onthulling heeft vier stukken, met de tijden in `ZEGEL_VERSTOP`: de klap (`klap`, een hitstop van `stop`, de houten tik `houtRaakSnd`, en het teken flitst wit-goud op onder het zand, `zvFlits`), het wegslaan van het zand (per veeg, de duur in `vegen`), het ontwaken (`ontwaak`: het licht loopt door de gleuf, `zvSpoor`, een ring gaat over de grond, stofjes stijgen op, het toontje `zegelToon` uit de gedeelde AudioContext, en de hint "Een verborgen zegel!") en de rust (`rust`: het licht dooft). Wit-goud (`ZV_GOUD`, `ZV_GLOED`) is ontdekken; oranje blijft aanzetten, zodat een net ontdekt zegel er niet uitziet alsof het al aan staat.
+Een onthulling heeft vier stukken, met de tijden in `ZEGEL_VERSTOP`: de klap (`klap`, een hitstop van `stop`, de houten tik `houtRaakSnd`, en het teken flitst wit-goud op onder het zand, `zvFlits`), het wegslaan van het zand (per veeg, de duur in `vegen`), het ontwaken (`ontwaak`: het licht loopt door de gleuf, `zvSpoor`, een ring gaat over de grond, het geluid `sounds/zegelontdek.mp3` (`zegelOntdekSnd`, volume `geluid`; voorlopig de misser van de kooiman, vervang het bestand gerust) en de hint "Een verborgen zegel!") en de rust (`rust`: het licht dooft). Wit-goud (`ZV_GOUD`, `ZV_GLOED`) is ontdekken; oranje blijft aanzetten, zodat een net ontdekt zegel er niet uitziet alsof het al aan staat.
 
 Tijdens het wegslaan ligt het echte zegel er al (`zegelGrond`) en ligt er een zanddek over (`zvDek`, `ZV_DEK`) met het verstopte uiterlijk dat in het eerste kwart vervaagt. Veel vegen tekenen dat dek op een los doek (`zvLaag`) en gummen er stukken uit. De tien vegen (`ZEGEL_VEEG`, het stof in `zegelVeegStof`):
 
@@ -16,11 +16,13 @@ Tijdens het wegslaan ligt het echte zegel er al (`zegelGrond`) en ligt er een za
 - `stof`: een rafelige zandrug schuift voor de speer uit weg, met stofwolken (`sand`, dezelfde wolkjes als de lage zwaai zelf)
 - `waaier`: een rafelig gat groeit vanuit het midden, met een waaier van korrels
 - `golf`: het dek glijdt naar de verre kant, hoopt zich op en zakt in
-- `wolk`: veel stof; een grote wolk bolt op en het dek vervaagt eronder
+- `wolk`: veel stof; een grote wolk bolt op en het dek vervaagt eronder. De favoriet
 - `zucht`: bijna geen stof; het dek vergaat in fijne gaatjes, vanaf het teken naar buiten, met een beetje poeder
 - `omhoog`: een gat vanuit het midden en een fontein van korrels recht omhoog
 - `wervel`: een taartpunt loopt rond vanaf de kant van Amir, met een stofhoos van spiralen erboven
 - `barst`: barsten lopen door het dek, dan wippen de scherven (`zvScherven`) een voor een op en vliegen weg
 - `licht`: geen stof; het dek brandt weg vanuit de lijnen van het teken, met stralen omhoog
 
-Test 47 is het proefstuk: tien gleuf-zegels met elk een andere veeg, elk onder een rode pijl (`pijlen`, `pijlTeken`, `PIJL`: een wegwijzer in de lucht met een naam, alleen voor testlevels). In de sandbox onder **Verstopt zegel** (een knop per uiterlijk) en **Veeg** (de veeg voor de verstopte zegels die er liggen en de volgende, en **Weer onder het zand** om een onthulling opnieuw te zien).
+Met `veegDuur` (seconden) duurt het wegslaan langer of korter dan de standaard van de veeg (`zvDuur`); met `veegMaat` wordt het stof groter (bij `wolk`: meer, grotere en hogere wolkjes, breder uitgespreid, en een trage wolk blijft langer hangen).
+
+Test 47 is het proefstuk: zes gleuf-zegels met de wolk, drie trage (`veegDuur: 1.8`) en drie snelle (`0.55`), elk drietal van klein naar groot (`veegMaat` 1, 1,6 en 2,3), elk onder een rode pijl (`pijlen`, `pijlTeken`, `PIJL`: een wegwijzer in de lucht met een naam, alleen voor testlevels). In de sandbox onder **Verstopt zegel** (een knop per uiterlijk) en **Veeg** (de veeg voor de verstopte zegels die er liggen en de volgende, en **Weer onder het zand** om een onthulling opnieuw te zien) en **Wolk** (Traag, Gewoon, Snel en Klein, Middel, Groot: `veegDuur` en `veegMaat`).
