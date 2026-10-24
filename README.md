@@ -596,6 +596,13 @@ schildbandiet, maar getekend uit losse lagen, met het schild als een eigen plaat
 van in elk frame meegebakken. Hij ziet er hetzelfde uit en doet hetzelfde; het is de proef voor hoe de
 animaties voortaan gemaakt worden.
 
+Een dodelijke klap op de schildbandiet wordt soms een **executie**. Steek je hem dood (1 op 5), dan staat
+alles stil: hij zakt met je speer in zijn borst op zijn knieen, Amir rukt de speer eruit en splijt hem in
+een haal. Gooi je hem dood (1 op 3), dan knielt hij met je speer in zijn borst en wankelt hij een paar
+seconden: loop naar hem toe en druk op E voor de executie, of wacht en hij valt voorover, met je speer
+naast hem op de grond. Daarna sta je met je speer in de hand weer gewoon klaar. In de sandbox staan onder
+Schildbandiet knoppen om het af te dwingen: Executie: altijd, Wankel: geen E, Steek-kill en Worp-kill.
+
 De schildbandiet is de uitzondering: zijn schild vangt de klappen op, hij zelf niet. Boven zijn
 groene balk staat daarom een houten schildbalk met drie vakjes. Elke klap op het schild kost een
 vakje, zijn eigen balk blijft vol, en je ziet het aan het schild zelf: na de eerste klap is er een hap

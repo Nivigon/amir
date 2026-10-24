@@ -121,7 +121,10 @@ De sandbox begint op `sbView = 0.8` (de knop Licht onder Beeld en geluid staat d
 level. De testbalk met schuifjes (`#bar`) begint in de sandbox ingeklapt; het pijltje `#barpijl` onderin
 het midden van `#stage` (alleen aan in de sandbox, `barPijlToon` zet de richting) klapt hem uit en in,
 net als de B-toets. De schildbandiet heeft onder Vijanden twee knoppen, Moeilijk (`schildman`) en
-Makkelijk (`schildman_makkelijk`, in `sbSpawn` `niveau: 'makkelijk'`); de arena telt ze apart op `niveau`.
+Makkelijk (`schildman_makkelijk`, in `sbSpawn` `niveau: 'makkelijk'`); de arena telt ze apart op `niveau`. Daarnaast
+Nieuwe stijl (`schildman_lagen`), AI uit, Dood, en voor de executie (zie `notities/schildbandiet.md`): **Executie: kans/altijd**
+(`sbExeAltijd`, elke steek- en worp-kill wordt een executie), **Wankel: E aan/geen E** (`sbExeGeenE`, de worp-kill eindigt
+dan in de val), en **Steek-kill** en **Worp-kill** (`sbExeNu`, de eerste levende schildbandiet meteen zo doden).
 
 De grote Start-knop midden in beeld (`#arenastart`, `sbArenaSchermBtn`) staat aan zolang de arena-modus
 aan is, de golven niet lopen en Amir niet dood is (`sbArenaToon`); hij roept `sbArenaStart(true)`, die ook

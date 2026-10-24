@@ -54,3 +54,56 @@ enige), de `sets` in `metadata.json` en de notitie hierboven over de schildstaat
 **Het lijf op de grond.** In de bron lag hij na de val zo'n 15 tot 30 canvas-px boven de grondlijn: hij zweefde boven zijn schaduw. Het script zet elk frame vanaf de landing zo ver omlaag dat de onderkant van het brede deel van zijn lijf op de grondlijn ligt (`LIG`), met de landing verdeeld over de twee frames ervoor; hoeveel per frame staat in `dood.json` (`omlaag`). De schaduw wordt breder vanaf `SCHB.dood.ligVan`.
 
 Een nieuwe dood-animatie zonder speer erin past zonder het script: zet de frames in de map, `n` op het aantal, `speer.los` op het frame waarop zijn hand opengaat en `punt`/`eind` op de plek van de speer in het frame ervoor. Teken het liggende lijf dan met zijn onderkant op de grondlijn (481). In de sandbox laat de knop **Dood** onder Schildbandiet elke schildbandiet meteen zo sterven.
+
+## de executie: knielen, wankelen, vallen en de special execution
+
+`EXE`, `exeLaad`, `exeKans`, `exeStart`, `exeTick`, `exeVries`, `exeTeken`, `exeHelften`, `sbExeNu`. De lagen staan in
+`enemies/schildbandiet/executie/` (`executie.json`, `LEESMIJ.md`, `lagen/` met 127 plaatjes): optie C, zoals `lagen.json`,
+per beweging per frame een lijst lagen `{src, dx, dy, w, h, item}` in tekenvolgorde, `dx` en `dy` vanaf het anker (272) en
+de grondlijn (781) in pixels van de grote set. De bewegingen: `knielen` (20), `wankel` (16, loop), `val` (16, met
+`speer_ligt_op`) en `executie` (17, met `amir_start_x`, `amir_eind_x` en de `snijlijn`). `exeLaad` laadt ze zoals
+`schbLagenLaad` (via de laadpoort, de plaatjes in `schbBank.executie` zodat `warmBouw` ze meebakt) en wordt door
+`makeSchildman` aangeroepen, dus voor elke schildbandiet, ook in een level. `hitSchildman(s, wijze)` weet nu waar de klap
+vandaan komt (`steek`, `worp` of `zwaai`); is het schild weg, dan beslist `exeKans` of de kill een executie wordt
+(`EXE.kansSteek` 1 op 5, `EXE.kansWorp` 1 op 3, alleen als de lagen binnen zijn) en anders is het de gewone dood
+(`schbSterf`). Een schildbandiet in de executie heeft `s.state === 'exe'` en in `s.exe.bew` de beweging.
+
+**De steek-kill**: `exeStart` zet hem naar Amir toe (`s.face`), begint `knielen` en bevriest meteen de wereld
+(`exeBevries`): `exeVries` is de schildbandiet van wie de executie loopt, en `loop` zet dan `dt` op nul en laat alleen
+`exeTick` op echte tijd lopen, zoals `kooiVries`. Amir staat op `amir_start_x` (`exeAmirX`, met de spiegeling in
+`s.exe.dir`), kijkt naar hem, zonder lopende stoot of worp, en is onkwetsbaar (`hurtPlayer`, `amirVast`, `startSweep`
+en `dir = 0` in `loop` kijken naar `exeVries`). Tijdens het knielen is de echte Amir nog te zien maar zonder speer
+(`exeSpeerWeg`, die zit in de schildbandiet); zodra `executie` begint is hij weg (`exeAmirWeg`: geen sprite, schaduw, rug
+of health-balk) en tekenen de lagen hem, op de plek en de schaal van de schildbandiet, gespiegeld als die naar rechts
+kijkt. Na het laatste frame (de landing, 600 ms) splijt hij (`exeSplijtStart`): de `schildman`-laag van het laatste
+frame wordt langs de snijlijn, doorgetrokken over de hele laag, in twee helften geclipt (`exeHelften`) die uit elkaar
+schuiven, om hun voet kantelen, zakken en vervagen (`EXE.splijt`), met de spuit van het bloedsysteem op de wond langs de
+lijn omhoog (`exeSpuitTeken`, `bloedSpuitStap`) en druppels die langs de lijn wegspatten en op de grondlijn blijven
+liggen (`exeDruppelsTeken`; de lens en de plas bestaan nog niet in het bloedsysteem); de `amir`- en `speer`-lagen van het
+laatste frame blijven er bovenop. Daarna (`exeEinde`) staat Amir meteen in zijn idle op `amir_eind_x` (niet boven een
+ravijn, anders op `amir_start_x`), van hem af gekeerd, met zijn speer in de hand, en loopt de wereld weer; het bloed
+blijft nog `EXE.lijk` en vervaagt dan.
+
+**De worp-kill**: `exeStart` haalt de geworpen speer weg (`jav = null`, de lagen tekenen hem in zijn borst), de wereld
+loopt gewoon door: `knielen`, dan `wankel` in een loop, `EXE.wankelDuur` (3 s) lang. Staat Amir binnen `EXE.ePlek` van
+`amir_start_x` op dezelfde vloer (`exeBij`), dan staat er een E boven hem (`exeETeken`, via `skE`; `eNodig` zet de E-knop
+op de telefoon erbij) en start E de executie (`exeTrek`, vooraan in `toggleSpear`). Zonder E maakt hij de lopende loop af
+en speelt hij `val`; vanaf frame `EXE.speerLigtVan` (7) ligt Amirs speer echt op de grond (`exeSpeerNeer`: een `jav` op
+de grond op `speer_ligt_op`, de punt naar zijn voorkant, op te pakken met E zoals na een worp; is je hand al weer vol van
+de rug, dan een losse speer), en tekent de `speer`-laag niet meer. Daarna blijft hij liggen en vervaagt hij zoals de
+gewone dood (`SCHB.dood.lig`, `vervaag`).
+
+**Effecten en geluid komen later.** De haakjes staan klaar: `exeHaakFreeze` (begin van de freeze, de steek of E),
+`exeHaakRuk` (executie frame 5 naar 6), `exeHaakLanding` (frame 16) en `exeHaakSplijt`. De executie speelt nu zonder de
+doodskreet en zonder het geluid van de bloedspuit.
+
+**Kleine set en geheugen.** `tools/gen-klein.py` halveert `enemies/schildbandiet/executie/lagen` met drempel 60 (zoals de
+lagen van loop, strike en flinch); `dx`, `dy`, `w` en `h` blijven, het spel rekt het halve plaatje naar die maat.
+Gemeten in de sandbox: de 127 lagen zijn uitgepakt 27,4 MB op de grote set en 7,3 MB op de kleine (5,3 MB en 1,6 MB op
+schijf). Ze laden mee zodra er een schildbandiet is.
+
+**Sandbox**, onder Schildbandiet: **Executie: kans/altijd** (`sbExeAltijd`, elke steek- en worp-kill wordt een
+executie), **Wankel: E aan/geen E (val)** (`sbExeGeenE`: de worp-kill krijgt geen E en eindigt in de val), **Steek-kill**
+en **Worp-kill** (`sbExeNu`: de eerste levende schildbandiet meteen zo doden; bij de steek krijgt Amir zijn speer in de
+hand, bij de worp zit zijn speer in de schildbandiet). Nagekeken op 1280 bij 720, groot en klein, naar links en
+gespiegeld: de steek, de worp met E, de worp zonder E (de speer ligt naast hem en is op te pakken), zonder consolefouten.
