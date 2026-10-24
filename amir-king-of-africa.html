@@ -882,6 +882,7 @@
           <div class="mkknop"><label>Y (hoogte)</label><input id="mkrichely" type="range" min="-150" max="150" step="5"><span class="read" id="mkrichelyv"></span></div>
           <div class="mkknop"><label>Grootte</label><input id="mkrichels" type="range" min="0.3" max="1.2" step="0.05"><span class="read" id="mkrichelsv"></span></div>
           <div class="mkrij"><button id="mkrichelf">Gespiegeld: nee</button></div>
+          <div class="mkveld"><label for="mkrichellook">Kleur</label><select id="mkrichellook"><option value="rots">Steen</option><option value="sneeuw">Sneeuw</option><option value="savanne">Savanne</option></select></div>
           <div id="mkrichelinfo" class="mkhint"></div>
         </div>
         <div id="mkzegelctl" style="display:none">
@@ -891,7 +892,7 @@
         <div id="mkmaskctl" class="mkveld" style="display:none"><label for="mkmasksel">Onthult masker</label><select id="mkmasksel"></select></div>
         <div id="mkrijsselctl" class="mkveld" style="display:none"><label for="mkrijssel">Stuurt rijzer</label><select id="mkrijssel"></select></div>
         <div id="mkmasklookctl" style="display:none">
-          <div class="mkveld"><label for="mkmasklook">Hoe het eruitziet</label><select id="mkmasklook"><option value="grot">Grotwand (rots)</option><option value="rots">Rotswand (cliff)</option><option value="savanne">Savanne (grond)</option><option value="zwart">Helemaal zwart</option></select></div>
+          <div class="mkveld"><label for="mkmasklook">Hoe het eruitziet</label><select id="mkmasklook"><option value="grot">Grotwand (rots)</option><option value="rots">Rotswand (cliff)</option><option value="savanne">Savanne (grond)</option><option value="zwart">Helemaal zwart</option><option value="onzichtbaar">Onzichtbaar (alleen de inhoud verborgen)</option></select></div>
           <div class="mkveld"><label><input id="mkmaskvulzwart" type="checkbox"> Blijft zwart na onthullen</label></div>
           <div id="mkmasklookinfo" class="mkhint"></div>
         </div>
@@ -1353,11 +1354,12 @@
         <label>Masker</label>
         <button id="sbmasker">Neerzetten</button>
         <button id="sbmaskerslang">Met een slang erachter</button>
+        <button id="sbmaskeronzichtbaar">Onzichtbaar met een slang</button>
         <button id="sbmaskerzegel">Grond-zegel onthult</button>
         <button id="sbmaskerverborgen">Verborgen zegel erachter</button>
         <button id="sbmaskergang">Met een gang erachter</button>
         <button id="sbmaskerweg">Weg</button>
-        <span class="hint">een stuk level dat eruitziet als de ondergrondse rotswand: loop erin en het valt stil weg (eenmaal gezien voorgoed weg). Een slang erachter staat bevroren tot het weg is. Het grond-zegel ervoor onthult het met beven en het ravijn-geluid (zoals een tandwiel gekoppeld). Een verborgen zegel erachter is pas te activeren als het masker weg is. Met een gang erachter: een zwart plafond en een zwarte vloer met de gang ertussen, verborgen achter het masker; het zegel scheurt het weg en de gang komt vrij, met de tandjes van het plafond erboven</span>
+        <span class="hint">een stuk level dat eruitziet als de ondergrondse rotswand: loop erin en het valt stil weg (eenmaal gezien voorgoed weg). Een slang erachter staat bevroren tot het weg is. Onzichtbaar met een slang: het masker tekent niets, je ziet gewoon de savanne, maar de slang erbinnen is weg tot je erin loopt, dan staat hij er plots. Het grond-zegel ervoor onthult het met beven en het ravijn-geluid (zoals een tandwiel gekoppeld). Een verborgen zegel erachter is pas te activeren als het masker weg is. Met een gang erachter: een zwart plafond en een zwarte vloer met de gang ertussen, verborgen achter het masker; het zegel scheurt het weg en de gang komt vrij, met de tandjes van het plafond erboven</span>
       </div>
       <div class="row">
         <label>Onder de grond</label>
@@ -4442,6 +4444,37 @@ ledgeImg.src = LEDGE.src;
 function terPic(){ return winterPic('ter', terImg); }
 function terFadePic(){ return (winterOn() && terPic() !== terImg && winterTerFade) ? winterTerFade : terFade; }
 function ledgePic(){ return winterPic('ledge', ledgeImg); }
+// de kleur van één richel: `look` in zijn ledges-entry. 'rots' (zonder veld) is de gewone steen (in de winter de
+// sneeuwversie, zoals altijd), 'sneeuw' de sneeuwversie ook buiten de winter, 'savanne' de steen in de warme
+// kleur van de savannegrond. De sneeuwversie laadt lui (richelLaadLevel, en hier op aanvraag), de savanne-
+// versie wordt een keer uit de gewone steen gebakken (LEDGE_SAVANNE): dezelfde maat, dus ledgeLen en de
+// botsing (terracePlats) veranderen er niet van.
+const LEDGE_LOOKS = ['rots', 'sneeuw', 'savanne'];
+const LEDGE_SAVANNE = { kleur: '#c48a4a' };          // de tint waar de steen naartoe gaat (blend 'color': licht en donker blijven)
+let ledgeSneeuwImg = null, ledgeSavanneCv = null;
+function ledgeLookOf(v){ return LEDGE_LOOKS.includes(v) ? v : 'rots'; }
+function ledgeSneeuwLaad(){
+  if (ledgeSneeuwImg) return ledgeSneeuwImg;
+  if (winterImg.ledge) return (ledgeSneeuwImg = winterImg.ledge);
+  const im = new Image(); im.onerror = () => console.warn('ontbreekt: ' + WINTER_SRC.ledge); im.src = WINTER_SRC.ledge;
+  return (ledgeSneeuwImg = im);
+}
+function richelLaadLevel(lv){ if ((lv.ledges || []).some(o => o.look === 'sneeuw')) ledgeSneeuwLaad(); }
+function ledgeLookPic(o){
+  const look = ledgeLookOf(o && o.look);
+  if (look === 'sneeuw') return ledgeSneeuwLaad();
+  if (look === 'savanne'){
+    if (ledgeSavanneCv) return ledgeSavanneCv;
+    if (!imgReady(ledgeImg)) return ledgeImg;      // nog niet te bakken: zo lang de gewone steen (die wacht ook)
+    const c = document.createElement('canvas'); c.width = ledgeImg.naturalWidth; c.height = ledgeImg.naturalHeight;
+    const g = c.getContext('2d');
+    g.drawImage(ledgeImg, 0, 0);
+    g.globalCompositeOperation = 'color'; g.fillStyle = LEDGE_SAVANNE.kleur; g.fillRect(0, 0, c.width, c.height);
+    g.globalCompositeOperation = 'destination-in'; g.drawImage(ledgeImg, 0, 0);   // de doorzichtige rand terug
+    return (ledgeSavanneCv = c);
+  }
+  return ledgePic();
+}
 // het geschilderde hoekstuk bovenin de schacht: het verzacht de rechte snede tussen de savanne-kap en de
 // rotswand tot een ronde hoek, over de tanden heen (zie "De schacht"). w/h/crest/lip komen uit
 // tools/schacht_hoek.py (crest = het grondoppervlak, lip = waar de soil in de klif overgaat). breed is de
@@ -4531,6 +4564,7 @@ function zwartMaskerGaten(x0, y0, x1, y1, groundY, scale, cx){
   const gaten = [];
   for (const m of ms){
     if (m.vulZwart) continue;                        // dit masker wil juist zwart blijven (opt-in)
+    if (m.look === 'onzichtbaar') continue;          // niets dekt het gat, dus de invulling blijft zoals hij is
     for (const R of maskerRects(m)){
       const a0 = Math.max(x0, cx + (R.l - world)), a1 = Math.min(x1, cx + (R.r - world));
       const b0 = Math.max(y0, groundY - R.boven * scale), b1 = Math.min(y1, groundY - R.onder * scale);
@@ -4857,9 +4891,11 @@ function rotsLaag(z, groundY, scale, cx, st){
 // schacht past. De gespiegelde versie is precies de spiegeling van de gewone om de lijn x = o.x,
 // dus de botsing in terracePlats klopt ermee (left/right wisselen om o.x).
 function drawLedge(o, groundY, scale, cx){
-  const img = ledgePic(); if (!imgReady(img)) return;
+  const maat = ledgePic(); if (!imgReady(maat)) return;
+  const img = ledgeLookPic(o);                      // de kleur van deze richel (zie ledgeLookPic); de maat komt van de gewone
+  if (!(img instanceof HTMLCanvasElement) && !imgReady(img)) return;
   const sl = ledgeScale(scale, o);
-  const lw = img.naturalWidth * sl, lh = img.naturalHeight * sl;
+  const lw = maat.naturalWidth * sl, lh = maat.naturalHeight * sl;
   const x0 = cx + (o.x - world) - LEDGE.into * sl;
   const ax = cx + (o.x - world);
   if ((o.f ? ax - lw : x0) > W / viewZoom() + W || (o.f ? ax : x0 + lw) < -W) return;
@@ -8494,6 +8530,9 @@ function koppelReset(){ if (level && level.acties) for (const a of level.acties)
 // wegscheuren dus zwart. Daarom knipt zwartAfloop de maskervakken uit die invulling: het masker onthult
 // de open gang, met de tandjes van het zwarte plafond erboven als overgang. Wil je dat het juist zwart
 // blijft (een verborgen donker gat achter een rotsmuur, look 'grot'), zet dan `vulZwart: true` op het masker.
+// Met `look: 'onzichtbaar'` tekent het masker niets: je ziet gewoon wat erachter ligt (de achtergrond, de grond),
+// maar wat erbinnen staat (een vijand, een zegel, een rune, een kalebas) is weg en bevroren tot het masker
+// onthuld is. Zo staat er plots een vijand of ligt er ineens een voorwerp, zonder dat er iets anders verstopt was.
 const MASKER = { fade: 0.55, beving: 0.6, marge: 60 };     // fade/beving (sterkte van het ravijn-geluid)/marge voor het inlopen
 function maskerLijst(){ return (level && level.maskers) || []; }
 function maskerVan(id){ for (const m of maskerLijst()) if (String(m.id || '') === String(id)) return m; return null; }
@@ -8545,6 +8584,7 @@ function maskerTeken(groundY, scale, cx){
   const tile = plafondVulTegel();                  // de ondergrondse rotswand, naadloos getegeld
   const zoom = viewZoom();                          // de uitzoom van het level: de zichtbare wereld is W/zoom breed, niet W
   for (const m of lijst){
+    if (m.look === 'onzichtbaar') continue;           // niets over het stuk heen: je ziet gewoon wat erachter ligt, alleen de inhoud is weg
     const a = m.t === undefined ? 1 : m.t;
     if (a <= 0.004) continue;
     const rects = maskerRects(m);
@@ -20263,6 +20303,7 @@ function dropHppotion(x, y){
 
 // --- oppakken ---------------------------------------------------------------
 function hppotionHits(p, scale){                   // raakt Amir dit flesje?
+  if (achterMasker(p.x, p.h)) return false;        // verborgen achter een masker dat er nog ligt
   const sz = hppotionSize(scale);
   const reach = PLAYER_HALF_W * CHAR_H * scale + sz.w / 2 + HPPOTION_REACH * CHAR_H * scale;
   if (Math.abs(world - p.x) > reach) return false;
@@ -20427,6 +20468,7 @@ function drawHppotions(groundY, scale, cx){
   for (const p of hppotions){
     const bx = cx + (p.x - world);
     if (bx + sz.w < -W || bx - sz.w > W / viewZoom() + W) continue;
+    if (achterMasker(p.x, p.h)) continue;            // nog achter een niet-onthuld masker: niet tekenen (en niet op te pakken)
     const gh = p.hop ? terrainH(p.x) : p.base;
     const up = Math.max(0, p.h - gh) + hppotionBob(p) * HPPOTION_BOB;   // in sprite-eenheden
     const bottom = groundY - gh * scale - up * scale;
@@ -30244,6 +30286,7 @@ function laadLevel(lv){
   meelLaadLevel(lv);                               // de meelman-frames als dit level hem gebruikt
   schbLaadLevel(lv);                               // de schildbandiet-frames als dit level hem gebruikt
   vogelLaadLevel(lv);                              // de vogel-frames als een kooiman een vogel heeft
+  richelLaadLevel(lv);                             // de sneeuwversie van de richel als een richel look 'sneeuw' heeft
 }
 function setLevel(i, list){
   if (list) levelList = list;
@@ -31440,7 +31483,7 @@ let mkZwartErase = false;
 function mkZwartIdx(c, r){ return MK.zwart.findIndex(p => p.c === c && p.r === r); }
 // ---- maskers in de Maker: verf cellen onder een naam (Verborgen1, ...) om ze te verbergen ----
 function mkMaskObj(id){ let m = MK.maskers.find(q => q.id === id); if (!m){ m = { id, cells:[], look:'grot' }; MK.maskers.push(m); } return m; }
-function mkLookOf(v){ return (v === 'zwart' || v === 'savanne' || v === 'rots') ? v : 'grot'; }   // geldige masker-look (waar de verborgen plek op lijkt), anders de grotwand
+function mkLookOf(v){ return (v === 'zwart' || v === 'savanne' || v === 'rots' || v === 'onzichtbaar') ? v : 'grot'; }   // geldige masker-look (waar de verborgen plek op lijkt), anders de grotwand
 function mkMaskNamen(){ const n = MK.maskers.filter(m => m.cells.length).map(m => m.id); if (!n.includes(MK.maskId)) n.push(MK.maskId); return n; }
 function mkMaskNieuw(){ const had = new Set(MK.maskers.map(m => m.id)); for (let i = 1; i < 999; i++) if (!had.has('Verborgen' + i)) return 'Verborgen' + i; return 'Verborgen' + Date.now(); }
 function mkMaskInCel(c, r){ for (const m of MK.maskers){ const i = m.cells.findIndex(p => p.c === c && p.r === r); if (i >= 0) return { m, i }; } return null; }
@@ -31668,8 +31711,8 @@ function mkTeken(){
   // maskers: de geverfde cellen als groene tint (het huidige masker feller), met het label linksboven
   for (const m of MK.maskers){
     if (!m.cells.length) continue;
-    const actief = m.id === MK.maskId;
-    mkCtx.fillStyle = actief ? 'rgba(90,220,110,.42)' : 'rgba(90,220,110,.24)';
+    const actief = m.id === MK.maskId, onz = m.look === 'onzichtbaar';   // onzichtbaar: alleen de omtrek, zodat je het verschil ziet
+    mkCtx.fillStyle = onz ? (actief ? 'rgba(90,220,110,.16)' : 'rgba(90,220,110,.08)') : actief ? 'rgba(90,220,110,.42)' : 'rgba(90,220,110,.24)';
     mkCtx.strokeStyle = actief ? 'rgba(150,255,170,.95)' : 'rgba(120,220,150,.55)';
     mkCtx.lineWidth = actief ? 2 : 1;
     let lab = null;
@@ -31775,7 +31818,8 @@ function mkTeken(){
       const ax = cx + (o.dx || 0) / MK_CEL_PX * cel;
       const topY = gy + o.r * cel - (o.dy || 0) / MK_CEL_EENH * cel;   // bovenkant van de cel = de loopstreep; +Y = hoger
       const x0 = o.f ? ax - len : ax;
-      mkCtx.fillStyle = t.kleur; mkCtx.fillRect(x0, topY, len, th);
+      mkCtx.fillStyle = o.look === 'sneeuw' ? '#e6edf5' : o.look === 'savanne' ? '#b07a40' : t.kleur;   // de kleur van de richel (steen, sneeuw, savanne)
+      mkCtx.fillRect(x0, topY, len, th);
       mkCtx.strokeStyle = 'rgba(20,14,26,.7)'; mkCtx.lineWidth = 1; mkCtx.strokeRect(x0, topY, len, th);
       mkCtx.strokeStyle = 'rgba(242,232,213,.55)'; mkCtx.beginPath(); mkCtx.moveTo(x0, topY + 0.5); mkCtx.lineTo(x0 + len, topY + 0.5); mkCtx.stroke();   // de loopstreep bovenop
       if (o === MK.sel){ mkCtx.strokeStyle = '#fff'; mkCtx.lineWidth = 2; mkCtx.strokeRect(x0 - 2, topY - 2, len + 4, th + 4); }
@@ -31959,7 +32003,7 @@ function mkKlik(ev){
       // een rijzer: op of boven de grondlijn geklikt is de aangeklikte cel zijn doel (de bovenkant) en rust hij MK_RIJS_DIEP cellen onder de
       // grondlijn; in de diepte geklikt rust hij daar en komt hij tot de grondlijn. Zo werkt hij meteen, en beide zijn bij te stellen
       if (t === 'rijzer'){ o.breed = MK_PLAT_BREED; o.v = MK_RIJS.v; o.wacht = MK_RIJS.wacht; o.duur = MK_RIJS.duur;
-        if (r <= MK.ground){ o.doel = { c, r }; o.r = Math.min(MK.rows - 1, MK.ground + MK_RIJS_DIEP); } else o.doel = { c, r: MK.ground }; } if (t === 'overhang'){ o.breed = 3; o.dik = 2; o.fijn = 30; o.look = 'rots'; } if (t === 'richel'){ o.s = 0.5; o.f = false; o.dx = 0; o.dy = 0; } MK.objects.push(o); MK.sel = o; }
+        if (r <= MK.ground){ o.doel = { c, r }; o.r = Math.min(MK.rows - 1, MK.ground + MK_RIJS_DIEP); } else o.doel = { c, r: MK.ground }; } if (t === 'overhang'){ o.breed = 3; o.dik = 2; o.fijn = 30; o.look = 'rots'; } if (t === 'richel'){ o.s = 0.5; o.f = false; o.dx = 0; o.dy = 0; o.look = 'rots'; } MK.objects.push(o); MK.sel = o; }
     MK.selMask = null; MK.inspectDicht = false; mkNotePaneel();
   }
   else if (t === 'lucht'){                                        // gum: eerst een object weg, anders de grond leeg
@@ -32178,7 +32222,7 @@ function mkNotePaneel(){
       looktl.style.display = '';
       document.getElementById('mkmasklook').value = mkLookOf(m.look);
       document.getElementById('mkmaskvulzwart').checked = !!m.vulZwart;
-      document.getElementById('mkmasklookinfo').textContent = 'Geldt voor het hele masker ' + m.id + '. Kies waar de verborgen plek op lijkt: grotwand, rotswand, savanne of helemaal zwart. Ligt er een gang achter, dan onthult het masker die gang; vink "Blijft zwart na onthullen" aan als het juist zwart moet blijven (een verborgen donker gat).';
+      document.getElementById('mkmasklookinfo').textContent = 'Geldt voor het hele masker ' + m.id + '. Kies waar de verborgen plek op lijkt: grotwand, rotswand, savanne of helemaal zwart. Onzichtbaar tekent niets: je ziet gewoon wat erachter ligt, maar een vijand, zegel, rune of kalebas erbinnen is weg tot het masker onthuld is (dan staat hij er plots). Ligt er een gang achter, dan onthult het masker die gang; vink "Blijft zwart na onthullen" aan als het juist zwart moet blijven (een verborgen donker gat).';
       document.getElementById('mkstacklist').style.display = 'none';
       tablet.textContent = 'M'; tablet.style.background = '#5ad66e'; tablet.style.display = 'flex';
       insp.classList.toggle('dicht', MK.inspectDicht); return;
@@ -32260,7 +32304,8 @@ function mkVulRichel(){
   document.getElementById('mkrichely').value = dy; document.getElementById('mkrichelyv').textContent = (dy > 0 ? '+' : '') + dy;
   document.getElementById('mkrichels').value = s;  document.getElementById('mkrichelsv').textContent = s.toFixed(2).replace('.', ',');
   document.getElementById('mkrichelf').textContent = 'Gespiegeld: ' + (o.f ? 'ja' : 'nee');
-  document.getElementById('mkrichelinfo').textContent = 'De richel staat op zijn cel; sleep hem of stel X (opzij) en Y (hoogte) bij voor de fijne plek. Gespiegeld zet hem tegen de andere wand.';
+  document.getElementById('mkrichellook').value = ledgeLookOf(o.look);
+  document.getElementById('mkrichelinfo').textContent = 'De richel staat op zijn cel; sleep hem of stel X (opzij) en Y (hoogte) bij voor de fijne plek. Gespiegeld zet hem tegen de andere wand. Kleur: steen (de gewone richel), sneeuw of savanne.';
 }
 // een kleurvierkantje voor in de knoppen
 function mkStaal(kleur, dashed, soort){
@@ -32424,7 +32469,7 @@ function mkNaarJSON(){
              if (o.k === 'platform'){ b.doel = o.doel ? { c:o.doel.c, r:o.doel.r } : null; b.breed = o.breed || MK_PLAT_BREED; if (o.stamCel) b.stamCel = o.stamCel; if (o.stamBotCel != null) b.stamBotCel = o.stamBotCel; if (o.stamZij === -1) b.stamZij = -1; }
              if (o.k === 'tandwiel'){ b.modus = o.modus || 'schakellift'; const p = (o.plat && MK.objects.indexOf(o.plat) >= 0) ? o.plat : null; if (p) b.platform = { c:p.c, r:p.r }; }   // alleen een zelf gekozen platform; "dichtstbijzijnde" blijft dat ook na opslaan
              if (o.k === 'overhang'){ b.breed = o.breed || 3; b.dik = o.dik || 2; b.fijn = o.fijn || 0; b.look = o.look === 'savanne' ? 'savanne' : 'rots'; }
-             if (o.k === 'richel'){ b.s = o.s || 0.5; if (o.f) b.f = true; if (o.dx) b.dx = o.dx; if (o.dy) b.dy = o.dy; }
+             if (o.k === 'richel'){ b.s = o.s || 0.5; if (o.f) b.f = true; if (o.dx) b.dx = o.dx; if (o.dy) b.dy = o.dy; if (o.look && o.look !== 'rots') b.look = ledgeLookOf(o.look); }
              return b;
            }) };
 }
@@ -32470,7 +32515,8 @@ function mkUitJSON(o){
       b.fijn = Math.max(-140, Math.min(140, Math.round(Number(q.fijn) || 0)));
       b.look = q.look === 'savanne' ? 'savanne' : 'rots'; }
     if (q.k === 'richel'){ b.s = Math.max(0.3, Math.min(1.2, Number(q.s) || 0.5)); b.f = !!q.f;
-      b.dx = Math.max(-200, Math.min(200, Math.round(Number(q.dx) || 0))); b.dy = Math.max(-150, Math.min(150, Math.round(Number(q.dy) || 0))); }
+      b.dx = Math.max(-200, Math.min(200, Math.round(Number(q.dx) || 0))); b.dy = Math.max(-150, Math.min(150, Math.round(Number(q.dy) || 0)));
+      b.look = ledgeLookOf(q.look); }
     return b;
   }) : [];
   for (const w of objects) if (w._plat){   // een wiel zijn gekozen platform terugkoppelen (op celpositie)
@@ -32741,7 +32787,7 @@ function mkNaarLevel(opt){
     if (o.k !== 'richel') continue;
     const [l, r2] = lr(o.c), x = Math.round((l + r2) / 2 + (o.dx || 0) * dir);
     const h = Math.round((gR - o.r) * MK_CEL_EENH + (o.dy || 0));
-    const e = { x, h, s: o.s || 0.5 }; if (o.f) e.f = true; ledges.push(e);
+    const e = { x, h, s: o.s || 0.5 }; if (o.f) e.f = true; if (o.look && o.look !== 'rots') e.look = ledgeLookOf(o.look); ledges.push(e);
   }
   // health-kalebassen: elk hppotion-voorwerp wordt een hppotions-entry. Staat hij boven de grondlijn, dan krijgt
   // hij die hoogte (y in sprite-eenheden); op of onder de grond laten we y null, dan zet het spel hem op het terrein.
@@ -33445,6 +33491,10 @@ document.getElementById('mkrichels').addEventListener('input', e => {
 document.getElementById('mkrichelf').onclick = () => {
   if (!MK.sel || MK.sel.k !== 'richel') return;
   MK.sel.f = !MK.sel.f; mkVulRichel(); mkBewaar(); mkTeken();
+};
+document.getElementById('mkrichellook').onchange = e => {         // de kleur van de richel: steen, sneeuw of savanne
+  if (!MK.sel || MK.sel.k !== 'richel') return;
+  MK.sel.look = ledgeLookOf(e.target.value); mkVulRichel(); mkBewaar(); mkTeken();
 };
 document.getElementById('mkvijsoort').onchange = e => { if (MK.sel && MK.sel.k === 'vijand'){ MK.sel.soort = e.target.value; mkBewaar(); mkTeken(); mkNotePaneel(); } };
 document.getElementById('mkmasklook').onchange = e => { if (MK.selMask){ MK.selMask.look = mkLookOf(e.target.value); mkBewaar(); mkTeken(); } };   // de look voor het hele masker
@@ -34540,8 +34590,8 @@ function sbMasker(soort){
     cv.focus(); return;
   }
   const r = world - S.voor, l = r - S.breed, mid = (l + r) / 2;
-  level.maskers.push({ id, r, l, boven: S.boven, onder: S.onder, look: 'grot', sbMasker: true, onthuld: false, t: 1 });
-  if (soort === 'slang'){
+  level.maskers.push({ id, r, l, boven: S.boven, onder: S.onder, look: soort === 'onzichtbaar' ? 'onzichtbaar' : 'grot', sbMasker: true, onthuld: false, t: 1 });
+  if (soort === 'slang' || soort === 'onzichtbaar'){
     const sn = makeSnake('groen'); sn.x = mid; sn.side = -1; sn.base = vloerBij(mid, 0); sn.sbMasker = true; snakes.push(sn);
   }
   if (soort === 'zegel' || soort === 'slang'){        // een grond-zegel voor het masker dat het onthult (zoals een tandwiel gekoppeld)
@@ -34555,11 +34605,13 @@ function sbMasker(soort){
     if (!level.zegels) level.zegels = [];
     level.zegels.push({ x: mid, ravijn: l - 400, teken: 'rune', sbMasker: true });
     flashHint('Loop in het masker: er ligt een zegel achter dat je dan pas kunt gebruiken');
-  } else flashHint('Loop in het masker; het valt stil weg (eenmaal gezien voorgoed weg)');
+  } else if (soort === 'onzichtbaar') flashHint('Je ziet niets bijzonders: loop verder, en de slang staat er plots');
+  else flashHint('Loop in het masker; het valt stil weg (eenmaal gezien voorgoed weg)');
   cv.focus();
 }
 document.getElementById('sbmasker').onclick = () => sbMasker('leeg');
 document.getElementById('sbmaskerslang').onclick = () => sbMasker('slang');
+document.getElementById('sbmaskeronzichtbaar').onclick = () => sbMasker('onzichtbaar');
 document.getElementById('sbmaskerzegel').onclick = () => sbMasker('zegel');
 document.getElementById('sbmaskerverborgen').onclick = () => sbMasker('verborgen');
 document.getElementById('sbmaskergang').onclick = () => sbMasker('gang');
