@@ -16,7 +16,38 @@ kant (`sbFromRight`), altijd geklemd tussen `endWall()` en `cliffAt().wall`.
 
 De knop Sandbox in het menu opent eerst een keuzescherm (`menuSandbox`): de vrije sandbox
 (`startSandbox(false)`) of de arena-modus (`startSandbox(true)`, vlag `sbArena`). De arena is de
-gewone sandbox met twee verschillen: klappen kosten levens (`hurtPlayer` slaat de sandbox-uitzondering
+gewone sandbox met drie verschillen: het veld, de levens en de spawner.
+
+Het veld (`sbArenaVeld`, uit `restart` zodra `sbArena` aan staat, voor `sbArenaReset`) is de arena van de
+koning (Valse Koning 8, `bandArenaStart`) na de aankomst, maar zonder takel: Amir begint meteen midden op
+de vloer met de speer in de hand. Het hergebruikt het arena-object: `arenaAap = {ban: true, sb: true,
+staging: false, fase: 'vrij', c, links, rechts, ...}` met dezelfde `span` als `arenaMidden()`, zodat
+`arenaAchtergrond` de twee grijze zijwanden tekent, `arenaCam` en `updateCamera` de camera vast in het
+midden zetten (hij schuift niet met Amir mee, dus de wanden staan stil) en de hoofdlus Amir tot aan de
+schermranden klemt (`arenaVast()`: `A.ban && !A.staging`, dezelfde test als de bandiet-arena, nu ook zonder
+`level.bandArena`). De vlag `sb` laat `arenaTick` en `arenaHudTeken` eruit stappen: de golven en de teller
+komen uit deze sectie. `sbArenaMaat` zet de twee rotsrichels hoog tegen de wanden, verankerd aan de
+schermranden zoals in `bandArenaTick` (links lager en groter, rechts hoger en kleiner), en de echte
+rechtergrens `level.rechtsWall` ver voorbij de schermrand, zodat een vijand van rechts buiten beeld kan
+beginnen (links is er geen klif, `endWall` is -oneindig); de knoppen Uitzoomen roepen `sbArenaMaat` opnieuw
+aan. `stopSandbox` haalt het veld weg (`arenaReset`), en de knoppen
+Arena aan/uit onder Goudaap en Bandiet doen in de arena-modus niets (de arena staat al).
+
+Ruimer dan de echte arena, op dezelfde maat (`SB_ARENA_VELD`): de zijwanden worden dunner getekend
+(`wandSchaal` 1,3 op het arena-object, `arenaAchtergrond` leest `A.wandSchaal || ARENA.wandSchaal`; de
+goudaap-arena houdt 1,85 voor de hangers), de richels zitten daarom iets dieper in de rand (`richelDiep`,
+0,55 Amir in plaats van 1), en de verre lagen schuiven een klein stuk met Amir mee (`parallax` 0,08): `scene`
+verschuift `world` (tijdens het tekenen de camera) richting `camSwap` (Amir) voor de lucht, de bergen en de
+bomen, en zet hem terug voor `arenaAchtergrond` en de grond, zodat de wanden, de vloer en alles erop stil
+staan. Het uitzicht blijft het gewone avonduitzicht (`sbLagen = ''`): de lage einder voelt opener dan het
+hoogland van Valse Koning 8. Dit zijn de suggesties 2, 3 en 4 uit het overleg; de wanden op de schermrand
+(1) is bewust niet gedaan, zodat de arena even breed blijft als de echte.
+
+Omdat de camera vast staat rekent "net buiten beeld" en "in beeld" om het arena-midden, niet om Amir:
+`kijkMidden()` (het arena-midden in een vaste arena, anders `world`) in `sbArenaSpawn`, `hyBuitenBeeld` en
+`slangInBeeld`. Buiten een vaste arena verandert daar niets.
+
+Klappen kosten levens (`hurtPlayer` slaat de sandbox-uitzondering
 over als `sbArena` aan staat, en het levens-element staat aan) en er loopt een spawner. Die zit in de
 sectie "arena-modus: golven vijanden in de sandbox", naar het voorbeeld van de bandietgolf
 (`updateBandietGolf`): `SB_ARENA_SOORTEN` is de lijst soorten met hun standaardwaarden, `sbArenaCfg`
