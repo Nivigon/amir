@@ -85,17 +85,45 @@ ravijn, anders op `amir_start_x`), van hem af gekeerd, met zijn speer in de hand
 blijft nog `EXE.lijk` en vervaagt dan.
 
 **De worp-kill**: `exeStart` haalt de geworpen speer weg (`jav = null`, de lagen tekenen hem in zijn borst), de wereld
-loopt gewoon door: `knielen`, dan `wankel` in een loop, `EXE.wankelDuur` (3 s) lang. Staat Amir binnen `EXE.ePlek` van
-`amir_start_x` op dezelfde vloer (`exeBij`), dan staat er een E boven hem (`exeETeken`, via `skE`; `eNodig` zet de E-knop
+loopt gewoon door: `knielen`, dan `wankel` in een loop, `EXE.wankelDuur` (3 s) lang. Staat Amir binnen `EXE.eReik` (ruim een
+Amir) van hem, aan beide kanten, op dezelfde vloer (`exeBij`), dan staat er een E boven hem (staat Amir achter hem, dan
+draait hij bij E eerst naar hem toe) (`exeETeken`, via `skE`; `eNodig` zet de E-knop
 op de telefoon erbij) en start E de executie (`exeTrek`, vooraan in `toggleSpear`). Zonder E maakt hij de lopende loop af
 en speelt hij `val`; vanaf frame `EXE.speerLigtVan` (7) ligt Amirs speer echt op de grond (`exeSpeerNeer`: een `jav` op
 de grond op `speer_ligt_op`, de punt naar zijn voorkant, op te pakken met E zoals na een worp; is je hand al weer vol van
 de rug, dan een losse speer), en tekent de `speer`-laag niet meer. Daarna blijft hij liggen en vervaagt hij zoals de
 gewone dood (`SCHB.dood.lig`, `vervaag`).
 
-**Effecten en geluid komen later.** De haakjes staan klaar: `exeHaakFreeze` (begin van de freeze, de steek of E),
-`exeHaakRuk` (executie frame 5 naar 6), `exeHaakLanding` (frame 16) en `exeHaakSplijt`. De executie speelt nu zonder de
-doodskreet en zonder het geluid van de bloedspuit.
+**Het ritme** (`EXE.exeDur`, `EXE.t`, `exeDuur`), zoals een combat game het doet: anticipatie lang, de actie een paar korte
+frames, op de impact een hitstop met schok, en een korte slowmotion om de klap te laten nazinderen. De frametijden van
+`executie` komen niet uit de json maar uit `EXE.exeDur` (de andere bewegingen houden de json): 0 tot 4 rustig (200, 150,
+150, 120, 120), frame 5 de aanzet met een hold van `t.aanzet` (450 ms) en een trilling (`EXE.tril`), 6 tot 9 de ruk in
+frames van 45 ms, 10 tot 13 het hangmoment iets trager (70, 100, 110, 100), 14 en 15 versnellen (50, 40), 16 de landing
+(450 ms). Hitstops binnen de freeze (`e.stop`, `exeTick` staat dan stil en de schok rommelt na op `realDt`): op de
+dodelijke steek `t.steekStop` (0,2 s, Amir blijft die tel in zijn stootpose, `exeSpeerWeg` houdt daar rekening mee, en
+komt pas daarna op `amir_start_x`: `exeBevries` met `naStop`, `exeAmirZet`), op de ruk `t.rukStop` (0,1 s, schok
+`schokRuk`, een flits) en op de landing `t.landStop` (0,13 s, schok `schokLand`, stof onder Amirs voeten). De camera komt
+op de freeze een stap dichterbij (`EXE.zoom.snap`, `exeZoomNu` vermenigvuldigt `viewZoom`; `viewBasis` is de oude view),
+kruipt naar `zoom.tot` en veert na de freeze terug (`exeZoomStap`, elk beeld). Het splijten loopt op een trage klok
+(`e.tS`, `exeTraag`): de eerste `t.traagDuur` (0,35 s) op `t.traag` (0,3), dan in `t.ramp` naar echte tijd; de helften
+schuiven eerst traag open en vallen dan om tot `splijt.draai` (1,35 rad), blijven als lijk liggen en vervagen met de rest;
+een rode waas aan de rand van het scherm (`exeVignetTeken`, in de schermlaag) dooft in `vignet.duur`. Na de freeze is Amir
+`t.veilig` (0,4 s) onkwetsbaar. Bij de worp telt E dat net te vroeg kwam nog `EXE.eBuffer` (0,2 s, `exeEBuffer` in
+`exeTrek` en de wankel in `exeTick`). De hitstops, de hold, en de slowmotion zijn live af te stellen in de pauze onder
+**Schildbandiet: executie** (`pzexe`, `EXE_SCHUIF`, bewaard onder `EXE_TEMPO_KEY`; de knop staat naast Schildbandiet:
+tempo, via `schbTempoKnopToon`).
+
+**Geluid.** Op de snee (het begin van het splijten) klinkt `sounds/beheaded.mp3` (`EXE.snij`, `exeSnijSpeel`). Dat bestand
+heeft twee geluiden achter elkaar (het eerste van 0 tot 2,35 s met de haal op 0,15 s, dan stilte, het tweede vanaf 3,4 s);
+alleen het eerste speelt: hij start op `snij.van` (0,05 s) en `exeSplijtStap` pauzeert hem op `snij.tot` (2,35 s), en
+`restart` ook. De rest van de effecten en het geluid komen later: de haakjes staan klaar, `exeHaakFreeze` (begin van de
+freeze, de steek of E), `exeHaakRuk` (frame 5 naar 6), `exeHaakLanding` (frame 16) en `exeHaakSplijt`. De doodskreet en
+het geluid van de bloedspuit spelen nog niet.
+
+**Test 50: De executie** is het proefstuk: vlakke grond, een makkelijke schildbandiet, `speerInHand` (R begint meteen
+opnieuw) en `executie: true`: elke dodelijke steek, worp en ook de lage zwaai (die telt dan als steek) is de executie
+(`exeKans`, `hitSchildman`). De lagen laden in een level achter de laadpoort (`schbLaadLevel` roept `exeLaad` aan, en
+`warmBouw` wacht op `schbBank.executie`), niet pas bij de spawn.
 
 **Kleine set en geheugen.** `tools/gen-klein.py` halveert `enemies/schildbandiet/executie/lagen` met drempel 60 (zoals de
 lagen van loop, strike en flinch); `dx`, `dy`, `w` en `h` blijven, het spel rekt het halve plaatje naar die maat.
