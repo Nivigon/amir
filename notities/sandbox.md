@@ -41,7 +41,10 @@ verschuift `world` (tijdens het tekenen de camera) richting `camSwap` (Amir) voo
 bomen, en zet hem terug voor `arenaAchtergrond` en de grond, zodat de wanden, de vloer en alles erop stil
 staan. Het uitzicht blijft het gewone avonduitzicht (`sbLagen = ''`): de lage einder voelt opener dan het
 hoogland van Valse Koning 8. Dit zijn de suggesties 2, 3 en 4 uit het overleg; de wanden op de schermrand
-(1) is bewust niet gedaan, zodat de arena even breed blijft als de echte.
+(1) is bewust niet gedaan, zodat de arena even breed blijft als de echte. Daarnaast twee wandfakkels
+(`level.fakkels`, gezet in `sbArenaMaat`, gemerkt `arena: true` zodat een fakkel uit de knop Decor, Fakkel
+blijft staan): een aan elke rotswand onder de richel, `fakkelX` Amir buiten de wandlijn (daar staat de rots)
+op hoogte `fakkelY`; ze laden lui via de tekenlus (`fakkelLaad`).
 
 Omdat de camera vast staat rekent "net buiten beeld" en "in beeld" om het arena-midden, niet om Amir:
 `kijkMidden()` (het arena-midden in een vaste arena, anders `world`) in `sbArenaSpawn`, `hyBuitenBeeld` en

@@ -1036,7 +1036,7 @@ dezelfde twee grijze rotswanden met de twee rotsrichels hoog tegen de wanden. De
 staat vast in het midden en schuift niet met je mee, zodat de wanden stil staan; je kunt tot aan de schermranden
 rennen. Om het ruimer te laten voelen dan de echte arena zijn de wanden dunner, schuiven de bergen en de bomen
 erachter een klein stukje met je mee terwijl de wanden stil blijven, en is het uitzicht de gewone avond met de
-lage einder. Dezelfde knoppen als de sandbox, maar nu komen de vijanden vanzelf binnenlopen, van links en rechts,
+lage einder. Aan elke rotswand brandt een fakkel onder de richel. Dezelfde knoppen als de sandbox, maar nu komen de vijanden vanzelf binnenlopen, van links en rechts,
 langs de rots net buiten beeld, en heb je gewoon je levens: ga je dood, dan begint R opnieuw en loopt de klok weer vanaf nul.
 Het paneel opent op het tabblad **Arena**. Daar zet je per soort aan of hij meedoet (schorpioen, de
 drie slangen, de fosforslangen, de hyena, de panter, de bandiet, de schildbandiet in zijn makkelijke
