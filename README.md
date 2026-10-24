@@ -607,7 +607,10 @@ De schildbandiet is de uitzondering: zijn schild vangt de klappen op, hij zelf n
 groene balk staat daarom een houten schildbalk met drie vakjes. Elke klap op het schild kost een
 vakje, zijn eigen balk blijft vol, en je ziet het aan het schild zelf: na de eerste klap is er een hap
 uit, na de tweede twee. Is het schild gebroken, dan verdwijnt die houten balk, en de
-volgende klap is in een keer van vol naar dood. De panter en de baviaan houden hun eigen balk
+volgende klap is in een keer van vol naar dood. Je hoort het ook: elke klap op het schild is een harde
+houten klap die boven je eigen stoot uitkomt (die duikt even weg voor de klap), en elke volgende klap
+klinkt een slag lager en zwaarder, de breuk als een dubbele klap. Dekt hij zich en ketst je speer af,
+dan klinkt dat hoger en droger, zodat je hoort dat die treffer niet telde. De panter en de baviaan houden hun eigen balk
 bovenin beeld. Is hij dood, dan blijft zijn lijk na de doodanimatie nog zeven seconden liggen, met zijn gevallen speer ernaast, en dan vervaagt het en is het weg. Dat geldt overal, in elk level en in de sandbox, zodat de grond in een lang gevecht niet vol lijken komt te liggen.
 
 Bij die laatste klap valt zijn speer uit zijn hand, en die valt echt: hij stuit even op de grond en
