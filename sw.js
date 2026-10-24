@@ -46,6 +46,22 @@ const SHELL = [
 // lijn te vullen, laag genoeg om Safari niet te laten stikken in verzoeken.
 const PARALLEL = 6;
 
+// Is dit de fout van een volle opslag? Dan zegt het spel dat in plaats van "geen verbinding".
+const isVol = (err) => !!err && (err.name === 'QuotaExceededError' || err.code === 22);
+
+// Een runtime-cachefout (tijdens het spelen een bestand bewaren dat niet past) houdt het spel niet
+// tegen: het bestand komt gewoon van het net. Maar stil wegeten maakte een volle opslag onzichtbaar.
+// We onthouden het daarom, melden het een keer in de console en geven het mee met de status.
+let runtimeVol = false;
+let runtimeGemeld = false;
+function runtimeFout(err) {
+  if (isVol(err)) runtimeVol = true;
+  if (!runtimeGemeld) {
+    runtimeGemeld = true;
+    console.warn('[sw] een bestand kon niet in de cache:', err && (err.name || err.message || err));
+  }
+}
+
 const isAsset = (url) => /\.(png|jpe?g|mp3)$/i.test(url.pathname);
 const isFontHost = (url) =>
   url.host === 'fonts.googleapis.com' || url.host === 'fonts.gstatic.com';
@@ -115,7 +131,7 @@ async function cacheFirst(req, cacheName, opts = {}) {
     // Een opaak antwoord (status 0) bewaren we ook; de browser kan het
     // uitserveren, alleen wij kunnen er niet in kijken.
     if (res && (res.ok || res.type === 'opaque')) {
-      cache.put(req, res.clone()).catch(() => {});
+      cache.put(req, res.clone()).catch(runtimeFout);
     }
     return res;
   } catch (err) {
@@ -147,7 +163,8 @@ async function rangeBuffer(req) {
     // Nog niet in de cache: het hele bestand halen en bewaren, dan snijden.
     const res = await fetch(plain);
     if (!res.ok) return null;
-    await cache.put(plain, res.clone());
+    // past het niet in de cache (opslag vol), dan toch afspelen: alleen niet bewaren
+    try { await cache.put(plain, res.clone()); } catch (err) { runtimeFout(err); }
     hit = res;
   }
   const entry = { buf: await hit.arrayBuffer(), headers: hit.headers };
@@ -208,7 +225,7 @@ async function networkFirst(req, cacheName) {
   const cache = await caches.open(cacheName);
   try {
     const res = await fetch(req);
-    if (res && res.ok) cache.put(req, res.clone()).catch(() => {});
+    if (res && res.ok) cache.put(req, res.clone()).catch(runtimeFout);
     return res;
   } catch (err) {
     const hit = await cache.match(req, { ignoreVary: true });
@@ -329,6 +346,7 @@ async function reportStatus(set) {
       total: assets.length,
       bytes: bytesVoor(manifest, set),
       version: manifest.version,
+      vol: runtimeVol,
     });
   } catch (err) {
     await post({ type: 'status', error: String(err.message || err) });
@@ -358,6 +376,13 @@ async function precacheAll(set) {
   const total = assets.length;
   let done = 0;
   let failed = 0;
+  let vol = 0;            // waarvan omdat de opslag vol is (QuotaExceededError)
+  const mist = [];        // de eerste paar bestanden die niet lukten, voor de console van het spel
+
+  function noteer(rel, waarom) {
+    failed++;
+    if (mist.length < 5) mist.push(rel + ' (' + waarom + ')');
+  }
 
   const queue = assets.slice();
 
@@ -370,10 +395,11 @@ async function precacheAll(set) {
         if (!(await cache.match(req, { ignoreVary: true }))) {
           const res = await fetch(req);
           if (res.ok) await cache.put(req, res.clone());
-          else failed++;
+          else noteer(rel, 'HTTP ' + res.status);
         }
       } catch (err) {
-        failed++;
+        if (isVol(err)) vol++;
+        noteer(rel, isVol(err) ? 'opslag vol' : String((err && err.message) || err));
       }
       done++;
       // Niet bij elk bestand een bericht: dat zou honderden keren per seconde
@@ -386,8 +412,20 @@ async function precacheAll(set) {
 
   await Promise.all(Array.from({ length: PARALLEL }, worker));
 
-  await cache.put(VERSION_KEY, new Response(manifest.version));
+  // De versie alleen bevestigen als alles binnen is. Mislukte er iets, dan blijft het bij de stempel
+  // die syncAssetVersion aan het begin zette: die zegt alleen van welke versie de bestanden zijn die er
+  // wel staan, en reportStatus telt per bestand, dus de knop blijft op "Download voor offline" en een
+  // volgende poging haalt via cache.match alleen het ontbrekende op. Ook bij een volle opslag mag deze
+  // laatste put het klaarbericht niet tegenhouden: zonder dat bleef de knop voorgoed op "Bezig" staan.
+  if (failed === 0) {
+    try {
+      await cache.put(VERSION_KEY, new Response(manifest.version));
+    } catch (err) {
+      noteer('versie', isVol(err) ? 'opslag vol' : String((err && err.message) || err));
+      if (isVol(err)) vol++;
+    }
+  }
   // Geen reportStatus erachteraan: die zou de klaarmelding meteen weer
   // overschrijven met een telling. Het spel weet uit dit bericht genoeg.
-  await post({ type: 'precache-done', total, failed, bytes: bytesVoor(manifest, set) });
+  await post({ type: 'precache-done', total, failed, vol, mist, bytes: bytesVoor(manifest, set) });
 }
