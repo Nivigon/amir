@@ -11027,7 +11027,8 @@ function deelTijd(delen, f){
 const bavBrulSnd = geluidAan(new Audio(BAV_BRUL.geluid.src));
 bavBrulSnd.preload = 'auto';
 // de klok van de baviaan, in ms speltijd: loopt mee met het tempo uit de instellingen (op een telefoon
-// trager, gameTempo) en staat stil in de pauze, net als Amir
+// trager, gameTempo) en staat stil in de pauze, net als Amir. Ook de speerworp rekent erop (thrPressT,
+// thr.t0, thr.rel): een nieuwe tijd die met het spel mee moet lopen hoort hier, niet op performance.now()
 let bavKlok = 0;
 // zijn rensnelheid: Amirs sprint, ook als je Amir in de instellingen trager of sneller laat lopen (walkTempo)
 const bavV = () => BAV_RUN.v * walkK();
@@ -14159,7 +14160,7 @@ const WORP_WACHT = {
 };
 let sbWorpWacht = true;                  // de schakelaar in de sandbox: nieuw (ademen, afbreken) of zoals het was
 function worpWacht(){ return sandbox ? sbWorpWacht : true; }
-let thrPressT = 0;       // wanneer de knop ingedrukt ging, voor de tik- en oplaaddrempel
+let thrPressT = 0;       // wanneer de knop ingedrukt ging, voor de tik- en oplaaddrempel (bavKlok, speltijd in ms)
 
 // ---- het projectiel -----------------------------------------------------
 const JAV = {
@@ -14310,7 +14311,9 @@ function canThrow(){
       && atkFrame < 0 && swFrame < 0 && swRecover <= 0 && duckT <= 0;
 }
 function thrPress(){
-  thrPressT = performance.now();
+  // op speltijd, niet op de wandklok: wie vasthoudt en pauzeert, hervat met dezelfde lading, en op een
+  // telefoon (gameTempo) duurt het opladen even lang als de rest van zijn bewegingen
+  thrPressT = bavKlok;
   if (amirVast()) return;                          // de baviaan heeft je speer vast, of hij sterft net
   if (schijnLigt()) return;                        // Feign Death: hij ligt nog
   glijStart();                                     // in volle sprint: hij glijdt door (zie renstoot)
@@ -14321,18 +14324,18 @@ function thrPress(){
 // tot welk frame mag hij nu uittrekken? Pas na THR_CHARGE komt de tweede trap vrij
 function thrStop(){
   if (worpSchaal()) return THR_WIND;               // eerst helemaal uittrekken; daarna zet thrHoek het frame
-  return (performance.now() - thrPressT >= THR_CHARGE * 1000) ? THR_WIND : THR_DRAW1;
+  return (bavKlok - thrPressT >= THR_CHARGE * 1000) ? THR_WIND : THR_DRAW1;
 }
 function thrRelease(cancel){
   if (!thr) return;
-  const tik = performance.now() - thrPressT < THR_TAP * 1000;
+  const tik = bavKlok - thrPressT < THR_TAP * 1000;
   if ((cancel || tik) && thr.frame <= THR_WIND && !thr.gone){
     thr = null;                                    // afgebroken: hij houdt zijn speer
     if (tik && !cancel) startAttack();             // een tik op dezelfde knop is de oude stoot
     return;
   }
   if (!thr.held) return;
-  thr.held = false; thr.rel = performance.now();
+  thr.held = false; thr.rel = bavKlok;
   thr.lob = thr.frame >= THR_WIND;                 // helemaal uitgetrokken? Dan wordt het de boog
   // bij de schaalworp staat de hoek vanaf nu vast: de speer gaat pas op THR_LOOSE weg
 }
@@ -14346,7 +14349,7 @@ function thrSchaalFr(hoek){
 // helemaal uitgetrokken is, dus wie voor die tijd loslaat gooit altijd vlak.
 function thrHoek(){
   if (!thr.held || !worpSchaal() || (thr.frame < THR_WIND && !thr.t0)) return;   // daarna tilt hij terug naar 5 en 4
-  const nu = performance.now();
+  const nu = bavKlok;                                // speltijd: staat stil in de pauze
   if (!thr.t0) thr.t0 = nu;
   const f = Math.min(1, (nu - thr.t0) / (THR_HOEK_T * 1000));
   thr.hoek = THR_HOEK_MAX * Math.pow(f, THR_HOEK_KROM);
@@ -14406,7 +14409,7 @@ function updateThrow(dt){
 // THR_GRACE voor de klap, of al voorbij het spannen, dan gaat de speer alsnog weg.
 function thrHurt(){
   if (!thr) return;
-  const sinds = thr.rel ? (performance.now() - thr.rel) / 1000 : Infinity;
+  const sinds = thr.rel ? (bavKlok - thr.rel) / 1000 : Infinity;
   if (!thr.gone && (thr.frame > THR_WIND || sinds <= THR_GRACE)) looseSpear();
   thr = null;
 }
