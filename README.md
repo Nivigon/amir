@@ -572,7 +572,8 @@ nieuwe levels hebben hem, en ook de proefstukken van de schildbandiet (Test 45 e
 
 De schildbandiet is de uitzondering: zijn schild vangt de klappen op, hij zelf niet. Boven zijn
 groene balk staat daarom een houten schildbalk met drie vakjes. Elke klap op het schild kost een
-vakje, zijn eigen balk blijft vol. Is het schild gebroken, dan verdwijnt die houten balk, en de
+vakje, zijn eigen balk blijft vol, en je ziet het aan het schild zelf: na de eerste klap is er een hap
+uit, na de tweede twee. Is het schild gebroken, dan verdwijnt die houten balk, en de
 volgende klap is in een keer van vol naar dood. De panter en de baviaan houden hun eigen balk
 bovenin beeld.
 
