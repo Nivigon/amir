@@ -975,6 +975,14 @@ def vijanden(lv, sp):
             yield letop(o['x'], 'vijand %s start boven een ravijn' % o.get('k'))
 
 
+def liften_in(lv, g):
+    """De takel-platforms (lijst takels, uit de Maker nieuwstijl) die in dit ravijn staan: een lift die van
+    de bodem van de gang (binnen een sprong) tot bij de grondlijn reist, is een weg naar boven."""
+    l, r = g['x'] - g['w'] / 2, g['x'] + g['w'] / 2
+    return [t for t in lv.d.get('takels') or [] if isinstance(t.get('px'), (int, float))
+            and all(isinstance(t.get(k), (int, float)) for k in ('laag', 'hoog')) and l <= t['px'] <= r]
+
+
 def rijs_in(lv, g):
     """De blokken rijzende grond die in dit ravijn staan."""
     l, r = g['x'] - g['w'] / 2, g['x'] + g['w'] / 2
@@ -1740,10 +1748,16 @@ def onder_de_grond(lv, sp):
                 van, tot = b.get('van', -900), b.get('tot', -1)
                 if not b.get('zak') and van <= -o['diep'] + sp.SPRONG_H and tot > -sp.SPRONG_H:
                     uit = True
+            # of een takel-lift uit de Maker: een platform in het gat dat van de bodem (binnen een sprong) tot bij
+            # de grondlijn reist (de Maker maakt het gat in het dak boven zo'n platform zelf, zie mkNaarLevel)
+            for t in liften_in(lv, g):
+                if t['laag'] <= -o['diep'] + sp.SPRONG_H and t['hoog'] > -sp.SPRONG_H:
+                    uit = True
         if not uit:
             yield fout(o['l'], 'het einde (%s) ligt voorbij de gang van %s tot %s, maar er is geen weg naar boven: '
                        'een gat in het dak met treden erin, de bovenste tegen de linkerrand van het gat en '
-                       'minder dan %s onder de grondlijn' % (n0(eind), n0(o['r']), n0(o['l']), n0(sp.SPRONG_H)))
+                       'minder dan %s onder de grondlijn, of een lift in het gat (rijzende grond of een '
+                       'takel-platform) van de bodem tot de grondlijn' % (n0(eind), n0(o['r']), n0(o['l']), n0(sp.SPRONG_H)))
 
 
 @regel('onder de grond')

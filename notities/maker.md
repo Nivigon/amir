@@ -105,7 +105,8 @@ naar de cel), die bijblijft zolang hij open staat. Drie soorten:
 
 Het is alleen wat uit het grid zelf af te lezen is. Sprongen, bereik en de speer kijkt
 `tools/levelcheck.py` na: druk op **Spel-JSON** en geef die tekst als bestand aan levelcheck of de
-speelrobot.
+speelrobot. Levelcheck kent een lift uit de Maker (een platform in het gat boven een gang dat van
+de bodem tot de grondlijn reist, `takels`) als weg omhoog uit die gang (`liften_in`).
 
 ## Sneltoetsen
 
@@ -139,4 +140,3 @@ regel bij, en een controle in de lijst `check(...)`.
 Geen minimap, geen aanraking (pannen en zoomen kan
 alleen met muis en toetsen), geen prop-keuze (een prop is een aantekening), en een zegel kent
 alleen een masker en Verborgen, niet de andere zegel-velden (`speerval`, `rijs`, `plafond`).
-`levelcheck.py` kent een lift uit de Maker (`takels`) nog niet als weg omhoog uit een gang.
