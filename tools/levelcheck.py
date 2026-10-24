@@ -1428,7 +1428,13 @@ def zegels(lv, sp):
         x = z.get('x')
         if not isinstance(x, (int, float)):
             continue
-        if lv.holte(x):
+        if lv.holte(x) and z.get('dak'):
+            # dak: true, hij ligt op de savanne bovenop de gang; een gat in het dak draagt hem niet
+            if lv.in_gat(x - sp.zegelR, x + sp.zegelR):
+                yield fout(x, 'zegel met dak: true boven een gat in het dak: daar kan Amir niet op staan')
+            else:
+                yield info(x, 'zegel op het dak van de gang: hij ligt op de savanne erboven')
+        elif lv.holte(x):
             yield info(x, 'zegel in de gang: hij ligt op de bodem of op een trede')
             if lv.in_gat(x - sp.zegelR - 200, x + sp.zegelR + 200):
                 yield letop(x, 'zegel in een gang vlak bij een gat in het dak: hij ligt op de bodem, en wie op de '
@@ -1827,8 +1833,9 @@ def gangen(lv, sp):
             yield fout(t['x'], 'doornbos op %s staat in de gang en is %s hoog: hij steekt door het dak'
                        % (n0(t['x']), n0(sp.doornbos_hoog(t))))
     # de speer: aan het begin staat hij op SPEAR_AHEAD in de grond, en in een gang staat hij beneden.
-    # Met geenSpeer staat er geen startspeer (je haalt er een uit een skelet), dus dan geldt dit niet.
-    if not lv.muur and not lv.d.get('geenSpeer') and lv.holte(sp.SPEAR_AHEAD) and not lv.in_gat(sp.SPEAR_AHEAD - 30, sp.SPEAR_AHEAD + 30):
+    # Met geenSpeer staat er geen startspeer (je haalt er een uit een skelet), en met speerInHand (de Level
+    # Maker) begint Amir met de speer in de hand: in beide gevallen staat er niets in de grond, dus geldt dit niet.
+    if not lv.muur and not lv.d.get('geenSpeer') and not lv.d.get('speerInHand') and lv.holte(sp.SPEAR_AHEAD) and not lv.in_gat(sp.SPEAR_AHEAD - 30, sp.SPEAR_AHEAD + 30):
         yield fout(sp.SPEAR_AHEAD, 'je speer staat aan het begin op %s, en daar ligt een gang: hij staat beneden op de '
                    'bodem, onder de savanne waar Amir begint. Laat de gang verderop beginnen' % n0(sp.SPEAR_AHEAD))
 
