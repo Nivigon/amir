@@ -68,6 +68,10 @@ DOELEN = [
                                         # een lijf rond 330), dus onder de gewone drempel; even veilig te halveren
                                         # als de complete frames, want het is dezelfde tekening op dezelfde schaal.
                                         # Voor de map hieronder: het eerste doel dat een bestand noemt, wint
+    ('enemies/schildbandiet/executie/lagen', 60),  # de executie (executie.json): knielen, wankel, val en de special
+                                        # execution, ook bijgesneden lagen (Amir rond 190 tot 265 hoog, een lijf
+                                        # rond 330, een wond 123), dus dezelfde lage drempel; dx, dy, w en h in de
+                                        # json blijven ongewijzigd, het spel rekt het halve plaatje naar die maat
     ('enemies/schildbandiet', 400),     # de schildbandiet: 52 frames op een canvas van 544x860; de
                                         # figuur is 340 hoog en wordt op iets boven Amir zijn hoogte getekend
                                         # (alle sets: loop, strike en flinch per schildstaat, en de dood)
