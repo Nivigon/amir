@@ -63,6 +63,11 @@ Altijd WYSIWYG: links in het grid is links in het spel, de wereld-x is `(kolom -
 - Een blok vaste cellen boven de grondlijn is een terras (`terraces`, savanne met `grond: true`,
   rots en muur met `af: true`); een blok met lucht eronder is een zwever (`zwevers`). Een muur die
   op de grondlijn doorloopt gaat precies die ene cel de grond in (`door`).
+- Een terras, mesa of muur op het oppervlak boven een gang staat op de savanne, niet in de gang eronder.
+  Voor Amir was dat al zo (`updateJump`); voor een vijand in de gang ook: hij loopt eronderdoor
+  (`blocksMonster`, en `vloerBij` tilt hem niet naar de top via `terrainHGang`), hij ziet je erdoorheen
+  en de lichtkaart maakt de gang er niet donker (`lkVastPunt`, ook via `terrainHGang`). Eerst was zo'n
+  kolom voor hem een muur tot op de gangvloer: de schildman bleef er in zijn wacht staan.
 - Gang-cellen onder de grondlijn zijn een holte (`holtes`), minstens 3 cellen diep; de ingang teken
   je zelf als ravijn op de grondlijn. Een vaste cel in de gang is een trede op zijn diepte; de
   gangvloer komt uit de holte (`gangVloer`), niet uit de kolom zelf, zodat een trede op de onderste
@@ -71,7 +76,9 @@ Altijd WYSIWYG: links in het grid is links in het spel, de wereld-x is `(kolom -
   voor slangen en panters (regel 7).
 - Voorwerpen: overhang naar een zwever, richel naar `ledges`, kalebas naar `hppotions`, platform
   met doel plus zijn tandwielen naar `takels` (met `stam: true`), zegel en rune met een masker naar
-  `zegels`/`runes` plus `acties`, een verborgen zegel ook zonder masker.
+  `zegels`/`runes` plus `acties`, een verborgen zegel ook zonder masker. Een zegel op de grondlijn
+  boven een gang krijgt `dak: true` en `readLevel` neemt dat over (eerst viel het daar weg, en lag het
+  zegel toch op de gang-bodem).
 - Vijanden via `mkSpawn`: de soort-tekst (`bandiet:dolk`, `kooiman:vogel`, `schildman:makkelijk`)
   wordt de spawn met zijn vlaggen; een vijand op een laag krijgt `boven: true`, in een gang `y`.
   De knoppen uit `MK_VIJ_KNOP` gaan alleen mee als ze van de standaard afwijken; een vinkje als
