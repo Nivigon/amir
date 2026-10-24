@@ -164,3 +164,20 @@ node tools/bouwertest.js              alle levels
 node tools/bouwertest.js "Test 4"     alleen de levels waarvan de naam dit bevat
 node tools/bouwertest.js --shots map  daarna een schermafdruk van de bouwer
 ```
+
+## De makertest: tools/makertest.js
+
+Laadt de Maker nieuwstijl in Chromium, zet er een proefgrid in waar alles op staat (een gat, een
+gang met treden, een mesa, een zwever, een muur door de grond, sneeuw, elk voorwerp, een masker,
+een zwarte cel en een vrije vorm) en doet wat een maker doet: exporteren en weer inlezen, het grid
+naar een spel-level vertalen, rijen invoegen en weghalen, verkleinen, snel schilderen, een
+rechthoek trekken, een breed voorwerp aanklikken, ongedaan maken en opnieuw, de vijand-knoppen,
+de controle, de Test starten en teruggaan, en de autosave. Het proefgrid gaat als spel-level ook
+door `levelcheck.py`. Elke stap meldt OK of FOUT, en aan het eind staat wat er in de console
+stond. Hij verandert niets aan het spel. Zie `notities/maker.md` voor de Maker zelf.
+
+```
+node tools/makertest.js                alle controles
+node tools/makertest.js --alleen rij   alleen de controles waarvan de naam dit bevat
+node tools/makertest.js --shots map    daarna een schermafdruk van de Maker en van de Test
+```

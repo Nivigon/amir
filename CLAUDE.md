@@ -194,6 +194,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | startscherm, level maken, menu: kaartjes per level | menu en bouwer |  |
 | kaarslicht: de startfoto van onderen belicht | `KAARS`, `kaarsStart`, `kaarsLus` | notities/kaarslicht.md |
 | level maken | `GEREEDSCHAP`, `bouwOpen`, `bouwVelden` | notities/bouwer.md |
+| Level Maker nieuwstijl: het grid, de Test, de controle | `MK`, `mkNaarLevel`, `mkControle`, `MK_VIJ_KNOP` | notities/maker.md |
 | elk level nakijken op decor boven een ravijn | `schoonLevel`, `schoonKomend`, `komendeRavijnen` | notities/ravijn.md |
 | wat er staat waar een ravijn openscheurt | `RAVIJN_DECOR`, `ravijnDecor`, `ravijnDecorStap` | notities/ravijn.md |
 | sandbox | de vrije testmodus |  |
@@ -313,6 +314,11 @@ eroverheen. Hoe de indeling werkt en hoe je er een stuk aan toevoegt (`GEREEDSCH
 `notities/bouwer.md`. Na een wijziging aan de bouwer, `readLevel` of `syncLevel` draai je
 `tools/bouwertest.js`.
 
+**De Maker nieuwstijl** is een tweede, losse bouwer: een grid waarin je per cel schildert wat er is,
+dat de Test meteen als level speelt (`mkNaarLevel`). Hij staat helemaal los van de bouwer hierboven
+en van de levels. Hoe hij in elkaar zit, wat de controle meldt en welke knoppen een vijand heeft:
+zie `notities/maker.md`. Na een wijziging aan de Maker draai je `tools/makertest.js`.
+
 ## Sandbox
 
 De vrije testmodus: vlakke grond, een leeg level, geen vijanden en geen levens. Een knop
@@ -418,6 +424,19 @@ die veranderd of kwijt zijn. Draai hem na elke wijziging aan de bouwer, `readLev
 node tools/bouwertest.js              alle levels
 node tools/bouwertest.js "Test 4"     alleen de levels waarvan de naam dit bevat
 node tools/bouwertest.js --shots map  daarna een schermafdruk van de bouwer
+```
+
+### De makertest: `tools/makertest.js`
+
+Laadt de Maker nieuwstijl in Chromium met een proefgrid waar alles op staat en kijkt de round-trip,
+de vertaling naar een spel-level, rijen invoegen, schilderen, ongedaan maken, de controle, de Test
+en de autosave na, en haalt het proefgrid als spel-level door `levelcheck.py`. Draai hem na elke
+wijziging aan de Maker.
+
+```
+node tools/makertest.js                alle controles
+node tools/makertest.js --alleen rij   alleen de controles waarvan de naam dit bevat
+node tools/makertest.js --shots map    daarna een schermafdruk van de Maker en van de Test
 ```
 
 ## Testen en afronden
