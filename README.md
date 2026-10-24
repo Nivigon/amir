@@ -606,7 +606,10 @@ landing, en het splijten begint in slowmotion, met het geluid van de snee en de 
 In de pauze staat onder **Schildbandiet: executie** een stel schuifjes voor de hitstops, de aanzet en de
 slowmotion. In de sandbox staan onder Schildbandiet knoppen om het af te dwingen: Executie: altijd, Wankel:
 geen E, Steek-kill en Worp-kill, en **Test 50: De executie** is een vlak level met een makkelijke
-schildbandiet waar elke kill de executie is (R begint opnieuw).
+schildbandiet waar elke kill de executie is (R begint opnieuw), en na elke dode schildbandiet komt er
+vanzelf een nieuwe aanwandelen. Bij de ruk neemt de speerpunt het bloed mee: een rode boog die de baan
+van de punt volgt, van de wond tot boven Amirs hoofd, met druppels die eraf schieten en op de grond blijven
+liggen.
 
 De schildbandiet is de uitzondering: zijn schild vangt de klappen op, hij zelf niet. Boven zijn
 groene balk staat daarom een houten schildbalk met drie vakjes. Elke klap op het schild kost een
