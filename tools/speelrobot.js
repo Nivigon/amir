@@ -124,7 +124,7 @@ function robot([lopen, taai, wachten, vredig, richtForce]){
     if (lives !== lastLives){
       // wie was het? de dichtstbijzijnde vijand, en of er gif of een steekje onderweg was
       let wie = '', dmin = 1e9;
-      for (const [naam, l] of [['slang', snakes], ['schorpioen', scorps], ['zwaard', zwaarden], ['kooiman', kooimannen], ['hyena', hyenas], ['panter', panthers], ['fosfor', fosforSlangen]])
+      for (const [naam, l] of [['slang', snakes], ['schorpioen', scorps], ['kooiman', kooimannen], ['hyena', hyenas], ['panter', panthers], ['fosfor', fosforSlangen]])
         for (const e of l){ const d = Math.abs(e.x - world); if (d < dmin){ dmin = d; wie = naam + ' op ' + r2(e.x) + (e.state ? ' (' + e.state + ')' : ''); } }
       B.ev.push({ t: +t.toFixed(2), wat: 'levens ' + lastLives + ' naar ' + lives, x: r2(world), h: r2(ph), wie: wie + (venom.length ? ', gif in de lucht' : '') });
       if (taai && lives < lastLives){
@@ -165,11 +165,11 @@ function robot([lopen, taai, wachten, vredig, richtForce]){
     if (!spearFound && spearNear()) toggleSpear();
     const voor = [];
     for (const b of thickets) if (b.stage < THICKET_HITS) voor.push([b.x, b.base]);
-    for (const l of [snakes, scorps, zwaarden, kooimannen, hyenas, panthers, fosforSlangen]) for (const e of l) if (!e.dead) voor.push([e.x, e.base || 0]);
+    for (const l of [snakes, scorps, kooimannen, hyenas, panthers, fosforSlangen]) for (const e of l) if (!e.dead) voor.push([e.x, e.base || 0]);
     const iets = voor.some(([x, b]) => { const d = (x - world) * dir; return d > -40 && d < 200 && Math.abs(b - ph) < 60; });
     if (!vredig && spear && iets && onGround && !jump) startAttack();
     // de vijanden: op welke hoogte liepen ze, en hoe hoog kwamen ze
-    for (const [naam, l] of [['slang', snakes], ['schorpioen', scorps], ['zwaard', zwaarden], ['kooiman', kooimannen], ['hyena', hyenas], ['panter', panthers], ['fosfor', fosforSlangen]]){
+    for (const [naam, l] of [['slang', snakes], ['schorpioen', scorps], ['kooiman', kooimannen], ['hyena', hyenas], ['panter', panthers], ['fosfor', fosforSlangen]]){
       l.forEach((e, i) => {
         if (!ids.has(e)) ids.set(e, ++volg);
         const k = naam + ' ' + ids.get(e), v = B.vijand[k] || (B.vijand[k] = { laag: 1e9, hoog: -1e9, top: -1e9, van: r2(e.x), tot: r2(e.x) });
@@ -253,7 +253,7 @@ function robot([lopen, taai, wachten, vredig, richtForce]){
   const naam = await page.evaluate(([doel, def]) => {
     let lijst = null, i = 0;
     if (def) lijst = [def];
-    else for (const l of [POORT_LEVELS, HON_LEVELS, HOOG_LEVELS, VK_LEVELS, KLIM_LEVELS, DIEP_LEVELS, TEST_LEVELS, BAB_LEVELS])
+    else for (const l of [VK_LEVELS, TEST_LEVELS, BAB_LEVELS])
       l.forEach((d, j) => { if (!lijst && d.name.toLowerCase().includes(doel.toLowerCase())){ lijst = l; i = j; } });
     if (!lijst) return null;
     setLevel(i, lijst);

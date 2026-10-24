@@ -9,8 +9,8 @@ en beschrijft wat het spel kan; dit document beschrijft hoe je eraan werkt.
 
 ## Regels
 
-**1. Levels van een echte episode blijven met rust.** Nu is dat De Poorten (`POORT_1` tot en met
-`POORT_6`). De Episode Test levels (`TEST_1` en verder) en de episode Baboon tests (`BAB_1` en verder) vallen niet onder deze regel: ze zijn er
+**1. Levels van een echte episode blijven met rust.** Nu is dat De Valse Koning (`VK_1` tot en met
+`VK_8`). De Episode Test levels (`TEST_1` en verder) en de episode Baboon tests (`BAB_1` en verder) vallen niet onder deze regel: ze zijn er
 juist om aan te rommelen. De leveldefinities van een echte episode zijn bevroren: er komt geen nieuwe vijand, prop, tip, potion of aangepast
 getal in, ook niet even om iets te laten zien. Alleen als de opdracht een level bij naam noemt
 ("zet dit in level 6") mag dat ene level veranderen. Twijfel je of iets eronder valt, dan valt
@@ -34,8 +34,8 @@ gedachtestreepje.
 **6. Werk op een `claude/*`-branch.** Push daarheen en maak alleen een pull request
 als daarom gevraagd wordt.
 
-**7. Vijanden komen niet over keien en ravijnen.** Slangen, fosforslangen, de
-zwaardvechter en ook de panters worden tegengehouden door een kei om op te springen en
+**7. Vijanden komen niet over keien en ravijnen.** Slangen, fosforslangen en ook
+de panters worden tegengehouden door een kei om op te springen en
 door de rand van een ravijn: niet lopend, niet met een sprong of een duik, en ze duiken
 ook niet aan de overkant op. Zo is een kei of een ravijn voor de speler een schuilplek.
 Een schuilplek, geen veilige plek: een slang of schorpioen naast de kei mag Amir bovenop die
@@ -52,8 +52,8 @@ spawn, en alleen als de opdracht daar expliciet om vraagt.
 en blijft op zijn niveau: terrassen en treden houden hem tegen (naast keien en ravijnen, regel 7). Hij
 stapt geen trede op of af. Omhoog of omlaag komt hij alleen mee met een lift of rijzend stuk grond dat
 op zijn x omhoog of omlaag komt: dan rijdt hij mee, net zoals Amir (`rijsDraagtMob`, zie "rijzende
-grond"). De zwaardvechter blijft daarnaast op zijn eigen niveau en haalt niet uit over een
-hoogteverschil (`zwZelfdeHoogte`, de vloer onder Amir vergeleken met zijn eigen vloer).
+grond"). De bandiet en de kooiman blijven daarnaast op hun eigen niveau en halen niet uit over een
+hoogteverschil (`banZelfdeHoogte`, `kooiZelfdeHoogte`: de vloer onder Amir vergeleken met hun eigen vloer).
 
 **Over plateaus klimmen is uit (opt-in, nergens in een level).** Met `klim: true` in een spawn stapt een
 slang of fosforslang wel terrassen op en af, stap voor stap (`KLIM_STAP`, `KLIM_V`, `klimBase`, in
@@ -83,14 +83,9 @@ lage zwaai werkt zonder speer), maar een charger niet zomaar.
 Een krappe pull mag wel een bewuste uitdaging zijn, en dat geldt breder, ook voor toekomstige
 mechanieken: een situatie mag zwaar en krap zijn als bewuste keuze, de vijand mag dus wel wat doen,
 zolang hij te doen blijft en niet onmogelijk is. Bij de speer na een rune is het verschil: een
-zwaardvechter wat verderop is krap maar haalbaar (je maakt eerst ruimte met de lage zwaai of je rent
-even weg en trekt dan de speer), een zwaardvechter boven op het skelet geeft geen enkel raam, en een
 bandiet (net onder sprint, blijft je op de hielen) geeft ook met weglopen geen raam. `levelcheck.py`
-(onder `speer na een rune`, met `SPEER_HAAL_DICHT` en `SPEER_HAAL_VRIJ`) meldt daarom een bandiet binnen
-1200 px voorbij het skelet als FOUT, een zwaardvechter binnen 450 px ook als FOUT, en een zwaardvechter
-daarbuiten tot 1200 px als LET OP (de bewuste uitdaging: bevestig dat hij haalbaar is). Zo blijft De
-Poorten schoon, want die zet de charger-golf al ver voorbij het skelet. Dit kwam uit Valse Koning 1,
-waar twee bandieten op het skelet stonden.
+(onder `speer na een rune`, met `SPEER_HAAL_VRIJ`) meldt daarom een bandiet binnen 1200 px voorbij het
+skelet als FOUT. Dit kwam uit Valse Koning 1, waar twee bandieten op het skelet stonden.
 
 **10. Werk zuinig, maar hou de kwaliteit.** Deze HTML is groot en de hele geschiedenis gaat elke beurt opnieuw
 mee, dus token-verbruik telt. Houd je aan deze volgorde:
@@ -138,8 +133,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | winter: episode Winter World | `WINTER_SRC`, `winterOn()`, `winterPic()` | notities/wegwijzers.md |
 | bodem en sneeuwdek | `sneeuw` | notities/wegwijzers.md |
 | het verhaal bij een episode | `VERHAAL`, `SLOT`, `verhaalToon()` | notities/episodes.md |
-| Episode De Poorten | `POORT_1`, `POORT_6`, `POORT_LEVELS` | notities/episodes.md |
-| Episode De Hoge Schijven | `HOOG_1`, `HOOG_5`, `HOOG_LEVELS` | notities/episodes.md |
+| Episode De Valse Koning | `VK_1`, `VK_8`, `VK_LEVELS` | notities/episodes.md |
 | Episode Test levels | `TEST_1`, `TEST_47`, `KAART_BLAD` | notities/episodes.md |
 | Episode Baboon tests | `BAB_1`, `BAB_4`, `BAB_LEVELS` | notities/episodes.md |
 | goudaapje: het kleine gouden aapje en de arena | `GAAP`, `gaapSpawn`, `updateGoudapen` | notities/goudaapje.md |
@@ -229,7 +223,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `zichtBreed` | een doel-wereldbreedte in beeld in plaats van een vaste `view`; geen level gebruikt het nog (zie `notities/velden.md`) |
 | `worp` | `'schaal'` zet de schaalworp aan: de hoek loopt op zolang je vasthoudt, van vlak tot 30 graden (`THR_HOEK_MAX`); zonder dit veld de twee trappen. In de sandbox de knop Worp onder Speerworp |
 | `rocks` | keien om op te springen: `{x, s}` |
-| `spawns` | vijanden: `{x, k}`, `k` is groen/zwart/knock/scorp/hyenas/panter/zwaard/fosfor/bandiet/schildman, met vlaggen per soort (zie `notities/velden.md`) |
+| `spawns` | vijanden: `{x, k}`, `k` is groen/zwart/knock/scorp/hyenas/panter/fosfor/bandiet/kooiman/meelman/schildman, met vlaggen per soort (zie `notities/velden.md`) |
 | `bandArena` | `true`: het level is een bandiet-arena (Valse Koning 8), zoals de goudaap-arena maar met de elite-garde (zie "de bandiet-arena") |
 | `bandietGolf` | een oplopende golf bandieten: `{van, tot, ramp, max, dolk}` (zie `notities/velden.md`) |
 | `duel` | per kooiman-spawn `{x, k: 'kooiman', duel}`; standaard aan is het 1-op-1 duel, `duel: false` de gewone kooiman (zie `notities/velden.md`) |
@@ -276,7 +270,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
    zoals ze zijn (rule 1), dus pas hun view niet mee aan. Zet er ook `hpBalk: true` in: elke
    vijand en Amir krijgt in een nieuw level een health-balk (zie "health-balk"). De bouwer doet
    beide al zelf.
-2. De naam in de array van die reeks (`POORT_LEVELS`, `TEST_LEVELS` of `BAB_LEVELS`).
+2. De naam in de array van die reeks (`VK_LEVELS`, `TEST_LEVELS` of `BAB_LEVELS`).
 3. Een ondertitel in `SUBS`, op de naam van het level.
 4. Een eigen uitzicht in `SCENES` als het level er anders uit moet zien.
    De voorgrond komt er vanzelf bij (zie hierboven); zet alleen een eigen `voorgrond` als het level
@@ -290,12 +284,12 @@ Die vijf stappen, plus: een knop in `menuEpisodes` (het scherm met alle episodes
 Episodes in `menuChoose` hangt; een nieuwe losse reeks die geen episode is, zoals Baboon tests, krijgt
 juist een knop in `menuChoose` zelf), een eigen `menuXxx`-blok in de
 HTML naar het voorbeeld van `menuTest`, en die aanmelden in `buildCards`,
-`markCards` en `showMenu` (die kiezen nu tussen `cardsPoort`/`menuPoort`, `cardsBab`/`menuBab` en
+`markCards` en `showMenu` (die kiezen nu tussen `cardsVK`/`menuVK`, `cardsBab`/`menuBab` en
 `cardsTest`/`menuTest`, en `toMenu` ook), en de reeks in `tools/bouwertest.js`, `tools/speelrobot.js`
-en `tools/runecheck.js`. De Terug-knop van een episodescherm krijgt de klasse `menuepisodes` (terug naar
+`tools/runecheck.js` en `tools/beeldgelijk.js`. De Terug-knop van een episodescherm krijgt de klasse `menuepisodes` (terug naar
 Episodes), niet `menuback` (dat gaat naar het Levels-scherm). Een nieuwe episode begint altijd met de tribekeuze: `runStart` in zijn speelknop, en `tribeLijst` geeft
 hem alleen wat de speler verdiend heeft (alleen `TEST_LEVELS` krijgt alles). Wil de episode een
-verhaal, zet dan de tekst in `VERHAAL` en `SLOT` en `verhaalAan` in zijn speelknop. De Poorten is het
+verhaal, zet dan de tekst in `VERHAAL` en `SLOT` en `verhaalAan` in zijn speelknop. De Valse Koning is het
 voorbeeld van een episode met verhaal en Nightmare.
 
 ### Een vijand of prop toevoegen
@@ -380,7 +374,7 @@ of `muur` raakt, en of die strook in beeld ligt.
 
 ```
 node tools/runecheck.js                 alle levels, op 1280x720, 852x393, 1440x620 en 1920x1080
-node tools/runecheck.js "Poort"         alleen de levels waarvan de naam dit bevat
+node tools/runecheck.js "Valse"         alleen de levels waarvan de naam dit bevat
 node tools/runecheck.js --formaat 25    het schuifje Formaat
 node tools/runecheck.js --schermen 1280x720,852x393
 ```
@@ -395,7 +389,7 @@ pixelverschil van de wijziging komt.
 
 ```
 node tools/beeldgelijk.js --vlag LAGFIX                een vaste reeks van twaalf levels
-node tools/beeldgelijk.js --vlag LAGFIX "Klim 9"       alleen dit level
+node tools/beeldgelijk.js --vlag LAGFIX "Test 27"      alleen dit level
 node tools/beeldgelijk.js --vlag LAGFIX --plekken -300,-2000
 node tools/beeldgelijk.js --vlag LAGFIX --breed 852 --hoog 393
 ```

@@ -1,5 +1,7 @@
 # Combinaties: wat werkt en wat niet
 
+> De Poorten en de zwaardvechter zijn uit het spel. Wat hieronder over de Poort-levels staat is geschiedenis: de afwegingen gelden nog, de levels niet meer.
+
 Een lijst van combinaties van dingen die al in het spel zitten (vijanden, decor, weer, terrein,
 schakelaars). Hier houden we bij wat goed voelt en wat niet, zodat nieuwe levels op de goede
 ideeën voortbouwen.

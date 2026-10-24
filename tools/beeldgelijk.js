@@ -9,7 +9,7 @@
 // dus elk pixelverschil komt van de wijziging zelf.
 //
 //   node tools/beeldgelijk.js --vlag LAGFIX            de vaste reeks levels
-//   node tools/beeldgelijk.js --vlag LAGFIX "Klim 9"   alleen dit level
+//   node tools/beeldgelijk.js --vlag LAGFIX "Test 27"  alleen dit level
 //   node tools/beeldgelijk.js --vlag LAGFIX --plekken -300,-2000
 //   node tools/beeldgelijk.js --vlag LAGFIX --breed 852 --hoog 393
 //
@@ -33,8 +33,8 @@ const vlag = opt('--vlag', null);
 if (!vlag){ console.error('beeldgelijk: geef de vlag mee, bijvoorbeeld --vlag LAGFIX'); process.exit(2); }
 const SCHAKELS = ['--breed', '--hoog', '--plekken', '--vlag'];
 const namen = args.filter(a => !a.startsWith('--') && !SCHAKELS.includes(args[args.indexOf(a) - 1]));
-const STANDAARD = ['Poort 1', 'Poort 2', 'Poort 6', 'Test 1', 'Test 10', 'Test 27', 'Klim 9',
-                   'Diepte 1', 'Valse Koning 6', 'Baboon 1', 'Hoog 1', 'Honingjacht 2'];
+const STANDAARD = ['Valse Koning 1', 'Valse Koning 3', 'Valse Koning 4', 'Valse Koning 5', 'Valse Koning 6',
+                   'Valse Koning 8', 'Test 1', 'Test 10', 'Test 27', 'Test 45', 'Baboon 1', 'Baboon 4'];
 const LEVELS = namen.length ? namen : STANDAARD;
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.mp3': 'audio/mpeg',
@@ -111,7 +111,7 @@ function beeldPak(){
     await page.waitForTimeout(2500);
     const echt = await page.evaluate(d => {
       let lijst = null, i = 0;
-      for (const l of [POORT_LEVELS, HON_LEVELS, HOOG_LEVELS, VK_LEVELS, KLIM_LEVELS, DIEP_LEVELS, TEST_LEVELS, BAB_LEVELS])
+      for (const l of [VK_LEVELS, TEST_LEVELS, BAB_LEVELS])
         l.forEach((def, j) => { if (!lijst && def.name.toLowerCase().includes(d.toLowerCase())){ lijst = l; i = j; } });
       if (!lijst) return null;
       setLevel(i, lijst); beginPlay('medium'); return level.name;
