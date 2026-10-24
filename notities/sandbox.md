@@ -63,18 +63,19 @@ en de teller op nul (en spreidt de eerste klok per soort, zodat niet alles tegel
 roept hem aan als `sbArena` aan staat, dus R na de dood begint de golven meteen opnieuw.
 **De afteller** (`SB_AFTEL`, `sbAftelStart`, `sbAftelUpdate`, `sbAftelTeken`, `sbArenaGo`): Start bij een vers
 begin (stroom: `t0 === 0`, golven: `g.nr === 0`) en `sbArenaReset` met de arena aan (R) zetten eerst
-`sbArenaCfg.aftel` op `{t, lamp, go}`. `sbAftelUpdate` (bovenaan `sbArenaUpdate`, dus stil in de pauze) laat
-`lampen` lichten een voor een aangaan (`stap` seconden ertussen, het eerste meteen, elk met `sbAftelPiep(false)`:
-een driehoekstoon van `piepHz`), wacht dan `wacht` seconden en gaat op `go`: de lange hoge toon
-(`sbAftelPiep(true)`, `goHz`) en `sbArenaGo`. Zolang hij aftelt staan de klok en de spawner stil. `sbArenaGo`
-laat de eerste vijand meteen komen: in de stroom de soorten met `bij` (+1), en als geen soort +1 heeft de
-eerste die aan staat (`sbArenaSpawn(k, true)`); in de golven `sbGolfVolgende` en meteen fase `golf` (de lichten
-waren de aankondiging). `inBeeld` in `sbArenaSpawn`: een spuwer (zwart, knock) komt niet aanlopen, dus die
-eerste begint op `SB_AFTEL.inBeeld` keer de halve schermbreedte, in beeld, in plaats van 320 px erbuiten.
-`sbAftelTeken` (na `sbArenaHudTeken` in de tekenlus) tekent het paneel met de lichten onder de teller, en na
-`go` nog `SB_AFTEL.go` seconden alle lichten uit met 'Los!' terwijl het paneel vervaagt. Stop zet `aftel`
-op null; Start na Stop telt niet opnieuw af (geen vers begin). Zonder een aangezette soort geen afteller,
-alleen de hint.
+`sbArenaCfg.aftel` op `{t, tel, go}`. `sbAftelUpdate` (bovenaan `sbArenaUpdate`, dus stil in de pauze) telt
+van `van` (3) af, `stap` seconden per cijfer, elk met `sbAftelPiep(false)` (een driehoekstoon van `piepHz`),
+en gaat na het laatste cijfer op `go`: de lange hoge toon (`sbAftelPiep(true)`, `goHz`) en `sbArenaGo`. Zolang
+hij aftelt staan de klok en de spawner stil. `sbArenaGo` laat de eerste vijand meteen komen: in de stroom de
+soorten met `bij` (+1), en als geen soort +1 heeft de eerste die aan staat (`sbArenaSpawn(k, true)`); in de
+golven `sbGolfVolgende` en meteen fase `golf` (de afteller was de aankondiging). `inBeeld` in `sbArenaSpawn`:
+een spuwer (zwart, knock) komt niet aanlopen, dus die eerste begint op `SB_AFTEL.inBeeld` keer de halve
+schermbreedte, in beeld, in plaats van 320 px erbuiten. `sbAftelTeken` (na `sbArenaHudTeken` in de tekenlus)
+tekent het cijfer groot midden in beeld (`maat` keer H, op hoogte `y` keer H), zonder paneel: het komt op
+`popVan` keer zijn maat en veert in `pop` seconden uit naar 1, vervaagt de laatste `uit` seconden van zijn tel,
+room met een warme gloed en de donkere rand van de teller; na `go` nog `SB_AFTEL.go` seconden 'Los!' net zo.
+Stop zet `aftel` op null; Start na Stop telt niet opnieuw af (geen vers begin). Zonder een aangezette soort
+geen afteller, alleen de hint.
 
 `vijandDood` telt de kills (`sbArenaKill`), `sbArenaHudTeken` tekent de teller in beeld: de klok groot
 (48 px) in het midden bovenin, daaronder klein de kills, de opbouw en de beste tijd (`sbArenaBest`, in
