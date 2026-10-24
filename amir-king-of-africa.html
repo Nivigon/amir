@@ -1956,7 +1956,7 @@ addEventListener('unhandledrejection', e => {
 // meteen en minstens LAAD.min seconden, want de plaat mag gezien worden: is alles eerder binnen, dan
 // loopt de balk kunstmatig op tot het einde (laadToon neemt het laagste van echt en tijd). Opnieuw
 // beginnen in hetzelfde level wacht niet, en toont het scherm pas na LAAD.toon, zoals altijd.
-const LAAD = { toon: 0.25, max: 25, min: 5 };    // pas na een kwart seconde in beeld, nooit langer wachten dan 25 s
+const LAAD = { toon: 0.25, max: 40, bak: 80, min: 5 };   // pas na een kwart seconde in beeld, op plaatjes nooit langer wachten dan 40 s; het bakken mag daarna nog tot 80 s op plaatjes wachten die nog binnenkomen
 let laadMin = false, laadVorig = null;            // dit keer minstens LAAD.min, en het level dat we het laatst lieten zien
 const laadOpen = new Set();
 let laadGedaan = 0;                               // plaatjes die binnen zijn sinds het begin
@@ -2038,12 +2038,16 @@ function laadStap(echt){
       const grens = performance.now() + WARM_BUDGET;
       // Een taak die false teruggeeft is nog niet klaar (zijn plaatje is nog onderweg): die gaat achteraan
       // de rij en het laadscherm blijft dicht. Wacht alles wat er nog staat, dan stoppen we voor dit beeld
-      // in plaats van rond te draaien. Na LAAD.max geven we het op, zodat de poort nooit blijft hangen.
+      // in plaats van rond te draaien. Voorbij LAAD.max (de poort gaf het wachten op plaatjes op) mag zo'n
+      // taak toch blijven wachten zolang er nog plaatjes binnenkomen (laadOpen niet leeg), tot LAAD.bak:
+      // anders werd het bakken van alles wat net te laat was weggegooid en gebeurde het midden in het spel.
+      // Komt er niets meer binnen of is ook LAAD.bak voorbij, dan valt de taak af, zodat de poort nooit blijft hangen.
+      const bakWacht = laadT <= LAAD.max || (laadOpen.size > 0 && laadT <= LAAD.bak);
       let wacht = 0;
       while (warmRij.length && performance.now() < grens && wacht < warmRij.length){
         const taak = warmRij.shift(); let r;
         try { r = taak(); } catch (e) {}
-        if (r === false && laadT <= LAAD.max){ warmRij.push(taak); wacht++; } else wacht = 0;
+        if (r === false && bakWacht){ warmRij.push(taak); wacht++; } else wacht = 0;
       }
       if (laadT > LAAD.toon || laadMin){
         const af = Math.max(0, warmTotaal - warmRij.length), pct = Math.max(0, Math.min(100, af / Math.max(1, warmTotaal) * 100));
