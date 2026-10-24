@@ -13548,8 +13548,8 @@ function finSize(scale){
 // x de wereld-x van de schacht, y de hoogte van de voet boven de grond in Amir (0 = op de grond,
 // hoger = tegen een wand gemonteerd), s een schaal, f spiegelen. Levend gemaakt met een flikkerende
 // warme gloed (zoals de fakkels aan het eind, FIN.flames), opstijgende vonken (fakkelVonken) en een
-// zachte schaduw die met de vlam meeademt, plus een knetterend vuurgeluid uit de Web Audio API
-// (fakkelGeluid, zoals bavPoot en de donder, geen bestand). In de sandbox onder Decor, Fakkel.
+// zachte schaduw die met de vlam meeademt, plus een heel zacht vuurgeluid als je in de buurt komt
+// (fakkelGeluid, de opname sounds/fakkelvuur.mp3 als lus). In de sandbox onder Decor, Fakkel.
 const FAKKEL = {
   dir: 'design/fakkel/', frames: 24, loop: 16,       // frame 0..15 is de brandende loop
   fps: 11,                                            // ~10-12, zoals de LEESMIJ aanraadt
@@ -13564,7 +13564,7 @@ const FAKKEL = {
   // Alleen zichtbaar waar de zon het niet wint: ondergronds, 's nachts of in een donker uitzicht
   // (kracht maal donker maal nabijheid, zie fakkelSchaduw).
   cast: { bereik: 640, kracht: 0.72, lang: 1.0, plat: 0.16, over: 2.2 },   // over: hoe snel de fakkel de richtingsschaduw van de zon overneemt
-  geluid: { bereik: 560, bed: 0.085, hp: 540, lp: 900, krakMin: 0.05, krakSpreid: 0.22, krakVol: 0.5 }
+  geluid: { src: 'sounds/fakkelvuur.mp3', bereik: 560, vol: 1.4, lusVan: 2.6 }   // vol: gain op de stille opname (zie fakkelGeluid), lusVan: waar de lus begint, voorbij de stille aanloop (s)
 };
 let fakkelImgs = null, fakkelGeladen = false;
 function fakkelLaad(){
@@ -13690,11 +13690,23 @@ function fakkelTeken(groundY, scale, cx, dt){
   }
   fakkelGeluid(dt, nabij);
 }
-// het knetterende vuurgeluid uit de Web Audio API: een bed van ruis door een laagdoorlaat (de warme
-// roffel) met een gain die met de afstand meeschaalt, plus af en toe een korte knetter. Geen bestand,
-// zoals bavPoot en de donder. nabij is 0..1 van de dichtstbijzijnde fakkel in beeld.
-let fakkelRuis = null, fakkelBron = null, fakkelBedGain = null, fakkelVol = 0, fakkelKrak = 0, fakkelGeluidKlok = null;
+// het vuurgeluid: een opname (sounds/fakkelvuur.mp3, 29 s, als lus) die heel zacht meeloopt zodra je bij een
+// fakkel in de buurt komt, en luider naarmate je dichterbij staat (nabij is 0..1 van de dichtstbijzijnde fakkel in
+// beeld, met FAKKEL.geluid.bereik). De opname is zelf al heel stil (zo'n 30 dB onder de muziek), dus `vol` is
+// een gain op de AudioContext en mag boven 1; het moet subtiel blijven, een knetter op de achtergrond, geen
+// haardvuur. De eerste seconden van de opname zijn een stille aanloop, daarom begint de lus op `lusVan`.
+// Het bestand komt pas binnen als er voor het eerst een fakkel in de buurt is (fakkelVuurLaad, via fetch en
+// decodeAudioData op de gedeelde AudioContext), niet bovenaan het bestand (zie laadpoort). De pauze dempt
+// hem uit op de wandklok en onder de grond klinkt hij gedempt, zoals voorheen de ruis.
+let fakkelVuurBuf = null, fakkelVuurLaadt = false, fakkelBron = null, fakkelBedGain = null, fakkelVol = 0, fakkelGeluidKlok = null;
 function fakkelGeluidStop(){ if (fakkelBedGain) fakkelBedGain.gain.value = 0; fakkelVol = 0; }
+function fakkelVuurLaad(ac){
+  if (fakkelVuurBuf || fakkelVuurLaadt) return;
+  fakkelVuurLaadt = true;
+  fetch(FAKKEL.geluid.src).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+    .then(b => ac.decodeAudioData(b)).then(buf => { fakkelVuurBuf = buf; })
+    .catch(() => { fakkelVuurLaadt = false; console.warn('ontbreekt: ' + FAKKEL.geluid.src); });
+}
 function fakkelGeluid(dtSpel, nabij){
   const nu = performance.now() / 1000;                 // op de wandklok, zodat de pauze het netjes uitdempt
   const dt = fakkelGeluidKlok === null ? 0 : Math.min(0.2, nu - fakkelGeluidKlok);
@@ -13706,33 +13718,15 @@ function fakkelGeluid(dtSpel, nabij){
   if (fakkelVol < 0.003 && !fakkelBron) return;
   const ac = acLoopt();
   if (!ac) return;
+  if (!fakkelVuurBuf){ fakkelVuurLaad(ac); return; }   // de opname komt binnen; tot die tijd stil
   if (!fakkelBron){
-    if (!fakkelRuis){
-      fakkelRuis = ac.createBuffer(1, Math.floor(ac.sampleRate * 1.7), ac.sampleRate);
-      const d = fakkelRuis.getChannelData(0);
-      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-    }
-    fakkelBron = ac.createBufferSource(); fakkelBron.buffer = fakkelRuis; fakkelBron.loop = true;
-    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 520;
+    fakkelBron = ac.createBufferSource(); fakkelBron.buffer = fakkelVuurBuf;
+    fakkelBron.loop = true; fakkelBron.loopStart = Math.min(FAKKEL.geluid.lusVan, fakkelVuurBuf.duration - 1); fakkelBron.loopEnd = fakkelVuurBuf.duration;
     fakkelBedGain = ac.createGain(); fakkelBedGain.gain.value = 0;
-    fakkelBron.connect(lp); lp.connect(fakkelBedGain); fakkelBedGain.connect(ac.destination);
-    fakkelBron.start();
+    fakkelBron.connect(fakkelBedGain); fakkelBedGain.connect(ac.destination);
+    fakkelBron.start(0, fakkelBron.loopStart);         // meteen voorbij de stille aanloop
   }
-  fakkelBedGain.gain.value = FAKKEL.geluid.bed * fakkelVol;
-  fakkelKrak -= dt;
-  if (fakkelVol > 0.05 && fakkelKrak <= 0){
-    fakkelKrak = FAKKEL.geluid.krakMin + Math.random() * FAKKEL.geluid.krakSpreid;
-    const t = ac.currentTime + 0.005, v = FAKKEL.geluid.krakVol * fakkelVol * (0.5 + Math.random());
-    const n = ac.createBufferSource(); n.buffer = fakkelRuis;
-    n.loop = true; n.playbackRate.value = 0.8 + Math.random() * 0.8;
-    const bp = ac.createBiquadFilter(); bp.type = 'bandpass';
-    bp.frequency.value = FAKKEL.geluid.hp + Math.random() * FAKKEL.geluid.lp; bp.Q.value = 1.2;
-    const g = ac.createGain();
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.006);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05 + Math.random() * 0.05);
-    n.connect(bp); bp.connect(g); g.connect(ac.destination);
-    const stop = t + 0.14; try { n.start(t + Math.random() * 0.02); n.stop(stop); } catch (e){}
-  }
+  fakkelBedGain.gain.value = FAKKEL.geluid.vol * fakkelVol;
 }
 function cliffAt(){
   const gY = H * 0.82;
@@ -20741,7 +20735,7 @@ function restart(){
   camY = 0; camFloor = 0;
   drawLives(); deadEl.classList.remove('on');
   snakes.length = 0; scorps.length = 0; panthers.length = 0; hyenas.length = 0; kooimannen.length = 0; vogels.length = 0; bandieten.length = 0; banDolken.length = 0; banVonken.length = 0; meelmannen.length = 0; meelzakken.length = 0; schildmannen.length = 0; golfReset(); arena = null; camEase = null; spawnTimer = 0.6;
-  if (sbArena){ sbArenaVeld(); sbArenaReset(); }   // de arena-modus van de sandbox: eerst het veld (de wanden, de camera vast in het midden, Amir midden op de vloer), dan de klok en de 'bij start'-vijanden
+  if (sbArena){ sbArenaVeld(); sbArenaReset(); }   // de arena-modus van de sandbox: eerst het veld (de wanden, de camera vast in het midden, Amir midden op de vloer), dan de klok en de afteller
   if (level && level.apenArena && !sandbox) arenaStart();   // de goudaap-arena: muren, camera in het midden, de spawner
   if (level && level.bandArena && !sandbox) bandArenaStart();   // de bandiet-arena: de garde van de valse koning
   if (takelLijst().length && !sandbox) takelBandietenZet();   // een takelaar bij het wiel en passagiers op het plateau
@@ -29954,6 +29948,7 @@ function loop(now){
     arenaHudTeken();                                // de teller van de goudaap-arena (kills, tijd, punten)
     golfHudTeken();                                 // de teller van de bandietgolf (verslagen, tijd)
     sbArenaHudTeken();                              // de teller van de arena-modus (verslagen, tijd, tempo)
+    sbAftelTeken();                                 // en het cijfer van de afteller, voor de golven losgaan
     bandArenaFadeTeken();                           // de fade naar zwart van de takel-entree (bandiet-arena)
     drawMuurE(camSwap !== null ? camSwap : world);   // voor de open rotsdeur of de houten uitgang: Press E
   }
@@ -34359,10 +34354,10 @@ const SB_ARENA_VELDEN = {
             { naam: 'vanaf', kop: 'vanaf',       min: 1,  max: 50,  stap: 1 } ],   // vanaf welke golf hij meedoet (de kolom is te smal voor 'vanaf golf')
 };
 const SB_ARENA_HINT = {
-  stroom: 'zet per vijand aan hoe vaak hij binnenkomt: eerst om de zoveel seconden, en na de opbouw om de zoveel; max is hoeveel er tegelijk mogen leven; bij start: er komt er meteen een als je op Start drukt, ook als de soort verder uit staat. De knoppen onder Vijanden (dolk, elite, AI) gelden ook hier',
+  stroom: 'zet per vijand aan hoe vaak hij binnenkomt: eerst om de zoveel seconden, en na de opbouw om de zoveel; max is hoeveel er tegelijk mogen leven; bij start: er komt er meteen een zodra de afteller afloopt, ook als de soort verder uit staat; zonder +1 komt de eerste aangezette soort meteen binnen. De knoppen onder Vijanden (dolk, elite, AI) gelden ook hier',
   golven: 'golven: van elke aangezette soort komt per golf een aantal binnen (eerste golf), elke golf meer (erbij/golf), vanaf de golf waarin hij meedoet (vanaf golf). Is de hele golf verslagen, dan komt na de rust de volgende. De knoppen onder Vijanden (dolk, elite, AI) gelden ook hier',
 };
-const sbArenaCfg = { aan: false, modus: 'stroom', ramp: 90, kant: 'om', t0: 0, kills: 0, laatst: 1, per: {},
+const sbArenaCfg = { aan: false, modus: 'stroom', ramp: 90, kant: 'om', t0: 0, kills: 0, laatst: 1, per: {}, aftel: null,   // aftel: het aftellen loopt (zie sbAftelStart)
                      golf: { rust: 6, tussen: 1.5, tegelijk: 5 },                       // de instellingen van de golven
                      g: { nr: 0, fase: 'rust', klok: 0, spawnKlok: 0, rij: [], tot: 0 } };   // de stand van de golven (zie sbGolfVolgende)
 for (const s of SB_ARENA_SOORTEN) sbArenaCfg.per[s.k] = { aan: false, bij: false, van: s.van, tot: s.tot, max: s.max, n: s.n, plus: s.plus, vanaf: s.vanaf, t: 0 };   // bij: een bij de start
@@ -34407,16 +34402,90 @@ function sbArenaVeld(){
 }
 // de klok en de teller op nul; de instellingen en aan/uit blijven staan
 function sbArenaReset(){
-  sbArenaCfg.t0 = 0; sbArenaCfg.kills = 0; sbArenaCfg.laatst = 1; sbArenaCfg.doodGemeld = false;
+  sbArenaCfg.t0 = 0; sbArenaCfg.kills = 0; sbArenaCfg.laatst = 1; sbArenaCfg.doodGemeld = false; sbArenaCfg.aftel = null;
   for (const k in sbArenaCfg.per){ const p = sbArenaCfg.per[k]; p.t = p.van * (0.4 + 0.6 * Math.random()); }   // niet allemaal tegelijk
   sbArenaCfg.g = { nr: 0, fase: 'rust', klok: 0, spawnKlok: 0, rij: [], tot: 0 };
-  // na R met de arena nog aan: in de stroom komen de 'bij start'-vijanden opnieuw meteen (restart heeft net alles
-  // weggehaald), in de golven begint golf 1 opnieuw
-  if (sbArenaCfg.aan && dead === false){
-    if (sbArenaCfg.modus === 'golven') sbGolfVolgende();
-    else for (const s of SB_ARENA_SOORTEN){ const p = sbArenaCfg.per[s.k]; if (p.bij){ sbArenaSpawn(s.k); p.t = p.van; } }
-  }
+  // na R met de arena nog aan: het aftellen loopt opnieuw (restart heeft net alles weggehaald), en bij 'los'
+  // komt de eerste vijand weer meteen (sbArenaGo: in de stroom de 'bij start'-vijanden, in de golven golf 1)
+  if (sbArenaCfg.aan && dead === false) sbAftelStart();
   sbArenaToon();
+}
+// ---- de afteller: 3, 2, 1, los ----
+// Op Start (en na R) gaan niet meteen de golven los: eerst telt een groot cijfer midden in beeld af, 3, 2, 1,
+// elk met een korte piep (SB_AFTEL.stap seconden per cijfer), en dan 'Los!' met een lange hoge toon. Dan pas
+// begint de klok en komt de eerste vijand meteen binnen (sbArenaGo), zodat je niet op een interval hoeft te
+// wachten: in de stroom de soorten met +1 (bij start), en als geen enkele soort +1 heeft de eerste soort die
+// aan staat; in de golven golf 1, zonder de aankondiging (de afteller is de aankondiging). Een spuwende slang
+// (spuwer: zwart, knock) komt niet aanlopen maar houdt afstand, dus die begint als eerste vijand in beeld in
+// plaats van erbuiten (sbArenaSpawn met inBeeld). Het cijfer (sbAftelTeken) komt groot op, krimpt naar zijn
+// maat en vervaagt aan het eind van zijn tel, in de kleuren van de teller (room op een warme gloed), zonder
+// paneel: het staat los boven de vloer van de arena. 'Los!' blijft `go` seconden staan terwijl de golven al
+// lopen. Stop en Opnieuw breken het aftellen af; de pauze houdt het stil (sbArenaUpdate loopt dan niet).
+const SB_AFTEL = { van: 3, stap: 1.0, go: 0.9, piepHz: 620, goHz: 880, piepDuur: 0.16, goDuur: 0.75, vol: 0.28, inBeeld: 0.72,   // inBeeld: waar een spuwer begint, als deel van de halve schermbreedte
+                   maat: 0.34, pop: 0.22, popVan: 1.35, uit: 0.3, y: 0.44 };   // maat: de hoogte van het cijfer als deel van H; pop: seconden krimpen vanaf popVan keer; uit: seconden vervagen aan het eind; y: het midden als deel van H
+function sbAftelStart(){ sbArenaCfg.aftel = { t: 0, tel: 0, go: false }; }   // tel: hoeveel cijfers er al geweest zijn
+function sbAftelUpdate(dt){
+  const a = sbArenaCfg.aftel;
+  if (!a) return false;
+  a.t += dt;
+  if (a.go){ if (a.t >= SB_AFTEL.go) sbArenaCfg.aftel = null; return false; }   // de golven lopen al, alleen 'Los!' staat er nog
+  const n = Math.min(SB_AFTEL.van, Math.floor(a.t / SB_AFTEL.stap) + 1);        // het eerste cijfer meteen bij Start
+  while (a.tel < n){ a.tel++; sbAftelPiep(false); }
+  if (a.t >= SB_AFTEL.van * SB_AFTEL.stap){ a.go = true; a.t = 0; sbAftelPiep(true); sbArenaGo(); }
+  return true;                                                                   // nog aan het aftellen: de spawner wacht
+}
+// de piep bij elk cijfer (kort) en de toon bij los (lang en hoger): een kale toon, zoals een startsignaal
+function sbAftelPiep(go){
+  if (!wantSound) return;
+  const ac = acLoopt(); if (!ac) return;
+  const A = SB_AFTEL, t0 = ac.currentTime + 0.005, duur = go ? A.goDuur : A.piepDuur;
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = 'triangle'; o.frequency.setValueAtTime(go ? A.goHz : A.piepHz, t0);
+  g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(A.vol, t0 + 0.008);
+  g.gain.setValueAtTime(A.vol, t0 + duur - 0.04); g.gain.exponentialRampToValueAtTime(0.0001, t0 + duur);
+  o.connect(g); g.connect(ac.destination); o.start(t0); o.stop(t0 + duur + 0.02);
+}
+// los: de eerste vijand komt meteen
+function sbArenaGo(){
+  const c = sbArenaCfg;
+  if (c.modus === 'golven'){
+    if (c.g.nr === 0 && sbGolfVolgende()){ c.g.fase = 'golf'; c.g.klok = 0; }   // golf 1 zonder de aankondiging: de eerste komt in het volgende beeld (spawnKlok 0)
+    return;
+  }
+  let eerste = false;
+  for (const s of SB_ARENA_SOORTEN){ const p = c.per[s.k]; if (p.bij){ sbArenaSpawn(s.k, true); p.t = p.van; eerste = true; } }
+  if (eerste) return;
+  const s = SB_ARENA_SOORTEN.find(s => c.per[s.k].aan);                          // geen +1: dan de eerste aangezette soort
+  if (s){ sbArenaSpawn(s.k, true); c.per[s.k].t = c.per[s.k].van; }
+}
+// het cijfer groot midden in beeld: komt op popVan keer zijn maat en krimpt in `pop` seconden naar zijn maat,
+// vervaagt de laatste `uit` seconden van zijn tel; room met een warme gloed en een donkere rand, zoals de teller.
+// 'Los!' na de laatste tel net zo, en dan weg.
+function sbAftelTeken(){
+  const a = sbArenaCfg.aftel;
+  if (!a || !sbArena || !sbArenaCfg.aan) return;
+  const A = SB_AFTEL;
+  let tekst, f, duur;                                                            // f: hoe ver in deze tel (0..1)
+  if (a.go){ tekst = 'Los!'; duur = A.go; f = a.t / duur; }
+  else { tekst = String(A.van - a.tel + 1); duur = A.stap; f = (a.t - (a.tel - 1) * A.stap) / duur; }
+  f = Math.min(1, Math.max(0, f));
+  const tIn = f * duur, tUit = (1 - f) * duur;
+  const pop = tIn < A.pop ? A.popVan - (A.popVan - 1) * (1 - Math.pow(1 - tIn / A.pop, 3)) : 1;   // uitveren naar 1
+  const alpha = Math.min(1, tIn / 0.08, tUit / A.uit);
+  const px = Math.round(H * A.maat * pop), x = W / 2, y = H * A.y;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = '800 ' + px + 'px system-ui, sans-serif';
+  ctx.shadowColor = 'rgba(255,150,60,.75)'; ctx.shadowBlur = px * 0.22;        // de warme gloed, als van de fakkels
+  ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(3, px * 0.06); ctx.strokeStyle = '#1c150c';
+  ctx.strokeText(tekst, x, y);
+  ctx.shadowBlur = 0;
+  const g = ctx.createLinearGradient(0, y - px * 0.4, 0, y + px * 0.4);
+  g.addColorStop(0, '#fff4da'); g.addColorStop(1, a.go ? '#f0b05a' : '#e8c88a');   // room boven, warmer onder
+  ctx.fillStyle = g;
+  ctx.fillText(tekst, x, y);
+  ctx.restore();
 }
 // ---- golven: een golf tegelijk, rust ertussen, elke golf groter ----
 // Per soort die aan staat: in golf nr komen er floor(n + plus * (nr - vanaf)) binnen zodra nr >= vanaf. Die rij
@@ -34479,9 +34548,10 @@ function sbArenaKant(){
   if (c.kant === 'wille') return Math.random() < 0.5 ? -1 : 1;
   c.laatst = -c.laatst; return c.laatst;             // om en om
 }
-function sbArenaSpawn(k){
+function sbArenaSpawn(k, inBeeld){                 // inBeeld: de eerste vijand na de afteller; een spuwer begint dan in beeld (zie de afteller)
   const side = sbArenaKant();
-  const half = W / 2 / viewZoom() + 320;             // net buiten beeld, zoals de bandietgolf
+  const spuwt = inBeeld && (k === 'zwart' || k === 'knock');   // dezelfde soorten als spuwer(s), die werkt op een slang-object
+  const half = spuwt ? W / 2 / viewZoom() * SB_AFTEL.inBeeld : W / 2 / viewZoom() + 320;   // net buiten beeld, zoals de bandietgolf
   let x = kijkMidden() + side * half;                // om het arena-midden (daar staat de camera vast), niet om Amir
   x = Math.min(x, cliffAt().wall - 220);
   x = Math.max(x, endWall() + 220);
@@ -34491,6 +34561,7 @@ function sbArenaUpdate(dt){
   if (!sbArena || !sbArenaCfg.aan || !running || paused) return;
   const c = sbArenaCfg;
   if (dead){ if (!c.doodGemeld){ c.doodGemeld = true; sbArenaDood(); sbArenaToon(); } return; }   // de klok staat stil, de beste tijd wordt bijgewerkt
+  if (sbAftelUpdate(dt)) return;                     // het aftellen loopt nog: de klok en de spawner wachten op los
   c.t0 += dt;
   if (c.modus === 'golven'){ sbGolfUpdate(dt); return; }
   const f = Math.min(1, c.t0 / Math.max(1, c.ramp));
@@ -34579,14 +34650,15 @@ function sbArenaToon(){
 function sbArenaStart(scherm){
   const c = sbArenaCfg;
   c.aan = true;
-  if (c.modus === 'golven'){ if (c.g.nr === 0) sbGolfVolgende(); }   // golf 1 meteen; na Stop gaat de lopende golf gewoon door
-  else if (c.t0 === 0) for (const s of SB_ARENA_SOORTEN){ const p = c.per[s.k]; if (p.bij){ sbArenaSpawn(s.k); p.t = p.van; } }
-  if (!SB_ARENA_SOORTEN.some(s => c.per[s.k].aan || (c.modus === 'stroom' && c.per[s.k].bij))) flashHint('Zet eerst een vijand aan');
+  const iets = SB_ARENA_SOORTEN.some(s => c.per[s.k].aan || (c.modus === 'stroom' && c.per[s.k].bij));
+  const vers = c.modus === 'golven' ? c.g.nr === 0 : c.t0 === 0;          // een vers begin: het aftellen, en bij los de eerste vijand (sbArenaGo); na Stop gaat het gewoon door
+  if (vers && iets) sbAftelStart();
+  if (!iets) flashHint('Zet eerst een vijand aan');
   if (scherm) sbKlap(true);
   sbArenaToon(); cv.focus();
 }
 sbArenaStartBtn.onclick = () => {
-  if (sbArenaCfg.aan){ sbArenaCfg.aan = false; sbArenaToon(); cv.focus(); }
+  if (sbArenaCfg.aan){ sbArenaCfg.aan = false; sbArenaCfg.aftel = null; sbArenaToon(); cv.focus(); }   // Stop, ook midden in het aftellen
   else sbArenaStart(false);
 };
 sbArenaSchermBtn.onclick = () => sbArenaStart(true);
