@@ -258,6 +258,39 @@ function verschil(a, b, pad = ''){
     return uit;
   });
 
+  // 5b. een rechthoek vullen met Shift+slepen, ook met het masker
+  await check('rechthoek: Shift+slepen vult het hele vlak', async () => {
+    await laad({ ...proefGrid(), grid: proefGrid().grid.map(() => '.'.repeat(24)), objecten: [], maskers: [], zwart: [], vormen: [], start: null, eind: null });
+    await page.evaluate(() => { MK.tool = 'muur'; mkLegenda(); });
+    const a = await celXY(3, 2), b = await celXY(8, 6);
+    await page.keyboard.down('Shift'); await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 3 }); await page.mouse.up(); await page.keyboard.up('Shift');
+    const n = await page.evaluate(() => { let n = 0, buiten = 0; for (let r = 0; r < MK.rows; r++) for (let c = 0; c < MK.cols; c++) if (MK.grid[r][c] === 'muur'){ n++; if (c < 3 || c > 8 || r < 2 || r > 6) buiten++; } return { n, buiten }; });
+    const uit = [];
+    if (n.n !== 30 || n.buiten) uit.push('rechthoek 6x5: ' + n.n + ' cellen muur, ' + n.buiten + ' erbuiten');
+    await page.evaluate(() => { MK.tool = 'masker'; MK.maskId = 'Verborgen1'; mkLegenda(); });
+    const c1 = await celXY(10, 1), c2 = await celXY(12, 3);
+    await page.keyboard.down('Shift'); await page.mouse.move(c1.x, c1.y); await page.mouse.down(); await page.mouse.move(c2.x, c2.y, { steps: 3 }); await page.mouse.up(); await page.keyboard.up('Shift');
+    const mk = await page.evaluate(() => (MK.maskers[0] || { cells: [] }).cells.length);
+    if (mk !== 9) uit.push('masker-rechthoek 3x3: ' + mk + ' cellen');
+    return uit;
+  });
+
+  // 5c. een breed voorwerp aanklikken op zijn balk, niet alleen op zijn ankercel
+  await check('selecteren: een platform van 2 breed is ook op zijn rechterhelft aan te klikken', async () => {
+    await laad(proefGrid());
+    await page.evaluate(() => { MK.tool = 'select'; mkLegenda(); MK.sel = null; });
+    const p = await celXY(14, 6);                       // het platform staat op kolom 13, 2 breed: kolom 14 ligt op zijn balk
+    await page.mouse.click(p.x, p.y);
+    const sel = await page.evaluate(() => MK.sel && MK.sel.k);
+    const uit = [];
+    if (sel !== 'platform') uit.push('geselecteerd: ' + sel + ' in plaats van platform');
+    const q = await celXY(16, 5);                       // de overhang staat op kolom 17, 3 breed en 2 dik: kolom 16, een rij hoger, ligt op zijn balk
+    await page.mouse.click(q.x, q.y);
+    const sel2 = await page.evaluate(() => MK.sel && MK.sel.k);
+    if (sel2 !== 'overhang') uit.push('geselecteerd: ' + sel2 + ' in plaats van overhang');
+    return uit;
+  });
+
   // 6. ongedaan maken en opnieuw
   await check('ongedaan maken: Ctrl+Z haalt een streek weg, Ctrl+Y zet hem terug', async () => {
     await laad(proefGrid());
@@ -295,6 +328,36 @@ function verschil(a, b, pad = ''){
     await page.keyboard.press('Control+y');
     const zoomNa = await page.evaluate(() => MK.zoom);
     if (zoomVoor !== zoomNa) uit.push('de zoom sprong bij opnieuw');
+    return uit;
+  });
+
+  // 6b. de vijand-knoppen: een vinkje gaat als true/false mee, een schuifje als getal, en de standaard gaat niet mee
+  await check('vijand-knoppen: vault uit, panter over, twee hyena\'s en zicht uit komen op de spawn', async () => {
+    const g = proefGrid();
+    g.objecten = [
+      { c: 6, r: 6, k: 'vijand', soort: 'bandiet', params: { vault: 0 }, note: '' },
+      { c: 8, r: 6, k: 'vijand', soort: 'panter', params: { over: 1, zicht: 0 }, note: '' },
+      { c: 12, r: 6, k: 'vijand', soort: 'hyenas', params: { n: 2 }, note: '' },
+      { c: 14, r: 6, k: 'vijand', soort: 'scorp', params: { zicht: 1 }, note: '' },
+    ];
+    await laad(g);
+    const sp = await page.evaluate(() => mkNaarLevel().spawns);
+    const uit = [];
+    const b = sp.find(x => x.k === 'bandiet'), pa = sp.find(x => x.k === 'panter'), h = sp.find(x => x.k === 'hyenas'), sc = sp.find(x => x.k === 'scorp');
+    if (!b || b.vault !== false) uit.push('bandiet: vault ' + JSON.stringify(b && b.vault) + ' in plaats van false');
+    if (!pa || pa.over !== true || pa.zicht !== false) uit.push('panter: ' + JSON.stringify(pa));
+    if (!h || h.n !== 2) uit.push('hyenas: ' + JSON.stringify(h));
+    if (!sc || 'zicht' in sc) uit.push('schorpioen met de standaard zicht hoort geen zicht-veld te krijgen: ' + JSON.stringify(sc));
+    // en in het spel: readLevel leest ze zo
+    const lv = await page.evaluate(() => { const l = readLevel(JSON.stringify(mkNaarLevel())); return l.spawns.map(x => ({ kind: x.kind, vault: x.vault, over: x.over, zicht: x.zicht, n: x.n })); });
+    const lb = lv.find(x => x.kind === 'bandiet'), lp = lv.find(x => x.kind === 'panter'), lh = lv.find(x => x.kind === 'hyenas');
+    if (!lb || lb.vault !== false) uit.push('readLevel: bandiet vault ' + JSON.stringify(lb));
+    if (!lp || lp.over !== true || lp.zicht !== false) uit.push('readLevel: panter ' + JSON.stringify(lp));
+    if (!lh || lh.n !== 2) uit.push('readLevel: hyenas ' + JSON.stringify(lh));
+    // het paneel toont een vinkje voor de bandiet
+    await page.evaluate(() => { MK.tool = 'select'; MK.sel = MK.objects[0]; MK.inspectDicht = false; mkNotePaneel(); });
+    const vink = await page.evaluate(() => document.querySelectorAll('#mkvijknop input[type=checkbox]').length);
+    if (vink < 2) uit.push('het paneel van de bandiet toont ' + vink + ' vinkjes (vault en zicht verwacht)');
     return uit;
   });
 
