@@ -686,6 +686,10 @@
   @media (prefers-reduced-motion:reduce){#woede.puls img,#woede.puls #woedebalk,#woede.schud,#zwaai.schud{animation:none}}
   #hint{position:absolute;left:50%;top:24px;z-index:5;transform:translateX(-50%);font-size:15px;background:rgba(20,16,30,.55);padding:8px 16px;border-radius:2px;transition:opacity .4s ease;pointer-events:none}
   #hint.gone{opacity:0}
+  /* een foutmelding (meldFout): als een tip, maar een eigen regel eronder, zodat een tip hem niet wegdrukt */
+  #fout{position:absolute;left:50%;top:68px;z-index:8;transform:translateX(-50%);font-size:15px;background:rgba(60,18,14,.72);
+    padding:8px 16px;border-radius:2px;transition:opacity .4s ease;pointer-events:none;max-width:86vw;text-align:center}
+  #fout.gone{opacity:0}
   #bar{display:flex;align-items:center;gap:26px;flex-wrap:wrap;padding:12px 20px;background:var(--earth);border-top:2px solid rgba(242,232,213,.15);font-size:14px}
   .field{display:flex;align-items:center;gap:10px}
   .field label{color:rgba(242,232,213,.65)}
@@ -1688,6 +1692,7 @@
     <strong>Draai je telefoon</strong>
     <span>Amir speelt liggend, met het scherm in de breedte.</span>
   </div>
+  <div id="fout" class="gone"></div>
   <div id="hint">Pijltjes om te rennen, pijl omhoog om te springen, Shift sprint, E speer, spatie stoot, spatie vasthouden werpt, langer vasthouden in een boog, pijl omlaag bukken, gebukt links of rechts om te kruipen, Q drinken, R opnieuw</div>
 </div>
 <div id="bar" class="hide">
@@ -1868,6 +1873,47 @@ const TRIBE_CONFIG = {
 // abilities: wat je in de talent tree geleerd hebt; punten: talentpunten die je nog kunt uitgeven.
 const RUN = { tribeId: null, abilities: [], gehaald: 0, punten: 0, woede: 0 };   // woede: de meter, 0 tot 1
 
+// ---- foutmelding: een fout een keer melden, ook als hij elk beeld terugkomt ----
+// safeLoop, de window-handlers en de laadpoort komen hier samen. Dezelfde fout op dezelfde plek staat
+// een keer in de console en een keer in beeld (#fout, een tipregel onder die van flashHint), daarna niet meer: een
+// tekenfunctie die elk beeld gooit vulde anders de console zestig keer per seconde, en de speler zag
+// een half beeld zonder te weten waarom. Het spel zelf loopt gewoon door.
+const FOUT_GEZIEN = new Set();
+function foutKort(err){
+  const t = String((err && err.message) || err || 'onbekende fout');
+  return t.length > 140 ? t.slice(0, 137) + '...' : t;
+}
+// de plek: de eerste regel van de stack met een bestand en regelnummer erin
+function foutSleutel(err){
+  const plek = err && err.stack ? String(err.stack).split('\n').find(r => /:\d+:\d+/.test(r)) : '';
+  return foutKort(err) + '|' + (plek || '').trim();
+}
+// true als dit de eerste keer is; met err erbij komt hij ook in de console
+function meldFout(sleutel, tekst, err){
+  if (FOUT_GEZIEN.has(sleutel)) return false;
+  FOUT_GEZIEN.add(sleutel);
+  if (err !== undefined) console.error(err);
+  const el = document.getElementById('fout');
+  if (el){
+    el.textContent = tekst; el.classList.remove('gone');
+    clearTimeout(meldFout.klok); meldFout.klok = setTimeout(() => el.classList.add('gone'), 6000);
+  }
+  return true;
+}
+// Een fout buiten de lus. De browser logt hem zelf al, dus wij alleen de melding; een herhaling
+// onderdrukken we ook in de console (preventDefault). Een plaatje of geluid dat niet laadt komt hier
+// niet langs (dat bubbelt niet), dat meldt de laadpoort.
+addEventListener('error', e => {
+  const sl = foutSleutel(e.error || e.message);
+  if (!meldFout(sl, 'Er ging iets mis: ' + foutKort(e.error || e.message))) e.preventDefault();
+});
+addEventListener('unhandledrejection', e => {
+  const r = e.reason;
+  // play() van een geluid voor de eerste tik, of afgebroken door een pause(): hoort bij de browser, niet bij ons
+  if (r && (r.name === 'NotAllowedError' || r.name === 'AbortError')) return;
+  if (!meldFout(foutSleutel(r), 'Er ging iets mis: ' + foutKort(r))) e.preventDefault();
+});
+
 // ---- laadpoort: een level loopt pas als alles binnen is ----------------------
 // Plaatjes laden op veel plekken, en veel pas als een level ze nodig heeft (de winter, de baviaan,
 // het skelet, de ravijnwand). Het spel startte meteen, dus op een trage verbinding liep Amir al
@@ -1885,6 +1931,22 @@ const LAAD = { toon: 0.25, max: 25, min: 5 };    // pas na een kwart seconde in 
 let laadMin = false, laadVorig = null;            // dit keer minstens LAAD.min, en het level dat we het laatst lieten zien
 const laadOpen = new Set();
 let laadGedaan = 0;                               // plaatjes die binnen zijn sinds het begin
+const laadMis = new Set();                        // plaatjes die definitief niet laadden (een 404), op naam
+let laadMisLaatst = '';                           // de laatste daarvan sinds laadPoort, voor het laadscherm
+// Een plaatje dat niet laadt houdt het spel bewust niet tegen (het telt als binnen), maar stil mag het
+// niet meer: een keer in de console met de naam, en het eerste ook in beeld. Pas na de andere handlers
+// kijken (mis, in de laadpoort hieronder): zet onerror een volgend pad (een terugval), dan is het nog
+// niet opgegeven.
+function laadMist(src){
+  if (!src || laadMis.has(src)) return;
+  laadMis.add(src);
+  let naam = src;
+  try { naam = decodeURIComponent(new URL(src, location.href).pathname.replace(/^\//, '')); } catch (e) {}
+  if (naam.length > 90) naam = '...' + naam.slice(-87);
+  laadMisLaatst = naam;
+  console.warn('laadpoort: plaatje ontbreekt: ' + naam);
+  meldFout('plaatje', 'Er ontbreekt een plaatje: ' + naam);
+}
 (function(){
   const d = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
   if (!d || !d.set) return;
@@ -1896,6 +1958,8 @@ let laadGedaan = 0;                               // plaatjes die binnen zijn si
   // het hier al uit, achter het laadscherm, en laten de poort daar op wachten (decode loopt op een
   // eigen draad, dus het laadscherm blijft soepel). Mislukt het uitpakken, dan tellen we het toch
   // als binnen, zodat de poort nooit blijft hangen.
+  // kapot is: klaar zonder pixels. Heeft onerror al een volgend pad gezet, dan laadt dat nog (niet klaar).
+  function mis(){ const img = this; setTimeout(() => { if (img.complete && img.naturalWidth === 0) laadMist(img.src); }, 0); }
   function klaar(){ const img = this; setTimeout(() => {
     if (!img.complete || !laadOpen.has(img)) return;
     const af = () => { if (laadOpen.delete(img)) laadGedaan++; };
@@ -1905,7 +1969,7 @@ let laadGedaan = 0;                               // plaatjes die binnen zijn si
     configurable: true, enumerable: d.enumerable, get: d.get,
     set(v){
       d.set.call(this, v);
-      if (!this._laadVolg){ this._laadVolg = true; this.addEventListener('load', klaar); this.addEventListener('error', klaar); }
+      if (!this._laadVolg){ this._laadVolg = true; this.addEventListener('load', klaar); this.addEventListener('error', klaar); this.addEventListener('error', mis); }
       if (!this.complete) laadOpen.add(this);
     }
   });
@@ -1914,7 +1978,7 @@ let laadWacht = false, laadT = 0, laadLeeg = 0, laadVan = 0;
 let warmRij = null, warmTotaal = 0;               // de wachtrij met bak-taken, of null: niets te warmen (zie warmBouw)
 const WARM_BUDGET = 8;                            // hoogstens zoveel ms per beeld warmen, zodat het laadscherm leeft
 function laadPoort(){
-  laadWacht = true; laadT = 0; laadLeeg = 0; laadVan = laadGedaan; warmRij = null;
+  laadWacht = true; laadT = 0; laadLeeg = 0; laadVan = laadGedaan; warmRij = null; laadMisLaatst = '';
   const naam = level && level.name ? level.name : '';
   laadMin = naam !== laadVorig;
   const el = document.getElementById('laadnaam'); if (el) el.textContent = naam;
@@ -1961,13 +2025,14 @@ function laadStap(echt){
     // alles klaar, maar een nieuw level blijft LAAD.min in beeld (de balk loopt dan op de tijd door)
     if (inSpel && laadMin && laadT < LAAD.min){ laadToon(100, 'klaar'); return true; }
     if (inSpel) laadVorig = level && level.name ? level.name : '';
-    if (laadOpen.size) console.warn('laadpoort: verder zonder ' + laadOpen.size + ' plaatjes');
+    if (laadOpen.size) console.warn('laadpoort: verder zonder ' + laadOpen.size + ' plaatjes: ' +
+      [...laadOpen].slice(0, 5).map(i => i.src).join(', '));
     laadWacht = false; warmRij = null; el.classList.remove('on');
     return false;
   }
   if (laadT > LAAD.toon || (laadMin && inSpel)){
     const binnen = laadGedaan - laadVan, n = binnen + laadOpen.size, pct = n ? binnen / n * 100 : 100;
-    laadToon(pct * 0.6, binnen + ' van ' + n);
+    laadToon(pct * 0.6, binnen + ' van ' + n + (laadMisLaatst ? ', ontbreekt: ' + laadMisLaatst : ''));
   }
   return true;
 }
@@ -10969,7 +11034,8 @@ function deelTijd(delen, f){
 const bavBrulSnd = geluidAan(new Audio(BAV_BRUL.geluid.src));
 bavBrulSnd.preload = 'auto';
 // de klok van de baviaan, in ms speltijd: loopt mee met het tempo uit de instellingen (op een telefoon
-// trager, gameTempo) en staat stil in de pauze, net als Amir
+// trager, gameTempo) en staat stil in de pauze, net als Amir. Ook de speerworp rekent erop (thrPressT,
+// thr.t0, thr.rel): een nieuwe tijd die met het spel mee moet lopen hoort hier, niet op performance.now()
 let bavKlok = 0;
 // zijn rensnelheid: Amirs sprint, ook als je Amir in de instellingen trager of sneller laat lopen (walkTempo)
 const bavV = () => BAV_RUN.v * walkK();
@@ -14101,7 +14167,7 @@ const WORP_WACHT = {
 };
 let sbWorpWacht = true;                  // de schakelaar in de sandbox: nieuw (ademen, afbreken) of zoals het was
 function worpWacht(){ return sandbox ? sbWorpWacht : true; }
-let thrPressT = 0;       // wanneer de knop ingedrukt ging, voor de tik- en oplaaddrempel
+let thrPressT = 0;       // wanneer de knop ingedrukt ging, voor de tik- en oplaaddrempel (bavKlok, speltijd in ms)
 
 // ---- het projectiel -----------------------------------------------------
 const JAV = {
@@ -14252,7 +14318,9 @@ function canThrow(){
       && atkFrame < 0 && swFrame < 0 && swRecover <= 0 && duckT <= 0;
 }
 function thrPress(){
-  thrPressT = performance.now();
+  // op speltijd, niet op de wandklok: wie vasthoudt en pauzeert, hervat met dezelfde lading, en op een
+  // telefoon (gameTempo) duurt het opladen even lang als de rest van zijn bewegingen
+  thrPressT = bavKlok;
   if (amirVast()) return;                          // de baviaan heeft je speer vast, of hij sterft net
   if (schijnLigt()) return;                        // Feign Death: hij ligt nog
   glijStart();                                     // in volle sprint: hij glijdt door (zie renstoot)
@@ -14263,18 +14331,18 @@ function thrPress(){
 // tot welk frame mag hij nu uittrekken? Pas na THR_CHARGE komt de tweede trap vrij
 function thrStop(){
   if (worpSchaal()) return THR_WIND;               // eerst helemaal uittrekken; daarna zet thrHoek het frame
-  return (performance.now() - thrPressT >= THR_CHARGE * 1000) ? THR_WIND : THR_DRAW1;
+  return (bavKlok - thrPressT >= THR_CHARGE * 1000) ? THR_WIND : THR_DRAW1;
 }
 function thrRelease(cancel){
   if (!thr) return;
-  const tik = performance.now() - thrPressT < THR_TAP * 1000;
+  const tik = bavKlok - thrPressT < THR_TAP * 1000;
   if ((cancel || tik) && thr.frame <= THR_WIND && !thr.gone){
     thr = null;                                    // afgebroken: hij houdt zijn speer
     if (tik && !cancel) startAttack();             // een tik op dezelfde knop is de oude stoot
     return;
   }
   if (!thr.held) return;
-  thr.held = false; thr.rel = performance.now();
+  thr.held = false; thr.rel = bavKlok;
   thr.lob = thr.frame >= THR_WIND;                 // helemaal uitgetrokken? Dan wordt het de boog
   // bij de schaalworp staat de hoek vanaf nu vast: de speer gaat pas op THR_LOOSE weg
 }
@@ -14288,7 +14356,7 @@ function thrSchaalFr(hoek){
 // helemaal uitgetrokken is, dus wie voor die tijd loslaat gooit altijd vlak.
 function thrHoek(){
   if (!thr.held || !worpSchaal() || (thr.frame < THR_WIND && !thr.t0)) return;   // daarna tilt hij terug naar 5 en 4
-  const nu = performance.now();
+  const nu = bavKlok;                                // speltijd: staat stil in de pauze
   if (!thr.t0) thr.t0 = nu;
   const f = Math.min(1, (nu - thr.t0) / (THR_HOEK_T * 1000));
   thr.hoek = THR_HOEK_MAX * Math.pow(f, THR_HOEK_KROM);
@@ -14348,7 +14416,7 @@ function updateThrow(dt){
 // THR_GRACE voor de klap, of al voorbij het spannen, dan gaat de speer alsnog weg.
 function thrHurt(){
   if (!thr) return;
-  const sinds = thr.rel ? (performance.now() - thr.rel) / 1000 : Infinity;
+  const sinds = thr.rel ? (bavKlok - thr.rel) / 1000 : Infinity;
   if (!thr.gone && (thr.frame > THR_WIND || sinds <= THR_GRACE)) looseSpear();
   thr = null;
 }
@@ -15205,6 +15273,24 @@ function idleImg(set){
 const total = RUN_NS.length + RUN_SP.length + ATK_SP.length + 2 + IDLE_SP_FRAMES.length + 48 + 36 + 12 + 88;   // +20 idle speer, +36 schorpioen, +12 dorpeling, +88 dorpelinge
 
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+// Hoe diep de save-stapel van ctx nu is. Dat is niet uit te lezen, en na een fout in de lus moet
+// safeLoop hem helemaal afbouwen: anders blijft er elk beeld een laag staan, met een clip en een
+// globalAlpha erin. ctx.reset() kan dat ook, maar die wist het doek (een fout die elk beeld terugkomt
+// gaf dan een zwart beeld in plaats van een half) en zet ook imageSmoothingQuality terug.
+let ctxDiepte = 0;
+{
+  const save = ctx.save, restore = ctx.restore;
+  ctx.save = function(){ ctxDiepte++; return save.call(ctx); };
+  ctx.restore = function(){ if (ctxDiepte > 0) ctxDiepte--; return restore.call(ctx); };
+}
+// na een fout: de stapel af en de staat terug naar het begin van een beeld (zoals resize hem zet)
+function tekenHerstel(){
+  while (ctxDiepte > 0) ctx.restore();
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'none';
+  ctx.shadowBlur = 0; ctx.shadowColor = 'rgba(0,0,0,0)'; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = beeldSoepel() ? 'low' : 'medium';
+}
 let W = 0, H = 0, DPR = 1, lastW = -1, lastH = -1;
 // Hoeveel canvaspixels per CSS-pixel, hoogstens. Elke laag belichting, mist en lucht
 // gaat over het hele canvas, dus dit plafond bepaalt direct hoeveel werk een frame is.
@@ -15306,6 +15392,9 @@ function werkDoek(naam, w, h){
   if (!d) d = WERK_DOEK[naam] = document.createElement('canvas');
   const g = d.getContext('2d');
   if (d.width !== w || d.height !== h){ d.width = w; d.height = h; }
+  // reset() wist het doek en zet de hele staat terug, ook een save-stapel of clip die bleef staan
+  // omdat een fout halverwege het tekenen erop toesloeg; waar die er niet is, het oude wissen
+  else if (typeof g.reset === 'function') g.reset();
   else g.clearRect(0, 0, w, h);
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.globalCompositeOperation = 'source-over';
@@ -29401,9 +29490,13 @@ function loop(now){
 
 function safeLoop(now){
   try { loop(now); }
-  catch (err){ console.error(err); if (camSwap !== null){ world = camSwap; camSwap = null; }
-              ctx.setTransform(DPR, 0, 0, DPR, 0, 0); requestAnimationFrame(safeLoop); }
-  try { drawTouch(); } catch (err){ console.error(err); }
+  catch (err){
+    if (camSwap !== null){ world = camSwap; camSwap = null; }
+    try { tekenHerstel(); } catch (e) {}
+    meldFout(foutSleutel(err), 'Er ging iets mis bij het tekenen: ' + foutKort(err), err);
+    requestAnimationFrame(safeLoop);
+  }
+  try { drawTouch(); } catch (err){ meldFout(foutSleutel(err), 'Er ging iets mis bij het tekenen: ' + foutKort(err), err); }
 }
 
 const bg = document.getElementById('bg'), soundBtn = document.getElementById('sound');
@@ -36797,7 +36890,9 @@ requestAnimationFrame(safeLoop);
         say('Alles staat op je toestel (' + d.total + ' bestanden, ' + mb(d.bytes) + '). Het spel werkt nu ook zonder internet.', 'done');
       } else if (d.done > 0) {
         progress(d.done, d.total);
-        say(d.done + ' van de ' + d.total + ' bestanden staan al opgeslagen. De rest erbij is ongeveer ' +
+        // de opslag liep tijdens het spelen al vol: dan zegt een tweede poging hetzelfde, eerst ruimte maken
+        if (d.vol) say(d.done + ' van de ' + d.total + ' bestanden staan opgeslagen, maar de opslag op je toestel is vol. Maak ruimte vrij en probeer het dan nog eens.', 'warn');
+        else say(d.done + ' van de ' + d.total + ' bestanden staan al opgeslagen. De rest erbij is ongeveer ' +
             mb(d.bytes * (1 - d.done / d.total)) + '.');
       } else {
         bar.classList.remove('on');
@@ -36815,11 +36910,20 @@ requestAnimationFrame(safeLoop);
     if (d.type === 'precache-done') {
       busy = false;
       btn.disabled = false;
-      btn.textContent = 'Opnieuw downloaden';
       wipe.classList.add('on');
+      if (d.failed) {
+        // niet compleet: de knop zegt dat ook, en een volgende poging haalt alleen het ontbrekende op
+        btn.textContent = 'Probeer opnieuw';
+        progress(d.total - d.failed, d.total);
+        if (d.mist && d.mist.length) console.warn('[offline] niet opgeslagen:', d.mist.join(', ') + (d.failed > d.mist.length ? ' en nog ' + (d.failed - d.mist.length) : ''));
+        const ontbreekt = d.failed + ' van de ' + d.total + ' bestanden ontbreken nog. ';
+        if (d.vol) say(ontbreekt + 'De opslag op je toestel is vol: maak ruimte vrij en probeer het dan nog eens, dan haalt hij alleen die ' + d.failed + ' op.', 'warn');
+        else say(ontbreekt + 'Die lukten niet (geen verbinding of niet gevonden). Probeer het nog eens, dan haalt hij alleen die ' + d.failed + ' op.', 'warn');
+        return;
+      }
+      btn.textContent = 'Opnieuw downloaden';
       progress(d.total, d.total);
-      if (d.failed) say(d.failed + ' van de ' + d.total + ' bestanden lukten niet. Probeer het nog eens.', 'warn');
-      else say('Klaar. Alle ' + d.total + ' bestanden (' + mb(d.bytes) + ') staan op je toestel. Het spel werkt nu ook zonder internet.', 'done');
+      say('Klaar. Alle ' + d.total + ' bestanden (' + mb(d.bytes) + ') staan op je toestel. Het spel werkt nu ook zonder internet.', 'done');
       return;
     }
 
