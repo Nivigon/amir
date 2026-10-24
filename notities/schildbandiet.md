@@ -28,8 +28,8 @@ Alleen de tekenlaag is anders. De bewegingen, de frametelling (22, 30, 21) en de
 (`schbAnim`, `SCHB.strikeDur`, `SCHB.flinchDur`), `schbStaat` kiest de staat, de vault hergebruikt de strike-lagen, en de dood
 blijft de eigen set in `dood/` (`schbLaadBasis` laadt die en de losse speer voor beide stijlen). Een schildbandiet tekent zo
 met `lagen: true` in zijn spawn (`schbLaadLevel` laadt dan de lagen in plaats van de complete sets; `laadJsonOpen` houdt de
-laadpoort dicht tot `lagen.json` binnen is en de plaatjes aangevraagd zijn), en in de sandbox met **Neerzetten nieuwe
-stijl** onder Schildbandiet (`sbSpawn('schildman_lagen')`). Nagemeten in de sandbox op 1280 bij 720: oude en nieuwe stijl op
+laadpoort dicht tot `lagen.json` binnen is en de plaatjes aangevraagd zijn), en in de sandbox met **Nieuwe stijl** onder
+Schildbandiet (naast Moeilijk en Makkelijk) (`sbSpawn('schildman_lagen')`). Nagemeten in de sandbox op 1280 bij 720: oude en nieuwe stijl op
 dezelfde plek in dezelfde houding en staat (loop, tell, inslag, herstel, flinch, met heel, aangeslagen en zonder schild)
 geven hetzelfde beeld op hooguit randpixels na.
 
