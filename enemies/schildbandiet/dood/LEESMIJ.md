@@ -1,5 +1,10 @@
 # Schildbandiet: dood
 
+Let op: deze frames zijn bewerkt door `tools/schildbandiet_dood.py` (de bron staat in commit 54bca24, 39
+frames). De speer is er vanaf frame 07 uit (het spel laat zijn eigen speer vallen), de twee bron-frames
+waarin hij voor de tuniek langs viel zijn eruit (nu 37 frames, dood_00..36), en vanaf de landing staat het
+lijf omlaag op de grondlijn (per frame in `dood.json`, `omlaag`). Hieronder de oorspronkelijke uitleg.
+
 39 frames, RGBA, canvas 544 x 560. Kijkrichting links. One-shot, geen loop.
 Elk frame 2 ticks op 24 fps (dus 12 fps), totaal 3,25 s. Ticks staan per frame in `dood.json`.
 

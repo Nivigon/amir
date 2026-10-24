@@ -635,6 +635,11 @@ vakje, zijn eigen balk blijft vol. Is het schild gebroken, dan verdwijnt die hou
 volgende klap is in een keer van vol naar dood. De panter en de baviaan houden hun eigen balk
 bovenin beeld.
 
+Bij die laatste klap valt zijn speer uit zijn hand, en die valt echt: hij stuit even op de grond en
+blijft voor zijn voeten liggen, ligt scheef als hij op een kei of de rand van een terras terechtkomt,
+en kantelt een ravijn in als hij op de rand sterft. Daarna valt hij achterover en blijft hij met zijn
+rug op de grond liggen.
+
 ## De kooiman
 
 De derde menselijke tegenstander is een heel ander soort vijand: een gebukte man die een zware
