@@ -91,7 +91,7 @@ Altijd WYSIWYG: links in het grid is links in het spel, de wereld-x is `(kolom -
   rij ook meetelt. Zwarte tegels onder de grond zijn zwevende zwarte blokken op hun hoogte.
 - Een kei-cel (`laag`, letter L) is een kei om op te springen (`rocks`, schaal 1), een schuilplek
   voor slangen en panters (regel 7).
-- Voorwerpen: overhang naar een zwever, richel naar `ledges`, kalebas naar `hppotions`, platform
+- Voorwerpen: overhang naar een zwever, richel naar `ledges` (met `look` als de kleur niet steen is), kalebas naar `hppotions`, platform
   met doel plus zijn tandwielen naar `takels` (met `stam: true`), zegel en rune met een masker naar
   `zegels`/`runes` plus `acties`, een verborgen zegel ook zonder masker, en een zegel of rune die een
   rijzer stuurt ook (met `rijs`).

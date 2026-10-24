@@ -121,7 +121,7 @@ Hangblokken en losse keien zijn puur decor.
 
 ## terrassen en richels
 
-`terraces`, `ledges`, klimmen. Een richel kan gespiegeld (`drawLedge` met `o.f`, de botsing in `terracePlats`) en achter de schacht-wand (`o.achter`, getekend in `drawGrotten` voor de massa); zie "De schacht"
+`terraces`, `ledges`, klimmen. Een richel kan gespiegeld (`drawLedge` met `o.f`, de botsing in `terracePlats`) en achter de schacht-wand (`o.achter`, getekend in `drawGrotten` voor de massa); zie "De schacht". Een richel heeft een kleur, `look` (`LEDGE_LOOKS`, `ledgeLookOf`, `ledgeLookPic`): `rots` (zonder veld, de gewone steen; in de winter zoals altijd de sneeuwversie), `sneeuw` (de sneeuwversie ook buiten de winter, lui geladen via `ledgeSneeuwLaad`/`richelLaadLevel` in `laadLevel`) of `savanne` (de steen een keer gebakken naar de warme kleur van de savannegrond, `LEDGE_SAVANNE`, blend `color` zodat licht en donker blijven). Dezelfde maat als de gewone, dus `ledgeLen` en de botsing veranderen niet. In de Maker kies je het bij een geselecteerde richel onder **Kleur** (`mkrichellook`, in `mkVulRichel`); op het grid krijgt de plank die kleur mee.
 
 ## grotten: rots als een raster van cellen
 

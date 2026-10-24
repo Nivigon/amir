@@ -98,7 +98,7 @@ function proefGrid(){
       { c: 13, r: 6, k: 'platform', doel: { c: 13, r: 3 }, breed: 2, note: '' },
       { c: 14, r: 5, k: 'tandwiel', modus: 'schakellift', platform: { c: 13, r: 6 }, note: '' },
       { c: 17, r: 6, k: 'overhang', breed: 3, dik: 2, fijn: 0, look: 'rots', note: '' },
-      { c: 3, r: 5, k: 'richel', s: 0.5, f: true, dx: 10, dy: -5, note: '' },
+      { c: 3, r: 5, k: 'richel', s: 0.5, f: true, dx: 10, dy: -5, look: 'sneeuw', note: '' },
       { c: 15, r: 6, k: 'zegel', masker: 'Verborgen1', verstop: true, rijzer: { c: 11, r: 10 }, note: '' },
       { c: 11, r: 10, k: 'rijzer', doel: { c: 11, r: 7 }, breed: 2, v: 300, wacht: 0, duur: 0, note: '' },
       { c: 18, r: 6, k: 'rune', masker: 'Verborgen1', note: '' },
@@ -203,6 +203,7 @@ function verschil(a, b, pad = ''){
     if (!(lv.runes || []).length) uit.push('geen rune');
     if (!(lv.maskers || []).length) uit.push('geen masker');
     if (!(lv.ledges || []).length) uit.push('geen richel');
+    else if (lv.ledges[0].look !== 'sneeuw') uit.push('de richel heeft zijn kleur (sneeuw) niet mee: ' + JSON.stringify(lv.ledges[0]));
     if (!(lv.hppotions || []).length) uit.push('geen kalebas');
     if (!lv.sneeuw || lv.sneeuw.soort !== 'savanne') uit.push('geen sneeuwdek op de savanne');
     if (!(lv.vormen || []).length) uit.push('geen vormen (vrije vorm en zwarte cel)');
