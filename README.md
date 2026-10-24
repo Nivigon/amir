@@ -1014,6 +1014,26 @@ voor je neer, **Gang met trap omhoog** ook, met verderop een tweede gat met tred
 boven te komen, en **Gang weg** haalt het weer weg. Zet je een vijand neer terwijl je beneden
 staat, dan komt die ook beneden.
 
+## De arena-modus van de sandbox
+
+Klik je in het startmenu op **Sandbox**, dan kies je eerst: de gewone **Sandbox** (vlakke grond, zet
+neer wat je wilt testen, geen levens) of de **Arena modus**. De arena is dezelfde vlakke grond met
+dezelfde knoppen, maar nu komen de vijanden vanzelf binnenlopen, van links en rechts, net buiten
+beeld, en heb je gewoon je levens: ga je dood, dan begint R opnieuw en loopt de klok weer vanaf nul.
+Het paneel opent op het tabblad **Arena**. Daar zet je per soort aan of hij meedoet (schorpioen, de
+drie slangen, de fosforslangen, de hyena, de panter, de bandiet, de schildbandiet, de meelman en de
+kooiman) en stel je per soort drie getallen in: om de hoeveel seconden er eerst eentje komt, om de
+hoeveel seconden na de opbouw, en hoeveel er van die soort tegelijk mogen leven. Zit een soort vol,
+dan wacht hij tot je er een hebt verslagen. **Opbouw** is hoe lang het duurt (in seconden) voor elk
+interval van zijn begin naar zijn eind is gekrompen, zodat het langzaam steeds meer worden. De
+knop ernaast kiest de kant: om en om, alleen van links, alleen van rechts of willekeurig. Meerdere
+soorten tegelijk aan kan gewoon, en de knoppen onder Vijanden (dolk, elite, AI aan of uit) gelden
+ook voor de vijanden die de arena stuurt. **Start** zet de golven aan, dezelfde knop (**Stop**) zet ze
+stil, en **Opnieuw** zet de klok en de teller op nul en haalt alles weg. Bovenin het midden staat
+groot de klok: hoe lang je het al volhoudt. Daaronder kleiner hoeveel je er verslagen hebt, hoe ver
+de opbouw is en je beste tijd tot nu toe, die de browser onthoudt. Ga je dood, dan blijft de eindtijd
+staan tot je op R drukt.
+
 ## Zelf een level maken
 
 In het startmenu staat **Maker nieuwstijl**: een grid waarin je per cel schildert wat er is (grond,

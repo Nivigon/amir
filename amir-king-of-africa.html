@@ -160,8 +160,8 @@
   #start .menuback,#start .menuepisodes,#start .menumain{background:rgba(40,25,13,.4);
     border:1px solid rgba(231,173,82,.28);border-radius:10px}
   #start .menuback:hover,#start .menuepisodes:hover,#start .menumain:hover{border-color:var(--gold)}
-  #menuMain,#menuChoose,#menuEpisodes,#menuInstellingen,#menuTest,#menuBab,#menuVK{display:none;flex-direction:column;align-items:center;gap:18px}
-  #menuMain.on,#menuChoose.on,#menuEpisodes.on,#menuInstellingen.on,#menuTest.on,#menuBab.on,#menuVK.on{display:flex}
+  #menuMain,#menuChoose,#menuEpisodes,#menuInstellingen,#menuSandbox,#menuTest,#menuBab,#menuVK{display:none;flex-direction:column;align-items:center;gap:18px}
+  #menuMain.on,#menuChoose.on,#menuEpisodes.on,#menuInstellingen.on,#menuSandbox.on,#menuTest.on,#menuBab.on,#menuVK.on{display:flex}
   .bigbtn{position:relative;min-width:210px;padding:16px 26px!important;font-size:20px!important;font-weight:700;
     letter-spacing:.05em;text-transform:uppercase;border:1px solid rgba(231,173,82,.4);border-radius:11px;
     background:rgba(44,27,14,.55);transition:.15s}
@@ -232,6 +232,13 @@
   #sandbox .sbcat{display:none;flex-direction:column;gap:10px}
   #sandbox .sbcat.open{display:flex}
   #sbtabs button{border-radius:3px 3px 0 0}
+  /* het tabblad Arena: per vijand een rij met een aan/uit-knop en drie getallen */
+  #sandbox input[type=number]{width:46px;padding:3px 4px;font:inherit;font-size:12px;color:var(--bone);
+    background:rgba(255,255,255,.08);border:1px solid rgba(242,232,213,.3);border-radius:3px}
+  #sandbox .arij{display:grid;grid-template-columns:132px repeat(3,auto);gap:6px 8px;align-items:center}
+  #sandbox .arij .akop{color:rgba(242,232,213,.55);font-size:11px}
+  #sandbox .arij button{text-align:left}
+  #sandbox .arij .eenheid{color:rgba(242,232,213,.55);font-size:11px;margin-left:2px}
   #sbtabs button.on{background:var(--sun);color:#241a2b;border-color:var(--sun);font-weight:700}
   /* weggeklapt: alleen de kop met de knop om hem terug te halen, zodat de joystick vrij ligt */
   #sandbox.dicht{padding:6px 8px}
@@ -760,6 +767,15 @@
       <div class="row"><button class="menumain">Terug</button></div>
     </div>
 
+    <div id="menuSandbox">
+      <p class="epititle">Sandbox</p>
+      <div class="row">
+        <button id="btnsbvrij" class="bigbtn">Sandbox<small>Vlakke grond, zet neer wat je wilt testen</small></button>
+        <button id="btnsbarena" class="bigbtn">Arena modus<small>Golven vijanden van links en rechts, steeds meer</small></button>
+      </div>
+      <div class="row"><button class="menumain">Terug</button></div>
+    </div>
+
     <div id="menuEpisodes">
       <p class="epititle">Episodes</p>
       <div class="row">
@@ -921,6 +937,7 @@
       <button id="sbklap" title="het menu wegklappen of terughalen">Verberg</button>
     </div>
     <div class="row" id="sbtabs">
+      <button data-sbcat="arena" id="sbarenatab" style="display:none">Arena</button>
       <button data-sbcat="vijanden">Vijanden</button>
       <button data-sbcat="speer">Speer en spullen</button>
       <button data-sbcat="decor">Decor</button>
@@ -1069,6 +1086,18 @@
         <button data-kooianim="parry">Parry</button>
         <button data-kooianim="struggle">Worstel</button>
       </div>
+    </div>
+    <div class="sbcat" data-cat="arena">
+      <div class="row">
+        <span class="hint">zet per vijand aan hoe vaak hij binnenkomt: eerst om de zoveel seconden, en na de opbouw om de zoveel; max is hoeveel er tegelijk mogen leven. De knoppen onder Vijanden (dolk, elite, AI) gelden ook hier</span>
+      </div>
+      <div class="row">
+        <button id="sbarenastart">Start</button>
+        <button id="sbarenaopnieuw" title="de klok en de teller op nul, en alle vijanden weg">Opnieuw</button>
+        <button id="sbarenakant" title="van welke kant ze komen">Om en om</button>
+        <label>Opbouw <input type="number" id="sbarenaramp" min="5" max="600" step="5" value="90"><span class="eenheid">s</span></label>
+      </div>
+      <div class="arij" id="sbarenalijst"></div>
     </div>
     <div class="sbcat" data-cat="speer">
       <div class="row">
@@ -19897,6 +19926,7 @@ const rustSnd = geluidAan(new Audio());
 rustSnd.onerror = () => console.warn('ontbreekt: ' + SFX_RUST.src);
 rustSnd.preload = 'auto'; rustSnd.src = SFX_RUST.src;
 function vijandDood(baas){
+  if (sbArena) sbArenaKill();                      // de teller van de arena-modus
   woedeVul(woedeWaarde('perKill'));                // elke kill vult de woedemeter (als je die hebt)
   if (!baas && Math.random() * DOOD_KANS >= 1) return;
   setTimeout(() => {
@@ -19913,7 +19943,7 @@ function hurtPlayer(fromLeft, schade = 1){           // schade: hoeveel levens d
   if (!running || invuln > 0 || dead || godMode || woedeAan()) return;   // in de woede raakt niets hem
   thrHurt();                                       // de hele worp is kwetsbaar (zie thrHurt)
   playRaak();
-  if (sandbox){                                    // sandbox: je ziet de klap, maar dood ga je nooit
+  if (sandbox && !sbArena){                        // sandbox: je ziet de klap, maar dood ga je nooit (de arena-modus wel, daar tel je hoe lang je het volhoudt)
     invuln = 1.3; hurt = 0.38; shake = 0.28; knock = fromLeft ? 260 : -260;
     return;
   }
@@ -20186,7 +20216,7 @@ function restart(){
   }
   camY = 0; camFloor = 0;
   drawLives(); deadEl.classList.remove('on');
-  snakes.length = 0; scorps.length = 0; panthers.length = 0; hyenas.length = 0; kooimannen.length = 0; vogels.length = 0; bandieten.length = 0; banDolken.length = 0; banVonken.length = 0; meelmannen.length = 0; meelzakken.length = 0; schildmannen.length = 0; golfReset(); arena = null; camEase = null; spawnTimer = 0.6;
+  snakes.length = 0; scorps.length = 0; panthers.length = 0; hyenas.length = 0; kooimannen.length = 0; vogels.length = 0; bandieten.length = 0; banDolken.length = 0; banVonken.length = 0; meelmannen.length = 0; meelzakken.length = 0; schildmannen.length = 0; golfReset(); if (sbArena) sbArenaReset(); arena = null; camEase = null; spawnTimer = 0.6;
   if (level && level.apenArena && !sandbox) arenaStart();   // de goudaap-arena: muren, camera in het midden, de spawner
   if (level && level.bandArena && !sandbox) bandArenaStart();   // de bandiet-arena: de garde van de valse koning
   if (takelLijst().length && !sandbox) takelBandietenZet();   // een takelaar bij het wiel en passagiers op het plateau
@@ -27501,6 +27531,7 @@ function loop(now){
   updateSchildmannen(dt, platsV, cliff);           // de schildbandiet: loopt met zijn schild op en valt springend aan
   banDolkenUpdate(dt);                             // de geworpen dolken vliegen en steken in de grond
   updateBandietGolf(dt);                           // de oplopende golf: telkens een bandiet erbij
+  sbArenaUpdate(dt);                               // de golven van de arena-modus in de sandbox
   sbGolfTick(dt);                                  // dezelfde golf, maar met de sandbox-knop
   updateFosforSlangen(dt, platsV, cliff);
   arenaTick(dt);
@@ -29326,6 +29357,7 @@ function loop(now){
     drawBossBar();
     arenaHudTeken();                                // de teller van de goudaap-arena (kills, tijd, punten)
     golfHudTeken();                                 // de teller van de bandietgolf (verslagen, tijd)
+    sbArenaHudTeken();                              // de teller van de arena-modus (verslagen, tijd, tempo)
     bandArenaFadeTeken();                           // de fade naar zwart van de takel-entree (bandiet-arena)
     drawMuurE(camSwap !== null ? camSwap : world);   // voor de open rotsdeur of de houten uitgang: Press E
   }
@@ -29571,6 +29603,7 @@ new MutationObserver(kaarsWek).observe(startEl, { attributes: true, attributeFil
 document.addEventListener('visibilitychange', kaarsWek);
 kaarsStart();
 let sandbox = false, godMode = false;
+let sbArena = false;                              // de arena-modus van de sandbox (zie 'arena-modus')
 const barEl = document.getElementById('bar');
 function beginPlay(mode){
   barEl.classList.add('hide');                   // tijdens een level speel je zonder testbalk
@@ -31187,7 +31220,7 @@ function testToon(){
   if (b){ b.textContent = open ? 'Verberg oude tests' : 'Oude tests'; b.style.display = grens > 0 ? '' : 'none'; }
 }
 function showMenu(which){
-  for (const id of ['menuMain','menuChoose','menuEpisodes','menuInstellingen','menuTest','menuBab','menuVK'])
+  for (const id of ['menuMain','menuChoose','menuEpisodes','menuInstellingen','menuSandbox','menuTest','menuBab','menuVK'])
     document.getElementById(id).classList.toggle('on', id === which);
   // op een subscherm staat de titel compacter (zie #start.submenu)
   document.getElementById('start').classList.toggle('submenu', which !== 'menuMain');
@@ -33557,7 +33590,8 @@ if (window.ResizeObserver){
 // ---------- sandbox ----------
 const sandboxEl = document.getElementById('sandbox');
 let sbFromRight = true, savedLevel = null;
-function startSandbox(){
+function startSandbox(arena){
+  sbArena = arena === true;                             // Arena modus: golven vijanden, met levens
   barEl.classList.remove('hide');
   startEl.classList.add('off');
   sandboxEl.classList.add('on');
@@ -33582,13 +33616,18 @@ function startSandbox(){
   RUG_MAX = 0; rugSperen.length = 0; rugTrekT = 0; rugToon();   // de reserve op de rug begint uit
   HP_BALK = 0; hpBalkToon();                            // en de health-balk (bandiet/kooiman 3 levens) begint uit
   ZICHT_AAN = false; zichtToon = false; zichtKnopToon();  // en het zicht (zie "zicht") ook
-  document.getElementById('lives').style.display = 'none';   // geen levens in de sandbox
+  document.getElementById('lives').style.display = sbArena ? '' : 'none';   // geen levens in de sandbox, wel in de arena-modus
+  sbArenaCfg.aan = false; sbArenaReset(); sbArenaToon();   // de arena wacht op Start
+  sbArenaTab.style.display = sbArena ? '' : 'none';
+  if (sbArena) sbCat('arena');                           // en opent meteen op haar tabblad
+  else if (document.querySelector('.sbcat.open')?.dataset.cat === 'arena') sbCat('vijanden');   // het onthouden tabblad Arena hoort niet bij de vrije sandbox
   restart();
   hudToon();
   cv.focus();
 }
 function stopSandbox(){
   sandbox = false; godMode = false; setGodLabel();
+  sbArena = false; sbArenaCfg.aan = false; sbArenaToon(); sbArenaTab.style.display = 'none';
   RUG_MAX = 0; rugSperen.length = 0; rugTrekT = 0;      // het reserve-systeem weer uit buiten de sandbox
   HP_BALK = 0;                                          // en de health-balk ook
   ZICHT_AAN = false; zichtToon = false;                 // en het zicht
@@ -33607,9 +33646,9 @@ function stopSandbox(){
   zetMuziek();
   hudToon();
 }
-function sbSpawn(kind){
-  const side = sbFromRight ? 1 : -1;
-  let x = world + side * W * 0.42;                  // net binnen beeld
+function sbSpawn(kind, kant, plek){               // kant en plek: de arena-modus kiest ze zelf (net buiten beeld)
+  const side = kant || (sbFromRight ? 1 : -1);
+  let x = plek != null ? plek : world + side * W * 0.42;   // net binnen beeld
   x = Math.min(x, cliffAt().wall - 220);            // en nooit achter de klif
   x = Math.max(x, endWall() + 220);
   if (kind === 'hyena1' || kind === 'hyena2'){ spawnHyenaPack(kind === 'hyena2' ? 2 : 1, side); }   // bij twee telt de richting niet
@@ -33658,6 +33697,167 @@ function sbSpawn(kind){
   for (const b of bandieten) if (b.zicht && !b.ambush) banLaadIdle(b.duin ? 'duin' : b.elite);
   cv.focus();
 }
+// ---- arena-modus: golven vijanden in de sandbox ----------------------------
+// De tweede keuze onder Sandbox in het menu. Dezelfde vlakke grond en dezelfde knoppen, maar met
+// levens (dood is dood, R begint opnieuw) en een spawner die per soort om de zoveel seconden een
+// vijand net buiten beeld neerzet, zoals de bandietgolf (updateBandietGolf) maar dan voor elke
+// soort apart en met de hand af te stellen. Per soort: aan of uit, het interval aan het begin
+// (van), het interval na de opbouw (tot) en hoeveel er tegelijk mogen leven (max). Zolang een
+// soort vol zit staat zijn klok stil. De opbouw (ramp, in seconden) en de kant zijn voor alle
+// soorten samen: om en om, alleen links, alleen rechts, of willekeurig. De spawner zelf gaat via
+// sbSpawn, dus de knoppen onder Vijanden (dolk, elite, AI aan of uit, klimmen) gelden ook hier.
+// Een teller in beeld houdt bij hoeveel je er verslagen hebt, hoe lang je het volhoudt en hoe ver
+// de opbouw is. Na de dood zet R de klok en de teller op nul en lopen de golven meteen weer.
+const SB_ARENA_SOORTEN = [
+  { k: 'scorp',     naam: 'Schorpioen',       van: 10, tot: 4,  max: 3 },
+  { k: 'groen',     naam: 'Zandslang',        van: 8,  tot: 3,  max: 4 },
+  { k: 'zwart',     naam: 'Zwarte slang',     van: 10, tot: 4,  max: 3 },
+  { k: 'knock',     naam: 'Knockslang',       van: 12, tot: 5,  max: 2 },
+  { k: 'fosfor',    naam: '3 fosforslangen',  van: 20, tot: 10, max: 1 },
+  { k: 'hyena1',    naam: 'Hyena',            van: 15, tot: 6,  max: 2 },
+  { k: 'panter',    naam: 'Panter',           van: 25, tot: 10, max: 1 },
+  { k: 'bandiet',   naam: 'Bandiet',          van: 8,  tot: 2,  max: 6 },
+  { k: 'schildman', naam: 'Schildbandiet',    van: 20, tot: 8,  max: 2 },
+  { k: 'meelman',   naam: 'Meelman',          van: 20, tot: 8,  max: 2 },
+  { k: 'kooiman',   naam: 'Kooiman',          van: 30, tot: 12, max: 1 },
+];
+const SB_ARENA_KANTEN = [['om', 'Om en om'], ['links', 'Van links'], ['rechts', 'Van rechts'], ['wille', 'Willekeurig']];
+const sbArenaCfg = { aan: false, ramp: 90, kant: 'om', t0: 0, kills: 0, laatst: 1, per: {} };
+for (const s of SB_ARENA_SOORTEN) sbArenaCfg.per[s.k] = { aan: false, van: s.van, tot: s.tot, max: s.max, t: 0 };
+const sbArenaTab = document.getElementById('sbarenatab');
+const sbArenaStartBtn = document.getElementById('sbarenastart');
+const sbArenaKantBtn = document.getElementById('sbarenakant');
+const sbArenaRampEl = document.getElementById('sbarenaramp');
+const sbArenaLijst = document.getElementById('sbarenalijst');
+// de klok en de teller op nul; de instellingen en aan/uit blijven staan
+function sbArenaReset(){
+  sbArenaCfg.t0 = 0; sbArenaCfg.kills = 0; sbArenaCfg.laatst = 1; sbArenaCfg.doodGemeld = false;
+  for (const k in sbArenaCfg.per){ const p = sbArenaCfg.per[k]; p.t = p.van * (0.4 + 0.6 * Math.random()); }   // niet allemaal tegelijk
+}
+function sbArenaKill(){ sbArenaCfg.kills++; }
+// hoeveel er van een soort nog leven (wie dood ligt of weggaat telt niet meer mee voor max)
+function sbArenaLevend(k){
+  const lv = o => !o.dead && o.state !== 'dying' && o.state !== 'dood' && o.state !== 'dead' && o.state !== 'gone' && o.state !== 'weg';
+  if (k === 'scorp') return scorps.filter(lv).length;
+  if (k === 'panter') return panthers.filter(lv).length;
+  if (k === 'hyena1') return hyenas.filter(lv).length;
+  if (k === 'fosfor') return Math.ceil(fosforSlangen.filter(lv).length / 3);   // per groep van drie
+  if (k === 'bandiet') return bandieten.filter(lv).length;
+  if (k === 'schildman') return schildmannen.filter(lv).length;
+  if (k === 'meelman') return meelmannen.filter(lv).length;
+  if (k === 'kooiman') return kooimannen.filter(lv).length;
+  return snakes.filter(o => lv(o) && o.kind === k).length;
+}
+function sbArenaKant(){
+  const c = sbArenaCfg;
+  if (c.kant === 'links') return -1;
+  if (c.kant === 'rechts') return 1;
+  if (c.kant === 'wille') return Math.random() < 0.5 ? -1 : 1;
+  c.laatst = -c.laatst; return c.laatst;             // om en om
+}
+function sbArenaSpawn(k){
+  const side = sbArenaKant();
+  const half = W / 2 / viewZoom() + 320;             // net buiten beeld, zoals de bandietgolf
+  let x = world + side * half;
+  x = Math.min(x, cliffAt().wall - 220);
+  x = Math.max(x, endWall() + 220);
+  sbSpawn(k, side, x);
+}
+function sbArenaUpdate(dt){
+  if (!sbArena || !sbArenaCfg.aan || !running || paused) return;
+  const c = sbArenaCfg;
+  if (dead){ if (!c.doodGemeld){ c.doodGemeld = true; sbArenaDood(); } return; }   // de klok staat stil, de beste tijd wordt bijgewerkt
+  c.t0 += dt;
+  const f = Math.min(1, c.t0 / Math.max(1, c.ramp));
+  for (const s of SB_ARENA_SOORTEN){
+    const p = c.per[s.k];
+    if (!p.aan) continue;
+    if (sbArenaLevend(s.k) >= p.max) continue;         // vol: wachten, de klok staat stil
+    p.t -= dt;
+    if (p.t > 0) continue;
+    p.t = p.van + (p.tot - p.van) * f;                 // het interval krimpt met de opbouw
+    sbArenaSpawn(s.k);
+  }
+}
+// de beste tijd (hoe lang je het volhield voor je doodging) onthoudt de browser
+let sbArenaBest = 0;
+try { sbArenaBest = Number(localStorage.getItem('amir.arenaBest')) || 0; } catch (e) {}
+function sbArenaDood(){                              // bij de dood: de beste tijd bijwerken
+  if (sbArenaCfg.t0 > sbArenaBest){ sbArenaBest = sbArenaCfg.t0; try { localStorage.setItem('amir.arenaBest', String(Math.floor(sbArenaBest))); } catch (e) {} }
+}
+function sbArenaKlok(t){ const tsec = Math.max(0, Math.floor(t)); return Math.floor(tsec / 60) + ':' + String(tsec % 60).padStart(2, '0'); }
+// de teller in beeld: de tijd groot in het midden bovenin (daar gaat het om: hoe lang hou je het vol),
+// daaronder kleiner de verslagen vijanden, de opbouw en je beste tijd. Blijft na de dood staan.
+function sbArenaHudTeken(){
+  if (!sbArena || (!sbArenaCfg.aan && sbArenaCfg.t0 === 0)) return;
+  const c = sbArenaCfg;
+  const f = Math.min(1, c.t0 / Math.max(1, c.ramp));
+  const groot = sbArenaKlok(c.t0) + (dead ? '  dood' : (c.aan ? '' : '  gestopt'));
+  const klein = 'Verslagen ' + c.kills + '     Opbouw ' + Math.round(f * 100) + '%' + (sbArenaBest > 0 ? '     Beste ' + sbArenaKlok(sbArenaBest) : '');
+  ctx.save();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = '700 48px system-ui, sans-serif';
+  const wG = ctx.measureText(groot).width;
+  ctx.font = '600 18px system-ui, sans-serif';
+  const wK = ctx.measureText(klein).width;
+  const w = Math.max(wG, wK) + 56, h = 96, x = W / 2, yTop = 92;
+  ctx.globalAlpha = 0.72; ctx.fillStyle = '#1c150c';
+  if (ctx.roundRect){ ctx.beginPath(); ctx.roundRect(x - w / 2, yTop, w, h, 12); ctx.fill(); }
+  else ctx.fillRect(x - w / 2, yTop, w, h);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = dead ? '#e8a07a' : '#f3e6c4';
+  ctx.font = '700 48px system-ui, sans-serif';
+  ctx.fillText(groot, x, yTop + 34);
+  ctx.fillStyle = 'rgba(243,230,196,.8)';
+  ctx.font = '600 18px system-ui, sans-serif';
+  ctx.fillText(klein, x, yTop + 74);
+  ctx.restore();
+}
+// de knoppen: Start/Stop, Opnieuw, de kant, de opbouw, en per soort een rij
+function sbArenaToon(){
+  sbArenaStartBtn.textContent = sbArenaCfg.aan ? 'Stop' : 'Start';
+  sbArenaStartBtn.classList.toggle('on', sbArenaCfg.aan);
+  sbArenaKantBtn.textContent = SB_ARENA_KANTEN.find(k => k[0] === sbArenaCfg.kant)[1];
+  sbArenaRampEl.value = sbArenaCfg.ramp;
+  sbArenaLijst.querySelectorAll('button[data-arena]').forEach(b => b.classList.toggle('on', sbArenaCfg.per[b.dataset.arena].aan));
+}
+sbArenaStartBtn.onclick = () => {
+  sbArenaCfg.aan = !sbArenaCfg.aan;
+  if (sbArenaCfg.aan && !SB_ARENA_SOORTEN.some(s => sbArenaCfg.per[s.k].aan)) flashHint('Zet eerst een vijand aan');
+  sbArenaToon(); cv.focus();
+};
+document.getElementById('sbarenaopnieuw').onclick = () => { restart(); sbArenaToon(); cv.focus(); };
+sbArenaKantBtn.onclick = () => {
+  const i = SB_ARENA_KANTEN.findIndex(k => k[0] === sbArenaCfg.kant);
+  sbArenaCfg.kant = SB_ARENA_KANTEN[(i + 1) % SB_ARENA_KANTEN.length][0];
+  sbArenaToon(); cv.focus();
+};
+// een getal uit een invoerveld, geklemd; Enter of weglikken geeft de toetsen weer aan het spel
+function sbArenaGetal(el, min, max, oud){
+  const v = Number(el.value);
+  const n = Number.isFinite(v) && el.value !== '' ? Math.min(max, Math.max(min, v)) : oud;
+  el.value = n; return n;
+}
+sbArenaRampEl.onchange = () => { sbArenaCfg.ramp = sbArenaGetal(sbArenaRampEl, 5, 600, sbArenaCfg.ramp); sbArenaRampEl.blur(); cv.focus(); };
+{
+  const kop = (t) => { const d = document.createElement('span'); d.className = 'akop'; d.textContent = t; return d; };
+  sbArenaLijst.append(kop(''), kop('eerst om de'), kop('daarna om de'), kop('max tegelijk'));
+  for (const s of SB_ARENA_SOORTEN){
+    const p = sbArenaCfg.per[s.k];
+    const b = document.createElement('button'); b.dataset.arena = s.k; b.textContent = s.naam;
+    b.onclick = () => { p.aan = !p.aan; if (p.aan) p.t = Math.min(p.t, p.van); sbArenaToon(); cv.focus(); };
+    const veld = (naam, min, max, stap) => {
+      const l = document.createElement('label');
+      const i = document.createElement('input'); i.type = 'number'; i.min = min; i.max = max; i.step = stap; i.value = p[naam];
+      i.onchange = () => { p[naam] = sbArenaGetal(i, min, max, p[naam]); i.blur(); cv.focus(); };
+      l.append(i);
+      if (naam !== 'max'){ const e = document.createElement('span'); e.className = 'eenheid'; e.textContent = 's'; l.append(e); }
+      return l;
+    };
+    sbArenaLijst.append(b, veld('van', 0.5, 300, 0.5), veld('tot', 0.5, 300, 0.5), veld('max', 1, 30, 1));
+  }
+}
+sbArenaToon();
 // opt-in plateau-traversal in de sandbox: nieuwe slangen en fosforslangen stappen terrassen op en af
 let sbKlim = false;
 const sbKlimBtn = document.getElementById('sbklim');
@@ -35037,7 +35237,9 @@ function setGodLabel(){ sbGodBtn.textContent = godMode ? 'Onsterfelijk aan' : 'O
 sbGodBtn.onclick = () => { godMode = !godMode; setGodLabel(); cv.focus(); };
 document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; schildmannen.length = 0; venom.length = 0; thickets.length = 0; chips.length = 0; hppotions.length = 0; hppotionFx.length = 0; level.rocks.length = 0; if (level.gaps) level.gaps.length = 0; if (level.grotten) level.grotten.length = 0; if (level.plafond) level.plafond.length = 0; if (level.terraces) level.terraces.length = 0; if (level.skeletten) level.skeletten.length = 0; if (level.tekens) level.tekens.length = 0; level.baviaan = null; sbBavInfo(); sbSpeervalWeg(); if (level.runes) level.runes.length = 0; level.takel = null; ravijnReset(); losseSperen.length = 0; arena = null; thr = null; jav = null; javLost = 0; cv.focus(); };
 document.getElementById('sbback').onclick = stopSandbox;
-document.getElementById('btnsandbox').onclick = startSandbox;
+document.getElementById('btnsandbox').onclick = () => showMenu('menuSandbox');   // eerst kiezen: de vrije sandbox of de arena-modus
+document.getElementById('btnsbvrij').onclick = () => startSandbox(false);
+document.getElementById('btnsbarena').onclick = () => startSandbox(true);
 
 
 // ============================================================================
