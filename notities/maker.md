@@ -2,7 +2,7 @@
 
 De knop **Maker nieuwstijl** in het startmenu. Een los grid om de ruwe vorm van een level te
 schetsen en meteen te spelen. Staat helemaal op zichzelf: het raakt de spel-loop, de levels
-(regel 1) en de oude bouwer niet aan. De sectie in de HTML heet `// ---------- Level Maker ----------`.
+(regel 1) niet aan. De sectie in de HTML heet `// ---------- Level Maker ----------`.
 
 ## Hoe het in elkaar zit
 

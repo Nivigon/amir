@@ -12,8 +12,8 @@ Het verandert niets: het meldt per level wat er niet klopt.
     python3 tools/levelcheck.py "Test 4"         alleen levels waarvan de naam dit bevat
     python3 tools/levelcheck.py -v               ook de info-regels (sprint nodig, en zo)
     python3 tools/levelcheck.py --hoog 393       op een ander scherm (standaard 720 hoog)
-    python3 tools/levelcheck.py level.json       een level dat nog niet in de HTML staat (de bouwer
-                                                 exporteert hetzelfde formaat)
+    python3 tools/levelcheck.py level.json       een level dat nog niet in de HTML staat (de Maker
+                                                 exporteert hetzelfde formaat, Spel-JSON)
 
 Drie soorten meldingen:
 
@@ -1941,7 +1941,7 @@ def main(argv):
     bron = Bron(HTML)
     sp = Spel(bron, hoog, formaat, breed)
     levels = lees_levels(bron)
-    if bestanden:                                   # een level uit de bouwer (Exporteer), of met de hand
+    if bestanden:                                   # een level uit de Maker (Spel-JSON), of met de hand
         levels = []
         for pad in bestanden:
             with open(pad, encoding='utf-8') as f:

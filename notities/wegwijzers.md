@@ -12,7 +12,7 @@ kleurwaas over het beeld, volgt de zon van het level; een level stelt hem bij me
 
 ## muziek per level
 
-`MUZIEK`, `MUZIEK_BASIS` (Dark Africa: bij de start, in het menu, de bouwer, de sandbox en elk level zonder veld `muziek`), `zetMuziek()`: welk deuntje onder welk level loopt
+`MUZIEK`, `MUZIEK_BASIS` (Dark Africa: bij de start, in het menu, de sandbox en elk level zonder veld `muziek`), `zetMuziek()`: welk deuntje onder welk level loopt
 
 ## beeld: de grote of de kleine spriteset
 

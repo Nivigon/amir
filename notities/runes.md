@@ -12,8 +12,8 @@ Hoe hoog is goed? Amir haalt springend 1,83; alles daarboven moet je raken met e
 hoe verder je moet staan, en de camera staat op Amir: op 1280 bij 720 zie je 640 px voor je uit, en
 vanaf ongeveer 2,1 Amir begint de strook waar je hem raakt pas buiten beeld. Dat rekent `runeStroken`
 uit, met dezelfde stappen als de speer in het spel en met de worpen van het level (de twee trappen,
-of met `worp: 'schaal'` elke hoek tot 30 graden). Het venster in de bouwer laat de strook zien en
-waarschuwt als hij leeg is of buiten beeld begint.
+of met `worp: 'schaal'` elke hoek tot 30 graden). `tools/runecheck.js` meet de strook na en
+meldt het als hij leeg is of buiten beeld begint.
 
 Een speer die in een rots vertrekt (Amir loopt door de rotsen heen) blijft pas in het steen steken
 als hij er eerst uit is geweest (`jav.rotsUit`), net als bij de grot met de kei. Een speer die na `JAV.muurT` uit
@@ -37,9 +37,7 @@ dus daar verandert niets. In een gang moet de rots onder het dak passen (`groot`
 
 **Opstellingen.** Wat gemeten is staat als bouwsteen in `RUNE_OPSTELLINGEN`: `vlak`, `zuilen`, `boog`, `kei`,
 `terras`, `gang` en `ver`, elk met `rots`, `groot`, `hoog` (en `kei`), een naam en de strook waar je hem raakt.
-Een rune met `opstelling: 'kei'` krijgt die maten (`runeIn`); wat er zelf bij staat gaat voor, en `runeUit` laat
-weg wat gelijk is aan de opstelling. In de bouwer kies je hem in het venster van een rune (`doel`), samen met wat
-hij doet (`runeVeldZet`: ravijn, sluit, muur, speerval of rijs, de x, de breedte, de naam van de rijzende grond en
+Een rune met `opstelling: 'kei'` krijgt die maten (`runeIn`); wat er zelf bij staat gaat voor. Wat hij doet staat als veld op de rune (ravijn, sluit, muur, speerval of rijs, de x, de breedte, de naam van de rijzende grond en
 de kei). In de sandbox wisselt **Opstelling** (`sbRuneOpst`) wat een nieuwe rune krijgt. `levelcheck.py` geeft een
 FOUT bij een opstelling die niet bestaat.
 

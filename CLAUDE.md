@@ -192,9 +192,8 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | speer in de baviaan: de speerval blijft in zijn borst zitten | `BAV_VALSPEER`, `bavSpeerTeken`, `baviaanTeken` | notities/baviaan.md |
 | voorgrond: de laag tussen de camera en Amir | `VOORGROND`, `VG_SOORT`, `VG_LAGEN` | notities/voorgrond.md |
 | achtergrondlagen, uitzicht per level | `SCENE0`, `SCENES` | notities/wegwijzers.md |
-| startscherm, level maken, menu: kaartjes per level | menu en bouwer |  |
+| startscherm, menu: kaartjes per level | menu |  |
 | kaarslicht: de startfoto van onderen belicht | `KAARS`, `kaarsStart`, `kaarsLus` | notities/kaarslicht.md |
-| level maken | `GEREEDSCHAP`, `bouwOpen`, `bouwVelden` | notities/bouwer.md |
 | Level Maker nieuwstijl: het grid, de Test, de controle | `MK`, `mkNaarLevel`, `mkControle`, `MK_VIJ_KNOP` | notities/maker.md |
 | elk level nakijken op decor boven een ravijn | `schoonLevel`, `schoonKomend`, `komendeRavijnen` | notities/ravijn.md |
 | wat er staat waar een ravijn openscheurt | `RAVIJN_DECOR`, `ravijnDecor`, `ravijnDecorStap` | notities/ravijn.md |
@@ -208,7 +207,7 @@ achtergronden, water, dorp, botten), `klein/` (dezelfde mappen op halve grootte)
 ## Een level lezen of schrijven
 
 Amir loopt naar links, dus alle `x` zijn negatief en lopen op naarmate je verder
-komt. Een leveldefinitie is een gewoon object; de bouwer in het spel exporteert
+komt. Een leveldefinitie is een gewoon object; de Maker nieuwstijl exporteert (Spel-JSON)
 precies hetzelfde formaat naar JSON.
 
 De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
@@ -277,8 +276,8 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
    staat standaard op die laptop-zoom (zie het veld `view`). De bestaande episodes blijven staan
    zoals ze zijn (rule 1), dus pas hun view niet mee aan. Zet er ook `hpBalk: true` in: elke
    vijand en Amir krijgt in een nieuw level een health-balk (zie "health-balk"). En `zicht: true`:
-   een vijand ziet je dan alleen als er niets tussen zit (zie "zicht"). De bouwer en Maker
-   nieuwstijl doen dit al zelf.
+   een vijand ziet je dan alleen als er niets tussen zit (zie "zicht"). De Maker
+   nieuwstijl doet dit al zelf.
 2. De naam in de array van die reeks (`VK_LEVELS`, `TEST_LEVELS` of `BAB_LEVELS`).
 3. Een ondertitel in `SUBS`, op de naam van het level.
 4. Een eigen uitzicht in `SCENES` als het level er anders uit moet zien.
@@ -294,7 +293,7 @@ Episodes in `menuChoose` hangt; een nieuwe losse reeks die geen episode is, zoal
 juist een knop in `menuChoose` zelf), een eigen `menuXxx`-blok in de
 HTML naar het voorbeeld van `menuTest`, en die aanmelden in `buildCards`,
 `markCards` en `showMenu` (die kiezen nu tussen `cardsVK`/`menuVK`, `cardsBab`/`menuBab` en
-`cardsTest`/`menuTest`, en `toMenu` ook), en de reeks in `tools/bouwertest.js`, `tools/speelrobot.js`
+`cardsTest`/`menuTest`, en `toMenu` ook), en de reeks in `tools/speelrobot.js`,
 `tools/runecheck.js` en `tools/beeldgelijk.js`. De Terug-knop van een episodescherm krijgt de klasse `menuepisodes` (terug naar
 Episodes), niet `menuback` (dat gaat naar het Levels-scherm). Een nieuwe episode begint altijd met de tribekeuze: `runStart` in zijn speelknop, en `tribeLijst` geeft
 hem alleen wat de speler verdiend heeft (alleen `TEST_LEVELS` krijgt alles). Wil de episode een
@@ -307,17 +306,10 @@ Tekencode en gedrag erbij, opnemen in `PROPS`, `VILLAGE` of de dierenlijst, en
 knoppen in de sandbox. Kies de soort (vast, los, plant of ver, zie "wat mag waar") en zet hem in
 de vijf functies die daarbij horen. Pas daarna is de vraag aan de orde of er een level bij moet.
 
-## De bouwer
+## De Maker nieuwstijl
 
-Level maken in het startmenu: dezelfde wereld als het spel, met een laag bediening
-eroverheen. Hoe de indeling werkt en hoe je er een stuk aan toevoegt (`GEREEDSCHAP`,
-`bouwVelden`, `bouwExtra`, `holteMaak`, `bouwSchakelTeken`, `syncLevel`): zie
-`notities/bouwer.md`. Na een wijziging aan de bouwer, `readLevel` of `syncLevel` draai je
-`tools/bouwertest.js`.
-
-**De Maker nieuwstijl** is een tweede, losse bouwer: een grid waarin je per cel schildert wat er is,
-dat de Test meteen als level speelt (`mkNaarLevel`). Hij staat helemaal los van de bouwer hierboven
-en van de levels. Hoe hij in elkaar zit, wat de controle meldt en welke knoppen een vijand heeft:
+De enige bouwer in het spel (de oude bouwer, Level maken, is weg): een grid waarin je per cel schildert wat er is,
+dat de Test meteen als level speelt (`mkNaarLevel`). Hij staat helemaal los van de levels. Hoe hij in elkaar zit, wat de controle meldt en welke knoppen een vijand heeft:
 zie `notities/maker.md`. Na een wijziging aan de Maker draai je `tools/makertest.js`.
 
 ## Sandbox
@@ -361,7 +353,7 @@ Na elk nieuw level en na elke wijziging aan een level:
 python3 tools/levelcheck.py            alle levels
 python3 tools/levelcheck.py "Test 4"   alleen de levels waarvan de naam dit bevat
 python3 tools/levelcheck.py -v         ook de info-regels
-python3 tools/levelcheck.py level.json een level uit de bouwer, voor het in de HTML staat
+python3 tools/levelcheck.py level.json een level uit de Maker (Spel-JSON), voor het in de HTML staat
 ```
 
 FOUT betekent: stuk, of tegen een regel uit dit document in. LET OP betekent: het werkt, maar
@@ -375,7 +367,7 @@ van regel 7 (`REGEL 7`). Heeft Node en Playwright nodig (`npm i -g playwright`).
 
 ```
 node tools/speelrobot.js "Test 4"               een level uit de HTML, op naam
-node tools/speelrobot.js level.json --taai      een level uit de bouwer; --taai: levens komen terug
+node tools/speelrobot.js level.json --taai      een level uit de Maker; --taai: levens komen terug
 node tools/speelrobot.js "Test 4" --shots map   elke anderhalve seconde een schermafdruk
 node tools/speelrobot.js level.json --vredig --wacht -1490:12
                                                 op -1490 twaalf seconden blijven staan, zonder te steken
@@ -415,17 +407,6 @@ node tools/beeldgelijk.js --vlag LAGFIX --breed 852 --hoog 393
 Speelt het gevecht tegen de schildbandiet met een paar speelstijlen en meldt per potje de duur,
 de treffers en in welk stuk van zijn aanval Amir hem raakte. Draai het na een wijziging aan `SCHB`.
 `--reactie 0.3` zet de reactietijd, `--breed 1280 --hoog 720` het scherm, `--fotos map` maakt foto's.
-
-### De bouwertest: `tools/bouwertest.js`
-
-Opent elk level in de bouwer, slaat het op en leest het weer in, en meldt per level de velden
-die veranderd of kwijt zijn. Draai hem na elke wijziging aan de bouwer, `readLevel` of `syncLevel`.
-
-```
-node tools/bouwertest.js              alle levels
-node tools/bouwertest.js "Test 4"     alleen de levels waarvan de naam dit bevat
-node tools/bouwertest.js --shots map  daarna een schermafdruk van de bouwer
-```
 
 ### De makertest: `tools/makertest.js`
 

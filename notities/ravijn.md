@@ -33,8 +33,7 @@ In de winter valt er geen sneeuw in een gang (`drawSnowfall` dooft onder de gron
 `holteDiepT`), en treden in een gang (een terras met een negatieve `h`) krijgen de kale steen, niet
 de besneeuwde.
 
-In de bouwer is het precies hetzelfde ravijn, dus ook een level dat je daar maakt krijgt alleen de
-nieuwe stijl. Twee dingen zijn er anders omdat je daar van verder weg kijkt (`viewZoom`): de ravijnen
+Twee dingen zijn er anders op een uitgezoomd level (`viewZoom`, het veld `view`): de ravijnen
 worden rond het midden van de grondlijn geschaald, net als de grond (`ravijnZoom`, ook bij het vangen
 van de achtergrond), en onder de wand komt de donkere bodem (`ravijnBodemVul`), want uitgezoomd reikt
 het beeld dieper dan de wand. Versleep je een ravijn, dan wordt het effect opnieuw gemaakt; dat kost
@@ -168,7 +167,7 @@ terraces: [ {r: -2850, l: -3850, h: -750}, {r: -3050, l: -3850, h: -600}, ... {r
 
 ## elk level nakijken op decor boven een ravijn
 
-`schoonLevel`, draait bij elk level; `schoonKomend` en `komendeRavijnen` houden hutten, keien, doornbossen, skeletten en speertekens weg waar later een ravijn openscheurt (rune of zegel), en `placeProblem` in de bouwer ook
+`schoonLevel`, draait bij elk level; `schoonKomend` en `komendeRavijnen` houden hutten, keien, doornbossen, skeletten en speertekens weg waar later een ravijn openscheurt (rune of zegel)
 
 ## wat er staat waar een ravijn openscheurt
 
