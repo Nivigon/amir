@@ -85,8 +85,9 @@ ravijn, anders op `amir_start_x`), van hem af gekeerd, met zijn speer in de hand
 blijft nog `EXE.lijk` en vervaagt dan.
 
 **De worp-kill**: `exeStart` haalt de geworpen speer weg (`jav = null`, de lagen tekenen hem in zijn borst), de wereld
-loopt gewoon door: `knielen`, dan `wankel` in een loop, `EXE.wankelDuur` (3 s) lang. Staat Amir binnen `EXE.ePlek` van
-`amir_start_x` op dezelfde vloer (`exeBij`), dan staat er een E boven hem (`exeETeken`, via `skE`; `eNodig` zet de E-knop
+loopt gewoon door: `knielen`, dan `wankel` in een loop, `EXE.wankelDuur` (3 s) lang. Staat Amir binnen `EXE.eReik` (ruim een
+Amir) van hem, aan beide kanten, op dezelfde vloer (`exeBij`), dan staat er een E boven hem (staat Amir achter hem, dan
+draait hij bij E eerst naar hem toe) (`exeETeken`, via `skE`; `eNodig` zet de E-knop
 op de telefoon erbij) en start E de executie (`exeTrek`, vooraan in `toggleSpear`). Zonder E maakt hij de lopende loop af
 en speelt hij `val`; vanaf frame `EXE.speerLigtVan` (7) ligt Amirs speer echt op de grond (`exeSpeerNeer`: een `jav` op
 de grond op `speer_ligt_op`, de punt naar zijn voorkant, op te pakken met E zoals na een worp; is je hand al weer vol van
