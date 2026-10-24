@@ -312,6 +312,9 @@
   #mkcontrole{position:absolute;right:12px;bottom:12px;width:340px;max-height:46%;overflow:auto;box-sizing:border-box;padding:8px 10px;z-index:3;
     background:rgba(27,20,32,.96);border:1px solid rgba(242,232,213,.18);border-radius:8px;font-size:12px;line-height:1.45}
   #mkcontrole.dicht{display:none}
+  /* de minimap: het hele grid klein, linksonder op de kaart, met het stuk dat je ziet als kader */
+  #mkmini{position:absolute;left:10px;bottom:10px;width:auto;height:auto;z-index:2;border:1px solid rgba(242,232,213,.3);background:rgba(20,14,26,.92);cursor:pointer;image-rendering:pixelated}
+  #mkmini.dicht{display:none}
   #mkcontrole .mkkop{display:flex;justify-content:space-between;align-items:center;margin:0 0 6px}
   #mkcontrole .mkkop button{padding:0 6px;font-size:14px;line-height:1.4}
   .mkmeld{padding:3px 6px;border-radius:4px;cursor:pointer;color:rgba(242,232,213,.85)}
@@ -939,7 +942,7 @@
       <textarea id="mkjson" spellcheck="false" placeholder="grid als tekst; hier komt de export, of plak een eerder grid en druk op Laden"></textarea>
       <div class="mkrij"><button id="mkload">Laden</button><button id="mkvijwis" title="Haal in een keer alle vijanden weg (ook eentje die je niet ziet staan)">Vijanden weg</button><button id="mkwis">Leeg maken</button></div>
     </div>
-    <div id="mkstage"><canvas id="mkcanvas"></canvas></div>
+    <div id="mkstage"><canvas id="mkcanvas"></canvas><canvas id="mkmini" title="Het hele grid; klik of sleep om ernaartoe te gaan (M verbergt hem)"></canvas></div>
     <div id="mkcontrole" class="dicht"><div class="mkkop">Controle <button id="mkcontrolesluit" title="Dichtklappen">&times;</button></div><div id="mkcontrolelijst"></div></div>
     <div id="mkmenu" class="mkmenu"></div>
     <div id="mkfly" class="mkmenu"></div>
@@ -988,7 +991,7 @@
         <div id="mkgebiedctl" style="display:none">
           <div id="mkgebiedinfo" class="mkhint"></div>
           <div class="mkrij"><button id="mkgebiedkopie" title="Kopieer het gebied naar het klembord (Ctrl+C)">Kopieer</button><button id="mkgebiedknip" title="Kopieer en maak het gebied leeg (Ctrl+X)">Knip</button><button id="mkgebiedplak" title="Plak het klembord: de stempel volgt de muis, klik om hem neer te zetten (Ctrl+V)">Plak</button></div>
-          <div class="mkrij"><button id="mkgebiedspiegel" title="Spiegel het klembord, links wordt rechts (H)">Spiegel</button><button id="mkgebiedwis" title="Maak het gebied leeg (Delete)">Wis</button></div>
+          <div class="mkrij"><button id="mkgebiedspiegel" title="Spiegel het klembord, links wordt rechts (H)">Spiegel</button><button id="mkgebiedwis" title="Maak het gebied leeg (Delete)">Wis</button><button id="mktestvanaf" class="mkspeel" title="Speel het level met Amir op de linkerbovencel van dit gebied in plaats van op het startpunt (handig in een lang level)">Test vanaf hier</button></div>
           <div class="mkhint">Shift+sleep in Selecteren kiest een gebied. Plakken: de stempel volgt de muis, klik om hem neer te zetten, Escape stopt.</div>
         </div>
         <div id="mkvormctl" style="display:none">
@@ -32466,7 +32469,48 @@ function mkTeken(){
       mkCtx.beginPath(); mkCtx.arc(g.rotH.x, g.rotH.y, 6, 0, 7); mkCtx.fill();
     }
   }
+  mkMiniTeken();
 }
+// ---- de minimap: het hele grid klein, linksonder, met het zichtbare stuk als kader. De cellen staan in een
+// buffer van een pixel per cel (mkMiniBuf), die alleen opnieuw gevuld wordt als het grid veranderd is
+// (mkMiniVuil, gezet door mkBewaar); het kader komt er elke tekenbeurt overheen. Klikken of slepen erop
+// brengt dat punt in het midden van het beeld. M verbergt en toont hem. ----
+const mkMini = document.getElementById('mkmini');
+let mkMiniVuil = true, mkMiniBuf = null, mkMiniSleep = false;
+const mkKleurRgb = {};
+function mkRgb(hex){ let k = mkKleurRgb[hex]; if (!k){ const n = parseInt(hex.slice(1), 16); k = [(n >> 16) & 255, (n >> 8) & 255, n & 255]; mkKleurRgb[hex] = k; } return k; }
+function mkMiniTeken(){
+  if (!mkMini || mkMini.classList.contains('dicht')) return;
+  const s = Math.min(220 / MK.cols, 130 / MK.rows), w = Math.max(40, Math.round(MK.cols * s)), h = Math.max(16, Math.round(MK.rows * s));
+  if (mkMini.width !== w || mkMini.height !== h){ mkMini.width = w; mkMini.height = h; }
+  if (mkMiniVuil || !mkMiniBuf || mkMiniBuf.width !== MK.cols || mkMiniBuf.height !== MK.rows){
+    mkMiniBuf = document.createElement('canvas'); mkMiniBuf.width = MK.cols; mkMiniBuf.height = MK.rows;
+    const bc = mkMiniBuf.getContext('2d'), img = bc.createImageData(MK.cols, MK.rows), d = img.data;
+    for (let r = 0; r < MK.rows; r++) for (let c = 0; c < MK.cols; c++){
+      const i = (r * MK.cols + c) * 4, id = MK.grid[r][c];
+      if (id === 'lucht'){ if (r === MK.ground){ d[i] = 120; d[i + 1] = 100; d[i + 2] = 80; d[i + 3] = 110; } else if (r > MK.ground){ d[i + 3] = 60; } continue; }   // de grondlijn als streep, de ondergrond iets donkerder
+      const k = mkRgb(MK_KLEUR[id] || '#888888'); d[i] = k[0]; d[i + 1] = k[1]; d[i + 2] = k[2]; d[i + 3] = 255;
+    }
+    for (const m of MK.maskers) for (const p of m.cells){ if (p.c < 0 || p.r < 0 || p.c >= MK.cols || p.r >= MK.rows) continue; const i = (p.r * MK.cols + p.c) * 4; d[i] = 60; d[i + 1] = 160; d[i + 2] = 90; d[i + 3] = 255; }
+    for (const p of MK.zwart){ if (p.c < 0 || p.r < 0 || p.c >= MK.cols || p.r >= MK.rows) continue; const i = (p.r * MK.cols + p.c) * 4; d[i] = 0; d[i + 1] = 0; d[i + 2] = 0; d[i + 3] = 255; }
+    for (const o of MK.objects){ if (o.c < 0 || o.r < 0 || o.c >= MK.cols || o.r >= MK.rows) continue; const i = (o.r * MK.cols + o.c) * 4;
+      const k = o.k === 'vijand' ? [214, 85, 63] : [242, 232, 213]; d[i] = k[0]; d[i + 1] = k[1]; d[i + 2] = k[2]; d[i + 3] = 255; }
+    for (const [p, k] of [[MK.start, [95, 207, 106]], [MK.eind, [214, 75, 75]]]) if (p && p.c >= 0 && p.r >= 0 && p.c < MK.cols && p.r < MK.rows){ const i = (p.r * MK.cols + p.c) * 4; d[i] = k[0]; d[i + 1] = k[1]; d[i + 2] = k[2]; d[i + 3] = 255; }
+    bc.putImageData(img, 0, 0); mkMiniVuil = false;
+  }
+  const g = mkMini.getContext('2d'); g.imageSmoothingEnabled = false; g.clearRect(0, 0, w, h); g.drawImage(mkMiniBuf, 0, 0, w, h);
+  const cel = mkCel(), sx = w / MK.cols, sy = h / MK.rows;      // het zichtbare stuk, in minimap-pixels
+  const x0 = (-MK.panX) / cel * sx, y0 = (-MK.panY) / cel * sy, x1 = (mkCanvas.clientWidth - MK.panX) / cel * sx, y1 = (mkCanvas.clientHeight - MK.panY) / cel * sy;
+  g.strokeStyle = '#f2e8d5'; g.lineWidth = 1; g.strokeRect(Math.max(0.5, x0) , Math.max(0.5, y0), Math.min(w - 1, x1) - Math.max(0.5, x0), Math.min(h - 1, y1) - Math.max(0.5, y0));
+}
+function mkMiniNaar(ev){                   // het punt onder de muis op de minimap in het midden van het beeld zetten
+  const b = mkMini.getBoundingClientRect(), c = (ev.clientX - b.left) / b.width * MK.cols, r = (ev.clientY - b.top) / b.height * MK.rows, cel = mkCel();
+  MK.panX = mkCanvas.clientWidth / 2 - c * cel; MK.panY = mkCanvas.clientHeight / 2 - r * cel; mkTeken();
+}
+mkMini.addEventListener('pointerdown', ev => { ev.preventDefault(); ev.stopPropagation(); mkMini.setPointerCapture(ev.pointerId); mkMiniSleep = true; mkMiniNaar(ev); });
+mkMini.addEventListener('pointermove', ev => { if (mkMiniSleep) mkMiniNaar(ev); });
+mkMini.addEventListener('pointerup', () => { mkMiniSleep = false; });
+mkMini.addEventListener('pointercancel', () => { mkMiniSleep = false; });
 // een enkele klik: grond schilderen, start/eind zetten, of een object plaatsen of selecteren
 function mkKlik(ev){
   const { c, r } = mkCelOp(ev);
@@ -32986,13 +33030,13 @@ function mkUitJSON(o){
     const p = MK.objects.find(q => q.k === 'platform' && q.c === w._plat.c && q.r === w._plat.r);
     if (p) w.plat = p; delete w._plat;
   }
-  MK.sel = null; MK.selVorm = null; MK.selMask = null; MK.gebied = null;
+  MK.sel = null; MK.selVorm = null; MK.selMask = null; MK.gebied = null; mkMiniVuil = true;
 }
 // opslaan: na elke wijziging roept de Maker mkBewaar aan. Dat schrijft niet meteen (tijdens een streek komt het per
 // cel), maar kort erna in een keer (mkBewaarNu): de autosave naar localStorage, en een stap in de geschiedenis voor
 // ongedaan maken. Zo is een hele streek, een hele sleep of een hele schuifbeweging een stap, geen tientallen.
 let mkBewaarTimer = null;
-function mkBewaar(){ if (mkBewaarTimer) clearTimeout(mkBewaarTimer); mkBewaarTimer = setTimeout(mkBewaarNu, 250); }
+function mkBewaar(){ mkMiniVuil = true; if (mkBewaarTimer) clearTimeout(mkBewaarTimer); mkBewaarTimer = setTimeout(mkBewaarNu, 250); }
 function mkBewaarNu(){
   if (mkBewaarTimer){ clearTimeout(mkBewaarTimer); mkBewaarTimer = null; }
   const s = JSON.stringify(mkNaarJSON());
@@ -33055,9 +33099,10 @@ function mkSpelExport(){
 // onder de grondlijn worden een holte met een ingang (gat) en een trap naar boven; en een
 // takel-cel wordt een lift tussen de grond en het dichtstbijzijnde hogere plateau. Start en eind
 // zetten Amir en de afsluitende klif. De exacte afstelling reken ik na met de tools.
-function mkNaarLevel(){
+function mkNaarLevel(opt){
   const C = MK.cols, gR = MK.ground, G = MK.grid;
-  const startCol = MK.start ? MK.start.c : C - 1;
+  const vanaf = opt && opt.vanaf;                   // "Test vanaf hier": Amir begint op deze kolom in plaats van op het startpunt
+  const startCol = vanaf ? vanaf.c : MK.start ? MK.start.c : C - 1;
   const eindCol  = MK.eind  ? MK.eind.c  : 0;
   // altijd WYSIWYG: links op het grid is links in het spel, rechts is rechts. Het eindpunt bepaalt niet meer de
   // looprichting (dat spiegelde vroeger de hele wereld zodra je het eind rechts van de start zette); het is nu puur
@@ -33528,9 +33573,9 @@ function mkNaarCel(c, r){                 // het beeld op een cel centreren (zon
 }
 let mkFlits = null;                       // de cel die net is aangewezen vanuit de controle: een gele rand die uitdooft
 let mkTestActief = false;
-function mkTest(){
+function mkTest(opt){
   if (mkBewaarTimer) mkBewaarNu();                  // de laatste wijziging meteen opslaan (de test kan lang duren)
-  level = readLevel(JSON.stringify(mkNaarLevel()));
+  level = readLevel(JSON.stringify(mkNaarLevel(opt && opt.vanaf ? opt : undefined)));
   if (level.winter) loadWinter();                  // de winterplaatjes als het een winterlevel is
   if (level.sneeuw && level.sneeuw.soort) loadSneeuw();   // en het sneeuwdek voor een besneeuwde bodem
   mkTestActief = true; makerOpen = false;
@@ -33541,6 +33586,7 @@ function mkTest(){
 }
 function mkTerug(){
   mkTestActief = false; running = false; paused = false;
+  laadWacht = false; warmRij = null; document.getElementById('laad').classList.remove('on');   // de laadpoort dicht als je terugkomt terwijl hij nog laadt (anders bleef het laadscherm over de Maker liggen)
   pauseEl.classList.remove('on'); deadEl.classList.remove('on');
   document.getElementById('mkterug').classList.remove('on');
   makerOpen = true; startEl.classList.add('off'); makerEl.classList.add('on');
@@ -33744,6 +33790,7 @@ addEventListener('keydown', ev => {
   if ((ev.key === 'Delete' || ev.key === 'Backspace') && MK.gebied && !MK.sel && !MK.selVorm){ mkGebiedWis(); ev.preventDefault(); return; }   // het gebied leegmaken
   if (ev.code === 'Space'){ mkSpace = true; ev.preventDefault(); return; }
   if (ev.key === 'f' || ev.key === 'F'){ mkPassend(); ev.preventDefault(); return; }                                  // F: de hele kaart in beeld
+  if (ev.key === 'm' || ev.key === 'M'){ mkMini.classList.toggle('dicht'); mkTeken(); ev.preventDefault(); return; }  // M: de minimap verbergen of tonen
   if (ev.key === 't' || ev.key === 'T'){ mkTest(); ev.preventDefault(); return; }                                     // T: testen
   if (ev.key === '+' || ev.key === '=' || ev.key === '-' || ev.key === '_'){                                          // zoomen om het midden van het beeld
     const w = mkCanvas.clientWidth, h = mkCanvas.clientHeight, celOud = mkCel(), cx = (w / 2 - MK.panX) / celOud, cy = (h / 2 - MK.panY) / celOud;
@@ -33778,6 +33825,7 @@ document.getElementById('mkgebiedknip').onclick = mkKnip;
 document.getElementById('mkgebiedplak').onclick = mkPlakStart;
 document.getElementById('mkgebiedspiegel').onclick = mkSpiegel;
 document.getElementById('mkgebiedwis').onclick = mkGebiedWis;
+document.getElementById('mktestvanaf').onclick = () => { if (!MK.gebied) return; const n = mkGebiedNorm(MK.gebied); mkTest({ vanaf: { c:n.c0, r:n.r0 } }); };
 document.getElementById('mkexport').onclick = mkExport;
 document.getElementById('mkcopy').onclick = mkExport;
 document.getElementById('mkdl').onclick = mkDownload;

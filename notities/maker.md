@@ -27,7 +27,8 @@ varianten voor de bandiet en de schildbandiet, en de knoppen per vijand in `MK_V
 | opslaan | `mkNaarJSON` en `mkUitJSON` (het grid-formaat, `MK_VERSIE`), `mkBewaar` (wacht 250 ms) en `mkBewaarNu` (de autosave in `localStorage['amir-mk']` plus een stap in de geschiedenis) |
 | ongedaan maken | `mkHist`, `mkHistZet`, `mkHistNaar`, `mkOngedaan`, `mkOpnieuw` (`MK_HIST_MAX` stappen, hele grids als tekst) |
 | controle | `mkControle` (de meldingen), `mkControleToon` (het paneel), `mkNaarCel` (naar een cel springen, met `mkFlits`) |
-| spelen | `mkNaarLevel` (het grid naar het spelformaat), `mkTest` en `mkTerug`, `mkSpelExport` (de Spel-JSON) |
+| spelen | `mkNaarLevel(opt)` (het grid naar het spelformaat; `opt.vanaf` zet Amir op een andere kolom), `mkTest` en `mkTerug` (die ook de laadpoort sluit), `mkSpelExport` (de Spel-JSON), de knop Test vanaf hier (`#mktestvanaf`, op de linkerbovencel van het gebied) |
+| minimap | `mkMiniTeken` (het hele grid klein, linksonder; de cellen in een buffer van een pixel per cel, `mkMiniVuil` na elke wijziging), `mkMiniNaar` (klikken of slepen brengt die plek in beeld), M verbergt hem |
 | openen en sluiten | `mkOpen` (met het versieslot op de autosave), `mkDicht` |
 
 **Ongedaan maken** werkt per gebaar: elke keer dat de Maker iets wegschrijft (`mkBewaarNu`) is
@@ -112,7 +113,7 @@ de bodem tot de grondlijn reist, `takels`) als weg omhoog uit die gang (`liften_
 
 Escape (selecteren, deselecteren), spatie (schuiven), Delete (voorwerp of vorm weg), Ctrl+Z en
 Ctrl+Y (ongedaan en opnieuw), Ctrl+S (exporteren), F (passend), T (testen), + en - (zoomen),
-pijltjes (schuiven, met Shift sneller), Shift+slepen (rechthoek; in Selecteren een gebied), Ctrl+C,
+pijltjes (schuiven, met Shift sneller), M (de minimap), Shift+slepen (rechthoek; in Selecteren een gebied), Ctrl+C,
 Ctrl+X en Ctrl+V (kopiëren, knippen, plakken), H (het klembord spiegelen), Delete (het gebied
 leegmaken). Op een keuzelijst, knop of tekstvak blijven de toetsen van dat veld.
 
@@ -122,8 +123,8 @@ Laadt de Maker in Chromium met een proefgrid waar alles op staat (gat, gang met 
 zwever, muur door de grond, sneeuw, alle voorwerpen, een masker, een zwarte cel, een vorm) en
 kijkt na: de round-trip van export en import, de vertaling naar een spel-level, rijen invoegen en
 weer weghalen, verkleinen, snel schilderen, de rechthoek, het aanklikken van brede voorwerpen,
-ongedaan maken, een gebied kopiëren, spiegelen, plakken en knippen, de vijand-knoppen, de
-controle, de Test starten en teruggaan, de autosave, en of
+ongedaan maken, een gebied kopiëren, spiegelen, plakken en knippen, de minimap en Test vanaf
+hier, de vijand-knoppen, de controle, de Test starten en teruggaan, de autosave, en of
 het proefgrid als spel-level door `levelcheck.py` komt. Draai hem na elke wijziging aan de Maker.
 
 ```
@@ -137,6 +138,6 @@ regel bij, en een controle in de lijst `check(...)`.
 
 ## Wat er nog niet is
 
-Geen minimap, geen aanraking (pannen en zoomen kan
+Geen aanraking (pannen en zoomen kan
 alleen met muis en toetsen), geen prop-keuze (een prop is een aantekening), en een zegel kent
 alleen een masker en Verborgen, niet de andere zegel-velden (`speerval`, `rijs`, `plafond`).

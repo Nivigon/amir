@@ -327,6 +327,34 @@ function verschil(a, b, pad = ''){
     return uit;
   });
 
+  // 5e. de minimap en Test vanaf hier
+  await check('minimap: klikken brengt die plek in beeld; Test vanaf hier start op het gebied', async () => {
+    await laad(proefGrid());
+    const uit = [];
+    const mini = await page.evaluate(() => { const m = document.getElementById('mkmini'); const b = m.getBoundingClientRect(); return { w: m.width, h: m.height, x: b.left, y: b.top, bw: b.width, bh: b.height, zicht: getComputedStyle(m).display !== 'none' }; });
+    if (!mini.zicht || mini.w < 40) uit.push('geen minimap: ' + JSON.stringify(mini));
+    await page.evaluate(() => { MK.zoom = 2.5; mkTeken(); });
+    await page.mouse.click(mini.x + mini.bw * (22.5 / 24), mini.y + mini.bh * (8.5 / 12));   // op cel (22, 8)
+    const mid = await page.evaluate(() => { const cel = mkCel(); return { c: (mkCanvas.clientWidth / 2 - MK.panX) / cel, r: (mkCanvas.clientHeight / 2 - MK.panY) / cel }; });
+    if (Math.abs(mid.c - 22.5) > 0.6 || Math.abs(mid.r - 8.5) > 0.6) uit.push('na de klik op de minimap staat cel ' + mid.c.toFixed(1) + ',' + mid.r.toFixed(1) + ' in het midden in plaats van 22.5,8.5');
+    await page.keyboard.press('m');
+    const weg = await page.evaluate(() => document.getElementById('mkmini').classList.contains('dicht'));
+    if (!weg) uit.push('M verbergt de minimap niet');
+    await page.keyboard.press('m');
+    // Test vanaf hier: het gebied op kolom 6 (de zandslang), Amir begint daar
+    await page.evaluate(() => { MK.gebied = { c0: 6, r0: 6, c1: 6, r1: 6 }; MK.inspectDicht = false; mkNotePaneel(); });
+    const lv = await page.evaluate(() => mkNaarLevel({ vanaf: { c: 6, r: 6 } }));
+    if (lv.start !== 87 && lv.start !== 88) uit.push('start met vanaf kolom 6: ' + lv.start + ' (het midden van kolom 6 verwacht, 87)');
+    const slang = lv.spawns.find(s => s.k === 'groen'); if (!slang || Math.abs(slang.x - lv.start) > 1) uit.push('de zandslang op kolom 6 staat niet op de start: ' + JSON.stringify(slang));
+    if (!(lv.rechtsWall > 0)) uit.push('zonder rechtsWall valt de echte start (rechts van hier) buiten de grens');
+    await page.click('#mktestvanaf');
+    await page.waitForTimeout(600);
+    const st = await page.evaluate(() => ({ running, mkTestActief, start: level && level.start }));
+    if (!st.running || !st.mkTestActief) uit.push('Test vanaf hier draait niet: ' + JSON.stringify(st));
+    await page.click('#mkterug'); await page.waitForTimeout(200);
+    return uit;
+  });
+
   // 6. ongedaan maken en opnieuw
   await check('ongedaan maken: Ctrl+Z haalt een streek weg, Ctrl+Y zet hem terug', async () => {
     await laad(proefGrid());
