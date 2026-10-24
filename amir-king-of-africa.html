@@ -5902,7 +5902,7 @@ function terracePlats(scale){
                  : { x: o.x, left: o.x, right: o.x + len, topH: o.h, wPx: 400, hPx: 0, thin: true });
   }
   for (const z of zweefList())                // zwevende savannelaag: bovenop landen, eronderdoor lopen
-    out.push({ x: (z.l + z.r) / 2, left: z.l, right: z.r, topH: z.h, floatBot: z.onder, zweef: true, wPx: 400, hPx: 0 });
+    out.push({ x: (z.l + z.r) / 2, left: z.l, right: z.r, topH: z.h, floatBot: z.onder, zweef: true, zwart: z.zwart, wPx: 400, hPx: 0 });
   return out;
 }
 // één kolom uit het terrasplaatje, met de wand eronder herhaald tot onder het scherm
@@ -15651,6 +15651,17 @@ function javFloor(x, plats, h){              // hoogte van de vaste grond op dez
   }
   return s;
 }
+// gaat de punt hier van onderen de onderkant van een zwart blok in (Maker nieuwstijl: plafond, muur of de
+// zwarte vloer van het niveau erboven)? Dan geeft dit de hoogte van die onderkant, anders null. javFloor slaat
+// een zwever over zolang de punt eronder zit, dus zonder deze test vloog een speer er van onderen dwars doorheen
+function zwartDak(x, h0, h1, plats){
+  let dak = null;
+  for (const p of plats){
+    if (!p.zweef || !p.zwart || p.floatBot == null || x <= p.left || x >= p.right) continue;
+    if (h0 <= p.floatBot && h1 > p.floatBot && (dak === null || p.floatBot < dak)) dak = p.floatBot;
+  }
+  return dak;
+}
 // gaat de punt hier van onder het dak van een gang erdoorheen? Niet onder een gat in het dak (inGap)
 function javTegenDak(x, h0, h1){
   return h0 < -HOLTE_DAK && h1 >= -HOLTE_DAK && !!holteAt(x) && !inGap(x);
@@ -15683,6 +15694,8 @@ function javReturnX(){
   return (inGap(x) || waterDepthAt(x) > 0.3) ? lastSolid : x;   // nergens droog: dan toch maar terug
 }
 function javStick(x, h, soort, scale){
+  const dak = soort === 'dak';                         // de onderkant van een zwart blok: steekt erin als in een wand
+  if (dak) soort = 'muur';
   const muur = soort === 'muur', bos = soort === 'bos';
   // onder de looplijn blijven steken kan alleen in de wand van een ravijn: daar
   // komt Amir nooit bij, dus dat telt als verloren en het vangnet brengt hem terug
@@ -15694,6 +15707,11 @@ function javStick(x, h, soort, scale){
   jav.los = 0;                                           // de klok voor het losschieten begint opnieuw
   jav.x = x + (muur ? jav.dir * JAV.inTile : 0);          // de punt steekt er een stukje in
   jav.h = h - (muur || bos ? 0 : JAV.inTile);
+  jav.dak = dak ? h : null;                              // onthoud de onderkant: daar valt hij straks vandaan
+  if (dak){                                              // langs zijn eigen richting omhoog het blok in
+    jav.x = x + Math.cos(jav.sa) * JAV.inTile;
+    jav.h = h + Math.max(0, -Math.sin(jav.sa)) * JAV.inTile / scale;
+  }
   if (bos){
     // Hij zakt de takken in tot een deel van zijn eigen lengte en het uiteinde hangt
     // door onder zijn gewicht: zo steekt er minder schacht uit, en die ligt lager dan
@@ -15916,6 +15934,8 @@ function javUpdate(dt, plats, scale){
       jav.los = (jav.los || 0) + dt;
       if (jav.los >= JAV.muurT){
         jav.x -= jav.dir * (JAV.inTile + 8);   // eerst de punt uit de wand, anders valt hij er bovenop
+        if (jav.dak != null) jav.h = Math.min(jav.h, jav.dak - 2);   // uit een zwart plafond: eerst onder de onderkant
+        jav.dak = null;
         jav.state = 'val'; jav.hit = true; jav.vx = 0; jav.vh = 0; jav.t = 0;
         jav.rotsUit = false;                  // hij valt door het steen van de rots naar beneden, niet er weer in vast
         spearX = null; spearH = null;
@@ -15950,6 +15970,10 @@ function javUpdate(dt, plats, scale){
     if (!inRots) jav.rotsUit = true;
     const fNieuw = javFloor(nx, plats, jav.h);
     if (fNieuw > jav.h && jav.h > fOud){ javStick(jav.x, jav.h, 'muur', scale); return; }   // van opzij tegen een wand
+    if (!building){                                // van onderen tegen een zwart blok: hij blijft erin steken
+      const dak = zwartDak(nx, jav.h, jav.h + jav.vh * sdt, plats);
+      if (dak !== null){ javStick(nx, dak, 'dak', scale); return; }
+    }
     // Het dak van een gang: een speer die er van onderen tegenaan komt, valt terug de gang in.
     // Anders vloog een boog dwars door de rots de savanne op en kwam hij ergens anders neer.
     if (!building && javTegenDak(nx, jav.h, jav.h + jav.vh * sdt)){
@@ -15986,7 +16010,7 @@ function javUpdate(dt, plats, scale){
 // een speer die in een muur steekt is een platform: alleen van bovenaf, van
 // onderen spring je er doorheen (thin). Het uitstekende deel van de schacht draagt.
 function javPlat(scale){
-  if (!jav || jav.state !== 'muur') return null;
+  if (!jav || jav.state !== 'muur' || jav.dak != null) return null;   // in een plafond is hij geen opstapje
   const L = javLen(scale);
   const bx = jav.x - Math.cos(jav.sa) * L;                 // waar het uiteinde van de schacht zit
   const mid = (jav.x + bx) / 2, half = Math.max(JAV.plat, Math.abs(jav.x - bx)) / 2;
@@ -19458,7 +19482,7 @@ function runeStroken(e, scale){
           if (!vol) uit = true;
           const f = javFloor(nx, plats, h);
           if (f > -Infinity && nh <= f){ klaar = true; break; }   // op de grond of tegen een wand
-          if (javTegenDak(nx, h, nh)){ klaar = true; break; }
+          if (javTegenDak(nx, h, nh) || zwartDak(nx, h, nh, plats) !== null){ klaar = true; break; }
           x = nx; h = nh; vh -= g * s;
         }
         if (klaar) break;
