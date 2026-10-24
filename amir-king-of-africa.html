@@ -4078,20 +4078,23 @@ const TEST_49 = {
 };
 // Test 50: de executie van de schildbandiet. Vlakke grond, een makkelijke schildbandiet, niets anders: elke
 // kill is hier de executie (executie: true; de lage zwaai telt als steek). Je begint met de speer in de hand,
-// zodat R meteen opnieuw begint. Om het ritme, het geluid en de effecten af te stellen (zie "de executie").
+// zodat R meteen opnieuw begint, en na elke dode schildbandiet komt er een nieuwe aanwandelen (herhaal: true),
+// zodat je de executie achter elkaar kunt bekijken. Om het ritme, het geluid en de effecten af te stellen
+// (zie "de executie").
 const TEST_50 = {
   name: 'Test 50: De executie',
   lagen: 'tafelbergen',
   view: 0.8, hpBalk: true, zicht: true,
   speerInHand: true,
   executie: true,
+  herhaal: true,
   spawns: [ {x: -1800, k: 'schildman', niveau: 'makkelijk'} ],
   rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [],
   props: [ {x: -400, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -1100, k: 'struik', s: 1.0, f: 1, v: 0},
            {x: -2400, k: 'gras', s: 0.9, f: 1, v: 0} ],
   cliffs: [ {x: -4400} ],
   ends: [ {x: -3800} ],
-  tips: [ { x: -60, t: 'Testlevel: de executie. Elke kill op de schildbandiet is hier de executie: steek (meteen) of worp (loop naar hem toe en druk E). R begint opnieuw' } ]
+  tips: [ { x: -60, t: 'Testlevel: de executie. Elke kill op de schildbandiet is hier de executie: steek (meteen) of worp (loop naar hem toe en druk E). Na elke executie komt er een nieuwe aanwandelen. R begint opnieuw' } ]
 };
 const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31, TEST_32, TEST_33, TEST_34, TEST_35, TEST_36, TEST_37, TEST_38, TEST_39, TEST_40, TEST_41, TEST_42, TEST_43, TEST_44, TEST_45, TEST_46, TEST_47, TEST_48, TEST_49, TEST_50];
 // ---- Episode Baboon tests: de baviaan, stuk voor stuk ----
@@ -20788,7 +20791,7 @@ function restart(){
   }
   camY = 0; camFloor = 0;
   drawLives(); deadEl.classList.remove('on');
-  snakes.length = 0; scorps.length = 0; panthers.length = 0; hyenas.length = 0; kooimannen.length = 0; vogels.length = 0; bandieten.length = 0; banDolken.length = 0; banVonken.length = 0; meelmannen.length = 0; meelzakken.length = 0; schildmannen.length = 0; golfReset(); arena = null; camEase = null; spawnTimer = 0.6;
+  snakes.length = 0; scorps.length = 0; panthers.length = 0; hyenas.length = 0; kooimannen.length = 0; vogels.length = 0; bandieten.length = 0; banDolken.length = 0; banVonken.length = 0; meelmannen.length = 0; meelzakken.length = 0; schildmannen.length = 0; exeHerhaalNodig = false; exeHerhaalT = 0; golfReset(); arena = null; camEase = null; spawnTimer = 0.6;
   if (sbArena){ sbArenaVeld(); sbArenaReset(); }   // de arena-modus van de sandbox: eerst het veld (de wanden, de camera vast in het midden, Amir midden op de vloer), dan de klok en de afteller
   if (level && level.apenArena && !sandbox) arenaStart();   // de goudaap-arena: muren, camera in het midden, de spawner
   if (level && level.bandArena && !sandbox) bandArenaStart();   // de bandiet-arena: de garde van de valse koning
@@ -25795,8 +25798,9 @@ function updateSchildmannen(dt, plats, cliff){
   for (let i = schildmannen.length - 1; i >= 0; i--){
     const s = schildmannen[i];
     updateSchildman(s, dt, plats, cliff);
-    if (s.state === 'weg') schildmannen.splice(i, 1);
+    if (s.state === 'weg'){ schildmannen.splice(i, 1); if (level && level.herhaal) exeHerhaalNodig = true; }
   }
+  exeHerhaalStap(dt);
 }
 function hitSchildman(s, wijze){                           // wijze: 'steek', 'worp' of 'zwaai' (de steek en de worp kunnen een executie worden, zie EXE)
   if (s.state === 'dood' || s.state === 'weg' || s.exe || s.inv > 0) return false;
@@ -25985,6 +25989,16 @@ const EXE = {
   splijt: { duur: 1.3, uit: 40, val: 30, draai: 1.35 },   // de helften: s (op de trage klok), canvas-px opzij, canvas-px omlaag, en tot welke hoek ze omvallen
   druppels: 28, spuitK: 0.7,     // bloeddruppels langs de snijlijn, en de hoogte van de spuit (deel van zijn figuur)
   lijk: 0.9,                     // na het splijten: zo lang blijven de helften en het bloed nog, dan vervagen ze
+  // De bloedboog: vanaf de ruk neemt de speerpunt het bloed mee, de spuitplaat gebogen langs zijn baan (zie "de bloedboog")
+  boog: { van: 5, tot: 11,       // de frames van 'executie' waarin de punt de boog maakt: van de aanzet (de punt in de wond) tot het hangmoment
+          punt: [[2, -275], [-62, -367], [-115, -413], [-169, -437], [-251, -448], [-409, -447]],   // de speerpunt per frame van+1..tot, canvas-px t.o.v. het anker en de grondlijn (tools/exe_speerpunt.py)
+          breed: 0.5,            // de breedte van de spuitplaat langs de boog (deel van de bronbreedte, 1 is de plaat zoals hij is)
+          stroken: 28,           // in zoveel stroken wordt de plaat langs de boog gebogen
+          alpha: 0.9,            // hoe dekkend
+          per: 22,               // om de zoveel canvas-px boog een druppel van de punt af
+          snel: 0.3, vMax: 2600,   // de druppels krijgen zoveel van de vaart van de punt mee (px/s, begrensd op vMax voor de maal)
+          klok: 0.6 },           // de spuitplaat van de boog loopt zoveel trager af dan de spuit op de wond, zodat de boog tot in het splijten hangt
+  herhaalWacht: 1.5,             // herhaal: true (Test 50): zoveel s na de laatste schildbandiet komt de volgende aanwandelen
   snij: { src: 'sounds/beheaded.mp3', van: 0.05, tot: 2.35, vol: 0.9 }   // het geluid op de snee: het bestand heeft twee geluiden, alleen het eerste speelt (van..tot)
 };
 let exeZoomNu = 1;                      // de camera-inzoom van de executie (vermenigvuldigt viewZoom)
@@ -26085,6 +26099,7 @@ function exeTick(s, dt){
   const e = s.exe;
   if (!exeData){ s.state = 'weg'; return; }
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
+  exeBoogStap(s, dt);                              // de bloedboog groeit met de speerpunt mee (ook in de hitstop op de ruk: daar begint hij)
   if (e.stop > 0){                                 // een hitstop binnen de executie: het beeld staat stil, de schok rommelt na
     e.stop = Math.max(0, e.stop - dt);
     if (e.stop === 0 && e.naStop){ const f = e.naStop; e.naStop = null; f(); }
@@ -26092,6 +26107,7 @@ function exeTick(s, dt){
   }
   e.t += dt;
   if (e.bew === 'splijt' || e.bew === 'lijk'){ exeSplijtStap(s, dt); return; }
+  if (e.bew === 'executie') exeDruppelStap(e, dt);   // de druppels die van de speerpunt afschoten
   const b = exeBew(e.bew), n = b.frames.length;
   if (e.bew === 'wankel'){
     e.wankelT += dt;
@@ -26157,7 +26173,7 @@ function exeSplijtStart(s){
   exeSnijSpeel();                                  // het geluid van de snee (sounds/beheaded.mp3, alleen het eerste geluid)
   bloedLaadSpuit(bloedSpuitNaam);
   s.spuit = { naam: bloedSpuitNaam, frame: 0, acc: 0, op: 0 };
-  e.druppels = [];
+  e.druppels = e.druppels || [];                   // de druppels van de bloedboog liggen er al
   for (let i = 0; i < EXE.druppels; i++){
     const u = Math.random(), kant = Math.random() < 0.5 ? -1 : 1;
     e.druppels.push({ x: sn.door_wond[0] + (sn.door_kruin[0] - sn.door_wond[0]) * u,
@@ -26182,11 +26198,8 @@ function exeSplijtStap(s, dt){
   const sdt = e.bew === 'splijt' ? dt * exeTraag(e) : dt;   // de slowmotion geldt voor de helften, de spuit en de druppels
   e.tS += sdt;
   bloedSpuitStap(s, sdt);
-  for (const d of e.druppels){
-    if (d.lig) continue;
-    d.vy += 1500 * sdt; d.x += d.vx * sdt; d.y += d.vy * sdt;
-    if (d.y >= 0){ d.y = 0; d.lig = true; d.r *= 1.6; }   // op de grondlijn: een spat
-  }
+  if (e.boog && e.boog.spuit) bloedSpuitStap(e.boog, sdt * EXE.boog.klok);   // de bloedboog loopt op dezelfde trage klok af
+  exeDruppelStap(e, sdt);
   if (e.bew === 'splijt' && e.tS >= EXE.splijt.duur) exeEinde(s);
   if (e.bew === 'lijk'){
     e.t3 += dt;
@@ -26261,11 +26274,13 @@ function exeTeken(s, gs){
     exeDruppelsTeken(e, gs);
     exeSpuitTeken(s, gs);
     if (e.bew === 'splijt') for (const l of e.laatste) if (l.item !== 'schildman') laag(l);   // Amir en zijn speer er bovenop
+    exeBoogTeken(s, gs);
     return;
   }
   const b = exeBew(e.bew); if (!b) return;
   const fr = b.frames[Math.min(e.frame, b.frames.length - 1)];
   for (const l of fr){ if (e.speerWeg && l.item === 'speer') continue; laag(l); }
+  exeBoogTeken(s, gs);                             // de bloedboog hangt voor hem en Amir in de lucht
 }
 // de twee helften: de schildman-laag geclipt links en rechts van de snijlijn (doorgetrokken over de hele
 // laag), die uit elkaar schuiven en om hun voet omvallen (op de trage klok); als lijk blijven ze liggen
@@ -26299,6 +26314,111 @@ function exeDruppelsTeken(e, gs){
     ctx.fill();
   }
   ctx.restore();
+}
+function exeDruppelStap(e, dt){                     // de druppels vliegen met zwaartekracht en blijven op de grondlijn liggen als een spat
+  if (!e.druppels) return;
+  for (const d of e.druppels){
+    if (d.lig) continue;
+    d.vy += 1500 * dt; d.x += d.vx * dt; d.y += d.vy * dt;
+    if (d.y >= 0){ d.y = 0; d.lig = true; d.r *= 1.6; }
+  }
+}
+// ---- de bloedboog: de speerpunt neemt het bloed mee ----
+// Vanaf de ruk trekt Amir de speer door hem heen omhoog en in een boog over zijn eigen hoofd (de frames
+// boog.van tot boog.tot van 'executie'). Het bloed gaat mee: de spuitplaat van het bloedsysteem wordt in
+// stroken langs de baan van de speerpunt gebogen, met zijn voet (het anker) op de wond en de brede kop bij
+// de punt, en groeit mee zolang de speer beweegt, net achter de punt aan. Onderweg schieten er druppels van
+// de punt af met een deel van zijn vaart (boog.snel), die op de grondlijn blijven liggen. De spuitplaat loopt
+// op zijn eigen klok af (bloedSpuitStap, op de trage klok tijdens het splijten) en lost zo vanzelf op in
+// losse spatten. De baan: de wond uit de snijlijn en dan de speerpunt per frame (boog.punt, gemeten met
+// tools/exe_speerpunt.py), glad gemaakt met Catmull-Rom.
+let exeBoogCache = null;
+function exeBoogPad(){
+  if (exeBoogCache) return exeBoogCache;
+  const ex = exeBew('executie'); if (!ex) return null;
+  const K = [ex.snijlijn.door_wond].concat(EXE.boog.punt), P = [], N = 6;
+  for (let i = 0; i < K.length - 1; i++){
+    const a = K[Math.max(0, i - 1)], b = K[i], c = K[i + 1], d = K[Math.min(K.length - 1, i + 2)];
+    for (let j = 0; j < N; j++){
+      const t = j / N, t2 = t * t, t3 = t2 * t;
+      P.push([0, 1].map(q => 0.5 * (2 * b[q] + (c[q] - a[q]) * t + (2 * a[q] - 5 * b[q] + 4 * c[q] - d[q]) * t2 + (3 * b[q] - a[q] - 3 * c[q] + d[q]) * t3)));
+    }
+  }
+  P.push(K[K.length - 1]);
+  const len = [0], knoop = [0];                    // len: de lengte tot elk tussenpunt; knoop: tot elk sleutelpunt (de wond, dan per frame)
+  for (let i = 1; i < P.length; i++){ len.push(len[i - 1] + Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1])); if (i % N === 0) knoop.push(len[i]); }
+  return (exeBoogCache = { P, len, knoop, L: len[len.length - 1] });
+}
+function exeBoogPunt(pad, d){                      // de plek op afstand d langs de baan, en de richting (hoek: zo gedraaid wijst -y langs de baan)
+  const P = pad.P, len = pad.len;
+  let i = 1; while (i < len.length - 1 && len[i] < d) i++;
+  const a = P[i - 1], b = P[i], u = Math.max(0, Math.min(1, (d - len[i - 1]) / ((len[i] - len[i - 1]) || 1)));
+  return { x: a[0] + (b[0] - a[0]) * u, y: a[1] + (b[1] - a[1]) * u, hoek: Math.atan2(b[0] - a[0], -(b[1] - a[1])) };
+}
+// een stap: de boog begint op het eerste frame na de aanzet en groeit tijdens frame f van sleutelpunt f-1
+// naar f (in de hitstop op de ruk met de hitstop mee), zodat het bloed net achter de punt aan hangt; over
+// elke boog.per px die erbij komt schiet er een druppel van de punt af
+function exeBoogStap(s, dt){
+  const e = s.exe, B = EXE.boog;
+  if (!e.boog){
+    if (e.bew !== 'executie' || e.frame <= B.van) return;
+    bloedLaadSpuit(bloedSpuitNaam);
+    e.boog = { spuit: { naam: bloedSpuitNaam, frame: 1, acc: 0, op: 0 }, tot: 0, rest: 0 };   // vanaf frame 1: frame 0 van de reeks is het silhouet ter referentie
+    e.druppels = e.druppels || [];
+  }
+  const b = e.boog, pad = exeBoogPad(); if (!pad) return;
+  if (e.bew !== 'executie') return;               // tijdens het splijten loopt hij op de trage klok (exeSplijtStap)
+  if (b.spuit) bloedSpuitStap(b, dt * B.klok);
+  const f = e.frame, k = pad.knoop;
+  let doel = pad.L;
+  if (f <= B.tot){
+    const i = f - B.van;
+    const u = e.stop > 0 ? 1 - e.stop / (EXE.t.rukStop || 1) : Math.min(1, e.acc / (exeDuur(e, exeBew('executie'), f) || 1));
+    doel = k[i - 1] + (k[i] - k[i - 1]) * Math.max(0, Math.min(1, u));
+  }
+  if (doel <= b.tot) return;
+  const d0 = b.tot, v = Math.min(B.vMax, (doel - d0) / Math.max(dt, 0.001)) * B.snel;
+  b.tot = doel; b.rest += (doel - d0) / B.per;
+  while (b.rest >= 1){
+    b.rest--;
+    const p = exeBoogPunt(pad, d0 + Math.random() * (doel - d0)), tx = Math.sin(p.hoek), ty = -Math.cos(p.hoek);
+    e.druppels.push({ x: p.x, y: p.y, vx: tx * v + (Math.random() - 0.5) * 160, vy: ty * v + (Math.random() - 0.5) * 160,
+                      r: 2 + Math.random() * 3, lig: false });
+  }
+}
+// tekenen (binnen de transform van de schildbandiet): de spuitplaat van onder naar boven in stroken, elke
+// strook op zijn afstand langs de baan gedraaid naar de richting daar, tot waar de boog nu reikt
+function exeBoogTeken(s, gs){
+  const e = s.exe, b = e.boog, B = EXE.boog; if (!b || !b.spuit || b.tot <= 0) return;
+  const set = bloedSpuitCache[b.spuit.naam], si = set && set[Math.min(b.spuit.frame, set.length - 1)];
+  if (!si || !si.naturalWidth) return;
+  const pad = exeBoogPad(); if (!pad) return;
+  const hI = si.naturalHeight, wI = si.naturalWidth, k = pad.L / hI, bw = wI * k * B.breed * gs, n = B.stroken;
+  ctx.save(); ctx.globalAlpha *= B.alpha;
+  for (let j = 0; j < n; j++){
+    const y0 = hI - hI * j / n, d0 = (hI - y0) * k;   // y0 de onderrand van de strook in de plaat, d0 die rand langs de baan
+    if (d0 >= b.tot) break;
+    const d1 = Math.min(d0 + (hI / n) * k, b.tot), y1 = hI - d1 / k, hh = (d1 - d0) * gs;
+    const p = exeBoogPunt(pad, (d0 + d1) / 2);
+    ctx.save(); ctx.translate(p.x * gs, p.y * gs); ctx.rotate(p.hoek);
+    ctx.drawImage(si, 0, y1, wI, y0 - y1, -bw / 2, -hh / 2 - 0.6, bw, hh + 1.2);   // een halve px overlap tegen naden
+    ctx.restore();
+  }
+  ctx.restore();
+}
+// herhaal: true (Test 50): is de laatste schildbandiet weg (na de executie of de gewone dood), dan komt er na
+// herhaalWacht een nieuwe aanwandelen, net buiten beeld voor Amir uit, met de vlaggen van de eerste spawn
+let exeHerhaalNodig = false, exeHerhaalT = 0;
+function exeHerhaalStap(dt){
+  if (!level || !level.herhaal || sandbox) return;
+  if (!exeHerhaalNodig || schildmannen.length || exeVries){ exeHerhaalT = 0; return; }
+  exeHerhaalT += dt;
+  if (exeHerhaalT < EXE.herhaalWacht) return;
+  exeHerhaalNodig = false; exeHerhaalT = 0;
+  const sp = (level.spawns || []).find(o => o.kind === 'schildman') || {};
+  const mx = spawnPoint(world - 1);
+  const m = makeSchildman(mx, mx > world ? 1 : -1, sp.niveau, sp.lagen);
+  m.base = terrainH(mx); zichtZet(m, sp); schildmannen.push(m);
 }
 function exeSpuitTeken(s, gs){                      // de spuit van het bloedsysteem op de wond, langs de snijlijn omhoog
   if (!s.spuit) return;
@@ -31365,6 +31485,7 @@ function readLevel(txt){
            hpBalk: Array.isArray(o.hpBalk) ? o.hpBalk.filter(k => typeof k === 'string') : !!o.hpBalk,   // true = elke vijand de balk, of een lijst soorten (['bandiet','kooiman']) = alleen die (zie HP_BALK)
            zicht: !!o.zicht,                            // vijanden zien je alleen als er niets tussen zit (zie "zicht")
            executie: !!o.executie,                      // elke steek- en worp-kill op een schildbandiet is de executie (Test 50, zie "de executie")
+           herhaal: !!o.herhaal,                        // na elke dode schildbandiet komt er een nieuwe aanwandelen (Test 50, zie exeHerhaalStap)
            bloed: !!o.bloed,                            // de bloed-mechaniek: de bandiet krijgt 3 treffers, elke klap een snee, de derde een death-spuit (zie "bloed")
 
            talentKeuze: !!o.talentKeuze,                // aan het begin kies je zelf de talents (Test 14)

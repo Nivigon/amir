@@ -84,6 +84,24 @@ laatste frame blijven er bovenop. Daarna (`exeEinde`) staat Amir meteen in zijn 
 ravijn, anders op `amir_start_x`), van hem af gekeerd, met zijn speer in de hand, en loopt de wereld weer; het bloed
 blijft nog `EXE.lijk` en vervaagt dan.
 
+**De bloedboog** (`EXE.boog`, `exeBoogPad`, `exeBoogStap`, `exeBoogTeken`): vanaf de ruk neemt de speerpunt het bloed
+mee. De baan is de wond uit de snijlijn en dan de speerpunt per frame van `executie` (`boog.punt`, frames `boog.van`+1 tot
+`boog.tot`, gemeten met `tools/exe_speerpunt.py`: de lengteas van de speer-laag, het uiteinde met de grijze punt), glad
+gemaakt met Catmull-Rom. De spuitplaat van het bloedsysteem (`bloedSpuitCache`, dezelfde variant als de spuit op de
+wond, vanaf frame 1 want frame 0 is het silhouet) wordt in `boog.stroken` stroken langs die baan gebogen: de voet (het
+anker) op de wond, de brede kop met de spatten bij de punt, `boog.breed` smal gehouden en `boog.alpha` dekkend. Tijdens
+frame f groeit de boog van sleutelpunt f-1 naar f (in de hitstop op de ruk met de hitstop mee), zodat het bloed net
+achter de punt aan hangt; over elke `boog.per` px die erbij komt schiet er een druppel van de punt af met `boog.snel` van
+zijn vaart (`e.druppels`, dezelfde lijst als de druppels van het splijten, `exeDruppelStap` laat ze vallen en op de
+grondlijn liggen). De plaat loopt op zijn eigen klok af (`bloedSpuitStap` op `boog.klok` van de tijd, tijdens het
+splijten op de trage klok) en lost zo vanzelf op in losse spatten; bij het lijk vervaagt hij met de rest. Hij wordt
+in `exeTeken` als laatste getekend, over Amir en de speer heen.
+
+**Herhalen** (`herhaal: true`, `exeHerhaalStap`, `EXE.herhaalWacht`): is de laatste schildbandiet weg (na de executie of
+de gewone dood), dan komt er na `herhaalWacht` een nieuwe aanwandelen op `spawnPoint` net buiten beeld voor Amir uit,
+met `niveau` en `lagen` van de eerste schildman-spawn van het level. Alleen Test 50 heeft het; een herstart wist de
+wachttijd (`exeHerhaalNodig`).
+
 **De worp-kill**: `exeStart` haalt de geworpen speer weg (`jav = null`, de lagen tekenen hem in zijn borst), de wereld
 loopt gewoon door: `knielen`, dan `wankel` in een loop, `EXE.wankelDuur` (3 s) lang. Staat Amir binnen `EXE.eReik` (ruim een
 Amir) van hem, aan beide kanten, op dezelfde vloer (`exeBij`), dan staat er een E boven hem (staat Amir achter hem, dan
@@ -120,7 +138,7 @@ alleen het eerste speelt: hij start op `snij.van` (0,05 s) en `exeSplijtStap` pa
 freeze, de steek of E), `exeHaakRuk` (frame 5 naar 6), `exeHaakLanding` (frame 16) en `exeHaakSplijt`. De doodskreet en
 het geluid van de bloedspuit spelen nog niet.
 
-**Test 50: De executie** is het proefstuk: vlakke grond, een makkelijke schildbandiet, `speerInHand` (R begint meteen
+**Test 50: De executie** is het proefstuk: vlakke grond, een makkelijke schildbandiet, `herhaal: true` (na elke dode komt er een nieuwe aanwandelen), `speerInHand` (R begint meteen
 opnieuw) en `executie: true`: elke dodelijke steek, worp en ook de lage zwaai (die telt dan als steek) is de executie
 (`exeKans`, `hitSchildman`). De lagen laden in een level achter de laadpoort (`schbLaadLevel` roept `exeLaad` aan, en
 `warmBouw` wacht op `schbBank.executie`), niet pas bij de spawn.
