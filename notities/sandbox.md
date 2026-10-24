@@ -37,3 +37,9 @@ rijen per soort bouwt de code zelf in `#sbarenalijst` (een knop plus drie `<inpu
 invoervelden geven na een wijziging de focus terug aan het canvas (`typing` in de toetsafhandeling
 laat de toetsen in een invoerveld toch al met rust). In de vrije sandbox opent het paneel niet op het
 onthouden tabblad Arena (`sbCat('vijanden')`).
+
+De sandbox begint op `sbView = 0.8` (de knop Licht onder Beeld en geluid staat dan aan), zoals een nieuw
+level. De testbalk met schuifjes (`#bar`) begint in de sandbox ingeklapt; het pijltje `#barpijl` onderin
+het midden van `#stage` (alleen aan in de sandbox, `barPijlToon` zet de richting) klapt hem uit en in,
+net als de B-toets. De schildbandiet heeft onder Vijanden twee knoppen, Moeilijk (`schildman`) en
+Makkelijk (`schildman_makkelijk`, in `sbSpawn` `niveau: 'makkelijk'`); de arena telt ze apart op `niveau`.

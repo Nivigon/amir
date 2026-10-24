@@ -165,7 +165,7 @@ handen, schudt hem grommend kapot, en smijt de punt recht naar je toe: het blad 
 schacht blijft in het zand liggen. Daarna loop je zonder speer verder, over twee ravijnen naar de fakkels. In de sandbox
 zet **Speerbeet** (bij Vijanden, onder Baviaan) hem zo op de grond, een stuk voor je, en geeft je je speer terug.
 
-In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen naar het volgende level van dezelfde reeks. Onder **Instellingen** staan daar ook het tempo van het spel, het looptempo van Amir, het formaat van het beeld en de muziek. Tijdens een level is het speelveld verder leeg: de testbalk met schuifjes staat alleen in de sandbox (met B haal je hem er tijdens het spelen alsnog bij). Het menu van de sandbox klap je weg met **Verberg** rechtsboven in het paneel, en met **Toon** haal je het terug; het spel onthoudt hoe je het liet. Op een telefoon staat het onder de pauzeknop, zonder de uitlegregel, en weggeklapt ligt de joystick vrij.
+In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen naar het volgende level van dezelfde reeks. Onder **Instellingen** staan daar ook het tempo van het spel, het looptempo van Amir, het formaat van het beeld en de muziek. Tijdens een level is het speelveld verder leeg: de testbalk met schuifjes staat alleen in de sandbox, en ook daar begint hij ingeklapt: een klein pijltje onderin het midden van het beeld klapt hem uit en weer in (met B kan het ook, ook tijdens een level). Het menu van de sandbox klap je weg met **Verberg** rechtsboven in het paneel, en met **Toon** haal je het terug; het spel onthoudt hoe je het liet. Op een telefoon staat het onder de pauzeknop, zonder de uitlegregel, en weggeklapt ligt de joystick vrij.
 
 ## Tribes
 
@@ -1017,12 +1017,13 @@ staat, dan komt die ook beneden.
 ## De arena-modus van de sandbox
 
 Klik je in het startmenu op **Sandbox**, dan kies je eerst: de gewone **Sandbox** (vlakke grond, zet
-neer wat je wilt testen, geen levens) of de **Arena modus**. De arena is dezelfde vlakke grond met
+neer wat je wilt testen, geen levens) of de **Arena modus**. Allebei beginnen ze uitgezoomd op view 0,8,
+zoals een nieuw level; onder Beeld en geluid, **Uitzoomen**, zet je dat anders. De arena is dezelfde vlakke grond met
 dezelfde knoppen, maar nu komen de vijanden vanzelf binnenlopen, van links en rechts, net buiten
 beeld, en heb je gewoon je levens: ga je dood, dan begint R opnieuw en loopt de klok weer vanaf nul.
 Het paneel opent op het tabblad **Arena**. Daar zet je per soort aan of hij meedoet (schorpioen, de
-drie slangen, de fosforslangen, de hyena, de panter, de bandiet, de schildbandiet, de meelman en de
-kooiman) en stel je per soort drie getallen in: om de hoeveel seconden er eerst eentje komt, om de
+drie slangen, de fosforslangen, de hyena, de panter, de bandiet, de schildbandiet in zijn makkelijke
+en in zijn moeilijke vorm, de meelman en de kooiman) en stel je per soort drie getallen in: om de hoeveel seconden er eerst eentje komt, om de
 hoeveel seconden na de opbouw, en hoeveel er van die soort tegelijk mogen leven. Zit een soort vol,
 dan wacht hij tot je er een hebt verslagen. **Opbouw** is hoe lang het duurt (in seconden) voor elk
 interval van zijn begin naar zijn eind is gekrompen, zodat het langzaam steeds meer worden. De
