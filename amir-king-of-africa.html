@@ -1100,6 +1100,12 @@
         <span class="hint">de bandiet en de kooiman krijgen 3 levens met een balkje boven hun hoofd: vol groen, een derde eraf oranje, nog een derde over rood. Zet hem aan en zet daarna een bandiet of kooiman neer</span>
       </div>
       <div class="row">
+        <label>Zicht</label>
+        <button id="sbzicht">Zicht: uit</button>
+        <button id="sbzichttoon">Toon zicht: uit</button>
+        <span class="hint">zoals in een nieuw level (zicht: true): een vijand wacht tot hij je ziet. Voor hem een halve cirkel waarin grond en rots het zicht tegenhouden (een kei en een richel niet), achter hem alleen op zijn eigen niveau. Ziet hij je 3 seconden niet, dan vergeet hij je. Toon zicht tekent de halve cirkel (geel als hij je ziet), de strook achter hem en de zichtlijn naar Amir (groen vrij, rood dicht). Zet er een Terras of een gang bij om het te zien</span>
+      </div>
+      <div class="row">
         <label>Grootte</label>
         <button data-kooigroei="-1">kleiner</button>
         <button data-kooigroei="1">groter</button>
@@ -20082,6 +20088,7 @@ function restart(){
     HP_BALK = (level && level.hpBalk) ? HP_BALK_LEVENS : 0;
     HP_BALK_SOORTEN = (level && Array.isArray(level.hpBalk)) ? level.hpBalk : null;   // een lijst = alleen die soorten de balk, de rest blijft één klap
   }
+  if (!sandbox) ZICHT_AAN = !!(level && level.zicht);   // vijanden zien je alleen als er niets tussen zit (zie "zicht"); de sandbox met een knop
   if (!sandbox) bloedAan = !!(level && level.bloed);   // de bloed-mechaniek (snedes + death-spuit) alleen als een level het veld bloed zet; de sandbox met een knop
   if (bloedAan) bloedLaad();
   rugSperen.length = 0; rugTrekT = 0;               // de rug weer leeg bij een nieuw begin
@@ -20630,6 +20637,114 @@ function makeSnake(kind){
 // (zwart = schade, knock = jade/violette terugstoot), de rest van hun gedrag is gelijk.
 function spuwer(s){ return s.kind === 'zwart' || s.kind === 'knock'; }
 
+// ---- zicht: een vijand ziet je alleen als er niets tussen zit (level.zicht) ----
+// Zonder dit veld merkt een vijand Amir op zodra die dichtbij genoeg is op x, ook als Amir boven hem
+// over een terras of een zwevende laag loopt, of onder hem door een gang. Met `zicht: true` in een
+// level kijkt elke vijand uit de spawns (en uit de sandbox) zo:
+//   voor hem, in zijn kijkrichting: een halve cirkel zo groot als zijn bereik, en een vrije zichtlijn
+//     van zijn ogen naar het hoofd of het midden van Amir. Grond en rots houden die lijn tegen
+//     (lkVastPunt, dezelfde vraag als de lichtkaart), en een zwevende laag ook; een kei, een richel,
+//     een doornbos of decor niet, zodat een kei een schuilplek blijft en geen plek om onzichtbaar te zijn.
+//   achter hem: de oude afstand op x, maar alleen als Amir op zijn niveau staat (zichtNiveau).
+// Ziet hij je ZICHT.vergeet seconden niet, dan vergeet hij je en gaat hij terug in zijn rust.
+// Bestaande levels hebben het veld niet en blijven zoals ze waren. Een spawn met `zicht: false` houdt in
+// een zicht-level toch de oude manier (voor een testlevel dat dat nodig heeft). Wie niet uit de spawns
+// komt (de bandietgolf, de arena's, het kooiduel, de baas-panter, de baviaan) kijkt niet zo: die hoort
+// je te vinden. De nieuwe bouwer en Maker nieuwstijl zetten het veld zelf.
+const ZICHT = {
+  niveau: 90,         // zoveel mag de vloer onder Amir van zijn eigen vloer verschillen (zoals banZelfdeHoogte)
+  vergeet: 3,         // zoveel seconden zonder zicht en hij vergeet je
+  stap: 24,           // om de zoveel px kijkt de zichtlijn of er grond of rots zit
+  ververs: 0.1,       // zo vaak (s) rekent een vijand zijn zichtlijn opnieuw uit
+  oog: { slang: 0.22, schorpioen: 0.2, hyena: 0.42, panter: 0.45, mens: 0.85 }   // ooghoogte, in CHAR_H boven zijn vloer
+};
+let ZICHT_AAN = false;    // restart leest level.zicht, de sandbox zet het met een knop
+let zichtToon = false;    // sandbox: de halve cirkel en de zichtlijn tekenen
+function zichtVoor(s){ return ZICHT_AAN && !!s && s.zicht === true; }
+// bij het spawnen: deze vijand kijkt met het zicht (tenzij de spawn zicht: false heeft) en begint in rust
+function zichtZet(o, sp){
+  if (!o) return o;
+  o.zicht = !sp || sp.zicht !== false; o.zWacht = true; o.zMis = 0;
+  if (o.leden) for (const s of o.leden) s.zicht = o.zicht;   // een fosforgroep: de leden kijken mee (de groep beslist)
+  return o;
+}
+// tot hier kijkt een vijand die geen eigen zichtafstand heeft: nooit ver buiten beeld
+function zichtBereik(max){ return Math.min(max, W / 2 / viewZoom() + 120); }
+function zichtNiveau(s){ return Math.abs(vloerBij(playerX(), ph) - (s.base || 0)) <= ZICHT.niveau; }
+function zichtSc(){ return (H * (Number(sizeEl.value) / 100)) / CHAR_H; }   // hoogte (sprite-eenheden) naar px
+function zichtVast(x, h){
+  if (lkVastPunt(x, h)) return true;                       // grond, terrassen, de gang, rots boven je
+  for (const z of zweefList()) if (x >= z.l && x <= z.r && h <= z.h && h >= z.onder) return true;   // een zwevende laag
+  return false;
+}
+function zichtLijnVrij(x0, h0, x1, h1){
+  const lang = Math.max(Math.abs(x1 - x0), Math.abs(h1 - h0) * zichtSc());
+  const n = Math.min(160, Math.max(2, Math.ceil(lang / ZICHT.stap)));
+  for (let i = 1; i < n; i++){
+    const t = i / n;
+    if (zichtVast(x0 + (x1 - x0) * t, h0 + (h1 - h0) * t)) return false;
+  }
+  return true;
+}
+// Ziet s Amir? kijk is zijn kijkrichting in wereld-x (1 = naar rechts), oog een sleutel uit ZICHT.oog.
+function vijandZiet(s, bereik, kijk, oog){
+  const px = playerX(), dx = px - s.x;
+  s.zKijk = kijk; s.zBereik = bereik; s.zOog = oog;         // voor de tekening in de sandbox
+  if (dx !== 0 && Math.sign(dx) !== kijk) return (s.zZag = Math.abs(dx) <= bereik && zichtNiveau(s));   // achter hem
+  const ogen = (s.base || 0) + CHAR_H * (ZICHT.oog[oog] || ZICHT.oog.mens);
+  if (Math.hypot(dx, (ph + CHAR_H * 0.5 - ogen) * zichtSc()) > bereik) return (s.zZag = false);         // buiten de halve cirkel
+  const nu = performance.now() / 1000;
+  if (s.zT == null || nu - s.zT >= ZICHT.ververs){
+    s.zT = nu;
+    s.zV = zichtLijnVrij(s.x, ogen, px, ph + CHAR_H * 0.85) || zichtLijnVrij(s.x, ogen, px, ph + CHAR_H * 0.45);
+  }
+  return (s.zZag = s.zV);
+}
+// Ziet hij je, of heb je hem net geraakt (een treffer maakt elke vijand wakker)?
+function zichtZiet(s, bereik, kijk, oog){ return !dead && ((s.flash || 0) > 0 || vijandZiet(s, bereik, kijk, oog)); }
+// Voor een vijand die vanzelf op je af komt (bandiet, schildbandiet, kooiman): is hij wakker? Met het zicht
+// begint hij in rust (s.zWacht) en wordt hij wakker als hij je ziet; ziet hij je ZICHT.vergeet seconden niet,
+// dan gaat hij terug in rust. Zonder het zicht is hij altijd wakker, zoals vroeger.
+function zichtWaak(s, dt, bereik, kijk, oog){
+  if (!zichtVoor(s)) return true;
+  const ziet = zichtZiet(s, bereik, kijk, oog);
+  if (s.zWacht){ if (ziet){ s.zWacht = false; s.zMis = 0; } return !s.zWacht; }
+  if (zichtKwijt(s, dt, ziet)) s.zWacht = true;
+  return !s.zWacht;
+}
+// de vergeet-klok: true op het moment dat hij je ZICHT.vergeet seconden niet zag
+function zichtKwijt(s, dt, ziet){
+  s.zMis = ziet ? 0 : (s.zMis || 0) + dt;
+  if (s.zMis < ZICHT.vergeet) return false;
+  s.zMis = 0; return true;
+}
+// sandbox: de halve cirkel voor hem, de strook achter hem en de zichtlijn naar Amir (groen vrij, rood dicht)
+function zichtTeken(groundY, scale, cx){
+  if (!zichtToon || !ZICHT_AAN) return;
+  const lijsten = [snakes, scorps, panthers, hyenas, bandieten, schildmannen, kooimannen, meelmannen, fosforSlangen];
+  ctx.save();
+  ctx.lineWidth = 2 / viewZoom();
+  for (const lijst of lijsten) for (const s of lijst){
+    if (!zichtVoor(s) || !s.zBereik || !s.zKijk) continue;
+    const ex = cx + (s.x - world), ogen = (s.base || 0) + CHAR_H * (ZICHT.oog[s.zOog] || ZICHT.oog.mens);
+    const ey = groundY - ogen * scale, R = s.zBereik;
+    ctx.globalAlpha = 0.5; ctx.strokeStyle = s.zZag ? '#fc4' : '#9ab';   // geel als hij je nu ziet, anders grijs
+    ctx.beginPath();
+    if (s.zKijk > 0) ctx.arc(ex, ey, R, -Math.PI / 2, Math.PI / 2); else ctx.arc(ex, ey, R, Math.PI / 2, Math.PI * 1.5);
+    ctx.stroke();
+    ctx.setLineDash([8 / viewZoom(), 6 / viewZoom()]);                    // achter hem: zijn niveau, tot zijn bereik
+    const vy = groundY - (s.base || 0) * scale;
+    ctx.beginPath(); ctx.moveTo(ex, vy - 4); ctx.lineTo(ex - s.zKijk * R, vy - 4); ctx.stroke();
+    ctx.setLineDash([]);
+    const ax = cx + (playerX() - s.x) + (s.x - world);
+    if (Math.sign(playerX() - s.x) === s.zKijk && Math.hypot(playerX() - s.x, (ph + CHAR_H * 0.5 - ogen) * zichtSc()) <= R){
+      ctx.globalAlpha = 0.85; ctx.strokeStyle = s.zV ? '#4e4' : '#e44';
+      ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(ax, groundY - (ph + CHAR_H * 0.65) * scale); ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
 // hoe ver vooruit een geplaatste slang wakker wordt, in schermbreedtes.
 // groen loopt gewoon binnen, de spuwers moeten al op hun plek staan omdat ze
 // op grote afstand blijven hangen en daar tijd voor nodig hebben.
@@ -20719,7 +20834,7 @@ function updateSnakes(dt, plats, halfWNow, cliff){
         // Hyena's komen op de hoogte waar Amir staat. Staan ze in een gang en is hij nog boven,
         // dan wachten ze tot hij beneden is: anders rennen ze over het dak en halen ze hem nooit.
         if (holteAt(sp.x) && terrainH(sp.x) < -1 && ph >= -1){ sp.used = false; continue; }
-        spawnHyenaPack(sp.n || 1, null); continue;
+        spawnHyenaPack(sp.n || 1, null, sp); continue;
       }
       if (sp.kind === 'bandiet'){
         // een ambush-bandiet (hurk) en een die van boven invalt (neer) staan op een vaste plek, niet net buiten beeld
@@ -20728,33 +20843,34 @@ function updateSnakes(dt, plats, halfWNow, cliff){
         const b = makeBandiet(bx, bx > world ? 1 : -1, sp.dolk, sp.hurk, sp.vault, false, false, null, sp.duin ? 'duin' : sp.elite);
         b.base = sp.boven ? bovenVloer(bx) : terrainH(bx);
         if (sp.neer) banStartDrop(b);           // van boven de arena in
+        else if (!sp.hurk){ zichtZet(b, sp); if (zichtVoor(b)) banLaadIdle(sp.duin ? 'duin' : sp.elite); }   // de hinderlaag en wie van boven invalt hebben hun eigen opmaat
         bandieten.push(b); continue;
       }
       if (sp.kind === 'fosfor'){                   // altijd een groep van drie
         const lx = spawnPoint(sp.x);
-        fosforGroep(lx, lx > world ? 1 : -1, undefined, !!sp.klim); continue;
+        zichtZet(fosforGroep(lx, lx > world ? 1 : -1, undefined, !!sp.klim), sp); continue;
       }
       if (sp.kind === 'kooiman'){
         let kx = spawnPoint(sp.x);
         if (sp.achter > 0) kx += (kx > world ? 1 : -1) * sp.achter;   // tegelijk gestart, maar verder weg
         const k = makeKooiman(kx, kx > world ? 1 : -1, sp.vogel, sp.duel);
-        k.base = terrainH(kx); kooimannen.push(k); continue;
+        k.base = terrainH(kx); if (!k.duel) zichtZet(k, sp); kooimannen.push(k); continue;   // het duel is geensceneerd
       }
       if (sp.kind === 'meelman'){
         const mx = sp.x;                               // op zijn ontworpen plek (de rand van de afgrond), niet verschoven
         const m = makeMeelman(mx, mx > world ? 1 : -1);
-        m.base = terrainH(mx); meelmannen.push(m); continue;
+        m.base = terrainH(mx); zichtZet(m, sp); meelmannen.push(m); continue;
       }
       if (sp.kind === 'schildman'){
         let mx = sp.boven ? sp.x : spawnPoint(sp.x);
         // achter: hij start tegelijk met de spawn ervoor, maar zoveel verder weg, zodat hij later het gevecht in loopt
         if (sp.achter > 0) mx += (mx > world ? 1 : -1) * sp.achter;
         const m = makeSchildman(mx, mx > world ? 1 : -1, sp.niveau);
-        m.base = sp.boven ? bovenVloer(mx) : terrainH(mx); schildmannen.push(m); continue;
+        m.base = sp.boven ? bovenVloer(mx) : terrainH(mx); zichtZet(m, sp); schildmannen.push(m); continue;
       }
       const x = (sp.boven || sp.y != null) ? sp.x : spawnPoint(sp.x);
       const vl = sp.boven ? bovenVloer(x) : terrainH(x);
-      if (sp.kind === 'scorp'){ const k = makeScorp(x, x > world ? 1 : -1); k.base = vl; scorps.push(k); continue; }
+      if (sp.kind === 'scorp'){ const k = makeScorp(x, x > world ? 1 : -1); k.base = vl; zichtZet(k, sp); scorps.push(k); continue; }
       const s = makeSnake(sp.kind);
       s.x = x; s.side = x > world ? 1 : -1; s.klim = !!sp.klim; s.speed = sp.speed;   // opt-in: terrassen op en af (zie "plateau-traversal"); speed is de per-spawn snelheidsfactor
       if (sp.y != null){                            // een vaste hoogte: op een laag gezet, of uit de lucht laten vallen
@@ -20762,6 +20878,7 @@ function updateSnakes(dt, plats, halfWNow, cliff){
         const f = proefVloer(x, s.base, plats);
         s.falling = !(f > -Infinity && s.base <= f + 1);
       } else s.base = vl;
+      zichtZet(s, sp);
       snakes.push(s);
     }
   } else if (!sandbox && !(level && level.bandietGolf)) {   // een bandietgolf-level stuurt geen vrije slangen
@@ -20810,6 +20927,8 @@ function slangInBeeld(s){
   return sx > -half && sx < W + half;
 }
 function slangZiet(s){
+  // met het zicht: zijn kijkrichting (side 1 kijkt naar links) en niets ertussen (zie "zicht")
+  if (zichtVoor(s)) return zichtZiet(s, spuwer(s) ? SPUUG_ZICHT : W / 2 / viewZoom(), -s.side, 'slang');
   if (slangInBeeld(s)) return true;
   return spuwer(s) && Math.abs(world - s.x) <= SPUUG_ZICHT;
 }
@@ -20909,12 +21028,16 @@ function updateSnake(s, dt, plats, cliff){
   if (houdingStap(s, dt, 'slang', dx => { const nx = s.x + dx;      // Bared Teeth: hij houdt afstand
     if (knockBlocked(s, nx, plats, cliff, SNK_W * snakeSScale() * 0.45, 60)) return false; s.x = nx; return true; })) return;
 
+  // met het zicht begint hij op patrouille rond zijn plek, tot hij je ziet (zie "zicht")
+  if (s.zWacht && zichtVoor(s)){ s.zWacht = false; if (s.state === 'walk') startPatrouille(s); }
   // hoe lang is hij je al kwijt? Een slang die je nog nooit in de gaten heeft
   // gehad komt gewoon aanzetten; pas wie je een keer had kan je kwijtraken.
-  if (slangZiet(s)){ s.gezien = true; s.blind = 0; }
+  const ziet = slangZiet(s);
+  if (ziet){ s.gezien = true; s.blind = 0; }
   else s.blind = s.gezien ? (s.blind || 0) + dt : 0;
-  if ((s.state === 'walk' || s.state === 'wait') && (s.blind >= PAT_NA || patDwang())) startPatrouille(s);
-  else if (s.state === 'patrouille' && slangZiet(s) && !patDwang()){
+  const kwijtNa = zichtVoor(s) ? ZICHT.vergeet : PAT_NA;
+  if ((s.state === 'walk' || s.state === 'wait') && (s.blind >= kwijtNa || patDwang())) startPatrouille(s);
+  else if (s.state === 'patrouille' && ziet && !patDwang()){
     s.state = 'walk'; s.side = s.x > world ? 1 : -1; s.frame = 0; s.acc = 0; s.stuck = 0;
   }
 
@@ -20976,7 +21099,7 @@ function updateSnake(s, dt, plats, cliff){
     while (s.acc >= 1){ s.frame = (s.frame + 1) % 8; s.acc -= 1; }
     s.cool -= dt;
     if (gap > (spuwer(s) ? SPUUG_ZICHT : snakeStopGap + 18)){ s.state = 'walk'; s.frame = 0; s.acc = 0; }
-    else if (s.cool <= 0){ s.state = 'bite'; s.frame = 0; s.acc = 0; s.biteUsed = false; s.spat = false; }
+    else if (s.cool <= 0 && (ziet || !zichtVoor(s))){ s.state = 'bite'; s.frame = 0; s.acc = 0; s.biteUsed = false; s.spat = false; }   // met het zicht spuwt of bijt hij niet blind
   } else if (s.state === 'bite'){
     s.acc += dt * 14;
     while (s.acc >= 1){ s.frame++; s.acc -= 1; }
@@ -21454,7 +21577,7 @@ function updatePanther(s, dt, plats, cliff){
     if (Math.abs(s.x - s.home) > 220 && Math.sign(s.x - s.home) === s.dir) s.dir = -s.dir;
     if (!panStep(s, dt, PAN_WALK_SPD, plats, cliff)) s.dir = -s.dir;
     s.face = s.dir;
-    if (gap < PAN_SEE && !dead){
+    if (zichtVoor(s) ? zichtZiet(s, PAN_SEE, s.face, 'panter') : (gap < PAN_SEE && !dead)){
       if (s.face !== toward) panSet(s, 'notice');     // je staat achter hem: hij kijkt om
       else panSet(s, 'spot');                         // je staat voor hem: even stilstaan
     }
@@ -21466,6 +21589,10 @@ function updatePanther(s, dt, plats, cliff){
     if (!s.engaged){ s.engaged = true; panPlay('roar', 0.9); }
     if (s.t > 0.45){ panSet(s, 'prowl'); }
   } else if (s.state === 'prowl' || s.state === 'run'){
+    // met het zicht: ziet hij je ZICHT.vergeet seconden niet, dan gaat hij weer rustig rond zijn plek lopen
+    if (zichtVoor(s) && zichtKwijt(s, dt, zichtZiet(s, PAN_SEE * 2, s.face, 'panter'))){
+      s.engaged = false; s.home = s.x; panSet(s, 'walk'); return;
+    }
     s.face = toward; s.dir = toward;
     if (s.state === 'prowl'){
       panAnim(s, dt, s.sneak ? 16 : 12, PAN_N.prowl, true);
@@ -22182,7 +22309,7 @@ function hyBuitenBeeld(sd){
   }
   return null;
 }
-function spawnHyenaPack(n, side){
+function spawnHyenaPack(n, side, sp){   // sp: de spawn uit het level (dan kijken ze met het zicht)
   const enc = { laughed: false, lachT: Infinity };   // de klok start bij de eerste lach
   const kanten = n >= 2 ? [-1, 1]                                   // altijd van twee kanten
                         : [side || (Math.random() < 0.5 ? -1 : 1)];
@@ -22192,6 +22319,7 @@ function spawnHyenaPack(n, side){
     if (x === null) continue;                                       // alleen ravijn aan die kant
     const h = makeHyena(x, sd, enc);
     h.base = vloerBij(x, ph);                                       // op jouw hoogte: in de gang of erboven
+    if (sp) zichtZet(h, sp);
     if (kanten.length > 1 && sd === laat) h.wacht = hyRand(HY_PAIR_MIN, HY_PAIR_MAX);
     hyenas.push(h);
   }
@@ -22231,7 +22359,8 @@ function hyStorm(s){
   hyPlay(SFX_HYENA_BITE);
   // de ander van de roedel doet soms meteen mee
   const maat = hyenas.find(o => o !== s && o.enc === s.enc && o.forceT < 0 && o.wacht <= 0
-                             && (o.state === 'komen' || o.state === 'dreigen'));
+                             && (o.state === 'komen' || o.state === 'dreigen')
+                             && (!zichtVoor(o) || zichtNiveau(o)));   // met het zicht alleen een maat op het niveau van Amir
   if (maat && Math.random() < HY_DOUBLE_CHANCE)
     maat.forceT = HY_DOUBLE_MIN + Math.random() * (HY_DOUBLE_MAX - HY_DOUBLE_MIN);
 }
@@ -22310,6 +22439,23 @@ function updateHyena(s, dt, plats, cliff){
     s.forceT -= dt;
     if (s.forceT <= 0){ s.forceT = -1; hyTelegraph(s); return; }
   }
+  // met het zicht: ziet de roedel je ZICHT.vergeet seconden niet, dan druipt hij af, het beeld uit; ziet hij
+  // je onderweg weer, dan komt hij terug (zie "zicht")
+  const hyZiet = zichtVoor(s) && zichtZiet(s, W / viewZoom() + HY_ENTER, s.face, 'hyena');
+  if (zichtVoor(s)){
+    if (s.state === 'weg'){
+      if (hyZiet){ hySet(s, 'komen'); s.zMis = 0; }
+      else {
+        s.face = -naarJe; s.show = 'loop';
+        hyMove(s, -naarJe * HY_WALK_SPD * dt, plats, cliff, false);
+        hyAnim(s, dt, HY.fps.loop, HY.n.loop, false);
+        if (gap > W * 0.5 / viewZoom() + HY_LEAVE) s.state = 'gone';
+        return;
+      }
+    } else if ((s.state === 'komen' || s.state === 'dreigen') && s.forceT < 0 && zichtKwijt(s, dt, hyZiet)){
+      hySet(s, 'weg'); return;
+    }
+  }
   s.face = naarJe;                                  // buiten de storm kijkt hij altijd naar Amir
   // het gegrinnik gaat door zolang hij nog niet rent; tijdens de storm hoor je alleen de happen
   if ((s.state === 'komen' || s.state === 'dreigen') && performance.now() >= s.enc.lachT) hyLach(s);
@@ -22344,7 +22490,7 @@ function updateHyena(s, dt, plats, cliff){
       while (s.dreigAcc >= 1){ s.dreig = (s.dreig + 1) % HY.n.dreigen; s.dreigAcc -= 1; }
     }
     s.threatT -= dt;
-    if (s.threatT <= 0) hyTelegraph(s);
+    if (s.threatT <= 0 && (hyZiet || !zichtVoor(s))) hyTelegraph(s);   // met het zicht stormt hij niet blind
     return;
   }
 
@@ -23014,7 +23160,9 @@ function updateKooiman(s, dt, plats, cliff){
   }
 
   // drag: slepen is zijn rust en zijn gang
-  s.face = naarJe;                                    // buiten de smash draait hij altijd naar je toe
+  // met het zicht sleept hij ter plekke tot hij je ziet, en weer als hij je kwijt is (zie "zicht")
+  const kWaak = zichtWaak(s, dt, zichtBereik(KOOI_SEE) * (s.zWacht ? 1 : 2), s.zWacht ? s.face : naarJe, 'mens');
+  if (kWaak) s.face = naarJe;                         // buiten de smash draait hij altijd naar je toe
   const f0 = s.frame;
   // staat hij door een kei of ravijn vast terwijl Amir erachter is, dan blijft hij zichtbaar trekken:
   // de sleep-lus houdt zich in de trek-frames (het stap-venster) in plaats van weg te zakken in de
@@ -23027,7 +23175,7 @@ function updateKooiman(s, dt, plats, cliff){
   } else {
     kooiAnim(s, dt);
   }
-  if (dead || gap > KOOI_SEE) return;                 // te ver of je bent dood: hij sleept ter plekke (geen geluid, geen beweging)
+  if (dead || (zichtVoor(s) ? !kWaak : gap > KOOI_SEE)) return;   // te ver, niet gezien of je bent dood: hij sleept ter plekke (geen geluid, geen beweging)
   s.grrT -= dt;                                       // af en toe grommen tijdens het slepen (in beeld, ook geblokkeerd)
   if (s.grrT <= 0){ kooiGrom(s.x); s.grrT = kooiGromInterval(); }
   if (kooiKanSlaan(s, gap, plats)){                   // point-blank meteen de snelle slag, verder de trage klap
@@ -23597,17 +23745,19 @@ function updateMeelman(s, dt, plats, cliff){
     return;
   }
 
+  // met het zicht doet hij pas iets als hij je ziet: over de rand naar beneden kan dat, door de grond niet (zie "zicht")
+  const mZiet = !zichtVoor(s) || zichtZiet(s, Math.max(MEEL.see, MEEL.worpVer), s.face, 'mens');
   // de slag heeft voorrang, maar alleen als Amir echt te bereiken is (op zijn niveau, geen afgrond ertussen) en op de grond
-  if (bereikbaar && onGround && gap <= meleeR){ s.face = naarJe; meelStartWorp(s, 'mep'); return; }
+  if (mZiet && bereikbaar && onGround && gap <= meleeR){ s.face = naarJe; meelStartWorp(s, 'mep'); return; }
   // sandbox: ook op vlakke grond gooit hij van afstand, zodat je de worp en de zak kunt zien
-  if (sandbox && s.cool <= 0 && gap > meleeR && gap <= MEEL.worpVer){ s.face = naarJe; meelStartWorp(s, 'gooi'); return; }
+  if (mZiet && sandbox && s.cool <= 0 && gap > meleeR && gap <= MEEL.worpVer){ s.face = naarJe; meelStartWorp(s, 'gooi'); return; }
   // op zijn niveau maar nog te ver: hij sleept zijn zak naar je toe om te slaan. Hij heeft de zak nog (een slag
   // raakt hem niet kwijt, alleen een worp), dus bewegen is altijd met de zak: de sleep-pas op sleepsnelheid, niet rennen
-  if (bereikbaar && gap <= MEEL.see){ s.face = naarJe; if (s.state !== 'jaag') meelSet(s, 'jaag'); meelAnim(s, dt); meelMove(s, naarJe * KOOI_RUN_SPD * dt, plats, cliff); return; }
+  if (mZiet && bereikbaar && gap <= MEEL.see){ s.face = naarJe; if (s.state !== 'jaag') meelSet(s, 'jaag'); meelAnim(s, dt); meelMove(s, naarJe * KOOI_RUN_SPD * dt, plats, cliff); return; }
 
   // wacht aan de rand: Amir is hier per definitie lager of over een afgrond, dus zodra hij in zicht is gooit hij naar beneden
-  s.face = naarJe;
-  if (s.cool <= 0 && gap <= MEEL.worpVer){ meelStartWorp(s, 'gooi'); return; }
+  if (mZiet) s.face = naarJe;
+  if (mZiet && s.cool <= 0 && gap <= MEEL.worpVer){ meelStartWorp(s, 'gooi'); return; }
   meelSet(s, 'wacht'); meelAnim(s, dt);
 }
 function updateMeelmannen(dt, plats, cliff){
@@ -24032,6 +24182,8 @@ function banLaadLevel(lv){
   if (sp.some(s => s.kind === 'bandiet' && s.elite && (s.vault || lv.bandArena))) banLaadVault(true);
   if (lv.bandArena) banLaadIdle(true);                                                        // de entree: garde die staand en gehurkt idlen voor het gevecht
   if (sp.some(s => s.kind === 'bandiet' && s.duin)){ banLaad('duin'); banLaadVault('duin'); } // de Duinwacht (vault staat standaard aan)
+  // met het zicht staat een rover in rust te idlen tot hij je ziet (zie "zicht")
+  if (lv.zicht) for (const s of sp) if (s.kind === 'bandiet' && !s.hurk && !s.neer && s.zicht !== false) banLaadIdle(s.duin ? 'duin' : !!s.elite);
 }
 
 // de dolk als projectiel (enemies/bandiet/dolk/, met dolk.json en LEESMIJ_dolk.txt als bron). Hij tolt
@@ -24333,6 +24485,16 @@ function updateBandiet(s, dt, plats, cliff){
   }
 
   const dx = playerX() - s.x, gap = Math.abs(dx), naarJe = dx >= 0 ? 1 : -1;
+
+  // ---- zicht: in rust staan idlen tot hij je ziet, en terug in rust als hij je kwijt is (zie "zicht") ----
+  if (zichtVoor(s) && (s.state === 'run' || s.state === 'look' || s.state === 'idle')){
+    // in rust kijkt hij zijn eigen kant op; wakker kijkt hij naar je en houdt hij je langer vast
+    if (!zichtWaak(s, dt, zichtBereik(1100) * (s.zWacht ? 1 : 2), s.zWacht ? s.face : naarJe, 'mens')){
+      if (s.state !== 'idle') banSet(s, 'idle');     // de kijkrichting blijft waar hij je het laatst zag
+      banAnim(s, dt); return;
+    }
+    if (s.state === 'idle'){ banSet(s, 'run'); s.face = naarJe; }
+  }
 
   // ---- de hinderlaag: gehurkt wachten, opspringen en de dolk werpen ----
   if (s.state === 'hurk_in'){                        // (sandbox) staand naar gehurkt, dan wachten
@@ -24831,6 +24993,10 @@ function updateSchildman(s, dt, plats, cliff){
   if (s.vrij){ schbAnim(s, dt); return; }                 // sandbox: AI uit, speelt alleen de loop
   rijsDraagtMob(s, dt);
   const dx = playerX() - s.x, gap = Math.abs(dx), naarJe = dx >= 0 ? 1 : -1;
+  // met het zicht staat hij in zijn wacht tot hij je ziet, en weer als hij je kwijt is (zie "zicht")
+  if (!zichtWaak(s, dt, zichtBereik(1100) * (s.zWacht ? 1 : 2), s.zWacht ? s.face : naarJe, 'mens')){
+    s.frame = 0; s.acc = 0; return;
+  }
   s.face = naarJe;
   schbAnim(s, dt);
   // regel 7-uitzondering: een kei met Amir aan de overkant springt hij over (geen ravijn)
@@ -25375,6 +25541,7 @@ function fosforGroep(x, side, base, klim){
     g.leden.push(s); fosforSlangen.push(s);
   }
   fosforGroepen.push(g);
+  return g;
 }
 function fosforSet(s, state, t){ s.state = state; s.frame = 0; s.acc = 0; s.t = t || 0; }
 function fosforVersteen(s, duur){
@@ -25432,8 +25599,18 @@ function fosforGroepStap(g, dt){
   if (!leden.length) return false;
   g.t += dt;
   const gap = Math.abs(world - g.c);
+  // met het zicht: een van de groep moet je echt zien, in zijn kijkrichting (side 1 kijkt naar links) of
+  // achter hem op zijn niveau; ziet niemand je ZICHT.vergeet seconden, dan gaan ze weer rond hun plek (zie "zicht")
+  const zr = W / 2 / viewZoom() * FOSFOR.zicht;
+  const ziet = zichtVoor(g) && leden.some(s => zichtZiet(s, g.fase === 'rond' ? zr : zr * 2, -s.side, 'slang'));
+  if (zichtVoor(g) && g.fase !== 'rond' && zichtKwijt(g, dt, ziet)
+      && leden.every(s => s.state === 'zie' || s.state === 'wacht' || s.state === 'rond')){
+    g.fase = 'rond'; g.t = 0;
+    for (const s of leden) fosforSet(s, 'rond');
+    return true;
+  }
   if (g.fase === 'rond'){
-    if (gap < W / 2 / viewZoom() * FOSFOR.zicht){       // daar ben je: ineens stilstaan
+    if (zichtVoor(g) ? ziet : gap < zr){                 // daar ben je: ineens stilstaan
       g.fase = 'zie'; g.t = 0;
       g.staar = FOSFOR.staar[0] + Math.random() * (FOSFOR.staar[1] - FOSFOR.staar[0]);
       for (const s of leden) if (s.state === 'rond'){ fosforSet(s, 'zie'); s.side = s.x > world ? 1 : -1; }
@@ -25763,7 +25940,8 @@ function updateScorp(s, dt, plats, cliff){
     }
     // hij ziet je: stoppen, naar je toe draaien, staart strekken
     if (s.cool <= 0 && gap < SCP_SEE && !dead && !gapBetween(s.x, world)
-        && Math.abs(ph - (s.base || 0)) < 220){      // alleen als je op zijn hoogte bent
+        && Math.abs(ph - (s.base || 0)) < 220        // alleen als je op zijn hoogte bent
+        && (!zichtVoor(s) || zichtZiet(s, SCP_SEE, s.dir, 'schorpioen'))){   // en met het zicht: in zijn kijkrichting, of achter hem op zijn niveau
       s.state = 'stance'; s.t = 0; s.acc = 0; s.fade = 0;   // s.frame blijft: tijdens het draaien staat hij in zijn looppose
       const before = scpMir(s);                       // hoe hij nu staat (lopend)
       s.side = s.x > world ? 1 : -1; s.dir = -s.side;
@@ -27880,6 +28058,7 @@ function loop(now){
     losTeken(groundY, scale, cx);                 // speren die los op de grond liggen
     ravijnRuneTeken(groundY, scale, cx);          // de rots met de rune bij het ravijn
 
+    zichtTeken(groundY, scale, cx);               // sandbox: het zicht van de vijanden (Toon zicht)
     if (building && level && level.spawns){
       for (const sp of level.spawns){
         const px = cx + (sp.x - world);
@@ -30032,6 +30211,7 @@ function syncLevel(){
       if (s.neer) o.neer = true;                // komt van boven de arena in
       if (s.vogel) o.vogel = true;              // een kooiman met een vogel in de kooi
       if (s.duel === false) o.duel = false;     // de duel staat standaard aan: alleen het bewust uitzetten bewaren
+      if (s.zicht === false) o.zicht = false;   // in een zicht-level toch de oude manier (zie "zicht"); alleen het uitzetten bewaren
       if (s.niveau === 'makkelijk') o.niveau = 'makkelijk';   // de makkelijke schildbandiet (moeilijk is de standaard)
       if (s.achter > 0) o.achter = Math.round(s.achter);      // zoveel px verder weg starten, een tel later in het gevecht
       if (s.y != null) o.y = Math.round(s.y);   // een vaste hoogte: op een laag, of uit de lucht (alleen slangen)
@@ -30060,6 +30240,7 @@ function syncLevel(){
     view: level.view || undefined,            // uitgezoomd spelen; nieuwe levels staan standaard op 0,8 (zie viewZoom)
     worp: level.worp || undefined,            // zonder schaalworp valt het veld weg
     hpBalk: level.hpBalk || undefined,        // de health-balk (true of een lijst soorten); nieuwe levels staan standaard aan
+    zicht: level.zicht || undefined,          // vijanden zien je alleen als er niets tussen zit; nieuwe levels staan standaard aan
     // f (gespiegeld) en achter (achter de schacht-wand) alleen meeschrijven als ze er zijn, zodat
     // bestaande richels ongemoeid blijven (zie "schacht")
     ledges: (level.ledges || []).map(o => { const e = { x: o.x, h: o.h, s: o.s };
@@ -30293,6 +30474,8 @@ function readLevel(txt){
                                                 boven: s.boven === true,
                                                 // klim: opt-in, deze vijand stapt terrassen op en af (zie "plateau-traversal")
                                                 klim: s.klim === true,
+                                                // zicht: false: in een zicht-level kijkt deze vijand toch op de oude manier (zie "zicht")
+                                                zicht: s.zicht !== false,
                                                 // dolk: een bandiet die eerst zijn dolk gooit voor hij in de aanval gaat
                                                 dolk: s.dolk === true,
                                                 // hurk: een gehurkte bandiet die opspringt en werpt (de hinderlaag)
@@ -30485,6 +30668,7 @@ function readLevel(txt){
            onsterfelijk: !!o.onsterfelijk,              // om iets te proberen: je raakt geen levens kwijt
            rugMax: Math.max(0, Math.min(5, Math.round(Number(o.rugMax) || 0))),   // reserve-speren op de rug: 1 in de hand plus zoveel op de rug (zie "reserve-speren op de rug"); 0 is uit
            hpBalk: Array.isArray(o.hpBalk) ? o.hpBalk.filter(k => typeof k === 'string') : !!o.hpBalk,   // true = elke vijand de balk, of een lijst soorten (['bandiet','kooiman']) = alleen die (zie HP_BALK)
+           zicht: !!o.zicht,                            // vijanden zien je alleen als er niets tussen zit (zie "zicht")
            bloed: !!o.bloed,                            // de bloed-mechaniek: de bandiet krijgt 3 treffers, elke klap een snee, de derde een death-spuit (zie "bloed")
 
            talentKeuze: !!o.talentKeuze,                // aan het begin kies je zelf de talents (Test 14)
@@ -30548,7 +30732,7 @@ function startBuild(terug){
   // De bouwer begint leeg: een verse, neutrale wereld, geen assets uit het laatst gespeelde of
   // opgeslagen level. Alleen bij terugkeren uit een test (terug) houden we het level dat je test.
   // Een bestaand level laad je met Openen; Nieuw maakt hem weer leeg.
-  if (!terug) level = { name: '', rocks: [], spawns: [], props: [], view: 0.8, hpBalk: true, muziek: nieuweLevelMuziek() };   // nieuwe levels staan standaard op 0,8 (laptop), nooit terug naar 1, geven elke vijand en Amir een health-balk, en wisselen hun muziek af (darkafrica/bg)
+  if (!terug) level = { name: '', rocks: [], spawns: [], props: [], view: 0.8, hpBalk: true, zicht: true, muziek: nieuweLevelMuziek() };   // nieuwe levels staan standaard op 0,8 (laptop), nooit terug naar 1, geven elke vijand en Amir een health-balk, laten vijanden alleen zien wat ze kunnen zien (zicht), en wisselen hun muziek af (darkafrica/bg)
   ensureLevel();
   document.getElementById('bname').value = level.name || '';   // na het legen: een verse bouwer heeft geen naam
   world = 0; ph = 0; pvh = 0; onGround = true; fell = false; snakes.length = 0;
@@ -32777,7 +32961,7 @@ function mkNaarLevel(){
   // kaleKlif: geen grijze klifwand en geen hut aan start en eind (de grenzen blijven onzichtbaar bestaan), en
   // voorgrond: false haalt de standaard voorgrond-keien en -struiken weg. Zo is een Maker-level kaal: je ziet
   // alleen wat je zelf tekent, plus het eind met de fakkels op je eindplateau. De speer bij de start blijft.
-  const lvl = { name:'Level Maker test', view:0.8, rocks:[], props:[], spawns, kaleKlif:true, voorgrond:false,
+  const lvl = { name:'Level Maker test', view:0.8, zicht:true, rocks:[], props:[], spawns, kaleKlif:true, voorgrond:false,
                 overloop: true,             // savanne steekt met zijn bovenste laag over elke hogere wand ernaast (zie "overloopje")
                 speerInHand: true,          // nieuwe (Maker-)levels: Amir begint met de speer in de hand
                 rugMax: 1,                  // en met 1 reserve-speer op de rug (zie restart en "reserve-speren op de rug")
@@ -33108,6 +33292,7 @@ function startSandbox(){
   RUN.woede = 0; woedeStop();                           // de woedemeter van de sandbox begint leeg
   RUG_MAX = 0; rugSperen.length = 0; rugTrekT = 0; rugToon();   // de reserve op de rug begint uit
   HP_BALK = 0; hpBalkToon();                            // en de health-balk (bandiet/kooiman 3 levens) begint uit
+  ZICHT_AAN = false; zichtToon = false; zichtKnopToon();  // en het zicht (zie "zicht") ook
   document.getElementById('lives').style.display = 'none';   // geen levens in de sandbox
   restart();
   hudToon();
@@ -33117,6 +33302,7 @@ function stopSandbox(){
   sandbox = false; godMode = false; setGodLabel();
   RUG_MAX = 0; rugSperen.length = 0; rugTrekT = 0;      // het reserve-systeem weer uit buiten de sandbox
   HP_BALK = 0;                                          // en de health-balk ook
+  ZICHT_AAN = false; zichtToon = false;                 // en het zicht
   sbPatrouille = false; sbPatBtn.classList.remove('on');
   sbMuziek = MUZIEK_BASIS;
   sbWeer = null; sbWeerToon();
@@ -33175,6 +33361,12 @@ function sbSpawn(kind){
   else {
     const sn = makeSnake(kind); sn.x = x; sn.side = side; sn.base = vloerBij(x, ph); sn.klim = sbKlim; snakes.push(sn);
   }
+  // in de sandbox kijkt elke nieuwe vijand met het zicht; de knop Zicht zet het aan of uit (zie "zicht").
+  // Het kooiduel niet: dat is geensceneerd, net als in een level.
+  for (const lijst of [snakes, scorps, panthers, hyenas, bandieten, schildmannen, meelmannen, fosforGroepen])
+    for (const o of lijst) if (o.zicht === undefined) zichtZet(o);
+  for (const k of kooimannen) if (k.zicht === undefined && !k.duel) zichtZet(k);
+  for (const b of bandieten) if (b.zicht && !b.ambush) banLaadIdle(b.duin ? 'duin' : b.elite);
   cv.focus();
 }
 // opt-in plateau-traversal in de sandbox: nieuwe slangen en fosforslangen stappen terrassen op en af
@@ -34342,6 +34534,21 @@ sbHpBalk.onclick = () => {
   flashHint('Health-balk: ' + (HP_BALK ? 'aan (3 levens, behalve panter en baviaan)' : 'uit'));
   cv.focus();
 };
+// ---- zicht: vijanden zien je alleen als er niets tussen zit (zie "zicht") ----
+const sbZicht = document.getElementById('sbzicht'), sbZichtToon = document.getElementById('sbzichttoon');
+function zichtKnopToon(){
+  sbZicht.textContent = 'Zicht: ' + (ZICHT_AAN ? 'aan' : 'uit');
+  sbZicht.classList.toggle('on', ZICHT_AAN);
+  sbZichtToon.textContent = 'Toon zicht: ' + (zichtToon ? 'aan' : 'uit');
+  sbZichtToon.classList.toggle('on', zichtToon);
+}
+sbZicht.onclick = () => {
+  ZICHT_AAN = !ZICHT_AAN;
+  zichtKnopToon();
+  flashHint(ZICHT_AAN ? 'Zicht aan: zet een vijand neer, hij wacht tot hij je ziet' : 'Zicht uit: de oude manier, op afstand');
+  cv.focus();
+};
+sbZichtToon.onclick = () => { zichtToon = !zichtToon; zichtKnopToon(); cv.focus(); };
 document.getElementById('sbrock').onclick = () => {           // een rots om op te mikken
   const side = sbFromRight ? 1 : -1;
   let x = world + side * 460;
@@ -34560,7 +34767,7 @@ document.getElementById('btnnew').onclick = () => {
     (level.props && level.props.length) || (level.gaps && level.gaps.length) || (level.terraces && level.terraces.length) ||
     (level.zwevers && level.zwevers.length) || (level.grotten && level.grotten.length) || (level.ends && level.ends.length)));
   if (!leeg && !confirm('Alles wissen en met een leeg level beginnen?')) return;
-  level = { name: '', rocks: [], spawns: [], props: [], view: 0.8, hpBalk: true, muziek: nieuweLevelMuziek() };   // nieuwe levels staan standaard op 0,8 (laptop), nooit terug naar 1, geven elke vijand en Amir een health-balk, en wisselen hun muziek af (darkafrica/bg)
+  level = { name: '', rocks: [], spawns: [], props: [], view: 0.8, hpBalk: true, zicht: true, muziek: nieuweLevelMuziek() };   // nieuwe levels staan standaard op 0,8 (laptop), nooit terug naar 1, geven elke vijand en Amir een health-balk, laten vijanden alleen zien wat ze kunnen zien (zicht), en wisselen hun muziek af (darkafrica/bg)
   ensureLevel();
   bname.value = ''; world = 0; bouwD = 0; bhover = null;
   bouwKies(null); syncLevel(); bcount.textContent = 'leeg';
@@ -34585,7 +34792,7 @@ bfile.onchange = () => {
 document.getElementById('btntest').onclick = () => bouwTesten(false);
 document.getElementById('btnclear').onclick = () => {
   const naam = (level && level.name) || '';
-  level = null; ensureLevel(); level.name = naam; level.view = 0.8; level.hpBalk = true; level.muziek = nieuweLevelMuziek();   // echt leeg: ook de gangen, zegels en tips, alleen de naam blijft; standaard 0,8 (laptop), de health-balk aan en afwisselende muziek (darkafrica/bg)
+  level = null; ensureLevel(); level.name = naam; level.view = 0.8; level.hpBalk = true; level.zicht = true; level.muziek = nieuweLevelMuziek();   // echt leeg: ook de gangen, zegels en tips, alleen de naam blijft; standaard 0,8 (laptop), de health-balk aan en afwisselende muziek (darkafrica/bg)
   bouwKies(null); syncLevel(); rebuildThickets(); bouwLevelToon();
 };
 document.getElementById('btncopy').onclick = () => {

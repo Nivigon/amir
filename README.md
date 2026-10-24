@@ -553,6 +553,16 @@ seconden krimpt over `ramp` seconden, en hoogstens `max` tegelijk in leven; met 
 gooien ze allemaal eerst. Een teller in beeld houdt bij hoeveel je er verslagen hebt en hoe lang
 je het volhoudt.
 
+## Wat een vijand ziet
+
+In een nieuw level merkt een vijand je pas op als hij je echt kan zien. Kijkt hij jouw kant op, dan
+ziet hij je zolang er geen grond of rots tussen jullie zit: loop je recht boven hem over een terras of
+een zwevende laag, of onder hem door een gang, dan blijft hij rustig staan. Een kei of een richel
+verbergt je niet. Sta je achter hem, dan merkt hij je alleen op als je op zijn eigen hoogte staat. Is hij
+je drie seconden kwijt, dan vergeet hij je en gaat hij terug naar zijn plek. De oudere levels werken
+nog zoals vroeger. In de sandbox staat het onder Vijanden, bij **Zicht**, en **Toon zicht** laat zien
+waar hij kijkt.
+
 ## De health-balk
 
 In een level met de health-balk heeft elke vijand drie levens, met een balkje boven zijn hoofd dat bij
