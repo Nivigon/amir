@@ -132,6 +132,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | hppotion | de drinkkalebas |  |
 | renstoot: sprinten en dan stoten | `RENSTOOT`, `glijStart`, `glijUpdate` | notities/speer.md |
 | reserve-speren op de rug (prototype) | `RUG`, `RUG_MAX`, `rugSperen` | notities/rug-speren.md |
+| zicht: een vijand ziet je alleen als er niets tussen zit | `ZICHT`, `vijandZiet`, `zichtWaak` | notities/zicht.md |
 | health-balk: 3 levens met een balkje boven het hoofd | `HP_BALK`, `HP_BALK_LEVENS`, `vijandHpBalk` | notities/health-balk.md |
 | bukken, jump frames, tempo | Amir zijn bewegingen |  |
 | rotsen om op te springen | `rocks` | notities/wegwijzers.md |
@@ -223,6 +224,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `weer` | het weer onderweg: `[{x, soort, sterkte}]`, `soort` uit `WEER.soorten` (`droog`, `regen`, `onweer`, `zandstorm`, `sneeuw`, `sneeuwstorm`); voorbij `x` slaat het om (zie "het weer") |
 | `valschade` | `true` laat een diepe val levens kosten (standaard uit): vanaf een Amir diep een leven, vanaf twee Amir twee (`VAL_VRIJ`, `VAL_ZWAAR`, `VAL_MAX`), en vanaf zes Amir diep is hij dodelijk (`VAL_DOOD`, `fallDeath` in `valLand`), ongeacht je levens. `levelcheck.py` (regel `vallen`) meldt een val van zes Amir of dieper als FOUT |
 | `rugMax` | reserve-speren op de rug: 1 in de hand plus zoveel op de rug (0 tot 5, standaard 0 = uit) (zie `notities/velden.md`) |
+| `zicht` | `true`: een vijand merkt Amir pas op als hij hem echt kan zien. Voor hem een halve cirkel met een zichtlijn die grond en rots tegenhouden, achter hem de oude afstand maar alleen op zijn eigen niveau, en na 3 s zonder zicht vergeet hij je. Zonder veld de oude manier (alle bestaande levels); een nieuw level krijgt `zicht: true`, een spawn met `zicht: false` houdt toch de oude manier (zie `notities/zicht.md`) |
 | `hpBalk` | `true` of een lijst soorten: 3 levens met een health-balkje boven het hoofd, ook voor Amir; de schildbandiet krijgt een schildbalk erboven. Zonder veld uit, een nieuw level krijgt `hpBalk: true` (zie `notities/velden.md`) |
 | `hoogUitzicht` | `true`: gestapelde dikke grondlagen zien er op hoogte hetzelfde uit als de basis (zie `notities/velden.md`) |
 | `view` | een getal van 0,5 tot 1: uitgezoomd spelen; een nieuw level krijgt standaard `view: 0.8` (zie `notities/velden.md`) |
@@ -274,8 +276,9 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 1. De definitie erbij, na de laatste van die reeks. Zet er `view: 0.8` in: een nieuw level
    staat standaard op die laptop-zoom (zie het veld `view`). De bestaande episodes blijven staan
    zoals ze zijn (rule 1), dus pas hun view niet mee aan. Zet er ook `hpBalk: true` in: elke
-   vijand en Amir krijgt in een nieuw level een health-balk (zie "health-balk"). De bouwer doet
-   beide al zelf.
+   vijand en Amir krijgt in een nieuw level een health-balk (zie "health-balk"). En `zicht: true`:
+   een vijand ziet je dan alleen als er niets tussen zit (zie "zicht"). De bouwer en Maker
+   nieuwstijl doen dit al zelf.
 2. De naam in de array van die reeks (`POORT_LEVELS`, `TEST_LEVELS` of `BAB_LEVELS`).
 3. Een ondertitel in `SUBS`, op de naam van het level.
 4. Een eigen uitzicht in `SCENES` als het level er anders uit moet zien.
