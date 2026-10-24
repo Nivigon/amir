@@ -16,6 +16,12 @@ hoog (`MK_CEL_EENH`), ongeveer één sprong.
 De palet-categorieën staan in `MK_CATS`, de gereedschappen in `MK_TYPES` (een terreincel heeft
 een letter `ch` voor de export, een voorwerp `obj: true`). De vijanden staan in `MK_VIJANDEN`, met
 varianten voor de bandiet en de schildbandiet, en de knoppen per vijand in `MK_VIJ_KNOP`.
+Een vijand staat op het grid, in het palet (`mkStaal` met een soort) en op de plakstempel als het gekleurde
+rondje van zijn soort met een icoon erin (`mkVijIcoon`, met `mkVijBadge` voor het badge rechtsonder): een
+tekening in canvas-lijnen op schaal van de cel, dus scherp op elke zoom. De varianten en de knoppen die aanstaan
+(`params.n`, `params.over`) zie je aan het badge, de elite aan een gouden ring, de gehurkte bandiet aan een
+platgedrukt rondje en de makkelijke schildbandiet aan een schild zonder vulling. De minimap blijft een rood
+puntje per vijand.
 
 | wat | functies |
 | --- | --- |
