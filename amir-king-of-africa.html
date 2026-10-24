@@ -1106,13 +1106,21 @@
     </div>
     <div class="sbcat" data-cat="arena">
       <div class="row">
-        <span class="hint">zet per vijand aan hoe vaak hij binnenkomt: eerst om de zoveel seconden, en na de opbouw om de zoveel; max is hoeveel er tegelijk mogen leven; bij start: er komt er meteen een als je op Start drukt, ook als de soort verder uit staat. De knoppen onder Vijanden (dolk, elite, AI) gelden ook hier</span>
+        <span class="hint" id="sbarenahint"></span>
       </div>
       <div class="row">
         <button id="sbarenastart">Start</button>
         <button id="sbarenaopnieuw" title="de klok en de teller op nul, en alle vijanden weg">Opnieuw</button>
         <button id="sbarenakant" title="van welke kant ze komen">Om en om</button>
+        <button id="sbarenamodus" title="Stroom: ze blijven komen, steeds sneller. Golven: een golf tegelijk, rust ertussen, elke golf groter">Stroom</button>
+      </div>
+      <div class="row" id="sbarenastroomrij">
         <label>Opbouw <input type="number" id="sbarenaramp" min="5" max="600" step="5" value="90"><span class="eenheid">s</span></label>
+      </div>
+      <div class="row" id="sbarenagolfrij" style="display:none">
+        <label title="seconden rust als een golf verslagen is, voor de volgende">Rust <input type="number" id="sbarenarust" min="0" max="60" step="1" value="6"><span class="eenheid">s</span></label>
+        <label title="seconden tussen twee binnenkomers in een golf">Tussen <input type="number" id="sbarenatussen" min="0.2" max="10" step="0.1" value="1.5"><span class="eenheid">s</span></label>
+        <label title="zoveel mogen er hoogstens tegelijk leven; de rest van de golf wacht">Tegelijk <input type="number" id="sbarenategelijk" min="1" max="30" step="1" value="5"></label>
       </div>
       <div class="arij" id="sbarenalijst"></div>
     </div>
@@ -34318,29 +34326,56 @@ function sbSpawn(kind, kant, plek){               // kant en plek: de arena-modu
 // (wandSchaal, de goudaap-arena heeft ARENA.wandSchaal nodig voor de hangers, hier niet), de richels daardoor
 // iets dieper in de rots verankerd (richelDiep, in Amir vanaf de schermrand), de verre lagen schuiven een
 // klein stuk met Amir mee (parallax, in scene) en het uitzicht is het gewone avonduitzicht met de lage einder.
-const SB_ARENA_VELD = { wandSchaal: 1.3, richelDiep: 0.55, parallax: 0.08 };
+// Twee wandfakkels (`fakkels`, zie "fakkel"), een aan elke rotswand onder de richel: fakkelX hoe ver buiten de
+// wandlijn de schacht hangt (in Amir, de rotswand staat daar), fakkelY de hoogte van de voet boven de grond.
+const SB_ARENA_VELD = { wandSchaal: 1.3, richelDiep: 0.55, parallax: 0.08, fakkelX: 0.45, fakkelY: 1.1, fakkelS: 1.1 };
+// Twee manieren om ze te laten komen (sbArenaCfg.modus, de knop Modus): de stroom (van, tot, max per soort: ze
+// blijven komen, steeds sneller) of golven (n, plus, vanaf per soort: een golf tegelijk, rust ertussen, elke golf
+// groter; zie "golven" hieronder). De naamknop (aan) en de kant gelden voor allebei; de drie getallen per soort
+// wisselen van betekenis met de modus, de koppen boven de lijst zeggen welke.
 const SB_ARENA_SOORTEN = [
-  { k: 'scorp',     naam: 'Schorpioen',       van: 10, tot: 4,  max: 3 },
-  { k: 'groen',     naam: 'Zandslang',        van: 8,  tot: 3,  max: 4 },
-  { k: 'zwart',     naam: 'Zwarte slang',     van: 10, tot: 4,  max: 3 },
-  { k: 'knock',     naam: 'Knockslang',       van: 12, tot: 5,  max: 2 },
-  { k: 'fosfor',    naam: '3 fosforslangen',  van: 20, tot: 10, max: 1 },
-  { k: 'hyena1',    naam: 'Hyena',            van: 15, tot: 6,  max: 2 },
-  { k: 'panter',    naam: 'Panter',           van: 25, tot: 10, max: 1 },
-  { k: 'bandiet',   naam: 'Bandiet',          van: 8,  tot: 2,  max: 6 },
-  { k: 'schildman_makkelijk', naam: 'Schildman makkelijk', van: 20, tot: 8, max: 2 },
-  { k: 'schildman', naam: 'Schildman moeilijk', van: 30, tot: 12, max: 1 },
-  { k: 'meelman',   naam: 'Meelman',          van: 20, tot: 8,  max: 2 },
-  { k: 'kooiman',   naam: 'Kooiman',          van: 30, tot: 12, max: 1 },
+  //                                            de stroom                 de golven: n in de eerste golf waarin hij meedoet, plus erbij per golf daarna, vanaf die golf
+  { k: 'scorp',     naam: 'Schorpioen',       van: 10, tot: 4,  max: 3,  n: 1, plus: 0.5, vanaf: 2 },
+  { k: 'groen',     naam: 'Zandslang',        van: 8,  tot: 3,  max: 4,  n: 2, plus: 1,   vanaf: 1 },
+  { k: 'zwart',     naam: 'Zwarte slang',     van: 10, tot: 4,  max: 3,  n: 1, plus: 0.5, vanaf: 3 },
+  { k: 'knock',     naam: 'Knockslang',       van: 12, tot: 5,  max: 2,  n: 1, plus: 0.5, vanaf: 4 },
+  { k: 'fosfor',    naam: '3 fosforslangen',  van: 20, tot: 10, max: 1,  n: 1, plus: 0.5, vanaf: 5 },
+  { k: 'hyena1',    naam: 'Hyena',            van: 15, tot: 6,  max: 2,  n: 1, plus: 0.5, vanaf: 3 },
+  { k: 'panter',    naam: 'Panter',           van: 25, tot: 10, max: 1,  n: 1, plus: 0,   vanaf: 6 },
+  { k: 'bandiet',   naam: 'Bandiet',          van: 8,  tot: 2,  max: 6,  n: 1, plus: 1,   vanaf: 2 },
+  { k: 'schildman_makkelijk', naam: 'Schildman makkelijk', van: 20, tot: 8, max: 2, n: 1, plus: 0.5, vanaf: 4 },
+  { k: 'schildman', naam: 'Schildman moeilijk', van: 30, tot: 12, max: 1, n: 1, plus: 0.5, vanaf: 6 },
+  { k: 'meelman',   naam: 'Meelman',          van: 20, tot: 8,  max: 2,  n: 1, plus: 0.5, vanaf: 3 },
+  { k: 'kooiman',   naam: 'Kooiman',          van: 30, tot: 12, max: 1,  n: 1, plus: 0,   vanaf: 5 },
 ];
 const SB_ARENA_KANTEN = [['om', 'Om en om'], ['links', 'Van links'], ['rechts', 'Van rechts'], ['wille', 'Willekeurig']];
-const sbArenaCfg = { aan: false, ramp: 90, kant: 'om', t0: 0, kills: 0, laatst: 1, per: {} };
-for (const s of SB_ARENA_SOORTEN) sbArenaCfg.per[s.k] = { aan: false, bij: false, van: s.van, tot: s.tot, max: s.max, t: 0 };   // bij: een bij de start
+// de drie getallen per soort, per modus: welk veld, de grenzen en de stap van het invoerveld, en de kop erboven
+const SB_ARENA_VELDEN = {
+  stroom: [ { naam: 'van',   kop: 'eerst (s)',  min: 0.5, max: 300, stap: 0.5 },
+            { naam: 'tot',   kop: 'daarna (s)', min: 0.5, max: 300, stap: 0.5 },
+            { naam: 'max',   kop: 'max',        min: 1,   max: 30,  stap: 1 } ],
+  golven: [ { naam: 'n',     kop: 'eerste golf', min: 0,  max: 20,  stap: 0.5 },
+            { naam: 'plus',  kop: 'erbij/golf',  min: 0,  max: 10,  stap: 0.5 },
+            { naam: 'vanaf', kop: 'vanaf',       min: 1,  max: 50,  stap: 1 } ],   // vanaf welke golf hij meedoet (de kolom is te smal voor 'vanaf golf')
+};
+const SB_ARENA_HINT = {
+  stroom: 'zet per vijand aan hoe vaak hij binnenkomt: eerst om de zoveel seconden, en na de opbouw om de zoveel; max is hoeveel er tegelijk mogen leven; bij start: er komt er meteen een als je op Start drukt, ook als de soort verder uit staat. De knoppen onder Vijanden (dolk, elite, AI) gelden ook hier',
+  golven: 'golven: van elke aangezette soort komt per golf een aantal binnen (eerste golf), elke golf meer (erbij/golf), vanaf de golf waarin hij meedoet (vanaf golf). Is de hele golf verslagen, dan komt na de rust de volgende. De knoppen onder Vijanden (dolk, elite, AI) gelden ook hier',
+};
+const sbArenaCfg = { aan: false, modus: 'stroom', ramp: 90, kant: 'om', t0: 0, kills: 0, laatst: 1, per: {},
+                     golf: { rust: 6, tussen: 1.5, tegelijk: 5 },                       // de instellingen van de golven
+                     g: { nr: 0, fase: 'rust', klok: 0, spawnKlok: 0, rij: [], tot: 0 } };   // de stand van de golven (zie sbGolfVolgende)
+for (const s of SB_ARENA_SOORTEN) sbArenaCfg.per[s.k] = { aan: false, bij: false, van: s.van, tot: s.tot, max: s.max, n: s.n, plus: s.plus, vanaf: s.vanaf, t: 0 };   // bij: een bij de start
 const sbArenaTab = document.getElementById('sbarenatab');
 const sbArenaStartBtn = document.getElementById('sbarenastart');
 const sbArenaSchermBtn = document.getElementById('arenastart');   // de grote Start-knop midden in beeld
 const sbArenaKantBtn = document.getElementById('sbarenakant');
+const sbArenaModusBtn = document.getElementById('sbarenamodus');
 const sbArenaRampEl = document.getElementById('sbarenaramp');
+const sbArenaHintEl = document.getElementById('sbarenahint');
+const sbArenaStroomRij = document.getElementById('sbarenastroomrij');
+const sbArenaGolfRij = document.getElementById('sbarenagolfrij');
+const sbArenaGolfEls = { rust: document.getElementById('sbarenarust'), tussen: document.getElementById('sbarenatussen'), tegelijk: document.getElementById('sbarenategelijk') };
 const sbArenaLijst = document.getElementById('sbarenalijst');
 // de maat van het veld: de twee rotsrichels aan de schermranden en de rechtergrens erbuiten. Hangt van de
 // schermbreedte en de view af, dus opnieuw na een andere view (de knoppen Uitzoomen)
@@ -34352,15 +34387,20 @@ function sbArenaMaat(){
   level.ledges = [ { x: mid - halfVis + diep, h: 600, s: 1.05 },                 // links: iets lager en groter (zoals Valse Koning 8)
                    { x: mid + halfVis - diep, h: 760, s: 0.88, f: true } ];       // rechts: hoger en kleiner, geen symmetrisch paar
   level.rechtsWall = Math.round(mid + halfVis + 600);                            // de echte rechtergrens ver voorbij de schermrand, zodat een vijand van rechts buiten beeld kan beginnen
+  // de twee wandfakkels, gemerkt met arena zodat een fakkel uit de knop Decor, Fakkel blijft staan
+  const A = arenaAap, V = SB_ARENA_VELD;
+  level.fakkels = (level.fakkels || []).filter(f => !f.arena);
+  if (A) level.fakkels.push({ x: Math.round(A.links - V.fakkelX * u), y: V.fakkelY, s: V.fakkelS, f: false, arena: true },
+                            { x: Math.round(A.rechts + V.fakkelX * u), y: V.fakkelY, s: V.fakkelS, f: true, arena: true });
 }
 // het veld zelf, bij elke (her)start: de wanden, de camera vast in het midden en Amir midden op de vloer
 function sbArenaVeld(){
   const span = Math.min(W - 260, 1200);
   const rechts = CLIFF.wall - ARENA.rand, links = rechts - span;
   const c = Math.round((rechts + links) / 2);                                     // gelijk aan arenaMidden()
-  sbArenaMaat();
   arenaAap = { ban: true, sb: true, staging: false, fase: 'vrij', c, links, rechts, t0: bavKlok, kills: 0, fade: 0, fadeDoel: 0, klok: 0,
                wandSchaal: SB_ARENA_VELD.wandSchaal, parallax: SB_ARENA_VELD.parallax };
+  sbArenaMaat();                                                                   // na het arena-object: de fakkels hangen aan zijn wanden
   arena = { c };
   world = c; ph = 0; pvh = 0; onGround = true; fell = false;
   spear = true; spearFound = true; spearX = null; spearH = null; setSpearLabel();   // met de speer in de hand, zoals in de arena van de koning
@@ -34369,9 +34409,53 @@ function sbArenaVeld(){
 function sbArenaReset(){
   sbArenaCfg.t0 = 0; sbArenaCfg.kills = 0; sbArenaCfg.laatst = 1; sbArenaCfg.doodGemeld = false;
   for (const k in sbArenaCfg.per){ const p = sbArenaCfg.per[k]; p.t = p.van * (0.4 + 0.6 * Math.random()); }   // niet allemaal tegelijk
-  // na R met de golven nog aan: de 'bij start'-vijanden komen opnieuw meteen (restart heeft net alles weggehaald)
-  if (sbArenaCfg.aan && dead === false) for (const s of SB_ARENA_SOORTEN){ const p = sbArenaCfg.per[s.k]; if (p.bij){ sbArenaSpawn(s.k); p.t = p.van; } }
+  sbArenaCfg.g = { nr: 0, fase: 'rust', klok: 0, spawnKlok: 0, rij: [], tot: 0 };
+  // na R met de arena nog aan: in de stroom komen de 'bij start'-vijanden opnieuw meteen (restart heeft net alles
+  // weggehaald), in de golven begint golf 1 opnieuw
+  if (sbArenaCfg.aan && dead === false){
+    if (sbArenaCfg.modus === 'golven') sbGolfVolgende();
+    else for (const s of SB_ARENA_SOORTEN){ const p = sbArenaCfg.per[s.k]; if (p.bij){ sbArenaSpawn(s.k); p.t = p.van; } }
+  }
   sbArenaToon();
+}
+// ---- golven: een golf tegelijk, rust ertussen, elke golf groter ----
+// Per soort die aan staat: in golf nr komen er floor(n + plus * (nr - vanaf)) binnen zodra nr >= vanaf. Die rij
+// wordt geschud en komt een voor een binnen (golf.tussen seconden ertussen), zolang er minder dan golf.tegelijk
+// leven; de rest wacht. Fase 'kondig' is de aankondiging (Golf n groot in beeld, SB_GOLF_KONDIG seconden), dan
+// 'golf' tot de rij leeg is en alles dood, dan 'rust' (golf.rust seconden) en de volgende. Een golf zonder
+// inhoud (niets aan) begint niet: de teller blijft staan en de rust loopt opnieuw tot er een soort aan staat.
+const SB_GOLF_KONDIG = 1.6;
+function sbGolfInhoud(nr){
+  const rij = [];
+  for (const s of SB_ARENA_SOORTEN){
+    const p = sbArenaCfg.per[s.k];
+    if (!p.aan || nr < p.vanaf) continue;
+    const n = Math.floor(p.n + p.plus * (nr - p.vanaf));
+    for (let i = 0; i < n; i++) rij.push(s.k);
+  }
+  for (let i = rij.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [rij[i], rij[j]] = [rij[j], rij[i]]; }   // schudden
+  return rij;
+}
+function sbGolfVolgende(){
+  const g = sbArenaCfg.g, rij = sbGolfInhoud(g.nr + 1);
+  if (!rij.length){ g.fase = 'rust'; g.klok = 0; return false; }
+  g.nr++; g.rij = rij; g.tot = rij.length; g.fase = 'kondig'; g.klok = 0; g.spawnKlok = 0;
+  if (g.nr > sbArenaBestGolf){ sbArenaBestGolf = g.nr; try { localStorage.setItem('amir.arenaBestGolf', String(sbArenaBestGolf)); } catch (e) {} }
+  return true;
+}
+function sbArenaLevendTotaal(){ let n = 0; for (const s of SB_ARENA_SOORTEN) n += sbArenaLevend(s.k); return n; }
+function sbGolfUpdate(dt){
+  const c = sbArenaCfg, g = c.g;
+  g.klok += dt;
+  if (g.fase === 'kondig'){ if (g.klok >= SB_GOLF_KONDIG){ g.fase = 'golf'; g.klok = 0; } return; }
+  if (g.fase === 'golf'){
+    g.spawnKlok -= dt;
+    if (g.rij.length){
+      if (g.spawnKlok <= 0 && sbArenaLevendTotaal() < c.golf.tegelijk){ sbArenaSpawn(g.rij.shift()); g.spawnKlok = c.golf.tussen; }
+    } else if (sbArenaLevendTotaal() === 0){ g.fase = 'rust'; g.klok = 0; }
+    return;
+  }
+  if (g.klok >= c.golf.rust) sbGolfVolgende();                                   // rust voorbij: de volgende golf (of nog even wachten als er niets aan staat)
 }
 function sbArenaKill(){ sbArenaCfg.kills++; }
 // hoeveel er van een soort nog leven (wie dood ligt of weggaat telt niet meer mee voor max)
@@ -34408,6 +34492,7 @@ function sbArenaUpdate(dt){
   const c = sbArenaCfg;
   if (dead){ if (!c.doodGemeld){ c.doodGemeld = true; sbArenaDood(); sbArenaToon(); } return; }   // de klok staat stil, de beste tijd wordt bijgewerkt
   c.t0 += dt;
+  if (c.modus === 'golven'){ sbGolfUpdate(dt); return; }
   const f = Math.min(1, c.t0 / Math.max(1, c.ramp));
   for (const s of SB_ARENA_SOORTEN){
     const p = c.per[s.k];
@@ -34420,8 +34505,8 @@ function sbArenaUpdate(dt){
   }
 }
 // de beste tijd (hoe lang je het volhield voor je doodging) onthoudt de browser
-let sbArenaBest = 0;
-try { sbArenaBest = Number(localStorage.getItem('amir.arenaBest')) || 0; } catch (e) {}
+let sbArenaBest = 0, sbArenaBestGolf = 0;                          // de beste tijd (de stroom) en de hoogste golf (de golven)
+try { sbArenaBest = Number(localStorage.getItem('amir.arenaBest')) || 0; sbArenaBestGolf = Number(localStorage.getItem('amir.arenaBestGolf')) || 0; } catch (e) {}
 function sbArenaDood(){                              // bij de dood: de beste tijd bijwerken
   if (sbArenaCfg.t0 > sbArenaBest){ sbArenaBest = sbArenaCfg.t0; try { localStorage.setItem('amir.arenaBest', String(Math.floor(sbArenaBest))); } catch (e) {} }
 }
@@ -34432,8 +34517,19 @@ function sbArenaHudTeken(){
   if (!sbArena || (!sbArenaCfg.aan && sbArenaCfg.t0 === 0)) return;
   const c = sbArenaCfg;
   const f = Math.min(1, c.t0 / Math.max(1, c.ramp));
-  const groot = sbArenaKlok(c.t0) + (dead ? '  dood' : (c.aan ? '' : '  gestopt'));
-  const klein = 'Verslagen ' + c.kills + '     Opbouw ' + Math.round(f * 100) + '%' + (sbArenaBest > 0 ? '     Beste ' + sbArenaKlok(sbArenaBest) : '');
+  const staat = dead ? '  dood' : (c.aan ? '' : '  gestopt');
+  let groot, klein;
+  if (c.modus === 'golven'){                        // de golven: het golfnummer groot, daaronder hoeveel er nog komen of de rust
+    const g = c.g;
+    const nog = g.rij.length + sbArenaLevendTotaal();
+    groot = (g.nr === 0 ? 'Golf 1' : 'Golf ' + g.nr) + (g.fase === 'rust' && g.nr > 0 && !dead && c.aan ? ' klaar' : staat);
+    const stuk = g.fase === 'rust' ? (g.nr === 0 ? 'Zet een vijand aan' : 'Volgende over ' + Math.max(0, Math.ceil(c.golf.rust - g.klok)) + ' s')
+               : g.fase === 'kondig' ? 'Nog ' + g.tot : 'Nog ' + nog;
+    klein = stuk + '     Verslagen ' + c.kills + '     Tijd ' + sbArenaKlok(c.t0) + (sbArenaBestGolf > 0 ? '     Beste golf ' + sbArenaBestGolf : '');
+  } else {
+    groot = sbArenaKlok(c.t0) + staat;
+    klein = 'Verslagen ' + c.kills + '     Opbouw ' + Math.round(f * 100) + '%' + (sbArenaBest > 0 ? '     Beste ' + sbArenaKlok(sbArenaBest) : '');
+  }
   ctx.save();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.font = '700 48px system-ui, sans-serif';
@@ -34455,12 +34551,27 @@ function sbArenaHudTeken(){
 }
 // de knoppen: Start/Stop, Opnieuw, de kant, de opbouw, en per soort een rij
 function sbArenaToon(){
-  sbArenaStartBtn.textContent = sbArenaCfg.aan ? 'Stop' : 'Start';
-  sbArenaStartBtn.classList.toggle('on', sbArenaCfg.aan);
-  sbArenaKantBtn.textContent = SB_ARENA_KANTEN.find(k => k[0] === sbArenaCfg.kant)[1];
-  sbArenaRampEl.value = sbArenaCfg.ramp;
-  sbArenaLijst.querySelectorAll('button[data-arena]').forEach(b => b.classList.toggle('on', sbArenaCfg.per[b.dataset.arena].aan));
-  sbArenaLijst.querySelectorAll('button[data-arenabij]').forEach(b => b.classList.toggle('on', sbArenaCfg.per[b.dataset.arenabij].bij));
+  const c = sbArenaCfg, golven = c.modus === 'golven';
+  sbArenaStartBtn.textContent = c.aan ? 'Stop' : 'Start';
+  sbArenaStartBtn.classList.toggle('on', c.aan);
+  sbArenaKantBtn.textContent = SB_ARENA_KANTEN.find(k => k[0] === c.kant)[1];
+  sbArenaModusBtn.textContent = golven ? 'Golven' : 'Stroom';
+  sbArenaModusBtn.classList.toggle('on', golven);
+  sbArenaHintEl.textContent = SB_ARENA_HINT[c.modus];
+  sbArenaStroomRij.style.display = golven ? 'none' : '';
+  sbArenaGolfRij.style.display = golven ? '' : 'none';
+  sbArenaRampEl.value = c.ramp;
+  for (const k in sbArenaGolfEls) sbArenaGolfEls[k].value = c.golf[k];
+  // de lijst: de koppen en de drie invoervelden per soort volgen de modus; de +1 (bij start) is alleen van de stroom
+  const velden = SB_ARENA_VELDEN[c.modus];
+  sbArenaLijst.querySelectorAll('.akop[data-kop]').forEach(el => { el.textContent = velden[Number(el.dataset.kop)].kop; });
+  sbArenaLijst.querySelector('.akop[data-kopbij]').style.visibility = golven ? 'hidden' : '';
+  sbArenaLijst.querySelectorAll('input[data-veld]').forEach(i => {
+    const v = velden[Number(i.dataset.veld)], p = c.per[i.dataset.soort];
+    i.dataset.naam = v.naam; i.min = v.min; i.max = v.max; i.step = v.stap; i.value = p[v.naam];
+  });
+  sbArenaLijst.querySelectorAll('button[data-arena]').forEach(b => b.classList.toggle('on', c.per[b.dataset.arena].aan));
+  sbArenaLijst.querySelectorAll('button[data-arenabij]').forEach(b => { b.classList.toggle('on', c.per[b.dataset.arenabij].bij); b.style.visibility = golven ? 'hidden' : ''; });
   sbArenaSchermBtn.classList.toggle('on', sbArena && !sbArenaCfg.aan && !dead);   // de grote knop staat er zolang de golven niet lopen
 }
 // de golven aan: wie 'bij start' heeft komt er meteen een van (ook als de soort verder uit staat), en zijn
@@ -34468,8 +34579,9 @@ function sbArenaToon(){
 function sbArenaStart(scherm){
   const c = sbArenaCfg;
   c.aan = true;
-  if (c.t0 === 0) for (const s of SB_ARENA_SOORTEN){ const p = c.per[s.k]; if (p.bij){ sbArenaSpawn(s.k); p.t = p.van; } }
-  if (!SB_ARENA_SOORTEN.some(s => c.per[s.k].aan || c.per[s.k].bij)) flashHint('Zet eerst een vijand aan');
+  if (c.modus === 'golven'){ if (c.g.nr === 0) sbGolfVolgende(); }   // golf 1 meteen; na Stop gaat de lopende golf gewoon door
+  else if (c.t0 === 0) for (const s of SB_ARENA_SOORTEN){ const p = c.per[s.k]; if (p.bij){ sbArenaSpawn(s.k); p.t = p.van; } }
+  if (!SB_ARENA_SOORTEN.some(s => c.per[s.k].aan || (c.modus === 'stroom' && c.per[s.k].bij))) flashHint('Zet eerst een vijand aan');
   if (scherm) sbKlap(true);
   sbArenaToon(); cv.focus();
 }
@@ -34491,23 +34603,32 @@ function sbArenaGetal(el, min, max, oud){
   el.value = n; return n;
 }
 sbArenaRampEl.onchange = () => { sbArenaCfg.ramp = sbArenaGetal(sbArenaRampEl, 5, 600, sbArenaCfg.ramp); sbArenaRampEl.blur(); cv.focus(); };
+sbArenaModusBtn.onclick = () => {
+  sbArenaCfg.modus = sbArenaCfg.modus === 'golven' ? 'stroom' : 'golven';
+  sbArenaToon(); cv.focus();
+};
 {
-  const kop = (t) => { const d = document.createElement('span'); d.className = 'akop'; d.textContent = t; return d; };
-  sbArenaLijst.append(kop(''), kop('eerst (s)'), kop('daarna (s)'), kop('max'), kop('bij start'));
+  const grens = { rust: [0, 60], tussen: [0.2, 10], tegelijk: [1, 30] };
+  for (const k in sbArenaGolfEls){ const el = sbArenaGolfEls[k]; el.onchange = () => { sbArenaCfg.golf[k] = sbArenaGetal(el, grens[k][0], grens[k][1], sbArenaCfg.golf[k]); el.blur(); cv.focus(); }; }
+}
+{
+  const kop = (t, data) => { const d = document.createElement('span'); d.className = 'akop'; d.textContent = t; if (data) Object.assign(d.dataset, data); return d; };
+  sbArenaLijst.append(kop(''), kop('', { kop: 0 }), kop('', { kop: 1 }), kop('', { kop: 2 }), kop('bij start', { kopbij: 1 }));
   for (const s of SB_ARENA_SOORTEN){
     const p = sbArenaCfg.per[s.k];
     const b = document.createElement('button'); b.dataset.arena = s.k; b.textContent = s.naam;
     b.onclick = () => { p.aan = !p.aan; if (p.aan) p.t = Math.min(p.t, p.van); sbArenaToon(); cv.focus(); };
-    const veld = (naam, min, max, stap) => {
+    // de drie getallen: welk veld erin staat (en de grenzen) zet sbArenaToon, naar de modus
+    const veld = (nr) => {
       const l = document.createElement('label');
-      const i = document.createElement('input'); i.type = 'number'; i.min = min; i.max = max; i.step = stap; i.value = p[naam];
-      i.onchange = () => { p[naam] = sbArenaGetal(i, min, max, p[naam]); i.blur(); cv.focus(); };
+      const i = document.createElement('input'); i.type = 'number'; i.dataset.veld = nr; i.dataset.soort = s.k;
+      i.onchange = () => { const naam = i.dataset.naam; p[naam] = sbArenaGetal(i, Number(i.min), Number(i.max), p[naam]); i.blur(); cv.focus(); };
       l.append(i);
       return l;
     };
     const bij = document.createElement('button'); bij.dataset.arenabij = s.k; bij.className = 'abij'; bij.textContent = '+1'; bij.title = 'bij Start komt er meteen een';
     bij.onclick = () => { p.bij = !p.bij; sbArenaToon(); cv.focus(); };
-    sbArenaLijst.append(b, veld('van', 0.5, 300, 0.5), veld('tot', 0.5, 300, 0.5), veld('max', 1, 30, 1), bij);
+    sbArenaLijst.append(b, veld(0), veld(1), veld(2), bij);
   }
 }
 sbArenaToon();
