@@ -1129,7 +1129,7 @@
         <button data-spawn="schildman">Neerzetten</button>
         <button id="sbschvrij">AI uit</button>
         <button id="sbschdood">Dood</button>
-        <span class="hint">loopt met zijn houten schild op je af en valt aan met een sprong: hij zakt door zijn knieen (tell), springt naar waar je stond (dan is hij onstuitbaar en onaantastbaar) en landt met zijn speer. Stap weg om de sprong te ontwijken. Zijn schild vangt drie treffers op (witte flits, houtklap, houtsnippers); daarna is hij in een klap dood: hij valt achterover en blijft liggen, met de doodskreet van de bandiet. Dood laat elke schildbandiet meteen zo sterven. Komt hij bij een kei met jou aan de overkant, dan springt hij er met dezelfde sprong overheen (een ravijn houdt hem wel tegen). Na de schildbreuk loopt en slaat hij zonder schild (alleen zijn flinch heeft nog geen eigen zonderschild-art)</span>
+        <span class="hint">loopt met zijn houten schild op je af en valt aan met een sprong: hij zakt door zijn knieen (tell), springt naar waar je stond (dan is hij onstuitbaar en onaantastbaar) en landt met zijn speer. Stap weg om de sprong te ontwijken. Zijn schild vangt drie treffers op (witte flits, houtklap, houtsnippers); daarna is hij in een klap dood: zijn speer valt uit zijn hand (echt, dus ook een ravijn in of scheef over een kei), hij valt achterover en blijft liggen, met de doodskreet van de bandiet. Dood laat elke schildbandiet meteen zo sterven. Komt hij bij een kei met jou aan de overkant, dan springt hij er met dezelfde sprong overheen (een ravijn houdt hem wel tegen). Na de schildbreuk loopt en slaat hij zonder schild (alleen zijn flinch heeft nog geen eigen zonderschild-art)</span>
       </div>
       <div class="row">
         <label>Meelman</label>
@@ -25811,12 +25811,30 @@ const SCHB = {
   cool: 1.2,                     // seconden na het herstel voor hij weer kan springen
   vFrom: 4, vTo: 27, vFps: 22,   // de vault over een kei: de sprong-frames (de aanval) getrimd en sneller (~1 s)
   vMoveVan: 7, vMoveTot: 20,     // de frames waarover hij horizontaal de kei oversteekt (dan onaantastbaar)
-  // de dood (dood/dood_00..38): een keer afspelen, dan blijft dood_38 liggen als lijk. Eigen canvas van
+  // de dood (dood/dood_00..36): een keer afspelen, dan blijft dood_36 liggen als lijk. Eigen canvas van
   // 544 bij 560 met de grondlijn op 481, op dezelfde schaal en hetzelfde anker als de andere sets.
   // Even snel als de dood van de bandiet: dezelfde totale duur (BAN.n.dood frames op BAN.fps.dood).
-  dood: { n: 39, w: 544, h: 560, ground: 481 }
+  // ligVan: vanaf dit frame valt hij achterover (de schaduw wordt breder tot het laatste frame).
+  // De speer zit vanaf frame los niet meer in de tekening (tools/schildbandiet_dood.py): dan laat het spel
+  // zijn eigen speer vallen (schbSpeerLos), vanaf de plek waar hij hem op frame los - 1 vasthield.
+  // start: na de witte flits begint de dood op dit frame, het eerste waarop de speer niet meer voor zijn
+  // lijf hangt. De frames ervoor (de klap, hij komt met de speer in zijn hand uit zijn wacht) slaat hij
+  // dan over; met start 0 speelt hij ze weer.
+  dood: { n: 37, w: 544, h: 560, ground: 481, ligVan: 22, start: 7,
+          speer: { los: 7, punt: [122, 277], eind: [427, 291] } }
 };
-SCHB.dood.fps = SCHB.dood.n / (BAN.n.dood / BAN.fps.dood);   // 39 frames in 2,1 s, ~18,6 fps
+SCHB.dood.fps = SCHB.dood.n / (BAN.n.dood / BAN.fps.dood);   // 37 frames in 2,1 s, ~17,6 fps (vanaf start dus ~1,7 s)
+// de losse speer van de schildbandiet: valt uit zijn hand als hij sterft, met zwaartekracht, en komt op de
+// echte vloer terecht: plat op de grond, scheef over een kei of de rand van een terras, of een ravijn in.
+// Een staaf met een paar steunpunten (STEUN, van punt tot eind) die elk op de vloer onder zich botsen.
+const SCHB_SPEER = {
+  src: 'speer/speer_overlay.png', punt: [1, 196], eind: [1562, 21],   // de sprite: waar punt en eind zitten
+  steun: 5,                      // steunpunten langs de schacht (de uiteinden meegeteld)
+  stuit: 0.22, wrijf: 0.6,       // hoe hard hij terugstuit, en hoeveel hij over de grond schuift
+  draai: [-1.2, 1.2],            // zijn draaisnelheid bij het loslaten (rad/s, willekeurig hiertussen)
+  voor: 9,                       // hij ligt zoveel canvas-px voor de voeten (dichter bij de camera), zoals in de tekening
+  weg: -2000                     // dieper dan dit (een ravijn in) is hij weg
+};
 // het niveau per spawn (niveau: 'makkelijk'). Zonder het veld is hij 'moeilijk': de afstemming hierboven.
 // De makkelijke heeft een langere tell, een tragere sprong en een langer herstel, mikt alleen tot de
 // afzet, zet pas later door (pantser) en slaat na een flinch niet gepantserd terug.
@@ -25865,6 +25883,7 @@ function schbLaad(){
     loadQuiet([SCHB_ROOT + 'strike_zonderschild/strike_' + pad2(i) + '.png']));
   schbBank.dood = Array.from({ length: SCHB.dood.n }, (_, i) =>
     loadQuiet([SCHB_ROOT + 'dood/dood_' + pad2(i) + '.png']));
+  schbBank.speer = loadQuiet([SCHB_ROOT + SCHB_SPEER.src]);
 }
 function schbLaadLevel(lv){
   if (lv && (lv.spawns || []).some(s => s.kind === 'schildman')) schbLaad();
@@ -26022,7 +26041,7 @@ function makeSchildman(x, side, niveau){
            schild: SCHB.schild, metSchild: true, inv: 0, flash: 0, base: 0, alpha: 1,
            hp: 1, maxHp: 1, hpBalk: hpBalkAan('schildman'),   // zijn leven is een klap: het schild vangt de treffers, niet hij (zie schildHpBalk)
            cool: 0, leapVan: 0, leapDoel: 0, geraaktAmir: false, landed: false, geroepen: false,
-           vrij: false, sweptId: -1, lig: 0, knockV: 0, wraak: 0 };
+           vrij: false, sweptId: -1, lig: 0, knockV: 0, wraak: 0, speer: null };   // speer: de losse speer als hij sterft (false: weg)
 }
 function updateSchildman(s, dt, plats, cliff){
   if (achterMasker(s.x, s.base)) return;
@@ -26038,6 +26057,9 @@ function updateSchildman(s, dt, plats, cliff){
   if (s.state === 'dood'){                                 // hij valt achterover; daarna blijft het lijk liggen
     s.acc += dt * SCHB.dood.fps;
     while (s.acc >= 1 && s.frame < SCHB.dood.n - 1){ s.acc -= 1; s.frame++; }
+    if (s.speer == null && s.frame >= SCHB.dood.speer.los) s.speer = schbSpeerLos(s);   // hij laat zijn speer vallen
+    if (s.speer && !s.speer.rust) schbSpeerStap(s.speer, dt, plats);
+    if (s.speer && s.speer.h < SCHB_SPEER.weg) s.speer = false;               // een ravijn in: weg
     return;
   }
   if (s.state === 'flinch'){                               // de geraakt-reactie: hij twist naar de camera en schuift terug
@@ -26162,11 +26184,94 @@ function hitSchildman(s){
 // de doodklap: witte flits en hitstop op dood_00, de doodskreet van de bandiet, en dan valt hij achterover
 function schbSterf(s){
   s.metSchild = false; s.schild = 0; s.knockV = 0;
-  s.flash = 0.25; schbSet(s, 'dood'); s.geraaktAmir = true; s.hp = 0;   // ook zijn health-balk naar leeg (zie schildHpBalk)
+  s.flash = 0.25; schbSet(s, 'dood'); s.frame = SCHB.dood.start; s.geraaktAmir = true; s.hp = 0;   // ook zijn health-balk naar leeg (zie schildHpBalk)
   hitstop = Math.max(hitstop, SCHB.breekStop); shake = Math.max(shake, 0.25);
   banSterf();                                             // hetzelfde geluid als wanneer de bandiet doodgaat
   puffWorld(s.x, 6, 0, 0.9, s.base || 0);
   vijandDood(false);
+}
+// de speer valt uit zijn hand: op de plek waar hij hem op het frame ervoor vasthield (SCHB.dood.speer).
+// x is in wereld-px (zoals s.x), de hoogte h en de lengte L in sprite-eenheden (zoals s.base); a is de
+// hoek van punt naar eind, met de hoogte omhoog.
+function schbSpeerLos(s){
+  const D = SCHB.dood.speer, scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H;
+  const gs = (CHAR_H * scale * SCHB.hShare) / SCHB.fig, dir = s.face === 1 ? -1 : 1;
+  const pt = q => ({ x: s.x + dir * (q[0] - SCHB.anker) * gs, h: (s.base || 0) + (SCHB.dood.ground - q[1]) * gs / scale });
+  const P = pt(D.punt), E = pt(D.eind);
+  const dx = (E.x - P.x) / scale, dh = E.h - P.h, dr = SCHB_SPEER.draai;
+  return { x: (P.x + E.x) / 2, h: (P.h + E.h) / 2, a: Math.atan2(dh, dx), L: Math.hypot(dx, dh),
+           vx: dir * 25, vh: -80, w: dr[0] + Math.random() * (dr[1] - dr[0]),
+           mir: dir === -1, rust: false, stil: 0, vloer: s.base || 0 };
+}
+// de vloer onder een steunpunt: de grond, een terras of gang, en een kei of richel waar hij boven hangt;
+// boven een ravijn is er geen
+function schbSpeerVloer(x, h, plats){
+  if (gatOp(x, h)) return -Infinity;
+  let f = vloerBij(x, h);
+  for (const p of plats || [])
+    if (!p.terrace && x > p.left && x < p.right && p.topH <= h + 30 && p.topH > f) f = p.topH;
+  return f;
+}
+// een stap van de vallende speer: een staaf met steunpunten die elk op hun vloer botsen (een stoot met
+// wrijving, zodat hij kantelt, stuit en tot rust komt). Een vloer die veel hoger is dan het steunpunt is
+// een wand: daar ketst hij zijwaarts op af in plaats van erop te springen.
+function schbSpeerStap(sp, dt, plats){
+  const S = SCHB_SPEER, scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H;
+  const lig = S.voor * CHAR_H * SCHB.hShare / SCHB.fig;        // hij ligt iets voor de voeten
+  const I = sp.L * sp.L / 12, n = 4, h = dt / n;
+  let raak = false;
+  for (let st = 0; st < n; st++){
+    sp.vh -= GRAVITY * h;
+    sp.x += sp.vx * h * scale; sp.h += sp.vh * h; sp.a += sp.w * h;
+    const c = Math.cos(sp.a), si = Math.sin(sp.a);
+    for (let i = 0; i < S.steun; i++){
+      const t = -0.5 + i / (S.steun - 1), rx = t * sp.L * c, rh = t * sp.L * si;
+      const ph = sp.h + rh, f = schbSpeerVloer(sp.x + rx * scale, ph, plats) - lig;
+      if (ph >= f) continue;
+      if (f - ph > 60){ sp.x -= sp.vx * h * scale; sp.vx *= -0.3; continue; }   // een wand
+      raak = true;
+      sp.h += (f - ph) * 0.6;
+      const vn = sp.vh + sp.w * rx;                            // de snelheid van dit punt, omlaag negatief
+      if (vn >= 0) continue;
+      const j = -(1 + S.stuit) * vn / (1 + rx * rx / I);
+      sp.vh += j; sp.w += rx * j / I;
+      const vt = sp.vx - sp.w * rh;
+      let jt = -vt / (1 + rh * rh / I);
+      jt = Math.max(-S.wrijf * j, Math.min(S.wrijf * j, jt));
+      sp.vx += jt; sp.w -= rh * jt / I;
+    }
+    if (raak){ sp.w *= 1 - 4 * h; sp.vx *= 1 - 3 * h; }
+  }
+  sp.vloer = schbSpeerVloer(sp.x, sp.h, plats) - lig;
+  const stil = raak && Math.abs(sp.vh) < 40 && Math.abs(sp.vx) < 25 && Math.abs(sp.w) < 0.4;
+  sp.stil = stil ? sp.stil + dt : 0;
+  if (sp.stil > 0.3){ sp.rust = true; sp.vx = sp.vh = sp.w = 0; }
+}
+// de speer tekenen: de sprite zo gelegd dat zijn punt en eind op die van de staaf vallen, gespiegeld als
+// de schildbandiet naar rechts keek; met een zachte schaduw op de vloer eronder
+function schbSpeerTeken(sp, cx, groundY, scale, flash){
+  const img = schbBank.speer;
+  if (!img || !imgReady(img)) return;
+  const S = SCHB_SPEER, c = Math.cos(sp.a), si = Math.sin(sp.a), half = sp.L / 2;
+  const X = cx + (sp.x - world), Y = groundY - sp.h * scale;
+  if (sp.vloer > -1e6){                                     // de schaduw: vager naarmate hij hoger hangt
+    const hoog = Math.max(0, sp.h - sp.vloer), a = 0.22 * Math.max(0, 1 - hoog / 160);
+    if (a > 0.01){
+      ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = '#1d140f'; ctx.beginPath();
+      ctx.ellipse(X, groundY - sp.vloer * scale + 2, Math.abs(half * c) * scale * 0.9 + 4, 3 + 2 * scale, 0, 0, Math.PI * 2);
+      ctx.fill(); ctx.restore();
+    }
+  }
+  const s0x = S.punt[0], s0y = S.punt[1], ex = S.eind[0] - s0x, ey = S.eind[1] - s0y;
+  const k = sp.L * scale / Math.hypot(ex, ey);
+  ctx.save();
+  ctx.translate(X - half * c * scale, Y + half * si * scale);   // de punt
+  ctx.rotate(-sp.a);
+  ctx.scale(k, k);
+  if (sp.mir) ctx.scale(1, -1);
+  ctx.rotate(-Math.atan2(ey, ex));
+  ctx.drawImage(flash > 0 ? whiteCopy(img, flash * 4) : img, -s0x, -s0y);   // de witte flits van de doodklap ook op de speer
+  ctx.restore();
 }
 
 // ---- bloed: snedes op het lichaam en de death-spuit ----
@@ -30115,7 +30220,7 @@ function loop(now){
         ctx.globalAlpha = 0.24 * Math.max(0, s.alpha != null ? s.alpha : 1);
         ctx.fillStyle = '#1d140f';
         ctx.beginPath();
-        const ligt = s.state === 'dood' ? Math.min(1, Math.max(0, (s.frame - 24) / 14)) : 0;   // valt hij, dan wordt de schaduw breder
+        const D = SCHB.dood, ligt = s.state === 'dood' ? Math.min(1, Math.max(0, (s.frame - D.ligVan) / (D.n - 1 - D.ligVan))) : 0;   // valt hij, dan wordt de schaduw breder
         ctx.ellipse(bodyX, voeten, SCHB_LIJF.half * gs * (1.05 + 1.2 * ligt), SCHB_LIJF.half * gs * 0.16, 0, 0, Math.PI * 2);
         ctx.fill(); ctx.restore();
         const img = schbFrameImg(s), geo = schbGeo(s);
@@ -30127,6 +30232,7 @@ function loop(now){
           ctx.drawImage(s.flash > 0 ? whiteCopy(img, s.flash * 4) : img,
                         -SCHB.anker * gs, -geo.ground * gs, geo.w * gs, geo.h * gs);
         ctx.restore();
+        if (s.speer) schbSpeerTeken(s.speer, cx, groundY, scale, s.flash);   // zijn losse speer, voor zijn lijf
         if (s.state === 'dood' || s.state === 'weg') continue;
         const lhalf = SCHB_LIJF.half * gs;
         const nbox = { l: bodyX - lhalf, r: bodyX + lhalf, t: voeten - SCHB.fig * gs, b: voeten };

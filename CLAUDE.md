@@ -330,6 +330,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **`design/grot/rots_vulling.png`** → `tools/rots_vulling.py`
 - **Speerteken** → `tools/speerteken.py`
 - **Slangen** (zand, roet, knock) → `tools/slang_kleur.py`
+- **Dood van de schildbandiet** (speer eruit, lijf op de grond) → `tools/schildbandiet_dood.py`, daarna `gen-klein.py` en `gen-offline-manifest.py`
 - **Elite-garde** → `tools/bandiet_elite_kleur.js`, daarna `gen-klein.py` en `gen-offline-manifest.py`
 - **Kooi-plaat van de kooiman** → `tools/kooi_kleur.py`, daarna `gen-klein.py` en `gen-offline-manifest.py`
 - **Goudaapje** → `tools/goudaapje_kleur.js`
