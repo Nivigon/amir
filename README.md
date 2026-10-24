@@ -1038,7 +1038,14 @@ rennen. Om het ruimer te laten voelen dan de echte arena zijn de wanden dunner, 
 erachter een klein stukje met je mee terwijl de wanden stil blijven, en is het uitzicht de gewone avond met de
 lage einder. Aan elke rotswand brandt een fakkel onder de richel. Dezelfde knoppen als de sandbox, maar nu komen de vijanden vanzelf binnenlopen, van links en rechts,
 langs de rots net buiten beeld, en heb je gewoon je levens: ga je dood, dan begint R opnieuw en loopt de klok weer vanaf nul.
-Het paneel opent op het tabblad **Arena**. Daar zet je per soort aan of hij meedoet (schorpioen, de
+Het paneel opent op het tabblad **Arena**. De knop **Modus** kiest hoe ze komen: **Stroom** (ze blijven
+komen, steeds sneller, zoals hieronder) of **Golven**: een golf tegelijk, en pas als die helemaal verslagen
+is komt na een rustpauze de volgende, elke golf groter. In de golven staan dezelfde soorten in de lijst,
+maar de drie getallen betekenen iets anders: hoeveel er in zijn eerste golf komen, hoeveel er elke golf
+bij komen, en vanaf welke golf hij meedoet; daarboven **Rust** (seconden tussen twee golven), **Tussen**
+(seconden tussen twee binnenkomers) en **Tegelijk** (zoveel mogen er hoogstens tegelijk leven, de rest van
+de golf wacht). De teller laat dan groot het golfnummer zien, met hoeveel er nog komen, en onthoudt je
+hoogste golf. In de stroom zet je per soort aan of hij meedoet (schorpioen, de
 drie slangen, de fosforslangen, de hyena, de panter, de bandiet, de schildbandiet in zijn makkelijke
 en in zijn moeilijke vorm, de meelman en de kooiman) en stel je per soort drie getallen in: om de hoeveel seconden er eerst eentje komt, om de
 hoeveel seconden na de opbouw, en hoeveel er van die soort tegelijk mogen leven. Zit een soort vol,

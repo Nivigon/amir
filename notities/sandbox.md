@@ -66,6 +66,20 @@ roept hem aan als `sbArena` aan staat, dus R na de dood begint de golven meteen 
 `localStorage` onder `amir.arenaBest`, bijgewerkt in `sbArenaDood` zodra `sbArenaUpdate` de dood ziet,
 een keer per potje via `doodGemeld`).
 
+**Golven** (`sbArenaCfg.modus`, de knop `#sbarenamodus` wisselt tussen `stroom` en `golven`): in plaats van
+de klok per soort komt een golf tegelijk. `sbGolfInhoud(nr)` bouwt de rij van golf `nr` uit elke soort die aan
+staat en al meedoet (`nr >= vanaf`): `floor(n + plus * (nr - vanaf))` stuks, geschud. `sbGolfVolgende` begint
+de volgende golf (fase `kondig`, `SB_GOLF_KONDIG` seconden "Golf n" groot in beeld, daarna `golf`), en slaat
+een lege golf over (de rust loopt dan opnieuw, het nummer blijft staan). `sbGolfUpdate` laat de rij een voor
+een binnenkomen (`golf.tussen` seconden ertussen, zolang `sbArenaLevendTotaal()` onder `golf.tegelijk` zit),
+en gaat naar `rust` als de rij leeg is en alles dood; na `golf.rust` seconden de volgende. De hoogste golf
+staat in `localStorage` onder `amir.arenaBestGolf` (`sbArenaBestGolf`). Stop laat de lopende golf staan,
+Start gaat ermee door; R (`sbArenaReset`) begint bij golf 1. De drie invoervelden per soort zijn dezelfde
+elementen in beide modi: `sbArenaToon` zet per modus welk veld erin staat (`SB_ARENA_VELDEN`: naam, grenzen,
+stap en de kop erboven) en verbergt de +1 (bij start) in de golven; de rij met Opbouw hoort bij de stroom,
+die met Rust, Tussen en Tegelijk bij de golven (`#sbarenastroomrij`, `#sbarenagolfrij`), en de hint
+(`#sbarenahint`, `SB_ARENA_HINT`) legt de modus uit.
+
 Het tabblad Arena (`data-cat="arena"`, knop `#sbarenatab`) staat alleen in de arena-modus aan; de
 rijen per soort bouwt de code zelf in `#sbarenalijst` (een knop plus drie `<input type=number>`). De
 invoervelden geven na een wijziging de focus terug aan het canvas (`typing` in de toetsafhandeling
