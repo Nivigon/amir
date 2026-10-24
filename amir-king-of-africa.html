@@ -235,9 +235,11 @@
   /* het tabblad Arena: per vijand een rij met een aan/uit-knop en drie getallen */
   #sandbox input[type=number]{width:46px;padding:3px 4px;font:inherit;font-size:12px;color:var(--bone);
     background:rgba(255,255,255,.08);border:1px solid rgba(242,232,213,.3);border-radius:3px}
-  #sandbox .arij{display:grid;grid-template-columns:168px repeat(3,auto);gap:6px 8px;align-items:center}
+  #sandbox .arij{display:grid;grid-template-columns:158px 52px 52px 44px 44px;gap:6px 8px;align-items:center}
   #sandbox .arij .akop{color:rgba(242,232,213,.55);font-size:11px}
   #sandbox .arij button{text-align:left}
+  #sandbox .arij button.abij{font-size:11px;padding:3px 0;text-align:center;width:44px}
+  #sandbox .arij input[type=number]{width:52px;box-sizing:border-box}
   #sandbox .arij .eenheid{color:rgba(242,232,213,.55);font-size:11px;margin-left:2px}
   #sbtabs button.on{background:var(--sun);color:#241a2b;border-color:var(--sun);font-weight:700}
   /* weggeklapt: alleen de kop met de knop om hem terug te halen, zodat de joystick vrij ligt */
@@ -691,6 +693,12 @@
     width:26px;height:16px;padding:0;line-height:14px;font-size:9px;color:rgba(242,232,213,.6);
     background:rgba(20,14,26,.6);border:1px solid rgba(242,232,213,.25);border-radius:3px;cursor:pointer}
   #barpijl.on{display:block}
+  /* de Start-knop van de arena-modus: midden in beeld, zodat je het paneel niet hoeft weg te klikken */
+  #arenastart{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);z-index:7;display:none;
+    padding:14px 42px;font-size:24px;font-weight:700;letter-spacing:.08em;color:#241a2b;background:var(--sun);
+    border:2px solid var(--sun);border-radius:6px;cursor:pointer;box-shadow:0 6px 24px rgba(0,0,0,.45)}
+  #arenastart.on{display:block}
+  #arenastart:hover{background:var(--bone);border-color:var(--bone)}
   #barpijl:hover{color:var(--bone);border-color:var(--bone)}
   body.touch #barpijl{display:none}
   @media (max-width:560px){#bar{gap:14px;font-size:13px} input[type=range]{width:88px}}
@@ -1098,7 +1106,7 @@
     </div>
     <div class="sbcat" data-cat="arena">
       <div class="row">
-        <span class="hint">zet per vijand aan hoe vaak hij binnenkomt: eerst om de zoveel seconden, en na de opbouw om de zoveel; max is hoeveel er tegelijk mogen leven. De knoppen onder Vijanden (dolk, elite, AI) gelden ook hier</span>
+        <span class="hint">zet per vijand aan hoe vaak hij binnenkomt: eerst om de zoveel seconden, en na de opbouw om de zoveel; max is hoeveel er tegelijk mogen leven; bij start: er komt er meteen een als je op Start drukt, ook als de soort verder uit staat. De knoppen onder Vijanden (dolk, elite, AI) gelden ook hier</span>
       </div>
       <div class="row">
         <button id="sbarenastart">Start</button>
@@ -1663,6 +1671,7 @@
   </div>
   <div id="fout" class="gone"></div>
   <button id="barpijl" type="button" title="de testbalk met schuifjes uitklappen of inklappen (B)">&#9650;</button>
+  <button id="arenastart" type="button" title="de golven van de arena starten; het paneel klapt dan dicht">Start</button>
   <div id="hint">Pijltjes om te rennen, pijl omhoog om te springen, Shift sprint, E speer, spatie stoot, spatie vasthouden werpt, langer vasthouden in een boog, pijl omlaag bukken, gebukt links of rechts om te kruipen, Q drinken, R opnieuw</div>
 </div>
 <div id="bar" class="hide">
@@ -24813,7 +24822,8 @@ const SCHB = {
   // lijf hangt. De frames ervoor (de klap, hij komt met de speer in zijn hand uit zijn wacht) slaat hij
   // dan over; met start 0 speelt hij ze weer.
   dood: { n: 37, w: 544, h: 560, ground: 481, ligVan: 22, start: 7,
-          speer: { los: 7, punt: [122, 277], eind: [427, 291] } }
+          speer: { los: 7, punt: [122, 277], eind: [427, 291] },
+          lig: 7, vervaag: 0.8 }           // na de doodanimatie blijft het lijk zo lang (s) liggen en vervaagt dan, met zijn speer, in zoveel s
 };
 SCHB.dood.fps = SCHB.dood.n / (BAN.n.dood / BAN.fps.dood);   // 37 frames in 2,1 s, ~17,6 fps (vanaf start dus ~1,7 s)
 // de losse speer van de schildbandiet: valt uit zijn hand als hij sterft, met zwaartekracht, en komt op de
@@ -25102,9 +25112,16 @@ function updateSchildman(s, dt, plats, cliff){
   s.base = vloerBij(s.x, s.base);
   const scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H;
 
-  if (s.state === 'dood'){                                 // hij valt achterover; daarna blijft het lijk liggen
+  if (s.state === 'dood'){                                 // hij valt achterover; daarna blijft het lijk even liggen (SCHB.dood.lig) en verdwijnt
     s.acc += dt * SCHB.dood.fps;
     while (s.acc >= 1 && s.frame < SCHB.dood.n - 1){ s.acc -= 1; s.frame++; }
+    if (s.frame >= SCHB.dood.n - 1){                       // de animatie is klaar: de klok van het lijk loopt
+      s.ligT = (s.ligT || 0) + dt;
+      if (s.ligT > SCHB.dood.lig){
+        s.alpha = Math.max(0, (s.alpha != null ? s.alpha : 1) - dt / SCHB.dood.vervaag);
+        if (s.alpha <= 0){ s.state = 'weg'; return; }     // weg, en zijn losse speer gaat mee
+      }
+    }
     if (s.speer == null && s.frame >= SCHB.dood.speer.los) s.speer = schbSpeerLos(s);   // hij laat zijn speer vallen
     if (s.speer && !s.speer.rust) schbSpeerStap(s.speer, dt, plats);
     if (s.speer && s.speer.h < SCHB_SPEER.weg) s.speer = false;               // een ravijn in: weg
@@ -29165,7 +29182,7 @@ function loop(now){
                           -SCHB.anker * gs, -geo.ground * gs, geo.w * gs, geo.h * gs);
         }
         ctx.restore();
-        if (s.speer) schbSpeerTeken(s.speer, cx, groundY, scale, s.flash);   // zijn losse speer, voor zijn lijf
+        if (s.speer){ ctx.save(); ctx.globalAlpha = Math.max(0, s.alpha != null ? s.alpha : 1); schbSpeerTeken(s.speer, cx, groundY, scale, s.flash); ctx.restore(); }   // zijn losse speer, voor zijn lijf; vervaagt met het lijk mee
         if (s.state === 'dood' || s.state === 'weg') continue;
         const lhalf = SCHB_LIJF.half * gs;
         const nbox = { l: bodyX - lhalf, r: bodyX + lhalf, t: voeten - SCHB.fig * gs, b: voeten };
@@ -33787,16 +33804,17 @@ const SB_ARENA_SOORTEN = [
   { k: 'hyena1',    naam: 'Hyena',            van: 15, tot: 6,  max: 2 },
   { k: 'panter',    naam: 'Panter',           van: 25, tot: 10, max: 1 },
   { k: 'bandiet',   naam: 'Bandiet',          van: 8,  tot: 2,  max: 6 },
-  { k: 'schildman_makkelijk', naam: 'Schildbandiet makkelijk', van: 20, tot: 8, max: 2 },
-  { k: 'schildman', naam: 'Schildbandiet moeilijk', van: 30, tot: 12, max: 1 },
+  { k: 'schildman_makkelijk', naam: 'Schildman makkelijk', van: 20, tot: 8, max: 2 },
+  { k: 'schildman', naam: 'Schildman moeilijk', van: 30, tot: 12, max: 1 },
   { k: 'meelman',   naam: 'Meelman',          van: 20, tot: 8,  max: 2 },
   { k: 'kooiman',   naam: 'Kooiman',          van: 30, tot: 12, max: 1 },
 ];
 const SB_ARENA_KANTEN = [['om', 'Om en om'], ['links', 'Van links'], ['rechts', 'Van rechts'], ['wille', 'Willekeurig']];
 const sbArenaCfg = { aan: false, ramp: 90, kant: 'om', t0: 0, kills: 0, laatst: 1, per: {} };
-for (const s of SB_ARENA_SOORTEN) sbArenaCfg.per[s.k] = { aan: false, van: s.van, tot: s.tot, max: s.max, t: 0 };
+for (const s of SB_ARENA_SOORTEN) sbArenaCfg.per[s.k] = { aan: false, bij: false, van: s.van, tot: s.tot, max: s.max, t: 0 };   // bij: een bij de start
 const sbArenaTab = document.getElementById('sbarenatab');
 const sbArenaStartBtn = document.getElementById('sbarenastart');
+const sbArenaSchermBtn = document.getElementById('arenastart');   // de grote Start-knop midden in beeld
 const sbArenaKantBtn = document.getElementById('sbarenakant');
 const sbArenaRampEl = document.getElementById('sbarenaramp');
 const sbArenaLijst = document.getElementById('sbarenalijst');
@@ -33804,6 +33822,9 @@ const sbArenaLijst = document.getElementById('sbarenalijst');
 function sbArenaReset(){
   sbArenaCfg.t0 = 0; sbArenaCfg.kills = 0; sbArenaCfg.laatst = 1; sbArenaCfg.doodGemeld = false;
   for (const k in sbArenaCfg.per){ const p = sbArenaCfg.per[k]; p.t = p.van * (0.4 + 0.6 * Math.random()); }   // niet allemaal tegelijk
+  // na R met de golven nog aan: de 'bij start'-vijanden komen opnieuw meteen (restart heeft net alles weggehaald)
+  if (sbArenaCfg.aan && dead === false) for (const s of SB_ARENA_SOORTEN){ const p = sbArenaCfg.per[s.k]; if (p.bij){ sbArenaSpawn(s.k); p.t = p.van; } }
+  sbArenaToon();
 }
 function sbArenaKill(){ sbArenaCfg.kills++; }
 // hoeveel er van een soort nog leven (wie dood ligt of weggaat telt niet meer mee voor max)
@@ -33838,7 +33859,7 @@ function sbArenaSpawn(k){
 function sbArenaUpdate(dt){
   if (!sbArena || !sbArenaCfg.aan || !running || paused) return;
   const c = sbArenaCfg;
-  if (dead){ if (!c.doodGemeld){ c.doodGemeld = true; sbArenaDood(); } return; }   // de klok staat stil, de beste tijd wordt bijgewerkt
+  if (dead){ if (!c.doodGemeld){ c.doodGemeld = true; sbArenaDood(); sbArenaToon(); } return; }   // de klok staat stil, de beste tijd wordt bijgewerkt
   c.t0 += dt;
   const f = Math.min(1, c.t0 / Math.max(1, c.ramp));
   for (const s of SB_ARENA_SOORTEN){
@@ -33892,12 +33913,24 @@ function sbArenaToon(){
   sbArenaKantBtn.textContent = SB_ARENA_KANTEN.find(k => k[0] === sbArenaCfg.kant)[1];
   sbArenaRampEl.value = sbArenaCfg.ramp;
   sbArenaLijst.querySelectorAll('button[data-arena]').forEach(b => b.classList.toggle('on', sbArenaCfg.per[b.dataset.arena].aan));
+  sbArenaLijst.querySelectorAll('button[data-arenabij]').forEach(b => b.classList.toggle('on', sbArenaCfg.per[b.dataset.arenabij].bij));
+  sbArenaSchermBtn.classList.toggle('on', sbArena && !sbArenaCfg.aan && !dead);   // de grote knop staat er zolang de golven niet lopen
+}
+// de golven aan: wie 'bij start' heeft komt er meteen een van (ook als de soort verder uit staat), en zijn
+// klok begint dan op het volle interval. Vanuit de grote knop op het scherm klapt het paneel ook dicht.
+function sbArenaStart(scherm){
+  const c = sbArenaCfg;
+  c.aan = true;
+  if (c.t0 === 0) for (const s of SB_ARENA_SOORTEN){ const p = c.per[s.k]; if (p.bij){ sbArenaSpawn(s.k); p.t = p.van; } }
+  if (!SB_ARENA_SOORTEN.some(s => c.per[s.k].aan || c.per[s.k].bij)) flashHint('Zet eerst een vijand aan');
+  if (scherm) sbKlap(true);
+  sbArenaToon(); cv.focus();
 }
 sbArenaStartBtn.onclick = () => {
-  sbArenaCfg.aan = !sbArenaCfg.aan;
-  if (sbArenaCfg.aan && !SB_ARENA_SOORTEN.some(s => sbArenaCfg.per[s.k].aan)) flashHint('Zet eerst een vijand aan');
-  sbArenaToon(); cv.focus();
+  if (sbArenaCfg.aan){ sbArenaCfg.aan = false; sbArenaToon(); cv.focus(); }
+  else sbArenaStart(false);
 };
+sbArenaSchermBtn.onclick = () => sbArenaStart(true);
 document.getElementById('sbarenaopnieuw').onclick = () => { restart(); sbArenaToon(); cv.focus(); };
 sbArenaKantBtn.onclick = () => {
   const i = SB_ARENA_KANTEN.findIndex(k => k[0] === sbArenaCfg.kant);
@@ -33913,7 +33946,7 @@ function sbArenaGetal(el, min, max, oud){
 sbArenaRampEl.onchange = () => { sbArenaCfg.ramp = sbArenaGetal(sbArenaRampEl, 5, 600, sbArenaCfg.ramp); sbArenaRampEl.blur(); cv.focus(); };
 {
   const kop = (t) => { const d = document.createElement('span'); d.className = 'akop'; d.textContent = t; return d; };
-  sbArenaLijst.append(kop(''), kop('eerst om de'), kop('daarna om de'), kop('max tegelijk'));
+  sbArenaLijst.append(kop(''), kop('eerst (s)'), kop('daarna (s)'), kop('max'), kop('bij start'));
   for (const s of SB_ARENA_SOORTEN){
     const p = sbArenaCfg.per[s.k];
     const b = document.createElement('button'); b.dataset.arena = s.k; b.textContent = s.naam;
@@ -33923,10 +33956,11 @@ sbArenaRampEl.onchange = () => { sbArenaCfg.ramp = sbArenaGetal(sbArenaRampEl, 5
       const i = document.createElement('input'); i.type = 'number'; i.min = min; i.max = max; i.step = stap; i.value = p[naam];
       i.onchange = () => { p[naam] = sbArenaGetal(i, min, max, p[naam]); i.blur(); cv.focus(); };
       l.append(i);
-      if (naam !== 'max'){ const e = document.createElement('span'); e.className = 'eenheid'; e.textContent = 's'; l.append(e); }
       return l;
     };
-    sbArenaLijst.append(b, veld('van', 0.5, 300, 0.5), veld('tot', 0.5, 300, 0.5), veld('max', 1, 30, 1));
+    const bij = document.createElement('button'); bij.dataset.arenabij = s.k; bij.className = 'abij'; bij.textContent = '+1'; bij.title = 'bij Start komt er meteen een';
+    bij.onclick = () => { p.bij = !p.bij; sbArenaToon(); cv.focus(); };
+    sbArenaLijst.append(b, veld('van', 0.5, 300, 0.5), veld('tot', 0.5, 300, 0.5), veld('max', 1, 30, 1), bij);
   }
 }
 sbArenaToon();

@@ -43,3 +43,9 @@ level. De testbalk met schuifjes (`#bar`) begint in de sandbox ingeklapt; het pi
 het midden van `#stage` (alleen aan in de sandbox, `barPijlToon` zet de richting) klapt hem uit en in,
 net als de B-toets. De schildbandiet heeft onder Vijanden twee knoppen, Moeilijk (`schildman`) en
 Makkelijk (`schildman_makkelijk`, in `sbSpawn` `niveau: 'makkelijk'`); de arena telt ze apart op `niveau`.
+
+De grote Start-knop midden in beeld (`#arenastart`, `sbArenaSchermBtn`) staat aan zolang de arena-modus
+aan is, de golven niet lopen en Amir niet dood is (`sbArenaToon`); hij roept `sbArenaStart(true)`, die ook
+het paneel dichtklapt (`sbKlap(true)`). Per soort is er `bij` (`+1` in de rij, `data-arenabij`): bij Start,
+en na R via `sbArenaReset` als de golven nog aan staan, komt er meteen een van die soort (`sbArenaSpawn`)
+en begint zijn klok op `van`, ook als de soort zelf uit staat.
