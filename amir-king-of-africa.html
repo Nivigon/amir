@@ -25637,11 +25637,14 @@ function schbGrom(){ banStemSpeel(schbGromSnd, 0.95); }
 // na de klap nog over is), de breuk is een dubbele klap (breek, de tweede een fractie erachter) en het
 // afketsen als hij zich dekt klinkt hoger en droger (kets), zodat je hoort dat die treffer niet telde.
 // Een beetje willekeur in de toon (wiebel) tegen het mitrailleurgevoel bij snelle treffers.
-const houtRaakSnd = banStemmen('sounds/houtraak.mp3', 3);
+const houtRaakSnd = banStemmen('sounds/houtraak.mp3', 7);   // genoeg stemmen voor de gestapelde breuk plus een losse treffer
 const HOUT = {
   start: 0.03, vol: 1,
-  toon: { 2: 1, 1: 0.93, 0: 0.86 },      // afspeelsnelheid per schild dat er na de klap nog over is
-  breek: { na: 0.07, toon: 0.8, vol: 0.9 },   // de tweede klap van de breuk: zoveel seconden later, lager
+  toon: { 2: 1, 1: 0.93 },               // afspeelsnelheid per schild dat er na de klap nog over is (0 is de breuk)
+  // de breuk moet flink harder zijn dan een gewone treffer, en een element kan niet boven volume 1: daarom
+  // een stapel stemmen tegelijk (de gewone klap plus twee lagere, zwaardere, samen zo'n 9 dB harder) en
+  // `na` seconden erachter een tweede stapel, lager, als de naklap. [toon, volume] per stem.
+  breek: { lagen: [[0.9, 1], [0.65, 1], [0.5, 1]], na: 0.07, nalagen: [[0.75, 1], [0.55, 1]] },
   kets: { toon: 1.25, vol: 0.6 },        // de speer ketst af op het schild (hij dekt zich)
   wiebel: 0.05,                          // plus of min zoveel in de toon, willekeurig
   duik: 0.3,                             // het volume waar Amirs stoot naartoe duikt op de treffer
@@ -25661,6 +25664,10 @@ function houtRaak(toon = 1, vol = HOUT.vol){
   a.playbackRate = toon * (1 + (Math.random() * 2 - 1) * HOUT.wiebel);
   a.preservesPitch = a.mozPreservesPitch = a.webkitPreservesPitch = false;   // lager is zwaarder, hoger is droger
   a.play().catch(() => {});
+}
+function houtBreek(){                                        // de breuk: de stapel, en de naklap erachter
+  for (const [toon, vol] of HOUT.breek.lagen) houtRaak(toon, vol);
+  setTimeout(() => { for (const [toon, vol] of HOUT.breek.nalagen) houtRaak(toon, vol); }, HOUT.breek.na * 1000);
 }
 // Amirs stoot duikt weg voor de klap: zo staat de treffer alleen. Elke nieuwe stoot zet zijn volume
 // zelf weer terug (overal waar #thrust speelt staat t.volume erbij), dus dit blijft niet hangen.
@@ -25805,8 +25812,8 @@ function hitSchildman(s, wijze){                           // wijze: 'steek', 'w
     s.schild--;
     s.flash = 0.3; s.inv = SCHB.invHit;
     houtDuik();                                           // de stoot duikt weg voor de klap
-    houtRaak(HOUT.toon[s.schild] ?? 1);                   // speer op hout: de houtklap, elke volgende een slag lager
-    if (s.schild === 0) setTimeout(() => houtRaak(HOUT.breek.toon, HOUT.breek.vol), HOUT.breek.na * 1000);   // de breuk: een dubbele klap
+    if (s.schild === 0) houtBreek();                      // het schild breekt: de zware, gestapelde klap
+    else houtRaak(HOUT.toon[s.schild] ?? 1);              // speer op hout: de houtklap, elke volgende een slag lager
     schbSplinters(s, SCHB.perTreffer);
     hitstop = Math.max(hitstop, s.schild === 0 ? SCHB.breekStop : SCHB.raakStop);   // de klap voelen
     shake = Math.max(shake, s.schild === 0 ? 0.22 : 0.12);
