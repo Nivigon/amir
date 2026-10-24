@@ -103,7 +103,7 @@ voor de eindbaas-arena, niet voor deze mob.
   bandiet-parry: de clang en de vonken op het snijpunt plus de korte hitstop en schok (`banClang`, `banVonk`,
   `BAN_PAREER_STOP`/`SHAKE`), zodat je hoort en ziet dat het een parry is, met daarbovenop zijn eigen afweer-animatie
   (set `parry`, zie onder) waarin de vrije hand je speer opzij mept. Hij ligt alleen open als na zijn slag de kooi
-  **vast zit** (de worstel, `kooiRaakbaar`/`kooiMeleeRaak`: `state === 'struggle'`, zie onder).
+  **vast zit** (de worstel, `kooiRaakbaar`: `state === 'struggle'`, zie onder).
 - **De weg om hem te slopen: bait, stapterug, punish.** Lok zijn slag uit, stap terug zodat hij misslaat, en raak
   hem terwijl de kooi vast zit (de worstel), een worp of een steek, een rake treffer is dodelijk (`hp` 1). Naar de overkant glippen
   helpt niet: hij draait altijd naar je toe en op gelijke hoogte slaat hij versneld terug als je er vlak langs
@@ -129,7 +129,7 @@ De **worstel-animatie is gebouwd**: 12 frames in `enemies/kooiman/struggle/` (se
 `[2,1,1,1,1,1,3,1,1,1,1,1]` in `KOOI_TICKS.struggle`, **lus**, een ronde ~0,63 s). Na een grondslag zit de kooi vast
 en rukt hij eraan (ping-pong, de kooi komt niet los). Dit is zijn kwetsbare worp-raam: in het duel gaat hij na de smash
 naar `struggle` in plaats van naar `recovery` (de gewone kooiman houdt `recovery`), en daar is hij te raken
-(`kooiRaakbaar`/`kooiMeleeRaak` geven voor een duel-kooiman `state === 'struggle'`). De lus loopt `KOOI_WORSTEL_RAAM`
+(`kooiRaakbaar` geven voor een duel-kooiman `state === 'struggle'`). De lus loopt `KOOI_WORSTEL_RAAM`
 (0,875 s, gelijk aan het oude herstelvenster zodat de balans gelijk blijft), dan 'zakt de kooi terug' en gaat hij weer
 slepen. De set heeft een eigen, breder canvas (733x499, grondlijn 416, anker 428, in `KOOI_SETGEO` en uit `sprites.json`),
 want de kooi ligt hier VOOR hem; het foot-anker valt op dezelfde wereldplek als bij drag, dus hij verspringt niet van plek.

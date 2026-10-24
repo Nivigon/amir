@@ -149,9 +149,6 @@ nu voor de kooiman gebruikt). Twee pixels verschil in de breedte, dus bij het aa
 even nalopen of de nieuwe sets goed op het anker vallen, of de frames gelijktrekken naar
 726.
 
-### Preview
-`preview/stomp_chain_preview.gif` toont de hele keten (stamp, stof, vogel, deur) zoals het
-ingame moet ogen. Niet geladen door het spel.
 
 ### Bron
 Clip `stapvooropen.mp4`, frames 1 tot 24 (frame 22 is het freezeframe). Het deurtje komt

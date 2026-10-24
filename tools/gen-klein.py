@@ -73,7 +73,6 @@ DOELEN = [
     ('karakters/dorpeling1', 400),      # 2,5x
     ('amir runc/amir_sprites/design/amir', 400),    # de speerworp (814 hoog); het
                                         # projectiel is 67 hoog en wordt ongewijzigd gekopieerd
-    ('design/vegetatie/drygrass_frames', 400),     # 2,9x  (boom en struik juist niet, zie boven)
     ('design/vegetatie/drygrass_sheet.png', 400),
     ('design/drygrass.png', 400),       # 4,7x
     ('design/drygrass_sneeuw.png', 400),

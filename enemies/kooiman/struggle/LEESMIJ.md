@@ -30,7 +30,6 @@ De clip bevat alleen het vastzitten (hij rukt, de kooi komt niet los). Een echt 
 
 - `sprites.json`: frames, ticks, centroids, canvas, groundline, anchor_x
 - `struggle/`: de PNG's
-- `struggle_preview.gif`
 
 ## Bron
 
