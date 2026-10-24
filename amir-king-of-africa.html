@@ -6288,6 +6288,9 @@ function overloopTeken(groundY, scale, cx){
   // bovenste laag met een lipje over de muur (situaties 1 tot en met 3 uit het overzicht)
   for (const o of terraceList()){
     if (o.h <= 0) continue;
+    // een rots-mesa met af (uit de Maker) staat op de grond: de savanne loopt ervoor door, dus er is geen
+    // raakvlak om overheen te steken (een lipje aan zijn voet maakt er een paddenstoel van)
+    if (o.af) continue;
     for (const dir of [1, -1]){                            // 1: wand rechts (o.l), -1: wand links (o.r)
       const edgeX = dir > 0 ? o.l : o.r;
       const buiten = edgeX - dir * 2;                      // net buiten de wand, aan de lage kant
@@ -34076,14 +34079,18 @@ function mkNaarLevel(){
   const runs = [];                                   // per kolom de verticale blokken: {c, rTop, rBot, soort}
   for (let c = 0; c < C; c++){ let r = 0;
     while (r < gR){
-      if (G[r] && solid(G[r][c])){ const rTop = r, s = G[r][c]; while (r < gR && G[r] && solid(G[r][c])) r++; runs.push({ c, rTop, rBot: r - 1, soort: s }); }
+      if (G[r] && solid(G[r][c])){ const rTop = r, s = G[r][c]; while (r < gR && G[r] && solid(G[r][c])) r++;
+        // staat het blok op de grondlijn en is de cel op de grondlijn zelf ook muur, dan loopt de muur door de
+        // grond heen: geen savannestrook voor zijn voet, het steen gaat door naar beneden (zie af hieronder)
+        const door = r === gR && G[gR] && G[gR][c] === 'muur';
+        runs.push({ c, rTop, rBot: r - 1, soort: s, door }); }
       else r++;
     }
   }
   runs.sort((a, b) => a.rTop - b.rTop || a.rBot - b.rBot || a.c - b.c);   // gelijke blokken bij elkaar, op kolom
   for (let i = 0; i < runs.length;){
     const a = runs[i]; let cEnd = a.c, j = i + 1;
-    while (j < runs.length && runs[j].rTop === a.rTop && runs[j].rBot === a.rBot && runs[j].soort === a.soort && runs[j].c === cEnd + 1){ cEnd = runs[j].c; j++; }
+    while (j < runs.length && runs[j].rTop === a.rTop && runs[j].rBot === a.rBot && runs[j].soort === a.soort && runs[j].door === a.door && runs[j].c === cEnd + 1){ cEnd = runs[j].c; j++; }
     const [l, r] = spanLR(a.c, cEnd);
     const h = (gR - a.rTop) * MK_CEL_EENH;
     if (a.soort === 'zweef'){
@@ -34105,8 +34112,10 @@ function mkNaarLevel(){
       const zw = a.soort === 'zsavanne' ? 'savanne' : a.soort === 'zvulling' ? 'vulling' : null;
       // een rots-mesa (muur/rots/sneeuwrots) krijgt af: true, zodat zijn steen op de grondlijn stopt en niet
       // door de savanne heen naar beneden het donker in loopt (zie drawClimb). Een savanne-mesa niet: die
-      // tekent aarde eronder die vanzelf in de grondband overloopt.
-      terraces.push({ r: Math.round(r), l: Math.round(l), h, grond: g, af: !g, ...(zw ? { zwart: zw } : {}) });   // savanne/muur, zwart-variant met de vlag
+      // tekent aarde eronder die vanzelf in de grondband overloopt. Heb je de cel op de grondlijn eronder ook
+      // muur getekend (door), dan juist geen af: de muur gaat door de grond heen, en de savanne ernaast legt
+      // er met het overloopje zijn bovenste laag overheen.
+      terraces.push({ r: Math.round(r), l: Math.round(l), h, grond: g, af: !g && !a.door, ...(zw ? { zwart: zw } : {}) });   // savanne/muur, zwart-variant met de vlag
     }
     i = j;
   }
@@ -34320,6 +34329,7 @@ function mkNaarLevel(){
   // voorgrond: false haalt de standaard voorgrond-keien en -struiken weg. Zo is een Maker-level kaal: je ziet
   // alleen wat je zelf tekent, plus het eind met de fakkels op je eindplateau. De speer bij de start blijft.
   const lvl = { name:'Level Maker test', view:0.8, rocks:[], props:[], spawns, kaleKlif:true, voorgrond:false,
+                overloop: true,             // savanne steekt met zijn bovenste laag over elke hogere wand ernaast (zie "overloopje")
                 speerInHand: true,          // nieuwe (Maker-)levels: Amir begint met de speer in de hand
                 rugMax: 1,                  // en met 1 reserve-speer op de rug (zie restart en "reserve-speren op de rug")
                 valDood: 4 * MK_CEL_EENH,   // in de Maker is een val van 4 gridhoogtes (600 eenheden) al dodelijk, strenger dan de standaard VAL_DOOD (6 Amir)
