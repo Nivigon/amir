@@ -20,7 +20,7 @@ lobben. Met het veld `zicht: true` kijkt hij echt.
   een richel, een doornbos en decor houden niets tegen, zodat een kei een schuilplek blijft (regel 7) en
   geen plek om onzichtbaar te zijn. De lijn wordt hoogstens elke `ZICHT.ververs` s opnieuw uitgerekend.
 - **Achter hem**: de oude afstand op x, maar alleen als Amir op zijn niveau staat (`zichtNiveau`: de vloer
-  onder Amir ligt binnen `ZICHT.niveau` van zijn eigen vloer, dezelfde vraag als `zwZelfdeHoogte`). Een
+  onder Amir ligt binnen `ZICHT.niveau` van zijn eigen vloer, dezelfde vraag als `banZelfdeHoogte`). Een
   muur achter hem houdt dus niets tegen; zo is het afgesproken.
 - **Een treffer** maakt hem altijd wakker (`zichtZiet` kijkt ook naar `s.flash`).
 - **Vergeten**: ziet hij je `ZICHT.vergeet` (3) seconden niet, dan gaat hij terug in rust (`zichtKwijt`).
@@ -47,7 +47,6 @@ het kooiduel, de baas-panter en de baviaan zijn geensceneerd en horen je te vind
 | fosforslangen | `rond` | een van de groep ziet je | de groep gaat terug naar `rond` |
 | hyena | geen: ze komen op je af | | ziet hij je 3 s niet, dan druipt hij af (`weg`) en komt terug als hij je weer ziet; stormt niet blind; een maat stormt alleen mee op Amirs niveau |
 | panter | `walk` rond zijn plek | `notice`/`spot` | terug naar `walk` met een nieuwe thuis |
-| zwaardvechter | `idle`, kijkt zijn eigen kant op | `dreigen` | terug naar `idle`; `zwRoep` wekt alleen maten op Amirs niveau |
 | bandiet | `idle` (de staande idle-set, `banLaadIdle`, geladen in `banLaadLevel`) | `run` | terug naar `idle` |
 | schildbandiet | in zijn wacht (loop-frame 0) | `loop` | terug in zijn wacht |
 | kooiman | slepen op zijn plek | slepen naar je toe | weer op zijn plek |
@@ -64,5 +63,5 @@ naar Amir (groen vrij, rood dicht). Zet er een Terras of een zwevende laag bij o
 
 In de sandbox, met een zwevende laag van 420 hoog en Amir eronder: elke soort blijft in rust zolang hij
 boven staat (en de rand tussen hen en Amir zit), en komt in actie zodra hij op Amirs niveau staat. Een
-zwaardvechter waar een blok tussen komt is na 3 s terug in `idle`. De Poorten speelt voor de speelrobot
-precies als voor deze wijziging (het veld staat er niet in).
+vijand waar een blok tussen komt is na 3 s terug in rust. De echte episode (De Valse Koning)
+heeft het veld niet en speelt dus zoals voor deze wijziging.
