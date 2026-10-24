@@ -1031,12 +1031,16 @@ staat, dan komt die ook beneden.
 Klik je in het startmenu op **Sandbox**, dan kies je eerst: de gewone **Sandbox** (vlakke grond, zet
 neer wat je wilt testen, geen levens) of de **Arena modus**. Allebei beginnen ze uitgezoomd op view 0,8,
 zoals een nieuw level; onder Beeld en geluid, **Uitzoomen**, zet je dat anders. De arena is de arena van de koning
-uit Valse Koning 8, maar zonder het takelen: je begint meteen midden op de vloer met je speer in de hand, tussen
+uit Valse Koning 8, maar zonder het takelen: je begint meteen midden op de vloer met je speer in de hand en een
+reservespeer op je rug (zoals in Valse Koning 8; de knop Rug onder Speer en spullen zet het anders), tussen
 dezelfde twee grijze rotswanden met de twee rotsrichels hoog tegen de wanden. De camera
-staat vast in het midden en schuift niet met je mee, zodat de wanden stil staan; je kunt tot aan de schermranden
-rennen. Om het ruimer te laten voelen dan de echte arena zijn de wanden dunner, schuiven de bergen en de bomen
-erachter een klein stukje met je mee terwijl de wanden stil blijven, en is het uitzicht de gewone avond met de
-lage einder. Aan elke rotswand brandt een fakkel onder de richel. Dezelfde knoppen als de sandbox, maar nu komen de vijanden vanzelf binnenlopen, van links en rechts,
+staat in het midden en schuift maar een klein beetje met je mee: de arena is aan elke kant een stukje breder dan het
+beeld, en loop je naar een kant, dan verschuift het beeld net genoeg om de wand aan die kant op de schermrand te
+zetten, terwijl de andere wand net uit beeld glijdt. Zo krijgt het veld ruimte zonder dat het echt groter wordt. De
+knop **Ruimte** op het tabblad Arena zet dat uit; dan staat de camera stokstijf in het midden en kun je tot aan de
+schermranden rennen, zoals in de echte arena. Om het ruimer te laten voelen dan de echte arena zijn verder de
+wanden dunner, schuiven de bergen en de bomen erachter een klein stukje extra met je mee, en is het uitzicht de
+gewone avond met de lage einder. Aan elke rotswand brandt een fakkel onder de richel. Dezelfde knoppen als de sandbox, maar nu komen de vijanden vanzelf binnenlopen, van links en rechts,
 langs de rots net buiten beeld, en heb je gewoon je levens: ga je dood, dan begint R opnieuw en loopt de klok weer vanaf nul.
 Het paneel opent op het tabblad **Arena**. De knop **Modus** kiest hoe ze komen: **Stroom** (ze blijven
 komen, steeds sneller, zoals hieronder) of **Golven**: een golf tegelijk, en pas als die helemaal verslagen
