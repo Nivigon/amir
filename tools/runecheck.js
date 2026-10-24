@@ -10,7 +10,7 @@
 // camera staat op Amir, dus verder dan een half scherm voor hem uit ziet hij de schijf niet meer.
 //
 //   node tools/runecheck.js                 alle levels, alle schermen
-//   node tools/runecheck.js "Poort"         alleen de levels waarvan de naam dit bevat
+//   node tools/runecheck.js "Valse"         alleen de levels waarvan de naam dit bevat
 //   node tools/runecheck.js --formaat 25    het schuifje Formaat (standaard 25)
 //   node tools/runecheck.js --schermen 1280x720,852x393
 //
@@ -66,7 +66,7 @@ function server(){
 async function meet(filter){
   const uit = [];
   const wacht = ms => new Promise(r => setTimeout(r, ms));
-  const lijsten = [POORT_LEVELS, HON_LEVELS, HOOG_LEVELS, VK_LEVELS, KLIM_LEVELS, DIEP_LEVELS, TEST_LEVELS, BAB_LEVELS];
+  const lijsten = [VK_LEVELS, TEST_LEVELS, BAB_LEVELS];
   const werk = [];
   for (const lijst of lijsten) lijst.forEach((def, i) => werk.push([lijst, def, i]));
   for (const [lijst, def, i] of werk){

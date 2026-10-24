@@ -79,7 +79,7 @@ trager loopt en vijanden verder achter Amir raken:
   van een ravijn opduiken. Hij schuift nu niet meer over een ravijn of kei (`panBaan`).
 
 Daarna: in tien levels op telefoonformaat geen enkele overtreding meer, en in proefstukken met
-een kei en een ravijn kwam geen slang, zwarte slang, fosforslang, schorpioen, zwaardvechter,
+een kei en een ravijn kwam geen slang, zwarte slang, fosforslang, schorpioen,
 hyena of panter erover.
 
 Staat de laadpoort dicht (een winterlevel haalt zijn plaatjes op), dan telt hij dat niet als

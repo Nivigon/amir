@@ -358,7 +358,6 @@ class Spel:
         self.VILLAGE = b.const('VILLAGE')
         self.SCENES = b.const('SCENES')
         self.MUZIEK = b.const('MUZIEK')
-        self.ZW_KLEUREN = b.const('ZW_KLEUREN')
         self.TEKEN = b.const('TEKEN')                   # het speerteken: voet en hoogte per variant
         self.SKELET = b.const('SKELET')
         self.RAVIJN_PROEF = b.const('RAVIJN_PROEF')     # de runes die een ravijn openen, per level
@@ -858,10 +857,8 @@ def velden(lv, sp):
         if o.get('k') not in sp.NPCS:
             yield fout(o.get('x'), "npc '%s' staat niet in NPCS en wordt weggelaten" % o.get('k'))
     for o in lv.d.get('spawns') or []:
-        if o.get('k') not in ('groen', 'zwart', 'knock', 'scorp', 'panter', 'hyenas', 'zwaard', 'fosfor', 'bandiet', 'kooiman', 'meelman', 'schildman'):
+        if o.get('k') not in ('groen', 'zwart', 'knock', 'scorp', 'panter', 'hyenas', 'fosfor', 'bandiet', 'kooiman', 'meelman', 'schildman'):
             yield fout(o.get('x'), "vijand '%s' bestaat niet: het spel maakt er een groene slang van" % o.get('k'))
-        if o.get('c') and o.get('c') not in sp.ZW_KLEUREN:
-            yield fout(o.get('x'), "kleur '%s' bestaat niet: het wordt rood" % o.get('c'))
     s = lv.d.get('sneeuw')
     if s:
         if s.get('soort') not in ('savanne', 'rots'):
@@ -1397,13 +1394,9 @@ def speer_na_rune(lv, sp):
 
 
 # De pull-zone van het eerste skelet na een rune (zie CLAUDE.md regel 9). Een speer uit een skelet
-# trekken kost ~2 seconden stilstaan met lege handen (SKELET.trek.duur). Binnen SPEER_HAAL_DICHT
-# staat de charger zo dicht dat je geen raam kunt maken: dat is onmogelijk, dus FOUT. Tussen daar en
-# SPEER_HAAL_VRIJ is het krap maar te doen als je eerst ruimte maakt (de lage zwaai werkt zonder
-# speer, of je rent even weg): dat mag een bewuste uitdaging zijn, dus LET OP. Een bandiet is zo snel
-# en aanhoudend (net onder sprint) dat weglopen geen raam geeft, dus die is binnen de hele vrije zone
-# een FOUT. Een slang, schorpioen, fosforslang of hyena mag wel dichtbij: traag of wachtend.
-SPEER_HAAL_DICHT = 450
+# trekken kost ~2 seconden stilstaan met lege handen (SKELET.trek.duur). Een bandiet is zo snel en
+# aanhoudend (net onder sprint) dat weglopen geen raam geeft, dus die is binnen SPEER_HAAL_VRIJ voorbij
+# het skelet een FOUT. Een slang, schorpioen, fosforslang of hyena mag wel dichtbij: traag of wachtend.
 SPEER_HAAL_VRIJ = 1200
 def skelet_pull_vrij(lv, skx, runex):
     """Het skelet op `skx` geeft de nieuwe speer na de rune op `runex`. De speer moet te trekken zijn
@@ -1421,14 +1414,7 @@ def skelet_pull_vrij(lv, skx, runex):
             yield fout(sx, 'bandiet op %s staat maar %d px voorbij het skelet op %s: de speer zit na de rune op %s '
                            'vast, en die uit het skelet trekken kost ~2 seconden stilstaan met lege handen. Een '
                            'bandiet rent je daar meteen onder, ook als je wegloopt, dus de nieuwe speer is niet te '
-                           'halen. Zet de bandieten verder weg (zoals De Poorten doet)' % (n0(sx), round(d), n0(skx), n0(runex)))
-        elif k == 'zwaard' and d < SPEER_HAAL_DICHT:
-            yield fout(sx, 'zwaardvechter op %s staat maar %d px voorbij het skelet op %s dat de speer na de rune '
-                           'geeft: te dicht om er nog een raam voor te maken, dus de speer is niet te trekken' % (n0(sx), round(d), n0(skx)))
-        elif k == 'zwaard':
-            yield letop(sx, 'zwaardvechter op %s staat %d px voorbij het skelet op %s dat de speer na de rune geeft: '
-                            'krap, maar te doen als je eerst ruimte maakt (de lage zwaai werkt zonder speer). Mag een '
-                            'bewuste uitdaging zijn, als hij maar haalbaar blijft' % (n0(sx), round(d), n0(skx)))
+                           'halen. Zet de bandieten verder weg' % (n0(sx), round(d), n0(skx), n0(runex)))
 
 
 @regel('zegels')
