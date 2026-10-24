@@ -111,6 +111,13 @@ in de put zwart. Stap links af op de trede, want na acht seconden zakt hij terug
 level zet dat met `look` (savanne, rots, sneeuw of zwart) en `kleurVanaf` (een hoogte: daaronder blijft het blok
 zwart) bij een rijzer, en een rijzer in een put rekent vanaf de vloer van de gang.
 
+In **Test 49: De golvende rand** zijn de rechte randen weg. De kruin van de grond golft, met zand bovenop bruine rots
+en keien die half in de grond zitten; de mesa is grijze rots met golvende zijkanten en een zandkap; in de gang golft
+de onderkant van het dak met druipstenen, een aardrandje en hangblokken, de vloer heeft een lichte looprand, en het
+zwarte plafond heeft een golvende omtrek in plaats van tandjes. Alles is tekening, de botsing is niet veranderd. Een
+level zet het aan met `golf: true` (of `golf: {ruw}` om de golven te schalen); zonder dat veld ziet een level eruit
+zoals altijd. Er zijn geen vijanden: het level is er om naar de randen te kijken.
+
 Het Test levels-scherm toont de zes nieuwste tests. De knop **Oude tests** eronder klapt het archief met alle oudere open.
 Omdat dat venster uit de volgorde van de lijst komt, duwt elk nieuw testlevel vanzelf het oudste uit de zes het archief in.
 
