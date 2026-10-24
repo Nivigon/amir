@@ -6215,7 +6215,8 @@ function drawClimb(groundY, scale, cx, onder){
     // Een rots-mesa met af (uit de Maker) stopt op de grondlijn in plaats van door de savanne heen naar
     // beneden het donker in te lopen: het steen staat op de grond, en de grondband eronder (al getekend)
     // blijft zichtbaar. De gewone terrassen van de bestaande levels hebben geen af en veranderen niet.
-    const onderT = t.af ? groundY : bottom;
+    // door (uit de Maker): de muur gaat zoveel eenheden de grond in, en niet verder (niet door een gang eronder heen)
+    const onderT = t.af ? groundY : t.door ? Math.min(bottom, groundY + t.door * scale) : bottom;
     // past de rand niet in het terras, dan drukken we hem samen tot de breedte die er is, niet
     // verder: anders wordt de rotsribbeling een fijne streepjescode. De twee randen mogen elkaar
     // overlappen, want de linker wordt als laatste getekend en vloeit naar rechts uit
@@ -6223,36 +6224,56 @@ function drawClimb(groundY, scale, cx, onder){
     const edgePx = TER.edge * (capW / iw);
     const soilY = top + (TER.soil - TER.trimTop) * st;
     // links afgedekt door een hoger terras? dan geen rand aan die kant
-    const leftHidden = terraceList().some(o => o !== t && o.h > t.h && o.l <= t.l + 1 && o.r >= t.l - 1);
+    // Uit de Maker komen ook twee rots-mesa's van precies dezelfde hoogte naast elkaar (een muur die maar
+    // voor een deel door de grond gaat, of muur naast rots): die horen een blok te zijn, dus daar geen rand
+    // tussen. Alleen als een van de twee af heeft, en af komt alleen uit de Maker: de levels veranderen niet.
+    const dekt = o => o !== t && (o.h > t.h || (o.h === t.h && !o.grond && (o.af || t.af)));
+    const leftHidden = terraceList().some(o => dekt(o) && o.l <= t.l + 1 && o.r >= t.l - 1);
     // en rechts net zo: sluit er een hoger terras op aan (Vorst 3 bij -8000), dan loopt dit
     // terras eronder door. Met een eigen rand aan die kant brokkelden de lage en de hoge rots
     // allebei naar binnen af, en keek je tussen twee wanden door naar de lucht.
-    const rightHidden = terraceList().some(o => o !== t && o.h > t.h && o.l <= t.r + 1 && o.r >= t.r - 1);
+    const rightHidden = terraceList().some(o => dekt(o) && o.l <= t.r + 1 && o.r >= t.r - 1);
     // een trede in een gang ligt onder de grond: daar ligt ook in de winter geen sneeuw op
     const onder = t.h < 0 && winterOn();
     const zwartKlif = t.zwart && imgReady(vormImg('klif'));   // zwarte vulling/muur: dezelfde vorm, maar de zwarte klif-rand
     const tp = zwartKlif ? vormImg('klif') : (onder ? terImg : terPic()), tf = zwartKlif ? vormImg('klif') : (onder ? terFade : (terFadePic() || terPic()));
-    ctx.save();
-    terClipPath(xl, xr, top - 4, onderT, st, soilY, leftHidden, t.l, t.r, rightHidden);        // gebroken zijkanten
-    ctx.clip();
-    ctx.save();
-    ctx.beginPath();
-    const midL = xl + (leftHidden ? 0 : edgePx);
-    const midR = rightHidden ? xr + 40 : xr - edgePx;
-    ctx.rect(midL, top - 4, midR - midL, onderT - top + 4);
-    ctx.clip();
-    // middenstukken van rechts naar links, om en om gespiegeld: dan sluiten de naden
-    let x = rightHidden ? xr + 40 : xr - capW, k = 0;
-    while (x > xl && x > viewL - midW){
-      drawTerCol(TER.midX, iw - TER.midX, x - midW, midW, k % 2 === 1, top, onderT, st, tp);
-      x -= midW; k++;
+    // Onder de grondlijn dekt alleen een buur die zelf ook door de grond gaat (geen af). Een muur uit de Maker
+    // die maar voor een deel door de grond gaat, is boven een blok met zijn buur maar heeft onder de grond
+    // zijn eigen rand; dan tekenen we hem in twee stukken, boven en onder de grondlijn. Zonder af (de levels)
+    // zijn de vlaggen gelijk en blijft het een stuk, precies zoals het was.
+    const dektO = o => o !== t && !o.af && o.h > t.h;
+    const lHO = terraceList().some(o => dektO(o) && o.l <= t.l + 1 && o.r >= t.l - 1);
+    const rHO = terraceList().some(o => dektO(o) && o.l <= t.r + 1 && o.r >= t.r - 1);
+    const tegelX = rightHidden ? xr + 40 : xr - capW;   // waar de middenstukken beginnen: boven en onder hetzelfde, dan loopt het steen door
+    const terTeken = (lH, rH) => {
+      ctx.save();
+      terClipPath(xl, xr, top - 4, onderT, st, soilY, lH, t.l, t.r, rH);        // gebroken zijkanten
+      ctx.clip();
+      ctx.save();
+      ctx.beginPath();
+      const midL = xl + (lH ? 0 : edgePx);
+      const midR = rH ? xr + 40 : xr - edgePx;
+      ctx.rect(midL, top - 4, midR - midL, onderT - top + 4);
+      ctx.clip();
+      // middenstukken van rechts naar links, om en om gespiegeld: dan sluiten de naden
+      let x = tegelX, k = 0;
+      while (x > xl && x > viewL - midW){
+        drawTerCol(TER.midX, iw - TER.midX, x - midW, midW, k % 2 === 1, top, onderT, st, tp);
+        x -= midW; k++;
+      }
+      ctx.restore();
+      if (!rH) drawTerCol(0, iw, xr - capW, capW, true, top, onderT, st, tp);   // afbrokkelende rand rechts, naar je start toe
+      // en links als laatste, met de zachte rechterkant: zo houdt hij zijn eigen rand, ook als
+      // het terras zo smal is dat de twee randen over elkaar heen vallen
+      if (!lH) drawTerCol(0, iw, xl, capW, false, top, onderT, st, tf);
+      ctx.restore();
+    };
+    if (t.af || (lHO === leftHidden && rHO === rightHidden)) terTeken(leftHidden, rightHidden);
+    else {
+      const vak = (y0, y1) => { ctx.save(); ctx.beginPath(); ctx.rect(viewL - 400, y0, viewR - viewL + 800, y1 - y0); ctx.clip(); };
+      vak(top - 4, groundY); terTeken(leftHidden, rightHidden); ctx.restore();
+      vak(groundY, onderT); terTeken(lHO, rHO); ctx.restore();
     }
-    ctx.restore();
-    if (!rightHidden) drawTerCol(0, iw, xr - capW, capW, true, top, onderT, st, tp);   // afbrokkelende rand rechts, naar je start toe
-    // en links als laatste, met de zachte rechterkant: zo houdt hij zijn eigen rand, ook als
-    // het terras zo smal is dat de twee randen over elkaar heen vallen
-    if (!leftHidden) drawTerCol(0, iw, xl, capW, false, top, onderT, st, tf);
-    ctx.restore();
     if (showBoxes || building){
       ctx.save();
       ctx.globalAlpha = 0.6; ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2 / zoom;
@@ -6285,10 +6306,22 @@ const OVERLOOP = { uit: 0.225, laag: 185, stap: 40 };   // hoe ver uit (deel van
 // het oppervlak op x: savannegrond (basisgrond of een grond-terras) of rots (rots-terras, grotraster, zuil)
 function savanneOpp(x){
   let h = 0, grond = true;
-  for (const t of terraceList()) if (x >= t.l && x <= t.r && t.h > h){ h = t.h; grond = !!t.grond; }
+  for (const t of terraceList()) if (!t.af && x >= t.l && x <= t.r && t.h > h){ h = t.h; grond = !!t.grond; }   // een mesa met af staat op de savanne: die loopt ervoor door
   const g = grotTerrein(x); if (g > h){ h = g; grond = false; }
   for (const q of zuilLijst()) if (x >= q.x - q.w / 2 && x <= q.x + q.w / 2 && zuilTop(q) > h) grond = false;
   return grond;
+}
+// het oppervlak net naast de wand, zoals terrainH, met drie verschillen. Boven een gang is het de savanne
+// erboven, niet de gangvloer, anders kwam het lipje diep onder de grond. Een mesa met af (uit de Maker) staat
+// op de savanne, die ervoor doorloopt tot de wand: daar is het oppervlak de grond. En boven een open ravijn is
+// er geen grond, dus null: anders hing er een los stuk savanne in de lucht tegen de muur (een rijzer of brug
+// in het gat telt wel als grond).
+function overloopOpp(x){
+  if (terrainH(x) <= 0 && inGap(x) && !vloerOverGat(x, 0)) return null;
+  for (const q of zuilLijst()) if (x >= q.x - q.w / 2 && x <= q.x + q.w / 2) return zuilTop(q);
+  let h = 0;
+  for (const t of terraceList()) if (!t.af && x >= t.l && x <= t.r && t.h > h) h = t.h;
+  return Math.max(h, grotTerrein(x));
 }
 function overloopTeken(groundY, scale, cx){
   if (!(level && level.overloop) || !imgReady(bodemPic()) || !edgeReady()) return;
@@ -6303,16 +6336,20 @@ function overloopTeken(groundY, scale, cx){
     for (const dir of [1, -1]){                            // 1: wand rechts (o.l), -1: wand links (o.r)
       const edgeX = dir > 0 ? o.l : o.r;
       const buiten = edgeX - dir * 2;                      // net buiten de wand, aan de lage kant
-      const hLo = terrainH(buiten);
+      const hLo = overloopOpp(buiten);
+      if (hLo == null) continue;                           // een open ravijn naast de wand: geen grond om uit te steken
       if (o.h <= hLo + OVERLOOP.stap) continue;            // geen echte stap omhoog
       if (!savanneOpp(buiten)) continue;                   // de lage kant moet savanne zijn
       const xj = cx + (edgeX - world);
       if (xj < -W || xj > W / zoom + W) continue;
-      lipTeken(edgeX, hLo, dir, groundY, scale, cx);
+      // staat er aan de lage kant een mesa met af, dan dekt zijn voet de savanne boven de looplijn af: het
+      // lipje begint daar pas op de looplijn, net als de grond die je ervoor ziet
+      const afVoet = terraceList().some(t => t.af && buiten >= t.l && buiten <= t.r && t.h > hLo);
+      lipTeken(edgeX, hLo, dir, groundY, scale, cx, afVoet);
     }
   }
 }
-function lipTeken(wx, hLo, dir, groundY, scale, cx){
+function lipTeken(wx, hLo, dir, groundY, scale, cx, afVoet){
   // de bovenste savannelaag met zijn brokkelige zijrand steekt uit over de muur, zonder schaduw en
   // zonder de diepe gladde wand eronder; die blijft terug zodat de muur erachter staat
   const eimg = bodemPic(), s = edgeScale(H * 0.18);
@@ -6324,6 +6361,7 @@ function lipTeken(wx, hLo, dir, groundY, scale, cx){
   const uit = OVERLOOP.uit * CHAR_H * scale;          // zover steekt het randstuk uit over de muur
   const bx = xj + dir * uit, yb = top + bandH;
   ctx.save();
+  if (afVoet){ ctx.beginPath(); ctx.rect(Math.min(xj, bx) - 10, loopY, Math.abs(bx - xj) + 20, bandH); ctx.clip(); }
   // de uitstekende strook over de muur, met een grillige buiten- en onderrand (een afgebroken stuk grond)
   ctx.beginPath();
   ctx.moveTo(xj, top);
@@ -32158,7 +32196,7 @@ function readLevel(txt){
                             soort: o.muur.soort === 'grot' ? 'grot' : undefined } : null,
            // grond: true maakt er geen rots van maar een hogere savannelaag (zie "hogere savannelaag")
            terraces: (o.terraces || []).map(q => ({ r: Number(q.r), l: Number(q.l), h: Number(q.h) || 0,
-                                                    grond: q.grond === true, af: q.af === true,
+                                                    grond: q.grond === true, af: q.af === true, door: q.door > 0 ? Number(q.door) : undefined,
                                                     zwart: (q.zwart === 'savanne' || q.zwart === 'vulling') ? q.zwart : undefined })),   // zwarte terrein-variant, zie de tekenlagen
            // zwevende savannelagen: een dik savanneblok in de lucht, zie "zwevende savannelaag"
            zwevers: (o.zwevers || []).map(q => {
@@ -34575,9 +34613,10 @@ function mkNaarLevel(){
       // een rots-mesa (muur/rots/sneeuwrots) krijgt af: true, zodat zijn steen op de grondlijn stopt en niet
       // door de savanne heen naar beneden het donker in loopt (zie drawClimb). Een savanne-mesa niet: die
       // tekent aarde eronder die vanzelf in de grondband overloopt. Heb je de cel op de grondlijn eronder ook
-      // muur getekend (door), dan juist geen af: de muur gaat door de grond heen, en de savanne ernaast legt
-      // er met het overloopje zijn bovenste laag overheen.
-      terraces.push({ r: Math.round(r), l: Math.round(l), h, grond: g, af: !g && !a.door, ...(zw ? { zwart: zw } : {}) });   // savanne/muur, zwart-variant met de vlag
+      // muur getekend (door), dan juist geen af: de muur gaat door de grond heen, precies die ene cel diep
+      // (door, niet verder het donker of een gang eronder in), en de savanne ernaast legt er met het
+      // overloopje zijn bovenste laag overheen.
+      terraces.push({ r: Math.round(r), l: Math.round(l), h, grond: g, af: !g && !a.door, ...(!g && a.door ? { door: MK_CEL_EENH } : {}), ...(zw ? { zwart: zw } : {}) });   // savanne/muur, zwart-variant met de vlag
     }
     i = j;
   }
