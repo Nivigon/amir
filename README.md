@@ -594,7 +594,7 @@ groene balk staat daarom een houten schildbalk met drie vakjes. Elke klap op het
 vakje, zijn eigen balk blijft vol, en je ziet het aan het schild zelf: na de eerste klap is er een hap
 uit, na de tweede twee. Is het schild gebroken, dan verdwijnt die houten balk, en de
 volgende klap is in een keer van vol naar dood. De panter en de baviaan houden hun eigen balk
-bovenin beeld.
+bovenin beeld. Is hij dood, dan blijft zijn lijk na de doodanimatie nog zeven seconden liggen, met zijn gevallen speer ernaast, en dan vervaagt het en is het weg. Dat geldt overal, in elk level en in de sandbox, zodat de grond in een lang gevecht niet vol lijken komt te liggen.
 
 Bij die laatste klap valt zijn speer uit zijn hand, en die valt echt: hij stuit even op de grond en
 blijft voor zijn voeten liggen, ligt scheef als hij op een kei of de rand van een terras terechtkomt,
@@ -1034,8 +1034,12 @@ dan wacht hij tot je er een hebt verslagen. **Opbouw** is hoe lang het duurt (in
 interval van zijn begin naar zijn eind is gekrompen, zodat het langzaam steeds meer worden. De
 knop ernaast kiest de kant: om en om, alleen van links, alleen van rechts of willekeurig. Meerdere
 soorten tegelijk aan kan gewoon, en de knoppen onder Vijanden (dolk, elite, AI aan of uit) gelden
-ook voor de vijanden die de arena stuurt. **Start** zet de golven aan, dezelfde knop (**Stop**) zet ze
-stil, en **Opnieuw** zet de klok en de teller op nul en haalt alles weg. Bovenin het midden staat
+ook voor de vijanden die de arena stuurt. Per soort is er ook **+1**: tik je dat aan, dan komt er van die
+soort meteen een binnen als je op Start drukt, ook als de soort verder uit staat (en na R opnieuw).
+**Start** staat groot midden in beeld, zodat je het paneel niet hoeft weg te klikken: hij zet de golven
+aan en klapt het paneel dicht (met **Toon** haal je het terug). In het tabblad zet dezelfde knop (**Stop**)
+ze stil, waarna de grote Start weer verschijnt, en **Opnieuw** zet de klok en de teller op nul en haalt
+alles weg. Bovenin het midden staat
 groot de klok: hoe lang je het al volhoudt. Daaronder kleiner hoeveel je er verslagen hebt, hoe ver
 de opbouw is en je beste tijd tot nu toe, die de browser onthoudt. Ga je dood, dan blijft de eindtijd
 staan tot je op R drukt.
