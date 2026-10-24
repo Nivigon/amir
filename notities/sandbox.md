@@ -41,7 +41,22 @@ verschuift `world` (tijdens het tekenen de camera) richting `camSwap` (Amir) voo
 bomen, en zet hem terug voor `arenaAchtergrond` en de grond, zodat de wanden, de vloer en alles erop stil
 staan. Het uitzicht blijft het gewone avonduitzicht (`sbLagen = ''`): de lage einder voelt opener dan het
 hoogland van Valse Koning 8. Dit zijn de suggesties 2, 3 en 4 uit het overleg; de wanden op de schermrand
-(1) is bewust niet gedaan, zodat de arena even breed blijft als de echte. Daarnaast twee wandfakkels
+(1) is bewust niet gedaan, zodat de arena even breed blijft als de echte.
+
+De ruimte (`SB_ARENA_VELD.ruimte`, 0,6 Amir, de knop **Ruimte** op het tabblad Arena, `sbArenaRuim`, standaard aan):
+de arena is aan elke kant zoveel breder dan het beeld. `sbArenaMaat` zet het in px op het arena-object (`A.ruimte`)
+en legt de richels en `rechtsWall` aan de arenarand (schermrand plus ruimte) in plaats van de schermrand. De klem in
+de hoofdlus (`arenaVast`) laat Amir tot die arenarand, en `arenaCam` geeft voor de bandiet-arena het midden plus
+`arenaRuimDrift(p)`: de camera schuift evenredig met Amir mee, `(p - c) * r / (halfVis + r)`, geklemd op `±r`, zodat
+de wand aan zijn kant precies op de schermrand staat als hij ertegenaan staat en de andere wand net uit beeld is.
+`kijkMidden` geeft dan het midden plus die drift (de echte camera), zodat "net buiten beeld" in `sbArenaSpawn`,
+`hyBuitenBeeld` en `slangInBeeld` om het beeld rekent en niet om het arena-midden. Zonder het veld (Valse Koning 8,
+de goudaap-arena) is `arenaRuimte()` 0 en verandert er niets: de camera staat stil in het midden. De boss-klem
+`arena.c ± arenaHalf()` in de hoofdlus slaat een vaste arena over (`!arenaVast()`), want die klemt zelf al tot haar
+rand; voor Valse Koning 8 was die tweede klem toch al ruimer dan de eerste.
+
+De arena-modus geeft Amir altijd 1 reservespeer op de rug (`startSandbox`: `RUG_MAX = sbArena ? 1 : 0`, zoals
+Valse Koning 8); `restart` vult de rug, en de knop Rug onder Speer en spullen zet het anders. Daarnaast twee wandfakkels
 (`level.fakkels`, gezet in `sbArenaMaat`, gemerkt `arena: true` zodat een fakkel uit de knop Decor, Fakkel
 blijft staan): een aan elke rotswand onder de richel, `fakkelX` Amir buiten de wandlijn (daar staat de rots)
 op hoogte `fakkelY`; ze laden lui via de tekenlus (`fakkelLaad`).

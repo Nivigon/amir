@@ -1113,6 +1113,7 @@
         <button id="sbarenaopnieuw" title="de klok en de teller op nul, en alle vijanden weg">Opnieuw</button>
         <button id="sbarenakant" title="van welke kant ze komen">Om en om</button>
         <button id="sbarenamodus" title="Stroom: ze blijven komen, steeds sneller. Golven: een golf tegelijk, rust ertussen, elke golf groter">Stroom</button>
+        <button id="sbarenaruim" class="on" title="de arena een klein stukje breder dan het beeld: loop je naar een kant, dan schuift de camera een beetje mee en komt de wand aan die kant in beeld">Ruimte: aan</button>
       </div>
       <div class="row" id="sbarenastroomrij">
         <label>Opbouw <input type="number" id="sbarenaramp" min="5" max="600" step="5" value="90"><span class="eenheid">s</span></label>
@@ -13235,7 +13236,18 @@ function arenaVast(){ const A = arenaAap; return !!(A && A.ban && !A.staging); }
 // het midden van wat je ziet: in zo'n vaste arena het arena-midden, anders Amir zelf. Voor wie "net buiten beeld"
 // of "in beeld" rekent (sbArenaSpawn, hyBuitenBeeld, slangInBeeld): staat de camera vast, dan telt niet waar Amir
 // staat maar wat er op het scherm staat
-function kijkMidden(){ return arenaVast() ? arenaAap.c : world; }
+function kijkMidden(){ return arenaVast() ? arenaAap.c + arenaRuimDrift(world) : world; }
+// de ruimte: de arena een klein stukje breder dan het beeld (A.ruimte, in px; alleen de arena-modus van de sandbox zet
+// het, SB_ARENA_VELD.ruimte en de knop Ruimte). Amir mag zoveel voorbij de schermrand, en de camera schuift evenredig
+// met hem mee (arenaRuimDrift, in arenaCam): staat hij tegen de wand aan zijn kant, dan staat die wand precies op de
+// schermrand, en de wand aan de andere kant is net uit beeld. Zonder ruimte (Valse Koning 8) staat de camera stil
+// in het midden, zoals altijd
+function arenaRuimte(){ const A = arenaAap; return (A && A.ruimte) || 0; }
+function arenaRuimDrift(p){
+  const r = arenaRuimte(); if (!r) return 0;
+  const halfVis = (W / 2) / viewZoom();
+  return Math.max(-r, Math.min(r, (p - arenaAap.c) * r / (halfVis + r)));
+}
 function bandArenaTick(A, dt){
   if (!running || paused) return;
   const t = takelLevel();
@@ -22398,7 +22410,7 @@ const ARENA_KEEP = 0.62;                       // en zo ver mag Amir daarbij van
 // buiten beeld: zijn hele aanloop speelde zich naast het scherm af en je zag hem pas als hij al
 // sprong. De camera kijkt nu naar het midden tussen jullie, maar laat Amir nooit tegen de rand aan.
 function arenaCam(p){
-  if (arenaAap && arenaAap.ban) return arena.c;   // de bandiet-arena: de camera staat vast in het midden en schuift niet mee met Amir
+  if (arenaAap && arenaAap.ban) return arena.c + arenaRuimDrift(p);   // de bandiet-arena: de camera staat vast in het midden en schuift niet mee met Amir (behalve de ruimte van de sandbox-arena, zie arenaRuimDrift)
   let c = arena.c + (p - arena.c) * ARENA_DRIFT;
   const b = panthers.find(q => q.engaged && q.state !== 'dying' && q.state !== 'gone');
   if (b){
@@ -28052,8 +28064,9 @@ function loop(now){
   if (arenaVast()){
     // in de arena (boven, na de aankomst, en in de arena-modus van de sandbox) staat de camera vast in het midden (arenaMidden); Amir mag tot aan de
     // schermranden rennen, zodat je de hele breedte kunt gebruiken om te vechten. De zichtbare wereldhelft is
-    // (W/2)/viewZoom om dat midden heen. Los van de gewone klif-grenzen.
-    const mid = arenaMidden(), halfVis = (W / 2) / viewZoom();
+    // (W/2)/viewZoom om dat midden heen, plus de ruimte als de arena een stukje breder is dan het beeld (arenaRuimte,
+    // de camera schuift dan mee). Los van de gewone klif-grenzen.
+    const mid = arenaMidden(), halfVis = (W / 2) / viewZoom() + arenaRuimte();
     world = Math.max(mid - halfVis + halfWNow, Math.min(mid + halfVis - halfWNow, world));
   } else {
     if (world + halfWNow > cliff.wall) world = cliff.wall - halfWNow;   // je komt er niet voorbij
@@ -28062,7 +28075,7 @@ function loop(now){
   updateArena();
   checkTips();
   updateTut(dt);
-  if (arena){                      // boss: je blijft in de buurt van waar het gevecht begon
+  if (arena && !arenaVast()){      // boss: je blijft in de buurt van waar het gevecht begon (een vaste arena klemt hierboven al, tot haar eigen rand)
     const ah = arenaHalf();
     world = Math.max(arena.c - ah, Math.min(arena.c + ah, world));
   }
@@ -34211,7 +34224,7 @@ function startSandbox(arena){
   sbKooiDuel = false; sbKooiDuelLabel();                // en de duel-variant ook
   kooiBij = 1; sbKooiGrootteToon();                     // de grootte-afstelling terug op de code-waarde
   RUN.woede = 0; woedeStop();                           // de woedemeter van de sandbox begint leeg
-  RUG_MAX = 0; rugSperen.length = 0; rugTrekT = 0; rugToon();   // de reserve op de rug begint uit
+  RUG_MAX = sbArena ? 1 : 0; rugSperen.length = 0; rugTrekT = 0; rugToon();   // de reserve op de rug begint uit; in de arena-modus altijd 1 reservespeer op de rug (zoals Valse Koning 8), restart vult hem; de knop Rug zet het anders
   HP_BALK = 0; hpBalkToon();                            // en de health-balk (bandiet/kooiman 3 levens) begint uit
   ZICHT_AAN = false; zichtToon = false; zichtKnopToon();  // en het zicht (zie "zicht") ook
   document.getElementById('lives').style.display = sbArena ? '' : 'none';   // geen levens in de sandbox, wel in de arena-modus
@@ -34323,7 +34336,11 @@ function sbSpawn(kind, kant, plek){               // kant en plek: de arena-modu
 // klein stuk met Amir mee (parallax, in scene) en het uitzicht is het gewone avonduitzicht met de lage einder.
 // Twee wandfakkels (`fakkels`, zie "fakkel"), een aan elke rotswand onder de richel: fakkelX hoe ver buiten de
 // wandlijn de schacht hangt (in Amir, de rotswand staat daar), fakkelY de hoogte van de voet boven de grond.
-const SB_ARENA_VELD = { wandSchaal: 1.3, richelDiep: 0.55, parallax: 0.08, fakkelX: 0.45, fakkelY: 1.1, fakkelS: 1.1 };
+// ruimte: de arena is zoveel Amir aan elke kant breder dan het beeld (de knop Ruimte zet het uit). Amir mag dat stukje
+// voorbij de schermrand, en de camera schuift evenredig met hem mee (arenaRuimDrift), zodat de wanden en de richels
+// een beetje bewegen als je van kant wisselt: dat geeft het veld ruimte zonder dat het echt groter wordt. De richels
+// en de rechtergrens volgen de arenarand, niet de schermrand (sbArenaMaat).
+const SB_ARENA_VELD = { wandSchaal: 1.3, richelDiep: 0.55, parallax: 0.08, fakkelX: 0.45, fakkelY: 1.1, fakkelS: 1.1, ruimte: 0.6 };
 // Twee manieren om ze te laten komen (sbArenaCfg.modus, de knop Modus): de stroom (van, tot, max per soort: ze
 // blijven komen, steeds sneller) of golven (n, plus, vanaf per soort: een golf tegelijk, rust ertussen, elke golf
 // groter; zie "golven" hieronder). De naamknop (aan) en de kant gelden voor allebei; de drie getallen per soort
@@ -34357,6 +34374,7 @@ const SB_ARENA_HINT = {
   stroom: 'zet per vijand aan hoe vaak hij binnenkomt: eerst om de zoveel seconden, en na de opbouw om de zoveel; max is hoeveel er tegelijk mogen leven; bij start: er komt er meteen een zodra de afteller afloopt, ook als de soort verder uit staat; zonder +1 komt de eerste aangezette soort meteen binnen. De knoppen onder Vijanden (dolk, elite, AI) gelden ook hier',
   golven: 'golven: van elke aangezette soort komt per golf een aantal binnen (eerste golf), elke golf meer (erbij/golf), vanaf de golf waarin hij meedoet (vanaf golf). Is de hele golf verslagen, dan komt na de rust de volgende. De knoppen onder Vijanden (dolk, elite, AI) gelden ook hier',
 };
+let sbArenaRuim = true;                           // de ruimte: de arena een stukje breder dan het beeld (SB_ARENA_VELD.ruimte, de knop Ruimte)
 const sbArenaCfg = { aan: false, modus: 'stroom', ramp: 90, kant: 'om', t0: 0, kills: 0, laatst: 1, per: {}, aftel: null,   // aftel: het aftellen loopt (zie sbAftelStart)
                      golf: { rust: 6, tussen: 1.5, tegelijk: 5 },                       // de instellingen van de golven
                      g: { nr: 0, fase: 'rust', klok: 0, spawnKlok: 0, rij: [], tot: 0 } };   // de stand van de golven (zie sbGolfVolgende)
@@ -34377,13 +34395,14 @@ const sbArenaLijst = document.getElementById('sbarenalijst');
 function sbArenaMaat(){
   if (!sbArena || !level) return;
   const u = CHAR_H * nowScale();
-  const mid = arenaMidden(), halfVis = (W / 2) / viewZoom();
-  const diep = SB_ARENA_VELD.richelDiep * u;                                     // dieper in de rand dan in Valse Koning 8 (1 Amir): de wand is hier dunner
+  const A = arenaAap, V = SB_ARENA_VELD;
+  if (A) A.ruimte = sbArenaRuim ? V.ruimte * u : 0;                              // de ruimte voorbij de schermrand (zie arenaRuimDrift), in px
+  const mid = arenaMidden(), halfVis = (W / 2) / viewZoom() + arenaRuimte();     // de arenarand: de schermrand plus de ruimte
+  const diep = V.richelDiep * u;                                                 // dieper in de rand dan in Valse Koning 8 (1 Amir): de wand is hier dunner
   level.ledges = [ { x: mid - halfVis + diep, h: 600, s: 1.05 },                 // links: iets lager en groter (zoals Valse Koning 8)
                    { x: mid + halfVis - diep, h: 760, s: 0.88, f: true } ];       // rechts: hoger en kleiner, geen symmetrisch paar
-  level.rechtsWall = Math.round(mid + halfVis + 600);                            // de echte rechtergrens ver voorbij de schermrand, zodat een vijand van rechts buiten beeld kan beginnen
+  level.rechtsWall = Math.round(mid + halfVis + 600);                            // de echte rechtergrens ver voorbij de arenarand, zodat een vijand van rechts buiten beeld kan beginnen
   // de twee wandfakkels, gemerkt met arena zodat een fakkel uit de knop Decor, Fakkel blijft staan
-  const A = arenaAap, V = SB_ARENA_VELD;
   level.fakkels = (level.fakkels || []).filter(f => !f.arena);
   if (A) level.fakkels.push({ x: Math.round(A.links - V.fakkelX * u), y: V.fakkelY, s: V.fakkelS, f: false, arena: true },
                             { x: Math.round(A.rechts + V.fakkelX * u), y: V.fakkelY, s: V.fakkelS, f: true, arena: true });
@@ -34667,6 +34686,14 @@ sbArenaKantBtn.onclick = () => {
   const i = SB_ARENA_KANTEN.findIndex(k => k[0] === sbArenaCfg.kant);
   sbArenaCfg.kant = SB_ARENA_KANTEN[(i + 1) % SB_ARENA_KANTEN.length][0];
   sbArenaToon(); cv.focus();
+};
+// de ruimte aan of uit (zie SB_ARENA_VELD.ruimte): de maat opnieuw, zodat de richels en de grens de arenarand volgen
+const sbArenaRuimBtn = document.getElementById('sbarenaruim');
+sbArenaRuimBtn.onclick = () => {
+  sbArenaRuim = !sbArenaRuim;
+  sbArenaRuimBtn.textContent = 'Ruimte: ' + (sbArenaRuim ? 'aan' : 'uit');
+  sbArenaRuimBtn.classList.toggle('on', sbArenaRuim);
+  sbArenaMaat(); cv.focus();
 };
 // een getal uit een invoerveld, geklemd; Enter of weglikken geeft de toetsen weer aan het spel
 function sbArenaGetal(el, min, max, oud){
