@@ -24,8 +24,7 @@ soort, en komt dan in alle vijf:
    (in de sandbox), en dat een herstart het terugzet (`x0` of `rv`);
 4. `tools/levelcheck.py`: de regels `boven een ravijn`, `waar een ravijn openscheurt` en `onder de
    grond`, met de maten uit de code;
-5. `placeProblem`, als het in de bouwer neer te zetten is. Skeletten en speertekens staan er
-   sinds de nieuwe bouwer ook in (`skelet` en `teken`).
+5. de Maker nieuwstijl, als het daar neer te zetten is (`MK_TYPES`, `mkNaarLevel`).
 
 Voor een speerteken staan de maten per variant in `TEKEN.varianten`: `voet` is van waar tot waar
 het op de grond staat (het liggende stuk en de schedels in het zand tellen mee, dus niet

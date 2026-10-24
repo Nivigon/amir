@@ -22,7 +22,7 @@
 // dan wat daar staat: is het het level, dan hoort er een regel bij in levelcheck.py.
 //
 //   node tools/speelrobot.js "Test 4"              een level uit de HTML, op (een stuk van) de naam
-//   node tools/speelrobot.js level.json            een level uit de bouwer
+//   node tools/speelrobot.js level.json            een level uit de Maker (Spel-JSON)
 //   --taai            levens komen terug (en uit een ravijn wordt hij teruggezet), zo speelt hij door
 //   --lopen           zonder sprint
 //   --rechts          forceer naar rechts (anders uit de finish afgeleid)

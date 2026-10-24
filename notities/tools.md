@@ -8,7 +8,7 @@ Na elk nieuw level, en na elke wijziging aan een level, draai je:
 python3 tools/levelcheck.py            alle levels
 python3 tools/levelcheck.py "Test 4"   alleen de levels waarvan de naam dit bevat
 python3 tools/levelcheck.py -v         ook de info-regels
-python3 tools/levelcheck.py level.json een level uit de bouwer, voor het in de HTML staat
+python3 tools/levelcheck.py level.json een level uit de Maker (Spel-JSON), voor het in de HTML staat
 ```
 
 Het script leest de leveldefinities uit de HTML, samen met de getallen waar het spel
@@ -57,7 +57,7 @@ vastloopt en wat er in de console staat.
 
 ```
 node tools/speelrobot.js "Test 4"               een level uit de HTML, op naam
-node tools/speelrobot.js level.json --taai      een level uit de bouwer; --taai: levens komen terug
+node tools/speelrobot.js level.json --taai      een level uit de Maker; --taai: levens komen terug
 node tools/speelrobot.js "Test 4" --shots map   elke anderhalve seconde een schermafdruk
 node tools/speelrobot.js level.json --vredig --wacht -1490:12
                                                 op -1490 twaalf seconden blijven staan, zonder te steken
@@ -152,18 +152,6 @@ potje hoe lang het duurde, hoe vaak Amir geraakt werd en in welk stuk van zijn a
 het na een wijziging aan de getallen in `SCHB`. `--reactie 0.3` zet de reactietijd van de mens, `--breed 1280
 --hoog 720` het scherm (standaard kleiner, en daar is ontwijken makkelijker), `--fotos map` maakt
 schermafdrukken op vaste frames van de sprong.
-
-## De bouwertest: tools/bouwertest.js
-
-Opent elk level uit de HTML in de bouwer, slaat het op en leest het weer in, en meldt per level de
-velden die daarbij veranderd of kwijtgeraakt zijn. Draai hem na elke wijziging aan de bouwer, aan
-`readLevel` of aan `syncLevel`; hij verandert niets aan de levels.
-
-```
-node tools/bouwertest.js              alle levels
-node tools/bouwertest.js "Test 4"     alleen de levels waarvan de naam dit bevat
-node tools/bouwertest.js --shots map  daarna een schermafdruk van de bouwer
-```
 
 ## De makertest: tools/makertest.js
 

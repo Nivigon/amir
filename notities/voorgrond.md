@@ -9,8 +9,7 @@ alles waar je naar moet kunnen kijken: ravijnen en de plekken waar er later een 
 de rots met de rune (die reikt ver naar rechts, want de rots staat aan de kant waar Amir aankomt), de
 poort (`muur`), de fakkels en het veld van de eindbaas. Zo verbergt hij nooit een rand, een schijf of
 een vijand die je moet zien. De maten van die open plekken staan in `VG_STANDAARD`. De standaard hangt
-aan het level zelf, dus ook een level uit de bouwer krijgt hem, en verschuif je daar een ravijn, dan
-schuift de open plek mee.
+aan het level zelf, dus ook een level uit de Maker krijgt hem.
 
 Een eigen `voorgrond` in de definitie gaat voor de standaard (Test 11 heeft er een). Doe dat als een
 level een plek heeft waar de voorgrond iets moet vertellen: dicht gras aan het begin, een schedel in

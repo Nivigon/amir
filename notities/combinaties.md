@@ -69,8 +69,8 @@ Ideeën die er nog niet in zitten. Zet een oordeel of een sterretje bij wat je w
 
 ## Proeven: combinaties die mechanieken op elkaar laten inwerken
 
-Losse levels in `notities/proeven/` (hetzelfde JSON-formaat als de bouwer, dus te openen onder
-Level maken). Ze staan niet in de HTML: het zijn metingen, geen levels. `overzicht.jpg` laat van
+Losse levels in `notities/proeven/` (hetzelfde JSON-formaat als een leveldefinitie, dus te draaien met
+`levelcheck.py` en de speelrobot). Ze staan niet in de HTML: het zijn metingen, geen levels. `overzicht.jpg` laat van
 elke proef de belangrijke momenten zien. Opnieuw draaien:
 
 ```
@@ -163,7 +163,7 @@ Test 28 (Hoog mikken) zet vier hoge runes achter elkaar in een level: de pieken 
 strook en met de schijf in beeld), de zuilen op 2,0 vanaf de grond, de spits op 2,0 op een terras van 300, en
 de scheve boog op 2,0 in een gang van 800. Alle vier geraakt op de drie schermen.
 
-Opnieuw bekijken: zet een proef open in de bouwer, of gebruik de knoppen onder **Rune op een rots** in de
+Opnieuw bekijken: draai een proef met de speelrobot, of gebruik de knoppen onder **Rune op een rots** in de
 sandbox: de knop **Doet** kiest wat de rune doet, en na het neerzetten zegt de hint vanaf hoe ver je raakt.
 
 ## Voorstellen van Claude
@@ -172,7 +172,7 @@ Wat Claude uit een testrun haalt en voorstelt. Pas na een ja gaat het een level 
 
 - **Opgeslagen als bouwsteen (gebouwd):** de opstellingen die werken staan in `RUNE_OPSTELLINGEN`:
   `vlak`, `zuilen`, `boog`, `kei`, `terras`, `gang` en `ver`, met de rots, `groot`, `hoog`, de kei en de strook.
-  Een level zet `opstelling: 'kei'` bij een rune, de bouwer kiest hem in het venster van een rune.
+  Een level zet `opstelling: 'kei'` bij een rune.
 - **Hoger of lager komen (schets, nog niets gebouwd):** zes opties in `proeven/opties_hoger_lager.jpg`,
   alle zes goedgekeurd. Een opstap is nooit een rots met een rune en geen vergrote kei, maar iets wat er al
   is. Op main bestaan al: de rijzende grond (`rijzers`, ook te starten met een rune als doel) voor optie 1,
