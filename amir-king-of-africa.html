@@ -2424,9 +2424,8 @@ function loadWinter(){
     im.src = WINTER_SRC[k];
     winterImg[k] = im;
   }
-  panLoadSkin('wit');
-  hyLoadSkin('wit');
-  loadVillageWinter();                // de besneeuwde dorpsplaten
+  // de witte panter, de witte hyena en de besneeuwde dorpsplaten komen per soort mee (panLaadLevel,
+  // hyLaadLevel, dorpLaadLevel), alleen als het level die soort ook gebruikt
   bakeWinterLayers();
 }
 // het plaatje dat nu hoort: in de winter de sneeuwversie zodra die er is, anders het gewone
@@ -13777,23 +13776,31 @@ function mesTeken(h, scale){
 function load(src){
   const paths = kleinEerst([src]);             // op een telefoon eerst de halve versie
   const i = new Image(); let k = 0;
-  i.onload = () => loaded++;
   i.onerror = () => {
     k++;
     if (k < paths.length) i.src = paths[k];
-    else { loaded++; console.warn('ontbreekt: ' + src); }   // a missing file must not stall the game
+    else console.warn('ontbreekt: ' + src);    // een bestand dat ontbreekt mag het spel niet tegenhouden (zie laadpoort)
   };
   i.src = paths[0];
   return i;
 }
-let loaded = 0;
 const atkImgs = ATK_SP.map(loadAny);
+// De slangen laden lui, per kleur: pas als een level die kleur gebruikt (slangLaadLevel, via laadLevel in
+// setLevel), de sandbox laadt ze alle drie bij het openen. De fosforslang hergebruikt de groene (fosforKopie).
 const snk = {};
-for (const k in SNAKE_DIRS){
+function slangLaad(k){
+  if (snk[k] || !SNAKE_DIRS[k]) return;
   const d = SNAKE_DIRS[k];
   snk[k] = { idle: frameList(d,'idle').map(load),
              move: frameList(d,'move').map(load),
              atk:  frameList(d,'attack').map(load) };
+}
+function slangLaadLevel(lv){
+  if (!lv) return;
+  const sp = lv.spawns || [];
+  for (const s of sp){ const k = s.kind || s.k; slangLaad(k === 'fosfor' ? 'groen' : k); }
+  // zonder spawns-lijst stuurt het spel zelf groene en zwarte slangen (nextKind), behalve in een bandietgolf-level
+  if (!sp.length && !lv.bandietGolf){ slangLaad('groen'); slangLaad('zwart'); }
 }
 
 // ---------- schorpioen ----------
@@ -13872,11 +13879,10 @@ function loadAny(paths){
   paths = kleinEerst(paths);                   // op een telefoon eerst de halve versie
   const i = new Image();
   let k = 0;
-  i.onload = () => loaded++;
   i.onerror = () => {
     k++;
     if (k < paths.length) i.src = paths[k];
-    else { loaded++; console.warn('ontbreekt: ' + paths[0]); }
+    else console.warn('ontbreekt: ' + paths[0]);
   };
   i.src = paths[0];
   return i;
@@ -14731,22 +14737,29 @@ function drawThrowRicht(pcx, groundY, scale, lift){
   ctx.restore();
 }
 
-const scp = {
-  walk:   [1,2,3,4,5,6,7,8,9,10,11,12].map(i => loadAny([
+// De schorpioen laadt lui: de drie reeksen blijven leeg tot een level hem gebruikt (scpLaadLevel) of de sandbox opent.
+const scp = { walk: [], charge: [], curl: [] };
+let scpGeladen = false;
+function scpLaad(){
+  if (scpGeladen) return;
+  scpGeladen = true;
+  const n = [1,2,3,4,5,6,7,8,9,10,11,12];
+  scp.walk.push(...n.map(i => loadAny([
             SCP_WALK_DIR + 'walk_' + pad2(i) + '.png',
             SCP_WALK_DIR + 'schorpioen_walk_12/walk_' + pad2(i) + '.png',
-            'enemies/schorpioen1/schorpioen_walk_12frames/schorpioen_walk_12/walk_' + pad2(i) + '.png' ])),
-  charge: [1,2,3,4,5,6,7,8,9,10,11,12].map(i => loadAny([
+            'enemies/schorpioen1/schorpioen_walk_12frames/schorpioen_walk_12/walk_' + pad2(i) + '.png' ])));
+  scp.charge.push(...n.map(i => loadAny([
             SCP_CHARGE_DIR + 'charge_' + pad2(i) + '.png',
             SCP_CHARGE_DIR + 'schorpioen_charge_12/charge_' + pad2(i) + '.png',
             'enemies/schorpioen1/schorpioen_charge_12/charge_' + pad2(i) + '.png',
-            'enemies/schorpioen1/schorpioen_charge_12frames/schorpioen_charge_12/charge_' + pad2(i) + '.png' ])),
-  curl:   [1,2,3,4,5,6,7,8,9,10,11,12].map(i => loadAny([
+            'enemies/schorpioen1/schorpioen_charge_12frames/schorpioen_charge_12/charge_' + pad2(i) + '.png' ])));
+  scp.curl.push(...n.map(i => loadAny([
             'enemies/schorpioen1/schorpioen_curl_12frames/curl_' + pad2(i) + '.png',
             'enemies/schorpioen1/schorpioen_curl_12/curl_' + pad2(i) + '.png',
             'enemies/schorpioen1/schorpioen_curl_12/schorpioen_curl_12/curl_' + pad2(i) + '.png',
-            'enemies/schorpioen1/curl/curl_' + pad2(i) + '.png' ]))
-};
+            'enemies/schorpioen1/curl/curl_' + pad2(i) + '.png' ])));
+}
+function scpLaadLevel(lv){ if (lv && (lv.spawns || []).some(s => (s.kind || s.k) === 'scorp')) scpLaad(); }
 // ---------- personages ----------
 const DLE_DIR = 'karakters/dorpelinge/';
 // idle_00.png .. idle_17.png enzovoort; het tweede pad vangt de extra map op
@@ -14761,8 +14774,9 @@ const NPCS = {
   // de onderste rij van het plaatje is alleen de teen van zijn voorste sandaal. Die rij op de
   // grondlijn leggen liet hem zweven, dus staat hij nu op het midden tussen zijn twee zolen,
   // net als Amir, die plat op zijn twee voeten staat.
-  dorpeling: { w: 230, h: 505, ground: 488, fig: 490, tall: 1.32, fps: 8,
-               frames: [1,2,3,4,5,6,7,8,9,10,11,12].map(i => loadAny([
+  // frames blijft leeg tot npcLaad hem vult (lui, zie npcLaadLevel)
+  dorpeling: { w: 230, h: 505, ground: 488, fig: 490, tall: 1.32, fps: 8, frames: [],
+               laad: () => [1,2,3,4,5,6,7,8,9,10,11,12].map(i => loadAny([
                  'karakters/dorpeling1/dorpelingidle/idle_' + pad2(i) + '.png',
                  'karakters/dorpeling1/dorpeling_idle_12frames/dorpeling_idle_12/idle_' + pad2(i) + '.png',
                  'karakters/dorpeling1/dorpeling_idle_12frames/idle_' + pad2(i) + '.png',
@@ -14774,15 +14788,26 @@ const NPCS = {
   // poos bij hurken en pakt hem daarna weer op.
   dorpelinge: { w: 204, h: 360, ground: 353, fig: 346, tall: 1.24, fps: 12,
                 begin: 'idle',
+                // n frames per reeks; frames blijft leeg tot npcLaad hem vult (lui, zie npcLaadLevel)
                 cycli: {
-                  idle:       { frames: dleCyclus('idle', 18),       loop: true,
+                  idle:       { frames: [], n: 18, loop: true,
                                 duur: [8, 15], daarna: 'neerzetten' },
-                  neerzetten: { frames: dleCyclus('neerzetten', 26), loop: false, daarna: 'gehurkt' },
-                  gehurkt:    { frames: dleCyclus('gehurkt', 18),    loop: true,
+                  neerzetten: { frames: [], n: 26, loop: false, daarna: 'gehurkt' },
+                  gehurkt:    { frames: [], n: 18, loop: true,
                                 duur: [6, 12], daarna: 'oppakken' },
-                  oppakken:   { frames: dleCyclus('oppakken', 26),   loop: false, daarna: 'idle' }
+                  oppakken:   { frames: [], n: 26, loop: false, daarna: 'idle' }
                 } }
 };
+// De dorpelingen laden lui, per soort: pas als een level er een neerzet (npcLaadLevel, via laadLevel in setLevel).
+// Zonder frames tekent de lus niets (fr is dan undefined), dus een lader die nog loopt geeft geen fout.
+function npcLaad(kind){
+  const d = NPCS[kind];
+  if (!d || d.geladen) return;
+  d.geladen = true;
+  if (d.laad) d.frames.push(...d.laad());
+  if (d.cycli) for (const naam in d.cycli){ const c = d.cycli[naam]; c.frames.push(...dleCyclus(naam, c.n)); }
+}
+function npcLaadLevel(lv){ if (lv) for (const q of lv.npcs || []) npcLaad(q.kind || q.k); }
 // de figuur is iets groter dan Amir; mul is de schaal die je per plaatsing meegeeft
 function npcSize(kind, scale, mul){
   const d = NPCS[kind];
@@ -14829,7 +14854,7 @@ function updateNpcs(dt){
     }
   }
 }
-function curlReady(){ return scp.curl.every(i => i.complete && i.naturalWidth); }
+function curlReady(){ return scp.curl.length > 0 && scp.curl.every(i => i.complete && i.naturalWidth); }
 let greenSince = 0;                 // hoeveel groene er zijn geweest
 let blackAfter = 3 + Math.floor(Math.random() * 3);   // 3, 4 of 5
 let forceBlack = false;             // knop: maak de volgende zwart
@@ -14907,7 +14932,7 @@ const VILLAGE = {
   // de voorgrondhut: loopt Amir erachterlangs, dan zakt hij weg naar 0.35 (zie VILLAGE_FADE)
   hut_round_back_closeup: { src: 'design/village/foreground/hut_round_back_closeup.png', h: 4.20, ar: 1.123, mirror: true, layer: 'fg' },
   // Winter World: dezelfde platen onder de sneeuw (tools/sneeuw_dorp.py). winter: true
-  // betekent dat ze pas met loadWinter() geladen worden, net als de andere winterplaatjes.
+  // markeert ze als winterplaat; net als de andere platen laden ze pas als een level ze neerzet.
   hut_round_arch_sneeuw:      { src: 'design/village/hut_round_arch_sneeuw.png',      h: 2.05, ar: 1.165, mirror: true,  layer: 'mid', winter: true },
   hut_round_door_left_sneeuw: { src: 'design/village/hut_round_door_left_sneeuw.png', h: 2.05, ar: 1.086, mirror: true,  layer: 'mid', winter: true },
   hut_round_back_sneeuw:      { src: 'design/village/hut_round_back_sneeuw.png',      h: 2.05, ar: 1.123, mirror: true,  layer: 'mid', winter: true },
@@ -14925,8 +14950,10 @@ function loadVillage(id){
   im.onerror = () => console.warn('ontbreekt: ' + VILLAGE[id].src);
   im.src = VILLAGE[id].src;
 }
-for (const id in VILLAGE) if (!VILLAGE[id].winter) loadVillage(id);
-function loadVillageWinter(){ for (const id in VILLAGE) if (VILLAGE[id].winter) loadVillage(id); }
+// De platen laden lui: alleen de id's die dit level neerzet (dorpLaadLevel, via laadLevel in setLevel). De
+// winterplaten staan onder hun eigen id (hut_round_arch_sneeuw) en komen zo vanzelf mee; villageList laadt
+// een id dat toch pas in het spel opduikt alsnog.
+function dorpLaadLevel(lv){ if (lv) for (const o of lv.village || []) if (VILLAGE[o.id]) loadVillage(o.id); }
 // Een silhouet in de nevelkleur, precies over de ondoorzichtige pixels heen: daarmee
 // kleuren we een object in de diepte, zonder dat de rechthoek eromheen mee verkleurt.
 // Pas aanmaken als er ook echt iets met diepte staat, het scheelt geheugen.
@@ -15064,8 +15091,6 @@ function idleImg(set){
   const f = a[idleFrame % a.length];
   return (f.complete && f.naturalWidth) ? f : set.idle;
 }
-const total = RUN_NS.length + RUN_SP.length + ATK_SP.length + 2 + IDLE_SP_FRAMES.length + 48 + 36 + 12 + 88;   // +20 idle speer, +36 schorpioen, +12 dorpeling, +88 dorpelinge
-
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 // Hoe diep de save-stapel van ctx nu is. Dat is niet uit te lezen, en na een fout in de lus moet
 // safeLoop hem helemaal afbouwen: anders blijft er elk beeld een laag staan, met een clip en een
@@ -19821,7 +19846,7 @@ function warmBouw(){
   }
   // de fosforslang: alleen als er een in het level staat (hij hergebruikt de groene slang)
   if (level.spawns && level.spawns.some(sp => sp.k === 'fosfor' || sp.kind === 'fosfor')){
-    const g = snk.groen, ff = [].concat(g.idle || [], g.move || [], g.atk || []);
+    const g = snk.groen || {}, ff = [].concat(g.idle || [], g.move || [], g.atk || []);
     for (const img of ff) rij.push(() => { if (klaar(img)){ fosforKopie(img, 'fosfor'); fosforKopie(img, 'steen'); fosforKopie(img, 'ogen'); } });
   }
   // het ongekleurde ravijngrasvel: een keer naar de kaart, zodat ook dat niet bij het eerste ravijn
@@ -21079,7 +21104,13 @@ function panLoadInto(bank, dirs, root){
     });
   }
 }
-panLoadInto(panImg, PAN_DIRS, 'enemies/blackpanther/');
+// De panter laadt lui: pas als een level hem spawnt (panLaadLevel, via laadLevel in setLevel) of de sandbox opent.
+let panGeladen = false;
+function panLoad(){
+  if (panGeladen) return;
+  panGeladen = true;
+  panLoadInto(panImg, PAN_DIRS, 'enemies/blackpanther/');
+}
 // de witte panter van Winter World: zelfde frames, andere vacht (enemies/panter_wit). Pas laden als het moet.
 const PAN_SKIN_DIRS = { wit: { dirs: ['enemies/panter_wit/panter_wit/', 'enemies/panter_wit/'], root: 'enemies/panter_wit/' } };
 const panSkins = { zwart: panImg };
@@ -21089,6 +21120,11 @@ function panLoadSkin(s){
   panLoadInto(panSkins[s], PAN_SKIN_DIRS[s].dirs, PAN_SKIN_DIRS[s].root);
 }
 function panBank(s){ return (s.skin && panSkins[s.skin]) || panImg; }
+function panLaadLevel(lv){
+  if (!lv || !(lv.spawns || []).some(s => (s.kind || s.k) === 'panter')) return;
+  panLoad();
+  if (lv.winter) panLoadSkin('wit');           // in de winter jaagt de witte
+}
 const PAN_WALK_SPD = 64, PAN_PROWL_SPD = 58, PAN_RUN_SPD = 300;
 const PAN_SEE = 950, PAN_RUN_FROM = 1250, PAN_RUN_TO = 750;
 const PAN_POUNCE_DIST = 460, PAN_POUNCE_MIN = 300;   // dichterbij dan MIN springt hij niet meer, dan klauwt hij
@@ -22102,7 +22138,11 @@ function hyLoadInto(bank, dirs){
       loadQuiet(dirs.map(d => d + k + '/' + k + '_' + pad2(i) + '.png')));
   }
 }
+// De hyena laadt lui: pas als een level hem spawnt (hyLaadLevel, via laadLevel in setLevel) of de sandbox opent.
+let hyGeladen = false;
 function hyLoad(){
+  if (hyGeladen) return;
+  hyGeladen = true;
   hyLoadInto(hyImg, HY_DIRS);
   for (const s in hySkins) if (s !== 'zwart') hyLoadInto(hySkins[s], HY_SKIN_DIRS[s]);
 }
@@ -22112,7 +22152,11 @@ function hyLoadSkin(s){                                    // pas laden als een 
   hyLoadInto(hySkins[s], HY_SKIN_DIRS[s]);
 }
 function hyBank(s){ return (s.skin && hySkins[s.skin]) || hyImg; }
-hyLoad();
+function hyLaadLevel(lv){
+  if (!lv || !(lv.spawns || []).some(s => (s.kind || s.k) === 'hyenas')) return;
+  hyLoad();
+  if (lv.winter) hyLoadSkin('wit');            // in de winter komt de witte
+}
 fetch(HY_META).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(m => {
   const c = m.canvas || {};
   if (c.w) HY.w = c.w;
@@ -22131,7 +22175,10 @@ fetch(HY_META).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(m => {
       HY.hapFrames = s.hap_frames.slice();
   }
   HYENA_BITE_FPS = HY.fps.ren_kop;
-  if (opnieuw) hyLoad();                     // andere aantallen: de frames opnieuw ophalen
+  if (opnieuw){                              // andere aantallen: wat al geladen is opnieuw ophalen
+    if (hyGeladen){ hyGeladen = false; hyLoad(); }
+    else for (const s in hySkins) if (s !== 'zwart') hyLoadInto(hySkins[s], HY_SKIN_DIRS[s]);
+  }
 }).catch(() => console.warn('niet gelezen, de ingebouwde waarden gelden: ' + HY_META));
 
 // ---- geluid --------------------------------------------------------------
@@ -27425,7 +27472,10 @@ function loop(now){
   if (camEase !== null){ camSwap = pWorld; world = camEase; }
   scene(groundY);
 
-  if (loaded >= total){
+  // Hier stond de oude laadpoort (loaded >= total, met een handmatige som van het aantal bestanden).
+  // Of een level mag beginnen bepaalt nu alleen laadPoort (zie laadStap): die houdt de lus stil tot
+  // elk plaatje binnen is, dus hier is niets meer te wachten.
+  {
     const zoom = viewZoom();
     ctx.save();
     if (zoom !== 1){
@@ -29141,8 +29191,6 @@ function loop(now){
     golfHudTeken();                                 // de teller van de bandietgolf (verslagen, tijd)
     bandArenaFadeTeken();                           // de fade naar zwart van de takel-entree (bandiet-arena)
     drawMuurE(camSwap !== null ? camSwap : world);   // voor de open rotsdeur of de houten uitgang: Press E
-  } else {
-    drawLichtlaag();
   }
   ctx.restore();
   if (camSwap !== null){ world = camSwap; camSwap = null; }
@@ -30078,16 +30126,32 @@ function readLevel(txt){
 }
 // standaard: het eerste testlevel staat klaar, ook voor de speelrobot
 let levelList = TEST_LEVELS;
+// ---- lui laden per level ----------------------------------------------------
+// Wat niet elk level gebruikt, komt pas binnen als een level het gebruikt: de winterplaatjes, de slangen
+// (per kleur), de schorpioen, de hyena, de panter, de dorpelingen, het dorp, de bandiet, de kooiman, de
+// meelman, de schildbandiet en de vogel. Elke soort heeft een xxxLaadLevel die in het level kijkt (spawns,
+// npcs, village, winter) en dan zijn lader aanroept; elke lader onthoudt of hij al gelopen heeft, dus vaker
+// aanroepen laadt niets dubbel. setLevel (het menu, dus al terwijl de speler het kaartje bekijkt) en de Test
+// van de Maker (mkTest) komen hier allebei langs, zodat een getest level dezelfde weg volgt als een gewoon
+// level. De laadpoort wacht vanzelf op wat hier gezet wordt (zie laadpoort) en warmBouw bakt alleen wat er
+// is. Een nieuwe soort: een lader met een vlag, een xxxLaadLevel, een regel hier, en een aanroep in
+// startSandbox als hij in de sandbox een knop krijgt.
+function laadLevel(lv){
+  if (!lv) return;
+  if (lv.winter) loadWinter();                     // de winterplaatjes pas ophalen als ze nodig zijn
+  slangLaadLevel(lv); scpLaadLevel(lv); hyLaadLevel(lv); panLaadLevel(lv);
+  npcLaadLevel(lv); dorpLaadLevel(lv);
+  banLaadLevel(lv);                                // de bandiet-frames als dit level ze gebruikt
+  kooiLaadLevel(lv);                               // de kooiman-frames als dit level hem gebruikt
+  meelLaadLevel(lv);                               // de meelman-frames als dit level hem gebruikt
+  schbLaadLevel(lv);                               // de schildbandiet-frames als dit level hem gebruikt
+  vogelLaadLevel(lv);                              // de vogel-frames als een kooiman een vogel heeft
+}
 function setLevel(i, list){
   if (list) levelList = list;
   levelIdx = Math.max(0, Math.min(levelList.length - 1, i));
   level = readLevel(JSON.stringify(levelList[levelIdx]));
-  if (level.winter) loadWinter();                  // de winterplaatjes pas ophalen als ze nodig zijn
-  banLaadLevel(level);                             // en de bandiet-frames als dit level ze gebruikt
-  kooiLaadLevel(level);                            // en de kooiman-frames als dit level hem gebruikt
-  meelLaadLevel(level);                            // en de meelman-frames als dit level hem gebruikt
-  schbLaadLevel(level);                            // en de schildbandiet-frames als dit level hem gebruikt
-  vogelLaadLevel(level);                           // en de vogel-frames als een kooiman een vogel heeft
+  laadLevel(level);                                // de plaatjes die dit level nodig heeft en die niet elk level heeft
   document.getElementById('lvname').textContent = level.name;
   zetMuziek();                                     // elk level brengt zijn eigen deuntje mee
   markCards();
@@ -31015,7 +31079,10 @@ document.getElementById('wnnext').onclick = () => {
   setLevel(levelIdx + 1);
   verhaalToon(() => talentKeuzeToon(() => { restart(); hudToon(); cv.focus(); }));
 };
-setLevel(TEST_LEVELS.length - KAART_BLAD);   // start op de nieuwste test, zodat het archief dicht begint
+// Start op de nieuwste test: die staat op het eerste blad, zodat het archief dicht begint. setLevel laadt wat
+// een level nodig heeft (laadLevel), dus een zwaar level hier zou het menu zijn vijanden laten binnenhalen;
+// de nieuwste test hoort licht te zijn (nu alleen groene slangen).
+setLevel(TEST_LEVELS.length - 1);
 
 // ---------- Level Maker ----------
 // Een los, simpel grid om de ruwe vorm van een level te schetsen: een skelet dat Claude daarna
@@ -32904,7 +32971,7 @@ let mkTestActief = false;
 function mkTest(opt){
   if (mkBewaarTimer) mkBewaarNu();                  // de laatste wijziging meteen opslaan (de test kan lang duren)
   level = readLevel(JSON.stringify(mkNaarLevel(opt && opt.vanaf ? opt : undefined)));
-  if (level.winter) loadWinter();                  // de winterplaatjes als het een winterlevel is
+  laadLevel(level);                                // dezelfde weg als een gewoon level: de vijanden en het decor van dit level
   if (level.sneeuw && level.sneeuw.soort) loadSneeuw();   // en het sneeuwdek voor een besneeuwde bodem
   mkTestActief = true; makerOpen = false;
   makerEl.classList.remove('on'); barEl.classList.add('hide');
@@ -33320,6 +33387,9 @@ function startSandbox(){
   sandboxEl.classList.add('on');
   savedLevel = level;                                   // je eigen level even parkeren
   level = { rocks: [], spawns: [], props: [], gaps: [], grotten: [], plafond: [] };
+  // de sandbox kan elke soort spawnen, dus alles wat lui laadt komt hier binnen (de laders zijn idempotent)
+  for (const k in SNAKE_DIRS) slangLaad(k);
+  scpLaad(); hyLoad(); panLoad();
   sandbox = true; running = true;
   zetMuziek();
   sbMuziek = MUZIEK_BASIS; sbMuziekToon();
