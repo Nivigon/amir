@@ -1428,7 +1428,13 @@ def zegels(lv, sp):
         x = z.get('x')
         if not isinstance(x, (int, float)):
             continue
-        if lv.holte(x):
+        if lv.holte(x) and z.get('dak'):
+            # dak: true, hij ligt op de savanne bovenop de gang; een gat in het dak draagt hem niet
+            if lv.in_gat(x - sp.zegelR, x + sp.zegelR):
+                yield fout(x, 'zegel met dak: true boven een gat in het dak: daar kan Amir niet op staan')
+            else:
+                yield info(x, 'zegel op het dak van de gang: hij ligt op de savanne erboven')
+        elif lv.holte(x):
             yield info(x, 'zegel in de gang: hij ligt op de bodem of op een trede')
             if lv.in_gat(x - sp.zegelR - 200, x + sp.zegelR + 200):
                 yield letop(x, 'zegel in een gang vlak bij een gat in het dak: hij ligt op de bodem, en wie op de '

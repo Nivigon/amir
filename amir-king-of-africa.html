@@ -7585,15 +7585,22 @@ function zegelVijand(z, rPx){
   for (const l of [snakes, scorps, bandieten, hyenas, panthers, fosforSlangen])
     for (const v of l){
       if (v.ravijnVal || v.wacht > 0 || ['gone', 'dying', 'weg', 'dood'].includes(v.state)) continue;
-      if (Math.abs((v.base || 0) - terrainH(z.x)) > 2 || Math.abs(v.x - world) > zicht) continue;
+      if (Math.abs((v.base || 0) - zegelGrondH(z)) > 2 || Math.abs(v.x - world) > zicht) continue;
       if (Math.abs(v.x - z.x) < rPx * ZEGEL.op) return true;
     }
   return false;
 }
+// De grond onder een zegel. Boven een gang is dat de bodem ervan (terrainH), tenzij het zegel dak: true heeft:
+// dan ligt hij op de savanne bovenop de gang (het dak), zoals de Level Maker een zegel op de grondlijn meegeeft.
+// Een gat in het dak draagt geen zegel, daar valt hij terug op de bodem.
+function zegelGrondH(z){
+  const h = terrainH(z.x);
+  return (z.dak && h < 0 && holteAt(z.x) && !inGap(z.x)) ? 0 : h;
+}
 // Waar het zegel ligt: op de grond, of bovenop een kei als die op zijn plek staat (Test 17: een zegel om met de
 // speer te raken, aan je eigen kant van het ravijn, zodat je het ziet).
 function zegelVloer(z, scale){
-  let h = terrainH(z.x);
+  let h = zegelGrondH(z);
   for (const r of (level && level.rocks) || []){
     const m = measurePlat(r, scale || nowScale());
     if (z.x > m.left && z.x < m.right && m.topH > h) h = m.topH;
@@ -33105,7 +33112,9 @@ function mkNaarLevel(){
     const verstop = o.k === 'zegel' && o.verstop;       // een verborgen zegel gaat altijd mee, ook zonder masker
     if ((o.k !== 'zegel' && o.k !== 'rune') || ((!o.masker || !maskIds.has(o.masker)) && !verstop)) continue;
     const [ol, or2] = lr(o.c), ox = Math.round((ol + or2) / 2), koppel = o.masker && maskIds.has(o.masker);
-    if (o.k === 'zegel'){ (lvl.zegels = lvl.zegels || []).push({ x: ox, teken: 'rune', ...(koppel ? { stuurt: [o.masker] } : {}), ...(verstop ? { verstop: true } : {}) });
+    // een zegel op of boven de grondlijn met een gang eronder ligt op het dak (de savanne), niet op de gang-bodem
+    const dak = o.r <= gR && holtes.some(h => ox >= h.l && ox <= h.r);
+    if (o.k === 'zegel'){ (lvl.zegels = lvl.zegels || []).push({ x: ox, teken: 'rune', ...(koppel ? { stuurt: [o.masker] } : {}), ...(verstop ? { verstop: true } : {}), ...(dak ? { dak: true } : {}) });
       if (!koppel) continue; }
     else { (lvl.runes = lvl.runes || []).push({ x: ox, doel: true, opstelling: 'vlak', stuurt: [o.masker] }); }
     if (!acties.some(a => a.masker === o.masker)) acties.push({ soort: 'masker', masker: o.masker, bij: [o.masker] });
