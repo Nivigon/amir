@@ -30,8 +30,18 @@ komen uit deze sectie. `sbArenaMaat` zet de twee rotsrichels hoog tegen de wande
 schermranden zoals in `bandArenaTick` (links lager en groter, rechts hoger en kleiner), en de echte
 rechtergrens `level.rechtsWall` ver voorbij de schermrand, zodat een vijand van rechts buiten beeld kan
 beginnen (links is er geen klif, `endWall` is -oneindig); de knoppen Uitzoomen roepen `sbArenaMaat` opnieuw
-aan. Het uitzicht is `sbLagen = 'hoogland'`. `stopSandbox` haalt het veld weg (`arenaReset`), en de knoppen
+aan. `stopSandbox` haalt het veld weg (`arenaReset`), en de knoppen
 Arena aan/uit onder Goudaap en Bandiet doen in de arena-modus niets (de arena staat al).
+
+Ruimer dan de echte arena, op dezelfde maat (`SB_ARENA_VELD`): de zijwanden worden dunner getekend
+(`wandSchaal` 1,3 op het arena-object, `arenaAchtergrond` leest `A.wandSchaal || ARENA.wandSchaal`; de
+goudaap-arena houdt 1,85 voor de hangers), de richels zitten daarom iets dieper in de rand (`richelDiep`,
+0,55 Amir in plaats van 1), en de verre lagen schuiven een klein stuk met Amir mee (`parallax` 0,08): `scene`
+verschuift `world` (tijdens het tekenen de camera) richting `camSwap` (Amir) voor de lucht, de bergen en de
+bomen, en zet hem terug voor `arenaAchtergrond` en de grond, zodat de wanden, de vloer en alles erop stil
+staan. Het uitzicht blijft het gewone avonduitzicht (`sbLagen = ''`): de lage einder voelt opener dan het
+hoogland van Valse Koning 8. Dit zijn de suggesties 2, 3 en 4 uit het overleg; de wanden op de schermrand
+(1) is bewust niet gedaan, zodat de arena even breed blijft als de echte.
 
 Omdat de camera vast staat rekent "net buiten beeld" en "in beeld" om het arena-midden, niet om Amir:
 `kijkMidden()` (het arena-midden in een vaste arena, anders `world`) in `sbArenaSpawn`, `hyBuitenBeeld` en

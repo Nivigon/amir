@@ -13411,7 +13411,7 @@ function arenaAchtergrond(groundY){
   arenaMiddenRots(groundY, scale, cx);
   const cim = cliffPic();
   if (!cim || !imgReady(cim)) return;
-  const c = cliffAt(), F = ARENA.wandSchaal;
+  const c = cliffAt(), F = A.wandSchaal || ARENA.wandSchaal;   // de arena-modus van de sandbox tekent de wanden dunner (SB_ARENA_VELD)
   const hPx = c.hPx * F, wPx = c.wPx * F;
   const cyp = groundY + ARENA.wandOnder * H - hPx;            // de voet zakt onder de grondlijn, de grond dekt hem af
   arenaZijwand(cim, A.rechts, false, cyp, wPx, hPx, cx);      // rechterwand
@@ -27357,6 +27357,13 @@ function drawLayer(L, imgs, seq, horizonY, lift, par, size, vloer){
 }
 function midOn(){ return sceneCfg().mid && layerImgs().mid.some(Boolean); }   // laag 2: aan in de sandbox en in elk level
 function scene(groundY){
+  // de arena-modus van de sandbox: de verre lagen (lucht, bergen, bomen) schuiven een klein stuk met Amir mee
+  // (arenaAap.parallax), zodat de arena diepte krijgt terwijl de camera vast staat; de wanden, de grond en alles
+  // erop niet. Tijdens het tekenen is world de camera en camSwap Amir zelf (zie de hoofdlus); de lagen lezen world,
+  // dus die staat even verschoven en gaat terug voor arenaAchtergrond en de grond. De hoofdlus zet world na het
+  // tekenen sowieso terug op camSwap, dus een fout halverwege laat niets verschoven staan.
+  const camEcht = world, par = (arenaVast() && arenaAap.parallax && camSwap !== null) ? arenaAap.parallax : 0;
+  if (par) world = camEcht + (camSwap - camEcht) * par;
   const sc = sceneCfg();                            // het uitzicht van dit level
   const LI = layerImgs();
   const on2 = midOn();
@@ -27439,6 +27446,7 @@ function scene(groundY){
   if (sc.waas) drawWaas(sc, horizonY, groundY);     // overdag: de verte in de lucht
   drawProps(on2 ? nearY : horizonY, propUnit, false);   // far scenery, behind the ground (voor de heuvels: op hun lijn)
   drawPlacedFar(groundY);                           // jouw achtergronddecor staat op de savanne, niet op de horizon
+  world = camEcht;                                  // de parallax is alleen voor de verre lagen: de wanden en de grond staan op de echte camera
   if (arenaAap && !arenaAap.staging) arenaAchtergrond(groundY);          // de arena: midrots en de twee grijze zijwanden, achter de grond (niet in de aankomst)
   const bandH = H * 0.18;
   const eimg = bodemPic();                                 // savanne, rotsbodem, of de ingebakken wintergrond
@@ -34191,7 +34199,7 @@ function startSandbox(arena){
   sbMuziek = MUZIEK_BASIS; sbMuziekToon();
   sbSneeuw = { soort: null, dek: 1 }; sbSneeuwToon();   // kale grond, zoals de rest van de sandbox
   sbWeer = null; sbWeerToon();                          // droog
-  sbLagen = sbArena ? 'hoogland' : ''; lichtMengKey = null; sbLagenToon();   // het gewone avonduitzicht; de arena-modus het hoogland van de arena van de koning (Valse Koning 8)
+  sbLagen = ''; lichtMengKey = null; sbLagenToon();     // het gewone avonduitzicht (ook in de arena-modus: de lage einder voelt ruimer dan het hoogland van Valse Koning 8)
   sbVoorgrond = 0; sbVoorgrondScherp = false; sbVoorgrondToon();
   sbView = 0.8; sandboxEl.querySelectorAll('button[data-view]').forEach(o => o.classList.toggle('on', Number(o.dataset.view) === sbView));   // uitgezoomd zoals een nieuw level (view: 0.8)
   sbSchVrij = false; sbSchLabel();                      // de schildbandiet doet weer zijn eigen werk
@@ -34306,6 +34314,11 @@ function sbSpawn(kind, kant, plek){               // kant en plek: de arena-modu
 // arenaTick en arenaHudTeken het aan deze sectie overlaten. De vijanden komen net buiten de schermrand op en
 // lopen langs de rots naar binnen; daarvoor staat de echte rechtergrens (level.rechtsWall) ver voorbij die rand
 // en is er links geen klif (endWall is -oneindig), en rekent "net buiten beeld" om het arena-midden (kijkMidden).
+// Om het ruimer te laten voelen dan de echte arena (die is op dezelfde maat): de zijwanden dunner getekend
+// (wandSchaal, de goudaap-arena heeft ARENA.wandSchaal nodig voor de hangers, hier niet), de richels daardoor
+// iets dieper in de rots verankerd (richelDiep, in Amir vanaf de schermrand), de verre lagen schuiven een
+// klein stuk met Amir mee (parallax, in scene) en het uitzicht is het gewone avonduitzicht met de lage einder.
+const SB_ARENA_VELD = { wandSchaal: 1.3, richelDiep: 0.55, parallax: 0.08 };
 const SB_ARENA_SOORTEN = [
   { k: 'scorp',     naam: 'Schorpioen',       van: 10, tot: 4,  max: 3 },
   { k: 'groen',     naam: 'Zandslang',        van: 8,  tot: 3,  max: 4 },
@@ -34335,8 +34348,9 @@ function sbArenaMaat(){
   if (!sbArena || !level) return;
   const u = CHAR_H * nowScale();
   const mid = arenaMidden(), halfVis = (W / 2) / viewZoom();
-  level.ledges = [ { x: mid - halfVis + 1.0 * u, h: 600, s: 1.05 },             // links: iets lager en groter (zoals Valse Koning 8)
-                   { x: mid + halfVis - 1.0 * u, h: 760, s: 0.88, f: true } ];   // rechts: hoger en kleiner, geen symmetrisch paar
+  const diep = SB_ARENA_VELD.richelDiep * u;                                     // dieper in de rand dan in Valse Koning 8 (1 Amir): de wand is hier dunner
+  level.ledges = [ { x: mid - halfVis + diep, h: 600, s: 1.05 },                 // links: iets lager en groter (zoals Valse Koning 8)
+                   { x: mid + halfVis - diep, h: 760, s: 0.88, f: true } ];       // rechts: hoger en kleiner, geen symmetrisch paar
   level.rechtsWall = Math.round(mid + halfVis + 600);                            // de echte rechtergrens ver voorbij de schermrand, zodat een vijand van rechts buiten beeld kan beginnen
 }
 // het veld zelf, bij elke (her)start: de wanden, de camera vast in het midden en Amir midden op de vloer
@@ -34345,7 +34359,8 @@ function sbArenaVeld(){
   const rechts = CLIFF.wall - ARENA.rand, links = rechts - span;
   const c = Math.round((rechts + links) / 2);                                     // gelijk aan arenaMidden()
   sbArenaMaat();
-  arenaAap = { ban: true, sb: true, staging: false, fase: 'vrij', c, links, rechts, t0: bavKlok, kills: 0, fade: 0, fadeDoel: 0, klok: 0 };
+  arenaAap = { ban: true, sb: true, staging: false, fase: 'vrij', c, links, rechts, t0: bavKlok, kills: 0, fade: 0, fadeDoel: 0, klok: 0,
+               wandSchaal: SB_ARENA_VELD.wandSchaal, parallax: SB_ARENA_VELD.parallax };
   arena = { c };
   world = c; ph = 0; pvh = 0; onGround = true; fell = false;
   spear = true; spearFound = true; spearX = null; spearH = null; setSpearLabel();   // met de speer in de hand, zoals in de arena van de koning

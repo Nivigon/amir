@@ -1032,9 +1032,11 @@ Klik je in het startmenu op **Sandbox**, dan kies je eerst: de gewone **Sandbox*
 neer wat je wilt testen, geen levens) of de **Arena modus**. Allebei beginnen ze uitgezoomd op view 0,8,
 zoals een nieuw level; onder Beeld en geluid, **Uitzoomen**, zet je dat anders. De arena is de arena van de koning
 uit Valse Koning 8, maar zonder het takelen: je begint meteen midden op de vloer met je speer in de hand, tussen
-dezelfde twee grijze rotswanden met de twee rotsrichels hoog tegen de wanden, met het hoogland erachter. De camera
+dezelfde twee grijze rotswanden met de twee rotsrichels hoog tegen de wanden. De camera
 staat vast in het midden en schuift niet met je mee, zodat de wanden stil staan; je kunt tot aan de schermranden
-rennen. Dezelfde knoppen als de sandbox, maar nu komen de vijanden vanzelf binnenlopen, van links en rechts,
+rennen. Om het ruimer te laten voelen dan de echte arena zijn de wanden dunner, schuiven de bergen en de bomen
+erachter een klein stukje met je mee terwijl de wanden stil blijven, en is het uitzicht de gewone avond met de
+lage einder. Dezelfde knoppen als de sandbox, maar nu komen de vijanden vanzelf binnenlopen, van links en rechts,
 langs de rots net buiten beeld, en heb je gewoon je levens: ga je dood, dan begint R opnieuw en loopt de klok weer vanaf nul.
 Het paneel opent op het tabblad **Arena**. Daar zet je per soort aan of hij meedoet (schorpioen, de
 drie slangen, de fosforslangen, de hyena, de panter, de bandiet, de schildbandiet in zijn makkelijke
