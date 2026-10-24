@@ -936,7 +936,7 @@
       <div id="mktools"></div>
       <div id="mkpalnaam" class="mksub"></div>
       <div id="mklegbtns"></div>
-      <div class="mkhint">klik of sleep = schilderen &middot; Shift+sleep = rechthoek &middot; wiel of +/- = zoomen &middot; rechts slepen, spatie of pijltjes = schuiven &middot; Gum of Delete = voorwerp weg &middot; Ctrl+Z = ongedaan maken &middot; F = passend &middot; in Selecteren: Shift+sleep = gebied (Ctrl+C, Ctrl+X, Ctrl+V, H = spiegelen), sleep een voorwerp om het te verschuiven</div>
+      <div class="mkhint">klik of sleep = schilderen &middot; Shift+sleep = rechthoek &middot; Alt+klik = vlak vullen &middot; wiel of +/- = zoomen &middot; rechts slepen, spatie of pijltjes = schuiven &middot; Gum of Delete = voorwerp weg &middot; Ctrl+Z = ongedaan maken &middot; F = passend &middot; in Selecteren: Shift+sleep = gebied (Ctrl+C, Ctrl+X, Ctrl+V, H = spiegelen), sleep een voorwerp om het te verschuiven</div>
       <div class="mkkop">Opslaan</div>
       <div class="mkrij"><button id="mkcopy">Kopieer JSON</button><button id="mkdl">Download</button><button id="mkspeljson" title="Het grid vertaald naar het spelformaat (wat de Test speelt), om door tools/levelcheck.py of de speelrobot te halen">Spel-JSON</button></div>
       <textarea id="mkjson" spellcheck="false" placeholder="grid als tekst; hier komt de export, of plak een eerder grid en druk op Laden"></textarea>
@@ -32579,6 +32579,18 @@ function mkObjOp(c, r){
 let mkMaskErase = false;
 let mkVerfVorig = null;                 // de laatste cel van de streek, zodat een snelle sleep geen cellen overslaat
 let mkRect = null;                      // de rechthoek die je met Shift+slepen trekt: {c0, r0, c1, r1}, gevuld bij het loslaten
+function mkVul(c, r){                   // de vulemmer (Alt+klik): alle aaneengesloten cellen (vier buren) met dezelfde inhoud krijgen het gereedschap
+  if (c < 0 || r < 0 || c >= MK.cols || r >= MK.rows) return;
+  const van = MK.grid[r][c], naar = MK.tool; if (van === naar) return;
+  const rij = [[c, r]]; MK.grid[r][c] = naar; let n = 0;
+  while (rij.length && n++ < 200000){
+    const [x, y] = rij.pop();
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]){ const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= MK.cols || ny >= MK.rows || MK.grid[ny][nx] !== van) continue;
+      MK.grid[ny][nx] = naar; rij.push([nx, ny]); }
+  }
+  mkTeken(); mkBewaar();
+}
 const mkIsStreek = t => MK_TERREIN.has(t) || t === 'masker' || t === 'maskergum' || t === 'zwartcel';   // gereedschap dat per cel verft (streek of rechthoek)
 function mkVerfCel(c, r){               // een cel in de streek zetten (grond, masker, maskergum of zwarte cel)
   if (c < 0 || r < 0 || c >= MK.cols || r >= MK.rows) return;
@@ -33712,6 +33724,9 @@ mkCanvas.addEventListener('pointerdown', ev => {
     if (ev.shiftKey && MK.tool === 'select'){            // Shift+slepen in Selecteren: een gebied kiezen
       const { c, r } = mkCelOp(ev); const cc = Math.max(0, Math.min(MK.cols - 1, c)), rr = Math.max(0, Math.min(MK.rows - 1, r));
       mkGebiedDrag = true; MK.gebied = { c0:cc, r0:rr, c1:cc, r1:rr }; MK.sel = null; MK.selVorm = null; MK.selMask = null; mkNotePaneel(); mkTeken(); return;
+    }
+    if (ev.altKey && MK_TERREIN.has(MK.tool)){           // Alt+klik: de vulemmer, een aaneengesloten vlak van dezelfde cel in een keer
+      const { c, r } = mkCelOp(ev); mkVul(c, r); return;
     }
     if (ev.shiftKey && mkIsStreek(MK.tool)){             // Shift+slepen: een rechthoek vullen in plaats van een streek
       const { c, r } = mkCelOp(ev);

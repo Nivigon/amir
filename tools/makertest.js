@@ -275,6 +275,16 @@ function verschil(a, b, pad = ''){
     return uit;
   });
 
+  // 5bb. de vulemmer: Alt+klik vult een aaneengesloten vlak
+  await check('vulemmer: Alt+klik vult het vlak en niet erbuiten', async () => {
+    await laad({ ...proefGrid(), grid: proefGrid().grid.map(() => '.'.repeat(24)), objecten: [], maskers: [], zwart: [], vormen: [], start: null, eind: null });
+    await page.evaluate(() => { for (let r = 2; r <= 6; r++){ MK.grid[r][5] = 'muur'; MK.grid[r][10] = 'muur'; } for (let c = 5; c <= 10; c++){ MK.grid[2][c] = 'muur'; MK.grid[6][c] = 'muur'; } mkTeken(); MK.tool = 'gang'; mkLegenda(); });   // een omlijnde doos van muur, 5 tot 10 bij 2 tot 6
+    const p = await celXY(7, 4);
+    await page.keyboard.down('Alt'); await page.mouse.click(p.x, p.y); await page.keyboard.up('Alt');
+    const t = await page.evaluate(() => { let binnen = 0, buiten = 0; for (let r = 0; r < MK.rows; r++) for (let c = 0; c < MK.cols; c++) if (MK.grid[r][c] === 'gang'){ if (c > 5 && c < 10 && r > 2 && r < 6) binnen++; else buiten++; } return { binnen, buiten }; });
+    return (t.binnen === 12 && t.buiten === 0) ? [] : ['gevuld: ' + t.binnen + ' binnen de doos (12 verwacht), ' + t.buiten + ' erbuiten'];
+  });
+
   // 5c. een breed voorwerp aanklikken op zijn balk, niet alleen op zijn ankercel
   await check('selecteren: een platform van 2 breed is ook op zijn rechterhelft aan te klikken', async () => {
     await laad(proefGrid());
