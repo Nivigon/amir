@@ -27,7 +27,7 @@ puntje per vijand.
 | --- | --- |
 | tekenen | `mkTeken` (alles, elke keer opnieuw), `mkCelOp` (welke cel onder de muis) |
 | schilderen | `mkKlik` (een klik), `mkVerf` en `mkVerfCel` (een streek, met Bresenham tussen de cellen), `mkRect` (Shift+slepen vult een rechthoek), `mkVul` (Alt+klik, de vulemmer), `mkIsStreek` |
-| selecteren | `mkObjOp` (het voorwerp op een cel, ook op de balk van een breed platform of een overhang), `mkNotePaneel` (het paneel rechts), `mkVulVijKnoppen`, `mkVulZegel`, `mkVulOver`, `mkVulRichel` |
+| selecteren | `mkObjOp` (het voorwerp op een cel, ook op de balk van een breed platform, een rijzer of een overhang), `mkNotePaneel` (het paneel rechts), `mkVulVijKnoppen`, `mkVulZegel`, `mkVulRijs`, `mkVulRijsSelect`, `mkVulOver`, `mkVulRichel` |
 | een gebied | `MK.gebied` (Shift+slepen in Selecteren), `mkKopieer`, `mkKnip`, `mkGebiedWis`, `mkSpiegel`, `mkPlakStart` en `mkPlakZet` (de stempel `mkPlak` volgt de muis), het klembord `mkKlembord` |
 | maat | `mkZetMaat`, `mkRijBoven`, `mkRijOnder` (rijen erbij of eraf; `mkRijRefSchuif` schuift alles mee, ook maskers, zwarte cellen en vormen) |
 | opslaan | `mkNaarJSON` en `mkUitJSON` (het grid-formaat, `MK_VERSIE`), `mkBewaar` (wacht 250 ms) en `mkBewaarNu` (de autosave in `localStorage['amir-mk']` plus een stap in de geschiedenis) |
@@ -93,7 +93,28 @@ Altijd WYSIWYG: links in het grid is links in het spel, de wereld-x is `(kolom -
   voor slangen en panters (regel 7).
 - Voorwerpen: overhang naar een zwever, richel naar `ledges`, kalebas naar `hppotions`, platform
   met doel plus zijn tandwielen naar `takels` (met `stam: true`), zegel en rune met een masker naar
-  `zegels`/`runes` plus `acties`, een verborgen zegel ook zonder masker. Een zegel op de grondlijn
+  `zegels`/`runes` plus `acties`, een verborgen zegel ook zonder masker, en een zegel of rune die een
+  rijzer stuurt ook (met `rijs`).
+- Een **rijzer** (Objecten, "Rijzer (grond die stijgt)") is de rijzende grond uit het spel (zie
+  `notities/rijzende-grond.md`): een blok steen dat op een zegel uit een ravijn omhoog komt. Hij werkt als het
+  platform: zijn rij is waar hij begint (in rust, diep in het ravijn), **Zet doelhoogte** is tot waar hij komt
+  (de grondlijn, of hoger als lift naar een terras), en **Breedte** is zijn breedte in cellen (1 tot 5, hetzelfde
+  schuifje als het platform). Klik je met het gereedschap op het ravijn op de grondlijn, dan is die cel zijn doel
+  en rust hij `MK_RIJS_DIEP` (3) cellen eronder; klik je in de diepte, dan rust hij daar en komt hij tot de
+  grondlijn. Zijn cellen liggen om de ankercel (`mkRijsCellen`, bij een even breedte net links van het midden),
+  zodat de randen op celranden vallen en het blok in het spel naadloos tegen de ravijnrand sluit (`rijsTeken`
+  tekent de grondrand over de hele breedte, dus elke breedte ziet er goed uit; een smaller blok krijgt donkere
+  zijkanten). `mkNaarLevel` maakt er `rijzers` van (`r1`, `r2`, ..., `mkRijsNr`), met `van` en `tot` uit de rij
+  en het doel maal 150, een bovenkant van 0 wordt `RIJS.tot` (-1), en de rand wordt op de rand van het
+  geexporteerde gat gezet als die een halve pixel verschilt (een gat met een oneven breedte heeft een afgerond
+  midden). In het paneel: **Snelheid** (`v`), **Wacht** (`wacht`), **Boven** (`duur`, 0 = hij blijft boven) en
+  **Zakt onder je weg** (`zak: true`: dan staat hij op zijn rij en zakt hij naar zijn doel zodra Amir erop staat,
+  zonder doel 3 cellen; geen zegel nodig). Een zegel of rune krijgt het keuzemenu **Stuurt rijzer**
+  (`mkVulRijsSelect`): de koppeling is een verwijzing naar het voorwerp (`rijsObj`, `mkRijsVan`), opgeslagen op
+  celpositie (`rijzer: {c, r}`, zoals een wiel zijn platform) en in het klembord als `rijsRel`. Spiegelen schuift
+  het anker van een rijzer met een even breedte een cel op, zodat zijn cellen op hun plek blijven, en zet de
+  koppeling opnieuw. Op de kaart: het blok met een pijl (omhoog, of omlaag bij een zakker), een vage balk op het
+  doel met een stippellijn, en een stippellijn van elk zegel naar zijn rijzer. Een zegel op de grondlijn
   boven een gang krijgt `dak: true` en `readLevel` neemt dat over (eerst viel het daar weg, en lag het
   zegel toch op de gang-bodem).
 - Vijanden via `mkSpawn`: de soort-tekst (`bandiet:dolk`, `kooiman:vogel`, `schildman:makkelijk`)
@@ -136,13 +157,17 @@ naar de cel), die bijblijft zolang hij open staat. Drie soorten:
 
 - **FOUT**: geen start of eind, een start of eind boven een ravijn zonder bodem of in een vaste
   cel, een vijand in een vaste cel of onder de grond zonder gang, een platform zonder doelhoogte,
-  een tandwiel zonder platform.
+  een tandwiel zonder platform, een rijzer die niet helemaal in een ravijn op de grondlijn staat, buiten het
+  grid steekt of geen zegel of rune heeft die hem stuurt (een zakker mag overal en heeft er geen nodig).
 - **LET OP**: een start of eind die hoog boven zijn vloer hangt, een vijand die zweeft of op de
   start staat, een ravijn of gang op de verkeerde rij, een gang zonder ingang, een platform zonder
   tandwiel of met zijn doel op dezelfde hoogte, een zegel dat naar een weg masker wijst, een val
-  van meer dan vier cellen naast een rand (dodelijk in de Test).
-- **info**: een prop (de Test tekent hem niet), een zegel of rune zonder masker (alleen een
-  aantekening).
+  van meer dan vier cellen naast een rand (dodelijk in de Test), een rijzer met zijn doel op zijn eigen rij, die
+  op of boven de grondlijn rust, of die drie of meer cellen ravijn naast zich open laat, en een zegel dat een
+  zakker stuurt.
+- **info**: een prop (de Test tekent hem niet), een zegel of rune zonder masker of rijzer (alleen een
+  aantekening), een rijzer zonder duur die het hele ravijn vult (het ravijn is daarna voorgoed dicht, dus geen
+  schuilplek meer, regel 7).
 
 De vloer onder een cel (`vloerOnder`): boven de grondlijn val je door lucht; een ravijn op de grondlijn is
 de ingang van een gang eronder en anders bodemloos (FOUT); een gang is open tot zijn vloer, de eerste
@@ -166,11 +191,13 @@ leegmaken). Op een keuzelijst, knop of tekstvak blijven de toetsen van dat veld.
 ## De makertest: `tools/makertest.js`
 
 Laadt de Maker in Chromium met een proefgrid waar alles op staat (gat, gang met treden, mesa,
-zwever, muur door de grond, sneeuw, alle voorwerpen, een masker, een zwarte cel, een vorm) en
+zwever, muur door de grond, sneeuw, alle voorwerpen, een tweede ravijn met een rijzer van 2 breed die het zegel
+stuurt, een masker, een zwarte cel, een vorm) en
 kijkt na: de round-trip van export en import, de vertaling naar een spel-level, rijen invoegen en
 weer weghalen, verkleinen, snel schilderen, de rechthoek, het aanklikken van brede voorwerpen,
-ongedaan maken, een gebied kopiëren, spiegelen, plakken en knippen, de minimap en Test vanaf
-hier, de vijand-knoppen, de controle, de Test starten en teruggaan, de autosave, en of
+ongedaan maken, een gebied kopiëren, spiegelen, plakken en knippen, een rijzer van even breedte spiegelen met
+zijn zegel eraan, de minimap en Test vanaf hier, de vijand-knoppen, de controle, de Test starten en teruggaan,
+de autosave, en of
 het proefgrid als spel-level door `levelcheck.py` komt. Draai hem na elke wijziging aan de Maker.
 
 ```
@@ -186,7 +213,9 @@ regel bij, en een controle in de lijst `check(...)`.
 
 Geen aanraking (pannen en zoomen kan
 alleen met muis en toetsen), geen prop-keuze (een prop is een aantekening), en een zegel kent
-alleen een masker en Verborgen, niet de andere zegel-velden (`speerval`, `rijs`, `plafond`).
+alleen een masker, Verborgen en een rijzer, niet de andere zegel-velden (`speerval`, `plafond`). Een rijzer
+staat alleen in een ravijn op de grondlijn: een rijzer in een put onder de grond of een lift die vanaf de
+gangvloer door de ingang omhoog komt is in het spel niet beproefd, en de Maker meldt zo'n plek als FOUT.
 
 Bekende randen, nog niet opgelost: alleen de tegel Zwevende laag (F) en Zwart plafond zweven, een blok rots
 of savanne met lucht eronder wordt een pilaar tot de grond; de holte is aan de startkant een cel breder dan

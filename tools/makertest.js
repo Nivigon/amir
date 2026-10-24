@@ -70,13 +70,15 @@ async function start(){
 //  - een muur door de grond (kolom 10, rij 6 en 7), sneeuw op kolom 0 en 1
 //  - start op kolom 19, eind op kolom 2
 //  - een zandslang, een bandiet met dolk, een platform met doel plus een tandwiel, een overhang, een richel,
-//    een verborgen zegel met masker, een rune, een kalebas, een prop
+//    een verborgen zegel met masker dat ook een rijzer stuurt, een rune, een kalebas, een prop
+//  - een tweede ravijn (kolom 11 en 12) met een rijzer van 2 breed erin, drie cellen diep, die tot de grondlijn komt
 //  - een masker (Verborgen1) van twee cellen, een zwarte cel, en een vrije blokvorm
 function proefGrid(){
   const rijen = [];
   for (let r = 0; r < 12; r++) rijen.push('.'.repeat(24).split(''));
   for (let c = 0; c < 24; c++) rijen[7][c] = 'S';
   rijen[7][21] = 'V'; rijen[7][22] = 'V'; rijen[7][23] = 'V';
+  rijen[7][11] = 'V'; rijen[7][12] = 'V';
   for (let r = 8; r <= 9; r++) for (let c = 19; c <= 23; c++) rijen[r][c] = 'G';
   rijen[8][21] = 'R'; rijen[9][22] = 'R';
   for (let c = 4; c <= 5; c++) rijen[6][c] = 'R';
@@ -97,7 +99,8 @@ function proefGrid(){
       { c: 14, r: 5, k: 'tandwiel', modus: 'schakellift', platform: { c: 13, r: 6 }, note: '' },
       { c: 17, r: 6, k: 'overhang', breed: 3, dik: 2, fijn: 0, look: 'rots', note: '' },
       { c: 3, r: 5, k: 'richel', s: 0.5, f: true, dx: 10, dy: -5, note: '' },
-      { c: 15, r: 6, k: 'zegel', masker: 'Verborgen1', verstop: true, note: '' },
+      { c: 15, r: 6, k: 'zegel', masker: 'Verborgen1', verstop: true, rijzer: { c: 11, r: 10 }, note: '' },
+      { c: 11, r: 10, k: 'rijzer', doel: { c: 11, r: 7 }, breed: 2, v: 300, wacht: 0, duur: 0, note: '' },
       { c: 18, r: 6, k: 'rune', masker: 'Verborgen1', note: '' },
       { c: 19, r: 5, k: 'hppotion', note: '' },
       { c: 1, r: 6, k: 'prop', note: 'een boom' },
@@ -168,6 +171,8 @@ function verschil(a, b, pad = ''){
     if (a.zwart.length !== 1 || a.vormen.length !== 1) uit.push('zwarte cel of vorm kwijt');
     const zegel = a.objecten.find(o => o.k === 'zegel'); if (!zegel || !zegel.verstop || zegel.masker !== 'Verborgen1') uit.push('zegel verloor verstop of masker');
     const wiel = a.objecten.find(o => o.k === 'tandwiel'); if (!wiel || !wiel.platform || wiel.platform.c !== 13) uit.push('tandwiel verloor zijn platform');
+    const rz = a.objecten.find(o => o.k === 'rijzer'); if (!rz || !rz.doel || rz.doel.r !== 7 || rz.breed !== 2) uit.push('rijzer verloor zijn doel of breedte');
+    if (!zegel || !zegel.rijzer || zegel.rijzer.c !== 11 || zegel.rijzer.r !== 10) uit.push('zegel verloor zijn rijzer');
     const vij = a.objecten.find(o => o.k === 'vijand' && o.soort === 'groen'); if (!vij || !vij.params || vij.params.speed !== 2) uit.push('vijand verloor zijn snelheid');
     return uit;
   });
@@ -187,6 +192,10 @@ function verschil(a, b, pad = ''){
     const zw = (lv.zwevers || []).find(z => z.h === 450 && z.onder === 300);
     if (!zw) uit.push('geen zwevende laag (h 450, onder 300): ' + JSON.stringify(lv.zwevers));
     if (!(lv.takels || []).length || !lv.takels[0].wielen) uit.push('geen takel met wiel');
+    const rz = (lv.rijzers || [])[0];
+    if (!rz || rz.r - rz.l !== 350 || rz.van !== -450 || rz.tot !== -1) uit.push('geen rijzer van 2 cellen (350 px), van -450 tot -1: ' + JSON.stringify(lv.rijzers));
+    else { if (!(lv.gaps || []).some(g => Math.abs(g.x - g.w / 2 - rz.l) < 1 && Math.abs(g.x + g.w / 2 - rz.r) < 1)) uit.push('de rijzer sluit niet op zijn ravijn aan: ' + JSON.stringify(rz) + ' ' + JSON.stringify(lv.gaps));
+      if (!(lv.zegels || []).some(z => z.rijs === rz.id)) uit.push('geen zegel dat de rijzer stuurt: ' + JSON.stringify(lv.zegels)); }
     const sp = lv.spawns || [];
     if (!sp.find(s => s.k === 'groen' && s.speed === 2)) uit.push('zandslang zonder snelheid 2: ' + JSON.stringify(sp));
     if (!sp.find(s => s.k === 'bandiet' && s.dolk)) uit.push('geen bandiet met dolk');
@@ -210,7 +219,7 @@ function verschil(a, b, pad = ''){
     const na = await page.evaluate(() => ({ lv: mkNaarLevel(), g: mkNaarJSON() }));
     const uit = [];
     if (na.g.rows !== 13 || na.g.groundRow !== 8) uit.push('maat of grondlijn klopt niet: ' + na.g.rows + ' rijen, grondlijn ' + na.g.groundRow);
-    for (const k of ['maskers', 'vormen', 'zegels', 'spawns', 'takels', 'terraces', 'zwevers', 'holtes', 'ledges', 'hppotions']){
+    for (const k of ['maskers', 'vormen', 'zegels', 'spawns', 'takels', 'rijzers', 'terraces', 'zwevers', 'holtes', 'ledges', 'hppotions']){
       const d = verschil(voor[k], na.lv[k], k); if (d.length) uit.push(...d.slice(0, 3));
     }
     if (na.g.zwart[0][1] !== 9) uit.push('zwarte cel niet mee: rij ' + na.g.zwart[0][1] + ' in plaats van 9');
@@ -326,14 +335,14 @@ function verschil(a, b, pad = ''){
     if (na.cel !== 'lucht rots rots lucht') uit.push('geplakte cellen: ' + na.cel);
     if (na.obj !== 'richel@17,1|vijand@14,2') uit.push('geplakte voorwerpen: ' + na.obj);
     if (na.plak) uit.push('de stempel bleef hangen na het neerzetten');
-    if (na.n !== 12) uit.push('aantal voorwerpen na plakken: ' + na.n + ' in plaats van 12');
+    if (na.n !== 13) uit.push('aantal voorwerpen na plakken: ' + na.n + ' in plaats van 13');
     // knippen: het gebied is nu het geplakte stuk; Ctrl+X maakt het leeg
     await page.keyboard.press('Control+x');
     const leeg = await page.evaluate(() => ({ cel: MK.grid[2].slice(14, 18).join(' '), n: MK.objects.length }));
-    if (leeg.cel !== 'lucht lucht lucht lucht' || leeg.n !== 10) uit.push('na knippen: ' + JSON.stringify(leeg));
+    if (leeg.cel !== 'lucht lucht lucht lucht' || leeg.n !== 11) uit.push('na knippen: ' + JSON.stringify(leeg));
     await page.keyboard.press('Control+z');
     const terug = await page.evaluate(() => MK.objects.length);
-    if (terug !== 12) uit.push('ongedaan maken na knippen: ' + terug + ' voorwerpen in plaats van 12');
+    if (terug !== 13) uit.push('ongedaan maken na knippen: ' + terug + ' voorwerpen in plaats van 13');
     return uit;
   });
 
@@ -435,6 +444,28 @@ function verschil(a, b, pad = ''){
     return uit;
   });
 
+  // 5e. een rijzer van even breedte spiegelen: zijn cellen blijven op hun plek in het gebied, en het zegel blijft eraan gekoppeld
+  await check('rijzer: spiegelen houdt zijn cellen en de koppeling met het zegel heel', async () => {
+    await laad(proefGrid());
+    const r = await page.evaluate(() => {
+      MK.gebied = { c0: 11, r0: 6, c1: 15, r1: 10 }; mkKopieer(); mkSpiegel();            // de rijzer op (11,10) en het zegel op (15,6), 5 cellen breed
+      const rz = mkKlembord.objects.find(o => o.k === 'rijzer'), z = mkKlembord.objects.find(o => o.k === 'zegel');
+      const uit = { rz: rz && { dc: rz.dc, dr: rz.dr }, rel: z && z.rijsRel };
+      mkPlak = { c: 0, r: 0 }; mkPlakZet();                                                 // plakken linksboven, waar niets staat
+      const pz = MK.objects.find(o => o.k === 'zegel' && o.c === 0 && o.r === 0), pr = MK.objects.find(o => o.k === 'rijzer' && o.r === 4);
+      uit.plak = { zegel: !!pz, rijzer: pr && pr.c, cellen: pr && mkRijsCellen(pr), gekoppeld: !!(pz && pr && mkRijsVan(pz) === pr) };
+      const lv = mkNaarLevel(); uit.n = (lv.rijzers || []).length; uit.rijs = (lv.zegels || []).map(z => z.rijs).sort();
+      return uit;
+    });
+    const uit = [];
+    if (!r.rz || r.rz.dc !== 3 || r.rz.dr !== 4) uit.push('rijzer na spiegelen op ' + JSON.stringify(r.rz) + ' in plaats van (3,4): een even breedte schuift een cel');
+    if (!r.rel || r.rel.dc !== 3 || r.rel.dr !== 4) uit.push('koppeling zegel -> rijzer na spiegelen: ' + JSON.stringify(r.rel));
+    if (!r.plak.zegel || r.plak.rijzer !== 3 || !r.plak.gekoppeld) uit.push('na plakken: ' + JSON.stringify(r.plak));
+    if (r.plak.cellen && (r.plak.cellen[0] !== 3 || r.plak.cellen[1] !== 4)) uit.push('de geplakte rijzer beslaat ' + r.plak.cellen + ' in plaats van 3,4');
+    if (r.n !== 2 || r.rijs.join() !== 'r1,r2') uit.push('export na plakken: ' + r.n + ' rijzers, zegels sturen ' + r.rijs.join());
+    return uit;
+  });
+
   // 7. de controle: een grid met fouten geeft meldingen, het proefgrid geeft geen fout
   await check('controle: meldingen bij een start zonder vloer en een platform zonder doel', async () => {
     const heeft = await page.evaluate(() => typeof mkControle === 'function');
@@ -447,12 +478,14 @@ function verschil(a, b, pad = ''){
     const slecht = proefGrid();
     slecht.start = { c: 10, r: 6 };                      // boven het ravijn
     slecht.objecten.find(o => o.k === 'platform').doel = null;
+    delete slecht.objecten.find(o => o.k === 'zegel').rijzer;      // de rijzer heeft dan geen schakelaar meer
     slecht.eind = null;
     await laad(slecht);
     const m = await page.evaluate(() => mkControle());
     const t = m.map(x => x.tekst).join(' | ');
     if (!m.some(x => /start/i.test(x.tekst) && x.ernst === 'fout')) uit.push('geen fout over de start zonder vloer: ' + t);
     if (!m.some(x => /platform/i.test(x.tekst))) uit.push('geen melding over het platform zonder doel: ' + t);
+    if (!m.some(x => /rijzer/i.test(x.tekst) && x.ernst === 'fout')) uit.push('geen fout over de rijzer zonder zegel: ' + t);
     if (!m.some(x => /eind/i.test(x.tekst))) uit.push('geen melding over het ontbrekende eind: ' + t);
     return uit;
   });

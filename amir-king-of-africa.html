@@ -960,6 +960,13 @@
         <div id="mkplatbreed" class="mkknop" style="display:none"><label>Breedte</label><input id="mkbreed" type="range" min="1" max="5" step="1"><span class="read" id="mkbreedv"></span></div>
         <div id="mkplatstam" class="mkknop" style="display:none"><label>Paalhoogte</label><input id="mkstam" type="range" min="1" max="40" step="1"><span class="read" id="mkstamv"></span></div>
         <div id="mkplatstamzij" class="mkrij" style="display:none"><button id="mkstamzij">Paal: rechts</button></div>
+        <div id="mkrijsctl" style="display:none">
+          <div class="mkknop"><label>Snelheid</label><input id="mkrijsv" type="range" min="50" max="600" step="50"><span class="read" id="mkrijsvv"></span></div>
+          <div class="mkknop"><label>Wacht</label><input id="mkrijswacht" type="range" min="0" max="5" step="0.5"><span class="read" id="mkrijswachtv"></span></div>
+          <div class="mkknop"><label>Boven</label><input id="mkrijsduur" type="range" min="0" max="20" step="1"><span class="read" id="mkrijsduurv"></span></div>
+          <div class="mkveld"><label><input id="mkrijszak" type="checkbox"> Zakt onder je weg (geen zegel nodig)</label></div>
+          <div id="mkrijsinfo" class="mkhint"></div>
+        </div>
         <div id="mkdoelinfo" class="mkhint" style="display:none"></div>
         <div id="mktandctl" style="display:none">
           <div class="mkveld"><label for="mktandplat">Verbonden met</label><select id="mktandplat"></select></div>
@@ -984,6 +991,7 @@
           <div id="mkzegelinfo" class="mkhint"></div>
         </div>
         <div id="mkmaskctl" class="mkveld" style="display:none"><label for="mkmasksel">Onthult masker</label><select id="mkmasksel"></select></div>
+        <div id="mkrijsselctl" class="mkveld" style="display:none"><label for="mkrijssel">Stuurt rijzer</label><select id="mkrijssel"></select></div>
         <div id="mkmasklookctl" style="display:none">
           <div class="mkveld"><label for="mkmasklook">Hoe het eruitziet</label><select id="mkmasklook"><option value="grot">Grotwand (rots)</option><option value="rots">Rotswand (cliff)</option><option value="savanne">Savanne (grond)</option><option value="zwart">Helemaal zwart</option></select></div>
           <div class="mkveld"><label><input id="mkmaskvulzwart" type="checkbox"> Blijft zwart na onthullen</label></div>
@@ -31822,6 +31830,8 @@ const MK_TYPES = [
   // de takel: een platform dat reist, met losse tandwielen ernaast die het aandrijven (zie mkNotePaneel/mkNaarLevel)
   { id:'platform',naam:'Platform (takel)',   kleur:'#d8b24a', obj:true },
   { id:'tandwiel',naam:'Tandwiel',           kleur:'#b98a2e', obj:true },
+  // rijzende grond: een blok steen dat op een zegel uit een ravijn omhoog komt, zo breed als je het maakt (zie mkNaarLevel -> rijzers)
+  { id:'rijzer',  naam:'Rijzer (grond die stijgt)', kleur:'#8c7b66', obj:true },
   // een overhang: een rotsoverhang of zwevende savannelaag met een vrije onderkant-hoogte om onder te kruipen
   { id:'overhang',naam:'Overhang (kruipruimte)', kleur:'#7d6a86', obj:true, letter:'O' },
   // een richel: de uitstekende steen-opstap uit de schacht (design/klimmen/klif_richel.png). Je landt erop
@@ -31976,12 +31986,14 @@ function mkVijBadge(ctx, cx, cy, rad, u, teken){
 // zweef je erover, dan klapt dezelfde lijst als dropdown uit (en een vijand met varianten als zij-flyout).
 // de achtergrond-deuntjes die een level kan kiezen (zie MUZIEK); Dark Africa is de standaard (MUZIEK_BASIS)
 const MK_MUZIEK = [['darkafrica', 'Dark Africa'], ['bg', 'Oude thema']];
-const MK_PLAT_BREED = 2;   // standaardbreedte van een takelplateau, in cellen (1 tot 5, zie het Breedte-schuifje)
+const MK_PLAT_BREED = 2;   // standaardbreedte van een takelplateau en een rijzer, in cellen (1 tot 5, zie het Breedte-schuifje)
+const MK_RIJS_DIEP = 3;    // zo diep (in cellen) rust een nieuwe rijzer onder de grondlijn als je hem op het ravijn zet; en zo diep zakt een zakker zonder doel
+const MK_RIJS = { v: 300, wacht: 0, duur: 0 };   // de standaard van een rijzer in de Maker: snelheid (RIJS.v), wachttijd, en 0 = hij blijft boven
 const MK_CATS = [
   { id:'terrein',  naam:'Terrein',    items:['savanne','rots','sneeuw','sneeuwrots','muur','laag','zweef','gang','ravijn'] },
   { id:'punten',   naam:'Start/eind', items:['start','eind'] },
   { id:'vijanden', naam:'Vijanden',   vijand:true },
-  { id:'objecten', naam:'Objecten',   items:['zegel','rune','platform','tandwiel','overhang','richel','hppotion'] },
+  { id:'objecten', naam:'Objecten',   items:['zegel','rune','platform','tandwiel','rijzer','overhang','richel','hppotion'] },
   { id:'decor',    naam:'Decor',      items:['prop'] },
   { id:'verbergen',naam:'Verbergen',  items:['masker','maskergum'] },
   { id:'zwart',    naam:'Zwart terrein', items:['zsavanne','zvulling','zplafond'] },
@@ -32025,6 +32037,12 @@ function mkNearestPlatform(w){ let best = null, bd = Infinity;
 }
 // het platform waaraan een wiel hangt: een expliciete keuze (w.plat) als die nog bestaat, anders het dichtstbijzijnde
 function mkConnectedPlatform(w){ if (w && w.plat && MK.objects.indexOf(w.plat) >= 0 && w.plat.k === 'platform') return w.plat; return mkNearestPlatform(w); }
+// de rijzer (rijzende grond): een blok zo breed als zijn cellen, met de ankercel in het midden (bij een even breedte net links
+// van het midden), zodat zijn randen precies op celranden liggen en in het spel naadloos tegen de ravijnrand aansluiten
+function mkRijsCellen(o){ const b = Math.max(1, o.breed || MK_PLAT_BREED), c0 = o.c - Math.floor((b - 1) / 2); return [c0, c0 + b - 1]; }
+function mkRijsNr(o){ return MK.objects.filter(q => q.k === 'rijzer').indexOf(o) + 1; }   // zijn naam in het spel: r1, r2, ...
+// de rijzer die een zegel of rune stuurt (rijsObj), als die er nog is; anders null (het voorwerp kan gewist zijn)
+function mkRijsVan(z){ return (z && z.rijsObj && MK.objects.indexOf(z.rijsObj) >= 0 && z.rijsObj.k === 'rijzer') ? z.rijsObj : null; }
 const MK = { cols:48, rows:20, ground:12, grid:null, start:null, eind:null, objects:[], sel:null,
              tool:'savanne', zoom:1, panX:0, panY:0, maskers:[], maskId:'Verborgen1',
              cat:'terrein', sub:null, vijandSoort:'groen', inspectDicht:true, muziek:MUZIEK_BASIS, valschade:true, selMask:null,
@@ -32058,6 +32076,30 @@ function mkVulMaskSelect(){                           // het keuzemenu "onthult 
   for (const n of namen){ const op = document.createElement('option'); op.value = n; op.textContent = n; sel.appendChild(op); }
   sel.value = (MK.sel.masker && namen.includes(MK.sel.masker)) ? MK.sel.masker : '';
   sel.onchange = () => { MK.sel.masker = sel.value || undefined; mkBewaar(); };
+}
+// het paneel van een rijzer: de snelheid, de wachttijd, hoe lang hij boven blijft (0 = altijd) en of hij juist onder je wegzakt
+function mkVulRijs(){
+  const o = MK.sel; if (!o || o.k !== 'rijzer') return;
+  const zet = (id, val, tekst) => { document.getElementById(id).value = val; document.getElementById(id + 'v').textContent = tekst; };
+  const v = o.v || MK_RIJS.v;
+  zet('mkrijsv', v, v + ' per s');
+  zet('mkrijswacht', o.wacht || 0, (o.wacht || 0) + ' s');
+  zet('mkrijsduur', o.duur || 0, o.duur ? o.duur + ' s' : 'blijft');
+  document.getElementById('mkrijszak').checked = !!o.zak;
+  const n = MK.objects.filter(z => mkRijsVan(z) === o).length;
+  document.getElementById('mkrijsinfo').textContent = o.zak
+    ? 'Staat boven en zakt na de wachttijd weg zodra Amir erop staat; met een duur komt hij daarna terug. Geen zegel nodig.'
+    : (n ? 'Komt omhoog op ' + n + ' schakelaar' + (n === 1 ? '' : 's') + '. ' : 'Nog geen zegel of rune die hem stuurt: kies een zegel en zet daar Stuurt rijzer. ')
+      + 'Zet hem in een ravijn op de grondlijn, zo breed als het ravijn of smaller; met een doel boven de grond is hij een lift naar een terras.';
+}
+function mkVulRijsSelect(){                           // het keuzemenu "stuurt rijzer" op een zegel of rune
+  const sel = document.getElementById('mkrijssel'); if (!sel || !MK.sel) return;
+  sel.innerHTML = '';
+  const lijst = MK.objects.filter(o => o.k === 'rijzer' && !o.zak), nu = mkRijsVan(MK.sel);
+  const leeg = document.createElement('option'); leeg.value = ''; leeg.textContent = lijst.length ? '(geen)' : '(nog geen rijzers)'; sel.appendChild(leeg);
+  lijst.forEach((o, i) => { const op = document.createElement('option'); op.value = 'i' + i; op.textContent = 'rijzer r' + mkRijsNr(o) + ' op (' + o.c + ', ' + o.r + ')'; if (nu === o) op.selected = true; sel.appendChild(op); });
+  if (!(nu && lijst.indexOf(nu) >= 0)) leeg.selected = true;
+  sel.onchange = () => { const q = sel.value ? lijst[parseInt(sel.value.slice(1), 10)] : null; if (q) MK.sel.rijsObj = q; else delete MK.sel.rijsObj; mkBewaar(); mkTeken(); };
 }
 function mkMaskVerf(c, r, erase){                     // een cel in het huidige masker zetten of wissen (een cel hoort bij één masker)
   const had = mkMaskInCel(c, r);
@@ -32276,10 +32318,30 @@ function mkTeken(){
     mkCtx.strokeStyle = 'rgba(216,178,74,.55)'; mkCtx.lineWidth = 1.5; mkCtx.setLineDash([4, 3]);
     mkCtx.beginPath(); mkCtx.moveTo(gx + (w.c + 0.5) * cel, gy + (w.r + 0.5) * cel); mkCtx.lineTo(gx + (p.c + 0.5) * cel, gy + (p.r + 0.5) * cel); mkCtx.stroke(); mkCtx.setLineDash([]);
   }
+  // en van elk zegel of elke rune naar de rijzer die hij stuurt
+  for (const z of MK.objects){ const q = mkRijsVan(z); if (!q) continue;
+    mkCtx.strokeStyle = 'rgba(140,123,102,.7)'; mkCtx.lineWidth = 1.5; mkCtx.setLineDash([4, 3]);
+    mkCtx.beginPath(); mkCtx.moveTo(gx + (z.c + 0.5) * cel, gy + (z.r + 0.5) * cel); mkCtx.lineTo(gx + (q.c + 0.5) * cel, gy + (q.r + 0.5) * cel); mkCtx.stroke(); mkCtx.setLineDash([]);
+  }
   // objecten; een stip rechtsboven betekent dat er een opmerking bij zit
   for (const o of MK.objects){
     const t = MK_TYPES.find(x => x.id === o.k); if (!t) continue;
     const cx = gx + (o.c + 0.5) * cel, cy = gy + (o.r + 0.5) * cel;
+    if (o.k === 'rijzer'){                                   // een blok steen over zijn cellen; met een doelhoogte een vage balk en een stippellijn ernaartoe
+      const [c0, c1] = mkRijsCellen(o), bx = gx + c0 * cel + 2, bw = (c1 - c0 + 1) * cel - 4, bh = Math.max(8, 0.7 * cel), by = cy - bh / 2, mx = bx + bw / 2;
+      if (o.doel){ const dy = gy + (o.doel.r + 0.5) * cel;
+        mkCtx.fillStyle = 'rgba(140,123,102,.3)'; mkCtx.fillRect(bx, dy - bh / 2, bw, bh);
+        mkCtx.strokeStyle = 'rgba(140,123,102,.8)'; mkCtx.lineWidth = 1.5; mkCtx.setLineDash([3, 3]);
+        mkCtx.beginPath(); mkCtx.moveTo(mx, cy); mkCtx.lineTo(mx, dy); mkCtx.stroke(); mkCtx.setLineDash([]); }
+      mkCtx.fillStyle = t.kleur; mkCtx.fillRect(bx, by, bw, bh);
+      mkCtx.strokeStyle = 'rgba(20,14,26,.7)'; mkCtx.lineWidth = 1; mkCtx.strokeRect(bx, by, bw, bh);
+      mkCtx.strokeStyle = 'rgba(242,232,213,.5)'; mkCtx.beginPath(); mkCtx.moveTo(bx, by + 0.5); mkCtx.lineTo(bx + bw, by + 0.5); mkCtx.stroke();   // de looplijn bovenop
+      mkCtx.fillStyle = '#140e1a'; mkCtx.font = `bold ${Math.round(cel * 0.45)}px sans-serif`; mkCtx.textAlign = 'center'; mkCtx.textBaseline = 'middle';
+      mkCtx.fillText(o.zak ? '\u25bc' : '\u25b2', mx, cy + 1);     // omhoog, of omlaag als hij onder je wegzakt
+      if (o === MK.sel){ mkCtx.strokeStyle = '#fff'; mkCtx.lineWidth = 2; mkCtx.strokeRect(bx - 2, by - 2, bw + 4, bh + 4); }
+      if (o.note){ mkCtx.fillStyle = '#ffd24a'; mkCtx.beginPath(); mkCtx.arc(bx + bw - 3, by, Math.max(2, cel * 0.1), 0, 7); mkCtx.fill(); }
+      continue;
+    }
     if (o.k === 'platform'){                                 // een balk zo breed als zijn breedte in cellen; met een doelhoogte een vage balk en een pijl ernaartoe
       const bw = (o.breed || MK_PLAT_BREED) * cel, bh = Math.max(6, 0.5 * cel);
       if (o.doel){ const dy = gy + (o.doel.r + 0.5) * cel;
@@ -32465,7 +32527,7 @@ function mkKlik(ev){
     mkLegenda(); mkNotePaneel(); mkBewaar(); mkTeken(); return;
   }
   if (c < 0 || r < 0 || c >= MK.cols || r >= MK.rows) return;
-  if (mkDoelMode && MK.sel && MK.sel.k === 'platform'){   // de doelhoogte: de aangeklikte cel is waar het platform heen reist
+  if (mkDoelMode && MK.sel && (MK.sel.k === 'platform' || MK.sel.k === 'rijzer')){   // de doelhoogte: de aangeklikte cel is waar het platform of de rijzer heen reist
     MK.sel.doel = { c, r }; mkDoelMode = false; mkNotePaneel(); mkBewaar(); mkTeken(); return;
   }
   const t = MK.tool;
@@ -32492,9 +32554,14 @@ function mkKlik(ev){
   else if (mkIsObj(t)){
     // meerdere dingen mogen op dezelfde cel (stapelen). Staat er al eentje van precies deze soort, dan
     // selecteren we die (geen dubbel); anders komt het voorwerp erbij, ook als er al iets anders staat.
-    const zelfde = MK.objects.find(o => o.c === c && o.r === r && o.k === t && (t !== 'vijand' || o.soort === (MK.vijandSoort || 'groen')));
+    // (een rijzer telt ook als zijn doel op deze cel ligt: klik je nog eens op het ravijn, dan kies je hem in plaats van er een tweede neer te zetten)
+    const zelfde = MK.objects.find(o => o.k === t && ((o.c === c && o.r === r) || (t === 'rijzer' && o.doel && o.doel.c === c && o.doel.r === r)) && (t !== 'vijand' || o.soort === (MK.vijandSoort || 'groen')));
     if (zelfde) MK.sel = zelfde;
-    else { const o = { c, r, k: t, note: '' }; if (t === 'vijand') o.soort = MK.vijandSoort || 'groen'; if (t === 'platform'){ o.doel = null; o.breed = MK_PLAT_BREED; } if (t === 'tandwiel') o.modus = 'schakellift'; if (t === 'overhang'){ o.breed = 3; o.dik = 2; o.fijn = 30; o.look = 'rots'; } if (t === 'richel'){ o.s = 0.5; o.f = false; o.dx = 0; o.dy = 0; } MK.objects.push(o); MK.sel = o; }
+    else { const o = { c, r, k: t, note: '' }; if (t === 'vijand') o.soort = MK.vijandSoort || 'groen'; if (t === 'platform'){ o.doel = null; o.breed = MK_PLAT_BREED; } if (t === 'tandwiel') o.modus = 'schakellift';
+      // een rijzer: op of boven de grondlijn geklikt is de aangeklikte cel zijn doel (de bovenkant) en rust hij MK_RIJS_DIEP cellen onder de
+      // grondlijn; in de diepte geklikt rust hij daar en komt hij tot de grondlijn. Zo werkt hij meteen, en beide zijn bij te stellen
+      if (t === 'rijzer'){ o.breed = MK_PLAT_BREED; o.v = MK_RIJS.v; o.wacht = MK_RIJS.wacht; o.duur = MK_RIJS.duur;
+        if (r <= MK.ground){ o.doel = { c, r }; o.r = Math.min(MK.rows - 1, MK.ground + MK_RIJS_DIEP); } else o.doel = { c, r: MK.ground }; } if (t === 'overhang'){ o.breed = 3; o.dik = 2; o.fijn = 30; o.look = 'rots'; } if (t === 'richel'){ o.s = 0.5; o.f = false; o.dx = 0; o.dy = 0; } MK.objects.push(o); MK.sel = o; }
     MK.selMask = null; MK.inspectDicht = false; mkNotePaneel();
   }
   else if (t === 'lucht'){                                        // gum: eerst een object weg, anders de grond leeg
@@ -32512,6 +32579,7 @@ function mkObjOp(c, r){
   for (let i = MK.objects.length - 1; i >= 0; i--){ const o = MK.objects[i]; if (o.c === c && o.r === r) return o; }   // van achteren: het laatst geplaatste ligt bovenop
   for (let i = MK.objects.length - 1; i >= 0; i--){ const o = MK.objects[i];
     if (o.k === 'platform'){ if (r === o.r && Math.abs(c - o.c) <= (o.breed || MK_PLAT_BREED) / 2) return o; }
+    else if (o.k === 'rijzer'){ const [c0, c1] = mkRijsCellen(o); if (r === o.r && c >= c0 && c <= c1) return o; }
     else if (o.k === 'overhang'){ const dik = Math.max(1, o.dik || 2); if (r < o.r && r >= o.r - dik && Math.abs(c - o.c) <= Math.max(1, o.breed || 3) / 2) return o; }
   }
   return null;
@@ -32680,7 +32748,7 @@ function mkNotePaneel(){
   if (!MK.sel){
     // geen voorwerp: alle voorwerp-besturing weg, wat er net ook geselecteerd was (anders bleef het Verborgen-vinkje
     // of een platform-schuifje staan en wijzigde dat nog het oude voorwerp)
-    for (const id of ['mkplatbreed', 'mkplatstam', 'mkplatstamzij', 'mkoverctl', 'mkrichelctl', 'mkzegelctl', 'mkmaskctl']) document.getElementById(id).style.display = 'none';
+    for (const id of ['mkplatbreed', 'mkplatstam', 'mkplatstamzij', 'mkoverctl', 'mkrichelctl', 'mkzegelctl', 'mkmaskctl', 'mkrijsctl', 'mkrijsselctl']) document.getElementById(id).style.display = 'none';
     document.getElementById('mkvijknop').innerHTML = '';
     if (MK.selVorm){                                                   // een geselecteerde vrije vorm (blob/vierkant): de maat, draaiing en doorzicht
       const v = MK.selVorm;
@@ -32725,14 +32793,14 @@ function mkNotePaneel(){
   MK.selMask = null; looktl.style.display = 'none';   // een voorwerp geselecteerd: geen masker
   mkVulStapel();                                      // staan er meer dingen op deze cel, dan de lijst met kruisjes tonen
   const t = MK_TYPES.find(x => x.id === MK.sel.k);
-  const isVij = MK.sel.k === 'vijand', isPlat = MK.sel.k === 'platform', isTand = MK.sel.k === 'tandwiel';
+  const isVij = MK.sel.k === 'vijand', isPlat = MK.sel.k === 'platform', isTand = MK.sel.k === 'tandwiel', isRijs = MK.sel.k === 'rijzer';
   let titel = t ? t.naam : MK.sel.k;
   if (isVij){ const vi = MK_VIJ_INFO[MK.sel.soort || 'groen']; if (vi) titel = vi.naam; }
   info.textContent = titel + ' op (' + MK.sel.c + ', ' + MK.sel.r + ')';
   ta.disabled = false; ta.value = MK.sel.note || '';
   vijctl.style.display = isVij ? '' : 'none';
-  platctl.style.display = isPlat ? '' : 'none'; doelinfo.style.display = isPlat ? '' : 'none'; tandctl.style.display = isTand ? '' : 'none';
-  document.getElementById('mkplatbreed').style.display = isPlat ? '' : 'none';
+  platctl.style.display = (isPlat || isRijs) ? '' : 'none'; doelinfo.style.display = (isPlat || isRijs) ? '' : 'none'; tandctl.style.display = isTand ? '' : 'none';
+  document.getElementById('mkplatbreed').style.display = (isPlat || isRijs) ? '' : 'none';   // de breedte in cellen: het platform en de rijzer delen het schuifje
   document.getElementById('mkplatstam').style.display = isPlat ? '' : 'none';
   document.getElementById('mkplatstamzij').style.display = isPlat ? '' : 'none';
   if (isPlat) document.getElementById('mkstamzij').textContent = 'Paal: ' + (MK.sel.stamZij === -1 ? 'links' : 'rechts');
@@ -32747,6 +32815,13 @@ function mkNotePaneel(){
     document.getElementById('mkstam').value = Math.max(1, Math.min(40, sc));
     sv.textContent = sc + (sc === 1 ? ' cel' : ' cellen') + (MK.sel.stamCel ? '' : ' (vanzelf)'); }
   if (isTand) mkVulTandSelects();
+  document.getElementById('mkrijsctl').style.display = isRijs ? '' : 'none';
+  if (isRijs){ const d = MK.sel.doel;                         // de rijzer: zijn naam, waar hij heen gaat, zijn breedte en de schuifjes (mkVulRijs)
+    doelinfo.textContent = 'rijzer r' + mkRijsNr(MK.sel) + ': ' + (d ? ((MK.sel.zak ? 'zakt naar rij ' : 'komt tot rij ') + d.r + ' (' + mkHoogteTekst(MK.sel.r, d.r) + ')')
+                                                             : (MK.sel.zak ? 'nog geen doel: zakt ' + MK_RIJS_DIEP + ' cellen' : 'nog geen doel: komt tot de grondlijn'));
+    const br = MK.sel.breed || MK_PLAT_BREED, bv = document.getElementById('mkbreedv');
+    document.getElementById('mkbreed').value = br; bv.textContent = br + (br === 1 ? ' cel' : ' cellen');
+    mkVulRijs(); }
   const isOver = MK.sel.k === 'overhang';
   document.getElementById('mkoverctl').style.display = isOver ? '' : 'none';
   if (isOver) mkVulOver();
@@ -32759,6 +32834,8 @@ function mkNotePaneel(){
   const isKop = MK.sel.k === 'zegel' || MK.sel.k === 'rune';   // een schakelaar die een masker kan wegnemen
   document.getElementById('mkmaskctl').style.display = isKop ? '' : 'none';
   if (isKop) mkVulMaskSelect();
+  document.getElementById('mkrijsselctl').style.display = isKop ? '' : 'none';   // en een rijzer omhoog sturen (zie mkVulRijsSelect)
+  if (isKop) mkVulRijsSelect();
   // het tabje toont de letter en de kleur van de selectie als het paneel dicht is
   const vi = isVij ? MK_VIJ_INFO[MK.sel.soort || 'groen'] : null;
   tablet.textContent = isVij ? 'V' : ((t && t.letter) || '•');
@@ -32943,6 +33020,8 @@ function mkNaarJSON(){
              const b = { c:o.c, r:o.r, k:o.k, note:o.note || '' };
              if ((o.k === 'zegel' || o.k === 'rune') && o.masker) b.masker = String(o.masker);   // onthult dit masker (zie "masker")
              if (o.k === 'zegel' && o.verstop) b.verstop = true;                                  // onder het zand (zie mkVulZegel)
+             if ((o.k === 'zegel' || o.k === 'rune') && mkRijsVan(o)) b.rijzer = { c:o.rijsObj.c, r:o.rijsObj.r };   // stuurt die rijzer (op celpositie, zoals een wiel zijn platform)
+             if (o.k === 'rijzer'){ b.doel = o.doel ? { c:o.doel.c, r:o.doel.r } : null; b.breed = o.breed || MK_PLAT_BREED; b.v = o.v || MK_RIJS.v; b.wacht = o.wacht || 0; b.duur = o.duur || 0; if (o.zak) b.zak = true; }
              if (o.k === 'vijand'){ b.soort = o.soort || 'groen'; if (o.params && Object.keys(o.params).length) b.params = o.params; }
              if (o.k === 'platform'){ b.doel = o.doel ? { c:o.doel.c, r:o.doel.r } : null; b.breed = o.breed || MK_PLAT_BREED; if (o.stamCel) b.stamCel = o.stamCel; if (o.stamBotCel != null) b.stamBotCel = o.stamBotCel; if (o.stamZij === -1) b.stamZij = -1; }
              if (o.k === 'tandwiel'){ b.modus = o.modus || 'schakellift'; const p = (o.plat && MK.objects.indexOf(o.plat) >= 0) ? o.plat : null; if (p) b.platform = { c:p.c, r:p.r }; }   // alleen een zelf gekozen platform; "dichtstbijzijnde" blijft dat ook na opslaan
@@ -32978,6 +33057,9 @@ function mkUitJSON(o){
     const b = { c:q.c|0, r:q.r|0, k:q.k, note:String(q.note || '') };
     if ((q.k === 'zegel' || q.k === 'rune') && q.masker) b.masker = String(q.masker);
     if (q.k === 'zegel' && q.verstop) b.verstop = true;
+    if ((q.k === 'zegel' || q.k === 'rune') && q.rijzer && q.rijzer.c != null) b._rijs = { c:q.rijzer.c|0, r:q.rijzer.r|0 };
+    if (q.k === 'rijzer'){ b.doel = (q.doel && q.doel.c != null && in_(q.doel.c|0, q.doel.r|0)) ? { c:q.doel.c|0, r:q.doel.r|0 } : null; b.breed = Math.max(1, Math.min(5, Math.round(Number(q.breed) || MK_PLAT_BREED)));
+      b.v = Math.max(50, Math.min(600, Math.round(Number(q.v) || MK_RIJS.v))); b.wacht = Math.max(0, Math.min(5, Number(q.wacht) || 0)); b.duur = Math.max(0, Math.min(20, Math.round(Number(q.duur) || 0))); if (q.zak) b.zak = true; }
     // de soort alleen als hij echt in de lijst staat (hasOwnProperty: 'constructor' of 'toString' is geen vijand)
     if (q.k === 'vijand'){ b.soort = (typeof q.soort === 'string' && Object.prototype.hasOwnProperty.call(MK_VIJ_INFO, q.soort)) ? q.soort : 'groen'; if (q.params && typeof q.params === 'object'){ b.params = {}; for (const kk in q.params) if (typeof q.params[kk] === 'number') b.params[kk] = q.params[kk]; } }
     if (q.k === 'platform'){ b.doel = (q.doel && q.doel.c != null && in_(q.doel.c|0, q.doel.r|0)) ? { c:q.doel.c|0, r:q.doel.r|0 } : null; b.breed = Math.max(1, Math.min(5, Math.round(Number(q.breed) || MK_PLAT_BREED))); if (Number(q.stamCel) > 0) b.stamCel = Math.max(1, Math.min(40, Math.round(Number(q.stamCel)))); if (q.stamBotCel != null && !isNaN(Number(q.stamBotCel))) b.stamBotCel = Math.max(-40, Math.min(40, Math.round(Number(q.stamBotCel)))); if (Number(q.stamZij) === -1) b.stamZij = -1; }
@@ -32994,6 +33076,10 @@ function mkUitJSON(o){
   for (const w of objects) if (w._plat){   // een wiel zijn gekozen platform terugkoppelen (op celpositie)
     const p = objects.find(q => q.k === 'platform' && q.c === w._plat.c && q.r === w._plat.r);
     if (p) w.plat = p; delete w._plat;
+  }
+  for (const z of objects) if (z._rijs){   // een zegel of rune zijn rijzer terugkoppelen (op celpositie)
+    const q = objects.find(o => o.k === 'rijzer' && o.c === z._rijs.c && o.r === z._rijs.r);
+    if (q) z.rijsObj = q; delete z._rijs;
   }
   // alles gelezen: nu pas overschrijven
   mkZetMaat(cols, rows, o.groundRow != null ? o.groundRow : Math.floor(rows / 2));
@@ -33285,6 +33371,25 @@ function mkNaarLevel(opt){
                   stamBot: p.stamBotCel != null ? p.stamBotCel * MK_CEL_EENH : undefined,   // zonder sleep rust hij op de vloer eronder (terrainH)
                   x: wielen.length ? wielen[0].x : px + Math.round(MK_CEL_PX * 1.2), wielen: wielen.length ? wielen : undefined });
   }
+  // rijzende grond: elke rijzer wordt een blok steen zo breed als zijn cellen, met de randen op de celranden, zodat het in het
+  // spel naadloos tegen de ravijnrand aansluit (rijsTeken tekent de grondrand over de hele breedte, dus elke breedte kan).
+  // Zijn rij is waar hij begint, zijn doel waar hij heen gaat: gewoon van diep in het ravijn (van) tot de grondlijn of een
+  // terras (tot); met zak andersom, van boven (tot) naar beneden (van). Een bovenkant van precies 0 wordt RIJS.tot (-1):
+  // op 0 zou supportHeight hem niet van de grond onderscheiden. De naam (r1, r2, ...) is waar een zegel of rune naar wijst.
+  const rijzers = [], rijsIds = new Map();
+  for (const o of MK.objects){
+    if (o.k !== 'rijzer') continue;
+    const id = 'r' + (rijzers.length + 1); rijsIds.set(o, id);
+    const [c0, c1] = mkRijsCellen(o); let [l, r] = spanLR(c0, c1);
+    // precies op de ravijnrand: een gat met een oneven breedte in cellen krijgt een afgerond midden en ligt daardoor een halve
+    // pixel verschoven; levelcheck wil het blok helemaal in het ravijn, dus neem de rand van het gat zelf over als die zo dichtbij ligt
+    for (const g of gaps){ const gl = g.x - g.w / 2, gr = g.x + g.w / 2; if (Math.abs(l - gl) <= 1) l = gl; if (Math.abs(r - gr) <= 1) r = gr; }
+    const beginH = (gR - o.r) * MK_CEL_EENH;
+    const doelH = o.doel ? (gR - o.doel.r) * MK_CEL_EENH : (o.zak ? beginH - MK_RIJS_DIEP * MK_CEL_EENH : 0);
+    let van = o.zak ? doelH : beginH, tot = o.zak ? beginH : doelH;
+    if (tot === 0) tot = RIJS.tot;
+    rijzers.push({ id, r, l, tot, van, v: o.v || MK_RIJS.v, wacht: o.wacht || 0, duur: o.duur || 0, ...(o.zak ? { zak: true } : {}) });
+  }
   const [sl, sr] = lr(startCol), startX = Math.round((sl + sr) / 2);
   const [el, er] = lr(eindCol), eindX = Math.round((el + er) / 2);   // de fakkels (einde) in het midden van de eind-cel (net als de start). Op de celrand (min) viel de x samen met de rand van een mesa in de buurkolom, en pakte terrainH die mesa-top: dan stond het eind in de lucht
   // de vloer onder de getekende eind-cel: zak vanaf de eind-rij omlaag tot de eerste solide cel; de bovenkant daarvan
@@ -33377,6 +33482,7 @@ function mkNaarLevel(opt){
   if (holtes.length) lvl.holtes = holtes;
   if (zwevers.length) lvl.zwevers = zwevers;
   if (takels.length) lvl.takels = takels;
+  if (rijzers.length) lvl.rijzers = rijzers;
   if (ledges.length) lvl.ledges = ledges;
   if (hppotions.length) lvl.hppotions = hppotions;
   if (afwerking === 'sneeuw') lvl.sneeuw = { soort: 'savanne', dek: 1, vol: true };        // een dichte sneeuwlaag op de savanne (alleen de bodem, geen weer)
@@ -33399,17 +33505,19 @@ function mkNaarLevel(opt){
   }
   if (maskers.length) lvl.maskers = maskers;
   // een zegel of rune dat aan een masker gekoppeld is, wordt een echte schakelaar die het wegneemt (stuurt + acties)
+  // Een zegel of rune die een rijzer stuurt gaat ook mee (rijs: de naam van het blok, zie "rijzende grond"), met of zonder masker.
   const maskIds = new Set(maskers.map(m => m.id)), acties = [];
   for (const o of MK.objects){
+    if (o.k !== 'zegel' && o.k !== 'rune') continue;
     const verstop = o.k === 'zegel' && o.verstop;       // een verborgen zegel gaat altijd mee, ook zonder masker
-    if ((o.k !== 'zegel' && o.k !== 'rune') || ((!o.masker || !maskIds.has(o.masker)) && !verstop)) continue;
-    const [ol, or2] = lr(o.c), ox = Math.round((ol + or2) / 2), koppel = o.masker && maskIds.has(o.masker);
+    const koppel = o.masker && maskIds.has(o.masker), rijs = rijsIds.get(mkRijsVan(o));
+    if (!koppel && !verstop && !rijs) continue;
+    const [ol, or2] = lr(o.c), ox = Math.round((ol + or2) / 2);
     // een zegel op of boven de grondlijn met een gang eronder ligt op het dak (de savanne), niet op de gang-bodem
     const dak = o.r <= gR && holtes.some(h => ox >= h.l && ox <= h.r);
-    if (o.k === 'zegel'){ (lvl.zegels = lvl.zegels || []).push({ x: ox, teken: 'rune', ...(koppel ? { stuurt: [o.masker] } : {}), ...(verstop ? { verstop: true } : {}), ...(dak ? { dak: true } : {}) });
-      if (!koppel) continue; }
-    else { (lvl.runes = lvl.runes || []).push({ x: ox, doel: true, opstelling: 'vlak', stuurt: [o.masker] }); }
-    if (!acties.some(a => a.masker === o.masker)) acties.push({ soort: 'masker', masker: o.masker, bij: [o.masker] });
+    if (o.k === 'zegel') (lvl.zegels = lvl.zegels || []).push({ x: ox, teken: 'rune', ...(koppel ? { stuurt: [o.masker] } : {}), ...(rijs ? { rijs } : {}), ...(verstop ? { verstop: true } : {}), ...(dak ? { dak: true } : {}) });
+    else (lvl.runes = lvl.runes || []).push({ x: ox, doel: true, opstelling: 'vlak', ...(koppel ? { stuurt: [o.masker] } : {}), ...(rijs ? { rijs } : {}) });
+    if (koppel && !acties.some(a => a.masker === o.masker)) acties.push({ soort: 'masker', masker: o.masker, bij: [o.masker] });
   }
   if (acties.length) lvl.acties = acties;
   // de vrije zwarte voorgrond-vormen naar wereld-coordinaten: x in wereld-px, y de hoogte boven de grondlijn in
@@ -33505,14 +33613,34 @@ function mkControle(){
       else if (o.doel.r === o.r) meld('letop', 'Het platform op kolom ' + o.c + ' heeft zijn doel op dezelfde hoogte: het reist nergens heen.', o.c, o.r);
       if (!MK.objects.some(w => w.k === 'tandwiel' && mkConnectedPlatform(w) === o)) meld('letop', 'Het platform op kolom ' + o.c + ' heeft geen tandwiel: het krijgt er vanzelf een naast zich.', o.c, o.r);
     }
+    else if (o.k === 'rijzer'){
+      const nm = 'Rijzer r' + mkRijsNr(o) + ' op kolom ' + o.c, [c0, c1] = mkRijsCellen(o);
+      if (o.doel && o.doel.r === o.r) meld('letop', nm + ' heeft zijn doel op dezelfde hoogte: hij komt nergens.', o.c, o.r);
+      if (c0 < 0 || c1 >= C) meld('fout', nm + ' steekt buiten het grid: maak hem smaller of schuif hem op.', o.c, o.r);
+      else if (!o.zak){                                                  // een zakker mag overal staan; een rijzer hoort in een ravijn en heeft een schakelaar nodig
+        let inRavijn = true; for (let cc = c0; cc <= c1; cc++) if (cel(cc, gR) !== 'ravijn') inRavijn = false;
+        if (!inRavijn) meld('fout', nm + ' staat niet helemaal in een ravijn op de grondlijn: teken daar ravijn-cellen, minstens zo breed als de rijzer.', o.c, o.r);
+        if (o.r <= gR) meld('letop', nm + ' rust op of boven de grondlijn: hij staat dan al boven voordat een zegel hem stuurt. Sleep hem het ravijn in.', o.c, o.r);
+        if (!MK.objects.some(z => mkRijsVan(z) === o)) meld('fout', nm + ' heeft geen zegel of rune die hem stuurt: hij komt nooit omhoog. Kies een zegel en zet daar Stuurt rijzer.', o.c, o.r);
+        if (inRavijn){                                                   // wat er van het ravijn naast hem openblijft
+          let a = c0; while (a - 1 >= 0 && cel(a - 1, gR) === 'ravijn') a--;
+          let b = c1; while (b + 1 < C && cel(b + 1, gR) === 'ravijn') b++;
+          const over = Math.max(c0 - a, b - c1);
+          if (over >= 3) meld('letop', nm + ' laat ' + over + ' cellen ravijn naast zich open: dat is waarschijnlijk te ver om te springen (levelcheck weet het precies).', o.c, o.r);
+          else if (!o.duur && over === 0) meld('info', nm + ' blijft boven en sluit het ravijn dan voorgoed: daarna is het geen schuilplek meer voor slangen en panters.', o.c, o.r);
+        }
+      }
+    }
     else if (o.k === 'tandwiel'){
       if (!platforms.length) meld('fout', 'Het tandwiel op kolom ' + o.c + ' heeft geen platform om aan te drijven.', o.c, o.r);
       else { const p = mkConnectedPlatform(o); if (p && !p.doel) meld('letop', 'Het tandwiel op kolom ' + o.c + ' hangt aan een platform zonder doelhoogte.', o.c, o.r); }
     }
     else if (o.k === 'zegel' || o.k === 'rune'){
       const heeft = o.masker && MK.maskers.some(mm => mm.id === o.masker && mm.cells.length);
+      const rz = mkRijsVan(o);
       if (o.masker && !heeft) meld('letop', naam + ' op kolom ' + o.c + ' wijst naar een masker dat er niet (meer) is.', o.c, o.r);
-      else if (!heeft && !(o.k === 'zegel' && o.verstop)) meld('info', naam + ' op kolom ' + o.c + ' is alleen een aantekening: koppel een masker, of vink bij een zegel Verborgen aan.', o.c, o.r);
+      else if (!heeft && !rz && !(o.k === 'zegel' && o.verstop)) meld('info', naam + ' op kolom ' + o.c + ' is alleen een aantekening: koppel een masker of een rijzer, of vink bij een zegel Verborgen aan.', o.c, o.r);
+      if (rz && rz.zak) meld('letop', naam + ' op kolom ' + o.c + ' stuurt een rijzer die onder je wegzakt: die heeft geen schakelaar nodig en luistert er niet naar.', o.c, o.r);
     }
     else if (o.k === 'prop') meld('info', 'Prop op kolom ' + o.c + ' is alleen een aantekening; de Test tekent hem niet.', o.c, o.r);
     else if (o.k === 'hppotion' || o.k === 'richel'){ if (vast(cel(o.c, o.r))) meld('letop', naam + ' op kolom ' + o.c + ' staat in een vaste cel.', o.c, o.r); }
@@ -33634,7 +33762,8 @@ function mkKopieer(){
   const cells = []; for (let r = n.r0; r <= n.r1; r++){ const rij = []; for (let c = n.c0; c <= n.c1; c++) rij.push(MK.grid[r][c]); cells.push(rij); }
   const binnen = MK.objects.filter(o => mkInGebied(n, o.c, o.r));
   const objects = binnen.map(o => {
-    const b = { ...o, dc:o.c - n.c0, dr:o.r - n.r0 }; delete b.c; delete b.r; delete b.plat; delete b._plat;
+    const b = { ...o, dc:o.c - n.c0, dr:o.r - n.r0 }; delete b.c; delete b.r; delete b.plat; delete b._plat; delete b.rijsObj; delete b._rijs;
+    const rz = mkRijsVan(o); if (rz && binnen.indexOf(rz) >= 0) b.rijsRel = { dc:rz.c - n.c0, dr:rz.r - n.r0 };   // de rijzer die dit zegel stuurt, als hij meegaat
     if (o.k === 'platform' && b.stamZij !== -1) delete b.stamZij;   // rechts is de standaard (geen veld), zodat spiegelen (zie mkSpiegel) netjes heen en terug gaat
     if (o.params) b.params = { ...o.params };
     b.doel = (o.doel && mkInGebied(n, o.doel.c, o.doel.r)) ? { dc:o.doel.c - n.c0, dr:o.doel.r - n.r0 } : null;
@@ -33661,9 +33790,15 @@ function mkSpiegel(){                     // het klembord spiegelen: links wordt
   const k = mkKlembord; if (!k) return;
   k.cells = k.cells.map(rij => rij.slice().reverse());
   const f = dc => k.w - 1 - dc;
+  // de koppeling zegel -> rijzer loopt op de ankercel van de rijzer, en die schuift bij een even breedte een cel op (zie onder);
+  // onthoud dus eerst naar welk voorwerp hij wees, en schrijf de plek daarna opnieuw
+  for (const o of k.objects) if (o.rijsRel) o._rijsDoel = k.objects.find(q => q.k === 'rijzer' && q.dc === o.rijsRel.dc && q.dr === o.rijsRel.dr) || null;
   for (const o of k.objects){ o.dc = f(o.dc); if (o.doel) o.doel.dc = f(o.doel.dc); if (o.platRel) o.platRel.dc = f(o.platRel.dc);
+    // een rijzer van even breedte ligt met zijn ankercel links van het midden (mkRijsCellen): gespiegeld schuift het anker een cel naar links
+    if (o.k === 'rijzer' && (o.breed || MK_PLAT_BREED) % 2 === 0){ o.dc -= 1; if (o.doel) o.doel.dc -= 1; }
     if (o.k === 'richel'){ o.f = !o.f; if (o.dx) o.dx = -o.dx; }         // een richel wijst de andere kant op, en zijn zijwaartse bijstelling ook
     if (o.k === 'platform'){ if (o.stamZij === -1) delete o.stamZij; else o.stamZij = -1; } }   // de paal aan de andere kant: rechts (geen veld) wordt links (-1) en terug
+  for (const o of k.objects) if (o.rijsRel){ if (o._rijsDoel) o.rijsRel = { dc:o._rijsDoel.dc, dr:o._rijsDoel.dr }; else delete o.rijsRel; delete o._rijsDoel; }
   for (const p of k.mask) p.dc = f(p.dc);
   for (const p of k.zwart) p.dc = f(p.dc);
   mkTeken();
@@ -33680,14 +33815,16 @@ function mkPlakZet(){                     // de stempel neerzetten op mkPlak (li
   const nieuw = [];
   for (const o of k.objects){
     const c = p.c + o.dc, r = p.r + o.dr; if (!in_(c, r)) continue;
-    const b = { ...o, c, r }; delete b.dc; delete b.dr; delete b.platRel;
+    const b = { ...o, c, r }; delete b.dc; delete b.dr; delete b.platRel; delete b.rijsRel;
     if (o.params) b.params = { ...o.params };
     b.doel = (o.doel && in_(p.c + o.doel.dc, p.r + o.doel.dr)) ? { c:p.c + o.doel.dc, r:p.r + o.doel.dr } : null;
-    if (o.k !== 'platform') delete b.doel;
+    if (o.k !== 'platform' && o.k !== 'rijzer') delete b.doel;
     nieuw.push(b); MK.objects.push(b);
     if (o.k === 'tandwiel' && o.platRel) b._platRel = o.platRel;
+    if (o.rijsRel) b._rijsRel = o.rijsRel;
   }
   for (const w of nieuw) if (w._platRel){ const q = nieuw.find(o => o.k === 'platform' && o.c === p.c + w._platRel.dc && o.r === p.r + w._platRel.dr); if (q) w.plat = q; delete w._platRel; }
+  for (const z of nieuw) if (z._rijsRel){ const q = nieuw.find(o => o.k === 'rijzer' && o.c === p.c + z._rijsRel.dc && o.r === p.r + z._rijsRel.dr); if (q) z.rijsObj = q; delete z._rijsRel; }
   for (const m of k.mask){ const c = p.c + m.dc, r = p.r + m.dr; if (!in_(c, r)) continue; const had = mkMaskInCel(c, r); if (had) had.m.cells.splice(had.i, 1); mkMaskObj(m.id).cells.push({ c, r }); }
   for (const z of k.zwart){ const c = p.c + z.dc, r = p.r + z.dr; if (in_(c, r) && mkZwartIdx(c, r) < 0) MK.zwart.push({ c, r }); }
   MK.gebied = vlak; mkGebiedKlem();      // het geplakte stuk is nu het gebied (alleen het deel binnen het grid; helemaal erbuiten is geen gebied)
@@ -33901,14 +34038,18 @@ document.getElementById('mkmasklook').onchange = e => { if (MK.selMask){ MK.selM
 document.getElementById('mkmaskvulzwart').onchange = e => { if (MK.selMask){ MK.selMask.vulZwart = e.target.checked; mkBewaar(); } };   // blijft zwart na onthullen (geen gang laten zien)
 document.getElementById('mkinsptab').onclick = () => { MK.inspectDicht = false; mkNotePaneel(); };
 document.getElementById('mkinspclose').onclick = () => { MK.inspectDicht = true; mkNotePaneel(); };
-document.getElementById('mkdoel').onclick = () => { if (MK.sel && MK.sel.k === 'platform'){ mkDoelMode = true; document.getElementById('mkobjinfo').textContent = 'Tik nu de vloer aan waar het platform heen moet reizen.'; } };
-document.getElementById('mkdoelwis').onclick = () => { if (MK.sel && MK.sel.k === 'platform'){ MK.sel.doel = null; mkDoelMode = false; mkNotePaneel(); mkBewaar(); mkTeken(); } };
-document.getElementById('mkbreed').addEventListener('input', e => {
-  if (!MK.sel || MK.sel.k !== 'platform') return;
+document.getElementById('mkdoel').onclick = () => { if (MK.sel && (MK.sel.k === 'platform' || MK.sel.k === 'rijzer')){ mkDoelMode = true;
+  document.getElementById('mkobjinfo').textContent = MK.sel.k === 'rijzer' ? 'Tik nu de cel aan tot waar de rijzer komt (of zakt).' : 'Tik nu de vloer aan waar het platform heen moet reizen.'; } };
+document.getElementById('mkdoelwis').onclick = () => { if (MK.sel && (MK.sel.k === 'platform' || MK.sel.k === 'rijzer')){ MK.sel.doel = null; mkDoelMode = false; mkNotePaneel(); mkBewaar(); mkTeken(); } };
+document.getElementById('mkbreed').addEventListener('input', e => {           // de breedte in cellen van een platform of een rijzer
+  if (!MK.sel || (MK.sel.k !== 'platform' && MK.sel.k !== 'rijzer')) return;
   MK.sel.breed = Number(e.target.value);
   const bv = document.getElementById('mkbreedv'); bv.textContent = MK.sel.breed + (MK.sel.breed === 1 ? ' cel' : ' cellen');
   mkBewaar(); mkTeken();
 });
+for (const [id, veld] of [['mkrijsv', 'v'], ['mkrijswacht', 'wacht'], ['mkrijsduur', 'duur']])   // de schuifjes van een rijzer (zie mkVulRijs)
+  document.getElementById(id).addEventListener('input', e => { if (!MK.sel || MK.sel.k !== 'rijzer') return; MK.sel[veld] = Number(e.target.value); mkVulRijs(); mkBewaar(); });
+document.getElementById('mkrijszak').onchange = e => { if (!MK.sel || MK.sel.k !== 'rijzer') return; if (e.target.checked) MK.sel.zak = true; else delete MK.sel.zak; mkNotePaneel(); mkBewaar(); mkTeken(); };
 document.getElementById('mkstam').addEventListener('input', e => {
   if (!MK.sel || MK.sel.k !== 'platform') return;
   MK.sel.stamCel = Number(e.target.value);            // de paalhoogte die de speler zelf zet, in cellen
