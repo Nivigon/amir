@@ -41,14 +41,31 @@ puntje per vijand.
 een stap, en `mkBewaar` wacht een kwart seconde, zodat een hele streek, een hele sleep of een
 schuifje dat je verschuift één stap is. Een nieuwe muisbeweging legt de vorige wijziging eerst
 vast. Terug laden gaat met `mkUitJSON`, maar de zoom, het schuiven, het gereedschap en het palet
-blijven staan. Tijdens het terugladen staat `mkHistStil` aan, zodat dat zelf geen stap wordt.
+blijven staan. Tijdens het terugladen staat `mkHistStil` aan, zodat dat zelf geen stap wordt. Staat de
+controle open, dan wordt die lijst na ongedaan maken ook ververst.
+
+`mkUitJSON` leest eerst alles (en gooit bij rommel een fout) en overschrijft `MK` pas daarna, zodat een
+kapot bestand het grid niet half geladen achterlaat. Wat buiten de maat valt (een voorwerp, een masker-cel,
+een zwarte cel, de start) leest hij niet, en een vijand-soort telt alleen als hij echt in `MK_VIJ_INFO` staat
+(`hasOwnProperty`, dus geen `constructor`). Sluit je het tabblad binnen die kwart seconde, dan bewaart
+`pagehide` de laatste wijziging alsnog. Overal staat `mkBewaar()` vóór `mkTeken()`, want `mkBewaar` zet
+`mkMiniVuil`, en anders liep de minimap een tekenbeurt achter.
 
 **Een gebied** is een rechthoek cellen die je met Shift+slepen in Selecteren kiest. Het klembord
 is een losse kopie: de cellen, de voorwerpen (met hun plek ten opzichte van de linkerbovenhoek, en
 een doelhoogte of wiel-koppeling als die in het gebied valt), de masker-cellen op naam en de
 zwarte cellen. Plakken (Ctrl+V of de knop) is een stempel die de muis volgt; een klik zet hem
-neer, en het geplakte stuk is daarna het gebied. Spiegelen (H) keert het klembord om: een richel
-wijst de andere kant op, de paal van een platform gaat naar de andere kant.
+neer, en het geplakte stuk is daarna het gebied (alleen het deel binnen het grid, `mkGebiedKlem`). Wat
+er al op de geplakte cellen stond gaat weg, net als bij Wis, anders stapelden de voorwerpen zich op.
+Spiegelen (H) keert het klembord om: een richel wijst de andere kant op (en zijn X-bijstelling keert mee),
+de paal van een platform gaat naar de andere kant (rechts is "geen veld", links is `stamZij: -1`, en het
+klembord bewaart alleen die vorm, zodat twee keer spiegelen het origineel geeft).
+
+Het gebied schuift mee met een rij erbij of eraf (`mkRijRefSchuif`) en krimpt mee bij verkleinen, plakken
+over de rand of Alles wissen (`mkGebiedKlem`, aangeroepen uit `mkZetMaat` en `mkNaMaat`). De rij van de
+grondlijn kan niet weg: `mkRijBoven(-1)` weigert bij grondlijn 0 en `mkRijOnder(-1)` bij de grondlijn
+onderaan, anders schoof de inhoud een rij ten opzichte van de grondlijn. Een leeg Breed- of Hoog-veld laat
+de maat staan.
 
 **De balk** loopt op een smal scherm over twee regels; de legenda, het podium en het paneel
 schuiven mee via `--balkh` (een ResizeObserver op `#mkbalk`). Vanaf 1560 px past alles op een
@@ -80,7 +97,17 @@ Altijd WYSIWYG: links in het grid is links in het spel, de wereld-x is `(kolom -
   boven een gang krijgt `dak: true` en `readLevel` neemt dat over (eerst viel het daar weg, en lag het
   zegel toch op de gang-bodem).
 - Vijanden via `mkSpawn`: de soort-tekst (`bandiet:dolk`, `kooiman:vogel`, `schildman:makkelijk`)
-  wordt de spawn met zijn vlaggen; een vijand op een laag krijgt `boven: true`, in een gang `y`.
+  wordt de spawn met zijn vlaggen; een vijand op een laag krijgt `boven: true`, in een gang `y`. Ook op het
+  dak van een gang (op of boven de grondlijn, met een holte eronder) krijgt hij `boven: true`: `bovenVloer`
+  klemt daar op 0, terwijl `terrainH` de gang-bodem gaf. Een kalebas op dat dak krijgt om dezelfde reden
+  `y: 0`. Een kei op het dak van een gang zakt nog wel naar de gang-bodem (`rocks` kent geen hoogte).
+- Een panter rechts van de start komt niet meteen: de spawner wil eerst dat Amir aan zijn rechterkant is
+  geweest (`sp.armed`), en pas als hij zijn plek naar links voorbijgaat verschijnt hij. De echte levels
+  merken daar niets van, want daar staat elke panter links van de start.
+- De Test zet Amir bovenop een mesa als de start daarop staat (`restart` neemt bij `mkTestActief` altijd
+  `terrainH`). Een start onder of op een zwever niet: daar begint hij op de grond eronder.
+- Het dakgat voor een lift komt alleen voor een platform dat in de gang staat of erheen reist (zijn rij of
+  zijn doel onder de grondlijn), en niet waar je zelf al een ravijn tekende.
   De knoppen uit `MK_VIJ_KNOP` gaan alleen mee als ze van de standaard afwijken; een vinkje als
   `true` of `false` (readLevel kijkt op `=== false`, dus 0 zou daar misgaan).
 - De basisvelden: `view: 0.8`, `zicht: true`, `hpBalk: true`, `speerInHand: true`, `rugMax: 1`,
@@ -116,6 +143,11 @@ naar de cel), die bijblijft zolang hij open staat. Drie soorten:
   van meer dan vier cellen naast een rand (dodelijk in de Test).
 - **info**: een prop (de Test tekent hem niet), een zegel of rune zonder masker (alleen een
   aantekening).
+
+De vloer onder een cel (`vloerOnder`): boven de grondlijn val je door lucht; een ravijn op de grondlijn is
+de ingang van een gang eronder en anders bodemloos (FOUT); een gang is open tot zijn vloer, de eerste
+cel die geen gang is; een gang tot de onderrand heeft zijn holte-vloer eronder (rij `R`). Al het andere
+op of onder de grondlijn is grond. "Onder de grond zonder gang" kijkt naar de eigen cel van de vijand.
 
 Het is alleen wat uit het grid zelf af te lezen is. Sprongen, bereik en de speer kijkt
 `tools/levelcheck.py` na: druk op **Spel-JSON** en geef die tekst als bestand aan levelcheck of de
@@ -155,3 +187,9 @@ regel bij, en een controle in de lijst `check(...)`.
 Geen aanraking (pannen en zoomen kan
 alleen met muis en toetsen), geen prop-keuze (een prop is een aantekening), en een zegel kent
 alleen een masker en Verborgen, niet de andere zegel-velden (`speerval`, `rijs`, `plafond`).
+
+Bekende randen, nog niet opgelost: alleen de tegel Zwevende laag (F) en Zwart plafond zweven, een blok rots
+of savanne met lucht eronder wordt een pilaar tot de grond; de holte is aan de startkant een cel breder dan
+getekend (`gangRx + MK_CEL_PX`); `boven` leest het spel niet voor kooiman, meelman, fosfor, hyena en
+panter, en `y` niet voor scorp, bandiet en schildman; de knop Zicht doet niets voor panter, kooiman (duel)
+en `bandiet:hurk`; één rotscel op de grondlijn maakt de hele bodem kale rots.
