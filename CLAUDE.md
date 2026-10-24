@@ -117,6 +117,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | kop | grep | notitie |
 | --- | --- | --- |
 | laadpoort: een level loopt pas als alles binnen is | `LAAD`, `laadOpen`, `laadPoort` | notities/laadpoort.md |
+| lui laden per level: wat niet elk level gebruikt komt pas binnen als het nodig is | `laadLevel`, `slangLaadLevel`, `hyLaadLevel`, `dorpLaadLevel` | notities/laadpoort.md |
 | foutmelding: een fout een keer melden, ook als hij elk beeld terugkomt | `meldFout`, `tekenHerstel`, `ctxDiepte`, `laadMist` |  |
 | versie: welke update er live staat | `versieTijd`, `document.lastModified`, `toonUpdates` | notities/wegwijzers.md |
 | niet verder tekenen dan er in beeld komt | `zichtVak(marge)`, `view`, `null` | notities/tekenlagen.md |
@@ -305,6 +306,10 @@ voorbeeld van een episode met verhaal en Nightmare.
 Tekencode en gedrag erbij, opnemen in `PROPS`, `VILLAGE` of de dierenlijst, en
 knoppen in de sandbox. Kies de soort (vast, los, plant of ver, zie "wat mag waar") en zet hem in
 de vijf functies die daarbij horen. Pas daarna is de vraag aan de orde of er een level bij moet.
+Laadt de soort niet in elk level, laad hem dan lui: een idempotente `xxxLaad`, een `xxxLaadLevel(lv)`
+die in het level kijkt, een regel in `laadLevel` (die `setLevel` en de Test van de Maker allebei
+aanroepen) en een aanroep in `startSandbox` als hij daar een knop krijgt. Nooit bovenaan het bestand
+laden, zodat het menu er niet op wacht (zie `notities/laadpoort.md`, "lui laden per level").
 
 ## De Maker nieuwstijl
 
