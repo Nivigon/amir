@@ -985,9 +985,10 @@
       <div class="row">
         <label>Schildbandiet</label>
         <button data-spawn="schildman">Neerzetten</button>
+        <button data-spawn="schildman_lagen">Neerzetten nieuwe stijl</button>
         <button id="sbschvrij">AI uit</button>
         <button id="sbschdood">Dood</button>
-        <span class="hint">loopt met zijn houten schild op je af en valt aan met een sprong: hij zakt door zijn knieen (tell), springt naar waar je stond (dan is hij onstuitbaar en onaantastbaar) en landt met zijn speer. Stap weg om de sprong te ontwijken. Zijn schild vangt drie treffers op (witte flits, houtklap, houtsnippers); daarna is hij in een klap dood: zijn speer valt uit zijn hand (echt, dus ook een ravijn in of scheef over een kei), hij valt achterover en blijft liggen, met de doodskreet van de bandiet. Dood laat elke schildbandiet meteen zo sterven. Komt hij bij een kei met jou aan de overkant, dan springt hij er met dezelfde sprong overheen (een ravijn houdt hem wel tegen). Je ziet het schild bij elke treffer verder kapot gaan: een hap eruit, twee happen, en na de derde is het weg en loopt, slaat en flincht hij zonder schild</span>
+        <span class="hint">loopt met zijn houten schild op je af en valt aan met een sprong: hij zakt door zijn knieen (tell), springt naar waar je stond (dan is hij onstuitbaar en onaantastbaar) en landt met zijn speer. Stap weg om de sprong te ontwijken. Zijn schild vangt drie treffers op (witte flits, houtklap, houtsnippers); daarna is hij in een klap dood: zijn speer valt uit zijn hand (echt, dus ook een ravijn in of scheef over een kei), hij valt achterover en blijft liggen, met de doodskreet van de bandiet. Dood laat elke schildbandiet meteen zo sterven. Komt hij bij een kei met jou aan de overkant, dan springt hij er met dezelfde sprong overheen (een ravijn houdt hem wel tegen). Je ziet het schild bij elke treffer verder kapot gaan: een hap eruit, twee happen, en na de derde is het weg en loopt, slaat en flincht hij zonder schild. Neerzetten nieuwe stijl zet dezelfde schildbandiet neer, maar getekend uit lagen (lagen.json): het schild is een los plaatje op het lijf, en de hap eruit is een wissel van alleen dat plaatje. Hij hoort er precies zo uit te zien en zich precies zo te gedragen als de gewone</span>
       </div>
       <div class="row">
         <label>Meelman</label>
@@ -1906,6 +1907,7 @@ function laadMist(src){
   });
 })();
 let laadWacht = false, laadT = 0, laadLeeg = 0, laadVan = 0;
+let laadJsonOpen = 0;                             // zoveel JSON-bestanden (bv. lagen.json van de schildbandiet) zijn nog onderweg: de poort wacht erop
 let warmRij = null, warmTotaal = 0;               // de wachtrij met bak-taken, of null: niets te warmen (zie warmBouw)
 const WARM_BUDGET = 8;                            // hoogstens zoveel ms per beeld warmen, zodat het laadscherm leeft
 function laadPoort(){
@@ -1928,7 +1930,7 @@ function laadStap(echt){
   if (!laadWacht) return false;
   const el = document.getElementById('laad');
   laadT += echt;
-  laadLeeg = laadOpen.size ? 0 : laadLeeg + 1;
+  laadLeeg = (laadOpen.size || laadJsonOpen > 0) ? 0 : laadLeeg + 1;
   const inSpel = startEl.classList.contains('off');   // in het menu niet
   if (laadLeeg >= 2 || laadT > LAAD.max || !inSpel){
     // Plaatjes binnen. Voor we verdergaan: vooraf bakken wat anders bij de eerste aanblik een schok
@@ -20936,7 +20938,7 @@ function updateSnakes(dt, plats, halfWNow, cliff){
         let mx = sp.boven ? sp.x : spawnPoint(sp.x);
         // achter: hij start tegelijk met de spawn ervoor, maar zoveel verder weg, zodat hij later het gevecht in loopt
         if (sp.achter > 0) mx += (mx > world ? 1 : -1) * sp.achter;
-        const m = makeSchildman(mx, mx > world ? 1 : -1, sp.niveau);
+        const m = makeSchildman(mx, mx > world ? 1 : -1, sp.niveau, sp.lagen);
         m.base = sp.boven ? bovenVloer(mx) : terrainH(mx); zichtZet(m, sp); schildmannen.push(m); continue;
       }
       const x = (sp.boven || sp.y != null) ? sp.x : spawnPoint(sp.x);
@@ -24838,12 +24840,56 @@ function schbLaad(){
       schbBank[soort + '_' + stand] = Array.from({ length: set.n() }, (_, i) =>
         loadQuiet([SCHB_ROOT + soort + '_' + stand + '/' + set.bestand + '_' + pad2(i) + '.png']));
   }
+  schbLaadBasis();
+}
+// de dood-set en de losse speer: die horen bij beide stijlen (de complete sets en de lagen)
+function schbLaadBasis(){
+  if (schbBank.dood) return;
   schbBank.dood = Array.from({ length: SCHB.dood.n }, (_, i) =>
     loadQuiet([SCHB_ROOT + 'dood/dood_' + pad2(i) + '.png']));
   schbBank.speer = loadQuiet([SCHB_ROOT + SCHB_SPEER.src]);
 }
+// ---- de schildbandiet nieuwe stijl: het schild als losse laag (lagen.json) ----
+// Op proef naast de complete sets hierboven (zie enemies/schildbandiet/LEESMIJ_lagen.md). Het schild is een
+// eigen plaatje en de rest van de figuur is tot zo weinig mogelijk lagen samengevoegd, elk bijgesneden tot
+// zijn eigen randen. lagen.json geeft per beweging (loop, strike, flinch), per frame en per schildstaat de
+// lagen in tekenvolgorde: {src, dx, dy, w, h, schild}. dx en dy zijn de linkerbovenhoek ten opzichte van het
+// anker (272) en de grondlijn (781), w en h de tekenmaat, allemaal in pixels van de grote set; de kleine set
+// tekent met dezelfde getallen een half zo groot plaatje. Elk plaatje staat een keer op schijf en wordt een
+// keer geladen (schbBank.lagen, op zijn pad), ook als het in meerdere frames of staten terugkomt. De
+// bewegingen, de frametelling en de timing zijn dezelfde als bij de complete sets (schbAnim, SCHB.strikeDur,
+// SCHB.flinchDur), dus het gedrag verandert niet, alleen de tekenlaag; de dood blijft de eigen set in dood/.
+// Een schildbandiet tekent zo met lagen: true in zijn spawn, of in de sandbox met Neerzetten nieuwe stijl.
+const SCHB_LAGEN = { json: 'lagen.json', soort: { loop: 'loop', strike: 'strike', vault: 'strike', flinch: 'flinch' } };
+let schbLagen = null, schbLagenBezig = false;     // de inhoud van lagen.json zodra hij binnen is
+function schbLagenLaad(){
+  if (schbLagen || schbLagenBezig) return;
+  schbLagenBezig = true;
+  schbLaadBasis();
+  laadJsonOpen++;                                  // de laadpoort wacht tot de JSON er is en de plaatjes aangevraagd zijn
+  fetch(SCHB_ROOT + SCHB_LAGEN.json).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(m => {
+    const imgs = {};
+    for (const soort in (m.sets || {}))
+      for (const fr of (m.sets[soort].frames || []))
+        for (const staat in fr)
+          for (const l of fr[staat]) if (!imgs[l.src]) imgs[l.src] = loadQuiet([SCHB_ROOT + l.src]);
+    schbBank.lagen = imgs;                         // in de bank, zodat warmBouw ze meebakt
+    schbLagen = m;
+  }).catch(e => { schbLagenBezig = false; meldFout('schbLagen', 'schildbandiet: lagen.json niet geladen', e); })
+    .finally(() => { laadJsonOpen--; });
+}
+// de lagen van het frame dat nu speelt, in tekenvolgorde; null als de lagen er (nog) niet zijn of de dood speelt
+function schbLagenLijst(s){
+  if (!schbLagen || s.state === 'dood') return null;
+  const set = schbLagen.sets[SCHB_LAGEN.soort[s.state] || 'loop'];
+  if (!set || !set.frames.length) return null;
+  const fr = set.frames[Math.min(s.frame, set.frames.length - 1)];
+  return (fr && fr[SCHB_STAAT[schbStaat(s)]]) || null;
+}
 function schbLaadLevel(lv){
-  if (lv && (lv.spawns || []).some(s => s.kind === 'schildman')) schbLaad();
+  const sp = ((lv && lv.spawns) || []).filter(s => s.kind === 'schildman');
+  if (sp.some(s => !s.lagen)) schbLaad();
+  if (sp.some(s => s.lagen)) schbLagenLaad();
 }
 // de schildstaat van deze schildbandiet: 0 (heel) tot 3 (weg). Na de flinch-treffer is s.schild al
 // verlaagd, dus de flinch speelt meteen in de nieuwe stand: de hap verschijnt op het moment van de klap.
@@ -24998,9 +25044,9 @@ function houtRaak(){
   a.play().catch(() => {});
 }
 const schildmannen = [];
-function makeSchildman(x, side, niveau){
-  schbLaad();
-  return { x, face: -side, niveau: niveau === 'makkelijk' ? 'makkelijk' : 'moeilijk', state: 'loop', frame: 0, acc: 0, t: 0,
+function makeSchildman(x, side, niveau, lagen){
+  if (lagen) schbLagenLaad(); else schbLaad();     // lagen: de nieuwe stijl (schild als losse laag), anders de complete sets
+  return { x, face: -side, niveau: niveau === 'makkelijk' ? 'makkelijk' : 'moeilijk', lagen: !!lagen, state: 'loop', frame: 0, acc: 0, t: 0,
            schild: SCHB.schild, metSchild: true, inv: 0, flash: 0, base: 0, alpha: 1,
            hp: 1, maxHp: 1, hpBalk: hpBalkAan('schildman'),   // zijn leven is een klap: het schild vangt de treffers, niet hij (zie schildHpBalk)
            cool: 0, leapVan: 0, leapDoel: 0, geraaktAmir: false, landed: false, geroepen: false,
@@ -29061,14 +29107,23 @@ function loop(now){
         const D = SCHB.dood, ligt = s.state === 'dood' ? Math.min(1, Math.max(0, (s.frame - D.ligVan) / (D.n - 1 - D.ligVan))) : 0;   // valt hij, dan wordt de schaduw breder
         ctx.ellipse(bodyX, voeten, SCHB_LIJF.half * gs * (1.05 + 1.2 * ligt), SCHB_LIJF.half * gs * 0.16, 0, 0, Math.PI * 2);
         ctx.fill(); ctx.restore();
-        const img = schbFrameImg(s), geo = schbGeo(s);
+        const lagen = s.lagen ? schbLagenLijst(s) : null, geo = schbGeo(s);
         ctx.save();
         ctx.globalAlpha = Math.max(0, s.alpha != null ? s.alpha : 1);
         ctx.translate(bodyX, voeten);
         if (s.face === 1) ctx.scale(-1, 1);               // de frames kijken naar links
-        if (img && imgReady(img))
-          ctx.drawImage(s.flash > 0 ? whiteCopy(img, s.flash * 4) : img,
-                        -SCHB.anker * gs, -geo.ground * gs, geo.w * gs, geo.h * gs);
+        if (lagen){                                       // nieuwe stijl: lijf en schild als losse lagen, elk op zijn plek t.o.v. anker en grondlijn (SCHB_LAGEN)
+          for (const l of lagen){
+            const li = schbBank.lagen && schbBank.lagen[l.src];
+            if (li && imgReady(li))
+              ctx.drawImage(s.flash > 0 ? whiteCopy(li, s.flash * 4) : li, l.dx * gs, l.dy * gs, l.w * gs, l.h * gs);
+          }
+        } else {                                          // de complete frames (en de dood, die bij beide stijlen een eigen set is)
+          const img = schbFrameImg(s);
+          if (img && imgReady(img))
+            ctx.drawImage(s.flash > 0 ? whiteCopy(img, s.flash * 4) : img,
+                          -SCHB.anker * gs, -geo.ground * gs, geo.w * gs, geo.h * gs);
+        }
         ctx.restore();
         if (s.speer) schbSpeerTeken(s.speer, cx, groundY, scale, s.flash);   // zijn losse speer, voor zijn lijf
         if (s.state === 'dood' || s.state === 'weg') continue;
@@ -30033,6 +30088,8 @@ function readLevel(txt){
                                                 // niveau: de schildbandiet 'makkelijk' (zonder het veld 'moeilijk'); achter: zoveel px verder weg starten
                                                 niveau: s.niveau === 'makkelijk' ? 'makkelijk' : undefined,
                                                 achter: Number(s.achter) > 0 ? Number(s.achter) : undefined,
+                                                // lagen: de schildbandiet nieuwe stijl, getekend uit lagen.json (op proef, zie SCHB_LAGEN)
+                                                lagen: s.lagen === true ? true : undefined,
                                                 // speed: een per-spawn snelheidsfactor (standaard 1), nu voor de slang (zie "gedrag per vijand")
                                                 speed: s.speed != null ? Math.max(0.3, Math.min(2.5, Number(s.speed) || 1)) : undefined,
                                                 y: (s.y === null || s.y === undefined) ? null : Number(s.y) })),
@@ -33633,6 +33690,7 @@ function sbSpawn(kind){
     bandieten.push(b);
   }
   else if (kind === 'schildman'){ const m = makeSchildman(x, side); m.base = vloerBij(x, ph); m.vrij = sbSchVrij; schildmannen.push(m); }
+  else if (kind === 'schildman_lagen'){ const m = makeSchildman(x, side, null, true); m.base = vloerBij(x, ph); m.vrij = sbSchVrij; schildmannen.push(m); }   // de nieuwe stijl: uit lagen getekend
   else if (kind === 'scorp'){ const k = makeScorp(x, side); k.base = vloerBij(x, ph); scorps.push(k); }
   else if (kind === 'meelman'){ const m = makeMeelman(x, side); m.base = vloerBij(x, ph); m.vrij = sbMeelVrij; meelmannen.push(m); }
   else if (kind === 'kooiman'){

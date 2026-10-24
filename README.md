@@ -584,6 +584,11 @@ elke klap een derde korter wordt en van groen naar rood kleurt. Amir heeft er da
 balkje boven zijn hoofd, gevuld met de levens die hij nog heeft, naast de hartjes in de hoek. Alle
 nieuwe levels hebben hem, en ook de proefstukken van de schildbandiet (Test 45 en Test 46).
 
+In de sandbox staat onder Schildbandiet naast Neerzetten ook **Neerzetten nieuwe stijl**: dezelfde
+schildbandiet, maar getekend uit losse lagen, met het schild als een eigen plaatje op het lijf in plaats
+van in elk frame meegebakken. Hij ziet er hetzelfde uit en doet hetzelfde; het is de proef voor hoe de
+animaties voortaan gemaakt worden.
+
 De schildbandiet is de uitzondering: zijn schild vangt de klappen op, hij zelf niet. Boven zijn
 groene balk staat daarom een houten schildbalk met drie vakjes. Elke klap op het schild kost een
 vakje, zijn eigen balk blijft vol, en je ziet het aan het schild zelf: na de eerste klap is er een hap
