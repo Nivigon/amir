@@ -10,6 +10,39 @@
 `SCHB_STAAT`, `SCHB_SETS`, `schbStaat`, `schbBankVoor`, `schbFrameImg`. Het schild zit in de frames gebakken, in vier standen: 0 treffers `metschild`, 1 `fase1` (een hap eruit), 2 `fase2` (twee happen), 3 `zonderschild` (weg, daarna in een klap dood). `schbStaat` leidt de stand af uit `s.schild` en `s.metSchild`; omdat `hitSchildman` het schild al verlaagt voor de flinch begint, speelt de flinch meteen in de nieuwe stand en verschijnt de hap op het moment van de klap. Bij een gepantserde treffer (late tell) wisselt de strike midden in de animatie van set; dat verspringt niet, want het lijf is in alle sets pixel voor pixel hetzelfde (zelfde canvas 544x860, grondlijn 781, anker 272, zelfde timing). De loop blijft `loop_metschild` tot het schild weg is.
 
 Welke sets er op schijf staan, staat in `SCHB_SETS` (per animatie de lijst `standen`). Een stand zonder eigen set valt terug op de stand ervoor (`schbBankVoor`). Nu ontbreekt alleen `flinch_fase1`: de strike toont na de eerste treffer de ene hap (`strike_fase1`), maar de flinch van die eerste treffer speelt nog met een heel schild. Komt hij erbij: frames in `enemies/schildbandiet/flinch_fase1/`, `'fase1'` in de lijst `standen` van `flinch`, dan `gen-klein.py` en `gen-offline-manifest.py`. Upload frames altijd in hun eigen map (of als zip): de sets hebben dezelfde bestandsnamen en overschrijven elkaar in de hoofdmap. Laden, `warmBouw` en de laadpoort volgen vanzelf (alles in `schbBank`). De bron staat in `enemies/schildbandiet/LEESMIJ_schildfases.md` en `metadata.json` (`schild_staat`).
+## de nieuwe stijl: het schild als losse laag (lagen.json)
+
+`SCHB_LAGEN`, `schbLagen`, `schbLagenLaad`, `schbLagenLijst`, `schbLaadBasis`, `schbBank.lagen`. Op proef naast de complete
+sets, uit de Animeer tool (export 24-10-2026, versie lagen-2; de bron staat in `enemies/schildbandiet/LEESMIJ_lagen.md`).
+Het schild is een eigen plaatje en de rest van de figuur is tot zo weinig mogelijk lagen samengevoegd, elk bijgesneden tot
+zijn eigen randen. `enemies/schildbandiet/lagen.json` geeft per beweging (`loop`, `strike`, `flinch`), per frame en per
+schildstaat (`metschild`, `fase1`, `fase2`, `zonderschild`) de lagen in tekenvolgorde, elk `{src, dx, dy, w, h, schild}`:
+`dx`, `dy` de linkerbovenhoek ten opzichte van het anker (272) en de grondlijn (781), `w`, `h` de tekenmaat, allemaal in
+pixels van de grote set. De tekencode doet daarom na de `translate` naar de voeten en de spiegeling gewoon
+`drawImage(img, dx * gs, dy * gs, w * gs, h * gs)` per laag; de kleine set (`klein/`) tekent met dezelfde getallen een half
+zo groot plaatje. De plaatjes staan in `lagen/lijf/` (116) en `lagen/schild/` (81); elk staat er een keer, ook als het in
+meerdere frames of staten terugkomt (de loop gebruikt per staat steeds hetzelfde schildplaatje), en `schbLagenLaad` maakt per
+`src` een Image die in `schbBank.lagen` gedeeld wordt (zo warmt `warmBouw` ze mee). De flits (`whiteCopy`) gaat per laag.
+
+Alleen de tekenlaag is anders. De bewegingen, de frametelling (22, 30, 21) en de timing zijn die van de complete sets
+(`schbAnim`, `SCHB.strikeDur`, `SCHB.flinchDur`), `schbStaat` kiest de staat, de vault hergebruikt de strike-lagen, en de dood
+blijft de eigen set in `dood/` (`schbLaadBasis` laadt die en de losse speer voor beide stijlen). Een schildbandiet tekent zo
+met `lagen: true` in zijn spawn (`schbLaadLevel` laadt dan de lagen in plaats van de complete sets; `laadJsonOpen` houdt de
+laadpoort dicht tot `lagen.json` binnen is en de plaatjes aangevraagd zijn), en in de sandbox met **Nieuwe stijl** onder
+Schildbandiet (naast Moeilijk en Makkelijk) (`sbSpawn('schildman_lagen')`). Nagemeten in de sandbox op 1280 bij 720: oude en nieuwe stijl op
+dezelfde plek in dezelfde houding en staat (loop, tell, inslag, herstel, flinch, met heel, aangeslagen en zonder schild)
+geven hetzelfde beeld op hooguit randpixels na.
+
+Geheugen: de drie bewegingen in alle vier de staten zijn als lagen ongeveer 67 MB uitgepakt (grote set), tegen zo'n 550 MB
+als complete frames per staat zouden zijn. `tools/gen-klein.py` halveert de lagen met een eigen doel
+(`enemies/schildbandiet/lagen`, drempel 60, voor de map `enemies/schildbandiet` zodat die drempel wint), want de bijgesneden
+stukken zijn lager dan de gewone drempel van 400.
+
+**Bevalt het, dan gaat de oude manier eruit.** Dat is: de mappen `loop_*`, `strike_*` en `flinch_*` (en hun kleine versies,
+via `gen-klein.py` en `gen-offline-manifest.py`), `SCHB_SETS`, `schbBankVoor` en de set-tak van `schbFrameImg` en `schbLaad`
+(de dood en de speer blijven, in `schbLaadBasis`), het veld `lagen` en de tweede sandbox-knop (dan is de lagen-stijl de
+enige), de `sets` in `metadata.json` en de notitie hierboven over de schildstaat per set.
+
 ## de dood
 
 `SCHB.dood`, `schbSterf`, `schbGeo`, `SCHB_SPEER`, `schbSpeerLos`, `schbSpeerStap`, `schbSpeerTeken`. Na de schildbreuk is hij in een klap dood: `schbSterf` geeft de witte flits en de hitstop (`breekStop`), speelt de doodskreet van de bandiet (`banSterf`, `sounds/banditdeath.mp3`) en zet de dood-set aan. Die staat in `enemies/schildbandiet/dood/` (`dood_00..36`, met `dood.json`, `LEESMIJ.md` en `preview.gif`). De set heeft een eigen canvas (544 bij 560, grondlijn 481, hetzelfde anker 272 en dezelfde schaal), dus de tekencode pakt de maat via `schbGeo`. Hij speelt even snel als de dood van de bandiet: 37 frames in de totale duur van de bandiet (`BAN.n.dood` frames op `BAN.fps.dood`, 2,1 s), zo'n 17,6 fps. Daarna blijft `dood_36` liggen als lijk; hij vervaagt niet.

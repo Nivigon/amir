@@ -63,6 +63,11 @@ DOELEN = [
                                         # hoog en wordt op iets boven Amir zijn hoogte getekend
     ('enemies/bandiet_elite', 400),     # de elite-garde (omgekleurd uit bandiet), zelfde maat en canvas
     ('enemies/bandiet_duin', 400),      # de Duinwacht (omgekleurd uit bandiet), zelfde maat en canvas
+    ('enemies/schildbandiet/lagen', 60),  # de lagen-stijl van de schildbandiet (lagen.json): dezelfde figuur,
+                                        # maar elk stuk bijgesneden tot zijn eigen randen (het schild 266 hoog,
+                                        # een lijf rond 330), dus onder de gewone drempel; even veilig te halveren
+                                        # als de complete frames, want het is dezelfde tekening op dezelfde schaal.
+                                        # Voor de map hieronder: het eerste doel dat een bestand noemt, wint
     ('enemies/schildbandiet', 400),     # de schildbandiet: 52 frames op een canvas van 544x860; de
                                         # figuur is 340 hoog en wordt op iets boven Amir zijn hoogte getekend
                                         # (alle sets: loop, strike en flinch per schildstaat, en de dood)
