@@ -16,7 +16,28 @@ kant (`sbFromRight`), altijd geklemd tussen `endWall()` en `cliffAt().wall`.
 
 De knop Sandbox in het menu opent eerst een keuzescherm (`menuSandbox`): de vrije sandbox
 (`startSandbox(false)`) of de arena-modus (`startSandbox(true)`, vlag `sbArena`). De arena is de
-gewone sandbox met twee verschillen: klappen kosten levens (`hurtPlayer` slaat de sandbox-uitzondering
+gewone sandbox met drie verschillen: het veld, de levens en de spawner.
+
+Het veld (`sbArenaVeld`, uit `restart` zodra `sbArena` aan staat, voor `sbArenaReset`) is de arena van de
+koning (Valse Koning 8, `bandArenaStart`) na de aankomst, maar zonder takel: Amir begint meteen midden op
+de vloer met de speer in de hand. Het hergebruikt het arena-object: `arenaAap = {ban: true, sb: true,
+staging: false, fase: 'vrij', c, links, rechts, ...}` met dezelfde `span` als `arenaMidden()`, zodat
+`arenaAchtergrond` de twee grijze zijwanden tekent, `arenaCam` en `updateCamera` de camera vast in het
+midden zetten (hij schuift niet met Amir mee, dus de wanden staan stil) en de hoofdlus Amir tot aan de
+schermranden klemt (`arenaVast()`: `A.ban && !A.staging`, dezelfde test als de bandiet-arena, nu ook zonder
+`level.bandArena`). De vlag `sb` laat `arenaTick` en `arenaHudTeken` eruit stappen: de golven en de teller
+komen uit deze sectie. `sbArenaMaat` zet de twee rotsrichels hoog tegen de wanden, verankerd aan de
+schermranden zoals in `bandArenaTick` (links lager en groter, rechts hoger en kleiner), en de echte
+rechtergrens `level.rechtsWall` ver voorbij de schermrand, zodat een vijand van rechts buiten beeld kan
+beginnen (links is er geen klif, `endWall` is -oneindig); de knoppen Uitzoomen roepen `sbArenaMaat` opnieuw
+aan. Het uitzicht is `sbLagen = 'hoogland'`. `stopSandbox` haalt het veld weg (`arenaReset`), en de knoppen
+Arena aan/uit onder Goudaap en Bandiet doen in de arena-modus niets (de arena staat al).
+
+Omdat de camera vast staat rekent "net buiten beeld" en "in beeld" om het arena-midden, niet om Amir:
+`kijkMidden()` (het arena-midden in een vaste arena, anders `world`) in `sbArenaSpawn`, `hyBuitenBeeld` en
+`slangInBeeld`. Buiten een vaste arena verandert daar niets.
+
+Klappen kosten levens (`hurtPlayer` slaat de sandbox-uitzondering
 over als `sbArena` aan staat, en het levens-element staat aan) en er loopt een spawner. Die zit in de
 sectie "arena-modus: golven vijanden in de sandbox", naar het voorbeeld van de bandietgolf
 (`updateBandietGolf`): `SB_ARENA_SOORTEN` is de lijst soorten met hun standaardwaarden, `sbArenaCfg`
