@@ -19146,7 +19146,19 @@ function vloerBij(x, h){
   const zt = zweefTopBij(x);
   if (zt > -Infinity && h > zt - 140) return zt;
   const t = terrainH(x);
+  // wie beneden in een gang staat onder een terras op het oppervlak houdt zijn gangvloer: het terras erboven
+  // tilt hem niet omhoog (dezelfde grens als in blocksMonster, anders stond hij ineens bovenop de mesa)
+  if (h < -40 && t > h + CHAR_H && holteAt(x)) return terrainHGang(x, h + CHAR_H);
   return (t < 0 && h >= -1 && holteAt(x) && !inGap(x)) ? 0 : t;
+}
+// het terrein beneden in een gang: de gangvloer en de treden erin, zonder wat erboven staat (een mesa, muur
+// of rots op het oppervlak, zie blocksMonster). `tot` is de hoogste terras-top die nog meetelt: voor een
+// vijand zijn kop (h + CHAR_H), voor een punt in de gang de grondlijn (-1)
+function terrainHGang(x, tot){
+  let v = -holteAt(x).diep;
+  for (const t of terraceList()) if (x >= t.l && x <= t.r && t.h > v && t.h <= tot) v = t.h;
+  for (const q of zuilLijst()) if (x >= q.x - q.w / 2 && x <= q.x + q.w / 2) return zuilTop(q);
+  return v;
 }
 // zo hoog mogen zijn voeten komen: onder het dak, maar niet onder het gat zelf
 function holteKop(){
@@ -19417,7 +19429,10 @@ function lkVastPunt(x, h){                        // is dit punt grond of rots?
   if (h > 0){ const t = terrainH(x); return (t > 0 && h <= t) || lkRotsPunt(x, h); }
   const o = holteAt(x), gat = inGap(x);
   if (o){
-    if (h <= terrainH(x)) return true;            // de bodem, of een trede (ook een put: zie PUT)
+    // de bodem, of een trede (ook een put: zie PUT). Niet terrainH: die geeft boven een gang de top van een
+    // mesa of muur op het oppervlak, en dan werd de hele gang eronder rots (donker in de lichtkaart, en een
+    // vijand zag je er niet doorheen, zie zichtVast)
+    if (h <= terrainHGang(x, -1)) return true;
     if (gat) return false;                         // de schacht van een gat
     return h >= -HOLTE_DAK;                        // het pakket boven het dak, of de gang eronder
   }
@@ -20957,6 +20972,11 @@ function blocksMonster(p, base, klim){
   // een zwevende savannelaag is geen muur over zijn hele hoogte: een vijand op de grond loopt
   // eronderdoor. Alleen wie met zijn lijf tot aan het blok reikt wordt tegengehouden.
   if (p.zweef){ const fb = p.floatBot != null ? p.floatBot : p.topH; return base < p.topH && base + CHAR_H > fb; }
+  // Een terras boven zijn hoofd is geen muur voor wie beneden in een gang loopt: een mesa, muur of rots op het
+  // oppervlak (uit de Maker) staat op de savanne, niet in de gang eronder. Dezelfde regel als voor Amir in
+  // updateJump (zie "terras boven een gang"): onder de grondlijn, en de bovenkant hoger dan zijn kop. Een
+  // trede in de gang (lager dan zijn kop) blijft hem tegenhouden, zoals de regel over treden wil.
+  if (p.terrace && base < -40 && p.topH > base + CHAR_H) return false;
   if (klim && p.terrace && p.topH > base + 1) return p.topH - base > KLIM_STAP;   // een trede: alleen een te hoge blijft een muur
   return p.topH > base + 1;   // alleen wat boven hem uitsteekt
 }
@@ -30751,6 +30771,9 @@ function readLevel(txt){
                                                 // koppelingen: de seinen die dit zegel stuurt als het aan staat (zie "koppelingen")
                                                 stuurt: Array.isArray(q.stuurt) ? q.stuurt.map(String) : undefined,
                                                 speer: q.speer === true,
+                                                // boven een gang op de savanne (het dak) in plaats van op de gang-bodem, zoals de Level
+                                                // Maker een zegel op de grondlijn meegeeft (zie zegelGrondH)
+                                                dak: q.dak === true ? true : undefined,
                                                 // onder het zand tot de lage zwaai het blootveegt, en hoe (zie "verstopt zegel")
                                                 verstop: ZEGEL_VERBORGEN[q.verstop] ? q.verstop : q.verstop === true ? ZEGEL_VERSTOP.standaard.verstop : undefined,
                                                 vloer: q.verstop && ZEGEL_VLOER[q.vloer] ? q.vloer : undefined,

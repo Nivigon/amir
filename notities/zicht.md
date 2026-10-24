@@ -16,7 +16,9 @@ lobben. Met het veld `zicht: true` kijkt hij echt.
   `bereik`, en een zichtlijn van zijn ogen (`ZICHT.oog`, per soort in CHAR_H boven zijn vloer) naar het
   hoofd en naar het midden van Amir. Is een van de twee vrij, dan ziet hij je. De lijn wordt om de
   `ZICHT.stap` px nagelopen met `zichtVast`: `lkVastPunt` (dezelfde vraag als de lichtkaart: grond,
-  terrassen, zuilen, de grond boven een gang, het plafond en de grotten) plus de zwevende lagen. Een kei,
+  terrassen, zuilen, de grond boven een gang, het plafond en de grotten) plus de zwevende lagen. Een terras
+  of muur op het oppervlak boven een gang telt in de gang eronder niet mee (`terrainHGang`): daar kijkt hij
+  gewoon door de gang. Een kei,
   een richel, een doornbos en decor houden niets tegen, zodat een kei een schuilplek blijft (regel 7) en
   geen plek om onzichtbaar te zijn. De lijn wordt hoogstens elke `ZICHT.ververs` s opnieuw uitgerekend.
 - **Achter hem**: de oude afstand op x, maar alleen als Amir op zijn niveau staat (`zichtNiveau`: de vloer

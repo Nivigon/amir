@@ -50,7 +50,8 @@ spawn, en alleen als de opdracht daar expliciet om vraagt.
 
 **Vijanden gaan niet over treden; de weg omhoog is een lift.** Een vijand loopt op gelijkvloerse grond
 en blijft op zijn niveau: terrassen en treden houden hem tegen (naast keien en ravijnen, regel 7). Hij
-stapt geen trede op of af. Omhoog of omlaag komt hij alleen mee met een lift of rijzend stuk grond dat
+stapt geen trede op of af. Een terras, mesa of muur op het oppervlak boven een gang houdt een vijand in die
+gang niet tegen: dat staat op de savanne, niet in de gang (`blocksMonster`, `terrainHGang`). Omhoog of omlaag komt hij alleen mee met een lift of rijzend stuk grond dat
 op zijn x omhoog of omlaag komt: dan rijdt hij mee, net zoals Amir (`rijsDraagtMob`, zie "rijzende
 grond"). De bandiet en de kooiman blijven daarnaast op hun eigen niveau en halen niet uit over een
 hoogteverschil (`banZelfdeHoogte`, `kooiZelfdeHoogte`: de vloer onder Amir vergeleken met hun eigen vloer).
