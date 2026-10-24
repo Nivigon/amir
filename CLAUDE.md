@@ -227,6 +227,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `view` | een getal van 0,5 tot 1: uitgezoomd spelen; een nieuw level krijgt standaard `view: 0.8` (zie `notities/velden.md`) |
 | `zichtBreed` | een doel-wereldbreedte in beeld in plaats van een vaste `view`; geen level gebruikt het nog (zie `notities/velden.md`) |
 | `worp` | `'schaal'` zet de schaalworp aan: de hoek loopt op zolang je vasthoudt, van vlak tot 30 graden (`THR_HOEK_MAX`); zonder dit veld de twee trappen. In de sandbox de knop Worp onder Speerworp |
+| `speerInHand` | `true`: Amir begint met de speer in de hand in plaats van hem voor zich uit de grond te pakken; de Level Maker nieuwstijl zet dit in elk level, de echte episodes hebben het niet |
 | `rocks` | keien om op te springen: `{x, s}` |
 | `spawns` | vijanden: `{x, k}`, `k` is groen/zwart/knock/scorp/hyenas/panter/fosfor/bandiet/kooiman/meelman/schildman, met vlaggen per soort (zie `notities/velden.md`) |
 | `bandArena` | `true`: het level is een bandiet-arena (Valse Koning 8), zoals de goudaap-arena maar met de elite-garde (zie "de bandiet-arena") |
@@ -252,7 +253,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `tekens` | speertekens: `{x, v, f}`, `v` is `teken`, `gebroken`, `gekruist`, `jagers` of `kalebas`, `f` spiegelt; decor, behalve dat het mes de kalebas lossnijdt |
 | `fakkels` | geanimeerde wandfakkels: `{x, y, s, f}`, `x` de schacht, `y` de hoogte van de voet boven de grond in Amir (0 = op de grond, hoger = tegen een wand), `s` schaal, `f` spiegelen; brandend decor met gloed, vonken, schaduw en vuurgeluid (zie "fakkel") |
 | `talentKeuze` | `true`: voor het begin kies je zelf welke talents gelden, van alle tribes (alleen voor een Test level; nu Test 14) |
-| `zegels` | zegels plat in de grond: `{x, ravijn, sluit, breed, muur, speerval, teken, vijand, plafond, rijs, speer, verstop, veeg}`; met `verstop` ligt hij onder het zand tot de lage zwaai hem blootveegt, `veeg` kiest de onthulling (standaard de wolk, traag en middel), `veegDuur` en `veegMaat` het tempo en de grootte, `vloer` de kleur van het zand (zie `notities/velden.md`) |
+| `zegels` | zegels plat in de grond: `{x, ravijn, sluit, breed, muur, speerval, teken, vijand, plafond, rijs, speer, verstop, veeg, dak}`; met `dak` ligt hij boven een gang op de savanne in plaats van op de gang-bodem, met `verstop` ligt hij onder het zand tot de lage zwaai hem blootveegt, `veeg` kiest de onthulling (standaard de wolk, traag en middel), `veegDuur` en `veegMaat` het tempo en de grootte, `vloer` de kleur van het zand (zie `notities/velden.md`) |
 | `rijzers` | steen dat uit een ravijn omhoog komt: `{id, r, l, tot, van, v, wacht, duur}`, `id` de naam waar een zegel of een rune (`doel: true`) met `rijs` naar wijst, `tot` en `van` de bovenkant boven en beneden (standaard -1 en -900), `wacht` seconden voor hij begint, `duur` seconden boven voor hij terugzakt (zie "rijzende grond"); met `zak: true` staat hij boven en zakt hij onder Amir weg |
 | `takel` | een takelwiel met een hangend plateau; sla het rad met je speer, het plateau draagt en veert (zie `notities/velden.md`) |
 | `maskers` | geverfde stukken die een deel van het level verbergen: `{id, look, vakken}` (zie `notities/velden.md`) |
