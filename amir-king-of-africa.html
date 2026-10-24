@@ -1047,7 +1047,7 @@
         <button data-spawn="schildman">Neerzetten</button>
         <button id="sbschvrij">AI uit</button>
         <button id="sbschdood">Dood</button>
-        <span class="hint">loopt met zijn houten schild op je af en valt aan met een sprong: hij zakt door zijn knieen (tell), springt naar waar je stond (dan is hij onstuitbaar en onaantastbaar) en landt met zijn speer. Stap weg om de sprong te ontwijken. Zijn schild vangt drie treffers op (witte flits, houtklap, houtsnippers); daarna is hij in een klap dood: zijn speer valt uit zijn hand (echt, dus ook een ravijn in of scheef over een kei), hij valt achterover en blijft liggen, met de doodskreet van de bandiet. Dood laat elke schildbandiet meteen zo sterven. Komt hij bij een kei met jou aan de overkant, dan springt hij er met dezelfde sprong overheen (een ravijn houdt hem wel tegen). Na de schildbreuk loopt en slaat hij zonder schild (alleen zijn flinch heeft nog geen eigen zonderschild-art)</span>
+        <span class="hint">loopt met zijn houten schild op je af en valt aan met een sprong: hij zakt door zijn knieen (tell), springt naar waar je stond (dan is hij onstuitbaar en onaantastbaar) en landt met zijn speer. Stap weg om de sprong te ontwijken. Zijn schild vangt drie treffers op (witte flits, houtklap, houtsnippers); daarna is hij in een klap dood: zijn speer valt uit zijn hand (echt, dus ook een ravijn in of scheef over een kei), hij valt achterover en blijft liggen, met de doodskreet van de bandiet. Dood laat elke schildbandiet meteen zo sterven. Komt hij bij een kei met jou aan de overkant, dan springt hij er met dezelfde sprong overheen (een ravijn houdt hem wel tegen). Je ziet het schild bij elke treffer verder kapot gaan: een hap eruit, twee happen, en na de derde is het weg en loopt, slaat en flincht hij zonder schild</span>
       </div>
       <div class="row">
         <label>Meelman</label>
@@ -24711,7 +24711,8 @@ function hitBandiet(s){
 // Testversie (zie enemies/schildbandiet/LEESMIJ.md). Hij loopt met zijn schild op Amir af
 // (loop_metschild) en valt aan met een sprong (strike_metschild): hij zakt door zijn knieen, springt
 // onstuitbaar en onaantastbaar naar waar Amir stond, en landt met zijn speer. Zijn schild vangt drie
-// treffers (witte flits + houtsnippers); daarna is hij in een klap dood en valt hij achterover (dood/,
+// treffers (witte flits + houtsnippers), en elke treffer slaat er zichtbaar een hap uit (de schildstaat,
+// SCHB_STAAT); daarna is hij in een klap dood en valt hij achterover (dood/,
 // zie enemies/schildbandiet/dood/LEESMIJ.md). De frames kijken naar links, net als de bandiet (face 1 =
 // naar rechts, dan spiegelen). Canvas 544x860, grondlijn 781, anker 272; de dood-set heeft een eigen canvas.
 const SCHB_ROOT = 'enemies/schildbandiet/';
@@ -24814,21 +24815,27 @@ function schbScale(){
   return (CHAR_H * scale * SCHB.hShare) / SCHB.fig;
 }
 const schbBank = {};
+// De schildstaat: welke set bij hoeveel treffers op het schild (metadata.json, schild_staat). Het schild zit
+// in de frames gebakken, met dezelfde frames, hetzelfde canvas en dezelfde timing per stand, zodat een
+// wissel midden in een animatie niet verspringt.
+//   0 treffers: metschild, 1: fase1 (een hap eruit), 2: fase2 (twee happen), 3: zonderschild (schild weg)
+const SCHB_STAAT = ['metschild', 'fase1', 'fase2', 'zonderschild'];
+// Welke sets er op schijf staan, per animatie. Een stand zonder eigen set valt terug op de stand ervoor
+// (schbBankVoor): de loop blijft zo metschild tot het schild weg is. Komt er een set bij (strike_fase1,
+// flinch_fase1), zet hem dan hier in de lijst; de rest (laden, warmBouw, laadpoort) gaat vanzelf.
+const SCHB_SETS = {
+  loop:   { n: () => SCHB.loopN,   bestand: 'walk',   standen: ['metschild', 'zonderschild'] },
+  strike: { n: () => SCHB.strikeN, bestand: 'strike', standen: ['metschild', 'fase2', 'zonderschild'] },
+  flinch: { n: () => SCHB.flinchN, bestand: 'flinch', standen: ['metschild', 'fase2', 'zonderschild'] }
+};
 function schbLaad(){
-  if (schbBank.loop_met) return;
-  schbBank.loop_met = Array.from({ length: SCHB.loopN }, (_, i) =>
-    loadQuiet([SCHB_ROOT + 'loop_metschild/walk_' + pad2(i) + '.png']));
-  schbBank.strike_met = Array.from({ length: SCHB.strikeN }, (_, i) =>
-    loadQuiet([SCHB_ROOT + 'strike_metschild/strike_' + pad2(i) + '.png']));
-  schbBank.flinch_met = Array.from({ length: SCHB.flinchN }, (_, i) =>
-    loadQuiet([SCHB_ROOT + 'flinch_metschild/flinch_' + pad2(i) + '.png']));
-  // De zonderschild-sets (na de schildbreuk). Zelfde frames, canvas en timing als met schild
-  // (metadata.json), dus schbFrameImg kiest ze vanzelf op s.metSchild en schbAnim speelt ze op dezelfde
-  // snelheid. Flinch heeft nog geen zonderschild-art; die valt terug op flinch_met (volgt later, LEESMIJ).
-  schbBank.loop_zonder = Array.from({ length: SCHB.loopN }, (_, i) =>
-    loadQuiet([SCHB_ROOT + 'loop_zonderschild/walk_' + pad2(i) + '.png']));
-  schbBank.strike_zonder = Array.from({ length: SCHB.strikeN }, (_, i) =>
-    loadQuiet([SCHB_ROOT + 'strike_zonderschild/strike_' + pad2(i) + '.png']));
+  if (schbBank.loop_metschild) return;
+  for (const soort in SCHB_SETS){
+    const set = SCHB_SETS[soort];
+    for (const stand of set.standen)
+      schbBank[soort + '_' + stand] = Array.from({ length: set.n() }, (_, i) =>
+        loadQuiet([SCHB_ROOT + soort + '_' + stand + '/' + set.bestand + '_' + pad2(i) + '.png']));
+  }
   schbBank.dood = Array.from({ length: SCHB.dood.n }, (_, i) =>
     loadQuiet([SCHB_ROOT + 'dood/dood_' + pad2(i) + '.png']));
   schbBank.speer = loadQuiet([SCHB_ROOT + SCHB_SPEER.src]);
@@ -24836,21 +24843,28 @@ function schbLaad(){
 function schbLaadLevel(lv){
   if (lv && (lv.spawns || []).some(s => s.kind === 'schildman')) schbLaad();
 }
+// de schildstaat van deze schildbandiet: 0 (heel) tot 3 (weg). Na de flinch-treffer is s.schild al
+// verlaagd, dus de flinch speelt meteen in de nieuwe stand: de hap verschijnt op het moment van de klap.
+function schbStaat(s){
+  if (!s.metSchild) return 3;
+  return Math.max(0, Math.min(2, SCHB.schild - s.schild));
+}
+// de set voor deze animatie en stand, of die van de dichtstbijzijnde stand ervoor die er wel is
+function schbBankVoor(soort, staat){
+  for (let i = staat; i >= 0; i--){
+    const bank = schbBank[soort + '_' + SCHB_STAAT[i]];
+    if (bank) return bank;
+  }
+  return null;
+}
 function schbFrameImg(s){
-  const met = s.metSchild;
   if (s.state === 'dood'){                                 // de dood: eigen set en eigen canvas (schbGeo)
     const bank = schbBank.dood;
     return bank && bank[Math.min(s.frame, bank.length - 1)];
   }
-  if (s.state === 'strike' || s.state === 'vault'){        // de vault hergebruikt de sprong-frames
-    const bank = (!met && schbBank.strike_zonder) ? schbBank.strike_zonder : schbBank.strike_met;
-    return bank && bank[Math.min(s.frame, bank.length - 1)];
-  }
-  if (s.state === 'flinch'){                               // de geraakt-animatie
-    const bank = (!met && schbBank.flinch_zonder) ? schbBank.flinch_zonder : schbBank.flinch_met;
-    return bank && bank[Math.min(s.frame, bank.length - 1)];
-  }
-  const bank = (!met && schbBank.loop_zonder) ? schbBank.loop_zonder : schbBank.loop_met;
+  // de vault hergebruikt de sprong-frames, de flinch is de geraakt-animatie, de rest de loop
+  const soort = (s.state === 'strike' || s.state === 'vault') ? 'strike' : s.state === 'flinch' ? 'flinch' : 'loop';
+  const bank = schbBankVoor(soort, schbStaat(s));
   return bank && bank[Math.min(s.frame, bank.length - 1)];
 }
 function schbAnim(s, dt){

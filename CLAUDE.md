@@ -183,6 +183,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | zwarte panter, de witte panter, de hyena | de grote vijanden |  |
 | de bandiet: een rover met een kromzwaard | `BAN`, `banLaad`, `makeBandiet` | notities/bandiet.md |
 | de schildbandiet: loopt met zijn schild op en valt springend aan | `SCHB`, `makeSchildman`, `updateSchildman` | notities/schildbandiet.md |
+| schildstaat: het schild in vier standen, van heel tot weg | `SCHB_STAAT`, `SCHB_SETS`, `schbStaat` | notities/schildbandiet.md |
 | de bandiet-arena: het geënsceneerde eindgevecht | `BANDARENA`, `bandArenaStart`, `bandArenaWachters` | notities/bandiet.md |
 | baviaan: de eindbaas in wording | `BAVIAAN`, `baviaanLaad`, `baviaanTeken` | notities/baviaan.md |
 | speerbeet: de baviaan pakt je speer | `BAV_BEET`, `BAV_MOND`, `BAV_SPEER` | notities/baviaan.md |
