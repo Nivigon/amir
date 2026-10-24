@@ -1039,8 +1039,18 @@ def rijzende_grond(lv, sp):
             continue
         if not any(str(z.get('rijs')) == str(b.get('id')) for z in bronnen):
             yield fout(x, 'rijzende grond %s zonder zegel of rune met rijs: \'%s\': hij komt nooit omhoog' % (b.get('id'), b.get('id')))
-        if not any(g['x'] - g['w'] / 2 <= b.get('l', 0) and b.get('r', 0) <= g['x'] + g['w'] / 2 for g in lv.gaps):
-            yield letop(x, 'rijzende grond %s staat niet helemaal in een ravijn' % b.get('id'))
+        # in een ravijn in de savanne, of in een put in de vloer van een gang (zie "onder de grond" bij RIJS)
+        if not any(g['x'] - g['w'] / 2 <= b.get('l', 0) and b.get('r', 0) <= g['x'] + g['w'] / 2 for g in lv.gaps + lv.putten):
+            yield letop(x, 'rijzende grond %s staat niet helemaal in een ravijn of een put' % b.get('id'))
+        look = b.get('look')
+        if look is not None and look not in ('savanne', 'rots', 'sneeuw', 'zwart'):
+            yield fout(x, 'rijzende grond %s met look \'%s\': dat is geen look (savanne, rots, sneeuw of zwart)' % (b.get('id'), look))
+        kv = b.get('kleurVanaf')
+        if kv is not None and not isinstance(kv, (int, float)):
+            yield fout(x, 'rijzende grond %s met kleurVanaf \'%s\': dat hoort een hoogte te zijn' % (b.get('id'), kv))
+        elif isinstance(kv, (int, float)) and isinstance(b.get('tot'), (int, float)) and kv >= b['tot'] and not b.get('zak'):
+            yield letop(x, 'rijzende grond %s: kleurVanaf (%s) ligt op of boven tot (%s), dus hij blijft zwart'
+                        % (b.get('id'), n0(kv), n0(b['tot'])))
     for z in zegels:
         if z.get('rijs') is not None and not any(str(b.get('id')) == str(z.get('rijs')) for b in lv.d.get('rijzers') or []):
             yield fout(z.get('x'), 'zegel met rijs: \'%s\', maar er is geen rijzende grond met die naam' % z.get('rijs'))
@@ -1063,6 +1073,18 @@ def putten(lv, sp):
         kop = o['diep'] - sp.HOLTE_DAK - sp.CHAR_H
         schoon_r, red_r = sp.sprong(sp.LOOP * sp.SPRINT, lambda x: kop, 0)
         schoon_l, _ = sp.sprong(sp.LOOP, lambda x: kop, 0)
+        if rijs_in(lv, q):
+            # rijzende grond in de put (zie "rijzende grond"): dan tellen de stukken tussen de blokken, net als
+            # bij een ravijn in de savanne
+            stukken = rijs_gaten(lv, q)
+            breedst = max(stukken) if stukken else 0
+            if breedst > red_r:
+                yield fout(q['x'], 'put met rijzende grond: het breedste stuk ernaast is %s, met sprint haalt Amir onder '
+                                   'dit dak hoogstens %s' % (n0(breedst), n0(red_r)))
+            else:
+                yield info(q['x'], 'put van %s breed met rijzende grond: stukken van %s'
+                           % (n0(q['w']), ', '.join(n0(x) for x in stukken) or 'niets'))
+            continue
         if q['w'] > red_r:
             yield fout(q['x'], 'put van %s breed: met sprint haalt Amir onder dit dak hoogstens %s' % (n0(q['w']), n0(red_r)))
         elif q['w'] > schoon_r:

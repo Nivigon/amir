@@ -109,7 +109,9 @@ Altijd WYSIWYG: links in het grid is links in het spel, de wereld-x is `(kolom -
   geexporteerde gat gezet als die een halve pixel verschilt (een gat met een oneven breedte heeft een afgerond
   midden). In het paneel: **Snelheid** (`v`), **Wacht** (`wacht`), **Boven** (`duur`, 0 = hij blijft boven) en
   **Zakt onder je weg** (`zak: true`: dan staat hij op zijn rij en zakt hij naar zijn doel zodra Amir erop staat,
-  zonder doel 3 cellen; geen zegel nodig). Een zegel of rune krijgt het keuzemenu **Stuurt rijzer**
+  zonder doel 3 cellen; geen zegel nodig), **Look** (`look`: savanne, rots, sneeuw of zwart, rond; `MK_RIJS_LOOKS`)
+  en **Zet kleurhoogte** (`mkKleurMode`, een klik op een rij: `kleur: {r}`, in het spel `kleurVanaf`; daaronder
+  blijft het blok zwart, een stippellijn over het blok op de kaart, **Wis kleurhoogte** haalt hem weg). Een zegel of rune krijgt het keuzemenu **Stuurt rijzer**
   (`mkVulRijsSelect`): de koppeling is een verwijzing naar het voorwerp (`rijsObj`, `mkRijsVan`), opgeslagen op
   celpositie (`rijzer: {c, r}`, zoals een wiel zijn platform) en in het klembord als `rijsRel`. Spiegelen schuift
   het anker van een rijzer met een even breedte een cel op, zodat zijn cellen op hun plek blijven, en zet de
