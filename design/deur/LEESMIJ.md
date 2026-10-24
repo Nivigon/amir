@@ -15,7 +15,6 @@ deur_00.png .. deur_19.png   20 frames: dicht -> opent -> blijft open
 deur_dicht.png               de dichte deur (= deur_00, de beginstand)
 deur_open.png                de open deur met donkere opening (= deur_19, de eindstand)
 deur_open_transparant.png    dezelfde open stand, maar de opening is TRANSPARANT
-deur_preview.gif             de open-animatie
 metadata.json                maten, scharnierkant, afspeelinfo
 ```
 

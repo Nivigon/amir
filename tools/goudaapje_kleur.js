@@ -16,7 +16,7 @@
 // De donkere contour en de tanden blijven met opzet hun eigen kleur.
 //
 // Alleen de reeksen die het goudaapje in het spel gebruikt worden omgezet (niet het
-// hoofdschudden, de pootslag of de opgefokte idle: die zijn voor de eindbaas-baviaan).
+// hoofdschudden of de pootslag: die zijn voor de eindbaas-baviaan).
 // De originelen in enemies/baviaan/ blijven staan als bron. Verandert er een frame,
 // draai dit script dan opnieuw, en daarna tools/gen-offline-manifest.py.
 //

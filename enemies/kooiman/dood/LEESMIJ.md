@@ -28,7 +28,6 @@ Aanvulling op `kooibandiet_sprites.zip`. Zelfde canvas (728x648), zelfde groundl
 
 - `sprites.json`: frames, ticks, centroids en events (`kneel_frame` 15, `land_frame` 21)
 - `death/`: de PNG's
-- `death_preview.gif`: sleep, flits, dood, lijk
 
 ## Bron
 

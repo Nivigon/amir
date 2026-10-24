@@ -11,11 +11,10 @@ uit het project). Niets bijsnijden of schalen nodig, behalve waar hieronder staa
 ## Wat zit erin
 
 ```
-wiel/           73 transparante frames (wiel_000..wiel_072), spritesheet, preview, uit jouw video
+wiel/           73 transparante frames (wiel_000..wiel_072), spritesheet, uit jouw video
 touw/           touw_tegel.png (naadloze tegel) + touw_vol.png (heel touw)
 plateau/        plateau.png + plateau_links/midden/rechts.png (voor schalen)
 spijkerknop/    spijkerknop.png (zwarte smeedkop over het touw op elk bevestigingspunt)
-preview/        mechaniek_preview.gif (alles samen in de scene)
 metadata.json   maten, hub, grondlijn, aanhechtpunten, snijlijnen, fps
 ```
 
@@ -70,6 +69,6 @@ Het plateau is een 9-slice (horizontaal rekken):
 
 ## Schaal
 
-In de preview staat het wiel op ongeveer 185 px hoog en het plateau op 190 px breed,
+In het aangeleverde voorbeeld stond het wiel op ongeveer 185 px hoog en het plateau op 190 px breed,
 als referentie voor spelschaal. Pas aan naar wens, de verhoudingen kloppen onderling.
 De grondlijn van het wiel staat in `metadata.json` (`grondlijn`).

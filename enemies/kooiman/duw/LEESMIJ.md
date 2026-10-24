@@ -6,7 +6,7 @@
 > `enemies/kooiman/sprites.json` (eigen canvas en de kooi-uitlijning onder `kooi_laag`).
 > In de HTML is het de gevechts-loop van de **duel-kooiman** nadat de kooi open is (hij
 > duwt de lege kooi voor zich uit als schild); hij is dan alleen in zijn herstel raakbaar.
-> De voorbeeldbestanden zijn referentie: `preview/duw_preview.gif` en
+> Het voorbeeldbestand is referentie:
 > `bron/duw/voorbeeld_duw_met_kooi.png` (niet meegeleverd in de offline-download).
 
 De kooiman verplaatst zich voortaan door de kooi voor zich uit te duwen. Deze duw-walk

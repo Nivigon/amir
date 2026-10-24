@@ -1095,7 +1095,6 @@ karakters/
     gehurkt/               gehurkt_00..17.png (lus)
     oppakken/              oppakken_00..25.png (eenmalig, gaat over in idle)
     metadata.json          framecounts en bounding boxes per frame
-    preview/               sheets en preview-gifs, bronmateriaal
 
 enemies/
   slang1/                  de originele groengele slang: idle_1..8, move_1..8, attack_1..8.png (+ mp4 referenties)
@@ -1136,7 +1135,6 @@ enemies/
     ren_lijf/              ren_lijf_00..11.png (onderlaag van de aanvalsren, 16 fps)
     ren_kop/               ren_kop_00..26.png (bovenlaag: de happende kop, 8 fps)
     metadata.json          canvas, grondlijn, aantallen, fps en de kop-offset per lijfframe
-    preview/               sprite sheets en preview-gifs (bronmateriaal)
 
 amir runc/
   amir_sprites/design/amir/
@@ -1179,7 +1177,7 @@ design/
                            bodems en is genest (wat op 25 wit is, is dat op 50 ook), zodat een level
                            onderweg van stand kan wisselen zonder dat er sneeuw verdwijnt.
                            Allebei uit tools/sneeuwdek.py
-  vegetatie/               boom_sheet, drygrass_sheet, struik_sheet (bewegende vegetatie) en de losse frames
+  vegetatie/               boom_sheet, drygrass_sheet, struik_sheet (bewegende vegetatie)
   water/                   pool_links/midden/rechts, rimpel_01..08, spetter_01..08
 
 sounds/                    hyena_bite.mp3 (lange opname; alleen 14,0-16,0 s is de hap die het spel
@@ -1194,4 +1192,4 @@ music/                     bg.mp3 (het oude thema), darkafrica.mp3 (de basismuzi
                            uit diezelfde plons, voor de voetstappen in het water)
 ```
 
-De `*_magenta.png`, `*_preview.gif`, `*_sheet.png` en `*_spritesheet*.png` bestanden zijn bronmateriaal en voorbeelden; het spel gebruikt de losse frames.
+De `*_magenta.png` en `*_sheet.png` bestanden die nog in de mappen staan zijn bronmateriaal; het spel gebruikt de losse frames (behalve bij de vegetatie, die juist van de sheets komt).

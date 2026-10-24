@@ -16,8 +16,6 @@ enemies/meelman/
   worp/        43 frames (one-shot)  zak-zwaai, dubbelt als melee-slag
   ren/         23 frames (loop)      gedrongen looppas
   drag/        18 frames (loop)      sleept een zak, gebukt
-  ren_sheet.png, drag_sheet.png   (sprite sheets, 1 rij)
-  previews/    .gif per set op speelsnelheid (alleen ter controle)
   metadata.json
 items/meelzak/
   zak_projectiel.png   de gegooide zak (los object, engine animeert)

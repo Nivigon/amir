@@ -12,8 +12,8 @@ repo) loopt vanaf de achterkant van dat wiel, achter de paal langs. Op de pen
 bovenaan de paal zit een klein roestig tandwiel dat meedraait zodra het platform
 beweegt. Zo lijkt het geheel een aandrijving in plaats van losse stukken.
 
-Zie `voorbeeld_opbouw_preview.png` voor de opbouw en `assets/voorbeeld_animatie.gif`
-voor de beweging. In de voorbeelden staan het grote wiel, platform en touw alleen
+Zie `voorbeeld_opbouw.png` voor de opbouw (de animatie-mockup is weggehaald).
+In de voorbeelden staan het grote wiel, platform en touw alleen
 ter context; gebruik daarvoor de bestaande repo-assets.
 
 ## Wat zit erin (nieuw)
@@ -24,8 +24,6 @@ ter context; gebruik daarvoor de bestaande repo-assets.
 - `assets/stam_voorbeeld_lang.png` - voorbeeld van een langere paal (top + 5x mid + bottom).
 - `assets/minitandwiel.png` - het roestige mini-tandwiel, transparante openingen,
   naaf exact in het midden van het plaatje (zodat je het schoon kunt ronddraaien).
-- `assets/voorbeeld_animatie.gif` - mockup van de beweging (mini-wiel draait, platform
-  beweegt, groot wiel staat stil).
 - `tools/build_stam.py` - scriptje dat de drie paalstukken tot een paal van de
   gewenste hoogte stapelt.
 - `spec.json` - de maten en ankerpunten op een rij.

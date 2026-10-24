@@ -30,7 +30,6 @@ Aanvulling op `kooibandiet_sprites.zip`. Zelfde canvas (728x648), zelfde groundl
 
 - `sprites.json`: frames, ticks, centroids, events (active_frames)
 - `parry/`: de PNG's
-- `parry_preview.gif`: sleep, parry, terug naar sleep
 
 ## Bron
 
