@@ -8,7 +8,7 @@ reserve-speren op de rug: 1 in de hand plus zoveel op de rug, dus `rugMax + 1` w
 
 ## veld `hpBalk`
 
-`true`: de bandiet, de kooiman, de slangen, de schorpioen, de fosforslang en de hyena (niet de panter en de baviaan) krijgen 3 levens met een health-balkje boven hun hoofd (groen, oranje, rood). Een lijst soorten (`['bandiet','kooiman']`) geeft alleen die soorten de balk en laat de rest in een klap dood gaan. Ook Amir krijgt dan een balkje boven zijn hoofd, en de schildbandiet een volle balk met een houten schildbalk erboven. Zonder veld uit, dus een episode zonder het veld houdt de eigen HP (rule 1); **een nieuw level krijgt `hpBalk: true`** (de bouwer zet het zelf, net als `view: 0.8`). Zie "health-balk"; De Valse Koning gebruikt de lijst, Test 39, 45 en 46 `true`
+`true`: de bandiet, de kooiman, de slangen, de schorpioen, de fosforslang en de hyena (niet de panter en de baviaan) krijgen 3 levens met een health-balkje boven hun hoofd (groen, oranje, rood). Een lijst soorten (`['bandiet','kooiman']`) geeft alleen die soorten de balk en laat de rest in een klap dood gaan. Ook Amir krijgt dan een balkje boven zijn hoofd, en de schildbandiet een volle balk met een houten schildbalk erboven. Zonder veld uit, dus een episode zonder het veld houdt de eigen HP (rule 1); **een nieuw level krijgt `hpBalk: true`** (de Maker zet het zelf, net als `view: 0.8`). Zie "health-balk"; De Valse Koning gebruikt de lijst, Test 39, 45 en 46 `true`
 
 ## veld `hoogUitzicht`
 
@@ -16,7 +16,7 @@ reserve-speren op de rug: 1 in de hand plus zoveel op de rug, dus `rugMax + 1` w
 
 ## veld `view`
 
-een getal van 0,5 tot 1: uitgezoomd spelen. Kleiner tekent de hele wereldlaag (en Amir en de vijanden, die zitten in dezelfde zoom-transform) kleiner, zodat je meer wereld vooruit ziet. `viewZoom()` geeft dit terug tijdens het spelen; het is dezelfde machinerie als de bouwer (`BUILD_ZOOM`), dus het loopt door alle tekenlagen en de afsnijdcode (`W / viewZoom()`). De voorgrond staat in schermruimte (buiten de zoom), dus een uitgezoomd level zet die beter uit (`voorgrond: false`). Per level; zonder dit veld zoom 1. **Een nieuw level krijgt standaard `view: 0.8` (laptop): de bouwer zet het op elk vers level (`startBuild`, `btnnew`, Leegmaken), en een met de hand geschreven leveldefinitie hoort het ook te krijgen. Dat is bewust vast en niet adaptief, zodat de uitzoom nooit terugspringt naar 1. De bestaande episodes blijven staan zoals ze zijn (rule 1): verander hun view niet mee.** In de sandbox onder Beeld en geluid, Uitzoomen (`sbView`). Test 25 (0,8) en Test 26 (0,6) zijn de proefstukken
+een getal van 0,5 tot 1: uitgezoomd spelen. Kleiner tekent de hele wereldlaag (en Amir en de vijanden, die zitten in dezelfde zoom-transform) kleiner, zodat je meer wereld vooruit ziet. `viewZoom()` geeft dit terug tijdens het spelen; het loopt door alle tekenlagen en de afsnijdcode (`W / viewZoom()`). De voorgrond staat in schermruimte (buiten de zoom), dus een uitgezoomd level zet die beter uit (`voorgrond: false`). Per level; zonder dit veld zoom 1. **Een nieuw level krijgt standaard `view: 0.8` (laptop): de Maker zet het op elk level, en een met de hand geschreven leveldefinitie hoort het ook te krijgen. Dat is bewust vast en niet adaptief, zodat de uitzoom nooit terugspringt naar 1. De bestaande episodes blijven staan zoals ze zijn (rule 1): verander hun view niet mee.** In de sandbox onder Beeld en geluid, Uitzoomen (`sbView`). Test 25 (0,8) en Test 26 (0,6) zijn de proefstukken
 
 ## veld `zichtBreed`
 
