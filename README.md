@@ -205,6 +205,8 @@ Het spel is een installeerbare webapp. Open de Pages-link in Safari, deel, "Zet 
 
 Open hem vanaf het beginscherm en druk onder **Instellingen** op **Download voor offline**. Dat haalt alle sprites en geluiden in een keer binnen (ruim 2200 bestanden, ongeveer 230 MB; het precieze aantal staat in `offline-assets.json`). Vanaf dat moment laadt het spel meteen en speelt het ook zonder internet.
 
+Lukt een deel niet, dan zegt de knop **Probeer opnieuw** en staat eronder hoeveel bestanden er nog ontbreken, en of dat komt doordat de opslag op je toestel vol is of doordat de verbinding wegviel. Een volgende poging haalt alleen die ontbrekende bestanden op.
+
 Doe die download vanuit het beginscherm-icoon, niet vanuit Safari: iOS geeft een geinstalleerde webapp een eigen opslag, dus wat je in Safari downloadt telt daar niet mee.
 
 Ook zonder op die knop te drukken wordt alles wat je tijdens het spelen tegenkomt bewaard, dus een tweede potje laadt sowieso sneller.
