@@ -22,6 +22,7 @@ varianten voor de bandiet en de schildbandiet, en de knoppen per vijand in `MK_V
 | tekenen | `mkTeken` (alles, elke keer opnieuw), `mkCelOp` (welke cel onder de muis) |
 | schilderen | `mkKlik` (een klik), `mkVerf` en `mkVerfCel` (een streek, met Bresenham tussen de cellen), `mkRect` (Shift+slepen vult een rechthoek), `mkIsStreek` |
 | selecteren | `mkObjOp` (het voorwerp op een cel, ook op de balk van een breed platform of een overhang), `mkNotePaneel` (het paneel rechts), `mkVulVijKnoppen`, `mkVulZegel`, `mkVulOver`, `mkVulRichel` |
+| een gebied | `MK.gebied` (Shift+slepen in Selecteren), `mkKopieer`, `mkKnip`, `mkGebiedWis`, `mkSpiegel`, `mkPlakStart` en `mkPlakZet` (de stempel `mkPlak` volgt de muis), het klembord `mkKlembord` |
 | maat | `mkZetMaat`, `mkRijBoven`, `mkRijOnder` (rijen erbij of eraf; `mkRijRefSchuif` schuift alles mee, ook maskers, zwarte cellen en vormen) |
 | opslaan | `mkNaarJSON` en `mkUitJSON` (het grid-formaat, `MK_VERSIE`), `mkBewaar` (wacht 250 ms) en `mkBewaarNu` (de autosave in `localStorage['amir-mk']` plus een stap in de geschiedenis) |
 | ongedaan maken | `mkHist`, `mkHistZet`, `mkHistNaar`, `mkOngedaan`, `mkOpnieuw` (`MK_HIST_MAX` stappen, hele grids als tekst) |
@@ -34,6 +35,13 @@ een stap, en `mkBewaar` wacht een kwart seconde, zodat een hele streek, een hele
 schuifje dat je verschuift één stap is. Een nieuwe muisbeweging legt de vorige wijziging eerst
 vast. Terug laden gaat met `mkUitJSON`, maar de zoom, het schuiven, het gereedschap en het palet
 blijven staan. Tijdens het terugladen staat `mkHistStil` aan, zodat dat zelf geen stap wordt.
+
+**Een gebied** is een rechthoek cellen die je met Shift+slepen in Selecteren kiest. Het klembord
+is een losse kopie: de cellen, de voorwerpen (met hun plek ten opzichte van de linkerbovenhoek, en
+een doelhoogte of wiel-koppeling als die in het gebied valt), de masker-cellen op naam en de
+zwarte cellen. Plakken (Ctrl+V of de knop) is een stempel die de muis volgt; een klik zet hem
+neer, en het geplakte stuk is daarna het gebied. Spiegelen (H) keert het klembord om: een richel
+wijst de andere kant op, de paal van een platform gaat naar de andere kant.
 
 **De balk** loopt op een smal scherm over twee regels; de legenda, het podium en het paneel
 schuiven mee via `--balkh` (een ResizeObserver op `#mkbalk`). Vanaf 1560 px past alles op een
@@ -103,8 +111,9 @@ speelrobot.
 
 Escape (selecteren, deselecteren), spatie (schuiven), Delete (voorwerp of vorm weg), Ctrl+Z en
 Ctrl+Y (ongedaan en opnieuw), Ctrl+S (exporteren), F (passend), T (testen), + en - (zoomen),
-pijltjes (schuiven, met Shift sneller), Shift+slepen (rechthoek). Op een keuzelijst, knop of
-tekstvak blijven de toetsen van dat veld.
+pijltjes (schuiven, met Shift sneller), Shift+slepen (rechthoek; in Selecteren een gebied), Ctrl+C,
+Ctrl+X en Ctrl+V (kopiëren, knippen, plakken), H (het klembord spiegelen), Delete (het gebied
+leegmaken). Op een keuzelijst, knop of tekstvak blijven de toetsen van dat veld.
 
 ## De makertest: `tools/makertest.js`
 
@@ -112,7 +121,8 @@ Laadt de Maker in Chromium met een proefgrid waar alles op staat (gat, gang met 
 zwever, muur door de grond, sneeuw, alle voorwerpen, een masker, een zwarte cel, een vorm) en
 kijkt na: de round-trip van export en import, de vertaling naar een spel-level, rijen invoegen en
 weer weghalen, verkleinen, snel schilderen, de rechthoek, het aanklikken van brede voorwerpen,
-ongedaan maken, de vijand-knoppen, de controle, de Test starten en teruggaan, de autosave, en of
+ongedaan maken, een gebied kopiëren, spiegelen, plakken en knippen, de vijand-knoppen, de
+controle, de Test starten en teruggaan, de autosave, en of
 het proefgrid als spel-level door `levelcheck.py` komt. Draai hem na elke wijziging aan de Maker.
 
 ```
@@ -126,7 +136,7 @@ regel bij, en een controle in de lijst `check(...)`.
 
 ## Wat er nog niet is
 
-Geen kopiëren en plakken van een gebied, geen minimap, geen aanraking (pannen en zoomen kan
+Geen minimap, geen aanraking (pannen en zoomen kan
 alleen met muis en toetsen), geen prop-keuze (een prop is een aantekening), en een zegel kent
 alleen een masker en Verborgen, niet de andere zegel-velden (`speerval`, `rijs`, `plafond`).
 `levelcheck.py` kent een lift uit de Maker (`takels`) nog niet als weg omhoog uit een gang.

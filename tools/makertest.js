@@ -291,6 +291,42 @@ function verschil(a, b, pad = ''){
     return uit;
   });
 
+  // 5d. een gebied kopiëren, spiegelen en plakken, en knippen
+  await check('gebied: Shift+slepen in Selecteren, kopiëren, spiegelen, plakken en knippen', async () => {
+    await laad(proefGrid());
+    await page.evaluate(() => { MK.tool = 'select'; mkLegenda(); });
+    const a = await celXY(3, 4), b = await celXY(6, 7);              // de mesa (kolom 4 en 5, rij 6), de richel op (3,5), de zandslang op (6,6), de grond op rij 7
+    await page.keyboard.down('Shift'); await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 3 }); await page.mouse.up(); await page.keyboard.up('Shift');
+    const g = await page.evaluate(() => MK.gebied && mkGebiedNorm(MK.gebied));
+    const uit = [];
+    if (!g || g.c0 !== 3 || g.c1 !== 6 || g.r0 !== 4 || g.r1 !== 7) uit.push('gebied: ' + JSON.stringify(g));
+    await page.mouse.move(a.x, a.y + 250);
+    await page.keyboard.press('Control+c');
+    const k = await page.evaluate(() => mkKlembord && { w: mkKlembord.w, h: mkKlembord.h, obj: mkKlembord.objects.map(o => o.k + '@' + o.dc + ',' + o.dr).sort(), cel: mkKlembord.cells[2].join(' ') });
+    if (!k || k.w !== 4 || k.h !== 4) uit.push('klembord: ' + JSON.stringify(k));
+    if (!k || k.obj.join('|') !== 'richel@0,1|vijand@3,2') uit.push('voorwerpen op het klembord: ' + (k && k.obj.join('|')));
+    if (!k || k.cel !== 'lucht rots rots lucht') uit.push('cellen op het klembord: ' + (k && k.cel));
+    await page.keyboard.press('h');                                    // spiegelen: de mesa blijft in het midden, de richel gaat naar rechts
+    const k2 = await page.evaluate(() => ({ obj: mkKlembord.objects.map(o => o.k + '@' + o.dc + ',' + o.dr + (o.f ? 'f' : '')).sort().join('|') }));
+    if (k2.obj !== 'richel@3,1|vijand@0,2') uit.push('na spiegelen: ' + k2.obj);
+    await page.keyboard.press('Control+v');
+    const doel = await celXY(14, 0);                                   // de stempel op (14,0): rij 0 tot 3, kolom 14 tot 17 (lucht, geen voorwerpen)
+    await page.mouse.move(doel.x, doel.y); await page.mouse.click(doel.x, doel.y);
+    const na = await page.evaluate(() => ({ cel: MK.grid[2].slice(14, 18).join(' '), obj: MK.objects.filter(o => o.c >= 14 && o.c <= 17 && o.r >= 0 && o.r <= 3).map(o => o.k + '@' + o.c + ',' + o.r + (o.f ? 'f' : '')).sort().join('|'), plak: mkPlak, n: MK.objects.length }));
+    if (na.cel !== 'lucht rots rots lucht') uit.push('geplakte cellen: ' + na.cel);
+    if (na.obj !== 'richel@17,1|vijand@14,2') uit.push('geplakte voorwerpen: ' + na.obj);
+    if (na.plak) uit.push('de stempel bleef hangen na het neerzetten');
+    if (na.n !== 12) uit.push('aantal voorwerpen na plakken: ' + na.n + ' in plaats van 12');
+    // knippen: het gebied is nu het geplakte stuk; Ctrl+X maakt het leeg
+    await page.keyboard.press('Control+x');
+    const leeg = await page.evaluate(() => ({ cel: MK.grid[2].slice(14, 18).join(' '), n: MK.objects.length }));
+    if (leeg.cel !== 'lucht lucht lucht lucht' || leeg.n !== 10) uit.push('na knippen: ' + JSON.stringify(leeg));
+    await page.keyboard.press('Control+z');
+    const terug = await page.evaluate(() => MK.objects.length);
+    if (terug !== 12) uit.push('ongedaan maken na knippen: ' + terug + ' voorwerpen in plaats van 12');
+    return uit;
+  });
+
   // 6. ongedaan maken en opnieuw
   await check('ongedaan maken: Ctrl+Z haalt een streek weg, Ctrl+Y zet hem terug', async () => {
     await laad(proefGrid());

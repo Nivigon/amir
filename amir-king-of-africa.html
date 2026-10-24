@@ -933,7 +933,7 @@
       <div id="mktools"></div>
       <div id="mkpalnaam" class="mksub"></div>
       <div id="mklegbtns"></div>
-      <div class="mkhint">klik of sleep = schilderen &middot; Shift+sleep = rechthoek &middot; wiel of +/- = zoomen &middot; rechts slepen, spatie of pijltjes = schuiven &middot; Gum of Delete = voorwerp weg &middot; Ctrl+Z = ongedaan maken &middot; F = passend &middot; in Selecteren: sleep een voorwerp om het te verschuiven</div>
+      <div class="mkhint">klik of sleep = schilderen &middot; Shift+sleep = rechthoek &middot; wiel of +/- = zoomen &middot; rechts slepen, spatie of pijltjes = schuiven &middot; Gum of Delete = voorwerp weg &middot; Ctrl+Z = ongedaan maken &middot; F = passend &middot; in Selecteren: Shift+sleep = gebied (Ctrl+C, Ctrl+X, Ctrl+V, H = spiegelen), sleep een voorwerp om het te verschuiven</div>
       <div class="mkkop">Opslaan</div>
       <div class="mkrij"><button id="mkcopy">Kopieer JSON</button><button id="mkdl">Download</button><button id="mkspeljson" title="Het grid vertaald naar het spelformaat (wat de Test speelt), om door tools/levelcheck.py of de speelrobot te halen">Spel-JSON</button></div>
       <textarea id="mkjson" spellcheck="false" placeholder="grid als tekst; hier komt de export, of plak een eerder grid en druk op Laden"></textarea>
@@ -984,6 +984,12 @@
           <div class="mkveld"><label for="mkmasklook">Hoe het eruitziet</label><select id="mkmasklook"><option value="grot">Grotwand (rots)</option><option value="rots">Rotswand (cliff)</option><option value="savanne">Savanne (grond)</option><option value="zwart">Helemaal zwart</option></select></div>
           <div class="mkveld"><label><input id="mkmaskvulzwart" type="checkbox"> Blijft zwart na onthullen</label></div>
           <div id="mkmasklookinfo" class="mkhint"></div>
+        </div>
+        <div id="mkgebiedctl" style="display:none">
+          <div id="mkgebiedinfo" class="mkhint"></div>
+          <div class="mkrij"><button id="mkgebiedkopie" title="Kopieer het gebied naar het klembord (Ctrl+C)">Kopieer</button><button id="mkgebiedknip" title="Kopieer en maak het gebied leeg (Ctrl+X)">Knip</button><button id="mkgebiedplak" title="Plak het klembord: de stempel volgt de muis, klik om hem neer te zetten (Ctrl+V)">Plak</button></div>
+          <div class="mkrij"><button id="mkgebiedspiegel" title="Spiegel het klembord, links wordt rechts (H)">Spiegel</button><button id="mkgebiedwis" title="Maak het gebied leeg (Delete)">Wis</button></div>
+          <div class="mkhint">Shift+sleep in Selecteren kiest een gebied. Plakken: de stempel volgt de muis, klik om hem neer te zetten, Escape stopt.</div>
         </div>
         <div id="mkvormctl" style="display:none">
           <div class="mkknop"><label>Breedte</label><input id="mkvormw" type="range" min="1" max="40" step="0.5"><span class="read" id="mkvormwv"></span></div>
@@ -32087,7 +32093,7 @@ function mkConnectedPlatform(w){ if (w && w.plat && MK.objects.indexOf(w.plat) >
 const MK = { cols:48, rows:20, ground:12, grid:null, start:null, eind:null, objects:[], sel:null,
              tool:'savanne', zoom:1, panX:0, panY:0, maskers:[], maskId:'Verborgen1',
              cat:'terrein', sub:null, vijandSoort:'groen', inspectDicht:true, muziek:MUZIEK_BASIS, valschade:true, selMask:null,
-             vormen:[], selVorm:null, zwart:[] };
+             vormen:[], selVorm:null, zwart:[], gebied:null };
 // de zwarte cellen (per cel geschilderd): een lijst {c, r}. Reset in mkwis, bewaard in mkNaarJSON/mkUitJSON,
 // en in mkNaarLevel per rij samengevoegd tot zwarte blokken (lvl.vormen).
 let mkZwartErase = false;
@@ -32407,6 +32413,22 @@ function mkTeken(){
   // de zwarte cellen (per cel geschilderd), als bovenste laag, net als in het spel
   if (MK.zwart.length){ mkCtx.fillStyle = '#000';
     for (const p of MK.zwart) mkCtx.fillRect(gx + p.c * cel, gy + p.r * cel, cel + 1, cel + 1); }
+  if (MK.gebied){                                    // het gekozen gebied: een blauwe stippelrand
+    const n = mkGebiedNorm(MK.gebied);
+    mkCtx.save(); mkCtx.globalAlpha = 0.12; mkCtx.fillStyle = '#4ea1ff'; mkCtx.fillRect(MK.panX + n.c0 * cel, MK.panY + n.r0 * cel, (n.c1 - n.c0 + 1) * cel, (n.r1 - n.r0 + 1) * cel); mkCtx.restore();
+    mkCtx.strokeStyle = '#4ea1ff'; mkCtx.lineWidth = 1.5; mkCtx.setLineDash([6, 4]);
+    mkCtx.strokeRect(MK.panX + n.c0 * cel + 0.5, MK.panY + n.r0 * cel + 0.5, (n.c1 - n.c0 + 1) * cel - 1, (n.r1 - n.r0 + 1) * cel - 1); mkCtx.setLineDash([]);
+  }
+  if (mkPlak && mkKlembord){                         // de stempel: de cellen van het klembord half doorzichtig op de muis, met een stip per voorwerp
+    const k = mkKlembord; mkCtx.save(); mkCtx.globalAlpha = 0.55;
+    for (let r = 0; r < k.h; r++) for (let c = 0; c < k.w; c++){ const id = k.cells[r][c]; if (id === 'lucht') continue;
+      mkCtx.fillStyle = MK_KLEUR[id] || '#888'; mkCtx.fillRect(MK.panX + (mkPlak.c + c) * cel, MK.panY + (mkPlak.r + r) * cel, cel, cel); }
+    for (const o of k.objects){ const t = MK_TYPES.find(x => x.id === o.k); mkCtx.fillStyle = (o.k === 'vijand' && MK_VIJ_INFO[o.soort]) ? MK_VIJ_INFO[o.soort].kleur : (t && t.kleur) || '#fff';
+      mkCtx.beginPath(); mkCtx.arc(MK.panX + (mkPlak.c + o.dc + 0.5) * cel, MK.panY + (mkPlak.r + o.dr + 0.5) * cel, Math.max(3, cel * 0.3), 0, Math.PI * 2); mkCtx.fill(); }
+    mkCtx.restore();
+    mkCtx.strokeStyle = '#f2e8d5'; mkCtx.lineWidth = 1.5; mkCtx.setLineDash([4, 3]);
+    mkCtx.strokeRect(MK.panX + mkPlak.c * cel + 0.5, MK.panY + mkPlak.r * cel + 0.5, k.w * cel - 1, k.h * cel - 1); mkCtx.setLineDash([]);
+  }
   if (mkRect){                                       // de rechthoek van Shift+slepen: een lichte vulling met een stippelrand
     const c0 = Math.min(mkRect.c0, mkRect.c1), c1 = Math.max(mkRect.c0, mkRect.c1), r0 = Math.min(mkRect.r0, mkRect.r1), r1 = Math.max(mkRect.r0, mkRect.r1);
     const kleur = MK_KLEUR[MK.tool] || '#f2e8d5';
@@ -32476,7 +32498,7 @@ function mkKlik(ev){
     if (i >= 0) MK.zwart.splice(i, 1); else MK.zwart.push({ c, r });
     mkTeken(); mkBewaar(); return;
   }
-  if (t === 'select'){ MK.selVorm = null; MK.sel = mkObjOp(c, r); mkDrag = MK.sel;   // aanklikken om te bewerken, en slepen om te verschuiven
+  if (t === 'select'){ MK.selVorm = null; MK.gebied = null; MK.sel = mkObjOp(c, r); mkDrag = MK.sel;   // aanklikken om te bewerken, en slepen om te verschuiven
     if (MK.sel){ MK.selMask = null; MK.inspectDicht = false; }
     else { const hm = mkMaskInCel(c, r); MK.selMask = hm ? hm.m : null; if (MK.selMask) MK.inspectDicht = false; }   // geen voorwerp maar een geverfde masker-cel: het masker selecteren
     mkNotePaneel(); mkTeken(); return; }
@@ -32646,6 +32668,13 @@ function mkVulStapel(){
   }
 }
 function mkNotePaneel(){
+  const gctl = document.getElementById('mkgebiedctl');                 // het gebied-blok: alleen met een gekozen gebied en verder niets geselecteerd
+  const gebiedAan = MK.gebied && !MK.sel && !MK.selVorm && !MK.selMask;
+  gctl.style.display = gebiedAan ? '' : 'none';
+  if (gebiedAan){ const n = mkGebiedNorm(MK.gebied), w = n.c1 - n.c0 + 1, h = n.r1 - n.r0 + 1;
+    const nObj = MK.objects.filter(o => mkInGebied(n, o.c, o.r)).length;
+    document.getElementById('mkgebiedinfo').textContent = 'Gebied van ' + w + ' bij ' + h + ' cellen' + (nObj ? ', met ' + nObj + ' voorwerp' + (nObj === 1 ? '' : 'en') : '') + (mkKlembord ? '. Klembord: ' + mkKlembord.w + ' bij ' + mkKlembord.h + '.' : '.');
+    document.getElementById('mkgebiedplak').disabled = !mkKlembord; document.getElementById('mkgebiedspiegel').disabled = !mkKlembord; }
   const info = document.getElementById('mkobjinfo'), ta = document.getElementById('mkobjnote');
   const platctl = document.getElementById('mkplatctl'), doelinfo = document.getElementById('mkdoelinfo'), tandctl = document.getElementById('mktandctl');
   const vijctl = document.getElementById('mkvijctl'), insp = document.getElementById('mkinspect'), tablet = document.getElementById('mkinsptablet');
@@ -32957,7 +32986,7 @@ function mkUitJSON(o){
     const p = MK.objects.find(q => q.k === 'platform' && q.c === w._plat.c && q.r === w._plat.r);
     if (p) w.plat = p; delete w._plat;
   }
-  MK.sel = null; MK.selVorm = null; MK.selMask = null;
+  MK.sel = null; MK.selVorm = null; MK.selMask = null; MK.gebied = null;
 }
 // opslaan: na elke wijziging roept de Maker mkBewaar aan. Dat schrijft niet meteen (tijdens een streek komt het per
 // cel), maar kort erna in een keer (mkBewaarNu): de autosave naar localStorage, en een stap in de geschiedenis voor
@@ -33558,6 +33587,74 @@ function mkVormGrijp(ev){
   }
   return null;
 }
+// ---- een gebied: Shift+slepen in Selecteren kiest een rechthoek cellen (MK.gebied), en die kun je kopiëren,
+// knippen, plakken en spiegelen. Het klembord (mkKlembord) is een losse kopie: de cellen, de voorwerpen (met hun
+// plek ten opzichte van de linkerbovenhoek, en een doelhoogte en wiel-koppeling als die in het gebied vallen), de
+// masker-cellen (op naam) en de zwarte cellen. Plakken is een stempel die de muis volgt (mkPlak); een klik zet hem
+// neer, Escape stopt. Wat buiten het raster valt, blijft weg. ----
+let mkKlembord = null, mkPlak = null, mkGebiedDrag = null;
+function mkGebiedNorm(g){ return { c0:Math.min(g.c0, g.c1), c1:Math.max(g.c0, g.c1), r0:Math.min(g.r0, g.r1), r1:Math.max(g.r0, g.r1) }; }
+function mkInGebied(n, c, r){ return c >= n.c0 && c <= n.c1 && r >= n.r0 && r <= n.r1; }
+function mkKopieer(){
+  if (!MK.gebied) return;
+  const n = mkGebiedNorm(MK.gebied), w = n.c1 - n.c0 + 1, h = n.r1 - n.r0 + 1;
+  const cells = []; for (let r = n.r0; r <= n.r1; r++){ const rij = []; for (let c = n.c0; c <= n.c1; c++) rij.push(MK.grid[r][c]); cells.push(rij); }
+  const binnen = MK.objects.filter(o => mkInGebied(n, o.c, o.r));
+  const objects = binnen.map(o => {
+    const b = { ...o, dc:o.c - n.c0, dr:o.r - n.r0 }; delete b.c; delete b.r; delete b.plat; delete b._plat;
+    if (o.params) b.params = { ...o.params };
+    b.doel = (o.doel && mkInGebied(n, o.doel.c, o.doel.r)) ? { dc:o.doel.c - n.c0, dr:o.doel.r - n.r0 } : null;
+    if (o.k === 'tandwiel' && o.plat && binnen.indexOf(o.plat) >= 0) b.platRel = { dc:o.plat.c - n.c0, dr:o.plat.r - n.r0 };
+    return b;
+  });
+  const mask = []; for (const m of MK.maskers) for (const p of m.cells) if (mkInGebied(n, p.c, p.r)) mask.push({ dc:p.c - n.c0, dr:p.r - n.r0, id:m.id });
+  const zwart = MK.zwart.filter(p => mkInGebied(n, p.c, p.r)).map(p => ({ dc:p.c - n.c0, dr:p.r - n.r0 }));
+  mkKlembord = { w, h, cells, objects, mask, zwart };
+  mkNotePaneel();
+}
+function mkGebiedWis(){                   // het gebied leegmaken: cellen lucht, voorwerpen, masker-cellen en zwarte cellen eruit
+  if (!MK.gebied) return;
+  const n = mkGebiedNorm(MK.gebied);
+  for (let r = n.r0; r <= n.r1; r++) for (let c = n.c0; c <= n.c1; c++) MK.grid[r][c] = 'lucht';
+  MK.objects = MK.objects.filter(o => !mkInGebied(n, o.c, o.r));
+  if (MK.sel && MK.objects.indexOf(MK.sel) < 0) MK.sel = null;
+  for (const m of MK.maskers) m.cells = m.cells.filter(p => !mkInGebied(n, p.c, p.r));
+  MK.zwart = MK.zwart.filter(p => !mkInGebied(n, p.c, p.r));
+  mkNotePaneel(); mkTeken(); mkBewaar();
+}
+function mkKnip(){ if (!MK.gebied) return; mkKopieer(); mkGebiedWis(); }
+function mkSpiegel(){                     // het klembord spiegelen: links wordt rechts
+  const k = mkKlembord; if (!k) return;
+  k.cells = k.cells.map(rij => rij.slice().reverse());
+  const f = dc => k.w - 1 - dc;
+  for (const o of k.objects){ o.dc = f(o.dc); if (o.doel) o.doel.dc = f(o.doel.dc); if (o.platRel) o.platRel.dc = f(o.platRel.dc);
+    if (o.k === 'richel') o.f = !o.f;                                   // een richel wijst de andere kant op
+    if (o.k === 'platform' && o.stamZij) o.stamZij = -o.stamZij; }    // de paal aan de andere kant
+  for (const p of k.mask) p.dc = f(p.dc);
+  for (const p of k.zwart) p.dc = f(p.dc);
+  mkTeken();
+}
+function mkPlakStart(){ if (!mkKlembord) return; MK.tool = 'select'; mkLegenda(); mkPlak = mkPlak || { c:0, r:0 }; mkTeken(); }
+function mkPlakZet(){                     // de stempel neerzetten op mkPlak (linkerbovenhoek)
+  const k = mkKlembord, p = mkPlak; if (!k || !p) return;
+  const in_ = (c, r) => c >= 0 && r >= 0 && c < MK.cols && r < MK.rows;
+  for (let r = 0; r < k.h; r++) for (let c = 0; c < k.w; c++) if (in_(p.c + c, p.r + r)) MK.grid[p.r + r][p.c + c] = k.cells[r][c];
+  const nieuw = [];
+  for (const o of k.objects){
+    const c = p.c + o.dc, r = p.r + o.dr; if (!in_(c, r)) continue;
+    const b = { ...o, c, r }; delete b.dc; delete b.dr; delete b.platRel;
+    if (o.params) b.params = { ...o.params };
+    b.doel = (o.doel && in_(p.c + o.doel.dc, p.r + o.doel.dr)) ? { c:p.c + o.doel.dc, r:p.r + o.doel.dr } : null;
+    if (o.k !== 'platform') delete b.doel;
+    nieuw.push(b); MK.objects.push(b);
+    if (o.k === 'tandwiel' && o.platRel) b._platRel = o.platRel;
+  }
+  for (const w of nieuw) if (w._platRel){ const q = nieuw.find(o => o.k === 'platform' && o.c === p.c + w._platRel.dc && o.r === p.r + w._platRel.dr); if (q) w.plat = q; delete w._platRel; }
+  for (const m of k.mask){ const c = p.c + m.dc, r = p.r + m.dr; if (!in_(c, r)) continue; const had = mkMaskInCel(c, r); if (had) had.m.cells.splice(had.i, 1); mkMaskObj(m.id).cells.push({ c, r }); }
+  for (const z of k.zwart){ const c = p.c + z.dc, r = p.r + z.dr; if (in_(c, r) && mkZwartIdx(c, r) < 0) MK.zwart.push({ c, r }); }
+  MK.gebied = { c0:p.c, r0:p.r, c1:Math.min(MK.cols - 1, p.c + k.w - 1), r1:Math.min(MK.rows - 1, p.r + k.h - 1) };   // het geplakte stuk is nu het gebied
+  mkPlak = null; mkNotePaneel(); mkTeken(); mkBewaar();
+}
 mkCanvas.addEventListener('pointerdown', ev => {
   mkMenuSluit();
   if (mkBewaarTimer) mkBewaarNu();                     // de vorige wijziging eerst als eigen stap vastleggen (ongedaan maken per gebaar)
@@ -33565,6 +33662,11 @@ mkCanvas.addEventListener('pointerdown', ev => {
   if (ev.button === 2 || ev.button === 1 || mkSpace){ mkPan = true; mkPanX = ev.clientX; mkPanY = ev.clientY; }
   else { const vg = mkVormGrijp(ev); if (vg){ mkVormDrag = vg; return; }   // een vrije vorm pakken gaat voor
     const hs = mkStamHandleOp(ev); if (hs){ mkStamDrag = hs; return; }   // een paal-handvat slepen gaat voor
+    if (mkPlak && ev.button === 0){ mkPlak = mkCelOp(ev); mkPlakZet(); return; }   // de stempel neerzetten
+    if (ev.shiftKey && MK.tool === 'select'){            // Shift+slepen in Selecteren: een gebied kiezen
+      const { c, r } = mkCelOp(ev); const cc = Math.max(0, Math.min(MK.cols - 1, c)), rr = Math.max(0, Math.min(MK.rows - 1, r));
+      mkGebiedDrag = true; MK.gebied = { c0:cc, r0:rr, c1:cc, r1:rr }; MK.sel = null; MK.selVorm = null; MK.selMask = null; mkNotePaneel(); mkTeken(); return;
+    }
     if (ev.shiftKey && mkIsStreek(MK.tool)){             // Shift+slepen: een rechthoek vullen in plaats van een streek
       const { c, r } = mkCelOp(ev);
       if (MK.tool === 'masker'){ const had = mkMaskInCel(c, r); mkMaskErase = !!(had && had.m.id === MK.maskId); }
@@ -33589,6 +33691,9 @@ mkCanvas.addEventListener('pointermove', ev => {
     if (mkStamDrag.end === 'top') o.stamCel = Math.max(mkPlatHoogCel(o) + 1, Math.min(MK.rows, cells));   // de pen blijft boven de hoogste plateaustand
     else o.stamBotCel = Math.max(MK.ground - MK.rows, Math.min(mkStamTopCel(o) - 1, cells));                // de voet mag onder de grond (negatief), tot de bodem van het grid, en blijft onder de pen
     mkNotePaneel(); mkTeken(); }
+  else if (mkPlak){ mkPlak = mkCelOp(ev); mkTeken(); }   // de stempel volgt de muis
+  else if (mkGebiedDrag){ const { c, r } = mkCelOp(ev);   // het gebied meetrekken (binnen het raster)
+    MK.gebied.c1 = Math.max(0, Math.min(MK.cols - 1, c)); MK.gebied.r1 = Math.max(0, Math.min(MK.rows - 1, r)); mkNotePaneel(); mkTeken(); }
   else if (mkRect){ const { c, r } = mkCelOp(ev);   // de rechthoek meetrekken (binnen het raster)
     mkRect.c1 = Math.max(0, Math.min(MK.cols - 1, c)); mkRect.r1 = Math.max(0, Math.min(MK.rows - 1, r)); mkTeken(); }
   else if (mkDrag){ const { c, r } = mkCelOp(ev);   // een geselecteerd voorwerp verslepen naar een andere cel
@@ -33596,6 +33701,7 @@ mkCanvas.addEventListener('pointermove', ev => {
   else if (mkPaint && mkIsStreek(MK.tool)) mkVerf(ev);   // slepen schildert grond, masker-cellen (ook wissen), of zwarte cellen, niet objecten of start/eind
 });
 function mkStop(){ mkPaint = false; mkPan = false; mkVerfVorig = null;
+  if (mkGebiedDrag){ mkGebiedDrag = null; MK.inspectDicht = false; mkNotePaneel(); mkTeken(); }
   if (mkRect){                                         // de rechthoek vullen: elke cel erin krijgt het gereedschap (of het masker, of de zwarte cel)
     const c0 = Math.min(mkRect.c0, mkRect.c1), c1 = Math.max(mkRect.c0, mkRect.c1), r0 = Math.min(mkRect.r0, mkRect.r1), r1 = Math.max(mkRect.r0, mkRect.r1);
     for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) mkVerfCel(c, r);
@@ -33615,9 +33721,10 @@ mkCanvas.addEventListener('wheel', ev => {
 // spatie ingedrukt = schuiven in plaats van schilderen (alleen in de Maker, buiten de tekstvakken)
 addEventListener('keydown', ev => {
   if (!makerOpen) return;
+  if (mkBewaarTimer && !/^(INPUT|TEXTAREA|SELECT)$/.test((ev.target || {}).tagName)) mkBewaarNu();   // een toets-actie begint als eigen stap (zie mkBewaar)
   if (ev.key === 'Escape'){   // deselecteren en naar de selecteer-modus, ook vanuit een plaats-modus of het tekstvak
     if (ev.target && ev.target.blur) ev.target.blur();
-    MK.tool = 'select'; MK.sel = null; mkDoelMode = false; mkLegenda(); mkNotePaneel(); mkTeken(); ev.preventDefault(); return;
+    MK.tool = 'select'; MK.sel = null; MK.gebied = null; mkPlak = null; mkDoelMode = false; mkLegenda(); mkNotePaneel(); mkTeken(); ev.preventDefault(); return;
   }
   if (/^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test((ev.target || {}).tagName)){   // in een veld of op een knop blijven de toetsen van het veld
     if (ev.target.tagName === 'BUTTON' && ev.code === 'Space') return;         // spatie op een knop drukt de knop in, geen schuif-modus
@@ -33628,8 +33735,13 @@ addEventListener('keydown', ev => {
     if (k === 'z' && !ev.shiftKey){ mkOngedaan(); ev.preventDefault(); return; }
     if (k === 'y' || (k === 'z' && ev.shiftKey)){ mkOpnieuw(); ev.preventDefault(); return; }
     if (k === 's'){ mkExport(); ev.preventDefault(); return; }
+    if (k === 'c' && MK.gebied){ mkKopieer(); ev.preventDefault(); return; }
+    if (k === 'x' && MK.gebied){ mkKnip(); ev.preventDefault(); return; }
+    if (k === 'v' && mkKlembord){ mkPlakStart(); ev.preventDefault(); return; }
     return;
   }
+  if ((ev.key === 'h' || ev.key === 'H') && mkKlembord){ mkSpiegel(); ev.preventDefault(); return; }   // H: het klembord spiegelen
+  if ((ev.key === 'Delete' || ev.key === 'Backspace') && MK.gebied && !MK.sel && !MK.selVorm){ mkGebiedWis(); ev.preventDefault(); return; }   // het gebied leegmaken
   if (ev.code === 'Space'){ mkSpace = true; ev.preventDefault(); return; }
   if (ev.key === 'f' || ev.key === 'F'){ mkPassend(); ev.preventDefault(); return; }                                  // F: de hele kaart in beeld
   if (ev.key === 't' || ev.key === 'T'){ mkTest(); ev.preventDefault(); return; }                                     // T: testen
@@ -33661,6 +33773,11 @@ document.getElementById('mkredo').onclick = mkOpnieuw;
 document.getElementById('mkcheck').onclick = mkControleToon;
 document.getElementById('mkcontrolesluit').onclick = () => document.getElementById('mkcontrole').classList.add('dicht');
 document.getElementById('mkspeljson').onclick = mkSpelExport;
+document.getElementById('mkgebiedkopie').onclick = mkKopieer;
+document.getElementById('mkgebiedknip').onclick = mkKnip;
+document.getElementById('mkgebiedplak').onclick = mkPlakStart;
+document.getElementById('mkgebiedspiegel').onclick = mkSpiegel;
+document.getElementById('mkgebiedwis').onclick = mkGebiedWis;
 document.getElementById('mkexport').onclick = mkExport;
 document.getElementById('mkcopy').onclick = mkExport;
 document.getElementById('mkdl').onclick = mkDownload;
