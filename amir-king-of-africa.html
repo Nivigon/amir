@@ -8414,7 +8414,7 @@ function zegelVeegUpdate(z, dt, rPx, vloer, scale){
   z.vegen = { t: 0, dir: Math.sign(z.x - world) || -1, soort: eigen ? z.veeg : S.veeg, sc: scale,
              duur: z.veegDuur > 0 ? z.veegDuur : (eigen ? 0 : S.duur), maat: z.veegMaat > 0 ? z.veegMaat : (eigen ? 1 : S.maat) };
   hitstop = Math.max(hitstop, V.stop);
-  if (typeof houtRaakSnd !== 'undefined') banStemSpeel(houtRaakSnd, .55);
+  if (typeof houtRaak === 'function') houtRaak(1, .3);   // de houten tik (het bestand staat nu 5,5 dB harder, dus zachter dan vroeger de .55)
 }
 // het geluid bij het ontwaken; voorlopig de misser van de kooiman, vervang het bestand gerust
 const zegelOntdekSnd = banStemmen('sounds/zegelontdek.mp3', 2);
@@ -25585,9 +25585,24 @@ function schbLand(s, scale){
 const schbGromSnd = banStemmen('sounds/schildgrom.mp3', 2);   // de dreigende grom als hij in beeld komt (een paar stemmen, mobiel-ontgrendeld)
 function schbGrom(){ banStemSpeel(schbGromSnd, 0.95); }
 // de houtklap als Amirs speer hout raakt (nu het schild van de schildbandiet). Eigen stemmen zodat
-// snelle treffers elkaar niet afsnijden. Hij start een fractie later (HOUT_START) zodat de korte
+// snelle treffers elkaar niet afsnijden. Hij start een fractie later (HOUT.start) zodat de korte
 // stilte vooraan eraf gaat en de klap meteen op de treffer valt.
+// De klap is de beloning van het gevecht, dus hij hoort harder en scherper te zijn dan de stoot die
+// eraan voorafgaat (de zwaai is aanloop, de treffer is het loon). Daarom: het bestand staat op -1 dB
+// (genormaliseerd, het zat 6 dB onder de stoot en verdronk erin), Amirs stoot duikt op de treffer weg
+// (duik), elke volgende klap op het schild klinkt een slag lager en zwaarder (toon, per schild dat er
+// na de klap nog over is), de breuk is een dubbele klap (breek, de tweede een fractie erachter) en het
+// afketsen als hij zich dekt klinkt hoger en droger (kets), zodat je hoort dat die treffer niet telde.
+// Een beetje willekeur in de toon (wiebel) tegen het mitrailleurgevoel bij snelle treffers.
 const houtRaakSnd = banStemmen('sounds/houtraak.mp3', 3);
+const HOUT = {
+  start: 0.03, vol: 1,
+  toon: { 2: 1, 1: 0.93, 0: 0.86 },      // afspeelsnelheid per schild dat er na de klap nog over is
+  breek: { na: 0.07, toon: 0.8, vol: 0.9 },   // de tweede klap van de breuk: zoveel seconden later, lager
+  kets: { toon: 1.25, vol: 0.6 },        // de speer ketst af op het schild (hij dekt zich)
+  wiebel: 0.05,                          // plus of min zoveel in de toon, willekeurig
+  duik: 0.3,                             // het volume waar Amirs stoot naartoe duikt op de treffer
+};
 // de klap als hij landt: hetzelfde geluid als Amirs speerstoot (niet de houtklap), met eigen stemmen
 // zodat het Amirs eigen stoot niet afsnijdt; verder weg zachter, zoals de kooislag (KOOI_HIT).
 const schbLandSnd = banStemmen('music/spearthrust.mp3', 2);
@@ -25595,13 +25610,20 @@ function schbLandGeluid(wx){
   const af = Math.max(KOOI_HIT.min, 1 - Math.abs(wx - playerX()) / (KOOI_HIT.ver * W));
   banStemSpeel(schbLandSnd, Math.min(1, SCHB.landVol * af));
 }
-const HOUT_START = 0.03, HOUT_VOL = 0.9;
-function houtRaak(){
+function houtRaak(toon = 1, vol = HOUT.vol){
   if (!wantSound) return;
   const k = houtRaakSnd, a = k.pool[k.beurt++ % k.pool.length];
-  try { a.currentTime = HOUT_START; } catch (e) {}
-  a.volume = HOUT_VOL;
+  try { a.currentTime = HOUT.start; } catch (e) {}
+  a.volume = vol;
+  a.playbackRate = toon * (1 + (Math.random() * 2 - 1) * HOUT.wiebel);
+  a.preservesPitch = a.mozPreservesPitch = a.webkitPreservesPitch = false;   // lager is zwaarder, hoger is droger
   a.play().catch(() => {});
+}
+// Amirs stoot duikt weg voor de klap: zo staat de treffer alleen. Elke nieuwe stoot zet zijn volume
+// zelf weer terug (overal waar #thrust speelt staat t.volume erbij), dus dit blijft niet hangen.
+function houtDuik(){
+  const t = document.getElementById('thrust');
+  if (t && !t.paused) t.volume = Math.min(t.volume, HOUT.duik);
 }
 const schildmannen = [];
 function makeSchildman(x, side, niveau, lagen){
@@ -25728,7 +25750,7 @@ function hitSchildman(s){
   if (s.state === 'dood' || s.state === 'weg' || s.inv > 0) return false;
   if (schbOnaantastbaar(s)) return false;                 // in de sprong is hij onaantastbaar
   if (s.state === 'flinch' && s.frame >= SCHB.dekVan && s.metSchild){   // hij dekt zich: de speer ketst af op het schild
-    s.flash = Math.max(s.flash, 0.12); s.inv = SCHB.invHit; houtRaak(); schbSplinters(s, 2);
+    s.flash = Math.max(s.flash, 0.12); s.inv = SCHB.invHit; houtRaak(HOUT.kets.toon, HOUT.kets.vol); schbSplinters(s, 2);
     return false;
   }
   hits++; hitsEl.textContent = hits;
@@ -25737,7 +25759,9 @@ function hitSchildman(s){
   if (s.schild > 0){                                      // het schild vangt de treffer op
     s.schild--;
     s.flash = 0.3; s.inv = SCHB.invHit;
-    houtRaak();                                           // speer op hout: de houtklap
+    houtDuik();                                           // de stoot duikt weg voor de klap
+    houtRaak(HOUT.toon[s.schild] ?? 1);                   // speer op hout: de houtklap, elke volgende een slag lager
+    if (s.schild === 0) setTimeout(() => houtRaak(HOUT.breek.toon, HOUT.breek.vol), HOUT.breek.na * 1000);   // de breuk: een dubbele klap
     schbSplinters(s, SCHB.perTreffer);
     hitstop = Math.max(hitstop, s.schild === 0 ? SCHB.breekStop : SCHB.raakStop);   // de klap voelen
     shake = Math.max(shake, s.schild === 0 ? 0.22 : 0.12);
