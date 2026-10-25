@@ -16,7 +16,7 @@ kant (`sbFromRight`), altijd geklemd tussen `endWall()` en `cliffAt().wall`.
 
 De knop Sandbox in het menu opent eerst een keuzescherm (`menuSandbox`): de vrije sandbox
 (`startSandbox(false)`) of de arena-modus (`startSandbox(true)`, vlag `sbArena`). De arena is de
-gewone sandbox met drie verschillen: het veld, de levens en de spawner.
+gewone sandbox met vier verschillen: het veld, de levens, de spawner en het paneel (de wizard, zie hieronder).
 
 Het veld (`sbArenaVeld`, uit `restart` zodra `sbArena` aan staat, voor `sbArenaReset`) is de arena van de
 koning (Valse Koning 8, `bandArenaStart`) na de aankomst, maar zonder takel: Amir begint meteen midden op
@@ -56,7 +56,7 @@ de goudaap-arena) is `arenaRuimte()` 0 en verandert er niets: de camera staat st
 rand; voor Valse Koning 8 was die tweede klem toch al ruimer dan de eerste.
 
 De arena-modus geeft Amir altijd 1 reservespeer op de rug (`startSandbox`: `RUG_MAX = sbArena ? 1 : 0`, zoals
-Valse Koning 8); `restart` vult de rug, en de knop Rug onder Speer en spullen zet het anders. Daarnaast twee wandfakkels
+Valse Koning 8); `restart` vult de rug, en de knop Rug (in de wizard, pagina 2) zet het anders. Daarnaast twee wandfakkels
 (`level.fakkels`, gezet in `sbArenaMaat`, gemerkt `arena: true` zodat een fakkel uit de knop Decor, Fakkel
 blijft staan): een aan elke rotswand onder de richel, `fakkelX` Amir buiten de wandlijn (daar staat de rots)
 op hoogte `fakkelY`; ze laden lui via de tekenlus (`fakkelLaad`).
@@ -66,7 +66,8 @@ Omdat de camera vast staat rekent "net buiten beeld" en "in beeld" om het arena-
 `slangInBeeld`. Buiten een vaste arena verandert daar niets.
 
 Klappen kosten levens (`hurtPlayer` slaat de sandbox-uitzondering
-over als `sbArena` aan staat, en het levens-element staat aan) en er loopt een spawner. Die zit in de
+over als `sbArena` aan staat, en het levens-element staat aan; ook de beet van de fosforslang, `fosforBijt`), tenzij
+Onsterfelijk aan staat (zie hieronder), en er loopt een spawner. Die zit in de
 sectie "arena-modus: golven vijanden in de sandbox", naar het voorbeeld van de bandietgolf
 (`updateBandietGolf`): `SB_ARENA_SOORTEN` is de lijst soorten met hun standaardwaarden, `sbArenaCfg`
 de instellingen (`aan`, `ramp`, `kant`, en per soort `aan`, `van`, `tot`, `max` en de aflopende klok `t`).
@@ -111,11 +112,11 @@ stap en de kop erboven) en verbergt de +1 (bij start) in de golven; de rij met O
 die met Rust, Tussen en Tegelijk bij de golven (`#sbarenastroomrij`, `#sbarenagolfrij`), en de hint
 (`#sbarenahint`, `SB_ARENA_HINT`) legt de modus uit.
 
-Het tabblad Arena (`data-cat="arena"`, knop `#sbarenatab`) staat alleen in de arena-modus aan; de
-rijen per soort bouwt de code zelf in `#sbarenalijst` (een knop plus drie `<input type=number>`). De
-invoervelden geven na een wijziging de focus terug aan het canvas (`typing` in de toetsafhandeling
-laat de toetsen in een invoerveld toch al met rust). In de vrije sandbox opent het paneel niet op het
-onthouden tabblad Arena (`sbCat('vijanden')`).
+De rijen per soort bouwt de code zelf in `#sbarenalijst` (een knop plus drie `<input type=number>`), in het
+tabblad Arena (`data-cat="arena"`); dat tabblad en zijn knop `#sbarenatab` blijven altijd verborgen, want in de
+arena-modus staat alles in de wizard. De invoervelden geven na een wijziging de focus terug aan het canvas (`typing`
+in de toetsafhandeling laat de toetsen in een invoerveld toch al met rust). In de vrije sandbox opent het paneel niet
+op een onthouden tabblad Arena (`sbCat('vijanden')`).
 
 De sandbox begint op `sbView = 0.8` (de knop Licht onder Beeld en geluid staat dan aan), zoals een nieuw
 level. De testbalk met schuifjes (`#bar`) begint in de sandbox ingeklapt; het pijltje `#barpijl` onderin
@@ -127,7 +128,62 @@ AI uit, Dood (de gewone dood, Dood laag: `schbSterf(s, 'steek')`), en voor de ex
 dan in de val), en **Steek-kill** en **Worp-kill** (`sbExeNu`, de eerste levende schildbandiet meteen zo doden).
 
 De grote Start-knop midden in beeld (`#arenastart`, `sbArenaSchermBtn`) staat aan zolang de arena-modus
-aan is, de golven niet lopen en Amir niet dood is (`sbArenaToon`); hij roept `sbArenaStart(true)`, die ook
-het paneel dichtklapt (`sbKlap(true)`). Per soort is er `bij` (`+1` in de rij, `data-arenabij`): bij Start,
+aan is, de golven niet lopen, Amir niet dood is en de wizard dicht is (`sbArenaToon`); hij roept `sbArenaStart(true)`. Per soort is er `bij` (`+1` in de rij, `data-arenabij`): bij Start,
 en na R via `sbArenaReset` als de golven nog aan staan, komt er meteen een van die soort (`sbArenaSpawn`)
 en begint zijn klok op `van`, ook als de soort zelf uit staat.
+
+### De wizard: de opzet van de arena
+
+In de arena-modus is het oude paneel met de tabbladen weg. `#sandbox` krijgt de klasse `arena` (de CSS verbergt
+dan al zijn kinderen behalve `#arenawiz` en maakt het een laag over het hele beeld), en `on` staat alleen aan
+zolang de wizard open is (`sbWiz.open`). Het paneel is halfdoorzichtig (de arena schemert erdoor) met een rand van
+rots (lagen gradient op `border-box`) en een warme goudgloed (`box-shadow`); `body.touch` en `max-height: 430px`
+maken het krapper voor een liggende telefoon (852x393).
+
+Drie stappen (`sbWiz.pagina`, `.awpagina[data-pagina]`, de stappenrij `.awstappen`): **1 Monsters**, **2 Arena en
+regels**, en **3 Klaar**, dat is de wizard dicht met de grote Start. Verder en Terug lopen erdoor (`sbWizToon`).
+
+De knoppen zijn de bestaande elementen, niet dubbel gebouwd: `SB_WIZ_PLAATS` zegt per element (of met `true` zijn
+hele `.row`) naar welk vak (`data-wiz`) in de wizard het gaat. `sbWizInrichten` (in `startSandbox(true)`) zet een
+commentaar op de oude plek en verhuist het element; `sbWizOpruimen` (in `startSandbox(false)` en `stopSandbox`) zet
+alles terug. De handlers blijven dezelfde, en omdat de wizard binnen `#sandbox` staat vinden de `sandboxEl.querySelectorAll`
+van de Toon-functies (view, lagen, weer, muziek) ze nog. De vrije sandbox ziet dus precies het oude paneel.
+Pagina 1: `#sbarenamodus`, `#sbarenakant`, de hint, `#sbarenastroomrij`, `#sbarenagolfrij`, `#sbarenalijst`, en per
+soort het gedrag uit Vijanden (bandiet: AI, dolk, vault, elite, duin, bloed, spuit; slangen: klimmen; schildbandiet:
+AI, executie, wankel; meelman en kooiman: AI, vogel, duel; allemaal: health-balk, zicht). Pagina 2: de kaartjes met
+de arena's (`SB_ARENA_PLEKKEN`, nu alleen `koning`; `sbArenaCfg.veld`), Onsterfelijk (`#awonst`), Kalebassen
+(`#awkal`, `#awkalelke`), Ruimte, en uit Speer en spullen en Beeld en geluid: worp, rug, renstoot, lage zwaai, de
+drie tribe-rijen, uitzoomen, tijd van de dag, weer en muziek. Onderin Opnieuw en Terug naar menu.
+
+Openen: `sbWizOpen(1)` bij de start van de arena-modus, met **Esc** (de toetsafhandeling kiest in de arena-modus de
+wizard in plaats van het pauzemenu, tenzij dat al open is) of het knopje `#arenaopzet` linksboven (`sbArenaOpzetBtn`,
+aan zolang de wizard dicht is). Open zet `paused` (de spawner, de afteller en de klok staan dan stil) en onthoudt de
+opzet (`sbWizOpzet`: modus, arena en per soort aan en +1). `sbWizSluit` haalt de pauze weg en roept `restart()` (zoals
+R) als er een potje liep en de opzet veranderde; anders gaat het verder waar het was. De focus gaat dan van de wizard
+af, zodat de toetsen weer naar het spel gaan.
+
+Onthouden: `sbArenaBewaar` schrijft bij elke klik of wijziging in de wizard (en bij sluiten) `amir.arenaCfg` in
+`localStorage`: de eigen waarden van de arena (modus, ramp, kant, golf, per soort, veld, onst, kal, Ruimte) en van
+elke verhuisde knop zijn tekst en `on` (`sbWizKnoppen`, zonder de doe-knoppen in `SB_WIZ_DOE`). `sbArenaLaadCfg` (in
+`startSandbox(true)`, na de standaardwaarden) zet de waarden terug en klikt de knoppen tot tekst en `on` kloppen; een
+knop uit een groep (`data-rug`, `data-view`, ...) alleen als hij aan stond. `flashHint` is dan even stil.
+
+### Onsterfelijk
+
+`sbArenaCfg.onst`, standaard aan, de knop `#awonst`. Het is niet `godMode` (die laat de klap helemaal niet landen):
+`onsterfelijk()` geeft in de sandbox `sbArena && sbArenaCfg.onst`, en `hurtPlayer` en `fosforBijt` trekken dan geen
+leven af (en Feign Death vangt niets), maar de schrik, de knockback, `invuln`, `shake` en het raakgeluid blijven.
+`woedeGloed` geeft zolang hij aan staat dezelfde vlam als de woede van Blood Rush, zodat Amir gloeit. `onstOoit`
+(gezet in `sbArenaUpdate` zodra hij aan staat terwijl een potje loopt, op nul in `sbArenaReset`) houdt het potje
+buiten de records: `sbArenaDood` en `sbGolfVolgende` werken `amir.arenaBest` en `amir.arenaBestGolf` dan niet bij, en
+`sbArenaHudTeken` zet de beste tijd grijs met "(onsterfelijk, telt niet)".
+
+### Kalebassen
+
+`sbArenaCfg.kal = { aan, golven, stroom }`: elke zoveel golven (de golven) of seconden (de stroom), een getal per
+modus in hetzelfde invoerveld. `sbKalStap` telt (de stroom in `sbArenaUpdate` met `dt`, de golven met 1 als een golf
+verslagen is in `sbGolfUpdate`) en zet `kalKlaar`. `sbKalLijken` ziet elke beeld wie net gestorven is (een vijand die
+`sbLeeft` was en nu niet meer, gemerkt met `o.sbLeeft`) en laat bij `kalKlaar` de gewone drinkkalebas vallen op zijn
+plek (`dropHppotion`, geklemd in beeld), waarna de teller opnieuw begint. Ook met Onsterfelijk aan. `sbArenaReset`
+(R) zet de teller terug; `restart` ruimt de liggende kalebassen op (`resetHppotions`). De teller zegt "Kalebas bij de
+volgende" zolang er een klaarligt.
