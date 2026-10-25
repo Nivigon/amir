@@ -1,8 +1,9 @@
 # Stenen bogen (Amir, King of Africa)
 
 Gemetselde bogen met een donkere opening, bedoeld als de poorten waar vijanden in een
-arena uit komen (het idee: drie poorten, waarvan een of twee op een richel). Nog nergens
-in het spel gebruikt.
+arena uit komen (het idee: drie poorten, waarvan een of twee op een richel). In het spel
+zijn het de stenen poorten (het levelveld `poorten`, zie `notities/poort.md`): in de Maker
+onder Objecten en in de sandbox onder Decor; nog geen echt level gebruikt ze.
 
 De opening is ingevuld zoals de opening van de deur (`design/deur/deur_open.png`): van
 boven naar onder donkerbruin dat iets oploopt, links iets lichter dan rechts, een

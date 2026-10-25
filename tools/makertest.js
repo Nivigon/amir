@@ -73,6 +73,7 @@ async function start(){
 //    een verborgen zegel met masker dat ook een rijzer stuurt, een rune, een kalebas, een prop
 //  - een tweede ravijn (kolom 11 en 12) met een rijzer van 2 breed erin, drie cellen diep, die tot de grondlijn komt
 //  - een masker (Verborgen1) van twee cellen, een zwarte cel, en een vrije blokvorm
+//  - een gespiegelde stenen poort (kolom 16) met twee schorpioenen erin, die de rune opent
 function proefGrid(){
   const rijen = [];
   for (let r = 0; r < 12; r++) rijen.push('.'.repeat(24).split(''));
@@ -101,7 +102,8 @@ function proefGrid(){
       { c: 3, r: 5, k: 'richel', s: 0.5, f: true, dx: 10, dy: -5, look: 'sneeuw', note: '' },
       { c: 15, r: 6, k: 'zegel', masker: 'Verborgen1', verstop: true, rijzer: { c: 11, r: 10 }, note: '' },
       { c: 11, r: 10, k: 'rijzer', doel: { c: 11, r: 7 }, breed: 2, v: 300, wacht: 0, duur: 0, note: '' },
-      { c: 18, r: 6, k: 'rune', masker: 'Verborgen1', note: '' },
+      { c: 18, r: 6, k: 'rune', masker: 'Verborgen1', poort: { c: 16, r: 6 }, note: '' },
+      { c: 16, r: 6, k: 'poort', boog: 'boog_steen', f: true, vijand: 'scorp', n: 2, note: '' },
       { c: 19, r: 5, k: 'hppotion', note: '' },
       { c: 1, r: 6, k: 'prop', note: 'een boom' },
     ],
@@ -174,6 +176,8 @@ function verschil(a, b, pad = ''){
     const rz = a.objecten.find(o => o.k === 'rijzer'); if (!rz || !rz.doel || rz.doel.r !== 7 || rz.breed !== 2) uit.push('rijzer verloor zijn doel of breedte');
     if (!zegel || !zegel.rijzer || zegel.rijzer.c !== 11 || zegel.rijzer.r !== 10) uit.push('zegel verloor zijn rijzer');
     const vij = a.objecten.find(o => o.k === 'vijand' && o.soort === 'groen'); if (!vij || !vij.params || vij.params.speed !== 2) uit.push('vijand verloor zijn snelheid');
+    const pt = a.objecten.find(o => o.k === 'poort'); if (!pt || pt.boog !== 'boog_steen' || !pt.f || pt.vijand !== 'scorp' || pt.n !== 2) uit.push('poort verloor zijn boog, spiegeling of vijanden: ' + JSON.stringify(pt));
+    const ru = a.objecten.find(o => o.k === 'rune'); if (!ru || !ru.poort || ru.poort.c !== 16 || ru.poort.r !== 6) uit.push('rune verloor zijn poort');
     return uit;
   });
 
@@ -201,6 +205,13 @@ function verschil(a, b, pad = ''){
     if (!sp.find(s => s.k === 'bandiet' && s.dolk)) uit.push('geen bandiet met dolk');
     if (!(lv.zegels || []).find(z => z.verstop && z.stuurt && z.stuurt[0] === 'Verborgen1')) uit.push('geen verborgen zegel aan het masker');
     if (!(lv.runes || []).length) uit.push('geen rune');
+    const pt = (lv.poorten || [])[0];
+    if (!pt || pt.id !== 'b1' || pt.k !== 'boog_steen' || !pt.f || pt.y !== undefined) uit.push('geen gespiegelde poort b1 op de grond: ' + JSON.stringify(lv.poorten));
+    else {
+      const uitP = sp.filter(s => s.poort === 'b1');
+      if (uitP.length !== 2 || uitP.some(s => s.k !== 'scorp' || s.x !== pt.x)) uit.push('niet twee schorpioenen in poort b1: ' + JSON.stringify(uitP));
+      if (!(lv.runes || []).some(r => r.poort === 'b1')) uit.push('geen rune die poort b1 opent: ' + JSON.stringify(lv.runes));
+    }
     if (!(lv.maskers || []).length) uit.push('geen masker');
     if (!(lv.ledges || []).length) uit.push('geen richel');
     else if (lv.ledges[0].look !== 'sneeuw') uit.push('de richel heeft zijn kleur (sneeuw) niet mee: ' + JSON.stringify(lv.ledges[0]));
@@ -336,14 +347,14 @@ function verschil(a, b, pad = ''){
     if (na.cel !== 'lucht rots rots lucht') uit.push('geplakte cellen: ' + na.cel);
     if (na.obj !== 'richel@17,1|vijand@14,2') uit.push('geplakte voorwerpen: ' + na.obj);
     if (na.plak) uit.push('de stempel bleef hangen na het neerzetten');
-    if (na.n !== 13) uit.push('aantal voorwerpen na plakken: ' + na.n + ' in plaats van 13');
+    if (na.n !== 14) uit.push('aantal voorwerpen na plakken: ' + na.n + ' in plaats van 14');
     // knippen: het gebied is nu het geplakte stuk; Ctrl+X maakt het leeg
     await page.keyboard.press('Control+x');
     const leeg = await page.evaluate(() => ({ cel: MK.grid[2].slice(14, 18).join(' '), n: MK.objects.length }));
-    if (leeg.cel !== 'lucht lucht lucht lucht' || leeg.n !== 11) uit.push('na knippen: ' + JSON.stringify(leeg));
+    if (leeg.cel !== 'lucht lucht lucht lucht' || leeg.n !== 12) uit.push('na knippen: ' + JSON.stringify(leeg));
     await page.keyboard.press('Control+z');
     const terug = await page.evaluate(() => MK.objects.length);
-    if (terug !== 13) uit.push('ongedaan maken na knippen: ' + terug + ' voorwerpen in plaats van 13');
+    if (terug !== 14) uit.push('ongedaan maken na knippen: ' + terug + ' voorwerpen in plaats van 14');
     return uit;
   });
 
@@ -464,6 +475,25 @@ function verschil(a, b, pad = ''){
     if (!r.plak.zegel || r.plak.rijzer !== 3 || !r.plak.gekoppeld) uit.push('na plakken: ' + JSON.stringify(r.plak));
     if (r.plak.cellen && (r.plak.cellen[0] !== 3 || r.plak.cellen[1] !== 4)) uit.push('de geplakte rijzer beslaat ' + r.plak.cellen + ' in plaats van 3,4');
     if (r.n !== 2 || r.rijs.join() !== 'r1,r2') uit.push('export na plakken: ' + r.n + ' rijzers, zegels sturen ' + r.rijs.join());
+    return uit;
+  });
+
+  // 5f. een poort met zijn rune kopiëren en spiegelen: de poort kijkt de andere kant op en de rune blijft hem openen
+  await check('poort: spiegelen en plakken houdt de koppeling met de rune heel', async () => {
+    await laad(proefGrid());
+    const r = await page.evaluate(() => {
+      MK.gebied = { c0: 16, r0: 6, c1: 18, r1: 6 }; mkKopieer(); mkSpiegel();
+      mkPlak = { c: 0, r: 0 }; mkPlakZet();
+      const pp = MK.objects.find(o => o.k === 'poort' && o.r === 0), pr = MK.objects.find(o => o.k === 'rune' && o.r === 0);
+      const lv = mkNaarLevel();
+      return { poort: pp && { c: pp.c, f: !!pp.f }, rune: pr && pr.c, gekoppeld: !!(pp && pr && mkPoortVan(pr) === pp),
+               ids: (lv.poorten || []).map(o => o.id), opent: (lv.runes || []).map(o => o.poort).filter(Boolean).sort(),
+               spawns: (lv.spawns || []).filter(s => s.poort).map(s => s.poort).sort() };
+    });
+    const uit = [];
+    if (!r.poort || r.poort.c !== 2 || r.poort.f) uit.push('de geplakte poort: ' + JSON.stringify(r.poort) + ' (verwacht kolom 2, niet gespiegeld)');
+    if (r.rune !== 0 || !r.gekoppeld) uit.push('de geplakte rune is niet aan de geplakte poort gekoppeld: ' + JSON.stringify(r));
+    if (r.ids.join() !== 'b1,b2' || r.opent.join() !== 'b1,b2' || r.spawns.join() !== 'b1,b1,b2,b2') uit.push('export na plakken: ' + JSON.stringify(r));
     return uit;
   });
 
