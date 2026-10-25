@@ -87,7 +87,10 @@ de maat staan.
 
 **De balk** loopt op een smal scherm over twee regels; de legenda, het podium en het paneel
 schuiven mee via `--balkh` (een ResizeObserver op `#mkbalk`). Vanaf 1560 px past alles op een
-regel, daaronder valt de titel weg.
+regel, daaronder valt de titel weg. De maat van het grid (Breed, Hoog, Grondlijn en de rijen erbij of eraf) staat niet
+in de balk maar in het **gridpaneel** (`#mkgridpaneel`, `mkGridPaneel`): een tabel bovenaan de linkerkolom die de knop
+**Grid** in de balk open- en dichtklapt. De velden houden hun ids (`mkcols`, `mkrows`, `mkground`, `mkrijboven*`,
+`mkrijonder*`), dus de afhandeling is dezelfde.
 
 ## Van grid naar level (`mkNaarLevel`)
 
