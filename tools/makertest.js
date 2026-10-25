@@ -580,6 +580,11 @@ function verschil(a, b, pad = ''){
     else if (b2.bij !== b2.x - 2 * 175) uit.push('regiepunt: bij ' + b2.bij + ', verwacht ' + (b2.x - 2 * 175));
     if (b1 && (b1.hek || b1.regie || b1.wand || b1.s)) uit.push('poort b1 kreeg velden die hij niet heeft: ' + JSON.stringify(b1));
     if (r.spawns.length !== 1 || r.spawns[0].k !== 'schildman') uit.push('geen schildbandiet in poort b2: ' + JSON.stringify(r.spawns));
+    // alleen poortvijanden: dan geen standaard-slang achter het eind erbij (die is er alleen tegen de vrije slangen van een level zonder spawn)
+    const alleenPoort = await page.evaluate(() => { const was = MK.objects; MK.objects = was.filter(o => o.k !== 'vijand'); const lv = mkNaarLevel(); MK.objects = was;
+      const leeg = was.filter(o => o.k !== 'vijand' && o.k !== 'poort'); MK.objects = leeg; const lv0 = mkNaarLevel(); MK.objects = was; return { los: lv.spawns.filter(s => !s.poort), leeg: lv0.spawns }; });
+    if (alleenPoort.los.length) uit.push('een level met alleen poortvijanden kreeg losse spawns: ' + JSON.stringify(alleenPoort.los));
+    if (alleenPoort.leeg.length !== 1) uit.push('een level zonder enige vijand hoort een standaard-slang te krijgen: ' + JSON.stringify(alleenPoort.leeg));
     if (r.meld.some(m => /letop|fout/i.test(m))) uit.push('de controle meldt de poort met regie: ' + r.meld.join(' | '));
     // spiegelen en plakken: de poort, zijn rotswand en zijn regiepunt keren om
     const s2 = await page.evaluate(() => {

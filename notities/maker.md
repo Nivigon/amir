@@ -156,6 +156,8 @@ Altijd WYSIWYG: links in het grid is links in het spel, de wereld-x is `(kolom -
   zijn doel onder de grondlijn), en niet waar je zelf al een ravijn tekende.
   De knoppen uit `MK_VIJ_KNOP` gaan alleen mee als ze van de standaard afwijken; een vinkje als
   `true` of `false` (readLevel kijkt op `=== false`, dus 0 zou daar misgaan).
+- Zonder een enkele spawn (ook niet in een poort) komt er een zandslang ver achter het eind bij, anders stuurde het
+  spel vrije slangen; een level met alleen poortvijanden krijgt die niet.
 - De basisvelden: `view: 0.8`, `zicht: true`, `hpBalk: true`, `speerInHand: true`, `rugMax: 1`,
   `valDood: 600` (vier cellen), `kaleKlif`, `voorgrond: false`, `overloop: true`.
 
@@ -185,7 +187,8 @@ naar de cel), die bijblijft zolang hij open staat. Drie soorten:
   een tandwiel zonder platform, een poort in een vaste cel of boven een ravijn zonder bodem, een rijzer die niet helemaal in een ravijn op de grondlijn staat, buiten het
   grid steekt of geen zegel of rune heeft die hem stuurt (een zakker mag overal en heeft er geen nodig).
 - **LET OP**: een start of eind die hoog boven zijn vloer hangt, een vijand die zweeft of op de
-  start staat, een poort met een vijand maar zonder zegel, rune of regie die hem opent, een ravijn of gang op de verkeerde rij, een gang zonder ingang, een platform zonder
+  start staat, een poort met een vijand maar zonder zegel, rune of regie die hem opent, een regiepunt meer dan
+  `MK_POORT_BIJ_VER` cellen van zijn poort (Amir staat stil terwijl de poort buiten beeld opengaat), een ravijn of gang op de verkeerde rij, een gang zonder ingang, een platform zonder
   tandwiel of met zijn doel op dezelfde hoogte, een zegel dat naar een weg masker wijst, een val
   van meer dan vier cellen naast een rand (dodelijk in de Test), een rijzer met zijn doel op zijn eigen rij, die
   op of boven de grondlijn rust, of die drie of meer cellen ravijn naast zich open laat, en een zegel dat een
@@ -244,6 +247,5 @@ gangvloer door de ingang omhoog komt is in het spel niet beproefd, en de Maker m
 
 Bekende randen, nog niet opgelost: alleen de tegel Zwevende laag (F) en Zwart plafond zweven, een blok rots
 of savanne met lucht eronder wordt een pilaar tot de grond; de holte is aan de startkant een cel breder dan
-getekend (`gangRx + MK_CEL_PX`); `boven` leest het spel niet voor kooiman, meelman, fosfor, hyena en
-panter, en `y` niet voor scorp, bandiet en schildman; de knop Zicht doet niets voor panter, kooiman (duel)
+getekend (`gangRx + MK_CEL_PX`); `boven` leest het spel niet voor hyena en panter, en `y` niet voor scorp, bandiet en schildman; de knop Zicht doet niets voor panter, kooiman (duel)
 en `bandiet:hurk`; één rotscel op de grondlijn maakt de hele bodem kale rots.
