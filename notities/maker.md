@@ -95,6 +95,10 @@ Altijd WYSIWYG: links in het grid is links in het spel, de wereld-x is `(kolom -
 
 - Een ravijn-cel op de grondlijn is een gat (`gaps`); elders doet een ravijn-cel niets (de controle
   meldt het).
+- Rotsdecor (`rotsdecor`, onder Decor) wordt een prop `{x, k, s, f}` op het midden van zijn kolom, `k` een
+  rotsstuk uit `PROPS` (de soorten met `rots`). Het spel zet hem zelf op de vloer onder die kolom (`terrainH`),
+  dus de rij doet er alleen toe voor de controle. Het paneel heeft Soort (per familie: zuil, plaat, laag, brok,
+  kei), Gespiegeld en Schaal (`MK_ROTS_S`); de laatst gekozen soort onthoudt hij (`MK.rotsSoort`).
 - Een blok vaste cellen boven de grondlijn is een terras (`terraces`, savanne met `grond: true`,
   rots en muur met `af: true`); een blok met lucht eronder is een zwever (`zwevers`). Een muur die
   op de grondlijn doorloopt gaat precies die ene cel de grond in (`door`).
@@ -195,7 +199,7 @@ naar de cel), die bijblijft zolang hij open staat. Drie soorten:
   van meer dan vier cellen naast een rand (dodelijk in de Test), een rijzer met zijn doel op zijn eigen rij, die
   op of boven de grondlijn rust, of die drie of meer cellen ravijn naast zich open laat, en een zegel dat een
   zakker stuurt.
-- **info**: een prop (de Test tekent hem niet), een poort met regie zonder vijand, een hek dat niets opent, een zegel of rune zonder masker of rijzer (alleen een
+- **info**: een prop (de Test tekent hem niet), rotsdecor dat boven zijn vloer hangt (het spel zet hem op de vloer), een poort met regie zonder vijand, een hek dat niets opent, een zegel of rune zonder masker of rijzer (alleen een
   aantekening), een rijzer zonder duur die het hele ravijn vult (het ravijn is daarna voorgoed dicht, dus geen
   schuilplek meer, regel 7).
 
@@ -242,7 +246,7 @@ regel bij, en een controle in de lijst `check(...)`.
 ## Wat er nog niet is
 
 Geen aanraking (pannen en zoomen kan
-alleen met muis en toetsen), geen prop-keuze (een prop is een aantekening), en een zegel kent
+alleen met muis en toetsen), geen prop-keuze (een prop is een aantekening; echt decor is alleen het rotsdecor), en een zegel kent
 alleen een masker, Te zien (Open, Verborgen, Onzichtbaar) en een rijzer, niet de andere zegel-velden (`speerval`, `plafond`). Een rijzer
 staat alleen in een ravijn op de grondlijn: een rijzer in een put onder de grond of een lift die vanaf de
 gangvloer door de ingang omhoog komt is in het spel niet beproefd, en de Maker meldt zo'n plek als FOUT.
