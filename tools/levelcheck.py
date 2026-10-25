@@ -361,6 +361,7 @@ class Spel:
         self.TEKEN = b.const('TEKEN')                   # het speerteken: voet en hoogte per variant
         self.SKELET = b.const('SKELET')
         self.POORT = b.const('POORT')                   # de stenen poort: maat en opening per boog
+        self.HEK_WANDEN = b.const('HEK_WANDEN')         # de rotswanden achter een poort (het veld wand)
         self.RAVIJN_PROEF = b.const('RAVIJN_PROEF')     # de runes die een ravijn openen, per level
         # NPCS en THICKET bevatten functieaanroepen; alleen de maten zijn nodig
         self.NPCS = {}
@@ -1084,6 +1085,9 @@ def poorten(lv, sp):
             yield fout(o.get('x'), "poort met k: '%s': dat is geen boog (%s)" % (o.get('k'), ', '.join(sp.POORT['soorten'])))
         if o.get('look') is not None and o.get('look') not in sp.POORT['looks']:
             yield fout(o.get('x'), "poort '%s' met look '%s': dat is geen look (%s)" % (o.get('id'), o.get('look'), ', '.join(sp.POORT['looks'])))
+        w = o.get('wand')
+        if w not in (None, False, True) and w not in sp.HEK_WANDEN:
+            yield fout(o.get('x'), "poort '%s' met wand '%s': dat is geen rotswand (%s)" % (o.get('id'), w, ', '.join(sp.HEK_WANDEN)))
         if ids.count(str(o.get('id'))) > 1:
             yield fout(o.get('x'), "twee poorten heten '%s'" % o.get('id'))
     bronnen = (lv.d.get('zegels') or []) + [r for r in lv.d.get('runes') or [] if isinstance(r, dict)]

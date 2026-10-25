@@ -991,6 +991,15 @@
           <div class="mkveld"><label for="mkpoortlook">Look</label><select id="mkpoortlook"><option value="">Vanzelf (sneeuw op sneeuw)</option><option value="steen">Steen</option><option value="sneeuw">Sneeuw</option><option value="savanne">Savanne</option></select></div>
           <div class="mkveld"><label for="mkpoortvij">Vijand eruit</label><select id="mkpoortvij"></select></div>
           <div class="mkknop"><label>Aantal</label><input id="mkpoortn" type="range" min="1" max="3" step="1"><span class="read" id="mkpoortnv"></span></div>
+          <div class="mkknop"><label>Schaal</label><input id="mkpoorts" type="range" min="0.8" max="1.5" step="0.05"><span class="read" id="mkpoortsv"></span></div>
+          <div class="mkrij"><button id="mkpoorthek">Hek: nee</button><button id="mkpoortregie">Regie: nee</button></div>
+          <div id="mkpoortbijrij" class="mkrij"><button id="mkpoortbij">Zet regiepunt</button><button id="mkpoortbijwis">Wis regiepunt</button></div>
+          <div class="mkveld"><label for="mkpoortwand">Rotswand</label><select id="mkpoortwand"></select></div>
+          <div id="mkpoortwandctl">
+            <div class="mkrij"><button id="mkpoortwandf">Wand gespiegeld: nee</button></div>
+            <div class="mkknop"><label title="in Amir">Hoogte</label><input id="mkpoortwandh" type="range" min="2" max="5" step="0.1"><span class="read" id="mkpoortwandhv"></span></div>
+            <div class="mkknop"><label title="in Amir, rechts is +">Verschuif</label><input id="mkpoortwandx" type="range" min="-2" max="2" step="0.05"><span class="read" id="mkpoortwandxv"></span></div>
+          </div>
           <div id="mkpoortinfo" class="mkhint"></div>
         </div>
         <div id="mkmasklookctl" style="display:none">
@@ -1317,7 +1326,7 @@
         <button id="sbpoortwand">+ rotswand</button>
         <button id="sbpoortopen">Open de poort</button>
         <button id="sbpoortdicht">Hek dicht</button>
-        <span class="hint">een stenen boog; zet er vijanden in en open hem, zoals een zegel of rune met poort doet. Met een hek takelt Open het hek langzaam op (het tandwiel draait, het touw loopt mee) en komen de vijanden er op 80% uit; Hek dicht laat het weer vallen</span>
+        <span class="hint">een stenen boog; zet er vijanden in en open hem, zoals een zegel of rune met poort doet. Met een hek takelt Open het hek langzaam op (het tandwiel draait, het touw loopt mee) en komen de vijanden er op 80% uit; Hek dicht laat het weer vallen. + rotswand loopt de rotsen langs: de kale wand, de vier rotsen van de runes, de grotboog en dan weer geen</span>
       </div>
       <div class="row">
         <label>Fakkel</label>
@@ -11356,7 +11365,7 @@ function poortLaadLevel(lv){
   for (const o of (lv && lv.poorten) || []){
     poortImg(o.k, poortLook(o, lv.winter));
     if (o.hek) hekLaad(o.k);
-    if (o.wand) hekWandImg();
+    if (o.wand) hekWandBeeld(o);
   }
 }
 // de maat van een poort in wereld-px: k (px per bronpixel), van waar tot waar hij staat (l, r) en zijn hoogte (h)
@@ -11395,7 +11404,7 @@ function poortTeken(groundY, scale, cx){
     const M = poortMaat(o, scale);
     if (o.wand) hekWandTeken(o, groundY, scale, cx);   // de rotswand achter de boog
     skeletSchaduw(cx + (o.x + M.dx - world), groundY - poortVloer(o) * scale, M.hw * 2 * POORT.schaduw);
-    if (o.hek && o.wand) hekAchterTouw(o, groundY, scale, cx);   // het touw van het tandwiel boven de boog, achter de stenen
+    if (o.hek && hekTandOpRots(o, M, scale)) hekAchterTouw(o, groundY, scale, cx);   // het touw van het tandwiel boven de boog, achter de stenen
     poortBeeld(o, groundY, scale, cx, 0);
     if (o.hek) hekTeken(o, groundY, scale, cx);         // het hek in de opening, het tandwiel en het touw
   }
@@ -11449,7 +11458,8 @@ function poortReset(){
 // wereld-x). Dan staat Amir stil (amirVast) tot elke vijand uit die poort een stuk naar buiten is gelopen: het
 // hek gaat langzaam op, op 80% gaat de poort open (poortOpen) en komen zijn spawns eruit. Poorten met dezelfde bij
 // gaan samen open. Een regie wacht tot er geen levende schildbandiet meer is. wand: true zet de rotswand van de
-// muur (MUUR.src) achter de boog, wandF spiegelt die.
+// muur (MUUR.src) achter de boog, wandF spiegelt die. In plaats van true kan wand een soort uit HEK_WANDEN zijn
+// (de rotsen van de runes, de grotboog), met wandH de hoogte in Amir en wandX een verschuiving in Amir (rechts is +).
 const HEK = {
   src: 'design/boog/hek.png',
   kol: { l: [0, 141], r: [679, 820], ring: [354, 459], los: [[141, 247], [247, 354], [459, 567], [567, 679]], unit: 107 },
@@ -11473,6 +11483,20 @@ const HEK = {
   regieMax: 9,             // vangnet: na zoveel seconden na het opengaan is de regie hoe dan ook klaar
   wand: { anker: 0.36, voet: 0.995 }   // de rotswand: dit deel van zijn breedte staat achter de boog
 };
+// de rotswanden achter een poort (het veld wand): de kale wand van de muur (wand: true is die ook), de vier rotsen
+// van de runes (RUNE_ROTSEN) en de grotboog (MUUR_GROT). hoog: de hoogte in Amir zonder wandH, anker: dit deel van
+// de breedte (van links, ongespiegeld) staat achter het midden van de boog. Het tandwiel van het hek zit alleen op de
+// rots als die daar hoog genoeg is (hekTandOpRots), anders op de sluitsteen.
+const HEK_WANDEN = {
+  kaal:   { naam: 'Kale wand',    hoog: 3.52, anker: 0.36 },
+  spits:  { naam: 'Scheve spits', hoog: 3.5,  anker: 0.42, rune: 'spits' },
+  pieken: { naam: 'Pieken',       hoog: 3.5,  anker: 0.5,  rune: 'pieken' },
+  zuilen: { naam: 'Twee zuilen',  hoog: 3.2,  anker: 0.5,  rune: 'zuilen' },
+  boog:   { naam: 'Scheve boog',  hoog: 3.2,  anker: 0.5,  rune: 'boog' },
+  grot:   { naam: 'Grotboog',     hoog: 3.2,  anker: 0.3,  grot: true }
+};
+const HEK_WAND_H = [2, 5];        // de schuif Hoogte in de Maker, in Amir
+const HEK_WAND_X = 2;             // de schuif Verschuif: zoveel Amir naar links of rechts
 let poortRegie = null;     // de lopende regie: { poorten, t, open } of null
 let hekImg = null, hekTandImg = null, hekTouwImg = null, hekWand = null;
 const hekGaten = {};
@@ -11491,6 +11515,49 @@ function hekGat(k){
   return hekGaten[k];
 }
 function hekWandImg(){ if (!hekWand) hekWand = zetBron(new Image(), MUUR.src); return hekWand; }
+const hekWandSoort = o => (o.wand === true ? 'kaal' : Object.prototype.hasOwnProperty.call(HEK_WANDEN, o.wand) ? o.wand : null);
+let hekWandKaal = null;           // de kale wand met zijn alfa, voor hekTandOpRots
+// de plaat van de rotswand van deze poort: { c (om te tekenen), w, h (bronpixels), alfa } of null als hij nog laadt
+function hekWandBeeld(o){
+  const s = hekWandSoort(o); if (!s) return null;
+  const D = HEK_WANDEN[s];
+  if (D.rune) return runeBeeld({ rots: D.rune });
+  if (D.grot){ if (!grotMuurImg.src) grotMuurImg.src = MUUR_GROT.src; return grotMuurBeeld; }
+  const im = hekWandImg(); if (!imgReady(im)) return null;
+  if (!hekWandKaal) hekWandKaal = { c: im, w: im.naturalWidth, h: im.naturalHeight, alfa: null };
+  return hekWandKaal;
+}
+// de alfa van de kale wand pas als hekTandOpRots hem nodig heeft (een keer, de plaat is groot)
+function hekWandKaalAlfa(B){
+  if (B.alfa || B.alfaMis) return B.alfa;
+  const c = document.createElement('canvas'); c.width = B.w; c.height = B.h;
+  const g = c.getContext('2d'); g.drawImage(B.c, 0, 0);
+  try { const px = g.getImageData(0, 0, B.w, B.h).data; B.alfa = new Uint8Array(B.w * B.h); for (let i = 0; i < B.alfa.length; i++) B.alfa[i] = px[i * 4 + 3]; }
+  catch (e){ B.alfaMis = true; }
+  return B.alfa;
+}
+// de maat van de rotswand op het scherm: hoogte h, breedte w, de voet (deel van de hoogte op de grond) en de
+// verschuiving dx in px; de plaat staat met anker achter het midden van de boog
+function hekWandMaat(o, B, scale){
+  const s = hekWandSoort(o), D = HEK_WANDEN[s], A = CHAR_H * scale;
+  const h = (o.wandH > 0 ? o.wandH : D.hoog) * A;
+  return { h, w: h * B.w / B.h, voet: s === 'kaal' ? HEK.wand.voet : 1, anker: s === 'kaal' ? HEK.wand.anker : D.anker, dx: (o.wandX || 0) * A };
+}
+// zit het tandwiel van het hek op de rots? Alleen als er een rotswand is die boven het midden van de boog hoog
+// genoeg komt; de kale wand op zijn eigen plek en maat altijd (zo bleef Test 51 zoals hij was)
+function hekTandOpRots(o, M, scale){
+  const s = hekWandSoort(o); if (!s) return false;
+  if (s === 'kaal' && !(o.wandH > 0) && !o.wandX) return true;
+  const B = hekWandBeeld(o); if (!B || !(s === 'kaal' ? hekWandKaalAlfa(B) : B.alfa)) return false;
+  const W2 = hekWandMaat(o, B, scale), A = CHAR_H * scale;
+  const xl = o.wandF ? W2.dx : -W2.dx;                     // het midden van de boog in de plaat, ongespiegeld
+  const u = Math.floor((xl + W2.w * W2.anker) / W2.w * B.w);
+  if (u < 0 || u >= B.w) return false;
+  let v = 0; while (v < B.h && B.alfa[v * B.w + u] <= 128) v++;
+  const top = (B.h * W2.voet - v) / B.h * W2.h;            // zo hoog komt de rots daar boven de vloer, in px
+  const tandR = HEK.tand.d * A / 2;
+  return top >= M.S.opening[3] * M.k + tandR * (HEK.tand.boven + 1.3);
+}
 const hekLeeft = s => s.state !== 'exe' && s.state !== 'weg';
 // het raster: welke bronstukken naast en onder elkaar, voor een opening van ow bij oh bronpixels (van het hek)
 function hekRaster(ow, oh){
@@ -11576,7 +11643,7 @@ function hekTeken(o, groundY, scale, cx){
   if (rise < H.h) ctx.drawImage(hekCanvas, 0, 0, cw, ch, (op[0] - mid) * k - 2, op[1] * k - 2, cw, ch);
   // het touw: alleen in de opening, van onder de kruin naar de ring (het stuk erboven loopt achter de stenen,
   // hekAchterTouw), zodat het nooit over de rand van de boog ligt. Zit de ring achter de stenen, dan is er niets.
-  const tandR = HEK.tand.d * H.A / 2, tandY = hekTandY(o, op, k, tandR);
+  const tandR = HEK.tand.d * H.A / 2, tandY = hekTandY(o, op, k, tandR, hekTandOpRots(o, M, scale));
   const kruin = op[1] * k, ringY = kruin + HEK.ringY * H.q * H.qy - rise;
   if (ringY > kruin) hekTouw(0, kruin, 0, ringY, HEK.touwW * H.A, rise);
   if (imgReady(hekTandImg)){
@@ -11589,7 +11656,7 @@ function hekTeken(o, groundY, scale, cx){
   ctx.restore();
 }
 // waar het tandwiel zit: met een rotswand boven de boog op de rots, anders op de sluitsteen
-function hekTandY(o, op, k, tandR){ return o.wand ? -tandR * HEK.tand.boven : op[1] * k * HEK.tand.y; }
+function hekTandY(o, op, k, tandR, opRots){ return opRots ? -tandR * HEK.tand.boven : op[1] * k * HEK.tand.y; }
 // het touw van het tandwiel boven de boog tot net onder de kruin, voor de boog getekend: het valt achter de stenen weg
 function hekAchterTouw(o, groundY, scale, cx){
   if (!imgReady(hekImg)) return;
@@ -11601,7 +11668,7 @@ function hekAchterTouw(o, groundY, scale, cx){
   ctx.save();
   ctx.translate(sx, gy - op[3] * k);
   if (o.f) ctx.scale(-1, 1);
-  hekTouw(0, hekTandY(o, op, k, tandR), 0, op[1] * k + 4, HEK.touwW * H.A, rise);
+  hekTouw(0, hekTandY(o, op, k, tandR, true), 0, op[1] * k + 4, HEK.touwW * H.A, rise);
   ctx.restore();
 }
 function hekTouw(x0, y0, x1, y1, w, fase){
@@ -11617,16 +11684,17 @@ function hekTouw(x0, y0, x1, y1, w, fase){
 }
 // de rotswand achter de boog (de plaat van de muur), op Amirs maat
 function hekWandTeken(o, groundY, scale, cx){
-  const im = hekWandImg(); if (!imgReady(im)) return;
-  const h = MUUR.hoogAmir * CHAR_H * scale, w = h * im.naturalWidth / im.naturalHeight;
-  const sx = cx + (o.x - world), gy = groundY - poortVloer(o) * scale;
+  const B = hekWandBeeld(o); if (!B) return;
+  const im = B.c; if (im instanceof Image && !imgReady(im)) return;
+  const D = hekWandMaat(o, B, scale), h = D.h, w = D.w;
+  const sx = cx + (o.x - world) + D.dx, gy = groundY - poortVloer(o) * scale;
   const sw = W / viewZoom();
   if (sx + w < 0 || sx - w > sw) return;
   const f = !!o.wandF;
   ctx.save();
-  ctx.translate(sx, gy + h * (1 - HEK.wand.voet));
+  ctx.translate(sx, gy + h * (1 - D.voet));
   if (f) ctx.scale(-1, 1);
-  ctx.drawImage(im, -w * HEK.wand.anker, -h, w, h);
+  ctx.drawImage(im, -w * D.anker, -h, w, h);
   ctx.restore();
 }
 // het takelgeluid: herhaald zolang een hek omhoog gaat
@@ -32018,7 +32086,9 @@ function readLevel(txt){
                                                        s: Number(q.s) > 0 ? Math.max(0.4, Math.min(2.5, Number(q.s))) : undefined,
                                                        look: poortLookOf(q.look),
                                                        // het hek (zie "het hek van de poort"): hek, rotswand erachter, vanzelf open (regie) en waar (bij)
-                                                       hek: !!q.hek || undefined, wand: !!q.wand || undefined, wandF: !!q.wandF || undefined,
+                                                       hek: !!q.hek || undefined, wand: q.wand === true || Object.prototype.hasOwnProperty.call(HEK_WANDEN, q.wand) ? q.wand : undefined,
+                                                       wandF: !!q.wandF || undefined, wandH: Number(q.wandH) > 0 ? Number(q.wandH) : undefined,
+                                                       wandX: Number.isFinite(Number(q.wandX)) && Number(q.wandX) ? Number(q.wandX) : undefined,
                                                        regie: !!q.regie || undefined, bij: Number.isFinite(Number(q.bij)) && q.bij !== null && q.bij !== undefined ? Number(q.bij) : undefined })),
            hppotions: (o.hppotions || []).map(q => ({ x: Number(q.x),
                                                       y: (q.y === null || q.y === undefined) ? null : Number(q.y) })),
@@ -33190,6 +33260,8 @@ const MK_TYPES = [
   { id:'rijzer',  naam:'Rijzer (grond die stijgt)', kleur:'#8c7b66', obj:true },
   // een stenen poort (design/boog/): decor, of met een vijand erin die eruit komt als een zegel of rune hem opent (zie "poort")
   { id:'poort',   naam:'Poort (stenen boog)', kleur:'#a8916c', obj:true, letter:'B' },
+  // dezelfde poort, maar meteen met een ijzeren valhek erin (het tandwiel en het touw horen erbij): mkKlik zet k 'poort' met hek
+  { id:'poorthek', naam:'Poort met hek',      kleur:'#7f6f58', obj:true, letter:'B' },
   // een overhang: een rotsoverhang of zwevende savannelaag met een vrije onderkant-hoogte om onder te kruipen
   { id:'overhang',naam:'Overhang (kruipruimte)', kleur:'#7d6a86', obj:true, letter:'O' },
   // een richel: de uitstekende steen-opstap uit de schacht (design/klimmen/klif_richel.png). Je landt erop
@@ -33352,7 +33424,7 @@ const MK_CATS = [
   { id:'terrein',  naam:'Terrein',    items:['savanne','rots','sneeuw','sneeuwrots','muur','laag','zweef','gang','ravijn'] },
   { id:'punten',   naam:'Start/eind', items:['start','eind'] },
   { id:'vijanden', naam:'Vijanden',   vijand:true },
-  { id:'objecten', naam:'Objecten',   items:['zegel','rune','poort','platform','tandwiel','rijzer','overhang','richel','hppotion'] },
+  { id:'objecten', naam:'Objecten',   items:['zegel','rune','poort','poorthek','platform','tandwiel','rijzer','overhang','richel','hppotion'] },
   { id:'decor',    naam:'Decor',      items:['prop'] },
   { id:'verbergen',naam:'Verbergen',  items:['masker','maskergum'] },
   { id:'zwart',    naam:'Zwart terrein', items:['zsavanne','zvulling','zplafond'] },
@@ -33412,6 +33484,57 @@ function mkPoortLook(o){
   const onder = MK.grid && MK.grid[o.r + 1] ? MK.grid[o.r + 1][o.c] : null;
   return (onder === 'sneeuw' || onder === 'sneeuwrots') ? 'sneeuw' : 'steen';
 }
+// de rotswand achter een poort in de Maker: een soort uit HEK_WANDEN, of null
+const mkPoortWand = o => (o && Object.prototype.hasOwnProperty.call(HEK_WANDEN, o.wand) ? o.wand : null);
+// de rotswand achter een poort op de kaart: dezelfde plaat als in het spel, op dezelfde maat en plek, wat doorzichtig
+let mkWandWacht = null;
+function mkPoortWandTeken(o, cx, onder, cel){
+  if (!mkPoortWand(o)) return;
+  const B = hekWandBeeld(o);
+  if (!B || (B.c instanceof Image && !imgReady(B.c))){ if (!mkWandWacht) mkWandWacht = setTimeout(() => { mkWandWacht = null; if (makerOpen) mkTeken(); }, 250); return; }
+  const D = hekWandMaat(o, B, 1);                        // op schaal 1: px zijn eenheden en wereld-px
+  const kx = cel / MK_CEL_PX, ky = cel / MK_CEL_EENH;
+  mkCtx.save(); mkCtx.globalAlpha = 0.6;
+  mkCtx.translate(cx + D.dx * kx, onder + D.h * (1 - D.voet) * ky);
+  if (o.wandF) mkCtx.scale(-1, 1);
+  mkCtx.drawImage(B.c, -D.w * D.anker * kx, -D.h * ky, D.w * kx, D.h * ky);
+  mkCtx.restore();
+}
+// het valhek in de opening op de kaart: het plaatje in de opening, afgeknipt op de vorm van het gat, en het tandwiel erboven
+const mkHekCanvas = document.createElement('canvas');
+function mkPoortHekTeken(o, S, cx, onder, kx, ky){
+  const gat = hekLaad(o.boog), op = S.opening;
+  if (!imgReady(hekImg) || !imgReady(gat)){ if (!mkWandWacht) mkWandWacht = setTimeout(() => { mkWandWacht = null; if (makerOpen) mkTeken(); }, 250); return; }
+  const w = Math.max(2, Math.round((op[2] - op[0]) * kx)), h = Math.max(2, Math.round((op[3] - op[1]) * ky));
+  mkHekCanvas.width = w; mkHekCanvas.height = h;
+  const c = mkHekCanvas.getContext('2d');
+  c.drawImage(hekImg, 0, 0, w, h);
+  const fx = gat.naturalWidth / S.maat[0];
+  c.globalCompositeOperation = 'destination-in';
+  c.drawImage(gat, op[0] * fx, op[1] * fx, (op[2] - op[0]) * fx, (op[3] - op[1]) * fx, 0, 0, w, h);
+  const mid = (op[0] + op[2]) / 2;
+  mkCtx.save(); mkCtx.translate(cx, onder - op[3] * ky); if (o.f) mkCtx.scale(-1, 1);
+  mkCtx.drawImage(mkHekCanvas, (op[0] - mid) * kx, op[1] * ky, w, h);
+  if (imgReady(hekTandImg)){ const r = Math.max(3, HEK.tand.d * CHAR_H * ky / 2); mkCtx.drawImage(hekTandImg, -r, op[1] * ky * HEK.tand.y - r, r * 2, r * 2); }
+  mkCtx.restore();
+}
+// de regie op de kaart: een klein klapbord linksboven de boog, en het regiepunt als stippellijn over de hele hoogte
+function mkPoortRegieTeken(o, cx, top, cel, gx, gy){
+  const b = Math.max(6, cel * 0.32), x = cx - cel * 0.5, y = top - b * 0.2;
+  mkCtx.fillStyle = '#1b1410'; mkCtx.fillRect(x - b, y - b * 0.7, b * 1.2, b * 0.8);
+  mkCtx.fillStyle = '#f2e8d5'; for (let i = 0; i < 3; i++) mkCtx.fillRect(x - b + i * b * 0.4 + b * 0.05, y - b * 0.7, b * 0.2, b * 0.25);
+  if (o.bij == null) return;
+  const bx = gx + (o.bij + 0.5) * cel, sel = o === MK.sel;
+  mkCtx.save(); mkCtx.strokeStyle = sel ? '#ffd24a' : 'rgba(255,210,74,.45)'; mkCtx.lineWidth = sel ? 2 : 1.5; mkCtx.setLineDash([6, 5]);
+  mkCtx.beginPath(); mkCtx.moveTo(bx, gy); mkCtx.lineTo(bx, gy + MK.rows * cel); mkCtx.stroke();
+  if (sel){ mkCtx.beginPath(); mkCtx.moveTo(cx, top); mkCtx.lineTo(bx, top); mkCtx.stroke(); }
+  mkCtx.restore();
+  if (cel >= 10){ mkCtx.fillStyle = sel ? '#ffd24a' : 'rgba(255,210,74,.7)'; mkCtx.font = `bold ${Math.round(Math.max(9, cel * 0.28))}px sans-serif`; mkCtx.textAlign = 'left'; mkCtx.textBaseline = 'top';
+    mkCtx.fillText('regie b' + mkPoortNr(o), bx + 3, gy + 3); }
+}
+// de knop Zet regiepunt: de volgende klik op een kolom is waar Amir voorbij moet voor de regie begint
+function mkPoortBijKnop(){ if (MK.sel && MK.sel.k === 'poort'){ mkBijMode = true; mkDoelMode = false; mkKleurMode = false;
+  document.getElementById('mkobjinfo').textContent = 'Tik nu een kolom aan: de regie van deze poort begint pas als Amir daar voorbij is.'; } }
 // welke vijanden uit een poort kunnen komen: niet de hyena en de panter (die komen van de rand van het beeld), niet
 // de hinderlaag (die zit al gehurkt op zijn plek) en niet het duel van de kooiman (dat is geensceneerd)
 const mkPoortVijOk = soort => Object.prototype.hasOwnProperty.call(MK_VIJ_INFO, soort) && !['hyenas', 'panter', 'bandiet:hurk', 'kooiman'].includes(soort);
@@ -33508,11 +33631,52 @@ function mkVulPoort(){
   ns.value = n; ns.disabled = !o.vijand;
   document.getElementById('mkpoortnv').textContent = o.vijand ? String(n) : '-';
   ns.oninput = () => { o.n = Number(ns.value) > 1 ? Number(ns.value) : undefined; document.getElementById('mkpoortnv').textContent = ns.value; mkBewaar(); mkTeken(); };
+  const sc = document.getElementById('mkpoorts'), sv = o.s > 0 ? o.s : 1;
+  sc.value = sv; document.getElementById('mkpoortsv').textContent = sv.toFixed(2).replace('.', ',');
+  sc.oninput = () => { const v = Number(sc.value); o.s = Math.abs(v - 1) > 0.001 ? v : undefined; document.getElementById('mkpoortsv').textContent = v.toFixed(2).replace('.', ','); mkBewaar(); mkTeken(); };
+  const hb = document.getElementById('mkpoorthek');
+  hb.textContent = 'Hek: ' + (o.hek ? 'ja' : 'nee');
+  hb.onclick = () => { o.hek = !o.hek || undefined; mkVulPoort(); mkBewaar(); mkTeken(); };
+  const rb = document.getElementById('mkpoortregie');
+  rb.textContent = 'Regie: ' + (o.regie ? 'ja' : 'nee');
+  rb.onclick = () => { o.regie = !o.regie || undefined; if (!o.regie) delete o.bij; mkBijMode = false; mkVulPoort(); mkBewaar(); mkTeken(); };
+  document.getElementById('mkpoortbijrij').style.display = o.regie ? '' : 'none';
+  document.getElementById('mkpoortbijwis').disabled = o.bij == null;
+  const ws = document.getElementById('mkpoortwand');
+  if (!ws.options.length){
+    const geenW = document.createElement('option'); geenW.value = ''; geenW.textContent = '(geen)'; ws.appendChild(geenW);
+    for (const k in HEK_WANDEN){ const op = document.createElement('option'); op.value = k; op.textContent = HEK_WANDEN[k].naam; ws.appendChild(op); }
+  }
+  const wk = mkPoortWand(o);
+  ws.value = wk || '';
+  ws.onchange = () => { const had = !!mkPoortWand(o); o.wand = ws.value || undefined; if (!o.wand){ delete o.wandF; delete o.wandH; delete o.wandX; } else if (!had) o.wandF = o.f || undefined;
+    delete o.wandH; mkVulPoort(); mkBewaar(); mkTeken(); };
+  document.getElementById('mkpoortwandctl').style.display = wk ? '' : 'none';
+  if (wk){
+    const wf = document.getElementById('mkpoortwandf');
+    wf.textContent = 'Wand gespiegeld: ' + (o.wandF ? 'ja' : 'nee');
+    wf.onclick = () => { o.wandF = !o.wandF || undefined; mkVulPoort(); mkBewaar(); mkTeken(); };
+    const wh = document.getElementById('mkpoortwandh'), whv = o.wandH > 0 ? o.wandH : HEK_WANDEN[wk].hoog;
+    wh.min = HEK_WAND_H[0]; wh.max = HEK_WAND_H[1]; wh.value = whv;
+    document.getElementById('mkpoortwandhv').textContent = whv.toFixed(1).replace('.', ',');
+    wh.oninput = () => { const v = Number(wh.value); o.wandH = Math.abs(v - HEK_WANDEN[wk].hoog) > 0.001 ? v : undefined; document.getElementById('mkpoortwandhv').textContent = v.toFixed(1).replace('.', ','); mkBewaar(); mkTeken(); };
+    const wx = document.getElementById('mkpoortwandx'), wxv = o.wandX || 0;
+    wx.min = -HEK_WAND_X; wx.max = HEK_WAND_X; wx.value = wxv;
+    const wxt = v => (v > 0 ? '+' : '') + v.toFixed(2).replace('.', ',');
+    document.getElementById('mkpoortwandxv').textContent = wxt(wxv);
+    wx.oninput = () => { const v = Number(wx.value); o.wandX = Math.abs(v) > 0.001 ? v : undefined; document.getElementById('mkpoortwandxv').textContent = wxt(v); mkBewaar(); mkTeken(); };
+  }
   const kop = MK.objects.filter(z => mkPoortVan(z) === o).length;
-  document.getElementById('mkpoortinfo').textContent = 'poort b' + mkPoortNr(o) + '. '
-    + (!o.vijand ? (kop ? 'Een zegel of rune opent hem, maar er zit geen vijand in.' : 'Alleen decor. Kies een vijand en zet op een zegel of rune Opent poort, dan komt die eruit.')
+  const regieTekst = !o.regie ? '' : ' Met regie gaat hij vanzelf open als hij in beeld komt' + (o.bij != null ? ', zodra Amir kolom ' + o.bij + ' voorbij is' : '')
+    + '; Amir staat dan even stil tot de vijand eruit is.' + (o.bij != null ? ' Poorten met hetzelfde regiepunt gaan samen open.' : '');
+  document.getElementById('mkpoortinfo').textContent = 'poort b' + mkPoortNr(o) + (o.hek ? ', met hek' : '') + '. '
+    + (!o.vijand ? (kop ? 'Een zegel of rune opent hem, maar er zit geen vijand in.' : o.regie ? 'Er zit geen vijand in.' : 'Alleen decor. Kies een vijand en zet op een zegel of rune Opent poort (of zet Regie aan), dan komt die eruit.')
        : kop ? 'Gaat open op ' + kop + ' schakelaar' + (kop === 1 ? '' : 's') + ': dan komt de vijand eruit' + (n > 1 ? ', de een na de ander.' : '.')
-             : 'Nog geen zegel of rune die hem opent: de vijand komt er nooit uit. Kies een zegel en zet daar Opent poort.')
+       : o.regie ? 'De vijand komt eruit' + (n > 1 ? ', de een na de ander.' : '.')
+             : 'Nog geen zegel of rune die hem opent: de vijand komt er nooit uit. Kies een zegel en zet daar Opent poort, of zet Regie aan.')
+    + regieTekst
+    + (mkPoortWand(o) ? ' Hoogte en Verschuif van de rotswand zijn in Amir.' : '')
+    + (o.hek ? ' Het hek takelt eerst op (het tandwiel ' + (mkPoortWand(o) ? 'zit op de rots als die hoog genoeg is, anders op de sluitsteen' : 'zit op de sluitsteen') + ').' : '')
     + ' De onderkant van de opening staat op de onderkant van de cel.';
 }
 function mkMaskVerf(c, r, erase){                     // een cel in het huidige masker zetten of wissen (een cel hoort bij één masker)
@@ -33522,7 +33686,7 @@ function mkMaskVerf(c, r, erase){                     // een cel in het huidige 
   if (had) had.m.cells.splice(had.i, 1);              // uit een ander masker halen
   mkMaskObj(MK.maskId).cells.push({ c, r });
 }
-let makerOpen = false, mkCtx = null, mkPaint = false, mkPan = false, mkPanX = 0, mkPanY = 0, mkSpace = false, mkDoelMode = false, mkKleurMode = false, mkDrag = null, mkStamDrag = null, mkVormDrag = null;
+let makerOpen = false, mkCtx = null, mkPaint = false, mkPan = false, mkPanX = 0, mkPanY = 0, mkSpace = false, mkDoelMode = false, mkKleurMode = false, mkBijMode = false, mkDrag = null, mkStamDrag = null, mkVormDrag = null;
 const makerEl = document.getElementById('maker');
 const mkCanvas = document.getElementById('mkcanvas');
 const mkColsEl = document.getElementById('mkcols'), mkRowsEl = document.getElementById('mkrows'), mkGroundEl = document.getElementById('mkground');
@@ -33815,11 +33979,14 @@ function mkTeken(){
     if (o.k === 'poort'){                                    // de boog zelf, met de onderkant van de opening op de onderkant van de cel
       const S = POORT.soorten[poortSoort(o.boog)], op = S.opening, im = poortImg(o.boog, mkPoortLook(o));
       if (!im._mk){ im._mk = true; im.addEventListener('load', () => { if (makerOpen) mkTeken(); }); }
-      const ku = S.hoog * CHAR_H / (op[3] - op[1]);          // eenheden (en, op schaal 1, wereld-px) per bronpixel
+      const ku = S.hoog * (o.s > 0 ? o.s : 1) * CHAR_H / (op[3] - op[1]);   // eenheden (en, op schaal 1, wereld-px) per bronpixel
       const kx = ku / MK_CEL_PX * cel, ky = ku / MK_CEL_EENH * cel, mid = (op[0] + op[2]) / 2, onder = gy + (o.r + 1) * cel;
+      mkPoortWandTeken(o, cx, onder, cel);                   // de rotswand erachter
       if (imgReady(im)){ mkCtx.save(); mkCtx.globalAlpha = 0.92; mkCtx.translate(cx, onder - op[3] * ky); if (o.f) mkCtx.scale(-1, 1);
         mkCtx.drawImage(im, -mid * kx, 0, S.maat[0] * kx, S.maat[1] * ky); mkCtx.restore(); }
       else { mkCtx.strokeStyle = t.kleur; mkCtx.lineWidth = 2; mkCtx.strokeRect(cx - (op[2] - op[0]) / 2 * kx, onder - (op[3] - op[1]) * ky, (op[2] - op[0]) * kx, (op[3] - op[1]) * ky); }
+      if (o.hek) mkPoortHekTeken(o, S, cx, onder, kx, ky);  // het valhek in de opening, met het tandwiel
+      if (o.regie) mkPoortRegieTeken(o, cx, onder - op[3] * ky, cel, gx, gy);   // de regie: een klapbord, en het regiepunt als stippellijn
       const rad = cel * 0.3;
       if (mkPoortVijOk(o.vijand)) mkVijIcoon(mkCtx, o.vijand, cx, cy, cel * 0.85);   // wat eruit komt
       else { mkCtx.fillStyle = t.kleur; mkCtx.beginPath(); mkCtx.arc(cx, cy, rad, 0, 7); mkCtx.fill();
@@ -33969,6 +34136,9 @@ function mkKlik(ev){
     mkLegenda(); mkNotePaneel(); mkBewaar(); mkTeken(); return;
   }
   if (c < 0 || r < 0 || c >= MK.cols || r >= MK.rows) return;
+  if (mkBijMode && MK.sel && MK.sel.k === 'poort'){     // het regiepunt: de regie begint pas als Amir deze kolom voorbij is
+    MK.sel.bij = c; MK.sel.regie = true; mkBijMode = false; mkNotePaneel(); mkBewaar(); mkTeken(); return;
+  }
   if (mkKleurMode && MK.sel && MK.sel.k === 'rijzer'){   // de kleurhoogte: vanaf deze rij heeft de rijzer zijn look, daaronder is hij zwart
     MK.sel.kleur = { r }; mkKleurMode = false; mkNotePaneel(); mkBewaar(); mkTeken(); return;
   }
@@ -34000,9 +34170,10 @@ function mkKlik(ev){
     // meerdere dingen mogen op dezelfde cel (stapelen). Staat er al eentje van precies deze soort, dan
     // selecteren we die (geen dubbel); anders komt het voorwerp erbij, ook als er al iets anders staat.
     // (een rijzer telt ook als zijn doel op deze cel ligt: klik je nog eens op het ravijn, dan kies je hem in plaats van er een tweede neer te zetten)
-    const zelfde = MK.objects.find(o => o.k === t && ((o.c === c && o.r === r) || (t === 'rijzer' && o.doel && o.doel.c === c && o.doel.r === r)) && (t !== 'vijand' || o.soort === (MK.vijandSoort || 'groen')));
+    const k = t === 'poorthek' ? 'poort' : t;           // Poort met hek is een poort met hek: true
+    const zelfde = MK.objects.find(o => o.k === k && ((o.c === c && o.r === r) || (t === 'rijzer' && o.doel && o.doel.c === c && o.doel.r === r)) && (t !== 'vijand' || o.soort === (MK.vijandSoort || 'groen')));
     if (zelfde) MK.sel = zelfde;
-    else { const o = { c, r, k: t, note: '' }; if (t === 'vijand') o.soort = MK.vijandSoort || 'groen'; if (t === 'platform'){ o.doel = null; o.breed = MK_PLAT_BREED; } if (t === 'tandwiel') o.modus = 'schakellift';
+    else { const o = { c, r, k, note: '' }; if (t === 'poorthek') o.hek = true; if (t === 'vijand') o.soort = MK.vijandSoort || 'groen'; if (t === 'platform'){ o.doel = null; o.breed = MK_PLAT_BREED; } if (t === 'tandwiel') o.modus = 'schakellift';
       // een rijzer: op of boven de grondlijn geklikt is de aangeklikte cel zijn doel (de bovenkant) en rust hij MK_RIJS_DIEP cellen onder de
       // grondlijn; in de diepte geklikt rust hij daar en komt hij tot de grondlijn. Zo werkt hij meteen, en beide zijn bij te stellen
       if (t === 'rijzer'){ o.breed = MK_PLAT_BREED; o.v = MK_RIJS.v; o.wacht = MK_RIJS.wacht; o.duur = MK_RIJS.duur;
@@ -34473,7 +34644,9 @@ function mkNaarJSON(){
              if (o.k === 'zegel' && o.verstop) b.verstop = true;                                  // onder het zand (zie mkVulZegel)
              if ((o.k === 'zegel' || o.k === 'rune') && mkRijsVan(o)) b.rijzer = { c:o.rijsObj.c, r:o.rijsObj.r };   // stuurt die rijzer (op celpositie, zoals een wiel zijn platform)
              if ((o.k === 'zegel' || o.k === 'rune') && mkPoortVan(o)) b.poort = { c:o.poortObj.c, r:o.poortObj.r };   // opent die poort (ook op celpositie)
-             if (o.k === 'poort'){ b.boog = poortSoort(o.boog); if (o.f) b.f = true; if (poortLookOf(o.look)) b.look = o.look; if (mkPoortVijOk(o.vijand)){ b.vijand = o.vijand; if (o.n > 1) b.n = Math.min(MK_POORT_N, o.n); } }
+             if (o.k === 'poort'){ b.boog = poortSoort(o.boog); if (o.f) b.f = true; if (poortLookOf(o.look)) b.look = o.look; if (mkPoortVijOk(o.vijand)){ b.vijand = o.vijand; if (o.n > 1) b.n = Math.min(MK_POORT_N, o.n); }
+               if (o.s > 0 && o.s !== 1) b.s = o.s; if (o.hek) b.hek = true; if (o.regie){ b.regie = true; if (o.bij != null) b.bij = o.bij; }   // het hek, de schaal en de regie (zie "het hek van de poort")
+               if (mkPoortWand(o)){ b.wand = o.wand; if (o.wandF) b.wandF = true; if (o.wandH > 0) b.wandH = o.wandH; if (o.wandX) b.wandX = o.wandX; } }
              if (o.k === 'rijzer'){ b.doel = o.doel ? { c:o.doel.c, r:o.doel.r } : null; b.breed = o.breed || MK_PLAT_BREED; b.v = o.v || MK_RIJS.v; b.wacht = o.wacht || 0; b.duur = o.duur || 0; if (o.zak) b.zak = true; if (o.look && o.look !== 'savanne') b.look = o.look; if (o.kleur) b.kleur = { r: o.kleur.r }; }
              if (o.k === 'vijand'){ b.soort = o.soort || 'groen'; if (o.params && Object.keys(o.params).length) b.params = o.params; }
              if (o.k === 'platform'){ b.doel = o.doel ? { c:o.doel.c, r:o.doel.r } : null; b.breed = o.breed || MK_PLAT_BREED; if (o.stamCel) b.stamCel = o.stamCel; if (o.stamBotCel != null) b.stamBotCel = o.stamBotCel; if (o.stamZij === -1) b.stamZij = -1; }
@@ -34513,7 +34686,11 @@ function mkUitJSON(o){
     if ((q.k === 'zegel' || q.k === 'rune') && q.rijzer && q.rijzer.c != null) b._rijs = { c:q.rijzer.c|0, r:q.rijzer.r|0 };
     if ((q.k === 'zegel' || q.k === 'rune') && q.poort && q.poort.c != null) b._poort = { c:q.poort.c|0, r:q.poort.r|0 };
     if (q.k === 'poort'){ b.boog = poortSoort(q.boog); if (q.f) b.f = true; if (poortLookOf(q.look)) b.look = q.look;
-      if (typeof q.vijand === 'string' && mkPoortVijOk(q.vijand)){ b.vijand = q.vijand; const n = Math.round(Number(q.n) || 1); if (n > 1) b.n = Math.min(MK_POORT_N, n); } }
+      if (typeof q.vijand === 'string' && mkPoortVijOk(q.vijand)){ b.vijand = q.vijand; const n = Math.round(Number(q.n) || 1); if (n > 1) b.n = Math.min(MK_POORT_N, n); }
+      if (Number(q.s) > 0 && Number(q.s) !== 1) b.s = Math.max(0.8, Math.min(1.5, Number(q.s))); if (q.hek) b.hek = true;
+      if (q.regie){ b.regie = true; if (q.bij != null && in_(q.bij|0, 0)) b.bij = q.bij|0; }
+      if (mkPoortWand(q)){ b.wand = q.wand; if (q.wandF) b.wandF = true; if (Number(q.wandH) > 0) b.wandH = Math.max(HEK_WAND_H[0], Math.min(HEK_WAND_H[1], Number(q.wandH)));
+        if (Number(q.wandX)) b.wandX = Math.max(-HEK_WAND_X, Math.min(HEK_WAND_X, Number(q.wandX))); } }
     if (q.k === 'rijzer'){ b.doel = (q.doel && q.doel.c != null && in_(q.doel.c|0, q.doel.r|0)) ? { c:q.doel.c|0, r:q.doel.r|0 } : null; b.breed = Math.max(1, Math.min(5, Math.round(Number(q.breed) || MK_PLAT_BREED)));
       b.v = Math.max(50, Math.min(600, Math.round(Number(q.v) || MK_RIJS.v))); b.wacht = Math.max(0, Math.min(5, Number(q.wacht) || 0)); b.duur = Math.max(0, Math.min(20, Math.round(Number(q.duur) || 0))); if (q.zak) b.zak = true;
       if (MK_RIJS_LOOKS.includes(q.look) && q.look !== 'savanne') b.look = q.look;
@@ -34594,7 +34771,7 @@ function mkHistNaar(i){
     mkHistI = i;
     try { localStorage.setItem('amir-mk', mkHist[i]); } catch (e){}
   } finally { mkHistStil = false; }
-  mkDoelMode = false; mkKleurMode = false; mkPlak = null; mkLegenda(); mkNotePaneel(); mkTeken(); mkHistKnoppen();
+  mkDoelMode = false; mkKleurMode = false; mkBijMode = false; mkPlak = null; mkLegenda(); mkNotePaneel(); mkTeken(); mkHistKnoppen();
   const ctl = document.getElementById('mkcontrole'); if (ctl && !ctl.classList.contains('dicht')) mkControleToon();   // de open controle-lijst hoort bij het teruggezette grid
 }
 function mkOngedaan(){ if (mkBewaarTimer) mkBewaarNu(); mkHistNaar(mkHistI - 1); }
@@ -34913,7 +35090,7 @@ function mkNaarLevel(opt){
   // opening op de onderkant van de cel. Op een laag of op het dak van een gang krijgt hij die hoogte (y), zoals de
   // kalebas; op de grond en in een gang zoekt het spel de vloer zelf (terrainH). Zit er een vijand in, dan gaat die
   // mee als spawn met poort: id (zo vaak als het aantal), op de cel van de poort: hij komt pas als een zegel of rune
-  // met Opent poort hem opent (zie "poort").
+  // met Opent poort hem opent (zie "poort"), of vanzelf met Regie. Het hek, de rotswand en de schaal gaan mee.
   const poorten = [], poortIds = new Map();
   for (const o of MK.objects){
     if (o.k !== 'poort') continue;
@@ -34923,6 +35100,12 @@ function mkNaarLevel(opt){
     const e = { id, x, k: poortSoort(o.boog) }; if (o.f) e.f = true;
     const look = mkPoortLook(o); if (look !== 'steen') e.look = look;   // steen is wat het spel zonder look kiest (een Maker-level is geen winter)
     if (voet > 1 || opDak) e.y = Math.round(voet);
+    if (o.s > 0 && o.s !== 1) e.s = o.s;
+    if (o.hek) e.hek = true;                                   // het valhek met zijn tandwiel en touw (zie "het hek van de poort")
+    if (o.regie){ e.regie = true;                              // vanzelf open in beeld; met een regiepunt pas als Amir die kolom voorbij is
+      if (o.bij != null){ const [bl, br] = lr(Math.max(0, Math.min(C - 1, o.bij))); e.bij = Math.round((bl + br) / 2); } }
+    const wk = mkPoortWand(o);
+    if (wk){ e.wand = wk; if (o.wandF) e.wandF = true; if (o.wandH > 0) e.wandH = o.wandH; if (o.wandX) e.wandX = o.wandX; }
     poorten.push(e);
     if (mkPoortVijOk(o.vijand)) for (let i = 0; i < Math.min(MK_POORT_N, o.n || 1); i++) spawns.push({ ...mkSpawn({ c: o.c, r: o.r, soort: o.vijand }), poort: id });
   }
@@ -35124,7 +35307,7 @@ function mkControle(){
       const rz = mkRijsVan(o), pz = mkPoortVan(o);
       if (o.masker && !heeft) meld('letop', naam + ' op kolom ' + o.c + ' wijst naar een masker dat er niet (meer) is.', o.c, o.r);
       else if (!heeft && !rz && !pz && !(o.k === 'zegel' && o.verstop)) meld('info', naam + ' op kolom ' + o.c + ' is alleen een aantekening: koppel een masker, een rijzer of een poort, of vink bij een zegel Verborgen aan.', o.c, o.r);
-      if (pz && !mkPoortVijOk(pz.vijand)) meld('info', naam + ' op kolom ' + o.c + ' opent poort b' + mkPoortNr(pz) + ', maar daar zit geen vijand in: er gebeurt niets.', o.c, o.r);
+      if (pz && !mkPoortVijOk(pz.vijand)) meld('info', naam + ' op kolom ' + o.c + ' opent poort b' + mkPoortNr(pz) + ', maar daar zit geen vijand in: ' + (pz.hek ? 'het hek gaat op, maar er komt niemand uit.' : 'er gebeurt niets.'), o.c, o.r);
       if (rz && rz.zak) meld('letop', naam + ' op kolom ' + o.c + ' stuurt een rijzer die onder je wegzakt: die heeft geen schakelaar nodig en luistert er niet naar.', o.c, o.r);
     }
     else if (o.k === 'poort'){
@@ -35132,7 +35315,10 @@ function mkControle(){
       if (vast(cel(o.c, o.r))) meld('fout', nm + ' staat in een vaste cel: zet hem op de cel erboven.', o.c, o.r);
       else if (v === null) meld('fout', nm + ' staat boven een ravijn zonder bodem; in het spel schuift hij naar de rand.', o.c, o.r);
       else if (v - o.r > 1) meld('letop', nm + ' hangt ' + (v - o.r - 1) + ' cel' + (v - o.r - 1 === 1 ? '' : 'len') + ' boven zijn vloer.', o.c, o.r);
-      if (mkPoortVijOk(o.vijand) && !MK.objects.some(z => mkPoortVan(z) === o)) meld('letop', nm + ' heeft een vijand, maar geen zegel of rune die hem opent: die vijand komt er nooit uit. Kies een zegel en zet daar Opent poort.', o.c, o.r);
+      const opener = MK.objects.some(z => mkPoortVan(z) === o);
+      if (mkPoortVijOk(o.vijand) && !opener && !o.regie) meld('letop', nm + ' heeft een vijand, maar geen zegel of rune die hem opent en geen regie: die vijand komt er nooit uit. Kies een zegel en zet daar Opent poort, of zet Regie aan.', o.c, o.r);
+      if (o.regie && !mkPoortVijOk(o.vijand)) meld('info', nm + ' heeft regie maar geen vijand: ' + (o.hek ? 'het hek gaat op' : 'hij gaat open') + ' en Amir staat even stil, maar er komt niemand uit.', o.c, o.r);
+      if (o.hek && !opener && !o.regie) meld('info', nm + ' heeft een hek, maar niets opent hem: het hek blijft dicht (decor).', o.c, o.r);
     }
     else if (o.k === 'prop') meld('info', 'Prop op kolom ' + o.c + ' is alleen een aantekening; de Test tekent hem niet.', o.c, o.r);
     else if (o.k === 'hppotion' || o.k === 'richel'){ if (vast(cel(o.c, o.r))) meld('letop', naam + ' op kolom ' + o.c + ' staat in een vaste cel.', o.c, o.r); }
@@ -35258,6 +35444,7 @@ function mkKopieer(){
     const b = { ...o, dc:o.c - n.c0, dr:o.r - n.r0 }; delete b.c; delete b.r; delete b.plat; delete b._plat; delete b.rijsObj; delete b._rijs; delete b.poortObj; delete b._poort;
     const rz = mkRijsVan(o); if (rz && binnen.indexOf(rz) >= 0) b.rijsRel = { dc:rz.c - n.c0, dr:rz.r - n.r0 };   // de rijzer die dit zegel stuurt, als hij meegaat
     const pz = mkPoortVan(o); if (pz && binnen.indexOf(pz) >= 0) b.poortRel = { dc:pz.c - n.c0, dr:pz.r - n.r0 };  // en de poort die hij opent
+    delete b.bij; if (o.k === 'poort' && o.bij != null) b.bijDc = o.bij - n.c0;   // het regiepunt van een poort: een kolom, ten opzichte van het gebied
     if (o.k === 'platform' && b.stamZij !== -1) delete b.stamZij;   // rechts is de standaard (geen veld), zodat spiegelen (zie mkSpiegel) netjes heen en terug gaat
     if (o.params) b.params = { ...o.params };
     b.doel = (o.doel && mkInGebied(n, o.doel.c, o.doel.r)) ? { dc:o.doel.c - n.c0, dr:o.doel.r - n.r0 } : null;
@@ -35289,7 +35476,8 @@ function mkSpiegel(){                     // het klembord spiegelen: links wordt
   // onthoud dus eerst naar welk voorwerp hij wees, en schrijf de plek daarna opnieuw
   for (const o of k.objects) if (o.rijsRel) o._rijsDoel = k.objects.find(q => q.k === 'rijzer' && q.dc === o.rijsRel.dc && q.dr === o.rijsRel.dr) || null;
   for (const o of k.objects){ o.dc = f(o.dc); if (o.doel) o.doel.dc = f(o.doel.dc); if (o.platRel) o.platRel.dc = f(o.platRel.dc); if (o.poortRel) o.poortRel.dc = f(o.poortRel.dc);
-    if (o.k === 'poort') o.f = !o.f || undefined;                       // een poort kijkt de andere kant op
+    if (o.k === 'poort'){ o.f = !o.f || undefined;                      // een poort kijkt de andere kant op, net als zijn rotswand en regiepunt
+      if (o.wand) o.wandF = !o.wandF || undefined; if (o.wandX) o.wandX = -o.wandX; if (o.bijDc != null) o.bijDc = f(o.bijDc); }
     // een rijzer van even breedte ligt met zijn ankercel links van het midden (mkRijsCellen): gespiegeld schuift het anker een cel naar links
     if (o.k === 'rijzer' && (o.breed || MK_PLAT_BREED) % 2 === 0){ o.dc -= 1; if (o.doel) o.doel.dc -= 1; }
     if (o.k === 'richel'){ o.f = !o.f; if (o.dx) o.dx = -o.dx; }         // een richel wijst de andere kant op, en zijn zijwaartse bijstelling ook
@@ -35311,7 +35499,8 @@ function mkPlakZet(){                     // de stempel neerzetten op mkPlak (li
   const nieuw = [];
   for (const o of k.objects){
     const c = p.c + o.dc, r = p.r + o.dr; if (!in_(c, r)) continue;
-    const b = { ...o, c, r }; delete b.dc; delete b.dr; delete b.platRel; delete b.rijsRel; delete b.poortRel;
+    const b = { ...o, c, r }; delete b.dc; delete b.dr; delete b.platRel; delete b.rijsRel; delete b.poortRel; delete b.bijDc;
+    if (o.k === 'poort' && o.bijDc != null && in_(p.c + o.bijDc, 0)) b.bij = p.c + o.bijDc;
     if (o.params) b.params = { ...o.params };
     b.doel = (o.doel && in_(p.c + o.doel.dc, p.r + o.doel.dr)) ? { c:p.c + o.doel.dc, r:p.r + o.doel.dr } : null;
     if (o.k !== 'platform' && o.k !== 'rijzer') delete b.doel;
@@ -35401,7 +35590,7 @@ addEventListener('keydown', ev => {
   if (mkBewaarTimer && !/^(INPUT|TEXTAREA|SELECT)$/.test((ev.target || {}).tagName)) mkBewaarNu();   // een toets-actie begint als eigen stap (zie mkBewaar)
   if (ev.key === 'Escape'){   // deselecteren en naar de selecteer-modus, ook vanuit een plaats-modus of het tekstvak
     if (ev.target && ev.target.blur) ev.target.blur();
-    MK.tool = 'select'; MK.sel = null; MK.gebied = null; mkPlak = null; mkDoelMode = false; mkKleurMode = false; mkLegenda(); mkNotePaneel(); mkTeken(); ev.preventDefault(); return;
+    MK.tool = 'select'; MK.sel = null; MK.gebied = null; mkPlak = null; mkDoelMode = false; mkKleurMode = false; mkBijMode = false; mkLegenda(); mkNotePaneel(); mkTeken(); ev.preventDefault(); return;
   }
   if (/^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test((ev.target || {}).tagName)){   // in een veld of op een knop blijven de toetsen van het veld
     if (ev.target.tagName === 'BUTTON' && ev.code === 'Space') return;         // spatie op een knop drukt de knop in, geen schuif-modus
@@ -35519,6 +35708,8 @@ document.getElementById('mkrijslook').onclick = () => {                  // de l
 };
 document.getElementById('mkrijskleur').onclick = () => { if (MK.sel && MK.sel.k === 'rijzer'){ mkKleurMode = true; mkDoelMode = false;
   document.getElementById('mkobjinfo').textContent = 'Tik nu de rij aan vanaf waar de rijzer zijn kleur krijgt: daaronder blijft hij zwart.'; } };
+document.getElementById('mkpoortbij').onclick = mkPoortBijKnop;
+document.getElementById('mkpoortbijwis').onclick = () => { if (MK.sel && MK.sel.k === 'poort'){ delete MK.sel.bij; mkBijMode = false; mkNotePaneel(); mkBewaar(); mkTeken(); } };
 document.getElementById('mkrijskleurwis').onclick = () => { if (MK.sel && MK.sel.k === 'rijzer'){ MK.sel.kleur = null; mkKleurMode = false; mkNotePaneel(); mkBewaar(); mkTeken(); } };
 document.getElementById('mkolook').onclick = () => {
   if (!MK.sel || MK.sel.k !== 'overhang') return;
@@ -36884,7 +37075,12 @@ document.getElementById('sbpoorthek').onclick = () => {   // een ijzeren valhek 
 document.getElementById('sbpoortwand').onclick = () => {  // de rotswand achter de laatst neergezette poort
   const o = sbPoortLaatste();
   if (!o) flashHint('Zet eerst een poort neer');
-  else { o.wand = !o.wand; o.wandF = o.f; hekWandImg(); flashHint('Poort ' + o.id + (o.wand ? ': met rotswand' : ': zonder rotswand')); }
+  else {                                                  // elke klik de volgende soort: kale wand, de rune-rotsen, de grotboog, geen
+    const lijst = Object.keys(HEK_WANDEN), i = lijst.indexOf(hekWandSoort(o));
+    o.wand = i + 1 < lijst.length ? lijst[i + 1] : undefined; o.wandF = o.f;
+    if (o.wand) hekWandBeeld(o);
+    flashHint('Poort ' + o.id + (o.wand ? ': rotswand ' + HEK_WANDEN[o.wand].naam.toLowerCase() : ': zonder rotswand'));
+  }
   cv.focus();
 };
 document.getElementById('sbpoortdicht').onclick = () => {

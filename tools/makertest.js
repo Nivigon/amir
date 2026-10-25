@@ -497,6 +497,53 @@ function verschil(a, b, pad = ''){
     return uit;
   });
 
+  // 5g. een poort met hek, regie en een rotswand: de knop Poort met hek, de round-trip, de vertaling, spiegelen en levelcheck
+  await check('poort met hek: hek, regie met regiepunt, rotswand en schaal gaan mee, ook gespiegeld', async () => {
+    const g = proefGrid();
+    g.objecten.push({ c: 14, r: 6, k: 'poort', boog: 'boog_rots', vijand: 'schildman', hek: true, regie: true, bij: 12, s: 1.2,
+                      wand: 'pieken', wandF: true, wandH: 4, wandX: -0.5, note: '' });
+    await laad(g);
+    const uit = [];
+    const r = await page.evaluate(() => {
+      const a = mkNaarJSON(); mkUitJSON(a); const b = mkNaarJSON();
+      const lv = mkNaarLevel(), meld = mkControle();
+      const ph = b.objecten.find(o => o.k === 'poort' && o.c === 14);
+      // de knop Poort met hek in het palet zet een poort met hek neer
+      MK.tool = 'poorthek'; mkLegenda();
+      return { ph, zelfde: JSON.stringify(a) === JSON.stringify(b), poorten: lv.poorten, spawns: lv.spawns.filter(s => s.poort === 'b2'),
+               meld: meld.filter(m => /b2/.test(m.tekst || m.t || JSON.stringify(m))).map(m => JSON.stringify(m))};
+    });
+    if (!r.zelfde) uit.push('round-trip van de poort met hek is niet gelijk');
+    const ph = r.ph || {};
+    if (!ph.hek || !ph.regie || ph.bij !== 12 || ph.s !== 1.2 || ph.wand !== 'pieken' || !ph.wandF || ph.wandH !== 4 || ph.wandX !== -0.5) uit.push('de grid-export verloor velden: ' + JSON.stringify(ph));
+    const b1 = (r.poorten || []).find(o => o.id === 'b1'), b2 = (r.poorten || []).find(o => o.id === 'b2');
+    if (!b2 || !b2.hek || !b2.regie || b2.wand !== 'pieken' || !b2.wandF || b2.wandH !== 4 || b2.wandX !== -0.5 || b2.s !== 1.2) uit.push('poort b2 in het spel-level: ' + JSON.stringify(b2));
+    else if (b2.bij !== b2.x - 2 * 175) uit.push('regiepunt: bij ' + b2.bij + ', verwacht ' + (b2.x - 2 * 175));
+    if (b1 && (b1.hek || b1.regie || b1.wand || b1.s)) uit.push('poort b1 kreeg velden die hij niet heeft: ' + JSON.stringify(b1));
+    if (r.spawns.length !== 1 || r.spawns[0].k !== 'schildman') uit.push('geen schildbandiet in poort b2: ' + JSON.stringify(r.spawns));
+    if (r.meld.some(m => /letop|fout/i.test(m))) uit.push('de controle meldt de poort met regie: ' + r.meld.join(' | '));
+    // spiegelen en plakken: de poort, zijn rotswand en zijn regiepunt keren om
+    const s2 = await page.evaluate(() => {
+      MK.gebied = { c0: 12, r0: 6, c1: 14, r1: 6 }; mkKopieer(); mkSpiegel(); mkPlak = { c: 0, r: 0 }; mkPlakZet();
+      const q = MK.objects.find(o => o.k === 'poort' && o.r === 0);
+      return q && { c: q.c, f: !!q.f, wandF: !!q.wandF, wandX: q.wandX, bij: q.bij, hek: !!q.hek, wand: q.wand };
+    });
+    if (!s2 || s2.c !== 0 || !s2.f || s2.wandF || s2.wandX !== 0.5 || s2.bij !== 2 || !s2.hek || s2.wand !== 'pieken') uit.push('gespiegeld geplakt: ' + JSON.stringify(s2) + ' (verwacht kolom 0, gespiegeld, wand niet gespiegeld, wandX 0.5, regiepunt kolom 2)');
+    // een klik met Poort met hek
+    await page.evaluate(() => { MK.tool = 'poorthek'; mkLegenda(); });
+    const xy = await celXY(6, 10); await page.mouse.click(xy.x, xy.y); await page.waitForTimeout(50);
+    const nieuw = await page.evaluate(() => { const q = MK.objects.find(o => o.c === 6 && o.r === 10); return q && { k: q.k, hek: !!q.hek }; });
+    if (!nieuw || nieuw.k !== 'poort' || !nieuw.hek) uit.push('Poort met hek zette geen poort met hek neer: ' + JSON.stringify(nieuw));
+    // en het spel-level door levelcheck
+    await laad(g);
+    const lv = await page.evaluate(() => mkNaarLevel());
+    const f = path.join(os.tmpdir(), 'makertest-poorthek.json');
+    fs.writeFileSync(f, JSON.stringify(lv));
+    const lc = spawnSync('python3', [path.join(ROOT, 'tools', 'levelcheck.py'), f], { encoding: 'utf8' });
+    uit.push(...((lc.stdout || '') + (lc.stderr || '')).split('\n').filter(l => /FOUT/.test(l)).slice(0, 4));
+    return uit;
+  });
+
   // 7. de controle: een grid met fouten geeft meldingen, het proefgrid geeft geen fout
   await check('controle: meldingen bij een start zonder vloer en een platform zonder doel', async () => {
     const heeft = await page.evaluate(() => typeof mkControle === 'function');

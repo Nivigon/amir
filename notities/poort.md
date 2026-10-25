@@ -56,14 +56,21 @@ poort mee in `voorbij het einde`, `boven een ravijn`, `waar een ravijn openscheu
 
 ## In de Maker
 
-Objecten, **Poort (stenen boog)**. In het paneel: **Boog**, **Gespiegeld**, **Look** (vanzelf, steen, sneeuw,
+Objecten, **Poort (stenen boog)**, en **Poort met hek** (het gereedschap `poorthek`: `mkKlik` zet een poort met
+`hek: true`). In het paneel: **Boog**, **Gespiegeld**, **Look** (vanzelf, steen, sneeuw,
 savanne; vanzelf is sneeuw als de cel onder de poort sneeuw is, `mkPoortLook`), **Vijand eruit** (geen =
-alleen decor) en **Aantal** (1 tot 3, `MK_POORT_N`). Een zegel of rune krijgt **Opent poort**
+alleen decor), **Aantal** (1 tot 3, `MK_POORT_N`), **Schaal** (0,8 tot 1,5, `s`), **Hek**, **Regie** met **Zet regiepunt**
+en **Wis regiepunt** (`mkBijMode`: de volgende klik op een kolom is `bij`, opgeslagen als kolom en in het spel het midden
+van die kolom; een gele stippellijn op de kaart, `mkPoortRegieTeken`), en **Rotswand** (geen of een soort uit
+`HEK_WANDEN`, `mkPoortWand`) met **Wand gespiegeld**, **Hoogte** (`HEK_WAND_H`) en **Verschuif** (`HEK_WAND_X`). Op de kaart
+staan de rotswand (`mkPoortWandTeken`) en het hek (`mkPoortHekTeken`) zoals in het spel, alleen het tandwiel altijd op de
+sluitsteen. Spiegelen van een gebied keert ook de rotswand, zijn verschuiving en het regiepunt om (`bijDc` in het klembord). Een zegel of rune krijgt **Opent poort**
 (`mkVulPoortSelect`), net als Stuurt rijzer: een verwijzing naar het voorwerp (`poortObj`, `mkPoortVan`),
 opgeslagen op celpositie (`poort: {c, r}`) en in het klembord als `poortRel`; spiegelen keert de poort om.
 `mkNaarLevel` maakt er `poorten` van (`b1`, `b2`, ...) plus een spawn per vijand met `poort`. De controle
 meldt een poort in een vaste cel of boven een ravijn zonder bodem (FOUT), een poort met een vijand maar
-zonder schakelaar (LET OP) en een schakelaar die een lege poort opent (info).
+zonder schakelaar en zonder regie (LET OP), een schakelaar die een lege poort opent, een poort met regie maar zonder
+vijand en een hek dat niets opent (info).
 
 ## Sandbox
 
@@ -94,8 +101,17 @@ poorten: [ {id: 'p1', x: -1900, k: 'boog_steen', hek: true, wand: true, wandF: t
   (`schok`, `tanden`), het takelgeluid (`hekGeluid`, `sounds/takelen.mp3` herhaald), stof als de punten loskomen en
   een klap als hij boven is. Op `open` (0,8) gaat de poort echt open en komen de vijanden. Wie de poort ook opent
   (een zegel, een rune, de regie of de sandbox): `poortOpen` op een poort met hek takelt eerst het hek op (`hekOp`).
-- `wand` de rotswand van de muur (`MUUR.src`, op `MUUR.hoogAmir`) achter de boog, met `HEK.wand.anker` achter het
-  midden van de opening; `wandF` spiegelt hem. Decor, Amir loopt ervoor langs.
+- `wand` een rotswand achter de boog; `wandF` spiegelt hem. Decor, Amir loopt ervoor langs. `wand: true` (en `'kaal'`)
+  is de rotswand van de muur (`MUUR.src`, op `MUUR.hoogAmir`) met `HEK.wand.anker` achter het midden van de opening,
+  zoals Test 51 hem heeft. In plaats daarvan kan `wand` een soort uit `HEK_WANDEN` zijn: de vier rotsen van de runes
+  (`spits`, `pieken`, `zuilen`, `boog`, dezelfde platen als `RUNE_ROTSEN`, via `runeBeeld`) of de grotboog (`grot`,
+  `MUUR_GROT`, via `grotMuurBeeld`). Per soort staat in `HEK_WANDEN` de hoogte zonder `wandH` (`hoog`, in Amir) en
+  welk deel van de plaat achter het midden van de boog staat (`anker`). `wandH` zet de hoogte (in Amir), `wandX`
+  schuift de rots opzij (in Amir, rechts is +). `hekWandBeeld`, `hekWandMaat`, `hekWandTeken`.
+  Het minitandwiel zit alleen op de rots als die daar hoog genoeg is (`hekTandOpRots`: de alfa van de plaat boven het
+  midden van de boog); anders, zoals tussen de twee zuilen of bij een lage rots, zit het op de sluitsteen en hangt er
+  geen touw achter de stenen. De kale wand op zijn eigen maat en plek telt altijd als hoog genoeg, zodat Test 51 bleef
+  zoals hij was. `levelcheck.py` meldt een onbekende soort als FOUT.
 - `regie` de poort gaat vanzelf open als hij in beeld komt: op `HEK.inBeeld` van een half scherm van Amir, of
   dichterbij als hij dan nog niet heel in beeld is. Met `bij` (wereld-x) pas als Amir daar voorbij is; poorten die
   in hetzelfde beeld afgaan horen bij een regie en gaan samen open. Tijdens de regie staat Amir vast (`amirVast`),
@@ -104,10 +120,10 @@ poorten: [ {id: 'p1', x: -1900, k: 'boog_steen', hek: true, wand: true, wandF: t
   geval. Een nieuwe regie wacht tot er geen levende schildbandiet meer is, zodat je niet midden in een gevecht
   vastgezet wordt. `levelcheck.py` telt `regie` als schakelaar.
 
-Sandbox, Decor, Poort: **+ hek**, **+ rotswand**, **+ schildbandiet erin**, **Open de poort** (met hek: `hekOp`) en
+Sandbox, Decor, Poort: **+ hek**, **+ rotswand** (elke klik de volgende soort uit `HEK_WANDEN`, en dan weer geen), **+ schildbandiet erin**, **Open de poort** (met hek: `hekOp`) en
 **Hek dicht** (`hekDicht`, de vijanden gaan weer naar binnen). **Test 51: De poorten** is het proefstuk.
 
 ## Nog niet
 
 De plaatjes staan nog niet in `klein/`: dat wacht tot hun maat op een telefoon gemeten is (zie
-`design/boog/LEESMIJ.md`). Een poort zonder hek heeft nog geen geluid bij het opengaan, en geen echt level gebruikt een poort. De Maker kent het hek en de regie nog niet.
+`design/boog/LEESMIJ.md`). Een poort zonder hek heeft nog geen geluid bij het opengaan, en geen echt level gebruikt een poort.

@@ -120,7 +120,8 @@ Altijd WYSIWYG: links in het grid is links in het spel, de wereld-x is `(kolom -
   boven een gang krijgt `dak: true` en `readLevel` neemt dat over (eerst viel het daar weg, en lag het
   zegel toch op de gang-bodem).
 - Een **poort** (Objecten, "Poort (stenen boog)") wordt een `poorten`-entry (`b1`, `b2`, ...) met de onderkant
-  van de opening op de onderkant van zijn cel; op een laag of op het dak van een gang met `y`. Met een vijand erin
+  van de opening op de onderkant van zijn cel; op een laag of op het dak van een gang met `y`. Het hek, de schaal, de
+  regie (met `bij` als regiepunt) en de rotswand (`wand`, `wandF`, `wandH`, `wandX`) gaan mee. Met een vijand erin
   komt die als spawn met `poort` mee (via `mkSpawn` op de cel van de poort, zo vaak als **Aantal**), en een zegel of
   rune met **Opent poort** krijgt `poort`. Zie `notities/poort.md`.
 - Vijanden via `mkSpawn`: de soort-tekst (`bandiet:dolk`, `kooiman:vogel`, `schildman:makkelijk`)
@@ -166,12 +167,12 @@ naar de cel), die bijblijft zolang hij open staat. Drie soorten:
   een tandwiel zonder platform, een poort in een vaste cel of boven een ravijn zonder bodem, een rijzer die niet helemaal in een ravijn op de grondlijn staat, buiten het
   grid steekt of geen zegel of rune heeft die hem stuurt (een zakker mag overal en heeft er geen nodig).
 - **LET OP**: een start of eind die hoog boven zijn vloer hangt, een vijand die zweeft of op de
-  start staat, een poort met een vijand maar zonder zegel of rune die hem opent, een ravijn of gang op de verkeerde rij, een gang zonder ingang, een platform zonder
+  start staat, een poort met een vijand maar zonder zegel, rune of regie die hem opent, een ravijn of gang op de verkeerde rij, een gang zonder ingang, een platform zonder
   tandwiel of met zijn doel op dezelfde hoogte, een zegel dat naar een weg masker wijst, een val
   van meer dan vier cellen naast een rand (dodelijk in de Test), een rijzer met zijn doel op zijn eigen rij, die
   op of boven de grondlijn rust, of die drie of meer cellen ravijn naast zich open laat, en een zegel dat een
   zakker stuurt.
-- **info**: een prop (de Test tekent hem niet), een zegel of rune zonder masker of rijzer (alleen een
+- **info**: een prop (de Test tekent hem niet), een poort met regie zonder vijand, een hek dat niets opent, een zegel of rune zonder masker of rijzer (alleen een
   aantekening), een rijzer zonder duur die het hele ravijn vult (het ravijn is daarna voorgoed dicht, dus geen
   schuilplek meer, regel 7).
 
@@ -202,7 +203,7 @@ stuurt, een masker, een zwarte cel, een vorm) en
 kijkt na: de round-trip van export en import, de vertaling naar een spel-level, rijen invoegen en
 weer weghalen, verkleinen, snel schilderen, de rechthoek, het aanklikken van brede voorwerpen,
 ongedaan maken, een gebied kopiëren, spiegelen, plakken en knippen, een rijzer van even breedte spiegelen met
-zijn zegel eraan, de minimap en Test vanaf hier, de vijand-knoppen, de controle, de Test starten en teruggaan,
+zijn zegel eraan, een poort met hek, regie en rotswand (round-trip, vertaling, spiegelen, de knop Poort met hek, levelcheck), de minimap en Test vanaf hier, de vijand-knoppen, de controle, de Test starten en teruggaan,
 de autosave, en of
 het proefgrid als spel-level door `levelcheck.py` komt. Draai hem na elke wijziging aan de Maker.
 
