@@ -11455,7 +11455,8 @@ function poortUpdate(dt){
   if (!level || !level.poorten) return;
   hekUpdate(dt);
   for (const o of level.poorten) if (o.uitT > 0) o.uitT = Math.max(0, o.uitT - dt);
-  for (const sp of level.spawns || []) if (sp.poort && sp.poortWacht > 0) sp.poortWacht = Math.max(0, sp.poortWacht - dt);
+  // de beurt telt pas af als Amir binnen de triggerafstand is: komt hij later bij de poort, dan komen ze alsnog na elkaar
+  for (const sp of level.spawns || []) if (sp.poort && sp.poortWacht > 0 && Math.abs(sp.x - world) <= triggerDist(sp.kind)) sp.poortWacht = Math.max(0, sp.poortWacht - dt);
 }
 function poortReset(){
   if (level && level.poorten) for (const o of level.poorten){ o.open = false; o.uitT = 0; o.hekP = 0; o.hekT = 0; o.hekAan = false; o.regieKlaar = false; o.openT = null; }
@@ -11779,7 +11780,7 @@ function hekUpdate(dt){
       if (!o.open){ klaar = false; continue; }
       if (o.openT == null) o.openT = R.t;
       if (R.t - o.openT > HEK.regieMax) continue;                                  // vangnet
-      if ((level.spawns || []).some(sp => sp.poort === o.id && !sp.used)){ klaar = false; continue; }
+      if ((level.spawns || []).some(sp => sp.poort === o.id && !sp.used && Math.abs(sp.x - playerX()) <= triggerDist(sp.kind))){ klaar = false; continue; }   // wie buiten bereik achter de poort blijft telt niet mee
       for (const m of schildmannen) if (m.uitPoort === o.id && hekLeeft(m) && Math.abs(m.x - o.x) < HEK.uitLoop * A) klaar = false;
       for (const b of bandieten) if (b.uitPoort === o.id && Math.abs(b.x - o.x) < HEK.uitLoop * A) klaar = false;
     }
@@ -22184,7 +22185,10 @@ function updateSnakes(dt, plats, halfWNow, cliff){
         if (d > triggerDist(sp.kind)) continue;
         sp.armed = true;                 // één keer in de buurt geweest: dan komt hij ook echt
       }
-      if (d > W * 2.5){ sp.used = true; continue; }   // je bent al ver voorbij: laat maar zitten
+      // uit een poort: hij blijft achter de opening tot Amir binnen zijn triggerafstand is (het zegel of het regiepunt kan ver
+      // van de poort liggen). Eerst werd hij dan als 'ver voorbij' afgeschreven en kwam hij nooit, terwijl de hint hem beloofde
+      if (sp.poort){ if (d > triggerDist(sp.kind)) continue; }
+      else if (d > W * 2.5){ sp.used = true; continue; }   // je bent al ver voorbij: laat maar zitten
       sp.used = true;
       if (sp.poort) poortUit(sp);
       // uit een poort: precies in de opening, niet net buiten beeld
@@ -22211,18 +22215,18 @@ function updateSnakes(dt, plats, halfWNow, cliff){
       }
       if (sp.kind === 'fosfor'){                   // altijd een groep van drie
         const lx = plek(sp.x);
-        zichtZet(fosforGroep(lx, lx > world ? 1 : -1, undefined, !!sp.klim), sp); continue;
+        zichtZet(fosforGroep(lx, lx > world ? 1 : -1, sp.boven ? bovenVloer(lx) : undefined, !!sp.klim), sp); continue;   // boven: op het dak van een gang, niet op de bodem
       }
       if (sp.kind === 'kooiman'){
         let kx = plek(sp.x);
         if (sp.achter > 0) kx += (kx > world ? 1 : -1) * sp.achter;   // tegelijk gestart, maar verder weg
         const k = makeKooiman(kx, kx > world ? 1 : -1, sp.vogel, sp.duel);
-        k.base = terrainH(kx); if (!k.duel) zichtZet(k, sp); kooimannen.push(k); continue;   // het duel is geensceneerd
+        k.base = sp.boven ? bovenVloer(kx) : terrainH(kx); if (!k.duel) zichtZet(k, sp); kooimannen.push(k); continue;   // het duel is geensceneerd; boven: op het dak van een gang
       }
       if (sp.kind === 'meelman'){
         const mx = sp.x;                               // op zijn ontworpen plek (de rand van de afgrond), niet verschoven
         const m = makeMeelman(mx, mx > world ? 1 : -1);
-        m.base = terrainH(mx); zichtZet(m, sp); meelmannen.push(m); continue;
+        m.base = sp.boven ? bovenVloer(mx) : terrainH(mx); zichtZet(m, sp); meelmannen.push(m); continue;   // boven: op het dak van een gang
       }
       if (sp.kind === 'schildman'){
         let mx = sp.boven ? sp.x : plek(sp.x);
@@ -33606,6 +33610,7 @@ function mkRijsVan(z){ return (z && z.rijsObj && MK.objects.indexOf(z.rijsObj) >
 function mkPoortVan(z){ return (z && z.poortObj && MK.objects.indexOf(z.poortObj) >= 0 && z.poortObj.k === 'poort') ? z.poortObj : null; }
 function mkPoortNr(o){ return MK.objects.filter(q => q.k === 'poort').indexOf(o) + 1; }   // zijn naam in het spel: b1, b2, ...
 const MK_POORT_N = 3;                                   // hoogstens zoveel vijanden uit een poort
+const MK_POORT_BIJ_VER = 4;                             // een regiepunt verder dan zoveel cellen van zijn poort: de poort gaat buiten beeld open (controle: LET OP)
 // de look van een poort in de Maker: zijn eigen keuze, of vanzelf sneeuw als de cel onder hem sneeuw is
 function mkPoortLook(o){
   if (poortLookOf(o.look)) return o.look;
@@ -35244,7 +35249,7 @@ function mkNaarLevel(opt){
     return sp;
   };
   const vijanden = MK.objects.filter(o => o.k === 'vijand');
-  const spawns = vijanden.length ? vijanden.map(mkSpawn) : [{ x: eindX - 5000, k:'groen' }];
+  const spawns = vijanden.map(mkSpawn);            // zonder enige spawn (ook niet in een poort) komt er hieronder een standaard-slang bij
   // stenen poorten: elke poort wordt een poorten-entry (b1, b2, ...) in het midden van zijn cel, met de onderkant van de
   // opening op de onderkant van de cel. Op een laag of op het dak van een gang krijgt hij die hoogte (y), zoals de
   // kalebas; op de grond en in een gang zoekt het spel de vloer zelf (terrainH). Zit er een vijand in, dan gaat die
@@ -35268,6 +35273,9 @@ function mkNaarLevel(opt){
     poorten.push(e);
     if (mkPoortVijOk(o.vijand)) for (let i = 0; i < Math.min(MK_POORT_N, o.n || 1); i++) spawns.push({ ...mkSpawn({ c: o.c, r: o.r, soort: o.vijand }), poort: id });
   }
+  // zonder een enkele spawn zou het spel vrije slangen sturen (de spawner zonder level.spawns): dan een slang ver achter het
+  // eind, buiten bereik. Een level met alleen poortvijanden heeft die niet nodig (eerst kwam hij er dan toch bij, levelcheck: LET OP)
+  if (!spawns.length) spawns.push({ x: eindX - 5000, k:'groen' });
   // de grond-afwerking op de grondlijn-rij: een sneeuwlaag op de bodem (op savanne of op rots), of een kale rotsbodem
   let afwerking = null;
   for (let c = 0; c < C; c++){ const id = G[gR] && G[gR][c];
@@ -35476,6 +35484,7 @@ function mkControle(){
       else if (v - o.r > 1) meld('letop', nm + ' hangt ' + (v - o.r - 1) + ' cel' + (v - o.r - 1 === 1 ? '' : 'len') + ' boven zijn vloer.', o.c, o.r);
       const opener = MK.objects.some(z => mkPoortVan(z) === o);
       if (mkPoortVijOk(o.vijand) && !opener && !o.regie) meld('letop', nm + ' heeft een vijand, maar geen zegel of rune die hem opent en geen regie: die vijand komt er nooit uit. Kies een zegel en zet daar Opent poort, of zet Regie aan.', o.c, o.r);
+      if (o.regie && o.bij != null && Math.abs(o.bij - o.c) > MK_POORT_BIJ_VER) meld('letop', nm + ' heeft zijn regiepunt ' + Math.abs(o.bij - o.c) + ' cellen van de poort: Amir staat dan stil terwijl de poort buiten beeld opengaat. Zet het regiepunt binnen ' + MK_POORT_BIJ_VER + ' cellen.', o.c, o.r);
       if (o.regie && !mkPoortVijOk(o.vijand)) meld('info', nm + ' heeft regie maar geen vijand: ' + (o.hek ? 'het hek gaat op' : 'hij gaat open') + ' en Amir staat even stil, maar er komt niemand uit.', o.c, o.r);
       if (o.hek && !opener && !o.regie) meld('info', nm + ' heeft een hek, maar niets opent hem: het hek blijft dicht (decor).', o.c, o.r);
     }

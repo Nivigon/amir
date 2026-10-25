@@ -31,7 +31,11 @@ Een spawn met `poort: 'b1'` wacht achter die poort (`poortKlaar` in de spawner).
 koppel-rune met `stuurt`). Dan:
 
 - komen zijn spawns een voor een, `POORT.tussen` seconden na elkaar, precies op de plek van de opening
-  (de spawner gebruikt dan `sp.x` in plaats van `spawnPoint`), op de hoogte van de spawn (`boven`, `y`);
+  (de spawner gebruikt dan `sp.x` in plaats van `spawnPoint`), op de hoogte van de spawn (`boven`, `y`). Ook de
+  kooiman, de meelman en de fosforgroep lezen `boven` (het dak van een gang: `bovenVloer`, niet de gang-bodem);
+- wacht een spawn achter de opening tot Amir binnen zijn triggerafstand is (`triggerDist`), en telt zijn beurt
+  (`poortWacht`) pas dan af: een zegel of regiepunt mag dus ver van de poort liggen. Eerst schreef de spawner hem
+  als 'ver voorbij' af als Amir meer dan 2,5 scherm weg was, en kwam hij nooit, terwijl de hint hem beloofde;
 - ligt het donker van de opening nog `POORT.uit` seconden over wie eruit stapt (`poortVoorTeken`, na
   de vijanden getekend): hij komt uit het donker;
 - komt hij wakker: `zichtZet` zet `zWacht` uit voor een spawn met `poort`, want hij komt omdat Amir
@@ -69,8 +73,11 @@ sluitsteen. Spiegelen van een gebied keert ook de rotswand, zijn verschuiving en
 opgeslagen op celpositie (`poort: {c, r}`) en in het klembord als `poortRel`; spiegelen keert de poort om.
 `mkNaarLevel` maakt er `poorten` van (`b1`, `b2`, ...) plus een spawn per vijand met `poort`. De controle
 meldt een poort in een vaste cel of boven een ravijn zonder bodem (FOUT), een poort met een vijand maar
-zonder schakelaar en zonder regie (LET OP), een schakelaar die een lege poort opent, een poort met regie maar zonder
-vijand en een hek dat niets opent (info).
+zonder schakelaar en zonder regie (LET OP), een regiepunt meer dan `MK_POORT_BIJ_VER` (4) cellen van zijn poort (LET OP: Amir
+staat dan stil terwijl de poort buiten beeld opengaat), een schakelaar die een lege poort opent, een poort met regie
+maar zonder vijand en een hek dat niets opent (info). Een level met alleen poortvijanden krijgt geen standaard-slang
+meer achter het eind (die kwam er alleen voor een level zonder enige spawn, tegen de vrije slangen). `tools/poorttest.js`
+speelt dit alles door (zie `notities/tools.md`).
 
 ## Sandbox
 
@@ -115,7 +122,8 @@ poorten: [ {id: 'p1', x: -1900, k: 'boog_steen', hek: true, wand: true, wandF: t
 - `regie` de poort gaat vanzelf open als hij in beeld komt: op `HEK.inBeeld` van een half scherm van Amir, of
   dichterbij als hij dan nog niet heel in beeld is. Met `bij` (wereld-x) pas als Amir daar voorbij is; poorten die
   in hetzelfde beeld afgaan horen bij een regie en gaan samen open. Tijdens de regie staat Amir vast (`amirVast`),
-  en springt geen schildbandiet (`cool`). Klaar is hij als elke poort open is, al zijn spawns eruit zijn en elke
+  en springt geen schildbandiet (`cool`). Klaar is hij als elke poort open is, al zijn spawns eruit zijn (een spawn die buiten bereik achter de poort blijft telt
+  niet mee, zie hierboven) en elke
   schildbandiet die eruit kwam (`m.uitPoort`) `uitLoop` Amir uit de opening staat; na `regieMax` seconden in elk
   geval. Een nieuwe regie wacht tot er geen levende schildbandiet meer is, zodat je niet midden in een gevecht
   vastgezet wordt. `levelcheck.py` telt `regie` als schakelaar.

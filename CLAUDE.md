@@ -456,6 +456,12 @@ Speelt het gevecht tegen de schildbandiet met een paar speelstijlen en meldt per
 de treffers en in welk stuk van zijn aanval Amir hem raakte. Draai het na een wijziging aan `SCHB`.
 `--reactie 0.3` zet de reactietijd, `--breed 1280 --hoog 720` het scherm, `--fotos map` maakt foto's.
 
+### De poorttest: `tools/poorttest.js`
+
+Speelt Maker-grids met poorten in Chromium door (elke vijandsoort, elke hoogte, hek, regie, twee poorten, dood en
+herstart) en meldt per scenario OK of FOUT. Draai hem na een wijziging aan de poort, het hek, de regie, de spawner
+of `mkNaarLevel`. `--alleen gang` beperkt tot de scenario's met dat woord in de naam.
+
 ### De makertest: `tools/makertest.js`
 
 Laadt de Maker nieuwstijl in Chromium met een proefgrid waar alles op staat en kijkt de round-trip,

@@ -153,6 +153,20 @@ het na een wijziging aan de getallen in `SCHB`. `--reactie 0.3` zet de reactieti
 --hoog 720` het scherm (standaard kleiner, en daar is ontwijken makkelijker), `--fotos map` maakt
 schermafdrukken op vaste frames van de sprong.
 
+## De poorttest: tools/poorttest.js
+
+Speelt Maker-grids met poorten in het echte spel door, op vaste virtuele tijd zoals de speelrobot: elke vijandsoort uit
+een poort, poorten op de grond, op een mesa, op een zwever, op het dak van een gang en op de gangvloer, het hek, de regie
+met en zonder regiepunt, twee poorten, een zegel dat masker en poort tegelijk opent, een zegel ver van de poort, de dood
+en de herstart, en de controle van de Maker. Per scenario OK of FOUT, met (info)-regels over waar en op welke hoogte elke
+vijand verscheen. Draai hem na een wijziging aan de poort, het hek, de regie, de spawner of `mkNaarLevel`.
+
+```
+node tools/poorttest.js                 alle scenario's (ruim tien minuten)
+node tools/poorttest.js --alleen gang   alleen de scenario's waarvan de naam dit bevat
+node tools/poorttest.js --shots map     een schermafdruk per scenario
+```
+
 ## De makertest: tools/makertest.js
 
 Laadt de Maker nieuwstijl in Chromium, zet er een proefgrid in waar alles op staat (een gat, een
