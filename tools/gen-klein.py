@@ -79,6 +79,10 @@ DOELEN = [
                                         # lijf rond 330, een wond 123), dus dezelfde lage drempel
     ('enemies/kooiman', 400),           # 81 frames op een canvas van 726x648; de gebukte figuur is 301
                                         # hoog en wordt op ongeveer Amir zijn hoogte getekend
+    ('enemies/meelman', 400),           # 3,3x: idle 3,26, oprichten 3,26, worp 3,29, ren 3,44, slepen 3,19 (Test 42);
+                                        # 115 frames op een canvas van 744x469; bron/ blijft erbuiten. De tekencode
+                                        # rekt elk frame naar MEEL.w en MEEL.h (canvaspixels), dus het halve frame
+                                        # komt op dezelfde maat en plek
     ('enemies/vogel', 400),             # de secretarisvogel uit de kooi: 50 frames op 536x405,
                                         # klein getekend (ongeveer Amir-grootte met wings)
     ('enemies/baviaan', 400),           # 2,5x in het gevecht, 2,25x in de afzet, val en landing (daar maakt
