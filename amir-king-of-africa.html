@@ -2292,6 +2292,8 @@ const KLEIN_FAM = [
   'enemies/blackpanther/',
   'enemies/panter_wit/',
   'enemies/schorpioen1/',
+  'enemies/baviaan/',
+  'enemies/goudaapje/',
   'karakters/dorpeling1/',
   'design/vegetatie/drygrass_sheet.png',
   'design/drygrass.png',
@@ -2312,14 +2314,20 @@ function kleinEerst(paths){
   for (const p of paths) if (heeftKlein(p)) uit.push(KLEIN + p);
   return uit.length ? uniq(uit.concat(paths)) : paths;
 }
-// voor de plekken die één bron zetten in plaats van een lijst te proberen
+// voor de plekken die één bron zetten in plaats van een lijst te proberen. _bron onthoudt of het de
+// halve versie is (2) of het origineel (1), zie bronW en bronH hieronder.
 function zetBron(img, pad, opFout){
   const paden = kleinEerst([pad]);
   let k = 0;
-  img.onerror = () => { k++; if (k < paden.length) img.src = paden[k]; else if (opFout) opFout(); };
-  img.src = paden[0];
+  const zet = () => { img._bron = KLEIN && paden[k].indexOf(KLEIN) === 0 ? 2 : 1; img.src = paden[k]; };
+  img.onerror = () => { k++; if (k < paden.length) zet(); else if (opFout) opFout(); };
+  zet();
   return img;
 }
+// De maat van een plaatje in pixels van de grote set. Code die in bronpixels rekent (de baviaan en het
+// goudaapje: hun kader, links, grond en de schaal k per bronpixel) leest hiermee, zodat een frame uit
+// klein/ op precies dezelfde maat en plek komt als het origineel. Zonder zetBron telt een plaatje als groot.
+const bronW = im => im.naturalWidth * (im._bron || 1), bronH = im => im.naturalHeight * (im._bron || 1);
 
 // Amir: de sprites staan los op schijf (scheelt een hoop in de grootte van dit bestand)
 // nieuwe indeling: karakters/amir/{idle, aanval/{lowsweep,speerstrike}, beweging/{bukken,jump,run}}
@@ -11595,17 +11603,14 @@ function bavReeks(map, n){
   const r = [];
   for (let i = 0; i < n; i++){
     const im = new Image(), src = map + String(i).padStart(2, '0') + '.png';
-    im.onerror = () => console.warn('ontbreekt: ' + src);
-    im.src = src;
+    zetBron(im, src, () => console.warn('ontbreekt: ' + src));   // op een telefoon de halve versie uit klein/
     r.push(im);
   }
   return r;
 }
 function baviaanLaad(){
   if (baviaanImg) return;
-  baviaanImg = new Image();
-  baviaanImg.onerror = () => console.warn('ontbreekt: ' + BAVIAAN.src);
-  baviaanImg.src = BAVIAAN.src;
+  baviaanImg = zetBron(new Image(), BAVIAAN.src, () => console.warn('ontbreekt: ' + BAVIAAN.src));
   bavHangImgs = bavReeks(BAV_HANG.map, BAV_HANG.n);
   bavAfzetImgs = bavReeks(BAV_AFZET.map, BAV_AFZET.n);
   bavValImgs = bavReeks(BAV_VAL.map, BAV_VAL.n);
@@ -11805,7 +11810,7 @@ function bavKader(img){
 // nooit krapper uitvalt dan voorheen (het kader voedt alleen de treffer, niet het tekenen).
 // bron is het plaatje zelf of een al verkleinde kopie ervan (bavKaderVooraf).
 function bavKaderMaat(img){
-  const bw = img.naturalWidth, bh = img.naturalHeight, f = Math.min(1, 220 / bw);
+  const bw = bronW(img), bh = bronH(img), f = Math.min(1, 220 / bw);
   return { bw, bh, f, cw: Math.max(1, Math.round(bw * f)), ch: Math.max(1, Math.round(bh * f)) };
 }
 function bavKaderMeet(img, bron, rand = 1){
@@ -12696,10 +12701,10 @@ function baviaanTeken(groundY, scale, cx){
       bavBeetSpeer(b, st, mx, my, scale, groundY, cx);
       ctx.restore();
     }
-    ctx.drawImage(fr, lx, -h - oy, fr.naturalWidth * k, fr.naturalHeight * k);
+    ctx.drawImage(fr, lx, -h - oy, bronW(fr) * k, bronH(fr) * k);
     if (st.flits > 0){                                       // wit oplichten bij de klap (BAV_DRAMA)
       const wit = bavWit(fr);
-      if (wit){ ctx.save(); ctx.globalAlpha *= Math.min(1, st.flits) * 0.85; ctx.drawImage(wit, lx, -h - oy, fr.naturalWidth * k, fr.naturalHeight * k); ctx.restore(); }
+      if (wit){ ctx.save(); ctx.globalAlpha *= Math.min(1, st.flits) * 0.85; ctx.drawImage(wit, lx, -h - oy, bronW(fr) * k, bronH(fr) * k); ctx.restore(); }
     }
     const rs = bavRust.get(b);
     if (rs && rs.valSpeer) bavSpeerTeken(rs, fr, lx, -h - oy, k, scale);   // de speer uit de speerval, in zijn borst
@@ -12709,7 +12714,7 @@ function baviaanTeken(groundY, scale, cx){
     if (st.hang && imgReady(st.hang)){                       // de hang-idle, met de greep waar zijn hand in afzet_00 zit
       const A = BAV_AFZET.kader, G = BAV_HANG, k = h / A.h, kh = k * G.maat;
       const gx = -w / 2 + (G.afzetGreep.x - A.l) * k, gy = -h + (G.afzetGreep.y - A.t) * k;
-      ctx.drawImage(st.hang, gx - G.greep.x * kh, gy - G.greep.y * kh, st.hang.naturalWidth * kh, st.hang.naturalHeight * kh);
+      ctx.drawImage(st.hang, gx - G.greep.x * kh, gy - G.greep.y * kh, bronW(st.hang) * kh, bronH(st.hang) * kh);
     } else ctx.drawImage(baviaanImg, -w / 2, -h, w, h);
   }
   ctx.restore();
@@ -12782,7 +12787,7 @@ function bavSpeerTeken(r, fr, lx, ty, k, scale){
   let diep = BAV_VALSPEER.diep;
   const eind = ay + Math.sin(a) * (1 - diep) * lenBron;            // het uiteinde, in bronrijen
   if (a > 0 && eind > BAV_VALSPEER.grond - 6) diep = Math.min(BAV_VALSPEER.maxDiep, 1 - (BAV_VALSPEER.grond - 6 - ay) / (Math.sin(a) * lenBron));
-  const m = Math.ceil(len), fw = fr.naturalWidth * k, fh = fr.naturalHeight * k;
+  const m = Math.ceil(len), fw = bronW(fr) * k, fh = bronH(fr) * k;
   if (!bavSpeerCv) bavSpeerCv = document.createElement('canvas');
   const c = bavSpeerCv, W2 = Math.ceil(fw + 2 * m), H2 = Math.ceil(fh + 2 * m);
   if (c.width !== W2 || c.height !== H2){ c.width = W2; c.height = H2; }
@@ -12829,13 +12834,13 @@ function bavSchaduw(b, st, fr, sx, voet, h, w, groei, shY, scale, wx, vloer){
   let lx, ly, fw, fh, grondRij;
   if (fr){
     lx = -w / 2 - (K.l + (st.ox || 0)) * k; ly = -h - (K.t + (st.oy || 0)) * k;
-    fw = fr.naturalWidth * k; fh = fr.naturalHeight * k;
+    fw = bronW(fr) * k; fh = bronH(fr) * k;
     grondRij = st.grond || (st.oy ? BAV_SPRONG.grond : BAV_VAL.grond);
-  } else { lx = -w / 2; ly = -h; fw = w; fh = h; grondRij = img.naturalHeight; }
+  } else { lx = -w / 2; ly = -h; fw = w; fh = h; grondRij = bronH(img); }
   const py = (BAV_VAL.grond - K.t - K.h) * k;               // de groei gaat om de grondlijn van het canvas
   lx *= groei; fw *= groei; fh *= groei; ly = py + (ly - py) * groei;
   const X = b.f ? sx - (lx + fw) : sx + lx, Y = voet + ly;
-  const voetY = Y + grondRij * fh / img.naturalHeight;
+  const voetY = Y + grondRij * fh / bronH(img);
   const a0 = ctx.globalAlpha;
   if (st.alfa != null) ctx.globalAlpha = a0 * st.alfa;      // dood: de schaduw vervaagt met hem
   const fc = fakkelCast(wx, vloer);                  // de fakkel neemt de richtingsschaduw over waar het donker is
@@ -12962,9 +12967,7 @@ let gaapImg = null, gaapHangImgs = null, gaapAfzetImgs = null, gaapValImgs = nul
 function gReeks(reel, n){ return bavReeks('enemies/goudaapje/' + reel + '/' + reel + '_', n); }
 function goudaapLaad(){
   if (gaapImg) return;
-  gaapImg = new Image();
-  gaapImg.onerror = () => console.warn('ontbreekt: enemies/goudaapje/baviaan.png');
-  gaapImg.src = 'enemies/goudaapje/baviaan.png';
+  gaapImg = zetBron(new Image(), 'enemies/goudaapje/baviaan.png', () => console.warn('ontbreekt: enemies/goudaapje/baviaan.png'));
   gaapHangImgs = gReeks('hang_idle', BAV_HANG.n);
   gaapAfzetImgs = gReeks('afzet', BAV_AFZET.n);
   gaapValImgs = gReeks('val', BAV_VAL.n);
@@ -13098,13 +13101,13 @@ function gaapSchaduw(m, st, fr, sx, voet, h, w, groei, shY, scale, wx, vloer){
   let lx, ly, fw, fh, grondRij;
   if (fr){
     lx = -w / 2 - (K.l + (st.ox || 0)) * k; ly = -h - (K.t + (st.oy || 0)) * k;
-    fw = fr.naturalWidth * k; fh = fr.naturalHeight * k;
+    fw = bronW(fr) * k; fh = bronH(fr) * k;
     grondRij = st.grond || (st.oy ? BAV_SPRONG.grond : BAV_VAL.grond);
-  } else { lx = -w / 2; ly = -h; fw = w; fh = h; grondRij = img.naturalHeight; }
+  } else { lx = -w / 2; ly = -h; fw = w; fh = h; grondRij = bronH(img); }
   const py = (BAV_VAL.grond - K.t - K.h) * k;
   lx *= groei; fw *= groei; fh *= groei; ly = py + (ly - py) * groei;
   const X = m.f ? sx - (lx + fw) : sx + lx, Y = voet + ly;
-  const voetY = Y + grondRij * fh / img.naturalHeight;
+  const voetY = Y + grondRij * fh / bronH(img);
   const a0 = ctx.globalAlpha;
   if (st.alfa != null) ctx.globalAlpha = a0 * st.alfa;
   drawAmirSchaduw(img, X, Y, fw, fh, !!m.f, sx, voetY, shY, (shY - voetY) / scale, scale, amirZon(vloer, wx), 1);
@@ -13131,7 +13134,7 @@ function goudapenTeken(o){
     if (fr){
       const k = h / BAV_AFZET.kader.h;
       const lx = -w / 2 - (BAV_AFZET.kader.l + (st.ox || 0)) * k, oy = (BAV_AFZET.kader.t + (st.oy || 0)) * k, top = voet - h - oy;
-      ctx.drawImage(fr, lx, -h - oy, fr.naturalWidth * k, fr.naturalHeight * k);
+      ctx.drawImage(fr, lx, -h - oy, bronW(fr) * k, bronH(fr) * k);
       if (m.speerIn) gaapSpeerTeken(m, -h - oy, lx, k, scale);
       const kd = bavKader(fr);
       if (kd){
@@ -13145,7 +13148,7 @@ function goudapenTeken(o){
       ctx.save(); ctx.translate(sx, voet); ctx.scale(m.f ? -1 : 1, 1);
       const A = BAV_AFZET.kader, G = BAV_HANG, k = h / A.h, kh = k * G.maat;
       const gx = -w / 2 + (G.afzetGreep.x - A.l) * k, gyy = -h + (G.afzetGreep.y - A.t) * k;
-      ctx.drawImage(st.hang, gx - G.greep.x * kh, gyy - G.greep.y * kh, st.hang.naturalWidth * kh, st.hang.naturalHeight * kh);
+      ctx.drawImage(st.hang, gx - G.greep.x * kh, gyy - G.greep.y * kh, bronW(st.hang) * kh, bronH(st.hang) * kh);
       ctx.restore();
     } else if (!fr){ ctx.save(); ctx.translate(sx, voet); ctx.scale(m.f ? -1 : 1, 1); ctx.drawImage(gaapImg, -w / 2, -h, w, h); ctx.restore(); }
 

@@ -76,6 +76,13 @@ DOELEN = [
                                         # hoog en wordt op ongeveer Amir zijn hoogte getekend
     ('enemies/vogel', 400),             # de secretarisvogel uit de kooi: 50 frames op 536x405,
                                         # klein getekend (ongeveer Amir-grootte met wings)
+    ('enemies/baviaan', 400),           # 2,5x in het gevecht, 2,25x in de afzet, val en landing (daar maakt
+                                        # BAV_GROEI hem 1,12 keer groter), 4,0x aan de rotswand (hang_idle).
+                                        # 385 frames op canvassen van 493x592 tot 900x800; bron/ blijft erbuiten.
+                                        # De tekencode rekent in bronpixels via bronW en bronH, dus het halve
+                                        # frame komt op dezelfde maat en plek
+    ('enemies/goudaapje', 400),         # 5,5x, 4,9x in de afzet en landing, 9,8x aan de wand: dezelfde frames
+                                        # als de baviaan (omgekleurd), maar veel kleiner getekend
     ('karakters/dorpeling1', 400),      # 2,5x
     ('amir runc/amir_sprites/design/amir', 400),    # de speerworp (814 hoog); het
                                         # projectiel is 67 hoog en wordt ongewijzigd gekopieerd
