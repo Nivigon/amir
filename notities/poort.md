@@ -85,8 +85,11 @@ poorten: [ {id: 'p1', x: -1900, k: 'boog_steen', hek: true, wand: true, wandF: t
   (`schaduw`, `schaduwA`), alleen op het ijzer. Het plaatje is een raster (`hekRaster`): links en rechts een vast stuk,
   daartussen een oneven aantal kolommen met de ring in het midden, en boven en onder een vast stuk met daartussen
   rijen, zodat de staven in elke boog even ver uit elkaar staan (`spatie`, in Amir) en het hek precies van de kruin
-  tot net in de grond reikt (`zak`). Op de sluitsteen het minitandwiel van het takelwiel (`tand`), met het touw
-  (`touw_tegel.png`) naar de ring; zit de ring achter de stenen, dan loopt het touw tot de kruin. Opgaan duurt
+  tot net in de grond reikt (`zak`). Het minitandwiel van het takelwiel (`tand`) zit met een rotswand boven de
+  boog op de rots (`tand.boven`), zonder rotswand op de sluitsteen (`tand.y`). Het touw (`touw_tegel.png`) ligt
+  nooit over de rand van de boog: het stuk van het tandwiel naar beneden wordt voor de boog getekend
+  (`hekAchterTouw`) en valt dus achter de stenen weg, en in de opening hangt het van onder de kruin naar de ring.
+  Zit de ring achter de stenen, dan is daar geen touw meer. Opgaan duurt
   `duur` seconden: eerst kraakt het (`aanloop`), dan langzaam los en langzaam boven, met een schokje per tand
   (`schok`, `tanden`), het takelgeluid (`hekGeluid`, `sounds/takelen.mp3` herhaald), stof als de punten loskomen en
   een klap als hij boven is. Op `open` (0,8) gaat de poort echt open en komen de vijanden. Wie de poort ook opent
