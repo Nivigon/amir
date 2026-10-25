@@ -28,7 +28,10 @@ const SHELL_CACHE = 'amir-shell-v1';
 // sets zijn uit de repo, en zo gaat ook de oude set uit de cache op de telefoon.
 // v4: de baviaan en het goudaapje hebben een halve set in klein/; een schone cache, zodat de telefoon
 // die meteen binnenhaalt in plaats van de grote frames uit de oude cache te blijven gebruiken.
-const ASSET_CACHE = 'amir-assets-v4';
+// v5: het goudaapje staat in klein/ op een kwart in plaats van de helft, onder dezelfde bestandsnamen;
+// een schone cache, zodat de telefoon de halve frames niet uit de oude cache blijft gebruiken: het spel
+// rekent nu met een kwart (KLEIN_BRON), dus een oud half frame zou twee keer te groot getekend worden.
+const ASSET_CACHE = 'amir-assets-v5';
 
 // Sleutel waaronder we in de assetcache bijhouden welke assetversie erin zit.
 // Geen echt bestand, alleen een plek om een string te bewaren.

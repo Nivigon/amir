@@ -18,11 +18,15 @@ kleurwaas over het beeld, volgt de zon van het level; een level stelt hem bij me
 
 `KLEIN_FAM`, de keuze groot of klein, `zetBron`
 
-`bronW` en `bronH`: de maat van een plaatje in pixels van de grote set. `zetBron` zet `_bron` op 2 als het de
-halve versie uit `klein/` laadt. Tekencode die in bronpixels rekent (de baviaan en het goudaapje: hun kader,
-`links`, `grond` en de schaal per bronpixel) leest de maat hiermee in plaats van met `naturalWidth`, anders
-komt een half frame op de halve maat. Bij een nieuwe familie in `KLEIN_FAM`: kijk of de tekencode met
-`naturalWidth` of `naturalHeight` rekent, en zo ja, laad via `zetBron` en lees via `bronW`/`bronH`.
+`bronW` en `bronH`: de maat van een plaatje in pixels van de grote set. `zetBron` zet `_bron` op hoeveel keer
+kleiner de geladen versie uit `klein/` is: 2 voor de helft (de standaard), of de factor uit `KLEIN_BRON` voor
+een familie die verder verkleind is (het goudaapje: 4, een kwart; op de helft was hij op een telefoon nog
+2,45x te groot, op een kwart zit hij op 1,2x op zijn krapst). `KLEIN_BRON` hoort gelijk te lopen met de
+factoren in `DOELEN` in `tools/gen-klein.py`; dat script print de lijst. Tekencode die in bronpixels rekent
+(de baviaan en het goudaapje: hun kader, `links`, `grond` en de schaal per bronpixel) leest de maat hiermee
+in plaats van met `naturalWidth`, anders komt een half frame op de halve maat. Bij een nieuwe familie in
+`KLEIN_FAM`: kijk of de tekencode met `naturalWidth` of `naturalHeight` rekent, en zo ja, laad via `zetBron`
+en lees via `bronW`/`bronH`.
 
 ## rotsen om op te springen
 
