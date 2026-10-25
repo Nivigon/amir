@@ -19,6 +19,9 @@ boog_laag_1..4.png       lage, brede boog met gestapelde muurtjes ernaast; vier 
                          gelijke varianten, om af te wisselen
 *_sneeuw.png             elke boog met een sneeuwkap (voor de winter, look sneeuw)
 *_savanne.png            elke boog in de warme kleur van de savannegrond (look savanne)
+*_gat.png                het masker van de opening (wit, de opening als alfa), om het hek op af te knippen
+hek.png                  het ijzeren valhek (Grok, wit weggehaald): een raster dat het spel in stukken
+                         naast en onder elkaar tekent, zie "het hek van de poort" in de HTML
 metadata.json            per boog de maat en de opening [x0, y0, x1, y1] in pixels
 bron/                    de aangeleverde platen (wit met een magenta opening)
 ```

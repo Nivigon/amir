@@ -1074,7 +1074,8 @@ def rijzende_grond(lv, sp):
 @regel('poorten')
 def poorten(lv, sp):
     """Een stenen poort (poorten) is decor, of de plek waar vijanden uitkomen: de spawns met poort: id komen pas
-    als een zegel of rune met poort: id hem opent (poortOpen). Een poort met vijanden en zonder schakelaar houdt
+    als een zegel of rune met poort: id hem opent (poortOpen), of vanzelf met regie: true (zie "het hek van de
+    poort"). Een poort met vijanden en zonder schakelaar houdt
     ze voorgoed binnen; een schakelaar of spawn die naar een poort wijst die er niet is, doet niets."""
     ps = lv.d.get('poorten') or []
     ids = [str(o.get('id')) for o in ps]
@@ -1094,7 +1095,8 @@ def poorten(lv, sp):
             continue
         if str(s.get('poort')) not in ids:
             yield fout(s.get('x'), "vijand '%s' wacht in poort '%s', maar die poort is er niet: hij komt nooit" % (s.get('k'), s.get('poort')))
-        elif not any(str(z.get('poort')) == str(s.get('poort')) for z in bronnen):
+        elif not any(str(z.get('poort')) == str(s.get('poort')) for z in bronnen) \
+                and not any(o.get('regie') and str(o.get('id')) == str(s.get('poort')) for o in ps):   # regie: hij gaat vanzelf open
             yield fout(s.get('x'), "vijand '%s' wacht in poort '%s', maar geen zegel of rune opent die poort: hij komt nooit"
                        % (s.get('k'), s.get('poort')))
         if s.get('k') in ('panter', 'hyenas'):

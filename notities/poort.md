@@ -70,7 +70,41 @@ zonder schakelaar (LET OP) en een schakelaar die een lege poort opent (info).
 Decor, **Poort**: drie bogen, **Sneeuw**, **Savanne** en **Steen** (de look van de laatste poort), **+ slang erin**, **+ schorpioen erin**, **+ bandiet erin** (in de laatst
 neergezette poort) en **Open de poort**.
 
+## Het hek en de regie
+
+`HEK`, `hekTeken`, `hekUpdate`, `hekOp`, `poortRegie`. De sectie heet `// ---- het hek van de poort: een ijzeren
+valhek dat omhoog getakeld wordt ----`, direct na de poort.
+
+```
+poorten: [ {id: 'p1', x: -1900, k: 'boog_steen', hek: true, wand: true, wandF: true, regie: true, bij: -10500} ]
+```
+
+- `hek` een ijzeren valhek in de opening (`design/boog/hek.png`). Het hek is breder dan de opening (`breder`) en
+  wordt afgeknipt op de vorm van het gat (`<boog>_gat.png`, uit `tools/boog_vulling.py --gat`): de dwarsbanden lopen
+  achter de pijlers door en het hek verdwijnt achter de stenen als het opgaat. Bovenin een schaduwverloop
+  (`schaduw`, `schaduwA`), alleen op het ijzer. Het plaatje is een raster (`hekRaster`): links en rechts een vast stuk,
+  daartussen een oneven aantal kolommen met de ring in het midden, en boven en onder een vast stuk met daartussen
+  rijen, zodat de staven in elke boog even ver uit elkaar staan (`spatie`, in Amir) en het hek precies van de kruin
+  tot net in de grond reikt (`zak`). Op de sluitsteen het minitandwiel van het takelwiel (`tand`), met het touw
+  (`touw_tegel.png`) naar de ring; zit de ring achter de stenen, dan loopt het touw tot de kruin. Opgaan duurt
+  `duur` seconden: eerst kraakt het (`aanloop`), dan langzaam los en langzaam boven, met een schokje per tand
+  (`schok`, `tanden`), het takelgeluid (`hekGeluid`, `sounds/takelen.mp3` herhaald), stof als de punten loskomen en
+  een klap als hij boven is. Op `open` (0,8) gaat de poort echt open en komen de vijanden. Wie de poort ook opent
+  (een zegel, een rune, de regie of de sandbox): `poortOpen` op een poort met hek takelt eerst het hek op (`hekOp`).
+- `wand` de rotswand van de muur (`MUUR.src`, op `MUUR.hoogAmir`) achter de boog, met `HEK.wand.anker` achter het
+  midden van de opening; `wandF` spiegelt hem. Decor, Amir loopt ervoor langs.
+- `regie` de poort gaat vanzelf open als hij in beeld komt: op `HEK.inBeeld` van een half scherm van Amir, of
+  dichterbij als hij dan nog niet heel in beeld is. Met `bij` (wereld-x) pas als Amir daar voorbij is; poorten die
+  in hetzelfde beeld afgaan horen bij een regie en gaan samen open. Tijdens de regie staat Amir vast (`amirVast`),
+  en springt geen schildbandiet (`cool`). Klaar is hij als elke poort open is, al zijn spawns eruit zijn en elke
+  schildbandiet die eruit kwam (`m.uitPoort`) `uitLoop` Amir uit de opening staat; na `regieMax` seconden in elk
+  geval. Een nieuwe regie wacht tot er geen levende schildbandiet meer is, zodat je niet midden in een gevecht
+  vastgezet wordt. `levelcheck.py` telt `regie` als schakelaar.
+
+Sandbox, Decor, Poort: **+ hek**, **+ rotswand**, **+ schildbandiet erin**, **Open de poort** (met hek: `hekOp`) en
+**Hek dicht** (`hekDicht`, de vijanden gaan weer naar binnen). **Test 51: De poorten** is het proefstuk.
+
 ## Nog niet
 
 De plaatjes staan nog niet in `klein/`: dat wacht tot hun maat op een telefoon gemeten is (zie
-`design/boog/LEESMIJ.md`). Er is nog geen geluid bij het opengaan, en geen echt level gebruikt een poort.
+`design/boog/LEESMIJ.md`). Een poort zonder hek heeft nog geen geluid bij het opengaan, en geen echt level gebruikt een poort. De Maker kent het hek en de regie nog niet.
