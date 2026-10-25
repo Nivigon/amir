@@ -111,7 +111,7 @@ Altijd WYSIWYG: links in het grid is links in het spel, de wereld-x is `(kolom -
   voor slangen en panters (regel 7).
 - Voorwerpen: overhang naar een zwever, richel naar `ledges` (met `look` als de kleur niet steen is), kalebas naar `hppotions`, platform
   met doel plus zijn tandwielen naar `takels` (met `stam: true`), zegel en rune met een masker naar
-  `zegels`/`runes` plus `acties`, een verborgen zegel ook zonder masker, en een zegel of rune die een
+  `zegels`/`runes` plus `acties`, een verborgen of onzichtbaar zegel ook zonder masker (Te zien), en een zegel of rune die een
   rijzer stuurt ook (met `rijs`).
 - Een **rijzer** (Objecten, "Rijzer (grond die stijgt)") is de rijzende grond uit het spel (zie
   `notities/rijzende-grond.md`): een blok steen dat op een zegel uit een ravijn omhoog komt. Hij werkt als het
@@ -243,7 +243,7 @@ regel bij, en een controle in de lijst `check(...)`.
 
 Geen aanraking (pannen en zoomen kan
 alleen met muis en toetsen), geen prop-keuze (een prop is een aantekening), en een zegel kent
-alleen een masker, Verborgen en een rijzer, niet de andere zegel-velden (`speerval`, `plafond`). Een rijzer
+alleen een masker, Te zien (Open, Verborgen, Onzichtbaar) en een rijzer, niet de andere zegel-velden (`speerval`, `plafond`). Een rijzer
 staat alleen in een ravijn op de grondlijn: een rijzer in een put onder de grond of een lift die vanaf de
 gangvloer door de ingang omhoog komt is in het spel niet beproefd, en de Maker meldt zo'n plek als FOUT.
 
