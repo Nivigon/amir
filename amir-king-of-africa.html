@@ -984,6 +984,15 @@
         </div>
         <div id="mkmaskctl" class="mkveld" style="display:none"><label for="mkmasksel">Onthult masker</label><select id="mkmasksel"></select></div>
         <div id="mkrijsselctl" class="mkveld" style="display:none"><label for="mkrijssel">Stuurt rijzer</label><select id="mkrijssel"></select></div>
+        <div id="mkpoortselctl" class="mkveld" style="display:none"><label for="mkpoortsel">Opent poort</label><select id="mkpoortsel"></select></div>
+        <div id="mkpoortctl" style="display:none">
+          <div class="mkveld"><label for="mkpoortsoort">Boog</label><select id="mkpoortsoort"></select></div>
+          <div class="mkrij"><button id="mkpoortf">Gespiegeld: nee</button></div>
+          <div class="mkveld"><label for="mkpoortlook">Look</label><select id="mkpoortlook"><option value="">Vanzelf (sneeuw op sneeuw)</option><option value="steen">Steen</option><option value="sneeuw">Sneeuw</option><option value="savanne">Savanne</option></select></div>
+          <div class="mkveld"><label for="mkpoortvij">Vijand eruit</label><select id="mkpoortvij"></select></div>
+          <div class="mkknop"><label>Aantal</label><input id="mkpoortn" type="range" min="1" max="3" step="1"><span class="read" id="mkpoortnv"></span></div>
+          <div id="mkpoortinfo" class="mkhint"></div>
+        </div>
         <div id="mkmasklookctl" style="display:none">
           <div class="mkveld"><label for="mkmasklook">Hoe het eruitziet</label><select id="mkmasklook"><option value="grot">Grotwand (rots)</option><option value="rots">Rotswand (cliff)</option><option value="savanne">Savanne (grond)</option><option value="zwart">Helemaal zwart</option><option value="onzichtbaar">Onzichtbaar (alleen de inhoud verborgen)</option></select></div>
           <div class="mkveld"><label><input id="mkmaskvulzwart" type="checkbox"> Blijft zwart na onthullen</label></div>
@@ -1291,6 +1300,20 @@
         <button data-teken="jagers">Jagers</button>
         <button data-teken="kalebas">Kalebas aan een koordje</button>
         <span class="hint">decor, het doek waait mee met de vlagen</span>
+      </div>
+      <div class="row">
+        <label>Poort</label>
+        <button data-poort="boog_steen">Hoge boog</button>
+        <button data-poort="boog_rots">Boog in de rots</button>
+        <button data-poort="boog_laag_1">Lage boog</button>
+        <button data-poortlook="sneeuw">Sneeuw</button>
+        <button data-poortlook="savanne">Savanne</button>
+        <button data-poortlook="steen">Steen</button>
+        <button data-poortvij="groen">+ slang erin</button>
+        <button data-poortvij="scorp">+ schorpioen erin</button>
+        <button data-poortvij="bandiet">+ bandiet erin</button>
+        <button id="sbpoortopen">Open de poort</button>
+        <span class="hint">een stenen boog; zet er vijanden in en open hem, zoals een zegel of rune met poort doet</span>
       </div>
       <div class="row">
         <label>Fakkel</label>
@@ -7986,6 +8009,7 @@ function zegelUpdate(dt, scale){
 }
 // De schakelaar zelf. De rune op een rots gebruikt dezelfde acties (runeDoet), maar gaat om door een speer.
 function zegelSchakel(z, doorVijand){
+  if (z.poort) poortOpen(z.poort, zegelWie(z));                    // een poort gaat een keer open (zie "poort"), naast wat hij verder doet
   if (z.stuurt){ z.aan = !z.aan; return; }                         // koppel-zegel: alleen de latch om, koppelUpdate doet de acties
   if (z.plafond) zegelPlafond(z);                                  // zie "zakplafond"
   else if (z.rijs) zegelRijs(z);                                   // zie "rijzende grond"
@@ -11251,6 +11275,116 @@ function tekenTeken(groundY, scale, cx){
     if (V.kalebas) tkKalebas(V.speren[0], s, V.kalebas, w);
     ctx.restore();
   }
+}
+
+// ---- poort: een stenen boog, decor of de plek waar een vijand uitkomt ----
+// level.poorten = [{id, x, k, f, y, s, look}]: x is het midden van de opening, k de boog uit POORT.soorten, f spiegelt,
+// y een vaste vloerhoogte (zonder: terrainH, dus ook op een terras of in een gang), s een schaal bovenop de
+// standaardmaat. Zonder meer is het decor, en wel vast decor (zie "wat mag waar"): nooit boven een ravijn.
+// Een zegel of rune met poort: id opent hem (poortOpen). Dan komen de spawns met poort: id eruit, de een na de
+// ander (POORT.tussen), precies op de plek van de opening en niet net buiten beeld, en ligt het donker van de
+// opening nog even over wie eruit stapt (POORT.uit, poortVoorTeken). Een poort gaat per potje een keer open.
+// De plaatjes komen uit design/boog/ (tools/boog_vulling.py); maat en opening zijn die uit metadata.json.
+// look kiest de kleur: 'steen' (de grijze boog), 'sneeuw' (met een sneeuwkap, _sneeuw.png) of 'savanne' (de steen
+// in de warme kleur van de savannegrond, _savanne.png); alle drie dezelfde maat. Zonder look: in een winterlevel
+// de sneeuwversie, anders steen (poortLook), zoals de richel.
+const POORT = {
+  map: 'design/boog/',
+  tussen: 1.1,                 // seconden tussen twee vijanden uit dezelfde poort
+  uit: 0.9,                    // zo lang (s) ligt het donker van de opening nog over een vijand die eruit komt
+  schaduw: 0.55,               // de schaduw op de grond, als deel van de breedte van de boog
+  looks: { steen: '', sneeuw: '_sneeuw', savanne: '_savanne' },   // look -> achtervoegsel van het plaatje
+  soorten: {
+    // hoog: de hoogte van de opening in Amir (LEESMIJ: hoog 1,65, laag 1,15)
+    boog_steen:  { naam: 'Hoge boog van blokken', hoog: 1.65, maat: [721, 894],   opening: [155, 118, 564, 879] },
+    boog_rots:   { naam: 'Hoge boog in de rots',  hoog: 1.65, maat: [1135, 1567], opening: [364, 232, 767, 1526] },
+    boog_laag_1: { naam: 'Lage boog 1',           hoog: 1.15, maat: [800, 403],   opening: [233, 94, 562, 396] },
+    boog_laag_2: { naam: 'Lage boog 2',           hoog: 1.15, maat: [795, 392],   opening: [231, 93, 557, 386] },
+    boog_laag_3: { naam: 'Lage boog 3',           hoog: 1.15, maat: [799, 404],   opening: [233, 94, 561, 397] },
+    boog_laag_4: { naam: 'Lage boog 4',           hoog: 1.15, maat: [802, 410],   opening: [234, 94, 564, 403] },
+  },
+};
+const poortSoort = k => POORT.soorten[k] ? k : 'boog_steen';
+const poortLookOf = v => Object.prototype.hasOwnProperty.call(POORT.looks, v) ? v : undefined;
+// de look van een poort: zijn eigen look, of vanzelf (sneeuw in een winterlevel); winter: het level is winter
+function poortLook(o, winter){ return poortLookOf(o && o.look) || (winter ? 'sneeuw' : 'steen'); }
+const poortImgs = {};                                    // soort + look -> Image, pas geladen als een poort hem gebruikt
+function poortImg(k, look){
+  k = poortSoort(k);
+  const pad = POORT.map + k + POORT.looks[poortLookOf(look) || 'steen'] + '.png';
+  let im = poortImgs[pad];
+  if (!im){ im = poortImgs[pad] = new Image(); zetBron(im, pad, () => console.warn('ontbreekt: ' + pad)); }
+  return im;
+}
+function poortLaadLevel(lv){ for (const o of (lv && lv.poorten) || []) poortImg(o.k, poortLook(o, lv.winter)); }
+// de maat van een poort in wereld-px: k (px per bronpixel), van waar tot waar hij staat (l, r) en zijn hoogte (h)
+function poortMaat(o, scale){
+  const S = POORT.soorten[poortSoort(o.k)], op = S.opening;
+  const k = S.hoog * (o.s || 1) * CHAR_H * scale / (op[3] - op[1]);
+  const mid = (op[0] + op[2]) / 2, links = mid * k, rechts = (S.maat[0] - mid) * k;
+  const l = o.f ? o.x - rechts : o.x - links, r = o.f ? o.x + links : o.x + rechts;
+  return { k, l, r, hw: (r - l) / 2, dx: (l + r) / 2 - o.x, h: op[3] * k / scale, S };
+}
+const poortVloer = o => (o.y != null ? o.y : terrainH(o.x));
+const poortVan = id => (level && level.poorten || []).find(o => o.id === id) || null;
+// tekent de boog met de opening op zijn vloer; deel: alleen het stuk van de opening (het donker), met deze alfa
+function poortBeeld(o, groundY, scale, cx, deel){
+  const im = poortImg(o.k, poortLook(o, winterOn())); if (!imgReady(im)) return;
+  const M = poortMaat(o, scale), S = M.S, op = S.opening, k = M.k;
+  const sx = cx + (o.x - world), gy = groundY - poortVloer(o) * scale;
+  const sw = W / viewZoom();
+  if (sx + M.hw * 3 < 0 || sx - M.hw * 3 > sw) return;
+  const fx = im.naturalWidth / S.maat[0];                 // de kleine set is kleiner: bronpixels naar die van het plaatje
+  ctx.save();
+  ctx.translate(sx, gy - op[3] * k);                      // de oorsprong op het midden van de opening, bovenaan het plaatje
+  if (o.f) ctx.scale(-1, 1);
+  const mid = (op[0] + op[2]) / 2;
+  if (deel){
+    ctx.globalAlpha = deel;
+    ctx.drawImage(im, op[0] * fx, op[1] * fx, (op[2] - op[0]) * fx, (op[3] - op[1]) * fx,
+                  (op[0] - mid) * k, op[1] * k, (op[2] - op[0]) * k, (op[3] - op[1]) * k);
+  } else ctx.drawImage(im, -mid * k, 0, S.maat[0] * k, S.maat[1] * k);
+  ctx.restore();
+}
+function poortTeken(groundY, scale, cx){
+  if (!level || !level.poorten) return;
+  for (const o of level.poorten){
+    if (achterMasker(o.x, poortVloer(o))) continue;      // verborgen binnen een masker
+    const M = poortMaat(o, scale);
+    skeletSchaduw(cx + (o.x + M.dx - world), groundY - poortVloer(o) * scale, M.hw * 2 * POORT.schaduw);
+    poortBeeld(o, groundY, scale, cx, 0);
+  }
+}
+// na de vijanden: wie net uit de poort komt, staat nog even in het donker van de opening
+function poortVoorTeken(groundY, scale, cx){
+  if (!level || !level.poorten) return;
+  for (const o of level.poorten) if (o.uitT > 0) poortBeeld(o, groundY, scale, cx, Math.min(1, o.uitT / POORT.uit));
+}
+// de poort open: zijn vijanden komen eruit. wie is voor de hint ('Het zegel', 'De rune', of null). Geeft terug of hij opende.
+function poortOpen(id, wie){
+  const o = poortVan(id); if (!o || o.open) return false;
+  o.open = true;
+  let n = 0;
+  for (const sp of level.spawns || []) if (sp.poort === id && !sp.used){ sp.poortWacht = n++ * POORT.tussen; sp.armed = true; sp.x = o.x; }   // op de plek van de opening, ook als de poort naar een ravijnrand schoof
+  if (n) shake = Math.max(shake, 0.12);
+  flashHint((wie ? wie + ' licht op: ' : 'De poort gaat open: ') + (n ? (n === 1 ? 'uit de poort komt een vijand' : 'uit de poort komen vijanden') : 'in de poort blijft het stil'));
+  return true;
+}
+// mag deze spawn nu komen? Een spawn zonder poort altijd; met een poort pas als die open is en zijn beurt er is
+function poortKlaar(sp){
+  if (!sp.poort) return true;
+  const o = poortVan(sp.poort);
+  return !!(o && o.open && !(sp.poortWacht > 0));
+}
+function poortUit(sp){ const o = poortVan(sp.poort); if (o) o.uitT = POORT.uit; }   // hij stapt eruit: het donker ligt nog even over hem
+function poortUpdate(dt){
+  if (!level || !level.poorten) return;
+  for (const o of level.poorten) if (o.uitT > 0) o.uitT = Math.max(0, o.uitT - dt);
+  for (const sp of level.spawns || []) if (sp.poort && sp.poortWacht > 0) sp.poortWacht = Math.max(0, sp.poortWacht - dt);
+}
+function poortReset(){
+  if (level && level.poorten) for (const o of level.poorten){ o.open = false; o.uitT = 0; }
+  if (level && level.spawns) for (const sp of level.spawns) if (sp.poort) sp.poortWacht = undefined;
 }
 
 // ---- baviaan: de eindbaas in wording ----------------------------------
@@ -17951,6 +18085,13 @@ function ravijnDecor(fx, dt, scale){
     if (o.x0 === undefined) o.x0 = o.x;
     o.x = opzij(o.x + v.dx, v.hw) - v.dx;
   }
+  for (const o of level.poorten || []){             // een poort staat vast: naar de rand
+    if (onder(o.x) || o.y != null) continue;
+    const v = poortMaat(o, scale);
+    if (!raakt(o.x + v.dx, v.hw)) continue;
+    if (o.x0 === undefined) o.x0 = o.x;
+    o.x = opzij(o.x + v.dx, v.hw) - v.dx;
+  }
   for (const o of level.village || []){             // een hut hoort er niet te staan; staat hij er toch, dan naar de rand
     const hw = villageHalfW(o, scale);
     if (!raakt(o.x, hw)) continue;
@@ -18024,7 +18165,7 @@ function ravijnDecorReset(){                        // alles weer op de plek uit
   if (!level) return;
   for (const p of level.props || []) delete p.rv;
   for (const n of level.npcs || []) delete n.rv;
-  for (const lijst of [level.rocks, level.village, level.skeletten, level.tekens]) for (const o of lijst || [])
+  for (const lijst of [level.rocks, level.village, level.skeletten, level.tekens, level.poorten]) for (const o of lijst || [])
     if (o.x0 !== undefined){ o.x = o.x0; delete o.x0; }
 }
 // Waar in dit level later een ravijn openscheurt: de runes (uit het level of uit RAVIJN_PROEF), en
@@ -18111,6 +18252,7 @@ function runeIn(q){
   if (q.doel === true) e.doel = true;
   if (Array.isArray(q.stuurt)){ e.stuurt = q.stuurt.map(String); e.doel = true; }   // koppelingen: deze rune stuurt seinen (en blijft dan gloeien)
   if (q.rijs !== undefined && q.rijs !== null) e.rijs = String(q.rijs);   // stuurt de rijzende grond met die naam omhoog
+  if (q.poort !== undefined && q.poort !== null) e.poort = String(q.poort);   // opent de poort met die naam (zie "poort")
   // wat een doel doet als je hem raakt (runeDoet): dezelfde velden als een zegel
   for (const k of ['ravijn', 'sluit', 'speerval']) if (q[k] !== undefined && q[k] !== null && isFinite(Number(q[k]))) e[k] = Number(q[k]);
   if (q.muur === true) e.muur = true;
@@ -18160,11 +18302,12 @@ function runeDoel(e){ return !!e.doel; }
 // Dezelfde functies als het zegel (zegelDoe, zegelSluit, speervalZegel). Geeft terug of hij iets deed.
 const runeHeeft = v => v !== null && v !== undefined;
 function runeDoet(e){
+  const poort = e.poort ? poortOpen(e.poort, 'De rune') : false;   // zie "poort"
   if (e.rijs){ rijsOmhoog(e.rijs, 'De rune licht op: uit het ravijn komt steen omhoog'); return true; }   // zie "rijzende grond"
   if (runeHeeft(e.sluit)){ zegelSluit(e); return true; }
   if (runeHeeft(e.speerval)){ speervalZegel(e); return true; }
   if (runeHeeft(e.ravijn) || e.muur){ zegelDoe(e, false); return true; }
-  return false;
+  return poort;
 }
 // Een rune met kei krijgt een kei om op te springen, kei Amir voor zijn schijf (naar Amirs kant). De rots
 // en de worp schalen mee met Amir en dus met het scherm, een gewone kei op een vaste x niet: op een ander
@@ -18313,7 +18456,7 @@ function ravijnRuneTreffer(x, h, scale, e){
     jav = null; javLost = 0; spearX = null; spearH = null;
   }
   // een koppel-rune stuurt alleen seinen (koppelUpdate doet de acties); hij latcht aan en gloeit
-  if (e.stuurt){ if (!runeGeraakt.has(e)){ runeGeraakt.add(e); runeFlits.set(e, performance.now() / 1000); flashHint('De rune licht op'); } return; }
+  if (e.stuurt){ if (!runeGeraakt.has(e)){ runeGeraakt.add(e); runeFlits.set(e, performance.now() / 1000); if (!(e.poort && poortOpen(e.poort, 'De rune'))) flashHint('De rune licht op'); } return; }
   if (ravijnRuneAan(e)) return;                     // al open (of nog aan het dichtgaan): de speer hangt er alleen in
   runeFlits.set(e, performance.now() / 1000);
   if (runeDoel(e)){
@@ -20943,6 +21086,7 @@ function restart(){
   tutReset(); venom.length = 0; splat.length = 0; splashes.length = 0; stopWater(); stopHyena(); stopBan(); stopWind();
   greenSince = 0; blackAfter = 3 + Math.floor(Math.random() * 3); forceBlack = false; setKindLabel();
   if (level && level.spawns) for (const sp of level.spawns){ sp.used = false; sp.armed = false; }
+  poortReset();                                     // de poorten weer dicht, hun vijanden weer binnen
   // in een echt level begin je zonder speer: die staat voor je in de grond, ook in een level
   // met een rotswand. De speerplek bij die wand (muur.speer) is alleen waar hij terugkomt als
   // hij kwijt is (zie muurVul). Stond hij bij het begin daar, dan lag hij na R ineens bij de
@@ -21469,10 +21613,11 @@ const ZICHT = {
 let ZICHT_AAN = false;    // restart leest level.zicht, de sandbox zet het met een knop
 let zichtToon = false;    // sandbox: de halve cirkel en de zichtlijn tekenen
 function zichtVoor(s){ return ZICHT_AAN && !!s && s.zicht === true; }
-// bij het spawnen: deze vijand kijkt met het zicht (tenzij de spawn zicht: false heeft) en begint in rust
+// bij het spawnen: deze vijand kijkt met het zicht (tenzij de spawn zicht: false heeft) en begint in rust; wie
+// uit een poort komt is al wakker (hij komt omdat Amir de poort opende) en zoekt hem tot hij hem ZICHT.vergeet kwijt is
 function zichtZet(o, sp){
   if (!o) return o;
-  o.zicht = !sp || sp.zicht !== false; o.zWacht = true; o.zMis = 0;
+  o.zicht = !sp || sp.zicht !== false; o.zWacht = !(sp && sp.poort); o.zMis = 0;
   if (o.leden) for (const s of o.leden) s.zicht = o.zicht;   // een fosforgroep: de leden kijken mee (de groep beslist)
   return o;
 }
@@ -21619,6 +21764,7 @@ function updateSnakes(dt, plats, halfWNow, cliff){
     // eigen level: slangen komen op de plek waar jij ze gezet hebt
     for (const sp of level.spawns){
       if (sp.used) continue;
+      if (!poortKlaar(sp)) continue;             // een vijand achter een poort komt pas als die open is (zie "poort")
       if (sp.kind === 'panter'){                 // boss: komt van rechts zodra je zijn plek voorbij bent
         if (world >= sp.x){ sp.armed = true; continue; }   // eerst aan zijn rechterkant geweest zijn: een panter rechts van de start (Maker) komt niet meteen
         if (!sp.armed) continue;
@@ -21640,6 +21786,9 @@ function updateSnakes(dt, plats, halfWNow, cliff){
       }
       if (d > W * 2.5){ sp.used = true; continue; }   // je bent al ver voorbij: laat maar zitten
       sp.used = true;
+      if (sp.poort) poortUit(sp);
+      // uit een poort: precies in de opening, niet net buiten beeld
+      const plek = x => sp.poort ? sp.x : spawnPoint(x);
       // zijn plek ligt in een ravijn dat al openscheurde (een rune of een zegel): dan is hij erin
       // gevallen voor je hem zag, anders stond hij boven het gat in de lucht. Hyena's komen van de
       // rand van het beeld, niet van hun plek, dus voor hen geldt dit niet.
@@ -21652,7 +21801,7 @@ function updateSnakes(dt, plats, halfWNow, cliff){
       }
       if (sp.kind === 'bandiet'){
         // een ambush-bandiet (hurk) en een die van boven invalt (neer) staan op een vaste plek, niet net buiten beeld
-        let bx = (sp.boven || sp.hurk || sp.neer) ? sp.x : spawnPoint(sp.x);
+        let bx = (sp.boven || sp.hurk || sp.neer) ? sp.x : plek(sp.x);
         if (sp.achter > 0) bx += (bx > world ? 1 : -1) * sp.achter;   // tegelijk gestart, maar verder weg (zie de schildbandiet)
         const b = makeBandiet(bx, bx > world ? 1 : -1, sp.dolk, sp.hurk, sp.vault, false, false, null, sp.duin ? 'duin' : sp.elite);
         b.base = sp.boven ? bovenVloer(bx) : terrainH(bx);
@@ -21661,11 +21810,11 @@ function updateSnakes(dt, plats, halfWNow, cliff){
         bandieten.push(b); continue;
       }
       if (sp.kind === 'fosfor'){                   // altijd een groep van drie
-        const lx = spawnPoint(sp.x);
+        const lx = plek(sp.x);
         zichtZet(fosforGroep(lx, lx > world ? 1 : -1, undefined, !!sp.klim), sp); continue;
       }
       if (sp.kind === 'kooiman'){
-        let kx = spawnPoint(sp.x);
+        let kx = plek(sp.x);
         if (sp.achter > 0) kx += (kx > world ? 1 : -1) * sp.achter;   // tegelijk gestart, maar verder weg
         const k = makeKooiman(kx, kx > world ? 1 : -1, sp.vogel, sp.duel);
         k.base = terrainH(kx); if (!k.duel) zichtZet(k, sp); kooimannen.push(k); continue;   // het duel is geensceneerd
@@ -21676,13 +21825,13 @@ function updateSnakes(dt, plats, halfWNow, cliff){
         m.base = terrainH(mx); zichtZet(m, sp); meelmannen.push(m); continue;
       }
       if (sp.kind === 'schildman'){
-        let mx = sp.boven ? sp.x : spawnPoint(sp.x);
+        let mx = sp.boven ? sp.x : plek(sp.x);
         // achter: hij start tegelijk met de spawn ervoor, maar zoveel verder weg, zodat hij later het gevecht in loopt
         if (sp.achter > 0) mx += (mx > world ? 1 : -1) * sp.achter;
         const m = makeSchildman(mx, mx > world ? 1 : -1, sp.niveau);
         m.base = sp.boven ? bovenVloer(mx) : terrainH(mx); zichtZet(m, sp); schildmannen.push(m); continue;
       }
-      const x = (sp.boven || sp.y != null) ? sp.x : spawnPoint(sp.x);
+      const x = (sp.boven || sp.y != null) ? sp.x : plek(sp.x);
       const vl = sp.boven ? bovenVloer(x) : terrainH(x);
       if (sp.kind === 'scorp'){ const k = makeScorp(x, x > world ? 1 : -1); k.base = vl; zichtZet(k, sp); scorps.push(k); continue; }
       const s = makeSnake(sp.kind);
@@ -28940,6 +29089,7 @@ function loop(now){
   if (dt > 0) speervalUpdate(dt, scaleNow);       // de speer in de rotswand: trillen, vliegen, vallen
   if (dt > 0) skeletUpdate(dt, scaleNow);         // instorten, en de schedel die wegrolt
   if (dt > 0) tekenUpdate(dt);                    // het doek aan een speerteken, in de wind
+  if (dt > 0) poortUpdate(dt);                    // de beurt van de vijanden uit een poort, en het donker van de opening
   ctx.clearRect(0, 0, W, H);
   ctx.save();
   // Een schok schuift het hele beeld op, en aan de rand die dan vrijkomt stond niets dan de
@@ -29487,6 +29637,7 @@ function loop(now){
         }
       }
     }
+    poortTeken(groundY, scale, cx);               // stenen poorten (achter de zegels en de vijanden)
     zegelTeken(groundY, scale, cx);               // de zegels plat in de grond
     pijlTeken(groundY, scale, cx);                // rode pijlen in de lucht (testlevels)
     tekenTeken(groundY, scale, cx);               // speertekens: een speer met een zwart doek en schedels
@@ -30605,6 +30756,7 @@ function loop(now){
       const dxv = steekDX() * scale;
       if (tekenSnij(groundY, scale, cx, pcx + (facing === 1 ? -dxv : dxv), y + steekY() * scale, steekR() * scale)) swingUsed = true;
     }
+    poortVoorTeken(groundY, scale, cx);              // wie net uit een poort stapt, staat nog even in het donker van de opening
     javDraw(groundY, scale, cx);                     // de geworpen speer, voor de dieren langs
     skETeken(groundY, scale, cx);                    // de E bij een skelet of een losse speer
     exeETeken(groundY, scale, cx);                   // en bij een wankelende schildbandiet (de executie)
@@ -31311,6 +31463,7 @@ function schoonLevel(lv){
   schuif(lv.thickets, o => thicketHalfW(o, scale) * THICKET_BOX);
   schuif(lv.skeletten, () => skeletHalfW(scale));
   schuif(lv.tekens, o => tekenVoet(o, scale).hw, null, o => tekenVoet(o, scale).dx);
+  schuif(lv.poorten, o => poortMaat(o, scale).hw, o => o.y == null, o => poortMaat(o, scale).dx);   // een poort op een vaste hoogte (een zwever) staat niet op de grond
   schoonMelding();
   return lv;
 }
@@ -31345,6 +31498,7 @@ function schoonKomend(lv){
   schuif(lv.thickets, o => thicketHalfW(o, scale) * THICKET_BOX);
   schuif(lv.skeletten, () => skeletHalfW(scale));         // vast in de grond: die vallen er niet in
   schuif(lv.tekens, o => tekenVoet(o, scale).hw, null, o => tekenVoet(o, scale).dx);
+  schuif(lv.poorten, o => poortMaat(o, scale).hw, o => o.y == null, o => poortMaat(o, scale).dx);
 }
 // bodem en sneeuwdek uit een level als tekst: alleen de twee soorten, en van en tot
 // tellen alleen als ze er allebei staan (anders weet je niet waar de overgang stopt)
@@ -31430,7 +31584,9 @@ function readLevel(txt){
                                                 achter: Number(s.achter) > 0 ? Number(s.achter) : undefined,
                                                 // speed: een per-spawn snelheidsfactor (standaard 1), nu voor de slang (zie "gedrag per vijand")
                                                 speed: s.speed != null ? Math.max(0.3, Math.min(2.5, Number(s.speed) || 1)) : undefined,
-                                                y: (s.y === null || s.y === undefined) ? null : Number(s.y) })),
+                                                y: (s.y === null || s.y === undefined) ? null : Number(s.y),
+                                                // poort: komt pas uit die poort als een zegel of rune hem opent (zie "poort")
+                                                poort: (s.poort === undefined || s.poort === null) ? undefined : String(s.poort) })),
            props: (o.props || []).filter(q => PROPS[q.k])
                                  .map(q => ({ x: Number(q.x), kind: q.k,
                                               scale: Number(q.s) || 1,
@@ -31468,6 +31624,8 @@ function readLevel(txt){
                                                 plafond: (q.plafond === 'zak' || q.plafond === 'op') ? q.plafond : undefined,
                                                 // stuurt de rijzende grond met die naam omhoog; speer: ook een speer zet hem aan
                                                 rijs: (q.rijs === undefined || q.rijs === null) ? undefined : String(q.rijs),
+                                                // opent de poort met die naam: zijn vijanden komen eruit (zie "poort")
+                                                poort: (q.poort === undefined || q.poort === null) ? undefined : String(q.poort),
                                                 // verschijnt pas als de takel-brug in het ravijn is gestort (zie "takelwiel met plateau")
                                                 naTakelVal: q.naTakelVal === true,
                                                 // koppelingen: de seinen die dit zegel stuurt als het aan staat (zie "koppelingen")
@@ -31540,6 +31698,11 @@ function readLevel(txt){
            skeletten: (o.skeletten || []).map(q => ({ x: Number(q.x), f: !!q.f })),
            // speertekens: een speer met een zwart doek en schedels, zie "speerteken"
            tekens: (o.tekens || []).map(q => ({ x: Number(q.x), v: TEKEN.varianten[q.v] ? q.v : 'teken', f: !!q.f })),
+           // stenen poorten: decor, of de plek waar een vijand uitkomt als een zegel of rune hem opent, zie "poort"
+           poorten: (o.poorten || []).map((q, i) => ({ id: q.id != null ? String(q.id) : 'poort' + (i + 1), x: Number(q.x), k: poortSoort(q.k), f: !!q.f,
+                                                       y: (q.y === undefined || q.y === null) ? undefined : Number(q.y),
+                                                       s: Number(q.s) > 0 ? Math.max(0.4, Math.min(2.5, Number(q.s))) : undefined,
+                                                       look: poortLookOf(q.look) })),
            hppotions: (o.hppotions || []).map(q => ({ x: Number(q.x),
                                                       y: (q.y === null || q.y === undefined) ? null : Number(q.y) })),
            // de plafondlijn: punten met een x en een y, zie "plafond: de rots boven je"
@@ -31686,6 +31849,7 @@ function laadLevel(lv){
   vogelLaadLevel(lv);                              // de vogel-frames als een kooiman een vogel heeft
   richelLaadLevel(lv);                             // de sneeuwversie van de richel als een richel look 'sneeuw' heeft
   golfLaadLevel(lv);                               // de texturen van de golvende rand als het level golf heeft
+  poortLaadLevel(lv);                              // de stenen bogen als het level poorten heeft
 }
 // ---- geheugen vrijgeven bij een levelwissel ----------------------------------
 // Elke grote vijandlader meldt zich met laadNodig(soort), ook als hij al geladen was. setLevel en mkTest
@@ -32706,6 +32870,8 @@ const MK_TYPES = [
   { id:'tandwiel',naam:'Tandwiel',           kleur:'#b98a2e', obj:true },
   // rijzende grond: een blok steen dat op een zegel uit een ravijn omhoog komt, zo breed als je het maakt (zie mkNaarLevel -> rijzers)
   { id:'rijzer',  naam:'Rijzer (grond die stijgt)', kleur:'#8c7b66', obj:true },
+  // een stenen poort (design/boog/): decor, of met een vijand erin die eruit komt als een zegel of rune hem opent (zie "poort")
+  { id:'poort',   naam:'Poort (stenen boog)', kleur:'#a8916c', obj:true, letter:'B' },
   // een overhang: een rotsoverhang of zwevende savannelaag met een vrije onderkant-hoogte om onder te kruipen
   { id:'overhang',naam:'Overhang (kruipruimte)', kleur:'#7d6a86', obj:true, letter:'O' },
   // een richel: de uitstekende steen-opstap uit de schacht (design/klimmen/klif_richel.png). Je landt erop
@@ -32868,7 +33034,7 @@ const MK_CATS = [
   { id:'terrein',  naam:'Terrein',    items:['savanne','rots','sneeuw','sneeuwrots','muur','laag','zweef','gang','ravijn'] },
   { id:'punten',   naam:'Start/eind', items:['start','eind'] },
   { id:'vijanden', naam:'Vijanden',   vijand:true },
-  { id:'objecten', naam:'Objecten',   items:['zegel','rune','platform','tandwiel','rijzer','overhang','richel','hppotion'] },
+  { id:'objecten', naam:'Objecten',   items:['zegel','rune','poort','platform','tandwiel','rijzer','overhang','richel','hppotion'] },
   { id:'decor',    naam:'Decor',      items:['prop'] },
   { id:'verbergen',naam:'Verbergen',  items:['masker','maskergum'] },
   { id:'zwart',    naam:'Zwart terrein', items:['zsavanne','zvulling','zplafond'] },
@@ -32918,6 +33084,19 @@ function mkRijsCellen(o){ const b = Math.max(1, o.breed || MK_PLAT_BREED), c0 = 
 function mkRijsNr(o){ return MK.objects.filter(q => q.k === 'rijzer').indexOf(o) + 1; }   // zijn naam in het spel: r1, r2, ...
 // de rijzer die een zegel of rune stuurt (rijsObj), als die er nog is; anders null (het voorwerp kan gewist zijn)
 function mkRijsVan(z){ return (z && z.rijsObj && MK.objects.indexOf(z.rijsObj) >= 0 && z.rijsObj.k === 'rijzer') ? z.rijsObj : null; }
+// de poort die een zegel of rune opent (poortObj), net zo: als die er nog is, anders null
+function mkPoortVan(z){ return (z && z.poortObj && MK.objects.indexOf(z.poortObj) >= 0 && z.poortObj.k === 'poort') ? z.poortObj : null; }
+function mkPoortNr(o){ return MK.objects.filter(q => q.k === 'poort').indexOf(o) + 1; }   // zijn naam in het spel: b1, b2, ...
+const MK_POORT_N = 3;                                   // hoogstens zoveel vijanden uit een poort
+// de look van een poort in de Maker: zijn eigen keuze, of vanzelf sneeuw als de cel onder hem sneeuw is
+function mkPoortLook(o){
+  if (poortLookOf(o.look)) return o.look;
+  const onder = MK.grid && MK.grid[o.r + 1] ? MK.grid[o.r + 1][o.c] : null;
+  return (onder === 'sneeuw' || onder === 'sneeuwrots') ? 'sneeuw' : 'steen';
+}
+// welke vijanden uit een poort kunnen komen: niet de hyena en de panter (die komen van de rand van het beeld), niet
+// de hinderlaag (die zit al gehurkt op zijn plek) en niet het duel van de kooiman (dat is geensceneerd)
+const mkPoortVijOk = soort => Object.prototype.hasOwnProperty.call(MK_VIJ_INFO, soort) && !['hyenas', 'panter', 'bandiet:hurk', 'kooiman'].includes(soort);
 const MK = { cols:48, rows:20, ground:12, grid:null, start:null, eind:null, objects:[], sel:null,
              tool:'savanne', zoom:1, panX:0, panY:0, maskers:[], maskId:'Verborgen1',
              cat:'terrein', sub:null, vijandSoort:'groen', inspectDicht:true, muziek:MUZIEK_BASIS, valschade:true, selMask:null,
@@ -32978,6 +33157,45 @@ function mkVulRijsSelect(){                           // het keuzemenu "stuurt r
   lijst.forEach((o, i) => { const op = document.createElement('option'); op.value = 'i' + i; op.textContent = 'rijzer r' + mkRijsNr(o) + ' op (' + o.c + ', ' + o.r + ')'; if (nu === o) op.selected = true; sel.appendChild(op); });
   if (!(nu && lijst.indexOf(nu) >= 0)) leeg.selected = true;
   sel.onchange = () => { const q = sel.value ? lijst[parseInt(sel.value.slice(1), 10)] : null; if (q) MK.sel.rijsObj = q; else delete MK.sel.rijsObj; mkBewaar(); mkTeken(); };
+}
+function mkVulPoortSelect(){                          // het keuzemenu "opent poort" op een zegel of rune
+  const sel = document.getElementById('mkpoortsel'); if (!sel || !MK.sel) return;
+  sel.innerHTML = '';
+  const lijst = MK.objects.filter(o => o.k === 'poort'), nu = mkPoortVan(MK.sel);
+  const leeg = document.createElement('option'); leeg.value = ''; leeg.textContent = lijst.length ? '(geen)' : '(nog geen poorten)'; sel.appendChild(leeg);
+  lijst.forEach((o, i) => { const op = document.createElement('option'); op.value = 'i' + i; op.textContent = 'poort b' + mkPoortNr(o) + ' op (' + o.c + ', ' + o.r + ')'; if (nu === o) op.selected = true; sel.appendChild(op); });
+  if (!(nu && lijst.indexOf(nu) >= 0)) leeg.selected = true;
+  sel.onchange = () => { const q = sel.value ? lijst[parseInt(sel.value.slice(1), 10)] : null; if (q) MK.sel.poortObj = q; else delete MK.sel.poortObj; mkBewaar(); mkTeken(); };
+}
+// het paneel van een poort: welke boog, gespiegeld, en welke vijand eruit komt (en hoeveel)
+function mkVulPoort(){
+  const o = MK.sel; if (!o || o.k !== 'poort') return;
+  const ss = document.getElementById('mkpoortsoort');
+  if (!ss.options.length) for (const k in POORT.soorten){ const op = document.createElement('option'); op.value = k; op.textContent = POORT.soorten[k].naam; ss.appendChild(op); }
+  ss.value = poortSoort(o.boog);
+  ss.onchange = () => { o.boog = ss.value; mkBewaar(); mkTeken(); };
+  const lk = document.getElementById('mkpoortlook');
+  lk.value = poortLookOf(o.look) || '';
+  lk.onchange = () => { o.look = poortLookOf(lk.value); mkBewaar(); mkTeken(); };
+  const fb = document.getElementById('mkpoortf');
+  fb.textContent = 'Gespiegeld: ' + (o.f ? 'ja' : 'nee');
+  fb.onclick = () => { o.f = !o.f || undefined; mkVulPoort(); mkBewaar(); mkTeken(); };
+  const vs = document.getElementById('mkpoortvij');
+  vs.innerHTML = '';
+  const geen = document.createElement('option'); geen.value = ''; geen.textContent = '(geen, alleen decor)'; vs.appendChild(geen);
+  for (const k in MK_VIJ_INFO) if (mkPoortVijOk(k)){ const op = document.createElement('option'); op.value = k; op.textContent = MK_VIJ_INFO[k].naam; vs.appendChild(op); }
+  vs.value = mkPoortVijOk(o.vijand) ? o.vijand : '';
+  vs.onchange = () => { o.vijand = vs.value || undefined; mkVulPoort(); mkBewaar(); mkTeken(); };
+  const ns = document.getElementById('mkpoortn'), n = Math.max(1, Math.min(MK_POORT_N, o.n || 1));
+  ns.value = n; ns.disabled = !o.vijand;
+  document.getElementById('mkpoortnv').textContent = o.vijand ? String(n) : '-';
+  ns.oninput = () => { o.n = Number(ns.value) > 1 ? Number(ns.value) : undefined; document.getElementById('mkpoortnv').textContent = ns.value; mkBewaar(); mkTeken(); };
+  const kop = MK.objects.filter(z => mkPoortVan(z) === o).length;
+  document.getElementById('mkpoortinfo').textContent = 'poort b' + mkPoortNr(o) + '. '
+    + (!o.vijand ? (kop ? 'Een zegel of rune opent hem, maar er zit geen vijand in.' : 'Alleen decor. Kies een vijand en zet op een zegel of rune Opent poort, dan komt die eruit.')
+       : kop ? 'Gaat open op ' + kop + ' schakelaar' + (kop === 1 ? '' : 's') + ': dan komt de vijand eruit' + (n > 1 ? ', de een na de ander.' : '.')
+             : 'Nog geen zegel of rune die hem opent: de vijand komt er nooit uit. Kies een zegel en zet daar Opent poort.')
+    + ' De onderkant van de opening staat op de onderkant van de cel.';
 }
 function mkMaskVerf(c, r, erase){                     // een cel in het huidige masker zetten of wissen (een cel hoort bij één masker)
   const had = mkMaskInCel(c, r);
@@ -33203,6 +33421,11 @@ function mkTeken(){
     mkCtx.strokeStyle = 'rgba(140,123,102,.7)'; mkCtx.lineWidth = 1.5; mkCtx.setLineDash([4, 3]);
     mkCtx.beginPath(); mkCtx.moveTo(gx + (z.c + 0.5) * cel, gy + (z.r + 0.5) * cel); mkCtx.lineTo(gx + (q.c + 0.5) * cel, gy + (q.r + 0.5) * cel); mkCtx.stroke(); mkCtx.setLineDash([]);
   }
+  // en naar de poort die hij opent
+  for (const z of MK.objects){ const q = mkPoortVan(z); if (!q) continue;
+    mkCtx.strokeStyle = 'rgba(168,145,108,.75)'; mkCtx.lineWidth = 1.5; mkCtx.setLineDash([4, 3]);
+    mkCtx.beginPath(); mkCtx.moveTo(gx + (z.c + 0.5) * cel, gy + (z.r + 0.5) * cel); mkCtx.lineTo(gx + (q.c + 0.5) * cel, gy + (q.r + 0.5) * cel); mkCtx.stroke(); mkCtx.setLineDash([]);
+  }
   // objecten; een stip rechtsboven betekent dat er een opmerking bij zit
   for (const o of MK.objects){
     const t = MK_TYPES.find(x => x.id === o.k); if (!t) continue;
@@ -33269,6 +33492,23 @@ function mkTeken(){
       mkCtx.strokeStyle = 'rgba(242,232,213,.55)'; mkCtx.beginPath(); mkCtx.moveTo(x0, topY + 0.5); mkCtx.lineTo(x0 + len, topY + 0.5); mkCtx.stroke();   // de loopstreep bovenop
       if (o === MK.sel){ mkCtx.strokeStyle = '#fff'; mkCtx.lineWidth = 2; mkCtx.strokeRect(x0 - 2, topY - 2, len + 4, th + 4); }
       if (o.note){ mkCtx.fillStyle = '#ffd24a'; mkCtx.beginPath(); mkCtx.arc(x0 + len - 3, topY, Math.max(2, cel * 0.1), 0, 7); mkCtx.fill(); }
+      continue;
+    }
+    if (o.k === 'poort'){                                    // de boog zelf, met de onderkant van de opening op de onderkant van de cel
+      const S = POORT.soorten[poortSoort(o.boog)], op = S.opening, im = poortImg(o.boog, mkPoortLook(o));
+      if (!im._mk){ im._mk = true; im.addEventListener('load', () => { if (makerOpen) mkTeken(); }); }
+      const ku = S.hoog * CHAR_H / (op[3] - op[1]);          // eenheden (en, op schaal 1, wereld-px) per bronpixel
+      const kx = ku / MK_CEL_PX * cel, ky = ku / MK_CEL_EENH * cel, mid = (op[0] + op[2]) / 2, onder = gy + (o.r + 1) * cel;
+      if (imgReady(im)){ mkCtx.save(); mkCtx.globalAlpha = 0.92; mkCtx.translate(cx, onder - op[3] * ky); if (o.f) mkCtx.scale(-1, 1);
+        mkCtx.drawImage(im, -mid * kx, 0, S.maat[0] * kx, S.maat[1] * ky); mkCtx.restore(); }
+      else { mkCtx.strokeStyle = t.kleur; mkCtx.lineWidth = 2; mkCtx.strokeRect(cx - (op[2] - op[0]) / 2 * kx, onder - (op[3] - op[1]) * ky, (op[2] - op[0]) * kx, (op[3] - op[1]) * ky); }
+      const rad = cel * 0.3;
+      if (mkPoortVijOk(o.vijand)) mkVijIcoon(mkCtx, o.vijand, cx, cy, cel * 0.85);   // wat eruit komt
+      else { mkCtx.fillStyle = t.kleur; mkCtx.beginPath(); mkCtx.arc(cx, cy, rad, 0, 7); mkCtx.fill();
+        mkCtx.fillStyle = '#140e1a'; mkCtx.font = `bold ${Math.round(cel * 0.42)}px sans-serif`; mkCtx.textAlign = 'center'; mkCtx.textBaseline = 'middle'; mkCtx.fillText(t.letter, cx, cy + 1); }
+      if (o.n > 1 && mkPoortVijOk(o.vijand) && cel >= 12){ mkCtx.fillStyle = '#f2e8d5'; mkCtx.font = `bold ${Math.round(cel * 0.32)}px sans-serif`; mkCtx.textAlign = 'left'; mkCtx.textBaseline = 'top'; mkCtx.fillText('x' + o.n, cx + rad, cy - rad * 1.6); }
+      if (o === MK.sel){ mkCtx.strokeStyle = '#fff'; mkCtx.lineWidth = 2; mkCtx.beginPath(); mkCtx.arc(cx, cy, rad + 3, 0, 7); mkCtx.stroke(); }
+      if (o.note){ mkCtx.fillStyle = '#ffd24a'; mkCtx.beginPath(); mkCtx.arc(cx + rad * 0.75, cy - rad * 0.75, Math.max(2, cel * 0.1), 0, 7); mkCtx.fill(); }
       continue;
     }
     const rad = cel * 0.36;
@@ -33635,7 +33875,7 @@ function mkNotePaneel(){
   if (!MK.sel){
     // geen voorwerp: alle voorwerp-besturing weg, wat er net ook geselecteerd was (anders bleef het Verborgen-vinkje
     // of een platform-schuifje staan en wijzigde dat nog het oude voorwerp)
-    for (const id of ['mkplatbreed', 'mkplatstam', 'mkplatstamzij', 'mkoverctl', 'mkrichelctl', 'mkzegelctl', 'mkmaskctl', 'mkrijsctl', 'mkrijsselctl']) document.getElementById(id).style.display = 'none';
+    for (const id of ['mkplatbreed', 'mkplatstam', 'mkplatstamzij', 'mkoverctl', 'mkrichelctl', 'mkzegelctl', 'mkmaskctl', 'mkrijsctl', 'mkrijsselctl', 'mkpoortctl', 'mkpoortselctl']) document.getElementById(id).style.display = 'none';
     document.getElementById('mkvijknop').innerHTML = '';
     if (MK.selVorm){                                                   // een geselecteerde vrije vorm (blob/vierkant): de maat, draaiing en doorzicht
       const v = MK.selVorm;
@@ -33723,6 +33963,11 @@ function mkNotePaneel(){
   if (isKop) mkVulMaskSelect();
   document.getElementById('mkrijsselctl').style.display = isKop ? '' : 'none';   // en een rijzer omhoog sturen (zie mkVulRijsSelect)
   if (isKop) mkVulRijsSelect();
+  document.getElementById('mkpoortselctl').style.display = isKop ? '' : 'none';  // en een poort openen (zie mkVulPoortSelect)
+  if (isKop) mkVulPoortSelect();
+  const isPoort = MK.sel.k === 'poort';
+  document.getElementById('mkpoortctl').style.display = isPoort ? '' : 'none';
+  if (isPoort) mkVulPoort();
   // het tabje toont de letter en de kleur van de selectie als het paneel dicht is
   const vi = isVij ? MK_VIJ_INFO[MK.sel.soort || 'groen'] : null;
   tablet.textContent = isVij ? 'V' : ((t && t.letter) || '•');
@@ -33909,6 +34154,8 @@ function mkNaarJSON(){
              if ((o.k === 'zegel' || o.k === 'rune') && o.masker) b.masker = String(o.masker);   // onthult dit masker (zie "masker")
              if (o.k === 'zegel' && o.verstop) b.verstop = true;                                  // onder het zand (zie mkVulZegel)
              if ((o.k === 'zegel' || o.k === 'rune') && mkRijsVan(o)) b.rijzer = { c:o.rijsObj.c, r:o.rijsObj.r };   // stuurt die rijzer (op celpositie, zoals een wiel zijn platform)
+             if ((o.k === 'zegel' || o.k === 'rune') && mkPoortVan(o)) b.poort = { c:o.poortObj.c, r:o.poortObj.r };   // opent die poort (ook op celpositie)
+             if (o.k === 'poort'){ b.boog = poortSoort(o.boog); if (o.f) b.f = true; if (poortLookOf(o.look)) b.look = o.look; if (mkPoortVijOk(o.vijand)){ b.vijand = o.vijand; if (o.n > 1) b.n = Math.min(MK_POORT_N, o.n); } }
              if (o.k === 'rijzer'){ b.doel = o.doel ? { c:o.doel.c, r:o.doel.r } : null; b.breed = o.breed || MK_PLAT_BREED; b.v = o.v || MK_RIJS.v; b.wacht = o.wacht || 0; b.duur = o.duur || 0; if (o.zak) b.zak = true; if (o.look && o.look !== 'savanne') b.look = o.look; if (o.kleur) b.kleur = { r: o.kleur.r }; }
              if (o.k === 'vijand'){ b.soort = o.soort || 'groen'; if (o.params && Object.keys(o.params).length) b.params = o.params; }
              if (o.k === 'platform'){ b.doel = o.doel ? { c:o.doel.c, r:o.doel.r } : null; b.breed = o.breed || MK_PLAT_BREED; if (o.stamCel) b.stamCel = o.stamCel; if (o.stamBotCel != null) b.stamBotCel = o.stamBotCel; if (o.stamZij === -1) b.stamZij = -1; }
@@ -33946,6 +34193,9 @@ function mkUitJSON(o){
     if ((q.k === 'zegel' || q.k === 'rune') && q.masker) b.masker = String(q.masker);
     if (q.k === 'zegel' && q.verstop) b.verstop = true;
     if ((q.k === 'zegel' || q.k === 'rune') && q.rijzer && q.rijzer.c != null) b._rijs = { c:q.rijzer.c|0, r:q.rijzer.r|0 };
+    if ((q.k === 'zegel' || q.k === 'rune') && q.poort && q.poort.c != null) b._poort = { c:q.poort.c|0, r:q.poort.r|0 };
+    if (q.k === 'poort'){ b.boog = poortSoort(q.boog); if (q.f) b.f = true; if (poortLookOf(q.look)) b.look = q.look;
+      if (typeof q.vijand === 'string' && mkPoortVijOk(q.vijand)){ b.vijand = q.vijand; const n = Math.round(Number(q.n) || 1); if (n > 1) b.n = Math.min(MK_POORT_N, n); } }
     if (q.k === 'rijzer'){ b.doel = (q.doel && q.doel.c != null && in_(q.doel.c|0, q.doel.r|0)) ? { c:q.doel.c|0, r:q.doel.r|0 } : null; b.breed = Math.max(1, Math.min(5, Math.round(Number(q.breed) || MK_PLAT_BREED)));
       b.v = Math.max(50, Math.min(600, Math.round(Number(q.v) || MK_RIJS.v))); b.wacht = Math.max(0, Math.min(5, Number(q.wacht) || 0)); b.duur = Math.max(0, Math.min(20, Math.round(Number(q.duur) || 0))); if (q.zak) b.zak = true;
       if (MK_RIJS_LOOKS.includes(q.look) && q.look !== 'savanne') b.look = q.look;
@@ -33971,6 +34221,10 @@ function mkUitJSON(o){
   for (const z of objects) if (z._rijs){   // een zegel of rune zijn rijzer terugkoppelen (op celpositie)
     const q = objects.find(o => o.k === 'rijzer' && o.c === z._rijs.c && o.r === z._rijs.r);
     if (q) z.rijsObj = q; delete z._rijs;
+  }
+  for (const z of objects) if (z._poort){  // en zijn poort
+    const q = objects.find(o => o.k === 'poort' && o.c === z._poort.c && o.r === z._poort.r);
+    if (q) z.poortObj = q; delete z._poort;
   }
   // alles gelezen: nu pas overschrijven
   mkZetMaat(cols, rows, o.groundRow != null ? o.groundRow : Math.floor(rows / 2));
@@ -34337,6 +34591,23 @@ function mkNaarLevel(opt){
   };
   const vijanden = MK.objects.filter(o => o.k === 'vijand');
   const spawns = vijanden.length ? vijanden.map(mkSpawn) : [{ x: eindX - 5000, k:'groen' }];
+  // stenen poorten: elke poort wordt een poorten-entry (b1, b2, ...) in het midden van zijn cel, met de onderkant van de
+  // opening op de onderkant van de cel. Op een laag of op het dak van een gang krijgt hij die hoogte (y), zoals de
+  // kalebas; op de grond en in een gang zoekt het spel de vloer zelf (terrainH). Zit er een vijand in, dan gaat die
+  // mee als spawn met poort: id (zo vaak als het aantal), op de cel van de poort: hij komt pas als een zegel of rune
+  // met Opent poort hem opent (zie "poort").
+  const poorten = [], poortIds = new Map();
+  for (const o of MK.objects){
+    if (o.k !== 'poort') continue;
+    const id = 'b' + (poorten.length + 1); poortIds.set(o, id);
+    const [l, r2] = lr(o.c), x = Math.round((l + r2) / 2), voet = (gR - o.r - 1) * MK_CEL_EENH;
+    const opDak = voet >= 0 && holtes.some(h => x >= h.l && x <= h.r);
+    const e = { id, x, k: poortSoort(o.boog) }; if (o.f) e.f = true;
+    const look = mkPoortLook(o); if (look !== 'steen') e.look = look;   // steen is wat het spel zonder look kiest (een Maker-level is geen winter)
+    if (voet > 1 || opDak) e.y = Math.round(voet);
+    poorten.push(e);
+    if (mkPoortVijOk(o.vijand)) for (let i = 0; i < Math.min(MK_POORT_N, o.n || 1); i++) spawns.push({ ...mkSpawn({ c: o.c, r: o.r, soort: o.vijand }), poort: id });
+  }
   // de grond-afwerking op de grondlijn-rij: een sneeuwlaag op de bodem (op savanne of op rots), of een kale rotsbodem
   let afwerking = null;
   for (let c = 0; c < C; c++){ const id = G[gR] && G[gR][c];
@@ -34376,6 +34647,7 @@ function mkNaarLevel(opt){
   if (zwevers.length) lvl.zwevers = zwevers;
   if (takels.length) lvl.takels = takels;
   if (rijzers.length) lvl.rijzers = rijzers;
+  if (poorten.length) lvl.poorten = poorten;
   if (ledges.length) lvl.ledges = ledges;
   if (hppotions.length) lvl.hppotions = hppotions;
   if (afwerking === 'sneeuw') lvl.sneeuw = { soort: 'savanne', dek: 1, vol: true };        // een dichte sneeuwlaag op de savanne (alleen de bodem, geen weer)
@@ -34398,18 +34670,19 @@ function mkNaarLevel(opt){
   }
   if (maskers.length) lvl.maskers = maskers;
   // een zegel of rune dat aan een masker gekoppeld is, wordt een echte schakelaar die het wegneemt (stuurt + acties)
-  // Een zegel of rune die een rijzer stuurt gaat ook mee (rijs: de naam van het blok, zie "rijzende grond"), met of zonder masker.
+  // Een zegel of rune die een rijzer stuurt gaat ook mee (rijs: de naam van het blok, zie "rijzende grond"), met of zonder masker,
+  // en ook een die een poort opent (poort: de naam van de poort, zie "poort").
   const maskIds = new Set(maskers.map(m => m.id)), acties = [];
   for (const o of MK.objects){
     if (o.k !== 'zegel' && o.k !== 'rune') continue;
     const verstop = o.k === 'zegel' && o.verstop;       // een verborgen zegel gaat altijd mee, ook zonder masker
-    const koppel = o.masker && maskIds.has(o.masker), rijs = rijsIds.get(mkRijsVan(o));
-    if (!koppel && !verstop && !rijs) continue;
+    const koppel = o.masker && maskIds.has(o.masker), rijs = rijsIds.get(mkRijsVan(o)), poort = poortIds.get(mkPoortVan(o));
+    if (!koppel && !verstop && !rijs && !poort) continue;
     const [ol, or2] = lr(o.c), ox = Math.round((ol + or2) / 2);
     // een zegel op of boven de grondlijn met een gang eronder ligt op het dak (de savanne), niet op de gang-bodem
     const dak = o.r <= gR && holtes.some(h => ox >= h.l && ox <= h.r);
-    if (o.k === 'zegel') (lvl.zegels = lvl.zegels || []).push({ x: ox, teken: 'rune', ...(koppel ? { stuurt: [o.masker] } : {}), ...(rijs ? { rijs } : {}), ...(verstop ? { verstop: true } : {}), ...(dak ? { dak: true } : {}) });
-    else (lvl.runes = lvl.runes || []).push({ x: ox, doel: true, opstelling: 'vlak', ...(koppel ? { stuurt: [o.masker] } : {}), ...(rijs ? { rijs } : {}) });
+    if (o.k === 'zegel') (lvl.zegels = lvl.zegels || []).push({ x: ox, teken: 'rune', ...(koppel ? { stuurt: [o.masker] } : {}), ...(rijs ? { rijs } : {}), ...(poort ? { poort } : {}), ...(verstop ? { verstop: true } : {}), ...(dak ? { dak: true } : {}) });
+    else (lvl.runes = lvl.runes || []).push({ x: ox, doel: true, opstelling: 'vlak', ...(koppel ? { stuurt: [o.masker] } : {}), ...(rijs ? { rijs } : {}), ...(poort ? { poort } : {}) });
     if (koppel && !acties.some(a => a.masker === o.masker)) acties.push({ soort: 'masker', masker: o.masker, bij: [o.masker] });
   }
   if (acties.length) lvl.acties = acties;
@@ -34530,10 +34803,18 @@ function mkControle(){
     }
     else if (o.k === 'zegel' || o.k === 'rune'){
       const heeft = o.masker && MK.maskers.some(mm => mm.id === o.masker && mm.cells.length);
-      const rz = mkRijsVan(o);
+      const rz = mkRijsVan(o), pz = mkPoortVan(o);
       if (o.masker && !heeft) meld('letop', naam + ' op kolom ' + o.c + ' wijst naar een masker dat er niet (meer) is.', o.c, o.r);
-      else if (!heeft && !rz && !(o.k === 'zegel' && o.verstop)) meld('info', naam + ' op kolom ' + o.c + ' is alleen een aantekening: koppel een masker of een rijzer, of vink bij een zegel Verborgen aan.', o.c, o.r);
+      else if (!heeft && !rz && !pz && !(o.k === 'zegel' && o.verstop)) meld('info', naam + ' op kolom ' + o.c + ' is alleen een aantekening: koppel een masker, een rijzer of een poort, of vink bij een zegel Verborgen aan.', o.c, o.r);
+      if (pz && !mkPoortVijOk(pz.vijand)) meld('info', naam + ' op kolom ' + o.c + ' opent poort b' + mkPoortNr(pz) + ', maar daar zit geen vijand in: er gebeurt niets.', o.c, o.r);
       if (rz && rz.zak) meld('letop', naam + ' op kolom ' + o.c + ' stuurt een rijzer die onder je wegzakt: die heeft geen schakelaar nodig en luistert er niet naar.', o.c, o.r);
+    }
+    else if (o.k === 'poort'){
+      const nm = 'Poort b' + mkPoortNr(o) + ' op kolom ' + o.c, v = vloerVan(o.c, o.r);
+      if (vast(cel(o.c, o.r))) meld('fout', nm + ' staat in een vaste cel: zet hem op de cel erboven.', o.c, o.r);
+      else if (v === null) meld('fout', nm + ' staat boven een ravijn zonder bodem; in het spel schuift hij naar de rand.', o.c, o.r);
+      else if (v - o.r > 1) meld('letop', nm + ' hangt ' + (v - o.r - 1) + ' cel' + (v - o.r - 1 === 1 ? '' : 'len') + ' boven zijn vloer.', o.c, o.r);
+      if (mkPoortVijOk(o.vijand) && !MK.objects.some(z => mkPoortVan(z) === o)) meld('letop', nm + ' heeft een vijand, maar geen zegel of rune die hem opent: die vijand komt er nooit uit. Kies een zegel en zet daar Opent poort.', o.c, o.r);
     }
     else if (o.k === 'prop') meld('info', 'Prop op kolom ' + o.c + ' is alleen een aantekening; de Test tekent hem niet.', o.c, o.r);
     else if (o.k === 'hppotion' || o.k === 'richel'){ if (vast(cel(o.c, o.r))) meld('letop', naam + ' op kolom ' + o.c + ' staat in een vaste cel.', o.c, o.r); }
@@ -34656,8 +34937,9 @@ function mkKopieer(){
   const cells = []; for (let r = n.r0; r <= n.r1; r++){ const rij = []; for (let c = n.c0; c <= n.c1; c++) rij.push(MK.grid[r][c]); cells.push(rij); }
   const binnen = MK.objects.filter(o => mkInGebied(n, o.c, o.r));
   const objects = binnen.map(o => {
-    const b = { ...o, dc:o.c - n.c0, dr:o.r - n.r0 }; delete b.c; delete b.r; delete b.plat; delete b._plat; delete b.rijsObj; delete b._rijs;
+    const b = { ...o, dc:o.c - n.c0, dr:o.r - n.r0 }; delete b.c; delete b.r; delete b.plat; delete b._plat; delete b.rijsObj; delete b._rijs; delete b.poortObj; delete b._poort;
     const rz = mkRijsVan(o); if (rz && binnen.indexOf(rz) >= 0) b.rijsRel = { dc:rz.c - n.c0, dr:rz.r - n.r0 };   // de rijzer die dit zegel stuurt, als hij meegaat
+    const pz = mkPoortVan(o); if (pz && binnen.indexOf(pz) >= 0) b.poortRel = { dc:pz.c - n.c0, dr:pz.r - n.r0 };  // en de poort die hij opent
     if (o.k === 'platform' && b.stamZij !== -1) delete b.stamZij;   // rechts is de standaard (geen veld), zodat spiegelen (zie mkSpiegel) netjes heen en terug gaat
     if (o.params) b.params = { ...o.params };
     b.doel = (o.doel && mkInGebied(n, o.doel.c, o.doel.r)) ? { dc:o.doel.c - n.c0, dr:o.doel.r - n.r0 } : null;
@@ -34688,7 +34970,8 @@ function mkSpiegel(){                     // het klembord spiegelen: links wordt
   // de koppeling zegel -> rijzer loopt op de ankercel van de rijzer, en die schuift bij een even breedte een cel op (zie onder);
   // onthoud dus eerst naar welk voorwerp hij wees, en schrijf de plek daarna opnieuw
   for (const o of k.objects) if (o.rijsRel) o._rijsDoel = k.objects.find(q => q.k === 'rijzer' && q.dc === o.rijsRel.dc && q.dr === o.rijsRel.dr) || null;
-  for (const o of k.objects){ o.dc = f(o.dc); if (o.doel) o.doel.dc = f(o.doel.dc); if (o.platRel) o.platRel.dc = f(o.platRel.dc);
+  for (const o of k.objects){ o.dc = f(o.dc); if (o.doel) o.doel.dc = f(o.doel.dc); if (o.platRel) o.platRel.dc = f(o.platRel.dc); if (o.poortRel) o.poortRel.dc = f(o.poortRel.dc);
+    if (o.k === 'poort') o.f = !o.f || undefined;                       // een poort kijkt de andere kant op
     // een rijzer van even breedte ligt met zijn ankercel links van het midden (mkRijsCellen): gespiegeld schuift het anker een cel naar links
     if (o.k === 'rijzer' && (o.breed || MK_PLAT_BREED) % 2 === 0){ o.dc -= 1; if (o.doel) o.doel.dc -= 1; }
     if (o.k === 'richel'){ o.f = !o.f; if (o.dx) o.dx = -o.dx; }         // een richel wijst de andere kant op, en zijn zijwaartse bijstelling ook
@@ -34710,7 +34993,7 @@ function mkPlakZet(){                     // de stempel neerzetten op mkPlak (li
   const nieuw = [];
   for (const o of k.objects){
     const c = p.c + o.dc, r = p.r + o.dr; if (!in_(c, r)) continue;
-    const b = { ...o, c, r }; delete b.dc; delete b.dr; delete b.platRel; delete b.rijsRel;
+    const b = { ...o, c, r }; delete b.dc; delete b.dr; delete b.platRel; delete b.rijsRel; delete b.poortRel;
     if (o.params) b.params = { ...o.params };
     b.doel = (o.doel && in_(p.c + o.doel.dc, p.r + o.doel.dr)) ? { c:p.c + o.doel.dc, r:p.r + o.doel.dr } : null;
     if (o.k !== 'platform' && o.k !== 'rijzer') delete b.doel;
@@ -34718,9 +35001,11 @@ function mkPlakZet(){                     // de stempel neerzetten op mkPlak (li
     nieuw.push(b); MK.objects.push(b);
     if (o.k === 'tandwiel' && o.platRel) b._platRel = o.platRel;
     if (o.rijsRel) b._rijsRel = o.rijsRel;
+    if (o.poortRel) b._poortRel = o.poortRel;
   }
   for (const w of nieuw) if (w._platRel){ const q = nieuw.find(o => o.k === 'platform' && o.c === p.c + w._platRel.dc && o.r === p.r + w._platRel.dr); if (q) w.plat = q; delete w._platRel; }
   for (const z of nieuw) if (z._rijsRel){ const q = nieuw.find(o => o.k === 'rijzer' && o.c === p.c + z._rijsRel.dc && o.r === p.r + z._rijsRel.dr); if (q) z.rijsObj = q; delete z._rijsRel; }
+  for (const z of nieuw) if (z._poortRel){ const q = nieuw.find(o => o.k === 'poort' && o.c === p.c + z._poortRel.dc && o.r === p.r + z._poortRel.dr); if (q) z.poortObj = q; delete z._poortRel; }
   for (const m of k.mask){ const c = p.c + m.dc, r = p.r + m.dr; if (!in_(c, r)) continue; const had = mkMaskInCel(c, r); if (had) had.m.cells.splice(had.i, 1); mkMaskObj(m.id).cells.push({ c, r }); }
   for (const z of k.zwart){ const c = p.c + z.dc, r = p.r + z.dr; if (in_(c, r) && mkZwartIdx(c, r) < 0) MK.zwart.push({ c, r }); }
   MK.gebied = vlak; mkGebiedKlem();      // het geplakte stuk is nu het gebied (alleen het deel binnen het grid; helemaal erbuiten is geen gebied)
@@ -36234,6 +36519,43 @@ function sbTeken(v){
   cv.focus();
 }
 sandboxEl.querySelectorAll('button[data-teken]').forEach(b => b.onclick = () => sbTeken(b.dataset.teken));
+// een stenen poort aan de gekozen kant (zie "poort"), met vijanden erin die pas komen als je hem opent
+function sbPoortLaatste(){ const l = level.poorten || []; return l[l.length - 1] || null; }
+function sbPoort(k){
+  const side = sbFromRight ? 1 : -1;
+  let x = world + side * 520;
+  x = Math.min(x, cliffAt().wall - 400);
+  x = Math.max(x, endWall() + 400);
+  if (!level.poorten) level.poorten = [];
+  const id = 'sb' + (level.poorten.length + 1);
+  level.poorten.push({ id, x, k, f: sbFromRight });
+  poortImg(k);
+  flashHint('Poort ' + id + ': zet er een vijand in en open hem');
+  cv.focus();
+}
+function sbPoortVijand(kind){
+  const o = sbPoortLaatste(); if (!o){ flashHint('Zet eerst een poort neer'); cv.focus(); return; }
+  if (o.open){ flashHint('Die poort is al open: zet een nieuwe neer'); cv.focus(); return; }
+  if (kind === 'bandiet') banLaadIdle();
+  level.spawns.push({ x: o.x, kind, n: 1, vault: true, zicht: true, duel: true, y: null, poort: o.id });
+  const n = level.spawns.filter(sp => sp.poort === o.id).length;
+  flashHint('In poort ' + o.id + ': ' + n + ' vijand' + (n === 1 ? '' : 'en'));
+  cv.focus();
+}
+sandboxEl.querySelectorAll('button[data-poort]').forEach(b => b.onclick = () => sbPoort(b.dataset.poort));
+sandboxEl.querySelectorAll('button[data-poortlook]').forEach(b => b.onclick = () => {   // de look van de laatst neergezette poort
+  const o = sbPoortLaatste();
+  if (!o) flashHint('Zet eerst een poort neer');
+  else { o.look = b.dataset.poortlook; poortImg(o.k, o.look); flashHint('Poort ' + o.id + ': ' + o.look); }
+  cv.focus();
+});
+sandboxEl.querySelectorAll('button[data-poortvij]').forEach(b => b.onclick = () => sbPoortVijand(b.dataset.poortvij));
+document.getElementById('sbpoortopen').onclick = () => {
+  const o = sbPoortLaatste();
+  if (!o) flashHint('Zet eerst een poort neer');
+  else if (!poortOpen(o.id, null)) flashHint('Die poort is al open');
+  cv.focus();
+};
 // een brandende wandfakkel aan de gekozen kant: op de grond, of hoger op de wand gemonteerd.
 // 'donker' zet het uitzicht op een nachtscene, zodat je de schaduw ziet die de fakkel werpt.
 function sbFakkel(soort){

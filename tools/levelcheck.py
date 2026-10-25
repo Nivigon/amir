@@ -360,6 +360,7 @@ class Spel:
         self.MUZIEK = b.const('MUZIEK')
         self.TEKEN = b.const('TEKEN')                   # het speerteken: voet en hoogte per variant
         self.SKELET = b.const('SKELET')
+        self.POORT = b.const('POORT')                   # de stenen poort: maat en opening per boog
         self.RAVIJN_PROEF = b.const('RAVIJN_PROEF')     # de runes die een ravijn openen, per level
         # NPCS en THICKET bevatten functieaanroepen; alleen de maten zijn nodig
         self.NPCS = {}
@@ -446,6 +447,20 @@ class Spel:
     def teken_hoog(self, o):
         V = self.TEKEN['varianten'].get(o.get('v')) or self.TEKEN['varianten']['teken']
         return V['hoog'] * self.CHAR_H
+
+    def poort_voet(self, o):
+        """Van waar tot waar een stenen poort staat, in wereld-px (poortMaat)."""
+        S = self.POORT['soorten'].get(o.get('k')) or self.POORT['soorten']['boog_steen']
+        op = S['opening']
+        k = S['hoog'] * (o.get('s') or 1) * self.CHAR_H * self.scale / (op[3] - op[1])
+        mid = (op[0] + op[2]) / 2
+        links, rechts = mid * k, (S['maat'][0] - mid) * k
+        return (o['x'] - rechts, o['x'] + links) if o.get('f') else (o['x'] - links, o['x'] + rechts)
+
+    def poort_hoog(self, o):
+        S = self.POORT['soorten'].get(o.get('k')) or self.POORT['soorten']['boog_steen']
+        op = S['opening']
+        return S['hoog'] * (o.get('s') or 1) * self.CHAR_H * op[3] / (op[3] - op[1])
 
     def skelet_halfw(self):
         """De halve breedte van een zittend skelet, in wereld-px (skeletHalfW)."""
@@ -946,7 +961,7 @@ def voorbij(lv, sp):
     rechts = isinstance(eind, (int, float)) and eind > 0
     for veld, naam in (('spawns', 'vijand'), ('hppotions', 'kalebas'), ('rocks', 'kei'),
                        ('tips', 'tip'), ('thickets', 'doornbos'), ('gaps', 'ravijn'), ('zegels', 'zegel'),
-                       ('skeletten', 'skelet'), ('tekens', 'speerteken')):
+                       ('skeletten', 'skelet'), ('tekens', 'speerteken'), ('poorten', 'poort')):
         for o in lv.d.get(veld) or []:
             x = o.get('x')
             if not isinstance(x, (int, float)) or x < -50000:
@@ -1054,6 +1069,36 @@ def rijzende_grond(lv, sp):
     for z in zegels:
         if z.get('rijs') is not None and not any(str(b.get('id')) == str(z.get('rijs')) for b in lv.d.get('rijzers') or []):
             yield fout(z.get('x'), 'zegel met rijs: \'%s\', maar er is geen rijzende grond met die naam' % z.get('rijs'))
+
+
+@regel('poorten')
+def poorten(lv, sp):
+    """Een stenen poort (poorten) is decor, of de plek waar vijanden uitkomen: de spawns met poort: id komen pas
+    als een zegel of rune met poort: id hem opent (poortOpen). Een poort met vijanden en zonder schakelaar houdt
+    ze voorgoed binnen; een schakelaar of spawn die naar een poort wijst die er niet is, doet niets."""
+    ps = lv.d.get('poorten') or []
+    ids = [str(o.get('id')) for o in ps]
+    for o in ps:
+        if o.get('k') not in sp.POORT['soorten']:
+            yield fout(o.get('x'), "poort met k: '%s': dat is geen boog (%s)" % (o.get('k'), ', '.join(sp.POORT['soorten'])))
+        if o.get('look') is not None and o.get('look') not in sp.POORT['looks']:
+            yield fout(o.get('x'), "poort '%s' met look '%s': dat is geen look (%s)" % (o.get('id'), o.get('look'), ', '.join(sp.POORT['looks'])))
+        if ids.count(str(o.get('id'))) > 1:
+            yield fout(o.get('x'), "twee poorten heten '%s'" % o.get('id'))
+    bronnen = (lv.d.get('zegels') or []) + [r for r in lv.d.get('runes') or [] if isinstance(r, dict)]
+    for z in bronnen:
+        if z.get('poort') is not None and str(z.get('poort')) not in ids:
+            yield fout(z.get('x'), "%s met poort: '%s', maar er is geen poort met die naam" % ('rune' if z in (lv.d.get('runes') or []) else 'zegel', z.get('poort')))
+    for s in lv.d.get('spawns') or []:
+        if s.get('poort') is None:
+            continue
+        if str(s.get('poort')) not in ids:
+            yield fout(s.get('x'), "vijand '%s' wacht in poort '%s', maar die poort is er niet: hij komt nooit" % (s.get('k'), s.get('poort')))
+        elif not any(str(z.get('poort')) == str(s.get('poort')) for z in bronnen):
+            yield fout(s.get('x'), "vijand '%s' wacht in poort '%s', maar geen zegel of rune opent die poort: hij komt nooit"
+                       % (s.get('k'), s.get('poort')))
+        if s.get('k') in ('panter', 'hyenas'):
+            yield letop(s.get('x'), "een %s uit poort '%s' komt van de rand van het beeld, niet uit de poort" % (s.get('k'), s.get('poort')))
 
 
 @regel('putten')
@@ -1300,6 +1345,9 @@ def boven_ravijn(lv, sp):
         if isinstance(o.get('x'), (int, float)) and not lv.holte(o['x']) and lv.in_gat(*sp.teken_voet(o)):
             yield fout(o['x'], "speerteken '%s' staat boven een ravijn (schoonLevel schuift hem weg)"
                        % (o.get('v') or 'teken'))
+    for o in lv.d.get('poorten') or []:
+        if isinstance(o.get('x'), (int, float)) and o.get('y') is None and not lv.holte(o['x']) and lv.in_gat(*sp.poort_voet(o)):
+            yield fout(o['x'], "poort '%s' staat boven een ravijn (schoonLevel schuift hem weg)" % (o.get('id') or o.get('k')))
     for p in lv.d.get('hppotions') or []:
         if p.get('y') is None and lv.in_gat(p['x'] - 20, p['x'] + 20):
             yield fout(p['x'], 'kalebas op de grond, maar daar ligt een ravijn: hij is onbereikbaar')
@@ -1353,6 +1401,9 @@ def komend_ravijn(lv, sp):
         uit.append(meld(o.get('x'), o['x'] - hw, o['x'] + hw, 'skelet'))
     for o in lv.d.get('tekens') or []:
         uit.append(meld(o.get('x'), *sp.teken_voet(o), "speerteken '%s'" % (o.get('v') or 'teken')))
+    for o in lv.d.get('poorten') or []:
+        if o.get('y') is None and isinstance(o.get('x'), (int, float)):
+            uit.append(meld(o['x'], *sp.poort_voet(o), "poort '%s'" % (o.get('id') or o.get('k'))))
     for m in uit:
         if m:
             yield m
@@ -1864,6 +1915,10 @@ def gangen(lv, sp):
         if isinstance(o.get('x'), (int, float)) and door_dak(o['x'], sp.teken_hoog(o)):
             yield fout(o['x'], "speerteken '%s' op %s staat in de gang en is %s hoog: de speer steekt door het dak"
                        % (o.get('v') or 'teken', n0(o['x']), n0(sp.teken_hoog(o))))
+    for o in lv.d.get('poorten') or []:
+        if isinstance(o.get('x'), (int, float)) and o.get('y') is None and door_dak(o['x'], sp.poort_hoog(o)):
+            yield fout(o['x'], "poort '%s' op %s staat in de gang en is %s hoog: hij steekt door het dak"
+                       % (o.get('id') or o.get('k'), n0(o['x']), n0(sp.poort_hoog(o))))
     for t in lv.d.get('thickets') or []:
         if isinstance(t.get('x'), (int, float)) and door_dak(t['x'], sp.doornbos_hoog(t)):
             yield fout(t['x'], 'doornbos op %s staat in de gang en is %s hoog: hij steekt door het dak'

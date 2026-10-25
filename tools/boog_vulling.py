@@ -10,13 +10,24 @@ langs de stenen wordt eruit gerekend, zodat er geen roze rand blijft.
 bron/boog_laag.jpg bevat vier bogen onder elkaar; die worden apart uitgeknipt.
 De maat van de opening per boog komt in metadata.json (in pixels van het eindbeeld).
 
+Per boog komen er twee kleurversies bij, voor de look van een poort in het spel:
+- _sneeuw: een sneeuwkap op de bovenkant (rock_snow uit tools/sneeuw.py, zoals de rotsen) en
+  de koude tint op de steen;
+- _savanne: de steen in de warme kleur van de savannegrond (SAVANNE, dezelfde tint als de
+  richel met look savanne, LEDGE_SAVANNE in de HTML), licht en donker blijven.
+De opening zelf blijft in beide het donker van de gewone boog (het magenta van de bron is het
+masker), zodat er geen sneeuw of oranje in het gat komt.
+
     python3 tools/boog_vulling.py
 
 Vereist Pillow en numpy.
 """
-import json, os
+import json, os, sys
 import numpy as np
 from PIL import Image
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from sneeuw import rock_snow  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DIR = os.path.join(ROOT, 'design', 'boog')
@@ -29,6 +40,9 @@ VLOER_RECHTS = np.array([61, 46, 34.])
 VLOER_VANAF = 0.875   # dit deel van de openingshoogte is wand, de rest vloer
 ZIJLICHT = 8          # links zoveel lichter, rechts zoveel donkerder
 BOVENSCHADUW = 0.12   # over dit deel van de hoogte loopt de schaduw onder de boog weg
+SAVANNE = np.array([0xc4, 0x8a, 0x4a]) / 255.   # LEDGE_SAVANNE in de HTML
+SAVANNE_MENG = 0.85   # zoveel van de savannekleur, de rest blijft de grijze steen
+SNEEUW = dict(cap_min=0.035, cap_max=0.09, slope_k=4.0)   # de kap: dun, maar ook op de ronding (een hoge slope_k laat hem op de schuine stenen liggen)
 
 def schoon(im):
     a = np.asarray(im.convert('RGB')).astype(float)
@@ -55,13 +69,36 @@ def schoon(im):
     alfa = np.maximum(1 - wit, mag)
     img = Image.fromarray(np.dstack([uit, alfa * 255]).astype(np.uint8), 'RGBA')
     bb = img.getchannel('A').point(lambda v: 255 if v > 20 else 0).getbbox()
-    return img.crop(bb), [int(x0 - bb[0]), int(y0 - bb[1]), int(x1 - bb[0]), int(y1 - bb[1])]
+    gat = Image.fromarray((mag * 255).astype(np.uint8), 'L').crop(bb)
+    return img.crop(bb), [int(x0 - bb[0]), int(y0 - bb[1]), int(x1 - bb[0]), int(y1 - bb[1])], gat
+
+def met_gat(pad, basis, gat):
+    """zet de opening van de gewone boog terug in de kleurversie op pad"""
+    a = np.asarray(Image.open(pad).convert('RGBA')).astype(float)
+    b = np.asarray(basis).astype(float)
+    g = (np.asarray(gat).astype(float) / 255)[..., None]
+    a[..., :3] = a[..., :3] * (1 - g) + b[..., :3] * g
+    Image.fromarray(a.round().astype(np.uint8), 'RGBA').save(pad, optimize=True)
+
+def savanne(basis, pad):
+    """de steen naar de savannekleur, met het licht en donker van de steen zelf"""
+    a = np.asarray(basis).astype(float) / 255
+    rgb = a[..., :3]
+    lum = (0.299 * rgb[..., 0] + 0.587 * rgb[..., 1] + 0.114 * rgb[..., 2])[..., None]
+    lt = 0.299 * SAVANNE[0] + 0.587 * SAVANNE[1] + 0.114 * SAVANNE[2]
+    getint = np.clip(SAVANNE[None, None, :] * lum / lt, 0, 1)
+    a[..., :3] = rgb * (1 - SAVANNE_MENG) + getint * SAVANNE_MENG
+    Image.fromarray((a * 255).round().astype(np.uint8), 'RGBA').save(pad, optimize=True)
 
 def main():
     meta = {}
     def bewaar(im, naam):
-        c, o = schoon(im)
+        c, o, gat = schoon(im)
         c.save(os.path.join(DIR, naam + '.png'), optimize=True)
+        rock_snow(os.path.join(DIR, naam + '.png'), os.path.join(DIR, naam + '_sneeuw.png'), **SNEEUW)
+        met_gat(os.path.join(DIR, naam + '_sneeuw.png'), c, gat)
+        savanne(c, os.path.join(DIR, naam + '_savanne.png'))
+        met_gat(os.path.join(DIR, naam + '_savanne.png'), c, gat)
         meta[naam] = {'maat': list(c.size), 'opening': o}
         print(naam, c.size, 'opening', o)
     bewaar(Image.open(os.path.join(DIR, 'bron', 'boog_steen.jpg')), 'boog_steen')

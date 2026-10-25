@@ -119,6 +119,10 @@ Altijd WYSIWYG: links in het grid is links in het spel, de wereld-x is `(kolom -
   doel met een stippellijn, en een stippellijn van elk zegel naar zijn rijzer. Een zegel op de grondlijn
   boven een gang krijgt `dak: true` en `readLevel` neemt dat over (eerst viel het daar weg, en lag het
   zegel toch op de gang-bodem).
+- Een **poort** (Objecten, "Poort (stenen boog)") wordt een `poorten`-entry (`b1`, `b2`, ...) met de onderkant
+  van de opening op de onderkant van zijn cel; op een laag of op het dak van een gang met `y`. Met een vijand erin
+  komt die als spawn met `poort` mee (via `mkSpawn` op de cel van de poort, zo vaak als **Aantal**), en een zegel of
+  rune met **Opent poort** krijgt `poort`. Zie `notities/poort.md`.
 - Vijanden via `mkSpawn`: de soort-tekst (`bandiet:dolk`, `kooiman:vogel`, `schildman:makkelijk`)
   wordt de spawn met zijn vlaggen; een vijand op een laag krijgt `boven: true`, in een gang `y`. Ook op het
   dak van een gang (op of boven de grondlijn, met een holte eronder) krijgt hij `boven: true`: `bovenVloer`
@@ -159,10 +163,10 @@ naar de cel), die bijblijft zolang hij open staat. Drie soorten:
 
 - **FOUT**: geen start of eind, een start of eind boven een ravijn zonder bodem of in een vaste
   cel, een vijand in een vaste cel of onder de grond zonder gang, een platform zonder doelhoogte,
-  een tandwiel zonder platform, een rijzer die niet helemaal in een ravijn op de grondlijn staat, buiten het
+  een tandwiel zonder platform, een poort in een vaste cel of boven een ravijn zonder bodem, een rijzer die niet helemaal in een ravijn op de grondlijn staat, buiten het
   grid steekt of geen zegel of rune heeft die hem stuurt (een zakker mag overal en heeft er geen nodig).
 - **LET OP**: een start of eind die hoog boven zijn vloer hangt, een vijand die zweeft of op de
-  start staat, een ravijn of gang op de verkeerde rij, een gang zonder ingang, een platform zonder
+  start staat, een poort met een vijand maar zonder zegel of rune die hem opent, een ravijn of gang op de verkeerde rij, een gang zonder ingang, een platform zonder
   tandwiel of met zijn doel op dezelfde hoogte, een zegel dat naar een weg masker wijst, een val
   van meer dan vier cellen naast een rand (dodelijk in de Test), een rijzer met zijn doel op zijn eigen rij, die
   op of boven de grondlijn rust, of die drie of meer cellen ravijn naast zich open laat, en een zegel dat een

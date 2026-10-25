@@ -7,7 +7,7 @@ ravijn, bij een ravijn dat later openscheurt (een rune of een zegel) en in een g
 
 | soort | wat | boven een ravijn | waar later een ravijn openscheurt | in een gang |
 | --- | --- | --- | --- | --- |
-| vast | keien, hutten en andere props met `bouwwerk`, doornbossen, skeletten, speertekens | nooit | nooit: ze gaan naar de rand | op de bodem, en niet hoger dan de gang |
+| vast | keien, hutten en andere props met `bouwwerk`, doornbossen, skeletten, speertekens, stenen poorten | nooit | nooit: ze gaan naar de rand | op de bodem, en niet hoger dan de gang |
 | los | botten (`RAVIJN_DECOR.valt`), kalebassen, dorpelingen | nooit | mag: het valt erin | op de bodem |
 | plant | gras, struik, boom, schilden en ander laag decor | nooit | mag: het schuift naar de rand, of vervaagt als daar al iets staat | op de bodem, en niet hoger dan de gang |
 | ver | props met `v` die hoger staan dan `FAR_GAP_LIFT` | mag | mag | blijft boven op de savanne |
