@@ -142,8 +142,8 @@ const zegel = (c, r, pc, pr, extra) => ({ c, r, k: 'zegel', poort: { c: pc, r: p
     await wacht(1.5);
     let s = await st();
     if (!s.poorten[0].open) uit.push('de poort is niet open na het zegel: ' + JSON.stringify(s.poorten) + ' x=' + s.x);
-    if (!s.vij.length) uit.push('geen slang na 1,5 s: ' + JSON.stringify(s.spawns));
-    else { const v = s.vij[0]; if (Math.abs(v.x - px) > 60) uit.push('de slang kwam niet bij de poort: ' + JSON.stringify(v) + ' poort x=' + px); if (v.b !== 0) uit.push('de slang staat niet op de grond: ' + JSON.stringify(v)); }
+    if (!s.eerste.length) uit.push('geen slang na 1,5 s: ' + JSON.stringify(s.spawns));
+    else { const v = s.eerste[0]; if (Math.abs(v.x - px) > 60) uit.push('de slang kwam niet bij de poort: ' + JSON.stringify(v) + ' poort x=' + px); if (v.b !== 0) uit.push('de slang kwam niet op de grond: ' + JSON.stringify(v)); }
     await foto('basis');
     return uit;
   });
