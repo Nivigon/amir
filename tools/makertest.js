@@ -73,7 +73,7 @@ async function start(){
 //    een verborgen zegel met masker dat ook een rijzer stuurt, een rune, een kalebas, een prop
 //  - een tweede ravijn (kolom 11 en 12) met een rijzer van 2 breed erin, drie cellen diep, die tot de grondlijn komt
 //  - een masker (Verborgen1) van twee cellen, een zwarte cel, en een vrije blokvorm
-//  - een gespiegelde stenen poort (kolom 16) met twee schorpioenen erin, die de rune opent
+//  - een gespiegelde stenen poort in savannekleur (kolom 16) met twee schorpioenen erin, die de rune opent
 function proefGrid(){
   const rijen = [];
   for (let r = 0; r < 12; r++) rijen.push('.'.repeat(24).split(''));
@@ -103,7 +103,7 @@ function proefGrid(){
       { c: 15, r: 6, k: 'zegel', masker: 'Verborgen1', verstop: true, rijzer: { c: 11, r: 10 }, note: '' },
       { c: 11, r: 10, k: 'rijzer', doel: { c: 11, r: 7 }, breed: 2, v: 300, wacht: 0, duur: 0, note: '' },
       { c: 18, r: 6, k: 'rune', masker: 'Verborgen1', poort: { c: 16, r: 6 }, note: '' },
-      { c: 16, r: 6, k: 'poort', boog: 'boog_steen', f: true, vijand: 'scorp', n: 2, note: '' },
+      { c: 16, r: 6, k: 'poort', boog: 'boog_steen', f: true, look: 'savanne', vijand: 'scorp', n: 2, note: '' },
       { c: 19, r: 5, k: 'hppotion', note: '' },
       { c: 1, r: 6, k: 'prop', note: 'een boom' },
     ],
@@ -176,7 +176,7 @@ function verschil(a, b, pad = ''){
     const rz = a.objecten.find(o => o.k === 'rijzer'); if (!rz || !rz.doel || rz.doel.r !== 7 || rz.breed !== 2) uit.push('rijzer verloor zijn doel of breedte');
     if (!zegel || !zegel.rijzer || zegel.rijzer.c !== 11 || zegel.rijzer.r !== 10) uit.push('zegel verloor zijn rijzer');
     const vij = a.objecten.find(o => o.k === 'vijand' && o.soort === 'groen'); if (!vij || !vij.params || vij.params.speed !== 2) uit.push('vijand verloor zijn snelheid');
-    const pt = a.objecten.find(o => o.k === 'poort'); if (!pt || pt.boog !== 'boog_steen' || !pt.f || pt.vijand !== 'scorp' || pt.n !== 2) uit.push('poort verloor zijn boog, spiegeling of vijanden: ' + JSON.stringify(pt));
+    const pt = a.objecten.find(o => o.k === 'poort'); if (!pt || pt.boog !== 'boog_steen' || !pt.f || pt.look !== 'savanne' || pt.vijand !== 'scorp' || pt.n !== 2) uit.push('poort verloor zijn boog, spiegeling of vijanden: ' + JSON.stringify(pt));
     const ru = a.objecten.find(o => o.k === 'rune'); if (!ru || !ru.poort || ru.poort.c !== 16 || ru.poort.r !== 6) uit.push('rune verloor zijn poort');
     return uit;
   });
@@ -206,7 +206,7 @@ function verschil(a, b, pad = ''){
     if (!(lv.zegels || []).find(z => z.verstop && z.stuurt && z.stuurt[0] === 'Verborgen1')) uit.push('geen verborgen zegel aan het masker');
     if (!(lv.runes || []).length) uit.push('geen rune');
     const pt = (lv.poorten || [])[0];
-    if (!pt || pt.id !== 'b1' || pt.k !== 'boog_steen' || !pt.f || pt.y !== undefined) uit.push('geen gespiegelde poort b1 op de grond: ' + JSON.stringify(lv.poorten));
+    if (!pt || pt.id !== 'b1' || pt.k !== 'boog_steen' || !pt.f || pt.look !== 'savanne' || pt.y !== undefined) uit.push('geen gespiegelde poort b1 op de grond: ' + JSON.stringify(lv.poorten));
     else {
       const uitP = sp.filter(s => s.poort === 'b1');
       if (uitP.length !== 2 || uitP.some(s => s.k !== 'scorp' || s.x !== pt.x)) uit.push('niet twee schorpioenen in poort b1: ' + JSON.stringify(uitP));

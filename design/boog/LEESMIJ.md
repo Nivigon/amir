@@ -17,6 +17,8 @@ boog_steen.png           smalle, vrijstaande boog van gezaagde blokken (hoog)
 boog_rots.png            dezelfde soort boog, ingebouwd in een ruwe rotsmassa (hoog)
 boog_laag_1..4.png       lage, brede boog met gestapelde muurtjes ernaast; vier bijna
                          gelijke varianten, om af te wisselen
+*_sneeuw.png             elke boog met een sneeuwkap (voor de winter, look sneeuw)
+*_savanne.png            elke boog in de warme kleur van de savannegrond (look savanne)
 metadata.json            per boog de maat en de opening [x0, y0, x1, y1] in pixels
 bron/                    de aangeleverde platen (wit met een magenta opening)
 ```

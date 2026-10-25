@@ -1081,6 +1081,8 @@ def poorten(lv, sp):
     for o in ps:
         if o.get('k') not in sp.POORT['soorten']:
             yield fout(o.get('x'), "poort met k: '%s': dat is geen boog (%s)" % (o.get('k'), ', '.join(sp.POORT['soorten'])))
+        if o.get('look') is not None and o.get('look') not in sp.POORT['looks']:
+            yield fout(o.get('x'), "poort '%s' met look '%s': dat is geen look (%s)" % (o.get('id'), o.get('look'), ', '.join(sp.POORT['looks'])))
         if ids.count(str(o.get('id'))) > 1:
             yield fout(o.get('x'), "twee poorten heten '%s'" % o.get('id'))
     bronnen = (lv.d.get('zegels') or []) + [r for r in lv.d.get('runes') or [] if isinstance(r, dict)]

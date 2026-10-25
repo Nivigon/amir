@@ -6,7 +6,7 @@
 ## Het levelveld
 
 ```
-poorten: [ {id: 'b1', x: -2012, k: 'boog_rots', f: true, y: 450, s: 1} ]
+poorten: [ {id: 'b1', x: -2012, k: 'boog_rots', f: true, y: 450, s: 1, look: 'sneeuw'} ]
 ```
 
 - `id` de naam waar een zegel of rune met `poort` naar wijst (zonder: `poort1`, `poort2`, ...)
@@ -16,6 +16,11 @@ poorten: [ {id: 'b1', x: -2012, k: 'boog_rots', f: true, y: 450, s: 1} ]
 - `y` een vaste vloerhoogte (een zwever, het dak van een gang); zonder `y` staat hij op `terrainH`,
   dus ook op een terras of op de bodem van een gang
 - `s` een schaal bovenop de standaardmaat: de opening is `hoog` Amir hoog (hoog 1,65, laag 1,15)
+- `look` de kleur (`POORT.looks`): `steen` (grijs), `sneeuw` (met een sneeuwkap, `_sneeuw.png`) of `savanne`
+  (de steen in de warme kleur van de savannegrond, `_savanne.png`, dezelfde tint als de richel met look savanne).
+  Zonder `look` kiest `poortLook` vanzelf: in een winterlevel sneeuw, anders steen. Alleen het plaatje van de
+  look die een poort gebruikt laadt (`poortLaadLevel`). De versies komen uit `tools/boog_vulling.py`: de sneeuwkap
+  met `rock_snow` uit `tools/sneeuw.py`, en in beide blijft de opening het donker van de gewone boog
 
 De onderkant van de opening staat op de vloer. Zonder meer is een poort decor.
 
@@ -51,7 +56,8 @@ poort mee in `voorbij het einde`, `boven een ravijn`, `waar een ravijn openscheu
 
 ## In de Maker
 
-Objecten, **Poort (stenen boog)**. In het paneel: **Boog**, **Gespiegeld**, **Vijand eruit** (geen =
+Objecten, **Poort (stenen boog)**. In het paneel: **Boog**, **Gespiegeld**, **Look** (vanzelf, steen, sneeuw,
+savanne; vanzelf is sneeuw als de cel onder de poort sneeuw is, `mkPoortLook`), **Vijand eruit** (geen =
 alleen decor) en **Aantal** (1 tot 3, `MK_POORT_N`). Een zegel of rune krijgt **Opent poort**
 (`mkVulPoortSelect`), net als Stuurt rijzer: een verwijzing naar het voorwerp (`poortObj`, `mkPoortVan`),
 opgeslagen op celpositie (`poort: {c, r}`) en in het klembord als `poortRel`; spiegelen keert de poort om.
@@ -61,7 +67,7 @@ zonder schakelaar (LET OP) en een schakelaar die een lege poort opent (info).
 
 ## Sandbox
 
-Decor, **Poort**: drie bogen, **+ slang erin**, **+ schorpioen erin**, **+ bandiet erin** (in de laatst
+Decor, **Poort**: drie bogen, **Sneeuw**, **Savanne** en **Steen** (de look van de laatste poort), **+ slang erin**, **+ schorpioen erin**, **+ bandiet erin** (in de laatst
 neergezette poort) en **Open de poort**.
 
 ## Nog niet

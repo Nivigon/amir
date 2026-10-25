@@ -988,6 +988,7 @@
         <div id="mkpoortctl" style="display:none">
           <div class="mkveld"><label for="mkpoortsoort">Boog</label><select id="mkpoortsoort"></select></div>
           <div class="mkrij"><button id="mkpoortf">Gespiegeld: nee</button></div>
+          <div class="mkveld"><label for="mkpoortlook">Look</label><select id="mkpoortlook"><option value="">Vanzelf (sneeuw op sneeuw)</option><option value="steen">Steen</option><option value="sneeuw">Sneeuw</option><option value="savanne">Savanne</option></select></div>
           <div class="mkveld"><label for="mkpoortvij">Vijand eruit</label><select id="mkpoortvij"></select></div>
           <div class="mkknop"><label>Aantal</label><input id="mkpoortn" type="range" min="1" max="3" step="1"><span class="read" id="mkpoortnv"></span></div>
           <div id="mkpoortinfo" class="mkhint"></div>
@@ -1305,6 +1306,9 @@
         <button data-poort="boog_steen">Hoge boog</button>
         <button data-poort="boog_rots">Boog in de rots</button>
         <button data-poort="boog_laag_1">Lage boog</button>
+        <button data-poortlook="sneeuw">Sneeuw</button>
+        <button data-poortlook="savanne">Savanne</button>
+        <button data-poortlook="steen">Steen</button>
         <button data-poortvij="groen">+ slang erin</button>
         <button data-poortvij="scorp">+ schorpioen erin</button>
         <button data-poortvij="bandiet">+ bandiet erin</button>
@@ -11274,18 +11278,22 @@ function tekenTeken(groundY, scale, cx){
 }
 
 // ---- poort: een stenen boog, decor of de plek waar een vijand uitkomt ----
-// level.poorten = [{id, x, k, f, y, s}]: x is het midden van de opening, k de boog uit POORT.soorten, f spiegelt,
+// level.poorten = [{id, x, k, f, y, s, look}]: x is het midden van de opening, k de boog uit POORT.soorten, f spiegelt,
 // y een vaste vloerhoogte (zonder: terrainH, dus ook op een terras of in een gang), s een schaal bovenop de
 // standaardmaat. Zonder meer is het decor, en wel vast decor (zie "wat mag waar"): nooit boven een ravijn.
 // Een zegel of rune met poort: id opent hem (poortOpen). Dan komen de spawns met poort: id eruit, de een na de
 // ander (POORT.tussen), precies op de plek van de opening en niet net buiten beeld, en ligt het donker van de
 // opening nog even over wie eruit stapt (POORT.uit, poortVoorTeken). Een poort gaat per potje een keer open.
 // De plaatjes komen uit design/boog/ (tools/boog_vulling.py); maat en opening zijn die uit metadata.json.
+// look kiest de kleur: 'steen' (de grijze boog), 'sneeuw' (met een sneeuwkap, _sneeuw.png) of 'savanne' (de steen
+// in de warme kleur van de savannegrond, _savanne.png); alle drie dezelfde maat. Zonder look: in een winterlevel
+// de sneeuwversie, anders steen (poortLook), zoals de richel.
 const POORT = {
   map: 'design/boog/',
   tussen: 1.1,                 // seconden tussen twee vijanden uit dezelfde poort
   uit: 0.9,                    // zo lang (s) ligt het donker van de opening nog over een vijand die eruit komt
   schaduw: 0.55,               // de schaduw op de grond, als deel van de breedte van de boog
+  looks: { steen: '', sneeuw: '_sneeuw', savanne: '_savanne' },   // look -> achtervoegsel van het plaatje
   soorten: {
     // hoog: de hoogte van de opening in Amir (LEESMIJ: hoog 1,65, laag 1,15)
     boog_steen:  { naam: 'Hoge boog van blokken', hoog: 1.65, maat: [721, 894],   opening: [155, 118, 564, 879] },
@@ -11297,14 +11305,18 @@ const POORT = {
   },
 };
 const poortSoort = k => POORT.soorten[k] ? k : 'boog_steen';
-const poortImgs = {};                                    // soort -> Image, pas geladen als een poort hem gebruikt
-function poortImg(k){
+const poortLookOf = v => Object.prototype.hasOwnProperty.call(POORT.looks, v) ? v : undefined;
+// de look van een poort: zijn eigen look, of vanzelf (sneeuw in een winterlevel); winter: het level is winter
+function poortLook(o, winter){ return poortLookOf(o && o.look) || (winter ? 'sneeuw' : 'steen'); }
+const poortImgs = {};                                    // soort + look -> Image, pas geladen als een poort hem gebruikt
+function poortImg(k, look){
   k = poortSoort(k);
-  let im = poortImgs[k];
-  if (!im){ im = poortImgs[k] = new Image(); zetBron(im, POORT.map + k + '.png', () => console.warn('ontbreekt: ' + POORT.map + k + '.png')); }
+  const pad = POORT.map + k + POORT.looks[poortLookOf(look) || 'steen'] + '.png';
+  let im = poortImgs[pad];
+  if (!im){ im = poortImgs[pad] = new Image(); zetBron(im, pad, () => console.warn('ontbreekt: ' + pad)); }
   return im;
 }
-function poortLaadLevel(lv){ for (const o of (lv && lv.poorten) || []) poortImg(o.k); }
+function poortLaadLevel(lv){ for (const o of (lv && lv.poorten) || []) poortImg(o.k, poortLook(o, lv.winter)); }
 // de maat van een poort in wereld-px: k (px per bronpixel), van waar tot waar hij staat (l, r) en zijn hoogte (h)
 function poortMaat(o, scale){
   const S = POORT.soorten[poortSoort(o.k)], op = S.opening;
@@ -11317,7 +11329,7 @@ const poortVloer = o => (o.y != null ? o.y : terrainH(o.x));
 const poortVan = id => (level && level.poorten || []).find(o => o.id === id) || null;
 // tekent de boog met de opening op zijn vloer; deel: alleen het stuk van de opening (het donker), met deze alfa
 function poortBeeld(o, groundY, scale, cx, deel){
-  const im = poortImg(o.k); if (!imgReady(im)) return;
+  const im = poortImg(o.k, poortLook(o, winterOn())); if (!imgReady(im)) return;
   const M = poortMaat(o, scale), S = M.S, op = S.opening, k = M.k;
   const sx = cx + (o.x - world), gy = groundY - poortVloer(o) * scale;
   const sw = W / viewZoom();
@@ -31673,7 +31685,8 @@ function readLevel(txt){
            // stenen poorten: decor, of de plek waar een vijand uitkomt als een zegel of rune hem opent, zie "poort"
            poorten: (o.poorten || []).map((q, i) => ({ id: q.id != null ? String(q.id) : 'poort' + (i + 1), x: Number(q.x), k: poortSoort(q.k), f: !!q.f,
                                                        y: (q.y === undefined || q.y === null) ? undefined : Number(q.y),
-                                                       s: Number(q.s) > 0 ? Math.max(0.4, Math.min(2.5, Number(q.s))) : undefined })),
+                                                       s: Number(q.s) > 0 ? Math.max(0.4, Math.min(2.5, Number(q.s))) : undefined,
+                                                       look: poortLookOf(q.look) })),
            hppotions: (o.hppotions || []).map(q => ({ x: Number(q.x),
                                                       y: (q.y === null || q.y === undefined) ? null : Number(q.y) })),
            // de plafondlijn: punten met een x en een y, zie "plafond: de rots boven je"
@@ -33015,6 +33028,12 @@ function mkRijsVan(z){ return (z && z.rijsObj && MK.objects.indexOf(z.rijsObj) >
 function mkPoortVan(z){ return (z && z.poortObj && MK.objects.indexOf(z.poortObj) >= 0 && z.poortObj.k === 'poort') ? z.poortObj : null; }
 function mkPoortNr(o){ return MK.objects.filter(q => q.k === 'poort').indexOf(o) + 1; }   // zijn naam in het spel: b1, b2, ...
 const MK_POORT_N = 3;                                   // hoogstens zoveel vijanden uit een poort
+// de look van een poort in de Maker: zijn eigen keuze, of vanzelf sneeuw als de cel onder hem sneeuw is
+function mkPoortLook(o){
+  if (poortLookOf(o.look)) return o.look;
+  const onder = MK.grid && MK.grid[o.r + 1] ? MK.grid[o.r + 1][o.c] : null;
+  return (onder === 'sneeuw' || onder === 'sneeuwrots') ? 'sneeuw' : 'steen';
+}
 // welke vijanden uit een poort kunnen komen: niet de hyena en de panter (die komen van de rand van het beeld), niet
 // de hinderlaag (die zit al gehurkt op zijn plek) en niet het duel van de kooiman (dat is geensceneerd)
 const mkPoortVijOk = soort => Object.prototype.hasOwnProperty.call(MK_VIJ_INFO, soort) && !['hyenas', 'panter', 'bandiet:hurk', 'kooiman'].includes(soort);
@@ -33095,6 +33114,9 @@ function mkVulPoort(){
   if (!ss.options.length) for (const k in POORT.soorten){ const op = document.createElement('option'); op.value = k; op.textContent = POORT.soorten[k].naam; ss.appendChild(op); }
   ss.value = poortSoort(o.boog);
   ss.onchange = () => { o.boog = ss.value; mkBewaar(); mkTeken(); };
+  const lk = document.getElementById('mkpoortlook');
+  lk.value = poortLookOf(o.look) || '';
+  lk.onchange = () => { o.look = poortLookOf(lk.value); mkBewaar(); mkTeken(); };
   const fb = document.getElementById('mkpoortf');
   fb.textContent = 'Gespiegeld: ' + (o.f ? 'ja' : 'nee');
   fb.onclick = () => { o.f = !o.f || undefined; mkVulPoort(); mkBewaar(); mkTeken(); };
@@ -33413,7 +33435,7 @@ function mkTeken(){
       continue;
     }
     if (o.k === 'poort'){                                    // de boog zelf, met de onderkant van de opening op de onderkant van de cel
-      const S = POORT.soorten[poortSoort(o.boog)], op = S.opening, im = poortImg(o.boog);
+      const S = POORT.soorten[poortSoort(o.boog)], op = S.opening, im = poortImg(o.boog, mkPoortLook(o));
       if (!im._mk){ im._mk = true; im.addEventListener('load', () => { if (makerOpen) mkTeken(); }); }
       const ku = S.hoog * CHAR_H / (op[3] - op[1]);          // eenheden (en, op schaal 1, wereld-px) per bronpixel
       const kx = ku / MK_CEL_PX * cel, ky = ku / MK_CEL_EENH * cel, mid = (op[0] + op[2]) / 2, onder = gy + (o.r + 1) * cel;
@@ -34073,7 +34095,7 @@ function mkNaarJSON(){
              if (o.k === 'zegel' && o.verstop) b.verstop = true;                                  // onder het zand (zie mkVulZegel)
              if ((o.k === 'zegel' || o.k === 'rune') && mkRijsVan(o)) b.rijzer = { c:o.rijsObj.c, r:o.rijsObj.r };   // stuurt die rijzer (op celpositie, zoals een wiel zijn platform)
              if ((o.k === 'zegel' || o.k === 'rune') && mkPoortVan(o)) b.poort = { c:o.poortObj.c, r:o.poortObj.r };   // opent die poort (ook op celpositie)
-             if (o.k === 'poort'){ b.boog = poortSoort(o.boog); if (o.f) b.f = true; if (mkPoortVijOk(o.vijand)){ b.vijand = o.vijand; if (o.n > 1) b.n = Math.min(MK_POORT_N, o.n); } }
+             if (o.k === 'poort'){ b.boog = poortSoort(o.boog); if (o.f) b.f = true; if (poortLookOf(o.look)) b.look = o.look; if (mkPoortVijOk(o.vijand)){ b.vijand = o.vijand; if (o.n > 1) b.n = Math.min(MK_POORT_N, o.n); } }
              if (o.k === 'rijzer'){ b.doel = o.doel ? { c:o.doel.c, r:o.doel.r } : null; b.breed = o.breed || MK_PLAT_BREED; b.v = o.v || MK_RIJS.v; b.wacht = o.wacht || 0; b.duur = o.duur || 0; if (o.zak) b.zak = true; if (o.look && o.look !== 'savanne') b.look = o.look; if (o.kleur) b.kleur = { r: o.kleur.r }; }
              if (o.k === 'vijand'){ b.soort = o.soort || 'groen'; if (o.params && Object.keys(o.params).length) b.params = o.params; }
              if (o.k === 'platform'){ b.doel = o.doel ? { c:o.doel.c, r:o.doel.r } : null; b.breed = o.breed || MK_PLAT_BREED; if (o.stamCel) b.stamCel = o.stamCel; if (o.stamBotCel != null) b.stamBotCel = o.stamBotCel; if (o.stamZij === -1) b.stamZij = -1; }
@@ -34112,7 +34134,7 @@ function mkUitJSON(o){
     if (q.k === 'zegel' && q.verstop) b.verstop = true;
     if ((q.k === 'zegel' || q.k === 'rune') && q.rijzer && q.rijzer.c != null) b._rijs = { c:q.rijzer.c|0, r:q.rijzer.r|0 };
     if ((q.k === 'zegel' || q.k === 'rune') && q.poort && q.poort.c != null) b._poort = { c:q.poort.c|0, r:q.poort.r|0 };
-    if (q.k === 'poort'){ b.boog = poortSoort(q.boog); if (q.f) b.f = true;
+    if (q.k === 'poort'){ b.boog = poortSoort(q.boog); if (q.f) b.f = true; if (poortLookOf(q.look)) b.look = q.look;
       if (typeof q.vijand === 'string' && mkPoortVijOk(q.vijand)){ b.vijand = q.vijand; const n = Math.round(Number(q.n) || 1); if (n > 1) b.n = Math.min(MK_POORT_N, n); } }
     if (q.k === 'rijzer'){ b.doel = (q.doel && q.doel.c != null && in_(q.doel.c|0, q.doel.r|0)) ? { c:q.doel.c|0, r:q.doel.r|0 } : null; b.breed = Math.max(1, Math.min(5, Math.round(Number(q.breed) || MK_PLAT_BREED)));
       b.v = Math.max(50, Math.min(600, Math.round(Number(q.v) || MK_RIJS.v))); b.wacht = Math.max(0, Math.min(5, Number(q.wacht) || 0)); b.duur = Math.max(0, Math.min(20, Math.round(Number(q.duur) || 0))); if (q.zak) b.zak = true;
@@ -34521,6 +34543,7 @@ function mkNaarLevel(opt){
     const [l, r2] = lr(o.c), x = Math.round((l + r2) / 2), voet = (gR - o.r - 1) * MK_CEL_EENH;
     const opDak = voet >= 0 && holtes.some(h => x >= h.l && x <= h.r);
     const e = { id, x, k: poortSoort(o.boog) }; if (o.f) e.f = true;
+    const look = mkPoortLook(o); if (look !== 'steen') e.look = look;   // steen is wat het spel zonder look kiest (een Maker-level is geen winter)
     if (voet > 1 || opDak) e.y = Math.round(voet);
     poorten.push(e);
     if (mkPoortVijOk(o.vijand)) for (let i = 0; i < Math.min(MK_POORT_N, o.n || 1); i++) spawns.push({ ...mkSpawn({ c: o.c, r: o.r, soort: o.vijand }), poort: id });
@@ -36459,6 +36482,12 @@ function sbPoortVijand(kind){
   cv.focus();
 }
 sandboxEl.querySelectorAll('button[data-poort]').forEach(b => b.onclick = () => sbPoort(b.dataset.poort));
+sandboxEl.querySelectorAll('button[data-poortlook]').forEach(b => b.onclick = () => {   // de look van de laatst neergezette poort
+  const o = sbPoortLaatste();
+  if (!o) flashHint('Zet eerst een poort neer');
+  else { o.look = b.dataset.poortlook; poortImg(o.k, o.look); flashHint('Poort ' + o.id + ': ' + o.look); }
+  cv.focus();
+});
 sandboxEl.querySelectorAll('button[data-poortvij]').forEach(b => b.onclick = () => sbPoortVijand(b.dataset.poortvij));
 document.getElementById('sbpoortopen').onclick = () => {
   const o = sbPoortLaatste();
