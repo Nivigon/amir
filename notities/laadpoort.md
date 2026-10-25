@@ -51,5 +51,35 @@ slangen en schorpioenen: 70 MB erbij, Valse Koning 4 in de winter: 97 MB erbij).
 `loadAny` zodat `ontbreekt:` blijft werken), een `xxxLaadLevel(lv)` die in `spawns`, `npcs`, `village` of een
 eigen veld kijkt (let op `s.kind || s.k`: na `readLevel` heet het veld `kind`), een regel in `laadLevel`, een
 aanroep in `startSandbox` als de soort daar een knop krijgt, en in `warmBouw` de bank warmen als het level de
-soort heeft. Zet de lader nergens anders neer: `laadLevel` is de ene plek.
+soort heeft. Zet de lader nergens anders neer: `laadLevel` is de ene plek. Laat hem zich ook melden met `laadNodig(soort)` (bovenaan, voor de vlag) en zet hem terug in `laadVrij`, anders
+blijft hij na zijn level in het geheugen staan.
+
+## geheugen vrijgeven bij een levelwissel
+
+`laadNodig`, `laadNieuw`, `laadVrij`, `laadGebruik`. Lui laden haalde alleen binnen; wat een level eenmaal geladen
+had bleef staan tot de pagina dicht ging, dus na de baviaan, een bandiet en de goudaap-arena zaten al die reeksen
+tegelijk in het geheugen. Nu meldt elke grote vijandlader zich met `laadNodig(soort)`, ook als hij al geladen was
+(de slangen per kleur, de schorpioen, de hyena en de panter met hun witte vacht, de bandiet per set en per variant,
+de kooiman, de vogel, de meelman, de schildbandiet en zijn executie, de baviaan en het goudaapje). `setLevel` en
+`mkTest` beginnen een nieuwe lijst (`laadNieuw`); daarna vragen `laadLevel`, `restart` (de baviaan, de arena, het
+takelwiel, de bandiet-arena) en de spawns aan wat het level gebruikt. Aan het eind van `restart` is de wereld leeg,
+en dan laat `laadVrij` los wat niet op de lijst staat: de Image-objecten gaan uit de banken (`delete`, of de `let`
+op `null`) en de vlag van de lader gaat terug. Komt de soort in een later level terug, dan laadt de lader hem
+gewoon opnieuw, achter de laadpoort zoals de eerste keer. De vooraf gemeten kaders van de baviaan komen dan ook
+terug: `bavKaders` is een WeakMap op het plaatje en `warmBouw` meet de nieuwe plaatjes opnieuw (nagemeten: 160
+kaders voor en na een omweg via Valse Koning 1).
+
+Wat blijft: Amir, het decor, de dorpelingen, het dorp en wat elk level gebruikt. De sandbox laat niets los
+(`laadVrij` kijkt naar `sandbox`), hij laadt zijn eigen soorten in `startSandbox` en met de knoppen; pas het
+volgende level ruimt ze op. Hetzelfde level opnieuw (R) laat ook niets los, want de lijst loopt door tot het
+volgende `setLevel`. De baviaan en het goudaapje gaan altijd allemaal tegelijk weg, want de tekencode gaat ervan
+uit dat al hun reeksen er samen zijn; een level met `baviaan` of `apenArena` houdt ze. De schildbandiet alleen als
+zijn JSON binnen is (een lopende fetch maakt zijn werk af), en dan gaan ook `schbLagen`, `exeData` en hun
+`Bezig`-vlaggen terug, anders laadt hij niet opnieuw.
+
+Nameten: Chromium op 1440x900, Baboon 1, Valse Koning 1, Baboon 4 en weer Baboon 1, na elke wissel een
+GC en een gesimuleerde geheugendruk (`Memory.simulatePressureNotification`). De cijfers staan in de pull request
+(geheugen vrijgeven bij een levelwissel). Let op bij zelf meten: `Runtime.queryObjects` houdt zijn lijst vast tot
+je `Runtime.releaseObjectGroup` doet, en dan lijkt het alsof niets vrijkomt.
+
 

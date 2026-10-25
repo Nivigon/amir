@@ -95,7 +95,11 @@ DOELEN = [
                                         # kleiner getekend). Op de helft bleef dat 2,45x of meer, dus nog een keer
                                         # gehalveerd: een kwart zit op 1,4x, 1,2x in de afzet en landing (het krapst)
                                         # en 2,5x aan de wand. De tekencode rekent in bronpixels via bronW en bronH,
-                                        # met de factor uit KLEIN_BRON, dus het kwartframe komt op dezelfde maat en plek
+                                        # met de factor uit KLEIN_BRON, dus het kwartframe komt op dezelfde maat en plek.
+                                        # De grote set (laptop) blijft heel: daar gemeten (Baboon 4, Formaat 25) 1,61x op
+                                        # 1440x900 met devicePixelRatio 2 (afzet en landing; de rest 1,81x, aan de wand
+                                        # 3,22x) en 2,69x op 1920x1080 met 1 (de rest 3,01x, aan de wand 5,36x). Krapst
+                                        # 1,61x, onder de 2x, dus halveren zou daar zachter worden dan het scherm vraagt
     ('karakters/dorpeling1', 400),      # 2,5x
     ('amir runc/amir_sprites/design/amir', 400),    # de speerworp (814 hoog); het
                                         # projectiel is 67 hoog en wordt ongewijzigd gekopieerd

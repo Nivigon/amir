@@ -118,6 +118,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | --- | --- | --- |
 | laadpoort: een level loopt pas als alles binnen is | `LAAD`, `laadOpen`, `laadPoort` | notities/laadpoort.md |
 | lui laden per level: wat niet elk level gebruikt komt pas binnen als het nodig is | `laadLevel`, `slangLaadLevel`, `hyLaadLevel`, `dorpLaadLevel` | notities/laadpoort.md |
+| geheugen vrijgeven bij een levelwissel: wat het nieuwe level niet gebruikt gaat weer weg | `laadNodig`, `laadNieuw`, `laadVrij` | notities/laadpoort.md |
 | foutmelding: een fout een keer melden, ook als hij elk beeld terugkomt | `meldFout`, `tekenHerstel`, `ctxDiepte`, `laadMist` |  |
 | versie: welke update er live staat | `versieTijd`, `document.lastModified`, `toonUpdates` | notities/wegwijzers.md |
 | niet verder tekenen dan er in beeld komt | `zichtVak(marge)`, `view`, `null` | notities/tekenlagen.md |
