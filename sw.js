@@ -26,7 +26,9 @@ const SHELL_CACHE = 'amir-shell-v1';
 // naam elke keer mee hoeft.
 // v3: de schildbandiet tekent alleen nog uit lagen (lagen.json en executie.json); de oude complete
 // sets zijn uit de repo, en zo gaat ook de oude set uit de cache op de telefoon.
-const ASSET_CACHE = 'amir-assets-v3';
+// v4: de baviaan en het goudaapje hebben een halve set in klein/; een schone cache, zodat de telefoon
+// die meteen binnenhaalt in plaats van de grote frames uit de oude cache te blijven gebruiken.
+const ASSET_CACHE = 'amir-assets-v4';
 
 // Sleutel waaronder we in de assetcache bijhouden welke assetversie erin zit.
 // Geen echt bestand, alleen een plek om een string te bewaren.
