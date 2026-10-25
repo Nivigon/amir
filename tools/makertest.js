@@ -426,6 +426,31 @@ function verschil(a, b, pad = ''){
     return uit;
   });
 
+  // 6a. het palet: elk gereedschap en elke vijand-soort staat ergens in de boom, de linkerkolom laat de groep van het
+  // gereedschap open zien, en het menu onder een categorie klapt per groep opzij uit (Vijanden, Bandieten, Bandiet)
+  await check('palet: elke tool en vijand staat in de boom, de kolom en de flyouts volgen de groepen', async () => {
+    return page.evaluate(() => {
+      const f = [];
+      for (const t of MK_TYPES) if (t.id !== 'select' && t.id !== 'lucht' && t.id !== 'vijand' && !mkPaletZoek(t.id)) f.push('niet in het palet: ' + t.id);
+      for (const soort in MK_VIJ_INFO) if (!mkPaletZoek('vijand', soort)) f.push('vijand niet in het palet: ' + soort);
+      MK.cat = 'vijanden'; MK.sub = null; MK.tool = 'vijand'; MK.vijandSoort = 'bandiet:dolk'; mkLegenda();
+      const rijen = [...document.querySelectorAll('#mklegbtns button')].map(b => b.textContent.trim());
+      if (!rijen.some(t => t.endsWith('Met dolk'))) f.push('de kolom laat de open groep van het gereedschap niet zien: ' + rijen.join(' | '));
+      if (rijen.some(t => t.endsWith('Zandslang'))) f.push('een dichte groep laat zijn items zien');
+      const aan = document.querySelector('#mklegbtns button.on'); if (!aan || !aan.textContent.includes('Met dolk')) f.push('het gekozen gereedschap is niet aangezet in de kolom');
+      const knop = [...document.querySelectorAll('#mkcatbar button')].find(b => b.textContent === 'Vijanden');
+      mkMenuToon(mkPaletKnoopOp(['vijanden']), knop);
+      const r1 = [...document.querySelectorAll('#mkmenu button')].find(b => b.textContent.includes('Bandieten')); if (!r1) f.push('geen groep Bandieten in het menu');
+      if (r1){ r1.dispatchEvent(new Event('mouseenter')); const l1 = mkMenuLagen[1]; if (!l1 || !l1.classList.contains('on')) f.push('de flyout van Bandieten gaat niet open');
+        const r2 = l1 && [...l1.querySelectorAll('button')].find(b => b.textContent.includes('Bandiet') && !b.textContent.includes('Schild'));
+        if (r2){ r2.dispatchEvent(new Event('mouseenter')); const l2 = mkMenuLagen[2]; if (!l2 || !l2.classList.contains('on')) f.push('de flyout van Bandiet gaat niet open');
+          const r3 = l2 && [...l2.querySelectorAll('button')].find(b => b.textContent.includes('Elite')); if (r3) r3.click(); else f.push('geen Elite in de flyout van Bandiet');
+          if (MK.vijandSoort !== 'bandiet:elite') f.push('kiezen in de flyout zet de soort niet: ' + MK.vijandSoort);
+          if (document.querySelectorAll('.mkmenu.on').length) f.push('na het kiezen staat er nog een menu open'); } }
+      MK.tool = 'select'; MK.cat = 'terrein'; MK.sub = null; mkMenuSluit(); mkLegenda();
+      return f;
+    });
+  });
   // 6b. de vijand-knoppen: een vinkje gaat als true/false mee, een schuifje als getal, en de standaard gaat niet mee
   await check('vijand-knoppen: vault uit, panter over, twee hyena\'s en zicht uit komen op de spawn', async () => {
     const g = proefGrid();
