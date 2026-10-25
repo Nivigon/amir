@@ -158,8 +158,10 @@ Altijd WYSIWYG: links in het grid is links in het spel, de wereld-x is `(kolom -
   `true` of `false` (readLevel kijkt op `=== false`, dus 0 zou daar misgaan).
 - Zonder een enkele spawn (ook niet in een poort) komt er een zandslang ver achter het eind bij, anders stuurde het
   spel vrije slangen; een level met alleen poortvijanden krijgt die niet.
-- De basisvelden: `view: 0.8`, `zicht: true`, `hpBalk: true`, `speerInHand: true`, `rugMax: 1`,
+- De basisvelden: `view: 0.8`, `zicht: true`, `hpBalk` (de lijst `MK_HP_SOORTEN`), `speerInHand: true`, `rugMax: 1`,
   `valDood: 600` (vier cellen), `kaleKlif`, `voorgrond: false`, `overloop: true`.
+- `hpBalk` is in de Maker een lijst, geen `true`: Amir en de andere vijanden krijgen 3 levens met een balk, maar de
+  slangen (zand, zwart, knock en fosfor) staan er niet in en zijn in een klap dood.
 
 ## De knoppen per vijand (`MK_VIJ_KNOP`)
 

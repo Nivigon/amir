@@ -598,6 +598,8 @@ In een level met de health-balk heeft elke vijand drie levens, met een balkje bo
 elke klap een derde korter wordt en van groen naar rood kleurt. Amir heeft er dan ook een: hetzelfde
 balkje boven zijn hoofd, gevuld met de levens die hij nog heeft, naast de hartjes in de hoek. Alle
 nieuwe levels hebben hem, en ook de proefstukken van de schildbandiet (Test 45 en Test 46).
+In de Maker nieuwstijl krijgen de slangen (zand, zwart, knock en fosfor) hem niet: daar is een slang in een
+klap dood, de andere vijanden houden hun drie levens.
 
 De schildbandiet wordt getekend uit losse lagen, met het schild als een eigen plaatje op het lijf in
 plaats van in elk frame meegebakken: een hap uit het schild is een wissel van alleen dat plaatje. Zo worden
