@@ -349,6 +349,15 @@ De enige bouwer in het spel (de oude bouwer, Level maken, is weg): een grid waar
 dat de Test meteen als level speelt (`mkNaarLevel`). Hij staat helemaal los van de levels. Hoe hij in elkaar zit, wat de controle meldt en welke knoppen een vijand heeft:
 zie `notities/maker.md`. Na een wijziging aan de Maker draai je `tools/makertest.js`.
 
+**Het palet en het paneel blijven kort.** Elk gereedschap in `MK_TYPES` en elke vijand in `MK_VIJANDEN` zegt met `groep`
+waar hij in het palet staat (een pad zoals `objecten/takel`; de namen staan in `MK_CATS` en `MK_GROEPEN`), en de boom
+bouwt zichzelf daaruit (`mkPaletBoom`). Geen enkele categorie, groep of flyout heeft meer dan `MK_PALET_MAX` (6) items,
+en het paneel rechts niet meer dan zoveel rijen buiten een inklapbaar kopje (`details.mkklap`, zoals bij de poort en de
+rijzer). Een nieuw item zonder `groep` landt vanzelf in Overig, en `tools/makertest.js` (de controle `maat`) geeft FOUT op
+Overig, op een groep zonder naam, op een te volle groep en op een te lang paneel. Voeg je iets toe, dan deel je het dus in,
+en loopt een groep of paneel daarmee over de maat, dan splits je die in dezelfde pull request (een nieuwe groep in
+`MK_GROEPEN`, of een kopje in het paneel) en zeg je achteraf hoe je het ingedeeld hebt.
+
 ## Sandbox
 
 De vrije testmodus: vlakke grond, een leeg level, geen vijanden en geen levens. Een knop

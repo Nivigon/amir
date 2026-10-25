@@ -451,6 +451,40 @@ function verschil(a, b, pad = ''){
       return f;
     });
   });
+  // 6a2. de maat: geen groep in het palet en geen paneel met meer dan MK_PALET_MAX rijen, en geen gereedschap zonder
+  // groep (dan stond hij in Overig). Ook andersom: de klachten komen echt als je het fout doet.
+  await check('maat: geen lijst in het palet of het paneel langer dan MK_PALET_MAX, en de klacht komt als het wel zo is', async () => {
+    return page.evaluate(() => {
+      const f = mkPaletKlachten().slice();
+      MK.inspectDicht = false; MK.tool = 'select';
+      const soorten = ['vijand', 'zegel', 'rune', 'prop', 'platform', 'tandwiel', 'rijzer', 'poort', 'overhang', 'richel', 'hppotion'];
+      const bewaar = MK.objects;
+      for (const k of soorten){
+        const o = { c:5, r:MK.ground - 1, k, note:'' };
+        if (k === 'vijand') o.soort = 'groen';
+        if (k === 'poort'){ o.hek = true; o.regie = true; o.wand = 'spits'; o.vijand = 'groen'; }   // alles in gebruik: elk kopje open
+        if (k === 'rijzer'){ o.look = 'rots'; o.kleur = { r:MK.ground - 3 }; }
+        MK.objects = [o]; MK.sel = o; mkNotePaneel();
+        for (const m of mkPaneelKlachten()) f.push(k + ': ' + m);
+      }
+      // andersom: een paneel met te veel losse rijen moet een klacht geven
+      const extra = []; for (let i = 0; i <= MK_PALET_MAX; i++){ const d = document.createElement('div'); d.className = 'mkveld'; d.textContent = 'proef'; document.getElementById('mkinspbody').appendChild(d); extra.push(d); }
+      if (!mkPaneelKlachten().length) f.push('een paneel met te veel rijen geeft geen klacht');
+      for (const d of extra) d.remove();
+      MK.objects = bewaar; MK.sel = null; mkNotePaneel();
+      // en een gereedschap zonder groep, of een te volle groep, ook
+      const t = { id:'proefding', naam:'Proefding', kleur:'#fff', obj:true };
+      MK_TYPES.push(t); let k = mkPaletKlachten({ items: mkPaletBoom() });
+      if (!k.some(m => m.includes('Overig') && m.includes('Proefding'))) f.push('een gereedschap zonder groep geeft geen klacht: ' + k.join(' | '));
+      t.groep = 'terrein/grond'; const meer = []; for (let i = 0; i < MK_PALET_MAX; i++){ const q = { id:'proef' + i, naam:'Proef ' + i, kleur:'#fff', obj:true, groep:'terrein/grond' }; MK_TYPES.push(q); meer.push(q); }
+      k = mkPaletKlachten({ items: mkPaletBoom() });
+      if (!k.some(m => m.includes('terrein/grond') && m.includes('splits'))) f.push('een te volle groep geeft geen klacht: ' + k.join(' | '));
+      t.groep = 'terrein/nieuw'; k = mkPaletKlachten({ items: mkPaletBoom() });
+      if (!k.some(m => m.includes('terrein/nieuw') && m.includes('MK_GROEPEN'))) f.push('een groep zonder naam geeft geen klacht: ' + k.join(' | '));
+      MK_TYPES.splice(MK_TYPES.indexOf(t), 1); for (const q of meer) MK_TYPES.splice(MK_TYPES.indexOf(q), 1);
+      return f;
+    });
+  });
   // 6b. de vijand-knoppen: een vinkje gaat als true/false mee, een schuifje als getal, en de standaard gaat niet mee
   await check('vijand-knoppen: vault uit, panter over, twee hyena\'s en zicht uit komen op de spawn', async () => {
     const g = proefGrid();
