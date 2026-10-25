@@ -1048,19 +1048,42 @@ staat, dan komt die ook beneden.
 
 Klik je in het startmenu op **Sandbox**, dan kies je eerst: de gewone **Sandbox** (vlakke grond, zet
 neer wat je wilt testen, geen levens) of de **Arena modus**. Allebei beginnen ze uitgezoomd op view 0,8,
-zoals een nieuw level; onder Beeld en geluid, **Uitzoomen**, zet je dat anders. De arena is de arena van de koning
+zoals een nieuw level; **Uitzoomen** zet je dat anders (in de sandbox onder Beeld en geluid, in de arena in de opzet). De arena is de arena van de koning
 uit Valse Koning 8, maar zonder het takelen: je begint meteen midden op de vloer met je speer in de hand en een
-reservespeer op je rug (zoals in Valse Koning 8; de knop Rug onder Speer en spullen zet het anders), tussen
+reservespeer op je rug (zoals in Valse Koning 8; de knop Rug in de opzet zet het anders), tussen
 dezelfde twee grijze rotswanden met de twee rotsrichels hoog tegen de wanden. De camera
 staat in het midden en schuift maar een klein beetje met je mee: de arena is aan elke kant een stukje breder dan het
 beeld, en loop je naar een kant, dan verschuift het beeld net genoeg om de wand aan die kant op de schermrand te
 zetten, terwijl de andere wand net uit beeld glijdt. Zo krijgt het veld ruimte zonder dat het echt groter wordt. De
-knop **Ruimte** op het tabblad Arena zet dat uit; dan staat de camera stokstijf in het midden en kun je tot aan de
+knop **Ruimte** in de opzet zet dat uit; dan staat de camera stokstijf in het midden en kun je tot aan de
 schermranden rennen, zoals in de echte arena. Om het ruimer te laten voelen dan de echte arena zijn verder de
 wanden dunner, schuiven de bergen en de bomen erachter een klein stukje extra met je mee, en is het uitzicht de
-gewone avond met de lage einder. Aan elke rotswand brandt een fakkel onder de richel. Dezelfde knoppen als de sandbox, maar nu komen de vijanden vanzelf binnenlopen, van links en rechts,
+gewone avond met de lage einder. Aan elke rotswand brandt een fakkel onder de richel. Hier komen de vijanden vanzelf binnenlopen, van links en rechts,
 langs de rots net buiten beeld, en heb je gewoon je levens: ga je dood, dan begint R opnieuw en loopt de klok weer vanaf nul.
-Het paneel opent op het tabblad **Arena**. De knop **Modus** kiest hoe ze komen: **Stroom** (ze blijven
+
+Kies je de arena, dan zie je haar op de achtergrond en ligt daaroverheen de **opzet**: een groot, halfdoorzichtig
+paneel met een rand van rots en een warme gloed, in drie stappen met **Verder** en **Terug**. Stap 1, **Monsters**:
+hoe ze komen (stroom of golven, en van welke kant), per vijand de rij met zijn getallen, en het gedrag (bij de
+bandiet dolk, vault, elite, duin, bloed en AI, bij de slangen klimmen, bij de schildbandiet AI en de executie, AI
+van de meelman en de kooiman, en voor allemaal de health-balk en het zicht). Stap 2, **Arena en regels**: welke
+arena (nu een, de arena van de koning), **Onsterfelijk**, **Kalebassen**, Ruimte, en wat Amir meeneemt (de worp,
+de rug, de renstoot, de lage zwaai en de talents van de drie tribes) en het beeld en geluid (uitzoomen, tijd van de
+dag, weer, muziek). **Klaar** is stap 3: het paneel gaat weg en je ziet de arena met de grote Start-knop.
+**Esc** of het knopje **Opzet** linksboven haalt de opzet terug, ook midden in een potje: het spel pauzeert dan en
+alles blijft staan. Sluit je hem zonder iets aan de opzet te veranderen, dan speel je verder waar je was; heb je
+de modus, de arena of de vijanden veranderd, dan begint het potje opnieuw, net als met R. Onderin staan ook
+**Opnieuw** en **Terug naar menu**. De browser onthoudt alles wat je in de opzet zet, dus de volgende keer staat
+het er weer zo.
+
+**Onsterfelijk** staat standaard aan: een klap landt wel (je schrikt, je wordt teruggeduwd, het beeld schudt),
+maar je verliest geen leven, en zolang hij aan staat gloeit Amir zoals in de woede van Blood Rush. Een potje
+waarin hij ooit aan stond telt niet mee voor je beste tijd of je hoogste golf; bij de teller staat de beste dan
+grijs, met "onsterfelijk, telt niet". **Kalebassen** zet drinkkalebassen aan, met een getal erbij: in de golven
+na elke zoveel golven, in de stroom elke zoveel seconden. Is het zover, dan laat de eerstvolgende vijand die
+sterft een kalebas vallen op zijn plek; die blijft liggen tot je hem pakt (Q drinkt), en daarna begint de teller
+opnieuw. Dat werkt ook met Onsterfelijk aan, en R ruimt liggende kalebassen op.
+
+De knop **Modus** kiest hoe ze komen: **Stroom** (ze blijven
 komen, steeds sneller, zoals hieronder) of **Golven**: een golf tegelijk, en pas als die helemaal verslagen
 is komt na een rustpauze de volgende, elke golf groter. In de golven staan dezelfde soorten in de lijst,
 maar de drie getallen betekenen iets anders: hoeveel er in zijn eerste golf komen, hoeveel er elke golf
@@ -1074,17 +1097,15 @@ hoeveel seconden na de opbouw, en hoeveel er van die soort tegelijk mogen leven.
 dan wacht hij tot je er een hebt verslagen. **Opbouw** is hoe lang het duurt (in seconden) voor elk
 interval van zijn begin naar zijn eind is gekrompen, zodat het langzaam steeds meer worden. De
 knop ernaast kiest de kant: om en om, alleen van links, alleen van rechts of willekeurig. Meerdere
-soorten tegelijk aan kan gewoon, en de knoppen onder Vijanden (dolk, elite, AI aan of uit) gelden
+soorten tegelijk aan kan gewoon, en de knoppen onder Gedrag (dolk, elite, AI aan of uit) gelden
 ook voor de vijanden die de arena stuurt. Per soort is er ook **+1**: tik je dat aan, dan komt er van die
 soort meteen een binnen zodra de afteller afloopt, ook als de soort verder uit staat (en na R opnieuw).
-**Start** staat groot midden in beeld, zodat je het paneel niet hoeft weg te klikken: hij klapt het paneel
-dicht (met **Toon** haal je het terug) en zet de afteller aan: een groot cijfer midden in beeld telt af, 3, 2, 1,
+**Start** staat groot midden in beeld en zet de afteller aan: een groot cijfer midden in beeld telt af, 3, 2, 1,
 elk met een korte piep, en dan "Los!" met een lange toon. Dan pas loopt de klok, en
 de eerste tegenstander komt meteen binnenlopen in plaats van dat je op zijn interval wacht: de soorten met
 +1, of zonder +1 de eerste soort die aan staat (in de golven: golf 1, zonder de aankondiging). Een spuwende
 slang (de zwarte slang of de knockslang) komt niet aanlopen maar houdt afstand, dus die begint dan in beeld.
-Ook na R telt hij opnieuw af; Stop breekt het af. In het tabblad zet dezelfde knop (**Stop**)
-ze stil, waarna de grote Start weer verschijnt, en **Opnieuw** zet de klok en de teller op nul en haalt
+Ook na R telt hij opnieuw af. **Opnieuw** in de opzet zet de klok en de teller op nul en haalt
 alles weg. Bovenin het midden staat
 groot de klok: hoe lang je het al volhoudt. Daaronder kleiner hoeveel je er verslagen hebt, hoe ver
 de opbouw is en je beste tijd tot nu toe, die de browser onthoudt. Ga je dood, dan blijft de eindtijd
