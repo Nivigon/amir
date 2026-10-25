@@ -25995,6 +25995,8 @@ function exeLaad(){
     for (const naam in (m.bewegingen || {}))
       for (const fr of (m.bewegingen[naam].frames || []))
         for (const l of fr) if (!imgs[l.src]) imgs[l.src] = loadQuiet([SCHB_ROOT + EXE.map + l.src]);
+    const ein = m.bewegingen && m.bewegingen.einde;   // het einde: de knielstand met de snede en het stuk dat eraf valt
+    if (ein) for (const l of (ein.kniel || []).concat(ein.stuk ? [ein.stuk] : [])) if (!imgs[l.src]) imgs[l.src] = loadQuiet([SCHB_ROOT + EXE.map + l.src]);
     schbBank.executie = imgs;                      // in de bank, zodat warmBouw ze meebakt
     exeData = m;
   }).catch(e => { exeBezig = false; meldFout('exeLagen', 'schildbandiet: executie.json niet geladen', e); })
@@ -26076,6 +26078,7 @@ function exeTick(s, dt){
     return;
   }
   e.t += dt;
+  if (e.einde){ exeEindeStap(s, dt); return; }
   if (e.bew === 'splijt' || e.bew === 'lijk'){ exeSplijtStap(s, dt); return; }
   if (e.bew === 'executie') exeDruppelStap(e, dt);   // de druppels die van de speerpunt afschoten
   const b = exeBew(e.bew), n = b.frames.length;
@@ -26097,7 +26100,7 @@ function exeTick(s, dt){
   if (!e.klaar) return;
   if (e.bew === 'knielen'){ if (e.dood) exeZet(s, 'val'); else if (e.wijze === 'steek') exeExecutie(s); else exeZet(s, 'wankel'); }
   else if (e.bew === 'wankel') exeZet(s, 'val');
-  else if (e.bew === 'executie') exeSplijtStart(s);
+  else if (e.bew === 'executie'){ if (exeBew('einde')) exeEindeStart(s); else exeSplijtStart(s); }
   else if (e.bew === 'val'){                       // hij blijft liggen als lijk en vervaagt dan (SCHB.lijk)
     s.ligT = (s.ligT || 0) + dt;
     if (s.ligT > SCHB.lijk.lig){
@@ -26182,8 +26185,13 @@ function exeSplijtStap(s, dt){
 // na het splijten: Amir staat meteen rechtop in zijn idle op amir_eind_x, van hem af gekeerd, met zijn
 // speer in de hand (geen opsta-animatie), en de wereld loopt weer
 function exeEinde(s){
-  const e = s.exe, ex = exeBew('executie');
+  const e = s.exe;
   e.bew = 'lijk'; e.t3 = 0;
+  exeAmirLos(s);
+}
+function exeAmirLos(s){
+  const e = s.exe, ex = exeBew('executie');
+  e.amirLos = true;
   let x = exeAmirX(s, ex.amir_eind_x);
   if (inGap(x)) x = exeAmirX(s, ex.amir_start_x);   // niet boven een ravijn neerzetten
   world = x; ph = s.base || 0; pvh = 0; knock = 0;
@@ -26194,6 +26202,139 @@ function exeEinde(s){
   if (!spear){ spear = true; setSpearLabel(); }
   invuln = Math.max(invuln, EXE.t.veilig);          // even onkwetsbaar: de cutscene straft je niet
   exeVries = null;
+}
+// ---- het einde van de executie: een stuk eraf, de botten, het spuiten en de val ----
+// Na de landing (het laatste frame van 'executie') gaat er een stuk van zijn borst af, schuin omhoog in de
+// richting van Amirs ruk: een witte flits langs de snee, het stuk valt eraf en vervaagt, een schouderbot en
+// een armbot schuiven uit de snee, en het spuit kort uit de stomp (de spuit van het bloedsysteem, een deel
+// ervan en versneld) terwijl zijn lijf een paar keer schokt (spasme). Is het spuiten voorbij, dan staat Amir
+// meteen rechtop in zijn idle (exeAmirLos) en loopt de wereld weer. Na een korte stilte valt de schildman
+// voorover: de val uit death4 met de snede, het vlees en de botten erin gebakken, en het bovenlijf en de
+// voeten die tot op de grond doorzakken; op frame plof komt er stof en wat bloed. Daarna ligt hij als lijk
+// en vervaagt hij (SCHB.lijk). Alles staat in executie.json onder bewegingen.einde, in canvas-px t.o.v. het
+// anker en de grondlijn, de tijden in ms vanaf het einde van het laatste executie-frame (einde.tijd).
+// Gebakken uit de proefpagina (Schildman splijten, route Deel eraf: snede -20 graden, de botten standaard).
+function exeEindeStart(s){
+  const e = s.exe, ex = exeBew('executie'), E = exeBew('einde');
+  e.einde = true; e.bew = 'snee'; e.t2 = 0; e.vignet = 1; e.amirLos = false;
+  e.vfr = 0; e.vacc = 0; e.plof = false; e.klaarT = 0;
+  e.laatste = ex.frames[ex.frames.length - 1];
+  e.druppels = e.druppels || [];
+  exeSnijSpeel();
+  shake = Math.max(shake, EXE.schokRuk);
+  bloedLaadSpuit(E.spuit.naam);
+  s.spuit = { naam: E.spuit.naam, frame: 0, acc: 0, op: 0, wacht: E.tijd.spuit / 1000, drup: 0 };
+  exeHaakSplijt(s);
+}
+function exeEindeStap(s, dt){
+  const e = s.exe, E = exeBew('einde'), T = E.tijd;
+  e.t2 += dt;
+  if (e.vignet > 0) e.vignet = Math.max(0, e.vignet - dt / EXE.vignet.duur);
+  if (!exeSnijSnd.paused && exeSnijSnd.currentTime >= EXE.snij.tot) exeSnijStop();
+  exeEindeSpuitStap(s, dt);
+  if (e.boog && e.boog.spuit) bloedSpuitStap(e.boog, dt * EXE.boog.klok);   // de bloedboog loopt nog af
+  exeDruppelStap(e, dt);
+  const ms = e.t2 * 1000;
+  if (!e.amirLos && ms >= T.los) exeAmirLos(s);   // het spuiten is voorbij: Amir staat rechtop, de wereld loopt weer
+  if (e.bew === 'snee' && ms >= T.val){ e.bew = 'nval'; e.vfr = 0; e.vacc = 0; }
+  if (e.bew === 'nval'){
+    const n = E.frames.length;
+    e.vacc += dt * 1000;
+    while (e.vfr < n - 1 && e.vacc >= E.durations_ms[e.vfr]){ e.vacc -= E.durations_ms[e.vfr]; e.vfr++; }
+    if (!e.plof && e.vfr >= E.plof){ e.plof = true; exeEindePlof(s); }
+    if (e.vfr >= n - 1 && e.vacc >= E.durations_ms[n - 1]) e.bew = 'lijk';
+  }
+  if (e.bew === 'lijk'){
+    s.ligT = (s.ligT || 0) + dt;
+    if (s.ligT > SCHB.lijk.lig){
+      s.alpha = Math.max(0, (s.alpha != null ? s.alpha : 1) - dt / SCHB.lijk.vervaag);
+      if (s.alpha <= 0) s.state = 'weg';
+    }
+  }
+}
+// de spuit uit de stomp: een deel van de spuit (tot frame spuit.tot), versneld (spuit.snel), met druppels
+// die in de richting van de spuit wegspatten en op de grondlijn blijven liggen
+function exeEindeSpuitStap(s, dt){
+  const sp = s.spuit; if (!sp) return;
+  if (sp.wacht > 0){ sp.wacht -= dt; return; }
+  const E = exeBew('einde').spuit, e = s.exe;
+  sp.acc += dt * 24 * E.snel;
+  while (sp.frame < E.tot - 1 && sp.acc >= BLOED.ticks[sp.frame]){ sp.acc -= BLOED.ticks[sp.frame]; sp.frame++; }
+  sp.drup += dt * E.druppels * (sp.frame < 4 ? 2.5 : 1);
+  while (sp.drup >= 1 && sp.frame < E.tot - 2){
+    sp.drup--;
+    const a = E.hoek + (Math.random() - 0.5) * 1.1, v = 180 + Math.random() * 300;
+    e.druppels.push({ x: E.x, y: E.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, r: 1.6 + Math.random() * 3, lig: false });
+  }
+  if (sp.frame >= E.tot - 1){ sp.op += dt; if (sp.op > 0.25) s.spuit = null; }
+}
+// hij komt neer: stof over de plek van zijn hoofd en schouders, en wat bloed dat opspat
+function exeEindePlof(s){
+  const E = exeBew('einde'), l = E.frames[E.plof][0], e = s.exe;
+  const x0 = exeAmirX(s, l.dx), x1 = exeAmirX(s, l.dx + l.w * 0.45);
+  steenStof(Math.min(x0, x1), Math.max(x0, x1), s.base || 0, 0.8, (s.base || 0) + 40);
+  for (let i = 0; i < 12; i++){
+    const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.2, v = 120 + Math.random() * 200;
+    e.druppels.push({ x: l.dx + Math.random() * l.w * 0.45, y: -4, vx: Math.cos(a) * v, vy: Math.sin(a) * v, r: 1.4 + Math.random() * 2.4, lig: false });
+  }
+  shake = Math.max(shake, 0.15);
+}
+// tekenen, binnen de translate naar zijn voeten en de spiegeling van de schildbandiet (zoals exeTeken)
+function exeEindeTeken(s, gs, laag){
+  const e = s.exe, E = exeBew('einde'), T = E.tijd, ms = e.t2 * 1000, bank = schbBank.executie || {};
+  const teken = (l, ox, oy) => { const im = bank[l.src]; if (im && imgReady(im)) ctx.drawImage(im, (l.dx + ox) * gs, (l.dy + oy) * gs, l.w * gs, l.h * gs); };
+  if (e.bew === 'snee'){
+    // de spasmes: korte schokjes om zijn voet, gelijk met de stoten van de spuit
+    let r = 0, px = 0;
+    for (const [at, deg, dx] of E.spasme){
+      const k = (ms - T.spuit - at) / 140;
+      if (k > 0 && k < 1){ const w = Math.sin(k * Math.PI) * (1 - k * 0.5); r += deg * w; px += dx * w; }
+    }
+    ctx.save();
+    ctx.translate((E.spil[0] + px) * gs, E.spil[1] * gs); ctx.rotate(r * Math.PI / 180); ctx.translate(-E.spil[0] * gs, -E.spil[1] * gs);
+    exeEindeSpuitTeken(s, gs);                     // de spuit achter de stomp
+    for (const l of E.kniel){
+      if (l.item === 'bot'){                       // de botten schuiven uit de snee (achter het lijf, dus het deel erin valt weg)
+        const g = Math.max(0, Math.min(1, (ms - T.bot) / T.botUit));
+        if (g > 0) teken(l, l.uit[0] * (1 - g), l.uit[1] * (1 - g));
+      } else if (l.item === 'bloed'){              // het bloed op gezicht en borst komt op
+        const a = Math.max(0, Math.min(1, (ms - T.spuit) / T.bloedOp));
+        if (a > 0){ ctx.save(); ctx.globalAlpha *= a; teken(l, 0, 0); ctx.restore(); }
+      } else teken(l, 0, 0);
+    }
+    ctx.restore();
+    const SV = E.stukVal;                          // het stuk valt eraf en vervaagt
+    if (ms < SV.duur){
+      const k = ms / SV.duur;
+      ctx.save(); ctx.globalAlpha *= 1 - k;
+      ctx.translate(SV.dx * k * gs, (SV.dy * k + SV.zwaarte * k * k) * gs);
+      ctx.translate(SV.spil[0] * gs, SV.spil[1] * gs); ctx.rotate(SV.draai * k); ctx.translate(-SV.spil[0] * gs, -SV.spil[1] * gs);
+      teken(E.stuk, 0, 0); ctx.restore();
+    }
+  } else {
+    const fr = E.frames[Math.min(e.vfr, E.frames.length - 1)];
+    for (const l of fr) teken(l, 0, 0);
+  }
+  exeDruppelsTeken(e, gs);
+  if (!e.amirLos) for (const l of e.laatste) if (l.item !== 'schildman') laag(l);   // Amir en zijn speer er bovenop tot hij los is
+  if (ms < E.flits.duur){                          // de witte flits langs de snee
+    const k = ms < 180 ? 1 : 1 - (ms - 180) / (E.flits.duur - 180), F = E.flits;
+    ctx.save(); ctx.globalAlpha *= Math.max(0, k); ctx.lineCap = 'round'; ctx.strokeStyle = '#ffffff';
+    ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 18 * gs; ctx.lineWidth = 5 * gs;
+    ctx.beginPath(); ctx.moveTo(F.van[0] * gs, F.van[1] * gs); ctx.lineTo(F.tot[0] * gs, F.tot[1] * gs); ctx.stroke(); ctx.restore();
+  }
+  exeBoogTeken(s, gs);
+}
+function exeEindeSpuitTeken(s, gs){
+  const sp = s.spuit; if (!sp || sp.wacht > 0) return;
+  const E = exeBew('einde').spuit, set = bloedSpuitCache[sp.naam], si = set && set[Math.min(sp.frame, set.length - 1)];
+  if (!si || !si.naturalWidth) return;
+  const sc = E.schaal * gs;
+  ctx.save();
+  if (sp.frame >= E.tot - 3) ctx.globalAlpha *= 0.55;   // de laatste frames vervagen: hij spuit maar kort
+  ctx.translate(E.x * gs, E.y * gs); ctx.rotate(E.hoek + Math.PI / 2);   // het anker is onder-midden: draai het naar de spuitrichting
+  ctx.drawImage(si, -(si.naturalWidth / 2) * sc, -si.naturalHeight * sc, si.naturalWidth * sc, si.naturalHeight * sc);
+  ctx.restore();
 }
 // de haakjes voor de effecten en het geluid (komen later): begin van de freeze (de steek of E), de ruk
 // (executie frame 5 naar 6), de landing (frame 16) en het splijten
@@ -26239,6 +26380,7 @@ function exeTeken(s, gs){
     const im = bank[l.src];
     if (im && imgReady(im)) ctx.drawImage(s.flash > 0 ? whiteCopy(im, s.flash * 4) : im, l.dx * gs, l.dy * gs, l.w * gs, l.h * gs);
   };
+  if (e.einde){ exeEindeTeken(s, gs, laag); return; }
   if (e.bew === 'splijt' || e.bew === 'lijk'){
     exeHelften(s, gs);
     exeDruppelsTeken(e, gs);

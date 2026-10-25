@@ -80,7 +80,23 @@ beweging; `s.exe.dood` zegt dat het de gewone dood is en `s.exe.laag` dat de lag
 en `dir = 0` in `loop` kijken naar `exeVries`). Tijdens het knielen is de echte Amir nog te zien maar zonder speer
 (`exeSpeerWeg`, die zit in de schildbandiet); zodra `executie` begint is hij weg (`exeAmirWeg`: geen sprite, schaduw, rug
 of health-balk) en tekenen de lagen hem, op de plek en de schaal van de schildbandiet, gespiegeld als die naar rechts
-kijkt. Na het laatste frame (de landing, 600 ms) splijt hij (`exeSplijtStart`): de `schildman`-laag van het laatste
+kijkt.
+
+**Het einde (bewegingen.einde, `exeEindeStart`).** Staat er in executie.json een beweging `einde`, dan komt na het laatste
+frame dat einde in plaats van het splijten hieronder. Er gaat een stuk van zijn borst af, schuin omhoog in de richting van
+Amirs ruk (een witte flits langs de snee, `einde.flits`; het stuk valt eraf en vervaagt, `einde.stuk` en `einde.stukVal`),
+een schouderbot en een armbot schuiven uit de snee (de lagen met `item: 'bot'`, `uit` is de verschuiving aan het begin),
+en het spuit kort uit de stomp: de spuit van het bloedsysteem tot frame `einde.spuit.tot`, `spuit.snel` keer zo snel, op
+`spuit.x/y` in de richting `spuit.hoek`, met druppels die wegspatten (`exeEindeSpuitStap`). Zijn lijf schokt een paar keer
+om `einde.spil` (`einde.spasme`: ms na het begin van de spuit, graden, px), en het bloed over zijn gezicht komt op
+(`item: 'bloed'`). Na `tijd.los` staat Amir meteen rechtop in zijn idle (`exeAmirLos`) en loopt de wereld weer; na
+`tijd.val` valt de schildman voorover: de val uit death4 met de snede, het vlees en de botten erin gebakken (`einde.frames`),
+waarbij het bovenlijf en de voeten tot op de grond doorzakken; op frame `einde.plof` stof en wat bloed (`exeEindePlof`).
+Daarna ligt hij als lijk en vervaagt hij (`SCHB.lijk`). Alle lagen zijn gebakken uit de proefpagina Schildman splijten
+(route Deel eraf, snede -20 graden, de botten op de standaardplek); tijden in ms vanaf het einde van het laatste frame.
+Zonder `einde` in de json splijt hij zoals hieronder.
+
+Zonder einde splijt hij na het laatste frame (de landing, 600 ms) (`exeSplijtStart`): de `schildman`-laag van het laatste
 frame wordt langs de snijlijn, doorgetrokken over de hele laag, in twee helften geclipt (`exeHelften`) die uit elkaar
 schuiven, om hun voet kantelen, zakken en vervagen (`EXE.splijt`), met de spuit van het bloedsysteem op de wond langs de
 lijn omhoog (`exeSpuitTeken`, `bloedSpuitStap`) en druppels die langs de lijn wegspatten en op de grondlijn blijven
