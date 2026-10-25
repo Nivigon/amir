@@ -106,6 +106,27 @@ mee, dus token-verbruik telt. Houd je aan deze volgorde:
 de meetgeschiedenis en de sandbox-knoppen staan daar, niet meer hier. Is het breed, laat een
 subagent die notitie lezen en alleen de conclusie teruggeven (regel 10).
 
+**12. Bazen zijn een eigen categorie, en een baas komt er alleen na toestemming.** Het spel kent drie
+soorten tegenstanders:
+
+- **Vijanden**: zandslang, zwarte slang, knockslang, fosforslang, schorpioen, hyena, bandiet, schildbandiet,
+  kooiman, meelman en goudaapje. Die mag je in de sandbox en in een testlevel (regel 1 en 3) gewoon neerzetten.
+- **Bazen**: de panter (zwart, en wit in een winterlevel: dezelfde spawn `k: 'panter'`, altijd met `boss: true`
+  en de arena-camera, drie treffers) en de baviaan (`BAVIAAN`, de eindbaas in wording). Een baas zet jij
+  nergens neer zonder dat de opdrachtgever het goed vindt: niet in een level, niet in een arena-golf, en ook
+  niet "even om iets te laten zien". Dat vraag je vooraf, per geval, voordat je iets bouwt. Mag het, dan bouw
+  je het; zonder antwoord bouw je het niet.
+- **Arena's**: de geënsceneerde eindgevechten, zoals de bandiet-arena van Valse Koning 8 (`bandArena`) en de
+  goudaap-arena van Baboon 4 (`apenArena`, `grotArena`). Dat is een vorm van level, geen baas: er staat geen
+  baas in, maar golven vijanden tussen twee wanden met de camera in het midden. De kooiman-baas uit
+  `notities/kooiman-baas.md` is een concept voor zo'n arena en is nog niet gebouwd. Een nieuwe arena is een
+  nieuw level en valt dus onder regel 3.
+
+Deze regel gaat over wat jij bouwt. De speler zelf mag in de Maker nieuwstijl een panter of baviaan in zijn
+level zetten, en de knoppen daarvoor blijven staan: haal ze niet weg en zet er geen rem op. De bestaande
+levels (de panter in Valse Koning, de baviaan in Baboon 1, de arena's) en de bestaande testlevels blijven
+zoals ze zijn, net als de knoppen **Als eindbaas** en **Baviaan** in de sandbox.
+
 ## Waar wat staat
 
 De HTML is opgedeeld met commentaarkoppen (`// ---- ... ----`). Zoek daarop, niet op
@@ -141,7 +162,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | Episode De Valse Koning | `VK_1`, `VK_8`, `VK_LEVELS` | notities/episodes.md |
 | Episode Test levels | `TEST_1`, `TEST_47`, `KAART_BLAD` | notities/episodes.md |
 | Episode Baboon tests | `BAB_1`, `BAB_4`, `BAB_LEVELS` | notities/episodes.md |
-| goudaapje: het kleine gouden aapje en de arena | `GAAP`, `gaapSpawn`, `updateGoudapen` | notities/goudaapje.md |
+| goudaapje: het kleine gouden aapje en de arena (arena, regel 12) | `GAAP`, `gaapSpawn`, `updateGoudapen` | notities/goudaapje.md |
 | het mes: Jackal Fang van Impungushe | `MES`, `mesInHand`, `mesTeken` | notities/mes.md |
 | T-splitsing in de talent tree | `varianten`, `TRIBE_CONFIG`, `tbSplit` | notities/tribes.md |
 | Feign Death | `SCHIJN`, `schijnDoodVang`, `hurtPlayer` | notities/wegwijzers.md |
@@ -185,15 +206,15 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | vegetatie, water, doornbos | `props`, `water`, `thickets` | notities/wegwijzers.md |
 | schilden in de wind | `SCHILD`, `schildStofUpdate`, `schildTil` | notities/decor.md |
 | slangen: kleur, zicht en patrouille | `SNAKE_DIRS`, `slangZiet`, `startPatrouille` | notities/slangen.md |
-| zwarte panter, de witte panter, de hyena | de grote vijanden |  |
+| zwarte panter, de witte panter (baas, regel 12), de hyena | de grote vijanden: `boss`, `arena`, `hitPanther` |  |
 | de bandiet: een rover met een kromzwaard | `BAN`, `banLaad`, `makeBandiet` | notities/bandiet.md |
 | de schildbandiet: loopt met zijn schild op en valt springend aan | `SCHB`, `makeSchildman`, `updateSchildman` | notities/schildbandiet.md |
 | schildstaat: het schild in vier standen, van heel tot weg | `SCHB_STAAT`, `schbStaat` | notities/schildbandiet.md |
 | de lagen van de schildbandiet: het schild als losse laag uit lagen.json | `SCHB_LAGEN`, `schbLagenLaad`, `schbLagenLijst` | notities/schildbandiet.md |
 | de dood van de schildbandiet: knielen en vallen uit executie.json (Dood hoog, Dood laag) | `schbSterf`, `SCHB.lijk`, `exeStart` | notities/schildbandiet.md |
 | de executie van de schildbandiet: knielen, wankelen, vallen en de special execution | `EXE`, `exeStart`, `exeTick`, `exeVries` | notities/schildbandiet.md |
-| de bandiet-arena: het geënsceneerde eindgevecht | `BANDARENA`, `bandArenaStart`, `bandArenaWachters` | notities/bandiet.md |
-| baviaan: de eindbaas in wording | `BAVIAAN`, `baviaanLaad`, `baviaanTeken` | notities/baviaan.md |
+| de bandiet-arena: het geënsceneerde eindgevecht (arena, regel 12) | `BANDARENA`, `bandArenaStart`, `bandArenaWachters` | notities/bandiet.md |
+| baviaan: de eindbaas in wording (baas, regel 12) | `BAVIAAN`, `baviaanLaad`, `baviaanTeken` | notities/baviaan.md |
 | speerbeet: de baviaan pakt je speer | `BAV_BEET`, `BAV_MOND`, `BAV_SPEER` | notities/baviaan.md |
 | speer in de baviaan: de speerval blijft in zijn borst zitten | `BAV_VALSPEER`, `bavSpeerTeken`, `baviaanTeken` | notities/baviaan.md |
 | voorgrond: de laag tussen de camera en Amir | `VOORGROND`, `VG_SOORT`, `VG_LAGEN` | notities/voorgrond.md |
