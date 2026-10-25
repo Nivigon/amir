@@ -591,10 +591,10 @@ elke klap een derde korter wordt en van groen naar rood kleurt. Amir heeft er da
 balkje boven zijn hoofd, gevuld met de levens die hij nog heeft, naast de hartjes in de hoek. Alle
 nieuwe levels hebben hem, en ook de proefstukken van de schildbandiet (Test 45 en Test 46).
 
-In de sandbox staat onder Schildbandiet naast Moeilijk en Makkelijk ook **Nieuwe stijl**: dezelfde
-schildbandiet, maar getekend uit losse lagen, met het schild als een eigen plaatje op het lijf in plaats
-van in elk frame meegebakken. Hij ziet er hetzelfde uit en doet hetzelfde; het is de proef voor hoe de
-animaties voortaan gemaakt worden.
+De schildbandiet wordt getekend uit losse lagen, met het schild als een eigen plaatje op het lijf in
+plaats van in elk frame meegebakken: een hap uit het schild is een wissel van alleen dat plaatje. Zo worden
+de animaties voortaan gemaakt; de oude complete sets per schildstand zijn uit het spel, net als de knop
+Nieuwe stijl in de sandbox (de gewone Schildbandiet is nu die versie).
 
 Een dodelijke klap op de schildbandiet wordt soms een **executie**. Steek je hem dood (1 op 5), dan staat
 alles stil: hij zakt met je speer in zijn borst op zijn knieen, Amir rukt de speer eruit en splijt hem in
@@ -619,12 +619,12 @@ volgende klap is in een keer van vol naar dood. Je hoort het ook: elke klap op h
 houten klap die boven je eigen stoot uitkomt (die duikt even weg voor de klap), en elke volgende klap
 klinkt een slag lager en zwaarder, en de breuk is een veel zwaardere, gestapelde dreun met een naklap. Dekt hij zich en ketst je speer af,
 dan klinkt dat hoger en droger, zodat je hoort dat die treffer niet telde. De panter en de baviaan houden hun eigen balk
-bovenin beeld. Is hij dood, dan blijft zijn lijk na de doodanimatie nog zeven seconden liggen, met zijn gevallen speer ernaast, en dan vervaagt het en is het weg. Dat geldt overal, in elk level en in de sandbox, zodat de grond in een lang gevecht niet vol lijken komt te liggen.
+bovenin beeld. Is hij dood, dan blijft zijn lijk na de doodanimatie nog zeven seconden liggen en dan vervaagt het en is het weg. Dat geldt overal, in elk level en in de sandbox, zodat de grond in een lang gevecht niet vol lijken komt te liggen.
 
-Bij die laatste klap valt zijn speer uit zijn hand, en die valt echt: hij stuit even op de grond en
-blijft voor zijn voeten liggen, ligt scheef als hij op een kei of de rand van een terras terechtkomt,
-en kantelt een ravijn in als hij op de rand sterft. Daarna valt hij achterover en blijft hij met zijn
-rug op de grond liggen.
+Bij die laatste klap zakt hij op zijn knieen en valt hij voorover, uit dezelfde tekeningen als de
+executie. Gooi je hem dood, dan zit je speer in zijn borst en ligt hij na de val naast hem op de grond,
+klaar om op te pakken; steek je hem dood of raak je hem met de lage zwaai, dan houd je je speer gewoon in
+de hand. De oude dood, waarbij hij achterover viel en zijn eigen speer uit zijn hand liet vallen, is eruit.
 
 ## De kooiman
 

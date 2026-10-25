@@ -90,7 +90,7 @@ function duel([stijl, reactie, seed, spoorAan]){
     if (won){ B.klaar = { uitkomst: 'uitgespeeld', t }; return; }
     // nieuwe schildbandieten melden (wanneer, waar, welk niveau)
     for (const m of schildmannen) if (!m.__id){ m.__id = ++B.nr; B.ev.push([+t.toFixed(2), 'schildbandiet ' + m.__id + ' (' + m.niveau + ') verschijnt', Math.round(m.x), 'Amir ' + Math.round(world)]); }
-    for (const m of schildmannen) if (m.state === 'dood' && !m.__dood){ m.__dood = 1; B.ev.push([+t.toFixed(2), 'schildbandiet ' + m.__id + ' verslagen', Math.round(m.x)]); }
+    for (const m of schildmannen) if (m.exe && !m.__dood){   // dood of in de executie (s.exe) m.__dood = 1; B.ev.push([+t.toFixed(2), 'schildbandiet ' + m.__id + ' verslagen', Math.round(m.x)]); }
     // de andere vijanden (bandiet, kooiman): melden, en als die het dichtst bij is gewoon ernaartoe en steken
     for (const [naam, l] of [['bandiet', bandieten], ['kooiman', kooimannen]]) for (const m of l){
       if (!m.__id){ m.__id = ++B.nr; m.__naam = naam; B.ev.push([+t.toFixed(2), naam + ' ' + m.__id + ' verschijnt', Math.round(m.x), 'Amir ' + Math.round(world)]); }

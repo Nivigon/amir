@@ -122,7 +122,7 @@ level. De testbalk met schuifjes (`#bar`) begint in de sandbox ingeklapt; het pi
 het midden van `#stage` (alleen aan in de sandbox, `barPijlToon` zet de richting) klapt hem uit en in,
 net als de B-toets. De schildbandiet heeft onder Vijanden twee knoppen, Moeilijk (`schildman`) en
 Makkelijk (`schildman_makkelijk`, in `sbSpawn` `niveau: 'makkelijk'`); de arena telt ze apart op `niveau`. Daarnaast
-Nieuwe stijl (`schildman_lagen`), AI uit, Dood, en voor de executie (zie `notities/schildbandiet.md`): **Executie: kans/altijd**
+AI uit, Dood (de gewone dood, Dood laag: `schbSterf(s, 'steek')`), en voor de executie (zie `notities/schildbandiet.md`): **Executie: kans/altijd**
 (`sbExeAltijd`, elke steek- en worp-kill wordt een executie), **Wankel: E aan/geen E** (`sbExeGeenE`, de worp-kill eindigt
 dan in de val), en **Steek-kill** en **Worp-kill** (`sbExeNu`, de eerste levende schildbandiet meteen zo doden).
 
