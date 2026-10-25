@@ -268,9 +268,11 @@ self.addEventListener('message', (event) => {
   const data = event.data || {};
   const set = data.set === 'klein' || data.set === 'groot' ? data.set : null;
   const deel = typeof data.deel === 'string' && data.deel ? data.deel : null;
-  if (data.type === 'precache') event.waitUntil(precacheAll(set, deel));
-  else if (data.type === 'status') event.waitUntil(reportStatus(set, deel));
-  else if (data.type === 'clear') event.waitUntil(clearAssets(set, deel));
+  // bij de arena: welke soorten uit manifest.soorten erbij horen (de vijanden die in de arena aan staan)
+  const soorten = Array.isArray(data.soorten) ? data.soorten.filter((k) => typeof k === 'string') : [];
+  if (data.type === 'precache') event.waitUntil(precacheAll(set, deel, soorten));
+  else if (data.type === 'status') event.waitUntil(reportStatus(set, deel, soorten));
+  else if (data.type === 'clear') event.waitUntil(clearAssets(set, deel, soorten));
 });
 
 /* Van sommige sprites staat er een halve versie in klein/ (tools/gen-klein.py).
@@ -295,11 +297,16 @@ function voorSet(assets, set) {
   });
 }
 
-/** De bestanden van een deel uit de lijst, of de hele lijst zonder (of met een onbekend) deel. */
-function voorDeel(manifest, deel) {
+/** De bestanden van een deel uit de lijst (plus die van de genoemde soorten), of de hele lijst zonder
+ *  (of met een onbekend) deel. De volgorde blijft die van manifest.assets. */
+function voorDeel(manifest, deel, soorten) {
   const lijst = deel && manifest.delen && Array.isArray(manifest.delen[deel]) ? manifest.delen[deel] : null;
   if (!lijst) return manifest.assets;
   const erin = new Set(lijst);
+  const per = manifest.soorten || {};
+  for (const k of soorten || []) {
+    if (Array.isArray(per[k])) for (const rel of per[k]) erin.add(rel);
+  }
   return manifest.assets.filter((rel) => erin.has(rel));
 }
 
@@ -350,22 +357,27 @@ async function syncAssetVersion(manifest) {
   return cache;
 }
 
-/** Hoeveel bytes de lijst voor deze set telt; zonder opgave het hele totaal. Met een deel de bytes van dat deel. */
-function bytesVoor(manifest, set, deel) {
-  let per = manifest.bytesSet;
-  let alles = manifest.bytes;
-  if (deel && manifest.bytesDeel && manifest.bytesDeel[deel]) {
-    per = manifest.bytesDeel[deel];
-    alles = (typeof per.klein === 'number' && typeof per.groot === 'number') ? Math.max(per.klein, per.groot) : alles;
+/** Hoeveel bytes deze lijst (al gekozen op set, deel en soorten) telt. De lijst heeft per bestand zijn
+ *  grootte (manifest.groottes, in de volgorde van manifest.assets); een oude lijst zonder valt terug
+ *  op de totalen per set. */
+function bytesVoor(manifest, set, assets) {
+  const g = manifest.groottes;
+  if (Array.isArray(g) && g.length === manifest.assets.length) {
+    const idx = new Map();
+    manifest.assets.forEach((rel, i) => idx.set(rel, i));
+    let som = 0;
+    for (const rel of assets) som += g[idx.get(rel)] || 0;
+    return som;
   }
+  const per = manifest.bytesSet;
   if (set && per && typeof per[set] === 'number') return per[set];
-  return alles;
+  return manifest.bytes;
 }
 
-async function reportStatus(set, deel) {
+async function reportStatus(set, deel, soorten) {
   try {
     const manifest = await loadManifest();
-    const assets = voorSet(voorDeel(manifest, deel), set);
+    const assets = voorSet(voorDeel(manifest, deel, soorten), set);
     // zijn de assets sinds de vorige keer vervangen, dan hier de oude cache weggooien, zodat de
     // gewone speler na een update verse sprites krijgt in plaats van de oude uit de cache
     const cache = await syncAssetVersion(manifest);
@@ -382,7 +394,7 @@ async function reportStatus(set, deel) {
       deel,
       done,
       total: assets.length,
-      bytes: bytesVoor(manifest, set, deel),
+      bytes: bytesVoor(manifest, set, assets),
       version: manifest.version,
       vol: runtimeVol,
     });
@@ -393,13 +405,13 @@ async function reportStatus(set, deel) {
 
 // Wissen is altijd alles: de delen overlappen (de arena zit in het hele spel), dus een deel apart
 // weghalen zou ook bestanden van een ander deel raken. Het spel zet de knop ook zo neer.
-async function clearAssets(set, deel) {
+async function clearAssets(set, deel, soorten) {
   await caches.delete(ASSET_CACHE);
   await post({ type: 'cleared' });
-  await reportStatus(set, deel);
+  await reportStatus(set, deel, soorten);
 }
 
-async function precacheAll(set, deel) {
+async function precacheAll(set, deel, soorten) {
   let manifest;
   try {
     manifest = await loadManifest();
@@ -407,7 +419,7 @@ async function precacheAll(set, deel) {
     await post({ type: 'precache-error', deel, message: String(err.message || err) });
     return;
   }
-  const assets = voorSet(voorDeel(manifest, deel), set);
+  const assets = voorSet(voorDeel(manifest, deel, soorten), set);
 
   // Zijn de assets sinds de vorige keer vervangen, dan is wat we hebben niet meer te vertrouwen en
   // beginnen we schoon opnieuw (gedeeld met de gewone start, zie syncAssetVersion).
@@ -467,5 +479,5 @@ async function precacheAll(set, deel) {
   }
   // Geen reportStatus erachteraan: die zou de klaarmelding meteen weer
   // overschrijven met een telling. Het spel weet uit dit bericht genoeg.
-  await post({ type: 'precache-done', deel, total, failed, vol, mist, bytes: bytesVoor(manifest, set, deel) });
+  await post({ type: 'precache-done', deel, total, failed, vol, mist, bytes: bytesVoor(manifest, set, assets) });
 }

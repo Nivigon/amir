@@ -64,40 +64,69 @@ def is_source_material(rel: str) -> bool:
 
 # De arena-set: wat de Arena modus van de sandbox nodig heeft, zodat de speler alleen dat kan
 # downloaden (de knop "Alleen de Arena modus" onder Instellingen) in plaats van het hele spel.
-# Per voorvoegsel (zonder klein/; de kleine set volgt vanzelf): Amir, de twaalf soorten uit
-# SB_ARENA_SOORTEN met hun varianten (elite, duin, de vogel van de kooiman), wat de sandbox verder
-# bij het openen laadt (de kruisboog), het decor van de arena van de koning en wat de knoppen in
-# de wizard kunnen oproepen (bloed, doornbos, water, kalebassen, de abilities), alle geluiden en
-# alle muziek (de speler kiest zelf een nummer). De losse bestanden in design/ horen er allemaal
-# bij: het spel laadt ze bij het opstarten.
+# De basis (ARENA_MAPPEN, per voorvoegsel zonder klein/; de kleine set volgt vanzelf): Amir, het
+# decor van de arena van de koning, wat de knoppen in de wizard kunnen oproepen (bloed, doornbos,
+# water, kalebassen, de abilities), het gif van de slangen (dat laadt het spel altijd), alle
+# geluiden en alle muziek (de speler kiest zelf een nummer). De losse bestanden in design/ horen
+# er allemaal bij: het spel laadt ze bij het opstarten. Daarbovenop per soort uit SB_ARENA_SOORTEN
+# zijn frames (ARENA_SOORTEN): het spel vraagt alleen de soorten die in de arena aan staan, zodat
+# een speler die alleen tegen de schildman wil vechten alleen de schildman ophaalt.
 #
 # tools/arena-assets.js meet dit na: hij speelt de arena en meldt FOUT op elk bestand dat het
-# spel opvraagt en hier niet in staat. Draai hem na een wijziging aan deze lijst of aan de arena.
+# spel opvraagt en hier niet in staat. Draai hem na een wijziging aan deze lijsten of aan de arena.
 ARENA_MAPPEN = (
     'karakters/amir/', 'amir runc/', 'items/', 'ravijn/', 'sounds/', 'music/',
-    'enemies/bandiet/', 'enemies/bandiet_elite/', 'enemies/bandiet_duin/', 'enemies/schildbandiet/',
-    'enemies/kooiman/', 'enemies/vogel/', 'enemies/meelman/', 'enemies/blackpanther/', 'enemies/hyena/',
-    'enemies/schorpioen1/', 'enemies/kruisboog/',
-    'enemies/slang1_zand/', 'enemies/slang2_roet/', 'enemies/slang1_knock/', 'enemies/slang2/',
+    # wat het spel bij het opstarten laadt, los van een level: het gif van de slangen en de dolk van de
+    # bandiet. Wat het menu voor het gekozen levelkaartje alvast laadt (laadLevel, bij het opstarten de
+    # nieuwste test) hoort hier niet bij: offline ontbreekt dat zonder gevolgen, het level wordt niet gespeeld
+    'enemies/slang2/venom.png', 'enemies/slang1_knock/venom.png', 'enemies/bandiet/dolk/',
     'design/speer/', 'design/doornbos/', 'design/fakkel/', 'design/grot/', 'design/water/', 'design/vegetatie/',
     'design/schilden/', 'design/klimmen/', 'design/tribes/', 'design/menu/', 'design/bloed/', 'design/botten/',
     'design/mes/', 'design/zwart/', 'design/golf/', 'design/bg/',
 )
+# per soort (de sleutel uit SB_ARENA_SOORTEN in de HTML) de mappen met zijn frames; de bandiet met
+# zijn elite en de Duinwacht (knoppen in de wizard), de kooiman met zijn vogel, de fosfor tekent
+# met de frames van de zandslang
+ARENA_SOORTEN = {
+    'scorp': ('enemies/schorpioen1/',),
+    'groen': ('enemies/slang1_zand/',),
+    'zwart': ('enemies/slang2_roet/', 'enemies/slang2/'),
+    'knock': ('enemies/slang1_knock/',),
+    'fosfor': ('enemies/slang1_zand/',),
+    'hyena1': ('enemies/hyena/',),
+    'panter': ('enemies/blackpanther/',),
+    'bandiet': ('enemies/bandiet/', 'enemies/bandiet_elite/', 'enemies/bandiet_duin/'),
+    'schildman_makkelijk': ('enemies/schildbandiet/',),
+    'schildman': ('enemies/schildbandiet/',),
+    'meelman': ('enemies/meelman/',),
+    'kooiman': ('enemies/kooiman/', 'enemies/vogel/'),
+}
 # wat binnen die mappen toch niet meegaat: het skelet en het speerteken (levels), en de
 # sneeuwversies van het uitzicht (de arena is nooit winter)
 ARENA_NIET = ('design/botten/skelet/', 'design/botten/speerteken/')
 
 
+def kaal_pad(rel: str) -> str:
+    return rel[len('klein/'):] if rel.startswith('klein/') else rel
+
+
 def in_arena(rel: str) -> bool:
-    kaal = rel[len('klein/'):] if rel.startswith('klein/') else rel
+    kaal = kaal_pad(rel)
     if kaal.startswith(ARENA_NIET):
         return False
     if kaal.startswith('design/bg/') and '_sneeuw' in os.path.basename(kaal):
         return False
     if kaal.startswith(ARENA_MAPPEN):
         return True
+    # de metadata (json) en de geluiden (mp3) van de vijanden laadt het spel bij het opstarten, allemaal
+    if kaal.startswith('enemies/') and kaal.lower().endswith(('.json', '.mp3')):
+        return True
     # de losse bestanden direct in design/
     return kaal.startswith('design/') and '/' not in kaal[len('design/'):]
+
+
+def in_soort(rel: str, soort: str) -> bool:
+    return kaal_pad(rel).startswith(ARENA_SOORTEN[soort])
 
 
 def collect():
@@ -139,6 +168,7 @@ def main():
         return is_klein or rel not in klein
 
     arena = [(rel, size) for rel, size in assets if in_arena(rel)]
+    soorten = {k: [rel for rel, _ in assets if in_soort(rel, k)] for k in ARENA_SOORTEN}
 
     payload = {
         'version': digest.hexdigest()[:12],
@@ -147,16 +177,14 @@ def main():
             naam: sum(size for rel, size in assets if in_set(rel, naam))
             for naam in ('klein', 'groot')
         },
-        # de delen: een naam en de bestanden die erbij horen (een deel van 'assets'), met per set
-        # de bytes, zodat de knop onder Instellingen de juiste download kan noemen
+        # de delen: een naam en de bestanden die erbij horen (een deel van 'assets'); de arena is de
+        # basis, de service worker legt er de soorten bij die het spel noemt
         'delen': {'arena': [rel for rel, _ in arena]},
-        'bytesDeel': {
-            'arena': {
-                naam: sum(size for rel, size in arena if in_set(rel, naam))
-                for naam in ('klein', 'groot')
-            },
-        },
+        'soorten': soorten,
         'assets': [rel for rel, _ in assets],
+        # de grootte per bestand, in dezelfde volgorde als 'assets', zodat de service worker voor elke
+        # keuze (set, deel, soorten) kan uitrekenen hoeveel er te halen is
+        'groottes': [size for _, size in assets],
     }
 
     out = os.path.join(ROOT, 'offline-assets.json')
@@ -167,8 +195,12 @@ def main():
     b = payload['bytesSet']
     print(f"{len(assets)} bestanden, {payload['bytes'] / 1048576:.1f} MB, versie {payload['version']}")
     print(f"  download per set: klein {b['klein'] / 1048576:.1f} MB, groot {b['groot'] / 1048576:.1f} MB")
-    a = payload['bytesDeel']['arena']
-    print(f"  alleen de arena: {len(arena)} bestanden, klein {a['klein'] / 1048576:.1f} MB, groot {a['groot'] / 1048576:.1f} MB")
+    def mb(lijst, naam):
+        return sum(size for rel, size in lijst if in_set(rel, naam)) / 1048576
+    print(f"  alleen de arena, de basis: {len(arena)} bestanden, klein {mb(arena, 'klein'):.1f} MB, groot {mb(arena, 'groot'):.1f} MB")
+    for k, paden in soorten.items():
+        lijst = [(rel, size) for rel, size in assets if rel in set(paden)]
+        print(f"    + {k}: {len(lijst)} bestanden, klein {mb(lijst, 'klein'):.1f} MB, groot {mb(lijst, 'groot'):.1f} MB")
     print(f'geschreven naar {out}')
 
 

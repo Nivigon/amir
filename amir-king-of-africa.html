@@ -36359,9 +36359,10 @@ function startSandbox(arena){
   sandboxEl.classList.add('on');
   savedLevel = level;                                   // je eigen level even parkeren
   level = { rocks: [], spawns: [], props: [], gaps: [], grotten: [], plafond: [] };
-  // de sandbox kan elke soort spawnen, dus alles wat lui laadt komt hier binnen (de laders zijn idempotent)
-  for (const k in SNAKE_DIRS) slangLaad(k);
-  scpLaad(); hyLoad(); panLoad();
+  // de sandbox kan elke soort spawnen, dus alles wat lui laadt komt hier binnen (de laders zijn idempotent).
+  // De arena-modus niet: die laadt alleen de soorten die aan staan, bij Start en bij elke spawn (sbArenaLaad),
+  // zodat de offline-download van de arena (Alleen de Arena modus, onder Instellingen) bij die soorten kan blijven
+  if (!sbArena){ for (const k in SNAKE_DIRS) slangLaad(k); scpLaad(); hyLoad(); panLoad(); }
   sandbox = true; running = true;
   zetMuziek();
   sbMuziek = MUZIEK_BASIS; sbMuziekToon();
@@ -36742,7 +36743,15 @@ function sbArenaKant(){
   if (c.kant === 'wille') return Math.random() < 0.5 ? -1 : 1;
   c.laatst = -c.laatst; return c.laatst;             // om en om
 }
+// De frames van een soort uit SB_ARENA_SOORTEN: de slangen, de schorpioen, de hyena en de panter laden anders bij het
+// openen van de sandbox (startSandbox); in de arena-modus pas hier, bij Start voor elke soort die aan staat en nog
+// eens bij elke spawn. De rest (bandiet, schildman, kooiman, meelman) laadt zichzelf in zijn make-functie. De fosfor
+// tekent met de frames van de zandslang (snk.groen). Zo vraagt de arena offline alleen wat de speler aangezet heeft.
+const SB_ARENA_LAAD = { scorp: () => scpLaad(), groen: () => slangLaad('groen'), zwart: () => slangLaad('zwart'), knock: () => slangLaad('knock'),
+                        fosfor: () => slangLaad('groen'), hyena1: () => hyLoad(), panter: () => panLoad() };
+function sbArenaLaad(k){ const f = SB_ARENA_LAAD[k]; if (f) f(); }
 function sbArenaSpawn(k, inBeeld){                 // inBeeld: de eerste vijand na de afteller; een spuwer begint dan in beeld (zie de afteller)
+  sbArenaLaad(k);
   const side = sbArenaKant();
   const spuwt = inBeeld && (k === 'zwart' || k === 'knock');   // dezelfde soorten als spuwer(s), die werkt op een slang-object
   const half = spuwt ? W / 2 / viewZoom() * SB_AFTEL.inBeeld : W / 2 / viewZoom() + 320;   // net buiten beeld, zoals de bandietgolf
@@ -36883,6 +36892,7 @@ function sbArenaStart(scherm){
   c.aan = true;
   const iets = SB_ARENA_SOORTEN.some(s => c.per[s.k].aan || (c.modus === 'stroom' && c.per[s.k].bij));
   const vers = c.modus === 'golven' ? c.g.nr === 0 : c.t0 === 0;          // een vers begin: het aftellen, en bij los de eerste vijand (sbArenaGo); na Stop gaat het gewoon door
+  for (const s of SB_ARENA_SOORTEN) if (c.per[s.k].aan || c.per[s.k].bij) sbArenaLaad(s.k);   // de frames alvast, tijdens het aftellen
   if (vers && iets) sbAftelStart();
   if (!iets) flashHint('Zet eerst een vijand aan');
   sbArenaToon(); cv.focus();
@@ -39171,10 +39181,21 @@ requestAnimationFrame(safeLoop);
   const mb = (bytes) => (bytes / 1048576).toFixed(0) + ' MB';
 
   // Twee delen (zie manifest.delen in offline-assets.json): 'alles' is de hele lijst, 'arena' alleen wat de
-  // Arena modus van de sandbox nodig heeft (de helft van de bytes; de lijst komt uit gen-offline-manifest.py,
-  // tools/arena-assets.js meet hem na). De service worker telt en downloadt per deel, en noemt het deel
-  // in elk antwoord terug. Wissen is altijd alles, want de arena zit in het hele spel.
+  // Arena modus van de sandbox nodig heeft: de basis (Amir, het decor, de geluiden, de muziek) plus de vijanden
+  // die in de arena aan staan (manifest.soorten, per soort uit SB_ARENA_SOORTEN; de opzet staat in localStorage,
+  // amir.arenaCfg). Staat er nog niets aan, dan alle soorten. De lijst komt uit gen-offline-manifest.py en
+  // tools/arena-assets.js meet hem na. De service worker telt en downloadt per deel, en noemt het deel in elk
+  // antwoord terug. Wissen is altijd alles, want de arena zit in het hele spel.
   const DELEN = ['alles', 'arena'];
+  // welke soorten de arena nu aan heeft (aan, of +1 bij Start): hun sleutels, en de namen voor de tekst
+  function arenaSoorten() {
+    let cfg = null;
+    try { cfg = JSON.parse(localStorage.getItem('amir.arenaCfg') || 'null'); } catch (e) {}
+    const per = cfg && cfg.per || {};
+    const aan = SB_ARENA_SOORTEN.filter((s) => per[s.k] && (per[s.k].aan || per[s.k].bij));
+    return { alle: !aan.length, keys: (aan.length ? aan : SB_ARENA_SOORTEN).map((s) => s.k), namen: aan.map((s) => s.naam) };
+  }
+  const soortenTekst = (z) => z.alle ? 'alle vijanden, want er staat er nog geen aan' : z.namen.join(', ');
   const knop = (deel) => deel === 'arena' ? arena : btn;
   const st = { alles: null, arena: null };          // de laatste status per deel
   let busy = null;                                   // welk deel er nu binnenkomt ('alles', 'arena' of 'wissen')
@@ -39202,14 +39223,22 @@ requestAnimationFrame(safeLoop);
   function ask(reg) {
     const sw = (reg && reg.active) || navigator.serviceWorker.controller;
     // de set die dit toestel speelt gaat mee: alleen die bestanden tellen en downloaden; per deel een vraag
-    if (sw) for (const deel of DELEN) sw.postMessage({ type: 'status', set: BEELD, deel: deel === 'arena' ? deel : null });
+    if (sw) for (const deel of DELEN) sw.postMessage(bericht('status', deel));
     else say('Herlaad de pagina om offline opslaan aan te zetten.');
   }
+  // de opzet van de arena kan intussen veranderd zijn (de speler komt uit de sandbox): bij het openen van
+  // Instellingen opnieuw tellen
+  document.getElementById('btninstellingen').addEventListener('click', () => { if (!busy) navigator.serviceWorker.ready.then(ask); });
 
+  function bericht(type, deel) {
+    const m = { type: type, set: BEELD, deel: deel === 'arena' ? deel : null };
+    if (deel === 'arena') m.soorten = arenaSoorten().keys;
+    return m;
+  }
   function send(type, deel) {
     navigator.serviceWorker.ready.then((reg) => {
       const sw = (reg && reg.active) || navigator.serviceWorker.controller;
-      if (sw) sw.postMessage({ type: type, set: BEELD, deel: deel === 'arena' ? deel : null });
+      if (sw) sw.postMessage(bericht(type, deel));
     });
   }
 
@@ -39242,9 +39271,11 @@ requestAnimationFrame(safeLoop);
       tekst = 'Eenmalig ' + mb(a.bytes) + ' ophalen, daarna laadt het spel meteen en zonder internet. Doe dit op wifi.';
     }
     if (r && !r.error) {
-      if (compleet(r)) tekst += ' De Arena modus staat al compleet op je toestel.';
-      else tekst += ' Alleen de Arena modus is ' + mb(r.bytes * (1 - r.done / r.total)) +
-        (r.done > 0 ? ' (' + r.done + ' van de ' + r.total + ' bestanden staan er al)' : '') + ', en werkt dan ook zonder internet.';
+      const z = arenaSoorten();
+      if (compleet(r)) tekst += ' De Arena modus zoals hij nu staat (' + soortenTekst(z) + ') staat al compleet op je toestel.';
+      else tekst += ' Alleen de Arena modus zoals hij nu staat (' + soortenTekst(z) + ') is ' + mb(r.bytes * (1 - r.done / r.total)) +
+        (r.done > 0 ? ' (' + r.done + ' van de ' + r.total + ' bestanden staan er al)' : '') + ', en werkt dan ook zonder internet.' +
+        (z.alle ? ' Zet in de arena eerst de vijanden aan die je wilt, dan telt alleen dat mee.' : ' Een vijand die je later in de arena aanzet, moet je apart nog ophalen.');
     }
     say(tekst);
   }
@@ -39281,7 +39312,7 @@ requestAnimationFrame(safeLoop);
         return;
       }
       progress(d.total, d.total);
-      if (deel === 'arena') say('Klaar. De Arena modus (' + d.total + ' bestanden, ' + mb(d.bytes) + ') staat op je toestel en werkt nu ook zonder internet.', 'done');
+      if (deel === 'arena') say('Klaar. De Arena modus met ' + soortenTekst(arenaSoorten()) + ' (' + d.total + ' bestanden, ' + mb(d.bytes) + ') staat op je toestel en werkt nu ook zonder internet. Zet je later een andere vijand aan, haal hem dan eerst hier op.', 'done');
       else say('Klaar. Alle ' + d.total + ' bestanden (' + mb(d.bytes) + ') staan op je toestel. Het spel werkt nu ook zonder internet.', 'done');
       // de telling van beide delen opnieuw, voor de knoppen; de klaarmelding blijft staan
       stil = DELEN.length;
@@ -39308,6 +39339,8 @@ requestAnimationFrame(safeLoop);
 
   function download(deel) {
     if (busy) return;
+    // vragen of de browser de opslag met rust laat: zonder dit mag hij de cache bij ruimtegebrek weggooien
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
     busy = deel;
     btn.disabled = arena.disabled = true;
     wipe.classList.remove('on');

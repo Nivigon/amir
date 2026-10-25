@@ -16,15 +16,24 @@ bestanden.
 
 ## De arena-set van de offline-download
 
-`offline-assets.json` heeft naast de hele lijst (`assets`) een deel `delen.arena`: wat de Arena
-modus van de sandbox nodig heeft, voor de knop **Alleen de Arena modus** onder Instellingen
-(`#offarena`; de service worker krijgt `deel: 'arena'` mee en telt en downloadt dan alleen die
-bestanden, `voorDeel` in `sw.js`). Welke mappen erin zitten staat in `ARENA_MAPPEN` in
-`tools/gen-offline-manifest.py` (en wat er binnen die mappen toch niet meegaat in `ARENA_NIET`):
-Amir, de soorten uit `SB_ARENA_SOORTEN` met hun varianten (elite, duin, de vogel van de kooiman),
-de kruisboog (de sandbox laadt hem bij het openen), het decor van de arena van de koning, wat de
-knoppen in de wizard kunnen oproepen (bloed, doornbos, water, kalebassen, de abilities), alle
-geluiden en alle muziek. De kleine set volgt vanzelf (zelfde regel als `voorSet`).
+`offline-assets.json` heeft naast de hele lijst (`assets`) een deel `delen.arena` en een lijst
+`soorten`: de basis van de Arena modus van de sandbox en per soort uit `SB_ARENA_SOORTEN` zijn
+frames, voor de knop **Alleen de Arena modus** onder Instellingen (`#offarena`). Het spel leest
+uit `localStorage` (`amir.arenaCfg`) welke soorten in de arena aan staan (`arenaSoorten`) en geeft
+de service worker `deel: 'arena'` plus die `soorten` mee; die telt en downloadt dan de basis plus
+die soorten (`voorDeel` in `sw.js`), en rekent de bytes uit met `groottes` (de grootte per bestand,
+in de volgorde van `assets`). Staat er nog niets aan, dan alle soorten. De basis staat in
+`ARENA_MAPPEN` in `tools/gen-offline-manifest.py` (en wat er binnen die mappen toch niet meegaat
+in `ARENA_NIET`): Amir, het decor van de arena van de koning, wat de knoppen in de wizard kunnen
+oproepen (bloed, doornbos, water, kalebassen, de abilities), wat het spel bij het opstarten altijd
+laadt (het gif van de slangen, de dolk, de json en de mp3 van de vijanden), alle geluiden en alle
+muziek; de soorten in `ARENA_SOORTEN` (de bandiet met elite en Duinwacht, de kooiman met zijn
+vogel, de fosfor met de frames van de zandslang). De kleine set volgt vanzelf (zelfde regel als
+`voorSet`). Daarvoor laadt de arena-modus zijn soorten pas bij Start en bij een spawn
+(`sbArenaLaad`, `SB_ARENA_LAAD`), niet meer allemaal bij het openen van de sandbox zoals de vrije
+sandbox dat doet. Wat het menu voor het gekozen levelkaartje alvast laadt (`laadLevel` in
+`setLevel`, bij het opstarten de nieuwste test) hoort niet bij de basis: offline ontbreekt dat
+zonder gevolgen, het level wordt niet gespeeld.
 
 Na een wijziging aan die lijst, aan de arena of aan wat de sandbox laadt: `node tools/arena-assets.js`
 (zie `notities/tools.md`). Die speelt de arena in Chromium met alle soorten aan en meldt FOUT op elk

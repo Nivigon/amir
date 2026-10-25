@@ -372,8 +372,10 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 
 - **Sprites toegevoegd, vervangen of weggehaald** → `python3 tools/gen-klein.py` en daarna
   `python3 tools/gen-offline-manifest.py` (in die volgorde). Het eerste print de lijst voor
-  `KLEIN_FAM`, het tweede werkt de offline-download bij, inclusief de arena-set (`ARENA_MAPPEN`,
-  de knop **Alleen de Arena modus**); raakt de wijziging de arena, draai dan ook `node tools/arena-assets.js`.
+  `KLEIN_FAM`, het tweede werkt de offline-download bij, inclusief de arena-set (`ARENA_MAPPEN` en
+  `ARENA_SOORTEN`, de knop **Alleen de Arena modus**: de basis plus de vijanden die in de arena aan staan).
+  Een nieuwe soort in `SB_ARENA_SOORTEN` krijgt een regel in `ARENA_SOORTEN` (en, laadt hij niet in zijn
+  make-functie, een in `SB_ARENA_LAAD`); raakt de wijziging de arena, draai dan ook `node tools/arena-assets.js`.
 - **Bodem of sneeuwdek** (`grondrand_rots.png`, `sneeuwlaag_25..100.png`) → `tools/sneeuwdek.py`
 - **Run van de baviaan** → `tools/baviaan_run_fix.py`
 - **`design/grot/rots_vulling.png`** → `tools/rots_vulling.py`
@@ -469,9 +471,10 @@ of `mkNaarLevel`. `--alleen gang` beperkt tot de scenario's met dat woord in de 
 ### De arena-download nameten: `tools/arena-assets.js`
 
 Speelt de Arena modus in Chromium met alle soorten aan en meldt FOUT op elk bestand dat het spel
-opvraagt en niet in de arena-set van `offline-assets.json` staat (`delen.arena`), voor de grote en de
-kleine spriteset. Draai hem na een wijziging aan `ARENA_MAPPEN` in `gen-offline-manifest.py`, aan de
-arena-modus of aan wat de sandbox bij het openen laadt. `--beeld klein` beperkt tot een set, `--duur 90`
+opvraagt en niet in de arena-set van `offline-assets.json` staat (de basis `delen.arena` plus de `soorten`
+die aan staan), voor de grote en de kleine spriteset. Draai hem na een wijziging aan `ARENA_MAPPEN` of
+`ARENA_SOORTEN` in `gen-offline-manifest.py`, aan de arena-modus of aan wat de sandbox bij het openen laadt.
+`--soorten schildman` meet met alleen die soorten aan, `--beeld klein` beperkt tot een set, `--duur 90`
 speelt langer, `--toon` toont alles wat er opgevraagd is.
 
 ### De makertest: `tools/makertest.js`
