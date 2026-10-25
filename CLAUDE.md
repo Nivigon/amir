@@ -347,6 +347,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **Slangen** (zand, roet, knock) → `tools/slang_kleur.py`
 - **Elite-garde** → `tools/bandiet_elite_kleur.js`, daarna `gen-klein.py` en `gen-offline-manifest.py`
 - **Kooi-plaat van de kooiman** → `tools/kooi_kleur.py`, daarna `gen-klein.py` en `gen-offline-manifest.py`
+- **Schildbandiet** (lijf, schild en de executie-lagen, uit `enemies/schildbandiet/bron/`) → `tools/schildman_kleur.py`, daarna `gen-klein.py` en `gen-offline-manifest.py`
 - **Goudaapje** → `tools/goudaapje_kleur.js`
 - **Stenen bogen** (`design/boog/`, uit de platen in `bron/`, met hun sneeuw- en savanneversie) → `tools/boog_vulling.py`, daarna `gen-offline-manifest.py`
 - **Tribe-logo's** → `tools/tribe_logos.py`
