@@ -167,6 +167,27 @@ node tools/poorttest.js --alleen gang   alleen de scenario's waarvan de naam dit
 node tools/poorttest.js --shots map     een schermafdruk per scenario
 ```
 
+## De arena-download nameten: tools/arena-assets.js
+
+Speelt de Arena modus van de sandbox in Chromium (zonder service worker, zodat elk verzoek zichtbaar
+is) met alle twaalf soorten aan, de elite, de dolk en de Duinwacht aan, Amir onsterfelijk en een
+hoog tempo, en noteert elk bestand dat het spel opvraagt (png, jpg, mp3, json). Daarna vergelijkt
+hij die met de arena-set in `offline-assets.json` (`delen.arena`, uit `ARENA_MAPPEN` in
+`gen-offline-manifest.py`), met dezelfde keuze tussen de grote en de kleine set als `voorSet` in
+`sw.js`. Een bestand dat het spel vraagt en niet in de set staat is FOUT (offline zou het
+ontbreken); een 404 is LET OP. Hij meet standaard allebei de spritesets, na elkaar.
+
+```
+node tools/arena-assets.js                 standaard 45 seconden spelen, groot en klein
+node tools/arena-assets.js --duur 90       langer spelen
+node tools/arena-assets.js --beeld klein   alleen de kleine set
+node tools/arena-assets.js --toon          ook alle opgevraagde bestanden tonen
+```
+
+Draai hem na een wijziging aan `ARENA_MAPPEN`, aan de arena-modus of aan wat `startSandbox` laadt.
+Hij vond zo dat `enemies/bandiet_duin/` in `KLEIN_FAM` ontbrak (een telefoon haalde de grote frames)
+en dat het gras en de hut hun kleine versie oversloegen.
+
 ## De makertest: tools/makertest.js
 
 Laadt de Maker nieuwstijl in Chromium, zet er een proefgrid in waar alles op staat (een gat, een

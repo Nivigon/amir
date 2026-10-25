@@ -14,6 +14,28 @@ gelijk, dan laadt een telefoon stilletjes de grote versie. Het tweede werkt de l
 bij die de downloadknop afwerkt; sla je dat over, dan mist de offline-download
 bestanden.
 
+## De arena-set van de offline-download
+
+`offline-assets.json` heeft naast de hele lijst (`assets`) een deel `delen.arena`: wat de Arena
+modus van de sandbox nodig heeft, voor de knop **Alleen de Arena modus** onder Instellingen
+(`#offarena`; de service worker krijgt `deel: 'arena'` mee en telt en downloadt dan alleen die
+bestanden, `voorDeel` in `sw.js`). Welke mappen erin zitten staat in `ARENA_MAPPEN` in
+`tools/gen-offline-manifest.py` (en wat er binnen die mappen toch niet meegaat in `ARENA_NIET`):
+Amir, de soorten uit `SB_ARENA_SOORTEN` met hun varianten (elite, duin, de vogel van de kooiman),
+de kruisboog (de sandbox laadt hem bij het openen), het decor van de arena van de koning, wat de
+knoppen in de wizard kunnen oproepen (bloed, doornbos, water, kalebassen, de abilities), alle
+geluiden en alle muziek. De kleine set volgt vanzelf (zelfde regel als `voorSet`).
+
+Na een wijziging aan die lijst, aan de arena of aan wat de sandbox laadt: `node tools/arena-assets.js`
+(zie `notities/tools.md`). Die speelt de arena in Chromium met alle soorten aan en meldt FOUT op elk
+bestand dat het spel opvraagt en niet in de set staat, voor de grote en de kleine spriteset apart.
+
+Twee dingen die daarbij aan het licht kwamen: `items/` (de drinkkalebas, de meelzakken) en
+`ravijn/assets/` zaten helemaal niet in de lijst, en de json van de schildbandiet (`lagen.json`,
+`executie.json`) ging in `sw.js` als "het spel zelf" naar de shellcache terwijl de downloadknop hem
+in de assetcache zette, zodat de schildman offline niet laadde. Json onder de assetmappen is nu een
+asset (`isAsset`), met een terugval op de andere caches voor wie hem nog in de shellcache heeft.
+
 Een plaatje hoort alleen in de kleine set als het op een telefoon nog steeds groter
 is dan het stukje scherm waar het terechtkomt. De afweging per familie staat in
 `DOELEN` in `tools/gen-klein.py` en in de README. Een doel dat ook op de helft nog

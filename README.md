@@ -228,7 +228,9 @@ Alle getallen en teksten staan in `TRIBE_CONFIG`, bovenin de HTML. In de sandbox
 
 Het spel is een installeerbare webapp. Open de Pages-link in Safari, deel, "Zet op beginscherm". Daarna staat Amir als icoon tussen je apps en start hij zonder browserbalken, liggend.
 
-Open hem vanaf het beginscherm en druk onder **Instellingen** op **Download voor offline**. Dat haalt alle sprites en geluiden in een keer binnen (ruim 2200 bestanden, ongeveer 230 MB; het precieze aantal staat in `offline-assets.json`). Vanaf dat moment laadt het spel meteen en speelt het ook zonder internet.
+Open hem vanaf het beginscherm en druk onder **Instellingen** op **Download voor offline**. Dat haalt alle sprites en geluiden in een keer binnen (op een telefoon ongeveer 275 MB, op een laptop met de scherpe sprites ongeveer 590 MB; het precieze aantal staat in `offline-assets.json`). Vanaf dat moment laadt het spel meteen en speelt het ook zonder internet.
+
+Wil je alleen de **Arena modus** van de sandbox offline spelen, druk dan op **Alleen de Arena modus**: dat haalt enkel binnen wat de arena nodig heeft (Amir, de twaalf soorten vijanden met hun varianten, het decor van de arena, alle geluiden en muziek), ongeveer 170 MB op een telefoon en 340 MB op een laptop. De tekst eronder zegt per knop hoeveel er nog te halen is. **Wissen** haalt altijd alles weg.
 
 Lukt een deel niet, dan zegt de knop **Probeer opnieuw** en staat eronder hoeveel bestanden er nog ontbreken, en of dat komt doordat de opslag op je toestel vol is of doordat de verbinding wegviel. Een volgende poging haalt alleen die ontbrekende bestanden op.
 

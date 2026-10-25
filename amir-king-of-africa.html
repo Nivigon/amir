@@ -836,6 +836,7 @@
       <div class="row hide" id="offline">
         <div class="row">
           <button type="button" id="offbtn">Download voor offline</button>
+          <button type="button" id="offarena">Alleen de Arena modus</button>
           <button type="button" id="offwipe">Wissen</button>
         </div>
         <div id="offbar"><i></i></div>
@@ -2352,6 +2353,7 @@ const KLEIN_FAM = [
   'enemies/hyena_wit/',
   'enemies/bandiet/',
   'enemies/bandiet_elite/',
+  'enemies/bandiet_duin/',                        // de Duinwacht; ontbrak hier, zodat een telefoon de grote frames haalde (en offline niets had)
   'enemies/schildbandiet/',
   'enemies/kooiman/',
   'enemies/meelman/',
@@ -14283,15 +14285,13 @@ const HUT = { src: 'design/villeaghut.png', h: 2.25, at: 0.105, sink: 0.04 };
 // droog gras dat de naad tussen hut en grond dichtzet
 const GRASS = { src: 'design/drygrass.png', sink: 0.10 };
 const grassImg = new Image();
-grassImg.onerror = () => console.warn('ontbreekt: ' + GRASS.src);
-grassImg.src = GRASS.src;
+zetBron(grassImg, GRASS.src, () => console.warn('ontbreekt: ' + GRASS.src));   // op een telefoon de halve versie uit klein/ (de maat komt uit GRASS, niet uit de pixels)
 // per pluk: waar langs de hut (0 = linkerrand, 1 = rechterrand), hoe hoog, gespiegeld
 const GRASS_TUFTS = [{ at: -0.02, h: 0.95, flip: false },
                      { at:  0.12, h: 0.70, flip: true  },
                      { at:  0.30, h: 0.52, flip: false }];
 const hutImg = new Image();
-hutImg.onerror = () => console.warn('ontbreekt: ' + HUT.src);
-hutImg.src = HUT.src;
+zetBron(hutImg, HUT.src, () => console.warn('ontbreekt: ' + HUT.src));   // idem: de hoogte komt uit HUT.h
 const cliffImg = new Image();
 cliffImg.onerror = () => console.warn('ontbreekt: ' + CLIFF.src);
 cliffImg.src = CLIFF.src;
@@ -23227,8 +23227,7 @@ function updateArena(){
   if (!arena) arena = { c: world };
 }
 // hoog gras op de voorgrond in het veld: de panter zit er half in verstopt
-const fgGrassImg = new Image();
-fgGrassImg.src = 'design/drygrass.png';
+const fgGrassImg = zetBron(new Image(), 'design/drygrass.png');   // op een telefoon de halve versie; de maat komt uit CHAR_H
 function fgGrassPic(){ return winterPic('gras', fgGrassImg); }
 function fgGrassList(){
   if (!level || !level.fg) return [];
@@ -39161,6 +39160,7 @@ requestAnimationFrame(safeLoop);
 (function () {
   const row   = document.getElementById('offline');
   const btn   = document.getElementById('offbtn');
+  const arena = document.getElementById('offarena');
   const wipe  = document.getElementById('offwipe');
   const bar   = document.getElementById('offbar');
   const fill  = bar.querySelector('i');
@@ -39170,7 +39170,15 @@ requestAnimationFrame(safeLoop);
 
   const mb = (bytes) => (bytes / 1048576).toFixed(0) + ' MB';
 
-  let busy = false;
+  // Twee delen (zie manifest.delen in offline-assets.json): 'alles' is de hele lijst, 'arena' alleen wat de
+  // Arena modus van de sandbox nodig heeft (de helft van de bytes; de lijst komt uit gen-offline-manifest.py,
+  // tools/arena-assets.js meet hem na). De service worker telt en downloadt per deel, en noemt het deel
+  // in elk antwoord terug. Wissen is altijd alles, want de arena zit in het hele spel.
+  const DELEN = ['alles', 'arena'];
+  const knop = (deel) => deel === 'arena' ? arena : btn;
+  const st = { alles: null, arena: null };          // de laatste status per deel
+  let busy = null;                                   // welk deel er nu binnenkomt ('alles', 'arena' of 'wissen')
+  let stil = 0;                                      // zoveel statusberichten laten de tekst staan (na Klaar)
   let total = 0;
 
   function say(text, kind) {
@@ -39193,102 +39201,129 @@ requestAnimationFrame(safeLoop);
 
   function ask(reg) {
     const sw = (reg && reg.active) || navigator.serviceWorker.controller;
-    // de set die dit toestel speelt gaat mee: alleen die bestanden tellen en downloaden
-    if (sw) sw.postMessage({ type: 'status', set: BEELD });
+    // de set die dit toestel speelt gaat mee: alleen die bestanden tellen en downloaden; per deel een vraag
+    if (sw) for (const deel of DELEN) sw.postMessage({ type: 'status', set: BEELD, deel: deel === 'arena' ? deel : null });
     else say('Herlaad de pagina om offline opslaan aan te zetten.');
   }
 
-  function send(type) {
+  function send(type, deel) {
     navigator.serviceWorker.ready.then((reg) => {
       const sw = (reg && reg.active) || navigator.serviceWorker.controller;
-      if (sw) sw.postMessage({ type: type, set: BEELD });
+      if (sw) sw.postMessage({ type: type, set: BEELD, deel: deel === 'arena' ? deel : null });
     });
+  }
+
+  const compleet = (d) => !!d && !d.error && d.done >= d.total;
+
+  // De knoppen en de tekst uit de laatste status van beide delen. Met alleenKnoppen blijft de tekst staan
+  // (de klaarmelding na een download), alleen de knoppen volgen de telling.
+  function toon(alleenKnoppen) {
+    const a = st.alles, r = st.arena;
+    if (a && !a.error) btn.textContent = compleet(a) ? 'Opnieuw downloaden' : 'Download voor offline';
+    if (r && !r.error) arena.textContent = compleet(r) ? 'Arena opnieuw downloaden' : 'Alleen de Arena modus';
+    btn.disabled = arena.disabled = !!busy;
+    wipe.classList.toggle('on', !!(a && a.done > 0) && !busy);
+    if (busy || alleenKnoppen || !a) return;
+    if (a.error) { say('Kon de bestandslijst niet lezen: ' + a.error, 'warn'); return; }
+    total = a.total;
+    if (compleet(a)) {
+      bar.classList.remove('on');
+      say('Alles staat op je toestel (' + a.total + ' bestanden, ' + mb(a.bytes) + '). Het spel werkt nu ook zonder internet.', 'done');
+      return;
+    }
+    let tekst;
+    if (a.done > 0) {
+      progress(a.done, a.total);
+      // de opslag liep tijdens het spelen al vol: dan zegt een tweede poging hetzelfde, eerst ruimte maken
+      if (a.vol) { say(a.done + ' van de ' + a.total + ' bestanden staan opgeslagen, maar de opslag op je toestel is vol. Maak ruimte vrij en probeer het dan nog eens.', 'warn'); return; }
+      tekst = a.done + ' van de ' + a.total + ' bestanden staan al opgeslagen. De rest erbij is ongeveer ' + mb(a.bytes * (1 - a.done / a.total)) + '.';
+    } else {
+      bar.classList.remove('on');
+      tekst = 'Eenmalig ' + mb(a.bytes) + ' ophalen, daarna laadt het spel meteen en zonder internet. Doe dit op wifi.';
+    }
+    if (r && !r.error) {
+      if (compleet(r)) tekst += ' De Arena modus staat al compleet op je toestel.';
+      else tekst += ' Alleen de Arena modus is ' + mb(r.bytes * (1 - r.done / r.total)) +
+        (r.done > 0 ? ' (' + r.done + ' van de ' + r.total + ' bestanden staan er al)' : '') + ', en werkt dan ook zonder internet.';
+    }
+    say(tekst);
   }
 
   navigator.serviceWorker.addEventListener('message', (event) => {
     const d = event.data || {};
+    const deel = d.deel === 'arena' ? 'arena' : 'alles';
+    const naam = deel === 'arena' ? 'de Arena modus' : 'het spel';
 
     if (d.type === 'status') {
-      if (d.error) { say('Kon de bestandslijst niet lezen: ' + d.error, 'warn'); return; }
-      total = d.total;
-      const complete = d.done >= d.total;
-      btn.textContent = complete ? 'Opnieuw downloaden' : 'Download voor offline';
-      btn.disabled = busy;
-      wipe.classList.toggle('on', d.done > 0 && !busy);
-      if (busy) return;
-      if (complete) {
-        bar.classList.remove('on');
-        say('Alles staat op je toestel (' + d.total + ' bestanden, ' + mb(d.bytes) + '). Het spel werkt nu ook zonder internet.', 'done');
-      } else if (d.done > 0) {
-        progress(d.done, d.total);
-        // de opslag liep tijdens het spelen al vol: dan zegt een tweede poging hetzelfde, eerst ruimte maken
-        if (d.vol) say(d.done + ' van de ' + d.total + ' bestanden staan opgeslagen, maar de opslag op je toestel is vol. Maak ruimte vrij en probeer het dan nog eens.', 'warn');
-        else say(d.done + ' van de ' + d.total + ' bestanden staan al opgeslagen. De rest erbij is ongeveer ' +
-            mb(d.bytes * (1 - d.done / d.total)) + '.');
-      } else {
-        bar.classList.remove('on');
-        say('Eenmalig ' + mb(d.bytes) + ' ophalen, daarna laadt het spel meteen en zonder internet. Doe dit op wifi.');
-      }
+      st[deel] = d;
+      if (stil > 0) { stil--; toon(true); } else toon(false);
       return;
     }
 
     if (d.type === 'precache-progress') {
       progress(d.done, d.total);
-      say('Bezig: ' + d.done + ' van de ' + d.total + ' bestanden.');
+      say('Bezig met ' + naam + ': ' + d.done + ' van de ' + d.total + ' bestanden.');
       return;
     }
 
     if (d.type === 'precache-done') {
-      busy = false;
-      btn.disabled = false;
+      busy = null;
+      btn.disabled = arena.disabled = false;
       wipe.classList.add('on');
       if (d.failed) {
         // niet compleet: de knop zegt dat ook, en een volgende poging haalt alleen het ontbrekende op
-        btn.textContent = 'Probeer opnieuw';
+        knop(deel).textContent = 'Probeer opnieuw';
         progress(d.total - d.failed, d.total);
         if (d.mist && d.mist.length) console.warn('[offline] niet opgeslagen:', d.mist.join(', ') + (d.failed > d.mist.length ? ' en nog ' + (d.failed - d.mist.length) : ''));
-        const ontbreekt = d.failed + ' van de ' + d.total + ' bestanden ontbreken nog. ';
+        const ontbreekt = d.failed + ' van de ' + d.total + ' bestanden van ' + naam + ' ontbreken nog. ';
         if (d.vol) say(ontbreekt + 'De opslag op je toestel is vol: maak ruimte vrij en probeer het dan nog eens, dan haalt hij alleen die ' + d.failed + ' op.', 'warn');
         else say(ontbreekt + 'Die lukten niet (geen verbinding of niet gevonden). Probeer het nog eens, dan haalt hij alleen die ' + d.failed + ' op.', 'warn');
         return;
       }
-      btn.textContent = 'Opnieuw downloaden';
       progress(d.total, d.total);
-      say('Klaar. Alle ' + d.total + ' bestanden (' + mb(d.bytes) + ') staan op je toestel. Het spel werkt nu ook zonder internet.', 'done');
+      if (deel === 'arena') say('Klaar. De Arena modus (' + d.total + ' bestanden, ' + mb(d.bytes) + ') staat op je toestel en werkt nu ook zonder internet.', 'done');
+      else say('Klaar. Alle ' + d.total + ' bestanden (' + mb(d.bytes) + ') staan op je toestel. Het spel werkt nu ook zonder internet.', 'done');
+      // de telling van beide delen opnieuw, voor de knoppen; de klaarmelding blijft staan
+      stil = DELEN.length;
+      navigator.serviceWorker.ready.then(ask);
       return;
     }
 
     if (d.type === 'precache-error') {
-      busy = false;
-      btn.disabled = false;
+      busy = null;
+      btn.disabled = arena.disabled = false;
       bar.classList.remove('on');
-      say('Downloaden mislukt: ' + d.message, 'warn');
+      say('Downloaden van ' + naam + ' mislukt: ' + d.message, 'warn');
       return;
     }
 
     if (d.type === 'cleared') {
-      busy = false;
-      btn.disabled = false;
+      busy = null;
+      btn.disabled = arena.disabled = false;
       bar.classList.remove('on');
       fill.style.width = '0%';
+      navigator.serviceWorker.ready.then(ask);   // beide delen opnieuw tellen (de service worker telt zelf alleen alles)
     }
   });
 
-  btn.onclick = () => {
+  function download(deel) {
     if (busy) return;
-    busy = true;
-    btn.disabled = true;
+    busy = deel;
+    btn.disabled = arena.disabled = true;
     wipe.classList.remove('on');
-    progress(0, total || 1);
-    say('Bezig met downloaden. Laat het scherm aan tot het klaar is.');
-    send('precache');
-  };
+    const s = st[deel];
+    progress(0, (s && s.total) || total || 1);
+    say('Bezig met downloaden van ' + (deel === 'arena' ? 'de Arena modus' : 'het spel') + '. Laat het scherm aan tot het klaar is.');
+    send('precache', deel);
+  }
+  btn.onclick = () => download('alles');
+  arena.onclick = () => download('arena');
 
   wipe.onclick = () => {
     if (busy) return;
-    busy = true;
+    busy = 'wissen';
     say('Bezig met wissen.');
-    send('clear');
+    send('clear', 'alles');
   };
 })();
 </script>
