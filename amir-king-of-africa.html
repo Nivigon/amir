@@ -11395,6 +11395,7 @@ function poortTeken(groundY, scale, cx){
     const M = poortMaat(o, scale);
     if (o.wand) hekWandTeken(o, groundY, scale, cx);   // de rotswand achter de boog
     skeletSchaduw(cx + (o.x + M.dx - world), groundY - poortVloer(o) * scale, M.hw * 2 * POORT.schaduw);
+    if (o.hek && o.wand) hekAchterTouw(o, groundY, scale, cx);   // het touw van het tandwiel boven de boog, achter de stenen
     poortBeeld(o, groundY, scale, cx, 0);
     if (o.hek) hekTeken(o, groundY, scale, cx);         // het hek in de opening, het tandwiel en het touw
   }
@@ -11464,7 +11465,8 @@ const HEK = {
   tanden: 9,               // zoveel schokjes per seconde
   schaduw: 0.3,            // de schaduw onder de boog: over dit deel van de opening, van donker naar niets
   schaduwA: 0.6,
-  tand: { d: 0.36, y: 0.5 }, // het tandwiel: diameter in Amir, en hoogte als deel van de ruimte boven de opening
+  tand: { d: 0.36, y: 0.5, boven: 1.25 },   // het tandwiel: diameter in Amir; zonder rotswand op de sluitsteen (y: deel van de ruimte
+                                            // boven de opening), met rotswand boven de boog op de rots (boven: zoveel stralen boven de boog)
   touwW: 0.075,            // touwdikte in Amir
   inBeeld: 0.6,            // de regie begint als de poort zo ver (deel van een half scherm) van Amir is, of eerder als hij dan nog niet heel in beeld is
   uitLoop: 1.1,            // de regie eindigt als de vijand zoveel Amir uit de opening is
@@ -11572,11 +11574,11 @@ function hekTeken(o, groundY, scale, cx){
   ctx.translate(sx, gy - op[3] * k);
   if (o.f) ctx.scale(-1, 1);
   if (rise < H.h) ctx.drawImage(hekCanvas, 0, 0, cw, ch, (op[0] - mid) * k - 2, op[1] * k - 2, cw, ch);
-  // het touw van het tandwiel op de sluitsteen naar de ring; zit de ring achter de stenen, dan tot de kruin
-  const tandR = HEK.tand.d * H.A / 2, tandY = op[1] * k * HEK.tand.y;
-  const ringY = op[1] * k + HEK.ringY * H.q * H.qy - rise;
-  const touwTot = Math.max(op[1] * k + tandR * 0.15, ringY);
-  hekTouw(0, tandY, 0, touwTot, HEK.touwW * H.A, rise);
+  // het touw: alleen in de opening, van onder de kruin naar de ring (het stuk erboven loopt achter de stenen,
+  // hekAchterTouw), zodat het nooit over de rand van de boog ligt. Zit de ring achter de stenen, dan is er niets.
+  const tandR = HEK.tand.d * H.A / 2, tandY = hekTandY(o, op, k, tandR);
+  const kruin = op[1] * k, ringY = kruin + HEK.ringY * H.q * H.qy - rise;
+  if (ringY > kruin) hekTouw(0, kruin, 0, ringY, HEK.touwW * H.A, rise);
   if (imgReady(hekTandImg)){
     ctx.save();
     ctx.translate(0, tandY);
@@ -11584,6 +11586,22 @@ function hekTeken(o, groundY, scale, cx){
     ctx.drawImage(hekTandImg, -tandR, -tandR, tandR * 2, tandR * 2);
     ctx.restore();
   }
+  ctx.restore();
+}
+// waar het tandwiel zit: met een rotswand boven de boog op de rots, anders op de sluitsteen
+function hekTandY(o, op, k, tandR){ return o.wand ? -tandR * HEK.tand.boven : op[1] * k * HEK.tand.y; }
+// het touw van het tandwiel boven de boog tot net onder de kruin, voor de boog getekend: het valt achter de stenen weg
+function hekAchterTouw(o, groundY, scale, cx){
+  if (!imgReady(hekImg)) return;
+  const M = poortMaat(o, scale), op = M.S.opening, k = M.k, H = hekMaat(o, M, scale);
+  const sx = cx + (o.x - world), gy = groundY - poortVloer(o) * scale;
+  const sw = W / viewZoom();
+  if (sx + M.hw * 3 < 0 || sx - M.hw * 3 > sw) return;
+  const tandR = HEK.tand.d * H.A / 2, rise = (o.hekP || 0) * (H.h + H.A * 0.05);
+  ctx.save();
+  ctx.translate(sx, gy - op[3] * k);
+  if (o.f) ctx.scale(-1, 1);
+  hekTouw(0, hekTandY(o, op, k, tandR), 0, op[1] * k + 4, HEK.touwW * H.A, rise);
   ctx.restore();
 }
 function hekTouw(x0, y0, x1, y1, w, fase){
