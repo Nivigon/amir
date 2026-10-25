@@ -9,6 +9,23 @@
 
 `SCHB_STAAT`, `schbStaat`. Het schild heeft vier standen: 0 treffers `metschild`, 1 `fase1` (een hap eruit), 2 `fase2` (twee happen), 3 `zonderschild` (weg, daarna in een klap dood). `schbStaat` leidt de stand af uit `s.schild` en `s.metSchild`; omdat `hitSchildman` het schild al verlaagt voor de flinch begint, speelt de flinch meteen in de nieuwe stand en verschijnt de hap op het moment van de klap. Bij een gepantserde treffer (late tell) wisselt de strike midden in de animatie van stand; dat verspringt niet, want het lijf is in alle standen hetzelfde plaatje en alleen het schildplaatje wisselt (zie hieronder). Elke beweging (loop, strike, flinch) heeft in `lagen.json` alle vier de standen.
 
+## de kleuren: het bandietpalet, de oude kleuren in bron/
+
+De schildbandiet loopt in de kleuren van de bandiet: een marineblauw gewaad (de bandietjas), een donkerder marineblauwe
+cape en een kaki-olijf broek; de rode sjerp, de huid, de schoenen, het schild en de speer blijven zoals ze getekend zijn.
+De aangeleverde frames (blauw gewaad, paarse cape, groene broek) staan ongewijzigd in `enemies/schildbandiet/bron/`, met
+dezelfde mappen als de speelversie (`lagen/lijf`, `lagen/schild`, `executie/lagen`), want die felle, losse kleurvlakken zijn
+handig om later in een ander palet te kleuren. `tools/schildman_kleur.py` leest die bron en schrijft de speelversie, op de
+manier van `tools/kooiman_kleur.py` (alleen tint en verzadiging per vlak, de lijnen en plooien blijven, en de magenta
+randjes gaan eruit). De lagen van Amir in de executie (`amir_*.png`) staan niet in bron/ en blijven ongemoeid. Het spel en de manifest
+laden bron/ nooit.
+
+Het bandietpalet is vanaf nu de standaard. Een nieuwe export (nieuwe frames, een nieuwe submap, of een nieuwe versie over
+een bestaand frame heen) zet je gewoon in de speelmap en dan draai je het script: `oude_kleuren` telt per frame de pixels
+in het aangeleverde palet (fel blauw, groen, paars; de speelversie telt 0), en boven `OUD_DREMPEL` gaat het frame eerst
+naar bron/ en wordt het daarna omgekleurd. Aan het eind kijkt het script na dat er in de speelmap niets meer in de oude
+kleuren staat, anders FOUT. Daarna `gen-klein.py` en `gen-offline-manifest.py`.
+
 ## de lagen: het schild als losse laag (lagen.json)
 
 `SCHB_LAGEN`, `schbLagen`, `schbLagenLaad`, `schbLagenLijst`, `schbLaadLevel`, `schbBank.lagen`. De enige manier waarop de
