@@ -17,8 +17,14 @@ De aangeleverde frames (blauw gewaad, paarse cape, groene broek) staan ongewijzi
 dezelfde mappen als de speelversie (`lagen/lijf`, `lagen/schild`, `executie/lagen`), want die felle, losse kleurvlakken zijn
 handig om later in een ander palet te kleuren. `tools/schildman_kleur.py` leest die bron en schrijft de speelversie, op de
 manier van `tools/kooiman_kleur.py` (alleen tint en verzadiging per vlak, de lijnen en plooien blijven, en de magenta
-randjes gaan eruit). De lagen van Amir in de executie (`amir_*.png`) staan niet in bron/ en blijven ongemoeid. Na een nieuw
-bronframe: dat script, dan `gen-klein.py` en `gen-offline-manifest.py`. Het spel en de manifest laden bron/ nooit.
+randjes gaan eruit). De lagen van Amir in de executie (`amir_*.png`) staan niet in bron/ en blijven ongemoeid. Het spel en de manifest
+laden bron/ nooit.
+
+Het bandietpalet is vanaf nu de standaard. Een nieuwe export (nieuwe frames, een nieuwe submap, of een nieuwe versie over
+een bestaand frame heen) zet je gewoon in de speelmap en dan draai je het script: `oude_kleuren` telt per frame de pixels
+in het aangeleverde palet (fel blauw, groen, paars; de speelversie telt 0), en boven `OUD_DREMPEL` gaat het frame eerst
+naar bron/ en wordt het daarna omgekleurd. Aan het eind kijkt het script na dat er in de speelmap niets meer in de oude
+kleuren staat, anders FOUT. Daarna `gen-klein.py` en `gen-offline-manifest.py`.
 
 ## de lagen: het schild als losse laag (lagen.json)
 

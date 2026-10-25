@@ -20,13 +20,18 @@ loopt als de bandiet:
 
 De lagen van Amir in executie/lagen (amir_*.png) staan niet in bron/ en worden niet aangeraakt.
 
+Het bandietpalet is de standaard. Komt er een nieuwe export (nieuwe frames of nieuwe versies van
+bestaande), zet hem dan gewoon in de speelmap en draai dit script: een frame dat daar nog in de
+oude kleuren staat wordt eerst naar bron/ gekopieerd (zo blijven de oude kleuren bewaard) en dan
+omgekleurd. Aan het eind kijkt het na dat er geen frame in de oude kleuren meer in de speelmap staat.
+
 Verandert een bronframe, draai dit opnieuw, en daarna:
     python3 tools/gen-klein.py
     python3 tools/gen-offline-manifest.py
 
 Vereist Pillow en numpy.
 """
-import os, sys, glob
+import os, sys, glob, shutil
 sys.dont_write_bytecode = True   # geen __pycache__ in tools/ door de import hieronder
 import numpy as np
 from PIL import Image
@@ -37,7 +42,10 @@ from kooiman_kleur import naar_hsv, hertint
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BRON = os.path.join(ROOT, 'enemies/schildbandiet/bron')
 UIT  = os.path.join(ROOT, 'enemies/schildbandiet')
-MAPPEN = ('lagen/lijf', 'lagen/schild', 'executie/lagen')
+# de mappen met frames van de schildbandiet; ook een nieuwe submap hieronder (een nieuwe export) gaat mee
+MAPPEN = ('lagen', 'executie')
+# zoveel pixels in een van de oude kleuren (fel blauw, groen, paars) en het is een nieuw, nog niet gekleurd frame
+OUD_DREMPEL = 20   # de speelversie telt 0; een vers schild (roze randjes) al zo'n 50
 
 
 def maak(beeld):
@@ -64,17 +72,54 @@ def maak(beeld):
     return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
 
 
-def main():
-    n = 0
+def oude_kleuren(beeld):
+    """Telt de pixels in het aangeleverde palet: het felle blauwe gewaad, de groene broek, de paarse
+    cape. Het bandietpalet zelf (donker marineblauw, kaki) valt er buiten, dus een gekleurd frame
+    telt nul en een vers aangeleverd frame honderden of duizenden."""
+    arr = np.array(beeld.convert('RGBA')).astype(float)
+    h, s, v = naar_hsv(arr[..., :3])
+    op = arr[..., 3] > 128
+    blauw = (h >= 190) & (h < 235) & (s > 0.45) & (v > 0.40)
+    groen = (h >= 70) & (h < 160) & (s > 0.35) & (v > 0.25)
+    paars = (h >= 262) & (h < 320) & (s > 0.35) & (v > 0.30)
+    return int((op & (blauw | groen | paars)).sum())
+
+
+def speelframes():
     for map_ in MAPPEN:
-        for f in sorted(glob.glob(os.path.join(BRON, map_, '*.png'))):
-            if os.path.basename(f).startswith('amir_'):
-                continue
-            maak(Image.open(f)).save(os.path.join(UIT, map_, os.path.basename(f)))
-            n += 1
+        for f in sorted(glob.glob(os.path.join(UIT, map_, '**', '*.png'), recursive=True)):
+            if not os.path.basename(f).startswith('amir_'):
+                yield f
+
+
+def main():
+    # 1. nieuw aangeleverde frames: staan ze in de speelmap nog in de oude kleuren (een nieuwe export uit
+    #    de Animeer tool, nieuw of over een bestaand frame heen), dan is dat het nieuwe origineel: eerst
+    #    naar bron/, zodat de oude kleuren bewaard blijven
+    nieuw = 0
+    for f in speelframes():
+        if oude_kleuren(Image.open(f)) > OUD_DREMPEL:
+            doel = os.path.join(BRON, os.path.relpath(f, UIT))
+            os.makedirs(os.path.dirname(doel), exist_ok=True)
+            shutil.copy2(f, doel)
+            nieuw += 1
+    # 2. alles in bron/ opnieuw naar het bandietpalet, in de speelmap
+    n = 0
+    for f in sorted(glob.glob(os.path.join(BRON, '**', '*.png'), recursive=True)):
+        if os.path.basename(f).startswith('amir_'):
+            continue
+        doel = os.path.join(UIT, os.path.relpath(f, BRON))
+        os.makedirs(os.path.dirname(doel), exist_ok=True)
+        maak(Image.open(f)).save(doel)
+        n += 1
     if not n:
         sys.exit('geen bronframes gevonden in ' + BRON)
+    # 3. controle: geen enkel speelframe mag nog in de oude kleuren staan
+    over = [os.path.relpath(f, UIT) for f in speelframes() if oude_kleuren(Image.open(f)) > OUD_DREMPEL]
+    print(f'{nieuw} nieuwe frames naar bron/ gezet (oude kleuren bewaard)')
     print(f'{n} frames omgekleurd naar het bandietpalet (hertint, lijnen blijven)')
+    if over:
+        sys.exit('FOUT: nog in de oude kleuren: ' + ', '.join(over[:10]))
 
 
 if __name__ == '__main__':
