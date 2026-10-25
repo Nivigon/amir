@@ -345,6 +345,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **Elite-garde** → `tools/bandiet_elite_kleur.js`, daarna `gen-klein.py` en `gen-offline-manifest.py`
 - **Kooi-plaat van de kooiman** → `tools/kooi_kleur.py`, daarna `gen-klein.py` en `gen-offline-manifest.py`
 - **Goudaapje** → `tools/goudaapje_kleur.js`
+- **Stenen bogen** (`design/boog/`, uit de platen in `bron/`) → `tools/boog_vulling.py`, daarna `gen-offline-manifest.py`
 - **Tribe-logo's** → `tools/tribe_logos.py`
 - **Winterversies** → `tools/sneeuw.py`, `sneeuw_bg.py`, `sneeuw_dorp.py`, `winter_art.py`
 
