@@ -638,7 +638,7 @@ de hand. De oude dood, waarbij hij achterover viel en zijn eigen speer uit zijn 
 
 ## De kruisboogbandiet
 
-Een rover met een kruisboog (nog een tijdelijke set). Hij loopt naar je toe tot hij je ziet, blijft dan staan en
+Een rover met een kruisboog (nog een tijdelijke set), in de kleuren van de bandiet en even lang. Hij loopt naar je toe tot hij je ziet, blijft dan staan en
 brengt zijn kruisboog omhoog. Voor elk schot staat er een seconde een **uitroepteken** boven zijn hoofd: dat is je
 waarschuwing. Staat hij op jouw hoogte, dan vliegt de bout recht op borsthoogte: **bukken** laat hem over je heen
 gaan, of gooi je speer in die seconde, dat is net op tijd. Staat hij hoger, dan draait hij zijn kruisboog

@@ -25209,12 +25209,14 @@ function meelStapelTeken(x, voeten, fh){
 }
 
 // ---------- de kruisboogbandiet --------------------------------------------
-// Een rover met een kruisboog (tijdelijke set, enemies/kruisboog/). Hij loopt naar Amir toe tot hij hem
+// Een rover met een kruisboog (tijdelijke set, enemies/kruisboog/, omgekleurd naar het bandietpalet met
+// tools/kruisboog_kleur.py). Hij loopt naar Amir toe tot hij hem
 // ziet, blijft dan staan en brengt zijn kruisboog omhoog. Staat Amir op zijn niveau (of hoger), dan mikt hij
 // recht vooruit; staat Amir lager, dan draait hij zijn kruisboog omlaag (en weer omhoog als Amir terugkomt).
 // Voor elk schot staat er een seconde een uitroepteken boven zijn hoofd: dat is de waarschuwing.
-//   recht: de bout vliegt horizontaal op borsthoogte, dus bukken laat hem over je heen gaan, of je speer
-//          gooien voor hij schiet (een worp in die seconde is net op tijd);
+//   recht: de bout vliegt op borsthoogte, dus bukken laat hem over je heen gaan, of je speer gooien voor hij
+//          schiet (een worp in die seconde is net op tijd). Hij is langer dan Amir, dus hij mikt een klein beetje
+//          omlaag: op Amirs borst, op de plek waar Amir staat als het schot valt;
 //   omlaag: hij mikt op de plek waar je stond toen het uitroepteken kwam, dus daar weg stappen.
 // Van dichtbij heeft hij geen verweer: één steek, worp of lage zwaai en hij valt.
 const KRB_ROOT = 'enemies/kruisboog/';
@@ -25225,7 +25227,7 @@ const KRB = {
   punt: { recht: [87, 94], laag: [14, 267] },     // de punt van de kruisboog in het laatste frame van mik en omlaag (canvas-px)
   see:      1300,   // vanaf hier (wereld-px) kan hij je zien en gaat hij mikken
   loopV:    80,     // loopsnelheid (wereld-px/s)
-  voet:     70,     // zijn voorste voet: daarmee stopt hij voor een kei of ravijn (regel 7)
+  voet:     90,     // zijn voorste voet: daarmee stopt hij voor een kei of ravijn (regel 7)
   waarschuw: 1.0,   // zo lang staat het uitroepteken er voor het schot
   herlaad:  1.4,    // na een schot: zo lang blijft hij in de mikhouding voor de volgende waarschuwing
   vergeet:  2.0,    // zo lang zonder zicht (of met Amir hoger) voor hij zijn kruisboog laat zakken en weer loopt
@@ -25235,7 +25237,7 @@ const KRB = {
   doodFade: 0.8     // en daarna vervaagt hij
 };
 const KRB_REF_FIG = 427;   // de staande figuur in canvas-px: de ijk voor de hoogte
-const KRB_H_SHARE = 0.96;  // zijn staande hoogte als deel van Amir
+const KRB_H_SHARE = 1.22;  // zijn staande hoogte als deel van Amir: even lang als de bandiet en de schildbandiet
 // de bout: recht uit de punt van de kruisboog, snel, en hij blijft even in de grond steken
 const KRB_PIJL = {
   v:    1150,  // vliegsnelheid (scherm-px/s)
@@ -25243,7 +25245,9 @@ const KRB_PIJL = {
   r:    0.04,  // raakmaat als deel van Amir: dun, zodat hij net over een gebukte Amir gaat
   knock: 300,  // de inslag duwt Amir terug
   steek: 2.5,  // zo lang blijft een gemiste bout in de grond steken
-  doelH: 0.5   // omlaag mikt hij op het midden van Amir (deel van zijn hoogte)
+  doelH: 0.5,  // omlaag mikt hij op het midden van Amir (deel van zijn hoogte)
+  borst: 0.78, // recht mikt hij op deze hoogte (deel van Amir): staand raak, gebukt (DUCK_BOX 0,68) gaat hij erover
+  minDX: 150   // recht: zo dichtbij (wereld-px) telt Amir nooit, zodat de bout niet steil omlaag schiet
 };
 const kruisbogen = [];
 const krbPijlen = [];
@@ -25308,7 +25312,15 @@ function krbSchiet(s){
     const ex = s.doel.x - p.x, ey = (p.h - s.doel.h) * scale;      // wereld-px en scherm-px omlaag
     const d = Math.max(1, Math.hypot(ex, ey));
     vx = KRB_PIJL.v * ex / d; vh = -(KRB_PIJL.v * ey / d) / scale;
-  } else { vx = s.face * KRB_PIJL.v; vh = 0; }                     // recht vooruit, op borsthoogte
+  } else {
+    // recht: op Amirs borst waar hij nu staat. Nooit omhoog (hij kan niet omhoog mikken); staat Amir achter
+    // hem of te dichtbij, dan telt de afstand minDX, zodat het een vlakke lijn blijft.
+    const ex = s.face * Math.max(KRB_PIJL.minDX, s.face * (playerX() - p.x));
+    const doelH = Math.min(p.h, vloerBij(playerX(), ph) + KRB_PIJL.borst * CHAR_H);
+    const ey = (p.h - doelH) * scale;
+    const d = Math.max(1, Math.hypot(ex, ey));
+    vx = KRB_PIJL.v * ex / d; vh = -(KRB_PIJL.v * ey / d) / scale;
+  }
   krbPijlen.push({ x: p.x, h: p.h, px: p.x, ph: p.h, vx, vh, t: 0, st: 'vlieg' });
   s.slag = 1;                                                       // de terugslag (in het tekenen)
   puffWorld(s.x, 3, 0, 0.5, s.base || 0);
