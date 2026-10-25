@@ -636,6 +636,17 @@ executie. Gooi je hem dood, dan zit je speer in zijn borst en ligt hij na de val
 klaar om op te pakken; steek je hem dood of raak je hem met de lage zwaai, dan houd je je speer gewoon in
 de hand. De oude dood, waarbij hij achterover viel en zijn eigen speer uit zijn hand liet vallen, is eruit.
 
+## De kruisboogbandiet
+
+Een rover met een kruisboog (nog een tijdelijke set). Hij loopt naar je toe tot hij je ziet, blijft dan staan en
+brengt zijn kruisboog omhoog. Voor elk schot staat er een seconde een **uitroepteken** boven zijn hoofd: dat is je
+waarschuwing. Staat hij op jouw hoogte, dan vliegt de bout recht op borsthoogte: **bukken** laat hem over je heen
+gaan, of gooi je speer in die seconde, dat is net op tijd. Staat hij hoger, dan draait hij zijn kruisboog
+**omlaag** en schiet op de plek waar je stond toen het uitroepteken kwam: **stap opzij**. Kom je weer op zijn
+hoogte, dan draait hij weer omhoog. Van dichtbij heeft hij geen verweer: één steek, worp of lage zwaai en hij valt.
+Een gemiste bout blijft even in de grond steken. In de sandbox staat hij onder Vijanden, en **Test 52: De
+kruisboog** laat hem zien: alleen, vanaf een terras, met een schildbandiet en met een bandiet.
+
 ## De kooiman
 
 De derde menselijke tegenstander is een heel ander soort vijand: een gebukte man die een zware
