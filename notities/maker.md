@@ -13,9 +13,23 @@ Alle state zit in één object, `MK`: de maat (`cols`, `rows`), de grondlijn-rij
 is (`sel`, `selMask`, `selVorm`). Eén cel is 175 wereld-px breed (`MK_CEL_PX`) en 150 eenheden
 hoog (`MK_CEL_EENH`), ongeveer één sprong.
 
-De palet-categorieën staan in `MK_CATS`, de gereedschappen in `MK_TYPES` (een terreincel heeft
-een letter `ch` voor de export, een voorwerp `obj: true`). De vijanden staan in `MK_VIJANDEN`, met
-varianten voor de bandiet en de schildbandiet, en de knoppen per vijand in `MK_VIJ_KNOP`.
+Het palet is een boom (`MK_CATS`): zes categorieën (Terrein, Start/eind, Vijanden, Objecten, Decor, Verbergen) met
+daarin groepen, en in een groep de gereedschappen of weer groepen, zo diep als nodig (Vijanden, Bandieten, Bandiet, zijn
+varianten). Een gereedschap is een id uit `MK_TYPES` (een terreincel heeft een letter `ch` voor de export, een voorwerp
+`obj: true`); de vijanden komen uit `MK_VIJANDEN`, per groep uit `MK_VIJ_GROEPEN` (`groep` op elke vijand), met een vijand
+met varianten (bandiet, schildbandiet, kooiman) als groep daarbinnen. `mkPaletKnoop` werkt de boom uit tot `MK_PALET`
+(elke knoop kent zijn `pad`), `mkPaletKnoopOp(pad)` en `mkPaletZoek(tool, soort)` zoeken erin. De linkerkolom
+(`mkLegenda`, `mkLegRijen`) toont de groepen van de gekozen categorie dichtgeklapt met één keten open (`MK.sub`, de
+groep-ids onder `MK.cat`; `null` betekent: de groep van het gereedschap dat aanstaat, anders de eerste); een klik op een
+groep klapt hem open of dicht (`mkKies`), een gereedschap kiezen zet zijn groep open. Het zwevende menu onder een
+categorieknop (`mkMenuToon`, `mkMenuVul`) klapt per groep opzij uit in een laag dieper (`mkFlyToon`, de lagen in
+`mkMenuLagen`, zo veel als de boom diep is; een laag die rechts of onder uit het venster steekt schuift terug). De knoppen
+per vijand staan in `MK_VIJ_KNOP`. De keuzelijsten Soort (bij een vijand) en Vijand eruit (bij een poort) volgen dezelfde
+groepen (`mkVijOpties`, een `optgroup` per groep).
+
+Het paneel rechts van een poort is in drie inklapbare kopjes verdeeld (`details.mkklap`: Uiterlijk, Vijand en hek,
+Rotswand). De eerste keer staat open wat in gebruik is, daarna onthoudt `mkKlapStaat` wat je zelf open- of dichtklapte
+(`mkKlapZet`, aangeroepen uit `mkVulPoort`).
 Een vijand staat op het grid, in het palet (`mkStaal` met een soort) en op de plakstempel als het gekleurde
 rondje van zijn soort met een icoon erin (`mkVijIcoon`, met `mkVijBadge` voor het badge rechtsonder): een
 tekening in canvas-lijnen op schaal van de cel, dus scherp op elke zoom. De varianten en de knoppen die aanstaan
@@ -203,7 +217,7 @@ stuurt, een masker, een zwarte cel, een vorm) en
 kijkt na: de round-trip van export en import, de vertaling naar een spel-level, rijen invoegen en
 weer weghalen, verkleinen, snel schilderen, de rechthoek, het aanklikken van brede voorwerpen,
 ongedaan maken, een gebied kopiëren, spiegelen, plakken en knippen, een rijzer van even breedte spiegelen met
-zijn zegel eraan, een poort met hek, regie en rotswand (round-trip, vertaling, spiegelen, de knop Poort met hek, levelcheck), de minimap en Test vanaf hier, de vijand-knoppen, de controle, de Test starten en teruggaan,
+zijn zegel eraan, een poort met hek, regie en rotswand (round-trip, vertaling, spiegelen, de knop Poort met hek, levelcheck), de minimap en Test vanaf hier, het palet (elke tool en vijand in de boom, de kolom en de flyouts), de vijand-knoppen, de controle, de Test starten en teruggaan,
 de autosave, en of
 het proefgrid als spel-level door `levelcheck.py` komt. Draai hem na elke wijziging aan de Maker.
 
