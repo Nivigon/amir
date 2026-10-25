@@ -70,7 +70,8 @@ async function start(){
 //  - een muur door de grond (kolom 10, rij 6 en 7), sneeuw op kolom 0 en 1
 //  - start op kolom 19, eind op kolom 2
 //  - een zandslang, een bandiet met dolk, een platform met doel plus een tandwiel, een overhang, een richel,
-//    een verborgen zegel met masker dat ook een rijzer stuurt, een rune, een kalebas, een prop
+//    een verborgen zegel met masker dat ook een rijzer stuurt, een onzichtbaar zegel op het dak van de gang,
+//    een rune, een kalebas, een prop
 //  - een tweede ravijn (kolom 11 en 12) met een rijzer van 2 breed erin, drie cellen diep, die tot de grondlijn komt
 //  - een masker (Verborgen1) van twee cellen, een zwarte cel, en een vrije blokvorm
 //  - een gespiegelde stenen poort in savannekleur (kolom 16) met twee schorpioenen erin, die de rune opent
@@ -105,6 +106,7 @@ function proefGrid(){
       { c: 18, r: 6, k: 'rune', masker: 'Verborgen1', poort: { c: 16, r: 6 }, note: '' },
       { c: 16, r: 6, k: 'poort', boog: 'boog_steen', f: true, look: 'savanne', vijand: 'scorp', n: 2, note: '' },
       { c: 19, r: 5, k: 'hppotion', note: '' },
+      { c: 20, r: 6, k: 'zegel', onzichtbaar: true, note: '' },
       { c: 1, r: 6, k: 'prop', note: 'een boom' },
     ],
   };
@@ -171,6 +173,7 @@ function verschil(a, b, pad = ''){
     if (!a.start || a.start.c !== 19 || !a.eind || a.eind.c !== 2) uit.push('start of eind kwijt');
     if (!a.maskers.length || a.maskers[0].cells.length !== 2) uit.push('masker kwijt');
     if (a.zwart.length !== 1 || a.vormen.length !== 1) uit.push('zwarte cel of vorm kwijt');
+    const onz = a.objecten.find(o => o.k === 'zegel' && o.onzichtbaar); if (!onz || onz.verstop) uit.push('onzichtbaar zegel kwijt of ook verstopt');
     const zegel = a.objecten.find(o => o.k === 'zegel'); if (!zegel || !zegel.verstop || zegel.masker !== 'Verborgen1') uit.push('zegel verloor verstop of masker');
     const wiel = a.objecten.find(o => o.k === 'tandwiel'); if (!wiel || !wiel.platform || wiel.platform.c !== 13) uit.push('tandwiel verloor zijn platform');
     const rz = a.objecten.find(o => o.k === 'rijzer'); if (!rz || !rz.doel || rz.doel.r !== 7 || rz.breed !== 2) uit.push('rijzer verloor zijn doel of breedte');
@@ -204,6 +207,7 @@ function verschil(a, b, pad = ''){
     if (!sp.find(s => s.k === 'groen' && s.speed === 2)) uit.push('zandslang zonder snelheid 2: ' + JSON.stringify(sp));
     if (!sp.find(s => s.k === 'bandiet' && s.dolk)) uit.push('geen bandiet met dolk');
     if (!(lv.zegels || []).find(z => z.verstop && z.stuurt && z.stuurt[0] === 'Verborgen1')) uit.push('geen verborgen zegel aan het masker');
+    if (!(lv.zegels || []).find(z => z.onzichtbaar && !z.verstop && z.dak)) uit.push('geen onzichtbaar zegel op het dak: ' + JSON.stringify(lv.zegels));
     if (!(lv.runes || []).length) uit.push('geen rune');
     const pt = (lv.poorten || [])[0];
     if (!pt || pt.id !== 'b1' || pt.k !== 'boog_steen' || !pt.f || pt.look !== 'savanne' || pt.y !== undefined) uit.push('geen gespiegelde poort b1 op de grond: ' + JSON.stringify(lv.poorten));
@@ -347,14 +351,14 @@ function verschil(a, b, pad = ''){
     if (na.cel !== 'lucht rots rots lucht') uit.push('geplakte cellen: ' + na.cel);
     if (na.obj !== 'richel@17,1|vijand@14,2') uit.push('geplakte voorwerpen: ' + na.obj);
     if (na.plak) uit.push('de stempel bleef hangen na het neerzetten');
-    if (na.n !== 14) uit.push('aantal voorwerpen na plakken: ' + na.n + ' in plaats van 14');
+    if (na.n !== 15) uit.push('aantal voorwerpen na plakken: ' + na.n + ' in plaats van 15');
     // knippen: het gebied is nu het geplakte stuk; Ctrl+X maakt het leeg
     await page.keyboard.press('Control+x');
     const leeg = await page.evaluate(() => ({ cel: MK.grid[2].slice(14, 18).join(' '), n: MK.objects.length }));
-    if (leeg.cel !== 'lucht lucht lucht lucht' || leeg.n !== 12) uit.push('na knippen: ' + JSON.stringify(leeg));
+    if (leeg.cel !== 'lucht lucht lucht lucht' || leeg.n !== 13) uit.push('na knippen: ' + JSON.stringify(leeg));
     await page.keyboard.press('Control+z');
     const terug = await page.evaluate(() => MK.objects.length);
-    if (terug !== 14) uit.push('ongedaan maken na knippen: ' + terug + ' voorwerpen in plaats van 14');
+    if (terug !== 15) uit.push('ongedaan maken na knippen: ' + terug + ' voorwerpen in plaats van 15');
     return uit;
   });
 
@@ -525,7 +529,7 @@ function verschil(a, b, pad = ''){
       mkPlak = { c: 0, r: 0 }; mkPlakZet();                                                 // plakken linksboven, waar niets staat
       const pz = MK.objects.find(o => o.k === 'zegel' && o.c === 0 && o.r === 0), pr = MK.objects.find(o => o.k === 'rijzer' && o.r === 4);
       uit.plak = { zegel: !!pz, rijzer: pr && pr.c, cellen: pr && mkRijsCellen(pr), gekoppeld: !!(pz && pr && mkRijsVan(pz) === pr) };
-      const lv = mkNaarLevel(); uit.n = (lv.rijzers || []).length; uit.rijs = (lv.zegels || []).map(z => z.rijs).sort();
+      const lv = mkNaarLevel(); uit.n = (lv.rijzers || []).length; uit.rijs = (lv.zegels || []).map(z => z.rijs).filter(Boolean).sort();
       return uit;
     });
     const uit = [];

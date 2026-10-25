@@ -27,13 +27,25 @@ Met `veegDuur` (seconden) duurt het wegslaan langer of korter dan de standaard v
 
 Test 47 is het proefstuk: zes gleuf-zegels met de wolk, drie trage (`veegDuur: 1.8`) en drie snelle (`0.55`), elk drietal van klein naar groot (`veegMaat` 1, 1,6 en 2,3), elk onder een rode pijl (`pijlen`, `pijlTeken`, `PIJL`: een wegwijzer in de lucht met een naam, alleen voor testlevels). In de sandbox onder **Verstopt zegel** (een knop per uiterlijk) en **Veeg** (de veeg voor de verstopte zegels die er liggen en de volgende, en **Weer onder het zand** om een onthulling opnieuw te zien) en **Wolk** (Traag, Gewoon, Snel en Klein, Middel, Groot: `veegDuur` en `veegMaat`).
 
+## onzichtbaar zegel: niets te zien tot je erop stapt
+
+`onzichtbaar: true`, `ZEGEL_ONZICHTBAAR`, `zegelOnzichtbaar`, `zegelZie`, `z.gezien`, `z.zien`. Waar het verstopte zegel nog
+heel licht te zien is en eerst blootgeveegd moet worden, is van een onzichtbaar zegel helemaal niets te zien (`zegelTeken`
+slaat hem over), en hij gaat gewoon aan als iemand die hem mag aanzetten erop stapt: Amir, of met `vijand` ook een vijand
+(bij `speer: true` of `plafond: 'op'` de speer, `zegelSpeer`). Op dat moment schakelt hij meteen (`zegelSchakel`), en
+`zegelZie` zet `z.gezien`: het ontdekgeluid (`zegelOntdekSnd`, volume `ZEGEL_VERSTOP.geluid`) en de hint "Een onzichtbaar
+zegel!" (een eigen hint van wat hij doet, zoals het ravijn, komt daar meteen overheen). Daarna komt hij in
+`ZEGEL_ONZICHTBAAR.verschijn` seconden op (`z.zien` van 0 naar 1, als alpha) en is hij een gewoon zegel, ook bij het
+uitzetten. `zegelReset` maakt hem weer onzichtbaar. Met zowel `verstop` als `onzichtbaar` wint onzichtbaar (`readLevel`
+laat `verstop` dan weg). In de sandbox onder **Onzichtbaar zegel**: **Leg neer** en **Weer onzichtbaar**.
+
 ## de standaard, de Maker en de vloer
 
 **Standaard.** Een verstopt zegel zonder eigen veeg krijgt `ZEGEL_VERSTOP.standaard`: de gleuf met de wolk, traag (`veegDuur` 1,8) en middel (`veegMaat` 1,6), zoals nummer 2 in Test 47. `verstop: true` is die standaard. Een zegel met een eigen `veeg` houdt de oude standaard per veeg (`ZEGEL_VERSTOP.vegen`). De sandbox begint ook op traag en middel.
 
-**Level Maker (nieuwe stijl).** Bij een zegel staat het vinkje **Verborgen (onder het zand)** (`mkVulZegel`, `#mkzegelctl`, `o.verstop`, mee in `mkNaarJSON`/`mkUitJSON`). In `mkNaarLevel` wordt het `{x, teken: 'rune', verstop: true}`, ook zonder masker (een gewoon zegel zonder masker blijft een aantekening). Staat het zegel op of boven de grondlijn met een gang eronder, dan krijgt het `dak: true`: anders zakte het door de savanne naar de gang-bodem, want een zegel heeft alleen een x.
+**Level Maker (nieuwe stijl).** Bij een zegel staat het keuzemenu **Te zien** (`mkVulZegel`, `#mkzegelctl`, `#mkzegelzicht`): Open, **Verborgen (onder het zand)** (`o.verstop`) of **Onzichtbaar (tot je erop stapt)** (`o.onzichtbaar`), mee in `mkNaarJSON`/`mkUitJSON`. In `mkNaarLevel` wordt het `{x, teken: 'rune', verstop: true}` of `{x, teken: 'rune', onzichtbaar: true}`, ook zonder masker (een gewoon zegel zonder masker blijft een aantekening). Staat het zegel op of boven de grondlijn met een gang eronder, dan krijgt het `dak: true`: anders zakte het door de savanne naar de gang-bodem, want een zegel heeft alleen een x.
 `readLevel` neemt `dak` over; dat deed hij eerst niet (het stond niet in zijn lijst), zodat het zegel in de Test toch
-beneden lag. Op het grid krijgt het een stippelring van zand.
+beneden lag. Op het grid krijgt het verborgen zegel een stippelring van zand, het onzichtbare een ijle witte.
 
 **De vloer.** Het zand, de gleuf, het dek, de korrels, het stof en de stenen van de ring krijgen de kleur van de vloer: `ZEGEL_VLOER` (savanne, gang, zwart, sneeuw, rots), `zegelPalet` zet het in `ZEGEL_KLEUR` voor een verstopt zegel en daarna terug op savanne. `zegelVloerSoort` kiest: `vloer` op het zegel, anders zwart terrein uit de Maker (terras of zwevende laag met `zwart`) is zwart, de bodem van een gang (vloer onder de grondlijn) is gang (het zand in de schemer, zo'n 40% van de savanne), winter of sneeuw op de grond is sneeuw, een kale rotsbodem rots, en verder savanne. De kleuren zijn afgesteld op de gemeten vloer in beeld (het dek iets lichter dan de vloer, net als op de savanne). `zicht` zet hoe goed de gleuf te zien is zolang hij verstopt ligt, per vloer op het oog afgesteld: savanne 0,65, gang 0,55, zwart 0,85, sneeuw 0,65, rots 0,75 (daarvoor zwart 0,5, rots 1,7, de rest 1). Afstellen gaat met de artifact-pagina Zegel zichtbaarheid: per vloer een schermafdruk uit het spel zonder zegel, met het zegel erover getekend door dezelfde gleufcode, en een schuif per vloer; de pagina geeft de regels voor `ZEGEL_VLOER` terug. Het stof is het gewone wolkje, per kleur een keer gebakken (`stofPuffIn`, met `bakeSnowDust`). Een gewoon (niet verstopt) zegel blijft savanne, zodat De Valse Koning niet verandert. In de sandbox onder **Vloer** (Vanzelf, Savanne, Gang, Zwart, Sneeuw, Rots).
 

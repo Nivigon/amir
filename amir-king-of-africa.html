@@ -992,7 +992,7 @@
           <div id="mkrichelinfo" class="mkhint"></div>
         </div>
         <div id="mkzegelctl" style="display:none">
-          <div class="mkveld"><label><input id="mkzegelverstop" type="checkbox"> Verborgen (onder het zand)</label></div>
+          <div class="mkveld"><label for="mkzegelzicht">Te zien</label><select id="mkzegelzicht"><option value="open">Open in de grond</option><option value="verstop">Verborgen (onder het zand)</option><option value="onzichtbaar">Onzichtbaar (tot je erop stapt)</option></select></div>
           <div id="mkzegelinfo" class="mkhint"></div>
         </div>
         <div id="mkmaskctl" class="mkveld" style="display:none"><label for="mkmasksel">Onthult masker</label><select id="mkmasksel"></select></div>
@@ -1385,6 +1385,12 @@
         <button data-zegelverstop="kiezels">Kiezels</button>
         <button data-zegelverstop="ribbels">Ribbels</button>
         <span class="hint">een zegel onder het zand, heel licht zichtbaar (de gleuf is de keuze, de rest zijn proeven): veeg het bloot met de lage zwaai, daarna werkt het</span>
+      </div>
+      <div class="row">
+        <label>Onzichtbaar zegel</label>
+        <button data-zegelonz="leg">Leg neer</button>
+        <button data-zegelonz="terug">Weer onzichtbaar</button>
+        <span class="hint">een zegel waar niets van te zien is (onzichtbaar: true); stap erop en hij gaat aan en verschijnt. Weer onzichtbaar zet alle onzichtbare zegels terug</span>
       </div>
       <div class="row">
         <label>Veeg</label>
@@ -8065,8 +8071,12 @@ function zegelUpdate(dt, scale){
     if (z.plafond && z.px !== undefined && Math.abs(ph - vloer) < CHAR_H * 0.5
         && (z.px - z.x) * (world - z.x) < 0) op = true;
     z.px = world;
-    if (op && !z.op && !zegelVerstopt(z)) zegelSchakel(z, vijand);   // verstopt: eerst blootvegen (zie "verstopt zegel")
+    if (op && !z.op && !zegelVerstopt(z)){             // verstopt: eerst blootvegen (zie "verstopt zegel")
+      zegelZie(z);                                    // onzichtbaar: nu verschijnt hij
+      zegelSchakel(z, vijand);
+    }
     z.op = op;
+    if (z.gezien && (z.zien || 0) < 1) z.zien = Math.min(1, (z.zien || 0) + dt / ZEGEL_ONZICHTBAAR.verschijn);
     zegelGloei(z, dt);
     zegelVeegUpdate(z, dt, rPx, vloer, scale);
   }
@@ -8136,11 +8146,13 @@ function zegelTeken(groundY, scale, cx){
     if (z.weg) continue;
     if (z.naTakelVal && !z.onthuld) continue;       // nog niet verschenen
     if (achterMasker(z.x, zegelVloer(z, scale))) continue;   // verborgen binnen een masker
+    if (zegelOnzichtbaar(z)) continue;               // onzichtbaar tot iemand erop stapt
     const sx = cx + (z.x - world);
     if (sx < -r * 2 || sx > W / viewZoom() + r * 2) continue;
     const h = z.val ? z.val.h : 0;
     ctx.save();
     if (z.val) ctx.globalAlpha = Math.max(0, 1 - h / ZEGEL_VAL.diep);
+    if (z.onzichtbaar) ctx.globalAlpha *= z.zien || 0;   // net gevonden: hij komt op
     const py = groundY - (zegelVloer(z, scale) - h) * scale;
     zegelPalet(z.verstop ? zegelVloerSoort(z, scale) : 'savanne');   // een verstopt zegel krijgt de kleur van zijn vloer
     if (zegelVerstopt(z)) zegelVerstopTeken(ctx, z, sx, py, r, zegelTekenVan(z));   // onder het zand, of net aan het vegen
@@ -8154,7 +8166,7 @@ function zegelTeken(groundY, scale, cx){
   zegelKorrelTeken(groundY, scale, cx);
 }
 function zegelReset(){
-  if (level && level.zegels) for (const z of level.zegels){ z.aan = false; z.op = false; z.t = 0; z.val = null; z.weg = false; z.px = undefined; z.onthuld = false; z.vrij = false; z.vegen = null; }
+  if (level && level.zegels) for (const z of level.zegels){ z.aan = false; z.op = false; z.t = 0; z.val = null; z.weg = false; z.px = undefined; z.onthuld = false; z.vrij = false; z.vegen = null; z.gezien = false; z.zien = 0; }
   zegelKorrels.length = 0;
 }
 
@@ -8202,6 +8214,17 @@ const ZEGEL_VERSTOP = {
 const ZV_GOUD = '#fff1c4', ZV_GLOED = '#ffd66b';    // het licht van ontdekken (aanzetten is oranje)
 const zegelKorrels = [];   // zandkorrels van het vegen, vast in de wereld
 const zegelVerstopt = z => !!z.verstop && !z.vrij;
+// Een onzichtbaar zegel (onzichtbaar: true): er is niets van te zien, ook geen gleuf, tot iemand die hem mag
+// aanzetten erop stapt (of een speer, bij speer: true). Dan schakelt hij meteen, en verschijnt hij in `verschijn`
+// seconden met het geluid van ontdekken; daarna is het een gewoon zegel (zie "onzichtbaar zegel").
+const ZEGEL_ONZICHTBAAR = { verschijn: 0.4 };
+const zegelOnzichtbaar = z => !!z.onzichtbaar && !z.gezien;
+function zegelZie(z){
+  if (!zegelOnzichtbaar(z)) return;
+  z.gezien = true;
+  banStemSpeel(zegelOntdekSnd, ZEGEL_VERSTOP.geluid);
+  flashHint('Een onzichtbaar zegel!');                // wat het zegel doet, zegt zijn eigen hint daarna
+}
 const zvUit = t => 1 - (1 - t) * (1 - t);
 const zvInUit = t => t < .5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t);
 const zvStof = t => .3 * zvUit(t) + .7 * t;        // het front van stof: snel weg, dan gestaag
@@ -9077,8 +9100,8 @@ function zegelSpeer(x, scale){
   const r = ZEGEL.r * CHAR_H * scale * ZAK.raak;
   for (const z of (level && level.zegels) || []){
     if (z.weg || Math.abs(x - z.x) >= r) continue;
-    if (z.plafond === 'op') zegelPlafond(z);
-    else if (z.speer && z.rijs) zegelRijs(z);
+    if (z.plafond === 'op'){ zegelZie(z); zegelPlafond(z); }
+    else if (z.speer && z.rijs){ zegelZie(z); zegelRijs(z); }
   }
 }
 // Stof van steen dat beweegt, voor het zakkende plafond en de rijzende grond: een wolk langs de vloer
@@ -32040,7 +32063,9 @@ function readLevel(txt){
                                                 // Maker een zegel op de grondlijn meegeeft (zie zegelGrondH)
                                                 dak: q.dak === true ? true : undefined,
                                                 // onder het zand tot de lage zwaai het blootveegt, en hoe (zie "verstopt zegel")
-                                                verstop: ZEGEL_VERBORGEN[q.verstop] ? q.verstop : q.verstop === true ? ZEGEL_VERSTOP.standaard.verstop : undefined,
+                                                // niets van te zien tot iemand erop stapt (zie "onzichtbaar zegel"); dan geen zand erover
+                                                onzichtbaar: q.onzichtbaar === true ? true : undefined,
+                                                verstop: q.onzichtbaar === true ? undefined : ZEGEL_VERBORGEN[q.verstop] ? q.verstop : q.verstop === true ? ZEGEL_VERSTOP.standaard.verstop : undefined,
                                                 vloer: q.verstop && ZEGEL_VLOER[q.vloer] ? q.vloer : undefined,
                                                 veeg: q.verstop && ZEGEL_VERSTOP.vegen[q.veeg] ? q.veeg : undefined,
                                                 // hoe lang het wegslaan duurt en hoe groot het stof wordt
@@ -33685,16 +33710,23 @@ function mkLookOf(v){ return (v === 'zwart' || v === 'savanne' || v === 'rots' |
 function mkMaskNamen(){ const n = MK.maskers.filter(m => m.cells.length).map(m => m.id); if (!n.includes(MK.maskId)) n.push(MK.maskId); return n; }
 function mkMaskNieuw(){ const had = new Set(MK.maskers.map(m => m.id)); for (let i = 1; i < 999; i++) if (!had.has('Verborgen' + i)) return 'Verborgen' + i; return 'Verborgen' + Date.now(); }
 function mkMaskInCel(c, r){ for (const m of MK.maskers){ const i = m.cells.findIndex(p => p.c === c && p.r === r); if (i >= 0) return { m, i }; } return null; }
-// het vinkje Verborgen op een zegel: dan ligt het in het spel onder het zand (de gleuf) tot de lage zwaai het
-// blootveegt, met de standaard wolk (traag, middel; ZEGEL_VERSTOP.standaard). Pas daarna gaat het aan. Het zand
-// heeft de kleur van de vloer: in een gang of op zwart terrein zwart, op sneeuw wit, op rots grijs.
+// Te zien, bij een zegel: Open, Verborgen of Onzichtbaar. Verborgen ligt in het spel onder het zand (de gleuf) tot
+// de lage zwaai het blootveegt, met de standaard wolk (traag, middel; ZEGEL_VERSTOP.standaard); pas daarna gaat het
+// aan. Het zand heeft de kleur van de vloer: in een gang of op zwart terrein zwart, op sneeuw wit, op rots grijs.
+// Onzichtbaar is er helemaal niet te zien, en gaat meteen aan als je erop stapt; dan verschijnt het (zie "onzichtbaar zegel").
 function mkVulZegel(){
-  const o = MK.sel, el = document.getElementById('mkzegelverstop'); if (!o || !el) return;
-  el.checked = !!o.verstop;
-  el.onchange = () => { o.verstop = el.checked || undefined; mkVulZegel(); mkBewaar(); mkTeken(); };
-  document.getElementById('mkzegelinfo').textContent = o.verstop
+  const o = MK.sel, el = document.getElementById('mkzegelzicht'); if (!o || !el) return;
+  el.value = o.onzichtbaar ? 'onzichtbaar' : o.verstop ? 'verstop' : 'open';
+  el.onchange = () => {
+    o.verstop = el.value === 'verstop' || undefined;
+    o.onzichtbaar = el.value === 'onzichtbaar' || undefined;
+    mkVulZegel(); mkBewaar(); mkTeken();
+  };
+  document.getElementById('mkzegelinfo').textContent = o.onzichtbaar
+    ? 'Niet te zien: wie erop stapt zet hem meteen aan, en dan verschijnt hij. Zonder masker licht hij alleen op.'
+    : o.verstop
     ? 'Ligt onder het zand: buk en doe de lage zwaai erop, pas dan gaat hij aan als je erop stapt. Zonder masker licht hij alleen op.'
-    : 'Ligt open in de grond. Zonder masker is het alleen een aantekening; vink Verborgen aan om hem ook zo te testen.';
+    : 'Ligt open in de grond. Zonder masker is het alleen een aantekening; kies Verborgen of Onzichtbaar om hem ook zo te testen.';
 }
 function mkVulMaskSelect(){                           // het keuzemenu "onthult masker" op een zegel of rune
   const sel = document.getElementById('mkmasksel'); if (!sel || !MK.sel) return;
@@ -34150,8 +34182,8 @@ function mkTeken(){
       mkCtx.textAlign = 'center'; mkCtx.textBaseline = 'middle';
       mkCtx.fillText(o.k === 'tandwiel' ? '⚙' : (t.letter || '?'), cx, cy + 1);
     }
-    if (o.k === 'zegel' && o.verstop){                       // verborgen: een stippelring van zand eromheen
-      mkCtx.save(); mkCtx.setLineDash([3, 3]); mkCtx.strokeStyle = '#e8c48a'; mkCtx.lineWidth = 2;
+    if (o.k === 'zegel' && (o.verstop || o.onzichtbaar)){   // verborgen: een stippelring van zand; onzichtbaar: een ijle witte
+      mkCtx.save(); mkCtx.setLineDash(o.onzichtbaar ? [2, 5] : [3, 3]); mkCtx.strokeStyle = o.onzichtbaar ? '#e8f4ff' : '#e8c48a'; mkCtx.lineWidth = 2;
       mkCtx.beginPath(); mkCtx.arc(cx, cy, rad + 4, 0, 7); mkCtx.stroke(); mkCtx.restore(); }
     if (o.note){ mkCtx.fillStyle = '#ffd24a'; mkCtx.beginPath(); mkCtx.arc(cx + rad * 0.85, cy - rad * 0.85, Math.max(2, cel * 0.12), 0, 7); mkCtx.fill(); }
   }
@@ -34806,6 +34838,7 @@ function mkNaarJSON(){
              const b = { c:o.c, r:o.r, k:o.k, note:o.note || '' };
              if ((o.k === 'zegel' || o.k === 'rune') && o.masker) b.masker = String(o.masker);   // onthult dit masker (zie "masker")
              if (o.k === 'zegel' && o.verstop) b.verstop = true;                                  // onder het zand (zie mkVulZegel)
+             if (o.k === 'zegel' && o.onzichtbaar) b.onzichtbaar = true;                          // niet te zien tot je erop stapt
              if ((o.k === 'zegel' || o.k === 'rune') && mkRijsVan(o)) b.rijzer = { c:o.rijsObj.c, r:o.rijsObj.r };   // stuurt die rijzer (op celpositie, zoals een wiel zijn platform)
              if ((o.k === 'zegel' || o.k === 'rune') && mkPoortVan(o)) b.poort = { c:o.poortObj.c, r:o.poortObj.r };   // opent die poort (ook op celpositie)
              if (o.k === 'poort'){ b.boog = poortSoort(o.boog); if (o.f) b.f = true; if (poortLookOf(o.look)) b.look = o.look; if (mkPoortVijOk(o.vijand)){ b.vijand = o.vijand; if (o.n > 1) b.n = Math.min(MK_POORT_N, o.n); }
@@ -34846,7 +34879,8 @@ function mkUitJSON(o){
   const objects = Array.isArray(o.objecten) ? o.objecten.filter(q => q && mkIsObj(q.k) && in_(q.c|0, q.r|0)).map(q => {
     const b = { c:q.c|0, r:q.r|0, k:q.k, note:String(q.note || '') };
     if ((q.k === 'zegel' || q.k === 'rune') && q.masker) b.masker = String(q.masker);
-    if (q.k === 'zegel' && q.verstop) b.verstop = true;
+    if (q.k === 'zegel' && q.onzichtbaar) b.onzichtbaar = true;
+    else if (q.k === 'zegel' && q.verstop) b.verstop = true;
     if ((q.k === 'zegel' || q.k === 'rune') && q.rijzer && q.rijzer.c != null) b._rijs = { c:q.rijzer.c|0, r:q.rijzer.r|0 };
     if ((q.k === 'zegel' || q.k === 'rune') && q.poort && q.poort.c != null) b._poort = { c:q.poort.c|0, r:q.poort.r|0 };
     if (q.k === 'poort'){ b.boog = poortSoort(q.boog); if (q.f) b.f = true; if (poortLookOf(q.look)) b.look = q.look;
@@ -35343,13 +35377,14 @@ function mkNaarLevel(opt){
   const maskIds = new Set(maskers.map(m => m.id)), acties = [];
   for (const o of MK.objects){
     if (o.k !== 'zegel' && o.k !== 'rune') continue;
-    const verstop = o.k === 'zegel' && o.verstop;       // een verborgen zegel gaat altijd mee, ook zonder masker
+    const onz = o.k === 'zegel' && o.onzichtbaar;       // een onzichtbaar zegel net zo
+    const verstop = o.k === 'zegel' && o.verstop && !onz;   // een verborgen zegel gaat altijd mee, ook zonder masker
     const koppel = o.masker && maskIds.has(o.masker), rijs = rijsIds.get(mkRijsVan(o)), poort = poortIds.get(mkPoortVan(o));
-    if (!koppel && !verstop && !rijs && !poort) continue;
+    if (!koppel && !verstop && !onz && !rijs && !poort) continue;
     const [ol, or2] = lr(o.c), ox = Math.round((ol + or2) / 2);
     // een zegel op of boven de grondlijn met een gang eronder ligt op het dak (de savanne), niet op de gang-bodem
     const dak = o.r <= gR && holtes.some(h => ox >= h.l && ox <= h.r);
-    if (o.k === 'zegel') (lvl.zegels = lvl.zegels || []).push({ x: ox, teken: 'rune', ...(koppel ? { stuurt: [o.masker] } : {}), ...(rijs ? { rijs } : {}), ...(poort ? { poort } : {}), ...(verstop ? { verstop: true } : {}), ...(dak ? { dak: true } : {}) });
+    if (o.k === 'zegel') (lvl.zegels = lvl.zegels || []).push({ x: ox, teken: 'rune', ...(koppel ? { stuurt: [o.masker] } : {}), ...(rijs ? { rijs } : {}), ...(poort ? { poort } : {}), ...(verstop ? { verstop: true } : {}), ...(onz ? { onzichtbaar: true } : {}), ...(dak ? { dak: true } : {}) });
     else (lvl.runes = lvl.runes || []).push({ x: ox, doel: true, opstelling: 'vlak', ...(koppel ? { stuurt: [o.masker] } : {}), ...(rijs ? { rijs } : {}), ...(poort ? { poort } : {}) });
     if (koppel && !acties.some(a => a.masker === o.masker)) acties.push({ soort: 'masker', masker: o.masker, bij: [o.masker] });
   }
@@ -35473,7 +35508,7 @@ function mkControle(){
       const heeft = o.masker && MK.maskers.some(mm => mm.id === o.masker && mm.cells.length);
       const rz = mkRijsVan(o), pz = mkPoortVan(o);
       if (o.masker && !heeft) meld('letop', naam + ' op kolom ' + o.c + ' wijst naar een masker dat er niet (meer) is.', o.c, o.r);
-      else if (!heeft && !rz && !pz && !(o.k === 'zegel' && o.verstop)) meld('info', naam + ' op kolom ' + o.c + ' is alleen een aantekening: koppel een masker, een rijzer of een poort, of vink bij een zegel Verborgen aan.', o.c, o.r);
+      else if (!heeft && !rz && !pz && !(o.k === 'zegel' && (o.verstop || o.onzichtbaar))) meld('info', naam + ' op kolom ' + o.c + ' is alleen een aantekening: koppel een masker, een rijzer of een poort, of kies bij een zegel Verborgen of Onzichtbaar.', o.c, o.r);
       if (pz && !mkPoortVijOk(pz.vijand)) meld('info', naam + ' op kolom ' + o.c + ' opent poort b' + mkPoortNr(pz) + ', maar daar zit geen vijand in: ' + (pz.hek ? 'het hek gaat op, maar er komt niemand uit.' : 'er gebeurt niets.'), o.c, o.r);
       if (rz && rz.zak) meld('letop', naam + ' op kolom ' + o.c + ' stuurt een rijzer die onder je wegzakt: die heeft geen schakelaar nodig en luistert er niet naar.', o.c, o.r);
     }
@@ -37041,6 +37076,20 @@ sandboxEl.querySelectorAll('button[data-zegelveeg]').forEach(b => b.onclick = ()
     else z.veeg = v;
   }
   if (v !== 'terug') sbZegelVeeg = v;
+  cv.focus();
+});
+// een onzichtbaar zegel (zie "onzichtbaar zegel") voor je uit, en alle onzichtbare zegels weer onzichtbaar en uit
+sandboxEl.querySelectorAll('button[data-zegelonz]').forEach(b => b.onclick = () => {
+  if (!level.zegels) level.zegels = [];
+  if (b.dataset.zegelonz === 'terug'){
+    for (const z of level.zegels) if (z.onzichtbaar){ z.gezien = false; z.zien = 0; z.aan = false; z.t = 0; z.op = false; }
+  } else {
+    const side = sbFromRight ? 1 : -1;
+    let x = world + side * 300;
+    x = Math.max(Math.min(x, cliffAt().wall - 300), endWall() + 300);
+    level.zegels.push({ x, ravijn: null, teken: sbZegelTeken, onzichtbaar: true });
+    flashHint('Er ligt een onzichtbaar zegel een paar passen voor je');
+  }
   cv.focus();
 });
 // de vloer onder de verstopte zegels (de kleur van zand, gleuf en stof), voor die er liggen en de volgende
