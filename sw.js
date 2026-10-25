@@ -24,7 +24,9 @@ const SHELL_CACHE = 'amir-shell-v1';
 // deze naam gooit de oude cache (v1) in een keer weg bij activate, zodat iedereen schoon opnieuw
 // begint. Voor latere wijzigingen doet syncAssetVersion de rest (zie hieronder), zonder dat deze
 // naam elke keer mee hoeft.
-const ASSET_CACHE = 'amir-assets-v2';
+// v3: de schildbandiet tekent alleen nog uit lagen (lagen.json en executie.json); de oude complete
+// sets zijn uit de repo, en zo gaat ook de oude set uit de cache op de telefoon.
+const ASSET_CACHE = 'amir-assets-v3';
 
 // Sleutel waaronder we in de assetcache bijhouden welke assetversie erin zit.
 // Geen echt bestand, alleen een plek om een string te bewaren.

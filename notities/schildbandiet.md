@@ -7,53 +7,57 @@
 
 ## de schildstaat: het schild gaat zichtbaar kapot
 
-`SCHB_STAAT`, `SCHB_SETS`, `schbStaat`, `schbBankVoor`, `schbFrameImg`. Het schild zit in de frames gebakken, in vier standen: 0 treffers `metschild`, 1 `fase1` (een hap eruit), 2 `fase2` (twee happen), 3 `zonderschild` (weg, daarna in een klap dood). `schbStaat` leidt de stand af uit `s.schild` en `s.metSchild`; omdat `hitSchildman` het schild al verlaagt voor de flinch begint, speelt de flinch meteen in de nieuwe stand en verschijnt de hap op het moment van de klap. Bij een gepantserde treffer (late tell) wisselt de strike midden in de animatie van set; dat verspringt niet, want het lijf is in alle sets pixel voor pixel hetzelfde (zelfde canvas 544x860, grondlijn 781, anker 272, zelfde timing). De loop blijft `loop_metschild` tot het schild weg is.
+`SCHB_STAAT`, `schbStaat`. Het schild heeft vier standen: 0 treffers `metschild`, 1 `fase1` (een hap eruit), 2 `fase2` (twee happen), 3 `zonderschild` (weg, daarna in een klap dood). `schbStaat` leidt de stand af uit `s.schild` en `s.metSchild`; omdat `hitSchildman` het schild al verlaagt voor de flinch begint, speelt de flinch meteen in de nieuwe stand en verschijnt de hap op het moment van de klap. Bij een gepantserde treffer (late tell) wisselt de strike midden in de animatie van stand; dat verspringt niet, want het lijf is in alle standen hetzelfde plaatje en alleen het schildplaatje wisselt (zie hieronder). Elke beweging (loop, strike, flinch) heeft in `lagen.json` alle vier de standen.
 
-Welke sets er op schijf staan, staat in `SCHB_SETS` (per animatie de lijst `standen`). Een stand zonder eigen set valt terug op de stand ervoor (`schbBankVoor`). Nu ontbreekt alleen `flinch_fase1`: de strike toont na de eerste treffer de ene hap (`strike_fase1`), maar de flinch van die eerste treffer speelt nog met een heel schild. Komt hij erbij: frames in `enemies/schildbandiet/flinch_fase1/`, `'fase1'` in de lijst `standen` van `flinch`, dan `gen-klein.py` en `gen-offline-manifest.py`. Upload frames altijd in hun eigen map (of als zip): de sets hebben dezelfde bestandsnamen en overschrijven elkaar in de hoofdmap. Laden, `warmBouw` en de laadpoort volgen vanzelf (alles in `schbBank`). De bron staat in `enemies/schildbandiet/LEESMIJ_schildfases.md` en `metadata.json` (`schild_staat`).
-## de nieuwe stijl: het schild als losse laag (lagen.json)
+## de lagen: het schild als losse laag (lagen.json)
 
-`SCHB_LAGEN`, `schbLagen`, `schbLagenLaad`, `schbLagenLijst`, `schbLaadBasis`, `schbBank.lagen`. Op proef naast de complete
-sets, uit de Animeer tool (export 24-10-2026, versie lagen-2; de bron staat in `enemies/schildbandiet/LEESMIJ_lagen.md`).
-Het schild is een eigen plaatje en de rest van de figuur is tot zo weinig mogelijk lagen samengevoegd, elk bijgesneden tot
-zijn eigen randen. `enemies/schildbandiet/lagen.json` geeft per beweging (`loop`, `strike`, `flinch`), per frame en per
-schildstaat (`metschild`, `fase1`, `fase2`, `zonderschild`) de lagen in tekenvolgorde, elk `{src, dx, dy, w, h, schild}`:
-`dx`, `dy` de linkerbovenhoek ten opzichte van het anker (272) en de grondlijn (781), `w`, `h` de tekenmaat, allemaal in
-pixels van de grote set. De tekencode doet daarom na de `translate` naar de voeten en de spiegeling gewoon
-`drawImage(img, dx * gs, dy * gs, w * gs, h * gs)` per laag; de kleine set (`klein/`) tekent met dezelfde getallen een half
-zo groot plaatje. De plaatjes staan in `lagen/lijf/` (116) en `lagen/schild/` (81); elk staat er een keer, ook als het in
-meerdere frames of staten terugkomt (de loop gebruikt per staat steeds hetzelfde schildplaatje), en `schbLagenLaad` maakt per
-`src` een Image die in `schbBank.lagen` gedeeld wordt (zo warmt `warmBouw` ze mee). De flits (`whiteCopy`) gaat per laag.
-
-Alleen de tekenlaag is anders. De bewegingen, de frametelling (22, 30, 21) en de timing zijn die van de complete sets
-(`schbAnim`, `SCHB.strikeDur`, `SCHB.flinchDur`), `schbStaat` kiest de staat, de vault hergebruikt de strike-lagen, en de dood
-blijft de eigen set in `dood/` (`schbLaadBasis` laadt die en de losse speer voor beide stijlen). Een schildbandiet tekent zo
-met `lagen: true` in zijn spawn (`schbLaadLevel` laadt dan de lagen in plaats van de complete sets; `laadJsonOpen` houdt de
-laadpoort dicht tot `lagen.json` binnen is en de plaatjes aangevraagd zijn), en in de sandbox met **Nieuwe stijl** onder
-Schildbandiet (naast Moeilijk en Makkelijk) (`sbSpawn('schildman_lagen')`). Nagemeten in de sandbox op 1280 bij 720: oude en nieuwe stijl op
-dezelfde plek in dezelfde houding en staat (loop, tell, inslag, herstel, flinch, met heel, aangeslagen en zonder schild)
-geven hetzelfde beeld op hooguit randpixels na.
+`SCHB_LAGEN`, `schbLagen`, `schbLagenLaad`, `schbLagenLijst`, `schbLaadLevel`, `schbBank.lagen`. De enige manier waarop de
+schildbandiet getekend wordt, uit de Animeer tool (export 24-10-2026, versie lagen-2; de bron staat in
+`enemies/schildbandiet/LEESMIJ_lagen.md`). Het schild is een eigen plaatje en de rest van de figuur is tot zo weinig mogelijk
+lagen samengevoegd, elk bijgesneden tot zijn eigen randen. `enemies/schildbandiet/lagen.json` geeft per beweging (`loop`,
+`strike`, `flinch`), per frame en per schildstaat (`metschild`, `fase1`, `fase2`, `zonderschild`) de lagen in tekenvolgorde, elk
+`{src, dx, dy, w, h, schild}`: `dx`, `dy` de linkerbovenhoek ten opzichte van het anker (272) en de grondlijn (781), `w`, `h`
+de tekenmaat, allemaal in pixels van de grote set. De tekencode doet daarom na de `translate` naar de voeten en de
+spiegeling gewoon `drawImage(img, dx * gs, dy * gs, w * gs, h * gs)` per laag; de kleine set (`klein/`) tekent met dezelfde
+getallen een half zo groot plaatje. De plaatjes staan in `lagen/lijf/` (116) en `lagen/schild/` (81); elk staat er een keer,
+ook als het in meerdere frames of staten terugkomt (de loop gebruikt per staat steeds hetzelfde schildplaatje), en
+`schbLagenLaad` maakt per `src` een Image die in `schbBank.lagen` gedeeld wordt (zo warmt `warmBouw` ze mee). De flits
+(`whiteCopy`) gaat per laag. De bewegingen, de frametelling (22, 30, 21) en de timing staan in `SCHB` (`schbAnim`,
+`SCHB.strikeDur`, `SCHB.flinchDur`), `schbStaat` kiest de staat en de vault hergebruikt de strike-lagen. De dood en de
+executie komen uit `executie.json` (zie hieronder). `schbLaadLevel` laadt beide achter de laadpoort als het level een
+schildman-spawn heeft (`laadJsonOpen` houdt de poort dicht tot de JSON binnen is en de plaatjes aangevraagd zijn), en
+`makeSchildman` roept dezelfde (idempotente) laders aan voor de sandbox, de golf, de arena en de takel-passagiers.
 
 Geheugen: de drie bewegingen in alle vier de staten zijn als lagen ongeveer 67 MB uitgepakt (grote set), tegen zo'n 550 MB
 als complete frames per staat zouden zijn. `tools/gen-klein.py` halveert de lagen met een eigen doel
-(`enemies/schildbandiet/lagen`, drempel 60, voor de map `enemies/schildbandiet` zodat die drempel wint), want de bijgesneden
-stukken zijn lager dan de gewone drempel van 400.
+(`enemies/schildbandiet/lagen`, drempel 60), want de bijgesneden stukken zijn lager dan de gewone drempel van 400.
 
-**Bevalt het, dan gaat de oude manier eruit.** Dat is: de mappen `loop_*`, `strike_*` en `flinch_*` (en hun kleine versies,
-via `gen-klein.py` en `gen-offline-manifest.py`), `SCHB_SETS`, `schbBankVoor` en de set-tak van `schbFrameImg` en `schbLaad`
-(de dood en de speer blijven, in `schbLaadBasis`), het veld `lagen` en de tweede sandbox-knop (dan is de lagen-stijl de
-enige), de `sets` in `metadata.json` en de notitie hierboven over de schildstaat per set.
+**Geschiedenis.** Tot 25-10-2026 stond het schild in de frames gebakken, met complete sets per stand (`loop_*`, `strike_*`,
+`flinch_*`, zo'n 190 MB uitgepakt voor de vier strike- en flinch-sets alleen al) en een eigen dood-set (`dood/`) met een losse
+vallende speer (`speer/speer_overlay.png`, `SCHB_SPEER`). De lagen stonden er een tijd als proef naast (`lagen: true` in een
+spawn, de knop Nieuwe stijl in de sandbox) en zijn nu de enige manier; de oude mappen, `metadata.json`, de sets-tak van de
+code en `tools/schildbandiet_dood.py` zijn weg.
 
 ## de dood
 
-`SCHB.dood`, `schbSterf`, `schbGeo`, `SCHB_SPEER`, `schbSpeerLos`, `schbSpeerStap`, `schbSpeerTeken`. Na de schildbreuk is hij in een klap dood: `schbSterf` geeft de witte flits en de hitstop (`breekStop`), speelt de doodskreet van de bandiet (`banSterf`, `sounds/banditdeath.mp3`) en zet de dood-set aan. Die staat in `enemies/schildbandiet/dood/` (`dood_00..36`, met `dood.json`, `LEESMIJ.md` en `preview.gif`). De set heeft een eigen canvas (544 bij 560, grondlijn 481, hetzelfde anker 272 en dezelfde schaal), dus de tekencode pakt de maat via `schbGeo`. Hij speelt even snel als de dood van de bandiet: 37 frames in de totale duur van de bandiet (`BAN.n.dood` frames op `BAN.fps.dood`, 2,1 s), zo'n 17,6 fps. Daarna blijft `dood_36` liggen als lijk; hij vervaagt niet. Na het laatste frame loopt `s.ligT`: voorbij `SCHB.dood.lig` (7 s) vervaagt hij via `s.alpha` in `SCHB.dood.vervaag` (0,8 s), zijn losse speer tekent met dezelfde alpha mee, en op nul gaat hij naar `weg` (opgeruimd in `updateSchildmannen`). Geldt voor elke schildbandiet, in elk level.
+`schbSterf`, `exeStart` met `dood`, `SCHB.lijk`. Na de schildbreuk is hij in een klap dood: `schbSterf` geeft de hitstop
+(`breekStop`) en de schok, speelt de doodskreet van de bandiet (`banSterf`, `sounds/banditdeath.mp3`) en roept `exeStart(s,
+wijze, true)` aan: dezelfde lagen als de executie (`executie.json`), maar na `knielen` komt direct `val`, zonder wankelen,
+zonder E en zonder freeze. Twee smaken, op `e.laag`:
 
-**De speer valt los.** In de oorspronkelijke frames zat de speer in de tekening (hij glipt uit zijn hand en ligt plat voor zijn voeten), ook als hij op de rand van een ravijn of naast een kei stierf. `tools/schildbandiet_dood.py` haalt hem eruit: vanaf frame 7 is de speer weg (de schoenen erachter komen uit een frame waar ze vrij stonden), en de twee bron-frames waarin hij voor de tuniek langs viel zijn eruit, want wat erachter zat was niet netjes terug te halen (39 werd 37 frames). Het spel laat zijn eigen speer vallen (`enemies/schildbandiet/speer/speer_overlay.png`): `schbSpeerLos` zet hem op frame `SCHB.dood.speer.los` (7) op de plek waar hij hem op frame 6 vasthield (`punt`, `eind` in canvas-px), en `schbSpeerStap` laat hem vallen als een staaf met vijf steunpunten (`SCHB_SPEER.steun`) die elk op de vloer onder zich botsen (`schbSpeerVloer`: de grond, een terras of gang, een kei of richel; boven een ravijn niets). Zo stuit hij even, ligt hij plat of scheef, en kantelt hij over de rand een ravijn in; dieper dan `SCHB_SPEER.weg` is hij weg. Hij ligt `voor` canvas-px voor de voeten, zoals in de tekening, en flitst mee met de doodklap.
+- **Dood hoog** (na een worp, `wijze: 'worp'`): de lagen `speer` en `wond` tekenen mee, Amirs speer zit in zijn borst
+  (`jav = null`), en vanaf frame `EXE.speerLigtVan` (7) van de val ligt hij echt op de grond op `speer_ligt_op`
+  (`exeSpeerNeer`, op te pakken met E), net als na het wankelen zonder E.
+- **Dood laag** (na een steek, de lage zwaai, of de sandbox-knop Dood): zonder de lagen `speer` en `wond`; Amir houdt zijn
+  speer gewoon in handen.
 
-**Na de flits meteen los.** `SCHB.dood.start` (7): na de witte flits begint de dood op het eerste frame waarop de speer al niet meer voor zijn lijf hangt, en valt de losse speer meteen. Met `start: 0` speelt hij de klap ervoor weer (frame 0 tot 6, waarin hij de speer nog vasthoudt).
-
-**Het lijf op de grond.** In de bron lag hij na de val zo'n 15 tot 30 canvas-px boven de grondlijn: hij zweefde boven zijn schaduw. Het script zet elk frame vanaf de landing zo ver omlaag dat de onderkant van het brede deel van zijn lijf op de grondlijn ligt (`LIG`), met de landing verdeeld over de twee frames ervoor; hoeveel per frame staat in `dood.json` (`omlaag`). De schaduw wordt breder vanaf `SCHB.dood.ligVan`.
-
-Een nieuwe dood-animatie zonder speer erin past zonder het script: zet de frames in de map, `n` op het aantal, `speer.los` op het frame waarop zijn hand opengaat en `punt`/`eind` op de plek van de speer in het frame ervoor. Teken het liggende lijf dan met zijn onderkant op de grondlijn (481). In de sandbox laat de knop **Dood** onder Schildbandiet elke schildbandiet meteen zo sterven.
+Hij draait bij de klap naar Amir toe (`s.face`), zoals bij de executie. Na de val loopt `s.ligT`: voorbij `SCHB.lijk.lig`
+(7 s) vervaagt hij via `s.alpha` in `SCHB.lijk.vervaag` (0,8 s) en op nul gaat hij naar `weg` (opgeruimd in
+`updateSchildmannen`). De executie (`lijk` na het splijten) gebruikt dezelfde `vervaag`. Geldt voor elke schildbandiet,
+in elk level; `vijandDood` (de arena-teller van de sandbox, de woede) en de witte flits blijven zoals bij elke kill. Of een
+kill de executie wordt in plaats van deze dood beslist `exeKans` (steek 1 op 5, worp 1 op 3, zie hieronder). In de sandbox
+laat de knop **Dood** onder Schildbandiet elke schildbandiet meteen Dood laag sterven. De schaduw wordt tijdens de val
+breder (`ligt` in de tekenlus, op `s.exe.frame`).
 
 ## de executie: knielen, wankelen, vallen en de special execution
 
@@ -63,10 +67,11 @@ per beweging per frame een lijst lagen `{src, dx, dy, w, h, item}` in tekenvolgo
 de grondlijn (781) in pixels van de grote set. De bewegingen: `knielen` (20), `wankel` (16, loop), `val` (16, met
 `speer_ligt_op`) en `executie` (17, met `amir_start_x`, `amir_eind_x` en de `snijlijn`). `exeLaad` laadt ze zoals
 `schbLagenLaad` (via de laadpoort, de plaatjes in `schbBank.executie` zodat `warmBouw` ze meebakt) en wordt door
-`makeSchildman` aangeroepen, dus voor elke schildbandiet, ook in een level. `hitSchildman(s, wijze)` weet nu waar de klap
+`makeSchildman` aangeroepen, dus voor elke schildbandiet, ook in een level. `hitSchildman(s, wijze)` weet waar de klap
 vandaan komt (`steek`, `worp` of `zwaai`); is het schild weg, dan beslist `exeKans` of de kill een executie wordt
 (`EXE.kansSteek` 1 op 5, `EXE.kansWorp` 1 op 3, alleen als de lagen binnen zijn) en anders is het de gewone dood
-(`schbSterf`). Een schildbandiet in de executie heeft `s.state === 'exe'` en in `s.exe.bew` de beweging.
+(`schbSterf`, uit dezelfde lagen, zie "de dood"). Een dode schildbandiet heeft `s.state === 'exe'` en in `s.exe.bew` de
+beweging; `s.exe.dood` zegt dat het de gewone dood is en `s.exe.laag` dat de lagen speer en wond niet meetekenen.
 
 **De steek-kill**: `exeStart` zet hem naar Amir toe (`s.face`), begint `knielen` en bevriest meteen de wereld
 (`exeBevries`): `exeVries` is de schildbandiet van wie de executie loopt, en `loop` zet dan `dt` op nul en laat alleen
@@ -99,7 +104,7 @@ in `exeTeken` als laatste getekend, over Amir en de speer heen.
 
 **Herhalen** (`herhaal: true`, `exeHerhaalStap`, `EXE.herhaalWacht`): is de laatste schildbandiet weg (na de executie of
 de gewone dood), dan komt er na `herhaalWacht` een nieuwe aanwandelen op `spawnPoint` net buiten beeld voor Amir uit,
-met `niveau` en `lagen` van de eerste schildman-spawn van het level. Alleen Test 50 heeft het; een herstart wist de
+met het `niveau` van de eerste schildman-spawn van het level. Alleen Test 50 heeft het; een herstart wist de
 wachttijd (`exeHerhaalNodig`).
 
 **De worp-kill**: `exeStart` haalt de geworpen speer weg (`jav = null`, de lagen tekenen hem in zijn borst), de wereld
@@ -110,7 +115,7 @@ op de telefoon erbij) en start E de executie (`exeTrek`, vooraan in `toggleSpear
 en speelt hij `val`; vanaf frame `EXE.speerLigtVan` (7) ligt Amirs speer echt op de grond (`exeSpeerNeer`: een `jav` op
 de grond op `speer_ligt_op`, de punt naar zijn voorkant, op te pakken met E zoals na een worp; is je hand al weer vol van
 de rug, dan een losse speer), en tekent de `speer`-laag niet meer. Daarna blijft hij liggen en vervaagt hij zoals de
-gewone dood (`SCHB.dood.lig`, `vervaag`).
+gewone dood (`SCHB.lijk.lig`, `vervaag`).
 
 **Het ritme** (`EXE.exeDur`, `EXE.t`, `exeDuur`), zoals een combat game het doet: anticipatie lang, de actie een paar korte
 frames, op de impact een hitstop met schok, en een korte slowmotion om de klap te laten nazinderen. De frametijden van

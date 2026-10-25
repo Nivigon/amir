@@ -1,58 +1,47 @@
-# Schildbandiet (block and kill) - testlevel
+# Schildbandiet (block and kill)
 
-Nieuwe vijand voor Amir, King of Africa. Hij loopt dreigend op Amir af met een
-houten schild op, en valt aan door te springen. Dit pakket is een eerste
-testversie, nog niet de eindkwaliteit (kleuren nog niet naar vast palet gesnapt,
-schild-in-stukken en echte dood-animatie volgen later).
+Vijand voor Amir, King of Africa. Hij loopt dreigend op Amir af met een houten schild op,
+en valt aan door te springen. Alles wordt getekend uit lagen: het schild is een los
+plaatje op het lijf, en de dood en de executie komen uit een tweede set lagen.
 
 ## Bestanden
 
-- metadata.json          canvas, grondlijn, anchor, sets, fps, strike-timing, keyframes
-- loop_metschild/        dreigende loop MET schild (walk_00..walk_21)
-- loop_zonderschild/     zelfde loop ZONDER schild (na breuk)
-- strike_metschild/      sprong-aanval MET schild (strike_00..strike_29)
-- strike_zonderschild/   zelfde aanval ZONDER schild (na breuk)
-- flinch_metschild/      hit-reactie MET schild (flinch_00..flinch_20), 21 frames
-- flinch_zonderschild/   zelfde reactie ZONDER schild (voor na de schildbreuk, volgt later)
-- schild/                losse schild-sprites ter referentie
-- speer/                 losse speer-sprite ter referentie
+- `lagen.json`             loop, strike en flinch: per beweging, per frame, per schildstaat de lagen in
+                           tekenvolgorde (zie `LEESMIJ_lagen.md`)
+- `lagen/lijf/`            de lijf-plaatjes (116), elk een keer, bijgesneden tot zijn eigen randen
+- `lagen/schild/`          de schild-plaatjes (81): heel, een hap eruit, twee happen
+- `executie/executie.json` knielen, wankel, val en de special execution (zie `executie/LEESMIJ.md`)
+- `executie/lagen/`        de plaatjes daarvan (127)
+- `klein/enemies/schildbandiet/` dezelfde lagen op halve grootte (`tools/gen-klein.py`)
 
-Alle frames staan op hetzelfde canvas (544x860) met dezelfde grondlijn (781) en
-anchorX (272), zodat loop en strike naadloos wisselen zonder dat hij verspringt.
-Kijkrichting is naar links; spiegel in code voor naar rechts.
+Alle lagen staan op hetzelfde canvas (544x860) met dezelfde grondlijn (781) en anchorX
+(272): `dx`, `dy` in een json is de linkerbovenhoek van de laag ten opzichte daarvan, in
+pixels van de grote set. Kijkrichting is naar links; spiegel in code voor naar rechts.
 
-## Gedrag (testlevel)
+## Gedrag
 
-1. Hij loopt op Amir af met schild op -> set `loop_metschild` (loop, ~10 fps).
-2. Amir raakt hem: witte flits over de sprite + een paar houtsnippers
-   (hergebruik de doornbos/thornbush splinter-particles), en hij speelt de
-   flinch (`flinch_metschild`): hij twist even naar de camera en schuift een
-   klein stukje naar achteren (knockback) met een stofwolk aan zijn voeten.
-   Speelt redelijk snel af (per-frame uit metadata.sets.flinch_metschild.durations_ms,
-   holds kort). Dit kan 3x; daarna weer de loop.
-3. Na de 3e treffer valt het schild weg: wissel naar de `*_zonderschild` sets.
-   Vanaf nu is hij in 1 klap dood.
-4. Zodra hij bij Amir staat, valt hij elke 2 seconden aan met de sprong-aanval
-   (`strike_metschild`, of `strike_zonderschild` als het schild al weg is):
-   - tell: hij zakt diep door zijn knieen en houdt zich kort laag
-     (keyframes tell_crouch in metadata)
-   - sprong: hij springt naar de plek waar Amir stond op het moment van inzetten
-   - tijdens de sprong is hij ONSTUITBAAR en ONAANTASTBAAR
-   - landing + herstel: daarna weer kwetsbaar
-   Amir moet dus wegstappen om de sprong te ontwijken.
-
-De sprongboog zit al in de frames (hij komt omhoog en weer neer binnen het canvas).
-De horizontale verplaatsing naar Amir doet de engine: verplaats de sprite tijdens
-de leap-frames naar de doelpositie.
+1. Hij loopt op Amir af met schild op (`loop`, 10 fps).
+2. Amir raakt hem: witte flits, houtklap en houtsnippers, en hij speelt de flinch: hij
+   twist even naar de camera en schuift een klein stukje naar achteren (knockback) met een
+   stofwolk aan zijn voeten. Elke treffer slaat zichtbaar een hap uit het schild (de
+   schildstaat: metschild, fase1, fase2, zonderschild).
+3. Na de derde treffer is het schild weg: loop, strike en flinch spelen dan de staat
+   `zonderschild`. Vanaf nu is hij in een klap dood.
+4. Zodra hij bij Amir staat, valt hij aan met de sprong-aanval (`strike`): hij zakt diep
+   door zijn knieen (de tell), springt naar de plek waar Amir stond (dan is hij
+   onstuitbaar en onaantastbaar) en landt met zijn speer. De sprongboog zit in de
+   frames, de horizontale verplaatsing doet de engine.
+5. De dood: hij knielt en valt voorover (`knielen`, `val` uit `executie.json`), of het
+   wordt de special execution (steek 1 op 5, worp 1 op 3). Zie `executie/LEESMIJ.md`.
 
 ## Timing
 
-- loop: fps in metadata (pas aan naar gewenste loopsnelheid)
-- strike: per-frame duur in metadata.sets.strike_metschild.durations_ms
+De frameduur per beweging staat in de json's (`durations_ms`); het spel gebruikt voor de
+strike en de flinch zijn eigen, afgestemde tijden (`SCHB.strikeDur`, `SCHB.flinchDur` in de
+HTML) en voor de executie `EXE.exeDur`.
 
-## Later verfijnen (niet in deze test)
+## Geschiedenis
 
-- Schild in 3 stappen laten breken (hap, half, weg) i.p.v. in 1 keer verdwijnen.
-- Echte dood-animatie.
-- Kleuren naar vast palet snappen voor recolor (losse scheidbare kleurvlakken).
-- Schild als echte losse engine-laag met per-frame plaatsing (data is er al).
+Tot 25-10-2026 stonden hier complete sets per schildstand (`loop_metschild`,
+`strike_fase1`, ...), een eigen dood-set (`dood/`) en een losse speer (`speer/`), met
+`metadata.json` erbij. Die zijn vervangen door de lagen en weggehaald.

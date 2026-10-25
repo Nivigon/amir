@@ -63,18 +63,15 @@ DOELEN = [
                                         # hoog en wordt op iets boven Amir zijn hoogte getekend
     ('enemies/bandiet_elite', 400),     # de elite-garde (omgekleurd uit bandiet), zelfde maat en canvas
     ('enemies/bandiet_duin', 400),      # de Duinwacht (omgekleurd uit bandiet), zelfde maat en canvas
-    ('enemies/schildbandiet/lagen', 60),  # de lagen-stijl van de schildbandiet (lagen.json): dezelfde figuur,
-                                        # maar elk stuk bijgesneden tot zijn eigen randen (het schild 266 hoog,
-                                        # een lijf rond 330), dus onder de gewone drempel; even veilig te halveren
-                                        # als de complete frames, want het is dezelfde tekening op dezelfde schaal.
-                                        # Voor de map hieronder: het eerste doel dat een bestand noemt, wint
-    ('enemies/schildbandiet/executie/lagen', 60),  # de executie (executie.json): knielen, wankel, val en de special
-                                        # execution, ook bijgesneden lagen (Amir rond 190 tot 265 hoog, een lijf
-                                        # rond 330, een wond 123), dus dezelfde lage drempel; dx, dy, w en h in de
-                                        # json blijven ongewijzigd, het spel rekt het halve plaatje naar die maat
-    ('enemies/schildbandiet', 400),     # de schildbandiet: 52 frames op een canvas van 544x860; de
-                                        # figuur is 340 hoog en wordt op iets boven Amir zijn hoogte getekend
-                                        # (alle sets: loop, strike en flinch per schildstaat, en de dood)
+    ('enemies/schildbandiet/lagen', 60),  # de schildbandiet (lagen.json): de figuur is 340 hoog op een canvas van
+                                        # 544x860, maar elk stuk is bijgesneden tot zijn eigen randen (het schild
+                                        # 266 hoog, een lijf rond 330), dus onder de gewone drempel; even veilig te
+                                        # halveren als complete frames, want het is dezelfde tekening op dezelfde
+                                        # schaal. dx, dy, w en h in de json blijven ongewijzigd, het spel rekt het
+                                        # halve plaatje naar die maat
+    ('enemies/schildbandiet/executie/lagen', 60),  # de dood en de executie (executie.json): knielen, wankel, val en de
+                                        # special execution, ook bijgesneden lagen (Amir rond 190 tot 265 hoog, een
+                                        # lijf rond 330, een wond 123), dus dezelfde lage drempel
     ('enemies/kooiman', 400),           # 81 frames op een canvas van 726x648; de gebukte figuur is 301
                                         # hoog en wordt op ongeveer Amir zijn hoogte getekend
     ('enemies/vogel', 400),             # de secretarisvogel uit de kooi: 50 frames op 536x405,

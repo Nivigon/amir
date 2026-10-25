@@ -33,7 +33,10 @@ Map in de repo: `enemies/schildbandiet/executie/` met `executie.json` en `lagen/
   start de executie. Na 3 seconden zonder E: hij maakt de lopende wankel-loop af en speelt `val`. Vanaf het frame
   waarop Amirs speer op de grond ligt, wordt die het echte oppakbare voorwerp op `speer_ligt_op` (zoals na een worp)
   en teken je de `speer`-laag niet meer.
-- De andere kills (4 op 5 steek, 2 op 3 worp) blijven zoals nu.
+- De andere kills (4 op 5 steek, 2 op 3 worp, en elke lage zwaai) zijn de gewone dood, uit dezelfde lagen: `knielen` en
+  direct daarna `val`, zonder wankelen en zonder E. Na een worp met de lagen `speer` en `wond` en de speer die vanaf
+  frame 7 van de val echt op de grond ligt (Dood hoog); anders zonder die twee lagen, Amir houdt zijn speer (Dood laag).
+  De oude dood-set (`dood/`) is weg.
 
 ## De executie
 - **Time freeze**: alles behalve de executie staat stil (andere vijanden, projectielen, deeltjes, timers). Amir is

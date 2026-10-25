@@ -186,8 +186,9 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | zwarte panter, de witte panter, de hyena | de grote vijanden |  |
 | de bandiet: een rover met een kromzwaard | `BAN`, `banLaad`, `makeBandiet` | notities/bandiet.md |
 | de schildbandiet: loopt met zijn schild op en valt springend aan | `SCHB`, `makeSchildman`, `updateSchildman` | notities/schildbandiet.md |
-| schildstaat: het schild in vier standen, van heel tot weg | `SCHB_STAAT`, `SCHB_SETS`, `schbStaat` | notities/schildbandiet.md |
-| schildbandiet nieuwe stijl: het schild als losse laag uit lagen.json (op proef) | `SCHB_LAGEN`, `schbLagenLaad`, `schbLagenLijst` | notities/schildbandiet.md |
+| schildstaat: het schild in vier standen, van heel tot weg | `SCHB_STAAT`, `schbStaat` | notities/schildbandiet.md |
+| de lagen van de schildbandiet: het schild als losse laag uit lagen.json | `SCHB_LAGEN`, `schbLagenLaad`, `schbLagenLijst` | notities/schildbandiet.md |
+| de dood van de schildbandiet: knielen en vallen uit executie.json (Dood hoog, Dood laag) | `schbSterf`, `SCHB.lijk`, `exeStart` | notities/schildbandiet.md |
 | de executie van de schildbandiet: knielen, wankelen, vallen en de special execution | `EXE`, `exeStart`, `exeTick`, `exeVries` | notities/schildbandiet.md |
 | de bandiet-arena: het geënsceneerde eindgevecht | `BANDARENA`, `bandArenaStart`, `bandArenaWachters` | notities/bandiet.md |
 | baviaan: de eindbaas in wording | `BAVIAAN`, `baviaanLaad`, `baviaanTeken` | notities/baviaan.md |
@@ -341,7 +342,6 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **`design/grot/rots_vulling.png`** → `tools/rots_vulling.py`
 - **Speerteken** → `tools/speerteken.py`
 - **Slangen** (zand, roet, knock) → `tools/slang_kleur.py`
-- **Dood van de schildbandiet** (speer eruit, lijf op de grond) → `tools/schildbandiet_dood.py`, daarna `gen-klein.py` en `gen-offline-manifest.py`
 - **Elite-garde** → `tools/bandiet_elite_kleur.js`, daarna `gen-klein.py` en `gen-offline-manifest.py`
 - **Kooi-plaat van de kooiman** → `tools/kooi_kleur.py`, daarna `gen-klein.py` en `gen-offline-manifest.py`
 - **Goudaapje** → `tools/goudaapje_kleur.js`

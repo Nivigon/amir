@@ -1,7 +1,8 @@
 # Schildbandiet: loop, strike en flinch als lagen
 
 Vervangt de complete frames per schildfase (`schildbandiet_schildfases.zip`, optie B) en
-de oude loop-sets. Dit is optie C: het schild is een losse laag, de rest van de figuur is
+de oude loop-sets; sinds 25-10-2026 is dit de enige versie in het spel (de oude mappen zijn
+weg). Dit is optie C: het schild is een losse laag, de rest van de figuur is
 samengevoegd tot zo weinig mogelijk lagen, alles bijgesneden tot de eigen randen.
 
 ## Inhoud
@@ -11,7 +12,6 @@ samengevoegd tot zo weinig mogelijk lagen, alles bijgesneden tot de eigen randen
 - `lagen/schild/` (81) en `lagen/lijf/` (116): de plaatjes. Elk plaatje staat er één
   keer in, ook als het in meerdere frames, staten of bewegingen voorkomt (de loop gebruikt
   bijvoorbeeld per staat steeds hetzelfde schildplaatje). `lagen.json` verwijst ernaar.
-- `metadata.json`: geen losse sets meer, alleen een verwijzing naar `lagen.json`.
 
 ## Schildstaten
 
