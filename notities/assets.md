@@ -16,7 +16,10 @@ bestanden.
 
 Een plaatje hoort alleen in de kleine set als het op een telefoon nog steeds groter
 is dan het stukje scherm waar het terechtkomt. De afweging per familie staat in
-`DOELEN` in `tools/gen-klein.py` en in de README.
+`DOELEN` in `tools/gen-klein.py` en in de README. Een doel dat ook op de helft nog
+ruim te groot is krijgt daar een eigen factor (het goudaapje: 0,25, een kwart); zo'n
+familie hoort dan ook in `KLEIN_BRON` in de HTML, zodat `bronW` en `bronH` met de
+juiste factor terugrekenen (het script print die lijst ook).
 
 De bodem en het dek van het veld `sneeuw` komen uit `tools/sneeuwdek.py`
 (`grondrand_rots.png` en `sneeuwlaag_25..100.png`). Die staan met opzet niet in de kleine

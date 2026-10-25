@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Maakt de kleine spriteset in klein/: dezelfde mappen en bestandsnamen als het
-origineel, maar op de helft. Het spel kiest bij het starten welke set het laadt
-(zie "Beeld" in het startmenu): een telefoon krijgt klein, een laptop groot.
+origineel, maar op de helft (of een eigen factor per doel, zie DOELEN). Het spel
+kiest bij het starten welke set het laadt (zie "Beeld" in het startmenu): een
+telefoon krijgt klein, een laptop groot.
 De tekencode rekt elk plaatje naar vaste maten, dus beide sets werken met
 dezelfde code.
 
@@ -42,14 +43,18 @@ except ImportError:
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = 'klein'
 
-FACTOR = 0.5           # zoveel kleiner, per zijde
+FACTOR = 0.5           # zoveel kleiner, per zijde (de standaard; een doel kan een eigen factor hebben)
 MIN_H_STANDAARD = 400  # frames lager dan dit blijven zoals ze zijn
 
 # Elk doel is een map of een los bestand, met de gemeten overmaat erachter. Het
 # tweede getal is de hoogtedrempel: frames die lager zijn worden ongewijzigd
 # gekopieerd, zodat de set compleet blijft en het spel nooit hoeft terug te vallen.
+# Een optioneel derde getal is de factor voor dat doel (standaard FACTOR, 0,5): voor een
+# familie die ook op de helft nog ruim te groot is. Het spel moet dan weten hoeveel keer
+# kleiner het plaatje is: zet die familie in KLEIN_BRON in de HTML (het script print
+# die lijst aan het eind), anders tekent hij het op de halve maat in plaats van de hele.
 DOELEN = [
-    # (pad, drempel)
+    # (pad, drempel) of (pad, drempel, factor)
     ('karakters/amir', 400),            # de sprong-, buk- en zwaaiframes (647 hoog); de
                                         # loop- en staframes zijn 301 hoog en blijven heel
     ('enemies/hyena', 400),             # 2,3x
@@ -81,8 +86,12 @@ DOELEN = [
                                         # 385 frames op canvassen van 493x592 tot 900x800; bron/ blijft erbuiten.
                                         # De tekencode rekent in bronpixels via bronW en bronH, dus het halve
                                         # frame komt op dezelfde maat en plek
-    ('enemies/goudaapje', 400),         # 5,5x, 4,9x in de afzet en landing, 9,8x aan de wand: dezelfde frames
-                                        # als de baviaan (omgekleurd), maar veel kleiner getekend
+    ('enemies/goudaapje', 400, 0.25),   # op een kwart: gemeten op het origineel 5,5x, 4,9x in de afzet en landing,
+                                        # 9,8x aan de wand (dezelfde frames als de baviaan, omgekleurd, maar veel
+                                        # kleiner getekend). Op de helft bleef dat 2,45x of meer, dus nog een keer
+                                        # gehalveerd: een kwart zit op 1,4x, 1,2x in de afzet en landing (het krapst)
+                                        # en 2,5x aan de wand. De tekencode rekent in bronpixels via bronW en bronH,
+                                        # met de factor uit KLEIN_BRON, dus het kwartframe komt op dezelfde maat en plek
     ('karakters/dorpeling1', 400),      # 2,5x
     ('amir runc/amir_sprites/design/amir', 400),    # de speerworp (814 hoog); het
                                         # projectiel is 67 hoog en wordt ongewijzigd gekopieerd
@@ -138,7 +147,7 @@ def bestanden(pad):
             yield rel, False
 
 
-def verwerk(rel, drempel):
+def verwerk(rel, drempel, factor=FACTOR):
     src = os.path.join(ROOT, rel)
     dst = os.path.join(ROOT, OUT, rel)
     os.makedirs(os.path.dirname(dst), exist_ok=True)
@@ -146,8 +155,8 @@ def verwerk(rel, drempel):
     if im.height <= drempel:
         shutil.copyfile(src, dst)
         return False
-    w = max(1, round(im.width * FACTOR))
-    h = max(1, round(im.height * FACTOR))
+    w = max(1, round(im.width * factor))
+    h = max(1, round(im.height * factor))
     if im.mode not in ('RGBA', 'LA'):
         im = im.convert('RGBA')
     im.resize((w, h), Image.LANCZOS).save(dst, optimize=True)
@@ -158,12 +167,14 @@ def main():
     klein = kopie = 0
     bytes_in = bytes_uit = 0
     gezien = set()
-    for pad, drempel in DOELEN:
+    for doel in DOELEN:
+        pad, drempel = doel[0], doel[1]
+        factor = doel[2] if len(doel) > 2 else FACTOR
         for rel, genoemd in bestanden(pad):
             if rel in gezien:
                 continue
             gezien.add(rel)
-            if verwerk(rel, drempel):
+            if verwerk(rel, drempel, factor):
                 klein += 1
             else:
                 kopie += 1
@@ -184,7 +195,7 @@ def main():
         if not os.listdir(dirpath) and dirpath != basis:
             os.rmdir(dirpath)
 
-    print(f'{klein} frames gehalveerd, {kopie} ongewijzigd gekopieerd'
+    print(f'{klein} frames verkleind, {kopie} ongewijzigd gekopieerd'
           + (f', {weg} verouderde verwijderd' if weg else ''))
     print(f'{bytes_in / 1048576:.1f} MB origineel, {bytes_uit / 1048576:.1f} MB in {OUT}/')
 
@@ -192,9 +203,20 @@ def main():
     # het spel de kleine map probeert; staat er iets niet bij, dan blijft die familie
     # stilletjes de grote versie laden. Hier afdrukken, zodat je kunt vergelijken.
     print('\nKLEIN_FAM in amir-king-of-africa.html hoort te zijn:')
-    for pad, _ in DOELEN:
+    for doel in DOELEN:
+        pad = doel[0]
         vol = os.path.join(ROOT, pad)
         print(f"  '{pad}/'," if os.path.isdir(vol) else f"  '{pad}',")
+
+    # De doelen met een eigen factor: het spel leest hoeveel keer kleiner het plaatje is
+    # uit KLEIN_BRON (bronW en bronH rekenen daarmee terug naar de maat van het origineel).
+    # Een doel met de standaardfactor hoort er niet in, dat is de standaard (2).
+    print('\nKLEIN_BRON in amir-king-of-africa.html hoort te zijn:')
+    for doel in DOELEN:
+        if len(doel) > 2 and doel[2] != FACTOR:
+            pad = doel[0]
+            vol = os.path.join(ROOT, pad)
+            print(f"  '{pad}{'/' if os.path.isdir(vol) else ''}': {round(1 / doel[2])},")
 
 
 if __name__ == '__main__':
