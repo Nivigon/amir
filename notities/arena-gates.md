@@ -54,6 +54,15 @@ werken; `modus` staat in de gates altijd op `golven`), de rest in `sbGatesSt`.
 
 Na de afteller van Start begint ronde 1 meteen (`sbArenaGo` roept `sbGatesVolgende` en `sbGatesOpen`).
 
+**Vooraf laden.** `sbArenaStart` laadt de frames van elke soort die aan staat (`sbArenaLaad`, `SB_ARENA_LAAD`), ook van
+de bandiet, de schildbandiet, de meelman en de kooiman, die zichzelf anders pas in hun make-functie laden. Het
+aftellen wacht daar op (`sbAftelUpdate`, `a.laad`, `sbLaadBezig`: zolang `laadOpen` of `laadJsonOpen` niet leeg is,
+hoogstens `SB_AFTEL.laadMax` seconden) en toont zolang **Laden**. Vroeger kwamen die sets pas binnen als de eerste uit
+een poort kwam (de bandiet 362 plaatjes, de schildbandiet ruim 340 met zijn lagen en executie, de meelman 115), en dan zakte
+het spel een paar seconden weg. Gemeten in Chromium (zonder GPU, dus de absolute getallen zijn traag): het langste beeld
+na de start ging van 878 ms naar 260 ms, en de tijd in beelden boven 250 ms van 4,5 s naar 0,5 s over 22 rondes.
+Een sandbox-knop onder Gedrag (elite, duin, vault) die je pas na Start omzet, laadt nog wel bij de spawn.
+
 ## Wie er komt (`sbGatesInhoud`)
 
 Uit de soorten die aan staan (`sbGatesCfg.per`, bij het openen van de modus alles aan; klik uit wat je niet wilt).

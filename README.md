@@ -1159,7 +1159,9 @@ rots. Links draagt een grote rots een plateau met een lage poort erop; beneden s
 zijkanten, voor de rotsen, met fakkels in het steen. Elke poort heeft een ijzeren valhek met een klein tandwiel erboven.
 Je begint midden op de vloer met je speer in de hand en een reservespeer op je rug.
 
-Na de afteller gaan de drie hekken tegelijk omhoog, met een klap, en uit elke poort komt een vijand uit het donker.
+Bij Start haalt het spel eerst de plaatjes binnen van alle soorten die aan staan (je ziet dan even **Laden**),
+zodat er midden in het gevecht niets meer hoeft te laden en het soepel blijft als de eerste bandiet of
+schildbandiet opkomt. Na de afteller gaan de drie hekken tegelijk omhoog, met een klap, en uit elke poort komt een vijand uit het donker.
 Door de bovenpoort komt alleen wat kruipt: een zwarte slang of knockslang kruipt naar de rand van het plateau en
 wacht daar tot hij je ziet, dan pas spuwt hij (sta je onder het plateau, dan ziet hij je niet); een zandslang of
 schorpioen loopt over het plateau de rots in en komt twee tellen later beneden weer binnen, links of rechts. Een

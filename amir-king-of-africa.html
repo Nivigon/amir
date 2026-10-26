@@ -37473,12 +37473,20 @@ function sbArenaReset(){
 // maat en vervaagt aan het eind van zijn tel, in de kleuren van de teller (room op een warme gloed), zonder
 // paneel: het staat los boven de vloer van de arena. 'Los!' blijft `go` seconden staan terwijl de golven al
 // lopen. Stop en Opnieuw breken het aftellen af; de pauze houdt het stil (sbArenaUpdate loopt dan niet).
-const SB_AFTEL = { van: 3, stap: 1.0, go: 0.9, piepHz: 620, goHz: 880, piepDuur: 0.16, goDuur: 0.75, vol: 0.28, inBeeld: 0.72,   // inBeeld: waar een spuwer begint, als deel van de halve schermbreedte
+const SB_AFTEL = { van: 3, stap: 1.0, laadMax: 20,   // laadMax: hoogstens zoveel seconden 'Laden' voor het aftellen, ook als er nog iets onderweg is
+                    go: 0.9, piepHz: 620, goHz: 880, piepDuur: 0.16, goDuur: 0.75, vol: 0.28, inBeeld: 0.72,   // inBeeld: waar een spuwer begint, als deel van de halve schermbreedte
                    maat: 0.34, pop: 0.22, popVan: 1.35, uit: 0.3, y: 0.44 };   // maat: de hoogte van het cijfer als deel van H; pop: seconden krimpen vanaf popVan keer; uit: seconden vervagen aan het eind; y: het midden als deel van H
-function sbAftelStart(){ sbArenaCfg.aftel = { t: 0, tel: 0, go: false }; }   // tel: hoeveel cijfers er al geweest zijn
+// nog plaatjes of JSON onderweg (of aan het uitpakken, zie de laadpoort)
+function sbLaadBezig(){ return laadOpen.size > 0 || laadJsonOpen > 0; }
+function sbAftelStart(){ sbArenaCfg.aftel = { t: 0, tel: 0, go: false, laad: 0 }; }   // tel: hoeveel cijfers er al geweest zijn; laad: seconden gewacht op de frames (null: binnen)
 function sbAftelUpdate(dt){
   const a = sbArenaCfg.aftel;
   if (!a) return false;
+  if (a.laad != null){                                                           // eerst alles binnen, dan pas tellen: anders komt het binnen als de vijand opkomt
+    a.laad += dt;
+    if (sbLaadBezig() && a.laad < SB_AFTEL.laadMax) return true;
+    a.laad = null;
+  }
   a.t += dt;
   if (a.go){ if (a.t >= SB_AFTEL.go) sbArenaCfg.aftel = null; return false; }   // de golven lopen al, alleen 'Los!' staat er nog
   const n = Math.min(SB_AFTEL.van, Math.floor(a.t / SB_AFTEL.stap) + 1);        // het eerste cijfer meteen bij Start
@@ -37518,6 +37526,16 @@ function sbAftelTeken(){
   const a = sbArenaCfg.aftel;
   if (!a || !sbArena || !sbArenaCfg.aan) return;
   const A = SB_AFTEL;
+  if (a.laad != null){                                                           // nog aan het laden: een rustig woord in plaats van het cijfer
+    if (a.laad < 0.15) return;                                                   // is het er meteen, dan zie je niets
+    ctx.save();
+    ctx.globalAlpha = 0.55 + 0.35 * Math.sin(a.laad * 4);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '700 ' + Math.round(H * 0.06) + 'px system-ui, sans-serif';
+    ctx.fillStyle = '#e8c88a'; ctx.fillText('Laden', W / 2, H * A.y);
+    ctx.restore();
+    return;
+  }
   let tekst, f, duur;                                                            // f: hoe ver in deze tel (0..1)
   if (a.go){ tekst = 'Los!'; duur = A.go; f = a.t / duur; }
   else { tekst = String(A.van - a.tel + 1); duur = A.stap; f = (a.t - (a.tel - 1) * A.stap) / duur; }
@@ -37604,10 +37622,18 @@ function sbArenaKant(){
 }
 // De frames van een soort uit SB_ARENA_SOORTEN: de slangen, de schorpioen, de hyena en de panter laden anders bij het
 // openen van de sandbox (startSandbox); in de arena-modus pas hier, bij Start voor elke soort die aan staat en nog
-// eens bij elke spawn. De rest (bandiet, schildman, kooiman, meelman) laadt zichzelf in zijn make-functie. De fosfor
-// tekent met de frames van de zandslang (snk.groen). Zo vraagt de arena offline alleen wat de speler aangezet heeft.
+// eens bij elke spawn. De bandiet, de schildman, de meelman en de kooiman laden zichzelf ook in hun make-functie, maar
+// dan kwamen ze pas binnen als de eerste uit een poort kwam: honderden plaatjes midden in het gevecht (de bandiet 362),
+// en het spel haperde seconden lang. Daarom hier dezelfde sets als sbSpawn ze laat laden (de bandiet met de vlaggen
+// onder Gedrag, en zijn idle omdat zichtZet in de sandbox elke vijand laat kijken), zodat Start ze alvast ophaalt en
+// het aftellen erop wacht (sbAftelUpdate). De fosfor tekent met de frames van de zandslang (snk.groen). Zo vraagt de
+// arena offline nog steeds alleen wat de speler aangezet heeft.
+function sbArenaLaadBandiet(){ const v = sbBanDuin ? 'duin' : sbBanElite; banLaadIdle(v); if (sbBanVault) banLaadVault(v); if (bloedAan) bloedLaad(); }
+function sbArenaLaadSchild(){ schbLagenLaad(); exeLaad(); }
 const SB_ARENA_LAAD = { scorp: () => scpLaad(), groen: () => slangLaad('groen'), zwart: () => slangLaad('zwart'), knock: () => slangLaad('knock'),
-                        fosfor: () => slangLaad('groen'), hyena1: () => hyLoad(), panter: () => panLoad() };
+                        fosfor: () => slangLaad('groen'), hyena1: () => hyLoad(), panter: () => panLoad(),
+                        bandiet: sbArenaLaadBandiet, schildman: sbArenaLaadSchild, schildman_makkelijk: sbArenaLaadSchild,
+                        meelman: () => meelLaad(), kooiman: () => { kooiLaad(); if (sbKooiVogel || sbKooiDuel) vogelLaad(); } };
 function sbArenaLaad(k){ const f = SB_ARENA_LAAD[k]; if (f) f(); }
 function sbArenaSpawn(k, inBeeld){                 // inBeeld: de eerste vijand na de afteller; een spuwer begint dan in beeld (zie de afteller)
   sbArenaLaad(k);
@@ -37755,8 +37781,8 @@ function sbArenaStart(scherm){
   c.aan = true;
   const iets = sbGates ? SB_GATES_SOORTEN.some(k => sbGatesCfg.per[k].aan) : SB_ARENA_SOORTEN.some(s => c.per[s.k].aan || (c.modus === 'stroom' && c.per[s.k].bij));
   const vers = c.modus === 'golven' ? c.g.nr === 0 : c.t0 === 0;          // een vers begin: het aftellen, en bij los de eerste vijand (sbArenaGo); na Stop gaat het gewoon door
-  if (sbGates) for (const k of SB_GATES_SOORTEN) if (sbGatesCfg.per[k].aan) sbArenaLaad(k);   // de gates: de frames van wat aanstaat alvast, tijdens het aftellen
-  else for (const s of SB_ARENA_SOORTEN) if (c.per[s.k].aan || c.per[s.k].bij) sbArenaLaad(s.k);   // de frames alvast, tijdens het aftellen
+  if (sbGates){ for (const k of SB_GATES_SOORTEN) if (sbGatesCfg.per[k].aan) sbArenaLaad(k); }   // de gates: de frames van wat aanstaat alvast, tijdens het aftellen
+  else { for (const s of SB_ARENA_SOORTEN) if (c.per[s.k].aan || c.per[s.k].bij) sbArenaLaad(s.k); }   // de frames alvast, tijdens het aftellen (de accolades: zonder hing de else aan de binnenste if)
   if (vers && iets) sbAftelStart();
   if (!iets) flashHint('Zet eerst een vijand aan');
   sbArenaToon(); cv.focus();
