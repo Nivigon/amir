@@ -1086,7 +1086,7 @@ staat, dan komt die ook beneden.
 ## De arena-modus van de sandbox
 
 Klik je in het startmenu op **Sandbox**, dan kies je eerst: de gewone **Sandbox** (vlakke grond, zet
-neer wat je wilt testen, geen levens) of de **Arena modus**. Allebei beginnen ze uitgezoomd op view 0,8,
+neer wat je wilt testen, geen levens), de **Arena modus** of de **Arena gates** (zie hieronder). De eerste twee beginnen uitgezoomd op view 0,8,
 zoals een nieuw level; **Uitzoomen** zet je dat anders (in de sandbox onder Beeld en geluid, in de arena in de opzet). De arena is de arena van de koning
 uit Valse Koning 8, maar zonder het takelen: je begint meteen midden op de vloer met je speer in de hand en een
 reservespeer op je rug (zoals in Valse Koning 8; de knop Rug in de opzet zet het anders), tussen
@@ -1149,6 +1149,27 @@ alles weg. Bovenin het midden staat
 groot de klok: hoe lang je het al volhoudt. Daaronder kleiner hoeveel je er verslagen hebt, hoe ver
 de opbouw is en je beste tijd tot nu toe, die de browser onthoudt. Ga je dood, dan blijft de eindtijd
 staan tot je op R drukt.
+
+## De arena gates
+
+De derde keuze onder **Sandbox**: een arena van een scherm breed in het donker, met drie stenen poorten in de
+rots. Links draagt een grote rots een plateau met een lage poort erop; beneden staan twee hoge poorten ver aan de
+zijkanten, voor de rotsen, met fakkels in het steen. Elke poort heeft een ijzeren valhek met een klein tandwiel erboven.
+Je begint midden op de vloer met je speer in de hand en een reservespeer op je rug.
+
+Na de afteller gaan de drie hekken tegelijk omhoog, met een klap, en uit elke poort komt een vijand uit het donker.
+Door de bovenpoort komt alleen wat kruipt: een zwarte slang of knockslang kruipt naar de rand van het plateau en
+wacht daar tot hij je ziet, dan pas spuwt hij (sta je onder het plateau, dan ziet hij je niet); een zandslang of
+schorpioen loopt over het plateau de rots in en komt twee tellen later beneden weer binnen, links of rechts. Een
+ronde is pas voorbij als alles dood is; dan een korte rust en de hekken gaan opnieuw open. Elke ronde komen er
+drie, maar de soorten worden zwaarder: bandieten, schildbandieten, de fosforgroep en de meelman komen pas later,
+en er komen nooit drie snelle aanvallers tegelijk.
+
+In de opzet staan alle soorten aan: klik uit wat je niet wilt (de hyena, de panter en de kooiman komen niet door
+een poort). Verder stel je alleen de **Rust tussen rondes** in; de rest is wat de arena-modus ook heeft:
+Onsterfelijk, kalebassen om de zoveel rondes, de speerknoppen, de tribes, tijd van de dag, weer en muziek. De
+teller houdt de ronde, de kills en de tijd bij, en onthoudt je hoogste ronde (niet met Onsterfelijk aan). R begint
+bij ronde 1.
 
 ## Zelf een level maken
 

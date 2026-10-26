@@ -22,6 +22,9 @@ poorten: [ {id: 'b1', x: -2012, k: 'boog_rots', f: true, y: 450, s: 1, look: 'sn
   look die een poort gebruikt laadt (`poortLaadLevel`). De versies komen uit `tools/boog_vulling.py`: de sneeuwkap
   met `rock_snow` uit `tools/sneeuw.py`, en in beide blijft de opening het donker van de gewone boog
 
+- `hek` met `true`: het ijzeren valhek dat omhoog getakeld wordt, zie "Het hek en de regie" hieronder; `poortSluit(id)`
+  laat het hek vallen (`hekDicht`) en zet de poort dicht zodat hij opnieuw open kan (de arena gates, elke ronde).
+
 De onderkant van de opening staat op de vloer. Zonder meer is een poort decor.
 
 ## Een vijand uit de poort
@@ -41,7 +44,8 @@ koppel-rune met `stuurt`). Dan:
 - komt hij wakker: `zichtZet` zet `zWacht` uit voor een spawn met `poort`, want hij komt omdat Amir
   de poort opende. Ziet hij Amir daarna `ZICHT.vergeet` seconden niet, dan valt hij gewoon in rust.
 
-Een poort gaat per potje een keer open; `poortReset` (in `restart`) sluit hem weer. Een hyena en een
+Een poort gaat per potje een keer open; `poortReset` (in `restart`) sluit hem weer, en `poortSluit(id)` tussendoor
+(voor een arena die hem elke ronde opnieuw opent). Een hyena en een
 panter komen van de rand van het beeld en niet uit de poort (levelcheck: LET OP); de Maker biedt ze
 niet aan, net als de hinderlaag en het duel van de kooiman.
 
@@ -130,6 +134,10 @@ poorten: [ {id: 'p1', x: -1900, k: 'boog_steen', hek: true, wand: true, wandF: t
 
 Sandbox, Decor, Poort: **+ hek**, **+ rotswand** (elke klik de volgende soort uit `HEK_WANDEN`, en dan weer geen), **+ schildbandiet erin**, **Open de poort** (met hek: `hekOp`) en
 **Hek dicht** (`hekDicht`, de vijanden gaan weer naar binnen). **Test 51: De poorten** is het proefstuk.
+## De arena gates
+
+De sandbox-modus met drie poorten (een hoog op een plateau, twee laag) die elke ronde tegelijk opengaan, elk met
+een valhek op een eigen tempo (`hekDuur` op de poort): zie `notities/arena-gates.md`.
 
 ## Nog niet
 

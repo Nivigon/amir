@@ -15,7 +15,9 @@ kant (`sbFromRight`), altijd geklemd tussen `endWall()` en `cliffAt().wall`.
 ## Arena-modus
 
 De knop Sandbox in het menu opent eerst een keuzescherm (`menuSandbox`): de vrije sandbox
-(`startSandbox(false)`) of de arena-modus (`startSandbox(true)`, vlag `sbArena`). De arena is de
+(`startSandbox(false)`), de arena-modus (`startSandbox(true)`, vlag `sbArena`) of de arena gates
+(`startSandbox(true, true)`, vlag `sbGates` naast `sbArena`: de arena-modus met een eigen veld van drie poorten en
+rondes in plaats van de stroom en de golven, zie `notities/arena-gates.md`). De arena is de
 gewone sandbox met vier verschillen: het veld, de levens, de spawner en het paneel (de wizard, zie hieronder).
 
 Het veld (`sbArenaVeld`, uit `restart` zodra `sbArena` aan staat, voor `sbArenaReset`) is de arena van de

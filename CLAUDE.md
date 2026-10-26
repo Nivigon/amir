@@ -117,7 +117,8 @@ soorten tegenstanders:
   niet "even om iets te laten zien". Dat vraag je vooraf, per geval, voordat je iets bouwt. Mag het, dan bouw
   je het; zonder antwoord bouw je het niet.
 - **Arena's**: de geënsceneerde eindgevechten, zoals de bandiet-arena van Valse Koning 8 (`bandArena`) en de
-  goudaap-arena van Baboon 4 (`apenArena`, `grotArena`). Dat is een vorm van level, geen baas: er staat geen
+  goudaap-arena van Baboon 4 (`apenArena`, `grotArena`), en in de sandbox de arena-modus en de arena gates
+  (`sbGates`, drie poorten met rondes, zie `notities/arena-gates.md`). Dat is een vorm van level, geen baas: er staat geen
   baas in, maar golven vijanden tussen twee wanden met de camera in het midden. De kooiman-baas uit
   `notities/kooiman-baas.md` is een concept voor zo'n arena en is nog niet gebouwd. Een nieuwe arena is een
   nieuw level en valt dus onder regel 3.
@@ -186,6 +187,8 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | takelwiel met plateau: een rad dat je met je speer slaat | `TAKEL`, `takelLaad`, `takelReset` | notities/takelwiel.md |
 | poort: een stenen boog, decor of de plek waar een vijand uitkomt | `POORT`, `poortOpen`, `poortKlaar` | notities/poort.md |
 | het hek van de poort: een ijzeren valhek dat omhoog getakeld wordt | `HEK`, `hekTeken`, `hekUpdate`, `poortRegie` | notities/poort.md |
+| rotsen als decor: een runerots zonder rune, achter de plateaus | `rotsen`, `rotsenTeken`, `rotsenLaadLevel` | notities/decor.md |
+| arena gates: de sandbox-modus met drie poorten en rondes | `SB_GATES`, `sbGates`, `sbGatesUpdate`, `gatesRand`, `gatesWeg` | notities/arena-gates.md |
 | masker: geverfde stukken die een deel van het level verbergen | `MASKER`, `maskerLijst`, `maskerVan` | notities/masker.md |
 | de draaiende speer: rollen om de lengteas in de vlucht | `DRAAI`, `draaiImgs`, `draaiBeeld(soort, t)` | notities/speer.md |
 | skelet met speer | `SKELET`, `skeletTrek`, `skeletUpdate` | notities/skelet.md |
@@ -291,6 +294,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `talentKeuze` | `true`: voor het begin kies je zelf welke talents gelden, van alle tribes (alleen voor een Test level; nu Test 14) |
 | `zegels` | zegels plat in de grond: `{x, ravijn, sluit, breed, muur, speerval, teken, vijand, plafond, rijs, poort, speer, verstop, onzichtbaar, veeg, dak}`; met `onzichtbaar` is er niets van te zien tot iemand erop stapt (dan gaat hij aan en verschijnt hij), met `dak` ligt hij boven een gang op de savanne in plaats van op de gang-bodem, met `verstop` ligt hij onder het zand tot de lage zwaai hem blootveegt, `veeg` kiest de onthulling (standaard de wolk, traag en middel), `veegDuur` en `veegMaat` het tempo en de grootte, `vloer` de kleur van het zand (zie `notities/velden.md`) |
 | `poorten` | stenen bogen uit `design/boog/`: `{id, x, k, f, y, s, look, hek, wand, wandF, wandH, wandX, regie, bij}`, `look` steen, sneeuw of savanne (zonder: sneeuw in een winterlevel), decor; een zegel of rune met `poort: id` opent hem en dan komen de spawns met `poort: id` eruit (zie "poort"); `hek` een valhek dat optakelt, `wand` een rotswand erachter (`true` de kale wand, of een soort uit `HEK_WANDEN`: `kaal`, `spits`, `pieken`, `zuilen`, `boog`, `grot`), `wandH` zijn hoogte en `wandX` een verschuiving, allebei in Amir, `regie` vanzelf open als hij in beeld komt (of bij `bij`) met Amir vast tot de vijand eruit is (zie "het hek van de poort") |
+| `rotsen` | losse rotsen als decor: `{x, soort, groot, y}`, een van de platen onder een rune (`spits`, `pieken`, `zuilen`, `boog`) zonder schijf, `x` de linkervoet, `groot` de hoogte in Amir, `y` een vaste vloer; getekend achter de plateaus, zodat een zwever erin kan snijden (zie `notities/decor.md`) |
 | `rijzers` | steen dat uit een ravijn omhoog komt: `{id, r, l, tot, van, v, wacht, duur}`, `id` de naam waar een zegel of een rune (`doel: true`) met `rijs` naar wijst, `tot` en `van` de bovenkant boven en beneden (standaard -1 en -900), `wacht` seconden voor hij begint, `duur` seconden boven voor hij terugzakt (zie "rijzende grond"); met `zak: true` staat hij boven en zakt hij onder Amir weg; `look` de bovenrand (`savanne`, `rots`, `sneeuw`, `zwart`) en `kleurVanaf` een hoogte waaronder het blok zwart blijft; in een put (`putten`) is de gangvloer zijn grond (Test 48) |
 | `takel` | een takelwiel met een hangend plateau; sla het rad met je speer, het plateau draagt en veert (zie `notities/velden.md`) |
 | `maskers` | geverfde stukken die een deel van het level verbergen: `{id, look, vakken}` (zie `notities/velden.md`) |
