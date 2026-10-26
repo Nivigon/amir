@@ -1030,7 +1030,8 @@
           </details>
         </div>
         <div id="mkmasklookctl" style="display:none">
-          <div class="mkveld"><label for="mkmasklook">Hoe het eruitziet</label><select id="mkmasklook"><option value="grot">Grotwand (rots)</option><option value="rots">Rotswand (cliff)</option><option value="savanne">Savanne (grond)</option><option value="zwart">Helemaal zwart</option><option value="onzichtbaar">Onzichtbaar (alleen de inhoud verborgen)</option></select></div>
+          <div class="mkveld"><label for="mkmasklook">Hoe het eruitziet</label><select id="mkmasklook"><option value="grot">Grotwand (rots)</option><option value="rots">Rotswand (cliff)</option><option value="savanne">Savanne (grond)</option><option value="zwart">Helemaal zwart</option><option value="onzichtbaar">Zoals de omgeving (onzichtbaar)</option></select></div>
+          <div class="mkrij"><button id="mkmaskuit">Uiterlijk schilderen: uit</button><button id="mkmaskuitwis">Wis uiterlijk</button></div>
           <div class="mkveld"><label><input id="mkmaskvulzwart" type="checkbox"> Blijft zwart na onthullen</label></div>
           <div id="mkmasklookinfo" class="mkhint"></div>
         </div>
@@ -4903,11 +4904,7 @@ schachtHoekImg.onerror = () => console.warn('ontbreekt: ' + SCHACHT_HOEK.src);
 schachtHoekImg.src = SCHACHT_HOEK.src;
 function schachtHoekPic(){ return imgReady(schachtHoekImg) ? schachtHoekImg : null; }
 function terraceList(){ return (level && level.terraces) ? level.terraces : []; }
-// een richel binnen een masker dat er nog ligt is er niet: niet te zien en niet om op te staan (zoals een vijand of kalebas)
-function ledgeList(){
-  const l = (level && level.ledges) ? level.ledges : [];
-  return (level && level.maskers && level.maskers.length) ? l.filter(o => !achterMasker(o.x, o.h)) : l;
-}
+function ledgeList(){ return (level && level.ledges) ? level.ledges : []; }
 // Een zwevende savannelaag: hetzelfde dikke savanneblok als een hogere savannelaag (grond: true),
 // maar opgetild zodat er lucht onder zit. Je loopt eronderdoor (als er plek is) en je landt bovenop
 // via de rand of een lift, net als bij een richel. Het veld is zwevers: [{r, l, h, onder}]: h is de
@@ -5313,6 +5310,7 @@ function rotsLaag(z, groundY, scale, cx, st){
 // schacht past. De gespiegelde versie is precies de spiegeling van de gewone om de lijn x = o.x,
 // dus de botsing in terracePlats klopt ermee (left/right wisselen om o.x).
 function drawLedge(o, groundY, scale, cx){
+  if (achterMasker(o.x, o.h)) return;          // binnen een masker dat er nog ligt: niet te zien (hij draagt wel, wie erop landt onthult het)
   const maat = ledgePic(); if (!imgReady(maat)) return;
   const img = ledgeLookPic(o);                      // de kleur van deze richel (zie ledgeLookPic); de maat komt van de gewone
   if (!(img instanceof HTMLCanvasElement) && !imgReady(img)) return;
@@ -8974,7 +8972,7 @@ function koppelReset(){ if (level && level.acties) for (const a of level.acties)
 // Met `look: 'onzichtbaar'` tekent het masker niets: je ziet gewoon wat erachter ligt (de achtergrond, de grond),
 // maar wat erbinnen staat (een vijand, een zegel, een rune, een kalebas) is weg en bevroren tot het masker
 // onthuld is. Zo staat er plots een vijand of ligt er ineens een voorwerp, zonder dat er iets anders verstopt was.
-const MASKER = { fade: 0.55, beving: 0.6, marge: 60 };     // fade/beving (sterkte van het ravijn-geluid)/marge voor het inlopen
+const MASKER = { fade: 0.55, beving: 0.6, marge: 60, margeX: 40 };   // fade/beving (sterkte van het ravijn-geluid)/marge voor het inlopen (margeX opzij: ook wie tegen een verborgen kei of muur aanloopt)
 function maskerLijst(){ return (level && level.maskers) || []; }
 function maskerVan(id){ for (const m of maskerLijst()) if (String(m.id || '') === String(id)) return m; return null; }
 // de rechthoeken van een masker, in wereld-px (l, r) en sprite-eenheden boven de grond (onder, boven). De Maker
@@ -9011,7 +9009,7 @@ function maskerUpdate(dt){
     if (m.t === undefined) m.t = 1;
     if (!m.onthuld){                                // erin lopen onthult het, stil (eenmaal gezien voorgoed weg)
       for (const R of maskerRects(m))
-        if (world >= R.l && world <= R.r && ph <= R.boven + MASKER.marge && ph >= R.onder - MASKER.marge){ maskerReveal(m, false); break; }
+        if (world >= R.l - MASKER.margeX && world <= R.r + MASKER.margeX && ph <= R.boven + MASKER.marge && ph >= R.onder - MASKER.marge){ maskerReveal(m, false); break; }
     }
     const doel = m.onthuld ? 0 : 1;
     if (m.t > doel) m.t = Math.max(doel, m.t - dt / MASKER.fade);
@@ -9067,6 +9065,108 @@ function maskerTeken(groundY, scale, cx){
     ctx.fillStyle = g; ctx.fillRect(minX - 2, minY - 2, (maxX - minX) + 4, (maxY - minY) + 4);
     ctx.restore();
   }
+}
+// ---- nep-terrein: een onzichtbaar masker dat eruitziet als de omgeving, of als wat je erop schildert ----
+// Een masker met look 'onzichtbaar' tekent niets over het stuk heen. Heeft het level ook een veld nep (de Maker zet
+// dat, zie mkNaarLevel: hetzelfde level, maar met de geverfde cellen vervangen door wat eromheen ligt of door wat je
+// er zelf als uiterlijk op schilderde), dan tekent maskerNepTeken binnen de maskercellen dat nep-level met de echte
+// tekencode: dezelfde grondrand op het grondpeil, dezelfde ravijnwanden, gangen en lagen. Zo kan een gang eruitzien
+// als dichte grond, een zwevende laag als lucht, een zwarte schaduwlaag als savanne, en een gewone tegel als ravijn.
+// Het is puur tekenwerk: de botsing blijft het echte level, en wie erin loopt onthult het (maskerUpdate). Wat in het
+// masker staat (vijanden, keien, richels, overhang, takel, decor) tekent het nep-level niet, dus dat is verborgen tot
+// het onthuld is. De rijzer niet: die komt er gewoon overheen (rijsTeken na de pas). Bij het onthullen vervaagt het
+// nep-terrein in MASKER.fade naar het echte (een kopie van het beeld van voor de pas, zie maskerNepTeken).
+const MASKER_NEP = { randX: 40, randBoven: 110, randOnder: 200 };   // de pas reikt iets buiten de cellen (grasrand, ravijnkartels); daar zijn nep en echt gelijk
+let nepBasis = null;                                // de transform van voor de zoom (na de schok), gezet in de hoofdlus na scene()
+let nepPas = false;                                 // true tijdens de tweede pas: dan laat ravijnenNu de echte ravijnen staan
+function maskerNepLevel(){
+  if (!level || !level.nep) return null;
+  if (level._nepLvl === undefined){
+    try {
+      const n = readLevel(JSON.stringify(level.nep));
+      n.isNep = true;
+      n.autoDecorUit = !!(level.props && level.props.length);   // drawProps: geen automatisch decor als het echte level dat ook niet heeft
+      level._nepLvl = n;
+    } catch (e){ level._nepLvl = null; meldFout('nep-terrein', 'het nep-terrein van een masker', e); }
+  }
+  return level._nepLvl;
+}
+// de vakken van de pas voor een masker: de cellen met een kleine rand, en een cel op het grondpeil boven een ravijn
+// (een echt of een nep) loopt door tot onder in beeld, want een ravijn heeft geen bodem in beeld
+function maskerNepVakken(m, nep){
+  if (m._nepV) return m._nepV;
+  const gaten = (level.gaps || []).concat(nep.gaps || []);
+  m._nepV = maskerRects(m).map(R => {
+    const v = { l: R.l - MASKER_NEP.randX, r: R.r + MASKER_NEP.randX, onder: R.onder - MASKER_NEP.randOnder, boven: R.boven + MASKER_NEP.randBoven };
+    if (R.boven >= -5 && R.onder < 0 && gaten.some(g => g.x + g.w / 2 > R.l && g.x - g.w / 2 < R.r)) v.onder = -1e6;
+    return v;
+  });
+  return m._nepV;
+}
+// het knippad van de pas, op hele beeldpixels: een zachte knip legt op de rand elke laag half over de vorige, en
+// dan staat er een haarlijn waar het nep-terrein en het echte gelijk zijn
+function maskerNepPad(vakken, groundY, scale, cx){
+  const T = ctx.getTransform();
+  ctx.beginPath();
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  for (const v of vakken){
+    const top = groundY - v.boven * scale, bot = v.onder < -1e5 ? groundY + H * 6 : groundY - v.onder * scale;
+    const a = T.transformPoint(new DOMPoint(cx + (v.l - world), top)), b = T.transformPoint(new DOMPoint(cx + (v.r - world), bot));
+    const x0 = Math.round(Math.min(a.x, b.x)), x1 = Math.round(Math.max(a.x, b.x)), y0 = Math.round(Math.min(a.y, b.y)), y1 = Math.round(Math.max(a.y, b.y));
+    ctx.rect(x0, y0, x1 - x0, y1 - y0);
+  }
+  ctx.restore();
+}
+function maskerNepTeken(groundY, scale, cx){
+  const nep = maskerNepLevel(); if (!nep || !nepBasis) return;
+  const zoom = viewZoom(), alle = [], vervaag = [];
+  for (const m of maskerLijst()){
+    if (m.look !== 'onzichtbaar') continue;
+    const a = m.t === undefined ? 1 : m.t;
+    if (a <= 0.004) continue;
+    const vk = maskerNepVakken(m, nep).filter(v => !(cx + (v.r - world) < -W || cx + (v.l - world) > W / zoom + W));
+    if (!vk.length) continue;
+    for (const v of vk) alle.push(v);
+    if (a < 0.999) vervaag.push({ m, vk });
+  }
+  if (!alle.length) return;
+  let doek = null;
+  if (vervaag.length){ doek = werkDoek('maskerNep', cv.width, cv.height); doek.getContext('2d').drawImage(cv, 0, 0); }   // het echte beeld, om naartoe te vervagen
+  const echt = level;
+  ctx.save();
+  maskerNepPad(alle, groundY, scale, cx); ctx.clip();
+  try {
+    ctx.save(); ctx.setTransform(nepBasis); sceneAchter(groundY); ctx.restore();   // de lucht en het verre land: van het echte level
+    level = nep; nepPas = true;
+    ctx.save(); ctx.setTransform(nepBasis); sceneGrond(groundY); ctx.restore();    // de grond, de gaten en de ravijnen van het nep-level
+    drawPlafond(groundY, scale, cx); drawGrotten(groundY, scale, cx); drawHolte(groundY, scale, cx);
+    drawClimb(groundY, scale, cx, false);
+    gatenLusTeken(groundY, scale, cx);
+    drawClimb(groundY, scale, cx, true);
+    zwartDrapeTeken(groundY, scale, cx);
+    keienTeken(platsNear(scale), groundY, scale, cx);
+  } finally { level = echt; nepPas = false; }
+  rijsTeken(groundY, scale, cx);                    // de rijzende grond verbergt een masker niet
+  ctx.restore();
+  for (const { m, vk } of vervaag){                 // onthuld en aan het vervagen: het echte beeld er weer overheen
+    ctx.save();
+    maskerNepPad(vk, groundY, scale, cx); ctx.clip();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1 - m.t;
+    ctx.drawImage(doek, 0, 0);
+    ctx.restore();
+  }
+}
+// wat binnen een masker dat er nog ligt staat, uit de bovenste zwarte laag knippen (de vormen en zwarte cellen uit de Maker)
+function maskerUitknip(groundY, scale, cx){
+  const vak = [];
+  for (const m of maskerLijst()) if (!m.onthuld) for (const R of maskerRects(m)) vak.push(R);
+  if (!vak.length) return false;
+  ctx.beginPath();
+  ctx.rect(-W * 4, -H * 4, W * 10, H * 10);
+  for (const R of vak) ctx.rect(cx + (R.l - world) - 3, groundY - (R.boven + 4) * scale, R.r - R.l + 6, (R.boven - R.onder + 8) * scale);   // iets ruimer: de zwarte blokken overlappen elkaar een paar pixels
+  ctx.clip('evenodd');
+  return true;
 }
 
 // ---- zakplafond: een plafond dat zakt als je op een zegel stapt ------------------
@@ -18412,6 +18512,7 @@ function inGap(x){
 // ravijnenNu laat alleen die van het huidige level over (wie van level wisselt, is ze kwijt).
 const ravijnen = [];
 function ravijnenNu(){
+  if (nepPas) return ravijnen.filter(fx => fx.lvl === level);   // de tweede pas (nep-terrein): de echte ravijnen niet weggooien
   for (let i = ravijnen.length - 1; i >= 0; i--) if (ravijnen[i].lvl !== level) ravijnen.splice(i, 1);
   return ravijnen;
 }
@@ -21401,7 +21502,7 @@ function warmBouw(){
     rij.push(bak);
   }
   // de plafond- en grotband: de grotset laadt lui, dus eerst laden en dan bakken zodra hij binnen is
-  if (level.grotten || level.holtes || level.plafond || maskerLijst().some(m => (m.look || 'grot') === 'grot')){
+  if (level.grotten || level.holtes || level.plafond || maskerLijst().some(m => (m.look || 'grot') === 'grot') || (level.nep && (level.nep.holtes || level.nep.grotten))){
     rij.push(() => { try { grotLaad(); } catch (e) {} });
     const bak = () => {
       if (!klaar(grotPic('plafond_strook'))){ if ((bak.n = (bak.n || 0) + 1) < 900) rij.push(bak); return; }
@@ -28456,7 +28557,7 @@ function drawPlacedFar(groundY){
 }
 function drawProps(groundY, unit, near){
   // zodra je zelf decor hebt geplaatst, vervalt het automatische decor op de voorgrond
-  if (near && level && level.props && level.props.length) return;
+  if (near && level && ((level.props && level.props.length) || level.autoDecorUit)) return;
   // en het automatische decor ver weg ook, zodra er decor of gaten in je level staan:
   // dat schuift mee met de achtergrond en kwam dan boven een ravijn te hangen
   if (!near && level && ((level.props && level.props.length) || (level.gaps && level.gaps.length))) return;
@@ -29011,6 +29112,10 @@ function drawLayer(L, imgs, seq, horizonY, lift, par, size, vloer){
 }
 function midOn(){ return sceneCfg().mid && layerImgs().mid.some(Boolean); }   // laag 2: aan in de sandbox en in elk level
 function scene(groundY){
+  sceneAchter(groundY);                             // de lucht, de bergen en het verre decor
+  sceneGrond(groundY);                              // de grond, de gaten en de ravijnen (ook los, voor het nep-terrein van een masker)
+}
+function sceneAchter(groundY){
   // de arena-modus van de sandbox: de verre lagen (lucht, bergen, bomen) schuiven een klein stuk met Amir mee
   // (arenaAap.parallax), zodat de arena diepte krijgt terwijl de camera vast staat; de wanden, de grond en alles
   // erop niet. Tijdens het tekenen is world de camera en camSwap Amir zelf (zie de hoofdlus); de lagen lezen world,
@@ -29101,6 +29206,8 @@ function scene(groundY){
   drawProps(on2 ? nearY : horizonY, propUnit, false);   // far scenery, behind the ground (voor de heuvels: op hun lijn)
   drawPlacedFar(groundY);                           // jouw achtergronddecor staat op de savanne, niet op de horizon
   world = camEcht;                                  // de parallax is alleen voor de verre lagen: de wanden en de grond staan op de echte camera
+}
+function sceneGrond(groundY){
   if (arenaAap && !arenaAap.staging) arenaAchtergrond(groundY);          // de arena: midrots en de twee grijze zijwanden, achter de grond (niet in de aankomst)
   const bandH = H * 0.18;
   const eimg = bodemPic();                                 // savanne, rotsbodem, of de ingebakken wintergrond
@@ -29197,6 +29304,145 @@ function scene(groundY){
   drawProps(groundY, propUnit, true);               // near scenery, standing on the line
 }
 
+// de gatenlus uit de hoofdlus, als functie: ook het nep-terrein van een masker tekent hem (maskerNepTeken)
+function gatenLusTeken(groundY, scale, cx){
+      const bandH3 = H * 0.18;
+      // Zo veel ravijn staat er werkelijk in beeld. Gedeeld door de zoom, want dit blok
+      // wordt getekend binnen de zoom (view) en het verloop moet op het scherm
+      // over die afstand lopen, niet in de maat van de tekening.
+      const zicht = Math.max(bandH3, H - groundY) / viewZoom();
+      const diepK = ravijnDiep();     // de kleur waar het diepste stuk op uitkomt, een keer per frame
+      const topY = edgeCrust(groundY);        // de breuk loopt ook door het bovenvlak, tot waar dat dicht is
+      const deep = groundY + bandH3 + 60;
+      const art = gapArt();
+      const amir = CHAR_H * scale;
+      for (const g of gatenTeken()){
+        const gl = cx + (g.x - g.w / 2 - world);
+        const gr = cx + (g.x + g.w / 2 - world);
+        if (gr < -W || gl > W / viewZoom() + W) continue;
+        // een gewoon ravijn tekent zich al in scene(), als een open ravijneffect (ravijnVastVoor);
+        // een gat boven een gang is hetzelfde effect, afgeknipt op het dak.
+        // Wat hieronder staat is alleen nog voor als de wandplaat er nog niet is.
+        if (holteAt(g.x) ? ravijnGangTeken(g, gl, gr, groundY, scale, cx) : ravijnVastVoor(g)) continue;
+        ctx.save();
+        // de grond vlak naast de breuk iets donkerder: de rand buigt weg
+        for (const sd of [-1, 1]){
+          const x0 = sd < 0 ? gl - 22 : gr + 22, x1 = sd < 0 ? gl + 6 : gr - 6;
+          const sh = ctx.createLinearGradient(x0, 0, x1, 0);
+          sh.addColorStop(0, 'rgba(22,14,18,0)');
+          sh.addColorStop(1, 'rgba(22,14,18,0.45)');
+          ctx.fillStyle = sh;
+          ctx.fillRect(Math.min(x0, x1), topY, Math.abs(x1 - x0), deep - topY);
+        }
+        if (art){
+          const sR = amir * 0.95 / GAP_RIM.h;                        // de rand van de overkant: bijna Amir-hoog
+          const rimW = GAP_RIM.w * sR, rimH = GAP_RIM.h * sR;
+          // De overkant ligt even hoog als jouw grond, dus zijn rots begint waar jouw breuk
+          // begint: op de kruin. Stond hij onder de looplijn, dan keek je tussen de kruin en
+          // die rots door de overkant heen naar de horizon, en die strook achtergrond las
+          // naast de grond als een balk (in Renew 7 blauwig). De grasplukken van de overkant
+          // steken daardoor boven de kruin uit, net als gras op jouw eigen grond.
+          const rotsY = topY + 2;
+          const rimY = rotsY - GAP_RIM.rock * sR;
+          ctx.save();
+          ctx.beginPath();
+          // Ligt er een gang onder, dan houdt de overkant op bij het dak: daaronder zie je de gang
+          // (twee pixels eronder door, en precies op een hele beeldpixel: waar twee zachte randen
+          // op dezelfde lijn liggen, schijnt er anders een haarlijn van wat eronder ligt doorheen,
+          // en op een halve pixel telt het licht erop net niet goed op; het steen loopt gewoon door)
+          const bodemY = holteAt(g.x) ? heelPx(groundY + HOLTE_DAK * scale + 2) : groundY + H * 3;
+          traceGap(g, gl, gr, Math.min(topY, rimY + GAP_RIM.top * sR), bodemY, groundY);   // de grasplukken blijven binnen de breuk
+          ctx.clip();
+          const rockW = art.rock.width * sR, rockH = art.rock.height * sR;
+          const rockTop = rimY + rimH - 1;
+          for (let x = gl - 30; x < gr + 30; x += rimW - 1){
+            ctx.drawImage(art.rim, x, rimY, rimW + 1, rimH);
+            for (let y = rockTop; y < groundY + H * 1.5; y += rockH - 1) ctx.drawImage(art.rock, x, y, rimW + 1, rockH * (rimW / rockW));
+          }
+          // De overkant staat ver weg: onder de rand ligt nevel in de kleur van dit uitzicht over
+          // de wand, dikker naarmate je dieper kijkt, en daaronder wordt het donker. De rand zelf
+          // blijft scherp, want daar moet je landen.
+          //
+          // Beide verlopen hingen aan veelvouden van Amir en kwamen pas op volle sterkte 225 tot
+          // 396 px onder de grondlijn. Je ziet er maar 0,18 van de schermhoogte van, dus dat
+          // gebeurde altijd buiten beeld en bleef er een gelijkmatig verlichte plaat over. Ze
+          // lopen nu over het stuk dat werkelijk in beeld staat.
+          const sc = sceneCfg();
+          const mistA = Math.min(0.75, 0.5 * (sc.mist || 1));
+          const hz = ctx.createLinearGradient(0, rotsY, 0, groundY + zicht);
+          hz.addColorStop(0, 'rgba(' + sc.mistColor + ',0)');       // op nul beginnen, anders ligt er een streep op de rand
+          hz.addColorStop(0.35, 'rgba(' + sc.mistColor + ',' + (mistA * 0.7).toFixed(3) + ')');
+          hz.addColorStop(1, 'rgba(' + sc.mistColor + ',' + mistA.toFixed(3) + ')');
+          ctx.fillStyle = hz; ctx.fillRect(gl - 40, rotsY, gr - gl + 80, H * 3);
+          if (holteAt(g.x)){
+            // Boven een gang is dit geen afgrond maar de wand van een gat met een gang eronder:
+            // geen diepte die wegzakt in het donker, maar aarde die overloopt in het steen van
+            // de gang (zie holteSchacht). Het licht erop komt uit de lichtkaart.
+            holteSchacht(gl, gr, groundY, scale, cx);
+          } else {
+            // en hoe dieper, hoe donkerder: onderin zie je niets meer. Dezelfde kleur waar de
+            // doorgetrokken achtergrond ook op uitkomt, dus daar zit geen overgang tussen
+            const dg = ctx.createLinearGradient(0, groundY + zicht * 0.12, 0, groundY + zicht);
+            dg.addColorStop(0, 'rgba(' + diepK + ',0.0)');
+            dg.addColorStop(0.5, 'rgba(' + diepK + ',0.5)');
+            dg.addColorStop(1, 'rgba(' + diepK + ',0.97)');
+            ctx.fillStyle = dg; ctx.fillRect(gl - 40, groundY - 2, gr - gl + 80, H * 3);
+            ctx.fillStyle = 'rgb(' + diepK + ')'; ctx.fillRect(gl - 40, groundY + zicht - 1, gr - gl + 80, H * 3);
+          }
+          // de breukranden werpen schaduw op de overkant
+          for (const sd of [-1, 1]){
+            const x0 = sd < 0 ? gl : gr, x1 = sd < 0 ? gl + 34 : gr - 34;
+            const sh = ctx.createLinearGradient(x0, 0, x1, 0);
+            sh.addColorStop(0, 'rgba(' + art.dark + ',0.55)'); sh.addColorStop(1, 'rgba(' + art.dark + ',0)');
+            ctx.fillStyle = sh; ctx.fillRect(Math.min(x0, x1), topY, 34, H * 3);
+          }
+          ctx.restore();
+        } else {
+          // plaatjes nog niet binnen: alleen de diepte, vanaf de loopvlakte naar beneden
+          ctx.beginPath();
+          traceGap(g, gl, gr, groundY, groundY + H * 3, groundY);
+          const dg = ctx.createLinearGradient(0, groundY, 0, groundY + bandH3);
+          dg.addColorStop(0, '#3a2540');
+          dg.addColorStop(1, '#130b18');
+          ctx.fillStyle = dg; ctx.fill();
+        }
+        // dunne donkere lijn langs de breuk
+        ctx.strokeStyle = 'rgba(18,10,14,0.85)'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+        for (const side of [0, 1]){
+          ctx.beginPath();
+          for (let y = topY; y <= deep; y += 5){
+            const xx = side ? gr - gapJag(g, 1, y, groundY) : gl + gapJag(g, 0, y, groundY);
+            if (y === topY) ctx.moveTo(xx, y); else ctx.lineTo(xx, y);
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+}
+// de keien tekenen (de lijst uit platsNear); ook voor het nep-terrein van een masker
+function keienTeken(plats, groundY, scale, cx){
+    const platImgNow = platPic();
+    if (platImgNow.complete && platImgNow.naturalWidth){
+      for (const p of plats){
+        if (p.terrace || p.thin) continue;           // die tekent drawClimb
+        const px = cx + (p.x - world) - p.wPx / 2;
+        if (px > W / viewZoom() + W || px + p.wPx < -W) continue;
+        const pb = (p.base || 0) * scale;
+        ctx.drawImage(platImgNow, px, groundY - p.hPx + PLAT.sink * p.hPx - pb, p.wPx, p.hPx);
+        if (showBoxes){
+          ctx.save();
+          ctx.globalAlpha = 0.5; ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2;
+          const ty = groundY - p.topH * scale;
+          ctx.beginPath(); ctx.moveTo(cx + (p.left - world), ty);
+          ctx.lineTo(cx + (p.right - world), ty); ctx.stroke();
+          ctx.globalAlpha = 0.25;
+          ctx.strokeRect(cx + (p.left - world), ty,
+                         p.right - p.left, groundY - pb - ty);
+          ctx.restore();
+        }
+      }
+    }
+}
 let propUnit = 1;
 
 // Een ravijn tekenen zoals het open staat: de achtergrond door het gat, het kleine gras, de wand
@@ -29892,6 +30138,7 @@ function loop(now){
   }
   if (camEase !== null){ camSwap = pWorld; world = camEase; }
   scene(groundY);
+  nepBasis = ctx.getTransform();                   // voor het nep-terrein van een masker (maskerNepTeken): de transform van voor de zoom
 
   // Hier stond de oude laadpoort (loaded >= total, met een handmatige som van het aantal bestanden).
   // Of een level mag beginnen bepaalt nu alleen laadPoort (zie laadStap): die houdt de lus stil tot
@@ -30105,120 +30352,7 @@ function loop(now){
     // afgebroken rand met grasplukken, daaronder de rotswand, en die loopt naar
     // beneden weg in het donker. Hetzelfde steen als de terrassen, in de kleur van
     // dit uitzicht (koud en besneeuwd in de winter).
-    {
-      const bandH3 = H * 0.18;
-      // Zo veel ravijn staat er werkelijk in beeld. Gedeeld door de zoom, want dit blok
-      // wordt getekend binnen de zoom (view) en het verloop moet op het scherm
-      // over die afstand lopen, niet in de maat van de tekening.
-      const zicht = Math.max(bandH3, H - groundY) / viewZoom();
-      const diepK = ravijnDiep();     // de kleur waar het diepste stuk op uitkomt, een keer per frame
-      const topY = edgeCrust(groundY);        // de breuk loopt ook door het bovenvlak, tot waar dat dicht is
-      const deep = groundY + bandH3 + 60;
-      const art = gapArt();
-      const amir = CHAR_H * scale;
-      for (const g of gatenTeken()){
-        const gl = cx + (g.x - g.w / 2 - world);
-        const gr = cx + (g.x + g.w / 2 - world);
-        if (gr < -W || gl > W / viewZoom() + W) continue;
-        // een gewoon ravijn tekent zich al in scene(), als een open ravijneffect (ravijnVastVoor);
-        // een gat boven een gang is hetzelfde effect, afgeknipt op het dak.
-        // Wat hieronder staat is alleen nog voor als de wandplaat er nog niet is.
-        if (holteAt(g.x) ? ravijnGangTeken(g, gl, gr, groundY, scale, cx) : ravijnVastVoor(g)) continue;
-        ctx.save();
-        // de grond vlak naast de breuk iets donkerder: de rand buigt weg
-        for (const sd of [-1, 1]){
-          const x0 = sd < 0 ? gl - 22 : gr + 22, x1 = sd < 0 ? gl + 6 : gr - 6;
-          const sh = ctx.createLinearGradient(x0, 0, x1, 0);
-          sh.addColorStop(0, 'rgba(22,14,18,0)');
-          sh.addColorStop(1, 'rgba(22,14,18,0.45)');
-          ctx.fillStyle = sh;
-          ctx.fillRect(Math.min(x0, x1), topY, Math.abs(x1 - x0), deep - topY);
-        }
-        if (art){
-          const sR = amir * 0.95 / GAP_RIM.h;                        // de rand van de overkant: bijna Amir-hoog
-          const rimW = GAP_RIM.w * sR, rimH = GAP_RIM.h * sR;
-          // De overkant ligt even hoog als jouw grond, dus zijn rots begint waar jouw breuk
-          // begint: op de kruin. Stond hij onder de looplijn, dan keek je tussen de kruin en
-          // die rots door de overkant heen naar de horizon, en die strook achtergrond las
-          // naast de grond als een balk (in Renew 7 blauwig). De grasplukken van de overkant
-          // steken daardoor boven de kruin uit, net als gras op jouw eigen grond.
-          const rotsY = topY + 2;
-          const rimY = rotsY - GAP_RIM.rock * sR;
-          ctx.save();
-          ctx.beginPath();
-          // Ligt er een gang onder, dan houdt de overkant op bij het dak: daaronder zie je de gang
-          // (twee pixels eronder door, en precies op een hele beeldpixel: waar twee zachte randen
-          // op dezelfde lijn liggen, schijnt er anders een haarlijn van wat eronder ligt doorheen,
-          // en op een halve pixel telt het licht erop net niet goed op; het steen loopt gewoon door)
-          const bodemY = holteAt(g.x) ? heelPx(groundY + HOLTE_DAK * scale + 2) : groundY + H * 3;
-          traceGap(g, gl, gr, Math.min(topY, rimY + GAP_RIM.top * sR), bodemY, groundY);   // de grasplukken blijven binnen de breuk
-          ctx.clip();
-          const rockW = art.rock.width * sR, rockH = art.rock.height * sR;
-          const rockTop = rimY + rimH - 1;
-          for (let x = gl - 30; x < gr + 30; x += rimW - 1){
-            ctx.drawImage(art.rim, x, rimY, rimW + 1, rimH);
-            for (let y = rockTop; y < groundY + H * 1.5; y += rockH - 1) ctx.drawImage(art.rock, x, y, rimW + 1, rockH * (rimW / rockW));
-          }
-          // De overkant staat ver weg: onder de rand ligt nevel in de kleur van dit uitzicht over
-          // de wand, dikker naarmate je dieper kijkt, en daaronder wordt het donker. De rand zelf
-          // blijft scherp, want daar moet je landen.
-          //
-          // Beide verlopen hingen aan veelvouden van Amir en kwamen pas op volle sterkte 225 tot
-          // 396 px onder de grondlijn. Je ziet er maar 0,18 van de schermhoogte van, dus dat
-          // gebeurde altijd buiten beeld en bleef er een gelijkmatig verlichte plaat over. Ze
-          // lopen nu over het stuk dat werkelijk in beeld staat.
-          const sc = sceneCfg();
-          const mistA = Math.min(0.75, 0.5 * (sc.mist || 1));
-          const hz = ctx.createLinearGradient(0, rotsY, 0, groundY + zicht);
-          hz.addColorStop(0, 'rgba(' + sc.mistColor + ',0)');       // op nul beginnen, anders ligt er een streep op de rand
-          hz.addColorStop(0.35, 'rgba(' + sc.mistColor + ',' + (mistA * 0.7).toFixed(3) + ')');
-          hz.addColorStop(1, 'rgba(' + sc.mistColor + ',' + mistA.toFixed(3) + ')');
-          ctx.fillStyle = hz; ctx.fillRect(gl - 40, rotsY, gr - gl + 80, H * 3);
-          if (holteAt(g.x)){
-            // Boven een gang is dit geen afgrond maar de wand van een gat met een gang eronder:
-            // geen diepte die wegzakt in het donker, maar aarde die overloopt in het steen van
-            // de gang (zie holteSchacht). Het licht erop komt uit de lichtkaart.
-            holteSchacht(gl, gr, groundY, scale, cx);
-          } else {
-            // en hoe dieper, hoe donkerder: onderin zie je niets meer. Dezelfde kleur waar de
-            // doorgetrokken achtergrond ook op uitkomt, dus daar zit geen overgang tussen
-            const dg = ctx.createLinearGradient(0, groundY + zicht * 0.12, 0, groundY + zicht);
-            dg.addColorStop(0, 'rgba(' + diepK + ',0.0)');
-            dg.addColorStop(0.5, 'rgba(' + diepK + ',0.5)');
-            dg.addColorStop(1, 'rgba(' + diepK + ',0.97)');
-            ctx.fillStyle = dg; ctx.fillRect(gl - 40, groundY - 2, gr - gl + 80, H * 3);
-            ctx.fillStyle = 'rgb(' + diepK + ')'; ctx.fillRect(gl - 40, groundY + zicht - 1, gr - gl + 80, H * 3);
-          }
-          // de breukranden werpen schaduw op de overkant
-          for (const sd of [-1, 1]){
-            const x0 = sd < 0 ? gl : gr, x1 = sd < 0 ? gl + 34 : gr - 34;
-            const sh = ctx.createLinearGradient(x0, 0, x1, 0);
-            sh.addColorStop(0, 'rgba(' + art.dark + ',0.55)'); sh.addColorStop(1, 'rgba(' + art.dark + ',0)');
-            ctx.fillStyle = sh; ctx.fillRect(Math.min(x0, x1), topY, 34, H * 3);
-          }
-          ctx.restore();
-        } else {
-          // plaatjes nog niet binnen: alleen de diepte, vanaf de loopvlakte naar beneden
-          ctx.beginPath();
-          traceGap(g, gl, gr, groundY, groundY + H * 3, groundY);
-          const dg = ctx.createLinearGradient(0, groundY, 0, groundY + bandH3);
-          dg.addColorStop(0, '#3a2540');
-          dg.addColorStop(1, '#130b18');
-          ctx.fillStyle = dg; ctx.fill();
-        }
-        // dunne donkere lijn langs de breuk
-        ctx.strokeStyle = 'rgba(18,10,14,0.85)'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
-        for (const side of [0, 1]){
-          ctx.beginPath();
-          for (let y = topY; y <= deep; y += 5){
-            const xx = side ? gr - gapJag(g, 1, y, groundY) : gl + gapJag(g, 0, y, groundY);
-            if (y === topY) ctx.moveTo(xx, y); else ctx.lineTo(xx, y);
-          }
-          ctx.stroke();
-        }
-        ctx.restore();
-      }
-    }
+    gatenLusTeken(groundY, scale, cx);             // de gaten die nog geen open ravijneffect hebben (zie gatenLusTeken)
     drawClimb(groundY, scale, cx, true);           // treden onder de grond: na de ravijnen, zie drawClimb
     zwartDrapeTeken(groundY, scale, cx);           // de savanne-aarde drapeert vol door tot een zwart blok eronder (over een savanne-laag heen, onder de zwarte blokken die hoger starten)
     rijsTeken(groundY, scale, cx);                 // de rijzende grond: steen dat uit een ravijn komt
@@ -30389,27 +30523,7 @@ function loop(now){
       }
     }
 
-    const platImgNow = platPic();
-    if (platImgNow.complete && platImgNow.naturalWidth){
-      for (const p of plats){
-        if (p.terrace || p.thin) continue;           // die tekent drawClimb
-        const px = cx + (p.x - world) - p.wPx / 2;
-        if (px > W / viewZoom() + W || px + p.wPx < -W) continue;
-        const pb = (p.base || 0) * scale;
-        ctx.drawImage(platImgNow, px, groundY - p.hPx + PLAT.sink * p.hPx - pb, p.wPx, p.hPx);
-        if (showBoxes){
-          ctx.save();
-          ctx.globalAlpha = 0.5; ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2;
-          const ty = groundY - p.topH * scale;
-          ctx.beginPath(); ctx.moveTo(cx + (p.left - world), ty);
-          ctx.lineTo(cx + (p.right - world), ty); ctx.stroke();
-          ctx.globalAlpha = 0.25;
-          ctx.strokeRect(cx + (p.left - world), ty,
-                         p.right - p.left, groundY - pb - ty);
-          ctx.restore();
-        }
-      }
-    }
+    keienTeken(plats, groundY, scale, cx);         // de keien om op te springen
     poortTeken(groundY, scale, cx);               // stenen poorten (achter de zegels en de vijanden)
     zegelTeken(groundY, scale, cx);               // de zegels plat in de grond
     pijlTeken(groundY, scale, cx);                // rode pijlen in de lucht (testlevels)
@@ -30419,6 +30533,7 @@ function loop(now){
     skeletTeken(groundY, scale, cx);              // skeletten, met of zonder speer
     losTeken(groundY, scale, cx);                 // speren die los op de grond liggen
     ravijnRuneTeken(groundY, scale, cx);          // de rots met de rune bij het ravijn
+    maskerNepTeken(groundY, scale, cx);           // een onzichtbaar masker: het nep-terrein over alles hierboven, voor Amir en de vijanden
 
     zichtTeken(groundY, scale, cx);               // sandbox: het zicht van de vijanden (Toon zicht)
 
@@ -31529,7 +31644,7 @@ function loop(now){
       if (tk.weg || tk.valt) continue;
       const wielH = TAKEL.wielH * CHAR_H * scale, wielW = wielH * 274 / 325, rw = wielW * 0.42;   // de schijf: het ronde deel rond de hub
       // elk wiel op zijn eigen plek (x) en hoogte (off); een lijst-wiel heeft een modus, een oud wiel een dir
-      const wielen = takelWielLijst(tk).map(rad => {
+      const wielen = takelWielLijst(tk).filter(rad => !achterMasker(rad.x, wielBasis(rad))).map(rad => {   // een tandwiel binnen een masker dat er nog ligt is niet te raken
         const rwx = cx + (rad.x - world), cy = groundY - wielBasis(rad) * scale - wielH * 194 / 325;
         return { box: { l: rwx - rw, r: rwx + rw, t: cy - rw, b: cy + rw }, dir: rad.dir, modus: rad.modus, x: rad.x, off: rad.off || 0 };
       });
@@ -32525,6 +32640,7 @@ function readLevel(txt){
            // onthult (zie "masker"). id de naam (bv. 'Verborgen1') waar een actie naar wijst, vakken de rechthoeken
            // (l, r in wereld-x; onder, boven in sprite-eenheden), look de textuur (nu 'grot'). Een ouder masker met
            // l/r/boven/onder (één rechthoek) werkt ook nog
+           nep: (o.nep && typeof o.nep === 'object') ? o.nep : undefined,   // het nep-terrein van de onzichtbare maskers (zie maskerNepTeken)
            maskers: (o.maskers || []).map(q => {
              const m = { id: q.id != null ? String(q.id) : undefined, look: q.look ? String(q.look) : 'grot' };
              if (q.vulZwart) m.vulZwart = true;        // blijft zwart na onthullen (zie zwartAfloop/zwartMaskerGaten)
@@ -32704,6 +32820,7 @@ function laadLevel(lv){
   golfLaadLevel(lv);                               // de texturen van de golvende rand als het level golf heeft
   poortLaadLevel(lv);                              // de stenen bogen als het level poorten heeft
   propLaadLevel(lv);                               // het luie decor (het rotsdecor) dat het level neerzet
+  if (lv.nep && !lv.isNep) laadLevel(lv.nep);      // en wat het nep-terrein van een masker gebruikt (een sneeuwrichel, de golfrand)
 }
 // ---- geheugen vrijgeven bij een levelwissel ----------------------------------
 // Elke grote vijandlader meldt zich met laadNodig(soort), ook als hij al geladen was. setLevel en mkTest
@@ -34030,6 +34147,8 @@ function vormImg(k){ if (!VORM_IMG[k]) return null; let im = vormImgCache[k]; if
 // eenheden. Alleen een level met vormen (uit de Maker) heeft dit; de episodes niet (rule 1).
 function vormenTeken(groundY, scale){
   const vs = (typeof level !== 'undefined' && level) ? level.vormen : null; if (!vs || !vs.length) return;
+  ctx.save();
+  maskerUitknip(groundY, scale, W / 2);             // binnen een masker dat er nog ligt: geen zwarte laag
   for (const v of vs){
     const sx = W / 2 + (v.x - world), sy = groundY - v.y * scale, w = v.w, h = v.h * scale;
     if (sx + w / 2 < -W || sx - w / 2 > W / viewZoom() + W) continue;
@@ -34040,6 +34159,7 @@ function vormenTeken(groundY, scale){
     else ctx.fillRect(-w / 2, -h / 2, w, h);
     ctx.restore();
   }
+  ctx.restore();
 }
 function mkNearestPlatform(w){ let best = null, bd = Infinity;
   for (const o of MK.objects){ if (o.k !== 'platform') continue; const d = (o.c - w.c) ** 2 + (o.r - w.r) ** 2; if (d < bd){ bd = d; best = o; } }
@@ -34485,12 +34605,20 @@ function mkTeken(){
       const x = gx + p.c * cel, y = gy + p.r * cel;
       mkCtx.fillRect(x + 0.5, y + 0.5, cel - 1, cel - 1);
       mkCtx.strokeRect(x + 1, y + 1, cel - 2, cel - 2);
+      if (p.u){                                       // het geschilderde uiterlijk: de kleur van die terreinsoort, schuin gestreept
+        const tt = MK_TYPES.find(q => q.id === p.u), vul = mkCtx.fillStyle;
+        mkCtx.save(); mkCtx.globalAlpha = 0.75; mkCtx.fillStyle = (tt && tt.kleur) || '#9fd7ff';
+        mkCtx.fillRect(x + cel * 0.22, y + cel * 0.22, cel * 0.56, cel * 0.56);
+        mkCtx.strokeStyle = 'rgba(255,255,255,.7)'; mkCtx.lineWidth = 1; mkCtx.beginPath();
+        mkCtx.moveTo(x + cel * 0.22, y + cel * 0.78); mkCtx.lineTo(x + cel * 0.78, y + cel * 0.22); mkCtx.stroke();
+        mkCtx.restore(); mkCtx.fillStyle = vul;
+      }
       if (!lab || p.r < lab.r || (p.r === lab.r && p.c < lab.c)) lab = p;
     }
     if (lab && cel >= 12){
       mkCtx.fillStyle = actief ? '#dfffe6' : '#9fe0ab';
       mkCtx.font = `bold ${Math.round(Math.min(cel * 0.5, 14))}px sans-serif`; mkCtx.textAlign = 'left'; mkCtx.textBaseline = 'bottom';
-      mkCtx.fillText(m.id, gx + lab.c * cel + 2, gy + lab.r * cel - 2);
+      mkCtx.fillText(m.id + (MK.uiterlijk === m ? ': uiterlijk schilderen (Escape stopt)' : ''), gx + lab.c * cel + 2, gy + lab.r * cel - 2);
     }
   }
   // rasterlijnen als de cellen groot genoeg zijn
@@ -34797,6 +34925,7 @@ function mkKlik(ev){
     if (MK.sel){ MK.selMask = null; MK.inspectDicht = false; }
     else { const hm = mkMaskInCel(c, r); MK.selMask = hm ? hm.m : null; if (MK.selMask) MK.inspectDicht = false; }   // geen voorwerp maar een geverfde masker-cel: het masker selecteren
     mkLegenda(); mkNotePaneel(); mkTeken(); return; }   // mkLegenda: de vorm-knoppen (Andere blob, Verwijder vorm) weg nu er geen vorm meer gekozen is
+  if (MK.uiterlijk && MK_TERREIN.has(t)){ mkUiterlijkVerf(c, r); mkBewaar(); mkTeken(); return; }   // het uiterlijk van een masker, niet het terrein
   if (t === 'start'){ MK.start = (MK.start && MK.start.c === c && MK.start.r === r) ? null : { c, r }; }
   else if (t === 'eind'){ MK.eind = (MK.eind && MK.eind.c === c && MK.eind.r === r) ? null : { c, r }; }
   else if (mkIsObj(t)){
@@ -34838,6 +34967,7 @@ let mkMaskErase = false;
 let mkVerfVorig = null;                 // de laatste cel van de streek, zodat een snelle sleep geen cellen overslaat
 let mkRect = null;                      // de rechthoek die je met Shift+slepen trekt: {c0, r0, c1, r1}, gevuld bij het loslaten
 function mkVul(c, r){                   // de vulemmer (Alt+klik): alle aaneengesloten cellen (vier buren) met dezelfde inhoud krijgen het gereedschap
+  if (MK.uiterlijk) return;              // niet tijdens het schilderen van een masker-uiterlijk
   if (c < 0 || r < 0 || c >= MK.cols || r >= MK.rows) return;
   const van = MK.grid[r][c], naar = MK.tool; if (van === naar) return;
   const rij = [[c, r]]; MK.grid[r][c] = naar; let n = 0;
@@ -34855,6 +34985,7 @@ function mkVerfCel(c, r){               // een cel in de streek zetten (grond, m
   if (MK.tool === 'masker'){ mkMaskVerf(c, r, mkMaskErase); return; }
   if (MK.tool === 'maskergum'){ const had = mkMaskInCel(c, r); if (had) had.m.cells.splice(had.i, 1); return; }   // slepen met de verborgen-gum
   if (MK.tool === 'zwartcel'){ const i = mkZwartIdx(c, r); if (mkZwartErase){ if (i >= 0) MK.zwart.splice(i, 1); } else if (i < 0) MK.zwart.push({ c, r }); return; }
+  if (MK.uiterlijk){ mkUiterlijkVerf(c, r); return; }   // het uiterlijk van een masker schilderen, niet het terrein
   MK.grid[r][c] = MK.tool;
 }
 function mkVerf(ev){
@@ -35039,7 +35170,10 @@ function mkNotePaneel(){
       looktl.style.display = '';
       document.getElementById('mkmasklook').value = mkLookOf(m.look);
       document.getElementById('mkmaskvulzwart').checked = !!m.vulZwart;
-      document.getElementById('mkmasklookinfo').textContent = 'Geldt voor het hele masker ' + m.id + '. Kies waar de verborgen plek op lijkt: grotwand, rotswand, savanne of helemaal zwart. Onzichtbaar tekent niets: je ziet gewoon wat erachter ligt, maar een vijand, zegel, rune of kalebas erbinnen is weg tot het masker onthuld is (dan staat hij er plots). Ligt er een gang achter, dan onthult het masker die gang; vink "Blijft zwart na onthullen" aan als het juist zwart moet blijven (een verborgen donker gat).';
+      document.getElementById('mkmasklookinfo').textContent = 'Geldt voor het hele masker ' + m.id + '. Grotwand, rotswand, savanne en zwart leggen een vlak over het stuk. Zoals de omgeving maakt het onzichtbaar: het spel tekent er de grond of lucht ernaast, met de echte grondrand, dus een gang lijkt dichte grond en een zwevende laag lucht. Alles erin is weg tot het onthuld is, behalve een rijzer. Met Uiterlijk schilderen kies je per cel zelf de look: kies een terreinsoort (ook Ravijn, of de gum voor lucht) en verf op de groene cellen; Escape stopt. Blijft zwart na onthullen: een gang erachter blijft dan zwart.';
+      const uitAan = MK.uiterlijk === m, nU = m.cells.filter(p => p.u).length;
+      document.getElementById('mkmaskuit').textContent = 'Uiterlijk schilderen: ' + (uitAan ? 'aan' : 'uit');
+      document.getElementById('mkmaskuitwis').disabled = !nU;
       document.getElementById('mkstacklist').style.display = 'none';
       tablet.textContent = 'M'; tablet.style.background = '#5ad66e'; tablet.style.display = 'flex';
       insp.classList.toggle('dicht', MK.inspectDicht); return;
@@ -35290,7 +35424,7 @@ function mkNaarJSON(){
            cel:{ breedPx:MK_CEL_PX, hoogEenheden:MK_CEL_EENH },
            legenda:{ '.':'lucht', S:'savanne', R:'rots', W:'sneeuw op savanne', X:'sneeuw op rots', M:'muur', L:'kei (laag obstakel)', F:'zwevende laag', G:'gang', V:'ravijn', b:'zwarte savanne', n:'zwarte vulling', p:'zwart plafond' },
            grid, start:MK.start, eind:MK.eind, muziek:MK.muziek, valschade:MK.valschade,
-           maskers: MK.maskers.filter(m => m.cells.length).map(m => ({ id:m.id, look:mkLookOf(m.look), ...(m.vulZwart ? { vulZwart:true } : {}), cells:m.cells.map(p => [p.c, p.r]) })),
+           maskers: MK.maskers.filter(m => m.cells.length).map(m => ({ id:m.id, look:mkLookOf(m.look), ...(m.vulZwart ? { vulZwart:true } : {}), cells:m.cells.map(p => p.u ? [p.c, p.r, p.u] : [p.c, p.r]) })),
            vormen: MK.vormen.map(v => ({ t:v.t, x:v.x, y:v.y, w:v.w, h:v.h, rot:v.rot || 0, seed:v.seed || 0, ...(v.alpha != null && v.alpha < 1 ? { alpha:v.alpha } : {}) })),
            zwart: MK.zwart.map(p => [p.c, p.r]),
            objecten: MK.objects.map(o => {
@@ -35330,7 +35464,7 @@ function mkUitJSON(o){
   const valschade = o.valschade !== undefined ? !!o.valschade : true;
   const maskers = Array.isArray(o.maskers) ? o.maskers.filter(m => m && Array.isArray(m.cells)).map(m => ({
     id: String(m.id || 'Verborgen1'), look: mkLookOf(m.look), vulZwart: !!m.vulZwart,
-    cells: m.cells.filter(p => p != null).map(punt).filter(p => in_(p.c, p.r)) })) : [];
+    cells: m.cells.filter(p => p != null).map(p => { const q = punt(p), u = Array.isArray(p) ? p[2] : p.u; if (MK_TERREIN.has(u)) q.u = u; return q; }).filter(p => in_(p.c, p.r)) })) : [];   // u: het geschilderde uiterlijk van die cel
   const vormen = Array.isArray(o.vormen) ? o.vormen.filter(v => v && (v.t === 'blok' || v.t === 'blob' || VORM_IMG[v.t])).map(v => ({
     t:v.t, x:Number(v.x) || 0, y:Number(v.y) || 0,
     w:Math.max(0.2, Number(v.w) || 4), h:Math.max(0.2, Number(v.h) || 4),
@@ -35882,7 +36016,48 @@ function mkNaarLevel(opt){
         i = j + 1; } }
     if (blokken.length) lvl.vormen = (lvl.vormen || []).concat(blokken);
   }
+  if (!(opt && opt.nep)){ const nep = mkNepLevel(opt); if (nep) lvl.nep = nep; }
   return lvl;
+}
+// Het nep-terrein van de onzichtbare maskers (zie maskerNepTeken): hetzelfde grid, maar elke geverfde cel krijgt wat je
+// er als uiterlijk op schilderde (p.u), of anders de grond of lucht die er in dezelfde rij het dichtst naast ligt (mkNepCel). Daaruit
+// bouwt mkNaarLevel een tweede level met alleen het terrein; de voorwerpen in de cellen (een richel, een overhang) en
+// alles wat geen terrein is (vijanden, takels, rijzers, poorten, zegels, kalebassen) laat het weg.
+const MK_NEP_WEG = ['spawns', 'takels', 'rijzers', 'poorten', 'hppotions', 'zegels', 'runes', 'acties', 'maskers', 'vormen', 'ends', 'muziek', 'name', 'start'];
+function mkNepCel(G, c, r, cellen){
+  // wat er "achter" ligt: een gang, ravijn, kei, zwevende laag of zwart plafond ernaast is zelf iets dat je verbergt,
+  // dus die slaan we over en we nemen de grond, het terras, de muur of de lucht die daar weer naast ligt
+  const over = id => id === 'gang' || id === 'ravijn' || id === 'laag' || id === 'zweef' || id === 'zplafond';
+  const vind = cc => { if (cc < 0 || cc >= MK.cols || cellen.has(cc + ',' + r)) return null; const id = (G[r] && G[r][cc]) || 'lucht'; return over(id) ? null : id; };
+  for (let d = 1; d < MK.cols; d++){
+    const L = vind(c - d), R = vind(c + d);
+    if (L != null) return L;
+    if (R != null) return R;
+  }
+  return 'lucht';
+}
+function mkNepLevel(opt){
+  const onz = MK.maskers.filter(m => m.cells.length && mkLookOf(m.look) === 'onzichtbaar');
+  if (!onz.length) return null;
+  const G = MK.grid, G2 = G.map(r => r ? r.slice() : r), cellen = new Set();
+  for (const m of onz) for (const p of m.cells) cellen.add(p.c + ',' + p.r);
+  for (const m of onz) for (const p of m.cells) if (G2[p.r]) G2[p.r][p.c] = MK_TERREIN.has(p.u) ? p.u : mkNepCel(G, p.c, p.r, cellen);
+  const objOud = MK.objects;
+  MK.grid = G2;
+  MK.objects = objOud.filter(o => ['richel', 'overhang', 'platform', 'tandwiel'].includes(o.k) && !cellen.has(o.c + ',' + o.r));   // de liftgaten van een platform horen bij het terrein
+  try {
+    const n = mkNaarLevel({ ...(opt || {}), nep: true });
+    for (const k of MK_NEP_WEG) delete n[k];
+    n.spawns = [];
+    return n;
+  } finally { MK.grid = G; MK.objects = objOud; }
+}
+// het uiterlijk van een cel van het masker dat je beschildert (MK.uiterlijk): de terreinsoort van het gereedschap,
+// de gum zet lucht. Een cel die niet bij dat masker hoort, blijft zoals hij is
+function mkUiterlijkVerf(c, r){
+  const m = MK.uiterlijk; if (!m) return;
+  const p = m.cells.find(q => q.c === c && q.r === r);
+  if (p && MK_TERREIN.has(MK.tool)) p.u = MK.tool;
 }
 // ---- de controle: het grid nakijken op dingen die in de Test niet werken ----
 // Geeft een lijst meldingen {ernst, tekst, c, r}: fout (dit speelt niet), letop (dit werkt, maar krap of anders dan je
@@ -36136,7 +36311,7 @@ function mkKopieer(){
     if (o.k === 'tandwiel' && o.plat && binnen.indexOf(o.plat) >= 0) b.platRel = { dc:o.plat.c - n.c0, dr:o.plat.r - n.r0 };
     return b;
   });
-  const mask = []; for (const m of MK.maskers) for (const p of m.cells) if (mkInGebied(n, p.c, p.r)) mask.push({ dc:p.c - n.c0, dr:p.r - n.r0, id:m.id });
+  const mask = []; for (const m of MK.maskers) for (const p of m.cells) if (mkInGebied(n, p.c, p.r)) mask.push({ dc:p.c - n.c0, dr:p.r - n.r0, id:m.id, ...(p.u ? { u:p.u } : {}) });
   const zwart = MK.zwart.filter(p => mkInGebied(n, p.c, p.r)).map(p => ({ dc:p.c - n.c0, dr:p.r - n.r0 }));
   mkKlembord = { w, h, cells, objects, mask, zwart };
   mkNotePaneel();
@@ -36198,7 +36373,7 @@ function mkPlakZet(){                     // de stempel neerzetten op mkPlak (li
   for (const w of nieuw) if (w._platRel){ const q = nieuw.find(o => o.k === 'platform' && o.c === p.c + w._platRel.dc && o.r === p.r + w._platRel.dr); if (q) w.plat = q; delete w._platRel; }
   for (const z of nieuw) if (z._rijsRel){ const q = nieuw.find(o => o.k === 'rijzer' && o.c === p.c + z._rijsRel.dc && o.r === p.r + z._rijsRel.dr); if (q) z.rijsObj = q; delete z._rijsRel; }
   for (const z of nieuw) if (z._poortRel){ const q = nieuw.find(o => o.k === 'poort' && o.c === p.c + z._poortRel.dc && o.r === p.r + z._poortRel.dr); if (q) z.poortObj = q; delete z._poortRel; }
-  for (const m of k.mask){ const c = p.c + m.dc, r = p.r + m.dr; if (!in_(c, r)) continue; const had = mkMaskInCel(c, r); if (had) had.m.cells.splice(had.i, 1); mkMaskObj(m.id).cells.push({ c, r }); }
+  for (const m of k.mask){ const c = p.c + m.dc, r = p.r + m.dr; if (!in_(c, r)) continue; const had = mkMaskInCel(c, r); if (had) had.m.cells.splice(had.i, 1); mkMaskObj(m.id).cells.push(m.u ? { c, r, u:m.u } : { c, r }); }
   for (const z of k.zwart){ const c = p.c + z.dc, r = p.r + z.dr; if (in_(c, r) && mkZwartIdx(c, r) < 0) MK.zwart.push({ c, r }); }
   MK.gebied = vlak; mkGebiedKlem();      // het geplakte stuk is nu het gebied (alleen het deel binnen het grid; helemaal erbuiten is geen gebied)
   mkPlak = null; mkNotePaneel(); mkBewaar(); mkTeken();
@@ -36275,7 +36450,7 @@ addEventListener('keydown', ev => {
   if (mkBewaarTimer && !/^(INPUT|TEXTAREA|SELECT)$/.test((ev.target || {}).tagName)) mkBewaarNu();   // een toets-actie begint als eigen stap (zie mkBewaar)
   if (ev.key === 'Escape'){   // deselecteren en naar de selecteer-modus, ook vanuit een plaats-modus of het tekstvak
     if (ev.target && ev.target.blur) ev.target.blur();
-    MK.tool = 'select'; MK.sel = null; MK.gebied = null; mkPlak = null; mkDoelMode = false; mkKleurMode = false; mkBijMode = false; mkLegenda(); mkNotePaneel(); mkTeken(); ev.preventDefault(); return;
+    MK.tool = 'select'; MK.sel = null; MK.gebied = null; mkPlak = null; MK.uiterlijk = null; mkDoelMode = false; mkKleurMode = false; mkBijMode = false; mkLegenda(); mkNotePaneel(); mkTeken(); ev.preventDefault(); return;
   }
   if (/^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test((ev.target || {}).tagName)){   // in een veld of op een knop blijven de toetsen van het veld
     if (ev.target.tagName === 'BUTTON' && ev.code === 'Space') return;         // spatie op een knop drukt de knop in, geen schuif-modus
@@ -36350,7 +36525,7 @@ document.getElementById('mkvijwis').onclick = () => {
 };
 document.getElementById('mkwis').onclick = () => {
   if (!confirm('Weet je zeker dat je alles wil wissen?')) return;   // leeg beginnen, met bevestiging ertussen
-  mkZetMaat(48, 20, 12); MK.grid = mkMaakGrid(MK.cols, MK.rows); MK.start = null; MK.eind = null; MK.objects = []; MK.maskers = []; MK.maskId = 'Verborgen1'; MK.vormen = []; MK.selVorm = null; MK.zwart = []; MK.sel = null; MK.selMask = null; MK.gebied = null; mkKlembord = null; mkPlak = null; MK.tool = 'savanne'; MK.cat = 'terrein'; MK.sub = null; MK.inspectDicht = true; MK.muziek = MUZIEK_BASIS; mkMuziekEl.value = MK.muziek;
+  mkZetMaat(48, 20, 12); MK.grid = mkMaakGrid(MK.cols, MK.rows); MK.start = null; MK.eind = null; MK.objects = []; MK.maskers = []; MK.uiterlijk = null; MK.maskId = 'Verborgen1'; MK.vormen = []; MK.selVorm = null; MK.zwart = []; MK.sel = null; MK.selMask = null; MK.gebied = null; mkKlembord = null; mkPlak = null; MK.tool = 'savanne'; MK.cat = 'terrein'; MK.sub = null; MK.inspectDicht = true; MK.muziek = MUZIEK_BASIS; mkMuziekEl.value = MK.muziek;
   MK.valschade = true; mkValschadeEl.checked = true;
   mkLegenda(); mkNotePaneel(); mkPassend(); mkBewaar();
 };
@@ -36422,7 +36597,13 @@ document.getElementById('mkrichellook').onchange = e => {         // de kleur va
   MK.sel.look = ledgeLookOf(e.target.value); mkVulRichel(); mkBewaar(); mkTeken();
 };
 document.getElementById('mkvijsoort').onchange = e => { if (MK.sel && MK.sel.k === 'vijand'){ MK.sel.soort = e.target.value; mkBewaar(); mkTeken(); mkNotePaneel(); } };
-document.getElementById('mkmasklook').onchange = e => { if (MK.selMask){ MK.selMask.look = mkLookOf(e.target.value); mkBewaar(); mkTeken(); } };   // de look voor het hele masker
+document.getElementById('mkmasklook').onchange = e => { if (MK.selMask){ MK.selMask.look = mkLookOf(e.target.value); if (MK.selMask.look !== 'onzichtbaar' && MK.uiterlijk === MK.selMask) MK.uiterlijk = null; mkNotePaneel(); mkBewaar(); mkTeken(); } };   // de look voor het hele masker
+// het uiterlijk van een masker schilderen: daarna verft een terreinsoort uit het palet de look van de groene cellen van
+// dit masker (p.u), niet het terrein zelf. Alleen voor Zoals de omgeving, dus die look gaat meteen aan. Escape stopt
+document.getElementById('mkmaskuit').onclick = () => { const m = MK.selMask; if (!m) return;
+  if (MK.uiterlijk === m) MK.uiterlijk = null; else { MK.uiterlijk = m; m.look = 'onzichtbaar'; document.getElementById('mkmasklook').value = 'onzichtbaar'; }
+  mkNotePaneel(); mkBewaar(); mkTeken(); };
+document.getElementById('mkmaskuitwis').onclick = () => { const m = MK.selMask; if (!m) return; for (const p of m.cells) delete p.u; mkNotePaneel(); mkBewaar(); mkTeken(); };
 document.getElementById('mkmaskvulzwart').onchange = e => { if (MK.selMask){ MK.selMask.vulZwart = e.target.checked; mkBewaar(); } };   // blijft zwart na onthullen (geen gang laten zien)
 document.getElementById('mkinsptab').onclick = () => { MK.inspectDicht = false; mkNotePaneel(); };
 document.getElementById('mkinspclose').onclick = () => { MK.inspectDicht = true; mkNotePaneel(); };
