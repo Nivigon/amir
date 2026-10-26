@@ -618,9 +618,9 @@ een haal. Gooi je hem dood (1 op 3), dan knielt hij met je speer in zijn borst e
 seconden: loop naar hem toe en druk op E voor de executie, of wacht en hij valt voorover, met je speer
 naast hem op de grond. Daarna sta je met je speer in de hand weer gewoon klaar. Het ritme is dat van een
 combat game: een hitstop op de steek, een lange aanzet, de ruk in een paar korte frames, een klap op de
-landing, en het splijten begint in slowmotion, met het geluid van de snee en de camera een stap dichterbij.
-In de pauze staat onder **Schildbandiet: executie** een stel schuifjes voor de hitstops, de aanzet en de
-slowmotion. In de sandbox staan onder Schildbandiet knoppen om het af te dwingen: Executie: altijd, Wankel:
+landing, een korte stilte en dan de snee, met het geluid van de snee en de camera een stap dichterbij die
+met Amirs sprong meeschuift. In de pauze staat onder **Schildbandiet: executie** een stel schuifjes voor de
+hitstops, het tempo van het knielen, de aanzet, de stilte na de landing en de slowmotion. In de sandbox staan onder Schildbandiet knoppen om het af te dwingen: Executie: altijd, Wankel:
 geen E, Steek-kill en Worp-kill, en **Test 50: De executie** is een vlak level met een makkelijke
 schildbandiet waar elke kill de executie is (R begint opnieuw), en na elke dode schildbandiet komt er
 vanzelf een nieuwe aanwandelen. Bij de ruk neemt de speerpunt het bloed mee: een rode boog die de baan

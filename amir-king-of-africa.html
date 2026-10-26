@@ -1870,20 +1870,25 @@
       <div id="pzexe">
         <div class="field"><label for="pzexesteek">Hitstop op de steek</label>
           <input id="pzexesteek" type="range" min="0" max="400" step="10"><span class="read" id="pzexesteekv"></span></div>
+        <div class="field"><label for="pzexekniel">Tempo knielen (steek)</label>
+          <input id="pzexekniel" type="range" min="30" max="100" step="5"><span class="read" id="pzexeknielv"></span></div>
         <div class="field"><label for="pzexeaanzet">Hold op de aanzet</label>
           <input id="pzexeaanzet" type="range" min="70" max="900" step="10"><span class="read" id="pzexeaanzetv"></span></div>
         <div class="field"><label for="pzexeruk">Hitstop op de ruk</label>
           <input id="pzexeruk" type="range" min="0" max="250" step="10"><span class="read" id="pzexerukv"></span></div>
         <div class="field"><label for="pzexeland">Hitstop op de landing</label>
           <input id="pzexeland" type="range" min="0" max="300" step="10"><span class="read" id="pzexelandv"></span></div>
+        <div class="field"><label for="pzexelandhold">Hold op de landing</label>
+          <input id="pzexelandhold" type="range" min="100" max="900" step="10"><span class="read" id="pzexelandholdv"></span></div>
         <div class="field"><label for="pzexetraag">Slowmotion splijten</label>
           <input id="pzexetraag" type="range" min="10" max="100" step="5"><span class="read" id="pzexetraagv"></span></div>
         <div class="field"><label for="pzexetraagduur">Slowmotion duur</label>
           <input id="pzexetraagduur" type="range" min="0" max="900" step="10"><span class="read" id="pzexetraagduurv"></span></div>
         <button id="pzexestd">Executie: standaard</button>
         <span class="hint">Het ritme van de executie: de hitstops in milliseconden (het beeld staat stil, de schok
-          rommelt na), de hold op frame 5 voor de ruk, en hoe traag en hoe lang het splijten in slowmotion begint
-          (100% is geen slowmotion). Geldt meteen; de browser onthoudt je stand.</span>
+          rommelt na), hoe lang het knielen na de steek duurt (100% is de tijd uit de animatie), de hold op frame 5
+          voor de ruk, de stilte na de landing voor de snee, en hoe traag en hoe lang het oude splijten in slowmotion
+          begint (100% is geen slowmotion; met het einde uit executie.json speelt het splijten niet). Geldt meteen; de browser onthoudt je stand.</span>
       </div>
     </div>
     <button id="pzrestart">Level opnieuw</button>
@@ -16922,6 +16927,7 @@ let facing = -1, frame = 0, frameAcc = 0, world = 0, autoFlip = true;
 let idleFrame = 0, idleAcc = 0;   // idle-animatie (staan met speer)
 let hits = 0, swingUsed = false;
 let lives = 3, invuln = 0, hurt = 0, knock = 0, shake = 0, dead = false;
+let invulnStil = 0;                                 // zolang onkwetsbaar zonder te knipperen (na de executie: hij is niet geraakt)
 let hitstop = 0;                                 // korte freeze op een klap (de parry), in seconden
 let schokZoom = 1;                                   // het beeld zoomt licht in zolang het schudt (zie de tekenlus)
 let jump = null;            // alleen de pose-fase; de hoogte staat hieronder
@@ -21690,7 +21696,7 @@ function warmBouw(){
 function restart(){
   laadPoort();                                      // pas verder als alles binnen is (zie laadpoort)
   won = false; document.getElementById('win').classList.remove('on');
-  lives = levensStart(); invuln = 0; hurt = 0; knock = 0; shake = 0; hitstop = 0; kooiVries = 0; kooiVriesS = null; exeVries = null; exeZoomNu = 1; exeSnijStop(); dead = false;
+  lives = levensStart(); invuln = 0; invulnStil = 0; hurt = 0; knock = 0; shake = 0; hitstop = 0; kooiVries = 0; kooiVriesS = null; exeVries = null; exeZoomNu = 1; exeSnijStop(); dead = false;
   woedeStop();                                      // de woede houdt op bij een nieuw begin
   schijnT = 0; schijnKeer = abilityWaarde('feign_death', 'keer', 0);   // Feign Death: weer klaar
   if (level && level.tekens) for (const t of level.tekens) t.gesneden = false;   // de kalebassen hangen weer
@@ -27035,10 +27041,15 @@ const EXE = {
   // frames, op de impact een hitstop met schok, en een korte slowmotion om de klap te laten nazinderen. De
   // frametijden hieronder vervangen durations_ms van 'executie' uit de json (de andere bewegingen houden de
   // tijden van de json): 0 tot 4 rustig (de greep), 5 de aanzet (een lange hold, t.aanzet), 6 tot 9 de ruk
-  // in korte frames, 10 tot 13 het hangmoment iets trager, 14 en 15 versnellen naar de klap, 16 de landing.
-  exeDur: [200, 150, 150, 120, 120, 450, 45, 45, 45, 45, 70, 100, 110, 100, 50, 40, 450],
+  // in korte frames, 10 tot 13 het hangmoment iets trager, 14 en 15 versnellen naar de klap, 16 de landing
+  // (t.land, de tel stilte voor de snee). De greep is kort gehouden: frame 0 tot 4 verschillen weinig, en de
+  // spanning zit in de aanzet.
+  exeDur: [160, 110, 110, 90, 90, 450, 45, 45, 45, 45, 70, 100, 110, 100, 50, 40, 360],
   t: { steekStop: 0.2,           // de hitstop op de dodelijke steek (s), Amir nog in zijn stootpose, dan pas het knielen
+       kniel: 0.7,               // de steek: het knielen in de freeze loopt op dit deel van de tijden uit de json (de worp en de gewone dood houden de json)
+       schuif: 0.16,             // de steek: zo lang (s) glijdt Amir van waar hij stak naar amir_start_x, in plaats van te verspringen
        aanzet: 450,              // de hold op frame 5 (ms), met een trilling: de spanning voor de ruk (vervangt exeDur[5])
+       land: 360,                // de hold op de landing, frame 16 (ms): de tel stilte voor de snee (vervangt exeDur[16])
        rukStop: 0.1,             // de hitstop op frame 6, de ruk (s)
        landStop: 0.13,           // de hitstop op frame 16, de landing (s)
        traag: 0.3,               // het splijten: zo traag loopt de tijd in het begin (0,3 = slowmotion)...
@@ -27047,6 +27058,7 @@ const EXE = {
   tril: 0.03,                    // de trilling (shake) tijdens de aanzet
   schokRuk: 0.45, schokLand: 0.5, schokSteek: 0.25,   // de schermschok op de ruk, de landing en de steek
   zoom: { snap: 1.08, tot: 1.15, kruip: 0.8, terug: 6 },   // de camera: meteen zoveel dichterbij, kruipt naar tot, en veert na de freeze terug
+  cam: 2.5,                      // vanaf de ruk schuift de camera zo snel (per s, op echte tijd) mee naar waar Amir landt (exeCamDoel)
   eBuffer: 0.2,                  // E net voor je binnen bereik bent telt nog zoveel s (invoerbuffer)
   vignet: { a: 0.45, duur: 0.5 },   // de rode waas aan de rand van het scherm op het splijten
   splijt: { duur: 1.3, uit: 40, val: 30, draai: 1.35 },   // de helften: s (op de trage klok), canvas-px opzij, canvas-px omlaag, en tot welke hoek ze omvallen
@@ -27077,8 +27089,20 @@ function exeSnijSpeel(){
 function exeSnijStop(){ if (!exeSnijSnd.paused) exeSnijSnd.pause(); }
 // de duur van frame i van de beweging die speelt (ms): de executie heeft zijn eigen ritme (exeDur, t.aanzet)
 function exeDuur(e, b, i){
+  if (e.bew === 'knielen' && e.wijze === 'steek' && !e.dood) return (b.durations_ms[i] || 0) * EXE.t.kniel;   // de steek: knielen in de freeze, vlotter
   if (e.bew !== 'executie') return b.durations_ms[i] || 0;
-  return i === 5 ? EXE.t.aanzet : (EXE.exeDur[i] != null ? EXE.exeDur[i] : (b.durations_ms[i] || 0));
+  if (i === 5) return EXE.t.aanzet;
+  if (i === EXE.landing) return EXE.t.land;
+  return EXE.exeDur[i] != null ? EXE.exeDur[i] : (b.durations_ms[i] || 0);
+}
+// de camera tijdens de executie: vanaf de ruk schuift hij mee naar waar Amir landt (amir_eind_x), zodat hij
+// niet verspringt als Amir daar los komt (exeAmirLos). Daarvoor volgt hij gewoon Amir (null).
+function exeCamDoel(){
+  const s = exeVries, e = s && s.exe;
+  if (!e || !exeData) return null;
+  const naLanding = e.einde ? !e.amirLos : (e.bew === 'splijt');
+  if (!naLanding && !(e.bew === 'executie' && e.frame >= EXE.ruk)) return null;
+  return exeAmirX(s, exeBew('executie').amir_eind_x);
 }
 let exeData = null, exeBezig = false;   // de inhoud van executie.json zodra hij binnen is
 let exeVries = null;                    // de schildbandiet van wie de executie loopt: de wereld staat stil (zie loop)
@@ -27134,15 +27158,17 @@ function exeStart(s, wijze, dood){
 function exeBevries(s, stop){
   exeVries = s;
   exeZoomNu = Math.max(exeZoomNu, EXE.zoom.snap);
-  if (stop > 0){ s.exe.stop = stop; s.exe.naStop = () => exeAmirZet(s); }
+  if (stop > 0){ s.exe.stop = stop; s.exe.naStop = () => exeAmirZet(s, true); }
   else exeAmirZet(s);
   exeHaakFreeze(s);
 }
 // Amir op amir_start_x, naar hem toe gekeerd, zonder lopende stoot, zwaai of worp
-function exeAmirZet(s){
-  const ex = exeBew('executie');
-  world = exeAmirX(s, ex.amir_start_x); ph = s.base || 0; pvh = 0; knock = 0;
-  facing = s.x > world ? 1 : -1;
+function exeAmirZet(s, glij){
+  const ex = exeBew('executie'), doel = exeAmirX(s, ex.amir_start_x);
+  if (glij && EXE.t.schuif > 0 && Math.abs(doel - world) > 1) s.exe.schuif = { van: world, naar: doel, t: 0 };   // de steek: Amir is te zien, dus hij glijdt
+  else if (camEase === null && Math.abs(doel - world) > 1) camEase = world;   // E: Amir is weg (de lagen tekenen hem), de camera glijdt er wel heen
+  world = glij && s.exe.schuif ? world : doel; ph = s.base || 0; pvh = 0; knock = 0;
+  facing = s.x > doel ? 1 : -1;
   atkFrame = -1; atkAcc = 0; swFrame = -1; swAcc = 0; swRecover = 0; thr = null;
   frame = 0; frameAcc = 0; idleFrame = 0; idleAcc = 0;
 }
@@ -27159,7 +27185,10 @@ function exeExecutie(s){
   exeZet(s, 'executie');
   if (exeVries !== s) exeBevries(s, 0);
 }
-function exeZet(s, bew){ const e = s.exe; e.bew = bew; e.frame = 0; e.acc = 0; e.klaar = false; }
+function exeZet(s, bew){
+  const e = s.exe; e.bew = bew; e.frame = 0; e.acc = 0; e.klaar = false;
+  if (bew === 'executie' && e.schuif){ world = e.schuif.naar; e.schuif = null; }   // de glij is altijd klaar voor de lagen Amir overnemen
+}
 // tijdens de freeze is de echte Amir weg (de lagen tekenen hem); bij de steek is hij tijdens het knielen
 // nog te zien, maar zonder speer (die zit in de schildbandiet)
 function exeAmirWeg(){ return !!(exeVries && exeVries.exe && exeVries.exe.bew !== 'knielen'); }
@@ -27176,6 +27205,11 @@ function exeTick(s, dt){
     return;
   }
   e.t += dt;
+  if (e.schuif){                                   // de steek: Amir glijdt naar amir_start_x (zacht af, smoothstep)
+    const g = e.schuif; g.t = Math.min(1, g.t + dt / EXE.t.schuif);
+    world = g.van + (g.naar - g.van) * g.t * g.t * (3 - 2 * g.t);
+    if (g.t >= 1) e.schuif = null;
+  }
   if (e.einde){ exeEindeStap(s, dt); return; }
   if (e.bew === 'splijt' || e.bew === 'lijk'){ exeSplijtStap(s, dt); return; }
   if (e.bew === 'executie') exeDruppelStap(e, dt);   // de druppels die van de speerpunt afschoten
@@ -27299,6 +27333,7 @@ function exeAmirLos(s){
   else if (e.wijze === 'worp' && !rugErbij(e.blauw)) eigenSpeerLos(world, facing, e.blauw);   // je hand was al weer vol (van de rug): de speer uit hem ligt naast je
   if (!spear){ spear = true; setSpearLabel(); }
   invuln = Math.max(invuln, EXE.t.veilig);          // even onkwetsbaar: de cutscene straft je niet
+  invulnStil = invuln;                              // zonder te knipperen: hij is niet geraakt
   exeVries = null;
 }
 // ---- het einde van de executie: een stuk eraf, de botten, het spuiten en de val ----
@@ -29901,6 +29936,7 @@ function loop(now){
     if (running && !paused && !won){
       if (shake > 0) shake = Math.max(0, shake - realDt);
       exeTick(exeVries, realDt);
+      if (exeVries) updateWereldStof(realDt);      // het stof van de klap en de landing loopt door, zoals bij de kooiman: alleen Amir en de vijanden staan stil
     }
   }
   if (running && !paused) exeZoomStap(realDt);    // de camera van de executie: erin tijdens de freeze, erna terug
@@ -29937,6 +29973,7 @@ function loop(now){
   const plats = platsNear(scaleNow);
 
   if (invuln > 0) invuln = Math.max(0, invuln - dt);
+  if (invulnStil > 0) invulnStil = Math.max(0, invulnStil - dt);
   woedeUpdate(dt);                               // de woede van Bhubesi loopt af (en de meter mee)
   mesKlok += dt;                                 // de klok van het afweren met het mes
   bavKlok += dt * 1000;                          // en die van de baviaan
@@ -30197,8 +30234,11 @@ function loop(now){
   } else if (bavFocus !== null){                // de baviaan sterft: de camera schuift naar hem toe (BAV_DRAMA)
     if (camEase === null) camEase = pWorld;
     camEase += (bavFocus - camEase) * Math.min(1, dt * 2.2);
-  } else if (camEase !== null){                 // en na het gevecht weer terug naar Amir
-    camEase += (pWorld - camEase) * Math.min(1, dt * 3);
+  } else if (exeCamDoel() !== null){            // de executie: vanaf de ruk mee naar waar Amir landt (op echte tijd, de wereld staat stil)
+    if (camEase === null) camEase = pWorld;
+    camEase += (exeCamDoel() - camEase) * Math.min(1, realDt * EXE.cam);
+  } else if (camEase !== null){                 // en na het gevecht weer terug naar Amir (in de freeze van de executie op echte tijd)
+    camEase += (pWorld - camEase) * Math.min(1, (exeVries ? realDt : dt) * 3);
     if (Math.abs(pWorld - camEase) < 1) camEase = null;
   }
   if (camEase !== null){ camSwap = pWorld; world = camEase; }
@@ -30610,7 +30650,7 @@ function loop(now){
     if (!amirWeg) amirSchaduw();                      // zijn schaduw: na de terrassen, treden en keien
     if (!amirWeg) rugSpeerTeken(pcx, groundY + lift, scale);   // de reserve op zijn rug: achter zijn lijf, dus voor Amir getekend
     drawLichtkaart(groundY, scale, cx, dt, 'wereld'); // het licht onder de grond, over de wereld achter hem
-    const blink = invuln > 0 && !dead && amirSteen <= 0 && Math.floor(invuln * 14) % 2 === 0;
+    const blink = invuln > 0 && invulnStil <= 0 && !dead && amirSteen <= 0 && Math.floor(invuln * 14) % 2 === 0;
     ctx.save();
     ctx.globalAlpha = amirWeg ? 0 : blink ? 0.45 : 1;
     if (useThrow) thrWachtZet(pcx, groundY + lift);   // wachten met de speer: ademen en trillen
@@ -32377,8 +32417,8 @@ function schbTempoKnopToon(){
 // het ritme van de executie van de schildbandiet (EXE.t), live af te stellen in de pauze; de browser onthoudt de stand
 const EXE_TEMPO_KEY = 'amir.executie';
 const EXE_SCHUIF = [   // [element, sleutel in EXE.t, schaal naar het schuifje, eenheid]
-  ['pzexesteek', 'steekStop', 1000, ' ms'], ['pzexeaanzet', 'aanzet', 1, ' ms'], ['pzexeruk', 'rukStop', 1000, ' ms'],
-  ['pzexeland', 'landStop', 1000, ' ms'], ['pzexetraag', 'traag', 100, '%'], ['pzexetraagduur', 'traagDuur', 1000, ' ms']
+  ['pzexesteek', 'steekStop', 1000, ' ms'], ['pzexekniel', 'kniel', 100, '%'], ['pzexeaanzet', 'aanzet', 1, ' ms'],
+  ['pzexeruk', 'rukStop', 1000, ' ms'], ['pzexeland', 'landStop', 1000, ' ms'], ['pzexelandhold', 'land', 1, ' ms'], ['pzexetraag', 'traag', 100, '%'], ['pzexetraagduur', 'traagDuur', 1000, ' ms']
 ];
 const EXE_TEMPO_STD = Object.assign({}, EXE.t);
 function exeTempoToon(){
