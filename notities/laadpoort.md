@@ -33,7 +33,10 @@ Wat niet elk level gebruikt, komt pas binnen als een level het gebruikt: `laadLe
 | baviaan, goudaap, skelet, speerteken, fakkel, deur, takel, grot, mes, bloed | wat het level heeft | eigen `xxxLaad`, vanuit `warmBouw` of bij het eerste gebruik | eerder |
 
 De sandbox kan elke soort spawnen en roept daarom bij het openen (`startSandbox`) alle laders aan die lui zijn
-geworden: de drie slangen, de schorpioen, de hyena en de panter. Het opstarten kiest de nieuwste test
+geworden: de drie slangen, de schorpioen, de hyena en de panter. De arena-modus van de sandbox niet: die laadt
+een soort pas bij Start (voor elke soort die aan staat) en bij elke spawn (`sbArenaLaad`, `SB_ARENA_LAAD`), zodat
+de offline-download van de arena (de knop Alleen de Arena modus) bij de aangezette soorten kan blijven (zie
+`notities/assets.md`, "De arena-set van de offline-download"). Het opstarten kiest de nieuwste test
 (`setLevel(TEST_LEVELS.length - 1)`), niet meer de eerste van het blad (dat was Test 42, met de meelman), zodat het
 menu geen vijand laadt die de speler misschien nooit ziet; de nieuwste test hoort licht te zijn.
 

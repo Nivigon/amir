@@ -45,6 +45,7 @@ const SHELL = [
   './amir-king-of-africa.html',
   './manifest.webmanifest',
   './offline-assets.json',
+  './ravijn/ravijn-effect.js',
   './icons/icon-180.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -71,7 +72,13 @@ function runtimeFout(err) {
   }
 }
 
-const isAsset = (url) => /\.(png|jpe?g|mp3)$/i.test(url.pathname);
+// De json hoort erbij: de schildbandiet tekent uit lagen.json en executie.json, de hyena, de kooiman
+// en de vogel lezen hun metadata.json. Die gingen eerst als "het spel zelf" network-first naar de
+// shellcache, terwijl de downloadknop ze in de assetcache zette: offline vond de fetch-handler ze
+// dan niet, en de schildbandiet (de enige die zijn json pas bij het eerste gebruik ophaalt) kwam
+// niet binnen. De bestandslijst zelf blijft network-first, die moet juist vers zijn.
+const isAsset = (url) =>
+  /\.(png|jpe?g|mp3|json)$/i.test(url.pathname) && !/\/offline-assets\.json$/.test(url.pathname);
 const isFontHost = (url) =>
   url.host === 'fonts.googleapis.com' || url.host === 'fonts.gstatic.com';
 
@@ -144,7 +151,10 @@ async function cacheFirst(req, cacheName, opts = {}) {
     }
     return res;
   } catch (err) {
-    // Offline en niet in de cache. Geen bruikbaar antwoord te geven.
+    // Offline en niet in deze cache. Misschien wel in een andere: de json van een vijand stond tot
+    // de vorige versie in de shellcache (zie isAsset), en wie hem daar nog heeft speelt gewoon door.
+    const elders = await caches.match(req, { ignoreVary: true });
+    if (elders) return elders;
     return new Response('', { status: 504, statusText: 'offline' });
   }
 }
@@ -250,12 +260,19 @@ async function networkFirst(req, cacheName) {
 
 /* ---- berichten vanuit het spel ------------------------------------- */
 
+// Naast de set (klein of groot) kan het spel een deel noemen: een naam uit manifest.delen (nu
+// alleen 'arena', uit gen-offline-manifest.py), dan tellen en downloaden alleen die bestanden.
+// Zonder deel (of een onbekend deel) is het de hele lijst. Elk antwoord noemt het deel terug,
+// zodat het spel weet bij welke knop het hoort.
 self.addEventListener('message', (event) => {
   const data = event.data || {};
   const set = data.set === 'klein' || data.set === 'groot' ? data.set : null;
-  if (data.type === 'precache') event.waitUntil(precacheAll(set));
-  else if (data.type === 'status') event.waitUntil(reportStatus(set));
-  else if (data.type === 'clear') event.waitUntil(clearAssets(set));
+  const deel = typeof data.deel === 'string' && data.deel ? data.deel : null;
+  // bij de arena: welke soorten uit manifest.soorten erbij horen (de vijanden die in de arena aan staan)
+  const soorten = Array.isArray(data.soorten) ? data.soorten.filter((k) => typeof k === 'string') : [];
+  if (data.type === 'precache') event.waitUntil(precacheAll(set, deel, soorten));
+  else if (data.type === 'status') event.waitUntil(reportStatus(set, deel, soorten));
+  else if (data.type === 'clear') event.waitUntil(clearAssets(set, deel, soorten));
 });
 
 /* Van sommige sprites staat er een halve versie in klein/ (tools/gen-klein.py).
@@ -278,6 +295,19 @@ function voorSet(assets, set) {
     // de kleine set: de halve versies, en van de rest alles waar er geen van is
     return isKlein || !klein.has(rel);
   });
+}
+
+/** De bestanden van een deel uit de lijst (plus die van de genoemde soorten), of de hele lijst zonder
+ *  (of met een onbekend) deel. De volgorde blijft die van manifest.assets. */
+function voorDeel(manifest, deel, soorten) {
+  const lijst = deel && manifest.delen && Array.isArray(manifest.delen[deel]) ? manifest.delen[deel] : null;
+  if (!lijst) return manifest.assets;
+  const erin = new Set(lijst);
+  const per = manifest.soorten || {};
+  for (const k of soorten || []) {
+    if (Array.isArray(per[k])) for (const rel of per[k]) erin.add(rel);
+  }
+  return manifest.assets.filter((rel) => erin.has(rel));
 }
 
 async function post(msg) {
@@ -327,17 +357,27 @@ async function syncAssetVersion(manifest) {
   return cache;
 }
 
-/** Hoeveel bytes de lijst voor deze set telt; zonder opgave het hele totaal. */
-function bytesVoor(manifest, set) {
+/** Hoeveel bytes deze lijst (al gekozen op set, deel en soorten) telt. De lijst heeft per bestand zijn
+ *  grootte (manifest.groottes, in de volgorde van manifest.assets); een oude lijst zonder valt terug
+ *  op de totalen per set. */
+function bytesVoor(manifest, set, assets) {
+  const g = manifest.groottes;
+  if (Array.isArray(g) && g.length === manifest.assets.length) {
+    const idx = new Map();
+    manifest.assets.forEach((rel, i) => idx.set(rel, i));
+    let som = 0;
+    for (const rel of assets) som += g[idx.get(rel)] || 0;
+    return som;
+  }
   const per = manifest.bytesSet;
   if (set && per && typeof per[set] === 'number') return per[set];
   return manifest.bytes;
 }
 
-async function reportStatus(set) {
+async function reportStatus(set, deel, soorten) {
   try {
     const manifest = await loadManifest();
-    const assets = voorSet(manifest.assets, set);
+    const assets = voorSet(voorDeel(manifest, deel, soorten), set);
     // zijn de assets sinds de vorige keer vervangen, dan hier de oude cache weggooien, zodat de
     // gewone speler na een update verse sprites krijgt in plaats van de oude uit de cache
     const cache = await syncAssetVersion(manifest);
@@ -351,32 +391,35 @@ async function reportStatus(set) {
     }
     await post({
       type: 'status',
+      deel,
       done,
       total: assets.length,
-      bytes: bytesVoor(manifest, set),
+      bytes: bytesVoor(manifest, set, assets),
       version: manifest.version,
       vol: runtimeVol,
     });
   } catch (err) {
-    await post({ type: 'status', error: String(err.message || err) });
+    await post({ type: 'status', deel, error: String(err.message || err) });
   }
 }
 
-async function clearAssets(set) {
+// Wissen is altijd alles: de delen overlappen (de arena zit in het hele spel), dus een deel apart
+// weghalen zou ook bestanden van een ander deel raken. Het spel zet de knop ook zo neer.
+async function clearAssets(set, deel, soorten) {
   await caches.delete(ASSET_CACHE);
   await post({ type: 'cleared' });
-  await reportStatus(set);
+  await reportStatus(set, deel, soorten);
 }
 
-async function precacheAll(set) {
+async function precacheAll(set, deel, soorten) {
   let manifest;
   try {
     manifest = await loadManifest();
   } catch (err) {
-    await post({ type: 'precache-error', message: String(err.message || err) });
+    await post({ type: 'precache-error', deel, message: String(err.message || err) });
     return;
   }
-  const assets = voorSet(manifest.assets, set);
+  const assets = voorSet(voorDeel(manifest, deel, soorten), set);
 
   // Zijn de assets sinds de vorige keer vervangen, dan is wat we hebben niet meer te vertrouwen en
   // beginnen we schoon opnieuw (gedeeld met de gewone start, zie syncAssetVersion).
@@ -414,7 +457,7 @@ async function precacheAll(set) {
       // Niet bij elk bestand een bericht: dat zou honderden keren per seconde
       // de hoofdthread onderbreken terwijl de balk toch maar een pixel opschuift.
       if (done % 5 === 0 || done === total) {
-        await post({ type: 'precache-progress', done, total, failed });
+        await post({ type: 'precache-progress', deel, done, total, failed });
       }
     }
   }
@@ -436,5 +479,5 @@ async function precacheAll(set) {
   }
   // Geen reportStatus erachteraan: die zou de klaarmelding meteen weer
   // overschrijven met een telling. Het spel weet uit dit bericht genoeg.
-  await post({ type: 'precache-done', total, failed, vol, mist, bytes: bytesVoor(manifest, set) });
+  await post({ type: 'precache-done', deel, total, failed, vol, mist, bytes: bytesVoor(manifest, set, assets) });
 }

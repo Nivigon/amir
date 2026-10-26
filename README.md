@@ -230,7 +230,11 @@ Alle getallen en teksten staan in `TRIBE_CONFIG`, bovenin de HTML. In de sandbox
 
 Het spel is een installeerbare webapp. Open de Pages-link in Safari, deel, "Zet op beginscherm". Daarna staat Amir als icoon tussen je apps en start hij zonder browserbalken, liggend.
 
-Open hem vanaf het beginscherm en druk onder **Instellingen** op **Download voor offline**. Dat haalt alle sprites en geluiden in een keer binnen (ruim 2200 bestanden, ongeveer 230 MB; het precieze aantal staat in `offline-assets.json`). Vanaf dat moment laadt het spel meteen en speelt het ook zonder internet.
+Open hem vanaf het beginscherm en druk onder **Instellingen** op **Download voor offline**. Dat haalt alle sprites en geluiden in een keer binnen (op een telefoon ongeveer 275 MB, op een laptop met de scherpe sprites ongeveer 590 MB; het precieze aantal staat in `offline-assets.json`). Vanaf dat moment laadt het spel meteen en speelt het ook zonder internet.
+
+Wil je alleen de **Arena modus** van de sandbox offline spelen, druk dan op **Alleen de Arena modus**: dat haalt enkel binnen wat de arena nodig heeft zoals jij hem hebt ingesteld. Zet dus eerst in de arena (Sandbox, Arena modus, de wizard) de vijanden aan die je wilt, en druk daarna onder Instellingen op de knop: hij haalt Amir, het decor van de arena, alle geluiden en muziek, plus alleen de vijanden die aan staan. Met alleen de schildman is dat ongeveer 100 MB op een telefoon en 135 MB op een laptop; met alle vijanden aan (of nog niets aangezet) ongeveer 170 en 340 MB. De tekst eronder zegt welke vijanden meetellen en hoeveel er nog te halen is. Zet je later een andere vijand aan, haal hem dan eerst hier op, anders blijft hij offline onzichtbaar. **Wissen** haalt altijd alles weg.
+
+Wil je zeker weten dat het werkt voor je zonder internet zit: zet na de download de verbinding uit (vliegtuigstand, of de wifi uit), herlaad het spel en speel een potje arena. Het menu meldt dan in de console een paar ontbrekende bestanden van het levelkaartje dat het menu klaarzet; dat is normaal en doet de arena niets.
 
 Lukt een deel niet, dan zegt de knop **Probeer opnieuw** en staat eronder hoeveel bestanden er nog ontbreken, en of dat komt doordat de opslag op je toestel vol is of doordat de verbinding wegviel. Een volgende poging haalt alleen die ontbrekende bestanden op.
 
