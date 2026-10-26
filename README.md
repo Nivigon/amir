@@ -644,14 +644,19 @@ de hand. De oude dood, waarbij hij achterover viel en zijn eigen speer uit zijn 
 
 ## De kruisboogbandiet
 
-Een rover met een kruisboog (nog een tijdelijke set), in de kleuren van de bandiet en even lang. Hij loopt naar je toe tot hij je ziet, blijft dan staan en
-brengt zijn kruisboog omhoog. Voor elk schot staat er een seconde een **uitroepteken** boven zijn hoofd: dat is je
-waarschuwing. Staat hij op jouw hoogte, dan vliegt de bout recht op borsthoogte: **bukken** laat hem over je heen
-gaan, of gooi je speer in die seconde, dat is net op tijd. Staat hij hoger, dan draait hij zijn kruisboog
-**omlaag** en schiet op de plek waar je stond toen het uitroepteken kwam: **stap opzij**. Kom je weer op zijn
-hoogte, dan draait hij weer omhoog. Van dichtbij heeft hij geen verweer: één steek, worp of lage zwaai en hij valt.
-Een gemiste bout blijft even in de grond steken. In de sandbox staat hij onder Vijanden, en **Test 52: De
-kruisboog** laat hem zien: alleen, vanaf een terras, met een schildbandiet en met een bandiet.
+Een rover met een kruisboog, laag en gehaast, in de blauw en rood van de bandiet en de kooiman, met een ijzeren
+schouderstuk. Hij loopt laag en vlot, al mikkend, naar je toe en blijft staan zodra hij je ziet. Hij begint
+ongeladen: eerst haalt hij een bout van achter zijn nek en legt die op zijn kruisboog. Dat **herladen** is je kans:
+gooi je speer of ren erop af, want van dichtbij heeft hij geen verweer. Daarna volgt hij je met zijn kruisboog,
+van geknield steil omlaag tot schuin omhoog. Zit hij erop, dan **blinkt de punt** even, en dan komt de bout. Staat
+hij op jouw hoogte, dan vliegt die op borsthoogte: **bukken** laat hem over je heen gaan. Schiet hij van boven, dan
+mikt hij op waar je stond toen de punt blonk: **stap weg**. Na elk schot herlaadt hij opnieuw.
+
+Eén klap en hij valt, en hoe hangt af van de klap: na de lage zwaai zakt hij door zijn benen, na een steek valt hij
+achterover met een snee in zijn borst, en na een worp blijft je speer in zijn borst steken en valt mee; die pak je
+daarna met E. Het lijk blijft liggen, met zijn kruisboog ernaast. Een gemiste bout blijft even in de grond steken.
+In de sandbox staat hij onder Vijanden, en **Test 52: De kruisboog** laat hem zien: alleen, vanaf een terras, met
+een schildbandiet en met een bandiet.
 
 ## De kooiman
 
