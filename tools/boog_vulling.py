@@ -18,7 +18,12 @@ Per boog komen er twee kleurversies bij, voor de look van een poort in het spel:
 De opening zelf blijft in beide het donker van de gewone boog (het magenta van de bron is het
 masker), zodat er geen sneeuw of oranje in het gat komt.
 
-    python3 tools/boog_vulling.py
+    python3 tools/boog_vulling.py          alles opnieuw
+    python3 tools/boog_vulling.py --gat    alleen de maskers van de opening (_gat.png)
+
+Per boog komt er ook een masker van de opening bij, <naam>_gat.png: wit, met als alfa de
+opening (het magenta van de bron). Het hek van een poort (design/boog/hek.png) wordt daarop
+afgeknipt, zodat het achter de stenen van de boog verdwijnt als het omhoog gaat.
 
 Vereist Pillow en numpy.
 """
@@ -90,10 +95,20 @@ def savanne(basis, pad):
     a[..., :3] = rgb * (1 - SAVANNE_MENG) + getint * SAVANNE_MENG
     Image.fromarray((a * 255).round().astype(np.uint8), 'RGBA').save(pad, optimize=True)
 
+def gat_bewaar(gat, naam):
+    """het masker van de opening: wit met de opening als alfa"""
+    g = np.asarray(gat)
+    wit = np.full(g.shape + (3,), 255, np.uint8)
+    Image.fromarray(np.dstack([wit, g]), 'RGBA').save(os.path.join(DIR, naam + '_gat.png'), optimize=True)
+
 def main():
+    alleen_gat = '--gat' in sys.argv
     meta = {}
     def bewaar(im, naam):
         c, o, gat = schoon(im)
+        gat_bewaar(gat, naam)
+        if alleen_gat:
+            print(naam, 'gat'); return
         c.save(os.path.join(DIR, naam + '.png'), optimize=True)
         rock_snow(os.path.join(DIR, naam + '.png'), os.path.join(DIR, naam + '_sneeuw.png'), **SNEEUW)
         met_gat(os.path.join(DIR, naam + '_sneeuw.png'), c, gat)
@@ -116,6 +131,8 @@ def main():
             binnen = False
     for i, (s, e) in enumerate(rijen):
         bewaar(plaat.crop((0, max(0, s - 4), plaat.width, min(plaat.height, e + 4))), f'boog_laag_{i + 1}')
+    if alleen_gat:
+        return
     with open(os.path.join(DIR, 'metadata.json'), 'w') as f:
         json.dump({'opening': '[x0, y0, x1, y1] van de donkere opening, onderkant = grondlijn',
                    'bogen': meta}, f, indent=2)

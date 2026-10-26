@@ -20,7 +20,9 @@ randen staan. De knoppen Uitzoomen staan daarom in de gates niet in de wizard. H
 - Links een grote rots (het levelveld `rotsen`, de pieken op 4,8 Amir) waar een rotsplateau (`zwevers`, look rots,
   looplijn 560, onderkant 480) in snijdt alsof de rots hem draagt; rechts een kleinere rots (de spits op 2,8).
   Een rots uit `rotsen` wordt voor `drawClimb` getekend, dus achter het plateau (zie `notities/decor.md`).
-- Drie poorten met een hek en een tandwieltje (`poorten` met `hek: true`, zie `notities/poort.md`): `l` en `r` laag
+- Drie poorten met het ijzeren valhek en zijn tandwieltje (`poorten` met `hek: true`, zie "Het hek en de regie" in
+  `notities/poort.md`), hier met een eigen tempo (`hekDuur` op de poort, `SB_GATES.hekDuur` 2,2 s in plaats van
+  `HEK.duur` 4,6): `l` en `r` laag
   aan de zijkanten (`boog_steen`, 640 links en 620 rechts van het midden) voor de rotsen, `h` hoog op het plateau
   (`boog_laag_1` op 0,8, op 720 links), half in de rots.
 - Drie fakkels in het steen, botten en een gespleten schild op de vloer, een gebroken speerteken. Geen kei: een kei
@@ -38,12 +40,13 @@ De stand staat in `sbArenaCfg.g` (dezelfde velden als de golven, zodat de teller
 werken; `modus` staat in de gates altijd op `golven`), de rest in `sbGatesSt`.
 
 1. **kondig**: `SB_GOLF_KONDIG` seconden "Ronde n" groot in beeld. Daarna `sbGatesOpen`: de drie hekken gaan
-   tegelijk omhoog (`o.hekDoel = 1`, `poortUpdate` takelt ze in `POORT.hek.duur` seconden; boven aangekomen een
-   schok en de klap van `sounds/deurslam.mp3`, een keer voor de drie samen via `poortSlamT`).
-2. **golf**: zodra het hek boven is komt uit elke poort zijn vijand (`sbGatesLaat`, via `sbSpawn` op de x van de
+   tegelijk omhoog (`hekOp`; `hekUpdate` takelt ze met het takelgeluid, op `HEK.open` gaat de poort open en boven
+   klinkt de klap van het ijzer).
+2. **golf**: zodra een poort open is komt zijn vijand eruit (`sbGatesLaat`, via `sbSpawn` op de x van de
    opening, dus de knoppen onder Gedrag in de wizard gelden ook hier; met `hoogte` zoekt `sbSpawn` de vloer vanaf
    het plateau), wakker (`zWacht = false`) en in het donker van de opening (`o.uitT`). `SB_GATES.dicht` seconden na
-   het donker zakt het hek weer (`sbGatesSt.dicht`, `poortSluit`). De ronde is pas voorbij als alles dood is, ook
+   het donker valt het hek weer dicht (`sbGatesSt.dicht`, `poortSluit`, `hekDicht`). `poortOpen` geeft in de gates
+   geen melding per poort. De ronde is pas voorbij als alles dood is, ook
    wie beneden nog moet binnenkomen (`sbGatesSt.wacht`): dan `rust`, en `sbKalStap(1)` voor de kalebassen.
 3. **rust**: `sbGatesCfg.rust` seconden (de knop **Rust tussen rondes**, de enige knop naast de soorten), dan
    `sbGatesVolgende`.
@@ -94,6 +97,7 @@ opnieuw, `poortReset` zet de hekken dicht, `sbGatesReset` leegt de wachtrijen).
 
 ## Nog niet
 
-Geen level en geen Maker: de arena leeft alleen in de sandbox. Een poortarena uit de Maker (een instelling op het
+Geen level en geen Maker: de arena leeft alleen in de sandbox. De rots achter een poort kan in een level ook met
+`wand` op de poort (zie `notities/poort.md`); de gates gebruiken `rotsen`, omdat dat voor de plateaus getekend wordt. Een poortarena uit de Maker (een instelling op het
 level, de controle op drie poorten, een plateau tot aan de rand) is het volgende stuk van het plan, en de
 afwerking van een dun plateau (de aardrand-plaat met ronde hoeken) en een fade over de bovenrand ook.

@@ -153,6 +153,46 @@ het na een wijziging aan de getallen in `SCHB`. `--reactie 0.3` zet de reactieti
 --hoog 720` het scherm (standaard kleiner, en daar is ontwijken makkelijker), `--fotos map` maakt
 schermafdrukken op vaste frames van de sprong.
 
+## De poorttest: tools/poorttest.js
+
+Speelt Maker-grids met poorten in het echte spel door, op vaste virtuele tijd zoals de speelrobot: elke vijandsoort uit
+een poort, poorten op de grond, op een mesa, op een zwever, op het dak van een gang en op de gangvloer, het hek, de regie
+met en zonder regiepunt, twee poorten, een zegel dat masker en poort tegelijk opent, een zegel ver van de poort, de dood
+en de herstart, en de controle van de Maker. Per scenario OK of FOUT, met (info)-regels over waar en op welke hoogte elke
+vijand verscheen. Draai hem na een wijziging aan de poort, het hek, de regie, de spawner of `mkNaarLevel`.
+
+```
+node tools/poorttest.js                 alle scenario's (ruim tien minuten)
+node tools/poorttest.js --alleen gang   alleen de scenario's waarvan de naam dit bevat
+node tools/poorttest.js --shots map     een schermafdruk per scenario
+```
+
+## De arena-download nameten: tools/arena-assets.js
+
+Speelt de Arena modus van de sandbox in Chromium (zonder service worker, zodat elk verzoek zichtbaar
+is) met alle twaalf soorten aan, de elite, de dolk en de Duinwacht aan, Amir onsterfelijk en een
+hoog tempo, en noteert elk bestand dat het spel opvraagt (png, jpg, mp3, json). Daarna vergelijkt
+hij die met de arena-set in `offline-assets.json` (de basis `delen.arena` plus de `soorten` die
+aan staan, uit `ARENA_MAPPEN` en `ARENA_SOORTEN` in `gen-offline-manifest.py`), met dezelfde keuze
+tussen de grote en de kleine set als `voorSet` in `sw.js`. Een bestand dat het spel vraagt en niet
+in de set staat is FOUT (offline zou het ontbreken); een 404 is LET OP. Wat het menu voor de start
+van de arena voor zijn levelkaartje laadt (vijandframes uit `laadLevel`) is LET OP, geen FOUT: dat
+hoort niet bij de arena. Hij meet standaard allebei de spritesets, na elkaar.
+
+```
+node tools/arena-assets.js                 standaard 45 seconden spelen, groot en klein, alle soorten
+node tools/arena-assets.js --soorten schildman
+                                           alleen deze soorten aan (sleutels uit SB_ARENA_SOORTEN), en dan
+                                           is de verwachting de basis plus die soorten, zoals de knop ze ophaalt
+node tools/arena-assets.js --duur 90       langer spelen
+node tools/arena-assets.js --beeld klein   alleen de kleine set
+node tools/arena-assets.js --toon          ook alle opgevraagde bestanden tonen
+```
+
+Draai hem na een wijziging aan `ARENA_MAPPEN`, aan de arena-modus of aan wat `startSandbox` laadt.
+Hij vond zo dat `enemies/bandiet_duin/` in `KLEIN_FAM` ontbrak (een telefoon haalde de grote frames)
+en dat het gras en de hut hun kleine versie oversloegen.
+
 ## De makertest: tools/makertest.js
 
 Laadt de Maker nieuwstijl in Chromium, zet er een proefgrid in waar alles op staat (een gat, een

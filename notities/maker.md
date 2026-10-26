@@ -13,9 +13,27 @@ Alle state zit in één object, `MK`: de maat (`cols`, `rows`), de grondlijn-rij
 is (`sel`, `selMask`, `selVorm`). Eén cel is 175 wereld-px breed (`MK_CEL_PX`) en 150 eenheden
 hoog (`MK_CEL_EENH`), ongeveer één sprong.
 
-De palet-categorieën staan in `MK_CATS`, de gereedschappen in `MK_TYPES` (een terreincel heeft
-een letter `ch` voor de export, een voorwerp `obj: true`). De vijanden staan in `MK_VIJANDEN`, met
-varianten voor de bandiet en de schildbandiet, en de knoppen per vijand in `MK_VIJ_KNOP`.
+Het palet is een boom die zichzelf bouwt (`mkPaletBoom` naar `MK_PALET`): zes categorieën (`MK_CATS`: Terrein,
+Start/eind, Vijanden, Objecten, Decor, Verbergen) met daarin groepen (`MK_GROEPEN`, elke groep op een pad zoals
+`objecten/takel` met zijn naam), en in een groep de gereedschappen of weer groepen, zo diep als nodig (Vijanden,
+Bandieten, Bandiet, zijn varianten). Een gereedschap in `MK_TYPES` zegt met `groep` waar het staat (een pad; alleen een
+categorie-id betekent los in die categorie, zoals de kalebas onder Objecten); een vijand in `MK_VIJANDEN` met `groep` in
+welke groep uit `MK_VIJ_GROEPEN`, en een vijand met varianten (bandiet, schildbandiet, kooiman) is daarbinnen een groep.
+Een gereedschap zonder `groep` landt in Overig van zijn categorie (uit zijn soort, `mkPaletCatVan`), een onbekend pad maakt
+een groep zonder naam; `mkPaletKlachten` meldt dat, net als een knoop met meer dan `MK_PALET_MAX` (6) items, en
+`mkPaneelKlachten` telt hetzelfde voor het paneel rechts (de zichtbare rijen buiten en binnen elk inklapbaar kopje). De
+makertest (controle `maat`) geeft FOUT op elke klacht, en kijkt ook of de klachten echt komen. Elke knoop kent zijn `pad`;
+`mkPaletKnoopOp(pad)` en `mkPaletZoek(tool, soort)` zoeken erin. De linkerkolom (`mkLegenda`, `mkLegRijen`) toont de
+groepen van de gekozen categorie dichtgeklapt met één keten open (`MK.sub`, de groep-ids onder `MK.cat`; `null` betekent:
+de groep van het gereedschap dat aanstaat, anders de eerste); een klik op een groep klapt hem open of dicht (`mkKies`), een
+gereedschap kiezen zet zijn groep open. Het zwevende menu onder een categorieknop (`mkMenuToon`, `mkMenuVul`) klapt per
+groep opzij uit in een laag dieper (`mkFlyToon`, de lagen in `mkMenuLagen`, zo veel als de boom diep is; een laag die
+rechts of onder uit het venster steekt schuift terug). De knoppen per vijand staan in `MK_VIJ_KNOP`. De keuzelijsten Soort
+(bij een vijand) en Vijand eruit (bij een poort) volgen dezelfde groepen (`mkVijOpties`, een `optgroup` per groep).
+
+Het paneel rechts van een poort is in drie inklapbare kopjes verdeeld (`details.mkklap`: Uiterlijk, Vijand en hek,
+Rotswand), dat van een rijzer in twee (Tempo, Kleur). De eerste keer staat open wat in gebruik is, daarna onthoudt
+`mkKlapStaat` wat je zelf open- of dichtklapte (`mkKlapZet`, aangeroepen uit `mkVulPoort` en `mkVulRijs`).
 Een vijand staat op het grid, in het palet (`mkStaal` met een soort) en op de plakstempel als het gekleurde
 rondje van zijn soort met een icoon erin (`mkVijIcoon`, met `mkVijBadge` voor het badge rechtsonder): een
 tekening in canvas-lijnen op schaal van de cel, dus scherp op elke zoom. De varianten en de knoppen die aanstaan
@@ -77,6 +95,10 @@ Altijd WYSIWYG: links in het grid is links in het spel, de wereld-x is `(kolom -
 
 - Een ravijn-cel op de grondlijn is een gat (`gaps`); elders doet een ravijn-cel niets (de controle
   meldt het).
+- Rotsdecor (`rotsdecor`, onder Decor) wordt een prop `{x, k, s, f}` op het midden van zijn kolom, `k` een
+  rotsstuk uit `PROPS` (de soorten met `rots`). Het spel zet hem zelf op de vloer onder die kolom (`terrainH`),
+  dus de rij doet er alleen toe voor de controle. Het paneel heeft Soort (per familie: zuil, plaat, laag, brok,
+  kei), Gespiegeld en Schaal (`MK_ROTS_S`); de laatst gekozen soort onthoudt hij (`MK.rotsSoort`).
 - Een blok vaste cellen boven de grondlijn is een terras (`terraces`, savanne met `grond: true`,
   rots en muur met `af: true`); een blok met lucht eronder is een zwever (`zwevers`). Een muur die
   op de grondlijn doorloopt gaat precies die ene cel de grond in (`door`).
@@ -93,7 +115,7 @@ Altijd WYSIWYG: links in het grid is links in het spel, de wereld-x is `(kolom -
   voor slangen en panters (regel 7).
 - Voorwerpen: overhang naar een zwever, richel naar `ledges` (met `look` als de kleur niet steen is), kalebas naar `hppotions`, platform
   met doel plus zijn tandwielen naar `takels` (met `stam: true`), zegel en rune met een masker naar
-  `zegels`/`runes` plus `acties`, een verborgen zegel ook zonder masker, en een zegel of rune die een
+  `zegels`/`runes` plus `acties`, een verborgen of onzichtbaar zegel ook zonder masker (Te zien), en een zegel of rune die een
   rijzer stuurt ook (met `rijs`).
 - Een **rijzer** (Objecten, "Rijzer (grond die stijgt)") is de rijzende grond uit het spel (zie
   `notities/rijzende-grond.md`): een blok steen dat op een zegel uit een ravijn omhoog komt. Hij werkt als het
@@ -120,7 +142,8 @@ Altijd WYSIWYG: links in het grid is links in het spel, de wereld-x is `(kolom -
   boven een gang krijgt `dak: true` en `readLevel` neemt dat over (eerst viel het daar weg, en lag het
   zegel toch op de gang-bodem).
 - Een **poort** (Objecten, "Poort (stenen boog)") wordt een `poorten`-entry (`b1`, `b2`, ...) met de onderkant
-  van de opening op de onderkant van zijn cel; op een laag of op het dak van een gang met `y`. Met een vijand erin
+  van de opening op de onderkant van zijn cel; op een laag of op het dak van een gang met `y`. Het hek, de schaal, de
+  regie (met `bij` als regiepunt) en de rotswand (`wand`, `wandF`, `wandH`, `wandX`) gaan mee. Met een vijand erin
   komt die als spawn met `poort` mee (via `mkSpawn` op de cel van de poort, zo vaak als **Aantal**), en een zegel of
   rune met **Opent poort** krijgt `poort`. Zie `notities/poort.md`.
 - Vijanden via `mkSpawn`: de soort-tekst (`bandiet:dolk`, `kooiman:vogel`, `schildman:makkelijk`)
@@ -137,8 +160,12 @@ Altijd WYSIWYG: links in het grid is links in het spel, de wereld-x is `(kolom -
   zijn doel onder de grondlijn), en niet waar je zelf al een ravijn tekende.
   De knoppen uit `MK_VIJ_KNOP` gaan alleen mee als ze van de standaard afwijken; een vinkje als
   `true` of `false` (readLevel kijkt op `=== false`, dus 0 zou daar misgaan).
-- De basisvelden: `view: 0.8`, `zicht: true`, `hpBalk: true`, `speerInHand: true`, `rugMax: 1`,
+- Zonder een enkele spawn (ook niet in een poort) komt er een zandslang ver achter het eind bij, anders stuurde het
+  spel vrije slangen; een level met alleen poortvijanden krijgt die niet.
+- De basisvelden: `view: 0.8`, `zicht: true`, `hpBalk` (de lijst `MK_HP_SOORTEN`), `speerInHand: true`, `rugMax: 1`,
   `valDood: 600` (vier cellen), `kaleKlif`, `voorgrond: false`, `overloop: true`.
+- `hpBalk` is in de Maker een lijst, geen `true`: Amir en de andere vijanden krijgen 3 levens met een balk, maar de
+  slangen (zand, zwart, knock en fosfor) staan er niet in en zijn in een klap dood.
 
 ## De knoppen per vijand (`MK_VIJ_KNOP`)
 
@@ -166,12 +193,13 @@ naar de cel), die bijblijft zolang hij open staat. Drie soorten:
   een tandwiel zonder platform, een poort in een vaste cel of boven een ravijn zonder bodem, een rijzer die niet helemaal in een ravijn op de grondlijn staat, buiten het
   grid steekt of geen zegel of rune heeft die hem stuurt (een zakker mag overal en heeft er geen nodig).
 - **LET OP**: een start of eind die hoog boven zijn vloer hangt, een vijand die zweeft of op de
-  start staat, een poort met een vijand maar zonder zegel of rune die hem opent, een ravijn of gang op de verkeerde rij, een gang zonder ingang, een platform zonder
-  tandwiel of met zijn doel op dezelfde hoogte, een zegel dat naar een weg masker wijst, een val
+  start staat, een poort met een vijand maar zonder zegel, rune of regie die hem opent, een regiepunt meer dan
+  `MK_POORT_BIJ_VER` cellen van zijn poort (Amir staat stil terwijl de poort buiten beeld opengaat), een ravijn of gang op de verkeerde rij, een gang zonder ingang, een platform zonder
+  tandwiel of met zijn doel op dezelfde hoogte, een zegel dat naar een weg masker wijst, een voorwerp dat half in een masker steekt maar zelf te zien blijft (zie Verborgen door masker in `notities/masker.md`), een val
   van meer dan vier cellen naast een rand (dodelijk in de Test), een rijzer met zijn doel op zijn eigen rij, die
   op of boven de grondlijn rust, of die drie of meer cellen ravijn naast zich open laat, en een zegel dat een
   zakker stuurt.
-- **info**: een prop (de Test tekent hem niet), een zegel of rune zonder masker of rijzer (alleen een
+- **info**: een prop (de Test tekent hem niet), rotsdecor dat boven zijn vloer hangt (het spel zet hem op de vloer), een poort met regie zonder vijand, een hek dat niets opent, een zegel of rune zonder masker of rijzer (alleen een
   aantekening), een rijzer zonder duur die het hele ravijn vult (het ravijn is daarna voorgoed dicht, dus geen
   schuilplek meer, regel 7).
 
@@ -202,7 +230,7 @@ stuurt, een masker, een zwarte cel, een vorm) en
 kijkt na: de round-trip van export en import, de vertaling naar een spel-level, rijen invoegen en
 weer weghalen, verkleinen, snel schilderen, de rechthoek, het aanklikken van brede voorwerpen,
 ongedaan maken, een gebied kopiëren, spiegelen, plakken en knippen, een rijzer van even breedte spiegelen met
-zijn zegel eraan, de minimap en Test vanaf hier, de vijand-knoppen, de controle, de Test starten en teruggaan,
+zijn zegel eraan, een poort met hek, regie en rotswand (round-trip, vertaling, spiegelen, de knop Poort met hek, levelcheck), de minimap en Test vanaf hier, het palet (elke tool en vijand in de boom, de kolom en de flyouts, en de maat: geen lijst of paneel langer dan `MK_PALET_MAX`), de vijand-knoppen, de controle, de Test starten en teruggaan,
 de autosave, en of
 het proefgrid als spel-level door `levelcheck.py` komt. Draai hem na elke wijziging aan de Maker.
 
@@ -218,13 +246,12 @@ regel bij, en een controle in de lijst `check(...)`.
 ## Wat er nog niet is
 
 Geen aanraking (pannen en zoomen kan
-alleen met muis en toetsen), geen prop-keuze (een prop is een aantekening), en een zegel kent
-alleen een masker, Verborgen en een rijzer, niet de andere zegel-velden (`speerval`, `plafond`). Een rijzer
+alleen met muis en toetsen), geen prop-keuze (een prop is een aantekening; echt decor is alleen het rotsdecor), en een zegel kent
+alleen een masker, Te zien (Open, Verborgen, Onzichtbaar) en een rijzer, niet de andere zegel-velden (`speerval`, `plafond`). Een rijzer
 staat alleen in een ravijn op de grondlijn: een rijzer in een put onder de grond of een lift die vanaf de
 gangvloer door de ingang omhoog komt is in het spel niet beproefd, en de Maker meldt zo'n plek als FOUT.
 
 Bekende randen, nog niet opgelost: alleen de tegel Zwevende laag (F) en Zwart plafond zweven, een blok rots
 of savanne met lucht eronder wordt een pilaar tot de grond; de holte is aan de startkant een cel breder dan
-getekend (`gangRx + MK_CEL_PX`); `boven` leest het spel niet voor kooiman, meelman, fosfor, hyena en
-panter, en `y` niet voor scorp, bandiet en schildman; de knop Zicht doet niets voor panter, kooiman (duel)
+getekend (`gangRx + MK_CEL_PX`); `boven` leest het spel niet voor hyena en panter, en `y` niet voor scorp, bandiet en schildman; de knop Zicht doet niets voor panter, kooiman (duel)
 en `bandiet:hurk`; één rotscel op de grondlijn maakt de hele bodem kale rots.

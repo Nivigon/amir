@@ -361,6 +361,7 @@ class Spel:
         self.TEKEN = b.const('TEKEN')                   # het speerteken: voet en hoogte per variant
         self.SKELET = b.const('SKELET')
         self.POORT = b.const('POORT')                   # de stenen poort: maat en opening per boog
+        self.HEK_WANDEN = b.const('HEK_WANDEN')         # de rotswanden achter een poort (het veld wand)
         self.RAVIJN_PROEF = b.const('RAVIJN_PROEF')     # de runes die een ravijn openen, per level
         # NPCS en THICKET bevatten functieaanroepen; alleen de maten zijn nodig
         self.NPCS = {}
@@ -872,7 +873,7 @@ def velden(lv, sp):
         if o.get('k') not in sp.NPCS:
             yield fout(o.get('x'), "npc '%s' staat niet in NPCS en wordt weggelaten" % o.get('k'))
     for o in lv.d.get('spawns') or []:
-        if o.get('k') not in ('groen', 'zwart', 'knock', 'scorp', 'panter', 'hyenas', 'fosfor', 'bandiet', 'kooiman', 'meelman', 'schildman'):
+        if o.get('k') not in ('groen', 'zwart', 'knock', 'scorp', 'panter', 'hyenas', 'fosfor', 'bandiet', 'kooiman', 'meelman', 'schildman', 'kruisboogbandiet'):
             yield fout(o.get('x'), "vijand '%s' bestaat niet: het spel maakt er een groene slang van" % o.get('k'))
     s = lv.d.get('sneeuw')
     if s:
@@ -1074,7 +1075,8 @@ def rijzende_grond(lv, sp):
 @regel('poorten')
 def poorten(lv, sp):
     """Een stenen poort (poorten) is decor, of de plek waar vijanden uitkomen: de spawns met poort: id komen pas
-    als een zegel of rune met poort: id hem opent (poortOpen). Een poort met vijanden en zonder schakelaar houdt
+    als een zegel of rune met poort: id hem opent (poortOpen), of vanzelf met regie: true (zie "het hek van de
+    poort"). Een poort met vijanden en zonder schakelaar houdt
     ze voorgoed binnen; een schakelaar of spawn die naar een poort wijst die er niet is, doet niets."""
     ps = lv.d.get('poorten') or []
     ids = [str(o.get('id')) for o in ps]
@@ -1083,6 +1085,9 @@ def poorten(lv, sp):
             yield fout(o.get('x'), "poort met k: '%s': dat is geen boog (%s)" % (o.get('k'), ', '.join(sp.POORT['soorten'])))
         if o.get('look') is not None and o.get('look') not in sp.POORT['looks']:
             yield fout(o.get('x'), "poort '%s' met look '%s': dat is geen look (%s)" % (o.get('id'), o.get('look'), ', '.join(sp.POORT['looks'])))
+        w = o.get('wand')
+        if w not in (None, False, True) and w not in sp.HEK_WANDEN:
+            yield fout(o.get('x'), "poort '%s' met wand '%s': dat is geen rotswand (%s)" % (o.get('id'), w, ', '.join(sp.HEK_WANDEN)))
         if ids.count(str(o.get('id'))) > 1:
             yield fout(o.get('x'), "twee poorten heten '%s'" % o.get('id'))
     bronnen = (lv.d.get('zegels') or []) + [r for r in lv.d.get('runes') or [] if isinstance(r, dict)]
@@ -1094,7 +1099,8 @@ def poorten(lv, sp):
             continue
         if str(s.get('poort')) not in ids:
             yield fout(s.get('x'), "vijand '%s' wacht in poort '%s', maar die poort is er niet: hij komt nooit" % (s.get('k'), s.get('poort')))
-        elif not any(str(z.get('poort')) == str(s.get('poort')) for z in bronnen):
+        elif not any(str(z.get('poort')) == str(s.get('poort')) for z in bronnen) \
+                and not any(o.get('regie') and str(o.get('id')) == str(s.get('poort')) for o in ps):   # regie: hij gaat vanzelf open
             yield fout(s.get('x'), "vijand '%s' wacht in poort '%s', maar geen zegel of rune opent die poort: hij komt nooit"
                        % (s.get('k'), s.get('poort')))
         if s.get('k') in ('panter', 'hyenas'):

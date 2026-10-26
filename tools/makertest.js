@@ -70,7 +70,8 @@ async function start(){
 //  - een muur door de grond (kolom 10, rij 6 en 7), sneeuw op kolom 0 en 1
 //  - start op kolom 19, eind op kolom 2
 //  - een zandslang, een bandiet met dolk, een platform met doel plus een tandwiel, een overhang, een richel,
-//    een verborgen zegel met masker dat ook een rijzer stuurt, een rune, een kalebas, een prop
+//    een verborgen zegel met masker dat ook een rijzer stuurt, een onzichtbaar zegel op het dak van de gang,
+//    een rune, een kalebas, een prop, en een gespiegeld rotsstuk (een plaat op schaal 1,2) op de sneeuw
 //  - een tweede ravijn (kolom 11 en 12) met een rijzer van 2 breed erin, drie cellen diep, die tot de grondlijn komt
 //  - een masker (Verborgen1) van twee cellen, een zwarte cel, en een vrije blokvorm
 //  - een gespiegelde stenen poort in savannekleur (kolom 16) met twee schorpioenen erin, die de rune opent
@@ -105,7 +106,9 @@ function proefGrid(){
       { c: 18, r: 6, k: 'rune', masker: 'Verborgen1', poort: { c: 16, r: 6 }, note: '' },
       { c: 16, r: 6, k: 'poort', boog: 'boog_steen', f: true, look: 'savanne', vijand: 'scorp', n: 2, note: '' },
       { c: 19, r: 5, k: 'hppotion', note: '' },
+      { c: 20, r: 6, k: 'zegel', onzichtbaar: true, note: '' },
       { c: 1, r: 6, k: 'prop', note: 'een boom' },
+      { c: 0, r: 6, k: 'rotsdecor', prop: 'plaat_02', f: true, s: 1.2, note: '' },
     ],
   };
 }
@@ -171,6 +174,7 @@ function verschil(a, b, pad = ''){
     if (!a.start || a.start.c !== 19 || !a.eind || a.eind.c !== 2) uit.push('start of eind kwijt');
     if (!a.maskers.length || a.maskers[0].cells.length !== 2) uit.push('masker kwijt');
     if (a.zwart.length !== 1 || a.vormen.length !== 1) uit.push('zwarte cel of vorm kwijt');
+    const onz = a.objecten.find(o => o.k === 'zegel' && o.onzichtbaar); if (!onz || onz.verstop) uit.push('onzichtbaar zegel kwijt of ook verstopt');
     const zegel = a.objecten.find(o => o.k === 'zegel'); if (!zegel || !zegel.verstop || zegel.masker !== 'Verborgen1') uit.push('zegel verloor verstop of masker');
     const wiel = a.objecten.find(o => o.k === 'tandwiel'); if (!wiel || !wiel.platform || wiel.platform.c !== 13) uit.push('tandwiel verloor zijn platform');
     const rz = a.objecten.find(o => o.k === 'rijzer'); if (!rz || !rz.doel || rz.doel.r !== 7 || rz.breed !== 2) uit.push('rijzer verloor zijn doel of breedte');
@@ -204,7 +208,10 @@ function verschil(a, b, pad = ''){
     if (!sp.find(s => s.k === 'groen' && s.speed === 2)) uit.push('zandslang zonder snelheid 2: ' + JSON.stringify(sp));
     if (!sp.find(s => s.k === 'bandiet' && s.dolk)) uit.push('geen bandiet met dolk');
     if (!(lv.zegels || []).find(z => z.verstop && z.stuurt && z.stuurt[0] === 'Verborgen1')) uit.push('geen verborgen zegel aan het masker');
+    if (!(lv.zegels || []).find(z => z.onzichtbaar && !z.verstop && z.dak)) uit.push('geen onzichtbaar zegel op het dak: ' + JSON.stringify(lv.zegels));
     if (!(lv.runes || []).length) uit.push('geen rune');
+    const rp = (lv.props || []).find(q => q.k === 'plaat_02');
+    if (!rp || !rp.f || rp.s !== 1.2 || (lv.props || []).length !== 1) uit.push('geen gespiegelde plaat_02 op schaal 1,2 als enige prop: ' + JSON.stringify(lv.props));
     const pt = (lv.poorten || [])[0];
     if (!pt || pt.id !== 'b1' || pt.k !== 'boog_steen' || !pt.f || pt.look !== 'savanne' || pt.y !== undefined) uit.push('geen gespiegelde poort b1 op de grond: ' + JSON.stringify(lv.poorten));
     else {
@@ -347,14 +354,14 @@ function verschil(a, b, pad = ''){
     if (na.cel !== 'lucht rots rots lucht') uit.push('geplakte cellen: ' + na.cel);
     if (na.obj !== 'richel@17,1|vijand@14,2') uit.push('geplakte voorwerpen: ' + na.obj);
     if (na.plak) uit.push('de stempel bleef hangen na het neerzetten');
-    if (na.n !== 14) uit.push('aantal voorwerpen na plakken: ' + na.n + ' in plaats van 14');
+    if (na.n !== 16) uit.push('aantal voorwerpen na plakken: ' + na.n + ' in plaats van 16');
     // knippen: het gebied is nu het geplakte stuk; Ctrl+X maakt het leeg
     await page.keyboard.press('Control+x');
     const leeg = await page.evaluate(() => ({ cel: MK.grid[2].slice(14, 18).join(' '), n: MK.objects.length }));
-    if (leeg.cel !== 'lucht lucht lucht lucht' || leeg.n !== 12) uit.push('na knippen: ' + JSON.stringify(leeg));
+    if (leeg.cel !== 'lucht lucht lucht lucht' || leeg.n !== 14) uit.push('na knippen: ' + JSON.stringify(leeg));
     await page.keyboard.press('Control+z');
     const terug = await page.evaluate(() => MK.objects.length);
-    if (terug !== 14) uit.push('ongedaan maken na knippen: ' + terug + ' voorwerpen in plaats van 14');
+    if (terug !== 16) uit.push('ongedaan maken na knippen: ' + terug + ' voorwerpen in plaats van 16');
     return uit;
   });
 
@@ -426,6 +433,65 @@ function verschil(a, b, pad = ''){
     return uit;
   });
 
+  // 6a. het palet: elk gereedschap en elke vijand-soort staat ergens in de boom, de linkerkolom laat de groep van het
+  // gereedschap open zien, en het menu onder een categorie klapt per groep opzij uit (Vijanden, Bandieten, Bandiet)
+  await check('palet: elke tool en vijand staat in de boom, de kolom en de flyouts volgen de groepen', async () => {
+    return page.evaluate(() => {
+      const f = [];
+      for (const t of MK_TYPES) if (t.id !== 'select' && t.id !== 'lucht' && t.id !== 'vijand' && !mkPaletZoek(t.id)) f.push('niet in het palet: ' + t.id);
+      for (const soort in MK_VIJ_INFO) if (!mkPaletZoek('vijand', soort)) f.push('vijand niet in het palet: ' + soort);
+      MK.cat = 'vijanden'; MK.sub = null; MK.tool = 'vijand'; MK.vijandSoort = 'bandiet:dolk'; mkLegenda();
+      const rijen = [...document.querySelectorAll('#mklegbtns button')].map(b => b.textContent.trim());
+      if (!rijen.some(t => t.endsWith('Met dolk'))) f.push('de kolom laat de open groep van het gereedschap niet zien: ' + rijen.join(' | '));
+      if (rijen.some(t => t.endsWith('Zandslang'))) f.push('een dichte groep laat zijn items zien');
+      const aan = document.querySelector('#mklegbtns button.on'); if (!aan || !aan.textContent.includes('Met dolk')) f.push('het gekozen gereedschap is niet aangezet in de kolom');
+      const knop = [...document.querySelectorAll('#mkcatbar button')].find(b => b.textContent === 'Vijanden');
+      mkMenuToon(mkPaletKnoopOp(['vijanden']), knop);
+      const r1 = [...document.querySelectorAll('#mkmenu button')].find(b => b.textContent.includes('Bandieten')); if (!r1) f.push('geen groep Bandieten in het menu');
+      if (r1){ r1.dispatchEvent(new Event('mouseenter')); const l1 = mkMenuLagen[1]; if (!l1 || !l1.classList.contains('on')) f.push('de flyout van Bandieten gaat niet open');
+        const r2 = l1 && [...l1.querySelectorAll('button')].find(b => b.textContent.includes('Bandiet') && !b.textContent.includes('Schild'));
+        if (r2){ r2.dispatchEvent(new Event('mouseenter')); const l2 = mkMenuLagen[2]; if (!l2 || !l2.classList.contains('on')) f.push('de flyout van Bandiet gaat niet open');
+          const r3 = l2 && [...l2.querySelectorAll('button')].find(b => b.textContent.includes('Elite')); if (r3) r3.click(); else f.push('geen Elite in de flyout van Bandiet');
+          if (MK.vijandSoort !== 'bandiet:elite') f.push('kiezen in de flyout zet de soort niet: ' + MK.vijandSoort);
+          if (document.querySelectorAll('.mkmenu.on').length) f.push('na het kiezen staat er nog een menu open'); } }
+      MK.tool = 'select'; MK.cat = 'terrein'; MK.sub = null; mkMenuSluit(); mkLegenda();
+      return f;
+    });
+  });
+  // 6a2. de maat: geen groep in het palet en geen paneel met meer dan MK_PALET_MAX rijen, en geen gereedschap zonder
+  // groep (dan stond hij in Overig). Ook andersom: de klachten komen echt als je het fout doet.
+  await check('maat: geen lijst in het palet of het paneel langer dan MK_PALET_MAX, en de klacht komt als het wel zo is', async () => {
+    return page.evaluate(() => {
+      const f = mkPaletKlachten().slice();
+      MK.inspectDicht = false; MK.tool = 'select';
+      const soorten = ['vijand', 'zegel', 'rune', 'prop', 'platform', 'tandwiel', 'rijzer', 'poort', 'overhang', 'richel', 'hppotion'];
+      const bewaar = MK.objects;
+      for (const k of soorten){
+        const o = { c:5, r:MK.ground - 1, k, note:'' };
+        if (k === 'vijand') o.soort = 'groen';
+        if (k === 'poort'){ o.hek = true; o.regie = true; o.wand = 'spits'; o.vijand = 'groen'; }   // alles in gebruik: elk kopje open
+        if (k === 'rijzer'){ o.look = 'rots'; o.kleur = { r:MK.ground - 3 }; }
+        MK.objects = [o]; MK.sel = o; mkNotePaneel();
+        for (const m of mkPaneelKlachten()) f.push(k + ': ' + m);
+      }
+      // andersom: een paneel met te veel losse rijen moet een klacht geven
+      const extra = []; for (let i = 0; i <= MK_PALET_MAX; i++){ const d = document.createElement('div'); d.className = 'mkveld'; d.textContent = 'proef'; document.getElementById('mkinspbody').appendChild(d); extra.push(d); }
+      if (!mkPaneelKlachten().length) f.push('een paneel met te veel rijen geeft geen klacht');
+      for (const d of extra) d.remove();
+      MK.objects = bewaar; MK.sel = null; mkNotePaneel();
+      // en een gereedschap zonder groep, of een te volle groep, ook
+      const t = { id:'proefding', naam:'Proefding', kleur:'#fff', obj:true };
+      MK_TYPES.push(t); let k = mkPaletKlachten({ items: mkPaletBoom() });
+      if (!k.some(m => m.includes('Overig') && m.includes('Proefding'))) f.push('een gereedschap zonder groep geeft geen klacht: ' + k.join(' | '));
+      t.groep = 'terrein/grond'; const meer = []; for (let i = 0; i < MK_PALET_MAX; i++){ const q = { id:'proef' + i, naam:'Proef ' + i, kleur:'#fff', obj:true, groep:'terrein/grond' }; MK_TYPES.push(q); meer.push(q); }
+      k = mkPaletKlachten({ items: mkPaletBoom() });
+      if (!k.some(m => m.includes('terrein/grond') && m.includes('splits'))) f.push('een te volle groep geeft geen klacht: ' + k.join(' | '));
+      t.groep = 'terrein/nieuw'; k = mkPaletKlachten({ items: mkPaletBoom() });
+      if (!k.some(m => m.includes('terrein/nieuw') && m.includes('MK_GROEPEN'))) f.push('een groep zonder naam geeft geen klacht: ' + k.join(' | '));
+      MK_TYPES.splice(MK_TYPES.indexOf(t), 1); for (const q of meer) MK_TYPES.splice(MK_TYPES.indexOf(q), 1);
+      return f;
+    });
+  });
   // 6b. de vijand-knoppen: een vinkje gaat als true/false mee, een schuifje als getal, en de standaard gaat niet mee
   await check('vijand-knoppen: vault uit, panter over, twee hyena\'s en zicht uit komen op de spawn', async () => {
     const g = proefGrid();
@@ -466,7 +532,7 @@ function verschil(a, b, pad = ''){
       mkPlak = { c: 0, r: 0 }; mkPlakZet();                                                 // plakken linksboven, waar niets staat
       const pz = MK.objects.find(o => o.k === 'zegel' && o.c === 0 && o.r === 0), pr = MK.objects.find(o => o.k === 'rijzer' && o.r === 4);
       uit.plak = { zegel: !!pz, rijzer: pr && pr.c, cellen: pr && mkRijsCellen(pr), gekoppeld: !!(pz && pr && mkRijsVan(pz) === pr) };
-      const lv = mkNaarLevel(); uit.n = (lv.rijzers || []).length; uit.rijs = (lv.zegels || []).map(z => z.rijs).sort();
+      const lv = mkNaarLevel(); uit.n = (lv.rijzers || []).length; uit.rijs = (lv.zegels || []).map(z => z.rijs).filter(Boolean).sort();
       return uit;
     });
     const uit = [];
@@ -497,7 +563,84 @@ function verschil(a, b, pad = ''){
     return uit;
   });
 
+  // 5g. een poort met hek, regie en een rotswand: de knop Poort met hek, de round-trip, de vertaling, spiegelen en levelcheck
+  await check('poort met hek: hek, regie met regiepunt, rotswand en schaal gaan mee, ook gespiegeld', async () => {
+    const g = proefGrid();
+    g.objecten.push({ c: 14, r: 6, k: 'poort', boog: 'boog_rots', vijand: 'schildman', hek: true, regie: true, bij: 12, s: 1.2,
+                      wand: 'pieken', wandF: true, wandH: 4, wandX: -0.5, note: '' });
+    await laad(g);
+    const uit = [];
+    const r = await page.evaluate(() => {
+      const a = mkNaarJSON(); mkUitJSON(a); const b = mkNaarJSON();
+      const lv = mkNaarLevel(), meld = mkControle();
+      const ph = b.objecten.find(o => o.k === 'poort' && o.c === 14);
+      // de knop Poort met hek in het palet zet een poort met hek neer
+      MK.tool = 'poorthek'; mkLegenda();
+      return { ph, zelfde: JSON.stringify(a) === JSON.stringify(b), poorten: lv.poorten, spawns: lv.spawns.filter(s => s.poort === 'b2'),
+               meld: meld.filter(m => /b2/.test(m.tekst || m.t || JSON.stringify(m))).map(m => JSON.stringify(m))};
+    });
+    if (!r.zelfde) uit.push('round-trip van de poort met hek is niet gelijk');
+    const ph = r.ph || {};
+    if (!ph.hek || !ph.regie || ph.bij !== 12 || ph.s !== 1.2 || ph.wand !== 'pieken' || !ph.wandF || ph.wandH !== 4 || ph.wandX !== -0.5) uit.push('de grid-export verloor velden: ' + JSON.stringify(ph));
+    const b1 = (r.poorten || []).find(o => o.id === 'b1'), b2 = (r.poorten || []).find(o => o.id === 'b2');
+    if (!b2 || !b2.hek || !b2.regie || b2.wand !== 'pieken' || !b2.wandF || b2.wandH !== 4 || b2.wandX !== -0.5 || b2.s !== 1.2) uit.push('poort b2 in het spel-level: ' + JSON.stringify(b2));
+    else if (b2.bij !== b2.x - 2 * 175) uit.push('regiepunt: bij ' + b2.bij + ', verwacht ' + (b2.x - 2 * 175));
+    if (b1 && (b1.hek || b1.regie || b1.wand || b1.s)) uit.push('poort b1 kreeg velden die hij niet heeft: ' + JSON.stringify(b1));
+    if (r.spawns.length !== 1 || r.spawns[0].k !== 'schildman') uit.push('geen schildbandiet in poort b2: ' + JSON.stringify(r.spawns));
+    // alleen poortvijanden: dan geen standaard-slang achter het eind erbij (die is er alleen tegen de vrije slangen van een level zonder spawn)
+    const alleenPoort = await page.evaluate(() => { const was = MK.objects; MK.objects = was.filter(o => o.k !== 'vijand'); const lv = mkNaarLevel(); MK.objects = was;
+      const leeg = was.filter(o => o.k !== 'vijand' && o.k !== 'poort'); MK.objects = leeg; const lv0 = mkNaarLevel(); MK.objects = was; return { los: lv.spawns.filter(s => !s.poort), leeg: lv0.spawns }; });
+    if (alleenPoort.los.length) uit.push('een level met alleen poortvijanden kreeg losse spawns: ' + JSON.stringify(alleenPoort.los));
+    if (alleenPoort.leeg.length !== 1) uit.push('een level zonder enige vijand hoort een standaard-slang te krijgen: ' + JSON.stringify(alleenPoort.leeg));
+    if (r.meld.some(m => /letop|fout/i.test(m))) uit.push('de controle meldt de poort met regie: ' + r.meld.join(' | '));
+    // spiegelen en plakken: de poort, zijn rotswand en zijn regiepunt keren om
+    const s2 = await page.evaluate(() => {
+      MK.gebied = { c0: 12, r0: 6, c1: 14, r1: 6 }; mkKopieer(); mkSpiegel(); mkPlak = { c: 0, r: 0 }; mkPlakZet();
+      const q = MK.objects.find(o => o.k === 'poort' && o.r === 0);
+      return q && { c: q.c, f: !!q.f, wandF: !!q.wandF, wandX: q.wandX, bij: q.bij, hek: !!q.hek, wand: q.wand };
+    });
+    if (!s2 || s2.c !== 0 || !s2.f || s2.wandF || s2.wandX !== 0.5 || s2.bij !== 2 || !s2.hek || s2.wand !== 'pieken') uit.push('gespiegeld geplakt: ' + JSON.stringify(s2) + ' (verwacht kolom 0, gespiegeld, wand niet gespiegeld, wandX 0.5, regiepunt kolom 2)');
+    // een klik met Poort met hek
+    await page.evaluate(() => { MK.tool = 'poorthek'; mkLegenda(); });
+    const xy = await celXY(6, 10); await page.mouse.click(xy.x, xy.y); await page.waitForTimeout(50);
+    const nieuw = await page.evaluate(() => { const q = MK.objects.find(o => o.c === 6 && o.r === 10); return q && { k: q.k, hek: !!q.hek }; });
+    if (!nieuw || nieuw.k !== 'poort' || !nieuw.hek) uit.push('Poort met hek zette geen poort met hek neer: ' + JSON.stringify(nieuw));
+    // en het spel-level door levelcheck
+    await laad(g);
+    const lv = await page.evaluate(() => mkNaarLevel());
+    const f = path.join(os.tmpdir(), 'makertest-poorthek.json');
+    fs.writeFileSync(f, JSON.stringify(lv));
+    const lc = spawnSync('python3', [path.join(ROOT, 'tools', 'levelcheck.py'), f], { encoding: 'utf8' });
+    uit.push(...((lc.stdout || '') + (lc.stderr || '')).split('\n').filter(l => /FOUT/.test(l)).slice(0, 4));
+    return uit;
+  });
+
   // 7. de controle: een grid met fouten geeft meldingen, het proefgrid geeft geen fout
+  // 7b. per voorwerp verbergen: een poort achter een masker zonder cellen, en de vaste looks als nep-terrein
+  await check('masker per voorwerp: Verborgen door masker overleeft de round-trip en verbergt het hele voorwerp', async () => {
+    const uit = [];
+    const g = proefGrid();
+    g.objecten.find(o => o.k === 'poort').achter = 'Alleen';
+    g.objecten.find(o => o.k === 'rune').masker = 'Alleen';
+    await laad(g);
+    const r = await page.evaluate(() => {
+      const j = mkNaarJSON(), lv = mkNaarLevel();
+      const m = (lv.maskers || []).find(q => q.id === 'Alleen'), v1 = (lv.maskers || []).find(q => q.id === 'Verborgen1');
+      const poort = MK.objects.find(o => o.k === 'poort');
+      return { bewaard: j.maskers.some(q => q.id === 'Alleen' && !q.cells.length), achter: j.objecten.find(o => o.k === 'poort').achter,
+        punt: !!(m && m.vakken.length && m.vakken.every(v => v.punt)), look: v1 && v1.look, nep: !!lv.nep,
+        verborgen: mkObjVerborgen(poort), letop: mkControle().some(q => /steekt in masker/.test(q.tekst)) };
+    });
+    if (!r.bewaard) uit.push('het masker met alleen een voorwerp ging niet mee in de export');
+    if (r.achter !== 'Alleen') uit.push('achter ging niet mee in de export: ' + r.achter);
+    if (!r.punt) uit.push('het masker werd in het spel geen punt op de cel van de poort');
+    if (r.look !== 'onzichtbaar' || !r.nep) uit.push('de grotwand werd geen nep-terrein: ' + r.look + ', nep ' + r.nep);
+    if (r.verborgen !== 'Alleen') uit.push('mkObjVerborgen ziet de poort niet als verborgen: ' + r.verborgen);
+    await page.evaluate(() => { MK.objects.find(o => o.k === 'poort').achter = undefined; MK.objects.find(o => o.k === 'poort').c = 7; MK.objects.find(o => o.k === 'poort').r = 6; });
+    const let2 = await page.evaluate(() => mkControle().filter(q => /steekt in masker/.test(q.tekst)).length);
+    if (!let2) uit.push('een poort naast het masker gaf geen LET OP');
+    return uit;
+  });
   await check('controle: meldingen bij een start zonder vloer en een platform zonder doel', async () => {
     const heeft = await page.evaluate(() => typeof mkControle === 'function');
     if (!heeft) return ['er is geen mkControle'];

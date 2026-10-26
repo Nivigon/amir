@@ -152,20 +152,28 @@ gewone dood (`SCHB.lijk.lig`, `vervaag`).
 
 **Het ritme** (`EXE.exeDur`, `EXE.t`, `exeDuur`), zoals een combat game het doet: anticipatie lang, de actie een paar korte
 frames, op de impact een hitstop met schok, en een korte slowmotion om de klap te laten nazinderen. De frametijden van
-`executie` komen niet uit de json maar uit `EXE.exeDur` (de andere bewegingen houden de json): 0 tot 4 rustig (200, 150,
-150, 120, 120), frame 5 de aanzet met een hold van `t.aanzet` (450 ms) en een trilling (`EXE.tril`), 6 tot 9 de ruk in
-frames van 45 ms, 10 tot 13 het hangmoment iets trager (70, 100, 110, 100), 14 en 15 versnellen (50, 40), 16 de landing
-(450 ms). Hitstops binnen de freeze (`e.stop`, `exeTick` staat dan stil en de schok rommelt na op `realDt`): op de
+`executie` komen niet uit de json maar uit `EXE.exeDur` (de andere bewegingen houden de json): 0 tot 4 de greep, kort
+gehouden omdat die frames weinig verschillen (160, 110, 110, 90, 90), frame 5 de aanzet met een hold van `t.aanzet`
+(450 ms) en een trilling (`EXE.tril`), 6 tot 9 de ruk in frames van 45 ms, 10 tot 13 het hangmoment iets trager (70, 100,
+110, 100), 14 en 15 versnellen (50, 40), 16 de landing met een hold van `t.land` (360 ms, de tel stilte voor de snee). Het
+knielen na de steek loopt in de freeze op `t.kniel` (0,7) van de json-tijden (`exeDuur`): anders staat de wereld bijna
+twee seconden stil terwijl hij zakt. De worp-kill en de gewone dood knielen op de tijden van de json. Hitstops binnen de freeze (`e.stop`, `exeTick` staat dan stil en de schok rommelt na op `realDt`): op de
 dodelijke steek `t.steekStop` (0,2 s, Amir blijft die tel in zijn stootpose, `exeSpeerWeg` houdt daar rekening mee, en
-komt pas daarna op `amir_start_x`: `exeBevries` met `naStop`, `exeAmirZet`), op de ruk `t.rukStop` (0,1 s, schok
+komt pas daarna op `amir_start_x`: `exeBevries` met `naStop`, `exeAmirZet`; hij glijdt erheen in `t.schuif` (0,16 s,
+`s.exe.schuif`), want een steek raakt van 120 tot 280 px en `amir_start_x` ligt op 171 px, en verspringen gaf een schok in
+het beeld), op de ruk `t.rukStop` (0,1 s, schok
 `schokRuk`, een flits) en op de landing `t.landStop` (0,13 s, schok `schokLand`, stof onder Amirs voeten). De camera komt
 op de freeze een stap dichterbij (`EXE.zoom.snap`, `exeZoomNu` vermenigvuldigt `viewZoom`; `viewBasis` is de oude view),
-kruipt naar `zoom.tot` en veert na de freeze terug (`exeZoomStap`, elk beeld). Het splijten loopt op een trage klok
+kruipt naar `zoom.tot` en veert na de freeze terug (`exeZoomStap`, elk beeld). Vanaf de ruk schuift de camera op echte tijd
+mee naar `amir_eind_x` (`exeCamDoel`, `EXE.cam`, via `camEase` zoals de arena), zodat het beeld niet verspringt als Amir
+daar los komt; bij E glijdt de camera ook naar `amir_start_x` (Amir is dan al weg, de lagen tekenen hem). Het wereldstof
+loopt in de freeze door (`updateWereldStof` op echte tijd, zoals bij de kooiman), zodat het stof van de landing meteen
+opwaait in plaats van pas als de wereld weer loopt. Het splijten loopt op een trage klok
 (`e.tS`, `exeTraag`): de eerste `t.traagDuur` (0,35 s) op `t.traag` (0,3), dan in `t.ramp` naar echte tijd; de helften
 schuiven eerst traag open en vallen dan om tot `splijt.draai` (1,35 rad), blijven als lijk liggen en vervagen met de rest;
 een rode waas aan de rand van het scherm (`exeVignetTeken`, in de schermlaag) dooft in `vignet.duur`. Na de freeze is Amir
-`t.veilig` (0,4 s) onkwetsbaar. Bij de worp telt E dat net te vroeg kwam nog `EXE.eBuffer` (0,2 s, `exeEBuffer` in
-`exeTrek` en de wankel in `exeTick`). De hitstops, de hold, en de slowmotion zijn live af te stellen in de pauze onder
+`t.veilig` (0,4 s) onkwetsbaar, zonder te knipperen (`invulnStil`): hij is niet geraakt. Bij de worp telt E dat net te vroeg kwam nog `EXE.eBuffer` (0,2 s, `exeEBuffer` in
+`exeTrek` en de wankel in `exeTick`). De hitstops, het tempo van het knielen, de holds en de slowmotion zijn live af te stellen in de pauze onder
 **Schildbandiet: executie** (`pzexe`, `EXE_SCHUIF`, bewaard onder `EXE_TEMPO_KEY`; de knop staat naast Schildbandiet:
 tempo, via `schbTempoKnopToon`).
 

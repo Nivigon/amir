@@ -110,7 +110,7 @@ subagent die notitie lezen en alleen de conclusie teruggeven (regel 10).
 soorten tegenstanders:
 
 - **Vijanden**: zandslang, zwarte slang, knockslang, fosforslang, schorpioen, hyena, bandiet, schildbandiet,
-  kooiman, meelman en goudaapje. Die mag je in de sandbox en in een testlevel (regel 1 en 3) gewoon neerzetten.
+  kooiman, meelman, kruisboogbandiet en goudaapje. Die mag je in de sandbox en in een testlevel (regel 1 en 3) gewoon neerzetten.
 - **Bazen**: de panter (zwart, en wit in een winterlevel: dezelfde spawn `k: 'panter'`, altijd met `boss: true`
   en de arena-camera, drie treffers) en de baviaan (`BAVIAAN`, de eindbaas in wording). Een baas zet jij
   nergens neer zonder dat de opdrachtgever het goed vindt: niet in een level, niet in een arena-golf, en ook
@@ -161,7 +161,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | bodem en sneeuwdek | `sneeuw` | notities/wegwijzers.md |
 | het verhaal bij een episode | `VERHAAL`, `SLOT`, `verhaalToon()` | notities/episodes.md |
 | Episode De Valse Koning | `VK_1`, `VK_8`, `VK_LEVELS` | notities/episodes.md |
-| Episode Test levels | `TEST_1`, `TEST_47`, `KAART_BLAD` | notities/episodes.md |
+| Episode Test levels | `TEST_1`, `TEST_51`, `KAART_BLAD` | notities/episodes.md |
 | Episode Baboon tests | `BAB_1`, `BAB_4`, `BAB_LEVELS` | notities/episodes.md |
 | goudaapje: het kleine gouden aapje en de arena (arena, regel 12) | `GAAP`, `gaapSpawn`, `updateGoudapen` | notities/goudaapje.md |
 | het mes: Jackal Fang van Impungushe | `MES`, `mesInHand`, `mesTeken` | notities/mes.md |
@@ -180,12 +180,13 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | zegel in de grond: de runeschijf plat, als schakelaar | `ZEGEL`, `zegelGrond`, `zegelUpdate` | notities/zegel.md |
 | verstopt zegel: onder het zand, tot de lage zwaai het blootveegt | `ZEGEL_VERSTOP`, `ZEGEL_VEEG`, `zegelVeegUpdate` | notities/zegel.md |
 | verstopt zegel per vloer, en in de Level Maker | `ZEGEL_VLOER`, `zegelVloerSoort`, `mkVulZegel` | notities/zegel.md |
+| onzichtbaar zegel: niets te zien tot je erop stapt | `ZEGEL_ONZICHTBAAR`, `zegelZie`, `onzichtbaar` | notities/zegel.md |
 | speerval: een speer in de rotswand die een zegel losschiet | `SPEERVAL`, `speervalZegel`, `zegelUpdate` | notities/speerval.md |
 | zakplafond: een plafond dat zakt als je op een zegel stapt | `ZAK`, `zakStand`, `rust` | notities/zakplafond.md |
 | rijzende grond: steen dat op een zegel uit een ravijn komt | `RIJS`, `rijsUpdate`, `duur` | notities/rijzende-grond.md |
 | takelwiel met plateau: een rad dat je met je speer slaat | `TAKEL`, `takelLaad`, `takelReset` | notities/takelwiel.md |
 | poort: een stenen boog, decor of de plek waar een vijand uitkomt | `POORT`, `poortOpen`, `poortKlaar` | notities/poort.md |
-| hek op een poort: een traliehek dat een tandwieltje optakelt | `POORT.hek`, `poortHekTeken`, `poortSluit` | notities/poort.md |
+| het hek van de poort: een ijzeren valhek dat omhoog getakeld wordt | `HEK`, `hekTeken`, `hekUpdate`, `poortRegie` | notities/poort.md |
 | rotsen als decor: een runerots zonder rune, achter de plateaus | `rotsen`, `rotsenTeken`, `rotsenLaadLevel` | notities/decor.md |
 | arena gates: de sandbox-modus met drie poorten en rondes | `SB_GATES`, `sbGates`, `sbGatesUpdate`, `gatesRand`, `gatesWeg` | notities/arena-gates.md |
 | masker: geverfde stukken die een deel van het level verbergen | `MASKER`, `maskerLijst`, `maskerVan` | notities/masker.md |
@@ -209,9 +210,11 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | het weer: regen, onweer, zandstorm, sneeuw en sneeuwstorm | `WEER`, `weerDoel`, `updateWeer` | notities/wegwijzers.md |
 | vegetatie, water, doornbos | `props`, `water`, `thickets` | notities/wegwijzers.md |
 | schilden in de wind | `SCHILD`, `schildStofUpdate`, `schildTil` | notities/decor.md |
+| rotsdecor: losse rotsstukken als props, lui geladen, in de Maker onder Decor | `ROTS_FAM`, `rotsSoorten`, `propLaad`, `mkVulRots` | notities/decor.md |
 | slangen: kleur, zicht en patrouille | `SNAKE_DIRS`, `slangZiet`, `startPatrouille` | notities/slangen.md |
 | zwarte panter, de witte panter (baas, regel 12), de hyena | de grote vijanden: `boss`, `arena`, `hitPanther` |  |
 | de bandiet: een rover met een kromzwaard | `BAN`, `banLaad`, `makeBandiet` | notities/bandiet.md |
+| de kruisboogbandiet: herlaadt (de tell), volgt Amir over twintig hoeken, blinkt en schiet; drie doden, de speer in zijn borst | `KRB`, `krbDoelHoek`, `krbSpeerVolg`, `hitKruisboog(s, soort)` |  |
 | de schildbandiet: loopt met zijn schild op en valt springend aan | `SCHB`, `makeSchildman`, `updateSchildman` | notities/schildbandiet.md |
 | schildstaat: het schild in vier standen, van heel tot weg | `SCHB_STAAT`, `schbStaat` | notities/schildbandiet.md |
 | de lagen van de schildbandiet: het schild als losse laag uit lagen.json | `SCHB_LAGEN`, `schbLagenLaad`, `schbLagenLijst` | notities/schildbandiet.md |
@@ -265,7 +268,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `executie` | `true`: elke dodelijke steek, worp of lage zwaai op een schildbandiet is de executie, in plaats van 1 op 5 en 1 op 3 (alleen Test 50, zie `notities/schildbandiet.md`) |
 | `herhaal` | `true`: is de laatste schildbandiet weg (na de executie of de gewone dood), dan komt er na `EXE.herhaalWacht` een nieuwe aanwandelen, net buiten beeld voor Amir uit, met de vlaggen van de eerste schildman-spawn (alleen Test 50, `exeHerhaalStap`) |
 | `rocks` | keien om op te springen: `{x, s}` |
-| `spawns` | vijanden: `{x, k}`, `k` is groen/zwart/knock/scorp/hyenas/panter/fosfor/bandiet/kooiman/meelman/schildman, met vlaggen per soort (zie `notities/velden.md`) |
+| `spawns` | vijanden: `{x, k}`, `k` is groen/zwart/knock/scorp/hyenas/panter/fosfor/bandiet/kooiman/meelman/schildman/kruisboogbandiet, met vlaggen per soort (zie `notities/velden.md`) |
 | `bandArena` | `true`: het level is een bandiet-arena (Valse Koning 8), zoals de goudaap-arena maar met de elite-garde (zie "de bandiet-arena") |
 | `bandietGolf` | een oplopende golf bandieten: `{van, tot, ramp, max, dolk}` (zie `notities/velden.md`) |
 | `duel` | per kooiman-spawn `{x, k: 'kooiman', duel}`; standaard aan is het 1-op-1 duel, `duel: false` de gewone kooiman (zie `notities/velden.md`) |
@@ -289,8 +292,8 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `tekens` | speertekens: `{x, v, f}`, `v` is `teken`, `gebroken`, `gekruist`, `jagers` of `kalebas`, `f` spiegelt; decor, behalve dat het mes de kalebas lossnijdt |
 | `fakkels` | geanimeerde wandfakkels: `{x, y, s, f}`, `x` de schacht, `y` de hoogte van de voet boven de grond in Amir (0 = op de grond, hoger = tegen een wand), `s` schaal, `f` spiegelen; brandend decor met gloed, vonken, schaduw en vuurgeluid (zie "fakkel") |
 | `talentKeuze` | `true`: voor het begin kies je zelf welke talents gelden, van alle tribes (alleen voor een Test level; nu Test 14) |
-| `zegels` | zegels plat in de grond: `{x, ravijn, sluit, breed, muur, speerval, teken, vijand, plafond, rijs, poort, speer, verstop, veeg, dak}`; met `dak` ligt hij boven een gang op de savanne in plaats van op de gang-bodem, met `verstop` ligt hij onder het zand tot de lage zwaai hem blootveegt, `veeg` kiest de onthulling (standaard de wolk, traag en middel), `veegDuur` en `veegMaat` het tempo en de grootte, `vloer` de kleur van het zand (zie `notities/velden.md`) |
-| `poorten` | stenen bogen uit `design/boog/`: `{id, x, k, f, y, s, look, hek}`, `look` steen, sneeuw of savanne (zonder: sneeuw in een winterlevel), decor; een zegel of rune met `poort: id` opent hem en dan komen de spawns met `poort: id` eruit; met `hek: true` een traliehek voor de opening dat bij het openen door een tandwieltje omhoog getakeld wordt, met de klap van de deur (zie "poort") |
+| `zegels` | zegels plat in de grond: `{x, ravijn, sluit, breed, muur, speerval, teken, vijand, plafond, rijs, poort, speer, verstop, onzichtbaar, veeg, dak}`; met `onzichtbaar` is er niets van te zien tot iemand erop stapt (dan gaat hij aan en verschijnt hij), met `dak` ligt hij boven een gang op de savanne in plaats van op de gang-bodem, met `verstop` ligt hij onder het zand tot de lage zwaai hem blootveegt, `veeg` kiest de onthulling (standaard de wolk, traag en middel), `veegDuur` en `veegMaat` het tempo en de grootte, `vloer` de kleur van het zand (zie `notities/velden.md`) |
+| `poorten` | stenen bogen uit `design/boog/`: `{id, x, k, f, y, s, look, hek, wand, wandF, wandH, wandX, regie, bij}`, `look` steen, sneeuw of savanne (zonder: sneeuw in een winterlevel), decor; een zegel of rune met `poort: id` opent hem en dan komen de spawns met `poort: id` eruit (zie "poort"); `hek` een valhek dat optakelt, `wand` een rotswand erachter (`true` de kale wand, of een soort uit `HEK_WANDEN`: `kaal`, `spits`, `pieken`, `zuilen`, `boog`, `grot`), `wandH` zijn hoogte en `wandX` een verschuiving, allebei in Amir, `regie` vanzelf open als hij in beeld komt (of bij `bij`) met Amir vast tot de vijand eruit is (zie "het hek van de poort") |
 | `rotsen` | losse rotsen als decor: `{x, soort, groot, y}`, een van de platen onder een rune (`spits`, `pieken`, `zuilen`, `boog`) zonder schijf, `x` de linkervoet, `groot` de hoogte in Amir, `y` een vaste vloer; getekend achter de plateaus, zodat een zwever erin kan snijden (zie `notities/decor.md`) |
 | `rijzers` | steen dat uit een ravijn omhoog komt: `{id, r, l, tot, van, v, wacht, duur}`, `id` de naam waar een zegel of een rune (`doel: true`) met `rijs` naar wijst, `tot` en `van` de bovenkant boven en beneden (standaard -1 en -900), `wacht` seconden voor hij begint, `duur` seconden boven voor hij terugzakt (zie "rijzende grond"); met `zak: true` staat hij boven en zakt hij onder Amir weg; `look` de bovenrand (`savanne`, `rots`, `sneeuw`, `zwart`) en `kleurVanaf` een hoogte waaronder het blok zwart blijft; in een put (`putten`) is de gangvloer zijn grond (Test 48) |
 | `takel` | een takelwiel met een hangend plateau; sla het rad met je speer, het plateau draagt en veert (zie `notities/velden.md`) |
@@ -353,6 +356,15 @@ De enige bouwer in het spel (de oude bouwer, Level maken, is weg): een grid waar
 dat de Test meteen als level speelt (`mkNaarLevel`). Hij staat helemaal los van de levels. Hoe hij in elkaar zit, wat de controle meldt en welke knoppen een vijand heeft:
 zie `notities/maker.md`. Na een wijziging aan de Maker draai je `tools/makertest.js`.
 
+**Het palet en het paneel blijven kort.** Elk gereedschap in `MK_TYPES` en elke vijand in `MK_VIJANDEN` zegt met `groep`
+waar hij in het palet staat (een pad zoals `objecten/takel`; de namen staan in `MK_CATS` en `MK_GROEPEN`), en de boom
+bouwt zichzelf daaruit (`mkPaletBoom`). Geen enkele categorie, groep of flyout heeft meer dan `MK_PALET_MAX` (6) items,
+en het paneel rechts niet meer dan zoveel rijen buiten een inklapbaar kopje (`details.mkklap`, zoals bij de poort en de
+rijzer). Een nieuw item zonder `groep` landt vanzelf in Overig, en `tools/makertest.js` (de controle `maat`) geeft FOUT op
+Overig, op een groep zonder naam, op een te volle groep en op een te lang paneel. Voeg je iets toe, dan deel je het dus in,
+en loopt een groep of paneel daarmee over de maat, dan splits je die in dezelfde pull request (een nieuwe groep in
+`MK_GROEPEN`, of een kopje in het paneel) en zeg je achteraf hoe je het ingedeeld hebt.
+
 ## Sandbox
 
 De vrije testmodus: vlakke grond, een leeg level, geen vijanden en geen levens. Een knop
@@ -365,7 +377,10 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 
 - **Sprites toegevoegd, vervangen of weggehaald** → `python3 tools/gen-klein.py` en daarna
   `python3 tools/gen-offline-manifest.py` (in die volgorde). Het eerste print de lijst voor
-  `KLEIN_FAM`, het tweede werkt de offline-download bij.
+  `KLEIN_FAM`, het tweede werkt de offline-download bij, inclusief de arena-set (`ARENA_MAPPEN` en
+  `ARENA_SOORTEN`, de knop **Alleen de Arena modus**: de basis plus de vijanden die in de arena aan staan).
+  Een nieuwe soort in `SB_ARENA_SOORTEN` krijgt een regel in `ARENA_SOORTEN` (en, laadt hij niet in zijn
+  make-functie, een in `SB_ARENA_LAAD`); raakt de wijziging de arena, draai dan ook `node tools/arena-assets.js`.
 - **Bodem of sneeuwdek** (`grondrand_rots.png`, `sneeuwlaag_25..100.png`) → `tools/sneeuwdek.py`
 - **Run van de baviaan** → `tools/baviaan_run_fix.py`
 - **`design/grot/rots_vulling.png`** → `tools/rots_vulling.py`
@@ -375,7 +390,9 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **Kooi-plaat van de kooiman** → `tools/kooi_kleur.py`, daarna `gen-klein.py` en `gen-offline-manifest.py`
 - **Schildbandiet** → `tools/schildman_kleur.py`, daarna `gen-klein.py` en `gen-offline-manifest.py`. Het bandietpalet is zijn standaard: elke nieuwe export (lijf, schild, executie) zet je in de speelmap en haal je meteen door dit script, ook als er niemand om de kleuren vraagt. Het zet frames in de oude kleuren eerst in `enemies/schildbandiet/bron/` (de oude kleuren blijven bewaard), kleurt ze om en meldt FOUT als er nog een in de oude kleuren staat
 - **Goudaapje** → `tools/goudaapje_kleur.js`
-- **Stenen bogen** (`design/boog/`, uit de platen in `bron/`, met hun sneeuw- en savanneversie) → `tools/boog_vulling.py`, daarna `gen-offline-manifest.py`
+- **Kruisboogbandiet** → `tools/kruisboog_kleur.py`, daarna `gen-offline-manifest.py`. De export uit de Animeer tool (felle kleuren, schouderstuk erop) staat in `enemies/kruisboog/bron/`; het script schrijft de speelversie in het bandietpalet naar `enemies/kruisboog/<set>/`
+- **Stenen bogen** (`design/boog/`, uit de platen in `bron/`, met hun sneeuw- en savanneversie en het masker van de opening, `_gat.png`) → `tools/boog_vulling.py` (alleen de maskers: `--gat`), daarna `gen-offline-manifest.py`
+- **Rotsdecor** (`design/rotsdecor/`, losse rotsstukken uit de platen in `bron/`) → `tools/rotsdecor_knip.py`, daarna `gen-offline-manifest.py`
 - **Tribe-logo's** → `tools/tribe_logos.py`
 - **Winterversies** → `tools/sneeuw.py`, `sneeuw_bg.py`, `sneeuw_dorp.py`, `winter_art.py`
 
@@ -449,6 +466,21 @@ node tools/beeldgelijk.js --vlag LAGFIX --breed 852 --hoog 393
 Speelt het gevecht tegen de schildbandiet met een paar speelstijlen en meldt per potje de duur,
 de treffers en in welk stuk van zijn aanval Amir hem raakte. Draai het na een wijziging aan `SCHB`.
 `--reactie 0.3` zet de reactietijd, `--breed 1280 --hoog 720` het scherm, `--fotos map` maakt foto's.
+
+### De poorttest: `tools/poorttest.js`
+
+Speelt Maker-grids met poorten in Chromium door (elke vijandsoort, elke hoogte, hek, regie, twee poorten, dood en
+herstart) en meldt per scenario OK of FOUT. Draai hem na een wijziging aan de poort, het hek, de regie, de spawner
+of `mkNaarLevel`. `--alleen gang` beperkt tot de scenario's met dat woord in de naam.
+
+### De arena-download nameten: `tools/arena-assets.js`
+
+Speelt de Arena modus in Chromium met alle soorten aan en meldt FOUT op elk bestand dat het spel
+opvraagt en niet in de arena-set van `offline-assets.json` staat (de basis `delen.arena` plus de `soorten`
+die aan staan), voor de grote en de kleine spriteset. Draai hem na een wijziging aan `ARENA_MAPPEN` of
+`ARENA_SOORTEN` in `gen-offline-manifest.py`, aan de arena-modus of aan wat de sandbox bij het openen laadt.
+`--soorten schildman` meet met alleen die soorten aan, `--beeld klein` beperkt tot een set, `--duur 90`
+speelt langer, `--toon` toont alles wat er opgevraagd is.
 
 ### De makertest: `tools/makertest.js`
 
