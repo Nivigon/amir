@@ -82,7 +82,7 @@ ARENA_MAPPEN = (
     'enemies/slang2/venom.png', 'enemies/slang1_knock/venom.png', 'enemies/bandiet/dolk/',
     'design/speer/', 'design/doornbos/', 'design/fakkel/', 'design/grot/', 'design/water/', 'design/vegetatie/',
     'design/schilden/', 'design/klimmen/', 'design/tribes/', 'design/menu/', 'design/bloed/', 'design/botten/',
-    'design/mes/', 'design/zwart/', 'design/golf/', 'design/bg/',
+    'design/mes/', 'design/zwart/', 'design/golf/', 'design/bg/', 'design/rotsdecor/',
 )
 # per soort (de sleutel uit SB_ARENA_SOORTEN in de HTML) de mappen met zijn frames; de bandiet met
 # zijn elite en de Duinwacht (knoppen in de wizard), de kooiman met zijn vogel, de fosfor tekent

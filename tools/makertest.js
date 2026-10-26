@@ -71,7 +71,7 @@ async function start(){
 //  - start op kolom 19, eind op kolom 2
 //  - een zandslang, een bandiet met dolk, een platform met doel plus een tandwiel, een overhang, een richel,
 //    een verborgen zegel met masker dat ook een rijzer stuurt, een onzichtbaar zegel op het dak van de gang,
-//    een rune, een kalebas, een prop
+//    een rune, een kalebas, een prop, en een gespiegeld rotsstuk (een plaat op schaal 1,2) op de sneeuw
 //  - een tweede ravijn (kolom 11 en 12) met een rijzer van 2 breed erin, drie cellen diep, die tot de grondlijn komt
 //  - een masker (Verborgen1) van twee cellen, een zwarte cel, en een vrije blokvorm
 //  - een gespiegelde stenen poort in savannekleur (kolom 16) met twee schorpioenen erin, die de rune opent
@@ -108,6 +108,7 @@ function proefGrid(){
       { c: 19, r: 5, k: 'hppotion', note: '' },
       { c: 20, r: 6, k: 'zegel', onzichtbaar: true, note: '' },
       { c: 1, r: 6, k: 'prop', note: 'een boom' },
+      { c: 0, r: 6, k: 'rotsdecor', prop: 'plaat_02', f: true, s: 1.2, note: '' },
     ],
   };
 }
@@ -209,6 +210,8 @@ function verschil(a, b, pad = ''){
     if (!(lv.zegels || []).find(z => z.verstop && z.stuurt && z.stuurt[0] === 'Verborgen1')) uit.push('geen verborgen zegel aan het masker');
     if (!(lv.zegels || []).find(z => z.onzichtbaar && !z.verstop && z.dak)) uit.push('geen onzichtbaar zegel op het dak: ' + JSON.stringify(lv.zegels));
     if (!(lv.runes || []).length) uit.push('geen rune');
+    const rp = (lv.props || []).find(q => q.k === 'plaat_02');
+    if (!rp || !rp.f || rp.s !== 1.2 || (lv.props || []).length !== 1) uit.push('geen gespiegelde plaat_02 op schaal 1,2 als enige prop: ' + JSON.stringify(lv.props));
     const pt = (lv.poorten || [])[0];
     if (!pt || pt.id !== 'b1' || pt.k !== 'boog_steen' || !pt.f || pt.look !== 'savanne' || pt.y !== undefined) uit.push('geen gespiegelde poort b1 op de grond: ' + JSON.stringify(lv.poorten));
     else {
@@ -351,14 +354,14 @@ function verschil(a, b, pad = ''){
     if (na.cel !== 'lucht rots rots lucht') uit.push('geplakte cellen: ' + na.cel);
     if (na.obj !== 'richel@17,1|vijand@14,2') uit.push('geplakte voorwerpen: ' + na.obj);
     if (na.plak) uit.push('de stempel bleef hangen na het neerzetten');
-    if (na.n !== 15) uit.push('aantal voorwerpen na plakken: ' + na.n + ' in plaats van 15');
+    if (na.n !== 16) uit.push('aantal voorwerpen na plakken: ' + na.n + ' in plaats van 16');
     // knippen: het gebied is nu het geplakte stuk; Ctrl+X maakt het leeg
     await page.keyboard.press('Control+x');
     const leeg = await page.evaluate(() => ({ cel: MK.grid[2].slice(14, 18).join(' '), n: MK.objects.length }));
-    if (leeg.cel !== 'lucht lucht lucht lucht' || leeg.n !== 13) uit.push('na knippen: ' + JSON.stringify(leeg));
+    if (leeg.cel !== 'lucht lucht lucht lucht' || leeg.n !== 14) uit.push('na knippen: ' + JSON.stringify(leeg));
     await page.keyboard.press('Control+z');
     const terug = await page.evaluate(() => MK.objects.length);
-    if (terug !== 15) uit.push('ongedaan maken na knippen: ' + terug + ' voorwerpen in plaats van 15');
+    if (terug !== 16) uit.push('ongedaan maken na knippen: ' + terug + ' voorwerpen in plaats van 16');
     return uit;
   });
 
