@@ -16639,8 +16639,19 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => {
   keys[e.key] = false;
+  // een letter in beide vormen los: s indrukken, Shift erbij en dan loslaten geeft een keyup voor 'S',
+  // en dan bleef 's' hangen (Amir bleef gebukt en kroop bij links of rechts)
+  if (e.key.length === 1){ keys[e.key.toLowerCase()] = false; keys[e.key.toUpperCase()] = false; }
   if (e.key === 'e' || e.key === 'E') skeletTrekLos();
   if (e.key === ' ' || e.key === 'f' || e.key === 'F'){ atkKeyHeld = false; thrRelease(false); }
+});
+// verliest het venster de focus (ergens anders klikken, Alt-Tab, een melding van de browser), dan komt de
+// keyup nooit binnen: laat dan alles los, anders blijft bijvoorbeeld pijl omlaag 'ingedrukt' en blijft
+// Amir gebukt of sluipend hangen
+addEventListener('blur', () => {
+  for (const k in keys) keys[k] = false;
+  if (atkKeyHeld){ atkKeyHeld = false; thrRelease(true); }   // nog in de aanzet: afbreken in plaats van werpen
+  skeletTrekLos();
 });
 
 let facing = -1, frame = 0, frameAcc = 0, world = 0, autoFlip = true;
@@ -29322,7 +29333,11 @@ function loop(now){
   let crawling = false;
   {
     const downHeld = keys['ArrowDown'] || keys['s'] || keys['S'];
-    const canDuck = downHeld && onGround && !jump && !dead && hurt <= 0 && !schijnLigt() && !attacking && !throwing && !fell && !amirVast();
+    // onder een lage laag waar hij staand niet past (dichttimmeren, hieronder) telt links of rechts als kruipen,
+    // ook zonder pijl omlaag: anders stond hij daar gebukt stil. Overal elders blijft het: geen pijl omlaag, geen sluipen.
+    const dakNu = zweefDakBoven(halfWNow);
+    const laagDak = onGround && dakNu - ph < CHAR_H && dir !== 0;
+    const canDuck = (downHeld || laagDak) && onGround && !jump && !dead && hurt <= 0 && !schijnLigt() && !attacking && !throwing && !fell && !amirVast();
     if (canDuck) duckT = Math.min(1, duckT + dt / DUCK_IN_T);
     else duckT = Math.max(0, duckT - dt / DUCK_OUT_T);
     if (duckT >= 1) duckHoldAcc += dt * DUCK_HOLD_FPS; else duckHoldAcc = 0;
@@ -29337,7 +29352,7 @@ function loop(now){
     // net onder blijft, zodat hij niet rechtop door de rots steekt. Hij komt vanzelf overeind zodra er weer
     // ruimte boven hem is. Nooit lager dan de bukhouding (DUCK_BOX); past hij er dan nog niet onder, dan is het
     // een echte kruipruimte en kruipt hij er gebukt doorheen (amirOnderRuimte rekent met KRUIP_RUIMTE).
-    const dak = zweefDakBoven(halfWNow);
+    const dak = dakNu;
     if (dak < Infinity){
       const maxShare = (dak - ph) / CHAR_H;                    // zo veel van zijn lengte past er nog onder
       if (duckShare > maxShare){
