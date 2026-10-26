@@ -12,9 +12,10 @@ vijand. Niets ervan staat in een level; het is ontworpen in de sandbox (regel 2)
 
 ## Het veld (`sbGatesVeld`, uit `sbArenaVeld`)
 
-Om het arena-midden (`arenaMidden()`), `SB_GATES.breed` (1600) wereld-px breed; de zoom volgt het scherm
-(`sbGatesMaat`: `sbView = W / breed`, tussen `zoomMin` 0,5 en `zoomMax` 1), zodat de poorten op elk scherm aan de
-randen staan. De knoppen Uitzoomen staan daarom in de gates niet in de wizard. Het uitzicht is het donkere hart
+Om het arena-midden (`arenaMidden()`), `SB_GATES.breed` (1600) wereld-px breed: precies het beeld op 1280 bij
+de zoom 0,8 van een nieuw level. De zoom staat op 0,8 (`sbGatesMaat`: `sbView = W / breed`, tussen `zoomMin` 0,5 en
+`zoomMax` 0,8); alleen een scherm smaller dan 1280 zoomt verder uit, zodat de poorten in beeld blijven. Op een
+breder scherm zie je naast de poorten nog een stuk van de vloer (vroeger zoomde hij daar in, tot 1). De knoppen Uitzoomen staan daarom in de gates niet in de wizard. Het uitzicht is het donkere hart
 (`lagen: 'dark_hart'`), de fakkels doen het licht.
 
 - Links een grote rots (het levelveld `rotsen`, de pieken op 4,8 Amir) waar een rotsplateau (`zwevers`, look rots,
