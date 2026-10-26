@@ -664,6 +664,12 @@ een schildbandiet en met een bandiet. In **Test 53: Uit de hoogte** gaat op een 
 stenen poort open: het ijzeren hek takelt op, hij stapt eruit, loopt naar de rand en schiet van boven. Daar haalt
 alleen je boogworp hem (houd vast tot de tweede trap); onder het blok ziet hij je niet.
 
+**Test 54: Schutter en schild** is een arena op de open savanne: de camera staat stil, en per golf komen er
+tegelijk een kruisboogbandiet en een schildbandiet binnen, elk willekeurig van links of van rechts. Hier schiet de
+schutter pas als hij helemaal in beeld staat, en zijn bouten raken ook de schildbandiet: een bout telt als een
+treffer van je speer (eerst drie keer het schild, dan is hij dood). Ga dus achter de schildman staan en laat de
+schutter het werk doen. Na acht golven is het level uit.
+
 ## De kooiman
 
 De derde menselijke tegenstander is een heel ander soort vijand: een gebukte man die een zware
