@@ -1152,7 +1152,8 @@
       <div class="row">
         <label>Kruisboogbandiet</label>
         <button data-spawn="kruisboogbandiet">Neerzetten</button>
-        <span class="hint">loopt laag tot hij je ziet en herlaadt dan (je kans: gooi of ren erop af). Hij volgt je met zijn kruisboog, de punt blinkt en hij schiet. Op zijn niveau: bukken. Van boven: stap weg van waar je stond. Eén klap: lage zwaai, steek (snee) of worp (je speer zit in zijn borst, E pakt hem)</span>
+        <button id="sbkrbwijk" title="komt Amir te dichtbij, dan loopt hij achteruit tot hij weer op schietafstand staat">Wijkt terug</button>
+        <span class="hint">loopt laag tot hij je ziet en herlaadt dan (je kans: gooi of ren erop af). Hij volgt je met zijn kruisboog, de punt blinkt en hij schiet. Kom je te dichtbij, dan loopt hij achteruit tot hij weer op schietafstand staat (trager dan jij rent). Op zijn niveau: bukken. Van boven: stap weg van waar je stond. Eén klap: lage zwaai, steek (snee) of worp (je speer zit in zijn borst, E pakt hem)</span>
       </div>
       <div class="row">
         <label>Baviaan</label>
@@ -22526,6 +22527,7 @@ function updateSnakes(dt, plats, halfWNow, cliff){
         let mx = sp.x;                                 // op zijn ontworpen plek (een schutter staat ergens met opzet, zoals op een terras)
         if (sp.achter > 0) mx += (mx > world ? 1 : -1) * sp.achter;
         const m = makeKruisboog(mx, mx > world ? 1 : -1);
+        if (sp.wijk === false) m.wijk = false;         // wijk: false, dan blijft hij staan als Amir dichtbij komt
         m.base = sp.boven ? bovenVloer(mx) : terrainH(mx); zichtZet(m, sp); kruisbogen.push(m); continue;
       }
       if (sp.kind === 'schildman'){
@@ -25482,7 +25484,14 @@ function meelStapelTeken(x, voeten, fh){
 //   schot:    een snelle bout met terugslag, en dan weer herladen. Op zijn niveau mikt hij op Amirs borst, dus
 //             bukken laat de bout over je heen gaan; van boven mikt hij op waar je stond toen hij blonk, dus
 //             daar weg stappen.
-// De bout op de kruisboog tekent het spel zelf, net als de bout in de lucht. Doodgaan hangt af van de klap:
+//   afstand:  komt Amir te dichtbij (KRB.dichtbij) terwijl hij geladen mikt, dan loopt hij achteruit, met de
+//             kruisboog op Amir, tot hij weer op schietafstand staat (KRB.afstand). Achteruit gaat trager dan
+//             Amir rent, dus wie doorloopt haalt hem in. Staat er achter hem een kei, ravijn of wand, dan blijft
+//             hij staan en schiet hij toch. Het herladen onderbreekt hij er niet voor: dat blijft je kans.
+//             Met wijk: false in zijn spawn wijkt hij nooit (in de sandbox de knop Wijkt terug).
+// De bout (bout.png, uit tools/kruisboog_bout.py) tekent het spel zelf, op de kruisboog en in de lucht.
+// De geluiden zijn gemaakt met de Web Audio API (krbKlank), de doodskreet en de stappen zijn die van de bandiet.
+// Doodgaan hangt af van de klap:
 // de lage zwaai geeft dood_laag, een steek dood_hoog met een snee in zijn borst, en een worp dood_hoog met
 // Amirs speer in zijn borst: die valt met hem mee en pak je daarna met E op. Het lijk blijft liggen, met de
 // gevallen kruisboog ernaast (die zit in de frames).
@@ -25510,14 +25519,21 @@ const KRB = {
   slot:     0.45,   // zo lang blinkt de punt voor het schot: de richting ligt dan vast
   na:       0.4,    // na het schot: zo lang de terugslag voor hij gaat herladen
   vergeet:  2.0,    // zo lang zonder zicht (of buiten zijn hoeken) voor hij weer gaat lopen
+  dichtbij: 420,    // komt Amir dichterbij dan dit (wereld-px) terwijl hij geladen mikt, dan wijkt hij achteruit
+  afstand:  700,    // ... tot Amir weer zo ver weg is: dan mikt en schiet hij
+  wijkV:    95,     // achteruit lopen (wereld-px/s): trager dan vooruit, en trager dan Amir rent
+  // loop: per frame de voorkant van de kruisboog (canvas-px), voor de bout erop als hij geladen loopt of wijkt
+  loopPunt: [[156, 200], [154, 202], [144, 206], [152, 212], [152, 216], [132, 212], [153, 208], [154, 204],
+             [154, 206], [156, 210], [156, 214], [156, 216], [138, 212], [156, 206]],
   wondB:    24      // de snee in zijn borst, breed in canvas-px
 };
 const KRB_REF_FIG = 307;   // de figuur in de mikhouding (recht) in canvas-px: de ijk voor de hoogte
-const KRB_H_SHARE = 0.96;  // zo hoog is hij in die lage houding, als deel van Amir (rechtop zo lang als de bandiet)
+const KRB_H_SHARE = 1.12;  // zo hoog is hij in die lage houding, als deel van Amir (was 0,96: naast Amir en de schildman te klein)
 // de bout: uit de punt van de kruisboog, snel, en hij blijft even in de grond steken
 const KRB_PIJL = {
   v:    1150,  // vliegsnelheid (scherm-px/s)
-  len:  0.40,  // lengte als deel van Amir
+  len:  0.50,  // lengte als deel van Amir (zo lang als de kruisboog)
+  dik:  1.35,  // het plaatje van de bout zoveel dikker dan op schaal, anders is de schacht in het spel een haartje
   r:    0.04,  // raakmaat als deel van Amir: dun, zodat hij net over een gebukte Amir gaat
   knock: 300,  // de inslag duwt Amir terug
   steek: 2.5,  // zo lang blijft een gemiste bout in de grond steken
@@ -25527,7 +25543,7 @@ const KRB_PIJL = {
 const kruisbogen = [];
 const krbPijlen = [];
 const krbBank = {};
-let krbWond = null;
+let krbWond = null, krbBout = null;
 let krbGeladen = false;
 function krbLaad(){
   laadNodig('krb');
@@ -25538,6 +25554,8 @@ function krbLaad(){
       loadQuiet([KRB_ROOT + k + '/' + k + '_' + pad2(i) + '.png']));
   krbWond = loadQuiet([KRB_ROOT + 'wond.png']);
   krbBank.wond = [krbWond];
+  krbBout = loadQuiet([KRB_ROOT + 'bout.png']);
+  krbBank.bout = [krbBout];
 }
 function krbLaadLevel(lv){ if (lv && (lv.spawns || []).some(s => s.kind === 'kruisboogbandiet')) krbLaad(); }
 function krbEenheid(){ return CHAR_H * KRB_H_SHARE / KRB_REF_FIG; }                  // sprite-eenheden per canvas-px
@@ -25547,15 +25565,16 @@ function makeKruisboog(x, side){
   return { x, face: -side, state: 'loop', set: 'loop', frame: 0, acc: 0, klaar: false,
            hp: 1, maxHp: 1, hpBalk: hpBalkAan('kruisboogbandiet'), inv: 0, flash: 0, base: 0, alpha: 1,
            geladen: false, hoek: 0, slotT: 0, naT: 0, kwijtT: 0, slag: 0, vrij: false,
-           dood: null, doodT: 0, speer: false, wond: false };
+           dood: null, doodT: 0, speer: false, wond: false, wijk: true, klankF: -1 };
 }
-function krbSpeel(s, set){ s.set = set; s.acc = 0; s.klaar = false; s.frame = 0; }
-function krbAnim(s, dt){
+function krbSpeel(s, set){ s.set = set; s.acc = 0; s.klaar = false; s.frame = 0; s.klankF = -1; }
+// terug: de loop achterstevoren (achteruit lopen), tempo: de fps daarmee vermenigvuldigd
+function krbAnim(s, dt, terug, tempo){
   const n = KRB.n[s.set] || 1, loop = s.set === 'loop';
-  s.acc += dt * (KRB.fps[s.set] || 12);
+  s.acc += dt * (KRB.fps[s.set] || 12) * (tempo || 1);
   while (s.acc >= 1){
     s.acc -= 1;
-    if (loop) s.frame = (s.frame + 1) % n;
+    if (loop) s.frame = (s.frame + (terug ? n - 1 : 1)) % n;
     else if (s.frame < n - 1) s.frame++;
     else { s.klaar = true; break; }
   }
@@ -25567,12 +25586,29 @@ function krbHoekFrame(h){
   return best;
 }
 function krbFrameImg(s){ const set = krbBank[s.set] || krbBank.loop; return set && set[Math.max(0, Math.min(s.frame, set.length - 1))]; }
+// mag hij naar nx? Niet over een kei, ravijn, terras of wand (regel 7), gemeten aan zijn voet in die richting
+function krbVrij(s, nx, plats, cliff){
+  if (knockBlocked(s, nx, plats, cliff, KRB.voet, 80)) return false;
+  const d = nx >= s.x ? 1 : -1, fx = nx + d * KRB.voet;
+  for (const p of plats){ if (p.l <= fx && fx <= p.r && blocksMonster(p, s.base || 0)) return false; }
+  return true;
+}
 function krbMove(s, stap, plats, cliff){
   const nx = s.x + stap;
-  if (knockBlocked(s, nx, plats, cliff, KRB.voet, 80)) return false;
-  const d = stap >= 0 ? 1 : -1, fx = nx + d * KRB.voet;
-  for (const p of plats){ if (p.l <= fx && fx <= p.r && blocksMonster(p, s.base || 0)) return false; }
+  if (!krbVrij(s, nx, plats, cliff)) return false;
   s.x = nx; return true;
+}
+// een geluid bij een frame: kijkt alle frames na sinds de vorige keer, zodat er geen overgeslagen wordt
+function krbFrameKlank(s, tabel){
+  if (s.frame === s.klankF) return;
+  const n = KRB.n[s.set] || 1;
+  if (s.klankF < 0) s.klankF = s.frame - 1;
+  for (let i = 0, f = s.klankF; i < n && f !== s.frame; i++){
+    f = s.set === 'loop' ? (f + (s.state === 'wijk' ? n - 1 : 1)) % n : f + 1;
+    const k = tabel(f);
+    if (k) krbKlank(k, s.x);
+  }
+  s.klankF = s.frame;
 }
 // een canvas-punt in de wereld: x in wereld-px, h in sprite-eenheden
 function krbWereld(s, px, py){
@@ -25593,6 +25629,7 @@ function krbSchiet(s){
   krbPijlen.push({ x: p.x, h: p.h, px: p.x, ph: p.h, vx, vh, t: 0, st: 'vlieg' });
   s.geladen = false; s.slag = 1;                                    // de terugslag (in het tekenen)
   puffWorld(p.x, 3, 0, 0.5, p.h);
+  krbKlank('schot', s.x);
 }
 function krbPijlUpdate(dt){
   if (!running || (dead && !sandbox)) return;
@@ -25606,6 +25643,7 @@ function krbPijlUpdate(dt){
     if (vloer > -Infinity && b.h <= vloer){                          // in de grond of tegen een wand: blijft steken
       if (b.vh < 0) b.h = Math.max(vloer - 6, b.h);
       b.st = 'vast'; b.t = 0; puffWorld(b.x, 3, 0, 0.5, vloer);
+      krbKlank('inslag', b.x);
     } else if (b.t > 3 || Math.abs(b.x - world) > W * 2.5) krbPijlen.splice(i, 1);
   }
 }
@@ -25649,13 +25687,24 @@ function updateKruisboog(s, dt, plats, cliff){
       return;
     }
     if (s.set !== 'loop') krbSpeel(s, 'loop');
-    if (krbMove(s, naar * KRB.loopV * dt, plats, cliff)) krbAnim(s, dt);
+    if (krbMove(s, naar * KRB.loopV * dt, plats, cliff)){ krbAnim(s, dt); krbFrameKlank(s, krbStapKlank); }
     else { s.set = 'mik'; s.hoek = 0; s.frame = KRB.recht; }   // vast voor een kei of ravijn: stil in de mikhouding
+    return;
+  }
+  if (s.state === 'wijk'){                          // te dichtbij: achteruit, met de kruisboog op Amir
+    s.face = naar;
+    if (!ziet || gap >= KRB.afstand || !krbMove(s, -naar * KRB.wijkV * dt, plats, cliff)){
+      s.state = 'mik'; s.set = 'mik'; s.frame = krbHoekFrame(s.hoek); s.kwijtT = 0;   // op afstand, of klem: mikken
+      return;
+    }
+    krbAnim(s, dt, true, KRB.wijkV / KRB.loopV);
+    krbFrameKlank(s, krbStapKlank);
     return;
   }
   if (naar !== s.face && gap > 40 && s.state !== 'slot') s.face = naar;   // springt Amir over hem heen, dan draait hij mee
   if (s.state === 'herlaad'){                       // de tell: hij is nu weerloos bezig
     krbAnim(s, dt);
+    krbFrameKlank(s, f => KRB_KLANK.herlaad[f]);
     if (s.klaar){ s.geladen = true; s.state = 'mik'; s.set = 'mik'; s.hoek = 0; s.kwijtT = 0; s.frame = KRB.recht; }
     return;
   }
@@ -25665,8 +25714,14 @@ function updateKruisboog(s, dt, plats, cliff){
     return;
   }
   if (s.state === 'slot'){                          // de punt blinkt: de richting ligt vast
+    if (s.slotT === 0) krbKlank('slot', s.x);
     s.slotT += dt;
     if (s.slotT >= KRB.slot){ krbSchiet(s); s.state = 'na'; s.naT = 0; }
+    return;
+  }
+  // mik: te dichtbij, dan eerst achteruit (als er achter hem plek is; anders schiet hij toch)
+  if (s.wijk && ziet && gap < KRB.dichtbij && krbVrij(s, s.x - naar * KRB.voet * 0.3, plats, cliff)){
+    s.state = 'wijk'; krbSpeel(s, 'loop'); s.klankF = 0;
     return;
   }
   // mik: de kruisboog volgt Amir
@@ -25706,6 +25761,7 @@ function hitKruisboog(s, soort){
   }
   s.wond = s.dood === 'steek';
   puffWorld(s.x, 8, 0, 1.0, s.base || 0);
+  banSterf();                                      // de doodskreet van de bandiet: hij is er een
   vijandDood(false);
   return true;
 }
@@ -25725,11 +25781,18 @@ function krbBlink(x, y, r, t){
   ctx.globalAlpha = 0.35; ctx.beginPath(); ctx.arc(0, 0, r * 0.45 * p, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
-// de bout: een donkere schacht met een ijzeren punt en twee veertjes
+// de bout: het plaatje (bout.png, de punt naar rechts, de schacht op de middellijn) met de punt op (x, y) en
+// de schacht naar achteren langs hoek. Is het plaatje er nog niet, dan een getekende schacht met punt en veertjes.
 function krbPijlTeken(x, y, hoek, len, alpha){
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.translate(x, y); ctx.rotate(hoek);
+  if (krbBout && imgReady(krbBout)){
+    const bh = len * krbBout.height / krbBout.width * KRB_PIJL.dik;
+    ctx.drawImage(krbBout, -len, -bh / 2, len, bh);
+    ctx.restore();
+    return;
+  }
   const d = Math.max(2, len * 0.045);
   ctx.fillStyle = '#4a2e18'; ctx.strokeStyle = '#140b05'; ctx.lineWidth = Math.max(1, d * 0.35);
   ctx.fillRect(-len, -d / 2, len * 0.86, d); ctx.strokeRect(-len, -d / 2, len * 0.86, d);
@@ -25739,6 +25802,89 @@ function krbPijlTeken(x, y, hoek, len, alpha){
   ctx.beginPath(); ctx.moveTo(-len, 0); ctx.lineTo(-len * 0.8, 0); ctx.lineTo(-len * 0.92, -d * 2); ctx.closePath(); ctx.fill();
   ctx.beginPath(); ctx.moveTo(-len, 0); ctx.lineTo(-len * 0.8, 0); ctx.lineTo(-len * 0.92, d * 2); ctx.closePath(); ctx.fill();
   ctx.restore();
+}
+
+// ---- de geluiden van de kruisboog ----
+// Gemaakt met de Web Audio API, zoals de voetstappen van de bandiet (banVoetstap): geen bestand nodig, en elke
+// keer iets anders verstemd. Zachter naarmate het verder van Amir gebeurt (tot `ver` schermbreedtes, nooit
+// zachter dan `min`).
+//   schot:   de pees die losslaat (een korte, zakkende toon met een klap) en de bout die wegzoeft;
+//   slot:    een fijn metalen tikje als de punt blinkt: zo hoor je het schot aankomen, ook buiten beeld;
+//   inslag:  de doffe tok van een bout die in de grond of een wand slaat;
+//   herlaad: op de frames van herladen het geritsel van de bout achter zijn nek (ritsel), de pees die in de
+//            grendel klikt (klik) en de kolf die tegen zijn schouder komt (klop);
+//   stap:    zijn voetstappen, die van de bandiet (banVoetstap), op de neerkom-frames van loop.
+// De doodskreet is die van de bandiet (banSterf in hitKruisboog).
+const KRB_KLANK = {
+  ver: 1.2, min: 0.25,
+  schot:   { vol: 0.5,  hz: 230, zak: 0.4, duur: 0.16, zoef: 0.22 },
+  slot:    { vol: 0.16, hz: 2700, duur: 0.14 },
+  inslag:  { vol: 0.45, hz: 150, duur: 0.09 },
+  ritsel:  { vol: 0.16, duur: 0.14 },
+  klik:    { vol: 0.32 },
+  klop:    { vol: 0.28 },
+  herlaad: { 9: 'ritsel', 15: 'ritsel', 21: 'klik', 31: 'klop' },
+  stap:    [2, 9]
+};
+function krbStapKlank(f){ return KRB_KLANK.stap.indexOf(f) >= 0 ? 'stap' : null; }
+let krbRuis = null;
+// een toon die van f0 naar f1 glijdt en uitsterft
+function krbToon(ac, t, type, f0, f1, vol, duur){
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + duur * 0.8);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, vol), t + 0.004);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + duur);
+  o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + duur + 0.02);
+}
+// een stoot ruis door een filter dat van f0 naar f1 schuift; aan: de aanzet in seconden
+function krbStoot(ac, t, soort, f0, f1, vol, duur, q, aan){
+  if (!krbRuis){
+    krbRuis = ac.createBuffer(1, Math.floor(ac.sampleRate * 0.5), ac.sampleRate);
+    const d = krbRuis.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  const n = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+  n.buffer = krbRuis; f.type = soort; f.Q.value = q || 1;
+  f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + duur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, vol), t + (aan || 0.003));
+  g.gain.exponentialRampToValueAtTime(0.0001, t + duur);
+  n.connect(f); f.connect(g); g.connect(ac.destination); n.start(t, Math.random() * 0.3); n.stop(t + duur + 0.02);
+}
+function krbKlank(soort, wx){
+  if (!wantSound) return;
+  if (soort === 'stap'){ banVoetstap(wx); return; }
+  const ac = acLoopt();
+  if (!ac) return;
+  const P = KRB_KLANK, t = ac.currentTime + 0.005, r = 0.92 + Math.random() * 0.16;
+  const af = Math.max(P.min, 1 - Math.abs(wx - playerX()) / (P.ver * W));
+  if (soort === 'schot'){
+    const S = P.schot, v = S.vol * af;
+    krbToon(ac, t, 'triangle', S.hz * r, S.hz * r * S.zak, v, S.duur);              // de pees
+    krbToon(ac, t, 'sine', S.hz * r * 2.7, S.hz * r * 1.1, v * 0.35, S.duur * 0.6);
+    krbStoot(ac, t, 'bandpass', 2200, 900, v * 0.9, 0.05, 1.2);                     // de klap van de beugel
+    krbStoot(ac, t + 0.02, 'bandpass', 3200 * r, 700, v * S.zoef, 0.28, 2, 0.05);    // de bout die wegzoeft
+  } else if (soort === 'slot'){
+    const S = P.slot, v = S.vol * af;
+    krbToon(ac, t, 'sine', S.hz * r, S.hz * r * 0.98, v, S.duur);
+    krbToon(ac, t, 'sine', S.hz * r * 1.47, S.hz * r * 1.45, v * 0.5, S.duur * 0.7);
+  } else if (soort === 'inslag'){
+    const S = P.inslag, v = S.vol * af;
+    krbToon(ac, t, 'sine', S.hz * r, S.hz * r * 0.45, v, S.duur);
+    krbStoot(ac, t, 'lowpass', 1600, 300, v * 0.8, 0.07);
+  } else if (soort === 'ritsel'){
+    const S = P.ritsel;
+    krbStoot(ac, t, 'bandpass', 2600 * r, 1500, S.vol * af, S.duur, 0.8, 0.04);
+  } else if (soort === 'klik'){
+    const v = P.klik.vol * af;
+    krbStoot(ac, t, 'highpass', 4200 * r, 3000, v, 0.018, 0.7);
+    krbToon(ac, t, 'square', 1500 * r, 1100, v * 0.12, 0.03);
+    krbStoot(ac, t + 0.045, 'highpass', 3600 * r, 2600, v * 0.8, 0.02, 0.7);
+  } else if (soort === 'klop'){
+    const v = P.klop.vol * af;
+    krbToon(ac, t, 'sine', 190 * r, 120, v, 0.07);
+    krbStoot(ac, t, 'lowpass', 900, 250, v * 0.6, 0.05);
+  }
 }
 
 // ---------- de bandiet ----------------------------------------------------
@@ -31517,6 +31663,9 @@ function loop(now){
           const px = (p[0] - KRB.anker) * k, py = (p[1] - KRB.ground) * k;
           if (s.geladen) krbPijlTeken(px, py, Math.atan2(-Math.sin(r), -Math.cos(r)), boutLen, 1);
           if (s.state === 'slot') krbBlink(px, py, fh * 0.09, s.slotT);
+        } else if (!dood && s.set === 'loop' && s.geladen){  // geladen lopen of achteruit wijken: de bout ligt erop, recht vooruit
+          const p = KRB.loopPunt[s.frame % KRB.loopPunt.length];
+          krbPijlTeken((p[0] - KRB.anker) * k, (p[1] - KRB.ground) * k, Math.PI, boutLen, 1);
         }
         ctx.restore();
         if (dood || s.state === 'weg') continue;
@@ -37029,7 +37178,7 @@ function sbSpawn(kind, kant, plek){               // kant en plek: de arena-modu
   }
   else if (kind === 'scorp'){ const k = makeScorp(x, side); k.base = vloerBij(x, ph); scorps.push(k); }
   else if (kind === 'meelman'){ const m = makeMeelman(x, side); m.base = vloerBij(x, ph); m.vrij = sbMeelVrij; meelmannen.push(m); }
-  else if (kind === 'kruisboogbandiet'){ const m = makeKruisboog(x, side); m.base = vloerBij(x, ph); kruisbogen.push(m); }
+  else if (kind === 'kruisboogbandiet'){ const m = makeKruisboog(x, side); m.base = vloerBij(x, ph); m.wijk = sbKrbWijk; kruisbogen.push(m); }
   else if (kind === 'kooiman'){
     const k = makeKooiman(x, side, sbKooiVogel || sbKooiDuel, sbKooiDuel);
     k.base = vloerBij(x, ph);                        // op een terras, of op jouw hoogte bij een gang
@@ -37793,6 +37942,12 @@ const sbMeelVrijBtn = document.getElementById('sbmeelvrij');
 function sbMeelLabel(){ sbMeelVrijBtn.textContent = sbMeelVrij ? 'AI aan' : 'AI uit'; sbMeelVrijBtn.classList.toggle('on', sbMeelVrij); }
 sbMeelVrijBtn.onclick = () => { sbMeelVrij = !sbMeelVrij; for (const s of meelmannen) s.vrij = sbMeelVrij; sbMeelLabel(); cv.focus(); };
 sbMeelLabel();
+// de kruisboogbandiet: wijkt hij achteruit als Amir dichtbij komt (aan), of blijft hij staan (uit)
+let sbKrbWijk = true;
+const sbKrbWijkBtn = document.getElementById('sbkrbwijk');
+function sbKrbLabel(){ sbKrbWijkBtn.textContent = sbKrbWijk ? 'Wijkt terug: aan' : 'Wijkt terug: uit'; sbKrbWijkBtn.classList.toggle('on', sbKrbWijk); }
+sbKrbWijkBtn.onclick = () => { sbKrbWijk = !sbKrbWijk; for (const s of kruisbogen) s.wijk = sbKrbWijk; sbKrbLabel(); cv.focus(); };
+sbKrbLabel();
 // de schildbandiet: AI uit speelt alleen zijn loop, zodat je de dreigende gang kunt bekijken
 let sbSchVrij = false;
 const sbSchVrijBtn = document.getElementById('sbschvrij');

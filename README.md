@@ -650,7 +650,11 @@ ongeladen: eerst haalt hij een bout van achter zijn nek en legt die op zijn krui
 gooi je speer of ren erop af, want van dichtbij heeft hij geen verweer. Daarna volgt hij je met zijn kruisboog,
 van geknield steil omlaag tot schuin omhoog. Zit hij erop, dan **blinkt de punt** even, en dan komt de bout. Staat
 hij op jouw hoogte, dan vliegt die op borsthoogte: **bukken** laat hem over je heen gaan. Schiet hij van boven, dan
-mikt hij op waar je stond toen de punt blonk: **stap weg**. Na elk schot herlaadt hij opnieuw.
+mikt hij op waar je stond toen de punt blonk: **stap weg**. Na elk schot herlaadt hij opnieuw. Kom je te dichtbij
+terwijl hij geladen mikt, dan **loopt hij achteruit**, met de kruisboog op jou, tot hij weer op schietafstand staat.
+Achteruit is hij trager dan jij rent, dus wie doorloopt haalt hem in, en met een kei of ravijn in zijn rug kan hij
+niet verder en schiet hij toch. Je hoort hem ook: de pees die losslaat, het tikje als de punt blinkt, de bout die
+in de grond slaat en het klikken van het herladen.
 
 Eén klap en hij valt, en hoe hangt af van de klap: na de lage zwaai zakt hij door zijn benen, na een steek valt hij
 achterover met een snee in zijn borst, en na een worp blijft je speer in zijn borst steken en valt mee; die pak je
