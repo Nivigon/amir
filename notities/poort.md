@@ -22,6 +22,15 @@ poorten: [ {id: 'b1', x: -2012, k: 'boog_rots', f: true, y: 450, s: 1, look: 'sn
   look die een poort gebruikt laadt (`poortLaadLevel`). De versies komen uit `tools/boog_vulling.py`: de sneeuwkap
   met `rock_snow` uit `tools/sneeuw.py`, en in beide blijft de opening het donker van de gewone boog
 
+- `hek` met `true`: een traliehek voor de opening met een klein tandwiel in het steen erboven (`POORT.hek`,
+  `poortHekTeken`, binnen `poortBeeld`; het wiel is het mini-tandwiel van de takelstam, `poortHekLaad`). Dicht staat
+  het hek in de opening (`hekStand` 0); gaat de poort open, dan takelt `poortUpdate` het in `hek.duur` seconden omhoog
+  (`hekDoel` 1, het wiel draait mee, het touw loopt van het wiel naar de bovenrand van het hek), en boven aangekomen
+  klinkt de klap van `sounds/deurslam.mp3` (`deurSlamSpeel`, een keer voor hekken die tegelijk boven komen,
+  `poortSlamT`) met een schok. De vijanden komen pas als het hek boven is (`poortOpen` telt `hek.duur` bij hun
+  `poortWacht`). `poortSluit(id)` zet de poort weer dicht (het hek zakt, de poort kan opnieuw open): dat gebruikt de
+  arena gates per ronde (zie `notities/arena-gates.md`). `poortReset` zet het hek dicht.
+
 De onderkant van de opening staat op de vloer. Zonder meer is een poort decor.
 
 ## Een vijand uit de poort
@@ -37,7 +46,8 @@ koppel-rune met `stuurt`). Dan:
 - komt hij wakker: `zichtZet` zet `zWacht` uit voor een spawn met `poort`, want hij komt omdat Amir
   de poort opende. Ziet hij Amir daarna `ZICHT.vergeet` seconden niet, dan valt hij gewoon in rust.
 
-Een poort gaat per potje een keer open; `poortReset` (in `restart`) sluit hem weer. Een hyena en een
+Een poort gaat per potje een keer open; `poortReset` (in `restart`) sluit hem weer, en `poortSluit(id)` tussendoor
+(voor een arena die hem elke ronde opnieuw opent). Een hyena en een
 panter komen van de rand van het beeld en niet uit de poort (levelcheck: LET OP); de Maker biedt ze
 niet aan, net als de hinderlaag en het duel van de kooiman.
 
@@ -69,6 +79,11 @@ zonder schakelaar (LET OP) en een schakelaar die een lege poort opent (info).
 
 Decor, **Poort**: drie bogen, **Sneeuw**, **Savanne** en **Steen** (de look van de laatste poort), **+ slang erin**, **+ schorpioen erin**, **+ bandiet erin** (in de laatst
 neergezette poort) en **Open de poort**.
+
+## De arena gates
+
+De sandbox-modus met drie poorten (een hoog op een plateau, twee laag) die elke ronde tegelijk opengaan, elk met
+een hek: zie `notities/arena-gates.md`.
 
 ## Nog niet
 

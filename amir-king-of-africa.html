@@ -240,6 +240,8 @@
   #sandbox .arij button{text-align:left}
   #sandbox .arij button.abij{font-size:11px;padding:3px 0;text-align:center;width:44px}
   #sandbox .arij input[type=number]{width:52px;box-sizing:border-box}
+  #sandbox .arij.gates{grid-template-columns:158px 158px}
+  #sandbox .arij.gates .akop,#sandbox .arij.gates label,#sandbox .arij.gates .abij{display:none}
   #sandbox .arij .eenheid{color:rgba(242,232,213,.55);font-size:11px;margin-left:2px}
   #sbtabs button.on{background:var(--sun);color:#241a2b;border-color:var(--sun);font-weight:700}
   /* weggeklapt: alleen de kop met de knop om hem terug te halen, zodat de joystick vrij ligt */
@@ -849,6 +851,7 @@
       <div class="row">
         <button id="btnsbvrij" class="bigbtn">Sandbox<small>Vlakke grond, zet neer wat je wilt testen</small></button>
         <button id="btnsbarena" class="bigbtn">Arena modus<small>In de arena van de koning: golven vijanden van links en rechts, steeds meer</small></button>
+        <button id="btnsbgates" class="bigbtn">Arena gates<small>Drie poorten in de rots: elke ronde komen er drie, een uit elke poort</small></button>
       </div>
       <div class="row"><button class="menumain">Terug</button></div>
     </div>
@@ -1196,6 +1199,9 @@
         <label title="seconden rust als een golf verslagen is, voor de volgende">Rust <input type="number" id="sbarenarust" min="0" max="60" step="1" value="6"><span class="eenheid">s</span></label>
         <label title="seconden tussen twee binnenkomers in een golf">Tussen <input type="number" id="sbarenatussen" min="0.2" max="10" step="0.1" value="1.5"><span class="eenheid">s</span></label>
         <label title="zoveel mogen er hoogstens tegelijk leven; de rest van de golf wacht">Tegelijk <input type="number" id="sbarenategelijk" min="1" max="30" step="1" value="5"></label>
+      </div>
+      <div class="row" id="sbgatesrij" style="display:none">
+        <label title="seconden rust als een ronde verslagen is, voor de poorten weer opengaan">Rust tussen rondes <input type="number" id="sbgatesrust" min="0" max="60" step="1" value="5"><span class="eenheid">s</span></label>
       </div>
       <div class="arij" id="sbarenalijst"></div>
     </div>
@@ -11293,6 +11299,11 @@ const POORT = {
   tussen: 1.1,                 // seconden tussen twee vijanden uit dezelfde poort
   uit: 0.9,                    // zo lang (s) ligt het donker van de opening nog over een vijand die eruit komt
   schaduw: 0.55,               // de schaduw op de grond, als deel van de breedte van de boog
+  // het hek (poort met hek: true): een traliehek voor de opening dat een klein tandwiel in het steen erboven
+  // optakelt als de poort opengaat (zie poortHekTeken). duur: seconden van dicht tot helemaal open; mini: de
+  // straal van het tandwiel als deel van de openingsbreedte; balk: de dikte van een tralie; nV en nH: het
+  // aantal staande en liggende balken; slagen: zoveel omwentelingen maakt het wiel van dicht tot open
+  hek: { duur: 0.8, mini: 0.19, balk: 0.055, nV: 5, nH: 4, touw: 0.022, slagen: 1.5 },
   looks: { steen: '', sneeuw: '_sneeuw', savanne: '_savanne' },   // look -> achtervoegsel van het plaatje
   soorten: {
     // hoog: de hoogte van de opening in Amir (LEESMIJ: hoog 1,65, laag 1,15)
@@ -11316,7 +11327,10 @@ function poortImg(k, look){
   if (!im){ im = poortImgs[pad] = new Image(); zetBron(im, pad, () => console.warn('ontbreekt: ' + pad)); }
   return im;
 }
-function poortLaadLevel(lv){ for (const o of (lv && lv.poorten) || []) poortImg(o.k, poortLook(o, lv.winter)); }
+function poortLaadLevel(lv){ for (const o of (lv && lv.poorten) || []){ poortImg(o.k, poortLook(o, lv.winter)); if (o.hek) poortHekLaad(); } }
+// het tandwieltje van het hek: hetzelfde roestige mini-tandwiel als op de pen van de takelstam (STAM.dir), lui geladen
+let poortHekImg = null;
+function poortHekLaad(){ if (!poortHekImg) poortHekImg = zetBron(new Image(), STAM.dir + 'minitandwiel.png'); return poortHekImg; }
 // de maat van een poort in wereld-px: k (px per bronpixel), van waar tot waar hij staat (l, r) en zijn hoogte (h)
 function poortMaat(o, scale){
   const S = POORT.soorten[poortSoort(o.k)], op = S.opening;
@@ -11343,8 +11357,39 @@ function poortBeeld(o, groundY, scale, cx, deel){
     ctx.globalAlpha = deel;
     ctx.drawImage(im, op[0] * fx, op[1] * fx, (op[2] - op[0]) * fx, (op[3] - op[1]) * fx,
                   (op[0] - mid) * k, op[1] * k, (op[2] - op[0]) * k, (op[3] - op[1]) * k);
-  } else ctx.drawImage(im, -mid * k, 0, S.maat[0] * k, S.maat[1] * k);
+  } else {
+    ctx.drawImage(im, -mid * k, 0, S.maat[0] * k, S.maat[1] * k);
+    if (o.hek) poortHekTeken(o, op, k, mid);
+  }
   ctx.restore();
+}
+// het hek voor de opening, in de ruimte van poortBeeld (de oorsprong boven op het midden van de opening, k px per
+// bronpixel): houten tralies met punten onderaan, geklemd op de opening, zover omhoog getakeld als hekStand zegt
+// (0 dicht, 1 helemaal in het steen), en het tandwiel in het steen boven de opening dat met het optakelen
+// meedraait, met het touw naar de bovenrand van het hek
+function poortHekTeken(o, op, k, mid){
+  const K = POORT.hek, st = Math.max(0, Math.min(1, o.hekStand || 0));
+  const ol = (op[0] - mid) * k, ow = (op[2] - op[0]) * k, ot = op[1] * k, oh = (op[3] - op[1]) * k;
+  const hw = ow * 0.92, hl = -hw / 2, ht = ot - oh * st, hb = ht + oh;
+  const dik = Math.max(3, ow * K.balk), nV = K.nV, nH = K.nH;
+  ctx.save(); ctx.beginPath(); ctx.rect(ol, ot, ow, oh); ctx.clip();
+  for (let i = 0; i < nV; i++){
+    const x = hl + dik / 2 + i * (hw - dik) / (nV - 1);
+    ctx.fillStyle = '#4a3320'; ctx.fillRect(x - dik / 2, ht, dik, oh - dik * 1.2);
+    ctx.fillStyle = '#6b4a2c'; ctx.fillRect(x - dik / 2, ht, dik * 0.35, oh - dik * 1.2);   // de lichte kant
+    ctx.fillStyle = '#2a1a0e'; ctx.beginPath(); ctx.moveTo(x - dik * 0.7, hb - dik * 1.2); ctx.lineTo(x + dik * 0.7, hb - dik * 1.2); ctx.lineTo(x, hb + dik * 0.6); ctx.closePath(); ctx.fill();   // de punt
+  }
+  for (let j = 0; j < nH; j++){
+    const y = ht + dik + j * (oh - dik * 3.5) / (nH - 1);
+    ctx.fillStyle = '#3d2915'; ctx.fillRect(hl, y, hw, dik * 0.9);
+    ctx.fillStyle = '#5c4027'; ctx.fillRect(hl, y, hw, dik * 0.3);
+  }
+  ctx.restore();
+  const r = Math.max(12, ow * K.mini), cy = ot - Math.max(r * 1.15, ot * 0.6);   // in het steen boven de opening
+  ctx.save(); ctx.strokeStyle = 'rgba(80,52,24,0.95)'; ctx.lineWidth = Math.max(2, ow * K.touw);
+  ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(0, Math.max(ot, ht) + 2); ctx.stroke(); ctx.restore();   // het touw tot aan het hek
+  const im = poortHekLaad();
+  if (imgReady(im)){ ctx.save(); ctx.translate(0, cy); ctx.rotate(0.2 + st * K.slagen * Math.PI * 2); ctx.drawImage(im, -r, -r, r * 2, r * 2); ctx.restore(); }
 }
 function poortTeken(groundY, scale, cx){
   if (!level || !level.poorten) return;
@@ -11364,9 +11409,11 @@ function poortVoorTeken(groundY, scale, cx){
 function poortOpen(id, wie){
   const o = poortVan(id); if (!o || o.open) return false;
   o.open = true;
+  const hekT = o.hek ? POORT.hek.duur : 0;             // met een hek: eerst gaat het hek omhoog, dan pas komen ze
+  if (o.hek) o.hekDoel = 1;
   let n = 0;
-  for (const sp of level.spawns || []) if (sp.poort === id && !sp.used){ sp.poortWacht = n++ * POORT.tussen; sp.armed = true; sp.x = o.x; }   // op de plek van de opening, ook als de poort naar een ravijnrand schoof
-  if (n) shake = Math.max(shake, 0.12);
+  for (const sp of level.spawns || []) if (sp.poort === id && !sp.used){ sp.poortWacht = hekT + n++ * POORT.tussen; sp.armed = true; sp.x = o.x; }   // op de plek van de opening, ook als de poort naar een ravijnrand schoof
+  if (n && !o.hek) shake = Math.max(shake, 0.12);
   flashHint((wie ? wie + ' licht op: ' : 'De poort gaat open: ') + (n ? (n === 1 ? 'uit de poort komt een vijand' : 'uit de poort komen vijanden') : 'in de poort blijft het stil'));
   return true;
 }
@@ -11377,13 +11424,32 @@ function poortKlaar(sp){
   return !!(o && o.open && !(sp.poortWacht > 0));
 }
 function poortUit(sp){ const o = poortVan(sp.poort); if (o) o.uitT = POORT.uit; }   // hij stapt eruit: het donker ligt nog even over hem
+// de poort weer dicht, zodat hij nog een keer open kan (de arena gates): het hek zakt, en spawns die er nog
+// op wachtten komen niet meer (ze blijven ongebruikt staan tot de volgende poortOpen)
+function poortSluit(id){
+  const o = poortVan(id); if (!o) return;
+  o.open = false; o.uitT = 0; if (o.hek) o.hekDoel = 0;
+  for (const sp of level.spawns || []) if (sp.poort === id && !sp.used){ sp.poortWacht = undefined; sp.armed = false; }
+}
+let poortSlamT = -1;                                   // wanneer de laatste klap klonk (bavKlok), zodat drie hekken tegelijk een klap geven
 function poortUpdate(dt){
   if (!level || !level.poorten) return;
-  for (const o of level.poorten) if (o.uitT > 0) o.uitT = Math.max(0, o.uitT - dt);
+  for (const o of level.poorten){
+    if (o.uitT > 0) o.uitT = Math.max(0, o.uitT - dt);
+    if (!o.hek) continue;
+    const doel = o.hekDoel || 0, van = o.hekStand || 0;   // het hek takelt naar zijn doel; boven aangekomen: de klap en een schok
+    if (van === doel) continue;
+    const stap = dt / POORT.hek.duur;
+    o.hekStand = van < doel ? Math.min(doel, van + stap) : Math.max(doel, van - stap);
+    if (o.hekStand === 1 && van < 1){
+      shake = Math.max(shake, 0.14);
+      if (bavKlok - poortSlamT > 0.15){ poortSlamT = bavKlok; deurSlamSpeel(); }
+    }
+  }
   for (const sp of level.spawns || []) if (sp.poort && sp.poortWacht > 0) sp.poortWacht = Math.max(0, sp.poortWacht - dt);
 }
 function poortReset(){
-  if (level && level.poorten) for (const o of level.poorten){ o.open = false; o.uitT = 0; }
+  if (level && level.poorten) for (const o of level.poorten){ o.open = false; o.uitT = 0; o.hekStand = 0; o.hekDoel = 0; }
   if (level && level.spawns) for (const sp of level.spawns) if (sp.poort) sp.poortWacht = undefined;
 }
 
@@ -13737,7 +13803,7 @@ function arenaZijwand(cim, wallWorld, spiegel, cyp, wPx, hPx, cx){
   ctx.restore();
 }
 function arenaAchtergrond(groundY){
-  const A = arenaAap; if (!A) return;
+  const A = arenaAap; if (!A || A.geenWand) return;   // de arena gates: geen middenrots en geen zijwanden, het veld tekent zijn eigen rotsen
   const scale = nowScale(), cx = W / 2;
   arenaMiddenRots(groundY, scale, cx);
   const cim = cliffPic();
@@ -18323,6 +18389,34 @@ function runeKeiZet(scale){
   }
 }
 function runeVoet(e){ return runeDoel(e) ? e.x : e.x + e.breed / 2 + RAVIJN_ROTS.naast; }
+// ---- rotsen als decor: een runerots zonder rune ----
+// Het levelveld rotsen: [{x, soort, groot, y}]. Dezelfde platen als onder een rune (RUNE_ROTSEN, via runeBeeld
+// met het wit eruit) en hetzelfde licht (runeLichtMaak), maar zonder schijf en zonder ravijn: x is de linkervoet,
+// groot de hoogte in Amir, y een vaste vloer (een plateau) en zonder y de grond op het midden. Getekend voor
+// drawClimb, dus achter de terrassen en de zwevers: een plateau kan in de rots snijden alsof de rots hem draagt
+// (de arena gates). De rune-rots zelf wordt na de poorten getekend en tilt zichzelf op een zwever; dit niet.
+function rotsenLaadLevel(lv){ for (const r of (lv && lv.rotsen) || []) runeBeeld({ rots: r.soort }); }
+function rotsenTeken(groundY, scale, cx){
+  if (!level || !level.rotsen || !level.rotsen.length) return;
+  const rechts = zonRechts(), f = runeLichtSterkte();
+  for (const r of level.rotsen){
+    const e = { rots: r.soort, groot: r.groot }, B = runeBeeld(e); if (!B) continue;
+    const hPx = r.groot * CHAR_H * scale, wPx = B.w * hPx / B.h;
+    const sx = cx + (r.x - world);
+    if (sx > W / viewZoom() + W || sx + wPx < -W) continue;
+    const b = r.y != null ? r.y : terrainH(r.x + wPx / 2);
+    const gy = groundY - b * scale;
+    runeGrondSchaduw(sx, gy, wPx, rechts, f);
+    ctx.drawImage(B.c, sx, gy - hPx, wPx, hPx);
+    const RL = runeLichtMaak(e, B, rechts);
+    ctx.save();
+    ctx.globalAlpha = RUNE_LICHT.schaduw * f;
+    ctx.drawImage(RL.schaduw, sx, gy - hPx, wPx, hPx);
+    ctx.globalCompositeOperation = 'soft-light'; ctx.globalAlpha = RUNE_LICHT.licht * f;
+    ctx.drawImage(RL.licht, sx, gy - hPx, wPx, hPx);
+    ctx.restore();
+  }
+}
 const runeGeraakt = new Set();                     // de doelen die al geraakt zijn
 const runeFlits = new Map();                       // rune -> tijd van de treffer (performance.now in seconden), voor het opgloeien
 // De speren die in een runeschijf zitten: ze blijven daar tot je opnieuw begint, en je trekt ze er
@@ -21966,6 +22060,16 @@ function updateSnake(s, dt, plats, cliff){
     else { s.falling = true; s.vy = 0; }                // van de laag af gelopen: val verder
   }
 
+  // de arena gates: een melee uit de bovenpoort loopt over het plateau de rots in, zonder naar Amir of de rand te kijken
+  if (s.gatesWeg && s.state !== 'dying' && s.state !== 'gone'){
+    s.side = -s.gatesWeg.dir;
+    s.x -= s.side * snakeSpeed() * (s.speed || 1) * dt;
+    s.acc += dt * 12;
+    while (s.acc >= 1){ s.frame = (s.frame + 1) % 8; s.acc -= 1; }
+    if (s.x < s.gatesWeg.grens){ s.state = 'gone'; sbGatesTerug(s.gatesWeg.kind); }
+    return;
+  }
+
   if (!s.hissed && s.state === 'walk'){
     const sx = W / 2 + (s.x - world);
     if (sx > -40 && sx < W + 40){                // it has entered the screen
@@ -22018,6 +22122,9 @@ function updateSnake(s, dt, plats, cliff){
     const r = slangSchuif(s, dt, plats, cliff, 1);   // always crawls toward the player
     s.edge = r.edge;
     if (s.edge && !spuwer(s)) s.stuck = 0;           // groen wacht aan de rand, geeft niet op
+    else if (s.edge && spuwer(s) && s.gatesRand){   // de schieter van de arena gates: hij blijft op de rand van het plateau staan loeren
+      s.state = 'wait'; s.frame = 0; s.acc = 0; s.cool = biteGap() * 0.55; s.stuck = 0; s.edge = false;
+    }
     else if (s.edge && spuwer(s)){
       // een spuwer aan een ravijn: even kijken, dan omkeren en 3 s weglopen
       s.edgeT = (s.edgeT || 0) + dt; s.stuck = 0;
@@ -22036,7 +22143,7 @@ function updateSnake(s, dt, plats, cliff){
     } else s.stuck = 0;
     s.acc += dt * 12;
     while (s.acc >= 1){ s.frame = (s.frame + 1) % 8; s.acc -= 1; }
-    if (!(s.edge && spuwer(s)) && gap < (spuwer(s) ? snakeStopGap * 3.4 : snakeStopGap)){ s.state = 'wait'; s.frame = 0; s.acc = 0; s.cool = biteGap() * 0.55; }
+    if (!(s.edge && spuwer(s)) && !s.gatesRand && gap < (spuwer(s) ? snakeStopGap * 3.4 : snakeStopGap)){ s.state = 'wait'; s.frame = 0; s.acc = 0; s.cool = biteGap() * 0.55; }   // de schieter van de arena gates stopt pas op de rand van het plateau
   } else if (s.state === 'patrouille'){
     // heen en weer over een stuk zo lang als hijzelf. Loopt hij ergens tegenaan,
     // staat hij aan een rand, of is hij aan het eind van zijn stuk: omdraaien.
@@ -22062,7 +22169,7 @@ function updateSnake(s, dt, plats, cliff){
     while (s.acc >= 1){ s.frame = (s.frame + 1) % 8; s.acc -= 1; }
     s.cool -= dt;
     if (gap > (spuwer(s) ? SPUUG_ZICHT : snakeStopGap + 18)){ s.state = 'walk'; s.frame = 0; s.acc = 0; }
-    else if (s.cool <= 0 && (ziet || !zichtVoor(s))){ s.state = 'bite'; s.frame = 0; s.acc = 0; s.biteUsed = false; s.spat = false; }   // met het zicht spuwt of bijt hij niet blind
+    else if (s.cool <= 0 && (ziet || !zichtVoor(s)) && (!s.gatesRand || sbGatesZichtlijn(s))){ s.state = 'bite'; s.frame = 0; s.acc = 0; s.biteUsed = false; s.spat = false; }   // met het zicht spuwt of bijt hij niet blind; de schieter boven in de arena gates alleen met een vrije zichtlijn
   } else if (s.state === 'bite'){
     s.acc += dt * 14;
     while (s.acc >= 1){ s.frame++; s.acc -= 1; }
@@ -27491,6 +27598,14 @@ function updateScorp(s, dt, plats, cliff){
     if (s.alpha <= 0) s.state = 'gone';
     return;
   }
+  if (s.gatesWeg){                                  // de arena gates: van de bovenpoort over het plateau de rots in (zie sbGatesLaat)
+    s.dir = s.gatesWeg.dir; s.side = s.dir === 1 ? -1 : 1;
+    s.x += s.dir * SCP_WALK_SPD * dt;
+    s.acc += dt * 14;
+    while (s.acc >= 1){ s.frame = (s.frame + 1) % 12; s.acc -= 1; }
+    if (s.x < s.gatesWeg.grens){ s.state = 'gone'; sbGatesTerug(s.gatesWeg.kind); }
+    return;
+  }
   if (afweerStap(s, dt, dx => { const nx = s.x + dx;   // afgeweerd met het mes
     if (!knockBlocked(s, nx, plats, cliff, SCP_WALK.w * scpScale() * 0.35, 80)) s.x = nx; })) return;
   if (houdingStap(s, dt, 'schorpioen', dx => { const nx = s.x + dx;   // Bared Teeth
@@ -29326,6 +29441,7 @@ function loop(now){
       }
     }
 
+    rotsenTeken(groundY, scale, cx);              // losse rotsen als decor, achter de terrassen en de zwevers
     drawClimb(groundY, scale, cx, false);          // terrassen en richels
 
     // decor dat jij zelf hebt neergezet: staat op de grondlijn, geen parallax
@@ -31094,6 +31210,7 @@ document.addEventListener('visibilitychange', kaarsWek);
 kaarsStart();
 let sandbox = false, godMode = false;
 let sbArena = false;                              // de arena-modus van de sandbox (zie 'arena-modus')
+let sbGates = false;                              // de arena gates: de arena-modus met de drie poorten (zie 'arena gates')
 const barEl = document.getElementById('bar');
 function beginPlay(mode){
   barEl.classList.add('hide');                   // tijdens een level speel je zonder testbalk
@@ -31702,7 +31819,12 @@ function readLevel(txt){
            poorten: (o.poorten || []).map((q, i) => ({ id: q.id != null ? String(q.id) : 'poort' + (i + 1), x: Number(q.x), k: poortSoort(q.k), f: !!q.f,
                                                        y: (q.y === undefined || q.y === null) ? undefined : Number(q.y),
                                                        s: Number(q.s) > 0 ? Math.max(0.4, Math.min(2.5, Number(q.s))) : undefined,
-                                                       look: poortLookOf(q.look) })),
+                                                       look: poortLookOf(q.look), hek: q.hek === true })),
+           // losse rotsen als decor: een van de platen onder een rune (RUNE_ROTSEN), zonder schijf, getekend voor de
+           // plateaus zodat een zwever erin kan snijden, zie "rotsen als decor"
+           rotsen: (o.rotsen || []).map(q => ({ x: Number(q.x), soort: RUNE_ROTSEN[q.soort] ? q.soort : 'spits',
+                                                groot: Math.max(0.5, Math.min(8, Number(q.groot) || RAVIJN_ROTS.hoog)),
+                                                y: (q.y === undefined || q.y === null) ? undefined : Number(q.y) })),
            hppotions: (o.hppotions || []).map(q => ({ x: Number(q.x),
                                                       y: (q.y === null || q.y === undefined) ? null : Number(q.y) })),
            // de plafondlijn: punten met een x en een y, zie "plafond: de rots boven je"
@@ -31850,6 +31972,7 @@ function laadLevel(lv){
   richelLaadLevel(lv);                             // de sneeuwversie van de richel als een richel look 'sneeuw' heeft
   golfLaadLevel(lv);                               // de texturen van de golvende rand als het level golf heeft
   poortLaadLevel(lv);                              // de stenen bogen als het level poorten heeft
+  rotsenLaadLevel(lv);                             // de rotsplaten als het level losse rotsen als decor heeft
 }
 // ---- geheugen vrijgeven bij een levelwissel ----------------------------------
 // Elke grote vijandlader meldt zich met laadNodig(soort), ook als hij al geladen was. setLevel en mkTest
@@ -35288,8 +35411,9 @@ if (window.ResizeObserver){
 // ---------- sandbox ----------
 const sandboxEl = document.getElementById('sandbox');
 let sbFromRight = true, savedLevel = null;
-function startSandbox(arena){
+function startSandbox(arena, gates){
   sbArena = arena === true;                             // Arena modus: golven vijanden, met levens
+  sbGates = sbArena && gates === true;                  // Arena gates: dezelfde modus, maar het veld met de drie poorten en de rondes (zie 'arena gates')
   barEl.classList.add('hide'); barPijlToon();           // de testbalk begint ingeklapt; het pijltje onderin klapt hem uit
   barPijlEl.classList.add('on');
   startEl.classList.add('off');
@@ -35304,7 +35428,7 @@ function startSandbox(arena){
   sbMuziek = MUZIEK_BASIS; sbMuziekToon();
   sbSneeuw = { soort: null, dek: 1 }; sbSneeuwToon();   // kale grond, zoals de rest van de sandbox
   sbWeer = null; sbWeerToon();                          // droog
-  sbLagen = ''; lichtMengKey = null; sbLagenToon();     // het gewone avonduitzicht (ook in de arena-modus: de lage einder voelt ruimer dan het hoogland van Valse Koning 8)
+  sbLagen = sbGates ? SB_GATES.lagen : ''; lichtMengKey = null; sbLagenToon();     // het gewone avonduitzicht (ook in de arena-modus: de lage einder voelt ruimer dan het hoogland van Valse Koning 8); de gates hun eigen donkere uitzicht
   sbVoorgrond = 0; sbVoorgrondScherp = false; sbVoorgrondToon();
   sbView = 0.8; sandboxEl.querySelectorAll('button[data-view]').forEach(o => o.classList.toggle('on', Number(o.dataset.view) === sbView));   // uitgezoomd zoals een nieuw level (view: 0.8)
   sbSchVrij = false; sbSchLabel();                      // de schildbandiet doet weer zijn eigen werk
@@ -35323,6 +35447,7 @@ function startSandbox(arena){
   sandboxEl.classList.toggle('arena', sbArena);          // de arena-modus: het oude paneel weg, #sandbox is de wizard
   if (sbArena){
     sbWizInrichten();                                    // de knoppen uit de tabbladen naar de wizard
+    if (sbGates){ sbArenaCfg.modusVoor = sbArenaCfg.modus; sbArenaCfg.modus = 'golven'; for (const k in sbGatesCfg.per) sbGatesCfg.per[k].aan = true; }   // de gates: rondes (de golven-teller en de kalebassen per ronde), alles aan tot je het uitklikt; de modus van de arena komt bij het sluiten terug
     sbArenaLaadCfg();                                    // en de onthouden instellingen terug
     sandboxEl.classList.remove('on');                    // tot sbWizOpen hieronder
   } else {
@@ -35339,7 +35464,8 @@ function stopSandbox(){
   sandbox = false; godMode = false; setGodLabel();
   if (sbWiz.open){ sbWiz.open = false; paused = false; }   // de wizard was open (Terug naar menu staat erin)
   if (sbArena) sbArenaBewaar();
-  sbArena = false; sbArenaCfg.aan = false; sbArenaToon(); sbArenaTab.style.display = 'none';
+  if (sbGates && sbArenaCfg.modusVoor) sbArenaCfg.modus = sbArenaCfg.modusVoor;   // de gates dwongen golven af; de arena-modus krijgt zijn eigen modus terug
+  sbArena = false; sbGates = false; sbArenaCfg.aan = false; sbArenaToon(); sbArenaTab.style.display = 'none';
   sbWizOpruimen(); sandboxEl.classList.remove('arena');
   RUG_MAX = 0; rugSperen.length = 0; rugTrekT = 0;      // het reserve-systeem weer uit buiten de sandbox
   HP_BALK = 0;                                          // en de health-balk ook
@@ -35360,50 +35486,51 @@ function stopSandbox(){
   zetMuziek();
   hudToon();
 }
-function sbSpawn(kind, kant, plek){               // kant en plek: de arena-modus kiest ze zelf (net buiten beeld)
+function sbSpawn(kind, kant, plek, hoogte){       // kant en plek: de arena-modus kiest ze zelf (net buiten beeld); hoogte: zijn vloer zoeken vanaf daar (het plateau van de gates) in plaats van vanaf Amir
   const side = kant || (sbFromRight ? 1 : -1);
   let x = plek != null ? plek : world + side * W * 0.42;   // net binnen beeld
+  const vlBij = xx => vloerBij(xx, hoogte != null ? hoogte : ph);
   x = Math.min(x, cliffAt().wall - 220);            // en nooit achter de klif
   x = Math.max(x, endWall() + 220);
   if (kind === 'hyena1' || kind === 'hyena2'){ spawnHyenaPack(kind === 'hyena2' ? 2 : 1, side); }   // bij twee telt de richting niet
   else if (kind === 'bandiet'){
     const b = makeBandiet(x, side, sbBanDolk, false, sbBanVault, false, false, null, sbBanDuin ? 'duin' : sbBanElite);
-    b.base = vloerBij(x, ph);
+    b.base = vlBij(x);
     b.vrij = sbBanVrij;
     bandieten.push(b);
   }
   else if (kind === 'bandiet_neer'){                 // van boven de arena in: valt en landt met stof
     const b = makeBandiet(x, side, sbBanDolk, false, sbBanVault, false, false, null, sbBanDuin ? 'duin' : sbBanElite);
-    b.base = vloerBij(x, ph);
+    b.base = vlBij(x);
     b.vrij = false;                                  // AI aan, anders valt hij niet
     banStartDrop(b);
     bandieten.push(b);
   }
   else if (kind === 'bandiet_hurk'){                 // de hinderlaag: gehurkt, springt op en werpt
     const b = makeBandiet(x, side, false, true, false, false, false, null, sbBanDuin ? 'duin' : sbBanElite);
-    b.base = vloerBij(x, ph);
+    b.base = vlBij(x);
     b.vrij = false;                                  // AI aan, anders komt de hinderlaag niet op gang
     bandieten.push(b);
   }
   else if (kind === 'schildman' || kind === 'schildman_makkelijk'){   // de moeilijke (standaard) of de makkelijke vorm (niveau: 'makkelijk')
-    const m = makeSchildman(x, side, kind === 'schildman_makkelijk' ? 'makkelijk' : 'moeilijk'); m.base = vloerBij(x, ph); m.vrij = sbSchVrij; schildmannen.push(m);
+    const m = makeSchildman(x, side, kind === 'schildman_makkelijk' ? 'makkelijk' : 'moeilijk'); m.base = vlBij(x); m.vrij = sbSchVrij; schildmannen.push(m);
   }
-  else if (kind === 'scorp'){ const k = makeScorp(x, side); k.base = vloerBij(x, ph); scorps.push(k); }
-  else if (kind === 'meelman'){ const m = makeMeelman(x, side); m.base = vloerBij(x, ph); m.vrij = sbMeelVrij; meelmannen.push(m); }
+  else if (kind === 'scorp'){ const k = makeScorp(x, side); k.base = vlBij(x); scorps.push(k); }
+  else if (kind === 'meelman'){ const m = makeMeelman(x, side); m.base = vlBij(x); m.vrij = sbMeelVrij; meelmannen.push(m); }
   else if (kind === 'kooiman'){
     const k = makeKooiman(x, side, sbKooiVogel || sbKooiDuel, sbKooiDuel);
-    k.base = vloerBij(x, ph);                        // op een terras, of op jouw hoogte bij een gang
+    k.base = vlBij(x);                        // op een terras, of op jouw hoogte bij een gang
     k.vrij = sbKooiVrij;
     kooimannen.push(k);
   }
-  else if (kind === 'fosfor') fosforGroep(x, side, vloerBij(x, ph), sbKlim);   // altijd met z'n drieen
+  else if (kind === 'fosfor') fosforGroep(x, side, vlBij(x), sbKlim);   // altijd met z'n drieen
   else if (kind === 'panter'){
     const p = makePanther(x, side);
-    p.base = vloerBij(x, ph);                       // staat er een terras, dan begint hij daarop
+    p.base = vlBij(x);                       // staat er een terras, dan begint hij daarop
     panthers.push(p);
   }
   else {
-    const sn = makeSnake(kind); sn.x = x; sn.side = side; sn.base = vloerBij(x, ph); sn.klim = sbKlim; snakes.push(sn);
+    const sn = makeSnake(kind); sn.x = x; sn.side = side; sn.base = vlBij(x); sn.klim = sbKlim; snakes.push(sn);
   }
   // in de sandbox kijkt elke nieuwe vijand met het zicht; de knop Zicht zet het aan of uit (zie "zicht").
   // Het kooiduel niet: dat is geensceneerd, net als in een level.
@@ -35503,6 +35630,7 @@ const sbArenaLijst = document.getElementById('sbarenalijst');
 // schermbreedte en de view af, dus opnieuw na een andere view (de knoppen Uitzoomen)
 function sbArenaMaat(){
   if (!sbArena || !level) return;
+  if (sbGates){ sbGatesMaat(); return; }
   const u = CHAR_H * nowScale();
   const A = arenaAap, V = SB_ARENA_VELD;
   if (A) A.ruimte = sbArenaRuim ? V.ruimte * u : 0;                              // de ruimte voorbij de schermrand (zie arenaRuimDrift), in px
@@ -35518,6 +35646,7 @@ function sbArenaMaat(){
 }
 // het veld zelf, bij elke (her)start: de wanden, de camera vast in het midden en Amir midden op de vloer
 function sbArenaVeld(){
+  if (sbGates){ sbGatesVeld(); return; }
   const span = Math.min(W - 260, 1200);
   const rechts = CLIFF.wall - ARENA.rand, links = rechts - span;
   const c = Math.round((rechts + links) / 2);                                     // gelijk aan arenaMidden()
@@ -35533,6 +35662,7 @@ function sbArenaReset(){
   sbArenaCfg.t0 = 0; sbArenaCfg.kills = 0; sbArenaCfg.laatst = 1; sbArenaCfg.doodGemeld = false; sbArenaCfg.aftel = null;
   for (const k in sbArenaCfg.per){ const p = sbArenaCfg.per[k]; p.t = p.van * (0.4 + 0.6 * Math.random()); }   // niet allemaal tegelijk
   sbArenaCfg.g = { nr: 0, fase: 'rust', klok: 0, spawnKlok: 0, rij: [], tot: 0 };
+  sbGatesReset();
   sbArenaCfg.kalT = 0; sbArenaCfg.kalKlaar = false; sbArenaCfg.onstOoit = false;   // de kalebasteller ook (de liggende kalebassen ruimt restart op, resetHppotions)
   // na R met de arena nog aan: het aftellen loopt opnieuw (restart heeft net alles weggehaald), en bij 'los'
   // komt de eerste vijand weer meteen (sbArenaGo: in de stroom de 'bij start'-vijanden, in de golven golf 1)
@@ -35577,6 +35707,7 @@ function sbAftelPiep(go){
 // los: de eerste vijand komt meteen
 function sbArenaGo(){
   const c = sbArenaCfg;
+  if (sbGates){ if (c.g.nr === 0 && sbGatesVolgende()) sbGatesOpen(); return; }   // ronde 1 meteen: de afteller was de aankondiging
   if (c.modus === 'golven'){
     if (c.g.nr === 0 && sbGolfVolgende()){ c.g.fase = 'golf'; c.g.klok = 0; }   // golf 1 zonder de aankondiging: de eerste komt in het volgende beeld (spawnKlok 0)
     return;
@@ -35721,6 +35852,7 @@ function sbArenaUpdate(dt){
   if (sbAftelUpdate(dt)) return;                     // het aftellen loopt nog: de klok en de spawner wachten op los
   c.t0 += dt;
   if (c.modus === 'stroom') sbKalStap(dt);           // de stroom: de kalebassen op de klok
+  if (sbGates){ sbGatesUpdate(dt); return; }        // de gates: de rondes uit de drie poorten
   if (c.modus === 'golven'){ sbGolfUpdate(dt); return; }
   const f = Math.min(1, c.t0 / Math.max(1, c.ramp));
   for (const s of SB_ARENA_SOORTEN){
@@ -35737,7 +35869,7 @@ function sbArenaUpdate(dt){
 let sbArenaBest = 0, sbArenaBestGolf = 0;                          // de beste tijd (de stroom) en de hoogste golf (de golven)
 try { sbArenaBest = Number(localStorage.getItem('amir.arenaBest')) || 0; sbArenaBestGolf = Number(localStorage.getItem('amir.arenaBestGolf')) || 0; } catch (e) {}
 function sbArenaDood(){                              // bij de dood: de beste tijd bijwerken (niet na een potje met Onsterfelijk)
-  if (sbArenaCfg.onstOoit) return;
+  if (sbArenaCfg.onstOoit || sbGates) return;        // de gates tellen in rondes (sbGatesBest), niet in tijd
   if (sbArenaCfg.t0 > sbArenaBest){ sbArenaBest = sbArenaCfg.t0; try { localStorage.setItem('amir.arenaBest', String(Math.floor(sbArenaBest))); } catch (e) {} }
 }
 function sbArenaKlok(t){ const tsec = Math.max(0, Math.floor(t)); return Math.floor(tsec / 60) + ':' + String(tsec % 60).padStart(2, '0'); }
@@ -35752,11 +35884,13 @@ function sbArenaHudTeken(){
   if (c.modus === 'golven'){                        // de golven: het golfnummer groot, daaronder hoeveel er nog komen of de rust
     const g = c.g;
     const nog = g.rij.length + sbArenaLevendTotaal();
-    groot = (g.nr === 0 ? 'Golf 1' : 'Golf ' + g.nr) + (g.fase === 'rust' && g.nr > 0 && !dead && c.aan ? ' klaar' : staat);
-    const stuk = g.fase === 'rust' ? (g.nr === 0 ? 'Zet een vijand aan' : 'Volgende over ' + Math.max(0, Math.ceil(c.golf.rust - g.klok)) + ' s')
+    const woord = sbGates ? 'Ronde' : 'Golf', rust = sbGates ? sbGatesCfg.rust : c.golf.rust;
+    groot = woord + ' ' + Math.max(1, g.nr) + (g.fase === 'rust' && g.nr > 0 && !dead && c.aan ? ' klaar' : staat);
+    const stuk = g.fase === 'rust' ? (g.nr === 0 ? 'Zet een vijand aan' : 'Volgende over ' + Math.max(0, Math.ceil(rust - g.klok)) + ' s')
                : g.fase === 'kondig' ? 'Nog ' + g.tot : 'Nog ' + nog;
     klein = stuk + '     Verslagen ' + c.kills + '     Tijd ' + sbArenaKlok(c.t0);
-    if (sbArenaBestGolf > 0) beste = 'Beste golf ' + sbArenaBestGolf;
+    const record = sbGates ? sbGatesBest : sbArenaBestGolf;
+    if (record > 0) beste = 'Beste ' + woord.toLowerCase() + ' ' + record;
   } else {
     groot = sbArenaKlok(c.t0) + staat;
     klein = 'Verslagen ' + c.kills + '     Opbouw ' + Math.round(f * 100) + '%';
@@ -35809,6 +35943,7 @@ function sbArenaToon(){
   });
   sbArenaLijst.querySelectorAll('button[data-arena]').forEach(b => b.classList.toggle('on', c.per[b.dataset.arena].aan));
   sbArenaLijst.querySelectorAll('button[data-arenabij]').forEach(b => { b.classList.toggle('on', c.per[b.dataset.arenabij].bij); b.style.visibility = golven ? 'hidden' : ''; });
+  sbGatesToon();                                                                       // de gates: de modus- en kantknop weg, alleen de aan/uit-knoppen per soort en de rust
   sbArenaSchermBtn.classList.toggle('on', sbArena && !sbArenaCfg.aan && !dead && !sbWiz.open);   // de grote knop staat er zolang de golven niet lopen (en de wizard dicht is)
   sbArenaOpzetBtn.classList.toggle('on', sbArena && !sbWiz.open);                     // het knopje dat de wizard weer opent
 }
@@ -35817,7 +35952,7 @@ function sbArenaToon(){
 function sbArenaStart(scherm){
   const c = sbArenaCfg;
   c.aan = true;
-  const iets = SB_ARENA_SOORTEN.some(s => c.per[s.k].aan || (c.modus === 'stroom' && c.per[s.k].bij));
+  const iets = sbGates ? SB_GATES_SOORTEN.some(k => sbGatesCfg.per[k].aan) : SB_ARENA_SOORTEN.some(s => c.per[s.k].aan || (c.modus === 'stroom' && c.per[s.k].bij));
   const vers = c.modus === 'golven' ? c.g.nr === 0 : c.t0 === 0;          // een vers begin: het aftellen, en bij los de eerste vijand (sbArenaGo); na Stop gaat het gewoon door
   if (vers && iets) sbAftelStart();
   if (!iets) flashHint('Zet eerst een vijand aan');
@@ -35859,7 +35994,11 @@ sbArenaModusBtn.onclick = () => {
   for (const s of SB_ARENA_SOORTEN){
     const p = sbArenaCfg.per[s.k];
     const b = document.createElement('button'); b.dataset.arena = s.k; b.textContent = s.naam;
-    b.onclick = () => { p.aan = !p.aan; if (p.aan) p.t = Math.min(p.t, p.van); sbArenaToon(); cv.focus(); };
+    b.onclick = () => {
+      if (sbGates){ const q = sbGatesCfg.per[s.k]; if (q) q.aan = !q.aan; }   // de gates: hun eigen aan/uit per soort
+      else { p.aan = !p.aan; if (p.aan) p.t = Math.min(p.t, p.van); }
+      sbArenaToon(); cv.focus();
+    };
     // de drie getallen: welk veld erin staat (en de grenzen) zet sbArenaToon, naar de modus
     const veld = (nr) => {
       const l = document.createElement('label');
@@ -35872,6 +36011,178 @@ sbArenaModusBtn.onclick = () => {
     bij.onclick = () => { p.bij = !p.bij; sbArenaToon(); cv.focus(); };
     sbArenaLijst.append(b, veld(0), veld(1), veld(2), bij);
   }
+}
+// ---- arena gates: drie poorten in de rots, elke ronde drie vijanden ----------------------------
+// De derde keuze onder Sandbox in het menu (startSandbox(true, true), vlag sbGates): de arena-modus (levens, de
+// wizard, Onsterfelijk, de kalebassen, de teller) met een eigen veld en een eigen spawner. Het veld (sbGatesVeld,
+// uit sbArenaVeld): een scherm breed om het arena-midden (SB_GATES.breed, de zoom volgt het scherm in sbGatesMaat,
+// zodat de poorten op elk scherm aan de randen staan), het donkere uitzicht (lagen), een grote rots links
+// (rotsen, de pieken) waar een rotsplateau (zwevers, look rots) in snijdt alsof de rots hem draagt, een kleinere
+// rots rechts (de spits), drie stenen poorten met een hek en een tandwieltje (poorten met hek: true): twee laag
+// aan de zijkanten voor de rotsen, een hoog op het plateau, half in de rots. Geen arenawanden (geenWand op het
+// arena-object), wel de camera vast in het midden (ban) en Amir geklemd op de schermranden (arenaVast, ruimte 0).
+// De rondes (sbGatesUpdate, in plaats van de stroom en de golven van de arena van de koning): na de afteller of
+// de rust gaan de drie hekken tegelijk omhoog (poortUpdate takelt ze, boven klinkt de klap van de deur), en komt
+// uit elke poort een vijand uit het donker (sbGatesLaat via sbSpawn, dus de knoppen onder Gedrag gelden ook hier).
+// Welke: uit de soorten die aan staan (sbGatesCfg.per, alles aan tot je het uitklikt; hyena, panter en kooiman
+// kunnen niet door een poort), pas vanaf de ronde waarin de soort meedoet (vanaf uit SB_ARENA_SOORTEN, zo worden
+// de rondes zwaarder) en nooit meer dan SB_GATES.snelMax snelle aanvallers tegelijk (SB_GATES_SNEL). Door de
+// bovenpoort komt alleen wat kruipt (SB_GATES_BOVEN). Boven gelden twee regels: een schieter (SB_GATES_RANGED,
+// de zwarte slang en de knockslang) kruipt naar de rand van het plateau en wacht daar tot hij Amir in het zicht
+// heeft (gatesRand: hij keert aan de rand niet om, en vuurt alleen met een vrije zichtlijn, sbGatesZichtlijn,
+// ook als het zicht van de sandbox uit staat); al het andere loopt over het plateau naar links het beeld uit, de
+// rots in (gatesWeg, in updateSnake en updateScorp: hij negeert Amir en de rand), en komt SB_GATES.terug seconden
+// later beneden binnen, links of rechts (sbGatesTerug, sbGatesSt.wacht). Een ronde is pas voorbij als alles dood
+// is (ook wie nog beneden moet binnenkomen); dan rust (sbGatesCfg.rust, de enige knop naast de soorten) en de
+// volgende. De hekken zakken weer zodra hun vijand eruit is (sbGatesSt.dicht). De teller zegt Ronde in plaats van
+// Golf, het record staat apart (amir.gatesBestGolf), de kalebassen tellen per ronde (modus golven). Opslag onder
+// amir.gatesCfg (sbArenaBewaar). De sandbox-knoppen Arena aan/uit onder Goudaap en Bandiet doen hier niets.
+const SB_GATES = {
+  breed: 1600,                   // het veld in wereld-px: zo breed is het beeld op 1280 bij view 0,8; de zoom volgt (sbGatesMaat)
+  half: 800,                     // de halve breedte: de klem voor Amir en de wandlijn van het arena-object
+  zoomMin: 0.5, zoomMax: 1,      // waartussen de zoom mag (een telefoon zoomt verder uit)
+  lagen: 'dark_hart',            // het uitzicht: het donkere hart, de fakkels doen het licht
+  plateauH: 560, plateauOnder: 480, plateauR: -380, plateauL: -1400,   // het rotsplateau links, om het midden
+  wegGrens: -1000,               // zo ver links (om het midden) is een melee uit de bovenpoort weg: de rots in
+  terug: 2.0,                    // seconden later komt hij beneden binnen
+  buiten: 200,                   // zo ver buiten de schermrand komt hij dan op
+  snelMax: 2,                    // hoogstens zoveel snelle aanvallers in een ronde
+  dicht: 0.6,                    // seconden na het donker van de opening zakt het hek weer
+  hint: 'elke ronde komen er drie, een uit elke poort: boven alleen wat kruipt (een schieter blijft daar op de rand wachten tot hij je ziet, de rest loopt de rots in en komt beneden weer binnen). Zet uit wat je niet wilt; zwaardere soorten komen pas in latere rondes. Een ronde is voorbij als alles dood is',
+};
+const SB_GATES_SOORTEN = ['groen', 'zwart', 'knock', 'scorp', 'fosfor', 'bandiet', 'schildman_makkelijk', 'schildman', 'meelman'];   // wat door een poort kan
+const SB_GATES_BOVEN = ['groen', 'zwart', 'knock', 'scorp'];     // door de lage boog boven: wat kruipt
+const SB_GATES_RANGED = ['zwart', 'knock'];                      // de schieters: boven blijven ze op de rand
+const SB_GATES_SNEL = ['bandiet', 'schildman', 'schildman_makkelijk', 'fosfor'];   // de snelle aanvallers
+const sbGatesCfg = { rust: 5, per: {} };
+for (const k of SB_GATES_SOORTEN) sbGatesCfg.per[k] = { aan: true };
+const sbGatesSt = { wacht: [], dicht: [] };                      // wacht: wie beneden nog binnenkomt {k, t}; dicht: hekken die weer zakken {id, t}
+let sbGatesBest = 0;
+try { sbGatesBest = Number(localStorage.getItem('amir.gatesBestGolf')) || 0; } catch (e) {}
+const sbGatesRustEl = document.getElementById('sbgatesrust');
+sbGatesRustEl.onchange = () => { sbGatesCfg.rust = sbArenaGetal(sbGatesRustEl, 0, 60, sbGatesCfg.rust); sbGatesRustEl.blur(); cv.focus(); };
+function sbGatesMaat(){
+  const A = arenaAap; if (!A) return;
+  sbView = Math.max(SB_GATES.zoomMin, Math.min(SB_GATES.zoomMax, W / SB_GATES.breed));   // het veld precies in beeld
+  sandboxEl.querySelectorAll('button[data-view]').forEach(o => o.classList.toggle('on', Number(o.dataset.view) === sbView));
+  A.ruimte = 0;
+  level.rechtsWall = Math.round(A.c + SB_GATES.half + 600);                             // een vijand mag van rechts buiten beeld komen
+}
+function sbGatesVeld(){
+  const G = SB_GATES, c = Math.round(arenaMidden()), links = c - G.half, rechts = c + G.half;
+  arenaAap = { ban: true, sb: true, gates: true, geenWand: true, staging: false, fase: 'vrij', c, links, rechts, t0: bavKlok, kills: 0, fade: 0, fadeDoel: 0, klok: 0,
+               parallax: SB_ARENA_VELD.parallax, ruimte: 0 };
+  arena = { c };
+  // het terrein: het rotsplateau links, de twee rotsen, de drie poorten met hun hek, de fakkels in de rots, botten op de vloer
+  level.zwevers = [ { r: c + G.plateauR, l: c + G.plateauL, h: G.plateauH, onder: G.plateauOnder, look: 'rots' } ];
+  level.rotsen = [ { x: c - 1100, soort: 'pieken', groot: 4.8 }, { x: c + 227, soort: 'spits', groot: 2.8 } ];
+  level.poorten = [ { id: 'l', x: c - 640, k: 'boog_steen', f: false, look: 'steen', hek: true },
+                    { id: 'r', x: c + 620, k: 'boog_steen', f: true, look: 'steen', hek: true },
+                    { id: 'h', x: c - 720, k: 'boog_laag_1', f: false, y: G.plateauH, s: 0.8, look: 'steen', hek: true } ];
+  level.fakkels = [ { x: c - 430, y: 1.3, s: 0.9, f: false }, { x: c + 500, y: 1.2, s: 0.9, f: true }, { x: c - 520, y: 2.9, s: 0.75, f: false } ];
+  level.props = [[-230, 'buffel'], [-150, 'bot_lang'], [240, 'fragment'], [330, 'schild_gespleten', true], [-420, 'gras'], [420, 'gras'], [90, 'wervels'], [200, 'jakhals'], [120, 'bot_schuin']]
+    .map(([dx, kind, f]) => ({ x: c + dx, kind, scale: 1, flip: !!f, far: false, y: 0 }));
+  level.tekens = [ { x: c - 40, v: 'gebroken', f: false } ];
+  level.ledges = []; level.spawns = [];
+  poortLaadLevel(level); rotsenLaadLevel(level); tekenLaad();
+  sbGatesMaat();
+  world = c + 30; ph = 0; pvh = 0; onGround = true; fell = false;
+  spear = true; spearFound = true; spearX = null; spearH = null; setSpearLabel();   // met de speer in de hand, zoals in de arena van de koning
+}
+function sbGatesReset(){ sbGatesSt.wacht.length = 0; sbGatesSt.dicht.length = 0; }
+// wat er in ronde nr door de poorten komt: per lage poort een uit alles wat aan staat en al meedoet, door de
+// bovenpoort een kruiper; zwaardere soorten (een hogere vanaf) wegen zwaarder zodra ze mogen, en hoogstens
+// snelMax snelle aanvallers. Geeft [{k, poort}]
+function sbGatesInhoud(nr){
+  const vanaf = k => (SB_ARENA_SOORTEN.find(s => s.k === k) || { vanaf: 1 }).vanaf;
+  const aan = SB_GATES_SOORTEN.filter(k => sbGatesCfg.per[k] && sbGatesCfg.per[k].aan);
+  const basis = aan.length ? Math.min(...aan.map(vanaf)) : 1;          // de lichtste soort die aan staat doet vanaf ronde 1 mee, de rest naar verhouding later
+  const mag = k => aan.includes(k) && nr >= vanaf(k) - basis + 1;
+  const onder = SB_GATES_SOORTEN.filter(mag), boven = SB_GATES_BOVEN.filter(mag);
+  let snel = 0;
+  const kies = pool => {
+    let p = pool.filter(k => snel < SB_GATES.snelMax || !SB_GATES_SNEL.includes(k));
+    if (!p.length) return null;
+    const w = p.map(k => 1 + 0.3 * vanaf(k)), tot = w.reduce((a, b) => a + b, 0);
+    let r = Math.random() * tot, k = p[p.length - 1];
+    for (let i = 0; i < p.length; i++){ r -= w[i]; if (r <= 0){ k = p[i]; break; } }
+    if (SB_GATES_SNEL.includes(k)) snel++;
+    return k;
+  };
+  const uit = [];
+  for (const id of ['l', 'r']){ const k = kies(onder); if (k) uit.push({ k, poort: id }); }
+  const kb = kies(boven); if (kb) uit.push({ k: kb, poort: 'h' });
+  return uit;
+}
+function sbGatesVolgende(){
+  const g = sbArenaCfg.g, rij = sbGatesInhoud(g.nr + 1);
+  if (!rij.length){ g.fase = 'rust'; g.klok = 0; return false; }
+  g.nr++; g.rij = rij; g.tot = rij.length; g.fase = 'kondig'; g.klok = 0;
+  if (g.nr > sbGatesBest && !sbArenaCfg.onstOoit){ sbGatesBest = g.nr; try { localStorage.setItem('amir.gatesBestGolf', String(sbGatesBest)); } catch (e) {} }
+  return true;
+}
+// de hekken omhoog: de vijanden komen zodra het hek boven is (POORT.hek.duur), uit het donker van de opening
+function sbGatesOpen(){
+  const g = sbArenaCfg.g;
+  for (const p of g.rij){ const o = poortVan(p.poort); if (o){ o.open = true; o.hekDoel = 1; } p.t = POORT.hek.duur + 0.1; }
+  g.fase = 'golf'; g.klok = 0;
+}
+// een vijand uit een poort: via sbSpawn (de knoppen onder Gedrag gelden), wakker, in het donker van de opening;
+// boven op het plateau, met de regie voor een schieter (gatesRand) of een melee (gatesWeg)
+function sbGatesLaat(p){
+  const o = poortVan(p.poort); if (!o) return;
+  const A = arenaAap, boven = p.poort === 'h';
+  const voor = { snakes: snakes.length, scorps: scorps.length, bandieten: bandieten.length, schildmannen: schildmannen.length, meelmannen: meelmannen.length, fosfor: fosforGroepen.length };
+  const ranged = boven && SB_GATES_RANGED.includes(p.k);
+  const side = boven ? (ranged ? -1 : 1) : (o.x < A.c ? -1 : 1);     // beneden naar het midden; boven de schieter naar de rand, de rest naar links de rots in
+  sbSpawn(p.k, side, o.x, boven ? SB_GATES.plateauH : null);
+  const nieuw = [...snakes.slice(voor.snakes), ...scorps.slice(voor.scorps), ...bandieten.slice(voor.bandieten), ...schildmannen.slice(voor.schildmannen), ...meelmannen.slice(voor.meelmannen), ...fosforGroepen.slice(voor.fosfor)];
+  for (const n of nieuw){
+    n.zWacht = false;                                 // hij komt omdat de poort openging: meteen wakker (zoals een spawn met poort)
+    if (!boven) continue;
+    if (ranged) n.gatesRand = true;
+    else n.gatesWeg = { kind: p.k, grens: A.c + SB_GATES.wegGrens, dir: -1 };
+  }
+  o.uitT = POORT.uit;                                 // het donker van de opening ligt nog even over hem
+  sbGatesSt.dicht.push({ id: p.poort, t: POORT.uit + SB_GATES.dicht });
+}
+function sbGatesTerug(kind){ sbGatesSt.wacht.push({ k: kind, t: SB_GATES.terug }); }
+// heeft een schieter boven een vrije zichtlijn naar Amir? (het plateau zelf houdt het zicht tegen als Amir eronder staat)
+function sbGatesZichtlijn(s){ return zichtLijnVrij(s.x - s.side * SNK_W * snakeSScale() * 0.45, (s.base || 0) + 30, playerX(), ph + CHAR_H * 0.5); }   // vanaf zijn kop (die ligt op de rand), anders kijkt hij tegen zijn eigen plateau aan
+function sbGatesUpdate(dt){
+  const c = sbArenaCfg, g = c.g, st = sbGatesSt;
+  g.klok += dt;
+  for (let i = st.dicht.length - 1; i >= 0; i--){ const d = st.dicht[i]; d.t -= dt; if (d.t <= 0){ poortSluit(d.id); st.dicht.splice(i, 1); } }
+  if (g.fase === 'kondig'){ if (g.klok >= SB_GOLF_KONDIG) sbGatesOpen(); return; }
+  if (g.fase === 'golf'){
+    for (let i = g.rij.length - 1; i >= 0; i--){ const p = g.rij[i]; p.t -= dt; if (p.t <= 0){ g.rij.splice(i, 1); sbGatesLaat(p); } }
+    for (let i = st.wacht.length - 1; i >= 0; i--){
+      const w = st.wacht[i]; w.t -= dt; if (w.t > 0) continue;
+      st.wacht.splice(i, 1);
+      const side = Math.random() < 0.5 ? -1 : 1, x = kijkMidden() + side * (W / 2 / viewZoom() + SB_GATES.buiten);   // links of rechts, net buiten beeld, naar binnen lopend
+      const voor = { snakes: snakes.length, scorps: scorps.length };
+      sbSpawn(w.k, side, x);
+      for (const n of [...snakes.slice(voor.snakes), ...scorps.slice(voor.scorps)]) n.zWacht = false;
+    }
+    if (!g.rij.length && !st.wacht.length && sbArenaLevendTotaal() === 0){ g.fase = 'rust'; g.klok = 0; sbKalStap(1); }   // alles dood: de ronde is voorbij
+    return;
+  }
+  if (g.klok >= sbGatesCfg.rust) sbGatesVolgende();
+}
+// de wizard in de gates: geen modus of kant, geen getallen per soort (alleen aan/uit), wel de rust tussen rondes
+function sbGatesToon(){
+  const g = sbGates;
+  sbArenaModusBtn.style.display = g ? 'none' : '';
+  sbArenaKantBtn.style.display = g ? 'none' : '';
+  if (g){ sbArenaStroomRij.style.display = 'none'; sbArenaGolfRij.style.display = 'none'; sbArenaHintEl.textContent = SB_GATES.hint; }
+  document.getElementById('sbgatesrij').style.display = g ? '' : 'none';
+  sbGatesRustEl.value = sbGatesCfg.rust;
+  sbArenaLijst.classList.toggle('gates', g);
+  sbArenaLijst.querySelectorAll('button[data-arena]').forEach(b => {
+    const k = b.dataset.arena, kan = SB_GATES_SOORTEN.includes(k);
+    b.style.display = g && !kan ? 'none' : '';
+    if (g && kan) b.classList.toggle('on', sbGatesCfg.per[k].aan);
+  });
 }
 // ---- de wizard: de opzet van de arena in drie stappen, over de arena heen ----
 // In de arena-modus is het oude paneel met de tabbladen weg: #sandbox krijgt de klasse arena en is dan alleen
@@ -35886,7 +36197,7 @@ sbArenaModusBtn.onclick = () => {
 // in localStorage onder amir.arenaCfg (sbArenaBewaar, sbArenaLaadCfg).
 const SB_WIZ_PLAATS = [   // [waar in de wizard (data-wiz), wat (een selector), hele rij]
   ['modus', '#sbarenamodus'], ['modus', '#sbarenakant'],
-  ['algemeen', '#sbarenahint', true], ['algemeen', '#sbarenastroomrij'], ['algemeen', '#sbarenagolfrij'],
+  ['algemeen', '#sbarenahint', true], ['algemeen', '#sbarenastroomrij'], ['algemeen', '#sbarenagolfrij'], ['algemeen', '#sbgatesrij'],
   ['lijst', '#sbarenalijst'],
   ['bandiet', '#sbanvrij'], ['bandiet', '#sbandolk'], ['bandiet', '#sbanvault'], ['bandiet', '#sbanelite'], ['bandiet', '#sbanduin'], ['bandiet', '#sbbloed'], ['bandiet', '#sbbloedvar'],
   ['slang', '#sbklim'],
@@ -35925,6 +36236,7 @@ function sbWizOpruimen(){
 // de opzet: verandert die terwijl de wizard open is, dan begint het potje bij het sluiten opnieuw
 function sbWizOpzet(){
   const c = sbArenaCfg;
+  if (sbGates) return JSON.stringify(['gates', SB_GATES_SOORTEN.map(k => sbGatesCfg.per[k].aan ? 'a' : '')]);
   return JSON.stringify([c.modus, c.veld, SB_ARENA_SOORTEN.map(s => (c.per[s.k].aan ? 'a' : '') + (c.per[s.k].bij ? 'b' : ''))]);
 }
 function sbWizToon(){
@@ -35940,6 +36252,11 @@ function sbWizToon(){
   elke.value = golven ? c.kal.golven : c.kal.stroom; elke.max = golven ? 50 : 600;
   document.getElementById('awkaleenheid').textContent = golven ? 'golven' : 'seconden';
   sbWizEl.querySelectorAll('.awkaart').forEach(b => b.classList.toggle('on', b.dataset.plek === c.veld));
+  document.getElementById('awtitel').textContent = sbGates ? 'Arena gates' : 'Arena';
+  document.getElementById('awkaarten').closest('.awvak').style.display = sbGates ? 'none' : '';   // de gates hebben hun eigen veld
+  const ruim = sbWizEl.querySelector('#sbarenaruim'); if (ruim) ruim.style.display = sbGates ? 'none' : '';
+  const viewRij = sbWizEl.querySelector('[data-view]'); if (viewRij) viewRij.closest('.row').style.display = sbGates ? 'none' : '';   // de gates kiezen hun zoom zelf (het veld is een scherm breed)
+  const kooi = sbWizEl.querySelector('[data-wiz="kooi"]'); if (kooi) kooi.closest('.row').style.display = sbGates ? 'none' : '';   // de kooiman komt niet door een poort
 }
 function sbWizOpen(pagina){
   if (!sbArena || !running) return;
@@ -36005,15 +36322,25 @@ function sbArenaBewaar(){
   const c = sbArenaCfg, per = {}, knoppen = {};
   for (const k in c.per){ const p = c.per[k]; per[k] = { aan: p.aan, bij: p.bij, van: p.van, tot: p.tot, max: p.max, n: p.n, plus: p.plus, vanaf: p.vanaf }; }
   for (const b of sbWizKnoppen()){ const k = sbWizSleutel(b); if (k) knoppen[k] = { t: b.textContent, on: b.classList.contains('on') }; }
+  if (sbGates){                                      // de gates: hun eigen opslag (welke soorten, de rust), los van de arena van de koning
+    const gper = {}; for (const k in sbGatesCfg.per) gper[k] = { aan: sbGatesCfg.per[k].aan };
+    const gcfg = { rust: sbGatesCfg.rust, per: gper, onst: c.onst, kal: c.kal, knoppen };
+    try { localStorage.setItem('amir.gatesCfg', JSON.stringify(gcfg)); } catch (e) {}
+    return;
+  }
   const cfg = { modus: c.modus, ramp: c.ramp, kant: c.kant, golf: c.golf, per, veld: c.veld, onst: c.onst, kal: c.kal, ruim: sbArenaRuim, knoppen };
   try { localStorage.setItem('amir.arenaCfg', JSON.stringify(cfg)); } catch (e) {}
 }
 function sbArenaLaadCfg(){
   let cfg = null;
-  try { cfg = JSON.parse(localStorage.getItem('amir.arenaCfg') || 'null'); } catch (e) {}
+  try { cfg = JSON.parse(localStorage.getItem(sbGates ? 'amir.gatesCfg' : 'amir.arenaCfg') || 'null'); } catch (e) {}
   if (!cfg || typeof cfg !== 'object') return;
   const c = sbArenaCfg, getal = (v, oud) => Number.isFinite(v) ? v : oud;
-  if (cfg.modus === 'stroom' || cfg.modus === 'golven') c.modus = cfg.modus;
+  if (sbGates){
+    sbGatesCfg.rust = getal(cfg.rust, sbGatesCfg.rust);
+    if (cfg.per) for (const k in sbGatesCfg.per) if (cfg.per[k]) sbGatesCfg.per[k].aan = cfg.per[k].aan !== false;
+  }
+  if (!sbGates && (cfg.modus === 'stroom' || cfg.modus === 'golven')) c.modus = cfg.modus;
   c.ramp = getal(cfg.ramp, c.ramp);
   if (SB_ARENA_KANTEN.some(k => k[0] === cfg.kant)) c.kant = cfg.kant;
   if (cfg.golf) for (const k in c.golf) c.golf[k] = getal(cfg.golf[k], c.golf[k]);
@@ -37471,6 +37798,7 @@ barPijlEl.onclick = () => { barEl.classList.toggle('hide'); barPijlToon(); cv.fo
 document.getElementById('btnsandbox').onclick = () => showMenu('menuSandbox');   // eerst kiezen: de vrije sandbox of de arena-modus
 document.getElementById('btnsbvrij').onclick = () => startSandbox(false);
 document.getElementById('btnsbarena').onclick = () => startSandbox(true);
+document.getElementById('btnsbgates').onclick = () => startSandbox(true, true);
 
 
 // ============================================================================
