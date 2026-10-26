@@ -391,6 +391,12 @@ neerkomt moet je zelf leren inschatten. Een tik blijft de stoot.
 Probeer het in **Test 7: Werpen op gevoel**, of zet het in de sandbox aan met de
 knop **Worp** onder "Speerworp". In de episodes werp je nog in twee trappen.
 
+Het spel weet al bij het loslaten van de worp (en bij het begin van een steek of
+de lage zwaai) of die treffer een vijand gaat doden. Daar komt later een eigen
+finisher-animatie op; nu kun je het alleen zien in de sandbox, met de knop
+**Finisher** onder "Speerworp": een rode ring om een vijand die eraan gaat, een
+grijze om een die geraakt wordt maar blijft staan.
+
 Amir staat vast zolang hij spant en werpt: niet lopen, niet springen, en de hele
 animatie is kwetsbaar. Tot en met frame 6 kan de worp nog afgebroken worden en
 houdt hij zijn speer; vanaf frame 7 gaat hij door. Laat je los in de laatste 0,1

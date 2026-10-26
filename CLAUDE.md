@@ -194,6 +194,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | runeschijf: het losse symbool | `runeSchijf(ctx, x, y, r, {aan, spiegel})` | notities/wegwijzers.md |
 | vallen: schade bij een diepe val | hoe diep een val telt en wat hij kost |  |
 | schorpioen, het projectiel, spannen en werpen, de geworpen speer | `javTegenDak`, `javFloor`, `vloerBij` | notities/speer.md |
+| finisher-voorspelling: vooraf weten of een worp, steek of zwaai doodt (nog zonder animatie) | `FINISHER`, `finVoorspelling`, `finDodelijk`, `finZie` | notities/finisher.md |
 | fakkel: een geanimeerde wandfakkel | `FAKKEL`, `fakkelLaad`, `fakkelFrame` | notities/fakkel.md |
 | personages, dorpsdecor | `VILLAGE` | notities/wegwijzers.md |
 | Amir zegt er iets van als hij geraakt wordt | `SFX_RAAK`, `playRaak()` | notities/geluid.md |

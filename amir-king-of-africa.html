@@ -1251,6 +1251,8 @@
         <button id="sbloose">Laat losschieten</button>
         <button id="sbworp">Worp: twee trappen</button>
         <button id="sbworpwacht" class="on">Spannen: nieuw</button>
+        <button id="sbfin">Finisher: uit</button>
+        <span class="hint">Finisher: het spel weet bij het loslaten van de worp, het begin van een steek of de lage zwaai al of die treffer een vijand doodt. Met de knop aan krijgt dat doel een rode ring (dodelijk) of een grijze (raak, niet dood), en na de aanval meldt hij of het klopte. Er hangt nog geen eigen animatie aan, dat komt later</span>
       </div>
       <div class="row">
         <label>Reserve op de rug</label>
@@ -2676,6 +2678,7 @@ function startSweep(){
   if (exeVries) return;                            // in de executie van de schildbandiet staat Amir vast
   swLading = Math.max(0, swLading - 1); zwaaiHud();
   swFrame = 0; swAcc = 0; sweepId++; sweepSnowCurtain = false;
+  finZwaaiStart();                                 // wie raakt deze zwaai, en voor wie is het de laatste klap?
   if (wantSound){
     const t = document.getElementById('thrust');
     t.currentTime = 0; t.volume = 1; t.playbackRate = 1; t.play().catch(() => {});
@@ -13893,7 +13896,7 @@ function gaapSchaduw(m, st, fr, sx, voet, h, w, groei, shY, scale, wx, vloer){
 
 function goudapenTeken(o){
   if (!goudapen.length) return;
-  const { cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, attacking, hitBy } = o;
+  const { cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, attacking, hitBy, finZ } = o;
   const u = CHAR_H * scale;
   for (const m of goudapen){
     const st = gaapStand(m, scale), fr = st.img && imgReady(st.img) ? st.img : null;
@@ -13932,6 +13935,7 @@ function goudapenTeken(o){
     if (!box && m.fase === 'hang') box = { l: sx - 0.26 * u, r: sx + 0.26 * u, t: voet - h, b: voet };   // een ruwe box, zodat de speer een hangende aap kan raken
     m.box = box;
     if (!box || m.fase === 'dood') continue;
+    if (finZ) finZ('goudaap', m, box);
     // ---- de aap raakt Amir (de hap) ----
     if (m.act === 'bite' && !m.biteRaak && !dead){
       const tf = (bavKlok - m.actT0) / 1000, f = gaapHapFrame(tf);
@@ -15363,6 +15367,7 @@ function thrRelease(cancel){
   if (!thr.held) return;
   thr.held = false; thr.rel = bavKlok;
   thr.lob = thr.frame >= THR_WIND;                 // helemaal uitgetrokken? Dan wordt het de boog
+  finWorpBijToets();                               // de toets is los: weet het spel al of deze worp doodt?
   // bij de schaalworp staat de hoek vanaf nu vast: de speer gaat pas op THR_LOOSE weg
 }
 // Het frame dat bij een hoek hoort: het plaatje waarin de speer het dichtst bij die hoek staat.
@@ -15439,12 +15444,9 @@ function thrHurt(){
   if (!thr.gone && (thr.frame > THR_WIND || sinds <= THR_GRACE)) looseSpear();
   thr = null;
 }
-function looseSpear(){
-  if (!thr || thr.gone) return;
-  thr.gone = true;
-  spear = false; spearFound = false; spearX = null; spearH = null;
-  setSpearLabel();
-  if (rugAan() && rugSperen.length && !rugTrekT) rugTrekT = RUG.trek;   // je grijpt de volgende van je rug
+// Waar en hoe hard de speer weggaat, uit de worp zoals hij nu staat (lob, hoek, kijkrichting). looseSpear
+// maakt er de speer mee, en de finisher-voorspelling rekent er bij het loslaten van de toets al mee vooruit.
+function worpBaan(){
   const scale = nowScale(), dir = thrDir();
   const lob = !!thr.lob, schaal = worpSchaal();
   const graden = schaal ? thr.hoek : lob ? THR_LOB_DEG : 0;
@@ -15458,14 +15460,230 @@ function looseSpear(){
   // wordt door scale gedeeld; op het scherm klopt de hoek dan precies
   const ox = (THR_TIP.x - THR_ANCHOR) * THR_S * scale * dir;   // de punt staat op THR_TIP
   const oh = (THR_GROUND - THR_TIP.y) * THR_S;
-  jav = { x: world + ox, h: ph + oh, vx: dir * V * Math.cos(a), vh: -Math.sin(a) * V / scale,
-          dir, state: 'vlucht', sa: dir === 1 ? a : Math.PI - a, t: 0,
+  return { x: world + ox, h: ph + oh, vx: dir * V * Math.cos(a), vh: -Math.sin(a) * V / scale, dir, a, scale };
+}
+function looseSpear(){
+  if (!thr || thr.gone) return;
+  thr.gone = true;
+  spear = false; spearFound = false; spearX = null; spearH = null;
+  setSpearLabel();
+  if (rugAan() && rugSperen.length && !rugTrekT) rugTrekT = RUG.trek;   // je grijpt de volgende van je rug
+  const b = worpBaan();
+  jav = { x: b.x, h: b.h, vx: b.vx, vh: b.vh,
+          dir: b.dir, state: 'vlucht', sa: b.dir === 1 ? b.a : Math.PI - b.a, t: 0,
           wob: 0, sag: 0, stand: false, hit: false, blauw: speerBlauw };   // blauw: onthoud het vaantje voor als hij een losse speer wordt
   javLost = 0;
+  finWorpBijWorp();                                   // de voorspelling nog een keer, nu de speer echt weg is
   if (wantSound){
     const t = document.getElementById('thrust');
     t.currentTime = 0; t.volume = 0.8; t.playbackRate = 0.85; t.play().catch(() => {});
   }
+}
+
+// ---- finisher-voorspelling: vooraf weten of een treffer dodelijk wordt ----
+// Bij het loslaten van de worptoets, bij het begin van een steek en bij het begin van de lage zwaai rekent het
+// spel uit welke vijand er geraakt gaat worden en of die treffer de laatste is. Het doet er nog niets mee: de
+// bedoeling is dat er later een speciale finisher-animatie op volgt (zie notities/finisher.md). Wel meet het na
+// of het klopte (finUitslag), en de sandbox laat het zien (Finisher: toon, onder Speerworp).
+//
+// De raakvakken komen uit de teken-lus: elke vijandlus geeft zijn vak door aan finZie, dat het omrekent naar de
+// wereld (x in wereld-px, hoogte in hoogte-eenheden boven de grondlijn) en uit het vorige beeld schat hoe snel
+// hij loopt. De voorspelling schuift elke vijand met die snelheid mee over de tijd tot de treffer; een sprong,
+// een draai of een vijand die stilvalt ziet hij niet aankomen. Alleen met de speer: het mes doodt niets.
+const FINISHER = {
+  dt: 1 / 60,        // stap van de vooruitgerekende vlucht (s), zoals de speelrobot op 60 fps
+  maxT: 2.5,         // verder dan dit rekent hij een vlucht niet vooruit (s)
+  javR: 26,          // het vak rond de speerpunt, zoals javRaakt (hoogte-eenheden, maal scale in px)
+  steekR: 40,        // het vak rond de punt bij de steek, zoals steekR() met de speer
+  vxGlad: 0.5,       // hoe zwaar een nieuwe meting meetelt in de geschatte loopsnelheid
+  vxOud: 0.25,       // een vorige plek ouder dan dit (s) telt niet voor de snelheid
+  oordeel: 0.35,     // zo lang na het einde van de aanval kijkt hij of het doel dood is (s)
+};
+let finGezien = [];        // de vijanden uit het laatste beeld, elk met zijn raakvak in s.fin
+let finWorp = null, finSteek = null, finZwaai = null;   // de lopende voorspellingen
+const finUitslag = { klopt: 0, mis: 0, gemist: 0, geen: 0 };   // klopt, voorspeld maar niet dood, dood maar niet voorspeld, terecht niets
+let finDoden = 0;          // telt elke kill (vijandDood): zo ziet hij of een aanval iemand doodde
+let sbFinToon = false;     // de sandbox-knop: de voorspelling in beeld
+
+// een raakvak uit de teken-lus (schermcoördinaten) onthouden in wereldmaat, met de geschatte loopsnelheid
+function finZie(soort, s, box, cx, w, gy, scale){
+  const f = s.fin || (s.fin = { vx: 0, klok: null });
+  const l = box.l - cx + w, r = box.r - cx + w, c = (l + r) / 2;
+  if (f.klok === null || bavKlok > f.klok){                     // stilstaande klok (pauze): niets bijschatten
+    const dtk = f.klok === null ? Infinity : (bavKlok - f.klok) / 1000;
+    if (dtk < FINISHER.vxOud) f.vx += ((c - f.c) / dtk - f.vx) * FINISHER.vxGlad;
+    else f.vx = 0;
+    f.c = c; f.klok = bavKlok;
+  }
+  f.soort = soort; f.l = l; f.r = r;
+  f.hoog = (gy - box.t) / scale; f.laag = (gy - box.b) / scale;
+  finGezien.push(s);
+}
+// is deze vijand al dood (of aan het sterven)?
+function finDood(s){
+  return s.state === 'dying' || s.state === 'dood' || s.state === 'gone' || s.state === 'weg'
+      || !!s.exe || s.fase === 'dood';
+}
+// Zou een treffer over t seconden met deze wijze ('worp', 'steek', 'zwaai') hem doden? Per soort dezelfde
+// voorwaarden als in zijn hit-functie, zonder iets te veranderen. inv telt alleen als het dan nog loopt.
+function finDodelijk(s, wijze, t){
+  const soort = s.fin && s.fin.soort;
+  if (!soort || finDood(s)) return false;
+  const inv = (s.inv || 0) > t;
+  switch (soort){
+    case 'slang': case 'scorp':   return !s.hpBalk || (!inv && s.hp <= 1);              // enemyTakeHit
+    case 'fosfor':    return wijze !== 'worp' && !inv && s.hp <= 1;                      // een worp ketst af
+    case 'hyena':     return !(s.wacht > 0) && !inv && s.hp <= 1;                        // hitHyena
+    case 'panter':    return !inv && s.hp <= 1 && (s.state === 'land' || s.state === 'rest');   // hitPanther
+    case 'bandiet':   return !inv && s.hp <= 1 && s.state !== 'vault' && !(s.air > 0);  // hitBandiet; met inv pareert hij
+    case 'schildman': return !inv && s.schild === 0 && !schbOnaantastbaar(s);            // hitSchildman: schild weg is een klap dood
+    case 'kooiman':   return !inv && s.hp <= 1 && kooiOpen(s);                           // hitKooiman, alleen als hij openligt
+    case 'meelman':   return !inv && s.hp <= 1;                                          // hitMeelman
+    case 'kruisboog': return s.hp <= 1;                                                  // hitKruisboog: geen verweer
+    case 'goudaap':   return wijze !== 'worp' || s.fase === 'hang' || (s.fase === 'drop' && !s.geland);   // een worp alleen in de lucht
+  }
+  return false;
+}
+// overlapt het vak van vijand s, over t seconden meegeschoven, met dit vak (wereld-x, hoogte)?
+function finRaakt(s, t, l, r, laag, hoog){
+  const f = s.fin, d = f.vx * t;
+  return f.r + d > l && f.l + d < r && f.hoog > laag && f.laag < hoog;
+}
+// De worp vooruitrekenen vanaf baan b (zie worpBaan), die over 'wacht' seconden de hand verlaat: dezelfde
+// stappen als javUpdate (Euler, zwaartekracht), tot de grond, een wand of een doornbos. De eerste vijand die
+// het vak rond de punt raakt is het doel, in de volgorde van de teken-lus (net als javRaakt).
+function finWorpReken(b, wacht){
+  const scale = b.scale, plats = platsNear(scale, Infinity);
+  const g = GRAVITY * JAV.gDeel, R = FINISHER.javR, Rx = FINISHER.javR * scale;
+  const rechts = cliffAt().wall, links = endWall();
+  let x = b.x, h = b.h, vh = b.vh;
+  for (let t = 0; t <= FINISHER.maxT; t += FINISHER.dt){
+    const T = wacht + t;
+    for (const s of finGezien){
+      if (finDood(s) || !s.fin) continue;
+      if (finRaakt(s, T, x - Rx, x + Rx, h - R, h + R))
+        return { soort: s.fin.soort, s, t: T, wijze: 'worp', dodelijk: finDodelijk(s, 'worp', T) };
+    }
+    const hOud = h;
+    x += b.vx * FINISHER.dt; h += vh * FINISHER.dt; vh -= g * FINISHER.dt;
+    if (x > rechts || x < links) break;                                  // in de rotswand
+    const vloer = javFloor(x, plats, h);
+    if (vloer > -Infinity && h <= vloer && hOud >= vloer - 1) break;     // de grond
+    if (h < Math.min(0, terrainH(x)) - GAP_DEATH) break;                 // het ravijn in
+    if (javThicket(x, h, scale)) break;                                  // een doornbos
+  }
+  return null;
+}
+// bij het loslaten van de toets: de speer gaat pas op THR_LOOSE weg, zoveel later rekent hij hem vanaf
+function finWorpBijToets(){
+  if (!thr) return;
+  const wacht = Math.max(0, (THR_LOOSE - thr.frame - (thr.acc || 0)) / THR_FPS);
+  finWorp = { bijToets: finWorpReken(worpBaan(), wacht), bijWorp: null, doden: finDoden, eind: null, klok: bavKlok };
+}
+// als de speer echt de hand uit gaat: nog een keer, vanaf de echte speer (de vijanden zijn intussen verder)
+function finWorpBijWorp(){
+  if (!jav) return;
+  const b = { x: jav.x, h: jav.h, vx: jav.vx, vh: jav.vh, scale: nowScale() };
+  const v = finWorpReken(b, 0);
+  if (!finWorp) finWorp = { bijToets: null, doden: finDoden, eind: null, klok: bavKlok };   // een worp zonder toets (een klap tijdens de worp)
+  finWorp.bijWorp = v;
+  jav.fin = v;                                                           // voor later: de speer weet zijn doel
+}
+// bij het begin van een steek: de punt van frame tot frame (TIP_DX, TIP_Y) tegen de vijanden van nu
+function finSteekStart(){
+  finSteek = null;
+  if (atkMes) return;                                                    // het mes doodt niets
+  const scale = nowScale(), px = playerX(), R = FINISHER.steekR;
+  let doel = null;
+  for (const fr of ATK_ACTIVE){
+    const T = (fr + 0.5) / ATK_FPS;
+    const dxv = TIP_DX[fr] * scale, tx = px + (facing === 1 ? -dxv : dxv);
+    const th = ph + SPR_GROUND - TIP_Y[fr];
+    for (const s of finGezien){
+      if (finDood(s) || !s.fin || !finRaakt(s, T, tx - R * scale, tx + R * scale, th - R, th + R)) continue;
+      doel = { soort: s.fin.soort, s, t: T, wijze: 'steek', dodelijk: finDodelijk(s, 'steek', T) };
+      break;
+    }
+    if (doel) break;
+  }
+  finSteek = { v: doel, doden: finDoden, eind: null, klok: bavKlok };
+}
+// bij het begin van de lage zwaai: die raakt alles in zijn vak, dus een lijst
+function finZwaaiStart(){
+  const scale = nowScale(), px = playerX(), Rx = SWEEP_REACH * CHAR_H * scale;
+  const laag = ph - 12, hoog = ph + SWEEP_HIGH * CHAR_H;
+  const doelen = [];
+  for (const s of finGezien){
+    if (finDood(s) || !s.fin) continue;
+    for (let fr = SWEEP_FROM; fr <= SWEEP_TO; fr++){
+      const T = (fr + 0.5) / SWEEP_FPS;
+      if (!finRaakt(s, T, px - Rx, px + Rx, laag, hoog)) continue;
+      doelen.push({ soort: s.fin.soort, s, t: T, wijze: 'zwaai', dodelijk: finDodelijk(s, 'zwaai', T) });
+      break;
+    }
+  }
+  finZwaai = { doelen, doden: finDoden, eind: null, klok: bavKlok };
+}
+// De uitslag van een voorspelling: de voorspelde doden tegen wie er echt dood is, en hoeveel kills er waren.
+function finOordeel(soort, voorspeld, doden){
+  const dood = voorspeld.filter(v => v.dodelijk && finDood(v.s)).length;
+  const mis = voorspeld.filter(v => v.dodelijk).length - dood;
+  const gemist = Math.max(0, finDoden - doden - dood);
+  finUitslag.klopt += dood; finUitslag.mis += mis; finUitslag.gemist += gemist;
+  if (!dood && !mis && !gemist) finUitslag.geen++;
+  if (sandbox && sbFinToon && (dood || mis || gemist)){
+    const wat = dood ? 'klopt' : mis ? 'mis: niet dood' : 'gemist: wel dood';
+    flashHint('Finisher (' + soort + '): ' + wat + '. Tot nu ' + finUitslag.klopt + ' klopt, '
+              + finUitslag.mis + ' mis, ' + finUitslag.gemist + ' gemist', 2600);
+  }
+}
+// elk beeld: is een aanval voorbij, dan na FINISHER.oordeel de uitslag opmaken
+function finStap(){
+  const na = FINISHER.oordeel * 1000;
+  if (finWorp){
+    if (finWorp.eind === null && (!jav || jav.hit || jav.state !== 'vlucht') && !(thr && !thr.gone)) finWorp.eind = bavKlok;
+    if (finWorp.eind !== null && bavKlok - finWorp.eind >= na){
+      const v = finWorp.bijToets || finWorp.bijWorp;
+      finOordeel('worp', v ? [v] : [], finWorp.doden);
+      finWorp = null;
+    }
+  }
+  if (finSteek){
+    if (finSteek.eind === null && atkFrame < 0) finSteek.eind = bavKlok;
+    if (finSteek.eind !== null && bavKlok - finSteek.eind >= na){
+      finOordeel('steek', finSteek.v ? [finSteek.v] : [], finSteek.doden); finSteek = null;
+    }
+  }
+  if (finZwaai){
+    if (finZwaai.eind === null && swFrame < 0) finZwaai.eind = bavKlok;
+    if (finZwaai.eind !== null && bavKlok - finZwaai.eind >= na){
+      finOordeel('zwaai', finZwaai.doelen, finZwaai.doden); finZwaai = null;
+    }
+  }
+}
+// Voor later, de finisher zelf: wat er nu voorspeld is. dodelijk staat in .worp, .steek en .zwaai.
+function finVoorspelling(){
+  return { worp: finWorp && (finWorp.bijWorp || finWorp.bijToets), worpBijToets: finWorp && finWorp.bijToets,
+           steek: finSteek && finSteek.v, zwaai: finZwaai ? finZwaai.doelen : [] };
+}
+// de sandbox (Finisher: toon): een rode ring om een voorspeld dodelijk doel, grijs als hij geraakt maar niet dood gaat
+function finTeken(cx, w, gy, scale){
+  if (!sandbox || !sbFinToon) return;
+  const v = finVoorspelling();
+  const lijst = [v.worpBijToets, v.steek, ...v.zwaai].filter(Boolean);
+  if (v.worp && v.worp !== v.worpBijToets) lijst.push(v.worp);
+  ctx.save(); ctx.lineWidth = 3 * Math.max(0.6, scale);
+  for (const d of lijst){
+    const f = d.s.fin; if (!f) continue;
+    const x = cx + ((f.l + f.r) / 2 - w), top = gy - f.hoog * scale, bot = gy - f.laag * scale;
+    ctx.strokeStyle = d.dodelijk ? 'rgba(230,40,30,0.9)' : 'rgba(200,200,200,0.7)';
+    ctx.beginPath();
+    ctx.ellipse(x, (top + bot) / 2, Math.max(12, (f.r - f.l) / 2 + 10 * scale), (bot - top) / 2 + 10 * scale, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    if (d.dodelijk){ ctx.fillStyle = 'rgba(230,40,30,0.9)'; ctx.font = 'bold ' + Math.round(18 * Math.max(0.7, scale)) + 'px sans-serif';
+                     ctx.textAlign = 'center'; ctx.fillText('dodelijk', x, top - 14 * scale); }
+  }
+  ctx.restore();
 }
 
 // ---- de geworpen speer ---------------------------------------------------
@@ -16853,6 +17071,7 @@ function startAttack(){
   if (!spear && !mesInHand()){ flashHint(spearFound ? 'Zet eerst de speer aan met E' : 'Pak eerst je speer op: ga erbij staan en druk op E'); return; }
   atkFrame = 0; atkAcc = 0; swingUsed = false;
   atkMes = !spear;                                 // zonder speer in de hand is het een steek met het mes
+  finSteekStart();                                 // wie raakt deze steek, en is dat de laatste klap?
   if (wantSound){
     const t = document.getElementById('thrust');   // het mes: hetzelfde geluid, korter en hoger
     t.currentTime = 0; t.volume = atkMes ? 0.7 : 1; t.playbackRate = atkMes ? 1.5 : 1; t.play().catch(() => {});
@@ -21463,6 +21682,7 @@ const rustSnd = geluidAan(new Audio());
 rustSnd.onerror = () => console.warn('ontbreekt: ' + SFX_RUST.src);
 rustSnd.preload = 'auto'; rustSnd.src = SFX_RUST.src;
 function vijandDood(baas){
+  finDoden++;                                      // voor de finisher-voorspelling: doodde de aanval iemand?
   if (sbArena) sbArenaKill();                      // de teller van de arena-modus
   woedeVul(woedeWaarde('perKill'));                // elke kill vult de woedemeter (als je die hebt)
   if (!baas && Math.random() * DOOD_KANS >= 1) return;
@@ -28257,7 +28477,7 @@ function fosforRaak(s, van){
 // tekenen, en meteen de treffers in beide richtingen, net als bij de slangen
 let fosforZwaai = -1;                            // de zwaai die al een fosforslang raakte
 function drawFosforSlangen(o){
-  const { cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, attacking, hitBy } = o;
+  const { cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, attacking, hitBy, finZ } = o;
   // de stukjes steen
   if (fosforBrok.length){
     ctx.save();
@@ -28318,6 +28538,7 @@ function drawFosforSlangen(o){
     const bl = s.side === 1 ? SNK_W - SNK_BOX.r : SNK_BOX.l;
     const br = s.side === 1 ? SNK_W - SNK_BOX.l : SNK_BOX.r;
     const sbox = { l: sx + bl * sS, r: sx + br * sS, t: sy + SNK_BOX.t * sS, b: sy + SNK_BOX.b * sS };
+    if (finZ) finZ('fosfor', s, sbox);
     vijandHpBalk((sbox.l + sbox.r) / 2, sbox.t, s, sS);   // het health-balkje boven de kop (met hpBalk)
 
     let strike = null;
@@ -29960,6 +30181,7 @@ function loop(now){
   updateThrow(dt);                               // spannen, uithalen, herstellen
   rugUpdate(dt);                                 // de beat van het van je rug trekken na een worp
   javUpdate(dt, plats, scaleNow);                // en de speer die onderweg is
+  finStap();                                     // de finisher-voorspelling: klopte hij?
   speerNaastAmir(dt, plats);                     // achter een doornbos of boven op een berg: naast je
   muurUpdate(dt, scaleNow);                      // het rotsblok schuift, en de speer komt terug in de grond
   if (atkFrame >= 0){
@@ -30715,6 +30937,9 @@ function loop(now){
     // javOp sluit hem ook af als die vijand hem terugkaatst. Zo raakt hij er geen twee die op dezelfde plek staan.
     // Alleen de lage zwaai (swbox) raakt er meer tegelijk.
     let javOp = false;
+    // de finisher-voorspelling onthoudt elk raakvak van dit beeld (zie finZie)
+    finGezien = [];
+    const finZ = (soort, s, box) => finZie(soort, s, box, cx, world, groundY, scale);
     const javRaakt = box => {
       if (!javBox || javOp || !jav || jav.hit || jav.state !== 'vlucht' || !hitBy(javBox, box)) return false;
       javOp = true; return true;
@@ -30752,6 +30977,7 @@ function loop(now){
       const br = s.side === 1 ? SNK_W - SNK_BOX.l : SNK_BOX.r;
       const sbox = { l: sx + bl * sScale, r: sx + br * sScale,
                      t: sy + SNK_BOX.t * sScale, b: sy + SNK_BOX.b * sScale };
+      finZ('slang', s, sbox);
       vijandHpBalk((sbox.l + sbox.r) / 2, sbox.t, s, sScale);   // het health-balkje boven de kop (met hpBalk)
 
       if (spuwer(s) && s.state === 'bite' && s.frame >= SPIT_FRAME && !s.spat
@@ -30935,6 +31161,7 @@ function loop(now){
       const br = mirNow ? set.w - set.box.l : set.box.r;
       const kbox = { l: sx + bl * kScale, r: sx + br * kScale,
                      t: sy + set.box.t * kScale, b: sy + set.box.b * kScale };
+      finZ('scorp', s, kbox);
       vijandHpBalk((kbox.l + kbox.r) / 2, kbox.t, s, kScale);   // het health-balkje boven zijn kop (met hpBalk)
 
       // raken tijdens de charge is auw
@@ -31071,6 +31298,7 @@ function loop(now){
           bb = groundY - pBase;
         }
         const nbox = { l: bodyX - bhw, r: bodyX + bhw, t: bt, b: bb };
+        finZ('panter', s, nbox);
         const live = ((s.state === 'leap' && s.frame >= 4) || s.state === 'tackle' || (s.state === 'dive' && s.frame >= 9)) && !s.hitUsed;
         if (live && invuln <= 0 && !dead && hitBy(nbox, pbox)){ s.hitUsed = true; hurtPlayer(s.x < playerX()); }
         if (showBoxes && s.state !== 'dying'){
@@ -31160,6 +31388,7 @@ function loop(now){
 
         const bhw = HY.bodyW * hS * 0.42;               // zijn lijf: hier raakt de speer hem
         const nbox = { l: bodyX - bhw, r: bodyX + bhw, t: voeten - HY.fig * hS, b: voeten };
+        finZ('hyena', s, nbox);
         vijandHpBalk(bodyX, nbox.t, s, scale);           // het health-balkje boven zijn kop (met hpBalk)
         let bbox = null;
         if (s.state === 'storm'){                       // de bek: laag, dus je springt eroverheen
@@ -31247,6 +31476,7 @@ function loop(now){
         // zijn lijf: hier raak je hem, maar alleen als hij openligt (herstel)
         const lhalf = KOOI_LIJF.half * kS;
         const nbox = { l: bodyX - lhalf, r: bodyX + lhalf, t: voeten - KOOI_LIJF.hoog * kS, b: voeten };
+        finZ('kooiman', s, nbox);
         vijandHpBalk(bodyX, nbox.t, s, scale);           // het health-balkje boven zijn hoofd (met hpBalk)
         // zolang hij slaat en nog niet openligt is zijn lijf zelf een gevaar, op de grond en in de lucht:
         // loop je er tijdens de slag doorheen, dan raakt de kooi je en zet de terugstoot je terug. Zo kom je
@@ -31342,6 +31572,7 @@ function loop(now){
         ctx.restore();
         if (s.state === 'dood' || s.state === 'weg') continue;
         const nbox = { l: bodyX - half, r: bodyX + half, t: voeten - fh * 0.98, b: voeten };
+        finZ('meelman', s, nbox);
         vijandHpBalk(bodyX, nbox.t, s, scale);              // zijn drie levens boven zijn hoofd
         // de zak-slag van dichtbij (de worp-set dubbelt als melee), alleen in het raakvenster
         if (s.state === 'worp' && s.actie === 'mep' && s.frame >= MEEL.hitVan && s.frame <= MEEL.hitTot && !s.hitUsed && invuln <= 0 && !dead && !godMode && !woedeAan()){
@@ -31431,6 +31662,7 @@ function loop(now){
         ctx.restore();
         if (s.state === 'dood' || s.state === 'weg') continue;
         const nbox = { l: bodyX - half, r: bodyX + half, t: voeten - fh * 0.98, b: voeten };
+        finZ('kruisboog', s, nbox);
         vijandHpBalk(bodyX, nbox.t, s, scale);
         if (s.state === 'richt' && s.richtT > 0)            // de waarschuwing: een seconde het uitroepteken
           krbUitroep(bodyX, nbox.t - fh * (s.hpBalk ? 0.22 : 0.12), fh * 0.075, s.richtT);
@@ -31532,6 +31764,7 @@ function loop(now){
 
         const lmid = bodyX + s.face * BAN_LIJF.mid * bS, lhalf = BAN_LIJF.half * bS;
         const nbox = { l: lmid - lhalf, r: lmid + lhalf, t: voeten - BAN.fig * bS, b: voeten };
+        finZ('bandiet', s, nbox);
         vijandHpBalk(bodyX, nbox.t, s, scale);           // het health-balkje boven zijn hoofd (met hpBalk)
         let zbox = null;
         if (s.state === 'slag'){                         // de kling: alleen tijdens de raakframes
@@ -31617,6 +31850,7 @@ function loop(now){
         if (s.state === 'weg' || s.exe) continue;
         const lhalf = SCHB_LIJF.half * gs;
         const nbox = { l: bodyX - lhalf, r: bodyX + lhalf, t: voeten - SCHB.fig * gs, b: voeten };
+        finZ('schildman', s, nbox);
         schildHpBalk(bodyX, nbox.t, s, scale);            // zijn leven (vol tot de laatste klap) met het schild erboven (met hpBalk)
         if (showBoxes){
           ctx.save(); ctx.globalAlpha = 0.5; ctx.lineWidth = 2; ctx.strokeStyle = '#c9a06b';
@@ -31698,10 +31932,11 @@ function loop(now){
     bavGevecht({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, valRaakt, attacking, hitBy });
 
     // ---- de goudaapjes ----------------------------------------------------
-    goudapenTeken({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, attacking, hitBy });
+    goudapenTeken({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, attacking, hitBy, finZ });
 
     // ---- de fosforslang ----------------------------------------------------
-    drawFosforSlangen({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, attacking, hitBy });
+    drawFosforSlangen({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, attacking, hitBy, finZ });
+    finTeken(cx, world, groundY, scale);           // de sandbox: de finisher-voorspelling in beeld
 
     // ---- de speer (of de lage zwaai) tegen het takelwiel ----
     // In de bandiet-arena (na de aankomst) is het wiel weg: dan beweegt het plateau alleen de fasemachine (golfB/golfC),
@@ -38757,6 +38992,13 @@ document.getElementById('sbworpwacht').onclick = e => {
   e.currentTarget.textContent = sbWorpWacht ? 'Spannen: nieuw' : 'Spannen: zoals het was';
   e.currentTarget.classList.toggle('on', sbWorpWacht);
   thrCancel(); cv.focus();
+};
+document.getElementById('sbfin').onclick = e => {
+  sbFinToon = !sbFinToon;
+  e.currentTarget.textContent = sbFinToon ? 'Finisher: toon' : 'Finisher: uit';
+  e.currentTarget.classList.toggle('on', sbFinToon);
+  if (sbFinToon){ for (const k in finUitslag) finUitslag[k] = 0; }   // de telling begint opnieuw
+  cv.focus();
 };
 // ---- tribe: de drie abilities van Mkuki los aan en uit (zie TRIBE_CONFIG) ---------
 for (const b of document.querySelectorAll('[data-ability]')) b.onclick = e => {
