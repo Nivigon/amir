@@ -263,6 +263,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `hoogUitzicht` | `true`: gestapelde dikke grondlagen zien er op hoogte hetzelfde uit als de basis (zie `notities/velden.md`) |
 | `view` | een getal van 0,5 tot 1: uitgezoomd spelen; een nieuw level krijgt standaard `view: 0.8` (zie `notities/velden.md`) |
 | `zichtBreed` | een doel-wereldbreedte in beeld in plaats van een vaste `view`; geen level gebruikt het nog (zie `notities/velden.md`) |
+| `camera` | `true` of `{voor, verken, vecht, telefoon}`: de meekijkende camera. Vooruitkijken in de looprichting, en op een laptop 0,7 onderweg en 0,8 in een gevecht; een telefoon houdt 0,8 en kijkt minder ver vooruit. Gaat boven `view`. Alleen Test 54; in de sandbox de knop Meekijken (`CAM`, `camUpdate`) |
 | `worp` | `'schaal'` zet de schaalworp aan: de hoek loopt op zolang je vasthoudt, van vlak tot 30 graden (`THR_HOEK_MAX`); zonder dit veld de twee trappen. In de sandbox de knop Worp onder Speerworp |
 | `speerInHand` | `true`: Amir begint met de speer in de hand in plaats van hem voor zich uit de grond te pakken; de Level Maker nieuwstijl zet dit in elk level, de echte episodes hebben het niet |
 | `executie` | `true`: elke dodelijke steek, worp of lage zwaai op een schildbandiet is de executie, in plaats van 1 op 5 en 1 op 3 (alleen Test 50, zie `notities/schildbandiet.md`) |
@@ -270,7 +271,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `rocks` | keien om op te springen: `{x, s}` |
 | `spawns` | vijanden: `{x, k}`, `k` is groen/zwart/knock/scorp/hyenas/panter/fosfor/bandiet/kooiman/meelman/schildman/kruisboogbandiet, met vlaggen per soort (zie `notities/velden.md`) |
 | `bandArena` | `true`: het level is een bandiet-arena (Valse Koning 8), zoals de goudaap-arena maar met de elite-garde (zie "de bandiet-arena") |
-| `duoArena` | `{c, golven, pauze, eerste, niveau}`: een arena op de open savanne rond `c` (vaste camera, geen wanden); per golf tegelijk een kruisboogbandiet en een schildbandiet, elk willekeurig van links of rechts. De schutter schiet pas helemaal in beeld (`inBeeld`, `krbInBeeld`) en zijn bouten raken de schildman (`vriendVuur`, `krbPijlVriend`). Na `golven` golven is het level uit (alleen Test 54, `duoTick`) |
+| `duoArena` | `{c, golven, pauze, eerste, niveau}`: een arena op de open savanne rond `c` (vaste camera, geen wanden); per golf tegelijk een kruisboogbandiet en een schildbandiet, elk willekeurig van links of rechts. De schutter schiet pas helemaal in beeld (`inBeeld`, `krbInBeeld`) en zijn bouten raken de schildman (`vriendVuur`, `krbPijlVriend`). Na `golven` golven is het level uit (alleen Test 55, `duoTick`) |
 | `bandietGolf` | een oplopende golf bandieten: `{van, tot, ramp, max, dolk}` (zie `notities/velden.md`) |
 | `duel` | per kooiman-spawn `{x, k: 'kooiman', duel}`; standaard aan is het 1-op-1 duel, `duel: false` de gewone kooiman (zie `notities/velden.md`) |
 | `props` | decor: `{x, k, s, f, v}`, `k` uit `PROPS`, `f` spiegelen, `v` verre laag |

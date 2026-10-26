@@ -664,7 +664,7 @@ een schildbandiet en met een bandiet. In **Test 53: Uit de hoogte** gaat op een 
 stenen poort open: het ijzeren hek takelt op, hij stapt eruit, loopt naar de rand en schiet van boven. Daar haalt
 alleen je boogworp hem (houd vast tot de tweede trap); onder het blok ziet hij je niet.
 
-**Test 54: Schutter en schild** is een arena op de open savanne: de camera staat stil, en per golf komen er
+**Test 55: Schutter en schild** is een arena op de open savanne: de camera staat stil, en per golf komen er
 tegelijk een kruisboogbandiet en een schildbandiet binnen, elk willekeurig van links of van rechts. Hier schiet de
 schutter pas als hij helemaal in beeld staat, en zijn bouten raken ook de schildbandiet: een bout telt als een
 treffer van je speer (eerst drie keer het schild, dan is hij dood). Ga dus achter de schildman staan en laat de
@@ -1090,6 +1090,17 @@ In de sandbox staat het onder **Onder de grond**: **Gang** legt een ravijn met e
 voor je neer, **Gang met trap omhoog** ook, met verderop een tweede gat met treden om weer
 boven te komen, en **Gang weg** haalt het weer weg. Zet je een vijand neer terwijl je beneden
 staat, dan komt die ook beneden.
+
+## De meekijkende camera
+
+Een level kan een camera hebben die met je meekijkt (het veld `camera`). Loop je een kant op, dan schuift het beeld
+die kant op, zodat Amir uit het midden staat en je meer ziet aankomen. Draai je je even om, bijvoorbeeld voor een
+steek naar achteren, dan blijft de camera staan; pas als je echt de andere kant op loopt, draait hij zacht mee.
+Op een laptop zoomt hij onderweg uit (0,7) en komt er een vijand dichtbij, dan zoomt hij zacht in (0,8), zodat je
+de aanloop van de vijand goed ziet; na het gevecht zoomt hij weer uit. In een gevecht kijkt hij minder ver vooruit,
+zodat je ook ziet wat er achter je staat. Op een telefoon blijft de zoom 0,8 en kijkt hij alleen een stukje vooruit,
+zodat Amir niet onder je duimknoppen verdwijnt. **Test 54: Meekijken** laat het zien; in de sandbox zet je het aan
+onder Beeld en geluid, met **Meekijken**.
 
 ## De arena-modus van de sandbox
 
