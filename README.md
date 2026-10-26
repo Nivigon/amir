@@ -660,7 +660,9 @@ Eén klap en hij valt, en hoe hangt af van de klap: na de lage zwaai zakt hij do
 achterover met een snee in zijn borst, en na een worp blijft je speer in zijn borst steken en valt mee; die pak je
 daarna met E. Het lijk blijft liggen, met zijn kruisboog ernaast. Een gemiste bout blijft even in de grond steken.
 In de sandbox staat hij onder Vijanden, en **Test 52: De kruisboog** laat hem zien: alleen, vanaf een terras, met
-een schildbandiet en met een bandiet.
+een schildbandiet en met een bandiet. In **Test 53: Uit de hoogte** gaat op een zwevend blok hoog boven je een
+stenen poort open: het ijzeren hek takelt op, hij stapt eruit, loopt naar de rand en schiet van boven. Daar haalt
+alleen je boogworp hem (houd vast tot de tweede trap); onder het blok ziet hij je niet.
 
 ## De kooiman
 
