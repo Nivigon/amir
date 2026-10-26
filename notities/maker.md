@@ -195,7 +195,7 @@ naar de cel), die bijblijft zolang hij open staat. Drie soorten:
 - **LET OP**: een start of eind die hoog boven zijn vloer hangt, een vijand die zweeft of op de
   start staat, een poort met een vijand maar zonder zegel, rune of regie die hem opent, een regiepunt meer dan
   `MK_POORT_BIJ_VER` cellen van zijn poort (Amir staat stil terwijl de poort buiten beeld opengaat), een ravijn of gang op de verkeerde rij, een gang zonder ingang, een platform zonder
-  tandwiel of met zijn doel op dezelfde hoogte, een zegel dat naar een weg masker wijst, een val
+  tandwiel of met zijn doel op dezelfde hoogte, een zegel dat naar een weg masker wijst, een voorwerp dat half in een masker steekt maar zelf te zien blijft (zie Verborgen door masker in `notities/masker.md`), een val
   van meer dan vier cellen naast een rand (dodelijk in de Test), een rijzer met zijn doel op zijn eigen rij, die
   op of boven de grondlijn rust, of die drie of meer cellen ravijn naast zich open laat, en een zegel dat een
   zakker stuurt.

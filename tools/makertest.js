@@ -616,6 +616,31 @@ function verschil(a, b, pad = ''){
   });
 
   // 7. de controle: een grid met fouten geeft meldingen, het proefgrid geeft geen fout
+  // 7b. per voorwerp verbergen: een poort achter een masker zonder cellen, en de vaste looks als nep-terrein
+  await check('masker per voorwerp: Verborgen door masker overleeft de round-trip en verbergt het hele voorwerp', async () => {
+    const uit = [];
+    const g = proefGrid();
+    g.objecten.find(o => o.k === 'poort').achter = 'Alleen';
+    g.objecten.find(o => o.k === 'rune').masker = 'Alleen';
+    await laad(g);
+    const r = await page.evaluate(() => {
+      const j = mkNaarJSON(), lv = mkNaarLevel();
+      const m = (lv.maskers || []).find(q => q.id === 'Alleen'), v1 = (lv.maskers || []).find(q => q.id === 'Verborgen1');
+      const poort = MK.objects.find(o => o.k === 'poort');
+      return { bewaard: j.maskers.some(q => q.id === 'Alleen' && !q.cells.length), achter: j.objecten.find(o => o.k === 'poort').achter,
+        punt: !!(m && m.vakken.length && m.vakken.every(v => v.punt)), look: v1 && v1.look, nep: !!lv.nep,
+        verborgen: mkObjVerborgen(poort), letop: mkControle().some(q => /steekt in masker/.test(q.tekst)) };
+    });
+    if (!r.bewaard) uit.push('het masker met alleen een voorwerp ging niet mee in de export');
+    if (r.achter !== 'Alleen') uit.push('achter ging niet mee in de export: ' + r.achter);
+    if (!r.punt) uit.push('het masker werd in het spel geen punt op de cel van de poort');
+    if (r.look !== 'onzichtbaar' || !r.nep) uit.push('de grotwand werd geen nep-terrein: ' + r.look + ', nep ' + r.nep);
+    if (r.verborgen !== 'Alleen') uit.push('mkObjVerborgen ziet de poort niet als verborgen: ' + r.verborgen);
+    await page.evaluate(() => { MK.objects.find(o => o.k === 'poort').achter = undefined; MK.objects.find(o => o.k === 'poort').c = 7; MK.objects.find(o => o.k === 'poort').r = 6; });
+    const let2 = await page.evaluate(() => mkControle().filter(q => /steekt in masker/.test(q.tekst)).length);
+    if (!let2) uit.push('een poort naast het masker gaf geen LET OP');
+    return uit;
+  });
   await check('controle: meldingen bij een start zonder vloer en een platform zonder doel', async () => {
     const heeft = await page.evaluate(() => typeof mkControle === 'function');
     if (!heeft) return ['er is geen mkControle'];
