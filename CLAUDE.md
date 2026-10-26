@@ -211,7 +211,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | slangen: kleur, zicht en patrouille | `SNAKE_DIRS`, `slangZiet`, `startPatrouille` | notities/slangen.md |
 | zwarte panter, de witte panter (baas, regel 12), de hyena | de grote vijanden: `boss`, `arena`, `hitPanther` |  |
 | de bandiet: een rover met een kromzwaard | `BAN`, `banLaad`, `makeBandiet` | notities/bandiet.md |
-| de kruisboogbandiet: mikt, waarschuwt met een uitroepteken en schiet een bout (recht of omlaag) | `KRB`, `makeKruisboog`, `updateKruisboog`, `krbPijlen` |  |
+| de kruisboogbandiet: herlaadt (de tell), volgt Amir over twintig hoeken, blinkt en schiet; drie doden, de speer in zijn borst | `KRB`, `krbDoelHoek`, `krbSpeerVolg`, `hitKruisboog(s, soort)` |  |
 | de schildbandiet: loopt met zijn schild op en valt springend aan | `SCHB`, `makeSchildman`, `updateSchildman` | notities/schildbandiet.md |
 | schildstaat: het schild in vier standen, van heel tot weg | `SCHB_STAAT`, `schbStaat` | notities/schildbandiet.md |
 | de lagen van de schildbandiet: het schild als losse laag uit lagen.json | `SCHB_LAGEN`, `schbLagenLaad`, `schbLagenLijst` | notities/schildbandiet.md |
@@ -386,7 +386,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **Kooi-plaat van de kooiman** → `tools/kooi_kleur.py`, daarna `gen-klein.py` en `gen-offline-manifest.py`
 - **Schildbandiet** → `tools/schildman_kleur.py`, daarna `gen-klein.py` en `gen-offline-manifest.py`. Het bandietpalet is zijn standaard: elke nieuwe export (lijf, schild, executie) zet je in de speelmap en haal je meteen door dit script, ook als er niemand om de kleuren vraagt. Het zet frames in de oude kleuren eerst in `enemies/schildbandiet/bron/` (de oude kleuren blijven bewaard), kleurt ze om en meldt FOUT als er nog een in de oude kleuren staat
 - **Goudaapje** → `tools/goudaapje_kleur.js`
-- **Kruisboogbandiet** → `tools/kruisboog_kleur.py`, daarna `gen-offline-manifest.py`. Net als bij de schildbandiet: een nieuwe export zet je in de speelmap, het script bewaart de oude kleuren in `enemies/kruisboog/bron/` en kleurt om
+- **Kruisboogbandiet** → `tools/kruisboog_kleur.py`, daarna `gen-offline-manifest.py`. De export uit de Animeer tool (felle kleuren, schouderstuk erop) staat in `enemies/kruisboog/bron/`; het script schrijft de speelversie in het bandietpalet naar `enemies/kruisboog/<set>/`
 - **Stenen bogen** (`design/boog/`, uit de platen in `bron/`, met hun sneeuw- en savanneversie en het masker van de opening, `_gat.png`) → `tools/boog_vulling.py` (alleen de maskers: `--gat`), daarna `gen-offline-manifest.py`
 - **Rotsdecor** (`design/rotsdecor/`, losse rotsstukken uit de platen in `bron/`) → `tools/rotsdecor_knip.py`, daarna `gen-offline-manifest.py`
 - **Tribe-logo's** → `tools/tribe_logos.py`
