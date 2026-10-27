@@ -1099,8 +1099,9 @@ steek naar achteren, dan blijft de camera staan; pas als je echt de andere kant 
 Op een laptop zoomt hij onderweg iets uit (0,75) en komt er een vijand dichtbij, dan zoomt hij zacht in (0,8), zodat je
 de aanloop van de vijand goed ziet; na het gevecht zoomt hij weer uit. In een gevecht kijkt hij minder ver vooruit,
 zodat je ook ziet wat er achter je staat. Op een telefoon blijft de zoom 0,8 en kijkt hij alleen een stukje vooruit,
-zodat Amir niet onder je duimknoppen verdwijnt. **Test 54: Meekijken** laat het zien; in de sandbox zet je het aan
-onder Beeld en geluid, met **Meekijken**.
+zodat Amir niet onder je duimknoppen verdwijnt. In een arena staat de camera vast in het midden, zoals altijd: daar
+komen vijanden van twee kanten. **Test 54: Meekijken** laat het zien, en het zit ook in Test 51 tot en met 55, in elk
+nieuw level en in de Level Maker; in de sandbox zet je het aan onder Beeld en geluid, met **Meekijken**.
 
 ## De arena-modus van de sandbox
 
