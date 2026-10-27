@@ -33,7 +33,10 @@ const SHELL_CACHE = 'amir-shell-v1';
 // rekent nu met een kwart (KLEIN_BRON), dus een oud half frame zou twee keer te groot getekend worden.
 // v6: de meelman heeft een halve set in klein/; een schone cache, zodat de telefoon die meteen
 // binnenhaalt in plaats van de grote frames uit de oude cache te blijven gebruiken.
-const ASSET_CACHE = 'amir-assets-v6';
+// v7: de kruisboogbandiet kreeg een nieuwe set onder dezelfde bestandsnamen (loop_00 tot 13, mik_00 tot 08)
+// op een ander canvas; een schone cache, want een oud frame uit de cache werd ruim anderhalf keer te groot
+// getekend tussen de nieuwe frames door.
+const ASSET_CACHE = 'amir-assets-v7';
 
 // Sleutel waaronder we in de assetcache bijhouden welke assetversie erin zit.
 // Geen echt bestand, alleen een plek om een string te bewaren.
