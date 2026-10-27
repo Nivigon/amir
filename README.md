@@ -1096,7 +1096,7 @@ staat, dan komt die ook beneden.
 Een level kan een camera hebben die met je meekijkt (het veld `camera`). Loop je een kant op, dan schuift het beeld
 die kant op, zodat Amir uit het midden staat en je meer ziet aankomen. Draai je je even om, bijvoorbeeld voor een
 steek naar achteren, dan blijft de camera staan; pas als je echt de andere kant op loopt, draait hij zacht mee.
-Op een laptop zoomt hij onderweg uit (0,7) en komt er een vijand dichtbij, dan zoomt hij zacht in (0,8), zodat je
+Op een laptop zoomt hij onderweg iets uit (0,75) en komt er een vijand dichtbij, dan zoomt hij zacht in (0,8), zodat je
 de aanloop van de vijand goed ziet; na het gevecht zoomt hij weer uit. In een gevecht kijkt hij minder ver vooruit,
 zodat je ook ziet wat er achter je staat. Op een telefoon blijft de zoom 0,8 en kijkt hij alleen een stukje vooruit,
 zodat Amir niet onder je duimknoppen verdwijnt. **Test 54: Meekijken** laat het zien; in de sandbox zet je het aan
