@@ -15,6 +15,8 @@ en verzadiging, de helderheid uitgesmeerd over een nieuw bereik, dus lijnen, plo
   de huid                    -> warmbruin (HUID_TINT), met het lokale contrast versterkt (HUID_CONTRAST),
                                 zodat de mond, de neus en de frons leesbaar blijven
   de ogen en de kruisboog blijven ongemoeid
+  oorlogsverf (OORLOGSVERF)  -> een zwarte band over de ogen, tijdelijk; zet OORLOGSVERF op False om hem
+                                weg te halen en draai het script opnieuw
 
 Elk vlak neemt ook zijn randje mee (RAND): de anti-aliaspixels langs het haar, de tuniek, de sjerp, de
 broek en het schouderstuk staan in de bron nog in de felle kleur, maar net buiten de drempels. Zonder
@@ -28,16 +30,21 @@ Vereist Pillow en numpy.
 import os, sys, glob
 sys.dont_write_bytecode = True
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFilter
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from kooiman_kleur import naar_hsv, naar_rgb, hertint
-from slang_kleur import groei
+from slang_kleur import groei, vlakken
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BRON = os.path.join(ROOT, 'enemies/kruisboog/bron')
 UIT  = os.path.join(ROOT, 'enemies/kruisboog')
 GROND = 442          # de grondlijn op het canvas (metadata.json): de sandalen staan vlak erboven
+OORLOGSVERF = True   # tijdelijk: een zwarte band over de ogen (variant 1 van de zes voorstellen)
+VERF_REF = 'loop/loop_00.png'   # het frame waarin de band getekend is; de andere frames volgen het hoofd
+# de band in VERF_REF, ten opzichte van het oog (x naar achteren, y omlaag); alleen de huid wordt geverfd
+VERF_BAND = [(-30, -7), (18, -10), (17, 5), (-30, 8)]
+VERF_KLEUR, VERF_DEK, VERF_STRAAL = (28, 22, 22), 0.92, 30
 RAND = 3             # zo ver (px) buiten een kleurvlak zoekt het naar zijn randje
 HUID_TINT = 18       # de huid van rood (tint 13 in de bron) naar warmbruin, dichter bij de schildman (21)
 HUID_HELDER = 1.0    # de gemiddelde helderheid van de huid: zo donker als de bron
@@ -58,7 +65,92 @@ def vervaag(x, r):
     return x
 
 
-def maak(beeld):
+def bron_maskers(arr):
+    h, s, v = naar_hsv(arr[..., :3])
+    op = arr[..., 3] > 40
+    haar = op & ((h < 10) | (h > 345)) & (s > 0.55) & (v > 0.45)
+    huid = op & ((h < 25) | (h > 345)) & (v < 0.62) & (s > 0.4) & ~haar
+    return op, haar, huid
+
+
+def ref_oog(arr):
+    """Het oogwit in het referentieframe: het witte vlekje tussen huid en haar met het meeste haar eromheen."""
+    op, haar, huid = bron_maskers(arr)
+    _, s, v = naar_hsv(arr[..., :3])
+    nr, n = vlakken(op & (s < 0.3) & (v > 0.7) & groei(huid, 2) & groei(haar, 14))
+    beste = None
+    for i in range(1, n + 1):
+        ys, xs = np.nonzero(nr == i)
+        if not 3 <= len(ys) <= 60:
+            continue
+        cx, cy = int(xs.mean()), int(ys.mean())
+        nh = haar[max(cy - 22, 0):cy + 22, max(cx - 22, 0):cx + 22].sum()
+        if beste is None or nh > beste[0]:
+            beste = (nh, xs.mean(), ys.mean())
+    return beste[1], beste[2]
+
+
+class Hoofd:
+    """Zoekt per frame de stand van het hoofd: het hoofd uit VERF_REF (haar en huid, zonder hals) wordt gedraaid
+    en verschoven tot het het best op het haar en de huid van het frame past. Zo volgt de verf het hoofd ook als
+    hij achterover of voorover valt en zijn ogen dicht zijn. Geeft (hoek, oog-x, oog-y)."""
+    R = 64
+
+    def __init__(self, ref):
+        arr = np.array(ref.convert('RGBA')).astype(float)
+        _, haar, huid = bron_maskers(arr)
+        self.oog = ref_oog(arr)
+        ox, oy = int(round(self.oog[0])), int(round(self.oog[1]))
+        yy, xx = np.mgrid[-self.R:self.R, -self.R:self.R]
+        hoofd = (xx >= -24) & (xx < 42) & (yy >= -40) & (yy < 22)
+        self.lap = [np.where(hoofd, m[oy - self.R:oy + self.R, ox - self.R:ox + self.R], 0).astype(float)
+                    for m in (haar, huid)]
+
+    @staticmethod
+    def corr(a, b):
+        sh = (a.shape[0] + b.shape[0], a.shape[1] + b.shape[1])
+        c = np.fft.irfft2(np.conj(np.fft.rfft2(a, sh)) * np.fft.rfft2(b, sh), s=sh)
+        return c[:b.shape[0], :b.shape[1]]
+
+    def stand(self, arr):
+        op, haar, huid = bron_maskers(arr)
+        ys, xs = np.nonzero(haar)
+        x0, y0 = max(int(np.percentile(xs, 2)) - 70, 0), max(int(np.percentile(ys, 2)) - 70, 0)
+        x1, y1 = int(np.percentile(xs, 98)) + 70, int(np.percentile(ys, 98)) + 70
+        doel = [m[y0:y1, x0:x1].astype(float) for m in (haar, huid, ~op)]
+
+        def proef(hoek):
+            h, s = (np.array(Image.fromarray((m * 255).astype(np.uint8)).rotate(hoek, resample=Image.BILINEAR))
+                    .astype(float) / 255 for m in self.lap)
+            sc = self.corr(h, doel[0]) + 0.6 * self.corr(s, doel[1]) - self.corr(h + s, doel[2])
+            i = np.unravel_index(np.argmax(sc), sc.shape)
+            return sc[i], hoek, x0 + i[1] + self.R, y0 + i[0] + self.R
+        beste = max(proef(hk) for hk in range(-114, 50, 6))
+        beste = max([beste] + [proef(beste[1] + d) for d in (-4, -2, 2, 4)])
+        return beste[1:]
+
+
+def verf(rgb, huid, stand):
+    """De zwarte band over de ogen, gedraaid met het hoofd, alleen op de huid rond het oog. De schaduw van
+    de tekening blijft erdoorheen zichtbaar, en de inktlijnen blijven staan."""
+    hoek, ox, oy = stand
+    c, s = np.cos(np.radians(hoek)), np.sin(np.radians(hoek))
+    K = 4   # op 4x tekenen en terugschalen: zachte randen
+    punten = [((ox + dx * c + dy * s) * K, (oy - dx * s + dy * c) * K) for dx, dy in VERF_BAND]
+    m = Image.new('L', (rgb.shape[1] * K, rgb.shape[0] * K), 0)
+    ImageDraw.Draw(m).polygon(punten, fill=255)
+    m = m.resize((rgb.shape[1], rgb.shape[0]), Image.LANCZOS).filter(ImageFilter.GaussianBlur(0.4))
+    yy, xx = np.mgrid[:rgb.shape[0], :rgb.shape[1]]
+    buurt = huid & ((xx - ox) ** 2 + (yy - oy) ** 2 < VERF_STRAAL ** 2)
+    if not buurt.any():
+        return rgb
+    _, _, v = naar_hsv(rgb)
+    rel = np.clip(v / v[buurt].mean(), 0.25, 1.35)
+    w = (np.array(m).astype(float) / 255 * buurt * VERF_DEK * (v >= 0.13))[..., None]
+    return rgb * (1 - w) + np.array(VERF_KLEUR, float)[None, None, :] * rel[..., None] * w
+
+
+def maak(beeld, stand=None):
     arr = np.array(beeld.convert('RGBA')).astype(float)
     rgb = arr[..., :3]
     h, s, v = naar_hsv(rgb)
@@ -115,16 +207,21 @@ def maak(beeld):
     mag = np.clip(np.minimum(rr, bb) - gg, 0, None)
     rgb[..., 0] = rr - mag
     rgb[..., 2] = bb - mag
+    if stand is not None:
+        rgb = verf(rgb, huid | lijn | voet, stand)
     arr[..., :3] = rgb
     return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
 
 
 def main():
     n = 0
+    hoofd = Hoofd(Image.open(os.path.join(BRON, VERF_REF))) if OORLOGSVERF else None
     for f in sorted(glob.glob(os.path.join(BRON, '*', '*.png'))):
         doel = os.path.join(UIT, os.path.relpath(f, BRON))
         os.makedirs(os.path.dirname(doel), exist_ok=True)
-        maak(Image.open(f)).save(doel, optimize=True)
+        beeld = Image.open(f)
+        stand = hoofd.stand(np.array(beeld.convert('RGBA')).astype(float)) if hoofd else None
+        maak(beeld, stand).save(doel, optimize=True)
         n += 1
     print(n, 'frames gekleurd naar', os.path.relpath(UIT, ROOT))
 
