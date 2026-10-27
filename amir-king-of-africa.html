@@ -4345,7 +4345,7 @@ const TEST_50 = {
 const TEST_51 = {
   name: 'Test 51: De poorten',
   lagen: 'tafelbergen',
-  view: 0.8, hpBalk: true, zicht: true,
+  view: 0.8, hpBalk: true, zicht: true, camera: true,
   speerInHand: true,
   poorten: [ {id: 'p1', x: -1900,  k: 'boog_laag_1', s: 1.25, look: 'steen',   hek: true, wand: true, regie: true},
              {id: 'p2', x: -4600,  k: 'boog_steen',          look: 'savanne', hek: true, wand: true, regie: true},
@@ -4374,7 +4374,7 @@ const TEST_51 = {
 const TEST_52 = {
   name: 'Test 52: De kruisboog',
   lagen: 'tafelbergen',
-  view: 0.8, hpBalk: true, zicht: true,
+  view: 0.8, hpBalk: true, zicht: true, camera: true,
   speerInHand: true,
   spawns: [ {x: -1500, k: 'kruisboogbandiet'},
             {x: -3550, k: 'kruisboogbandiet'},
@@ -4404,6 +4404,7 @@ const TEST_53 = {
   name: 'Test 53: Uit de hoogte',
   lagen: 'tafelbergen',
   view: 0.75, hpBalk: true, zicht: true,
+  camera: { vecht: 0.75, telefoon: 0.75 },   // vast op 0,75 (ook op een telefoon): de schutter boven moet in beeld staan op boogworpafstand
   speerInHand: true,
   rugMax: 3,
   zwevers: [ {r: -2300, l: -3700, h: 480, onder: 290} ],
@@ -4452,7 +4453,7 @@ const TEST_54 = {
 const TEST_55 = {
   name: 'Test 55: Schutter en schild',
   lagen: 'tafelbergen',
-  view: 0.8, hpBalk: true, zicht: true,
+  view: 0.8, hpBalk: true, zicht: true, camera: true,
   speerInHand: true,
   duoArena: { c: -3000, golven: 8, pauze: 2.5, eerste: 1.5, niveau: 'makkelijk' },
   spawns: [],
@@ -32962,7 +32963,8 @@ function camCfg(){
 function camTelefoon(){ return touchOn() || H < CAM.telH; }
 function camVoorNu(){ return (camSwap === null && camCfg()) ? camVoor : 0; }   // waar de camera staat ten opzichte van Amir, buiten het tekenen
 function camReset(){ camVoor = camDoel = 0; camRicht = -1; camRichtT = 0; camVorig = null; camZoomNu = 0; camVechtT = 0; }
-function camLeeft(s){ return s && !s.dead && s.state !== 'dying' && s.state !== 'gone' && s.state !== 'dead' && !(s.hp <= 0); }
+const CAM_DOOD = new Set(['dying', 'gone', 'dead', 'dood', 'weg']);   // de namen van dood en weg over de soorten heen (de bandiet, de kruisboog en de meelman: 'dood')
+function camLeeft(s){ return s && !s.dead && !s.exe && !CAM_DOOD.has(s.state) && !(s.hp <= 0); }   // exe: de schildbandiet in zijn executie
 function camInGevecht(px){
   for (const lijst of [snakes, scorps, panthers, hyenas, bandieten, schildmannen, kooimannen, meelmannen, kruisbogen, fosforSlangen])
     for (const s of lijst) if (camLeeft(s) && Math.abs(s.x - px) < CAM.bereik && Math.abs((s.base || 0) - ph) < CAM.hoogte) return true;
@@ -32971,9 +32973,12 @@ function camInGevecht(px){
 function camUpdate(dt, px){
   const c = camCfg();
   if (!c){ if (camZoomNu || camVorig !== null) camReset(); return; }
-  camVechtT = camInGevecht(px) ? CAM.nagloei : Math.max(0, camVechtT - dt);
+  // in een arena (de panter, een vaste arena zoals Test 55) neemt de arena-camera het over: de zoom glijdt naar de
+  // view van het level en het vooruitkijken naar nul. Kom je er weer uit, dan glijdt alles terug (geen sprong).
+  const inArena = !!arena || arenaVast();
+  camVechtT = !inArena && camInGevecht(px) ? CAM.nagloei : Math.max(0, camVechtT - dt);
   const vecht = camVechtT > 0;
-  const zDoel = camTelefoon() ? (c.telefoon || CAM.telefoon) : vecht ? (c.vecht || CAM.vecht) : (c.verken || CAM.verken);
+  const zDoel = inArena ? ((sandbox ? sbView : level && level.view) || 1) : camTelefoon() ? (c.telefoon || CAM.telefoon) : vecht ? (c.vecht || CAM.vecht) : (c.verken || CAM.verken);
   camZoomNu = camZoomNu ? camZoomNu + (zDoel - camZoomNu) * Math.min(1, dt * CAM.zoomGlij) : zDoel;
   let dx = camVorig === null ? 0 : px - camVorig; camVorig = px;
   if (Math.abs(dx) > 200) dx = 0;                  // een sprong in plaats (herstart, teleport): geen loop
@@ -32984,7 +32989,7 @@ function camUpdate(dt, px){
     else camRichtT = 0;
     camDoel = camRicht * (camTelefoon() ? CAM.telVoor : c.voor != null ? c.voor : CAM.voor) * (W / camZoomNu) * (v > 420 ? CAM.sprint : 1);
   } else camRichtT = 0;                            // stilstaan: de camera blijft waar hij is
-  const doel = camDoel * (vecht ? CAM.vechtVoor : 1);
+  const doel = inArena ? 0 : camDoel * (vecht ? CAM.vechtVoor : 1);
   camVoor += (doel - camVoor) * Math.min(1, dt * CAM.glij);
 }
 
@@ -36659,7 +36664,8 @@ function mkNaarLevel(opt){
   // alleen wat je zelf tekent, plus het eind met de fakkels op je eindplateau. De speer bij de start blijft.
   // hpBalk: Amir en elke vijand een health-balk met 3 levens, behalve de slangen (zand, zwart, knock en fosfor): die
   // staan niet in de lijst en zijn dus in een klap dood (zie hpBalkAan en "health-balk").
-  const lvl = { name:'Level Maker test', view:0.8, zicht:true, hpBalk:MK_HP_SOORTEN.slice(), rocks, props, spawns, kaleKlif:true, voorgrond:false,
+  // camera: de meekijkende camera, de standaard voor een nieuw level (zie "camera")
+  const lvl = { name:'Level Maker test', view:0.8, zicht:true, camera:true, hpBalk:MK_HP_SOORTEN.slice(), rocks, props, spawns, kaleKlif:true, voorgrond:false,
                 overloop: true,             // savanne steekt met zijn bovenste laag over elke hogere wand ernaast (zie "overloopje")
                 speerInHand: true,          // nieuwe (Maker-)levels: Amir begint met de speer in de hand
                 rugMax: 1,                  // en met 1 reserve-speer op de rug (zie restart en "reserve-speren op de rug")
