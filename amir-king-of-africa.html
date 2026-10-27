@@ -21899,7 +21899,7 @@ function restart(){
   if (level && level.thickets) for (const d of level.thickets) addThicket(d.x, d.n, d.seed).src = d;
   if (level && level.tips) for (const t of level.tips) t.used = false;   // uitleg opnieuw laten zien
   resetHppotions();                                 // flesjes weer op hun plek, handen weer leeg
-  tutReset(); venom.length = 0; splat.length = 0; splashes.length = 0; stopWater(); stopHyena(); stopBan(); stopWind();
+  tutReset(); venom.length = 0; splat.length = 0; splashes.length = 0; stopWater(); stopHyena(); stopBan(); stopKrb(); stopWind();
   greenSince = 0; blackAfter = 3 + Math.floor(Math.random() * 3); forceBlack = false; setKindLabel();
   if (level && level.spawns) for (const sp of level.spawns){ sp.used = false; sp.armed = false; }
   poortReset();                                     // de poorten weer dicht, hun vijanden weer binnen
@@ -25692,6 +25692,7 @@ function krbLaad(){
   laadNodig('krb');
   if (krbGeladen) return;
   krbGeladen = true;
+  krbSchotSnd = banStemmen(KRB_KLANK.schot.src, 3);   // het schot (sounds/crossbowfired.mp3), drie stemmen voor een paar schutters
   for (const k in KRB.n)
     krbBank[k] = Array.from({ length: KRB.n[k] }, (_, i) =>
       loadQuiet([KRB_ROOT + k + '/' + k + '_' + pad2(i) + '.png']));
@@ -25992,7 +25993,8 @@ function krbPijlTeken(x, y, hoek, len, alpha){
 // Gemaakt met de Web Audio API, zoals de voetstappen van de bandiet (banVoetstap): geen bestand nodig, en elke
 // keer iets anders verstemd. Zachter naarmate het verder van Amir gebeurt (tot `ver` schermbreedtes, nooit
 // zachter dan `min`).
-//   schot:   de pees die losslaat (een korte, zakkende toon met een klap) en de bout die wegzoeft;
+//   schot:   een opname (sounds/crossbowfired.mp3): de pees die losslaat en de bout die wegzoeft, zachter naarmate
+//            hij verder van Amir staat. Eigen stemmen via banStemmen, lui geladen in krbLaad;
 //   slot:    een fijn metalen tikje als de punt blinkt: zo hoor je het schot aankomen, ook buiten beeld;
 //   inslag:  de doffe tok van een bout die in de grond of een wand slaat;
 //   herlaad: op de frames van herladen het geritsel van de bout achter zijn nek (ritsel), de pees die in de
@@ -26001,7 +26003,7 @@ function krbPijlTeken(x, y, hoek, len, alpha){
 // De doodskreet is die van de bandiet (banSterf in hitKruisboog).
 const KRB_KLANK = {
   ver: 1.2, min: 0.25,
-  schot:   { vol: 0.5,  hz: 230, zak: 0.4, duur: 0.16, zoef: 0.22 },
+  schot:   { vol: 0.8, src: 'sounds/crossbowfired.mp3' },
   slot:    { vol: 0.16, hz: 2700, duur: 0.14 },
   inslag:  { vol: 0.45, hz: 150, duur: 0.09 },
   ritsel:  { vol: 0.16, duur: 0.14 },
@@ -26011,7 +26013,8 @@ const KRB_KLANK = {
   stap:    [2, 9]
 };
 function krbStapKlank(f){ return KRB_KLANK.stap.indexOf(f) >= 0 ? 'stap' : null; }
-let krbRuis = null;
+let krbRuis = null, krbSchotSnd = null;
+function stopKrb(){ if (krbSchotSnd) for (const a of krbSchotSnd.pool) a.pause(); }
 // een toon die van f0 naar f1 glijdt en uitsterft
 function krbToon(ac, t, type, f0, f1, vol, duur){
   const o = ac.createOscillator(), g = ac.createGain();
@@ -26038,17 +26041,12 @@ function krbStoot(ac, t, soort, f0, f1, vol, duur, q, aan){
 function krbKlank(soort, wx){
   if (!wantSound) return;
   if (soort === 'stap'){ banVoetstap(wx); return; }
+  const P = KRB_KLANK, af = Math.max(P.min, 1 - Math.abs(wx - playerX()) / (P.ver * W));
+  if (soort === 'schot'){ if (krbSchotSnd) banStemSpeel(krbSchotSnd, P.schot.vol * af); return; }
   const ac = acLoopt();
   if (!ac) return;
-  const P = KRB_KLANK, t = ac.currentTime + 0.005, r = 0.92 + Math.random() * 0.16;
-  const af = Math.max(P.min, 1 - Math.abs(wx - playerX()) / (P.ver * W));
-  if (soort === 'schot'){
-    const S = P.schot, v = S.vol * af;
-    krbToon(ac, t, 'triangle', S.hz * r, S.hz * r * S.zak, v, S.duur);              // de pees
-    krbToon(ac, t, 'sine', S.hz * r * 2.7, S.hz * r * 1.1, v * 0.35, S.duur * 0.6);
-    krbStoot(ac, t, 'bandpass', 2200, 900, v * 0.9, 0.05, 1.2);                     // de klap van de beugel
-    krbStoot(ac, t + 0.02, 'bandpass', 3200 * r, 700, v * S.zoef, 0.28, 2, 0.05);    // de bout die wegzoeft
-  } else if (soort === 'slot'){
+  const t = ac.currentTime + 0.005, r = 0.92 + Math.random() * 0.16;
+  if (soort === 'slot'){
     const S = P.slot, v = S.vol * af;
     krbToon(ac, t, 'sine', S.hz * r, S.hz * r * 0.98, v, S.duur);
     krbToon(ac, t, 'sine', S.hz * r * 1.47, S.hz * r * 1.45, v * 0.5, S.duur * 0.7);
