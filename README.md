@@ -645,7 +645,7 @@ de hand. De oude dood, waarbij hij achterover viel en zijn eigen speer uit zijn 
 ## De kruisboogbandiet
 
 Een rover met een kruisboog, laag en gehaast, in de blauw en rood van de bandiet en de kooiman, met een ijzeren
-schouderstuk. Hij loopt laag en vlot, al mikkend, naar je toe en blijft staan zodra hij je ziet. Hij begint
+schouderstuk en een zwarte band van oorlogsverf over zijn ogen. Hij loopt laag en vlot, al mikkend, naar je toe en blijft staan zodra hij je ziet. Hij begint
 ongeladen: eerst haalt hij een bout van achter zijn nek en legt die op zijn kruisboog. Dat **herladen** is je kans:
 gooi je speer of ren erop af, want van dichtbij heeft hij geen verweer. Daarna volgt hij je met zijn kruisboog,
 van geknield steil omlaag tot schuin omhoog. Zit hij erop, dan **blinkt de punt** even, en dan komt de bout. Staat
