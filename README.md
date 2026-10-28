@@ -645,7 +645,7 @@ de hand. De oude dood, waarbij hij achterover viel en zijn eigen speer uit zijn 
 ## De kruisboogbandiet
 
 Een rover met een kruisboog, laag en gehaast, in de blauw en rood van de bandiet en de kooiman, met een ijzeren
-schouderstuk. Hij loopt laag en vlot, al mikkend, naar je toe en blijft staan zodra hij je ziet. Hij begint
+schouderstuk en een zwarte band van oorlogsverf over zijn ogen. Hij loopt laag en vlot, al mikkend, naar je toe en blijft staan zodra hij je ziet. Hij begint
 ongeladen: eerst haalt hij een bout van achter zijn nek en legt die op zijn kruisboog. Dat **herladen** is je kans:
 gooi je speer of ren erop af, want van dichtbij heeft hij geen verweer. Daarna volgt hij je met zijn kruisboog,
 van geknield steil omlaag tot schuin omhoog. Zit hij erop, dan **blinkt de punt** even, en dan komt de bout. Staat
@@ -1096,11 +1096,12 @@ staat, dan komt die ook beneden.
 Een level kan een camera hebben die met je meekijkt (het veld `camera`). Loop je een kant op, dan schuift het beeld
 die kant op, zodat Amir uit het midden staat en je meer ziet aankomen. Draai je je even om, bijvoorbeeld voor een
 steek naar achteren, dan blijft de camera staan; pas als je echt de andere kant op loopt, draait hij zacht mee.
-Op een laptop zoomt hij onderweg uit (0,7) en komt er een vijand dichtbij, dan zoomt hij zacht in (0,8), zodat je
+Op een laptop zoomt hij onderweg iets uit (0,75) en komt er een vijand dichtbij, dan zoomt hij zacht in (0,8), zodat je
 de aanloop van de vijand goed ziet; na het gevecht zoomt hij weer uit. In een gevecht kijkt hij minder ver vooruit,
 zodat je ook ziet wat er achter je staat. Op een telefoon blijft de zoom 0,8 en kijkt hij alleen een stukje vooruit,
-zodat Amir niet onder je duimknoppen verdwijnt. **Test 54: Meekijken** laat het zien; in de sandbox zet je het aan
-onder Beeld en geluid, met **Meekijken**.
+zodat Amir niet onder je duimknoppen verdwijnt. In een arena staat de camera vast in het midden, zoals altijd: daar
+komen vijanden van twee kanten. **Test 54: Meekijken** laat het zien, en het zit ook in Test 51 tot en met 55, in elk
+nieuw level en in de Level Maker; in de sandbox zet je het aan onder Beeld en geluid, met **Meekijken**.
 
 ## De arena-modus van de sandbox
 

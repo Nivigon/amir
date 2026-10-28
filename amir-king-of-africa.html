@@ -1672,7 +1672,7 @@
       <div class="row">
         <label>Camera</label>
         <button id="sbcam">Meekijken uit</button>
-        <span class="hint">vooruitkijken in de looprichting, en op een laptop 0,7 onderweg en 0,8 in een gevecht (het veld camera in een level); gaat boven Uitzoomen</span>
+        <span class="hint">vooruitkijken in de looprichting, en op een laptop 0,75 onderweg en 0,8 in een gevecht (het veld camera in een level); gaat boven Uitzoomen</span>
       </div>
     </div>
     <div class="row">
@@ -4345,7 +4345,7 @@ const TEST_50 = {
 const TEST_51 = {
   name: 'Test 51: De poorten',
   lagen: 'tafelbergen',
-  view: 0.8, hpBalk: true, zicht: true,
+  view: 0.8, hpBalk: true, zicht: true, camera: true,
   speerInHand: true,
   poorten: [ {id: 'p1', x: -1900,  k: 'boog_laag_1', s: 1.25, look: 'steen',   hek: true, wand: true, regie: true},
              {id: 'p2', x: -4600,  k: 'boog_steen',          look: 'savanne', hek: true, wand: true, regie: true},
@@ -4374,7 +4374,7 @@ const TEST_51 = {
 const TEST_52 = {
   name: 'Test 52: De kruisboog',
   lagen: 'tafelbergen',
-  view: 0.8, hpBalk: true, zicht: true,
+  view: 0.8, hpBalk: true, zicht: true, camera: true,
   speerInHand: true,
   spawns: [ {x: -1500, k: 'kruisboogbandiet'},
             {x: -3550, k: 'kruisboogbandiet'},
@@ -4404,6 +4404,7 @@ const TEST_53 = {
   name: 'Test 53: Uit de hoogte',
   lagen: 'tafelbergen',
   view: 0.75, hpBalk: true, zicht: true,
+  camera: { vecht: 0.75, telefoon: 0.75 },   // vast op 0,75 (ook op een telefoon): de schutter boven moet in beeld staan op boogworpafstand
   speerInHand: true,
   rugMax: 3,
   zwevers: [ {r: -2300, l: -3700, h: 480, onder: 290} ],
@@ -4419,7 +4420,7 @@ const TEST_53 = {
           { x: -1500, t: 'Blinkt de punt, stap dan weg van waar je staat. Onder het blok ziet hij je niet' } ]
 };
 // Test 54: meekijken. Een open savanne om de meekijkende camera te voelen (camera: true, zie "camera"): de camera
-// schuift in de looprichting vooruit, en op een laptop zoomt hij onderweg uit naar 0,7 en in een gevecht zacht in naar
+// schuift in de looprichting vooruit, en op een laptop zoomt hij onderweg iets uit naar 0,75 en in een gevecht zacht in naar
 // 0,8. Op een telefoon blijft de zoom 0,8 en kijkt hij alleen vooruit. De opbouw is rust en gevecht om en om, van één
 // bekende vijand naar een combinatie, met lege stukken ertussen zodat je het uitzoomen ziet. Twee keien als schuilplek.
 const TEST_54 = {
@@ -4452,7 +4453,7 @@ const TEST_54 = {
 const TEST_55 = {
   name: 'Test 55: Schutter en schild',
   lagen: 'tafelbergen',
-  view: 0.8, hpBalk: true, zicht: true,
+  view: 0.8, hpBalk: true, zicht: true, camera: true,
   speerInHand: true,
   duoArena: { c: -3000, golven: 8, pauze: 2.5, eerste: 1.5, niveau: 'makkelijk' },
   spawns: [],
@@ -21900,7 +21901,7 @@ function restart(){
   if (level && level.thickets) for (const d of level.thickets) addThicket(d.x, d.n, d.seed).src = d;
   if (level && level.tips) for (const t of level.tips) t.used = false;   // uitleg opnieuw laten zien
   resetHppotions();                                 // flesjes weer op hun plek, handen weer leeg
-  tutReset(); venom.length = 0; splat.length = 0; splashes.length = 0; stopWater(); stopHyena(); stopBan(); stopWind();
+  tutReset(); venom.length = 0; splat.length = 0; splashes.length = 0; stopWater(); stopHyena(); stopBan(); stopKrb(); stopWind();
   greenSince = 0; blackAfter = 3 + Math.floor(Math.random() * 3); forceBlack = false; setKindLabel();
   if (level && level.spawns) for (const sp of level.spawns){ sp.used = false; sp.armed = false; }
   poortReset();                                     // de poorten weer dicht, hun vijanden weer binnen
@@ -25693,6 +25694,7 @@ function krbLaad(){
   laadNodig('krb');
   if (krbGeladen) return;
   krbGeladen = true;
+  krbSchotSnd = banStemmen(KRB_KLANK.schot.src, 3);   // het schot (sounds/crossbowfired.mp3), drie stemmen voor een paar schutters
   for (const k in KRB.n)
     krbBank[k] = Array.from({ length: KRB.n[k] }, (_, i) =>
       loadQuiet([KRB_ROOT + k + '/' + k + '_' + pad2(i) + '.png']));
@@ -25993,7 +25995,8 @@ function krbPijlTeken(x, y, hoek, len, alpha){
 // Gemaakt met de Web Audio API, zoals de voetstappen van de bandiet (banVoetstap): geen bestand nodig, en elke
 // keer iets anders verstemd. Zachter naarmate het verder van Amir gebeurt (tot `ver` schermbreedtes, nooit
 // zachter dan `min`).
-//   schot:   de pees die losslaat (een korte, zakkende toon met een klap) en de bout die wegzoeft;
+//   schot:   een opname (sounds/crossbowfired.mp3): de pees die losslaat en de bout die wegzoeft, zachter naarmate
+//            hij verder van Amir staat. Eigen stemmen via banStemmen, lui geladen in krbLaad;
 //   slot:    een fijn metalen tikje als de punt blinkt: zo hoor je het schot aankomen, ook buiten beeld;
 //   inslag:  de doffe tok van een bout die in de grond of een wand slaat;
 //   herlaad: op de frames van herladen het geritsel van de bout achter zijn nek (ritsel), de pees die in de
@@ -26002,7 +26005,7 @@ function krbPijlTeken(x, y, hoek, len, alpha){
 // De doodskreet is die van de bandiet (banSterf in hitKruisboog).
 const KRB_KLANK = {
   ver: 1.2, min: 0.25,
-  schot:   { vol: 0.5,  hz: 230, zak: 0.4, duur: 0.16, zoef: 0.22 },
+  schot:   { vol: 0.8, src: 'sounds/crossbowfired.mp3' },
   slot:    { vol: 0.16, hz: 2700, duur: 0.14 },
   inslag:  { vol: 0.45, hz: 150, duur: 0.09 },
   ritsel:  { vol: 0.16, duur: 0.14 },
@@ -26012,7 +26015,8 @@ const KRB_KLANK = {
   stap:    [2, 9]
 };
 function krbStapKlank(f){ return KRB_KLANK.stap.indexOf(f) >= 0 ? 'stap' : null; }
-let krbRuis = null;
+let krbRuis = null, krbSchotSnd = null;
+function stopKrb(){ if (krbSchotSnd) for (const a of krbSchotSnd.pool) a.pause(); }
 // een toon die van f0 naar f1 glijdt en uitsterft
 function krbToon(ac, t, type, f0, f1, vol, duur){
   const o = ac.createOscillator(), g = ac.createGain();
@@ -26039,17 +26043,12 @@ function krbStoot(ac, t, soort, f0, f1, vol, duur, q, aan){
 function krbKlank(soort, wx){
   if (!wantSound) return;
   if (soort === 'stap'){ banVoetstap(wx); return; }
+  const P = KRB_KLANK, af = Math.max(P.min, 1 - Math.abs(wx - playerX()) / (P.ver * W));
+  if (soort === 'schot'){ if (krbSchotSnd) banStemSpeel(krbSchotSnd, P.schot.vol * af); return; }
   const ac = acLoopt();
   if (!ac) return;
-  const P = KRB_KLANK, t = ac.currentTime + 0.005, r = 0.92 + Math.random() * 0.16;
-  const af = Math.max(P.min, 1 - Math.abs(wx - playerX()) / (P.ver * W));
-  if (soort === 'schot'){
-    const S = P.schot, v = S.vol * af;
-    krbToon(ac, t, 'triangle', S.hz * r, S.hz * r * S.zak, v, S.duur);              // de pees
-    krbToon(ac, t, 'sine', S.hz * r * 2.7, S.hz * r * 1.1, v * 0.35, S.duur * 0.6);
-    krbStoot(ac, t, 'bandpass', 2200, 900, v * 0.9, 0.05, 1.2);                     // de klap van de beugel
-    krbStoot(ac, t + 0.02, 'bandpass', 3200 * r, 700, v * S.zoef, 0.28, 2, 0.05);    // de bout die wegzoeft
-  } else if (soort === 'slot'){
+  const t = ac.currentTime + 0.005, r = 0.92 + Math.random() * 0.16;
+  if (soort === 'slot'){
     const S = P.slot, v = S.vol * af;
     krbToon(ac, t, 'sine', S.hz * r, S.hz * r * 0.98, v, S.duur);
     krbToon(ac, t, 'sine', S.hz * r * 1.47, S.hz * r * 1.45, v * 0.5, S.duur * 0.7);
@@ -32938,22 +32937,22 @@ function viewBasis(){
 // camera staan, en pas na CAM.wacht seconden de andere kant op lopen draait hij mee, zacht (CAM.glij). In een
 // gevecht schuift hij grotendeels terug (CAM.vechtVoor), zodat een vijand achter je in beeld blijft.
 // Gevechtszoom (alleen laptop): verkennen op CAM.verken, en komt er een levende vijand dichtbij, dan zacht in naar
-// CAM.vecht; na de laatste nog CAM.nagloei seconden. Een telefoon (aanraakknoppen of een laag scherm) houdt een
+// CAM.vecht; na de laatste nog CAM.nagloei seconden. Bewust rustig afgesteld: in een gevechtsgame hoort de camera saai te zijn. Een telefoon (aanraakknoppen of een laag scherm) houdt een
 // vaste CAM.telefoon: het scherm is daar al klein, verder uitzoomen maakt de aanloop van een vijand onleesbaar.
 // De camera rijdt op camEase (net als de arena), dus Amir zelf (world) beweegt er niet door.
 const CAM = {
-  voor: 0.17,          // hoe ver vooruit, als deel van de zichtbare breedte
-  telVoor: 0.10,       // op een telefoon minder: anders schuift Amir onder de knoppen rechts
-  sprint: 1.25,        // bij rennen iets verder
-  wacht: 0.25,         // zo lang de andere kant op lopen voor de camera meedraait (s)
-  glij: 1.8,           // hoe snel hij naar zijn plek schuift (per s, zo'n halve tot hele seconde)
-  vechtVoor: 0.35,     // in een gevecht nog zoveel van het vooruitkijken
-  verken: 0.7, vecht: 0.8,   // laptop: de zoom onderweg en in een gevecht
+  voor: 0.08,          // hoe ver vooruit, als deel van de zichtbare breedte (gangbaar in gevechtsgames: 5 tot 10%)
+  telVoor: 0.06,       // op een telefoon minder: anders schuift Amir onder de knoppen rechts
+  sprint: 1.15,        // bij rennen iets verder
+  wacht: 0.4,          // zo lang de andere kant op lopen voor de camera meedraait (s)
+  glij: 0.9,           // hoe snel hij naar zijn plek schuift (per s): rustig, hij loopt achter Amir aan in plaats van voorbij hem te zwaaien
+  vechtVoor: 0.5,      // in een gevecht nog zoveel van het vooruitkijken (half, zodat zoom en schuiven niet samen een grote beweging maken)
+  verken: 0.75, vecht: 0.8,  // laptop: de zoom onderweg en in een gevecht (een klein verschil, dat nauwelijks opvalt)
   telefoon: 0.8,       // telefoon: vaste zoom
-  zoomGlij: 2.2,       // hoe snel de zoom wisselt (per s)
+  zoomGlij: 1.6,       // hoe snel de zoom wisselt (per s, zo'n anderhalve seconde)
   bereik: 950,         // een levende vijand zo dichtbij (wereld-px) is een gevecht
   hoogte: 420,         // en niet meer dan zoveel hoger of lager
-  nagloei: 1.5,        // na de laatste vijand nog zo lang in de gevechtszoom (s)
+  nagloei: 2.5,        // na de laatste vijand nog zo lang in de gevechtszoom (s), zodat het beeld niet heen en weer gaat
   telH: 520            // een scherm lager dan dit (CSS-px) telt als telefoon, net als aanraakknoppen
 };
 let camVoor = 0, camDoel = 0, camRicht = -1, camRichtT = 0, camVorig = null, camZoomNu = 0, camVechtT = 0, camVast = false, sbCam = false;
@@ -32965,7 +32964,8 @@ function camCfg(){
 function camTelefoon(){ return touchOn() || H < CAM.telH; }
 function camVoorNu(){ return (camSwap === null && camCfg()) ? camVoor : 0; }   // waar de camera staat ten opzichte van Amir, buiten het tekenen
 function camReset(){ camVoor = camDoel = 0; camRicht = -1; camRichtT = 0; camVorig = null; camZoomNu = 0; camVechtT = 0; }
-function camLeeft(s){ return s && !s.dead && s.state !== 'dying' && s.state !== 'gone' && s.state !== 'dead' && !(s.hp <= 0); }
+const CAM_DOOD = new Set(['dying', 'gone', 'dead', 'dood', 'weg']);   // de namen van dood en weg over de soorten heen (de bandiet, de kruisboog en de meelman: 'dood')
+function camLeeft(s){ return s && !s.dead && !s.exe && !CAM_DOOD.has(s.state) && !(s.hp <= 0); }   // exe: de schildbandiet in zijn executie
 function camInGevecht(px){
   for (const lijst of [snakes, scorps, panthers, hyenas, bandieten, schildmannen, kooimannen, meelmannen, kruisbogen, fosforSlangen])
     for (const s of lijst) if (camLeeft(s) && Math.abs(s.x - px) < CAM.bereik && Math.abs((s.base || 0) - ph) < CAM.hoogte) return true;
@@ -32974,9 +32974,12 @@ function camInGevecht(px){
 function camUpdate(dt, px){
   const c = camCfg();
   if (!c){ if (camZoomNu || camVorig !== null) camReset(); return; }
-  camVechtT = camInGevecht(px) ? CAM.nagloei : Math.max(0, camVechtT - dt);
+  // in een arena (de panter, een vaste arena zoals Test 55) neemt de arena-camera het over: de zoom glijdt naar de
+  // view van het level en het vooruitkijken naar nul. Kom je er weer uit, dan glijdt alles terug (geen sprong).
+  const inArena = !!arena || arenaVast();
+  camVechtT = !inArena && camInGevecht(px) ? CAM.nagloei : Math.max(0, camVechtT - dt);
   const vecht = camVechtT > 0;
-  const zDoel = camTelefoon() ? (c.telefoon || CAM.telefoon) : vecht ? (c.vecht || CAM.vecht) : (c.verken || CAM.verken);
+  const zDoel = inArena ? ((sandbox ? sbView : level && level.view) || 1) : camTelefoon() ? (c.telefoon || CAM.telefoon) : vecht ? (c.vecht || CAM.vecht) : (c.verken || CAM.verken);
   camZoomNu = camZoomNu ? camZoomNu + (zDoel - camZoomNu) * Math.min(1, dt * CAM.zoomGlij) : zDoel;
   let dx = camVorig === null ? 0 : px - camVorig; camVorig = px;
   if (Math.abs(dx) > 200) dx = 0;                  // een sprong in plaats (herstart, teleport): geen loop
@@ -32987,7 +32990,7 @@ function camUpdate(dt, px){
     else camRichtT = 0;
     camDoel = camRicht * (camTelefoon() ? CAM.telVoor : c.voor != null ? c.voor : CAM.voor) * (W / camZoomNu) * (v > 420 ? CAM.sprint : 1);
   } else camRichtT = 0;                            // stilstaan: de camera blijft waar hij is
-  const doel = camDoel * (vecht ? CAM.vechtVoor : 1);
+  const doel = inArena ? 0 : camDoel * (vecht ? CAM.vechtVoor : 1);
   camVoor += (doel - camVoor) * Math.min(1, dt * CAM.glij);
 }
 
@@ -36671,7 +36674,8 @@ function mkNaarLevel(opt){
   // alleen wat je zelf tekent, plus het eind met de fakkels op je eindplateau. De speer bij de start blijft.
   // hpBalk: Amir en elke vijand een health-balk met 3 levens, behalve de slangen (zand, zwart, knock en fosfor): die
   // staan niet in de lijst en zijn dus in een klap dood (zie hpBalkAan en "health-balk").
-  const lvl = { name:'Level Maker test', view:0.8, zicht:true, hpBalk:MK_HP_SOORTEN.slice(), rocks, props, spawns, kaleKlif:true, voorgrond:false,
+  // camera: de meekijkende camera, de standaard voor een nieuw level (zie "camera")
+  const lvl = { name:'Level Maker test', view:0.8, zicht:true, camera:true, hpBalk:MK_HP_SOORTEN.slice(), rocks, props, spawns, kaleKlif:true, voorgrond:false,
                 overloop: true,             // savanne steekt met zijn bovenste laag over elke hogere wand ernaast (zie "overloopje")
                 speerInHand: true,          // nieuwe (Maker-)levels: Amir begint met de speer in de hand
                 rugMax: 1,                  // en met 1 reserve-speer op de rug (zie restart en "reserve-speren op de rug")
