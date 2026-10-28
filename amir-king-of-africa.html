@@ -1930,6 +1930,7 @@
   <div class="field"><label for="size">Formaat</label><input id="size" type="range" min="15" max="90" step="5" value="25"><span class="read" id="sizev">25</span></div>
   <div class="field"><label>Frame</label><span class="read" id="frv">idle</span></div>
   <div class="field"><label>Raak</label><span class="read" id="hitsv">0</span></div>
+  <div class="field" title="beelden per seconde, het traagste beeld, de tijd in de lus per beeld, de resolutie en het aantal haperingen (een beeld boven 50 ms) sinds de balk open is"><label>Beeldtijd</label><span class="read" id="beeldtijd" style="min-width:44ch;font-variant-numeric:tabular-nums">-</span></div>
   <div class="field" id="diff">
     <button data-d="medium" class="on">Medium</button>
     <button data-d="hard">Hard</button>
@@ -16500,6 +16501,29 @@ function perfTick(now){
   DPR_MAX = Math.max(vloer, Math.round((DPR - 0.5) * 2) / 2);
   console.log('traag (' + gem.toFixed(1) + ' ms per frame): resolutie omlaag naar ' + DPR_MAX + 'x');
   resize();
+}
+
+// De beeldmeter in de testbalk (B), om op een echte machine te zien waar de tijd zit. Per halve seconde:
+// beelden per seconde, het traagste beeld, de tijd in de lus per beeld (gemiddeld en hoogst), de
+// resolutie (canvaspixels per schermpixel) en hoeveel haperingen (een beeld boven METER.haper ms) er
+// waren sinds de balk open is. Zakken de beelden terwijl de lus laag blijft, dan wacht het spel op de
+// grafische kaart: probeer dan L (de lichtlaag uit) en Beeld: soepel (pauze, Instellingen). Is de lus zelf hoog, dan
+// rekent of wacht het spel binnen de lus. Zolang de balk dicht is doet de meter niets.
+const METER = { venster: 500, haper: 50 };
+let meterVan = 0, meterVorig = 0, meterN = 0, meterMax = 0, meterLus = 0, meterLusMax = 0, meterHaper = 0, meterEl = null;
+function meterTick(now, lus){
+  if (!barEl || barEl.classList.contains('hide')){ meterVorig = 0; meterHaper = 0; return; }
+  if (!meterEl) meterEl = document.getElementById('beeldtijd');
+  if (!meterVorig){ meterVorig = now; meterVan = now; meterN = 0; meterMax = 0; meterLus = 0; meterLusMax = 0; return; }
+  const d = now - meterVorig; meterVorig = now;
+  if (d > 1000) { meterVan = now; meterN = 0; meterMax = 0; meterLus = 0; meterLusMax = 0; return; }   // tabblad weg geweest
+  meterN++; meterMax = Math.max(meterMax, d); meterLus += lus; meterLusMax = Math.max(meterLusMax, lus);
+  if (running && !paused && d > METER.haper) meterHaper++;
+  if (now - meterVan < METER.venster || !meterEl) return;
+  const bps = meterN * 1000 / (now - meterVan);
+  meterEl.textContent = Math.round(bps) + '/s, traagst ' + Math.round(meterMax) + ' ms, lus ' + (meterLus / meterN).toFixed(1).replace('.', ',')
+    + ' (hoogst ' + Math.round(meterLusMax) + ') ms, ' + String(DPR).replace('.', ',') + 'x, ' + meterHaper + ' haperingen';
+  meterVan = now; meterN = 0; meterMax = 0; meterLus = 0; meterLusMax = 0;
 }
 
 // ---- het zichtbare vak: niet verder tekenen dan er in beeld komt ---------
@@ -32379,6 +32403,7 @@ function loop(now){
 }
 
 function safeLoop(now){
+  const lusVan = performance.now();
   try { loop(now); }
   catch (err){
     if (camSwap !== null){ world = camSwap; camSwap = null; }
@@ -32387,6 +32412,7 @@ function safeLoop(now){
     requestAnimationFrame(safeLoop);
   }
   try { drawTouch(); } catch (err){ meldFout(foutSleutel(err), 'Er ging iets mis bij het tekenen: ' + foutKort(err), err); }
+  meterTick(now, performance.now() - lusVan);
 }
 
 const bg = document.getElementById('bg'), soundBtn = document.getElementById('sound');
