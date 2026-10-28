@@ -393,7 +393,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **Kooi-plaat van de kooiman** → `tools/kooi_kleur.py`, daarna `gen-klein.py` en `gen-offline-manifest.py`
 - **Schildbandiet** → `tools/schildman_kleur.py`, daarna `gen-klein.py` en `gen-offline-manifest.py`. Het bandietpalet is zijn standaard: elke nieuwe export (lijf, schild, executie) zet je in de speelmap en haal je meteen door dit script, ook als er niemand om de kleuren vraagt. Het zet frames in de oude kleuren eerst in `enemies/schildbandiet/bron/` (de oude kleuren blijven bewaard), kleurt ze om en meldt FOUT als er nog een in de oude kleuren staat
 - **Goudaapje** → `tools/goudaapje_kleur.js`
-- **Kruisboogbandiet** → `tools/kruisboog_kleur.py`, daarna `gen-offline-manifest.py`. De export uit de Animeer tool (felle kleuren, schouderstuk erop) staat in `enemies/kruisboog/bron/`; het script schrijft de speelversie in het bandietpalet naar `enemies/kruisboog/<set>/`
+- **Kruisboogbandiet** → `tools/kruisboog_kleur.py`, daarna `gen-klein.py` en `gen-offline-manifest.py`. De export uit de Animeer tool (felle kleuren, schouderstuk erop) staat in `enemies/kruisboog/bron/`; het script schrijft de speelversie in het bandietpalet naar `enemies/kruisboog/<set>/`
 - **Stenen bogen** (`design/boog/`, uit de platen in `bron/`, met hun sneeuw- en savanneversie en het masker van de opening, `_gat.png`) → `tools/boog_vulling.py` (alleen de maskers: `--gat`), daarna `gen-offline-manifest.py`
 - **Rotsdecor** (`design/rotsdecor/`, losse rotsstukken uit de platen in `bron/`) → `tools/rotsdecor_knip.py`, daarna `gen-offline-manifest.py`
 - **Tribe-logo's** → `tools/tribe_logos.py`

@@ -77,6 +77,12 @@ DOELEN = [
     ('enemies/schildbandiet/executie/lagen', 60),  # de dood en de executie (executie.json): knielen, wankel, val en de
                                         # special execution, ook bijgesneden lagen (Amir rond 190 tot 265 hoog, een
                                         # lijf rond 330, een wond 123), dus dezelfde lage drempel
+    ('enemies/kruisboog', 400),         # 107 frames op een canvas van 530x505; de figuur is 307 hoog. Op een
+                                        # telefoon gemeten (Test 55) 2,0x tot 3,5x, dus op de helft nog 1,0x of meer.
+                                        # Zonder halve set was hij daar met 126 MB uitgepakt de grootste post van het
+                                        # level (meer dan de schildbandiet en Amir samen). De tekencode rekt elk frame
+                                        # naar KRB.w en KRB.h (canvaspixels), dus het halve frame komt op dezelfde maat
+                                        # en plek; bron/ blijft erbuiten
     ('enemies/kooiman', 400),           # 81 frames op een canvas van 726x648; de gebukte figuur is 301
                                         # hoog en wordt op ongeveer Amir zijn hoogte getekend
     ('enemies/meelman', 400),           # 3,3x: idle 3,26, oprichten 3,26, worp 3,29, ren 3,44, slepen 3,19 (Test 42);

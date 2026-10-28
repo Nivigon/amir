@@ -23,6 +23,7 @@ broek en het schouderstuk staan in de bron nog in de felle kleur, maar net buite
 dat bleven er rode randen om het haar en blauwe om de broek staan.
 
 Daarna:
+    python3 tools/gen-klein.py
     python3 tools/gen-offline-manifest.py
 
 Vereist Pillow en numpy.

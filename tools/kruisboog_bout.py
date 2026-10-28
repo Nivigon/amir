@@ -7,6 +7,7 @@ het lichte streepje tussen de veren blijft), legt de punt naar RECHTS en schrijf
 De schacht ligt precies op de middellijn van het plaatje: het spel tekent hem met de punt op de vliegrichting.
 
 Daarna:
+    python3 tools/gen-klein.py
     python3 tools/gen-offline-manifest.py
 
 Vereist Pillow en numpy.
