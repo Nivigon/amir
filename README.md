@@ -684,6 +684,12 @@ er spatten vonken, een bout kaatst terug naar de schutter (of in de schildman di
 schildbandiet wankelt en staat even zonder dekking: steek dan toe. Het level is verder de arena van Test 55: per golf
 een kruisboogbandiet en een schildbandiet tegelijk. In de sandbox zet je het schild aan onder Speer en spullen, **Schild**.
 
+Aan het begin van Test 56 stel je de arena in. Bij de kruisboogbandiet kies je hoeveel bouten hij per keer herladen
+opneemt: **2, daarna 1** (de standaard: de eerste keer twee, die hij vlak na elkaar afschiet, en daarna telkens een),
+**Altijd 2** of **Altijd 1**. Bij de schildbandiet kies je **Makkelijk** of **Moeilijk**. De keuze blijft staan, ook
+als je opnieuw begint; in de pauze kies je opnieuw onder **Arena instellen**. In de sandbox zit dezelfde lading onder
+Vijanden, Kruisboogbandiet, de knop **Lading**.
+
 ## De kooiman
 
 De derde menselijke tegenstander is een heel ander soort vijand: een gebukte man die een zware
