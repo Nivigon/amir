@@ -340,6 +340,7 @@ De versie in `offline-assets.json` verandert mee, en de service worker ziet daar
 | door een open deur of grot | E, als je ervoor staat | E (verschijnt als je ervoor staat) |
 | drinken | Q | het kalebasje |
 | woede (Bhubesi, meter vol) | G | de knop met de leeuw |
+| schild op (alleen met een schild) | C vasthouden | de schildknop vasthouden |
 
 ### De speerworp
 
@@ -669,6 +670,19 @@ tegelijk een kruisboogbandiet en een schildbandiet binnen, elk willekeurig van l
 schutter pas als hij helemaal in beeld staat, en zijn bouten raken ook de schildbandiet: een bout telt als een
 treffer van je speer (eerst drie keer het schild, dan is hij dood). Ga dus achter de schildman staan en laat de
 schutter het werk doen. Na acht golven is het level uit.
+
+## Het schild
+
+In **Test 56: Het schild** heeft Amir een schild van koeienhuid: houd **C** vast (op een telefoon de schildknop) en
+hij houdt het voor zijn borst. Het vangt alles wat van voren komt. Een bout van de kruisboog blijft in de huid steken,
+de speer van de schildbandiet duwt je een flink stuk achteruit, en elke andere klap ketst af. Van achteren ben je
+gewoon raak, en met het schild op loop je traag, sprint je niet en kun je niet bukken of springen. Steken en werpen
+gaan wel meteen: het schild zakt vanzelf, en houd je C vast, dan komt het daarna weer omhoog.
+
+Til je het net voor de klap op (en was het daarvoor even omlaag), dan is het een **parade**: het klinkt als staal,
+er spatten vonken, een bout kaatst terug naar de schutter (of in de schildman die ertussen staat), en de
+schildbandiet wankelt en staat even zonder dekking: steek dan toe. Het level is verder de arena van Test 55: per golf
+een kruisboogbandiet en een schildbandiet tegelijk. In de sandbox zet je het schild aan onder Speer en spullen, **Schild**.
 
 ## De kooiman
 
