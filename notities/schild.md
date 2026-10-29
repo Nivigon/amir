@@ -52,7 +52,10 @@ Gevangen kost niets en zet geen `invuln`: een tweede bout vlak na de eerste word
 - laptop: **C** vasthouden (de letter was vrij). Op een telefoon de schildknop (`TOUCH_BTNS`, id `schild`, met het
   schild zelf als icoon, `drawBtnSchild`), alleen zichtbaar als Amir een schild heeft; vasthouden zet `keys['c']`.
 - sandbox: Speer en spullen, **Schild** (`sbschildamir`, `sbAmirSchild`), ook in de wizard van de arena-modus.
-- level: **Test 56: Het schild**, de duo-arena van Test 55 met `schild: true`.
+- level: **Test 56: Het schild**, de duo-arena van Test 55 met `schild: true`. Aan het begin een instelscherm (`duoKeuze`,
+  `duoArena.keuze`): de lading van de kruisboogbandiet (`KRB_SALVO`: 2 en daarna 1, altijd 2, altijd 1; met een tweede
+  bout schiet hij na `KRB.salvoNa` en `KRB.salvoSlot`, zo'n 0,47 s na het eerste schot) en makkelijk of moeilijk voor de
+  schildbandiet. In de pauze **Arena instellen** (`pzduo`).
 
 ## Gemeten
 
