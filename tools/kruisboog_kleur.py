@@ -22,6 +22,10 @@ Elk vlak neemt ook zijn randje mee (RAND): de anti-aliaspixels langs het haar, d
 broek en het schouderstuk staan in de bron nog in de felle kleur, maar net buiten de drempels. Zonder
 dat bleven er rode randen om het haar en blauwe om de broek staan.
 
+De schedelhoorn (de hyenaschedel waarop hij blaast, en die aan zijn heup hangt) staat als losse laag in
+enemies/kruisboog/bron/hoorn/<set>/, al in botkleur (bron/hoorn/item/schedelhoorn.png is het item zelf). Die laag gaat
+er na het omkleuren overheen, met een gat waar zijn hand voor de hoorn hoort.
+
 Daarna:
     python3 tools/gen-offline-manifest.py
 
@@ -38,6 +42,8 @@ from slang_kleur import groei, vlakken
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BRON = os.path.join(ROOT, 'enemies/kruisboog/bron')
+HOORN = os.path.join(BRON, 'hoorn')   # de schedelhoorn als losse laag, al in botkleur
+ROND = ('rol_hoorn',)   # sets waarin het hoofd helemaal rond gaat (de rol): de verf zoekt dan alle hoeken af
 UIT  = os.path.join(ROOT, 'enemies/kruisboog')
 GROND = 442          # de grondlijn op het canvas (metadata.json): de sandalen staan vlak erboven
 OORLOGSVERF = True   # tijdelijk: een zwarte band over de ogen (variant 1 van de zes voorstellen)
@@ -112,7 +118,7 @@ class Hoofd:
         c = np.fft.irfft2(np.conj(np.fft.rfft2(a, sh)) * np.fft.rfft2(b, sh), s=sh)
         return c[:b.shape[0], :b.shape[1]]
 
-    def stand(self, arr):
+    def stand(self, arr, rond=False):
         op, haar, huid = bron_maskers(arr)
         ys, xs = np.nonzero(haar)
         x0, y0 = max(int(np.percentile(xs, 2)) - 70, 0), max(int(np.percentile(ys, 2)) - 70, 0)
@@ -125,7 +131,8 @@ class Hoofd:
             sc = self.corr(h, doel[0]) + 0.6 * self.corr(s, doel[1]) - self.corr(h + s, doel[2])
             i = np.unravel_index(np.argmax(sc), sc.shape)
             return sc[i], hoek, x0 + i[1] + self.R, y0 + i[0] + self.R
-        beste = max(proef(hk) for hk in range(-114, 50, 6))
+        hoeken = range(-180, 180, 6) if rond else range(-114, 50, 6)   # rond: in de rol staat het hoofd ook op zijn kop
+        beste = max(proef(hk) for hk in hoeken)
         beste = max([beste] + [proef(beste[1] + d) for d in (-4, -2, 2, 4)])
         return beste[1:]
 
@@ -150,7 +157,7 @@ def verf(rgb, huid, stand):
     return rgb * (1 - w) + np.array(VERF_KLEUR, float)[None, None, :] * rel[..., None] * w
 
 
-def maak(beeld, stand=None):
+def maak(beeld, stand=None, rond=False):
     arr = np.array(beeld.convert('RGBA')).astype(float)
     rgb = arr[..., :3]
     h, s, v = naar_hsv(rgb)
@@ -163,6 +170,12 @@ def maak(beeld, stand=None):
     broek    = op & (h >= 185) & (h < 228) & (s > 0.4)
     schouder = op & (h >= 80) & (h < 160) & (s > 0.35)
     sandaal  = op & (s < 0.18) & (v > 0.65) & (rij > GROND - 75)
+    if rond:   # in de rol gaan zijn voeten de lucht in: dan de witte vlakken van sandaalformaat, waar ze ook zijn
+        wit = op & (s < 0.18) & (v > 0.65)
+        nr, n = vlakken(wit)
+        if n:
+            maat = np.bincount(nr.ravel(), minlength=n + 1); maat[0] = 0
+            sandaal |= wit & (maat[nr] >= 120)
 
     # de randjes: dezelfde tint, maar donkerder of minder verzadigd, en vlak naast het vlak
     haar     |= op & groei(haar, RAND) & ((h < 8) | (h > 340)) & (s > 0.45) & (v > 0.18)
@@ -216,12 +229,21 @@ def maak(beeld, stand=None):
 def main():
     n = 0
     hoofd = Hoofd(Image.open(os.path.join(BRON, VERF_REF))) if OORLOGSVERF else None
+    alleen = sys.argv[1:]   # optioneel: alleen deze sets, bijvoorbeeld  python3 tools/kruisboog_kleur.py rol_hoorn
     for f in sorted(glob.glob(os.path.join(BRON, '*', '*.png'))):
+        if alleen and os.path.relpath(f, BRON).split(os.sep)[0] not in alleen: continue
         doel = os.path.join(UIT, os.path.relpath(f, BRON))
         os.makedirs(os.path.dirname(doel), exist_ok=True)
         beeld = Image.open(f)
-        stand = hoofd.stand(np.array(beeld.convert('RGBA')).astype(float)) if hoofd else None
-        maak(beeld, stand).save(doel, optimize=True)
+        rel = os.path.relpath(f, BRON)
+        stand = hoofd.stand(np.array(beeld.convert('RGBA')).astype(float), rel.split(os.sep)[0] in ROND) if hoofd else None
+        uit = maak(beeld, stand, rel.split(os.sep)[0] in ROND)
+        # de schedelhoorn gaat er pas na het omkleuren overheen: anders werd het gele bot een rode sjerp en de
+        # rode binding zwart haar. De laag heeft al een gat waar zijn hand ervoor hoort (uit de Animeer tool)
+        hl = os.path.join(HOORN, rel)
+        if os.path.exists(hl):
+            uit = uit.convert('RGBA'); uit.alpha_composite(Image.open(hl).convert('RGBA'))
+        uit.save(doel, optimize=True)
         n += 1
     print(n, 'frames gekleurd naar', os.path.relpath(UIT, ROOT))
 

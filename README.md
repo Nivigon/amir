@@ -671,6 +671,12 @@ schutter pas als hij helemaal in beeld staat, en zijn bouten raken ook de schild
 treffer van je speer (eerst drie keer het schild, dan is hij dood). Ga dus achter de schildman staan en laat de
 schutter het werk doen. Na acht golven is het level uit.
 
+Sommige schutters dragen een **schedelhoorn** aan hun heup, een hyenaschedel met een benen mondstuk. Gooi je je speer
+naar zo een, dan bergt hij razendsnel zijn kruisboog op zijn rug op en **rolt hij naar achteren**: je speer mist. Hij
+grijpt de hoorn en blaast, en op die stoot komen er **twee hyena's** van twee kanten het gevecht in. Daarna pakt hij
+zijn kruisboog terug en mikt meteen, want hij is al geladen. Van het opbergen tot het terugpakken is hij niet te
+raken. **Test 57: De hoorn** laat het zien; in de sandbox zet je het aan met **Hoorn** bij de kruisboogbandiet.
+
 ## Het schild
 
 In **Test 56: Het schild** heeft Amir een schild van koeienhuid: houd **C** vast (op een telefoon de schildknop) en
