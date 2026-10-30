@@ -675,7 +675,11 @@ Sommige schutters dragen een **schedelhoorn** aan hun heup, een hyenaschedel met
 naar zo een, dan bergt hij razendsnel zijn kruisboog op zijn rug op en **rolt hij naar achteren**: je speer mist. Hij
 grijpt de hoorn en blaast, en op die stoot komen er **twee hyena's** van twee kanten het gevecht in. Daarna pakt hij
 zijn kruisboog terug en mikt meteen, want hij is al geladen. Van het opbergen tot het terugpakken is hij niet te
-raken. **Test 57: De hoorn** laat het zien; in de sandbox zet je het aan met **Hoorn** bij de kruisboogbandiet.
+raken, en hij ontwijkt alleen als hij in beeld staat. **Test 57: De hoorn** laat het zien: eerst sporen van jagers,
+dan een schutter achter twee rotsblokken (een kei houdt een bout niet tegen, zo'n blok wel: ga van blok naar blok
+terwijl hij herlaadt), en ten slotte een schutter met de hoorn boven op een zwevend blok, waar alleen je speer bij
+komt. Je hebt er twee reservesperen voor op je rug. In de sandbox zet je de hoorn aan met **Hoorn** bij de
+kruisboogbandiet.
 
 ## Het schild
 
