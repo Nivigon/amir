@@ -68,6 +68,7 @@ DOELEN = [
                                         # hoog en wordt op iets boven Amir zijn hoogte getekend
     ('enemies/bandiet_elite', 400),     # de elite-garde (omgekleurd uit bandiet), zelfde maat en canvas
     ('enemies/bandiet_duin', 400),      # de Duinwacht (omgekleurd uit bandiet), zelfde maat en canvas
+    ('enemies/zweepman/lagen', 60),  # de zweepman (zweepman.json): bijgesneden lagen, de figuur ~313 hoog; halveren voor de telefoon
     ('enemies/schildbandiet/lagen', 60),  # de schildbandiet (lagen.json): de figuur is 340 hoog op een canvas van
                                         # 544x860, maar elk stuk is bijgesneden tot zijn eigen randen (het schild
                                         # 266 hoog, een lijf rond 330), dus onder de gewone drempel; even veilig te
