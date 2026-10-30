@@ -8,7 +8,8 @@ en in Test 58.
 ## Het gevecht
 
 - **Rust en sluipen**: in zijn wacht wiegt hij (`idle`, 8 fps); ziet hij je (`zichtWaak`, zoals de schildman), dan sluipt
-  hij op je af (`loop`, `ZWM.loopFps`, `ZWM.stap` idle-pixels per frame). Binnen `ZWM.houd` blijft hij staan. Keien en
+  hij op je af (`loop`, `ZWM.loopFps`, `ZWM.loopV` wereld-px/s, net als de andere vijanden en dus los van de schermhoogte;
+  eerst was het 4,5 idle-pixels per frame, 42 px/s op een laptop en 23 op een telefoon). Binnen `ZWM.houd` blijft hij staan. Keien en
   ravijnen houden hem tegen (`knockBlocked`, regel 7); hij vault niet.
 - **Twee slagen** (`ZWM_SLAG`, per slag de set, de terugweg, de frametijden, de knal en de boog van de punt); hij kiest
   willekeurig (`ZWM.hoogKans`), of vast met `s.slagVast` (de sandboxknop **Slag**). De tell zegt welke: **laag** = zijn
@@ -26,6 +27,25 @@ en in Test 58.
   het raam om te straffen. Daarna de terugweg (`terug`, `ZWM.terugFps`, tot `terugTot`) en `ZWM.cool` rust.
 - **Geraakt**: drie treffers (`ZWM.hp`, met de health-balk), een witte flits, een korte hitstop en een terugstoot. Dood: een
   witte flits en wegvagen (`ZWM.vervaag`), `banSterf` en `vijandDood`. Een flinch en een echte dood zijn er nog niet.
+
+## Het ritme
+
+Afgesteld op ongeveer 1 s van het begin van de slag tot de knal en zo'n 3,4 s van slag tot slag (eerst 1,3 s en 4,8 s):
+
+- **Laag**: tell 0,42 s, opzwaai 0,29 s, slag 0,25 s (`dur` in `ZWM_SLAG.laag`); **hoog**: 0,46, 0,36 en 0,21 s.
+- Daarna `ZWM.herstel` 0,5 s, de terugweg op `ZWM.terugFps` 18 (laag 1,2 s, hoog 0,9 s) en `ZWM.cool` 0,6 s rust.
+- Alle tijden lopen op `gameTempo` (het tempo uit de instellingen), net als bij de andere vijanden.
+
+## Zijn stem
+
+`ZWM_STEM`, `zwmZeg`, `zwmStem` (lui gemaakt in `zwmLaad`, weg in `laadVrij`). Drie geluiden in `sounds/`:
+
+- `zweeplach.mp3`: als hij in beeld komt (`s.geroepen`), en na een treffer op Amir soms (`raakLach`).
+- `zweepcomehereboy.mp3`: als hij je achterna gaat sluipen en je verder dan `komVer` keer zijn aanvalsafstand staat (`komKans`).
+- `zweepfeelmyhurt.mp3`: als zijn zweep je raakt (`raakVoel`), en soms al bij het begin van de slag (`tellVoel`).
+
+Na elke zin zwijgen alle zweepmannen samen `ZWM_STEM.rust` s. "Come here boy" en "feel my hurt" zijn geknipt uit
+een opname met beide zinnen (tot 1,46 s en vanaf 1,84 s, met een korte fade), zodat ze los te spelen zijn.
 
 ## Het touw
 
