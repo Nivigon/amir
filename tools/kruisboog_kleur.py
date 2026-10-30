@@ -45,6 +45,15 @@ BRON = os.path.join(ROOT, 'enemies/kruisboog/bron')
 HOORN = os.path.join(BRON, 'hoorn')   # de schedelhoorn als losse laag, al in botkleur
 ROND = ('rol_hoorn',)   # sets waarin het hoofd helemaal rond gaat (de rol): de verf zoekt dan alle hoeken af
 UIT  = os.path.join(ROOT, 'enemies/kruisboog')
+ANKER = 320          # het midden van zijn lijf op het canvas (metadata.json): het draaipunt van SCHAAL
+# In rol_hoorn zoomt de export uit de Animeer tool in terwijl hij uit de rol opkomt: vanaf frame 14 groeit het lijf,
+# en vanaf frame 20 is hij zo'n 1,2 keer te groot (hoofd, hemd en sandalen naast loop en mik gemeten). De schedellaag
+# staat wel op de goede maat. Per frame (van, tot, factor): tot `van` niets, dan oplopend tot `factor` bij `tot`, en
+# daarna die factor, rond het anker op de grondlijn, zodat zijn voeten blijven staan.
+SCHAAL = {'rol_hoorn': (13, 20, 1 / 1.2)}
+# frames zonder eigen schedellaag nemen die van een ander frame over: in rol_hoorn 21 tot en met 31 ontbrak de
+# schedel aan zijn heup (hij verdween na de rol en kwam bij 32 terug); hij zit daar stil, dus 32 past
+LEEN = {'rol_hoorn': {n: 32 for n in range(21, 32)}}
 GROND = 442          # de grondlijn op het canvas (metadata.json): de sandalen staan vlak erboven
 OORLOGSVERF = True   # tijdelijk: een zwarte band over de ogen (variant 1 van de zes voorstellen)
 VERF_REF = 'loop/loop_00.png'   # het frame waarin de band getekend is; de andere frames volgen het hoofd
@@ -226,6 +235,17 @@ def maak(beeld, stand=None, rond=False):
     return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
 
 
+def schaal(beeld, regel, nr):
+    van, tot, factor = regel
+    if nr <= van: return beeld
+    f = factor if nr >= tot else 1 + (factor - 1) * (nr - van) / (tot - van)
+    w, h = beeld.size
+    klein = beeld.convert('RGBA').resize((round(w * f), round(h * f)), Image.LANCZOS)
+    uit = Image.new('RGBA', (w, h))
+    uit.paste(klein, (round(ANKER - ANKER * f), round(GROND - GROND * f)))
+    return uit
+
+
 def main():
     n = 0
     hoofd = Hoofd(Image.open(os.path.join(BRON, VERF_REF))) if OORLOGSVERF else None
@@ -240,9 +260,14 @@ def main():
         uit = maak(beeld, stand, rel.split(os.sep)[0] in ROND)
         # de schedelhoorn gaat er pas na het omkleuren overheen: anders werd het gele bot een rode sjerp en de
         # rode binding zwart haar. De laag heeft al een gat waar zijn hand ervoor hoort (uit de Animeer tool)
-        hl = os.path.join(HOORN, rel)
+        set_ = rel.split(os.sep)[0]
+        nr = int(os.path.splitext(os.path.basename(f))[0].rsplit('_', 1)[1])
+        leen = LEEN.get(set_, {}).get(nr)
+        hl = os.path.join(HOORN, set_, '%s_%02d.png' % (set_, leen)) if leen is not None else os.path.join(HOORN, rel)
         if os.path.exists(hl):
             uit = uit.convert('RGBA'); uit.alpha_composite(Image.open(hl).convert('RGBA'))
+        if set_ in SCHAAL:   # na de schedel: de laag hoort bij het lijf zoals het uit de tool kwam
+            uit = schaal(uit, SCHAAL[set_], nr)
         uit.save(doel, optimize=True)
         n += 1
     print(n, 'frames gekleurd naar', os.path.relpath(UIT, ROOT))
