@@ -681,6 +681,10 @@ schutter pas als hij helemaal in beeld staat, en zijn bouten raken ook de schild
 treffer van je speer (eerst drie keer het schild, dan is hij dood). Ga dus achter de schildman staan en laat de
 schutter het werk doen. Na acht golven is het level uit.
 
+Die regel (pas schieten als hij helemaal in beeld staat) kan nu ook op een losse schutter: de hoogste schutter van
+**Stad 4** staat zo hoog op een dak dat je hem vanaf de straat nooit ziet, en die houdt zijn vuur daarom in tot je
+klimt en hem in beeld krijgt. In de sandbox zet je het aan met **Schiet in beeld** bij de kruisboogbandiet.
+
 Sommige schutters dragen een **schedelhoorn** aan hun heup, een hyenaschedel met een benen mondstuk. Gooi je je speer
 naar zo een, dan bergt hij razendsnel zijn kruisboog op zijn rug op en **rolt hij naar achteren**: je speer mist. Hij
 grijpt de hoorn en blaast, en op die stoot komen er **twee hyena's** van twee kanten het gevecht in. Daarna pakt hij
