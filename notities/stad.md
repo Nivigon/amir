@@ -36,7 +36,7 @@ hoogtes vast in sprite-eenheden.
 
 Een houten looprichel langs een gevel, 9-slice uit `galerij.png` (links, het midden zo vaak als nodig, rechts).
 `van` en `tot` zijn de index van een gevel, zodat hij altijd precies over die huizen loopt, ook als de breedte
-meeschaalt. `h` is de hoogte van het dek (standaard de eerste verdieping, 401). Het dek is een dun platform: van
+meeschaalt. `h` is de hoogte van het dek (zonder `h` de tweede verdieping, 730, `stadVerdieping(2)`; de eerste is 401). Het dek is een dun platform: van
 onderen spring je erdoorheen. De reling staat achteraan, Amir loopt ervoor.
 
 Amir springt 208 hoog. Een verdieping (329) is dus te hoog om zomaar te halen: een route naar boven gaat via de
@@ -115,6 +115,12 @@ een verdieping omhoog. De treden zijn altijd even groot (de schaal hangt aan de 
   ook `dak` hebben).
 - Een galerij kan met `meer: [links, rechts]` (in Amir) langer zijn dan zijn huizen, zodat hij voor de trap langs loopt.
 - De doek van een kraam vangt elke val op: nooit valschade.
+- Op de telefoon staat de E-knop erbij zodra je bij een trap staat (`eNodig`). Ligt er iets anders voor E (een losse speer,
+  een skelet, een wankelende schildbandiet), dan gaat dat voor de trap (`eSpeerIets`).
+- Na de fade staat de camera meteen op de nieuwe hoogte (`bavKijkNu`), en een terugstoot of renstoot loopt niet door op het balkon.
+- Een kalebas met een hoogte (`hppotions: {x, y}`) komt in de stad op de vloer van die hoogte die het dichtst bij ligt,
+  net als een vijand met `dak` (`stadDakPlek` in `resetHppotions`): de galerijen schalen mee met het scherm, een vaste x
+  viel op een telefoon naast het dek.
 
 Stad 2 tot en met 4 zijn de proefstukken; in de sandbox staat er een trap naast het hoge huis van **De stad**.
 
