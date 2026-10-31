@@ -43,14 +43,20 @@ knal al naar de grond (de `liggen`-kracht begint op de knal). Nu:
 
 - **Laag**: de boog loopt via omlaag (`boogVan` 40, `boog` -125) en trekt hard naar de grond (`kracht` 3,5, `wExp` 0,8): de
   zweep veegt over de grond en komt nooit boven zijn hand. Een zandspoor achter de punt (alleen onder `ZWM_FX.laagOnder`),
-  stofwolkjes waar het touw snel over de grond gaat, en op de knal een plof stof en een platte ring bij de grond.
+  stofwolkjes waar het touw snel over de grond gaat, en op de knal een plof stof.
 - **Hoog**: `strak` in `ZWM_SLAG.hoog`: vanaf `van` frames voor de knal tot `na` s erna trekt de punt veel harder
   (`kracht` 7, `wExp` 0,6, `boog` 105) en blijft `prog` onder 1, dus geen `liggen` en geen doorzakken: de zweep staat
-  gestrekt op hoofdhoogte zolang hij kan raken. Een witte zwiep achter de punt (alleen boven `ZWM_FX.hoogBoven`, en alleen
-  als de punt vooruit en ongeveer vlak gaat) en een ronde ring in de lucht op de knal.
+  gestrekt op hoofdhoogte zolang hij kan raken.
+- **De gloed** (`ZWM_FX.gloed*`, in `zwmTouwTeken`): warm licht onder het touw (`lighter`), feller waar het snel gaat, zodat
+  je de zweep ook tegen een drukke achtergrond ziet.
+- **De knal**: een lichtflits op de punt (een radiaal verloop) met `vonken` korte vonken in de slagrichting (`s.knalRicht`,
+  vastgezet op de knal). Eerst was het een ster met acht stralen plus een ring, en dat leek op een wieltje.
+- **De waarschuwing** (`zwmWijsTeken`, `ZWM_FX.wijs*`): tijdens de tell gloeit de plek waar hij gaat slaan, achter hem
+  getekend, zacht pulserend. Laag een warme koepel van licht op de grond, hoog een lichte band op hoofdhoogte. Hij komt op
+  van `tellVan` tot `slagVan` en dooft in `wijsNa` s na de knal.
 - De knal is `sounds/zweepslag.mp3` (een echte zweepklap, de stilte ervoor eraf), zachter op afstand (`takelPan`).
 
-Het spoor en het stof lopen op speltijd (`zwmSpoorStap` in de update, `zwmFxAchter` en `zwmFxVoor` bij het tekenen).
+Het spoor en het stof lopen op speltijd (`zwmSpoorStap` in de update, `zwmFxAchter` bij het tekenen).
 
 ## Testopties (pauze, Instellingen, Zweepman: test)
 
@@ -63,6 +69,8 @@ zweepman (`zwmTestKnopToon`).
 - **Tempo tijdens de slag** (5 tot 100%): de hele wereld vertraagt zolang een zweepman slaat of in zijn herstel ligt
   (`zwmTraagNu`, na `gameTempo` in de lus).
 - **Slag**: wissel, laag of hoog (gaat boven `ZWM.hoogKans`; de sandboxknop `slagVast` gaat er weer boven).
+- **Gloed op de zweep** en **Waarschuwing vooraf**: aan of uit (`ZWM_TEST.gloed`, `ZWM_TEST.wijs`, standaard aan), om te
+  vergelijken.
 
 ## Zijn stem
 

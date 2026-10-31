@@ -1935,11 +1935,15 @@
         <div class="field"><label for="pzzwmtraag">Tempo tijdens de slag</label>
           <input id="pzzwmtraag" type="range" min="5" max="100" step="5"><span class="read" id="pzzwmtraagv"></span></div>
         <button id="pzzwmslag">Slag: wissel</button>
+        <button id="pzzwmgloed">Gloed op de zweep: aan</button>
+        <button id="pzzwmwijs">Waarschuwing vooraf: aan</button>
         <button id="pzzwmstd">Zweepman: standaard</button>
         <span class="hint">De rode laag ligt achter de zweep: zacht waar hij is, fel waar hij op dat moment kan raken, en
           de stippellijn is de raakhoogte (laag: alles eronder raakt, dus springen; hoog: alles erboven, dus bukken).
           Het tempo vertraagt de hele wereld zolang een zweepman slaat (100% is normaal). Slag kiest laag, hoog of
-          wisselend. Geldt meteen; de browser onthoudt je stand.</span>
+          wisselend. De gloed is warm licht op de zweep, feller waar hij snel gaat. De waarschuwing laat al in de tell
+          zien waar hij gaat slaan: een gloed over de grond (laag) of een lichte band op hoofdhoogte (hoog).
+          Geldt meteen; de browser onthoudt je stand.</span>
       </div>
     </div>
     <button id="pzrestart">Level opnieuw</button>
@@ -27486,14 +27490,20 @@ const ZWM_SLAG = {
           boogVan: -70, boog: 115, wExp: 1.1, kracht: 1.8, hoogMin: 245,       // raakt alleen boven hoogMin (gebukt is Amir ~237 hoog): wie bukt of kruipt, gaat eronderdoor
           strak: { van: 4, na: 0.14, kracht: 7, wExp: 0.6, boog: 105 } }      // rond de knal trekt hij de zweep recht op hoofdhoogte (van frames ervoor, na s erna), anders zakt hij door
 };
-// wat je ziet: het spoor van de punt (laag een zandstreep langs de grond, hoog een witte zwiep in de lucht),
-// stof waar de lage zweep over de grond veegt, en een ring op de knal (laag plat bij de grond, hoog rond in de lucht)
-const ZWM_FX = { spoorDuur: 0.22, laagSpoor: '#e8c890', hoogSpoor: '#ffffff', laagBreed: 22, hoogBreed: 14,
-                 laagOnder: 70, hoogBoven: 200, stofDuur: 0.6, stofKleur: '#e2bf88', stofKans: 36, ringDuur: 0.18 };
+// wat je ziet: de waarschuwing in de tell (waar hij gaat slaan), een warme gloed op de zweep, bij laag een zandstreep
+// achter de punt en stof waar hij over de grond veegt, en op de knal een lichtflits met vonken
+const ZWM_FX = { spoorDuur: 0.22, laagSpoor: '#e8c890', laagBreed: 22,
+                 laagOnder: 70, stofDuur: 0.6, stofKleur: '#e2bf88', stofKans: 36,
+                 // de gloed op de zweep: warm licht dat feller wordt waar het touw snel gaat (snel = gevaar)
+                 gloedKleur: '255,196,120', gloedMin: 0.12, gloedMax: 0.75, gloedV: 10, gloedBreed: 12,
+                 // de knal: een lichtflits op de punt met een paar vonken in de slagrichting
+                 knalDuur: 0.16, knalR: 46, vonken: 5,
+                 // de waarschuwing: tijdens de tell gloeit de plek waar hij gaat slaan (laag: over de grond, hoog: op hoofdhoogte)
+                 wijsLaag: '255,186,90', wijsHoog: '215,230,255', wijsMax: 0.5, wijsVan: -120, wijsTot: -780, wijsLaagHoog: 1.8, wijsHoogDik: 130, wijsNa: 0.25 };
 // testopties in de pauze (Instellingen, Zweepman: test): de rode laag achter de zweep (waar hij is, en fel waar hij
 // nu kan raken, met een stippellijn op de raakhoogte), de wereld vertragen zolang een zweepman slaat, en welke slag
 const ZWM_TEST_KEY = 'amir.zweep';
-const ZWM_TEST = { rood: false, traag: 1, slag: null };
+const ZWM_TEST = { rood: false, traag: 1, slag: null, gloed: true, wijs: true };   // gloed en wijs: zie ZWM_FX
 try { Object.assign(ZWM_TEST, JSON.parse(localStorage.getItem(ZWM_TEST_KEY) || '{}')); } catch (e) {}
 function zwmTraagNu(){
   if (ZWM_TEST.traag >= 1) return 1;
@@ -27621,10 +27631,8 @@ function zwmSpoorStap(s, dt){
   const t = s.touw, C = ZWM_SLAG[s.soort || 'laag'], laag = (s.soort || 'laag') === 'laag', n = ZWM_TOUW.n;
   s.spoor = s.spoor || []; s.stof = s.stof || [];
   if (t){
-    const ty = t.Y[n - 1], tx = t.X[n - 1], vers = s.knalT < 0 || s.t - s.knalT < 0.12, v = s.puntV || [tx, ty];
-    const dx = tx - v[0], dy = ty - v[1]; s.puntV = [tx, ty];
-    // hoog: alleen terwijl de punt vooruit en ongeveer vlak zwiept (anders tekent het slingeren rond de knal rare strepen)
-    const mag = laag ? ty > -ZWM_FX.laagOnder : (s.frame >= C.knal - 2 && ty < -ZWM_FX.hoogBoven && dx < -2 && Math.abs(dy) < Math.abs(dx) * 0.8);
+    const ty = t.Y[n - 1], vers = s.knalT < 0 || s.t - s.knalT < 0.12;
+    const mag = laag && ty > -ZWM_FX.laagOnder;          // alleen laag: een zandstreep langs de grond (hoog heeft de gloed)
     s.spoor.push(s.state === 'slag' && vers && mag ? { x: t.X[n - 1], y: ty, t: s.t } : null);
     if (laag && s.state === 'slag'){
       for (let i = 6; i < n; i += 3){
@@ -27696,7 +27704,7 @@ function updateZweepman(s, dt, plats, cliff){
   if (s.cool <= 0 && kooiZelfdeHoogte(s) && gap < ZWM.aanval * zS && gap > ZWM.min * zS){
     s.soort = s.slagVast || ZWM_TEST.slag || (Math.random() < ZWM.hoogKans ? 'hoog' : 'laag');   // slagVast: de sandbox, ZWM_TEST.slag: de pauze
     zwmSet(s, 'slag'); s.frame = ZWM_SLAG[s.soort].tellVan; s.geraaktAmir = false; s.knalT = -1; s.touw = null;
-    s.spoor = null; s.stof = null; s.stofKnal = false; s.puntV = null;
+    s.spoor = null; s.stof = null; s.stofKnal = false; s.knalRicht = 0;
     zwmZeg('voel', ZWM_STEM.tellVoel);
     return;
   }
@@ -27735,13 +27743,13 @@ function zwmTeken(s, bodyX, voeten, gs, alpha){
   const touwAan = s.touw && ((s.state === 'slag' && s.frame >= ZWM_SLAG[s.soort || 'laag'].slagVan) || s.state === 'herstel');
   ctx.save(); ctx.globalAlpha = alpha; ctx.translate(bodyX, voeten); if (s.face === 1) ctx.scale(-1, 1);
   const a = touwAan ? zwmHand(s) : null;
+  zwmWijsTeken(s, gs);
   if (a && ZWM_TEST.rood) zwmRoodTeken(s, gs);
   if (touwAan) zwmFxAchter(s, gs);
   if (a && fr.achter) zwmTouwTeken(s, a, gs);
   laag(fr.lijf);
   if (!touwAan) laag(fr.zweep);
   if (a && !fr.achter) zwmTouwTeken(s, a, gs);
-  if (touwAan) zwmFxVoor(s, gs);
   ctx.restore();
 }
 // het spoor van de punt en het stof, achter de zweep
@@ -27752,8 +27760,8 @@ function zwmFxAchter(s, gs){
     for (let k = 1; k < sp.length; k++){
       const p0 = sp[k - 1], p1 = sp[k]; if (!p0 || !p1) continue;
       const f = Math.max(0, 1 - (s.t - p1.t) / ZWM_FX.spoorDuur);
-      ctx.globalAlpha = A * f * (laag ? 0.55 : 0.75);
-      ctx.strokeStyle = laag ? ZWM_FX.laagSpoor : ZWM_FX.hoogSpoor; ctx.lineWidth = (laag ? ZWM_FX.laagBreed : ZWM_FX.hoogBreed) * f * gs + 1;
+      ctx.globalAlpha = A * f * 0.55;
+      ctx.strokeStyle = ZWM_FX.laagSpoor; ctx.lineWidth = ZWM_FX.laagBreed * f * gs + 1;
       ctx.beginPath(); ctx.moveTo(p0.x * gs, p0.y * gs); ctx.lineTo(p1.x * gs, p1.y * gs); ctx.stroke();
     }
     ctx.restore();
@@ -27765,13 +27773,25 @@ function zwmFxAchter(s, gs){
     ctx.fill(); ctx.restore();
   }
 }
-// de ring op de knal, voor de zweep: laag plat bij de grond, hoog rond in de lucht
-function zwmFxVoor(s, gs){
-  if (!s.touw || s.knalT < 0 || s.t - s.knalT >= ZWM_FX.ringDuur) return;
-  const laag = (s.soort || 'laag') === 'laag', n = ZWM_TOUW.n, k = (s.t - s.knalT) / ZWM_FX.ringDuur;
-  ctx.save(); ctx.globalAlpha *= 1 - k; ctx.strokeStyle = laag ? '#fff2c8' : '#ffffff'; ctx.lineWidth = 4;
-  ctx.beginPath(); ctx.ellipse(s.touw.X[n - 1] * gs, s.touw.Y[n - 1] * gs, (20 + 60 * k) * gs, (laag ? 8 + 14 * k : 20 + 60 * k) * gs, 0, 0, Math.PI * 2);
-  ctx.stroke(); ctx.restore();
+// de waarschuwing: tijdens de tell gloeit de plek waar hij gaat slaan. Laag een warme gloed over de grond (springen),
+// hoog een lichte band op hoofdhoogte (bukken). Komt op tijdens de tell, staat vol bij de slag, en dooft na de knal.
+function zwmWijsTeken(s, gs){
+  if (!ZWM_TEST.wijs || s.state !== 'slag' || !s.soort) return;
+  const C = ZWM_SLAG[s.soort], F = ZWM_FX, laag = s.soort === 'laag';
+  const tot = C.slagVan - C.tellVan, nu = s.frame - C.tellVan + Math.min(1, s.acc / C.dur(s.frame));
+  let a = Math.min(1, Math.max(0, nu / tot));
+  if (s.knalT >= 0) a *= Math.max(0, 1 - (s.t - s.knalT) / F.wijsNa);
+  if (a <= 0) return;
+  a *= F.wijsMax * (0.85 + 0.15 * Math.sin(s.t * 14));   // een zachte puls
+  // een zachte ellips (een radiale verloop, plat geschaald): laag een koepel van licht op de grond, hoog een band op hoofdhoogte
+  const kl = laag ? F.wijsLaag : F.wijsHoog, rx = Math.abs(F.wijsTot - F.wijsVan) / 2 * gs, cx = (F.wijsVan + F.wijsTot) / 2 * gs;
+  const ry = (laag ? C.laagH * F.wijsLaagHoog : F.wijsHoogDik / 2 + 10) * gs, cy = laag ? 0 : -(C.hoogMin + F.wijsHoogDik / 2 - 10) * gs;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(cx, cy); ctx.scale(rx / ry, 1);
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, ry);
+  g.addColorStop(0, 'rgba(' + kl + ',' + a + ')'); g.addColorStop(0.55, 'rgba(' + kl + ',' + (a * 0.7) + ')'); g.addColorStop(1, 'rgba(' + kl + ',0)');
+  ctx.fillStyle = g; ctx.beginPath();
+  if (laag) ctx.arc(0, 0, ry, Math.PI, 0); else ctx.arc(0, 0, ry, 0, Math.PI * 2);
+  ctx.fill(); ctx.restore();
 }
 // kan de zweep nu raken? (in het venster van de slag; de hoogte telt per touwpunt, zie zwmRaaktHoogte)
 function zwmGevaar(s){
@@ -27804,6 +27824,18 @@ function zwmTouwTeken(s, a, gs){
   ctx.beginPath(); ctx.moveTo((a[0] - r[2] * 6) * gs, (a[1] - r[3] * 6) * gs); ctx.lineTo(r[0] * gs, r[1] * gs); ctx.stroke();
   ctx.strokeStyle = '#4f2f16'; ctx.lineWidth = (T.dikte + 2) * gs; ctx.stroke();
   const w = i => T.dikte * (1 - 0.8 * i / (n - 1));
+  if (ZWM_TEST.gloed){                                    // de gloed: warm licht onder het touw, feller waar het snel gaat
+    const F = ZWM_FX, A = ctx.globalAlpha;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 1; i < n; i++){
+      const v = Math.hypot(X[i] - t.PX[i], Y[i] - t.PY[i]);
+      const a = A * Math.min(F.gloedMax, F.gloedMin + v / F.gloedV * (F.gloedMax - F.gloedMin));
+      ctx.strokeStyle = 'rgba(' + F.gloedKleur + ',' + (a * 0.45) + ')'; ctx.lineWidth = (w(i) + F.gloedBreed * 2) * gs;
+      ctx.beginPath(); ctx.moveTo(X[i - 1] * gs, Y[i - 1] * gs); ctx.lineTo(X[i] * gs, Y[i] * gs); ctx.stroke();
+      ctx.strokeStyle = 'rgba(' + F.gloedKleur + ',' + a + ')'; ctx.lineWidth = (w(i) + F.gloedBreed * 0.6) * gs; ctx.stroke();
+    }
+    ctx.restore();
+  }
   for (let pass = 0; pass < 3; pass++){
     for (let i = 0; i < n - 1; i++){
       ctx.beginPath();
@@ -27816,10 +27848,19 @@ function zwmTouwTeken(s, a, gs){
       ctx.stroke(); ctx.setLineDash([]);
     }
   }
-  if (s.knalT >= 0 && s.t - s.knalT < 0.14){              // de knal: een flitsje op de punt
-    const k = (s.t - s.knalT) / 0.14, px = X[n - 1] * gs, py = Y[n - 1] * gs;
-    ctx.save(); ctx.globalAlpha = 1 - k; ctx.strokeStyle = '#fff8d8'; ctx.lineWidth = 3;
-    for (let j = 0; j < 8; j++){ const an = j * Math.PI / 4 + 0.3; ctx.beginPath(); ctx.moveTo(px + Math.cos(an) * 6, py + Math.sin(an) * 6); ctx.lineTo(px + Math.cos(an) * (14 + 30 * k), py + Math.sin(an) * (14 + 30 * k)); ctx.stroke(); }
+  if (s.knalT >= 0 && s.t - s.knalT < ZWM_FX.knalDuur){  // de knal: een lichtflits op de punt en vonken in de slagrichting
+    const F = ZWM_FX, k = (s.t - s.knalT) / F.knalDuur, px = X[n - 1] * gs, py = Y[n - 1] * gs;
+    if (!s.knalRicht) s.knalRicht = Math.atan2(Y[n - 1] - Y[n - 4], X[n - 1] - X[n - 4]);   // vastgezet op de knal
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const R = F.knalR * gs * (0.6 + 0.8 * k), g = ctx.createRadialGradient(px, py, 0, px, py, R);
+    g.addColorStop(0, 'rgba(255,250,225,' + (0.95 * (1 - k)) + ')'); g.addColorStop(0.35, 'rgba(255,205,130,' + (0.5 * (1 - k)) + ')');
+    g.addColorStop(1, 'rgba(255,170,80,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px, py, R, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,240,200,' + (1 - k) + ')'; ctx.lineCap = 'round'; ctx.lineWidth = Math.max(1.5, 3 * gs);
+    for (let j = 0; j < F.vonken; j++){
+      const an = s.knalRicht + (j / (F.vonken - 1) - 0.5) * 1.3, r0 = (8 + 30 * k) * gs, r1 = r0 + (14 + 20 * (1 - k)) * gs;
+      ctx.beginPath(); ctx.moveTo(px + Math.cos(an) * r0, py + Math.sin(an) * r0); ctx.lineTo(px + Math.cos(an) * r1, py + Math.sin(an) * r1); ctx.stroke();
+    }
     ctx.restore();
   }
 }
@@ -33942,6 +33983,8 @@ function zwmTestToon(){
   document.getElementById('pzzwmtraag').value = v;
   document.getElementById('pzzwmtraagv').textContent = v + '%' + (v < 100 ? ' (' + (100 / v).toFixed(1).replace('.', ',') + 'x trager)' : '');
   document.getElementById('pzzwmslag').textContent = 'Slag: ' + ZWM_SLAG_NAAM[ZWM_TEST.slag];
+  document.getElementById('pzzwmgloed').textContent = 'Gloed op de zweep: ' + (ZWM_TEST.gloed ? 'aan' : 'uit');
+  document.getElementById('pzzwmwijs').textContent = 'Waarschuwing vooraf: ' + (ZWM_TEST.wijs ? 'aan' : 'uit');
 }
 function zwmTestKnopToon(){
   const heeft = (level && Array.isArray(level.spawns) && level.spawns.some(sp => sp && sp.kind === 'zweepman')) || zweepmannen.length > 0;
@@ -33952,7 +33995,9 @@ document.getElementById('pzzwmbtn').onclick = () => { document.getElementById('p
 document.getElementById('pzzwmrood').onclick = () => { ZWM_TEST.rood = !ZWM_TEST.rood; zwmTestToon(); zwmTestBewaar(); };
 document.getElementById('pzzwmtraag').addEventListener('input', e => { ZWM_TEST.traag = Number(e.target.value) / 100; zwmTestToon(); zwmTestBewaar(); });
 document.getElementById('pzzwmslag').onclick = () => { ZWM_TEST.slag = ZWM_TEST.slag === null ? 'laag' : ZWM_TEST.slag === 'laag' ? 'hoog' : null; zwmTestToon(); zwmTestBewaar(); };
-document.getElementById('pzzwmstd').onclick = () => { Object.assign(ZWM_TEST, { rood: false, traag: 1, slag: null }); zwmTestToon(); zwmTestBewaar(); };
+document.getElementById('pzzwmgloed').onclick = () => { ZWM_TEST.gloed = !ZWM_TEST.gloed; zwmTestToon(); zwmTestBewaar(); };
+document.getElementById('pzzwmwijs').onclick = () => { ZWM_TEST.wijs = !ZWM_TEST.wijs; zwmTestToon(); zwmTestBewaar(); };
+document.getElementById('pzzwmstd').onclick = () => { Object.assign(ZWM_TEST, { rood: false, traag: 1, slag: null, gloed: true, wijs: true }); zwmTestToon(); zwmTestBewaar(); };
 function toMenu(){
   verhaalAan = false;
   if (mkTestActief){ mkTestActief = false; document.getElementById('mkterug').classList.remove('on'); }   // een test uit de Level Maker netjes opruimen
