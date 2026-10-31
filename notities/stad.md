@@ -133,11 +133,27 @@ een verdieping omhoog. De treden zijn altijd even groot (de schaal hangt aan de 
 
 Stad 2 tot en met 4 zijn de proefstukken; in de sandbox staat er een trap naast het hoge huis van **De stad**.
 
+## De leemmuur
+
+`LEEM`, `leemMuurTeken` (in `drawClimb`)
+
+Een terras met `look: 'leem'`: `terraces: [{r, l, h, look: 'leem'}]`. De botsing is precies die van een terras: de
+wand houdt Amir en elke vijand tegen (regel 7), de bovenkant draagt, en levelcheck en de speelrobot rekenen er gewoon
+mee. Alleen het tekenen is anders: een naadloze wand van leem (`design/stad/leem_tegel.png`, rijen om en om verschoven
+en vast aan de wereld) met de kartels en balken erop (`leem_rand.png`, rij 68 is de looplijn, op de schaal van de gevel),
+een donker verloop naar beneden, schaduwranden aan de zijkanten en een contactschaduw op de straat. Hij staat op de
+straat (houdt op de grondlijn op); een buur van leem die even hoog of hoger is dekt een zijkant af.
+
+Zo maak je een straat doodlopend (een hoge muur), een lage muur om op te springen, of een hogere wijk. Een gevel kan
+erop staan (`terrainH`). Stad 2 heeft er een lage tussen de twee straten; in de sandbox onder De stad **Lage leemmuur**
+en **Doodlopend**. Beide plaatjes zijn uit de gevel gemaakt (geen nieuwe art).
+
 ## Nog niet
 
 - Deuren in de deurgaten, en vijanden die uit een deur komen.
 - De trap in de Maker.
-- De Maker: gevels, galerijen, kramen en voetdecor als gereedschap.
+- De Maker: gevels, galerijen, kramen en voetdecor als gereedschap. De leemmuur staat er al in (stand Stad,
+  Terrein, **Muur van leem**); het plan voor de rest staat in `notities/plan-stad-maker.md`.
 - Een lift (een takel) die zich naar de rand van een galerij voegt: het plateau heeft een vaste breedte, de galerij
   schaalt mee. In Stad 1 overlapt het plateau het eind van de galerij op een laptop; op een kleine telefoon is het
   een korte sprong opzij.

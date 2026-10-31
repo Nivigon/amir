@@ -189,6 +189,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | takelwiel met plateau: een rad dat je met je speer slaat | `TAKEL`, `takelLaad`, `takelReset` | notities/takelwiel.md |
 | de stad: een Sahelstraat met gevels, galerijen, kramen en het paleis | `STAD`, `stadPlats`, `stadAchter`, `stadTeken` | notities/stad.md |
 | de stadstrap: een buitentrap achter een huis langs, E en een fade | `STAD_TRAP`, `stadTrapE`, `stadInGevecht` | notities/stad.md |
+| de leemmuur: een terras met de look van de stad | `LEEM`, `leemMuurTeken`, `look: 'leem'` | notities/stad.md |
 | poort: een stenen boog, decor of de plek waar een vijand uitkomt | `POORT`, `poortOpen`, `poortKlaar` | notities/poort.md |
 | het hek van de poort: een ijzeren valhek dat omhoog getakeld wordt | `HEK`, `hekTeken`, `hekUpdate`, `poortRegie` | notities/poort.md |
 | rotsen als decor: een runerots zonder rune, achter de plateaus | `rotsen`, `rotsenTeken`, `rotsenLaadLevel` | notities/decor.md |
@@ -256,7 +257,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | --- | --- |
 | `name` | naam op het kaartje in het menu |
 | `lagen` | sleutel uit `SCENES`: welk uitzicht dit level krijgt |
-| `muziek` | sleutel uit `MUZIEK`: welk deuntje eronder loopt (`bg` voor het oude thema); zonder dit veld `MUZIEK_BASIS`, Dark Africa, en in een level met `stad` de stadmuziek Tense Grounding (`MUZIEK_STAD`, `music/tensegrounding.mp3`); `stadgeluid` geeft de oude stadgeluiden zonder muziek |
+| `muziek` | sleutel uit `MUZIEK`: welk deuntje eronder loopt (`bg` voor het oude thema); zonder dit veld `MUZIEK_BASIS`, Dark Africa, en in een level met `stad` de stadmuziek Market Shadows (`MUZIEK_STAD`, `music/marketshadows.mp3`); `stad` geeft het eerdere Tense Grounding, `stadgeluid` geeft de oude stadgeluiden zonder muziek |
 | `winter` | `true` zet het hele level in de sneeuw (witte dieren, sneeuwversies van het decor) |
 | `sneeuw` | sneeuw op de grond, los van `winter`: `{soort, dek, van, tot}` (zie hieronder) |
 | `weer` | het weer onderweg: `[{x, soort, sterkte}]`, `soort` uit `WEER.soorten` (`droog`, `regen`, `onweer`, `zandstorm`, `sneeuw`, `sneeuwstorm`); voorbij `x` slaat het om (zie "het weer") |
@@ -286,7 +287,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `gaps` | ravijnen: `{x, w}` |
 | `water` | poelen: `{x, n}` met `n` = aantal middenstukken |
 | `thickets` | doornbossen: `{x, n, seed}` |
-| `terraces` | terrassen om op te klimmen: `{r, l, h}`; negatieve `h` is een trede in een gang, `grond: true` een hogere savannelaag (zie `notities/velden.md`) |
+| `terraces` | terrassen om op te klimmen: `{r, l, h}`; negatieve `h` is een trede in een gang, `grond: true` een hogere savannelaag, `look: 'leem'` een muur van leem in de stad (zie "de leemmuur" in `notities/stad.md`) (zie `notities/velden.md`) |
 | `holtes` | gangen onder de grond: `{r, l, diep}`, een ravijn erboven is de ingang, een gat met treden de uitgang (zie hieronder) |
 | `putten` | ravijnen in de vloer van een gang: `{x, w}`, helemaal binnen een holte (zie "put") |
 | `zuilen` | zuilen met een hoogte in een ravijn of put: `{x, w, h}`, `h` van -250 tot 180 boven de grond of de vloer (zie "zuil met een hoogte") |
