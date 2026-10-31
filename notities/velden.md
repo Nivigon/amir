@@ -4,7 +4,7 @@ De korte velden staan in `CLAUDE.md`; hier de velden met een langere uitleg.
 
 ## veld `rugMax`
 
-reserve-speren op de rug: 1 in de hand plus zoveel op de rug, dus `rugMax + 1` worpen voor je melee-loos bent (0 tot 5, standaard 0 = uit, maar zie hieronder). Zie "reserve-speren op de rug"; Test 39 is het proefstuk. **Default sinds kort:** elk Test level (`TEST_LEVELS`) en elk Maker-level (gezet in `mkNaarLevel`) geeft Amir standaard `rugMax: 1`, tenzij het level zelf een `rugMax` zet (ook 0) of geen speer heeft (`geenSpeer`). Dat zit in `restart`, niet in de leveldefinities, dus bestaande Test-levels krijgen het vanzelf en de echte episodes (niet in `TEST_LEVELS`, rule 1) houden hun eigen waarde
+reserve-speren op de rug: 1 in de hand plus zoveel op de rug, dus `rugMax + 1` worpen voor je melee-loos bent (0 tot 5). Zie "reserve-speren op de rug"; Test 39 is het proefstuk. **De standaard is 1, overal** (`RUG_STANDAARD`): elk level zonder het veld krijgt 1 reserve-speer, tenzij het geen speer heeft (`geenSpeer`); De Valse Koning zet `rugMax: 1` al zelf op elk level. Een level dat zelf `rugMax` zet houdt die, ook 0 (dan staat hij uit; readLevel laat het veld leeg als het er niet is). Ook de sandbox en de arena-modus beginnen met 1 op de rug. Dat zit in `restart`, niet in de leveldefinities
 
 ## veld `hpBalk`
 

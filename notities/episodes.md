@@ -16,8 +16,8 @@
 
 `STAD_1` en `STAD_LEVELS`: proefstukken in de Sahelstad (zie `notities/stad.md`), met de tribekeuze (`runStart`) zoals
 De Valse Koning; een knop in `menuEpisodes` (`btnStad`), het scherm `menuStad` met `cardsStad`. Stad 1 is de straat
-met de lange galerij en het gevecht erop; het stond eerst als Test 59 tussen de Test levels. Omdat het geen testreeks
-meer is, kiest `RUG_MAX` hier niet vanzelf 1 reserve-speer: het level zet `rugMax: 1` zelf.
+met de lange galerij en het gevecht erop; het stond eerst als Test 59 tussen de Test levels. Eronder loopt de stadmuziek
+(`MUZIEK_STAD`), en net als overal heeft Amir 1 reserve-speer op de rug (`RUG_STANDAARD`).
 
 ## Episode Baboon tests
 

@@ -1295,7 +1295,7 @@
       </div>
       <div class="row">
         <label>Reserve op de rug</label>
-        <button id="sbrug0" class="on">Rug: uit</button>
+        <button id="sbrug0">Rug: uit</button>
         <button data-rug="1">Rug: 1</button>
         <button data-rug="2">Rug: 2</button>
         <button data-rug="3">Rug: 3</button>
@@ -1696,6 +1696,7 @@
         <label>Muziek</label>
         <button data-muziek="bg">Thema</button>
         <button data-muziek="darkafrica" class="on">Nacht</button>
+        <button data-muziek="stad">Stad</button>
         <button id="sbraak">Kreet bij een klap</button>
       </div>
       <div class="row">
@@ -4603,7 +4604,6 @@ const STAD_1 = {
   lagen: 'stad_dag',
   view: 0.8, hpBalk: true, zicht: true, camera: true, rand: true,
   speerInHand: true,
-  rugMax: 1,                                               // 1 in de hand plus 1 op de rug, zoals het als testlevel had
   // de Sahelstad (zie "de stad"): een straat met huizen van 1 tot 4 hoog, kramen, galerijen en het paleis in de verte
   stad: {
     paleis: -4400, seed: 7,
@@ -15840,6 +15840,7 @@ let lastSolid = 0;     // laatste vaste grond waar Amir stond: daar komt hij ter
 // RUG_MAX 0 houdt het hele systeem uit, dus de echte episodes (rule 1) merken er niets van; de
 // sandbox zet het aan met een knop. Later kan een level of een talent de capaciteit zetten.
 const RUG = { trek: 0.38 };          // de beat van het over-de-schouder grijpen, in seconden
+const RUG_STANDAARD = 1;               // zoveel reserve-speren op de rug heeft Amir standaard, overal (behalve een level zonder speer, geenSpeer)
 let RUG_MAX = 0;                     // capaciteit van de rug; 0 = het systeem uit
 const rugSperen = [];                // de reserve: [{blauw}], lengte hoogstens RUG_MAX
 let rugTrekT = 0;                    // > 0: de trek-beat loopt
@@ -22730,18 +22731,14 @@ function restart(){
   fakkelReset();                                     // de vonken weg en het vuurgeluid uit
   speervalReset();                                  // de speervallen weer in de wand
   losseSperen.length = 0;                           // geen losse speren meer op de grond
-  // de rug staat uit (0), tenzij een level het veld rugMax zet. Standaard: elk Test level en elk Maker-level
-  // (dat zet rugMax zelf in mkNaarLevel) geeft Amir 1 reserve-speer op de rug. Een level met een eigen rugMax > 0
-  // houdt die, en een level zonder speer (geenSpeer) krijgt er geen, want een reserve zonder speer in de hand is
-  // onbruikbaar. We kijken naar de actieve reeks (levelList), niet naar level zelf: setLevel zet level =
-  // readLevel(...), een verse kopie, dus TEST_LEVELS.includes(level) klopt niet; readLevel zet rugMax bovendien
-  // altijd op een getal (0 als het veld er niet is), dus een waarde > 0 is een bewuste keuze en wint. De echte
-  // episodes spelen uit hun eigen reeks en houden hun eigen waarde, dus die veranderen niet (rule 1). De sandbox
-  // zet het met een knop
+  // de rug: standaard 1 reserve-speer, in elk level. Een level met het veld rugMax houdt zijn eigen waarde (ook 0:
+  // dan staat hij uit), en een level zonder speer (geenSpeer) krijgt er geen, want een reserve zonder speer in de
+  // hand is onbruikbaar. De Valse Koning zet rugMax: 1 al op elk level (op naam, rule 1). De sandbox zet het met
+  // een knop
   SCHILD_AAN = sandbox ? sbAmirSchild : !!(level && level.schild);   // het schild van Amir: een level zet het, de sandbox met een knop
   amirSchildReset();
-  if (!sandbox) RUG_MAX = (level && level.rugMax) ? level.rugMax
-    : (level && !level.geenSpeer && typeof levelList !== 'undefined' && levelList === TEST_LEVELS) ? 1 : 0;
+  if (!sandbox) RUG_MAX = (level && level.rugMax != null) ? level.rugMax
+    : (level && !level.geenSpeer) ? RUG_STANDAARD : 0;
   if (!sandbox){                                    // de health-balk alleen als een level het zet; de sandbox met een knop
     HP_BALK = (level && level.hpBalk) ? HP_BALK_LEVENS : 0;
     HP_BALK_SOORTEN = (level && Array.isArray(level.hpBalk)) ? level.hpBalk : null;   // een lijst = alleen die soorten de balk, de rest blijft één klap
@@ -33965,13 +33962,15 @@ const pzSoundBtn = document.getElementById('pzsound');
 // wat een level in zijn veld muziek schrijft.
 const MUZIEK = {
   bg:         { src: 'music/bg.mp3',         vol: 0.28 },
-  darkafrica: { src: 'music/darkafrica.mp3', vol: 0.30 }
+  darkafrica: { src: 'music/darkafrica.mp3', vol: 0.30 },
+  stad:       { src: 'music/citysounds.mp3', vol: 0.30 }    // de geluiden van de stad: voorlopig onder elk stadlevel
 };
 const MUZIEK_BASIS = 'darkafrica';
+const MUZIEK_STAD = 'stad';                      // een level met stad en zonder eigen muziek krijgt dit
 let muziekNu = MUZIEK_BASIS;
 let sbMuziek = MUZIEK_BASIS;                    // in de sandbox kies je zelf, met de knoppen onder Muziek
 function muziekSleutel(){
-  const k = sandbox ? sbMuziek : ((running && level && level.muziek) || MUZIEK_BASIS);
+  const k = sandbox ? sbMuziek : ((running && level && (level.muziek || (level.stad && MUZIEK_STAD))) || MUZIEK_BASIS);
   if (MUZIEK[k] && !MUZIEK[k].weg) return k;
   return MUZIEK[MUZIEK_BASIS].weg ? 'bg' : MUZIEK_BASIS;
 }
@@ -34988,7 +34987,7 @@ function readLevel(txt){
                                           dolk: o.bandietGolf.dolk === true } : undefined,   // de bandieten gooien eerst hun dolk
            grotArena: o.grotArena ? { overleef: Number(o.grotArena.overleef) || 60 } : undefined,   // door de grot-opening de arena in; overleef zoveel seconden en het level is uit
            onsterfelijk: !!o.onsterfelijk,              // om iets te proberen: je raakt geen levens kwijt
-           rugMax: Math.max(0, Math.min(5, Math.round(Number(o.rugMax) || 0))),   // reserve-speren op de rug: 1 in de hand plus zoveel op de rug (zie "reserve-speren op de rug"); 0 is uit
+           rugMax: o.rugMax != null ? Math.max(0, Math.min(5, Math.round(Number(o.rugMax) || 0))) : undefined,   // reserve-speren op de rug: 1 in de hand plus zoveel op de rug (zie "reserve-speren op de rug"); 0 is uit
            hpBalk: Array.isArray(o.hpBalk) ? o.hpBalk.filter(k => typeof k === 'string') : !!o.hpBalk,   // true = elke vijand de balk, of een lijst soorten (['bandiet','kooiman']) = alleen die (zie HP_BALK)
            zicht: !!o.zicht,                            // vijanden zien je alleen als er niets tussen zit (zie "zicht")
            executie: !!o.executie,                      // elke steek- en worp-kill op een schildbandiet is de executie (Test 50, zie "de executie")
@@ -36286,7 +36285,7 @@ function mkVijBadge(ctx, cx, cy, rad, u, teken){
 // de categorieën in de menubalk. Klik je er een aan (of een subcategorie), dan komt de lijst in de linkerkolom;
 // zweef je erover, dan klapt dezelfde lijst als dropdown uit (en een vijand met varianten als zij-flyout).
 // de achtergrond-deuntjes die een level kan kiezen (zie MUZIEK); Dark Africa is de standaard (MUZIEK_BASIS)
-const MK_MUZIEK = [['darkafrica', 'Dark Africa'], ['bg', 'Oude thema']];
+const MK_MUZIEK = [['darkafrica', 'Dark Africa'], ['bg', 'Oude thema'], ['stad', 'Stadgeluiden']];
 const MK_PLAT_BREED = 2;   // standaardbreedte van een takelplateau en een rijzer, in cellen (1 tot 5, zie het Breedte-schuifje)
 const MK_RIJS_DIEP = 3;    // zo diep (in cellen) rust een nieuwe rijzer onder de grondlijn als je hem op het ravijn zet; en zo diep zakt een zakker zonder doel
 const MK_RIJS = { v: 300, wacht: 0, duur: 0 };
@@ -39074,7 +39073,7 @@ function startSandbox(arena, gates){
   sbKooiDuel = false; sbKooiDuelLabel();                // en de duel-variant ook
   kooiBij = 1; sbKooiGrootteToon();                     // de grootte-afstelling terug op de code-waarde
   RUN.woede = 0; woedeStop();                           // de woedemeter van de sandbox begint leeg
-  RUG_MAX = sbArena ? 1 : 0; rugSperen.length = 0; rugTrekT = 0; rugToon();   // de reserve op de rug begint uit; in de arena-modus altijd 1 reservespeer op de rug (zoals Valse Koning 8), restart vult hem; de knop Rug zet het anders
+  RUG_MAX = RUG_STANDAARD; rugSperen.length = 0; rugTrekT = 0; rugToon();   // de reserve op de rug: de standaard (1), ook in de arena-modus; restart vult hem; de knop Rug zet het anders
   HP_BALK = 0; hpBalkToon();                            // en de health-balk (bandiet/kooiman 3 levens) begint uit
   ZICHT_AAN = false; zichtToon = false; zichtKnopToon();  // en het zicht (zie "zicht") ook
   document.getElementById('lives').style.display = sbArena ? '' : 'none';   // geen levens in de sandbox, wel in de arena-modus
