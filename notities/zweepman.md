@@ -36,6 +36,34 @@ Afgesteld op ongeveer 1 s van het begin van de slag tot de knal en zo'n 3,4 s va
 - Daarna `ZWM.herstel` 0,5 s, de terugweg op `ZWM.terugFps` 18 (laag 1,2 s, hoog 0,9 s) en `ZWM.cool` 0,6 s rust.
 - Alle tijden lopen op `gameTempo` (het tempo uit de instellingen), net als bij de andere vijanden.
 
+## Laag en hoog zien
+
+Beide slagen begonnen met dezelfde boog over zijn hoofd: de lage viel van boven op Amir, en de hoge zakte precies op de
+knal al naar de grond (de `liggen`-kracht begint op de knal). Nu:
+
+- **Laag**: de boog loopt via omlaag (`boogVan` 40, `boog` -125) en trekt hard naar de grond (`kracht` 3,5, `wExp` 0,8): de
+  zweep veegt over de grond en komt nooit boven zijn hand. Een zandspoor achter de punt (alleen onder `ZWM_FX.laagOnder`),
+  stofwolkjes waar het touw snel over de grond gaat, en op de knal een plof stof en een platte ring bij de grond.
+- **Hoog**: `strak` in `ZWM_SLAG.hoog`: vanaf `van` frames voor de knal tot `na` s erna trekt de punt veel harder
+  (`kracht` 7, `wExp` 0,6, `boog` 105) en blijft `prog` onder 1, dus geen `liggen` en geen doorzakken: de zweep staat
+  gestrekt op hoofdhoogte zolang hij kan raken. Een witte zwiep achter de punt (alleen boven `ZWM_FX.hoogBoven`, en alleen
+  als de punt vooruit en ongeveer vlak gaat) en een ronde ring in de lucht op de knal.
+- De knal is `sounds/zweepslag.mp3` (een echte zweepklap, de stilte ervoor eraf), zachter op afstand (`takelPan`).
+
+Het spoor en het stof lopen op speltijd (`zwmSpoorStap` in de update, `zwmFxAchter` en `zwmFxVoor` bij het tekenen).
+
+## Testopties (pauze, Instellingen, Zweepman: test)
+
+`ZWM_TEST`, bewaard in `localStorage` onder `amir.zweep`; de knop staat er alleen in een level of sandbox met een
+zweepman (`zwmTestKnopToon`).
+
+- **Rode laag** (`zwmRoodTeken`): een brede rode band achter de hele zweep, fel rood waar hij op dat moment kan raken
+  (`zwmGevaar` en `zwmRaaktHoogte`, dezelfde regels als `zwmRaakt`), en een rode stippellijn op de raakhoogte (`laagH` of
+  `hoogMin`).
+- **Tempo tijdens de slag** (5 tot 100%): de hele wereld vertraagt zolang een zweepman slaat of in zijn herstel ligt
+  (`zwmTraagNu`, na `gameTempo` in de lus).
+- **Slag**: wissel, laag of hoog (gaat boven `ZWM.hoogKans`; de sandboxknop `slagVast` gaat er weer boven).
+
 ## Zijn stem
 
 `ZWM_STEM`, `zwmZeg`, `zwmStem` (lui gemaakt in `zwmLaad`, weg in `laadVrij`). Drie geluiden in `sounds/`:
@@ -71,11 +99,8 @@ het project (`claude/zweepman_overdracht.md`). De zweep is fel groen gegenereerd
 
 ## Nog te doen
 
-- `sounds/zweepslag.mp3` (een echte zweepklap, de stilte ervoor eraf geknipt zodat de klap meteen komt) vervangt de
-  ruisknal `zwmKnalGeluid` op de knal. Staat klaar, nog niet ingebouwd.
-- De zweep laag en hoog duidelijk anders laten zien (mock-up in de chat): laag veegt hij over de grond met een zandspoor
-  en stof en knalt hij op enkelhoogte; hoog trekt hij rond de knal recht op hoofdhoogte met een witte zwiep. Nu zakt de
-  hoge zweep op de knal al naar de grond (de liggen-kracht begint op de knal), en komt de lage van boven.
+- De lage slag begint nog op hoofdhoogte, omdat zijn arm in de Grok-clip over zijn hoofd zwaait; de zweep zelf blijft
+  laag. Een clip waarin hij van onderen of opzij uithaalt (de hand onder de heup) maakt het helemaal zuiver.
 
 De vangst (de zweep om je speer, touwtrekken), arm eraf en berserk, de knie-fase, een flinch en de
 echte dood.
