@@ -13,7 +13,7 @@ Alle state zit in één object, `MK`: de maat (`cols`, `rows`), de grondlijn-rij
 is (`sel`, `selMask`, `selVorm`). Eén cel is 175 wereld-px breed (`MK_CEL_PX`) en 150 eenheden
 hoog (`MK_CEL_EENH`), ongeveer één sprong.
 
-Het palet is een boom die zichzelf bouwt (`mkPaletBoom` naar `MK_PALET`): zes categorieën (`MK_CATS`: Terrein,
+Het palet is een boom die zichzelf bouwt (`mkPaletBoom` naar `MK_PALETTEN`, een boom per stand, zie "Savanne en Stad"): zes categorieën (`MK_CATS`: Terrein,
 Start/eind, Vijanden, Objecten, Decor, Verbergen) met daarin groepen (`MK_GROEPEN`, elke groep op een pad zoals
 `objecten/takel` met zijn naam), en in een groep de gereedschappen of weer groepen, zo diep als nodig (Vijanden,
 Bandieten, Bandiet, zijn varianten). Een gereedschap in `MK_TYPES` zegt met `groep` waar het staat (een pad; alleen een
@@ -213,11 +213,35 @@ Het is alleen wat uit het grid zelf af te lezen is. Sprongen, bereik en de speer
 speelrobot. Levelcheck kent een lift uit de Maker (een platform in het gat boven een gang dat van
 de bodem tot de grondlijn reist, `takels`) als weg omhoog uit die gang (`liften_in`).
 
+## Savanne en Stad
+
+Bovenaan de legenda staat de schakelaar **Savanne | Stad** (`#mkthema`, `MK_THEMAS`, `mkThemaZet`, `mkThemaToon`;
+sneltoets G). Er zijn al zes categorieën (`MK_PALET_MAX`), dus de stad is geen zevende categorie maar een tweede stand
+van dezelfde zes. Een gereedschap in `MK_TYPES` met `thema: 'savanne'` of `thema: 'stad'` staat alleen in die stand,
+zonder `thema` in allebei. `mkPaletBoom(thema)` bouwt per stand een boom in `MK_PALETTEN`, `mkPalet()` geeft die van
+`MK.thema`. Sneeuw staat alleen bij Savanne; de groep `terrein/stad` (nu **Muur van leem**) alleen bij Stad.
+
+De stand filtert alleen het palet: wat al in het grid staat blijft staan en werkt gewoon, ook gemengd. Per stand
+onthoudt de Maker je gereedschap (`MK.themaGeheugen`); bestaat dat in de andere stand niet, dan valt hij terug op
+de savannegrond. De stand zelf staat los van het grid in `localStorage['amir-mk-thema']`, zodat ongedaan maken hem niet
+omzet. `mkPaletKlachten()` en de controle `maat` kijken beide standen na; `mkPaletZoek(tool)` zonder knoop zoekt eerst in
+de stand die aan staat en dan in de andere.
+
+**Muur van leem** (`leem`, letter `E`): een blok leemcellen boven de grondlijn wordt een terras met `look: 'leem'`, de
+lemen stadsmuur uit `notities/stad.md` ("De leemmuur"). Het botst en draagt als elk terras.
+
+**Uitzicht** in de balk (`#mkuitzicht`, `MK_UITZICHT`, `MK.uitzicht`, `mkUitzichtVan`): de achtergrond van het level,
+naar `lvl.lagen`. Vanzelf (`''`) is de stad (`stad_dag`) als er een stadsstuk in het grid staat (`mkHeeftStad`: een cel
+met `thema: 'stad'`), anders de gewone savanne in de avond. `basis` is die savanne-avond ook bij stadsstukken. Het gaat
+mee in de JSON (`uitzicht`, alleen als het gekozen is).
+
+Het verdere plan (straat als grondsoort per plek, gevels, kramen, galerijen, trappen): `notities/plan-stad-maker.md`.
+
 ## Sneltoetsen
 
 Escape (selecteren, deselecteren), spatie (schuiven), Delete (voorwerp of vorm weg), Ctrl+Z en
 Ctrl+Y (ongedaan en opnieuw), Ctrl+S (exporteren), F (passend), T (testen), + en - (zoomen),
-pijltjes (schuiven, met Shift sneller), M (de minimap), Shift+slepen (rechthoek; in Selecteren een gebied),
+pijltjes (schuiven, met Shift sneller), M (de minimap), G (Savanne of Stad in de legenda), Shift+slepen (rechthoek; in Selecteren een gebied),
 Alt+klik (een aaneengesloten vlak vullen), Ctrl+C,
 Ctrl+X en Ctrl+V (kopiëren, knippen, plakken), H (het klembord spiegelen), Delete (het gebied
 leegmaken). Op een keuzelijst, knop of tekstvak blijven de toetsen van dat veld.
@@ -231,7 +255,7 @@ kijkt na: de round-trip van export en import, de vertaling naar een spel-level, 
 weer weghalen, verkleinen, snel schilderen, de rechthoek, het aanklikken van brede voorwerpen,
 ongedaan maken, een gebied kopiëren, spiegelen, plakken en knippen, een rijzer van even breedte spiegelen met
 zijn zegel eraan, een poort met hek, regie en rotswand (round-trip, vertaling, spiegelen, de knop Poort met hek, levelcheck), de minimap en Test vanaf hier, het palet (elke tool en vijand in de boom, de kolom en de flyouts, en de maat: geen lijst of paneel langer dan `MK_PALET_MAX`), de vijand-knoppen, de controle, de Test starten en teruggaan,
-de autosave, en of
+de autosave, de schakelaar Savanne | Stad met de leemmuur en het uitzicht (controle `stad`), en of
 het proefgrid als spel-level door `levelcheck.py` komt. Draai hem na elke wijziging aan de Maker.
 
 ```

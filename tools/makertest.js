@@ -185,6 +185,46 @@ function verschil(a, b, pad = ''){
     return uit;
   });
 
+  // 1b. Savanne | Stad: de schakelaar filtert het palet en onthoudt per stand je gereedschap, G wisselt, een
+  // leemcel wordt een terras met look: 'leem', en het uitzicht is vanzelf de stad (of wat je kiest) en gaat mee in de JSON
+  await check('stad: de schakelaar, de leemmuur en het uitzicht', async () => {
+    const rijen = []; for (let r = 0; r < 8; r++) rijen.push('.'.repeat(10).split(''));
+    for (let c = 0; c < 10; c++) rijen[5][c] = 'S';
+    rijen[4][3] = 'E'; rijen[4][4] = 'E';
+    await laad({ type: 'amir-levelmaker-grid', versie: 2, cols: 10, rows: 8, groundRow: 5, grid: rijen.map(r => r.join('')),
+                 start: { c: 9, r: 4 }, eind: { c: 0, r: 4 }, objecten: [] });
+    return page.evaluate(() => {
+      const f = [];
+      const lv = mkNaarLevel();
+      const leem = (lv.terraces || []).find(t => t.look === 'leem');
+      if (!leem || leem.h !== 150 || leem.grond) f.push('geen leemmuur van 1 cel (150) als terras: ' + JSON.stringify(lv.terraces));
+      if (lv.lagen !== 'stad_dag') f.push('het uitzicht is vanzelf niet de stad: ' + lv.lagen);
+      MK.uitzicht = 'basis'; if ('lagen' in mkNaarLevel()) f.push('Savanne, avond geeft toch lagen');
+      MK.uitzicht = 'middag'; if (mkNaarLevel().lagen !== 'middag') f.push('een gekozen uitzicht komt niet in lagen');
+      const j = mkNaarJSON(); mkUitJSON(JSON.parse(JSON.stringify(j)));
+      if (MK.uitzicht !== 'middag' || mkUitzichtEl.value !== 'middag') f.push('het uitzicht gaat niet mee door de JSON');
+      mkUitJSON(Object.assign({}, j, { uitzicht: 'onzin' })); if (MK.uitzicht !== '') f.push('een onbekend uitzicht wordt niet vanzelf');
+      // de schakelaar
+      mkThemaZet('savanne'); MK.tool = 'rots'; MK.cat = 'terrein';
+      if (mkPaletZoek('leem', null, { items: mkPalet() })) f.push('leem staat in de stand Savanne');
+      if (!mkPaletZoek('sneeuw', null, { items: mkPalet() })) f.push('sneeuw ontbreekt in de stand Savanne');
+      mkThemaZet('stad');
+      if (!mkPaletZoek('leem', null, { items: mkPalet() })) f.push('leem ontbreekt in de stand Stad');
+      if (mkPaletZoek('sneeuw', null, { items: mkPalet() })) f.push('sneeuw staat in de stand Stad');
+      if (!document.querySelector('#mkthema button.on[data-thema="stad"]')) f.push('de knop Stad gaat niet aan');
+      MK.tool = 'leem';
+      dispatchEvent(new KeyboardEvent('keydown', { key: 'g' }));
+      if (MK.thema !== 'savanne') f.push('G wisselt niet naar Savanne');
+      if (MK.tool !== 'rots') f.push('terug in Savanne is het gereedschap niet weer rots: ' + MK.tool);
+      dispatchEvent(new KeyboardEvent('keydown', { key: 'G' }));
+      if (MK.thema !== 'stad' || MK.tool !== 'leem') f.push('terug in Stad is het gereedschap niet weer leem: ' + MK.thema + ' ' + MK.tool);
+      MK.tool = 'sneeuw'; mkThemaZet('savanne'); MK.tool = 'sneeuw'; mkThemaZet('stad');
+      if (MK.tool === 'sneeuw') f.push('sneeuw blijft vast in de stand Stad');
+      mkThemaZet('savanne'); MK.tool = 'select'; MK.cat = 'terrein'; MK.sub = null; MK.themaGeheugen = {}; mkLegenda();
+      return f;
+    });
+  });
+
   // 2. de vertaling naar een spel-level
   await check('vertaling: gaps, terrassen, zwevers, gang, takel, vijanden, zegel', async () => {
     await laad(proefGrid());
