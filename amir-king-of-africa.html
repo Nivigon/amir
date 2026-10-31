@@ -27450,13 +27450,14 @@ const ZWM_ROOT = 'enemies/zweepman/';
 const ZWM = {
   fig: 313, hShare: 0.9,          // de figuurhoogte in idle-pixels (gehurkt) en hoe groot t.o.v. Amir
   half: 95,                       // halve lijfbreedte in idle-pixels, voor de botsing en de nbox
-  loopFps: 18, idleFps: 8, terugFps: 12,
-  stap: 4.5,                      // idle-pixels per loopframe (gemeten aan de voet 2,8; iets sneller, anders kruipt hij)
+  loopFps: 26, idleFps: 8, terugFps: 18,
+  loopV: 100,                     // loopsnelheid in wereld-px/s, net als de andere vijanden (vroeger 4,5 idle-pixels per
+                                  // frame: 42 px/s op een laptop en 23 op een telefoon, te traag om dreiging te zijn)
   aanval: 440, min: 120, houd: 260, // afstanden in idle-pixels: binnen aanval slaat hij, binnen houd blijft hij staan
   gevaarNa: 0.12,                 // de zweep raakt tot zoveel s na de knal
-  herstel: 0.65,                  // s in de eindpose na de slag (het raam)
+  herstel: 0.5,                   // s in de eindpose na de slag (het raam)
   hoogKans: 0.5,                  // de kans dat hij hoog slaat in plaats van laag
-  cool: 1.1, coolOnderbreek: 0.6,
+  cool: 0.6, coolOnderbreek: 0.4,
   hp: 3, invHit: 0.35, knockV: 380,
   vervaag: 0.9
 };
@@ -27464,10 +27465,10 @@ const ZWM = {
 // hoog: hij komt omhoog met zijn rug naar je toe en de zweep boven zijn hoofd, en slaat op hoofdhoogte
 // (bukken of kruipen). Per slag de set, de terugweg, de frames en de boog van de punt.
 const ZWM_SLAG = {
-  laag: { set: 'slag', terug: 'terug', tellVan: 8, dur: i => i < 19 ? 55 : i < 28 ? 45 : 42,
+  laag: { set: 'slag', terug: 'terug', tellVan: 8, dur: i => i < 19 ? 38 : i < 28 ? 32 : 42,   // tell 0,42 s, opzwaai 0,29 s, slag tot de knal 0,25 s
           slagVan: 28, knal: 34, gevaarVan: 33, pantserVan: 22, terugTot: 21,
           boogVan: -60, boog: 150, laagH: 55 },        // raakt alleen onder laagH (idle-pixels boven de grond)
-  hoog: { set: 'hoog', terug: 'hoogterug', tellVan: 6, dur: i => i < 18 ? 55 : i < 30 ? 40 : 42,
+  hoog: { set: 'hoog', terug: 'hoogterug', tellVan: 6, dur: i => i < 18 ? 38 : i < 30 ? 30 : 42,   // tell 0,46 s, opzwaai 0,36 s, slag tot de knal 0,21 s
           slagVan: 30, knal: 35, gevaarVan: 33, pantserVan: 24, terugTot: 16,
           boogVan: -70, boog: 115, wExp: 1.1, kracht: 1.8, hoogMin: 245 }      // raakt alleen boven hoogMin (gebukt is Amir ~237 hoog): wie bukt of kruipt, gaat eronderdoor
 };
@@ -27475,8 +27476,21 @@ const ZWM_TOUW = { n: 30, lengte: 380, dikte: 7, handvat: 26, zwaarte: 1500, sti
                    kracht: 55, boog: 150, liggen: 0.6, kleur: '#7a4a24' };
 let zwmData = null, zwmBezig = false;
 const zwmBank = {};
+// zijn stem (sounds/zweep*.mp3): de lach als hij in beeld komt; "come here boy" als hij je achterna gaat sluipen;
+// "feel my hurt" als zijn zweep je raakt (of soms al in de tell); na een treffer soms de lach. Telkens met een kans,
+// en nooit vlak na elkaar (ZWM_STEM.rust, voor alle zweepmannen samen), zodat hij niet blijft kletsen.
+const ZWM_STEM = { vol: 0.95, rust: 3.5, komKans: 0.5, komVer: 1.4, raakVoel: 0.6, raakLach: 0.3, tellVoel: 0.2 };
+let zwmStem = null, zwmStemVrij = 0;
+function zwmZeg(wat, kans){
+  if (!zwmStem || (kans != null && Math.random() >= kans)) return;
+  const nu = performance.now() / 1000; if (nu < zwmStemVrij) return;
+  zwmStemVrij = nu + ZWM_STEM.rust;
+  banStemSpeel(zwmStem[wat], ZWM_STEM.vol);
+}
 function zwmLaad(){
   laadNodig('zwm');
+  if (!zwmStem) zwmStem = { lach: banStemmen('sounds/zweeplach.mp3', 2), kom: banStemmen('sounds/zweepcomehereboy.mp3', 2),
+                            voel: banStemmen('sounds/zweepfeelmyhurt.mp3', 2) };
   if (zwmData || zwmBezig) return;
   zwmBezig = true;
   laadJsonOpen++;
@@ -27634,12 +27648,13 @@ function updateZweepman(s, dt, plats, cliff){
   if (s.cool <= 0 && kooiZelfdeHoogte(s) && gap < ZWM.aanval * zS && gap > ZWM.min * zS){
     s.soort = s.slagVast || (Math.random() < ZWM.hoogKans ? 'hoog' : 'laag');   // slagVast: de sandbox kan hem vastzetten
     zwmSet(s, 'slag'); s.frame = ZWM_SLAG[s.soort].tellVan; s.geraaktAmir = false; s.knalT = -1; s.touw = null;
+    zwmZeg('voel', ZWM_STEM.tellVoel);
     return;
   }
   if (gap < ZWM.houd * zS){ zwmSet(s, 'idle'); anim(ZWM.idleFps); return; }
-  if (s.state !== 'loop') zwmSet(s, 'loop');
+  if (s.state !== 'loop'){ zwmSet(s, 'loop'); if (gap > ZWM.aanval * zS * ZWM_STEM.komVer) zwmZeg('kom', ZWM_STEM.komKans); }
   anim(ZWM.loopFps);
-  zwmMove(s, naarJe * ZWM.stap * ZWM.loopFps * zS * dt, plats, cliff);
+  zwmMove(s, naarJe * ZWM.loopV * dt, plats, cliff);
 }
 function updateZweepmannen(dt, plats, cliff){
   if (!running || (dead && !sandbox)) return;
@@ -33024,7 +33039,7 @@ function loop(now){
         if (achterMasker(s.x, s.base)) continue;
         const bodyX = cx + (s.x - world);
         if (bodyX < -900 * gs - W || bodyX > W / viewZoom() + W + 900 * gs) continue;
-        if (!s.geroepen && bodyX > 0 && bodyX < W){ s.geroepen = true; schbGrom(); }   // een grom zodra hij echt in beeld komt
+        if (!s.geroepen && bodyX > 0 && bodyX < W){ s.geroepen = true; zwmZeg('lach'); }   // de lach zodra hij echt in beeld komt
         const voeten = groundY - (s.base || 0) * scale;
         const alpha = Math.max(0, s.alpha != null ? s.alpha : 1);
         ctx.save(); ctx.globalAlpha = 0.24 * alpha; ctx.fillStyle = '#1d140f'; ctx.beginPath();
@@ -33038,6 +33053,7 @@ function loop(now){
         // de zweep raakt Amir (laag: springen helpt, bukken niet)
         if (zwmRaakt(s, bodyX, voeten, gs, pbox)){
           const px = playerX(); hurtPlayer(s.x < px); s.geraaktAmir = true;
+          const k = Math.random(); if (k < ZWM_STEM.raakVoel) zwmZeg('voel'); else if (k < ZWM_STEM.raakVoel + ZWM_STEM.raakLach) zwmZeg('lach');
           if (invuln > 0) knock = (s.x < px ? 1 : -1) * 260;
         }
         if (s.inv > 0) continue;
@@ -34426,7 +34442,7 @@ function laadVrij(){
   if (krbGeladen && !nodig('krb')){ for (const k in krbBank) delete krbBank[k]; krbWond = null; krbBout = null; krbGeladen = false; }
   // de schildbandiet: alleen als de JSON binnen is (een lopende fetch maakt zijn werk af)
   if (schbLagen && !nodig('schb')){ delete schbBank.lagen; schbLagen = null; schbLagenBezig = false; }
-  if (zwmData && !nodig('zwm')){ delete zwmBank.lagen; zwmData = null; zwmBezig = false; }
+  if (zwmData && !nodig('zwm')){ delete zwmBank.lagen; zwmData = null; zwmBezig = false; zwmStem = null; }
   if (exeData && !nodig('exe')){ delete schbBank.executie; exeData = null; exeBezig = false; }
   // de baviaan en het goudaapje altijd allemaal tegelijk: de tekencode gaat ervan uit dat ze er samen zijn
   if (baviaanImg && !nodig('bav') && !level.baviaan){
