@@ -71,5 +71,11 @@ het project (`claude/zweepman_overdracht.md`). De zweep is fel groen gegenereerd
 
 ## Nog te doen
 
+- `sounds/zweepslag.mp3` (een echte zweepklap, de stilte ervoor eraf geknipt zodat de klap meteen komt) vervangt de
+  ruisknal `zwmKnalGeluid` op de knal. Staat klaar, nog niet ingebouwd.
+- De zweep laag en hoog duidelijk anders laten zien (mock-up in de chat): laag veegt hij over de grond met een zandspoor
+  en stof en knalt hij op enkelhoogte; hoog trekt hij rond de knal recht op hoofdhoogte met een witte zwiep. Nu zakt de
+  hoge zweep op de knal al naar de grond (de liggen-kracht begint op de knal), en komt de lage van boven.
+
 De vangst (de zweep om je speer, touwtrekken), arm eraf en berserk, de knie-fase, een flinch en de
 echte dood.
