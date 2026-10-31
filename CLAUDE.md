@@ -269,6 +269,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `camera` | `true` of `{voor, verken, vecht, telefoon}`: de meekijkende camera. Vooruitkijken in de looprichting, en op een laptop 0,75 onderweg en 0,8 in een gevecht; een telefoon houdt 0,8 en kijkt minder ver vooruit. Gaat boven `view`; in een arena neemt de arena-camera het over en geldt `view`. De standaard voor een nieuw level (Test 51 tot en met 55 en de Maker); in de sandbox de knop Meekijken (`CAM`, `camUpdate`) |
 | `worp` | `'schaal'` zet de schaalworp aan: de hoek loopt op zolang je vasthoudt, van vlak tot 30 graden (`THR_HOEK_MAX`); zonder dit veld de twee trappen. In de sandbox de knop Worp onder Speerworp |
 | `schild` | `true`: Amir heeft een schild, C (of de schildknop) houdt het op; het vangt alles van voren en net op tijd is het een parade (alleen Test 56, zie `notities/schild.md`) |
+| `rand` | `true`: het level begint aan de rand. Geen rotswand en hut aan de start, de rechtergrens ligt `RAND.ruimte` (320) achter de start (een getal in plaats van `true` is die ruimte zelf) en de camera kijkt niet voorbij die grens (`randCam`, in `camUpdate`). De standaard voor elk nieuw level (Test 59); de bestaande levels hebben het niet |
 | `speerInHand` | `true`: Amir begint met de speer in de hand in plaats van hem voor zich uit de grond te pakken; de Level Maker nieuwstijl zet dit in elk level, de echte episodes hebben het niet |
 | `executie` | `true`: elke dodelijke steek, worp of lage zwaai op een schildbandiet is de executie, in plaats van 1 op 5 en 1 op 3 (alleen Test 50, zie `notities/schildbandiet.md`) |
 | `herhaal` | `true`: is de laatste schildbandiet weg (na de executie of de gewone dood), dan komt er na `EXE.herhaalWacht` een nieuwe aanwandelen, net buiten beeld voor Amir uit, met de vlaggen van de eerste schildman-spawn (alleen Test 50, `exeHerhaalStap`) |
@@ -302,7 +303,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `poorten` | stenen bogen uit `design/boog/`: `{id, x, k, f, y, s, look, hek, wand, wandF, wandH, wandX, regie, bij}`, `look` steen, sneeuw of savanne (zonder: sneeuw in een winterlevel), decor; een zegel of rune met `poort: id` opent hem en dan komen de spawns met `poort: id` eruit (zie "poort"); `hek` een valhek dat optakelt, `wand` een rotswand erachter (`true` de kale wand, of een soort uit `HEK_WANDEN`: `kaal`, `spits`, `pieken`, `zuilen`, `boog`, `grot`), `wandH` zijn hoogte en `wandX` een verschuiving, allebei in Amir, `regie` vanzelf open als hij in beeld komt (of bij `bij`) met Amir vast tot de vijand eruit is (zie "het hek van de poort") |
 | `rotsen` | losse rotsen als decor: `{x, soort, groot, y}`, een van de platen onder een rune (`spits`, `pieken`, `zuilen`, `boog`) zonder schijf, `x` de linkervoet, `groot` de hoogte in Amir, `y` een vaste vloer; getekend achter de plateaus, zodat een zwever erin kan snijden (zie `notities/decor.md`) |
 | `rijzers` | steen dat uit een ravijn omhoog komt: `{id, r, l, tot, van, v, wacht, duur}`, `id` de naam waar een zegel of een rune (`doel: true`) met `rijs` naar wijst, `tot` en `van` de bovenkant boven en beneden (standaard -1 en -900), `wacht` seconden voor hij begint, `duur` seconden boven voor hij terugzakt (zie "rijzende grond"); met `zak: true` staat hij boven en zakt hij onder Amir weg; `look` de bovenrand (`savanne`, `rots`, `sneeuw`, `zwart`) en `kleurVanaf` een hoogte waaronder het blok zwart blijft; in een put (`putten`) is de gangvloer zijn grond (Test 48) |
-| `stad` | de Sahelstad: `{paleis, seed, gevels, galerijen, kramen, voet}`, gevels van 1 tot 4 hoog met een beloopbaar dak, houten galerijen, kramen (`riet` draagt, `doek` veert) en de straattegel in plaats van de grondrand; met `lagen: 'stad_dag'` (Test 59, zie `notities/stad.md`) |
+| `stad` | de Sahelstad: `{paleis, seed, gevels, galerijen, kramen, voet}`, gevels van 1 tot 4 hoog met een beloopbaar dak, houten galerijen, kramen (`riet` draagt, `doek` veert) en de straattegel in plaats van de grondrand; met `lagen: 'stad_dag'` (Test 59, zie `notities/stad.md`). Een galerij en een dak zijn ook de vloer van een vijand (`stadVloerBij` in `vloerBij`): een spawn met `dak: 401` (de hoogte) of `dak: true` staat erop en de rand houdt hem tegen; de camera klimt mee |
 | `takel` | een takelwiel met een hangend plateau; sla het rad met je speer, het plateau draagt en veert (zie `notities/velden.md`) |
 | `maskers` | geverfde stukken die een deel van het level verbergen: `{id, look, vakken}` (zie `notities/velden.md`) |
 | `zakplafond` | stukken rots die zakken: `{r, l, rust, dicht, v, schok, duw}` (zie `notities/velden.md`) |
@@ -325,7 +326,10 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
    vijand en Amir krijgt in een nieuw level een health-balk (zie "health-balk"). En `zicht: true`:
    een vijand ziet je dan alleen als er niets tussen zit (zie "zicht"). En `camera: true`: de
    meekijkende camera (zie het veld `camera`); een arena-level mag het ook hebben, daar neemt de
-   arena-camera het over. De Maker nieuwstijl doet dit al zelf.
+   arena-camera het over. De Maker nieuwstijl doet dit al zelf. En `rand: true`: geen rotswand
+   en hut aan de start, Amir begint aan de rand van het level en de camera kijkt er niet voorbij
+   (zie het veld `rand`). Dat geldt voor elk nieuw level vanaf nu; de bestaande levels houden hun
+   rotswand (rule 1, en een speerval zit in die wand). De Maker had al een kale start (`kaleKlif`).
 2. De naam in de array van die reeks (`VK_LEVELS`, `TEST_LEVELS` of `BAB_LEVELS`).
 3. Een ondertitel in `SUBS`, op de naam van het level.
 4. Een eigen uitzicht in `SCENES` als het level er anders uit moet zien.
