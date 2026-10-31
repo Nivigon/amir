@@ -68,7 +68,8 @@ Status: plan, met de keuzes van de opdrachtgever erin. Wordt per stap gebouwd; v
 
 1. [x] Fundament: schakelaar, `thema`, G, Uitzicht in de balk, en de leemmuur (pull request 517) als terreinsoort
    **Muur van leem** in de stand Stad. Het veld `stad` zelf komt mee met de eerste stukken in stap 3.
-2. [ ] Grondsoort per plek in het spel, met straat als terreincel in de Maker.
+2. [x] Grondsoort per plek in het spel, met straat als terreincel in de Maker (het veld `grondSoort`,
+   zie `notities/grondsoort.md`).
 3. [ ] Losse stukken: gevel, kraam, voetdecor, paleis.
 4. [ ] Gekoppelde stukken: galerij en trap.
 5. [ ] Afwerking: vijanden op daken, meldingen in `mkControle`, proefgrid in `makertest.js`,

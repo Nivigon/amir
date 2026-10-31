@@ -67,7 +67,7 @@ async function start(){
 //    start, met twee treden onder het gat (kolom 21 en 22) als weg naar boven
 //    (het gat loopt een cel verder door dan de onderste trede, anders stoot Amir bij de sprong zijn hoofd tegen het dak)
 //  - een lage rotsmesa (kolom 4 en 5, rij 6), een zwevende laag (kolom 16 tot 18, rij 4) met lucht eronder
-//  - een muur door de grond (kolom 10, rij 6 en 7), sneeuw op kolom 0 en 1
+//  - een muur door de grond (kolom 10, rij 6 en 7), sneeuw op kolom 0 en 1, straat op kolom 2 en 3 (grondSoort)
 //  - start op kolom 19, eind op kolom 2
 //  - een zandslang, een bandiet met dolk, een platform met doel plus een tandwiel, een overhang, een richel,
 //    een verborgen zegel met masker dat ook een rijzer stuurt, een onzichtbaar zegel op het dak van de gang,
@@ -87,6 +87,7 @@ function proefGrid(){
   for (let c = 16; c <= 18; c++) rijen[4][c] = 'F';
   rijen[6][10] = 'M'; rijen[7][10] = 'M';
   rijen[7][0] = 'W'; rijen[7][1] = 'W';
+  rijen[7][2] = 'A'; rijen[7][3] = 'A';
   return {
     type: 'amir-levelmaker-grid', versie: 2, cols: 24, rows: 12, groundRow: 7,
     grid: rijen.map(r => r.join('')),
@@ -191,6 +192,7 @@ function verschil(a, b, pad = ''){
     const rijen = []; for (let r = 0; r < 8; r++) rijen.push('.'.repeat(10).split(''));
     for (let c = 0; c < 10; c++) rijen[5][c] = 'S';
     rijen[4][3] = 'E'; rijen[4][4] = 'E';
+    rijen[5][1] = 'R'; rijen[5][6] = 'A'; rijen[5][7] = 'A';   // een strook rots en een strook straat op de grondlijn
     await laad({ type: 'amir-levelmaker-grid', versie: 2, cols: 10, rows: 8, groundRow: 5, grid: rijen.map(r => r.join('')),
                  start: { c: 9, r: 4 }, eind: { c: 0, r: 4 }, objecten: [] });
     return page.evaluate(() => {
@@ -198,6 +200,10 @@ function verschil(a, b, pad = ''){
       const lv = mkNaarLevel();
       const leem = (lv.terraces || []).find(t => t.look === 'leem');
       if (!leem || leem.h !== 150 || leem.grond) f.push('geen leemmuur van 1 cel (150) als terras: ' + JSON.stringify(lv.terraces));
+      const gsR = (lv.grondSoort || []).find(g => g.soort === 'rots'), gsA = (lv.grondSoort || []).find(g => g.soort === 'straat');
+      if (!gsR || !gsA || (lv.grondSoort || []).length !== 2) f.push('geen strook rots en straat uit de grondlijn: ' + JSON.stringify(lv.grondSoort));
+      if (gsA && Math.abs(gsA.van - gsA.tot) !== 350) f.push('de strook straat is geen 2 cellen (350 px): ' + JSON.stringify(gsA));
+      if (lv.sneeuw) f.push('rots op de grondlijn geeft nog een sneeuw-veld: ' + JSON.stringify(lv.sneeuw));
       if (lv.lagen !== 'stad_dag') f.push('het uitzicht is vanzelf niet de stad: ' + lv.lagen);
       MK.uitzicht = 'basis'; if ('lagen' in mkNaarLevel()) f.push('Savanne, avond geeft toch lagen');
       MK.uitzicht = 'middag'; if (mkNaarLevel().lagen !== 'middag') f.push('een gekozen uitzicht komt niet in lagen');
@@ -207,9 +213,11 @@ function verschil(a, b, pad = ''){
       // de schakelaar
       mkThemaZet('savanne'); MK.tool = 'rots'; MK.cat = 'terrein';
       if (mkPaletZoek('leem', null, { items: mkPalet() })) f.push('leem staat in de stand Savanne');
+      if (mkPaletZoek('straat', null, { items: mkPalet() })) f.push('straat staat in de stand Savanne');
       if (!mkPaletZoek('sneeuw', null, { items: mkPalet() })) f.push('sneeuw ontbreekt in de stand Savanne');
       mkThemaZet('stad');
       if (!mkPaletZoek('leem', null, { items: mkPalet() })) f.push('leem ontbreekt in de stand Stad');
+      if (!mkPaletZoek('straat', null, { items: mkPalet() })) f.push('straat ontbreekt in de stand Stad');
       if (mkPaletZoek('sneeuw', null, { items: mkPalet() })) f.push('sneeuw staat in de stand Stad');
       if (!document.querySelector('#mkthema button.on[data-thema="stad"]')) f.push('de knop Stad gaat niet aan');
       MK.tool = 'leem';
@@ -264,6 +272,9 @@ function verschil(a, b, pad = ''){
     else if (lv.ledges[0].look !== 'sneeuw') uit.push('de richel heeft zijn kleur (sneeuw) niet mee: ' + JSON.stringify(lv.ledges[0]));
     if (!(lv.hppotions || []).length) uit.push('geen kalebas');
     if (!lv.sneeuw || lv.sneeuw.soort !== 'savanne') uit.push('geen sneeuwdek op de savanne');
+    const gs = (lv.grondSoort || [])[0];
+    if (!gs || gs.soort !== 'straat' || (lv.grondSoort || []).length !== 1 || Math.abs(gs.van - gs.tot) !== 350)
+      uit.push('geen strook straat van 2 cellen (350 px) als enige grondsoort: ' + JSON.stringify(lv.grondSoort));
     if (!(lv.vormen || []).length) uit.push('geen vormen (vrije vorm en zwarte cel)');
     if (lv.ends[0].x >= lv.start) uit.push('eind ligt niet links van de start');
     if (lv.speerInHand !== true || lv.view !== 0.8 || lv.zicht !== true) uit.push('basisvelden (speerInHand, view 0.8, zicht) kloppen niet');

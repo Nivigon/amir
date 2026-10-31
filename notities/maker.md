@@ -230,6 +230,12 @@ de stand die aan staat en dan in de andere.
 **Muur van leem** (`leem`, letter `E`): een blok leemcellen boven de grondlijn wordt een terras met `look: 'leem'`, de
 lemen stadsmuur uit `notities/stad.md` ("De leemmuur"). Het botst en draagt als elk terras.
 
+**Grond: straat** (`straat`, letter `A`, groep `terrein/stad`): op de grondlijn een strook `grondSoort` met soort
+`straat` (zie `notities/grondsoort.md`); boven de grondlijn telt hij als savanne (een terras van grond, een zwever).
+Rots- en sneeuwrots-cellen op de grondlijn worden nu ook zulke stroken (soort `rots`), per plek in plaats van de
+oude `afwerking` die de hele bodem omzette; een sneeuwcel geeft nog steeds een dichte sneeuwlaag over de hele
+bodem (`sneeuw: {soort: 'savanne', dek: 1, vol: true}`).
+
 **Uitzicht** in de balk (`#mkuitzicht`, `MK_UITZICHT`, `MK.uitzicht`, `mkUitzichtVan`): de achtergrond van het level,
 naar `lvl.lagen`. Vanzelf (`''`) is de stad (`stad_dag`) als er een stadsstuk in het grid staat (`mkHeeftStad`: een cel
 met `thema: 'stad'`), anders de gewone savanne in de avond. `basis` is die savanne-avond ook bij stadsstukken. Het gaat

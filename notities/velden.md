@@ -2,6 +2,10 @@
 
 De korte velden staan in `CLAUDE.md`; hier de velden met een langere uitleg.
 
+## veld `grondSoort`
+
+stroken grondsoort in de bodem: `[{van, tot, soort}]`, `soort` `'savanne'`, `'rots'` of `'straat'`. De basis blijft `bodemPic`; elke strook tekent zijn eigen grondtegel eroverheen, met een grillige rand (`sneeuwJag`) die over een halve Maker-cel zacht uitloopt in de grond ernaast, ook op de bovenkant van een hogere of zwevende savannelaag en op de vloer van een gang (daar in het donker van de vloer). De sneeuwlaag (`sneeuw`) ligt er gewoon overheen. De Maker nieuwstijl schrijft dit veld uit de terreincellen op de grondlijn (rots, sneeuw op rots en straat worden stroken); geen bestaand level heeft het. In de sandbox onder Terrein, Grondsoort. Zie `notities/grondsoort.md`
+
 ## veld `rugMax`
 
 reserve-speren op de rug: 1 in de hand plus zoveel op de rug, dus `rugMax + 1` worpen voor je melee-loos bent (0 tot 5). Zie "reserve-speren op de rug"; Test 39 is het proefstuk. **De standaard is 1, overal** (`RUG_STANDAARD`): elk level zonder het veld krijgt 1 reserve-speer, tenzij het geen speer heeft (`geenSpeer`); De Valse Koning zet `rugMax: 1` al zelf op elk level. Een level dat zelf `rugMax` zet houdt die, ook 0 (dan staat hij uit; readLevel laat het veld leeg als het er niet is). Ook de sandbox en de arena-modus beginnen met 1 op de rug. Dat zit in `restart`, niet in de leveldefinities
