@@ -3,7 +3,7 @@
 `STAD`, `stadAan`, `stadLaad`, `stadLees`, `stadPlats`, `stadAchter`, `stadTeken`, `stadVeer`, `stadSprong`
 
 Een level met het veld `stad` speelt in een drukke straat van een Sahelstad, overdag (uitzicht `stad_dag`).
-De onderdelen staan in `design/stad/`, met alle maten in `design/stad/metadata.json`. Test 59 is het proefstuk;
+De onderdelen staan in `design/stad/`, met alle maten in `design/stad/metadata.json`. Stad 1 (de episode Test levels stad, eerst Test 59) is het proefstuk;
 in de sandbox onder Terrein de knoppen **De stad** (Neerzetten, Weg).
 
 ```
@@ -40,7 +40,31 @@ meeschaalt. `h` is de hoogte van het dek (standaard de eerste verdieping, 401). 
 onderen spring je erdoorheen. De reling staat achteraan, Amir loopt ervoor.
 
 Amir springt 208 hoog. Een verdieping (329) is dus te hoog om zomaar te halen: een route naar boven gaat via de
-kraam, de doek, of galerijen die tussen twee verdiepingen hangen (Test 59 heeft er drie boven elkaar langs de toren).
+kraam, de doek, of galerijen die tussen twee verdiepingen hangen (Stad 1 heeft er drie boven elkaar langs de toren).
+
+## Vijanden op een galerij of dak
+
+Een galerij en een dak zijn ook de vloer van een vijand: `vloerBij` vraagt het aan `stadVloerBij` (na de zwever), dat
+in `stadVloeren` de daken en galerijen kent (gecachet per schermmaat en level). Wie binnen hun rand staat en niet meer
+dan `STAD.vijandMarge` (30) onder de looplijn, heeft die als vloer. Zo werkt de rest vanzelf: `dropAhead` houdt hem bij
+de rand tegen (zoals een ravijnrand, regel 7), en `banZelfdeHoogte`, de kooiman/schildman en het zicht vergelijken de
+vloer onder Amir op de galerij goed. Wie eronder loopt blijft op de straat (de marge is klein, en een dun platform is
+geen muur in `blocksMonster`). De tafels, het rieten dak en de doek tellen niet mee.
+
+Een spawn met `dak` staat erop (bandiet en schildbandiet, `stadDakPlek`): `dak: 401` kiest de galerij of het dak op
+die hoogte dat het dichtst bij x ligt, `dak: true` het hoogste. Zijn x schuift ruim binnen de rand, want de huizen en
+galerijen schalen mee met het scherm en een vaste x kan op een andere maat net naast een dak vallen. Een hyena komt
+van de rand van het beeld en kent dit niet. In de sandbox: **Bandiet op de galerij** onder De stad.
+
+Een galerij over meerdere huizen (`van` tot `tot`) loopt door over de kieren tussen de huizen, op elke schermmaat.
+Dat is de lange looprand van Stad 1, met het gevecht erop. Een rij daken loopt alleen door als de huizen elkaar op
+die schermmaat raken.
+
+## De camera
+
+In de stad klimt de camera mee (`updateCamera`, `stadAan()` telt als een klimlevel), anders liep je op een galerij of
+dak boven uit beeld. Zakt de straat daarbij onder uit beeld, dan loopt onder de voorste achterrij een stoffige straat
+in de verte door (`STAD.verteStraat` in `stadAchter`), in plaats van de lichte nevel.
 
 ## Kramen
 
@@ -71,4 +95,7 @@ ze de rechte lijn tussen muur en straat.
 
 - Deuren in de deurgaten, en vijanden die uit een deur komen.
 - De Maker: gevels, galerijen, kramen en voetdecor als gereedschap.
+- Een lift (een takel) die zich naar de rand van een galerij voegt: het plateau heeft een vaste breedte, de galerij
+  schaalt mee. In Stad 1 overlapt het plateau het eind van de galerij op een laptop; op een kleine telefoon is het
+  een korte sprong opzij.
 - Een subtiele gloed om de personages (in de mockups hielp dat tegen de bruine muren), en een kleine set (`klein/`).
