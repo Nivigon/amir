@@ -175,6 +175,8 @@ class Lezer:
             self.neem()
             x = {'true': True, 'false': False, 'null': None,
                  'undefined': None}.get(v, self.namen.get(v, ONBEKEND))
+            if x is ONBEKEND and v not in self.namen and hasattr(self.namen, 'zoek'):
+                x = self.namen.zoek(v)                 # een gedeelde const, zoals OAK_STRATEN
             while self.kijk()[1] in ('.', '(', '['):   # Math.max(...), iets.src, a[0]
                 if self.kijk()[1] == '.':
                     self.neem(); self.neem()
@@ -244,12 +246,28 @@ def blok_na(src, begin):
     raise ValueError('geen sluitende haak na positie %d' % begin)
 
 
+class Namen(dict):
+    """De consts die we al kennen; een onbekende in hoofdletters zoeken we op in de HTML."""
+    def __init__(self, bron):
+        super().__init__()
+        self.bron = bron
+
+    def zoek(self, naam):
+        if not re.fullmatch(r'[A-Z][A-Z0-9_]+', naam) or not re.search(r'\bconst\s+' + naam + r'\s*=', self.bron.src):
+            return ONBEKEND
+        self[naam] = ONBEKEND                          # tegen een kringverwijzing
+        try:
+            return self.bron.const(naam)
+        except ValueError:
+            return ONBEKEND
+
+
 class Bron:
     """De HTML, en alles wat we eruit lezen."""
     def __init__(self, pad):
         with open(pad, encoding='utf-8') as f:
             self.src = f.read()
-        self.namen = {}
+        self.namen = Namen(self)
 
     def const(self, naam):
         """Een const uitrekenen; ontbreekt hij, dan stoppen we."""
