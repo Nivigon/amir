@@ -146,6 +146,10 @@ Altijd WYSIWYG: links in het grid is links in het spel, de wereld-x is `(kolom -
   regie (met `bij` als regiepunt) en de rotswand (`wand`, `wandF`, `wandH`, `wandX`) gaan mee. Met een vijand erin
   komt die als spawn met `poort` mee (via `mkSpawn` op de cel van de poort, zo vaak als **Aantal**), en een zegel of
   rune met **Opent poort** krijgt `poort`. Zie `notities/poort.md`.
+- De **stadsstukken** (gevel, kraam, voetdecor, paleis; zie "De losse stukken van de stad" hieronder) worden het veld
+  `stad` (`{seed, gevels, kramen, voet, paleis}`), alleen als er minstens een in het grid staat. Met dat veld is de basis
+  van de bodem de straat (`bodemPic`), dus dan krijgen savanne- en sneeuwcellen op de grondlijn ook een eigen strook
+  `grondSoort` met soort `savanne`, en ligt de straat alleen waar je straat schilderde.
 - Vijanden via `mkSpawn`: de soort-tekst (`bandiet:dolk`, `kooiman:vogel`, `schildman:makkelijk`)
   wordt de spawn met zijn vlaggen; een vijand op een laag krijgt `boven: true`, in een gang `y`. Ook op het
   dak van een gang (op of boven de grondlijn, met een holte eronder) krijgt hij `boven: true`: `bovenVloer`
@@ -198,7 +202,10 @@ naar de cel), die bijblijft zolang hij open staat. Drie soorten:
   tandwiel of met zijn doel op dezelfde hoogte, een zegel dat naar een weg masker wijst, een voorwerp dat half in een masker steekt maar zelf te zien blijft (zie Verborgen door masker in `notities/masker.md`), een val
   van meer dan vier cellen naast een rand (dodelijk in de Test), een rijzer met zijn doel op zijn eigen rij, die
   op of boven de grondlijn rust, of die drie of meer cellen ravijn naast zich open laat, en een zegel dat een
-  zakker stuurt.
+  zakker stuurt, een gevel, kraam of voetdecor op grond die geen straat is (de grondlijn-cel op zijn kolom), en een
+  straatcel of leemmuur boven de grondlijn zonder straat op de grondlijn eronder (per reeks kolommen een melding; een
+  straatterras haalt zijn tegel uit de strook op de grondlijn). Die laatste twee zijn uit stap 5 van het stadplan naar
+  voren gehaald.
 - **info**: een prop (de Test tekent hem niet), rotsdecor dat boven zijn vloer hangt (het spel zet hem op de vloer), een poort met regie zonder vijand, een hek dat niets opent, een zegel of rune zonder masker of rijzer (alleen een
   aantekening), een rijzer zonder duur die het hele ravijn vult (het ravijn is daarna voorgoed dicht, dus geen
   schuilplek meer, regel 7).
@@ -206,7 +213,8 @@ naar de cel), die bijblijft zolang hij open staat. Drie soorten:
 De vloer onder een cel (`vloerOnder`): boven de grondlijn val je door lucht; een ravijn op de grondlijn is
 de ingang van een gang eronder en anders bodemloos (FOUT); een gang is open tot zijn vloer, de eerste
 cel die geen gang is; een gang tot de onderrand heeft zijn holte-vloer eronder (rij `R`). Al het andere
-op of onder de grondlijn is grond. "Onder de grond zonder gang" kijkt naar de eigen cel van de vijand.
+op of onder de grondlijn is grond. "Onder de grond zonder gang" kijkt naar de eigen cel van de vijand. Een straatcel is
+vast, net als savanne (dat stond er in stap 2 nog niet in, en dan zweefde een vijand op een straatterras in de controle).
 
 Het is alleen wat uit het grid zelf af te lezen is. Sprongen, bereik en de speer kijkt
 `tools/levelcheck.py` na: druk op **Spel-JSON** en geef die tekst als bestand aan levelcheck of de
@@ -236,12 +244,46 @@ Rots- en sneeuwrots-cellen op de grondlijn worden nu ook zulke stroken (soort `r
 oude `afwerking` die de hele bodem omzette; een sneeuwcel geeft nog steeds een dichte sneeuwlaag over de hele
 bodem (`sneeuw: {soort: 'savanne', dek: 1, vol: true}`).
 
+### De losse stukken van de stad
+
+`MK_STAD_K`, `mkStadVak`, `mkStadTeken`, `mkVulStad`, `mkStadHeel`, `mkGevelNieuwId`, `mkStadLaad`, `MK_STAD_SCHAAL`
+
+Stap 3 van `notities/plan-stad-maker.md`. Onder Decor in de stand Stad: groep **Huizen** (`decor/huizen`: Gevel) en groep
+**Straat** (`decor/straat`: Kraam met rieten dak, Kraam met doek, Voetdecor, Paleis). Het zijn voorwerpen in `MK.objects`:
+
+| stuk | voorwerp | ankercel | paneel (kopje) | naar `stad` |
+| --- | --- | --- | --- | --- |
+| gevel | `{k: 'gevel', id, hoog, f}` | linksonder | Gevel g1: Hoogte 1 tot 4, Gespiegeld | `gevels: {x, hoog, f}`, x de linkerkant van zijn ankercel |
+| kraam | `{k: 'kraam', soort, f}` | midden | Kraam: Soort (riet, doek), Gespiegeld | `kramen: {x, soort, f}` |
+| voetdecor | `{k: 'voet', stuk, f}` | midden | Voetdecor: Stuk, Gespiegeld | `voet: {x, stuk, f}` |
+| paleis | `{k: 'paleis'}`, een per level | midden | Stad: Andere stad | `paleis: x` |
+
+- **Tekenen** (`mkStadTeken`, voor de andere voorwerpen, van ver naar dichtbij): de echte plaatjes uit `design/stad/`, half
+  doorzichtig (`MK_STAD_ALFA`); een gevel gestapeld uit dak, verdiepingen en begane grond zoals `stadTeken`. In het spel
+  schaalt een breedte mee met het scherm; de Maker tekent op laptopmaat (`MK_STAD_SCHAAL`, 1280 bij 720 op Formaat 25, de
+  maat van levelcheck), zodat een gevel ongeveer 3,1 cellen breed is. Hoogtes liggen vast. De ankercel heeft een dun
+  kadertje, een gevel zijn id linksboven, het paleis een stippellijn over het hele grid op zijn kolom.
+- **Aanklikken en slepen**: `mkObjOp` vindt een stadsstuk ook op zijn plaatje (voetdecor en kramen voor gevels), en
+  slepen houdt vast waar je het pakte (`mkDragOff`), zodat een huis niet naar de muis verspringt.
+- **Een eigen id per gevel** (`g1`, `g2`, ...; `mkGevelNieuwId`): het gaat mee in de JSON, en `mkStadHeel` (na laden en
+  plakken) geeft een dubbel of leeg id een nieuwe. `mkNaarLevel` zet de gevels van de start af in `stad.gevels` en houdt
+  `gevelIdx` (id naar index) bij, voor de galerijen en trappen van stap 4.
+- **Het paleis**: een klik met het gereedschap verschuift het bestaande, en `mkStadHeel` laat er na plakken een (het
+  laatste). **Andere stad** zet `MK.stadSeed` (in de JSON `stadSeed`, in het level `stad.seed`, standaard 1).
+- **Spiegelen** van het klembord keert elk stuk om; een gevel schuift met zijn anker zo ver op dat het huis op dezelfde
+  plek blijft (twee keer spiegelen geeft het origineel).
+- **Lui laden**: `mkStadLaad` roept `stadLaad` alleen aan in de stand Stad of als het grid stadsstukken of stadcellen heeft
+  (`mkOpen`, `mkThemaZet`, `mkStadTeken`, `mkVulStad`).
+- Een stadsstuk telt voor `mkHeeftStad`, dus het uitzicht wordt vanzelf `stad_dag`. Muziek: zonder eigen keuze komt er
+  geen `muziek` in het level en kiest het spel de stadmuziek (`MUZIEK_STAD`). Daardoor geeft Dark Africa in de balk in
+  een stadlevel ook de stadmuziek: Dark Africa is de standaard van de keuzelijst, dus de Maker ziet het verschil niet.
+
 **Uitzicht** in de balk (`#mkuitzicht`, `MK_UITZICHT`, `MK.uitzicht`, `mkUitzichtVan`): de achtergrond van het level,
 naar `lvl.lagen`. Vanzelf (`''`) is de stad (`stad_dag`) als er een stadsstuk in het grid staat (`mkHeeftStad`: een cel
 met `thema: 'stad'`), anders de gewone savanne in de avond. `basis` is die savanne-avond ook bij stadsstukken. Het gaat
 mee in de JSON (`uitzicht`, alleen als het gekozen is).
 
-Het verdere plan (straat als grondsoort per plek, gevels, kramen, galerijen, trappen): `notities/plan-stad-maker.md`.
+Het verdere plan (galerijen, trappen en de afwerking): `notities/plan-stad-maker.md`.
 
 ## Sneltoetsen
 
@@ -261,7 +303,9 @@ kijkt na: de round-trip van export en import, de vertaling naar een spel-level, 
 weer weghalen, verkleinen, snel schilderen, de rechthoek, het aanklikken van brede voorwerpen,
 ongedaan maken, een gebied kopiëren, spiegelen, plakken en knippen, een rijzer van even breedte spiegelen met
 zijn zegel eraan, een poort met hek, regie en rotswand (round-trip, vertaling, spiegelen, de knop Poort met hek, levelcheck), de minimap en Test vanaf hier, het palet (elke tool en vijand in de boom, de kolom en de flyouts, en de maat: geen lijst of paneel langer dan `MK_PALET_MAX`), de vijand-knoppen, de controle, de Test starten en teruggaan,
-de autosave, de schakelaar Savanne | Stad met de leemmuur en het uitzicht (controle `stad`), en of
+de autosave, de schakelaar Savanne | Stad met de leemmuur en het uitzicht (controle `stad`), de stadsstukken (controle
+`stadsstukken`: ids, een paleis, de JSON, het veld `stad`, de stroken, de twee meldingen, spiegelen, plakken, het paneel en
+neerzetten met de muis), en of
 het proefgrid als spel-level door `levelcheck.py` komt. Draai hem na elke wijziging aan de Maker.
 
 ```
