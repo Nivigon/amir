@@ -1563,8 +1563,10 @@
         <label>De stad</label>
         <button id="sbstad">Neerzetten</button>
         <button id="sbstadweg">Weg</button>
+        <button id="sbleemlaag">Lage leemmuur</button>
+        <button id="sbleemhoog">Doodlopend</button>
         <button id="sbstadban">Bandiet op de galerij</button>
-        <span class="hint">een Sahelstraat voor je uit: huizen van 1 tot 4 hoog, een galerij, een kraam met een rieten dak (opstap) en een met een doek die veert (spring erop of net bij het landen: hoog), en het paleis in de verte. Naast het hoge huis staat een houten trap: E bij de voet en je staat aan de andere kant op het balkon, E in de opening en je bent weer beneden. Bandiet op de galerij: hij staat op de eerste galerij (zet de stad neer als die er nog niet is) en de rand houdt hem tegen; klim via de kraam omhoog</span>
+        <span class="hint">een Sahelstraat voor je uit: huizen van 1 tot 4 hoog, een galerij, een kraam met een rieten dak (opstap) en een met een doek die veert (spring erop of net bij het landen: hoog), en het paleis in de verte. Lage leemmuur en Doodlopend zetten een muur van leem voor je neer (een terras met de look van de stad): de lage spring je op, de hoge houdt je tegen. Naast het hoge huis staat een houten trap: E bij de voet en je staat aan de andere kant op het balkon, E in de opening en je bent weer beneden. Bandiet op de galerij: hij staat op de eerste galerij (zet de stad neer als die er nog niet is) en de rand houdt hem tegen; klim via de kraam omhoog</span>
       </div>
       <div class="row">
         <label>Takelwiel</label>
@@ -4670,6 +4672,8 @@ const STAD_2 = {
             {x: -4100, k: 'schildman', dak: 401},
             {x: -6200, k: 'bandiet', dolk: true}, {x: -6500, k: 'schildman'},
             {x: -7150, k: 'bandiet', dak: 401} ],
+  // een lage muur van leem tussen de twee straten (zie "de leemmuur"): je springt erop, de vijanden erachter houdt hij tegen
+  terraces: [ {r: -4430, l: -4830, h: 170, look: 'leem'} ],
   rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
   voorgrond: false,
   hppotions: [ {x: -2900, y: 401}, {x: -5450, y: 730} ],
@@ -5759,7 +5763,9 @@ function drawClimb(groundY, scale, cx, onder){
   if (!imgReady(terPic())) return;
   const iw = terPic().naturalWidth - TER.trim;     // en rechts ook niet: anders zie je naden
   const fullCap = iw * st, midW = (iw - TER.midX) * st;
-  const list = terraceList().filter(t => hier(t.h) && !t.grond).sort((a, b) => a.h - b.h);
+  // de leemmuren van de stad: dezelfde botsing als een terras, alleen de look is anders (zie "de leemmuur")
+  for (const t of terraceList().filter(t => t.look === 'leem' && hier(t.h)).sort((a, b) => a.h - b.h)) leemMuurTeken(t, groundY, scale, cx, bottom);
+  const list = terraceList().filter(t => hier(t.h) && !t.grond && t.look !== 'leem').sort((a, b) => a.h - b.h);
   for (const t of list){
     const xr = cx + (t.r - world), xl = cx + (t.l - world);
     if (xl > viewR || xr < viewL) continue;
@@ -19787,7 +19793,7 @@ function stadLaad(){
   const zet = (k, src) => { const im = new Image(); zetBron(im, STAD_DIR + src, () => console.warn('ontbreekt: stad ' + src)); stadImgs[k] = im; };
   zet('gevel', STAD.gevel.src); zet('galerij', STAD.galerij.src); zet('riet', STAD.kraam.riet.src);
   zet('doek', STAD.kraam.doek.src); zet('voet', STAD.voet.src); zet('paleis', STAD.paleis.src); zet('straat', STAD.straat.src);
-  zet('trap', STAD_TRAP.src);
+  zet('trap', STAD_TRAP.src); zet('leemTegel', LEEM.tegel); zet('leemRand', LEEM.rand);
 }
 function stadLees(o){
   const n = v => Number(v) || 0;
@@ -19799,7 +19805,7 @@ function stadLees(o){
            voet: (o.voet || []).filter(q => STAD.voet.stukken[q.stuk]).map(q => ({ x: n(q.x), stuk: q.stuk, f: q.f ? 1 : 0 })),
            trappen: (o.trappen || []).map(stadTrapLees) };
 }
-function stadLaadLevel(lv){ if (lv && lv.stad) stadLaad(); }
+function stadLaadLevel(lv){ if (lv && (lv.stad || (lv.terraces || []).some(t => t.look === 'leem'))) stadLaad(); }
 // bronpixels van de grote set naar het plaatje dat er echt is (klein/ is de helft)
 const stadQ = (im, v) => v / (im._bron || 1);
 // Een bewerkte kopie, een keer per plaatje: f(r, g, b) geeft [r, g, b]
@@ -20318,6 +20324,63 @@ function stadTrapVoor(groundY, scale, cx){
   }
 }
 
+// ---- de leemmuur: een terras van leem ----
+// terraces: [{r, l, h, look: 'leem'}]. Precies een terras (de wand houdt Amir en elke vijand tegen, de bovenkant
+// draagt, de Maker en levelcheck rekenen er gewoon mee), maar getekend als een dikke lemen stadsmuur: een naadloze
+// wand van leem (design/stad/leem_tegel.png, uit de gevel) met de kartels erop (leem_rand.png, rij `loop` is de looplijn).
+// Zo maak je een straat doodlopend, een lage muur om op te springen of een hogere wijk.
+const LEEM = { tegel: 'leem_tegel.png', rand: 'leem_rand.png', bron: 318, loop: 68, verschuif: 0.4, donker: 0.42 };
+function leemMuurTeken(t, groundY, scale, cx, bottom){
+  if (!stadKlaar('leemTegel') || !stadKlaar('leemRand')) return;
+  const xl = cx + (t.l - world), xr = cx + (t.r - world);
+  if (xl > W / viewZoom() + W || xr < -W) return;
+  const f = CHAR_H * scale / LEEM.bron;                    // schermpx per bronpx, net als de gevel
+  const ti = stadImgs.leemTegel, ri = stadImgs.leemRand;
+  const tw = bronW(ti) * f, th = bronH(ti) * f, rw = bronW(ri) * f, rh = bronH(ri) * f;
+  // een leemmuur staat op de straat: hij houdt op de grondlijn op (een paar px erin, met een contactschaduw), tenzij hij
+  // onder de grond begint (een trede in een gang) of met door verder de grond in gaat
+  const loopY = groundY - t.h * scale, onder = t.h < 0 ? bottom : t.door ? Math.min(bottom, groundY + t.door * scale) : groundY + 4 * f;
+  // buren van dezelfde hoogte of hoger dekken een zijkant af (dan geen rand daar)
+  const dekt = o => o !== t && o.look === 'leem' && o.h >= t.h;
+  const lD = terraceList().some(o => dekt(o) && o.l <= t.l + 1 && o.r >= t.l - 1);
+  const rD = terraceList().some(o => dekt(o) && o.l <= t.r + 1 && o.r >= t.r - 1);
+  const wandTop = loopY + (rh - LEEM.loop * f) - 2;           // de wand begint onder de kartelstrook
+  ctx.save();
+  ctx.beginPath(); ctx.rect(xl, loopY - LEEM.loop * f - 2, xr - xl, onder - loopY + LEEM.loop * f + 4); ctx.clip();
+  // de wand: rijen tegels, om en om verschoven, vast aan de wereld (dan schuift het patroon niet met de camera)
+  const ank = cx - world;
+  for (let j = 0, y = wandTop; y < onder; j++, y += th - 1){
+    const off = (j % 2 ? LEEM.verschuif * tw : 0);
+    let x = ank + Math.floor((xl - ank - off) / tw) * tw + off;
+    for (; x < xr; x += tw - 0.5) ctx.drawImage(ti, x, y, tw, th);
+  }
+  // naar beneden toe donkerder, zoals de wand van een terras de diepte in loopt
+  const g = ctx.createLinearGradient(0, wandTop, 0, Math.max(wandTop + 1, Math.min(onder, groundY + H * 0.4)));
+  g.addColorStop(0, 'rgba(30,18,10,0)'); g.addColorStop(1, 'rgba(30,18,10,' + LEEM.donker + ')');
+  ctx.fillStyle = g; ctx.fillRect(xl, wandTop, xr - xl, onder - wandTop);
+  // de kartels en de balkenrij bovenop
+  for (let x = ank + Math.floor((xl - ank) / rw) * rw; x < xr; x += rw - 0.5) ctx.drawImage(ri, x, loopY - LEEM.loop * f, rw, rh);
+  // de zijkanten: een schaduwrandje en een donkere lijn, zodat het een blok is en geen behang
+  const zij = (x, naarRechts) => {
+    const w = Math.max(6, 22 * f * 3);
+    const gz = ctx.createLinearGradient(naarRechts ? x : x - w, 0, naarRechts ? x + w : x, 0);
+    gz.addColorStop(naarRechts ? 0 : 1, 'rgba(30,18,10,0.45)'); gz.addColorStop(naarRechts ? 1 : 0, 'rgba(30,18,10,0)');
+    ctx.fillStyle = gz; ctx.fillRect(naarRechts ? x : x - w, loopY - 2, w, onder - loopY + 2);
+    ctx.fillStyle = '#2e1c10'; ctx.fillRect(naarRechts ? x : x - 3, loopY - LEEM.loop * f * 0.2, 3, onder - loopY);
+  };
+  if (!lD) zij(xl, true);
+  if (!rD) zij(xr, false);
+  ctx.restore();
+  if (t.h >= 0 && !t.door){                                   // contactschaduw op de straat, zoals bij de gevels
+    const A = CHAR_H * scale, gs = ctx.createLinearGradient(0, groundY, 0, groundY + 0.07 * A);
+    gs.addColorStop(0, 'rgba(40,22,10,0.34)'); gs.addColorStop(1, 'rgba(40,22,10,0)');
+    ctx.fillStyle = gs; ctx.fillRect(xl - 6, groundY, xr - xl + 12, 0.07 * A);
+  }
+  if (showBoxes){
+    ctx.save(); ctx.globalAlpha = 0.6; ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2 / viewZoom();
+    ctx.beginPath(); ctx.moveTo(xl, loopY); ctx.lineTo(xr, loopY); ctx.stroke(); ctx.restore();
+  }
+}
 function stadTeken(groundY, scale, cx){
   if (!stadAan() || !stadKlaar('gevel')) return;
   const S = level.stad, G = STAD.gevel, im = stadImgs.gevel;
@@ -35369,6 +35432,7 @@ function readLevel(txt){
            // grond: true maakt er geen rots van maar een hogere savannelaag (zie "hogere savannelaag")
            terraces: (o.terraces || []).map(q => ({ r: Number(q.r), l: Number(q.l), h: Number(q.h) || 0,
                                                     grond: q.grond === true, af: q.af === true, door: q.door > 0 ? Number(q.door) : undefined,
+                                                    look: q.look === 'leem' ? 'leem' : undefined,   // een terras van leem: de stadsmuur, zie "de leemmuur"
                                                     zwart: (q.zwart === 'savanne' || q.zwart === 'vulling') ? q.zwart : undefined })),   // zwarte terrein-variant, zie de tekenlagen
            // zwevende savannelagen: een dik savanneblok in de lucht, zie "zwevende savannelaag"
            zwevers: (o.zwevers || []).map(q => {
@@ -41365,7 +41429,7 @@ document.getElementById('sbstadban').onclick = () => {
   if (d) sbSpawn('bandiet', d.x > world ? 1 : -1, d.x, d.h);
   cv.focus();
 };
-document.getElementById('sbstadweg').onclick = () => { delete level.stad; sbLagen = ''; lichtMengKey = null; sbLagenToon(); cv.focus(); };
+document.getElementById('sbstadweg').onclick = () => { delete level.stad; level.terraces = (level.terraces || []).filter(t => !t.sbLeem); sbLagen = ''; lichtMengKey = null; sbLagenToon(); cv.focus(); };
 document.getElementById('sbrijs').onclick = () => sbRijs(false);
 document.getElementById('sbrijsduur').onclick = () => sbRijs(true);
 document.getElementById('sbrijsop').onclick = () => {
@@ -41500,6 +41564,17 @@ function sbSavLaag(h, lift){
 }
 sandboxEl.querySelectorAll('button[data-savlaag]').forEach(b => b.onclick = () => sbSavLaag(Number(b.dataset.savlaag), false));
 document.getElementById('sbsavlift').onclick = () => sbSavLaag(300, true);
+// de leemmuur (zie "de leemmuur"): een lage muur om op te springen, of een hoge die de straat doodlopend maakt
+function sbLeem(h, breed){
+  level.terraces = (level.terraces || []).filter(t => !t.sbLeem);
+  const r = world - 500;
+  level.terraces.push({ r, l: r - breed, h, look: 'leem', sbLeem: true });
+  stadLaad();
+  flashHint(h < 210 ? 'Een lage leemmuur: spring erop' : 'Een hoge leemmuur: hier loopt de straat dood');
+  cv.focus();
+}
+document.getElementById('sbleemlaag').onclick = () => sbLeem(170, 500);
+document.getElementById('sbleemhoog').onclick = () => sbLeem(1100, 900);
 document.getElementById('sbsavweg').onclick = () => { sbSavWeg(); cv.focus(); };
 // het overloopje los bekijken: een lagere savannelaag die direct tegen een hogere laag aan ligt
 function sbOverloopWeg(){ level.terraces = (level.terraces || []).filter(t => !t.sbOver); level.overloop = false; }
