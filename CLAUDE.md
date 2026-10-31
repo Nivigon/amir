@@ -257,7 +257,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | --- | --- |
 | `name` | naam op het kaartje in het menu |
 | `lagen` | sleutel uit `SCENES`: welk uitzicht dit level krijgt |
-| `muziek` | sleutel uit `MUZIEK`: welk deuntje eronder loopt (`bg` voor het oude thema); zonder dit veld `MUZIEK_BASIS`, Dark Africa, en in een level met `stad` de stadmuziek Tense Grounding (`MUZIEK_STAD`, `music/tensegrounding.mp3`); `stadgeluid` geeft de oude stadgeluiden zonder muziek |
+| `muziek` | sleutel uit `MUZIEK`: welk deuntje eronder loopt (`bg` voor het oude thema); zonder dit veld `MUZIEK_BASIS`, Dark Africa, en in een level met `stad` de stadmuziek Market Shadows (`MUZIEK_STAD`, `music/marketshadows.mp3`); `stad` geeft het eerdere Tense Grounding, `stadgeluid` geeft de oude stadgeluiden zonder muziek |
 | `winter` | `true` zet het hele level in de sneeuw (witte dieren, sneeuwversies van het decor) |
 | `sneeuw` | sneeuw op de grond, los van `winter`: `{soort, dek, van, tot}` (zie hieronder) |
 | `weer` | het weer onderweg: `[{x, soort, sterkte}]`, `soort` uit `WEER.soorten` (`droog`, `regen`, `onweer`, `zandstorm`, `sneeuw`, `sneeuwstorm`); voorbij `x` slaat het om (zie "het weer") |
