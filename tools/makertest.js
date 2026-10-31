@@ -233,6 +233,92 @@ function verschil(a, b, pad = ''){
     });
   });
 
+  // 1c. de losse stadsstukken (stap 3 van notities/plan-stad-maker.md): gevel, kraam, voetdecor en het paleis. Ze gaan
+  // door de JSON, worden het veld stad (een gevel met x op zijn linkerkant, de rest op het midden van de kolom), elke
+  // gevel houdt een eigen id, er is hoogstens een paleis, en de controle meldt een stuk of straatcel zonder straat eronder
+  await check('stadsstukken: gevel, kraam, voetdecor en paleis', async () => {
+    const rijen = []; for (let r = 0; r < 8; r++) rijen.push('.'.repeat(16).split(''));
+    for (let c = 0; c < 16; c++) rijen[5][c] = c >= 8 && c <= 13 ? 'A' : 'S';   // savanne, en een straat van kolom 8 tot 13
+    rijen[4][1] = 'A';                                    // straat boven de grondlijn op savanne: LET OP
+    rijen[4][11] = 'E';                                   // een leemmuur op de straat: goed
+    await laad({ type: 'amir-levelmaker-grid', versie: 2, cols: 16, rows: 8, groundRow: 5, grid: rijen.map(r => r.join('')),
+                 start: { c: 15, r: 4 }, eind: { c: 0, r: 4 }, stadSeed: 42, objecten: [
+                   { c: 9, r: 4, k: 'gevel', id: 'g1', hoog: 3 },
+                   { c: 3, r: 4, k: 'gevel', id: 'g1', hoog: 1, f: true },      // een dubbel id: wordt g2, en hij staat op savanne
+                   { c: 12, r: 4, k: 'kraam', soort: 'doek', f: true },
+                   { c: 10, r: 4, k: 'voet', stuk: 'kruik' },
+                   { c: 7, r: 1, k: 'paleis' }, { c: 4, r: 1, k: 'paleis' } ] });   // twee paleizen: het laatste blijft
+    const f = await page.evaluate(() => {
+      const f = [];
+      const gv = MK.objects.filter(o => o.k === 'gevel'), pal = MK.objects.filter(o => o.k === 'paleis');
+      if (gv.length !== 2 || new Set(gv.map(o => o.id)).size !== 2 || !gv.some(o => o.id === 'g1')) f.push('de gevels hebben geen eigen id: ' + JSON.stringify(gv.map(o => o.id)));
+      if (pal.length !== 1 || pal[0].c !== 4) f.push('niet precies een paleis (het laatste): ' + JSON.stringify(pal));
+      const j1 = JSON.stringify(mkNaarJSON()); mkUitJSON(JSON.parse(j1));
+      if (JSON.stringify(mkNaarJSON()) !== j1) f.push('de stadsstukken komen niet gelijk door de JSON');
+      if (MK.stadSeed !== 42) f.push('de seed gaat niet mee door de JSON: ' + MK.stadSeed);
+      const lv = mkNaarLevel(), S = lv.stad;
+      if (!S) return f.concat('geen veld stad');
+      if (S.seed !== 42) f.push('stad.seed is niet 42: ' + S.seed);
+      if (S.gevels.length !== 2 || S.gevels[0].x !== -1050 || S.gevels[0].hoog !== 3 || S.gevels[0].f || S.gevels[1].x !== -2100 || S.gevels[1].f !== 1)
+        f.push('de gevels kloppen niet (x op de linkerkant, van de start af): ' + JSON.stringify(S.gevels));
+      if (S.kramen.length !== 1 || S.kramen[0].soort !== 'doek' || S.kramen[0].f !== 1 || Math.abs(S.kramen[0].x + 437.5) > 1) f.push('de kraam klopt niet: ' + JSON.stringify(S.kramen));
+      if (S.voet.length !== 1 || S.voet[0].stuk !== 'kruik' || Math.abs(S.voet[0].x + 787.5) > 1) f.push('het voetdecor klopt niet: ' + JSON.stringify(S.voet));
+      if (Math.abs(S.paleis + 1837.5) > 1) f.push('het paleis staat niet op kolom 4: ' + S.paleis);
+      if (lv.lagen !== 'stad_dag') f.push('geen uitzicht stad_dag: ' + lv.lagen);
+      if ('muziek' in lv) f.push('een eigen muziek in plaats van de stadmuziek: ' + lv.muziek);
+      const gs = lv.grondSoort || [];
+      if (!gs.some(g => g.soort === 'straat') || gs.filter(g => g.soort === 'savanne').length !== 2) f.push('met stad krijgt de savanne geen eigen strook (de basis is dan straat): ' + JSON.stringify(gs));
+      // de controle: gevel g2 staat op savanne, de straatcel op kolom 1 ook; de rest staat op straat
+      const m = mkControle().filter(q => q.ernst === 'letop').map(q => q.tekst);
+      const g2 = gv.find(o => o.id !== 'g1').id;
+      if (!m.some(t => t.startsWith('Gevel ' + g2) && t.includes('geen straat'))) f.push('geen LET OP voor de gevel op savanne: ' + JSON.stringify(m));
+      if (m.some(t => t.startsWith('Gevel g1') || t.startsWith('Kraam') || t.startsWith('Voetdecor'))) f.push('een LET OP voor een stuk op de straat: ' + JSON.stringify(m));
+      if (!m.some(t => t.startsWith('Straat boven de grondlijn op kolom 1 '))) f.push('geen LET OP voor de straatcel op savanne: ' + JSON.stringify(m));
+      if (m.some(t => t.startsWith('Muur van leem'))) f.push('een LET OP voor de leemmuur op de straat: ' + JSON.stringify(m));
+      // het klembord spiegelen: de gevel kijkt de andere kant op en blijft op zijn plek staan, twee keer is het origineel
+      MK.gebied = { c0: 8, r0: 0, c1: 15, r1: 7 }; mkKopieer();
+      const kg = () => mkKlembord.objects.find(o => o.k === 'gevel');
+      const dc0 = kg().dc; mkSpiegel();
+      if (!kg().f || kg().dc !== 4) f.push('gespiegeld staat de gevel niet op dezelfde plek (dc 4, gespiegeld): ' + JSON.stringify(kg()));
+      if (mkKlembord.objects.find(o => o.k === 'kraam').f) f.push('de kraam spiegelt niet mee (hij was al gespiegeld)');
+      mkSpiegel(); if (kg().dc !== dc0 || kg().f) f.push('twee keer spiegelen geeft de gevel niet terug: ' + JSON.stringify(kg()));
+      // plakken: de geplakte gevel heeft het id van een gevel die er al staat en krijgt een nieuwe
+      mkPlak = { c: 0, r: 0 }; mkPlakZet();
+      const ids = MK.objects.filter(o => o.k === 'gevel').map(o => o.id);
+      if (new Set(ids).size !== ids.length) f.push('na plakken twee gevels met hetzelfde id: ' + JSON.stringify(ids));
+      // het palet: alleen in de stand Stad, met een kopje per stuk in het paneel
+      mkThemaZet('savanne');
+      if (mkPaletZoek('gevel', null, { items: mkPalet() })) f.push('de gevel staat in de stand Savanne');
+      mkThemaZet('stad');
+      for (const t of ['gevel', 'kraam', 'kraamdoek', 'voet', 'paleis']) if (!mkPaletZoek(t, null, { items: mkPalet() })) f.push(t + ' ontbreekt in de stand Stad');
+      MK.tool = 'select'; MK.sel = MK.objects.find(o => o.k === 'gevel' && o.id === 'g1'); MK.inspectDicht = false; mkNotePaneel();
+      const ss = document.getElementById('mkstadsoort');
+      if (document.getElementById('mkstadctl').offsetParent === null || ss.value !== '3') f.push('het paneel van de gevel toont zijn hoogte niet: ' + ss.value);
+      ss.value = '4'; ss.dispatchEvent(new Event('change'));
+      if (MK.sel.hoog !== 4) f.push('Hoogte in het paneel zet de gevel niet op 4 hoog');
+      return f;
+    });
+    // neerzetten met de muis: het paleis verschuift (er blijft er een), een kraam met doek is een kraam met soort doek,
+    // en een nieuwe gevel krijgt een id dat er nog niet is
+    await page.evaluate(() => { MK.sel = null; MK.inspectDicht = true; mkNotePaneel(); MK.tool = 'paleis'; mkLegenda(); });   // het paneel dicht, zodat het geen cel afdekt
+    let p = await celXY(6, 1); await page.mouse.click(p.x, p.y);
+    await page.evaluate(() => { MK.inspectDicht = true; mkNotePaneel(); MK.tool = 'kraamdoek'; mkLegenda(); });
+    p = await celXY(14, 4); await page.mouse.click(p.x, p.y);
+    await page.evaluate(() => { MK.inspectDicht = true; mkNotePaneel(); MK.tool = 'gevel'; mkLegenda(); });
+    p = await celXY(5, 4); await page.mouse.click(p.x, p.y);
+    f.push(...await page.evaluate(() => {
+      const f = [], pal = MK.objects.filter(o => o.k === 'paleis');
+      if (pal.length !== 1 || pal[0].c !== 6) f.push('het paleis verschuift niet met een klik: ' + JSON.stringify(pal));
+      const kr = MK.objects.find(o => o.k === 'kraam' && o.c === 14);
+      if (!kr || kr.soort !== 'doek') f.push('Kraam met doek zet geen kraam met soort doek: ' + JSON.stringify(MK.objects.map(o => [o.k, o.c, o.r])));
+      const ids = MK.objects.filter(o => o.k === 'gevel').map(o => o.id);
+      if (!MK.objects.some(o => o.k === 'gevel' && o.c === 5) || new Set(ids).size !== ids.length) f.push('een nieuwe gevel zonder eigen id: ' + JSON.stringify(ids));
+      mkThemaZet('savanne'); MK.tool = 'select'; MK.cat = 'terrein'; MK.sub = null; MK.themaGeheugen = {}; mkLegenda();
+      return f;
+    }));
+    return f;
+  });
+
   // 2. de vertaling naar een spel-level
   await check('vertaling: gaps, terrassen, zwevers, gang, takel, vijanden, zegel', async () => {
     await laad(proefGrid());

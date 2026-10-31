@@ -70,10 +70,16 @@ Status: plan, met de keuzes van de opdrachtgever erin. Wordt per stap gebouwd; v
    **Muur van leem** in de stand Stad. Het veld `stad` zelf komt mee met de eerste stukken in stap 3.
 2. [x] Grondsoort per plek in het spel, met straat als terreincel in de Maker (het veld `grondSoort`,
    zie `notities/grondsoort.md`).
-3. [ ] Losse stukken: gevel, kraam, voetdecor, paleis.
+3. [x] Losse stukken: gevel, kraam, voetdecor, paleis (zie "De losse stukken van de stad" in `notities/maker.md`). Met het
+   veld `stad` en `lagen: 'stad_dag'`, de stadmuziek als standaard, `stadLaad` lui, en een eigen id per gevel.
 4. [ ] Gekoppelde stukken: galerij en trap.
 5. [ ] Afwerking: vijanden op daken, meldingen in `mkControle`, proefgrid in `makertest.js`,
    `notities/maker.md`, `notities/stad.md` en `README.md`.
+   Al gedaan (naar voren gehaald in stap 3): de LET OP voor een gevel, kraam of voetdecor op grond die geen straat is,
+   en de LET OP voor een straatcel of leemmuur boven de grondlijn zonder straat op de grondlijn eronder. Ook al gedaan:
+   een eigen controle `stadsstukken` in `makertest.js` (nog niet in het proefgrid), en de notities en README voor
+   stap 3. Nog te doen: de overige meldingen (overlap van gevels op laptopmaat, galerij en trap), de vijanden op daken
+   en het proefgrid.
 
 Na elke stap `node tools/makertest.js` en `python3 tools/levelcheck.py`. Geen level van een episode of
 bestaand testlevel verandert.

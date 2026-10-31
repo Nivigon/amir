@@ -62,8 +62,11 @@ bodem, nu altijd als `sneeuw: {soort: 'savanne', dek: 1, vol: true}`: de grijze 
 komt uit de strook, niet meer uit `sneeuw.soort`. Boven de grondlijn telt een straatcel
 als savanne (een terras van grond, een zwever); welke tegel zijn bovenkant krijgt bepaalt
 de strook op de grondlijn op die x, dus een straatterras hoort op een straatstrook te
-staan. Een straatcel zet via `mkHeeftStad` (thema stad) ook vanzelf het uitzicht op de
-stad. `tools/makertest.js` kijkt het na (het proefgrid heeft een strook straat, en de
+staan; `mkControle` meldt een straatcel of leemmuur boven de grondlijn zonder straat op de
+grondlijn eronder (LET OP). Een straatcel zet via `mkHeeftStad` (thema stad) ook vanzelf het uitzicht op de
+stad. Staat er een stadsstuk in het grid (stap 3), dan schrijft de Maker het veld `stad`, en daarmee is de basis
+de straat (`bodemPic`): dan krijgen savanne- en sneeuwcellen op de grondlijn een strook `soort: 'savanne'`, zodat
+de bodem blijft zoals je hem schildert. `tools/makertest.js` kijkt het na (het proefgrid heeft een strook straat, en de
 controle `stad` een strook rots en straat); `tools/levelcheck.py` keurt een onbekende
 soort af (regel `velden`).
 

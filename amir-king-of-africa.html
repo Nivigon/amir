@@ -1064,6 +1064,21 @@
           <div class="mkknop"><label>Schaal</label><input id="mkrotss" type="range" min="0.5" max="1.5" step="0.05"><span class="read" id="mkrotssv"></span></div>
           </details>
         </div>
+        <div id="mkstadctl" style="display:none">
+          <div id="mkstadstukctl">
+          <details class="mkklap" id="mkstadklap"><summary id="mkstadkop">Gevel</summary>
+          <div class="mkveld"><label for="mkstadsoort" id="mkstadsoortlab">Hoogte</label><select id="mkstadsoort"></select></div>
+          <div class="mkrij"><button id="mkstadf">Gespiegeld: nee</button></div>
+          <div id="mkstadinfo" class="mkhint"></div>
+          </details>
+          </div>
+          <div id="mkpaleisctl">
+          <details class="mkklap" id="mkpaleisklap"><summary>Stad</summary>
+          <div class="mkrij"><button id="mkstadseed">Andere stad</button></div>
+          <div id="mkpaleisinfo" class="mkhint"></div>
+          </details>
+          </div>
+        </div>
         <div id="mkmasklookctl" style="display:none">
           <div class="mkveld"><label for="mkmasklook">Hoe het eruitziet</label><select id="mkmasklook"><option value="grot">Grotwand (rots)</option><option value="rots">Rotswand (cliff)</option><option value="savanne">Savanne (grond)</option><option value="zwart">Helemaal zwart</option><option value="onzichtbaar">Zoals de omgeving (onzichtbaar)</option></select></div>
           <div class="mkrij"><button id="mkmaskuit">Uiterlijk schilderen: uit</button><button id="mkmaskuitwis">Wis uiterlijk</button></div>
@@ -36754,6 +36769,13 @@ const MK_TYPES = [
   { id:'prop',    naam:'Prop / decor',       kleur:'#6aae5a', obj:true, letter:'P', groep:'decor' },
   // rotsdecor (PROPS met rots): een los rotsstuk in de stijl van de klif, dat de Test echt tekent (zie mkVulRots, mkNaarLevel -> props)
   { id:'rotsdecor', naam:'Rotsdecor',       kleur:'#9b9183', obj:true, letter:'D', groep:'decor' },
+  // de stad (alleen in de stand Stad): losse stukken die de Test met de echte plaatjes tekent (zie mkStadTeken, mkNaarLevel -> stad).
+  // Een gevel staat met zijn ankercel linksonder, een kraam en voetdecor met hun ankercel in het midden; het paleis is er een per level.
+  { id:'gevel',   naam:'Gevel (huis)',          kleur:'#c48a55', obj:true, letter:'G', groep:'decor/huizen', thema:'stad' },
+  { id:'kraam',   naam:'Kraam met rieten dak',  kleur:'#b9924f', obj:true, letter:'T', groep:'decor/straat', thema:'stad' },
+  { id:'kraamdoek', naam:'Kraam met doek',      kleur:'#a8743f', obj:true, letter:'T', groep:'decor/straat', thema:'stad' },
+  { id:'voet',    naam:'Voetdecor',             kleur:'#a99272', obj:true, letter:'v', groep:'decor/straat', thema:'stad' },
+  { id:'paleis',  naam:'Paleis (in de verte)',  kleur:'#e0c48a', obj:true, letter:'P', groep:'decor/straat', thema:'stad' },
   // de takel: een platform dat reist, met losse tandwielen ernaast die het aandrijven (zie mkNotePaneel/mkNaarLevel)
   { id:'platform',naam:'Platform (takel)',   kleur:'#d8b24a', obj:true, groep:'objecten/takel' },
   { id:'tandwiel',naam:'Tandwiel',           kleur:'#b98a2e', obj:true, groep:'objecten/takel' },
@@ -36961,6 +36983,8 @@ const MK_GROEPEN = [
   { pad:'objecten/takel',   naam:'Takel en rijzer' },
   { pad:'objecten/klimmen', naam:'Klimmen' },
   { pad:'decor/vormen',     naam:'Zwarte vormen' },
+  { pad:'decor/huizen',     naam:'Huizen' },
+  { pad:'decor/straat',     naam:'Straat' },
 ];
 // de boom uitgewerkt tot knopen: een groep {id, naam, groep: true, pad, items: [...]}, een blad {tool, soort?, naam, kleur,
 // letter?, dashed?, pad}. Elke knoop kent zijn pad (de ids van de categorie af), zodat de legenda weet wat er open staat.
@@ -37164,7 +37188,7 @@ function mkPoortBijKnop(){ if (MK.sel && MK.sel.k === 'poort'){ mkBijMode = true
 // welke vijanden uit een poort kunnen komen: niet de hyena en de panter (die komen van de rand van het beeld), niet
 // de hinderlaag (die zit al gehurkt op zijn plek) en niet het duel van de kooiman (dat is geensceneerd)
 const mkPoortVijOk = soort => Object.prototype.hasOwnProperty.call(MK_VIJ_INFO, soort) && !['hyenas', 'panter', 'bandiet:hurk', 'kooiman'].includes(soort);
-const MK = { cols:48, rows:20, ground:12, grid:null, start:null, eind:null, objects:[], sel:null,
+const MK = { cols:48, rows:20, ground:12, grid:null, start:null, eind:null, objects:[], sel:null, stadSeed:null, voetStuk:null,
              tool:'savanne', zoom:1, panX:0, panY:0, maskers:[], maskId:'Verborgen1',
              cat:'terrein', sub:null, vijandSoort:'groen', inspectDicht:true, muziek:MUZIEK_BASIS, valschade:true, selMask:null,
              vormen:[], selVorm:null, zwart:[], gebied:null,
@@ -37301,6 +37325,143 @@ function mkVulRots(){
   sc.value = sv; document.getElementById('mkrotssv').textContent = sv.toFixed(2).replace('.', ',');
   sc.oninput = () => { const v = Number(sc.value); o.s = Math.abs(v - 1) > 0.001 ? v : undefined; document.getElementById('mkrotssv').textContent = v.toFixed(2).replace('.', ','); mkBewaar(); mkTeken(); };
 }
+// ---- de stad in de Maker: gevel, kraam, voetdecor en het paleis (stap 3 van notities/plan-stad-maker.md) ----
+// Voorwerpen in MK.objects (k gevel, kraam, voet, paleis), alleen in het palet van de stand Stad, getekend met de echte
+// plaatjes uit design/stad/, klein en half doorzichtig (mkStadTeken). In het spel schaalt een breedte mee met het scherm
+// (zoals een kei); de Maker tekent op laptopmaat, de maat waarop levelcheck rekent (1280 bij 720, Formaat 25). Hoogtes
+// liggen vast in sprite-eenheden. Een gevel staat met zijn ankercel linksonder (x is zijn linkerkant), een kraam en
+// voetdecor met hun ankercel in het midden. Het paleis is er een per level: een markering die je verschuift.
+// Elke gevel heeft een eigen id (g1, g2, ...), zodat een galerij of trap (stap 4) aan een huis vast kan zitten;
+// pas mkNaarLevel maakt daar een index in stad.gevels van.
+const MK_STAD_K = new Set(['gevel', 'kraam', 'voet', 'paleis']);
+const MK_STAD_SCHAAL = 720 * 0.25 / CHAR_H;      // scale op een laptop: de maat waarop de Maker de breedtes tekent
+const MK_STAD_ALFA = 0.55;                       // half doorzichtig, zodat het terrein eronder te lezen blijft
+const MK_PALEIS_HOOG = 3;                        // de markering van het paleis, in cellen hoog
+const MK_KRAAM_SOORTEN = [['riet', 'Rieten dak (draagt)'], ['doek', 'Doek (veert)']];
+function mkStadStukken(){ return MK.objects.some(o => MK_STAD_K.has(o.k)); }
+// lui laden: alleen met de stand Stad aan of als het grid stadsstukken heeft
+function mkStadLaad(){
+  if (!(MK.thema === 'stad' || mkHeeftStad())) return;
+  stadLaad();
+  for (const k in stadImgs){ const im = stadImgs[k]; if (!im._mk){ im._mk = true; im.addEventListener('load', () => { if (makerOpen) mkTeken(); }); } }
+}
+const mkGevelHoog = o => Math.max(1, Math.min(4, Math.round(Number(o.hoog) || 2)));
+const mkVoetStuk = s => STAD.voet.stukken[s] ? s : 'zandhoop';
+function mkGevelNieuwId(lijst = MK.objects){
+  const bezet = new Set(lijst.filter(o => o.k === 'gevel').map(o => o.id));
+  let n = 1; while (bezet.has('g' + n)) n++;
+  return 'g' + n;
+}
+// na laden, plakken of neerzetten: elke gevel een eigen id (de eerste houdt hem, een dubbele krijgt een nieuwe),
+// en hoogstens een paleis (het laatste blijft, dus een geplakt paleis wint van het oude)
+function mkStadHeel(lijst){
+  const gezien = new Set();
+  for (const o of lijst) if (o.k === 'gevel'){ if (typeof o.id !== 'string' || !o.id || gezien.has(o.id)) o.id = null; else gezien.add(o.id); }
+  for (const o of lijst) if (o.k === 'gevel' && !o.id){ let n = 1; while (gezien.has('g' + n)) n++; o.id = 'g' + n; gezien.add(o.id); }
+  const pal = lijst.filter(o => o.k === 'paleis');
+  return pal.length > 1 ? lijst.filter(o => o.k !== 'paleis' || o === pal[pal.length - 1]) : lijst;
+}
+// de omtrek van een stadsstuk in cellen (kommagetallen), op laptopmaat
+function mkStadVak(o){
+  const cx = o.c + 0.5, onder = o.r + 1, A = CHAR_H, S = MK_STAD_SCHAAL;
+  if (o.k === 'gevel'){
+    const G = STAD.gevel, n = mkGevelHoog(o);
+    const w = 970 * A * S / G.amir / MK_CEL_PX;
+    const h = ((G.dak[1] - G.dak[0]) + (n - 1) * (G.ver[1] - G.ver[0]) + (G.bod[1] - G.bod[0])) * A / G.amir / MK_CEL_EENH;
+    return { c0: o.c, c1: o.c + w, r0: onder - h, r1: onder };
+  }
+  if (o.k === 'kraam'){                         // dezelfde bronmaten als stadKraamMaat
+    const doek = o.soort === 'doek', K = STAD.kraam[doek ? 'doek' : 'riet'];
+    const w = (doek ? 1105 : 1277) * A * S / K.amir / MK_CEL_PX, h = (doek ? 870 : 807) * A / K.amir / MK_CEL_EENH;
+    return { c0: cx - w / 2, c1: cx + w / 2, r0: onder - h, r1: onder };
+  }
+  if (o.k === 'voet'){
+    const V = STAD.voet, q = V.stukken[mkVoetStuk(o.stuk)];
+    const w = q[2] * A * S / V.amir / MK_CEL_PX, h = q[3] * A / V.amir / MK_CEL_EENH;
+    return { c0: cx - w / 2, c1: cx + w / 2, r0: onder - h, r1: onder };
+  }
+  const im = stadImgs && stadImgs.paleis, rat = im && imgReady(im) ? im.naturalWidth / im.naturalHeight : 1.6;   // het paleis
+  const w = MK_PALEIS_HOOG * rat;
+  return { c0: cx - w / 2, c1: cx + w / 2, r0: onder - MK_PALEIS_HOOG, r1: onder };
+}
+// de stadsstukken op het grid, voor de andere voorwerpen (die liggen erover)
+function mkStadTeken(gx, gy, cel){
+  if (!mkStadStukken()) return;
+  mkStadLaad();
+  const kw = mkCanvas.clientWidth, kh = mkCanvas.clientHeight, volg = ['paleis', 'gevel', 'kraam', 'voet'];   // van ver naar dichtbij, zoals het spel
+  for (const o of MK.objects.filter(q => MK_STAD_K.has(q.k)).sort((a, b) => volg.indexOf(a.k) - volg.indexOf(b.k))){
+    const t = MK_TYPES.find(x => x.id === o.k), v = mkStadVak(o);
+    const x0 = gx + v.c0 * cel, y0 = gy + v.r0 * cel, w = (v.c1 - v.c0) * cel, h = (v.r1 - v.r0) * cel;
+    if (o.k === 'paleis'){                      // de markering: een stippellijn over het hele grid op zijn kolom
+      const lx = gx + (o.c + 0.5) * cel;
+      mkCtx.strokeStyle = 'rgba(224,196,138,.5)'; mkCtx.lineWidth = 1.5; mkCtx.setLineDash([6, 5]);
+      mkCtx.beginPath(); mkCtx.moveTo(lx, gy); mkCtx.lineTo(lx, gy + MK.rows * cel); mkCtx.stroke(); mkCtx.setLineDash([]);
+    }
+    if (x0 > kw || x0 + w < 0 || y0 > kh || y0 + h < 0) continue;
+    const soort = o.k === 'kraam' ? (o.soort === 'doek' ? 'doek' : 'riet') : o.k === 'voet' ? 'voet' : o.k;
+    mkCtx.save(); mkCtx.globalAlpha = MK_STAD_ALFA;
+    if (stadKlaar(soort)){
+      const im = stadImgs[soort];
+      if (o.f){ mkCtx.translate(x0 + w, 0); mkCtx.scale(-1, 1); } else mkCtx.translate(x0, 0);
+      if (o.k === 'gevel'){                     // dak, de verdiepingen en de begane grond, zoals stadTeken ze stapelt
+        const G = STAD.gevel, delen = [G.dak].concat(Array(mkGevelHoog(o) - 1).fill(G.ver), [G.bod]);
+        const ky = h / delen.reduce((s, d) => s + (d[1] - d[0]), 0);
+        let y = y0;
+        for (const d of delen){ const dh = (d[1] - d[0]) * ky; mkCtx.drawImage(im, 0, stadQ(im, d[0]), stadQ(im, 970), stadQ(im, d[1] - d[0]), 0, y, w, dh + 0.5); y += dh; }
+      } else if (o.k === 'voet'){
+        const q = STAD.voet.stukken[mkVoetStuk(o.stuk)];
+        mkCtx.drawImage(im, stadQ(im, q[0]), stadQ(im, q[1]), stadQ(im, q[2]), stadQ(im, q[3]), 0, y0, w, h);
+      } else mkCtx.drawImage(im, 0, y0, w, h);
+    } else { mkCtx.globalAlpha = 0.8; mkCtx.strokeStyle = t.kleur; mkCtx.lineWidth = 2; mkCtx.setLineDash([4, 3]); mkCtx.strokeRect(x0, y0, w, h); }
+    mkCtx.restore();
+    if (o.k !== 'paleis'){                      // de ankercel, zodat je ziet waar het stuk vastzit
+      mkCtx.strokeStyle = 'rgba(242,232,213,.45)'; mkCtx.lineWidth = 1; mkCtx.strokeRect(gx + o.c * cel + 1.5, gy + o.r * cel + 1.5, cel - 3, cel - 3);
+    }
+    if (o.k === 'gevel' && cel >= 12){          // het id van de gevel, linksboven
+      mkCtx.fillStyle = 'rgba(242,232,213,.85)'; mkCtx.font = `bold ${Math.round(cel * 0.4)}px sans-serif`; mkCtx.textAlign = 'left'; mkCtx.textBaseline = 'top';
+      mkCtx.fillText(o.id || '', x0 + 3, y0 + 3);
+    }
+    if (o === MK.sel){ mkCtx.strokeStyle = '#fff'; mkCtx.lineWidth = 2; mkCtx.strokeRect(x0 - 2, y0 - 2, w + 4, h + 4); }
+    if (o.note){ mkCtx.fillStyle = '#ffd24a'; mkCtx.beginPath(); mkCtx.arc(x0 + w, y0, Math.max(2, cel * 0.1), 0, 7); mkCtx.fill(); }
+  }
+}
+// het paneel van een stadsstuk: bij een gevel de hoogte, bij een kraam de soort, bij voetdecor het stuk, en spiegelen;
+// bij het paleis het kopje Stad met Andere stad (een nieuwe seed voor de huizen in de verte)
+function mkVulStad(){
+  const o = MK.sel; if (!o || !MK_STAD_K.has(o.k)) return;
+  mkStadLaad();
+  const isPal = o.k === 'paleis';
+  document.getElementById('mkstadstukctl').style.display = isPal ? 'none' : '';
+  document.getElementById('mkpaleisctl').style.display = isPal ? '' : 'none';
+  if (isPal){
+    mkKlapZet('mkpaleisklap', true);
+    document.getElementById('mkpaleisinfo').textContent = 'Het paleis staat ver weg en schuift bijna niet mee: hij hangt boven deze kolom. Seed ' + (MK.stadSeed || 1) + ' bepaalt de huizen in de verte; Andere stad kiest nieuwe.';
+    document.getElementById('mkstadseed').onclick = () => { const oud = MK.stadSeed || 1; let n = oud; while (n === oud) n = 1 + Math.floor(Math.random() * 9999); MK.stadSeed = n; mkBewaar(); mkVulStad(); };
+    return;
+  }
+  mkKlapZet('mkstadklap', true);
+  const kop = document.getElementById('mkstadkop'), lab = document.getElementById('mkstadsoortlab'), ss = document.getElementById('mkstadsoort');
+  let opties, waarde;
+  if (o.k === 'gevel'){ kop.textContent = 'Gevel ' + (o.id || ''); lab.textContent = 'Hoogte'; opties = [1, 2, 3, 4].map(n => [String(n), n + ' hoog']); waarde = String(mkGevelHoog(o)); }
+  else if (o.k === 'kraam'){ kop.textContent = 'Kraam'; lab.textContent = 'Soort'; opties = MK_KRAAM_SOORTEN; waarde = o.soort === 'doek' ? 'doek' : 'riet'; }
+  else { kop.textContent = 'Voetdecor'; lab.textContent = 'Stuk'; opties = Object.keys(STAD.voet.stukken).map(k => [k, k]); waarde = mkVoetStuk(o.stuk); }
+  ss.innerHTML = '';
+  for (const [v, n] of opties){ const op = document.createElement('option'); op.value = v; op.textContent = n; ss.appendChild(op); }
+  ss.value = waarde;
+  ss.onchange = () => {
+    if (o.k === 'gevel') o.hoog = mkGevelHoog({ hoog: ss.value });
+    else if (o.k === 'kraam') o.soort = ss.value === 'doek' ? 'doek' : 'riet';
+    else o.stuk = MK.voetStuk = mkVoetStuk(ss.value);
+    mkVulStad(); mkBewaar(); mkTeken();
+  };
+  const fb = document.getElementById('mkstadf');
+  fb.textContent = 'Gespiegeld: ' + (o.f ? 'ja' : 'nee');
+  fb.onclick = () => { o.f = !o.f || undefined; mkVulStad(); mkBewaar(); mkTeken(); };
+  const v = mkStadVak(o), br = (v.c1 - v.c0).toFixed(1).replace('.', ',');
+  document.getElementById('mkstadinfo').textContent = o.k === 'gevel'
+    ? 'Ankercel linksonder. Het dak is beloopbaar op ' + Math.round(stadGevelH(mkGevelHoog(o))) + '; ongeveer ' + br + ' cellen breed op een laptop (de breedte schaalt mee met het scherm).'
+    : 'Ankercel in het midden; ongeveer ' + br + ' cellen breed op een laptop. Het spel zet het op de vloer onder zijn kolom.';
+}
 function mkVulPoort(){
   const o = MK.sel; if (!o || o.k !== 'poort') return;
   mkKlapZet('mkpoortklapu', true); mkKlapZet('mkpoortklapv', !!(mkPoortVijOk(o.vijand) || o.hek || o.regie)); mkKlapZet('mkpoortklapw', !!mkPoortWand(o));
@@ -37396,7 +37557,7 @@ for (const [id, naam] of MK_UITZICHT){ const o = document.createElement('option'
 mkUitzichtEl.value = MK.uitzicht;
 mkUitzichtEl.addEventListener('change', () => { MK.uitzicht = mkUitzichtEl.value; mkBewaar(); });
 // een stadsstuk in het grid (nu de leemmuur): dan is het uitzicht vanzelf de stad
-function mkHeeftStad(){ return MK.grid.some(rij => rij.some(id => MK_TYPES.some(t => t.id === id && t.thema === 'stad'))); }
+function mkHeeftStad(){ return mkStadStukken() || MK.grid.some(rij => rij.some(id => MK_TYPES.some(t => t.id === id && t.thema === 'stad'))); }   // een stadsstuk of een cel van de stad
 function mkUitzichtVan(){ return MK.uitzicht || (mkHeeftStad() ? 'stad_dag' : ''); }
 // Valschade staat bij het testen standaard aan, met een vinkje om het uit te zetten. Een diepe val
 // kost dan levens (zie valschade); het vinkje gaat mee in de export als lvl.valschade.
@@ -37556,6 +37717,7 @@ function mkObjVak(o){
     const wC = hE * (imgReady(im) ? im.naturalWidth / im.naturalHeight : (def.r || 1)) / MK_CEL_PX;
     return { c0: cx - wC / 2, c1: cx + wC / 2, r0: onder - hC, r1: onder };
   }
+  if (MK_STAD_K.has(o.k)) return mkStadVak(o);
   if (o.k === 'platform'){ const b = o.breed || MK_PLAT_BREED; return { c0: cx - b / 2, c1: cx + b / 2, r0: o.r + 0.25, r1: o.r + 0.75 }; }
   if (o.k === 'richel'){ const len = Math.max(0.8, (o.s || 0.5) * 2.4), ax = cx + (o.dx || 0) / MK_CEL_PX, x0 = o.f ? ax - len : ax;
     return { c0: x0, c1: x0 + len, r0: o.r - 0.1, r1: o.r + 0.3 }; }
@@ -37647,9 +37809,11 @@ function mkTeken(){
     mkCtx.strokeStyle = 'rgba(168,145,108,.75)'; mkCtx.lineWidth = 1.5; mkCtx.setLineDash([4, 3]);
     mkCtx.beginPath(); mkCtx.moveTo(gx + (z.c + 0.5) * cel, gy + (z.r + 0.5) * cel); mkCtx.lineTo(gx + (q.c + 0.5) * cel, gy + (q.r + 0.5) * cel); mkCtx.stroke(); mkCtx.setLineDash([]);
   }
+  mkStadTeken(gx, gy, cel);                // de stadsstukken (gevels, kramen, voetdecor, het paleis): onder de andere voorwerpen
   // objecten; een stip rechtsboven betekent dat er een opmerking bij zit
   for (const o of MK.objects){
     const t = MK_TYPES.find(x => x.id === o.k); if (!t) continue;
+    if (MK_STAD_K.has(o.k)) continue;      // al getekend (mkStadTeken)
     const cx = gx + (o.c + 0.5) * cel, cy = gy + (o.r + 0.5) * cel;
     if (o.k === 'rijzer'){                                   // een blok steen over zijn cellen; met een doelhoogte een vage balk en een stippellijn ernaartoe
       const [c0, c1] = mkRijsCellen(o), bx = gx + c0 * cel + 2, bw = (c1 - c0 + 1) * cel - 4, bh = Math.max(8, 0.7 * cel), by = cy - bh / 2, mx = bx + bw / 2;
@@ -37922,6 +38086,7 @@ function mkKlik(ev){
     mkBewaar(); mkTeken(); return;
   }
   if (t === 'select'){ MK.selVorm = null; MK.gebied = null; MK.sel = mkObjOp(c, r); mkDrag = MK.sel;   // aanklikken om te bewerken, en slepen om te verschuiven
+    mkDragOff = MK.sel && MK_STAD_K.has(MK.sel.k) ? { dc: MK.sel.c - c, dr: MK.sel.r - r } : null;   // een huis pak je ergens op zijn plaatje: het schuift mee zonder te verspringen
     if (MK.sel){ MK.selMask = null; MK.inspectDicht = false; }
     else { const hm = mkMaskInCel(c, r); MK.selMask = hm ? hm.m : null; if (MK.selMask) MK.inspectDicht = false; }   // geen voorwerp maar een geverfde masker-cel: het masker selecteren
     mkLegenda(); mkNotePaneel(); mkTeken(); return; }   // mkLegenda: de vorm-knoppen (Andere blob, Verwijder vorm) weg nu er geen vorm meer gekozen is
@@ -37932,10 +38097,12 @@ function mkKlik(ev){
     // meerdere dingen mogen op dezelfde cel (stapelen). Staat er al eentje van precies deze soort, dan
     // selecteren we die (geen dubbel); anders komt het voorwerp erbij, ook als er al iets anders staat.
     // (een rijzer telt ook als zijn doel op deze cel ligt: klik je nog eens op het ravijn, dan kies je hem in plaats van er een tweede neer te zetten)
-    const k = t === 'poorthek' ? 'poort' : t;           // Poort met hek is een poort met hek: true
-    const zelfde = MK.objects.find(o => o.k === k && ((o.c === c && o.r === r) || (t === 'rijzer' && o.doel && o.doel.c === c && o.doel.r === r)) && (t !== 'vijand' || o.soort === (MK.vijandSoort || 'groen')));
-    if (zelfde) MK.sel = zelfde;
-    else { const o = { c, r, k, note: '' }; if (t === 'poorthek') o.hek = true; if (t === 'vijand') o.soort = MK.vijandSoort || 'groen'; if (t === 'platform'){ o.doel = null; o.breed = MK_PLAT_BREED; } if (t === 'tandwiel') o.modus = 'schakellift';
+    const k = t === 'poorthek' ? 'poort' : t === 'kraamdoek' ? 'kraam' : t;   // Poort met hek is een poort met hek: true; Kraam met doek een kraam met soort doek
+    // het paleis is er een per level: een klik verschuift het bestaande in plaats van een tweede neer te zetten
+    const zelfde = t === 'paleis' ? MK.objects.find(o => o.k === 'paleis') : MK.objects.find(o => o.k === k && ((o.c === c && o.r === r) || (t === 'rijzer' && o.doel && o.doel.c === c && o.doel.r === r)) && (t !== 'vijand' || o.soort === (MK.vijandSoort || 'groen')));
+    if (zelfde){ MK.sel = zelfde; if (t === 'paleis'){ zelfde.c = c; zelfde.r = r; } }
+    else { const o = { c, r, k, note: '' }; if (t === 'poorthek') o.hek = true;
+      if (k === 'gevel'){ o.id = mkGevelNieuwId(); o.hoog = 2; } if (k === 'kraam') o.soort = t === 'kraamdoek' ? 'doek' : 'riet'; if (k === 'voet') o.stuk = mkVoetStuk(MK.voetStuk); if (t === 'vijand') o.soort = MK.vijandSoort || 'groen'; if (t === 'platform'){ o.doel = null; o.breed = MK_PLAT_BREED; } if (t === 'tandwiel') o.modus = 'schakellift';
       // een rijzer: op of boven de grondlijn geklikt is de aangeklikte cel zijn doel (de bovenkant) en rust hij MK_RIJS_DIEP cellen onder de
       // grondlijn; in de diepte geklikt rust hij daar en komt hij tot de grondlijn. Zo werkt hij meteen, en beide zijn bij te stellen
       if (t === 'rijzer'){ o.breed = MK_PLAT_BREED; o.v = MK_RIJS.v; o.wacht = MK_RIJS.wacht; o.duur = MK_RIJS.duur;
@@ -37960,10 +38127,14 @@ function mkObjOp(c, r){
     else if (o.k === 'rijzer'){ const [c0, c1] = mkRijsCellen(o); if (r === o.r && c >= c0 && c <= c1) return o; }
     else if (o.k === 'overhang'){ const dik = Math.max(1, o.dik || 2); if (r < o.r && r >= o.r - dik && Math.abs(c - o.c) <= Math.max(1, o.breed || 3) / 2) return o; }
   }
+  // een stadsstuk ook op zijn plaatje (een kraam en voetdecor voor een gevel, want die liggen ervoor)
+  const stadOp = o => { const v = mkStadVak(o); return c + 0.5 >= v.c0 && c + 0.5 <= v.c1 && r + 0.5 >= v.r0 && r + 0.5 <= v.r1; };
+  for (const k of ['voet', 'kraam', 'gevel', 'paleis']) for (let i = MK.objects.length - 1; i >= 0; i--){ const o = MK.objects[i]; if (o.k === k && stadOp(o)) return o; }
   return null;
 }
 // slepen: grond schilderen (of masker-cellen verven); objecten en start/eind zijn één klik
 let mkMaskErase = false;
+let mkDragOff = null;                   // waar je een stadsstuk vastpakte, ten opzichte van zijn ankercel
 let mkVerfVorig = null;                 // de laatste cel van de streek, zodat een snelle sleep geen cellen overslaat
 let mkRect = null;                      // de rechthoek die je met Shift+slepen trekt: {c0, r0, c1, r1}, gevuld bij het loslaten
 function mkVul(c, r){                   // de vulemmer (Alt+klik): alle aaneengesloten cellen (vier buren) met dezelfde inhoud krijgen het gereedschap
@@ -38138,7 +38309,7 @@ function mkNotePaneel(){
   if (!MK.sel){
     // geen voorwerp: alle voorwerp-besturing weg, wat er net ook geselecteerd was (anders bleef het Verborgen-vinkje
     // of een platform-schuifje staan en wijzigde dat nog het oude voorwerp)
-    for (const id of ['mkplatbreed', 'mkplatstam', 'mkplatstamzij', 'mkoverctl', 'mkrichelctl', 'mkzegelctl', 'mkmaskctl', 'mkachterctl', 'mkrijsctl', 'mkrijsselctl', 'mkpoortctl', 'mkpoortselctl']) document.getElementById(id).style.display = 'none';
+    for (const id of ['mkplatbreed', 'mkplatstam', 'mkplatstamzij', 'mkoverctl', 'mkrichelctl', 'mkzegelctl', 'mkmaskctl', 'mkachterctl', 'mkrijsctl', 'mkrijsselctl', 'mkpoortctl', 'mkpoortselctl', 'mkrotsctl', 'mkstadctl']) document.getElementById(id).style.display = 'none';
     document.getElementById('mkvijknop').innerHTML = '';
     if (MK.selVorm){                                                   // een geselecteerde vrije vorm (blob/vierkant): de maat, draaiing en doorzicht
       const v = MK.selVorm;
@@ -38242,6 +38413,9 @@ function mkNotePaneel(){
   const isRots = MK.sel.k === 'rotsdecor';
   document.getElementById('mkrotsctl').style.display = isRots ? '' : 'none';
   if (isRots) mkVulRots();
+  const isStad = MK_STAD_K.has(MK.sel.k);
+  document.getElementById('mkstadctl').style.display = isStad ? '' : 'none';
+  if (isStad) mkVulStad();
   // het tabje toont de letter en de kleur van de selectie als het paneel dicht is
   const vi = isVij ? MK_VIJ_INFO[MK.sel.soort || 'groen'] : null;
   tablet.textContent = isVij ? 'V' : ((t && t.letter) || '•');
@@ -38307,6 +38481,7 @@ function mkThemaZet(th){
   const kan = MK.tool === 'select' || MK.tool === 'lucht' || mkPaletZoek(MK.tool, MK.vijandSoort, { items: mkPalet() });
   if (!kan){ MK.tool = 'savanne'; MK.cat = 'terrein'; MK.sub = null; }
   if (!mkPaletKnoopOp([MK.cat])) MK.cat = 'terrein';
+  mkStadLaad();
   mkPlak = null; mkMenuSluit(); mkLegenda(); mkTeken();
 }
 function mkKies(e){
@@ -38452,8 +38627,8 @@ function mkNaarJSON(){
   const grid = MK.grid.map(rij => rij.map(id => MK_IDCH[id] || '.').join(''));
   return { type:'amir-levelmaker-grid', versie:MK_VERSIE, cols:MK.cols, rows:MK.rows, groundRow:MK.ground,
            cel:{ breedPx:MK_CEL_PX, hoogEenheden:MK_CEL_EENH },
-           legenda:{ '.':'lucht', S:'savanne', R:'rots', W:'sneeuw op savanne', X:'sneeuw op rots', M:'muur', L:'kei (laag obstakel)', F:'zwevende laag', G:'gang', V:'ravijn', b:'zwarte savanne', n:'zwarte vulling', p:'zwart plafond', E:'muur van leem' },
-           grid, start:MK.start, eind:MK.eind, muziek:MK.muziek, valschade:MK.valschade, ...(MK.uitzicht ? { uitzicht:MK.uitzicht } : {}),
+           legenda:{ '.':'lucht', S:'savanne', R:'rots', W:'sneeuw op savanne', X:'sneeuw op rots', M:'muur', L:'kei (laag obstakel)', F:'zwevende laag', G:'gang', V:'ravijn', b:'zwarte savanne', n:'zwarte vulling', p:'zwart plafond', E:'muur van leem', A:'straat' },
+           grid, start:MK.start, eind:MK.eind, muziek:MK.muziek, valschade:MK.valschade, ...(MK.uitzicht ? { uitzicht:MK.uitzicht } : {}), ...(MK.stadSeed ? { stadSeed:MK.stadSeed } : {}),
            maskers: MK.maskers.filter(mkMaskHeeft).map(m => ({ id:m.id, look:mkLookOf(m.look), ...(m.vulZwart ? { vulZwart:true } : {}), cells:m.cells.map(p => p.u ? [p.c, p.r, p.u] : [p.c, p.r]) })),
            vormen: MK.vormen.map(v => ({ t:v.t, x:v.x, y:v.y, w:v.w, h:v.h, rot:v.rot || 0, seed:v.seed || 0, ...(v.alpha != null && v.alpha < 1 ? { alpha:v.alpha } : {}) })),
            zwart: MK.zwart.map(p => [p.c, p.r]),
@@ -38474,6 +38649,9 @@ function mkNaarJSON(){
              if (o.k === 'tandwiel'){ b.modus = o.modus || 'schakellift'; const p = (o.plat && MK.objects.indexOf(o.plat) >= 0) ? o.plat : null; if (p) b.platform = { c:p.c, r:p.r }; }   // alleen een zelf gekozen platform; "dichtstbijzijnde" blijft dat ook na opslaan
              if (o.k === 'overhang'){ b.breed = o.breed || 3; b.dik = o.dik || 2; b.fijn = o.fijn || 0; b.look = o.look === 'savanne' ? 'savanne' : 'rots'; }
              if (o.k === 'rotsdecor'){ b.prop = rotsSoort(o.prop); if (o.f) b.f = true; if (o.s > 0 && o.s !== 1) b.s = o.s; }
+             if (o.k === 'gevel'){ b.id = o.id; b.hoog = mkGevelHoog(o); if (o.f) b.f = true; }   // het id blijft: een galerij of trap wijst ernaar
+             if (o.k === 'kraam'){ b.soort = o.soort === 'doek' ? 'doek' : 'riet'; if (o.f) b.f = true; }
+             if (o.k === 'voet'){ b.stuk = mkVoetStuk(o.stuk); if (o.f) b.f = true; }
              if (o.k === 'richel'){ b.s = o.s || 0.5; if (o.f) b.f = true; if (o.dx) b.dx = o.dx; if (o.dy) b.dy = o.dy; if (o.look && o.look !== 'rots') b.look = ledgeLookOf(o.look); }
              return b;
            }) };
@@ -38529,6 +38707,9 @@ function mkUitJSON(o){
       b.fijn = Math.max(-140, Math.min(140, Math.round(Number(q.fijn) || 0)));
       b.look = q.look === 'savanne' ? 'savanne' : 'rots'; }
     if (q.k === 'rotsdecor'){ b.prop = rotsSoort(q.prop); if (q.f) b.f = true; if (Number(q.s) > 0 && Number(q.s) !== 1) b.s = Math.max(MK_ROTS_S[0], Math.min(MK_ROTS_S[1], Number(q.s))); }
+    if (q.k === 'gevel'){ b.id = typeof q.id === 'string' ? q.id.slice(0, 12) : null; b.hoog = mkGevelHoog(q); if (q.f) b.f = true; }   // een dubbel of leeg id herstelt mkStadHeel
+    if (q.k === 'kraam'){ b.soort = q.soort === 'doek' ? 'doek' : 'riet'; if (q.f) b.f = true; }
+    if (q.k === 'voet'){ b.stuk = mkVoetStuk(q.stuk); if (q.f) b.f = true; }
     if (q.k === 'richel'){ b.s = Math.max(0.3, Math.min(1.2, Number(q.s) || 0.5)); b.f = !!q.f;
       b.dx = Math.max(-200, Math.min(200, Math.round(Number(q.dx) || 0))); b.dy = Math.max(-150, Math.min(150, Math.round(Number(q.dy) || 0)));
       b.look = ledgeLookOf(q.look); }
@@ -38554,7 +38735,8 @@ function mkUitJSON(o){
   MK.valschade = valschade; if (mkValschadeEl) mkValschadeEl.checked = MK.valschade;
   for (const q of objects) if (q.achter && !maskers.some(m => m.id === q.achter)) maskers.push({ id: q.achter, look: 'grot', vulZwart: false, cells: [] });   // een masker met alleen voorwerpen (Verborgen door masker)
   MK.maskers = maskers; MK.maskId = MK.maskers[0] ? MK.maskers[0].id : 'Verborgen1';
-  MK.vormen = vormen; MK.zwart = zwart; MK.objects = objects;
+  MK.vormen = vormen; MK.zwart = zwart; MK.objects = mkStadHeel(objects);
+  MK.stadSeed = Number(o.stadSeed) > 0 ? Math.min(99999, Math.round(Number(o.stadSeed))) : null;   // de huizen in de verte (Andere stad)
   MK.sel = null; MK.selVorm = null; MK.selMask = null; MK.gebied = null; mkMiniVuil = true;
 }
 // opslaan: na elke wijziging roept de Maker mkBewaar aan. Dat schrijft niet meteen (tijdens een streek komt het per
@@ -38955,12 +39137,29 @@ function mkNaarLevel(opt){
     if (o.f) e.f = true;
     props.push(e);
   }
+  // de stad (zie "de stad"): gevels, kramen, voetdecor en het paleis, alleen als er een stadsstuk in het grid staat. Een gevel
+  // krijgt als x zijn linkerkant (de linkerrand van zijn ankercel), een kraam, voetdecor en het paleis het midden van hun kolom;
+  // het spel zet ze zelf op de vloer daar (terrainH). In de Maker heeft een gevel een id; een galerij of trap in het level wijst
+  // naar een gevel met zijn index in stad.gevels, dus die vertaling gebeurt hier (gevelIdx, voor de galerijen van stap 4).
+  // De gevels staan in volgorde van de start af, zoals in de levels.
+  let stad = null; const gevelIdx = {};
+  if (MK.objects.some(o => MK_STAD_K.has(o.k))){
+    const mid = c => { const [l, r2] = lr(c); return Math.round((l + r2) / 2); };
+    const gv = MK.objects.filter(o => o.k === 'gevel').sort((a, b) => b.c - a.c);
+    stad = { seed: MK.stadSeed || 1,
+             gevels: gv.map((o, i) => { gevelIdx[o.id] = i; const e = { x: Math.round(lr(o.c)[0]), hoog: mkGevelHoog(o) }; if (o.f) e.f = 1; return e; }),
+             kramen: MK.objects.filter(o => o.k === 'kraam').map(o => { const e = { x: mid(o.c), soort: o.soort === 'doek' ? 'doek' : 'riet' }; if (o.f) e.f = 1; return e; }),
+             voet: MK.objects.filter(o => o.k === 'voet').map(o => { const e = { x: mid(o.c), stuk: mkVoetStuk(o.stuk) }; if (o.f) e.f = 1; return e; }) };
+    const pal = MK.objects.find(o => o.k === 'paleis'); if (pal) stad.paleis = mid(pal.c);
+  }
   // De grondsoort per plek, uit de cellen op de grondlijn: aaneengesloten stroken rots of straat worden
   // grondSoort-stroken (sneeuw op rots telt als rots); savanne is de basis en krijgt er geen. Vroeger
   // zette de eerste rots- of sneeuwcel een afwerking voor het hele level; nu ziet de bodem eruit zoals
   // je hem schildert, met de zachte overgang tussen de stroken (zie "grondsoort per plek").
   const grondSoort = [];
-  const bodemSoortVan = id => (id === 'rots' || id === 'sneeuwrots') ? 'rots' : id === 'straat' ? 'straat' : null;
+  // Met het veld stad is de basis van de bodem de straat (bodemPic), dus dan krijgt ook de savanne zijn eigen strook: zo blijft
+  // de bodem zoals je hem geschilderd hebt, en ligt de straat alleen waar je straat zette.
+  const bodemSoortVan = id => (id === 'rots' || id === 'sneeuwrots') ? 'rots' : id === 'straat' ? 'straat' : (stad && (id === 'savanne' || id === 'sneeuw')) ? 'savanne' : null;
   for (let c = 0; c < C;){
     const srt = bodemSoortVan(G[gR] && G[gR][c]);
     if (!srt){ c++; continue; }
@@ -39001,6 +39200,7 @@ function mkNaarLevel(opt){
   // de rechtergrens uit de tekening, maar alleen als je iets rechts van de vaste CLIFF.wall (620) hebt getekend of
   // je eind daar ligt; anders laten we hem weg en blijft de vaste wand gelden (bestaande Maker-levels onveranderd).
   if (rechtsX + 450 > CLIFF.wall) lvl.rechtsWall = Math.round(rechtsX + 450);
+  if (stad) lvl.stad = stad;                                            // en zonder eigen muziek de stadmuziek (MUZIEK_STAD)
   if (MK.muziek && MK.muziek !== MUZIEK_BASIS) lvl.muziek = MK.muziek;
   { const u = mkUitzichtVan(); if (u && u !== 'basis') lvl.lagen = u; }   // het uitzicht (zonder lagen de gewone savanne in de avond)   // de gekozen achtergrondmuziek (Dark Africa is de standaard)
   if (MK.valschade) lvl.valschade = true;                               // bij het testen standaard aan (het vinkje in de Maker-balk)
@@ -39135,7 +39335,9 @@ function mkControle(){
   const m = [], C = MK.cols, R = MK.rows, gR = MK.ground, G = MK.grid;
   const meld = (ernst, tekst, c, r) => m.push({ ernst, tekst, c: c == null ? null : c, r: r == null ? null : r });
   const cel = (c, r) => (r >= 0 && r < R && c >= 0 && c < C) ? G[r][c] : 'lucht';
-  const vast = id => id === 'savanne' || id === 'sneeuw' || id === 'zweef' || id === 'zsavanne' || id === 'rots' || id === 'sneeuwrots' || id === 'muur' || id === 'leem' || id === 'zvulling' || id === 'zplafond' || id === 'laag';
+  const vast = id => id === 'savanne' || id === 'sneeuw' || id === 'zweef' || id === 'zsavanne' || id === 'straat' || id === 'rots' || id === 'sneeuwrots' || id === 'muur' || id === 'leem' || id === 'zvulling' || id === 'zplafond' || id === 'laag';
+  // de naam van een cel in een melding (de grond onder een stadsstuk)
+  const celNaam = id => { const t = MK_TYPES.find(q => q.id === id); return id === 'lucht' || !t ? 'leeg' : t.naam.replace(/^Grond: /, '').toLowerCase(); };
   // de vloer onder een cel: de eerste vaste cel eronder (de grondlijn telt als vloer, tenzij daar een ravijn is of
   // een gang eronder zonder vloer). Geeft de rij van die vloer, of null als je tot onder het grid valt.
   const vloerOnder = (c, r) => {
@@ -39248,7 +39450,32 @@ function mkControle(){
       else if (v === null) meld('letop', nm + ' staat boven een ravijn zonder bodem; in het spel schuift hij naar de rand.', o.c, o.r);
       else if (v - o.r > 1) meld('info', nm + ' hangt boven zijn vloer; in het spel staat hij op de vloer eronder.', o.c, o.r);
     }
+    else if (MK_STAD_K.has(o.k) && o.k !== 'paleis'){              // een stadsstuk: decor, het spel zet hem op de vloer onder zijn kolom
+      const nm = (o.k === 'gevel' ? 'Gevel ' + (o.id || '') : o.k === 'kraam' ? 'Kraam' : 'Voetdecor') + ' op kolom ' + o.c, v = vloerVan(o.c, o.r);
+      if (vast(cel(o.c, o.r))) meld('letop', nm + ' staat in een vaste cel: zet hem op de cel erboven.', o.c, o.r);
+      else if (v === null) meld('letop', nm + ' staat boven een ravijn zonder bodem; in het spel schuift hij naar de rand.', o.c, o.r);
+      else if (v - o.r > 1) meld('info', nm + ' hangt boven zijn vloer; in het spel staat hij op de vloer eronder.', o.c, o.r);
+      // het mag (keuze 3 van het plan), maar meestal is het een vergissing: de grondsoort komt uit de grondlijn op zijn x
+      const g = cel(o.c, gR);
+      if (g !== 'straat') meld('letop', nm + ' staat op grond die geen straat is (' + celNaam(g) + ' op de grondlijn): schilder Grond: straat op de grondlijn eronder, of laat het zo als het zo bedoeld is.', o.c, o.r);
+    }
     else if (o.k === 'hppotion' || o.k === 'richel'){ if (vast(cel(o.c, o.r))) meld('letop', naam + ' op kolom ' + o.c + ' staat in een vaste cel.', o.c, o.r); }
+  }
+  // een straatcel of leemmuur boven de grondlijn zonder straat op de grondlijn eronder: een straatterras haalt zijn tegel uit
+  // de strook op de grondlijn (grondSoort), dus daar wordt hij savanne of rots. Per aaneengesloten reeks kolommen een melding.
+  for (const soort of ['straat', 'leem']){
+    let c = 0;
+    while (c < C){
+      const mis = cc => cel(cc, gR) !== 'straat' && G.some((rij, r) => r < gR && rij[cc] === soort);
+      if (!mis(c)){ c++; continue; }
+      let c2 = c; while (c2 + 1 < C && mis(c2 + 1)) c2++;
+      let r0 = 0; while (r0 < gR && G[r0][c] !== soort) r0++;
+      const kol = c === c2 ? 'kolom ' + c : 'kolom ' + c + ' tot ' + c2;
+      meld('letop', (soort === 'straat' ? 'Straat' : 'Muur van leem') + ' boven de grondlijn op ' + kol + ' staat niet op een straatstrook: de grondlijn eronder is ' + celNaam(cel(c, gR)) + '. '
+        + (soort === 'straat' ? 'Een straatterras haalt zijn tegel uit de grondlijn eronder, dus hier ziet hij er niet als straat uit.' : 'Een leemmuur hoort in de stad op de straat te staan.')
+        + ' Schilder Grond: straat op de grondlijn eronder.', c, r0);
+      c = c2 + 1;
+    }
   }
   // een val van 4 cellen of dieper is in de Test dodelijk (valDood): meld elke plek op een looplijn waar je zo diep valt
   const valDiep = 4; let gemeld = 0;
@@ -39420,6 +39647,10 @@ function mkSpiegel(){                     // het klembord spiegelen: links wordt
     // een rijzer van even breedte ligt met zijn ankercel links van het midden (mkRijsCellen): gespiegeld schuift het anker een cel naar links
     if (o.k === 'rijzer' && (o.breed || MK_PLAT_BREED) % 2 === 0){ o.dc -= 1; if (o.doel) o.doel.dc -= 1; }
     if (o.k === 'rotsdecor') o.f = !o.f || undefined;               // een rotsstuk kijkt de andere kant op
+    if (MK_STAD_K.has(o.k) && o.k !== 'paleis') o.f = !o.f || undefined;   // een gevel, kraam of voetdecor ook
+    // een gevel hangt aan zijn ankercel linksonder en is breder dan een cel: gespiegeld schuift het anker zo ver op dat het huis
+    // op dezelfde plek blijft staan (twee keer spiegelen geeft het origineel, want de verschuiving is steeds even groot)
+    if (o.k === 'gevel'){ const v = mkStadVak({ k: 'gevel', c: 0, r: 0, hoog: o.hoog }); o.dc += Math.round(1 - (v.c1 - v.c0)); }
     if (o.k === 'richel'){ o.f = !o.f; if (o.dx) o.dx = -o.dx; }         // een richel wijst de andere kant op, en zijn zijwaartse bijstelling ook
     if (o.k === 'platform'){ if (o.stamZij === -1) delete o.stamZij; else o.stamZij = -1; } }   // de paal aan de andere kant: rechts (geen veld) wordt links (-1) en terug
   for (const o of k.objects) if (o.rijsRel){ if (o._rijsDoel) o.rijsRel = { dc:o._rijsDoel.dc, dr:o._rijsDoel.dr }; else delete o.rijsRel; delete o._rijsDoel; }
@@ -39455,6 +39686,8 @@ function mkPlakZet(){                     // de stempel neerzetten op mkPlak (li
   for (const z of nieuw) if (z._poortRel){ const q = nieuw.find(o => o.k === 'poort' && o.c === p.c + z._poortRel.dc && o.r === p.r + z._poortRel.dr); if (q) z.poortObj = q; delete z._poortRel; }
   for (const m of k.mask){ const c = p.c + m.dc, r = p.r + m.dr; if (!in_(c, r)) continue; const had = mkMaskInCel(c, r); if (had) had.m.cells.splice(had.i, 1); mkMaskObj(m.id).cells.push(m.u ? { c, r, u:m.u } : { c, r }); }
   for (const z of k.zwart){ const c = p.c + z.dc, r = p.r + z.dr; if (in_(c, r) && mkZwartIdx(c, r) < 0) MK.zwart.push({ c, r }); }
+  MK.objects = mkStadHeel(MK.objects);   // een geplakte gevel met een id dat al bestaat krijgt een nieuwe, en het geplakte paleis wint
+  if (MK.sel && MK.objects.indexOf(MK.sel) < 0) MK.sel = null;
   MK.gebied = vlak; mkGebiedKlem();      // het geplakte stuk is nu het gebied (alleen het deel binnen het grid; helemaal erbuiten is geen gebied)
   mkPlak = null; mkNotePaneel(); mkBewaar(); mkTeken();
 }
@@ -39502,7 +39735,8 @@ mkCanvas.addEventListener('pointermove', ev => {
     MK.gebied.c1 = Math.max(0, Math.min(MK.cols - 1, c)); MK.gebied.r1 = Math.max(0, Math.min(MK.rows - 1, r)); mkNotePaneel(); mkTeken(); }
   else if (mkRect){ const { c, r } = mkCelOp(ev);   // de rechthoek meetrekken (binnen het raster)
     mkRect.c1 = Math.max(0, Math.min(MK.cols - 1, c)); mkRect.r1 = Math.max(0, Math.min(MK.rows - 1, r)); mkTeken(); }
-  else if (mkDrag){ const { c, r } = mkCelOp(ev);   // een geselecteerd voorwerp verslepen naar een andere cel
+  else if (mkDrag){ let { c, r } = mkCelOp(ev);   // een geselecteerd voorwerp verslepen naar een andere cel
+    if (mkDragOff){ c += mkDragOff.dc; r += mkDragOff.dr; }
     if (c >= 0 && r >= 0 && c < MK.cols && r < MK.rows && (mkDrag.c !== c || mkDrag.r !== r)){ mkDrag.c = c; mkDrag.r = r; mkNotePaneel(); mkTeken(); } }
   else if (mkPaint && mkIsStreek(MK.tool)) mkVerf(ev);   // slepen schildert grond, masker-cellen (ook wissen), of zwarte cellen, niet objecten of start/eind
 });
@@ -39606,7 +39840,7 @@ document.getElementById('mkvijwis').onclick = () => {
 };
 document.getElementById('mkwis').onclick = () => {
   if (!confirm('Weet je zeker dat je alles wil wissen?')) return;   // leeg beginnen, met bevestiging ertussen
-  mkZetMaat(48, 20, 12); MK.grid = mkMaakGrid(MK.cols, MK.rows); MK.start = null; MK.eind = null; MK.objects = []; MK.maskers = []; MK.uiterlijk = null; MK.maskId = 'Verborgen1'; MK.vormen = []; MK.selVorm = null; MK.zwart = []; MK.sel = null; MK.selMask = null; MK.gebied = null; mkKlembord = null; mkPlak = null; MK.tool = 'savanne'; MK.cat = 'terrein'; MK.sub = null; MK.inspectDicht = true; MK.muziek = MUZIEK_BASIS; mkMuziekEl.value = MK.muziek; MK.uitzicht = ''; mkUitzichtEl.value = '';
+  mkZetMaat(48, 20, 12); MK.grid = mkMaakGrid(MK.cols, MK.rows); MK.start = null; MK.eind = null; MK.objects = []; MK.maskers = []; MK.uiterlijk = null; MK.maskId = 'Verborgen1'; MK.vormen = []; MK.selVorm = null; MK.zwart = []; MK.sel = null; MK.selMask = null; MK.gebied = null; mkKlembord = null; mkPlak = null; MK.tool = 'savanne'; MK.cat = 'terrein'; MK.sub = null; MK.inspectDicht = true; MK.muziek = MUZIEK_BASIS; mkMuziekEl.value = MK.muziek; MK.uitzicht = ''; mkUitzichtEl.value = ''; MK.stadSeed = null;
   MK.valschade = true; mkValschadeEl.checked = true;
   mkLegenda(); mkNotePaneel(); mkPassend(); mkBewaar();
 };
@@ -39727,6 +39961,7 @@ function mkOpen(){
   } catch (e){ try { localStorage.removeItem('amir-mk'); } catch (e2){} }
   mkHistWis(); mkHistZet(JSON.stringify(mkNaarJSON()));   // de geschiedenis begint bij wat er nu staat
   try { const th = localStorage.getItem('amir-mk-thema'); if (MK_PALETTEN[th]) MK.thema = th; } catch (e){}   // de stand van de legenda van de vorige keer
+  mkStadLaad();                                    // de stadplaatjes alleen in de stand Stad of met stadsstukken in het grid
   document.getElementById('mkcontrole').classList.add('dicht');
   mkLegenda(); mkNotePaneel(); mkMaatCanvas(); mkPassend();
 }
