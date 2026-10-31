@@ -93,7 +93,8 @@ ze de rechte lijn tussen muur en straat.
 
 ## De stadstrap
 
-`STAD_TRAP`, `stadTrapMaat`, `stadTrapBij`, `stadTrapE`, `stadTrapStap`, `stadTrapAchter`, `stadTrapVoor`, `stadInGevecht`
+`STAD_TRAP`, `stadTrapMaat`, `stadTrapBij`, `stadTrapE`, `stadTrapStap`, `stadTrapAchter`, `stadTrapVoor`, `stadInGevecht`,
+`stadTrapNabij`, `stadTrapCamX`, `stadTrapCamY`, `stadTrapAlfa`, `stadTrapUitLaag`
 
 `stad.trappen: [{gevel, kant, niveau, balkon}]`: een oude houten buitentrap (`design/stad/trap.png`, plat van voren
 gezien, net zo plat als de gevels) naast gevel `gevel`. Kant `'r'`: rechts van het huis, dus de kant waar je vandaan komt
@@ -106,18 +107,26 @@ een verdieping omhoog. De treden zijn altijd even groot (de schaal hangt aan de 
 - Aan de andere kant van het huis kom je boven uit: op een balkon (`balkon`: breedte in Amir, standaard 1,6, met twee
   schoren naar de muur), of met `balkon: 0` op een galerij die daar al loopt. Op die plek zit altijd een opening in de
   leuning (`gat`, 0,62 Amir); dat is ook de plek waar je weer naar beneden gaat.
-- E bij de voet of in de opening (`eDruk`): het beeld fadet naar zwart (`stadTrapFade`, de wereld staat stil zoals bij de
-  executie), Amir staat aan de andere kant, met zijn gezicht van het huis af, en het beeld komt terug.
+- E bij de voet of in de opening (`eDruk`): Amir vervaagt (`STAD_TRAP.uit`, `stadTrapAlfa`), staat dan al aan de andere
+  kant, met zijn gezicht van het huis af, en de camera glijdt in `glij` seconden zacht van waar hij stond naar waar hij bij de
+  uitgang hoort (`stadTrapCamX` in de camEase-keten, `stadTrapCamY` in `updateCamera`, met het vooruitkijken van de
+  meekijkende camera erbij). Het beeld wordt daarbij iets donkerder (`dim`, niet zwart: je ziet waar je heen gaat), en in
+  `in` seconden komt Amir terug. De wereld staat stil zoals bij de executie (`stadTrapFade`, op echte tijd).
 - Niet in een gevecht: een levende vijand binnen 950 en hoogstens 150 hoger of lager (`stadInGevecht`; een vijand op een
   andere etage telt niet). Dan zie je "Niet nu". En niet zonder speer (in de hand of op de rug).
-- Dichtbij gloeit de trap of de opening zacht warm op, en er staat een E met een pijltje.
+- Dichtbij gloeit de trap of de opening zacht warm op, en er staat een E met een pijltje. De uitgang aan de andere kant
+  gloeit dan ook (iets zachter), met twee gouden pijltjes erboven die op en neer gaan (`stadTrapNabij`, `stadTrapUitTeken`):
+  zo zie je voor je E drukt waar je uitkomt. De pijltjes komen na de personages (`stadTrapUitLaag`), zodat een vijand op
+  het balkon ze niet afdekt. Hoe dichtbij Amir staat komt uit `playerX()`, niet uit `world`: tijdens het tekenen is
+  `world` de camera, en met de meekijkende camera lag de gloed en de E anders een eind naast Amir.
 - Vijanden gebruiken de trap nooit. Een balkon telt wel als vloer voor een vijand met `dak` (en de kruisboogbandiet kan nu
   ook `dak` hebben).
 - Een galerij kan met `meer: [links, rechts]` (in Amir) langer zijn dan zijn huizen, zodat hij voor de trap langs loopt.
 - De doek van een kraam vangt elke val op: nooit valschade.
 - Op de telefoon staat de E-knop erbij zodra je bij een trap staat (`eNodig`). Ligt er iets anders voor E (een losse speer,
   een skelet, een wankelende schildbandiet), dan gaat dat voor de trap (`eSpeerIets`).
-- Na de fade staat de camera meteen op de nieuwe hoogte (`bavKijkNu`), en een terugstoot of renstoot loopt niet door op het balkon.
+- Na de glijvlucht staat de camera precies op de nieuwe hoogte en plek (daarna neemt de gewone camera het naadloos over),
+  en een terugstoot of renstoot loopt niet door op het balkon.
 - Een kalebas met een hoogte (`hppotions: {x, y}`) komt in de stad op de vloer van die hoogte die het dichtst bij ligt,
   net als een vijand met `dak` (`stadDakPlek` in `resetHppotions`): de galerijen schalen mee met het scherm, een vaste x
   viel op een telefoon naast het dek.
