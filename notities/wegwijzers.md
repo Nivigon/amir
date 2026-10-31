@@ -12,7 +12,7 @@ kleurwaas over het beeld, volgt de zon van het level; een level stelt hem bij me
 
 ## muziek per level
 
-`MUZIEK`, `MUZIEK_BASIS` (Dark Africa: bij de start, in het menu, de sandbox en elk level zonder veld `muziek`), `zetMuziek()`: welk deuntje onder welk level loopt. Een level met `stad` en zonder eigen `muziek` krijgt voorlopig de stadgeluiden (`MUZIEK_STAD`, de sleutel `stad`, `music/citysounds.mp3`); in de sandbox de knop **Stad** onder Muziek, in de Maker **Stadgeluiden**
+`MUZIEK`, `MUZIEK_BASIS` (Dark Africa: bij de start, in het menu, de sandbox en elk level zonder veld `muziek`), `zetMuziek()`: welk deuntje onder welk level loopt. Een level met `stad` en zonder eigen `muziek` krijgt de stadmuziek Tense Grounding (`MUZIEK_STAD`, de sleutel `stad`, `music/tensegrounding.mp3`); in de sandbox de knop **Stad** onder Muziek, in de Maker **Tense Grounding (stad)**. De oude stadgeluiden zonder muziek staan onder de sleutel `stadgeluid` (`music/citysounds.mp3`): in de sandbox **Stadgeluid**, in de Maker **Stadgeluiden**
 
 ## beeld: de grote of de kleine spriteset
 
