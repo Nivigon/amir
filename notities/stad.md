@@ -153,7 +153,8 @@ en **Doodlopend**. Beide plaatjes zijn uit de gevel gemaakt (geen nieuwe art).
 - Deuren in de deurgaten, en vijanden die uit een deur komen.
 - De trap in de Maker.
 - De Maker: gevels, galerijen, kramen en voetdecor als gereedschap. De leemmuur staat er al in (stand Stad,
-  Terrein, **Muur van leem**); het plan voor de rest staat in `notities/plan-stad-maker.md`.
+  Terrein, **Muur van leem**), en de straat als strook grondsoort (**Grond: straat**, zie
+  `notities/grondsoort.md`); het plan voor de rest staat in `notities/plan-stad-maker.md`.
 - Een lift (een takel) die zich naar de rand van een galerij voegt: het plateau heeft een vaste breedte, de galerij
   schaalt mee. In Stad 1 overlapt het plateau het eind van de galerij op een laptop; op een kleine telefoon is het
   een korte sprong opzij.

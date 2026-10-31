@@ -875,6 +875,14 @@ def velden(lv, sp):
     for o in lv.d.get('spawns') or []:
         if o.get('k') not in ('groen', 'zwart', 'knock', 'scorp', 'panter', 'hyenas', 'fosfor', 'bandiet', 'kooiman', 'meelman', 'schildman', 'kruisboogbandiet', 'zweepman'):
             yield fout(o.get('x'), "vijand '%s' bestaat niet: het spel maakt er een groene slang van" % o.get('k'))
+    gs = lv.d.get('grondSoort')
+    if gs is not None:
+        if not isinstance(gs, list):
+            yield fout(None, 'grondSoort moet een lijst stroken zijn: [{van, tot, soort}]; zo doet het veld niets')
+        else:
+            for q in gs:
+                if q.get('soort') not in ('savanne', 'rots', 'straat'):
+                    yield fout(q.get('van'), "grondSoort-soort '%s' bestaat niet (wel: savanne, rots, straat): deze strook wordt weggelaten" % q.get('soort'))
     s = lv.d.get('sneeuw')
     if s:
         if s.get('soort') not in ('savanne', 'rots'):

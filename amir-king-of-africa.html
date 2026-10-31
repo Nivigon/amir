@@ -1576,6 +1576,13 @@
         <span class="hint">een Sahelstraat voor je uit: huizen van 1 tot 4 hoog, een galerij, een kraam met een rieten dak (opstap) en een met een doek die veert (spring erop of net bij het landen: hoog), en het paleis in de verte. Lage leemmuur en Doodlopend zetten een muur van leem voor je neer (een terras met de look van de stad): de lage spring je op, de hoge houdt je tegen. Naast het hoge huis staat een houten trap: E bij de voet en je staat aan de andere kant op het balkon, E in de opening en je bent weer beneden. Bandiet op de galerij: hij staat op de eerste galerij (zet de stad neer als die er nog niet is) en de rand houdt hem tegen; klim via de kraam omhoog</span>
       </div>
       <div class="row">
+        <label>Grondsoort</label>
+        <button id="sbgsstraat">Strook straat</button>
+        <button id="sbgsrots">Strook rots</button>
+        <button id="sbgsweg">Weg</button>
+        <span class="hint">een strook straat of rotsbodem in de grond voor je uit (het veld grondSoort), met een grillige rand die over een halve cel zacht uitloopt in de savanne; de Maker schrijft dit veld uit de terreincellen op de grondlijn</span>
+      </div>
+      <div class="row">
         <label>Takelwiel</label>
         <button id="sbtakel">Neerzetten</button>
         <button id="sbtakellift">Lift: 2 wielen</button>
@@ -5546,6 +5553,8 @@ function savanneLaag(t, groundY, scale, cx, bottom, st, floating){
   let x = cx - (((world % tw) + tw) % tw);           // vast aan de wereld, net als de grond zelf
   while (x > xl) x -= tw;
   for (; x < xr; x += tw) ctx.drawImage(eimg, x, top, tw + 1, th);
+  // de stroken grondsoort (straat, rots) ook op de bovenkant van de laag (niet op zwart)
+  if (!zwart) grondStrokenTeken(top, th, s, cx, xl, xr, (img, va, vb) => grondTegelRij(img, top, s, cx, va, vb));
   if (sneeuwOn() && !zwart){                          // de sneeuwlaag ligt ook op een hogere of zwevende savannelaag (niet op zwart)
     let sx = cx - (((world % tw) + tw) % tw); while (sx > xl) sx -= tw;
     drawSneeuwdek(top, tw, th, sx, xl, xr, s);
@@ -19268,6 +19277,71 @@ function drawSneeuwdek(top, tw, th, x0, left, right, s){
   }
 }
 
+// ---- grondsoort per plek: stroken straat of rots in de bodem ------------------
+// Een level kan de bodem per strook een andere soort geven dan de rest:
+//   grondSoort: [{van, tot, soort}]    soort 'savanne', 'rots' of 'straat'
+// De basis blijft bodemPic (de bodem van het level zelf); elke strook wordt daar met zijn
+// eigen tegel overheen getekend (alle grondtegels hebben de maten en rijen van EDGE). De
+// grens loopt grillig (sneeuwJag, dezelfde jag als de sneeuwgrens) en de tegel loopt over
+// ongeveer een halve Maker-cel (GRONDSOORT.rand) zacht uit in de grond ernaast: eerst een
+// halfdoorzichtige laag tot de buitenrand, daarbinnen de volle tegel. Ook de bovenkant van
+// een hogere of zwevende savannelaag (savanneLaag) en de vloer van een gang (drawHolte,
+// in het donker van de gang) tekenen de stroken mee; een zuil, een rijzer, het overloopje
+// en de schachtkap houden de basistegel, en met golf (golvende rand) doet het veld niets.
+// De sneeuwlaag (het veld sneeuw) ligt er gewoon overheen. De Maker schrijft dit veld uit
+// de terreincellen op de grondlijn (zie mkNaarLevel); geen bestaand level heeft het.
+// In de sandbox onder Terrein, Grondsoort.
+const GRONDSOORT = { rand: 88, uitAlpha: 0.5 };   // rand: de uitloop, ongeveer een halve cel (MK_CEL_PX / 2)
+function grondStroken(){
+  if (sandbox) return sbGrondSoort;
+  return (level && level.grondSoort) || [];
+}
+// de grondtegel van een soort; de plaatjes laden lui (laadLevel en de sandbox-knoppen
+// zetten ze al klaar, dit is het vangnet)
+function grondTegelVan(soort){
+  if (soort === 'straat'){ stadLaad(); return stadBodem(); }
+  if (soort === 'rots'){ loadSneeuw(); return imgReady(sneeuwImg.rots) ? sneeuwImg.rots : null; }
+  return winterPic('edge', edgeImg);                 // savanne: de gewone grondrand
+}
+// een rij grondtegels van va tot vb, vast aan de wereld op hetzelfde anker als de grond zelf
+function grondTegelRij(img, top, s, cx, va, vb){
+  const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+  const tw = iw * s, th = ih * s;
+  let x = cx - (((world % tw) + tw) % tw);
+  x += Math.floor((va - x) / tw) * tw;
+  for (; x < vb; x += tw) ctx.drawImage(img, x, top, tw + 1, th);
+}
+// De stroken over een getekende tegelrij heen. top is de bovenkant van de tegel, hoog zijn
+// hoogte, s de tegelschaal, cx het schermpunt van wereld-x world, xl en xr de schermranden
+// van wat de aanroeper tekent. teken(img, va, vb) tekent de rij met deze tegel tussen die
+// schermranden; de clip hier beperkt het tot de strook, met de grillige zachte rand.
+function grondStrokenTeken(top, hoog, s, cx, xl, xr, teken){
+  const lijst = grondStroken();
+  if (!lijst || !lijst.length) return;
+  const R = GRONDSOORT.rand;
+  for (const st of lijst){
+    const img = grondTegelVan(st.soort);
+    if (!img || !imgReady(img)) continue;
+    const wl = Math.min(st.van, st.tot), wr = Math.max(st.van, st.tot);
+    const a = cx + (wl - world), b = cx + (wr - world);
+    if (b + R < xl - 60 || a - R > xr + 60) continue;
+    const ka = wl * 0.013, kb = wr * 0.013 + 2.7;    // eigen jag per rand, vast aan de wereld
+    const y0 = top - 30, y1 = top + hoog + 30;
+    for (const [uit, alpha] of [[R / 2, GRONDSOORT.uitAlpha], [-R / 2, 1]]){
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(a - uit + sneeuwJag(ka, y0, top, s), y0);
+      for (let y = y0; y <= y1; y += 8) ctx.lineTo(a - uit + sneeuwJag(ka, y, top, s), y);
+      for (let y = y1; y >= y0; y -= 8) ctx.lineTo(b + uit + sneeuwJag(kb, y, top, s), y);
+      ctx.closePath();
+      ctx.clip();
+      ctx.globalAlpha = alpha;
+      teken(img, Math.max(xl, a - uit - 60), Math.min(xr, b + uit + 60));
+      ctx.restore();
+    }
+  }
+}
+
 // grillige breukrand, vaste vorm per gat
 function gapJag(g, side, y, groundY){
   const k = g.x * 0.01 + side * 7.3, t = y - groundY;
@@ -19812,7 +19886,7 @@ function stadLees(o){
            voet: (o.voet || []).filter(q => STAD.voet.stukken[q.stuk]).map(q => ({ x: n(q.x), stuk: q.stuk, f: q.f ? 1 : 0 })),
            trappen: (o.trappen || []).map(stadTrapLees) };
 }
-function stadLaadLevel(lv){ if (lv && (lv.stad || (lv.terraces || []).some(t => t.look === 'leem'))) stadLaad(); }
+function stadLaadLevel(lv){ if (lv && (lv.stad || (lv.terraces || []).some(t => t.look === 'leem') || (lv.grondSoort || []).some(g => g.soort === 'straat'))) stadLaad(); }
 // bronpixels van de grote set naar het plaatje dat er echt is (klein/ is de helft)
 const stadQ = (im, v) => v / (im._bron || 1);
 // Een bewerkte kopie, een keer per plaatje: f(r, g, b) geeft [r, g, b]
@@ -21812,6 +21886,25 @@ function holteDonker(src, laag){
   return c;
 }
 let holteBuf = null;
+// de vloer: het loopvlak houdt iets licht, daaronder loopt hij weg in het donker
+function holteVloerLaag(g, w, h){
+  const L = HOLTE_LICHT;
+  const v = g.createLinearGradient(0, EDGE.kruin, 0, EDGE.solid);
+  v.addColorStop(0, 'rgba(0,0,0,' + L.rand + ')');
+  v.addColorStop((EDGE.walk - EDGE.kruin) / (EDGE.solid - EDGE.kruin), 'rgba(0,0,0,' + (L.rand + 0.1) + ')');
+  v.addColorStop(1, 'rgba(0,0,0,' + L.vulling + ')');
+  g.fillStyle = v; g.fillRect(0, 0, w, h);
+}
+// dezelfde donkere vloer voor een strook grondsoort (straat, rots), een keer per tegel
+const holteVloerBank = {};
+function holteVloerTegel(img){
+  const k = img.src || 'tegel';
+  const b = holteVloerBank[k];
+  if (b && b.bron === img) return b.tegel;
+  const tegel = holteDonker(img, holteVloerLaag);
+  holteVloerBank[k] = { bron: img, tegel };
+  return tegel;
+}
 function holteSet(){
   const V = plafondVulTegel(), E = bodemPic();
   if (!V || !imgReady(E)) return null;
@@ -21820,14 +21913,7 @@ function holteSet(){
   const L = HOLTE_LICHT;
   holteBuf = { sleutel,
     wand: holteDonker(V, (g, w, h) => { g.fillStyle = 'rgba(0,0,0,' + L.wand + ')'; g.fillRect(0, 0, w, h); }),
-    // de vloer: het loopvlak houdt iets licht, daaronder loopt hij weg in het donker
-    vloer: holteDonker(E, (g, w, h) => {
-      const v = g.createLinearGradient(0, EDGE.kruin, 0, EDGE.solid);
-      v.addColorStop(0, 'rgba(0,0,0,' + L.rand + ')');
-      v.addColorStop((EDGE.walk - EDGE.kruin) / (EDGE.solid - EDGE.kruin), 'rgba(0,0,0,' + (L.rand + 0.1) + ')');
-      v.addColorStop(1, 'rgba(0,0,0,' + L.vulling + ')');
-      g.fillStyle = v; g.fillRect(0, 0, w, h);
-    }) };
+    vloer: holteDonker(E, holteVloerLaag) };
   return holteBuf;
 }
 
@@ -22417,8 +22503,12 @@ function drawHolte(groundY, scale, cx){
         const vv = zichtVak(0);                        // de vloer loopt door tot buiten beeld
         const vr = vv ? Math.min(xr, vv.r) : xr;
         if (vv){ while (x + tw < vv.l) x += tw; }
-        if (!vv || (top < vv.b && top + th > vv.t))
+        if (!vv || (top < vv.b && top + th > vv.t)){
           for (; x < vr; x += tw) ctx.drawImage(S.vloer, x, top, tw + 1, th);
+          // de stroken grondsoort ook op de gangvloer, in hetzelfde donker als de vloer zelf
+          grondStrokenTeken(top, th, s, cx, vv ? Math.max(xl, vv.l) : xl, vr,
+                            (img, va, vb) => grondTegelRij(holteVloerTegel(img), top, s, cx, va, vb));
+        }
       }
       ctx.restore();
       putTeken(o, vloer, cx);                        // de putten in de vloer
@@ -31805,7 +31895,12 @@ function sceneGrond(groundY){
     const tegelR = vg ? Math.min(right, vg.r) : right;
     if (vg) while (x + tw < vg.l) x += tw;
     if (golfAan()) golfGrondTeken(groundY, left, tegelR);   // golvende rand: de kruin golft, zand op bruine rots
-    else for (; x < tegelR; x += tw) ctx.drawImage(eimg, x, top, tw + 1, th);
+    else {
+      for (; x < tegelR; x += tw) ctx.drawImage(eimg, x, top, tw + 1, th);
+      // de stroken grondsoort (straat, rots) over de basis heen, met hun grillige zachte rand
+      grondStrokenTeken(top, th, s, W / 2, vg ? Math.max(left, vg.l) : left, tegelR,
+                        (img, va, vb) => grondTegelRij(img, top, s, W / 2, va, vb));
+    }
     drawSneeuwdek(top, tw, th, x0, left, right, s);      // de sneeuw die erop ligt, op dezelfde tegelmaat
     drawWaterStrips(groundY);                            // poelen liggen over de grond heen
     ctx.restore();
@@ -35198,6 +35293,13 @@ function schoonKomend(lv){
 }
 // bodem en sneeuwdek uit een level als tekst: alleen de twee soorten, en van en tot
 // tellen alleen als ze er allebei staan (anders weet je niet waar de overgang stopt)
+// stroken grondsoort in de bodem: [{van, tot, soort}], zie "grondsoort per plek"
+function leesGrondSoort(a){
+  if (!Array.isArray(a)) return undefined;
+  const uit = a.filter(q => q && (q.soort === 'savanne' || q.soort === 'rots' || q.soort === 'straat'))
+               .map(q => ({ van: Number(q.van) || 0, tot: Number(q.tot) || 0, soort: q.soort }));
+  return uit.length ? uit : undefined;
+}
 function leesSneeuw(o){
   if (!o || (o.soort !== 'savanne' && o.soort !== 'rots')) return null;
   const s = { soort: o.soort };
@@ -35548,6 +35650,7 @@ function readLevel(txt){
            arena: o.arena ? { c: Number(o.arena.c) } : null,
            winter: !!o.winter,                          // sneeuw, grijze rots, witte dieren (Winter World)
            sneeuw: leesSneeuw(o.sneeuw),                // bodem en sneeuwdek, zie die sectie
+           grondSoort: leesGrondSoort(o.grondSoort),    // stroken straat of rots in de bodem, zie "grondsoort per plek"
            weer: leesWeer(o.weer),                      // regen, onweer, stormen en sneeuw, zie "het weer"
            voorgrond: leesVoorgrond(o.voorgrond),       // gras en keien vlak voor de camera, zie "voorgrond"
            tips: (o.tips || []).map(t => ({ x: Number(t.x), t: String(t.t) })),
@@ -35584,7 +35687,8 @@ function laadLevel(lv){
   poortLaadLevel(lv);                              // de stenen bogen als het level poorten heeft
   rotsenLaadLevel(lv);                             // de rotsplaten als het level losse rotsen als decor heeft
   propLaadLevel(lv);                               // het luie decor (het rotsdecor) dat het level neerzet
-  stadLaadLevel(lv);                               // de stad: gevels, kramen, de straat en het paleis
+  stadLaadLevel(lv);                               // de stad: gevels, kramen, de straat en het paleis (ook voor een strook straat)
+  if ((lv.grondSoort || []).some(g => g.soort === 'rots')) loadSneeuw();   // de grijze grondtegel voor een strook rots
   if (lv.nep && !lv.isNep) laadLevel(lv.nep);      // en wat het nep-terrein van een masker gebruikt (een sneeuwrichel, de golfrand)
 }
 // ---- geheugen vrijgeven bij een levelwissel ----------------------------------
@@ -36614,6 +36718,9 @@ const MK_TYPES = [
   { id:'sneeuwrots', naam:'Sneeuw op rots',    kleur:'#cfd6de', ch:'X', groep:'terrein/sneeuw', thema:'savanne' },
   // de leemmuur van de stad: een blok boven de grondlijn wordt een terras met look: 'leem' (zie "de leemmuur")
   { id:'leem',    naam:'Muur van leem',        kleur:'#c9945e', ch:'E', groep:'terrein/stad', thema:'stad' },
+  // de straat van de stad: op de grondlijn een strook grondSoort 'straat' (zie "grondsoort per plek");
+  // boven de grondlijn gedraagt hij zich als savanne (een terras van grond, een zwever)
+  { id:'straat',  naam:'Grond: straat',        kleur:'#d9b887', ch:'A', groep:'terrein/stad', thema:'stad' },
   { id:'muur',    naam:'Muur / massief',     kleur:'#5f4a36', ch:'M', groep:'terrein/blokken' },
   { id:'laag',    naam:'Kei (laag obstakel)', kleur:'#b07a40', ch:'L', groep:'terrein/blokken' },   // in de Test een kei om op te springen (rocks), een schuilplek voor slangen (regel 7)
   { id:'zweef',   naam:'Zwevende laag',      kleur:'#8ab0c0', ch:'F', groep:'terrein/blokken' },
@@ -36931,7 +37038,7 @@ function mkPaletZoek(tool, soort, knoop){
 const MK_CH = {}, MK_KLEUR = {};
 for (const t of MK_TYPES){ if (t.ch) MK_CH[t.ch] = t.id; if (t.kleur) MK_KLEUR[t.id] = t.kleur; }
 const MK_IDCH = {}; for (const t of MK_TYPES) if (t.ch) MK_IDCH[t.id] = t.ch;
-const MK_TERREIN = new Set(['savanne','rots','sneeuw','sneeuwrots','muur','leem','laag','zweef','gang','ravijn','lucht','zsavanne','zvulling','zplafond']);
+const MK_TERREIN = new Set(['savanne','rots','sneeuw','sneeuwrots','muur','leem','straat','laag','zweef','gang','ravijn','lucht','zsavanne','zvulling','zplafond']);
 const mkIsObj = id => MK_TYPES.some(t => t.id === id && t.obj);
 const mkIsVorm = id => MK_TYPES.some(t => t.id === id && t.vorm);
 // deterministische toevals voor een blob-vorm, zodat dezelfde seed altijd dezelfde grillige vorm geeft
@@ -38519,7 +38626,7 @@ function mkNaarLevel(opt){
   const rand = gc => (gc - startCol) * MK_CEL_PX * dir;     // wereld-x van een kolomrand
   const lr = c => { const a = rand(c), b = rand(c + 1); return [Math.min(a, b), Math.max(a, b)]; };
   const spanLR = (cA, cB) => { const [la] = lr(cA), [, rb] = lr(cB); return [Math.min(la, rb), Math.max(la, rb)]; };
-  const savanne = id => id === 'savanne' || id === 'sneeuw' || id === 'zweef' || id === 'zsavanne';   // savanne-achtig (grond:true); rots en sneeuwrots zijn steen
+  const savanne = id => id === 'savanne' || id === 'sneeuw' || id === 'zweef' || id === 'zsavanne' || id === 'straat';   // savanne-achtig (grond:true); rots en sneeuwrots zijn steen; straat telt als grond, zijn tegel komt uit grondSoort
   const solid = id => savanne(id) || id === 'rots' || id === 'sneeuwrots' || id === 'muur' || id === 'leem' || id === 'zvulling' || id === 'zplafond';   // telt mee als verhoogd terras, zwevende laag of blokkade
   const gaps = [], terraces = [], holtes = [], zwevers = [], takels = [], ledges = [], hppotions = [], rocks = [];
   // keien: elke kei-cel (L, "Kei (laag obstakel)") wordt een kei om op te springen op het midden van zijn cel, op
@@ -38832,13 +38939,23 @@ function mkNaarLevel(opt){
     if (o.f) e.f = true;
     props.push(e);
   }
-  // de grond-afwerking op de grondlijn-rij: een sneeuwlaag op de bodem (op savanne of op rots), of een kale rotsbodem
-  let afwerking = null;
-  for (let c = 0; c < C; c++){ const id = G[gR] && G[gR][c];
-    if (id === 'sneeuwrots'){ afwerking = 'sneeuwrots'; break; }
-    if (id === 'sneeuw') afwerking = 'sneeuw';
-    else if (id === 'rots' && !afwerking) afwerking = 'rots';
+  // De grondsoort per plek, uit de cellen op de grondlijn: aaneengesloten stroken rots of straat worden
+  // grondSoort-stroken (sneeuw op rots telt als rots); savanne is de basis en krijgt er geen. Vroeger
+  // zette de eerste rots- of sneeuwcel een afwerking voor het hele level; nu ziet de bodem eruit zoals
+  // je hem schildert, met de zachte overgang tussen de stroken (zie "grondsoort per plek").
+  const grondSoort = [];
+  const bodemSoortVan = id => (id === 'rots' || id === 'sneeuwrots') ? 'rots' : id === 'straat' ? 'straat' : null;
+  for (let c = 0; c < C;){
+    const srt = bodemSoortVan(G[gR] && G[gR][c]);
+    if (!srt){ c++; continue; }
+    let c2 = c; while (c2 < C && bodemSoortVan(G[gR] && G[gR][c2]) === srt) c2++;
+    const [l, r] = spanLR(c, c2 - 1);
+    grondSoort.push({ van: Math.round(r), tot: Math.round(l), soort: srt });   // van de startkant naar links, zoals sneeuw
+    c = c2;
   }
+  // een sneeuwcel op de grondlijn geeft een dichte sneeuwlaag over de hele bodem; de grijze bodem zelf
+  // komt per strook uit grondSoort (soort 'savanne' hier betekent: de grondtegel blijft die van het level)
+  const sneeuwDek = Array.from({ length: C }, (_, c) => G[gR] && G[gR][c]).some(id => id === 'sneeuw' || id === 'sneeuwrots');
   // de eind-grens (onzichtbare klif) links van ALLES wat je getekend hebt, niet op een vaste afstand voorbij je
   // eindpunt. Anders snijdt de grens je eigen route af als je level voorbij het eindpunt doorloopt (een gang of
   // lift die verder naar links reikt dan E, zoals bij een hoog eindplateau dat je via een lift bereikt). De
@@ -38878,9 +38995,8 @@ function mkNaarLevel(opt){
   if (poorten.length) lvl.poorten = poorten;
   if (ledges.length) lvl.ledges = ledges;
   if (hppotions.length) lvl.hppotions = hppotions;
-  if (afwerking === 'sneeuw') lvl.sneeuw = { soort: 'savanne', dek: 1, vol: true };        // een dichte sneeuwlaag op de savanne (alleen de bodem, geen weer)
-  else if (afwerking === 'sneeuwrots') lvl.sneeuw = { soort: 'rots', dek: 1, vol: true };  // een dichte sneeuwlaag op de rotsbodem
-  else if (afwerking === 'rots') lvl.sneeuw = { soort: 'rots', dek: 0 };        // een kale rotsbodem
+  if (sneeuwDek) lvl.sneeuw = { soort: 'savanne', dek: 1, vol: true };   // een dichte sneeuwlaag op de bodem (alleen de bodem, geen weer)
+  if (grondSoort.length) lvl.grondSoort = grondSoort;                    // de stroken rots en straat (zie hierboven)
   // maskers: de geverfde cellen per masker, per rij samengevoegd tot rechthoeken (l, r in wereld-x; onder, boven
   // in sprite-eenheden). Een cel op grid-rij row dekt de wereldhoogte [(gR-row-1)*150, (gR-row)*150].
   const maskers = [];
@@ -39631,6 +39747,7 @@ function startSandbox(arena, gates){
   zetMuziek();
   sbMuziek = MUZIEK_BASIS; sbMuziekToon();
   sbSneeuw = { soort: null, dek: 1 }; sbSneeuwToon();   // kale grond, zoals de rest van de sandbox
+  sbGrondSoort = [];                                    // en geen stroken grondsoort (zie "grondsoort per plek")
   sbWeer = null; sbWeerToon();                          // droog
   sbLagen = sbGates ? SB_GATES.lagen : ''; lichtMengKey = null; sbLagenToon();     // het gewone avonduitzicht (ook in de arena-modus: de lage einder voelt ruimer dan het hoogland van Valse Koning 8); de gates hun eigen donkere uitzicht
   sbVoorgrond = 0; sbVoorgrondScherp = false; sbVoorgrondToon();
@@ -42135,6 +42252,20 @@ sbRampBtn.onclick = () => {
   if (!sbSneeuw.soort){ sbSneeuw.soort = 'savanne'; loadSneeuw(); }
   sbSneeuwToon(); cv.focus();
 };
+// ---- grondsoort per plek los testen ---------------------------------------
+// een strook straat of rotsbodem in de grond voor je uit, zodat je de grillige zachte
+// rand en de tegel zelf ziet, ook op een savannelaag of in een gang (zie "grondsoort per plek")
+const SB_GS = { van: 350, breed: 1400 };     // zover vooruit begint de strook, en zo breed is hij
+let sbGrondSoort = [];
+function sbGrondStrook(soort){
+  const van = world - SB_GS.van;
+  sbGrondSoort.push({ van, tot: van - SB_GS.breed, soort });
+  if (soort === 'straat') stadLaad(); else loadSneeuw();
+  cv.focus();
+}
+document.getElementById('sbgsstraat').onclick = () => sbGrondStrook('straat');
+document.getElementById('sbgsrots').onclick = () => sbGrondStrook('rots');
+document.getElementById('sbgsweg').onclick = () => { sbGrondSoort.length = 0; cv.focus(); };
 // de voorgrondlaag: gras tussen de camera en Amir, en scherp om te vergelijken
 const sbVgScherpBtn = document.getElementById('sbvgscherp');
 function sbVoorgrondToon(){

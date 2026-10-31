@@ -160,6 +160,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | rotsen om op te springen | `rocks` | notities/wegwijzers.md |
 | winter: episode Winter World | `WINTER_SRC`, `winterOn()`, `winterPic()` | notities/wegwijzers.md |
 | bodem en sneeuwdek | `sneeuw` | notities/wegwijzers.md |
+| grondsoort per plek: stroken straat of rots in de bodem | `GRONDSOORT`, `grondStrokenTeken`, `grondTegelVan` | notities/grondsoort.md |
 | het verhaal bij een episode | `VERHAAL`, `SLOT`, `verhaalToon()` | notities/episodes.md |
 | Episode De Valse Koning | `VK_1`, `VK_8`, `VK_LEVELS` | notities/episodes.md |
 | Episode Test levels | `TEST_1`, `TEST_51`, `KAART_BLAD` | notities/episodes.md |
@@ -260,6 +261,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `muziek` | sleutel uit `MUZIEK`: welk deuntje eronder loopt (`bg` voor het oude thema); zonder dit veld `MUZIEK_BASIS`, Dark Africa, en in een level met `stad` de stadmuziek Tense Grounding (`MUZIEK_STAD`, `music/tensegrounding.mp3`); `stadgeluid` geeft de oude stadgeluiden zonder muziek |
 | `winter` | `true` zet het hele level in de sneeuw (witte dieren, sneeuwversies van het decor) |
 | `sneeuw` | sneeuw op de grond, los van `winter`: `{soort, dek, van, tot}` (zie hieronder) |
+| `grondSoort` | stroken grondsoort in de bodem: `[{van, tot, soort}]`, `soort` savanne, rots of straat; per strook een andere grondtegel, met een grillige rand die over een halve cel zacht uitloopt in de grond ernaast, ook op een savannelaag, zwever en gangvloer. De Maker schrijft het uit de grondlijn-cellen; geen bestaand level heeft het (zie `notities/grondsoort.md`) |
 | `weer` | het weer onderweg: `[{x, soort, sterkte}]`, `soort` uit `WEER.soorten` (`droog`, `regen`, `onweer`, `zandstorm`, `sneeuw`, `sneeuwstorm`); voorbij `x` slaat het om (zie "het weer") |
 | `valschade` | `true` laat een diepe val levens kosten (standaard uit): vanaf een Amir diep een leven, vanaf twee Amir twee (`VAL_VRIJ`, `VAL_ZWAAR`, `VAL_MAX`), en vanaf zes Amir diep is hij dodelijk (`VAL_DOOD`, `fallDeath` in `valLand`), ongeacht je levens. `levelcheck.py` (regel `vallen`) meldt een val van zes Amir of dieper als FOUT |
 | `rugMax` | reserve-speren op de rug: 1 in de hand plus zoveel op de rug (0 tot 5; zonder dit veld 1, `RUG_STANDAARD`, overal behalve een level met `geenSpeer`; `rugMax: 0` zet hem uit) (zie `notities/velden.md`) |
