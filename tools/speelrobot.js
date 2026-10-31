@@ -253,7 +253,7 @@ function robot([lopen, taai, wachten, vredig, richtForce]){
   const naam = await page.evaluate(([doel, def]) => {
     let lijst = null, i = 0;
     if (def) lijst = [def];
-    else for (const l of [VK_LEVELS, TEST_LEVELS, BAB_LEVELS])
+    else for (const l of [VK_LEVELS, TEST_LEVELS, BAB_LEVELS, STAD_LEVELS])
       l.forEach((d, j) => { if (!lijst && d.name.toLowerCase().includes(doel.toLowerCase())){ lijst = l; i = j; } });
     if (!lijst) return null;
     setLevel(i, lijst);

@@ -3,7 +3,7 @@
 `STAD`, `stadAan`, `stadLaad`, `stadLees`, `stadPlats`, `stadAchter`, `stadTeken`, `stadVeer`, `stadSprong`
 
 Een level met het veld `stad` speelt in een drukke straat van een Sahelstad, overdag (uitzicht `stad_dag`).
-De onderdelen staan in `design/stad/`, met alle maten in `design/stad/metadata.json`. Test 59 is het proefstuk;
+De onderdelen staan in `design/stad/`, met alle maten in `design/stad/metadata.json`. Stad 1 (de episode Test levels stad, eerst Test 59) is het proefstuk;
 in de sandbox onder Terrein de knoppen **De stad** (Neerzetten, Weg).
 
 ```
@@ -40,7 +40,7 @@ meeschaalt. `h` is de hoogte van het dek (standaard de eerste verdieping, 401). 
 onderen spring je erdoorheen. De reling staat achteraan, Amir loopt ervoor.
 
 Amir springt 208 hoog. Een verdieping (329) is dus te hoog om zomaar te halen: een route naar boven gaat via de
-kraam, de doek, of galerijen die tussen twee verdiepingen hangen (Test 59 heeft er drie boven elkaar langs de toren).
+kraam, de doek, of galerijen die tussen twee verdiepingen hangen (Stad 1 heeft er drie boven elkaar langs de toren).
 
 ## Vijanden op een galerij of dak
 
@@ -57,7 +57,7 @@ galerijen schalen mee met het scherm en een vaste x kan op een andere maat net n
 van de rand van het beeld en kent dit niet. In de sandbox: **Bandiet op de galerij** onder De stad.
 
 Een galerij over meerdere huizen (`van` tot `tot`) loopt door over de kieren tussen de huizen, op elke schermmaat.
-Dat is de lange looprand van Test 59, met het gevecht erop. Een rij daken loopt alleen door als de huizen elkaar op
+Dat is de lange looprand van Stad 1, met het gevecht erop. Een rij daken loopt alleen door als de huizen elkaar op
 die schermmaat raken.
 
 ## De camera
@@ -96,6 +96,6 @@ ze de rechte lijn tussen muur en straat.
 - Deuren in de deurgaten, en vijanden die uit een deur komen.
 - De Maker: gevels, galerijen, kramen en voetdecor als gereedschap.
 - Een lift (een takel) die zich naar de rand van een galerij voegt: het plateau heeft een vaste breedte, de galerij
-  schaalt mee. In Test 59 overlapt het plateau het eind van de galerij op een laptop; op een kleine telefoon is het
+  schaalt mee. In Stad 1 overlapt het plateau het eind van de galerij op een laptop; op een kleine telefoon is het
   een korte sprong opzij.
 - Een subtiele gloed om de personages (in de mockups hielp dat tegen de bruine muren), en een kleine set (`klein/`).

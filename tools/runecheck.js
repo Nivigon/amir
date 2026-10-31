@@ -66,7 +66,7 @@ function server(){
 async function meet(filter){
   const uit = [];
   const wacht = ms => new Promise(r => setTimeout(r, ms));
-  const lijsten = [VK_LEVELS, TEST_LEVELS, BAB_LEVELS];
+  const lijsten = [VK_LEVELS, TEST_LEVELS, BAB_LEVELS, STAD_LEVELS];
   const werk = [];
   for (const lijst of lijsten) lijst.forEach((def, i) => werk.push([lijst, def, i]));
   for (const [lijst, def, i] of werk){
