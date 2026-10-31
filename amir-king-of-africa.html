@@ -5973,6 +5973,8 @@ function updateCamera(dt, scale){
   const target = ((klimt ? Math.max(0, camFloor * scale * vz - klimLift) : 0) + camDiep * scale * vz)
                  + bavKijk(scale);
   if (bavKijkNu){ camY = target; bavKijkNu = false; }
+  const trapY = stadTrapCamY(target);                // de stadstrap: de camera glijdt mee naar de hoogte van de uitgang
+  if (trapY !== null){ camY = trapY; return; }
   camY += (target - camY) * Math.min(1, dt * 3.2);
   if (Math.abs(target - camY) < 0.3) camY = target;
 }
@@ -20053,7 +20055,8 @@ const STAD_TRAP = {
   gat: 0.62,                                                  // de opening in de leuning, in Amir
   vang: 75,                                                   // zo dichtbij (wereld-px) staat Amir bij de trapvoet of de opening
   gloed: 420,                                                 // vanaf zo dichtbij gloeit de trap zacht op
-  fade: 0.32,                                                 // seconden naar zwart, en weer terug
+  uit: 0.2, glij: 0.6, in: 0.22,                              // seconden: Amir vervaagt, de camera glijdt naar de uitgang, Amir komt terug
+  dim: 0.35,                                                  // zo donker wordt het beeld tijdens de glijvlucht (niet zwart: je ziet waar je heen gaat)
   gevecht: 950, laag: 150                                     // een vijand zo dichtbij en zo weinig hoger of lager: geen trap
 };
 function stadNiveau(n){ return n <= 0 ? 0 : stadVerdieping(n); }
@@ -20109,7 +20112,14 @@ function stadTrapBij(){
   }
   return null;
 }
-let stadTrapFade = null;                         // { t, doel: {x, h, face}, gewisseld }
+// hoe dicht staat Amir bij de voet (onder) of de opening (boven) van deze trap, van 0 tot 1 (playerX: tijdens het
+// tekenen is world de camera)
+function stadTrapNabij(q){
+  const T = STAD_TRAP, px = playerX();
+  const bij = (x, h) => Math.abs(ph - h) < 40 && Math.abs(px - x) < T.gloed ? 1 - Math.abs(px - x) / T.gloed : 0;
+  return { onder: bij(q.voetX, q.hb), boven: bij(q.gatX, q.ht) };
+}
+let stadTrapFade = null;                         // { t, doel: {x, h, face}, gewisseld, camX0, camY0 }
 function stadTrapE(){
   const b = stadTrapBij(); if (!b) return false;
   if (stadInGevecht()){ flashHint('Niet nu: er staat een vijand in de buurt'); return true; }
@@ -20119,22 +20129,76 @@ function stadTrapE(){
                    doel: b.boven ? { x: q.voetX, h: q.hb, face: -q.uit } : { x: q.gatX, h: q.ht, face: q.uit } };
   return true;
 }
-// in de lus: de wereld staat stil, de fade loopt op echte tijd; halverwege staat Amir aan de andere kant
+// in de lus: de wereld staat stil, de overgang loopt op echte tijd. Amir vervaagt bij de trap, staat dan al aan de
+// andere kant (onzichtbaar), de camera glijdt van waar hij stond naar de uitgang, en daar komt Amir weer tevoorschijn
 function stadTrapStap(realDt){
   const F = stadTrapFade; if (!F) return;
+  const T = STAD_TRAP;
   F.t += realDt;
-  if (!F.gewisseld && F.t >= STAD_TRAP.fade){
+  if (!F.gewisseld && F.t >= T.uit){
+    F.camX0 = camEase !== null ? camEase : world; F.camY0 = camY;   // de glijvlucht begint waar de camera nu staat
     world = F.doel.x; ph = F.doel.h; valVan = ph; pvh = 0; onGround = true; jump = null; fell = false; amirPlat = null;
     facing = F.doel.face; camVorig = null; F.gewisseld = true;
-    bavKijkNu = true; knock = 0; glij = 0;       // de camera staat meteen op de nieuwe hoogte, en geen terugstoot of glijden dat je van het balkon duwt
+    knock = 0; glij = 0;                         // geen terugstoot of glijden dat je van het balkon duwt
   }
-  if (F.t >= STAD_TRAP.fade * 2) stadTrapFade = null;
+  if (F.t >= T.uit + T.glij + T.in) stadTrapFade = null;
+}
+// hoe ver de glijvlucht is, van 0 tot 1 (zacht in en uit), of null voor de wissel
+function stadTrapGlijE(){
+  const F = stadTrapFade; if (!F || !F.gewisseld) return null;
+  const e = Math.max(0, Math.min(1, (F.t - STAD_TRAP.uit) / STAD_TRAP.glij));
+  return e * e * (3 - 2 * e);
+}
+// de camera tijdens de glijvlucht: van waar hij stond naar waar hij bij de uitgang hoort te staan
+function stadTrapCamX(){
+  const e = stadTrapGlijE(); if (e === null) return null;
+  const d = camCfg() ? world + camVoor : (randAan() && randCam() < world) ? randCam() : world;
+  return stadTrapFade.camX0 + (d - stadTrapFade.camX0) * e;
+}
+function stadTrapCamY(target){
+  const e = stadTrapGlijE(); if (e === null) return null;
+  return stadTrapFade.camY0 + (target - stadTrapFade.camY0) * e;
+}
+// hoe zichtbaar Amir is: hij vervaagt bij de trap en komt bij de uitgang terug
+function stadTrapAlfa(){
+  const F = stadTrapFade; if (!F) return 1;
+  const T = STAD_TRAP;
+  if (F.t < T.uit) return 1 - F.t / T.uit;
+  if (F.t < T.uit + T.glij) return 0;
+  return Math.min(1, (F.t - T.uit - T.glij) / T.in);
 }
 function stadTrapFadeTeken(){
   const F = stadTrapFade; if (!F) return;
-  const T = STAD_TRAP.fade, a = F.t < T ? F.t / T : Math.max(0, 2 - F.t / T);
+  const T = STAD_TRAP;
+  const a = F.t < T.uit ? F.t / T.uit : F.t < T.uit + T.glij ? 1 : Math.max(0, 1 - (F.t - T.uit - T.glij) / T.in);
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.fillStyle = 'rgba(0,0,0,' + Math.min(1, a) + ')'; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.fillStyle = 'rgba(0,0,0,' + (T.dim * a) + ')'; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.restore();
+}
+// de pijltjes boven de uitgang aan de andere kant, na de personages getekend, zodat niemand op het balkon ze afdekt
+function stadTrapUitLaag(groundY, scale, cx){
+  if (stadTrapFade) return;
+  const A = CHAR_H * scale;
+  for (const t of stadTrappen()){
+    const q = stadTrapMaat(t, scale); if (!q) continue;
+    const nb = stadTrapNabij(q);
+    if (nb.onder > 0) stadTrapUitTeken(cx + (q.gatX - world), groundY - q.ht * scale - A * 1.1, nb.onder * 1.6, A);
+    if (nb.boven > 0) stadTrapUitTeken(cx + (q.voetX - world), groundY - q.hb * scale - A * 1.1, nb.boven * 1.6, A);
+  }
+}
+// waar je uitkomt: twee gouden pijltjes die zacht op en neer gaan, boven de uitgang aan de andere kant
+function stadTrapUitTeken(x, y, a, A){
+  if (a <= 0) return;
+  const k = Math.max(0.8, A / 170), op = Math.sin(performance.now() / 260) * 3 * k;   // k: mee met het formaat van Amir
+  ctx.save(); ctx.globalAlpha = Math.min(1, a);
+  ctx.translate(x, y + op); ctx.scale(k, k); x = 0; y = 0;
+  ctx.fillStyle = '#ffd36e'; ctx.strokeStyle = 'rgba(30,22,16,0.85)'; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+  for (const dy of [-11, 0]){
+    const yy = y + dy;
+    ctx.beginPath(); ctx.moveTo(x - 9, yy - 4); ctx.lineTo(x, yy + 4); ctx.lineTo(x + 9, yy - 4);
+    ctx.lineTo(x + 9, yy - 9); ctx.lineTo(x, yy - 1); ctx.lineTo(x - 9, yy - 9); ctx.closePath();
+    ctx.stroke(); ctx.fill();
+  }
   ctx.restore();
 }
 // de openingen in de leuning van een galerij waar een trap op uitkomt (balkon: 0)
@@ -20209,8 +20273,10 @@ function stadTrapAchter(groundY, scale, cx){
     // de trap: onderaan op hb, zo hoog als de verdieping; wat hoger zou komen, valt weg achter het bordes
     const bronTop = T.h - q.hoog / q.s;                        // de bovenste bronrij die nog in beeld komt
     const dy = gyB - q.hoog;
-    const near = Math.abs(world - q.voetX) < T.gloed && Math.abs(ph - q.hb) < 40;
-    if (near) stadTrapGloed(sx, dy, q.tw, q.hoog, 1 - Math.abs(world - q.voetX) / T.gloed);
+    // de trap gloeit als je bij de voet staat, en zachter als je boven bij de opening staat: daar kom je dan uit
+    const nb = stadTrapNabij(q), near = nb.onder > 0;
+    const gloed = stadTrapFade ? 0 : Math.max(nb.onder, nb.boven * 0.8);
+    if (gloed > 0) stadTrapGloed(sx, dy, q.tw, q.hoog, gloed);
     ctx.save();
     if (!q.links){ ctx.translate(sx + q.tw, 0); ctx.scale(-1, 1); } else ctx.translate(sx, 0);
     ctx.drawImage(ti, 0, stadQ(ti, bronTop), stadQ(ti, T.w), stadQ(ti, T.h - bronTop), 0, dy, q.tw, q.hoog);
@@ -20244,12 +20310,11 @@ function stadTrapVoor(groundY, scale, cx){
       const ov = 10 * q.uit;                                 // het dek begint net in de muur
       stadStrook(Math.min(q.balkL, q.balkL - ov), Math.max(q.balkR, q.balkR - ov), q.ht, groundY, scale, cx, gaten, false);
     }
-    const near = Math.abs(world - q.gatX) < STAD_TRAP.gloed && Math.abs(ph - q.ht) < 40;
-    if (near){
-      const a = 1 - Math.abs(world - q.gatX) / STAD_TRAP.gloed, A = CHAR_H * scale;
-      stadTrapGloed(cx + (q.gatX - q.gat / 2 - world), gy - A * 0.5, q.gat, A * 0.5, a);
-      if (!stadTrapFade && Math.abs(world - q.gatX) < q.gat / 2 + 20) stadTrapE_Teken(cx + (q.gatX - world), gy - A * 1.15, true);
-    }
+    // de opening gloeit als je erbij staat, en ook als je beneden bij de trapvoet staat: dan zie je waar je uitkomt
+    const nb = stadTrapNabij(q), A = CHAR_H * scale;
+    const gloed = stadTrapFade ? 0 : Math.max(nb.boven, nb.onder * 0.8);
+    if (gloed > 0) stadTrapGloed(cx + (q.gatX - q.gat / 2 - world), gy - A * 0.5, q.gat, A * 0.5, gloed);
+    if (!stadTrapFade && nb.boven > 0 && Math.abs(playerX() - q.gatX) < q.gat / 2 + 20) stadTrapE_Teken(cx + (q.gatX - world), gy - A * 1.15, true);
   }
 }
 
@@ -32540,8 +32605,10 @@ function loop(now){
   // is 'world' dus de camera; pcx is waar Amir zelf op het scherm staat
   const pWorld = world, bavFocus = bavFocusX(pWorld);
   camUpdate(exeVries ? 0 : dt, pWorld);          // de meekijkende camera (zie "camera"); in de freeze van de executie staat hij stil
-  if (arena || bavFocus !== null || exeCamDoel() !== null) camVast = false;   // een andere camera neemt het over: daarna zacht terug
-  if (arena){                      // zacht naar de arena-camera toe glijden
+  if (arena || bavFocus !== null || exeCamDoel() !== null || stadTrapCamX() !== null) camVast = false;   // een andere camera neemt het over: daarna zacht terug
+  if (stadTrapCamX() !== null){                  // de stadstrap: de camera glijdt naar de uitgang (zie "de stadstrap")
+    camEase = stadTrapCamX();
+  } else if (arena){                      // zacht naar de arena-camera toe glijden
     if (camEase === null) camEase = pWorld;
     camEase += (arenaCam(pWorld) - camEase) * Math.min(1, dt * 3);
   } else if (bavFocus !== null){                // de baviaan sterft: de camera schuift naar hem toe (BAV_DRAMA)
@@ -32968,13 +33035,16 @@ function loop(now){
     javDraw(groundY, scale, cx, 'rust');              // een speer in de grond of in een wand: achter Amir
     drawSweepDust(true, cx, groundY, lift, scale);    // stof achter Amir langs
     const amirWeg = exeAmirWeg();                     // de executie: de lagen tekenen Amir, de echte blijft weg (ook zijn schaduw en zijn rug)
+    const trapAlfa = stadTrapAlfa();                  // de stadstrap: Amir vervaagt bij de trap en komt bij de uitgang terug
+    ctx.save(); ctx.globalAlpha *= trapAlfa;
     if (!amirWeg) amirSchaduw();                      // zijn schaduw: na de terrassen, treden en keien
     if (!amirWeg) rugSpeerTeken(pcx, groundY + lift, scale);   // de reserve op zijn rug: achter zijn lijf, dus voor Amir getekend
     schildTeken(pcx, groundY + lift, scale, true);    // het schild omlaag: aan zijn arm, achter zijn lijf
+    ctx.restore();
     drawLichtkaart(groundY, scale, cx, dt, 'wereld'); // het licht onder de grond, over de wereld achter hem
     const blink = invuln > 0 && invulnStil <= 0 && !dead && amirSteen <= 0 && Math.floor(invuln * 14) % 2 === 0;
     ctx.save();
-    ctx.globalAlpha = amirWeg ? 0 : blink ? 0.45 : 1;
+    ctx.globalAlpha = amirWeg ? 0 : (blink ? 0.45 : 1) * trapAlfa;
     if (useThrow) thrWachtZet(pcx, groundY + lift);   // wachten met de speer: ademen en trillen
     ctx.translate(x, y);
     if (useThrow ? thrFlip() : (autoFlip && facing === 1)){ ctx.translate(w, 0); ctx.scale(-1, 1); }
@@ -34279,7 +34349,8 @@ function loop(now){
       ctx.fillStyle = live ? '#ffd166' : '#f2e8d5'; ctx.fill();
       ctx.restore();
     }
-    if (!exeAmirWeg()) amirHpBalk(pcx, pbox.t, scale);   // Amir zijn levens boven zijn hoofd (met hpBalk), na de vijanden zodat niets eroverheen tekent
+    if (!exeAmirWeg() && stadTrapAlfa() > 0.5) amirHpBalk(pcx, pbox.t, scale);   // Amir zijn levens boven zijn hoofd (met hpBalk), na de vijanden zodat niets eroverheen tekent
+    if (stadAan()) stadTrapUitLaag(groundY, scale, cx);   // de stadstrap: waar je uitkomt, boven de personages
     }
     maskerTeken(groundY, scaleNow, W / 2);           // het masker over alles heen (ook Amir en de vijanden), binnen de zoom
     vormenTeken(groundY, scaleNow);                  // de vrije zwarte voorgrond-vormen uit de Maker: bovenste laag
