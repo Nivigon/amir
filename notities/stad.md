@@ -91,9 +91,37 @@ ze de rechte lijn tussen muur en straat.
   `STAD.bak` van de bronmaat. De hoogtes komen uit `stadReeks` met de `seed` van het level.
 - Onder de verste rij loopt de nevelkleur door tot de grond, zodat er nergens lucht onder een huis zichtbaar is.
 
+## De stadstrap
+
+`STAD_TRAP`, `stadTrapMaat`, `stadTrapBij`, `stadTrapE`, `stadTrapStap`, `stadTrapAchter`, `stadTrapVoor`, `stadInGevecht`
+
+`stad.trappen: [{gevel, kant, niveau, balkon}]`: een oude houten buitentrap (`design/stad/trap.png`, plat van voren
+gezien, net zo plat als de gevels) naast gevel `gevel`. Kant `'r'`: rechts van het huis, dus de kant waar je vandaan komt
+(Amir loopt naar links); `'l'` links. Hij loopt van `niveau` (0 de straat, 1 de eerste verdieping 401, 2 de tweede 730)
+een verdieping omhoog. De treden zijn altijd even groot (de schaal hangt aan de eerste verdieping); een kortere trap
+(van 401 naar 730) wordt bovenaan afgesneden, achter het bordes.
+
+- De trap staat met zijn binnenste balk achter de muur, met een schaduw van de muur op de treden. Bovenaan ligt een bordes
+  (een dunne strook van de galerij met leuning) dat achter de muur doorloopt, achter de trap getekend.
+- Aan de andere kant van het huis kom je boven uit: op een balkon (`balkon`: breedte in Amir, standaard 1,6, met twee
+  schoren naar de muur), of met `balkon: 0` op een galerij die daar al loopt. Op die plek zit altijd een opening in de
+  leuning (`gat`, 0,62 Amir); dat is ook de plek waar je weer naar beneden gaat.
+- E bij de voet of in de opening (`eDruk`): het beeld fadet naar zwart (`stadTrapFade`, de wereld staat stil zoals bij de
+  executie), Amir staat aan de andere kant, met zijn gezicht van het huis af, en het beeld komt terug.
+- Niet in een gevecht: een levende vijand binnen 950 en hoogstens 150 hoger of lager (`stadInGevecht`; een vijand op een
+  andere etage telt niet). Dan zie je "Niet nu". En niet zonder speer (in de hand of op de rug).
+- Dichtbij gloeit de trap of de opening zacht warm op, en er staat een E met een pijltje.
+- Vijanden gebruiken de trap nooit. Een balkon telt wel als vloer voor een vijand met `dak` (en de kruisboogbandiet kan nu
+  ook `dak` hebben).
+- Een galerij kan met `meer: [links, rechts]` (in Amir) langer zijn dan zijn huizen, zodat hij voor de trap langs loopt.
+- De doek van een kraam vangt elke val op: nooit valschade.
+
+Stad 2 tot en met 4 zijn de proefstukken; in de sandbox staat er een trap naast het hoge huis van **De stad**.
+
 ## Nog niet
 
 - Deuren in de deurgaten, en vijanden die uit een deur komen.
+- De trap in de Maker.
 - De Maker: gevels, galerijen, kramen en voetdecor als gereedschap.
 - Een lift (een takel) die zich naar de rand van een galerij voegt: het plateau heeft een vaste breedte, de galerij
   schaalt mee. In Stad 1 overlapt het plateau het eind van de galerij op een laptop; op een kleine telefoon is het
