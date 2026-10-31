@@ -482,6 +482,10 @@ In de sandbox staat onder **Slangen** de knop **Op patrouille**: die zet alles w
 meteen op patrouille en houdt het daar, zodat je het kunt bekijken zonder zelf uit beeld te
 lopen. Nog een keer drukken en ze komen weer op je af.
 
+## De stad
+
+**Test 59: De stad** speelt overdag in een drukke straat van een Sahelstad van leem, met in de verte het paleis van de koning dat de hele straat lang tussen de huizen door in beeld blijft. De huizen zijn één tot vier verdiepingen hoog en je kunt op hun daken lopen. Langs de bovenverdiepingen hangen houten galerijen, en daar spring je van onderen gewoon doorheen. Een marktkraam met een rieten dak is een trap: eerst de tafel, dan het dak, dan de galerij. Een kraam met een doek veert: land je erop, dan wip je terug, en spring je op de doek of net als je hem raakt, dan schiet je hoog, tot op het dak van een huis van twee hoog. In de sandbox staat het onder Terrein, **De stad**.
+
 ## Het decor staat een stap naar achteren
 
 De grond is geen lijn maar een band. De tegel `design/grondrand.png` heeft 49 rijen
