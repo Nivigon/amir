@@ -151,6 +151,85 @@ Zo maak je een straat doodlopend (een hoge muur), een lage muur om op te springe
 erop staan (`terrainH`). Stad 2 heeft er een lage tussen de twee straten; in de sandbox onder De stad **Lage leemmuur**
 en **Doodlopend**. Beide plaatjes zijn uit de gevel gemaakt (geen nieuwe art).
 
+## Straten en knooppunten (Sandville)
+
+`straatRaster`, `straatUitgangen`, `straatKnoopX`, `straatUitgangBij`, `straatKnoopGa`, `straatKnoopToets`, `straatGevelX`,
+`straatKnoopPoortTeken`, `straatKnoopVoor`, `straatPadZak`, `straatRasterKaart`, `SAND_STRATEN`, `STAD_5`, `sbKnoop`
+
+Een uitbreiding van de straten van Oaktown (`STRATEN`, zie `notities/oaktown.md`): een veld `straten` met `raster: true`.
+Alles van Oaktown blijft gelden (elke straat een eigen strook ver uit de buurt, `straatKlem`, `straatCamKlem`,
+`straatVijandKlem`, het aanvullen, de spawns per straat), maar in plaats van hoekpoorten aan de uiteinden heeft een
+straat knooppunten, met een poort de diepte in en een pad naar voren.
+
+```
+straten: { raster: true, start: 'kuiper', doel: 0, muur: 300,
+           knopen: { nw: [0, 0], n: [0.5, 0], ..., zo: [1, 1] },
+           lijst: [ { id: 'kuiper', naam: 'Kuiperstraat', knoop: ['o', 'm', 'w'], r: -200, l: -8200, m: -4200 }, ... ] }
+```
+
+- Een straat heeft twee of meer knopen: `knoop[0]` rechts (het begin), de laatste links (het eind), een middelste op `m`
+  (of gelijk verdeeld). De knopen hebben een plek op de kaart: x naar rechts (oost), y naar beneden (zuid).
+- **Welke uitgang waar.** Amir loopt naar links, dus de diepte in (de poort) is rechts af van zijn looprichting en naar de
+  camera (het pad) links af. Een rij loopt naar het westen: poort noord, pad zuid. Een kolom loopt naar het noorden: poort
+  oost, pad west. Per knoop komt er een poort of pad bij voor elke andere straat die daar die kant op verder loopt
+  (`straatUitgangen`, uit de kaartplekken; niets met de hand). In Sandville: de noordrij en de oostkolom hebben alleen
+  paden, de zuidrij en de westkolom alleen poorten, de twee middelste bij elke knoop allebei.
+- **De uiteinden.** `muur` (px) is de breedte van een hoge leemmuur aan elk uiteinde; die staat gewoon als terras in het
+  level (`look: 'leem'`, 1800 hoog, levelcheck weet dat een terras tegen het uiteinde van een straat doodlopend is). De
+  poort van een eindknoop staat direct tegen die muur, de knoop (en het pad) op het midden van de boog (`straatKnoopX`).
+- **De poort** is `poort_recht.png` op het vlak van de gevels, op de looplijn, op de schaal van `STRATEN.recht` (ongeveer
+  zo hoog als een huis van drie). Hij schaalt mee met het scherm, de huizen staan op een vaste x: `straatGevelX` schuift
+  per stuk straat tussen twee poorten het dichtstbijzijnde huis aan elke kant tegen de poort, schuift de rest alleen mee
+  als hij anders overlapt, en houdt elk huis binnen zijn stuk (welk stuk volgt uit het ontwerpformaat, Amir 180). Zo
+  valt er op geen schermmaat een huis over een poort; op 1920x1080 overlappen de huizen elkaar dan, zoals overal in de
+  stad. `stadGevelMaat` geeft die x (`m.x`), dus galerijen, trappen, daken en vijanden op een dak gaan mee. Kramen,
+  voetdecor en kalebassen schuiven niet: houd ze zo'n 300 px van een poort.
+- **Het pad** is `kruis_voor.png` (het pad met de donkere, onscherpe voorgrondhuizen ernaast, randen in transparant), net
+  onder de looplijn (`STRATEN.pad.zak`) en na de personages getekend, gecentreerd op de knoop. Daarbuiten blijft de
+  gewone grond. In de plaat stond eerst een bordje met een straatnaam; dat is eruit geschilderd (de naam tekent het spel).
+- **Kiezen.** Onder de boog (`poortVang` van de boogbreedte) pijl omhoog of E; bij het pad (`pad.vang` van de padbreedte)
+  pijl omlaag of E. Staan er allebei, dan neemt E de poort (alleen dat bordje krijgt de E). Boven de poort en op het pad
+  (zo laag als het beeld toelaat) een bordje `▲ Naam` of `▼ Naam`, goud als je erbij staat (`straatBordje`).
+- **De wissel** is die van de stadstrap: `straatKnoopGa` zet `stadTrapFade` met `straat` en eigen tijden (`STRATEN.knoopFade`,
+  donkerder dan de trap: `dim` 0,85). Midden in de fade doet `stadTrapStap` de boekhouding (`straatWisselBoek`, ook het
+  aanvullen) en zet Amir bij dezelfde knoop in de andere straat, met zijn gezicht de kant op waar hij heen ging; de camera
+  begint daar een stukje (`schuif`) achter zijn plek en glijdt mee (`stadTrapCamX`, binnen de nieuwe straat door
+  `straatCamKlem`).
+- **Niet in een gevecht**: `stadInGevecht`, "Niet nu". Met de pijltjes springt of bukt Amir dan gewoon (de hint komt wel),
+  met E gebeurt er niets. Zonder speer: "Pak je speer eerst". Vijanden gaan nooit door een poort of over een pad.
+- **De camera** zakt bij een pad tot `padZak` Amir (vanaf `padZie` Amir afstand, zacht), zodat je meer van het pad ziet
+  (`straatPadZak` in de doelhoogte van `stadVloeren`).
+- **De minimap** (`straatRasterKaart`, alleen op een laptop: `camTelefoon()`): een vierkant met de straten als lijnen, de
+  knopen als stipjes, de huidige straat in goud, een bezochte licht, en een witte stip voor Amir die tussen de knopen van
+  zijn straat schuift (op de x van de knopen, niet van r naar l).
+- `doel: 0`: geen kills-doel en geen teller, het level eindigt niet (levelcheck: een level met `straten` heeft geen `ends`
+  nodig). Een `start` in het level zou met `rand` de rechtergrens vlak achter de start leggen, midden in de eerste straat;
+  zonder `start` begin je in het midden van de startstraat (in Sandville op het kruispunt).
+- De leveldefinitie (`SAND_STRATEN`, `SAND_STAD`, `SAND_TERRAS`, `SAND_KALEBAS`, `SAND_SPAWNS`) is gegenereerd uit een
+  beschrijving per straat (afstanden vanaf `r`), net als Oaktown; levelcheck leest alleen letterlijke waarden.
+
+### Sandville per straat
+
+Elke straat is 8000 px, met de leemmuur van 300 aan elk eind en knopen op het midden van de eindpoorten en op `m`.
+
+| straat | kaart | uitgangen | opbouw | kalebas |
+| --- | --- | --- | --- | --- |
+| Kuiperstraat (start) | middelste rij | poort en pad bij elke knoop | rieten kraam onder een galerij (401), een doek | op de galerij |
+| Weversstraat | noordrij | alleen paden | de stadstrap naar een balkon (401) | op het balkon |
+| Zoutstraat | zuidrij | alleen poorten | over de daken (487) via de doek | op het laatste dak |
+| Smedenstraat | westkolom | alleen poorten | de toren: galerijen 401 en 730, via de doek | op 730 |
+| Pottenbakkersstraat | middelste kolom | poort en pad bij elke knoop | galerij via rieten kraam, een lage leemmuur (170) | geen |
+| Leerlooiersstraat | oostkolom | alleen paden | een trap op een lange galerij (401, `balkon: 0`) | op de galerij |
+
+Vijanden: alleen mensen (bandiet, schildbandiet, kruisboogbandiet, zweepman), drie per straat, een paar op een galerij,
+dak of balkon. Geen bazen.
+
+### Sandbox
+
+Onder De stad, **Knooppunten**: **Poort**, **Pad** en **Kruising** zetten voor je uit een knoop in de straat waar je staat,
+met een tweede straat die er naar het noorden (poort), het zuiden (pad) of allebei (kruising) vandaan loopt, een paar
+huizen ernaast (die opzij schuiven voor de poort) en de minimap. **Weg** haalt het weg.
+
 ## Nog niet
 
 - Deuren in de deurgaten, en vijanden die uit een deur komen.
