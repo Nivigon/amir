@@ -29897,6 +29897,7 @@ function updateZweepman(s, dt, plats, cliff){
   s.base = vloerBij(s.x, s.base);
   const zS = zwmScale();
   if (s.knockV !== 0){ zwmMove(s, s.knockV * dt, plats, cliff); s.knockV *= Math.pow(0.02, dt); if (Math.abs(s.knockV) < 12) s.knockV = 0; }
+  if (s.state === 'dood' && s.dood){ if (s.arm) zwmArmStap(s, dt); zwmDruppelStap(s, dt); zwmDoodStap(s, dt); return; }   // fase 2: de Grok-val
   if (s.state === 'dood'){ if (s.arm) zwmArmStap(s, dt); zwmDruppelStap(s, dt); s.alpha -= dt / ZWM.vervaag; if (s.alpha <= 0){ s.alpha = 0; s.state = 'weg'; } return; }
   if (!zwmData) return;
   zwmDruppelStap(s, dt);
@@ -30180,6 +30181,10 @@ function zwmRaakt(s, bodyX, voeten, gs, pbox){
 // hang} waarin de zweep het touw in code is.
 const ZWM2 = {
   hp1: 2, hp2: 2,
+  doodVries: 0.5,                 // de dood: zoveel s bevroren in zijn houding, dan de Grok-val (de set `dood`)
+  doodMix: 0.14,                  // sterft hij niet in de rust, dan vloeit zijn houding zo lang over in het eerste frame van de val
+  doodLig: 2.2,                   // en na de val blijft hij zoveel s liggen voor hij vervaagt
+  pof: { src: 'sounds/bavland.mp3', vol: 0.5, voor: 2 },   // de plof als hij neerkomt: zoveel frames voor de landing starten
   cyclus: ['mep', 'sprong', 'sprongterug', 'sprong', 'sprongterug', 'rustin', 'rust', 'rustuit'],
   rustDuur: 2.4,                  // s uitrusten (het raam)
   sprongBereik: 220,              // de clip brengt hem zelf al een eind vooruit; staat Amir verder dan zoveel idle-px,
@@ -30262,10 +30267,12 @@ function zwmF2Ms(s, set, i){
   if (s.f2 === 'mep' && i >= G.van && i <= G.tot) ms /= G.f;
   return ms;
 }
-const ZWM2_SETS = ['armeraf','lach', 'mep', 'sprong', 'uithaal', 'sprongterug', 'rustin', 'rust'];
+const ZWM2_SETS = ['armeraf','lach', 'mep', 'sprong', 'uithaal', 'sprongterug', 'rustin', 'rust', 'dood'];
+let zwmPofSnd = null;
 let zwmF2Geladen = false;
 function zwmLaadF2(){                                       // de plaatjes van fase 2 pas als een zweepman met fasen er is
   if (zwmF2Geladen || !zwmData) return; zwmF2Geladen = true;
+  if (!zwmPofSnd) zwmPofSnd = banStemmen(ZWM2.pof.src, 2);
   const B = zwmBank.lagen || (zwmBank.lagen = {});
   for (const b of ZWM2_SETS){
     const set = zwmData.bewegingen[b]; if (!set) continue;
@@ -30454,7 +30461,12 @@ function zwmF2Teken(s, bodyX, voeten, gs, alpha){
   const l = fr.lijf, im = l && B[l.src];
   if (im && imgReady(im)){
     const bi = s.flash > 0 ? whiteCopy(im, s.flash * 4) : im;
+    const mix = s.dood && s.dood.van ? Math.min(1, s.dood.mix) : 1;
+    if (mix < 1){ const vl = s.dood.van, vi = B[vl.src];      // de val vloeit uit zijn laatste houding
+      if (vi && imgReady(vi)){ ctx.save(); ctx.globalAlpha *= 1 - mix; ctx.drawImage(vi, vl.dx * gs, vl.dy * gs, vl.w * gs, vl.h * gs); ctx.restore(); }
+      ctx.save(); ctx.globalAlpha *= mix; }
     ctx.drawImage(s.snedes && s.snedes.length ? zwmSneeLaag(bi, l, gs, s.snedes) : bi, l.dx * gs, l.dy * gs, l.w * gs, l.h * gs);
+    if (mix < 1) ctx.restore();
   }
   zwmWondTeken(s, gs);
   if (s.touw){
@@ -30497,8 +30509,35 @@ function zwmF2Hit(s){
   s.hp--; s.flash = 0.3; s.inv = ZWM.invHit;
   hitstop = Math.max(hitstop, 0.07); shake = Math.max(shake, 0.14);
   zwmBloedRaak(s, false); zwmKreet('geraakt');
-  if (s.hp <= 0){ s.state = 'dood'; s.alpha = 1; s.flash = 0.6; s.touw = null; banSterf(); puffWorld(s.x, 6, 0, 0.9, s.base || 0); vijandDood(false); }
+  if (s.hp <= 0){ s.state = 'dood'; s.alpha = 1; s.flash = 0.6; s.touw = null; s.dood = { t: 0, lig: -1, van: null }; hitstop = Math.max(hitstop, 0.12); banSterf(); vijandDood(false); }
   return true;
+}
+// de dood in fase 2: een halve seconde bevroren in zijn houding, dan de Grok-val (de set `dood`, vanuit de uitrust-houding):
+// een kwartslag naar de camera, de knieen begeven het en hij zakt in elkaar, steeds sneller; op frame `land` de plof
+// (`ZWM2.pof`), stof en een schudding. Sterft hij in een andere houding, dan vloeit die in `doodMix` s over in de val.
+function zwmDoodStap(s, dt){
+  const D = s.dood, set = zwmData && zwmData.bewegingen.dood; D.t += dt;
+  if (D.t < ZWM2.doodVries) return;
+  if (set && D.lig < 0){
+    if (s.f2 !== 'dood'){
+      const oud = zwmF2Data(s), fr = oud && oud.frames[zwmF2Idx(s)];
+      D.van = !/^rust/.test(s.f2) && fr ? fr.lijf : null; D.mix = 0;   // de houding waaruit hij valt, om over te vloeien
+      s.f2 = 'dood'; s.frame = 0; s.acc = 0;
+    }
+    if (D.van){ D.mix += dt / ZWM2.doodMix; if (D.mix >= 1) D.van = null; }
+    const N = set.frames.length;
+    s.acc += dt * 1000;
+    while (s.acc >= (set.frames[s.frame].ms || 42) && s.frame < N - 1){
+      s.acc -= set.frames[s.frame].ms || 42; s.frame++;
+      if (s.frame === set.land - ZWM2.pof.voor && zwmPofSnd) banStemSpeel(zwmPofSnd, ZWM2.pof.vol);
+      if (s.frame === set.land){ shake = Math.max(shake, 0.22); puffWorld(s.x + 60 * zwmScale() * (s.face === 1 ? -1 : 1), 8, 0, 1.1, s.base || 0); }
+    }
+    if (s.frame >= N - 1) D.lig = 0;
+    return;
+  }
+  D.lig = Math.max(0, D.lig) + dt;
+  if (D.lig > ZWM2.doodLig) s.alpha = Math.max(0, 1 - (D.lig - ZWM2.doodLig) / ZWM.vervaag);
+  if (s.alpha <= 0) s.state = 'weg';
 }
 
 // ---- de schildbandiet: een man met een houten schild die springend aanvalt ----
