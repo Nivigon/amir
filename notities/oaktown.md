@@ -79,7 +79,7 @@ kruisboogbandiet, zweepman) verschillen. Per straat:
 | Dalastraat | boven | getrapte leemmuren 170, 340, 510 | bovenop de hoogste muur |
 | Jakarasteeg | links boven | galerij over de hele lengte (401) | via tafel en rieten dak naar de galerij |
 | Karofistraat | rechts boven | houten trap achter het hoge huis | op het balkon (E bij de trap) |
-| Makerasteeg | links onder | de toren: galerijen 401, 590, 780 | bovenin |
+| Makerasteeg | links onder | de toren: galerijen 401 en 780 over twee huizen, 590 over het rechter; recht omhoog | bovenin |
 | Rumfastraat | rechts onder | hogere wijk op een lage leemmuur, met een huis erop | op de hoge muur (340) |
 | Zangosteeg | onder | over de daken (487) | via kraam, galerij of doek op het laatste dak |
 
@@ -101,7 +101,11 @@ dat daar even hoog is. Voor de bestaande stadlevels verandert er niets (daar lig
   Hij steekt nu ook naar mensen (bandieten en de rest) die voor hem staan.
 - Of een kalebas te halen is, ziet levelcheck niet (hij kent de vloeren van de stad niet). Dat is bij de bouw nagemeten
   met een klimtest in Chromium: per kalebas de route over de echte vloeren (straat, tafel, rieten dak, doek, galerij,
-  balkon, dak, leemmuur) en elke sprong echt gemaakt, op 1280×720, 1366×768 en 1920×1080: alle zeven te halen.
+  balkon, dak, leemmuur) en elke sprong echt gemaakt, op 852×393 (telefoon), 1280×720, 1366×768 en 1920×1080:
+  alle zeven te halen. Let op de telefoon: de huizen en galerijen worden smaller, maar staan op dezelfde wereld-x,
+  dus een gat tussen twee huizen wordt daar relatief groter. In de Makerasteeg lag de bovenste galerij eerst alleen
+  op het linker huis; op een telefoon was dat een gat van 3,5 Amir. Nu loopt hij over beide huizen en spring je
+  recht omhoog door de galerij erboven, zoals in de toren van Stad 1.
 
 ## Sandbox
 
