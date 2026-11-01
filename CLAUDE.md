@@ -269,6 +269,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `rugMax` | reserve-speren op de rug: 1 in de hand plus zoveel op de rug (0 tot 5; zonder dit veld 1, `RUG_STANDAARD`, overal behalve een level met `geenSpeer`; `rugMax: 0` zet hem uit) (zie `notities/velden.md`) |
 | `zicht` | `true`: een vijand merkt Amir pas op als hij hem echt kan zien. Voor hem een halve cirkel met een zichtlijn die grond en rots tegenhouden, achter hem de oude afstand maar alleen op zijn eigen niveau, en na 3 s zonder zicht vergeet hij je. Zonder veld de oude manier (alle bestaande levels); een nieuw level krijgt `zicht: true`, een spawn met `zicht: false` houdt toch de oude manier (zie `notities/zicht.md`) |
 | `hpBalk` | `true` of een lijst soorten: 3 levens met een health-balkje boven het hoofd, ook voor Amir; de schildbandiet krijgt een schildbalk erboven. Zonder veld uit, een nieuw level krijgt `hpBalk: true` (zie `notities/velden.md`) |
+| `slangEenKlap` | `true`: elke slang (zand, zwart, knock en fosfor) is in een klap dood, ook met `hpBalk` aan. Een nieuw level krijgt `slangEenKlap: true`; Oaktown (makkelijk) heeft het (`SLANG_EEN_KLAP`, in `hpBalkAan`) |
 | `golf` | `true` of `{ruw}`: de golvende rand. De kruin van de grond, een rotsterras, het dak en de vloer van een gang en het zwarte terrein krijgen een golvende omtrek met textuur, druipstenen, keien en hangblokken (zie `notities/golf.md`); `ruw` schaalt de golven, 1 is de maat uit `GOLF`. Zonder veld uit; alleen Test 49 heeft het |
 | `hoogUitzicht` | `true`: gestapelde dikke grondlagen zien er op hoogte hetzelfde uit als de basis (zie `notities/velden.md`) |
 | `view` | een getal van 0,5 tot 1: uitgezoomd spelen; een nieuw level krijgt standaard `view: 0.8` (zie `notities/velden.md`) |
@@ -331,7 +332,8 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 1. De definitie erbij, na de laatste van die reeks. Zet er `view: 0.8` in: een nieuw level
    staat standaard op die laptop-zoom (zie het veld `view`). De bestaande episodes blijven staan
    zoals ze zijn (rule 1), dus pas hun view niet mee aan. Zet er ook `hpBalk: true` in: elke
-   vijand en Amir krijgt in een nieuw level een health-balk (zie "health-balk"). En `zicht: true`:
+   vijand en Amir krijgt in een nieuw level een health-balk (zie "health-balk"). Zet er ook
+   `slangEenKlap: true` bij: slangen blijven in een nieuw level altijd in een klap dood. En `zicht: true`:
    een vijand ziet je dan alleen als er niets tussen zit (zie "zicht"). En `camera: true`: de
    meekijkende camera (zie het veld `camera`); een arena-level mag het ook hebben, daar neemt de
    arena-camera het over. De Maker nieuwstijl doet dit al zelf. En `rand: true`: geen rotswand
