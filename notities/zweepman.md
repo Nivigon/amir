@@ -87,6 +87,7 @@ De kreten (`zwmKreet` gaat voor, zonder kans of rust, en zet daarna `ZWM_STEM.ru
 - `sounds/zweepgeraakt.mp3`: bij elke rake treffer. De eerste van de twee kreten uit de opname (0,07 tot 0,93 s, korte fade).
 - `sounds/zweeparmeraf.mp3`: als zijn arm eraf gaat (`zwmArmEraf`), de kreet tot 2 s met een zachte uitloop. Na de armeraf
   lacht hij meteen (`zwmKreet('lach')`).
+  Onder de kreet speelt ook het bloedgeluid van de executie (`bloedSpeel`, `sounds/bloedspuit.mp3`).
 
 ## Zijn stem
 
