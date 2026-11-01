@@ -14552,7 +14552,8 @@ function gaapDood(m, doorSpeer){
     // de speer blijft in de aap steken; hij valt dood neer en E haalt de speer eruit (gaapSpeerTrek)
     m.speerIn = { hoek: GAAP.speerHoek };
     m.valDood = true; m.vh = 0; m.vx = (m.f ? 1 : -1) * 0.5 * CHAR_H;
-    jav = null; spear = false; spearFound = false; spearX = null; spearH = null; setSpearLabel();
+    jav = null; spearX = null; spearH = null;
+    if (!spearFound){ spear = false; setSpearLabel(); }   // al een speer van je rug in de hand: die hou je
   } else {
     m.wegTot = bavKlok + 1000 * (GAAP.doodLig + GAAP.doodVerv);
   }
@@ -14579,7 +14580,15 @@ function gaapSpeerBij(){
 function gaapSpeerTrek(){
   const m = gaapSpeerBij();
   if (!m) return false;
-  if (spearFound){ playNee(); flashHint('Je hebt al een speer'); return true; }
+  if (spearFound){                                   // hand al vol: op de rug, als daar nog plek is
+    if (rugErbij(false)){
+      m.speerIn = null; m.wegTot = bavKlok + 1000 * GAAP.doodVerv;
+      puffDust(4);
+      flashHint('Speer uit het aapje op je rug (' + rugSperen.length + ' van de ' + RUG_MAX + ')');
+      return true;
+    }
+    playNee(); flashHint(rugAan() ? 'Je hand en je rug zijn vol' : 'Je hebt al een speer'); return true;
+  }
   eigenSpeerNeer();
   m.speerIn = null; m.wegTot = bavKlok + 1000 * GAAP.doodVerv;
   spearFound = true; spear = true; setSpearLabel();
@@ -16180,7 +16189,8 @@ function rugTrekKlaar(){
   spearFound = true; spear = true; speerBlauw = r.blauw; setSpearLabel();
   // een al neergekomen gegooide speer wordt nu een losse speer: je hand is weer vol, dus je raapt hem
   // straks op de rug op (en hij blijft niet als spearX geclaimd, zie javStick)
-  if (jav && (jav.state === 'grond' || jav.state === 'bos')){
+  if (jav && jav.lijk) jav.rug = true;            // in een lijk (de kruisboogbandiet): hij blijft zitten, E zet hem op de rug
+  else if (jav && (jav.state === 'grond' || jav.state === 'bos')){
     eigenSpeerLos(jav.x, jav.dir, jav.blauw, jav.h); jav = null; javLost = 0; spearX = null; spearH = null;
   }
   puffDust(4);
@@ -16354,6 +16364,7 @@ function looseSpear(){
   spear = false; spearFound = false; spearX = null; spearH = null;
   setSpearLabel();
   if (rugAan() && rugSperen.length && !rugTrekT) rugTrekT = RUG.trek;   // je grijpt de volgende van je rug
+  if (jav && jav.rug){ eigenSpeerLos(jav.x, jav.dir, jav.blauw, jav.h); jav = null; }   // de speer in het lijk valt eruit en ligt los
   const scale = nowScale(), dir = thrDir();
   const lob = !!thr.lob, schaal = worpSchaal();
   const graden = schaal ? thr.hoek : lob ? THR_LOB_DEG : 0;
@@ -17640,7 +17651,7 @@ function speerVooraf(soortId){
 // dat binnen bereik ligt en op jouw hoogte zit. Dat is meestal het stompe uiteinde.
 // In de hoogte geldt hetzelfde als eerst: van onderaf, of vanaf het platform waar hij zelf op staat.
 function spearGreep(){
-  if (spearFound || spearX === null) return null;
+  if ((spearFound && !(jav && jav.rug)) || spearX === null) return null;
   const reik = javReach(), laag = ph - 30, hoog = ph + CHAR_H * 0.95;
   if (!jav || javLost > 0){                     // de speer die in de grond staat: één punt, zoals eerst
     const h = spearRestH();
@@ -17668,6 +17679,14 @@ function toggleSpear(){
   if (skeletTrek()) return;                         // een skelet met een speer erin gaat voor
   if (gaapSpeerTrek()) return;                       // en een dood aapje met je speer erin
   if (losTrek()) return;                            // en dan een speer die los op de grond ligt
+  if (spearFound && jav && jav.rug && spearNear()){  // je speer in een lijk terwijl je hand al vol is: op de rug
+    if (rugErbij(jav.blauw)){
+      jav = null; javLost = 0; spearX = null; spearH = null;
+      puffDust(4);
+      flashHint('Speer op je rug (' + rugSperen.length + ' van de ' + RUG_MAX + ')');
+    } else { playNee(); flashHint('Je hand en je rug zijn vol'); }
+    return;
+  }
   if (!spearFound){
     if (spearNear()){
       spearFound = true; spear = true; setSpearLabel();
@@ -17692,7 +17711,7 @@ spearBtn.onclick = () => { toggleSpear(); cv.focus(); };
 // (en daarin gaat een skelet met een speer weer voor). Zo doen ze altijd hetzelfde.
 function eDruk(){ if (amirVast()) return; if (stadTrapFade || straatFade) return; if (!eSpeerIets() && (stadTrapE() || straatE())) return; if (!muurUitgang() && !deurUitgang()) toggleSpear(); }
 // ligt er iets voor E dat voor de stadstrap gaat: een executie, een skelet, een losse speer of de eerste speer in de grond
-function eSpeerIets(){ return !!exeBij() || !!skeletBij() || !!gaapSpeerBij() || !!losBij() || (!spearFound && spearNear()); }
+function eSpeerIets(){ return !!exeBij() || !!skeletBij() || !!gaapSpeerBij() || !!losBij() || spearNear(); }
 // Is er iets om E voor te gebruiken? Dan staat de E-knop op de telefoon erbij.
 function eNodig(){ return !!exeBij() || spearNear() || !!stadTrapBij() || !!straatPoortBij() || muurVoorDeur(world) || deurVoorDeur(world) || !!skeletBij() || !!losBij() || !!gaapSpeerBij() || tribeHeeft('jackal_fang'); }   // met het mes wissel je altijd (deurVoorDeur: ook voor de zwarte deur de E-knop op de telefoon)
 
@@ -28049,7 +28068,11 @@ function hitKruisboog(s, soort){
   if (s.dood === 'worp' && jav){                   // de speer blijft in zijn borst en valt met hem mee
     jav.state = 'grond'; jav.vx = 0; jav.vh = 0; jav.t = 0; jav.wob = 0; jav.sag = 0; jav.stand = false;
     jav.hit = true; jav.los = 0; jav.dak = null;
-    javLost = 0; spearFound = false;
+    javLost = 0;
+    jav.lijk = true;                               // hij zit in een lijk: zie rugTrekKlaar
+    // je hand is al weer vol (van de rug): de hand blijft vol en de speer in zijn borst gaat met E op je rug
+    // (jav.rug, toggleSpear). Zonder dit telde je hand als leeg en ging hij in die volle hand, niet op de rug
+    if (spearFound && rugAan()) jav.rug = true; else spearFound = false;
     s.jav = jav; s.speer = true; krbSpeerVolg(s);
   }
   s.wond = s.dood === 'steek';
