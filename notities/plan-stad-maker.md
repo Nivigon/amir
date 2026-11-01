@@ -1,6 +1,6 @@
 # Plan: de stad in de Level Maker nieuwstijl
 
-Status: klaar. Alle vijf stappen staan erin (de keuzes van de opdrachtgever hieronder, afgevinkt per stap).
+Status: stap 1 tot en met 5 zijn af, stap 6 tot en met 9 staan nog open. Wordt per stap gebouwd; vink af wat er staat.
 
 ## Uitgangspunt
 
@@ -84,6 +84,30 @@ Status: klaar. Alle vijf stappen staan erin (de keuzes van de opdrachtgever hier
    meldingen (overlap van gevels op laptopmaat, een galerij boven het dak van een van zijn huizen, een trap boven het dak,
    zonder vloer aan de voet of bij de uitgang, een vijand op een dak die `dak` niet kent), `dak` op de spawn van een
    bandiet of schildbandiet op een dak, galerij of balkon, en de stad in het proefgrid.
+
+6. [ ] De kruisboogbandiet in de Maker. Het spel kent `dak` voor hem al, en `MK_DAK_SOORTEN` ook, maar hij staat niet in
+   `MK_VIJANDEN`. Een regel in de groep Bandieten (die heeft nu bandiet en schildbandiet, dus hij past binnen
+   `MK_PALET_MAX`), met varianten of een vinkje voor de vlaggen die het spel leest en die in een Maker-level zin hebben
+   (`wijk`, `rand`, `hoorn`, `rap`, `inBeeld`; met `hoorn` blaast hij twee hyena's erbij). In `MK_VIJ_KNOP` alleen wat
+   van de standaard afwijkt, in `MK_HP_SOORTEN` als dat hoort, lui geladen via `laadLevel` als hij niet in elk level
+   laadt. Op een dak, galerij of balkon krijgt hij vanzelf `dak`. In het proefgrid een kruisboogbandiet, op of naast een
+   dak, en de controles `vijand-knoppen` en `stadsstukken` kennen zijn vlaggen en `dak`.
+7. [ ] Sneeuw per plek in de Maker. Nu legt een enkele sneeuwcel een sneeuwdek over het hele level
+   (`lvl.sneeuw = { soort: 'savanne', dek: 1, vol: true }` in `mkNaarLevel`), ook over de straat. Het spel kent al
+   `sneeuw: {soort, dek, van, tot}`: schrijf de sneeuw uit de cellen op de grondlijn, met `van` en `tot`, zoals de stroken
+   van `grondSoort`. Kunnen meerdere stroken niet in het veld, kijk dan of het spel er een lijst van kan maken zonder dat
+   een bestaand level verandert (Winter World en de testlevels met sneeuw blijven gelijk). Meldt de controle iets als sneeuw
+   en straat elkaar raken, en de makertest kijkt de stroken na (het proefgrid heeft sneeuw op kolom 0 en 1 en straat
+   achter de start).
+8. [ ] Deuren in de huizen: vijanden die uit een deurgat van een gevel komen (zie "Nog niet" in `notities/stad.md`).
+   Eerst in het spel, als een veld bij een gevel (bijvoorbeeld een spawn met `deur`, die naar een gevel en een
+   verdieping wijst), met knoppen in de sandbox onder De stad (regel 2), dan in de Maker als vijand in een deur (zoals
+   een vijand in een poort, met **Aantal**), met een melding als een deur geen vijand heeft of een vijand naar een deur
+   wijst die er niet is. Geen bestaand level krijgt deuren.
+9. [ ] Een lift bij een galerij: een takel waarvan het plateau zich naar de rand van een galerij voegt (zie "Nog niet"
+   in `notities/stad.md`). Nu heeft het plateau een vaste breedte en schaalt de galerij mee met het scherm, zodat het
+   plateau in Stad 1 op een laptop het eind van de galerij overlapt. In de Maker: een takel naast een galerij sluit
+   vanzelf aan, en de controle meldt een lift die er niet bij komt.
 
 Na elke stap `node tools/makertest.js` en `python3 tools/levelcheck.py`. Geen level van een episode of
 bestaand testlevel verandert.

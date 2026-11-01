@@ -57,7 +57,7 @@ galerijen schalen mee met het scherm en een vaste x kan op een andere maat net n
 van de rand van het beeld en kent dit niet. In de sandbox: **Bandiet op de galerij** onder De stad. In de Maker
 nieuwstijl krijgt een bandiet of schildbandiet die op een dak, galerij of balkon staat vanzelf `dak` (zie "Vijanden op daken
 en de meldingen van de stad" in `notities/maker.md`); daar staan ook de gevels, galerijen en trappen (het plan
-`notities/plan-stad-maker.md` is klaar).
+`notities/plan-stad-maker.md`, waar ook de deuren en de lift bij een galerij als stap 8 en 9 staan).
 
 Een galerij over meerdere huizen (`van` tot `tot`) loopt door over de kieren tussen de huizen, op elke schermmaat.
 Dat is de lange looprand van Stad 1, met het gevecht erop. Een rij daken loopt alleen door als de huizen elkaar op

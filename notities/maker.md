@@ -325,7 +325,8 @@ van een gevel, niet aan een plek:
 
 `MK_DAK_SOORTEN`, `mkDakSoort`, `mkStadVloeren`, `mkStadVloerOp`, `voetX` in `mkTrapMaat`
 
-Stap 5 van `notities/plan-stad-maker.md` (daarmee is het plan klaar).
+Stap 5 van `notities/plan-stad-maker.md`. De vervolgstappen (de kruisboogbandiet, sneeuw per plek, deuren en een lift bij een
+galerij) staan als stap 6 tot en met 9 in dat plan.
 
 - **De vloeren van de stad** (`mkStadVloeren`, zoals `stadVloeren` in het spel, in cellen op laptopmaat): het dak van elke
   gevel over zijn muur (`stadGevelH`: 487, 816, 1145 of 1474 voor 1 tot 4 hoog), het dek van elke galerij (zonder de
