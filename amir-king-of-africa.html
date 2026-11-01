@@ -29170,7 +29170,23 @@ const zwmBank = {};
 // "feel my hurt" als zijn zweep je raakt (of soms al in de tell); na een treffer soms de lach. Telkens met een kans,
 // en nooit vlak na elkaar (ZWM_STEM.rust, voor alle zweepmannen samen), zodat hij niet blijft kletsen.
 const ZWM_STEM = { vol: 0.95, rust: 3.5, komKans: 0.5, komVer: 1.4, raakVoel: 0.6, raakLach: 0.3, tellVoel: 0.2 };
+// het bloed als je hem raakt (oud en nieuw): een snee uit het bloedsysteem (design/bloed/snedes), geknipt op zijn lijf, een
+// spat uit de wond naar Amir toe, en een tijdje druppels die op het zand blijven liggen. Treffer 1 is een snee in zijn voorste
+// arm (die er in fase 2 af gaat, en de snee gaat mee), treffer 2 zonder fasen een grotere over zijn borst. Plekken in
+// idle-px van zijn anker (naar links kijkend), h de hoogte van de snee, rot in radialen.
+const ZWM_BLOED = {
+  snedes: [ { naam: 'snee_haal', x: -112, y: -172, h: 95, rot: 0.7, arm: true },
+            { naam: 'snee_recht', x: -20, y: -205, h: 105, rot: -0.6 } ],
+  spat: 14, spatV: 520,           // zoveel druppels in de spat, en hun snelheid (idle-px/s)
+  drup: 2.6, drupKans: 9,         // zo lang druppelt de wond na (s), zoveel druppels per seconde
+  lig: 9                          // zo lang blijven de vlekken op het zand liggen (s), de laatste seconde vervagen ze
+};
 let zwmStem = null, zwmStemVrij = 0;
+function zwmKreet(wat){                                   // een kreet gaat voor: geen kans, geen rust ervoor, en daarna even stil
+  if (!zwmStem || !zwmStem[wat]) return;
+  zwmStemVrij = performance.now() / 1000 + ZWM_STEM.rust;
+  banStemSpeel(zwmStem[wat], ZWM_STEM.vol);
+}
 function zwmZeg(wat, kans){
   if (!zwmStem || (kans != null && Math.random() >= kans)) return;
   const nu = performance.now() / 1000; if (nu < zwmStemVrij) return;
@@ -29180,7 +29196,9 @@ function zwmZeg(wat, kans){
 function zwmLaad(){
   laadNodig('zwm');
   if (!zwmStem) zwmStem = { lach: banStemmen('sounds/zweeplach.mp3', 2), kom: banStemmen('sounds/zweepcomehereboy.mp3', 2),
-                            voel: banStemmen('sounds/zweepfeelmyhurt.mp3', 2), knal: banStemmen('sounds/zweepslag.mp3', 3) };
+                            voel: banStemmen('sounds/zweepfeelmyhurt.mp3', 2), knal: banStemmen('sounds/zweepslag.mp3', 3),
+                            geraakt: banStemmen('sounds/zweepgeraakt.mp3', 2), armeraf: banStemmen('sounds/zweeparmeraf.mp3', 1) };
+  bloedSneeLaad();
   if (zwmData || zwmBezig) return;
   zwmBezig = true;
   laadJsonOpen++;
@@ -29236,8 +29254,8 @@ function zwmTouwInit(s, a){
   s.touw = { X, Y, PX: Float32Array.from(X), PY: Float32Array.from(Y), acc: 0 };
 }
 function zwmTouwStap(s, h, a, prog){
-  let C = s.f2C || ZWM_SLAG[s.soort || 'laag'];
-  if (!s.f2C && C.strak && prog != null && s.frame >= C.knal - C.strak.van && (s.knalT < 0 || s.t - s.knalT < C.strak.na)){
+  let C = s.f2C || s.inzetC || ZWM_SLAG[s.soort || 'laag'];
+  if (!s.f2C && !s.inzetC && C.strak && prog != null && s.frame >= C.knal - C.strak.van && (s.knalT < 0 || s.t - s.knalT < C.strak.na)){
     C = Object.assign({}, C, C.strak); prog = Math.min(prog, 0.999);   // de punt blijft trekken: geen liggen, geen doorzakken
   }
   const T = ZWM_TOUW, t = s.touw, n = T.n, L = zwmLengte(), seg = L / (n - 1), r = zwmWortel(a), G = 0;
@@ -29306,9 +29324,54 @@ function zwmSpoorStap(s, dt){
   while (s.spoor.length && s.spoor[0] === null) s.spoor.shift();
   s.stof = s.stof.filter(p => s.t - p.t < ZWM_FX.stofDuur);
 }
+// het bloed: de snee, de spat en het nadruppelen (zie ZWM_BLOED)
+function zwmBloedRaak(s, snee){
+  const B = ZWM_BLOED; s.snedes = s.snedes || []; s.druppels = s.druppels || [];
+  if (snee && s.snedes.length < B.snedes.length) s.snedes.push(Object.assign({}, B.snedes[s.snedes.length]));
+  const w = s.snedes.length ? s.snedes[s.snedes.length - 1] : B.snedes[0];
+  for (let i = 0; i < B.spat; i++){                       // de spat: uit de wond, naar voren (naar Amir) en omhoog
+    const a = Math.PI + (Math.random() - 0.35) * 1.1, v = B.spatV * (0.35 + Math.random() * 0.75);
+    s.druppels.push({ x: w.x, y: w.y, wx: s.x, face: s.face, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.8 - 120, lig: 0, r: 2.5 + Math.random() * 3 });
+  }
+  s.wond = { x: w.x, y: w.y, t: 0 };
+}
+function zwmDruppelStap(s, dt){
+  if (s.wond && s.wond.t < ZWM_BLOED.drup && s.state !== 'f2'){   // de wond druppelt na (in fase 2 doet de stomp dat)
+    s.wond.t += dt;
+    if (Math.random() < dt * ZWM_BLOED.drupKans) s.druppels.push({ x: s.wond.x + (Math.random() - 0.5) * 10, y: s.wond.y, wx: s.x, face: s.face, vx: (Math.random() - 0.5) * 40, vy: 30, lig: 0 });
+  }
+  if (!s.druppels || !s.druppels.length) return;
+  for (const d of s.druppels){ if (d.lig) { d.lig += dt; continue; } d.vy += 1500 * dt; d.x += d.vx * dt; d.y += d.vy * dt; if (d.y >= 0){ d.y = 0; d.lig = dt; } }
+  s.druppels = s.druppels.filter(d => d.lig < ZWM_BLOED.lig);
+}
+function zwmDruppelTeken(s, bodyX, voeten, gs, alpha){   // de druppels liggen op de wereld, niet mee met hem
+  if (!s.druppels || !s.druppels.length) return;
+  ctx.save(); ctx.fillStyle = '#8e0c10';
+  for (const d of s.druppels){
+    const r = (d.r || (d.lig ? 4 : 3)) * gs * (d.lig ? 1.3 : 1), x = bodyX + (d.wx - s.x) + d.x * gs * (d.face === 1 ? -1 : 1);
+    ctx.globalAlpha = alpha * (d.lig > ZWM_BLOED.lig - 1 ? ZWM_BLOED.lig - d.lig : 1);
+    ctx.beginPath(); ctx.ellipse(x, voeten + d.y * gs, d.lig ? r * 1.6 : r, d.lig ? r * 0.5 : r, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+// een laag (het lijf of de losse arm) met de snedes erop, alleen binnen zijn eigen pixels; l: {dx, dy, w, h} in idle-px
+function zwmSneeLaag(im, l, gs, snedes){
+  const W2 = Math.max(1, Math.round(l.w * gs)), H2 = Math.max(1, Math.round(l.h * gs));
+  const wd = werkDoek('zwmSnee', W2, H2), g = wd.getContext('2d');
+  g.drawImage(im, 0, 0, W2, H2);
+  g.globalCompositeOperation = 'source-atop';
+  for (const d of snedes){
+    const di = bloedSnee[d.naam]; if (!di || !di.naturalWidth) continue;
+    const hh = d.h * gs, ww = hh * di.naturalWidth / di.naturalHeight;
+    g.save(); g.translate((d.x - l.dx) * gs, (d.y - l.dy) * gs); g.rotate(d.rot); g.globalAlpha = 0.92; g.drawImage(di, -ww / 2, -hh / 2, ww, hh); g.restore();
+  }
+  g.globalCompositeOperation = 'source-over';
+  return wd;
+}
 // nieuw, fase 1: een speer die je naar hem gooit slaat hij met een snelle hoge slag uit de lucht, de grond in (zoals de
 // kooiman, kooiKaatsSpeer). Hij zet de slag in zodra de knal op tijd komt: de tijd tot de speer binnen de zweep is, is niet
 // langer dan de slag tot de knal. Zo raak je hem alleen in zijn zone, door eerst een slag te ontwijken (springen of bukken).
+function zwmInzet(s){ return zwmNieuw() && s.fase === 1 && !s.mepSpeer && !s.vrij ? ZWM_NIEUW.inzet[s.soort || 'laag'] : null; }
 function zwmMepSpeerKan(s){
   if (!zwmNieuw() || s.fase !== 1 || !zwmData || !jav || jav.state !== 'vlucht' || jav.hit) return false;
   if ((s.x - jav.x) * jav.vx <= 0) return false;                          // hij vliegt niet op hem af
@@ -29322,7 +29385,7 @@ function zwmMepSpeerStart(s){
   s.soort = 'hoog'; zwmSet(s, 'slag'); s.frame = C.slagVan - ZWM_NIEUW.mepSpeer.voor; s.acc = 0;
   s.face = jav.vx > 0 ? -1 : 1;                                          // naar de speer toe
   s.geraaktAmir = false; s.knalT = -1; s.touw = null; s.spoor = null; s.stof = null; s.stofKnal = false; s.knalRicht = 0;
-  s.mepSpeer = true;
+  s.mepSpeer = true; s.inzetT = 0; s.inzetP = null; s.inzetC = null; s.inzetGevaar = false;
 }
 function zwmSpeerNeer(s){                                                 // de speer valt waar de zweep hem raakt, met E op te rapen
   const x = jav.x;
@@ -29342,15 +29405,20 @@ function updateZweepman(s, dt, plats, cliff){
   s.base = vloerBij(s.x, s.base);
   const zS = zwmScale();
   if (s.knockV !== 0){ zwmMove(s, s.knockV * dt, plats, cliff); s.knockV *= Math.pow(0.02, dt); if (Math.abs(s.knockV) < 12) s.knockV = 0; }
-  if (s.state === 'dood'){ if (s.arm) zwmArmStap(s, dt); s.alpha -= dt / ZWM.vervaag; if (s.alpha <= 0){ s.alpha = 0; s.state = 'weg'; } return; }
+  if (s.state === 'dood'){ if (s.arm) zwmArmStap(s, dt); zwmDruppelStap(s, dt); s.alpha -= dt / ZWM.vervaag; if (s.alpha <= 0){ s.alpha = 0; s.state = 'weg'; } return; }
   if (!zwmData) return;
+  zwmDruppelStap(s, dt);
   if (s.state === 'f2'){ zwmF2Stap(s, dt, plats, cliff); return; }   // fase 2: zie ZWM2
   if ((s.state === 'idle' || s.state === 'loop' || s.state === 'terug') && !s.vrij && zwmMepSpeerKan(s)){ zwmMepSpeerStart(s); return; }
   if (s.state === 'slag'){
     const C = ZWM_SLAG[s.soort || 'laag'];
     s.acc += dt * 1000;
     const N = zwmData.bewegingen[C.set].frames.length;
-    while (s.frame < N - 1 && s.acc >= zwmDur(C, s.frame)){ s.acc -= zwmDur(C, s.frame); s.frame++; }
+    const inz = zwmInzet(s), houdVast = () => inz && s.frame === C.slagVan && (s.inzetT || 0) < inz.duur;
+    if (houdVast()){ s.inzetT = (s.inzetT || 0) + dt; s.acc = 0; s.inzetP = Math.min(1, s.inzetT / inz.duur); }   // nieuw: de inzet, de lus achter hem langs
+    else if (s.frame > C.slagVan) s.inzetP = null;
+    while (s.frame < N - 1 && !houdVast() && s.acc >= zwmDur(C, s.frame)){ s.acc -= zwmDur(C, s.frame); s.frame++; }
+    s.inzetGevaar = !!inz && s.inzetP != null && s.inzetP >= inz.gevaar && s.frame <= C.slagVan + 1;
     if (s.frame >= C.slagVan){
       const a = zwmHand(s);
       if (a){
@@ -29358,7 +29426,9 @@ function updateZweepman(s, dt, plats, cliff){
         let tot = 0, nu = 0;                              // ms van het begin van de slag tot de knal, en waar we nu zijn
         for (let i = C.slagVan; i < C.knal; i++){ tot += zwmDur(C, i); if (i < s.frame) nu += zwmDur(C, i); }
         if (s.frame < C.knal) nu += Math.min(s.acc, zwmDur(C, s.frame));
-        const prog = s.frame >= C.knal ? 1 : nu / tot;
+        let prog = s.frame >= C.knal ? 1 : nu / tot;
+        s.inzetC = s.frame === C.slagVan && s.inzetP != null && s.inzetP < 1 ? inz : null;   // in de inzet trekt de punt naar achteren
+        if (s.inzetC) prog = s.inzetP;
         s.touw.acc += dt; const h = 1 / 240; let k = 0;
         while (s.touw.acc >= h && k < 30){ zwmTouwStap(s, h, a, prog); s.touw.acc -= h; k++; }
         if (s.frame >= C.knal && s.knalT < 0){ s.knalT = s.t; zwmKnalGeluid(s); shake = Math.max(shake, 0.06); }
@@ -29397,6 +29467,7 @@ function updateZweepman(s, dt, plats, cliff){
   if (s.cool <= 0 && kooiZelfdeHoogte(s) && gap < aanval * zS && (nw || gap > ZWM.min * zS)){   // nieuw: ook tegen hem aan
     s.soort = s.slagVast || ZWM_TEST.slag || (Math.random() < ZWM.hoogKans ? 'hoog' : 'laag');   // slagVast: de sandbox, ZWM_TEST.slag: de pauze
     zwmSet(s, 'slag'); s.frame = ZWM_SLAG[s.soort].tellVan; s.geraaktAmir = false; s.knalT = -1; s.touw = null;
+    s.inzetT = 0; s.inzetP = null; s.inzetC = null; s.inzetGevaar = false;
     s.spoor = null; s.stof = null; s.stofKnal = false; s.knalRicht = 0;
     zwmZeg('voel', ZWM_STEM.tellVoel);
     return;
@@ -29431,7 +29502,8 @@ function hitZweepman(s){
   s.hp--; s.flash = 0.3; s.inv = ZWM.invHit;
   hitstop = Math.max(hitstop, 0.06); shake = Math.max(shake, 0.12);
   s.knockV = (s.x < playerX() ? -1 : 1) * ZWM.knockV;
-  if (s.hp <= 0 && s.fasen && s.fase === 1 && zwmData && zwmData.bewegingen.armeraf){ zwmArmEraf(s); return true; }   // fase 2: de arm eraf
+  if (s.hp <= 0 && s.fasen && s.fase === 1 && zwmData && zwmData.bewegingen.armeraf){ zwmBloedRaak(s, false); zwmArmEraf(s); return true; }   // fase 2: de arm eraf
+  zwmBloedRaak(s, s.hp > 0); zwmKreet('geraakt');                // bloed (een snee als hij het overleeft) en een korte kreet
   if (s.hp <= 0){
     s.state = 'dood'; s.alpha = 1; s.flash = 0.6; s.touw = null;
     banSterf(); puffWorld(s.x, 6, 0, 0.9, s.base || 0); vijandDood(false);
@@ -29453,10 +29525,12 @@ function zwmTeken(s, bodyX, voeten, gs, alpha){
   if (a && ZWM_TEST.rood) zwmRoodTeken(s, gs);
   if (touwAan) zwmFxAchter(s, gs);
   if (a && fr.achter) zwmTouwTeken(s, a, gs);
-  laag(fr.lijf);
+  if (s.snedes && s.snedes.length && fr.lijf){ const im = B[fr.lijf.src]; if (im && imgReady(im)){ const l = fr.lijf; ctx.drawImage(zwmSneeLaag(s.flash > 0 ? whiteCopy(im, s.flash * 4) : im, l, gs, s.snedes), l.dx * gs, l.dy * gs, l.w * gs, l.h * gs); } }
+  else laag(fr.lijf);
   if (!touwAan) laag(fr.zweep);
   if (a && !fr.achter) zwmTouwTeken(s, a, gs);
   ctx.restore();
+  zwmDruppelTeken(s, bodyX, voeten, gs, alpha);
 }
 // het spoor van de punt en het stof, achter de zweep
 function zwmFxAchter(s, gs){
@@ -29490,7 +29564,7 @@ function zwmWijsTeken(s, gs){
   if (a <= 0) return;
   a *= F.wijsMax * (0.85 + 0.15 * Math.sin(s.t * 14));   // een zachte puls
   // een zachte ellips (een radiale verloop, plat geschaald): laag een koepel van licht op de grond, hoog een band op hoofdhoogte
-  const nw = zwmNieuw(), wVan = nw ? 40 : F.wijsVan, wTot = nw ? F.wijsTot - (ZWM_NIEUW.lengte - ZWM_TOUW.lengte) : F.wijsTot;   // nieuw: van vlak bij hem tot de langere zweep
+  const nw = zwmNieuw(), wVan = nw ? ZWM_NIEUW.inzet.achter : F.wijsVan, wTot = nw ? F.wijsTot - (ZWM_NIEUW.lengte - ZWM_TOUW.lengte) : F.wijsTot;   // nieuw: van achter hem (de inzet) tot de langere zweep
   const kl = laag ? F.wijsLaag : F.wijsHoog, rx = Math.abs(wTot - wVan) / 2 * gs, cx = (wVan + wTot) / 2 * gs;
   const ry = (laag ? C.laagH * F.wijsLaagHoog : F.wijsHoogDik / 2 + 10) * gs, cy = laag ? 0 : -(C.hoogMin + F.wijsHoogDik / 2 - 10) * gs;
   ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(cx, cy); ctx.scale(rx / ry, 1);
@@ -29576,8 +29650,19 @@ function zwmRaakt(s, bodyX, voeten, gs, pbox){
   if (s.state === 'f2') return zwmF2Raakt(s, bodyX, voeten, gs, pbox);
   if (!s.touw || s.geraaktAmir || dead || invuln > 0 || !kooiZelfdeHoogte(s)) return false;
   const C = ZWM_SLAG[s.soort || 'laag'];
-  if (!zwmGevaar(s)) return false;
   const sp = s.face === 1 ? -1 : 1, t = s.touw;
+  if (s.inzetGevaar){                                    // nieuw: de inzet raakt achter hem, met dezelfde hoogteregel (laag springen, hoog bukken)
+    const iz0 = ZWM_NIEUW.inzet[s.soort || 'laag'], d = (bodyX - (pbox.l + pbox.r) / 2) * sp;   // d < 0: Amir staat achter hem
+    const yH = voeten - (iz0.raakH || C.hoogMin) * gs, hoogteGoed = iz0.raakH ? pbox.b > yH : pbox.t < yH;
+    if (d < 0 && -d < ZWM_NIEUW.dichtbij * gs && hoogteGoed) return true;   // vlak achter hem: zijn arm en het begin van de lus
+    for (let i = 4; i < ZWM_TOUW.n; i++){
+      const iz = ZWM_NIEUW.inzet[s.soort || 'laag'];
+      if (t.X[i] < ZWM.half || (iz.raakH ? t.Y[i] < -iz.raakH : !zwmRaaktHoogte(C, t.Y[i]))) continue;
+      const x = bodyX + t.X[i] * gs * sp, y = voeten + t.Y[i] * gs;
+      if (x > pbox.l && x < pbox.r && y > pbox.t && y < pbox.b) return true;
+    }
+  }
+  if (!zwmGevaar(s)) return false;
   if (zwmNieuw()){                                       // nieuw: tegen hem aan raakt de slag ook (zijn arm en het handvat), op dezelfde hoogte als de zweep
     const d = (bodyX - (pbox.l + pbox.r) / 2) * sp, yH = voeten - (C.laagH != null ? C.laagH : C.hoogMin) * gs;
     const hoogteGoed = C.laagH != null ? pbox.b > yH : pbox.t < yH;   // laag: Amir staat op de grond; hoog: Amir staat rechtop
@@ -29638,6 +29723,14 @@ const ZWM_NIEUW = {
              { boogVan: -205, boog: -55, kracht: 8, wExp: 0.6, strakNa: 6 } ], // dan de backhand van laag naar schuin omhoog, ook naar voren   // de slag uit de sprong gaat naar voren: van boven zijn
                                   // hoofd naar recht voor hem (oud zwaaide hij omhoog en naar achteren, over je heen); strakNa:
                                   // zoveel frames na de knal blijft de punt naar voren trekken, anders sleept hij achter de sprong aan
+  // fase 1, de inzet: op het eerste slagframe blijft hij even staan (arm omhoog en naar achteren) en zwaait de lus eerst
+  // achter hem langs: laag over de grond (springen), hoog op hoofdhoogte (bukken). Wie door hem heen liep, wordt zo ook
+  // gestraft. duur in s; boogVan en boog zoals ZWM_SLAG (graden, van de hand); gevaar: vanaf zoveel van de inzet raakt het
+  // touw achter hem; achter: tot zoveel idle-px achter hem gloeit de waarschuwing
+  // touw achter hem; achter: tot zoveel idle-px achter hem gloeit de waarschuwing. raakH (laag): de lus hangt achter hem op
+  // kniehoogte in plaats van plat over de grond, dus hij raakt tot zoveel boven de grond (springen gaat er ruim overheen)
+  inzet: { laag: { duur: 0.32, boogVan: 100, boog: 60, kracht: 3.5, wExp: 0.8, gevaar: 0.45, raakH: 140 },
+           hoog: { duur: 0.32, boogVan: -90, boog: -115, kracht: 3, wExp: 1.1, gevaar: 0.45 }, achter: 480 },
   mepSpeer: { voor: 3, kans: 0.5 }, // fase 1: een gegooide speer slaat hij neer met een snelle hoge slag, zoveel frames voor
                                   // slagVan ingezet; na het neerslaan lacht hij soms (kans)
   sprongVoor: 45, sprongTerug: 45 // idle-px per frame die hij in de sprong hoogstens extra vooruit of terug schuift (10 frames:
@@ -29677,13 +29770,15 @@ function zwmF2Idx(s){ const set = zwmF2Data(s); if (!set) return 0; return s.f2 
 function zwmArmEraf(s){
   zwmLaadF2();
   s.fase = 2; s.hp = ZWM2.hp2; s.maxHp = ZWM2.hp2; s.flash = 0.28; s.inv = 0; s.knockV = 0;
-  s.stap = -1; s.arm = null; s.druppels = [];
+  s.stap = -1; s.arm = null; s.druppels = s.druppels || []; s.wond = null;
+  s.armSnedes = (s.snedes || []).filter(d => d.arm); s.snedes = (s.snedes || []).filter(d => !d.arm);   // de snee gaat mee met de arm
   zwmF2Set(s, 'armeraf');
+  zwmKreet('armeraf');
   hitstop = Math.max(hitstop, 0.14); shake = Math.max(shake, 0.25);
   banSterf();
 }
 function zwmF2Volgende(s){
-  if (s.f2 === 'armeraf'){ zwmF2Set(s, 'lach'); zwmZeg('lach'); return; }
+  if (s.f2 === 'armeraf'){ zwmF2Set(s, 'lach'); zwmKreet('lach'); return; }   // na de kreet: in plaats van te breken lacht hij
   if (s.f2 === 'sprongterug'){                              // de sprong heeft hem vooruit gebracht: dat wordt zijn nieuwe plek
     const sh = (zwmF2Data(s).verschuif || 0) * zwmScale() * (s.face === 1 ? -1 : 1);
     s.x += sh;
@@ -29767,8 +29862,6 @@ function zwmArmStap(s, dt){
   // druppels uit de stomp, de eerste seconden
   const st = zwmF2Stomp(s);
   if (st && A.t < 2.5 && Math.random() < dt * (A.t < 1 ? 22 : 8)) s.druppels.push({ x: st[0], y: st[1], wx: s.x, face: s.face, vx: (Math.random() - 0.5) * 60, vy: 40 + Math.random() * 80, lig: 0 });
-  for (const d of s.druppels){ if (d.lig) { d.lig += dt; continue; } d.vy += 1500 * dt; d.x += d.vx * dt; d.y += d.vy * dt; if (d.y >= 0){ d.y = 0; d.lig = dt; } }
-  s.druppels = s.druppels.filter(d => d.lig < 4);
   if (!A.los){
     for (let k = 0; k < 8; k++){ const acc = -1500 * Math.sin((A.th - 90) * Math.PI / 180) - 11 * A.om; A.om += acc * dt / 8; A.th += A.om * dt / 8; }
     if (A.t > ZWM2.armHang && st){ A.los = true; A.x = st[0]; A.y = st[1]; A.vx = -20; A.vy = 40; A.rv = A.om * 0.5; A.wx = s.x; A.face = s.face; }
@@ -29802,7 +29895,11 @@ function zwmArmTeken(s, gs){                                // in de ruimte van 
   else { px = A.x; py = A.y; }
   ctx.save(); ctx.globalAlpha *= A.alpha;
   ctx.translate(px * gs, py * gs); ctx.rotate((A.th - l.th0) * Math.PI / 180);
-  ctx.drawImage(im, -l.px * gs, -l.py * gs, l.w * gs, l.h * gs);
+  if (s.armSnedes && s.armSnedes.length){                 // de snee van treffer 1 zit op deze arm: hij gaat mee
+    const l2 = { dx: -l.px, dy: -l.py, w: l.w, h: l.h };
+    const sn = s.armSnedes.map(d => Object.assign({}, d, { x: d.x - l.dx - l.px, y: d.y - l.dy - l.py }));
+    ctx.drawImage(zwmSneeLaag(im, l2, gs, sn), -l.px * gs, -l.py * gs, l.w * gs, l.h * gs);
+  } else ctx.drawImage(im, -l.px * gs, -l.py * gs, l.w * gs, l.h * gs);
   ctx.restore();
 }
 function zwmWondTeken(s, gs){
@@ -29828,7 +29925,10 @@ function zwmF2Teken(s, bodyX, voeten, gs, alpha){
   ctx.translate(bodyX, voeten); if (s.face === 1) ctx.scale(-1, 1);
   if (A && !A.los) zwmArmTeken(s, gs);                       // de bungelende arm hangt achter het lijf
   const l = fr.lijf, im = l && B[l.src];
-  if (im && imgReady(im)) ctx.drawImage(s.flash > 0 ? whiteCopy(im, s.flash * 4) : im, l.dx * gs, l.dy * gs, l.w * gs, l.h * gs);
+  if (im && imgReady(im)){
+    const bi = s.flash > 0 ? whiteCopy(im, s.flash * 4) : im;
+    ctx.drawImage(s.snedes && s.snedes.length ? zwmSneeLaag(bi, l, gs, s.snedes) : bi, l.dx * gs, l.dy * gs, l.w * gs, l.h * gs);
+  }
   zwmWondTeken(s, gs);
   if (s.touw){
     const a = zwmF2Hand(s);
@@ -29837,13 +29937,7 @@ function zwmF2Teken(s, bodyX, voeten, gs, alpha){
       ctx.save(); ctx.globalAlpha *= op; zwmTouwTeken(s, a, gs); ctx.restore(); }
   }
   ctx.restore();
-  ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = '#8e0c10';   // de druppels vallen op de wereld, niet mee met hem
-  for (const d of s.druppels || []){
-    const r = (d.lig ? 4 : 3) * gs, x = bodyX + (d.wx - s.x) + d.x * gs * (d.face === 1 ? -1 : 1);
-    ctx.globalAlpha = alpha * (d.lig > 3 ? 4 - d.lig : 1);
-    ctx.beginPath(); ctx.ellipse(x, voeten + d.y * gs, d.lig ? r * 1.6 : r, d.lig ? r * 0.5 : r, 0, 0, Math.PI * 2); ctx.fill();
-  }
-  ctx.restore();
+  zwmDruppelTeken(s, bodyX, voeten, gs, alpha);           // de druppels vallen op de wereld, niet mee met hem
 }
 // waar zijn lijf nu staat (in fase 2 schuift het in de sprong flink van zijn ankerpunt af)
 function zwmLijfDX(s, gs){
@@ -29875,6 +29969,7 @@ function zwmF2Hit(s){
   hits++; hitsEl.textContent = hits;
   s.hp--; s.flash = 0.3; s.inv = ZWM.invHit;
   hitstop = Math.max(hitstop, 0.07); shake = Math.max(shake, 0.14);
+  zwmBloedRaak(s, false); zwmKreet('geraakt');
   if (s.hp <= 0){ s.state = 'dood'; s.alpha = 1; s.flash = 0.6; s.touw = null; banSterf(); puffWorld(s.x, 6, 0, 0.9, s.base || 0); vijandDood(false); }
   return true;
 }
@@ -31054,11 +31149,13 @@ let bloedSpuitNaam = 'fel';                                // welke spuit-varian
 let bloedGeladen = false;
 const bloedSnee = {};                                      // naam -> Image
 const bloedSpuitCache = {};                                // 'fel'/'donker' -> [Image]
+function bloedSneeLaad(){                                  // alleen de snee-plaatjes (de zweepman gebruikt ze ook)
+  if (bloedGeladen) return;
+  bloedGeladen = true;
+  for (const n of BLOED.snee){ const im = new Image(); zetBron(im, BLOED.map + 'snedes/' + n + '.png', () => console.warn('ontbreekt: ' + n)); bloedSnee[n] = im; }
+}
 function bloedLaad(){
-  if (!bloedGeladen){
-    bloedGeladen = true;
-    for (const n of BLOED.snee){ const im = new Image(); zetBron(im, BLOED.map + 'snedes/' + n + '.png', () => console.warn('ontbreekt: ' + n)); bloedSnee[n] = im; }
-  }
+  bloedSneeLaad();
   bloedLaadSpuit(bloedSpuitNaam);
 }
 function bloedLaadSpuit(naam){

@@ -72,6 +72,22 @@ zweepman (`zwmTestKnopToon`).
 - **Gloed op de zweep** en **Waarschuwing vooraf**: aan of uit (`ZWM_TEST.gloed`, `ZWM_TEST.wijs`, standaard aan), om te
   vergelijken.
 
+## Bloed en kreten als je hem raakt (oud en nieuw)
+
+`ZWM_BLOED`, `zwmBloedRaak`, `zwmDruppelStap`, `zwmDruppelTeken`, `zwmSneeLaag`, `zwmKreet`. Een rake treffer (niet als je speer
+afketst) geeft een snee uit het bloedsysteem (`design/bloed/snedes`, via `bloedSneeLaad`), geknipt op zijn lijf met
+`source-atop`; treffer 1 op zijn voorste bovenarm, treffer 2 (zonder fasen) over zijn borst. Een spat uit de wond naar Amir toe
+(`spat`, `spatV`), daarna druppelt de wond `drup` s na, en de vlekken blijven `lig` s op het zand. De snee staat op een vaste
+plek t.o.v. zijn anker, dus in een sterk gedraaide pose schuift hij wat over zijn lijf (net als bij de bandiet).
+
+Met fasen gaat de armsnee mee met de arm (`s.armSnedes`, getekend in `zwmArmTeken`). De stomp druppelt in dezelfde lijst
+(`s.druppels`). In fase 2 geeft een treffer in het uitrusten ook een spat.
+
+De kreten (`zwmKreet` gaat voor, zonder kans of rust, en zet daarna `ZWM_STEM.rust`):
+- `sounds/zweepgeraakt.mp3`: bij elke rake treffer. De eerste van de twee kreten uit de opname (0,07 tot 0,93 s, korte fade).
+- `sounds/zweeparmeraf.mp3`: als zijn arm eraf gaat (`zwmArmEraf`), de kreet tot 2 s met een zachte uitloop. Na de armeraf
+  lacht hij meteen (`zwmKreet('lach')`).
+
 ## Zijn stem
 
 `ZWM_STEM`, `zwmZeg`, `zwmStem` (lui gemaakt in `zwmLaad`, weg in `laadVrij`). Drie geluiden in `sounds/`:
@@ -156,6 +172,13 @@ De nieuwe versie (de tweede opzet: dezelfde vaste cyclus als oud, maar zonder ve
   touw (in `zwmRaakt`), met dezelfde regel: laag springen, hoog bukken.
 - **Fase 2, sneller**: de mep en de sprong 1,3 keer (`tempo`), de lach en de terugweg 1,2 keer, en het stuk zonder zweep
   in de mep (`mepGat`) nog eens drie keer sneller. Uitrusten blijft even lang. De cyclus is de vaste `ZWM2.cyclus`.
+- **Fase 1, de inzet: de lus achter hem langs** (`ZWM_NIEUW.inzet`, `zwmInzet`, `s.inzetP`, `s.inzetGevaar`): oud kon je door
+  hem heen lopen en achter hem veilig staan. Nieuw blijft hij op het eerste slagframe (`slagVan`, arm omhoog en naar achteren)
+  `duur` s staan, en trekt de punt eerst naar achteren (`s.inzetC`, de boog uit `inzet`): laag schuin naar de grond achter hem,
+  hoog achter hem langs op hoofdhoogte. Daarna loopt de slag gewoon naar voren. Vanaf `gevaar` van de inzet raakt het touw
+  achter hem (laag tot `raakH` 140 boven de grond, de lus hangt daar op kniehoogte; hoog boven `hoogMin`), en vlak achter hem
+  (binnen `dichtbij`) zijn arm, met dezelfde hoogteregel. Gemeten: achter hem raak tot 450 idle-px, gebukt onder de hoge veilig.
+  De waarschuwingsgloed loopt tot `inzet.achter` achter hem door.
 - **Fase 1, speren neerslaan** (`zwmMepSpeerKan`, `zwmMepSpeerStart`, `zwmSpeerNeer`): een speer die op hem af vliegt slaat
   hij met een snelle hoge slag (vanaf `slagVan - mepSpeer.voor`) uit de lucht, zodra de knal op tijd komt. De speer valt waar
   de zweep hem raakt, zo'n 100 idle-px voor hem, als losse speer (E). Raakt hij zijn lijf voor de knal, dan slaat hij hem ook
