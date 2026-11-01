@@ -373,6 +373,24 @@ Een bandiet, schildbandiet of kruisboogbandiet op een dak krijgt geen melding (o
 galerij (`dak: 401`) en een schildbandiet en een kruisboogbandiet (wijk uit, inBeeld aan) op een dak (`dak: 816`). In de Test
 loopt de schutter over het dak naar de rand, blijft op 816 en schiet omlaag.
 
+### Een lift bij een galerij
+
+`mkLiftGalerij`, `mkLiftDek`, `MK_LIFT_GAT`, `MK_LIFT_BIJNA`, `MK_LIFT_HOOG`, `MK_LIFT_HOOG_BIJNA`
+
+Stap 9 van `notities/plan-stad-maker.md`. Geen nieuw gereedschap: een gewoon **Platform** (met doelhoogte en tandwiel) naast
+het eind van een galerij is een lift erheen. `mkLiftGalerij(p)` zoekt de galerij die erbij hoort, op laptopmaat zoals de
+Maker tekent: de hoogste stand van het platform hooguit `MK_LIFT_HOOG` (0,75) cel van `mkLiftDek(h)` (het dek plus de
+looplijn plus `TAKEL.galerijBoven`), en tussen de binnenrand van het plateau en de looprand van de galerij een gat van
+hooguit `MK_LIFT_GAT` (2) cel of een overlap van hooguit een half plateau.
+
+- **In het level** (`mkNaarLevel`, na `stad.galerijen`): de takel krijgt `galerij` (de index), `hoog` op het dek en
+  `stamZij` aan de straatkant. In de Test schuift het spel hem tegen de rand (`takelGalerijStap`, zie `notities/stad.md`).
+  Het grid tekent het platform waar je het zette.
+- **Controle**: wat er net buiten valt (tot `MK_LIFT_BIJNA` (5) cel opzij, tot `MK_LIFT_HOOG_BIJNA` (3) cel hoogte, of
+  eronder) is een LET OP "lijkt een lift naar de galerij van g1 tot g2, maar komt er niet bij", met de reden: de hoogste
+  stand te laag of te hoog (met de rij waar hij moet), te ver naast het eind, of onder de galerij in plaats van ernaast.
+- **makertest**: de controle `lift bij een galerij` (aansluiten, te ver, te laag met de goede rij, en ver weg geen lift).
+
 ### Deuren: een vijand uit een huis
 
 `mkDeurMaat`, `mkDeurVerd`, `mkDeurTeken`, `mkVulDeur`, `mkDeurBovenOk`, `mkDeurNaam`

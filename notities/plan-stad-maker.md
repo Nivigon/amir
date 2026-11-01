@@ -1,6 +1,6 @@
 # Plan: de stad in de Level Maker nieuwstijl
 
-Status: stap 1 tot en met 6 en stap 8 zijn af, stap 7 en 9 staan nog open. Wordt per stap gebouwd; vink af wat er staat.
+Status: stap 1 tot en met 6, stap 8 en stap 9 zijn af, stap 7 staat nog open. Wordt per stap gebouwd; vink af wat er staat.
 
 ## Uitgangspunt
 
@@ -103,10 +103,13 @@ Status: stap 1 tot en met 6 en stap 8 zijn af, stap 7 en 9 staan nog open. Wordt
    plaats van het raam, op de galerij of het balkon daar (zie "Deuren" in `notities/stad.md`); in de sandbox **Uit de deur** en
    **Uit de deur boven** onder De stad; in de Maker **Deur** in de groep Huizen, met Vijand eruit en Aantal, en vier meldingen
    (zie "Deuren: een vijand uit een huis" in `notities/maker.md`); `levelcheck.py` regel `deuren`. Geen bestaand level kreeg deuren.
-9. [ ] Een lift bij een galerij: een takel waarvan het plateau zich naar de rand van een galerij voegt (zie "Nog niet"
-   in `notities/stad.md`). Nu heeft het plateau een vaste breedte en schaalt de galerij mee met het scherm, zodat het
-   plateau in Stad 1 op een laptop het eind van de galerij overlapt. In de Maker: een takel naast een galerij sluit
-   vanzelf aan, en de controle meldt een lift die er niet bij komt.
+9. [x] Een lift bij een galerij: een takel waarvan het plateau zich naar de rand van een galerij voegt. In het spel het veld
+   `galerij` op een takel (de index in `stad.galerijen`, `takelGalerijStap`): het plateau en de wielen schuiven op elk scherm
+   tegen het eind van die galerij, de hoogste stand komt net boven het dek en de paal aan de straatkant (zie "Lift bij een
+   galerij" in `notities/stad.md`). Stad 1 heeft het (overlapte eerst op een laptop 125 px, op 1920 een gat van 364 px). In de
+   Maker sluit een platform naast een galerij vanzelf aan (`mkLiftGalerij`), en de controle meldt een lift die er net niet bij
+   komt (zie "Een lift bij een galerij" in `notities/maker.md`); `levelcheck.py` regel `lift bij een galerij`, `makertest.js`
+   de controle `lift bij een galerij`.
 
 Na elke stap `node tools/makertest.js` en `python3 tools/levelcheck.py`. Geen level van een episode of
 bestaand testlevel verandert.

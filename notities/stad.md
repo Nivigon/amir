@@ -43,6 +43,21 @@ onderen spring je erdoorheen. De reling staat achteraan, Amir loopt ervoor.
 Amir springt 208 hoog. Een verdieping (329) is dus te hoog om zomaar te halen: een route naar boven gaat via de
 kraam, de doek, of galerijen die tussen twee verdiepingen hangen (Stad 1 heeft er drie boven elkaar langs de toren).
 
+### Lift bij een galerij
+
+`takelGalerijStap`, `TAKEL.galerijBoven`, het veld `galerij` op een takel
+
+Een galerij schaalt mee met het scherm, een takelplateau heeft een vaste breedte in wereld-px. Een vaste `px` sluit dus
+maar op een schermmaat aan (Stad 1 overlapte op een laptop 125 px met het eind van de galerij, op 1920 lag er een gat van
+364 px). Met `galerij` (de index in `stad.galerijen`) schuift het spel het plateau daarom tegen het eind van die galerij,
+op elk scherm opnieuw (alleen als `nowScale()` verandert): zijn binnenrand op de looprand van de galerij (de rand die
+`stadPlats` ook gebruikt, `0,15` van het eindstuk naar binnen), zodat de vloer doorloopt. Welk eind kiest de `px` uit het
+level (de kant waar hij staat). De wielen schuiven evenveel mee, zodat de lift heel blijft. De hoogste stand wordt het dek
+plus de looplijn van het plateau plus `TAKEL.galerijBoven` (17): boven staat het plateau net boven de galerij, je stapt
+eraf en niet tegen een rand op. De paal (`stamZij`) komt aan de straatkant, want aan de galerijkant hield het begaanbare dek
+op bij de paal en lag er een gat. `hoog` en `stamZij` uit het level tellen dan niet. Op een groot scherm schuift de hele lift
+dus wat op; het wiel kan dan voor een kraam staan (decor, het werkt gewoon).
+
 ## Vijanden op een galerij of dak
 
 Een galerij en een dak zijn ook de vloer van een vijand: `vloerBij` vraagt het aan `stadVloerBij` (na de zwever), dat
@@ -190,7 +205,4 @@ opnieuw open (`sbStadDeur`). In de Maker nieuwstijl: Decor, Huizen, **Deur** (zi
 
 ## Nog niet
 
-- Een lift (een takel) die zich naar de rand van een galerij voegt: het plateau heeft een vaste breedte, de galerij
-  schaalt mee. In Stad 1 overlapt het plateau het eind van de galerij op een laptop; op een kleine telefoon is het
-  een korte sprong opzij.
 - Een subtiele gloed om de personages (in de mockups hielp dat tegen de bruine muren), en een kleine set (`klein/`).

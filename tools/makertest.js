@@ -485,6 +485,38 @@ function verschil(a, b, pad = ''){
     return f;
   });
 
+  // 1c. een lift bij een galerij (stap 9): een platform naast het eind van een galerij, met zijn hoogste stand bij het dek, krijgt
+  // in het level galerij (de index), de hoogste stand op het dek en de paal aan de straatkant; het spel schuift hem dan tegen
+  // de rand. Te ver opzij of op de verkeerde hoogte sluit hij niet aan, en dan meldt de controle dat.
+  await check('lift bij een galerij: sluit vanzelf aan, en de controle meldt er een die er niet bij komt', async () => {
+    const rijen = []; for (let r = 0; r < 12; r++) rijen.push((r === 9 ? 'A' : '.').repeat(40));
+    await laad({ type: 'amir-levelmaker-grid', versie: 2, cols: 40, rows: 12, groundRow: 9, grid: rijen,
+                 start: { c: 39, r: 8 }, eind: { c: 0, r: 8 }, objecten: [
+                   { c: 4, r: 8, k: 'gevel', id: 'g1', hoog: 2 }, { c: 9, r: 8, k: 'gevel', id: 'g2', hoog: 3 },
+                   { c: 4, r: 8, k: 'galerij', van: 'g1', tot: 'g2', niveau: 1 } ] });
+    return page.evaluate(() => {
+      const f = [], gal = MK.objects.find(o => o.k === 'galerij'), m = mkGalerijMaat(gal);
+      const rij = MK.ground - Math.round(mkLiftDek(m.h) / MK_CEL_EENH), c = Math.floor(m.c1) + 1;
+      const zet = (c, r) => { MK.objects = MK.objects.filter(o => o.k !== 'platform' && o.k !== 'tandwiel');
+        MK.objects.push({ c, r: 8, k: 'platform', doel: { c, r }, breed: 2, stamZij: -1 }, { c: c + 2, r: 8, k: 'tandwiel', modus: 'schakellift', platform: { c, r: 8 } }); };
+      const liftMeld = () => mkControle().filter(q => /lift naar/.test(q.tekst));
+      zet(c, rij);
+      let t = (mkNaarLevel().takels || [])[0];
+      if (!t || t.galerij !== 0 || t.hoog !== Math.round(mkLiftDek(m.h)) || t.stamZij !== 1) f.push('een platform naast het eind van de galerij sluit niet aan: ' + JSON.stringify(t));
+      if (liftMeld().length) f.push('een lift die aansluit geeft een melding: ' + JSON.stringify(liftMeld()));
+      zet(c + 4, rij);                                     // te ver opzij
+      t = (mkNaarLevel().takels || [])[0];
+      if (!t || t.galerij !== undefined) f.push('een platform vier cellen naast de galerij sluit toch aan: ' + JSON.stringify(t));
+      if (!liftMeld().some(q => /naast het eind/.test(q.tekst))) f.push('geen melding voor een lift te ver naast de galerij: ' + JSON.stringify(mkControle().map(q => q.tekst)));
+      zet(c, rij + 2);                                     // twee cellen te laag
+      if ((mkNaarLevel().takels || [])[0].galerij !== undefined) f.push('een platform dat twee cellen te laag eindigt sluit toch aan');
+      if (!liftMeld().some(q => /onder het dek/.test(q.tekst) && q.tekst.indexOf('rij ' + rij) >= 0)) f.push('geen melding met de goede rij voor een lift te laag: ' + JSON.stringify(liftMeld()));
+      zet(30, rij);                                        // ver weg: gewoon een platform, geen lift bij een galerij
+      if (liftMeld().length || (mkNaarLevel().takels || [])[0].galerij !== undefined) f.push('een platform ver van de galerij geldt als lift erbij');
+      return f;
+    });
+  });
+
   // 1c. deuren (stap 8): een klik met Deur op een gevel zet een deur op de verdieping waar je klikte; in het paneel de vijand
   // eruit en Aantal; in het level een spawn met deur {gevel, verdieping}. De controle meldt een deur zonder vijand, een deur
   // die er niet is (het huis is lager) en een deur op een verdieping zonder galerij of balkon, of met een soort die geen daken kent.

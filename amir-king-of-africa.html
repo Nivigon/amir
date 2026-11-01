@@ -4728,8 +4728,9 @@ const STAD_1 = {
             {x: -8600, stuk: 'stenen'} ]
   },
   // de lift naar de galerij: het onderste wiel op de straat, het plateau links ervan tegen het rechtereind van de
-  // galerij, boven met zijn looplijn net boven het dek (435 - 17, zie takelOpp). Het bovenste wiel brengt hem omlaag.
-  takel: { x: -2460, px: -2750, breed: 320, laag: 17.5, hoog: 435, stappen: 6, beginLaag: true, lift: true, stam: true, stamZij: 1 },
+  // lange galerij (galerij: 1, zie "lift bij een galerij"): het spel schuift het plateau en de wielen op elk scherm
+  // tegen die rand en zet de hoogste stand net boven het dek. Het bovenste wiel brengt hem omlaag.
+  takel: { x: -2460, px: -2750, breed: 320, laag: 17.5, stappen: 6, beginLaag: true, lift: true, stam: true, galerij: 1 },
   spawns: [ {x: -1800, k: 'bandiet'},
             // het gevecht op de galerij
             {x: -3700, k: 'bandiet', dak: 401, dolk: true}, {x: -4300, k: 'schildman', dak: 401},
@@ -10411,6 +10412,7 @@ const TAKEL = {
   breed: 320,                // standaard plateaubreedte in wereld-px (9-slice: alleen het midden rekt mee)
   dekH: 0.34,                // plateauhoogte als deel van CHAR_H
   sta: 0.2,                  // de looplijn: de voorrand van het bovenvlak, als deel van de plaathoogte (anders zweef je op de achterrand)
+  galerijBoven: 17,          // een lift bij een galerij (t.galerij): boven ligt zijn looplijn zoveel sprite-eenheden boven het dek, zodat je eraf stapt en niet tegen de rand op
   touwDik: 0.045,            // touwbreedte als deel van CHAR_H (gedeeld door viewZoom in takelTeken, zodat de uitzoom ze niet dun maakt, maar wel dun en niet dominant)
   touwScroll: 1,             // de draad scrolt met de verticale beweging van het plateau (texture-px per scherm-px dat het stijgt), zodat het touw lijkt te bewegen tijdens het takelen
   touwAmbient: 26,           // en daarbovenop een rustige, doorlopende draai (scherm-px per seconde, voor schaal), zodat het touw ook boven in de arena (waar het plateau stilstaat) blijft leven
@@ -10514,6 +10516,7 @@ function takelReset(){
 function takelResetEen(t){
   if (t.id === undefined) t.id = 'takel';            // elk platform een id (voor de plats-id en de koppelingen)
   if (!(t.breed > 0)) t.breed = TAKEL.breed;
+  t.galKey = null; takelGalerijStap(t);               // een lift bij een galerij: eerst tegen zijn rand, dan de rest
   if (!(t.stappen > 0)) t.stappen = TAKEL.stappen;
   if (t.laag === undefined) t.laag = 0;
   if (t.hoog === undefined) t.hoog = 360;
@@ -10529,6 +10532,28 @@ function takelResetEen(t){
   t.sway = 0; t.swayV = 0;                            // de schommel (kanteling) als je erop springt
   t.valt = false; t.weg = false; t.tilt = 0; t.valV = 0; t.snijKant = 0; t.snijJav = false;   // de brug valt niet, de touwen heel
   t.top = takelHoogte(t, t.angle); t.prevTop = t.top; t.stijg = 0;
+}
+// ---- lift bij een galerij: het plateau voegt zich naar de rand van een galerij ----
+// Een galerij schaalt mee met het scherm (stadGalerijMaat), het plateau heeft een vaste breedte in wereld-px. Met
+// t.galerij (de index in stad.galerijen) schuift het plateau daarom tegen het eind van die galerij dat het dichtst bij
+// zijn eigen px ligt: zijn binnenrand op de looprand van de galerij, zodat de vloer doorloopt. De wielen schuiven mee
+// (de hele lift staat dus zoals in het level, alleen tegen de galerij aan), boven ligt zijn looplijn TAKEL.galerijBoven
+// boven het dek, en de paal staat aan de straatkant (anders hield het begaanbare dek op bij de paal, met een gat
+// ervoor). Pas opnieuw als de schaal verandert (een ander scherm of het schuifje Formaat).
+function takelGalerijStap(t){
+  if (t.galerij == null || !stadAan()) return;
+  const sc = nowScale(); if (t.galKey === sc) return;
+  const gl = (level.stad.galerijen || [])[t.galerij], m = gl && stadGalerijMaat(gl, sc); if (!m) return;
+  t.galKey = sc;
+  if (t.galPx0 === undefined) t.galPx0 = t.px != null ? t.px : t.x - 520;   // waar het level hem zette: dat kiest de kant
+  const kant = t.galPx0 >= (m.left + m.right) / 2 ? 1 : -1;                // 1: de lift rechts van de galerij
+  const rand = kant > 0 ? m.right - m.rw * 0.15 : m.left + m.lw * 0.15;      // de looprand, zoals in stadPlats
+  const px = Math.round(rand + kant * t.breed / 2), d = px - (t.px != null ? t.px : px);
+  t.px = px; t.x += d;
+  if (t.wielen) for (const w of t.wielen) w.x += d;
+  t.hoog = Math.round(m.h + TAKEL.sta * TAKEL.dekH * CHAR_H + TAKEL.galerijBoven);
+  t.stamZij = kant; t.galKant = kant;
+  if (t.maxA){ t.top = takelHoogte(t, t.angle); t.prevTop = t.top; }      // midden in het spel: meteen op de nieuwe hoogte
 }
 // een slag: het doel een kwartslag verder in de huidige richting, en aan de uiteindes draait hij om. Het rad
 // draait niet meteen door: eerst een korte krak-hapering (t.haper), met de tik en een kleine schok, en dan
@@ -10676,6 +10701,7 @@ function takelUpdate(dt){
 }
 function takelUpdateEen(t, dt){                       // werkt één platform bij; geeft terug of het beweegt (voor het geluid)
   if (t.weg) return false;
+  takelGalerijStap(t);
   if (t.valt){                                       // een touw is doorgesneden: de brug kantelt en stort het ravijn in
     t.tilt += (t.snijKant * 0.85 - t.tilt) * Math.min(1, dt * 3.5);   // leunt naar de doorgesneden kant
     t.valV += GRAVITY * 1.3 * dt;
@@ -20162,8 +20188,8 @@ function stadKraamMaat(k, scale){
   const f = CHAR_H * scale / K.amir, w = bw * f, h = bh * f;
   return { K, im, f, w, h, bh, left: k.x - w / 2, right: k.x + w / 2 };
 }
-function stadGalerijMaat(gl, scale){
-  const gv = (level.stad.gevels || []);
+function stadGalerijMaat(gl, scale, gevels){
+  const gv = gevels || (level.stad.gevels || []);
   const a = gv[gl.van], b = gv[gl.tot != null ? gl.tot : gl.van];
   if (!a || !b) return null;
   const ma = stadGevelMaat(a, scale), mb = stadGevelMaat(b, scale);
@@ -36503,7 +36529,9 @@ function leesTakel(q){
            wielen: Array.isArray(q.wielen) ? q.wielen.map(w => ({ x: Number(w.x), off: Math.max(0, Number(w.off) || 0),
                      absH: w.absH != null ? Number(w.absH) : undefined,   // absolute hoogte boven de grondlijn, los van terrainH (zie wielBasis)
                      modus: ['slagop', 'slagneer', 'liftop', 'liftneer', 'schakellift', 'schakelslag'].includes(w.modus) ? w.modus : 'schakellift' })) : undefined,
-           takelaarZij: q.takelaarZij != null ? Number(q.takelaarZij) : undefined };
+           takelaarZij: q.takelaarZij != null ? Number(q.takelaarZij) : undefined,
+           // een lift bij een galerij: de index in stad.galerijen; het plateau voegt zich naar de rand ervan (takelGalerijStap)
+           galerij: Number.isInteger(q.galerij) && q.galerij >= 0 ? q.galerij : undefined };
 }
 function readLevel(txt){
   const o = JSON.parse(txt);
@@ -38742,6 +38770,34 @@ function mkStadVloerOp(o, vloeren = mkStadVloeren()){
   for (const v of vloeren) if (cx >= v.c0 && cx <= v.c1 && Math.abs(v.h - voet) <= MK_CEL_EENH / 2 && (!best || Math.abs(v.h - voet) < Math.abs(best.h - voet))) best = v;
   return best;
 }
+// ---- een lift bij een galerij: een platform naast het eind van een galerij sluit daar vanzelf op aan ----
+// Een platform (met een doelhoogte) waarvan de hoogste stand bij het dek van een galerij hoort en dat naast een eind
+// van die galerij staat, krijgt in het level galerij (de index in stad.galerijen): het spel schuift het plateau dan op
+// elk scherm tegen die rand (takelGalerijStap). Hoort erbij: de hoogste stand hooguit MK_LIFT_HOOG cel van het dek af
+// (de looplijn TAKEL.galerijBoven erboven), en tussen de binnenrand van het plateau en de looprand van de galerij een gat
+// van hooguit MK_LIFT_GAT cel, of een overlap van hooguit een half plateau. Wat daar net buiten valt (MK_LIFT_BIJNA cel
+// opzij, MK_LIFT_HOOG_BIJNA cel hoogte) is "bijna": dat meldt mkControle, want het lijkt bedoeld maar sluit niet aan.
+const MK_LIFT_GAT = 2, MK_LIFT_BIJNA = 5, MK_LIFT_HOOG = 0.75, MK_LIFT_HOOG_BIJNA = 3;
+const mkLiftDek = h => h + TAKEL.sta * TAKEL.dekH * CHAR_H + TAKEL.galerijBoven;   // de hoogste plateaustand die bij een dek op h hoort
+function mkLiftGalerij(p){
+  if (!p || p.k !== 'platform' || !p.doel) return null;
+  const gR = MK.ground, hoog = (gR - Math.min(p.r, p.doel.r)) * MK_CEL_EENH;
+  const half = Math.max(1, p.breed || MK_PLAT_BREED) / 2, pl = p.c + 0.5 - half, pr = p.c + 0.5 + half;
+  let best = null;
+  for (const o of MK.objects){
+    if (o.k !== 'galerij') continue;
+    const m = mkGalerijMaat(o); if (!m) continue;
+    const wl = m.c0 + m.lw * 0.15, wr = m.c1 - m.rw * 0.15, kant = p.c + 0.5 >= (m.c0 + m.c1) / 2 ? 1 : -1;
+    const gat = kant > 0 ? pl - wr : wl - pr;                       // cellen tussen plateau en looprand; negatief is overlap
+    const dh = (hoog - mkLiftDek(m.h)) / MK_CEL_EENH;                // cellen dat de hoogste stand boven (+) of onder (-) hoort
+    const ok = gat <= MK_LIFT_GAT && gat >= -half && Math.abs(dh) <= MK_LIFT_HOOG;
+    const bijna = gat <= MK_LIFT_BIJNA && gat >= -2 * half && Math.abs(dh) <= MK_LIFT_HOOG_BIJNA;
+    if (!ok && !bijna) continue;
+    const e = { o, m, kant, gat, dh, ok, score: (ok ? 0 : 100) + Math.abs(gat) + Math.abs(dh) };
+    if (!best || e.score < best.score) best = e;
+  }
+  return best;
+}
 // c en r volgen de linkse gevel; een galerij of trap zonder zijn gevel gaat weg (na Delete, de gum, knippen of rijen weghalen)
 function mkStadKoppel(){
   if (!MK.objects) return;
@@ -40500,7 +40556,7 @@ function mkNaarLevel(opt){
   }
   // takel: elk platform met een doelhoogte wordt een eigen takel-platform (met een id). De wielen die eraan
   // hangen komen als lijst mee, elk op de plek waar jij ze zet, met hun eigen stand (per slag of helemaal).
-  let takelNr = 0;
+  let takelNr = 0; const liftVan = new Map();     // index in takels -> de galerij waar hij op aansluit (mkLiftGalerij)
   for (const p of MK.objects){
     if (p.k !== 'platform' || !p.doel) continue;
     const [pl, pr] = lr(p.c), px = Math.round((pl + pr) / 2);
@@ -40513,6 +40569,8 @@ function mkNaarLevel(opt){
     const breed = Math.round((p.breed || MK_PLAT_BREED) * MK_CEL_PX);   // de breedte van het plateau in cellen (het 9-slice dek rekt mee)
     // de Maker bouwt voortaan met de stam (de draagpaal met het mini-tandwiel), niet met de twee touwen; de
     // paalhoogte komt uit stamCel (de speler) of vanzelf net boven de hoogste plateaustand (mkStamAuto)
+    const lift = mkLiftGalerij(p);                // naast een galerij: sluit aan (galerij komt hieronder, na stad.galerijen)
+    if (lift && lift.ok) liftVan.set(takels.length, lift);
     takels.push({ id: 'p' + (++takelNr), px, breed, laag, hoog, stappen: 6, beginLaag: restH <= doelH,
                   stam: true, stamZij: p.stamZij === -1 ? -1 : 1, stamH: (p.stamCel || mkStamAuto(p)) * MK_CEL_EENH,
                   stamBot: p.stamBotCel != null ? p.stamBotCel * MK_CEL_EENH : undefined,   // zonder sleep rust hij op de vloer eronder (terrainH)
@@ -40647,12 +40705,13 @@ function mkNaarLevel(opt){
     const pal = MK.objects.find(o => o.k === 'paleis'); if (pal) stad.paleis = mid(pal.c);
     // de galerijen en trappen: hun gevel-id wordt de index in stad.gevels; een stuk waarvan een gevel ontbreekt valt weg
     const idx = id => gevelIdx[id] != null ? gevelIdx[id] : null;
-    const galerijen = [], trappen = [];
+    const galerijen = [], trappen = [], galIdx = new Map();
     for (const o of MK.objects){
       if (o.k === 'galerij'){
         const a = idx(o.van), b = idx(o.tot != null ? o.tot : o.van); if (a == null || b == null) continue;
         const e = { van: Math.min(a, b), tot: Math.max(a, b), h: Math.round(stadVerdieping(mkGalNiveau(o))) };
         if (o.meer && (o.meer[0] || o.meer[1])) e.meer = [o.meer[0] || 0, o.meer[1] || 0];
+        galIdx.set(o, galerijen.length);
         galerijen.push(e);
       } else if (o.k === 'deur'){                 // een vijand in een deur: een spawn met deur, op de plek van het gat (stadDeurMaat)
         const g = idx(o.gevel), m = mkDeurMaat(o); if (g == null || !m || !mkPoortVijOk(o.vijand)) continue;
@@ -40670,6 +40729,12 @@ function mkNaarLevel(opt){
     }
     if (galerijen.length) stad.galerijen = galerijen;
     if (trappen.length) stad.trappen = trappen;
+    // een lift naast een galerij: galerij (de index), de hoogste stand op het dek en de paal aan de straatkant; het spel
+    // schuift hem daarna op elk scherm tegen de rand (takelGalerijStap)
+    for (const [i, lift] of liftVan){
+      const gi = galIdx.get(lift.o), t = takels[i]; if (gi == null || !t) continue;
+      t.galerij = gi; t.hoog = Math.round(mkLiftDek(galerijen[gi].h)); t.stamZij = lift.kant;
+    }
   }
   // De grondsoort per plek, uit de cellen op de grondlijn: aaneengesloten stroken rots of straat worden
   // grondSoort-stroken (sneeuw op rots telt als rots); savanne is de basis en krijgt er geen. Vroeger
@@ -40925,6 +40990,18 @@ function mkControle(){
       if (!o.doel) meld('fout', 'Het platform op kolom ' + o.c + ' heeft geen doelhoogte: het blijft dan staan. Kies het en druk op Zet doelhoogte.', o.c, o.r);
       else if (o.doel.r === o.r) meld('letop', 'Het platform op kolom ' + o.c + ' heeft zijn doel op dezelfde hoogte: het reist nergens heen.', o.c, o.r);
       if (!MK.objects.some(w => w.k === 'tandwiel' && mkConnectedPlatform(w) === o)) meld('letop', 'Het platform op kolom ' + o.c + ' heeft geen tandwiel: het krijgt er vanzelf een naast zich.', o.c, o.r);
+      // een lift naast een galerij die er net niet bij komt (mkLiftGalerij): te laag of te hoog, te ver opzij, of eronder
+      const lift = mkLiftGalerij(o);
+      if (lift && !lift.ok){
+        const gal = 'de galerij van ' + mkKoppelGevels(lift.o).filter((q, i, a) => a.indexOf(q) === i).join(' tot ');
+        const cellen = v => (Math.round(Math.abs(v) * 10) / 10).toString().replace('.', ',') + ' cel';
+        const rij = MK.ground - Math.round(mkLiftDek(lift.m.h) / MK_CEL_EENH);
+        let w;
+        if (Math.abs(lift.dh) > MK_LIFT_HOOG) w = 'zijn hoogste stand ligt ' + cellen(lift.dh) + (lift.dh > 0 ? ' boven' : ' onder') + ' het dek. Zet ' + (o.doel.r < o.r ? 'zijn doelhoogte' : 'het platform zelf') + ' op rij ' + rij;
+        else if (lift.gat > MK_LIFT_GAT) w = 'hij staat ' + cellen(lift.gat) + ' naast het eind, en vanzelf aansluiten doet hij tot ' + MK_LIFT_GAT + ' cel. Schuif hem dichterbij';
+        else w = 'hij staat onder de galerij in plaats van ernaast. Schuif hem naar het eind';
+        meld('letop', 'Het platform op kolom ' + o.c + ' lijkt een lift naar ' + gal + ', maar komt er niet bij: ' + w + ', dan sluit hij vanzelf aan.', o.c, o.r);
+      }
     }
     else if (o.k === 'rijzer'){
       const nm = 'Rijzer r' + mkRijsNr(o) + ' op kolom ' + o.c, [c0, c1] = mkRijsCellen(o);
