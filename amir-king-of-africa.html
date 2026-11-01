@@ -4878,8 +4878,8 @@ const OAK_STAD = {
     {van: 14, h: 780}, {van: 20, h: 401} ],
   trappen: [ {gevel: 11, kant: 'r', niveau: 0} ],
   kramen: [ {x: -2600, soort: 'riet'}, {x: -3150, soort: 'doek'}, {x: -3850, soort: 'doek', f: 1}, {x: -5070, soort: 'riet', f: 1},
-    {x: -18410, soort: 'riet'}, {x: -35850, soort: 'riet', f: 1}, {x: -51700, soort: 'doek'}, {x: -66750, soort: 'riet'},
-    {x: -82900, soort: 'doek'}, {x: -97930, soort: 'riet'}, {x: -99700, soort: 'doek', f: 1} ],
+    {x: -18410, soort: 'riet'}, {x: -19650, soort: 'doek'}, {x: -35850, soort: 'riet', f: 1}, {x: -51700, soort: 'doek'}, {x: -66750, soort: 'riet'},
+    {x: -82900, soort: 'doek'}, {x: -84650, soort: 'riet', f: 1}, {x: -97930, soort: 'riet'}, {x: -99700, soort: 'doek', f: 1} ],
   voet: [ {x: -2830, stuk: 'kruik'}, {x: -3500, stuk: 'zandhoop'}, {x: -4400, stuk: 'stenen'}, {x: -4750, stuk: 'stro', f: 1},
     {x: -18300, stuk: 'zandhoop'}, {x: -19330, stuk: 'puin'}, {x: -20150, stuk: 'bakstenen'}, {x: -33950, stuk: 'stenen'},
     {x: -34550, stuk: 'kruik'}, {x: -35150, stuk: 'zandhoop', f: 1}, {x: -36250, stuk: 'stro'}, {x: -50100, stuk: 'zandhoop'},
@@ -20627,6 +20627,10 @@ const STRATEN = {
   aanvul: 30, doel: 50,
   vijandRand: 260,                    // zo ver blijft een vijand van de rand van zijn straat (en voor de boog van een hoekpoort)
   winWacht: 1.2,                      // na de laatste kill nog even, dan het einde
+  ontwerpA: 180,                      // zo hoog is Amir (px) op het formaat waarvoor de straten ontworpen zijn (720 hoog, Formaat 25)
+  groei: { links: 0.8, rechts: 2.8 },  // zoveel Amir groeit de straat naar dat uiteinde mee per Amir dat hij groter is: een gevel
+                                      // staat met zijn linkerkant op x en wordt naar rechts breder (2,76 Amir breed), een kraam
+                                      // staat met zijn midden op x (0,79 Amir per kant)
   kaart: { b: 84, h: 104, marge: 18, rand: 12 }
 };
 let straatNu = null, straatKills = 0, straatKlok = 0, straatFade = null, straatStand = {}, straatWinT = null;
@@ -20638,26 +20642,48 @@ function straatDoel(){ return (level && level.straten && level.straten.doel) || 
 // de straat waar x in ligt, of de dichtstbijzijnde als hij erbuiten valt
 function straatBij(x){
   let best = null, bd = Infinity;
-  for (const s of straatLijst()){ const d = x > s.r ? x - s.r : x < s.l ? s.l - x : 0; if (d < bd){ bd = d; best = s; } }
+  const sc = nowScale();
+  for (const s of straatLijst()){ const [l, r] = straatEind(s, sc); const d = x > r ? x - r : x < l ? l - x : 0; if (d < bd){ bd = d; best = s; } }
   return best;
 }
-function straatIn(s, x){ return !!s && x <= s.r && x >= s.l; }
+function straatIn(s, x){ if (!s) return false; const [l, r] = straatEind(s, nowScale()); return x <= r && x >= l; }
 // welke straten aan een uiteinde uitkomen: de andere straten op dezelfde knoop, in de volgorde van de lijst
 function straatUit(s, kant){
   const k = s.knoop && s.knoop[kant === 'links' ? 1 : 0];
   if (!k) return [];
   return straatLijst().filter(t => t !== s && t.knoop && t.knoop.indexOf(k) >= 0).map(t => t.id).slice(0, 2);
 }
+// hoe diep de poorten aan een uiteinde de straat in steken, bij Amir A px hoog: de hoek, of tot de binnenkant van de rechte poort
+function straatPoortDiepte(s, kant, A){
+  const n = straatUit(s, kant).length; if (!n) return 0;
+  const H = STRATEN.hoek, R = STRATEN.recht;
+  let d = H.w / H.amir * A;
+  if (n > 1) d = Math.max(d, H.ver / H.amir * A + (R.w - R.toren) / R.amir * A);
+  return d;
+}
+// de uiteinden van een straat op deze schaal: [l, r]. De poorten schalen mee met het scherm maar de huizen en kramen
+// staan op een vaste x; is Amir groter dan op het ontwerpformaat, dan schuift elk uiteinde met poorten zoveel naar
+// buiten als de poort breder werd, plus wat de huizen en kramen naar die kant mee groeien, zodat de poort niet over het
+// eerste huis of de eerste kraam valt (op 1920x1080 en groter)
+function straatEind(s, scale){
+  const A = CHAR_H * scale, A0 = STRATEN.ontwerpA, G = STRATEN.groei;
+  if (A <= A0) return [s.l, s.r];
+  const rek = kant => {
+    const d = straatPoortDiepte(s, kant, A); if (!d) return 0;
+    return d - straatPoortDiepte(s, kant, A0) + G[kant] * (A - A0);
+  };
+  return [s.l - rek('links'), s.r + rek('rechts')];
+}
 function straatVijanden(){ return [snakes, scorps, panthers, hyenas, bandieten, schildmannen, kooimannen, meelmannen, kruisbogen, fosforSlangen, zweepmannen]; }
 // de poorten van een straat op deze schaal (de breedtes schalen mee met het scherm, net als de gevels)
 function straatPoorten(s, scale){
   const uit = [], A = CHAR_H * scale, H = STRATEN.hoek, R = STRATEN.recht;
-  const fh = A / H.amir, fr = A / R.amir;
+  const fh = A / H.amir, fr = A / R.amir, [el, er] = straatEind(s, scale);
   for (const kant of ['links', 'rechts']){
     const naar = straatUit(s, kant); if (!naar.length) continue;
     const sp = kant === 'rechts';                                        // rechts: gespiegeld
-    const hx = b => sp ? s.r - b * fh : s.l + b * fh;                    // bron-x van de hoek naar wereld-x
-    uit.push({ soort: 'hoek', kant, naar: naar[0], f: sp, x0: sp ? s.r - H.w * fh : s.l, w: H.w * fh, h: H.h * fh, fs: fh,
+    const hx = b => sp ? er - b * fh : el + b * fh;                      // bron-x van de hoek naar wereld-x
+    uit.push({ soort: 'hoek', kant, naar: naar[0], f: sp, x0: sp ? er - H.w * fh : el, w: H.w * fh, h: H.h * fh, fs: fh,
                boogA: hx(H.boog[0]), boogB: hx(H.boog[1]), midden: hx((H.boog[0] + H.boog[1]) / 2), gang: hx(H.gang),
                vraag: hx(H.vraag), zichtA: hx(H.doorzicht[0]), zichtB: hx(H.doorzicht[1]), top: (H.h - H.zak - H.boogTop) * fh });
     if (naar[1]){
@@ -20671,7 +20697,8 @@ function straatPoorten(s, scale){
 }
 // tot waar Amir in zijn straat kan: aan een uiteinde met een hoek tot in de gang, anders tot de rand
 function straatGrens(s, scale, halfW){
-  let lo = s.l + halfW, hi = s.r - halfW;
+  const [el, er] = straatEind(s, scale);
+  let lo = el + halfW, hi = er - halfW;
   for (const p of straatPoorten(s, scale)) if (p.soort === 'hoek'){ if (p.f) hi = p.gang; else lo = p.gang; }
   return [lo, hi];
 }
@@ -20683,9 +20710,9 @@ function straatKlem(halfW){
 // de camera blijft in de strook: je ziet nooit de lege wereld tussen twee straten
 function straatCamKlem(c){
   const s = straatHier(); if (!s) return c;
-  const half = (W / 2) / viewZoom();
-  if (s.r - s.l <= half * 2) return (s.l + s.r) / 2;
-  return Math.max(s.l + half, Math.min(s.r - half, c));
+  const half = (W / 2) / viewZoom(), [el, er] = straatEind(s, nowScale());
+  if (er - el <= half * 2) return (el + er) / 2;
+  return Math.max(el + half, Math.min(er - half, c));
 }
 // een vijand blijft in zijn eigen straat (de straat waar hij het dichtst bij is), en voor de boog van een hoekpoort:
 // hij loopt de gang niet in
@@ -20694,7 +20721,8 @@ function straatVijandKlem(){
   const m = STRATEN.vijandRand, scale = nowScale(), A = CHAR_H * scale, grens = new Map();
   const van = s => {
     if (grens.has(s)) return grens.get(s);
-    let lo = s.l + m, hi = s.r - m;
+    const [el, er] = straatEind(s, scale);
+    let lo = el + m, hi = er - m;
     for (const p of straatPoorten(s, scale)) if (p.soort === 'hoek'){ if (p.f) hi = Math.min(hi, p.boogB - 0.3 * A); else lo = Math.max(lo, p.boogB + 0.3 * A); }
     const g = [lo, hi]; grens.set(s, g); return g;
   };
@@ -20778,7 +20806,11 @@ function straatFadeTeken(){
 function straatKill(){
   if (!straatAan() || sandbox) return;
   straatKills++;
-  if (straatKills >= straatDoel() && straatWinT === null) straatWinT = STRATEN.winWacht;
+  if (straatKills >= straatDoel() && straatWinT === null){
+    straatWinT = STRATEN.winWacht;
+    // het doel is gehaald: tot het einde kan Amir niet meer sterven, anders begon het level opnieuw met 0 kills
+    invuln = Math.max(invuln, STRATEN.winWacht + 0.5); invulnStil = Math.max(invulnStil, invuln);
+  }
 }
 function straatStap(dt){
   if (!straatAan() || !running || paused || won || dead) return;
@@ -24534,6 +24566,8 @@ function spawnPoint(x){
     for (let k = 0; k < 6; k++){
       const nx = mid + sd * (minD + k * 120);
       if (straatAan() && !straatIn(straatHier(), nx)) continue;   // niet buiten de straat
+      // in een stadje van straten komen alle vijanden van een straat tegelijk: niet twee op dezelfde plek
+      if (straatAan() && straatVijanden().some(L => L.some(v => camLeeft(v) && Math.abs(v.x - nx) < 90))) continue;
       if (spawnOK(nx, base)) return nx;
     }
   }
