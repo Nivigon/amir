@@ -146,8 +146,9 @@ Altijd WYSIWYG: links in het grid is links in het spel, de wereld-x is `(kolom -
   regie (met `bij` als regiepunt) en de rotswand (`wand`, `wandF`, `wandH`, `wandX`) gaan mee. Met een vijand erin
   komt die als spawn met `poort` mee (via `mkSpawn` op de cel van de poort, zo vaak als **Aantal**), en een zegel of
   rune met **Opent poort** krijgt `poort`. Zie `notities/poort.md`.
-- De **stadsstukken** (gevel, kraam, voetdecor, paleis; zie "De losse stukken van de stad" hieronder) worden het veld
-  `stad` (`{seed, gevels, kramen, voet, paleis}`), alleen als er minstens een in het grid staat. Met dat veld is de basis
+- De **stadsstukken** (gevel, kraam, voetdecor, paleis, galerij, trap; zie "De losse stukken van de stad" en "De
+  gekoppelde stukken: galerij en trap" hieronder) worden het veld `stad` (`{seed, gevels, kramen, voet, paleis, galerijen,
+  trappen}`), alleen als er minstens een in het grid staat. Met dat veld is de basis
   van de bodem de straat (`bodemPic`), dus dan krijgen savanne- en sneeuwcellen op de grondlijn ook een eigen strook
   `grondSoort` met soort `savanne`, en ligt de straat alleen waar je straat schilderde.
 - Vijanden via `mkSpawn`: de soort-tekst (`bandiet:dolk`, `kooiman:vogel`, `schildman:makkelijk`)
@@ -283,7 +284,43 @@ naar `lvl.lagen`. Vanzelf (`''`) is de stad (`stad_dag`) als er een stadsstuk in
 met `thema: 'stad'`), anders de gewone savanne in de avond. `basis` is die savanne-avond ook bij stadsstukken. Het gaat
 mee in de JSON (`uitzicht`, alleen als het gekozen is).
 
-Het verdere plan (galerijen, trappen en de afwerking): `notities/plan-stad-maker.md`.
+### De gekoppelde stukken: galerij en trap
+
+`MK_STAD_KOPPEL`, `mkGalerijMaat`, `mkTrapMaat`, `mkKoppelVakken`, `mkStadKoppel`, `mkKoppelKlik`, `mkGalSleep`,
+`mkKoppelTeken`, `mkVulKoppel`, `mkGevelMuur`
+
+Stap 4 van `notities/plan-stad-maker.md`. In de groep **Huizen** naast de gevel: **Galerij** en **Trap**. Ze hangen aan het id
+van een gevel, niet aan een plek:
+
+| stuk | voorwerp | neerzetten | paneel (kopje) | naar `stad` |
+| --- | --- | --- | --- | --- |
+| galerij | `{k: 'galerij', van, tot, niveau, meer}` | druk op een gevel, sleep naar een andere (of dezelfde) | Galerij g1 tot g2: Niveau 1 tot 4, Extra links, Extra rechts (0 tot 4 Amir) | `galerijen: {van, tot, h, meer}` |
+| trap | `{k: 'trap', gevel, kant, niveau, balkon}` | klik op een gevel; de helft kiest de kant (tot 0,8 cel ernaast telt ook) | Trap bij g2: Niveau 0 tot 3, Kant, Balkon (0 tot 4 Amir) | `trappen: {gevel, kant, niveau, balkon}` |
+
+- **Niveau**: bij een galerij de verdieping van het dek (`stadVerdieping`: 1 is 401, 2 is 730, 3 is 1059, 4 is 1388), in het
+  level als `h`; bij het slepen de verdieping die het dichtst bij je eerste druk ligt, hoogstens de laagste van de twee huizen.
+  Bij een trap de vloer waar hij begint (0 de straat), net als `niveau` in het spel; bij een klik de verdieping waar je klikte,
+  zodat hij onder het dak blijft. `meer` gaat alleen mee als het niet `[0, 0]` is. Balkon standaard 1,6 (`MK_TRAP_BALKON`).
+- **De plek komt uit de gevels**: `mkGalerijMaat` en `mkTrapMaat` rekenen precies als `stadGalerijMaat` en `stadTrapMaat`, op
+  laptopmaat (`MK_STAD_SCHAAL`), dus wat in het grid staat staat ook zo in de Test. De hoogtes tellen vanaf de grondlijn
+  (`MK.ground`), net als in het spel vanaf de straat. `c` en `r` zijn alleen de ankercel van de linkse gevel; `mkStadKoppel`
+  zet ze bij elke wijziging (`mkBewaar`, `mkBewaarNu`, laden en plakken), zodat een gebied kopiëren, rijen invoegen en
+  weghalen ze vanzelf meenemen. Verslepen gaat dus niet: versleep het huis.
+- **Een gevel weg**: zijn galerijen en trappen gaan mee weg (`mkStadKoppel`, na Delete, de gum, knippen, plakken erover of
+  laden met een id dat er niet is), en ongedaan maken brengt ze samen terug. `mkNaarLevel` slaat er een zonder gevel ook nog
+  over. De gum op de ankercel pakt de gevel, niet de galerij of trap die op dezelfde cel staat; die haal je weg met Delete.
+- **Kopiëren en plakken**: een galerij of trap gaat alleen mee als al zijn gevels in het gebied zitten. In het klembord wijst
+  hij naar hun kopie (`_gevels`), want een geplakte gevel krijgt vaak een nieuw id (`mkStadHeel`); `mkPlakZet` zet daarna de
+  nieuwe id's. **Spiegelen** wisselt `meer` van kant en zet een trap aan de andere kant van zijn (gespiegelde) huis.
+- **Tekenen** (`mkKoppelTeken`, in `mkStadTeken`, in de volgorde van het spel: trap, gevel, galerij): de galerij in 9-slice uit
+  `galerij.png`, de trap uit `trap.png` (afgesneden zoals in het spel), en het balkon als strook galerij. Na de huizen een goud
+  streepje op de opening waar je boven uitkomt, en tijdens het slepen een stippellijn op de hoogte waar je drukte.
+- **Aanklikken**: op het plaatje (`mkKoppelVakken`; een trap op zijn treden en zijn balkon, niet op het huis ertussen), voor de
+  gevel; de exacte cel van een galerij of trap telt niet, daar staat de gevel.
+- De meldingen voor galerij en trap (een galerij boven het dak, een trap zonder vloer aan de voet of de uitgang) zijn voor
+  stap 5, net als vijanden op daken.
+
+Het verdere plan (de afwerking): `notities/plan-stad-maker.md`.
 
 ## Sneltoetsen
 
@@ -305,7 +342,9 @@ ongedaan maken, een gebied kopiëren, spiegelen, plakken en knippen, een rijzer 
 zijn zegel eraan, een poort met hek, regie en rotswand (round-trip, vertaling, spiegelen, de knop Poort met hek, levelcheck), de minimap en Test vanaf hier, het palet (elke tool en vijand in de boom, de kolom en de flyouts, en de maat: geen lijst of paneel langer dan `MK_PALET_MAX`), de vijand-knoppen, de controle, de Test starten en teruggaan,
 de autosave, de schakelaar Savanne | Stad met de leemmuur en het uitzicht (controle `stad`), de stadsstukken (controle
 `stadsstukken`: ids, een paleis, de JSON, het veld `stad`, de stroken, de twee meldingen, spiegelen, plakken, het paneel en
-neerzetten met de muis), en of
+neerzetten met de muis; en galerij en trap: slepen van gevel naar gevel, de zijkant van een gevel, het paneel, aanklikken op
+het plaatje, `stad.galerijen` en `stad.trappen`, de JSON, een rij erboven, kopiëren met spiegelen en plakken op nieuwe id's,
+een gebied met maar een van de twee gevels, een gevel weg met ongedaan maken, en laden met een gevel die er niet is), en of
 het proefgrid als spel-level door `levelcheck.py` komt. Draai hem na elke wijziging aan de Maker.
 
 ```

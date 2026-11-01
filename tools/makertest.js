@@ -236,7 +236,7 @@ function verschil(a, b, pad = ''){
   // 1c. de losse stadsstukken (stap 3 van notities/plan-stad-maker.md): gevel, kraam, voetdecor en het paleis. Ze gaan
   // door de JSON, worden het veld stad (een gevel met x op zijn linkerkant, de rest op het midden van de kolom), elke
   // gevel houdt een eigen id, er is hoogstens een paleis, en de controle meldt een stuk of straatcel zonder straat eronder
-  await check('stadsstukken: gevel, kraam, voetdecor en paleis', async () => {
+  await check('stadsstukken: gevel, kraam, voetdecor, paleis, galerij en trap', async () => {
     const rijen = []; for (let r = 0; r < 8; r++) rijen.push('.'.repeat(16).split(''));
     for (let c = 0; c < 16; c++) rijen[5][c] = c >= 8 && c <= 13 ? 'A' : 'S';   // savanne, en een straat van kolom 8 tot 13
     rijen[4][1] = 'A';                                    // straat boven de grondlijn op savanne: LET OP
@@ -314,6 +314,87 @@ function verschil(a, b, pad = ''){
       const ids = MK.objects.filter(o => o.k === 'gevel').map(o => o.id);
       if (!MK.objects.some(o => o.k === 'gevel' && o.c === 5) || new Set(ids).size !== ids.length) f.push('een nieuwe gevel zonder eigen id: ' + JSON.stringify(ids));
       mkThemaZet('savanne'); MK.tool = 'select'; MK.cat = 'terrein'; MK.sub = null; MK.themaGeheugen = {}; mkLegenda();
+      return f;
+    }));
+
+    // de gekoppelde stukken (stap 4): een galerij sleep je van gevel naar gevel, een trap klik je op de zijkant van een gevel.
+    // Ze hangen aan het id van een gevel, en die koppeling blijft heel bij spiegelen, plakken, de JSON, ongedaan maken en rijen
+    // invoegen; zonder zijn gevel gaat een galerij of trap mee weg. In het level worden het stad.galerijen en stad.trappen.
+    const rijen2 = []; for (let r = 0; r < 12; r++) rijen2.push((r === 9 ? 'A' : '.').repeat(40));
+    await laad({ type: 'amir-levelmaker-grid', versie: 2, cols: 40, rows: 12, groundRow: 9, grid: rijen2,
+                 start: { c: 39, r: 8 }, eind: { c: 0, r: 8 }, objecten: [
+                   { c: 4, r: 8, k: 'gevel', id: 'g1', hoog: 2 }, { c: 9, r: 8, k: 'gevel', id: 'g2', hoog: 3 } ] });
+    const puntXY = (x, y) => page.evaluate(([x, y]) => { const b = mkCanvas.getBoundingClientRect(), cel = mkCel();
+      return { x: b.left + MK.panX + x * cel, y: b.top + MK.panY + y * cel }; }, [x, y]);
+    await page.evaluate(() => { mkThemaZet('stad'); MK.sel = null; MK.inspectDicht = true; mkNotePaneel(); MK.tool = 'galerij'; mkLegenda(); });
+    const yDek = 9 - 730 / 150;                          // de tweede verdieping, waar je de galerij begint
+    let a = await puntXY(5.5, yDek), b = await puntXY(10.5, yDek);
+    await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 5 }); await page.mouse.up();
+    await page.evaluate(() => { MK.inspectDicht = true; mkNotePaneel(); MK.tool = 'trap'; mkLegenda(); });
+    a = await puntXY(11.8, 8.5); await page.mouse.click(a.x, a.y);   // de rechterkant van g2, op de straat
+    f.push(...await page.evaluate(() => {
+      const f = [], gal = MK.objects.filter(o => o.k === 'galerij'), tr = MK.objects.filter(o => o.k === 'trap');
+      if (gal.length !== 1 || gal[0].van !== 'g1' || gal[0].tot !== 'g2' || mkGalNiveau(gal[0]) !== 2) f.push('slepen van g1 naar g2 geeft geen galerij op de tweede verdieping: ' + JSON.stringify(gal));
+      if (tr.length !== 1 || tr[0].gevel !== 'g2' || tr[0].kant !== 'r' || mkTrapNiveau(tr[0]) !== 0) f.push('een klik rechts op g2 geeft geen trap rechts van de straat af: ' + JSON.stringify(tr));
+      if (!gal.length || !tr.length) return f;
+      // het paneel: niveau, extra lengte, kant en balkon
+      MK.tool = 'select'; MK.sel = gal[0]; MK.inspectDicht = false; mkNotePaneel();
+      if (document.getElementById('mkkoppelctl').offsetParent === null) f.push('het paneel van de galerij is niet te zien');
+      const ns = document.getElementById('mkkoppelniv'); ns.value = '1'; ns.dispatchEvent(new Event('change'));
+      const sl = document.getElementById('mkgalr'); sl.value = '1.5'; sl.dispatchEvent(new Event('input'));
+      if (mkGalNiveau(gal[0]) !== 1 || !gal[0].meer || gal[0].meer[1] !== 1.5) f.push('het paneel zet niveau of extra rechts niet: ' + JSON.stringify(gal[0]));
+      MK.sel = tr[0]; mkNotePaneel();
+      if (document.getElementById('mkgallrij').offsetParent !== null || document.getElementById('mktrapbalkrij').offsetParent === null) f.push('het paneel van de trap toont de knoppen van de galerij');
+      const bs = document.getElementById('mktrapbalk'); bs.value = '2'; bs.dispatchEvent(new Event('input'));
+      document.getElementById('mktrapkant').click(); document.getElementById('mktrapkant').click();   // heen en terug: weer rechts
+      if (tr[0].balkon !== 2 || tr[0].kant !== 'r') f.push('het paneel zet balkon of kant niet: ' + JSON.stringify(tr[0]));
+      // aanklikken op het plaatje: de galerij op zijn dek, de trap op zijn plaatje, het huis ertussen blijft de gevel
+      const gm = mkGalerijMaat(gal[0]), tm = mkTrapMaat(tr[0]);
+      if (mkObjOp(Math.floor((gm.c0 + gm.c1) / 2), Math.floor(gm.dek - 0.3)) !== gal[0]) f.push('de galerij is niet aan te klikken op zijn dek');
+      if (mkObjOp(Math.floor(tm.x0 + tm.tw / 2), 8) !== tr[0]) f.push('de trap is niet aan te klikken op zijn plaatje');
+      if (mkObjOp(5, 8) === null || mkObjOp(5, 8).k !== 'gevel') f.push('de ankercel van g1 geeft niet de gevel');
+      // het level: id's worden indexen in stad.gevels (van de start af: g2 is 0, g1 is 1)
+      const S = mkNaarLevel().stad || {};
+      const G = (S.galerijen || [])[0], T = (S.trappen || [])[0];
+      if (!G || G.van !== 0 || G.tot !== 1 || G.h !== 401 || JSON.stringify(G.meer) !== '[0,1.5]') f.push('stad.galerijen klopt niet: ' + JSON.stringify(S.galerijen));
+      if (!T || T.gevel !== 0 || T.kant !== 'r' || T.niveau !== 0 || T.balkon !== 2) f.push('stad.trappen klopt niet: ' + JSON.stringify(S.trappen));
+      // de JSON en ongedaan maken
+      const j1 = JSON.stringify(mkNaarJSON()); mkUitJSON(JSON.parse(j1));
+      if (JSON.stringify(mkNaarJSON()) !== j1) f.push('galerij en trap komen niet gelijk door de JSON');
+      if (JSON.stringify(mkNaarLevel().stad) !== JSON.stringify(S)) f.push('na de JSON een ander veld stad');
+      // een rij erboven: alles schuift mee, het level blijft gelijk
+      mkRijBoven(1);
+      const go = MK.objects.find(o => o.k === 'galerij');
+      if (!go || go.r !== 9 || JSON.stringify(mkNaarLevel().stad) !== JSON.stringify(S)) f.push('na een rij erboven is de koppeling niet heel: ' + JSON.stringify(go));
+      mkRijBoven(-1);
+      // kopiëren en spiegelen: een gebied met beide gevels neemt galerij en trap mee; geplakt hangen ze aan de nieuwe gevels
+      MK.gebied = { c0: 3, r0: 0, c1: 13, r1: 11 }; mkKopieer();
+      if (mkKlembord.objects.filter(o => o.k === 'galerij' || o.k === 'trap').length !== 2) f.push('het klembord heeft de galerij en trap niet');
+      mkSpiegel(); mkPlak = { c: 20, r: 0 }; mkPlakZet();
+      const nieuwG = MK.objects.filter(o => o.k === 'gevel' && o.c >= 20).map(o => o.id);
+      const pg = MK.objects.find(o => o.k === 'galerij' && o.c >= 20), pt = MK.objects.find(o => o.k === 'trap' && o.c >= 20);
+      if (nieuwG.length !== 2 || nieuwG.includes('g1') || nieuwG.includes('g2')) f.push('de geplakte gevels hebben geen nieuw id: ' + JSON.stringify(nieuwG));
+      if (!pg || !nieuwG.includes(pg.van) || !nieuwG.includes(pg.tot) || pg.van === pg.tot) f.push('de geplakte galerij hangt niet aan de geplakte gevels: ' + JSON.stringify(pg));
+      if (!pg || JSON.stringify(pg.meer) !== '[1.5,0]') f.push('gespiegeld wisselt de extra lengte niet van kant: ' + JSON.stringify(pg && pg.meer));
+      if (!pt || !nieuwG.includes(pt.gevel) || pt.kant !== 'l') f.push('de geplakte trap hangt niet aan zijn gespiegelde gevel, links: ' + JSON.stringify(pt));
+      const gp = pt && mkGevelVan(pt.gevel), gb = MK.objects.find(o => o.k === 'gevel' && o.id === 'g2');
+      if (gp && gp.hoog !== gb.hoog) f.push('de trap hangt aan de verkeerde geplakte gevel');
+      if (MK.objects.find(o => o.k === 'galerij' && o.van === 'g1').meer[1] !== 1.5) f.push('spiegelen veranderde de originele galerij');
+      // een gebied met maar een van de twee gevels: de galerij gaat niet mee (hij hangt aan een huis buiten het gebied)
+      MK.gebied = { c0: 3, r0: 0, c1: 7, r1: 11 }; mkKopieer();
+      if (mkKlembord.objects.some(o => o.k === 'galerij')) f.push('een galerij gaat mee zonder zijn tweede gevel');
+      // een gevel weg: zijn galerij en trap gaan mee weg, het level blijft te maken, en ongedaan maken brengt ze terug
+      mkBewaarNu(); const voor = JSON.stringify(mkNaarJSON());
+      MK.objects = MK.objects.filter(o => !(o.k === 'gevel' && o.id === 'g2')); mkBewaarNu();
+      if (MK.objects.some(o => (o.k === 'galerij' && (o.van === 'g2' || o.tot === 'g2')) || (o.k === 'trap' && o.gevel === 'g2'))) f.push('zonder g2 blijven zijn galerij of trap staan');
+      try { mkNaarLevel(); } catch (e){ f.push('zonder gevel crasht mkNaarLevel: ' + e.message); }
+      mkOngedaan();
+      if (JSON.stringify(mkNaarJSON()) !== voor) f.push('ongedaan maken brengt de gevel met galerij en trap niet terug');
+      // een galerij uit de JSON die naar een gevel wijst die er niet is: valt weg, ook in het level
+      const j = mkNaarJSON(); j.objecten.push({ c: 1, r: 8, k: 'galerij', van: 'g9', tot: 'g1', niveau: 2 }, { c: 1, r: 8, k: 'trap', gevel: 'g9' });
+      mkUitJSON(j);
+      if (MK.objects.some(o => o.van === 'g9' || o.gevel === 'g9')) f.push('een galerij of trap zonder gevel blijft staan na laden');
+      mkThemaZet('savanne'); MK.tool = 'select'; MK.cat = 'terrein'; MK.sub = null; MK.themaGeheugen = {}; MK.gebied = null; mkLegenda();
       return f;
     }));
     return f;
