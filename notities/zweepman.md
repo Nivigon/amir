@@ -126,9 +126,13 @@ Alleen met `fasen: true` in de spawn (Test 59), of in de sandbox met **Fasen aan
   extra op. Het touw begint pas bij index 27 (daarvoor ligt de rol over zijn achterbeen en zit hij als leer in het plaatje).
   Het gevaar geldt van het begin van het touw tot `gevaarNa` s na de knal (`sprongGevaar`), want bij de knal is hij al
   doorgedraaid.
-- **De dood** (`zwmDoodStap`, `s.dood`): hij bevriest `ZWM2.doodVries` s in de houding van dat moment en kiept dan als
-  een stijf blok achterover om zijn achterste voet (`zwmDoodVoet`), steeds sneller, met een plof, stof en een klein stuitje.
-  Na `doodLig` s liggen vervaagt hij. Alles in code, geen eigen frames; een Grok-clip kan dit later vervangen.
+- **De dood** (`zwmDoodStap`, `s.dood`): de dodelijke treffer geeft de doodskreet (`banSterf`) en een hitstop. Hij
+  bevriest `ZWM2.doodVries` s in de houding van dat moment en valt dan. Met `ZWM2.doodSoort: 'clip'` (standaard) speelt de
+  Grok-val (de set `dood`, 26 frames uit `export_dood.py`): een kwartslag naar de camera, de knieen begeven het en hij zakt
+  van Amir af in elkaar, steeds sneller. Op frame `land` komen een schudding en stof, en `pof.voor` frames eerder de plof
+  (`sounds/bavland.mp3`, zacht). De clip start vanuit het uitrusten; sterft hij ergens anders (de eindpose van de sprong),
+  dan valt hij in code: stijf achterover om zijn achterste voet (`zwmDoodVoet`), met dezelfde plof en stof. Na `doodLig` s
+  liggen vervaagt hij. In de sandbox wisselt de knop **Dood** tussen `clip` en `code`, om ze naast elkaar te zien.
 - **Kwetsbaar** (`zwmF2Kwetsbaar`): alleen in `rustin`, `rust`, `rustuit` en de eindpose van de sprong. Daarbuiten ketst je speer
   af (de houtklap, een korte flits). `ZWM2.hp2` (2) treffers en hij is dood.
 - **Het touw per segment**: `set.touw` is een lijst `{van, knal, tot, boogVan, boog, kracht, hang, blijf}`. In een segment volgt
@@ -144,7 +148,7 @@ de sprong, de terugweg en uitrusten2), op dezelfde schaal en hetzelfde anker als
 
 - In fase 2 laten de touwframes van de mep en het eind van de sprong nog kleine reepjes broek los waar de zweep over zijn
   benen ging (de bron is daar vlekkerig).
-- Berserk: de speer uit de lucht slaan. Fase 3: het been eraf, op zijn knie, de laatste klap of een executie. Een Grok-clip voor de dood.
+- Berserk: de speer uit de lucht slaan. Fase 3: het been eraf, op zijn knie, de laatste klap of een executie.
 
 - De lage slag begint nog op hoofdhoogte, omdat zijn arm in de Grok-clip over zijn hoofd zwaait; de zweep zelf blijft
   laag. Een clip waarin hij van onderen of opzij uithaalt (de hand onder de heup) maakt het helemaal zuiver.

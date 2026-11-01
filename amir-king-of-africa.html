@@ -1203,7 +1203,8 @@
         <button id="sbzwmslag">Slag: wissel</button>
         <button id="sbzwmfasen">Fasen uit</button>
         <button id="sbzwmarm">Arm eraf</button>
-        <span class="hint">testvijand: sluipt op je af en slaat laag met zijn zweep (springen). Fasen aan: na twee treffers gaat zijn arm eraf en volgt fase 2 (meppen, sprong-slag, uitrusten). Arm eraf: de zweepmannen die er staan gaan meteen naar fase 2</span>
+        <button id="sbzwmdood">Dood: clip</button>
+        <span class="hint">testvijand: sluipt op je af en slaat laag met zijn zweep (springen). Fasen aan: na twee treffers gaat zijn arm eraf en volgt fase 2 (meppen, sprong-slag, uitrusten). Arm eraf: de zweepmannen die er staan gaan meteen naar fase 2. Dood: de val als hij sterft, de clip (vanuit het uitrusten) of het stijve omkiepen in code</span>
       </div>
       <div class="row">
         <label>Schildbandiet</label>
@@ -29559,15 +29560,19 @@ const ZWM2 = {
   armLig: 7, armVervaag: 1,
   mepDuw: 520, sprongDuw: 340,    // hoe ver een treffer van de mep en de sprong Amir wegslaat
   gevaarVoor: 2, gevaarNa: 0.16,  // de zweep raakt van zoveel frames voor de knal tot zoveel s erna
-  doodVries: 0.5,                 // de dood: zoveel s bevroren in zijn houding, dan kiept hij als een blok achterover
+  doodVries: 0.5,                 // de dood: zoveel s bevroren in zijn houding, dan valt hij (de clip `dood`, of in code)
   doodLig: 2.2,                   // en blijft hij zoveel s liggen voor hij vervaagt
+  doodSoort: 'clip',              // 'clip': de Grok-val (alleen vanuit het uitrusten, anders 'code'); 'code': stijf achterover kiepen
+  pof: { src: 'sounds/bavland.mp3', vol: 0.5, voor: 2 },   // de plof als hij neerkomt: zoveel frames voor de landing starten
   sprongGevaar: 0                 // in de sprong al vanaf zoveel frames na het begin van het touw: daar haalt hij naar voren uit,
                                   // bij de knal is hij al doorgedraaid en zwiept de zweep achter hem
 };
-const ZWM2_SETS = ['armeraf', 'lach', 'mep', 'sprong', 'sprongterug', 'rustin', 'rust'];
+const ZWM2_SETS = ['armeraf', 'lach', 'mep', 'sprong', 'sprongterug', 'rustin', 'rust', 'dood'];
+let zwmPofSnd = null;
 let zwmF2Geladen = false;
 function zwmLaadF2(){                                       // de plaatjes van fase 2 pas als een zweepman met fasen er is
   if (zwmF2Geladen || !zwmData) return; zwmF2Geladen = true;
+  if (!zwmPofSnd) zwmPofSnd = banStemmen(ZWM2.pof.src, 2);
   const B = zwmBank.lagen || (zwmBank.lagen = {});
   for (const b of ZWM2_SETS){
     const set = zwmData.bewegingen[b]; if (!set) continue;
@@ -29721,7 +29726,7 @@ function zwmF2Teken(s, bodyX, voeten, gs, alpha){
     ctx.save(); ctx.translate(bodyX + (A.wx - s.x), voeten); if (A.face === 1) ctx.scale(-1, 1); zwmArmTeken(s, gs); ctx.restore();
   }
   ctx.translate(bodyX, voeten); if (s.face === 1) ctx.scale(-1, 1);
-  if (s.dood && s.dood.th){ const px = zwmDoodVoet(s) * gs; ctx.translate(px, 0); ctx.rotate(s.dood.th); ctx.translate(-px, 0); }   // omkiepen
+  if (s.dood && !s.dood.clip && s.dood.th){ const px = zwmDoodVoet(s) * gs; ctx.translate(px, 0); ctx.rotate(s.dood.th); ctx.translate(-px, 0); }   // omkiepen
   if (A && !A.los) zwmArmTeken(s, gs);                       // de bungelende arm hangt achter het lijf
   const l = fr.lijf, im = l && B[l.src];
   if (im && imgReady(im)) ctx.drawImage(s.flash > 0 ? whiteCopy(im, s.flash * 4) : im, l.dx * gs, l.dy * gs, l.w * gs, l.h * gs);
@@ -29766,19 +29771,33 @@ function zwmF2Hit(s){
   hits++; hitsEl.textContent = hits;
   s.hp--; s.flash = 0.3; s.inv = ZWM.invHit;
   hitstop = Math.max(hitstop, 0.07); shake = Math.max(shake, 0.14);
-  if (s.hp <= 0){ s.state = 'dood'; s.alpha = 1; s.flash = 0.6; s.touw = null; s.dood = { t: 0, th: 0, om: 0, lig: -1 }; hitstop = Math.max(hitstop, 0.12); banSterf(); vijandDood(false); }
+  if (s.hp <= 0){ s.state = 'dood'; s.alpha = 1; s.flash = 0.6; s.touw = null; s.dood = { t: 0, th: 0, om: 0, lig: -1,
+    clip: ZWM2.doodSoort === 'clip' && /^rust/.test(s.f2) && !!(zwmData && zwmData.bewegingen.dood) }; hitstop = Math.max(hitstop, 0.12); banSterf(); vijandDood(false); }
   return true;
 }
 // de dood in fase 2: bevroren in zijn houding, dan kiept hij stijf achterover om zijn achterste voet en ploft neer
 function zwmDoodStap(s, dt){
   const D = s.dood; D.t += dt;
   if (D.t < ZWM2.doodVries) return;
+  if (D.clip && D.lig < 0){                                  // de Grok-val: draaien, inzakken, neerploffen
+    if (s.f2 !== 'dood'){ s.f2 = 'dood'; s.frame = 0; s.acc = 0; }
+    const set = zwmData.bewegingen.dood, N = set.frames.length;
+    s.acc += dt * 1000;
+    while (s.acc >= (set.frames[s.frame].ms || 42) && s.frame < N - 1){
+      s.acc -= set.frames[s.frame].ms || 42; s.frame++;
+      if (s.frame === set.land - ZWM2.pof.voor && zwmPofSnd) banStemSpeel(zwmPofSnd, ZWM2.pof.vol);
+      if (s.frame === set.land){ shake = Math.max(shake, 0.22); puffWorld(s.x + 60 * zwmScale() * (s.face === 1 ? -1 : 1), 8, 0, 1.1, s.base || 0); }
+    }
+    if (s.frame >= N - 1) D.lig = 0;
+    return;
+  }
+  if (D.clip){ D.lig += dt; if (D.lig > ZWM2.doodLig) s.alpha = Math.max(0, 1 - (D.lig - ZWM2.doodLig) / ZWM.vervaag); if (s.alpha <= 0) s.state = 'weg'; return; }
   if (D.lig < 0){
     D.om += (2.2 + 16 * Math.sin(D.th + 0.12)) * dt; D.th += D.om * dt;   // een stijf blok dat omvalt: steeds sneller
     if (D.th >= Math.PI / 2){
       D.th = Math.PI / 2; D.lig = 0; shake = Math.max(shake, 0.3);
       puffWorld(s.x + zwmDoodVoet(s) * zwmScale() * (s.face === 1 ? -1 : 1) * 0.3, 8, 0, 1.1, s.base || 0);
-      banStemSpeel(schbLandSnd, 0.8);
+      if (zwmPofSnd) banStemSpeel(zwmPofSnd, ZWM2.pof.vol);
     }
     return;
   }
@@ -42265,6 +42284,11 @@ const sbZwmFasenBtn = document.getElementById('sbzwmfasen');
 sbZwmFasenBtn.onclick = () => {                        // nieuwe zweepmannen krijgen fase 2 (ZWM2)
   sbZwmFasen = !sbZwmFasen; if (sbZwmFasen){ zwmF2Wil = true; zwmLaadF2(); }
   sbZwmFasenBtn.textContent = sbZwmFasen ? 'Fasen aan' : 'Fasen uit'; sbZwmFasenBtn.classList.toggle('on', sbZwmFasen); cv.focus();
+};
+const sbZwmDoodBtn = document.getElementById('sbzwmdood');
+sbZwmDoodBtn.onclick = () => {                         // de dood in fase 2: de Grok-val of het stijve omkiepen in code
+  ZWM2.doodSoort = ZWM2.doodSoort === 'clip' ? 'code' : 'clip';
+  sbZwmDoodBtn.textContent = 'Dood: ' + ZWM2.doodSoort; cv.focus();
 };
 document.getElementById('sbzwmarm').onclick = () => {  // de zweepmannen die er staan: meteen de arm eraf
   zwmF2Wil = true; zwmLaadF2();
