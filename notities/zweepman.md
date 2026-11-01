@@ -127,14 +127,12 @@ Alleen met `fasen: true` in de spawn (Test 59), of in de sandbox met **Fasen aan
   Het gevaar geldt van het begin van het touw tot `gevaarNa` s na de knal (`sprongGevaar`), want bij de knal is hij al
   doorgedraaid.
 - **De dood** (`zwmDoodStap`, `s.dood`): de dodelijke treffer geeft de doodskreet (`banSterf`) en een hitstop. Hij
-  bevriest `ZWM2.doodVries` s in de houding van dat moment en valt dan. Met `ZWM2.doodSoort: 'clip'` (standaard) speelt de
-  Grok-val (de set `dood`, 26 frames uit `export_dood.py`): een kwartslag naar de camera, de knieen begeven het en hij zakt
-  van Amir af in elkaar, steeds sneller. Op frame `land` komen een schudding en stof, en `pof.voor` frames eerder de plof
-  (`sounds/bavland.mp3`, zacht). De clip start vanuit het uitrusten; sterft hij ergens anders (de eindpose van de sprong),
-  dan valt hij in code: stijf achterover om zijn achterste voet (`zwmDoodVoet`), met dezelfde plof en stof. Na `doodLig` s
-  liggen vervaagt hij. In de sandbox wisselt de knop **Dood** tussen `clip` en `code`, om ze naast elkaar te zien.
-- **Kwetsbaar** (`zwmF2Kwetsbaar`): alleen in `rustin`, `rust`, `rustuit` en de eindpose van de sprong. Daarbuiten ketst je speer
-  af (de houtklap, een korte flits). `ZWM2.hp2` (2) treffers en hij is dood.
+  bevriest `ZWM2.doodVries` s in zijn uitrust-houding en valt dan met de Grok-val (de set `dood`, 26 frames uit
+  `export_dood.py`, vanaf rustframe 90): een kwartslag naar de camera, de knieen begeven het en hij zakt in elkaar, steeds
+  sneller. Op frame `land` komen een schudding en stof, en `pof.voor` frames eerder de plof (`sounds/bavland.mp3`, zacht).
+  Na `doodLig` s liggen vervaagt hij. (Een stijf omkiepen in code is geprobeerd en afgekeurd.)
+- **Kwetsbaar** (`zwmF2Kwetsbaar`): alleen in `rustin`, `rust` en `rustuit`, zodat de val altijd in die houding begint.
+  Daarbuiten ketst je speer af (de houtklap, een korte flits). `ZWM2.hp2` (2) treffers en hij is dood.
 - **Het touw per segment**: `set.touw` is een lijst `{van, knal, tot, boogVan, boog, kracht, hang, blijf}`. In een segment volgt
   het touw de hand (`fr.hand`), met de boog uit dat segment (`s.f2C` in `zwmTouwStap`). Aan het eind vervaagt het, behalve met
   `blijf`. Daarbuiten zit de zweep als leer in het plaatje.
