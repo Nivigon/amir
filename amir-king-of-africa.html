@@ -1203,7 +1203,8 @@
         <button id="sbzwmslag">Slag: wissel</button>
         <button id="sbzwmfasen">Fasen uit</button>
         <button id="sbzwmarm">Arm eraf</button>
-        <span class="hint">testvijand: sluipt op je af en slaat laag met zijn zweep (springen). Fasen aan: na twee treffers gaat zijn arm eraf en volgt fase 2 (meppen, sprong-slag, uitrusten). Arm eraf: de zweepmannen die er staan gaan meteen naar fase 2</span>
+        <button id="sbzwmversie">Versie: oud</button>
+        <span class="hint">testvijand: sluipt op je af en slaat laag met zijn zweep (springen). Fasen aan: na twee treffers gaat zijn arm eraf en volgt fase 2 (meppen, sprong-slag, uitrusten). Arm eraf: de zweepmannen die er staan gaan meteen naar fase 2. Versie nieuw: sneller lopen, en in fase 2 sneller slaan, mep of sprong op afstand en verder springen</span>
       </div>
       <div class="row">
         <label>Schildbandiet</label>
@@ -2043,6 +2044,7 @@
   <div id="duokeuze" role="dialog" aria-modal="true" aria-labelledby="dktitel"><div id="dktitel">Instellingen</div>
     <div class="dkrij">Kruisboogbandiet<small>Hoeveel bouten hij per keer herladen opneemt. Met een tweede bout op de kruisboog schiet hij snel opnieuw</small><div id="dksalvo"></div></div>
     <div class="dkrij">Schildbandiet<small>Moeilijk: een kortere tell, een snellere sprong en minder rust tussen zijn aanvallen</small><div id="dkniveau"></div></div>
+    <div class="dkrij">Zweepman<small>Nieuw: hij sluipt sneller op je af, en zonder arm slaat hij sneller, kiest hij mep of sprong op afstand en springt hij tot vlak bij je. Oud: zoals hij was</small><div id="dkzweep"></div></div>
     <button id="dkstart" type="button">Start level</button></div>
   <div id="verhaal"><div id="vhtitel"></div><div id="vhtekst"></div><button id="vhstart" type="button">Start level</button></div>
   <div id="updates"><div id="updtitel">Updates</div><div id="updstand"></div><ul id="updlijst"></ul><button id="updsluit" type="button">Terug</button></div>
@@ -4653,6 +4655,7 @@ const TEST_58 = {
   lagen: 'tafelbergen',
   view: 0.8, hpBalk: true, zicht: true, camera: true,
   speerInHand: true,
+  zweepKeuze: true,                // aan het begin: de oude of de nieuwe zweepman (ZWM_NIEUW)
   spawns: [ {x: -1500, k: 'zweepman'}, {x: -3600, k: 'zweepman'} ],
   rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [],
   props: [ {x: -500, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -2600, k: 'struik', s: 0.9, f: 1, v: 0} ],
@@ -4668,6 +4671,7 @@ const TEST_59 = {
   lagen: 'tafelbergen',
   view: 0.8, hpBalk: true, zicht: true, camera: true, rand: true, slangEenKlap: true,
   speerInHand: true,
+  zweepKeuze: true,                // aan het begin: de oude of de nieuwe zweepman (ZWM_NIEUW)
   spawns: [ {x: -1300, k: 'zweepman'}, {x: -3400, k: 'zweepman', fasen: true} ],
   rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [],
   props: [ {x: -600, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -2300, k: 'struik', s: 0.9, f: 1, v: 0}, {x: -5200, k: 'gras', s: 1.1, f: 1, v: 0} ],
@@ -29365,8 +29369,9 @@ function updateZweepman(s, dt, plats, cliff){
   }
   if (gap < ZWM.houd * zS){ zwmSet(s, 'idle'); anim(ZWM.idleFps); return; }
   if (s.state !== 'loop'){ zwmSet(s, 'loop'); if (gap > ZWM.aanval * zS * ZWM_STEM.komVer) zwmZeg('kom', ZWM_STEM.komKans); }
-  anim(ZWM.loopFps);
-  zwmMove(s, naarJe * ZWM.loopV * dt, plats, cliff);
+  const v = zwmNieuw() ? ZWM_NIEUW.loopV : ZWM.loopV;     // nieuw: sneller, en de clip loopt evenredig mee
+  anim(ZWM.loopFps * v / ZWM.loopV);
+  zwmMove(s, naarJe * v * dt, plats, cliff);
 }
 function updateZweepmannen(dt, plats, cliff){
   if (!running || (dead && !sandbox)) return;
@@ -29561,7 +29566,28 @@ const ZWM2 = {
   sprongGevaar: 0                 // in de sprong al vanaf zoveel frames na het begin van het touw: daar haalt hij naar voren uit,
                                   // bij de knal is hij al doorgedraaid en zwiept de zweep achter hem
 };
-const ZWM2_SETS = ['armeraf', 'lach', 'mep', 'sprong', 'sprongterug', 'rustin', 'rust'];
+// De nieuwe versie (Test 58 en 59 kiezen aan het begin oud of nieuw, zweepKeuze; de sandbox met de knop Versie):
+// hij sluipt sneller op je af, slaat in fase 2 sneller, kiest per zet op afstand (dichtbij de mep, ver de sprong)
+// en de sprong brengt hem tot vlak bij Amir, ook als die wegloopt. Het uitrusten blijft even lang: dat is het raam.
+const ZWM_NIEUW = {
+  loopV: 165,                     // fase 1: wereld-px/s (oud ZWM.loopV 100); de loopclip loopt evenredig sneller mee
+  tempo: { lach: 1.25, mep: 1.35, sprong: 1.3, sprongterug: 1.35, rustin: 1.2 },   // fase 2: zoveel keer sneller
+  mepGat: { van: 40, tot: 50, f: 3 },   // de frames zonder zweep tussen de slag en de backhand: nog eens zoveel keer sneller
+  mepBereik: 400,                 // idle-px: dichterbij mept hij, verder weg springt hij
+  aanvallen: 3,                   // zoveel zetten (mep of sprong) en dan uitrusten, net als de oude reeks
+  sprongExtra: 760                // idle-px die hij in de sprong hoogstens extra opschuift (oud 320); hij mikt per frame
+};
+function zwmNieuw(){ return sandbox ? sbZwmNieuw : !!(level && level.zweepKeuze && duoKeuze.zweep === 'nieuw'); }
+// de duur van een frame in fase 2, in ms speltijd: in de nieuwe versie sneller
+function zwmF2Ms(s, set, i){
+  let ms = set.frames[i].ms || 42;
+  if (!zwmNieuw()) return ms;
+  ms /= ZWM_NIEUW.tempo[s.f2 === 'rustuit' ? 'rustin' : s.f2] || 1;
+  const G = ZWM_NIEUW.mepGat;
+  if (s.f2 === 'mep' && i >= G.van && i <= G.tot) ms /= G.f;
+  return ms;
+}
+const ZWM2_SETS = ['armeraf','lach', 'mep', 'sprong', 'sprongterug', 'rustin', 'rust'];
 let zwmF2Geladen = false;
 function zwmLaadF2(){                                       // de plaatjes van fase 2 pas als een zweepman met fasen er is
   if (zwmF2Geladen || !zwmData) return; zwmF2Geladen = true;
@@ -29583,7 +29609,7 @@ function zwmF2Idx(s){ const set = zwmF2Data(s); if (!set) return 0; return s.f2 
 function zwmArmEraf(s){
   zwmLaadF2();
   s.fase = 2; s.hp = ZWM2.hp2; s.maxHp = ZWM2.hp2; s.flash = 0.28; s.inv = 0; s.knockV = 0;
-  s.stap = -1; s.arm = null; s.druppels = [];
+  s.stap = -1; s.zetten = 0; s.arm = null; s.druppels = [];
   zwmF2Set(s, 'armeraf');
   hitstop = Math.max(hitstop, 0.14); shake = Math.max(shake, 0.25);
   banSterf();
@@ -29593,6 +29619,14 @@ function zwmF2Volgende(s){
   if (s.f2 === 'sprongterug'){                              // de sprong heeft hem vooruit gebracht: dat wordt zijn nieuwe plek
     const sh = (zwmF2Data(s).verschuif || 0) * zwmScale() * (s.face === 1 ? -1 : 1);
     s.x += sh;
+  }
+  if (zwmNieuw()){                                          // nieuw: per zet kiezen op afstand, na ZWM_NIEUW.aanvallen zetten uitrusten
+    const N = ZWM_NIEUW, volg = { sprong: 'sprongterug', rustin: 'rust', rust: 'rustuit' }[s.f2];
+    if (volg){ zwmF2Set(s, volg); return; }
+    if ((s.zetten || 0) >= N.aanvallen){ s.zetten = 0; zwmF2Set(s, 'rustin'); return; }
+    s.zetten = (s.zetten || 0) + 1;
+    zwmF2Set(s, Math.abs(playerX() - s.x) / zwmScale() < N.mepBereik ? 'mep' : 'sprong');
+    return;
   }
   s.stap = (s.stap + 1) % ZWM2.cyclus.length;
   zwmF2Set(s, ZWM2.cyclus[s.stap]);
@@ -29607,7 +29641,7 @@ function zwmF2Kwetsbaar(s){
 function zwmF2Hand(s){
   const set = zwmF2Data(s), i = zwmF2Idx(s), a = set.frames[i] && set.frames[i].hand; if (!a) return null;
   const j = s.f2 === 'rustuit' ? i - 1 : i + 1, b = set.frames[j] && set.frames[j].hand; if (!b) return a;
-  const f = Math.min(1, s.acc / (set.frames[i].ms || 42));
+  const f = Math.min(1, s.acc / zwmF2Ms(s, set, i));
   return a.map((v, k) => v + (b[k] - v) * f);
 }
 function zwmF2Stap(s, dt, plats, cliff){
@@ -29616,12 +29650,19 @@ function zwmF2Stap(s, dt, plats, cliff){
   const N = set.frames.length;
   s.acc += dt * 1000;
   let klaar = false;
-  while (s.acc >= (set.frames[zwmF2Idx(s)].ms || 42)){
-    s.acc -= (set.frames[zwmF2Idx(s)].ms || 42);
+  while (s.acc >= zwmF2Ms(s, set, zwmF2Idx(s))){
+    s.acc -= zwmF2Ms(s, set, zwmF2Idx(s));
     if (s.frame < N - 1){
       s.frame++;
-      if (s.f2 === 'sprong' && s.frame >= ZWM2.sprongVan && s.frame < ZWM2.sprongTot)   // de sprong: hij schiet vooruit
-        zwmMove(s, (s.face === 1 ? 1 : -1) * (s.f2Extra || 0) / (ZWM2.sprongTot - ZWM2.sprongVan) * zwmScale(), plats, cliff);
+      if (s.f2 === 'sprong' && s.frame >= ZWM2.sprongVan && s.frame < ZWM2.sprongTot){   // de sprong: hij schiet vooruit
+        const rf = s.face === 1 ? 1 : -1, nF = ZWM2.sprongTot - ZWM2.sprongVan;
+        let stap = (s.f2Extra || 0) / nF;
+        if (zwmNieuw()){                                   // nieuw: per frame mikken op waar Amir nu staat, tot vlak bij hem
+          const d = (playerX() - s.x) * rf / zwmScale() - ZWM2.sprongBereik;
+          stap = Math.max(0, Math.min(ZWM_NIEUW.sprongExtra / nF, d));
+        }
+        zwmMove(s, rf * stap * zwmScale(), plats, cliff);
+      }
     } else if (set.loop){ s.frame = 0; }
     else { klaar = true; break; }
   }
@@ -29637,8 +29678,8 @@ function zwmF2Stap(s, dt, plats, cliff){
       let prog = null;
       if (!C.hang){
         let tot = 0, nu = 0;
-        for (let k = C.van; k < C.knal; k++){ const m = set.frames[k].ms || 42; tot += m; if (k < i) nu += m; }
-        if (i < C.knal) nu += Math.min(s.acc, set.frames[i].ms || 42);
+        for (let k = C.van; k < C.knal; k++){ const m = zwmF2Ms(s, set, k); tot += m; if (k < i) nu += m; }
+        if (i < C.knal) nu += Math.min(s.acc, zwmF2Ms(s, set, i));
         prog = i >= C.knal ? 1 : nu / Math.max(1, tot);
         if (i >= C.knal && s.knalT < 0){ s.knalT = s.t; zwmKnalGeluid(s); shake = Math.max(shake, 0.08); }
       }
@@ -31181,15 +31222,19 @@ function duoHudTeken(){
 // bouten de kruisboogbandiet per keer herladen opneemt (KRB_SALVO, standaard 2, daarna 1) en of de schildbandiet
 // makkelijk of moeilijk is. De keuze blijft staan (localStorage, amir.duoKeuze) en geldt ook na opnieuw beginnen;
 // in de pauze kies je opnieuw (pzduo). Zonder dat veld geldt duoArena.niveau en de gewone lading van een bout.
+// Hetzelfde scherm vraagt in een level met `zweepKeuze` (Test 58 en 59) de oude of de nieuwe zweepman (ZWM_NIEUW);
+// dan staat alleen die rij erin.
 const duoKeuze = (() => {
   let k = {};
   try { k = JSON.parse(localStorage.getItem('amir.duoKeuze') || '{}') || {}; } catch (e) {}
-  return { salvo: KRB_SALVO[k.salvo] ? k.salvo : '2dan1', niveau: k.niveau === 'moeilijk' ? 'moeilijk' : 'makkelijk' };
+  return { salvo: KRB_SALVO[k.salvo] ? k.salvo : '2dan1', niveau: k.niveau === 'moeilijk' ? 'moeilijk' : 'makkelijk',
+           zweep: k.zweep === 'oud' ? 'oud' : 'nieuw' };
 })();
 const duoKeuzeEl = document.getElementById('duokeuze');
 let duoKeuzeVerder = null, duoKeuzeDoor = false;
 function duoKeuzeOpen(){ return duoKeuzeEl.classList.contains('on'); }
-function duoKeuzeNodig(){ return !!(level && level.duoArena && level.duoArena.keuze && !sandbox && !duoKeuzeDoor); }
+function duoKeuzeDuo(){ return !!(level && level.duoArena && level.duoArena.keuze); }
+function duoKeuzeNodig(){ return !!(level && (duoKeuzeDuo() || level.zweepKeuze) && !sandbox && !duoKeuzeDoor); }
 function duoKeuzeBouw(){
   const rij = (id, lijst, veld) => {
     const el = document.getElementById(id); el.innerHTML = '';
@@ -31201,11 +31246,15 @@ function duoKeuzeBouw(){
   };
   rij('dksalvo', ['2dan1', '2', '1'].map(w => [w, KRB_SALVO[w].naam]), 'salvo');
   rij('dkniveau', [['makkelijk', 'Makkelijk'], ['moeilijk', 'Moeilijk']], 'niveau');
+  rij('dkzweep', [['oud', 'Oud'], ['nieuw', 'Nieuw']], 'zweep');
+  const toon = (id, aan) => { document.getElementById(id).parentElement.style.display = aan ? '' : 'none'; };   // alleen de rijen van dit level
+  toon('dksalvo', duoKeuzeDuo()); toon('dkniveau', duoKeuzeDuo()); toon('dkzweep', !!(level && level.zweepKeuze));
   duoKeuzeStand();
 }
 function duoKeuzeStand(){
   for (const b of duoKeuzeEl.querySelectorAll('#dksalvo button')) b.classList.toggle('on', b.dataset.w === duoKeuze.salvo);
   for (const b of duoKeuzeEl.querySelectorAll('#dkniveau button')) b.classList.toggle('on', b.dataset.w === duoKeuze.niveau);
+  for (const b of duoKeuzeEl.querySelectorAll('#dkzweep button')) b.classList.toggle('on', b.dataset.w === duoKeuze.zweep);
 }
 function duoKeuzeToon(verder){
   duoKeuzeVerder = verder;
@@ -35644,7 +35693,9 @@ function pauseGame(){
   sk.textContent = kan ? 'Level overslaan: ' + levelList[levelIdx + 1].name : 'Level overslaan';
   document.getElementById('pztalents').style.display = RUN.tribeId && !sandbox ? '' : 'none';   // de boom van je tribe
   document.getElementById('pzkeuze').style.display = level && level.talentKeuze && !sandbox ? '' : 'none';
-  document.getElementById('pzduo').style.display = level && level.duoArena && level.duoArena.keuze && !sandbox ? '' : 'none';
+  const pzDuo = document.getElementById('pzduo');
+  pzDuo.style.display = (duoKeuzeDuo() || (level && level.zweepKeuze)) && !sandbox ? '' : 'none';
+  pzDuo.textContent = duoKeuzeDuo() ? 'Arena instellen' : 'Zweepman: oud of nieuw';
   document.getElementById('pzmesbtn').style.display = tribeHeeft('jackal_fang') ? '' : 'none';   // alleen met het mes
   if (!tribeHeeft('jackal_fang')) document.getElementById('pzmes').classList.remove('on');
   mesAfstelToon();
@@ -35670,7 +35721,7 @@ document.getElementById('pzskip').onclick = () => {
 };
 document.getElementById('pzmenu').onclick = () => { resumeGame(); toMenu(); };
 document.getElementById('pztalents').onclick = () => tribeBoomToon(null);   // alleen kijken, de pauze blijft
-document.getElementById('pzduo').onclick = () => {     // Test 56: de arena opnieuw instellen, en dan opnieuw beginnen
+document.getElementById('pzduo').onclick = () => {     // Test 56 (de arena) en Test 58 en 59 (de zweepman): opnieuw instellen, en dan opnieuw beginnen
   resumeGame(); deadEl.classList.remove('on');
   duoKeuzeToon(() => { restart(); hudToon(); cv.focus(); });
 };
@@ -36451,6 +36502,7 @@ function readLevel(txt){
            bloed: !!o.bloed,                            // de bloed-mechaniek: de bandiet krijgt 3 treffers, elke klap een snee, de derde een death-spuit (zie "bloed")
 
            talentKeuze: !!o.talentKeuze,                // aan het begin kies je zelf de talents (Test 14)
+           zweepKeuze: !!o.zweepKeuze,                  // aan het begin de oude of de nieuwe zweepman (Test 58 en 59)
            worp: o.worp === 'schaal' ? 'schaal' : '',   // 'schaal': de hoek loopt op zolang je vasthoudt
            // f spiegelt de richel (vlakke kant rechts, punt naar links), achter tekent hem achter de
            // schacht-wand (zie "schacht"); bestaande levels hebben die velden niet en veranderen dus niet
@@ -42267,7 +42319,12 @@ sbKrbSalvoBtn.onclick = () => {
 };
 sbKrbSalvoLabel();
 // de schildbandiet: AI uit speelt alleen zijn loop, zodat je de dreigende gang kunt bekijken
-let sbZwmVrij = false, sbZwmSlag = null, sbZwmFasen = false;
+let sbZwmVrij = false, sbZwmSlag = null, sbZwmFasen = false, sbZwmNieuw = false;
+const sbZwmVersieBtn = document.getElementById('sbzwmversie');
+sbZwmVersieBtn.onclick = () => {                       // de oude of de nieuwe zweepman (ZWM_NIEUW), meteen voor allemaal
+  sbZwmNieuw = !sbZwmNieuw;
+  sbZwmVersieBtn.textContent = 'Versie: ' + (sbZwmNieuw ? 'nieuw' : 'oud'); sbZwmVersieBtn.classList.toggle('on', sbZwmNieuw); cv.focus();
+};
 const sbZwmFasenBtn = document.getElementById('sbzwmfasen');
 sbZwmFasenBtn.onclick = () => {                        // nieuwe zweepmannen krijgen fase 2 (ZWM2)
   sbZwmFasen = !sbZwmFasen; if (sbZwmFasen){ zwmF2Wil = true; zwmLaadF2(); }

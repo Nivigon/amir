@@ -137,6 +137,30 @@ Alleen met `fasen: true` in de spawn (Test 59), of in de sandbox met **Fasen aan
 De frames komen uit `export_f2.py` en `postfix_f2.py` in de chat (de Grok-clips 1armhit, 1armlaugh, manischslag, draaislag,
 de sprong, de terugweg en uitrusten2), op dezelfde schaal en hetzelfde anker als fase 1.
 
+## Oud of nieuw (`zweepKeuze`, Test 58 en 59)
+
+`ZWM_NIEUW`, `zwmNieuw`, `zwmF2Ms`. In een level met `zweepKeuze: true` vraagt het instellingenscherm van de duo-arena
+(`duoKeuze`, alleen de rij Zweepman) voor het begin de oude of de nieuwe zweepman; de keuze blijft staan (`amir.duoKeuze`)
+en in de pauze kies je opnieuw (**Zweepman: oud of nieuw**). In de sandbox de knop **Versie** in de rij Zweepman (standaard
+oud, geldt meteen voor alle zweepmannen). Een level zonder het veld (Oaktown) houdt de oude.
+
+De nieuwe versie:
+
+- **Fase 1**: hij sluipt op `ZWM_NIEUW.loopV` (165 in plaats van 100 wereld-px/s); de loopclip loopt evenredig sneller mee.
+  Zijn slagen zijn hetzelfde.
+- **Fase 2, sneller slaan**: elk frame duurt korter (`ZWM_NIEUW.tempo` per set, de mep 1,35 keer, de sprong 1,3 keer), en
+  in de mep loopt het stuk zonder zweep tussen de slag en de backhand (`mepGat`, frame 40 tot 50) nog eens drie keer sneller.
+  Het uitrusten blijft even lang: dat is het raam.
+- **Fase 2, kiezen op afstand** (in `zwmF2Volgende`): in plaats van de vaste `ZWM2.cyclus` kiest hij per zet: dichterbij dan
+  `mepBereik` (400 idle-px) de mep, verder weg de sprong. Na `aanvallen` (3) zetten rust hij uit.
+- **Fase 2, verder springen**: de clip zelf is maar een wijde uitvalstap (zijn romp gaat zo'n 70 tot 130 idle-px vooruit); de
+  afstand komt uit de verschuiving in de frames `sprongVan` tot `sprongTot`. Nieuw mikt hij daar per frame op waar Amir nu
+  staat, tot `ZWM2.sprongBereik` van hem af, met hoogstens `sprongExtra` (760 in plaats van 320) idle-px. Wie wegloopt, wordt
+  in twee sprongen ingehaald.
+
+Gemeten (Amir stil op 900 px, 22 s): oud mept hij eerst in de lucht en komt hij na twee sprongen tot zo'n 500 px, en raakt
+hij niets; nieuw staat hij na twee sprongen op zo'n 100 px en raakt hij vier keer.
+
 ## Nog te doen
 
 - In fase 2 laten de touwframes van de mep en het eind van de sprong nog kleine reepjes broek los waar de zweep over zijn
