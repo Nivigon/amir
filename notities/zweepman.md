@@ -144,22 +144,25 @@ de sprong, de terugweg en uitrusten2), op dezelfde schaal en hetzelfde anker als
 en in de pauze kies je opnieuw (**Zweepman: oud of nieuw**). In de sandbox de knop **Versie** in de rij Zweepman (standaard
 oud, geldt meteen voor alle zweepmannen). Een level zonder het veld (Oaktown) houdt de oude.
 
-De nieuwe versie:
+De nieuwe versie (de tweede opzet: dezelfde vaste cyclus als oud, maar zonder veilige plek):
 
-- **Fase 1**: hij sluipt op `ZWM_NIEUW.loopV` (165 in plaats van 100 wereld-px/s); de loopclip loopt evenredig sneller mee.
-  Zijn slagen zijn hetzelfde.
-- **Fase 2, sneller slaan**: elk frame duurt korter (`ZWM_NIEUW.tempo` per set, de mep 1,35 keer, de sprong 1,3 keer), en
-  in de mep loopt het stuk zonder zweep tussen de slag en de backhand (`mepGat`, frame 40 tot 50) nog eens drie keer sneller.
-  Het uitrusten blijft even lang: dat is het raam.
-- **Fase 2, kiezen op afstand** (in `zwmF2Volgende`): in plaats van de vaste `ZWM2.cyclus` kiest hij per zet: dichterbij dan
-  `mepBereik` (400 idle-px) de mep, verder weg de sprong. Na `aanvallen` (3) zetten rust hij uit.
-- **Fase 2, verder springen**: de clip zelf is maar een wijde uitvalstap (zijn romp gaat zo'n 70 tot 130 idle-px vooruit); de
-  afstand komt uit de verschuiving in de frames `sprongVan` tot `sprongTot`. Nieuw mikt hij daar per frame op waar Amir nu
-  staat, tot `ZWM2.sprongBereik` van hem af, met hoogstens `sprongExtra` (760 in plaats van 320) idle-px. Wie wegloopt, wordt
-  in twee sprongen ingehaald.
+- **Een langere zweep**: `ZWM_NIEUW.lengte` 520 idle-px (oud `ZWM_TOUW.lengte` 380), via `zwmLengte()` in het touw. De
+  waarschuwingsgloed loopt mee en begint vlak bij hem.
+- **Fase 1, afstand houden**: hij slaat binnen `aanval` (600, oud 440) en sluipt achteruit (de loopclip achterstevoren,
+  `terugV`) als Amir dichterbij komt dan `houd` (360, oud 260). Staat hij klem, dan slaat hij meteen. Op je af loopt hij
+  `loopV` 150 (oud 100).
+- **Fase 1, geen gat dichtbij**: oud sloeg hij niet binnen `ZWM.min` en raakte het touw pas vanaf zo'n 160 (laag) en 350
+  (hoog) idle-px; tegen hem aan was je veilig. Nieuw slaat hij ook dan, en binnen `dichtbij` (340) raakt de slag zonder
+  touw (in `zwmRaakt`), met dezelfde regel: laag springen, hoog bukken.
+- **Fase 2, sneller**: de mep en de sprong 1,3 keer (`tempo`), de lach en de terugweg 1,2 keer, en het stuk zonder zweep
+  in de mep (`mepGat`) nog eens drie keer sneller. Uitrusten blijft even lang. De cyclus is de vaste `ZWM2.cyclus`.
+- **Fase 2, de sprong mikt**: in de frames `sprongVan` tot `sprongTot` schuift hij per frame zo dat Amir op `sprongDoel`
+  (100 idle-px voor zijn anker, daar slaat de zweep neer) uitkomt, hoogstens `sprongVoor` vooruit of `sprongTerug` terug per
+  frame. Oud schoof hij alleen vooruit en sloeg hij soms over Amir heen of ernaast.
 
-Gemeten (Amir stil op 900 px, 22 s): oud mept hij eerst in de lucht en komt hij na twee sprongen tot zo'n 500 px, en raakt
-hij niets; nieuw staat hij na twee sprongen op zo'n 100 px en raakt hij vier keer.
+Gemeten (Amir stil, afstand in idle-px tot zijn anker, 0 tot 800): oud miste de lage slag op 0 en 80, de hoge op 0 tot 250, en
+de sprong op 250, 450 en 650. Nieuw raakt elke slag op elke afstand van 0 tot 800 (de sprong tot zo'n 550, daarbuiten haalt
+hij je niet meer in), en de mep raakt nu tot 650 in plaats van 450.
 
 ## Nog te doen
 

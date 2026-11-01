@@ -29227,7 +29227,7 @@ function zwmMove(s, stap, plats, cliff){
 // grond, naar links kijkend, y omlaag). De punt volgt in de slag een boog, na de knal ligt hij gestrekt.
 function zwmWortel(a){ const n = Math.hypot(a[2], a[3]) || 1; return [a[0] + a[2] / n * ZWM_TOUW.handvat, a[1] + a[3] / n * ZWM_TOUW.handvat, a[2] / n, a[3] / n]; }
 function zwmTouwInit(s, a){
-  const T = ZWM_TOUW, n = T.n, seg = T.lengte / (n - 1), r = zwmWortel(a);
+  const T = ZWM_TOUW, n = T.n, L = zwmLengte(), seg = L / (n - 1), r = zwmWortel(a);
   const X = new Float32Array(n), Y = new Float32Array(n);
   let x = r[0], y = r[1];
   for (let i = 0; i < n; i++){ if (i > 0){ y += seg; if (y > 0){ y = 0; x += seg * 0.9; } else x += seg * 0.12; } X[i] = x; Y[i] = y; }
@@ -29238,14 +29238,14 @@ function zwmTouwStap(s, h, a, prog){
   if (!s.f2C && C.strak && prog != null && s.frame >= C.knal - C.strak.van && (s.knalT < 0 || s.t - s.knalT < C.strak.na)){
     C = Object.assign({}, C, C.strak); prog = Math.min(prog, 0.999);   // de punt blijft trekken: geen liggen, geen doorzakken
   }
-  const T = ZWM_TOUW, t = s.touw, n = T.n, seg = T.lengte / (n - 1), r = zwmWortel(a), G = 0;
+  const T = ZWM_TOUW, t = s.touw, n = T.n, L = zwmLengte(), seg = L / (n - 1), r = zwmWortel(a), G = 0;
   const { X, Y, PX, PY } = t;
   for (let i = 1; i < n; i++){
     const vx = (X[i] - PX[i]) * T.demping, vy = (Y[i] - PY[i]) * T.demping; PX[i] = X[i]; PY[i] = Y[i];
     let ax = 0, ay = T.zwaarte;
     if (prog != null && prog < 1){                       // de slag: de punt trekt een boog naar laag voor hem
       const w = Math.pow(i / (n - 1), C.wExp || 2.2) * (C.kracht || 1), th = (C.boogVan - C.boog * Math.min(1, prog * 1.05)) * Math.PI / 180;
-      const tx = r[0] + Math.cos(th) * T.lengte * i / (n - 1), ty = Math.min(G - 3, r[1] + Math.sin(th) * T.lengte * i / (n - 1));
+      const tx = r[0] + Math.cos(th) * L * i / (n - 1), ty = Math.min(G - 3, r[1] + Math.sin(th) * L * i / (n - 1));
       ax += (tx - X[i]) * T.kracht * w * 4; ay += (ty - Y[i]) * T.kracht * w * 4 - T.zwaarte * w * 0.8;
     }
     X[i] += vx + ax * h * h; Y[i] += vy + ay * h * h;
@@ -29360,16 +29360,24 @@ function updateZweepman(s, dt, plats, cliff){
   const dx = playerX() - s.x, gap = Math.abs(dx), naarJe = dx >= 0 ? 1 : -1;
   if (!zichtWaak(s, dt, zichtBereik(1100) * (s.zWacht ? 1 : 2), s.zWacht ? s.face : naarJe, 'mens')){ zwmSet(s, 'idle'); anim(ZWM.idleFps); return; }
   s.face = naarJe;
-  if (s.cool <= 0 && kooiZelfdeHoogte(s) && gap < ZWM.aanval * zS && gap > ZWM.min * zS){
+  const nw = zwmNieuw(), aanval = nw ? ZWM_NIEUW.aanval : ZWM.aanval, houd = nw ? ZWM_NIEUW.houd : ZWM.houd;
+  if (s.cool <= 0 && kooiZelfdeHoogte(s) && gap < aanval * zS && (nw || gap > ZWM.min * zS)){   // nieuw: ook tegen hem aan
     s.soort = s.slagVast || ZWM_TEST.slag || (Math.random() < ZWM.hoogKans ? 'hoog' : 'laag');   // slagVast: de sandbox, ZWM_TEST.slag: de pauze
     zwmSet(s, 'slag'); s.frame = ZWM_SLAG[s.soort].tellVan; s.geraaktAmir = false; s.knalT = -1; s.touw = null;
     s.spoor = null; s.stof = null; s.stofKnal = false; s.knalRicht = 0;
     zwmZeg('voel', ZWM_STEM.tellVoel);
     return;
   }
-  if (gap < ZWM.houd * zS){ zwmSet(s, 'idle'); anim(ZWM.idleFps); return; }
-  if (s.state !== 'loop'){ zwmSet(s, 'loop'); if (gap > ZWM.aanval * zS * ZWM_STEM.komVer) zwmZeg('kom', ZWM_STEM.komKans); }
-  const v = zwmNieuw() ? ZWM_NIEUW.loopV : ZWM.loopV;     // nieuw: sneller, en de clip loopt evenredig mee
+  if (nw && gap < houd * zS){                              // nieuw: te dichtbij, hij sluipt achteruit naar de lengte van zijn zweep
+    if (s.state !== 'loop') zwmSet(s, 'loop');
+    const N = zwmData.bewegingen.loop.frames.length, spf = ZWM.loopV / (ZWM.loopFps * ZWM_NIEUW.terugV);
+    s.acc += dt; while (s.acc >= spf){ s.acc -= spf; s.frame = (s.frame - 1 + N) % N; }   // de loopclip achterstevoren
+    if (!zwmMove(s, -naarJe * ZWM_NIEUW.terugV * dt, plats, cliff)) s.cool = Math.min(s.cool, 0.15);   // klem: dan slaat hij meteen
+    return;
+  }
+  if (gap < houd * zS){ zwmSet(s, 'idle'); anim(ZWM.idleFps); return; }
+  if (s.state !== 'loop'){ zwmSet(s, 'loop'); if (gap > aanval * zS * ZWM_STEM.komVer) zwmZeg('kom', ZWM_STEM.komKans); }
+  const v = nw ? ZWM_NIEUW.loopV : ZWM.loopV;     // nieuw: sneller, en de clip loopt evenredig mee
   anim(ZWM.loopFps * v / ZWM.loopV);
   zwmMove(s, naarJe * v * dt, plats, cliff);
 }
@@ -29447,7 +29455,8 @@ function zwmWijsTeken(s, gs){
   if (a <= 0) return;
   a *= F.wijsMax * (0.85 + 0.15 * Math.sin(s.t * 14));   // een zachte puls
   // een zachte ellips (een radiale verloop, plat geschaald): laag een koepel van licht op de grond, hoog een band op hoofdhoogte
-  const kl = laag ? F.wijsLaag : F.wijsHoog, rx = Math.abs(F.wijsTot - F.wijsVan) / 2 * gs, cx = (F.wijsVan + F.wijsTot) / 2 * gs;
+  const nw = zwmNieuw(), wVan = nw ? 40 : F.wijsVan, wTot = nw ? F.wijsTot - (ZWM_NIEUW.lengte - ZWM_TOUW.lengte) : F.wijsTot;   // nieuw: van vlak bij hem tot de langere zweep
+  const kl = laag ? F.wijsLaag : F.wijsHoog, rx = Math.abs(wTot - wVan) / 2 * gs, cx = (wVan + wTot) / 2 * gs;
   const ry = (laag ? C.laagH * F.wijsLaagHoog : F.wijsHoogDik / 2 + 10) * gs, cy = laag ? 0 : -(C.hoogMin + F.wijsHoogDik / 2 - 10) * gs;
   ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(cx, cy); ctx.scale(rx / ry, 1);
   const g = ctx.createRadialGradient(0, 0, 0, 0, 0, ry);
@@ -29477,7 +29486,7 @@ function zwmRoodTeken(s, gs){
   }
   const yL = -(C.laagH != null ? C.laagH : C.hoogMin) * gs;
   ctx.setLineDash([12, 8]); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,50,50,0.95)';
-  ctx.beginPath(); ctx.moveTo(60 * gs, yL); ctx.lineTo(-(ZWM_TOUW.lengte + 450) * gs, yL); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(60 * gs, yL); ctx.lineTo(-(zwmLengte() + 450) * gs, yL); ctx.stroke();
   ctx.restore();
 }
 function zwmTouwTeken(s, a, gs){
@@ -29534,6 +29543,11 @@ function zwmRaakt(s, bodyX, voeten, gs, pbox){
   const C = ZWM_SLAG[s.soort || 'laag'];
   if (!zwmGevaar(s)) return false;
   const sp = s.face === 1 ? -1 : 1, t = s.touw;
+  if (zwmNieuw()){                                       // nieuw: tegen hem aan raakt de slag ook (zijn arm en het handvat), op dezelfde hoogte als de zweep
+    const d = (bodyX - (pbox.l + pbox.r) / 2) * sp, yH = voeten - (C.laagH != null ? C.laagH : C.hoogMin) * gs;
+    const hoogteGoed = C.laagH != null ? pbox.b > yH : pbox.t < yH;   // laag: Amir staat op de grond; hoog: Amir staat rechtop
+    if (s.knalT >= 0 && d > -ZWM.half * gs && d < ZWM_NIEUW.dichtbij * gs && hoogteGoed) return true;
+  }
   for (let i = 4; i < ZWM_TOUW.n; i++){
     if (!zwmRaaktHoogte(C, t.Y[i])) continue;           // laag: alleen onder laagH (springen helpt); hoog: alleen boven hoogMin (bukken helpt)
     const x = bodyX + t.X[i] * gs * sp, y = voeten + t.Y[i] * gs;
@@ -29566,18 +29580,25 @@ const ZWM2 = {
   sprongGevaar: 0                 // in de sprong al vanaf zoveel frames na het begin van het touw: daar haalt hij naar voren uit,
                                   // bij de knal is hij al doorgedraaid en zwiept de zweep achter hem
 };
-// De nieuwe versie (Test 58 en 59 kiezen aan het begin oud of nieuw, zweepKeuze; de sandbox met de knop Versie):
-// hij sluipt sneller op je af, slaat in fase 2 sneller, kiest per zet op afstand (dichtbij de mep, ver de sprong)
-// en de sprong brengt hem tot vlak bij Amir, ook als die wegloopt. Het uitrusten blijft even lang: dat is het raam.
+// De nieuwe versie (Test 58 en 59 kiezen aan het begin oud of nieuw, zweepKeuze; de sandbox met de knop Versie).
+// Dezelfde vaste cyclus als oud, maar zonder veilige plek: zijn zweep is langer, hij houdt in fase 1 zelf afstand
+// (achteruit sluipen) en slaat ook als je tegen hem aan staat (dan raakt de slag op dezelfde hoogte als de zweep:
+// laag springen, hoog bukken), en in fase 2 zijn de mep en de sprong sneller en mikt de sprong op waar Amir staat,
+// ook terug als Amir dichtbij staat, zodat hij niet meer over je heen slaat.
 const ZWM_NIEUW = {
-  loopV: 165,                     // fase 1: wereld-px/s (oud ZWM.loopV 100); de loopclip loopt evenredig sneller mee
-  tempo: { lach: 1.25, mep: 1.35, sprong: 1.3, sprongterug: 1.35, rustin: 1.2 },   // fase 2: zoveel keer sneller
+  lengte: 520,                    // idle-px, de zweep (oud ZWM_TOUW.lengte 380)
+  aanval: 600, houd: 360,         // fase 1, idle-px: binnen aanval slaat hij, binnen houd wijkt hij terug (oud 440 en 260)
+  terugV: 120,                    // wereld-px/s achteruit sluipen (de loopclip achterstevoren)
+  dichtbij: 340,                  // idle-px: zo dicht bij zijn lijf raakt de slag ook zonder touw (laag springen, hoog bukken), tot waar het touw begint te raken
+  loopV: 150,                     // fase 1: wereld-px/s op je af (oud ZWM.loopV 100); de loopclip loopt evenredig mee
+  tempo: { lach: 1.2, mep: 1.3, sprong: 1.3, sprongterug: 1.2 },   // fase 2: zoveel keer sneller; uitrusten niet
   mepGat: { van: 40, tot: 50, f: 3 },   // de frames zonder zweep tussen de slag en de backhand: nog eens zoveel keer sneller
-  mepBereik: 400,                 // idle-px: dichterbij mept hij, verder weg springt hij
-  aanvallen: 3,                   // zoveel zetten (mep of sprong) en dan uitrusten, net als de oude reeks
-  sprongExtra: 760                // idle-px die hij in de sprong hoogstens extra opschuift (oud 320); hij mikt per frame
+  sprongDoel: 100,                // idle-px voor zijn anker waar Amir na de sprong moet staan: daar slaat de zweep neer (gemeten)
+  sprongVoor: 45, sprongTerug: 45 // idle-px per frame die hij in de sprong hoogstens extra vooruit of terug schuift (10 frames:
+                                  // tot 450 vooruit, dus wie na de mep ver genoeg wegrent ontwijkt de sprong nog)
 };
 function zwmNieuw(){ return sandbox ? sbZwmNieuw : !!(level && level.zweepKeuze && duoKeuze.zweep === 'nieuw'); }
+function zwmLengte(){ return zwmNieuw() ? ZWM_NIEUW.lengte : ZWM_TOUW.lengte; }
 // de duur van een frame in fase 2, in ms speltijd: in de nieuwe versie sneller
 function zwmF2Ms(s, set, i){
   let ms = set.frames[i].ms || 42;
@@ -29609,7 +29630,7 @@ function zwmF2Idx(s){ const set = zwmF2Data(s); if (!set) return 0; return s.f2 
 function zwmArmEraf(s){
   zwmLaadF2();
   s.fase = 2; s.hp = ZWM2.hp2; s.maxHp = ZWM2.hp2; s.flash = 0.28; s.inv = 0; s.knockV = 0;
-  s.stap = -1; s.zetten = 0; s.arm = null; s.druppels = [];
+  s.stap = -1; s.arm = null; s.druppels = [];
   zwmF2Set(s, 'armeraf');
   hitstop = Math.max(hitstop, 0.14); shake = Math.max(shake, 0.25);
   banSterf();
@@ -29619,14 +29640,6 @@ function zwmF2Volgende(s){
   if (s.f2 === 'sprongterug'){                              // de sprong heeft hem vooruit gebracht: dat wordt zijn nieuwe plek
     const sh = (zwmF2Data(s).verschuif || 0) * zwmScale() * (s.face === 1 ? -1 : 1);
     s.x += sh;
-  }
-  if (zwmNieuw()){                                          // nieuw: per zet kiezen op afstand, na ZWM_NIEUW.aanvallen zetten uitrusten
-    const N = ZWM_NIEUW, volg = { sprong: 'sprongterug', rustin: 'rust', rust: 'rustuit' }[s.f2];
-    if (volg){ zwmF2Set(s, volg); return; }
-    if ((s.zetten || 0) >= N.aanvallen){ s.zetten = 0; zwmF2Set(s, 'rustin'); return; }
-    s.zetten = (s.zetten || 0) + 1;
-    zwmF2Set(s, Math.abs(playerX() - s.x) / zwmScale() < N.mepBereik ? 'mep' : 'sprong');
-    return;
   }
   s.stap = (s.stap + 1) % ZWM2.cyclus.length;
   zwmF2Set(s, ZWM2.cyclus[s.stap]);
@@ -29657,9 +29670,9 @@ function zwmF2Stap(s, dt, plats, cliff){
       if (s.f2 === 'sprong' && s.frame >= ZWM2.sprongVan && s.frame < ZWM2.sprongTot){   // de sprong: hij schiet vooruit
         const rf = s.face === 1 ? 1 : -1, nF = ZWM2.sprongTot - ZWM2.sprongVan;
         let stap = (s.f2Extra || 0) / nF;
-        if (zwmNieuw()){                                   // nieuw: per frame mikken op waar Amir nu staat, tot vlak bij hem
-          const d = (playerX() - s.x) * rf / zwmScale() - ZWM2.sprongBereik;
-          stap = Math.max(0, Math.min(ZWM_NIEUW.sprongExtra / nF, d));
+        if (zwmNieuw()){                                   // nieuw: per frame mikken, zodat Amir na de sprong midden in de zweep staat
+          const N = ZWM_NIEUW, d = (playerX() - s.x) * rf / zwmScale() - N.sprongDoel, rest = ZWM2.sprongTot - s.frame;
+          stap = Math.max(-N.sprongTerug, Math.min(N.sprongVoor, d / rest));   // dichtbij schuift hij terug: niet meer over je heen
         }
         zwmMove(s, rf * stap * zwmScale(), plats, cliff);
       }
