@@ -156,13 +156,24 @@ De nieuwe versie (de tweede opzet: dezelfde vaste cyclus als oud, maar zonder ve
   touw (in `zwmRaakt`), met dezelfde regel: laag springen, hoog bukken.
 - **Fase 2, sneller**: de mep en de sprong 1,3 keer (`tempo`), de lach en de terugweg 1,2 keer, en het stuk zonder zweep
   in de mep (`mepGat`) nog eens drie keer sneller. Uitrusten blijft even lang. De cyclus is de vaste `ZWM2.cyclus`.
+- **Fase 1, speren neerslaan** (`zwmMepSpeerKan`, `zwmMepSpeerStart`, `zwmSpeerNeer`): een speer die op hem af vliegt slaat
+  hij met een snelle hoge slag (vanaf `slagVan - mepSpeer.voor`) uit de lucht, zodra de knal op tijd komt. De speer valt waar
+  de zweep hem raakt, zo'n 100 idle-px voor hem, als losse speer (E). Raakt hij zijn lijf voor de knal, dan slaat hij hem ook
+  neer. Alleen een worp van binnen zijn zone (vlakbij) raakt nog. Zo raak je hem alleen in zijn zone, door eerst een slag te
+  ontwijken (springen, bukken of je schild, dat de zweep via `hurtPlayer` vangt) en dan in zijn herstel te steken.
+- **Fase 2, de sprong slaat naar voren**: oud zwaaide de zweep in de sprong omhoog en naar achteren, over Amir heen (hij
+  landde bijna op hem). Nieuw vervangt `sprongBoog` de boog van dat segment (van boven zijn hoofd naar recht voor hem, harder
+  trekken), en blijft de punt `strakNa` frames na de knal strak naar voren trekken. Zolang raakt hij ook (`zwmF2Raakt`).
 - **Fase 2, de sprong mikt**: in de frames `sprongVan` tot `sprongTot` schuift hij per frame zo dat Amir op `sprongDoel`
-  (100 idle-px voor zijn anker, daar slaat de zweep neer) uitkomt, hoogstens `sprongVoor` vooruit of `sprongTerug` terug per
-  frame. Oud schoof hij alleen vooruit en sloeg hij soms over Amir heen of ernaast.
+  (360 idle-px voor zijn anker: daar reikt de slag op volle snelheid, gemeten 350 à 420) uitkomt, hoogstens `sprongVoor`
+  vooruit of `sprongTerug` terug per frame. Oud schoof hij alleen vooruit en sloeg hij soms over Amir heen of ernaast.
 
 Gemeten (Amir stil, afstand in idle-px tot zijn anker, 0 tot 800): oud miste de lage slag op 0 en 80, de hoge op 0 tot 250, en
 de sprong op 250, 450 en 650. Nieuw raakt elke slag op elke afstand van 0 tot 800 (de sprong tot zo'n 550, daarbuiten haalt
 hij je niet meer in), en de mep raakt nu tot 650 in plaats van 450.
+
+Speren (fase 1, Amir gooit vlak vanaf 300 tot 1600 idle-px): oud raakt de worp hem (of valt hij te kort); nieuw slaat hij
+elke worp vanaf 700 neer, op zo'n 100 voor hem; vanaf 300 (al in zijn zone) raakt hij nog.
 
 ## Nog te doen
 

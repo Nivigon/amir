@@ -29304,6 +29304,32 @@ function zwmSpoorStap(s, dt){
   while (s.spoor.length && s.spoor[0] === null) s.spoor.shift();
   s.stof = s.stof.filter(p => s.t - p.t < ZWM_FX.stofDuur);
 }
+// nieuw, fase 1: een speer die je naar hem gooit slaat hij met een snelle hoge slag uit de lucht, de grond in (zoals de
+// kooiman, kooiKaatsSpeer). Hij zet de slag in zodra de knal op tijd komt: de tijd tot de speer binnen de zweep is, is niet
+// langer dan de slag tot de knal. Zo raak je hem alleen in zijn zone, door eerst een slag te ontwijken (springen of bukken).
+function zwmMepSpeerKan(s){
+  if (!zwmNieuw() || s.fase !== 1 || !zwmData || !jav || jav.state !== 'vlucht' || jav.hit) return false;
+  if ((s.x - jav.x) * jav.vx <= 0) return false;                          // hij vliegt niet op hem af
+  const C = ZWM_SLAG.hoog, van = C.slagVan - ZWM_NIEUW.mepSpeer.voor;
+  let slag = 0; for (let i = van; i < C.knal; i++) slag += C.dur(i);
+  const bereik = zwmLengte() * zwmScale() * 0.9;
+  return (Math.abs(s.x - jav.x) - bereik) / Math.max(1, Math.abs(jav.vx)) <= slag / 1000;
+}
+function zwmMepSpeerStart(s){
+  const C = ZWM_SLAG.hoog;
+  s.soort = 'hoog'; zwmSet(s, 'slag'); s.frame = C.slagVan - ZWM_NIEUW.mepSpeer.voor; s.acc = 0;
+  s.face = jav.vx > 0 ? -1 : 1;                                          // naar de speer toe
+  s.geraaktAmir = false; s.knalT = -1; s.touw = null; s.spoor = null; s.stof = null; s.stofKnal = false; s.knalRicht = 0;
+  s.mepSpeer = true;
+}
+function zwmSpeerNeer(s){                                                 // de speer valt waar de zweep hem raakt, met E op te rapen
+  const x = jav.x;
+  puffWorld(x, 4, 0, 0.6, s.base || 0);
+  eigenSpeerLos(x, jav.dir, jav.blauw, jav.h);
+  jav = null; javLost = 0; spearX = null; spearH = null;
+  s.mepSpeer = false; shake = Math.max(shake, 0.08);
+  zwmZeg('lach', ZWM_NIEUW.mepSpeer.kans);
+}
 function updateZweepman(s, dt, plats, cliff){
   if (achterMasker(s.x, s.base)) return;
   if (ravijnValt(s, dt, 'weg')) return;
@@ -29317,6 +29343,7 @@ function updateZweepman(s, dt, plats, cliff){
   if (s.state === 'dood'){ if (s.arm) zwmArmStap(s, dt); s.alpha -= dt / ZWM.vervaag; if (s.alpha <= 0){ s.alpha = 0; s.state = 'weg'; } return; }
   if (!zwmData) return;
   if (s.state === 'f2'){ zwmF2Stap(s, dt, plats, cliff); return; }   // fase 2: zie ZWM2
+  if ((s.state === 'idle' || s.state === 'loop' || s.state === 'terug') && !s.vrij && zwmMepSpeerKan(s)){ zwmMepSpeerStart(s); return; }
   if (s.state === 'slag'){
     const C = ZWM_SLAG[s.soort || 'laag'];
     s.acc += dt * 1000;
@@ -29334,6 +29361,10 @@ function updateZweepman(s, dt, plats, cliff){
         while (s.touw.acc >= h && k < 30){ zwmTouwStap(s, h, a, prog); s.touw.acc -= h; k++; }
         if (s.frame >= C.knal && s.knalT < 0){ s.knalT = s.t; zwmKnalGeluid(s); shake = Math.max(shake, 0.06); }
       }
+    }
+    if (s.mepSpeer && s.knalT >= 0){                    // nieuw: de knal slaat de gegooide speer neer, als hij binnen de zweep is
+      if (jav && jav.state === 'vlucht' && !jav.hit && Math.abs(jav.x - s.x) < zwmLengte() * zS * 1.3) zwmSpeerNeer(s);
+      else s.mepSpeer = false;
     }
     zwmSpoorStap(s, dt);
     if (s.frame >= N - 1 && s.acc >= C.dur(N - 1)){ s.state = 'herstel'; s.herstelT = 0; }
@@ -29402,7 +29433,7 @@ function hitZweepman(s){
     banSterf(); puffWorld(s.x, 6, 0, 0.9, s.base || 0); vijandDood(false);
     return true;
   }
-  if (s.state === 'slag' && s.frame < ZWM_SLAG[s.soort || 'laag'].pantserVan){ zwmSet(s, 'idle'); s.cool = ZWM.coolOnderbreek; s.touw = null; }   // vroeg in de tell: onderbroken
+  if (s.state === 'slag' && s.frame < ZWM_SLAG[s.soort || 'laag'].pantserVan){ zwmSet(s, 'idle'); s.cool = ZWM.coolOnderbreek; s.touw = null; s.mepSpeer = false; }   // vroeg in de tell: onderbroken
   return true;
 }
 // tekenen in de lus: de lagen, het touw (voor of achter het lijf) en de botsing met Amir en zijn speer
@@ -29593,7 +29624,13 @@ const ZWM_NIEUW = {
   loopV: 150,                     // fase 1: wereld-px/s op je af (oud ZWM.loopV 100); de loopclip loopt evenredig mee
   tempo: { lach: 1.2, mep: 1.3, sprong: 1.3, sprongterug: 1.2 },   // fase 2: zoveel keer sneller; uitrusten niet
   mepGat: { van: 40, tot: 50, f: 3 },   // de frames zonder zweep tussen de slag en de backhand: nog eens zoveel keer sneller
-  sprongDoel: 100,                // idle-px voor zijn anker waar Amir na de sprong moet staan: daar slaat de zweep neer (gemeten)
+  sprongDoel: 360,                // idle-px voor zijn anker waar Amir na de sprong moet staan: in de zweep (die reikt op volle
+                                  // snelheid tot zo'n 350 à 420 voor zijn anker, gemeten)
+  sprongBoog: { boogVan: -100, boog: 85, kracht: 8, wExp: 0.6, strakNa: 7 },   // de slag uit de sprong gaat naar voren: van boven zijn
+                                  // hoofd naar recht voor hem (oud zwaaide hij omhoog en naar achteren, over je heen); strakNa:
+                                  // zoveel frames na de knal blijft de punt naar voren trekken, anders sleept hij achter de sprong aan
+  mepSpeer: { voor: 3, kans: 0.5 }, // fase 1: een gegooide speer slaat hij neer met een snelle hoge slag, zoveel frames voor
+                                  // slagVan ingezet; na het neerslaan lacht hij soms (kans)
   sprongVoor: 45, sprongTerug: 45 // idle-px per frame die hij in de sprong hoogstens extra vooruit of terug schuift (10 frames:
                                   // tot 450 vooruit, dus wie na de mep ver genoeg wegrent ontwijkt de sprong nog)
 };
@@ -29683,7 +29720,10 @@ function zwmF2Stap(s, dt, plats, cliff){
   // het touw: in een segment volgt de zweep de hand, met de boog naar de knal
   const i = zwmF2Idx(s), segs = set.touw || [];
   let si = -1; for (let k = 0; k < segs.length; k++) if (i >= segs[k].van && i <= segs[k].tot) si = k;
-  if (si !== s.f2Seg){ s.f2Seg = si; s.touw = null; s.knalT = -1; s.geraaktAmir = false; s.f2C = si >= 0 ? segs[si] : null; }
+  if (si !== s.f2Seg){
+    s.f2Seg = si; s.touw = null; s.knalT = -1; s.geraaktAmir = false; s.f2C = si >= 0 ? segs[si] : null;
+    if (s.f2C && s.f2 === 'sprong' && zwmNieuw()) s.f2C = Object.assign({}, s.f2C, ZWM_NIEUW.sprongBoog);   // nieuw: naar voren
+  }
   if (si >= 0){
     const C = segs[si], a = zwmF2Hand(s);
     if (a){
@@ -29694,6 +29734,7 @@ function zwmF2Stap(s, dt, plats, cliff){
         for (let k = C.van; k < C.knal; k++){ const m = zwmF2Ms(s, set, k); tot += m; if (k < i) nu += m; }
         if (i < C.knal) nu += Math.min(s.acc, zwmF2Ms(s, set, i));
         prog = i >= C.knal ? 1 : nu / Math.max(1, tot);
+        if (s.f2C && s.f2C.strakNa && i < C.knal + s.f2C.strakNa) prog = Math.min(prog, 0.999);   // nieuw, de sprong: strak naar voren, niet uitliggen
         if (i >= C.knal && s.knalT < 0){ s.knalT = s.t; zwmKnalGeluid(s); shake = Math.max(shake, 0.08); }
       }
       s.touw.acc += dt; const h = 1 / 240; let k = 0;
@@ -29802,7 +29843,8 @@ function zwmF2Raakt(s, bodyX, voeten, gs, pbox){
   if (!s.touw || !s.f2C || s.f2C.hang || s.geraaktAmir || dead || invuln > 0 || !kooiZelfdeHoogte(s)) return false;
   const C = s.f2C, i = zwmF2Idx(s);
   const van = s.f2 === 'sprong' ? C.van + ZWM2.sprongGevaar : C.knal - ZWM2.gevaarVoor;
-  if (i < van || (s.knalT >= 0 && s.t - s.knalT > ZWM2.gevaarNa)) return false;
+  const naKnal = C.strakNa ? i >= C.knal + C.strakNa : (s.knalT >= 0 && s.t - s.knalT > ZWM2.gevaarNa);   // nieuw, de sprong: zolang hij strak naar voren trekt
+  if (i < van || naKnal) return false;
   const sp = s.face === 1 ? -1 : 1, t = s.touw;
   for (let k = 4; k < ZWM_TOUW.n; k++){
     const x = bodyX + t.X[k] * gs * sp, y = voeten + t.Y[k] * gs;
@@ -35185,7 +35227,7 @@ function loop(now){
             swingUsed = true; if (atkMes){ s.flash = Math.max(s.flash || 0, 0.2); continue; } hitZweepman(s); continue;
           }
         }
-        if (javRaakt(nbox)){ javHitEnemy(); hitZweepman(s); continue; }
+        if (javRaakt(nbox)){ if (s.mepSpeer){ zwmSpeerNeer(s); continue; } javHitEnemy(); hitZweepman(s); continue; }
         if (s.sweptId !== sweepId && hitBy(zwaaiVak(swbox, 'zweepman'), nbox)){ s.sweptId = sweepId; hitZweepman(s); }
       }
     }
