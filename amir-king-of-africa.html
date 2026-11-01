@@ -2056,7 +2056,7 @@
   <div id="duokeuze" role="dialog" aria-modal="true" aria-labelledby="dktitel"><div id="dktitel">Instellingen</div>
     <div class="dkrij">Kruisboogbandiet<small>Hoeveel bouten hij per keer herladen opneemt. Met een tweede bout op de kruisboog schiet hij snel opnieuw</small><div id="dksalvo"></div></div>
     <div class="dkrij">Schildbandiet<small>Moeilijk: een kortere tell, een snellere sprong en minder rust tussen zijn aanvallen</small><div id="dkniveau"></div></div>
-    <div class="dkrij">Zweepman<small>Nieuw: hij sluipt sneller op je af, en zonder arm slaat hij sneller en haalt hij uit van ver. Nieuwer: zoals nieuw, maar zonder arm is hij alleen in zijn slag onaantastbaar, zijn klap slaat je minder ver weg en verdooft je even, en hij kan een treffer meer hebben. Oud: zoals hij was</small><div id="dkzweep"></div></div>
+    <div class="dkrij">Zweepman<small>Nieuw: hij sluipt sneller op je af, en zonder arm slaat hij sneller en haalt hij uit van ver. Nieuwer: zoals nieuw, maar hij is alleen in zijn slag onaantastbaar en slaat sneller; je treffer onderbreekt hem niet, dus blijf je staan, dan moet je zijn slag ontwijken. Zijn klap verdooft je even, zijn schreeuw duwt je weg, en hij kan meer treffers hebben. Oud: zoals hij was</small><div id="dkzweep"></div></div>
     <button id="dkstart" type="button">Start level</button></div>
   <div id="verhaal"><div id="vhtitel"></div><div id="vhtekst"></div><button id="vhstart" type="button">Start level</button></div>
   <div id="updates"><div id="updtitel">Updates</div><div id="updstand"></div><ul id="updlijst"></ul><button id="updsluit" type="button">Terug</button></div>
@@ -29714,7 +29714,7 @@ const zweepmannen = [];
 function makeZweepman(x, side, fasen){
   if (fasen) zwmF2Wil = true;
   zwmLaad(); if (fasen) zwmLaadF2();
-  const hp = fasen ? ZWM2.hp1 : ZWM.hp;
+  const hp = fasen ? (zwmNieuwer() ? ZWM_NIEUWER.hp1 : ZWM2.hp1) : ZWM.hp;
   return { x, face: -side, state: 'idle', frame: 0, acc: 0, t: 0, inv: 0, flash: 0, base: 0, alpha: 1, fasen: !!fasen, fase: 1,
            hp, maxHp: hp, hpBalk: hpBalkAan('zweepman'), cool: 0.4, knockV: 0, vrij: false,
            sweptId: -1, geraaktAmir: false, touw: null, slagT: 0, knalT: -1, herstelT: 0, geroepen: false };
@@ -29985,7 +29985,14 @@ function updateZweepmannen(dt, plats, cliff){
     if (s.state === 'weg') zweepmannen.splice(i, 1);
   }
 }
-function zwmF1Kwetsbaar(s){ return !zwmNieuw() || s.vrij || s.state === 'herstel' || s.state === 'terug'; }
+function zwmF1Kwetsbaar(s){
+  if (zwmNieuwer() && !s.vrij){                             // nieuwer: alleen in de slag zelf (en de inzet) niet
+    if (s.state !== 'slag') return true;
+    const C = ZWM_SLAG[s.soort || 'laag'];
+    return !(s.inzetP != null || (s.frame >= C.slagVan && s.frame <= C.knal + ZWM_NIEUWER.slagNa));
+  }
+  return !zwmNieuw() || s.vrij || s.state === 'herstel' || s.state === 'terug';
+}
 function hitZweepman(s){
   if (s.state === 'f2') return zwmF2Hit(s);
   if (s.state === 'dood' || s.state === 'weg' || s.inv > 0) return false;
@@ -30001,7 +30008,7 @@ function hitZweepman(s){
     banSterf(); puffWorld(s.x, 6, 0, 0.9, s.base || 0); vijandDood(false);
     return true;
   }
-  if (s.state === 'slag' && s.frame < ZWM_SLAG[s.soort || 'laag'].pantserVan){ zwmSet(s, 'idle'); s.cool = ZWM.coolOnderbreek; s.touw = null; s.mepSpeer = false; }   // vroeg in de tell: onderbroken
+  if (s.state === 'slag' && !zwmNieuwer() && s.frame < ZWM_SLAG[s.soort || 'laag'].pantserVan){ zwmSet(s, 'idle'); s.cool = ZWM.coolOnderbreek; s.touw = null; s.mepSpeer = false; }   // vroeg in de tell: onderbroken
   return true;
 }
 // tekenen in de lus: de lagen, het touw (voor of achter het lijf) en de botsing met Amir en zijn speer
@@ -30244,14 +30251,20 @@ function zwmNieuwer(){ return zwmVersie() === 'nieuwer'; }
 // uithaal, tussen de twee slagen van de mep en op de terugweg te raken. Een treffer onderbreekt hem niet: raak je hem vlak
 // voor zijn slag, dan zet hij door en raakt zijn zweep jou ook (een leven tegen een treffer). Zijn treffer slaat je minder
 // ver weg (duw, keer mepDuw en sprongDuw) maar verdooft je kort (stun, s, bovenop de gewone hurt). hp2: treffers in fase 2.
+// Fase 1 net zo: hij slaat sneller (slagTempo, nieuw 1,25), is te raken behalve in zijn slag zelf (van slagVan tot slagNa
+// frames na de knal, en in de inzet) en een treffer onderbreekt hem niet meer. Wie blijft staan en blijft slaan, moet zijn
+// slag dus ontwijken (laag springen, hoog bukken). hp1: treffers in fase 1. De schreeuw als zijn arm eraf gaat: dan is
+// hij onaantastbaar, dus duwt hij Amir weg (zonder schade) tot schreeuw.afstand idle-px van hem. De lach is te raken.
 const ZWM_NIEUWER = {
-  hp2: 3,
+  hp1: 3, hp2: 3,
+  slagTempo: 1.5, slagNa: 2,
   onaantastbaar: { mep: [[6, 20], [51, 60]], uithaal: [[28, 52]] },
-  duw: 0.4, stun: 0.5
+  duw: 0.4, stun: 0.5,
+  schreeuw: { afstand: 620 }
 };
 // de cyclus van fase 2: in de nieuwe versie de uithaal in plaats van de sprong
 function zwmCyclus(){ return zwmNieuw() ? ZWM2.cyclus.map(n => n === 'sprong' ? 'uithaal' : n) : ZWM2.cyclus; }
-function zwmDur(C, i){ return C.dur(i) / (zwmNieuw() ? ZWM_NIEUW.slagTempo : 1); }   // fase 1: de duur van een slagframe, nieuw sneller
+function zwmDur(C, i){ return C.dur(i) / (zwmNieuwer() ? ZWM_NIEUWER.slagTempo : zwmNieuw() ? ZWM_NIEUW.slagTempo : 1); }   // fase 1: de duur van een slagframe, nieuw sneller
 function zwmLengte(){ return zwmNieuw() ? ZWM_NIEUW.lengte : ZWM_TOUW.lengte; }
 // de duur van een frame in fase 2, in ms speltijd: in de nieuwe versie sneller
 function zwmF2Ms(s, set, i){
@@ -30288,6 +30301,10 @@ function zwmArmEraf(s){
   s.armSnedes = (s.snedes || []).filter(d => d.arm); s.snedes = (s.snedes || []).filter(d => !d.arm);   // de snee gaat mee met de arm
   zwmF2Set(s, 'armeraf');
   zwmKreet('armeraf');
+  if (zwmNieuwer()){                                        // nieuwer: de schreeuw duwt Amir weg, zonder schade
+    const px = playerX(), d = Math.abs(px - s.x), doel = ZWM_NIEUWER.schreeuw.afstand * zwmScale();
+    if (d < doel && !dead){ knock = (s.x < px ? 1 : -1) * (doel - d) * 60 * 0.14; puffWorld(px, 5, 0, 0.8, s.base || 0); }
+  }
   bloedSpeel();   // het bloedgeluid, net als bij de executie van de schildbandiet
   hitstop = Math.max(hitstop, 0.14); shake = Math.max(shake, 0.25);
   banSterf();
@@ -30303,7 +30320,8 @@ function zwmF2Volgende(s){
 function zwmF2Kwetsbaar(s){
   if (s.state !== 'f2') return false;
   if (zwmNieuwer()){                                         // nieuwer: alleen in de slag zelf niet
-    if (s.f2 === 'armeraf' || s.f2 === 'lach') return false;
+    if (s.f2 === 'armeraf') return false;
+    if (s.f2 === 'lach') return true;                       // hij staat je uit te lachen: daar mag je hem voor straffen
     const i = zwmF2Idx(s);
     return !(ZWM_NIEUWER.onaantastbaar[s.f2] || []).some(([a, b]) => i >= a && i <= b);
   }
@@ -30491,7 +30509,7 @@ function zwmF2Raakt(s, bodyX, voeten, gs, pbox){
   return false;
 }
 function zwmF2Hit(s){
-  if (s.state !== 'f2' || s.f2 === 'armeraf' || s.f2 === 'lach' || s.inv > 0) return false;
+  if (s.state !== 'f2' || s.f2 === 'armeraf' || (s.f2 === 'lach' && !zwmNieuwer()) || s.inv > 0) return false;
   if (!zwmF2Kwetsbaar(s)){ s.flash = Math.max(s.flash, 0.12); s.inv = 0.25; houtRaak(HOUT.kets.toon, HOUT.kets.vol); return false; }   // hij raast: je speer ketst af
   hits++; hitsEl.textContent = hits;
   s.hp--; s.flash = 0.3; s.inv = ZWM.invHit;

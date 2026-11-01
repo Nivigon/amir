@@ -175,6 +175,13 @@ mep tot het eind van de eerste uithaal zo'n 4,6 s, en in een cyclus van 14 s maa
 - **Minder ver weg, wel verdoofd**: zijn treffer duwt `duw` (0,4) keer zo ver als `mepDuw` en `sprongDuw`, en zet `hurt`
   op minstens `stun` (0,5 s, de gewone treffer is 0,38 s): even geen besturing.
 - **Een treffer meer**: `hp2` 3 in plaats van `ZWM2.hp2` (2).
+- **De schreeuw duwt je weg**: als zijn arm eraf gaat (`zwmArmEraf`) is hij onaantastbaar, dus duwt de schreeuw Amir zonder
+  schade weg tot `schreeuw.afstand` (620 idle-px) van hem, met een stofwolkje. Daarvoor kon je 1,9 s in de lucht slaan.
+- **De lach is te raken** (1,5 s): hij staat je uit te lachen, dus daar mag je hem voor straffen.
+- **Fase 1 net zo** (`zwmF1Kwetsbaar`, `zwmDur`, `hitZweepman`): hij slaat sneller (`slagTempo` 1,5, nieuw 1,25), is te raken
+  behalve in zijn slag zelf (van `slagVan` tot `slagNa` frames na de knal, en in de inzet), en een treffer onderbreekt zijn
+  slag niet meer (geen `pantserVan`). Wie blijft staan en blijft slaan, moet zijn slag dus ontwijken: laag springen, hoog
+  bukken. Daarom ook `hp1` 3 in plaats van `ZWM2.hp1` (2).
 
 De nieuwe versie (de tweede opzet: dezelfde vaste cyclus als oud, maar zonder veilige plek):
 
