@@ -152,7 +152,8 @@ Altijd WYSIWYG: links in het grid is links in het spel, de wereld-x is `(kolom -
   van de bodem de straat (`bodemPic`), dus dan krijgen savanne- en sneeuwcellen op de grondlijn ook een eigen strook
   `grondSoort` met soort `savanne`, en ligt de straat alleen waar je straat schilderde.
 - Vijanden via `mkSpawn`: de soort-tekst (`bandiet:dolk`, `kooiman:vogel`, `schildman:makkelijk`)
-  wordt de spawn met zijn vlaggen; een vijand op een laag krijgt `boven: true`, in een gang `y`. Ook op het
+  wordt de spawn met zijn vlaggen; een vijand op een laag krijgt `boven: true`, in een gang `y`, en op een dak, galerij of
+  balkon van de stad `dak` (zie "Vijanden op daken en de meldingen van de stad"). Ook op het
   dak van een gang (op of boven de grondlijn, met een holte eronder) krijgt hij `boven: true`: `bovenVloer`
   klemt daar op 0, terwijl `terrainH` de gang-bodem gaf. Een kalebas op dat dak krijgt om dezelfde reden
   `y: 0`. Een kei op het dak van een gang zakt nog wel naar de gang-bodem (`rocks` kent geen hoogte).
@@ -205,8 +206,9 @@ naar de cel), die bijblijft zolang hij open staat. Drie soorten:
   op of boven de grondlijn rust, of die drie of meer cellen ravijn naast zich open laat, en een zegel dat een
   zakker stuurt, een gevel, kraam of voetdecor op grond die geen straat is (de grondlijn-cel op zijn kolom), en een
   straatcel of leemmuur boven de grondlijn zonder straat op de grondlijn eronder (per reeks kolommen een melding; een
-  straatterras haalt zijn tegel uit de strook op de grondlijn). Die laatste twee zijn uit stap 5 van het stadplan naar
-  voren gehaald.
+  straatterras haalt zijn tegel uit de strook op de grondlijn). Voor de huizen, galerijen, trappen en vijanden op daken
+  zie "Vijanden op daken en de meldingen van de stad" (daar staat ook de enige FOUT van de stad: een trap zonder vloer bij
+  de uitgang).
 - **info**: een prop (de Test tekent hem niet), rotsdecor dat boven zijn vloer hangt (het spel zet hem op de vloer), een poort met regie zonder vijand, een hek dat niets opent, een zegel of rune zonder masker of rijzer (alleen een
   aantekening), een rijzer zonder duur die het hele ravijn vult (het ravijn is daarna voorgoed dicht, dus geen
   schuilplek meer, regel 7).
@@ -317,10 +319,40 @@ van een gevel, niet aan een plek:
   streepje op de opening waar je boven uitkomt, en tijdens het slepen een stippellijn op de hoogte waar je drukte.
 - **Aanklikken**: op het plaatje (`mkKoppelVakken`; een trap op zijn treden en zijn balkon, niet op het huis ertussen), voor de
   gevel; de exacte cel van een galerij of trap telt niet, daar staat de gevel.
-- De meldingen voor galerij en trap (een galerij boven het dak, een trap zonder vloer aan de voet of de uitgang) zijn voor
-  stap 5, net als vijanden op daken.
+- De meldingen voor galerij en trap en de vijanden op daken: zie hieronder.
 
-Het verdere plan (de afwerking): `notities/plan-stad-maker.md`.
+### Vijanden op daken en de meldingen van de stad
+
+`MK_DAK_SOORTEN`, `mkDakSoort`, `mkStadVloeren`, `mkStadVloerOp`, `voetX` in `mkTrapMaat`
+
+Stap 5 van `notities/plan-stad-maker.md` (daarmee is het plan klaar).
+
+- **De vloeren van de stad** (`mkStadVloeren`, zoals `stadVloeren` in het spel, in cellen op laptopmaat): het dak van elke
+  gevel over zijn muur (`stadGevelH`: 487, 816, 1145 of 1474 voor 1 tot 4 hoog), het dek van elke galerij (zonder de
+  uiterste 15 procent van zijn eindstukken, zoals het spel) en het balkon van een trap (`ht`, alleen met een balkon).
+- **Een vijand erop** (`mkStadVloerOp`): het midden van zijn cel ligt boven de vloer en zijn voet (de onderrand van zijn
+  cel) ligt hoogstens een halve cel (75) van die vloer. Met cellen van 150 valt elke vloer zo in precies een rij: een vijand
+  op de galerij van de eerste verdieping (401) zet je in de cel waarvan de onderrand op 450 ligt.
+- **In `mkSpawn`**: zo'n vijand krijgt `dak` met de hoogte van die vloer (`dak: 401`), en geen `boven` of `y`; `stadDakPlek`
+  zet hem in het spel op die vloer, binnen de rand. Alleen de soorten die `dak` lezen (`MK_DAK_SOORTEN`: bandiet,
+  schildbandiet en kruisboogbandiet; de Maker heeft nog geen kruisboogbandiet) krijgen het. Een andere soort krijgt het
+  niet en staat in de Test op de straat; `mkControle` meldt dat.
+
+Meldingen in `mkControle` (allemaal klikbaar, ze springen naar de cel):
+
+| melding | ernst |
+| --- | --- |
+| twee gevels waarvan de muren elkaar op laptopmaat overlappen (meer dan 0,05 cel; raken mag, dat is een rij daken) | LET OP |
+| een galerij met zijn dek boven het dak van een van zijn huizen | LET OP |
+| een trap die hoger uitkomt dan het dak van zijn huis (niveau gelijk aan of hoger dan de hoogte van het huis) | LET OP |
+| een trap op niveau 0 met zijn voet (`voetX`, waar je E drukt) boven een ravijn of leegte op de grondlijn | LET OP |
+| een trap hoger dan niveau 0 zonder galerij of balkon op zijn hoogte aan zijn voet | LET OP |
+| een trap met balkon 0 en geen galerij of balkon op zijn uitgang (`gatX`): na E val je meteen naar beneden | FOUT |
+| een vijand op een dak, galerij of balkon waarvan de soort `dak` niet kent (hij staat in de Test op de straat) | LET OP |
+
+Een bandiet of schildbandiet op een dak krijgt geen melding (ook niet dat hij zweeft). `tools/makertest.js` (controle
+`stadsstukken`) zet elk van deze meldingen een keer neer en kijkt `dak` na, en het proefgrid heeft de stad achter de start
+(kolom 24 tot 35) met een bandiet op de galerij (`dak: 401`) en een schildbandiet op een dak (`dak: 816`).
 
 ## Sneltoetsen
 
@@ -335,7 +367,8 @@ leegmaken). Op een keuzelijst, knop of tekstvak blijven de toetsen van dat veld.
 
 Laadt de Maker in Chromium met een proefgrid waar alles op staat (gat, gang met treden, mesa,
 zwever, muur door de grond, sneeuw, alle voorwerpen, een tweede ravijn met een rijzer van 2 breed die het zegel
-stuurt, een masker, een zwarte cel, een vorm) en
+stuurt, een masker, een zwarte cel, een vorm, en achter de start een straat met twee huizen, een galerij, een trap, een
+kraam, voetdecor, het paleis en een bandiet op de galerij en een schildbandiet op een dak) en
 kijkt na: de round-trip van export en import, de vertaling naar een spel-level, rijen invoegen en
 weer weghalen, verkleinen, snel schilderen, de rechthoek, het aanklikken van brede voorwerpen,
 ongedaan maken, een gebied kopiëren, spiegelen, plakken en knippen, een rijzer van even breedte spiegelen met
@@ -344,7 +377,8 @@ de autosave, de schakelaar Savanne | Stad met de leemmuur en het uitzicht (contr
 `stadsstukken`: ids, een paleis, de JSON, het veld `stad`, de stroken, de twee meldingen, spiegelen, plakken, het paneel en
 neerzetten met de muis; en galerij en trap: slepen van gevel naar gevel, de zijkant van een gevel, het paneel, aanklikken op
 het plaatje, `stad.galerijen` en `stad.trappen`, de JSON, een rij erboven, kopiëren met spiegelen en plakken op nieuwe id's,
-een gebied met maar een van de twee gevels, een gevel weg met ongedaan maken, en laden met een gevel die er niet is), en of
+een gebied met maar een van de twee gevels, een gevel weg met ongedaan maken, en laden met een gevel die er niet is; en de
+meldingen van stap 5 met hun cel, `dak` op de spawn, en de stad in het proefgrid), en of
 het proefgrid als spel-level door `levelcheck.py` komt. Draai hem na elke wijziging aan de Maker.
 
 ```

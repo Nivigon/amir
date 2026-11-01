@@ -37546,7 +37546,8 @@ function mkTrapMaat(o){
   const tw = T.w * s, x0 = links ? muur - T.binnen * s : muur - (T.w - T.binnen) * s;
   const A = mkAmirCel(), bw = (o.balkon != null ? Math.max(0, Number(o.balkon) || 0) : MK_TRAP_BALKON) * A, gat = T.gat * A;
   const GL = STAD.galerij, fy = CHAR_H / GL.amir / MK_CEL_EENH, rT = mkStadRij(ht);
-  return { links, muur, ander, uit, x0, tw, hb, ht, rB: mkStadRij(hb), rT, bw, gat, gatX: ander + uit * gat / 2,
+  const voetX = links ? x0 + T.binnen * s * 0.5 : x0 + tw - T.binnen * s * 0.5;   // waar je onderaan E drukt (stadTrapMaat)
+  return { links, muur, ander, uit, x0, tw, voetX, hb, ht, rB: mkStadRij(hb), rT, bw, gat, gatX: ander + uit * gat / 2,
            bronTop: T.h - (ht - hb) * (T.h - T.top) / stadNiveau(1),       // de bovenste bronrij die in beeld komt (de rest valt achter het bordes)
            balkL: Math.min(ander, ander + uit * bw), balkR: Math.max(ander, ander + uit * bw), balkR0: rT - GL.dek * fy, balkR1: rT - GL.dek * fy + 293 * fy };
 }
@@ -37557,6 +37558,31 @@ function mkKoppelVakken(o){
   const v = [{ c0: m.x0, c1: m.x0 + m.tw, r0: m.rT, r1: m.rB }];
   if (m.bw > 0) v.push({ c0: m.balkL, c1: m.balkR, r0: m.balkR0, r1: m.balkR1 });
   return v;
+}
+// ---- vijanden op daken: de vloeren van de stad in cellen, zoals stadVloeren in het spel ----
+// Het dak van elke gevel (over zijn muur), het dek van elke galerij en het balkon van een trap, op laptopmaat. Een vijand
+// staat erop als het midden van zijn cel erboven ligt en zijn voet (de onderrand van zijn cel) hoogstens een halve cel
+// van die vloer af ligt; mkNaarLevel geeft hem dan dak (de hoogte), en stadDakPlek zet hem in het spel op die vloer.
+// Alleen de bandiet, de schildbandiet en de kruisboogbandiet lezen dak (MK_DAK_SOORTEN; de Maker heeft nog geen kruisboogbandiet,
+// hij staat er voor als hij erbij komt); een andere soort staat in de Test op de straat, en mkControle meldt dat.
+const MK_DAK_SOORTEN = ['bandiet', 'schildman', 'kruisboogbandiet'];
+const mkDakSoort = s => MK_DAK_SOORTEN.some(k => (s || '') === k || (s || '').indexOf(k + ':') === 0);
+function mkStadVloeren(){
+  const out = [];
+  for (const o of MK.objects){
+    if (o.k === 'gevel'){ const [l, r] = mkGevelMuur(o); out.push({ c0: l, c1: r, h: stadGevelH(mkGevelHoog(o)), soort: 'dak', o }); }
+    else if (o.k === 'galerij'){ const m = mkGalerijMaat(o); if (m) out.push({ c0: m.c0 + m.lw * 0.15, c1: m.c1 - m.rw * 0.15, h: m.h, soort: 'galerij', o }); }
+    else if (o.k === 'trap'){ const m = mkTrapMaat(o); if (m && m.bw > 0) out.push({ c0: m.balkL, c1: m.balkR, h: m.ht, soort: 'balkon', o }); }
+  }
+  return out;
+}
+// de vloer van de stad waar een vijand (of een cel {c, r}) op staat, of null
+function mkStadVloerOp(o, vloeren = mkStadVloeren()){
+  const cx = o.c + 0.5, voet = (MK.ground - o.r - 1) * MK_CEL_EENH;
+  if (voet <= 0) return null;
+  let best = null;
+  for (const v of vloeren) if (cx >= v.c0 && cx <= v.c1 && Math.abs(v.h - voet) <= MK_CEL_EENH / 2 && (!best || Math.abs(v.h - voet) < Math.abs(best.h - voet))) best = v;
+  return best;
 }
 // c en r volgen de linkse gevel; een galerij of trap zonder zijn gevel gaat weg (na Delete, de gum, knippen of rijen weghalen)
 function mkStadKoppel(){
@@ -37938,7 +37964,7 @@ function mkObjVak(o){
   if (o.k === 'rotsdecor'){
     const k = rotsSoort(o.prop), def = PROPS[k], im = propImg[k];
     const hE = CHAR_H * def.h * (o.s > 0 ? o.s : 1), hC = hE / MK_CEL_EENH;
-    const wC = hE * (imgReady(im) ? im.naturalWidth / im.naturalHeight : (def.r || 1)) / MK_CEL_PX;
+    const wC = hE * (im && imgReady(im) ? im.naturalWidth / im.naturalHeight : (def.r || 1)) / MK_CEL_PX;
     return { c0: cx - wC / 2, c1: cx + wC / 2, r0: onder - hC, r1: onder };
   }
   if (MK_STAD_K.has(o.k)) return mkStadVak(o);
@@ -39293,6 +39319,7 @@ function mkNaarLevel(opt){
   }
   // Vijand-objecten worden hun gekozen soort op hun x (de bandiet met zijn variant-velden). De opmerking kan extra
   // wensen bevatten. Zonder vijanden houdt een verre dummy-spawn de vrije modus uit (anders stuurt het spel zelf slangen op je af).
+  const stadVloeren = mkStadVloeren();             // de daken, galerijen en balkons, voor een vijand die erop staat
   const mkSpawn = o => {
     const [l, r2] = lr(o.c), x = Math.round((l + r2) / 2), s = o.soort || 'groen';
     let sp;
@@ -39316,7 +39343,9 @@ function mkNaarLevel(opt){
     // negatief): bovenVloer kent die laag, dus hij belandt erop in plaats van op de grond of de gang-vloer. Een
     // verhoogd terras telt alleen boven de grond (t.h > 1); een trede in een gang (negatieve h) valt onder sp.y.
     const inGang = holtes.some(h => x >= h.l && x <= h.r);
-    if (zwevers.some(z => opX(z) && Math.abs(z.h - voet) < 80)
+    const stadV = mkStadVloerOp(o, stadVloeren);    // op een dak, galerij of balkon van de stad: dak is de hoogte van die vloer
+    if (stadV){ if (mkDakSoort(s)) sp.dak = Math.round(stadV.h); }   // een soort die dak niet kent staat op de straat (mkControle meldt het)
+    else if (zwevers.some(z => opX(z) && Math.abs(z.h - voet) < 80)
      || terraces.some(t => t.h > 1 && opX(t) && Math.abs(t.h - voet) < 80)
      || (voet >= 0 && inGang))                        // op het dak van een gang (de savanne erboven): bovenVloer klemt daar op 0, terrainH gaf de gang-bodem
       sp.boven = true;
@@ -39635,11 +39664,16 @@ function mkControle(){
   // gang-cellen boven de grondlijn doen niets
   for (let r = 0; r < gR; r++) for (let c = 0; c < C; c++) if (cel(c, r) === 'gang'){ meld('letop', 'Een gang-cel boven de grondlijn (rij ' + r + ') doet niets: een gang teken je onder de grondlijn.', c, r); r = gR; break; }
   const platforms = MK.objects.filter(o => o.k === 'platform');
+  const stadVloeren = mkStadVloeren(), vloerNaam = { dak: 'het dak van', galerij: 'de galerij van', balkon: 'het balkon van de trap bij' };
+  const stadVloerTekst = v => vloerNaam[v.soort] + ' ' + (v.soort === 'dak' ? v.o.id : v.soort === 'galerij' ? mkKoppelGevels(v.o).filter((g, i, a) => a.indexOf(g) === i).join(' tot ') : v.o.gevel);
   for (const o of MK.objects){
     const naam = mkNaamVan(o);
     if (o.k === 'vijand'){
-      const v = vloerVan(o.c, o.r);
+      const v = vloerVan(o.c, o.r), sv = vast(cel(o.c, o.r)) ? null : mkStadVloerOp(o, stadVloeren);
       if (vast(cel(o.c, o.r))) meld('fout', naam + ' staat in een vaste cel (kolom ' + o.c + ').', o.c, o.r);
+      else if (sv){                                                    // op een dak, galerij of balkon: dak op zijn spawn (mkSpawn)
+        if (!mkDakSoort(o.soort)) meld('letop', naam + ' op kolom ' + o.c + ' staat op ' + stadVloerTekst(sv) + ', maar deze soort kent geen daken: in de Test staat hij op de straat. Alleen een bandiet of schildbandiet blijft boven.', o.c, o.r);
+      }
       else if (v === null) meld('fout', naam + ' staat boven een ravijn zonder bodem (kolom ' + o.c + ').', o.c, o.r);
       else if (v - o.r > 1 && o.r < gR) meld('letop', naam + ' zweeft ' + (v - o.r) + ' cellen boven zijn vloer; hij komt op de grond eronder.', o.c, o.r);
       if (MK.start && Math.abs(o.c - MK.start.c) <= 1 && o.r === MK.start.r) meld('letop', naam + ' staat op de start.', o.c, o.r);
@@ -39708,6 +39742,36 @@ function mkControle(){
       if (g !== 'straat') meld('letop', nm + ' staat op grond die geen straat is (' + celNaam(g) + ' op de grondlijn): schilder Grond: straat op de grondlijn eronder, of laat het zo als het zo bedoeld is.', o.c, o.r);
     }
     else if (o.k === 'hppotion' || o.k === 'richel'){ if (vast(cel(o.c, o.r))) meld('letop', naam + ' op kolom ' + o.c + ' staat in een vaste cel.', o.c, o.r); }
+  }
+  // de huizen, galerijen en trappen samen, op laptopmaat (MK_STAD_SCHAAL), zoals de Maker ze tekent
+  const gevels = MK.objects.filter(o => o.k === 'gevel').sort((a, b) => a.c - b.c);
+  for (let i = 0; i < gevels.length; i++) for (let j = i + 1; j < gevels.length; j++){   // twee muren door elkaar (raken mag: een rij daken)
+    const a = gevels[i], b = gevels[j], [al, ar] = mkGevelMuur(a), [bl, br] = mkGevelMuur(b), over = Math.min(ar, br) - Math.max(al, bl);
+    if (over > 0.05) meld('letop', 'Gevel ' + a.id + ' en ' + b.id + ' overlappen ' + (Math.round(over * 10) / 10).toString().replace('.', ',') + ' cel op laptopmaat: in het spel staan de huizen door elkaar, en op een groter scherm nog meer (een gevel schaalt mee). Schuif ze uit elkaar.', b.c, b.r);
+  }
+  for (const o of MK.objects){
+    if (o.k === 'galerij'){
+      const m = mkGalerijMaat(o); if (!m) continue;
+      for (const id of mkKoppelGevels(o).filter((g, i, a) => a.indexOf(g) === i)){
+        const g = mkGevelVan(id), dak = stadGevelH(mkGevelHoog(g));
+        if (m.h > dak) meld('letop', 'De galerij van ' + mkKoppelGevels(o).filter((q, i, a) => a.indexOf(q) === i).join(' tot ') + ' ligt op niveau ' + mkGalNiveau(o) + ', boven het dak van ' + id + ' (' + mkGevelHoog(g) + ' hoog): hij hangt daar in de lucht. Zet het niveau lager of maak het huis hoger.', o.c, Math.max(0, Math.floor(m.dek)));
+      }
+    }
+    else if (o.k === 'trap'){
+      const m = mkTrapMaat(o); if (!m) continue;
+      const g = mkGevelVan(o.gevel), dak = stadGevelH(mkGevelHoog(g)), nm = 'De trap bij ' + o.gevel + ' (' + (m.links ? 'links' : 'rechts') + ', niveau ' + mkTrapNiveau(o) + ')';
+      const rij = r => Math.max(0, Math.min(R - 1, Math.floor(r)));
+      // een vloer van de stad op hoogte h boven x (een galerij, of het balkon van een andere trap)
+      const vloerOp = (x, h, zelf) => stadVloeren.some(v => v.o !== zelf && v.soort !== 'dak' && Math.abs(v.h - h) < 1 && x >= v.c0 && x <= v.c1);
+      if (m.ht > dak) meld('letop', nm + ' komt op ' + Math.round(m.ht) + ' uit, hoger dan het dak van ' + o.gevel + ' (' + mkGevelHoog(g) + ' hoog): de opening zit dan boven het huis. Zet het niveau lager of maak het huis hoger.', o.c, rij(m.rT));
+      if (m.hb <= 0){                                                  // de voet op de straat: de grondlijn eronder moet grond zijn
+        const vc = Math.floor(m.voetX), id = cel(vc, gR);
+        if (!vast(id)) meld('letop', nm + ' staat met zijn voet boven ' + (id === 'ravijn' ? 'een ravijn' : celNaam(id)) + ' (kolom ' + vc + '): daar is geen straat om naar de trap te lopen.', vc, gR);
+      } else if (!vloerOp(m.voetX, m.hb, o))
+        meld('letop', nm + ' begint op ' + Math.round(m.hb) + ', maar daar ligt aan zijn voet geen galerij: je komt er niet bij. Leg een galerij op niveau ' + mkTrapNiveau(o) + ' langs dit huis, of zet de trap op niveau 0.', o.c, rij(m.rB));
+      if (m.bw <= 0 && !vloerOp(m.gatX, m.ht, o))                      // zonder balkon en zonder galerij: na E val je naar beneden
+        meld('fout', nm + ' heeft geen balkon en er loopt boven geen galerij op niveau ' + (mkTrapNiveau(o) + 1) + ' bij de opening: na E val je meteen naar beneden. Geef de trap een balkon, of leg daar een galerij.', o.c, rij(m.rT));
+    }
   }
   // een straatcel of leemmuur boven de grondlijn zonder straat op de grondlijn eronder: een straatterras haalt zijn tegel uit
   // de strook op de grondlijn (grondSoort), dus daar wordt hij savanne of rots. Per aaneengesloten reeks kolommen een melding.
