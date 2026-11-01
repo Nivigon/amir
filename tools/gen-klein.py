@@ -132,6 +132,9 @@ DOELEN = [
     ('design/stad/galerij.png', 60),    # 3,7x  (293 hoog, vandaar de lage drempel)
     ('design/stad/voetdecor.png', 60),  # 3,8x
     ('design/stad/trap.png', 60),       # 4,7x
+    # de poorten tussen de straten (Oaktown): tekencode rekent met naturalWidth, dus de halve plaat komt op dezelfde maat
+    ('design/stad/poort_hoek.png', 60),
+    ('design/stad/poort_recht.png', 60),
 ]
 
 # Bronmateriaal dat het spel nooit opvraagt. Een bestand dat hierboven bij naam

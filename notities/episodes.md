@@ -19,6 +19,13 @@ De Valse Koning; een knop in `menuEpisodes` (`btnStad`), het scherm `menuStad` m
 met de lange galerij en het gevecht erop; het stond eerst als Test 59 tussen de Test levels. Eronder loopt de stadmuziek, Market Shadows
 (`MUZIEK_STAD`, `music/marketshadows.mp3`, in elk stadlevel), en net als overal heeft Amir 1 reserve-speer op de rug (`RUG_STANDAARD`).
 
+## Episode Oaktown
+
+`OAK_1` (makkelijk, alleen zandslangen) en `OAK_2` (moeilijk, alleen mensen) en `OAK_LEVELS`: zeven korte straten op een
+kaart als een dobbelsteen met zes ogen, met poorten ertussen en een minimap; je speelt een level uit met 50 kills (het
+veld `straten`, zie `notities/oaktown.md`). Beide levels delen de kaart (`OAK_STRATEN`, `OAK_STAD`, `OAK_TERRAS`,
+`OAK_KALEBAS`). Met de tribekeuze (`runStart`); een knop in `menuEpisodes` (`btnOak`), het scherm `menuOak` met `cardsOak`.
+
 ## Episode Baboon tests
 
 `BAB_1` tot en met `BAB_4` en `BAB_LEVELS`: proefstukken voor de baviaan, met de tribekeuze (`runStart`) zoals De Valse Koning; menu `menuBab`, `cardsBab`. Baboon 1 is de wand en de kooi, Baboon 2 dezelfde vlakte met de speerbeet in plaats daarvan, Baboon 3 de speerval, Baboon 4 de goudaap-arena (`apenArena`, zie hieronder). De eerste en de derde stonden eerst tussen de Test levels

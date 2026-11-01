@@ -166,6 +166,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | Episode Test levels | `TEST_1`, `TEST_51`, `KAART_BLAD` | notities/episodes.md |
 | Episode Baboon tests | `BAB_1`, `BAB_4`, `BAB_LEVELS` | notities/episodes.md |
 | Episode Test levels stad | `STAD_1`, `STAD_LEVELS`, `menuStad` | notities/episodes.md |
+| Episode Oaktown: zeven straten met poorten, 50 kills | `OAK_1`, `OAK_STRATEN`, `menuOak` | notities/oaktown.md |
 | goudaapje: het kleine gouden aapje en de arena (arena, regel 12) | `GAAP`, `gaapSpawn`, `updateGoudapen` | notities/goudaapje.md |
 | het mes: Jackal Fang van Impungushe | `MES`, `mesInHand`, `mesTeken` | notities/mes.md |
 | T-splitsing in de talent tree | `varianten`, `TRIBE_CONFIG`, `tbSplit` | notities/tribes.md |
@@ -191,6 +192,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de stad: een Sahelstraat met gevels, galerijen, kramen en het paleis | `STAD`, `stadPlats`, `stadAchter`, `stadTeken` | notities/stad.md |
 | de stadstrap: een buitentrap achter een huis langs, E en een fade | `STAD_TRAP`, `stadTrapE`, `stadInGevecht` | notities/stad.md |
 | de leemmuur: een terras met de look van de stad | `LEEM`, `leemMuurTeken`, `look: 'leem'` | notities/stad.md |
+| straten: losse straten met poorten ertussen, de minimap, aanvullen en een killdoel | `STRATEN`, `straatE`, `straatAanvul`, `straatHudTeken` | notities/oaktown.md |
 | poort: een stenen boog, decor of de plek waar een vijand uitkomt | `POORT`, `poortOpen`, `poortKlaar` | notities/poort.md |
 | het hek van de poort: een ijzeren valhek dat omhoog getakeld wordt | `HEK`, `hekTeken`, `hekUpdate`, `poortRegie` | notities/poort.md |
 | rotsen als decor: een runerots zonder rune, achter de plateaus | `rotsen`, `rotsenTeken`, `rotsenLaadLevel` | notities/decor.md |
@@ -309,6 +311,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `rotsen` | losse rotsen als decor: `{x, soort, groot, y}`, een van de platen onder een rune (`spits`, `pieken`, `zuilen`, `boog`) zonder schijf, `x` de linkervoet, `groot` de hoogte in Amir, `y` een vaste vloer; getekend achter de plateaus, zodat een zwever erin kan snijden (zie `notities/decor.md`) |
 | `rijzers` | steen dat uit een ravijn omhoog komt: `{id, r, l, tot, van, v, wacht, duur}`, `id` de naam waar een zegel of een rune (`doel: true`) met `rijs` naar wijst, `tot` en `van` de bovenkant boven en beneden (standaard -1 en -900), `wacht` seconden voor hij begint, `duur` seconden boven voor hij terugzakt (zie "rijzende grond"); met `zak: true` staat hij boven en zakt hij onder Amir weg; `look` de bovenrand (`savanne`, `rots`, `sneeuw`, `zwart`) en `kleurVanaf` een hoogte waaronder het blok zwart blijft; in een put (`putten`) is de gangvloer zijn grond (Test 48) |
 | `stad` | de Sahelstad: `{paleis, seed, gevels, galerijen, kramen, voet, trappen}`; `trappen: [{gevel, kant, niveau, balkon}]` een houten buitentrap achter een huis langs (E, zie "de stadstrap" in `notities/stad.md`), gevels van 1 tot 4 hoog met een beloopbaar dak, houten galerijen, kramen (`riet` draagt, `doek` veert) en de straattegel in plaats van de grondrand; met `lagen: 'stad_dag'` (Stad 1, zie `notities/stad.md`). Een galerij en een dak zijn ook de vloer van een vijand (`stadVloerBij` in `vloerBij`): een spawn met `dak: 401` (de hoogte) of `dak: true` staat erop en de rand houdt hem tegen; de camera klimt mee |
+| `straten` | een stadje van losse straten: `{start, doel, aanvul, knopen, lijst: [{id, naam, r, l, knoop}]}`; elke straat een eigen strook (van `r` naar `l`), aan de uiteinden poorten naar de straten op dezelfde knoop (E, buiten gevecht, een zwarte fade), rechtsonder een minimap op een laptop, een straat vult zich aan na `aanvul` seconden weg, en bij `doel` kills is het level uit (geen `ends` nodig). Alleen Oaktown (zie `notities/oaktown.md`) |
 | `takel` | een takelwiel met een hangend plateau; sla het rad met je speer, het plateau draagt en veert (zie `notities/velden.md`) |
 | `maskers` | geverfde stukken die een deel van het level verbergen: `{id, look, vakken}` (zie `notities/velden.md`) |
 | `zakplafond` | stukken rots die zakken: `{r, l, rust, dicht, v, schok, duw}` (zie `notities/velden.md`) |
@@ -335,7 +338,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
    en hut aan de start, Amir begint aan de rand van het level en de camera kijkt er niet voorbij
    (zie het veld `rand`). Dat geldt voor elk nieuw level vanaf nu; de bestaande levels houden hun
    rotswand (rule 1, en een speerval zit in die wand). De Maker had al een kale start (`kaleKlif`).
-2. De naam in de array van die reeks (`VK_LEVELS`, `TEST_LEVELS`, `BAB_LEVELS` of `STAD_LEVELS`).
+2. De naam in de array van die reeks (`VK_LEVELS`, `TEST_LEVELS`, `BAB_LEVELS`, `STAD_LEVELS` of `OAK_LEVELS`).
 3. Een ondertitel in `SUBS`, op de naam van het level.
 4. Een eigen uitzicht in `SCENES` als het level er anders uit moet zien.
    De voorgrond komt er vanzelf bij (zie hierboven); zet alleen een eigen `voorgrond` als het level
@@ -350,7 +353,7 @@ Episodes in `menuChoose` hangt; een nieuwe losse reeks die geen episode is, zoal
 juist een knop in `menuChoose` zelf), een eigen `menuXxx`-blok in de
 HTML naar het voorbeeld van `menuTest`, en die aanmelden in `buildCards`,
 `markCards` en `showMenu` (die kiezen nu tussen `cardsVK`/`menuVK`, `cardsBab`/`menuBab`,
-`cardsStad`/`menuStad` en `cardsTest`/`menuTest`, en `toMenu` ook), en de reeks in `tools/speelrobot.js`,
+`cardsStad`/`menuStad`, `cardsOak`/`menuOak` en `cardsTest`/`menuTest`, en `toMenu` ook), en de reeks in `tools/speelrobot.js`,
 `tools/runecheck.js` en `tools/beeldgelijk.js`. De Terug-knop van een episodescherm krijgt de klasse `menuepisodes` (terug naar
 Episodes), niet `menuback` (dat gaat naar het Levels-scherm). Een nieuwe episode begint altijd met de tribekeuze: `runStart` in zijn speelknop, en `tribeLijst` geeft
 hem alleen wat de speler verdiend heeft (alleen `TEST_LEVELS` krijgt alles). Wil de episode een

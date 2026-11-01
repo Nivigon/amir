@@ -498,6 +498,11 @@ Tegen de huizen staan oude houten buitentrappen. Sta bij de voet en druk op **E*
 
 Amir heeft voortaan overal een reservespeer op zijn rug: in elk level, de sandbox en de arena. Gooi je je speer, dan trek je de volgende van je rug. Alleen een level dat je zonder speer laat beginnen heeft er geen.
 
+
+### Oaktown
+
+Onder Episodes staat **Oaktown**: een stadje van zeven korte straten, elk met een eigen naam (de Kasuwastraat met de markt, de Dalastraat, de Jakarasteeg, de Karofistraat, de Makerasteeg, de Rumfastraat en de Zangosteeg). Je speelt het niet uit door het eind van een straat te halen, maar met **50 kills**: bovenaan staat hoeveel je er hebt. Aan elk eind van een straat staat een poort. Op een hoek is dat er een, een vleugel die je inloopt: halverwege de boog vraagt het spel "Naar de ...?" en met **E** ga je erdoor. Op een splitsing staat er een tweede poort direct naast, recht in de muur: sta onder de boog en druk op E. Boven elke poort staat de naam van de straat erachter. Het beeld wordt zwart en je staat in de andere straat, bij de poort terug. Zo kun je overal heen en weer, en rondjes lopen. Een poort gaat niet open zolang er een vijand vlakbij is, en vijanden gaan nooit door een poort. Rechtsonder zie je op een laptop een kleine kaart: de straten als lijnen, die waar je bent in goud, en een stip voor Amir. Een straat die je verlaten hebt, vult zich weer aan als je er minstens een halve minuut weg bent geweest, en de kalebassen komen dan ook terug. Elke straat heeft een eigen hoogte om te veroveren (getrapte muren, een galerij over de hele straat, een trap, een toren van galerijen, een hogere wijk, de daken), en in elke straat ligt een kalebas die je moet verdienen: boven aan een trap, op een galerij of dak dat je via een kraam haalt, of op een hoge muur. **Oaktown (makkelijk)** heeft alleen zandslangen, **Oaktown (moeilijk)** alleen rovers: bandieten, schildbandieten, kooimannen, kruisboogschutters (een paar schieten van een galerij of dak) en zweepmannen. Ga je dood, dan begin je opnieuw. In de sandbox staat onder De stad **Straten**, **Drie straten**: drie straten rond een splitsing, om de poorten en de kaart uit te proberen.
+
 ## Het decor staat een stap naar achteren
 
 De grond is geen lijn maar een band. De tegel `design/grondrand.png` heeft 49 rijen

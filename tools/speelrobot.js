@@ -165,7 +165,8 @@ function robot([lopen, taai, wachten, vredig, richtForce]){
     if (!spearFound && spearNear()) toggleSpear();
     const voor = [];
     for (const b of thickets) if (b.stage < THICKET_HITS) voor.push([b.x, b.base]);
-    for (const l of [snakes, scorps, kooimannen, hyenas, panthers, fosforSlangen]) for (const e of l) if (!e.dead) voor.push([e.x, e.base || 0]);
+    for (const l of [snakes, scorps, kooimannen, hyenas, panthers, fosforSlangen, bandieten, schildmannen, kruisbogen, zweepmannen, meelmannen])
+      for (const e of l) if (!e.dead) voor.push([e.x, e.base || 0]);
     const iets = voor.some(([x, b]) => { const d = (x - world) * dir; return d > -40 && d < 200 && Math.abs(b - ph) < 60; });
     if (!vredig && spear && iets && onGround && !jump) startAttack();
     // de vijanden: op welke hoogte liepen ze, en hoe hoog kwamen ze
@@ -208,6 +209,22 @@ function robot([lopen, taai, wachten, vredig, richtForce]){
                                   && p.topH >= ph - 2);
       if (op && jump && jump.phase === 'land') go = false;
       else if (op && !verder && vl !== null && ph > vl + 1 && !wacht) startJump();
+    }
+    // een stadje met straten (zie "straten" in het spel): onder een poort naar een straat die hij nog niet zag E,
+    // en aan het eind (de hoekpoort) altijd; na de fade loopt hij de nieuwe straat in, weg van de poort
+    if (typeof straatAan === 'function' && straatAan()){
+      if (straatFade) B.inFade = true;
+      else if (B.inFade){
+        B.inFade = false; const s = straatHier();
+        dir = world < (s.l + s.r) / 2 ? 1 : -1; vastX = null; draais = 0; stuckT = 0;
+        B.ev.push({ t: +t.toFixed(2), wat: 'door de poort, nu in de ' + s.naam, x: r2(world), h: r2(ph) });
+        (B.straten || (B.straten = new Set())).add(s.id);
+      }
+      const pt = !straatFade && onGround && !wacht ? straatPoortBij() : null;
+      if (pt && !stadInGevecht()){
+        const nieuw = !(straatStand[pt.naar] && straatStand[pt.naar].bezocht);
+        if (nieuw || pt.soort === 'hoek') eDruk();
+      }
     }
     // vast tegen iets: springen (behalve voor een doornbos, dat steekt hij weg)
     if (Math.abs(world - lastX) < 0.3 && onGround) stuckT += dt; else stuckT = 0;
@@ -253,7 +270,7 @@ function robot([lopen, taai, wachten, vredig, richtForce]){
   const naam = await page.evaluate(([doel, def]) => {
     let lijst = null, i = 0;
     if (def) lijst = [def];
-    else for (const l of [VK_LEVELS, TEST_LEVELS, BAB_LEVELS, STAD_LEVELS])
+    else for (const l of [VK_LEVELS, TEST_LEVELS, BAB_LEVELS, STAD_LEVELS, OAK_LEVELS])
       l.forEach((d, j) => { if (!lijst && d.name.toLowerCase().includes(doel.toLowerCase())){ lijst = l; i = j; } });
     if (!lijst) return null;
     setLevel(i, lijst);
@@ -280,6 +297,9 @@ function robot([lopen, taai, wachten, vredig, richtForce]){
   const B = await page.evaluate(() => ({ r: window.__robot, x: Math.round(world), h: Math.round(ph) }));
   const k = B.r.klaar || { uitkomst: 'tijd op', x: B.x, h: B.h };
   console.log('uitkomst: ' + k.uitkomst + ' op x=' + k.x + ', hoogte ' + k.h + (k.t ? ', na ' + k.t.toFixed(1) + ' s' : ''));
+  const ST = await page.evaluate(() => typeof straatAan === 'function' && straatAan()
+    ? { kills: straatKills, doel: straatDoel(), bezocht: straatLijst().filter(s => straatStand[s.id] && straatStand[s.id].bezocht).map(s => s.naam), van: straatLijst().length } : null);
+  if (ST) console.log('straten: ' + ST.bezocht.length + ' van ' + ST.van + ' bezocht (' + ST.bezocht.join(', ') + '), kills ' + ST.kills + ' / ' + ST.doel);
   for (const e of B.r.ev) console.log('  ' + e.t.toFixed(2).padStart(6) + '  ' + e.wat.padEnd(26) + ' x=' + e.x + (e.h !== undefined ? ' h=' + e.h : '') + (e.top !== undefined ? ' (top ' + e.top + ')' : '') + (e.wie ? '  [' + e.wie + ']' : ''));
   if (args.includes('--vijanden'))
     for (const [k2, v] of Object.entries(B.r.vijand))
