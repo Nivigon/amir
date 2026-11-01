@@ -1785,6 +1785,12 @@ def terrassen(lv, sp):
         if eind is not None and t['r'] < eind - sp.EIND_BEREIK:
             yield info(t['r'], 'terras van %s hoog staat achter het einde: een eindmuur, beklimmen hoeft niet' % n0(t['h']))
             continue
+        # een stadje van straten: een muur tegen het uiteinde van een straat maakt hem doodlopend (Sandville)
+        st = lv.d.get('straten') or {}
+        if any(isinstance(q.get('r'), (int, float)) and (abs(t['r'] - q['r']) < 1 or abs(t['l'] - q['l']) < 1)
+               for q in st.get('lijst') or []):
+            yield info(t['r'], 'terras van %s hoog aan het uiteinde van een straat: doodlopend, beklimmen hoeft niet' % n0(t['h']))
+            continue
         # opstappen die er staan: richels aan deze wand en keien ervoor
         treden = []
         for o in lv.ledges:

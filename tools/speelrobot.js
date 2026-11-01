@@ -213,14 +213,21 @@ function robot([lopen, taai, wachten, vredig, richtForce]){
     // een stadje met straten (zie "straten" in het spel): onder een poort naar een straat die hij nog niet zag E,
     // en aan het eind (de hoekpoort) altijd; na de fade loopt hij de nieuwe straat in, weg van de poort
     if (typeof straatAan === 'function' && straatAan()){
-      if (straatFade) B.inFade = true;
+      // een raster (Sandville) wisselt via de fade van de stadstrap (stadTrapFade met straat), zie "knooppunten"
+      if (straatFade || (typeof stadTrapFade !== 'undefined' && stadTrapFade && stadTrapFade.straat)) B.inFade = true;
       else if (B.inFade){
         B.inFade = false; const s = straatHier();
         dir = world < (s.l + s.r) / 2 ? 1 : -1; vastX = null; draais = 0; stuckT = 0;
         B.ev.push({ t: +t.toFixed(2), wat: 'door de poort, nu in de ' + s.naam, x: r2(world), h: r2(ph) });
         (B.straten || (B.straten = new Set())).add(s.id);
       }
-      const pt = !straatFade && onGround && !wacht ? straatPoortBij() : null;
+      // in een raster loopt elke straat dood op een leemmuur: daar keert hij om
+      if (typeof straatRaster === 'function' && straatRaster()){
+        const s = straatHier(), mu = level.straten.muur || 0;
+        if (s && dir < 0 && world < s.l + mu + 90){ dir = 1; vastX = null; }
+        else if (s && dir > 0 && world > s.r - mu - 90){ dir = -1; vastX = null; }
+      }
+      const pt = !straatFade && !stadTrapFade && onGround && !wacht ? straatPoortBij() : null;
       if (pt && !stadInGevecht()){
         const nieuw = !(straatStand[pt.naar] && straatStand[pt.naar].bezocht);
         if (nieuw || pt.soort === 'hoek') eDruk();
