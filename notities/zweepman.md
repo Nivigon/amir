@@ -55,6 +55,8 @@ knal al naar de grond (de `liggen`-kracht begint op de knal). Nu:
   getekend, zacht pulserend. Laag een warme koepel van licht op de grond, hoog een lichte band op hoofdhoogte. Hij komt op
   van `tellVan` tot `slagVan` en dooft in `wijsNa` s na de knal.
 - De knal is `sounds/zweepslag.mp3` (een echte zweepklap, de stilte ervoor eraf), zachter op afstand (`takelPan`).
+- De voorslag is `sounds/zweepvoorslag.mp3`: het zwiepen door de lucht, gespeeld als de slag begint (het touw komt erbij,
+  `zwmZwiepGeluid`), in fase 1 en in elk slagsegment van fase 2 (niet in een `hang`). Geknipt zodat de piek na 0,1 s valt, net voor de knal.
 
 Het spoor en het stof lopen op speltijd (`zwmSpoorStap` in de update, `zwmFxAchter` bij het tekenen).
 
