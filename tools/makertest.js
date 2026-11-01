@@ -78,7 +78,8 @@ async function start(){
 //  - achter de start (kolom 24 tot 35, zodat de x van al het andere gelijk blijft) een straat met de stad: gevel g1 (2 hoog)
 //    en g2 (3 hoog), een galerij van g1 tot g2 op niveau 1, een trap rechts van g2 die op die galerij uitkomt, een rieten
 //    kraam, een kruik als voetdecor en het paleis; een bandiet op de galerij, en een schildbandiet en een kruisboogbandiet
-//    (wijk uit, inBeeld aan) op het dak van g1 (die krijgen dak op hun spawn)
+//    (wijk uit, inBeeld aan) op het dak van g1 (die krijgen dak op hun spawn); uit het deurgat van g1 een bandiet met dolk, en
+//    uit een deur op de eerste verdieping van g2 (op de galerij) twee bandieten
 function proefGrid(){
   const rijen = [];
   for (let r = 0; r < 12; r++) rijen.push('.'.repeat(36).split(''));
@@ -118,6 +119,8 @@ function proefGrid(){
       { c: 28, r: 6, k: 'gevel', id: 'g2', hoog: 3, note: '' },
       { c: 24, r: 6, k: 'galerij', van: 'g1', tot: 'g2', niveau: 1, note: '' },
       { c: 28, r: 6, k: 'trap', gevel: 'g2', kant: 'r', niveau: 0, balkon: 0, note: '' },
+      { c: 24, r: 6, k: 'deur', gevel: 'g1', verdieping: 0, vijand: 'bandiet:dolk', note: '' },
+      { c: 28, r: 6, k: 'deur', gevel: 'g2', verdieping: 1, vijand: 'bandiet', n: 2, note: '' },
       { c: 34, r: 6, k: 'kraam', soort: 'riet', note: '' },
       { c: 27, r: 6, k: 'voet', stuk: 'kruik', note: '' },
       { c: 32, r: 2, k: 'paleis', note: '' },
@@ -197,6 +200,9 @@ function verschil(a, b, pad = ''){
     const vij = a.objecten.find(o => o.k === 'vijand' && o.soort === 'groen'); if (!vij || !vij.params || vij.params.speed !== 2) uit.push('vijand verloor zijn snelheid');
     const pt = a.objecten.find(o => o.k === 'poort'); if (!pt || pt.boog !== 'boog_steen' || !pt.f || pt.look !== 'savanne' || pt.vijand !== 'scorp' || pt.n !== 2) uit.push('poort verloor zijn boog, spiegeling of vijanden: ' + JSON.stringify(pt));
     const ru = a.objecten.find(o => o.k === 'rune'); if (!ru || !ru.poort || ru.poort.c !== 16 || ru.poort.r !== 6) uit.push('rune verloor zijn poort');
+    const de = a.objecten.filter(o => o.k === 'deur');
+    if (de.length !== 2 || !de.some(o => o.gevel === 'g1' && o.verdieping === 0 && o.vijand === 'bandiet:dolk' && !o.n) || !de.some(o => o.gevel === 'g2' && o.verdieping === 1 && o.vijand === 'bandiet' && o.n === 2))
+      uit.push('de deuren verloren hun gevel, verdieping, vijand of aantal: ' + JSON.stringify(de));
     return uit;
   });
 
@@ -470,6 +476,74 @@ function verschil(a, b, pad = ''){
       if (!lv.spawns.some(x => x.k === 'bandiet' && x.dak === 401) || !lv.spawns.some(x => x.k === 'schildman' && x.dak === 816)) f.push('in het proefgrid geen dak op de bandiet (401) en de schildbandiet (816): ' + JSON.stringify(lv.spawns));
       if (!lv.spawns.some(x => x.k === 'kruisboogbandiet' && x.dak === 816 && x.wijk === false && x.inBeeld === true)) f.push('in het proefgrid geen kruisboogbandiet met dak 816, wijk uit en inBeeld aan: ' + JSON.stringify(lv.spawns));
       if (!(lv.hpBalk || []).includes('kruisboogbandiet')) f.push('de kruisboogbandiet staat niet in hpBalk: ' + JSON.stringify(lv.hpBalk));
+      // de deuren: g1 is index 1 en g2 index 0 (van de start af); de vijand op de verdieping krijgt geen dak, de deur geeft de hoogte
+      const d1 = lv.spawns.filter(x => x.deur && x.deur.gevel === 1), d2 = lv.spawns.filter(x => x.deur && x.deur.gevel === 0);
+      if (d1.length !== 1 || d1[0].k !== 'bandiet' || !d1[0].dolk || d1[0].deur.verdieping !== 0) f.push('in het proefgrid geen bandiet met dolk uit het deurgat van g1: ' + JSON.stringify(d1));
+      if (d2.length !== 2 || d2.some(x => x.k !== 'bandiet' || x.deur.verdieping !== 1 || 'dak' in x || x.boven)) f.push('in het proefgrid niet twee bandieten uit de deur op de eerste verdieping van g2: ' + JSON.stringify(d2));
+      return f;
+    }));
+    return f;
+  });
+
+  // 1c. deuren (stap 8): een klik met Deur op een gevel zet een deur op de verdieping waar je klikte; in het paneel de vijand
+  // eruit en Aantal; in het level een spawn met deur {gevel, verdieping}. De controle meldt een deur zonder vijand, een deur
+  // die er niet is (het huis is lager) en een deur op een verdieping zonder galerij of balkon, of met een soort die geen daken kent.
+  await check('deuren: een vijand uit het deurgat of een deur op een verdieping', async () => {
+    const f = [];
+    const rijen = []; for (let r = 0; r < 12; r++) rijen.push((r === 9 ? 'A' : '.').repeat(40));
+    await laad({ type: 'amir-levelmaker-grid', versie: 2, cols: 40, rows: 12, groundRow: 9, grid: rijen,
+                 start: { c: 39, r: 8 }, eind: { c: 0, r: 8 }, objecten: [
+                   { c: 4, r: 8, k: 'gevel', id: 'g1', hoog: 2 }, { c: 9, r: 8, k: 'gevel', id: 'g2', hoog: 3 },
+                   { c: 4, r: 8, k: 'galerij', van: 'g1', tot: 'g2', niveau: 1 } ] });
+    const puntXY = (x, y) => page.evaluate(([x, y]) => { const b = mkCanvas.getBoundingClientRect(), cel = mkCel();
+      return { x: b.left + MK.panX + x * cel, y: b.top + MK.panY + y * cel }; }, [x, y]);
+    await page.evaluate(() => { mkThemaZet('stad'); MK.sel = null; MK.inspectDicht = true; mkNotePaneel(); MK.tool = 'deur'; mkLegenda(); });
+    const mid = await page.evaluate(() => MK.objects.filter(o => o.k === 'gevel').map(g => { const [l, r] = mkGevelMuur(g); return (l + r) / 2; }));
+    let a = await puntXY(mid[0], 8.5); await page.mouse.click(a.x, a.y);                 // g1 op de straat
+    a = await puntXY(mid[1], 9 - 550 / 150); await page.mouse.click(a.x, a.y);           // g2 tussen 401 en 730: de eerste verdieping
+    a = await puntXY(20, 8.5); await page.mouse.click(a.x, a.y);                          // naast de huizen: geen deur
+    f.push(...await page.evaluate(() => {
+      const f = [], de = MK.objects.filter(o => o.k === 'deur');
+      const d1 = de.find(o => o.gevel === 'g1'), d2 = de.find(o => o.gevel === 'g2');
+      if (de.length !== 2 || !d1 || mkDeurVerd(d1) !== 0 || !d2 || mkDeurVerd(d2) !== 1) return ['een klik op g1 en op de eerste verdieping van g2 geeft niet twee deuren: ' + JSON.stringify(de)];
+      if (d1.vijand !== 'bandiet') f.push('een nieuwe deur heeft niet standaard een bandiet: ' + JSON.stringify(d1));
+      // het paneel: de vijand en Aantal, niet de knoppen van de galerij of trap
+      MK.tool = 'select'; MK.sel = d1; MK.inspectDicht = false; mkNotePaneel();
+      if (document.getElementById('mkdeurvijrij').offsetParent === null || document.getElementById('mkgallrij').offsetParent !== null || document.getElementById('mktrapkantrij').offsetParent !== null)
+        f.push('het paneel van een deur toont niet Vijand eruit, of wel de knoppen van de galerij of trap');
+      const vs = document.getElementById('mkdeurvij'); vs.value = 'scorp'; vs.dispatchEvent(new Event('change'));
+      const nr = document.getElementById('mkdeurn'); nr.value = '2'; nr.dispatchEvent(new Event('input'));
+      if (d1.vijand !== 'scorp' || d1.n !== 2) f.push('het paneel zet vijand of aantal niet: ' + JSON.stringify(d1));
+      if ([...vs.options].some(o => ['hyenas', 'panter', 'bandiet:hurk'].includes(o.value))) f.push('Vijand eruit biedt een hyena, panter of de hinderlaag aan');
+      // aanklikken op het gat geeft de deur, het huis ernaast blijft de gevel
+      const m = mkDeurMaat(d2);
+      if (mkObjOp(Math.floor(m.cx), Math.floor((m.r0 + m.r1) / 2)) !== d2) f.push('de deur op de verdieping is niet aan te klikken in zijn gat');
+      // het level: g2 is index 0, g1 index 1; twee schorpioenen uit het deurgat van g1, een bandiet op de verdieping van g2
+      const lv = mkNaarLevel(), S = lv.spawns.filter(x => x.deur);
+      const s1 = S.filter(x => x.deur.gevel === 1), s2 = S.filter(x => x.deur.gevel === 0);
+      if (s1.length !== 2 || s1.some(x => x.k !== 'scorp' || x.deur.verdieping !== 0 || x.x !== s1[0].x)) f.push('niet twee schorpioenen uit het deurgat van g1: ' + JSON.stringify(s1));
+      if (s2.length !== 1 || s2[0].k !== 'bandiet' || s2[0].deur.verdieping !== 1 || 'dak' in s2[0]) f.push('geen bandiet uit de deur op de eerste verdieping van g2: ' + JSON.stringify(s2));
+      if (lv.spawns.some(x => !x.deur)) f.push('een level met alleen deurvijanden krijgt toch een standaard-slang: ' + JSON.stringify(lv.spawns));
+      const g1x = lv.stad.gevels[1].x; if (!(s1[0].x > g1x && s1[0].x < g1x + 400)) f.push('de x van de deurvijand ligt niet in het huis: ' + s1[0].x + ' bij ' + g1x);
+      const rl = readLevel(JSON.stringify(lv)).spawns.filter(x => x.deur);
+      if (rl.length !== 3 || !rl.some(x => x.deur.gevel === 0 && x.deur.verdieping === 1)) f.push('readLevel leest deur niet: ' + JSON.stringify(rl));
+      // de JSON
+      const j = JSON.stringify(mkNaarJSON()); mkUitJSON(JSON.parse(j));
+      if (JSON.stringify(mkNaarJSON()) !== j) f.push('de deuren komen niet gelijk door de JSON');
+      // de controle: nu niets over de deuren
+      const deurM = () => mkControle().filter(q => /^De deur van/.test(q.tekst));
+      if (deurM().length) f.push('een melding voor goede deuren: ' + JSON.stringify(deurM().map(q => q.tekst)));
+      const zoek = (ernst, re) => deurM().find(q => q.ernst === ernst && re.test(q.tekst));
+      const e2 = MK.objects.find(o => o.k === 'deur' && o.gevel === 'g2'), e1 = MK.objects.find(o => o.k === 'deur' && o.gevel === 'g1');
+      const moet = (ernst, re, wat) => { const q = zoek(ernst, re); if (!q) f.push('geen ' + ernst + ' voor ' + wat + ': ' + JSON.stringify(deurM().map(q => q.tekst))); else if (q.c == null || q.r == null) f.push('de melding voor ' + wat + ' heeft geen cel'); };
+      e2.verdieping = 2; moet('fout', /^De deur van g2 \(2e verdieping\) heeft geen galerij of balkon/, 'een deur zonder galerij');
+      e2.verdieping = 3; moet('fout', /^De deur van g2 \(3e verdieping\) is er niet/, 'een deur boven het dak');
+      e2.verdieping = 1; e2.vijand = 'kooiman:smash'; moet('fout', /^De deur van g2 \(1e verdieping\): .* kent geen galerij/, 'een soort zonder daken op een verdieping');
+      e2.vijand = 'bandiet'; e1.vijand = undefined; moet('letop', /^De deur van g1 \(straat\) heeft geen vijand/, 'een deur zonder vijand');
+      // een gevel weg: zijn deur gaat mee
+      MK.objects = MK.objects.filter(o => !(o.k === 'gevel' && o.id === 'g1')); mkStadKoppel();
+      if (MK.objects.some(o => o.k === 'deur' && o.gevel === 'g1')) f.push('de deur van g1 blijft staan zonder zijn gevel');
+      MK.tool = 'select'; mkThemaZet('savanne'); MK.themaGeheugen = {}; mkLegenda();
       return f;
     }));
     return f;
@@ -771,6 +845,9 @@ function verschil(a, b, pad = ''){
         MK.objects = [o]; MK.sel = o; mkNotePaneel();
         for (const m of mkPaneelKlachten()) f.push(k + ': ' + m);
       }
+      // een deur hangt aan een gevel: met de gevel erbij, op een verdieping en met een vijand en Aantal
+      { const g = { c:5, r:MK.ground - 1, k:'gevel', id:'g1', hoog:3, note:'' }, o = { c:5, r:MK.ground - 1, k:'deur', gevel:'g1', verdieping:1, vijand:'bandiet', n:3, note:'' };
+        MK.objects = [g, o]; MK.sel = o; mkNotePaneel(); for (const m of mkPaneelKlachten()) f.push('deur: ' + m); }
       // elke vijandsoort, met al zijn knoppen van de standaard af (dan staat elk kopje open, zoals Gedrag van de kruisboogbandiet)
       for (const soort of Object.keys(MK_VIJ_KNOP)){
         const params = {}; for (const q of MK_VIJ_KNOP[soort]) params[q.key] = q.vink ? 1 - q.def : q.max;
@@ -921,8 +998,8 @@ function verschil(a, b, pad = ''){
     if (b1 && (b1.hek || b1.regie || b1.wand || b1.s)) uit.push('poort b1 kreeg velden die hij niet heeft: ' + JSON.stringify(b1));
     if (r.spawns.length !== 1 || r.spawns[0].k !== 'schildman') uit.push('geen schildbandiet in poort b2: ' + JSON.stringify(r.spawns));
     // alleen poortvijanden: dan geen standaard-slang achter het eind erbij (die is er alleen tegen de vrije slangen van een level zonder spawn)
-    const alleenPoort = await page.evaluate(() => { const was = MK.objects; MK.objects = was.filter(o => o.k !== 'vijand'); const lv = mkNaarLevel(); MK.objects = was;
-      const leeg = was.filter(o => o.k !== 'vijand' && o.k !== 'poort'); MK.objects = leeg; const lv0 = mkNaarLevel(); MK.objects = was; return { los: lv.spawns.filter(s => !s.poort), leeg: lv0.spawns }; });
+    const alleenPoort = await page.evaluate(() => { const was = MK.objects; MK.objects = was.filter(o => o.k !== 'vijand' && o.k !== 'deur'); const lv = mkNaarLevel(); MK.objects = was;   // de deuren van het proefgrid ook weg
+      const leeg = was.filter(o => o.k !== 'vijand' && o.k !== 'poort' && o.k !== 'deur'); MK.objects = leeg; const lv0 = mkNaarLevel(); MK.objects = was; return { los: lv.spawns.filter(s => !s.poort), leeg: lv0.spawns }; });
     if (alleenPoort.los.length) uit.push('een level met alleen poortvijanden kreeg losse spawns: ' + JSON.stringify(alleenPoort.los));
     if (alleenPoort.leeg.length !== 1) uit.push('een level zonder enige vijand hoort een standaard-slang te krijgen: ' + JSON.stringify(alleenPoort.leeg));
     if (r.meld.some(m => /letop|fout/i.test(m))) uit.push('de controle meldt de poort met regie: ' + r.meld.join(' | '));

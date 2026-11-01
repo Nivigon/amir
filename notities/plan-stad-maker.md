@@ -1,6 +1,6 @@
 # Plan: de stad in de Level Maker nieuwstijl
 
-Status: klaar. Alle zes stappen staan erin (de keuzes van de opdrachtgever hieronder, afgevinkt per stap).
+Status: stap 1 tot en met 6 en stap 8 zijn af, stap 7 en 9 staan nog open. Wordt per stap gebouwd; vink af wat er staat.
 
 ## Uitgangspunt
 
@@ -91,6 +91,22 @@ Status: klaar. Alle zes stappen staan erin (de keuzes van de opdrachtgever hiero
    `dak` (`MK_DAK_SOORTEN` kende hem al). Hij laadt lui via `krbLaadLevel`. In `makertest.js` staat hij in het proefgrid op
    het dak van g1, en de controles `vijand-knoppen`, `stadsstukken` en `maat` kennen hem (zie "De knoppen per vijand" in
    `notities/maker.md`).
+7. [ ] Sneeuw per plek in de Maker. Nu legt een enkele sneeuwcel een sneeuwdek over het hele level
+   (`lvl.sneeuw = { soort: 'savanne', dek: 1, vol: true }` in `mkNaarLevel`), ook over de straat. Het spel kent al
+   `sneeuw: {soort, dek, van, tot}`: schrijf de sneeuw uit de cellen op de grondlijn, met `van` en `tot`, zoals de stroken
+   van `grondSoort`. Kunnen meerdere stroken niet in het veld, kijk dan of het spel er een lijst van kan maken zonder dat
+   een bestaand level verandert (Winter World en de testlevels met sneeuw blijven gelijk). Meldt de controle iets als sneeuw
+   en straat elkaar raken, en de makertest kijkt de stroken na (het proefgrid heeft sneeuw op kolom 0 en 1 en straat
+   achter de start).
+8. [x] Deuren in de huizen: vijanden die uit een deurgat van een gevel komen. In het spel een spawn met
+   `deur: {gevel, verdieping}`: hij komt zodra de deur in beeld is, op de straat uit het deurgat en hoger uit een deur in de
+   plaats van het raam, op de galerij of het balkon daar (zie "Deuren" in `notities/stad.md`); in de sandbox **Uit de deur** en
+   **Uit de deur boven** onder De stad; in de Maker **Deur** in de groep Huizen, met Vijand eruit en Aantal, en vier meldingen
+   (zie "Deuren: een vijand uit een huis" in `notities/maker.md`); `levelcheck.py` regel `deuren`. Geen bestaand level kreeg deuren.
+9. [ ] Een lift bij een galerij: een takel waarvan het plateau zich naar de rand van een galerij voegt (zie "Nog niet"
+   in `notities/stad.md`). Nu heeft het plateau een vaste breedte en schaalt de galerij mee met het scherm, zodat het
+   plateau in Stad 1 op een laptop het eind van de galerij overlapt. In de Maker: een takel naast een galerij sluit
+   vanzelf aan, en de controle meldt een lift die er niet bij komt.
 
 Na elke stap `node tools/makertest.js` en `python3 tools/levelcheck.py`. Geen level van een episode of
 bestaand testlevel verandert.
