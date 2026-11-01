@@ -171,7 +171,22 @@ De nieuwe versie (de tweede opzet: dezelfde vaste cyclus als oud, maar zonder ve
   (hoog) idle-px; tegen hem aan was je veilig. Nieuw slaat hij ook dan, en binnen `dichtbij` (340) raakt de slag zonder
   touw (in `zwmRaakt`), met dezelfde regel: laag springen, hoog bukken.
 - **Fase 2, sneller**: de mep en de sprong 1,3 keer (`tempo`), de lach en de terugweg 1,2 keer, en het stuk zonder zweep
-  in de mep (`mepGat`) nog eens drie keer sneller. Uitrusten blijft even lang. De cyclus is de vaste `ZWM2.cyclus`.
+  in de mep (`mepGat`) nog eens drie keer sneller. Uitrusten blijft even lang. De cyclus is de vaste `ZWM2.cyclus`,
+  maar met de uithaal in plaats van de sprong (`zwmCyclus`).
+- **Fase 2, de uithaal in plaats van de sprong** (`ZWM_NIEUW.uithaal`, de beweging `uithaal` in `zweepman.json`, gemaakt
+  met `tools/zweep_uithaal.py`): in de sprong knalde de zweep op het moment dat zijn arm naar achteren zwiepte, dus achter
+  hem, en kwam hij maar een stukje voor hem uit. De uithaal speelt dezelfde frames in een andere volgorde: gebukt met de
+  rol (sprong 0 tot 9), de opzwaai (20 tot 36: de lus over zijn hoofd naar achteren, de arm achter hem), even stil, dan de
+  slag (35 terug tot 17: over zijn hoofd naar voren en een diepe uitval met de arm gestrekt naar Amir, daar knalt hij) en
+  terug naar de eindhouding (18 tot 44), waarna `sprongterug` aansluit. Vanaf de opzwaai staat het lijf 196 idle-px naar
+  achteren geschoven, zodat zijn voeten bij de overgang van 9 naar 20 blijven staan; aan het eind schuift `verschuif` zijn
+  anker evenveel op (in `zwmF2Volgende`, nu voor elke set met `verschuif`). Van `schuifVan` tot `schuifTot` schuift hij naar
+  Amir toe tot die `doel` idle-px voor zijn anker staat (hoogstens `voor`/`terug` per frame), en daarbij kijkt het spel naar
+  waar zijn lijf in de uitval staat, zodat een kei of ravijn hem ook dan tegenhoudt. Het touw: `hang` in de opzwaai, de
+  slag-boog (`ZWM_NIEUW.uithaal.boog`) van de uitval tot net na de knal, en `hang` op de terugweg; in frames 20 tot 26 zit
+  de zweep in de tekening. In 17, 18 en 19 is de rol uit de tekening gepoetst (`lagen/f2_uit_*.png`, `POETS` in het script)
+  en staat de hand er gemeten bij (`HAND`). Te raken (`kwetsbaarVan`) vanaf frame 30 van de terugweg. De oude versie houdt de
+  sprong.
 - **Fase 1, de inzet: de lus achter hem langs** (`ZWM_NIEUW.inzet`, `zwmInzet`, `s.inzetP`, `s.inzetGevaar`): oud kon je door
   hem heen lopen en achter hem veilig staan. Nieuw blijft hij op het eerste slagframe (`slagVan`, arm omhoog en naar achteren)
   `duur` s staan, en trekt de punt eerst naar achteren (`s.inzetC`, de boog uit `inzet`): laag schuin naar de grond achter hem,
