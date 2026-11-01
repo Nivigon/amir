@@ -103,7 +103,7 @@ const zegel = (c, r, pc, pr, extra) => ({ c, r, k: 'zegel', poort: { c: pc, r: p
     await page.evaluate(() => {
       window.__eerste = []; const gezien = new WeakSet();
       window.__spion = () => { if (!level) return;
-        const lijsten = [['slang', snakes], ['scorp', scorps], ['bandiet', bandieten], ['schildman', schildmannen], ['kooiman', kooimannen], ['meelman', meelmannen], ['fosfor', fosforSlangen]];
+        const lijsten = [['slang', snakes], ['scorp', scorps], ['bandiet', bandieten], ['schildman', schildmannen], ['kooiman', kooimannen], ['meelman', meelmannen], ['fosfor', fosforSlangen], ['zweepman', zweepmannen]];
         for (const [k, l] of lijsten) for (const v of l) if (!gezien.has(v)){ gezien.add(v); window.__eerste.push({ k, x: Math.round(v.x), b: Math.round(v.base), t: +(__vt() / 1000).toFixed(2), amir: Math.round(world) }); } };
     });
     await page.evaluate(() => __wacht(0.5));
@@ -122,7 +122,8 @@ const zegel = (c, r, pc, pr, extra) => ({ c, r, k: 'zegel', poort: { c: pc, r: p
           ...schildmannen.map(s => ({ k: 'schildman', x: Math.round(s.x), b: Math.round(s.base), st: s.state })),
           ...kooimannen.map(s => ({ k: 'kooiman', x: Math.round(s.x), b: Math.round(s.base), st: s.state })),
           ...meelmannen.map(s => ({ k: 'meelman', x: Math.round(s.x), b: Math.round(s.base), st: s.state })),
-          ...fosforSlangen.map(s => ({ k: 'fosfor', x: Math.round(s.x), b: Math.round(s.base), st: s.state }))],
+          ...fosforSlangen.map(s => ({ k: 'fosfor', x: Math.round(s.x), b: Math.round(s.base), st: s.state })),
+          ...zweepmannen.map(s => ({ k: 'zweepman', x: Math.round(s.x), b: Math.round(s.base), st: s.state }))],
     eerste: window.__eerste || [],
     hint: (document.getElementById('hint') || {}).textContent || '' }));
   const loopTot = async (x, maxS) => { // naar links lopen tot world <= x
@@ -183,7 +184,7 @@ const zegel = (c, r, pc, pr, extra) => ({ c, r, k: 'zegel', poort: { c: pc, r: p
   });
 
   // ---- 4. elke vijandsoort uit de poort ----
-  const soorten = ['groen', 'zwart', 'knock', 'scorp', 'fosfor', 'bandiet', 'bandiet:dolk', 'bandiet:elite', 'schildman', 'schildman:makkelijk', 'meelman', 'kooiman:smash', 'kooiman:vogel'];
+  const soorten = ['groen', 'zwart', 'knock', 'scorp', 'fosfor', 'bandiet', 'bandiet:dolk', 'bandiet:elite', 'schildman', 'schildman:makkelijk', 'meelman', 'kooiman:smash', 'kooiman:vogel', 'zweepman'];
   for (const soort of soorten){
     await check('soort ' + soort + ': komt uit de poort op de plek van de poort', async () => {
       const uit = [];

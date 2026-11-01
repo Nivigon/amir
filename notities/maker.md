@@ -211,7 +211,7 @@ De zweepman (stap 7) is ook een soort zonder varianten (`soort: 'zweepman'`, gro
 icoon en een druppel bloed als badge bij fase 2). Zijn spawn leest `x`, `boven`, `achter`, `zicht` en `fasen`; alleen `fasen`
 en `zicht` zijn knoppen (los, zonder kopje), want `achter` hoort bij een vast level. `slagVast` en `vrij` zijn sandboxknoppen
 en leest de spawn niet. Hij staat in `MK_HP_SOORTEN` (met de balk drie levens, `ZWM.hp`; met fase 2 twee per fase, `ZWM2`),
-kan uit een poort komen (`mkPoortVijOk` laat hem toe, net als de kruisboogbandiet zonder `uitPoort`), en laadt lui via
+kan uit een poort komen (`mkPoortVijOk` laat hem toe, net als de kruisboogbandiet zonder `uitPoort`; `tools/poorttest.js` heeft hem nu bij "elke vijandsoort uit de poort"), en laadt lui via
 `zwmLaadLevel` in `laadLevel`, dat nu net als `krbLaadLevel` naar `kind` en `k` kijkt (de Test geeft het level door `readLevel`,
 dus `kind` was er al). Hij leest geen `dak` en staat dus niet in `MK_DAK_SOORTEN`: op een dak of galerij staat hij in de Test op
 de straat, met de LET OP van de Controle. Nagekeken in de Test: op de grond, op een zwever (`boven`, op 450), op een verhoogd
