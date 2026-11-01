@@ -1,6 +1,6 @@
 # Plan: de stad in de Level Maker nieuwstijl
 
-Status: klaar. Alle vijf stappen staan erin (de keuzes van de opdrachtgever hieronder, afgevinkt per stap).
+Status: klaar. Alle zes stappen staan erin (de keuzes van de opdrachtgever hieronder, afgevinkt per stap).
 
 ## Uitgangspunt
 
@@ -84,6 +84,13 @@ Status: klaar. Alle vijf stappen staan erin (de keuzes van de opdrachtgever hier
    meldingen (overlap van gevels op laptopmaat, een galerij boven het dak van een van zijn huizen, een trap boven het dak,
    zonder vloer aan de voet of bij de uitgang, een vijand op een dak die `dak` niet kent), `dak` op de spawn van een
    bandiet of schildbandiet op een dak, galerij of balkon, en de stad in het proefgrid.
+
+6. [x] De kruisboogbandiet in de Maker: een regel in `MK_VIJANDEN` (groep Bandieten, eigen kleur en icoon), zijn vlaggen
+   `wijk`, `rand`, `hoorn`, `rap` en `inBeeld` als vinkjes onder het kopje Gedrag in het paneel (alleen mee als ze van de
+   standaard afwijken; met de hoorn staat inBeeld vast aan), in `MK_HP_SOORTEN`, en op een dak, galerij of balkon vanzelf
+   `dak` (`MK_DAK_SOORTEN` kende hem al). Hij laadt lui via `krbLaadLevel`. In `makertest.js` staat hij in het proefgrid op
+   het dak van g1, en de controles `vijand-knoppen`, `stadsstukken` en `maat` kennen hem (zie "De knoppen per vijand" in
+   `notities/maker.md`).
 
 Na elke stap `node tools/makertest.js` en `python3 tools/levelcheck.py`. Geen level van een episode of
 bestaand testlevel verandert.

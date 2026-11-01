@@ -57,7 +57,9 @@ puntje per vijand.
 
 **Ongedaan maken** werkt per gebaar: elke keer dat de Maker iets wegschrijft (`mkBewaarNu`) is
 een stap, en `mkBewaar` wacht een kwart seconde, zodat een hele streek, een hele sleep of een
-schuifje dat je verschuift één stap is. Een nieuwe muisbeweging legt de vorige wijziging eerst
+schuifje dat je verschuift één stap is. Midden in een streek (de muisknop nog in, `mkPaint`) wacht hij
+langer (`mkBewaarLater`), zodat een streek ook één stap blijft als je even stilhoudt of de browser traag is (in de
+makertest liep een streek zo uiteen in twee stappen). Een nieuwe muisbeweging legt de vorige wijziging eerst
 vast. Terug laden gaat met `mkUitJSON`, maar de zoom, het schuiven, het gereedschap en het palet
 blijven staan. Tijdens het terugladen staat `mkHistStil` aan, zodat dat zelf geen stap wordt. Staat de
 controle open, dan wordt die lijst na ongedaan maken ook ververst.
@@ -183,11 +185,26 @@ Alleen velden die het spel echt leest:
 | hyena | Aantal (1 of 2) | `n` |
 | bandiet (alle varianten) | Vault over een kei naar je toe (standaard aan) | `vault: false` als uit |
 | panter | Komt over keien en ravijnen (standaard uit) | `over: true` als aan |
+| kruisboogbandiet, onder het kopje Gedrag | Wijkt achteruit als je dichtbij komt (standaard aan) | `wijk: false` als uit |
+| | Loopt eerst door tot de rand (standaard uit) | `rand: true` |
+| | Hoorn: ontwijkt je worp, blaast twee hyena's erbij (standaard uit) | `hoorn: true` (de hyena's laden dan mee, `krbLaadLevel`) |
+| | Komt in looppas het beeld in (standaard uit) | `rap: true` |
+| | Schiet pas als hij helemaal in beeld staat (standaard uit; met de hoorn vast aan) | `inBeeld: true` |
 | elke vijand | Ziet je alleen met vrij zicht (standaard aan) | `zicht: false` als uit |
 
 Het vinkje voor de panter en het uitzetten van de vault zijn de uitzondering op regel 7, als
 bewuste keuze van wie het level maakt. Een knop erbij is een regel in `MK_VIJ_KNOP` (schuifje:
-`min`, `max`, `step`; vinkje: `vink: true`) plus het veld in `readLevel`.
+`min`, `max`, `step`; vinkje: `vink: true`) plus het veld in `readLevel`. Met `klap: 'Naam'` komt de knop onder een
+inklapbaar kopje (`mkVulVijKnoppen`; open als een van zijn knoppen van de standaard afwijkt), zodat het paneel binnen
+`MK_PALET_MAX` blijft; met `vast: {key, waarde}` staat een vinkje vast aan zolang een andere knop die waarde heeft
+(`inBeeld` bij de hoorn, want het spel zet dat dan zelf aan).
+
+De kruisboogbandiet (stap 6 van `notities/plan-stad-maker.md`) is een soort zonder varianten (`soort: 'kruisboogbandiet'`,
+groep Bandieten, olijfgroen met een kruisboog als icoon en een hoorntje als badge). Zijn vlaggen zijn vinkjes en geen
+varianten, omdat ze los van elkaar te combineren zijn (de bestaande levels doen hoorn met rap, en wijk uit met inBeeld);
+als varianten zou dat een lange lijst worden. Hij staat in `MK_HP_SOORTEN` (een balk met een leven, `HP_BALK_SOORT`), kan
+uit een poort komen, en laadt lui via `krbLaadLevel` in `laadLevel`. `salvo` en `achter` zitten niet in de Maker: `salvo`
+leest de spawn niet (alleen de sandbox en de duo-arena) en `achter` heeft zin bij een vast level, niet in een grid.
 
 ## De controle (`mkControle`)
 
@@ -335,7 +352,7 @@ Stap 5 van `notities/plan-stad-maker.md` (daarmee is het plan klaar).
   op de galerij van de eerste verdieping (401) zet je in de cel waarvan de onderrand op 450 ligt.
 - **In `mkSpawn`**: zo'n vijand krijgt `dak` met de hoogte van die vloer (`dak: 401`), en geen `boven` of `y`; `stadDakPlek`
   zet hem in het spel op die vloer, binnen de rand. Alleen de soorten die `dak` lezen (`MK_DAK_SOORTEN`: bandiet,
-  schildbandiet en kruisboogbandiet; de Maker heeft nog geen kruisboogbandiet) krijgen het. Een andere soort krijgt het
+  schildbandiet en kruisboogbandiet) krijgen het. Een andere soort krijgt het
   niet en staat in de Test op de straat; `mkControle` meldt dat.
 
 Meldingen in `mkControle` (allemaal klikbaar, ze springen naar de cel):
@@ -350,9 +367,11 @@ Meldingen in `mkControle` (allemaal klikbaar, ze springen naar de cel):
 | een trap met balkon 0 en geen galerij of balkon op zijn uitgang (`gatX`): na E val je meteen naar beneden | FOUT |
 | een vijand op een dak, galerij of balkon waarvan de soort `dak` niet kent (hij staat in de Test op de straat) | LET OP |
 
-Een bandiet of schildbandiet op een dak krijgt geen melding (ook niet dat hij zweeft). `tools/makertest.js` (controle
-`stadsstukken`) zet elk van deze meldingen een keer neer en kijkt `dak` na, en het proefgrid heeft de stad achter de start
-(kolom 24 tot 35) met een bandiet op de galerij (`dak: 401`) en een schildbandiet op een dak (`dak: 816`).
+Een bandiet, schildbandiet of kruisboogbandiet op een dak krijgt geen melding (ook niet dat hij zweeft). `tools/makertest.js`
+(controle `stadsstukken`) zet elk van deze meldingen een keer neer en kijkt `dak` na (ook van een kruisboogbandiet met
+`wijk: false` op het dak van g5), en het proefgrid heeft de stad achter de start (kolom 24 tot 35) met een bandiet op de
+galerij (`dak: 401`) en een schildbandiet en een kruisboogbandiet (wijk uit, inBeeld aan) op een dak (`dak: 816`). In de Test
+loopt de schutter over het dak naar de rand, blijft op 816 en schiet omlaag.
 
 ## Sneltoetsen
 
@@ -368,7 +387,7 @@ leegmaken). Op een keuzelijst, knop of tekstvak blijven de toetsen van dat veld.
 Laadt de Maker in Chromium met een proefgrid waar alles op staat (gat, gang met treden, mesa,
 zwever, muur door de grond, sneeuw, alle voorwerpen, een tweede ravijn met een rijzer van 2 breed die het zegel
 stuurt, een masker, een zwarte cel, een vorm, en achter de start een straat met twee huizen, een galerij, een trap, een
-kraam, voetdecor, het paleis en een bandiet op de galerij en een schildbandiet op een dak) en
+kraam, voetdecor, het paleis en een bandiet op de galerij en een schildbandiet en een kruisboogbandiet op een dak) en
 kijkt na: de round-trip van export en import, de vertaling naar een spel-level, rijen invoegen en
 weer weghalen, verkleinen, snel schilderen, de rechthoek, het aanklikken van brede voorwerpen,
 ongedaan maken, een gebied kopiëren, spiegelen, plakken en knippen, een rijzer van even breedte spiegelen met
@@ -379,7 +398,9 @@ neerzetten met de muis; en galerij en trap: slepen van gevel naar gevel, de zijk
 het plaatje, `stad.galerijen` en `stad.trappen`, de JSON, een rij erboven, kopiëren met spiegelen en plakken op nieuwe id's,
 een gebied met maar een van de twee gevels, een gevel weg met ongedaan maken, en laden met een gevel die er niet is; en de
 meldingen van stap 5 met hun cel, `dak` op de spawn, en de stad in het proefgrid), en of
-het proefgrid als spel-level door `levelcheck.py` komt. Draai hem na elke wijziging aan de Maker.
+het proefgrid als spel-level door `levelcheck.py` komt. De controle `vijand-knoppen` kijkt ook de vlaggen van de
+kruisboogbandiet na (alleen wat afwijkt, `readLevel`, het kopje Gedrag en `inBeeld` vast met de hoorn), en `maat` meet het
+paneel van elke vijandsoort met al zijn knoppen van de standaard af. Draai hem na elke wijziging aan de Maker.
 
 ```
 node tools/makertest.js                alle controles
