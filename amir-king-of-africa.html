@@ -4656,6 +4656,7 @@ const TEST_58 = {
   view: 0.8, hpBalk: true, zicht: true, camera: true,
   speerInHand: true,
   zweepKeuze: true,                // aan het begin: de oude of de nieuwe zweepman (ZWM_NIEUW)
+  schild: true,                    // Amir heeft een schild (C): de zweep blokken is een van de manieren om in zijn zone te komen
   spawns: [ {x: -1500, k: 'zweepman'}, {x: -3600, k: 'zweepman'} ],
   rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [],
   props: [ {x: -500, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -2600, k: 'struik', s: 0.9, f: 1, v: 0} ],
@@ -4672,6 +4673,7 @@ const TEST_59 = {
   view: 0.8, hpBalk: true, zicht: true, camera: true, rand: true, slangEenKlap: true,
   speerInHand: true,
   zweepKeuze: true,                // aan het begin: de oude of de nieuwe zweepman (ZWM_NIEUW)
+  schild: true,                    // Amir heeft een schild (C): de zweep blokken is een van de manieren om in zijn zone te komen
   spawns: [ {x: -1300, k: 'zweepman'}, {x: -3400, k: 'zweepman', fasen: true} ],
   rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [],
   props: [ {x: -600, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -2300, k: 'struik', s: 0.9, f: 1, v: 0}, {x: -5200, k: 'gras', s: 1.1, f: 1, v: 0} ],
@@ -29279,7 +29281,7 @@ function zwmHand(s){
   if (s.state === 'herstel') return set.frames[set.frames.length - 1].hand || null;
   const a = set.frames[s.frame] && set.frames[s.frame].hand; if (!a) return null;
   const b = set.frames[s.frame + 1] && set.frames[s.frame + 1].hand; if (!b) return a;
-  const f = Math.min(1, s.acc / C.dur(s.frame));
+  const f = Math.min(1, s.acc / zwmDur(C, s.frame));
   return a.map((v, j) => v + (b[j] - v) * f);
 }
 // de knal: een echte zweepklap (sounds/zweepslag.mp3), zachter naarmate hij verder van Amir staat
@@ -29311,7 +29313,7 @@ function zwmMepSpeerKan(s){
   if (!zwmNieuw() || s.fase !== 1 || !zwmData || !jav || jav.state !== 'vlucht' || jav.hit) return false;
   if ((s.x - jav.x) * jav.vx <= 0) return false;                          // hij vliegt niet op hem af
   const C = ZWM_SLAG.hoog, van = C.slagVan - ZWM_NIEUW.mepSpeer.voor;
-  let slag = 0; for (let i = van; i < C.knal; i++) slag += C.dur(i);
+  let slag = 0; for (let i = van; i < C.knal; i++) slag += zwmDur(C, i);
   const bereik = zwmLengte() * zwmScale() * 0.9;
   return (Math.abs(s.x - jav.x) - bereik) / Math.max(1, Math.abs(jav.vx)) <= slag / 1000;
 }
@@ -29348,14 +29350,14 @@ function updateZweepman(s, dt, plats, cliff){
     const C = ZWM_SLAG[s.soort || 'laag'];
     s.acc += dt * 1000;
     const N = zwmData.bewegingen[C.set].frames.length;
-    while (s.frame < N - 1 && s.acc >= C.dur(s.frame)){ s.acc -= C.dur(s.frame); s.frame++; }
+    while (s.frame < N - 1 && s.acc >= zwmDur(C, s.frame)){ s.acc -= zwmDur(C, s.frame); s.frame++; }
     if (s.frame >= C.slagVan){
       const a = zwmHand(s);
       if (a){
         if (!s.touw) zwmTouwInit(s, a);
         let tot = 0, nu = 0;                              // ms van het begin van de slag tot de knal, en waar we nu zijn
-        for (let i = C.slagVan; i < C.knal; i++){ tot += C.dur(i); if (i < s.frame) nu += C.dur(i); }
-        if (s.frame < C.knal) nu += Math.min(s.acc, C.dur(s.frame));
+        for (let i = C.slagVan; i < C.knal; i++){ tot += zwmDur(C, i); if (i < s.frame) nu += zwmDur(C, i); }
+        if (s.frame < C.knal) nu += Math.min(s.acc, zwmDur(C, s.frame));
         const prog = s.frame >= C.knal ? 1 : nu / tot;
         s.touw.acc += dt; const h = 1 / 240; let k = 0;
         while (s.touw.acc >= h && k < 30){ zwmTouwStap(s, h, a, prog); s.touw.acc -= h; k++; }
@@ -29367,7 +29369,7 @@ function updateZweepman(s, dt, plats, cliff){
       else s.mepSpeer = false;
     }
     zwmSpoorStap(s, dt);
-    if (s.frame >= N - 1 && s.acc >= C.dur(N - 1)){ s.state = 'herstel'; s.herstelT = 0; }
+    if (s.frame >= N - 1 && s.acc >= zwmDur(C, N - 1)){ s.state = 'herstel'; s.herstelT = 0; }
     return;
   }
   if (s.state === 'herstel'){
@@ -29420,9 +29422,11 @@ function updateZweepmannen(dt, plats, cliff){
     if (s.state === 'weg') zweepmannen.splice(i, 1);
   }
 }
+function zwmF1Kwetsbaar(s){ return !zwmNieuw() || s.vrij || s.state === 'herstel' || s.state === 'terug'; }
 function hitZweepman(s){
   if (s.state === 'f2') return zwmF2Hit(s);
   if (s.state === 'dood' || s.state === 'weg' || s.inv > 0) return false;
+  if (!zwmF1Kwetsbaar(s)){ s.flash = Math.max(s.flash, 0.12); s.inv = 0.25; houtRaak(HOUT.kets.toon, HOUT.kets.vol); return false; }   // nieuw: buiten zijn herstel ketst je speer af
   hits++; hitsEl.textContent = hits;
   s.hp--; s.flash = 0.3; s.inv = ZWM.invHit;
   hitstop = Math.max(hitstop, 0.06); shake = Math.max(shake, 0.12);
@@ -29480,7 +29484,7 @@ function zwmFxAchter(s, gs){
 function zwmWijsTeken(s, gs){
   if (!ZWM_TEST.wijs || s.state !== 'slag' || !s.soort) return;
   const C = ZWM_SLAG[s.soort], F = ZWM_FX, laag = s.soort === 'laag';
-  const tot = C.slagVan - C.tellVan, nu = s.frame - C.tellVan + Math.min(1, s.acc / C.dur(s.frame));
+  const tot = C.slagVan - C.tellVan, nu = s.frame - C.tellVan + Math.min(1, s.acc / zwmDur(C, s.frame));
   let a = Math.min(1, Math.max(0, nu / tot));
   if (s.knalT >= 0) a *= Math.max(0, 1 - (s.t - s.knalT) / F.wijsNa);
   if (a <= 0) return;
@@ -29622,11 +29626,16 @@ const ZWM_NIEUW = {
   terugV: 120,                    // wereld-px/s achteruit sluipen (de loopclip achterstevoren)
   dichtbij: 340,                  // idle-px: zo dicht bij zijn lijf raakt de slag ook zonder touw (laag springen, hoog bukken), tot waar het touw begint te raken
   loopV: 150,                     // fase 1: wereld-px/s op je af (oud ZWM.loopV 100); de loopclip loopt evenredig mee
+  slagTempo: 1.25,                // fase 1: de slag (tell, opzwaai, knal) zoveel keer sneller
+  // fase 1: alleen in zijn herstel en op de terugweg is hij te raken; daarbuiten ketst je speer af (en een gegooide slaat
+  // hij neer). Zo kom je niet bij hem zonder eerst een slag te ontwijken (zie zwmF1Kwetsbaar)
   tempo: { lach: 1.2, mep: 1.3, sprong: 1.3, sprongterug: 1.2 },   // fase 2: zoveel keer sneller; uitrusten niet
   mepGat: { van: 40, tot: 50, f: 3 },   // de frames zonder zweep tussen de slag en de backhand: nog eens zoveel keer sneller
   sprongDoel: 360,                // idle-px voor zijn anker waar Amir na de sprong moet staan: in de zweep (die reikt op volle
                                   // snelheid tot zo'n 350 à 420 voor zijn anker, gemeten)
-  sprongBoog: { boogVan: -100, boog: 85, kracht: 8, wExp: 0.6, strakNa: 7 },   // de slag uit de sprong gaat naar voren: van boven zijn
+  sprongBoog: { boogVan: -100, boog: 85, kracht: 8, wExp: 0.6, strakNa: 7 },
+  mepBoog: [ { boogVan: -100, boog: 85, kracht: 8, wExp: 0.6, strakNa: 6 },    // de mep: eerst van boven zijn hoofd naar voren,
+             { boogVan: -205, boog: -55, kracht: 8, wExp: 0.6, strakNa: 6 } ], // dan de backhand van laag naar schuin omhoog, ook naar voren   // de slag uit de sprong gaat naar voren: van boven zijn
                                   // hoofd naar recht voor hem (oud zwaaide hij omhoog en naar achteren, over je heen); strakNa:
                                   // zoveel frames na de knal blijft de punt naar voren trekken, anders sleept hij achter de sprong aan
   mepSpeer: { voor: 3, kans: 0.5 }, // fase 1: een gegooide speer slaat hij neer met een snelle hoge slag, zoveel frames voor
@@ -29635,6 +29644,7 @@ const ZWM_NIEUW = {
                                   // tot 450 vooruit, dus wie na de mep ver genoeg wegrent ontwijkt de sprong nog)
 };
 function zwmNieuw(){ return sandbox ? sbZwmNieuw : !!(level && level.zweepKeuze && duoKeuze.zweep === 'nieuw'); }
+function zwmDur(C, i){ return C.dur(i) / (zwmNieuw() ? ZWM_NIEUW.slagTempo : 1); }   // fase 1: de duur van een slagframe, nieuw sneller
 function zwmLengte(){ return zwmNieuw() ? ZWM_NIEUW.lengte : ZWM_TOUW.lengte; }
 // de duur van een frame in fase 2, in ms speltijd: in de nieuwe versie sneller
 function zwmF2Ms(s, set, i){
@@ -29722,7 +29732,10 @@ function zwmF2Stap(s, dt, plats, cliff){
   let si = -1; for (let k = 0; k < segs.length; k++) if (i >= segs[k].van && i <= segs[k].tot) si = k;
   if (si !== s.f2Seg){
     s.f2Seg = si; s.touw = null; s.knalT = -1; s.geraaktAmir = false; s.f2C = si >= 0 ? segs[si] : null;
-    if (s.f2C && s.f2 === 'sprong' && zwmNieuw()) s.f2C = Object.assign({}, s.f2C, ZWM_NIEUW.sprongBoog);   // nieuw: naar voren
+    if (s.f2C && zwmNieuw()){                               // nieuw: elke slag in fase 2 gaat naar voren, naar Amir toe
+      const nb = s.f2 === 'sprong' ? ZWM_NIEUW.sprongBoog : s.f2 === 'mep' ? ZWM_NIEUW.mepBoog[si] : null;
+      if (nb) s.f2C = Object.assign({}, s.f2C, nb);
+    }
   }
   if (si >= 0){
     const C = segs[si], a = zwmF2Hand(s);
@@ -29846,6 +29859,10 @@ function zwmF2Raakt(s, bodyX, voeten, gs, pbox){
   const naKnal = C.strakNa ? i >= C.knal + C.strakNa : (s.knalT >= 0 && s.t - s.knalT > ZWM2.gevaarNa);   // nieuw, de sprong: zolang hij strak naar voren trekt
   if (i < van || naKnal) return false;
   const sp = s.face === 1 ? -1 : 1, t = s.touw;
+  if (zwmNieuw() && s.knalT >= 0){                       // nieuw: de slag gaat naar voren, maar tegen hem aan raakt hij ook (op elke hoogte)
+    const d = (bodyX + zwmLijfDX(s, gs) - (pbox.l + pbox.r) / 2) * sp;
+    if (d > -ZWM.half * gs && d < ZWM.half * gs * 1.5) return true;
+  }
   for (let k = 4; k < ZWM_TOUW.n; k++){
     const x = bodyX + t.X[k] * gs * sp, y = voeten + t.Y[k] * gs;
     if (x > pbox.l && x < pbox.r && y > pbox.t && y < pbox.b) return true;
@@ -36525,7 +36542,7 @@ function readLevel(txt){
            valschade: !!o.valschade,                    // een diepe val kost levens (standaard uit)
            valDood: o.valDood != null ? Number(o.valDood) : undefined,   // een level kan de dodelijke valhoogte zelf zetten (de Level Maker: 4 gridcellen); zonder dit veld geldt VAL_DOOD (6 Amir)
            rechtsWall: o.rechtsWall != null ? Number(o.rechtsWall) : undefined,   // de rechtergrens (de onzichtbare wand achter je); zonder dit veld de vaste CLIFF.wall. De Maker zet hem uit de tekening, zodat een eind rechts van de start bereikbaar is (zie cliffAt)
-           schild: !!o.schild,                          // Amir heeft een schild: C houdt het op (AMIR_SCHILD); alleen Test 56
+           schild: !!o.schild,                          // Amir heeft een schild: C houdt het op (AMIR_SCHILD); Test 56, 58 en 59
            speerInHand: !!o.speerInHand,                // met de speer al in de hand beginnen in plaats van hem uit de grond te pakken; de Maker zet dit (nieuwe levels), de echte episodes niet (rule 1)
            hoogUitzicht: !!o.hoogUitzicht,              // gestapelde grondlagen: de camera klemt tegen de laag (geen zwarte diepte) en de achtergrond blijft staan, zodat een hoge laag er net zo uitziet als de basis
            golf: o.golf ? (typeof o.golf === 'object' ? o.golf : true) : undefined,   // golvende rand: terreinmassa's met een organische omtrek (opt-in, zie "golvende rand")

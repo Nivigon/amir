@@ -161,6 +161,14 @@ De nieuwe versie (de tweede opzet: dezelfde vaste cyclus als oud, maar zonder ve
   de zweep hem raakt, zo'n 100 idle-px voor hem, als losse speer (E). Raakt hij zijn lijf voor de knal, dan slaat hij hem ook
   neer. Alleen een worp van binnen zijn zone (vlakbij) raakt nog. Zo raak je hem alleen in zijn zone, door eerst een slag te
   ontwijken (springen, bukken of je schild, dat de zweep via `hurtPlayer` vangt) en dan in zijn herstel te steken.
+- **Fase 1, alleen in zijn herstel te raken** (`zwmF1Kwetsbaar`): buiten zijn herstel en de terugweg ketst je speer af (de
+  houtklap), ook de lage zwaai. Oud kon je in zijn tell op hem af lopen en steken: dat onderbrak zijn slag, en zo hield je hem
+  vast. Nu moet je eerst zijn slag ontwijken. Zijn slag is ook sneller (`slagTempo` 1,25, via `zwmDur`): laag 0,77 s tot de
+  knal (oud 0,96), hoog 0,82 (oud 1,03).
+- **Het schild**: Test 58 en 59 hebben `schild: true` (C), zodat blokken een van de manieren is om in zijn zone te komen.
+- **Fase 2, de mep naar voren** (`mepBoog`, per segment): de slag veegt laag naar voren, de backhand komt van boven naar
+  voren, allebei strak (`strakNa`). Tegen hem aan of achter hem raakt de mep ook (`zwmF2Raakt`): alleen afstand helpt.
+  Gemeten: raak van -80 tot 650 idle-px, op 800 niet meer.
 - **Fase 2, de sprong slaat naar voren**: oud zwaaide de zweep in de sprong omhoog en naar achteren, over Amir heen (hij
   landde bijna op hem). Nieuw vervangt `sprongBoog` de boog van dat segment (van boven zijn hoofd naar recht voor hem, harder
   trekken), en blijft de punt `strakNa` frames na de knal strak naar voren trekken. Zolang raakt hij ook (`zwmF2Raakt`).
