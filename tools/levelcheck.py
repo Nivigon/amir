@@ -1163,6 +1163,28 @@ def poorten(lv, sp):
             yield letop(s.get('x'), "een %s uit poort '%s' komt van de rand van het beeld, niet uit de poort" % (s.get('k'), s.get('poort')))
 
 
+@regel('lift bij een galerij')
+def lift_galerij(lv, sp):
+    """Een takel met galerij (de index in stad.galerijen) voegt zich in het spel naar de rand van die galerij
+    (takelGalerijStap in de HTML): het plateau schuift op elk scherm tegen het eind, de hoogste stand komt op het dek.
+    Wijst hij naar een galerij die er niet is, of heeft het level geen stad, dan doet het veld niets en staat de lift
+    waar het level hem zette."""
+    stad = lv.d.get('stad') or {}
+    gal = stad.get('galerijen') or []
+    lijst = list(lv.d.get('takels') or []) + ([lv.d['takel']] if isinstance(lv.d.get('takel'), dict) else [])
+    for t in lijst:
+        gi = t.get('galerij')
+        if gi is None:
+            continue
+        x = t.get('px', t.get('x'))
+        if not stad:
+            yield fout(x, 'takel met galerij %s, maar het level heeft geen stad: hij sluit nergens op aan' % gi)
+        elif not isinstance(gi, int) or gi < 0 or gi >= len(gal):
+            yield fout(x, 'takel met galerij %s, maar die galerij is er niet (%d galerijen): hij sluit nergens op aan' % (gi, len(gal)))
+        else:
+            yield info(x, 'galerij %d (dek op %s): het plateau voegt zich naar de rand' % (gi, gal[gi].get('h', 401)))
+
+
 @regel('deuren')
 def deuren(lv, sp):
     """Een spawn met deur: {gevel, verdieping} stapt uit het deurgat van een gevel van de stad (stadDeurMaat in de
