@@ -18,7 +18,7 @@ Start/eind, Vijanden, Objecten, Decor, Verbergen) met daarin groepen (`MK_GROEPE
 `objecten/takel` met zijn naam), en in een groep de gereedschappen of weer groepen, zo diep als nodig (Vijanden,
 Bandieten, Bandiet, zijn varianten). Een gereedschap in `MK_TYPES` zegt met `groep` waar het staat (een pad; alleen een
 categorie-id betekent los in die categorie, zoals de kalebas onder Objecten); een vijand in `MK_VIJANDEN` met `groep` in
-welke groep uit `MK_VIJ_GROEPEN`, en een vijand met varianten (bandiet, schildbandiet, kooiman) is daarbinnen een groep.
+welke groep uit `MK_VIJ_GROEPEN`, en een vijand met varianten (bandiet, schildbandiet, kruisboogbandiet, kooiman) is daarbinnen een groep.
 Een gereedschap zonder `groep` landt in Overig van zijn categorie (uit zijn soort, `mkPaletCatVan`), een onbekend pad maakt
 een groep zonder naam; `mkPaletKlachten` meldt dat, net als een knoop met meer dan `MK_PALET_MAX` (6) items, en
 `mkPaneelKlachten` telt hetzelfde voor het paneel rechts (de zichtbare rijen buiten en binnen elk inklapbaar kopje). De
@@ -38,7 +38,8 @@ Een vijand staat op het grid, in het palet (`mkStaal` met een soort) en op de pl
 rondje van zijn soort met een icoon erin (`mkVijIcoon`, met `mkVijBadge` voor het badge rechtsonder): een
 tekening in canvas-lijnen op schaal van de cel, dus scherp op elke zoom. De varianten en de knoppen die aanstaan
 (`params.n`, `params.over`) zie je aan het badge, de elite aan een gouden ring, de gehurkte bandiet aan een
-platgedrukt rondje en de makkelijke schildbandiet aan een schild zonder vulling. De minimap blijft een rood
+platgedrukt rondje en de makkelijke schildbandiet aan een schild zonder vulling. De kruisboogbandiet is een
+kruisboog met een bout (staalgrijs rondje), met een hoorntje als badge voor de variant met hoorn. De minimap blijft een rood
 puntje per vijand.
 
 | wat | functies |
@@ -171,7 +172,8 @@ Altijd WYSIWYG: links in het grid is links in het spel, de wereld-x is `(kolom -
 - De basisvelden: `view: 0.8`, `zicht: true`, `hpBalk` (de lijst `MK_HP_SOORTEN`), `speerInHand: true`, `rugMax: 1`,
   `valDood: 600` (vier cellen), `kaleKlif`, `voorgrond: false`, `overloop: true`.
 - `hpBalk` is in de Maker een lijst, geen `true`: Amir en de andere vijanden krijgen 3 levens met een balk, maar de
-  slangen (zand, zwart, knock en fosfor) staan er niet in en zijn in een klap dood.
+  slangen (zand, zwart, knock en fosfor) staan er niet in en zijn in een klap dood. De kruisboogbandiet staat er wel
+  in, maar houdt zijn ene leven (`makeKruisboog`): hij krijgt alleen de balk, zoals in de Stad-levels met `hpBalk: true`.
 
 ## De knoppen per vijand (`MK_VIJ_KNOP`)
 
@@ -183,7 +185,18 @@ Alleen velden die het spel echt leest:
 | hyena | Aantal (1 of 2) | `n` |
 | bandiet (alle varianten) | Vault over een kei naar je toe (standaard aan) | `vault: false` als uit |
 | panter | Komt over keien en ravijnen (standaard uit) | `over: true` als aan |
+| kruisboogbandiet (beide varianten) | Wijkt terug als je dichtbij komt (standaard aan) | `wijk: false` als uit |
+| kruisboogbandiet (beide varianten) | Loopt eerst door tot de rand (standaard uit) | `rand: true` als aan |
+| kruisboogbandiet (beide varianten) | In looppas het beeld in (standaard uit) | `rap: true` als aan |
+| kruisboogbandiet (gewoon) | Schiet pas als hij helemaal in beeld staat (standaard uit) | `inBeeld: true` als aan |
 | elke vijand | Ziet je alleen met vrij zicht (standaard aan) | `zicht: false` als uit |
+
+De kruisboogbandiet heeft twee varianten in het palet (`kruisboogbandiet` en `kruisboogbandiet:hoorn`), geen vinkje voor
+de hoorn: met hoorn ontwijkt hij je worp, rolt weg en blaast twee hyena's erbij (`KRB_HOORN`), en dat is een ander gevecht,
+dat je op het grid aan het badge moet kunnen zien. `mkSpawn` maakt van de variant `hoorn: true`, en `krbLaadLevel` (via
+`laadLevel`) laadt dan ook de hyena's. Met hoorn staat hij altijd op `inBeeld` (de spawner), dus die variant krijgt dat
+vinkje niet. Let op: op een hoog dak (vanaf twee hoog) staat zijn hoofd vlak onder de bovenrand van het beeld; met
+`inBeeld` of de hoorn schiet hij pas als hij er helemaal in staat.
 
 Het vinkje voor de panter en het uitzetten van de vault zijn de uitzondering op regel 7, als
 bewuste keuze van wie het level maakt. Een knop erbij is een regel in `MK_VIJ_KNOP` (schuifje:
@@ -335,7 +348,7 @@ Stap 5 van `notities/plan-stad-maker.md` (daarmee is het plan klaar).
   op de galerij van de eerste verdieping (401) zet je in de cel waarvan de onderrand op 450 ligt.
 - **In `mkSpawn`**: zo'n vijand krijgt `dak` met de hoogte van die vloer (`dak: 401`), en geen `boven` of `y`; `stadDakPlek`
   zet hem in het spel op die vloer, binnen de rand. Alleen de soorten die `dak` lezen (`MK_DAK_SOORTEN`: bandiet,
-  schildbandiet en kruisboogbandiet; de Maker heeft nog geen kruisboogbandiet) krijgen het. Een andere soort krijgt het
+  schildbandiet en kruisboogbandiet, met al hun varianten) krijgen het. Een andere soort krijgt het
   niet en staat in de Test op de straat; `mkControle` meldt dat.
 
 Meldingen in `mkControle` (allemaal klikbaar, ze springen naar de cel):
@@ -350,9 +363,11 @@ Meldingen in `mkControle` (allemaal klikbaar, ze springen naar de cel):
 | een trap met balkon 0 en geen galerij of balkon op zijn uitgang (`gatX`): na E val je meteen naar beneden | FOUT |
 | een vijand op een dak, galerij of balkon waarvan de soort `dak` niet kent (hij staat in de Test op de straat) | LET OP |
 
-Een bandiet of schildbandiet op een dak krijgt geen melding (ook niet dat hij zweeft). `tools/makertest.js` (controle
+Een bandiet, schildbandiet of kruisboogbandiet op een dak krijgt geen melding (ook niet dat hij zweeft). `tools/makertest.js` (controle
 `stadsstukken`) zet elk van deze meldingen een keer neer en kijkt `dak` na, en het proefgrid heeft de stad achter de start
-(kolom 24 tot 35) met een bandiet op de galerij (`dak: 401`) en een schildbandiet op een dak (`dak: 816`).
+(kolom 24 tot 35) met een bandiet op de galerij (`dak: 401`), een schildbandiet op een dak (`dak: 816`) en ernaast een kruisboogbandiet
+die niet wijkt (`dak: 816, wijk: false`); de controle zet ook een kruisboogbandiet met hoorn op een dak (`dak: 816, hoorn: true`)
+en kijkt het na tot in `readLevel`.
 
 ## Sneltoetsen
 
@@ -368,7 +383,7 @@ leegmaken). Op een keuzelijst, knop of tekstvak blijven de toetsen van dat veld.
 Laadt de Maker in Chromium met een proefgrid waar alles op staat (gat, gang met treden, mesa,
 zwever, muur door de grond, sneeuw, alle voorwerpen, een tweede ravijn met een rijzer van 2 breed die het zegel
 stuurt, een masker, een zwarte cel, een vorm, en achter de start een straat met twee huizen, een galerij, een trap, een
-kraam, voetdecor, het paleis en een bandiet op de galerij en een schildbandiet op een dak) en
+kraam, voetdecor, het paleis en een bandiet op de galerij en een schildbandiet en een kruisboogbandiet op een dak) en
 kijkt na: de round-trip van export en import, de vertaling naar een spel-level, rijen invoegen en
 weer weghalen, verkleinen, snel schilderen, de rechthoek, het aanklikken van brede voorwerpen,
 ongedaan maken, een gebied kopiëren, spiegelen, plakken en knippen, een rijzer van even breedte spiegelen met
