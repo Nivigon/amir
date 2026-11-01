@@ -11343,9 +11343,10 @@ function losBij(){
 function eigenSpeerNeer(){
   if (spearFound) return;
   let x = null;
+  let h = null;
   if (javLost > 0) x = javReturnX();                // in een ravijn: waar hij terug zou komen
-  else if (jav) x = jav.x; else if (spearX !== null) x = spearX;
-  if (x !== null) losseSperen.push({ x, h: terrainH(x), zij: 1, soort: 'eigen', blauw: speerBlauw, wiebel: 0 });
+  else if (jav){ x = jav.x; h = jav.h; } else if (spearX !== null){ x = spearX; h = spearH; }
+  if (x !== null) losseSperen.push({ x, h: losVloer(x, h), zij: 1, soort: 'eigen', blauw: speerBlauw, wiebel: 0 });
   jav = null; javLost = 0; spearX = null; spearH = null;
 }
 // E bij een losse speer: oprapen, of hij wiebelt als je er al een hebt
@@ -16042,8 +16043,14 @@ function rugErbij(blauw){
 // je eigen gegooide speer die ergens in de wereld ligt als losse speer neerleggen, ook als je hand
 // al vol is. Zo blijft hij op te pakken (in de hand of op de rug, zie losTrek) en wordt hij niet als
 // "de" speer geclaimd (spearX), want dat gaat mis zodra er al een in je hand zit.
-function eigenSpeerLos(x, dir, blauw){
-  losseSperen.push({ x, h: terrainH(x), zij: dir || 1, soort: 'eigen', blauw: !!blauw, wiebel: 0 });
+function eigenSpeerLos(x, dir, blauw, h){
+  losseSperen.push({ x, h: losVloer(x, h), zij: dir || 1, soort: 'eigen', blauw: !!blauw, wiebel: 0 });
+}
+// de vloer waar een losse speer op komt te liggen: met h (de hoogte van de speer) de vloer daaronder, dus
+// ook een dak of galerij in de stad of een zwevende laag; zonder h de gewone grond. Met alleen terrainH
+// lag een speer van een dak ineens op straat, waar Amir boven op het dak er niet meer bij kon.
+function losVloer(x, h){
+  return h == null ? terrainH(x) : vloerBij(x, h + JAV.inTile + 2);
 }
 // de beat is om: trek er een van de rug in je hand, als je hand intussen nog leeg is
 function rugTrekKlaar(){
@@ -16054,7 +16061,7 @@ function rugTrekKlaar(){
   // een al neergekomen gegooide speer wordt nu een losse speer: je hand is weer vol, dus je raapt hem
   // straks op de rug op (en hij blijft niet als spearX geclaimd, zie javStick)
   if (jav && (jav.state === 'grond' || jav.state === 'bos')){
-    eigenSpeerLos(jav.x, jav.dir, jav.blauw); jav = null; javLost = 0; spearX = null; spearH = null;
+    eigenSpeerLos(jav.x, jav.dir, jav.blauw, jav.h); jav = null; javLost = 0; spearX = null; spearH = null;
   }
   puffDust(4);
   flashHint(rugSperen.length ? ('Speer van je rug getrokken (' + rugSperen.length + ' nog op de rug)')
@@ -16293,10 +16300,16 @@ function javGapNear(x){                      // het ravijn waar hij in verdween
     if (x > g.x - g.w / 2 - 120 && x < g.x + g.w / 2 + 120) return g;
   return null;
 }
+let javLostBlauw = false;                    // het vaantje van de speer die weg is (de hand kan intussen een andere hebben)
 function javLose(g){                         // water, ravijn of buiten de wereld
   javOver = g ? { g, dir: jav ? jav.dir : (facing === 1 ? 1 : -1) } : null;
+  javLostBlauw = jav ? !!jav.blauw : speerBlauw;
   jav = null; javLost = JAV.lostT;
-  spearFound = false; spearX = null; spearH = null;   // er valt nu niets op te pakken
+  // er valt nu niets op te pakken. Heb je intussen al een speer van je rug in de hand, dan blijft die
+  // gewoon van jou (spearFound blijft staan); anders telde je hand als leeg en raapte je de teruggekomen
+  // speer in die hand op, bovenop de speer die je al had, en kwam er niets op je rug bij
+  if (!(spearFound && rugAan())) spearFound = false;
+  spearX = null; spearH = null;
 }
 // Waar komt hij terug? Uit het water of van buiten de wereld op de laatste vaste
 // grond waar Amir stond. Uit een ravijn juist aan de overkant, net buiten beeld:
@@ -16351,7 +16364,7 @@ function javStick(x, h, soort, scale){
     // je hand is al weer gevuld (van de rug getrokken): deze gegooide speer wordt een losse speer,
     // die je in de hand of op de rug oppakt (losTrek). Anders zou spearX hem als "de" speer claimen
     // terwijl er al een in je hand zit, en raakte de staat in de knoop.
-    eigenSpeerLos(jav.x, jav.dir, jav.blauw);
+    eigenSpeerLos(jav.x, jav.dir, jav.blauw, jav.h);
     if (soort === 'grond') zegelSpeer(jav.x, scale);
     jav = null; javLost = 0; spearX = null; spearH = null;
     return;
@@ -16531,6 +16544,12 @@ function javUpdate(dt, plats, scale){
       const over = !!javOver;
       const x = javReturnX();
       javLost = 0; jav = null; javOver = null;
+      if (spearFound && rugAan()){                   // je hand is al weer vol: hij ligt er los, voor de rug
+        eigenSpeerLos(x, 1, javLostBlauw); spearX = null; spearH = null;
+        flashHint(over ? 'Je speer ligt aan de overkant van het ravijn: E zet hem op je rug'
+                       : 'Je speer is terug op vaste grond: E zet hem op je rug');
+        return;
+      }
       spearFound = false; spearX = x; spearH = null;
       flashHint(over ? 'Je speer ligt aan de overkant van het ravijn'
                      : 'Je speer is terug op vaste grond');
@@ -29734,7 +29753,7 @@ function exeSpeerNeer(s){
   const ligt = (exeBew('val') || {}).speer_ligt_op || { dx: 0, dy: 0 };
   const scale = nowScale(), dir = e.dir;
   const mid = exeAmirX(s, ligt.dx), tip = mid + dir * javLen(scale) / 2;
-  if (spearFound && rugAan()){ eigenSpeerLos(tip, dir, e.blauw); return; }
+  if (spearFound && rugAan()){ eigenSpeerLos(tip, dir, e.blauw, (s.base || 0) - JAV.inTile); return; }
   jav = { x: tip, h: (s.base || 0) - JAV.inTile, vx: 0, vh: 0, dir, state: 'grond', sa: dir === 1 ? 0 : Math.PI, t: 0,
           wob: 0, sag: 0, stand: false, hit: true, blauw: e.blauw, los: 0, dak: null };
   javLost = 0; spearFound = false; spearX = tip; spearH = jav.h;
@@ -29800,7 +29819,7 @@ function exeAmirLos(s){
   facing = s.x > world ? -1 : 1;
   frame = 0; frameAcc = 0; idleFrame = 0; idleAcc = 0;
   if (!spearFound){ spearFound = true; speerBlauw = !!e.blauw; jav = null; javLost = 0; spearX = null; spearH = null; }
-  else if (e.wijze === 'worp' && !rugErbij(e.blauw)) eigenSpeerLos(world, facing, e.blauw);   // je hand was al weer vol (van de rug): de speer uit hem ligt naast je
+  else if (e.wijze === 'worp' && !rugErbij(e.blauw)) eigenSpeerLos(world, facing, e.blauw, ph - JAV.inTile);   // je hand was al weer vol (van de rug): de speer uit hem ligt naast je
   if (!spear){ spear = true; setSpearLabel(); }
   invuln = Math.max(invuln, EXE.t.veilig);          // even onkwetsbaar: de cutscene straft je niet
   invulnStil = invuln;                              // zonder te knipperen: hij is niet geraakt
