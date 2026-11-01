@@ -144,7 +144,7 @@ Alleen met `fasen: true` in de spawn (Test 59), of in de sandbox met **Fasen aan
   Het gevaar geldt van het begin van het touw tot `gevaarNa` s na de knal (`sprongGevaar`), want bij de knal is hij al
   doorgedraaid.
 - **Kwetsbaar** (`zwmF2Kwetsbaar`): alleen in `rustin`, `rust`, `rustuit` en de eindpose van de sprong. Daarbuiten ketst je speer
-  af (de houtklap, een korte flits). `ZWM2.hp2` (2) treffers en hij is dood (vervagen).
+  af (de houtklap, een korte flits). `ZWM2.hp2` (2) treffers en hij is dood (zie De dood).
 - **Het touw per segment**: `set.touw` is een lijst `{van, knal, tot, boogVan, boog, kracht, hang, blijf}`. In een segment volgt
   het touw de hand (`fr.hand`), met de boog uit dat segment (`s.f2C` in `zwmTouwStap`). Aan het eind vervaagt het, behalve met
   `blijf`. Daarbuiten zit de zweep als leer in het plaatje.
@@ -154,12 +154,27 @@ Alleen met `fasen: true` in de spawn (Test 59), of in de sandbox met **Fasen aan
 De frames komen uit `export_f2.py` en `postfix_f2.py` in de chat (de Grok-clips 1armhit, 1armlaugh, manischslag, draaislag,
 de sprong, de terugweg en uitrusten2), op dezelfde schaal en hetzelfde anker als fase 1.
 
-## Oud of nieuw (`zweepKeuze`, Test 58 en 59)
+## Oud, nieuw of nieuwer (`zweepKeuze`, Test 58 en 59)
 
-`ZWM_NIEUW`, `zwmNieuw`, `zwmF2Ms`. In een level met `zweepKeuze: true` vraagt het instellingenscherm van de duo-arena
-(`duoKeuze`, alleen de rij Zweepman) voor het begin de oude of de nieuwe zweepman; de keuze blijft staan (`amir.duoKeuze`)
-en in de pauze kies je opnieuw (**Zweepman: oud of nieuw**). In de sandbox de knop **Versie** in de rij Zweepman (standaard
-oud, geldt meteen voor alle zweepmannen). Een level zonder het veld (Oaktown) houdt de oude.
+`zwmVersie`, `ZWM_NIEUW`, `zwmNieuw`, `ZWM_NIEUWER`, `zwmNieuwer`, `zwmF2Ms`. In een level met `zweepKeuze: true` vraagt het
+instellingenscherm van de duo-arena (`duoKeuze`, alleen de rij Zweepman) voor het begin de oude, de nieuwe of de nieuwere
+zweepman; de keuze blijft staan (`amir.duoKeuze`) en in de pauze kies je opnieuw (**Zweepman: welke versie**). In de sandbox
+de knop **Versie** in de rij Zweepman (oud, nieuw, nieuwer; standaard oud, geldt meteen voor alle zweepmannen). Een level
+zonder het veld (Oaktown) houdt de oude. Nieuwer is nieuw plus wat onder "De nieuwere versie" staat: `zwmNieuw()` is ook
+waar voor nieuwer.
+
+De nieuwere versie (`ZWM_NIEUWER`, alleen fase 2): in nieuw was hij het grootste deel van zijn cyclus onaantastbaar (van de
+mep tot het eind van de eerste uithaal zo'n 4,6 s, en in een cyclus van 14 s maar 5 s te raken), en sloeg elke treffer je weg.
+
+- **Alleen in de slag onaantastbaar** (`onaantastbaar`, per set de frames, in `zwmF2Kwetsbaar`): de mep van de inzet tot
+  net na de knal (6 tot 20 en 51 tot 60, zo'n 0,35 s per slag), de uithaal van het begin van de slag tot net na de knal
+  (28 tot 52, zo'n 0,7 s). Daarbuiten is hij te raken: in de opzwaai, tussen de twee mep-slagen, op de terugweg en in het
+  uitrusten. De arm eraf en de lach blijven zoals ze waren.
+- **Doorslaan kost een leven**: een treffer onderbreekt hem niet. Raak je hem vlak voor zijn slag, dan zet hij door en
+  raakt zijn zweep jou ook.
+- **Minder ver weg, wel verdoofd**: zijn treffer duwt `duw` (0,4) keer zo ver als `mepDuw` en `sprongDuw`, en zet `hurt`
+  op minstens `stun` (0,5 s, de gewone treffer is 0,38 s): even geen besturing.
+- **Een treffer meer**: `hp2` 3 in plaats van `ZWM2.hp2` (2).
 
 De nieuwe versie (de tweede opzet: dezelfde vaste cyclus als oud, maar zonder veilige plek):
 
@@ -222,12 +237,21 @@ hij je niet meer in), en de mep raakt nu tot 650 in plaats van 450.
 Speren (fase 1, Amir gooit vlak vanaf 300 tot 1600 idle-px): oud raakt de worp hem (of valt hij te kort); nieuw slaat hij
 elke worp vanaf 700 neer, op zo'n 100 voor hem; vanaf 300 (al in zijn zone) raakt hij nog.
 
+## De dood in fase 2 (`zwmDoodStap`, `s.dood`)
+
+De dodelijke treffer geeft de doodskreet (`banSterf`) en een hitstop. Hij bevriest `ZWM2.doodVries` s in de houding van dat
+moment en valt dan met de Grok-val: de set `dood` (26 frames, uit de clip "dewath2", gemaakt vanaf rustframe 90 en op dezelfde
+schaal en plek gezet als de rustset). Een kwartslag naar de camera, de knieen begeven het en hij zakt in elkaar, steeds sneller.
+Op frame `land` een schudding en stof, en `pof.voor` frames eerder de plof (`sounds/bavland.mp3`, zacht). Na `doodLig` s liggen
+vervaagt hij. Sterft hij niet in de rust (de nieuwere versie is ook in de mep of de uithaal te raken), dan vloeit zijn houding
+van dat moment in `doodMix` s over in het eerste frame van de val (`s.dood.van`, in `zwmF2Teken`). Een stijf omkiepen in code
+is geprobeerd en afgekeurd.
+
 ## Nog te doen
 
 - In fase 2 laten de touwframes van de mep en het eind van de sprong nog kleine reepjes broek los waar de zweep over zijn
   benen ging (de bron is daar vlekkerig).
-- Berserk: de speer uit de lucht slaan. Fase 3: het been eraf, op zijn knie, de laatste klap of een executie. De echte dood
-  (nu vervaagt hij).
+- Berserk: de speer uit de lucht slaan. Fase 3: het been eraf, op zijn knie, de laatste klap of een executie.
 
 - De lage slag begint nog op hoofdhoogte, omdat zijn arm in de Grok-clip over zijn hoofd zwaait; de zweep zelf blijft
   laag. Een clip waarin hij van onderen of opzij uithaalt (de hand onder de heup) maakt het helemaal zuiver.
