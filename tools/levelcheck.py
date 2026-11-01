@@ -1163,6 +1163,49 @@ def poorten(lv, sp):
             yield letop(s.get('x'), "een %s uit poort '%s' komt van de rand van het beeld, niet uit de poort" % (s.get('k'), s.get('poort')))
 
 
+@regel('deuren')
+def deuren(lv, sp):
+    """Een spawn met deur: {gevel, verdieping} stapt uit het deurgat van een gevel van de stad (stadDeurMaat in de
+    HTML), zodra die in beeld is. De gevel moet er zijn en de verdieping onder zijn dak liggen, anders komt hij nooit. Op
+    een verdieping hoort er een galerij op die hoogte langs dat huis te lopen (zonder vloer komt hij niet), en alleen een
+    soort die een galerij als vloer kent mag daar uit (STAD_DEUR.bovenSoorten). Een baas komt nooit uit een deur (regel
+    12), een hyena komt van de rand van het beeld."""
+    stad = lv.d.get('stad') or {}
+    gevels = stad.get('gevels') or []
+    boven = ('bandiet', 'schildman', 'kruisboogbandiet', 'groen', 'zwart', 'knock')
+    verd = lambda k: 401 + (k - 1) * 329                      # stadVerdieping: 1 is 401, 2 is 730
+    for s in lv.d.get('spawns') or []:
+        d = s.get('deur')
+        if not isinstance(d, dict):
+            continue
+        k, gi, v = s.get('k'), int(d.get('gevel') or 0), int(d.get('verdieping') or 0)
+        if k == 'panter' or s.get('boss'):
+            yield fout(s.get('x'), "een baas (%s) in een deur: een baas komt nooit uit een deur (regel 12)" % k)
+            continue
+        if k == 'hyenas':
+            yield letop(s.get('x'), "hyena's in een deur komen van de rand van het beeld, niet uit de deur")
+            continue
+        if not stad:
+            yield fout(s.get('x'), "vijand '%s' wacht in een deur, maar het level heeft geen stad: hij komt nooit" % k)
+            continue
+        if gi < 0 or gi >= len(gevels):
+            yield fout(s.get('x'), "vijand '%s' wacht in een deur van gevel %d, maar die gevel is er niet: hij komt nooit" % (k, gi))
+            continue
+        hoog = max(1, min(4, int(gevels[gi].get('hoog') or 1)))
+        if v < 0 or v >= hoog:
+            yield fout(s.get('x'), "vijand '%s' wacht in een deur op verdieping %d van gevel %d, maar dat huis is %d hoog: hij komt nooit" % (k, v, gi, hoog))
+            continue
+        if v == 0:
+            continue
+        if k not in boven:
+            yield fout(s.get('x'), "vijand '%s' in een deur op verdieping %d: deze soort kent geen galerij als vloer en komt er niet uit" % (k, v))
+        gal = [g for g in stad.get('galerijen') or []
+               if abs((g.get('h') if g.get('h') is not None else 730) - verd(v)) < 30
+               and min(g.get('van', 0), g.get('tot', g.get('van', 0))) <= gi <= max(g.get('van', 0), g.get('tot', g.get('van', 0)))]
+        if not gal:
+            yield fout(s.get('x'), "vijand '%s' in een deur op verdieping %d van gevel %d, maar daar loopt geen galerij: hij komt niet" % (k, v, gi))
+
+
 @regel('putten')
 def putten(lv, sp):
     """Een put is een ravijn in de vloer van een gang (PUT in de HTML): hij moet helemaal in een gang

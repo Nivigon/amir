@@ -342,7 +342,7 @@ van een gevel, niet aan een plek:
 
 `MK_DAK_SOORTEN`, `mkDakSoort`, `mkStadVloeren`, `mkStadVloerOp`, `voetX` in `mkTrapMaat`
 
-Stap 5 van `notities/plan-stad-maker.md` (daarmee is het plan klaar).
+Stap 5 van `notities/plan-stad-maker.md`.
 
 - **De vloeren van de stad** (`mkStadVloeren`, zoals `stadVloeren` in het spel, in cellen op laptopmaat): het dak van elke
   gevel over zijn muur (`stadGevelH`: 487, 816, 1145 of 1474 voor 1 tot 4 hoog), het dek van elke galerij (zonder de
@@ -373,6 +373,42 @@ Een bandiet, schildbandiet of kruisboogbandiet op een dak krijgt geen melding (o
 galerij (`dak: 401`) en een schildbandiet en een kruisboogbandiet (wijk uit, inBeeld aan) op een dak (`dak: 816`). In de Test
 loopt de schutter over het dak naar de rand, blijft op 816 en schiet omlaag.
 
+### Deuren: een vijand uit een huis
+
+`mkDeurMaat`, `mkDeurVerd`, `mkDeurTeken`, `mkVulDeur`, `mkDeurBovenOk`, `mkDeurNaam`
+
+Stap 8 van `notities/plan-stad-maker.md`. In de groep **Huizen** naast galerij en trap: **Deur** (letter d). Een deur is het
+derde gekoppelde stuk (`MK_STAD_KOPPEL`): `{k: 'deur', gevel, verdieping, vijand, n}`, met zijn plek helemaal uit zijn gevel, dus
+hij gaat mee met het huis en weg als het huis weggaat, net als een trap (kopiëren, plakken, spiegelen, de JSON, rijen invoegen).
+
+- **Neerzetten**: klik op een huis. De verdieping waar je klikte wordt de deur: op de begane grond het deurgat, hoger een deur
+  in de plaats van het raam (die tekent het grid ook). Een klik op een plek waar al een deur zit selecteert hem. Een nieuwe deur
+  heeft een bandiet.
+- **Paneel** (kopje Deur in g1): **Niveau** (Straat, of een verdieping; een verdieping boven het dak staat erbij met ", er niet"
+  als het huis lager werd), **Vijand eruit** (de soorten van een poort, `mkPoortVijOk`: geen hyena, panter of hinderlaag, en
+  geen kooiman-duel; leeg is alleen het gat) en **Aantal** (1 tot `MK_POORT_N`). Wat hem opent hoeft niet: hij gaat open zodra
+  hij in het spel in beeld komt (zie "Deuren" in `notities/stad.md`); het infoveld zegt dat. Het koppelpaneel had tot zes rijen
+  (niveau, extra links en rechts, kant, balkon, info), en een deur toont er vier (niveau, vijand, aantal, info), dus het blijft
+  binnen `MK_PALET_MAX`; de groep Huizen heeft nu vier items.
+- **Op het grid**: in het gat het icoon van de vijand, met `xN` bij meer dan een; zonder vijand een vraagteken, en een deur die er
+  niet is (het huis is lager) rood gestippeld. Aanklikken op het gat (`mkKoppelVakken`), voor de gevel.
+- **In het level** (`mkNaarLevel`, in het blok van de stad): per vijand een spawn met `deur: {gevel, verdieping}`, `gevel` de index
+  in `stad.gevels`, en `x` het midden van het gat op laptopmaat (het spel zet hem zelf in het gat). Geen `dak`, `boven` of `y`: de
+  deur geeft de hoogte. Een level met alleen deurvijanden krijgt geen standaard-slang.
+
+Meldingen in `mkControle` (springen naar de cel van het gat):
+
+| melding | ernst |
+| --- | --- |
+| een deur zonder vijand (alleen een gat) | LET OP |
+| een deur die er niet is: de verdieping ligt boven het dak van het huis, de vijand komt nooit | FOUT |
+| een deur op een verdieping zonder galerij of balkon ervoor op die hoogte | FOUT |
+| een deur op een verdieping met een soort die geen galerij kent (alleen bandiet, schildbandiet, kruisboogbandiet en slangen) | FOUT |
+
+`tools/makertest.js` (controle `deuren`) zet twee deuren met de muis, kijkt het paneel, het aanklikken, de spawns en `readLevel`,
+de JSON, de vier meldingen en een gevel weg na; het proefgrid heeft een bandiet met dolk uit het deurgat van g1 en twee bandieten
+uit een deur op de eerste verdieping van g2 (op de galerij), en `maat` meet het paneel van een deur.
+
 ## Sneltoetsen
 
 Escape (selecteren, deselecteren), spatie (schuiven), Delete (voorwerp of vorm weg), Ctrl+Z en
@@ -387,7 +423,8 @@ leegmaken). Op een keuzelijst, knop of tekstvak blijven de toetsen van dat veld.
 Laadt de Maker in Chromium met een proefgrid waar alles op staat (gat, gang met treden, mesa,
 zwever, muur door de grond, sneeuw, alle voorwerpen, een tweede ravijn met een rijzer van 2 breed die het zegel
 stuurt, een masker, een zwarte cel, een vorm, en achter de start een straat met twee huizen, een galerij, een trap, een
-kraam, voetdecor, het paleis en een bandiet op de galerij en een schildbandiet en een kruisboogbandiet op een dak) en
+kraam, voetdecor, het paleis, een bandiet op de galerij, een schildbandiet en een kruisboogbandiet op een dak, en vijanden
+uit twee deuren, op de straat en op de eerste verdieping) en
 kijkt na: de round-trip van export en import, de vertaling naar een spel-level, rijen invoegen en
 weer weghalen, verkleinen, snel schilderen, de rechthoek, het aanklikken van brede voorwerpen,
 ongedaan maken, een gebied kopiëren, spiegelen, plakken en knippen, een rijzer van even breedte spiegelen met
@@ -397,7 +434,7 @@ de autosave, de schakelaar Savanne | Stad met de leemmuur en het uitzicht (contr
 neerzetten met de muis; en galerij en trap: slepen van gevel naar gevel, de zijkant van een gevel, het paneel, aanklikken op
 het plaatje, `stad.galerijen` en `stad.trappen`, de JSON, een rij erboven, kopiëren met spiegelen en plakken op nieuwe id's,
 een gebied met maar een van de twee gevels, een gevel weg met ongedaan maken, en laden met een gevel die er niet is; en de
-meldingen van stap 5 met hun cel, `dak` op de spawn, en de stad in het proefgrid), en of
+meldingen van stap 5 met hun cel, `dak` op de spawn, en de stad in het proefgrid), de deuren (controle `deuren`), en of
 het proefgrid als spel-level door `levelcheck.py` komt. De controle `vijand-knoppen` kijkt ook de vlaggen van de
 kruisboogbandiet na (alleen wat afwijkt, `readLevel`, het kopje Gedrag en `inBeeld` vast met de hoorn), en `maat` meet het
 paneel van elke vijandsoort met al zijn knoppen van de standaard af. Draai hem na elke wijziging aan de Maker.

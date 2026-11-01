@@ -30,7 +30,8 @@ hoogtes vast in sprite-eenheden.
   Hoogtes: 1 hoog 487, 2 hoog 816, 3 hoog 1145, 4 hoog 1474 (`stadGevelH`). Een verdieping is 329.
 - Een gevel is decor op het vlak van de straat: Amir en de vijanden lopen ervoor langs, er botst niets.
 - Contactschaduw aan de voet (`STAD.schaduw`), zodat de muur niet als een liniaal op de straat staat.
-- Het deurgat is donker. De rechthoek staat in metadata.json (`deurgat`): daar komen later losse deuren.
+- Het deurgat is donker. De rechthoek staat in metadata.json (`deurgat`), en in `STAD_DEUR.gat`: daar stapt een vijand uit
+  (zie "Deuren" hieronder).
 
 ## Galerijen
 
@@ -222,7 +223,11 @@ Elke straat is 8000 px, met de leemmuur van 300 aan elk eind en knopen op het mi
 | Leerlooiersstraat | oostkolom | alleen paden | een trap op een lange galerij (401, `balkon: 0`) | op de galerij |
 
 Vijanden: alleen mensen (bandiet, schildbandiet, kruisboogbandiet, zweepman), drie per straat, een paar op een galerij,
-dak of balkon. Geen bazen.
+dak of balkon. Daarbij stappen er een paar uit een deur (zie "Deuren"): twee bandieten na elkaar uit een huis in de
+Kuiperstraat, een zweepman in de Weversstraat, en boven op de galerij (401) een schildbandiet in de Smedenstraat en een
+bandiet in de Leerlooiersstraat. Geen bazen.
+
+Een deur rekent met `m.x` uit `stadGevelMaat`, dus in een raster schuift hij mee met een huis dat opzij gaat voor een poort.
 
 ### Sandbox
 
@@ -230,9 +235,44 @@ Onder De stad, **Knooppunten**: **Poort**, **Pad** en **Kruising** zetten voor j
 met een tweede straat die er naar het noorden (poort), het zuiden (pad) of allebei (kruising) vandaan loopt, een paar
 huizen ernaast (die opzij schuiven voor de poort) en de minimap. **Weg** haalt het weg.
 
+## Deuren
+
+`STAD_DEUR`, `stadDeurMaat`, `stadDeurVloer`, `stadDeurKlaar`, `stadDeurUpdate`, `stadDeurVoorTeken`, `stadDeurReset`, `stadDeurenBoven`
+
+Een spawn met `deur: {gevel, verdieping}` stapt uit een deur van een huis: `gevel` is de index in `stad.gevels` (zoals bij een
+galerij of trap), `verdieping` 0 de straat (het deurgat van `gevel.png`), 1 de eerste verdieping, en zo verder tot onder het dak.
+
+```
+spawns: [ {x: -1100, k: 'bandiet', deur: {gevel: 0, verdieping: 0}},
+          {x: -1100, k: 'schildman', deur: {gevel: 0, verdieping: 1}} ]
+```
+
+- **Wanneer**: zodra de deur in beeld is (zijn midden `STAD_DEUR.marge` binnen de rand, met de camera die vooruitkijkt) en Amir
+  binnen de triggerafstand van de vijand. Geen zegel of rune: een deur hoort bij het huis, en zo hoeft een level er niets voor te
+  leggen. Meerdere spawns in dezelfde deur komen een voor een, `tussen` (1,1 s) na elkaar, en hun beurt telt alleen af als Amir in de
+  buurt is (net als `poortWacht`). Een deur gaat per potje een keer open; `stadDeurReset` (in `restart`) sluit hem weer.
+- **Waar**: precies in het gat (`stadDeurMaat`, met de schermmaat, want de huizen schalen mee): de spawner zet hem op `sp.x` net als
+  bij een poort, en zonder wachten op zicht (`zichtZet`, zoals een poort). Het donker van het gat (`kleur`, egaal `rgb(38,24,22)`)
+  ligt nog `uit` (0,9 s) over hem en vervaagt (`stadDeurVoorTeken`, na de vijanden, naast `poortVoorTeken`): hij stapt uit het donker.
+- **Op een verdieping** staat in `gevel.png` een raam. Daar tekent `stadTeken` het deurgat van de begane grond (de latei, de posten en
+  het donker, `latei` en `posten`) iets kleiner (`boven`, 0,9) in de plaats van het raam, met de drempel op de vloer en de bovenkant
+  onder de balkenrij. Alleen een verdieping met een deurspawn krijgt die deur (`stadDeurenBoven`). Geen nieuwe plaat: een eigen
+  deurplaat (een open houten deur in het gat) zou het mooier maken, vooral op de straat, maar het open gat leest al goed.
+- **De vloer**: op een verdieping komt hij op de galerij of het balkon op die hoogte voor de deur (`stadDeurVloer`, via
+  `stadVloerBij`); de spawner krijgt dan `dak` met die hoogte en de rest gaat zoals bij een vijand op een galerij. Zonder vloer komt hij
+  niet (`deurGeen`), en ook niet als zijn soort geen galerij kent: op een verdieping alleen `bovenSoorten` (bandiet, schildbandiet,
+  kruisboogbandiet en de slangen). Regel 7 en de treden blijven gelden: de rand van de galerij houdt hem tegen.
+- **Nooit**: een baas (panter, `boss`, regel 12) of hyena; die spawns tellen de deur niet (`stadDeurTelt`). `levelcheck.py` (regel
+  `deuren`) meldt een baas in een deur, een gevel of verdieping die er niet is, een soort die op een verdieping niet kan, en een deur op
+  een verdieping zonder galerij op die hoogte langs dat huis als FOUT, een hyena als LET OP.
+- Het veld heet `deur` op een spawn; `level.deur` is iets anders (de houten deur in de rotswand, `deurReset`, `sbDeur`).
+
+Geen level van een episode of bestaand testlevel heeft een deur. In de sandbox onder De stad: **Uit de deur** (een bandiet uit het
+deurgat van het eerste huis) en **Uit de deur boven** (uit een deur op de eerste verdieping, op de galerij); elke klik zet de deur
+opnieuw open (`sbStadDeur`). In de Maker nieuwstijl: Decor, Huizen, **Deur** (zie "Deuren" in `notities/maker.md`).
+
 ## Nog niet
 
-- Deuren in de deurgaten, en vijanden die uit een deur komen.
 - Een lift (een takel) die zich naar de rand van een galerij voegt: het plateau heeft een vaste breedte, de galerij
   schaalt mee. In Stad 1 overlapt het plateau het eind van de galerij op een laptop; op een kleine telefoon is het
   een korte sprong opzij.
