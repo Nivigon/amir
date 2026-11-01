@@ -77,8 +77,8 @@ async function start(){
 //  - een gespiegelde stenen poort in savannekleur (kolom 16) met twee schorpioenen erin, die de rune opent
 //  - achter de start (kolom 24 tot 35, zodat de x van al het andere gelijk blijft) een straat met de stad: gevel g1 (2 hoog)
 //    en g2 (3 hoog), een galerij van g1 tot g2 op niveau 1, een trap rechts van g2 die op die galerij uitkomt, een rieten
-//    kraam, een kruik als voetdecor en het paleis; een bandiet op de galerij en een schildbandiet op het dak van g1
-//    (die krijgen dak op hun spawn)
+//    kraam, een kruik als voetdecor en het paleis; een bandiet op de galerij, en een schildbandiet en een kruisboogbandiet
+//    (wijk uit, inBeeld aan) op het dak van g1 (die krijgen dak op hun spawn)
 function proefGrid(){
   const rijen = [];
   for (let r = 0; r < 12; r++) rijen.push('.'.repeat(36).split(''));
@@ -123,6 +123,7 @@ function proefGrid(){
       { c: 32, r: 2, k: 'paleis', note: '' },
       { c: 27, r: 3, k: 'vijand', soort: 'bandiet', note: '' },
       { c: 25, r: 1, k: 'vijand', soort: 'schildman:makkelijk', note: '' },
+      { c: 26, r: 1, k: 'vijand', soort: 'kruisboogbandiet', params: { wijk: 0, inBeeld: 1 }, note: '' },
     ],
   };
 }
@@ -425,7 +426,8 @@ function verschil(a, b, pad = ''){
                    { c: 24, r: 8, k: 'gevel', id: 'g5', hoog: 2 }, { c: 24, r: 8, k: 'trap', gevel: 'g5', kant: 'l', niveau: 0, balkon: 1.6 },
                    { c: 5, r: 3, k: 'vijand', soort: 'groen' },                                                   // op het dak van g1: kent geen daken
                    { c: 14, r: 3, k: 'vijand', soort: 'schildman' },                                              // op de galerij op 730
-                   { c: 25, r: 3, k: 'vijand', soort: 'bandiet:dolk' } ] });                                      // op het dak van g5 (816)
+                   { c: 25, r: 3, k: 'vijand', soort: 'bandiet:dolk' },                                           // op het dak van g5 (816)
+                   { c: 26, r: 3, k: 'vijand', soort: 'kruisboogbandiet', params: { wijk: 0 } } ] });             // de schutter ook op het dak van g5
     f.push(...await page.evaluate(() => {
       const f = [];
       const tg5 = MK.objects.find(o => o.k === 'trap' && o.gevel === 'g5'), vc = Math.floor(mkTrapMaat(tg5).voetX);
@@ -439,21 +441,25 @@ function verschil(a, b, pad = ''){
                     ['letop', /^Zandslang op kolom 5 staat op het dak van g1, maar deze soort kent geen daken/, 'een vijand op een dak die daken niet kent']];
       for (const [e, re, wat] of moet){ const q = heeft(e, re); if (!q) f.push('geen ' + e + ' voor ' + wat + ': ' + JSON.stringify(m.map(q => q.tekst)));
         else if (q.c == null || q.r == null) f.push('de melding voor ' + wat + ' heeft geen cel om naar te springen'); }
-      if (m.some(q => /Schildbandiet|Bandiet/.test(q.tekst) && /dak|zweeft/.test(q.tekst))) f.push('een melding voor de bandiet of schildbandiet op een dak: ' + JSON.stringify(m.map(q => q.tekst)));
+      if (m.some(q => /Schildbandiet|Bandiet|Kruisboogbandiet/.test(q.tekst) && /dak|zweeft/.test(q.tekst))) f.push('een melding voor de bandiet, schildbandiet of kruisboogbandiet op een dak: ' + JSON.stringify(m.map(q => q.tekst)));
       if (heeft('letop', /^Gevel g4 en g5|^Gevel g3 en g4/)) f.push('een overlap voor huizen die elkaar niet raken');
       const sp = mkNaarLevel().spawns, sch = sp.find(x => x.k === 'schildman'), ban = sp.find(x => x.k === 'bandiet'), sl = sp.find(x => x.k === 'groen');
       if (!sch || sch.dak !== 730) f.push('de schildbandiet op de galerij krijgt geen dak: 730: ' + JSON.stringify(sch));
       if (!ban || ban.dak !== 816 || !ban.dolk) f.push('de bandiet op het dak van g5 krijgt geen dak: 816: ' + JSON.stringify(ban));
       if (!sl || 'dak' in sl || sl.boven) f.push('de zandslang op een dak krijgt toch dak of boven: ' + JSON.stringify(sl));
+      const krb = sp.find(x => x.k === 'kruisboogbandiet');
+      if (!krb || krb.dak !== 816 || krb.wijk !== false || krb.boven || 'y' in krb) f.push('de kruisboogbandiet op het dak van g5 krijgt geen dak: 816 met wijk: false: ' + JSON.stringify(krb));
       // en in het spel leest readLevel het zo
       const rl = readLevel(JSON.stringify(mkNaarLevel())).spawns.find(x => x.kind === 'schildman');
       if (!rl || rl.dak !== 730) f.push('readLevel leest het dak van de schildbandiet niet: ' + JSON.stringify(rl));
+      const rk = readLevel(JSON.stringify(mkNaarLevel())).spawns.find(x => x.kind === 'kruisboogbandiet');
+      if (!rk || rk.dak !== 816 || rk.wijk !== false) f.push('readLevel leest dak en wijk van de kruisboogbandiet niet: ' + JSON.stringify(rk));
       // een galerij op 401 langs g4: dan is er bij de uitgang wel een vloer
       MK.objects.push({ c: 16, r: 8, k: 'galerij', van: 'g4', tot: 'g4', niveau: 1, meer: [0, 1] }); mkStadKoppel();
       if (mkControle().some(q => q.ernst === 'fout' && /^De trap bij g4 \(links/.test(q.tekst))) f.push('een galerij bij de uitgang haalt de FOUT niet weg');
       return f;
     }));
-    // het proefgrid heeft de stad goed staan: geen melding over de stad, en dak op de bandiet en de schildbandiet
+    // het proefgrid heeft de stad goed staan: geen melding over de stad, en dak op de bandiet, de schildbandiet en de kruisboogbandiet
     await laad(proefGrid());
     f.push(...await page.evaluate(() => {
       const f = [], m = mkControle().filter(q => q.ernst !== 'info' && /Gevel|galerij|trap|daken|straat/i.test(q.tekst));
@@ -462,6 +468,8 @@ function verschil(a, b, pad = ''){
       if ((S.gevels || []).length !== 2 || (S.galerijen || []).length !== 1 || (S.trappen || []).length !== 1 || (S.kramen || []).length !== 1 || (S.voet || []).length !== 1 || S.paleis == null || S.seed !== 7)
         f.push('het proefgrid geeft niet de hele stad: ' + JSON.stringify(S));
       if (!lv.spawns.some(x => x.k === 'bandiet' && x.dak === 401) || !lv.spawns.some(x => x.k === 'schildman' && x.dak === 816)) f.push('in het proefgrid geen dak op de bandiet (401) en de schildbandiet (816): ' + JSON.stringify(lv.spawns));
+      if (!lv.spawns.some(x => x.k === 'kruisboogbandiet' && x.dak === 816 && x.wijk === false && x.inBeeld === true)) f.push('in het proefgrid geen kruisboogbandiet met dak 816, wijk uit en inBeeld aan: ' + JSON.stringify(lv.spawns));
+      if (!(lv.hpBalk || []).includes('kruisboogbandiet')) f.push('de kruisboogbandiet staat niet in hpBalk: ' + JSON.stringify(lv.hpBalk));
       return f;
     }));
     return f;
@@ -763,6 +771,13 @@ function verschil(a, b, pad = ''){
         MK.objects = [o]; MK.sel = o; mkNotePaneel();
         for (const m of mkPaneelKlachten()) f.push(k + ': ' + m);
       }
+      // elke vijandsoort, met al zijn knoppen van de standaard af (dan staat elk kopje open, zoals Gedrag van de kruisboogbandiet)
+      for (const soort of Object.keys(MK_VIJ_KNOP)){
+        const params = {}; for (const q of MK_VIJ_KNOP[soort]) params[q.key] = q.vink ? 1 - q.def : q.max;
+        const o = { c:5, r:MK.ground - 1, k:'vijand', soort, params, note:'' };
+        MK.objects = [o]; MK.sel = o; mkNotePaneel();
+        for (const m of mkPaneelKlachten()) f.push('vijand ' + soort + ': ' + m);
+      }
       // andersom: een paneel met te veel losse rijen moet een klacht geven
       const extra = []; for (let i = 0; i <= MK_PALET_MAX; i++){ const d = document.createElement('div'); d.className = 'mkveld'; d.textContent = 'proef'; document.getElementById('mkinspbody').appendChild(d); extra.push(d); }
       if (!mkPaneelKlachten().length) f.push('een paneel met te veel rijen geeft geen klacht');
@@ -782,13 +797,15 @@ function verschil(a, b, pad = ''){
     });
   });
   // 6b. de vijand-knoppen: een vinkje gaat als true/false mee, een schuifje als getal, en de standaard gaat niet mee
-  await check('vijand-knoppen: vault uit, panter over, twee hyena\'s en zicht uit komen op de spawn', async () => {
+  await check('vijand-knoppen: vault uit, panter over, twee hyena\'s, zicht uit en de vlaggen van de kruisboogbandiet komen op de spawn', async () => {
     const g = proefGrid();
     g.objecten = [
       { c: 6, r: 6, k: 'vijand', soort: 'bandiet', params: { vault: 0 }, note: '' },
       { c: 8, r: 6, k: 'vijand', soort: 'panter', params: { over: 1, zicht: 0 }, note: '' },
       { c: 12, r: 6, k: 'vijand', soort: 'hyenas', params: { n: 2 }, note: '' },
       { c: 14, r: 6, k: 'vijand', soort: 'scorp', params: { zicht: 1 }, note: '' },
+      { c: 16, r: 6, k: 'vijand', soort: 'kruisboogbandiet', params: { wijk: 0, rand: 1, hoorn: 1, rap: 1, inBeeld: 0 }, note: '' },
+      { c: 17, r: 6, k: 'vijand', soort: 'kruisboogbandiet', params: { wijk: 1, rand: 0, inBeeld: 1 }, note: '' },
     ];
     await laad(g);
     const sp = await page.evaluate(() => mkNaarLevel().spawns);
@@ -798,12 +815,39 @@ function verschil(a, b, pad = ''){
     if (!pa || pa.over !== true || pa.zicht !== false) uit.push('panter: ' + JSON.stringify(pa));
     if (!h || h.n !== 2) uit.push('hyenas: ' + JSON.stringify(h));
     if (!sc || 'zicht' in sc) uit.push('schorpioen met de standaard zicht hoort geen zicht-veld te krijgen: ' + JSON.stringify(sc));
+    // de kruisboogbandiet: alleen wat van de standaard afwijkt gaat mee (wijk staat standaard aan, de rest uit)
+    const kb = sp.filter(x => x.k === 'kruisboogbandiet');
+    const kv = x => JSON.stringify(['wijk', 'rand', 'hoorn', 'rap', 'inBeeld'].map(k => k in x ? k + ':' + x[k] : '-'));
+    if (kb.length !== 2) uit.push('geen twee kruisboogbandieten: ' + JSON.stringify(kb));
+    else {
+      if (kv(kb[0]) !== JSON.stringify(['wijk:false', 'rand:true', 'hoorn:true', 'rap:true', '-'])) uit.push('kruisboogbandiet 1 (wijk uit, rand, hoorn, rap): ' + JSON.stringify(kb[0]));
+      if (kv(kb[1]) !== JSON.stringify(['-', '-', '-', '-', 'inBeeld:true'])) uit.push('kruisboogbandiet 2 (alleen inBeeld): ' + JSON.stringify(kb[1]));
+    }
     // en in het spel: readLevel leest ze zo
     const lv = await page.evaluate(() => { const l = readLevel(JSON.stringify(mkNaarLevel())); return l.spawns.map(x => ({ kind: x.kind, vault: x.vault, over: x.over, zicht: x.zicht, n: x.n })); });
     const lb = lv.find(x => x.kind === 'bandiet'), lp = lv.find(x => x.kind === 'panter'), lh = lv.find(x => x.kind === 'hyenas');
     if (!lb || lb.vault !== false) uit.push('readLevel: bandiet vault ' + JSON.stringify(lb));
     if (!lp || lp.over !== true || lp.zicht !== false) uit.push('readLevel: panter ' + JSON.stringify(lp));
     if (!lh || lh.n !== 2) uit.push('readLevel: hyenas ' + JSON.stringify(lh));
+    const lk = await page.evaluate(() => readLevel(JSON.stringify(mkNaarLevel())).spawns.filter(x => x.kind === 'kruisboogbandiet').map(x => ({ wijk: x.wijk, rand: x.rand, hoorn: x.hoorn, rap: x.rap, inBeeld: x.inBeeld })));
+    if (lk.length !== 2 || lk[0].wijk !== false || !lk[0].rand || !lk[0].hoorn || !lk[0].rap || lk[1].inBeeld !== true || lk[1].wijk === false)
+      uit.push('readLevel: kruisboogbandieten ' + JSON.stringify(lk));
+    // het paneel van de kruisboogbandiet: een kopje Gedrag met zijn vijf vinkjes, open omdat er een afwijkt, en met de hoorn
+    // staat inBeeld vast aan; zet je de hoorn uit, dan komt inBeeld los
+    const pk = await page.evaluate(() => {
+      MK.tool = 'select'; MK.sel = MK.objects.find(o => o.soort === 'kruisboogbandiet'); MK.inspectDicht = false; mkNotePaneel();
+      const d = document.querySelector('#mkvijknop details.mkklap'), vk = d ? [...d.querySelectorAll('input[type=checkbox]')] : [];
+      const uit = { kopje: d && d.querySelector('summary').textContent, open: d && d.open, n: vk.length, los: document.querySelectorAll('#mkvijknop > .mkveld').length,
+                    inBeeld: vk[4] && { aan: vk[4].checked, vast: vk[4].disabled }, klacht: mkPaneelKlachten() };
+      vk[2].checked = false; vk[2].dispatchEvent(new Event('change'));
+      const vk2 = [...document.querySelectorAll('#mkvijknop details.mkklap input[type=checkbox]')];
+      uit.na = { hoorn: MK.sel.params.hoorn, inBeeld: vk2[4] && { aan: vk2[4].checked, vast: vk2[4].disabled } };
+      return uit;
+    });
+    if (pk.kopje !== 'Gedrag' || !pk.open || pk.n !== 5 || pk.los !== 1) uit.push('het paneel van de kruisboogbandiet: ' + JSON.stringify(pk));
+    if (!pk.inBeeld || !pk.inBeeld.aan || !pk.inBeeld.vast) uit.push('met de hoorn staat inBeeld niet vast aan: ' + JSON.stringify(pk.inBeeld));
+    if (pk.klacht.length) uit.push('het paneel van de kruisboogbandiet is te lang: ' + JSON.stringify(pk.klacht));
+    if (pk.na.hoorn !== 0 || !pk.na.inBeeld || pk.na.inBeeld.aan || pk.na.inBeeld.vast) uit.push('de hoorn uit maakt inBeeld niet los: ' + JSON.stringify(pk.na));
     // het paneel toont een vinkje voor de bandiet
     await page.evaluate(() => { MK.tool = 'select'; MK.sel = MK.objects[0]; MK.inspectDicht = false; mkNotePaneel(); });
     const vink = await page.evaluate(() => document.querySelectorAll('#mkvijknop input[type=checkbox]').length);
