@@ -191,6 +191,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | takelwiel met plateau: een rad dat je met je speer slaat | `TAKEL`, `takelLaad`, `takelReset` | notities/takelwiel.md |
 | de stad: een Sahelstraat met gevels, galerijen, kramen en het paleis | `STAD`, `stadPlats`, `stadAchter`, `stadTeken` | notities/stad.md |
 | de stadstrap: een buitentrap achter een huis langs, E en een fade | `STAD_TRAP`, `stadTrapE`, `stadInGevecht` | notities/stad.md |
+| deuren in de stad: een vijand die uit een deurgat van een gevel stapt | `STAD_DEUR`, `stadDeurMaat`, `stadDeurUpdate`, `mkDeurMaat` | notities/stad.md |
 | de leemmuur: een terras met de look van de stad | `LEEM`, `leemMuurTeken`, `look: 'leem'` | notities/stad.md |
 | straten: losse straten met poorten ertussen, de minimap, aanvullen en een killdoel | `STRATEN`, `straatE`, `straatAanvul`, `straatHudTeken` | notities/oaktown.md |
 | poort: een stenen boog, decor of de plek waar een vijand uitkomt | `POORT`, `poortOpen`, `poortKlaar` | notities/poort.md |
