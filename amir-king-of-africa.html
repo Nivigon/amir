@@ -30199,10 +30199,18 @@ const ZWM_NIEUW = {
            hoog: { duur: 0.32, boogVan: -90, boog: -115, kracht: 3, wExp: 1.1, gevaar: 0.45 }, achter: 480 },
   mepSpeer: { voor: 3, kans: 0.5 }, // fase 1: een gegooide speer slaat hij neer met een snelle hoge slag, zoveel frames voor
                                   // slagVan ingezet; na het neerslaan lacht hij soms (kans)
-  sprongVoor: 45, sprongTerug: 45 // idle-px per frame die hij in de sprong hoogstens extra vooruit of terug schuift (10 frames:
+  sprongVoor: 45, sprongTerug: 45, // idle-px per frame die hij in de sprong hoogstens extra vooruit of terug schuift (10 frames:
                                   // tot 450 vooruit, dus wie na de mep ver genoeg wegrent ontwijkt de sprong nog)
+  // fase 2, de uithaal: in plaats van de sprong (die de zweep achter hem liet knallen) eerst de opzwaai, de lus over zijn
+  // hoofd naar achteren, en dan de slag: over zijn hoofd naar voren, een diepe uitval met de arm gestrekt naar Amir. De frames
+  // komen uit de sprong, omgedraaid (tools/zweep_uithaal.py, de beweging uithaal in zweepman.json). doel: idle-px voor zijn
+  // anker waar Amir bij de knal moet staan (de hand zit dan zo'n 220 voor zijn anker, de zweep reikt tot zo'n 700); van
+  // schuifVan tot schuifTot schuift hij daarheen, hoogstens voor of terug idle-px per frame. boog: de slag, zoals de sprong
+  uithaal: { doel: 520, voor: 15, terug: 15, boog: { boogVan: -100, boog: 85, kracht: 8, wExp: 0.6, strakNa: 7 } }
 };
 function zwmNieuw(){ return sandbox ? sbZwmNieuw : !!(level && level.zweepKeuze && duoKeuze.zweep === 'nieuw'); }
+// de cyclus van fase 2: in de nieuwe versie de uithaal in plaats van de sprong
+function zwmCyclus(){ return zwmNieuw() ? ZWM2.cyclus.map(n => n === 'sprong' ? 'uithaal' : n) : ZWM2.cyclus; }
 function zwmDur(C, i){ return C.dur(i) / (zwmNieuw() ? ZWM_NIEUW.slagTempo : 1); }   // fase 1: de duur van een slagframe, nieuw sneller
 function zwmLengte(){ return zwmNieuw() ? ZWM_NIEUW.lengte : ZWM_TOUW.lengte; }
 // de duur van een frame in fase 2, in ms speltijd: in de nieuwe versie sneller
@@ -30214,7 +30222,7 @@ function zwmF2Ms(s, set, i){
   if (s.f2 === 'mep' && i >= G.van && i <= G.tot) ms /= G.f;
   return ms;
 }
-const ZWM2_SETS = ['armeraf','lach', 'mep', 'sprong', 'sprongterug', 'rustin', 'rust'];
+const ZWM2_SETS = ['armeraf','lach', 'mep', 'sprong', 'uithaal', 'sprongterug', 'rustin', 'rust'];
 let zwmF2Geladen = false;
 function zwmLaadF2(){                                       // de plaatjes van fase 2 pas als een zweepman met fasen er is
   if (zwmF2Geladen || !zwmData) return; zwmF2Geladen = true;
@@ -30228,7 +30236,7 @@ function zwmLaadF2(){                                       // de plaatjes van f
 function zwmF2Set(s, naam){
   s.state = 'f2'; s.f2 = naam; s.frame = 0; s.acc = 0; s.touw = null; s.f2C = null; s.f2Seg = -1; s.knalT = -1; s.geraaktAmir = false;
   if (naam === 'rust') s.rustT = 0;
-  if (naam === 'mep' || naam === 'sprong' || naam === 'rustin') s.face = playerX() >= s.x ? 1 : -1;   // naar Amir toe bij elke nieuwe zet
+  if (naam === 'mep' || naam === 'sprong' || naam === 'uithaal' || naam === 'rustin') s.face = playerX() >= s.x ? 1 : -1;   // naar Amir toe bij elke nieuwe zet
   if (naam === 'sprong'){ const d = Math.abs(playerX() - s.x) / zwmScale(); s.f2Extra = Math.max(0, Math.min(ZWM2.sprongExtra, d - ZWM2.sprongBereik)); }
 }
 function zwmF2Data(s){ return zwmData && zwmData.bewegingen[s.f2 === 'rustuit' ? 'rustin' : s.f2]; }
@@ -30245,17 +30253,17 @@ function zwmArmEraf(s){
 }
 function zwmF2Volgende(s){
   if (s.f2 === 'armeraf'){ zwmF2Set(s, 'lach'); zwmKreet('lach'); return; }   // na de kreet: in plaats van te breken lacht hij
-  if (s.f2 === 'sprongterug'){                              // de sprong heeft hem vooruit gebracht: dat wordt zijn nieuwe plek
-    const sh = (zwmF2Data(s).verschuif || 0) * zwmScale() * (s.face === 1 ? -1 : 1);
-    s.x += sh;
-  }
-  s.stap = (s.stap + 1) % ZWM2.cyclus.length;
-  zwmF2Set(s, ZWM2.cyclus[s.stap]);
+  const vs = s.f2 !== 'rustuit' && zwmF2Data(s).verschuif;   // de sprong heeft hem vooruit gebracht, of de uithaal zijn lijf
+  if (vs) s.x += vs * zwmScale() * (s.face === 1 ? -1 : 1);  // van zijn anker geschoven: dat wordt zijn nieuwe plek
+  const cy = zwmCyclus();
+  s.stap = (s.stap + 1) % cy.length;
+  zwmF2Set(s, cy[s.stap]);
 }
 function zwmF2Kwetsbaar(s){
   if (s.state !== 'f2') return false;
   if (s.f2 === 'rust' || s.f2 === 'rustin' || s.f2 === 'rustuit') return true;
   if (s.f2 === 'sprong'){ const sg = (zwmF2Data(s).touw || [])[0]; return sg && s.frame > sg.knal + 2; }   // in de eindpose na de sprong-slag
+  if (s.f2 === 'uithaal') return s.frame >= zwmF2Data(s).kwetsbaarVan;   // op de terugweg na de uithaal
   return false;
 }
 // de hand op dit moment (tussen twee frames in), en het touwsegment waar dit frame in valt
@@ -30284,6 +30292,13 @@ function zwmF2Stap(s, dt, plats, cliff){
         }
         zwmMove(s, rf * stap * zwmScale(), plats, cliff);
       }
+      if (s.f2 === 'uithaal' && s.frame >= set.schuifVan && s.frame <= set.schuifTot){   // opzwaai en slag: naar Amir toe
+        const U = ZWM_NIEUW.uithaal, rf = s.face === 1 ? 1 : -1, rest = set.schuifTot - s.frame + 1;
+        const d = (playerX() - s.x) * rf / zwmScale() - U.doel, stap = rf * Math.max(-U.terug, Math.min(U.voor, d / rest)) * zwmScale();
+        // zijn lijf staat in de uitval een eind voor zijn anker: kijk daar of een kei of ravijn hem tegenhoudt (regel 7)
+        const voor = rf * -(set.frames[set.schuifTot].cx - 84) * zwmScale(), romp = { x: s.x + voor, base: s.base };
+        if (!knockBlocked(romp, romp.x + stap, plats, cliff, ZWM.half * zwmScale(), 80)) zwmMove(s, stap, plats, cliff);
+      }
     } else if (set.loop){ s.frame = 0; }
     else { klaar = true; break; }
   }
@@ -30294,7 +30309,7 @@ function zwmF2Stap(s, dt, plats, cliff){
   if (si !== s.f2Seg){
     s.f2Seg = si; s.touw = null; s.knalT = -1; s.geraaktAmir = false; s.f2C = si >= 0 ? segs[si] : null;
     if (s.f2C && zwmNieuw()){                               // nieuw: elke slag in fase 2 gaat naar voren, naar Amir toe
-      const nb = s.f2 === 'sprong' ? ZWM_NIEUW.sprongBoog : s.f2 === 'mep' ? ZWM_NIEUW.mepBoog[si] : null;
+      const nb = s.f2 === 'sprong' ? ZWM_NIEUW.sprongBoog : s.f2 === 'mep' ? ZWM_NIEUW.mepBoog[si] : s.f2 === 'uithaal' && !s.f2C.hang ? ZWM_NIEUW.uithaal.boog : null;
       if (nb) s.f2C = Object.assign({}, s.f2C, nb);
     }
   }
