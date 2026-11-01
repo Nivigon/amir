@@ -29310,6 +29310,7 @@ function updateZweepman(s, dt, plats, cliff){
   s.base = vloerBij(s.x, s.base);
   const zS = zwmScale();
   if (s.knockV !== 0){ zwmMove(s, s.knockV * dt, plats, cliff); s.knockV *= Math.pow(0.02, dt); if (Math.abs(s.knockV) < 12) s.knockV = 0; }
+  if (s.state === 'dood' && s.dood){ if (s.arm) zwmArmStap(s, dt); zwmDoodStap(s, dt); return; }
   if (s.state === 'dood'){ if (s.arm) zwmArmStap(s, dt); s.alpha -= dt / ZWM.vervaag; if (s.alpha <= 0){ s.alpha = 0; s.state = 'weg'; } return; }
   if (!zwmData) return;
   if (s.state === 'f2'){ zwmF2Stap(s, dt, plats, cliff); return; }   // fase 2: zie ZWM2
@@ -29558,6 +29559,8 @@ const ZWM2 = {
   armLig: 7, armVervaag: 1,
   mepDuw: 520, sprongDuw: 340,    // hoe ver een treffer van de mep en de sprong Amir wegslaat
   gevaarVoor: 2, gevaarNa: 0.16,  // de zweep raakt van zoveel frames voor de knal tot zoveel s erna
+  doodVries: 0.5,                 // de dood: zoveel s bevroren in zijn houding, dan kiept hij als een blok achterover
+  doodLig: 2.2,                   // en blijft hij zoveel s liggen voor hij vervaagt
   sprongGevaar: 0                 // in de sprong al vanaf zoveel frames na het begin van het touw: daar haalt hij naar voren uit,
                                   // bij de knal is hij al doorgedraaid en zwiept de zweep achter hem
 };
@@ -29718,6 +29721,7 @@ function zwmF2Teken(s, bodyX, voeten, gs, alpha){
     ctx.save(); ctx.translate(bodyX + (A.wx - s.x), voeten); if (A.face === 1) ctx.scale(-1, 1); zwmArmTeken(s, gs); ctx.restore();
   }
   ctx.translate(bodyX, voeten); if (s.face === 1) ctx.scale(-1, 1);
+  if (s.dood && s.dood.th){ const px = zwmDoodVoet(s) * gs; ctx.translate(px, 0); ctx.rotate(s.dood.th); ctx.translate(-px, 0); }   // omkiepen
   if (A && !A.los) zwmArmTeken(s, gs);                       // de bungelende arm hangt achter het lijf
   const l = fr.lijf, im = l && B[l.src];
   if (im && imgReady(im)) ctx.drawImage(s.flash > 0 ? whiteCopy(im, s.flash * 4) : im, l.dx * gs, l.dy * gs, l.w * gs, l.h * gs);
@@ -29762,8 +29766,31 @@ function zwmF2Hit(s){
   hits++; hitsEl.textContent = hits;
   s.hp--; s.flash = 0.3; s.inv = ZWM.invHit;
   hitstop = Math.max(hitstop, 0.07); shake = Math.max(shake, 0.14);
-  if (s.hp <= 0){ s.state = 'dood'; s.alpha = 1; s.flash = 0.6; s.touw = null; banSterf(); puffWorld(s.x, 6, 0, 0.9, s.base || 0); vijandDood(false); }
+  if (s.hp <= 0){ s.state = 'dood'; s.alpha = 1; s.flash = 0.6; s.touw = null; s.dood = { t: 0, th: 0, om: 0, lig: -1 }; hitstop = Math.max(hitstop, 0.12); banSterf(); vijandDood(false); }
   return true;
+}
+// de dood in fase 2: bevroren in zijn houding, dan kiept hij stijf achterover om zijn achterste voet en ploft neer
+function zwmDoodStap(s, dt){
+  const D = s.dood; D.t += dt;
+  if (D.t < ZWM2.doodVries) return;
+  if (D.lig < 0){
+    D.om += (2.2 + 16 * Math.sin(D.th + 0.12)) * dt; D.th += D.om * dt;   // een stijf blok dat omvalt: steeds sneller
+    if (D.th >= Math.PI / 2){
+      D.th = Math.PI / 2; D.lig = 0; shake = Math.max(shake, 0.3);
+      puffWorld(s.x + zwmDoodVoet(s) * zwmScale() * (s.face === 1 ? -1 : 1) * 0.3, 8, 0, 1.1, s.base || 0);
+      banStemSpeel(schbLandSnd, 0.8);
+    }
+    return;
+  }
+  D.lig += dt;
+  if (D.lig < 0.12) D.th = Math.PI / 2 - Math.sin(D.lig / 0.12 * Math.PI) * 0.06;   // een klein stuitje
+  else D.th = Math.PI / 2;
+  if (D.lig > ZWM2.doodLig) s.alpha = Math.max(0, 1 - (D.lig - ZWM2.doodLig) / ZWM.vervaag);
+  if (s.alpha <= 0) s.state = 'weg';
+}
+function zwmDoodVoet(s){                                     // de achterste voet (idle-px, lokaal): de rechterrand van zijn lijf
+  const set = zwmF2Data(s), fr = set && set.frames[zwmF2Idx(s)], l = fr && fr.lijf;
+  return l ? l.dx + l.w - 40 : 60;
 }
 
 // ---- de schildbandiet: een man met een houten schild die springend aanvalt ----
