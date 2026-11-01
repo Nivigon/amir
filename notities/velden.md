@@ -14,6 +14,8 @@ reserve-speren op de rug: 1 in de hand plus zoveel op de rug, dus `rugMax + 1` w
 
 `true`: de bandiet, de kooiman, de slangen, de schorpioen, de fosforslang en de hyena (niet de panter en de baviaan) krijgen 3 levens met een health-balkje boven hun hoofd (groen, oranje, rood). Een lijst soorten (`['bandiet','kooiman']`) geeft alleen die soorten de balk en laat de rest in een klap dood gaan. Ook Amir krijgt dan een balkje boven zijn hoofd, en de schildbandiet een volle balk met een houten schildbalk erboven. Zonder veld uit, dus een episode zonder het veld houdt de eigen HP (rule 1); **een nieuw level krijgt `hpBalk: true`** (de Maker zet het zelf, net als `view: 0.8`). Zie "health-balk"; De Valse Koning gebruikt de lijst, Test 39, 45 en 46 `true`
 
+Met `slangEenKlap: true` erbij blijven de slangen (zand, zwart, knock en fosfor) in een klap dood, ook als `hpBalk` `true` is (`SLANG_EEN_KLAP`, in `hpBalkAan`). **Een nieuw level krijgt `slangEenKlap: true`**; Oaktown (makkelijk) heeft het. De Maker laat de slangen al buiten zijn lijst (`MK_HP_SOORTEN`).
+
 ## veld `hoogUitzicht`
 
 `true`: gestapelde dikke grondlagen zien er op hoogte hetzelfde uit als de basis. De camera klemt tegen de laag waar je op staat (geen zwarte diepte eronder in beeld, `klimLift` 0 in `updateCamera`), de achtergrond blijft staan (`verPar` in `scene()`, bergen en heuvels zakken niet weg) en een massieve grondlaag krijgt geen donkere onderkant (`SAV_LAAG.hoog`). Per level, dus de bestaande levels veranderen niet
