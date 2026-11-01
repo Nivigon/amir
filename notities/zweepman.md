@@ -154,12 +154,12 @@ Alleen met `fasen: true` in de spawn (Test 59), of in de sandbox met **Fasen aan
 De frames komen uit `export_f2.py` en `postfix_f2.py` in de chat (de Grok-clips 1armhit, 1armlaugh, manischslag, draaislag,
 de sprong, de terugweg en uitrusten2), op dezelfde schaal en hetzelfde anker als fase 1.
 
-## Oud, nieuw of nieuwer (`zweepKeuze`, Test 58 en 59)
+## Oud, nieuw, nieuwer of nieuwer schreeuw (`zweepKeuze`, Test 58 en 59)
 
-`zwmVersie`, `ZWM_NIEUW`, `zwmNieuw`, `ZWM_NIEUWER`, `zwmNieuwer`, `zwmF2Ms`. In een level met `zweepKeuze: true` vraagt het
+`zwmVersie`, `ZWM_NIEUW`, `zwmNieuw`, `ZWM_NIEUWER`, `zwmNieuwer`, `zwmSchreeuw`, `zwmF2Ms`. In een level met `zweepKeuze: true` vraagt het
 instellingenscherm van de duo-arena (`duoKeuze`, alleen de rij Zweepman) voor het begin de oude, de nieuwe of de nieuwere
-zweepman; de keuze blijft staan (`amir.duoKeuze`) en in de pauze kies je opnieuw (**Zweepman: welke versie**). In de sandbox
-de knop **Versie** in de rij Zweepman (oud, nieuw, nieuwer; standaard oud, geldt meteen voor alle zweepmannen). Een level
+zweepman, of nieuwer schreeuw; de keuze blijft staan (`amir.duoKeuze`) en in de pauze kies je opnieuw (**Zweepman: welke versie**). In de sandbox
+de knop **Versie** in de rij Zweepman (oud, nieuw, nieuwer, nieuwer schreeuw; standaard oud, geldt meteen voor alle zweepmannen). Een level
 zonder het veld (Oaktown) houdt de oude. Nieuwer is nieuw plus wat onder "De nieuwere versie" staat: `zwmNieuw()` is ook
 waar voor nieuwer.
 
@@ -175,6 +175,11 @@ mep tot het eind van de eerste uithaal zo'n 4,6 s, en in een cyclus van 14 s maa
 - **Minder ver weg, wel verdoofd**: zijn treffer duwt `duw` (0,4) keer zo ver als `mepDuw` en `sprongDuw`, en zet `hurt`
   op minstens `stun` (0,5 s, de gewone treffer is 0,38 s): even geen besturing.
 - **Een treffer meer**: `hp2` 3 in plaats van `ZWM2.hp2` (2).
+
+De vierde versie, **nieuwer schreeuw** (`zwmSchreeuw`, de sleutel `schreeuw`): nieuwer, en daarbovenop (ook in `ZWM_NIEUWER`)
+wat er na het spelen van nieuwer nog stoorde: na de arm eraf kon je nog een paar keer in de lucht slaan voor hij aanviel, en
+in fase 1 was hij alleen in zijn herstel te raken. `zwmNieuwer()` is ook waar voor deze versie.
+
 - **De schreeuw duwt je weg**: als zijn arm eraf gaat (`zwmArmEraf`) is hij onaantastbaar, dus duwt de schreeuw Amir zonder
   schade weg tot `schreeuw.afstand` (620 idle-px) van hem, met een stofwolkje. Daarvoor kon je 1,9 s in de lucht slaan.
 - **De lach is te raken** (1,5 s): hij staat je uit te lachen, dus daar mag je hem voor straffen.
