@@ -19892,7 +19892,8 @@ const STAD = {
   // de doek veert: na een val wip je terug (terug x de valsnelheid, vanaf min x jumpV), en springen op de doek
   // of net op tijd bij het landen geeft de hoge sprong (hoog x jumpV)
   veer: { terug: 0.55, min: 0.45, hoog: 1.75, raam: 0.16, diep: 0.16, duur: 0.55 },
-  vijandMarge: 30                   // een dak is de vloer van een vijand vanaf zoveel onder de looplijn (stadVloerBij)
+  vijandMarge: 30,                  // een dak is de vloer van een vijand vanaf zoveel onder de looplijn (stadVloerBij)
+  vijandNaad: 0.4                   // een kier tot zoveel Amir tussen twee vloeren op dezelfde hoogte is voor een vijand dicht (stadVloeren)
 };
 let stadImgs = null;
 function stadAan(){ return !!(level && level.stad); }
@@ -20016,6 +20017,19 @@ function stadVloeren(){
   for (const g of (S.gevels || [])){ const m = stadGevelMaat(g, sc); out.push({ left: m.left, right: m.right, topH: stadGevelH(m.hoog) }); }
   for (const gl of (S.galerijen || [])){ const m = stadGalerijMaat(gl, sc); if (m) out.push({ left: m.left + m.lw * 0.15, right: m.right - m.rw * 0.15, topH: m.h }); }
   for (const p of stadTrapPlats(sc)) out.push({ left: p.left, right: p.right, topH: p.topH });
+  // Twee vloeren op dezelfde hoogte met maar een kiertje ertussen (een trapbalkon tegen een galerij, op een groot
+  // scherm schuiven ze tegen elkaar) worden een vloer. Anders ging een vijand eroverheen: zijn voorste voet stond al
+  // op de overkant (dropAhead), maar zijn anker hing boven de kier, dus vloerBij gaf de straat en hij viel naar beneden.
+  const naad = STAD.vijandNaad * CHAR_H * sc;
+  out.sort((a, b) => a.left - b.left);
+  for (let i = 0; i < out.length; i++){
+    for (let j = i + 1; j < out.length; j++){
+      const a = out[i], b = out[j];
+      if (Math.abs(a.topH - b.topH) > 2 || b.left - a.right > naad || b.right < a.left) continue;
+      a.right = Math.max(a.right, b.right); a.topH = Math.max(a.topH, b.topH);
+      out.splice(j, 1); j = i;                       // opnieuw langs: de langere vloer kan nu een volgende raken
+    }
+  }
   stadVloerKey = { s: sc, stad: S }; stadVloerLijst = out;
   return out;
 }
@@ -25870,6 +25884,7 @@ function hitHyena(s){
 // af komen; ze stapelen alleen niet meer. De duw gaat via hun eigen move (met de botsing), dus nooit
 // door een kei, ravijn of wand heen. Easing per beeld, zodat het soepel uit elkaar glijdt.
 const MOB_SCHEID_K = 6;       // hoe snel ze uit elkaar glijden (per seconde)
+const MOB_SCHEID_HOOG = 40;   // scheelt hun vloer meer dan dit, dan staan ze niet naast maar boven elkaar
 function scheidMobs(list, gap, move, dt, plats, cliff){
   const ease = Math.min(1, MOB_SCHEID_K * dt);
   for (let i = 0; i < list.length; i++){
@@ -25878,6 +25893,9 @@ function scheidMobs(list, gap, move, dt, plats, cliff){
     for (let j = i + 1; j < list.length; j++){
       const b = list[j];
       if (b.state === 'dood' || b.vrij) continue;
+      // alleen wie op dezelfde vloer staat: een bandiet op een balkon of dak duwde anders een maat op straat eronder
+      // weg, en die bleef dan rennend op zijn plek staan (de duw won het van zijn renstap)
+      if (Math.abs((a.base || 0) - (b.base || 0)) > MOB_SCHEID_HOOG) continue;
       const d = b.x - a.x, afst = Math.abs(d);
       if (afst >= gap) continue;
       const dir = d >= 0 ? 1 : -1;                 // b staat rechts van (of op) a
