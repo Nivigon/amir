@@ -286,6 +286,43 @@ Geen level van een episode of bestaand testlevel heeft een deur. In de sandbox o
 deurgat van het eerste huis) en **Uit de deur boven** (uit een deur op de eerste verdieping, op de galerij); elke klik zet de deur
 opnieuw open (`sbStadDeur`). In de Maker nieuwstijl: Decor, Huizen, **Deur** (zie "Deuren" in `notities/maker.md`).
 
+## Het plein
+
+`STAD.plein`, `stadPutMaat`, `stadPleinPoortMaat`, `stadPleinWandTeken`, `stadPleinPoortTeken`, `stadPutTeken`, `stadZachteSchaduw`, `sbPlein`
+
+Een open plein in de stad, als arena voor een baas. Stad 6 (Het plein) is het proefstuk; in de sandbox onder De stad de
+knop **Het plein**. Drie nieuwe velden in `stad`, en een grondsoort:
+
+```
+stad: { ..., pleinwanden: [{x, f}], putten: [{x, f}], pleinpoorten: [{x, f, hek}] }
+grondSoort: [{van, tot, soort: 'plein'}]
+```
+
+- **De vloer** (`design/stad/plein.png`): versleten zandstenen platen met zand in de naden, een strook `grondSoort`
+  met soort `plein`. De tegel is een Grok-overschildering van de straat, daarna rij voor rij teruggezet op de rijen van
+  `EDGE` (1572x335, looplijn 95), met het alfa van `straat.png`. Net als de straat niet in `klein/`.
+- **De pleinwand** (`pleinwand.png`): een lage leemwand met vijf bogen. Hij staat achteraan: kleiner (`amir: 250`, de
+  bogen ongeveer 1,1 Amir), zijn voet `lift` (0,13 Amir) boven de looplijn en met `nevel` (0,22) naar de nevelkleur
+  voorgebakken. Getekend voor de gevels, dus een huis staat ervoor. `x` is het midden, twee naast elkaar (een gespiegeld)
+  geven een lange arcade. Er botst niets.
+- **De put** (`put.png`): leemrand met een houten balk en een katrol. `x` is het midden. De rand (`rand`, 0,47 Amir)
+  is een dunne trede zoals een kraamtafel (`stad: 'putrand'`), de balk (`balk`, 1,03 Amir) haal je vanaf de rand met een
+  sprong (`stad: 'putbalk'`). Voor vijanden is het geen vloer, net als de kramen.
+- **De poorten** (`pleinpoorten`): de rechte poort van de straten (`STRATEN.recht`, dezelfde maat als in Oaktown), als decor
+  op het vlak van de straat, `x` is het midden. Met `hek: 'dicht'` staat het valhek (`HEK.src`) tot op de grond in de boog,
+  met `hek: 'open'` is het voor `STAD.plein.hek.open` van de opening opgetrokken; het hek wordt op de vorm van de boog
+  afgeknipt. De poort en het hek doen nog niets: geen E, geen botsing, het hek gaat niet op of neer. Dat komt met de baas.
+
+De pleinwand en de put hebben een donkere outline gekregen, net als de andere stadsplaatjes (zie hieronder).
+
+## De outline van de stadsplaatjes
+
+De gevel, de poorten, de galerij, de kramen en de trap hebben een donkerbruine outline (45, 28, 16) om hun silhouet,
+zodat ze aansluiten bij de savanne en de figuren: 4 bronpx bij de gevel en de poorten, 3 bij de rest, op 85% dekking,
+en de buitenste rand van de muur zelf iets naar die kleur. Het voetdecor (zand, stro) heeft er bewust geen. De huizen
+in de verte komen uit dezelfde `gevel.png` en hebben de lijn dus ook (in de nevel). Gekozen na een vergelijking met de
+savanne overdag (licht, midden, zwaar): midden.
+
 ## Nog niet
 
 - Een subtiele gloed om de personages (in de mockups hielp dat tegen de bruine muren), en een kleine set (`klein/`).

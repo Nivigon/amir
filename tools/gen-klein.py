@@ -135,6 +135,9 @@ DOELEN = [
     # de poorten tussen de straten (Oaktown): tekencode rekent met naturalWidth, dus de halve plaat komt op dezelfde maat
     ('design/stad/poort_hoek.png', 60),
     ('design/stad/poort_recht.png', 60),
+    # het plein: de put en de pleinwand (de tekencode rekt ze naar vaste maten); plein.png niet, net als straat.png
+    ('design/stad/put.png', 60),
+    ('design/stad/pleinwand.png', 60),
 ]
 
 # Bronmateriaal dat het spel nooit opvraagt. Een bestand dat hierboven bij naam
