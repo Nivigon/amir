@@ -105,10 +105,46 @@ daarvan op de kleine.
 Gemaakt uit Grok-clips (idle, sluipen, de lage slag en de terugweg), gekeyd en opgeschoond in de chat; de werkwijze staat in
 het project (`claude/zweepman_overdracht.md`). De zweep is fel groen gegenereerd en overal weggekeyd.
 
+## Fase 2: de arm eraf (`fasen: true`, Test 59)
+
+Alleen met `fasen: true` in de spawn (Test 59), of in de sandbox met **Fasen aan** (nieuwe zweepmannen) en **Arm eraf**
+(de zweepmannen die er staan gaan meteen door). Alles staat in `ZWM2` en de sectie "de zweepman, fase 2".
+
+- **Fase 1** duurt `ZWM2.hp1` (2) treffers. De laatste start `zwmArmEraf`: witte flits, hitstop en de set `armeraf`.
+- **De arm** (`s.arm`, `zwmArmStap`, `zwmArmTeken`): vanaf frame `los` van `armeraf` hangt de losse arm
+  (`lagen/f2_arm.png`, met draaipunt `px, py`, hoek `th0` en lengte `L`) aan de stomp en slingert hij achter het lijf.
+  Na `ZWM2.armHang` s scheurt hij los, valt hij, kiept hij plat (0 of 180 graden) en blijft hij `armLig` s op de wereld
+  liggen. Daarna vervaagt hij. Uit de stomp druppelt bloed op de grond.
+- **De wond** (`zwmWondTeken`): een rode ellips met een bot, op `fr.stomp` van elk frame. In `mep`, `sprong`, `sprongterug`,
+  `rustin` en `rust` komt die stomp uit de gele zone van de clip. In `armeraf` en `lach` rekent `postfix_f2.py` hem uit vanaf het
+  vest (de baardregel pakte soms zijn kin).
+- **De cyclus** (`ZWM2.cyclus`): `lach` (een keer), dan steeds `mep` (een gewone slag plus een backhand, de zweep is het touw,
+  het raakt op elke hoogte en slaat Amir `mepDuw` weg), twee keer `sprong` plus `sprongterug`, en dan `rustin`, `rust`
+  (`rustDuur` s in een lus) en `rustuit` (`rustin` achteruit). Bij `mep`, `sprong` en `rustin` draait hij naar Amir.
+- **De sprong** heeft zijn verplaatsing in de frames zelf: het lijf schiet zo'n 340 idle-px vooruit en komt dan terug, netto
+  `verschuif` (-72) na `sprongterug`. Staat Amir verder dan `sprongBereik`, dan schuift hij in de sprong nog tot `sprongExtra`
+  extra op. Het touw begint pas bij index 27 (daarvoor ligt de rol over zijn achterbeen en zit hij als leer in het plaatje).
+  Het gevaar geldt van het begin van het touw tot `gevaarNa` s na de knal (`sprongGevaar`), want bij de knal is hij al
+  doorgedraaid.
+- **Kwetsbaar** (`zwmF2Kwetsbaar`): alleen in `rustin`, `rust`, `rustuit` en de eindpose van de sprong. Daarbuiten ketst je speer
+  af (de houtklap, een korte flits). `ZWM2.hp2` (2) treffers en hij is dood (vervagen).
+- **Het touw per segment**: `set.touw` is een lijst `{van, knal, tot, boogVan, boog, kracht, hang, blijf}`. In een segment volgt
+  het touw de hand (`fr.hand`), met de boog uit dat segment (`s.f2C` in `zwmTouwStap`). Aan het eind vervaagt het, behalve met
+  `blijf`. Daarbuiten zit de zweep als leer in het plaatje.
+- **Het raakvak** volgt zijn voeten (`zwmLijfDX`, uit `fr.cx`), want in de sprong staat hij ver van zijn ankerpunt.
+- **Laden**: de f2-plaatjes (zo'n 114 MB groot) laden pas als er een zweepman met fasen is (`zwmLaadF2`, `zwmF2Wil`).
+
+De frames komen uit `export_f2.py` en `postfix_f2.py` in de chat (de Grok-clips 1armhit, 1armlaugh, manischslag, draaislag,
+de sprong, de terugweg en uitrusten2), op dezelfde schaal en hetzelfde anker als fase 1.
+
 ## Nog te doen
+
+- In fase 2 laten de touwframes van de mep en het eind van de sprong nog kleine reepjes broek los waar de zweep over zijn
+  benen ging (de bron is daar vlekkerig).
+- Berserk: de speer uit de lucht slaan. Fase 3: het been eraf, op zijn knie, de laatste klap of een executie. De echte dood
+  (nu vervaagt hij).
 
 - De lage slag begint nog op hoofdhoogte, omdat zijn arm in de Grok-clip over zijn hoofd zwaait; de zweep zelf blijft
   laag. Een clip waarin hij van onderen of opzij uithaalt (de hand onder de heup) maakt het helemaal zuiver.
 
-De vangst (de zweep om je speer, touwtrekken), arm eraf en berserk, de knie-fase, een flinch en de
-echte dood.
+De vangst (de zweep om je speer, touwtrekken) en een flinch.

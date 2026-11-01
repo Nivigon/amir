@@ -224,6 +224,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de bandiet: een rover met een kromzwaard | `BAN`, `banLaad`, `makeBandiet` | notities/bandiet.md |
 | de kruisboogbandiet: herlaadt (de tell), volgt Amir over twintig hoeken, blinkt en schiet; drie doden, de speer in zijn borst | `KRB`, `krbDoelHoek`, `krbSpeerVolg`, `hitKruisboog(s, soort)`; de hoorn (ontwijkt de worp, rolt, blaast twee hyena's erbij): `KRB_HOORN`, `krbWerpGezien`, `krbHoornStap` |  |
 | de zweepman: sluipt laag op je af en slaat laag met een zweep (touw in code); testvijand, Test 58 | `ZWM`, `ZWM_TOUW`, `makeZweepman`, `zwmTouwStap` | notities/zweepman.md |
+| de zweepman, fase 2: de arm eraf, meppen, sprong-slag en uitrusten (`fasen: true`, Test 59) | `ZWM2`, `zwmArmEraf`, `zwmF2Stap`, `zwmF2Kwetsbaar` | notities/zweepman.md |
 | de schildbandiet: loopt met zijn schild op en valt springend aan | `SCHB`, `makeSchildman`, `updateSchildman` | notities/schildbandiet.md |
 | schildstaat: het schild in vier standen, van heel tot weg | `SCHB_STAAT`, `schbStaat` | notities/schildbandiet.md |
 | de lagen van de schildbandiet: het schild als losse laag uit lagen.json | `SCHB_LAGEN`, `schbLagenLaad`, `schbLagenLijst` | notities/schildbandiet.md |
