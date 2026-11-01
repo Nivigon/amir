@@ -29190,7 +29190,7 @@ function zwmLaad(){
 }
 let zwmF2Wil = false;                                      // er is een zweepman met fasen: laad fase 2 zodra de json er is
 function zwmLaadLevel(lv){
-  const sp = ((lv && lv.spawns) || []).filter(s => s.kind === 'zweepman');
+  const sp = ((lv && lv.spawns) || []).filter(s => (s.kind || s.k) === 'zweepman');   // kind na readLevel, k in een ruwe leveldefinitie (zoals krbLaadLevel)
   if (sp.length){ if (sp.some(s => s.fasen)) zwmF2Wil = true; zwmLaad(); if (zwmF2Wil) zwmLaadF2(); }
 }
 function zwmScale(){ const scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H; return (CHAR_H * scale * ZWM.hShare) / ZWM.fig; }
@@ -37670,6 +37670,8 @@ const MK_VIJANDEN = [
   // de kruisboogbandiet: een soort zonder varianten; wat hij anders doet (wijk, rand, hoorn, rap, inBeeld) zijn vinkjes
   // in het paneel, onder het kopje Gedrag (MK_VIJ_KNOP), omdat ze los van elkaar te combineren zijn
   { soort:'kruisboogbandiet', naam:'Kruisboogbandiet', kleur:'#6b6a3a', groep:'bandieten' },
+  // de zweepman: een soort zonder varianten; fase 2 (de arm eraf, fasen: true) is een vinkje in het paneel
+  { soort:'zweepman', naam:'Zweepman', kleur:'#9a3f2c', groep:'bandieten' },
   // de kooiman: het duel is de standaard (k: 'kooiman'), smash en vogel zijn zijn andere aanvallen
   { id:'kooiman', naam:'Kooiman', kleur:'#8a5a7a', groep:'mannen', varianten:[
       { soort:'kooiman',       naam:'Duel' },
@@ -37693,6 +37695,7 @@ for (const v of MK_VIJANDEN){ if (v.varianten) for (const w of v.varianten) MK_V
 //  - zicht: in een Maker-level ziet een vijand je alleen met vrij zicht; uit en hij merkt je op de oude manier op
 //  - wijk, rand, hoorn, rap, inBeeld: de kruisboogbandiet (zie makeKruisboog en zijn spawn); met hoorn blaast hij twee
 //    hyena's erbij en staat hij altijd helemaal in beeld, dus dan staat inBeeld vast aan
+//  - fasen: de zweepman met fase 2 (de arm eraf en een tweede ronde, ZWM2); zonder vinkje de gewone zweepman
 // klap: de knop staat in het paneel onder een inklapbaar kopje met die naam (mkVulVijKnoppen), zodat het paneel kort blijft
 const MK_VIJ_KNOP = {};
 for (const soort of Object.keys(MK_VIJ_INFO)) MK_VIJ_KNOP[soort] = [];
@@ -37706,12 +37709,13 @@ MK_VIJ_KNOP.kruisboogbandiet.push(
   { key:'hoorn',   naam:'Hoorn: ontwijkt je worp, blaast twee hyena\'s erbij', vink:true, def:0, klap:'Gedrag' },
   { key:'rap',     naam:'Komt in looppas het beeld in', vink:true, def:0, klap:'Gedrag' },
   { key:'inBeeld', naam:'Schiet pas als hij helemaal in beeld staat', vink:true, def:0, klap:'Gedrag', vast:{ key:'hoorn', waarde:1 } });
+MK_VIJ_KNOP.zweepman.push({ key:'fasen', naam:'Fase 2: de arm eraf en een tweede ronde', vink:true, def:0 });
 for (const soort of Object.keys(MK_VIJ_KNOP)) MK_VIJ_KNOP[soort].push({ key:'zicht', naam:'Ziet je alleen met vrij zicht', vink:true, def:1 });
 // het icoon van een vijand op het grid, in het palet en op de plakstempel: het gekleurde rondje van zijn soort
 // (MK_VIJ_INFO) met een tekening erin in plaats van een letter, zodat je aan de vorm ziet wie er staat. Een slang
 // kronkelt (de fosforslang met een vonk), de schorpioen heeft scharen en een angel, de hyena een pootafdruk, de panter
-// een kattenkop, de kooiman een hangende kooi, de meelman een zak, de bandiet zijn kromzwaard, de kruisboogbandiet zijn kruisboog en de schildbandiet zijn
-// schild. Een variant of een knop die aanstaat krijgt een klein badge rechtsonder (mkVijBadge): dolk, smash-blokje,
+// een kattenkop, de kooiman een hangende kooi, de meelman een zak, de bandiet zijn kromzwaard, de kruisboogbandiet zijn kruisboog, de zweepman zijn zweep en de schildbandiet zijn
+// schild (een zweepman met fase 2 krijgt een druppel bloed als badge). Een variant of een knop die aanstaat krijgt een klein badge rechtsonder (mkVijBadge): dolk, smash-blokje,
 // vogeltje, de 2 van twee hyena's, het pijltje van de panter die over keien komt. De elite krijgt een gouden ring, de
 // gehurkte bandiet een platgedrukt rondje lager in de cel, de makkelijke schildbandiet alleen de omtrek van het schild.
 // Alles in lijnen op schaal u (een 24e van een cel), dus scherp op elke zoom. p zijn de params van de spawn (n, over).
@@ -37772,6 +37776,13 @@ function mkVijIcoon(ctx, soort, cx, cy, cel, p){
     ctx.lineWidth = 2.2 * u; ctx.beginPath(); ctx.moveTo(cx, cy - 6 * u); ctx.lineTo(cx, cy + 7 * u); ctx.stroke();                                                 // de kolf
     ctx.beginPath(); ctx.moveTo(cx - 1.8 * u, cy - 4 * u); ctx.lineTo(cx, cy - 6.8 * u); ctx.lineTo(cx + 1.8 * u, cy - 4 * u); ctx.closePath(); ctx.fill();        // de punt van de bout
     if (p.hoorn) mkVijBadge(ctx, cx, cy, rad, u, b => { b.lineWidth = 1.3 * u; b.beginPath(); b.moveTo(-2.4 * u, -1.6 * u); b.quadraticCurveTo(-1.2 * u, 1.8 * u, 2.4 * u, 1.4 * u); b.lineTo(2.4 * u, -0.2 * u); b.stroke(); });   // de hoorn
+  } else if (basis === 'zweepman'){
+    ctx.lineWidth = 2.6 * u; ctx.beginPath(); ctx.moveTo(cx - 6.5 * u, cy + 6.5 * u); ctx.lineTo(cx - 3.2 * u, cy + 3.2 * u); ctx.stroke();   // het handvat
+    ctx.lineWidth = 1.6 * u; ctx.beginPath(); ctx.moveTo(cx - 3.2 * u, cy + 3.2 * u);                                                        // de zweep: omhoog, een golf naar rechts
+    ctx.bezierCurveTo(cx - 6 * u, cy - 3 * u, cx - 3 * u, cy - 8 * u, cx + 1 * u, cy - 6 * u);
+    ctx.bezierCurveTo(cx + 5 * u, cy - 4 * u, cx + 1.5 * u, cy + 1 * u, cx + 5.5 * u, cy + 3 * u); ctx.stroke();
+    ctx.lineWidth = 1 * u; ctx.beginPath(); ctx.moveTo(cx + 5.5 * u, cy + 3 * u); ctx.quadraticCurveTo(cx + 8 * u, cy + 4.5 * u, cx + 6.5 * u, cy + 6.5 * u); ctx.stroke();   // de krul van de punt
+    if (p.fasen) mkVijBadge(ctx, cx, cy, rad, u, b => { b.beginPath(); b.moveTo(0, -2.6 * u); b.quadraticCurveTo(1.9 * u, 0.2 * u, 0, 1.8 * u); b.quadraticCurveTo(-1.9 * u, 0.2 * u, 0, -2.6 * u); b.fill(); });   // een druppel bloed
   }
   ctx.restore();
 }
@@ -39880,7 +39891,7 @@ function mkSpelExport(){
 // zetten Amir en de afsluitende klif. De exacte afstelling reken ik na met de tools.
 // De vijandsoorten die in een Maker-level de health-balk (3 levens) krijgen. De slangen ('slang' en 'fosfor')
 // ontbreken bewust: in de Maker is een slang in een klap dood.
-const MK_HP_SOORTEN = ['bandiet', 'kooiman', 'schorpioen', 'hyena', 'schildman', 'kruisboogbandiet'];   // de kruisboogbandiet houdt een leven (HP_BALK_SOORT)
+const MK_HP_SOORTEN = ['bandiet', 'kooiman', 'schorpioen', 'hyena', 'schildman', 'kruisboogbandiet', 'zweepman'];   // de kruisboogbandiet houdt een leven (HP_BALK_SOORT), de zweepman zijn eigen ZWM.hp (of ZWM2.hp1 met fasen)
 function mkNaarLevel(opt){
   const C = MK.cols, gR = MK.ground, G = MK.grid;
   const vanaf = opt && opt.vanaf;                   // "Test vanaf hier": Amir begint op deze kolom in plaats van op het startpunt

@@ -92,5 +92,13 @@ Status: klaar. Alle zes stappen staan erin (de keuzes van de opdrachtgever hiero
    het dak van g1, en de controles `vijand-knoppen`, `stadsstukken` en `maat` kennen hem (zie "De knoppen per vijand" in
    `notities/maker.md`).
 
+7. [x] De zweepman in de Maker: een regel in `MK_VIJANDEN` (groep Bandieten, nu vier items, roodbruin met een zweep als
+   icoon), een vinkje **Fase 2** (`fasen: true`, met een druppel bloed als badge) naast zicht in het paneel, en in
+   `MK_HP_SOORTEN`. Hij leest geen `dak` en staat niet in `MK_DAK_SOORTEN`: op een dak meldt de Controle hem en komt hij in de
+   Test op de straat (een `dak` voor de zweepman in het spel is een vraag voor de opdrachtgever). `boven` werkt op een
+   zwever, een verhoogd terras en het dak van een gang. `zwmLaadLevel` kijkt nu naar `kind` en `k`. In `makertest.js` staat
+   hij met fase 2 op de straat in het proefgrid, en de controles `vijand-knoppen`, `stadsstukken` en `maat` kennen hem (zie
+   "De knoppen per vijand" in `notities/maker.md`).
+
 Na elke stap `node tools/makertest.js` en `python3 tools/levelcheck.py`. Geen level van een episode of
 bestaand testlevel verandert.

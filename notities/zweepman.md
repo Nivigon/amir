@@ -2,8 +2,9 @@
 
 `ZWM`, `ZWM_TOUW`, `makeZweepman`, `updateZweepman`, `hitZweepman`, `zwmTeken`, `zwmTouwStap`, `zwmRaakt`. Een testvijand
 (regel 12: een gewone vijand, geen baas): een pezige, kale bandiet die laag en loerend op Amir af sluipt en een lage
-zweepslag uitdeelt, laag of hoog. Alleen in de sandbox (rij **Zweepman**, met **AI uit** en **Slag: wissel/laag/hoog**)
-en in Test 58.
+zweepslag uitdeelt, laag of hoog. In de sandbox (rij **Zweepman**, met **AI uit** en **Slag: wissel/laag/hoog**)
+en in Test 58. Ook in de Level Maker nieuwstijl, bij Bandieten, met fase 2 als vinkje (zie "De knoppen per vijand" in
+`notities/maker.md`).
 
 ## Het gevecht
 

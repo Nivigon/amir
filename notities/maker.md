@@ -190,6 +190,7 @@ Alleen velden die het spel echt leest:
 | | Hoorn: ontwijkt je worp, blaast twee hyena's erbij (standaard uit) | `hoorn: true` (de hyena's laden dan mee, `krbLaadLevel`) |
 | | Komt in looppas het beeld in (standaard uit) | `rap: true` |
 | | Schiet pas als hij helemaal in beeld staat (standaard uit; met de hoorn vast aan) | `inBeeld: true` |
+| zweepman | Fase 2: de arm eraf en een tweede ronde (standaard uit) | `fasen: true` (de f2-plaatjes laden dan mee, `zwmLaadLevel`) |
 | elke vijand | Ziet je alleen met vrij zicht (standaard aan) | `zicht: false` als uit |
 
 Het vinkje voor de panter en het uitzetten van de vault zijn de uitzondering op regel 7, als
@@ -205,6 +206,17 @@ varianten, omdat ze los van elkaar te combineren zijn (de bestaande levels doen 
 als varianten zou dat een lange lijst worden. Hij staat in `MK_HP_SOORTEN` (een balk met een leven, `HP_BALK_SOORT`), kan
 uit een poort komen, en laadt lui via `krbLaadLevel` in `laadLevel`. `salvo` en `achter` zitten niet in de Maker: `salvo`
 leest de spawn niet (alleen de sandbox en de duo-arena) en `achter` heeft zin bij een vast level, niet in een grid.
+
+De zweepman (stap 7) is ook een soort zonder varianten (`soort: 'zweepman'`, groep Bandieten, roodbruin met een zweep als
+icoon en een druppel bloed als badge bij fase 2). Zijn spawn leest `x`, `boven`, `achter`, `zicht` en `fasen`; alleen `fasen`
+en `zicht` zijn knoppen (los, zonder kopje), want `achter` hoort bij een vast level. `slagVast` en `vrij` zijn sandboxknoppen
+en leest de spawn niet. Hij staat in `MK_HP_SOORTEN` (met de balk drie levens, `ZWM.hp`; met fase 2 twee per fase, `ZWM2`),
+kan uit een poort komen (`mkPoortVijOk` laat hem toe, net als de kruisboogbandiet zonder `uitPoort`), en laadt lui via
+`zwmLaadLevel` in `laadLevel`, dat nu net als `krbLaadLevel` naar `kind` en `k` kijkt (de Test geeft het level door `readLevel`,
+dus `kind` was er al). Hij leest geen `dak` en staat dus niet in `MK_DAK_SOORTEN`: op een dak of galerij staat hij in de Test op
+de straat, met de LET OP van de Controle. Nagekeken in de Test: op de grond, op een zwever (`boven`, op 450), op een verhoogd
+terras (`boven`, op 150, hij loopt tot de rand en stapt er niet af), op het dak van een gang (`boven`, op 0) en in de gang
+(`y`, op de gangvloer) sluipt hij op Amir af en slaat hij, zonder 404 en met zijn frames geladen.
 
 ## De controle (`mkControle`)
 
@@ -369,8 +381,9 @@ Meldingen in `mkControle` (allemaal klikbaar, ze springen naar de cel):
 
 Een bandiet, schildbandiet of kruisboogbandiet op een dak krijgt geen melding (ook niet dat hij zweeft). `tools/makertest.js`
 (controle `stadsstukken`) zet elk van deze meldingen een keer neer en kijkt `dak` na (ook van een kruisboogbandiet met
-`wijk: false` op het dak van g5), en het proefgrid heeft de stad achter de start (kolom 24 tot 35) met een bandiet op de
-galerij (`dak: 401`) en een schildbandiet en een kruisboogbandiet (wijk uit, inBeeld aan) op een dak (`dak: 816`). In de Test
+`wijk: false` op het dak van g5, en een zweepman op het dak van g1 die de melding krijgt en geen `dak`), en het proefgrid heeft de stad achter de start (kolom 24 tot 35) met een bandiet op de
+galerij (`dak: 401`) en een schildbandiet en een kruisboogbandiet (wijk uit, inBeeld aan) op een dak (`dak: 816`), en een
+zweepman met `fasen` op de straat. In de Test
 loopt de schutter over het dak naar de rand, blijft op 816 en schiet omlaag.
 
 ## Sneltoetsen
@@ -387,7 +400,8 @@ leegmaken). Op een keuzelijst, knop of tekstvak blijven de toetsen van dat veld.
 Laadt de Maker in Chromium met een proefgrid waar alles op staat (gat, gang met treden, mesa,
 zwever, muur door de grond, sneeuw, alle voorwerpen, een tweede ravijn met een rijzer van 2 breed die het zegel
 stuurt, een masker, een zwarte cel, een vorm, en achter de start een straat met twee huizen, een galerij, een trap, een
-kraam, voetdecor, het paleis en een bandiet op de galerij en een schildbandiet en een kruisboogbandiet op een dak) en
+kraam, voetdecor, het paleis en een bandiet op de galerij, een schildbandiet en een kruisboogbandiet op een dak en een
+zweepman op de straat) en
 kijkt na: de round-trip van export en import, de vertaling naar een spel-level, rijen invoegen en
 weer weghalen, verkleinen, snel schilderen, de rechthoek, het aanklikken van brede voorwerpen,
 ongedaan maken, een gebied kopiÃ«ren, spiegelen, plakken en knippen, een rijzer van even breedte spiegelen met
@@ -399,8 +413,9 @@ het plaatje, `stad.galerijen` en `stad.trappen`, de JSON, een rij erboven, kopiÃ
 een gebied met maar een van de twee gevels, een gevel weg met ongedaan maken, en laden met een gevel die er niet is; en de
 meldingen van stap 5 met hun cel, `dak` op de spawn, en de stad in het proefgrid), en of
 het proefgrid als spel-level door `levelcheck.py` komt. De controle `vijand-knoppen` kijkt ook de vlaggen van de
-kruisboogbandiet na (alleen wat afwijkt, `readLevel`, het kopje Gedrag en `inBeeld` vast met de hoorn), en `maat` meet het
-paneel van elke vijandsoort met al zijn knoppen van de standaard af. Draai hem na elke wijziging aan de Maker.
+kruisboogbandiet na (alleen wat afwijkt, `readLevel`, het kopje Gedrag en `inBeeld` vast met de hoorn) en `fasen` van de
+zweepman (alleen aan gaat mee, `readLevel`, twee losse vinkjes), en `maat` meet het paneel van elke vijandsoort met al zijn
+knoppen van de standaard af en kijkt na dat Bandieten vier items heeft (bandiet, schildbandiet, kruisboogbandiet, zweepman). Draai hem na elke wijziging aan de Maker.
 
 ```
 node tools/makertest.js                alle controles
