@@ -46,6 +46,12 @@ Twee platen uit `design/stad/` (maten in `metadata.json`), lui geladen met de st
   vlak voor, dan ben je nog in gevecht en gaat de poort niet.
 - Op 720 hoog is een hoekpoort zo'n 1330 px breed en een splitsing (hoek plus rechte poort) zo'n 2150 px. Ze schalen
   mee met het scherm, net als de gevels; houd daarom zo'n 250 px vrij tussen een poort en het eerste huis.
+- Het formaat waarop de straten ontworpen zijn is Amir 180 px hoog (`STRATEN.ontwerpA`, 720 hoog en Formaat 25). Is hij
+  groter (1920x1080, 2560x1440, of het schuifje Formaat hoger), dan schuift elk uiteinde met poorten naar buiten
+  (`straatEind`): zoveel als de poort breder werd, plus wat de huizen en kramen naar die kant meegroeien
+  (`STRATEN.groei`). Zonder dat viel de poort op 1920x1080 over het eerste huis en de eerste kraam, die je dan niet zag
+  maar waar je wel op botste. `straatPoorten`, `straatGrens`, `straatCamKlem`, `straatVijandKlem`, `straatIn` en
+  `straatBij` rekenen allemaal met `straatEind`; kleiner dan het ontwerpformaat (een telefoon) blijft alles op `r` en `l`.
 
 ## Vijanden, aanvullen en het einde
 
@@ -55,8 +61,11 @@ Twee platen uit `design/stad/` (maten in `metadata.json`), lui geladen met de st
   na minstens `aanvul` seconden, dan maakt `straatAanvul` zoveel opgebruikte spawns weer scherp als er vijanden
   ontbreken tot het startaantal (de verste eerst), en komen de kalebassen die je daar oppakte terug
   (`p.straatBron`). Eerder terug: niets. Zo kun je niet farmen door heen en weer te stappen.
+- In een stadje van straten komen de vijanden van een straat vaak tegelijk; `spawnPoint` zet er dan geen twee binnen
+  90 px van elkaar (eerst landden er twee slangen precies op elkaar).
 - Elke kill telt (`vijandDood` roept `straatKill`); bij `doel` wacht het spel `winWacht` seconden en speelt dan
-  `winLevel`, hetzelfde einde als de fakkels. Dood is het hele level opnieuw (`restart` → `straatReset`), kills op 0.
+  `winLevel`, hetzelfde einde als de fakkels. Vanaf de laatste kill is Amir onkwetsbaar tot het einde (zonder te knipperen), anders kon hij in die
+  `winWacht` nog sterven en begon alles opnieuw. Dood is het hele level opnieuw (`restart` → `straatReset`), kills op 0.
 - Bovenaan staat "kills: n / 50" (`hudPil`).
 
 ## De minimap
@@ -76,12 +85,17 @@ kruisboogbandiet, zweepman) verschillen. Per straat:
 | straat | kaart | opbouw | kalebas |
 | --- | --- | --- | --- |
 | Kasuwastraat (start) | midden | kramen, een hoge galerij (730) | via tafel en doek, met de getimede veer |
-| Dalastraat | boven | getrapte leemmuren 170, 340, 510 | bovenop de hoogste muur |
+| Dalastraat | boven | getrapte leemmuren 170, 340, 510; van links via de doek van de kraam op het lage dak | bovenop de hoogste muur |
 | Jakarasteeg | links boven | galerij over de hele lengte (401) | via tafel en rieten dak naar de galerij |
 | Karofistraat | rechts boven | houten trap achter het hoge huis | op het balkon (E bij de trap) |
 | Makerasteeg | links onder | de toren: galerijen 401 en 780 over twee huizen, 590 over het rechter; recht omhoog | bovenin |
-| Rumfastraat | rechts onder | hogere wijk op een lage leemmuur, met een huis erop | op de hoge muur (340) |
+| Rumfastraat | rechts onder | hogere wijk op een lage leemmuur, met een huis erop; van links via de rieten kraam | op de hoge muur (340) |
 | Zangosteeg | onder | over de daken (487) | via kraam, galerij of doek op het laatste dak |
+
+Elke straat is in beide richtingen te doorlopen. In de Dala- en Rumfastraat kon dat eerst niet: van links stond je voor
+een muur van 510 of 340 hoog (de sprong is 200). Nu staat er links een kraam: in Dala de doek (van de tafel recht omhoog
+op de doek springen, dan met een sprong naar rechts over het lage dak de muur op), in Rumfa een rieten kraam (tafel,
+rieten dak, muur). Nagemeten op 1280x720, 1920x1080 en 852x393.
 
 Een straat is drie tot vier schermen breed: de middenzone met de huizen is ongeveer anderhalf scherm, de rest zijn de
 poorten aan de uiteinden. De definitie is gegenereerd uit een korte beschrijving per straat (afstanden vanaf de
