@@ -62,7 +62,7 @@ async function start(){
   }
 }
 
-// Het proefgrid: klein, maar met elke soort erop. 24 breed, 12 hoog, grondlijn op rij 7.
+// Het proefgrid: klein, maar met elke soort erop. 36 breed, 12 hoog, grondlijn op rij 7.
 //  - savanne op de grondlijn, met een ravijn (kolom 21 tot 23) boven een gang (rij 8 en 9, kolom 19 tot 23) achter de
 //    start, met twee treden onder het gat (kolom 21 en 22) als weg naar boven
 //    (het gat loopt een cel verder door dan de onderste trede, anders stoot Amir bij de sprong zijn hoofd tegen het dak)
@@ -75,10 +75,14 @@ async function start(){
 //  - een tweede ravijn (kolom 11 en 12) met een rijzer van 2 breed erin, drie cellen diep, die tot de grondlijn komt
 //  - een masker (Verborgen1) van twee cellen, een zwarte cel, en een vrije blokvorm
 //  - een gespiegelde stenen poort in savannekleur (kolom 16) met twee schorpioenen erin, die de rune opent
+//  - achter de start (kolom 24 tot 35, zodat de x van al het andere gelijk blijft) een straat met de stad: gevel g1 (2 hoog)
+//    en g2 (3 hoog), een galerij van g1 tot g2 op niveau 1, een trap rechts van g2 die op die galerij uitkomt, een rieten
+//    kraam, een kruik als voetdecor en het paleis; een bandiet op de galerij en een schildbandiet op het dak van g1
+//    (die krijgen dak op hun spawn)
 function proefGrid(){
   const rijen = [];
-  for (let r = 0; r < 12; r++) rijen.push('.'.repeat(24).split(''));
-  for (let c = 0; c < 24; c++) rijen[7][c] = 'S';
+  for (let r = 0; r < 12; r++) rijen.push('.'.repeat(36).split(''));
+  for (let c = 0; c < 36; c++) rijen[7][c] = c >= 24 ? 'A' : 'S';
   rijen[7][21] = 'V'; rijen[7][22] = 'V'; rijen[7][23] = 'V';
   rijen[7][11] = 'V'; rijen[7][12] = 'V';
   for (let r = 8; r <= 9; r++) for (let c = 19; c <= 23; c++) rijen[r][c] = 'G';
@@ -89,7 +93,7 @@ function proefGrid(){
   rijen[7][0] = 'W'; rijen[7][1] = 'W';
   rijen[7][2] = 'A'; rijen[7][3] = 'A';
   return {
-    type: 'amir-levelmaker-grid', versie: 2, cols: 24, rows: 12, groundRow: 7,
+    type: 'amir-levelmaker-grid', versie: 2, cols: 36, rows: 12, groundRow: 7, stadSeed: 7,
     grid: rijen.map(r => r.join('')),
     start: { c: 19, r: 6 }, eind: { c: 2, r: 6 }, muziek: 'darkafrica', valschade: true,
     maskers: [{ id: 'Verborgen1', look: 'grot', cells: [[8, 6], [9, 6]] }],
@@ -110,6 +114,15 @@ function proefGrid(){
       { c: 20, r: 6, k: 'zegel', onzichtbaar: true, note: '' },
       { c: 1, r: 6, k: 'prop', note: 'een boom' },
       { c: 0, r: 6, k: 'rotsdecor', prop: 'plaat_02', f: true, s: 1.2, note: '' },
+      { c: 24, r: 6, k: 'gevel', id: 'g1', hoog: 2, note: '' },
+      { c: 28, r: 6, k: 'gevel', id: 'g2', hoog: 3, note: '' },
+      { c: 24, r: 6, k: 'galerij', van: 'g1', tot: 'g2', niveau: 1, note: '' },
+      { c: 28, r: 6, k: 'trap', gevel: 'g2', kant: 'r', niveau: 0, balkon: 0, note: '' },
+      { c: 34, r: 6, k: 'kraam', soort: 'riet', note: '' },
+      { c: 27, r: 6, k: 'voet', stuk: 'kruik', note: '' },
+      { c: 32, r: 2, k: 'paleis', note: '' },
+      { c: 27, r: 3, k: 'vijand', soort: 'bandiet', note: '' },
+      { c: 25, r: 1, k: 'vijand', soort: 'schildman:makkelijk', note: '' },
     ],
   };
 }
@@ -233,6 +246,227 @@ function verschil(a, b, pad = ''){
     });
   });
 
+  // 1c. de losse stadsstukken (stap 3 van notities/plan-stad-maker.md): gevel, kraam, voetdecor en het paleis. Ze gaan
+  // door de JSON, worden het veld stad (een gevel met x op zijn linkerkant, de rest op het midden van de kolom), elke
+  // gevel houdt een eigen id, er is hoogstens een paleis, en de controle meldt een stuk of straatcel zonder straat eronder
+  await check('stadsstukken: gevel, kraam, voetdecor, paleis, galerij en trap', async () => {
+    const rijen = []; for (let r = 0; r < 8; r++) rijen.push('.'.repeat(16).split(''));
+    for (let c = 0; c < 16; c++) rijen[5][c] = c >= 8 && c <= 13 ? 'A' : 'S';   // savanne, en een straat van kolom 8 tot 13
+    rijen[4][1] = 'A';                                    // straat boven de grondlijn op savanne: LET OP
+    rijen[4][11] = 'E';                                   // een leemmuur op de straat: goed
+    await laad({ type: 'amir-levelmaker-grid', versie: 2, cols: 16, rows: 8, groundRow: 5, grid: rijen.map(r => r.join('')),
+                 start: { c: 15, r: 4 }, eind: { c: 0, r: 4 }, stadSeed: 42, objecten: [
+                   { c: 9, r: 4, k: 'gevel', id: 'g1', hoog: 3 },
+                   { c: 3, r: 4, k: 'gevel', id: 'g1', hoog: 1, f: true },      // een dubbel id: wordt g2, en hij staat op savanne
+                   { c: 12, r: 4, k: 'kraam', soort: 'doek', f: true },
+                   { c: 10, r: 4, k: 'voet', stuk: 'kruik' },
+                   { c: 7, r: 1, k: 'paleis' }, { c: 4, r: 1, k: 'paleis' } ] });   // twee paleizen: het laatste blijft
+    const f = await page.evaluate(() => {
+      const f = [];
+      const gv = MK.objects.filter(o => o.k === 'gevel'), pal = MK.objects.filter(o => o.k === 'paleis');
+      if (gv.length !== 2 || new Set(gv.map(o => o.id)).size !== 2 || !gv.some(o => o.id === 'g1')) f.push('de gevels hebben geen eigen id: ' + JSON.stringify(gv.map(o => o.id)));
+      if (pal.length !== 1 || pal[0].c !== 4) f.push('niet precies een paleis (het laatste): ' + JSON.stringify(pal));
+      const j1 = JSON.stringify(mkNaarJSON()); mkUitJSON(JSON.parse(j1));
+      if (JSON.stringify(mkNaarJSON()) !== j1) f.push('de stadsstukken komen niet gelijk door de JSON');
+      if (MK.stadSeed !== 42) f.push('de seed gaat niet mee door de JSON: ' + MK.stadSeed);
+      const lv = mkNaarLevel(), S = lv.stad;
+      if (!S) return f.concat('geen veld stad');
+      if (S.seed !== 42) f.push('stad.seed is niet 42: ' + S.seed);
+      if (S.gevels.length !== 2 || S.gevels[0].x !== -1050 || S.gevels[0].hoog !== 3 || S.gevels[0].f || S.gevels[1].x !== -2100 || S.gevels[1].f !== 1)
+        f.push('de gevels kloppen niet (x op de linkerkant, van de start af): ' + JSON.stringify(S.gevels));
+      if (S.kramen.length !== 1 || S.kramen[0].soort !== 'doek' || S.kramen[0].f !== 1 || Math.abs(S.kramen[0].x + 437.5) > 1) f.push('de kraam klopt niet: ' + JSON.stringify(S.kramen));
+      if (S.voet.length !== 1 || S.voet[0].stuk !== 'kruik' || Math.abs(S.voet[0].x + 787.5) > 1) f.push('het voetdecor klopt niet: ' + JSON.stringify(S.voet));
+      if (Math.abs(S.paleis + 1837.5) > 1) f.push('het paleis staat niet op kolom 4: ' + S.paleis);
+      if (lv.lagen !== 'stad_dag') f.push('geen uitzicht stad_dag: ' + lv.lagen);
+      if ('muziek' in lv) f.push('een eigen muziek in plaats van de stadmuziek: ' + lv.muziek);
+      const gs = lv.grondSoort || [];
+      if (!gs.some(g => g.soort === 'straat') || gs.filter(g => g.soort === 'savanne').length !== 2) f.push('met stad krijgt de savanne geen eigen strook (de basis is dan straat): ' + JSON.stringify(gs));
+      // de controle: gevel g2 staat op savanne, de straatcel op kolom 1 ook; de rest staat op straat
+      const m = mkControle().filter(q => q.ernst === 'letop').map(q => q.tekst);
+      const g2 = gv.find(o => o.id !== 'g1').id;
+      if (!m.some(t => t.startsWith('Gevel ' + g2) && t.includes('geen straat'))) f.push('geen LET OP voor de gevel op savanne: ' + JSON.stringify(m));
+      if (m.some(t => t.startsWith('Gevel g1') || t.startsWith('Kraam') || t.startsWith('Voetdecor'))) f.push('een LET OP voor een stuk op de straat: ' + JSON.stringify(m));
+      if (!m.some(t => t.startsWith('Straat boven de grondlijn op kolom 1 '))) f.push('geen LET OP voor de straatcel op savanne: ' + JSON.stringify(m));
+      if (m.some(t => t.startsWith('Muur van leem'))) f.push('een LET OP voor de leemmuur op de straat: ' + JSON.stringify(m));
+      // het klembord spiegelen: de gevel kijkt de andere kant op en blijft op zijn plek staan, twee keer is het origineel
+      MK.gebied = { c0: 8, r0: 0, c1: 15, r1: 7 }; mkKopieer();
+      const kg = () => mkKlembord.objects.find(o => o.k === 'gevel');
+      const dc0 = kg().dc; mkSpiegel();
+      if (!kg().f || kg().dc !== 4) f.push('gespiegeld staat de gevel niet op dezelfde plek (dc 4, gespiegeld): ' + JSON.stringify(kg()));
+      if (mkKlembord.objects.find(o => o.k === 'kraam').f) f.push('de kraam spiegelt niet mee (hij was al gespiegeld)');
+      mkSpiegel(); if (kg().dc !== dc0 || kg().f) f.push('twee keer spiegelen geeft de gevel niet terug: ' + JSON.stringify(kg()));
+      // plakken: de geplakte gevel heeft het id van een gevel die er al staat en krijgt een nieuwe
+      mkPlak = { c: 0, r: 0 }; mkPlakZet();
+      const ids = MK.objects.filter(o => o.k === 'gevel').map(o => o.id);
+      if (new Set(ids).size !== ids.length) f.push('na plakken twee gevels met hetzelfde id: ' + JSON.stringify(ids));
+      // het palet: alleen in de stand Stad, met een kopje per stuk in het paneel
+      mkThemaZet('savanne');
+      if (mkPaletZoek('gevel', null, { items: mkPalet() })) f.push('de gevel staat in de stand Savanne');
+      mkThemaZet('stad');
+      for (const t of ['gevel', 'kraam', 'kraamdoek', 'voet', 'paleis']) if (!mkPaletZoek(t, null, { items: mkPalet() })) f.push(t + ' ontbreekt in de stand Stad');
+      MK.tool = 'select'; MK.sel = MK.objects.find(o => o.k === 'gevel' && o.id === 'g1'); MK.inspectDicht = false; mkNotePaneel();
+      const ss = document.getElementById('mkstadsoort');
+      if (document.getElementById('mkstadctl').offsetParent === null || ss.value !== '3') f.push('het paneel van de gevel toont zijn hoogte niet: ' + ss.value);
+      ss.value = '4'; ss.dispatchEvent(new Event('change'));
+      if (MK.sel.hoog !== 4) f.push('Hoogte in het paneel zet de gevel niet op 4 hoog');
+      return f;
+    });
+    // neerzetten met de muis: het paleis verschuift (er blijft er een), een kraam met doek is een kraam met soort doek,
+    // en een nieuwe gevel krijgt een id dat er nog niet is
+    await page.evaluate(() => { MK.sel = null; MK.inspectDicht = true; mkNotePaneel(); MK.tool = 'paleis'; mkLegenda(); });   // het paneel dicht, zodat het geen cel afdekt
+    let p = await celXY(6, 1); await page.mouse.click(p.x, p.y);
+    await page.evaluate(() => { MK.inspectDicht = true; mkNotePaneel(); MK.tool = 'kraamdoek'; mkLegenda(); });
+    p = await celXY(14, 4); await page.mouse.click(p.x, p.y);
+    await page.evaluate(() => { MK.inspectDicht = true; mkNotePaneel(); MK.tool = 'gevel'; mkLegenda(); });
+    p = await celXY(5, 4); await page.mouse.click(p.x, p.y);
+    f.push(...await page.evaluate(() => {
+      const f = [], pal = MK.objects.filter(o => o.k === 'paleis');
+      if (pal.length !== 1 || pal[0].c !== 6) f.push('het paleis verschuift niet met een klik: ' + JSON.stringify(pal));
+      const kr = MK.objects.find(o => o.k === 'kraam' && o.c === 14);
+      if (!kr || kr.soort !== 'doek') f.push('Kraam met doek zet geen kraam met soort doek: ' + JSON.stringify(MK.objects.map(o => [o.k, o.c, o.r])));
+      const ids = MK.objects.filter(o => o.k === 'gevel').map(o => o.id);
+      if (!MK.objects.some(o => o.k === 'gevel' && o.c === 5) || new Set(ids).size !== ids.length) f.push('een nieuwe gevel zonder eigen id: ' + JSON.stringify(ids));
+      mkThemaZet('savanne'); MK.tool = 'select'; MK.cat = 'terrein'; MK.sub = null; MK.themaGeheugen = {}; mkLegenda();
+      return f;
+    }));
+
+    // de gekoppelde stukken (stap 4): een galerij sleep je van gevel naar gevel, een trap klik je op de zijkant van een gevel.
+    // Ze hangen aan het id van een gevel, en die koppeling blijft heel bij spiegelen, plakken, de JSON, ongedaan maken en rijen
+    // invoegen; zonder zijn gevel gaat een galerij of trap mee weg. In het level worden het stad.galerijen en stad.trappen.
+    const rijen2 = []; for (let r = 0; r < 12; r++) rijen2.push((r === 9 ? 'A' : '.').repeat(40));
+    await laad({ type: 'amir-levelmaker-grid', versie: 2, cols: 40, rows: 12, groundRow: 9, grid: rijen2,
+                 start: { c: 39, r: 8 }, eind: { c: 0, r: 8 }, objecten: [
+                   { c: 4, r: 8, k: 'gevel', id: 'g1', hoog: 2 }, { c: 9, r: 8, k: 'gevel', id: 'g2', hoog: 3 } ] });
+    const puntXY = (x, y) => page.evaluate(([x, y]) => { const b = mkCanvas.getBoundingClientRect(), cel = mkCel();
+      return { x: b.left + MK.panX + x * cel, y: b.top + MK.panY + y * cel }; }, [x, y]);
+    await page.evaluate(() => { mkThemaZet('stad'); MK.sel = null; MK.inspectDicht = true; mkNotePaneel(); MK.tool = 'galerij'; mkLegenda(); });
+    const yDek = 9 - 730 / 150;                          // de tweede verdieping, waar je de galerij begint
+    let a = await puntXY(5.5, yDek), b = await puntXY(10.5, yDek);
+    await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 5 }); await page.mouse.up();
+    await page.evaluate(() => { MK.inspectDicht = true; mkNotePaneel(); MK.tool = 'trap'; mkLegenda(); });
+    a = await puntXY(11.8, 8.5); await page.mouse.click(a.x, a.y);   // de rechterkant van g2, op de straat
+    f.push(...await page.evaluate(() => {
+      const f = [], gal = MK.objects.filter(o => o.k === 'galerij'), tr = MK.objects.filter(o => o.k === 'trap');
+      if (gal.length !== 1 || gal[0].van !== 'g1' || gal[0].tot !== 'g2' || mkGalNiveau(gal[0]) !== 2) f.push('slepen van g1 naar g2 geeft geen galerij op de tweede verdieping: ' + JSON.stringify(gal));
+      if (tr.length !== 1 || tr[0].gevel !== 'g2' || tr[0].kant !== 'r' || mkTrapNiveau(tr[0]) !== 0) f.push('een klik rechts op g2 geeft geen trap rechts van de straat af: ' + JSON.stringify(tr));
+      if (!gal.length || !tr.length) return f;
+      // het paneel: niveau, extra lengte, kant en balkon
+      MK.tool = 'select'; MK.sel = gal[0]; MK.inspectDicht = false; mkNotePaneel();
+      if (document.getElementById('mkkoppelctl').offsetParent === null) f.push('het paneel van de galerij is niet te zien');
+      const ns = document.getElementById('mkkoppelniv'); ns.value = '1'; ns.dispatchEvent(new Event('change'));
+      const sl = document.getElementById('mkgalr'); sl.value = '1.5'; sl.dispatchEvent(new Event('input'));
+      if (mkGalNiveau(gal[0]) !== 1 || !gal[0].meer || gal[0].meer[1] !== 1.5) f.push('het paneel zet niveau of extra rechts niet: ' + JSON.stringify(gal[0]));
+      MK.sel = tr[0]; mkNotePaneel();
+      if (document.getElementById('mkgallrij').offsetParent !== null || document.getElementById('mktrapbalkrij').offsetParent === null) f.push('het paneel van de trap toont de knoppen van de galerij');
+      const bs = document.getElementById('mktrapbalk'); bs.value = '2'; bs.dispatchEvent(new Event('input'));
+      document.getElementById('mktrapkant').click(); document.getElementById('mktrapkant').click();   // heen en terug: weer rechts
+      if (tr[0].balkon !== 2 || tr[0].kant !== 'r') f.push('het paneel zet balkon of kant niet: ' + JSON.stringify(tr[0]));
+      // aanklikken op het plaatje: de galerij op zijn dek, de trap op zijn plaatje, het huis ertussen blijft de gevel
+      const gm = mkGalerijMaat(gal[0]), tm = mkTrapMaat(tr[0]);
+      if (mkObjOp(Math.floor((gm.c0 + gm.c1) / 2), Math.floor(gm.dek - 0.3)) !== gal[0]) f.push('de galerij is niet aan te klikken op zijn dek');
+      if (mkObjOp(Math.floor(tm.x0 + tm.tw / 2), 8) !== tr[0]) f.push('de trap is niet aan te klikken op zijn plaatje');
+      if (mkObjOp(5, 8) === null || mkObjOp(5, 8).k !== 'gevel') f.push('de ankercel van g1 geeft niet de gevel');
+      // het level: id's worden indexen in stad.gevels (van de start af: g2 is 0, g1 is 1)
+      const S = mkNaarLevel().stad || {};
+      const G = (S.galerijen || [])[0], T = (S.trappen || [])[0];
+      if (!G || G.van !== 0 || G.tot !== 1 || G.h !== 401 || JSON.stringify(G.meer) !== '[0,1.5]') f.push('stad.galerijen klopt niet: ' + JSON.stringify(S.galerijen));
+      if (!T || T.gevel !== 0 || T.kant !== 'r' || T.niveau !== 0 || T.balkon !== 2) f.push('stad.trappen klopt niet: ' + JSON.stringify(S.trappen));
+      // de JSON en ongedaan maken
+      const j1 = JSON.stringify(mkNaarJSON()); mkUitJSON(JSON.parse(j1));
+      if (JSON.stringify(mkNaarJSON()) !== j1) f.push('galerij en trap komen niet gelijk door de JSON');
+      if (JSON.stringify(mkNaarLevel().stad) !== JSON.stringify(S)) f.push('na de JSON een ander veld stad');
+      // een rij erboven: alles schuift mee, het level blijft gelijk
+      mkRijBoven(1);
+      const go = MK.objects.find(o => o.k === 'galerij');
+      if (!go || go.r !== 9 || JSON.stringify(mkNaarLevel().stad) !== JSON.stringify(S)) f.push('na een rij erboven is de koppeling niet heel: ' + JSON.stringify(go));
+      mkRijBoven(-1);
+      // kopiëren en spiegelen: een gebied met beide gevels neemt galerij en trap mee; geplakt hangen ze aan de nieuwe gevels
+      MK.gebied = { c0: 3, r0: 0, c1: 13, r1: 11 }; mkKopieer();
+      if (mkKlembord.objects.filter(o => o.k === 'galerij' || o.k === 'trap').length !== 2) f.push('het klembord heeft de galerij en trap niet');
+      mkSpiegel(); mkPlak = { c: 20, r: 0 }; mkPlakZet();
+      const nieuwG = MK.objects.filter(o => o.k === 'gevel' && o.c >= 20).map(o => o.id);
+      const pg = MK.objects.find(o => o.k === 'galerij' && o.c >= 20), pt = MK.objects.find(o => o.k === 'trap' && o.c >= 20);
+      if (nieuwG.length !== 2 || nieuwG.includes('g1') || nieuwG.includes('g2')) f.push('de geplakte gevels hebben geen nieuw id: ' + JSON.stringify(nieuwG));
+      if (!pg || !nieuwG.includes(pg.van) || !nieuwG.includes(pg.tot) || pg.van === pg.tot) f.push('de geplakte galerij hangt niet aan de geplakte gevels: ' + JSON.stringify(pg));
+      if (!pg || JSON.stringify(pg.meer) !== '[1.5,0]') f.push('gespiegeld wisselt de extra lengte niet van kant: ' + JSON.stringify(pg && pg.meer));
+      if (!pt || !nieuwG.includes(pt.gevel) || pt.kant !== 'l') f.push('de geplakte trap hangt niet aan zijn gespiegelde gevel, links: ' + JSON.stringify(pt));
+      const gp = pt && mkGevelVan(pt.gevel), gb = MK.objects.find(o => o.k === 'gevel' && o.id === 'g2');
+      if (gp && gp.hoog !== gb.hoog) f.push('de trap hangt aan de verkeerde geplakte gevel');
+      if (MK.objects.find(o => o.k === 'galerij' && o.van === 'g1').meer[1] !== 1.5) f.push('spiegelen veranderde de originele galerij');
+      // een gebied met maar een van de twee gevels: de galerij gaat niet mee (hij hangt aan een huis buiten het gebied)
+      MK.gebied = { c0: 3, r0: 0, c1: 7, r1: 11 }; mkKopieer();
+      if (mkKlembord.objects.some(o => o.k === 'galerij')) f.push('een galerij gaat mee zonder zijn tweede gevel');
+      // een gevel weg: zijn galerij en trap gaan mee weg, het level blijft te maken, en ongedaan maken brengt ze terug
+      mkBewaarNu(); const voor = JSON.stringify(mkNaarJSON());
+      MK.objects = MK.objects.filter(o => !(o.k === 'gevel' && o.id === 'g2')); mkBewaarNu();
+      if (MK.objects.some(o => (o.k === 'galerij' && (o.van === 'g2' || o.tot === 'g2')) || (o.k === 'trap' && o.gevel === 'g2'))) f.push('zonder g2 blijven zijn galerij of trap staan');
+      try { mkNaarLevel(); } catch (e){ f.push('zonder gevel crasht mkNaarLevel: ' + e.message); }
+      mkOngedaan();
+      if (JSON.stringify(mkNaarJSON()) !== voor) f.push('ongedaan maken brengt de gevel met galerij en trap niet terug');
+      // een galerij uit de JSON die naar een gevel wijst die er niet is: valt weg, ook in het level
+      const j = mkNaarJSON(); j.objecten.push({ c: 1, r: 8, k: 'galerij', van: 'g9', tot: 'g1', niveau: 2 }, { c: 1, r: 8, k: 'trap', gevel: 'g9' });
+      mkUitJSON(j);
+      if (MK.objects.some(o => o.van === 'g9' || o.gevel === 'g9')) f.push('een galerij of trap zonder gevel blijft staan na laden');
+      mkThemaZet('savanne'); MK.tool = 'select'; MK.cat = 'terrein'; MK.sub = null; MK.themaGeheugen = {}; MK.gebied = null; mkLegenda();
+      return f;
+    }));
+
+    // de afwerking (stap 5): een vijand op een dak, galerij of balkon krijgt dak op zijn spawn, en de controle meldt wat niet
+    // klopt: gevels door elkaar, een galerij boven een dak, een trap boven het dak, zonder vloer aan zijn voet of bij de
+    // uitgang (FOUT), een trap boven een ravijn, en een vijand op een dak die daken niet kent. Elke melding heeft een cel.
+    const rijen3 = []; for (let r = 0; r < 12; r++) rijen3.push((r === 9 ? 'A' : '.').repeat(40));
+    await laad({ type: 'amir-levelmaker-grid', versie: 2, cols: 40, rows: 12, groundRow: 9, grid: rijen3,
+                 start: { c: 39, r: 8 }, eind: { c: 0, r: 8 }, objecten: [
+                   { c: 4, r: 8, k: 'gevel', id: 'g1', hoog: 2 }, { c: 6, r: 8, k: 'gevel', id: 'g2', hoog: 2 },   // door elkaar
+                   { c: 12, r: 8, k: 'gevel', id: 'g3', hoog: 1 }, { c: 16, r: 8, k: 'gevel', id: 'g4', hoog: 3 },
+                   { c: 12, r: 8, k: 'galerij', van: 'g3', tot: 'g4', niveau: 2 },                                // boven het dak van g3
+                   { c: 16, r: 8, k: 'trap', gevel: 'g4', kant: 'r', niveau: 3, balkon: 2 },                      // boven het dak, geen vloer aan de voet
+                   { c: 16, r: 8, k: 'trap', gevel: 'g4', kant: 'l', niveau: 0, balkon: 0 },                      // geen balkon en geen galerij op 401
+                   { c: 24, r: 8, k: 'gevel', id: 'g5', hoog: 2 }, { c: 24, r: 8, k: 'trap', gevel: 'g5', kant: 'l', niveau: 0, balkon: 1.6 },
+                   { c: 5, r: 3, k: 'vijand', soort: 'groen' },                                                   // op het dak van g1: kent geen daken
+                   { c: 14, r: 3, k: 'vijand', soort: 'schildman' },                                              // op de galerij op 730
+                   { c: 25, r: 3, k: 'vijand', soort: 'bandiet:dolk' } ] });                                      // op het dak van g5 (816)
+    f.push(...await page.evaluate(() => {
+      const f = [];
+      const tg5 = MK.objects.find(o => o.k === 'trap' && o.gevel === 'g5'), vc = Math.floor(mkTrapMaat(tg5).voetX);
+      MK.grid[MK.ground][vc] = 'ravijn';                                                                          // de voet van de trap bij g5 boven een ravijn
+      const m = mkControle(), heeft = (ernst, re) => m.find(q => q.ernst === ernst && re.test(q.tekst));
+      const moet = [['letop', /^Gevel g1 en g2 overlappen/, 'twee gevels door elkaar'], ['letop', /^De galerij van g3 tot g4 .*boven het dak van g3/, 'een galerij boven het dak'],
+                    ['letop', /^De trap bij g4 \(rechts, niveau 3\) komt op .* hoger dan het dak/, 'een trap boven het dak'],
+                    ['letop', /^De trap bij g4 \(rechts, niveau 3\) begint op .* geen galerij/, 'een trap zonder vloer aan zijn voet'],
+                    ['fout', /^De trap bij g4 \(links, niveau 0\) heeft geen balkon/, 'een trap zonder vloer bij de uitgang'],
+                    ['letop', /^De trap bij g5 .* boven een ravijn/, 'een trap met zijn voet boven een ravijn'],
+                    ['letop', /^Zandslang op kolom 5 staat op het dak van g1, maar deze soort kent geen daken/, 'een vijand op een dak die daken niet kent']];
+      for (const [e, re, wat] of moet){ const q = heeft(e, re); if (!q) f.push('geen ' + e + ' voor ' + wat + ': ' + JSON.stringify(m.map(q => q.tekst)));
+        else if (q.c == null || q.r == null) f.push('de melding voor ' + wat + ' heeft geen cel om naar te springen'); }
+      if (m.some(q => /Schildbandiet|Bandiet/.test(q.tekst) && /dak|zweeft/.test(q.tekst))) f.push('een melding voor de bandiet of schildbandiet op een dak: ' + JSON.stringify(m.map(q => q.tekst)));
+      if (heeft('letop', /^Gevel g4 en g5|^Gevel g3 en g4/)) f.push('een overlap voor huizen die elkaar niet raken');
+      const sp = mkNaarLevel().spawns, sch = sp.find(x => x.k === 'schildman'), ban = sp.find(x => x.k === 'bandiet'), sl = sp.find(x => x.k === 'groen');
+      if (!sch || sch.dak !== 730) f.push('de schildbandiet op de galerij krijgt geen dak: 730: ' + JSON.stringify(sch));
+      if (!ban || ban.dak !== 816 || !ban.dolk) f.push('de bandiet op het dak van g5 krijgt geen dak: 816: ' + JSON.stringify(ban));
+      if (!sl || 'dak' in sl || sl.boven) f.push('de zandslang op een dak krijgt toch dak of boven: ' + JSON.stringify(sl));
+      // en in het spel leest readLevel het zo
+      const rl = readLevel(JSON.stringify(mkNaarLevel())).spawns.find(x => x.kind === 'schildman');
+      if (!rl || rl.dak !== 730) f.push('readLevel leest het dak van de schildbandiet niet: ' + JSON.stringify(rl));
+      // een galerij op 401 langs g4: dan is er bij de uitgang wel een vloer
+      MK.objects.push({ c: 16, r: 8, k: 'galerij', van: 'g4', tot: 'g4', niveau: 1, meer: [0, 1] }); mkStadKoppel();
+      if (mkControle().some(q => q.ernst === 'fout' && /^De trap bij g4 \(links/.test(q.tekst))) f.push('een galerij bij de uitgang haalt de FOUT niet weg');
+      return f;
+    }));
+    // het proefgrid heeft de stad goed staan: geen melding over de stad, en dak op de bandiet en de schildbandiet
+    await laad(proefGrid());
+    f.push(...await page.evaluate(() => {
+      const f = [], m = mkControle().filter(q => q.ernst !== 'info' && /Gevel|galerij|trap|daken|straat/i.test(q.tekst));
+      if (m.length) f.push('het proefgrid geeft een melding over de stad: ' + JSON.stringify(m.map(q => q.tekst)));
+      const lv = mkNaarLevel(), S = lv.stad || {};
+      if ((S.gevels || []).length !== 2 || (S.galerijen || []).length !== 1 || (S.trappen || []).length !== 1 || (S.kramen || []).length !== 1 || (S.voet || []).length !== 1 || S.paleis == null || S.seed !== 7)
+        f.push('het proefgrid geeft niet de hele stad: ' + JSON.stringify(S));
+      if (!lv.spawns.some(x => x.k === 'bandiet' && x.dak === 401) || !lv.spawns.some(x => x.k === 'schildman' && x.dak === 816)) f.push('in het proefgrid geen dak op de bandiet (401) en de schildbandiet (816): ' + JSON.stringify(lv.spawns));
+      return f;
+    }));
+    return f;
+  });
+
   // 2. de vertaling naar een spel-level
   await check('vertaling: gaps, terrassen, zwevers, gang, takel, vijanden, zegel', async () => {
     await laad(proefGrid());
@@ -272,9 +506,12 @@ function verschil(a, b, pad = ''){
     else if (lv.ledges[0].look !== 'sneeuw') uit.push('de richel heeft zijn kleur (sneeuw) niet mee: ' + JSON.stringify(lv.ledges[0]));
     if (!(lv.hppotions || []).length) uit.push('geen kalebas');
     if (!lv.sneeuw || lv.sneeuw.soort !== 'savanne') uit.push('geen sneeuwdek op de savanne');
-    const gs = (lv.grondSoort || [])[0];
-    if (!gs || gs.soort !== 'straat' || (lv.grondSoort || []).length !== 1 || Math.abs(gs.van - gs.tot) !== 350)
-      uit.push('geen strook straat van 2 cellen (350 px) als enige grondsoort: ' + JSON.stringify(lv.grondSoort));
+    // straat op kolom 2 en 3 en achter de start (12 cellen); met het veld stad krijgt de savanne ook zijn eigen stroken
+    const straat = (lv.grondSoort || []).filter(g => g.soort === 'straat').map(g => Math.abs(g.van - g.tot)).sort((a, b) => a - b);
+    if (straat.join() !== '350,2100' || !(lv.grondSoort || []).some(g => g.soort === 'savanne'))
+      uit.push('geen stroken straat van 2 en 12 cellen (350 en 2100 px) naast savanne: ' + JSON.stringify(lv.grondSoort));
+    if (!lv.stad || lv.lagen !== 'stad_dag') uit.push('de stad achter de start geeft geen veld stad of geen uitzicht stad_dag');
+    if (!sp.some(s => s.k === 'bandiet' && s.dak === 401)) uit.push('de bandiet op de galerij krijgt geen dak: 401: ' + JSON.stringify(sp));
     if (!(lv.vormen || []).length) uit.push('geen vormen (vrije vorm en zwarte cel)');
     if (lv.ends[0].x >= lv.start) uit.push('eind ligt niet links van de start');
     if (lv.speerInHand !== true || lv.view !== 0.8 || lv.zicht !== true) uit.push('basisvelden (speerInHand, view 0.8, zicht) kloppen niet');
@@ -318,7 +555,7 @@ function verschil(a, b, pad = ''){
 
   // 5. snel schilderen met de muis: geen gaten in de streek
   await check('schilderen: een snelle sleep laat geen cellen over', async () => {
-    await laad({ ...proefGrid(), grid: proefGrid().grid.map(() => '.'.repeat(24)), objecten: [], maskers: [], zwart: [], vormen: [], start: null, eind: null });
+    await laad({ ...proefGrid(), grid: proefGrid().grid.map(() => '.'.repeat(36)), objecten: [], maskers: [], zwart: [], vormen: [], start: null, eind: null });
     await page.evaluate(() => { MK.tool = 'rots'; mkLegenda(); });
     const a = await celXY(2, 3), b = await celXY(21, 3);
     await page.mouse.move(a.x, a.y); await page.mouse.down();
@@ -339,7 +576,7 @@ function verschil(a, b, pad = ''){
 
   // 5b. een rechthoek vullen met Shift+slepen, ook met het masker
   await check('rechthoek: Shift+slepen vult het hele vlak', async () => {
-    await laad({ ...proefGrid(), grid: proefGrid().grid.map(() => '.'.repeat(24)), objecten: [], maskers: [], zwart: [], vormen: [], start: null, eind: null });
+    await laad({ ...proefGrid(), grid: proefGrid().grid.map(() => '.'.repeat(36)), objecten: [], maskers: [], zwart: [], vormen: [], start: null, eind: null });
     await page.evaluate(() => { MK.tool = 'muur'; mkLegenda(); });
     const a = await celXY(3, 2), b = await celXY(8, 6);
     await page.keyboard.down('Shift'); await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 3 }); await page.mouse.up(); await page.keyboard.up('Shift');
@@ -356,7 +593,7 @@ function verschil(a, b, pad = ''){
 
   // 5bb. de vulemmer: Alt+klik vult een aaneengesloten vlak
   await check('vulemmer: Alt+klik vult het vlak en niet erbuiten', async () => {
-    await laad({ ...proefGrid(), grid: proefGrid().grid.map(() => '.'.repeat(24)), objecten: [], maskers: [], zwart: [], vormen: [], start: null, eind: null });
+    await laad({ ...proefGrid(), grid: proefGrid().grid.map(() => '.'.repeat(36)), objecten: [], maskers: [], zwart: [], vormen: [], start: null, eind: null });
     await page.evaluate(() => { for (let r = 2; r <= 6; r++){ MK.grid[r][5] = 'muur'; MK.grid[r][10] = 'muur'; } for (let c = 5; c <= 10; c++){ MK.grid[2][c] = 'muur'; MK.grid[6][c] = 'muur'; } mkTeken(); MK.tool = 'gang'; mkLegenda(); });   // een omlijnde doos van muur, 5 tot 10 bij 2 tot 6
     const p = await celXY(7, 4);
     await page.keyboard.down('Alt'); await page.mouse.click(p.x, p.y); await page.keyboard.up('Alt');
@@ -405,14 +642,15 @@ function verschil(a, b, pad = ''){
     if (na.cel !== 'lucht rots rots lucht') uit.push('geplakte cellen: ' + na.cel);
     if (na.obj !== 'richel@17,1|vijand@14,2') uit.push('geplakte voorwerpen: ' + na.obj);
     if (na.plak) uit.push('de stempel bleef hangen na het neerzetten');
-    if (na.n !== 16) uit.push('aantal voorwerpen na plakken: ' + na.n + ' in plaats van 16');
+    const n0 = proefGrid().objecten.length;                            // het proefgrid, plus de geplakte richel en zandslang
+    if (na.n !== n0 + 2) uit.push('aantal voorwerpen na plakken: ' + na.n + ' in plaats van ' + (n0 + 2));
     // knippen: het gebied is nu het geplakte stuk; Ctrl+X maakt het leeg
     await page.keyboard.press('Control+x');
     const leeg = await page.evaluate(() => ({ cel: MK.grid[2].slice(14, 18).join(' '), n: MK.objects.length }));
-    if (leeg.cel !== 'lucht lucht lucht lucht' || leeg.n !== 14) uit.push('na knippen: ' + JSON.stringify(leeg));
+    if (leeg.cel !== 'lucht lucht lucht lucht' || leeg.n !== n0) uit.push('na knippen: ' + JSON.stringify(leeg));
     await page.keyboard.press('Control+z');
     const terug = await page.evaluate(() => MK.objects.length);
-    if (terug !== 16) uit.push('ongedaan maken na knippen: ' + terug + ' voorwerpen in plaats van 16');
+    if (terug !== n0 + 2) uit.push('ongedaan maken na knippen: ' + terug + ' voorwerpen in plaats van ' + (n0 + 2));
     return uit;
   });
 
@@ -423,7 +661,7 @@ function verschil(a, b, pad = ''){
     const mini = await page.evaluate(() => { const m = document.getElementById('mkmini'); const b = m.getBoundingClientRect(); return { w: m.width, h: m.height, x: b.left, y: b.top, bw: b.width, bh: b.height, zicht: getComputedStyle(m).display !== 'none' }; });
     if (!mini.zicht || mini.w < 40) uit.push('geen minimap: ' + JSON.stringify(mini));
     await page.evaluate(() => { MK.zoom = 2.5; mkTeken(); });
-    await page.mouse.click(mini.x + mini.bw * (22.5 / 24), mini.y + mini.bh * (8.5 / 12));   // op cel (22, 8)
+    await page.mouse.click(mini.x + mini.bw * (22.5 / 36), mini.y + mini.bh * (8.5 / 12));   // op cel (22, 8)
     const mid = await page.evaluate(() => { const cel = mkCel(); return { c: (mkCanvas.clientWidth / 2 - MK.panX) / cel, r: (mkCanvas.clientHeight / 2 - MK.panY) / cel }; });
     if (Math.abs(mid.c - 22.5) > 0.6 || Math.abs(mid.r - 8.5) > 0.6) uit.push('na de klik op de minimap staat cel ' + mid.c.toFixed(1) + ',' + mid.r.toFixed(1) + ' in het midden in plaats van 22.5,8.5');
     await page.keyboard.press('m');

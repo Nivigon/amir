@@ -51,10 +51,13 @@ de rand tegen (zoals een ravijnrand, regel 7), en `banZelfdeHoogte`, de kooiman/
 vloer onder Amir op de galerij goed. Wie eronder loopt blijft op de straat (de marge is klein, en een dun platform is
 geen muur in `blocksMonster`). De tafels, het rieten dak en de doek tellen niet mee.
 
-Een spawn met `dak` staat erop (bandiet en schildbandiet, `stadDakPlek`): `dak: 401` kiest de galerij of het dak op
+Een spawn met `dak` staat erop (bandiet, schildbandiet en kruisboogbandiet, `stadDakPlek`): `dak: 401` kiest de galerij of het dak op
 die hoogte dat het dichtst bij x ligt, `dak: true` het hoogste. Zijn x schuift ruim binnen de rand, want de huizen en
 galerijen schalen mee met het scherm en een vaste x kan op een andere maat net naast een dak vallen. Een hyena komt
-van de rand van het beeld en kent dit niet. In de sandbox: **Bandiet op de galerij** onder De stad.
+van de rand van het beeld en kent dit niet. In de sandbox: **Bandiet op de galerij** onder De stad. In de Maker
+nieuwstijl krijgt een bandiet of schildbandiet die op een dak, galerij of balkon staat vanzelf `dak` (zie "Vijanden op daken
+en de meldingen van de stad" in `notities/maker.md`); daar staan ook de gevels, galerijen en trappen (het plan
+`notities/plan-stad-maker.md` is klaar).
 
 Een galerij over meerdere huizen (`van` tot `tot`) loopt door over de kieren tussen de huizen, op elke schermmaat.
 Dat is de lange looprand van Stad 1, met het gevecht erop. Een rij daken loopt alleen door als de huizen elkaar op
@@ -151,10 +154,6 @@ en **Doodlopend**. Beide plaatjes zijn uit de gevel gemaakt (geen nieuwe art).
 ## Nog niet
 
 - Deuren in de deurgaten, en vijanden die uit een deur komen.
-- De trap in de Maker.
-- De Maker: gevels, galerijen, kramen en voetdecor als gereedschap. De leemmuur staat er al in (stand Stad,
-  Terrein, **Muur van leem**), en de straat als strook grondsoort (**Grond: straat**, zie
-  `notities/grondsoort.md`); het plan voor de rest staat in `notities/plan-stad-maker.md`.
 - Een lift (een takel) die zich naar de rand van een galerij voegt: het plateau heeft een vaste breedte, de galerij
   schaalt mee. In Stad 1 overlapt het plateau het eind van de galerij op een laptop; op een kleine telefoon is het
   een korte sprong opzij.

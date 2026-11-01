@@ -120,6 +120,21 @@ DOELEN = [
                                         # bij de botten. De tekencode rekent met de maten uit
                                         # grot.json en rekt elk stuk naar die maat, dus de
                                         # ankerpunten blijven op hun plek staan.
+    # De stad, per bestand (gemeten in Stad 1 tot en met 4 op 852x393, krapste stand). De tekencode
+    # rekent met stadQ en bronW/bronH, dus het halve plaatje komt op dezelfde maat en plek.
+    # straat.png (2,5x) staat er bewust niet bij: die gaat als bodemPic door de gewone grondcode,
+    # die met de echte plaatmaat rekent, dus een halve tegel zou half zo groot getekend worden.
+    # De leemplaatjes (4,1x) zijn al klein genoeg om te laten staan.
+    ('design/stad/gevel.png', 60),      # 2,7x  de voorgevels; de huizen in de verte bakken op 0,4
+    ('design/stad/paleis.png', 60),     # 2,9x  voorgebakken met nevel
+    ('design/stad/kraam_riet.png', 60), # 6,5x
+    ('design/stad/kraam_doek.png', 60), # 5,6x
+    ('design/stad/galerij.png', 60),    # 3,7x  (293 hoog, vandaar de lage drempel)
+    ('design/stad/voetdecor.png', 60),  # 3,8x
+    ('design/stad/trap.png', 60),       # 4,7x
+    # de poorten tussen de straten (Oaktown): tekencode rekent met naturalWidth, dus de halve plaat komt op dezelfde maat
+    ('design/stad/poort_hoek.png', 60),
+    ('design/stad/poort_recht.png', 60),
 ]
 
 # Bronmateriaal dat het spel nooit opvraagt. Een bestand dat hierboven bij naam

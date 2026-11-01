@@ -1019,6 +1019,34 @@ def vijanden(lv, sp):
             yield letop(o['x'], 'vijand %s start boven een ravijn' % o.get('k'))
 
 
+@regel('schutter buiten beeld')
+def schutter_buiten_beeld(lv, sp):
+    """Een kruisboogbandiet hoog op een dak of galerij (het veld dak van de stad) kan boven de
+    beeldrand staan: hij ziet en beschiet Amir op straat, terwijl Amir hem nooit in beeld krijgt.
+    De spawnvlag inBeeld: true laat hem pas zien en schieten als hij zelf helemaal in beeld staat
+    (krbInBeeld, dezelfde regel als de duo-arena); hoorn zet die vlag al zelf. Het beeld: de grond
+    ligt op 0,82 van de schermhoogte, en in een gevecht zoomt de meekijkende camera naar 0,8 (het
+    veld camera; zonder camera geldt view). Daken en galerijen tekenen op schermschaal (sp.scale),
+    net als de schutter zelf."""
+    zoom = 0.8 if lv.d.get('camera') else (lv.d['view'] if isinstance(lv.d.get('view'), (int, float)) else 1)
+    rand = 0.82 * sp.H / zoom                           # tot zo hoog boven de straat reikt het beeld
+    lijf = sp.CHAR_H * sp.scale                         # zo hoog is de schutter zelf, op dit scherm
+    for o in lv.d.get('spawns') or []:
+        if o.get('k') != 'kruisboogbandiet' or not isinstance(o.get('dak'), (int, float)):
+            continue
+        if o.get('inBeeld') is True or o.get('hoorn') is True:
+            continue
+        voet = o['dak'] * sp.scale                      # zijn voeten boven de straat, op dit scherm
+        if voet >= rand:
+            yield fout(o.get('x'), 'schutter op dak %s staat met zijn hele figuur boven de beeldrand (%s): '
+                       'hij beschiet je vanaf een plek die je vanaf de straat nooit ziet; '
+                       'geef hem inBeeld: true of zet hem lager' % (n0(o['dak']), n0(rand / sp.scale)))
+        elif voet + lijf > rand:
+            yield letop(o.get('x'), 'schutter op dak %s steekt boven de beeldrand (%s) uit: vanaf de straat '
+                        'zie je hoogstens zijn benen; inBeeld: true laat hem pas schieten als je hem ziet'
+                        % (n0(o['dak']), n0(rand / sp.scale)))
+
+
 def liften_in(lv, g):
     """De takel-platforms (lijst takels, uit de Maker nieuwstijl) die in dit ravijn staan: een lift die van
     de bodem van de gang (binnen een sprong) tot bij de grondlijn reist, is een weg naar boven."""
