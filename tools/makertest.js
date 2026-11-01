@@ -62,7 +62,7 @@ async function start(){
   }
 }
 
-// Het proefgrid: klein, maar met elke soort erop. 24 breed, 12 hoog, grondlijn op rij 7.
+// Het proefgrid: klein, maar met elke soort erop. 36 breed, 12 hoog, grondlijn op rij 7.
 //  - savanne op de grondlijn, met een ravijn (kolom 21 tot 23) boven een gang (rij 8 en 9, kolom 19 tot 23) achter de
 //    start, met twee treden onder het gat (kolom 21 en 22) als weg naar boven
 //    (het gat loopt een cel verder door dan de onderste trede, anders stoot Amir bij de sprong zijn hoofd tegen het dak)
@@ -75,10 +75,14 @@ async function start(){
 //  - een tweede ravijn (kolom 11 en 12) met een rijzer van 2 breed erin, drie cellen diep, die tot de grondlijn komt
 //  - een masker (Verborgen1) van twee cellen, een zwarte cel, en een vrije blokvorm
 //  - een gespiegelde stenen poort in savannekleur (kolom 16) met twee schorpioenen erin, die de rune opent
+//  - achter de start (kolom 24 tot 35, zodat de x van al het andere gelijk blijft) een straat met de stad: gevel g1 (2 hoog)
+//    en g2 (3 hoog), een galerij van g1 tot g2 op niveau 1, een trap rechts van g2 die op die galerij uitkomt, een rieten
+//    kraam, een kruik als voetdecor en het paleis; een bandiet op de galerij en een schildbandiet op het dak van g1
+//    (die krijgen dak op hun spawn)
 function proefGrid(){
   const rijen = [];
-  for (let r = 0; r < 12; r++) rijen.push('.'.repeat(24).split(''));
-  for (let c = 0; c < 24; c++) rijen[7][c] = 'S';
+  for (let r = 0; r < 12; r++) rijen.push('.'.repeat(36).split(''));
+  for (let c = 0; c < 36; c++) rijen[7][c] = c >= 24 ? 'A' : 'S';
   rijen[7][21] = 'V'; rijen[7][22] = 'V'; rijen[7][23] = 'V';
   rijen[7][11] = 'V'; rijen[7][12] = 'V';
   for (let r = 8; r <= 9; r++) for (let c = 19; c <= 23; c++) rijen[r][c] = 'G';
@@ -89,7 +93,7 @@ function proefGrid(){
   rijen[7][0] = 'W'; rijen[7][1] = 'W';
   rijen[7][2] = 'A'; rijen[7][3] = 'A';
   return {
-    type: 'amir-levelmaker-grid', versie: 2, cols: 24, rows: 12, groundRow: 7,
+    type: 'amir-levelmaker-grid', versie: 2, cols: 36, rows: 12, groundRow: 7, stadSeed: 7,
     grid: rijen.map(r => r.join('')),
     start: { c: 19, r: 6 }, eind: { c: 2, r: 6 }, muziek: 'darkafrica', valschade: true,
     maskers: [{ id: 'Verborgen1', look: 'grot', cells: [[8, 6], [9, 6]] }],
@@ -110,6 +114,15 @@ function proefGrid(){
       { c: 20, r: 6, k: 'zegel', onzichtbaar: true, note: '' },
       { c: 1, r: 6, k: 'prop', note: 'een boom' },
       { c: 0, r: 6, k: 'rotsdecor', prop: 'plaat_02', f: true, s: 1.2, note: '' },
+      { c: 24, r: 6, k: 'gevel', id: 'g1', hoog: 2, note: '' },
+      { c: 28, r: 6, k: 'gevel', id: 'g2', hoog: 3, note: '' },
+      { c: 24, r: 6, k: 'galerij', van: 'g1', tot: 'g2', niveau: 1, note: '' },
+      { c: 28, r: 6, k: 'trap', gevel: 'g2', kant: 'r', niveau: 0, balkon: 0, note: '' },
+      { c: 34, r: 6, k: 'kraam', soort: 'riet', note: '' },
+      { c: 27, r: 6, k: 'voet', stuk: 'kruik', note: '' },
+      { c: 32, r: 2, k: 'paleis', note: '' },
+      { c: 27, r: 3, k: 'vijand', soort: 'bandiet', note: '' },
+      { c: 25, r: 1, k: 'vijand', soort: 'schildman:makkelijk', note: '' },
     ],
   };
 }
@@ -397,6 +410,60 @@ function verschil(a, b, pad = ''){
       mkThemaZet('savanne'); MK.tool = 'select'; MK.cat = 'terrein'; MK.sub = null; MK.themaGeheugen = {}; MK.gebied = null; mkLegenda();
       return f;
     }));
+
+    // de afwerking (stap 5): een vijand op een dak, galerij of balkon krijgt dak op zijn spawn, en de controle meldt wat niet
+    // klopt: gevels door elkaar, een galerij boven een dak, een trap boven het dak, zonder vloer aan zijn voet of bij de
+    // uitgang (FOUT), een trap boven een ravijn, en een vijand op een dak die daken niet kent. Elke melding heeft een cel.
+    const rijen3 = []; for (let r = 0; r < 12; r++) rijen3.push((r === 9 ? 'A' : '.').repeat(40));
+    await laad({ type: 'amir-levelmaker-grid', versie: 2, cols: 40, rows: 12, groundRow: 9, grid: rijen3,
+                 start: { c: 39, r: 8 }, eind: { c: 0, r: 8 }, objecten: [
+                   { c: 4, r: 8, k: 'gevel', id: 'g1', hoog: 2 }, { c: 6, r: 8, k: 'gevel', id: 'g2', hoog: 2 },   // door elkaar
+                   { c: 12, r: 8, k: 'gevel', id: 'g3', hoog: 1 }, { c: 16, r: 8, k: 'gevel', id: 'g4', hoog: 3 },
+                   { c: 12, r: 8, k: 'galerij', van: 'g3', tot: 'g4', niveau: 2 },                                // boven het dak van g3
+                   { c: 16, r: 8, k: 'trap', gevel: 'g4', kant: 'r', niveau: 3, balkon: 2 },                      // boven het dak, geen vloer aan de voet
+                   { c: 16, r: 8, k: 'trap', gevel: 'g4', kant: 'l', niveau: 0, balkon: 0 },                      // geen balkon en geen galerij op 401
+                   { c: 24, r: 8, k: 'gevel', id: 'g5', hoog: 2 }, { c: 24, r: 8, k: 'trap', gevel: 'g5', kant: 'l', niveau: 0, balkon: 1.6 },
+                   { c: 5, r: 3, k: 'vijand', soort: 'groen' },                                                   // op het dak van g1: kent geen daken
+                   { c: 14, r: 3, k: 'vijand', soort: 'schildman' },                                              // op de galerij op 730
+                   { c: 25, r: 3, k: 'vijand', soort: 'bandiet:dolk' } ] });                                      // op het dak van g5 (816)
+    f.push(...await page.evaluate(() => {
+      const f = [];
+      const tg5 = MK.objects.find(o => o.k === 'trap' && o.gevel === 'g5'), vc = Math.floor(mkTrapMaat(tg5).voetX);
+      MK.grid[MK.ground][vc] = 'ravijn';                                                                          // de voet van de trap bij g5 boven een ravijn
+      const m = mkControle(), heeft = (ernst, re) => m.find(q => q.ernst === ernst && re.test(q.tekst));
+      const moet = [['letop', /^Gevel g1 en g2 overlappen/, 'twee gevels door elkaar'], ['letop', /^De galerij van g3 tot g4 .*boven het dak van g3/, 'een galerij boven het dak'],
+                    ['letop', /^De trap bij g4 \(rechts, niveau 3\) komt op .* hoger dan het dak/, 'een trap boven het dak'],
+                    ['letop', /^De trap bij g4 \(rechts, niveau 3\) begint op .* geen galerij/, 'een trap zonder vloer aan zijn voet'],
+                    ['fout', /^De trap bij g4 \(links, niveau 0\) heeft geen balkon/, 'een trap zonder vloer bij de uitgang'],
+                    ['letop', /^De trap bij g5 .* boven een ravijn/, 'een trap met zijn voet boven een ravijn'],
+                    ['letop', /^Zandslang op kolom 5 staat op het dak van g1, maar deze soort kent geen daken/, 'een vijand op een dak die daken niet kent']];
+      for (const [e, re, wat] of moet){ const q = heeft(e, re); if (!q) f.push('geen ' + e + ' voor ' + wat + ': ' + JSON.stringify(m.map(q => q.tekst)));
+        else if (q.c == null || q.r == null) f.push('de melding voor ' + wat + ' heeft geen cel om naar te springen'); }
+      if (m.some(q => /Schildbandiet|Bandiet/.test(q.tekst) && /dak|zweeft/.test(q.tekst))) f.push('een melding voor de bandiet of schildbandiet op een dak: ' + JSON.stringify(m.map(q => q.tekst)));
+      if (heeft('letop', /^Gevel g4 en g5|^Gevel g3 en g4/)) f.push('een overlap voor huizen die elkaar niet raken');
+      const sp = mkNaarLevel().spawns, sch = sp.find(x => x.k === 'schildman'), ban = sp.find(x => x.k === 'bandiet'), sl = sp.find(x => x.k === 'groen');
+      if (!sch || sch.dak !== 730) f.push('de schildbandiet op de galerij krijgt geen dak: 730: ' + JSON.stringify(sch));
+      if (!ban || ban.dak !== 816 || !ban.dolk) f.push('de bandiet op het dak van g5 krijgt geen dak: 816: ' + JSON.stringify(ban));
+      if (!sl || 'dak' in sl || sl.boven) f.push('de zandslang op een dak krijgt toch dak of boven: ' + JSON.stringify(sl));
+      // en in het spel leest readLevel het zo
+      const rl = readLevel(JSON.stringify(mkNaarLevel())).spawns.find(x => x.kind === 'schildman');
+      if (!rl || rl.dak !== 730) f.push('readLevel leest het dak van de schildbandiet niet: ' + JSON.stringify(rl));
+      // een galerij op 401 langs g4: dan is er bij de uitgang wel een vloer
+      MK.objects.push({ c: 16, r: 8, k: 'galerij', van: 'g4', tot: 'g4', niveau: 1, meer: [0, 1] }); mkStadKoppel();
+      if (mkControle().some(q => q.ernst === 'fout' && /^De trap bij g4 \(links/.test(q.tekst))) f.push('een galerij bij de uitgang haalt de FOUT niet weg');
+      return f;
+    }));
+    // het proefgrid heeft de stad goed staan: geen melding over de stad, en dak op de bandiet en de schildbandiet
+    await laad(proefGrid());
+    f.push(...await page.evaluate(() => {
+      const f = [], m = mkControle().filter(q => q.ernst !== 'info' && /Gevel|galerij|trap|daken|straat/i.test(q.tekst));
+      if (m.length) f.push('het proefgrid geeft een melding over de stad: ' + JSON.stringify(m.map(q => q.tekst)));
+      const lv = mkNaarLevel(), S = lv.stad || {};
+      if ((S.gevels || []).length !== 2 || (S.galerijen || []).length !== 1 || (S.trappen || []).length !== 1 || (S.kramen || []).length !== 1 || (S.voet || []).length !== 1 || S.paleis == null || S.seed !== 7)
+        f.push('het proefgrid geeft niet de hele stad: ' + JSON.stringify(S));
+      if (!lv.spawns.some(x => x.k === 'bandiet' && x.dak === 401) || !lv.spawns.some(x => x.k === 'schildman' && x.dak === 816)) f.push('in het proefgrid geen dak op de bandiet (401) en de schildbandiet (816): ' + JSON.stringify(lv.spawns));
+      return f;
+    }));
     return f;
   });
 
@@ -439,9 +506,12 @@ function verschil(a, b, pad = ''){
     else if (lv.ledges[0].look !== 'sneeuw') uit.push('de richel heeft zijn kleur (sneeuw) niet mee: ' + JSON.stringify(lv.ledges[0]));
     if (!(lv.hppotions || []).length) uit.push('geen kalebas');
     if (!lv.sneeuw || lv.sneeuw.soort !== 'savanne') uit.push('geen sneeuwdek op de savanne');
-    const gs = (lv.grondSoort || [])[0];
-    if (!gs || gs.soort !== 'straat' || (lv.grondSoort || []).length !== 1 || Math.abs(gs.van - gs.tot) !== 350)
-      uit.push('geen strook straat van 2 cellen (350 px) als enige grondsoort: ' + JSON.stringify(lv.grondSoort));
+    // straat op kolom 2 en 3 en achter de start (12 cellen); met het veld stad krijgt de savanne ook zijn eigen stroken
+    const straat = (lv.grondSoort || []).filter(g => g.soort === 'straat').map(g => Math.abs(g.van - g.tot)).sort((a, b) => a - b);
+    if (straat.join() !== '350,2100' || !(lv.grondSoort || []).some(g => g.soort === 'savanne'))
+      uit.push('geen stroken straat van 2 en 12 cellen (350 en 2100 px) naast savanne: ' + JSON.stringify(lv.grondSoort));
+    if (!lv.stad || lv.lagen !== 'stad_dag') uit.push('de stad achter de start geeft geen veld stad of geen uitzicht stad_dag');
+    if (!sp.some(s => s.k === 'bandiet' && s.dak === 401)) uit.push('de bandiet op de galerij krijgt geen dak: 401: ' + JSON.stringify(sp));
     if (!(lv.vormen || []).length) uit.push('geen vormen (vrije vorm en zwarte cel)');
     if (lv.ends[0].x >= lv.start) uit.push('eind ligt niet links van de start');
     if (lv.speerInHand !== true || lv.view !== 0.8 || lv.zicht !== true) uit.push('basisvelden (speerInHand, view 0.8, zicht) kloppen niet');
@@ -485,7 +555,7 @@ function verschil(a, b, pad = ''){
 
   // 5. snel schilderen met de muis: geen gaten in de streek
   await check('schilderen: een snelle sleep laat geen cellen over', async () => {
-    await laad({ ...proefGrid(), grid: proefGrid().grid.map(() => '.'.repeat(24)), objecten: [], maskers: [], zwart: [], vormen: [], start: null, eind: null });
+    await laad({ ...proefGrid(), grid: proefGrid().grid.map(() => '.'.repeat(36)), objecten: [], maskers: [], zwart: [], vormen: [], start: null, eind: null });
     await page.evaluate(() => { MK.tool = 'rots'; mkLegenda(); });
     const a = await celXY(2, 3), b = await celXY(21, 3);
     await page.mouse.move(a.x, a.y); await page.mouse.down();
@@ -506,7 +576,7 @@ function verschil(a, b, pad = ''){
 
   // 5b. een rechthoek vullen met Shift+slepen, ook met het masker
   await check('rechthoek: Shift+slepen vult het hele vlak', async () => {
-    await laad({ ...proefGrid(), grid: proefGrid().grid.map(() => '.'.repeat(24)), objecten: [], maskers: [], zwart: [], vormen: [], start: null, eind: null });
+    await laad({ ...proefGrid(), grid: proefGrid().grid.map(() => '.'.repeat(36)), objecten: [], maskers: [], zwart: [], vormen: [], start: null, eind: null });
     await page.evaluate(() => { MK.tool = 'muur'; mkLegenda(); });
     const a = await celXY(3, 2), b = await celXY(8, 6);
     await page.keyboard.down('Shift'); await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 3 }); await page.mouse.up(); await page.keyboard.up('Shift');
@@ -523,7 +593,7 @@ function verschil(a, b, pad = ''){
 
   // 5bb. de vulemmer: Alt+klik vult een aaneengesloten vlak
   await check('vulemmer: Alt+klik vult het vlak en niet erbuiten', async () => {
-    await laad({ ...proefGrid(), grid: proefGrid().grid.map(() => '.'.repeat(24)), objecten: [], maskers: [], zwart: [], vormen: [], start: null, eind: null });
+    await laad({ ...proefGrid(), grid: proefGrid().grid.map(() => '.'.repeat(36)), objecten: [], maskers: [], zwart: [], vormen: [], start: null, eind: null });
     await page.evaluate(() => { for (let r = 2; r <= 6; r++){ MK.grid[r][5] = 'muur'; MK.grid[r][10] = 'muur'; } for (let c = 5; c <= 10; c++){ MK.grid[2][c] = 'muur'; MK.grid[6][c] = 'muur'; } mkTeken(); MK.tool = 'gang'; mkLegenda(); });   // een omlijnde doos van muur, 5 tot 10 bij 2 tot 6
     const p = await celXY(7, 4);
     await page.keyboard.down('Alt'); await page.mouse.click(p.x, p.y); await page.keyboard.up('Alt');
@@ -572,14 +642,15 @@ function verschil(a, b, pad = ''){
     if (na.cel !== 'lucht rots rots lucht') uit.push('geplakte cellen: ' + na.cel);
     if (na.obj !== 'richel@17,1|vijand@14,2') uit.push('geplakte voorwerpen: ' + na.obj);
     if (na.plak) uit.push('de stempel bleef hangen na het neerzetten');
-    if (na.n !== 16) uit.push('aantal voorwerpen na plakken: ' + na.n + ' in plaats van 16');
+    const n0 = proefGrid().objecten.length;                            // het proefgrid, plus de geplakte richel en zandslang
+    if (na.n !== n0 + 2) uit.push('aantal voorwerpen na plakken: ' + na.n + ' in plaats van ' + (n0 + 2));
     // knippen: het gebied is nu het geplakte stuk; Ctrl+X maakt het leeg
     await page.keyboard.press('Control+x');
     const leeg = await page.evaluate(() => ({ cel: MK.grid[2].slice(14, 18).join(' '), n: MK.objects.length }));
-    if (leeg.cel !== 'lucht lucht lucht lucht' || leeg.n !== 14) uit.push('na knippen: ' + JSON.stringify(leeg));
+    if (leeg.cel !== 'lucht lucht lucht lucht' || leeg.n !== n0) uit.push('na knippen: ' + JSON.stringify(leeg));
     await page.keyboard.press('Control+z');
     const terug = await page.evaluate(() => MK.objects.length);
-    if (terug !== 16) uit.push('ongedaan maken na knippen: ' + terug + ' voorwerpen in plaats van 16');
+    if (terug !== n0 + 2) uit.push('ongedaan maken na knippen: ' + terug + ' voorwerpen in plaats van ' + (n0 + 2));
     return uit;
   });
 
@@ -590,7 +661,7 @@ function verschil(a, b, pad = ''){
     const mini = await page.evaluate(() => { const m = document.getElementById('mkmini'); const b = m.getBoundingClientRect(); return { w: m.width, h: m.height, x: b.left, y: b.top, bw: b.width, bh: b.height, zicht: getComputedStyle(m).display !== 'none' }; });
     if (!mini.zicht || mini.w < 40) uit.push('geen minimap: ' + JSON.stringify(mini));
     await page.evaluate(() => { MK.zoom = 2.5; mkTeken(); });
-    await page.mouse.click(mini.x + mini.bw * (22.5 / 24), mini.y + mini.bh * (8.5 / 12));   // op cel (22, 8)
+    await page.mouse.click(mini.x + mini.bw * (22.5 / 36), mini.y + mini.bh * (8.5 / 12));   // op cel (22, 8)
     const mid = await page.evaluate(() => { const cel = mkCel(); return { c: (mkCanvas.clientWidth / 2 - MK.panX) / cel, r: (mkCanvas.clientHeight / 2 - MK.panY) / cel }; });
     if (Math.abs(mid.c - 22.5) > 0.6 || Math.abs(mid.r - 8.5) > 0.6) uit.push('na de klik op de minimap staat cel ' + mid.c.toFixed(1) + ',' + mid.r.toFixed(1) + ' in het midden in plaats van 22.5,8.5');
     await page.keyboard.press('m');
