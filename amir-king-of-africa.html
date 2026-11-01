@@ -2056,7 +2056,7 @@
   <div id="duokeuze" role="dialog" aria-modal="true" aria-labelledby="dktitel"><div id="dktitel">Instellingen</div>
     <div class="dkrij">Kruisboogbandiet<small>Hoeveel bouten hij per keer herladen opneemt. Met een tweede bout op de kruisboog schiet hij snel opnieuw</small><div id="dksalvo"></div></div>
     <div class="dkrij">Schildbandiet<small>Moeilijk: een kortere tell, een snellere sprong en minder rust tussen zijn aanvallen</small><div id="dkniveau"></div></div>
-    <div class="dkrij">Zweepman<small>Nieuw: hij sluipt sneller op je af, en zonder arm slaat hij sneller, kiest hij mep of sprong op afstand en springt hij tot vlak bij je. Oud: zoals hij was</small><div id="dkzweep"></div></div>
+    <div class="dkrij">Zweepman<small>Nieuw: hij sluipt sneller op je af, en zonder arm slaat hij sneller en haalt hij uit van ver. Nieuwer: zoals nieuw, maar zonder arm is hij alleen in zijn slag onaantastbaar, zijn klap slaat je minder ver weg en verdooft je even, en hij kan een treffer meer hebben. Oud: zoals hij was</small><div id="dkzweep"></div></div>
     <button id="dkstart" type="button">Start level</button></div>
   <div id="verhaal"><div id="vhtitel"></div><div id="vhtekst"></div><button id="vhstart" type="button">Start level</button></div>
   <div id="updates"><div id="updtitel">Updates</div><div id="updstand"></div><ul id="updlijst"></ul><button id="updsluit" type="button">Terug</button></div>
@@ -30234,7 +30234,21 @@ const ZWM_NIEUW = {
   // schuifVan tot schuifTot schuift hij daarheen, hoogstens voor of terug idle-px per frame. boog: de slag, zoals de sprong
   uithaal: { doel: 520, voor: 15, terug: 15, boog: { boogVan: -100, boog: 85, kracht: 8, wExp: 0.6, strakNa: 7 } }
 };
-function zwmNieuw(){ return sandbox ? sbZwmNieuw : !!(level && level.zweepKeuze && duoKeuze.zweep === 'nieuw'); }
+// de versie: oud, nieuw of nieuwer. Nieuwer is nieuw plus ZWM_NIEUWER (fase 2: alleen in de slag zelf onaantastbaar)
+function zwmVersie(){ return sandbox ? sbZwmVersie : level && level.zweepKeuze ? duoKeuze.zweep : 'oud'; }
+function zwmNieuw(){ return zwmVersie() !== 'oud'; }
+function zwmNieuwer(){ return zwmVersie() === 'nieuwer'; }
+// De nieuwere versie (de derde keuze, naast oud en nieuw): in fase 2 was hij het grootste deel van zijn cyclus onaantastbaar
+// (van de mep tot het eind van de uithaal zo'n 4,6 s), en sloeg elke treffer je ver weg. Nu is hij alleen onaantastbaar in
+// de slag zelf (onaantastbaar: per set de frames, van de inzet van de slag tot net na de knal), dus ook in de opzwaai van de
+// uithaal, tussen de twee slagen van de mep en op de terugweg te raken. Een treffer onderbreekt hem niet: raak je hem vlak
+// voor zijn slag, dan zet hij door en raakt zijn zweep jou ook (een leven tegen een treffer). Zijn treffer slaat je minder
+// ver weg (duw, keer mepDuw en sprongDuw) maar verdooft je kort (stun, s, bovenop de gewone hurt). hp2: treffers in fase 2.
+const ZWM_NIEUWER = {
+  hp2: 3,
+  onaantastbaar: { mep: [[6, 20], [51, 60]], uithaal: [[28, 52]] },
+  duw: 0.4, stun: 0.5
+};
 // de cyclus van fase 2: in de nieuwe versie de uithaal in plaats van de sprong
 function zwmCyclus(){ return zwmNieuw() ? ZWM2.cyclus.map(n => n === 'sprong' ? 'uithaal' : n) : ZWM2.cyclus; }
 function zwmDur(C, i){ return C.dur(i) / (zwmNieuw() ? ZWM_NIEUW.slagTempo : 1); }   // fase 1: de duur van een slagframe, nieuw sneller
@@ -30269,7 +30283,7 @@ function zwmF2Data(s){ return zwmData && zwmData.bewegingen[s.f2 === 'rustuit' ?
 function zwmF2Idx(s){ const set = zwmF2Data(s); if (!set) return 0; return s.f2 === 'rustuit' ? set.frames.length - 1 - s.frame : s.frame; }
 function zwmArmEraf(s){
   zwmLaadF2();
-  s.fase = 2; s.hp = ZWM2.hp2; s.maxHp = ZWM2.hp2; s.flash = 0.28; s.inv = 0; s.knockV = 0;
+  const hp2 = zwmNieuwer() ? ZWM_NIEUWER.hp2 : ZWM2.hp2; s.fase = 2; s.hp = hp2; s.maxHp = hp2; s.flash = 0.28; s.inv = 0; s.knockV = 0;
   s.stap = -1; s.arm = null; s.druppels = s.druppels || []; s.wond = null;
   s.armSnedes = (s.snedes || []).filter(d => d.arm); s.snedes = (s.snedes || []).filter(d => !d.arm);   // de snee gaat mee met de arm
   zwmF2Set(s, 'armeraf');
@@ -30288,6 +30302,11 @@ function zwmF2Volgende(s){
 }
 function zwmF2Kwetsbaar(s){
   if (s.state !== 'f2') return false;
+  if (zwmNieuwer()){                                         // nieuwer: alleen in de slag zelf niet
+    if (s.f2 === 'armeraf' || s.f2 === 'lach') return false;
+    const i = zwmF2Idx(s);
+    return !(ZWM_NIEUWER.onaantastbaar[s.f2] || []).some(([a, b]) => i >= a && i <= b);
+  }
   if (s.f2 === 'rust' || s.f2 === 'rustin' || s.f2 === 'rustuit') return true;
   if (s.f2 === 'sprong'){ const sg = (zwmF2Data(s).touw || [])[0]; return sg && s.frame > sg.knal + 2; }   // in de eindpose na de sprong-slag
   if (s.f2 === 'uithaal') return s.frame >= zwmF2Data(s).kwetsbaarVan;   // op de terugweg na de uithaal
@@ -31905,7 +31924,7 @@ const duoKeuze = (() => {
   let k = {};
   try { k = JSON.parse(localStorage.getItem('amir.duoKeuze') || '{}') || {}; } catch (e) {}
   return { salvo: KRB_SALVO[k.salvo] ? k.salvo : '2dan1', niveau: k.niveau === 'moeilijk' ? 'moeilijk' : 'makkelijk',
-           zweep: k.zweep === 'oud' ? 'oud' : 'nieuw' };
+           zweep: ['oud', 'nieuw', 'nieuwer'].includes(k.zweep) ? k.zweep : 'nieuw' };
 })();
 const duoKeuzeEl = document.getElementById('duokeuze');
 let duoKeuzeVerder = null, duoKeuzeDoor = false;
@@ -31923,7 +31942,7 @@ function duoKeuzeBouw(){
   };
   rij('dksalvo', ['2dan1', '2', '1'].map(w => [w, KRB_SALVO[w].naam]), 'salvo');
   rij('dkniveau', [['makkelijk', 'Makkelijk'], ['moeilijk', 'Moeilijk']], 'niveau');
-  rij('dkzweep', [['oud', 'Oud'], ['nieuw', 'Nieuw']], 'zweep');
+  rij('dkzweep', [['oud', 'Oud'], ['nieuw', 'Nieuw'], ['nieuwer', 'Nieuwer']], 'zweep');
   const toon = (id, aan) => { document.getElementById(id).parentElement.style.display = aan ? '' : 'none'; };   // alleen de rijen van dit level
   toon('dksalvo', duoKeuzeDuo()); toon('dkniveau', duoKeuzeDuo()); toon('dkzweep', !!(level && level.zweepKeuze));
   duoKeuzeStand();
@@ -35841,7 +35860,8 @@ function loop(now){
         if (zwmRaakt(s, bodyX, voeten, gs, pbox)){
           const px = playerX(); hurtPlayer(s.x < px); s.geraaktAmir = true;
           const k = Math.random(); if (k < ZWM_STEM.raakVoel) zwmZeg('voel'); else if (k < ZWM_STEM.raakVoel + ZWM_STEM.raakLach) zwmZeg('lach');
-          if (invuln > 0) knock = (s.x < px ? 1 : -1) * (s.state === 'f2' ? (s.f2 === 'mep' ? ZWM2.mepDuw : ZWM2.sprongDuw) : 260);
+          if (invuln > 0) knock = (s.x < px ? 1 : -1) * (s.state === 'f2' ? (s.f2 === 'mep' ? ZWM2.mepDuw : ZWM2.sprongDuw) * (zwmNieuwer() ? ZWM_NIEUWER.duw : 1) : 260);
+          if (invuln > 0 && s.state === 'f2' && zwmNieuwer()) hurt = Math.max(hurt, ZWM_NIEUWER.stun);   // nieuwer: korter weg, maar even verdoofd
         }
         if (s.inv > 0) continue;
         if (attacking && !swingUsed && steekLive() && steekRaakt('zweepman')){
@@ -36374,7 +36394,7 @@ function pauseGame(){
   document.getElementById('pzkeuze').style.display = level && level.talentKeuze && !sandbox ? '' : 'none';
   const pzDuo = document.getElementById('pzduo');
   pzDuo.style.display = (duoKeuzeDuo() || (level && level.zweepKeuze)) && !sandbox ? '' : 'none';
-  pzDuo.textContent = duoKeuzeDuo() ? 'Arena instellen' : 'Zweepman: oud of nieuw';
+  pzDuo.textContent = duoKeuzeDuo() ? 'Arena instellen' : 'Zweepman: welke versie';
   document.getElementById('pzmesbtn').style.display = tribeHeeft('jackal_fang') ? '' : 'none';   // alleen met het mes
   if (!tribeHeeft('jackal_fang')) document.getElementById('pzmes').classList.remove('on');
   mesAfstelToon();
@@ -43153,11 +43173,11 @@ sbKrbSalvoBtn.onclick = () => {
 };
 sbKrbSalvoLabel();
 // de schildbandiet: AI uit speelt alleen zijn loop, zodat je de dreigende gang kunt bekijken
-let sbZwmVrij = false, sbZwmSlag = null, sbZwmFasen = false, sbZwmNieuw = false;
+let sbZwmVrij = false, sbZwmSlag = null, sbZwmFasen = false, sbZwmVersie = 'oud';
 const sbZwmVersieBtn = document.getElementById('sbzwmversie');
-sbZwmVersieBtn.onclick = () => {                       // de oude of de nieuwe zweepman (ZWM_NIEUW), meteen voor allemaal
-  sbZwmNieuw = !sbZwmNieuw;
-  sbZwmVersieBtn.textContent = 'Versie: ' + (sbZwmNieuw ? 'nieuw' : 'oud'); sbZwmVersieBtn.classList.toggle('on', sbZwmNieuw); cv.focus();
+sbZwmVersieBtn.onclick = () => {                       // oud, nieuw (ZWM_NIEUW) of nieuwer (ZWM_NIEUWER), meteen voor allemaal
+  const v = ['oud', 'nieuw', 'nieuwer']; sbZwmVersie = v[(v.indexOf(sbZwmVersie) + 1) % v.length];
+  sbZwmVersieBtn.textContent = 'Versie: ' + sbZwmVersie; sbZwmVersieBtn.classList.toggle('on', sbZwmVersie !== 'oud'); cv.focus();
 };
 const sbZwmFasenBtn = document.getElementById('sbzwmfasen');
 sbZwmFasenBtn.onclick = () => {                        // nieuwe zweepmannen krijgen fase 2 (ZWM2)
