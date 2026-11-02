@@ -323,3 +323,22 @@ De stadsplaatjes hebben dus geen extra outline. Niet opnieuw toevoegen zonder da
 ## Nog niet
 
 - Een subtiele gloed om de personages (in de mockups hielp dat tegen de bruine muren), en een kleine set (`klein/`).
+
+## De huizenrijen in de verte als strook (`stadRijStrookTeken`, `STAD_STROOK`, `STROOK`)
+
+`stadAchter` tekende de drie achterrijen huis voor huis: per huis een save, een spiegeling en een stapel strookjes
+muur tot de grond, zo'n 66 tot 150 tekenopdrachten per beeld. Op een telefoon was dat twee derde van elk beeld
+(gemeten in Stad 6 op 852x393 met een vier keer tragere CPU: 333 ms per beeld, zonder de achterrijen 117 ms).
+
+Nu tekent `stadRijStrookMaak` elke rij een keer in een eigen canvas op schermresolutie (`DPR`), met de muur onder de
+huizen `STROOK.diep` schermhoogtes diep, en `STROOK.marge` schermbreedtes extra aan elke kant. Per beeld zet
+`stadRijStrookTeken` alleen het stuk dat in beeld valt neer, op hele schermpixels en zonder gladmaakfilter (het is 1 op
+1, dus er valt niets te verzachten, en het kopieren is zo veel goedkoper). Klimt de camera dieper dan de strook, dan
+herhaalt hij de onderste verdieping. Een nieuwe strook komt er als de rij uit de strook schuift, `DPR` verandert, het
+level wisselt, of de maat (de meekijkende camera zoomt) `STROOK.rust` beelden vast staat op een andere waarde; tot dan
+blijft de oude verschaald staan. `laadVrij` gooit de stroken weg in een level zonder stad (samen zo'n 30 MB).
+
+Gemeten (zelfde opstelling, mediaan per beeld): Stad 1 van 450 naar 167 ms, Stad 6 van 367 naar 150 ms, Stad 6
+lopend van 533 naar 250 ms. Het beeld verschilt alleen in de randen van de huizen, omdat ze nu op hele pixels staan in
+plaats van een fractie ernaast: `node tools/beeldgelijk.js --vlag STAD_STROOK` zet de oude weg (`STAD_STROOK = false`)
+ernaast.
