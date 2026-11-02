@@ -33,7 +33,9 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
   de knots los op zijn bal en kantelt in code van hem weg om, `knots` in de json, `BRU.knotsLig`, met een kleine plof en stof)
   en `val` (het doodsgeluid, hij zakt op zijn knieen en valt voorover; op het frame met bron `BRU.valKlap` de plof, een
   schok en de grote stofwolk). Daarna blijft hij liggen (fase `lig`, over de knots heen), gaat de uitgang open en speelt
-  "ta soul, rest". De val-frames zijn per frame op de grond gezet: Grok liet hem ruim 100 px boven de grond liggen. Liggend is hij
+  "ta soul, rest". De val-frames zijn per frame op de grond gezet: Grok liet hem ruim 100 px boven de grond liggen. Grok liet hem ook
+  groeien bij het knielen en liggen: de val-frames zijn per frame geschaald rond het anker (veld `schaal`: staand 1, geknield
+  0,76, liggend 0,57), zodat hij liggend ongeveer zo lang is als hij staand hoog is. Liggend is hij
   nog wat lang (het eindbeeld van Grok was te groot); een betere ligpose en de speer-finisher (speer breken, schreeuw) komen later.
 - Zolang hij leeft blijven Amir en Brutus tussen `brutus.van` en `brutus.tot` (`bruKlem`).
 - **Bloed** (eerste versie, `BRU.bloed`, `bruBloedRaak`): elke treffer geeft een spat druppels uit zijn borst, naar de kant
