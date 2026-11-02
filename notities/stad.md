@@ -311,7 +311,9 @@ grondSoort: [{van, tot, soort: 'plein'}]
 - **De poorten** (`pleinpoorten`): de rechte poort van de straten (`STRATEN.recht`, dezelfde maat als in Oaktown), als decor
   op het vlak van de straat, `x` is het midden. Met `hek: 'dicht'` staat het valhek (`HEK.src`) tot op de grond in de boog,
   met `hek: 'open'` is het voor `STAD.plein.hek.open` van de opening opgetrokken; het hek wordt op de vorm van de boog
-  afgeknipt. De poort en het hek doen nog niets: geen E, geen botsing, het hek gaat niet op of neer. Dat komt met de baas.
+  afgeknipt. De poort en het hek doen nog niets: geen E, geen botsing en geen animatie. Met `uit: true` is het de
+  uitgang van de baas: Brutus (`notities/brutus.md`) zet hem dicht bij de start en open als hij sterft (in een klap,
+  zonder takelen). De wanden van het gevecht komen uit `brutus.van` en `brutus.tot`, niet uit de poorten.
 
 De pleinwand en de put hebben een donkere outline gekregen, net als de andere stadsplaatjes (zie hieronder).
 
