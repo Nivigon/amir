@@ -68,6 +68,13 @@ Sandbox: Vijanden, rij **Brutus (baas)**: zonder wachten, meteen stormen.
 - Bron: Grok-clips (idle_breathign1, RC2, hitnice), gekeyd en per clip op één schaal en één verschuiving
   gezet (animeer tool Bruut), daarna omgekleurd: broek zwart, sjerp bloedrood, windsels ijzer; het rode
   haar bleef. De idle is één inademing heen en terug; in het spel volgt hij het ademgeluid (`BRU.ademPeriode`).
+- **Nyundo donker** (`huid: 'donker'` in `brutus: {...}`, of in de sandbox de knop **Huid** in de rij Brutus): dezelfde
+  frames in een tweede kleurstelling, `enemies/brutus/frames_donker/` (en `klein/`), uit `tools/brutus_donker.py`.
+  Donkerder bruine huid, zwart haar, feller rood in het gezicht met een licht litteken over zijn oog, een bruine broek,
+  een gouden sjerp en warm gouden polswindsels (een verloop met glans). Het script leest brutus.json voor het anker en
+  zoekt per frame het haar, het gezicht, de sjerp, de broek en de polsen op. Lui geladen (`bruDonkerLaad`); tot die
+  frames binnen zijn tekent hij met de gewone. Geen level gebruikt het nog. Na `brutus_voeten.py` opnieuw draaien,
+  daarna `gen-klein.py` en `gen-offline-manifest.py`.
 - Geluiden: `sounds/brutus_adem.mp3` (loopt zolang hij staat te ademen), `brutus_stap.mp3`,
   `brutus_zwaai.mp3` (start op zwaaiframe `BRU.zwaaiGeluid`, de zoef valt op de treffer),
   `brutus_geraakt.mp3`, `brutus_dood.mp3`.

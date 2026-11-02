@@ -1206,6 +1206,7 @@
       <div class="row">
         <label>Brutus (baas)</label>
         <button data-spawn="brutus">Brutus</button>
+        <button id="sbbruhuid">Huid: gewoon</button>
         <button id="sbzwmvrij">AI uit</button>
         <button id="sbzwmslag">Slag: wissel</button>
         <button id="sbzwmfasen">Fasen uit</button>
@@ -29891,26 +29892,39 @@ function bruLaad(){
     const imgs = {};
     for (const b in m.bewegingen) for (const fr of m.bewegingen[b].frames) if (!imgs[fr.src]) imgs[fr.src] = loadQuiet([BRU_ROOT + fr.src]);
     bruBank.lagen = imgs; bruData = m;
+    if (bruBank.donkerWil) bruDonkerLaad();
   }).catch(e => { bruBezig = false; meldFout('bruData', 'brutus: brutus.json niet geladen', e); })
     .finally(() => { laadJsonOpen--; });
 }
-function bruLaadLevel(lv){ if (lv && lv.brutus) bruLaad(); }
+// Nyundo donker (huid: 'donker'): dezelfde frames met een donkerder bruine huid, uit tools/brutus_donker.py.
+// Pas geladen als er een donkere Brutus komt; tot die binnen zijn tekent hij met de gewone frames.
+const BRU_DONKER = 'frames_donker/';
+function bruDonkerLaad(){
+  bruBank.donkerWil = true;
+  if (!bruData || bruBank.donker) return;
+  const imgs = {};
+  for (const b in bruData.bewegingen) for (const fr of bruData.bewegingen[b].frames)
+    if (!imgs[fr.src]) imgs[fr.src] = loadQuiet([BRU_ROOT + fr.src.replace(/^frames\//, BRU_DONKER)]);
+  bruBank.donker = imgs;
+}
+function bruLaadLevel(lv){ if (lv && lv.brutus){ bruLaad(); if (lv.brutus.huid === 'donker') bruDonkerLaad(); } }
 function bruVrij(nodigNu){
-  if (bruData && !nodigNu){ delete bruBank.lagen; bruData = null; bruBezig = false; }
+  if (bruData && !nodigNu){ delete bruBank.lagen; delete bruBank.donker; bruBank.donkerWil = false; bruData = null; bruBezig = false; }
   if (bruGeluid && !nodigNu){ try { bruGeluid.adem.pause(); bruGeluid.hek.pause(); } catch (e) {} bruGeluid = null; }
 }
 function bruScale(){ const scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H; return (CHAR_H * scale * BRU.hShare) / BRU.fig; }
 function makeBrutus(x, opts){
   bruLaad();
   const o = opts || {};
-  return { x, face: -1, state: 'wacht', frame: 0, acc: 0, t: 0, inv: 0, flash: 0, base: 0,
+  if (o.huid === 'donker') bruDonkerLaad();
+  return { x, huid: o.huid || null, face: -1, state: 'wacht', frame: 0, acc: 0, t: 0, inv: 0, flash: 0, base: 0,
            hp: BRU.hp, maxHp: BRU.hp, hpBalk: true, van: o.van, tot: o.tot, start: null,
            stormDir: -1, stapF: -1, ademT: 0, opnieuw: false, geraaktAmir: false, val: 0, plof: false, sandbox: !!o.sandbox };
 }
 // het level: Brutus neerzetten, de ingang dicht (Amir start al binnen), de uitgang dicht tot hij dood is
 function bruStart(){
   const b = level && level.brutus; if (!b) return;
-  brutus = makeBrutus(b.x, { van: b.van, tot: b.tot });
+  brutus = makeBrutus(b.x, { van: b.van, tot: b.tot, huid: b.huid });
   brutus.base = terrainH(b.x);
   brutus.start = world;
   for (const p of ((level.stad && level.stad.pleinpoorten) || [])) if (p.uit){ p.hek = 'dicht'; p.hekOpen = 0; p.hekT = null; }
@@ -30085,7 +30099,8 @@ function bruFrame(s){
 }
 function bruTeken(s, bodyX, voeten, gs){
   const fr = bruFrame(s); if (!fr) return;
-  const im = (bruBank.lagen || {})[fr.src]; if (!im || !imgReady(im)) return;
+  const dk = s.huid === 'donker' && (bruBank.donker || {})[fr.src];
+  const im = dk && imgReady(dk) ? dk : (bruBank.lagen || {})[fr.src]; if (!im || !imgReady(im)) return;
   ctx.save(); ctx.translate(bodyX, voeten);
   if (s.face === 1) ctx.scale(-1, 1);
   if (s.state === 'dood'){                                 // achterover kantelen om zijn hiel, steeds sneller, en wegvagen onder het stof
@@ -37942,7 +37957,7 @@ function readLevel(txt){
            // tussen de wanden start in plaats van ernaartoe te lopen (zie "schacht")
            start: (o.start === undefined || o.start === null) ? null : Number(o.start),
            // Brutus, de baas van het plein (zie notities/brutus.md): waar hij staat en de wanden van zijn arena
-           brutus: o.brutus ? { x: Number(o.brutus.x), van: o.brutus.van != null ? Number(o.brutus.van) : undefined, tot: o.brutus.tot != null ? Number(o.brutus.tot) : undefined } : undefined,
+           brutus: o.brutus ? { x: Number(o.brutus.x), van: o.brutus.van != null ? Number(o.brutus.van) : undefined, tot: o.brutus.tot != null ? Number(o.brutus.tot) : undefined, huid: o.brutus.huid === 'donker' ? 'donker' : undefined } : undefined,
            geenSpeer: !!o.geenSpeer,                    // geen speer voor je in de grond (haal er een uit een skelet)
            rand: o.rand ? (typeof o.rand === 'number' ? Number(o.rand) : true) : undefined,   // de rand: geen rotswand en hut aan de start, Amir begint aan de rand van het level (RAND); de standaard voor een nieuw level
            kaleKlif: !!o.kaleKlif,                       // de klifwand en de hut aan start en eind niet tekenen (de grenzen blijven onzichtbaar bestaan); nu alleen de Maker (kale start en eind)
@@ -42908,7 +42923,7 @@ function sbSpawn(kind, kant, plek, hoogte){       // kant en plek: de arena-modu
     b.vrij = false;                                  // AI aan, anders komt de hinderlaag niet op gang
     bandieten.push(b);
   }
-  else if (kind === 'brutus'){ brutus = makeBrutus(x, { sandbox: true }); brutus.base = vlBij(x); }
+  else if (kind === 'brutus'){ brutus = makeBrutus(x, { sandbox: true, huid: sbBruHuid }); brutus.base = vlBij(x); }
   else if (kind === 'zweepman'){ const m = makeZweepman(x, side, sbZwmFasen); m.base = vlBij(x); m.vrij = sbZwmVrij; m.slagVast = sbZwmSlag; zweepmannen.push(m); }
   else if (kind === 'schildman' || kind === 'schildman_makkelijk'){   // de moeilijke (standaard) of de makkelijke vorm (niveau: 'makkelijk')
     const m = makeSchildman(x, side, kind === 'schildman_makkelijk' ? 'makkelijk' : 'moeilijk'); m.base = vlBij(x); m.vrij = sbSchVrij; schildmannen.push(m);
@@ -43949,6 +43964,14 @@ sbKrbSalvoBtn.onclick = () => {
   sbKrbSalvoLabel(); cv.focus();
 };
 sbKrbSalvoLabel();
+// Brutus: gewoon of donker (Nyundo met een donkerder bruine huid), meteen ook voor de Brutus die er staat
+let sbBruHuid = null;
+const sbBruHuidBtn = document.getElementById('sbbruhuid');
+sbBruHuidBtn.onclick = () => {
+  sbBruHuid = sbBruHuid ? null : 'donker'; if (sbBruHuid) bruDonkerLaad();
+  if (brutus) brutus.huid = sbBruHuid;
+  sbBruHuidBtn.textContent = 'Huid: ' + (sbBruHuid || 'gewoon'); sbBruHuidBtn.classList.toggle('on', !!sbBruHuid); cv.focus();
+};
 // de schildbandiet: AI uit speelt alleen zijn loop, zodat je de dreigende gang kunt bekijken
 let sbZwmVrij = false, sbZwmSlag = null, sbZwmFasen = false, sbZwmVersie = 'oud';
 const sbZwmVersieBtn = document.getElementById('sbzwmversie');
