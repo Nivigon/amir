@@ -942,6 +942,9 @@ def einde(lv, sp):
     _deur = lv.d.get('deur')
     if _deur and _deur.get('uitgang'):
         return                        # de houten deur als uitgang: na het gevecht speel je met E op de open deur het level uit (winLevel), geen fakkels
+    _plein = ((lv.d.get('stad') or {}).get('pleinpoorten') or [])
+    if lv.d.get('brutus') and any(p.get('uit') for p in _plein):
+        return                        # het plein van Brutus: als hij ligt takelen de hekken op en speel je met E onder een open poort uit (pleinUitgang), geen fakkels
     if not lv.ends and not lv.muur:
         yield fout(None, 'geen ends en geen muur: dit level is niet uit te spelen')
         return
