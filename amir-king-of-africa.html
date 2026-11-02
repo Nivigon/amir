@@ -29756,8 +29756,16 @@ const BRU = {
   adem: 0.8,                      // zo lang ademt hij na een zwaai voor hij weer stormt (s)
   inv: 0.22,                      // na een treffer even onraakbaar (korter dan een steek duurt)
   duw: 520,                       // zo hard vliegt Amir weg als hij geraakt wordt
+  // het bloed (een eerste versie): bij elke treffer een spat uit zijn borst naar Amir toe, en bij treffers
+  // sneeOp een snee op zijn lijf (een decal uit design/bloed/snedes, geknipt op zijn silhouet). Plekken in
+  // grote-set-pixels van zijn anker (naar links kijkend: negatieve x is zijn voorkant)
+  bloed: { spat: 12, spatV: 480, tref: { x: -60, y: -215 },
+           sneeOp: [2, 5, 8, 11, 14],
+           snedes: [ { naam: 'snee_haal', x: -30, y: -230, h: 90, rot: 0.7 }, { naam: 'snee_recht', x: 10, y: -175, h: 80, rot: -0.5 },
+                     { naam: 'snee_dwars', x: -45, y: -150, h: 70, rot: 0.2 }, { naam: 'snee_haal', x: 30, y: -250, h: 75, rot: -0.9 },
+                     { naam: 'snee_recht', x: -15, y: -200, h: 95, rot: 1.1 } ] },
   naam: 'Nyundo',                 // de naam in beeld (Swahili: de hamer); Brutus is de codenaam
-  vol: { adem: 0.75, stap: 0.85, geraakt: 0.95, dood: 1, plof: 0.8, zwaai: 0.95 },
+  vol: { adem: 0.75, stap: 0.85, geraakt: 0.95, dood: 1, plof: 0.8, zwaai: 0.95, speer: 1 },
   ademPeriode: 2.33               // de ademhaling in sounds/brutus_adem.mp3: in en uit duurt zo lang
 };
 let bruData = null, bruBezig = false, bruGeluid = null;
@@ -29765,9 +29773,11 @@ const bruBank = {};
 let brutus = null;
 function bruLaad(){
   laadNodig('bru');
+  bloedSneeLaad();                                  // de snee-plaatjes (gedeeld met de zweepman en de bandiet)
   if (!bruGeluid){
     const adem = geluidAan(new Audio()); adem.preload = 'auto'; adem.src = 'sounds/brutus_adem.mp3'; adem.loop = true;
     bruGeluid = { adem, stap: banStemmen('sounds/brutus_stap.mp3', 3), geraakt: banStemmen('sounds/brutus_geraakt.mp3', 2), zwaai: banStemmen('sounds/brutus_zwaai.mp3', 2),
+                  speer: banStemmen('sounds/brutus_speerraak.mp3', 3),
                   dood: banStemmen('sounds/brutus_dood.mp3', 1), plof: banStemmen('sounds/bavland.mp3', 1) };
   }
   if (bruData || bruBezig) return;
@@ -29825,6 +29835,7 @@ function updateBrutus(dt){
   if (s.inv > 0) s.inv = Math.max(0, s.inv - dt);
   s.t += dt;
   s.base = vloerBij(s.x, s.base);
+  zwmDruppelStap(s, dt);                                    // de bloeddruppels vallen en blijven even liggen (zoals bij de zweepman)
   bruAdemSpeel(s.state === 'wacht' || s.state === 'adem');
   if (s.state === 'dood'){
     s.val = Math.min(1, s.val + dt / 0.75);               // achterover kantelen, steeds sneller
@@ -29876,16 +29887,31 @@ function hitBrutus(s){
   s.hp--; s.flash = 0.25; s.inv = BRU.inv;
   hitstop = Math.max(hitstop, 0.06); shake = Math.max(shake, 0.12);
   woedeVul(woedeWaarde('perBaasTreffer'));
+  banStemSpeel(bruGeluid.speer, BRU.vol.speer);             // de speer in zijn vlees
+  bruBloedRaak(s);
   if (s.hp <= 0){
     s.state = 'dood'; s.val = 0; s.plof = false; s.flash = 0.6;
     bruAdemSpeel(false);
-    banStemSpeel(bruGeluid.dood, BRU.vol.dood);
+    banStemSpeel(bruGeluid.dood, BRU.vol.dood); bloedSpeel();
     for (const p of ((level && level.stad && level.stad.pleinpoorten) || [])) if (p.uit) p.hek = 'open';
     vijandDood(true);
     return true;
   }
   banStemSpeel(bruGeluid.geraakt, BRU.vol.geraakt);
   return true;
+}
+// een treffer: een spat uit zijn borst, naar Amir toe en omhoog, en op sommige treffers een snee erbij
+function bruBloedRaak(s){
+  const B = BRU.bloed, nr = s.maxHp - s.hp;                 // de hoeveelste treffer dit is
+  s.snedes = s.snedes || []; s.druppels = s.druppels || [];
+  if (B.sneeOp.includes(nr) && s.snedes.length < B.snedes.length) s.snedes.push(Object.assign({}, B.snedes[s.snedes.length]));
+  const naarAmir = (playerX() > s.x ? 1 : -1) === s.face;   // komt de klap van voren (waar hij heen kijkt)?
+  const tx = naarAmir ? B.tref.x : -B.tref.x;
+  for (let i = 0; i < B.spat * (s.hp <= 0 ? 2 : 1); i++){
+    const a = (naarAmir ? Math.PI : 0) + (Math.random() - 0.35) * 1.2 * (naarAmir ? 1 : -1), v = B.spatV * (0.35 + Math.random() * 0.75);
+    s.druppels.push({ x: tx, y: B.tref.y, wx: s.x, face: s.face, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.8 - 140, lig: 0, r: 2.5 + Math.random() * 3.5 });
+  }
+  s.wond = { x: tx, y: B.tref.y, t: 0 };                    // de wond druppelt nog even na
 }
 // welk frame en welke beweging hij nu toont
 function bruFrame(s){
@@ -29911,8 +29937,10 @@ function bruTeken(s, bodyX, voeten, gs){
     const k = s.val * s.val;
     ctx.translate(70 * gs, 0); ctx.rotate(k * Math.PI * 0.5); ctx.translate(-70 * gs, 0);
   }
-  ctx.drawImage(s.flash > 0 ? whiteCopy(im, s.flash * 4) : im, fr.dx * gs, fr.dy * gs, fr.w * gs, fr.h * gs);
+  const beeld = s.flash > 0 ? whiteCopy(im, s.flash * 4) : im;
+  ctx.drawImage(s.snedes && s.snedes.length ? zwmSneeLaag(beeld, fr, gs, s.snedes) : beeld, fr.dx * gs, fr.dy * gs, fr.w * gs, fr.h * gs);
   ctx.restore();
+  zwmDruppelTeken(s, bodyX, voeten, gs, 1);
 }
 // het vak waar de zwaai raakt (of null): alleen in de raakframes, voor hem (naar waar hij kijkt), tot raakHoog boven de grond
 function bruRaakVak(s, bodyX, voeten, gs){

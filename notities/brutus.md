@@ -27,6 +27,14 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
   schok en stof) en blijft liggen. De poort met `uit: true` gaat open en `bossBlocking` laat het level weer
   uitspelen. Een echte dood-animatie komt later.
 - Zolang hij leeft blijven Amir en Brutus tussen `brutus.van` en `brutus.tot` (`bruKlem`).
+- **Bloed** (eerste versie, `BRU.bloed`, `bruBloedRaak`): elke treffer geeft een spat druppels uit zijn borst, naar de kant
+  waar de klap vandaan kwam, die op de grond blijven liggen en vervagen (de druppels van de zweepman: `zwmDruppelStap`,
+  `zwmDruppelTeken`). Op treffer 2, 5, 8, 11 en 14 (`sneeOp`) komt er een snee op zijn lijf, een decal uit
+  `design/bloed/snedes` op een vaste plek op zijn borst en buik (`snedes`), geknipt op zijn silhouet (`zwmSneeLaag`).
+  Bij een draai of de zwaai valt een snee soms (deels) buiten zijn lijf en is dan niet te zien. Bij zijn dood speelt
+  ook het bloedgeluid (`bloedSpeel`).
+- **Speertreffer**: `sounds/brutus_speerraak.mp3` op elke treffer (een tijdelijk, in ffmpeg gemaakt geluid: een doffe
+  dreun met een korte natte klap; vervang het bestand met dezelfde naam door een echt geluid).
 
 ## Het level
 `brutus: { x, van, tot }` in de leveldefinitie (ook door `readLevel`), en bij de pleinpoorten
