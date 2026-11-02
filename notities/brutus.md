@@ -37,6 +37,8 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
   dreun met een korte natte klap; vervang het bestand met dezelfde naam door een echt geluid).
 
 ## Het level
+Het laadscherm van een level met `brutus` is `design/menu/laadscherm_brutus.jpg` (Amir tegenover Nyundo in de poort,
+de klasse `brutus` op `#laad`, in `laadPoort`); het gaat boven het stadsbeeld.
 `brutus: { x, van, tot }` in de leveldefinitie (ook door `readLevel`), en bij de pleinpoorten
 `uit: true` voor de uitgang. Sandbox: Vijanden, rij **Brutus (baas)**: zonder wachten, meteen stormen.
 
