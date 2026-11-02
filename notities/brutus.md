@@ -19,6 +19,10 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
   weer met een kortere tell (`BRU.tellOpnieuw`); anders ademt hij even (`BRU.adem`) en stormt opnieuw.
 - **Woede**: met `BRU.woedeHp` (6) levens of minder gaan de tell, de zwaai en het raam sneller
   (`BRU.woede`): dan red je nog maar één treffer.
+  Je ziet het aan hem (`BRU.gloed`, `bruGloedStap`): bij de omslag een flits, een schok en een korte hitstop, daarna
+  gloeit hij rood op het ritme van zijn adem (`bruPuls`). Zijn eigen kleuren worden met rood vermenigvuldigd zodat de
+  lijnen blijven (`bruGloedBeeld`), met een rode gloed om zijn silhouet (`shadowBlur`), een rode plas licht op de vloer
+  (`bruVloerGloed`) en vonken die van zijn schouders opstijgen (`bruVonkTeken`). Bij zijn dood dooft het weer.
 - Een treffer van Brutus kost Amir één leven en Amir vliegt weg (`BRU.duw`).
 - **Zestien treffers** (`BRU.hp`): de steek, de lage zwaai en de worp tellen elk één (de worp valt daarna
   naast hem neer, zoals bij elke vijand). Het mes doet niets. Na een treffer is hij `BRU.inv` s onraakbaar.
@@ -47,7 +51,11 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
 Het laadscherm van een level met `brutus` is `design/menu/laadscherm_brutus.jpg` (Amir tegenover Nyundo in de poort,
 de klasse `brutus` op `#laad`, in `laadPoort`); het gaat boven het stadsbeeld.
 `brutus: { x, van, tot }` in de leveldefinitie (ook door `readLevel`), en bij de pleinpoorten
-`uit: true` voor de uitgang. Sandbox: Vijanden, rij **Brutus (baas)**: zonder wachten, meteen stormen.
+`uit: true` voor elke uitgang. Stad 6 is een dicht plein: aan beide kanten een poort met een hek, geen fakkels.
+Amir komt niet verder dan onder de boog (`pleinKlem`). Ligt Brutus, dan takelen na `BRU.hekWacht` beide hekken op
+in `BRU.hekDuur` (`pleinHekStap`, het takelgeluid, stof bij de voet), en onder een open poort staat het bordje
+"Het plein verlaten?  E": E speelt het level uit (`pleinPoortBij`, `pleinUitgang`). `levelcheck.py` kent dit als einde.
+Sandbox: Vijanden, rij **Brutus (baas)**: zonder wachten, meteen stormen.
 
 ## Bestanden
 - `enemies/brutus/brutus.json` met per beweging (`idle`, `storm`, `zwaai`) per frame `{src, dx, dy, w, h, ms}`
