@@ -20649,6 +20649,7 @@ function stadAchter(sc, horizonY, groundY){
     const hw = 970 * f0 * R.s, G = STAD.gevel, stap = hw * (G.muur[1] - G.muur[0]) / 970 - 2;   // muur tegen muur, de balken steken over
     const m0 = hw * G.muur[0] / 970;
     const off = -world * R.par;                            // wereld naar links: de rij schuift naar rechts
+    if (STAD_STROOK && stadRijStrookTeken(rij, R, seed, f0, hw, stap, m0, off, voeten[rij], groundY)) return;
     const i0 = Math.floor((-off - W) / stap) - 1, i1 = Math.ceil((W * 1.5 - off) / stap) + 1;
     for (let i = i0; i <= i1; i++){
       const r = stadReeks(seed, rij, i), c = stadRijHuis(rij, r.n);
@@ -20666,6 +20667,87 @@ function stadAchter(sc, horizonY, groundY){
       ctx.restore();
     }
   });
+}
+
+// ---- de huizenrijen als strook: elke achterrij een keer voorgetekend, per beeld alleen verschoven ----
+// Huis voor huis tekenen kostte op een telefoon twee derde van elk beeld: per huis een save, een spiegeling en een
+// stapel strookjes muur tot de grond, in drie rijen. Nu tekent stadRijStrookMaak een rij huizen (met de muur eronder
+// tot STROOK.diep schermhoogtes diep) een keer in een eigen canvas op schermresolutie, ruim breder dan het scherm, en
+// zet stadRijStrookTeken die per beeld in een keer neer, op hele schermpixels (geen tweede keer verschalen). Pas als
+// de rij uit de strook schuift, de maat verandert of het level wisselt, komt er een nieuwe. STAD_STROOK = false geeft
+// de oude weg terug (tools/beeldgelijk.js --vlag STAD_STROOK vergelijkt de twee).
+var STAD_STROOK = true;
+const STROOK = { marge: 0.6, diep: 0.6, rust: 20 };   // marge: extra breedte per kant in schermbreedtes; rust: beelden met een vaste maat voor er opnieuw gebakken wordt
+let stadStroken = [], stadStrookLevel = null;
+function stadRijStrookMaak(rij, R, seed, f0, hw, stap, m0, ia, ib){
+  const G = STAD.gevel, vh = (G.ver[1] - G.ver[0]) * STAD.bak;
+  let top = 0;
+  const huizen = [];
+  for (let i = ia; i <= ib; i++){
+    const r = stadReeks(seed, rij, i), c = stadRijHuis(rij, r.n), hh = c.height * (hw / c.width);
+    huizen.push({ i, r, c, hh, vs: vh * (hw / c.width) }); top = Math.max(top, hh);
+  }
+  const vs = huizen.length ? huizen[0].vs : 1;            // een verdieping op schermmaat, voor elk huis even hoog
+  const k = Math.max(1, Math.ceil((R.lift * H + STROOK.diep * H) / vs));
+  const bw = (ib - ia) * stap + hw + 2, bh = top + 1 + k * vs + 1;
+  const d = DPR, cv2 = document.createElement('canvas');
+  cv2.width = Math.ceil(bw * d); cv2.height = Math.ceil(bh * d);
+  const x = cv2.getContext('2d');
+  x.imageSmoothingQuality = ctx.imageSmoothingQuality;
+  x.setTransform(d, 0, 0, d, 0, 0);
+  for (const h of huizen){
+    const hx = (h.i - ia) * stap;
+    x.save();
+    if (h.r.flip){ x.translate(hx + hw, 0); x.scale(-1, 1); } else x.translate(hx, 0);
+    const c = h.c, cvh = (STAD.gevel.ver[1] - STAD.gevel.ver[0]) * STAD.bak;
+    for (let j = 0; j < k; j++) x.drawImage(c, 0, c.height - cvh, c.width, cvh, 0, top - 1 + j * vs, hw, vs + 0.5);
+    x.drawImage(c, 0, top - h.hh, hw, h.hh);
+    x.restore();
+  }
+  return { cv: cv2, seed, f0, d, ia, ib, top, vs, k, rust: 0, rustF: f0 };
+}
+// tekent rij `rij` uit zijn strook; false als het (nog) niet kan, dan doet stadAchter het huis voor huis
+function stadRijStrookTeken(rij, R, seed, f0, hw, stap, m0, off, voet, groundY){
+  if (stadStrookLevel !== level){ stadStroken = []; stadStrookLevel = level; }
+  const marge = Math.ceil(W * STROOK.marge / stap);
+  // welke huizen staan in beeld (dezelfde x als huis voor huis: off + i * stap - W * 0.25 - m0)
+  const basis = off - W * 0.25 - m0;
+  const v0 = Math.ceil((-hw - basis) / stap), v1 = Math.floor((W - basis) / stap);
+  let S = stadStroken[rij];
+  let bak = !S || S.seed !== seed || S.d !== DPR || v0 < S.ia || v1 > S.ib;
+  if (!bak && S.f0 !== f0){
+    // de maat verandert (de meekijkende camera zoomt): even de oude strook verschaald, en pas opnieuw bakken als de
+    // maat STROOK.rust beelden vast staat of te ver weg is
+    S.rust = S.rustF === f0 ? S.rust + 1 : 0; S.rustF = f0;
+    if (S.rust >= STROOK.rust || Math.abs(f0 / S.f0 - 1) > 0.2) bak = true;
+  }
+  if (bak) S = stadStroken[rij] = stadRijStrookMaak(rij, R, seed, f0, hw, stap, m0, v0 - marge, v1 + marge);
+  const q = f0 / S.f0, d = S.d;
+  // op hele schermpixels, zodat de strook niet nog een keer verschaald wordt
+  const pas = v => Math.round(v * d) / d;
+  const sx = q === 1 ? pas(basis + S.ia * stap) : basis + S.ia * stap;
+  const sy = q === 1 ? pas(voet - S.top) : voet - S.top * q;
+  const onder = Math.max(0, groundY - voet);
+  const vs = S.vs * q, k = S.k;
+  const bw = S.cv.width / d * q;
+  // de strook tot de grond (en een verdieping marge, zoals de oude strookjes), de rest in hele verdiepingen eronder
+  const tot = Math.min(S.top + 1 + k * S.vs, S.top + (onder + 2) / q + S.vs);
+  // alleen het stuk dat in beeld valt: een brede strook als geheel neerzetten kost per beeld veel meer
+  const px0 = Math.max(0, Math.floor(-sx / bw * S.cv.width)), px1 = Math.min(S.cv.width, Math.ceil((W - sx) / bw * S.cv.width));
+  if (px1 <= px0) return true;
+  const dx = sx + px0 / S.cv.width * bw, dw = (px1 - px0) / S.cv.width * bw;
+  // 1 op 1 op hele schermpixels: niets te verzachten, en zonder filter is het kopieren goedkoper
+  const glad = ctx.imageSmoothingEnabled;
+  if (q === 1) ctx.imageSmoothingEnabled = false;
+  const th = Math.ceil(tot * d);
+  ctx.drawImage(S.cv, px0, 0, px1 - px0, th, dx, sy, dw, q === 1 ? th / d : tot * q);
+  ctx.imageSmoothingEnabled = glad;
+  if (onder + 2 > k * vs){
+    const by = Math.floor((S.top - 1 + (k - 1) * S.vs) * d), bh = Math.ceil(S.vs * d);
+    for (let j = k; voet - 1 + j * vs < groundY + 2; j++)
+      ctx.drawImage(S.cv, px0, by, px1 - px0, bh, dx, sy + (S.top - 1) * q + j * vs, dw, vs + 0.5);
+  }
+  return true;
 }
 
 // ---- tekenen: de straat zelf (gevels, galerijen, kramen, voetdecor), achter Amir ----
@@ -37998,6 +38080,7 @@ function laadNodig(k){ (laadGebruik || (laadGebruik = new Set())).add(k); }
 function laadNieuw(){ laadGebruik = new Set(); }
 function laadVrij(){
   if (sandbox || !level || !laadGebruik) return;
+  if (!level.stad) stadStroken = [];               // de voorgetekende huizenrijen (stadRijStrookTeken), zo'n 30 MB
   const nodig = k => !!laadGebruik && laadGebruik.has(k);
   for (const k in snk) if (!nodig('slang:' + k)) delete snk[k];
   if (scpGeladen && !nodig('scp')){ scp.walk.length = 0; scp.charge.length = 0; scp.curl.length = 0; scpGeladen = false; }
