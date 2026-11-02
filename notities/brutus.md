@@ -23,8 +23,8 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
 - **Zestien treffers** (`BRU.hp`): de steek, de lage zwaai en de worp tellen elk één (de worp valt daarna
   naast hem neer, zoals bij elke vijand). Het mes doet niets. Na een treffer is hij `BRU.inv` s onraakbaar.
 - De balk onderaan het scherm: zijn naam en zestien vakjes, rood vanaf de woede.
-- **Dood**: het doodsgeluid, hij kantelt in code achterover (`s.val`), ploft neer (`sounds/bavland.mp3`,
-  schok en stof) en blijft liggen. De poort met `uit: true` gaat open en `bossBlocking` laat het level weer
+- **Dood**: het doodsgeluid, hij kantelt in code achterover (`s.val`), ploft neer (`sounds/bavland.mp3`, schok) in
+  een grote stofwolk over zijn hele lengte (`bruDoodStof`), en vaagt daaronder weg (`s.weg`). De poort met `uit: true` gaat open en `bossBlocking` laat het level weer
   uitspelen. Een echte dood-animatie komt later.
 - Zolang hij leeft blijven Amir en Brutus tussen `brutus.van` en `brutus.tot` (`bruKlem`).
 - **Bloed** (eerste versie, `BRU.bloed`, `bruBloedRaak`): elke treffer geeft een spat druppels uit zijn borst, naar de kant
@@ -35,6 +35,13 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
   ook het bloedgeluid (`bloedSpeel`).
 - **Speertreffer**: `sounds/brutus_speerraak.mp3` op elke treffer (een tijdelijk, in ffmpeg gemaakt geluid: een doffe
   dreun met een korte natte klap; vervang het bestand met dezelfde naam door een echt geluid).
+
+- **Stof**: Brutus heeft zijn eigen stofdeeltjes (`s.stof`, `bruStofStap`, `bruStofTeken`, met het wolkje van het spel):
+  bij elke stap in de storm schieten er wolken omhoog en achter hem weg (`BRU.stof`).
+- **Achtervolgen**: rent Amir in het raam na de zwaai verder weg dan `BRU.opnieuw` x `BRU.wegVlucht`, dan breekt hij het
+  raam af, kijkt kort om en stormt erachteraan; na een zwaai zonder Amir dichtbij ademt hij maar `BRU.adem` (0,5 s).
+- **Maat en voeten**: de zwaaiframes staan in brutus.json 1,1 keer groter dan de bron (anders oogde hij in de zwaai
+  kleiner), en hij zakt `BRU.zak` grote-set-pixels in de vloer zodat zijn voorste voet op de lijn van Amir staat.
 
 ## Het level
 Het laadscherm van een level met `brutus` is `design/menu/laadscherm_brutus.jpg` (Amir tegenover Nyundo in de poort,
