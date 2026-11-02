@@ -315,15 +315,10 @@ grondSoort: [{van, tot, soort: 'plein'}]
   uitgang van de baas: Brutus (`notities/brutus.md`) zet hem dicht bij de start en open als hij sterft (in een klap,
   zonder takelen). De wanden van het gevecht komen uit `brutus.van` en `brutus.tot`, niet uit de poorten.
 
-De pleinwand en de put hebben een donkere outline gekregen, net als de andere stadsplaatjes (zie hieronder).
+## Geen outline op de stadsplaatjes
 
-## De outline van de stadsplaatjes
-
-De gevel, de poorten, de galerij, de kramen en de trap hebben een donkerbruine outline (45, 28, 16) om hun silhouet,
-zodat ze aansluiten bij de savanne en de figuren: 4 bronpx bij de gevel en de poorten, 3 bij de rest, op 85% dekking,
-en de buitenste rand van de muur zelf iets naar die kleur. Het voetdecor (zand, stro) heeft er bewust geen. De huizen
-in de verte komen uit dezelfde `gevel.png` en hebben de lijn dus ook (in de nevel). Gekozen na een vergelijking met de
-savanne overdag (licht, midden, zwaar): midden.
+Een donkere outline om de stadsplaatjes is geprobeerd (2 november 2026) en weer teruggedraaid: Tom vond het lelijk.
+De stadsplaatjes hebben dus geen extra outline. Niet opnieuw toevoegen zonder dat Tom erom vraagt.
 
 ## Nog niet
 
