@@ -137,7 +137,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Het spel zelf en de lijst: online de nieuwste, offline de bewaarde.
-  event.respondWith(networkFirst(req, SHELL_CACHE));
+  event.respondWith(networkFirst(event, SHELL_CACHE));
 });
 
 async function cacheFirst(req, cacheName, opts = {}) {
@@ -243,21 +243,53 @@ async function rangeFromCache(req) {
   });
 }
 
-async function networkFirst(req, cacheName) {
+// Hoe lang het spel bij het opstarten op het net wacht als er al een versie in de cache staat.
+// Zonder grens hing de app op een zwakke verbinding (een streepje bereik, wifi die net wegvalt)
+// op het beginscherm: de fetch faalde niet, hij duurde alleen eindeloos, en pas een fout gaf de
+// bewaarde versie. Nu wint de cache na deze tijd, en loopt de fetch op de achtergrond door, zodat
+// de nieuwe versie er de volgende keer wel staat.
+const NET_WACHT = 3000;
+
+async function networkFirst(event, cacheName) {
+  const req = event.request;
   const cache = await caches.open(cacheName);
-  try {
-    const res = await fetch(req);
-    if (res && res.ok) cache.put(req, res.clone()).catch(runtimeFout);
-    return res;
-  } catch (err) {
+
+  // Bij een navigatie liever het spel uit de cache dan een foutpagina.
+  const uitCache = async () => {
     const hit = await cache.match(req, { ignoreVary: true });
     if (hit) return hit;
-    // Bij een navigatie liever het spel uit de cache dan een foutpagina.
-    if (req.mode === 'navigate') {
-      const game = await cache.match('./amir-king-of-africa.html', { ignoreVary: true });
-      if (game) return game;
+    if (req.mode === 'navigate') return cache.match('./amir-king-of-africa.html', { ignoreVary: true });
+    return undefined;
+  };
+
+  const net = fetch(req).then((res) => {
+    if (res && res.ok) return cache.put(req, res.clone()).catch(runtimeFout).then(() => res);
+    return res;
+  });
+  // De fetch mag na de grens doorlopen: de service worker blijft wakker tot hij binnen is.
+  event.waitUntil(net.catch(() => {}));
+
+  const reserve = await uitCache();
+  if (!reserve) {
+    // Niets bewaard (de eerste keer): dan blijft het net de enige weg.
+    try {
+      return await net;
+    } catch (err) {
+      return new Response('', { status: 504, statusText: 'offline' });
     }
-    return new Response('', { status: 504, statusText: 'offline' });
+  }
+
+  let klok;
+  const wacht = new Promise((klaar) => { klok = setTimeout(() => klaar(reserve), NET_WACHT); });
+  try {
+    const res = await Promise.race([net, wacht]);
+    // Een foutstatus van de server (een 404 of 500 midden in een update) is ook geen reden om
+    // de werkende versie niet te laten zien.
+    return res && res.ok ? res : reserve;
+  } catch (err) {
+    return reserve;
+  } finally {
+    clearTimeout(klok);
   }
 }
 
