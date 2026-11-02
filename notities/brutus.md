@@ -27,9 +27,14 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
 - **Zestien treffers** (`BRU.hp`): de steek, de lage zwaai en de worp tellen elk één (de worp valt daarna
   naast hem neer, zoals bij elke vijand). Het mes doet niets. Na een treffer is hij `BRU.inv` s onraakbaar.
 - De balk onderaan het scherm: zijn naam en zestien vakjes, rood vanaf de woede.
-- **Dood**: het doodsgeluid, hij kantelt in code achterover (`s.val`), ploft neer (`sounds/bavland.mp3`, schok) in
-  een grote stofwolk over zijn hele lengte (`bruDoodStof`), en vaagt daaronder weg (`s.weg`). De poort met `uit: true` gaat open en `bossBlocking` laat het level weer
-  uitspelen. Een echte dood-animatie komt later.
+- **Dood** (`bruDoodStap`, `bruFinale`): op de laatste treffer staat de wereld stil voor Amir (hij kan niet lopen en niet
+  geraakt worden) en draait Brutus zich naar hem toe. Dan drie Grok-sets uit brutus.json achter elkaar: `dreig` (hij heft
+  zijn knots langzaam naar Amir, vertraagd afgespeeld), `drop` (zijn pols draait, de knots zakt; op het laatste frame staat
+  de knots los op zijn bal en kantelt in code van hem weg om, `knots` in de json, `BRU.knotsLig`, met een kleine plof en stof)
+  en `val` (het doodsgeluid, hij zakt op zijn knieen en valt voorover; op het frame met bron `BRU.valKlap` de plof, een
+  schok en de grote stofwolk). Daarna blijft hij liggen (fase `lig`, over de knots heen), gaat de uitgang open en speelt
+  "ta soul, rest". De val-frames zijn per frame op de grond gezet: Grok liet hem ruim 100 px boven de grond liggen. Liggend is hij
+  nog wat lang (het eindbeeld van Grok was te groot); een betere ligpose en de speer-finisher (speer breken, schreeuw) komen later.
 - Zolang hij leeft blijven Amir en Brutus tussen `brutus.van` en `brutus.tot` (`bruKlem`).
 - **Bloed** (eerste versie, `BRU.bloed`, `bruBloedRaak`): elke treffer geeft een spat druppels uit zijn borst, naar de kant
   waar de klap vandaan kwam, die op de grond blijven liggen en vervagen (de druppels van de zweepman: `zwmDruppelStap`,
