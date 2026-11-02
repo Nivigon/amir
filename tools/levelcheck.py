@@ -899,8 +899,8 @@ def velden(lv, sp):
             yield fout(None, 'grondSoort moet een lijst stroken zijn: [{van, tot, soort}]; zo doet het veld niets')
         else:
             for q in gs:
-                if q.get('soort') not in ('savanne', 'rots', 'straat'):
-                    yield fout(q.get('van'), "grondSoort-soort '%s' bestaat niet (wel: savanne, rots, straat): deze strook wordt weggelaten" % q.get('soort'))
+                if q.get('soort') not in ('savanne', 'rots', 'straat', 'plein'):
+                    yield fout(q.get('van'), "grondSoort-soort '%s' bestaat niet (wel: savanne, rots, straat, plein): deze strook wordt weggelaten" % q.get('soort'))
     s = lv.d.get('sneeuw')
     if s:
         if s.get('soort') not in ('savanne', 'rots'):

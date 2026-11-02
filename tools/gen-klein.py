@@ -68,6 +68,7 @@ DOELEN = [
                                         # hoog en wordt op iets boven Amir zijn hoogte getekend
     ('enemies/bandiet_elite', 400),     # de elite-garde (omgekleurd uit bandiet), zelfde maat en canvas
     ('enemies/bandiet_duin', 400),      # de Duinwacht (omgekleurd uit bandiet), zelfde maat en canvas
+    ('enemies/brutus/frames', 60),     # Brutus (brutus.json): bijgesneden frames, de figuur ~340 hoog; halveren voor de telefoon
     ('enemies/zweepman/lagen', 60),  # de zweepman (zweepman.json): bijgesneden lagen, de figuur ~313 hoog; halveren voor de telefoon
     ('enemies/schildbandiet/lagen', 60),  # de schildbandiet (lagen.json): de figuur is 340 hoog op een canvas van
                                         # 544x860, maar elk stuk is bijgesneden tot zijn eigen randen (het schild
@@ -135,6 +136,9 @@ DOELEN = [
     # de poorten tussen de straten (Oaktown): tekencode rekent met naturalWidth, dus de halve plaat komt op dezelfde maat
     ('design/stad/poort_hoek.png', 60),
     ('design/stad/poort_recht.png', 60),
+    # het plein: de put en de pleinwand (de tekencode rekt ze naar vaste maten); plein.png niet, net als straat.png
+    ('design/stad/put.png', 60),
+    ('design/stad/pleinwand.png', 60),
 ]
 
 # Bronmateriaal dat het spel nooit opvraagt. Een bestand dat hierboven bij naam

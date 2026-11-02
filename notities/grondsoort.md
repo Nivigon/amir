@@ -6,7 +6,7 @@ Stap 2 van `notities/plan-stad-maker.md`. Een level kan de bodem per strook een 
 soort geven dan de rest:
 
 ```
-grondSoort: [{van, tot, soort}]      soort 'savanne', 'rots' of 'straat'
+grondSoort: [{van, tot, soort}]      soort 'savanne', 'rots', 'straat' of 'plein'
 ```
 
 `van` is de startkant (minst negatief), `tot` verderop, zoals bij `sneeuw`; de code
@@ -20,7 +20,7 @@ De basis blijft `bodemPic` (de bodem van het level zelf: savanne, de rotsbodem v
 veld `sneeuw`, de wintergrond of de straat van een level met `stad`). Elke strook wordt
 daar met zijn eigen tegel overheen getekend; alle grondtegels hebben de maten en rijen
 van `EDGE` (savanne `grondrand.png`, rots `grondrand_rots.png` via `loadSneeuw`, straat
-`design/stad/straat.png` via `stadLaad`), dus het anker en de schaal zijn gelijk.
+`design/stad/straat.png` en plein `design/stad/plein.png` via `stadLaad`), dus het anker en de schaal zijn gelijk.
 
 De grens loopt grillig (`sneeuwJag`, dezelfde jag als de sneeuwgrens) en de tegel loopt
 over ongeveer een halve Maker-cel (`GRONDSOORT.rand`, 88 wereld-px) zacht uit in de grond

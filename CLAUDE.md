@@ -112,7 +112,8 @@ soorten tegenstanders:
 - **Vijanden**: zandslang, zwarte slang, knockslang, fosforslang, schorpioen, hyena, bandiet, schildbandiet,
   kooiman, meelman, kruisboogbandiet, zweepman en goudaapje. Die mag je in de sandbox en in een testlevel (regel 1 en 3) gewoon neerzetten.
 - **Bazen**: de panter (zwart, en wit in een winterlevel: dezelfde spawn `k: 'panter'`, altijd met `boss: true`
-  en de arena-camera, drie treffers) en de baviaan (`BAVIAAN`, de eindbaas in wording). Een baas zet jij
+  en de arena-camera, drie treffers), de baviaan (`BAVIAAN`, de eindbaas in wording) en Brutus (in beeld Nyundo,
+  `BRU`, de baas van Stad 6: Het plein, zestien treffers, zie `notities/brutus.md`). Een baas zet jij
   nergens neer zonder dat de opdrachtgever het goed vindt: niet in een level, niet in een arena-golf, en ook
   niet "even om iets te laten zien". Dat vraag je vooraf, per geval, voordat je iets bouwt. Mag het, dan bouw
   je het; zonder antwoord bouw je het niet.
@@ -235,6 +236,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de executie van de schildbandiet: knielen, wankelen, vallen en de special execution | `EXE`, `exeStart`, `exeTick`, `exeVries` | notities/schildbandiet.md |
 | de bandiet-arena: het geënsceneerde eindgevecht (arena, regel 12) | `BANDARENA`, `bandArenaStart`, `bandArenaWachters` | notities/bandiet.md |
 | baviaan: de eindbaas in wording (baas, regel 12) | `BAVIAAN`, `baviaanLaad`, `baviaanTeken` | notities/baviaan.md |
+| Brutus (Nyundo): de bruut met de knots, baas van het plein; stormt, zwaait, zestien treffers (baas, regel 12) | `BRU`, `makeBrutus`, `updateBrutus`, `hitBrutus`, `bruKlem` | notities/brutus.md |
 | speerbeet: de baviaan pakt je speer | `BAV_BEET`, `BAV_MOND`, `BAV_SPEER` | notities/baviaan.md |
 | speer in de baviaan: de speerval blijft in zijn borst zitten | `BAV_VALSPEER`, `bavSpeerTeken`, `baviaanTeken` | notities/baviaan.md |
 | voorgrond: de laag tussen de camera en Amir | `VOORGROND`, `VG_SOORT`, `VG_LAGEN` | notities/voorgrond.md |
