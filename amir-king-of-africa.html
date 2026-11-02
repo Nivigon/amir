@@ -29769,8 +29769,9 @@ const BRU = {
            snedes: [ { naam: 'snee_haal', x: -30, y: -230, h: 90, rot: 0.7 }, { naam: 'snee_recht', x: 10, y: -175, h: 80, rot: -0.5 },
                      { naam: 'snee_dwars', x: -45, y: -150, h: 70, rot: 0.2 }, { naam: 'snee_haal', x: 30, y: -250, h: 75, rot: -0.9 },
                      { naam: 'snee_recht', x: -15, y: -200, h: 95, rot: 1.1 } ] },
+  knotsLig: 1.72, valKlap: 104,    // de losse knots kantelt tot deze hoek (rad); in de val is het frame met bron >= valKlap de klap op de grond
   naam: 'Nyundo',                 // de naam in beeld (Swahili: de hamer); Brutus is de codenaam
-  vol: { adem: 0.75, stap: 0.85, geraakt: 0.95, dood: 1, plof: 0.8, zwaai: 0.95, speer: 1 },
+  vol: { adem: 0.75, stap: 0.85, geraakt: 0.95, dood: 1, plof: 0.8, zwaai: 0.95, speer: 1, knots: 0.45 },
   ademPeriode: 2.33               // de ademhaling in sounds/brutus_adem.mp3: in en uit duurt zo lang
 };
 let bruData = null, bruBezig = false, bruGeluid = null;
@@ -29791,6 +29792,7 @@ function bruLaad(){
   fetch(BRU_ROOT + 'brutus.json').then(r => r.ok ? r.json() : Promise.reject(r.status)).then(m => {
     const imgs = {};
     for (const b in m.bewegingen) for (const fr of m.bewegingen[b].frames) if (!imgs[fr.src]) imgs[fr.src] = loadQuiet([BRU_ROOT + fr.src]);
+    if (m.knots) imgs[m.knots.src] = loadQuiet([BRU_ROOT + m.knots.src]);   // de losse knots van zijn dood
     bruBank.lagen = imgs; bruData = m;
   }).catch(e => { bruBezig = false; meldFout('bruData', 'brutus: brutus.json niet geladen', e); })
     .finally(() => { laadJsonOpen--; });
@@ -29887,13 +29889,7 @@ function updateBrutus(dt){
   bruStofStap(s, dt);                                       // het stof van zijn stappen en zijn val
   zwmDruppelStap(s, dt);                                    // de bloeddruppels vallen en blijven even liggen (zoals bij de zweepman)
   bruAdemSpeel(s.state === 'wacht' || s.state === 'adem');
-  if (s.state === 'dood'){
-    s.val = Math.min(1, s.val + dt / 0.75);               // achterover kantelen, steeds sneller
-    if (s.plof) s.weg = Math.min(1, (s.weg || 0) + dt / 1.4);   // na de plof vervaagt hij onder de stofwolk (er is nog geen dood-animatie)
-    if (s.val >= 1 && !s.plof){ s.plof = true; banStemSpeel(bruGeluid.plof, BRU.vol.plof); shake = Math.max(shake, 0.35); hitstop = Math.max(hitstop, 0.05);
-      bruDoodStof(s); }
-    return;
-  }
+  if (s.state === 'dood'){ bruDoodStap(s, dt); return; }
   if (!bruData) return;
   const gs = bruScale();
   if (s.state === 'wacht'){                                // tot Amir een stap zet
@@ -29943,11 +29939,9 @@ function hitBrutus(s){
   banStemSpeel(bruGeluid.speer, BRU.vol.speer);             // de speer in zijn vlees
   bruBloedRaak(s);
   if (s.hp <= 0){
-    s.state = 'dood'; s.val = 0; s.plof = false; s.flash = 0.6;
-    bruAdemSpeel(false);
-    banStemSpeel(bruGeluid.dood, BRU.vol.dood); bloedSpeel();
-    for (const p of ((level && level.stad && level.stad.pleinpoorten) || [])) if (p.uit) p.hek = 'open';
-    vijandDood(true);
+    s.state = 'dood'; s.fase = 'dreig'; s.frame = 0; s.acc = 0; s.flash = 0.6; s.plof = false; s.knots = null;
+    s.face = bruNaarAmir(s);                                  // hij draait zich naar Amir
+    bruAdemSpeel(false); bloedSpeel();
     return true;
   }
   banStemSpeel(bruGeluid.geraakt, BRU.vol.geraakt);
@@ -29966,13 +29960,51 @@ function bruBloedRaak(s){
   }
   s.wond = { x: tx, y: B.tref.y, t: 0 };                    // de wond druppelt nog even na
 }
+// de dood (zie notities/brutus.md): de wereld staat stil en Amir kan niets (bruFinale), Brutus draait zich naar Amir,
+// heft langzaam zijn knots naar hem (dreig), draait zijn pols en laat hem vallen (drop: op het laatste frame staat de
+// knots los op zijn bal en kantelt in code om), zakt op zijn knieen en valt voorover (val). Op de klap: de plof, een schok
+// en de grote stofwolk. Daarna blijft hij liggen, gaat de uitgang open en is het gevecht voorbij.
+function bruFinale(){ return !!(brutus && brutus.state === 'dood' && brutus.fase !== 'lig'); }
+function bruDoodStap(s, dt){
+  const K = s.knots;
+  if (K && K.hoek < BRU.knotsLig){                         // de knots kantelt steeds sneller om en klapt op de grond
+    K.v += 11 * dt; K.hoek = Math.min(BRU.knotsLig, K.hoek + K.v * dt);
+    if (K.hoek >= BRU.knotsLig){ banStemSpeel(bruGeluid.plof, BRU.vol.knots); shake = Math.max(shake, 0.12);
+      const kn = bruData.knots, gs = bruScale();
+      for (let i = 0; i < 10; i++) bruStofDeeltje(s, { wx: s.x - s.face * (kn.dx + kn.w / 2 - Math.random() * kn.h) * gs, y: -Math.random() * 8,
+        vx: (Math.random() - 0.5) * 240, vy: -60 - Math.random() * 140, r: 20 + Math.random() * 22, life: 0.6 + Math.random() * 0.5, a: 0.7 }); }
+  }
+  if (s.fase === 'lig' || !bruData) return;
+  if (bruFinale()) invuln = Math.max(invuln, 0.25);        // Amir kan niet geraakt worden zolang het duurt
+  const D = bruData.bewegingen[s.fase]; if (!D){ s.fase = 'lig'; return; }
+  s.acc += dt * 1000;
+  while (s.acc >= D.frames[s.frame].ms){
+    s.acc -= D.frames[s.frame].ms;
+    if (s.frame < D.frames.length - 1){
+      s.frame++;
+      const f = D.frames[s.frame];
+      if (s.fase === 'drop' && s.frame === D.frames.length - 1 && bruData.knots) s.knots = { hoek: 0, v: 0.6 };   // los: hij staat op zijn bal
+      if (s.fase === 'val' && !s.plof && f.bron >= BRU.valKlap){ s.plof = true; banStemSpeel(bruGeluid.plof, BRU.vol.plof);
+        shake = Math.max(shake, 0.4); hitstop = Math.max(hitstop, 0.06); bruDoodStof(s); }
+      continue;
+    }
+    if (s.fase === 'dreig'){ s.fase = 'drop'; s.frame = 0; }
+    else if (s.fase === 'drop'){ s.fase = 'val'; s.frame = 0; banStemSpeel(bruGeluid.dood, BRU.vol.dood); }
+    else {                                                  // hij ligt: het gevecht is voorbij
+      s.fase = 'lig'; s.acc = 0;
+      for (const p of ((level && level.stad && level.stad.pleinpoorten) || [])) if (p.uit) p.hek = 'open';
+      vijandDood(true);
+      return;
+    }
+  }
+}
 // welk frame en welke beweging hij nu toont
 function bruFrame(s){
   if (!bruData) return null;
   const B = bruData.bewegingen;
   if (s.state === 'storm') return B.storm.frames[s.frame % B.storm.frames.length];
   if (s.state === 'zwaai') return B.zwaai.frames[Math.min(s.frame, B.zwaai.frames.length - 1)];
-  if (s.state === 'dood') return B.zwaai.frames[B.zwaai.frames.length - 1];
+  if (s.state === 'dood'){ const D = B[s.fase] || B.val; return D ? D.frames[Math.min(s.frame, D.frames.length - 1)] : null; }
   // wacht en adem: de ademhaling, gelijk met het geluid (in de eerste helft van idle: uit- naar ingeademd)
   const a = bruGeluid && bruGeluid.adem, t = (a && !a.paused) ? a.currentTime : s.t;
   const p = ((t % BRU.ademPeriode) + BRU.ademPeriode) % BRU.ademPeriode;
@@ -29986,13 +30018,13 @@ function bruTeken(s, bodyX, voeten, gs){
   const im = (bruBank.lagen || {})[fr.src]; if (!im || !imgReady(im)) return;
   ctx.save(); ctx.translate(bodyX, voeten);
   if (s.face === 1) ctx.scale(-1, 1);
-  if (s.state === 'dood'){                                 // achterover kantelen om zijn hiel, steeds sneller, en wegvagen onder het stof
-    const k = s.val * s.val;
-    ctx.translate(70 * gs, 0); ctx.rotate(k * Math.PI * 0.4); ctx.translate(-70 * gs, 0);
-    ctx.globalAlpha = 1 - (s.weg || 0);
+  const K = s.knots, kn = bruData && bruData.knots, ki = kn && (bruBank.lagen || {})[kn.src];
+  if (K && ki && imgReady(ki)){                              // de losse knots (achter hem: hij valt er bovenop): de bal blijft liggen, de steel klapt van hem weg om
+    const r = kn.w / 2, px = (kn.dx + r) * gs, py = (kn.dy + kn.h - r) * gs;   // het midden van de bal
+    ctx.save(); ctx.translate(px, py); ctx.rotate(-K.hoek); ctx.drawImage(ki, -r * gs, -(kn.h - r) * gs, kn.w * gs, kn.h * gs); ctx.restore();
   }
   const beeld = s.flash > 0 ? whiteCopy(im, s.flash * 4) : im;
-  ctx.drawImage(s.snedes && s.snedes.length ? zwmSneeLaag(beeld, fr, gs, s.snedes) : beeld, fr.dx * gs, fr.dy * gs, fr.w * gs, fr.h * gs);
+  ctx.drawImage(s.snedes && s.snedes.length && s.state !== 'dood' ? zwmSneeLaag(beeld, fr, gs, s.snedes) : beeld, fr.dx * gs, fr.dy * gs, fr.w * gs, fr.h * gs);
   ctx.restore();
   zwmDruppelTeken(s, bodyX, voeten, gs, 1);
 }
@@ -30008,10 +30040,9 @@ function bruRaakVak(s, bodyX, voeten, gs){
 }
 // de balk onderaan het scherm: de naam en zestien vakjes (een vak per treffer)
 function bruBalkTeken(){
-  const s = brutus; if (!s || (s.state === 'dood' && s.val >= 1)) return;
+  const s = brutus; if (!s || s.state === 'dood') return;
   const bw = Math.min(420, W * 0.55), bh = 12, x0 = (W - bw) / 2, y0 = H - 30, gap = 3;   // onderaan: bovenin staan de uitleg en de tips
   ctx.save();
-  if (s.state === 'dood') ctx.globalAlpha = Math.max(0, 1 - s.val);   // de balk vaagt weg terwijl hij valt
   ctx.fillStyle = 'rgba(14,10,12,0.55)'; ctx.fillRect(x0 - 10, y0 - 26, bw + 20, bh + 32);   // een donkere plaat, zodat hij op elke vloer te lezen is
   ctx.font = '600 14px system-ui, sans-serif'; ctx.textAlign = 'center';
   ctx.fillStyle = '#f2e8d5'; ctx.fillText(BRU.naam, W / 2, y0 - 8);
@@ -34662,7 +34693,7 @@ function loop(now){
   const wetNow = ph < 2 ? waterDepthAt(world, ph) : 0;   // tot je knieën in het water
   const houdTempo = houding.aan ? houdingWaarde('tempo') : 1;   // in de dreighouding loopt hij langzaam
   const loopFactor = crawling ? CRAWL_SPEED : (wetNow > 0.3 || schildOp() ? 1 : sprint);   // met het schild op: geen sprint   // kruipen gaat traag en niet sneller met Shift
-  if (!fell) world += dir * 330 * walkK() * houdTempo * schildTempo() * loopFactor * (1 - (1 - POOL.slow) * wetNow) * dt;
+  if (!fell && !bruFinale()) world += dir * 330 * walkK() * houdTempo * schildTempo() * loopFactor * (1 - (1 - POOL.slow) * wetNow) * dt;
   if (glij !== 0) glijUpdate(dt, halfWNow);      // de renstoot: remmend doorglijden
   const cliff = cliffAt();
   if (arenaVast()){
@@ -36378,7 +36409,7 @@ function loop(now){
       const s = brutus, gs = bruScale();
       const bodyX = cx + (s.x - world);
       const voeten = groundY - (s.base || 0) * scale + BRU.zak * gs;
-      if (s.state !== 'dood' || s.val < 1){ ctx.save(); ctx.globalAlpha = 0.28; ctx.fillStyle = '#1d140f'; ctx.beginPath();
+      if (s.state !== 'dood' || s.fase !== 'lig'){ ctx.save(); ctx.globalAlpha = 0.28; ctx.fillStyle = '#1d140f'; ctx.beginPath();
         ctx.ellipse(bodyX, voeten, BRU.half * gs * 1.5, BRU.half * gs * 0.22, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
       bruTeken(s, bodyX, voeten, gs);
       bruStofTeken(s, groundY - (s.base || 0) * scale + BRU.zak * gs, gs, cx);   // het stof voor hem langs
