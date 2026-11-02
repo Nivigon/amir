@@ -58,6 +58,10 @@ in `BRU.hekDuur` (`pleinHekStap`, het takelgeluid, stof bij de voet), en onder e
 Sandbox: Vijanden, rij **Brutus (baas)**: zonder wachten, meteen stormen.
 
 ## Bestanden
+- **De voeten in de zwaai**: in de Grok-clip zweefde hij in de zwaai 30 tot 60 px boven de grond, met de ene voet
+  hoger dan de andere. `tools/brutus_voeten.py` zet per zwaaiframe de laagste voet op de grondlijn en buigt het been
+  van de hogere voet omlaag (een zachte verschuiving van heup naar voet, van het kruis naar buiten). De originelen staan
+  in `enemies/brutus/bron/`; het script werkt altijd vanaf die originelen. Daarna `gen-klein.py` en `gen-offline-manifest.py`.
 - `enemies/brutus/brutus.json` met per beweging (`idle`, `storm`, `zwaai`) per frame `{src, dx, dy, w, h, ms}`
   t.o.v. het anker (midden van het lijf) en de grondlijn, in pixels van de grote set (figuur ~340 hoog van
   haar tot voet), naar links kijkend. `klein/enemies/brutus/` dezelfde frames op halve grootte.
