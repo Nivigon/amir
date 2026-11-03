@@ -90,6 +90,8 @@ De kreten (`zwmKreet` gaat voor, zonder kans of rust, en zet daarna `ZWM_STEM.ru
   Onder de kreet speelt ook het bloedgeluid van de executie (`bloedSpeel`, `sounds/bloedspuit.mp3`).
 - `sounds/zweepsterf.mp3`: zijn doodskreet bij de laatste treffer, in fase 1 en onder de val van fase 2 (`zwmDoodStap`), in plaats van
   de kreet `geraakt` en de doodskreet van de bandiet.
+  Begint in fase 2 de val, dan spuit er een klein beetje bloed uit de stomp (`zwmDoodSpuit`, `ZWM_BLOED.doodSpuit`), met
+  het bloedgeluid (`bloedSpeel`) over de doodskreet heen.
 
 ## Zijn stem
 
