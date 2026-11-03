@@ -29887,14 +29887,18 @@ const BRU = {
            vonkPerS: 16, vonkLeven: [0.9, 1.7], vonkV: [55, 135], vonkR: [2, 4.5] },
   hekWacht: 1.6, hekDuur: 2.8,    // na zijn dood: zo lang tot de hekken van het plein optakelen, en zo lang duurt dat
   naam: 'Nyundo',                 // de naam in beeld (Swahili: de hamer); Brutus is de codenaam
-  vol: { adem: 0.75, stap: 0.85, geraakt: 0.95, raak: 1, dood: 1, plof: 0.8, zwaai: 0.95, speer: 1, knots: 0.45 },
+  vol: { adem: 0.75, stap: 0.85, geraakt: 0.95, raak: 1, dood: 1, plof: 0.8, zwaai: 0.95, speer: 1, knots: 0.45, inslag: 1 },
   ademPeriode: 2.33,              // de ademhaling in sounds/brutus_adem.mp3: in en uit duurt zo lang
   // De kap (beweging kap in brutus.json): zijn echte aanval. Hij remt uit de storm af, tilt de knots met twee handen
   // hoog achter zijn hoofd (de tell: het silhouet verandert helemaal), houdt hem daar terwijl de bal omhoogkomt, en
   // kapt hem dan in een keer voor zich in de grond. Daar blijft hij voorovergebogen staan: het raam. De zijwaartse
   // zwaai (beweging zwaai) blijft over voor de intimidatie. Fasen in kapframes (zie fase per frame in brutus.json):
   // rem 0-6, optillen 7-23, vasthouden 24-41, kap 42-51, eindpose 52-54.
-  kap: { set: 'kap', slagVan: 42, raakVan: 48, raakTot: 51, inslag: 51, geluid: 43,
+  // inslag: het frame waarop de bal de grond raakt (de dreun, stof waar de bal neerkomt). schok: staat Amir op de grond
+  // binnen ver (grote-set-pixels, van de bal of van zijn lijf) en is hij niet zelf geraakt, dan zet de klap hem een klein
+  // stukje terug, weg van hem en de inslag (duw: beginsnelheid van knock, ~60 wereld-px), zonder schade (bruInslag)
+  kap: { set: 'kap', slagVan: 42, raakVan: 48, raakTot: 51, inslag: 52, geluid: 43, bal: 25,
+         schok: { ver: 220, duw: 520 },
          tellOpnieuw: 0.6,        // de tell (rem, optillen, vasthouden) duurt zoveel korter als hij meteen opnieuw kapt
          eind: [100, 150, 1000] }, // het raam (de laatste drie frames): de knots in de grond, hij hangt erover
   // De terugslag (beweging terug): staat Amir na de kap ACHTER hem (erdoorheen gelopen), dan kijkt hij om, rukt de
@@ -29929,6 +29933,7 @@ function bruLaad(){
     bruGeluid = { adem, stap: banStemmen('sounds/brutus_stap.mp3', 3), geraakt: banStemmen('sounds/brutus_geraakt.mp3', 2), zwaai: banStemmen('sounds/brutus_zwaai.mp3', 2),
                   speer: banStemmen('sounds/brutus_speerraak.mp3', 3),
                   raak: banStemmen('sounds/brutus_raak.mp3', 2),   // de knots op Amir: een zware dreun
+                  inslag: banStemmen('sounds/brutus_inslag.mp3', 2),   // de knots slaat in de grond (de kap)
                   dood: banStemmen('sounds/brutus_dood.mp3', 1), plof: banStemmen('sounds/bavland.mp3', 1),
                   hek: geluidAan(new Audio('sounds/takelen.mp3')) };   // de hekken van het plein die optakelen
     bruGeluid.hek.loop = true; bruGeluid.hek.preload = 'auto';
@@ -30033,6 +30038,24 @@ function bruRaakAmir(s, weg){
                         r: rnd(36, 66), life: rnd(0.7, 1.2), a: 0.85 });
   s.raakSpoor = BRU.raakStof.spoor; s.raakSpoorAcc = 0;
 }
+// de knots slaat in de grond (het inslag-frame van de kap): de dreun, een schok, stof waar de bal neerkomt, en de
+// klap zet Amir een klein stukje terug als hij dichtbij op de grond staat en niet zelf geraakt is (geen schade)
+function bruInslag(s, k){
+  const gs = bruScale(), fr = bruData.bewegingen[k.set].frames[s.frame];
+  const balX = s.x - s.face * (fr.dx + (k.bal || 0)) * gs;   // naar links getekend: negatieve dx is voor hem
+  shake = Math.max(shake, 0.35);
+  if (bruGeluid) banStemSpeel(bruGeluid.inslag, BRU.vol.inslag);
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  for (let i = 0; i < 12; i++)
+    bruStofDeeltje(s, { wx: balX + (Math.random() - 0.5) * 70 * gs, y: -rnd(0, 8), vx: (Math.random() - 0.5) * 520, vy: -rnd(140, 360),
+                        r: rnd(28, 52), life: rnd(0.6, 1.1), a: 0.8 });
+  const S = k.schok; if (!S || dead || s.geraaktAmir || !onGround) return;
+  const px = playerX(), bij = Math.min(Math.abs(px - balX), Math.abs(px - s.x));
+  if (bij > S.ver * gs || Math.abs(ph - (s.base || 0)) > 40) return;
+  const weg = px >= s.x ? 1 : -1;                           // weg van hem (de bal ligt voor hem, dus ook weg van de inslag)
+  knock = weg * Math.max(Math.abs(knock), S.duw);
+  if (thr && thr.held && !thr.gone) thrCancel();            // de klap gooit je uit evenwicht: een opspannende worp vervalt
+}
 function bruRaakSpoor(s, dt){
   if (!(s.raakSpoor > 0)) return;
   s.raakSpoor -= dt; s.raakSpoorAcc += dt;
@@ -30099,7 +30122,7 @@ function updateBrutus(dt){
     s.acc += dt * 1000;
     while (s.frame < n - 1 && s.acc >= bruMs(s, s.frame)){ s.acc -= bruMs(s, s.frame); s.frame++; if (s.frame === k.raakVan) s.geraaktAmir = false;
       if (s.frame === k.geluid) banStemSpeel(bruGeluid.zwaai, BRU.vol.zwaai);
-      if (s.frame === k.inslag){ shake = Math.max(shake, 0.35); banStemSpeel(bruGeluid.stap, 1); bruStof(s); } }   // de knots slaat in de grond
+      if (s.frame === k.inslag) bruInslag(s, k); }   // de knots slaat in de grond
     if (k.set === 'kap' && s.frame >= k.inslag && bruData.bewegingen.terug && bruAchter(s)){ bruSet(s, 'terug'); return; }
     const raam = s.frame >= n - 3, ver = !bruDichtbij(s, BRU.opnieuw * BRU.wegVlucht);
     if (raam && ver){ bruSet(s, 'adem'); s.ademT = 0.25; return; }   // Amir rent weg: het raam is voorbij, kort omkijken en erachteraan

@@ -20,8 +20,13 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
 - **Kap** (sinds 03-11-2026 zijn echte aanval, `BRU.kap`, beweging `kap` in brutus.json): vlak voor Amir remt hij
   uit de storm af (kapframes 0-6, start op stormframe 6), tilt de knots met twee handen hoog achter zijn hoofd
   (7-23) en houdt hem daar terwijl de bal omhoogkomt (24-41): samen de tell, met haatgezicht. Dan kapt hij hem in
-  een keer voor zich in de grond (42-51, raak `BRU.kap.raakVan` t/m `raakTot`, op `inslag` een schok, stap-plof en
-  stof) en blijft voorovergebogen over de knots hangen: het raam (`BRU.kap.eind`, langer dan bij de zwaai).
+  een keer voor zich in de grond (42-51, raak `BRU.kap.raakVan` t/m `raakTot`) en blijft voorovergebogen over de knots hangen: het raam (`BRU.kap.eind`, langer dan bij de zwaai).
+  **De inslag** (`BRU.kap.inslag`, frame 52: het eerste frame waarin de bal echt op de grond ligt; op 51 hangt hij er nog
+  boven, daar leek hij de grond te missen): `bruInslag` speelt `sounds/brutus_inslag.mp3` (de upload "raakt grond"),
+  geeft een schok en stof waar de bal neerkomt (`kap.bal`: zoveel px van de voorkant van het frame), en staat Amir op de
+  grond binnen `kap.schok.ver` van de bal of van zijn lijf en is hij niet zelf geraakt, dan zet de klap hem een klein
+  stukje terug, weg van Nyundo (`kap.schok.duw` als `knock`, zo'n 60 wereld-px, geen schade; een opspannende worp vervalt,
+  zoals bij de trilling van de kooiman). Wie springt op de inslag, schuift niet.
   Meteen opnieuw kappen gaat met een kortere tell (`BRU.kap.tellOpnieuw`). De zijwaartse zwaai (beweging `zwaai`)
   blijft in brutus.json voor de intimidatie (met de dozen, komt nog); `bruSlag()` kiest de kap als die er is.
   Bron: Grok-clip tophit1 (start RC2 frame 24, eind de kap-pose), keyed, bal hersteld waar hij boven uit beeld
@@ -91,10 +96,14 @@ in `BRU.hekDuur` (`pleinHekStap`, het takelgeluid, stof bij de voet), en onder e
 Sandbox: Vijanden, rij **Brutus (baas)**: zonder wachten, meteen stormen.
 
 ## Bestanden
-- **De voeten in de zwaai**: in de Grok-clip zweefde hij in de zwaai 30 tot 60 px boven de grond, met de ene voet
-  hoger dan de andere. `tools/brutus_voeten.py` zet per zwaaiframe de laagste voet op de grondlijn en buigt het been
+- **De voeten in de zwaai, de kap en de terugslag**: in de Grok-clip zweefde hij in de zwaai 30 tot 60 px boven de grond, met de ene voet
+  hoger dan de andere; in de kap stond de achterste voet 15 px boven de lijn en de voorste tot 42 px, in de terugslag
+  wisselde het van 18 px erboven tot 2 px eronder. `tools/brutus_voeten.py` (zonder argument de zwaai, `kap terug` voor
+  de andere twee) zet per frame de laagste voet op de grondlijn en buigt het been
   van de hogere voet omlaag (een zachte verschuiving van heup naar voet, van het kruis naar buiten). De originelen staan
-  in `enemies/brutus/bron/`; het script werkt altijd vanaf die originelen. Daarna `gen-klein.py` en `gen-offline-manifest.py`.
+  in `enemies/brutus/bron/` (ook hun regels in `bron/brutus.json`); het script werkt altijd vanaf die originelen. In de
+  terugslag meet het rond het meeschuivende lijf (`verplaatsing`, zoals `bruLijfDX`), en een voet hoger dan `BUIG_MAX`
+  is een pas (het been is opgetild): dat frame wordt alleen verschoven, niet gebogen. Daarna `gen-klein.py` en `gen-offline-manifest.py`.
 - `enemies/brutus/brutus.json` met per beweging (`idle`, `storm`, `zwaai`) per frame `{src, dx, dy, w, h, ms}`
   t.o.v. het anker (midden van het lijf) en de grondlijn, in pixels van de grote set (figuur ~340 hoog van
   haar tot voet), naar links kijkend. `klein/enemies/brutus/` dezelfde frames op halve grootte.
