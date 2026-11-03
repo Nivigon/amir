@@ -30493,7 +30493,8 @@ const ZWM_BLOED = {
             { naam: 'snee_recht', x: -20, y: -205, h: 105, rot: -0.6 } ],
   spat: 14, spatV: 520,           // zoveel druppels in de spat, en hun snelheid (idle-px/s)
   drup: 2.6, drupKans: 9,         // zo lang druppelt de wond na (s), zoveel druppels per seconde
-  lig: 9                          // zo lang blijven de vlekken op het zand liggen (s), de laatste seconde vervagen ze
+  lig: 9,                         // zo lang blijven de vlekken op het zand liggen (s), de laatste seconde vervagen ze
+  doodSpuit: { n: 7, v: 300 }      // fase 2: bij het begin van de val een kleine spuit uit de stomp, met het bloedgeluid
 };
 let zwmStem = null, zwmStemVrij = 0;
 function zwmKreet(wat){                                   // een kreet gaat voor: geen kans, geen rust ervoor, en daarna even stil
@@ -30511,7 +30512,8 @@ function zwmLaad(){
   laadNodig('zwm');
   if (!zwmStem) zwmStem = { lach: banStemmen('sounds/zweeplach.mp3', 2), kom: banStemmen('sounds/zweepcomehereboy.mp3', 2),
                             voel: banStemmen('sounds/zweepfeelmyhurt.mp3', 2), knal: banStemmen('sounds/zweepslag.mp3', 3),
-                            geraakt: banStemmen('sounds/zweepgeraakt.mp3', 2), armeraf: banStemmen('sounds/zweeparmeraf.mp3', 1) };
+                            geraakt: banStemmen('sounds/zweepgeraakt.mp3', 2), armeraf: banStemmen('sounds/zweeparmeraf.mp3', 1),
+                            sterf: banStemmen('sounds/zweepsterf.mp3', 1) };
   bloedSneeLaad();
   if (zwmData || zwmBezig) return;
   zwmBezig = true;
@@ -30825,10 +30827,9 @@ function hitZweepman(s){
   hitstop = Math.max(hitstop, 0.06); shake = Math.max(shake, 0.12);
   s.knockV = (s.x < playerX() ? -1 : 1) * ZWM.knockV;
   if (s.hp <= 0 && s.fasen && s.fase === 1 && zwmData && zwmData.bewegingen.armeraf){ zwmBloedRaak(s, false); zwmArmEraf(s); return true; }   // fase 2: de arm eraf
-  zwmBloedRaak(s, s.hp > 0); zwmKreet('geraakt');                // bloed (een snee als hij het overleeft) en een korte kreet
+  zwmBloedRaak(s, s.hp > 0); zwmKreet(s.hp > 0 ? 'geraakt' : 'sterf');   // bloed (een snee als hij het overleeft) en een korte kreet, of zijn doodskreet
   if (s.hp <= 0){
-    s.state = 'dood'; s.alpha = 1; s.flash = 0.6; s.touw = null;
-    banSterf(); puffWorld(s.x, 6, 0, 0.9, s.base || 0); vijandDood(false);
+    s.state = 'dood'; s.alpha = 1; s.flash = 0.6; s.touw = null; puffWorld(s.x, 6, 0, 0.9, s.base || 0); vijandDood(false);
     return true;
   }
   if (s.state === 'slag' && !zwmSchreeuw() && s.frame < ZWM_SLAG[s.soort || 'laag'].pantserVan){ zwmSet(s, 'idle'); s.cool = ZWM.coolOnderbreek; s.touw = null; s.mepSpeer = false; }   // vroeg in de tell: onderbroken
@@ -31349,13 +31350,23 @@ function zwmF2Hit(s){
   hits++; hitsEl.textContent = hits;
   s.hp--; s.flash = 0.3; s.inv = ZWM.invHit;
   hitstop = Math.max(hitstop, 0.07); shake = Math.max(shake, 0.14);
-  zwmBloedRaak(s, false); zwmKreet('geraakt');
-  if (s.hp <= 0){ s.state = 'dood'; s.alpha = 1; s.flash = 0.6; s.touw = null; s.dood = { t: 0, lig: -1, van: null }; hitstop = Math.max(hitstop, 0.12); banSterf(); vijandDood(false); }
+  zwmBloedRaak(s, false); zwmKreet(s.hp > 0 ? 'geraakt' : 'sterf');   // bij de laatste treffer zijn doodskreet onder de val
+  if (s.hp <= 0){ s.state = 'dood'; s.alpha = 1; s.flash = 0.6; s.touw = null; s.dood = { t: 0, lig: -1, van: null }; hitstop = Math.max(hitstop, 0.12); vijandDood(false); }
   return true;
 }
 // de dood in fase 2: een halve seconde bevroren in zijn houding, dan de Grok-val (de set `dood`, vanuit de uitrust-houding):
 // een kwartslag naar de camera, de knieen begeven het en hij zakt in elkaar, steeds sneller; op frame `land` de plof
 // (`ZWM2.pof`), stof en een schudding. Sterft hij in een andere houding, dan vloeit die in `doodMix` s over in de val.
+// de kleine spuit bij het begin van de val: een handvol druppels uit de stomp, naar voren en omhoog, met het bloedgeluid
+function zwmDoodSpuit(s, st){
+  if (!st) return;
+  const B = ZWM_BLOED.doodSpuit; s.druppels = s.druppels || [];
+  for (let i = 0; i < B.n; i++){
+    const a = Math.PI + (Math.random() - 0.6) * 0.8, v = B.v * (0.5 + Math.random() * 0.6);
+    s.druppels.push({ x: st[0], y: st[1], wx: s.x, face: s.face, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.8 - 160, lig: 0, r: 2 + Math.random() * 2 });
+  }
+  bloedSpeel();
+}
 function zwmDoodStap(s, dt){
   const D = s.dood, set = zwmData && zwmData.bewegingen.dood; D.t += dt;
   if (D.t < ZWM2.doodVries) return;
@@ -31364,6 +31375,7 @@ function zwmDoodStap(s, dt){
       const oud = zwmF2Data(s), fr = oud && oud.frames[zwmF2Idx(s)];
       D.van = !/^rust/.test(s.f2) && fr ? fr.lijf : null; D.mix = 0;   // de houding waaruit hij valt, om over te vloeien
       s.f2 = 'dood'; s.frame = 0; s.acc = 0;
+      zwmDoodSpuit(s, set.frames[0].stomp);                 // de val begint: een kleine spuit uit de stomp, onder zijn doodskreet door
     }
     if (D.van){ D.mix += dt / ZWM2.doodMix; if (D.mix >= 1) D.van = null; }
     const N = set.frames.length;
