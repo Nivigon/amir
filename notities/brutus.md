@@ -41,7 +41,15 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
   gloeit hij rood op het ritme van zijn adem (`bruPuls`). Zijn eigen kleuren worden met rood vermenigvuldigd zodat de
   lijnen blijven (`bruGloedBeeld`), met een rode gloed om zijn silhouet (`shadowBlur`), een rode plas licht op de vloer
   (`bruVloerGloed`) en vonken die van zijn schouders opstijgen (`bruVonkTeken`). Bij zijn dood dooft het weer.
-- Een treffer van Brutus kost Amir één leven en Amir vliegt weg (`BRU.duw`).
+- Een treffer van Brutus kost Amir één leven en Amir schiet een stuk weg (`BRU.duw`, 1500: zo'n 180 wereld-px), met
+  een zware dreun (`sounds/brutus_raak.mp3`, gemengd in ffmpeg uit `kooihitground` en een lager gestemde `houtraak`;
+  vervang het gerust door een echt geluid met dezelfde naam), een schok, een korte hitstop en stof: een wolk op de klap
+  en een spoor achter zijn voeten zolang hij schuift (`bruRaakAmir`, `bruRaakSpoor`, `BRU.raakStof`). Alleen de klap die
+  echt landt doet dit, niet elk beeld van de onkwetsbaarheid erna.
+- **Nyundo: test** (pauze, Instellingen; alleen in een level of de sandbox met Nyundo): schuifjes voor de duur van de
+  tell, de slag, het raam en de adem tussen de slagen (procenten van de standaard, met de duur in seconden erbij), en
+  een vinkje Amir onsterfelijk (`BRU_TEST`, `bruTestToon`, in `onsterfelijk()`). De browser onthoudt de stand
+  (`amir.nyundotest`); ben je tevreden, neem de getallen dan over in `BRU`.
 - **Zestien treffers** (`BRU.hp`): de steek, de lage zwaai en de worp tellen elk één (de worp valt daarna
   naast hem neer, zoals bij elke vijand). Het mes doet niets. Na een treffer is hij `BRU.inv` s onraakbaar.
 - De balk onderaan het scherm: zijn naam en zestien vakjes, rood vanaf de woede.
