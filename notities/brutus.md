@@ -17,6 +17,24 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
   erdoorheen rennen (hij zwaait alleen naar voren). Daarna blijft hij in zijn eindpose staan (`BRU.eind`):
   het raam voor ongeveer twee treffers. Staat Amir dan nog dichtbij (`BRU.opnieuw`), dan zwaait hij meteen
   weer met een kortere tell (`BRU.tellOpnieuw`); anders ademt hij even (`BRU.adem`) en stormt opnieuw.
+- **Kap** (sinds 03-11-2026 zijn echte aanval, `BRU.kap`, beweging `kap` in brutus.json): vlak voor Amir remt hij
+  uit de storm af (kapframes 0-6, start op stormframe 6), tilt de knots met twee handen hoog achter zijn hoofd
+  (7-23) en houdt hem daar terwijl de bal omhoogkomt (24-41): samen de tell, met haatgezicht. Dan kapt hij hem in
+  een keer voor zich in de grond (42-51, raak `BRU.kap.raakVan` t/m `raakTot`, op `inslag` een schok, stap-plof en
+  stof) en blijft voorovergebogen over de knots hangen: het raam (`BRU.kap.eind`, langer dan bij de zwaai).
+  Meteen opnieuw kappen gaat met een kortere tell (`BRU.kap.tellOpnieuw`). De zijwaartse zwaai (beweging `zwaai`)
+  blijft in brutus.json voor de intimidatie (met de dozen, komt nog); `bruSlag()` kiest de kap als die er is.
+  Bron: Grok-clip tophit1 (start RC2 frame 24, eind de kap-pose), keyed, bal hersteld waar hij boven uit beeld
+  zwiepte (bron 133-138), bron 136 weggelaten, x1,142 op storm_06 geregistreerd en omgekleurd naar de speelkleuren.
+- **Terugslag** (`BRU.terug`, beweging `terug`): staat Amir na de inslag van de kap achter hem (erdoorheen gelopen,
+  binnen `BRU.terug.achter`), dan kijkt hij om, rukt de knots met een hand uit de grond en zwiept hem met een pas plat
+  achter zich langs (raak `raakVan` t/m `raakTot`, het vak ligt achter hem); de knots komt hoog uit. Daarna staat hij
+  naar Amir toe: zijn anker schuift `verplaatsing` (brutus.json) achter hem langs en `face` draait om (`bruTerugStap`);
+  zijn lijf (de raakbox voor Amir) loopt tijdens de zwiep mee (`bruLijfDX`). Daarna kapt hij meteen weer als Amir dichtbij
+  staat, anders ademt hij. Speelwijze: stap terug uit de kap en je hebt het raam; loop door hem heen en de terugslag
+  volgt, tenzij je doorloopt tot buiten bereik; wie steeds terugstapt staat vanzelf tegen de wand en moet erdoorheen.
+  Bron: Grok-clip bijna_of_goed_2 (begin het laatste kap-frame, tussen omkijken met een hand, eind de eindpose een pas
+  verder), frames 1, 60-78 (omkijken) en 80-110, x1,264 op kap_54 geregistreerd, omgekleurd.
 - **Woede**: met `BRU.woedeHp` (6) levens of minder gaan de tell, de zwaai en het raam sneller
   (`BRU.woede`): dan red je nog maar één treffer.
   Je ziet het aan hem (`BRU.gloed`, `bruGloedStap`): bij de omslag een flits, een schok en een korte hitstop, daarna

@@ -29869,8 +29869,29 @@ const BRU = {
   hekWacht: 1.6, hekDuur: 2.8,    // na zijn dood: zo lang tot de hekken van het plein optakelen, en zo lang duurt dat
   naam: 'Nyundo',                 // de naam in beeld (Swahili: de hamer); Brutus is de codenaam
   vol: { adem: 0.75, stap: 0.85, geraakt: 0.95, dood: 1, plof: 0.8, zwaai: 0.95, speer: 1, knots: 0.45 },
-  ademPeriode: 2.33               // de ademhaling in sounds/brutus_adem.mp3: in en uit duurt zo lang
+  ademPeriode: 2.33,              // de ademhaling in sounds/brutus_adem.mp3: in en uit duurt zo lang
+  // De kap (beweging kap in brutus.json): zijn echte aanval. Hij remt uit de storm af, tilt de knots met twee handen
+  // hoog achter zijn hoofd (de tell: het silhouet verandert helemaal), houdt hem daar terwijl de bal omhoogkomt, en
+  // kapt hem dan in een keer voor zich in de grond. Daar blijft hij voorovergebogen staan: het raam. De zijwaartse
+  // zwaai (beweging zwaai) blijft over voor de intimidatie. Fasen in kapframes (zie fase per frame in brutus.json):
+  // rem 0-6, optillen 7-23, vasthouden 24-41, kap 42-51, eindpose 52-54.
+  kap: { set: 'kap', slagVan: 42, raakVan: 48, raakTot: 51, inslag: 51, geluid: 43,
+         tellOpnieuw: 0.6,        // de tell (rem, optillen, vasthouden) duurt zoveel korter als hij meteen opnieuw kapt
+         eind: [100, 150, 1000] }, // het raam (de laatste drie frames): de knots in de grond, hij hangt erover
+  // De terugslag (beweging terug): staat Amir na de kap ACHTER hem (erdoorheen gelopen), dan kijkt hij om, rukt de
+  // knots met een hand uit de grond en zwiept hem met een pas plat achter zich langs; de knots komt hoog uit en hij
+  // staat daarna naar Amir toe. Ben je teruggestapt (Amir voor hem), dan komt hij niet en heb je het raam van de kap.
+  // Loop je door tot buiten bereik, dan mist hij. Fasen in terugframes: start 0, omkijken 1-4, zwiep 5-25, eind 26-28.
+  // verplaatsing (brutus.json) is hoeveel grote-set-pixels zijn anker achter hem langs opschuift tot de eindpose.
+  terug: { raakVan: 10, raakTot: 15, geluid: 6, zwiepVan: 5, zwiepTot: 25,
+           achter: 520,           // staat Amir binnen zoveel (grote-set-pixels) achter hem, dan komt de terugslag
+           eind: [120, 160, 350] }
 };
+// welke aanval hij doet: de kap als die in brutus.json staat, anders de oude zwaai
+function bruSlag(){
+  if (bruData && bruData.bewegingen.kap) return BRU.kap;
+  return { set: 'zwaai', slagVan: 3, raakVan: BRU.raakVan, raakTot: BRU.raakTot, inslag: -1, geluid: BRU.zwaaiGeluid, eind: BRU.eind };
+}
 let bruData = null, bruBezig = false, bruGeluid = null;
 const bruBank = {};
 let brutus = null;
@@ -29920,11 +29941,12 @@ function bruStart(){
 }
 function bruWoede(s){ return s.hp <= BRU.woedeHp; }
 function bruSet(s, st){ s.state = st; s.frame = 0; s.acc = 0; s.stapF = -1; }
-function bruMs(s, i){                                        // hoe lang een zwaaiframe duurt
-  const f = bruData.bewegingen.zwaai.frames[i], w = bruWoede(s) ? BRU.woede : null;
-  if (i <= 2) return (s.opnieuw ? BRU.tellOpnieuw : BRU.tell)[i] * (w ? w.tell : 1);
-  const n = bruData.bewegingen.zwaai.frames.length;
-  if (i >= n - 3) return BRU.eind[i - (n - 3)] * (w ? w.eind : 1);
+function bruMs(s, i){                                        // hoe lang een aanvalsframe duurt
+  const k = bruSlag(), fr = bruData.bewegingen[k.set].frames, f = fr[i], w = bruWoede(s) ? BRU.woede : null;
+  const n = fr.length;
+  if (i >= n - 3) return k.eind[i - (n - 3)] * (w ? w.eind : 1);
+  if (k.set === 'zwaai' && i <= 2) return (s.opnieuw ? BRU.tellOpnieuw : BRU.tell)[i] * (w ? w.tell : 1);
+  if (i < k.slagVan) return f.ms * (s.opnieuw ? k.tellOpnieuw : 1) * (w ? w.tell : 1);
   return f.ms * (w ? w.zwaai : 1);
 }
 // stof: een eigen lijst deeltjes bij Brutus (s.stof), in grote-set-pixels t.o.v. de grond onder hem, getekend met het
@@ -30022,11 +30044,14 @@ function updateBrutus(dt){
     s.x = nx;
     return;
   }
+  if (s.state === 'terug'){ bruTerugStap(s, dt); return; }
   if (s.state === 'zwaai'){
-    const n = bruData.bewegingen.zwaai.frames.length;
+    const k = bruSlag(), n = bruData.bewegingen[k.set].frames.length;
     s.acc += dt * 1000;
-    while (s.frame < n - 1 && s.acc >= bruMs(s, s.frame)){ s.acc -= bruMs(s, s.frame); s.frame++; if (s.frame === BRU.raakVan) s.geraaktAmir = false;
-      if (s.frame === BRU.zwaaiGeluid) banStemSpeel(bruGeluid.zwaai, BRU.vol.zwaai); }
+    while (s.frame < n - 1 && s.acc >= bruMs(s, s.frame)){ s.acc -= bruMs(s, s.frame); s.frame++; if (s.frame === k.raakVan) s.geraaktAmir = false;
+      if (s.frame === k.geluid) banStemSpeel(bruGeluid.zwaai, BRU.vol.zwaai);
+      if (s.frame === k.inslag){ shake = Math.max(shake, 0.35); banStemSpeel(bruGeluid.stap, 1); bruStof(s); } }   // de knots slaat in de grond
+    if (k.set === 'kap' && s.frame >= k.inslag && bruData.bewegingen.terug && bruAchter(s)){ bruSet(s, 'terug'); return; }
     const raam = s.frame >= n - 3, ver = !bruDichtbij(s, BRU.opnieuw * BRU.wegVlucht);
     if (raam && ver){ bruSet(s, 'adem'); s.ademT = 0.25; return; }   // Amir rent weg: het raam is voorbij, kort omkijken en erachteraan
     if (s.frame === n - 1 && s.acc >= bruMs(s, n - 1)){
@@ -30034,6 +30059,34 @@ function updateBrutus(dt){
       else { bruSet(s, 'adem'); s.ademT = BRU.adem; }
     }
   }
+}
+// de terugslag: na de laatste frame draait hij om (face) en staat zijn anker een pas verder, achter hem langs
+function bruTerugStap(s, dt){
+  const T = BRU.terug, fr = bruData.bewegingen.terug.frames, n = fr.length, w = bruWoede(s) ? BRU.woede : null;
+  const ms = i => i >= n - 3 ? T.eind[i - (n - 3)] * (w ? w.eind : 1) : fr[i].ms * (w ? w.zwaai : 1);
+  s.acc += dt * 1000;
+  while (s.frame < n - 1 && s.acc >= ms(s.frame)){ s.acc -= ms(s.frame); s.frame++;
+    if (s.frame === T.raakVan) s.geraaktAmir = false;
+    if (s.frame === T.geluid) banStemSpeel(bruGeluid.zwaai, BRU.vol.zwaai); }
+  if (s.frame === n - 1 && s.acc >= ms(n - 1)){
+    s.x -= s.face * bruData.bewegingen.terug.verplaatsing * bruScale();   // achter hem langs (getekend naar links: + is achter)
+    s.face = -s.face;
+    if (s.van != null && s.tot != null){ const lo = Math.min(s.van, s.tot) + 60, hi = Math.max(s.van, s.tot) - 60; s.x = Math.max(lo, Math.min(hi, s.x)); }
+    if (bruDichtbij(s, BRU.aanval)){ bruSet(s, 'zwaai'); s.opnieuw = true; s.face = bruNaarAmir(s); }
+    else { bruSet(s, 'adem'); s.ademT = BRU.adem; }
+  }
+}
+// staat Amir achter hem (de andere kant dan waar hij heen kijkt), binnen het bereik van de terugslag?
+function bruAchter(s){
+  const achter = (playerX() - s.x) * -s.face;
+  return achter > 0 && achter < BRU.terug.achter * bruScale() && Math.abs(ph - (s.base || 0)) < 120;
+}
+// hoe ver zijn lijf (grote-set-pixels, naar achter) in de terugslag is opgeschoven: loopt mee met de zwiep
+function bruLijfDX(s){
+  if (s.state !== 'terug' || !bruData) return 0;
+  const T = BRU.terug, v = bruData.bewegingen.terug.verplaatsing;
+  const t = Math.max(0, Math.min(1, (s.frame - T.zwiepVan) / (T.zwiepTot - T.zwiepVan)));
+  return v * t;
 }
 function hitBrutus(s){
   if (!s || s.state === 'dood' || s.inv > 0) return false;
@@ -30108,7 +30161,8 @@ function bruFrame(s){
   if (!bruData) return null;
   const B = bruData.bewegingen;
   if (s.state === 'storm') return B.storm.frames[s.frame % B.storm.frames.length];
-  if (s.state === 'zwaai') return B.zwaai.frames[Math.min(s.frame, B.zwaai.frames.length - 1)];
+  if (s.state === 'zwaai'){ const fr = B[bruSlag().set].frames; return fr[Math.min(s.frame, fr.length - 1)]; }
+  if (s.state === 'terug') return B.terug.frames[Math.min(s.frame, B.terug.frames.length - 1)];
   if (s.state === 'dood'){ const D = B[s.fase] || B.val; return D ? D.frames[Math.min(s.frame, D.frames.length - 1)] : null; }
   // wacht en adem: de ademhaling, gelijk met het geluid (in de eerste helft van idle: uit- naar ingeademd)
   const a = bruGeluid && bruGeluid.adem, t = (a && !a.paused) ? a.currentTime : s.t;
@@ -30144,8 +30198,19 @@ function bruTeken(s, bodyX, voeten, gs){
 }
 // het vak waar de zwaai raakt (of null): alleen in de raakframes, voor hem (naar waar hij kijkt), tot raakHoog boven de grond
 function bruRaakVak(s, bodyX, voeten, gs){
-  if (s.state !== 'zwaai' || s.geraaktAmir || s.frame < BRU.raakVan || s.frame > BRU.raakTot) return null;
-  const fr = bruData.bewegingen.zwaai.frames[s.frame];
+  if (s.state === 'terug'){
+    const T = BRU.terug;
+    if (s.geraaktAmir || s.frame < T.raakVan || s.frame > T.raakTot) return null;
+    const fr = bruData.bewegingen.terug.frames[s.frame];
+    const ver = (fr.dx + fr.w) * gs;                       // zo ver reikt de knots achter hem (getekend naar rechts)
+    const box = s.face === 1 ? { l: bodyX - ver, r: bodyX } : { l: bodyX, r: bodyX + ver };
+    box.t = voeten - BRU.raakHoog * gs; box.b = voeten;
+    if (showBoxes){ ctx.save(); ctx.globalAlpha = 0.5; ctx.strokeStyle = '#ff4040'; ctx.lineWidth = 2; ctx.strokeRect(box.l, box.t, box.r - box.l, box.b - box.t); ctx.restore(); }
+    return box;
+  }
+  const k = bruSlag();
+  if (s.state !== 'zwaai' || s.geraaktAmir || s.frame < k.raakVan || s.frame > k.raakTot) return null;
+  const fr = bruData.bewegingen[k.set].frames[s.frame];
   const ver = -fr.dx * gs;                                 // zo ver reikt de knots voor hem uit
   const box = s.face === 1 ? { l: bodyX + 20 * gs, r: bodyX + ver } : { l: bodyX - ver, r: bodyX - 20 * gs };
   box.t = voeten - BRU.raakHoog * gs; box.b = voeten;
@@ -36656,8 +36721,8 @@ function loop(now){
       bruTeken(s, bodyX, voeten, gs);
       bruStofTeken(s, groundY - (s.base || 0) * scale + BRU.zak * gs, gs, cx);   // het stof voor hem langs
       if (s.state !== 'dood' && bruData){
-        const lhalf = BRU.half * gs;
-        const nbox = { l: bodyX - lhalf, r: bodyX + lhalf, t: voeten - BRU.fig * gs, b: voeten };
+        const lhalf = BRU.half * gs, lijfX = bodyX - s.face * bruLijfDX(s) * gs;   // in de terugslag loopt zijn lijf een pas mee
+        const nbox = { l: lijfX - lhalf, r: lijfX + lhalf, t: voeten - BRU.fig * gs, b: voeten };
         if (showBoxes){ ctx.save(); ctx.globalAlpha = 0.5; ctx.lineWidth = 2; ctx.strokeStyle = '#c9a06b'; ctx.strokeRect(nbox.l, nbox.t, nbox.r - nbox.l, nbox.b - nbox.t); ctx.restore(); }
         // de zwaai raakt Amir, of hij loopt Amir in zijn storm omver: een leven en Amir vliegt weg
         const omver = s.state === 'storm' && hitBy(nbox, pbox);
