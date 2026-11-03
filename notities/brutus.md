@@ -26,7 +26,15 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
   blijft in brutus.json voor de intimidatie (met de dozen, komt nog); `bruSlag()` kiest de kap als die er is.
   Bron: Grok-clip tophit1 (start RC2 frame 24, eind de kap-pose), keyed, bal hersteld waar hij boven uit beeld
   zwiepte (bron 133-138), bron 136 weggelaten, x1,142 op storm_06 geregistreerd en omgekleurd naar de speelkleuren.
-  Volgt nog: de terugslag (staat Amir achter hem, dan draait hij met een pas en zwiept de knots naar die kant).
+- **Terugslag** (`BRU.terug`, beweging `terug`): staat Amir na de inslag van de kap achter hem (erdoorheen gelopen,
+  binnen `BRU.terug.achter`), dan kijkt hij om, rukt de knots met een hand uit de grond en zwiept hem met een pas plat
+  achter zich langs (raak `raakVan` t/m `raakTot`, het vak ligt achter hem); de knots komt hoog uit. Daarna staat hij
+  naar Amir toe: zijn anker schuift `verplaatsing` (brutus.json) achter hem langs en `face` draait om (`bruTerugStap`);
+  zijn lijf (de raakbox voor Amir) loopt tijdens de zwiep mee (`bruLijfDX`). Daarna kapt hij meteen weer als Amir dichtbij
+  staat, anders ademt hij. Speelwijze: stap terug uit de kap en je hebt het raam; loop door hem heen en de terugslag
+  volgt, tenzij je doorloopt tot buiten bereik; wie steeds terugstapt staat vanzelf tegen de wand en moet erdoorheen.
+  Bron: Grok-clip bijna_of_goed_2 (begin het laatste kap-frame, tussen omkijken met een hand, eind de eindpose een pas
+  verder), frames 1, 60-78 (omkijken) en 80-110, x1,264 op kap_54 geregistreerd, omgekleurd.
 - **Woede**: met `BRU.woedeHp` (6) levens of minder gaan de tell, de zwaai en het raam sneller
   (`BRU.woede`): dan red je nog maar één treffer.
 - Een treffer van Brutus kost Amir één leven en Amir vliegt weg (`BRU.duw`).
