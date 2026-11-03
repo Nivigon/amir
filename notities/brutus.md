@@ -37,13 +37,24 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
   verder), frames 1, 60-78 (omkijken) en 80-110, x1,264 op kap_54 geregistreerd, omgekleurd.
 - **Woede**: met `BRU.woedeHp` (6) levens of minder gaan de tell, de zwaai en het raam sneller
   (`BRU.woede`): dan red je nog maar één treffer.
+  Je ziet het aan hem (`BRU.gloed`, `bruGloedStap`): bij de omslag een flits, een schok en een korte hitstop, daarna
+  gloeit hij rood op het ritme van zijn adem (`bruPuls`). Zijn eigen kleuren worden met rood vermenigvuldigd zodat de
+  lijnen blijven (`bruGloedBeeld`), met een rode gloed om zijn silhouet (`shadowBlur`), een rode plas licht op de vloer
+  (`bruVloerGloed`) en vonken die van zijn schouders opstijgen (`bruVonkTeken`). Bij zijn dood dooft het weer.
 - Een treffer van Brutus kost Amir één leven en Amir vliegt weg (`BRU.duw`).
 - **Zestien treffers** (`BRU.hp`): de steek, de lage zwaai en de worp tellen elk één (de worp valt daarna
   naast hem neer, zoals bij elke vijand). Het mes doet niets. Na een treffer is hij `BRU.inv` s onraakbaar.
 - De balk onderaan het scherm: zijn naam en zestien vakjes, rood vanaf de woede.
-- **Dood**: het doodsgeluid, hij kantelt in code achterover (`s.val`), ploft neer (`sounds/bavland.mp3`, schok) in
-  een grote stofwolk over zijn hele lengte (`bruDoodStof`), en vaagt daaronder weg (`s.weg`). De poort met `uit: true` gaat open en `bossBlocking` laat het level weer
-  uitspelen. Een echte dood-animatie komt later.
+- **Dood** (`bruDoodStap`, `bruFinale`): op de laatste treffer staat de wereld stil voor Amir (hij kan niet lopen en niet
+  geraakt worden) en draait Brutus zich naar hem toe. Dan drie Grok-sets uit brutus.json achter elkaar: `dreig` (hij heft
+  zijn knots langzaam naar Amir, vertraagd afgespeeld), `drop` (zijn pols draait, de knots zakt; op het laatste frame staat
+  de knots los op zijn bal en kantelt in code van hem weg om, `knots` in de json, `BRU.knotsLig`, met een kleine plof en stof)
+  en `val` (het doodsgeluid, hij zakt op zijn knieen en valt voorover; op het frame met bron `BRU.valKlap` de plof, een
+  schok en de grote stofwolk). Daarna blijft hij liggen (fase `lig`, over de knots heen), gaat de uitgang open en speelt
+  "ta soul, rest". De val-frames zijn per frame op de grond gezet: Grok liet hem ruim 100 px boven de grond liggen. Grok liet hem ook
+  groeien bij het knielen en liggen: de val-frames zijn per frame geschaald rond het anker (veld `schaal`: staand 1, geknield
+  0,76, liggend 0,57), zodat hij liggend ongeveer zo lang is als hij staand hoog is. Liggend is hij
+  nog wat lang (het eindbeeld van Grok was te groot); een betere ligpose en de speer-finisher (speer breken, schreeuw) komen later.
 - Zolang hij leeft blijven Amir en Brutus tussen `brutus.van` en `brutus.tot` (`bruKlem`).
 - **Bloed** (eerste versie, `BRU.bloed`, `bruBloedRaak`): elke treffer geeft een spat druppels uit zijn borst, naar de kant
   waar de klap vandaan kwam, die op de grond blijven liggen en vervagen (de druppels van de zweepman: `zwmDruppelStap`,
@@ -65,9 +76,17 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
 Het laadscherm van een level met `brutus` is `design/menu/laadscherm_brutus.jpg` (Amir tegenover Nyundo in de poort,
 de klasse `brutus` op `#laad`, in `laadPoort`); het gaat boven het stadsbeeld.
 `brutus: { x, van, tot }` in de leveldefinitie (ook door `readLevel`), en bij de pleinpoorten
-`uit: true` voor de uitgang. Sandbox: Vijanden, rij **Brutus (baas)**: zonder wachten, meteen stormen.
+`uit: true` voor elke uitgang. Stad 6 is een dicht plein: aan beide kanten een poort met een hek, geen fakkels.
+Amir komt niet verder dan onder de boog (`pleinKlem`). Ligt Brutus, dan takelen na `BRU.hekWacht` beide hekken op
+in `BRU.hekDuur` (`pleinHekStap`, het takelgeluid, stof bij de voet), en onder een open poort staat het bordje
+"Het plein verlaten?  E": E speelt het level uit (`pleinPoortBij`, `pleinUitgang`). `levelcheck.py` kent dit als einde.
+Sandbox: Vijanden, rij **Brutus (baas)**: zonder wachten, meteen stormen.
 
 ## Bestanden
+- **De voeten in de zwaai**: in de Grok-clip zweefde hij in de zwaai 30 tot 60 px boven de grond, met de ene voet
+  hoger dan de andere. `tools/brutus_voeten.py` zet per zwaaiframe de laagste voet op de grondlijn en buigt het been
+  van de hogere voet omlaag (een zachte verschuiving van heup naar voet, van het kruis naar buiten). De originelen staan
+  in `enemies/brutus/bron/`; het script werkt altijd vanaf die originelen. Daarna `gen-klein.py` en `gen-offline-manifest.py`.
 - `enemies/brutus/brutus.json` met per beweging (`idle`, `storm`, `zwaai`) per frame `{src, dx, dy, w, h, ms}`
   t.o.v. het anker (midden van het lijf) en de grondlijn, in pixels van de grote set (figuur ~340 hoog van
   haar tot voet), naar links kijkend. `klein/enemies/brutus/` dezelfde frames op halve grootte.

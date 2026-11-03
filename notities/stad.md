@@ -315,16 +315,30 @@ grondSoort: [{van, tot, soort: 'plein'}]
   uitgang van de baas: Brutus (`notities/brutus.md`) zet hem dicht bij de start en open als hij sterft (in een klap,
   zonder takelen). De wanden van het gevecht komen uit `brutus.van` en `brutus.tot`, niet uit de poorten.
 
-De pleinwand en de put hebben een donkere outline gekregen, net als de andere stadsplaatjes (zie hieronder).
+## Geen outline op de stadsplaatjes
 
-## De outline van de stadsplaatjes
-
-De gevel, de poorten, de galerij, de kramen en de trap hebben een donkerbruine outline (45, 28, 16) om hun silhouet,
-zodat ze aansluiten bij de savanne en de figuren: 4 bronpx bij de gevel en de poorten, 3 bij de rest, op 85% dekking,
-en de buitenste rand van de muur zelf iets naar die kleur. Het voetdecor (zand, stro) heeft er bewust geen. De huizen
-in de verte komen uit dezelfde `gevel.png` en hebben de lijn dus ook (in de nevel). Gekozen na een vergelijking met de
-savanne overdag (licht, midden, zwaar): midden.
+Een donkere outline om de stadsplaatjes is geprobeerd (2 november 2026) en weer teruggedraaid: Tom vond het lelijk.
+De stadsplaatjes hebben dus geen extra outline. Niet opnieuw toevoegen zonder dat Tom erom vraagt.
 
 ## Nog niet
 
 - Een subtiele gloed om de personages (in de mockups hielp dat tegen de bruine muren), en een kleine set (`klein/`).
+
+## De huizenrijen in de verte als strook (`stadRijStrookTeken`, `STAD_STROOK`, `STROOK`)
+
+`stadAchter` tekende de drie achterrijen huis voor huis: per huis een save, een spiegeling en een stapel strookjes
+muur tot de grond, zo'n 66 tot 150 tekenopdrachten per beeld. Op een telefoon was dat twee derde van elk beeld
+(gemeten in Stad 6 op 852x393 met een vier keer tragere CPU: 333 ms per beeld, zonder de achterrijen 117 ms).
+
+Nu tekent `stadRijStrookMaak` elke rij een keer in een eigen canvas op schermresolutie (`DPR`), met de muur onder de
+huizen `STROOK.diep` schermhoogtes diep, en `STROOK.marge` schermbreedtes extra aan elke kant. Per beeld zet
+`stadRijStrookTeken` alleen het stuk dat in beeld valt neer, op hele schermpixels en zonder gladmaakfilter (het is 1 op
+1, dus er valt niets te verzachten, en het kopieren is zo veel goedkoper). Klimt de camera dieper dan de strook, dan
+herhaalt hij de onderste verdieping. Een nieuwe strook komt er als de rij uit de strook schuift, `DPR` verandert, het
+level wisselt, of de maat (de meekijkende camera zoomt) `STROOK.rust` beelden vast staat op een andere waarde; tot dan
+blijft de oude verschaald staan. `laadVrij` gooit de stroken weg in een level zonder stad (samen zo'n 30 MB).
+
+Gemeten (zelfde opstelling, mediaan per beeld): Stad 1 van 450 naar 167 ms, Stad 6 van 367 naar 150 ms, Stad 6
+lopend van 533 naar 250 ms. Het beeld verschilt alleen in de randen van de huizen, omdat ze nu op hele pixels staan in
+plaats van een fractie ernaast: `node tools/beeldgelijk.js --vlag STAD_STROOK` zet de oude weg (`STAD_STROOK = false`)
+ernaast.
