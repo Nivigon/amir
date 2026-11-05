@@ -826,7 +826,7 @@
         <button id="btnupdates">Updates</button>
         <button id="btninstellingen">Instellingen</button>
       </div>
-      <p>Pijltjes rennen, omhoog springen, Shift sprinten, E speer, spatie stoten en werpen (langer vasthouden voor een boog), omlaag bukken, Q drinken, R opnieuw</p>
+      <p>Pijltjes rennen, omhoog springen, Shift sprinten, E speer, spatie stoten en werpen (langer vasthouden voor een boog), omlaag bukken, V rollen, Q drinken, R opnieuw</p>
     </div>
 
     <div id="menuInstellingen">
@@ -1397,6 +1397,11 @@
         <label>Renstoot</label>
         <button id="sbrenstoot" class="on">Renstoot: aan</button>
         <button id="sbglij">Glijden: middel</button>
+      </div>
+      <div class="row">
+        <label>Rol</label>
+        <button id="sbrol" class="on" title="Een gevechtsrol naar voren: V, of op een telefoon de rolknop. Tijdens het duiken en rollen is Amir onkwetsbaar, daarna koelt de rol even af">Rol: aan</button>
+        <span class="hint">V, of de rolknop</span>
       </div>
       <div class="row">
         <label>Rune op een rots</label>
@@ -2094,7 +2099,7 @@
   <div id="fout" class="gone"></div>
   <button id="barpijl" type="button" title="de testbalk met schuifjes uitklappen of inklappen (B)">&#9650;</button>
   <button id="arenastart" type="button" title="de golven van de arena starten; het paneel klapt dan dicht">Start</button>
-  <div id="hint">Pijltjes om te rennen, pijl omhoog om te springen, Shift sprint, E speer, spatie stoot, spatie vasthouden werpt, langer vasthouden in een boog, pijl omlaag bukken, gebukt links of rechts om te kruipen, Q drinken, R opnieuw</div>
+  <div id="hint">Pijltjes om te rennen, pijl omhoog om te springen, Shift sprint, E speer, spatie stoot, spatie vasthouden werpt, langer vasthouden in een boog, pijl omlaag bukken, gebukt links of rechts om te kruipen, V rollen, Q drinken, R opnieuw</div>
 </div>
 <div id="bar" class="hide">
   <div class="field"><label for="fps">Beelden per seconde</label><input id="fps" type="range" min="6" max="24" step="1" value="12"><span class="read" id="fpsv">12</span></div>
@@ -13751,7 +13756,7 @@ function bavFocusX(p){
 }
 // de entree van de bandiet-arena: Amir staat vast en kijkt toe terwijl de garde hem opmerken, tot het gevecht vrij is
 const arenaIntroVast = () => { const A = arenaAap; return !!(A && A.ban && A.fase === 'intro'); };
-const amirVast = () => beetVast || bavDramaNu() || arenaIntroVast() || !!exeVries || !!poortRegie;   // de speerbeet, het drama, de arena-entree of de executie: Amir staat vast
+const amirVast = () => !!rol || beetVast || bavDramaNu() || arenaIntroVast() || !!exeVries || !!poortRegie;   // de speerbeet, het drama, de arena-entree of de executie: Amir staat vast
 // het gevecht in de tekenlus, na de andere vijanden: raakt zijn bek Amir, en raakt Amir hem
 function bavGevecht({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, valRaakt, attacking, hitBy }){
   const b = level && level.baviaan, r = b && bavRust.get(b), g = b && bavGeo.get(b);
@@ -17980,6 +17985,70 @@ function glijUpdate(dt, halfW){
     glijWolk(zij, 0.45 + 0.55 * k);
   }
 }
+// ---- de rol: een gevechtsrol naar voren, V of de rolknop --------------------
+// Amir duikt in, rolt over zijn rug naar voren en komt laag gehurkt overeind, met een hand op de
+// grond. Tijdens het duiken en rollen is hij onkwetsbaar (ROL.onkw), en daarna is er een korte
+// afkoeling (ROL.koel) voor hij weer kan rollen. Twee sets: met de speer erin gebakken (per frame
+// geplaatst in de Animeer tool Amir rol) en zonder, voor als hij hem kwijt is. De frames kijken naar
+// links, zoals de gewone sets; het anker per frame is het midden van zijn lijf, dus de wereld schuift
+// hem vooruit (ROL.afstand) en het beeld rolt niet nog eens zelf mee. Een richting ingedrukt bij de
+// start kiest de kant, anders rolt hij de kant op die hij kijkt. Aan de rand van een ravijn rolt hij
+// uit op de plek, net als de renstoot.
+const ROL = {
+  aan: true,
+  n: 28, ms: 42, eindMs: 90,       // 27 frames van 42 ms, het laatste (de hurk) iets langer
+  w: 554, h: 409, grond: 387,
+  schaal: 275 / 309,               // staand is zijn lijf 309 px in de rol en 275 in de gewone sets
+  anker: [360.5, 350.6, 345.9, 344.7, 344.2, 341.5, 336.3, 329.6, 317.6, 298.2, 280.0, 270.6, 268.8, 270.5, 274.3, 280.0, 287.0, 294.8, 300.3, 301.0, 301.4, 300.8, 292.4, 278.5, 265.6, 260.0, 266.6, 281.6],
+  afstand: 340,                    // wereld-px die hij aflegt
+  van: 2, tot: 24,                 // tussen deze frames schuift hij vooruit, zacht in en uit
+  onkw: 0.85,                      // seconden onkwetsbaar vanaf de start (duiken en rollen)
+  koel: 0.5                        // seconden afkoelen voor de volgende rol
+};
+const ROL_DIR = 'beweging/rol/';
+const rolImgs = {
+  met: Array.from({ length: ROL.n }, (_, i) => loadQuiet(uniq([AMIR, AMIR_GROOT]).map(d => d + ROL_DIR + 'met/rol_' + (i + 1) + '.png'))),
+  zonder: Array.from({ length: ROL.n }, (_, i) => loadQuiet(uniq([AMIR, AMIR_GROOT]).map(d => d + ROL_DIR + 'zonder/rol_' + (i + 1) + '.png')))
+};
+let rol = null, rolKoel = 0;       // rol: {t, kant, met, gat} zolang hij rolt; rolKoel: de afkoeling
+function rolDuur(){ return ((ROL.n - 1) * ROL.ms + ROL.eindMs) / 1000; }
+function rolFrame(){ return rol ? Math.min(ROL.n - 1, Math.floor(rol.t * 1000 / ROL.ms)) : -1; }
+function rolVoortgang(t){
+  const a = ROL.van * ROL.ms / 1000, b = ROL.tot * ROL.ms / 1000;
+  const p = Math.max(0, Math.min(1, (t - a) / (b - a)));
+  return (1 - Math.cos(Math.PI * p)) / 2;
+}
+function rolKlaar(){                // voor de knop: 1 is klaar om te rollen, daaronder koelt hij af
+  if (rol) return 0;
+  return ROL.koel > 0 ? 1 - rolKoel / ROL.koel : 1;
+}
+function rolStart(){
+  if (!ROL.aan || rol || rolKoel > 0) return;
+  if (dead || hurt > 0 || schijnLigt() || amirVast() || jump || !onGround || fell) return;
+  if (atkFrame >= 0 || swFrame >= 0 || swRecover > 0 || thr || glij !== 0) return;
+  if (waterDepthAt(world, ph) > 0.3) return;
+  const left = keys['ArrowLeft'] || keys['a'] || keys['A'];
+  const right = keys['ArrowRight'] || keys['d'] || keys['D'];
+  const kant = left && !right ? -1 : right && !left ? 1 : facing;
+  facing = kant;
+  rol = { t: 0, kant, met: !!spear, gat: false };
+  invuln = Math.max(invuln, ROL.onkw);
+  invulnStil = Math.max(invulnStil, ROL.onkw);     // onkwetsbaar, maar zonder te knipperen
+}
+function rolEind(){ rol = null; rolKoel = ROL.koel; }
+function rolUpdate(dt, halfW){
+  if (!rol){ if (rolKoel > 0) rolKoel = Math.max(0, rolKoel - dt); return; }
+  if (dead || hurt > 0 || fell || !onGround || jump){ rolEind(); return; }
+  const f0 = rolVoortgang(rol.t);
+  rol.t += dt;
+  const stap = rol.kant * ROL.afstand * (rolVoortgang(rol.t) - f0);
+  if (stap !== 0 && !rol.gat){
+    if (gatOp(world + stap + rol.kant * halfW * 0.5, ph)) rol.gat = true;   // niet het ravijn in
+    else world += stap;
+  }
+  facing = rol.kant;
+  if (rol.t >= rolDuur()) rolEind();
+}
 function startAttack(){
   // in de lucht met omlaag ingedrukt: de sweep gaat af zodra je landt, als er een lading klaar is
   if ((jump || !onGround) && downKey() && spear && !dead && hurt <= 0){
@@ -18025,6 +18094,7 @@ addEventListener('keydown', e => {
     startJump(); return;
   }
   if (e.key === 'q' || e.key === 'Q'){ drinkHppotion(); return; }
+  if (e.key === 'v' || e.key === 'V'){ if (!e.repeat) rolStart(); return; }   // de rol
   if (sandbox && (e.key === 'j' || e.key === 'J')){ if (!e.repeat) bavAfzetWissel(); return; }   // de afzet van de baviaan
   if (sandbox && (e.key === 'k' || e.key === 'K')){ if (!e.repeat) bavSchudNu(); return; }   // het hoofdschudden meteen
   if (e.key.toLowerCase() === woedeWaarde('toets')){ if (!e.repeat) woedeStart(); return; }   // de woede van Bhubesi
@@ -34977,6 +35047,7 @@ function loop(now){
   houdingZet(dir);                                 // Bared Teeth: in de dreighouding kijkt hij de vijand aan
   if (beetVast) dir = 0;                           // de baviaan heeft de speer: Amir draait zich ook niet om
   if (exeVries) dir = 0;                           // de executie: Amir staat vast en draait zich niet om
+  if (rol) dir = 0;                                // de rol: hij rolt de kant op waar hij begon
   if (houding.aan) facing = houding.kant;
   else if (dir !== 0) facing = dir;
 
@@ -35087,6 +35158,7 @@ function loop(now){
   const loopFactor = crawling ? CRAWL_SPEED : (wetNow > 0.3 || schildOp() ? 1 : sprint);   // met het schild op: geen sprint   // kruipen gaat traag en niet sneller met Shift
   if (!fell && !bruFinale()) world += dir * 330 * walkK() * houdTempo * schildTempo() * loopFactor * (1 - (1 - POOL.slow) * wetNow) * dt;
   if (glij !== 0) glijUpdate(dt, halfWNow);      // de renstoot: remmend doorglijden
+  rolUpdate(dt, halfWNow);                       // de rol: vooruit schuiven, en de afkoeling
   const cliff = cliffAt();
   if (arenaVast()){
     // in de arena (boven, na de aankomst, en in de arena-modus van de sandbox) staat de camera vast in het midden (arenaMidden); Amir mag tot aan de
@@ -35297,9 +35369,12 @@ function loop(now){
       ctx.scale(zoom, zoom);
       ctx.translate(-W / 2, -groundY);
     }
-    const thrImg = thr ? thrImgs[Math.min(THR_N - 1, thr.frame)] : null;
+    const rolF = rolFrame();
+    const rolImg = rolF >= 0 ? (rol.met ? rolImgs.met : rolImgs.zonder)[rolF] : null;
+    const useRol = !!(rolImg && rolImg.complete && rolImg.naturalWidth);
+    const thrImg = thr && !useRol ? thrImgs[Math.min(THR_N - 1, thr.frame)] : null;
     const useThrow = !!(thrImg && thrImg.complete && thrImg.naturalWidth);
-    const jf = useThrow ? -1 : jumpFrame();
+    const jf = useThrow || useRol ? -1 : jumpFrame();
     const wantSpear = spear && jf >= 0 && jumpSpearImg[jf].complete && jumpSpearImg[jf].naturalWidth;
     const jimg = jf < 0 ? null : (wantSpear ? jumpSpearImg[jf] : jumpImg[jf]);
     const useJump = jimg && jimg.complete && jimg.naturalWidth;
@@ -35310,9 +35385,10 @@ function loop(now){
     const crawlImg = (crawling && !useJump && !attacking && !useSweep) ? cs.imgs[crawlFrame % cs.n] : null;
     const useCrawl = !!(crawlImg && crawlImg.complete && crawlImg.naturalWidth);
     const dSp = spear && !!duckFrame(true);
-    const dimg = (!useJump && !attacking && !useSweep && !useCrawl) ? (dSp ? duckFrame(true) : duckFrame(false)) : null;
+    const dimg = (!useRol && !useJump && !attacking && !useSweep && !useCrawl) ? (dSp ? duckFrame(true) : duckFrame(false)) : null;
     const useDuck = !!dimg;
-    const img = useThrow ? thrImg
+    const img = useRol ? rolImg
+              : useThrow ? thrImg
               : useJump ? jimg
               : useSweep ? swImg
               : useCrawl ? crawlImg
@@ -35322,7 +35398,7 @@ function loop(now){
     // het mes in zijn hand: bij een steek, stilstaand of lopend (in een sprong, gebukt of kruipend zit het weg)
     const mesHand = !mesInHand() || amirSteen > 0 ? null
                   : attacking && atkMes ? mesSteekHand(Math.min(atkFrame, MES.steek.length - 1))
-                  : (useThrow || useJump || useSweep || useCrawl || useDuck || attacking) ? null
+                  : (useRol || useThrow || useJump || useSweep || useCrawl || useDuck || attacking) ? null
                   : moving ? MES.hand.loop[frame % MES.hand.loop.length] : houding.aan ? MES.hand.dreig : MES.hand.stil;
     if (mesHand) mesLaad();
     if (img && img.complete){
@@ -35333,7 +35409,13 @@ function loop(now){
     const sinkPx = wetDraw * POOL.sink * CHAR_H * scale;   // in het water zak je een stukje weg
     const lift = -ph * scale + sinkPx;            // hoogte boven de grond
     let w, h, x, y;
-    if (useThrow){
+    if (useRol){
+      // eigen canvas, het anker per frame is het midden van zijn lijf (zie ROL); gespiegeld draait de kolom mee
+      const rs = ROL.schaal * scale, an = ROL.anker[rolF];
+      w = ROL.w * rs; h = ROL.h * rs;
+      x = pcx - (autoFlip && facing === 1 ? ROL.w - an : an) * rs;
+      y = groundY - ROL.grond * rs + lift;
+    } else if (useThrow){
       // breder en hoger canvas: reken met het anker, niet met de linkerbovenhoek.
       // Deze set kijkt naar rechts, dus de kolom van het anker draait mee bij het spiegelen.
       const ts = THR_S * scale;
@@ -45399,6 +45481,12 @@ document.getElementById('sbrenstoot').onclick = e => {
   e.currentTarget.classList.toggle('on', RENSTOOT.aan);
   cv.focus();
 };
+document.getElementById('sbrol').onclick = e => {      // de rol aan of uit (zie ROL)
+  ROL.aan = !ROL.aan; rol = null; rolKoel = 0;
+  e.currentTarget.textContent = 'Rol: ' + (ROL.aan ? 'aan' : 'uit');
+  e.currentTarget.classList.toggle('on', ROL.aan);
+  cv.focus();
+};
 const GLIJ_STANDEN = [['kort', 1800], ['middel', 1200], ['lang', 800]];   // de rem: 68, 102 of 153 px
 document.getElementById('sbglij').onclick = e => {
   const i = (GLIJ_STANDEN.findIndex(g => g[1] === RENSTOOT.rem) + 1) % GLIJ_STANDEN.length;
@@ -45745,17 +45833,21 @@ const TOUCH_BTNS = [
   { id: 'woede',  label: '',       ang: 22, arc: 200, r: 28, hit: 1.60, act: 'woede', when: 'woede', icon: 'woede' },
   { id: 'spell2', label: '',       ang: 96, arc: 176, r: 26, hit: 1.80, act: null, when: 'never' },
   // het schild van Amir: vasthouden, net als C. Alleen als hij er een heeft (level.schild of de sandbox)
-  { id: 'schild', label: '',       ang: 78, arc: 170, r: 30, hit: 1.80, act: 'schild', when: 'schild', icon: 'schild' }
+  { id: 'schild', label: '',       ang: 78, arc: 170, r: 30, hit: 1.80, act: 'schild', when: 'schild', icon: 'schild' },
+  // de rol: onderaan, links van de E, waar de duim van de springknop naartoe schuift
+  { id: 'rol',    label: '',       ang: 0,  arc: 200, r: 30, hit: 1.70, act: 'rol', when: 'rol', icon: 'rol' }
 ];
 function btnVisible(b){
   if (b.when === 'never') return false;            // gereserveerd voor een spell
   if (b.when === 'pickup') return eNodig();        // alleen als er iets met E te doen is: speer, deur, skelet
   if (b.when === 'woede') return heeftWoede();
+  if (b.when === 'rol') return ROL.aan;
   if (b.when === 'schild') return SCHILD_AAN;      // alleen met een schild     // alleen met de woedemeter (Long Breath of Blood Rush)
   return true;
 }
 function btnDim(b){                                // lege drinkknop staat er wat flauwer bij
   if (b.id === 'woede') return RUN.woede < 1 && !woedeAan();   // en de woedeknop zolang hij niet vol is
+  if (b.id === 'rol') return rolKlaar() < 1;     // de rolknop koelt af
   return b.id === 'drink' ? hppotionCarry === 0 : !!b.dim;
 }
 
@@ -45838,6 +45930,7 @@ function pressBtn(id){
   else if (b.act === 'spear') eDruk();                                 // net als E, dus ook door de deur
   else if (b.act === 'drink') drinkHppotion();                         // net als Q
   else if (b.act === 'woede') woedeStart();
+  else if (b.act === 'rol') rolStart();                                // net als V
   else if (b.act === 'schild') setTKey('c', true);                     // net als C: vasthouden                            // net als G
 }
 function releaseBtn(id, cancel){
@@ -46037,6 +46130,38 @@ function drawBtnWoede(x, y, r, a){
   }
   tctx.restore();
 }
+// De rolknop: een balletje (zijn hoofd, ingedoken) met de boog van de rol eromheen, linksom zoals hij
+// rolt, met een stukje grond eronder. Na een rol loopt een ring om de knop vol: is hij rond, dan kan het weer.
+function drawBtnRol(x, y, r, a){
+  const klaar = rolKlaar();
+  const inkt = 'rgba(18,12,10,' + Math.min(1, a + (klaar < 1 ? 0.25 : 0.45)).toFixed(3) + ')';
+  tctx.save();
+  tctx.lineCap = 'round'; tctx.lineJoin = 'round';
+  tctx.strokeStyle = inkt; tctx.fillStyle = inkt;
+  const R = r * 0.50, cy = y - r * 0.06;
+  tctx.lineWidth = Math.max(2.5, r * 0.12);
+  const a0 = Math.PI * 0.10, a1 = -Math.PI * 1.10;          // linksom, van rechtsonder over de top naar links
+  tctx.beginPath(); tctx.arc(x, cy, R, a0, a1, true); tctx.stroke();
+  const ex = x + R * Math.cos(a1), ey = cy + R * Math.sin(a1);
+  const tx = Math.sin(a1), ty = -Math.cos(a1);              // de looprichting van de boog aan zijn eind
+  const nx = -ty, ny = tx, L = r * 0.26;
+  tctx.beginPath();
+  tctx.moveTo(ex + tx * L * 0.9, ey + ty * L * 0.9);
+  tctx.lineTo(ex - tx * L * 0.35 + nx * L * 0.7, ey - ty * L * 0.35 + ny * L * 0.7);
+  tctx.lineTo(ex - tx * L * 0.35 - nx * L * 0.7, ey - ty * L * 0.35 - ny * L * 0.7);
+  tctx.closePath(); tctx.fill();
+  tctx.beginPath(); tctx.arc(x - R * 0.12, cy + R * 0.08, R * 0.34, 0, Math.PI * 2); tctx.fill();   // het hoofd, ingedoken
+  tctx.lineWidth = Math.max(2, r * 0.09);
+  tctx.beginPath(); tctx.moveTo(x - r * 0.55, y + r * 0.62); tctx.lineTo(x + r * 0.55, y + r * 0.62); tctx.stroke();   // de grond
+  if (klaar < 1){                                          // afkoelen: de ring vult zich met de klok mee
+    tctx.lineWidth = Math.max(3, r * 0.14);
+    tctx.strokeStyle = 'rgba(20,16,30,0.40)';
+    tctx.beginPath(); tctx.arc(x, y, r + tctx.lineWidth * 0.5, 0, Math.PI * 2); tctx.stroke();
+    tctx.strokeStyle = '#e2b04a';
+    tctx.beginPath(); tctx.arc(x, y, r + tctx.lineWidth * 0.5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * klaar); tctx.stroke();
+  }
+  tctx.restore();
+}
 function drawTouch(){
   checkPortrait();
   const on = touchOn();
@@ -46072,6 +46197,7 @@ function drawTouch(){
     if (it.b.icon === 'hppotion') drawBtnHppotion(it.x, it.y, it.r, a);
     if (it.b.icon === 'woede') drawBtnWoede(it.x, it.y, it.r, a);
     if (it.b.icon === 'schild') drawBtnSchild(it.x, it.y, it.r, a);
+    if (it.b.icon === 'rol') drawBtnRol(it.x, it.y, it.r, a);
   }
 }
 
