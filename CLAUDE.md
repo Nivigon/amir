@@ -154,6 +154,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | hppotion | de drinkkalebas |  |
 | renstoot: sprinten en dan stoten | `RENSTOOT`, `glijStart`, `glijUpdate` | notities/speer.md |
 | de rol: V of de rolknop, induiken en doorrollen, even onkwetsbaar en een korte afkoeling | `ROL`, `rolStart`, `rolUpdate` | notities/rol.md |
+| de rol-worp: F tijdens de rol, hij gooit uit de landing; Test 60 met oefendoelen en afstellen | `ROL_WORP`, `rolWorpDruk`, `rolWorpLos`, `rolDoelen` | notities/rol.md |
 | het schild van Amir: C vasthouden, vangen en de parade | `AMIR_SCHILD`, `schildVang`, `schildTeken` | notities/schild.md |
 | reserve-speren op de rug (prototype) | `RUG`, `RUG_MAX`, `rugSperen` | notities/rug-speren.md |
 | zicht: een vijand ziet je alleen als er niets tussen zit | `ZICHT`, `vijandZiet`, `zichtWaak` | notities/zicht.md |

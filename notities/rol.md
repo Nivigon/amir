@@ -31,3 +31,37 @@ de kant; anders rolt hij de kant op die hij kijkt.
   (https://claude.ai/artifact/MXKfBdQxtwHtckhvPAQDGj), daar de speer per frame geplaatst. De broek is van
   het grijsblauw van Grok naar het paars van de gewone sets gezet. Het bakscript staat in het project
   (`claude/animeer_tool_amir_rol.md`).
+
+## De rol-worp (F tijdens de rol)
+
+`ROL_WORP`, `rolWorpDruk`, `rolWorpStart`, `rolWorpUpdate`, `rolWorpLos`.
+
+- F (of de slagknop) vanaf rolframe `ROL_WORP.van` (13, de tweede helft) tot de landing wordt onthouden (`rol.worp`);
+  op het aftakframe `ROL_WORP.tak` (24, frame 25 in de tool: hij landt op zijn voeten) gaat de rol over in de worp.
+  `thrPress` stuurt F tijdens de rol naar `rolWorpDruk`; daarbuiten blijft alles zoals het was.
+- Perfect: F in de laatste `ROL_WORP.perfect` (3) frames voor de landing. Dan vliegt de speer harder
+  (`perfectKracht` 1,3 tegen `kracht` 1) en staat er even "Perfecte worp!".
+- Alleen met de speer in de hand (`rol.met`). Tijdens de worp is `amirVast()` waar; onkwetsbaar is hij niet meer
+  (de rol is dan al voorbij `ROL.onkw`), dus in de uitval en de nazwaai is hij te raken. Daarna koelt de rol af
+  (`ROL.koel`), net als na een gewone rol.
+- 33 frames: `karakters/amir/beweging/rol/worp/worp_1..33.png` (524 x 475, grondrij 450), `ROL_WORP.ms` per frame
+  (35 ms door de uitval, 30 ms door de worp, de nazwaai 300 ms), `ROL_WORP.tempo` versnelt of vertraagt.
+- De speer zit erin gebakken t/m frame 22 (index); op `ROL_WORP.los` (23) vliegt de echte speer (`rolWorpLos`):
+  een vlakke worp vanaf de punt zoals Tom hem op dat frame zette (`ROL_WORP.punt`, bronpixels t.o.v. anker en
+  grond), met dezelfde bijwerkingen als `looseSpear` (speer weg, de volgende van de rug).
+- Het anker per frame is het midden van zijn lijf; de wereld schuift met de verschuiving van dat anker mee, zodat
+  de uitval echt naar voren gaat en zijn achterste voet blijft staan. Niet een ravijn in (`gatOp`).
+- Ontwerp en clips: zie het project, `claude/animeer_tool_amir_rol.md` (startbeeld uit rolframe 25, tussen- en
+  eindframe vanaf het basisontwerp, twee Grok-clips aan elkaar).
+
+## Test 60: Rol-worp, en de oefendoelen
+
+- `rolWorpProef: true` in een level: drie oefendoelen (runeschijf op een paal, `rolDoelen`, `rolDoelTeken`), de rug
+  vult zich steeds aan (speren genoeg, met `rugMax: 5`), en in de pauze onder Instellingen de knop
+  **Rol-worp: test** (`pzrolw`, `ROL_WORP_SCHUIF`): vanaf welk rolframe F telt, het perfecte venster, het tempo,
+  de kracht (gewoon en perfect), en de hoogte en afstand van een nieuw doel. De browser onthoudt de stand
+  (`amir.rolworp`). Ook in de sandbox.
+- T (in Test 60 en de sandbox) of de knop **Doel voor Amir neerzetten** zet een doel `ROL_DOEL.afstand` Amir voor
+  hem uit op `ROL_DOEL.hoog` Amir (standaard 1,22: de hoogte van de punt op het losframe). Een treffer laat de schijf
+  flitsen, telt mee ("Raak! 3 raak, waarvan 1 perfect") en de speer verdwijnt.
+- In de sandbox onder Speer en spullen: **Rol-worp: aan/uit** (`sbrolworp`).
