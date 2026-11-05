@@ -65,3 +65,10 @@ de kant; anders rolt hij de kant op die hij kijkt.
   hem uit op `ROL_DOEL.hoog` Amir (standaard 1,22: de hoogte van de punt op het losframe). Een treffer laat de schijf
   flitsen, telt mee ("Raak! 3 raak, waarvan 1 perfect") en de speer verdwijnt.
 - In de sandbox onder Speer en spullen: **Rol-worp: aan/uit** (`sbrolworp`).
+
+## Maat per frame (`ROL.maat`, `ROL_WORP.maat`)
+
+Grok liet Amir in de rolclip langzaam groeien, en de worp kwam er zo'n 12 procent groter uit dan de gewone sets.
+Per frame staat nu een factor die zijn hoofd even groot maakt als in `idle_ns` (gemeten met template matching op het
+hoofd; waar het hoofd ondersteboven of weg is, tussen de metingen in, en over vijf frames zacht gemaakt). De tekencode,
+de uitval van de worp en de losplek van de speer rekenen ermee. Nieuwe frames: opnieuw meten.
