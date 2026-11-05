@@ -40,6 +40,35 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
   volgt, tenzij je doorloopt tot buiten bereik; wie steeds terugstapt staat vanzelf tegen de wand en moet erdoorheen.
   Bron: Grok-clip bijna_of_goed_2 (begin het laatste kap-frame, tussen omkijken met een hand, eind de eindpose een pas
   verder), frames 1, 60-78 (omkijken) en 80-110, x1,264 op kap_54 geregistreerd, omgekleurd.
+- **Sprong** (sinds 05-11-2026, `BRU.sprong`, bewegingen `sprong` en `landing` in brutus.json, `bruSprongStart`,
+  `bruSprongStap`): een keer in de zoveel tijd (`eerste` s na het begin, daarna `elke` s; in de woede x `woede`), als
+  Amir binnen `ver` x 1,15 staat. Vanuit het ademen, of uit de storm als Amir niet dichtbij is. Hij zakt in een lage
+  afzet en blijft daar `tell` s zitten (het zand trilt), zwaait de knots als een molenwiek over zijn hoofd (sprongframes
+  op `opMs`) en komt los op het eerste frame waarin Grok zijn voeten optilde (`los`); daar de afzet (`bruAfzet`: dreun,
+  stofstoot, steentjes). In de lucht schuift hij in een boog (`hoog`, bovenop de frames) naar zijn doel en stuurt hij bij
+  naar Amir tot hij neerkomt (`bruSprongDoel`: zo dat Amir tussen zijn lijf en de bal landt, `balVoor`, nooit verder dan
+  `ver` en nooit achteruit). Bovenin hangt hij `hang` s. Op het landingframe waar zijn voeten weer staan (`neer`) een
+  dreun en stof (`bruNeer`), en op het frame waar de bal de grond raakt de inslag (`bruSprongInslag`): de grootste
+  stofwolk van het spel (een ring naar twee kanten, een hoge pluim die blijft hangen, een waas over de vloer), plavuizen
+  die opspringen (`bruSteen`), een harde schok en hitstop. Staat Amir op de grond tussen zijn rug en net voorbij de bal,
+  dan is dat de zwaarste klap van het gevecht: een leven, `duw` (2600) weg en `hurt` (0,6 s) uit zijn doen. Daarna hangt
+  hij `eind` s over de knots (het raam) en komt overeind: zijn anker schuift `verplaatsing` (landing in brutus.json) naar
+  de heup van de eindpose.
+  Speelwijze: wie dichtbij blijft staan of gewoon wegloopt haalt de landing niet uit (getest: vanaf 150 en 350 px
+  weglopen is raak, vanaf 550 haal je hem). **Golven** (`BRU.sprong.golf`, `bruGolfStap`, `bruGolfTeken`): uit de inslag
+  rolt een bult naar links en een naar rechts (`v`), tot de wand van de arena of `ver`. De vloer golft echt: de strook
+  onder de grondlijn van het al getekende beeld wordt een keer gekopieerd en in smalle kolommen opgetild (`bult`, `breed`;
+  steil voorop, golvend erachter, met een donkere scheur eronder), met plavuizen en een lage stofmuur langs de weg. Gaat de
+  voorkant over Amir heen terwijl hij lager staat dan `golf.hoog` (Amir-eenheden, net als `ph`), dan kost dat een half
+  leven, verdooft het (`stun`) en duwt het hem mee. Springen op tijd of op de put staan (de rand is 0,47 Amir) is veilig.
+  Sandbox: **Sprong nu** (`sbbrusprong`) naast de knop Brutus zet de timer op nul.
+  Bron: Grok-clips jump1 en landing1, gemaakt met begin- en eindframes uit drie sleutelhoudingen (de afzet, in de lucht
+  en de inslag, image-to-image vanaf het basisbeeld en op één canvas gezet). `tools/brutus_sprong.py` keyt ze, kiest de
+  frames (sprong: 0 en 14 t/m 65 per 3, landing: 0 t/m 16 per 2 en 17 t/m 22), zet beide op één schaal (x1,04, op de kop
+  gemeten tegen idle_00) en één anker (de heup in de afzet), haalt de sprong van Grok eruit (veld `los`, de engine tilt
+  hem) en kleurt om naar de speelkleuren. Magenta die Grok in snelle frames door de bal, de steel en de handen veegt
+  wordt grijs (geen kleur van Nyundo heeft rood en blauw allebei boven groen), de bal blijft grijs ook als Grok hem
+  blauw of groen maakte, en rood onder de sjerp is de broekrand (zwart).
 - **Woede**: met `BRU.woedeHp` (6) levens of minder gaan de tell, de zwaai en het raam sneller
   (`BRU.woede`): dan red je nog maar één treffer.
   Je ziet het aan hem (`BRU.gloed`, `bruGloedStap`): bij de omslag een flits, een schok en een korte hitstop, daarna

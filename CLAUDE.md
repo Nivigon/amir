@@ -237,7 +237,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de executie van de schildbandiet: knielen, wankelen, vallen en de special execution | `EXE`, `exeStart`, `exeTick`, `exeVries` | notities/schildbandiet.md |
 | de bandiet-arena: het geënsceneerde eindgevecht (arena, regel 12) | `BANDARENA`, `bandArenaStart`, `bandArenaWachters` | notities/bandiet.md |
 | baviaan: de eindbaas in wording (baas, regel 12) | `BAVIAAN`, `baviaanLaad`, `baviaanTeken` | notities/baviaan.md |
-| Brutus (Nyundo): de bruut met de knots, baas van het plein; stormt, zwaait, zestien treffers (baas, regel 12) | `BRU`, `makeBrutus`, `updateBrutus`, `hitBrutus`, `bruKlem` | notities/brutus.md |
+| Brutus (Nyundo): de bruut met de knots, baas van het plein; stormt, kapt, springt (golven door de vloer), zestien treffers (baas, regel 12) | `BRU`, `makeBrutus`, `updateBrutus`, `hitBrutus`, `bruKlem`, `bruSprongStap`, `bruGolfStap` | notities/brutus.md |
 | speerbeet: de baviaan pakt je speer | `BAV_BEET`, `BAV_MOND`, `BAV_SPEER` | notities/baviaan.md |
 | speer in de baviaan: de speerval blijft in zijn borst zitten | `BAV_VALSPEER`, `bavSpeerTeken`, `baviaanTeken` | notities/baviaan.md |
 | voorgrond: de laag tussen de camera en Amir | `VOORGROND`, `VG_SOORT`, `VG_LAGEN` | notities/voorgrond.md |
