@@ -1207,6 +1207,7 @@
         <label>Brutus (baas)</label>
         <button data-spawn="brutus">Brutus</button>
         <button id="sbbruhuid">Huid: gewoon</button>
+        <button id="sbbrusprong">Sprong nu</button>
         <button id="sbzwmvrij">AI uit</button>
         <button id="sbzwmslag">Slag: wissel</button>
         <button id="sbzwmfasen">Fasen uit</button>
@@ -18005,13 +18006,17 @@ const ROL = {
   afstand: 340,                    // wereld-px die hij aflegt
   van: 2, tot: 24,                 // tussen deze frames schuift hij vooruit, zacht in en uit
   onkw: 0.6,                       // seconden onkwetsbaar vanaf de start (duiken en rollen)
-  koel: 0.5                        // seconden afkoelen voor de volgende rol
+  koel: 0.5,                       // seconden afkoelen voor de volgende rol
+  // het geluid (sounds/amirrol.mp3, 0,84 s): eerst de zwiep van de duik, op 0,25 s de plof als zijn handen
+  // en schouder de grond raken (frame 8 en 9), dan uitrollen. Het past op de rol van 0,87 s, dus het gaat af bij de start.
+  geluid: { src: 'sounds/amirrol.mp3', vol: 0.8 }
 };
 const ROL_DIR = 'beweging/rol/';
 const rolImgs = {
   met: Array.from({ length: ROL.n }, (_, i) => loadQuiet(uniq([AMIR, AMIR_GROOT]).map(d => d + ROL_DIR + 'met/rol_' + (i + 1) + '.png'))),
   zonder: Array.from({ length: ROL.n }, (_, i) => loadQuiet(uniq([AMIR, AMIR_GROOT]).map(d => d + ROL_DIR + 'zonder/rol_' + (i + 1) + '.png')))
 };
+let rolSnd = null;                 // twee stemmen, pas bij de eerste rol aangemaakt
 let rol = null, rolKoel = 0;       // rol: {t, kant, met, gat} zolang hij rolt; rolKoel: de afkoeling
 function rolDuur(){ return ((ROL.n - 1) * ROL.ms + ROL.eindMs) / 1000; }
 function rolFrame(){ return rol ? Math.min(ROL.n - 1, Math.floor(rol.t * 1000 / ROL.ms)) : -1; }
@@ -18034,6 +18039,8 @@ function rolStart(){
   const kant = left && !right ? -1 : right && !left ? 1 : facing;
   facing = kant;
   rol = { t: 0, kant, met: !!spear, gat: false };
+  if (!rolSnd) rolSnd = banStemmen(ROL.geluid.src, 2);
+  banStemSpeel(rolSnd, ROL.geluid.vol);
   invuln = Math.max(invuln, ROL.onkw);
   invulnStil = Math.max(invulnStil, ROL.onkw);     // onkwetsbaar, maar zonder te knipperen
 }
@@ -30058,7 +30065,27 @@ const BRU = {
   // verplaatsing (brutus.json) is hoeveel grote-set-pixels zijn anker achter hem langs opschuift tot de eindpose.
   terug: { raakVan: 10, raakTot: 15, geluid: 6, zwiepVan: 5, zwiepTot: 25,
            achter: 520,           // staat Amir binnen zoveel (grote-set-pixels) achter hem, dan komt de terugslag
-           eind: [120, 160, 350] }
+           eind: [120, 160, 350] },
+  // De sprong (bewegingen sprong en landing in brutus.json, zie notities/brutus.md): een keer in de zoveel tijd zakt hij in
+  // een lage afzet (de tell), zwaait de knots in een molenwiek over zijn hoofd en springt op Amir af. In de lucht stuurt hij
+  // bij naar waar Amir staat, tot ver: zo ver springt hij hooguit. Dichtbij haal je de landing dus niet uit; sta je verder
+  // dan ver, dan landt hij te kort. Bij de landing ramt hij de knots in de grond: wie daar staat krijgt de zwaarste klap van
+  // het gevecht (een leven, ver weggeslingerd), en uit de inslag rollen twee golven door de vloer, een naar elke kant. Een
+  // golf kost een half leven en verdooft even; springen op tijd of op de put staan (alles boven golf.hoog) is veilig.
+  // Tijden in s of ms, maten in grote-set-pixels (golf.hoog in Amir-eenheden, zoals ph).
+  sprong: { eerste: 7, elke: 13,          // de eerste sprong na zoveel s gevecht, daarna elke zoveel s (in de woede x woede)
+            woede: 0.7,
+            tell: 0.6,                     // zo lang zit hij in de afzet voor hij losbarst
+            opMs: 40, landMs: 45, slagMs: 38,   // de molenwiek en de afzet, de val, en de slag vanaf de landing
+            hang: 0.12,                    // zo lang hangt hij bovenin (s) voor hij valt
+            hoog: 300,                     // zo hoog gaat de boog (bovenop wat de frames zelf doen)
+            ver: 1100,                     // zo ver springt hij hooguit: wie dichtbij staat en gewoon wegloopt, haalt dat niet
+            balVoor: 0.55,                 // hij mikt zo dat Amir tussen zijn lijf en de bal landt (fractie van het bereik van de bal)
+            stuurTot: 99,                  // tot dit landingframe stuurt hij bij naar Amir (99: tot hij neerkomt)
+            eind: 1.3,                     // het raam: zo lang blijft hij over de knots hangen (s)
+            raakHoog: 70,                  // de directe klap raakt Amir als hij niet hoger staat dan dit (Amir-eenheden)
+            duw: 2600, hurt: 0.6,          // de zwaarste klap: zo hard vlieg je weg en zo lang ben je uit je doen
+            golf: { v: 1150, breed: 130, hoog: 50, schade: 0.5, stun: 0.6, duw: 650, ver: 2600, bult: 58 } }
 };
 // testinstellingen voor het gevecht (pauze, Instellingen, Nyundo: test): factoren op de duur van de tell, de slag,
 // het raam en de adem (1 is de standaard uit BRU), en Amir onsterfelijk zolang Nyundo er is. Zie bruTestToon.
@@ -30123,7 +30150,8 @@ function makeBrutus(x, opts){
   if (o.huid === 'donker') bruDonkerLaad();
   return { x, huid: o.huid || null, face: -1, state: 'wacht', frame: 0, acc: 0, t: 0, inv: 0, flash: 0, base: 0,
            hp: BRU.hp, maxHp: BRU.hp, hpBalk: true, van: o.van, tot: o.tot, start: null,
-           stormDir: -1, stapF: -1, ademT: 0, opnieuw: false, geraaktAmir: false, val: 0, plof: false, sandbox: !!o.sandbox };
+           stormDir: -1, stapF: -1, ademT: 0, opnieuw: false, geraaktAmir: false, val: 0, plof: false, sandbox: !!o.sandbox,
+           sprongT: BRU.sprong.eerste, golven: [], stenen: [] };
 }
 // het level: Brutus neerzetten, de ingang dicht (Amir start al binnen), de uitgang dicht tot hij dood is
 function bruStart(){
@@ -30252,8 +30280,12 @@ function updateBrutus(dt){
     if (s.fase === 'lig'){ s.doodT = (s.doodT || 0) + dt; pleinHekStap(dt); }   // pas als hij ligt takelen de hekken op
     return;
   }
+  bruGolfStap(s, dt);                                       // de golven door de vloer en de opspringende plavuizen
   if (!bruData) return;
   const gs = bruScale();
+  if (s.state !== 'wacht' && s.state !== 'sprong') s.sprongT -= dt * (bruWoede(s) ? 1 / BRU.sprong.woede : 1);
+  if (s.state === 'sprong'){ bruSprongStap(s, dt); return; }
+  if (bruSprongKan(s) && (s.state === 'adem' || (s.state === 'storm' && !bruDichtbij(s, BRU.aanval * 1.6)))){ bruSprongStart(s); return; }
   if (s.state === 'wacht'){                                // tot Amir een stap zet
     s.face = bruNaarAmir(s);
     if (s.start == null) s.start = playerX();
@@ -30309,6 +30341,210 @@ function bruTerugStap(s, dt){
     if (s.van != null && s.tot != null){ const lo = Math.min(s.van, s.tot) + 60, hi = Math.max(s.van, s.tot) - 60; s.x = Math.max(lo, Math.min(hi, s.x)); }
     if (bruDichtbij(s, BRU.aanval)){ bruSet(s, 'zwaai'); s.opnieuw = true; s.face = bruNaarAmir(s); }
     else { bruSet(s, 'adem'); s.ademT = bruAdemT(); }
+  }
+}
+// ---- de sprong (BRU.sprong): afzet, molenwiek, boog naar Amir, landing, inslag en twee golven ----
+// s.sp: { fase: tell | op | land, t, x0, doel, e (tijd sinds hij loskwam), D (tijd van loskomen tot de landing), h (hoogte) }
+function bruSprongKan(s){                                  // alleen als Amir binnen zijn bereik staat (anders stormt hij eerst dichterbij)
+  return s.sprongT <= 0 && bruData && bruData.bewegingen.sprong && bruData.bewegingen.landing && !dead
+    && Math.abs(playerX() - s.x) < BRU.sprong.ver * bruScale() * 1.15;
+}
+function bruSprongInfo(){                                  // uit de frames: wanneer hij loskomt, landt en de bal de grond raakt
+  if (bruSprongInfo.c && bruSprongInfo.c.d === bruData) return bruSprongInfo.c;
+  const S = bruData.bewegingen.sprong.frames, L = bruData.bewegingen.landing.frames;
+  let los = S.findIndex(f => f.los > 5); if (los < 0) los = S.length - 1;
+  let neer = L.findIndex((f, i) => i > 0 && f.los <= 2); if (neer < 0) neer = L.length - 2;
+  let inslag = L.findIndex((f, i) => i > neer && f.bal != null && f.bal <= 4); if (inslag < 0) inslag = L.length - 1;
+  const P = BRU.sprong;
+  const D = (S.length - los) * P.opMs / 1000 + P.hang + neer * P.landMs / 1000;   // van loskomen tot de voeten weer staan
+  return (bruSprongInfo.c = { d: bruData, los, neer, inslag, D });
+}
+function bruSprongStart(s){
+  bruSet(s, 'sprong');
+  s.face = bruNaarAmir(s);
+  s.sp = { fase: 'tell', t: 0, x0: s.x, doel: s.x, e: 0, h: 0, raak: false };
+  s.geraaktAmir = false;
+  banStemSpeel(bruGeluid.stap, BRU.vol.stap);               // hij zakt zwaar door zijn knieen
+  shake = Math.max(shake, 0.08);
+}
+function bruSprongDoel(s){                                 // waar hij landt: bij Amir, maar niet verder dan ver en niet achteruit
+  const P = BRU.sprong, gs = bruScale(), L = bruData.bewegingen.landing.frames, laatst = L[L.length - 1];
+  const balReik = -laatst.dx * gs;                          // zo ver voor zijn anker ligt de bal straks
+  let d = (playerX() - s.sp.x0) * s.face - balReik * P.balVoor;
+  d = Math.max(0, Math.min(P.ver * gs, d));
+  let x = s.sp.x0 + s.face * d;
+  if (s.van != null && s.tot != null){ const lo = Math.min(s.van, s.tot) + 60, hi = Math.max(s.van, s.tot) - 60; x = Math.max(lo, Math.min(hi, x)); }
+  return x;
+}
+function bruSprongStap(s, dt){
+  const P = BRU.sprong, I = bruSprongInfo(), sp = s.sp, gs = bruScale(), w = bruWoede(s);
+  const S = bruData.bewegingen.sprong.frames, L = bruData.bewegingen.landing.frames;
+  sp.t += dt;
+  if (sp.fase === 'tell'){
+    s.frame = 0;
+    if (Math.random() < dt * 14) bruStofDeeltje(s, { wx: s.x + (Math.random() - 0.5) * 140 * gs, y: -2, vx: (Math.random() - 0.5) * 90,
+      vy: -20 - Math.random() * 50, r: 14 + Math.random() * 14, life: 0.5 + Math.random() * 0.4, a: 0.45 });   // het zand trilt onder hem
+    if (sp.t >= P.tell * (w ? BRU.woede.tell : 1) * BRU_TEST.tell){ sp.fase = 'op'; sp.t = 0; s.frame = 1; s.acc = 0;
+      banStemSpeel(bruGeluid.zwaai, BRU.vol.zwaai); }
+    return;
+  }
+  if (sp.fase === 'op' || sp.fase === 'hang'){
+    if (sp.fase === 'op'){
+      s.acc += dt * 1000;
+      while (s.acc >= P.opMs && s.frame < S.length - 1){ s.acc -= P.opMs; s.frame++;
+        if (s.frame === I.los){ sp.x0 = s.x; sp.e = 0; bruAfzet(s); } }
+      if (s.frame === S.length - 1 && s.acc >= P.opMs){ sp.fase = 'hang'; sp.t = 0; }
+    } else if (sp.t >= P.hang){ sp.fase = 'land'; s.frame = 0; s.acc = 0; }
+  } else if (sp.fase === 'land'){
+    s.acc += dt * 1000;
+    const ms = i => i < I.neer ? P.landMs : i < L.length - 1 ? P.slagMs : P.eind * 1000 * (w ? BRU.woede.eind : 1) * BRU_TEST.raam;
+    while (s.frame < L.length - 1 && s.acc >= ms(s.frame)){ s.acc -= ms(s.frame); s.frame++;
+      if (s.frame === I.neer){ s.x = sp.doel; sp.h = 0; bruNeer(s); }
+      if (s.frame === I.inslag) bruSprongInslag(s); }
+    if (s.frame === L.length - 1 && s.acc >= ms(L.length - 1)){       // het raam is voorbij: hij komt overeind (de heup schuift naar het anker)
+      s.x -= s.face * (bruData.bewegingen.landing.verplaatsing || 0) * gs;
+      if (s.van != null && s.tot != null){ const lo = Math.min(s.van, s.tot) + 60, hi = Math.max(s.van, s.tot) - 60; s.x = Math.max(lo, Math.min(hi, s.x)); }
+      s.sprongT = P.elke; s.sp = null;
+      if (bruDichtbij(s, BRU.aanval)){ bruSet(s, 'zwaai'); s.opnieuw = true; s.face = bruNaarAmir(s); }
+      else { bruSet(s, 'adem'); s.ademT = bruAdemT(); }
+      return;
+    }
+  }
+  // de boog: vanaf het loskomen tot de landing schuift hij naar zijn doel en gaat hij omhoog en weer omlaag
+  const inLucht = (sp.fase === 'op' && s.frame >= I.los) || sp.fase === 'hang' || (sp.fase === 'land' && s.frame < I.neer);
+  if (inLucht){
+    sp.e += dt;
+    if (sp.fase !== 'land' || s.frame <= P.stuurTot) sp.doel = bruSprongDoel(s);   // bijsturen naar Amir
+    const u = Math.min(1, sp.e / I.D), ease = u * u * (3 - 2 * u);
+    s.x = sp.x0 + (sp.doel - sp.x0) * ease;
+    sp.h = P.hoog * 4 * u * (1 - u);
+  } else sp.h = 0;
+}
+function bruLift(s){ return s.state === 'sprong' && s.sp ? s.sp.h : 0; }
+// de afzet: een harde stofstoot onder zijn voeten en een paar steentjes
+function bruAfzet(s){
+  const gs = bruScale(), rnd = (a, b) => a + Math.random() * (b - a);
+  banStemSpeel(bruGeluid.stap, 1); shake = Math.max(shake, 0.22);
+  for (let i = 0; i < 34; i++){
+    const kant = Math.random() < 0.5 ? -1 : 1;
+    bruStofDeeltje(s, { wx: s.x + (Math.random() - 0.5) * 120 * gs, y: -rnd(0, 10), vx: kant * rnd(150, 720) - s.face * rnd(0, 260),
+                        vy: -rnd(40, 300), r: rnd(30, 62), life: rnd(0.6, 1.2), a: 0.85 });
+  }
+  for (let i = 0; i < 10; i++) bruSteen(s, s.x + (Math.random() - 0.5) * 100 * gs, -s.face * rnd(40, 260) + (Math.random() - 0.5) * 200, -rnd(250, 520), rnd(6, 12));
+}
+// de voeten raken de grond: een dreun en een stofstoot, vlak voor de knots inslaat
+function bruNeer(s){
+  const gs = bruScale(), rnd = (a, b) => a + Math.random() * (b - a);
+  if (bruGeluid) banStemSpeel(bruGeluid.plof, 1);
+  shake = Math.max(shake, 0.3);
+  for (let i = 0; i < 20; i++)
+    bruStofDeeltje(s, { wx: s.x + (Math.random() - 0.5) * 220 * gs, y: -rnd(0, 6), vx: (Math.random() < 0.5 ? -1 : 1) * rnd(200, 700),
+                        vy: -rnd(30, 160), r: rnd(30, 60), life: rnd(0.6, 1.1), a: 0.8 });
+}
+// de knots in de grond: het zwaarste moment van het gevecht. Een enorme stofwolk (een ring die naar twee kanten wegvliegt,
+// een hoge pluim en een waas die blijft hangen), plavuizen die opspringen, de directe klap op Amir, en twee golven
+function bruSprongInslag(s){
+  const P = BRU.sprong, gs = bruScale(), L = bruData.bewegingen.landing.frames, fr = L[s.frame];
+  const balX = s.x - s.face * (fr.dx + 60) * gs, rnd = (a, b) => a + Math.random() * (b - a);
+  shake = Math.max(shake, 0.75); hitstop = Math.max(hitstop, 0.13);
+  if (bruGeluid){ banStemSpeel(bruGeluid.inslag, 1); banStemSpeel(bruGeluid.raak, 1); }
+  for (let i = 0; i < 46; i++){                             // de ring: laag en snel naar twee kanten
+    const kant = i % 2 ? 1 : -1;
+    bruStofDeeltje(s, { wx: balX + (Math.random() - 0.5) * 90 * gs, y: -rnd(0, 20), vx: kant * rnd(500, 1700), vy: -rnd(20, 190),
+                        r: rnd(40, 85), life: rnd(0.8, 1.5), a: 0.9 });
+  }
+  for (let i = 0; i < 30; i++)                              // de pluim: hoog, groot, blijft hangen en stijgt langzaam
+    bruStofDeeltje(s, { wx: balX + (Math.random() - 0.5) * 260 * gs, y: -rnd(0, 40), vx: (Math.random() - 0.5) * 420, vy: -rnd(260, 720),
+                        r: rnd(70, 140), life: rnd(1.8, 3.2), a: 0.9, zweef: rnd(15, 45) });
+  for (let i = 0; i < 26; i++)                              // de waas over de vloer, die nog even blijft liggen
+    bruStofDeeltje(s, { wx: balX + (Math.random() - 0.5) * 700 * gs, y: -rnd(0, 30), vx: (Math.random() - 0.5) * 260, vy: -rnd(10, 60),
+                        r: rnd(80, 150), life: rnd(2.2, 3.6), a: 0.55, zweef: rnd(5, 15) });
+  for (let i = 0; i < 26; i++) bruSteen(s, balX + (Math.random() - 0.5) * 120 * gs, (Math.random() - 0.5) * 900, -rnd(380, 980), rnd(7, 17));
+  for (const dir of [-1, 1]) s.golven.push({ x: balX, x0: balX, dir, raak: false, acc: 0 });
+  // de directe klap: van zijn rug tot voorbij de bal, alleen op de grond
+  if (!dead && invuln <= 0 && ph < P.raakHoog){
+    const px = playerX(), achter = s.x - s.face * BRU.half * gs, voor = balX + s.face * 70 * gs;   // van zijn rug tot net voorbij de bal
+    if (px > Math.min(achter, voor) && px < Math.max(achter, voor)){
+      const weg = px >= balX ? 1 : -1;
+      hurtPlayer(weg > 0, 1);
+      if (invuln > 0){ bruRaakAmir(s, weg); knock = weg * P.duw; hurt = Math.max(hurt, P.hurt); shake = Math.max(shake, 0.9); hitstop = Math.max(hitstop, 0.16); }
+      s.geraaktAmir = true;
+    }
+  }
+}
+// een losse plavuis of steen die opspringt, tolt en terugvalt (s.stenen, wereld-x, y in grote-set-pixels boven de grond)
+function bruSteen(s, wx, vx, vy, r){ s.stenen.push({ wx, y: -2, vx, vy, r, rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 14, age: 0, life: 1.4 + Math.random() * 0.6, k: Math.random() }); }
+// de golven: elk een bult die door de vloer rolt, met plavuizen die opspringen en stof erachter. Raakt de voorkant Amir
+// terwijl hij laag staat (ph onder golf.hoog: niet springend en niet op de put), dan kost dat een half leven en verdooft het
+function bruGolfStap(s, dt){
+  const G = BRU.sprong.golf, gs = bruScale(), rnd = (a, b) => a + Math.random() * (b - a);
+  for (const st of s.stenen){ st.age += dt; st.wx += st.vx * dt; st.y += st.vy * dt; st.vy += 1500 * dt; st.rot += st.vr * dt;
+    if (st.y > 0){ st.y = 0; st.vy *= -0.3; st.vx *= 0.55; st.vr *= 0.5; } }
+  s.stenen = s.stenen.filter(st => st.age < st.life);
+  if (!s.golven.length) return;
+  const lo = s.van != null ? Math.min(s.van, s.tot) : -1e9, hi = s.tot != null ? Math.max(s.van, s.tot) : 1e9;
+  for (const g of s.golven){
+    const oud = g.x; g.x += g.dir * G.v * gs * dt;
+    g.acc += Math.abs(g.x - oud);
+    while (g.acc > 52 * gs){ g.acc -= 52 * gs;              // langs de weg: plavuizen en een lage stofmuur
+      bruSteen(s, g.x + (Math.random() - 0.5) * 30 * gs, g.dir * rnd(60, 320), -rnd(260, 620), rnd(6, 13));
+      bruStofDeeltje(s, { wx: g.x - g.dir * rnd(0, 40) * gs, y: -rnd(0, 10), vx: g.dir * rnd(60, 360), vy: -rnd(60, 260), r: rnd(30, 58), life: rnd(0.6, 1.1), a: 0.75 });
+    }
+    const px = playerX();
+    if (!g.raak && !dead && (oud - px) * (g.x - px) <= 0){ // de voorkant gaat over Amir heen
+      g.raak = true;
+      if (ph < G.hoog && invuln <= 0){
+        hurtPlayer(g.dir > 0, G.schade);
+        if (invuln > 0){ knock = g.dir * G.duw; hurt = Math.max(hurt, G.stun); shake = Math.max(shake, 0.35); }
+      }
+    }
+    if (Math.abs(g.x - g.x0) > G.ver * gs || g.x < lo || g.x > hi) g.weg = true;
+  }
+  s.golven = s.golven.filter(g => !g.weg);
+}
+// de golven tekenen: de vloer zelf golft. Een strook van het al getekende beeld (de vloer onder de grondlijn) wordt in smalle
+// kolommen opgetild volgens de bult, met een donkere scheur erachter. Daarna de plavuizen die rondvliegen.
+function bruGolfTeken(s, grondY, gs, cx){
+  const G = BRU.sprong.golf;
+  if (s.golven.length){
+    const T = ctx.getTransform(), cv = ctx.canvas;
+    for (const g of s.golven){
+      const rest = 1 - Math.min(1, Math.abs(g.x - g.x0) / (G.ver * gs));
+      const A = G.bult * gs * (0.45 + 0.55 * rest), B = G.breed * gs, sx = cx + (g.x - world);
+      const p0 = T.transformPoint({ x: sx - B * 1.6, y: grondY - 4 }), p1 = T.transformPoint({ x: sx + B * 1.6, y: grondY + 70 * gs });
+      const kol = Math.max(2, Math.round(3 * T.a)), schaalY = T.d;
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+      const x0 = Math.max(0, Math.floor(p0.x)), x1 = Math.min(cv.width, Math.ceil(p1.x)), y0 = Math.max(0, Math.floor(p0.y)), hh = Math.min(cv.height, Math.ceil(p1.y)) - y0;
+      const bw = x1 - x0;
+      if (hh > 4 && bw > 4){
+        // een keer de strook kopieren (een kopie van het doek naar zichzelf per kolom is traag), dan de kolommen optillen
+        const kc = bruGolfTeken.kc || (bruGolfTeken.kc = document.createElement('canvas'));
+        if (kc.width < bw) kc.width = bw; if (kc.height < hh) kc.height = hh;
+        const kx = kc.getContext('2d'); kx.clearRect(0, 0, bw, hh); kx.drawImage(cv, x0, y0, bw, hh, 0, 0, bw, hh);
+        for (let x = x0; x < x1; x += kol){
+        const wx = (x - T.e) / T.a, d = (wx - sx) / B;
+        const f = d * g.dir > 0 ? Math.exp(-d * d * 3) : Math.exp(-d * d) * (1 - 0.35 * Math.sin(d * 4));   // steil voorop, golvend erachter
+        const op = A * f * schaalY;
+        if (op < 0.6) continue;
+        ctx.drawImage(kc, x - x0, 0, kol, hh, x, y0 - op, kol, hh);
+        ctx.fillStyle = 'rgba(30,20,12,' + Math.min(0.55, op / (A * schaalY) * 0.55).toFixed(3) + ')';   // de scheur onder de opgetilde vloer
+        ctx.fillRect(x, y0 - op + 1, kol, Math.min(op, 4 * schaalY));
+        }
+      }
+      ctx.restore();
+    }
+  }
+  if (s.stenen.length){
+    ctx.save(); ctx.lineWidth = Math.max(1, 1.6 * gs); ctx.strokeStyle = '#3b2c1f';
+    for (const st of s.stenen){
+      const k = 1 - Math.max(0, (st.age - st.life + 0.4) / 0.4), r = st.r * gs;
+      ctx.globalAlpha = k;
+      ctx.save(); ctx.translate(cx + (st.wx - world), grondY + st.y * gs); ctx.rotate(st.rot);
+      ctx.fillStyle = st.k < 0.5 ? '#c8a77b' : st.k < 0.8 ? '#b08e63' : '#9c7a52';
+      ctx.beginPath(); ctx.moveTo(-r, -r * 0.55); ctx.lineTo(r * 0.8, -r * 0.7); ctx.lineTo(r, r * 0.45); ctx.lineTo(-r * 0.7, r * 0.6); ctx.closePath();
+      ctx.fill(); ctx.stroke(); ctx.restore();
+    }
+    ctx.restore();
   }
 }
 // staat Amir achter hem (de andere kant dan waar hij heen kijkt), binnen het bereik van de terugslag?
@@ -30398,6 +30634,8 @@ function bruFrame(s){
   if (s.state === 'storm') return B.storm.frames[s.frame % B.storm.frames.length];
   if (s.state === 'zwaai'){ const fr = B[bruSlag().set].frames; return fr[Math.min(s.frame, fr.length - 1)]; }
   if (s.state === 'terug') return B.terug.frames[Math.min(s.frame, B.terug.frames.length - 1)];
+  if (s.state === 'sprong' && s.sp){ const fr = (s.sp.fase === 'land' ? B.landing : B.sprong).frames;
+    return fr[s.sp.fase === 'hang' ? fr.length - 1 : Math.min(s.frame, fr.length - 1)]; }
   if (s.state === 'dood'){ const D = B[s.fase] || B.val; return D ? D.frames[Math.min(s.frame, D.frames.length - 1)] : null; }
   // wacht en adem: de ademhaling, gelijk met het geluid (in de eerste helft van idle: uit- naar ingeademd)
   const a = bruGeluid && bruGeluid.adem, t = (a && !a.paused) ? a.currentTime : s.t;
@@ -36978,12 +37216,14 @@ function loop(now){
     if (brutus){
       const s = brutus, gs = bruScale();
       const bodyX = cx + (s.x - world);
-      const voeten = groundY - (s.base || 0) * scale + BRU.zak * gs;
-      if (s.state !== 'dood' || s.fase !== 'lig'){ ctx.save(); ctx.globalAlpha = 0.28; ctx.fillStyle = '#1d140f'; ctx.beginPath();
-        ctx.ellipse(bodyX, voeten, BRU.half * gs * 1.5, BRU.half * gs * 0.22, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
-      bruVloerGloed(s, bodyX, voeten, gs);                   // de rode plas licht van zijn woede
+      const grondV = groundY - (s.base || 0) * scale + BRU.zak * gs;
+      const lift = bruLift(s), voeten = grondV - lift * gs;  // in de sprong tilt de boog hem op; zijn schaduw blijft op de grond
+      bruGolfTeken(s, grondV, gs, cx);                       // de golven door de vloer, onder hem
+      if (s.state !== 'dood' || s.fase !== 'lig'){ const k = 1 / (1 + lift / 250); ctx.save(); ctx.globalAlpha = 0.28 * k; ctx.fillStyle = '#1d140f'; ctx.beginPath();
+        ctx.ellipse(bodyX, grondV, BRU.half * gs * 1.5 * k, BRU.half * gs * 0.22 * k, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+      bruVloerGloed(s, bodyX, grondV, gs);                   // de rode plas licht van zijn woede
       bruTeken(s, bodyX, voeten, gs);
-      bruStofTeken(s, groundY - (s.base || 0) * scale + BRU.zak * gs, gs, cx);   // het stof voor hem langs
+      bruStofTeken(s, grondV, gs, cx);                       // het stof voor hem langs
       if (s.state !== 'dood' && bruData){
         const lhalf = BRU.half * gs, lijfX = bodyX - s.face * bruLijfDX(s) * gs;   // in de terugslag loopt zijn lijf een pas mee
         const nbox = { l: lijfX - lhalf, r: lijfX + lhalf, t: voeten - BRU.fig * gs, b: voeten };
@@ -37835,6 +38075,7 @@ for (const [el, k] of BRU_SCHUIF) document.getElementById(el).addEventListener('
   BRU_TEST[k] = Math.max(0, Number(e.target.value) / 100); bruTestToon(); bruTestBewaar();
 });
 document.getElementById('pzbruonst').addEventListener('change', e => { BRU_TEST.onst = e.target.checked; bruTestBewaar(); });
+document.getElementById('sbbrusprong').onclick = () => { if (brutus) brutus.sprongT = 0; };   // de sprong van Nyundo meteen laten komen
 document.getElementById('pzbrubtn').onclick = () => { document.getElementById('pzbru').classList.toggle('on'); bruTestToon(); };
 document.getElementById('pzbrustd').onclick = () => { Object.assign(BRU_TEST, { tell: 1, slag: 1, raam: 1, adem: 1, onst: false }); bruTestToon(); bruTestBewaar(); };
 function toMenu(){

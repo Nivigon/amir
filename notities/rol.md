@@ -17,6 +17,8 @@ de kant; anders rolt hij de kant op die hij kijkt.
   en uit (`rolVoortgang`). Aan de rand van een ravijn schuift hij niet verder (`gatOp`), net als de renstoot;
   rotsen, wanden en de rest houden hem tegen zoals altijd (de klemmen na `rolUpdate`).
 - Een treffer na het onkwetsbare stuk, een val of loskomen van de grond breekt de rol af (`rolEind`).
+- Het geluid: `sounds/amirrol.mp3` (0,84 s, `ROL.geluid`), bij de start: de zwiep van de duik en op 0,25 s de plof
+  als hij de grond raakt, wat valt op frame 8 en 9 van de rol.
 - In de sandbox onder **Speer en spullen** (bij Renstoot): **Rol: aan/uit** (`sbrol`).
 
 ## De frames
