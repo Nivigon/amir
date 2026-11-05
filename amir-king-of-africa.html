@@ -24659,6 +24659,8 @@ function warmBouw(){
   if (heeft('kruisboogbandiet') || level.duoArena) warmDing(krbBank);
   if (heeft('schildman') || level.duoArena) warmDing(schbBank);
   if (heeft('zweepman')) warmDing(zwmBank);
+  // Nyundo: elk frame van de huid die er komt (en de knots); zonder dit haperde de eerste storm, kap en sprong 0,4 tot 0,6 s
+  if (level.brutus){ warmDing(bruBank.lagen); warmDing(bruBank.donker); }
   // het decor met eigen animaties of grote platen: het skelet, het speerteken, de fakkel, de deur en het takelwiel
   if (level.skeletten && level.skeletten.length){
     try { skeletLaad(); } catch (e) {} warmDing(skImg);
@@ -30120,9 +30122,11 @@ function bruLaad(){
   laadJsonOpen++;
   fetch(BRU_ROOT + 'brutus.json').then(r => r.ok ? r.json() : Promise.reject(r.status)).then(m => {
     const imgs = {};
-    for (const b in m.bewegingen) for (const fr of m.bewegingen[b].frames) if (!imgs[fr.src]) imgs[fr.src] = loadQuiet([BRU_ROOT + fr.src]);
     if (m.knots) imgs[m.knots.src] = loadQuiet([BRU_ROOT + m.knots.src]);   // de losse knots van zijn dood
     bruBank.lagen = imgs; bruData = m;
+    // alleen de huid die er komt: in Stad 6 (donker) niet ook nog de gewone frames, dat was dubbel geheugen,
+    // en een telefoon gooit dan uitgepakte frames weg en pakt ze midden in het gevecht opnieuw uit
+    if (bruBank.gewoonWil || !bruBank.donkerWil) bruGewoonLaad();
     if (bruBank.donkerWil) bruDonkerLaad();
   }).catch(e => { bruBezig = false; meldFout('bruData', 'brutus: brutus.json niet geladen', e); })
     .finally(() => { laadJsonOpen--; });
@@ -30130,6 +30134,14 @@ function bruLaad(){
 // Nyundo donker (huid: 'donker'): dezelfde frames met een donkerder bruine huid, uit tools/brutus_donker.py.
 // Pas geladen als er een donkere Brutus komt; tot die binnen zijn tekent hij met de gewone frames.
 const BRU_DONKER = 'frames_donker/';
+function bruGewoonLaad(){
+  bruBank.gewoonWil = true;
+  if (!bruData || bruBank.gewoon) return;
+  bruBank.gewoon = true;
+  const imgs = bruBank.lagen;
+  for (const b in bruData.bewegingen) for (const fr of bruData.bewegingen[b].frames)
+    if (!imgs[fr.src]) imgs[fr.src] = loadQuiet([BRU_ROOT + fr.src]);
+}
 function bruDonkerLaad(){
   bruBank.donkerWil = true;
   if (!bruData || bruBank.donker) return;
@@ -30138,16 +30150,16 @@ function bruDonkerLaad(){
     if (!imgs[fr.src]) imgs[fr.src] = loadQuiet([BRU_ROOT + fr.src.replace(/^frames\//, BRU_DONKER)]);
   bruBank.donker = imgs;
 }
-function bruLaadLevel(lv){ if (lv && lv.brutus){ bruLaad(); if (lv.brutus.huid === 'donker') bruDonkerLaad(); } }
+function bruLaadLevel(lv){ if (lv && lv.brutus){ bruLaad(); if (lv.brutus.huid === 'donker') bruDonkerLaad(); else bruGewoonLaad(); } }
 function bruVrij(nodigNu){
-  if (bruData && !nodigNu){ delete bruBank.lagen; delete bruBank.donker; bruBank.donkerWil = false; bruData = null; bruBezig = false; }
+  if (bruData && !nodigNu){ delete bruBank.lagen; delete bruBank.donker; bruBank.donkerWil = false; bruBank.gewoonWil = false; bruBank.gewoon = false; bruData = null; bruBezig = false; }
   if (bruGeluid && !nodigNu){ try { bruGeluid.adem.pause(); bruGeluid.hek.pause(); } catch (e) {} bruGeluid = null; }
 }
 function bruScale(){ const scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H; return (CHAR_H * scale * BRU.hShare) / BRU.fig; }
 function makeBrutus(x, opts){
   bruLaad();
   const o = opts || {};
-  if (o.huid === 'donker') bruDonkerLaad();
+  if (o.huid === 'donker') bruDonkerLaad(); else bruGewoonLaad();
   return { x, huid: o.huid || null, face: -1, state: 'wacht', frame: 0, acc: 0, t: 0, inv: 0, flash: 0, base: 0,
            hp: BRU.hp, maxHp: BRU.hp, hpBalk: true, van: o.van, tot: o.tot, start: null,
            stormDir: -1, stapF: -1, ademT: 0, opnieuw: false, geraaktAmir: false, val: 0, plof: false, sandbox: !!o.sandbox,
@@ -30508,27 +30520,37 @@ function bruGolfTeken(s, grondY, gs, cx){
   const G = BRU.sprong.golf;
   if (s.golven.length){
     const T = ctx.getTransform(), cv = ctx.canvas;
-    for (const g of s.golven){
-      const rest = 1 - Math.min(1, Math.abs(g.x - g.x0) / (G.ver * gs));
-      const A = G.bult * gs * (0.45 + 0.55 * rest), B = G.breed * gs, sx = cx + (g.x - world);
-      const p0 = T.transformPoint({ x: sx - B * 1.6, y: grondY - 4 }), p1 = T.transformPoint({ x: sx + B * 1.6, y: grondY + 70 * gs });
-      const kol = Math.max(2, Math.round(3 * T.a)), schaalY = T.d;
+    const kol = Math.max(2, Math.round(3 * T.a)), schaalY = T.d, B = G.breed * gs;
+    // de strook van de vloer is voor elke golf dezelfde hoogte; de breedte is samen wat de golven beslaan
+    const yb = T.transformPoint({ x: 0, y: grondY - 4 }).y, yo = T.transformPoint({ x: 0, y: grondY + 70 * gs }).y;
+    const y0 = Math.max(0, Math.floor(yb)), hh = Math.min(cv.height, Math.ceil(yo)) - y0;
+    const vak = s.golven.map(g => {
+      const sx = cx + (g.x - world);
+      const x0 = Math.max(0, Math.floor(T.transformPoint({ x: sx - B * 1.6, y: 0 }).x));
+      const x1 = Math.min(cv.width, Math.ceil(T.transformPoint({ x: sx + B * 1.6, y: 0 }).x));
+      return { g, sx, x0, x1 };
+    }).filter(v => v.x1 - v.x0 > 4);
+    if (hh > 4 && vak.length){
+      // Een keer per beeld de vloer kopieren, voor alle golven samen (een kopie van het doek naar zichzelf per kolom
+      // is traag), dan de kolommen optillen. Het hulpdoek is minstens 256 bij 256: Chrome zet een kleiner doek niet op
+      // de grafische kaart, en dan moest het beeld elk beeld terug naar de processor, wat een telefoon liet haperen.
+      const lo = Math.min(...vak.map(v => v.x0)), bw = Math.max(...vak.map(v => v.x1)) - lo;
+      const kc = bruGolfTeken.kc || (bruGolfTeken.kc = document.createElement('canvas'));
+      if (kc.width < Math.max(256, bw)) kc.width = Math.max(256, bw); if (kc.height < Math.max(256, hh)) kc.height = Math.max(256, hh);
+      const kx = bruGolfTeken.kx || (bruGolfTeken.kx = kc.getContext('2d'));
+      kx.clearRect(0, 0, bw, hh); kx.drawImage(cv, lo, y0, bw, hh, 0, 0, bw, hh);
       ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
-      const x0 = Math.max(0, Math.floor(p0.x)), x1 = Math.min(cv.width, Math.ceil(p1.x)), y0 = Math.max(0, Math.floor(p0.y)), hh = Math.min(cv.height, Math.ceil(p1.y)) - y0;
-      const bw = x1 - x0;
-      if (hh > 4 && bw > 4){
-        // een keer de strook kopieren (een kopie van het doek naar zichzelf per kolom is traag), dan de kolommen optillen
-        const kc = bruGolfTeken.kc || (bruGolfTeken.kc = document.createElement('canvas'));
-        if (kc.width < bw) kc.width = bw; if (kc.height < hh) kc.height = hh;
-        const kx = kc.getContext('2d'); kx.clearRect(0, 0, bw, hh); kx.drawImage(cv, x0, y0, bw, hh, 0, 0, bw, hh);
+      for (const { g, sx, x0, x1 } of vak){
+        const rest = 1 - Math.min(1, Math.abs(g.x - g.x0) / (G.ver * gs));
+        const A = G.bult * gs * (0.45 + 0.55 * rest);
         for (let x = x0; x < x1; x += kol){
-        const wx = (x - T.e) / T.a, d = (wx - sx) / B;
-        const f = d * g.dir > 0 ? Math.exp(-d * d * 3) : Math.exp(-d * d) * (1 - 0.35 * Math.sin(d * 4));   // steil voorop, golvend erachter
-        const op = A * f * schaalY;
-        if (op < 0.6) continue;
-        ctx.drawImage(kc, x - x0, 0, kol, hh, x, y0 - op, kol, hh);
-        ctx.fillStyle = 'rgba(30,20,12,' + Math.min(0.55, op / (A * schaalY) * 0.55).toFixed(3) + ')';   // de scheur onder de opgetilde vloer
-        ctx.fillRect(x, y0 - op + 1, kol, Math.min(op, 4 * schaalY));
+          const wx = (x - T.e) / T.a, d = (wx - sx) / B;
+          const f = d * g.dir > 0 ? Math.exp(-d * d * 3) : Math.exp(-d * d) * (1 - 0.35 * Math.sin(d * 4));   // steil voorop, golvend erachter
+          const op = A * f * schaalY;
+          if (op < 0.6) continue;
+          ctx.drawImage(kc, x - lo, 0, kol, hh, x, y0 - op, kol, hh);
+          ctx.fillStyle = 'rgba(30,20,12,' + Math.min(0.55, op / (A * schaalY) * 0.55).toFixed(3) + ')';   // de scheur onder de opgetilde vloer
+          ctx.fillRect(x, y0 - op + 1, kol, Math.min(op, 4 * schaalY));
         }
       }
       ctx.restore();
@@ -30647,8 +30669,9 @@ function bruFrame(s){
 }
 function bruTeken(s, bodyX, voeten, gs){
   const fr = bruFrame(s); if (!fr) return;
-  const dk = s.huid === 'donker' && (bruBank.donker || {})[fr.src];
-  const im = dk && imgReady(dk) ? dk : (bruBank.lagen || {})[fr.src]; if (!im || !imgReady(im)) return;
+  const dk = (bruBank.donker || {})[fr.src], gw = (bruBank.lagen || {})[fr.src];   // de gevraagde huid, anders de andere als die er al is
+  const [eerst, dan] = s.huid === 'donker' ? [dk, gw] : [gw, dk];
+  const im = eerst && imgReady(eerst) ? eerst : dan; if (!im || !imgReady(im)) return;
   ctx.save(); ctx.translate(bodyX, voeten);
   if (s.face === 1) ctx.scale(-1, 1);
   const K = s.knots, kn = bruData && bruData.knots, ki = kn && (bruBank.lagen || {})[kn.src];
@@ -44589,7 +44612,7 @@ sbKrbSalvoLabel();
 let sbBruHuid = null;
 const sbBruHuidBtn = document.getElementById('sbbruhuid');
 sbBruHuidBtn.onclick = () => {
-  sbBruHuid = sbBruHuid ? null : 'donker'; if (sbBruHuid) bruDonkerLaad();
+  sbBruHuid = sbBruHuid ? null : 'donker'; if (sbBruHuid) bruDonkerLaad(); else bruGewoonLaad();
   if (brutus) brutus.huid = sbBruHuid;
   sbBruHuidBtn.textContent = 'Huid: ' + (sbBruHuid || 'gewoon'); sbBruHuidBtn.classList.toggle('on', !!sbBruHuid); cv.focus();
 };

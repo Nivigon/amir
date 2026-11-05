@@ -143,9 +143,17 @@ Sandbox: Vijanden, rij **Brutus (baas)**: zonder wachten, meteen stormen.
   frames in een tweede kleurstelling, `enemies/brutus/frames_donker/` (en `klein/`), uit `tools/brutus_donker.py`.
   Donkerder bruine huid, zwart haar, feller rood in het gezicht met een licht litteken over zijn oog, een bruine broek,
   een gouden sjerp en warm gouden polswindsels (een verloop met glans). Het script leest brutus.json voor het anker en
-  zoekt per frame het haar, het gezicht, de sjerp, de broek en de polsen op. Lui geladen (`bruDonkerLaad`); tot die
-  frames binnen zijn tekent hij met de gewone. Geen level gebruikt het nog. Na `brutus_voeten.py` opnieuw draaien,
+  zoekt per frame het haar, het gezicht, de sjerp, de broek en de polsen op. Stad 6 gebruikt het. Na `brutus_voeten.py` opnieuw draaien,
   daarna `gen-klein.py` en `gen-offline-manifest.py`.
+- **Laden en soepel op een telefoon**: `bruLaad` haalt brutus.json en de losse knots, en daarna alleen de huid die er
+  komt (`bruGewoonLaad` of `bruDonkerLaad`, gevraagd door `bruLaadLevel`, `makeBrutus` en de knop Huid). Eerst laadde hij
+  altijd de gewone frames erbij, dus in Stad 6 allebei (471 frames, dubbel geheugen; een telefoon gooit dan uitgepakte
+  frames weg en pakt ze midden in het gevecht opnieuw uit). `bruTeken` neemt de gevraagde huid, anders de andere als die
+  er al is. `warmBouw` tekent elk frame achter het laadscherm een keer (`level.brutus`), zodat de eerste storm, kap en
+  sprong niet haperen. De golven (`bruGolfTeken`) kopieren de vloer een keer per beeld voor alle golven samen, in een
+  hulpdoek van minstens 256 bij 256: Chrome zet een kleiner doek niet op de grafische kaart, en dan moest het beeld elk
+  beeld terug naar de processor. Nog niet aangepakt: de woede-gloed (`bruGloedBeeld` met `shadowBlur`, elk beeld) en de
+  56 stofwolken van de sprong; die zijn op de grafische kaart van een telefoon zwaar, maar in de headless meting niet te zien.
 - Geluiden: `sounds/brutus_adem.mp3` (loopt zolang hij staat te ademen), `brutus_stap.mp3`,
   `brutus_zwaai.mp3` (start op zwaaiframe `BRU.zwaaiGeluid`, de zoef valt op de treffer),
   `brutus_geraakt.mp3`, `brutus_dood.mp3`.
