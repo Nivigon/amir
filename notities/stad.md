@@ -315,6 +315,29 @@ grondSoort: [{van, tot, soort: 'plein'}]
   uitgang van de baas: Brutus (`notities/brutus.md`) zet hem dicht bij de start en open als hij sterft (in een klap,
   zonder takelen). De wanden van het gevecht komen uit `brutus.van` en `brutus.tot`, niet uit de poorten.
 
+## De luifel bij de put
+
+`STAD.plein.luifel`, `stadLuifelMaat`, `stadLuifelWorp`, `stadLuifelStap`, `stadLuifelVx`, `stadLuifelTeken`, `sbluifel`
+
+Een schuine doek aan een paal (`design/stad/luifel.png`, uit een Grok-plaat: het doek korter gemaakt en schuiner gezet, de
+paal recht gehouden). Hij hoort bij een put: `putten: [{x, luifel: 'r'}]` zet hem rechts van de put (`'l'` links), met de
+paal `af` (2,3) Amir van het midden van de put en het lage eind `eind` (1,5) Amir boven de grond. Zo zit hij in Amir
+gerekend altijd even ver van de balk: vanaf de balk te halen (0,5 Amir omhoog), vanaf de straat niet. Hij is aan de put
+gekoppeld en niet aan de toren, omdat de toren van een pleinpoort met de schermgrootte mee schuift en de put niet.
+
+- **Botsen**: de bovenkant van de doek (`opp`, bronpunten) wordt in `stadPlats` zes smalle dunne stukken, elk op zijn eigen
+  hoogte (`stad: 'luifel'`). Alleen het onderste deel is vanaf de balk te halen; de kant bij de paal hangt te hoog.
+- **De worp**: wie erop landt wordt meteen weggeworpen (`stadLuifelWorp`, vanuit de landing naast de kraamdoek), erop staan
+  kan niet. Omhoog `worp.vy` x jumpV, opzij `worp.vx` Amir per seconde van de paal af, als eigen vaart (`stadLuifelVx`) die
+  blijft tot hij weer staat. Geen valschade. De doek buigt mee in stroken (`dip`, `duur`), net als de kraamdoek.
+- **De paal**: staat hij voor de toren van een pleinpoort, dan hangt hij daaraan. Op een klein scherm staat de toren verder
+  weg; dan loopt de paal door tot de grond (`stadLuifelTeken`).
+- **Stad 6**: de put staat op -3200 met de luifel rechts, tegen de toren van de rechterpoort; Amir begint links van de put
+  (-3500, `rand` 1800 zodat de rechtergrens gelijk blijft). Op 1280x720 landt hij na de worp links van de put, op een
+  groot scherm verder. Op een telefoon (852x393) springt Amir verhoudingsgewijs verder (lopen is 330 wereld-px per seconde
+  op elk scherm): daar spring je recht omhoog met een kort tikje naar rechts, anders ga je onder de doek door.
+- **Sandbox**: onder De stad de knop **Luifel**: het plein met de put zo neergezet dat de paal tegen de toren staat.
+
 ## Geen outline op de stadsplaatjes
 
 Een donkere outline om de stadsplaatjes is geprobeerd (2 november 2026) en weer teruggedraaid: Tom vond het lelijk.
