@@ -4,7 +4,7 @@
 Leest enemies/brutus/frames/*.png (met brutus.json voor het anker) en schrijft naar
 enemies/brutus/frames_donker/ (zelfde namen en maat, dus brutus.json geldt voor allebei):
 - de huid donkerder bruin (de oranjebruine tinten, ook de steel en de sandalen een tikje);
-- het haar zwart (de rode stukken bovenaan), het rood in het gezicht feller en het litteken
+- het haar en de wenkbrauwen zwart (de rode stukken bovenaan en in het gezicht), en het litteken
   over zijn oog licht, zodat het tegen de donkere huid te zien blijft;
 - de broek bruin in plaats van zwart, de sjerp goud;
 - de windsels om de polsen warm goud, met glans (een verloop van donker naar bijna wit).
@@ -62,34 +62,83 @@ def vul(vorm, lijst):
     return m
 
 
+def vorm_ok(p, max_rek=3.0):
+    """compact genoeg: niet lang en smal zoals de steel van de knots"""
+    hh, ww = np.ptp(p[:, 0]) + 1, np.ptp(p[:, 1]) + 1
+    return max(hh, ww) / min(hh, ww) <= max_rek
+
+
+def rand_van(m, r=2):
+    """de ring pixels net buiten een masker"""
+    g = Image.fromarray((m * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(2 * r + 1))
+    return (np.asarray(g) > 0) & ~m
+
+
 def maskers(a, dx, dy):
-    """haar, rood in het gezicht, litteken, sjerp, broek en polswindsels, uit het origineel"""
-    h, s, v = hsv(a); hd = h * 360; H, W = v.shape; zicht = a[..., 3] > 0.3
-    hoog = (-dy - np.arange(H))[:, None] * np.ones(W)          # hoogte boven de grondlijn
-    xs = np.arange(W)[None, :] + dx                            # afstand tot het anker
-    rood = ((hd < 12) | (hd > 335)) & (s > 0.4) & zicht
-    st = sorted([p for p in stukken(rood) if len(p) >= 6], key=lambda p: p[:, 0].min())
-    haar = gz = lit = sjerp = np.zeros((H, W), bool)
-    if st:
-        top = ([p for p in st if len(p) >= 40] or st)[0][:, 0].min()
-        haar = vul((H, W), [p for p in st if p[:, 0].min() < top + 34 and p[:, 0].mean() < top + 38])
-        if haar.any():
-            ys, xx = np.nonzero(haar)
-            vak = np.zeros((H, W), bool)
-            vak[max(0, ys.max() - 4):ys.max() + 45, max(0, xx.min() - 12):xx.max() + 12] = True
-            gz = rood & vak & ~haar
-            lit = vak & (hd > 8) & (hd < 40) & (s < 0.62) & (v > 0.71) & ~rood
-            lit = vul((H, W), [p for p in stukken(lit) if len(p) >= 5])
-        sjerp = vul((H, W), [p for p in st if 100 < -dy - p[:, 0].mean() < 260 and abs(p[:, 1].mean() + dx) < 100
-                             and (np.ptp(p[:, 1]) + 1 > 1.8 * (np.ptp(p[:, 0]) + 1) or len(p) < 400)
-                             and not haar[p[:, 0], p[:, 1]].any()])
-    broek = (s < 0.3) & (v < 0.33) & (hoog > 40) & (hoog < 210) & zicht
+    """haar, wenkbrauwen, litteken, sjerp, broek en polswindsels, uit het origineel.
+    Op kleur en vorm, niet op hoogte, zodat het ook klopt als hij zwaait, valt of ligt."""
+    h, s, v = hsv(a); hd = h * 360; H, W = v.shape; zicht = a[..., 3] > 0.5
+    leeg = np.zeros((H, W), bool)
+    # de broek: het grote, dichte donkere vlak (niet de dunne lijnen of plooien)
+    broek = (s < 0.3) & (v < 0.33) & zicht
     dicht = np.asarray(Image.fromarray((broek * 255).astype(np.uint8)).filter(ImageFilter.BoxBlur(5))).astype(np.float32) / 255
-    broek &= (dicht > 0.55) & (np.abs(xs) < 150)               # het vlak, niet de dunne plooien of het ijzer
-    broek = vul((H, W), [p for p in stukken(broek) if len(p) >= 300])
-    grijs = (s < 0.22) & (v > 0.28) & (v < 0.85) & (a[..., 3] > 0.5) & (hoog > 140)
-    pols = vul((H, W), [p for p in stukken(grijs) if 120 < len(p) < 1600 and np.ptp(p[:, 1]) < 70 and np.ptp(p[:, 0]) < 70
-                        and abs(p[:, 1].mean() + dx) < 190 and v[p[:, 0], p[:, 1]].mean() > 0.33])
+    broek &= dicht > 0.55
+    st = [p for p in stukken(broek) if len(p) >= 300]
+    groot = max((len(p) for p in st), default=0)
+    broek = vul((H, W), [p for p in st if len(p) >= 0.25 * groot])   # de pijpen, niet de schaduw op de bal van de knots
+    # de sjerp is in de bron al op een eigen tint gezet (rond 358 graden). Soms heeft een hand die tint ook, dus:
+    # de stukken met die tint die tegen de broek aan liggen (dat doet de sjerp in elke houding, ook liggend)
+    sj = (hd > 352) & (hd < 359.6) & (s > 0.7) & zicht
+    bijbroek = np.asarray(Image.fromarray((broek * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(9))) > 0
+    huid = (hd > 8) & (hd < 46) & (s > 0.3) & zicht
+    sjerp = []
+    for p in stukken(sj):
+        if len(p) < 25:
+            continue
+        ring = rand_van(vul((H, W), [p]), 6)
+        rb, rh = bijbroek[ring].mean(), huid[ring].mean()
+        if rb > 0.1 and rh > 0.08 and rb < 0.85:    # broek aan de ene kant, huid aan de andere
+            sjerp.append(p)
+    sjerp = vul((H, W), sjerp)
+    # het haar: fel verzadigd rood (de steel, een roze hand en de rode gloed op zijn gezicht zijn minder fel),
+    # het grootste compacte stuk, plus de plukken die ertegenaan liggen
+    fel = ((hd < 12) | (hd > 359.6)) & (s > 0.82) & (v > 0.18) & zicht & ~sjerp
+    st = [p for p in stukken(fel) if len(p) >= 6]
+    kand = [p for p in st if len(p) >= 80 and vorm_ok(p, 2.6)]
+    haar = gz = lit = leeg
+    if kand:
+        p0 = max(kand, key=len)
+        y0, y1, x0, x1 = p0[:, 0].min(), p0[:, 0].max(), p0[:, 1].min(), p0[:, 1].max()
+        haar = vul((H, W), [p for p in st if len(p) < 3000 and vorm_ok(p, 3.5)
+                            and y0 - 6 <= p[:, 0].mean() <= y1 + 6 and x0 - 6 <= p[:, 1].mean() <= x1 + 6])
+        # de randjes van de plukken: al het rood dat tegen het haar aan ligt hoort erbij
+        bijhaar = np.asarray(Image.fromarray((haar * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(7))) > 0
+        haar = haar | (bijhaar & ((hd < 15) | (hd > 345)) & (s > 0.3) & zicht & ~sjerp)
+        # rond het hoofd: de wenkbrauwen (kleine rode stukjes) en het litteken (een lichte streep)
+        vak = np.zeros((H, W), bool)
+        vak[max(0, y0 - 50):y1 + 50, max(0, x0 - 50):x1 + 50] = True
+        rood = ((hd < 12) | (hd > 359.6)) & (s > 0.6) & zicht & ~sjerp & ~haar
+        gz = vul((H, W), [p for p in stukken(rood & vak) if 4 <= len(p) <= 160 and vorm_ok(p, 4.5)])
+        lit = vak & (hd > 8) & (hd < 40) & (s < 0.62) & (v > 0.71) & ~rood
+        lit = vul((H, W), [p for p in stukken(lit) if len(p) >= 5])
+    # de windsels: grijze stukken van middelmaat. Een polswindsel zit aan zijn arm, en die hangt aan zijn hele
+    # bovenlijf: een groot stuk huid. Een enkelwindsel raakt alleen een voet, een stuk van de knots helemaal geen huid.
+    # Zo klopt het in elke houding, ook als hij knielt en zijn handen naast zijn benen hangen.
+    grijs = ((s < 0.22) | ((hd > 190) & (hd < 260) & (s < 0.7))) & (v > 0.28) & (v < 0.85) & zicht   # ook de blauwig getinte
+    huidlab = np.zeros((H, W), np.int32); huidmaat = [0]
+    for n, p in enumerate(stukken(huid), 1):
+        huidlab[p[:, 0], p[:, 1]] = n; huidmaat.append(len(p))
+    huidmaat = np.array(huidmaat); lijf = huidmaat.max()
+    pols = []
+    for p in stukken(grijs):
+        # middelmaat (twee polsen tegen elkaar boven zijn hoofd tellen als een stuk), niet te donker
+        if not (120 < len(p) < 2600 and np.ptp(p[:, 1]) < 100 and np.ptp(p[:, 0]) < 100 and v[p[:, 0], p[:, 1]].mean() > 0.33):
+            continue
+        ring = rand_van(vul((H, W), [p]), 3)
+        raakt = np.unique(huidlab[ring]); raakt = raakt[raakt > 0]
+        if len(raakt) and huidmaat[raakt].max() >= 0.25 * lijf and huid[ring].mean() >= 0.12:   # de bal kan zijn hand raken, maar is niet door huid omringd
+            pols.append(p)
+    pols = vul((H, W), pols)
     return haar, gz, lit, sjerp, broek, pols
 
 
@@ -111,7 +160,7 @@ def kleur(im, dx, dy):
     h[sjerp] = SJERP['tint'] / 360; s[sjerp] = np.clip(s[sjerp] * SJERP['verz'], 0, 1); v[sjerp] = np.clip(v[sjerp] * SJERP['helder'], 0, 1)
     wb = np.clip(v[broek] / 0.1 - 0.5, 0, 1)                   # de zwarte lijnen blijven zwart
     h[broek] = BROEK['tint'] / 360; s[broek] = BROEK['verz'] * wb; v[broek] = np.clip(v[broek] * (1 + wb * (BROEK['helder'] - 1)), 0, 1)
-    h[gz] = h0[gz]; s[gz] = np.clip(s0[gz] * 1.1, 0, 1); v[gz] = np.clip(v0[gz] * 1.3 + 0.08, 0, 1)
+    h[gz] = 0; s[gz] *= HAAR['verz']; v[gz] = v0[gz] * HAAR['helder']     # de wenkbrauwen zwart, net als het haar
     h[lit] = 0.06; s[lit] = 0.32; v[lit] = 0.86
     a = a0.copy(); a[..., :3] = rgb(h % 1, np.clip(s, 0, 1), np.clip(v, 0, 1))
     a[pols, :3] = verloop(((v0[pols] - 0.2) / 0.55) ** 0.8, POLS)
