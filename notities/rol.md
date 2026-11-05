@@ -40,12 +40,15 @@ de kant; anders rolt hij de kant op die hij kijkt.
   op het aftakframe `ROL_WORP.tak` (24, frame 25 in de tool: hij landt op zijn voeten) gaat de rol over in de worp.
   `thrPress` stuurt F tijdens de rol naar `rolWorpDruk`; daarbuiten blijft alles zoals het was.
 - Perfect: F in de laatste `ROL_WORP.perfect` (3) frames voor de landing. Dan vliegt de speer harder
-  (`perfectKracht` 1,3 tegen `kracht` 1) en staat er even "Perfecte worp!".
+  (`perfectKracht` 1,45 tegen `kracht` 1) en staat er even "Perfecte worp!".
 - Alleen met de speer in de hand (`rol.met`). Tijdens de worp is `amirVast()` waar; onkwetsbaar is hij niet meer
   (de rol is dan al voorbij `ROL.onkw`), dus in de uitval en de nazwaai is hij te raken. Daarna koelt de rol af
   (`ROL.koel`), net als na een gewone rol.
-- 33 frames: `karakters/amir/beweging/rol/worp/worp_1..33.png` (524 x 475, grondrij 450), `ROL_WORP.ms` per frame
-  (35 ms door de uitval, 30 ms door de worp, de nazwaai 300 ms), `ROL_WORP.tempo` versnelt of vertraagt.
+- 33 frames: `karakters/amir/beweging/rol/worp/worp_1..33.png` (524 x 475, grondrij 450). De duur per frame komt uit
+  `rolWorpMs`: `ROL_WORP.uitvalMs` (22) voor de uitval (frame 1 t/m 17), `losMs` (22) voor de rest, `spanMs` (70) extra op het
+  frame voor het loslaten (de spanning) en de nazwaai uit `ROL_WORP.ms` (300). Eerst was het 35 en 30 ms zonder spanning:
+  775 ms van landing tot loslaten, wat traag voelde; nu ongeveer 590 ms. `ROL_WORP.tempo` versnelt of vertraagt alles.
+- Na het loslaten breekt lopen (of V, een nieuwe rol zonder afkoeling) de nazwaai af, vanaf `ROL_WORP.afbreek` (0,15 s).
 - De speer zit erin gebakken t/m frame 22 (index); op `ROL_WORP.los` (23) vliegt de echte speer (`rolWorpLos`):
   een vlakke worp vanaf de punt zoals Tom hem op dat frame zette (`ROL_WORP.punt`, bronpixels t.o.v. anker en
   grond), met dezelfde bijwerkingen als `looseSpear` (speer weg, de volgende van de rug).
@@ -54,12 +57,36 @@ de kant; anders rolt hij de kant op die hij kijkt.
 - Ontwerp en clips: zie het project, `claude/animeer_tool_amir_rol.md` (startbeeld uit rolframe 25, tussen- en
   eindframe vanaf het basisontwerp, twee Grok-clips aan elkaar).
 
-## Test 60: Rol-worp, en de oefendoelen
+## Het gevoel: stof, klap en effecten
+
+Alles los af te stellen in de pauze (Rol-worp: test, drie inklapbare groepjes); de effecten zijn een factor, 0 is uit.
+
+- **Stof** (`ROL_WORP.stof`, `rolStofPuf`, `ROL_STOF`, `ROL_WORP_STOF`): op vaste frames wolkjes in `wdust` op Amirs hoogte
+  (`ph`): bij de rol de afzet (frame 1), de klap van de schouders (9 en 10), elke drie frames tijdens het rollen en de
+  landing (25); bij de worp de achterste voet die tijdens de uitval schuift en de voorste die neerplant op het loslaten.
+  Vijf keer de maat van de schorpioenwolkjes en dichter, anders vallen ze weg op het zand. Niet in het water.
+- **Het loslaten** (`rolWorpLos`): een hitstop (`stopGewoon` 0,03 s, `stopPerfect` 0,06 s) en een camerastoot in de
+  worprichting (`stoot`, px bij 720 hoog, perfect anderhalf keer; `rolStoot`, `rolStootX`, opgeteld bij de schok).
+- **De vlucht**: `jav.zwaar` schaalt de zwaartekracht (`zwaarGewoon` 1, `zwaarPerfect` 0,5: een perfecte vliegt vlakker), en
+  `perfectKracht` is 1,45 (was 1,3), zodat je het verschil voelt in plaats van leest. Het spoor (`spoor`, `javSpoorTeken`)
+  loopt achter de schacht, licht goud en breder bij een perfecte worp.
+- **Smear** (`smear`): op het frame voor, op en na het loslaten drie vage kopieen van Amir achter hem.
+- **Squash** (`squash`, `rolSquash`, `ROL_SQUASH`): bij de klap van de schouders en de landing even lager en breder, bij het
+  loslaten even langer; voet en anker blijven op hun plek (`rolSquashVak`).
+- **Glans** (`glans`, `rolGlansTeken`): zodra het perfecte venster opengaat een korte vierpuntige ster op Amir, feller als je
+  F al op tijd gedrukt hebt. Zo leer je het ritme door te kijken.
+- **Inslag op een oefendoel** (`inslag`, `rolDoelTreffer`): een hitstop en een schok, splinters die terugspatten, en de speer
+  blijft trillend in de schijf steken (`d.speren`, hoogstens vijf per doel, `rolDoelSpeer`; decor, de speer zelf is weg).
+
+## Test 60: Rol-worp, de oefendoelen en de tegenstanders
+
+- Na de oefendoelen een rij tegenstanders, elk alleen (zo'n 2400 px uit elkaar): zandslang, schorpioen, bandiet,
+  schildbandiet (makkelijk), kruisboogbandiet, zweepman en het kooiman-duel, met kalebassen na de zware gevechten.
 
 - `rolWorpProef: true` in een level: drie oefendoelen (runeschijf op een paal, `rolDoelen`, `rolDoelTeken`), de rug
   vult zich steeds aan (speren genoeg, met `rugMax: 5`), en in de pauze onder Instellingen de knop
   **Rol-worp: test** (`pzrolw`, `ROL_WORP_SCHUIF`): vanaf welk rolframe F telt, het perfecte venster, het tempo,
-  de kracht (gewoon en perfect), en de hoogte en afstand van een nieuw doel. De browser onthoudt de stand
+  de kracht (gewoon en perfect), de timing, de klap en de vlucht, de effecten, en de hoogte en afstand van een nieuw doel. De browser onthoudt de stand
   (`amir.rolworp`). Ook in de sandbox.
 - T (in Test 60 en de sandbox) of de knop **Doel voor Amir neerzetten** zet een doel `ROL_DOEL.afstand` Amir voor
   hem uit op `ROL_DOEL.hoog` Amir (standaard 1,22: de hoogte van de punt op het losframe). Een treffer laat de schijf
