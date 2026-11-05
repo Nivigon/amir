@@ -9,9 +9,10 @@ de kant; anders rolt hij de kant op die hij kijkt.
   worp of renstoot, en niet als Amir vast staat (`amirVast`).
 - Tijdens de rol is `amirVast()` waar: springen, steken, werpen, bukken, E en het schild doen dan niets, en
   de pijltjes sturen hem niet (`if (rol) dir = 0`).
-- Onkwetsbaar vanaf de start: `ROL.onkw` (0,85 s, het duiken en rollen), via `invuln` en `invulnStil`
+- Onkwetsbaar vanaf de start: `ROL.onkw` (0,6 s, het duiken en rollen), via `invuln` en `invulnStil`
   (zonder knipperen). Na de rol koelt hij `ROL.koel` (0,5 s) af; de ring om de rolknop loopt dan vol
   (`rolKlaar`).
+- De rol duurt 0,87 s: 27 frames van 30 ms en de hurk 60 ms (`ROL.ms`, `ROL.eindMs`; eerst 42 ms, dat was te traag).
 - De wereld schuift hem `ROL.afstand` (340 wereld-px) vooruit tussen frame `ROL.van` en `ROL.tot`, zacht in
   en uit (`rolVoortgang`). Aan de rand van een ravijn schuift hij niet verder (`gatOp`), net als de renstoot;
   rotsen, wanden en de rest houden hem tegen zoals altijd (de klemmen na `rolUpdate`).
