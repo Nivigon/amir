@@ -350,6 +350,7 @@ De versie in `offline-assets.json` verandert mee, en de service worker ziet daar
 | **speer recht vooruit** | **spatie vasthouden, loslaten** | **✦ vasthouden, loslaten** |
 | **speer in een boog** | **langer vasthouden, dan loslaten** | **langer vasthouden, dan loslaten** |
 | worp afbreken | tijdens het spannen springen, bukken of de andere kant op | duim van ✦ af slepen en daar loslaten, of springen, bukken of de andere kant op |
+| rollen | V (met een pijltje erbij kies je de kant); even onkwetsbaar, daarna koelt hij kort af | de rolknop, links van de E; de ring eromheen loopt vol als hij weer kan |
 | speer oppakken | E, waar je ook langs de schacht staat | E (verschijnt als je er vlakbij staat) |
 | door een open deur of grot | E, als je ervoor staat | E (verschijnt als je ervoor staat) |
 | drinken | Q | het kalebasje |

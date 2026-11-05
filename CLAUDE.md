@@ -153,6 +153,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | beeld: de grote of de kleine spriteset | `KLEIN_FAM`, `zetBron` | notities/wegwijzers.md |
 | hppotion | de drinkkalebas |  |
 | renstoot: sprinten en dan stoten | `RENSTOOT`, `glijStart`, `glijUpdate` | notities/speer.md |
+| de rol: V of de rolknop, induiken en doorrollen, even onkwetsbaar en een korte afkoeling | `ROL`, `rolStart`, `rolUpdate` | notities/rol.md |
 | het schild van Amir: C vasthouden, vangen en de parade | `AMIR_SCHILD`, `schildVang`, `schildTeken` | notities/schild.md |
 | reserve-speren op de rug (prototype) | `RUG`, `RUG_MAX`, `rugSperen` | notities/rug-speren.md |
 | zicht: een vijand ziet je alleen als er niets tussen zit | `ZICHT`, `vijandZiet`, `zichtWaak` | notities/zicht.md |
