@@ -7,3 +7,7 @@
 ## Amir zegt iets als een vijand sterft
 
 `SFX_RUST`, `vijandDood(baas)` (het bestand is 9 dB harder gemaakt, met een limiter): "ta soul, rest" na elke verslagen eindbaas en na een op de `DOOD_KANS` (7) andere vijanden; elke plek waar een vijand sterft roept `vijandDood` aan
+
+## De rol
+
+`ROL.geluid`, `sounds/amirrol.mp3`: zwiep en plof van de gevechtsrol, gaat af bij `rolStart` (zie `notities/rol.md`)
