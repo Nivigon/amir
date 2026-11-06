@@ -97,10 +97,22 @@ Altijd WYSIWYG: links in het grid is links in het spel, de wereld-x is `(kolom -
 
 - Een ravijn-cel op de grondlijn is een gat (`gaps`); elders doet een ravijn-cel niets (de controle
   meldt het).
-- Rotsdecor (`rotsdecor`, onder Decor) wordt een prop `{x, k, s, f}` op het midden van zijn kolom, `k` een
-  rotsstuk uit `PROPS` (de soorten met `rots`). Het spel zet hem zelf op de vloer onder die kolom (`terrainH`),
-  dus de rij doet er alleen toe voor de controle. Het paneel heeft Soort (per familie: zuil, plaat, laag, brok,
-  kei), Gespiegeld en Schaal (`MK_ROTS_S`); de laatst gekozen soort onthoudt hij (`MK.rotsSoort`).
+- De decorstukken (`MK_DECOR`, een gedeeld paneel `mkVulDecor`: Soort, Gespiegeld en Schaal, wat de soort kent; de
+  laatst gekozen soort per gereedschap in `MK.decSoort`). Onder Decor, groep Stenen en sporen:
+  - **Rotsdecor** (`rotsdecor`): een rotsstuk uit `PROPS` (veld `rots`: zuil, plaat, laag, brok, kei, grotkei, ronde
+    kei en hangrots).
+  - **Botten** (`bot`): botten en schedels (veld `bot`).
+  - **Kapotte vloer** (`vloer`): de barsten van het plein en het puin (veld `vloer`, zie `notities/decor.md`).
+  Die drie (`MK_DECOR_PROP`) worden een prop `{x, k, s, f}` op het midden van hun kolom. Het spel zet hem zelf op de
+  vloer onder die kolom (`terrainH`), dus de rij doet er alleen toe voor de controle. Een hangrots (`mkDecHang`) hangt
+  met zijn bovenkant aan de bovenkant van zijn cel: hij krijgt `y`, `(grondlijn - rij) * 150`, en de controle meldt
+  hem als er geen vaste cel boven hem zit.
+  Onder Decor, groep Fakkel en teken:
+  - **Fakkel** (`fakkel`) wordt `fakkels {x, y, s, f}`, met `y` de onderkant van zijn cel in Amir boven de grondlijn:
+    hij hangt waar je hem tekent.
+  - **Speerteken** (`teken`) wordt `tekens {x, v, f}`, de variant uit `TEKEN.varianten` (namen in `MK_TEKEN_NAAM`).
+  Onder Objecten, los naast de kalebas: **Skelet met speer** (`skelet`) wordt `skeletten {x, f}`. Regel 9 (een
+  bandiet bij het skelet na een rune) kijkt `levelcheck.py` na, niet de controle van de Maker.
 - Een blok vaste cellen boven de grondlijn is een terras (`terraces`, savanne met `grond: true`,
   rots en muur met `af: true`); een blok met lucht eronder is een zwever (`zwevers`). Een muur die
   op de grondlijn doorloopt gaat precies die ene cel de grond in (`door`).
@@ -469,7 +481,7 @@ regel bij, en een controle in de lijst `check(...)`.
 ## Wat er nog niet is
 
 Geen aanraking (pannen en zoomen kan
-alleen met muis en toetsen), geen prop-keuze (een prop is een aantekening; echt decor is alleen het rotsdecor), en een zegel kent
+alleen met muis en toetsen), geen prop-keuze (een prop is een aantekening; echt decor zijn de stukken uit `MK_DECOR` en de stad), en een zegel kent
 alleen een masker, Te zien (Open, Verborgen, Onzichtbaar) en een rijzer, niet de andere zegel-velden (`speerval`, `plafond`). Een rijzer
 staat alleen in een ravijn op de grondlijn: een rijzer in een put onder de grond of een lift die vanaf de
 gangvloer door de ingang omhoog komt is in het spel niet beproefd, en de Maker meldt zo'n plek als FOUT.
