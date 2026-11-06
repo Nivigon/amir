@@ -11355,6 +11355,27 @@ function takelDraagt(x, base){
   for (const t of takelLijst()){ const d = takelDekVoor(t); if (d && x > d.l && x < d.r && Math.abs((base || 0) - d.top) < 20) return true; }
   return false;
 }
+// Afstappen van het dek. De looplijn ligt op de voorrand van het bovenvlak (takelOpp), zo'n 17 px onder de
+// plaat, en het plateau veert nog na; een plateau dat bij een terras of galerij aankomt ligt dus zelden op de
+// pixel gelijk met de vloer ernaast. Opstappen ging al met de speling van takelDraagt, maar afstappen telde
+// elk hoogteverschil boven 1 px als een trede (blocksMonster) of een rand (dropAhead): dan liep een vijand
+// het plateau op en kwam hij er boven niet meer af. Staat een vijand op het dek en ligt de vloer van zijn
+// volgende stap binnen TAKEL_AFSTAP, dan is dat geen trede of rand maar gewoon afstappen. Een echte trede
+// of een ravijn ernaast blijft hem tegenhouden (regel 7).
+const TAKEL_AFSTAP = 30;
+function takelOpDek(s){ return !!s && takelLevel() && takelDraagt(s.x, s.base || 0); }
+// blocksMonster voor een vijand zelf: een terras dat net iets boven zijn takel-dek ligt is geen muur
+function blocksMob(s, p){
+  if (!blocksMonster(p, s.base || 0)) return false;
+  return !(p.terrace && p.topH - (s.base || 0) <= TAKEL_AFSTAP && takelOpDek(s));
+}
+function takelAfstap(s, x){
+  if (!takelOpDek(s)) return false;
+  const b = s.base || 0;
+  if (takelDraagt(x, b)) return false;               // nog op het dek: daar is niets af te stappen
+  const vf = vloerBij(x, b);
+  return Math.abs(vf - b) <= TAKEL_AFSTAP && !gatOp(x, vf);
+}
 // het dunne platform: draagt Amir en de speer, en van onderaf loop je eronderdoor (thin)
 function takelPlats(){
   const out = [];
@@ -26735,7 +26756,7 @@ function slangSchuif(s, dt, plats, cliff, tempo){
   if (pit){
     s.x = s.side === 1 ? pit.x + pit.w / 2 + halfL : pit.x - pit.w / 2 - halfL;
     edge = true;
-  } else if (dropAhead(s.x - s.side * halfL, s.base || 0, s.klim)){   // de rand van zijn terras (een klimmer stapt af)
+  } else if (!takelAfstap(s, s.x - s.side * halfL) && dropAhead(s.x - s.side * halfL, s.base || 0, s.klim)){   // de rand van zijn terras (een klimmer stapt af)
     s.x = voor; edge = true;
   }
   if (s.klim) klimBase(s, dt);                  // zijn hoogte loopt de trede op of af
@@ -28148,7 +28169,8 @@ function hyMove(s, stap, plats, cliff, stormt){
   const d = stap >= 0 ? 1 : -1;
   const halfL = HY.bodyW * hyScale() * 0.35;
   const klem = stormt ? (hardBlocked(s, nx, plats, cliff, 60)
-                         || gatOp(nx + d * halfL, s.base || 0) || dropAhead(nx + d * halfL, s.base || 0))
+                         || (!takelDraagt(nx + d * halfL, s.base) && !takelAfstap(s, nx + d * halfL)   // over het takel-dek en ervan af
+                             && (gatOp(nx + d * halfL, s.base || 0) || dropAhead(nx + d * halfL, s.base || 0))))
                       : knockBlocked(s, nx, plats, cliff, halfL, 80);
   if (klem) return false;
   s.x = nx;
@@ -28676,7 +28698,7 @@ function kooiAnim(s, dt){
 // houdt een kei (of een ander blok uit de platformlijst) deze stap tegen? Ook de bandiet gebruikt dit
 function kooiTegenKei(s, nx, plats, halfL){
   for (const p of plats){
-    if (!blocksMonster(p, s.base || 0)) continue;
+    if (!blocksMob(s, p)) continue;
     const mid = (p.left + p.right) / 2;
     if (nx + halfL > p.left && nx - halfL < p.right && Math.abs(nx - mid) < Math.abs(s.x - mid)) return true;
   }
@@ -34993,11 +35015,12 @@ function scpBlocked(s, nx){
   if (cliff_ && nx > cliff_.wall - 80) return true;
   if (nx < endWall() + 80) return true;
   for (const p of plats_){
-    if (!blocksMonster(p, s.base || 0)) continue;
+    if (!blocksMob(s, p)) continue;                // van een takel-dek af een terras op mag
     const half = 60 * (p.wPx / 400);
     if (nx + half > p.left && nx - half < p.right) return true;
   }
   const halfL = SCP_WALK.w * scpScale() * 0.35;
+  if (takelAfstap(s, nx + s.dir * halfL)) return false;
   if (gatOp(nx + s.dir * halfL, s.base || 0)) return true;     // kijkt vóór zich, niet achter zich
   if (dropAhead(nx + s.dir * halfL, s.base || 0)) return true;   // en valt niet van zijn terras
   return false;
@@ -35010,7 +35033,7 @@ function hardBlocked(s, nx, plats, cliff, wallGap){
   if (cliff && nx > cliff.wall - wallGap) return true;
   if (nx < endWall() + wallGap) return true;
   for (const p of plats){
-    if (!blocksMonster(p, s.base || 0)) continue;
+    if (!blocksMob(s, p)) continue;                // wie op een takel-dek staat stapt een net iets hoger terras gewoon op
     const half = 60 * (p.wPx / 400), mid = (p.left + p.right) / 2;
     if (nx + half > p.left && nx - half < p.right && Math.abs(nx - mid) < Math.abs(s.x - mid)) return true;
   }
@@ -35021,6 +35044,7 @@ function knockBlocked(s, nx, plats, cliff, halfL, wallGap){
   if (hardBlocked(s, nx, plats, cliff, wallGap)) return true;
   // staat de volgende voetstap op een takel-brug die het gat overbrugt, dan telt de ravijn-rand daar niet
   if (takelDraagt(nx + d * halfL, s.base)) return false;
+  if (takelAfstap(s, nx + d * halfL)) return false;          // en van het dek af naar een vloer die er net naast ligt
   if (gatOp(nx + d * halfL, s.base || 0)) return true;      // en de rand van een ravijn
   if (dropAhead(nx + d * halfL, s.base || 0)) return true;
   return false;
