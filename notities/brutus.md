@@ -75,6 +75,11 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
   `tools/plein_schade.py` (knipt het beschadigde stuk uit, rekent het om naar de maat en kleur van het plein, geeft het
   een grillige zachte rand en print de rechthoeken van de brokken; `--proef map` legt elke plaat op plein.png).
   Sandbox: **Vloer heel** (`sbbruheel`) haalt de platen en het puin weg.
+  **De poorten trillen mee** (`BRU_SCHADE.poort`, `bruPoortStenen`): bij de inslag van de sprong vallen van elke pleinpoort
+  binnen `ver` een handvol brokken (`n`) van ergens op de poort (`hoog`, deel van zijn hoogte), elk na een eigen `wacht`,
+  met een wolkje waar hij loskomt en een sliert stof erachteraan. Slaat een golf tegen de muur van het plein (`van`/`tot`),
+  dan vallen er `golfN` van de dichtstbijzijnde poort. Vallend krijgen ze een donkere rand (`st.val`, een schaduw), anders
+  zie je ze niet tegen de leem; de grote blijven onder de poort liggen als puin.
   Bron: Grok-clips jump1 en landing1, gemaakt met begin- en eindframes uit drie sleutelhoudingen (de afzet, in de lucht
   en de inslag, image-to-image vanaf het basisbeeld en op één canvas gezet). `tools/brutus_sprong.py` keyt ze, kiest de
   frames (sprong: 0 en 14 t/m 65 per 3, landing: 0 t/m 16 per 2 en 17 t/m 22), zet beide op één schaal (x1,04, op de kop

@@ -30698,6 +30698,10 @@ const BRU_SCHADE = {
   max: 9, puinMax: 28, vervaag: 2.5,
   blijf: 9,                  // brokken met een straal vanaf dit getal blijven liggen
   brokBreed: 3.8,            // een brok is zoveel keer zijn straal breed
+  // de pleinpoorten trillen mee: bij de inslag van de sprong vallen er steentjes en stof van af (n per poort, binnen ver
+  // wereld-px van de bal), van hoog tot laag op de poort (deel van zijn hoogte), elk na een wacht; slaat een golf tegen
+  // de muur van het plein, dan nog golfN van de dichtstbijzijnde poort
+  poort: { ver: 3200, n: [8, 12], golfN: [3, 5], hoog: [0.45, 0.92], wacht: [0, 0.75], r: [7, 15] },
   brokken: { src: 'plein_brokken.png',
              r: [[0,0,110,73],[114,0,89,65],[207,0,37,30],[248,0,77,67],[329,0,28,23],[361,0,110,70],[475,0,68,66],
                  [547,0,74,61],[625,0,89,64],[718,0,51,58],[773,0,26,26],[803,0,59,57],[866,0,63,58],[933,0,60,55]] }
@@ -30816,6 +30820,7 @@ function bruDoodStof(s){
 function bruStofStap(s, dt){
   if (!s.stof || !s.stof.length) return;
   for (const d of s.stof){
+    if (d.wacht > 0){ d.wacht -= dt; continue; }
     d.age += dt; d.wx += d.vx * dt; d.y += d.vy * dt;
     if (d.zweef){ d.vy += (-d.zweef - d.vy) * 3 * dt; d.vx *= Math.pow(0.15, dt); }
     else { d.vy += 520 * dt; d.vx *= Math.pow(0.2, dt); }
@@ -30828,6 +30833,7 @@ function bruStofTeken(s, grondY, gs, cx){
   const pimg = puffPic(); if (!imgReady(pimg)) return;
   ctx.save();
   for (const d of s.stof){
+    if (d.wacht > 0) continue;
     const k = 1 - d.age / d.life, rr = d.r * gs * (1.7 - k * 0.7);
     const fade = d.zweef ? Math.min(1, d.age / 0.08) * Math.sqrt(k) : k;
     ctx.globalAlpha = d.a * fade;
@@ -31083,6 +31089,7 @@ function bruSprongInslag(s){
   for (let i = 0; i < 26; i++) bruSteen(s, balX + (Math.random() - 0.5) * 120 * gs, (Math.random() - 0.5) * 900, -rnd(380, 980), rnd(7, 17));
   for (const dir of [-1, 1]) s.golven.push({ x: balX, x0: balX, dir, raak: false, acc: 0, barst: 0 });
   bruSchadeErbij(s, balX, BRU_SCHADE.zwaar[Math.floor(Math.random() * BRU_SCHADE.zwaar.length)]);   // de vloer barst
+  bruPoortStenen(s, balX, BRU_SCHADE.poort.n);                // en van de poorten vallen steentjes
   // de directe klap: van zijn rug tot voorbij de bal, alleen op de grond
   if (!dead && invuln <= 0 && ph < P.raakHoog){
     const px = playerX(), achter = s.x - s.face * BRU.half * gs, voor = balX + s.face * 70 * gs;   // van zijn rug tot net voorbij de bal
@@ -31098,6 +31105,25 @@ function bruSprongInslag(s){
 // b: welk brok uit plein_brokken.png; een groot brok (r vanaf BRU_SCHADE.blijf) blijft na de landing als puin liggen
 function bruSteen(s, wx, vx, vy, r){ s.stenen.push({ wx, y: -2, vx, vy, r, rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 14, age: 0, life: 1.4 + Math.random() * 0.6, k: Math.random(),
   b: Math.floor(Math.random() * BRU_SCHADE.brokken.r.length), f: Math.random() < 0.5, blijf: r >= BRU_SCHADE.blijf, land: 0 }); }
+// steentjes en stof die van de pleinpoorten vallen (BRU_SCHADE.poort): van elke poort binnen ver van x, of alleen van
+// de dichtstbijzijnde (een). Ze vallen pas na hun wacht; de grote blijven onder de poort liggen, net als de andere brokken.
+function bruPoortStenen(s, x, nn, een){
+  const P = BRU_SCHADE.poort, gs = bruScale(), sc = (H * (Number(sizeEl.value) / 100)) / CHAR_H, rnd = (a, b) => a + Math.random() * (b - a);
+  let poorten = pleinPoorten().filter(p => Math.abs(p.x - x) < P.ver);
+  if (een && poorten.length) poorten = [poorten.reduce((a, b) => Math.abs(a.x - x) < Math.abs(b.x - x) ? a : b)];
+  for (const p of poorten){
+    const m = stadPleinPoortMaat(p, sc), n = Math.round(rnd(nn[0], nn[1]));
+    for (let i = 0; i < n; i++){
+      const wx = m.left + m.w * rnd(0.06, 0.94), y = -m.h * rnd(P.hoog[0], P.hoog[1]) / gs, wacht = rnd(P.wacht[0], P.wacht[1]);
+      const r = Math.random() < 0.7 ? rnd(P.r[0], P.r[0] + 3) : rnd(P.r[0] + 3, P.r[1]);   // vooral kleine, een paar grotere
+      bruSteen(s, wx, rnd(-50, 50), rnd(0, 90), r);
+      const st = s.stenen[s.stenen.length - 1]; st.y = y; st.wacht = wacht; st.life += wacht + 1; st.val = true;
+      bruStofDeeltje(s, { wx, y, vx: rnd(-30, 30), vy: rnd(10, 40), r: rnd(22, 40), life: rnd(0.9, 1.5), a: 0.7, zweef: -rnd(15, 40), wacht });   // waar hij loskomt
+      for (let j = 0; j < 3; j++)                            // een sliert stof die achter hem aan naar beneden zakt
+        bruStofDeeltje(s, { wx: wx + rnd(-8, 8), y: y + j * 30, vx: rnd(-15, 15), vy: rnd(60, 160), r: rnd(10, 20), life: rnd(0.9, 1.6), a: 0.5, zweef: -rnd(80, 160), wacht: wacht + j * 0.06 });
+    }
+  }
+}
 // een plaat gebarsten vloer erbij (n: welke uit BRU_SCHADE.platen); boven max vervaagt de oudste
 function bruSchadeErbij(s, wx, n){
   if (!s.schade) s.schade = [];
@@ -31157,7 +31183,8 @@ function bruSchadeTeken(s, cx, vloerY){
 function bruGolfStap(s, dt){
   const G = BRU.sprong.golf, gs = bruScale(), rnd = (a, b) => a + Math.random() * (b - a);
   bruSchadeStap(s, dt);
-  for (const st of s.stenen){ st.age += dt; st.wx += st.vx * dt; st.y += st.vy * dt; st.vy += 1500 * dt; st.rot += st.vr * dt;
+  for (const st of s.stenen){ if (st.wacht > 0){ st.wacht -= dt; st.age += dt; continue; }   // valt pas na zijn wacht (van een poort)
+    st.age += dt; st.wx += st.vx * dt; st.y += st.vy * dt; st.vy += 1500 * dt; st.rot += st.vr * dt;
     if (st.y > 0){ st.y = 0; st.vy *= -0.3; st.vx *= 0.55; st.vr *= 0.5; st.land++;
       if (st.blijf && (st.land >= 2 || Math.abs(st.vy) < 90)){   // een groot brok komt tot rust en blijft liggen
         st.weg = true;
@@ -31184,7 +31211,8 @@ function bruGolfStap(s, dt){
         if (invuln > 0){ knock = g.dir * G.duw; hurt = Math.max(hurt, G.stun); shake = Math.max(shake, 0.35); }
       }
     }
-    if (Math.abs(g.x - g.x0) > G.ver * gs || g.x < lo || g.x > hi) g.weg = true;
+    if (g.x < lo || g.x > hi){ g.weg = true; bruPoortStenen(s, g.x, BRU_SCHADE.poort.golfN, true); }   // de golf slaat tegen de muur
+    else if (Math.abs(g.x - g.x0) > G.ver * gs) g.weg = true;
   }
   s.golven = s.golven.filter(g => !g.weg);
 }
@@ -31224,12 +31252,15 @@ function bruGolfTeken(s, grondY, gs, cx){
     ctx.save(); ctx.lineWidth = Math.max(1, 1.6 * gs); ctx.strokeStyle = '#3b2c1f';
     const vloer = grondY - BRU.zak * gs;
     for (const st of s.stenen){
+      if (st.wacht > 0) continue;
       const k = st.blijf ? 1 : 1 - Math.max(0, (st.age - st.life + 0.4) / 0.4), r = st.r * gs, sx = cx + (st.wx - world);
       const hoog = -st.y * gs, sk = 1 / (1 + hoog / 180);   // een schaduwtje op de vloer, kleiner en lichter naarmate hij hoger vliegt
       ctx.globalAlpha = k * 0.3 * sk; ctx.fillStyle = '#1d140f';
       ctx.beginPath(); ctx.ellipse(sx, vloer, r * 1.1 * sk, r * 0.28 * sk, 0, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = k;
-      ctx.save(); ctx.translate(sx, vloer - r * 0.35 + st.y * gs); ctx.rotate(st.rot); bruBrokTeken(st, r); ctx.restore();
+      ctx.save(); ctx.translate(sx, vloer - r * 0.35 + st.y * gs); ctx.rotate(st.rot);
+      if (st.val && st.y < -4){ ctx.shadowColor = 'rgba(30,18,8,0.85)'; ctx.shadowBlur = Math.max(2, 3 * gs); }   // vallend langs de leemmuur: een donkere rand, anders zie je hem niet
+      bruBrokTeken(st, r); ctx.restore();
     }
     ctx.restore();
   }
