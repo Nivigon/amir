@@ -50,6 +50,10 @@ tot aan zijn knie.
   komt er dus gewoon voorlangs.
 - Amir telt pas als hij op het dak geland is (`stadKanteelAmir`, gezet als hij op de grond staat): van de straat omhoog
   spring je voor de muur langs, na de landing sta je erachter. Een vijand telt als zijn vloer (`base`) het dak is.
+- Een galerij of trapbalkon hangt voor de gevel. Ligt het dek op dezelfde hoogte als een dak, dan staat wie op het dek
+  staat toch voor de kartels: alleen wie echt op het dak staat, staat erachter.
+- Een dode ligt languit: om hem heen is de strook breder (`STAD.kanteelLijk`, 1,6 Amir), anders steken zijn voeten
+  links of rechts onder de tanden uit.
 - Het dak is 45 lager, dus soms makkelijker te halen: vanaf het rieten dak van een kraam (263) haal je nu het dak van
   een huis van 1 hoog (442), dat lag eerst net buiten een sprong (208).
 - In de sandbox onder Terrein, De stad: **Achter de kartels** (aan of uit, uit is de oude manier met iedereen voor de
@@ -394,6 +398,10 @@ gekoppeld en niet aan de toren, omdat de toren van een pleinpoort met de schermg
   (-3500, `rand` 1800 zodat de rechtergrens gelijk blijft). Op 1280x720 landt hij na de worp links van de put, op een
   groot scherm verder. Op een telefoon (852x393) springt Amir verhoudingsgewijs verder (lopen is 330 wereld-px per seconde
   op elk scherm): daar spring je recht omhoog met een kort tikje naar rechts, anders ga je onder de doek door.
+- **Zonder put**: `stad.luifels: [{x, kant}]` zet dezelfde luifel neer zonder put eronder. `x` is waar het midden van de
+  put zou staan en `kant` is wat `luifel` bij een put is, zodat hij net zo ver van de toren hangt (`stadLuifelPlats` doet
+  de botsing voor allebei). Zonder put en balk komt Amir er vanaf de grond niet bij (het lage eind hangt 1,5 Amir hoog,
+  de sprong haalt zo'n 0,8). Stad 6 heeft er een op -6000 met `kant: 'l'`, gespiegeld tegen de toren van de linkerpoort.
 - **Sandbox**: onder De stad de knop **Luifel**: het plein met de put zo neergezet dat de paal tegen de toren staat.
 
 ## Geen outline op de stadsplaatjes
@@ -423,3 +431,12 @@ Gemeten (zelfde opstelling, mediaan per beeld): Stad 1 van 450 naar 167 ms, Stad
 lopend van 533 naar 250 ms. Het beeld verschilt alleen in de randen van de huizen, omdat ze nu op hele pixels staan in
 plaats van een fractie ernaast: `node tools/beeldgelijk.js --vlag STAD_STROOK` zet de oude weg (`STAD_STROOK = false`)
 ernaast.
+
+## De speer op een dak of galerij
+
+`javFloor` slaat dunne platforms over (richels, de speer zelf), maar de platforms van de stad (`p.stad`: dak, galerij,
+balkon, putrand, putbalk) tellen voor een speer als vloer zodra hij erboven zit (`h >= p.topH`). Zo landt een
+geworpen of vallende speer erop in plaats van door alle lagen tot de straat te zakken, en van onderen vliegt hij er gewoon
+doorheen, net als Amir. De doek (`veer`) en de luifel tellen niet: die werpen meteen terug. Een kraam (`tafel`,
+`riet`) telt ook niet: een speer vliegt over of langs een kraam tot de straat, anders viel een vlakke worp op straat al
+na een paar passen op de toonbank.

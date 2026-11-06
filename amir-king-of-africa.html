@@ -5169,6 +5169,7 @@ const STAD_6 = {
   lagen: 'stad_dag',
   view: 0.8, hpBalk: true, zicht: true, camera: true, rand: 1800,   // de rand ver genoeg achter de start dat de rechterpoort helemaal in beeld komt
   speerInHand: true,
+  muziek: 'stil',                               // geen muziek onder het gevecht met Nyundo
   start: -3500,                                 // links van de put: de luifel hangt aan de andere kant, tegen de toren van de rechterpoort
   brutus: { x: -4400, van: -6400, tot: -2800, huid: 'donker' },   // Nyundo donker (tools/brutus_donker.py)
   stad: {
@@ -5177,7 +5178,8 @@ const STAD_6 = {
     voet: [ {x: -7600, stuk: 'stro'} ],
     pleinpoorten: [ {x: -2300, f: 1, hek: 'dicht', uit: true}, {x: -6900, hek: 'dicht', uit: true} ],
     pleinwanden: [ {x: -4230}, {x: -4870, f: 1} ],
-    putten: [ {x: -3200, luifel: 'r'} ]          // met de luifel rechts: vanaf de balk erop, en schuin terug over het plein
+    putten: [ {x: -3200, luifel: 'r'} ],         // met de luifel rechts: vanaf de balk erop, en schuin terug over het plein
+    luifels: [ {x: -6000, kant: 'l'} ]           // dezelfde luifel gespiegeld tegen de toren van de linkerpoort, zonder put
   },
   grondSoort: [ {van: -1500, tot: -7300, soort: 'plein'} ],
   rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
@@ -17086,8 +17088,14 @@ function javFloor(x, plats, h){              // hoogte van de vaste grond op dez
   let s = (inGap(x) && !holteAt(x)) ? -Infinity
         : h !== undefined ? vloerBij(x, h > -HOLTE_DAK ? 0 : -Infinity) : terrainH(x);
   for (const p of plats){
-    if (p.thin) continue;                    // richels en de speer zelf zijn geen wand
     if (x <= p.left || x >= p.right) continue;
+    // in de stad zijn de daken, galerijen en balkons een vloer voor een speer die er van boven
+    // op komt (net als voor Amir: alleen van bovenaf). Zonder dit viel een speer door alle lagen tot de straat.
+    // De doek (veer) en de luifel werpen je meteen terug, daar blijft hij niet op liggen. Een kraam (de tafel
+    // en het rieten dak) houdt een speer niet tegen: hij vliegt er overheen of erlangs tot de straat, anders
+    // viel een vlakke worp op straat al na een paar passen op de toonbank
+    if (p.thin && p.stad && p.stad !== 'luifel' && p.stad !== 'tafel' && p.stad !== 'riet' && h !== undefined && h >= p.topH){ if (p.topH > s) s = p.topH; continue; }
+    if (p.thin) continue;                    // richels en de speer zelf zijn geen wand
     // een zwevende laag (ook een zwart blok in een Maker-gang) is pas vloer voor een speer die er
     // bovenop of in de zijkant komt; een speer die er onderdoor vliegt (de punt onder de onderkant)
     // laat hem met rust, net als Amir die er gebukt onderdoor loopt (blockByPlatforms). Zonder dit
@@ -21216,6 +21224,7 @@ const STAD = {
   // of net op tijd bij het landen geeft de hoge sprong (hoog x jumpV)
   veer: { terug: 0.55, min: 0.45, hoog: 1.75, raam: 0.16, diep: 0.16, duur: 0.55 },
   kanteelBreed: 0.7,                // achter de kartels: de strook rond wie op een dak staat, halve breedte in Amir (stadKanteelVoor)
+  kanteelLijk: 1.6,                 // idem voor een dode: hij ligt languit, dus de strook is breder, anders steken zijn voeten erbuiten
   vijandMarge: 30,                  // een dak is de vloer van een vijand vanaf zoveel onder de looplijn (stadVloerBij)
   vijandNaad: 0.4,                  // een kier tot zoveel Amir tussen twee vloeren op dezelfde hoogte is voor een vijand dicht (stadVloeren)
   // het plein (zie "het plein" in notities/stad.md): de pleinwand achteraan, de put en de poorten met hek
@@ -21262,6 +21271,8 @@ function stadLees(o){
            // het plein: de pleinwand (x is het midden), de put (x het midden) en de poorten met hek (x het midden; hek 'open' of 'dicht')
            pleinwanden: (o.pleinwanden || []).map(q => ({ x: n(q.x), f: q.f ? 1 : 0 })),
            putten: (o.putten || []).map(q => ({ x: n(q.x), f: q.f ? 1 : 0, ...(q.luifel === 'l' || q.luifel === 'r' ? { luifel: q.luifel } : {}) })),
+           // een losse luifel zonder put: x is waar het midden van de put zou staan, kant 'l' of 'r' zoals luifel bij een put
+           luifels: (o.luifels || []).filter(q => q.kant === 'l' || q.kant === 'r').map(q => ({ x: n(q.x), luifel: q.kant })),
            pleinpoorten: (o.pleinpoorten || []).map(q => ({ x: n(q.x), f: q.f ? 1 : 0, hek: q.hek === 'open' || q.hek === 'dicht' ? q.hek : null, ...(q.uit ? { uit: true } : {}) })) };
 }
 function stadLaadLevel(lv){ if (lv && (lv.stad || (lv.terraces || []).some(t => t.look === 'leem') || (lv.grondSoort || []).some(g => g.soort === 'straat' || g.soort === 'plein'))) stadLaad(); }
@@ -21376,16 +21387,9 @@ function stadPlats(scale){
     const [rl, rr] = span(P.randL, P.randR), [bl, br] = span(P.balkL, P.balkR);
     out.push({ x: (rl + rr) / 2, left: rl, right: rr, topH: eh(P.rand), base: eh(P.rand), wPx: rr - rl, hPx: 0, thin: true, stad: 'putrand' });
     out.push({ x: (bl + br) / 2, left: bl, right: br, topH: eh(P.balk), base: eh(P.balk), wPx: br - bl, hPx: 0, thin: true, stad: 'putbalk' });
-    // de luifel: de schuine doek in smalle stukken, elk op zijn eigen hoogte; wie erop landt wordt weggeworpen
-    if (p.luifel){
-      const lm = stadLuifelMaat(p, scale), O = lm.L.opp;
-      for (let j = 0; j + 1 < O.length; j++){
-        const a = lm.bx(O[j][0]), b = lm.bx(O[j + 1][0]), l = Math.min(a, b), r = Math.max(a, b);
-        const hh = lm.bh((O[j][1] + O[j + 1][1]) / 2);
-        out.push({ x: (l + r) / 2, left: l, right: r, topH: hh, base: hh, wPx: r - l, hPx: 0, thin: true, stad: 'luifel', luifel: lm, put: p });
-      }
-    }
+    if (p.luifel) stadLuifelPlats(p, scale, out);
   }
+  for (const p of (S.luifels || [])) if (bij(p.x)) stadLuifelPlats(p, scale, out);   // de losse luifels, zonder put
   return out;
 }
 
@@ -21610,6 +21614,16 @@ function stadVeer(p, vIn){
   return true;
 }
 // ---- de luifel bij de put ----
+// de luifel in stadPlats: de schuine doek in smalle stukken, elk op zijn eigen hoogte; wie erop landt wordt weggeworpen.
+// p is een put met luifel, of een losse luifel uit stad.luifels (dan staat er geen put onder).
+function stadLuifelPlats(p, scale, out){
+  const lm = stadLuifelMaat(p, scale), O = lm.L.opp;
+  for (let j = 0; j + 1 < O.length; j++){
+    const a = lm.bx(O[j][0]), b = lm.bx(O[j + 1][0]), l = Math.min(a, b), r = Math.max(a, b);
+    const hh = lm.bh((O[j][1] + O[j + 1][1]) / 2);
+    out.push({ x: (l + r) / 2, left: l, right: r, topH: hh, base: hh, wPx: r - l, hPx: 0, thin: true, stad: 'luifel', luifel: lm, put: p });
+  }
+}
 // Erop staan kan niet: wie erop landt, wordt meteen schuin van de paal af weggeworpen. Omhoog gaat het als een sprong
 // (pvh), opzij met een eigen vaart (stadLuifelVx, in wereld-px per seconde) die blijft tot hij weer ergens staat.
 let stadLuifelVx = 0;
@@ -22950,7 +22964,8 @@ function stadTeken(groundY, scale, cx){
 // Het dak ligt op de balkkoppen (STAD.gevel.dakAchter), niet op de onderkant van de kartels: de muur loopt voor het dak
 // omhoog. Na de personages tekent dit de bovenkant van de gevel (de kartels tot de looplijn) nog een keer, maar alleen
 // in een strook rond wie op dat dak staat (STAD.kanteelBreed). Zo staat Amir of een vijand op het dak achter de tanden,
-// en springt wie op de straat staat er gewoon voorlangs. Amir telt pas als hij op het dak geland is (stadKanteelAmir):
+// en springt wie op de straat staat er gewoon voorlangs. Een galerij of balkon op dezelfde hoogte als een dak hangt voor de
+// gevel: wie daarop staat, staat voor de kartels. Een dode ligt languit, dus om hem heen is de strook breder (kanteelLijk). Amir telt pas als hij op het dak geland is (stadKanteelAmir):
 // van de straat omhoog spring je voor de muur langs, na de landing sta je erachter.
 let stadKanteelAmir = -1;
 function stadGevelTop(m, groundY, scale){                   // de bovenkant van het plaatje van een gevel, in schermpx
@@ -22962,7 +22977,13 @@ function stadKanteelVoor(groundY, scale, cx){
   if (!STAD_KANTEEL || !stadAan() || !stadKlaar('gevel')) return;
   const G = STAD.gevel, im = stadImgs.gevel, gevels = level.stad.gevels || [];
   const half = CHAR_H * scale * STAD.kanteelBreed;
-  const op = (m, x, h) => x > m.left && x < m.right && Math.abs(h - stadGevelH(m.hoog)) < 3;
+  const halfLijk = CHAR_H * scale * STAD.kanteelLijk;
+  // een galerij of trapbalkon hangt voor de gevel: wie daarop staat, staat ervoor, ook als het dek op de hoogte van een dak ligt
+  const voor = [];
+  for (const gl of (level.stad.galerijen || [])){ const q = stadGalerijMaat(gl, scale); if (q) voor.push({ left: q.left, right: q.right, topH: q.h }); }
+  for (const q of stadTrapPlats(scale)) voor.push(q);
+  const opVoor = (x, h) => voor.some(q => x > q.left && x < q.right && Math.abs(h - q.topH) < 3);
+  const op = (m, x, h) => x > m.left && x < m.right && Math.abs(h - stadGevelH(m.hoog)) < 3 && !opVoor(x, h);
   const maten = gevels.map(g => stadGevelMaat(g, scale));
   if (onGround) stadKanteelAmir = maten.findIndex(m => op(m, playerX(), ph));
   const lijsten = [snakes, scorps, panthers, hyenas, bandieten, schildmannen, zweepmannen, kooimannen, meelmannen, kruisbogen, fosforSlangen];
@@ -22971,12 +22992,12 @@ function stadKanteelVoor(groundY, scale, cx){
     if (sx > W / viewZoom() + W || sx + m.w < -W) continue;
     const kol = [];
     if (gi === stadKanteelAmir && !exeAmirWeg()) kol.push(playerX());
-    for (const lijst of lijsten) for (const s of lijst) if (op(m, s.x, s.base || 0)) kol.push(s.x);
+    for (const lijst of lijsten) for (const s of lijst) if (op(m, s.x, s.base || 0)) kol.push(camLeeft(s) ? s.x : { x: s.x, lijk: true });
     if (!kol.length) continue;
     const y0 = stadGevelTop(m, groundY, scale), bh = G.dakAchter * m.f;
     ctx.save();
     ctx.beginPath();
-    for (const x of kol) ctx.rect(cx + (x - world) - half, y0 - 2, half * 2, bh + 2);
+    for (const k of kol){ const x = k.lijk ? k.x : k, hb = k.lijk ? halfLijk : half; ctx.rect(cx + (x - world) - hb, y0 - 2, hb * 2, bh + 2); }
     ctx.clip();
     if (g.f){ ctx.translate(sx + m.w, 0); ctx.scale(-1, 1); } else ctx.translate(sx, 0);
     ctx.drawImage(im, 0, stadQ(im, 0), stadQ(im, 970), stadQ(im, G.dakAchter), 0, y0, m.w, bh);
@@ -23034,7 +23055,9 @@ function stadPleinPoortTeken(groundY, scale, cx, zicht){
     straatBordje(cx + (bij.x - world), groundY - terrainH(bij.x) * scale - (m.R.h - m.R.boogTop) * m.f - A * 0.25, 'Het plein verlaten?  E', true, A); }   // net boven de boog
 }
 function stadPutTeken(groundY, scale, cx, zicht){
-  const S = level.stad; if (!(S.putten || []).length || !stadKlaar('put')) return;
+  const S = level.stad;
+  for (const p of (S.luifels || [])) stadLuifelTeken(p, groundY, scale, cx, zicht);   // de losse luifels, zonder put
+  if (!(S.putten || []).length || !stadKlaar('put')) return;
   const im = stadImgs.put;
   for (const p of S.putten){
     const m = stadPutMaat(p, scale), sx = cx + (m.left - world);
@@ -38800,7 +38823,8 @@ const MUZIEK = {
   darkafrica: { src: 'music/darkafrica.mp3', vol: 0.30 },
   markt:      { src: 'music/marketshadows.mp3', vol: 0.30 },   // Market Shadows: de muziek onder elk stadlevel
   stad:       { src: 'music/tensegrounding.mp3', vol: 0.30 },  // Tense Grounding: de eerdere stadmuziek, een level kiest het met muziek: 'stad'
-  stadgeluid: { src: 'music/citysounds.mp3', vol: 0.30 }     // de geluiden van de stad, zonder muziek; een level kiest het met muziek: 'stadgeluid'
+  stadgeluid: { src: 'music/citysounds.mp3', vol: 0.30 },    // de geluiden van de stad, zonder muziek; een level kiest het met muziek: 'stadgeluid'
+  stil:       { src: '', vol: 0, stil: true }                 // geen muziek: een level kiest het met muziek: 'stil' (Stad 6, het gevecht met Nyundo)
 };
 const MUZIEK_BASIS = 'darkafrica';
 const MUZIEK_STAD = 'markt';                      // een level met stad en zonder eigen muziek krijgt dit
@@ -38818,6 +38842,7 @@ function zetMuziek(){
   if (k === muziekNu) return;
   muziekNu = k;
   bg.pause();
+  if (MUZIEK[k].stil) return;                     // stil: de muziek blijft uit tot een level met muziek
   bg.src = MUZIEK[k].src; bg.volume = MUZIEK[k].vol;
   try { bg.currentTime = 0; } catch (e) {}
   if (wantSound && started) bg.play().catch(() => { started = false; });
@@ -38828,6 +38853,7 @@ function setLabel(){
 }
 function tryPlay(){
   if (!wantSound || started) return;
+  if (MUZIEK[muziekNu].stil){ started = true; startKing(); return; }   // niets te spelen, wel klaar voor het volgende nummer
   bg.volume = MUZIEK[muziekNu].vol;
   bg.play().then(() => { started = true; }).catch(() => {});
   startKing();
