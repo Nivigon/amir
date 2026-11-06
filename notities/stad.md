@@ -419,6 +419,8 @@ ernaast.
 ## De speer op een dak of galerij
 
 `javFloor` slaat dunne platforms over (richels, de speer zelf), maar de platforms van de stad (`p.stad`: dak, galerij,
-balkon, tafel, riet, putrand, putbalk) tellen voor een speer als vloer zodra hij erboven zit (`h >= p.topH`). Zo landt een
+balkon, putrand, putbalk) tellen voor een speer als vloer zodra hij erboven zit (`h >= p.topH`). Zo landt een
 geworpen of vallende speer erop in plaats van door alle lagen tot de straat te zakken, en van onderen vliegt hij er gewoon
-doorheen, net als Amir. De doek (`veer`) en de luifel tellen niet: die werpen meteen terug.
+doorheen, net als Amir. De doek (`veer`) en de luifel tellen niet: die werpen meteen terug. Een kraam (`tafel`,
+`riet`) telt ook niet: een speer vliegt over of langs een kraam tot de straat, anders viel een vlakke worp op straat al
+na een paar passen op de toonbank.
