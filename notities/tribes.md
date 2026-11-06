@@ -7,3 +7,22 @@
 ## T-splitsing in de talent tree
 
 een talent met `varianten` in `TRIBE_CONFIG` krijgt naast zijn naam een gestippelde splitsing met de namen (`tbSplit`, `.tbsplit`) en in het venster de varianten met hun tekst (`.tbivar`). Nog niets te kiezen; nu alleen bij Jackal Fang. Een tribe op slot laat zijn talents dicht zien; `TB_LEEG` alleen als hij er nog geen heeft Tijdelijk getekend: het plaatje komt uit `tools/mes.py` (`design/mes/mes.png`), zijn lijf schiet naar voren omdat er geen frames met een mes zijn. De kalebas is de speertekenvariant `kalebas`
+
+## De talents van de rol-worp: True Flight (Mkuki) en The Pounce (Bhubesi)
+
+Het vierde talent van beide trees, met een getekend teken in `TB_TEKEN` tot er een houten plaatje is.
+
+- **True Flight** (`true_flight`, `critKans`, `zak`): een rol-worp met `jav.crit` (gezet in `rolWorpLos` door
+  `rolWorpCrit`). Perfect is altijd een crit; een gewone trekt een knikker uit `critZak` (de marble bag: `zak` knikkers,
+  `critKans` deel crit, geschud, zonder terugleggen, `critZakVul`/`critZakTrek`), per level een verse zak (`restart`).
+  Raakt de speer, dan zet `javHitEnemy` `critNu`, en de `hitX` van de vijand haalt met `critPak()` een treffer extra af
+  in dezelfde aanroep (een tweede aanroep stuit op zijn `inv`): `enemyTakeHit` (slangen, schorpioen), `hitHyena`,
+  `hitBandiet`, `hitMeelman`, `hitKruisboog`, `hitKooiman`, `hitZweepman` (die slaat de arm eraf niet over) en
+  `hitSchildman` (het schild een stand extra, nooit door het schild heen in een klap). Bazen roepen `critPak` niet aan;
+  elk beeld zet `critNu` uit bij `javBox`. Het effect: `critFx` (hitstop, schok) en `critFxTeken` (een witgouden ster),
+  ook op het oefendoel van Test 60. Een fosforslang of een kooiman die de speer afslaat krijgt geen schade, dus ook geen crit.
+- **The Pounce** (`the_pounce`, `vul`, `vulPerfect`): `javHitEnemy` vult met een rol-worp (`jav.rol`) de woede, 0,05 en
+  perfect 0,10, door `woedeVul` (dus maal Blood Rush, en niet terwijl de woede loopt). Geeft zelf de meter (`heeftWoede`).
+  Een oefendoel telt niet: dat loopt niet via `javHitEnemy`.
+- Afstellen in de pauze onder Rol-worp: test, het groepje Talents. Test 60 heeft `talentKeuze`, in de sandbox staan ze
+  bij Tribe Mkuki en Tribe Bhubesi.

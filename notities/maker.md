@@ -345,7 +345,7 @@ van een gevel, niet aan een plek:
 Stap 5 van `notities/plan-stad-maker.md`.
 
 - **De vloeren van de stad** (`mkStadVloeren`, zoals `stadVloeren` in het spel, in cellen op laptopmaat): het dak van elke
-  gevel over zijn muur (`stadGevelH`: 487, 816, 1145 of 1474 voor 1 tot 4 hoog), het dek van elke galerij (zonder de
+  gevel over zijn muur (`stadGevelH`: 442, 771, 1100 of 1429 voor 1 tot 4 hoog, achter de kartels), het dek van elke galerij (zonder de
   uiterste 15 procent van zijn eindstukken, zoals het spel) en het balkon van een trap (`ht`, alleen met een balkon).
 - **Een vijand erop** (`mkStadVloerOp`): het midden van zijn cel ligt boven de vloer en zijn voet (de onderrand van zijn
   cel) ligt hoogstens een halve cel (75) van die vloer. Met cellen van 150 valt elke vloer zo in precies een rij: een vijand

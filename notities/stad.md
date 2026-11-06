@@ -26,12 +26,34 @@ naadloos. `x` is de linkerkant van het plaatje, `f` spiegelt. De maat hangt aan 
 hoog (`amir: 318` bronpixels per Amir), dus net als een kei schaalt de breedte mee met het scherm en liggen de
 hoogtes vast in sprite-eenheden.
 
-- Het dak is beloopbaar: een dun platform op `dakLoop` (de onderkant van de kartels), over de muur (`muur`).
-  Hoogtes: 1 hoog 487, 2 hoog 816, 3 hoog 1145, 4 hoog 1474 (`stadGevelH`). Een verdieping is 329.
+- Het dak is beloopbaar: een dun platform op `dakAchter` (de bovenkant van de balkkoppen, 57 bronpixels onder de
+  kartels), over de muur (`muur`). Hoogtes: 1 hoog 442, 2 hoog 771, 3 hoog 1100, 4 hoog 1429 (`stadGevelH`). Een
+  verdieping is 329. Wie op het dak staat, staat achter de kartels (zie "Achter de kartels" hieronder).
 - Een gevel is decor op het vlak van de straat: Amir en de vijanden lopen ervoor langs, er botst niets.
 - Contactschaduw aan de voet (`STAD.schaduw`), zodat de muur niet als een liniaal op de straat staat.
 - Het deurgat is donker. De rechthoek staat in metadata.json (`deurgat`), en in `STAD_DEUR.gat`: daar stapt een vijand uit
   (zie "Deuren" hieronder).
+
+## Achter de kartels
+
+`STAD_KANTEEL`, `STAD.gevel.dakAchter`, `STAD.kanteelBreed`, `stadKanteelVoor`, `stadKanteelAmir`
+
+Wie op een dak staat (Amir en de vijanden), staat achter de tanden, zoals op een echt Sahelhuis: het dak ligt op de
+balkkoppen, de muur met de kartels loopt ervoor omhoog. In een kanteel zie je hem vanaf zijn enkels, achter een tand
+tot aan zijn knie.
+
+- Het dak ligt op `dakAchter` (125 bronpixels) in plaats van `dakLoop` (68, de onderkant van de kartels): 45 lager.
+  Dat geldt voor elk dak in de stad, ook in de bestaande stadslevels. Een vijand met `dak: 487` of `dak: 816` (de oude
+  hoogte) vindt zijn dak nog: `stadVloeren` geeft een dak ook zijn oude hoogte mee (`oud`), en `stadDakPlek` telt die.
+- Na de personages tekent `stadKanteelVoor` de bovenkant van de gevel (rij 0 tot `dakAchter`) nog een keer, maar alleen
+  in een strook van `kanteelBreed` (0,7 Amir) aan elke kant van wie op dat dak staat. Wie op de straat ervoor springt,
+  komt er dus gewoon voorlangs.
+- Amir telt pas als hij op het dak geland is (`stadKanteelAmir`, gezet als hij op de grond staat): van de straat omhoog
+  spring je voor de muur langs, na de landing sta je erachter. Een vijand telt als zijn vloer (`base`) het dak is.
+- Het dak is 45 lager, dus soms makkelijker te halen: vanaf het rieten dak van een kraam (263) haal je nu het dak van
+  een huis van 1 hoog (442), dat lag eerst net buiten een sprong (208).
+- In de sandbox onder Terrein, De stad: **Achter de kartels** (aan of uit, uit is de oude manier met iedereen voor de
+  kartels) en **Bandiet op het dak** (op het huis van 2 hoog).
 
 ## Galerijen
 
