@@ -100,3 +100,17 @@ Grok liet Amir in de rolclip langzaam groeien, en de worp kwam er zo'n 12 procen
 Per frame staat nu een factor die zijn hoofd even groot maakt als in `idle_ns` (gemeten met template matching op het
 hoofd; waar het hoofd ondersteboven of weg is, tussen de metingen in, en over vijf frames zacht gemaakt). De tekencode,
 de uitval van de worp en de losplek van de speer rekenen ermee. Nieuwe frames: opnieuw meten.
+
+## De talents bij de rol-worp
+
+True Flight (Mkuki: de crit, met de knikkerzak) en The Pounce (Bhubesi: woede per rake rol-worp) staan in
+`notities/tribes.md`. Een rol-worp draagt daarvoor `jav.rol`, `jav.perfect` en `jav.crit`.
+
+## De contra-worp (prototype)
+
+F tijdens de rol met het pijltje de andere kant op: hij gooit terug, de kant op waar hij vandaan rolde. Zo maak je
+eerst afstand en gooi je naar wie je achterna komt. Het pijltje telt bij F en ook nog bij de landing (`rolContraTerug`,
+`rol.contra`, `rolW.contra`). Voorlopig de gewone worp gespiegeld (`rolW.kant` is de andere kant), `contraTempo` (1,25)
+sneller en met `contraUitval` (0) van de uitval, zodat hij de afstand van de rol niet teruggeeft. Overal waar de rol-worp
+kan (eerst alleen in Test 60 en de sandbox, met een vlag `rolContra`; die is weg), en `ROL_WORP.contra` zet hem uit. Schuifjes in het groepje Timing.
+De echte animatie (landen, omdraaien, gooien) moet nog komen; dan valt het omslaan op de landing weg.
