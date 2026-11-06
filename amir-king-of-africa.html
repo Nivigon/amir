@@ -31318,6 +31318,8 @@ const BRU = {
             stuurTot: 99,                  // tot dit landingframe stuurt hij bij naar Amir (99: tot hij neerkomt)
             eind: 1.3,                     // het raam: zo lang blijft hij over de knots hangen (s)
             raakHoog: 70,                  // de directe klap raakt Amir als hij niet hoger staat dan dit (Amir-eenheden)
+            balStraal: 45,                 // de knots op weg naar beneden raakt ook wie in de lucht in zijn boog hangt (bruSprongZwaaiRaak):
+                                           // zo dik is de bal (grote-set-pixels) rond de baan van het ene landingframe naar het volgende
             duw: 2600, hurt: 0.6,          // de zwaarste klap: zo hard vlieg je weg en zo lang ben je uit je doen
             golf: { v: 1150, breed: 130, hoog: 50, schade: 0.5, stun: 0.6, duw: 650, ver: 2600, bult: 58 } }
 };
@@ -31669,6 +31671,7 @@ function bruSprongStap(s, dt){
     const ms = i => i < I.neer ? P.landMs : i < L.length - 1 ? P.slagMs : P.eind * 1000 * (w ? BRU.woede.eind : 1) * BRU_TEST.raam;
     while (s.frame < L.length - 1 && s.acc >= ms(s.frame)){ s.acc -= ms(s.frame); s.frame++;
       if (s.frame === I.neer){ s.x = sp.doel; sp.h = 0; bruNeer(s); }
+      if (s.frame > I.neer && s.frame <= I.inslag) bruSprongZwaaiRaak(s, L[s.frame - 1], L[s.frame]);
       if (s.frame === I.inslag) bruSprongInslag(s); }
     if (s.frame === L.length - 1 && s.acc >= ms(L.length - 1)){       // het raam is voorbij: hij komt overeind (de heup schuift naar het anker)
       s.x -= s.face * (bruData.bewegingen.landing.verplaatsing || 0) * gs;
@@ -31733,15 +31736,32 @@ function bruSprongInslag(s){
   bruSchadeErbij(s, balX, BRU_SCHADE.zwaar[Math.floor(Math.random() * BRU_SCHADE.zwaar.length)]);   // de vloer barst
   bruPoortStenen(s, balX, BRU_SCHADE.poort.n);                // en van de poorten vallen steentjes
   // de directe klap: van zijn rug tot voorbij de bal, alleen op de grond
-  if (!dead && invuln <= 0 && ph < P.raakHoog){
+  if (!dead && invuln <= 0 && !s.geraaktAmir && ph < P.raakHoog){
     const px = playerX(), achter = s.x - s.face * BRU.half * gs, voor = balX + s.face * 70 * gs;   // van zijn rug tot net voorbij de bal
-    if (px > Math.min(achter, voor) && px < Math.max(achter, voor)){
-      const weg = px >= balX ? 1 : -1;
-      hurtPlayer(weg > 0, 1);
-      if (invuln > 0){ bruRaakAmir(s, weg); knock = weg * P.duw; hurt = Math.max(hurt, P.hurt); shake = Math.max(shake, 0.9); hitstop = Math.max(hitstop, 0.16); }
-      s.geraaktAmir = true;
-    }
+    if (px > Math.min(achter, voor) && px < Math.max(achter, voor)) bruSprongKlap(s, balX);
   }
+}
+// de zwaarste klap van het gevecht: een leven, ver weggeslingerd en even uit zijn doen
+function bruSprongKlap(s, balX){
+  const P = BRU.sprong, weg = playerX() >= balX ? 1 : -1;
+  hurtPlayer(weg > 0, 1);
+  if (invuln > 0){ bruRaakAmir(s, weg); knock = weg * P.duw; hurt = Math.max(hurt, P.hurt); shake = Math.max(shake, 0.9); hitstop = Math.max(hitstop, 0.16); }
+  s.geraaktAmir = true;
+}
+// de knots op weg naar beneden (de landingframes na neer tot en met de inslag): hij zwaait van boven zijn hoofd voor hem
+// in de grond. Wie daar in de lucht hangt, bijvoorbeeld omdat hij over de bal heen probeert te springen, zit in die boog
+// en krijgt dezelfde klap. Op de grond (onder raakHoog) blijft het de inslag die raakt, met zijn bredere strook.
+// van, tot: het vorige en het huidige landingframe; de bal gaat van van.bal naar tot.bal (grote-set-pixels boven de grond)
+function bruSprongZwaaiRaak(s, van, tot){
+  const P = BRU.sprong;
+  if (dead || invuln > 0 || s.geraaktAmir || ph < P.raakHoog || van.bal == null || tot.bal == null) return;
+  const gs = bruScale(), sc = (H * (Number(sizeEl.value) / 100)) / CHAR_H, px = playerX();
+  const balX = s.x - s.face * (tot.dx + 60) * gs;           // waar de bal nu is, net als bij de inslag
+  const lijf = s.x, voor = balX + s.face * 70 * gs;          // van zijn lijf tot net voorbij de bal
+  if (px <= Math.min(lijf, voor) || px >= Math.max(lijf, voor)) return;
+  const r = P.balStraal * gs / sc;                          // de bal en zijn baan in Amir-eenheden, zoals ph
+  const hoog = Math.max(van.bal, tot.bal) * gs / sc + r, laag = Math.min(van.bal, tot.bal) * gs / sc - r;
+  if (ph < hoog && ph + CHAR_H > laag) bruSprongKlap(s, balX);
 }
 // een losse plavuis of steen die opspringt, tolt en terugvalt (s.stenen, wereld-x, y in grote-set-pixels boven de grond)
 // b: welk brok uit plein_brokken.png; een groot brok (r vanaf BRU_SCHADE.blijf) blijft na de landing als puin liggen
