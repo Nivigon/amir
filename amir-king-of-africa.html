@@ -22884,7 +22884,7 @@ function stadVoorTeken(groundY, scale, cx){
       if (!zicht(sx, w)) continue;
       const c = stadGebakken('voet_' + v.stuk, () => stadBak(vi, r[2], r[3], V.straatKleur[v.stuk] ? (a, b, d) => [a * V.tint[0], b * V.tint[1], d * V.tint[2]] : null,
                                                               stadQ(vi, r[0]), stadQ(vi, r[1]), stadQ(vi, r[2]), stadQ(vi, r[3])));
-      const th = terrainH(v.x), gy = groundY - th * scale - (th ? 0 : stadStoepH());   // tegen de muurvoet, achter de stoep
+      const th = terrainH(v.x), gy = groundY - th * scale - (th ? 0 : stadStoepH(scale));   // tegen de muurvoet, achter de stoep
       ctx.save();
       if (v.f){ ctx.translate(sx + w, 0); ctx.scale(-1, 1); ctx.drawImage(c, 0, gy - h + 2, w, h); }
       else ctx.drawImage(c, sx, gy - h + 2, w, h);
@@ -22897,35 +22897,42 @@ function stadVoorTeken(groundY, scale, cx){
 // De gevels en poorten staan met hun voet op de looplijn (EDGE.walk), maar de straattegel loopt daar nog een eind
 // naar achteren door. Zonder deze strook stond wie op straat loopt precies op de muurvoet, zodat het leek of hij
 // op het huis stond of ervoor zweefde. Na de gevels, galerijen en poorten tekent dit de tegel nog een keer, van de
-// looplijn tot STAD_STOEP.rijen bronrijen erboven, over hun voet heen, met een contactschaduw op de nieuwe muurvoet.
+// looplijn tot de muurvoet erboven, over hun voet heen, met een contactschaduw op de nieuwe muurvoet. Zo staan de
+// huizen een stuk naar achteren, met hun onderkant achter de vloer, en ligt de straat voor ze open.
 // Daarna komen de kramen, de put en het voetdecor (stadVoorTeken). Alleen het beeld: daken, galerijen en deuren
-// houden hun hoogte. rijen: hoeveel bronrijen van de tegel (de straat loopt van rij 48 tot de looplijn op 95);
-// zacht: zoveel rijen bovenaan zijn half doorzichtig, zodat de rand niet als een streep over de muur ligt.
-const STAD_STOEP = { rijen: 36, zacht: 7, zachtAlfa: 0.5 };
-function stadStoepH(){ return edgeReady() ? STAD_STOEP.rijen * edgeScale(H * 0.18) : 0; }   // schermpx
+// houden hun hoogte. diep: zo ver (in Amir) ligt de muurvoet boven de looplijn, zodat de open vloer meegroeit met
+// het Formaat; minstens de straat die al in de tegel zit (van rij `van` tot de looplijn). De bronrijen van `van`
+// tot de looplijn worden over die diepte uitgerekt, zodat de achterrand van de tegel tegen de muur ligt en de straat
+// op de looplijn naadloos in de tegel eronder overloopt.
+const STAD_STOEP = { diep: 0.16, van: 46 };
+function stadStoepH(scale){                        // de diepte in schermpx
+  if (!edgeReady()) return 0;
+  return Math.max((EDGE.walk - STAD_STOEP.van) * edgeScale(H * 0.18), STAD_STOEP.diep * CHAR_H * scale);
+}
 function stadStoep(groundY, scale, cx){
   if (!stadAan() || !edgeReady()) return;
   const eimg = bodemPic(); if (!imgReady(eimg)) return;
-  const St = STAD_STOEP, s = edgeScale(H * 0.18), top = groundY - EDGE.walk * s, th = eimg.naturalHeight * s;
-  const yb = groundY - St.rijen * s, yz = yb + St.zacht * s;
-  const xl = -W, xr = W / viewZoom() + W;
-  const strook = (y0, y1, alfa) => {
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(xl, y0, xr - xl, y1 - y0);
-    for (const g of gatenTeken()){                 // niet over een ravijn heen
-      const gl = cx + (g.x - g.w / 2 - world), gr = cx + (g.x + g.w / 2 - world);
-      if (gr < xl || gl > xr) continue;
-      traceGap(g, gl, gr, y0 - 10, y1 + 10, groundY);
-    }
-    ctx.clip('evenodd');
-    ctx.globalAlpha = alfa;
-    grondTegelRij(eimg, top, s, cx, xl, xr);
-    grondStrokenTeken(top, th, s, cx, xl, xr, (img, va, vb) => grondTegelRij(img, top, s, cx, va, vb));
-    ctx.restore();
+  const St = STAD_STOEP, s = edgeScale(H * 0.18), D = stadStoepH(scale), yb = groundY - D;
+  const xl = -W, xr = W / viewZoom() + W, bron = EDGE.walk - St.van;
+  const rij = (img, va, vb) => {                   // de rijen van..walk, uitgerekt tot yb..groundY, vast aan de wereld
+    const iw = img.naturalWidth || img.width, k = (img.naturalHeight || img.height) / (eimg.naturalHeight || 1);
+    const tw = iw * s;
+    let x = cx - (((world % tw) + tw) % tw);
+    x += Math.floor((va - x) / tw) * tw;
+    for (; x < vb; x += tw) ctx.drawImage(img, 0, St.van * k, iw, bron * k, x, yb, tw + 1, D + 1);
   };
-  strook(yz, groundY + 1, 1);
-  strook(yb, yz, St.zachtAlfa);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(xl, yb - 2, xr - xl, D + 4);
+  for (const g of gatenTeken()){                   // niet over een ravijn heen
+    const gl = cx + (g.x - g.w / 2 - world), gr = cx + (g.x + g.w / 2 - world);
+    if (gr < xl || gl > xr) continue;
+    traceGap(g, gl, gr, yb - 12, groundY + 12, groundY);
+  }
+  ctx.clip('evenodd');
+  rij(eimg, xl, xr);
+  grondStrokenTeken(groundY - EDGE.walk * s, eimg.naturalHeight * s, s, cx, xl, xr, rij);
+  ctx.restore();
   // de contactschaduw op de straat, voor elk huis en elke poort die op de straat staat
   const vakken = [];
   for (const g of (level.stad && level.stad.gevels) || []){
