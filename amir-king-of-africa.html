@@ -21463,6 +21463,8 @@ const STAD_DEUR = {
   plaatX: 247,                           // de linkerrand van het deur-canvas in gevel-bronpx (kozijn 101 valt op post 348)
   plaatVoet: 1505,                       // de voet van de deur (DEUR.grond) valt op de onderrand van de gevel
   schok: 0.1,                            // de shake als hij openklapt (kleiner dan bij de rotswand)
+  opening: [383, 1086, 186, 419],        // de opening van de open deur in gevel-bronpx: hier ligt het donker over wie eruit stapt
+  warm: 'rgba(196,128,70,0.55)',         // de tint over het grijze hout (multiply), zodat het bij de leem en de latei past
   marge: 200,                            // de deur telt als in beeld als zijn midden zoveel binnen de rand van het beeld is (ruim: de hele deur)
   // wie op een verdieping uit een deur mag: de soorten die een galerij of dak als vloer kennen (dak in de spawner)
   bovenSoorten: new Set(['bandiet', 'schildman', 'kruisboogbandiet', 'groen', 'zwart', 'knock'])
@@ -21471,17 +21473,17 @@ let stadDeurStaat = {};                  // 'gevel:verdieping' -> { open, uitT }
 const stadDeurKey = d => (d.gevel | 0) + ':' + (d.verdieping | 0);
 const stadDeurTelt = sp => !!(sp && sp.deur && sp.kind !== 'panter' && sp.kind !== 'hyenas' && !sp.boss);
 // de maat van een deur: het gat in wereld-x (l, r, cx) en sprite-hoogte (vloer, top), of null als hij er niet is
-function stadDeurMaat(d, scale){
+function stadDeurMaat(d, scale, gat){
   if (!stadAan() || !d) return null;
   const g = (level.stad.gevels || [])[d.gevel | 0]; if (!g) return null;
   const m = stadGevelMaat(g, scale), v = d.verdieping | 0;
   if (v < 0 || v >= m.hoog) return null;
-  const D = STAD_DEUR, s = v ? D.boven : 1, A = CHAR_H / STAD.gevel.amir;
-  const gl = D.midden + (D.gat[0] - D.midden) * s, gr = D.midden + (D.gat[0] + D.gat[2] - D.midden) * s;
+  const D = STAD_DEUR, s = v ? D.boven : 1, A = CHAR_H / STAD.gevel.amir, R = gat || D.gat;
+  const gl = D.midden + (R[0] - D.midden) * s, gr = D.midden + (R[0] + R[2] - D.midden) * s;
   const l = m.x + (g.f ? 970 - gr : gl) * m.f, r = m.x + (g.f ? 970 - gl : gr) * m.f;   // m.x: in Sandville schuift een huis opzij voor een poort
   const vloer = terrainH(m.x) + (v ? stadVerdieping(v) : 0);
-  const onder = (1505 - D.gat[1] - D.gat[3]) * s * A;
-  return { l, r, cx: (l + r) / 2, vloer, onder: vloer + onder, top: vloer + onder + D.gat[3] * s * A, v, g, m };
+  const onder = (1505 - R[1] - R[3]) * s * A;
+  return { l, r, cx: (l + r) / 2, vloer, onder: vloer + onder, top: vloer + onder + R[3] * s * A, v, g, m };
 }
 // de vloer voor de deur: de straat, of op een verdieping een galerij of balkon op die hoogte (stadVloerBij), anders null
 function stadDeurVloer(d, scale){
@@ -21548,20 +21550,41 @@ function stadDeurenAlle(){
 }
 // de houten deur in het gat, op het frame van zijn staat: dicht tot hij in beeld opengaat, dan de 20 frames
 // en daarna open. Getekend in de (eventueel gespiegelde) ruimte van de gevel, met fy de voet van die verdieping.
-function stadDeurPlaatTeken(gi, v, fy, f){
+// het grijze hout warm getint (multiply met STAD_DEUR.warm, de alfa van het frame blijft), een keer per frame
+let stadDeurWarmCache = [];
+function stadDeurWarm(idx){
+  const im = deurImgs && deurImgs[idx]; if (!im || !im.complete || !im.naturalWidth) return null;
+  const c0 = stadDeurWarmCache[idx]; if (c0 && c0.bron === im.src) return c0;
+  const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
+  const g = c.getContext('2d');
+  g.drawImage(im, 0, 0);
+  g.globalCompositeOperation = 'multiply'; g.fillStyle = STAD_DEUR.warm; g.fillRect(0, 0, c.width, c.height);
+  g.globalCompositeOperation = 'destination-in'; g.drawImage(im, 0, 0);
+  c.bron = im.src; stadDeurWarmCache[idx] = c; return c;
+}
+// lat: tekent de latei van de gevel op een gegeven top (in de ruimte van de gevel); die valt over de bovenbalk van het
+// kozijn, zodat de deur in de leem zit in plaats van erop geplakt
+function stadDeurPlaatTeken(gi, v, fy, f, lat){
   deurLaad();
   const st = stadDeurStaat[gi + ':' + v];
   const idx = !(st && st.open) ? 0 : Math.min(DEUR.frames - 1, Math.floor(st.t * DEUR.fps));
-  const im = deurImgs && deurImgs[idx]; if (!im || !im.complete || !im.naturalWidth) return;
+  const im = stadDeurWarm(idx); if (!im) return;
   const D = STAD_DEUR, s = v ? D.boven : 1;
   ctx.drawImage(im, (D.midden + (D.plaatX - D.midden) * s) * f, fy - DEUR.grond * s * f, DEUR.canvas[0] * s * f, DEUR.canvas[1] * s * f);
+  const latTop = fy - D.posten[3] * s * f - D.latei[3] * s * f + 1;
+  // een zachte schaduw onder de latei, over de bovenkant van de deur
+  const sx = (D.midden + (D.latei[0] - D.midden) * s) * f, sw = D.latei[2] * s * f, sy = latTop + D.latei[3] * s * f, sh = 14 * s * f;
+  const gr = ctx.createLinearGradient(0, sy, 0, sy + sh);
+  gr.addColorStop(0, 'rgba(30,16,8,0.45)'); gr.addColorStop(1, 'rgba(30,16,8,0)');
+  ctx.fillStyle = gr; ctx.fillRect(sx + 8 * s * f, sy, sw - 16 * s * f, sh);
+  lat(latTop);
 }
 // na de vijanden: wie net uit een deur stapt, staat nog even in het donker van het gat
 function stadDeurVoorTeken(groundY, scale, cx){
   if (!stadAan()) return;
   for (const key in stadDeurStaat){
     const st = stadDeurStaat[key]; if (!(st.uitT > 0)) continue;
-    const [gi, v] = key.split(':').map(Number), dm = stadDeurMaat({ gevel: gi, verdieping: v }, scale); if (!dm) continue;
+    const [gi, v] = key.split(':').map(Number), dm = stadDeurMaat({ gevel: gi, verdieping: v }, scale, STAD_DEUR.opening); if (!dm) continue;
     const a0 = ctx.globalAlpha;
     ctx.globalAlpha = a0 * Math.min(1, st.uitT / STAD_DEUR.uit);
     ctx.fillStyle = STAD_DEUR.kleur;
@@ -22835,7 +22858,10 @@ function stadTeken(groundY, scale, cx){
     // de houten deur in elk gat waar een vijand uit komt (zie "deuren")
     if (deurAlle[gi]) for (const v of deurAlle[gi]){
       if (v < 0 || v >= m.hoog) continue;
-      stadDeurPlaatTeken(gi, v, y - (v ? (G.bod[1] - G.bod[0] + (v - 1) * (G.ver[1] - G.ver[0])) * m.f : 0), m.f);
+      const s = v ? STAD_DEUR.boven : 1, L = STAD_DEUR.latei, M = STAD_DEUR.midden;
+      stadDeurPlaatTeken(gi, v, y - (v ? (G.bod[1] - G.bod[0] + (v - 1) * (G.ver[1] - G.ver[0])) * m.f : 0), m.f,
+        top => ctx.drawImage(im, stadQ(im, L[0]), stadQ(im, L[1]), stadQ(im, L[2]), stadQ(im, L[3]),
+          (M + (L[0] - M) * s) * m.f, top, L[2] * s * m.f, L[3] * s * m.f + 0.6));
     }
     ctx.restore();
     // contactschaduw: de voet van de muur donkerder, en een zachte strook op de straat ervoor
