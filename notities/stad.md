@@ -394,14 +394,15 @@ gekoppeld en niet aan de toren, omdat de toren van een pleinpoort met de schermg
   blijft tot hij weer staat. Geen valschade. De doek buigt mee in stroken (`dip`, `duur`), net als de kraamdoek.
 - **De paal**: staat hij voor de toren van een pleinpoort, dan hangt hij daaraan. Op een klein scherm staat de toren verder
   weg; dan loopt de paal door tot de grond (`stadLuifelTeken`).
-- **Stad 6**: de put staat op -3200 met de luifel rechts, tegen de toren van de rechterpoort; Amir begint links van de put
-  (-3500, `rand` 1800 zodat de rechtergrens gelijk blijft). Op 1280x720 landt hij na de worp links van de put, op een
-  groot scherm verder. Op een telefoon (852x393) springt Amir verhoudingsgewijs verder (lopen is 330 wereld-px per seconde
+- **Stad 6**: de put staat op -3200 met de luifel rechts, tegen de toren van de rechterpoort, met tonnen eronder
+  (`notities/tonnen.md`). Amir begint net binnen de rechterpoort (-2500, `rand` 800 zodat de rechtergrens gelijk blijft)
+  en loopt dus langs de put. Op een telefoon (852x393) springt Amir verhoudingsgewijs verder (lopen is 330 wereld-px per seconde
   op elk scherm): daar spring je recht omhoog met een kort tikje naar rechts, anders ga je onder de doek door.
 - **Zonder put**: `stad.luifels: [{x, kant}]` zet dezelfde luifel neer zonder put eronder. `x` is waar het midden van de
   put zou staan en `kant` is wat `luifel` bij een put is, zodat hij net zo ver van de toren hangt (`stadLuifelPlats` doet
   de botsing voor allebei). Zonder put en balk komt Amir er vanaf de grond niet bij (het lage eind hangt 1,5 Amir hoog,
-  de sprong haalt zo'n 0,8). Stad 6 heeft er een op -6000 met `kant: 'l'`, gespiegeld tegen de toren van de linkerpoort.
+  de sprong haalt zo'n 0,8). Stad 6 heeft er een op -6000 met `kant: 'l'`, gespiegeld tegen de toren van de linkerpoort, met de stapel tonnen eronder
+  die Nyundo in de opening kapotslaat.
 - **Sandbox**: onder De stad de knop **Luifel**: het plein met de put zo neergezet dat de paal tegen de toren staat.
 
 ## Geen outline op de stadsplaatjes

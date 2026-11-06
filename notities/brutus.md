@@ -147,6 +147,22 @@ in `BRU.hekDuur` (`pleinHekStap`, het takelgeluid, stof bij de voet), en onder e
 "Het plein verlaten?  E": E speelt het level uit (`pleinPoortBij`, `pleinUitgang`). `levelcheck.py` kent dit als einde.
 Sandbox: Vijanden, rij **Brutus (baas)**: zonder wachten, meteen stormen.
 
+## De opening (`brutus: {intro: true}`, `BRU_INTRO`)
+Stad 6 begint met een tussenstuk (`bruIntroBegin`, `bruIntroStap`, `bruIntroTeken`, `bruSluitStap`). Amir start net binnen de
+rechterpoort (`start: -2500`); het hek daarvan staat open en valt na `sluitWacht` in `sluit` seconden dicht (het takelgeluid,
+een klap, stof), pas als het laadscherm weg is. Nyundo staat bij de linkerluifel met zijn rug naar Amir (`face -1`; een echte
+rug-sprite is er niet, hij kijkt van Amir weg) en ademt. Komt Amir binnen `zie` Amir, of raakt Amir hem, dan:
+- `loop`: het spel staat stil voor Amir (`bruIntroVast` in `amirVast`), zwarte balken, de camera schuift naar Nyundo en de
+  tonnen (`bruIntroCam`). Hij loopt met de stormframes, trager (`loopMs`, `loopV`), naar de dichtste groep tonnen
+  (`bruIntroDoel`: `sta` grote-set-px rechts van de meest rechtse).
+- `slag`: de zijwaartse zwaai uit brutus.json (heen in frame 11-14, terug in 18-21, `raak`); wat in het vak staat gaat in
+  een keer (`tonBruut`). De naam (NYUNDO, de hamer) komt in beeld.
+- `draai`: hij kijkt naar Amir, en na `draai` s stormt hij; de balken schuiven weg (`weg`) en de balk onderaan komt.
+`s.state` blijft `wacht` tot de storm, dus hij raakt Amir niet en de sprong-timer loopt niet. Een keer per level per sessie
+(`bruIntroGezien`): na een dood staat hij meteen klaar en blijven de tonnen heel, dan zijn ze er voor het gevecht.
+Onder de losse luifel links (`stad.luifels`, -6000) staat de stapel die hij kapotslaat; bij de put rechts staan er twee voor
+het gevecht (zie `notities/tonnen.md`).
+
 ## Bestanden
 - **De voeten in de zwaai, de kap en de terugslag**: in de Grok-clip zweefde hij in de zwaai 30 tot 60 px boven de grond, met de ene voet
   hoger dan de andere; in de kap stond de achterste voet 15 px boven de lijn en de voorste tot 42 px, in de terugslag
