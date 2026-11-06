@@ -440,3 +440,16 @@ geworpen of vallende speer erop in plaats van door alle lagen tot de straat te z
 doorheen, net als Amir. De doek (`veer`) en de luifel tellen niet: die werpen meteen terug. Een kraam (`tafel`,
 `riet`) telt ook niet: een speer vliegt over of langs een kraam tot de straat, anders viel een vlakke worp op straat al
 na een paar passen op de toonbank.
+
+## De stoep: een strook straat over de voet van de huizen
+
+`STAD_STOEP`, `stadStoep`, `stadStoepH`, `stadVoorTeken`. De gevels en poorten staan met hun voet op de looplijn
+(`EDGE.walk`, rij 95 van de straattegel), terwijl de straat in de tegel vanaf rij 48 naar achteren doorloopt. Daardoor
+stond wie op straat loopt precies op de muurvoet en leek het, vooral op een groot Formaat, of hij op het huis stond of
+ervoor zweefde. Na de gevels, galerijen en poorten (en voor de kramen, de put en het voetdecor, die nu in
+`stadVoorTeken` staan) tekent `stadStoep` de straat over hun voet heen, tot `diep` (0,16 Amir, minstens de straat
+die al in de tegel zit) boven de looplijn: de tegelrijen van `van` (46, de achterrand) tot de looplijn, over die diepte
+uitgerekt, met een contactschaduw op de nieuwe muurvoet. Zo staan de huizen een stuk naar achteren, met hun onderkant
+achter de vloer, en ligt de straat voor ze open; omdat `diep` in Amir is, groeit die open vloer mee met het Formaat.
+Niet over een ravijn, en een leemmuur (`look: 'leem'`, een echt terras) komt er gewoon overheen. Alleen het beeld:
+daken, galerijen, deuren en de looplijn houden hun hoogte. Het voetdecor staat tegen de nieuwe muurvoet (`stadStoepH`).
