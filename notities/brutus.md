@@ -62,6 +62,19 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
   voorkant over Amir heen terwijl hij lager staat dan `golf.hoog` (Amir-eenheden, net als `ph`), dan kost dat een half
   leven, verdooft het (`stun`) en duwt het hem mee. Springen op tijd of op de put staan (de rand is 0,47 Amir) is veilig.
   Sandbox: **Sprong nu** (`sbbrusprong`) naast de knop Brutus zet de timer op nul.
+  **Schade in de vloer** (`BRU_SCHADE`, `bruSchadeErbij`, `bruSchadeStap`, `bruSchadeTeken`): waar de bal van de sprong
+  neerkomt barst het plaveisel (een van de zware platen, `zwaar`), langs een golf om de `golfStap` px met kans `golfKans`
+  een lichte plaat, en waar de kap inslaat (`bruInslag`) ook een lichte. Het blijft plat: Amir loopt er gewoon overheen,
+  geen botsing en geen kuil (een krater waar je in vast komt te zitten is overwogen en voorlopig niet gedaan). De platen
+  staan in de maat van `plein.png` (rij 0 op rij `top` van de vloertegel, `mid` het midden van de schade) en worden vlak
+  voor Amir getekend, na de vloer, zodat hij erop staat; alleen op een strook grondSoort `plein` (`bruOpPlein`).
+  De opspringende stenen zijn nu brokken uit `plein_brokken.png` (`bruBrokTeken`, `brokBreed`) met een schaduwtje op de
+  vloer; een groot brok (straal vanaf `blijf`) blijft na de landing als puin liggen (`s.puin`). Hooguit `max` platen en
+  `puinMax` brokken: komt er een bij, dan vervaagt de oudste in `vervaag` s. Bron: Grok-platen in `design/stad/bron/`
+  (`plein_schade_grok.jpg`, vier platen gebarsten plaveisel, en `plein_brokken_grok.png`), verwerkt met
+  `tools/plein_schade.py` (knipt het beschadigde stuk uit, rekent het om naar de maat en kleur van het plein, geeft het
+  een grillige zachte rand en print de rechthoeken van de brokken; `--proef map` legt elke plaat op plein.png).
+  Sandbox: **Vloer heel** (`sbbruheel`) haalt de platen en het puin weg.
   Bron: Grok-clips jump1 en landing1, gemaakt met begin- en eindframes uit drie sleutelhoudingen (de afzet, in de lucht
   en de inslag, image-to-image vanaf het basisbeeld en op één canvas gezet). `tools/brutus_sprong.py` keyt ze, kiest de
   frames (sprong: 0 en 14 t/m 65 per 3, landing: 0 t/m 16 per 2 en 17 t/m 22), zet beide op één schaal (x1,04, op de kop

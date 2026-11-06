@@ -1208,6 +1208,7 @@
         <button data-spawn="brutus">Brutus</button>
         <button id="sbbruhuid">Huid: gewoon</button>
         <button id="sbbrusprong">Sprong nu</button>
+        <button id="sbbruheel">Vloer heel</button>
         <button id="sbzwmvrij">AI uit</button>
         <button id="sbzwmslag">Slag: wissel</button>
         <button id="sbzwmfasen">Fasen uit</button>
@@ -30262,6 +30263,29 @@ const BRU = {
             duw: 2600, hurt: 0.6,          // de zwaarste klap: zo hard vlieg je weg en zo lang ben je uit je doen
             golf: { v: 1150, breed: 130, hoog: 50, schade: 0.5, stun: 0.6, duw: 650, ver: 2600, bult: 58 } }
 };
+// ---- de schade in de vloer: gebarsten plaveisel en puin dat blijft liggen ----
+// Waar de bal van de sprong neerkomt barst de vloer (een zware plaat), langs de golven en waar de kap inslaat lichte
+// barsten. Het blijft plat, Amir loopt er gewoon overheen. De platen komen uit tools/plein_schade.py en zijn in de maat
+// van plein.png getekend: rij 0 van een plaat valt op rij top van de vloertegel, mid is het midden van de schade.
+// Grote brokken die opspringen blijven na de landing liggen. Hooguit max platen en puinMax brokken; komt er een bij,
+// dan vervaagt de oudste in vervaag s. Alleen op het plein (grondSoort 'plein'); elders alleen de brokken.
+// Sandbox: Vloer heel (sbbruheel) naast Sprong nu.
+const BRU_SCHADE = {
+  root: 'design/stad/', top: 48,
+  platen: [ { src: 'plein_schade_1.png', w: 379, h: 109, mid: 189 },   // licht: de barsten langs de golf en de kap
+            { src: 'plein_schade_2.png', w: 693, h: 109, mid: 346 },   // zwaar
+            { src: 'plein_schade_3.png', w: 719, h: 109, mid: 352 },   // breed
+            { src: 'plein_schade_4.png', w: 484, h: 109, mid: 241 } ], // op een plek
+  zwaar: [1, 2, 3],          // de platen voor de inslag van de sprong
+  golfStap: 520,             // langs de golf om de zoveel wereld-px een lichte plaat (geschaald met bruScale)
+  golfKans: 0.6,
+  max: 9, puinMax: 28, vervaag: 2.5,
+  blijf: 9,                  // brokken met een straal vanaf dit getal blijven liggen
+  brokBreed: 3.8,            // een brok is zoveel keer zijn straal breed
+  brokken: { src: 'plein_brokken.png',
+             r: [[0,0,110,73],[114,0,89,65],[207,0,37,30],[248,0,77,67],[329,0,28,23],[361,0,110,70],[475,0,68,66],
+                 [547,0,74,61],[625,0,89,64],[718,0,51,58],[773,0,26,26],[803,0,59,57],[866,0,63,58],[933,0,60,55]] }
+};
 // testinstellingen voor het gevecht (pauze, Instellingen, Nyundo: test): factoren op de duur van de tell, de slag,
 // het raam en de adem (1 is de standaard uit BRU), en Amir onsterfelijk zolang Nyundo er is. Zie bruTestToon.
 const BRU_TEST = { tell: 1, slag: 1, raam: 1, adem: 1, onst: false };
@@ -30280,6 +30304,10 @@ let brutus = null;
 function bruLaad(){
   laadNodig('bru');
   bloedSneeLaad();                                  // de snee-plaatjes (gedeeld met de zweepman en de bandiet)
+  if (!bruBank.schade){                             // de gebarsten vloer en de brokken (BRU_SCHADE)
+    const R = BRU_SCHADE.root;
+    bruBank.schade = { platen: BRU_SCHADE.platen.map(p => loadQuiet([R + p.src])), brokken: loadQuiet([R + BRU_SCHADE.brokken.src]) };
+  }
   if (!bruGeluid){
     const adem = geluidAan(new Audio()); adem.preload = 'auto'; adem.src = 'sounds/brutus_adem.mp3'; adem.loop = true;
     bruGeluid = { adem, stap: banStemmen('sounds/brutus_stap.mp3', 3), geraakt: banStemmen('sounds/brutus_geraakt.mp3', 2), zwaai: banStemmen('sounds/brutus_zwaai.mp3', 2),
@@ -30315,6 +30343,7 @@ function bruDonkerLaad(){
 }
 function bruLaadLevel(lv){ if (lv && lv.brutus){ bruLaad(); if (lv.brutus.huid === 'donker') bruDonkerLaad(); } }
 function bruVrij(nodigNu){
+  if (!nodigNu) delete bruBank.schade;
   if (bruData && !nodigNu){ delete bruBank.lagen; delete bruBank.donker; bruBank.donkerWil = false; bruData = null; bruBezig = false; }
   if (bruGeluid && !nodigNu){ try { bruGeluid.adem.pause(); bruGeluid.hek.pause(); } catch (e) {} bruGeluid = null; }
 }
@@ -30326,7 +30355,7 @@ function makeBrutus(x, opts){
   return { x, huid: o.huid || null, face: -1, state: 'wacht', frame: 0, acc: 0, t: 0, inv: 0, flash: 0, base: 0,
            hp: BRU.hp, maxHp: BRU.hp, hpBalk: true, van: o.van, tot: o.tot, start: null,
            stormDir: -1, stapF: -1, ademT: 0, opnieuw: false, geraaktAmir: false, val: 0, plof: false, sandbox: !!o.sandbox,
-           sprongT: BRU.sprong.eerste, golven: [], stenen: [] };
+           sprongT: BRU.sprong.eerste, golven: [], stenen: [], schade: [], puin: [] };
 }
 // het level: Brutus neerzetten, de ingang dicht (Amir start al binnen), de uitgang dicht tot hij dood is
 function bruStart(){
@@ -30411,6 +30440,7 @@ function bruInslag(s, k){
   const balX = s.x - s.face * (fr.dx + (k.bal || 0)) * gs;   // naar links getekend: negatieve dx is voor hem
   shake = Math.max(shake, 0.35);
   if (bruGeluid) banStemSpeel(bruGeluid.inslag, BRU.vol.inslag);
+  bruSchadeErbij(s, balX, 0);                               // een lichte barst waar de bal neerkomt
   const rnd = (a, b) => a + Math.random() * (b - a);
   for (let i = 0; i < 12; i++)
     bruStofDeeltje(s, { wx: balX + (Math.random() - 0.5) * 70 * gs, y: -rnd(0, 8), vx: (Math.random() - 0.5) * 520, vy: -rnd(140, 360),
@@ -30635,7 +30665,8 @@ function bruSprongInslag(s){
     bruStofDeeltje(s, { wx: balX + (Math.random() - 0.5) * 700 * gs, y: -rnd(0, 30), vx: (Math.random() - 0.5) * 260, vy: -rnd(10, 60),
                         r: rnd(80, 150), life: rnd(2.2, 3.6), a: 0.55, zweef: rnd(5, 15) });
   for (let i = 0; i < 26; i++) bruSteen(s, balX + (Math.random() - 0.5) * 120 * gs, (Math.random() - 0.5) * 900, -rnd(380, 980), rnd(7, 17));
-  for (const dir of [-1, 1]) s.golven.push({ x: balX, x0: balX, dir, raak: false, acc: 0 });
+  for (const dir of [-1, 1]) s.golven.push({ x: balX, x0: balX, dir, raak: false, acc: 0, barst: 0 });
+  bruSchadeErbij(s, balX, BRU_SCHADE.zwaar[Math.floor(Math.random() * BRU_SCHADE.zwaar.length)]);   // de vloer barst
   // de directe klap: van zijn rug tot voorbij de bal, alleen op de grond
   if (!dead && invuln <= 0 && ph < P.raakHoog){
     const px = playerX(), achter = s.x - s.face * BRU.half * gs, voor = balX + s.face * 70 * gs;   // van zijn rug tot net voorbij de bal
@@ -30648,19 +30679,83 @@ function bruSprongInslag(s){
   }
 }
 // een losse plavuis of steen die opspringt, tolt en terugvalt (s.stenen, wereld-x, y in grote-set-pixels boven de grond)
-function bruSteen(s, wx, vx, vy, r){ s.stenen.push({ wx, y: -2, vx, vy, r, rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 14, age: 0, life: 1.4 + Math.random() * 0.6, k: Math.random() }); }
+// b: welk brok uit plein_brokken.png; een groot brok (r vanaf BRU_SCHADE.blijf) blijft na de landing als puin liggen
+function bruSteen(s, wx, vx, vy, r){ s.stenen.push({ wx, y: -2, vx, vy, r, rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 14, age: 0, life: 1.4 + Math.random() * 0.6, k: Math.random(),
+  b: Math.floor(Math.random() * BRU_SCHADE.brokken.r.length), f: Math.random() < 0.5, blijf: r >= BRU_SCHADE.blijf, land: 0 }); }
+// een plaat gebarsten vloer erbij (n: welke uit BRU_SCHADE.platen); boven max vervaagt de oudste
+function bruSchadeErbij(s, wx, n){
+  if (!s.schade) s.schade = [];
+  s.schade.push({ wx, n, f: Math.random() < 0.5, weg: 0 });
+  const heel = s.schade.filter(d => !d.weg);
+  if (heel.length > BRU_SCHADE.max) heel[0].weg = 1e-6;
+}
+function bruSchadeStap(s, dt){
+  const V = BRU_SCHADE.vervaag;
+  for (const lijst of [s.schade, s.puin]) if (lijst) for (const d of lijst) if (d.weg) d.weg += dt / V;
+  if (s.schade) s.schade = s.schade.filter(d => d.weg < 1);
+  if (s.puin) s.puin = s.puin.filter(d => d.weg < 1);
+}
+// ligt x op het plein? (de platen zijn plaveisel; op een andere vloer blijven alleen de brokken)
+function bruOpPlein(x){
+  return grondStroken().some(g => g.soort === 'plein' && x <= Math.max(g.van, g.tot) && x >= Math.min(g.van, g.tot));
+}
+// een brok tekenen, met het midden op (0, 0) in de huidige transformatie, zo breed als BRU_SCHADE.brokBreed keer de straal
+function bruBrokTeken(st, r){
+  const img = bruBank.schade && bruBank.schade.brokken;
+  if (img && img.naturalWidth > 0){
+    const q = BRU_SCHADE.brokken.r[st.b], w = r * BRU_SCHADE.brokBreed, h = w * q[3] / q[2];
+    if (st.f) ctx.scale(-1, 1);
+    ctx.drawImage(img, q[0], q[1], q[2], q[3], -w / 2, -h / 2, w, h);
+    return;
+  }
+  ctx.fillStyle = st.k < 0.5 ? '#c8a77b' : st.k < 0.8 ? '#b08e63' : '#9c7a52';   // nog niet geladen: het oude steentje
+  ctx.beginPath(); ctx.moveTo(-r, -r * 0.55); ctx.lineTo(r * 0.8, -r * 0.7); ctx.lineTo(r, r * 0.45); ctx.lineTo(-r * 0.7, r * 0.6); ctx.closePath();
+  ctx.fill(); ctx.stroke();
+}
+// de vloer: de gebarsten platen en het liggende puin. Getekend vlak voor Amir (na de vloer), zodat hij erop staat.
+function bruSchadeTeken(s, cx, vloerY){
+  const B = bruBank.schade; if (!B || (!s.schade.length && !s.puin.length)) return;
+  const es = edgeScale(H * 0.18), top = vloerY - (EDGE.walk - BRU_SCHADE.top) * es, view = zichtVak(300);
+  ctx.save();
+  for (const d of s.schade){
+    const P = BRU_SCHADE.platen[d.n], img = B.platen[d.n];
+    if (!img || !(img.naturalWidth > 0) || !bruOpPlein(d.wx)) continue;
+    const sx = cx + (d.wx - world), w = P.w * es;
+    if (view && (sx + w < view.l || sx - w > view.r)) continue;
+    ctx.globalAlpha = 1 - (d.weg || 0);
+    if (d.f){ ctx.save(); ctx.translate(sx, 0); ctx.scale(-1, 1); ctx.drawImage(img, -P.mid * es, top, w, P.h * es); ctx.restore(); }
+    else ctx.drawImage(img, sx - P.mid * es, top, w, P.h * es);
+  }
+  const gs = bruScale();
+  ctx.lineWidth = Math.max(1, 1.6 * gs); ctx.strokeStyle = '#3b2c1f';
+  for (const p of s.puin){
+    const r = p.r * gs, sx = cx + (p.wx - world);
+    if (view && (sx + r * 2 < view.l || sx - r * 2 > view.r)) continue;
+    ctx.globalAlpha = 1 - (p.weg || 0);
+    ctx.save(); ctx.translate(sx, vloerY - r * 0.35); ctx.rotate(p.rot); bruBrokTeken(p, r); ctx.restore();
+  }
+  ctx.restore();
+}
 // de golven: elk een bult die door de vloer rolt, met plavuizen die opspringen en stof erachter. Raakt de voorkant Amir
 // terwijl hij laag staat (ph onder golf.hoog: niet springend en niet op de put), dan kost dat een half leven en verdooft het
 function bruGolfStap(s, dt){
   const G = BRU.sprong.golf, gs = bruScale(), rnd = (a, b) => a + Math.random() * (b - a);
+  bruSchadeStap(s, dt);
   for (const st of s.stenen){ st.age += dt; st.wx += st.vx * dt; st.y += st.vy * dt; st.vy += 1500 * dt; st.rot += st.vr * dt;
-    if (st.y > 0){ st.y = 0; st.vy *= -0.3; st.vx *= 0.55; st.vr *= 0.5; } }
-  s.stenen = s.stenen.filter(st => st.age < st.life);
+    if (st.y > 0){ st.y = 0; st.vy *= -0.3; st.vx *= 0.55; st.vr *= 0.5; st.land++;
+      if (st.blijf && (st.land >= 2 || Math.abs(st.vy) < 90)){   // een groot brok komt tot rust en blijft liggen
+        st.weg = true;
+        s.puin.push({ wx: st.wx, r: st.r, b: st.b, f: st.f, k: st.k, rot: (Math.random() - 0.5) * 0.3, weg: 0 });
+        const heel = s.puin.filter(p => !p.weg);
+        if (heel.length > BRU_SCHADE.puinMax) heel[0].weg = 1e-6;
+      } } }
+  s.stenen = s.stenen.filter(st => !st.weg && (st.blijf || st.age < st.life));
   if (!s.golven.length) return;
   const lo = s.van != null ? Math.min(s.van, s.tot) : -1e9, hi = s.tot != null ? Math.max(s.van, s.tot) : 1e9;
   for (const g of s.golven){
     const oud = g.x; g.x += g.dir * G.v * gs * dt;
-    g.acc += Math.abs(g.x - oud);
+    g.acc += Math.abs(g.x - oud); g.barst = (g.barst || 0) + Math.abs(g.x - oud);
+    if (g.barst > BRU_SCHADE.golfStap * gs){ g.barst = 0; if (Math.random() < BRU_SCHADE.golfKans) bruSchadeErbij(s, g.x, 0); }   // de golf laat barsten achter
     while (g.acc > 52 * gs){ g.acc -= 52 * gs;              // langs de weg: plavuizen en een lage stofmuur
       bruSteen(s, g.x + (Math.random() - 0.5) * 30 * gs, g.dir * rnd(60, 320), -rnd(260, 620), rnd(6, 13));
       bruStofDeeltje(s, { wx: g.x - g.dir * rnd(0, 40) * gs, y: -rnd(0, 10), vx: g.dir * rnd(60, 360), vy: -rnd(60, 260), r: rnd(30, 58), life: rnd(0.6, 1.1), a: 0.75 });
@@ -30711,13 +30806,14 @@ function bruGolfTeken(s, grondY, gs, cx){
   }
   if (s.stenen.length){
     ctx.save(); ctx.lineWidth = Math.max(1, 1.6 * gs); ctx.strokeStyle = '#3b2c1f';
+    const vloer = grondY - BRU.zak * gs;
     for (const st of s.stenen){
-      const k = 1 - Math.max(0, (st.age - st.life + 0.4) / 0.4), r = st.r * gs;
+      const k = st.blijf ? 1 : 1 - Math.max(0, (st.age - st.life + 0.4) / 0.4), r = st.r * gs, sx = cx + (st.wx - world);
+      const hoog = -st.y * gs, sk = 1 / (1 + hoog / 180);   // een schaduwtje op de vloer, kleiner en lichter naarmate hij hoger vliegt
+      ctx.globalAlpha = k * 0.3 * sk; ctx.fillStyle = '#1d140f';
+      ctx.beginPath(); ctx.ellipse(sx, vloer, r * 1.1 * sk, r * 0.28 * sk, 0, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = k;
-      ctx.save(); ctx.translate(cx + (st.wx - world), grondY + st.y * gs); ctx.rotate(st.rot);
-      ctx.fillStyle = st.k < 0.5 ? '#c8a77b' : st.k < 0.8 ? '#b08e63' : '#9c7a52';
-      ctx.beginPath(); ctx.moveTo(-r, -r * 0.55); ctx.lineTo(r * 0.8, -r * 0.7); ctx.lineTo(r, r * 0.45); ctx.lineTo(-r * 0.7, r * 0.6); ctx.closePath();
-      ctx.fill(); ctx.stroke(); ctx.restore();
+      ctx.save(); ctx.translate(sx, vloer - r * 0.35 + st.y * gs); ctx.rotate(st.rot); bruBrokTeken(st, r); ctx.restore();
     }
     ctx.restore();
   }
@@ -36296,6 +36392,7 @@ function loop(now){
     const amirWeg = exeAmirWeg();                     // de executie: de lagen tekenen Amir, de echte blijft weg (ook zijn schaduw en zijn rug)
     const trapAlfa = stadTrapAlfa();                  // de stadstrap: Amir vervaagt bij de trap en komt bij de uitgang terug
     ctx.save(); ctx.globalAlpha *= trapAlfa;
+    if (brutus) bruSchadeTeken(brutus, cx, groundY - (brutus.base || 0) * scale);   // de gebarsten vloer en het puin van Nyundo, onder Amir
     if (!amirWeg) amirSchaduw();                      // zijn schaduw: na de terrassen, treden en keien
     if (!amirWeg) rugSpeerTeken(pcx, groundY + lift, scale);   // de reserve op zijn rug: achter zijn lijf, dus voor Amir getekend
     schildTeken(pcx, groundY + lift, scale, true);    // het schild omlaag: aan zijn arm, achter zijn lijf
@@ -38305,6 +38402,7 @@ for (const [el, k] of BRU_SCHUIF) document.getElementById(el).addEventListener('
 });
 document.getElementById('pzbruonst').addEventListener('change', e => { BRU_TEST.onst = e.target.checked; bruTestBewaar(); });
 document.getElementById('sbbrusprong').onclick = () => { if (brutus) brutus.sprongT = 0; };   // de sprong van Nyundo meteen laten komen
+document.getElementById('sbbruheel').onclick = () => { if (brutus){ brutus.schade = []; brutus.puin = []; brutus.stenen = brutus.stenen.filter(st => !st.blijf); } cv.focus(); };   // de gebarsten vloer en het puin weg
 document.getElementById('pzbrubtn').onclick = () => { document.getElementById('pzbru').classList.toggle('on'); bruTestToon(); };
 document.getElementById('pzbrustd').onclick = () => { Object.assign(BRU_TEST, { tell: 1, slag: 1, raam: 1, adem: 1, onst: false }); bruTestToon(); bruTestBewaar(); };
 function toMenu(){
