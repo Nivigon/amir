@@ -415,3 +415,14 @@ Gemeten (zelfde opstelling, mediaan per beeld): Stad 1 van 450 naar 167 ms, Stad
 lopend van 533 naar 250 ms. Het beeld verschilt alleen in de randen van de huizen, omdat ze nu op hele pixels staan in
 plaats van een fractie ernaast: `node tools/beeldgelijk.js --vlag STAD_STROOK` zet de oude weg (`STAD_STROOK = false`)
 ernaast.
+
+## De stoep: een strook straat over de voet van de huizen
+
+`STAD_STOEP`, `stadStoep`, `stadStoepH`, `stadVoorTeken`. De gevels en poorten staan met hun voet op de looplijn
+(`EDGE.walk`, rij 95 van de straattegel), terwijl de straat in de tegel vanaf rij 48 naar achteren doorloopt. Daardoor
+stond wie op straat loopt precies op de muurvoet en leek het, vooral op een groot Formaat, of hij op het huis stond of
+ervoor zweefde. Na de gevels, galerijen en poorten (en voor de kramen, de put en het voetdecor, die nu in
+`stadVoorTeken` staan) tekent `stadStoep` de tegel nog een keer, van de looplijn tot `rijen` (36) bronrijen erboven,
+over hun voet heen, met bovenaan `zacht` rijen half doorzichtig en een contactschaduw op de nieuwe muurvoet. Niet over
+een ravijn, en een leemmuur (`look: 'leem'`, een echt terras) komt er gewoon overheen. Alleen het beeld: daken,
+galerijen, deuren en de looplijn houden hun hoogte. Het voetdecor staat tegen de nieuwe muurvoet (`stadStoepH`).
