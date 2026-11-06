@@ -415,3 +415,10 @@ Gemeten (zelfde opstelling, mediaan per beeld): Stad 1 van 450 naar 167 ms, Stad
 lopend van 533 naar 250 ms. Het beeld verschilt alleen in de randen van de huizen, omdat ze nu op hele pixels staan in
 plaats van een fractie ernaast: `node tools/beeldgelijk.js --vlag STAD_STROOK` zet de oude weg (`STAD_STROOK = false`)
 ernaast.
+
+## De speer op een dak of galerij
+
+`javFloor` slaat dunne platforms over (richels, de speer zelf), maar de platforms van de stad (`p.stad`: dak, galerij,
+balkon, tafel, riet, putrand, putbalk) tellen voor een speer als vloer zodra hij erboven zit (`h >= p.topH`). Zo landt een
+geworpen of vallende speer erop in plaats van door alle lagen tot de straat te zakken, en van onderen vliegt hij er gewoon
+doorheen, net als Amir. De doek (`veer`) en de luifel tellen niet: die werpen meteen terug.
