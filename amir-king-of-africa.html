@@ -29113,6 +29113,7 @@ const KRB = {
   dichtbij: 420,    // komt Amir dichterbij dan dit (wereld-px) terwijl hij geladen mikt, dan wijkt hij achteruit
   afstand:  700,    // ... tot Amir weer zo ver weg is: dan mikt en schiet hij
   wijkV:    95,     // achteruit lopen (wereld-px/s): trager dan vooruit, en trager dan Amir rent
+  baanStap: 8,      // zo fijn (wereld-px langs de baan) kijkt krbBaanVrij of de bout ergens in steekt
   randTot:  200,    // met rand in zijn spawn loopt hij door tot de rand, tenzij Amir dichter dan dit (wereld-px) bij is
   // loop: per frame de voorkant van de kruisboog (canvas-px), voor de bout erop als hij geladen loopt of wijkt
   loopPunt: [[156, 200], [154, 202], [144, 206], [152, 212], [152, 216], [132, 212], [153, 208], [154, 204],
@@ -29301,6 +29302,20 @@ function krbDoelHoek(s){
   const ey = (vloerBij(playerX(), ph) + KRB_PIJL.borst * CHAR_H - p.h) * scale;
   return Math.atan2(ey, ex) * 180 / Math.PI;
 }
+// is de baan vrij? Volgt de bout vanaf de punt onder deze hoek tot Amirs x, met dezelfde toets als de bout in de
+// lucht (krbPijlUpdate): komt hij eerst in de grond, een wand of het dak waar hij zelf op staat, dan is hij dicht.
+// Zo schiet hij van een dak niet het dak in als Amir beneden tegen de gevel staat, maar loopt hij naar de rand.
+function krbBaanVrij(s, hoek){
+  const p = krbPunt(s), r = hoek * Math.PI / 180, scale = meelAmirScale();
+  const ux = s.face * Math.cos(r), uh = Math.sin(r) / scale;
+  const tot = Math.abs(playerX() - p.x) - 20;
+  for (let t = 0, x = p.x, h = p.h; Math.abs(x - p.x) < tot; t += KRB.baanStap){
+    x = p.x + ux * t; h = p.h + uh * t;
+    const vloer = vloerBij(x, h);
+    if (vloer > -Infinity && h <= vloer) return false;
+  }
+  return true;
+}
 // helemaal in beeld: zijn hele figuur, met de kruisboog ervoor, binnen de schermranden. Met inBeeld (de duo-arena)
 // ziet hij Amir pas dan: daarbuiten loopt hij door naar binnen en herlaadt, mikt en schiet hij niet
 function krbInBeeld(s){
@@ -29436,8 +29451,9 @@ function updateKruisboog(s, dt, plats, cliff){
     if (s.slotT >= (s.snel ? KRB.salvoSlot : KRB.slot)){ krbSchiet(s); s.state = 'na'; s.naT = 0; }
     return;
   }
-  // mik: te dichtbij, dan eerst achteruit (als er achter hem plek is; anders schiet hij toch)
-  if (s.wijk && ziet && gap < KRB.dichtbij && krbVrij(s, s.x - naar * KRB.voet * 0.3, plats, cliff)){
+  // mik: te dichtbij, dan eerst achteruit (als er achter hem plek is; anders schiet hij toch). Is hij net naar
+  // de rand gelopen om een vrije baan te zoeken (s.zoek), dan niet: anders pendelt hij heen en weer
+  if (s.wijk && !s.zoek && ziet && gap < KRB.dichtbij && krbVrij(s, s.x - naar * KRB.voet * 0.3, plats, cliff)){
     s.state = 'wijk'; krbSpeel(s, 'loop'); s.klankF = 0;
     return;
   }
@@ -29446,6 +29462,17 @@ function updateKruisboog(s, dt, plats, cliff){
   const binnen = doel >= lo - KRB.raak && doel <= hi + KRB.raak;
   const wil = Math.max(lo, Math.min(hi, doel)), stap = KRB.draai * dt;
   s.hoek += Math.max(-stap, Math.min(stap, wil - s.hoek));
+  // ziet hij Amir wel maar zit er grond, een wand of zijn eigen dak in de baan, dan schiet hij niet: hij loopt
+  // geladen naar Amir toe, tot de rand van waar hij staat, en wacht daar tot Amir in zijn schootsveld komt
+  if (ziet && binnen && !krbBaanVrij(s, wil)){
+    s.kwijtT = 0; s.zoek = true;
+    if (krbMove(s, naar * KRB.loopV * dt, plats, cliff)){
+      if (s.set !== 'loop') krbSpeel(s, 'loop');
+      krbAnim(s, dt); krbFrameKlank(s, krbStapKlank);
+    } else { s.set = 'mik'; s.frame = krbHoekFrame(s.hoek); }
+    return;
+  }
+  s.set = 'mik';
   s.frame = krbHoekFrame(s.hoek);
   if (!ziet || !binnen){
     s.kwijtT += dt;
@@ -29453,7 +29480,7 @@ function updateKruisboog(s, dt, plats, cliff){
     return;
   }
   s.kwijtT = 0;
-  if (Math.abs(doel - s.hoek) <= KRB.raak){ s.state = 'slot'; s.slotT = 0; }
+  if (Math.abs(doel - s.hoek) <= KRB.raak && krbBaanVrij(s, s.hoek)){ s.state = 'slot'; s.slotT = 0; s.zoek = false; }
 }
 function updateKruisbogen(dt, plats, cliff){
   if (!running || (dead && !sandbox)) return;
