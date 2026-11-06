@@ -39,8 +39,9 @@ de kant; anders rolt hij de kant op die hij kijkt.
 - F (of de slagknop) vanaf rolframe `ROL_WORP.van` (13, de tweede helft) tot de landing wordt onthouden (`rol.worp`);
   op het aftakframe `ROL_WORP.tak` (24, frame 25 in de tool: hij landt op zijn voeten) gaat de rol over in de worp.
   `thrPress` stuurt F tijdens de rol naar `rolWorpDruk`; daarbuiten blijft alles zoals het was.
-- Perfect: F in de laatste `ROL_WORP.perfect` (3) frames voor de landing. Dan vliegt de speer harder
-  (`perfectKracht` 1,45 tegen `kracht` 1) en staat er even "Perfecte worp!".
+- Perfect: F in de laatste `ROL_WORP.perfect` (3) frames voor de landing. Dan vliegt de speer vlakker
+  (`zwaarPerfect`) en staat er even "Perfecte worp!". De kracht is gewoon en perfect gelijk (`kracht` en
+  `perfectKracht` allebei 1,3), en de worp speelt op `tempo` 1,35: zo is hij in Test 60 afgesteld en zo is hij nu overal.
 - Alleen met de speer in de hand (`rol.met`). Tijdens de worp is `amirVast()` waar; onkwetsbaar is hij niet meer
   (de rol is dan al voorbij `ROL.onkw`), dus in de uitval en de nazwaai is hij te raken. Daarna koelt de rol af
   (`ROL.koel`), net als na een gewone rol.
@@ -68,7 +69,7 @@ Alles los af te stellen in de pauze (Rol-worp: test, drie inklapbare groepjes); 
 - **Het loslaten** (`rolWorpLos`): een hitstop (`stopGewoon` 0,03 s, `stopPerfect` 0,06 s) en een camerastoot in de
   worprichting (`stoot`, px bij 720 hoog, perfect anderhalf keer; `rolStoot`, `rolStootX`, opgeteld bij de schok).
 - **De vlucht**: `jav.zwaar` schaalt de zwaartekracht (`zwaarGewoon` 1, `zwaarPerfect` 0,5: een perfecte vliegt vlakker), en
-  `perfectKracht` is 1,45 (was 1,3), zodat je het verschil voelt in plaats van leest. Het spoor (`spoor`, `javSpoorTeken`)
+  `perfectKracht` is 1,3, net als `kracht` (afgesteld in Test 60; het verschil zit nu in de vlucht). Het spoor (`spoor`, `javSpoorTeken`)
   loopt achter de schacht, licht goud en breder bij een perfecte worp.
 - **Smear** (`smear`): op het frame voor, op en na het loslaten drie vage kopieen van Amir achter hem.
 - **Squash** (`squash`, `rolSquash`, `ROL_SQUASH`): bij de klap van de schouders en de landing even lager en breder, bij het
@@ -89,7 +90,7 @@ Alles los af te stellen in de pauze (Rol-worp: test, drie inklapbare groepjes); 
   de kracht (gewoon en perfect), de timing, de klap en de vlucht, de effecten, en de hoogte en afstand van een nieuw doel. De browser onthoudt de stand
   (`amir.rolworp`). Ook in de sandbox.
 - T (in Test 60 en de sandbox) of de knop **Doel voor Amir neerzetten** zet een doel `ROL_DOEL.afstand` Amir voor
-  hem uit op `ROL_DOEL.hoog` Amir (standaard 1,22: de hoogte van de punt op het losframe). Een treffer laat de schijf
+  hem uit op `ROL_DOEL.hoog` Amir (standaard 1,07, en `ROL_DOEL.afstand` 5). Een treffer laat de schijf
   flitsen, telt mee ("Raak! 3 raak, waarvan 1 perfect") en de speer verdwijnt.
 - In de sandbox onder Speer en spullen: **Rol-worp: aan/uit** (`sbrolworp`).
 
