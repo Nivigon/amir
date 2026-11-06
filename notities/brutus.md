@@ -51,7 +51,12 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
   dreun en stof (`bruNeer`), en op het frame waar de bal de grond raakt de inslag (`bruSprongInslag`): de grootste
   stofwolk van het spel (een ring naar twee kanten, een hoge pluim die blijft hangen, een waas over de vloer), plavuizen
   die opspringen (`bruSteen`), een harde schok en hitstop. Staat Amir op de grond tussen zijn rug en net voorbij de bal,
-  dan is dat de zwaarste klap van het gevecht: een leven, `duw` (2600) weg en `hurt` (0,6 s) uit zijn doen. Daarna hangt
+  dan is dat de zwaarste klap van het gevecht: een leven, `duw` (2600) weg en `hurt` (0,6 s) uit zijn doen. Ook de knots op weg
+  naar beneden raakt (sinds 06-11-2026, `bruSprongZwaaiRaak`, `balStraal`): van het landingframe na `neer` tot en met de
+  inslag volgt de check de baan van de bal (`bal` in brutus.json, van het vorige naar het huidige frame, plus `balStraal`),
+  tussen zijn lijf en net voorbij de bal. Wie daar in de lucht hangt, bijvoorbeeld omdat hij over de bal probeert te
+  springen, krijgt dezelfde klap; vroeger telde alleen de inslag en kon je er doorheen springen. Gemeten: op 120, 250 en
+  400 boven de grond raak (frame 11), op 550 ben je erboven. Daarna hangt
   hij `eind` s over de knots (het raam) en komt overeind: zijn anker schuift `verplaatsing` (landing in brutus.json) naar
   de heup van de eindpose.
   Speelwijze: wie dichtbij blijft staan of gewoon wegloopt haalt de landing niet uit (getest: vanaf 150 en 350 px
@@ -145,7 +150,7 @@ Sandbox: Vijanden, rij **Brutus (baas)**: zonder wachten, meteen stormen.
 ## De opening (`brutus: {intro: true}`, `BRU_INTRO`)
 Stad 6 begint met een tussenstuk (`bruIntroBegin`, `bruIntroStap`, `bruIntroTeken`, `bruSluitStap`). Amir start net binnen de
 rechterpoort (`start: -2500`); het hek daarvan staat open en valt na `sluitWacht` in `sluit` seconden dicht (het takelgeluid,
-een klap, stof), pas als het laadscherm weg is. Nyundo staat bij de linkerput met zijn rug naar Amir (`face -1`; een echte
+een klap, stof), pas als het laadscherm weg is. Nyundo staat bij de linkerluifel met zijn rug naar Amir (`face -1`; een echte
 rug-sprite is er niet, hij kijkt van Amir weg) en ademt. Komt Amir binnen `zie` Amir, of raakt Amir hem, dan:
 - `loop`: het spel staat stil voor Amir (`bruIntroVast` in `amirVast`), zwarte balken, de camera schuift naar Nyundo en de
   tonnen (`bruIntroCam`). Hij loopt met de stormframes, trager (`loopMs`, `loopV`), naar de dichtste groep tonnen
@@ -155,7 +160,8 @@ rug-sprite is er niet, hij kijkt van Amir weg) en ademt. Komt Amir binnen `zie` 
 - `draai`: hij kijkt naar Amir, en na `draai` s stormt hij; de balken schuiven weg (`weg`) en de balk onderaan komt.
 `s.state` blijft `wacht` tot de storm, dus hij raakt Amir niet en de sprong-timer loopt niet. Een keer per level per sessie
 (`bruIntroGezien`): na een dood staat hij meteen klaar en blijven de tonnen heel, dan zijn ze er voor het gevecht.
-Het plein heeft nu twee putten met een luifel rechts (op -3200 en -6300), met tonnen eronder (zie `notities/tonnen.md`).
+Onder de losse luifel links (`stad.luifels`, -6000) staat de stapel die hij kapotslaat; bij de put rechts staan er twee voor
+het gevecht (zie `notities/tonnen.md`).
 
 ## Bestanden
 - **De voeten in de zwaai, de kap en de terugslag**: in de Grok-clip zweefde hij in de zwaai 30 tot 60 px boven de grond, met de ene voet
