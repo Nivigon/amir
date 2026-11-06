@@ -170,6 +170,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | Episode Baboon tests | `BAB_1`, `BAB_4`, `BAB_LEVELS` | notities/episodes.md |
 | Episode Test levels stad | `STAD_1`, `STAD_LEVELS`, `menuStad` | notities/episodes.md |
 | Episode Oaktown: zeven straten met poorten, 50 kills | `OAK_1`, `OAK_STRATEN`, `menuOak` | notities/oaktown.md |
+| Episode De Belegerde Stad: zeven stadslevels, moeilijk tot extreem | `BEL_1`, `BEL_LEVELS`, `menuBel` | notities/episodes.md |
 | goudaapje: het kleine gouden aapje en de arena (arena, regel 12) | `GAAP`, `gaapSpawn`, `updateGoudapen` | notities/goudaapje.md |
 | het mes: Jackal Fang van Impungushe | `MES`, `mesInHand`, `mesTeken` | notities/mes.md |
 | T-splitsing in de talent tree | `varianten`, `TRIBE_CONFIG`, `tbSplit` | notities/tribes.md |
@@ -352,7 +353,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
    en hut aan de start, Amir begint aan de rand van het level en de camera kijkt er niet voorbij
    (zie het veld `rand`). Dat geldt voor elk nieuw level vanaf nu; de bestaande levels houden hun
    rotswand (rule 1, en een speerval zit in die wand). De Maker had al een kale start (`kaleKlif`).
-2. De naam in de array van die reeks (`VK_LEVELS`, `TEST_LEVELS`, `BAB_LEVELS`, `STAD_LEVELS` of `OAK_LEVELS`).
+2. De naam in de array van die reeks (`VK_LEVELS`, `TEST_LEVELS`, `BAB_LEVELS`, `STAD_LEVELS`, `OAK_LEVELS` of `BEL_LEVELS`).
 3. Een ondertitel in `SUBS`, op de naam van het level.
 4. Een eigen uitzicht in `SCENES` als het level er anders uit moet zien.
    De voorgrond komt er vanzelf bij (zie hierboven); zet alleen een eigen `voorgrond` als het level
