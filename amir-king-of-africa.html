@@ -2115,6 +2115,12 @@
             <input id="pzrolwspan" type="range" min="0" max="200" step="5"><span class="read" id="pzrolwspanv"></span></div>
           <div class="field"><label for="pzrolwafbreek">Nazwaai afbreken na</label>
             <input id="pzrolwafbreek" type="range" min="0" max="400" step="10"><span class="read" id="pzrolwafbreekv"></span></div>
+          <div class="field"><label for="pzrolwcontra">Contra-worp (0 is uit)</label>
+            <input id="pzrolwcontra" type="range" min="0" max="1" step="1"><span class="read" id="pzrolwcontrav"></span></div>
+          <div class="field"><label for="pzrolwctempo">Tempo contra-worp</label>
+            <input id="pzrolwctempo" type="range" min="50" max="250" step="5"><span class="read" id="pzrolwctempov"></span></div>
+          <div class="field"><label for="pzrolwcuit">Uitval contra-worp</label>
+            <input id="pzrolwcuit" type="range" min="0" max="100" step="5"><span class="read" id="pzrolwcuitv"></span></div>
         </details>
         <details class="pzrolwgroep"><summary>Klap en vlucht</summary>
           <div class="field"><label for="pzrolwstopg">Hitstop loslaten (gewoon)</label>
@@ -4845,6 +4851,7 @@ const TEST_60 = {
   speerInHand: true,
   rugMax: 5,                       // de rug vult zich in dit level steeds aan (rolWorpProef)
   rolWorpProef: true,              // de oefendoelen en het afstelblok in de instellingen
+  rolContra: true,                 // de contra-worp: F met het pijltje terug tijdens de rol gooit de andere kant op
   talentKeuze: true,               // voor het begin kies je de talents, ook True Flight en The Pounce (zie TRIBE_CONFIG)
   spawns: [ {x: -3800, k: 'groen'}, {x: -6000, k: 'scorp'}, {x: -8400, k: 'bandiet'},
             {x: -10800, k: 'schildman', niveau: 'makkelijk'}, {x: -13400, k: 'kruisboogbandiet'},
@@ -4857,6 +4864,7 @@ const TEST_60 = {
   ends: [ {x: -20200} ],
   tips: [ { x: -60, t: 'Testlevel: de rol-worp. Rol met V en druk F in de tweede helft van de rol: hij gooit uit de landing. Gloeit Amir op, dan is het een perfecte worp' },
           { x: -400, t: 'T zet een oefendoel voor je neer. In de pauze, onder Instellingen, stel je de worp en de effecten af (Rol-worp: test)' },
+          { x: -1200, t: 'Contra-worp: druk tijdens de rol F met het pijltje terug, dan gooit hij de andere kant op. Rol weg, en gooi naar wie je achterna komt' },
           { x: -3000, t: 'Vanaf hier: een tegenstander tegelijk. Rol erlangs of erop af, en gooi uit de landing' } ]
 };
 const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31, TEST_32, TEST_33, TEST_34, TEST_35, TEST_36, TEST_37, TEST_38, TEST_39, TEST_40, TEST_41, TEST_42, TEST_43, TEST_44, TEST_45, TEST_46, TEST_47, TEST_48, TEST_49, TEST_50, TEST_51, TEST_52, TEST_53, TEST_54, TEST_55, TEST_56, TEST_57, TEST_58, TEST_59, TEST_60];
@@ -18254,6 +18262,8 @@ const ROL_WORP = {
   zwaarPerfect: 0.5,               // een perfecte vliegt vlakker
   // de effecten, 0 is uit en 1 is de standaard
   stof: 1, spoor: 1, smear: 1, squash: 1, glans: 1, inslag: 1,
+  // de contra-worp (rolContraAan): aan of uit, zijn tempo bovenop tempo, en hoeveel van de uitval hij meeneemt
+  contra: true, contraTempo: 1.25, contraUitval: 0,
   ms: [35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 300],
   w: 524, h: 475, grond: 450,
   schaal: 275 / 309,               // dezelfde maat als de rol
@@ -18271,7 +18281,7 @@ function rolWorpMs(i){
 }
 function rolWorpFrame(){
   if (!rolW) return -1;
-  let t = rolW.t * 1000 * ROL_WORP.tempo;
+  let t = rolW.t * 1000 * ROL_WORP.tempo * (rolW.contra ? ROL_WORP.contraTempo : 1);
   for (let i = 0; i < ROL_WORP.n; i++){ t -= rolWorpMs(i); if (t < 0) return i; }
   return ROL_WORP.n;               // voorbij het laatste frame: klaar
 }
@@ -18282,9 +18292,23 @@ function rolWorpDruk(){
   if (f < ROL_WORP.van || f >= ROL_WORP.tak) return;
   rol.worp = true;
   rol.perfect = f >= ROL_WORP.tak - ROL_WORP.perfect;
+  if (rolContraTerug()) rol.contra = true;
+}
+// ---- de contra-worp (prototype, Test 60 en de sandbox) ----
+// F tijdens de rol met het pijltje de andere kant op: hij gooit terug, de kant op waar hij vandaan rolde. Zo maak je
+// eerst afstand en gooi je dan naar wie je achterna komt (kiten). Voorlopig de gewone worp gespiegeld, iets sneller
+// (contraTempo) en zonder uitval naar voren (contraUitval), zodat je de afstand van de rol niet teruggeeft. Alleen in
+// een level met rolContra en in de sandbox; de echte animatie (landen, omdraaien, gooien) komt later.
+function rolContraAan(){ return !!(sandbox || (level && level.rolContra)) && ROL_WORP.contra; }
+function rolContraTerug(){
+  if (!rolContraAan() || !rol) return false;
+  const left = keys['ArrowLeft'] || keys['a'] || keys['A'], right = keys['ArrowRight'] || keys['d'] || keys['D'];
+  return rol.kant === -1 ? (right && !left) : (left && !right);
 }
 function rolWorpStart(){
-  rolW = { t: 0, kant: rol.kant, perfect: !!rol.perfect, los: false, anc: ROL_WORP.anker[0] * ROL_WORP.maat[0], stofF: -1, naLos: 0 };
+  const contra = !!rol.contra || rolContraTerug();   // ook als het pijltje pas na F maar voor de landing komt
+  rolW = { t: 0, kant: contra ? -rol.kant : rol.kant, contra, perfect: !!rol.perfect, los: false,
+           anc: ROL_WORP.anker[0] * ROL_WORP.maat[0], stofF: -1, naLos: 0 };
   rol = null;
 }
 // de speer los: een vlakke worp vanaf de punt zoals Tom hem op het losframe zette
@@ -18319,7 +18343,7 @@ function rolWorpUpdate(dt, halfW, scale){
   const f = rolWorpFrame();
   if (f >= ROL_WORP.n){ rolWorpEind(); return; }
   const anc = ROL_WORP.anker[f] * ROL_WORP.maat[f];
-  const stap = -rolW.kant * (anc - rolW.anc) * ROL_WORP.schaal * scale;   // de uitval: de wereld schuift met zijn lijf mee
+  const stap = -rolW.kant * (anc - rolW.anc) * ROL_WORP.schaal * scale * (rolW.contra ? ROL_WORP.contraUitval : 1);   // de uitval: de wereld schuift met zijn lijf mee
   rolW.anc = anc;
   if (stap !== 0 && !gatOp(world + stap + rolW.kant * halfW * 0.5, ph)) world += stap;
   facing = rolW.kant;
@@ -38775,6 +38799,9 @@ const ROL_WORP_SCHUIF = [
   ['pzrolwlosms',  ROL_WORP, 'losMs',         1,   v => Math.round(v) + ' ms'],
   ['pzrolwspan',   ROL_WORP, 'spanMs',        1,   v => Math.round(v) + ' ms'],
   ['pzrolwafbreek',ROL_WORP, 'afbreek',       1000, v => Math.round(v * 1000) + ' ms'],
+  ['pzrolwcontra', ROL_WORP, 'contra',        1,   v => v ? 'aan' : 'uit'],
+  ['pzrolwctempo', ROL_WORP, 'contraTempo',   100, v => Math.round(v * 100) + '%'],
+  ['pzrolwcuit',   ROL_WORP, 'contraUitval',  100, v => Math.round(v * 100) + '%'],
   ['pzrolwstopg',  ROL_WORP, 'stopGewoon',    1000, v => Math.round(v * 1000) + ' ms'],
   ['pzrolwstopp',  ROL_WORP, 'stopPerfect',   1000, v => Math.round(v * 1000) + ' ms'],
   ['pzrolwstoot',  ROL_WORP, 'stoot',         1,   v => Math.round(v) + ' px'],
@@ -39372,7 +39399,8 @@ function readLevel(txt){
            herhaal: !!o.herhaal,                        // na elke dode schildbandiet komt er een nieuwe aanwandelen (Test 50, zie exeHerhaalStap)
            bloed: !!o.bloed,                            // de bloed-mechaniek: de bandiet krijgt 3 treffers, elke klap een snee, de derde een death-spuit (zie "bloed")
 
-           rolWorpProef: !!o.rolWorpProef,              // Test 60: oefendoelen, speren genoeg, en de rol-worp in de instellingen
+           rolWorpProef: !!o.rolWorpProef,
+           rolContra: !!o.rolContra,                    // Test 60: de contra-worp (F met het pijltje terug tijdens de rol)              // Test 60: oefendoelen, speren genoeg, en de rol-worp in de instellingen
            talentKeuze: !!o.talentKeuze,                // aan het begin kies je zelf de talents (Test 14)
            zweepKeuze: !!o.zweepKeuze,                  // aan het begin de oude of de nieuwe zweepman (Test 58 en 59)
            worp: o.worp === 'schaal' ? 'schaal' : '',   // 'schaal': de hoek loopt op zolang je vasthoudt

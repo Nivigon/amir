@@ -105,3 +105,12 @@ de uitval van de worp en de losplek van de speer rekenen ermee. Nieuwe frames: o
 
 True Flight (Mkuki: de crit, met de knikkerzak) en The Pounce (Bhubesi: woede per rake rol-worp) staan in
 `notities/tribes.md`. Een rol-worp draagt daarvoor `jav.rol`, `jav.perfect` en `jav.crit`.
+
+## De contra-worp (prototype)
+
+F tijdens de rol met het pijltje de andere kant op: hij gooit terug, de kant op waar hij vandaan rolde. Zo maak je
+eerst afstand en gooi je naar wie je achterna komt. Het pijltje telt bij F en ook nog bij de landing (`rolContraTerug`,
+`rol.contra`, `rolW.contra`). Voorlopig de gewone worp gespiegeld (`rolW.kant` is de andere kant), `contraTempo` (1,25)
+sneller en met `contraUitval` (0) van de uitval, zodat hij de afstand van de rol niet teruggeeft. Alleen in een level met
+`rolContra: true` (Test 60) en in de sandbox, en `ROL_WORP.contra` zet hem uit. Schuifjes in het groepje Timing.
+De echte animatie (landen, omdraaien, gooien) moet nog komen; dan valt het omslaan op de landing weg.
