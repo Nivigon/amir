@@ -272,7 +272,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | --- | --- |
 | `name` | naam op het kaartje in het menu |
 | `lagen` | sleutel uit `SCENES`: welk uitzicht dit level krijgt |
-| `muziek` | sleutel uit `MUZIEK`: welk deuntje eronder loopt (`bg` voor het oude thema); zonder dit veld `MUZIEK_BASIS`, Dark Africa, en in een level met `stad` de stadmuziek Market Shadows (`MUZIEK_STAD`, `music/marketshadows.mp3`); `stad` geeft het eerdere Tense Grounding, `stadgeluid` geeft de oude stadgeluiden zonder muziek |
+| `muziek` | sleutel uit `MUZIEK`: welk deuntje eronder loopt (`bg` voor het oude thema); zonder dit veld `MUZIEK_BASIS`, Dark Africa, en in een level met `stad` de stadmuziek Market Shadows (`MUZIEK_STAD`, `music/marketshadows.mp3`); `stad` geeft het eerdere Tense Grounding, `stadgeluid` geeft de oude stadgeluiden zonder muziek, `stil` geeft geen muziek (Stad 6) |
 | `winter` | `true` zet het hele level in de sneeuw (witte dieren, sneeuwversies van het decor) |
 | `sneeuw` | sneeuw op de grond, los van `winter`: `{soort, dek, van, tot}` (zie hieronder) |
 | `grondSoort` | stroken grondsoort in de bodem: `[{van, tot, soort}]`, `soort` savanne, rots of straat; per strook een andere grondtegel, met een grillige rand die over een halve cel zacht uitloopt in de grond ernaast, ook op een savannelaag, zwever en gangvloer. De Maker schrijft het uit de grondlijn-cellen; geen bestaand level heeft het (zie `notities/grondsoort.md`) |
