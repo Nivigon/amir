@@ -432,7 +432,7 @@ function verschil(a, b, pad = ''){
                    { c: 24, r: 8, k: 'gevel', id: 'g5', hoog: 2 }, { c: 24, r: 8, k: 'trap', gevel: 'g5', kant: 'l', niveau: 0, balkon: 1.6 },
                    { c: 5, r: 3, k: 'vijand', soort: 'groen' },                                                   // op het dak van g1: kent geen daken
                    { c: 14, r: 3, k: 'vijand', soort: 'schildman' },                                              // op de galerij op 730
-                   { c: 25, r: 3, k: 'vijand', soort: 'bandiet:dolk' },                                           // op het dak van g5 (816)
+                   { c: 25, r: 3, k: 'vijand', soort: 'bandiet:dolk' },                                           // op het dak van g5 (2 hoog, stadGevelH(2))
                    { c: 26, r: 3, k: 'vijand', soort: 'kruisboogbandiet', params: { wijk: 0 } } ] });             // de schutter ook op het dak van g5
     f.push(...await page.evaluate(() => {
       const f = [];
@@ -451,15 +451,15 @@ function verschil(a, b, pad = ''){
       if (heeft('letop', /^Gevel g4 en g5|^Gevel g3 en g4/)) f.push('een overlap voor huizen die elkaar niet raken');
       const sp = mkNaarLevel().spawns, sch = sp.find(x => x.k === 'schildman'), ban = sp.find(x => x.k === 'bandiet'), sl = sp.find(x => x.k === 'groen');
       if (!sch || sch.dak !== 730) f.push('de schildbandiet op de galerij krijgt geen dak: 730: ' + JSON.stringify(sch));
-      if (!ban || ban.dak !== 816 || !ban.dolk) f.push('de bandiet op het dak van g5 krijgt geen dak: 816: ' + JSON.stringify(ban));
+      if (!ban || ban.dak !== Math.round(stadGevelH(2)) || !ban.dolk) f.push('de bandiet op het dak van g5 krijgt geen dak: ' + Math.round(stadGevelH(2)) + ': ' + JSON.stringify(ban));
       if (!sl || 'dak' in sl || sl.boven) f.push('de zandslang op een dak krijgt toch dak of boven: ' + JSON.stringify(sl));
       const krb = sp.find(x => x.k === 'kruisboogbandiet');
-      if (!krb || krb.dak !== 816 || krb.wijk !== false || krb.boven || 'y' in krb) f.push('de kruisboogbandiet op het dak van g5 krijgt geen dak: 816 met wijk: false: ' + JSON.stringify(krb));
+      if (!krb || krb.dak !== Math.round(stadGevelH(2)) || krb.wijk !== false || krb.boven || 'y' in krb) f.push('de kruisboogbandiet op het dak van g5 krijgt geen dak: ' + Math.round(stadGevelH(2)) + ' met wijk: false: ' + JSON.stringify(krb));
       // en in het spel leest readLevel het zo
       const rl = readLevel(JSON.stringify(mkNaarLevel())).spawns.find(x => x.kind === 'schildman');
       if (!rl || rl.dak !== 730) f.push('readLevel leest het dak van de schildbandiet niet: ' + JSON.stringify(rl));
       const rk = readLevel(JSON.stringify(mkNaarLevel())).spawns.find(x => x.kind === 'kruisboogbandiet');
-      if (!rk || rk.dak !== 816 || rk.wijk !== false) f.push('readLevel leest dak en wijk van de kruisboogbandiet niet: ' + JSON.stringify(rk));
+      if (!rk || rk.dak !== Math.round(stadGevelH(2)) || rk.wijk !== false) f.push('readLevel leest dak en wijk van de kruisboogbandiet niet: ' + JSON.stringify(rk));
       // een galerij op 401 langs g4: dan is er bij de uitgang wel een vloer
       MK.objects.push({ c: 16, r: 8, k: 'galerij', van: 'g4', tot: 'g4', niveau: 1, meer: [0, 1] }); mkStadKoppel();
       if (mkControle().some(q => q.ernst === 'fout' && /^De trap bij g4 \(links/.test(q.tekst))) f.push('een galerij bij de uitgang haalt de FOUT niet weg');
@@ -473,8 +473,8 @@ function verschil(a, b, pad = ''){
       const lv = mkNaarLevel(), S = lv.stad || {};
       if ((S.gevels || []).length !== 2 || (S.galerijen || []).length !== 1 || (S.trappen || []).length !== 1 || (S.kramen || []).length !== 1 || (S.voet || []).length !== 1 || S.paleis == null || S.seed !== 7)
         f.push('het proefgrid geeft niet de hele stad: ' + JSON.stringify(S));
-      if (!lv.spawns.some(x => x.k === 'bandiet' && x.dak === 401) || !lv.spawns.some(x => x.k === 'schildman' && x.dak === 816)) f.push('in het proefgrid geen dak op de bandiet (401) en de schildbandiet (816): ' + JSON.stringify(lv.spawns));
-      if (!lv.spawns.some(x => x.k === 'kruisboogbandiet' && x.dak === 816 && x.wijk === false && x.inBeeld === true)) f.push('in het proefgrid geen kruisboogbandiet met dak 816, wijk uit en inBeeld aan: ' + JSON.stringify(lv.spawns));
+      if (!lv.spawns.some(x => x.k === 'bandiet' && x.dak === 401) || !lv.spawns.some(x => x.k === 'schildman' && x.dak === Math.round(stadGevelH(2)))) f.push('in het proefgrid geen dak op de bandiet (401) en de schildbandiet (' + Math.round(stadGevelH(2)) + '): ' + JSON.stringify(lv.spawns));
+      if (!lv.spawns.some(x => x.k === 'kruisboogbandiet' && x.dak === Math.round(stadGevelH(2)) && x.wijk === false && x.inBeeld === true)) f.push('in het proefgrid geen kruisboogbandiet met dak ' + Math.round(stadGevelH(2)) + ', wijk uit en inBeeld aan: ' + JSON.stringify(lv.spawns));
       if (!(lv.hpBalk || []).includes('kruisboogbandiet')) f.push('de kruisboogbandiet staat niet in hpBalk: ' + JSON.stringify(lv.hpBalk));
       // de deuren: g1 is index 1 en g2 index 0 (van de start af); de vijand op de verdieping krijgt geen dak, de deur geeft de hoogte
       const d1 = lv.spawns.filter(x => x.deur && x.deur.gevel === 1), d2 = lv.spawns.filter(x => x.deur && x.deur.gevel === 0);
