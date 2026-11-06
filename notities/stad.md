@@ -50,6 +50,10 @@ tot aan zijn knie.
   komt er dus gewoon voorlangs.
 - Amir telt pas als hij op het dak geland is (`stadKanteelAmir`, gezet als hij op de grond staat): van de straat omhoog
   spring je voor de muur langs, na de landing sta je erachter. Een vijand telt als zijn vloer (`base`) het dak is.
+- Een galerij of trapbalkon hangt voor de gevel. Ligt het dek op dezelfde hoogte als een dak, dan staat wie op het dek
+  staat toch voor de kartels: alleen wie echt op het dak staat, staat erachter.
+- Een dode ligt languit: om hem heen is de strook breder (`STAD.kanteelLijk`, 1,6 Amir), anders steken zijn voeten
+  links of rechts onder de tanden uit.
 - Het dak is 45 lager, dus soms makkelijker te halen: vanaf het rieten dak van een kraam (263) haal je nu het dak van
   een huis van 1 hoog (442), dat lag eerst net buiten een sprong (208).
 - In de sandbox onder Terrein, De stad: **Achter de kartels** (aan of uit, uit is de oude manier met iedereen voor de
@@ -321,8 +325,16 @@ spawns: [ {x: -1100, k: 'bandiet', deur: {gevel: 0, verdieping: 0}},
   ligt nog `uit` (0,9 s) over hem en vervaagt (`stadDeurVoorTeken`, na de vijanden, naast `poortVoorTeken`): hij stapt uit het donker.
 - **Op een verdieping** staat in `gevel.png` een raam. Daar tekent `stadTeken` het deurgat van de begane grond (de latei, de posten en
   het donker, `latei` en `posten`) iets kleiner (`boven`, 0,9) in de plaats van het raam, met de drempel op de vloer en de bovenkant
-  onder de balkenrij. Alleen een verdieping met een deurspawn krijgt die deur (`stadDeurenBoven`). Geen nieuwe plaat: een eigen
-  deurplaat (een open houten deur in het gat) zou het mooier maken, vooral op de straat, maar het open gat leest al goed.
+  onder de balkenrij. Alleen een verdieping met een deurspawn krijgt die deur (`stadDeurenBoven`).
+- **De houten deur**: in elk gat met een deurspawn (straat en verdieping, `stadDeurenAlle`) hangt de houten deur uit de rotswand
+  (`design/deur/`, de frames van `DEUR`), getekend in de ruimte van de gevel (`stadDeurPlaatTeken`). Zijn kozijn (canvas-x 101 tot 351,
+  de voet op 446) valt op dezelfde maat in bronpx op de posten en de latei van `gevel.png`: `plaatX` (247) is waar het canvas begint,
+  de voet valt op de onderrand. Dicht tot de deur opengaat, dan de 20 frames op `DEUR.fps` met op het eind de klap (`deurSlamSpeel`,
+  een kleine shake `schok`), en daarna blijft hij open. De eerste vijand wacht tot de deur open is (`deurWacht` begint op de duur van
+  de frames). Een gespiegeld huis spiegelt de deur mee, met het scharnier rechts. Het grijze hout krijgt een warme tint (`warm`, multiply, een keer per frame in
+  `stadDeurWarm`), de latei van de gevel valt over de bovenbalk van het kozijn met een zachte schaduw eronder, zodat de deur in de
+  leem zit, en het donker over wie eruit stapt ligt alleen in de opening van de open deur (`opening`, via `stadDeurMaat(d, scale, gat)`). `laadLevel` laadt de frames in een stadslevel met
+  een deurspawn.
 - **De vloer**: op een verdieping komt hij op de galerij of het balkon op die hoogte voor de deur (`stadDeurVloer`, via
   `stadVloerBij`); de spawner krijgt dan `dak` met die hoogte en de rest gaat zoals bij een vijand op een galerij. Zonder vloer komt hij
   niet (`deurGeen`), en ook niet als zijn soort geen galerij kent: op een verdieping alleen `bovenSoorten` (bandiet, schildbandiet,
@@ -386,6 +398,10 @@ gekoppeld en niet aan de toren, omdat de toren van een pleinpoort met de schermg
   (-3500, `rand` 1800 zodat de rechtergrens gelijk blijft). Op 1280x720 landt hij na de worp links van de put, op een
   groot scherm verder. Op een telefoon (852x393) springt Amir verhoudingsgewijs verder (lopen is 330 wereld-px per seconde
   op elk scherm): daar spring je recht omhoog met een kort tikje naar rechts, anders ga je onder de doek door.
+- **Zonder put**: `stad.luifels: [{x, kant}]` zet dezelfde luifel neer zonder put eronder. `x` is waar het midden van de
+  put zou staan en `kant` is wat `luifel` bij een put is, zodat hij net zo ver van de toren hangt (`stadLuifelPlats` doet
+  de botsing voor allebei). Zonder put en balk komt Amir er vanaf de grond niet bij (het lage eind hangt 1,5 Amir hoog,
+  de sprong haalt zo'n 0,8). Stad 6 heeft er een op -6000 met `kant: 'l'`, gespiegeld tegen de toren van de linkerpoort.
 - **Sandbox**: onder De stad de knop **Luifel**: het plein met de put zo neergezet dat de paal tegen de toren staat.
 
 ## Geen outline op de stadsplaatjes
@@ -415,6 +431,15 @@ Gemeten (zelfde opstelling, mediaan per beeld): Stad 1 van 450 naar 167 ms, Stad
 lopend van 533 naar 250 ms. Het beeld verschilt alleen in de randen van de huizen, omdat ze nu op hele pixels staan in
 plaats van een fractie ernaast: `node tools/beeldgelijk.js --vlag STAD_STROOK` zet de oude weg (`STAD_STROOK = false`)
 ernaast.
+
+## De speer op een dak of galerij
+
+`javFloor` slaat dunne platforms over (richels, de speer zelf), maar de platforms van de stad (`p.stad`: dak, galerij,
+balkon, putrand, putbalk) tellen voor een speer als vloer zodra hij erboven zit (`h >= p.topH`). Zo landt een
+geworpen of vallende speer erop in plaats van door alle lagen tot de straat te zakken, en van onderen vliegt hij er gewoon
+doorheen, net als Amir. De doek (`veer`) en de luifel tellen niet: die werpen meteen terug. Een kraam (`tafel`,
+`riet`) telt ook niet: een speer vliegt over of langs een kraam tot de straat, anders viel een vlakke worp op straat al
+na een paar passen op de toonbank.
 
 ## De stoep: een strook straat over de voet van de huizen
 
