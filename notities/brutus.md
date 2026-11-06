@@ -51,7 +51,12 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
   dreun en stof (`bruNeer`), en op het frame waar de bal de grond raakt de inslag (`bruSprongInslag`): de grootste
   stofwolk van het spel (een ring naar twee kanten, een hoge pluim die blijft hangen, een waas over de vloer), plavuizen
   die opspringen (`bruSteen`), een harde schok en hitstop. Staat Amir op de grond tussen zijn rug en net voorbij de bal,
-  dan is dat de zwaarste klap van het gevecht: een leven, `duw` (2600) weg en `hurt` (0,6 s) uit zijn doen. Daarna hangt
+  dan is dat de zwaarste klap van het gevecht: een leven, `duw` (2600) weg en `hurt` (0,6 s) uit zijn doen. Ook de knots op weg
+  naar beneden raakt (sinds 06-11-2026, `bruSprongZwaaiRaak`, `balStraal`): van het landingframe na `neer` tot en met de
+  inslag volgt de check de baan van de bal (`bal` in brutus.json, van het vorige naar het huidige frame, plus `balStraal`),
+  tussen zijn lijf en net voorbij de bal. Wie daar in de lucht hangt, bijvoorbeeld omdat hij over de bal probeert te
+  springen, krijgt dezelfde klap; vroeger telde alleen de inslag en kon je er doorheen springen. Gemeten: op 120, 250 en
+  400 boven de grond raak (frame 11), op 550 ben je erboven. Daarna hangt
   hij `eind` s over de knots (het raam) en komt overeind: zijn anker schuift `verplaatsing` (landing in brutus.json) naar
   de heup van de eindpose.
   Speelwijze: wie dichtbij blijft staan of gewoon wegloopt haalt de landing niet uit (getest: vanaf 150 en 350 px
