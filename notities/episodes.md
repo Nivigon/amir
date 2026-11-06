@@ -26,6 +26,14 @@ kaart als een dobbelsteen met zes ogen, met poorten ertussen en een minimap; je 
 veld `straten`, zie `notities/oaktown.md`). Beide levels delen de kaart (`OAK_STRATEN`, `OAK_STAD`, `OAK_TERRAS`,
 `OAK_KALEBAS`). Met de tribekeuze (`runStart`); een knop in `menuEpisodes` (`btnOak`), het scherm `menuOak` met `cardsOak`.
 
+## Episode De Belegerde Stad
+
+`BEL_1` tot en met `BEL_7` en `BEL_LEVELS`: zeven stadslevels, moeilijk tot extreem, zelf ontworpen op verzoek. Geen echte
+episode in de zin van regel 1 (alleen De Valse Koning is bevroren), maar ook geen proefstuk: pas ze aan als de opdracht erom vraagt.
+Geen baas (regel 12). Met de tribekeuze (`runStart`); een knop in `menuEpisodes` (`btnBel`), het scherm `menuBel` met `cardsBel`.
+De opbouw leunt op de stadlevels: 1 en 6 op Stad 1 (lift en toren), 2 op Stad 2 (trappen), 3 op Stad 3 (bruggen), 5 op Stad 4
+(de koningsweg); 4 en 7 zijn nieuw. Level 7 heeft een `bandietGolf` met dolken bovenop de vaste spawns.
+
 ## Episode Baboon tests
 
 `BAB_1` tot en met `BAB_4` en `BAB_LEVELS`: proefstukken voor de baviaan, met de tribekeuze (`runStart`) zoals De Valse Koning; menu `menuBab`, `cardsBab`. Baboon 1 is de wand en de kooi, Baboon 2 dezelfde vlakte met de speerbeet in plaats daarvan, Baboon 3 de speerval, Baboon 4 de goudaap-arena (`apenArena`, zie hieronder). De eerste en de derde stonden eerst tussen de Test levels
