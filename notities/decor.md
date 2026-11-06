@@ -17,9 +17,31 @@ hoogte, zodat `propHalfW` (de ravijncontrole) al klopt voor het plaatje binnen i
 dat openscheurt (`RAVIJN_DECOR.valt`); zuilen, platen en lage brokken schuiven of vervagen, zoals ander decor. Het idee:
 veel van deze stukken tegen de wanden, zodat een plaat die een doorgang afdekt niet opvalt.
 
-In de Maker: Decor, **Rotsdecor** (zie `notities/maker.md`). In de sandbox: Decor, rij **Rotsdecor**, een knop per
-familie die bij elke klik het volgende stuk neerzet (`sbRots`). De drie hangrotsen (`hangrots_01..03`) staan wel in
-`design/rotsdecor/`, maar nog niet in `PROPS`: het spel kan een prop nog niet aan een plafond hangen.
+In de Maker: Decor, Stenen en sporen, **Rotsdecor** (zie `notities/maker.md`). In de sandbox: Decor, rij **Rotsdecor**,
+een knop per familie die bij elke klik het volgende stuk neerzet (`sbRots`).
+
+Er zijn drie families bij gekomen:
+
+- **Grotkei** (`grotkei_01..07`) en **Ronde kei** (`rondkei_01..08`): de keien uit `design/grot/` die de golvende rand
+  vanzelf strooit (`GROT_DEEL`), nu ook los te zetten. Ze hebben de maat van de grot, 850 bronpixels per Amir
+  (`grotDecorS`): steentjes en keitjes. Ze vallen in een ravijn dat openscheurt.
+- **Hangrots** (`hangrots_01..03`, `hang: true`): hangt met zijn bovenkant aan een plafond. Een prop draagt daarvoor `y`,
+  de hoogte van die bovenkant in sprite-eenheden boven de grondlijn; zonder `y` (de sandbox) hangt hij net boven Amir.
+  Een hangrots schuift niet weg voor een ravijn (`schoonLevel`, `ravijnDecor`, en in `levelcheck.py` de ravijn- en de
+  gangdak-controle): hij hangt aan de rots erboven. De hangblokken in `design/grot/` zijn dezelfde plaatjes.
+
+## kapotte vloer: barsten en puin
+
+De barsten (`barst_1..4`) zijn de platen waarmee Nyundo het plein openslaat (`BRU_SCHADE.platen`,
+`design/stad/plein_schade_*.png`), nu als vast decor. Ze hebben `plat: true`: ze liggen op de looplijn zelf, zonder de
+stap terug die ander decor krijgt (`PROP_ACHTER`). Hun `h` en `sink` zijn zo gekozen dat ze op Formaat 25 even groot zijn
+als op het plein en dat rij `EDGE.walk - BRU_SCHADE.top` van de plaat op de looplijn valt. Ze hebben de kleur van de straat
+en het plein, dus ze passen het best in de stad. Het puin (`puin_01..14`) zijn de brokken uit `plein_brokken.png`, los
+geknipt door `tools/puin_knip.py` naar `design/stad/puin/`; dat valt in een ravijn dat openscheurt. Beide hebben `vloer`
+in `PROPS` als familie (`barst`, `puin`). In de Maker: Decor, Stenen en sporen, **Kapotte vloer**; in de sandbox de rij
+**Kapotte vloer**.
+
+De botten in `PROPS` hebben er `bot` (`bot` of `schedel`) en `naam` bij, voor de keuzelijst van **Botten** in de Maker.
 ## rotsen als decor: een runerots zonder rune
 
 `rotsen`, `rotsenTeken`, `rotsenLaadLevel`: het levelveld `rotsen: [{x, soort, groot, y}]`. Dezelfde platen als onder een

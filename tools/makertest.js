@@ -115,6 +115,13 @@ function proefGrid(){
       { c: 20, r: 6, k: 'zegel', onzichtbaar: true, note: '' },
       { c: 1, r: 6, k: 'prop', note: 'een boom' },
       { c: 0, r: 6, k: 'rotsdecor', prop: 'plaat_02', f: true, s: 1.2, note: '' },
+      { c: 18, r: 5, k: 'rotsdecor', prop: 'hangrots_02', note: '' },
+      { c: 20, r: 5, k: 'bot', prop: 'buffel', f: true, note: '' },
+      { c: 35, r: 6, k: 'vloer', prop: 'barst_3', note: '' },
+      { c: 31, r: 6, k: 'vloer', prop: 'puin_06', s: 1.3, note: '' },
+      { c: 9, r: 4, k: 'fakkel', f: true, s: 0.9, note: '' },
+      { c: 33, r: 6, k: 'teken', prop: 'gekruist', note: '' },
+      { c: 2, r: 6, k: 'skelet', note: '' },
       { c: 24, r: 6, k: 'gevel', id: 'g1', hoog: 2, note: '' },
       { c: 28, r: 6, k: 'gevel', id: 'g2', hoog: 3, note: '' },
       { c: 24, r: 6, k: 'galerij', van: 'g1', tot: 'g2', niveau: 1, note: '' },
@@ -607,7 +614,16 @@ function verschil(a, b, pad = ''){
     if (!(lv.zegels || []).find(z => z.onzichtbaar && !z.verstop && z.dak)) uit.push('geen onzichtbaar zegel op het dak: ' + JSON.stringify(lv.zegels));
     if (!(lv.runes || []).length) uit.push('geen rune');
     const rp = (lv.props || []).find(q => q.k === 'plaat_02');
-    if (!rp || !rp.f || rp.s !== 1.2 || (lv.props || []).length !== 1) uit.push('geen gespiegelde plaat_02 op schaal 1,2 als enige prop: ' + JSON.stringify(lv.props));
+    if (!rp || !rp.f || rp.s !== 1.2 || (lv.props || []).length !== 5) uit.push('geen gespiegelde plaat_02 op schaal 1,2 naast de vier andere decorstukken: ' + JSON.stringify(lv.props));
+    // de decorstukken: een hangrots met zijn bovenkant aan de bovenkant van zijn cel, botten en kapotte vloer als prop,
+    // een fakkel op de hoogte van zijn cel (in Amir), een speerteken met zijn variant en een skelet
+    const hr = (lv.props || []).find(q => q.k === 'hangrots_02');
+    if (!hr || hr.y !== 2 * 150) uit.push('hangrots_02 hangt niet op 300 (de bovenkant van rij 5): ' + JSON.stringify(hr));
+    for (const k of ['buffel', 'barst_3', 'puin_06']) if (!(lv.props || []).find(q => q.k === k)) uit.push('geen prop ' + k);
+    const fk = (lv.fakkels || [])[0];
+    if (!fk || !fk.f || fk.s !== 0.9 || Math.abs(fk.y - 2 * 150 / 251) > 0.01) uit.push('fakkel niet gespiegeld op schaal 0,9 en 1,2 Amir hoog: ' + JSON.stringify(lv.fakkels));
+    if (!(lv.tekens || []).find(t => t.v === 'gekruist')) uit.push('geen gekruist speerteken: ' + JSON.stringify(lv.tekens));
+    if ((lv.skeletten || []).length !== 1) uit.push('geen skelet: ' + JSON.stringify(lv.skeletten));
     const pt = (lv.poorten || [])[0];
     if (!pt || pt.id !== 'b1' || pt.k !== 'boog_steen' || !pt.f || pt.look !== 'savanne' || pt.y !== undefined) uit.push('geen gespiegelde poort b1 op de grond: ' + JSON.stringify(lv.poorten));
     else {

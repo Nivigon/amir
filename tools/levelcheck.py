@@ -1441,6 +1441,8 @@ def boven_ravijn(lv, sp):
             continue
         if o.get('v') and (o.get('y') or 0) >= sp.FAR_GAP_LIFT and not d.get('bouwwerk'):
             continue
+        if d.get('hang'):
+            continue                                    # een hangrots hangt aan de rots erboven, ook boven een ravijn
         hw = sp.prop_halfw(o)
         if lv.in_gat(o['x'] - hw, o['x'] + hw):
             yield fout(o['x'], "%s '%s' staat boven een ravijn (schoonLevel schuift hem weg)"
@@ -2026,8 +2028,8 @@ def gangen(lv, sp):
         return lv.holte(x) and not lv.in_gat(x - 60, x + 60) and lv.terrein(x) + hoog > -sp.HOLTE_DAK
     for o in lv.d.get('props') or []:
         d = sp.PROPS.get(o.get('k'))
-        if not d or o.get('v'):
-            continue                                    # ver decor blijft boven op de savanne
+        if not d or o.get('v') or d.get('hang'):
+            continue                                    # ver decor blijft boven op de savanne; een hangrots hangt aan het dak
         hoog = sp.CHAR_H * d['h'] * (o.get('s') or 1) * (1 - (d.get('sink') or 0.02))
         if door_dak(o['x'], hoog):
             yield fout(o['x'], "prop '%s' staat in de gang, op de bodem (%s), en is %s hoog: hij steekt door het dak "
