@@ -100,3 +100,8 @@ Grok liet Amir in de rolclip langzaam groeien, en de worp kwam er zo'n 12 procen
 Per frame staat nu een factor die zijn hoofd even groot maakt als in `idle_ns` (gemeten met template matching op het
 hoofd; waar het hoofd ondersteboven of weg is, tussen de metingen in, en over vijf frames zacht gemaakt). De tekencode,
 de uitval van de worp en de losplek van de speer rekenen ermee. Nieuwe frames: opnieuw meten.
+
+## De talents bij de rol-worp
+
+True Flight (Mkuki: de crit, met de knikkerzak) en The Pounce (Bhubesi: woede per rake rol-worp) staan in
+`notities/tribes.md`. Een rol-worp draagt daarvoor `jav.rol`, `jav.perfect` en `jav.crit`.
