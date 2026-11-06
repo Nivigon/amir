@@ -152,6 +152,34 @@ een verdieping omhoog. De treden zijn altijd even groot (de schaal hangt aan de 
 
 Stad 2 tot en met 4 zijn de proefstukken; in de sandbox staat er een trap naast het hoge huis van **De stad**.
 
+## De doorgang
+
+`STAD_DOORGANG`, `stadDoorgangen`, `stadDoorgangBeeld`, `stadDoorgangFase`
+
+Bij de opening in de leuning waar een stadstrap boven op een galerij uitkomt (`balkon: 0`) loopt het dek in beeld door,
+de diepte in: zo lijkt het alsof je daar achter het huis langs kunt, naar de trap. Alleen beeld, lopen en E blijven zoals
+ze zijn.
+
+- **De vorm.** De vloer ligt strak tegen de muur van het huis (`q.ander`) en is daar recht; aan de open kant loopt hij
+  naar achteren smaller (`smal`, achterin 0,65 van vooraan), en hij is `diep` (0,2 Amir) hoog in beeld. Langs de open kant
+  staat een hekje dat kleiner en vager wordt, en over het uiteinde een kort hekje (`hek`, 0,6 van de breedte) dat bij het
+  huis een opening laat: daar draait de vloer achter het huis weg.
+- **De planken** komen uit `galerij.png` (het middenstuk, rijen `band`) en lopen in dezelfde schuine lijn door als op het
+  dek ervoor (`helling`, 0,95 bronpx per rij). `stadDoorgangFase` zoekt waar in het middenstuk de muur valt, zodat de naden
+  precies aansluiten. Naar achteren worden ze korter en smaller (verkorting, `planken`: hoeveel dek er in de diepte past;
+  minder is grotere planken en minder ver weg).
+- **Licht.** Zacht, want de stad heeft weinig schaduw: naar achteren wat donkerder, een smalle schaduw langs de muur,
+  achterin bij de muur wat donkerder waar de vloer wegdraait, en de lucht erboven tussen de huizen een tikje (`steeg`).
+- **Spiegelen.** Alles hangt aan `q.uit`: staat de trap links van het huis (opening rechts ervan), dan zit de muur links
+  en het hekje rechts. Alleen de schuinte van de planken spiegelt niet, want die moet aansluiten op het dek.
+- **Niet bij een balkon.** Een balkon hangt aan schoren tegen de muur; een vloer erachter zou zweven.
+- **Een huis ervoor.** Hij wordt voor de gevels getekend (`stadDoorgangen` in `stadTeken`, voor `stadTrapAchter`): staat er
+  een huis direct naast de opening, dan dekt dat hem af en zie je alleen de opening in de leuning.
+- Het beeld wordt een keer per maat, kant en plankfase getekend en bewaard (`stadDoorgangCache`).
+
+In de sandbox: **Doorgang** onder De stad, drie huizen met een galerij en twee trappen die erop uitkomen, een keer met de
+opening links en een keer rechts van een huis.
+
 ## De leemmuur
 
 `LEEM`, `leemMuurTeken` (in `drawClimb`)

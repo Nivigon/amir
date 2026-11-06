@@ -1642,7 +1642,8 @@
         <button id="sbdeurboven">Uit de deur boven</button>
         <button id="sbplein">Het plein</button>
         <button id="sbluifel">Luifel</button>
-        <span class="hint">een Sahelstraat voor je uit: huizen van 1 tot 4 hoog, een galerij, een kraam met een rieten dak (opstap) en een met een doek die veert (spring erop of net bij het landen: hoog), en het paleis in de verte. Lage leemmuur en Doodlopend zetten een muur van leem voor je neer (een terras met de look van de stad): de lage spring je op, de hoge houdt je tegen. Naast het hoge huis staat een houten trap: E bij de voet en je staat aan de andere kant op het balkon, E in de opening en je bent weer beneden. Bandiet op de galerij: hij staat op de eerste galerij (zet de stad neer als die er nog niet is) en de rand houdt hem tegen; klim via de kraam omhoog. Uit de deur: een bandiet stapt uit het deurgat van het eerste huis op de straat; Uit de deur boven: uit een deur op de eerste verdieping van dat huis, op de galerij (elke klik nog een, de deur gaat opnieuw open als hij in beeld is). Het plein: voor je uit een poort met het hek omhoog, de geplaveide vloer, de put (de rand is een trede, de balk haal je vanaf de rand), de pleinwand achteraan en een poort met het hek dicht. Luifel: hetzelfde plein, maar de put staat dichter bij de poort met een schuine luifel tegen de toren; vanaf de straat kom je er niet bij, via de rand en de balk wel, en wie erop springt wordt meteen schuin terug over het plein geworpen</span>
+        <button id="sbdoorgang">Doorgang</button>
+        <span class="hint">een Sahelstraat voor je uit: huizen van 1 tot 4 hoog, een galerij, een kraam met een rieten dak (opstap) en een met een doek die veert (spring erop of net bij het landen: hoog), en het paleis in de verte. Lage leemmuur en Doodlopend zetten een muur van leem voor je neer (een terras met de look van de stad): de lage spring je op, de hoge houdt je tegen. Naast het hoge huis staat een houten trap: E bij de voet en je staat aan de andere kant op het balkon, E in de opening en je bent weer beneden. Bandiet op de galerij: hij staat op de eerste galerij (zet de stad neer als die er nog niet is) en de rand houdt hem tegen; klim via de kraam omhoog. Uit de deur: een bandiet stapt uit het deurgat van het eerste huis op de straat; Uit de deur boven: uit een deur op de eerste verdieping van dat huis, op de galerij (elke klik nog een, de deur gaat opnieuw open als hij in beeld is). Het plein: voor je uit een poort met het hek omhoog, de geplaveide vloer, de put (de rand is een trede, de balk haal je vanaf de rand), de pleinwand achteraan en een poort met het hek dicht. Luifel: hetzelfde plein, maar de put staat dichter bij de poort met een schuine luifel tegen de toren; vanaf de straat kom je er niet bij, via de rand en de balk wel, en wie erop springt wordt meteen schuin terug over het plein geworpen. Doorgang: drie huizen met een galerij en twee trappen die erop uitkomen; bij elke opening loopt het dek de diepte in, strak langs het huis, met het hekje aan de open kant (een keer links, een keer rechts van een huis)</span>
       </div>
       <div class="row">
         <label>Straten</label>
@@ -21519,6 +21520,135 @@ function stadMuurSchaduw(x, y, w, h, naarRechts){
   g.addColorStop(naarRechts ? 0 : 1, 'rgba(30,18,10,0)'); g.addColorStop(naarRechts ? 1 : 0, 'rgba(30,18,10,0.5)');
   ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
 }
+// ---- de doorgang: het dek loopt bij de opening van een stadstrap achter de leuning door, de diepte in ----
+// Bij de opening in de leuning waar een stadstrap boven uitkomt op een galerij (balkon: 0) lopen de planken van het
+// dek in dezelfde schuine lijn door naar achteren: strak langs de muur van het huis (de kant `ander`), smaller en vager
+// naar achteren, met een hekje langs de open kant en een kort hekje over het uiteinde dat bij het huis een opening laat.
+// Achterin verdwijnt de vloer achter het huis, de kant van de trap op. Alleen beeld: lopen en E blijven zoals ze zijn.
+// Alles hangt aan `uit`, dus met de trap aan de andere kant van het huis spiegelt de doorgang mee (muur, hek, schaduw);
+// alleen de schuinte van de planken blijft, want die moet aansluiten op het dek ervoor. Getekend voor de gevels: staat er
+// een huis direct naast de opening, dan dekt dat hem af en zie je alleen de opening in de leuning.
+const STAD_DOORGANG = {
+  diep: 0.2,                // zo hoog in beeld (in Amir) loopt de vloer naar achteren
+  smal: 0.65,               // achterin nog zo breed als vooraan
+  planken: 100,             // zoveel bronrijen dek in die diepte (minder: grotere planken, minder ver weg)
+  helling: 0.95,            // de schuinte van de planknaden in galerij.png: bronpx opzij per bronrij omlaag
+  band: [106, 146],         // de rijen van het dek waar de planken uit komen (zonder voor- en achterrand)
+  hek: 0.6,                 // het hekje achteraan loopt zo ver van de open kant naar het huis
+  paal: 0.19, paalB: 0.033, // een paal vooraan: hoogte en breedte in Amir
+  hout: [104, 90, 80],      // de kleur van de bestaande leuning
+  donker: [38, 36, 44],     // waar het naar achteren naartoe verkleurt
+  steeg: 0.3                // zo donker wordt de lucht tussen de huizen erboven (licht: de stad heeft weinig schaduw)
+};
+const stadDoorgangCache = new Map();
+// het beeld van een doorgang, een keer getekend per maat, kant en plankfase
+function stadDoorgangBeeld(gat, uit, fase, scale){
+  const D = STAD_DOORGANG, GL = STAD.galerij, gi = stadImgs.galerij;
+  const A = CHAR_H * scale, f = A / GL.amir, mw = GL.midden[1] - GL.midden[0];
+  const B = Math.ceil(gat), H = Math.max(4, Math.ceil(D.diep * A)), PH = D.paal * A, top = Math.ceil(PH) + 3;
+  const sleutel = [B, H, uit, Math.round(fase * 4), A.toFixed(1)].join('|');
+  let c = stadDoorgangCache.get(sleutel); if (c) return c;
+  if (stadDoorgangCache.size > 16) stadDoorgangCache.clear();
+  // een band van het dek (het middenstuk, vier keer naast elkaar) op bronmaat, om uit te knippen
+  const [b0, b1] = D.band, bh = b1 - b0;
+  const band = document.createElement('canvas'); band.width = mw * 4; band.height = bh;
+  const bc = band.getContext('2d');
+  for (let i = 0; i < 4; i++) bc.drawImage(gi, stadQ(gi, GL.midden[0]), stadQ(gi, b0), stadQ(gi, mw), stadQ(gi, bh), i * mw, 0, mw, bh);
+  c = document.createElement('canvas'); c.width = B + 2; c.height = top + H + 1;
+  const g = c.getContext('2d');
+  const muurX = uit < 0 ? B : 0;                                   // de muur van het huis, in het beeld
+  const breed = t => B * (1 - (1 - D.smal) * t);                    // t: 0 vooraan, 1 achterin
+  const openX = t => muurX + uit * breed(t);
+  const yVan = t => top + H * (1 - t);
+  // verkorting: achterin liggen de naden dichter op elkaar (V: hoeveel bronrijen dek er al achter je liggen)
+  const V = t => t <= 0 ? 0 : D.planken * Math.pow(t / (1 + 1.4 * (1 - t)), 0.85);
+  const span = B / f;                                              // zoveel bronpx dek past in de opening
+  for (let yy = 0; yy < H; yy++){
+    const t = 1 - (yy + 0.5) / H, v = V(t), dv = Math.max(1, Math.min(bh, V(t + 1 / H) - v));
+    const r = ((Math.round(-v) % bh) + bh) % bh;                   // omhoog in het beeld is verder het dek af
+    const w = breed(t), x0 = uit < 0 ? B - w : 0;
+    // de naad loopt schuin: op een hogere rij ligt hij verder naar links (helling > 0)
+    let sx = (uit < 0 ? fase - span : fase) + D.helling * (b0 - GL.dek + r + v);
+    sx = ((sx % mw) + mw) % mw;
+    g.drawImage(band, sx, r, span, Math.min(dv, bh - r), x0, top + yy, w, 1.2);
+  }
+  // licht: naar achteren donkerder, een zachte schaduw langs de muur en een donkere rand aan de open kant
+  const dk = D.donker.join(',');
+  g.globalCompositeOperation = 'source-atop';
+  let gr = g.createLinearGradient(0, top + H, 0, top);
+  gr.addColorStop(0, 'rgba(' + dk + ',0)'); gr.addColorStop(1, 'rgba(' + dk + ',0.42)');
+  g.fillStyle = gr; g.fillRect(0, top, B + 2, H);
+  gr = g.createLinearGradient(muurX, 0, muurX - uit * B * 0.3, 0);
+  gr.addColorStop(0, 'rgba(' + dk + ',0.28)'); gr.addColorStop(1, 'rgba(' + dk + ',0)');
+  g.fillStyle = gr; g.fillRect(0, top, B + 2, H);
+  // achterin bij de muur: daar draait de vloer achter het huis weg
+  gr = g.createLinearGradient(openX(1), 0, muurX, 0);
+  gr.addColorStop(0, 'rgba(' + dk + ',0)'); gr.addColorStop(1, 'rgba(' + dk + ',0.35)');
+  g.fillStyle = gr; g.fillRect(0, top, B + 2, Math.max(2, H * 0.4));
+  g.globalCompositeOperation = 'source-over';
+  g.strokeStyle = 'rgba(' + dk + ',0.35)'; g.lineWidth = 1.5;
+  g.beginPath(); g.moveTo(openX(0), yVan(0)); g.lineTo(openX(1), yVan(1)); g.stroke();
+  // het hekje: in de kleur van de bestaande leuning, kleiner en vager naar achteren
+  const kl = (t, m) => 'rgb(' + D.hout.map((h, i) => Math.round(h * m * (1 - 0.45 * t) + D.donker[i] * 0.45 * t)).join(',') + ')';
+  const PB = D.paalB * A, lat = A / 150;
+  const regel = (pts) => {
+    for (let i = 1; i < pts.length; i++){
+      const p = pts[i - 1], q = pts[i], tm = (p.t + q.t) / 2, s = (p.s + q.s) / 2;
+      for (const [hh, wd] of [[0.86, 2.6], [0.45, 2.0]]){
+        g.strokeStyle = kl(tm, 0.95); g.lineWidth = Math.max(1, wd * lat * s);
+        g.beginPath(); g.moveTo(p.x, p.y - PH * p.s * hh); g.lineTo(q.x, q.y - PH * q.s * hh); g.stroke();
+      }
+    }
+  };
+  const paal = (p) => {
+    const h = PH * p.s, b = Math.max(2, PB * p.s);
+    g.fillStyle = kl(p.t, 1); g.fillRect(p.x - b / 2, p.y - h, b, h);
+    g.fillStyle = kl(p.t, 1.18); g.fillRect(p.x - b / 2, p.y - h, Math.max(1, b * 0.3), h);
+  };
+  const zij = [0, 0.25, 0.5, 0.75, 1].map(t => ({ t, s: breed(t) / B, x: openX(t) - uit * 1.5, y: yVan(t) }));
+  regel(zij);
+  // achteraan: van de open kant een eind naar het huis, met een opening bij de muur
+  const a = zij[4], eind = { t: 1, s: a.s, x: a.x + (muurX - a.x) * D.hek, y: a.y };
+  const achter = [a, { t: 1, s: a.s, x: a.x + (eind.x - a.x) / 2, y: a.y }, eind];
+  regel(achter);
+  for (const p of zij.slice(1)) paal(p);
+  for (const p of achter.slice(1)) paal(p);
+  c._top = top; c._h = H; c._muur = muurX;
+  stadDoorgangCache.set(sleutel, c);
+  return c;
+}
+// waar in het middenstuk van de galerij (bronpx) de muur valt: dan lopen de naden precies door
+function stadDoorgangFase(stripLeft, lw, f, x){
+  const mw = STAD.galerij.midden[1] - STAD.galerij.midden[0];
+  return ((((x - stripLeft - lw) / f) % mw) + mw) % mw;
+}
+// alle doorgangen, voor de gevels getekend (een huis ervoor dekt ze af)
+function stadDoorgangen(groundY, scale, cx){
+  if (!stadKlaar('galerij')) return;
+  const GL = STAD.galerij, A = CHAR_H * scale, f = A / GL.amir, D = STAD_DOORGANG;
+  for (const t of stadTrappen()){
+    const q = stadTrapMaat(t, scale); if (!q) continue;
+    const muur = cx + (q.ander - world);
+    if (muur < -W || muur > W / viewZoom() + W) continue;
+    // alleen bij een galerij (balkon: 0): een balkon hangt aan schoren tegen de muur, een vloer erachter zou zweven
+    if (t.balkon) continue;
+    let fase = null;
+    for (const gl of (level.stad.galerijen || [])){
+      const m = stadGalerijMaat(gl, scale);
+      if (m && Math.abs(q.ht - m.h) < 20 && q.gatX > m.left && q.gatX < m.right){ fase = stadDoorgangFase(m.left, m.lw, m.f, q.ander); break; }
+    }
+    if (fase == null) continue;                                   // geen galerij: geen dek om op door te lopen
+    const beeld = stadDoorgangBeeld(q.gat, q.uit, fase, scale);
+    const y0 = groundY - q.ht * scale;                             // de achterrand van het dek
+    const x = muur - beeld._muur;
+    // de lucht tussen de huizen erboven een tikje in de schaduw: de steeg
+    const hS = beeld._h + A * 0.8, l = Math.min(muur, muur + q.uit * q.gat), w = q.gat;
+    const gr = ctx.createLinearGradient(0, y0 - hS, 0, y0);
+    gr.addColorStop(0, 'rgba(23,22,26,0)'); gr.addColorStop(1, 'rgba(23,22,26,' + D.steeg + ')');
+    ctx.fillStyle = gr; ctx.fillRect(l, y0 - hS, w, hS);
+    ctx.drawImage(beeld, x, y0 + 1 - beeld._top - beeld._h);
+  }
+}
 // de trappen achter de huizen: de trap zelf en het bordes bovenaan (voor de gevels getekend)
 function stadTrapAchter(groundY, scale, cx){
   if (!stadKlaar('trap') || !stadKlaar('galerij')) return;
@@ -22187,6 +22317,7 @@ function stadTeken(groundY, scale, cx){
   if (!stadAan() || !stadKlaar('gevel')) return;
   const S = level.stad, G = STAD.gevel, im = stadImgs.gevel;
   const zicht = (sx, w) => !(sx > W / viewZoom() + W || sx + w < -W);
+  stadDoorgangen(groundY, scale, cx);            // de doorgang achter een trap-opening: het dek loopt de diepte in
   stadTrapAchter(groundY, scale, cx);            // de trappen en hun bordes: achter de huizen
   stadPleinWandTeken(groundY, scale, cx, zicht); // de pleinwand: achteraan, kleiner en in de nevel
   // gevels
@@ -45827,6 +45958,22 @@ function sbStad(){
   cv.focus();
 }
 document.getElementById('sbstad').onclick = () => sbStad();
+// De doorgang (zie "de doorgang"): drie huizen met een galerij erlangs en twee trappen die op die galerij uitkomen, een
+// rechts van het eerste huis (opening links ervan) en een links van het derde (opening rechts ervan): zo zie je hem twee
+// kanten op, met het hekje steeds aan de open kant
+function sbStadDoorgang(){
+  const x0 = world - 400;
+  level.stad = stadLees({ paleis: x0 - 2500, seed: 5,
+    gevels: [ {x: x0 - 500, hoog: 2}, {x: x0 - 1500, hoog: 2, f: 1}, {x: x0 - 2500, hoog: 2} ],
+    galerijen: [ {van: 0, tot: 2, h: 401} ],
+    trappen: [ {gevel: 0, kant: 'r', niveau: 0, balkon: 0}, {gevel: 2, kant: 'l', niveau: 0, balkon: 0} ],
+    kramen: [ {x: x0 - 150, soort: 'riet'} ], voet: [] });
+  stadLaad();
+  sbLagen = 'stad_dag'; lichtMengKey = null; sbLagenToon();
+  flashHint('Doorgang: bij de opening van een trap loopt het dek de diepte in, strak langs het huis');
+  cv.focus();
+}
+document.getElementById('sbdoorgang').onclick = () => sbStadDoorgang();
 // Het plein van Stad 6 in het klein, voor je uit (zie "het plein"): poorten met hek, de vloer, de put en de pleinwand
 function sbPlein(luifel){
   const x0 = world - 600;
