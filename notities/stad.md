@@ -321,8 +321,14 @@ spawns: [ {x: -1100, k: 'bandiet', deur: {gevel: 0, verdieping: 0}},
   ligt nog `uit` (0,9 s) over hem en vervaagt (`stadDeurVoorTeken`, na de vijanden, naast `poortVoorTeken`): hij stapt uit het donker.
 - **Op een verdieping** staat in `gevel.png` een raam. Daar tekent `stadTeken` het deurgat van de begane grond (de latei, de posten en
   het donker, `latei` en `posten`) iets kleiner (`boven`, 0,9) in de plaats van het raam, met de drempel op de vloer en de bovenkant
-  onder de balkenrij. Alleen een verdieping met een deurspawn krijgt die deur (`stadDeurenBoven`). Geen nieuwe plaat: een eigen
-  deurplaat (een open houten deur in het gat) zou het mooier maken, vooral op de straat, maar het open gat leest al goed.
+  onder de balkenrij. Alleen een verdieping met een deurspawn krijgt die deur (`stadDeurenBoven`).
+- **De houten deur**: in elk gat met een deurspawn (straat en verdieping, `stadDeurenAlle`) hangt de houten deur uit de rotswand
+  (`design/deur/`, de frames van `DEUR`), getekend in de ruimte van de gevel (`stadDeurPlaatTeken`). Zijn kozijn (canvas-x 101 tot 351,
+  de voet op 446) valt op dezelfde maat in bronpx op de posten en de latei van `gevel.png`: `plaatX` (247) is waar het canvas begint,
+  de voet valt op de onderrand. Dicht tot de deur opengaat, dan de 20 frames op `DEUR.fps` met op het eind de klap (`deurSlamSpeel`,
+  een kleine shake `schok`), en daarna blijft hij open. De eerste vijand wacht tot de deur open is (`deurWacht` begint op de duur van
+  de frames). Een gespiegeld huis spiegelt de deur mee, met het scharnier rechts. `laadLevel` laadt de frames in een stadslevel met
+  een deurspawn.
 - **De vloer**: op een verdieping komt hij op de galerij of het balkon op die hoogte voor de deur (`stadDeurVloer`, via
   `stadVloerBij`); de spawner krijgt dan `dak` met die hoogte en de rest gaat zoals bij een vijand op een galerij. Zonder vloer komt hij
   niet (`deurGeen`), en ook niet als zijn soort geen galerij kent: op een verdieping alleen `bovenSoorten` (bandiet, schildbandiet,
