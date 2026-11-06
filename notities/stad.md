@@ -422,7 +422,9 @@ ernaast.
 (`EDGE.walk`, rij 95 van de straattegel), terwijl de straat in de tegel vanaf rij 48 naar achteren doorloopt. Daardoor
 stond wie op straat loopt precies op de muurvoet en leek het, vooral op een groot Formaat, of hij op het huis stond of
 ervoor zweefde. Na de gevels, galerijen en poorten (en voor de kramen, de put en het voetdecor, die nu in
-`stadVoorTeken` staan) tekent `stadStoep` de tegel nog een keer, van de looplijn tot `rijen` (36) bronrijen erboven,
-over hun voet heen, met bovenaan `zacht` rijen half doorzichtig en een contactschaduw op de nieuwe muurvoet. Niet over
-een ravijn, en een leemmuur (`look: 'leem'`, een echt terras) komt er gewoon overheen. Alleen het beeld: daken,
-galerijen, deuren en de looplijn houden hun hoogte. Het voetdecor staat tegen de nieuwe muurvoet (`stadStoepH`).
+`stadVoorTeken` staan) tekent `stadStoep` de straat over hun voet heen, tot `diep` (0,16 Amir, minstens de straat
+die al in de tegel zit) boven de looplijn: de tegelrijen van `van` (46, de achterrand) tot de looplijn, over die diepte
+uitgerekt, met een contactschaduw op de nieuwe muurvoet. Zo staan de huizen een stuk naar achteren, met hun onderkant
+achter de vloer, en ligt de straat voor ze open; omdat `diep` in Amir is, groeit die open vloer mee met het Formaat.
+Niet over een ravijn, en een leemmuur (`look: 'leem'`, een echt terras) komt er gewoon overheen. Alleen het beeld:
+daken, galerijen, deuren en de looplijn houden hun hoogte. Het voetdecor staat tegen de nieuwe muurvoet (`stadStoepH`).
