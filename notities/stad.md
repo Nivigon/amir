@@ -50,6 +50,10 @@ tot aan zijn knie.
   komt er dus gewoon voorlangs.
 - Amir telt pas als hij op het dak geland is (`stadKanteelAmir`, gezet als hij op de grond staat): van de straat omhoog
   spring je voor de muur langs, na de landing sta je erachter. Een vijand telt als zijn vloer (`base`) het dak is.
+- Een galerij of trapbalkon hangt voor de gevel. Ligt het dek op dezelfde hoogte als een dak, dan staat wie op het dek
+  staat toch voor de kartels: alleen wie echt op het dak staat, staat erachter.
+- Een dode ligt languit: om hem heen is de strook breder (`STAD.kanteelLijk`, 1,6 Amir), anders steken zijn voeten
+  links of rechts onder de tanden uit.
 - Het dak is 45 lager, dus soms makkelijker te halen: vanaf het rieten dak van een kraam (263) haal je nu het dak van
   een huis van 1 hoog (442), dat lag eerst net buiten een sprong (208).
 - In de sandbox onder Terrein, De stad: **Achter de kartels** (aan of uit, uit is de oude manier met iedereen voor de

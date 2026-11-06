@@ -21220,6 +21220,7 @@ const STAD = {
   // of net op tijd bij het landen geeft de hoge sprong (hoog x jumpV)
   veer: { terug: 0.55, min: 0.45, hoog: 1.75, raam: 0.16, diep: 0.16, duur: 0.55 },
   kanteelBreed: 0.7,                // achter de kartels: de strook rond wie op een dak staat, halve breedte in Amir (stadKanteelVoor)
+  kanteelLijk: 1.6,                 // idem voor een dode: hij ligt languit, dus de strook is breder, anders steken zijn voeten erbuiten
   vijandMarge: 30,                  // een dak is de vloer van een vijand vanaf zoveel onder de looplijn (stadVloerBij)
   vijandNaad: 0.4,                  // een kier tot zoveel Amir tussen twee vloeren op dezelfde hoogte is voor een vijand dicht (stadVloeren)
   // het plein (zie "het plein" in notities/stad.md): de pleinwand achteraan, de put en de poorten met hek
@@ -22895,7 +22896,8 @@ function stadTeken(groundY, scale, cx){
 // Het dak ligt op de balkkoppen (STAD.gevel.dakAchter), niet op de onderkant van de kartels: de muur loopt voor het dak
 // omhoog. Na de personages tekent dit de bovenkant van de gevel (de kartels tot de looplijn) nog een keer, maar alleen
 // in een strook rond wie op dat dak staat (STAD.kanteelBreed). Zo staat Amir of een vijand op het dak achter de tanden,
-// en springt wie op de straat staat er gewoon voorlangs. Amir telt pas als hij op het dak geland is (stadKanteelAmir):
+// en springt wie op de straat staat er gewoon voorlangs. Een galerij of balkon op dezelfde hoogte als een dak hangt voor de
+// gevel: wie daarop staat, staat voor de kartels. Een dode ligt languit, dus om hem heen is de strook breder (kanteelLijk). Amir telt pas als hij op het dak geland is (stadKanteelAmir):
 // van de straat omhoog spring je voor de muur langs, na de landing sta je erachter.
 let stadKanteelAmir = -1;
 function stadGevelTop(m, groundY, scale){                   // de bovenkant van het plaatje van een gevel, in schermpx
@@ -22907,7 +22909,13 @@ function stadKanteelVoor(groundY, scale, cx){
   if (!STAD_KANTEEL || !stadAan() || !stadKlaar('gevel')) return;
   const G = STAD.gevel, im = stadImgs.gevel, gevels = level.stad.gevels || [];
   const half = CHAR_H * scale * STAD.kanteelBreed;
-  const op = (m, x, h) => x > m.left && x < m.right && Math.abs(h - stadGevelH(m.hoog)) < 3;
+  const halfLijk = CHAR_H * scale * STAD.kanteelLijk;
+  // een galerij of trapbalkon hangt voor de gevel: wie daarop staat, staat ervoor, ook als het dek op de hoogte van een dak ligt
+  const voor = [];
+  for (const gl of (level.stad.galerijen || [])){ const q = stadGalerijMaat(gl, scale); if (q) voor.push({ left: q.left, right: q.right, topH: q.h }); }
+  for (const q of stadTrapPlats(scale)) voor.push(q);
+  const opVoor = (x, h) => voor.some(q => x > q.left && x < q.right && Math.abs(h - q.topH) < 3);
+  const op = (m, x, h) => x > m.left && x < m.right && Math.abs(h - stadGevelH(m.hoog)) < 3 && !opVoor(x, h);
   const maten = gevels.map(g => stadGevelMaat(g, scale));
   if (onGround) stadKanteelAmir = maten.findIndex(m => op(m, playerX(), ph));
   const lijsten = [snakes, scorps, panthers, hyenas, bandieten, schildmannen, zweepmannen, kooimannen, meelmannen, kruisbogen, fosforSlangen];
@@ -22916,12 +22924,12 @@ function stadKanteelVoor(groundY, scale, cx){
     if (sx > W / viewZoom() + W || sx + m.w < -W) continue;
     const kol = [];
     if (gi === stadKanteelAmir && !exeAmirWeg()) kol.push(playerX());
-    for (const lijst of lijsten) for (const s of lijst) if (op(m, s.x, s.base || 0)) kol.push(s.x);
+    for (const lijst of lijsten) for (const s of lijst) if (op(m, s.x, s.base || 0)) kol.push(camLeeft(s) ? s.x : { x: s.x, lijk: true });
     if (!kol.length) continue;
     const y0 = stadGevelTop(m, groundY, scale), bh = G.dakAchter * m.f;
     ctx.save();
     ctx.beginPath();
-    for (const x of kol) ctx.rect(cx + (x - world) - half, y0 - 2, half * 2, bh + 2);
+    for (const k of kol){ const x = k.lijk ? k.x : k, hb = k.lijk ? halfLijk : half; ctx.rect(cx + (x - world) - hb, y0 - 2, hb * 2, bh + 2); }
     ctx.clip();
     if (g.f){ ctx.translate(sx + m.w, 0); ctx.scale(-1, 1); } else ctx.translate(sx, 0);
     ctx.drawImage(im, 0, stadQ(im, 0), stadQ(im, 970), stadQ(im, G.dakAchter), 0, y0, m.w, bh);
