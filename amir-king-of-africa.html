@@ -5169,6 +5169,7 @@ const STAD_6 = {
   lagen: 'stad_dag',
   view: 0.8, hpBalk: true, zicht: true, camera: true, rand: 1800,   // de rand ver genoeg achter de start dat de rechterpoort helemaal in beeld komt
   speerInHand: true,
+  muziek: 'stil',                               // geen muziek onder het gevecht met Nyundo
   start: -3500,                                 // links van de put: de luifel hangt aan de andere kant, tegen de toren van de rechterpoort
   brutus: { x: -4400, van: -6400, tot: -2800, huid: 'donker' },   // Nyundo donker (tools/brutus_donker.py)
   stad: {
@@ -5177,7 +5178,8 @@ const STAD_6 = {
     voet: [ {x: -7600, stuk: 'stro'} ],
     pleinpoorten: [ {x: -2300, f: 1, hek: 'dicht', uit: true}, {x: -6900, hek: 'dicht', uit: true} ],
     pleinwanden: [ {x: -4230}, {x: -4870, f: 1} ],
-    putten: [ {x: -3200, luifel: 'r'} ]          // met de luifel rechts: vanaf de balk erop, en schuin terug over het plein
+    putten: [ {x: -3200, luifel: 'r'} ],         // met de luifel rechts: vanaf de balk erop, en schuin terug over het plein
+    luifels: [ {x: -6000, kant: 'l'} ]           // dezelfde luifel gespiegeld tegen de toren van de linkerpoort, zonder put
   },
   grondSoort: [ {van: -1500, tot: -7300, soort: 'plein'} ],
   rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
@@ -21266,6 +21268,8 @@ function stadLees(o){
            // het plein: de pleinwand (x is het midden), de put (x het midden) en de poorten met hek (x het midden; hek 'open' of 'dicht')
            pleinwanden: (o.pleinwanden || []).map(q => ({ x: n(q.x), f: q.f ? 1 : 0 })),
            putten: (o.putten || []).map(q => ({ x: n(q.x), f: q.f ? 1 : 0, ...(q.luifel === 'l' || q.luifel === 'r' ? { luifel: q.luifel } : {}) })),
+           // een losse luifel zonder put: x is waar het midden van de put zou staan, kant 'l' of 'r' zoals luifel bij een put
+           luifels: (o.luifels || []).filter(q => q.kant === 'l' || q.kant === 'r').map(q => ({ x: n(q.x), luifel: q.kant })),
            pleinpoorten: (o.pleinpoorten || []).map(q => ({ x: n(q.x), f: q.f ? 1 : 0, hek: q.hek === 'open' || q.hek === 'dicht' ? q.hek : null, ...(q.uit ? { uit: true } : {}) })) };
 }
 function stadLaadLevel(lv){ if (lv && (lv.stad || (lv.terraces || []).some(t => t.look === 'leem') || (lv.grondSoort || []).some(g => g.soort === 'straat' || g.soort === 'plein'))) stadLaad(); }
@@ -21380,16 +21384,9 @@ function stadPlats(scale){
     const [rl, rr] = span(P.randL, P.randR), [bl, br] = span(P.balkL, P.balkR);
     out.push({ x: (rl + rr) / 2, left: rl, right: rr, topH: eh(P.rand), base: eh(P.rand), wPx: rr - rl, hPx: 0, thin: true, stad: 'putrand' });
     out.push({ x: (bl + br) / 2, left: bl, right: br, topH: eh(P.balk), base: eh(P.balk), wPx: br - bl, hPx: 0, thin: true, stad: 'putbalk' });
-    // de luifel: de schuine doek in smalle stukken, elk op zijn eigen hoogte; wie erop landt wordt weggeworpen
-    if (p.luifel){
-      const lm = stadLuifelMaat(p, scale), O = lm.L.opp;
-      for (let j = 0; j + 1 < O.length; j++){
-        const a = lm.bx(O[j][0]), b = lm.bx(O[j + 1][0]), l = Math.min(a, b), r = Math.max(a, b);
-        const hh = lm.bh((O[j][1] + O[j + 1][1]) / 2);
-        out.push({ x: (l + r) / 2, left: l, right: r, topH: hh, base: hh, wPx: r - l, hPx: 0, thin: true, stad: 'luifel', luifel: lm, put: p });
-      }
-    }
+    if (p.luifel) stadLuifelPlats(p, scale, out);
   }
+  for (const p of (S.luifels || [])) if (bij(p.x)) stadLuifelPlats(p, scale, out);   // de losse luifels, zonder put
   return out;
 }
 
@@ -21563,6 +21560,16 @@ function stadVeer(p, vIn){
   return true;
 }
 // ---- de luifel bij de put ----
+// de luifel in stadPlats: de schuine doek in smalle stukken, elk op zijn eigen hoogte; wie erop landt wordt weggeworpen.
+// p is een put met luifel, of een losse luifel uit stad.luifels (dan staat er geen put onder).
+function stadLuifelPlats(p, scale, out){
+  const lm = stadLuifelMaat(p, scale), O = lm.L.opp;
+  for (let j = 0; j + 1 < O.length; j++){
+    const a = lm.bx(O[j][0]), b = lm.bx(O[j + 1][0]), l = Math.min(a, b), r = Math.max(a, b);
+    const hh = lm.bh((O[j][1] + O[j + 1][1]) / 2);
+    out.push({ x: (l + r) / 2, left: l, right: r, topH: hh, base: hh, wPx: r - l, hPx: 0, thin: true, stad: 'luifel', luifel: lm, put: p });
+  }
+}
 // Erop staan kan niet: wie erop landt, wordt meteen schuin van de paal af weggeworpen. Omhoog gaat het als een sprong
 // (pvh), opzij met een eigen vaart (stadLuifelVx, in wereld-px per seconde) die blijft tot hij weer ergens staat.
 let stadLuifelVx = 0;
@@ -22979,7 +22986,9 @@ function stadPleinPoortTeken(groundY, scale, cx, zicht){
     straatBordje(cx + (bij.x - world), groundY - terrainH(bij.x) * scale - (m.R.h - m.R.boogTop) * m.f - A * 0.25, 'Het plein verlaten?  E', true, A); }   // net boven de boog
 }
 function stadPutTeken(groundY, scale, cx, zicht){
-  const S = level.stad; if (!(S.putten || []).length || !stadKlaar('put')) return;
+  const S = level.stad;
+  for (const p of (S.luifels || [])) stadLuifelTeken(p, groundY, scale, cx, zicht);   // de losse luifels, zonder put
+  if (!(S.putten || []).length || !stadKlaar('put')) return;
   const im = stadImgs.put;
   for (const p of S.putten){
     const m = stadPutMaat(p, scale), sx = cx + (m.left - world);
@@ -38745,7 +38754,8 @@ const MUZIEK = {
   darkafrica: { src: 'music/darkafrica.mp3', vol: 0.30 },
   markt:      { src: 'music/marketshadows.mp3', vol: 0.30 },   // Market Shadows: de muziek onder elk stadlevel
   stad:       { src: 'music/tensegrounding.mp3', vol: 0.30 },  // Tense Grounding: de eerdere stadmuziek, een level kiest het met muziek: 'stad'
-  stadgeluid: { src: 'music/citysounds.mp3', vol: 0.30 }     // de geluiden van de stad, zonder muziek; een level kiest het met muziek: 'stadgeluid'
+  stadgeluid: { src: 'music/citysounds.mp3', vol: 0.30 },    // de geluiden van de stad, zonder muziek; een level kiest het met muziek: 'stadgeluid'
+  stil:       { src: '', vol: 0, stil: true }                 // geen muziek: een level kiest het met muziek: 'stil' (Stad 6, het gevecht met Nyundo)
 };
 const MUZIEK_BASIS = 'darkafrica';
 const MUZIEK_STAD = 'markt';                      // een level met stad en zonder eigen muziek krijgt dit
@@ -38763,6 +38773,7 @@ function zetMuziek(){
   if (k === muziekNu) return;
   muziekNu = k;
   bg.pause();
+  if (MUZIEK[k].stil) return;                     // stil: de muziek blijft uit tot een level met muziek
   bg.src = MUZIEK[k].src; bg.volume = MUZIEK[k].vol;
   try { bg.currentTime = 0; } catch (e) {}
   if (wantSound && started) bg.play().catch(() => { started = false; });
@@ -38773,6 +38784,7 @@ function setLabel(){
 }
 function tryPlay(){
   if (!wantSound || started) return;
+  if (MUZIEK[muziekNu].stil){ started = true; startKing(); return; }   // niets te spelen, wel klaar voor het volgende nummer
   bg.volume = MUZIEK[muziekNu].vol;
   bg.play().then(() => { started = true; }).catch(() => {});
   startKing();
