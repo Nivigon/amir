@@ -46,6 +46,8 @@ paar lege in de roverskampen van Valse Koning 2 en 5 (met toestemming, regel 1).
   op het scherm wordt in de wereldlaag gezet (`tonLensPlaats`, met de zoom erin); getekend wordt na de balken van de
   opening (`tonLensTeken`, na `bruIntroTeken`), in schermcoördinaten, zodat het niet met de wereld mee schudt. In het
   gevecht zelf blijft het de oude manier: een stuk op de lens zou het zicht wegnemen.
+- **Kapot is kapot**: wat Nyundo breekt (`tonBruut`) onthoudt `tonKapot` (per level, per sessie, de index in `level.tonnen`),
+  en `tonReset` zet die na een dood niet terug. Wat Amir breekt komt bij een nieuwe poging gewoon weer heel terug.
   Sandbox: De stad, **Tonnen naar de lens** (`sbtonlens`): drie tonnen die na `lensT` (1,2 s) in een klap gaan, met de lens.
 - Een ton op een ton valt als de onderste weg is (`tonStap`), met een tik en wat stof.
 - Hooguit `TON.max` losse stukken; daarna vervaagt de oudste.
