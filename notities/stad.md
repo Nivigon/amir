@@ -451,7 +451,8 @@ spawns: [ {x: -1100, k: 'bandiet', deur: {gevel: 0, verdieping: 0}},
   (`design/deur/`, de frames van `DEUR`), getekend in de ruimte van de gevel (`stadDeurPlaatTeken`). Zijn kozijn (canvas-x 101 tot 351,
   de voet op 446) valt op dezelfde maat in bronpx op de posten en de latei van `gevel.png`: `plaatX` (247) is waar het canvas begint,
   de voet valt op de onderrand. Dicht tot de deur opengaat, dan de 20 frames op `DEUR.fps` met op het eind de klap (`deurSlamSpeel`,
-  een kleine shake `schok`), en daarna blijft hij open. De eerste vijand wacht tot de deur open is (`deurWacht` begint op de duur van
+  een kleine shake `schok`; het geluid gaat door een versterker, `SFX_SLAM.vol`, met drie stemmen en de muziek die even wijkt, zodat hij
+  in elk level boven de muziek uitkomt), en daarna blijft hij open. De eerste vijand wacht tot de deur open is (`deurWacht` begint op de duur van
   de frames). Een gespiegeld huis spiegelt de deur mee, met het scharnier rechts. Het grijze hout krijgt een warme tint (`warm`, multiply, een keer per frame in
   `stadDeurWarm`), de latei van de gevel valt over de bovenbalk van het kozijn met een zachte schaduw eronder, zodat de deur in de
   leem zit, en het donker over wie eruit stapt ligt alleen in de opening van de open deur (`opening`, via `stadDeurMaat(d, scale, gat)`). `laadLevel` laadt de frames in een stadslevel met
