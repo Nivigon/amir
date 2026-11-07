@@ -1667,6 +1667,7 @@
         <button id="sbstaddak">Bandiet op het dak</button>
         <button id="sbkanteel">Achter de kartels: aan</button>
         <button id="sbslag">Slagschaduw: aan</button>
+        <button id="sbvolk">Stadsvolk</button>
         <button id="sbdeurstraat">Uit de deur</button>
         <button id="sbdeurboven">Uit de deur boven</button>
         <button id="sbplein">Het plein</button>
@@ -4932,7 +4933,10 @@ const STAD_1 = {
     voet: [ {x: -1250, stuk: 'zandhoop'}, {x: -1500, stuk: 'kruik'}, {x: -2050, stuk: 'stenen'}, {x: -3500, stuk: 'bakstenen'},
             {x: -3900, stuk: 'zandhoop', f: 1}, {x: -4250, stuk: 'stro'}, {x: -4550, stuk: 'puin'}, {x: -5550, stuk: 'scherven'},
             {x: -6100, stuk: 'zandhoop'}, {x: -6450, stuk: 'stro'}, {x: -7350, stuk: 'kruik'}, {x: -8250, stuk: 'zandhoop', f: 1},
-            {x: -8600, stuk: 'stenen'} ]
+            {x: -8600, stuk: 'stenen'} ],
+    // het stadsvolk op de stoep (zie "stadsvolk"): een verkoopster achter de eerste kraam, iemand bij de deur, een bij de doek
+    volk: [ {x: -830, k: 'dorpelinge', kleur: 'rood', f: 1}, {x: -1560, k: 'dorpeling', kleur: 'blauw'},
+            {x: -2030, k: 'dorpelinge', kleur: 'groen'}, {x: -7900, k: 'dorpeling', kleur: 'wit', f: 1} ]
   },
   // de lift naar de galerij: het onderste wiel op de straat, het plateau links ervan tegen het rechtereind van de
   // lange galerij (galerij: 1, zie "lift bij een galerij"): het spel schuift het plateau en de wielen op elk scherm
@@ -5131,6 +5135,10 @@ const SAND_STAD = {
     {x: -49750, stuk: 'bakstenen'}, {x: -51400, stuk: 'stro'}, {x: -52950, stuk: 'zandhoop'}, {x: -54100, stuk: 'kruik', f: 1},
     {x: -65800, stuk: 'kruik'}, {x: -67500, stuk: 'scherven'}, {x: -69760, stuk: 'zandhoop'}, {x: -70500, stuk: 'stenen', f: 1},
     {x: -81150, stuk: 'zandhoop'}, {x: -83600, stuk: 'stenen'}, {x: -85500, stuk: 'puin', f: 1}, {x: -86900, stuk: 'kruik'} ],
+  // het stadsvolk (zie "stadsvolk"): aan de rustige uiteinden van de Kuiperstraat (op het kruispunt wordt gevochten), en in de Pottenbakkersstraat
+  volk: [ {x: -1250, k: 'dorpeling', kleur: 'wit'}, {x: -1500, k: 'dorpelinge', kleur: 'groen', f: 1},
+    {x: -7350, k: 'dorpelinge', kleur: 'oker'}, {x: -7600, k: 'dorpeling', kleur: 'indigo', f: 1},
+    {x: -66850, k: 'dorpelinge', kleur: 'rood'}, {x: -68300, k: 'dorpeling', kleur: 'blauw', f: 1} ],
 };
 const SAND_TERRAS = [
   {r: -200, l: -500, h: 1800, look: 'leem'}, {r: -7900, l: -8200, h: 1800, look: 'leem'},
@@ -17898,22 +17906,25 @@ function updateNpcs(dt){
   if (!level || !level.npcs) return;
   for (const n of level.npcs){
     const d = NPCS[n.kind];
-    if (!d || !d.cycli) continue;
-    if (!n.cyc || !d.cycli[n.cyc]) npcStart(d, n, d.begin);
-    const c = d.cycli[n.cyc];
-    if (c.loop && c.daarna){
-      n.wacht -= dt;
-      if (n.wacht <= 0){ npcStart(d, n, c.daarna); continue; }
-    }
-    n.acc += dt * d.fps;
-    while (n.acc >= 1){
-      n.acc -= 1;
-      n.fr++;
-      if (n.fr < c.frames.length) continue;
-      if (c.loop){ n.fr = 0; continue; }
-      npcStart(d, n, c.daarna);                  // eenmalig: hierna meteen de volgende reeks
-      break;
-    }
+    if (d && d.cycli) npcStap(d, n, dt);
+  }
+}
+// een stap van de animatie van een dorpeling (ook voor het stadsvolk, volkUpdate)
+function npcStap(d, n, dt){
+  if (!n.cyc || !d.cycli[n.cyc]) npcStart(d, n, d.begin);
+  const c = d.cycli[n.cyc];
+  if (c.loop && c.daarna){
+    n.wacht -= dt;
+    if (n.wacht <= 0){ npcStart(d, n, c.daarna); return; }
+  }
+  n.acc += dt * d.fps;
+  while (n.acc >= 1){
+    n.acc -= 1;
+    n.fr++;
+    if (n.fr < c.frames.length) continue;
+    if (c.loop){ n.fr = 0; continue; }
+    npcStart(d, n, c.daarna);                    // eenmalig: hierna meteen de volgende reeks
+    break;
   }
 }
 function curlReady(){ return scp.curl.length > 0 && scp.curl.every(i => i.complete && i.naturalWidth); }
@@ -21826,9 +21837,12 @@ function stadLees(o){
            putten: (o.putten || []).map(q => ({ x: n(q.x), f: q.f ? 1 : 0, ...(q.luifel === 'l' || q.luifel === 'r' ? { luifel: q.luifel } : {}) })),
            // een losse luifel zonder put: x is waar het midden van de put zou staan, kant 'l' of 'r' zoals luifel bij een put
            luifels: (o.luifels || []).filter(q => q.kant === 'l' || q.kant === 'r').map(q => ({ x: n(q.x), luifel: q.kant })),
+           // het stadsvolk op de stoep (zie "stadsvolk"): k een dorpeling uit NPCS, kleur uit STAD_VOLK.kleuren
+           volk: (o.volk || []).filter(q => NPCS[q.k]).map(q => ({ x: n(q.x), k: q.k, kleur: STAD_VOLK.kleuren[q.kleur] !== undefined ? q.kleur : 'blauw', f: q.f ? 1 : 0 })),
            pleinpoorten: (o.pleinpoorten || []).map(q => ({ x: n(q.x), f: q.f ? 1 : 0, hek: q.hek === 'open' || q.hek === 'dicht' ? q.hek : null, ...(q.uit ? { uit: true } : {}) })) };
 }
-function stadLaadLevel(lv){ if (lv && (lv.stad || (lv.terraces || []).some(t => t.look === 'leem') || (lv.zwevers || []).some(z => z.look === 'hout') || (lv.grondSoort || []).some(g => g.soort === 'straat' || g.soort === 'plein'))) stadLaad(); }
+function stadLaadLevel(lv){ if (lv && lv.stad) volkLaad(lv.stad);
+  if (lv && (lv.stad || (lv.terraces || []).some(t => t.look === 'leem') || (lv.zwevers || []).some(z => z.look === 'hout') || (lv.grondSoort || []).some(g => g.soort === 'straat' || g.soort === 'plein'))) stadLaad(); }
 // bronpixels van de grote set naar het plaatje dat er echt is (klein/ is de helft)
 const stadQ = (im, v) => v / (im._bron || 1);
 // Een bewerkte kopie, een keer per plaatje: f(r, g, b) geeft [r, g, b]
@@ -23865,6 +23879,7 @@ function stadVoorTeken(groundY, scale, cx){
   const S = level.stad;
   const zicht = (sx, w) => !(sx > W / viewZoom() + W || sx + w < -W);
   stadSlagStraat(groundY, scale, cx);            // slagschaduwen op de straat: de huizen en de kramen
+  volkTeken(groundY, scale, cx);                 // het stadsvolk op de stoep: achter de kramen en de straat (zie "stadsvolk")
   // kramen: iets rustiger voorgebakken; de doek buigt mee als je erop landt
   (S.kramen || []).forEach((k, i) => {
     const soort = k.soort === 'doek' ? 'doek' : 'riet';
@@ -23915,6 +23930,91 @@ function stadVoorTeken(groundY, scale, cx){
       else ctx.drawImage(c, sx, gy - h + 2, w, h);
       ctx.restore();
     }
+  }
+}
+
+// ---- stadsvolk: mensen op de stoep die niet meedoen met het gevecht ----
+// stad.volk: [{x, k, kleur, f}]. De dorpelingen uit NPCS (k 'dorpelinge' of 'dorpeling', met hun eigen animatie), in de
+// stad op de stoep: de voeten op `stoep` van de stoepdiepte boven de looplijn, dus voor de muurvoet en achter de straat
+// waar Amir en de vijanden lopen. Getekend na de slagschaduw op de straat en voor de kramen, iets kleiner (`maat`), iets
+// donkerder (`licht`) en met wat waas, zodat ze achtergrond blijven. Ze horen niet waar gevochten wordt: komt er een
+// levende vijand binnen `weg` van iemand, dan vervaagt hij (`vervaag` s), en na `terug` s rust komt hij terug.
+// kleur: het blauw van de kleren omgekleurd (`kleuren`), zodat twee sprites niet als twee sprites ogen.
+const STAD_VOLK = {
+  stoep: 0.6, maat: 0.72, licht: 0.8, waas: 0.12, waasKleur: [205, 170, 120],
+  weg: 1100, vervaag: 0.7, terug: 6,
+  // per kleur: tint (graden) van het blauw, verzadiging en helderheid erbij; wit maakt het blauw licht en kleurloos
+  kleuren: { blauw: null, rood: { h: 6, s: 0.95, v: 1.05 }, groen: { h: 95, s: 0.7, v: 0.85 },
+             indigo: { h: 238, s: 1, v: 0.6 }, oker: { h: 36, s: 0.8, v: 1 }, wit: { wit: true } }
+};
+const volkStaat = new WeakMap();                     // per figuur: de animatie en hoe zichtbaar hij is
+function volkLijst(){ return stadAan() && level.stad.volk ? level.stad.volk : []; }
+function volkLaad(st){ for (const q of (st && st.volk) || []) npcLaad(q.k); }
+// het blauw van de kleren naar de kleur, plus het licht en de waas (een keer per plaatje en kleur, via stadBak)
+function volkKleur(kl){
+  const K = STAD_VOLK.kleuren[kl] || null, V = STAD_VOLK, w = V.waas, wk = V.waasKleur;
+  return (r, g, b) => {
+    if (K){
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, v = mx / 255, s = mx ? d / mx : 0;
+      let h = 0;
+      if (d){ h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; if (h < 0) h += 360; }
+      if (h > 170 && h < 265 && s > 0.18){
+        let H2 = h, S2 = s, V2 = v;
+        if (K.wit){ S2 = 0.07; V2 = Math.min(1, 0.35 + v * 1.3); }
+        else { H2 = K.h; S2 = Math.min(1, s * K.s); V2 = Math.min(1, v * K.v); }
+        const c = V2 * S2, x = c * (1 - Math.abs((H2 / 60) % 2 - 1)), m = V2 - c, i = Math.floor(H2 / 60) % 6;
+        const t = [[c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x]][i];
+        r = (t[0] + m) * 255; g = (t[1] + m) * 255; b = (t[2] + m) * 255;
+      }
+    }
+    return [r * V.licht * (1 - w) + wk[0] * w, g * V.licht * (1 - w) + wk[1] * w, b * V.licht * (1 - w) + wk[2] * w];
+  };
+}
+const volkBakken = new WeakMap();
+function volkBeeld(fr, kl){
+  let m = volkBakken.get(fr); if (!m) volkBakken.set(fr, m = {});
+  if (!m[kl]){
+    try { m[kl] = stadBak(fr, fr.naturalWidth, fr.naturalHeight, volkKleur(kl)); }
+    catch (e){ m[kl] = fr; }                         // geen pixels te lezen (file://): dan het plaatje zoals het is
+  }
+  return m[kl];
+}
+function volkRustig(x){
+  const V = STAD_VOLK;
+  // een vijand telt pas als het gevecht er is: dicht bij deze figuur en ook dicht bij Amir (een wachtende vijand verderop niet)
+  const bij = s => camLeeft(s) && Math.abs(s.x - x) < V.weg && Math.abs(s.x - world) < V.weg;
+  for (const lijst of [snakes, scorps, panthers, hyenas, bandieten, schildmannen, kooimannen, meelmannen, kruisbogen, fosforSlangen, zweepmannen])
+    for (const s of lijst) if (bij(s)) return false;
+  if (brutus && bij(brutus)) return false;
+  return true;
+}
+function volkUpdate(dt){
+  const V = STAD_VOLK;
+  for (const q of volkLijst()){
+    let st = volkStaat.get(q); if (!st) volkStaat.set(q, st = { a: 1, rust: V.terug });
+    const d = NPCS[q.k];
+    if (d && d.cycli) npcStap(d, st, dt);
+    if (!volkRustig(q.x)){ st.rust = 0; st.a = Math.max(0, st.a - dt / V.vervaag); }
+    else { st.rust += dt; if (st.rust >= V.terug || st.a >= 1) st.a = Math.min(1, st.a + dt / V.vervaag); }
+  }
+}
+function volkTeken(groundY, scale, cx){
+  const V = STAD_VOLK, D = stadStoepH(scale), now = performance.now() / 1000;
+  for (const q of volkLijst()){
+    const d = NPCS[q.k], st = volkStaat.get(q); if (!d || !st || st.a <= 0.01) continue;
+    const ns = npcSize(q.k, scale, V.maat), nx = cx + (q.x - world) - ns.w / 2;
+    if (nx > W / viewZoom() + W || nx + ns.w < -W) continue;
+    const fr = d.cycli ? npcFrame(d, st) : d.frames[Math.floor(now * d.fps + Math.abs(q.x) * 0.013) % d.frames.length];
+    if (!fr || !fr.complete || !fr.naturalWidth) continue;
+    const th = terrainH(q.x), voet = groundY - th * scale - (th ? 0 : D * V.stoep);
+    ctx.save();
+    ctx.globalAlpha = st.a * 0.28; ctx.fillStyle = '#28180c';      // contactschaduw op de stoep
+    ctx.beginPath(); ctx.ellipse(nx + ns.w / 2, voet, ns.w * 0.3, Math.max(2, ns.h * 0.018), 0, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = st.a;
+    ctx.translate(nx, voet - ns.ground);
+    if (q.f){ ctx.translate(ns.w, 0); ctx.scale(-1, 1); }
+    ctx.drawImage(volkBeeld(fr, q.kleur || 'blauw'), 0, 0, ns.w, ns.h);
+    ctx.restore();
   }
 }
 
@@ -38418,6 +38518,7 @@ function loop(now){
   updateThickets(dt);
   tonStap(dt);                                     // de tonnen: trillen, vallen, en de losse stukken
   updateNpcs(dt);                                // de dorpelinge hurkt en staat weer op
+  volkUpdate(dt);                                // het stadsvolk: animatie, en weg als er gevochten wordt
   updateHppotions(dt, scaleNow);
   updateHppotionFx(dt);
   vegDt = dt; vegTick++;
@@ -48416,6 +48517,19 @@ function sbStad(){
   cv.focus();
 }
 document.getElementById('sbstad').onclick = () => sbStad();
+// het stadsvolk (zie "stadsvolk" in notities/stad.md): vijf dorpelingen in vijf kleuren op de stoep voor je uit. Zet er
+// een vijand bij en ze vervagen; na een paar rustige seconden komen ze terug
+function sbVolk(){
+  if (!stadAan()) sbStad();
+  const x = world;
+  level.stad.volk = stadLees({ volk: [ {x: x - 330, k: 'dorpelinge', kleur: 'rood', f: 1}, {x: x - 620, k: 'dorpeling', kleur: 'blauw'},
+    {x: x - 1150, k: 'dorpelinge', kleur: 'groen'}, {x: x - 1700, k: 'dorpeling', kleur: 'wit', f: 1},
+    {x: x - 2300, k: 'dorpelinge', kleur: 'indigo'} ] }).volk;
+  volkLaad(level.stad);
+  flashHint('Stadsvolk: op de stoep, weg als er gevochten wordt');
+  cv.focus();
+}
+document.getElementById('sbvolk').onclick = () => sbVolk();
 // een huis met een binnenkant (zie "binnen"): een gevel voor je uit, en ver weg zijn binnenkant met een verdieping en een ladder
 document.getElementById('sbbinnen').onclick = () => {
   const x0 = world - 400, R = -60000;
