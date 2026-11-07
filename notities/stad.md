@@ -226,6 +226,63 @@ Zo maak je een straat doodlopend (een hoge muur), een lage muur om op te springe
 erop staan (`terrainH`). Stad 2 heeft er een lage tussen de twee straten; in de sandbox onder De stad **Lage leemmuur**
 en **Doodlopend**. Beide plaatjes zijn uit de gevel gemaakt (geen nieuwe art).
 
+## De houten vloer
+
+`look: 'hout'` (in `savanneLaag`), `design/stad/binnen/vloer_hout.png`
+
+De vloer van een huis, om een huis met verdiepingen te bouwen: een zwevende laag met `look: 'hout'`,
+`zwevers: [{r, l, h, onder, look: 'hout'}]`. De botsing is precies die van een zwever (zie `notities/savannelaag.md`): je
+landt erop, loopt eronderdoor als er ruimte is (`CHAR_H`), en stoot er je kop aan. Getekend door `savanneLaag`, net als een
+savannelaag, maar met de houten tegel: planken bovenop, een dikke plank en een rij balkkoppen eronder. De tegel (Grok, naadloos
+gemaakt met twaalf balkkoppen) heeft de rijen van de grondrand: bovenvlak van rij 10 tot 95, de looplijn op 95, de voorkant
+tot 305. Een zwevende houten vloer schaalt de tegel naar zijn eigen dikte (`h - onder`), zodat de balkkoppen altijd onderaan
+zitten. Het plafond van de kamer eronder en de vloer van de kamer erboven zijn zo dezelfde plaat.
+
+- Het plaatje zit in de stadsset (`stadLaad`, sleutel `hout`) en laadt mee zodra een level een houten vloer heeft
+  (`stadLaadLevel`).
+- Een vijand loopt erop zoals op elke zwever. Liggen er twee boven elkaar (vloer en plafond), dan staat hij op de onderste
+  waar hij hoort: `vloerBij` kijkt na de oude regel (de hoogste laag) ook naar een lagere houten vloer. Een spawn met
+  `vloer: 450` staat bij het begin op die hoogte (bandiet).
+- In de Maker: **Vloer: hout** (Terrein, groep Stad, letter B; intern nog `balken`). Een blok boven de grondlijn wordt een
+  zwever met deze look. In de sandbox onder De stad **Houten vloer**.
+- De oude balkenvloer (`look: 'balken'`, een losse strook) is weg.
+
+## Binnen: de binnenkant van een huis
+
+`BINNEN`, `binnenBij`, `binnenEBij`, `binnenE`, `binnenKlem`, `binnenCamKlem`, `binnenVijandKlem`, `binnenAchter`, `binnenNa`,
+`binnenLadder`, `binnenLaadLevel`
+
+```
+binnen: [{ gevel, r, l, deur, ramen: [{x, h}], palen: [{x, h}], ladders: [{x, van, naar, f}] }]
+```
+
+Elk huis met een binnenkant is een eigen strook ver van de straat (van `r` tot `l`, in Stad 7 op -20000, -30000 en -40000).
+
+- **In en uit**: voor het deurgat van gevel `gevel` (`stadDeurMaat`, verdieping 0) staat een E; E en het beeld wordt even
+  zwart (`BINNEN.fade`, via `stadTrapFade` met `binnen: true`: de camera springt mee, geen glijvlucht) en je staat binnen bij
+  de boogdeur (`deur`, een wereld-x op de begane grond). E bij die deur en je staat weer buiten voor het deurgat. Niet in een
+  gevecht (`stadInGevecht`), net als de stadstrap.
+- **De ladder** werkt als de stadstrap: E bij de voet of bovenaan, het beeld dimt even en je staat aan de andere kant; niet
+  in een gevecht. De voet staat op `x` op vloer `van`, de top leunt naar links (met `f` naar rechts) en `binnenLadder` geeft
+  waar hij uitkomt: de rand van de vloer erboven hoort daar (in Stad 7 ligt die 125 voorbij de voet bij een verdieping van 450).
+- **Vast in het huis**: Amir (`binnenKlem`, in plaats van de klif), de camera (`binnenCamKlem`) en de vijanden
+  (`binnenVijandKlem`) blijven tussen `l` en `r`. Binnen geeft `endWall()` geen grens, anders hielden de botsingen van de
+  vijanden ze tegen (het huis ligt voorbij de klif van de straat).
+- **Vijanden**: een spawn in een huis komt pas als Amir in dat huis is, en dan meteen, op zijn eigen plek (`spawnPoint`
+  duwt hem niet naar buiten beeld); dus allemaal tegelijk, al tijdens de fade.
+- **Tekenen**: `binnenAchter` (voor de zwevers) tekent de binnenmuur (`binnen/wand.jpg`, getegeld en vast aan de wereld, tot
+  het hoogste plafond; daarboven donker), een plint langs elke vloer, de ramen (`raam_1.png`), de gevorkte palen (`paal_1..5`,
+  de vork en de voet op maat, de stam ertussen herhaald tot onder het plafond, `binnenPlafond`), de ladders (`ladder_1..3`) en
+  de boogdeur (`deur.png`). `binnenNa` (na de zwevers, voor de personages) legt het schemer over alles (`BINNEN.donker`, de
+  personages blijven helder), donkere zijmuren, en dan het licht: het glas gloeit, een lichtbundel valt schuin naar de vloer
+  (`BINNEN.bundel`) met een lichtvlek, en stofjes zweven door de kamer (`BINNEN.stof`), zacht in het schemer en helder in een
+  bundel. Buiten tekent hij alleen de E bij het deurgat.
+- `levelcheck.py` kent de stroken (`binnen_strook`): wat erin staat is niet "voorbij het einde", en tussen de zwevers van twee
+  huizen hoeft niet gesprongen te worden.
+
+Stad 7: Binnen is het proefstuk (drie huizen: een zaal op palen, en twee met een verdieping en een ladder, een keer gespiegeld).
+In de sandbox onder De stad: **Huis met binnenkant**.
+
 ## Straten en knooppunten (Sandville)
 
 `straatRaster`, `straatUitgangen`, `straatKnoopX`, `straatUitgangBij`, `straatKnoopGa`, `straatKnoopToets`, `straatGevelX`,
