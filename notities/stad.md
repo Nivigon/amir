@@ -331,6 +331,10 @@ spawns: [ {x: -1100, k: 'bandiet', deur: {gevel: 0, verdieping: 0}},
 - **Op een verdieping** staat in `gevel.png` een raam. Daar tekent `stadTeken` het deurgat van de begane grond (de latei, de posten en
   het donker, `latei` en `posten`) iets kleiner (`boven`, 0,9) in de plaats van het raam, met de drempel op de vloer en de bovenkant
   onder de balkenrij. Alleen een verdieping met een deurspawn krijgt die deur (`stadDeurenBoven`).
+- **Een deur op elk huis**: elk huis heeft op de straat een houten deur, ook zonder deurspawn; die is dicht. Een open
+  deur is de uitzondering: per huis vast (de seed van de stad en de index, `stadDeurVanzelfOpen`) staat zo'n een op de zeven
+  open (`STAD_DEUR.openKans`, 0,15), op het laatste frame. Een deur met een spawn volgt gewoon zijn eigen staat hieronder.
+  `warmBouw` laadt de deurframes daarom in elk level met gevels.
 - **De houten deur**: in elk gat met een deurspawn (straat en verdieping, `stadDeurenAlle`) hangt de houten deur uit de rotswand
   (`design/deur/`, de frames van `DEUR`), getekend in de ruimte van de gevel (`stadDeurPlaatTeken`). Zijn kozijn (canvas-x 101 tot 351,
   de voet op 446) valt op dezelfde maat in bronpx op de posten en de latei van `gevel.png`: `plaatX` (247) is waar het canvas begint,
