@@ -19657,6 +19657,7 @@ function weerGeluid(regen, storm, onder){
   const nu = performance.now() / 1000, dt = weerKlok === null ? 0 : Math.min(0.2, nu - weerKlok);
   weerKlok = nu;                                      // op de klok, want in de pauze staat dt stil
   const aan = wantSound && running && !paused && !won;
+  if (brutus && brutus.fase !== 'lig') storm = Math.max(storm, BRU.wind);   // het gevecht met Nyundo: een constante wind eronder
   const demp = 1 - 0.75 * onder;
   const doel = { regen: aan ? regen * demp : 0, storm: aan ? storm * demp : 0 };
   for (const k in weerVol) weerVol[k] += (doel[k] - weerVol[k]) * Math.min(1, dt * (aan ? 1.5 : 6));
@@ -31509,6 +31510,10 @@ const BRU = {
                      { naam: 'snee_dwars', x: -45, y: -150, h: 70, rot: 0.2 }, { naam: 'snee_haal', x: 30, y: -250, h: 75, rot: -0.9 },
                      { naam: 'snee_recht', x: -15, y: -200, h: 95, rot: 1.1 } ] },
   knotsLig: 1.72, valKlap: 104,    // de losse knots kantelt tot deze hoek (rad); in de val is het frame met bron >= valKlap de klap op de grond
+  // zo zwaar is de knots: bij de klap zakt hij zak grote-set-px in de vloer, in tijd s (eerst hard, dan nog wat na),
+  // en wat onder de vloerlijn (rand px onder zijn voeten) komt is weg; een donkere deuk eromheen en een barst eronder
+  knotsZak: { zak: 36, tijd: 0.35, rand: 10, deuk: 0.5 },
+  wind: 0.25,                      // tijdens het gevecht een constante wind eronder (als deel van de zandstorm, zie weerGeluid)
   // de woede (vanaf woedeHp): hij gloeit rood op, op het ritme van zijn adem, met een rode gloed om zijn silhouet,
   // een rode plas licht op de vloer en vonken die van zijn schouders opstijgen. Bij de omslag een klap: een felle
   // flits, een schok en een korte hitstop. Tijden in s, maten in grote-set-pixels (zie bruGloedStap, bruGloedBeeld)
@@ -32419,9 +32424,11 @@ function bruDoodStap(s, dt){
     K.v += 11 * dt; K.hoek = Math.min(BRU.knotsLig, K.hoek + K.v * dt);
     if (K.hoek >= BRU.knotsLig){ banStemSpeel(bruGeluid.plof, BRU.vol.knots); shake = Math.max(shake, 0.12);
       const kn = bruData.knots, gs = bruScale();
+      K.zakT = 0; bruSchadeErbij(s, s.x - s.face * (kn.dx + kn.w / 2) * gs, 3);   // hij slaat een deuk in de vloer
       for (let i = 0; i < 10; i++) bruStofDeeltje(s, { wx: s.x - s.face * (kn.dx + kn.w / 2 - Math.random() * kn.h) * gs, y: -Math.random() * 8,
         vx: (Math.random() - 0.5) * 240, vy: -60 - Math.random() * 140, r: 20 + Math.random() * 22, life: 0.6 + Math.random() * 0.5, a: 0.7 }); }
   }
+  if (K && K.zakT !== undefined) K.zakT = Math.min(1, K.zakT + dt / BRU.knotsZak.tijd);
   if (s.fase === 'lig' || !bruData) return;
   if (bruFinale()) invuln = Math.max(invuln, 0.25);        // Amir kan niet geraakt worden zolang het duurt
   const D = bruData.bewegingen[s.fase]; if (!D){ s.fase = 'lig'; return; }
@@ -32476,7 +32483,16 @@ function bruTeken(s, bodyX, voeten, gs){
   const K = s.knots, kn = bruData && bruData.knots, ki = kn && (bruBank.lagen || {})[kn.src];
   if (K && ki && imgReady(ki)){                              // de losse knots (achter hem: hij valt er bovenop): de bal blijft liggen, de steel klapt van hem weg om
     const r = kn.w / 2, px = (kn.dx + r) * gs, py = (kn.dy + kn.h - r) * gs;   // het midden van de bal
-    ctx.save(); ctx.translate(px, py); ctx.rotate(-K.hoek); ctx.drawImage(ki, -r * gs, -(kn.h - r) * gs, kn.w * gs, kn.h * gs); ctx.restore();
+    const Z = BRU.knotsZak, zt = K.zakT === undefined ? -1 : K.zakT;
+    ctx.save();
+    if (zt >= 0){                                            // geland: hij zakt een stuk in de vloer, de rest is weg onder de vloerlijn
+      const rand = Z.rand * gs, dw = r * gs * 1.25;
+      ctx.fillStyle = 'rgba(28,16,8,' + (Z.deuk * Math.min(1, zt * 2)).toFixed(3) + ')';   // de deuk
+      ctx.beginPath(); ctx.ellipse(px, rand, dw, dw * 0.16, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.rect(-4000, -4000, 8000, 4000 + rand); ctx.clip();
+      ctx.translate(0, Z.zak * gs * (1 - (1 - zt) * (1 - zt)));
+    }
+    ctx.translate(px, py); ctx.rotate(-K.hoek); ctx.drawImage(ki, -r * gs, -(kn.h - r) * gs, kn.w * gs, kn.h * gs); ctx.restore();
   }
   const beeld = s.flash > 0 ? whiteCopy(im, s.flash * 4) : im;
   let laag = s.snedes && s.snedes.length ? zwmSneeLaag(beeld, fr, gs, s.snedes) : beeld;
