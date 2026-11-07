@@ -50,8 +50,8 @@ Altijd geldig:
 | --- | --- | --- |
 | Sfeer en stijl | 8 | 9 |
 | Detail en variatie | 6 | 8,5 |
-| Licht en diepte | 6 | 8,5 |
-| Leven in de straat | 4 | 7,5 |
+| Licht en diepte | 7,5 | 8,5 |
+| Leven in de straat | 5 | 7,5 |
 | Speelruimte en verticaliteit | 7 | 9 |
 | Stadseigen gevechten | 6 | 8,5 |
 | **Totaal** | **7** | **ongeveer 8,5** |
@@ -87,24 +87,24 @@ Elke gevel is dezelfde plaat met dezelfde luiken op dezelfde plek. Na drie huize
 
 Beide samen: **8,5**.
 
-### Licht en diepte (L): nu 6
+### Licht en diepte (L): nu 7,5
 
 Vol middaglicht zonder schaduwen: de galerij en de kramen werpen niets op de straat. De lucht is
 één egaal blauw.
 
-- [ ] **L1. Slagschaduwen op de straat.** Schuine schaduwen van de huizen, de galerij en de kramen
+- [x] **L1. Slagschaduwen op de straat.** Schuine schaduwen van de huizen, de galerij en de kramen
   over de straat. Dat geeft meteen hitte en diepte. Naar **7,5**.
 - [ ] **L2. Lucht met stofwaas.** Een verloop in de lucht met lichte stofwaas onderin, zodat de
   verre huizen er echt in wegvallen in plaats van alleen bleker te worden. Naar **7**.
 
 Beide samen: **8,5**.
 
-### Leven in de straat (V): nu 4
+### Leven in de straat (V): nu 5
 
 Het zwakste punt. Prachtige kramen, maar geen koopman, geen dier, geen rook. Het voelt als een
 verlaten stad.
 
-- [ ] **V1. Figuren op de achtergrond.** Silhouetten of half doorzichtige figuren die niet meedoen
+- [x] **V1. Figuren op de achtergrond.** Silhouetten of half doorzichtige figuren die niet meedoen
   met het gevecht: een koopman achter de kraam, een vrouw met een kruik op het hoofd. Naar **6**.
 - [ ] **V2. Kleine beweging.** Wapperende doeken aan de kraam, rook uit een dakgat, duiven die
   opvliegen als je langsloopt. Naar **5,5**.
@@ -146,6 +146,10 @@ Beide samen: **8,5**.
   palmen of een acacia op een binnenplaats. Groen breekt het eindeloze oker. Sfeer van 8 naar
   **8,5**, Variatie van 6 naar **6,5**.
 
+- [ ] **A3. Kleur uit doeken, niet uit de muren.** De huizen blijven zandkleurig (elk een eigen tint, zie D1); de kleur
+  in de straat komt van was aan een lijn, vaandels, tapijten over een dakrand of balkon, doeken en een paar unieke
+  gebouwen, misschien een fontein. Idee van de opdrachtgever bij D1. Variatie van 6 naar **7**, Sfeer van 8 naar **8,5**.
+
 ### Speelelementen (P)
 
 - [ ] **P1. Waslijnen en doeken tussen de huizen.** Je kunt erop springen (ze veren), of ze met de
@@ -160,9 +164,11 @@ Beide samen: **8,5**.
 De aanbevolen volgorde: eerst wat het meest oplevert per stuk werk. Het eerste open punt is de
 volgende stadsverbetering.
 
-1. [ ] L1, slagschaduwen op de straat (veel effect, weinig art); gebouwd: suggestie 1 + 2, wacht op akkoord
-2. [ ] V1, figuren op de achtergrond (het zwakste punt)
-3. [ ] D1, gevelvarianten (de herhaling weg)
+1. [x] L1, slagschaduwen op de straat: suggestie 1 + 2 (pull request 611 en 613)
+2. [x] V1, figuren op de achtergrond: suggestie 1, het stadsvolk (de dorpelingen omgekleurd op de stoep, weg bij een gevecht), in Stad 1 en Sandville
+3. [ ] D1, gevelvarianten (de herhaling weg): bezig. Suggestie 3 gekozen, echt andere huizen. Er zijn er drie
+   (reliefhuis, koopmanshuis, pilarenhuis, in zandtinten, met deur, ook in de Maker; zie "Huistypes" in `notities/stad.md`).
+   De opdrachtgever wil nog meer types voor hij D1 afvinkt.
 4. [ ] S2, de galerij warmer
 5. [ ] L2, lucht met stofwaas
 6. [ ] H1, de trap zonder fade
@@ -176,9 +182,15 @@ volgende stadsverbetering.
 14. [ ] A2, moskee en groen in de verte
 15. [ ] P1, waslijnen en doeken
 16. [ ] P2, de menigte op de markt
+17. [ ] V1b, eigen stadsfiguren (suggestie 2 van V1: een koopman en een vrouw met een kruik, nieuwe art via `grok-imagine-prompts`) in plaats van de dorpelingen: tegen de herhaling, Leven van 5 naar **6**
+18. [ ] A3, kleur uit doeken: was, vaandels, tapijten, unieke gebouwen, misschien een fontein (de muren blijven zand)
 
 ## Gedaan
 
 Per afgeronde stap een regel: het punt, wat er gekozen is, de pull request en het nieuwe cijfer.
 
-(nog niets)
+- **L1**, slagschaduwen: van de huizen, de galerij en de kramen, en ook van de put, de luifel, de tonnen, de pleinpoort en de
+  trap, mee met de zon (`STAD_SLAG`). Pull request 611 en 613. Licht en diepte van 6 naar **7,5**.
+- **V1**, figuren op de achtergrond: suggestie 1, het stadsvolk (`STAD_VOLK`): de twee dorpelingen in zes kleuren op de stoep,
+  achter de kramen, weg zodra het gevecht dichtbij komt; in Stad 1 en Sandville op rustige plekken. Leven van 4 naar **5**, niet
+  6: met twee sprites blijft de herhaling te zien. Eigen stadsfiguren staan als V1b in de volgorde.

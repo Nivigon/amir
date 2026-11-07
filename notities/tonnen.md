@@ -60,6 +60,9 @@ met `stuk_20`), warmer en lichter dan Grok ze gaf (op het zonnige plein stonden 
 maten. De soorten stukken (splinter, duig, hoepel, deksel) staan als nummers in `TON.soort`; maak je de plaat opnieuw, kijk
 die lijst dan na. Daarna `gen-offline-manifest.py`. Niet in `gen-klein.py`: ze zijn al klein.
 
-## Sandbox
+## Sandbox en Maker
+
+In de Maker nieuwstijl onder Decor, Kamp: **Ton**, met een, twee naast elkaar of twee met een erop, en een kalebas erin (zie "Tonnen en
+stadsvolk" in `notities/maker.md`); die krijgt altijd een eigen `x`.
 
 Onder De stad, **Tonnen**: twee net over elkaar en een recht op de voorste voor je uit, en een losse met een kalebas.

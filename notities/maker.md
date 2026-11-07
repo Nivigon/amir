@@ -113,6 +113,8 @@ Altijd WYSIWYG: links in het grid is links in het spel, de wereld-x is `(kolom -
   - **Speerteken** (`teken`) wordt `tekens {x, v, f}`, de variant uit `TEKEN.varianten` (namen in `MK_TEKEN_NAAM`).
   Onder Objecten, los naast de kalebas: **Skelet met speer** (`skelet`) wordt `skeletten {x, f}`. Regel 9 (een
   bandiet bij het skelet na een rune) kijkt `levelcheck.py` na, niet de controle van de Maker.
+  Onder Decor, groep Kamp (fakkel, teken en ton): **Ton** (`ton`) wordt `tonnen` (zie "Tonnen en stadsvolk" hieronder), en in de
+  stand Stad onder Straat: **Stadsvolk** (`volk`) wordt `stad.volk`.
 - Een blok vaste cellen boven de grondlijn is een terras (`terraces`, savanne met `grond: true`,
   rots en muur met `af: true`); een blok met lucht eronder is een zwever (`zwevers`). Een muur die
   op de grondlijn doorloopt gaat precies die ene cel de grond in (`door`).
@@ -160,6 +162,8 @@ Altijd WYSIWYG: links in het grid is links in het spel, de wereld-x is `(kolom -
   regie (met `bij` als regiepunt) en de rotswand (`wand`, `wandF`, `wandH`, `wandX`) gaan mee. Met een vijand erin
   komt die als spawn met `poort` mee (via `mkSpawn` op de cel van de poort, zo vaak als **Aantal**), en een zegel of
   rune met **Opent poort** krijgt `poort`. Zie `notities/poort.md`.
+- De **kamers** van de binnenkant van een huis (Binnen-cellen met hun deur, bogen, ladders, ramen en palen) worden `binnen`, elk in een
+  eigen strook ver voorbij het level, met alles wat erin staat (zie "De binnenkant van een huis: kamers" hieronder).
 - De **stadsstukken** (gevel, kraam, voetdecor, paleis, galerij, trap; zie "De losse stukken van de stad" en "De
   gekoppelde stukken: galerij en trap" hieronder) worden het veld `stad` (`{seed, gevels, kramen, voet, paleis, galerijen,
   trappen}`), alleen als er minstens een in het grid staat. Met dat veld is de basis
@@ -443,6 +447,66 @@ Meldingen in `mkControle` (springen naar de cel van het gat):
 de JSON, de vier meldingen en een gevel weg na; het proefgrid heeft een bandiet met dolk uit het deurgat van g1 en twee bandieten
 uit een deur op de eerste verdieping van g2 (op de galerij), en `maat` meet het paneel van een deur.
 
+### De binnenkant van een huis: kamers
+
+`MK_BINNEN_K`, `MK_BINNEN_VER`, `MK_BINNEN_STAP`, `MK_KAMER_BREED`, `mkBinnenKamers`, `mkKamerVan`, `mkKamerVloer`, `mkKamerPlafond`,
+`mkKamerVloeren`, `mkLadderMaat`, `mkBoogVan`, `mkBoogDoel`, `mkBinnenLaad`, `mkBinnenTeken`, `mkVulBinnen`
+
+Stap 11 van `notities/plan-stad-maker.md`: de binnenkant van een huis uit Stad 7 (zie "Binnen" in `notities/stad.md`) in de Maker. In
+het spel is elk huis een eigen strook ver van de straat (`binnen: [{gevel, r, l, deur, ramen, palen, ladders, bogen}]`), met de vloeren
+als zwevers met look hout. In de Maker teken je zo'n huis als een doorsnede, waar je maar wilt:
+
+- **Binnen** (`binnen`, letter `I`, Terrein, groep Stad, stand Stad): schilder een blok cellen boven de grondlijn, met de onderste rij
+  net boven de grondlijn (de vloer van de kamer is de grond). Een rij **Vloer: hout** door het blok is een verdieping, een vaste rij
+  direct boven het blok het plafond. `mkBinnenKamers` zoekt de kamers: aaneengesloten Binnen-cellen, ook door zo'n vloer heen (van een
+  cel omhoog of omlaag door vaste cellen tot de volgende Binnen-cel), met het plafond erbij als de rij boven het blok in alle kolommen
+  vast is. De kamers heten Kamer 1, 2, ... van de startkant af (zoals de gevels), en op de kaart staat om elk blok een stippelrand met
+  die naam (rood als het blok niet op de grondlijn staat). Elke vaste cel in een kamer wordt een houten vloer, ook als je er rots
+  schilderde (de controle meldt dat als info).
+- **De stukken** (`MK_BINNEN_K`, Decor, groep Huizen, daarin de groep **Binnen (in een huis)**): voorwerpen op een cel in een kamer.
+  **Deur naar buiten (bij een huis)** (`huisdeur`, `{gevel}`): kies bij **Huis** de gevel; E voor het deurgat van dat huis brengt je in
+  deze kamer bij deze deur, E hier weer naar buiten. Een nieuwe deur krijgt vast het dichtstbijzijnde huis. **Boog naar een andere kamer**
+  (`boog`, `naarObj`, in de JSON `naar: {c, r}` op celpositie, in het klembord `naarRel`, zoals een zegel zijn rijzer): kies bij **Naar
+  boog** de boog in de andere kamer; een paar hoeft maar aan een kant gezet te zijn (`mkBoogDoel` neemt anders de boog die naar hem
+  wijst). **Ladder naar de vloer erboven** (`ladder`, `{f}`): leunt naar links (met **Leunt naar: rechts** andersom) tegen de rand van de
+  laagste vloer boven zijn voet die vlak naast hem eindigt (`mkLadderMaat`: de rand tot 1,6 cel aan zijn kant, of 0,6 cel over hem heen);
+  zijn voet schuift zo op dat de top precies die rand raakt, zoals `binnenLadder` rekent (133 voorbij de voet bij een verdieping van
+  600). **Raam met lichtbundel** (`raam`): het midden van het raam op het midden van de cel. **Steunpaal tot het plafond** (`paal`): van
+  de vloer onder de cel tot het plafond erboven (zonder plafond komt er in het spel geen paal). Op de kaart staan ze met de echte
+  plaatjes uit `design/stad/binnen/` (`mkBinnenTeken`, lui geladen met `mkBinnenLaad`), met de letter van het stuk in een rondje op hun
+  cel; buiten een kamer vaag.
+- **In het level** (`mkNaarLevel`): alles buiten de kamers bepaalt de grens van het level (`buitenL`, `buitenR`); de eerste kamer begint
+  `MK_BINNEN_VER` (20000) voorbij het linkse punt daarvan, elke volgende `MK_BINNEN_STAP` (5000) verder, net zo breed als zijn blok
+  (`k.rx`, `k.lx`, de verschuiving `k.dx`). Alles in het blok verhuist mee (`dxVan`): de vloeren (zwevers met look hout, `k.vloeren`),
+  vijanden (op een verdieping met `vloer`, zoals Stad 7, geen `boven`), kalebassen, decor, en de stukken: `deur` en `gevel` (de index
+  in `stad.gevels`; zonder deur `gevel: null`, dan kom je er alleen via een boog), `ramen {x, h}`, `palen {x, h}`, `ladders {x, van,
+  naar, f}` en `bogen {x, naar}`. De cellen van een kamer zelf geven geen terras en geen grens, dus het level eromheen verandert niet.
+- **Controle**: een kamer die niet op de grondlijn staat (FOUT), smaller dan `MK_KAMER_BREED` (10) cellen (LET OP: op een laptop is het
+  beeld zo breed, dus je ziet de straat ernaast; de huizen van Stad 7 zijn 15 cellen), zonder deur en zonder boog (LET OP: je komt er
+  niet in), met twee deuren (FOUT, de eerste telt), een deur bij een huis dat er niet is of bij een huis dat al een kamer heeft (FOUT), een
+  boog zonder doel of naar een boog buiten een kamer (FOUT), een ladder zonder vloer erboven (FOUT) of die tegen niets leunt (LET OP),
+  een paal zonder plafond (LET OP), een deur of boog niet op de begane grond (LET OP), en een stuk buiten een kamer (LET OP, het doet
+  niets). De val-controle slaat de vloeren van een kamer over: die staan in hun eigen strook.
+- `tools/makertest.js` (controle `binnen`): het proefgrid heeft rechts van de stad twee kamers (kolom 37 tot 41 met de deur bij g2,
+  een vloer met een bandiet, een plafond, twee ramen, een paal, een ladder tegen de rand van de vloer en een boog; kolom 43 tot 46 met
+  alleen de andere boog en een kalebas), en de controle kijkt de kamers, de stroken, de stukken, `readLevel`, de meldingen en het
+  paneel na. Ze zijn met opzet smal (de LET OP over de breedte hoort erbij).
+
+### Tonnen en stadsvolk
+
+Allebei een decorstuk via `MK_DECOR` (het gedeelde paneel `mkVulDecor`), met twee nieuwe velden daar: `vink` (een vinkje, de rij
+`mkrotsvinkrij`) en `kleur` (de keuzelijst Kleur, `mkrotskleurrij`); `namen` geeft de namen in de keuzelijst Soort.
+
+- **Ton** (`ton`, Decor, groep Kamp: fakkel, teken en ton, in beide standen): Soort **Een ton**, **Twee naast elkaar** (0,4 Amir uit
+  elkaar, net over elkaar, zoals in de stadslevels) of **Twee met een erop** (de derde op de tweede, `y: TON.h`), **Gespiegeld** en
+  **Kalebas erin** (`kalebas`, in de eerste ton). Wordt `tonnen` met `x` (het midden van de kolom), zie `notities/tonnen.md`; het spel
+  zet hem op de vloer onder zijn kolom (`terrainH`, dus niet op een galerij). Op de kaart het echte plaatje (`tonImgs`, `tonLaad`).
+- **Stadsvolk** (`volk`, Decor, groep Straat, stand Stad): Soort **Dorpeling** of **Dorpelinge**, **Kleur** (`STAD_VOLK.kleuren`:
+  blauw, rood, groen, indigo, oker, wit; de laatste keuze onthoudt `MK.volkKleur`) en **Gespiegeld**. Wordt `stad.volk {x, k, kleur,
+  f}`; alleen het volk vraagt al het veld `stad` (de stoep), ook zonder gevels. Op de kaart een figuurtje in de kleur van de kleren
+  (`MK_VOLK_KLEUR`; de dorpelinge in een lange rok met haar kruik). In de Test verdwijnt hij zodra er een vijand bij hem en bij Amir
+  is (zie "stadsvolk" in `notities/stad.md`): zet hem op een rustige plek.
+
 ## Sneltoetsen
 
 Escape (selecteren, deselecteren), spatie (schuiven), Delete (voorwerp of vorm weg), Ctrl+Z en
@@ -457,8 +521,9 @@ leegmaken). Op een keuzelijst, knop of tekstvak blijven de toetsen van dat veld.
 Laadt de Maker in Chromium met een proefgrid waar alles op staat (gat, gang met treden, mesa,
 zwever, muur door de grond, sneeuw, alle voorwerpen, een tweede ravijn met een rijzer van 2 breed die het zegel
 stuurt, een masker, een zwarte cel, een vorm, en achter de start een straat met twee huizen, een galerij, een trap, een
-kraam, voetdecor, het paleis, een bandiet op de galerij, een schildbandiet en een kruisboogbandiet op een dak, en vijanden
-uit twee deuren, op de straat en op de eerste verdieping) en
+kraam, voetdecor, het paleis, een bandiet op de galerij, een schildbandiet en een kruisboogbandiet op een dak, vijanden
+uit twee deuren, op de straat en op de eerste verdieping, een stapel tonnen met een kalebas, een rode dorpelinge op de stoep, en
+rechts daarvan twee kamers van de binnenkant van een huis) en
 kijkt na: de round-trip van export en import, de vertaling naar een spel-level, rijen invoegen en
 weer weghalen, verkleinen, snel schilderen, de rechthoek, het aanklikken van brede voorwerpen,
 ongedaan maken, een gebied kopiëren, spiegelen, plakken en knippen, een rijzer van even breedte spiegelen met
@@ -471,7 +536,8 @@ een gebied met maar een van de twee gevels, een gevel weg met ongedaan maken, en
 meldingen van stap 5 met hun cel, `dak` op de spawn, en de stad in het proefgrid), de deuren (controle `deuren`), en of
 het proefgrid als spel-level door `levelcheck.py` komt. De controle `vijand-knoppen` kijkt ook de vlaggen van de
 kruisboogbandiet na (alleen wat afwijkt, `readLevel`, het kopje Gedrag en `inBeeld` vast met de hoorn), en `maat` meet het
-paneel van elke vijandsoort met al zijn knoppen van de standaard af. Draai hem na elke wijziging aan de Maker.
+paneel van elke vijandsoort met al zijn knoppen van de standaard af, en ook de panelen van de ton, het stadsvolk en de stukken van
+de binnenkant. De controle `binnen` kijkt de kamers, de tonnen en het stadsvolk na (zie hierboven). Draai hem na elke wijziging aan de Maker.
 
 ```
 node tools/makertest.js                alle controles
@@ -486,7 +552,9 @@ regel bij, en een controle in de lijst `check(...)`.
 
 Geen aanraking (pannen en zoomen kan
 alleen met muis en toetsen), geen prop-keuze (een prop is een aantekening; echt decor zijn de stukken uit `MK_DECOR` en de stad), en een zegel kent
-alleen een masker, Te zien (Open, Verborgen, Onzichtbaar) en een rijzer, niet de andere zegel-velden (`speerval`, `plafond`). Een rijzer
+alleen een masker, Te zien (Open, Verborgen, Onzichtbaar) en een rijzer, niet de andere zegel-velden (`speerval`, `plafond`). Van de
+stad ontbreken het plein (pleinwanden, de put, de pleinpoorten met hek) en de losse luifel (`stad.luifels`); een ton staat dus altijd op
+zijn eigen `x`, niet aan een kraam of luifel vast. Een rijzer
 staat alleen in een ravijn op de grondlijn: een rijzer in een put onder de grond of een lift die vanaf de
 gangvloer door de ingang omhoog komt is in het spel niet beproefd, en de Maker meldt zo'n plek als FOUT.
 

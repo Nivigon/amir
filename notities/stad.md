@@ -7,7 +7,7 @@ De onderdelen staan in `design/stad/`, met alle maten in `design/stad/metadata.j
 in de sandbox onder Terrein de knoppen **De stad** (Neerzetten, Weg).
 
 ```
-stad: { paleis, seed, gevels: [{x, hoog, f}], galerijen: [{van, tot, h}],
+stad: { paleis, seed, gevels: [{x, hoog, f, soort}], galerijen: [{van, tot, h}],
         kramen: [{x, soort, f}], voet: [{x, stuk, f}] }
 ```
 
@@ -33,6 +33,49 @@ hoogtes vast in sprite-eenheden.
 - Contactschaduw aan de voet (`STAD.schaduw`), zodat de muur niet als een liniaal op de straat staat.
 - Het deurgat is donker. De rechthoek staat in metadata.json (`deurgat`), en in `STAD_DEUR.gat`: daar stapt een vijand uit
   (zie "Deuren" hieronder).
+
+## Huistypes
+
+`STAD.gevelSoort`, `stadGevelG`, `stadGevelDelen`, `stadSoortLaad`, `tools/gevel_soorten.py`
+
+Naast `gevel.png` zijn er drie andere huizen, elk met een eigen plaat in `design/stad/`. Je kiest het type met `soort`
+in een gevel: `gevels: [{x, hoog, f, soort}]`. Zonder `soort` blijft het de oude gevel, dus geen bestaand level verandert.
+
+- `relief`: het reliefhuis, licht zand met rode en blauwe versiering rond de deur en de ramen (Hausa-stijl).
+- `koopman`: het koopmanshuis, warm rossig zand met een houten erker op de eerste verdieping.
+- `pilaren`: het pilarenhuis, donkerder leem met staande pilaren met punten erop en bundels stokken (Djenne-stijl).
+
+De muren blijven zandkleurig, elk met een eigen tint (`zand` in `tools/gevel_soorten.py`, ten opzichte van `gevel.png`).
+Grok gaf wit, roze en chocoladebruin: dat werd een kleurenfestival. De kleur in de straat hoort van doeken, was en
+vaandels te komen (A3 in `notities/stad-verbeteren.md`), niet van de muren.
+
+Elke plaat heeft dezelfde maat als `gevel.png`: 970 breed, de muur van x 44 tot 922, het midden van het deurgat op x 473,
+en de verdieping (417) en de begane grond (508) even hoog. Het dak mag hoger zijn (puntige kartels), maar de looplijn
+(`dakAchter`) ligt net zo ver boven de onderkant van het dak. Zo liggen daken, verdiepingen, galerijen, trappen en deuren op
+precies dezelfde hoogte als bij een oud huis, en kun je de types vrij door elkaar zetten.
+
+- **Twee soorten verdieping.** Elke plaat heeft naast `ver` ook `alt`: de bovenste verdieping uit de Grok-plaat. De eerste
+  verdieping is `ver` (de erker, de stokbundels), alles erboven `alt` (`stadGevelDelen`). Een koopmanshuis van vier hoog
+  heeft dus een erker en daarboven twee gewone ramen.
+- **De deur.** Voorlopig krijgt een huistype dezelfde houten deur als een oud huis, dicht of (soms) open, geschaald op
+  zijn eigen deurgat (`deur` in `STAD.gevelSoort`, het gat ten opzichte van dat van `gevel.png`; ook `stadDeurMaat`
+  rekent ermee). De latei van `gevel.png` komt er niet overheen, want elk type heeft zijn eigen kozijn.
+- **Lui geladen.** Een plaat laadt pas als een gevel in het level hem gebruikt (`stadSoortLaad`, vanuit `stadLaadLevel`). Tot
+  hij binnen is, tekent `stadGevelG` de oude gevel.
+- **De platen maken.** `tools/gevel_soorten.py` maakt ze uit de Grok-platen in `design/stad/bron/` (`gevel_<soort>_grok.jpg`):
+  wit weg, een strook kale muur eruit (links een smalle zodat de deur op x 473 valt, rechts een brede), en elke band op zijn
+  maat. Het print de maten voor `STAD.gevelSoort` en zet ze in `metadata.json` (`gevel_soorten`). Daarna `gen-klein.py` en
+  `gen-offline-manifest.py`.
+- **Sandbox.** Onder Terrein, bij De stad, de knop **Huistypes**: een straat met de oude gevel en de drie types door elkaar,
+  in elke hoogte, met een galerij over een oud huis en een reliefhuis. Daarnaast **Dichte straat**: tien huizen muur
+  tegen muur (10 bronpx over elkaar, de randen zijn niet kaarsrecht). De breedte van een huis schaalt mee met het scherm,
+  dus de knop rekent met de schaal van dat moment.
+- **In de Maker.** Een gevel heeft in het paneel naast Hoogte de keuze **Type** (`MK_GEVEL_TYPES`, `mkGevelSoort`): Oud
+  huis, Reliefhuis, Koopmanshuis of Pilarenhuis. Het grid tekent het gekozen type, en `mkNaarLevel` zet `soort` in de gevel.
+- **Een type erbij.** Een Grok-plaat in `design/stad/bron/`, een regel in `SOORTEN` van `tools/gevel_soorten.py` (de maten
+  nameten op een raster), het script draaien, de uitvoer in `STAD.gevelSoort` en een regel in `MK_GEVEL_TYPES`, `KLEIN_FAM`
+  en de lijst van `gen-klein.py`.
+- Nog niet: de verre rijen achter de straat (`STAD.rijen`) blijven de oude gevel.
 
 ## Achter de kartels
 
@@ -242,7 +285,7 @@ zitten. Het plafond van de kamer eronder en de vloer van de kamer erboven zijn z
   (`stadLaadLevel`).
 - Een vijand loopt erop zoals op elke zwever. Liggen er twee boven elkaar (vloer en plafond), dan staat hij op de onderste
   waar hij hoort: `vloerBij` kijkt na de oude regel (de hoogste laag) ook naar een lagere houten vloer. Een spawn met
-  `vloer: 450` staat bij het begin op die hoogte (bandiet).
+  `vloer: 600` staat bij het begin op die hoogte (bandiet).
 - In de Maker: **Vloer: hout** (Terrein, groep Stad, letter B; intern nog `balken`). Een blok boven de grondlijn wordt een
   zwever met deze look. In de sandbox onder De stad **Houten vloer**.
 - De oude balkenvloer (`look: 'balken'`, een losse strook) is weg.
@@ -250,21 +293,27 @@ zitten. Het plafond van de kamer eronder en de vloer van de kamer erboven zijn z
 ## Binnen: de binnenkant van een huis
 
 `BINNEN`, `binnenBij`, `binnenEBij`, `binnenE`, `binnenKlem`, `binnenCamKlem`, `binnenVijandKlem`, `binnenAchter`, `binnenNa`,
-`binnenLadder`, `binnenLaadLevel`
+`binnenLadder`, `binnenLaadLevel`, `binnenHeeftDeur`
 
 ```
-binnen: [{ gevel, r, l, deur, ramen: [{x, h}], palen: [{x, h}], ladders: [{x, van, naar, f}] }]
+binnen: [{ gevel, r, l, deur, ramen: [{x, h}], palen: [{x, h}], ladders: [{x, van, naar, f}], bogen: [{x, naar}] }]
 ```
 
 Elk huis met een binnenkant is een eigen strook ver van de straat (van `r` tot `l`, in Stad 7 op -20000, -30000 en -40000).
 
 - **In en uit**: voor het deurgat van gevel `gevel` (`stadDeurMaat`, verdieping 0) staat een E; E en het beeld wordt even
   zwart (`BINNEN.fade`, via `stadTrapFade` met `binnen: true`: de camera springt mee, geen glijvlucht) en je staat binnen bij
-  de boogdeur (`deur`, een wereld-x op de begane grond). E bij die deur en je staat weer buiten voor het deurgat. Niet in een
-  gevecht (`stadInGevecht`), net als de stadstrap.
+  de deur (`deur`, een wereld-x op de begane grond). E bij die deur en je staat weer buiten voor het deurgat. Niet in een
+  gevecht (`stadInGevecht`), net als de stadstrap. Die deur is recht met een houten latei, net als het deurgat buiten
+  (`binnen/deur_recht.png`, gemaakt uit de boogdeur en de latei van `gevel.png` met `tools/binnen_deur_recht.py`).
+- **De binnenpoort**: de ronde boogdeur (`binnen/deur.png`) is de doorgang naar een volgende kamer in hetzelfde pand. Een boog
+  op `x` (begane grond) brengt je met E naar de boog op `naar`, in een andere strook; je komt een stap de kamer in uit, met je
+  gezicht ernaartoe. Dezelfde fade, en ook niet in een gevecht. Een kamer zonder `gevel` (`gevel: null`, geen `deur`) heeft geen
+  deur naar buiten: je komt er alleen via een boog (`binnenHeeftDeur`). Zet een boog altijd in paren, een in elke kamer.
 - **De ladder** werkt als de stadstrap: E bij de voet of bovenaan, het beeld dimt even en je staat aan de andere kant; niet
   in een gevecht. De voet staat op `x` op vloer `van`, de top leunt naar links (met `f` naar rechts) en `binnenLadder` geeft
-  waar hij uitkomt: de rand van de vloer erboven hoort daar (in Stad 7 ligt die 125 voorbij de voet bij een verdieping van 450).
+  waar hij de hoek van de vloer erboven raakt (`rand`): daar hoort de rand van die vloer, zodat hij ertegen leunt (in Stad 7
+  133 voorbij de voet bij een verdieping van 600). Hij wordt voor de vloer getekend (in `binnenNa`), met de vork erboven uit.
 - **Vast in het huis**: Amir (`binnenKlem`, in plaats van de klif), de camera (`binnenCamKlem`) en de vijanden
   (`binnenVijandKlem`) blijven tussen `l` en `r`. Binnen geeft `endWall()` geen grens, anders hielden de botsingen van de
   vijanden ze tegen (het huis ligt voorbij de klif van de straat).
@@ -272,16 +321,24 @@ Elk huis met een binnenkant is een eigen strook ver van de straat (van `r` tot `
   duwt hem niet naar buiten beeld); dus allemaal tegelijk, al tijdens de fade.
 - **Tekenen**: `binnenAchter` (voor de zwevers) tekent de binnenmuur (`binnen/wand.jpg`, getegeld en vast aan de wereld, tot
   het hoogste plafond; daarboven donker), een plint langs elke vloer, de ramen (`raam_1.png`), de gevorkte palen (`paal_1..5`,
-  de vork en de voet op maat, de stam ertussen herhaald tot onder het plafond, `binnenPlafond`), de ladders (`ladder_1..3`) en
-  de boogdeur (`deur.png`). `binnenNa` (na de zwevers, voor de personages) legt het schemer over alles (`BINNEN.donker`, de
+  de vork en de voet op maat, de stam ertussen herhaald tot onder het plafond, `binnenPlafond`), en
+  de boogdeur (`deur.png`). `binnenNa` (na de zwevers, voor de personages) tekent de ladders en legt het schemer over alles (`BINNEN.donker`, de
   personages blijven helder), donkere zijmuren, en dan het licht: het glas gloeit, een lichtbundel valt schuin naar de vloer
-  (`BINNEN.bundel`) met een lichtvlek, en stofjes zweven door de kamer (`BINNEN.stof`), zacht in het schemer en helder in een
+  (`BINNEN.bundel`) met een lichtvlek, en veel stofjes zweven door de kamer (`BINNEN.stof`), zacht in het schemer en helder in een
   bundel. Buiten tekent hij alleen de E bij het deurgat.
+- **Amir in de bundel**: het licht valt ook op hem (en op de vijanden die op `persLicht` aangesloten zijn, zie `notities/licht-personages.md`). Na zijn frame legt `binnenLichtOp` een warme kopie ervan met 'lighter'
+  over hem, geknipt op de vorm van de bundel (`binnenBundels`, `binnenBundelPad`), zodat de lichtgrens schuin over zijn lijf
+  loopt als hij erdoor stapt. Waar hij de bundel afdekt (`binnenBundelDek`) ligt zijn silhouet in de lichtvlek op de vloer,
+  van het raam af (`binnenBundelSchaduw`, vanuit `amirSchaduw`). Kleur, sterkte en schaduw in `BINNEN.licht`. De schaduw in de
+  lichtvlek is alleen er voor Amir.
 - `levelcheck.py` kent de stroken (`binnen_strook`): wat erin staat is niet "voorbij het einde", en tussen de zwevers van twee
   huizen hoeft niet gesprongen te worden.
 
-Stad 7: Binnen is het proefstuk (drie huizen: een zaal op palen, en twee met een verdieping en een ladder, een keer gespiegeld).
-In de sandbox onder De stad: **Huis met binnenkant**.
+Stad 7: Binnen is het proefstuk, met 450 vrije hoogte onder en boven een verdieping (drie huizen: een zaal op palen met achterin
+een boog naar een kamer erachter, en twee met een verdieping en een ladder, een keer gespiegeld). In de sandbox onder De stad:
+**Huis met binnenkant** (met een boog achterin en een kamer erachter). In de Maker nieuwstijl teken je een kamer als een blok
+**Binnen**-cellen met houten vloeren erdoor, en zet je er de deur, bogen, ladders, ramen en palen in; de Test zet hem in zo'n strook
+(zie "De binnenkant van een huis: kamers" in `notities/maker.md`).
 
 ## De winkel en de inrichting: een toonbank, een schap en planken met spullen
 
@@ -437,7 +494,8 @@ spawns: [ {x: -1100, k: 'bandiet', deur: {gevel: 0, verdieping: 0}},
   (`design/deur/`, de frames van `DEUR`), getekend in de ruimte van de gevel (`stadDeurPlaatTeken`). Zijn kozijn (canvas-x 101 tot 351,
   de voet op 446) valt op dezelfde maat in bronpx op de posten en de latei van `gevel.png`: `plaatX` (247) is waar het canvas begint,
   de voet valt op de onderrand. Dicht tot de deur opengaat, dan de 20 frames op `DEUR.fps` met op het eind de klap (`deurSlamSpeel`,
-  een kleine shake `schok`), en daarna blijft hij open. De eerste vijand wacht tot de deur open is (`deurWacht` begint op de duur van
+  een kleine shake `schok`; het geluid gaat door een versterker, `SFX_SLAM.vol`, met drie stemmen en de muziek die even wijkt, zodat hij
+  in elk level boven de muziek uitkomt), en daarna blijft hij open. De eerste vijand wacht tot de deur open is (`deurWacht` begint op de duur van
   de frames). Een gespiegeld huis spiegelt de deur mee, met het scharnier rechts. Het grijze hout krijgt een warme tint (`warm`, multiply, een keer per frame in
   `stadDeurWarm`), de latei van de gevel valt over de bovenbalk van het kozijn met een zachte schaduw eronder, zodat de deur in de
   leem zit, en het donker over wie eruit stapt ligt alleen in de opening van de open deur (`opening`, via `stadDeurMaat(d, scale, gat)`). `laadLevel` laadt de frames in een stadslevel met
@@ -601,3 +659,24 @@ houdt alleen zijn eigen contactschaduw.
 
 In de sandbox onder De stad: **Slagschaduw: aan/uit** (`sbslag`) om te vergelijken.
 
+
+## Stadsvolk: mensen op de stoep
+
+`STAD_VOLK`, `volkTeken`, `volkUpdate`, `volkRustig`, `volkKleur`, `npcStap`. Het veld `stad.volk: [{x, k, kleur, f}]` zet de
+dorpelingen uit `NPCS` (`k` is `dorpelinge` of `dorpeling`, met hun eigen animatie) in de stad, als achtergrond die niet meedoet.
+
+- **De laag**: de voeten staan op de stoep, op `stoep` (0,6) van `stadStoepH` boven de looplijn: voor de muurvoet, achter de straat
+  waar Amir en de vijanden lopen, en iets dieper dan het voetdecor (0,4). Getekend in `stadVoorTeken` na de slagschaduw op de straat
+  en voor de kramen, dus wie achter een kraam staat, staat erachter (een verkoper). Met een zachte contactschaduw.
+- **Achtergrond**: iets kleiner (`maat` 0,72 van een dorpeling, ongeveer 0,9 Amir), iets donkerder (`licht`) en met wat waas, zodat
+  een vijand ervoor goed te lezen blijft. Geen botsing, niet te raken.
+- **Kleur**: het blauw van de kleren gaat naar `rood`, `groen`, `indigo`, `oker` of `wit` (`STAD_VOLK.kleuren`, gebakken met
+  `stadBak`, een keer per plaatje en kleur). Zo lijken twee sprites meer mensen. De herhaling blijft wel te zien: eigen
+  stadsfiguren (suggestie 2 van V1 in `stad-verbeteren.md`) zijn de volgende stap.
+- **Niet waar gevochten wordt**: komt er een levende vijand binnen `weg` (1100) van iemand en ook van Amir (een vijand die verderop
+  wacht telt dus nog niet), dan vervaagt hij in `vervaag` s; na `terug` (6) s zonder vijand komt hij terug. Zet ze op rustige plekken.
+- **In de levels**: Stad 1 (een verkoopster achter de eerste kraam, iemand bij de deur, een bij de doek, een bij het eind) en Sandville
+  (aan de rustige uiteinden van de Kuiperstraat, niet op het kruispunt waar je begint en vecht, en in de Pottenbakkersstraat).
+- **Sandbox**: onder Terrein, De stad, de knop **Stadsvolk**: vijf figuren in vijf kleuren op de stoep voor je uit (zet eerst de stad
+  neer als die er niet is). Zet er een vijand bij om ze te zien verdwijnen.
+- **Maker nieuwstijl**: onder Decor, Straat, **Stadsvolk**, met soort en kleur (zie "Tonnen en stadsvolk" in `notities/maker.md`).
