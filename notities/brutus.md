@@ -120,6 +120,13 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
   groeien bij het knielen en liggen: de val-frames zijn per frame geschaald rond het anker (veld `schaal`: staand 1, geknield
   0,76, liggend 0,57), zodat hij liggend ongeveer zo lang is als hij staand hoog is. Liggend is hij
   nog wat lang (het eindbeeld van Grok was te groot); een betere ligpose en de speer-finisher (speer breken, schreeuw) komen later.
+- **Zijn stem** (`BRU.spraak`, `bruZeg`, pauze en herstart via `bruSpraakStap`): na treffer `fase2Na` (6) staat de
+  wereld stil (`bruVries`, dt 0 in de lus, Amir vast en onraakbaar) zolang `sounds/brutus_fase2.mp3` klinkt; het geluid
+  is de klok, zonder geluid duurt het `vries` s (`bruVriesStap`). Op die treffer geen kreet. Bij de omslag naar zijn woede
+  speelt `brutus_fase3.mp3` (over het gevecht heen, geen freeze). Bij zijn dood begint `brutus_dood.mp3` (zijn laatste
+  woorden, 6,2 s) op de laatste treffer, en dreig en drop rekken samen tot `doodVal` (4,0 s): dan valt `val` in de stilte
+  voor zijn laatste zin, en de klap op de grond (zo'n 1,8 s later) op zijn laatste zucht (5,7 s). Loopt de spraak achter,
+  dan wacht hij in het laatste drop-beeld. Gemeten in Chromium: val op 4,04 s spraak, de plof op 5,82 s.
 - Zolang hij leeft blijven Amir en Brutus tussen `brutus.van` en `brutus.tot` (`bruKlem`).
 - **Bloed** (eerste versie, `BRU.bloed`, `bruBloedRaak`): elke treffer geeft een spat druppels uit zijn borst, naar de kant
   waar de klap vandaan kwam, die op de grond blijven liggen en vervagen (de druppels van de zweepman: `zwmDruppelStap`,
@@ -192,7 +199,7 @@ het gevecht (zie `notities/tonnen.md`).
   daarna `gen-klein.py` en `gen-offline-manifest.py`.
 - Geluiden: `sounds/brutus_adem.mp3` (loopt zolang hij staat te ademen), `brutus_stap.mp3`,
   `brutus_zwaai.mp3` (start op zwaaiframe `BRU.zwaaiGeluid`, de zoef valt op de treffer),
-  `brutus_geraakt.mp3` (nu alleen nog bij de omslag naar zijn woede), `brutus_dood.mp3`. Een treffer geeft naast
+  `brutus_geraakt.mp3` (niet meer gebruikt: de omslag naar zijn woede is nu `brutus_fase3.mp3`). Een treffer geeft naast
   `brutus_speerraak.mp3` (de speer in zijn vlees) een van zes kreten, `brutus_hit1.mp3` tot `brutus_hit6.mp3`, geknipt uit
   hits.mp3, nooit twee keer dezelfde achter elkaar (`BRU_HITS`, `bruHitSpeel`). De opening: `brutus_start1.mp3` en
   `brutus_start2.mp3`.
