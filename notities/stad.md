@@ -453,4 +453,6 @@ die al in de tegel zit) boven de looplijn: de tegelrijen van `van` (46, de achte
 uitgerekt, met een contactschaduw op de nieuwe muurvoet. Zo staan de huizen een stuk naar achteren, met hun onderkant
 achter de vloer, en ligt de straat voor ze open; omdat `diep` in Amir is, groeit die open vloer mee met het Formaat.
 Niet over een ravijn, en een leemmuur (`look: 'leem'`, een echt terras) komt er gewoon overheen. Alleen het beeld:
-daken, galerijen, deuren en de looplijn houden hun hoogte. Het voetdecor staat tegen de nieuwe muurvoet (`stadStoepH`).
+daken, galerijen, deuren en de looplijn houden hun hoogte. Het voetdecor staat niet op de nieuwe muurvoet maar op de stoep
+ervoor (`STAD.voet.stoep`, 0,4 van `stadStoepH` boven de looplijn), met een zachte contactschaduw (`STAD.voet.schaduw`):
+op de muurvoet zelf leek het boven de straat te hangen.
