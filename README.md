@@ -739,6 +739,14 @@ grijpt de hoorn en blaast, en op die stoot komen er **twee hyena's** van twee ka
 zijn kruisboog terug en mikt meteen, want hij is al geladen. Van het opbergen tot het terugpakken is hij niet te
 raken. **Test 57: De hoorn** laat het zien; in de sandbox zet je het aan met **Hoorn** bij de kruisboogbandiet.
 
+## De zweepman
+
+Een pezige, kale rover die laag op je af sluipt en uithaalt met een lange zweep, laag (springen) of hoog (bukken). Hij
+loopt in de kleuren van de bandieten: een marineblauw vest, een kakibroek, een rode sjerp en een zwarte baard. Overal
+in het spel is hij nu de versie **nieuwer schreeuw**: hij slaat snel, je treffer onderbreekt zijn slag niet, en hij is
+alleen in zijn slag zelf onaantastbaar, dus wie blijft staan moet zijn slag ontwijken. In **Test 58** en **Test 59**
+en in de sandbox (**Versie** bij de zweepman) kies je nog de oude, nieuwe of nieuwere versie om te vergelijken.
+
 ## Het schild
 
 In **Test 56: Het schild** heeft Amir een schild van koeienhuid: houd **C** vast (op een telefoon de schildknop) en
