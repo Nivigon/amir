@@ -30350,6 +30350,27 @@ function krbLijkVak(s){
   const a = (L.l - KRB.anker) * k, b = (L.r - KRB.anker) * k;
   return { l: s.face === 1 ? -b : a, r: s.face === 1 ? -a : b, onder: Math.max(0, (L.onder - KRB.ground) * k) };
 }
+// Ligt hij op het dak van een huis, dan schuift hij tijdens het vallen naar binnen tot zijn hele lijk op dat dak
+// past: anders staken zijn voeten of hoofd aan de zijkant van het huis de lucht in, waar geen kartels voor staan.
+// Het doel ligt vast bij de eerste stap (krbDakDoel); daarna loopt hij er met de doodanimatie geleidelijk heen.
+function krbDakDoel(s){
+  if (!STAD_KANTEEL || !stadAan() || !(s.base > 0)) return null;
+  const sc = nowScale(), v = krbLijkVak(s), marge = 0.08 * CHAR_H * sc;
+  for (const g of (level.stad.gevels || [])){
+    const m = stadGevelMaat(g, sc);
+    if (s.x <= m.left || s.x >= m.right || Math.abs(s.base - stadGevelH(m.hoog)) >= 3) continue;
+    const lo = m.left + marge - v.l, hi = m.right - marge - v.r;
+    return lo > hi ? (lo + hi) / 2 : Math.max(lo, Math.min(hi, s.x));
+  }
+  return null;
+}
+function krbDakSchuif(s){
+  if (s.dakDoel === undefined){ s.dakDoel = krbDakDoel(s); s.dakVan = s.x; }
+  if (s.dakDoel == null || s.dakDoel === s.dakVan) return;
+  const n = KRB.n[s.set] || 1, t = s.klaar ? 1 : Math.min(1, (s.frame + 1) / n);
+  const e = t * t * (3 - 2 * t);
+  s.x = s.dakVan + (s.dakDoel - s.dakVan) * e;
+}
 function makeKruisboog(x, side){
   krbLaad();
   return { x, face: -side, state: 'loop', set: 'loop', frame: 0, acc: 0, klaar: false,
@@ -30502,6 +30523,7 @@ function updateKruisboog(s, dt, plats, cliff){
   if (s.state === 'dood'){                          // het lijk blijft liggen
     s.doodT += dt;
     if (!s.klaar) krbAnim(s, dt);
+    krbDakSchuif(s);                                // op een dak: het hele lijk blijft op het dak
     krbSpeerVolg(s);
     return;
   }
