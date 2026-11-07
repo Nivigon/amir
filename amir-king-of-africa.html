@@ -31713,14 +31713,20 @@ const BRU = {
            // en een spat. Daarna stroomt onder zijn gezicht het bloed uit, hetzelfde bloed als onder het lijk van de
            // schildman (design/bloed/nyundo_stroom.png, uit tools/nyundo_bloed.py): het stroomt in groei s van x (achter de
            // bal) naar buiten, schaal keer zo groot, met de onderkant y onder de vloerlijn. In de pixels van de ligframes
-           dood: { kop: { x: -232, y: -24 }, spat: 10, spatV: 220, natVol: 0.7,
+           dood: { kop: { x: -232, y: -24 }, spat: 10, spatV: 220, natVol: 1,
                    stroom: { x: -296, y: 13, schaal: 1.5, groei: 3.5 },
                    // de bal: van/tot is waar hij ligt (daar liggen geen druppels), en de druiper erop (bruBalBloedTeken)
                    // het gat: waar de bal in zijn gezicht zit snijden we hem weg (zoals de snee bij de schildman), straal in
                    // delen van de straal van de bal, met een wondrand van rand (donker), bloed en vlees, die in op s opkomt
                    gat: { straal: 0.58, golf: [0.09, 7, 0.06, 15], rand: 6, op: 0.5,
                           donker: '#2e0306', bloed: '#7a0c12', vlees: '#a8464b', glim: 'rgba(214,110,112,0.55)', brok: 16 },
+                   // bloed op de lens bij de klap: zoveel spatten, straal in px (op het scherm), ze komen op in in s, de
+                   // druiper loopt uit tot drup px in drupT s, en van weg[0] tot weg[1] s trekken ze weg
+                   lens: { n: 7, r: [9, 26], in: 0.07, drup: [30, 110], drupT: 3.5, weg: [2.6, 4.2] },
                    bal: { van: -312, tot: -207, x: 0.62, y: -0.95, h: 1.5, op: 0.8, groei: 2.5 } } },
+  // de val: op het laatste kniel-frame (kniel) blijft hij knielExtra ms langer zitten, en de frames daarna tot hij ligt
+  // duren traag keer zo lang. De klap valt zo net na zijn laatste woorden, in de stilte
+  valTempo: { kniel: 14, knielExtra: 700, traag: 1.25 },
   knotsLig: 1.72, valKlap: 104,    // de losse knots kantelt tot deze hoek (rad); in de val is het frame met bron >= valKlap de klap op de grond
   // zo zwaar is de knots: bij de klap zakt hij zak grote-set-px in de vloer, in tijd s (eerst hard, dan nog wat na),
   // en wat onder de vloerlijn (rand px onder zijn voeten) komt is weg; een donkere deuk eromheen en een barst eronder
@@ -31746,7 +31752,7 @@ const BRU = {
   schud: { stem: 0.1, tril: 0.04 },
   hekWacht: 1.6, hekDuur: 2.8,    // na zijn dood: zo lang tot de hekken van het plein optakelen, en zo lang duurt dat
   naam: 'Nyundo',                 // de naam in beeld (Swahili: de hamer); Brutus is de codenaam
-  vol: { adem: 0.75, stap: 0.85, geraakt: 0.95, raak: 1, dood: 1, plof: 0.8, zwaai: 0.95, speer: 1, knots: 0.45, inslag: 1, spraak: 1 },
+  vol: { adem: 0.75, stap: 0.85, geraakt: 0.95, raak: 1, dood: 1, plof: 0.8, zwaai: 0.95, speer: 1, knots: 0.45, inslag: 1, spraak: 1, bloed: 1 },
   ademPeriode: 2.33,              // de ademhaling in sounds/brutus_adem.mp3: in en uit duurt zo lang
   // De kap (beweging kap in brutus.json): zijn echte aanval. Hij remt uit de storm af, tilt de knots met twee handen
   // hoog achter zijn hoofd (de tell: het silhouet verandert helemaal), houdt hem daar terwijl de bal omhoogkomt, en
@@ -31856,6 +31862,7 @@ function bruLaad(){
     const adem = geluidAan(new Audio()); adem.preload = 'auto'; adem.src = 'sounds/brutus_adem.mp3'; adem.loop = true;
     bruGeluid = { adem, stap: banStemmen('sounds/brutus_stap.mp3', 3), zwaai: banStemmen('sounds/brutus_zwaai.mp3', 2),
                   speer: banStemmen('sounds/brutus_speerraak.mp3', 3),
+                  bloed: banStemmen('sounds/brutus_bloed.mp3', 1),   // het bloed op de klap van zijn val (bloedspuit.mp3, 13 dB harder)
                   hits: BRU_HITS.map(f => banStemmen(f, 1)),   // zijn kreet als hij geraakt wordt, naast de speer in zijn vlees
                   start: [banStemmen('sounds/brutus_start1.mp3', 1), banStemmen('sounds/brutus_start2.mp3', 1)],   // zijn woorden in de opening
                   raak: banStemmen('sounds/brutus_raak.mp3', 2),   // de knots op Amir: een zware dreun
@@ -32692,8 +32699,9 @@ function bruDoodStap(s, dt){
     const ms = [B.dreig, B.drop].reduce((n, b) => n + (b ? b.frames.reduce((m, f) => m + f.ms, 0) : 0), 0);
     s.acc += dt * ms / BRU.spraak.doodVal;
   }
-  while (s.acc >= D.frames[s.frame].ms){
-    s.acc -= D.frames[s.frame].ms;
+  const frMs = i => bruValMs(s, D, i);
+  while (s.acc >= frMs(s.frame)){
+    s.acc -= frMs(s.frame);
     if (s.frame < D.frames.length - 1){
       s.frame++;
       const f = D.frames[s.frame];
@@ -32718,7 +32726,8 @@ function bruDoodStap(s, dt){
 // hij valt met zijn gezicht op de knots: een natte klap, het bloedgeluid en een spat uit zijn gezicht (BRU.bloed.dood)
 function bruKopBloedStart(s){
   const D = BRU.bloed.dood, k = D.kop;
-  bloedSpeel(); banStemSpeel(bruGeluid.speer, BRU.vol.speer * D.natVol);
+  banStemSpeel(bruGeluid.bloed, BRU.vol.bloed); banStemSpeel(bruGeluid.speer, BRU.vol.speer * D.natVol);
+  bruLensStart(s);                                           // en het spat op de camera
   s.kopBloed = 0; s.druppels = s.druppels || [];
   for (let i = 0; i < D.spat; i++){
     const a = Math.PI + (Math.random() - 0.5) * 2.2, v = D.spatV * (0.3 + Math.random() * 0.8);   // vooral naar voren en omhoog
@@ -32783,6 +32792,49 @@ function bruBalBloedTeken(s, r, gs){
   ctx.beginPath(); ctx.rect(-R * 2, -R * 2, R * 4, (D.y * r * gs + R * 2) + h * lang); ctx.clip();
   ctx.drawImage(im, D.x * R - w / 2, D.y * R, w, h);
   ctx.restore();
+}
+// bloed op de camera als hij in zijn knots valt: een paar spatten op vaste plekken (bij de klap geloot), elk een vlek
+// met spikkels en een druiper die langzaam naar beneden loopt; schermruimte, over alles heen (zoals tonLensTeken)
+function bruLensStart(s){
+  const L = BRU.bloed.dood.lens, rnd = (a, b) => a + Math.random() * (b - a);
+  s.lens = [];
+  for (let i = 0; i < L.n; i++){
+    const r = rnd(L.r[0], L.r[1]);
+    s.lens.push({ x: rnd(0.08, 0.92), y: rnd(0.15, 0.8), r, drup: rnd(L.drup[0], L.drup[1]) * (r / L.r[1]), dx: rnd(-0.25, 0.25),
+                  spik: Array.from({ length: 5 + (Math.random() * 5 | 0) }, () => { const a = rnd(0, Math.PI * 2), d = rnd(1.1, 2.4);
+                    return [Math.cos(a) * d, Math.sin(a) * d, rnd(0.08, 0.22)]; }), wacht: rnd(0, 0.12) });
+  }
+}
+function bruLensTeken(){
+  const s = brutus; if (!s || !s.lens || s.kopBloed === undefined) return;
+  const L = BRU.bloed.dood.lens, t0 = s.kopBloed;
+  if (t0 > L.weg[1]) return;
+  ctx.save(); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  for (const v of s.lens){
+    const t = t0 - v.wacht; if (t <= 0) continue;
+    const op = Math.min(1, t / L.in), weg = 1 - Math.max(0, Math.min(1, (t0 - L.weg[0]) / (L.weg[1] - L.weg[0])));
+    const x = v.x * W, y = v.y * H, r = v.r * (0.7 + 0.3 * op), lang = v.drup * Math.min(1, Math.sqrt(t / L.drupT));
+    ctx.globalAlpha = 0.88 * op * weg;
+    ctx.fillStyle = '#6a060c'; ctx.strokeStyle = 'rgba(40,2,5,0.9)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.9, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    if (lang > 2){                                          // de druiper: smaller naar beneden, met een druppel eronder
+      const b = r * 0.32;
+      ctx.beginPath(); ctx.moveTo(x - b, y); ctx.lineTo(x + b, y); ctx.lineTo(x + v.dx * lang + b * 0.5, y + lang); ctx.lineTo(x + v.dx * lang - b * 0.5, y + lang); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + v.dx * lang, y + lang, b * 0.9, 0, Math.PI * 2); ctx.fill();
+    }
+    for (const [sx, sy, sr] of v.spik){ ctx.beginPath(); ctx.arc(x + sx * r, y + sy * r, Math.max(1, sr * r), 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = 'rgba(220,120,120,0.55)';              // een glim, het licht op de natte druppel
+    ctx.beginPath(); ctx.ellipse(x - r * 0.35, y - r * 0.35, r * 0.25, r * 0.14, -0.6, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+// hoe lang een frame van de dood duurt: in de val blijft hij even op zijn knieen zitten (BRU.valTempo.kniel) en
+// valt hij daarna trager voorover (traag); dreig en drop houden hun eigen ms
+function bruValMs(s, D, i){
+  const ms = D.frames[i].ms, T = BRU.valTempo;
+  if (s.fase !== 'val') return ms;
+  if (i === T.kniel) return ms + T.knielExtra;
+  return i > T.kniel && i < D.frames.length - 1 ? ms * T.traag : ms;
 }
 // welk frame en welke beweging hij nu toont
 function bruFrame(s){
@@ -39722,6 +39774,7 @@ function loop(now){
     bruBalkTeken();
     bruIntroTeken();                                // de opening van het plein: zwarte balken en de naam
     tonLensTeken();                                 // en de stukken ton die daar tegen de lens vliegen, over de balken heen
+    bruLensTeken();                                 // het bloed op de lens als Nyundo in zijn knots valt
     arenaHudTeken();                                // de teller van de goudaap-arena (kills, tijd, punten)
     golfHudTeken();                                 // de teller van de bandietgolf (verslagen, tijd)
     duoHudTeken();                                  // de teller van de duo-arena (welke golf)
