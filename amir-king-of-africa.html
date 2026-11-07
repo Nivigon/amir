@@ -21874,6 +21874,7 @@ const STAD_DEUR = {
   schok: 0.1,                            // de shake als hij openklapt (kleiner dan bij de rotswand)
   opening: [383, 1086, 186, 419],        // de opening van de open deur in gevel-bronpx: hier ligt het donker over wie eruit stapt
   warm: 'rgba(196,128,70,0.55)',         // de tint over het grijze hout (multiply), zodat het bij de leem en de latei past
+  openKans: 0.15,                        // elk huis heeft een deur op de straat, dicht; zo vaak staat er een open (vast per huis)
   marge: 200,                            // de deur telt als in beeld als zijn midden zoveel binnen de rand van het beeld is (ruim: de hele deur)
   // wie op een verdieping uit een deur mag: de soorten die een galerij of dak als vloer kennen (dak in de spawner)
   bovenSoorten: new Set(['bandiet', 'schildman', 'kruisboogbandiet', 'groen', 'zwart', 'knock'])
@@ -21957,6 +21958,12 @@ function stadDeurenAlle(){
   }
   return uit;
 }
+// een huis zonder deurspawn: staat zijn deur op de straat open? Vast per huis (seed en index), zodat het niet flikkert
+function stadDeurVanzelfOpen(gi){
+  let h = (((level && level.stad && level.stad.seed) | 0) * 374761393 + (gi + 1) * 668265263) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16;
+  return ((h >>> 0) % 1000) / 1000 < STAD_DEUR.openKans;
+}
 // de houten deur in het gat, op het frame van zijn staat: dicht tot hij in beeld opengaat, dan de 20 frames
 // en daarna open. Getekend in de (eventueel gespiegelde) ruimte van de gevel, met fy de voet van die verdieping.
 // het grijze hout warm getint (multiply met STAD_DEUR.warm, de alfa van het frame blijft), een keer per frame
@@ -21973,10 +21980,12 @@ function stadDeurWarm(idx){
 }
 // lat: tekent de latei van de gevel op een gegeven top (in de ruimte van de gevel); die valt over de bovenbalk van het
 // kozijn, zodat de deur in de leem zit in plaats van erop geplakt
-function stadDeurPlaatTeken(gi, v, fy, f, lat){
+// vanzelf: een deur zonder spawn, true staat hij open (het laatste frame), false dicht
+function stadDeurPlaatTeken(gi, v, fy, f, lat, vanzelf){
   deurLaad();
   const st = stadDeurStaat[gi + ':' + v];
-  const idx = !(st && st.open) ? 0 : Math.min(DEUR.frames - 1, Math.floor(st.t * DEUR.fps));
+  const idx = vanzelf != null ? (vanzelf ? DEUR.frames - 1 : 0)
+    : !(st && st.open) ? 0 : Math.min(DEUR.frames - 1, Math.floor(st.t * DEUR.fps));
   const im = stadDeurWarm(idx); if (!im) return;
   const D = STAD_DEUR, s = v ? D.boven : 1;
   ctx.drawImage(im, (D.midden + (D.plaatX - D.midden) * s) * f, fy - DEUR.grond * s * f, DEUR.canvas[0] * s * f, DEUR.canvas[1] * s * f);
@@ -23274,13 +23283,15 @@ function stadTeken(groundY, scale, cx){
       const pTop = fy - D.posten[3] * s * m.f;
       stuk(D.posten, pTop); stuk(D.latei, pTop - D.latei[3] * s * m.f + 1);
     }
-    // de houten deur in elk gat waar een vijand uit komt (zie "deuren")
-    if (deurAlle[gi]) for (const v of deurAlle[gi]){
+    // de houten deur: in elk gat waar een vijand uit komt, en op de straat in elk huis (meestal dicht, zie "deuren")
+    const deurHier = new Set(deurAlle[gi] || []); deurHier.add(0);
+    for (const v of deurHier){
       if (v < 0 || v >= m.hoog) continue;
+      const spawn = !!(deurAlle[gi] && deurAlle[gi].has(v));
       const s = v ? STAD_DEUR.boven : 1, L = STAD_DEUR.latei, M = STAD_DEUR.midden;
       stadDeurPlaatTeken(gi, v, y - (v ? (G.bod[1] - G.bod[0] + (v - 1) * (G.ver[1] - G.ver[0])) * m.f : 0), m.f,
         top => ctx.drawImage(im, stadQ(im, L[0]), stadQ(im, L[1]), stadQ(im, L[2]), stadQ(im, L[3]),
-          (M + (L[0] - M) * s) * m.f, top, L[2] * s * m.f, L[3] * s * m.f + 0.6));
+          (M + (L[0] - M) * s) * m.f, top, L[2] * s * m.f, L[3] * s * m.f + 0.6), spawn ? null : stadDeurVanzelfOpen(gi));
     }
     ctx.restore();
     // contactschaduw: de voet van de muur donkerder, en een zachte strook op de straat ervoor
@@ -26256,7 +26267,8 @@ function warmBouw(){
   }
   if (level.tekens && level.tekens.length){ try { tekenLaad(); } catch (e) {} warmDing(tkImg); }
   if (level.fakkels && level.fakkels.length){ try { fakkelLaad(); } catch (e) {} warmDing(fakkelImgs); }
-  if (level.deur || (level.stad && (level.spawns || []).some(sp => sp.deur))){ try { deurLaad(); } catch (e) {} warmDing(deurImgs); }
+  // elk huis in de stad heeft een houten deur
+  if (level.deur || (level.stad && (level.stad.gevels || []).length)){ try { deurLaad(); } catch (e) {} warmDing(deurImgs); }
   if (takelLijst().length){ try { takelLaad(); } catch (e) {} warmDing([takelImgs, takelPlateau, takelTouwImg, takelKnop, stamTop, stamMid, stamBottom, stamMini]); }
   // de goudaap-arena en de resterende baviaan-reeksen (de zes gevechtsreeksen deed bavKaderVooraf hierboven al)
   if (level.apenArena){ try { goudaapLaad(); } catch (e) {} warmDing([gaapImg, gaapHangImgs, gaapAfzetImgs, gaapValImgs, gaapLandingImgs, gaapRunImgs, gaapHapImgs, gaapBrulImgs, gaapGromImgs, gaapDoodImgs, gaapSprongImgs, gaapWandImg]); }
