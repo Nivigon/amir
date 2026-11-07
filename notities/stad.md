@@ -326,6 +326,9 @@ Elk huis met een binnenkant is een eigen strook ver van de straat (van `r` tot `
   personages blijven helder), donkere zijmuren, en dan het licht: het glas gloeit, een lichtbundel valt schuin naar de vloer
   (`BINNEN.bundel`) met een lichtvlek, en veel stofjes zweven door de kamer (`BINNEN.stof`), zacht in het schemer en helder in een
   bundel. Buiten tekent hij alleen de E bij het deurgat.
+- **Smaller dan het scherm**: dan zet `binnenCamKlem` de kamer in het midden, en naast hem tekent `binnenZijmuur` (aan het eind
+  van `binnenNa`) de dikke lemen zijmuur in doorsnede (`BINNEN.zijmuur`, in Amir, met de textuur van `wand.jpg`) en daarachter
+  het donker van de rest van het huis, zodat je naast een kamer nooit de straat ziet.
 - **Amir in de bundel**: het licht valt ook op hem (en op de vijanden die op `persLicht` aangesloten zijn, zie `notities/licht-personages.md`). Na zijn frame legt `binnenLichtOp` een warme kopie ervan met 'lighter'
   over hem, geknipt op de vorm van de bundel (`binnenBundels`, `binnenBundelPad`), zodat de lichtgrens schuin over zijn lijf
   loopt als hij erdoor stapt. Waar hij de bundel afdekt (`binnenBundelDek`) ligt zijn silhouet in de lichtvlek op de vloer,
