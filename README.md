@@ -218,6 +218,7 @@ Elke tribe heeft een **talent tree**: een verticale boom zoals in World of Warcr
 | **Thorn Breaker** | een doornbos gaat in een klap om in plaats van drie |
 | **Twin Sweep** | de lage zwaai heeft twee ladingen in plaats van een: de tweede is een reserve terwijl de eerste herlaadt |
 | **True Flight** | een rol-worp kan een crit zijn: die telt als twee treffers, en op een schildbandiet slaat hij het schild een stand extra kapot. Een perfecte rol-worp is altijd een crit; van de gewone is precies een op de vier het, zonder lange reeksen pech of geluk (het spel trekt knikkers uit een zak: twee crits op acht, zonder terugleggen). Een crit geeft een witgouden ster en een korte klap. Op een eindbaas werkt hij niet |
+| **Soft Step** | Amir zijn voetstappen dragen half zo ver: in een level met de sluipaanval (zie hieronder) hoort een vijand hem lopend pas van dichtbij. Tijdelijk talent, tot de echte sluip-talents er zijn |
 
 De lage zwaai zelf (bukken en aanvallen) heeft iedereen, bij elke tribe. Hij raakt slangen, fosforslangen, de schorpioen, hyena's en de panter als hij na een sprong plat ligt. Na een zwaai herlaadt hij 1,4 seconde voor je hem opnieuw kunt doen; dat zie je rechtsboven, links van de kalebas, aan het icoon met de speer in de wervel, dat donker wordt en weer vrijdraait. Met Twin Sweep staan er twee stipjes naast: een per lading. De ladingen laden een voor een bij, en een misser kost er ook een.
 
@@ -229,6 +230,7 @@ De lage zwaai zelf (bukken en aanvallen) heeft iedereen, bij elke tribe. Hij raa
 | **Blood Rush** | de meter vult 1,6 keer zo snel, per kill en per treffer op een eindbaas. Heb je Long Breath nog niet, dan geeft Blood Rush zelf de meter, met 5 seconden |
 | **Fourth Life** | je begint elk level met vier levens in plaats van drie (het vierde hartje heeft een gouden randje). Het gaat eraf zoals de andere, en een kalebas vult het ook weer aan |
 | **The Pounce** | een rol-worp die een vijand raakt vult de woedemeter: een twintigste, en een perfecte een tiende (zoveel als een kill). Per treffer, dus ook als hij niet doodt; met Blood Rush 1,6 keer zoveel. Heb je Long Breath en Blood Rush nog niet, dan geeft The Pounce zelf de meter |
+| **Lion's Patience** | een vijand met zijn rug naar je toe krijgt half zo snel argwaan: twee keer zoveel tijd om toe te slaan voor hij omkijkt (zie de sluipaanval). Tijdelijk talent, tot de echte sluip-talents er zijn |
 
 De woedemeter staat onder de kalebas, met het leeuwenlogo en een balk. Hij is er alleen met Long Breath, Blood Rush of The Pounce. Elke gedode vijand vult een tiende, en elke rake klap op een eindbaas die hem nog niet doodt 0,08. Hij blijft staan tussen levels en na game over, en gaat pas terug naar nul bij een nieuwe run uit het menu. Is hij vol, dan pulseert hij, licht de leeuw op en klinkt er een trommelslag, maar hij gaat niet vanzelf af: druk op **G** (of klik op de meter), op de telefoon op de ronde knop met de leeuw links van ✦. Dan neemt Amir een tijd geen schade, van beten, klappen, vallen en de fosforslang, en loopt de meter leeg als aflopende tijd. Hij wordt er niet sterker van. Om hem heen hangt een warme gloed met opstijgende vonkjes, die aan het eind flakkert. Een val in een ravijn blijft het einde. Is de meter niet vol, ben je al in de woede of ben je dood, dan doet G niets.
 
@@ -653,6 +655,21 @@ verbergt je niet. Sta je achter hem, dan merkt hij je alleen op als je op zijn e
 je drie seconden kwijt, dan vergeet hij je en gaat hij terug naar zijn plek. De oudere levels werken
 nog zoals vroeger. In de sandbox staat het onder Vijanden, bij **Zicht**, en **Toon zicht** laat zien
 waar hij kijkt.
+
+## De sluipaanval
+
+In een level met de sluipaanval (nog geen enkel level; in de sandbox onder Vijanden, bij **Sluipaanval**) hoort een
+bandiet, schildbandiet, kooiman, meelman, kruisboogbandiet of zweepman je achter zijn rug in plaats van je te zien.
+Kruipen en stilstaan zijn stil, lopend hoort hij je tot net buiten steekafstand, sprintend van ver, en een worp, een
+treffer, een klap die je krijgt en een speer die neerkomt maken lawaai op die plek. Boven zijn hoofd staat een oog:
+dicht zolang hij je niet opgemerkt heeft. Sta je vlak achter hem, dan loopt een gele boog om dat oog vol en kijkt hij
+om; ziet hij je dan, dan is hij wakker (een rood uitroepteken). Sla toe voor die tijd: loop tot net buiten zijn
+gehoor, buk, kruip het laatste stukje en steek, of gooi je speer van buiten zijn gehoor. Een treffer van achteren op
+wie je niet opgemerkt heeft is de sluipaanval: in een klap dood, ook een schildbandiet langs zijn schild, met een
+korte klap en een ster. Je kunt hem ook gewoon aanvallen; sluipen is een keuze, en handig tegen een groep. De
+hinderlaag-bandiet (gehurkt met zijn rug naar je) hoort je zoals altijd en doet niet mee. In de sandbox laat **Rug naar
+Amir** een vijand van je af kijken, **Draait om** laat hem in rust om de zoveel seconden omdraaien, **Patrouille**
+laat een bandiet heen en weer lopen, en **Toon gehoor** tekent hoe ver je te horen bent.
 
 ## De health-balk
 
