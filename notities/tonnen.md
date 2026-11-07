@@ -36,6 +36,19 @@ paar lege in de roverskampen van Valse Koning 2 en 5 (met toestemming, regel 1).
   en `bruSprongInslag` (260 om de bal). Dan valt hij in een hoopje (zeven stukken op de plek, `TON.hoopLiggen` 45 s), vliegen
   er twee of drie stukken naar de camera (`z > 0`: groter, van het midden af, onscherp, getekend voor alles in
   `tonVoorTeken`) en een de verte in (`z < 0`, kleiner, achter).
+- **Naar de lens** (`TON.lens`, `tonLensMaak`, `tonLensStap`, `tonLensTeken`): in de slag van de opening van het plein
+  (`brutus.intro.fase === 'slag'`, in `tonBruut`) vliegen de stukken in plaats daarvan echt op de camera af. Elk stuk heeft
+  een plek in het beeldvlak en een diepte `d` van 1 (de ton) naar 0 (de lens); op het scherm staat het op het midden plus
+  (plek min midden) / d, 1/d keer zo groot, onscherp (tot `blur`) en donkerder. Per ton schieten er `langs` langs de rand
+  weg (hooguit `max`), en een keer per slag een half deksel (`stuk_08`) dat zo gericht is dat het na `raakDuur` op `doel`
+  tegen de lens slaat, zo hoog als `vulling` van het scherm: een hitstop (`stop`), een schok, een doffe klap
+  (`tonLensKlap`, zonder bestand), het plakt `plak` s, glijdt weg (`glij`) en er blijft stof op de lens (`stof`). De plek
+  op het scherm wordt in de wereldlaag gezet (`tonLensPlaats`, met de zoom erin); getekend wordt na de balken van de
+  opening (`tonLensTeken`, na `bruIntroTeken`), in schermcoördinaten, zodat het niet met de wereld mee schudt. In het
+  gevecht zelf blijft het de oude manier: een stuk op de lens zou het zicht wegnemen.
+- **Kapot is kapot**: wat Nyundo breekt (`tonBruut`) onthoudt `tonKapot` (per level, per sessie, de index in `level.tonnen`),
+  en `tonReset` zet die na een dood niet terug. Wat Amir breekt komt bij een nieuwe poging gewoon weer heel terug.
+  Sandbox: De stad, **Tonnen naar de lens** (`sbtonlens`): drie tonnen die na `lensT` (1,2 s) in een klap gaan, met de lens.
 - Een ton op een ton valt als de onderste weg is (`tonStap`), met een tik en wat stof.
 - Hooguit `TON.max` losse stukken; daarna vervaagt de oudste.
 

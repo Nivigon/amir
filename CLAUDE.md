@@ -246,6 +246,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | baviaan: de eindbaas in wording (baas, regel 12) | `BAVIAAN`, `baviaanLaad`, `baviaanTeken` | notities/baviaan.md |
 | Brutus (Nyundo): de bruut met de knots, baas van het plein; stormt, kapt, springt (golven door de vloer), zestien treffers (baas, regel 12) | `BRU`, `makeBrutus`, `updateBrutus`, `hitBrutus`, `bruKlem`, `bruSprongStap`, `bruGolfStap`; de gebarsten vloer: `BRU_SCHADE`, `bruSchadeTeken` | notities/brutus.md |
 | de opening van het plein: het hek valt dicht, Nyundo slaat de tonnen kapot en stormt | `BRU_INTRO`, `bruIntroStap`, `bruIntroVast` | notities/brutus.md |
+| tonnen naar de lens: bij die slag vliegen de stukken in perspectief op de camera af, een half deksel knalt tegen de lens | `TON.lens`, `tonLensMaak`, `tonLensTeken` | notities/tonnen.md |
 | speerbeet: de baviaan pakt je speer | `BAV_BEET`, `BAV_MOND`, `BAV_SPEER` | notities/baviaan.md |
 | speer in de baviaan: de speerval blijft in zijn borst zitten | `BAV_VALSPEER`, `bavSpeerTeken`, `baviaanTeken` | notities/baviaan.md |
 | voorgrond: de laag tussen de camera en Amir | `VOORGROND`, `VG_SOORT`, `VG_LAGEN` | notities/voorgrond.md |

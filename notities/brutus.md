@@ -46,8 +46,12 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
   afzet en blijft daar `tell` s zitten (het zand trilt), zwaait de knots als een molenwiek over zijn hoofd (sprongframes
   op `opMs`) en komt los op het eerste frame waarin Grok zijn voeten optilde (`los`); daar de afzet (`bruAfzet`: dreun,
   stofstoot, steentjes). In de lucht schuift hij in een boog (`hoog`, bovenop de frames) naar zijn doel en stuurt hij bij
-  naar Amir tot hij neerkomt (`bruSprongDoel`: zo dat Amir tussen zijn lijf en de bal landt, `balVoor`, nooit verder dan
-  `ver` en nooit achteruit). Bovenin hangt hij `hang` s. Op het landingframe waar zijn voeten weer staan (`neer`) een
+  naar Amir tot hij bovenin hangt (`bruSprongDoel`: zo dat Amir tussen zijn lijf en de bal landt, `balVoor`, nooit verder dan
+  `ver` en nooit achteruit). Sinds 07-11-2026 ligt de landingsplek vast zodra de boog `vastBij` (0,5, de top) voorbij is
+  (`sp.vast`, eerder `stuurTot: 99`, tot de landing): het zand trilt dan op de strook van zijn lijf tot de bal
+  (`bruSprongVast`), en wie dan wegrent ontwijkt hem. Gemeten: bovenin wegrennen, sprintend of lopend, is veilig;
+  blijven staan of pas bij de landing (`neer`) gaan is raak. Daarvoor kon je hem niet ontwijken: springen raakt
+  sinds de zwaaicheck ook, en weglopen volgde hij tot het laatst. Bovenin hangt hij `hang` s. Op het landingframe waar zijn voeten weer staan (`neer`) een
   dreun en stof (`bruNeer`), en op het frame waar de bal de grond raakt de inslag (`bruSprongInslag`): de grootste
   stofwolk van het spel (een ring naar twee kanten, een hoge pluim die blijft hangen, een waas over de vloer), plavuizen
   die opspringen (`bruSteen`), een harde schok en hitstop. Staat Amir op de grond tussen zijn rug en net voorbij de bal,
@@ -59,8 +63,7 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
   400 boven de grond raak (frame 11), op 550 ben je erboven. Daarna hangt
   hij `eind` s over de knots (het raam) en komt overeind: zijn anker schuift `verplaatsing` (landing in brutus.json) naar
   de heup van de eindpose.
-  Speelwijze: wie dichtbij blijft staan of gewoon wegloopt haalt de landing niet uit (getest: vanaf 150 en 350 px
-  weglopen is raak, vanaf 550 haal je hem). **Golven** (`BRU.sprong.golf`, `bruGolfStap`, `bruGolfTeken`): uit de inslag
+  Speelwijze: wie blijft staan wordt geraakt; wie wegrent zodra hij bovenin hangt en het zand trilt, ontwijkt hem. **Golven** (`BRU.sprong.golf`, `bruGolfStap`, `bruGolfTeken`): uit de inslag
   rolt een bult naar links en een naar rechts (`v`), tot de wand van de arena of `ver`. De vloer golft echt: de strook
   onder de grondlijn van het al getekende beeld wordt een keer gekopieerd en in smalle kolommen opgetild (`bult`, `breed`;
   steil voorop, golvend erachter, met een donkere scheur eronder), met plavuizen en een lage stofmuur langs de weg. Gaat de
@@ -113,13 +116,22 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
 - **Dood** (`bruDoodStap`, `bruFinale`): op de laatste treffer staat de wereld stil voor Amir (hij kan niet lopen en niet
   geraakt worden) en draait Brutus zich naar hem toe. Dan drie Grok-sets uit brutus.json achter elkaar: `dreig` (hij heft
   zijn knots langzaam naar Amir, vertraagd afgespeeld), `drop` (zijn pols draait, de knots zakt; op het laatste frame staat
-  de knots los op zijn bal en kantelt in code van hem weg om, `knots` in de json, `BRU.knotsLig`, met een kleine plof en stof)
+  de knots los op zijn bal en kantelt in code van hem weg om, `knots` in de json, `BRU.knotsLig`, met een kleine plof en stof;
+  zo zwaar is hij dat hij bij de klap een stuk in de vloer zakt, `BRU.knotsZak`: wat onder de vloerlijn komt is weg, met een
+  donkere deuk en een barst eronder)
   en `val` (het doodsgeluid, hij zakt op zijn knieen en valt voorover; op het frame met bron `BRU.valKlap` de plof, een
   schok en de grote stofwolk). Daarna blijft hij liggen (fase `lig`, over de knots heen), gaat de uitgang open en speelt
   "ta soul, rest". De val-frames zijn per frame op de grond gezet: Grok liet hem ruim 100 px boven de grond liggen. Grok liet hem ook
   groeien bij het knielen en liggen: de val-frames zijn per frame geschaald rond het anker (veld `schaal`: staand 1, geknield
   0,76, liggend 0,57), zodat hij liggend ongeveer zo lang is als hij staand hoog is. Liggend is hij
   nog wat lang (het eindbeeld van Grok was te groot); een betere ligpose en de speer-finisher (speer breken, schreeuw) komen later.
+- **Zijn stem** (`BRU.spraak`, `bruZeg`, pauze en herstart via `bruSpraakStap`): na treffer `fase2Na` (6) staat de
+  wereld stil (`bruVries`, dt 0 in de lus, Amir vast en onraakbaar) zolang `sounds/brutus_fase2.mp3` klinkt; het geluid
+  is de klok, zonder geluid duurt het `vries` s (`bruVriesStap`). Op die treffer geen kreet. Bij de omslag naar zijn woede
+  speelt `brutus_fase3.mp3` (over het gevecht heen, geen freeze). Bij zijn dood begint `brutus_dood.mp3` (zijn laatste
+  woorden, 6,2 s) op de laatste treffer, en dreig en drop rekken samen tot `doodVal` (4,0 s): dan valt `val` in de stilte
+  voor zijn laatste zin, en de klap op de grond (zo'n 1,8 s later) op zijn laatste zucht (5,7 s). Loopt de spraak achter,
+  dan wacht hij in het laatste drop-beeld. Gemeten in Chromium: val op 4,04 s spraak, de plof op 5,82 s.
 - Zolang hij leeft blijven Amir en Brutus tussen `brutus.van` en `brutus.tot` (`bruKlem`).
 - **Bloed** (eerste versie, `BRU.bloed`, `bruBloedRaak`): elke treffer geeft een spat druppels uit zijn borst, naar de kant
   waar de klap vandaan kwam, die op de grond blijven liggen en vervagen (de druppels van de zweepman: `zwmDruppelStap`,
@@ -161,10 +173,11 @@ rug-sprite is er niet, hij kijkt van Amir weg) en ademt. Komt Amir binnen `zie` 
   tonnen (`bruIntroCam`). Hij loopt met de stormframes, trager (`loopMs`, `loopV`), naar de dichtste groep tonnen
   (`bruIntroDoel`: `sta` grote-set-px rechts van de meest rechtse).
 - `slag`: de zijwaartse zwaai uit brutus.json (heen in frame 11-14, terug in 18-21, `raak`); wat in het vak staat gaat in
-  een keer (`tonBruut`). De naam (NYUNDO, de hamer) komt in beeld.
+  een keer (`tonBruut`), en de stukken vliegen tegen de lens (`TON.lens`, zie "Naar de lens" in `notities/tonnen.md`).
+  De naam (NYUNDO, de hamer) komt in beeld.
 - `draai`: hij kijkt naar Amir, en na `draai` s stormt hij; de balken schuiven weg (`weg`) en de balk onderaan komt.
 `s.state` blijft `wacht` tot de storm, dus hij raakt Amir niet en de sprong-timer loopt niet. Een keer per level per sessie
-(`bruIntroGezien`): na een dood staat hij meteen klaar en blijven de tonnen heel, dan zijn ze er voor het gevecht.
+(`bruIntroGezien`): na een dood staat hij meteen klaar, en de tonnen die hij kapot sloeg blijven kapot (`tonKapot`, per level per sessie, ook wat hij in het gevecht breekt).
 Onder de losse luifel links (`stad.luifels`, -6000) staat de stapel die hij kapotslaat; bij de put rechts staan er twee voor
 het gevecht (zie `notities/tonnen.md`).
 
@@ -202,7 +215,10 @@ het gevecht (zie `notities/tonnen.md`).
   daarna `gen-klein.py` en `gen-offline-manifest.py`.
 - Geluiden: `sounds/brutus_adem.mp3` (loopt zolang hij staat te ademen), `brutus_stap.mp3`,
   `brutus_zwaai.mp3` (start op zwaaiframe `BRU.zwaaiGeluid`, de zoef valt op de treffer),
-  `brutus_geraakt.mp3` (nu alleen nog bij de omslag naar zijn woede), `brutus_dood.mp3`. Een treffer geeft naast
+  `brutus_geraakt.mp3` (niet meer gebruikt: de omslag naar zijn woede is nu `brutus_fase3.mp3`). Een treffer geeft naast
   `brutus_speerraak.mp3` (de speer in zijn vlees) een van zes kreten, `brutus_hit1.mp3` tot `brutus_hit6.mp3`, geknipt uit
   hits.mp3, nooit twee keer dezelfde achter elkaar (`BRU_HITS`, `bruHitSpeel`). De opening: `brutus_start1.mp3` en
   `brutus_start2.mp3`.
+
+**Wind tijdens het gevecht** (`BRU.wind`, in `weerGeluid`): zolang Nyundo niet ligt loopt er een constante woestijnwind
+onder het gevecht, als een vierde van de zandstorm (dezelfde lus, `stormSnd`). Na zijn dood zwakt hij langzaam af.
