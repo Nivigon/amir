@@ -454,7 +454,9 @@ na een paar passen op de toonbank.
 Een losse speer op een galerij viel weg tegen de reling, en op een dak was hij een dun streepje. Ligt een losse speer
 `SPEER_BAKEN.boven` (60) hoger dan Amir, dan zweeft erboven de speer zelf in het klein (`speerBakenTeken`, vanuit
 `skETeken`): dezelfde sprite, op elke as even veel verkleind, ondersteboven met de punt naar de speer, voor een
-lichtvlek die van wit naar amber loopt en zacht ademt. Staat Amir erbij, dan neemt de E het over. Alleen in de stad.
+lichtvlek die van wit naar amber loopt en zacht ademt. Is de speer `wacht` (3) seconden in beeld, dan zwelt in `aanzwel`
+(1) seconde een puls aan: zacht en weer fel, een keer per `puls` (1,2) seconde, en zolang hij blijft liggen. Gaat hij uit
+beeld, dan begint de klok opnieuw (`sp.bakenVan`). Staat Amir erbij, dan neemt de E het over. Alleen in de stad.
 Eerder geprobeerd en afgekeurd: een donkere omlijning met een schittering, een gloed, pijltjes, een icoon in een rondje
 of vakje, en de speer anders neerleggen (rechtop, met een wimpel, in een kruik).
 
