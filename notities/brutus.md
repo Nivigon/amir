@@ -46,8 +46,12 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
   afzet en blijft daar `tell` s zitten (het zand trilt), zwaait de knots als een molenwiek over zijn hoofd (sprongframes
   op `opMs`) en komt los op het eerste frame waarin Grok zijn voeten optilde (`los`); daar de afzet (`bruAfzet`: dreun,
   stofstoot, steentjes). In de lucht schuift hij in een boog (`hoog`, bovenop de frames) naar zijn doel en stuurt hij bij
-  naar Amir tot hij neerkomt (`bruSprongDoel`: zo dat Amir tussen zijn lijf en de bal landt, `balVoor`, nooit verder dan
-  `ver` en nooit achteruit). Bovenin hangt hij `hang` s. Op het landingframe waar zijn voeten weer staan (`neer`) een
+  naar Amir tot hij bovenin hangt (`bruSprongDoel`: zo dat Amir tussen zijn lijf en de bal landt, `balVoor`, nooit verder dan
+  `ver` en nooit achteruit). Sinds 07-11-2026 ligt de landingsplek vast zodra de boog `vastBij` (0,5, de top) voorbij is
+  (`sp.vast`, eerder `stuurTot: 99`, tot de landing): het zand trilt dan op de strook van zijn lijf tot de bal
+  (`bruSprongVast`), en wie dan wegrent ontwijkt hem. Gemeten: bovenin wegrennen, sprintend of lopend, is veilig;
+  blijven staan of pas bij de landing (`neer`) gaan is raak. Daarvoor kon je hem niet ontwijken: springen raakt
+  sinds de zwaaicheck ook, en weglopen volgde hij tot het laatst. Bovenin hangt hij `hang` s. Op het landingframe waar zijn voeten weer staan (`neer`) een
   dreun en stof (`bruNeer`), en op het frame waar de bal de grond raakt de inslag (`bruSprongInslag`): de grootste
   stofwolk van het spel (een ring naar twee kanten, een hoge pluim die blijft hangen, een waas over de vloer), plavuizen
   die opspringen (`bruSteen`), een harde schok en hitstop. Staat Amir op de grond tussen zijn rug en net voorbij de bal,
@@ -59,8 +63,7 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
   400 boven de grond raak (frame 11), op 550 ben je erboven. Daarna hangt
   hij `eind` s over de knots (het raam) en komt overeind: zijn anker schuift `verplaatsing` (landing in brutus.json) naar
   de heup van de eindpose.
-  Speelwijze: wie dichtbij blijft staan of gewoon wegloopt haalt de landing niet uit (getest: vanaf 150 en 350 px
-  weglopen is raak, vanaf 550 haal je hem). **Golven** (`BRU.sprong.golf`, `bruGolfStap`, `bruGolfTeken`): uit de inslag
+  Speelwijze: wie blijft staan wordt geraakt; wie wegrent zodra hij bovenin hangt en het zand trilt, ontwijkt hem. **Golven** (`BRU.sprong.golf`, `bruGolfStap`, `bruGolfTeken`): uit de inslag
   rolt een bult naar links en een naar rechts (`v`), tot de wand van de arena of `ver`. De vloer golft echt: de strook
   onder de grondlijn van het al getekende beeld wordt een keer gekopieerd en in smalle kolommen opgetild (`bult`, `breed`;
   steil voorop, golvend erachter, met een donkere scheur eronder), met plavuizen en een lage stofmuur langs de weg. Gaat de
