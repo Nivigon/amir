@@ -153,6 +153,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de zon: schijf, krans en ademende ring | `ZON`, `drawZon`, `ringAdem` | notities/zon.md |
 | globale lichtlaag | `licht`, `SCENES` | notities/wegwijzers.md |
 | de schaduw van Amir | `AMIR_SCHADUW`, `amirSilhouet`, `amirSilLeg` | notities/schaduw-amir.md |
+| licht op personages: zon, fakkel en raam leggen een rand van licht op Amir en de vijanden | `PLICHT`, `persLicht`, `plichtBronnen` | notities/licht-personages.md |
 | tribes: de keuze per run en de abilities | `TRIBE_CONFIG`, `RUN`, `tribeKies` | notities/tribes.md |
 | muziek per level | `MUZIEK`, `MUZIEK_BASIS`, `muziek` | notities/wegwijzers.md |
 | beeld: de grote of de kleine spriteset | `KLEIN_FAM`, `zetBron` | notities/wegwijzers.md |

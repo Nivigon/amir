@@ -1120,6 +1120,13 @@ blijft de zachte schaduw recht onder hem: zo zie je waar je neerkomt. Op een kei
 trede ligt hij op het bovenvlak. Onder de grond komt de zonneschaduw er alleen bij waar de zon door een
 gat naar binnen valt. 's Nachts is hij zwakker en in de sneeuw koel blauw.
 
+Het licht valt ook op de personages zelf. Staat de zon laag, 's ochtends of 's avonds, dan krijgen Amir en de
+vijanden een warm randje licht aan de kant van de zon, zodat ze loskomen van de achtergrond; bij de hoge middagzon
+en onder de grond is dat er niet. Een fakkel doet hetzelfde met oranje licht dat meeflakkert met de vlam, en in het
+donker reikt hij verder. En binnen in een huis kleurt de lichtbundel van een raam iedereen die erdoor loopt. Voor nu
+geldt dat voor Amir, de bandiet en de schildbandiet. In de sandbox staat het onder Beeld en geluid, **Licht op
+personages**, met elke bron apart aan of uit.
+
 Het licht onder de grond volgt het uitzicht: in de winter valt er koel wit zonlicht door een gat in
 plaats van oranje, en 's nachts is het zwakker. En ook buiten werkt het licht: loop je onder een
 rotsdak of een overhang, dan wordt het daar geleidelijk wat donkerder, en aan de open kant valt de
