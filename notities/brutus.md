@@ -149,8 +149,11 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
   helemaal erachter of hij erop lag, en een gat zo groot als de bal zag eruit als de bal ervoor. Op de klap speelt het bloedgeluid nog een keer, met de natte
   speerklap eronder (`natVol`), en spat er bloed uit zijn gezicht. Dat bloedgeluid is `sounds/brutus_bloed.mp3`: `bloedspuit.mp3`
   13 dB harder (ffmpeg, `volume=13dB,alimiter`), want het origineel verdween onder de plof. Op de klap spat er ook bloed op
-  de camera (`lens`, `bruLensStart`, `bruLensTeken`, over alles heen zoals de tonnen naar de lens): een paar vlekken met
-  spikkels, een glim en een druiper die langzaam uitloopt, en na `weg` trekken ze weg. Het bloed is dat van de schildman na de executie, niet
+  de camera (`lens`, `bruLensStart`, `bruLensTeken`, over alles heen zoals de tonnen naar de lens): een dikke klodder
+  linksboven zijn gezicht (`groot`, waar zijn gezicht op het scherm ligt staat in `s.kopScherm`, uit `bruTeken`) met
+  spetters eromheen (`klein`), elk met een druiper die langzaam uitloopt, en na `weg` trekken ze weg. Op de kant van de
+  knots die je ziet zitten bloedvlekken met druipers die langzaam uitlopen en af en toe een druppel naar de vloer laten
+  vallen (`balVlek`, `bruBalVlekTeken`). Het bloed is dat van de schildman na de executie, niet
   in code getekend: onder de bal vandaan stroomt in `stroom.groei` s de stroom onder het lijk van de schildman over de
   grond (`design/bloed/nyundo_stroom.png`, geknipt door `tools/nyundo_bloed.py` uit `einde_val_15.png`, niet over de bal), en op de bal
   loopt de druiper `einde_bloed.png` naar beneden, binnen de bal geknipt (`bal`). Liggende druppels op de plek van de

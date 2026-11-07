@@ -31722,7 +31722,14 @@ const BRU = {
                           donker: '#2e0306', bloed: '#7a0c12', vlees: '#a8464b', glim: 'rgba(214,110,112,0.55)', brok: 16 },
                    // bloed op de lens bij de klap: zoveel spatten, straal in px (op het scherm), ze komen op in in s, de
                    // druiper loopt uit tot drup px in drupT s, en van weg[0] tot weg[1] s trekken ze weg
-                   lens: { n: 8, r: [14, 38], in: 0.07, drup: [40, 150], drupT: 3.5, weg: [2.6, 4.2] },
+                   lens: { groot: { r: 36, dx: -95, dy: -115 },      // de klodder: straal, en waar ten opzichte van zijn gezicht (px)
+                           klein: { n: 7, r: [4, 12], ver: [50, 140] },  // de spetters eromheen: aantal, straal, afstand tot de klodder
+                           in: 0.07, drup: [20, 70], drupT: 3.5, weg: [3.4, 5.2] },
+                   // het bloed op de zichtbare kant van de bal: vlekken [x, y, rx, ry, druiper] in delen van de straal vanuit
+                   // het midden (+x is de kant van zijn hoofd, y 0 is ongeveer de vloer), de druipers lopen in groei s uit en
+                   // laten om de druppel s een druppel los die naar de vloer valt
+                   balVlek: { vlekken: [[-0.35, -0.8, 0.28, 0.15, 0.72], [-0.72, -0.48, 0.18, 0.13, 0.42], [0.05, -0.93, 0.26, 0.12, 0.85],
+                                        [-0.15, -0.52, 0.12, 0.09, 0.3]], dik: 0.055, groei: 4, druppel: 1.6 },
                    bal: { van: -312, tot: -207, x: 0.62, y: -0.95, h: 1.5, op: 0.8, groei: 2.5 } } },
   // de val: op het laatste kniel-frame (kniel) blijft hij knielExtra ms langer zitten, en de frames daarna tot hij ligt
   // duren traag keer zo lang. De klap valt zo net na zijn laatste woorden, in de stilte
@@ -32793,31 +32800,61 @@ function bruBalBloedTeken(s, r, gs){
   ctx.drawImage(im, D.x * R - w / 2, D.y * R, w, h);
   ctx.restore();
 }
+// het bloed op de zichtbare kant van de knots: vlekken met druipers die langzaam naar beneden lopen en af en toe een
+// druppel loslaten (in de ruimte van de bal, ongedraaid, zoals bruBalBloedTeken)
+function bruBalVlekTeken(s, r, gs){
+  const V = BRU.bloed.dood.balVlek, R = r * gs, t = s.kopBloed;
+  const a = Math.min(1, t / BRU.bloed.dood.bal.op) * (1 - (s.weg || 0)); if (a <= 0) return;
+  const k = Math.min(1, Math.sqrt(t / V.groei));
+  ctx.save(); ctx.globalAlpha = a * 0.92;
+  ctx.save(); ctx.beginPath(); ctx.arc(0, 0, R * 0.9, 0, Math.PI * 2); ctx.clip();
+  V.vlekken.forEach(([x, y, rx, ry, drup], i) => {
+    const cx = x * R, cy = y * R, L = drup * R * k, b = V.dik * R;
+    ctx.fillStyle = '#5e060b';
+    ctx.beginPath(); ctx.ellipse(cx, cy, rx * R, ry * R, -0.2 + i * 0.3, 0, Math.PI * 2); ctx.fill();
+    if (L > 1){                                              // de druiper, smaller naar beneden, met een zwellende druppel
+      ctx.beginPath(); ctx.moveTo(cx - b, cy); ctx.lineTo(cx + b, cy); ctx.lineTo(cx + b * 0.5, cy + L); ctx.lineTo(cx - b * 0.5, cy + L); ctx.fill();
+      const zwel = ((t + i * 0.37) % V.druppel) / V.druppel;
+      ctx.beginPath(); ctx.arc(cx, cy + L, b * (0.7 + 0.6 * zwel), 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(200,90,95,0.45)';                  // een natte glim
+    ctx.beginPath(); ctx.ellipse(cx - rx * R * 0.35, cy - ry * R * 0.3, rx * R * 0.3, ry * R * 0.25, -0.3, 0, Math.PI * 2); ctx.fill();
+  });
+  ctx.restore();
+  ctx.fillStyle = '#5e060b';                                 // de druppels die loslaten en naar de vloer vallen
+  V.vlekken.forEach(([x, y, , , drup], i) => {
+    if (k < 1) return;                                       // pas als de druiper uitgelopen is
+    const f = ((t + i * 0.37) % V.druppel) / V.druppel; if (f < 0.75) return;
+    const val = (f - 0.75) / 0.25, y0 = y * R + drup * R;
+    ctx.beginPath(); ctx.ellipse(x * R, y0 + val * val * R * 0.5, V.dik * R * 0.9, V.dik * R * 1.3, 0, 0, Math.PI * 2); ctx.fill();
+  });
+  ctx.restore();
+}
 // bloed op de camera als hij in zijn knots valt: een paar spatten op vaste plekken (bij de klap geloot), elk een vlek
 // met spikkels en een druiper die langzaam naar beneden loopt; schermruimte, over alles heen (zoals tonLensTeken)
 function bruLensStart(s){
   const L = BRU.bloed.dood.lens, rnd = (a, b) => a + Math.random() * (b - a);
-  s.lens = [];
-  for (let i = 0; i < L.n; i++){
-    const r = rnd(L.r[0], L.r[1]), hoek = rnd(0, Math.PI * 2);   // de richting waarin hij uitspat
-    s.lens.push({ x: rnd(0.08, 0.92), y: rnd(0.12, 0.75), r, hoek, rek: rnd(1.1, 1.7),
-                  rand: Array.from({ length: 16 }, () => rnd(0.84, 1.12)),          // een grillige rand
-                  uit: Array.from({ length: 3 + (Math.random() * 4 | 0) }, () => [hoek + rnd(-0.9, 0.9), rnd(1.3, 2.4), rnd(0.12, 0.28)]),   // uitlopers
-                  spik: Array.from({ length: 6 + (Math.random() * 8 | 0) }, () => { const a = hoek + rnd(-1.4, 1.4), d = rnd(1.4, 3.2);
-                    return [Math.cos(a) * d, Math.sin(a) * d, rnd(0.05, 0.16)]; }),
-                  drup: rnd(L.drup[0], L.drup[1]) * (r / L.r[1]), dx: rnd(-0.12, 0.12), wacht: rnd(0, 0.1) });
-  }
+  const spat = (ox, oy, r, dik) => { const hoek = rnd(0, Math.PI * 2);
+    return { ox, oy, r, dik, hoek, rek: dik ? rnd(1.05, 1.25) : rnd(1.1, 1.6),
+             rand: Array.from({ length: 16 }, () => rnd(0.84, 1.12)),
+             uit: Array.from({ length: (dik ? 5 : 1) + (Math.random() * 3 | 0) }, () => [rnd(0, Math.PI * 2), rnd(1.2, dik ? 1.8 : 2.4), rnd(0.08, 0.2)]),
+             spik: Array.from({ length: dik ? 10 : 3 }, () => { const a = rnd(0, Math.PI * 2), d = rnd(1.3, 2.6); return [Math.cos(a) * d, Math.sin(a) * d, rnd(0.04, 0.1)]; }),
+             drup: dik ? L.drup[1] : rnd(0, L.drup[0]) * (r / 15), dx: rnd(-0.08, 0.08), wacht: dik ? 0 : rnd(0, 0.1) }; };
+  const G = L.groot, K = L.klein;
+  s.lens = [spat(G.dx, G.dy, G.r, true)];
+  for (let i = 0; i < K.n; i++){ const a = rnd(0, Math.PI * 2), d = rnd(K.ver[0], K.ver[1]);
+    s.lens.push(spat(G.dx + Math.cos(a) * d, G.dy + Math.sin(a) * d * 0.8, rnd(K.r[0], K.r[1]), false)); }
 }
 function bruLensTeken(){
-  const s = brutus; if (!s || !s.lens || s.kopBloed === undefined) return;
-  const L = BRU.bloed.dood.lens, t0 = s.kopBloed;
+  const s = brutus; if (!s || !s.lens || s.kopBloed === undefined || !s.kopScherm) return;
+  const L = BRU.bloed.dood.lens, t0 = s.kopBloed, K0 = s.kopScherm;
   if (t0 > L.weg[1]) return;
   ctx.save(); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   for (const v of s.lens){
     const t = t0 - v.wacht; if (t <= 0) continue;
     const op = Math.min(1, t / L.in), weg = 1 - Math.max(0, Math.min(1, (t0 - L.weg[0]) / (L.weg[1] - L.weg[0])));
-    const x = v.x * W, y = v.y * H, r = v.r * (0.6 + 0.4 * op), lang = v.drup * Math.min(1, Math.sqrt(t / L.drupT));
-    ctx.globalAlpha = 0.72 * op * weg;
+    const x = K0.x + v.ox, y = K0.y + v.oy, r = v.r * (0.6 + 0.4 * op), lang = v.drup * Math.min(1, Math.sqrt(t / L.drupT));
+    ctx.globalAlpha = (v.dik ? 0.9 : 0.75) * op * weg;
     const gr = ctx.createRadialGradient(x, y, 0, x, y, r * 1.2);   // in het midden dikker en donkerder
     gr.addColorStop(0, '#4c0408'); gr.addColorStop(0.7, '#760a10'); gr.addColorStop(1, '#8e1016');
     ctx.fillStyle = gr;
@@ -32839,7 +32876,7 @@ function bruLensTeken(){
     }
     for (const [sx, sy, sr] of v.spik){ ctx.beginPath(); ctx.arc(x + sx * r, y + sy * r, Math.max(1, sr * r), 0, Math.PI * 2); ctx.fill(); }
     if (lang > 2){                                          // de druiper: smaller naar beneden, met een druppel eronder
-      const b = r * 0.22, ox = v.dx * lang;
+      const b = r * (v.dik ? 0.3 : 0.22), ox = v.dx * lang;
       ctx.beginPath(); ctx.moveTo(x - b, y); ctx.lineTo(x + b, y); ctx.lineTo(x + ox + b * 0.45, y + r * 0.6 + lang); ctx.lineTo(x + ox - b * 0.45, y + r * 0.6 + lang); ctx.fill();
       ctx.beginPath(); ctx.arc(x + ox, y + r * 0.6 + lang, b * 0.75, 0, Math.PI * 2); ctx.fill();
     }
@@ -32882,6 +32919,10 @@ function bruTeken(s, bodyX, voeten, gs){
   const im = dk && imgReady(dk) ? dk : (bruBank.lagen || {})[fr.src]; if (!im || !imgReady(im)) return;
   ctx.save(); ctx.translate(bodyX, voeten);
   if (s.face === 1) ctx.scale(-1, 1);
+  if (s.kopBloed !== undefined){                           // waar zijn gezicht op het scherm ligt, voor het bloed op de lens (bruLensTeken)
+    const k = BRU.bloed.dood.kop, q = ctx.getTransform().transformPoint({ x: k.x * gs, y: k.y * gs });
+    s.kopScherm = { x: q.x / DPR, y: q.y / DPR };
+  }
   const K = s.knots, kn = bruData && bruData.knots, ki = kn && (bruBank.lagen || {})[kn.src];
   // de losse knots: de bal blijft liggen, de steel klapt van hem weg om. Tot de klap van zijn val achter hem, daarna
   // ervoor: hij valt met zijn gezicht in de pinnen (BRU.bloed.dood)
@@ -32898,7 +32939,7 @@ function bruTeken(s, bodyX, voeten, gs){
       ctx.translate(0, Z.zak * gs * bruKnotsZakK(K));
     }
     ctx.translate(px, py); ctx.save(); ctx.rotate(-K.hoek); ctx.drawImage(ki, -r * gs, -(kn.h - r) * gs, kn.w * gs, kn.h * gs); ctx.restore();
-    if (inKnots) bruBalBloedTeken(s, r, gs);                  // het bloed op de pinnen waar zijn gezicht in zit
+    if (inKnots){ bruBalBloedTeken(s, r, gs); bruBalVlekTeken(s, r, gs); }   // het bloed op de pinnen, en op de kant die je ziet
     ctx.restore();
   };
   knotsTeken();
