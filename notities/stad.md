@@ -250,18 +250,23 @@ zitten. Het plafond van de kamer eronder en de vloer van de kamer erboven zijn z
 ## Binnen: de binnenkant van een huis
 
 `BINNEN`, `binnenBij`, `binnenEBij`, `binnenE`, `binnenKlem`, `binnenCamKlem`, `binnenVijandKlem`, `binnenAchter`, `binnenNa`,
-`binnenLadder`, `binnenLaadLevel`
+`binnenLadder`, `binnenLaadLevel`, `binnenHeeftDeur`
 
 ```
-binnen: [{ gevel, r, l, deur, ramen: [{x, h}], palen: [{x, h}], ladders: [{x, van, naar, f}] }]
+binnen: [{ gevel, r, l, deur, ramen: [{x, h}], palen: [{x, h}], ladders: [{x, van, naar, f}], bogen: [{x, naar}] }]
 ```
 
 Elk huis met een binnenkant is een eigen strook ver van de straat (van `r` tot `l`, in Stad 7 op -20000, -30000 en -40000).
 
 - **In en uit**: voor het deurgat van gevel `gevel` (`stadDeurMaat`, verdieping 0) staat een E; E en het beeld wordt even
   zwart (`BINNEN.fade`, via `stadTrapFade` met `binnen: true`: de camera springt mee, geen glijvlucht) en je staat binnen bij
-  de boogdeur (`deur`, een wereld-x op de begane grond). E bij die deur en je staat weer buiten voor het deurgat. Niet in een
-  gevecht (`stadInGevecht`), net als de stadstrap.
+  de deur (`deur`, een wereld-x op de begane grond). E bij die deur en je staat weer buiten voor het deurgat. Niet in een
+  gevecht (`stadInGevecht`), net als de stadstrap. Die deur is recht met een houten latei, net als het deurgat buiten
+  (`binnen/deur_recht.png`, gemaakt uit de boogdeur en de latei van `gevel.png` met `tools/binnen_deur_recht.py`).
+- **De binnenpoort**: de ronde boogdeur (`binnen/deur.png`) is de doorgang naar een volgende kamer in hetzelfde pand. Een boog
+  op `x` (begane grond) brengt je met E naar de boog op `naar`, in een andere strook; je komt een stap de kamer in uit, met je
+  gezicht ernaartoe. Dezelfde fade, en ook niet in een gevecht. Een kamer zonder `gevel` (`gevel: null`, geen `deur`) heeft geen
+  deur naar buiten: je komt er alleen via een boog (`binnenHeeftDeur`). Zet een boog altijd in paren, een in elke kamer.
 - **De ladder** werkt als de stadstrap: E bij de voet of bovenaan, het beeld dimt even en je staat aan de andere kant; niet
   in een gevecht. De voet staat op `x` op vloer `van`, de top leunt naar links (met `f` naar rechts) en `binnenLadder` geeft
   waar hij uitkomt: de rand van de vloer erboven hoort daar (in Stad 7 ligt die 125 voorbij de voet bij een verdieping van 450).
@@ -280,8 +285,9 @@ Elk huis met een binnenkant is een eigen strook ver van de straat (van `r` tot `
 - `levelcheck.py` kent de stroken (`binnen_strook`): wat erin staat is niet "voorbij het einde", en tussen de zwevers van twee
   huizen hoeft niet gesprongen te worden.
 
-Stad 7: Binnen is het proefstuk (drie huizen: een zaal op palen, en twee met een verdieping en een ladder, een keer gespiegeld).
-In de sandbox onder De stad: **Huis met binnenkant**.
+Stad 7: Binnen is het proefstuk (drie huizen: een zaal op palen met achterin een boog naar een kamer erachter, en twee met een
+verdieping en een ladder, een keer gespiegeld). In de sandbox onder De stad: **Huis met binnenkant** (met een boog achterin en
+een kamer erachter).
 
 ## Straten en knooppunten (Sandville)
 
