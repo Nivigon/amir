@@ -259,7 +259,7 @@ Bovenaan de legenda staat de schakelaar **Savanne | Stad** (`#mkthema`, `MK_THEM
 sneltoets G). Er zijn al zes categorieën (`MK_PALET_MAX`), dus de stad is geen zevende categorie maar een tweede stand
 van dezelfde zes. Een gereedschap in `MK_TYPES` met `thema: 'savanne'` of `thema: 'stad'` staat alleen in die stand,
 zonder `thema` in allebei. `mkPaletBoom(thema)` bouwt per stand een boom in `MK_PALETTEN`, `mkPalet()` geeft die van
-`MK.thema`. Sneeuw staat alleen bij Savanne; de groep `terrein/stad` (**Muur van leem**, **Grond: straat** en **Vloer van balken**) alleen bij Stad.
+`MK.thema`. Sneeuw staat alleen bij Savanne; de groep `terrein/stad` (**Muur van leem**, **Grond: straat** en **Vloer: hout**) alleen bij Stad.
 
 De stand filtert alleen het palet: wat al in het grid staat blijft staan en werkt gewoon, ook gemengd. Per stand
 onthoudt de Maker je gereedschap (`MK.themaGeheugen`); bestaat dat in de andere stand niet, dan valt hij terug op
@@ -270,8 +270,8 @@ de stand die aan staat en dan in de andere.
 **Muur van leem** (`leem`, letter `E`): een blok leemcellen boven de grondlijn wordt een terras met `look: 'leem'`, de
 lemen stadsmuur uit `notities/stad.md` ("De leemmuur"). Het botst en draagt als elk terras.
 
-**Vloer van balken** (`balken`, letter `B`, groep `terrein/stad`): een blok balkencellen boven de grondlijn wordt altijd
-een zwever met `look: 'balken'` (ook op de grond, dan met `onder: 0`), de vloer van een huis (zie "De balkenvloer" in
+**Vloer: hout** (`balken`, letter `B`, groep `terrein/stad`): een blok houtcellen boven de grondlijn wordt altijd
+een zwever met `look: 'hout'` (ook op de grond, dan met `onder: 0`), de vloer van een huis (zie "De houten vloer" in
 `notities/stad.md`). Schilder er een rij van op elke hoogte voor een verdieping.
 
 **Grond: straat** (`straat`, letter `A`, groep `terrein/stad`): op de grondlijn een strook `grondSoort` met soort

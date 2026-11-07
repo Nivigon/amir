@@ -980,6 +980,14 @@ def einde(lv, sp):
                     'is decor, Amir loopt erdoorheen en daarna eindeloos door. Zet een klif een stuk achter de rots')
 
 
+def binnen_strook(lv, x):
+    """Het huis (binnen) waar x in ligt, of None: zo'n strook ligt ver van de straat en je komt er via een deur."""
+    for b in lv.d.get('binnen') or []:
+        if isinstance(b.get('r'), (int, float)) and isinstance(b.get('l'), (int, float)) and b['l'] <= x <= b['r']:
+            return b
+    return None
+
+
 @regel('voorbij het einde')
 def voorbij(lv, sp):
     """Wat voorbij de fakkels of achter de klif staat, ziet de speler nooit."""
@@ -998,6 +1006,8 @@ def voorbij(lv, sp):
             x = o.get('x')
             if not isinstance(x, (int, float)) or x < -50000:
                 continue                                  # zie Test 3: een vijand heel ver weg als noodgreep
+            if binnen_strook(lv, x):
+                continue                                  # in een huis (binnen): daar kom je via de deur, niet over de straat
             if x < wand:
                 yield letop(x, '%s op %s staat achter de klif: daar kom je nooit' % (naam, n0(x)))
             elif not rechts and x < eind - 50 and veld != 'tips':
@@ -1892,6 +1902,8 @@ def zwevende_lagen(lv, sp):
         a, b = zs[i], zs[i + 1]                       # a ligt links van b (negatiever)
         if b['l'] <= a['r']:
             continue                                   # ze raken of overlappen: geen sprong ertussen
+        if binnen_strook(lv, a['r']) is not binnen_strook(lv, b['l']):
+            continue                                   # twee huizen (binnen): daar spring je niet tussen, je gaat door de deur
         gat, dh = b['l'] - a['r'], abs(b['h'] - a['h'])
         if dh > sp.SPRONG_H - 10:
             yield letop(a['r'], 'de stap tussen de zwevende lagen op %s en %s is %s hoog: bijna de hele sprong van %s'
