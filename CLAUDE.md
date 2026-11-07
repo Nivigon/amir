@@ -164,6 +164,8 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | het schild van Amir: C vasthouden, vangen en de parade | `AMIR_SCHILD`, `schildVang`, `schildTeken` | notities/schild.md |
 | reserve-speren op de rug (prototype) | `RUG`, `RUG_MAX`, `rugSperen` | notities/rug-speren.md |
 | zicht: een vijand ziet je alleen als er niets tussen zit | `ZICHT`, `vijandZiet`, `zichtWaak` | notities/zicht.md |
+| sneak: de sluipaanval, gehoor in plaats van achterbereik en de argwaanklok (mens-vijanden) | `SNEAK`, `sneakKan`, `sneakRust`, `lawaaiPuls`, `sneakOogTeken` | notities/sneak.md |
+| de sluipaanval van Amir: de animatie (steek van schuin onder, de vijand aan de punt, afschudden), een regie zoals de executie | `SNK`, `sneakRegie`, `sneakStart`, `sneakHangZet`, `hangDraai` | notities/sneak.md |
 | health-balk: 3 levens met een balkje boven het hoofd | `HP_BALK`, `HP_BALK_LEVENS`, `vijandHpBalk` | notities/health-balk.md |
 | bukken, jump frames, tempo | Amir zijn bewegingen |  |
 | rotsen om op te springen | `rocks` | notities/wegwijzers.md |
@@ -298,6 +300,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `valschade` | `true` laat een diepe val levens kosten (standaard uit): vanaf een Amir diep een leven, vanaf twee Amir twee (`VAL_VRIJ`, `VAL_ZWAAR`, `VAL_MAX`), en vanaf zes Amir diep is hij dodelijk (`VAL_DOOD`, `fallDeath` in `valLand`), ongeacht je levens. `levelcheck.py` (regel `vallen`) meldt een val van zes Amir of dieper als FOUT |
 | `rugMax` | reserve-speren op de rug: 1 in de hand plus zoveel op de rug (0 tot 5; zonder dit veld 1, `RUG_STANDAARD`, overal behalve een level met `geenSpeer`; `rugMax: 0` zet hem uit) (zie `notities/velden.md`) |
 | `zicht` | `true`: een vijand merkt Amir pas op als hij hem echt kan zien. Voor hem een halve cirkel met een zichtlijn die grond en rots tegenhouden, achter hem de oude afstand maar alleen op zijn eigen niveau, en na 3 s zonder zicht vergeet hij je. Zonder veld de oude manier (alle bestaande levels); een nieuw level krijgt `zicht: true`, een spawn met `zicht: false` houdt toch de oude manier (zie `notities/zicht.md`) |
+| `sneak` | `true` (naast `zicht`): de sluipaanval. Een mens-vijand (bandiet, schildbandiet, kooiman, meelman, kruisboogbandiet, zweepman) hoort je achter zijn rug in plaats van je te zien (kruipen en stilstaan stil, lopen tot net buiten steekafstand, sprinten van ver, een worp, treffer, klap of neerkomende speer geeft een puls), krijgt argwaan als je vlak achter hem staat en kijkt dan om, en een treffer van achteren op wie je niet opmerkte is in een klap dood (bij de schildbandiet langs het schild). Spawnvlaggen `rug`, `draai`, `pat`. Een nieuw level krijgt `sneak: true`; alleen Test 61 heeft het (zie `notities/sneak.md`) |
 | `hpBalk` | `true` of een lijst soorten: 3 levens met een health-balkje boven het hoofd, ook voor Amir; de schildbandiet krijgt een schildbalk erboven. Zonder veld uit, een nieuw level krijgt `hpBalk: true` (zie `notities/velden.md`) |
 | `slangEenKlap` | `true`: elke slang (zand, zwart, knock en fosfor) is in een klap dood, ook met `hpBalk` aan. Een nieuw level krijgt `slangEenKlap: true`; Oaktown (makkelijk) heeft het (`SLANG_EEN_KLAP`, in `hpBalkAan`) |
 | `golf` | `true` of `{ruw}`: de golvende rand. De kruin van de grond, een rotsterras, het dak en de vloer van een gang en het zwarte terrein krijgen een golvende omtrek met textuur, druipstenen, keien en hangblokken (zie `notities/golf.md`); `ruw` schaalt de golven, 1 is de maat uit `GOLF`. Zonder veld uit; alleen Test 49 heeft het |
@@ -368,7 +371,8 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
    zoals ze zijn (rule 1), dus pas hun view niet mee aan. Zet er ook `hpBalk: true` in: elke
    vijand en Amir krijgt in een nieuw level een health-balk (zie "health-balk"). Zet er ook
    `slangEenKlap: true` bij: slangen blijven in een nieuw level altijd in een klap dood. En `zicht: true`:
-   een vijand ziet je dan alleen als er niets tussen zit (zie "zicht"). En `camera: true`: de
+   een vijand ziet je dan alleen als er niets tussen zit (zie "zicht"). En `sneak: true`: de
+   sluipaanval, een mens-vijand hoort je achter zijn rug in plaats van je te zien (zie "sneak"). En `camera: true`: de
    meekijkende camera (zie het veld `camera`); een arena-level mag het ook hebben, daar neemt de
    arena-camera het over. De Maker nieuwstijl doet dit al zelf. En `rand: true`: geen rotswand
    en hut aan de start, Amir begint aan de rand van het level en de camera kijkt er niet voorbij
