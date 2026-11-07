@@ -20334,8 +20334,10 @@ const TON = {
   max: 90,                 // hooguit zoveel losse stukken; daarna vervaagt de oudste
   soort: { splinter: [3, 5, 10, 11, 12, 16, 19, 20], duig: [2, 4, 15, 18], hoepel: [1, 6, 7, 13, 14, 17], deksel: [8, 9] },
   camera: { n: [2, 3], vz: [1.1, 1.6] },   // stukken die bij Nyundo naar de camera vliegen (vz: diepte per seconde)
+  // de breuk: zwaar als hij in een klap kapot gaat (Nyundo), anders de breuk na een paar treffers (Amir met zijn speer)
+  geluid: { zwaar: 'sounds/ton_zwaar.mp3', breek: 'sounds/ton_breek.mp3', vol: { zwaar: 1, breek: 0.95 }, tussen: 0.06 },
 };
-let tonImgs = null;
+let tonImgs = null, tonSnd = null, tonSndT = -1;
 const tonnen = [], tonStukken = [];
 function tonLaad(){
   if (tonImgs) return;
@@ -20343,6 +20345,15 @@ function tonLaad(){
   const zet = src => zetBron(new Image(), TON.dir + src, () => console.warn('ontbreekt: ' + TON.dir + src));
   for (let i = 0; i < 3; i++) tonImgs.stand.push(zet('ton_' + i + '.png'));
   for (let i = 1; i <= TON.stukken; i++) tonImgs.stuk.push(zet('stuk_' + String(i).padStart(2, '0') + '.png'));
+  tonSnd = { zwaar: banStemmen(TON.geluid.zwaar, 3), breek: banStemmen(TON.geluid.breek, 2) };
+}
+// het breekgeluid; breekt de zwaai er meerdere tegelijk, dan klinkt het een keer
+function tonBreekGeluid(zwaar){
+  if (!tonSnd){ houtBreek(); return; }
+  const nu = performance.now() / 1000;
+  if (nu - tonSndT < TON.geluid.tussen) return;
+  tonSndT = nu;
+  banStemSpeel(zwaar ? tonSnd.zwaar : tonSnd.breek, zwaar ? TON.geluid.vol.zwaar : TON.geluid.vol.breek);
 }
 function tonLaadLevel(lv){ if (lv && lv.tonnen && lv.tonnen.length) tonLaad(); }
 // met put en a staat hij bij een put op het plein (stad.putten[put]), a Amir van het midden: zo blijft hij onder de
@@ -20396,7 +20407,7 @@ function tonBreek(t, from, bruut){
   if (t.weg) return;
   t.weg = true; t.stand = TON.treffers;
   const rnd = (a, b) => a + Math.random() * (b - a), weg = -from, hb = tonHoog(), bodem = tonBodem(t) - terrainH(t.x);
-  houtBreek();
+  tonBreekGeluid(bruut);                                     // in een klap (bruut): de zware breuk
   shake = Math.max(shake, bruut ? 0.3 : 0.16);
   banStofWolk(t.x, tonBodem(t), bruut ? 10 : 6, weg * 60, bruut ? 1.3 : 1);
   puffWorld(t.x, bruut ? 14 : 8, weg * 80, bruut ? 1.4 : 1, tonBodem(t) + hb * 0.3);
@@ -31590,6 +31601,15 @@ function bruSlag(){
   return { set: 'zwaai', slagVan: 3, raakVan: BRU.raakVan, raakTot: BRU.raakTot, inslag: -1, geluid: BRU.zwaaiGeluid, eind: BRU.eind };
 }
 let bruData = null, bruBezig = false, bruGeluid = null;
+const BRU_HITS = [1, 2, 3, 4, 5, 6].map(i => 'sounds/brutus_hit' + i + '.mp3');   // losse kreten uit hits.mp3
+let bruHitVorig = -1;
+function bruHitSpeel(){                                      // een willekeurige kreet, niet twee keer dezelfde achter elkaar
+  const l = bruGeluid && bruGeluid.hits; if (!l || !l.length) return;
+  let i = Math.floor(Math.random() * l.length);
+  if (i === bruHitVorig) i = (i + 1) % l.length;
+  bruHitVorig = i;
+  banStemSpeel(l[i], BRU.vol.geraakt);
+}
 const bruBank = {};
 let brutus = null;
 function bruLaad(){
@@ -31603,6 +31623,8 @@ function bruLaad(){
     const adem = geluidAan(new Audio()); adem.preload = 'auto'; adem.src = 'sounds/brutus_adem.mp3'; adem.loop = true;
     bruGeluid = { adem, stap: banStemmen('sounds/brutus_stap.mp3', 3), geraakt: banStemmen('sounds/brutus_geraakt.mp3', 2), zwaai: banStemmen('sounds/brutus_zwaai.mp3', 2),
                   speer: banStemmen('sounds/brutus_speerraak.mp3', 3),
+                  hits: BRU_HITS.map(f => banStemmen(f, 1)),   // zijn kreet als hij geraakt wordt, naast de speer in zijn vlees
+                  start: [banStemmen('sounds/brutus_start1.mp3', 1), banStemmen('sounds/brutus_start2.mp3', 1)],   // zijn woorden in de opening
                   raak: banStemmen('sounds/brutus_raak.mp3', 2),   // de knots op Amir: een zware dreun
                   inslag: banStemmen('sounds/brutus_inslag.mp3', 2),   // de knots slaat in de grond (de kap)
                   dood: banStemmen('sounds/brutus_dood.mp3', 1), plof: banStemmen('sounds/bavland.mp3', 1),
@@ -31676,6 +31698,9 @@ const BRU_INTRO = {
   balk: 0.09,          // de zwarte balken, deel van de schermhoogte
   naam: 'NYUNDO', sub: 'de hamer',
   cam: 0.55,           // de camera schuift zoveel van de weg naar Nyundo en de tonnen op
+  // hij spreekt eerst, stil op zijn plek: start1, een korte pauze, dan start2; op driekwart van start2 gaat hij
+  // naar de tonnen (de lengtes zijn die van de spraak in de bestanden, zonder de stilte erachter)
+  spreek: { een: 7.15, pauze: 0.35, twee: 12.56, loopBij: 0.75 },
 };
 const bruIntroGezien = {};
 function bruIntroVast(){ const s = brutus; return !!(s && s.intro && s.intro.fase !== 'rug' && s.intro.fase !== 'weg'); }
@@ -31725,6 +31750,11 @@ function bruIntroDoel(s){
   const groep = rij.filter(t => dicht - t.x < CHAR_H * nowScale() * 1.6);
   return Math.max(...groep.map(t => t.x)) + BRU_INTRO.sta * bruScale();
 }
+function bruIntroLoop(s){
+  const I = s.intro;
+  I.fase = 'loop'; I.t = 0; s.frame = 0; s.acc = 0; I.doel = bruIntroDoel(s);
+  if (I.doel == null){ I.fase = 'draai'; I.t = 0; }
+}
 function bruIntroStap(s, dt){
   const I = s.intro, B = bruData.bewegingen, gs = bruScale();
   I.t += dt;
@@ -31733,10 +31763,22 @@ function bruIntroStap(s, dt){
   if (I.fase === 'rug'){                                     // hij ademt en kijkt de andere kant op
     s.face = -1;
     if (Math.abs(playerX() - s.x) < BRU_INTRO.zie * CHAR_H * nowScale() || s.hp < s.maxHp){
-      I.fase = 'loop'; I.t = 0; s.frame = 0; s.acc = 0; I.doel = bruIntroDoel(s);
       bruIntroGezien[level.name] = true;
-      if (I.doel == null){ I.fase = 'draai'; I.t = 0; }
+      I.fase = 'spreek'; I.t = 0; I.zin = 0;
+      if (!wantSound || !bruGeluid) bruIntroLoop(s);         // zonder geluid geen stille wachttijd
     }
+    return;
+  }
+  if (I.fase === 'spreek'){                                  // hij staat stil en spreekt
+    // het geluid zelf is de klok (zo blijven de zinnen aan elkaar, ook na een hapering); speelt het niet, dan de speltijd
+    const P = BRU_INTRO.spreek, [k1, k2] = bruGeluid.start;
+    const waar = (k, zt) => { const a = k.pool[0]; return a.ended ? Infinity : (!a.paused && a.currentTime > 0) ? a.currentTime : zt; };
+    const zeg = k => { k.pool[0].bruVan = s; banStemSpeel(k, 1); I.zt = 0; };
+    I.zt = (I.zt || 0) + dt;
+    if (I.zin === 0){ I.zin = 1; zeg(k1); }
+    else if (I.zin === 1 && waar(k1, I.zt) >= P.een){ I.zin = 1.5; I.zt = 0; }   // de korte pauze
+    else if (I.zin === 1.5 && I.zt >= P.pauze){ I.zin = 2; zeg(k2); }
+    else if (I.zin === 2 && waar(k2, I.zt) >= P.twee * P.loopBij) bruIntroLoop(s);   // start2 loopt door terwijl hij stampt
     return;
   }
   if (I.fase === 'loop'){
@@ -31889,6 +31931,15 @@ function bruRaakSpoor(s, dt){
 }
 function bruNaarAmir(s){ return playerX() > s.x ? 1 : -1; }
 function bruDichtbij(s, d){ return Math.abs(playerX() - s.x) < d * bruScale() && Math.abs(ph - (s.base || 0)) < 120; }
+// zijn woorden uit de opening: stil bij pauze (en weer verder daarna), weg bij een herstart of een ander level
+function bruSpraakStap(){
+  for (const k of bruGeluid.start) for (const a of k.pool){
+    const hoort = running && !won && brutus && a.bruVan === brutus;   // nog dezelfde Nyundo: geen herstart, geen ander level
+    if (!hoort){ if (!a.paused) a.pause(); a.bruPauze = false; continue; }
+    if (paused || !wantSound){ if (!a.paused){ a.pause(); a.bruPauze = true; } }
+    else if (a.bruPauze){ a.bruPauze = false; a.play().catch(() => {}); }
+  }
+}
 function bruAdemSpeel(aan){
   const a = bruGeluid && bruGeluid.adem; if (!a) return;
   if (aan && wantSound && !paused){ a.volume = BRU.vol.adem; if (a.paused) a.play().catch(() => {}); }
@@ -32321,7 +32372,7 @@ function hitBrutus(s){
     s.doodT = 0;                                            // pleinHekStap takelt de hekken op als hij ligt
     return true;
   }
-  banStemSpeel(bruGeluid.geraakt, BRU.vol.geraakt);
+  bruHitSpeel();
   return true;
 }
 // een treffer: een spat uit zijn borst, naar Amir toe en omhoog, en op sommige treffers een snee erbij
@@ -37079,6 +37130,7 @@ function loop(now){
   let dt = (paused || won || wacht) ? 0 : Math.max(0, Math.min((now - last) / 1000, 0.05)); last = now;
   dt *= gameTempo;                // het tempo uit de instellingen
   if (bruGeluid && (paused || won || !brutus || !running)) bruAdemSpeel(false);   // Brutus' ademhaling stil buiten het gevecht
+  if (bruGeluid) bruSpraakStap();
   dt *= zwmTraagNu();             // testoptie: de wereld vertraagd zolang een zweepman slaat (Zweepman: test)
   if (hitstop > 0){ hitstop -= dt; dt = 0; }     // een korte freeze op een klap (nu de parry): alles staat heel even stil, de shake schudt door
   // de deur-freeze: op de klap van de open deur staat het beeld even stil. De wereld bevriest (dt 0), maar de
