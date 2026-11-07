@@ -1815,6 +1815,14 @@
         <span class="read" id="sbzonv"></span>
       </div>
       <div class="row">
+        <label>Licht op personages</label>
+        <button id="sbplicht">Aan</button>
+        <button data-plicht="zon">Zon: aan</button>
+        <button data-plicht="fakkel">Fakkel: aan</button>
+        <button data-plicht="raam">Raam: aan</button>
+        <span class="hint">een rand van licht op Amir en de vijanden aan de kant van de bron: de zon (alleen als hij laag staat, zet Ochtend of Avond), een fakkel (Decor, Fakkel) en het raam in een huis (De stad, Huis met binnenkant)</span>
+      </div>
+      <div class="row">
         <label>Weer</label>
         <button data-weer="" class="on">Droog</button>
         <button data-weer="regen">Regen</button>
@@ -23658,6 +23666,116 @@ function binnenNa(groundY, scale, cx){
   if (E) stadTrapE_Teken(cx + (E.x - world), groundY - E.h * scale - 1.45 * A, false);
 }
 
+// ---- licht op personages: zon, fakkel en raam leggen een rand op Amir en de vijanden ----
+// Eén systeem voor al het licht dat op een personage valt (zie notities/licht-personages.md). Na het tekenen van een
+// personage roept zijn tekencode persLicht aan met zijn frame op het scherm. Dat zoekt de lichtbronnen bij hem
+// (plichtBronnen), neemt de sterkste twee en legt van elk een warm randje aan de kant van die bron over zijn silhouet,
+// met 'lighter'. Het randje is per frame en per kant een keer gebakken (plichtRand), dus het kost per beeld alleen
+// het inkleuren. De lichtbundel van een raam (binnen) valt over het hele lijf en loopt via binnenLichtOp.
+// Een nieuwe lichtbron (een vuurkorf, de flits van onweer, een rune die oplicht) is een blok in plichtBronnen dat
+// { dir, sterk, kleur } teruggeeft: dir -1 of 1 (de kant waar het licht vandaan komt op het scherm), sterk 0..1.
+// Geen donkerlaag: in het donker zorgt de lichtkaart al voor het donker, en een personage moet leesbaar blijven.
+const PLICHT = {
+  aan: true,
+  zon:    { aan: true, laag: 0.55, band: 0.35, rand: 0.016, op: 0.5, boven: 0.1, wit: 0.35 },
+  //        laag: onder deze zonhoogte (sun[1] van het uitzicht) begint de rand, band: hoe snel hij dan vol is
+  //        rand: de breedte in Amir, op: de sterkte, boven: hoeveel het licht ook van boven komt, wit: menging naar wit
+  fakkel: { aan: true, bereik: 3.5, rand: 0.018, op: 0.85, dag: 0.35, kleur: '255,150,60', boven: 0.15 },
+  //        bereik in Amir; dag: zoveel blijft er over in vol daglicht (de vlam valt dan weg tegen de zon)
+  raam:   { aan: true },
+  maxBron: 2,            // zoveel bronnen tegelijk per personage
+  bak: 200               // de randmaskers worden op deze hoogte gebakken (bronpx), daarna geschaald
+};
+// de lichtbronnen voor een personage op wereld-x wx, met zijn vloer (wereld-hoogte) en zijn lengte in Amir
+function plichtBronnen(wx, vloer, lengte = 1){
+  const uit = [], P = PLICHT;
+  const binnen = typeof binnenBij === 'function' && binnenLijst().length && binnenBij(wx);
+  const L = lichtNu(), dag = Math.max(0, Math.min(1, (L.gloedSterkte || LICHT.gloedSterkte) / LICHT.gloedSterkte));
+  let zonHier = 0;
+  if (!binnen){ try { zonHier = amirZon(vloer, wx); } catch (e) { zonHier = 1; } }
+  if (P.zon.aan && !binnen){
+    const sc = sceneCfg(), zh = sc && sc.sun ? sc.sun[1] : 0.3, dim = sc && sc.dim ? sc.dim[1] : 0;
+    const laag = Math.max(0, Math.min(1, (P.zon.laag - zh) / P.zon.band));
+    const sterk = laag * dag * zonHier * (1 - dim);
+    if (sterk > 0.02){
+      const zx = zonScherm.geldig ? zonScherm.x : L.zonX * W;
+      const kl = (sc && sc.sun && sc.sun[3]) || '#ffb070';
+      uit.push({ soort: 'zon', dir: 0, zonX: zx, sterk: sterk * P.zon.op, kleur: plichtMeng(kl, P.zon.wit),
+                 rand: P.zon.rand, boven: P.zon.boven });
+    }
+  }
+  if (P.fakkel.aan && level && level.fakkels && level.fakkels.length){
+    const F = P.fakkel, donker = Math.max(0, 1 - zonHier * dag);
+    for (const o of level.fakkels){
+      const vlamH = ((o.y || 0) + FAKKEL.h * (o.s || 1) * (1 - FAKKEL.kern[1])) * CHAR_H;
+      const mid = (vloer || 0) + CHAR_H * lengte * 0.5;
+      const afst = Math.hypot(o.x - wx, vlamH - mid) / CHAR_H;
+      if (afst >= F.bereik) continue;
+      const sterk = (1 - afst / F.bereik) * fakkelFlik(o) * (F.dag + (1 - F.dag) * donker);
+      if (sterk > 0.02) uit.push({ soort: 'fakkel', dir: o.x > wx ? 1 : -1, sterk: sterk * F.op, kleur: 'rgb(' + F.kleur + ')',
+                                   rand: F.rand, boven: vlamH > mid ? F.boven : -F.boven * 0.5 });
+    }
+  }
+  uit.sort((a, b) => b.sterk - a.sterk);
+  return uit.slice(0, P.maxBron);
+}
+// een kleur een eind naar wit (k 0..1), als 'rgb(r,g,b)'
+const plichtMengC = {};
+function plichtMeng(hex, k){
+  const sl = hex + '|' + k; if (plichtMengC[sl]) return plichtMengC[sl];
+  const n = parseInt(hex.replace('#', ''), 16), c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => Math.round(v + (255 - v) * k));
+  return (plichtMengC[sl] = 'rgb(' + c.join(',') + ')');
+}
+// het randmasker: wit waar het licht de rand van het silhouet raakt, aan kant (-1 links, 1 rechts, in het frame zelf)
+// en een beetje van boven (boven: positief van boven, negatief van onder). d de breedte in bakpixels.
+const plichtCache = new WeakMap();
+function plichtRand(img, kant, boven, d){
+  let per = plichtCache.get(img); if (!per){ per = {}; plichtCache.set(img, per); }
+  const sl = kant + '|' + boven.toFixed(2) + '|' + d;
+  if (per[sl]) return per[sl];
+  const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+  const k = Math.min(1, PLICHT.bak / ih), w = Math.max(1, Math.round(iw * k)), h = Math.max(1, Math.round(ih * k));
+  const sil = document.createElement('canvas'); sil.width = w; sil.height = h;
+  const sg = sil.getContext('2d'); sg.drawImage(img, 0, 0, w, h);
+  sg.globalCompositeOperation = 'source-in'; sg.fillStyle = '#fff'; sg.fillRect(0, 0, w, h);
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  g.drawImage(sil, 0, 0);
+  g.globalCompositeOperation = 'destination-out'; g.drawImage(sil, -kant * d, boven * d);   // wat overblijft: de rand naar het licht
+  const z = document.createElement('canvas'); z.width = w; z.height = h;      // zacht maken, en weer binnen het silhouet
+  const zg = z.getContext('2d'); zg.filter = 'blur(' + Math.max(0.5, d * 0.3) + 'px)'; zg.drawImage(c, 0, 0);
+  zg.filter = 'none'; zg.globalCompositeOperation = 'destination-in'; zg.drawImage(sil, 0, 0);
+  per[sl] = z;
+  return z;
+}
+let plichtKleurCv = null;
+// Het licht op een personage. img zijn frame (het gewone, niet een geflitste kopie), (x, y, w, h) waar het op het scherm
+// staat, flip of het gespiegeld getekend is, wx en vloer zijn plek in de wereld, fig zijn lengte op het scherm (px),
+// alfa zijn doorzichtigheid (vervagen, knipperen).
+function persLicht(img, x, y, w, h, flip, wx, vloer, fig, groundY, scale, cx, alfa = 1){
+  if (!PLICHT.aan || !img || !(img.naturalWidth || img.width) || alfa <= 0.01) return;
+  if (PLICHT.raam.aan){ ctx.save(); ctx.globalAlpha *= alfa; binnenLichtOp(img, x, y, w, h, flip, groundY, scale, cx); ctx.restore(); }
+  const bronnen = plichtBronnen(wx, vloer, fig / (CHAR_H * scale));
+  if (!bronnen.length) return;
+  const ih = img.naturalHeight || img.height, bakH = Math.min(PLICHT.bak, ih);
+  if (!plichtKleurCv) plichtKleurCv = document.createElement('canvas');
+  for (const b of bronnen){
+    const dir = b.soort === 'zon' ? (b.zonX > x + w / 2 ? 1 : -1) : b.dir;   // de kant op het scherm
+    const kant = flip ? -dir : dir;                                          // de kant in het frame
+    const d = Math.max(1, Math.round(b.rand * fig * bakH / h));
+    const m = plichtRand(img, kant, b.boven, d);
+    if (plichtKleurCv.width !== m.width || plichtKleurCv.height !== m.height){ plichtKleurCv.width = m.width; plichtKleurCv.height = m.height; }
+    const g = plichtKleurCv.getContext('2d');
+    g.globalCompositeOperation = 'source-over'; g.clearRect(0, 0, m.width, m.height); g.drawImage(m, 0, 0);
+    g.globalCompositeOperation = 'source-in'; g.fillStyle = b.kleur; g.fillRect(0, 0, m.width, m.height);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= Math.min(1, b.sterk) * alfa;
+    ctx.translate(x, y); if (flip){ ctx.translate(w, 0); ctx.scale(-1, 1); }
+    ctx.drawImage(plichtKleurCv, 0, 0, w, h);
+    ctx.restore();
+  }
+}
+
 // ---- de leemmuur: een terras van leem ----
 // terraces: [{r, l, h, look: 'leem'}]. Precies een terras (de wand houdt Amir en elke vijand tegen, de bovenkant
 // draagt, de Maker en levelcheck rekenen er gewoon mee), maar getekend als een dikke lemen stadsmuur: een naadloze
@@ -39191,7 +39309,8 @@ function loop(now){
     if (gloed > 0){ ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; }
     if (mesHand) mesTeken(mesHand, scale);            // het mes, over zijn hand heen (gespiegeld mee)
     ctx.restore();
-    if (!amirWeg && !blink && amirSteen <= 0 && trapAlfa > 0.01){ ctx.save(); ctx.globalAlpha *= trapAlfa; binnenLichtOp(amirBeeld, x, y, w, h, useThrow ? thrFlip() : (autoFlip && facing === 1), groundY, scale, cx); ctx.restore(); }   // binnen: het licht van een raam valt op hem
+    if (!amirWeg && !blink && amirSteen <= 0 && trapAlfa > 0.01)   // het licht op hem: zon, fakkel en het raam binnen (zie "licht op personages")
+      persLicht(img, x, y, w, h, useThrow ? thrFlip() : (autoFlip && facing === 1), playerX(), ph, CHAR_H * scale, groundY, scale, cx, trapAlfa);   // binnen: het licht van een raam valt op hem
     rolGlansTeken(pcx, groundY + lift, scale);        // het perfecte venster van de rol-worp: een korte ster
     critFxTeken(groundY, scale, cx);                  // True Flight: de ster van een crit
     schildTeken(pcx, groundY + lift, scale, false);   // het schild op: voor zijn borst, en het raakvak voor de bouten
@@ -40097,6 +40216,12 @@ function loop(now){
           ctx.drawImage(s.flash > 0 ? whiteCopy(img, s.flash * 4) : img,
                         -geo.anker * gs, -grondRij * gs, geo.w * gs, geo.h * gs);
         ctx.restore();
+        if (img && imgReady(img)){                       // het licht op hem (zie "licht op personages")
+          const lx = -geo.anker * gs, fw = geo.w * gs;
+          persLicht(img, face === 1 ? bodyX - (lx + fw) : bodyX + lx, voeten - vaultLift - dropLift - grondRij * gs, fw, geo.h * gs,
+                    face === 1, s.x, s.base || 0, BAN.fig * bS, groundY, scale, cx,
+                    Math.max(0, s.alpha) * (bBlink ? 0.45 : 1) * (s.vFade != null ? s.vFade : 1));
+        }
         if (s.bloed) bloedTeken(s, bodyX, voeten, bS, face, geo, gs, grondRij, img);   // bloed: de snedes (geclipt) en de death-spuit over de bandiet, ook als lijk
         if (s.state === 'dood'){                         // het lijk blijft liggen; alleen een lage zwaai veegt het weg
           if (s.klaar && !s.veeg && s.sweptId !== sweepId){
@@ -40194,6 +40319,13 @@ function loop(now){
           }
         }
         ctx.restore();
+        if (!s.exe) for (const l of schbLagenLijst(s) || []){   // het licht op hem, laag voor laag (zie "licht op personages")
+          const li = schbBank.lagen && schbBank.lagen[l.src];
+          if (!li || !imgReady(li)) continue;
+          const lx = l.dx * gs, lw = l.w * gs;
+          persLicht(li, s.face === 1 ? bodyX - (lx + lw) : bodyX + lx, voeten + l.dy * gs, lw, l.h * gs, s.face === 1,
+                    s.x, s.base || 0, SCHB.fig * gs, groundY, scale, cx, Math.max(0, s.alpha != null ? s.alpha : 1));
+        }
         if (s.state === 'weg' || s.exe) continue;
         const lhalf = SCHB_LIJF.half * gs;
         const nbox = { l: bodyX - lhalf, r: bodyX + lhalf, t: voeten - SCHB.fig * gs, b: voeten };
@@ -48718,6 +48850,14 @@ document.getElementById('sbstaddak').onclick = () => {
   cv.focus();
 };
 // achter de kartels aan of uit (STAD_KANTEEL): het dak zakt of komt terug, de vloeren van de vijanden ook
+// licht op personages aan en uit, en per bron (zie "licht op personages")
+document.getElementById('sbplicht').onclick = e => {
+  PLICHT.aan = !PLICHT.aan; e.target.textContent = PLICHT.aan ? 'Aan' : 'Uit'; cv.focus();
+};
+sandboxEl.querySelectorAll('button[data-plicht]').forEach(b => b.onclick = () => {
+  const B = PLICHT[b.dataset.plicht]; B.aan = !B.aan;
+  b.textContent = b.textContent.split(':')[0] + ': ' + (B.aan ? 'aan' : 'uit'); cv.focus();
+});
 // slagschaduwen in de stad aan en uit, om te vergelijken (zie "slagschaduwen" in notities/stad.md)
 document.getElementById('sbslag').onclick = e => {
   STAD_SLAG_AAN = !STAD_SLAG_AAN;
