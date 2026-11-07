@@ -1669,6 +1669,7 @@
         <button id="sbplein">Het plein</button>
         <button id="sbluifel">Luifel</button>
         <button id="sbtonnen">Tonnen</button>
+        <button id="sbtonlens">Tonnen naar de lens</button>
         <button id="sbdoorgang">Doorgang</button>
         <span class="hint">een Sahelstraat voor je uit: huizen van 1 tot 4 hoog, een galerij, een kraam met een rieten dak (opstap) en een met een doek die veert (spring erop of net bij het landen: hoog), en het paleis in de verte. Lage leemmuur en Doodlopend zetten een muur van leem voor je neer (een terras met de look van de stad): de lage spring je op, de hoge houdt je tegen. Naast het hoge huis staat een houten trap: E bij de voet en je staat aan de andere kant op het balkon, E in de opening en je bent weer beneden. Bandiet op de galerij: hij staat op de eerste galerij (zet de stad neer als die er nog niet is) en de rand houdt hem tegen; klim via de kraam omhoog. Bandiet op het dak: hij staat op het dak van het huis van 2 hoog, achter de kartels. Achter de kartels: het dak ligt op de balkkoppen en wie erop staat (Amir en de vijanden) staat achter de tanden; uit is het dak weer de onderkant van de kartels, met iedereen ervoor. Uit de deur: de houten deur van het eerste huis vliegt open en een bandiet stapt eruit op de straat; Uit de deur boven: uit een deur op de eerste verdieping van dat huis, op de galerij (elke klik nog een, de deur gaat opnieuw open als hij in beeld is). Het plein: voor je uit een poort met het hek omhoog, de geplaveide vloer, de put (de rand is een trede, de balk haal je vanaf de rand), de pleinwand achteraan en een poort met het hek dicht. Luifel: hetzelfde plein, maar de put staat dichter bij de poort met een schuine luifel tegen de toren; vanaf de straat kom je er niet bij, via de rand en de balk wel, en wie erop springt wordt meteen schuin terug over het plein geworpen Doorgang: drie huizen met een galerij en twee trappen die erop uitkomen; bij elke opening loopt het dek de diepte in, strak langs het huis, met het hekje aan de open kant (een keer links, een keer rechts van een huis)</span>
       </div>
@@ -20336,11 +20337,26 @@ const TON = {
   max: 90,                 // hooguit zoveel losse stukken; daarna vervaagt de oudste
   soort: { splinter: [3, 5, 10, 11, 12, 16, 19, 20], duig: [2, 4, 15, 18], hoepel: [1, 6, 7, 13, 14, 17], deksel: [8, 9] },
   camera: { n: [2, 3], vz: [1.1, 1.6] },   // stukken die bij Nyundo naar de camera vliegen (vz: diepte per seconde)
+  // de opening van het plein (en de sandbox): de stukken vliegen echt op de lens af, in perspectief (zie tonLensTeken)
+  lens: {
+    langs: 2,              // per ton zoveel stukken die vlak langs de camera schieten
+    max: 7,                // hooguit zoveel tegelijk
+    vd: [1.5, 2.3],        // hoe snel ze naderen: diepte per seconde (1 is bij de ton, 0 is de lens)
+    raakDuur: 0.5,         // zo lang doet het halve deksel over de weg naar de lens
+    vulling: 0.95,         // op de lens is het zo hoog als dit deel van het scherm
+    doel: [0.44, 0.46],    // daar raakt hij, als deel van de breedte en de hoogte
+    plak: 0.16,            // zo lang plakt hij tegen de lens voor hij wegglijdt (s)
+    glij: 2400,            // zo hard glijdt hij weg (scherm-px/s² op een scherm van 720 hoog)
+    blur: 14,              // hooguit zoveel px onscherp, vlak voor de camera
+    stop: 0.08, schok: 0.45, vol: 0.9,   // de hitstop, de schermschok en de klap als hij raakt
+    stof: 1.6,             // zo lang blijft het stof op de lens
+  },
   // de breuk: zwaar als hij in een klap kapot gaat (Nyundo), anders de breuk na een paar treffers (Amir met zijn speer)
   geluid: { zwaar: 'sounds/ton_zwaar.mp3', breek: 'sounds/ton_breek.mp3', vol: { zwaar: 1, breek: 0.95 }, tussen: 0.06 },
 };
 let tonImgs = null, tonSnd = null, tonSndT = -1;
 const tonnen = [], tonStukken = [];
+const tonLens = [], tonLensStof = [];   // in schermcoördinaten: wat op de lens af vliegt, en het stof dat erop blijft
 function tonLaad(){
   if (tonImgs) return;
   tonImgs = { stand: [], stuk: [] };
@@ -20374,7 +20390,7 @@ function tonMaak(d){
   return { x: tonPlekX(d), y: laag > 0 && Math.abs(y - laag * TON.h) < 0.03 ? laag * TON.stapel : y, kalebas: !!d.kalebas, f: !!d.f, stand: 0, tik: 0, shake: 0, weg: false, vy: 0, src: d };
 }
 function tonReset(){
-  tonnen.length = 0; tonStukken.length = 0;
+  tonnen.length = 0; tonStukken.length = 0; tonLens.length = 0; tonLensStof.length = 0;
   if (level && level.tonnen) for (const d of level.tonnen) tonnen.push(tonMaak(d));
   if (tonnen.length) tonLaad();
 }
@@ -20406,8 +20422,9 @@ function tonRaak(t, from){
   tonBreek(t, from, false);
   return true;
 }
-// de ton is weg: valt uit elkaar (Amir, de derde treffer) of zakt in een hoopje ineen (Nyundo, bruut)
-function tonBreek(t, from, bruut){
+// de ton is weg: valt uit elkaar (Amir, de derde treffer) of zakt in een hoopje ineen (Nyundo, bruut);
+// met lens (de opening van het plein) vliegen de stukken echt op de camera af in plaats van er een eindje naartoe
+function tonBreek(t, from, bruut, lens){
   if (t.weg) return;
   t.weg = true; t.stand = TON.treffers;
   const rnd = (a, b) => a + Math.random() * (b - a), weg = -from, hb = tonHoog(), bodem = tonBodem(t) - terrainH(t.x);
@@ -20421,7 +20438,8 @@ function tonBreek(t, from, bruut){
     const hoop = [tonKies('hoepel'), tonKies('duig'), tonKies('duig'), tonKies('deksel'), tonKies('splinter'), tonKies('duig'), tonKies('hoepel')];
     hoop.forEach((k, j) => tonStuk(t, k, { wx: t.x + rnd(-0.45, 0.45) * w, h: bodem + rnd(0.1, 0.6) * hb, vx: weg * rnd(0, 60), vh: rnd(-80, 160),
       spin: rnd(-3, 3), liggen: TON.hoopLiggen + rnd(0, 6) }));
-    const C = TON.camera, n = C.n[0] + Math.floor(Math.random() * (C.n[1] - C.n[0] + 1));
+    const C = TON.camera, n = lens ? 0 : C.n[0] + Math.floor(Math.random() * (C.n[1] - C.n[0] + 1));
+    if (lens) tonLensMaak(t, weg);
     for (let j = 0; j < n; j++)               // een paar stukken vliegen naar de camera, langs het beeld
       tonStuk(t, j ? tonKies('splinter') : tonKies('duig'), { h: bodem + hb * rnd(0.4, 0.9), vx: weg * rnd(80, 260) + rnd(-120, 120),
         vh: rnd(380, 720), spin: rnd(-10, 10), vz: rnd(C.vz[0], C.vz[1]) });
@@ -20439,20 +20457,23 @@ function tonBreek(t, from, bruut){
 // Brutus ramt: alles wat in [l, r] staat (wereld-x) en onder top (sprite-eenheden boven de wereldlijn, of geen) gaat in een keer
 function tonBruut(l, r, top, from){
   let raak = false;
+  const lens = !!(brutus && brutus.intro && brutus.intro.fase === 'slag');   // de slag in de opening: naar de lens
   for (const t of tonnen){
     if (t.weg) continue;
     const half = tonBreed(nowScale()) / 2;   // de halve romp in wereld-px
     if (t.x + half < l || t.x - half > r) continue;
     if (top != null && tonBodem(t) > top) continue;
-    tonBreek(t, from != null ? from : (t.x < (l + r) / 2 ? 1 : -1), true); raak = true;
+    tonBreek(t, from != null ? from : (t.x < (l + r) / 2 ? 1 : -1), true, lens); raak = true;
   }
   return raak;
 }
 function tonStap(dt){
+  if (tonLens.length || tonLensStof.length) tonLensStap(dt);
   if (!tonnen.length && !tonStukken.length) return;
   const half = tonBreed(nowScale()) / 2;
   for (const t of tonnen){
     if (t.shake > 0) t.shake = Math.max(0, t.shake - dt);
+    if (t.lensT > 0 && !t.weg && (t.lensT -= dt) <= 0) tonBreek(t, 1, true, true);   // de sandbox: vanzelf, als door Nyundo
     if (!t.weg && t.src && (t.src.put != null || t.src.luifel != null || t.src.kraam != null)) t.x = tonPlekX(t.src);   // het scherm kan van maat veranderen
     if (t.weg || t.y <= 0) continue;
     // staat er nog een hele ton onder hem? anders valt hij
@@ -20523,6 +20544,122 @@ function tonTeken(groundY, scale, cx){
 function tonVoorTeken(groundY, scale, cx){
   if (!tonImgs) return;
   for (const s of tonStukken) if (s.z > 0) tonStukTeken(s, groundY, scale, cx);
+  if (tonLens.length) tonLensPlaats(groundY, scale, cx);
+}
+
+// ---- tonnen naar de lens: de stukken die bij de slag van Nyundo echt op de camera af vliegen ----
+// Elk stuk heeft een plek in het beeldvlak (x, y op diepte 1, waar de ton stond) en een diepte d die van 1 naar 0 loopt:
+// op het scherm staat hij op het midden + (plek - midden) / d, en is hij 1/d keer zo groot. Zo vliegt hij in perspectief
+// op je af: groter, van het midden weg, onscherp en donkerder (uit het zonlicht). De meeste schieten langs de rand weg;
+// een half deksel (raak) is zo gericht dat hij op TON.lens.doel tegen de lens slaat: een klap, het beeld schudt, hij plakt
+// even en glijdt dan naar beneden weg, en er blijft wat stof op de lens. Getekend na de balken van de opening (tonLensTeken),
+// in schermcoördinaten, zodat het niet met de wereld mee schudt.
+function tonLensMaak(t, weg){
+  const L = TON.lens, rnd = (a, b) => a + Math.random() * (b - a), hb = tonHoog(), bodem = tonBodem(t);
+  const raakAl = tonLens.some(s => s.raak);
+  for (let j = 0; j < L.langs + (raakAl ? 0 : 1) && tonLens.length < L.max; j++){
+    const raak = !raakAl && j === 0;
+    tonLens.push({ i: (raak ? 8 : tonKies(j % 2 ? 'duig' : 'splinter')) - 1, raak, wx: t.x + rnd(-0.2, 0.2) * tonBreed(nowScale()),
+      h: bodem + hb * (raak ? 0.9 : rnd(0.4, 1.1)), x0: null, kant: (j % 2 ? 1 : -1) * (weg || 1), t: 0, d: 1, fase: 'vlucht',
+      wacht: raak ? 0 : rnd(0, 0.08), vd: rnd(L.vd[0], L.vd[1]), rot: raak ? 0.35 - 1.6 * L.raakDuur : rnd(0, 6),
+      spin: raak ? 1.6 : rnd(-5, 5), spoor: [] });
+  }
+}
+// in de wereldlaag (tonVoorTeken): zet een nieuw stuk op zijn plek op het scherm, met de zoom erin
+function tonLensPlaats(groundY, scale, cx){
+  const m = ctx.getTransform(), L = TON.lens, u = H / 720;
+  for (const s of tonLens){
+    if (s.x0 != null) continue;
+    const im = tonImgs.stuk[s.i]; if (!im || !imgReady(im)) continue;
+    const lx = cx + (s.wx - world), ly = groundY - s.h * scale;
+    s.x0 = (m.a * lx + m.c * ly + m.e) / DPR; s.y0 = (m.b * lx + m.d * ly + m.f) / DPR;
+    const f = tonHoog() * scale / 304 * Math.hypot(m.a, m.b) / DPR;
+    s.w = im.naturalWidth * (im._bron || 1) * f; s.h0 = im.naturalHeight * (im._bron || 1) * f;
+    if (s.raak){                                   // gericht: na raakDuur staat hij op het doel, zo groot als vulling
+      const ti = L.raakDuur, g = 600 * u, dR = Math.min(0.9, s.h0 / (H * L.vulling));
+      const xT = W / 2 + (W * L.doel[0] - W / 2) * dR, yT = H / 2 + (H * L.doel[1] - H / 2) * dR;
+      Object.assign(s, { g, dRaak: dR, ti, vd: (1 - dR) / ti, vx: (xT - s.x0) / ti, vy: (yT - s.y0 - 0.5 * g * ti * ti) / ti });
+    } else {
+      const rnd = (a, b) => a + Math.random() * (b - a);
+      Object.assign(s, { g: 700 * u, vx: s.kant * rnd(140, 340) * u, vy: -rnd(260, 520) * u });
+    }
+  }
+}
+function tonLensPos(s){
+  if (s.fase === 'lens') return { x: s.lx, y: s.ly, k: 1 / s.d };
+  const X = s.x0 + s.vx * s.t, Y = s.y0 + s.vy * s.t + 0.5 * s.g * s.t * s.t, d = Math.max(0.02, s.d);
+  return { x: W / 2 + (X - W / 2) / d, y: H / 2 + (Y - H / 2) / d, k: 1 / d };
+}
+function tonLensStap(dt){
+  const L = TON.lens, rnd = (a, b) => a + Math.random() * (b - a), u = H / 720;
+  for (let i = tonLens.length - 1; i >= 0; i--){
+    const s = tonLens[i];
+    if (s.x0 == null) continue;
+    if (s.wacht > 0){ s.wacht -= dt; continue; }
+    if (s.fase === 'vlucht'){
+      s.spoor.unshift(tonLensPos(s)); if (s.spoor.length > 1) s.spoor.pop();
+      s.t += dt; s.rot += s.spin * dt; s.d = 1 - s.vd * s.t;
+      if (s.raak && s.t >= s.ti){                  // tegen de lens
+        s.d = s.dRaak; const p = tonLensPos(s);
+        Object.assign(s, { fase: 'lens', tl: 0, lx: p.x, ly: p.y, lvx: 0, lvy: 0, spin: 0, spoor: [] });
+        shake = Math.max(shake, L.schok); hitstop = Math.max(hitstop, L.stop); tonLensKlap();
+        for (let j = 0; j < 14; j++) tonLensStof.push({ x: p.x + rnd(-220, 220) * u, y: p.y + rnd(-150, 170) * u, r: rnd(18, 90) * u, a: rnd(0.25, 0.6), v: 0.35 / L.stof });
+        for (let j = 0; j < 26; j++) tonLensStof.push({ x: p.x + rnd(-320, 320) * u, y: p.y + rnd(-220, 240) * u, r: rnd(2, 7) * u, a: rnd(0.5, 0.9), v: 0.5 / (L.stof + rnd(0.6, 2.2)), korrel: true });
+      } else if (s.d < 0.04){ tonLens.splice(i, 1); continue; }
+      const p = tonLensPos(s), r = Math.max(s.w, s.h0) * p.k;
+      if (p.x + r < 0 || p.x - r > W || p.y + r < 0 || p.y - r > H * 1.5){ tonLens.splice(i, 1); continue; }
+    } else {                                       // plakt, en glijdt dan naar beneden weg
+      s.tl += dt;
+      if (s.tl > L.plak){ s.lvy += L.glij * u * dt; s.lvx -= 40 * u * dt; s.ly += s.lvy * dt; s.lx += s.lvx * dt; s.rot += 0.9 * dt * Math.min(1, (s.tl - L.plak) * 3); }
+      if (s.ly - s.h0 / s.d > H){ tonLens.splice(i, 1); continue; }
+    }
+  }
+  for (let i = tonLensStof.length - 1; i >= 0; i--){ const f = tonLensStof[i]; f.a -= f.v * dt; if (f.a <= 0) tonLensStof.splice(i, 1); }
+}
+function tonLensStukTeken(s, p, alfa){
+  const im = tonImgs.stuk[s.i], k = p.k, w = s.w * k, h = s.h0 * k;
+  if (p.x + w < 0 || p.x - w > W || p.y + h < 0 || p.y - h > H) return;
+  const blur = Math.min(TON.lens.blur, Math.max(0, (k - 1.6) * 1.1)), licht = 1 - 0.5 * Math.min(1, Math.max(0, (k - 1) / 9));
+  ctx.save(); ctx.globalAlpha = alfa;
+  ctx.filter = 'blur(' + blur.toFixed(1) + 'px) brightness(' + licht.toFixed(2) + ')';
+  ctx.translate(p.x, p.y); ctx.rotate(s.rot);
+  if (s.fase === 'lens' && s.tl < TON.lens.plak){ const q = 1 + 0.06 * Math.sin(s.tl / TON.lens.plak * Math.PI); ctx.scale(q, 1 / q); }   // de klap: even platgedrukt
+  ctx.drawImage(im, -w / 2, -h / 2, w, h);
+  ctx.restore();
+}
+// over alles heen, ook over de balken van de opening (na bruIntroTeken)
+function tonLensTeken(){
+  if (!tonImgs || (!tonLens.length && !tonLensStof.length)) return;
+  ctx.save(); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const rij = tonLens.filter(s => s.x0 != null && !(s.wacht > 0)).sort((a, b) => a.d > b.d ? -1 : 1);   // de dichtste het laatst
+  for (const s of rij){
+    if (s.spoor[0]) tonLensStukTeken(s, s.spoor[0], 0.22);   // een nabeeld: hij gaat hard
+    tonLensStukTeken(s, tonLensPos(s), 1);
+  }
+  for (const f of tonLensStof){                    // stof en splintertjes op de lens
+    if (f.korrel){ ctx.globalAlpha = Math.min(1, f.a); ctx.fillStyle = '#3b2a1b'; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2); ctx.fill(); continue; }
+    const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r);
+    g.addColorStop(0, 'rgba(120,92,62,' + Math.min(1, f.a).toFixed(3) + ')'); g.addColorStop(1, 'rgba(120,92,62,0)');
+    ctx.globalAlpha = 1; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+// de klap op de lens: een lage, doffe bonk met een tik hout erin. Geen bestand, zoals de zoef van de baviaan.
+function tonLensKlap(){
+  houtRaak(0.7);
+  if (!wantSound) return;
+  const ac = acLoopt(); if (!ac) return;
+  try {
+    const t = ac.currentTime, v = TON.lens.vol, o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(120, t); o.frequency.exponentialRampToValueAtTime(38, t + 0.25);
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+    o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + 0.4);
+    const buf = ac.createBuffer(1, Math.ceil(ac.sampleRate * 0.12), ac.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3);
+    const src = ac.createBufferSource(), lp = ac.createBiquadFilter(), g2 = ac.createGain();
+    lp.type = 'lowpass'; lp.frequency.value = 900; g2.gain.value = v * 0.65; src.buffer = buf;
+    src.connect(lp); lp.connect(g2); g2.connect(ac.destination); src.start(t);
+  } catch (e) {}
 }
 // het raakvak van een ton op het scherm (voor de treffers van Amir in de tekenlus)
 function tonVak(t, groundY, scale, cx){
@@ -39403,6 +39540,7 @@ function loop(now){
     drawBossBar();
     bruBalkTeken();
     bruIntroTeken();                                // de opening van het plein: zwarte balken en de naam
+    tonLensTeken();                                 // en de stukken ton die daar tegen de lens vliegen, over de balken heen
     arenaHudTeken();                                // de teller van de goudaap-arena (kills, tijd, punten)
     golfHudTeken();                                 // de teller van de bandietgolf (verslagen, tijd)
     duoHudTeken();                                  // de teller van de duo-arena (welke golf)
@@ -47458,6 +47596,14 @@ document.getElementById('sbtonnen').onclick = () => {
   const A = CHAR_H * nowScale(), w = TON.h * TON.romp * A, x0 = world - 2.2 * A;
   for (const d of [{x: x0}, {x: x0 - w * 0.87, f: true}, {x: x0 - w * 0.87, y: TON.h}, {x: x0 - 3.2 * A, kalebas: true}]) tonnen.push(tonMaak(d));
   flashHint('Tonnen: drie keer raken en hij valt uit elkaar; de losse heeft een kalebas');
+  cv.focus();
+};
+// de stapel van de opening van het plein, en na een tel gaat hij in een klap, als door Nyundo: de stukken vliegen tegen de lens
+document.getElementById('sbtonlens').onclick = () => {
+  tonLaad();
+  const A = CHAR_H * nowScale(), w = TON.h * TON.romp * A, x0 = world - 1.6 * A;
+  for (const d of [{x: x0}, {x: x0 - w * 0.87, f: true}, {x: x0 - w * 0.44, y: TON.h}]){ const t = tonMaak(d); t.lensT = 1.2; tonnen.push(t); }
+  flashHint('Tonnen naar de lens: zo meteen slaat Nyundo ze kapot');
   cv.focus();
 };
 // Drie straten rond een splitsing, voor je uit: de poorten en de minimap zonder level (zie "straten")

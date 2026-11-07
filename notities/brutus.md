@@ -171,7 +171,8 @@ rug-sprite is er niet, hij kijkt van Amir weg) en ademt. Komt Amir binnen `zie` 
   tonnen (`bruIntroCam`). Hij loopt met de stormframes, trager (`loopMs`, `loopV`), naar de dichtste groep tonnen
   (`bruIntroDoel`: `sta` grote-set-px rechts van de meest rechtse).
 - `slag`: de zijwaartse zwaai uit brutus.json (heen in frame 11-14, terug in 18-21, `raak`); wat in het vak staat gaat in
-  een keer (`tonBruut`). De naam (NYUNDO, de hamer) komt in beeld.
+  een keer (`tonBruut`), en de stukken vliegen tegen de lens (`TON.lens`, zie "Naar de lens" in `notities/tonnen.md`).
+  De naam (NYUNDO, de hamer) komt in beeld.
 - `draai`: hij kijkt naar Amir, en na `draai` s stormt hij; de balken schuiven weg (`weg`) en de balk onderaan komt.
 `s.state` blijft `wacht` tot de storm, dus hij raakt Amir niet en de sprong-timer loopt niet. Een keer per level per sessie
 (`bruIntroGezien`): na een dood staat hij meteen klaar en blijven de tonnen heel, dan zijn ze er voor het gevecht.
