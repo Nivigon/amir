@@ -31562,7 +31562,8 @@ const BRU = {
             hoog: 300,                     // zo hoog gaat de boog (bovenop wat de frames zelf doen)
             ver: 1100,                     // zo ver springt hij hooguit: wie dichtbij staat en gewoon wegloopt, haalt dat niet
             balVoor: 0.55,                 // hij mikt zo dat Amir tussen zijn lijf en de bal landt (fractie van het bereik van de bal)
-            stuurTot: 99,                  // tot dit landingframe stuurt hij bij naar Amir (99: tot hij neerkomt)
+            vastBij: 0.5,                  // tot dit stuk van de boog stuurt hij bij naar Amir (0,5: tot hij bovenin hangt); daarna
+                                           // ligt de landingsplek vast en trilt het zand daar (bruSprongVast), wie dan wegrent ontwijkt hem
             eind: 1.3,                     // het raam: zo lang blijft hij over de knots hangen (s)
             raakHoog: 70,                  // de directe klap raakt Amir als hij niet hoger staat dan dit (Amir-eenheden)
             balStraal: 45,                 // de knots op weg naar beneden raakt ook wie in de lucht in zijn boog hangt (bruSprongZwaaiRaak):
@@ -31986,6 +31987,9 @@ function updateBrutus(dt){
   bruGloedStap(s, dt);                                      // de rode gloed en de vonken van zijn woede
   if (!s.sandbox) bruSluitStap(dt);                         // het hek bij de ingang valt dicht
   if (s.state === 'dood'){
+    // de stenen die nog vliegen vallen gewoon uit, en een golf die nog rolt rolt uit zonder Amir te raken
+    for (const g of s.golven) g.raak = true;
+    bruGolfStap(s, dt);
     bruDoodStap(s, dt);
     if (s.fase === 'lig'){ s.doodT = (s.doodT || 0) + dt; pleinHekStap(dt); }   // pas als hij ligt takelen de hekken op
     return;
@@ -32129,11 +32133,23 @@ function bruSprongStap(s, dt){
   const inLucht = (sp.fase === 'op' && s.frame >= I.los) || sp.fase === 'hang' || (sp.fase === 'land' && s.frame < I.neer);
   if (inLucht){
     sp.e += dt;
-    if (sp.fase !== 'land' || s.frame <= P.stuurTot) sp.doel = bruSprongDoel(s);   // bijsturen naar Amir
     const u = Math.min(1, sp.e / I.D), ease = u * u * (3 - 2 * u);
+    if (!sp.vast){ sp.doel = bruSprongDoel(s); if (u >= P.vastBij){ sp.vast = true; bruSprongVast(s); } }   // bijsturen naar Amir, tot bovenin
+    else if (Math.random() < dt * 40) bruSprongVast(s, 1);  // en daarna trilt het zand waar hij neerkomt
     s.x = sp.x0 + (sp.doel - sp.x0) * ease;
     sp.h = P.hoog * 4 * u * (1 - u);
   } else sp.h = 0;
+}
+// de landingsplek ligt vast: het zand trilt op de strook waar de knots zal inslaan, van zijn lijf tot de bal,
+// zodat de speler ziet waar hij neerkomt en weet dat wegrennen nu kan. n: zoveel stofjes (standaard een stoot)
+function bruSprongVast(s, n){
+  const gs = bruScale(), L = bruData.bewegingen.landing.frames, laatst = L[L.length - 1];
+  const balX = s.sp.doel - s.face * (laatst.dx + 60) * gs;
+  for (let i = 0; i < (n || 20); i++){
+    const wx = s.sp.doel + (balX - s.sp.doel) * Math.random();
+    bruStofDeeltje(s, { wx, y: -2, vx: (Math.random() - 0.5) * 90, vy: -30 - Math.random() * 70,
+      r: 16 + Math.random() * 18, life: 0.6 + Math.random() * 0.4, a: 0.7 });
+  }
 }
 function bruLift(s){ return s.state === 'sprong' && s.sp ? s.sp.h : 0; }
 // de afzet: een harde stofstoot onder zijn voeten en een paar steentjes
