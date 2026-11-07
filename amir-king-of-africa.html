@@ -8273,11 +8273,11 @@ function acLoopt(){
   if (ac.state !== 'running'){ ac.resume().then(acVersterkers, () => {}); return null; }
   return ac;
 }
-// De vier versterkers aanhangen, zodra dat mag. Dit hoort bij het hervatten en niet alleen bij de
+// De versterkers aanhangen, zodra dat mag. Dit hoort bij het hervatten en niet alleen bij de
 // tik: resume() is een belofte die later pas afloopt, dus een context die al stilstond was anders
 // pas bij de tik daarna aan de beurt, en dan hoorde je het geluid dat ertussen viel niet.
 function acVersterkers(){
-  for (const maak of [deurVersterker, skeletVersterker, weerVersterker, bavBrulVersterker]) maak();
+  for (const maak of [deurVersterker, skeletVersterker, weerVersterker, bavBrulVersterker, deurSlamVersterker]) maak();
 }
 // Elk audio-element van het spel. Een telefoon laat een element pas spelen als het een keer tijdens
 // een tik gespeeld heeft, en dat geldt per element: eentje dat hier niet in staat blijft stil.
@@ -8324,11 +8324,11 @@ function deurVersterker(){
   return deurGain;
 }
 // de muziek even wegdrukken en daarna weer laten opkomen
-function deurDemp(lang = SFX_DEUR.duur + SFX_DEUR.uit){
+function deurDemp(lang = SFX_DEUR.duur + SFX_DEUR.uit, tot = SFX_DEUR.demp){
   if (!MUZIEK[muziekNu]) return;
   const vol = MUZIEK[muziekNu].vol;
   clearTimeout(bg.dempT);
-  sndRamp(bg, vol * SFX_DEUR.demp, 0.25, false);
+  sndRamp(bg, vol * tot, 0.25, false);
   bg.dempT = setTimeout(() => sndRamp(bg, MUZIEK[muziekNu].vol, SFX_DEUR.terug, false), lang * 1000);
 }
 // De aardbeving van een ravijn dat openscheurt: hetzelfde gerommel als de rotswand, maar vanaf
@@ -11789,16 +11789,40 @@ const DEUR = {
   schok: 0.18,       // de shake op die klap
   verschijn: 0.45    // zoveel seconden doet de bandiet erover om uit het donker op te faden (loopt ook door tijdens de freeze)
 };
-// het geluid van de deur die openvliegt: een eenmalige klap op het moment dat hij opengaat.
-// via geluidAan, zodat geluidOntgrendel hem op een telefoon na de eerste tik aanzet.
-const deurSlamSnd = geluidAan(new Audio());
-deurSlamSnd.onerror = () => console.warn('ontbreekt: sounds/deurslam.mp3');
-deurSlamSnd.preload = 'auto'; deurSlamSnd.src = 'sounds/deurslam.mp3';
+// het geluid van de deur die openvliegt: een eenmalige klap op het moment dat hij opengaat, in elk level
+// (de deur in de rotswand en elke deur in de stad). De opname is zacht, dus net als het rotsgeluid (SFX_DEUR)
+// gaat hij door een versterker en wijkt de muziek even; zonder Web Audio speelt hij op vol 1. Er zijn een paar
+// stemmen, zodat een tweede deur kort na de eerste die niet afkapt. Elke stem via geluidAan, zodat
+// geluidOntgrendel hem op een telefoon na de eerste tik aanzet.
+const SFX_SLAM = { src: 'sounds/deurslam.mp3', vol: 2.2, stemmen: 3, demp: 0.45, lang: 0.9 };
+const deurSlamSnd = Array.from({ length: SFX_SLAM.stemmen }, () => {
+  const a = geluidAan(new Audio());
+  a.onerror = () => console.warn('ontbreekt: ' + SFX_SLAM.src);
+  a.preload = 'auto'; a.src = SFX_SLAM.src;
+  return a;
+});
+let deurSlamBeurt = 0, deurSlamGain = null;
+function deurSlamVersterker(){
+  if (deurSlamGain){ acWek(); return deurSlamGain; }
+  const ac = acLoopt();
+  if (!ac) return null;
+  try {
+    const g = ac.createGain();
+    g.gain.value = SFX_SLAM.vol;
+    for (const a of deurSlamSnd) ac.createMediaElementSource(viaAc(a)).connect(g);
+    g.connect(ac.destination);
+    deurSlamGain = g;
+  } catch (e){ deurSlamGain = null; }
+  return deurSlamGain;
+}
 function deurSlamSpeel(){
   if (!wantSound) return;
-  try { deurSlamSnd.currentTime = 0; } catch (e){}
-  deurSlamSnd.volume = 1;
-  const p = deurSlamSnd.play(); if (p && p.catch) p.catch(() => {});
+  const a = deurSlamSnd[deurSlamBeurt++ % deurSlamSnd.length];
+  try { a.currentTime = 0; } catch (e){}
+  deurSlamVersterker();                           // via de versterker telt SFX_SLAM.vol, anders het maximum van een element
+  a.volume = 1;
+  deurDemp(SFX_SLAM.lang, SFX_SLAM.demp);         // de muziek wijkt even, zodat de klap er bovenuit komt
+  const p = a.play(); if (p && p.catch) p.catch(() => {});
 }
 let deurImgs = null, deurGeladen = false;
 function deurLaad(){
