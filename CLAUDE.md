@@ -202,6 +202,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de stad: een Sahelstraat met gevels, galerijen, kramen en het paleis | `STAD`, `stadPlats`, `stadAchter`, `stadTeken` | notities/stad.md |
 | achter de kartels: wie op een dak in de stad staat, staat achter de tanden | `STAD_KANTEEL`, `dakAchter`, `stadKanteelVoor` | notities/stad.md |
 | de stadstrap: een buitentrap achter een huis langs, E en een fade | `STAD_TRAP`, `stadTrapE`, `stadInGevecht` | notities/stad.md |
+| huistypes: andere gevels (reliefhuis, koopmanshuis, pilarenhuis) met `soort`, ook in de Maker | `STAD.gevelSoort`, `stadGevelG`, `MK_GEVEL_TYPES` | notities/stad.md |
 | deuren in de stad: een vijand die uit een deurgat van een gevel stapt | `STAD_DEUR`, `stadDeurMaat`, `stadDeurUpdate`, `mkDeurMaat` | notities/stad.md |
 | de doorgang: bij de opening van een trap op een galerij loopt het dek de diepte in, langs het huis | `STAD_DOORGANG`, `stadDoorgangen`, `stadDoorgangBeeld` | notities/stad.md |
 | lift bij een galerij: het takelplateau voegt zich naar het eind van een galerij | `takelGalerijStap`, `mkLiftGalerij`, `galerij` | notities/stad.md |
@@ -240,6 +241,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | vegetatie, water, doornbos | `props`, `water`, `thickets` | notities/wegwijzers.md |
 | schilden in de wind | `SCHILD`, `schildStofUpdate`, `schildTil` | notities/decor.md |
 | tonnen: houten tonnen die breken (drie treffers, Nyundo in een keer, een kalebas erin) | `TON`, `tonRaak`, `tonBruut`, `tonPlekX` | notities/tonnen.md |
+| wapenrek: een houten rek in de stad met speren; E pakt er een, in de hand of op de rug | `WAPENREK`, `wapenrekken`, `rekTrek` | notities/wapenrek.md |
 | rotsdecor: losse rotsstukken als props, lui geladen, in de Maker onder Decor | `ROTS_FAM`, `rotsSoorten`, `propLaad`, `mkVulRots` | notities/decor.md |
 | slangen: kleur, zicht en patrouille | `SNAKE_DIRS`, `slangZiet`, `startPatrouille` | notities/slangen.md |
 | zwarte panter, de witte panter (baas, regel 12), de hyena | de grote vijanden: `boss`, `arena`, `hitPanther` |  |
@@ -310,6 +312,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `herhaal` | `true`: is de laatste schildbandiet weg (na de executie of de gewone dood), dan komt er na `EXE.herhaalWacht` een nieuwe aanwandelen, net buiten beeld voor Amir uit, met de vlaggen van de eerste schildman-spawn (alleen Test 50, `exeHerhaalStap`) |
 | `rocks` | keien om op te springen: `{x, s}` |
 | `tonnen` | houten tonnen die breken: `{x, y, f, kalebas}`, of `put`/`luifel`/`kraam` met `a` (Amir van die put, losse luifel of kraam) in plaats van `x` (zie `notities/tonnen.md`) |
+| `wapenrekken` | houten rekken met speren: `{x, f, n}`, `n` speren (standaard en hooguit 4, een per touwlus), of `put`/`luifel`/`kraam` met `a` zoals bij `tonnen`; E pakt er een (zie `notities/wapenrek.md`) |
 | `spawns` | vijanden: `{x, k}`, `k` is groen/zwart/knock/scorp/hyenas/panter/fosfor/bandiet/kooiman/meelman/schildman/kruisboogbandiet, met vlaggen per soort (zie `notities/velden.md`) |
 | `bandArena` | `true`: het level is een bandiet-arena (Valse Koning 8), zoals de goudaap-arena maar met de elite-garde (zie "de bandiet-arena") |
 | `duoArena` | `{c, golven, pauze, eerste, niveau}`: een arena op de open savanne rond `c` (vaste camera, geen wanden); per golf tegelijk een kruisboogbandiet en een schildbandiet, elk willekeurig van links of rechts. De schutter schiet pas helemaal in beeld (`inBeeld`, `krbInBeeld`) en zijn bouten raken de schildman (`vriendVuur`, `krbPijlVriend`). Na `golven` golven is het level uit (Test 55 en 56, `duoTick`). Met `keuze: true` kies je voor het begin de lading van de schutter (`KRB_SALVO`, standaard 2 bouten en daarna 1) en het niveau van de schildman, in plaats van `niveau` (`duoKeuze`, alleen Test 56) |
@@ -447,6 +450,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **Schade in de pleinvloer van Nyundo** (`design/stad/plein_schade_*.png`, `plein_brokken.png`, uit de Grok-platen in `design/stad/bron/`) → `tools/plein_schade.py`, daarna `gen-offline-manifest.py`; nieuwe brokken geven nieuwe rechthoeken voor `BRU_SCHADE.brokken`
 - **Nyundo** (`enemies/brutus/frames/`, ook na `tools/brutus_donker.py`) → `tools/brutus_spleet.py` (de spleet tussen steel en bal van de knots) en `tools/brutus_rand.py` (de stippelrand om de donkere set), daarna `gen-klein.py` en `gen-offline-manifest.py`
 - **Het bloed onder Nyundo als hij in zijn knots valt** (`design/bloed/nyundo_stroom.png`, uit het lijk van de schildman) → `tools/nyundo_bloed.py`, daarna `gen-offline-manifest.py`
+- **Wapenrek** (`design/stad/wapenrek/`, uit de Grok-plaat in `bron/`) → `tools/wapenrek_knip.py`, daarna `gen-offline-manifest.py`
 - **Tonnen** (`design/stad/ton/`, uit de Grok-platen in `bron/`) → `tools/ton_kleur.py`, daarna `gen-offline-manifest.py`
 - **Rotsdecor** (`design/rotsdecor/`, losse rotsstukken uit de platen in `bron/`) → `tools/rotsdecor_knip.py`, daarna `gen-offline-manifest.py`
 - **Tribe-logo's** → `tools/tribe_logos.py`

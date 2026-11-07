@@ -146,6 +146,10 @@ Beide samen: **8,5**.
   palmen of een acacia op een binnenplaats. Groen breekt het eindeloze oker. Sfeer van 8 naar
   **8,5**, Variatie van 6 naar **6,5**.
 
+- [ ] **A3. Kleur uit doeken, niet uit de muren.** De huizen blijven zandkleurig (elk een eigen tint, zie D1); de kleur
+  in de straat komt van was aan een lijn, vaandels, tapijten over een dakrand of balkon, doeken en een paar unieke
+  gebouwen, misschien een fontein. Idee van de opdrachtgever bij D1. Variatie van 6 naar **7**, Sfeer van 8 naar **8,5**.
+
 ### Speelelementen (P)
 
 - [ ] **P1. Waslijnen en doeken tussen de huizen.** Je kunt erop springen (ze veren), of ze met de
@@ -162,7 +166,9 @@ volgende stadsverbetering.
 
 1. [x] L1, slagschaduwen op de straat: suggestie 1 + 2 (pull request 611 en 613)
 2. [x] V1, figuren op de achtergrond: suggestie 1, het stadsvolk (de dorpelingen omgekleurd op de stoep, weg bij een gevecht), in Stad 1 en Sandville
-3. [ ] D1, gevelvarianten (de herhaling weg)
+3. [ ] D1, gevelvarianten (de herhaling weg): bezig. Suggestie 3 gekozen, echt andere huizen. Er zijn er drie
+   (reliefhuis, koopmanshuis, pilarenhuis, in zandtinten, met deur, ook in de Maker; zie "Huistypes" in `notities/stad.md`).
+   De opdrachtgever wil nog meer types voor hij D1 afvinkt.
 4. [ ] S2, de galerij warmer
 5. [ ] L2, lucht met stofwaas
 6. [ ] H1, de trap zonder fade
@@ -177,6 +183,7 @@ volgende stadsverbetering.
 15. [ ] P1, waslijnen en doeken
 16. [ ] P2, de menigte op de markt
 17. [ ] V1b, eigen stadsfiguren (suggestie 2 van V1: een koopman en een vrouw met een kruik, nieuwe art via `grok-imagine-prompts`) in plaats van de dorpelingen: tegen de herhaling, Leven van 5 naar **6**
+18. [ ] A3, kleur uit doeken: was, vaandels, tapijten, unieke gebouwen, misschien een fontein (de muren blijven zand)
 
 ## Gedaan
 

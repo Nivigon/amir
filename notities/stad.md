@@ -7,7 +7,7 @@ De onderdelen staan in `design/stad/`, met alle maten in `design/stad/metadata.j
 in de sandbox onder Terrein de knoppen **De stad** (Neerzetten, Weg).
 
 ```
-stad: { paleis, seed, gevels: [{x, hoog, f}], galerijen: [{van, tot, h}],
+stad: { paleis, seed, gevels: [{x, hoog, f, soort}], galerijen: [{van, tot, h}],
         kramen: [{x, soort, f}], voet: [{x, stuk, f}] }
 ```
 
@@ -33,6 +33,49 @@ hoogtes vast in sprite-eenheden.
 - Contactschaduw aan de voet (`STAD.schaduw`), zodat de muur niet als een liniaal op de straat staat.
 - Het deurgat is donker. De rechthoek staat in metadata.json (`deurgat`), en in `STAD_DEUR.gat`: daar stapt een vijand uit
   (zie "Deuren" hieronder).
+
+## Huistypes
+
+`STAD.gevelSoort`, `stadGevelG`, `stadGevelDelen`, `stadSoortLaad`, `tools/gevel_soorten.py`
+
+Naast `gevel.png` zijn er drie andere huizen, elk met een eigen plaat in `design/stad/`. Je kiest het type met `soort`
+in een gevel: `gevels: [{x, hoog, f, soort}]`. Zonder `soort` blijft het de oude gevel, dus geen bestaand level verandert.
+
+- `relief`: het reliefhuis, licht zand met rode en blauwe versiering rond de deur en de ramen (Hausa-stijl).
+- `koopman`: het koopmanshuis, warm rossig zand met een houten erker op de eerste verdieping.
+- `pilaren`: het pilarenhuis, donkerder leem met staande pilaren met punten erop en bundels stokken (Djenne-stijl).
+
+De muren blijven zandkleurig, elk met een eigen tint (`zand` in `tools/gevel_soorten.py`, ten opzichte van `gevel.png`).
+Grok gaf wit, roze en chocoladebruin: dat werd een kleurenfestival. De kleur in de straat hoort van doeken, was en
+vaandels te komen (A3 in `notities/stad-verbeteren.md`), niet van de muren.
+
+Elke plaat heeft dezelfde maat als `gevel.png`: 970 breed, de muur van x 44 tot 922, het midden van het deurgat op x 473,
+en de verdieping (417) en de begane grond (508) even hoog. Het dak mag hoger zijn (puntige kartels), maar de looplijn
+(`dakAchter`) ligt net zo ver boven de onderkant van het dak. Zo liggen daken, verdiepingen, galerijen, trappen en deuren op
+precies dezelfde hoogte als bij een oud huis, en kun je de types vrij door elkaar zetten.
+
+- **Twee soorten verdieping.** Elke plaat heeft naast `ver` ook `alt`: de bovenste verdieping uit de Grok-plaat. De eerste
+  verdieping is `ver` (de erker, de stokbundels), alles erboven `alt` (`stadGevelDelen`). Een koopmanshuis van vier hoog
+  heeft dus een erker en daarboven twee gewone ramen.
+- **De deur.** Voorlopig krijgt een huistype dezelfde houten deur als een oud huis, dicht of (soms) open, geschaald op
+  zijn eigen deurgat (`deur` in `STAD.gevelSoort`, het gat ten opzichte van dat van `gevel.png`; ook `stadDeurMaat`
+  rekent ermee). De latei van `gevel.png` komt er niet overheen, want elk type heeft zijn eigen kozijn.
+- **Lui geladen.** Een plaat laadt pas als een gevel in het level hem gebruikt (`stadSoortLaad`, vanuit `stadLaadLevel`). Tot
+  hij binnen is, tekent `stadGevelG` de oude gevel.
+- **De platen maken.** `tools/gevel_soorten.py` maakt ze uit de Grok-platen in `design/stad/bron/` (`gevel_<soort>_grok.jpg`):
+  wit weg, een strook kale muur eruit (links een smalle zodat de deur op x 473 valt, rechts een brede), en elke band op zijn
+  maat. Het print de maten voor `STAD.gevelSoort` en zet ze in `metadata.json` (`gevel_soorten`). Daarna `gen-klein.py` en
+  `gen-offline-manifest.py`.
+- **Sandbox.** Onder Terrein, bij De stad, de knop **Huistypes**: een straat met de oude gevel en de drie types door elkaar,
+  in elke hoogte, met een galerij over een oud huis en een reliefhuis. Daarnaast **Dichte straat**: tien huizen muur
+  tegen muur (10 bronpx over elkaar, de randen zijn niet kaarsrecht). De breedte van een huis schaalt mee met het scherm,
+  dus de knop rekent met de schaal van dat moment.
+- **In de Maker.** Een gevel heeft in het paneel naast Hoogte de keuze **Type** (`MK_GEVEL_TYPES`, `mkGevelSoort`): Oud
+  huis, Reliefhuis, Koopmanshuis of Pilarenhuis. Het grid tekent het gekozen type, en `mkNaarLevel` zet `soort` in de gevel.
+- **Een type erbij.** Een Grok-plaat in `design/stad/bron/`, een regel in `SOORTEN` van `tools/gevel_soorten.py` (de maten
+  nameten op een raster), het script draaien, de uitvoer in `STAD.gevelSoort` en een regel in `MK_GEVEL_TYPES`, `KLEIN_FAM`
+  en de lijst van `gen-klein.py`.
+- Nog niet: de verre rijen achter de straat (`STAD.rijen`) blijven de oude gevel.
 
 ## Achter de kartels
 
@@ -410,7 +453,8 @@ spawns: [ {x: -1100, k: 'bandiet', deur: {gevel: 0, verdieping: 0}},
   (`design/deur/`, de frames van `DEUR`), getekend in de ruimte van de gevel (`stadDeurPlaatTeken`). Zijn kozijn (canvas-x 101 tot 351,
   de voet op 446) valt op dezelfde maat in bronpx op de posten en de latei van `gevel.png`: `plaatX` (247) is waar het canvas begint,
   de voet valt op de onderrand. Dicht tot de deur opengaat, dan de 20 frames op `DEUR.fps` met op het eind de klap (`deurSlamSpeel`,
-  een kleine shake `schok`), en daarna blijft hij open. De eerste vijand wacht tot de deur open is (`deurWacht` begint op de duur van
+  een kleine shake `schok`; het geluid gaat door een versterker, `SFX_SLAM.vol`, met drie stemmen en de muziek die even wijkt, zodat hij
+  in elk level boven de muziek uitkomt), en daarna blijft hij open. De eerste vijand wacht tot de deur open is (`deurWacht` begint op de duur van
   de frames). Een gespiegeld huis spiegelt de deur mee, met het scharnier rechts. Het grijze hout krijgt een warme tint (`warm`, multiply, een keer per frame in
   `stadDeurWarm`), de latei van de gevel valt over de bovenbalk van het kozijn met een zachte schaduw eronder, zodat de deur in de
   leem zit, en het donker over wie eruit stapt ligt alleen in de opening van de open deur (`opening`, via `stadDeurMaat(d, scale, gat)`). `laadLevel` laadt de frames in een stadslevel met
