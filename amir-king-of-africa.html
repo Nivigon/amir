@@ -12198,10 +12198,63 @@ function losTeken(groundY, scale, cx){
     } else if (imgReady(javImg)){
       const len = javLen(scale), kk = len / JAV.w;
       ctx.translate(sx, gy - 6 * scale - op); ctx.scale(-sp.zij, 1); ctx.rotate(w);   // zij is de kant van de schacht: 1 is de punt links
-      ctx.drawImage(vaanBlauw(javImg, sp.blauw), -JAV.tipX * kk, -JAV.tipY * kk, JAV.w * kk, JAV.h * kk);
+      const im = vaanBlauw(javImg, sp.blauw), bx = -JAV.tipX * kk, by = -JAV.tipY * kk, bw = JAV.w * kk, bh = JAV.h * kk;
+      const baken = speerBakenAan(sp.h);
+      if (baken) speerBakenRand(im, bx, by, bw, bh, scale);
+      ctx.drawImage(im, bx, by, bw, bh);
+      if (baken) speerBakenFlits(scale, t, (sp.x * 0.013) % SPEER_BAKEN.flits);   // elke speer op een eigen moment
     }
     ctx.restore();
   }
+}
+// ---- speerbaken: een speer hoog in de stad valt op ----
+// Op een galerij viel een losse speer weg tegen de reling, en op een dak was hij een dun streepje tegen de
+// lucht. Een lichte gloed hielp niet: tegen de leemmuren zie je die niet. Daarom krijgt een speer boven de
+// straat een donkere omlijning (zijn eigen silhouet een paar pixels rondom, zoals een stripcontour) en
+// schittert de punt om de zoveel tijd even. Alleen in de stad: een speer op straat ziet eruit zoals altijd.
+const SPEER_BAKEN = {
+  boven: 60,          // vanaf deze hoogte boven de straat (wereldpixels) telt een speer als hoog
+  rand: 2,            // dikte van de omlijning, in schermpixels (maal scale, minstens 1,5)
+  kleur: 'rgba(28,14,6,0.9)',   // de omlijning
+  flits: 2.4,         // om de zoveel seconden schittert de punt
+  flitsDuur: 0.35,    // zo lang duurt de schittering
+  flitsMaat: 0.2      // grootte van de schittering, in Amir
+};
+function speerBakenAan(h){ return stadAan() && h > SPEER_BAKEN.boven; }
+const speerSilhouet = new WeakMap();   // per (gekleurd) speerplaatje een donkere kopie, een keer gemaakt
+function speerBakenSil(im){
+  let c = speerSilhouet.get(im);
+  if (c) return c;
+  c = document.createElement('canvas'); c.width = im.naturalWidth || im.width; c.height = im.naturalHeight || im.height;
+  const g = c.getContext('2d');
+  g.drawImage(im, 0, 0, c.width, c.height);
+  g.globalCompositeOperation = 'source-in'; g.fillStyle = SPEER_BAKEN.kleur; g.fillRect(0, 0, c.width, c.height);
+  speerSilhouet.set(im, c);
+  return c;
+}
+// onder de echte sprite: de omlijning; de punt ligt op (0, 0) van de huidige transformatie
+function speerBakenRand(im, x, y, w, h, scale){
+  const d = Math.max(1.5, SPEER_BAKEN.rand * scale * 1.4), sil = speerBakenSil(im);
+  for (let i = 0; i < 8; i++){
+    const a = i * Math.PI / 4;
+    ctx.drawImage(sil, x + Math.cos(a) * d, y + Math.sin(a) * d, w, h);
+  }
+}
+// na de sprite: de schittering op de punt, een vierpuntige ster die kort opflitst
+function speerBakenFlits(scale, t, fase){
+  const B = SPEER_BAKEN, q = ((t + fase) % B.flits) / B.flitsDuur;
+  if (q >= 1) return;
+  const k = Math.sin(q * Math.PI), r = CHAR_H * scale * B.flitsMaat * k, r2 = r * 0.18;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 0.6);
+  g.addColorStop(0, 'rgba(255,250,230,' + (0.9 * k).toFixed(3) + ')'); g.addColorStop(1, 'rgba(255,220,150,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r * 0.6, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,252,240,' + (0.95 * k).toFixed(3) + ')';
+  ctx.beginPath();
+  ctx.moveTo(0, -r); ctx.lineTo(r2, -r2); ctx.lineTo(r, 0); ctx.lineTo(r2, r2);
+  ctx.lineTo(0, r); ctx.lineTo(-r2, r2); ctx.lineTo(-r, 0); ctx.lineTo(-r2, -r2); ctx.closePath(); ctx.fill();
+  ctx.restore();
 }
 // De E boven een speer die je kunt pakken, na Amir getekend: hij staat er vaak bovenop.
 function skETeken(groundY, scale, cx){

@@ -451,6 +451,12 @@ doorheen, net als Amir. De doek (`veer`) en de luifel tellen niet: die werpen me
 `riet`) telt ook niet: een speer vliegt over of langs een kraam tot de straat, anders viel een vlakke worp op straat al
 na een paar passen op de toonbank.
 
+Een losse speer op een galerij viel weg tegen de reling, en op een dak was hij een dun streepje. Boven de straat
+(`SPEER_BAKEN.boven`, 60) krijgt een losse speer daarom een donkere omlijning (`speerBakenRand`: zijn silhouet acht
+keer rondom, uit `speerBakenSil`) en schittert de punt om de `flits` seconden even (`speerBakenFlits`), elke speer op
+een eigen moment. Een lichte gloed en een pijltje erboven zijn geprobeerd: de gloed zag je niet tegen de leemmuren, het
+pijltje zag er niet goed uit. Alleen in de stad (`speerBakenAan`); op straat blijft de speer zoals hij was.
+
 ## De stoep: een strook straat over de voet van de huizen
 
 `STAD_STOEP`, `stadStoep`, `stadStoepH`, `stadVoorTeken`. De gevels en poorten staan met hun voet op de looplijn
