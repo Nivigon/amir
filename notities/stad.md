@@ -41,9 +41,13 @@ hoogtes vast in sprite-eenheden.
 Naast `gevel.png` zijn er drie andere huizen, elk met een eigen plaat in `design/stad/`. Je kiest het type met `soort`
 in een gevel: `gevels: [{x, hoog, f, soort}]`. Zonder `soort` blijft het de oude gevel, dus geen bestaand level verandert.
 
-- `relief`: het reliefhuis, lichte kalk met rode en blauwe versiering rond de deur en de ramen (Hausa-stijl).
-- `koopman`: het koopmanshuis, rozerode leem met een houten erker op de eerste verdieping.
-- `pilaren`: het pilarenhuis, donkere leem met staande pilaren met punten erop en bundels stokken (Djenne-stijl).
+- `relief`: het reliefhuis, licht zand met rode en blauwe versiering rond de deur en de ramen (Hausa-stijl).
+- `koopman`: het koopmanshuis, warm rossig zand met een houten erker op de eerste verdieping.
+- `pilaren`: het pilarenhuis, donkerder leem met staande pilaren met punten erop en bundels stokken (Djenne-stijl).
+
+De muren blijven zandkleurig, elk met een eigen tint (`zand` in `tools/gevel_soorten.py`, ten opzichte van `gevel.png`).
+Grok gaf wit, roze en chocoladebruin: dat werd een kleurenfestival. De kleur in de straat hoort van doeken, was en
+vaandels te komen (A3 in `notities/stad-verbeteren.md`), niet van de muren.
 
 Elke plaat heeft dezelfde maat als `gevel.png`: 970 breed, de muur van x 44 tot 922, het midden van het deurgat op x 473,
 en de verdieping (417) en de begane grond (508) even hoog. Het dak mag hoger zijn (puntige kartels), maar de looplijn

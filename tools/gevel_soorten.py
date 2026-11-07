@@ -43,12 +43,58 @@ NAAD = 28                                 # zo breed loopt de overgang over een 
 #   knipL  waar links de smalle strook uit gaat (in kale muur), knipR waar de brede rechts begint
 SOORTEN = {
     'relief':  dict(muur=(50, 1247), deur=(398, 605), dak=235, alt=(235, 615), ver=(615, 1012), bod=(1012, 1512),
-                    knipL=128, knipR=700),
+                    knipL=128, knipR=700, zand=(10, -1, -5)),
     'koopman': dict(muur=(53, 1247), deur=(413, 598), dak=190, alt=(190, 595), ver=(595, 1005), bod=(1005, 1503),
-                    knipL=140, knipR=700),
+                    knipL=140, knipR=700, zand=(-4, 3, 1)),
     'pilaren': dict(muur=(45, 1255), deur=(400, 612), dak=210, alt=(210, 655), ver=(655, 1058), bod=(1058, 1534),
-                    knipL=222, knipR=690),
+                    knipL=222, knipR=690, zand=(-9, 2, -2)),
 }
+#   zand   de tint ten opzichte van gevel.png, in Lab (licht, rood, geel): de huizen blijven zandkleurig, elk met een
+#          eigen tint (relief licht zand, koopman warm rossig zand, pilaren donkere leem). De kleur in de straat komt van
+#          doeken, was en vaandels, niet van de muren.
+ZAND_T = (1.0, 0.9)    # hoe ver het pleisterwerk naar die tint gaat: licht, kleur
+ZAND_DONKER = 22       # onder deze helderheid (L) blijft alles zoals het was: het deurgat, het hout, de schaduw
+
+
+def lab(c):
+    c = c / 255
+    c = np.where(c > 0.04045, ((c + 0.055) / 1.055) ** 2.4, c / 12.92)
+    x = c @ np.array([[0.4124, 0.3576, 0.1805], [0.2126, 0.7152, 0.0722], [0.0193, 0.1192, 0.9505]]).T
+    x = x / np.array([0.9505, 1, 1.089])
+    f = np.where(x > 0.008856, np.cbrt(x), 7.787 * x + 16 / 116)
+    return np.stack([116 * f[..., 1] - 16, 500 * (f[..., 0] - f[..., 1]), 200 * (f[..., 1] - f[..., 2])], -1)
+
+
+def rgb(L):
+    fy = (L[..., 0] + 16) / 116
+    f = np.stack([fy + L[..., 1] / 500, fy, fy - L[..., 2] / 200], -1)
+    x = np.where(f ** 3 > 0.008856, f ** 3, (f - 16 / 116) / 7.787) * np.array([0.9505, 1, 1.089])
+    c = x @ np.array([[3.2406, -1.5372, -0.4986], [-0.9689, 1.8758, 0.0415], [0.0557, -0.2040, 1.0570]]).T
+    c = np.where(c > 0.0031308, 1.055 * np.clip(c, 0, None) ** (1 / 2.4) - 0.055, 12.92 * c)
+    return np.clip(c * 255, 0, 255)
+
+
+def lab_stats(a):
+    m = a[..., 3] > 200
+    L = lab(a[..., :3][m])
+    return L.mean(0), L.std(0)
+
+
+def zand(a, tint):
+    """Het pleisterwerk naar de zandkleur van gevel.png, met een eigen tint; het donker blijft."""
+    ref = np.asarray(Image.open(os.path.join(STAD, 'gevel.png')).convert('RGBA')).astype(float)
+    rm, rs = lab_stats(ref)
+    mm, ss = lab_stats(a)
+    doel = rm + np.array(tint, float)
+    t = np.array([ZAND_T[0], ZAND_T[1], ZAND_T[1]])
+    L = lab(a[..., :3])
+    nieuw = (L - mm) / ss * (ss * (1 - t) + rs * t) + (mm * (1 - t) + doel * t)
+    d = ZAND_DONKER if mm[0] >= 40 else ZAND_DONKER * 0.55    # het pilarenhuis is zelf donker: dan lager beschermen
+    w = np.clip((L[..., :1] - d) / d, 0, 1)
+    w = w * w * (3 - 2 * w)
+    uit = a.copy()
+    uit[..., :3] = rgb(L * (1 - w) + nieuw * w)
+    return uit
 
 
 def wit_weg(rgb):
@@ -79,8 +125,8 @@ def band(a, y0, y1, h):
 
 
 def maak(naam, S):
-    rgb = np.asarray(Image.open(os.path.join(BRON, f'gevel_{naam}_grok.jpg')).convert('RGB'))
-    a = wit_weg(rgb).astype(float)
+    bron = np.asarray(Image.open(os.path.join(BRON, f'gevel_{naam}_grok.jpg')).convert('RGB'))
+    a = zand(wit_weg(bron).astype(float), S['zand'])
     m0, m1 = S['muur']
     mid = (S['deur'][0] + S['deur'][1]) / 2
     remL = round((mid - m0) - (MIDDEN - MUUR[0]))       # zo komt het midden van de deur op MIDDEN
