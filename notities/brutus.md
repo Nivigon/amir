@@ -139,6 +139,12 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
   `design/bloed/snedes` op een vaste plek op zijn borst en buik (`snedes`), geknipt op zijn silhouet (`zwmSneeLaag`).
   Bij een draai of de zwaai valt een snee soms (deels) buiten zijn lijf en is dan niet te zien. Bij zijn dood speelt
   ook het bloedgeluid (`bloedSpeel`).
+- **Zijn gezicht op de knots** (`BRU.bloed.dood`, `bruKopBloedStart`, `bruKopBloedLaag`, `bruKopPlasTeken`): hij valt in
+  de val met zijn gezicht op zijn eigen knots. Op de klap (`BRU.valKlap`) speelt het bloedgeluid nog een keer, met de
+  natte speerklap eronder (`natVol`), en spat er bloed uit zijn gezicht. Daarna komt in `op` s het bloed over zijn gezicht
+  op, in de stijl van `einde_bloed.png` van de schildman na de executie: lichtere vegen (`veeg`), donkere klodders (`klod`)
+  en druipers met een druppel eronder (`druip`), geknipt op zijn silhouet. Onder zijn hoofd groeit in `groei` s een plas
+  op de vloer (`plas`), voor de weggezakte bal en onder hem. Plekken in de pixels van de ligframes (naar links kijkend).
 - **Speertreffer**: `sounds/brutus_speerraak.mp3` op elke treffer (een tijdelijk, in ffmpeg gemaakt geluid: een doffe
   dreun met een korte natte klap; vervang het bestand met dezelfde naam door een echt geluid).
 

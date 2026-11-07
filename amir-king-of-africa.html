@@ -31708,7 +31708,18 @@ const BRU = {
            sneeOp: [2, 5, 8, 11, 14],
            snedes: [ { naam: 'snee_haal', x: -30, y: -230, h: 90, rot: 0.7 }, { naam: 'snee_recht', x: 10, y: -175, h: 80, rot: -0.5 },
                      { naam: 'snee_dwars', x: -45, y: -150, h: 70, rot: 0.2 }, { naam: 'snee_haal', x: 30, y: -250, h: 75, rot: -0.9 },
-                     { naam: 'snee_recht', x: -15, y: -200, h: 95, rot: 1.1 } ] },
+                     { naam: 'snee_recht', x: -15, y: -200, h: 95, rot: 1.1 } ] ,
+           // zijn val op de knots: op de klap het bloedgeluid en een spat uit zijn gezicht, daarna komt het bloed over
+           // zijn gezicht op (zoals bij de schildman na de executie) en groeit er een plas onder zijn hoofd. Plekken in
+           // de pixels van de ligframes (vanaf valKlap), tijden in s
+           // Het gezicht in de stijl van einde_bloed.png van de schildman: platte donkere klodders, lichtere vegen en
+           // druipers met een druppel eronder (veeg en klod: x, y, rx, ry, draai; druip: x, y, lengte)
+           dood: { kop: { x: -232, y: -24 }, op: 1.6, spat: 16, spatV: 280, natVol: 0.7,
+                   donker: '#5c060c', licht: 'rgba(118,12,18,0.75)',
+                   veeg: [[-246, -13, 17, 8, -0.3], [-236, -24, 9, 5, 0.4]],
+                   klod: [[-251, -7, 8, 6, 0], [-240, -18, 5, 4, 0.5], [-256, -19, 4, 3, 0], [-244, -5, 5, 4, 0]],
+                   druip: [[-247, -12, 12], [-253, -8, 8], [-239, -16, 13]],
+                   plas: { x: -250, w: 130, h: 16, groei: 4.5, kleur: '92,6,12', a: 0.95 } } },
   knotsLig: 1.72, valKlap: 104,    // de losse knots kantelt tot deze hoek (rad); in de val is het frame met bron >= valKlap de klap op de grond
   // zo zwaar is de knots: bij de klap zakt hij zak grote-set-px in de vloer, in tijd s (eerst hard, dan nog wat na),
   // en wat onder de vloerlijn (rand px onder zijn voeten) komt is weg; een donkere deuk eromheen en een barst eronder
@@ -32192,6 +32203,7 @@ function updateBrutus(dt){
   bruStofStap(s, dt);                                       // het stof van zijn stappen en zijn val
   bruRaakSpoor(s, dt);                                      // het stof achter Amir als hij weggeslagen wordt
   zwmDruppelStap(s, dt);                                    // de bloeddruppels vallen en blijven even liggen (zoals bij de zweepman)
+  if (s.kopBloed !== undefined) s.kopBloed += dt;           // het bloed van zijn val op de knots komt op (bruKopBloedStart)
   bruAdemSpeel((s.state === 'wacht' && (!s.intro || s.intro.fase === 'rug' || s.intro.fase === 'draai')) || s.state === 'adem');
   bruGloedStap(s, dt);                                      // de rode gloed en de vonken van zijn woede
   if (!s.sandbox) bruSluitStap(dt);                         // het hek bij de ingang valt dicht
@@ -32679,7 +32691,7 @@ function bruDoodStap(s, dt){
       const f = D.frames[s.frame];
       if (s.fase === 'drop' && s.frame === D.frames.length - 1 && bruData.knots) s.knots = { hoek: 0, v: 0.6 };   // los: hij staat op zijn bal
       if (s.fase === 'val' && !s.plof && f.bron >= BRU.valKlap){ s.plof = true; banStemSpeel(bruGeluid.plof, BRU.vol.plof);
-        shake = Math.max(shake, 0.4); hitstop = Math.max(hitstop, 0.06); bruDoodStof(s); }
+        shake = Math.max(shake, 0.4); hitstop = Math.max(hitstop, 0.06); bruDoodStof(s); bruKopBloedStart(s); }
       continue;
     }
     if (s.fase === 'dreig'){ s.fase = 'drop'; s.frame = 0; }
@@ -32694,6 +32706,46 @@ function bruDoodStap(s, dt){
       return;
     }
   }
+}
+// hij valt met zijn gezicht op de knots: een natte klap, het bloedgeluid en een spat uit zijn gezicht (BRU.bloed.dood)
+function bruKopBloedStart(s){
+  const D = BRU.bloed.dood, k = D.kop;
+  bloedSpeel(); banStemSpeel(bruGeluid.speer, BRU.vol.speer * D.natVol);
+  s.kopBloed = 0; s.druppels = s.druppels || [];
+  for (let i = 0; i < D.spat; i++){
+    const a = Math.PI + (Math.random() - 0.5) * 2.2, v = D.spatV * (0.3 + Math.random() * 0.8);   // vooral naar voren en omhoog
+    s.druppels.push({ x: k.x + (Math.random() - 0.5) * 30, y: k.y * 0.5, wx: s.x, face: s.face,
+                      vx: Math.cos(a) * v, vy: -Math.abs(Math.sin(a)) * v - 60, lig: 0, r: 2 + Math.random() * 3 });
+  }
+}
+// het bloed over zijn gezicht, alleen binnen zijn eigen pixels (zoals de snedes), opkomend met a (0 tot 1)
+function bruKopBloedLaag(im, fr, gs, a){
+  const D = BRU.bloed.dood;
+  const W2 = Math.max(1, Math.round(fr.w * gs)), H2 = Math.max(1, Math.round(fr.h * gs));
+  const wd = werkDoek('bruKop', W2, H2), g = wd.getContext('2d');
+  g.clearRect(0, 0, W2, H2); g.drawImage(im, 0, 0, W2, H2);
+  g.globalCompositeOperation = 'source-atop';
+  const X = x => (x - fr.dx) * gs, Y = y => (y - fr.dy) * gs;
+  const groot = Math.min(1, a * 1.6), lang = Math.max(0, (a - 0.25) / 0.75);   // eerst de klodders, dan lopen ze uit
+  const vlek = (v, kleur, k) => { g.fillStyle = kleur; g.beginPath(); g.ellipse(X(v[0]), Y(v[1]), v[2] * gs * k, v[3] * gs * k, v[4], 0, Math.PI * 2); g.fill(); };
+  for (const v of D.veeg) vlek(v, D.licht, groot);
+  for (const v of D.klod) vlek(v, D.donker, groot);
+  g.fillStyle = D.donker;
+  for (const [x, y, l] of D.druip){
+    const L = l * lang * gs, b = 1.4 * gs; if (L < 1) continue;
+    g.beginPath(); g.moveTo(X(x) - b, Y(y)); g.lineTo(X(x) + b, Y(y)); g.lineTo(X(x) + b * 0.4, Y(y) + L); g.lineTo(X(x) - b * 0.4, Y(y) + L); g.fill();
+    g.beginPath(); g.arc(X(x), Y(y) + L, b * 1.3, 0, Math.PI * 2); g.fill();
+  }
+  g.globalCompositeOperation = 'source-over';
+  return wd;
+}
+// de plas onder zijn hoofd groeit langzaam uit (in de gespiegelde ruimte van bruTeken, op de vloerlijn)
+function bruKopPlasTeken(s, gs){
+  const P = BRU.bloed.dood.plas, t = Math.min(1, s.kopBloed / P.groei), k = 1 - (1 - t) * (1 - t);
+  const al = P.a * (1 - (s.weg || 0)); if (k <= 0 || al <= 0) return;
+  ctx.save(); ctx.fillStyle = 'rgba(' + P.kleur + ',' + al.toFixed(3) + ')';
+  ctx.beginPath(); ctx.ellipse(P.x * gs, 2 * gs, P.w / 2 * gs * k, P.h / 2 * gs * (0.4 + 0.6 * k), 0, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
 }
 // welk frame en welke beweging hij nu toont
 function bruFrame(s){
@@ -32737,8 +32789,10 @@ function bruTeken(s, bodyX, voeten, gs){
     }
     ctx.translate(px, py); ctx.rotate(-K.hoek); ctx.drawImage(ki, -r * gs, -(kn.h - r) * gs, kn.w * gs, kn.h * gs); ctx.restore();
   }
+  if (s.kopBloed !== undefined) bruKopPlasTeken(s, gs);      // de plas onder zijn hoofd: op de vloer, voor de weggezakte bal, onder hem
   const beeld = s.flash > 0 ? whiteCopy(im, s.flash * 4) : im;
   let laag = s.snedes && s.snedes.length ? zwmSneeLaag(beeld, fr, gs, s.snedes) : beeld;
+  if (s.kopBloed !== undefined && s.state === 'dood') laag = bruKopBloedLaag(laag, fr, gs, Math.min(1, s.kopBloed / BRU.bloed.dood.op));
   const g = (s.gloed || 0) * (s.state === 'dood' ? 1 - (s.weg || 0) : 1);
   if (g > 0.01){                                           // de woede: rood lijf en een gloed om zijn silhouet
     const G = BRU.gloed, puls = bruPuls(s), klap = Math.max(0, s.woedeKlap || 0);
