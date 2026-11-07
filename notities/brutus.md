@@ -152,6 +152,11 @@ Stad 6 begint met een tussenstuk (`bruIntroBegin`, `bruIntroStap`, `bruIntroTeke
 rechterpoort (`start: -2500`); het hek daarvan staat open en valt na `sluitWacht` in `sluit` seconden dicht (het takelgeluid,
 een klap, stof), pas als het laadscherm weg is. Nyundo staat bij de linkerluifel met zijn rug naar Amir (`face -1`; een echte
 rug-sprite is er niet, hij kijkt van Amir weg) en ademt. Komt Amir binnen `zie` Amir, of raakt Amir hem, dan:
+- `spreek`: het spel staat al stil (balken, camera, Amir vast), maar Nyundo blijft staan en spreekt: `brutus_start1.mp3`,
+  een korte pauze (`spreek.pauze`), dan `brutus_start2.mp3`. Op driekwart van start2 (`spreek.loopBij`) gaat hij lopen en
+  loopt start2 door onder het stampen. Het geluid zelf is de klok (`currentTime`), met de speltijd als terugval als het
+  niet speelt (`spreek.een`, `spreek.twee`: de lengte van de spraak zonder de stilte erachter). Staat het geluid uit, dan
+  slaat hij dit stuk over. Bij pauze stopt de spraak even, bij een herstart of een ander level is hij weg (`bruSpraakStap`).
 - `loop`: het spel staat stil voor Amir (`bruIntroVast` in `amirVast`), zwarte balken, de camera schuift naar Nyundo en de
   tonnen (`bruIntroCam`). Hij loopt met de stormframes, trager (`loopMs`, `loopV`), naar de dichtste groep tonnen
   (`bruIntroDoel`: `sta` grote-set-px rechts van de meest rechtse).
@@ -187,4 +192,7 @@ het gevecht (zie `notities/tonnen.md`).
   daarna `gen-klein.py` en `gen-offline-manifest.py`.
 - Geluiden: `sounds/brutus_adem.mp3` (loopt zolang hij staat te ademen), `brutus_stap.mp3`,
   `brutus_zwaai.mp3` (start op zwaaiframe `BRU.zwaaiGeluid`, de zoef valt op de treffer),
-  `brutus_geraakt.mp3`, `brutus_dood.mp3`.
+  `brutus_geraakt.mp3` (nu alleen nog bij de omslag naar zijn woede), `brutus_dood.mp3`. Een treffer geeft naast
+  `brutus_speerraak.mp3` (de speer in zijn vlees) een van zes kreten, `brutus_hit1.mp3` tot `brutus_hit6.mp3`, geknipt uit
+  hits.mp3, nooit twee keer dezelfde achter elkaar (`BRU_HITS`, `bruHitSpeel`). De opening: `brutus_start1.mp3` en
+  `brutus_start2.mp3`.
