@@ -12198,68 +12198,54 @@ function losTeken(groundY, scale, cx){
     } else if (imgReady(javImg)){
       const len = javLen(scale), kk = len / JAV.w;
       ctx.translate(sx, gy - 6 * scale - op); ctx.scale(-sp.zij, 1); ctx.rotate(w);   // zij is de kant van de schacht: 1 is de punt links
-      const im = vaanBlauw(javImg, sp.blauw), bx = -JAV.tipX * kk, by = -JAV.tipY * kk, bw = JAV.w * kk, bh = JAV.h * kk;
-      const baken = speerBakenAan(sp.h);
-      if (baken) speerBakenRand(im, bx, by, bw, bh, scale);
-      ctx.drawImage(im, bx, by, bw, bh);
-      if (baken) speerBakenFlits(scale, t, (sp.x * 0.013) % SPEER_BAKEN.flits);   // elke speer op een eigen moment
+      ctx.drawImage(vaanBlauw(javImg, sp.blauw), -JAV.tipX * kk, -JAV.tipY * kk, JAV.w * kk, JAV.h * kk);
     }
     ctx.restore();
   }
 }
 // ---- speerbaken: een speer hoog in de stad valt op ----
 // Op een galerij viel een losse speer weg tegen de reling, en op een dak was hij een dun streepje tegen de
-// lucht. Een lichte gloed hielp niet: tegen de leemmuren zie je die niet. Daarom krijgt een speer boven de
-// straat een donkere omlijning (zijn eigen silhouet een paar pixels rondom, zoals een stripcontour) en
-// schittert de punt om de zoveel tijd even. Alleen in de stad: een speer op straat ziet eruit zoals altijd.
+// lucht. Ligt er een losse speer hoger dan Amir, dan zweeft erboven de speer zelf in het klein: dezelfde
+// sprite, gewoon verkleind, ondersteboven met de punt naar de speer, voor een warme lichtvlek die ademt.
+// Alleen in de stad. Staat Amir er al bij, dan is er de E en verdwijnt het speertje.
 const SPEER_BAKEN = {
-  boven: 60,          // vanaf deze hoogte boven de straat (wereldpixels) telt een speer als hoog
-  rand: 2,            // dikte van de omlijning, in schermpixels (maal scale, minstens 1,5)
-  kleur: 'rgba(28,14,6,0.9)',   // de omlijning
-  flits: 2.4,         // om de zoveel seconden schittert de punt
-  flitsDuur: 0.35,    // zo lang duurt de schittering
-  flitsMaat: 0.2      // grootte van de schittering, in Amir
+  boven: 60,          // zoveel hoger dan Amir (wereldpixels) moet de speer liggen
+  lang: 0.46,         // lengte van het speertje, in Amir
+  hoog: 0.55,         // hoe hoog het midden boven de speer zweeft, in Amir
+  licht: 0.36,        // straal van de lichtvlek, in Amir
+  adem: 2.4,          // tempo van het ademen van het licht
+  dobber: 3           // hoeveel het speertje op en neer gaat, in pixels (maal scale)
 };
-function speerBakenAan(h){ return stadAan() && h > SPEER_BAKEN.boven; }
-const speerSilhouet = new WeakMap();   // per (gekleurd) speerplaatje een donkere kopie, een keer gemaakt
-function speerBakenSil(im){
-  let c = speerSilhouet.get(im);
-  if (c) return c;
-  c = document.createElement('canvas'); c.width = im.naturalWidth || im.width; c.height = im.naturalHeight || im.height;
-  const g = c.getContext('2d');
-  g.drawImage(im, 0, 0, c.width, c.height);
-  g.globalCompositeOperation = 'source-in'; g.fillStyle = SPEER_BAKEN.kleur; g.fillRect(0, 0, c.width, c.height);
-  speerSilhouet.set(im, c);
-  return c;
-}
-// onder de echte sprite: de omlijning; de punt ligt op (0, 0) van de huidige transformatie
-function speerBakenRand(im, x, y, w, h, scale){
-  const d = Math.max(1.5, SPEER_BAKEN.rand * scale * 1.4), sil = speerBakenSil(im);
-  for (let i = 0; i < 8; i++){
-    const a = i * Math.PI / 4;
-    ctx.drawImage(sil, x + Math.cos(a) * d, y + Math.sin(a) * d, w, h);
+function speerBakenTeken(groundY, scale, cx, bij){
+  if (!stadAan() || !losseSperen.length || !imgReady(javImg)) return;
+  const B = SPEER_BAKEN, A = CHAR_H * scale, t = performance.now() / 1000;
+  for (const sp of losseSperen){
+    if (sp === bij || sp.h < ph + B.boven) continue;
+    const half = sp.soort === 'skelet' ? LOS_LEN / 2 * skK(scale) : javLen(scale) * 0.4;
+    const x = cx + (sp.x + sp.zij * half - world);
+    if (x < -W || x > W / viewZoom() + W) continue;
+    const y = groundY - sp.h * scale - A * B.hoog + Math.sin(t * 3 + sp.x) * B.dobber * scale;
+    // de lichtvlek: wit in het hart, naar buiten amber, zodat hij ook op de lichte leemmuren opvalt
+    const r = A * B.licht * (0.9 + 0.1 * Math.sin(t * B.adem + sp.x));
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'rgba(255,248,225,0.95)');
+    g.addColorStop(0.35, 'rgba(255,214,140,0.75)');
+    g.addColorStop(0.7, 'rgba(240,160,70,0.3)');
+    g.addColorStop(1, 'rgba(230,140,60,0)');
+    ctx.save();
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    // de speer zelf, verkleind: de punt (JAV.tipX) onderaan, de schacht omhoog
+    const L = A * B.lang, kk = L / JAV.w;
+    ctx.translate(x, y + L / 2); ctx.rotate(Math.PI / 2);
+    ctx.drawImage(vaanBlauw(javImg, sp.blauw), -JAV.tipX * kk, -JAV.tipY * kk, JAV.w * kk, JAV.h * kk);
+    ctx.restore();
   }
-}
-// na de sprite: de schittering op de punt, een vierpuntige ster die kort opflitst
-function speerBakenFlits(scale, t, fase){
-  const B = SPEER_BAKEN, q = ((t + fase) % B.flits) / B.flitsDuur;
-  if (q >= 1) return;
-  const k = Math.sin(q * Math.PI), r = CHAR_H * scale * B.flitsMaat * k, r2 = r * 0.18;
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
-  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 0.6);
-  g.addColorStop(0, 'rgba(255,250,230,' + (0.9 * k).toFixed(3) + ')'); g.addColorStop(1, 'rgba(255,220,150,0)');
-  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r * 0.6, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = 'rgba(255,252,240,' + (0.95 * k).toFixed(3) + ')';
-  ctx.beginPath();
-  ctx.moveTo(0, -r); ctx.lineTo(r2, -r2); ctx.lineTo(r, 0); ctx.lineTo(r2, r2);
-  ctx.lineTo(0, r); ctx.lineTo(-r2, r2); ctx.lineTo(-r, 0); ctx.lineTo(-r2, -r2); ctx.closePath(); ctx.fill();
-  ctx.restore();
 }
 // De E boven een speer die je kunt pakken, na Amir getekend: hij staat er vaak bovenop.
 function skETeken(groundY, scale, cx){
   const sk = skeletBij();                              // E gaat eerst naar het skelet, dan alleen die E
   const sp = sk ? null : losBij();
+  speerBakenTeken(groundY, scale, cx, sp);
   if (sp){
     const lang = sp.soort === 'skelet' ? LOS_LEN / 2 * skK(scale) : javLen(scale) * 0.4;
     skE(cx + (sp.x + sp.zij * lang - world), groundY - sp.h * scale - CHAR_H * scale * 0.35, scale);
