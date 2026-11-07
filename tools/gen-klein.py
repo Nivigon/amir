@@ -128,6 +128,9 @@ DOELEN = [
     # die met de echte plaatmaat rekent, dus een halve tegel zou half zo groot getekend worden.
     # De leemplaatjes (4,1x) zijn al klein genoeg om te laten staan.
     ('design/stad/gevel.png', 60),      # 2,7x  de voorgevels; de huizen in de verte bakken op 0,4
+    ('design/stad/gevel_relief.png', 60),   # de huistypes (tools/gevel_soorten.py)
+    ('design/stad/gevel_koopman.png', 60),
+    ('design/stad/gevel_pilaren.png', 60),
     ('design/stad/paleis.png', 60),     # 2,9x  voorgebakken met nevel
     ('design/stad/kraam_riet.png', 60), # 6,5x
     ('design/stad/kraam_doek.png', 60), # 5,6x

@@ -1659,6 +1659,7 @@
         <label>De stad</label>
         <button id="sbstad">Neerzetten</button>
         <button id="sbstadweg">Weg</button>
+        <button id="sbhuistypes">Huistypes</button>
         <button id="sbleemlaag">Lage leemmuur</button>
         <button id="sbleemhoog">Doodlopend</button>
         <button id="sbbalken">Houten vloer</button>
@@ -2730,6 +2731,7 @@ const KLEIN_FAM = [
   'design/grot/',
   // de stad per bestand: straat.png niet, die gaat door de grondcode op zijn echte maat (zie gen-klein.py)
   'design/stad/gevel.png',
+  'design/stad/gevel_relief.png', 'design/stad/gevel_koopman.png', 'design/stad/gevel_pilaren.png',
   'design/stad/paleis.png',
   'design/stad/kraam_riet.png',
   'design/stad/kraam_doek.png',
@@ -21759,6 +21761,15 @@ let STAD_KANTEEL = true;            // achter de kartels: het dak een stuk lager
 const STAD = {
   gevel:   { src: 'gevel.png', amir: 318, dak: [0, 177], ver: [580, 997], bod: [997, 1505], dakLoop: 68, muur: [44, 922],
              dakAchter: 125 },   // met de kartels (STAD_KANTEEL) ligt het dak op de balkkoppen: wie erop staat, staat achter de tanden
+  // andere huistypes (zie "huistypes" in notities/stad.md): een gevel met soort. Zelfde breedte, muur en deurgat als gevel.png,
+  // en ver, bod en dak[1] - dakAchter even hoog, dus elk dak en elke verdieping ligt op dezelfde hoogte. alt is de bovenste
+  // verdieping (de gewone ver komt alleen op de eerste); deur is het deurgat ten opzichte van dat van gevel.png.
+  // Uit tools/gevel_soorten.py.
+  gevelSoort: {
+    relief:  { src: 'gevel_relief.png',  dak: [0, 235], alt: [235, 652], ver: [652, 1069], bod: [1069, 1577], dakAchter: 183, deur: 0.967 },
+    koopman: { src: 'gevel_koopman.png', dak: [0, 190], alt: [190, 607], ver: [607, 1024], bod: [1024, 1532], dakAchter: 138, deur: 0.864 },
+    pilaren: { src: 'gevel_pilaren.png', dak: [0, 210], alt: [210, 627], ver: [627, 1044], bod: [1044, 1552], dakAchter: 158, deur: 0.991 }
+  },
   galerij: { src: 'galerij.png', amir: 450, links: [0, 262], midden: [1205, 1348], rechts: [1492, 1767], dek: 104 },
   kraam: {
     riet: { src: 'kraam_riet.png', amir: 760, dak: 9, tafel: 590, dakL: 0.03, dakR: 0.97, tafelL: 0.20, tafelR: 0.82 },
@@ -21823,10 +21834,21 @@ function stadLaad(){
   zet('luifel', STAD.plein.luifel.src);                                       // de luifel bij de put
   stadImgs.hek = zetBron(new Image(), HEK.src, () => console.warn('ontbreekt: ' + HEK.src));               // het valhek in een pleinpoort
 }
+// een huistype laadt pas als een gevel het gebruikt (stadLaadLevel, of de sandbox)
+function stadSoortLaad(st){
+  stadLaad();
+  for (const g of (st && st.gevels) || []){
+    const k = 'gevel_' + g.soort;
+    if (!g.soort || stadImgs[k]) continue;
+    const src = STAD.gevelSoort[g.soort].src;
+    stadImgs[k] = zetBron(new Image(), STAD_DIR + src, () => console.warn('ontbreekt: stad ' + src));
+  }
+}
 function stadLees(o){
   const n = v => Number(v) || 0;
   return { paleis: o.paleis != null ? n(o.paleis) : null, seed: n(o.seed) || 1,
-           gevels: (o.gevels || []).map(q => ({ x: n(q.x), hoog: Math.max(1, Math.min(4, Math.round(n(q.hoog) || 1))), f: q.f ? 1 : 0 })),
+           gevels: (o.gevels || []).map(q => ({ x: n(q.x), hoog: Math.max(1, Math.min(4, Math.round(n(q.hoog) || 1))), f: q.f ? 1 : 0,
+                                                 ...(STAD.gevelSoort[q.soort] ? { soort: q.soort } : {}) })),
            galerijen: (o.galerijen || []).map(q => ({ van: n(q.van), tot: q.tot != null ? n(q.tot) : n(q.van), h: q.h != null ? n(q.h) : null,
                                                      meer: Array.isArray(q.meer) ? [n(q.meer[0]), n(q.meer[1])] : null })),
            kramen: (o.kramen || []).map(q => ({ x: n(q.x), soort: q.soort === 'doek' ? 'doek' : 'riet', f: q.f ? 1 : 0 })),
@@ -21842,7 +21864,8 @@ function stadLees(o){
            pleinpoorten: (o.pleinpoorten || []).map(q => ({ x: n(q.x), f: q.f ? 1 : 0, hek: q.hek === 'open' || q.hek === 'dicht' ? q.hek : null, ...(q.uit ? { uit: true } : {}) })) };
 }
 function stadLaadLevel(lv){ if (lv && lv.stad) volkLaad(lv.stad);
-  if (lv && (lv.stad || (lv.terraces || []).some(t => t.look === 'leem') || (lv.zwevers || []).some(z => z.look === 'hout') || (lv.grondSoort || []).some(g => g.soort === 'straat' || g.soort === 'plein'))) stadLaad(); }
+  if (lv && (lv.stad || (lv.terraces || []).some(t => t.look === 'leem') || (lv.zwevers || []).some(z => z.look === 'hout') || (lv.grondSoort || []).some(g => g.soort === 'straat' || g.soort === 'plein'))) stadLaad();
+  if (lv && lv.stad) stadSoortLaad(lv.stad); }
 // bronpixels van de grote set naar het plaatje dat er echt is (klein/ is de helft)
 const stadQ = (im, v) => v / (im._bron || 1);
 // Een bewerkte kopie, een keer per plaatje: f(r, g, b) geeft [r, g, b]
@@ -21876,7 +21899,19 @@ function stadGevelMaat(g, scale){
   const f = stadGevelF(scale), G = STAD.gevel, w = 970 * f;
   const m0 = (g.f ? 970 - G.muur[1] : G.muur[0]) * f, m1 = (g.f ? 970 - G.muur[0] : G.muur[1]) * f;
   const x = straatRaster() ? straatGevelX(g, scale) : g.x;   // naast een poort van een knooppunt schuift een huis opzij
-  return { f, w, left: x + m0, right: x + m1, x, hoog: Math.max(1, Math.min(4, g.hoog || 1)) };
+  return { f, w, left: x + m0, right: x + m1, x, hoog: Math.max(1, Math.min(4, g.hoog || 1)), G: stadGevelG(g) };
+}
+// de banden van een gevel: die van zijn huistype als dat plaatje er is, anders die van gevel.png
+function stadGevelG(g){
+  const k = g.soort && 'gevel_' + g.soort;
+  return k && stadKlaar(k) ? { ...STAD.gevel, ...STAD.gevelSoort[g.soort], img: k } : STAD.gevel;
+}
+function stadGevelIm(G){ return stadImgs[G.img || 'gevel']; }
+// de banden van onder naar boven gelezen van boven: het dak, dan de bovenste verdieping (alt), dan de gewone, dan de begane grond
+function stadGevelDelen(G, hoog){
+  const ver = Array(hoog - 1).fill(G.ver);
+  if (G.alt && hoog > 2) ver.fill(G.alt, 0, hoog - 2);
+  return [G.dak].concat(ver, [G.bod]);
 }
 // het plein: de put staat met zijn midden op x, de poort ook (de poort heeft de maten van STRATEN.recht)
 function stadPutMaat(p, scale){
@@ -22050,7 +22085,7 @@ function stadDeurMaat(d, scale, gat){
   const g = (level.stad.gevels || [])[d.gevel | 0]; if (!g) return null;
   const m = stadGevelMaat(g, scale), v = d.verdieping | 0;
   if (v < 0 || v >= m.hoog) return null;
-  const D = STAD_DEUR, s = v ? D.boven : 1, A = CHAR_H / STAD.gevel.amir, R = gat || D.gat;
+  const D = STAD_DEUR, s = (v ? D.boven : 1) * (m.G.deur || 1), A = CHAR_H / STAD.gevel.amir, R = gat || D.gat;
   const gl = D.midden + (R[0] - D.midden) * s, gr = D.midden + (R[0] + R[2] - D.midden) * s;
   const l = m.x + (g.f ? 970 - gr : gl) * m.f, r = m.x + (g.f ? 970 - gl : gr) * m.f;   // m.x: in Sandville schuift een huis opzij voor een poort
   const vloer = terrainH(m.x) + (v ? stadVerdieping(v) : 0);
@@ -22143,13 +22178,13 @@ function stadDeurWarm(idx){
 // lat: tekent de latei van de gevel op een gegeven top (in de ruimte van de gevel); die valt over de bovenbalk van het
 // kozijn, zodat de deur in de leem zit in plaats van erop geplakt
 // vanzelf: een deur zonder spawn, true staat hij open (het laatste frame), false dicht
-function stadDeurPlaatTeken(gi, v, fy, f, lat, vanzelf){
+function stadDeurPlaatTeken(gi, v, fy, f, lat, vanzelf, maat){
   deurLaad();
   const st = stadDeurStaat[gi + ':' + v];
   const idx = vanzelf != null ? (vanzelf ? DEUR.frames - 1 : 0)
     : !(st && st.open) ? 0 : Math.min(DEUR.frames - 1, Math.floor(st.t * DEUR.fps));
   const im = stadDeurWarm(idx); if (!im) return;
-  const D = STAD_DEUR, s = v ? D.boven : 1;
+  const D = STAD_DEUR, s = (v ? D.boven : 1) * (maat || 1);   // maat: het deurgat van een huistype (STAD.gevelSoort)
   ctx.drawImage(im, (D.midden + (D.plaatX - D.midden) * s) * f, fy - DEUR.grond * s * f, DEUR.canvas[0] * s * f, DEUR.canvas[1] * s * f);
   const latTop = fy - D.posten[3] * s * f - D.latei[3] * s * f + 1;
   // een zachte schaduw onder de latei, over de bovenkant van de deur
@@ -23807,7 +23842,8 @@ function stadTeken(groundY, scale, cx){
     const g = S.gevels[gi];
     const m = stadGevelMaat(g, scale), sx = cx + (m.x - world);
     if (!zicht(sx, m.w)) continue;
-    const delen = [G.dak].concat(Array(m.hoog - 1).fill(G.ver), [G.bod]);
+    const G = m.G, im = stadGevelIm(G), oy = G.bod[0] - STAD.gevel.bod[0];   // oy: de deur van een huistype staat net zo ver boven de voet
+    const delen = stadGevelDelen(G, m.hoog);
     const hh = delen.reduce((s, d) => s + (d[1] - d[0]), 0) * m.f;
     let y = groundY - terrainH(m.x) * scale - hh;
     ctx.save();
@@ -23820,20 +23856,21 @@ function stadTeken(groundY, scale, cx){
     if (deurBoven[gi]) for (const v of deurBoven[gi]){
       if (v < 1 || v >= m.hoog) continue;
       const D = STAD_DEUR, s = D.boven, fy = y - (G.bod[1] - G.bod[0] + (v - 1) * (G.ver[1] - G.ver[0])) * m.f;
-      const stuk = (q, top) => ctx.drawImage(im, stadQ(im, q[0]), stadQ(im, q[1]), stadQ(im, q[2]), stadQ(im, q[3]),
+      const stuk = (q, top) => ctx.drawImage(im, stadQ(im, q[0]), stadQ(im, q[1] + oy), stadQ(im, q[2]), stadQ(im, q[3]),
         (D.midden + (q[0] - D.midden) * s) * m.f, top, q[2] * s * m.f, q[3] * s * m.f + 0.6);
       const pTop = fy - D.posten[3] * s * m.f;
       stuk(D.posten, pTop); stuk(D.latei, pTop - D.latei[3] * s * m.f + 1);
     }
     // de houten deur: in elk gat waar een vijand uit komt, en op de straat in elk huis (meestal dicht, zie "deuren")
-    const deurHier = new Set(deurAlle[gi] || []); deurHier.add(0);
+    // een huistype heeft zijn eigen deurgat: daar komt de houten deur alleen in als er een vijand uit komt, op zijn maat
+    const deurHier = new Set(deurAlle[gi] || []); if (!G.deur) deurHier.add(0);
     for (const v of deurHier){
       if (v < 0 || v >= m.hoog) continue;
       const spawn = !!(deurAlle[gi] && deurAlle[gi].has(v));
       const s = v ? STAD_DEUR.boven : 1, L = STAD_DEUR.latei, M = STAD_DEUR.midden;
       stadDeurPlaatTeken(gi, v, y - (v ? (G.bod[1] - G.bod[0] + (v - 1) * (G.ver[1] - G.ver[0])) * m.f : 0), m.f,
-        top => ctx.drawImage(im, stadQ(im, L[0]), stadQ(im, L[1]), stadQ(im, L[2]), stadQ(im, L[3]),
-          (M + (L[0] - M) * s) * m.f, top, L[2] * s * m.f, L[3] * s * m.f + 0.6), spawn ? null : stadDeurVanzelfOpen(gi));
+        G.deur ? () => {} : top => ctx.drawImage(im, stadQ(im, L[0]), stadQ(im, L[1]), stadQ(im, L[2]), stadQ(im, L[3]),
+          (M + (L[0] - M) * s) * m.f, top, L[2] * s * m.f, L[3] * s * m.f + 0.6), spawn ? null : stadDeurVanzelfOpen(gi), G.deur || 1);
     }
     ctx.restore();
     // contactschaduw: de voet van de muur donkerder, en een zachte strook op de straat ervoor
@@ -24090,13 +24127,13 @@ function stadStoep(groundY, scale, cx){
 // van de straat omhoog spring je voor de muur langs, na de landing sta je erachter.
 let stadKanteelAmir = -1;
 function stadGevelTop(m, groundY, scale){                   // de bovenkant van het plaatje van een gevel, in schermpx
-  const G = STAD.gevel;
+  const G = m.G || STAD.gevel;
   const hh = ((G.dak[1] - G.dak[0]) + (m.hoog - 1) * (G.ver[1] - G.ver[0]) + (G.bod[1] - G.bod[0])) * m.f;
   return groundY - terrainH(m.x) * scale - hh;
 }
 function stadKanteelVoor(groundY, scale, cx){
   if (!STAD_KANTEEL || !stadAan() || !stadKlaar('gevel')) return;
-  const G = STAD.gevel, im = stadImgs.gevel, gevels = level.stad.gevels || [];
+  const gevels = level.stad.gevels || [];
   const half = CHAR_H * scale * STAD.kanteelBreed;
   const halfLijk = CHAR_H * scale * STAD.kanteelLijk;
   // een galerij of trapbalkon hangt voor de gevel: wie daarop staat, staat ervoor, ook als het dek op de hoogte van een dak ligt
@@ -24119,7 +24156,7 @@ function stadKanteelVoor(groundY, scale, cx){
       else kol.push({ x: s.x, lijk: true, l: -halfLijk, r: halfLijk, onder: 0 });
     }
     if (!kol.length) continue;
-    const y0 = stadGevelTop(m, groundY, scale), bh = G.dakAchter * m.f;
+    const G = m.G, im = stadGevelIm(G), y0 = stadGevelTop(m, groundY, scale), bh = G.dakAchter * m.f;
     const onder = Math.max(0, ...kol.map(k => k.lijk ? k.onder : 0));   // een lijk dat onder de dakrand zakt: daar ook de muur ervoor
     ctx.save();
     ctx.beginPath();
@@ -48517,6 +48554,22 @@ function sbStad(){
   cv.focus();
 }
 document.getElementById('sbstad').onclick = () => sbStad();
+// de huistypes (zie "huistypes" in notities/stad.md): een straat met de oude gevel en de drie nieuwe door elkaar, in
+// elke hoogte, met een galerij over een oud en een nieuw huis (de daken en verdiepingen liggen op dezelfde hoogte)
+function sbHuistypes(){
+  const x0 = world - 400, st = [ {hoog: 3}, {hoog: 3, soort: 'relief'}, {hoog: 2, soort: 'koopman'}, {hoog: 4, soort: 'pilaren'},
+    {hoog: 2, f: 1}, {hoog: 4, soort: 'koopman', f: 1}, {hoog: 1, soort: 'relief', f: 1}, {hoog: 3, soort: 'pilaren', f: 1}, {hoog: 2, soort: 'relief'} ];
+  level.stad = stadLees({ paleis: x0 - 3000, seed: 5,
+    gevels: st.map((g, i) => ({ x: x0 - 500 - i * 900, ...g })),
+    galerijen: [ {van: 0, tot: 1, h: 401} ],
+    kramen: [ {x: x0 - 1350, soort: 'doek'}, {x: x0 - 4950, soort: 'riet', f: 1} ],
+    voet: [ {x: x0 - 2250, stuk: 'kruik'}, {x: x0 - 3150, stuk: 'stenen'}, {x: x0 - 6750, stuk: 'zandhoop', f: 1} ] });
+  stadSoortLaad(level.stad);
+  sbLagen = 'stad_dag'; lichtMengKey = null; sbLagenToon();
+  flashHint('Huistypes: reliefhuis, koopmanshuis en pilarenhuis tussen de oude gevels');
+  cv.focus();
+}
+document.getElementById('sbhuistypes').onclick = () => sbHuistypes();
 // het stadsvolk (zie "stadsvolk" in notities/stad.md): vijf dorpelingen in vijf kleuren op de stoep voor je uit. Zet er
 // een vijand bij en ze vervagen; na een paar rustige seconden komen ze terug
 function sbVolk(){

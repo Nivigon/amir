@@ -7,7 +7,7 @@ De onderdelen staan in `design/stad/`, met alle maten in `design/stad/metadata.j
 in de sandbox onder Terrein de knoppen **De stad** (Neerzetten, Weg).
 
 ```
-stad: { paleis, seed, gevels: [{x, hoog, f}], galerijen: [{van, tot, h}],
+stad: { paleis, seed, gevels: [{x, hoog, f, soort}], galerijen: [{van, tot, h}],
         kramen: [{x, soort, f}], voet: [{x, stuk, f}] }
 ```
 
@@ -33,6 +33,38 @@ hoogtes vast in sprite-eenheden.
 - Contactschaduw aan de voet (`STAD.schaduw`), zodat de muur niet als een liniaal op de straat staat.
 - Het deurgat is donker. De rechthoek staat in metadata.json (`deurgat`), en in `STAD_DEUR.gat`: daar stapt een vijand uit
   (zie "Deuren" hieronder).
+
+## Huistypes
+
+`STAD.gevelSoort`, `stadGevelG`, `stadGevelDelen`, `stadSoortLaad`, `tools/gevel_soorten.py`
+
+Naast `gevel.png` zijn er drie andere huizen, elk met een eigen plaat in `design/stad/`. Je kiest het type met `soort`
+in een gevel: `gevels: [{x, hoog, f, soort}]`. Zonder `soort` blijft het de oude gevel, dus geen bestaand level verandert.
+
+- `relief`: het reliefhuis, lichte kalk met rode en blauwe versiering rond de deur en de ramen (Hausa-stijl).
+- `koopman`: het koopmanshuis, rozerode leem met een houten erker op de eerste verdieping.
+- `pilaren`: het pilarenhuis, donkere leem met staande pilaren met punten erop en bundels stokken (Djenne-stijl).
+
+Elke plaat heeft dezelfde maat als `gevel.png`: 970 breed, de muur van x 44 tot 922, het midden van het deurgat op x 473,
+en de verdieping (417) en de begane grond (508) even hoog. Het dak mag hoger zijn (puntige kartels), maar de looplijn
+(`dakAchter`) ligt net zo ver boven de onderkant van het dak. Zo liggen daken, verdiepingen, galerijen, trappen en deuren op
+precies dezelfde hoogte als bij een oud huis, en kun je de types vrij door elkaar zetten.
+
+- **Twee soorten verdieping.** Elke plaat heeft naast `ver` ook `alt`: de bovenste verdieping uit de Grok-plaat. De eerste
+  verdieping is `ver` (de erker, de stokbundels), alles erboven `alt` (`stadGevelDelen`). Een koopmanshuis van vier hoog
+  heeft dus een erker en daarboven twee gewone ramen.
+- **De deur.** Een huistype heeft zijn eigen deurgat, dus er staat geen dichte houten deur in. Alleen als er een vijand uit
+  komt (zie "Deuren") komt de deur erin, geschaald op dat gat (`deur` in `STAD.gevelSoort`, het gat ten opzichte van dat
+  van `gevel.png`; ook `stadDeurMaat` rekent ermee).
+- **Lui geladen.** Een plaat laadt pas als een gevel in het level hem gebruikt (`stadSoortLaad`, vanuit `stadLaadLevel`). Tot
+  hij binnen is, tekent `stadGevelG` de oude gevel.
+- **De platen maken.** `tools/gevel_soorten.py` maakt ze uit de Grok-platen in `design/stad/bron/` (`gevel_<soort>_grok.jpg`):
+  wit weg, een strook kale muur eruit (links een smalle zodat de deur op x 473 valt, rechts een brede), en elke band op zijn
+  maat. Het print de maten voor `STAD.gevelSoort` en zet ze in `metadata.json` (`gevel_soorten`). Daarna `gen-klein.py` en
+  `gen-offline-manifest.py`.
+- **Sandbox.** Onder Terrein, bij De stad, de knop **Huistypes**: een straat met de oude gevel en de drie types door elkaar,
+  in elke hoogte, met een galerij over een oud huis en een reliefhuis.
+- Nog niet: de Maker kent `soort` niet, en de verre rijen achter de straat (`STAD.rijen`) blijven de oude gevel.
 
 ## Achter de kartels
 
