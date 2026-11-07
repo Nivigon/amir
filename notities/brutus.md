@@ -177,7 +177,7 @@ rug-sprite is er niet, hij kijkt van Amir weg) en ademt. Komt Amir binnen `zie` 
   De naam (NYUNDO, de hamer) komt in beeld.
 - `draai`: hij kijkt naar Amir, en na `draai` s stormt hij; de balken schuiven weg (`weg`) en de balk onderaan komt.
 `s.state` blijft `wacht` tot de storm, dus hij raakt Amir niet en de sprong-timer loopt niet. Een keer per level per sessie
-(`bruIntroGezien`): na een dood staat hij meteen klaar en blijven de tonnen heel, dan zijn ze er voor het gevecht.
+(`bruIntroGezien`): na een dood staat hij meteen klaar, en de tonnen die hij kapot sloeg blijven kapot (`tonKapot`, per level per sessie, ook wat hij in het gevecht breekt).
 Onder de losse luifel links (`stad.luifels`, -6000) staat de stapel die hij kapotslaat; bij de put rechts staan er twee voor
 het gevecht (zie `notities/tonnen.md`).
 

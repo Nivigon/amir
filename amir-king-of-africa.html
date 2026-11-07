@@ -20390,9 +20390,12 @@ function tonMaak(d){
   const y = Number(d.y) || 0, laag = Math.round(y / TON.h);
   return { x: tonPlekX(d), y: laag > 0 && Math.abs(y - laag * TON.h) < 0.03 ? laag * TON.stapel : y, kalebas: !!d.kalebas, f: !!d.f, stand: 0, tik: 0, shake: 0, weg: false, vy: 0, src: d };
 }
+// wat Nyundo kapot slaat blijft kapot, ook na een dood (per level, per sessie, zoals bruIntroGezien): de index in level.tonnen
+const tonKapot = {};
 function tonReset(){
   tonnen.length = 0; tonStukken.length = 0; tonLens.length = 0; tonLensStof.length = 0;
-  if (level && level.tonnen) for (const d of level.tonnen) tonnen.push(tonMaak(d));
+  const kapot = level && !sandbox && tonKapot[level.name];
+  if (level && level.tonnen) level.tonnen.forEach((d, i) => { if (!(kapot && kapot.has(i))) tonnen.push(tonMaak(d)); });
   if (tonnen.length) tonLaad();
 }
 function tonHoog(){ return TON.h * CHAR_H; }                       // in sprite-eenheden
@@ -20465,6 +20468,8 @@ function tonBruut(l, r, top, from){
     if (t.x + half < l || t.x - half > r) continue;
     if (top != null && tonBodem(t) > top) continue;
     tonBreek(t, from != null ? from : (t.x < (l + r) / 2 ? 1 : -1), true, lens); raak = true;
+    const i = level && !sandbox && level.tonnen ? level.tonnen.indexOf(t.src) : -1;
+    if (i >= 0) (tonKapot[level.name] || (tonKapot[level.name] = new Set())).add(i);
   }
   return raak;
 }
@@ -26383,7 +26388,7 @@ function restart(){
   planSnow();                                       // nieuw potje, nieuw weer
   weerReset();                                      // en het weer van het level weer vanaf het begin
   thickets.length = 0; chips.length = 0;            // struwelen weer heel, brokstukken weg
-  tonReset();                                       // de tonnen weer heel
+  tonReset();                                       // de tonnen weer heel, behalve wat Nyundo brak (tonKapot)
   if (level && level.thickets) for (const d of level.thickets) addThicket(d.x, d.n, d.seed).src = d;
   if (level && level.tips) for (const t of level.tips) t.used = false;   // uitleg opnieuw laten zien
   resetHppotions();                                 // flesjes weer op hun plek, handen weer leeg
@@ -31839,7 +31844,7 @@ function bruStart(){
 // Komt Amir dichtbij (zie), dan staat het spel stil: zwarte balken, de camera schuift naar Nyundo, Amir staat vast.
 // Nyundo loopt naar de stapel tonnen onder de luifel, slaat ze met zijn zwaai (heen en weer) kapot, draait zich om en
 // stormt op Amir af: dan is het gevecht vrij. Een keer per level per sessie; bij een nieuwe poging (na een dood) staat
-// hij meteen klaar en blijven de tonnen heel, dan zijn ze er voor het gevecht.
+// hij meteen klaar en blijven de tonnen die hij brak kapot (tonKapot): kapot is kapot.
 const BRU_INTRO = {
   zie: 3.0,            // Amir in Amir van Nyundo: dan begint het
   sluit: 1.1,          // zo lang zakt het hek bij het binnenkomen (s)
