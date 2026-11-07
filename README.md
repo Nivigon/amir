@@ -669,8 +669,10 @@ treffer, een klap die je krijgt en een speer die neerkomt maken lawaai op die pl
 dicht zolang hij je niet opgemerkt heeft. Sta je vlak achter hem, dan loopt een gele boog om dat oog vol en kijkt hij
 om; ziet hij je dan, dan is hij wakker (een rood uitroepteken). Sla toe voor die tijd: loop tot net buiten zijn
 gehoor, buk, kruip het laatste stukje en steek, of gooi je speer van buiten zijn gehoor. Een treffer van achteren op
-wie je niet opgemerkt heeft is de sluipaanval: in een klap dood, ook een schildbandiet langs zijn schild, met een
-korte klap en een ster. Je kunt hem ook gewoon aanvallen; sluipen is een keuze, en handig tegen een groep. De
+wie je niet opgemerkt heeft is de sluipaanval. Sta je binnen bereik en druk je aanval, dan steekt Amir zijn speer van
+schuin onder dwars door hem heen, tilt hem op en schudt hem er met een smak af; zolang hij aan de speer hangt staat de
+wereld stil, en daarna sta je even na te hijgen en ben je kwetsbaar. Ook een schildbandiet gaat zo langs zijn schild. Een
+worp van achteren is de stille klap zonder animatie, met een korte schok en een ster. Je kunt hem ook gewoon aanvallen; sluipen is een keuze, en handig tegen een groep. De
 hinderlaag-bandiet (gehurkt met zijn rug naar je) hoort je zoals altijd en doet niet mee. In de sandbox laat **Rug naar
 Amir** een vijand van je af kijken, **Draait om** laat hem in rust om de zoveel seconden omdraaien, **Patrouille**
 laat een bandiet heen en weer lopen, en **Toon gehoor** tekent hoe ver je te horen bent.

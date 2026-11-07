@@ -165,6 +165,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | reserve-speren op de rug (prototype) | `RUG`, `RUG_MAX`, `rugSperen` | notities/rug-speren.md |
 | zicht: een vijand ziet je alleen als er niets tussen zit | `ZICHT`, `vijandZiet`, `zichtWaak` | notities/zicht.md |
 | sneak: de sluipaanval, gehoor in plaats van achterbereik en de argwaanklok (mens-vijanden) | `SNEAK`, `sneakKan`, `sneakRust`, `lawaaiPuls`, `sneakOogTeken` | notities/sneak.md |
+| de sluipaanval van Amir: de animatie (steek van schuin onder, de vijand aan de punt, afschudden), een regie zoals de executie | `SNK`, `sneakRegie`, `sneakStart`, `sneakHangZet`, `hangDraai` | notities/sneak.md |
 | health-balk: 3 levens met een balkje boven het hoofd | `HP_BALK`, `HP_BALK_LEVENS`, `vijandHpBalk` | notities/health-balk.md |
 | bukken, jump frames, tempo | Amir zijn bewegingen |  |
 | rotsen om op te springen | `rocks` | notities/wegwijzers.md |

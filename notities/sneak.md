@@ -71,6 +71,31 @@ daarom ook naar `sneakKan` (`raak = kooiRaakbaar(s) || sneakKan(s)`). De zweepma
 fase 2 (de arm eraf) over. Steek, worp en lage zwaai tellen alle drie; de worp van achteren van buiten zijn gehoor
 is de stille optie.
 
+## De animatie van Amir (`SNK`, `sneakRegie`, kop "de sluipaanval van Amir")
+
+De frames uit pull request 624 (`karakters/amir/aanval/sneakaanval/`, `metadata.json`): `steek` (22 frames, aanloop 0 tot 6
+met de tell op 6, stoot 7 tot 11, raak op 12 met 7 ticks hold, herstel 13 tot 21) en `afschud` (19 frames, til 0 tot 4,
+smak 5 tot 10 met los op 10, terug 11 tot 18), canvas 1019x677, grondlijn 637, lijfmidden 634, dezelfde schaal als de
+bukkenspeer (`JMP_S`), ticks per frame op 24 fps. Ze laden lui (`snkLaad`, via `laadLevel` in een level met `sneak`, en als
+de sandbox-knop aangaat); `klein/` heeft de halve versies (`gen-klein.py`).
+
+Een regie zoals de executie van de schildbandiet. `startAttack` vraagt eerst `sneakStart()`: staat er voor Amir, op zijn
+vloer, een nietsvermoedende mens-vijand met zijn rug naar hem (`sneakKan`) tussen 0,45 en 1,6 keer het bereik (`SNK.bereik`,
+583 canvas-px van het lijfmidden tot de punt op het raakframe), dan begint `sneakRegie`. Tot het loslaten staat de wereld
+stil (`dt` 0 in `loop`, net als `exeVries`; `amirVast`, `hurtPlayer` en `camUpdate` kennen hem, en de camera kust in met
+`exeZoomNu`). In de aanloop glijdt Amir in `SNK.schuif` seconden naar precies die afstand. De vijand staat stil
+(`s.sneakVast`: zijn update slaat over, zoals `achterMasker`). Op het raakframe (`sneakRaak`) hangt hij aan de punt
+(`s.hang`): elk frame zet `sneakHangZet` zijn `x` en zijn vloer op de speerpunt van dat frame (`SNK.punt`, per frame gemeten
+als het verste punt van het lijf), zijn romp op `SNK.torso` boven zijn voeten, en zijn eigen tekenlus kantelt hem voorover
+(`hangDraai`, na de translate naar zijn voeten, `SNK.kantel`, bij de smak `kantelSmak`). Op het losframe (`sneakLos`) komt hij
+op de grond voor Amir en begint zijn gewone dood via zijn `hitX`, met `s.sneakLos` zodat die de treffer als sluipaanval
+neemt (`sneakKan` geeft dan true, `sneakDoe` laat de ster weg). Daarna loopt de wereld weer (`sneakRegie.vrij`) en speelt
+Amir zijn herstel uit: hij staat vast en is kwetsbaar. Zonder de frames (nog niet geladen) blijft het de snelle klap zonder
+animatie, en de worp van achteren ook.
+
+Nagemeten in de sandbox: de bandiet, de schildbandiet en de kooiman (ook naar rechts, dus gespiegeld om het hele canvas met
+het lijfmidden aan de andere kant) hangen op de punt en sterven op het losframe, 4,0 s na de aanvalsknop; console schoon.
+
 ## Het oog (`sneakOogTeken`)
 
 Boven elke mens-vijand die zo speelt (vanuit `vijandHpBalk` en `schildHpBalk`, ook zonder de balk): in rust een
