@@ -54,6 +54,11 @@ tot aan zijn knie.
   staat toch voor de kartels: alleen wie echt op het dak staat, staat erachter.
 - Een dode ligt languit: om hem heen is de strook breder (`STAD.kanteelLijk`, 1,6 Amir), anders steken zijn voeten
   links of rechts onder de tanden uit.
+  De kruisboogbandiet ligt als lijk bijna 4 Amir lang en zakt 50 bronpixels onder zijn grondlijn, dus onder de
+  dakrand: hij krijgt een eigen vak om zijn hele laatste frame (`KRB.lijk`, `krbLijkVak`), en daar tekent
+  `stadKanteelVoor` ook het stukje muur onder de dakrand opnieuw. Sterft hij vlak bij de rand van een huis, dan schuift hij tijdens
+  het vallen naar binnen tot zijn hele lijk op het dak past (`krbDakDoel`, `krbDakSchuif`): aan de zijkant steekt
+  nooit iets de lucht in.
 - Het dak is 45 lager, dus soms makkelijker te halen: vanaf het rieten dak van een kraam (263) haal je nu het dak van
   een huis van 1 hoog (442), dat lag eerst net buiten een sprong (208).
 - In de sandbox onder Terrein, De stad: **Achter de kartels** (aan of uit, uit is de oude manier met iedereen voor de

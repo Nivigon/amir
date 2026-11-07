@@ -23474,15 +23474,23 @@ function stadKanteelVoor(groundY, scale, cx){
     if (sx > W / viewZoom() + W || sx + m.w < -W) continue;
     const kol = [];
     if (gi === stadKanteelAmir && !exeAmirWeg()) kol.push(playerX());
-    for (const lijst of lijsten) for (const s of lijst) if (op(m, s.x, s.base || 0)) kol.push(camLeeft(s) ? s.x : { x: s.x, lijk: true });
+    for (const lijst of lijsten) for (const s of lijst) if (op(m, s.x, s.base || 0)){
+      if (camLeeft(s)) kol.push(s.x);
+      else if (lijst === kruisbogen) kol.push({ x: s.x, lijk: true, ...krbLijkVak(s) });   // zijn lijk is lang en zakt onder de dakrand
+      else kol.push({ x: s.x, lijk: true, l: -halfLijk, r: halfLijk, onder: 0 });
+    }
     if (!kol.length) continue;
     const y0 = stadGevelTop(m, groundY, scale), bh = G.dakAchter * m.f;
+    const onder = Math.max(0, ...kol.map(k => k.lijk ? k.onder : 0));   // een lijk dat onder de dakrand zakt: daar ook de muur ervoor
     ctx.save();
     ctx.beginPath();
-    for (const k of kol){ const x = k.lijk ? k.x : k, hb = k.lijk ? halfLijk : half; ctx.rect(cx + (x - world) - hb, y0 - 2, hb * 2, bh + 2); }
+    for (const k of kol){
+      if (k.lijk) ctx.rect(cx + (k.x - world) + k.l, y0 - 2, k.r - k.l, bh + 2 + k.onder);
+      else ctx.rect(cx + (k - world) - half, y0 - 2, half * 2, bh + 2);
+    }
     ctx.clip();
     if (g.f){ ctx.translate(sx + m.w, 0); ctx.scale(-1, 1); } else ctx.translate(sx, 0);
-    ctx.drawImage(im, 0, stadQ(im, 0), stadQ(im, 970), stadQ(im, G.dakAchter), 0, y0, m.w, bh);
+    ctx.drawImage(im, 0, stadQ(im, 0), stadQ(im, 970), stadQ(im, G.dakAchter + onder / m.f), 0, y0, m.w, bh + onder);
     ctx.restore();
   }
 }
@@ -30223,6 +30231,7 @@ const KRB = {
   // loop: per frame de voorkant van de kruisboog (canvas-px), voor de bout erop als hij geladen loopt of wijkt
   loopPunt: [[156, 200], [154, 202], [144, 206], [152, 212], [152, 216], [132, 212], [153, 208], [154, 204],
              [154, 206], [156, 210], [156, 214], [156, 216], [138, 212], [156, 206]],
+  lijk:     { l: 8, r: 510, onder: 500 },   // het lijk (de laatste frames van dood_hoog en dood_laag, canvas-px met wat marge): op een dak in de stad de strook achter de kartels (krbLijkVak)
   wondB:    24,     // de snee in zijn borst, breed in canvas-px
   salvoNa:   0.16,  // met een salvo (een tweede bout op de kruisboog): zo kort na het schot mikt hij al weer
   salvoSlot: 0.24   // en zo kort blinkt de punt voor dat vervolgschot (het eerste blinkt KRB.slot)
@@ -30342,6 +30351,34 @@ function krbLaadLevel(lv){
 }
 function krbEenheid(){ return CHAR_H * KRB_H_SHARE / KRB_REF_FIG; }                  // sprite-eenheden per canvas-px
 function krbDrawScale(){ return krbEenheid() * meelAmirScale(); }                       // scherm-px (= wereld-px) per canvas-px
+// het lijk van de kruisboogbandiet op een dak: hij ligt bijna 4 Amir lang en zakt onder zijn grondlijn (KRB.lijk),
+// dus de strook achter de kartels gaat om het hele frame en een stukje onder de dakrand door (stadKanteelVoor)
+function krbLijkVak(s){
+  const k = krbDrawScale(), L = KRB.lijk;
+  const a = (L.l - KRB.anker) * k, b = (L.r - KRB.anker) * k;
+  return { l: s.face === 1 ? -b : a, r: s.face === 1 ? -a : b, onder: Math.max(0, (L.onder - KRB.ground) * k) };
+}
+// Ligt hij op het dak van een huis, dan schuift hij tijdens het vallen naar binnen tot zijn hele lijk op dat dak
+// past: anders staken zijn voeten of hoofd aan de zijkant van het huis de lucht in, waar geen kartels voor staan.
+// Het doel ligt vast bij de eerste stap (krbDakDoel); daarna loopt hij er met de doodanimatie geleidelijk heen.
+function krbDakDoel(s){
+  if (!STAD_KANTEEL || !stadAan() || !(s.base > 0)) return null;
+  const sc = nowScale(), v = krbLijkVak(s), marge = 0.08 * CHAR_H * sc;
+  for (const g of (level.stad.gevels || [])){
+    const m = stadGevelMaat(g, sc);
+    if (s.x <= m.left || s.x >= m.right || Math.abs(s.base - stadGevelH(m.hoog)) >= 3) continue;
+    const lo = m.left + marge - v.l, hi = m.right - marge - v.r;
+    return lo > hi ? (lo + hi) / 2 : Math.max(lo, Math.min(hi, s.x));
+  }
+  return null;
+}
+function krbDakSchuif(s){
+  if (s.dakDoel === undefined){ s.dakDoel = krbDakDoel(s); s.dakVan = s.x; }
+  if (s.dakDoel == null || s.dakDoel === s.dakVan) return;
+  const n = KRB.n[s.set] || 1, t = s.klaar ? 1 : Math.min(1, (s.frame + 1) / n);
+  const e = t * t * (3 - 2 * t);
+  s.x = s.dakVan + (s.dakDoel - s.dakVan) * e;
+}
 function makeKruisboog(x, side){
   krbLaad();
   return { x, face: -side, state: 'loop', set: 'loop', frame: 0, acc: 0, klaar: false,
@@ -30494,6 +30531,7 @@ function updateKruisboog(s, dt, plats, cliff){
   if (s.state === 'dood'){                          // het lijk blijft liggen
     s.doodT += dt;
     if (!s.klaar) krbAnim(s, dt);
+    krbDakSchuif(s);                                // op een dak: het hele lijk blijft op het dak
     krbSpeerVolg(s);
     return;
   }
