@@ -226,6 +226,34 @@ Zo maak je een straat doodlopend (een hoge muur), een lage muur om op te springe
 erop staan (`terrainH`). Stad 2 heeft er een lage tussen de twee straten; in de sandbox onder De stad **Lage leemmuur**
 en **Doodlopend**. Beide plaatjes zijn uit de gevel gemaakt (geen nieuwe art).
 
+## De balkenvloer
+
+`BALK`, `balkLaag` (in `drawClimb`, naast `rotsLaag`)
+
+De vloer van een huis, om een huis met verdiepingen te bouwen: een zwevende laag met `look: 'balken'`,
+`zwevers: [{r, l, h, onder, look: 'balken'}]`. De botsing is precies die van een zwever (zie `notities/savannelaag.md`): je
+landt erop, loopt eronderdoor als er ruimte is (`CHAR_H`), en stoot er je kop aan. Alleen het tekenen is anders: aangestampte
+leem op palmribben en een rij balkkoppen in doorsnede (`design/stad/binnen/vloer_balken.png`, met Grok gemaakt en naadloos
+gemaakt: twintig balken per tegel). Het plafond van de kamer eronder en de vloer van de kamer erboven zijn zo dezelfde plaat.
+
+- De tegel schaalt mee met de dikte (`h - onder`): de looplijn ligt `BALK.loop` onder de bovenrand, de onderkant van het
+  plaatje is precies `onder`. Een vloer van een cel dik (150) is de bedoelde maat; dikker geeft grotere balken.
+- Vast aan de wereld, dus het patroon schuift niet met de camera. Aan een kopse kant een donker randje, behalve waar een
+  balkenvloer op dezelfde hoogte aansluit. Eronder een zachte schaduw (`BALK.schaduw`).
+- Het plaatje zit in de stadsset (`stadLaad`, sleutel `balken`) en laadt mee zodra een level een balkenvloer heeft
+  (`stadLaadLevel`). Geen kleine versie: hij wordt juist vergroot.
+- Een vijand loopt erop zoals op elke zwever (`vloerBij`), en gaat er niet op of af (regel 7): een trap is een lift, of
+  treden waar alleen Amir op springt.
+
+In de Maker: **Vloer van balken** (Terrein, groep Stad, letter B). Een blok balkencellen boven de grondlijn wordt een zwever
+met deze look, ook als hij op de grond rust (dan een verhoogde vloer zonder lucht eronder). Schilder een rij op elke hoogte
+en je hebt verdiepingen. In de sandbox onder De stad **Vloer van balken**: twee treden van leem, een eerste verdieping, twee
+stukken vloer als trap en een tweede verdieping.
+
+Dit is het eerste stuk van de binnenkant van een huis. Er komen nog bij (met Grok): de achterwand van binnen, de binnenvloer
+op de grondlijn, een ladder, een boogdeur en losse items aan de wand en op de vloer. Het raam (`design/stad/binnen/raam_1.png`)
+is er al, maar staat nog nergens.
+
 ## Straten en knooppunten (Sandville)
 
 `straatRaster`, `straatUitgangen`, `straatKnoopX`, `straatUitgangBij`, `straatKnoopGa`, `straatKnoopToets`, `straatGevelX`,

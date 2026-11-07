@@ -201,6 +201,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | lift bij een galerij: het takelplateau voegt zich naar het eind van een galerij | `takelGalerijStap`, `mkLiftGalerij`, `galerij` | notities/stad.md |
 | de stoep: een strook straat over de voet van de huizen, zodat niemand op de muurvoet staat | `STAD_STOEP`, `stadStoep`, `stadVoorTeken` | notities/stad.md |
 | de leemmuur: een terras met de look van de stad | `LEEM`, `leemMuurTeken`, `look: 'leem'` | notities/stad.md |
+| de balkenvloer: de vloer van een huis met verdiepingen, een zwever met balken in doorsnede | `BALK`, `balkLaag`, `look: 'balken'` | notities/stad.md |
 | straten: losse straten met poorten ertussen, de minimap, aanvullen en een killdoel | `STRATEN`, `straatE`, `straatAanvul`, `straatHudTeken` | notities/oaktown.md |
 | knooppunten: een raster van straten met een poort de diepte in en een pad naar voren (Sandville) | `straatRaster`, `straatUitgangen`, `straatKnoopGa`, `straatGevelX` | notities/stad.md |
 | de luifel bij de put: een schuine doek die je meteen terugwerpt, vanaf de balk te halen | `STAD.plein.luifel`, `stadLuifelWorp`, `stadLuifelTeken` | notities/stad.md |
@@ -314,7 +315,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `putten` | ravijnen in de vloer van een gang: `{x, w}`, helemaal binnen een holte (zie "put") |
 | `zuilen` | zuilen met een hoogte in een ravijn of put: `{x, w, h}`, `h` van -250 tot 180 boven de grond of de vloer (zie "zuil met een hoogte") |
 | `ledges` | richels aan een wand: `{x, h, s}`; met `f` gespiegeld (vlakke kant rechts, punt naar links, botsing naar links van `x`), met `achter: true` achter de schacht-wand getekend (zie "De schacht"), met `look` de kleur (`rots` standaard, `sneeuw`, `savanne`; in de Maker de keuze Kleur bij een richel) |
-| `zwevers` | zwevende savannelagen: `{r, l, h, onder, look}`, een dik savanneblok in de lucht met lucht eronder; `h` de looplijn bovenop, `onder` de onderkant (de ruimte eronder; onder `CHAR_H` kruip je er gebukt onderdoor), `look: 'rots'` tekent het als een rotsoverhang (zie "zwevende savannelaag") |
+| `zwevers` | zwevende savannelagen: `{r, l, h, onder, look}`, een dik savanneblok in de lucht met lucht eronder; `h` de looplijn bovenop, `onder` de onderkant (de ruimte eronder; onder `CHAR_H` kruip je er gebukt onderdoor), `look: 'rots'` tekent het als een rotsoverhang (zie "zwevende savannelaag"), `look: 'balken'` als de vloer van een huis (zie "de balkenvloer" in `notities/stad.md`) |
 | `grotten` | rotsgebieden als raster: `{x, cel, y, grid, ...}` (zie hieronder); met `schacht: true` is de wand de plafondvulling met de tanden erlangs in plaats van de terrasplaat (zie "De schacht") |
 | `start` | waar Amir begint (wereld-x); zonder dit veld op 0. Voor een schacht waar hij tussen de wanden start in plaats van ernaartoe te lopen |
 | `plafond` | de rots boven je als hoogtelijn: `[{x, y}, ...]` (zie hieronder) |
