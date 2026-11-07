@@ -160,7 +160,7 @@ Beide samen: **8,5**.
 De aanbevolen volgorde: eerst wat het meest oplevert per stuk werk. Het eerste open punt is de
 volgende stadsverbetering.
 
-1. [ ] L1, slagschaduwen op de straat (veel effect, weinig art)
+1. [ ] L1, slagschaduwen op de straat (veel effect, weinig art); gebouwd: suggestie 1 + 2, wacht op akkoord
 2. [ ] V1, figuren op de achtergrond (het zwakste punt)
 3. [ ] D1, gevelvarianten (de herhaling weg)
 4. [ ] S2, de galerij warmer

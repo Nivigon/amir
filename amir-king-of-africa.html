@@ -1664,6 +1664,7 @@
         <button id="sbstadban">Bandiet op de galerij</button>
         <button id="sbstaddak">Bandiet op het dak</button>
         <button id="sbkanteel">Achter de kartels: aan</button>
+        <button id="sbslag">Slagschaduw: aan</button>
         <button id="sbdeurstraat">Uit de deur</button>
         <button id="sbdeurboven">Uit de deur boven</button>
         <button id="sbplein">Het plein</button>
@@ -23260,6 +23261,111 @@ function leemMuurTeken(t, groundY, scale, cx, bottom){
     ctx.beginPath(); ctx.moveTo(xl, loopY); ctx.lineTo(xr, loopY); ctx.stroke(); ctx.restore();
   }
 }
+// ---- slagschaduwen in de stad: de galerij op de muur, een hoger huis op een lager, huizen en kramen op de straat ----
+// De zon van het uitzicht (zonSchaduw, dezelfde als voor de schaduw van Amir) bepaalt de schuinte. Alles in Amir.
+let STAD_SLAG_AAN = true;            // de sandbox zet het uit om te vergelijken
+const STAD_SLAG = {
+  kleur: '40,22,10', alfa: 0.5,      // zo donker op zijn donkerst
+  scheefMax: 1.2,                    // de schuinte (opzij per stap naar voren of omlaag), begrensd
+  kanteel: 80,                       // tot zo diep (bronpx van gevel.png) lopen de kartels: daaronder is de muur dicht
+  galerij: { diep: 0.9, scheef: 0.5, gat: 0.4 },   // zo ver valt hij onder de galerij, zo schuin, en zo sterk in de opening tussen twee huizen
+  buur: { alfa: 0.4, hoog: 1.0, breed: 0.6 },     // een hoger huis werpt een schuine wig op het lagere ernaast
+  straat: { voor: 0.16, voorAlfa: 0.6 },          // een huis legt zijn schaduw tot zo ver voorbij de looplijn, vooraan zo sterk
+  kraam: { onder: 0.09, breed: 0.46, alfa: 0.42, scheef: 0.35, schuinAlfa: 0.5 }
+};
+function stadSlagScheef(){
+  const z = zonSchaduw(), M = STAD_SLAG.scheefMax;
+  return Math.max(-M, Math.min(M, z.dx / Math.max(0.05, z.dy)));
+}
+function stadSlagKleur(a){ return 'rgba(' + STAD_SLAG.kleur + ',' + Math.max(0, a) + ')'; }
+// de voorgevels op het scherm: links, rechts, de bovenkant van de dichte muur en de voet
+function stadSlagHuizen(groundY, scale, cx){
+  const G = STAD.gevel;
+  return (level.stad.gevels || []).map(g => {
+    const m = stadGevelMaat(g, scale);
+    const hh = ((G.dak[1] - G.dak[0]) + (m.hoog - 1) * (G.ver[1] - G.ver[0]) + (G.bod[1] - G.bod[0])) * m.f;
+    const gy = groundY - terrainH(m.x) * scale;
+    return { l: cx + (m.left - world), r: cx + (m.right - world), top: gy - hh, muur: gy - hh + STAD_SLAG.kanteel * m.f, gy };
+  });
+}
+// op de muur: na de gevels, voor de galerijen, zodat de galerij zelf in het licht blijft
+function stadSlagMuur(groundY, scale, cx){
+  if (!STAD_SLAG_AAN) return;
+  const L = STAD_SLAG, A = CHAR_H * scale, k = stadSlagScheef(), H = stadSlagHuizen(groundY, scale, cx);
+  const rand = W / viewZoom() + W;
+  ctx.save();
+  // de galerij: een band onder het dek, schuin weg van de zon, die naar onder vervaagt
+  if (stadKlaar('galerij')) for (const gl of (level.stad.galerijen || [])){
+    const m = stadGalerijMaat(gl, scale); if (!m) continue;
+    const gl0 = cx + (m.left - world), gr0 = cx + (m.right - world);
+    if (gl0 > rand || gr0 < -W) continue;
+    const dek = groundY - m.h * scale, onder = dek - STAD.galerij.dek * m.f + 293 * m.f, eind = onder + L.galerij.diep * A;
+    const v = k * (eind - dek) * L.galerij.scheef;
+    const vlak = (x0, x1, y0, a) => {
+      if (x1 - x0 < 1) return;
+      const gr = ctx.createLinearGradient(0, dek, 0, eind);
+      gr.addColorStop(0, stadSlagKleur(a)); gr.addColorStop((onder - dek) / (eind - dek), stadSlagKleur(a)); gr.addColorStop(1, stadSlagKleur(0));
+      ctx.save(); ctx.beginPath(); ctx.rect(x0, y0, x1 - x0, eind - y0 + 2); ctx.clip();
+      ctx.fillStyle = gr; ctx.beginPath();
+      ctx.moveTo(gl0, dek); ctx.lineTo(gr0, dek); ctx.lineTo(gr0 + v, eind); ctx.lineTo(gl0 + v, eind); ctx.fill();
+      ctx.restore();
+    };
+    vlak(Math.min(gl0, gl0 + v), Math.max(gr0, gr0 + v), dek, L.alfa * L.galerij.gat);   // over de hele lengte, ook voor de opening
+    for (const h of H){                                                                  // en op de muur van elk huis erachter voluit
+      if (h.muur > eind || h.gy < dek) continue;
+      vlak(Math.max(h.l, Math.min(gl0, gl0 + v)), Math.min(h.r, Math.max(gr0, gr0 + v)), Math.max(dek, h.muur), L.alfa * (1 - L.galerij.gat));
+    }
+  }
+  // een hoger huis aan de zonkant werpt een schuine wig op het lagere ernaast
+  for (const h of H){
+    if (h.l > rand || h.r < -W) continue;
+    for (const n of H){
+      const d = h.top - n.top; if (n === h || d < 4) continue;
+      const x0 = k <= 0 ? n.l : n.r;                   // de rand van het hoge huis aan de kant van het lagere
+      if (x0 < h.l - 0.3 * A || x0 > h.r + 0.3 * A) continue;
+      if (k <= 0 ? n.r < h.r : n.l > h.l) continue;      // het hoge huis moet aan de zonkant staan
+      const w = Math.min((h.r - h.l) * L.buur.breed, d * Math.abs(k) + 0.25 * A), dy = Math.min(h.gy - h.muur, d * L.buur.hoog + 0.5 * A);
+      const xs = Math.max(h.l, Math.min(h.r, x0)), zij = k <= 0 ? -1 : 1;
+      ctx.save(); ctx.beginPath(); ctx.rect(h.l, h.muur, h.r - h.l, h.gy - h.muur); ctx.clip();
+      ctx.fillStyle = stadSlagKleur(L.alfa * L.buur.alfa); ctx.beginPath();
+      ctx.moveTo(xs, h.muur); ctx.lineTo(xs + zij * w, h.muur); ctx.lineTo(xs, h.muur + dy); ctx.fill();
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+}
+// op de straat: na de stoep, voor de kramen en Amir
+function stadSlagStraat(groundY, scale, cx){
+  if (!STAD_SLAG_AAN) return;
+  const L = STAD_SLAG, A = CHAR_H * scale, k = stadSlagScheef(), D = stadStoepH(scale), rand = W / viewZoom() + W;
+  ctx.save();
+  // elk huis legt een schuine baan over de straat, die naar voren lichter wordt
+  for (const h of stadSlagHuizen(groundY, scale, cx)){
+    const y0 = h.gy - D, y1 = h.gy + L.straat.voor * A, v = k * (y1 - y0);
+    if (Math.max(h.r, h.r + v) < -W || Math.min(h.l, h.l + v) > rand) continue;
+    const gr = ctx.createLinearGradient(0, y0, 0, y1);
+    gr.addColorStop(0, stadSlagKleur(L.alfa)); gr.addColorStop(1, stadSlagKleur(L.alfa * L.straat.voorAlfa));
+    ctx.fillStyle = gr; ctx.beginPath();
+    ctx.moveTo(h.l, y0); ctx.lineTo(h.r, y0); ctx.lineTo(h.r + v, y1); ctx.lineTo(h.l + v, y1); ctx.fill();
+  }
+  // de kramen: een zachte vlek recht eronder, en de schaduw van het dak schuin ernaast
+  const K = L.kraam;
+  for (const kr of (level.stad.kramen || [])){
+    const m = stadKraamMaat(kr, scale), x = cx + (kr.x - world), gy = groundY - terrainH(kr.x) * scale;
+    if (x + m.w < -W || x - m.w > rand) continue;
+    const rx = m.w * K.breed, ry = K.onder * A;
+    ctx.save(); ctx.translate(x, gy - 2); ctx.scale(1, ry / rx);
+    const rg = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+    rg.addColorStop(0, stadSlagKleur(K.alfa)); rg.addColorStop(0.7, stadSlagKleur(K.alfa * 0.7)); rg.addColorStop(1, stadSlagKleur(0));
+    ctx.fillStyle = rg; ctx.fillRect(-rx, -rx, rx * 2, rx * 2); ctx.restore();
+    const v = k * K.scheef * A, y0 = gy - 0.1 * A, y1 = gy + 0.14 * A;
+    const gr = ctx.createLinearGradient(0, y0, 0, y1);
+    gr.addColorStop(0, stadSlagKleur(L.alfa * K.schuinAlfa)); gr.addColorStop(1, stadSlagKleur(L.alfa * K.schuinAlfa * 0.5));
+    ctx.fillStyle = gr; ctx.beginPath();
+    ctx.moveTo(x - rx, y0); ctx.lineTo(x + rx, y0); ctx.lineTo(x + rx + v, y1); ctx.lineTo(x - rx + v, y1); ctx.fill();
+  }
+  ctx.restore();
+}
 function stadTeken(groundY, scale, cx){
   if (!stadAan() || !stadKlaar('gevel')) return;
   const S = level.stad, G = STAD.gevel, im = stadImgs.gevel;
@@ -23313,6 +23419,7 @@ function stadTeken(groundY, scale, cx){
     ctx.fillStyle = gr; ctx.fillRect(l - 6, gy, r - l + 12, Sch.straat * A);
   }
   stadPleinPoortTeken(groundY, scale, cx, zicht);    // de poorten van het plein, met hun hek
+  stadSlagMuur(groundY, scale, cx);                  // slagschaduwen op de muur: voor de galerij, die zelf in het licht blijft
   // galerijen: links, het middenstuk zo vaak als nodig, rechts; het dek op de hoogte h
   if (stadKlaar('galerij')){
     const gi = stadImgs.galerij, GL = STAD.galerij;
@@ -23343,6 +23450,7 @@ function stadVoorTeken(groundY, scale, cx){
   if (!stadAan() || !stadKlaar('gevel')) return;
   const S = level.stad;
   const zicht = (sx, w) => !(sx > W / viewZoom() + W || sx + w < -W);
+  stadSlagStraat(groundY, scale, cx);            // slagschaduwen op de straat: de huizen en de kramen
   // kramen: iets rustiger voorgebakken; de doek buigt mee als je erop landt
   (S.kramen || []).forEach((k, i) => {
     const soort = k.soort === 'doek' ? 'doek' : 'riet';
@@ -47756,6 +47864,12 @@ document.getElementById('sbstaddak').onclick = () => {
   cv.focus();
 };
 // achter de kartels aan of uit (STAD_KANTEEL): het dak zakt of komt terug, de vloeren van de vijanden ook
+// slagschaduwen in de stad aan en uit, om te vergelijken (zie "slagschaduwen" in notities/stad.md)
+document.getElementById('sbslag').onclick = e => {
+  STAD_SLAG_AAN = !STAD_SLAG_AAN;
+  e.target.textContent = 'Slagschaduw: ' + (STAD_SLAG_AAN ? 'aan' : 'uit');
+  cv.focus();
+};
 document.getElementById('sbkanteel').onclick = e => {
   STAD_KANTEEL = !STAD_KANTEEL; stadVloerKey = null; stadKanteelAmir = -1;
   e.target.textContent = 'Achter de kartels: ' + (STAD_KANTEEL ? 'aan' : 'uit');
