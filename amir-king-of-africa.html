@@ -20624,6 +20624,8 @@ function tonTeken(groundY, scale, cx){
     ctx.save();
     if (t.y <= 0){ ctx.globalAlpha = 0.22; ctx.fillStyle = '#1d140f'; ctx.beginPath();   // een schaduwtje op de vloer
       ctx.ellipse(sx, sy, w * 0.46, hS * 0.06, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; }
+    if (t.y <= 0 && stadAan() && STAD_SLAG_AAN)                         // in de stad ook de slagschaduw, schuin weg van de zon
+      stadSlagVlek(sx - w * 0.42, sx + w * 0.42, sy, STAD_SLAG.ton, CHAR_H * scale, stadSlagScheef());
     ctx.translate(sx + tril, sy);
     if (t.f) ctx.scale(-1, 1);
     ctx.drawImage(im, -w * TON.mid, -hS * 1.005, w, hS);
@@ -23350,17 +23352,29 @@ let STAD_SLAG_AAN = true;            // de sandbox zet het uit om te vergelijken
 const STAD_SLAG = {
   kleur: '40,22,10', alfa: 0.5,      // zo donker op zijn donkerst
   scheefMax: 1.2,                    // de schuinte (opzij per stap naar voren of omlaag), begrensd
+  lengHoog: 0.62, lengMax: 2.5,     // zo hoog staat de middagzon (stad_dag): lager dan dat wordt de schaduw langer, tot lengMax keer
+  dimZacht: 0.8,                    // een uitzicht met dim maakt hem zoveel keer die dim zachter (de nacht: dim 0,52)
   kanteel: 80,                       // tot zo diep (bronpx van gevel.png) lopen de kartels: daaronder is de muur dicht
-  galerij: { diep: 0.9, scheef: 0.5, gat: 0.4 },   // zo ver valt hij onder de galerij, zo schuin, en zo sterk in de opening tussen twee huizen
+  galerij: { diep: 0.9, scheef: 0.5 },   // zo ver valt hij onder de galerij, en zo schuin
   buur: { alfa: 0.4, hoog: 1.0, breed: 0.6 },     // een hoger huis werpt een schuine wig op het lagere ernaast
   straat: { voor: 0.16, voorAlfa: 0.6 },          // een huis legt zijn schaduw tot zo ver voorbij de looplijn, vooraan zo sterk
-  kraam: { onder: 0.09, breed: 0.46, alfa: 0.42, scheef: 0.35, schuinAlfa: 0.5 }
+  kraam: { onder: 0.09, breed: 0.46, alfa: 0.42, scheef: 0.35, schuinAlfa: 0.5 },
+  put: 0.55, luifel: 0.4, ton: 0.5, // de schuine schaduw van de put, de doek van een luifel en een ton (deel van alfa)
+  trap: 0.45                        // een open trap: de treden laten licht door
 };
+// de richting komt van de kant van de zon (links in de ochtend: alles valt naar rechts), de lengte van zijn hoogte:
+// hoe lager de zon, hoe schuiner en langer, tot lengMax keer de schuinte van de hoge middagzon (stad_dag)
 function stadSlagScheef(){
-  const z = zonSchaduw(), M = STAD_SLAG.scheefMax;
-  return Math.max(-M, Math.min(M, z.dx / Math.max(0.05, z.dy)));
+  const z = zonSchaduw(), M = STAD_SLAG.scheefMax, sc = sceneCfg();
+  const zh = sc && sc.sun ? sc.sun[1] : 0.2;
+  const lang = Math.max(1, Math.min(STAD_SLAG.lengMax, STAD_SLAG.lengHoog / Math.max(0.05, zh)));
+  return Math.max(-M, Math.min(M, z.dx / Math.max(0.05, z.dy))) * lang;
 }
-function stadSlagKleur(a){ return 'rgba(' + STAD_SLAG.kleur + ',' + Math.max(0, a) + ')'; }
+// 's avonds en 's nachts (een uitzicht met dim) is het licht zachter, dus ook de schaduw
+function stadSlagKleur(a){
+  const sc = sceneCfg(), dim = sc && sc.dim ? sc.dim[1] : 0;
+  return 'rgba(' + STAD_SLAG.kleur + ',' + Math.max(0, a * (1 - dim * STAD_SLAG.dimZacht)) + ')';
+}
 // de voorgevels op het scherm: links, rechts, de bovenkant van de dichte muur en de voet
 function stadSlagHuizen(groundY, scale, cx){
   const G = STAD.gevel;
@@ -23393,10 +23407,9 @@ function stadSlagMuur(groundY, scale, cx){
       ctx.moveTo(gl0, dek); ctx.lineTo(gr0, dek); ctx.lineTo(gr0 + v, eind); ctx.lineTo(gl0 + v, eind); ctx.fill();
       ctx.restore();
     };
-    vlak(Math.min(gl0, gl0 + v), Math.max(gr0, gr0 + v), dek, L.alfa * L.galerij.gat);   // over de hele lengte, ook voor de opening
-    for (const h of H){                                                                  // en op de muur van elk huis erachter voluit
+    for (const h of H){            // alleen op de muur van een voorgevel: in een opening tussen twee huizen staat niets dat hem vangt
       if (h.muur > eind || h.gy < dek) continue;
-      vlak(Math.max(h.l, Math.min(gl0, gl0 + v)), Math.min(h.r, Math.max(gr0, gr0 + v)), Math.max(dek, h.muur), L.alfa * (1 - L.galerij.gat));
+      vlak(Math.max(h.l, Math.min(gl0, gl0 + v)), Math.min(h.r, Math.max(gr0, gr0 + v)), Math.max(dek, h.muur), L.alfa);
     }
   }
   // een hoger huis aan de zonkant werpt een schuine wig op het lagere ernaast
@@ -23417,23 +23430,42 @@ function stadSlagMuur(groundY, scale, cx){
   }
   ctx.restore();
 }
-// op de straat: na de stoep, voor de kramen en Amir
+// een laag ding op de straat (kraam, put, luifel, ton): de schaduw schuin ernaast, van net achter de voet tot iets voor de
+// looplijn, vooraan lichter. l en r zijn schermpx, gy de voet, a de sterkte (deel van STAD_SLAG.alfa)
+function stadSlagVlek(l, r, gy, a, A, k){
+  const L = STAD_SLAG, K = L.kraam, v = k * K.scheef * A, y0 = gy - 0.1 * A, y1 = gy + 0.14 * A;
+  const gr = ctx.createLinearGradient(0, y0, 0, y1);
+  gr.addColorStop(0, stadSlagKleur(L.alfa * a)); gr.addColorStop(1, stadSlagKleur(L.alfa * a * 0.5));
+  ctx.fillStyle = gr; ctx.beginPath();
+  ctx.moveTo(l, y0); ctx.lineTo(r, y0); ctx.lineTo(r + v, y1); ctx.lineTo(l + v, y1); ctx.fill();
+}
+// op de straat: na de stoep, voor de kramen, de put en Amir
 function stadSlagStraat(groundY, scale, cx){
   if (!STAD_SLAG_AAN) return;
   const L = STAD_SLAG, A = CHAR_H * scale, k = stadSlagScheef(), D = stadStoepH(scale), rand = W / viewZoom() + W;
+  const S = level.stad;
   ctx.save();
-  // elk huis legt een schuine baan over de straat, die naar voren lichter wordt
-  for (const h of stadSlagHuizen(groundY, scale, cx)){
-    const y0 = h.gy - D, y1 = h.gy + L.straat.voor * A, v = k * (y1 - y0);
-    if (Math.max(h.r, h.r + v) < -W || Math.min(h.l, h.l + v) > rand) continue;
+  // wat hoog is (een huis, een pleinpoort, een trap) legt een schuine baan over de hele diepte van de straat
+  const baan = (l, r, gy, a) => {
+    const y0 = gy - D, y1 = gy + L.straat.voor * A, v = k * (y1 - y0);
+    if (Math.max(r, r + v) < -W || Math.min(l, l + v) > rand) return;
     const gr = ctx.createLinearGradient(0, y0, 0, y1);
-    gr.addColorStop(0, stadSlagKleur(L.alfa)); gr.addColorStop(1, stadSlagKleur(L.alfa * L.straat.voorAlfa));
+    gr.addColorStop(0, stadSlagKleur(L.alfa * a)); gr.addColorStop(1, stadSlagKleur(L.alfa * a * L.straat.voorAlfa));
     ctx.fillStyle = gr; ctx.beginPath();
-    ctx.moveTo(h.l, y0); ctx.lineTo(h.r, y0); ctx.lineTo(h.r + v, y1); ctx.lineTo(h.l + v, y1); ctx.fill();
+    ctx.moveTo(l, y0); ctx.lineTo(r, y0); ctx.lineTo(r + v, y1); ctx.lineTo(l + v, y1); ctx.fill();
+  };
+  for (const h of stadSlagHuizen(groundY, scale, cx)) baan(h.l, h.r, h.gy, 1);
+  for (const p of (S.pleinpoorten || [])){
+    const m = stadPleinPoortMaat(p, scale);
+    baan(cx + (m.left - world), cx + (m.right - world), groundY - terrainH(p.x) * scale, 1);
   }
-  // de kramen: een zachte vlek recht eronder, en de schaduw van het dak schuin ernaast
+  for (const t of (S.trappen || [])){                  // een open trap: de treden laten licht door
+    const m = stadTrapMaat(t, scale); if (!m || t.niveau) continue;
+    baan(cx + (m.x0 - world), cx + (m.x0 + m.tw - world), groundY - terrainH(m.m.x) * scale, L.trap);
+  }
+  // wat laag is: een zachte vlek recht onder een kraam, en de schaduw schuin ernaast
   const K = L.kraam;
-  for (const kr of (level.stad.kramen || [])){
+  for (const kr of (S.kramen || [])){
     const m = stadKraamMaat(kr, scale), x = cx + (kr.x - world), gy = groundY - terrainH(kr.x) * scale;
     if (x + m.w < -W || x - m.w > rand) continue;
     const rx = m.w * K.breed, ry = K.onder * A;
@@ -23441,11 +23473,18 @@ function stadSlagStraat(groundY, scale, cx){
     const rg = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
     rg.addColorStop(0, stadSlagKleur(K.alfa)); rg.addColorStop(0.7, stadSlagKleur(K.alfa * 0.7)); rg.addColorStop(1, stadSlagKleur(0));
     ctx.fillStyle = rg; ctx.fillRect(-rx, -rx, rx * 2, rx * 2); ctx.restore();
-    const v = k * K.scheef * A, y0 = gy - 0.1 * A, y1 = gy + 0.14 * A;
-    const gr = ctx.createLinearGradient(0, y0, 0, y1);
-    gr.addColorStop(0, stadSlagKleur(L.alfa * K.schuinAlfa)); gr.addColorStop(1, stadSlagKleur(L.alfa * K.schuinAlfa * 0.5));
-    ctx.fillStyle = gr; ctx.beginPath();
-    ctx.moveTo(x - rx, y0); ctx.lineTo(x + rx, y0); ctx.lineTo(x + rx + v, y1); ctx.lineTo(x - rx + v, y1); ctx.fill();
+    stadSlagVlek(x - rx, x + rx, gy, K.schuinAlfa, A, k);
+  }
+  // de put, en de doek van een luifel (bij een put of los)
+  for (const p of (S.putten || [])){
+    const m = stadPutMaat(p, scale), l = cx + (m.left - world);
+    if (l + m.w < -W || l > rand) continue;
+    stadSlagVlek(l + m.w * 0.04, l + m.w * 0.96, groundY - terrainH(p.x) * scale, L.put, A, k);
+  }
+  for (const p of (S.putten || []).filter(p => p.luifel).concat(S.luifels || [])){
+    const m = stadLuifelMaat(p, scale), l = cx + (m.left - world), r = cx + (m.right - world);
+    if (r < -W || l > rand) continue;
+    stadSlagVlek(l, r, groundY - terrainH(p.x) * scale, L.luifel, A, k);
   }
   ctx.restore();
 }
