@@ -1,6 +1,6 @@
 # Plan: de stad in de Level Maker nieuwstijl
 
-Status: stap 1 tot en met 6, stap 8 en stap 9 zijn af, stap 7 staat nog open. Wordt per stap gebouwd; vink af wat er staat.
+Status: stap 1 tot en met 6 en stap 8 tot en met 11 zijn af, stap 7 staat nog open. Wordt per stap gebouwd; vink af wat er staat.
 
 ## Uitgangspunt
 
@@ -110,6 +110,13 @@ Status: stap 1 tot en met 6, stap 8 en stap 9 zijn af, stap 7 staat nog open. Wo
    Maker sluit een platform naast een galerij vanzelf aan (`mkLiftGalerij`), en de controle meldt een lift die er net niet bij
    komt (zie "Een lift bij een galerij" in `notities/maker.md`); `levelcheck.py` regel `lift bij een galerij`, `makertest.js`
    de controle `lift bij een galerij`.
+10. [x] Tonnen en stadsvolk: de houten tonnen (`tonnen`, zie `notities/tonnen.md`) als **Ton** onder Decor, Kamp (een, twee naast
+   elkaar of een stapel, met een kalebas erin), en het stadsvolk (`stad.volk`) als **Stadsvolk** onder Decor, Straat, met soort en kleur
+   (zie "Tonnen en stadsvolk" in `notities/maker.md`). Allebei via `MK_DECOR`, dat daarvoor een vinkje en een kleur kreeg.
+11. [x] De binnenkant van een huis (Stad 7, zie "Binnen" in `notities/stad.md`): de terreincel **Binnen** maakt een kamer, met
+   **Vloer: hout** als verdieping en plafond, en in de groep Huizen, Binnen de deur naar buiten (bij een gevel), de boog naar een andere
+   kamer, de ladder, het raam en de steunpaal. De Test zet elke kamer met alles erin in een eigen strook ver voorbij het level, zoals
+   Stad 7 (zie "De binnenkant van een huis: kamers" in `notities/maker.md`); `makertest.js` de controle `binnen`.
 
 Na elke stap `node tools/makertest.js` en `python3 tools/levelcheck.py`. Geen level van een episode of
 bestaand testlevel verandert.

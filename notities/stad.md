@@ -293,7 +293,9 @@ Elk huis met een binnenkant is een eigen strook ver van de straat (van `r` tot `
 
 Stad 7: Binnen is het proefstuk, met 450 vrije hoogte onder en boven een verdieping (drie huizen: een zaal op palen met achterin
 een boog naar een kamer erachter, en twee met een verdieping en een ladder, een keer gespiegeld). In de sandbox onder De stad:
-**Huis met binnenkant** (met een boog achterin en een kamer erachter).
+**Huis met binnenkant** (met een boog achterin en een kamer erachter). In de Maker nieuwstijl teken je een kamer als een blok
+**Binnen**-cellen met houten vloeren erdoor, en zet je er de deur, bogen, ladders, ramen en palen in; de Test zet hem in zo'n strook
+(zie "De binnenkant van een huis: kamers" in `notities/maker.md`).
 
 ## Straten en knooppunten (Sandville)
 
@@ -592,3 +594,4 @@ dorpelingen uit `NPCS` (`k` is `dorpelinge` of `dorpeling`, met hun eigen animat
   (aan de rustige uiteinden van de Kuiperstraat, niet op het kruispunt waar je begint en vecht, en in de Pottenbakkersstraat).
 - **Sandbox**: onder Terrein, De stad, de knop **Stadsvolk**: vijf figuren in vijf kleuren op de stoep voor je uit (zet eerst de stad
   neer als die er niet is). Zet er een vijand bij om ze te zien verdwijnen.
+- **Maker nieuwstijl**: onder Decor, Straat, **Stadsvolk**, met soort en kleur (zie "Tonnen en stadsvolk" in `notities/maker.md`).
