@@ -432,7 +432,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **Kruisboogbandiet** → `tools/kruisboog_kleur.py`, daarna `gen-offline-manifest.py`. De export uit de Animeer tool (felle kleuren, schouderstuk erop) staat in `enemies/kruisboog/bron/`; het script schrijft de speelversie in het bandietpalet naar `enemies/kruisboog/<set>/`
 - **Stenen bogen** (`design/boog/`, uit de platen in `bron/`, met hun sneeuw- en savanneversie en het masker van de opening, `_gat.png`) → `tools/boog_vulling.py` (alleen de maskers: `--gat`), daarna `gen-offline-manifest.py`
 - **Schade in de pleinvloer van Nyundo** (`design/stad/plein_schade_*.png`, `plein_brokken.png`, uit de Grok-platen in `design/stad/bron/`) → `tools/plein_schade.py`, daarna `gen-offline-manifest.py`; nieuwe brokken geven nieuwe rechthoeken voor `BRU_SCHADE.brokken`
-- **Nyundo** (`enemies/brutus/frames/`, ook na `tools/brutus_donker.py`) → `tools/brutus_spleet.py` (de spleet tussen steel en bal van de knots), daarna `gen-klein.py` en `gen-offline-manifest.py`
+- **Nyundo** (`enemies/brutus/frames/`, ook na `tools/brutus_donker.py`) → `tools/brutus_spleet.py` (de spleet tussen steel en bal van de knots) en `tools/brutus_rand.py` (de stippelrand om de donkere set), daarna `gen-klein.py` en `gen-offline-manifest.py`
 - **Tonnen** (`design/stad/ton/`, uit de Grok-platen in `bron/`) → `tools/ton_kleur.py`, daarna `gen-offline-manifest.py`
 - **Rotsdecor** (`design/rotsdecor/`, losse rotsstukken uit de platen in `bron/`) → `tools/rotsdecor_knip.py`, daarna `gen-offline-manifest.py`
 - **Tribe-logo's** → `tools/tribe_logos.py`
