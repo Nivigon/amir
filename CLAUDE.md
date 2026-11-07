@@ -129,6 +129,11 @@ level zetten, en de knoppen daarvoor blijven staan: haal ze niet weg en zet er g
 levels (de panter in Valse Koning, de baviaan in Baboon 1, de arena's) en de bestaande testlevels blijven
 zoals ze zijn, net als de knoppen **Als eindbaas** en **Baviaan** in de sandbox.
 
+**13. Een stadsverbetering gaat volgens de werklijst.** Vraagt de opdrachtgever om een stadsverbetering,
+lees dan eerst `notities/stad-verbeteren.md` en volg "Zo werken we": een stap per keer, eerst precies 3
+suggesties zonder iets te bouwen, de opdrachtgever kiest er een, bijsturen tot het goed is, en pas dan
+afvinken en het cijfer bijwerken.
+
 ## Waar wat staat
 
 De HTML is opgedeeld met commentaarkoppen (`// ---- ... ----`). Zoek daarop, niet op
@@ -257,6 +262,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | elk level nakijken op decor boven een ravijn | `schoonLevel`, `schoonKomend`, `komendeRavijnen` | notities/ravijn.md |
 | wat er staat waar een ravijn openscheurt | `RAVIJN_DECOR`, `ravijnDecor`, `ravijnDecorStap` | notities/ravijn.md |
 | golvende rand: terreinmassa's met een organische omtrek | `GOLF`, `golfAan`, `golfGrondTeken`, `golfTerrasTeken` | notities/golf.md |
+| de stad verbeteren: werklijst met cijfers en stappen; bij "stadsverbetering" eerst 3 suggesties, de opdrachtgever kiest | `stadsverbetering`, `S1`, `L1`, `V1` | notities/stad-verbeteren.md |
 | sandbox | de vrije testmodus |  |
 
 Op schijf: `karakters/` (Amir, dorpeling, dorpelinge), `enemies/`, `design/` (decor,
