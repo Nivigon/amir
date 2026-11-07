@@ -481,12 +481,14 @@ op de muurvoet zelf leek het boven de straat te hangen.
 
 De stad werpt schaduw, in de richting van de zon van het uitzicht: dezelfde `zonSchaduw` als de schaduw van Amir,
 omgerekend naar een schuinte (opzij per stap naar voren) en begrensd op `scheefMax`. In `stad_dag` staat de zon
-rechts, dus alles valt naar links.
+rechts, dus alles valt naar links; in de ochtend (`ochtend`, zon links) valt alles naar rechts. Hoe lager de zon (de
+hoogte uit `sun`), hoe langer en schuiner, tot `lengMax` keer die van de hoge middagzon van `stad_dag` (`lengHoog`).
+Een uitzicht met `dim` (de avond, de nacht) maakt de schaduw zachter (`dimZacht`).
 
 - **Op de muur** (`stadSlagMuur`, in `stadTeken` na de gevels en de pleinpoorten, voor de galerijen): onder een
   galerij een band op de muur, vol tot de onderste balk en dan vervagend over `galerij.diep` Amir, schuin weg van de
-  zon. Op de muur van een voorgevel voluit, over de opening tussen twee huizen (waar de verre rij doorheen kijkt) maar
-  `galerij.gat` zo sterk, zodat het niet hard afsnijdt bij de rand van het huis. De galerij zelf blijft in het licht:
+  zon. Alleen op de muur van een voorgevel: in een opening tussen twee huizen staat niets dat hem vangt (een zwakke
+  schaduw daar viel ook op de lucht). De galerij zelf blijft in het licht:
   daarom komt de schaduw voor de galerij. Staat een hoger huis aan de zonkant pal naast een lager huis, dan valt er een
   schuine wig (`buur`) op de muur van het lagere, onder de kartels (`kanteel`, bronpx van `gevel.png`).
 - **Op de straat** (`stadSlagStraat`, bovenaan `stadVoorTeken`: na de stoep, voor de kramen en Amir): elk huis legt een
@@ -494,7 +496,10 @@ rechts, dus alles valt naar links.
   huizen blijft de straat in de zon. Een kraam krijgt een zachte vlek recht eronder en de schaduw van zijn dak schuin
   ernaast (`kraam`).
 
-Nog niet: de put, de pleinwand, de tonnen, de trappen en het voetdecor werpen geen slagschaduw.
+Ook op de straat: een pleinpoort en een trap van de straat af (`trap`, zwakker, want de treden laten licht door) leggen een
+baan zoals een huis; de put, de doek van een luifel en een ton (`put`, `luifel`, `ton`, in `tonTeken`) een schuine vlek
+zoals een kraam (`stadSlagVlek`). De pleinwand niet: die staat achteraan in de nevel, voorbij de straat. Het voetdecor
+houdt alleen zijn eigen contactschaduw.
 
 In de sandbox onder De stad: **Slagschaduw: aan/uit** (`sbslag`) om te vergelijken.
 
