@@ -317,6 +317,9 @@ Elk huis met een binnenkant is een eigen strook ver van de straat (van `r` tot `
 - **Vast in het huis**: Amir (`binnenKlem`, in plaats van de klif), de camera (`binnenCamKlem`) en de vijanden
   (`binnenVijandKlem`) blijven tussen `l` en `r`. Binnen geeft `endWall()` geen grens, anders hielden de botsingen van de
   vijanden ze tegen (het huis ligt voorbij de klif van de straat).
+- **Een smalle kamer**: is een kamer smaller dan het scherm, dan zoomt de camera in tot hij het scherm precies vult
+  (`binnenZoom`, in `viewZoom`). Zo valt de rand van de kamer altijd samen met de rand van het scherm, net als in een brede
+  kamer, en zie je er nooit de straat naast. De sprong valt in de fade van de deur of de boog.
 - **Vijanden**: een spawn in een huis komt pas als Amir in dat huis is, en dan meteen, op zijn eigen plek (`spawnPoint`
   duwt hem niet naar buiten beeld); dus allemaal tegelijk, al tijdens de fade.
 - **Tekenen**: `binnenAchter` (voor de zwevers) tekent de binnenmuur (`binnen/wand.jpg`, getegeld en vast aan de wereld, tot
@@ -326,9 +329,6 @@ Elk huis met een binnenkant is een eigen strook ver van de straat (van `r` tot `
   personages blijven helder), donkere zijmuren, en dan het licht: het glas gloeit, een lichtbundel valt schuin naar de vloer
   (`BINNEN.bundel`) met een lichtvlek, en veel stofjes zweven door de kamer (`BINNEN.stof`), zacht in het schemer en helder in een
   bundel. Buiten tekent hij alleen de E bij het deurgat.
-- **Smaller dan het scherm**: dan zet `binnenCamKlem` de kamer in het midden, en naast hem tekent `binnenZijmuur` (aan het eind
-  van `binnenNa`) de dikke lemen zijmuur in doorsnede (`BINNEN.zijmuur`, in Amir, met de textuur van `wand.jpg`) en daarachter
-  het donker van de rest van het huis, zodat je naast een kamer nooit de straat ziet.
 - **Amir in de bundel**: het licht valt ook op hem (en op de vijanden die op `persLicht` aangesloten zijn, zie `notities/licht-personages.md`). Na zijn frame legt `binnenLichtOp` een warme kopie ervan met 'lighter'
   over hem, geknipt op de vorm van de bundel (`binnenBundels`, `binnenBundelPad`), zodat de lichtgrens schuin over zijn lijf
   loopt als hij erdoor stapt. Waar hij de bundel afdekt (`binnenBundelDek`) ligt zijn silhouet in de lichtvlek op de vloer,
