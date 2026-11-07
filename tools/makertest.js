@@ -62,7 +62,7 @@ async function start(){
   }
 }
 
-// Het proefgrid: klein, maar met elke soort erop. 36 breed, 12 hoog, grondlijn op rij 7.
+// Het proefgrid: klein, maar met elke soort erop. 48 breed, 12 hoog, grondlijn op rij 7.
 //  - savanne op de grondlijn, met een ravijn (kolom 21 tot 23) boven een gang (rij 8 en 9, kolom 19 tot 23) achter de
 //    start, met twee treden onder het gat (kolom 21 en 22) als weg naar boven
 //    (het gat loopt een cel verder door dan de onderste trede, anders stoot Amir bij de sprong zijn hoofd tegen het dak)
@@ -79,11 +79,20 @@ async function start(){
 //    en g2 (3 hoog), een galerij van g1 tot g2 op niveau 1, een trap rechts van g2 die op die galerij uitkomt, een rieten
 //    kraam, een kruik als voetdecor en het paleis; een bandiet op de galerij, en een schildbandiet en een kruisboogbandiet
 //    (wijk uit, inBeeld aan) op het dak van g1 (die krijgen dak op hun spawn); uit het deurgat van g1 een bandiet met dolk, en
-//    uit een deur op de eerste verdieping van g2 (op de galerij) twee bandieten
+//    uit een deur op de eerste verdieping van g2 (op de galerij) twee bandieten; een stapel tonnen met een kalebas (kolom 30) en een
+//    rode dorpelinge op de stoep (kolom 29)
+//  - rechts daarvan (kolom 37 tot 46) twee kamers van de binnenkant van een huis: een kamer (kolom 37 tot 41) met de deur naar buiten bij
+//    g2, een vloer op rij 4 met een bandiet erop, een plafond, twee ramen, een paal en een ladder tegen de rand van de vloer, en een
+//    boog naar de kamer ernaast (kolom 43 tot 46, alleen via de boog, met een kalebas); in het level staan ze in hun eigen stroken ver
+//    weg (de Maker telt ze van de startkant af: kolom 43 tot 46 is Kamer 1)
 function proefGrid(){
   const rijen = [];
-  for (let r = 0; r < 12; r++) rijen.push('.'.repeat(36).split(''));
-  for (let c = 0; c < 36; c++) rijen[7][c] = c >= 24 ? 'A' : 'S';
+  for (let r = 0; r < 12; r++) rijen.push('.'.repeat(48).split(''));
+  for (let c = 0; c < 48; c++) rijen[7][c] = c >= 24 && c <= 35 ? 'A' : 'S';
+  // twee kamers van de binnenkant (kolom 37 tot 41 en 43 tot 46): Binnen-cellen (I) met een houten vloer (B) op rij 4 die bij kolom 40
+  // ophoudt (de ladder op kolom 41 leunt tegen die rand) en een plafond op rij 1; de tweede kamer alleen een plafond op rij 4
+  for (let c = 37; c <= 41; c++){ for (const r of [2, 3, 5, 6]) rijen[r][c] = 'I'; rijen[1][c] = 'B'; rijen[4][c] = c <= 40 ? 'B' : 'I'; }
+  for (let c = 43; c <= 46; c++){ rijen[5][c] = 'I'; rijen[6][c] = 'I'; rijen[4][c] = 'B'; }
   rijen[7][21] = 'V'; rijen[7][22] = 'V'; rijen[7][23] = 'V';
   rijen[7][11] = 'V'; rijen[7][12] = 'V';
   for (let r = 8; r <= 9; r++) for (let c = 19; c <= 23; c++) rijen[r][c] = 'G';
@@ -94,7 +103,7 @@ function proefGrid(){
   rijen[7][0] = 'W'; rijen[7][1] = 'W';
   rijen[7][2] = 'A'; rijen[7][3] = 'A';
   return {
-    type: 'amir-levelmaker-grid', versie: 2, cols: 36, rows: 12, groundRow: 7, stadSeed: 7,
+    type: 'amir-levelmaker-grid', versie: 2, cols: 48, rows: 12, groundRow: 7, stadSeed: 7,
     grid: rijen.map(r => r.join('')),
     start: { c: 19, r: 6 }, eind: { c: 2, r: 6 }, muziek: 'darkafrica', valschade: true,
     maskers: [{ id: 'Verborgen1', look: 'grot', cells: [[8, 6], [9, 6]] }],
@@ -134,6 +143,17 @@ function proefGrid(){
       { c: 27, r: 3, k: 'vijand', soort: 'bandiet', note: '' },
       { c: 25, r: 1, k: 'vijand', soort: 'schildman:makkelijk', note: '' },
       { c: 26, r: 1, k: 'vijand', soort: 'kruisboogbandiet', params: { wijk: 0, inBeeld: 1 }, note: '' },
+      { c: 30, r: 6, k: 'ton', prop: 'stapel', kalebas: true, note: '' },
+      { c: 29, r: 6, k: 'volk', prop: 'dorpelinge', kleur: 'rood', f: true, note: '' },
+      { c: 37, r: 6, k: 'huisdeur', gevel: 'g2', note: '' },
+      { c: 38, r: 6, k: 'boog', naar: { c: 43, r: 6 }, note: '' },
+      { c: 43, r: 6, k: 'boog', note: '' },
+      { c: 39, r: 5, k: 'raam', note: '' },
+      { c: 38, r: 2, k: 'raam', note: '' },
+      { c: 40, r: 6, k: 'paal', note: '' },
+      { c: 41, r: 6, k: 'ladder', note: '' },
+      { c: 39, r: 3, k: 'vijand', soort: 'bandiet', note: '' },
+      { c: 45, r: 6, k: 'hppotion', note: '' },
     ],
   };
 }
@@ -475,7 +495,7 @@ function verschil(a, b, pad = ''){
     // het proefgrid heeft de stad goed staan: geen melding over de stad, en dak op de bandiet, de schildbandiet en de kruisboogbandiet
     await laad(proefGrid());
     f.push(...await page.evaluate(() => {
-      const f = [], m = mkControle().filter(q => q.ernst !== 'info' && /Gevel|galerij|trap|daken|straat/i.test(q.tekst));
+      const f = [], m = mkControle().filter(q => q.ernst !== 'info' && /Gevel|galerij|trap|daken|straat/i.test(q.tekst) && !/^Kamer /.test(q.tekst));   // (de smalle proefkamers noemen de straat ernaast)
       if (m.length) f.push('het proefgrid geeft een melding over de stad: ' + JSON.stringify(m.map(q => q.tekst)));
       const lv = mkNaarLevel(), S = lv.stad || {};
       if ((S.gevels || []).length !== 2 || (S.galerijen || []).length !== 1 || (S.trappen || []).length !== 1 || (S.kramen || []).length !== 1 || (S.voet || []).length !== 1 || S.paleis == null || S.seed !== 7)
@@ -588,6 +608,76 @@ function verschil(a, b, pad = ''){
     return f;
   });
 
+  // 1d. de binnenkant van een huis, de tonnen en het stadsvolk: de kamers uit het grid, hun stroken in het level, de stukken erin,
+  // de meldingen van de controle, en de tonnen en het volk in het level
+  await check('binnen: kamers, de deur bij een huis, ramen, paal, ladder, bogen, en de tonnen en het stadsvolk', async () => {
+    await laad(proefGrid());
+    return page.evaluate(() => {
+      const f = [], kamers = mkBinnenKamers();
+      if (kamers.length !== 2 || kamers[0].c0 !== 43 || kamers[0].r0 !== 4 || kamers[0].r1 !== 6 || kamers[1].c0 !== 37 || kamers[1].c1 !== 41 || kamers[1].r0 !== 1 || kamers[1].r1 !== 6)
+        return ['niet de twee kamers (van de startkant af, met hun plafond): ' + JSON.stringify(kamers.map(k => [k.c0, k.c1, k.r0, k.r1]))];
+      const lv = mkNaarLevel(), B = lv.binnen || [];
+      if (B.length !== 2) return ['level.binnen heeft niet twee kamers: ' + JSON.stringify(B)];
+      const [k2, k1] = B;                                          // van de startkant af: eerst de kamer op kolom 43 tot 46 (in de Maker Kamer 1, hier k2), dan die op kolom 37 tot 41 (Kamer 2, hier k1)
+      const klif = lv.cliffs[0].x;
+      if (!(k2.r < klif - 10000 && k1.r < k2.l - 1000)) f.push('de kamers staan niet ver voorbij de klif, elk in een eigen strook: ' + JSON.stringify([klif, k2.r, k2.l, k1.r, k1.l]));
+      if (k2.r - k2.l !== 4 * MK_CEL_PX || k1.r - k1.l !== 5 * MK_CEL_PX) f.push('de stroken zijn niet zo breed als de kamers: ' + JSON.stringify([k2.r - k2.l, k1.r - k1.l]));
+      if (k1.gevel !== 0 || typeof k1.deur !== 'number' || k1.deur > k1.r || k1.deur < k1.l) f.push('kamer 1 hoort niet bij g2 (index 0) met zijn deur in de strook: ' + JSON.stringify(k1));
+      if (k2.gevel !== null || 'deur' in k2) f.push('kamer 2 (alleen via de boog) heeft toch een gevel of deur: ' + JSON.stringify(k2));
+      const hs = (k1.ramen || []).map(r => r.h).sort((a, b) => a - b);
+      if (hs.join() !== '225,675') f.push('de ramen liggen niet op het midden van hun cel (225 en 675): ' + hs.join());
+      if (!(k1.palen && k1.palen.length === 1 && k1.palen[0].h === 0)) f.push('geen paal op de vloer van kamer 1: ' + JSON.stringify(k1.palen));
+      const L = k1.ladders && k1.ladders[0];
+      if (!L || L.van !== 0 || L.naar !== 450) f.push('de ladder gaat niet van 0 naar 450: ' + JSON.stringify(k1.ladders));
+      const vl = (lv.zwevers || []).filter(z => z.look === 'hout' && z.r <= k1.r && z.l >= k1.l);
+      if (vl.length !== 2 || !vl.some(z => z.h === 450 && z.onder === 300) || !vl.some(z => z.h === 900 && z.onder === 750)) f.push('de vloeren van kamer 1 zijn niet twee houten zwevers (450 en 900) in de strook: ' + JSON.stringify(vl));
+      if (L){ const rand = vl.find(z => z.h === 450), m = binnenLadder(L, 0); if (rand && Math.abs(m.rand - rand.r) > 12) f.push('de top van de ladder raakt de rand van de vloer niet: ' + m.rand + ' bij ' + rand.r); }
+      if ((lv.zwevers || []).some(z => z.look === 'hout' && z.r > klif)) f.push('er staat een houten vloer op de plek van de kamer in het grid zelf');
+      const bg1 = k1.bogen || [], bg2 = k2.bogen || [];
+      if (bg1.length !== 1 || bg2.length !== 1 || bg1[0].naar !== bg2[0].x || bg2[0].naar !== bg1[0].x) f.push('de bogen wijzen niet naar elkaar (aan een kant gezet is genoeg): ' + JSON.stringify([bg1, bg2]));
+      const sp = lv.spawns.filter(s => s.x <= k1.r && s.x >= k1.l);
+      if (sp.length !== 1 || sp[0].k !== 'bandiet' || sp[0].vloer !== 450 || 'boven' in sp[0]) f.push('de bandiet in kamer 1 staat niet met vloer 450 in de strook: ' + JSON.stringify(sp));
+      if (!(lv.hppotions || []).some(h => h.x <= k2.r && h.x >= k2.l)) f.push('de kalebas van kamer 2 staat niet in zijn strook');
+      if (lv.cliffs[0].x < -8000 || (lv.rechtsWall || 0) > 6000) f.push('de kamers rekken de grenzen van het level op: ' + JSON.stringify([lv.cliffs, lv.rechtsWall]));
+      // de tonnen: twee met een erop, de kalebas in de eerste, de bovenste op TON.h recht op de tweede
+      const T = lv.tonnen || [];
+      if (T.length !== 3 || !T[0].kalebas || T[2].y !== TON.h || T[1].x !== T[2].x || Math.abs(T[1].x - T[0].x) !== 2 * Math.round(0.2 * CHAR_H)) f.push('de stapel tonnen klopt niet: ' + JSON.stringify(T));
+      // het stadsvolk: een rode dorpelinge, gespiegeld, in stad.volk
+      const V = (lv.stad && lv.stad.volk) || [];
+      if (V.length !== 1 || V[0].k !== 'dorpelinge' || V[0].kleur !== 'rood' || V[0].f !== 1) f.push('het stadsvolk staat niet in stad.volk: ' + JSON.stringify(V));
+      const rl = readLevel(JSON.stringify(lv));
+      if (!rl.binnen || rl.binnen.length !== 2 || rl.binnen[1].gevel !== 0 || rl.tonnen.length !== 3 || !rl.stad.volk || rl.stad.volk[0].kleur !== 'rood') f.push('readLevel leest binnen, tonnen of volk niet');
+      // de controle: niets over de kamers zolang alles goed staat, en dan elk van de meldingen (met een cel)
+      const bm = () => mkControle().filter(q => /^(Kamer|Deur naar buiten|Boog|Ladder|Raam|Steunpaal)/.test(q.tekst) && !/cellen breed/.test(q.tekst));   // (de proefkamers zijn met opzet smal)
+      if (mkControle().filter(q => /^Kamer \d .* is maar \d+ cellen breed/.test(q.tekst)).length !== 2) f.push('de twee smalle proefkamers geven geen LET OP over hun breedte');
+      if (bm().length) f.push('een melding voor goede kamers: ' + JSON.stringify(bm().map(q => q.tekst)));
+      const moet = (ernst, re, wat) => { const q = bm().find(q => q.ernst === ernst && re.test(q.tekst)); if (!q) f.push('geen ' + ernst + ' voor ' + wat + ': ' + JSON.stringify(bm().map(q => q.tekst))); else if (q.c == null || q.r == null) f.push('de melding voor ' + wat + ' heeft geen cel'); };
+      const deur = MK.objects.find(o => o.k === 'huisdeur'), boog = MK.objects.find(o => o.k === 'boog' && o.c === 38), lad = MK.objects.find(o => o.k === 'ladder'), paal = MK.objects.find(o => o.k === 'paal');
+      deur.gevel = 'g9'; moet('fout', /^Deur naar buiten .* hoort bij geen huis/, 'een deur bij een huis dat er niet is'); deur.gevel = 'g2';
+      const nb = boog.naarObj; boog.naarObj = undefined; moet('fout', /^Boog .* voert nergens heen/, 'een boog zonder doel'); boog.naarObj = nb;
+      lad.c = 39; moet('letop', /^Ladder .* leunt tegen niets/, 'een ladder zonder rand naast zich'); lad.c = 41;
+      for (let c = 37; c <= 41; c++){ MK.grid[4][c] = 'binnen'; MK.grid[1][c] = 'binnen'; }
+      moet('fout', /^Ladder .* heeft geen vloer boven zich/, 'een ladder zonder vloer erboven');
+      moet('letop', /^Steunpaal .* heeft geen plafond/, 'een paal zonder plafond');
+      for (let c = 37; c <= 41; c++){ MK.grid[4][c] = c <= 40 ? 'balken' : 'binnen'; MK.grid[1][c] = 'balken'; }
+      paal.c = 20; moet('letop', /^Steunpaal .* staat niet in een kamer/, 'een stuk buiten een kamer'); paal.c = 40;
+      for (let c = 43; c <= 46; c++) MK.grid[6][c] = 'lucht';
+      moet('fout', /^Kamer 1 .* staat niet op de grondlijn/, 'een kamer die in de lucht hangt');
+      for (let c = 43; c <= 46; c++) MK.grid[6][c] = 'binnen';
+      MK.objects = MK.objects.filter(o => !(o.k === 'boog' && o.c === 43)); boog.naarObj = undefined;
+      moet('letop', /^Kamer 1 .* heeft geen deur naar buiten en geen boog/, 'een kamer zonder ingang');
+      if (bm().filter(q => q.ernst === 'fout').length !== 1) f.push('een boog zonder boog in de andere kamer geeft niet precies een FOUT: ' + JSON.stringify(bm().map(q => q.tekst)));
+      // het paneel van de deur: Huis met g1 en g2; van de boog: de andere boog; van de ladder: de kant
+      MK.tool = 'select'; MK.sel = deur; MK.inspectDicht = false; mkNotePaneel();
+      const sel = document.getElementById('mkbinnensel');
+      if (document.getElementById('mkbinnenctl').style.display === 'none' || [...sel.options].map(o => o.value).join() !== ',g1,g2' || sel.value !== 'g2') f.push('het paneel van de deur naar buiten toont niet de huizen: ' + [...sel.options].map(o => o.value).join());
+      sel.value = 'g1'; sel.dispatchEvent(new Event('change')); if (deur.gevel !== 'g1') f.push('het paneel zet het huis van de deur niet'); deur.gevel = 'g2';
+      MK.sel = lad; mkNotePaneel(); document.getElementById('mkbinnenf').click(); if (!lad.f) f.push('Leunt naar zet de kant van de ladder niet'); lad.f = undefined;
+      MK.sel = null; mkNotePaneel();
+      return f;
+    });
+  });
+
   // 2. de vertaling naar een spel-level
   await check('vertaling: gaps, terrassen, zwevers, gang, takel, vijanden, zegel', async () => {
     await laad(proefGrid());
@@ -685,7 +775,7 @@ function verschil(a, b, pad = ''){
 
   // 5. snel schilderen met de muis: geen gaten in de streek
   await check('schilderen: een snelle sleep laat geen cellen over', async () => {
-    await laad({ ...proefGrid(), grid: proefGrid().grid.map(() => '.'.repeat(36)), objecten: [], maskers: [], zwart: [], vormen: [], start: null, eind: null });
+    await laad({ ...proefGrid(), grid: proefGrid().grid.map(() => '.'.repeat(48)), objecten: [], maskers: [], zwart: [], vormen: [], start: null, eind: null });
     await page.evaluate(() => { MK.tool = 'rots'; mkLegenda(); });
     const a = await celXY(2, 3), b = await celXY(21, 3);
     await page.mouse.move(a.x, a.y); await page.mouse.down();
@@ -706,7 +796,7 @@ function verschil(a, b, pad = ''){
 
   // 5b. een rechthoek vullen met Shift+slepen, ook met het masker
   await check('rechthoek: Shift+slepen vult het hele vlak', async () => {
-    await laad({ ...proefGrid(), grid: proefGrid().grid.map(() => '.'.repeat(36)), objecten: [], maskers: [], zwart: [], vormen: [], start: null, eind: null });
+    await laad({ ...proefGrid(), grid: proefGrid().grid.map(() => '.'.repeat(48)), objecten: [], maskers: [], zwart: [], vormen: [], start: null, eind: null });
     await page.evaluate(() => { MK.tool = 'muur'; mkLegenda(); });
     const a = await celXY(3, 2), b = await celXY(8, 6);
     await page.keyboard.down('Shift'); await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 3 }); await page.mouse.up(); await page.keyboard.up('Shift');
@@ -723,7 +813,7 @@ function verschil(a, b, pad = ''){
 
   // 5bb. de vulemmer: Alt+klik vult een aaneengesloten vlak
   await check('vulemmer: Alt+klik vult het vlak en niet erbuiten', async () => {
-    await laad({ ...proefGrid(), grid: proefGrid().grid.map(() => '.'.repeat(36)), objecten: [], maskers: [], zwart: [], vormen: [], start: null, eind: null });
+    await laad({ ...proefGrid(), grid: proefGrid().grid.map(() => '.'.repeat(48)), objecten: [], maskers: [], zwart: [], vormen: [], start: null, eind: null });
     await page.evaluate(() => { for (let r = 2; r <= 6; r++){ MK.grid[r][5] = 'muur'; MK.grid[r][10] = 'muur'; } for (let c = 5; c <= 10; c++){ MK.grid[2][c] = 'muur'; MK.grid[6][c] = 'muur'; } mkTeken(); MK.tool = 'gang'; mkLegenda(); });   // een omlijnde doos van muur, 5 tot 10 bij 2 tot 6
     const p = await celXY(7, 4);
     await page.keyboard.down('Alt'); await page.mouse.click(p.x, p.y); await page.keyboard.up('Alt');
@@ -791,7 +881,7 @@ function verschil(a, b, pad = ''){
     const mini = await page.evaluate(() => { const m = document.getElementById('mkmini'); const b = m.getBoundingClientRect(); return { w: m.width, h: m.height, x: b.left, y: b.top, bw: b.width, bh: b.height, zicht: getComputedStyle(m).display !== 'none' }; });
     if (!mini.zicht || mini.w < 40) uit.push('geen minimap: ' + JSON.stringify(mini));
     await page.evaluate(() => { MK.zoom = 2.5; mkTeken(); });
-    await page.mouse.click(mini.x + mini.bw * (22.5 / 36), mini.y + mini.bh * (8.5 / 12));   // op cel (22, 8)
+    await page.mouse.click(mini.x + mini.bw * (22.5 / 48), mini.y + mini.bh * (8.5 / 12));   // op cel (22, 8)
     const mid = await page.evaluate(() => { const cel = mkCel(); return { c: (mkCanvas.clientWidth / 2 - MK.panX) / cel, r: (mkCanvas.clientHeight / 2 - MK.panY) / cel }; });
     if (Math.abs(mid.c - 22.5) > 0.6 || Math.abs(mid.r - 8.5) > 0.6) uit.push('na de klik op de minimap staat cel ' + mid.c.toFixed(1) + ',' + mid.r.toFixed(1) + ' in het midden in plaats van 22.5,8.5');
     await page.keyboard.press('m');
@@ -883,7 +973,7 @@ function verschil(a, b, pad = ''){
     return page.evaluate(() => {
       const f = mkPaletKlachten().slice();
       MK.inspectDicht = false; MK.tool = 'select';
-      const soorten = ['vijand', 'zegel', 'rune', 'prop', 'platform', 'tandwiel', 'rijzer', 'poort', 'overhang', 'richel', 'hppotion'];
+      const soorten = ['vijand', 'zegel', 'rune', 'prop', 'platform', 'tandwiel', 'rijzer', 'poort', 'overhang', 'richel', 'hppotion', 'ton', 'volk', 'huisdeur', 'boog', 'ladder', 'raam', 'paal'];
       const bewaar = MK.objects;
       for (const k of soorten){
         const o = { c:5, r:MK.ground - 1, k, note:'' };
