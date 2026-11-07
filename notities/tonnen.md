@@ -9,12 +9,14 @@ Code: de sectie `// ---- tonnen: houten tonnen die breken ----` (`TON`, `tonnen`
 
 - `put: i, a`: bij `stad.putten[i]`, `a` Amir van het midden van de put. De luifel zit in Amir aan de put vast
   (`STAD.plein.luifel.af`, 2,3), dus zo blijft een ton op elk scherm onder de luifel. Tussen de rand van de put
-  (1,05 Amir) en de paal (2,3) is plek voor twee tonnen naast elkaar (a 1,38 en 1,86) en een erop (a 1,62, y 0,62).
+  (1,05 Amir) en de paal (2,3) is plek voor twee tonnen naast elkaar (a 1,45 en 1,85, net over elkaar) en een erop.
 - `luifel: i, a`: net zo bij een losse luifel (`stad.luifels[i]`, zonder put); daar is plek van ongeveer -0,5 tot -2 Amir
-  (de paal staat op -2,3 bij `kant: 'l'`). Stad 6: a -1,38 en -1,86 en erop -1,62.
+  (de paal staat op -2,3 bij `kant: 'l'`). Stad 6: a -1,82 en -1,42 (net over elkaar) en recht op de voorste -1,42, y 0,62.
 - `kraam: i, a`: naast `stad.kramen[i]` (het midden van de kraam, 1,68 Amir breed): a 1,1 staat er net naast.
 
-`y` is de hoogte van de onderkant in Amir (0,62 is een ton op een ton, `TON.h`). `f` spiegelt, `kalebas: true` laat er
+`y` is de hoogte van de onderkant in Amir (0,62 is een ton op een ton, `TON.h`). Een ton op een ton staat in werkelijkheid
+op `TON.stapel` (0,55): hij zakt in het deksel van de onderste, anders zweeft hij op de rand (`tonMaak` zet een y van
+een of meer tonnen hoog om, `tonStap` laat hem daarop landen). Mooiste stapel: recht op een ton, niet in de kier tussen twee. `f` spiegelt, `kalebas: true` laat er
 een drinkkalebas uit springen (`dropHppotion`). `tonPlekX` rekent de plek elk beeld opnieuw uit, zodat hij meeschuift
 als het scherm van maat verandert.
 
