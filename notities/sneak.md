@@ -17,8 +17,10 @@ hyena's en de panter kijken zoals ze deden; een baas doet niet mee.
 ## Gehoor (`lawaai`, `lawaaiPuls`, `sneakHoort`)
 
 Elk beeld zet de hoofdlus `lawaai`: hoe ver Amirs voetstappen nu dragen (`lawaaiNu`). Kruipen en stilstaan zijn
-stil, lopen draagt `SNEAK.gehoor.loop` (1,8 Amir, net buiten steekafstand), in de lucht hetzelfde, sprinten (en de
-renstoot) tot het oude zichtbereik (`zichtBereik(1100)`). Een vijand in rust hoort je als je binnen die afstand op
+stil, lopen draagt `SNEAK.gehoor.loop` (1,8 Amir, net buiten steekafstand), sprinten (en de renstoot) tot het oude
+zichtbereik (`zichtBereik(1100)`). In de lucht is hij stil (`gehoor.lucht` 0): springen en van een muurtje vallen
+maakt geen geluid, zo kom je achter een patrouille. Voetstappen op een andere vloer (een terras, een blok) hoort hij
+ook niet (`zichtNiveau`). Een vijand in rust hoort je als je binnen die afstand op
 zijn niveau staat (`zichtNiveau`). Daarnaast zijn er pulsen op een plek (`lawaaiPulsen`, `SNEAK.puls`, elk
 `duur` 0,35 s): het loslaten van een speer (klein, alleen vlakbij te horen, zodat een worp van achteren kan),
 een treffer op een vijand (in elke `hitX` en in `enemyTakeHit`, `hitHyena`), een klap op Amir (`hurtPlayer`),
@@ -31,7 +33,9 @@ Voor hem geldt gewoon het zicht; lawaai hoort hij ook als je voor hem buiten zij
 Sta je onopgemerkt achter een vijand binnen `SNEAK.argwaan.bereik` (2,4 Amir) op zijn niveau, dan loopt een klok
 (`s.sArg`, 0 tot 1): aan de rand `van` (3,6 s), pal achter hem `tot` (1,8 s), lineair ertussen. Vol, dan draait hij
 zich om (`s.sKijk`, `kijk` 0,8 s). Ziet hij je dan (de gewone zichtlijn, een kei verbergt niet), dan is hij wakker;
-anders draait hij terug en loopt de klok na `rust` (0,6 s) opnieuw. Loop je weg, dan zakt de klok weer. Dit is het
+anders draait hij terug en loopt de klok na `rust` (0,6 s) opnieuw. Loop je weg, dan zakt de klok weer. De klok loopt
+alleen met een vrije lijn van zijn ogen naar Amir (`sneakVoelt`, dezelfde `zichtLijnVrij` als het zicht): door een
+muurtje of een terras heen voelt hij niets, dus daarachter kun je wachten. Dit is het
 tijdraam: lopen tot net buiten gehoor, bukken, een stukje kruipen en steken duurt zo'n 1,5 s, de klok op die afstand
 geeft ongeveer 3 s. Wie treuzelt wordt gezien. Lion's Patience verdubbelt de klok.
 
@@ -45,9 +49,12 @@ te lopen, en draait zich in rust niet naar hem toe.
 - `rug: true`: hij staat met zijn rug naar de kant waar Amir vandaan komt (`zichtZet`: `face` van Amir af).
 - `draai: n`: in rust draait hij zich om de `n` seconden om, met `SNEAK.draaiSpreiding` (35%) speling, zodat je
   het niet op de tel kunt lopen. Kijkt hij dan jouw kant op, dan geldt het gewone zicht.
-- `pat: true` (alleen de bandiet): hij loopt in rust heen en weer om zijn plek (`sneakPatStap`, de staande
-  loop-set `walk`), `SNEAK.pat.breed` (1,8 Amir) aan elke kant, op `tempo` (0,45) van zijn rensnelheid, met een
-  pauze aan elk keerpunt; een kei, een rand of een ravijn keert hem ook (regel 7, `banMove`, `dropAhead`).
+- `pat: true` of `pat: 300` (alleen de bandiet): hij loopt in rust heen en weer om zijn plek (`sneakPatStap`, de
+  staande loop-set `walk`), `SNEAK.pat.breed` (1,8 Amir) of zoveel px aan elke kant, op `tempo` (0,45) van zijn
+  rensnelheid, en aan elk keerpunt staat hij `pauze` (3,5 s) stil met zijn rug naar waar hij vandaan kwam: dat is het
+  raam om hem te besluipen. Een kei, een rand of een ravijn keert hem ook (regel 7, `banMove`, `dropAhead`). Lopend
+  haal je hem niet in zonder gehoord te worden (hij loopt 216 px/s, jij 330, en op 324 px hoort hij je), dus de route
+  is: verstopt wachten tot hij omkeert, dan stil van boven achter hem komen (Test 61).
 
 Zonder vlaggen staat hij zoals altijd met zijn gezicht naar Amir en is er niets te sluipen: de rug moet uit het
 level komen (een vlag, of een route van boven langs hem heen). De hinderlaag-bandiet (`hurk`) houdt zijn eigen
@@ -85,6 +92,16 @@ Onder Vijanden, de rij **Sluipaanval**: **Sluipaanval** (`sbsneak`, zet Zicht me
 (`sbSneakSpawn` in `sbSpawn`), **Toon gehoor** (`sneakToon`, `sneakTeken`) tekent de strook op je vloer tot waar je
 voetstappen dragen en de pulsen als ringen. Soft Step en Lion's Patience staan bij hun tribe onder Speer.
 
+## Test 61: De sluipaanval
+
+Het testlevel (`TEST_61`, met toestemming, regel 3): een vlakke savanne met zeven vijanden met hun rug naar je toe,
+elk met een tip, ruim 1800 px uit elkaar. Een bandiet met `rug`, een met `draai: 7`, de patrouille (`pat: 300`) achter een
+muurtje van twee treden (150 en 300 hoog, 150 breed: springen is stil, van het blok vallen ook, en hij ziet en voelt je
+niet door het muurtje), een schildbandiet (makkelijk), een bandiet en een kooiman op 500 px (een sluipkill wekt de
+ander niet, een gevecht wel), een kruisboogbandiet die stil staat en een zweepman met `draai: 6`. Twee kalebassen.
+De patrouille is in px (300) zodat zijn keerpunt op elk scherm op 200 px van het blok ligt; vallen van het blok met
+losgelaten pijltje landt op zo'n 150 px achter hem, binnen de steek.
+
 ## Nagemeten
 
 In Chromium op 1280x720 (reikwijdte van de steek op een bandiet 280 wereld-px, lopend gehoord op 315) en op 852x393
@@ -92,4 +109,6 @@ In Chromium op 1280x720 (reikwijdte van de steek op een bandiet 280 wereld-px, l
 (de argwaan staat dan op zo'n 0,8); de worp van buiten zijn gehoor ook; sprintend hoort hij je van ver, met Soft
 Step op de helft; stil achter hem blijven staan en hij kijkt na 1,9 s (oude klok) om en ziet je; een bandiet met
 `draai: 4` draait om de 3 tot 5 s; de patrouille loopt heen en weer en ziet je aan het keerpunt als je in beeld
-staat. Geen console-fouten. Geen bestaand level heeft `sneak`.
+staat. Geen console-fouten. In Test 61 (Playwright, de echte speelroute): de eerste bandiet, de draaier (wachten buiten zicht tot hij
+wegdraait) en de patrouille (achter het muurtje wachten, treden op, aan de rand loslaten, steken) zijn alle drie een
+sluipkill; de speelrobot (die niet sluipt) komt vechtend tot de schildbandiet, zonder fouten.
