@@ -166,7 +166,9 @@ volgende stadsverbetering.
 
 1. [x] L1, slagschaduwen op de straat: suggestie 1 + 2 (pull request 611 en 613)
 2. [x] V1, figuren op de achtergrond: suggestie 1, het stadsvolk (de dorpelingen omgekleurd op de stoep, weg bij een gevecht), in Stad 1 en Sandville
-3. [ ] D1, gevelvarianten (de herhaling weg)
+3. [ ] D1, gevelvarianten (de herhaling weg): bezig. Suggestie 3 gekozen, echt andere huizen. Er zijn er drie
+   (reliefhuis, koopmanshuis, pilarenhuis, in zandtinten, met deur, ook in de Maker; zie "Huistypes" in `notities/stad.md`).
+   De opdrachtgever wil nog meer types voor hij D1 afvinkt.
 4. [ ] S2, de galerij warmer
 5. [ ] L2, lucht met stofwaas
 6. [ ] H1, de trap zonder fade

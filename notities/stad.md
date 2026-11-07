@@ -70,7 +70,12 @@ precies dezelfde hoogte als bij een oud huis, en kun je de types vrij door elkaa
   in elke hoogte, met een galerij over een oud huis en een reliefhuis. Daarnaast **Dichte straat**: tien huizen muur
   tegen muur (10 bronpx over elkaar, de randen zijn niet kaarsrecht). De breedte van een huis schaalt mee met het scherm,
   dus de knop rekent met de schaal van dat moment.
-- Nog niet: de Maker kent `soort` niet, en de verre rijen achter de straat (`STAD.rijen`) blijven de oude gevel.
+- **In de Maker.** Een gevel heeft in het paneel naast Hoogte de keuze **Type** (`MK_GEVEL_TYPES`, `mkGevelSoort`): Oud
+  huis, Reliefhuis, Koopmanshuis of Pilarenhuis. Het grid tekent het gekozen type, en `mkNaarLevel` zet `soort` in de gevel.
+- **Een type erbij.** Een Grok-plaat in `design/stad/bron/`, een regel in `SOORTEN` van `tools/gevel_soorten.py` (de maten
+  nameten op een raster), het script draaien, de uitvoer in `STAD.gevelSoort` en een regel in `MK_GEVEL_TYPES`, `KLEIN_FAM`
+  en de lijst van `gen-klein.py`.
+- Nog niet: de verre rijen achter de straat (`STAD.rijen`) blijven de oude gevel.
 
 ## Achter de kartels
 
