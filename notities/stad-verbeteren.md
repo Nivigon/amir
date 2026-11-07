@@ -161,7 +161,7 @@ De aanbevolen volgorde: eerst wat het meest oplevert per stuk werk. Het eerste o
 volgende stadsverbetering.
 
 1. [ ] L1, slagschaduwen op de straat (veel effect, weinig art); gebouwd: suggestie 1 + 2, wacht op akkoord
-2. [ ] V1, figuren op de achtergrond (het zwakste punt)
+2. [ ] V1, figuren op de achtergrond (het zwakste punt); gebouwd: suggestie 1 (de dorpelingen op de stoep, omgekleurd, weg bij een gevecht, sandbox **Stadsvolk**), wacht op akkoord. Verwacht 5, niet 6: de herhaling van twee sprites blijft zichtbaar. Eigen stadsfiguren (suggestie 2) maken V1 af
 3. [ ] D1, gevelvarianten (de herhaling weg)
 4. [ ] S2, de galerij warmer
 5. [ ] L2, lucht met stofwaas

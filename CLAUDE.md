@@ -206,6 +206,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | lift bij een galerij: het takelplateau voegt zich naar het eind van een galerij | `takelGalerijStap`, `mkLiftGalerij`, `galerij` | notities/stad.md |
 | slagschaduwen in de stad: de galerij op de muur, een hoger huis op een lager, huizen en kramen schuin over de straat | `STAD_SLAG`, `stadSlagMuur`, `stadSlagStraat` | notities/stad.md |
 | de stoep: een strook straat over de voet van de huizen, zodat niemand op de muurvoet staat | `STAD_STOEP`, `stadStoep`, `stadVoorTeken` | notities/stad.md |
+| stadsvolk: dorpelingen op de stoep, omgekleurd, weg als er gevochten wordt | `STAD_VOLK`, `volkTeken`, `volkRustig` | notities/stad.md |
 | de leemmuur: een terras met de look van de stad | `LEEM`, `leemMuurTeken`, `look: 'leem'` | notities/stad.md |
 | straten: losse straten met poorten ertussen, de minimap, aanvullen en een killdoel | `STRATEN`, `straatE`, `straatAanvul`, `straatHudTeken` | notities/oaktown.md |
 | knooppunten: een raster van straten met een poort de diepte in en een pad naar voren (Sandville) | `straatRaster`, `straatUitgangen`, `straatKnoopGa`, `straatGevelX` | notities/stad.md |
