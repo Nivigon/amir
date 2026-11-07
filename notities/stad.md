@@ -66,6 +66,12 @@ Een houten looprichel langs een gevel, 9-slice uit `galerij.png` (links, het mid
 meeschaalt. `h` is de hoogte van het dek (zonder `h` de tweede verdieping, 730, `stadVerdieping(2)`; de eerste is 401). Het dek is een dun platform: van
 onderen spring je erdoorheen. De reling staat achteraan, Amir loopt ervoor.
 
+Het plaatje toont het dek schuin van boven: de planken lopen in de bron van rij 104 (de achterrand, de voet van de
+leuning, `STAD.galerij.dek`) tot rond 165. De looplijn `h` valt op `STAD.galerij.voet` (132), midden op de planken.
+Lag die op de achterrand, dan leek wie erop liep erboven te zweven. `dek` blijft de achterrand: de openingen in de
+leuning en de doorgang (die de diepte in loopt vanaf de achterrand) rekenen daarmee; het tekenen van de galerij, het
+bordes van een trap en de Maker rekenen met `voet`.
+
 Amir springt 208 hoog. Een verdieping (329) is dus te hoog om zomaar te halen: een route naar boven gaat via de
 kraam, de doek, of galerijen die tussen twee verdiepingen hangen (Stad 1 heeft er drie boven elkaar langs de toren).
 
