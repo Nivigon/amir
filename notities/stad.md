@@ -57,9 +57,9 @@ precies dezelfde hoogte als bij een oud huis, en kun je de types vrij door elkaa
 - **Twee soorten verdieping.** Elke plaat heeft naast `ver` ook `alt`: de bovenste verdieping uit de Grok-plaat. De eerste
   verdieping is `ver` (de erker, de stokbundels), alles erboven `alt` (`stadGevelDelen`). Een koopmanshuis van vier hoog
   heeft dus een erker en daarboven twee gewone ramen.
-- **De deur.** Een huistype heeft zijn eigen deurgat, dus er staat geen dichte houten deur in. Alleen als er een vijand uit
-  komt (zie "Deuren") komt de deur erin, geschaald op dat gat (`deur` in `STAD.gevelSoort`, het gat ten opzichte van dat
-  van `gevel.png`; ook `stadDeurMaat` rekent ermee).
+- **De deur.** Voorlopig krijgt een huistype dezelfde houten deur als een oud huis, dicht of (soms) open, geschaald op
+  zijn eigen deurgat (`deur` in `STAD.gevelSoort`, het gat ten opzichte van dat van `gevel.png`; ook `stadDeurMaat`
+  rekent ermee). De latei van `gevel.png` komt er niet overheen, want elk type heeft zijn eigen kozijn.
 - **Lui geladen.** Een plaat laadt pas als een gevel in het level hem gebruikt (`stadSoortLaad`, vanuit `stadLaadLevel`). Tot
   hij binnen is, tekent `stadGevelG` de oude gevel.
 - **De platen maken.** `tools/gevel_soorten.py` maakt ze uit de Grok-platen in `design/stad/bron/` (`gevel_<soort>_grok.jpg`):
@@ -67,7 +67,9 @@ precies dezelfde hoogte als bij een oud huis, en kun je de types vrij door elkaa
   maat. Het print de maten voor `STAD.gevelSoort` en zet ze in `metadata.json` (`gevel_soorten`). Daarna `gen-klein.py` en
   `gen-offline-manifest.py`.
 - **Sandbox.** Onder Terrein, bij De stad, de knop **Huistypes**: een straat met de oude gevel en de drie types door elkaar,
-  in elke hoogte, met een galerij over een oud huis en een reliefhuis.
+  in elke hoogte, met een galerij over een oud huis en een reliefhuis. Daarnaast **Dichte straat**: tien huizen muur
+  tegen muur (10 bronpx over elkaar, de randen zijn niet kaarsrecht). De breedte van een huis schaalt mee met het scherm,
+  dus de knop rekent met de schaal van dat moment.
 - Nog niet: de Maker kent `soort` niet, en de verre rijen achter de straat (`STAD.rijen`) blijven de oude gevel.
 
 ## Achter de kartels
