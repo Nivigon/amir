@@ -140,13 +140,15 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
   Bij een draai of de zwaai valt een snee soms (deels) buiten zijn lijf en is dan niet te zien. Bij zijn dood speelt
   ook het bloedgeluid (`bloedSpeel`).
 - **Zijn gezicht in de knots** (`BRU.bloed.dood`, `bruKopBloedStart`, `bruKopStroomTeken`, `bruBalBloedTeken`): hij valt
-  in de val met zijn gezicht in zijn eigen knots. De bal ligt achter hem, en vanaf de klap (`BRU.valKlap`) wordt het stuk
-  onder een grillige lijn (`voor`) nog eens over zijn mond en kin getekend, zodat ze elkaar beide kanten op overlappen.
-  Helemaal ervoor leek het of hij erachter lag, helemaal erachter of hij erop lag; de naad is nog zichtbaar, een
-  eigen ligframe met zijn gezicht in de bal (Grok) zou het echt oplossen. Op de klap speelt het bloedgeluid nog een keer, met de natte
+  in de val met zijn gezicht in zijn eigen knots. De bal ligt achter hem, en vanaf de klap (`BRU.valKlap`) snijden we
+  zijn gezicht weg waar de bal erin zit, zoals de snee bij de schildman (`bruKnotsGat`, `gat`): een grillige cirkel van
+  `straal` keer de straal van de bal rond het midden van de bal (met de zak in de vloer mee), kleiner dan de bal zelf,
+  zodat zijn hoofd over de buitenrand van de bal ligt en de bal in het midden door de wond te zien is. Langs de snee een
+  wondrand op zijn lijf: donker, bloed, brokjes vlees (`brok`) en een glim. Helemaal ervoor leek het of hij erachter lag,
+  helemaal erachter of hij erop lag, en een gat zo groot als de bal zag eruit als de bal ervoor. Op de klap speelt het bloedgeluid nog een keer, met de natte
   speerklap eronder (`natVol`), en spat er bloed uit zijn gezicht. Het bloed is dat van de schildman na de executie, niet
   in code getekend: onder de bal vandaan stroomt in `stroom.groei` s de stroom onder het lijk van de schildman over de
-  grond (`design/bloed/nyundo_stroom.png`, geknipt door `tools/nyundo_bloed.py` uit `einde_val_15.png`), en op de bal
+  grond (`design/bloed/nyundo_stroom.png`, geknipt door `tools/nyundo_bloed.py` uit `einde_val_15.png`, niet over de bal), en op de bal
   loopt de druiper `einde_bloed.png` naar beneden, binnen de bal geknipt (`bal`). Liggende druppels op de plek van de
   bal (`bal.van` tot `bal.tot`) worden weggehaald, anders lag er een rode streep dwars door de weggezakte bal.
 - **Speertreffer**: `sounds/brutus_speerraak.mp3` op elke treffer (een tijdelijk, in ffmpeg gemaakt geluid: een doffe

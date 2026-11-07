@@ -31716,7 +31716,10 @@ const BRU = {
            dood: { kop: { x: -232, y: -24 }, spat: 10, spatV: 220, natVol: 0.7,
                    stroom: { x: -296, y: 13, schaal: 1.5, groei: 3.5 },
                    // de bal: van/tot is waar hij ligt (daar liggen geen druppels), en de druiper erop (bruBalBloedTeken)
-                   voor: { x1: -320, y1: -30, x2: -200, y2: -18, golf: 3 },   // de lijn waaronder de bal over zijn gezicht ligt (grillig)
+                   // het gat: waar de bal in zijn gezicht zit snijden we hem weg (zoals de snee bij de schildman), straal in
+                   // delen van de straal van de bal, met een wondrand van rand (donker), bloed en vlees, die in op s opkomt
+                   gat: { straal: 0.58, golf: [0.09, 7, 0.06, 15], rand: 6, op: 0.5,
+                          donker: '#2e0306', bloed: '#7a0c12', vlees: '#a8464b', glim: 'rgba(214,110,112,0.55)', brok: 16 },
                    bal: { van: -312, tot: -207, x: 0.62, y: -0.95, h: 1.5, op: 0.8, groei: 2.5 } } },
   knotsLig: 1.72, valKlap: 104,    // de losse knots kantelt tot deze hoek (rad); in de val is het frame met bron >= valKlap de klap op de grond
   // zo zwaar is de knots: bij de klap zakt hij zak grote-set-px in de vloer, in tijd s (eerst hard, dan nog wat na),
@@ -32733,8 +32736,40 @@ function bruKopStroomTeken(s, gs){
   const ver = w * (0.08 + 0.92 * k);                          // zo ver is het al gestroomd
   ctx.save(); ctx.globalAlpha = al;
   ctx.beginPath(); ctx.rect(x, y - 4, ver, h + 8); ctx.clip();
+  const kn = bruData && bruData.knots;                        // niet over de bal heen: die ligt ervoor op de vloer
+  if (kn && s.knots){ const r = kn.w / 2;
+    ctx.beginPath(); ctx.rect(-4000, -4000, 8000, 8000);
+    ctx.arc((kn.dx + r) * gs, (kn.dy + kn.h - r + BRU.knotsZak.zak * bruKnotsZakK(s.knots)) * gs, r * 0.92 * gs, 0, Math.PI * 2, true); ctx.clip('evenodd'); }
   ctx.drawImage(im, x, y, w, h);
   ctx.restore();
+}
+// hoe ver de knots al in de vloer gezakt is (0 tot 1), eerst hard en dan nog wat na
+function bruKnotsZakK(K){ const zt = K.zakT === undefined ? 0 : K.zakT; return 1 - (1 - zt) * (1 - zt); }
+// het gat in zijn gezicht waar de bal in zit: zijn pixels binnen de bal (met een grillige rand) zijn weg, zodat de bal
+// erachter door het gat te zien is, en langs de snee een wondrand: donker, bloed, brokjes vlees en een glim
+function bruKnotsGat(im, fr, gs, s, K, kn){
+  const G = BRU.bloed.dood.gat, r = kn.w / 2;
+  const W2 = Math.max(1, Math.round(fr.w * gs)), H2 = Math.max(1, Math.round(fr.h * gs));
+  const wd = werkDoek('bruGat', W2, H2), g = wd.getContext('2d');
+  g.clearRect(0, 0, W2, H2); g.drawImage(im, 0, 0, W2, H2);
+  const cx = (kn.dx + r - fr.dx) * gs, cy = (kn.dy + kn.h - r + BRU.knotsZak.zak * bruKnotsZakK(K) - fr.dy) * gs;
+  const R = r * G.straal * gs, [a1, f1, a2, f2] = G.golf;
+  const rand = (t, d) => { g.beginPath();
+    for (let i = 0; i <= 72; i++){ const t2 = i / 72 * Math.PI * 2, q = R * (1 + a1 * Math.sin(f1 * t2 + 1) + a2 * Math.sin(f2 * t2)) + d;
+      g[i ? 'lineTo' : 'moveTo'](cx + Math.cos(t2) * q, cy + Math.sin(t2) * q); } g.closePath(); };
+  const op = Math.min(1, s.kopBloed / G.op), d = G.rand * gs;
+  g.globalCompositeOperation = 'source-atop';                // de wondrand, alleen op zijn lijf
+  g.globalAlpha = 0.6 + 0.4 * op;
+  rand(0, d); g.fillStyle = G.donker; g.fill();
+  rand(0, d * 0.7); g.fillStyle = G.bloed; g.fill();
+  g.fillStyle = G.vlees;                                     // brokjes vlees langs de snee (vaste plekken, geen geflikker)
+  for (let i = 0; i < G.brok; i++){ const t = i * 2.399 + 0.6, q = R + d * 0.35;
+    g.beginPath(); g.ellipse(cx + Math.cos(t) * q, cy + Math.sin(t) * q, d * (0.35 + 0.2 * Math.sin(i * 3.1)), d * 0.25, t, 0, Math.PI * 2); g.fill(); }
+  rand(0, d * 0.55); g.strokeStyle = G.glim; g.lineWidth = Math.max(1, 0.8 * gs); g.stroke();
+  g.globalAlpha = 1; g.globalCompositeOperation = 'destination-out';   // het gat zelf
+  rand(0, 0); g.fill();
+  g.globalCompositeOperation = 'source-over';
+  return wd;
 }
 // de druiper van de schildman (einde_bloed.png) op de bal, aan de kant van zijn gezicht, binnen de bal geknipt; komt op in op s.
 // Vanuit het midden van de bal, in de gespiegelde ruimte van bruTeken (x en y in delen van de straal)
@@ -32781,35 +32816,25 @@ function bruTeken(s, bodyX, voeten, gs){
   // de losse knots: de bal blijft liggen, de steel klapt van hem weg om. Tot de klap van zijn val achter hem, daarna
   // ervoor: hij valt met zijn gezicht in de pinnen (BRU.bloed.dood)
   const inKnots = s.kopBloed !== undefined;
-  // voor: alleen het stuk onder de lijn BRU.bloed.dood.voor, over zijn mond en kin heen (zijn voorhoofd en oog liggen
-  // over de rest van de bal): zo overlappen ze elkaar beide kanten op en zit zijn gezicht in de bal
-  const knotsTeken = voor => { if (!(K && ki && imgReady(ki))) return;
+  const knotsTeken = () => { if (!(K && ki && imgReady(ki))) return;
     const r = kn.w / 2, px = (kn.dx + r) * gs, py = (kn.dy + kn.h - r) * gs;   // het midden van de bal
     const Z = BRU.knotsZak, zt = K.zakT === undefined ? -1 : K.zakT;
     ctx.save();
-    if (voor){
-      const V = BRU.bloed.dood.voor;
-      ctx.beginPath(); ctx.moveTo(V.x1 * gs, V.y1 * gs);
-      for (let i = 1; i <= 12; i++){ const t = i / 12; ctx.lineTo((V.x1 + (V.x2 - V.x1) * t) * gs, (V.y1 + (V.y2 - V.y1) * t + V.golf * Math.sin(t * 17)) * gs); }
-      ctx.lineTo(V.x2 * gs, 400 * gs); ctx.lineTo(V.x1 * gs, 400 * gs); ctx.closePath(); ctx.clip();
-    }
-    if (zt >= 0 && !voor){                                            // geland: hij zakt een stuk in de vloer, de rest is weg onder de vloerlijn
+    if (zt >= 0){                                            // geland: hij zakt een stuk in de vloer, de rest is weg onder de vloerlijn
       const rand = Z.rand * gs, dw = r * gs * 1.25;
       ctx.fillStyle = 'rgba(28,16,8,' + (Z.deuk * Math.min(1, zt * 2)).toFixed(3) + ')';   // de deuk
       ctx.beginPath(); ctx.ellipse(px, rand, dw, dw * 0.16, 0, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.rect(-4000, -4000, 8000, 4000 + rand); ctx.clip();
-    }
-    if (zt >= 0){
-      if (voor){ ctx.beginPath(); ctx.rect(-4000, -4000, 8000, 4000 + Z.rand * gs); ctx.clip(); }
-      ctx.translate(0, Z.zak * gs * (1 - (1 - zt) * (1 - zt)));
+      ctx.translate(0, Z.zak * gs * bruKnotsZakK(K));
     }
     ctx.translate(px, py); ctx.save(); ctx.rotate(-K.hoek); ctx.drawImage(ki, -r * gs, -(kn.h - r) * gs, kn.w * gs, kn.h * gs); ctx.restore();
-    if (voor) bruBalBloedTeken(s, r, gs);                  // het bloed op de pinnen waar zijn gezicht in zit
+    if (inKnots) bruBalBloedTeken(s, r, gs);                  // het bloed op de pinnen waar zijn gezicht in zit
     ctx.restore();
   };
-  knotsTeken(false);
+  knotsTeken();
   const beeld = s.flash > 0 ? whiteCopy(im, s.flash * 4) : im;
   let laag = s.snedes && s.snedes.length ? zwmSneeLaag(beeld, fr, gs, s.snedes) : beeld;
+  if (inKnots && K && kn) laag = bruKnotsGat(laag, fr, gs, s, K, kn);   // de bal zit in zijn gezicht: daar is hij weg, met een wondrand
   const g = (s.gloed || 0) * (s.state === 'dood' ? 1 - (s.weg || 0) : 1);
   if (g > 0.01){                                           // de woede: rood lijf en een gloed om zijn silhouet
     const G = BRU.gloed, puls = bruPuls(s), klap = Math.max(0, s.woedeKlap || 0);
@@ -32818,7 +32843,7 @@ function bruTeken(s, bodyX, voeten, gs){
     ctx.shadowBlur = (G.blur[0] + G.blur[1] * puls + 40 * klap) * gs;
   }
   ctx.drawImage(laag, fr.dx * gs, fr.dy * gs, fr.w * gs, fr.h * gs);
-  if (inKnots){ ctx.shadowBlur = 0; ctx.shadowColor = 'transparent'; bruKopStroomTeken(s, gs); knotsTeken(true); }   // het bloed onder zijn gezicht, het onderste stuk van de bal ervoor
+  if (inKnots){ ctx.shadowBlur = 0; ctx.shadowColor = 'transparent'; bruKopStroomTeken(s, gs); }   // het bloed onder zijn gezicht
   ctx.restore();
   zwmDruppelTeken(s, bodyX, voeten, gs, 1);
   bruVonkTeken(s, bodyX, voeten, gs);
