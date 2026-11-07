@@ -285,7 +285,7 @@ zitten. Het plafond van de kamer eronder en de vloer van de kamer erboven zijn z
   (`stadLaadLevel`).
 - Een vijand loopt erop zoals op elke zwever. Liggen er twee boven elkaar (vloer en plafond), dan staat hij op de onderste
   waar hij hoort: `vloerBij` kijkt na de oude regel (de hoogste laag) ook naar een lagere houten vloer. Een spawn met
-  `vloer: 450` staat bij het begin op die hoogte (bandiet).
+  `vloer: 600` staat bij het begin op die hoogte (bandiet).
 - In de Maker: **Vloer: hout** (Terrein, groep Stad, letter B; intern nog `balken`). Een blok boven de grondlijn wordt een
   zwever met deze look. In de sandbox onder De stad **Houten vloer**.
 - De oude balkenvloer (`look: 'balken'`, een losse strook) is weg.
@@ -293,21 +293,27 @@ zitten. Het plafond van de kamer eronder en de vloer van de kamer erboven zijn z
 ## Binnen: de binnenkant van een huis
 
 `BINNEN`, `binnenBij`, `binnenEBij`, `binnenE`, `binnenKlem`, `binnenCamKlem`, `binnenVijandKlem`, `binnenAchter`, `binnenNa`,
-`binnenLadder`, `binnenLaadLevel`
+`binnenLadder`, `binnenLaadLevel`, `binnenHeeftDeur`
 
 ```
-binnen: [{ gevel, r, l, deur, ramen: [{x, h}], palen: [{x, h}], ladders: [{x, van, naar, f}] }]
+binnen: [{ gevel, r, l, deur, ramen: [{x, h}], palen: [{x, h}], ladders: [{x, van, naar, f}], bogen: [{x, naar}] }]
 ```
 
 Elk huis met een binnenkant is een eigen strook ver van de straat (van `r` tot `l`, in Stad 7 op -20000, -30000 en -40000).
 
 - **In en uit**: voor het deurgat van gevel `gevel` (`stadDeurMaat`, verdieping 0) staat een E; E en het beeld wordt even
   zwart (`BINNEN.fade`, via `stadTrapFade` met `binnen: true`: de camera springt mee, geen glijvlucht) en je staat binnen bij
-  de boogdeur (`deur`, een wereld-x op de begane grond). E bij die deur en je staat weer buiten voor het deurgat. Niet in een
-  gevecht (`stadInGevecht`), net als de stadstrap.
+  de deur (`deur`, een wereld-x op de begane grond). E bij die deur en je staat weer buiten voor het deurgat. Niet in een
+  gevecht (`stadInGevecht`), net als de stadstrap. Die deur is recht met een houten latei, net als het deurgat buiten
+  (`binnen/deur_recht.png`, gemaakt uit de boogdeur en de latei van `gevel.png` met `tools/binnen_deur_recht.py`).
+- **De binnenpoort**: de ronde boogdeur (`binnen/deur.png`) is de doorgang naar een volgende kamer in hetzelfde pand. Een boog
+  op `x` (begane grond) brengt je met E naar de boog op `naar`, in een andere strook; je komt een stap de kamer in uit, met je
+  gezicht ernaartoe. Dezelfde fade, en ook niet in een gevecht. Een kamer zonder `gevel` (`gevel: null`, geen `deur`) heeft geen
+  deur naar buiten: je komt er alleen via een boog (`binnenHeeftDeur`). Zet een boog altijd in paren, een in elke kamer.
 - **De ladder** werkt als de stadstrap: E bij de voet of bovenaan, het beeld dimt even en je staat aan de andere kant; niet
   in een gevecht. De voet staat op `x` op vloer `van`, de top leunt naar links (met `f` naar rechts) en `binnenLadder` geeft
-  waar hij uitkomt: de rand van de vloer erboven hoort daar (in Stad 7 ligt die 125 voorbij de voet bij een verdieping van 450).
+  waar hij de hoek van de vloer erboven raakt (`rand`): daar hoort de rand van die vloer, zodat hij ertegen leunt (in Stad 7
+  133 voorbij de voet bij een verdieping van 600). Hij wordt voor de vloer getekend (in `binnenNa`), met de vork erboven uit.
 - **Vast in het huis**: Amir (`binnenKlem`, in plaats van de klif), de camera (`binnenCamKlem`) en de vijanden
   (`binnenVijandKlem`) blijven tussen `l` en `r`. Binnen geeft `endWall()` geen grens, anders hielden de botsingen van de
   vijanden ze tegen (het huis ligt voorbij de klif van de straat).
@@ -315,16 +321,22 @@ Elk huis met een binnenkant is een eigen strook ver van de straat (van `r` tot `
   duwt hem niet naar buiten beeld); dus allemaal tegelijk, al tijdens de fade.
 - **Tekenen**: `binnenAchter` (voor de zwevers) tekent de binnenmuur (`binnen/wand.jpg`, getegeld en vast aan de wereld, tot
   het hoogste plafond; daarboven donker), een plint langs elke vloer, de ramen (`raam_1.png`), de gevorkte palen (`paal_1..5`,
-  de vork en de voet op maat, de stam ertussen herhaald tot onder het plafond, `binnenPlafond`), de ladders (`ladder_1..3`) en
-  de boogdeur (`deur.png`). `binnenNa` (na de zwevers, voor de personages) legt het schemer over alles (`BINNEN.donker`, de
+  de vork en de voet op maat, de stam ertussen herhaald tot onder het plafond, `binnenPlafond`), en
+  de boogdeur (`deur.png`). `binnenNa` (na de zwevers, voor de personages) tekent de ladders en legt het schemer over alles (`BINNEN.donker`, de
   personages blijven helder), donkere zijmuren, en dan het licht: het glas gloeit, een lichtbundel valt schuin naar de vloer
-  (`BINNEN.bundel`) met een lichtvlek, en stofjes zweven door de kamer (`BINNEN.stof`), zacht in het schemer en helder in een
+  (`BINNEN.bundel`) met een lichtvlek, en veel stofjes zweven door de kamer (`BINNEN.stof`), zacht in het schemer en helder in een
   bundel. Buiten tekent hij alleen de E bij het deurgat.
+- **Amir in de bundel**: het licht valt ook op hem (en op de vijanden die op `persLicht` aangesloten zijn, zie `notities/licht-personages.md`). Na zijn frame legt `binnenLichtOp` een warme kopie ervan met 'lighter'
+  over hem, geknipt op de vorm van de bundel (`binnenBundels`, `binnenBundelPad`), zodat de lichtgrens schuin over zijn lijf
+  loopt als hij erdoor stapt. Waar hij de bundel afdekt (`binnenBundelDek`) ligt zijn silhouet in de lichtvlek op de vloer,
+  van het raam af (`binnenBundelSchaduw`, vanuit `amirSchaduw`). Kleur, sterkte en schaduw in `BINNEN.licht`. De schaduw in de
+  lichtvlek is alleen er voor Amir.
 - `levelcheck.py` kent de stroken (`binnen_strook`): wat erin staat is niet "voorbij het einde", en tussen de zwevers van twee
   huizen hoeft niet gesprongen te worden.
 
-Stad 7: Binnen is het proefstuk (drie huizen: een zaal op palen, en twee met een verdieping en een ladder, een keer gespiegeld).
-In de sandbox onder De stad: **Huis met binnenkant**.
+Stad 7: Binnen is het proefstuk, met 450 vrije hoogte onder en boven een verdieping (drie huizen: een zaal op palen met achterin
+een boog naar een kamer erachter, en twee met een verdieping en een ladder, een keer gespiegeld). In de sandbox onder De stad:
+**Huis met binnenkant** (met een boog achterin en een kamer erachter).
 
 ## Straten en knooppunten (Sandville)
 
