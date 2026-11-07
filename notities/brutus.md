@@ -140,8 +140,10 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
   Bij een draai of de zwaai valt een snee soms (deels) buiten zijn lijf en is dan niet te zien. Bij zijn dood speelt
   ook het bloedgeluid (`bloedSpeel`).
 - **Zijn gezicht in de knots** (`BRU.bloed.dood`, `bruKopBloedStart`, `bruKopStroomTeken`, `bruBalBloedTeken`): hij valt
-  in de val met zijn gezicht in zijn eigen knots. Tot de klap ligt de bal achter hem, vanaf de klap (`BRU.valKlap`) ervoor,
-  zodat zijn gezicht in de pinnen zit in plaats van erop. Op de klap speelt het bloedgeluid nog een keer, met de natte
+  in de val met zijn gezicht in zijn eigen knots. De bal ligt achter hem, en vanaf de klap (`BRU.valKlap`) wordt het stuk
+  onder een grillige lijn (`voor`) nog eens over zijn mond en kin getekend, zodat ze elkaar beide kanten op overlappen.
+  Helemaal ervoor leek het of hij erachter lag, helemaal erachter of hij erop lag; de naad is nog zichtbaar, een
+  eigen ligframe met zijn gezicht in de bal (Grok) zou het echt oplossen. Op de klap speelt het bloedgeluid nog een keer, met de natte
   speerklap eronder (`natVol`), en spat er bloed uit zijn gezicht. Het bloed is dat van de schildman na de executie, niet
   in code getekend: onder de bal vandaan stroomt in `stroom.groei` s de stroom onder het lijk van de schildman over de
   grond (`design/bloed/nyundo_stroom.png`, geknipt door `tools/nyundo_bloed.py` uit `einde_val_15.png`), en op de bal

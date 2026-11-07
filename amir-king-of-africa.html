@@ -31716,6 +31716,7 @@ const BRU = {
            dood: { kop: { x: -232, y: -24 }, spat: 10, spatV: 220, natVol: 0.7,
                    stroom: { x: -296, y: 13, schaal: 1.5, groei: 3.5 },
                    // de bal: van/tot is waar hij ligt (daar liggen geen druppels), en de druiper erop (bruBalBloedTeken)
+                   voor: { x1: -320, y1: -30, x2: -200, y2: -18, golf: 3 },   // de lijn waaronder de bal over zijn gezicht ligt (grillig)
                    bal: { van: -312, tot: -207, x: 0.62, y: -0.95, h: 1.5, op: 0.8, groei: 2.5 } } },
   knotsLig: 1.72, valKlap: 104,    // de losse knots kantelt tot deze hoek (rad); in de val is het frame met bron >= valKlap de klap op de grond
   // zo zwaar is de knots: bij de klap zakt hij zak grote-set-px in de vloer, in tijd s (eerst hard, dan nog wat na),
@@ -32780,22 +32781,33 @@ function bruTeken(s, bodyX, voeten, gs){
   // de losse knots: de bal blijft liggen, de steel klapt van hem weg om. Tot de klap van zijn val achter hem, daarna
   // ervoor: hij valt met zijn gezicht in de pinnen (BRU.bloed.dood)
   const inKnots = s.kopBloed !== undefined;
-  const knotsTeken = () => { if (!(K && ki && imgReady(ki))) return;
+  // voor: alleen het stuk onder de lijn BRU.bloed.dood.voor, over zijn mond en kin heen (zijn voorhoofd en oog liggen
+  // over de rest van de bal): zo overlappen ze elkaar beide kanten op en zit zijn gezicht in de bal
+  const knotsTeken = voor => { if (!(K && ki && imgReady(ki))) return;
     const r = kn.w / 2, px = (kn.dx + r) * gs, py = (kn.dy + kn.h - r) * gs;   // het midden van de bal
     const Z = BRU.knotsZak, zt = K.zakT === undefined ? -1 : K.zakT;
     ctx.save();
-    if (zt >= 0){                                            // geland: hij zakt een stuk in de vloer, de rest is weg onder de vloerlijn
+    if (voor){
+      const V = BRU.bloed.dood.voor;
+      ctx.beginPath(); ctx.moveTo(V.x1 * gs, V.y1 * gs);
+      for (let i = 1; i <= 12; i++){ const t = i / 12; ctx.lineTo((V.x1 + (V.x2 - V.x1) * t) * gs, (V.y1 + (V.y2 - V.y1) * t + V.golf * Math.sin(t * 17)) * gs); }
+      ctx.lineTo(V.x2 * gs, 400 * gs); ctx.lineTo(V.x1 * gs, 400 * gs); ctx.closePath(); ctx.clip();
+    }
+    if (zt >= 0 && !voor){                                            // geland: hij zakt een stuk in de vloer, de rest is weg onder de vloerlijn
       const rand = Z.rand * gs, dw = r * gs * 1.25;
       ctx.fillStyle = 'rgba(28,16,8,' + (Z.deuk * Math.min(1, zt * 2)).toFixed(3) + ')';   // de deuk
       ctx.beginPath(); ctx.ellipse(px, rand, dw, dw * 0.16, 0, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.rect(-4000, -4000, 8000, 4000 + rand); ctx.clip();
+    }
+    if (zt >= 0){
+      if (voor){ ctx.beginPath(); ctx.rect(-4000, -4000, 8000, 4000 + Z.rand * gs); ctx.clip(); }
       ctx.translate(0, Z.zak * gs * (1 - (1 - zt) * (1 - zt)));
     }
     ctx.translate(px, py); ctx.save(); ctx.rotate(-K.hoek); ctx.drawImage(ki, -r * gs, -(kn.h - r) * gs, kn.w * gs, kn.h * gs); ctx.restore();
-    if (inKnots) bruBalBloedTeken(s, r, gs);                  // het bloed op de pinnen waar zijn gezicht in zit
+    if (voor) bruBalBloedTeken(s, r, gs);                  // het bloed op de pinnen waar zijn gezicht in zit
     ctx.restore();
   };
-  if (!inKnots) knotsTeken();
+  knotsTeken(false);
   const beeld = s.flash > 0 ? whiteCopy(im, s.flash * 4) : im;
   let laag = s.snedes && s.snedes.length ? zwmSneeLaag(beeld, fr, gs, s.snedes) : beeld;
   const g = (s.gloed || 0) * (s.state === 'dood' ? 1 - (s.weg || 0) : 1);
@@ -32806,7 +32818,7 @@ function bruTeken(s, bodyX, voeten, gs){
     ctx.shadowBlur = (G.blur[0] + G.blur[1] * puls + 40 * klap) * gs;
   }
   ctx.drawImage(laag, fr.dx * gs, fr.dy * gs, fr.w * gs, fr.h * gs);
-  if (inKnots){ ctx.shadowBlur = 0; ctx.shadowColor = 'transparent'; bruKopStroomTeken(s, gs); knotsTeken(); }   // het bloed onder zijn gezicht, de bal ervoor
+  if (inKnots){ ctx.shadowBlur = 0; ctx.shadowColor = 'transparent'; bruKopStroomTeken(s, gs); knotsTeken(true); }   // het bloed onder zijn gezicht, het onderste stuk van de bal ervoor
   ctx.restore();
   zwmDruppelTeken(s, bodyX, voeten, gs, 1);
   bruVonkTeken(s, bodyX, voeten, gs);
