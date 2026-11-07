@@ -23389,6 +23389,7 @@ const BINNEN = {
   ladderBoven: 0.45,     // zoveel steekt de ladder (de vork) boven de vloer uit, in Amir
   bundel: 0.75,          // de lichtbundel schuift zoveel opzij per eenheid die hij zakt
   stof: 70,              // stofjes per schermbreedte
+  licht: { kleur: 'rgb(255,168,84)', op: 0.26, schaduw: 0.55, plat: 0.14 },   // Amir in een bundel: hoe warm en fel, en zijn schaduw in de lichtvlek
   fade: { uit: 0.25, glij: 0.05, in: 0.32, dim: 1 }   // het huis in en uit: even zwart, geen glijvlucht
 };
 let binnenImgs = null;
@@ -23532,6 +23533,75 @@ function binnenAchter(groundY, scale, cx){
   if (imgReady(I.deur)) binnenPlaat(I.deur, b.deur, binnenVloer(b.deur, 0) - 0.02 * CHAR_H, BINNEN.deurAmir * A * I.deur.naturalWidth / I.deur.naturalHeight, groundY, scale, cx);
   ctx.restore();
 }
+// de lichtbundels van de ramen in het huis waar de camera is, op het scherm: { sx, sy, breed, x0, x1, y, vy, opzij, mx }.
+// De bundel valt van het glas (x0..x1 op y) schuin naar de vloer (vy) en schuift daarbij opzij; mx is het midden van de
+// lichtvlek op de vloer. binnenNa tekent ze, binnenLichtOp en binnenBundelSchaduw leggen er Amir in.
+function binnenBundels(groundY, scale, cx){
+  const b = binnenBij(world), I = binnenImgs;
+  if (!b || !I || !imgReady(I.raam)) return [];
+  const A = CHAR_H * scale, uit = [];
+  for (const r of (b.ramen || [])){
+    const breed = BINNEN.raamAmir * A, hgt = breed * I.raam.naturalHeight / I.raam.naturalWidth;
+    const sx = cx + (r.x - world), sy = groundY - r.h * scale, vy = groundY - binnenVloer(r.x, r.h) * scale;
+    const gx = breed * 0.26, y0 = sy - hgt * 0.2, opzij = (vy - y0) * BINNEN.bundel;
+    uit.push({ sx, sy, breed, x0: sx - gx, x1: sx + gx, y: y0, vy, opzij, mx: sx - gx + opzij + 0.1 * A, A });
+  }
+  return uit;
+}
+function binnenBundelPad(q, nieuw = true){
+  if (nieuw) ctx.beginPath();
+  ctx.moveTo(q.x0, q.y); ctx.lineTo(q.x1, q.y); ctx.lineTo(q.x1 + q.opzij, q.vy); ctx.lineTo(q.x0 + q.opzij - 0.15 * q.A, q.vy); ctx.closePath();
+}
+// hoeveel van de bundel q over de rechthoek (x, y, w, h) valt, 0 tot 1: de breedte van de bundel op de hoogte van zijn
+// borst, tegen de breedte van zijn lijf
+function binnenBundelDek(q, x, y, w, h){
+  const ym = Math.max(q.y, Math.min(q.vy, y + h * 0.45)), t = (ym - q.y) / Math.max(1, q.vy - q.y);
+  const bl = q.x0 + t * (q.opzij - 0.15 * q.A), br = q.x1 + t * q.opzij;
+  const l = x + w * 0.3, r = x + w * 0.7;                   // het lijf, niet de lege rand van het plaatje
+  if (y > q.vy || y + h < q.y) return 0;
+  return Math.max(0, Math.min(r, br) - Math.max(l, bl)) / Math.max(1, r - l);
+}
+// Amir in een lichtbundel: het licht valt op hem. Een warme kopie van zijn frame komt er met 'lighter' overheen, maar alleen
+// binnen de bundel, zodat de grens van het licht over zijn lijf loopt als hij erdoor stapt.
+let binnenLichtCv = null;
+function binnenLichtOp(beeld, x, y, w, h, flip, groundY, scale, cx){
+  if (!binnenLijst().length) return;
+  const bundels = binnenBundels(groundY, scale, cx).filter(q => binnenBundelDek(q, x, y, w, h) > 0 || (x < q.x1 + q.opzij && x + w > q.x0 - 0.15 * q.A && y < q.vy && y + h > q.y));
+  if (!bundels.length) return;
+  const bw = beeld.naturalWidth || beeld.width, bh = beeld.naturalHeight || beeld.height;
+  if (!bw || !bh) return;
+  if (!binnenLichtCv) binnenLichtCv = document.createElement('canvas');
+  if (binnenLichtCv.width !== bw || binnenLichtCv.height !== bh){ binnenLichtCv.width = bw; binnenLichtCv.height = bh; }
+  const g = binnenLichtCv.getContext('2d');
+  g.globalCompositeOperation = 'source-over'; g.clearRect(0, 0, bw, bh);
+  g.drawImage(beeld, 0, 0, bw, bh);
+  g.globalCompositeOperation = 'source-in'; g.fillStyle = BINNEN.licht.kleur; g.fillRect(0, 0, bw, bh);
+  ctx.save();
+  ctx.beginPath(); for (const q of bundels) binnenBundelPad(q, false); ctx.clip();
+  ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= BINNEN.licht.op;
+  ctx.translate(x, y); if (flip){ ctx.translate(w, 0); ctx.scale(-1, 1); }
+  ctx.drawImage(binnenLichtCv, 0, 0, w, h);
+  ctx.restore();
+}
+// en waar hij in de bundel staat, houdt hij het licht tegen: zijn silhouet ligt in de lichtvlek op de vloer, van het raam
+// af (naar rechts, zoals de bundel valt), zo sterk als hij de bundel afdekt. Na binnenNa, net als zijn gewone schaduw.
+function binnenBundelSchaduw(img, x, y, w, h, flip, pcx, voetY, shY, scale, groundY, cx){
+  if (!binnenLijst().length || !img || !img.naturalWidth) return;
+  const S = BINNEN.licht;
+  for (const q of binnenBundels(groundY, scale, cx)){
+    const dek = binnenBundelDek(q, x, y, w, h);
+    if (dek <= 0.02 || Math.abs(shY - q.vy) > 0.3 * q.A) continue;   // niet op de vloer waar deze bundel valt
+    const hoog = Math.max(0, (shY - voetY) / scale);
+    const blijft = Math.max(0, 1 - hoog / AMIR_SCHADUW.wegSil);
+    if (blijft <= 0) continue;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(q.mx - 1.6 * q.A, q.vy - 0.6 * q.A, 3.2 * q.A, 0.9 * q.A); ctx.clip();
+    const a0 = ctx.globalAlpha;
+    ctx.globalAlpha = a0 * S.schaduw * Math.min(1, dek * 1.4) * blijft;
+    amirSilLeg(amirSilhouet(img, AMIR_SCHADUW.kleur), x, y, w, h, flip, pcx, voetY, shY, BINNEN.bundel, S.plat);
+    ctx.restore();
+  }
+}
 // deel twee (na de zwevers, voor de personages): het schemer over alles wat er staat, en dan het licht: het glas van de
 // ramen, de lichtbundels, stofjes in de lucht en de E. Amir en de vijanden komen er helder overheen.
 function binnenNa(groundY, scale, cx){
@@ -23552,25 +23622,18 @@ function binnenNa(groundY, scale, cx){
     ctx.fillStyle = g; ctx.fillRect(Math.min(x, x + d * 0.6 * A), top - 4 * H, 0.6 * A, ver - top + 4 * H);
   }
   // het licht van de ramen
-  const bundels = [];
+  const bundels = binnenBundels(groundY, scale, cx);
   ctx.globalCompositeOperation = 'lighter';
-  for (const r of (b.ramen || [])){
-    if (!imgReady(I.raam)) break;
-    const breed = BINNEN.raamAmir * A, hgt = breed * I.raam.naturalHeight / I.raam.naturalWidth;
-    const sx = cx + (r.x - world), sy = groundY - r.h * scale, vy = groundY - binnenVloer(r.x, r.h) * scale;
-    const gl = ctx.createRadialGradient(sx, sy, 0, sx, sy, breed * 0.55);   // het glas gloeit door het schemer heen
+  for (const q of bundels){
+    const gl = ctx.createRadialGradient(q.sx, q.sy, 0, q.sx, q.sy, q.breed * 0.55);   // het glas gloeit door het schemer heen
     gl.addColorStop(0, 'rgba(255,205,130,0.45)'); gl.addColorStop(1, 'rgba(255,205,130,0)');
-    ctx.fillStyle = gl; ctx.fillRect(sx - breed, sy - breed, 2 * breed, 2 * breed);
-    const gx = breed * 0.26, y0 = sy - hgt * 0.2, opzij = (vy - y0) * BINNEN.bundel;
-    const q = { x0: sx - gx, x1: sx + gx, y: y0, vy, opzij };
+    ctx.fillStyle = gl; ctx.fillRect(q.sx - q.breed, q.sy - q.breed, 2 * q.breed, 2 * q.breed);
     const g = ctx.createLinearGradient(0, q.y, 0, q.vy);
     g.addColorStop(0, 'rgba(255,200,120,0.20)'); g.addColorStop(1, 'rgba(255,200,120,0.07)');
-    ctx.fillStyle = g; ctx.beginPath();
-    ctx.moveTo(q.x0, q.y); ctx.lineTo(q.x1, q.y); ctx.lineTo(q.x1 + q.opzij, q.vy); ctx.lineTo(q.x0 + q.opzij - 0.15 * A, q.vy); ctx.closePath(); ctx.fill();
-    const mx = q.x0 + q.opzij + 0.1 * A, rg = ctx.createRadialGradient(mx, q.vy, 0, mx, q.vy, 0.7 * A);
+    ctx.fillStyle = g; binnenBundelPad(q); ctx.fill();
+    const rg = ctx.createRadialGradient(q.mx, q.vy, 0, q.mx, q.vy, 0.7 * A);
     rg.addColorStop(0, 'rgba(255,205,140,0.28)'); rg.addColorStop(1, 'rgba(255,205,140,0)');
-    ctx.fillStyle = rg; ctx.fillRect(mx - 0.7 * A, q.vy - 0.7 * A, 1.4 * A, 1.0 * A);
-    bundels.push(q);
+    ctx.fillStyle = rg; ctx.fillRect(q.mx - 0.7 * A, q.vy - 0.7 * A, 1.4 * A, 1.0 * A);
   }
   // stofjes in de lucht: overal zacht, in een lichtbundel helder
   const n = Math.round(BINNEN.stof * (xr - xl) / W), hgt = onder - top;
@@ -38796,6 +38859,7 @@ function loop(now){
       drawAmirSchaduw(img, x, y, w, h, flipNu, pcx, groundY + lift, shY,
                       ph - (vloer === null ? 0 : vloer), scale, amirZon(vloer, pWorld) * (1 - fc.w), amirLicht());
       fakkelSchaduw(fc, img, x, y, w, h, flipNu, pcx, groundY + lift, shY, scale, pWorld);
+      binnenBundelSchaduw(img, x, y, w, h, flipNu, pcx, groundY + lift, shY, scale, groundY, cx);   // binnen: zijn schaduw in de lichtvlek van een raam
       ctx.restore();
     };
     const cliffImgNow = cliffPic();
@@ -39127,6 +39191,7 @@ function loop(now){
     if (gloed > 0){ ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; }
     if (mesHand) mesTeken(mesHand, scale);            // het mes, over zijn hand heen (gespiegeld mee)
     ctx.restore();
+    if (!amirWeg && !blink && amirSteen <= 0 && trapAlfa > 0.01){ ctx.save(); ctx.globalAlpha *= trapAlfa; binnenLichtOp(amirBeeld, x, y, w, h, useThrow ? thrFlip() : (autoFlip && facing === 1), groundY, scale, cx); ctx.restore(); }   // binnen: het licht van een raam valt op hem
     rolGlansTeken(pcx, groundY + lift, scale);        // het perfecte venster van de rol-worp: een korte ster
     critFxTeken(groundY, scale, cx);                  // True Flight: de ster van een crit
     schildTeken(pcx, groundY + lift, scale, false);   // het schild op: voor zijn borst, en het raakvak voor de bouten

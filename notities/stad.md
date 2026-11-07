@@ -277,6 +277,11 @@ Elk huis met een binnenkant is een eigen strook ver van de straat (van `r` tot `
   personages blijven helder), donkere zijmuren, en dan het licht: het glas gloeit, een lichtbundel valt schuin naar de vloer
   (`BINNEN.bundel`) met een lichtvlek, en stofjes zweven door de kamer (`BINNEN.stof`), zacht in het schemer en helder in een
   bundel. Buiten tekent hij alleen de E bij het deurgat.
+- **Amir in de bundel**: het licht valt ook op hem. Na zijn frame legt `binnenLichtOp` een warme kopie ervan met 'lighter'
+  over hem, geknipt op de vorm van de bundel (`binnenBundels`, `binnenBundelPad`), zodat de lichtgrens schuin over zijn lijf
+  loopt als hij erdoor stapt. Waar hij de bundel afdekt (`binnenBundelDek`) ligt zijn silhouet in de lichtvlek op de vloer,
+  van het raam af (`binnenBundelSchaduw`, vanuit `amirSchaduw`). Kleur, sterkte en schaduw in `BINNEN.licht`. Alleen Amir;
+  de vijanden lopen er nog zonder licht doorheen.
 - `levelcheck.py` kent de stroken (`binnen_strook`): wat erin staat is niet "voorbij het einde", en tussen de zwevers van twee
   huizen hoeft niet gesprongen te worden.
 
