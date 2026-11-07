@@ -10,7 +10,7 @@ een talent met `varianten` in `TRIBE_CONFIG` krijgt naast zijn naam een gestippe
 
 ## De talents van de rol-worp: True Flight (Mkuki) en The Pounce (Bhubesi)
 
-Het vierde talent van beide trees, met een getekend teken in `TB_TEKEN` tot er een houten plaatje is.
+Het vierde talent van beide trees. Het houten plaatje is `4_true_flight.png` en `4_the_pounce.png` in `design/tribes/<tribe>/abilities/` (Grok, image-to-image op Thorn Breaker en Fourth Life, uitgeknipt op 400 bij 400 met de donkere rand doorzichtig); het teken in `TB_TEKEN` blijft de reserve als het plaatje niet laadt.
 
 - **True Flight** (`true_flight`, `critKans`, `zak`): een rol-worp met `jav.crit` (gezet in `rolWorpLos` door
   `rolWorpCrit`). Perfect is altijd een crit; een gewone trekt een knikker uit `critZak` (de marble bag: `zak` knikkers,
