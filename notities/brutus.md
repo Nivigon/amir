@@ -196,6 +196,16 @@ het gevecht (zie `notities/tonnen.md`).
 - Bron: Grok-clips (idle_breathign1, RC2, hitnice), gekeyd en per clip op één schaal en één verschuiving
   gezet (animeer tool Bruut), daarna omgekleurd: broek zwart, sjerp bloedrood, windsels ijzer; het rode
   haar bleef. De idle is één inademing heen en terug; in het spel volgt hij het ademgeluid (`BRU.ademPeriode`).
+- **De spleet in de knots** (`tools/brutus_spleet.py`): in de Grok-export van de kap lag de bal in frames 44 tot en met 48
+  los van de steel, met een spleet van een paar pixels die half doorzichtig was. In het spel scheen de lucht of de muur
+  erdoorheen, een wit randje boven de steel als de knots neerkomt. Het script vult die spleet met de kleur van de steel,
+  in `frames/` en `frames_donker/`, en raakt alleen frames aan waar de bal los ligt. Draai het opnieuw na een nieuwe
+  export of na `brutus_donker.py`, daarna `gen-klein.py` en `gen-offline-manifest.py`.
+- **De stippelrand** (`tools/brutus_rand.py`, alleen de donkere set): langs zijn omtrek zat een rest van de magenta
+  achtergrond uit Grok, roodroze pixels om en om met de donkere contour en blauwe langs de windsels. Tegen de lichte
+  pleinmuur werd dat een licht streepjeslijntje over zijn arm en schouder, het best te zien in de dood als hij zijn arm
+  strekt. Het script geeft die randpixels (rood met evenveel blauw als groen, blauw, bijna wit) de kleur van de contour;
+  de huid is oranjebruin (groen boven blauw) en blijft staan. Draai het na `brutus_donker.py` en `brutus_spleet.py`.
 - **Nyundo donker** (`huid: 'donker'` in `brutus: {...}`, of in de sandbox de knop **Huid** in de rij Brutus): dezelfde
   frames in een tweede kleurstelling, `enemies/brutus/frames_donker/` (en `klein/`), uit `tools/brutus_donker.py`.
   Donkerder bruine huid, zwart haar, feller rood in het gezicht met een licht litteken over zijn oog, een bruine broek,
