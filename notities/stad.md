@@ -561,3 +561,23 @@ houdt alleen zijn eigen contactschaduw.
 
 In de sandbox onder De stad: **Slagschaduw: aan/uit** (`sbslag`) om te vergelijken.
 
+
+## Stadsvolk: mensen op de stoep
+
+`STAD_VOLK`, `volkTeken`, `volkUpdate`, `volkRustig`, `volkKleur`, `npcStap`. Het veld `stad.volk: [{x, k, kleur, f}]` zet de
+dorpelingen uit `NPCS` (`k` is `dorpelinge` of `dorpeling`, met hun eigen animatie) in de stad, als achtergrond die niet meedoet.
+
+- **De laag**: de voeten staan op de stoep, op `stoep` (0,6) van `stadStoepH` boven de looplijn: voor de muurvoet, achter de straat
+  waar Amir en de vijanden lopen, en iets dieper dan het voetdecor (0,4). Getekend in `stadVoorTeken` na de slagschaduw op de straat
+  en voor de kramen, dus wie achter een kraam staat, staat erachter (een verkoper). Met een zachte contactschaduw.
+- **Achtergrond**: iets kleiner (`maat` 0,72 van een dorpeling, ongeveer 0,9 Amir), iets donkerder (`licht`) en met wat waas, zodat
+  een vijand ervoor goed te lezen blijft. Geen botsing, niet te raken.
+- **Kleur**: het blauw van de kleren gaat naar `rood`, `groen`, `indigo`, `oker` of `wit` (`STAD_VOLK.kleuren`, gebakken met
+  `stadBak`, een keer per plaatje en kleur). Zo lijken twee sprites meer mensen. De herhaling blijft wel te zien: eigen
+  stadsfiguren (suggestie 2 van V1 in `stad-verbeteren.md`) zijn de volgende stap.
+- **Niet waar gevochten wordt**: komt er een levende vijand binnen `weg` (1100) van iemand en ook van Amir (een vijand die verderop
+  wacht telt dus nog niet), dan vervaagt hij in `vervaag` s; na `terug` (6) s zonder vijand komt hij terug. Zet ze op rustige plekken.
+- **In de levels**: Stad 1 (een verkoopster achter de eerste kraam, iemand bij de deur, een bij de doek, een bij het eind) en Sandville
+  (aan de rustige uiteinden van de Kuiperstraat, niet op het kruispunt waar je begint en vecht, en in de Pottenbakkersstraat).
+- **Sandbox**: onder Terrein, De stad, de knop **Stadsvolk**: vijf figuren in vijf kleuren op de stoep voor je uit (zet eerst de stad
+  neer als die er niet is). Zet er een vijand bij om ze te zien verdwijnen.
