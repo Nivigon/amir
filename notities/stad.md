@@ -508,6 +508,15 @@ doorheen, net als Amir. De doek (`veer`) en de luifel tellen niet: die werpen me
 `riet`) telt ook niet: een speer vliegt over of langs een kraam tot de straat, anders viel een vlakke worp op straat al
 na een paar passen op de toonbank.
 
+Een losse speer op een galerij viel weg tegen de reling, en op een dak was hij een dun streepje. Ligt een losse speer
+`SPEER_BAKEN.boven` (60) hoger dan Amir, dan zweeft erboven de speer zelf in het klein (`speerBakenTeken`, vanuit
+`skETeken`): dezelfde sprite, op elke as even veel verkleind, ondersteboven met de punt naar de speer, voor een
+lichtvlek die van wit naar amber loopt en zacht ademt. Is de speer `wacht` (3) seconden in beeld, dan zwelt in `aanzwel`
+(1) seconde een puls aan: zacht en weer fel, een keer per `puls` (1,2) seconde, en zolang hij blijft liggen. Gaat hij uit
+beeld, dan begint de klok opnieuw (`sp.bakenVan`). Staat Amir erbij, dan neemt de E het over. Alleen in de stad.
+Eerder geprobeerd en afgekeurd: een donkere omlijning met een schittering, een gloed, pijltjes, een icoon in een rondje
+of vakje, en de speer anders neerleggen (rechtop, met een wimpel, in een kruik).
+
 ## De stoep: een strook straat over de voet van de huizen
 
 `STAD_STOEP`, `stadStoep`, `stadStoepH`, `stadVoorTeken`. De gevels en poorten staan met hun voet op de looplijn
@@ -522,3 +531,32 @@ Niet over een ravijn, en een leemmuur (`look: 'leem'`, een echt terras) komt er 
 daken, galerijen, deuren en de looplijn houden hun hoogte. Het voetdecor staat niet op de nieuwe muurvoet maar op de stoep
 ervoor (`STAD.voet.stoep`, 0,4 van `stadStoepH` boven de looplijn), met een zachte contactschaduw (`STAD.voet.schaduw`):
 op de muurvoet zelf leek het boven de straat te hangen.
+
+## Slagschaduwen
+
+`STAD_SLAG`, `stadSlagMuur`, `stadSlagStraat`, `stadSlagScheef`, `STAD_SLAG_AAN`. Stap L1 uit `notities/stad-verbeteren.md`.
+
+De stad werpt schaduw, in de richting van de zon van het uitzicht: dezelfde `zonSchaduw` als de schaduw van Amir,
+omgerekend naar een schuinte (opzij per stap naar voren) en begrensd op `scheefMax`. In `stad_dag` staat de zon
+rechts, dus alles valt naar links; in de ochtend (`ochtend`, zon links) valt alles naar rechts. Hoe lager de zon (de
+hoogte uit `sun`), hoe langer en schuiner, tot `lengMax` keer die van de hoge middagzon van `stad_dag` (`lengHoog`).
+Een uitzicht met `dim` (de avond, de nacht) maakt de schaduw zachter (`dimZacht`).
+
+- **Op de muur** (`stadSlagMuur`, in `stadTeken` na de gevels en de pleinpoorten, voor de galerijen): onder een
+  galerij een band op de muur, vol tot de onderste balk en dan vervagend over `galerij.diep` Amir, schuin weg van de
+  zon. Alleen op de muur van een voorgevel: in een opening tussen twee huizen staat niets dat hem vangt (een zwakke
+  schaduw daar viel ook op de lucht). De galerij zelf blijft in het licht:
+  daarom komt de schaduw voor de galerij. Staat een hoger huis aan de zonkant pal naast een lager huis, dan valt er een
+  schuine wig (`buur`) op de muur van het lagere, onder de kartels (`kanteel`, bronpx van `gevel.png`).
+- **Op de straat** (`stadSlagStraat`, bovenaan `stadVoorTeken`: na de stoep, voor de kramen en Amir): elk huis legt een
+  schuine baan over de straat, van de muurvoet tot `straat.voor` Amir voorbij de looplijn, vooraan lichter. Tussen de
+  huizen blijft de straat in de zon. Een kraam krijgt een zachte vlek recht eronder en de schaduw van zijn dak schuin
+  ernaast (`kraam`).
+
+Ook op de straat: een pleinpoort en een trap van de straat af (`trap`, zwakker, want de treden laten licht door) leggen een
+baan zoals een huis; de put, de doek van een luifel en een ton (`put`, `luifel`, `ton`, in `tonTeken`) een schuine vlek
+zoals een kraam (`stadSlagVlek`). De pleinwand niet: die staat achteraan in de nevel, voorbij de straat. Het voetdecor
+houdt alleen zijn eigen contactschaduw.
+
+In de sandbox onder De stad: **Slagschaduw: aan/uit** (`sbslag`) om te vergelijken.
+
