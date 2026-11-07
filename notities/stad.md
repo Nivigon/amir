@@ -285,7 +285,7 @@ In de sandbox onder De stad: **Huis met binnenkant**.
 
 ## De winkel en de inrichting: een toonbank, een schap en planken met spullen
 
-`WINKEL`, `winkelLaad`, `winkelOpbouw`, `winkelPlankOpbouw`, `winkelRij`, `winkelAchter`, `winkelVoor`, `binnenLinks`
+`WINKEL`, `winkelLaad`, `winkelOpbouw`, `winkelPlankOpbouw`, `winkelRij`, `winkelAchter`, `winkelVoor`, `binnenLinks`, `winkelUIOpen`
 
 ```
 binnen: [{ ..., winkel: { x, seed, koopman }, planken: [{ x, h, soort, seed }] }]
@@ -317,8 +317,10 @@ binnen: [{ ..., winkel: { x, seed, koopman }, planken: [{ x, h, soort, seed }] }
 - Platen: `toonbank.png`, `schap.png`, `plank_touw.png`, `plank.png` en `spul_*.png` in `design/stad/binnen/`, uit Grok
   (wit weggeknipt, lichte randpixels weg). `spul_kruik.png` is de kruik uit `voetdecor.png`. Net als de rest van `binnen/`
   hebben ze geen halve versie in `klein/`.
-- Er is nog geen koopscherm: E bij de toonbank doet nog niets. Dat komt later (gratis een kalebas of een extra speer, zolang
-  er geen geld is).
+- **Het winkelscherm** (`winkelUIOpen`, `winkelUIDicht`, `#winkelui`): E vlak voor het eind van de toonbank (`WINKEL.eBij`)
+  opent een simpel scherm en het spel staat stil (`paused`). Er is nog geen geld: elke klik op de kalebas geeft er een, zo vaak
+  als je wilt, ook voorbij de 3 die Amir normaal draagt (`HPPOTION_MAX` geldt alleen voor oppakken). Escape, E of Verder
+  sluit het, en de pauzeknop op de telefoon ook. Niet in een gevecht, net als de deur. De economie komt later.
 
 In de sandbox onder De stad: **Winkel** en **Kamer ingericht**. Geen level heeft het nog.
 

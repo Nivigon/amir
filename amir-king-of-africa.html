@@ -492,6 +492,18 @@
   #pause{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;
     justify-content:center;gap:14px;background:rgba(20,14,26,.78);text-align:center;z-index:5}
   #pause.on{display:flex}
+  /* de winkel: een simpel scherm over het spel, het spel staat stil (zie "de winkel") */
+  #winkelui{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(20,12,6,.62);z-index:6}
+  #winkelui.on{display:flex}
+  #winkelui .wkdoos{display:flex;flex-direction:column;align-items:center;gap:12px;padding:22px 28px;border-radius:14px;
+    background:rgba(52,34,20,.96);border:2px solid #8a6a44;box-shadow:0 10px 40px rgba(0,0,0,.5);text-align:center;max-width:90vw}
+  #winkelui strong{font-size:30px;font-weight:800}
+  #winkelui .wkuitleg{font-size:15px;color:rgba(242,232,213,.8)}
+  #wkkalebas{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 26px;min-width:150px;cursor:pointer}
+  #wkkalebas img{height:84px;width:auto;display:block;transition:transform .08s ease}
+  #wkkalebas:active img{transform:scale(.9)}
+  #wkkalebas em{font-style:normal;font-size:13px;color:#a8c98a}
+  #wkaantal{font-size:16px}
   /* te lang voor het scherm (Instellingen en Mes: reacties open): dan scrollt het, en het midden
      blijft het midden zolang het past (de automatische marges boven en onder) */
   #pause{justify-content:flex-start;overflow:auto;padding:12px 0}
@@ -1963,6 +1975,15 @@
     <button id="wnmenu">Hoofdmenu</button>
   </div>
   <div id="laad"><div class="laadart"></div><div class="laadbox"><strong>Laden<small id="laadnaam"></small></strong><div class="balkrij"><div class="balk"><i id="laadbalk"></i></div><span class="pct" id="laadpct">0%</span></div><span id="laadtel"></span></div></div>
+  <div id="winkelui">
+    <div class="wkdoos">
+      <strong>Winkel</strong>
+      <span class="wkuitleg">Klik op de kalebas: per klik krijg je er een.</span>
+      <button id="wkkalebas"><img src="items/potions/hppotion.png" alt=""><span>Kalebas</span><em>gratis</em></button>
+      <span id="wkaantal"></span>
+      <button id="wkdicht">Verder</button>
+    </div>
+  </div>
   <div id="pause">
     <strong>Pauze</strong>
     <button id="pzresume">Verder</button>
@@ -19140,6 +19161,10 @@ function startAttack(){
 const typing = e => e.target && (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') && e.target.type !== 'range';
 addEventListener('keydown', e => {
   if (makerOpen) return;                          // de Level Maker heeft zijn eigen scherm; het spel reageert dan niet op toetsen
+  if (winkelUIAan){                              // het winkelscherm: Escape of E sluit het, de rest doet niets
+    if (e.key === 'Escape' || e.key === 'e' || e.key === 'E'){ e.preventDefault(); winkelUIDicht(); }
+    return;
+  }
   if (e.key === 'Escape'){                       // pauzemenu aan of uit
     if (typing(e)){ e.target.blur(); return; }
     e.preventDefault();
@@ -23413,6 +23438,8 @@ function binnenEBij(px = world){
     }
     return null;
   }
+  if (hier.winkel && world - hier.winkel.x < WINKEL.eBij && Math.abs(ph - binnenVloer(world, 0)) < 12)   // voor de toonbank: de winkel (zie "de winkel")
+    return { soort: 'winkel', x: hier.winkel.x + 40, h: 0 };
   if (Math.abs(world - hier.deur) < V && Math.abs(ph - binnenVloer(hier.deur, 0)) < 12){
     const dm = stadDeurMaat({ gevel: hier.gevel, verdieping: 0 }, sc);
     if (dm) return { soort: 'uit', x: hier.deur, h: 0, doel: { x: dm.cx - 30, h: dm.vloer, face: -1 } };
@@ -23427,6 +23454,7 @@ function binnenEBij(px = world){
 function binnenE(){
   const a = binnenEBij(); if (!a) return false;
   if (stadInGevecht()){ flashHint('Niet nu: er staat een vijand in de buurt'); return true; }
+  if (a.soort === 'winkel'){ winkelUIOpen(); return true; }
   const deur = a.soort === 'in' || a.soort === 'uit';
   stadTrapFade = { t: 0, gewisseld: false, doel: a.doel, ...(deur ? { T: BINNEN.fade, binnen: true } : {}) };
   return true;
@@ -23612,6 +23640,7 @@ const WINKEL = {
   speer: 'design/speer.png', speerAmir: 1.55,
   schaduw: { kleur: 'rgba(25,13,5,0.5)', blur: 0.05, dx: 0.02, dy: 0.035 },   // de schaduw op de muur, in Amir
   koopman: [0.22, 0.4],    // de marktman staat zo ver van het rechtereind, in toonbankbreedtes
+  eBij: 170,               // zo dicht bij het eind van de toonbank (wereld-x) opent E de winkel
   P: 320                   // pixels per Amir in de opgebouwde beelden
 };
 let winkelImgs = null;
@@ -23762,6 +23791,32 @@ function winkelVoor(groundY, scale, cx){
   const k = A / WINKEL.P;
   ctx.drawImage(o.voor, rechts - o.voor.width * k, vloer - o.voor.height * k, o.voor.width * k, o.voor.height * k);
 }
+
+// Het winkelscherm: E bij de toonbank opent het en het spel staat stil. Er is nog geen geld: elke klik op de kalebas
+// geeft er een, zo vaak als je wilt, ook voorbij wat Amir normaal draagt (HPPOTION_MAX). Escape, E of Verder sluit het.
+const winkelUIEl = document.getElementById('winkelui');
+let winkelUIAan = false;
+function winkelUIToon(){
+  document.getElementById('wkaantal').textContent = 'Je hebt ' + hppotionCarry + (hppotionCarry === 1 ? ' kalebas' : ' kalebassen');
+}
+function winkelUIOpen(){
+  if (!running || paused) return;
+  paused = true; winkelUIAan = true;
+  for (const k in keys) keys[k] = false;          // geen toets blijft 'ingedrukt' hangen
+  atkKeyHeld = false;
+  winkelUIToon(); winkelUIEl.classList.add('on');
+}
+function winkelUIDicht(){
+  if (!winkelUIAan) return;
+  winkelUIAan = false; winkelUIEl.classList.remove('on');
+  paused = false; cv.focus();
+}
+document.getElementById('wkkalebas').onclick = () => {
+  hppotionCarry++;
+  hppotionHud(); hppotionHudAnim('pulse'); playHppotionPickupSound();
+  winkelUIToon();
+};
+document.getElementById('wkdicht').onclick = winkelUIDicht;
 
 // ---- de leemmuur: een terras van leem ----
 // terraces: [{r, l, h, look: 'leem'}]. Precies een terras (de wand houdt Amir en elke vijand tegen, de bovenkant
@@ -49991,7 +50046,7 @@ for (const b of bmodeBtns) b.onclick = () => {
 };
 showBeeld();
 
-pauseBtn.onclick = () => { if (won) return; if (paused) resumeGame(); else pauseGame(); };
+pauseBtn.onclick = () => { if (won) return; if (winkelUIAan){ winkelUIDicht(); return; } if (paused) resumeGame(); else pauseGame(); };
 document.getElementById('dvagain').onclick = () => { opnieuw(); };
 
 // ---- ravijn opent: proefaansluiting ----
