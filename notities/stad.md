@@ -283,6 +283,45 @@ Elk huis met een binnenkant is een eigen strook ver van de straat (van `r` tot `
 Stad 7: Binnen is het proefstuk (drie huizen: een zaal op palen, en twee met een verdieping en een ladder, een keer gespiegeld).
 In de sandbox onder De stad: **Huis met binnenkant**.
 
+## De winkel en de inrichting: een toonbank, een schap en planken met spullen
+
+`WINKEL`, `winkelLaad`, `winkelOpbouw`, `winkelPlankOpbouw`, `winkelRij`, `winkelAchter`, `winkelVoor`, `binnenLinks`
+
+```
+binnen: [{ ..., winkel: { x, seed, koopman }, planken: [{ x, h, soort, seed }] }]
+```
+
+- **De winkel** staat aan de linkerkant van een huis. `x` is het rechtereind van de toonbank, en daar loopt Amir tegenaan:
+  de toonbank is de grens van wat je kunt belopen (`binnenLinks`, in `binnenKlem` en `binnenVijandKlem`). Hij staat niet
+  op de achtergrond maar op de vloer, op dezelfde lijn als Amir: zo loopt Amir er nooit overheen, wat met de paar pixels
+  diepte van de vloer binnen altijd las als "op de bar".
+- **Achter de toonbank**, tegen de muur: het schap (`schap.png`, drie planken, de onderste zit achter de toonbank en blijft
+  leeg), daarnaast 2 tot 4 speren die tegen de muur leunen (rechtop: liggend op het blad leken ze te zweven), en de
+  marktman. Voorlopig is dat de dorpeling, gespiegeld zodat hij naar Amir kijkt; `koopman: false` laat hem weg.
+- **Op het blad** een tot drie kalebassen, en soms nog een spul. Dat is wat je straks kunt krijgen.
+- **Elke winkel is anders.** Wat er waar staat volgt uit `seed`: welke spullen op welke plank, de speren en hun hoek, of de
+  toonbank en het schap gespiegeld zijn, de kalebassen, waar de marktman staat. Een vast level heeft een vaste seed en ziet
+  er elke keer hetzelfde uit; een nieuw level krijgt een nieuwe seed (zonder seed volgt hij uit `x`). Elke klik op de
+  sandbox-knop geeft een nieuwe.
+- **Planken** hangen aan de muur: `x` het midden, `h` de bovenkant van de plank boven de vloer (wereld-eenheden, net als
+  een raam), `soort` `touw` (met touw om de steunen) of `kaal`. Ook daarop volgen de spullen uit de seed, iets minder vol
+  dan in een winkel, en zonder kalebassen: thuis lijkt een kalebas iets om te pakken.
+- **De spullen** (`WINKEL.spullen`, `spul_*.png`): mand met deksel, mand, schalen, stof, rollen, kist, schaal, kruik en, alleen
+  in een winkel, de kalebas (`items/potions/hppotion.png`). Hun hoogte staat in Amir, `spulMaat` maakt ze allemaal iets
+  groter. Ze komen uit een vel van Grok in strikt zij-aanzicht op ooghoogte, zonder schaduw: een vel met de camera erboven
+  (je ziet in de manden, de stof ligt plat) werkte niet.
+- **Tekenen**: het schap met de speren en de planken worden een keer opgebouwd tot een beeld met een zachte schaduw op de
+  muur eronder (`winkelMetSchaduw`), en getekend in `binnenAchter`, zodat het schemer van `binnenNa` erover valt. De
+  toonbank komt na de personages van het level en voor Amir (`winkelVoor`), met de marktman ervoor; het schemer zit daarom
+  al in zijn beeld gebakken (`BINNEN.donker`), en hij heeft een schaduw op de vloer.
+- Platen: `toonbank.png`, `schap.png`, `plank_touw.png`, `plank.png` en `spul_*.png` in `design/stad/binnen/`, uit Grok
+  (wit weggeknipt, lichte randpixels weg). `spul_kruik.png` is de kruik uit `voetdecor.png`. Net als de rest van `binnen/`
+  hebben ze geen halve versie in `klein/`.
+- Er is nog geen koopscherm: E bij de toonbank doet nog niets. Dat komt later (gratis een kalebas of een extra speer, zolang
+  er geen geld is).
+
+In de sandbox onder De stad: **Winkel** en **Kamer ingericht**. Geen level heeft het nog.
+
 ## Straten en knooppunten (Sandville)
 
 `straatRaster`, `straatUitgangen`, `straatKnoopX`, `straatUitgangBij`, `straatKnoopGa`, `straatKnoopToets`, `straatGevelX`,
