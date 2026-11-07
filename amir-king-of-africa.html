@@ -16859,7 +16859,10 @@ const JAV = {
   muurT: 4,           // zo lang blijft hij in een muur steken; daarna wrikt hij zichzelf los. Alleen in
                       // de grond en in een houten runeschijf blijft een speer zitten, al het andere
                       // (een wand, een kei, de rand van het level) laat hem na een paar seconden vallen
-  muurWob: 1.2        // en zo lang trilt hij voor het zover is: je waarschuwing
+  muurWob: 1.2,       // en zo lang trilt hij voor het zover is: je waarschuwing
+  valHoek: 25,        // een vallende speer (vijand geraakt, uit een wand): de zware punt zakt zo veel graden voorover
+  valDraai: 6,        // zo snel draait hij daarheen (per seconde)
+  kantelT: 0.16       // neergekomen: zo lang duurt het voor de schacht om de punt heen plat op de grond valt
 };
 const javImg = loadQuiet(uniq([AMIR_OLD + 'speer_projectiel.png', AMIR + 'speer_projectiel.png',
                                AMIR_GROOT + 'speer_projectiel.png']));
@@ -17172,6 +17175,21 @@ function javTegenDak(x, h0, h1){
 function javAngle(scale){                    // schermhoek van de punt: volgt de snelheid
   return Math.atan2(-jav.vh * scale, jav.vx);
 }
+// de hoek in de richting van de speer: 0 is vlak vooruit, positief de punt omlaag, tussen -90 en 90 graden
+function javDirHoek(){
+  let b = jav.dir === 1 ? jav.sa : Math.PI - jav.sa;
+  b = Math.atan2(Math.sin(b), Math.cos(b));
+  return Math.max(-Math.PI / 2, Math.min(Math.PI / 2, b));
+}
+// Een speer die valt (een vijand geraakt, uit een wand geschoten, tegen een gangdak) bleef in de hoek
+// van het moment hangen, ook als hij schuin omhoog wees, en sprong bij het neerkomen ineens plat. Nu
+// zakt de zware punt voorover, in zijn eigen richting, zodat hij met de punt eerst neerkomt.
+function javValDraai(dt){
+  const doel = JAV.valHoek * Math.PI / 180;
+  let b = javDirHoek();
+  b += (doel - b) * Math.min(1, dt * JAV.valDraai);
+  jav.sa = jav.dir === 1 ? b : Math.PI - b;
+}
 function javGapNear(x){                      // het ravijn waar hij in verdween
   for (const g of gatenMetRavijn())
     if (x > g.x - g.w / 2 - 120 && x < g.x + g.w / 2 + 120) return g;
@@ -17236,7 +17254,13 @@ function javStick(x, h, soort, scale){
   }
   jav.vx = 0; jav.vh = 0;
   jav.wob = 1; jav.sag = 0; jav.stand = false;
-  if (!muur && !bos && jav.hit) jav.sa = jav.dir === 1 ? 0 : Math.PI;   // plat neergevallen
+  jav.kantel = 0;
+  if (!muur && !bos && jav.hit){                          // plat neergevallen
+    // de punt raakt eerst de grond, dan valt de schacht om de punt heen plat (jav.kantel, in javSchacht)
+    const b = Math.max(0, javDirHoek());
+    jav.sa = jav.dir === 1 ? 0 : Math.PI;
+    if (b > 0.02){ jav.kantel = jav.kantel0 = b; jav.kantelT = 0; jav.wob = 0; }
+  }
   if (spearFound && rugAan()){
     // je hand is al weer gevuld (van de rug getrokken): deze gegooide speer wordt een losse speer,
     // die je in de hand of op de rug oppakt (losTrek). Anders zou spearX hem als "de" speer claimen
@@ -17438,6 +17462,12 @@ function javUpdate(dt, plats, scale){
   }
   if (!jav) return;
   if (jav.wob > 0) jav.wob = Math.max(0, jav.wob - dt / JAV.wobT);
+  if (jav.kantel){                                 // de schacht valt om de punt heen plat, steeds sneller
+    jav.kantelT = (jav.kantelT || 0) + dt;
+    const f = Math.min(1, jav.kantelT / JAV.kantelT);
+    jav.kantel = jav.kantel0 * (1 - f * f);
+    if (f >= 1){ jav.kantel = 0; jav.wob = 0.5; }  // en tikt even na
+  }
   if (jav.state === 'bos' && (jav.bos.stage >= THICKET_HITS || thickets.indexOf(jav.bos) < 0)){
     jav.state = 'val'; jav.hit = true; jav.vx = 0; jav.vh = 0;   // struweel weggehakt: de speer valt
     spearX = null; spearH = null;
@@ -17464,6 +17494,7 @@ function javUpdate(dt, plats, scale){
   }
   jav.t += dt;
   if (jav.t > JAV.maxT){ javLose(null); return; }   // nergens grond onder: ook buiten de wereld
+  if (jav.state === 'val') javValDraai(dt);
   const g = GRAVITY * JAV.gDeel * (jav.zwaar || 1);   // de rol-worp: een perfecte vliegt vlakker
   if (jav.spoor && jav.state === 'vlucht' && ROL_WORP.spoor > 0){   // het spoor achter de rol-worp
     jav.spoor.push({ x: jav.x, h: jav.h });
@@ -17561,7 +17592,7 @@ function javSchacht(tx, ty, scale){                         // de speer zelf, op
   ctx.save();
   ctx.translate(tx, ty);
   if (jav.dir === -1){ ctx.scale(-1, 1); a = Math.PI - a; }
-  ctx.rotate(a + wob + wrik - jav.sag / L);                 // doorbuigen: het uiteinde zakt
+  ctx.rotate(a + wob + wrik - jav.sag / L + (jav.kantel || 0));   // doorbuigen: het uiteinde zakt; kantel: nog niet plat
   const draai = jav.state === 'vlucht' ? draaiBeeld('gewoon', jav.t) : null;   // in de vlucht rolt hij om zijn as
   if (draai) draaiTeken(vaanBlauw(draai), 'gewoon', s);
   else if (imgReady(javImg)) ctx.drawImage(vaanBlauw(javImg), -JAV.tipX * s, -JAV.tipY * s, JAV.w * s, JAV.h * s);
