@@ -113,6 +113,16 @@ ingeschoven (`zwmHand`). In de slag trekt de punt een boog (`boog` graden, `krac
 uit de hand en ligt hij gestrekt (`liggen`). In de laatste frames zit zijn hand achter zijn dij (`achter` in de json): dan
 tekent het touw achter het lijf. Getekend als vloeiende, taps toelopende lijn met zwarte rand en een gevlochten streep.
 
+## De kleuren
+
+Hij loopt in het bandietpalet: een marineblauw vest, een kaki-olijf broek, een rode sjerp en een zwarte baard (zoals de
+schildbandiet en de kruisboogbandiet). De aangeleverde lagen (blauw vest, teal broek, oranje sjerp, rode baard) staan in
+`enemies/zweepman/bron/lagen/`; `tools/zweepman_kleur.py` kleurt ze om naar `lagen/` (hertint: de lijnen blijven). De
+opgerolde zweep (`*_z.png`) en de losse arm (`f2_arm.png`, alleen huid) gaan er niet doorheen. De sjerp herkent het script
+aan oranje vlakken die tegen de broek liggen; de oorring, een opgeheven vuist en de groene zweem op het hoofd in een paar
+fase-2-frames (al in de bron, van het wegkeyen van de groene zweep) blijven zoals ze zijn. Een nieuwe export zet je gewoon in
+`lagen/` en dan draai je het script, daarna `gen-klein.py` en `gen-offline-manifest.py`.
+
 ## De lagen
 
 `enemies/zweepman/zweepman.json` en `lagen/`: per beweging (`idle`, `loop`, `slag`, `terug`) per frame `lijf` en `zweep`,
@@ -163,8 +173,9 @@ de sprong, de terugweg en uitrusten2), op dezelfde schaal en hetzelfde anker als
 `zwmVersie`, `ZWM_NIEUW`, `zwmNieuw`, `ZWM_NIEUWER`, `zwmNieuwer`, `zwmSchreeuw`, `zwmF2Ms`. In een level met `zweepKeuze: true` vraagt het
 instellingenscherm van de duo-arena (`duoKeuze`, alleen de rij Zweepman) voor het begin de oude, de nieuwe of de nieuwere
 zweepman, of nieuwer schreeuw; de keuze blijft staan (`amir.duoKeuze`) en in de pauze kies je opnieuw (**Zweepman: welke versie**). In de sandbox
-de knop **Versie** in de rij Zweepman (oud, nieuw, nieuwer, nieuwer schreeuw; standaard oud, geldt meteen voor alle zweepmannen). Een level
-zonder het veld (Oaktown) houdt de oude. Nieuwer is nieuw plus wat onder "De nieuwere versie" staat: `zwmNieuw()` is ook
+de knop **Versie** in de rij Zweepman (oud, nieuw, nieuwer, nieuwer schreeuw; standaard nieuwer schreeuw, geldt meteen voor alle zweepmannen).
+Nieuwer schreeuw is de standaard van het spel (`ZWM_STANDAARD`): een level zonder het veld (de stad, Oaktown, De Belegerde Stad) krijgt
+die versie, en het is ook de beginkeuze in Test 58 en 59 als er nog niets bewaard is. Tot november 2026 hielden die levels de oude. Nieuwer is nieuw plus wat onder "De nieuwere versie" staat: `zwmNieuw()` is ook
 waar voor nieuwer.
 
 De nieuwere versie (`ZWM_NIEUWER`, alleen fase 2): in nieuw was hij het grootste deel van zijn cyclus onaantastbaar (van de
