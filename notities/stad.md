@@ -372,6 +372,8 @@ grondSoort: [{van, tot, soort: 'plein'}]
   sprong (`stad: 'putbalk'`). Voor vijanden is het geen vloer, net als de kramen.
   De looplijn van allebei ligt een stukje in het plaatje (rand 8 bronpixels onder de bovenkant van het leem, balk 8 onder
   de bovenkant van het hout, rij 22): het hout staat recht van voren, dus met de voeten op de bovenste lijn leek Amir te zweven.
+  Zijn schaduw op de balk blijft op het hout (`hout`, rij 22 tot 57): plat neergelegd hing de helft achter zijn voeten
+  boven de balk tegen de muur (de knip in `amirSchaduw`).
 - **De poorten** (`pleinpoorten`): de rechte poort van de straten (`STRATEN.recht`, dezelfde maat als in Oaktown), als decor
   op het vlak van de straat, `x` is het midden. Met `hek: 'dicht'` staat het valhek (`HEK.src`) tot op de grond in de boog,
   met `hek: 'open'` is het voor `STAD.plein.hek.open` van de opening opgetrokken; het hek wordt op de vorm van de boog
