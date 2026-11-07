@@ -116,7 +116,9 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
 - **Dood** (`bruDoodStap`, `bruFinale`): op de laatste treffer staat de wereld stil voor Amir (hij kan niet lopen en niet
   geraakt worden) en draait Brutus zich naar hem toe. Dan drie Grok-sets uit brutus.json achter elkaar: `dreig` (hij heft
   zijn knots langzaam naar Amir, vertraagd afgespeeld), `drop` (zijn pols draait, de knots zakt; op het laatste frame staat
-  de knots los op zijn bal en kantelt in code van hem weg om, `knots` in de json, `BRU.knotsLig`, met een kleine plof en stof)
+  de knots los op zijn bal en kantelt in code van hem weg om, `knots` in de json, `BRU.knotsLig`, met een kleine plof en stof;
+  zo zwaar is hij dat hij bij de klap een stuk in de vloer zakt, `BRU.knotsZak`: wat onder de vloerlijn komt is weg, met een
+  donkere deuk en een barst eronder)
   en `val` (het doodsgeluid, hij zakt op zijn knieen en valt voorover; op het frame met bron `BRU.valKlap` de plof, een
   schok en de grote stofwolk). Daarna blijft hij liggen (fase `lig`, over de knots heen), gaat de uitgang open en speelt
   "ta soul, rest". De val-frames zijn per frame op de grond gezet: Grok liet hem ruim 100 px boven de grond liggen. Grok liet hem ook
@@ -207,3 +209,6 @@ het gevecht (zie `notities/tonnen.md`).
   `brutus_speerraak.mp3` (de speer in zijn vlees) een van zes kreten, `brutus_hit1.mp3` tot `brutus_hit6.mp3`, geknipt uit
   hits.mp3, nooit twee keer dezelfde achter elkaar (`BRU_HITS`, `bruHitSpeel`). De opening: `brutus_start1.mp3` en
   `brutus_start2.mp3`.
+
+**Wind tijdens het gevecht** (`BRU.wind`, in `weerGeluid`): zolang Nyundo niet ligt loopt er een constante woestijnwind
+onder het gevecht, als een vierde van de zandstorm (dezelfde lus, `stormSnd`). Na zijn dood zwakt hij langzaam af.
