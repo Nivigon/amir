@@ -16,6 +16,10 @@ de kant; anders rolt hij de kant op die hij kijkt.
 - De wereld schuift hem `ROL.afstand` (340 wereld-px) vooruit tussen frame `ROL.van` en `ROL.tot`, zacht in
   en uit (`rolVoortgang`). Aan de rand van een ravijn schuift hij niet verder (`gatOp`), net als de renstoot;
   rotsen, wanden en de rest houden hem tegen zoals altijd (de klemmen na `rolUpdate`).
+- E tijdens de rol pakt een speer op die hij passeert: je eigen speer (in de grond, een wand of een lijk) of een
+  losse speer (`rolOppak`, in `eDruk` voor `amirVast`; het oprapen zelf is `eigenSpeerPak` en `losTrek`, net als
+  buiten de rol). De rol loopt gewoon door, met vanaf dan de frames met speer (`rol.met`), dus F uit deze rol gooit
+  hem ook. Een skelet, een wapenrek, een deur of de executie doet E tijdens de rol niet.
 - Een treffer na het onkwetsbare stuk, een val of loskomen van de grond breekt de rol af (`rolEind`).
 - Het geluid: `sounds/amirrol.mp3` (0,84 s, `ROL.geluid`), bij de start: de zwiep van de duik en op 0,25 s de plof
   als hij de grond raakt, wat valt op frame 8 en 9 van de rol.

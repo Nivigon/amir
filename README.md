@@ -368,7 +368,7 @@ De versie in `offline-assets.json` verandert mee, en de service worker ziet daar
 | worp afbreken | tijdens het spannen springen, bukken of de andere kant op | duim van ✦ af slepen en daar loslaten, of springen, bukken of de andere kant op |
 | rollen | V (met een pijltje erbij kies je de kant); even onkwetsbaar, daarna koelt hij kort af | de rolknop, links van de E; de ring eromheen loopt vol als hij weer kan |
 | gooien uit de rol | F in de tweede helft van de rol: hij gooit uit de landing; vlak voor de landing is het een perfecte worp | ✦ tijdens de rol |
-| speer oppakken | E, waar je ook langs de schacht staat | E (verschijnt als je er vlakbij staat) |
+| speer oppakken | E, waar je ook langs de schacht staat; ook al rollend, dan rolt hij door met de speer in de hand | E (verschijnt als je er vlakbij staat) |
 | door een open deur of grot | E, als je ervoor staat | E (verschijnt als je ervoor staat) |
 | drinken | Q | het kalebasje |
 | woede (Bhubesi, meter vol) | G | de knop met de leeuw |
