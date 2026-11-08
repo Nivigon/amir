@@ -15,6 +15,16 @@ Code: de sectie `// ---- tonnen: houten tonnen die breken ----` (`TON`, `tonnen`
 - `kraam: i, a`: naast `stad.kramen[i]` (het midden van de kraam, 1,68 Amir breed): a 1,1 staat er net naast. Een stapel
   (Stad 4, Beleg 4): a 1,1 en 1,5 net over elkaar, en de bovenste recht op de voorste (a 1,5, y 0,62).
 
+Hoger op (`tonOp`): met `dak` (`true` of een hoogte, net als bij een vijand, zie `stadDakPlek`) staat hij op het dak of de
+galerij van de stad het dichtst bij `x`, met `zwever: true` op de zwevende savannelaag boven `x`. Een dak schaalt mee met het
+scherm: met `a` (Amir van het midden van dat dak) staat hij op elk scherm op dezelfde plek, zonder `a` op `x`; altijd een halve
+ton binnen de rand. Een stapel op een dak: elke ton krijgt hetzelfde `dak` en dezelfde `a`, de bovenste met `y: 0.62`. Hij houdt
+zijn vloer bij (`t.vloer`, `{h, l, r}`), dus de losse stukken en de kalebas blijven op het dak liggen (`tonStukVloer`,
+`hppotionHopVloer`); wat over de rand vliegt valt naar beneden. Op een dak staat hij achter de kartels (`stadKanteelVoor` komt
+na `tonTeken`), op een galerij achter de leuning, zonder slagschaduw op de straat. Nyundo op de straat komt er niet bij
+(`tonBruut` slaat een ton op een dak of zwever over). Een terras van grond (`terraces`, ook `grond: true`) hoeft niets: daar
+staat een ton al vanzelf op (`terrainH`).
+
 `y` is de hoogte van de onderkant in Amir (0,62 is een ton op een ton, `TON.h`). Een ton op een ton staat in werkelijkheid
 op `TON.stapel` (0,55): hij zakt in het deksel van de onderste, anders zweeft hij op de rand (`tonMaak` zet een y van
 een of meer tonnen hoog om, `tonStap` laat hem daarop landen). Mooiste stapel: recht op een ton, niet in de kier tussen twee. `f` spiegelt, `kalebas: true` laat er
@@ -66,3 +76,8 @@ In de Maker nieuwstijl onder Decor, Kamp: **Ton**, met een, twee naast elkaar of
 stadsvolk" in `notities/maker.md`); die krijgt altijd een eigen `x`.
 
 Onder De stad, **Tonnen**: twee net over elkaar en een recht op de voorste voor je uit, en een losse met een kalebas.
+**Tonnen op het dak**: zo'n stapel op het dak van het huis van 2 hoog en een losse met een kalebas op de galerij (zet de stad
+neer als die er nog niet is). Onder Zwevende laag, **Tonnen erop**: twee met een erop bovenop de laag.
+
+In de Maker: teken je een ton op een dak, galerij of balkon, dan krijgt hij `dak` (de hoogte van die vloer, zoals een vijand),
+op een zwevende laag `zwever: true`.
