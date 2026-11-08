@@ -27,7 +27,7 @@ erboven uitsteekt en de bovenste van een stapel er helemaal bovenuit komt. Op ee
 staat een ton al vanzelf op (`terrainH`).
 
 `y` is de hoogte van de onderkant in Amir (0,62 is een ton op een ton, `TON.h`). Een ton op een ton staat in werkelijkheid
-op `TON.stapel` (0,55): hij zakt in het deksel van de onderste, anders zweeft hij op de rand (`tonMaak` zet een y van
+op `TON.stapel` (0,53, met een schaduwtje op de naad): hij zakt in het deksel van de onderste, anders zweeft hij op de rand (`tonMaak` zet een y van
 een of meer tonnen hoog om, `tonStap` laat hem daarop landen). Mooiste stapel: recht op een ton, niet in de kier tussen twee. `f` spiegelt, `kalebas: true` laat er
 een drinkkalebas uit springen (`dropHppotion`). `tonPlekX` rekent de plek elk beeld opnieuw uit, zodat hij meeschuift
 als het scherm van maat verandert.
