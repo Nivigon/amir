@@ -1,8 +1,31 @@
 # Deurgordijnen in de stad
 
-Status: **klaargezet, nog niet ingebouwd.** De plaatjes, het knipscript en een werkende proef staan in de repo;
-het inbouwen in `amir-king-of-africa.html` is de volgende stap. Hoort bij A3 (kleur uit doeken) en V2 (kleine
-beweging) in `notities/stad-verbeteren.md`.
+Status: **ingebouwd** in `amir-king-of-africa.html`, onder de kop `// ---- gordijnen: ... ----` (na de deuren).
+Nog geen level heeft het aan; te zien in de sandbox (De stad, **Gordijnen** en **Wind**) en in de Maker (gevel,
+**Deur**). Hoort bij A3 (kleur uit doeken) en V2 (kleine beweging) in `notities/stad-verbeteren.md`.
+
+## Zo zit het in de code
+
+- `GORDIJN`: de namen, de gewichten, de kans per huistype, de maten buiten (`straat`) en binnen (`binnen`), de
+  windsterkte, de rate en rijhoogte (laptop en telefoon) en de tell (`opzij`). `GORDIJN.wind`: 0 uit, 1 zacht, 2 vlagen.
+- `stadGordijnVan(st, gi)` / `stadGordijn(gi)`: welk doek gevel `gi` heeft, of null (dan de houten deur). Het veld
+  `gordijn` per gevel (een naam, of `false`) gaat voor; zonder veld alleen als de stad `gordijnen: true` heeft, dan
+  een vaste keuze uit seed en index (`gordijnHash`). Zo verandert er in een bestaand level niets.
+- `gordijnLaad(st)`, vanuit `stadSoortLaad`: laadt alleen de doeken die de stad echt gebruikt.
+- `gordijnBron(n, w)`: het doek op stokbreedte, warm getint, met de gemeten spleet; een keer per naam en maat.
+- `gordijnVlaag`, `gordijnDoek(n, gi, o, sleutel, st)`: de wind en het golvende doek in een eigen canvas per deur,
+  hooguit 30 keer per seconde opnieuw (15 op een telefoon, `camTelefoon`, met rijen van 4 in plaats van 2 px).
+- `stadGordijnTeken`: in `stadTeken`, op de straat (verdieping 0) in plaats van `stadDeurPlaatTeken`; latei en
+  schaduw zoals bij de deur. Buiten beeld (`zichtVak`) rekent hij het doek niet opnieuw. Op een verdieping blijft
+  het de houten deur.
+- De tell: in `stadDeurUpdate` krijgt een deur met een gordijn `st.gordijn`; zijn vijanden wachten
+  `GORDIJN.opzij.op + 0,15` s in plaats van de 20 frames van de deur, en `stadGordijnStap` schuift de banen opzij
+  zolang er nog iemand uit moet of net uitstapt (`uitT`), laat ze dan terugvallen en zet het nazwaaien aan. Geen
+  deurklap en geen schok.
+- `binnenGordijnTeken`: in `binnenAchter`, na `binnen/deur_recht.png`: het donker en het doek van die gevel, gespiegeld.
+- Sandbox: `sbGordijnen` (een dichte straat met alle zeven doeken, houten deuren en een open deur, het eerste huis met
+  een binnenkant; **Uit de deur** stapt daar door het gordijn) en de knop Wind (`sbgordwind`).
+- Maker: bij een gevel de keuze **Deur** (`MK_GORDIJNEN`, `mkgordijn`), die als `gordijn` in de gevel gaat.
 
 ## Wat het is
 
@@ -26,7 +49,8 @@ en gordijnen door elkaar), `gordijn_binnen_rust.jpg` en `gordijn_binnen_vlaag.jp
   losknippen, het middenstuk 1,14 keer langer zodat het de verhouding van het deurgat krijgt). Daarna
   `gen-klein.py` en `gen-offline-manifest.py`.
 - `notities/proeven/gordijn_proef.js`: de proef, als script in het draaiende spel geplakt. Geen eindcode, wel
-  de rekenregels en maten die werken.
+  de rekenregels en maten die werken (die staan nu in `GORDIJN` en `gordijnDoek`).
+- Er is geen kleine versie: `gen-klein.py` neemt de map niet mee, het spel laadt de grote (zoals bij de tonnen).
 
 ## Maten (uit de proef)
 
