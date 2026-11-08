@@ -254,6 +254,34 @@ ze zijn.
 In de sandbox: **Doorgang** onder De stad, drie huizen met een galerij en twee trappen die erop uitkomen, een keer met de
 opening links en een keer rechts van een huis.
 
+## De verhoogde straat
+
+`STRAAT_TREDE`, `straatTredeTeken` (in `drawClimb`), `straatOnderVul`, `straatRandTeken`, `straatVoegen`, `stadOnderAan`;
+`design/stad/straat_onder.png`
+
+Een terras met `look: 'straat'`: `terraces: [{r, l, h, look: 'straat'}]`. Een stuk straat dat hoger ligt, als trede of als
+een hele hoge wijk. De botsing is die van een terras: Amir springt erop, een vijand houdt er halt (regel 7, hij gaat geen
+trede op), en een huis, kraam of vijand die erop staat krijgt vanzelf die hoogte (`terrainH`). Alleen het tekenen is anders:
+
+- bovenop de rand van de straattegel (`straat.png`, rij 46 tot 182: loopvlak en randstenen), vast aan de wereld, die in
+  18 bronpixels zacht uitloopt in de laag eronder;
+- daaronder de onderlaag (`straat_onder.png`, een naadloze tegel uit Grok in de kleur van de aarde van de straattegel),
+  vast aan de wereld en aan de grondlijn, zodat de rijen doorlopen van de straat via de treden naar de wijk; naar onder
+  donkerder, gemeten vanaf de grondlijn;
+- een open einde (geen even hoge of hogere straat ernaast) eindigt recht, op een voeg tussen twee randstenen (`straatVoegen`
+  meet de voegen een keer in de randstrook, `straatOpVoeg` schuift het einde hooguit `voegZoek` bronpixels), met een kleine
+  overstek (`over`), een slagschaduw onder de overstek en een zachte schaduw op de lagere grond ernaast.
+
+Met `stad.onder: true` krijgt de straat zelf dezelfde onderlaag (in `sceneGrond`), zodat alles een laag is. Zonder dat veld
+ziet de straat eruit zoals altijd: de bestaande stadslevels veranderen niet.
+
+Treden zijn om op te springen, niet om op te lopen: een derde Amir (85) is een goede maat, en Amir heeft geen opstap voor
+kleine hoogtes. Stad 8 (De hoge wijk) is het proefstuk: drie treden van 85 omhoog naar een wijk op 255 met twee huizen, en
+twee treden weer omlaag. In de sandbox onder De stad **Hoge wijk met trap** (`sbtrap`, met `sbTrap` op de terrassen): drie
+treden, een stuk wijk en twee treden omlaag voor je uit, en staat de stad er, dan ook de onderlaag onder de straat.
+
+Hoort bij de stadsverbetering verticaliteit (H) in `notities/stad-verbeteren.md`.
+
 ## De leemmuur
 
 `LEEM`, `leemMuurTeken` (in `drawClimb`)

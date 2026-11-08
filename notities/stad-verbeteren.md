@@ -123,6 +123,11 @@ stadseigen ideeën.
 
 Beide samen: **9**.
 
+- [ ] **H3. Een hoge wijk met een trap.** Een deel van de stad ligt hoger, met treden van steen ernaartoe, en alles van
+  dezelfde straat met de onderlaag eronder (zie "de verhoogde straat" in `notities/stad.md`). Gekozen na schetsen: rechte
+  einden op een voeg, een kleine overstek, treden van een derde Amir om op te springen. In de maak: Stad 8 en de sandbox-knop
+  **Hoge wijk met trap**; nog niet goedgekeurd. Samen met H2 (de route bovenlangs) de weg naar een **9**.
+
 ### Stadseigen gevechten (G): nu 6
 
 De tonnen en de luifel zijn goed, maar verder vecht je zoals op de savanne, alleen tegen een ander
