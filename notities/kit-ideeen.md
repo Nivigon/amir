@@ -23,6 +23,8 @@ spullen de knop **Stof (X)**; staat hij aan, dan doet X de stofveeg. De beweging
 eerst weg van Amir en dwaalt dan heen en weer in de patrouillegang (`walk`) rond die plek, valt niet aan en werpt niet
 (`updateBandiet` keert vroeg terug), met drie draaiende zandsterretjes boven zijn hoofd. De volgende treffer in
 `hitBandiet` telt dubbel (met `critFx`) en maakt hem wakker; met twee levens is hij dan dood. Alleen de bandiet nog.
+Testlevel: **Test 63: Stof in de ogen** (veld `stof: true`, dan doet X de stofveeg ook buiten de sandbox; `restart`
+zet `STOF.aan` uit het level), drie gewone bandieten na elkaar met hun gezicht naar Amir.
 Komt de animatie, dan vervangt die de zwaai-frames in `stofStart` en kiest `STOF.werpFrame` het moment van het stof.
 
 De opdrachtgever maakt de animatie: Amir sleept de punt van zijn speer van achter hem over de grond naar voren
