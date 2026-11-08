@@ -24168,12 +24168,14 @@ function straatReset(){
   if ((level.hppotions || []).length === hppotions.length) hppotions.forEach((p, i) => { p.straatBron = i; });
 }
 // de poorten, achter Amir (na de gevels), met de naam van de straat erboven
-function straatPoortTeken(groundY, scale, cx){
+// alleen: 'hoek' of 'recht'. De hoekpoort komt voor de huizen (het huis ernaast staat voor zijn verre eind),
+// de rechte poort en die van een knooppunt erna
+function straatPoortTeken(groundY, scale, cx, alleen){
   const s = straatHier(); if (!s || !stadImgs) return;
-  if (straatRaster()) return straatKnoopPoortTeken(s, groundY, scale, cx);
+  if (straatRaster()) return alleen === 'hoek' ? undefined : straatKnoopPoortTeken(s, groundY, scale, cx);
   const ps = straatPoorten(s, scale);
   for (const soort of ['hoek', 'recht']) for (const p of ps){
-    if (p.soort !== soort) continue;
+    if (p.soort !== soort || (alleen && alleen !== soort)) continue;
     const im = stadImgs[soort === 'hoek' ? 'poortHoek' : 'poortRecht'];
     if (!im || !imgReady(im)) continue;
     const sx = cx + (p.x0 - world), y = groundY - p.h + (soort === 'hoek' ? STRATEN.hoek.zak * p.fs : 0);
@@ -25688,12 +25690,12 @@ function stadStoep(groundY, scale, cx){
   const eimg = bodemPic(); if (!imgReady(eimg)) return;
   const St = STAD_STOEP, s = edgeScale(H * 0.18), D = stadStoepH(scale), yb = groundY - D;
   const xl = -W, xr = W / viewZoom() + W, bron = EDGE.walk - St.van;
-  const rij = (img, va, vb) => {                   // de rijen van..walk, uitgerekt tot yb..groundY, vast aan de wereld
+  const rij = (img, va, vb, top = yb) => {         // de rijen van..walk, uitgerekt tot top..groundY, vast aan de wereld
     const iw = img.naturalWidth || img.width, k = (img.naturalHeight || img.height) / (eimg.naturalHeight || 1);
     const tw = iw * s;
     let x = cx - (((world % tw) + tw) % tw);
     x += Math.floor((va - x) / tw) * tw;
-    for (; x < vb; x += tw) ctx.drawImage(img, 0, St.van * k, iw, bron * k, x, yb, tw + 1, D + 1);
+    for (; x < vb; x += tw) ctx.drawImage(img, 0, St.van * k, iw, bron * k, x, top, tw + 1, groundY - top + 1);
   };
   ctx.save();
   ctx.beginPath();
@@ -25707,7 +25709,7 @@ function stadStoep(groundY, scale, cx){
   // een platte strook erover sneed hem door en liet de torenvoet eronder uitsteken
   const hoeken = (straatAan() && !straatRaster() && straatHier()) ? straatPoorten(straatHier(), scale).filter(p => p.soort === 'hoek') : [];
   for (const p of hoeken){                         // tot net voor het verre eind: daar staat de voet van het huis ernaast
-    const ver = 80 * p.fs, l = cx + (p.x0 - world) + (p.f ? ver : 0), r = cx + (p.x0 - world) + p.w - (p.f ? 0 : ver);
+    const ver = 160 * p.fs, l = cx + (p.x0 - world) + (p.f ? ver : 0), r = cx + (p.x0 - world) + p.w - (p.f ? 0 : ver);
     if (r < xl || l > xr) continue;
     ctx.rect(l, yb - 4, r - l, D + 8);
   }
@@ -25715,6 +25717,18 @@ function stadStoep(groundY, scale, cx){
   rij(eimg, xl, xr);
   grondStrokenTeken(groundY - EDGE.walk * s, eimg.naturalHeight * s, s, cx, xl, xr, rij);
   ctx.restore();
+  // bij het verre eind van een hoekpoort loopt zijn voet schuin omhoog: een wig straat, van de stoep tot net onder
+  // die voet, zodat de achtergrond er niet tussendoor piept
+  for (const p of hoeken){
+    const ver = 160 * p.fs, e = 0.05 * CHAR_H * scale, top = yb - e;
+    const buiten = cx + (p.x0 - world) + (p.f ? 0 : p.w), binnen = buiten + (p.f ? ver : -ver);
+    if (Math.max(buiten, binnen) < xl || Math.min(buiten, binnen) > xr) continue;
+    ctx.save();
+    ctx.beginPath(); ctx.moveTo(buiten, top); ctx.lineTo(binnen, yb); ctx.lineTo(binnen, yb + 2); ctx.lineTo(buiten, yb + 2); ctx.closePath();
+    ctx.clip();
+    rij(eimg, Math.min(buiten, binnen) - 2, Math.max(buiten, binnen) + 2, top);
+    ctx.restore();
+  }
   // de contactschaduw op de straat, voor elk huis en elke poort die op de straat staat
   const vakken = [];
   for (const g of (level.stad && level.stad.gevels) || []){
@@ -41332,9 +41346,10 @@ function loop(now){
       }
     }
 
+    straatPoortTeken(groundY, scale, cx, 'hoek'); // de hoekpoort: zijn verre eind ligt dieper, het huis ernaast staat ervoor
     stadTeken(groundY, scale, cx);                // de stad: gevels, galerijen, kramen en voetdecor, achter Amir
     binnenAchter(groundY, scale, cx);             // de binnenkant van een huis (zie "binnen")
-    straatPoortTeken(groundY, scale, cx);         // de poorten naar de andere straten (zie "straten")
+    straatPoortTeken(groundY, scale, cx, 'recht'); // de rechte poorten en die van een knooppunt (zie "straten")
     stadStoep(groundY, scale, cx);                // een strook straat over de voet van huizen en poorten (zie "de stoep")
     if (brutus) bruSchadeTeken(brutus, cx, groundY - (brutus.base || 0) * scale);   // de gebarsten vloer en het puin van Nyundo: op de straat, onder de put, de tonnen en Amir
     stadVoorTeken(groundY, scale, cx);            // kramen, de put en het voetdecor: op de straat, voor de stoep
