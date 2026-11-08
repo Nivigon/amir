@@ -945,6 +945,8 @@ def einde(lv, sp):
     _plein = ((lv.d.get('stad') or {}).get('pleinpoorten') or [])
     if lv.d.get('brutus') and any(p.get('uit') for p in _plein):
         return                        # het plein van Brutus: als hij ligt takelen de hekken op en speel je met E onder een open poort uit (pleinUitgang), geen fakkels
+    if any(x.get('aanvoerder') and x.get('k') == 'bandiet' for x in (lv.d.get('spawns') or [])):
+        return                        # de aanvoerder: zijn dood speelt het level uit, of opent de eindpoort en E onder de boog (zie "de aanvoerder"), geen fakkels
     if not lv.ends and not lv.muur:
         yield fout(None, 'geen ends en geen muur: dit level is niet uit te spelen')
         return

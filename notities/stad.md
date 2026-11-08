@@ -380,9 +380,10 @@ binnen: [{ ..., winkel: { x, seed, koopman }, planken: [{ x, h, soort, seed }] }
 - **Het winkelscherm** (`winkelUIOpen`, `winkelUIDicht`, `#winkelui`): E vlak voor het eind van de toonbank (`WINKEL.eBij`)
   opent een simpel scherm en het spel staat stil (`paused`). Er is nog geen geld: elke klik op de kalebas geeft er een, zo vaak
   als je wilt, ook voorbij de 3 die Amir normaal draagt (`HPPOTION_MAX` geldt alleen voor oppakken). Escape, E of Verder
-  sluit het, en de pauzeknop op de telefoon ook. Niet in een gevecht, net als de deur. De economie komt later.
+  sluit het, en de pauzeknop op de telefoon ook. Niet in een gevecht, net als de deur. In een level met `goud: true` (De Gouden
+  Poort) kost een kalebas 5 goud en draag je er hooguit 3 (zie "goud" in `notities/episodes.md`).
 
-In de sandbox onder De stad: **Winkel** en **Kamer ingericht**. Geen level heeft het nog.
+In de sandbox onder De stad: **Winkel** en **Kamer ingericht**. De Gouden Poort heeft drie winkels (Goud 3, 6 en 9).
 
 ## Straten en knooppunten (Sandville)
 
