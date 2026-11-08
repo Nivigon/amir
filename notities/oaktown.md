@@ -21,6 +21,7 @@ straten: { raster: true, start: 'kasuwa', doel: 50, aanvul: 30, muur: 300,
   spawns staan gewoon op hun wereld-x in de strook van hun straat.
 - `knopen` zijn de kruispunten, met hun plek op de minimap (0 tot 1, x naar rechts, y naar beneden). Een straat begint
   bij `knoop[0]` en eindigt bij de laatste; met drie knopen ligt de middelste op `m`.
+  Alleen rechte straten: alle knopen van een straat op dezelfde rij of dezelfde kolom, nooit schuin.
 - `raster: true` en `muur`: de knooppunten van Sandville. Bij elke knoop een poort de diepte in of een pad naar voren
   naar elke straat die daar die kant op verder loopt, aan elk uiteinde een hoge leemmuur. Hoe dat werkt (welke uitgang
   waar, de poort, het pad, de wissel, de minimap) staat in "Straten en knooppunten (Sandville)" in `notities/stad.md`.

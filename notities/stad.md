@@ -400,6 +400,10 @@ diepte in en een pad naar voren. Rechtdoor is gewoon de straat die doorloopt. Zo
 gebruikt hem nog tot die is omgezet. Twee straten in elkaars verlengde op dezelfde knoop (zoals in Oaktown) hebben geen
 uitgang tussen elkaar: je gaat via de straat die er dwars op ligt.
 
+**Alleen rechte straten.** Een straat is een rij of een kolom op de kaart: al zijn knopen liggen op dezelfde y (een rij)
+of dezelfde x (een kolom). Schuine straten, zoals de punten van De Kroonwijk nu, komen er niet meer bij; een raster kent
+alleen links, rechts, de diepte in en naar voren, dus een schuine straat geeft geen goede poort of pad.
+
 ```
 straten: { raster: true, start: 'kuiper', doel: 0, muur: 300,
            knopen: { nw: [0, 0], n: [0.5, 0], ..., zo: [1, 1] },
