@@ -22,7 +22,7 @@ met de lange galerij en het gevecht erop; het stond eerst als Test 59 tussen de 
 ## Episode Oaktown
 
 `OAK_1` (makkelijk, alleen zandslangen) en `OAK_2` (moeilijk, alleen mensen) en `OAK_LEVELS`: zeven korte straten op een
-kaart als een dobbelsteen met zes ogen, met poorten ertussen en een minimap; je speelt een level uit met 50 kills (het
+kaart als een dobbelsteen met zes ogen, op een raster met knooppunten (een poort de diepte in, een pad naar voren) en een minimap; je speelt een level uit met 50 kills (het
 veld `straten`, zie `notities/oaktown.md`). Beide levels delen de kaart (`OAK_STRATEN`, `OAK_STAD`, `OAK_TERRAS`,
 `OAK_KALEBAS`). Met de tribekeuze (`runStart`); een knop in `menuEpisodes` (`btnOak`), het scherm `menuOak` met `cardsOak`.
 
