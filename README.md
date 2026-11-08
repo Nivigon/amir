@@ -669,14 +669,15 @@ bandiet, schildbandiet, kooiman, meelman, kruisboogbandiet of zweepman je achter
 Kruipen, stilstaan en springen zijn stil, lopend hoort hij je tot net buiten steekafstand, sprintend van ver, en een worp, een
 treffer, een klap die je krijgt en een speer die neerkomt maken lawaai op die plek. Boven zijn hoofd staat een oog:
 dicht zolang hij je niet opgemerkt heeft. Sta je vlak achter hem, dan loopt een gele boog om dat oog vol en kijkt hij
-om; ziet hij je dan, dan is hij wakker (een rood uitroepteken). Sla toe voor die tijd: loop tot net buiten zijn
-gehoor, buk, kruip het laatste stukje en steek, of gooi je speer van buiten zijn gehoor. Een treffer van achteren op
-wie je niet opgemerkt heeft is de sluipaanval. Sta je binnen bereik en druk je aanval, dan steekt Amir zijn speer van
+om; ziet hij je dan, dan is hij wakker (een rood uitroepteken). Loop je gewoon (zonder Shift, niet gebukt) achter hem,
+dan loopt die boog ook al vol, van ver nog langzaam en dichterbij steeds sneller: lopend kom je nooit ongezien bij hem.
+Sla toe voor die tijd: buk op tijd, kruip naar hem toe en steek. Een treffer van achteren op wie je niet opgemerkt heeft,
+gebukt of kruipend (de steek of de lage zwaai), is de sluipaanval; staand of met een worp is het een gewone treffer.
+Sta je gebukt binnen bereik en druk je aanval, dan steekt Amir zijn speer van
 schuin onder dwars door hem heen, tilt hem op en schudt hem er met een smak af. Een gewone bandiet heeft daar zijn eigen
 dood voor: hij hangt aan de speer met de punt voor hem uit, bloedt uit de wond, glijdt eraf, zakt door zijn knieen en valt
-voorover in een plas bloed (Test 62, en in de sandbox de knop **Sluipdood bandiet**); zolang hij aan de speer hangt staat de
-wereld stil, en daarna sta je even na te hijgen en ben je kwetsbaar. Ook een schildbandiet gaat zo langs zijn schild. Een
-worp van achteren is de stille klap zonder animatie, met een korte schok en een ster. Je kunt hem ook gewoon aanvallen; sluipen is een keuze, en handig tegen een groep. De
+voorover in een plas bloed, met het geluid van het bloed bij de steek (Test 62, en in de sandbox de knop **Sluipdood bandiet**); zolang hij aan de speer hangt staat de
+wereld stil, en daarna sta je even na te hijgen en ben je kwetsbaar. Ook een schildbandiet gaat zo langs zijn schild. Je kunt hem ook gewoon aanvallen; sluipen is een keuze, en handig tegen een groep. De
 hinderlaag-bandiet (gehurkt met zijn rug naar je) hoort je zoals altijd en doet niet mee. In de sandbox laat **Rug naar
 Amir** een vijand van je af kijken, **Draait om** laat hem in rust om de zoveel seconden omdraaien, **Patrouille**
 laat een bandiet heen en weer lopen, en **Toon gehoor** tekent hoe ver je te horen bent.
