@@ -216,6 +216,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de stoep: een strook straat over de voet van de huizen, zodat niemand op de muurvoet staat | `STAD_STOEP`, `stadStoep`, `stadVoorTeken` | notities/stad.md |
 | stadsvolk: dorpelingen op de stoep, omgekleurd, weg als er gevochten wordt | `STAD_VOLK`, `volkTeken`, `volkRustig` | notities/stad.md |
 | de leemmuur: een terras met de look van de stad | `LEEM`, `leemMuurTeken`, `look: 'leem'` | notities/stad.md |
+| de verhoogde straat: een terras met de look van de straat, treden en een hoge wijk, de onderlaag eronder (`stad.onder`) | `STRAAT_TREDE`, `straatTredeTeken`, `look: 'straat'` | notities/stad.md |
 | de houten vloer: de vloer van een huis met verdiepingen, een zwever met look hout | `look: 'hout'`, `savanneLaag`, `vloer_hout` | notities/stad.md |
 | binnen: de binnenkant van een huis, E bij het deurgat, een ladder, licht en stof (in de Maker: kamers van Binnen-cellen) | `BINNEN`, `binnenE`, `binnenAchter`, `binnenNa`, `mkBinnenKamers` | notities/stad.md |
 | de winkel en de inrichting: een toonbank waar Amir tegenaan loopt, een schap, speren, planken met spullen; elke seed anders | `WINKEL`, `winkelOpbouw`, `winkelVoor`, `binnenLinks`; het winkelscherm (E, per klik een kalebas): `winkelUIOpen` | notities/stad.md |
@@ -333,7 +334,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `gaps` | ravijnen: `{x, w}` |
 | `water` | poelen: `{x, n}` met `n` = aantal middenstukken |
 | `thickets` | doornbossen: `{x, n, seed}` |
-| `terraces` | terrassen om op te klimmen: `{r, l, h}`; negatieve `h` is een trede in een gang, `grond: true` een hogere savannelaag, `look: 'leem'` een muur van leem in de stad (zie "de leemmuur" in `notities/stad.md`) (zie `notities/velden.md`) |
+| `terraces` | terrassen om op te klimmen: `{r, l, h}`; negatieve `h` is een trede in een gang, `grond: true` een hogere savannelaag, `look: 'leem'` een muur van leem in de stad (zie "de leemmuur" in `notities/stad.md`), `look: 'straat'` een verhoogd stuk straat, trede of hoge wijk (zie "de verhoogde straat" in `notities/stad.md`) (zie `notities/velden.md`) |
 | `holtes` | gangen onder de grond: `{r, l, diep}`, een ravijn erboven is de ingang, een gat met treden de uitgang (zie hieronder) |
 | `putten` | ravijnen in de vloer van een gang: `{x, w}`, helemaal binnen een holte (zie "put") |
 | `zuilen` | zuilen met een hoogte in een ravijn of put: `{x, w, h}`, `h` van -250 tot 180 boven de grond of de vloer (zie "zuil met een hoogte") |
