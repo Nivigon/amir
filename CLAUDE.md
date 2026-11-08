@@ -134,6 +134,11 @@ lees dan eerst `notities/stad-verbeteren.md` en volg "Zo werken we": een stap pe
 suggesties zonder iets te bouwen, de opdrachtgever kiest er een, bijsturen tot het goed is, en pas dan
 afvinken en het cijfer bijwerken.
 
+**14. Impungushe ligt stil.** Breng de tribe Impungushe (de jakhals, het mes, Feign Death) niet zelf
+ter sprake: stel er geen ideeën, talents of abilities voor in, en deel er niets bij in, tot de opdrachtgever
+er zelf weer mee begint. Bestaande code en knoppen blijven gewoon staan. Een talent mag wel bij twee tribes
+passen; ideeën voor de kit staan in `notities/kit-ideeen.md`.
+
 ## Waar wat staat
 
 De HTML is opgedeeld met commentaarkoppen (`// ---- ... ----`). Zoek daarop, niet op
@@ -278,6 +283,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | wat er staat waar een ravijn openscheurt | `RAVIJN_DECOR`, `ravijnDecor`, `ravijnDecorStap` | notities/ravijn.md |
 | golvende rand: terreinmassa's met een organische omtrek | `GOLF`, `golfAan`, `golfGrondTeken`, `golfTerrasTeken` | notities/golf.md |
 | de stad verbeteren: werklijst met cijfers en stappen; bij "stadsverbetering" eerst 3 suggesties, de opdrachtgever kiest | `stadsverbetering`, `S1`, `L1`, `V1` | notities/stad-verbeteren.md |
+| ideeën voor de kit van Amir: basis, tribe-ability of talent (nog niets gebouwd) | `kit`, `talent`, `tribe` | notities/kit-ideeen.md |
 | sandbox | de vrije testmodus |  |
 
 Op schijf: `karakters/` (Amir, dorpeling, dorpelinge), `enemies/`, `design/` (decor,
