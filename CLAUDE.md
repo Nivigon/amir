@@ -204,6 +204,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de stad: een Sahelstraat met gevels, galerijen, kramen en het paleis | `STAD`, `stadPlats`, `stadAchter`, `stadTeken` | notities/stad.md |
 | achter de kartels: wie op een dak in de stad staat, staat achter de tanden | `STAD_KANTEEL`, `dakAchter`, `stadKanteelVoor` | notities/stad.md |
 | de stadstrap: een buitentrap achter een huis langs, E en een fade | `STAD_TRAP`, `stadTrapE`, `stadInGevecht` | notities/stad.md |
+| deurgordijnen: een geweven doek in het deurgat in plaats van de houten deur, golft in de wind, binnen gespiegeld; per gevel `gordijn`, of `stad.gordijnen: true` voor een vaste keuze per huis | `GORDIJN`, `stadGordijn`, `gordijnDoek`, `stadGordijnTeken`, `binnenGordijnTeken` | notities/gordijnen.md |
 | huistypes: andere gevels (reliefhuis, koopmanshuis, pilarenhuis) met `soort`, ook in de Maker | `STAD.gevelSoort`, `stadGevelG`, `MK_GEVEL_TYPES` | notities/stad.md |
 | deuren in de stad: een vijand die uit een deurgat van een gevel stapt | `STAD_DEUR`, `stadDeurMaat`, `stadDeurUpdate`, `mkDeurMaat` | notities/stad.md |
 | de doorgang: bij de opening van een trap op een galerij loopt het dek de diepte in, langs het huis | `STAD_DOORGANG`, `stadDoorgangen`, `stadDoorgangBeeld` | notities/stad.md |
@@ -457,6 +458,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **Nyundo** (`enemies/brutus/frames/`, ook na `tools/brutus_donker.py`) → `tools/brutus_spleet.py` (de spleet tussen steel en bal van de knots) en `tools/brutus_rand.py` (de stippelrand om de donkere set), daarna `gen-klein.py` en `gen-offline-manifest.py`
 - **Het bloed onder Nyundo als hij in zijn knots valt** (`design/bloed/nyundo_stroom.png`, uit het lijk van de schildman) → `tools/nyundo_bloed.py`, daarna `gen-offline-manifest.py`
 - **Wapenrek** (`design/stad/wapenrek/`, uit de Grok-plaat in `bron/`) → `tools/wapenrek_knip.py`, daarna `gen-offline-manifest.py`
+- **Deurgordijnen** (`design/stad/gordijn/`, uit de Grok-platen in `bron/`) → `tools/gordijn_knip.py`, daarna `gen-klein.py` en `gen-offline-manifest.py` (de gordijnmap staat niet in de lijst van `gen-klein.py`, dus het spel laadt de grote versie, net als bij de tonnen)
 - **Tonnen** (`design/stad/ton/`, uit de Grok-platen in `bron/`) → `tools/ton_kleur.py`, daarna `gen-offline-manifest.py`
 - **Rotsdecor** (`design/rotsdecor/`, losse rotsstukken uit de platen in `bron/`) → `tools/rotsdecor_knip.py`, daarna `gen-offline-manifest.py`
 - **Tribe-logo's** → `tools/tribe_logos.py`
