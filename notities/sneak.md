@@ -96,6 +96,35 @@ animatie, en de worp van achteren ook.
 Nagemeten in de sandbox: de bandiet, de schildbandiet en de kooiman (ook naar rechts, dus gespiegeld om het hele canvas met
 het lijfmidden aan de andere kant) hangen op de punt en sterven op het losframe, 4,0 s na de aanvalsknop; console schoon.
 
+## De sluipdood van de bandiet (`SNKD`, `snkdTeken`, kop "de sluipdood van de bandiet")
+
+Een gewone bandiet (niet de garde of de Duinwacht) heeft een eigen dood voor de sluipaanval, uit `enemies/bandiet/sneakdood/`
+(`metadata.json`, `LEESMIJ_sneakdood.txt`, `proef_bloed.html`): de hangpose `val_00` en de val `val_00` tot `val_19`. Op het
+raakframe zet `sneakRaak` hem op `snkdStart` (`s.snk`, en `s.bloed` uit), en vanaf dan tekent `snkdTeken` hem in de tekenlus
+van de bandieten in plaats van zijn gewone frame. Zijn dood zelf blijft de gewone (`hitBandiet` in `sneakLos`, state `dood`);
+`updateBandiet` neemt `s.klaar` over van `s.snk.klaar`. De frames laden lui met `snkLaad` (`snkdLaad`).
+
+- **Maat**: `SNKD.maat` 1,28 keer de idle-maat (`banScale`), op het oog even groot als `enemies/bandiet/idle` (de kop en de
+  lengte nagemeten; naast een gewone bandiet staand 190 px tegen Amir 155 op 1280x720).
+- **Hangen**: Amirs tekenlus zet `snkAmirVak` (waar het canvas van de sluipaanval staat). Het uittredepunt (146, 80) ligt
+  `SNKD.uittrede` (105) canvas-px achter de punt op de speer, gedraaid met de speerhoek min die van steek 12 (`SNKD.speer`,
+  gemeten per frame). Op de maat van idle zakten zijn voeten zo tot een halve Amir door de grond, want de punt zit in de steek
+  op borsthoogte van een kleinere man. Daarom: hij kantelt voorover (`snkdKantelDoel`, in stappen van 5 tot `kantelMax` 35
+  graden, de kleinste stand waarin de punt na het optillen nog `uitsteek` 60 px uit hem steekt, zacht meeschuivend met
+  `kantelV`) en wordt opgetild tot zijn laagste punt (`SNKD.schil`, de convexe schil van `val_00`) op Amirs grondlijn staat
+  (`snkdTil`). Hij staat dan op zijn tenen met de speer door zijn onderlijf.
+- **Het blad**: over hem heen tekent `snkdBlad` alleen het blad uit Amirs frame, van de punt tot net voorbij waar de speer
+  zijn silhouet in gaat (`snkdBladLang`, op de dekking van `val_00`), met de rode waas (`SNKD.blad`). Daar zit ook de wond.
+- **De val**: op het losframe begint de val onder het draaipunt; het verschil in hoogte en hoek met de hangplek loopt zacht
+  naar 0 tot het knieframe (10). Bij het loslaten geen tweede flits; de flits bij de treffer is zachter (hooguit 0,55).
+- **Bloed** (ingetogen, getallen uit `metadata.json`, in canvas-px van de bandiet): de spat bij de treffer langs de speer,
+  de wondvlek binnen zijn silhouet (de wond verschoven met hetzelfde stuk als waar de speer echt uit hem kwam, weg vanaf
+  frame 13), druppels uit de wond en van de punt (tot 0,3 s na het loslaten, want na frame 10 is de punt niet gemeten),
+  vlekjes waar ze landen en de plas onder zijn borst vanaf frame 16. De waas op het blad blijft niet na het loslaten.
+
+In de sandbox: **Sluipdood bandiet** onder Vijanden, bij Sluipaanval (zet de sluipaanval aan, geeft Amir de speer en zet een
+gewone bandiet met zijn rug naar hem op 1,45 keer het bereik). Testlevel: Test 62.
+
 ## Het oog (`sneakOogTeken`)
 
 Boven elke mens-vijand die zo speelt (vanuit `vijandHpBalk` en `schildHpBalk`, ook zonder de balk): in rust een
