@@ -1438,6 +1438,10 @@
         <button id="sbworpwacht" class="on">Spannen: nieuw</button>
       </div>
       <div class="row">
+        <label>Stof in de ogen</label>
+        <button id="sbstof" title="X: Amir veegt stof op naar een vijand die hem aankijkt (nu alleen de bandiet). Hij is even blind en de volgende treffer telt dubbel.">Stof (X): uit</button>
+      </div>
+      <div class="row">
         <label>Reserve op de rug</label>
         <button id="sbrug0">Rug: uit</button>
         <button data-rug="1">Rug: 1</button>
@@ -3025,6 +3029,72 @@ let swLading = 1, swLaad = 0;                 // ladingen klaar, en hoe ver de v
 const sweepImgs = Array.from({ length: SWEEP_N }, (_, i) =>
   loadQuiet(SWEEP_DIRS.map(d => d + 'sweep_' + (i + 1) + '.png')));
 let swFrame = -1, swAcc = 0, sweepId = 0, swRecover = 0;
+// ---- stof in de ogen: de speerpunt over de grond en zand naar een vijand die je aankijkt (prototype) ----
+// X in de sandbox (knop Stof onder Speer en spullen). Tijdelijke beweging: de frames van de lage zwaai, die dan
+// niets raken. Op STOF.werpFrame vliegt het stof: een bandiet voor Amir, binnen STOF.bereik, op zijn niveau en met
+// zijn gezicht naar Amir, is STOF.duur seconden blind. Hij dwaalt heen en weer met sterretjes boven zijn hoofd, valt
+// niet aan, en de volgende treffer telt dubbel (in hitBandiet). Zie notities/kit-ideeen.md.
+const STOF = { aan: false, werpFrame: 8, bereik: 420, duur: 3.5, dwaal: 0.22, dwaalBreed: 110, wolk: 14 };
+let stofT = -1, stofGeworpen = false;          // stofT >= 0: de stofveeg loopt
+function stofStart(){
+  if (!STOF.aan || !spear || !onGround || swFrame >= 0 || swRecover > 0 || atkCooldown > 0 || thr || amirVast()) return false;
+  swFrame = 0; swAcc = 0; stofT = 0; stofGeworpen = false;
+  return true;
+}
+function stofStap(dt){                          // na het doorschuiven van swFrame, elk beeld
+  if (stofT < 0) return;
+  if (swFrame < 0){ stofT = -1; return; }
+  stofT += dt;
+  if (!stofGeworpen && swFrame >= STOF.werpFrame) stofWerp();
+}
+function stofWerp(){
+  stofGeworpen = true;
+  const dir = thrDir();
+  puffWorld(world + dir * 110, STOF.wolk, dir * 420, 1.2, ph);
+  puffWorld(world + dir * 220, Math.round(STOF.wolk / 2), dir * 300, 0.9, ph);
+  for (const s of bandieten){
+    if (s.state === 'dood' || s.state === 'weg' || s.state === 'vault' || s.dropping || s.air > 0 || s.introKind) continue;
+    const dx = s.x - world;
+    if (Math.sign(dx) !== dir || Math.abs(dx) > STOF.bereik) continue;   // voor Amir en dichtbij genoeg
+    if (s.face !== -Math.sign(dx)) continue;                              // hij moet Amir aankijken
+    if (!banZelfdeHoogte(s)) continue;
+    stofRaak(s);
+  }
+}
+function stofRaak(s){
+  banLaadIdle(!!s.elite);                       // de patrouillegang; tot die binnen is tekent hij de run
+  s.verblind = STOF.duur; s.vbThuis = s.x;
+  s.face = s.x >= playerX() ? 1 : -1;          // eerst wankelt hij achteruit, weg van Amir
+  s.vbThuis = s.x + s.face * STOF.dwaalBreed * 0.6;
+  banSet(s, 'walk');
+  puffWorld(s.x, 8, 0, 0.8, (s.base || 0) + CHAR_H * 0.75);
+}
+function stofDwaal(s, dt, plats, cliff){       // blind: heen en weer rond de plek waar het stof hem raakte
+  s.verblind -= dt;
+  if (s.verblind <= 0){ s.verblind = 0; banSet(s, 'run'); return; }
+  if (s.state !== 'walk') banSet(s, 'walk');
+  banAnim(s, dt);
+  const stap = s.face * BAN_RUN_SPD * STOF.dwaal * dt, nx = s.x + stap;
+  const voorbij = Math.abs(nx - s.vbThuis) > STOF.dwaalBreed && Math.sign(nx - s.vbThuis) === s.face;
+  if (voorbij || dropAhead(nx + s.face * 40, s.base || 0) || !banMove(s, stap, plats, cliff)) s.face = -s.face;
+}
+function stofTeken(sx, topY, s, scale){        // drie zandsterretjes die om zijn hoofd draaien
+  const ah = CHAR_H * scale, r = ah * 0.03, t = performance.now() / 1000;
+  let y = topY - ah * 0.06;
+  if (s.hpBalk) y -= Math.max(4, ah * 0.045) + r;
+  ctx.save();
+  for (let i = 0; i < 3; i++){
+    const a = t * 4 + i * Math.PI * 2 / 3;
+    const x = sx + Math.cos(a) * ah * 0.09, yy = y + Math.sin(a) * ah * 0.025;
+    ctx.globalAlpha = 0.65 + 0.35 * Math.sin(a);
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.arc(x + 1, yy + 1, r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#e8c87a'; ctx.beginPath();
+    for (let k = 0; k < 8; k++){ const rr = k % 2 ? r * 0.45 : r * 1.2, b = k * Math.PI / 4 + t * 2;
+      ctx.lineTo(x + Math.cos(b) * rr, yy + Math.sin(b) * rr); }
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
 // ---- sluipen (crawlen): gebukt naar links of rechts kruipen -----------------
 // Er zijn twee sets: met een speer in de hand (sluipen_speer, uit crawlt3spear.mp4) en met vrije
 // handen zonder speer (sluipen, uit crawl5.mp4). crawlSet() kiest de juiste op spear. Allebei op
@@ -20134,6 +20204,7 @@ addEventListener('keydown', e => {
     flashHint('Lichtsterkte ' + LICHT.sterkte.toFixed(1).replace('.', ','));
     return;
   }
+  if ((e.key === 'x' || e.key === 'X') && STOF.aan){ if (!e.repeat) stofStart(); return; }   // stof in de ogen (sandbox, zie STOF)
   if (e.key === ' ' || e.key === 'f' || e.key === 'F'){
     e.preventDefault();
     if (e.repeat || atkKeyHeld) return;          // holding the key does not re-fire
@@ -34779,6 +34850,7 @@ function updateBandiet(s, dt, plats, cliff){
   }
 
   const dx = playerX() - s.x, gap = Math.abs(dx), naarJe = dx >= 0 ? 1 : -1;
+  if (s.verblind > 0){ stofDwaal(s, dt, plats, cliff); return; }   // stof in de ogen: blind, hij dwaalt (zie STOF)
 
   // ---- zicht: in rust staan idlen tot hij je ziet, en terug in rust als hij je kwijt is (zie "zicht") ----
   if (zichtVoor(s) && (s.state === 'run' || s.state === 'look' || s.state === 'idle' || s.state === 'walk')){
@@ -34923,6 +34995,7 @@ function hitBandiet(s){
   const sneak = !s.sluipVrij && sneakKan(s);       // de sluipaanval: van achteren op wie je niet opmerkte, in een klap dood (zie "sneak")
   if (sneak){ sneakDoe(s); s.hp = 1; } else lawaaiPuls(s.x, s.base || 0, SNEAK.puls.treffer);
   s.hp--; if (critPak()) s.hp--;                   // True Flight: een crit telt als twee treffers
+  if (s.verblind > 0){ s.hp--; s.verblind = 0; critFx(s.x, (s.base || 0) + CHAR_H * 0.6); }   // blind van het stof (STOF): deze treffer telt dubbel
   hits++; hitsEl.textContent = hits;
   s.knock = (s.x < playerX() ? -1 : 1) * BAN_KNOCK;   // altijd bij jou vandaan
   if (s.hp > 0){ if (s.bloed) bloedSnedeZet(s); s.flash = 0.3; s.inv = BAN_INV_T; banSet(s, 'run'); s.rust = BAN_NA_HIT; return true; }
@@ -41091,6 +41164,7 @@ function loop(now){
     if (swFrame >= SWEEP_N){ swFrame = -1; swAcc = 0; atkCooldown = SWEEP_COOLDOWN; swRecover = SWEEP_RECOVER; }
   } else if (swRecover > 0) swRecover = Math.max(0, swRecover - dt);
   sweepLaden(dt);                                // de ladingen van de lage zwaai komen terug
+  stofStap(dt);                                  // stof in de ogen: de werpmomenten (zie STOF)
   if (swFrame >= SWEEP_FROM && swFrame <= SWEEP_TO && onGround && ph < 5
       && waterDepthAt(world, ph) < 0.2){
     spawnSweepSand(dt);                                  // alleen op het zand, niet op rots of in water
@@ -41923,7 +41997,7 @@ function loop(now){
     const pbox = { l: pcx - PLAYER_HALF_W * CHAR_H * scale,
                    r: pcx + PLAYER_HALF_W * CHAR_H * scale,
                    t: feetY - CHAR_H * scale * duckShare, b: feetY };
-    const sweepLive = swFrame >= SWEEP_FROM && swFrame <= SWEEP_TO;
+    const sweepLive = swFrame >= SWEEP_FROM && swFrame <= SWEEP_TO && stofT < 0;   // de stofveeg (STOF) raakt niets
     const swR = SWEEP_REACH * CHAR_H * scale;
     const swbox = sweepLive ? { l: pcx - swR, r: pcx + swR,
                                 t: feetY - SWEEP_HIGH * CHAR_H * scale, b: feetY + 12 * scale } : null;
@@ -42800,6 +42874,7 @@ function loop(now){
         const lmid = bodyX + s.face * BAN_LIJF.mid * bS, lhalf = BAN_LIJF.half * bS;
         const nbox = { l: lmid - lhalf, r: lmid + lhalf, t: voeten - BAN.fig * bS, b: voeten };
         vijandHpBalk(bodyX, nbox.t, s, scale);           // het health-balkje boven zijn hoofd (met hpBalk)
+        if (s.verblind > 0) stofTeken(bodyX, nbox.t, s, scale);   // blind van het stof: sterretjes om zijn hoofd
         let zbox = null;
         if (s.state === 'slag'){                         // de kling: alleen tijdens de raakframes
           const a1 = bodyX + s.face * BAN_ZWAARD.from * bS, a2 = bodyX + s.face * BAN_ZWAARD.to * bS;
@@ -49899,6 +49974,7 @@ function startSandbox(arena, gates){
   RUG_MAX = RUG_STANDAARD; rugSperen.length = 0; rugTrekT = 0; rugToon();   // de reserve op de rug: de standaard (1), ook in de arena-modus; restart vult hem; de knop Rug zet het anders
   HP_BALK = 0; hpBalkToon();                            // en de health-balk (bandiet/kooiman 3 levens) begint uit
   ZICHT_AAN = false; zichtToon = false; zichtKnopToon();  // en het zicht (zie "zicht") ook
+  STOF.aan = false; stofKnopToon();                     // en stof in de ogen (X)
   SNEAK_AAN = false; sneakToon = false; sbSneakRug = false; sbSneakDraai = 0; sbSneakPat = false; sneakKnopToon();   // en de sluipaanval (zie "sneak")
   document.getElementById('lives').style.display = sbArena ? '' : 'none';   // geen levens in de sandbox, wel in de arena-modus
   sbArenaCfg.aan = false;                                // de arena wacht op Start
@@ -49930,6 +50006,7 @@ function stopSandbox(){
   RUG_MAX = 0; rugSperen.length = 0; rugTrekT = 0;      // het reserve-systeem weer uit buiten de sandbox
   HP_BALK = 0;                                          // en de health-balk ook
   ZICHT_AAN = false; zichtToon = false;                 // en het zicht
+  STOF.aan = false; stofT = -1;                         // en stof in de ogen
   SNEAK_AAN = false; sneakToon = false;                 // en de sluipaanval
   sbPatrouille = false; sbPatBtn.classList.remove('on');
   sbMuziek = MUZIEK_BASIS;
@@ -52436,6 +52513,11 @@ function sbHppotion(drop){
 // ---- speerworp los testen: gooien, inslaan en erop klimmen ----------------
 // De schaalworp aan of uit: twee vaste trappen (vlak of de boog), of een hoek die oploopt
 // zolang je vasthoudt. Zie THR_HOEK_MAX bij de speerworp.
+function stofKnopToon(){
+  const b = document.getElementById('sbstof'); if (!b) return;
+  b.textContent = 'Stof (X): ' + (STOF.aan ? 'aan' : 'uit'); b.classList.toggle('on', STOF.aan);
+}
+document.getElementById('sbstof').onclick = () => { STOF.aan = !STOF.aan; stofKnopToon(); cv.focus(); };
 document.getElementById('sbworp').onclick = e => {
   sbWorpSchaal = !sbWorpSchaal;
   e.currentTarget.textContent = sbWorpSchaal ? 'Worp: schaal' : 'Worp: twee trappen';

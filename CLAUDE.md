@@ -283,7 +283,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | wat er staat waar een ravijn openscheurt | `RAVIJN_DECOR`, `ravijnDecor`, `ravijnDecorStap` | notities/ravijn.md |
 | golvende rand: terreinmassa's met een organische omtrek | `GOLF`, `golfAan`, `golfGrondTeken`, `golfTerrasTeken` | notities/golf.md |
 | de stad verbeteren: werklijst met cijfers en stappen; bij "stadsverbetering" eerst 3 suggesties, de opdrachtgever kiest | `stadsverbetering`, `S1`, `L1`, `V1` | notities/stad-verbeteren.md |
-| ideeën voor de kit van Amir: basis, tribe-ability of talent (nog niets gebouwd) | `kit`, `talent`, `tribe` | notities/kit-ideeen.md |
+| ideeën voor de kit van Amir: basis, tribe-ability of talent; stof in de ogen als prototype in de sandbox (X) | `STOF`, `stofWerp`, `stofDwaal` | notities/kit-ideeen.md |
 | sandbox | de vrije testmodus |  |
 
 Op schijf: `karakters/` (Amir, dorpeling, dorpelinge), `enemies/`, `design/` (decor,

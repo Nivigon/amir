@@ -16,6 +16,15 @@ voelt lame. De rol-worp als finisher voelt juist goed.
 
 ## Nu aan de beurt: stof in de ogen
 
+**Prototype gebouwd (sandbox).** `STOF`, `stofStart`, `stofWerp`, `stofRaak`, `stofDwaal`, `stofTeken`. Onder Speer en
+spullen de knop **Stof (X)**; staat hij aan, dan doet X de stofveeg. De beweging is voorlopig de lage zwaai (`swFrame`, met
+`stofT >= 0` raakt de zwaaibox dan niets); op `STOF.werpFrame` vliegt het stof (`puffWorld`). Een bandiet voor Amir, binnen
+`STOF.bereik`, op zijn niveau (`banZelfdeHoogte`) en met zijn gezicht naar Amir krijgt `s.verblind = STOF.duur`: hij wankelt
+eerst weg van Amir en dwaalt dan heen en weer in de patrouillegang (`walk`) rond die plek, valt niet aan en werpt niet
+(`updateBandiet` keert vroeg terug), met drie draaiende zandsterretjes boven zijn hoofd. De volgende treffer in
+`hitBandiet` telt dubbel (met `critFx`) en maakt hem wakker; met twee levens is hij dan dood. Alleen de bandiet nog.
+Komt de animatie, dan vervangt die de zwaai-frames in `stofStart` en kiest `STOF.werpFrame` het moment van het stof.
+
 De opdrachtgever maakt de animatie: Amir sleept de punt van zijn speer van achter hem over de grond naar voren
 en gooit stof (of gruis) naar de vijand.
 
