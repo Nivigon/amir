@@ -37,7 +37,9 @@ paar lege in de roverskampen van Valse Koning 2 en 5 (met toestemming, regel 1).
 
 ## Gedrag
 
-- Decor: Amir en vijanden lopen erdoorheen. Getekend achter Amir (na de keien), met een schaduwtje.
+- Decor: Amir en vijanden lopen erdoorheen. Getekend achter Amir (na de keien), met een schaduw (`TON.schaduw`): een ovaal
+  verloop dat tot onder de randen van de bodem donker blijft, en het plaatje zakt er `TON.zak` in. De bodem is rond (je kijkt er
+  wat op neer), dus met alleen een vaag streepje zag je aan de zijkanten de straat onder de rand door en leek hij te zweven.
 - **Amir**: steek, lage zwaai of geworpen speer, drie treffers (`TON.treffers`). 1: een gat in een duig (`ton_1`), splinters,
   `houtRaak`. 2: de bovenkant breekt eruit (`ton_2`, de losse hoepel uit de Grok-plaat is weggelaten), een duig vliegt weg.
   3: `tonBreek`: het breekgeluid (`tonBreekGeluid`: `sounds/ton_breek.mp3` na een paar treffers, `sounds/ton_zwaar.mp3` als hij in een klap gaat, zoals bij Nyundo; breken er meer tegelijk, dan klinkt het een keer), stof (`banStofWolk`, `puffWorld`) en negen losse stukken die van Amir af spatten, stuiteren
