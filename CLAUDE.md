@@ -247,7 +247,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | het weer: regen, onweer, zandstorm, sneeuw en sneeuwstorm | `WEER`, `weerDoel`, `updateWeer` | notities/wegwijzers.md |
 | vegetatie, water, doornbos | `props`, `water`, `thickets` | notities/wegwijzers.md |
 | schilden in de wind | `SCHILD`, `schildStofUpdate`, `schildTil` | notities/decor.md |
-| tonnen: houten tonnen die breken (drie treffers, Nyundo in een keer, een kalebas erin) | `TON`, `tonRaak`, `tonBruut`, `tonPlekX` | notities/tonnen.md |
+| tonnen: houten tonnen die breken (drie treffers, Nyundo in een keer, een kalebas erin), ook op een dak of zwevende laag | `TON`, `tonRaak`, `tonBruut`, `tonPlekX`, `tonOp` | notities/tonnen.md |
 | wapenrek: een houten rek in de stad met speren; E pakt er een, in de hand of op de rug | `WAPENREK`, `wapenrekken`, `rekTrek` | notities/wapenrek.md |
 | rotsdecor: losse rotsstukken als props, lui geladen, in de Maker onder Decor | `ROTS_FAM`, `rotsSoorten`, `propLaad`, `mkVulRots` | notities/decor.md |
 | slangen: kleur, zicht en patrouille | `SNAKE_DIRS`, `slangZiet`, `startPatrouille` | notities/slangen.md |
@@ -319,7 +319,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `executie` | `true`: elke dodelijke steek, worp of lage zwaai op een schildbandiet is de executie, in plaats van 1 op 5 en 1 op 3 (alleen Test 50, zie `notities/schildbandiet.md`) |
 | `herhaal` | `true`: is de laatste schildbandiet weg (na de executie of de gewone dood), dan komt er na `EXE.herhaalWacht` een nieuwe aanwandelen, net buiten beeld voor Amir uit, met de vlaggen van de eerste schildman-spawn (alleen Test 50, `exeHerhaalStap`) |
 | `rocks` | keien om op te springen: `{x, s}` |
-| `tonnen` | houten tonnen die breken: `{x, y, f, kalebas}`, of `put`/`luifel`/`kraam` met `a` (Amir van die put, losse luifel of kraam) in plaats van `x` (zie `notities/tonnen.md`) |
+| `tonnen` | houten tonnen die breken: `{x, y, f, kalebas}`, of `put`/`luifel`/`kraam` met `a` (Amir van die put, losse luifel of kraam) in plaats van `x`; hoger op met `dak` (een dak of galerij van de stad, met `a` vanaf het midden van dat dak) of `zwever: true` (zie `notities/tonnen.md`) |
 | `wapenrekken` | houten rekken met speren: `{x, f, n}`, `n` speren (standaard en hooguit 4, een per touwlus), of `put`/`luifel`/`kraam` met `a` zoals bij `tonnen`; E pakt er een (zie `notities/wapenrek.md`) |
 | `spawns` | vijanden: `{x, k}`, `k` is groen/zwart/knock/scorp/hyenas/panter/fosfor/bandiet/kooiman/meelman/schildman/kruisboogbandiet, met vlaggen per soort (zie `notities/velden.md`) |
 | `goud` | `true`: een goudstuk per kill, een kalebas kost 5 goud in de winkel, goud en kalebassen gaan mee naar het volgende level (De Gouden Poort, zie "goud" in `notities/episodes.md`) |

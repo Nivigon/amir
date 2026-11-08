@@ -500,7 +500,8 @@ Allebei een decorstuk via `MK_DECOR` (het gedeelde paneel `mkVulDecor`), met twe
 - **Ton** (`ton`, Decor, groep Kamp: fakkel, teken en ton, in beide standen): Soort **Een ton**, **Twee naast elkaar** (0,4 Amir uit
   elkaar, net over elkaar, zoals in de stadslevels) of **Twee met een erop** (de derde op de tweede, `y: TON.h`), **Gespiegeld** en
   **Kalebas erin** (`kalebas`, in de eerste ton). Wordt `tonnen` met `x` (het midden van de kolom), zie `notities/tonnen.md`; het spel
-  zet hem op de vloer onder zijn kolom (`terrainH`, dus niet op een galerij). Op de kaart het echte plaatje (`tonImgs`, `tonLaad`).
+  zet hem op de vloer onder zijn kolom (`terrainH`); staat zijn voet op een dak, galerij of balkon, dan krijgt hij `dak`, op een
+zwevende laag `zwever: true` (zie "Hoger op" in `notities/tonnen.md`). Op de kaart het echte plaatje (`tonImgs`, `tonLaad`).
 - **Stadsvolk** (`volk`, Decor, groep Straat, stand Stad): Soort **Dorpeling** of **Dorpelinge**, **Kleur** (`STAD_VOLK.kleuren`:
   blauw, rood, groen, indigo, oker, wit; de laatste keuze onthoudt `MK.volkKleur`) en **Gespiegeld**. Wordt `stad.volk {x, k, kleur,
   f}`; alleen het volk vraagt al het veld `stad` (de stoep), ook zonder gevels. Op de kaart een figuurtje in de kleur van de kleren

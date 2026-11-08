@@ -15,8 +15,19 @@ Code: de sectie `// ---- tonnen: houten tonnen die breken ----` (`TON`, `tonnen`
 - `kraam: i, a`: naast `stad.kramen[i]` (het midden van de kraam, 1,68 Amir breed): a 1,1 staat er net naast. Een stapel
   (Stad 4, Beleg 4): a 1,1 en 1,5 net over elkaar, en de bovenste recht op de voorste (a 1,5, y 0,62).
 
+Hoger op (`tonOp`): met `dak` (`true` of een hoogte, net als bij een vijand, zie `stadDakPlek`) staat hij op het dak of de
+galerij van de stad het dichtst bij `x`, met `zwever: true` op de zwevende savannelaag boven `x`. Een dak schaalt mee met het
+scherm: met `a` (Amir van het midden van dat dak) staat hij op elk scherm op dezelfde plek, zonder `a` op `x`; altijd een halve
+ton binnen de rand. Een stapel op een dak: elke ton krijgt hetzelfde `dak` en dezelfde `a`, de bovenste met `y: 0.62`. Hij houdt
+zijn vloer bij (`t.vloer`, `{h, l, r}`), dus de losse stukken en de kalebas blijven op het dak liggen (`tonStukVloer`,
+`hppotionHopVloer`); wat over de rand vliegt valt naar beneden. Op een dak staat hij achter de kartels: `stadKanteelVoor` tekent de tanden na
+de personages opnieuw in een strook rond elke ton op dat dak (net als rond wie erop staat), zodat alleen zijn bovenkant
+erboven uitsteekt en de bovenste van een stapel er helemaal bovenuit komt. Op een galerij achter de leuning, zonder slagschaduw op de straat. Nyundo op de straat komt er niet bij
+(`tonBruut` slaat een ton op een dak of zwever over). Een terras van grond (`terraces`, ook `grond: true`) hoeft niets: daar
+staat een ton al vanzelf op (`terrainH`).
+
 `y` is de hoogte van de onderkant in Amir (0,62 is een ton op een ton, `TON.h`). Een ton op een ton staat in werkelijkheid
-op `TON.stapel` (0,55): hij zakt in het deksel van de onderste, anders zweeft hij op de rand (`tonMaak` zet een y van
+op `TON.stapel` (0,53, met een schaduwtje op de naad): hij zakt in het deksel van de onderste, anders zweeft hij op de rand (`tonMaak` zet een y van
 een of meer tonnen hoog om, `tonStap` laat hem daarop landen). Mooiste stapel: recht op een ton, niet in de kier tussen twee. `f` spiegelt, `kalebas: true` laat er
 een drinkkalebas uit springen (`dropHppotion`). `tonPlekX` rekent de plek elk beeld opnieuw uit, zodat hij meeschuift
 als het scherm van maat verandert.
@@ -26,7 +37,9 @@ paar lege in de roverskampen van Valse Koning 2 en 5 (met toestemming, regel 1).
 
 ## Gedrag
 
-- Decor: Amir en vijanden lopen erdoorheen. Getekend achter Amir (na de keien), met een schaduwtje.
+- Decor: Amir en vijanden lopen erdoorheen. Getekend achter Amir (na de keien), met een schaduw (`TON.schaduw`): een ovaal
+  verloop dat tot onder de randen van de bodem donker blijft, en het plaatje zakt er `TON.zak` in. De bodem is rond (je kijkt er
+  wat op neer), dus met alleen een vaag streepje zag je aan de zijkanten de straat onder de rand door en leek hij te zweven.
 - **Amir**: steek, lage zwaai of geworpen speer, drie treffers (`TON.treffers`). 1: een gat in een duig (`ton_1`), splinters,
   `houtRaak`. 2: de bovenkant breekt eruit (`ton_2`, de losse hoepel uit de Grok-plaat is weggelaten), een duig vliegt weg.
   3: `tonBreek`: het breekgeluid (`tonBreekGeluid`: `sounds/ton_breek.mp3` na een paar treffers, `sounds/ton_zwaar.mp3` als hij in een klap gaat, zoals bij Nyundo; breken er meer tegelijk, dan klinkt het een keer), stof (`banStofWolk`, `puffWorld`) en negen losse stukken die van Amir af spatten, stuiteren
@@ -66,3 +79,8 @@ In de Maker nieuwstijl onder Decor, Kamp: **Ton**, met een, twee naast elkaar of
 stadsvolk" in `notities/maker.md`); die krijgt altijd een eigen `x`.
 
 Onder De stad, **Tonnen**: twee net over elkaar en een recht op de voorste voor je uit, en een losse met een kalebas.
+**Tonnen op het dak**: zo'n stapel op het dak van het huis van 2 hoog en een losse met een kalebas op de galerij (zet de stad
+neer als die er nog niet is). Onder Zwevende laag, **Tonnen erop**: twee met een erop bovenop de laag.
+
+In de Maker: teken je een ton op een dak, galerij of balkon, dan krijgt hij `dak` (de hoogte van die vloer, zoals een vijand),
+op een zwevende laag `zwever: true`.
