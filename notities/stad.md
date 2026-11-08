@@ -635,6 +635,11 @@ daken, galerijen, deuren en de looplijn houden hun hoogte. Het voetdecor staat n
 ervoor (`STAD.voet.stoep`, 0,4 van `stadStoepH` boven de looplijn), met een zachte contactschaduw (`STAD.voet.schaduw`):
 op de muurvoet zelf leek het boven de straat te hangen.
 
+De hoekpoort van een straat (`poort_hoek`, zie "straten" in `notities/oaktown.md`) slaat de stoep over, tot 80 bronpx
+voor zijn verre eind (daar staat de voet van het huis ernaast), en krijgt ook geen contactschaduw: die plaat staat in
+perspectief, met een schuine voet en een eigen vloer in de boog. Een platte strook erover sneed hem dwars door en liet de
+torenvoet eronder uitsteken. De rechte poort en de poort van een knooppunt zijn plat en krijgen de stoep wel.
+
 ## Slagschaduwen
 
 `STAD_SLAG`, `stadSlagMuur`, `stadSlagStraat`, `stadSlagScheef`, `STAD_SLAG_AAN`. Stap L1 uit `notities/stad-verbeteren.md`.
