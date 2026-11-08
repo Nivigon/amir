@@ -20,8 +20,9 @@ galerij van de stad het dichtst bij `x`, met `zwever: true` op de zwevende savan
 scherm: met `a` (Amir van het midden van dat dak) staat hij op elk scherm op dezelfde plek, zonder `a` op `x`; altijd een halve
 ton binnen de rand. Een stapel op een dak: elke ton krijgt hetzelfde `dak` en dezelfde `a`, de bovenste met `y: 0.62`. Hij houdt
 zijn vloer bij (`t.vloer`, `{h, l, r}`), dus de losse stukken en de kalebas blijven op het dak liggen (`tonStukVloer`,
-`hppotionHopVloer`); wat over de rand vliegt valt naar beneden. Op een dak staat hij achter de kartels (`stadKanteelVoor` komt
-na `tonTeken`), op een galerij achter de leuning, zonder slagschaduw op de straat. Nyundo op de straat komt er niet bij
+`hppotionHopVloer`); wat over de rand vliegt valt naar beneden. Op een dak staat hij achter de kartels: `stadKanteelVoor` tekent de tanden na
+de personages opnieuw in een strook rond elke ton op dat dak (net als rond wie erop staat), zodat alleen zijn bovenkant
+erboven uitsteekt en de bovenste van een stapel er helemaal bovenuit komt. Op een galerij achter de leuning, zonder slagschaduw op de straat. Nyundo op de straat komt er niet bij
 (`tonBruut` slaat een ton op een dak of zwever over). Een terras van grond (`terraces`, ook `grond: true`) hoeft niets: daar
 staat een ton al vanzelf op (`terrainH`).
 
