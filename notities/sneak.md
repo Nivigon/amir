@@ -22,11 +22,17 @@ zichtbereik (`zichtBereik(1100)`). In de lucht is hij stil (`gehoor.lucht` 0): s
 maakt geen geluid, zo kom je achter een patrouille. Voetstappen op een andere vloer (een terras, een blok) hoort hij
 ook niet (`zichtNiveau`). Een vijand in rust hoort je als je binnen die afstand op
 zijn niveau staat (`zichtNiveau`). Daarnaast zijn er pulsen op een plek (`lawaaiPulsen`, `SNEAK.puls`, elk
-`duur` 0,35 s): het loslaten van een speer (klein, alleen vlakbij te horen, zodat een worp van achteren kan),
+`duur` 0,35 s): het loslaten van een speer (klein, alleen vlakbij te horen),
 een treffer op een vijand (in elke `hitX` en in `enemyTakeHit`, `hitHyena`), een klap op Amir (`hurtPlayer`),
 een speer die neerkomt (`javStick`) en een sluipkill (klein). Een puls gaat door hoogte heen. Alles staat in
 Amir (`sneakPx`), want de steek reikt op een telefoon minder pixels dan op een laptop, en de maten schalen mee.
 Voor hem geldt gewoon het zicht; lawaai hoort hij ook als je voor hem buiten zijn halve cirkel staat.
+
+Gewoon lopen (op de grond, niet gebukt, ook zonder Shift) vult daarnaast de argwaanklok van verder weg: binnen
+`SNEAK.loopArg.bereik` (8 Amir, `loopArgR`, elk beeld gezet met `loopArgNu`; Soft Step halveert het) achter hem op zijn
+niveau loopt de klok mee, aan de rand in `van` (1,5 s), pal achter hem in `tot` (0,3 s), opgeteld bij de gewone klok.
+Zo kom je lopend nooit ongezien bij hem: nagemeten op 1280x720 (Test 62) staat de klok op 0,85 als je op 2,5 Amir
+bent, en dan hoort hij je al. Wie van ver bukt (zo'n 6 Amir) en kruipt, komt met de klok rond 0,2 aan.
 
 ## De argwaanklok (`sneakRust`)
 
@@ -62,14 +68,15 @@ gehoor (`banAmbushRange`) en doet niet mee.
 
 ## De sluipaanval zelf (`sneakKan`, `sneakDoe`)
 
-`sneakKan(s)`: een mens-vijand met de sluipaanval aan, in rust (`s.zWacht`), niet net omkijkend, en Amir aan de
-kant van zijn rug (`Math.sign(playerX() - s.x) !== s.face`). Elke `hitX` van de zes vraagt het bovenin: is het
+`sneakKan(s)`: een mens-vijand met de sluipaanval aan, in rust (`s.zWacht`), niet net omkijkend, Amir aan de
+kant van zijn rug (`Math.sign(playerX() - s.x) !== s.face`) en Amir in de sluiphouding: gebukt of kruipend
+(`amirSluipt`, `duckT > 0`). Staand steken is een gewone treffer, en een worp telt nooit (`worpTref`, gezet in
+`javHitEnemy` en elk beeld gewist naast `lawaai`). Elke `hitX` van de zes vraagt het bovenin: is het
 een sluipaanval, dan `sneakDoe` (de ster, hitstop en shake van een crit via `critFx`, de kleine puls, de melding
 "Sluipaanval!", `sneakKills`) en `s.hp = 1` voor de klap, zodat de treffer dodelijk is. De schildbandiet verliest
 het schild en sterft met `schbSterf` (geen executie). De kooiman is alleen in zijn herstel raakbaar; de lus kijkt
 daarom ook naar `sneakKan` (`raak = kooiRaakbaar(s) || sneakKan(s)`). De zweepman slaat met een sluipkill zijn
-fase 2 (de arm eraf) over. Steek, worp en lage zwaai tellen alle drie; de worp van achteren van buiten zijn gehoor
-is de stille optie.
+fase 2 (de arm eraf) over. De steek en de lage zwaai tellen, allebei vanuit de sluiphouding; de worp niet meer.
 
 ## De animatie van Amir (`SNK`, `sneakRegie`, kop "de sluipaanval van Amir")
 
@@ -91,7 +98,7 @@ als het verste punt van het lijf), zijn romp op `SNK.torso` boven zijn voeten, e
 op de grond voor Amir en begint zijn gewone dood via zijn `hitX`, met `s.sneakLos` zodat die de treffer als sluipaanval
 neemt (`sneakKan` geeft dan true, `sneakDoe` laat de ster weg). Daarna loopt de wereld weer (`sneakRegie.vrij`) en speelt
 Amir zijn herstel uit: hij staat vast en is kwetsbaar. Zonder de frames (nog niet geladen) blijft het de snelle klap zonder
-animatie, en de worp van achteren ook.
+animatie (de lage zwaai), en ook die alleen gebukt. De steek start alleen gebukt of kruipend (`sneakKan` vraagt `amirSluipt`).
 
 Nagemeten in de sandbox: de bandiet, de schildbandiet en de kooiman (ook naar rechts, dus gespiegeld om het hele canvas met
 het lijfmidden aan de andere kant) hangen op de punt en sterven op het losframe, 4,0 s na de aanvalsknop; console schoon.
@@ -121,6 +128,7 @@ van de bandieten in plaats van zijn gewone frame. Zijn dood zelf blijft de gewon
   de wondvlek binnen zijn silhouet (de wond verschoven met hetzelfde stuk als waar de speer echt uit hem kwam, weg vanaf
   frame 13), druppels uit de wond en van de punt (tot 0,3 s na het loslaten, want na frame 10 is de punt niet gemeten),
   vlekjes waar ze landen en de plas onder zijn borst vanaf frame 16. De waas op het blad blijft niet na het loslaten.
+- **Geluid**: op het raakframe het bloedgeluid (`bloedSpeel`, `sounds/bloedspuit.mp3`), in `snkdStart`.
 
 In de sandbox: **Sluipdood bandiet** onder Vijanden, bij Sluipaanval (zet de sluipaanval aan, geeft Amir de speer en zet een
 gewone bandiet met zijn rug naar hem op 1,45 keer het bereik). Testlevel: Test 62.
@@ -154,7 +162,7 @@ muurtje van twee treden (150 en 300 hoog, 150 breed: springen is stil, van het b
 niet door het muurtje), een schildbandiet (makkelijk), een bandiet en een kooiman op 500 px (een sluipkill wekt de
 ander niet, een gevecht wel), een kruisboogbandiet die stil staat en een zweepman met `draai: 6`. Twee kalebassen.
 De patrouille is in px (300) zodat zijn keerpunt op elk scherm op 200 px van het blok ligt; vallen van het blok met
-losgelaten pijltje landt op zo'n 150 px achter hem, binnen de steek.
+losgelaten pijltje landt op zo'n 150 px achter hem, binnen de steek: buk dan en steek.
 
 ## Nagemeten
 
@@ -166,3 +174,9 @@ Step op de helft; stil achter hem blijven staan en hij kijkt na 1,9 s (oude klok
 staat. Geen console-fouten. In Test 61 (Playwright, de echte speelroute): de eerste bandiet, de draaier (wachten buiten zicht tot hij
 wegdraait) en de patrouille (achter het muurtje wachten, treden op, aan de rand loslaten, steken) zijn alle drie een
 sluipkill; de speelrobot (die niet sluipt) komt vechtend tot de schildbandiet, zonder fouten.
+
+Na de sluiphouding en het lopen met de argwaanklok (Test 62, 1280x720, Playwright): staand steken van achteren is geen
+sluipkill (hij wordt wakker en vecht); gebukt op dezelfde plek wel, met het bloedgeluid. Gewoon lopen naar hem toe: de
+klok begint op zo'n 700 px, staat op 0,85 op 220 px en hij hoort je op 130 px. Lopen tot 450 px en dan bukken en
+kruipen: aan met 0,58 op de klok, sluipkill. Lopen tot 600 px: aan met 0,18, sluipkill. De speelrobot komt in Test 61
+weer vechtend tot de schildbandiet, zonder fouten.
