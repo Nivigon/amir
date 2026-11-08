@@ -317,6 +317,9 @@ Elk huis met een binnenkant is een eigen strook ver van de straat (van `r` tot `
 - **Vast in het huis**: Amir (`binnenKlem`, in plaats van de klif), de camera (`binnenCamKlem`) en de vijanden
   (`binnenVijandKlem`) blijven tussen `l` en `r`. Binnen geeft `endWall()` geen grens, anders hielden de botsingen van de
   vijanden ze tegen (het huis ligt voorbij de klif van de straat).
+- **Een smalle kamer**: is een kamer smaller dan het scherm, dan zoomt de camera in tot hij het scherm precies vult
+  (`binnenZoom`, in `viewZoom`). Zo valt de rand van de kamer altijd samen met de rand van het scherm, net als in een brede
+  kamer, en zie je er nooit de straat naast. De sprong valt in de fade van de deur of de boog.
 - **Vijanden**: een spawn in een huis komt pas als Amir in dat huis is, en dan meteen, op zijn eigen plek (`spawnPoint`
   duwt hem niet naar buiten beeld); dus allemaal tegelijk, al tijdens de fade.
 - **Tekenen**: `binnenAchter` (voor de zwevers) tekent de binnenmuur (`binnen/wand.jpg`, getegeld en vast aan de wereld, tot
