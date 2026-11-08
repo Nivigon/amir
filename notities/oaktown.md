@@ -1,15 +1,16 @@
-# Straten: een stadje van losse straten met poorten (Oaktown)
+# Straten: een stadje van losse straten met knooppunten (Oaktown)
 
 `STRATEN`, `straatAan`, `straatHier`, `straatPoorten`, `straatPoortBij`, `straatE`, `straatWissel`, `straatAanvul`,
-`straatKill`, `straatKlem`, `straatCamKlem`, `straatVijandKlem`, `straatPoortTeken`, `straatPoortVoor`, `straatHudTeken`,
-`straatFadeTeken`, `straatReset`, `stadKalebasPlek`, `OAK_STRATEN`, `OAK_LEVELS`
+`straatKill`, `straatKlem`, `straatCamKlem`, `straatVijandKlem`, `straatPoortTeken`, `straatHudTeken`,
+`straatReset`, `stadKalebasPlek`, `straatRaster`, `OAK_STRATEN`, `OAK_LEVELS`
 
-Het systeem is algemeen: elk level met een veld `straten` (en een `stad`) speelt zo. Oaktown is het eerste.
+Het systeem is algemeen: elk level met een veld `straten` (en een `stad`) speelt zo. Oaktown was het eerste; sinds
+08-11-2026 is het een raster met knooppunten, net als Sandville.
 
 ## Het veld
 
 ```
-straten: { start: 'kasuwa', doel: 50, aanvul: 30,
+straten: { raster: true, start: 'kasuwa', doel: 50, aanvul: 30, muur: 300,
            knopen: { tl: [0, 0], tr: [1, 0], ml: [0, 0.5], mr: [1, 0.5], bl: [0, 1], br: [1, 1] },
            lijst: [ { id: 'kasuwa', naam: 'Kasuwastraat', knoop: ['mr', 'ml'], r: -200, l: -7500 }, ... ] }
 ```
@@ -18,40 +19,23 @@ straten: { start: 'kasuwa', doel: 50, aanvul: 30,
   ver uit elkaar (Oaktown: 16000 px); Amir en de camera blijven in de strook van de straat waar hij is (`straatKlem`,
   `straatCamKlem`), dus je ziet nooit de lege wereld ertussen. Gevels, galerijen, kramen, leemmuren, kalebassen en
   spawns staan gewoon op hun wereld-x in de strook van hun straat.
-- `knopen` zijn de kruispunten, met hun plek op de minimap (0 tot 1). Een straat begint bij `knoop[0]` en eindigt bij
-  `knoop[1]`. Aan een uiteinde komt een poort voor elke andere straat op dezelfde knoop (`straatUit`, in de volgorde
-  van de lijst): de eerste is de hoekpoort (rechtdoor), een tweede de rechte poort ernaast (rechts af). Een knoop waar
-  geen andere straat op uitkomt geeft een dicht uiteinde zonder poort.
-- `start` de straat waar je begint (in het midden, of op `level.start`), `doel` het aantal kills (standaard 50),
+- `knopen` zijn de kruispunten, met hun plek op de minimap (0 tot 1, x naar rechts, y naar beneden). Een straat begint
+  bij `knoop[0]` en eindigt bij de laatste; met drie knopen ligt de middelste op `m`.
+- `raster: true` en `muur`: de knooppunten van Sandville. Bij elke knoop een poort de diepte in of een pad naar voren
+  naar elke straat die daar die kant op verder loopt, aan elk uiteinde een hoge leemmuur. Hoe dat werkt (welke uitgang
+  waar, de poort, het pad, de wissel, de minimap) staat in "Straten en knooppunten (Sandville)" in `notities/stad.md`.
+- `start` de straat waar je begint (in het midden), `doel` het aantal kills (standaard 50, `0` is geen einde),
   `aanvul` hoeveel seconden een straat leeg moet zijn geweest voor hij zich aanvult (standaard 30).
 - Een level met `straten` heeft geen `ends` nodig; levelcheck slaat de regel `einde` dan over.
 
-## De poorten
+## De hoekpoort gaat eruit
 
-Twee platen uit `design/stad/` (maten in `metadata.json`), lui geladen met de stad (`stadLaad`):
-
-- **poort_hoek** (de vleugel in 3/4) staat aan de rand van de straat, links gewoon en rechts gespiegeld. Amir loopt de
-  boog in tot achter de voorkant (`gang`); tussen `doorzicht[0]` en `doorzicht[1]` wordt de voorkant half doorzichtig
-  over hem heen getekend (`straatPoortVoor`, na de personages). Vanaf `vraag` (halverwege) staat er "Naar de ...?  E".
-- **poort_recht** (de achterwand met de boog) staat direct ernaast, met zijn toren over het verre eind van de hoek
-  (`ver`, `toren`). E werkt onder de boog (`onder`: dat deel van de boogbreedte).
-- Boven elke boog hangt een bordje met de naam van de straat erachter; onder de boog wordt het goud met de vraag.
-- E werkt alleen op de straat, op de grond, buiten gevecht (`stadInGevecht`, net als de stadstrap: "Niet nu: er staat
-  een vijand in de buurt") en met een speer (in de hand of op de rug), anders "Pak je speer eerst".
-- De wissel (`straatFade`): de wereld staat stil, het beeld gaat helemaal zwart (`fade.uit`, `zwart`, `in`), en midden in
-  het zwart staat Amir in de nieuwe straat bij de poort die terug leidt (buiten de hoek, of onder de rechte boog), met
-  zijn gezicht de straat in. De camera springt mee (`camEase = null`).
-- Vijanden gaan nooit door een poort: alleen Amir wisselt van strook, en `straatVijandKlem` houdt elke vijand in zijn
-  eigen straat (`vijandRand` van de rand) en vóór de boog van een hoekpoort: de gang in loopt hij niet. Staat hij daar
-  vlak voor, dan ben je nog in gevecht en gaat de poort niet.
-- Op 720 hoog is een hoekpoort zo'n 1330 px breed en een splitsing (hoek plus rechte poort) zo'n 2150 px. Ze schalen
-  mee met het scherm, net als de gevels; houd daarom zo'n 250 px vrij tussen een poort en het eerste huis.
-- Het formaat waarop de straten ontworpen zijn is Amir 180 px hoog (`STRATEN.ontwerpA`, 720 hoog en Formaat 25). Is hij
-  groter (1920x1080, 2560x1440, of het schuifje Formaat hoger), dan schuift elk uiteinde met poorten naar buiten
-  (`straatEind`): zoveel als de poort breder werd, plus wat de huizen en kramen naar die kant meegroeien
-  (`STRATEN.groei`). Zonder dat viel de poort op 1920x1080 over het eerste huis en de eerste kraam, die je dan niet zag
-  maar waar je wel op botste. `straatPoorten`, `straatGrens`, `straatCamKlem`, `straatVijandKlem`, `straatIn` en
-  `straatBij` rekenen allemaal met `straatEind`; kleiner dan het ontwerpformaat (een telefoon) blijft alles op `r` en `l`.
+Eerst had een straat zonder `raster` aan elk uiteinde een hoekpoort (`poort_hoek.png`, een vleugel in 3/4 die je
+inliep, voor rechtdoor) en op een splitsing de rechte poort ernaast (`straatPoorten`, `straatPoortVoor`, `straatEind`,
+`straatFade`). Een poort rechtdoor bleek in zijaanzicht niet goed te maken, en op een kruising is hij ook niet nodig:
+rechtdoor is gewoon de straat die doorloopt. Sinds 08-11-2026 werken alle straten met knooppunten; Oaktown is omgezet.
+Alleen De Kroonwijk (`GP_5_STRATEN`, schuine straten) gebruikt hem nog, tot er een raster voor is; daarna gaat de
+hoekpoort met alle code die alleen voor hem bestond eruit. Zet hem in geen nieuw level.
 
 ## Vijanden, aanvullen en het einde
 
@@ -70,27 +54,42 @@ Twee platen uit `design/stad/` (maten in `metadata.json`), lui geladen met de st
 
 ## De minimap
 
-Rechtsonder, alleen op een laptop (`camTelefoon()` is de detectie van de camera). De straten zijn lijnen tussen hun
-knopen: de huidige in goud, een bezochte licht, de rest bijna onzichtbaar; een witte stip voor Amir schuift langs zijn
-straat (van `r` naar `l`). Maat in `STRATEN.kaart`.
+Rechtsonder, alleen op een laptop (`camTelefoon()` is de detectie van de camera): de kaart van het raster
+(`straatRasterKaart`, zie `notities/stad.md`). Maat in `STRATEN.kaart`.
 
 ## Oaktown
 
 Een dobbelsteen met zes ogen: de ogen zijn de kruispunten, de straten de lijnen ertussen, als een rechthoek met een
-balk door het midden. Vier hoeken met een poort, twee splitsingen met twee poorten, en drie rondjes (boven, onder en
-het grote). De namen komen uit de oude stad Kano. Beide levels delen `OAK_STRATEN`, `OAK_STAD`, `OAK_TERRAS` en
-`OAK_KALEBAS`; alleen `OAK_SPAWNS_1` (zandslangen) en `OAK_SPAWNS_2` (bandiet, schildbandiet, kooiman zonder duel,
-kruisboogbandiet, zweepman) verschillen. Per straat:
+balk door het midden. Op het raster zijn dat drie rijen (Dala boven, Kasuwa in het midden, Zango onder) en twee kolommen
+van elk twee straten (links Jakara en Makera, rechts Karofi en Rumfa, allebei van boven naar beneden). Een rij heeft zijn
+poorten naar het noorden en zijn paden naar het zuiden; een kolom die naar het zuiden loopt heeft zijn poorten naar het
+westen en zijn paden naar het oosten. Dus:
 
-| straat | kaart | opbouw | kalebas |
-| --- | --- | --- | --- |
-| Kasuwastraat (start) | midden | kramen, een hoge galerij (730) | via tafel en doek, met de getimede veer |
-| Dalastraat | boven | getrapte leemmuren 170, 340, 510; van links via de doek van de kraam op het lage dak | bovenop de hoogste muur |
-| Jakarasteeg | links boven | galerij over de hele lengte (401) | via tafel en rieten dak naar de galerij |
-| Karofistraat | rechts boven | houten trap achter het hoge huis | op het balkon (E bij de trap) |
-| Makerasteeg | links onder | de toren: galerijen 401 en 780 over twee huizen, 590 over het rechter; recht omhoog | bovenin |
-| Rumfastraat | rechts onder | hogere wijk op een lage leemmuur, met een huis erop; van links via de rieten kraam | op de hoge muur (340) |
-| Zangosteeg | onder | over de daken (487) | via kraam, galerij of doek op het laatste dak |
+| straat | kaart | uitgangen |
+| --- | --- | --- |
+| Kasuwastraat (start) | middelste rij | bij elk eind een poort (Karofi, Jakara) en een pad (Rumfa, Makera) |
+| Dalastraat | bovenste rij | alleen paden (Karofi, Jakara) |
+| Zangosteeg | onderste rij | alleen poorten (Rumfa, Makera) |
+| Jakarasteeg, Makerasteeg | linkerkolom | alleen paden (Dala en Kasuwa, Kasuwa en Zango) |
+| Karofistraat, Rumfastraat | rechterkolom | alleen poorten (Dala en Kasuwa, Kasuwa en Zango) |
+
+Jakara en Makera liggen in elkaars verlengde, net als Karofi en Rumfa: daar is geen uitgang tussen, want rechtdoor is
+geen poort. Van Jakara naar Makera ga je via de Kasuwastraat, die op dezelfde knoop een poort en een pad heeft: het pad
+naar Kasuwa en meteen weer het pad naar Makera, zonder te lopen.
+
+De namen komen uit de oude stad Kano. Beide levels delen `OAK_STRATEN`, `OAK_STAD`, `OAK_TERRAS` (met de hoge
+leemmuren aan de uiteinden) en `OAK_KALEBAS`; alleen `OAK_SPAWNS_1` (zandslangen) en `OAK_SPAWNS_2` (bandiet,
+schildbandiet, kooiman zonder duel, kruisboogbandiet, zweepman) verschillen. Per straat:
+
+| straat | opbouw | kalebas |
+| --- | --- | --- |
+| Kasuwastraat (start) | kramen, een hoge galerij (730) | via tafel en doek, met de getimede veer |
+| Dalastraat | getrapte leemmuren 170, 340, 510; van links via de doek van de kraam op het lage dak | bovenop de hoogste muur |
+| Jakarasteeg | galerij over de hele lengte (401) | via tafel en rieten dak naar de galerij |
+| Karofistraat | houten trap achter het hoge huis | op het balkon (E bij de trap) |
+| Makerasteeg | de toren: galerijen 401 en 780 over twee huizen, 590 over het rechter; recht omhoog | bovenin |
+| Rumfastraat | hogere wijk op een lage leemmuur, met een huis erop; van links via de rieten kraam | op de hoge muur (340) |
+| Zangosteeg | over de daken (487) | via kraam, galerij of doek op het laatste dak |
 
 Elke straat is in beide richtingen te doorlopen. In de Dala- en Rumfastraat kon dat eerst niet: van links stond je voor
 een muur van 510 of 340 hoog (de sprong is 200). Nu staat er links een kraam: in Dala de doek (van de tafel recht omhoog
@@ -98,8 +97,14 @@ op de doek springen, dan met een sprong naar rechts over het lage dak de muur op
 rieten dak, muur). Nagemeten op 1280x720, 1920x1080 en 852x393.
 
 Een straat is drie tot vier schermen breed: de middenzone met de huizen is ongeveer anderhalf scherm, de rest zijn de
-poorten aan de uiteinden. De definitie is gegenereerd uit een korte beschrijving per straat (afstanden vanaf de
-poorten); verschuif je iets, houd dan de huizen en kramen buiten de poorten.
+poorten en paden aan de uiteinden. Bij het omzetten naar het raster (08-11-2026) bleef elke straat op zijn strook; alleen
+de Zangosteeg werd 1100 px langer (`l` van -101900 naar -103000) en alles erin schoof 700 naar links, zodat de rieten
+kraam en de galerij op 1920x1080 niet tegen de poort vallen. Vijf stukken voetdecor schoven een stukje op en een
+kruik in de Zangosteeg ging weg. Nagemeten op 852x393, 1280x720, 1366x768 en 1920x1080: geen huis, galerij of kraam
+over een poort, voetdecor en kalebassen minstens 300 px van een poort en van het open stuk van een pad. Alleen op
+1920x1080 staat de rieten kraam in de Rumfastraat 64 px van de poort (hij raakt hem niet; hij hoort tegen de lage muur).
+De huizen naast een poort schuiven opzij (`straatGevelX`); verschuif je iets, houd dan kramen en voetdecor buiten de
+poorten en paden.
 
 ## Een kalebas op een leemmuur
 
@@ -123,6 +128,5 @@ dat daar even hoog is. Voor de bestaande stadlevels verandert er niets (daar lig
 
 ## Sandbox
 
-Onder De stad, **Straten**: **Drie straten** zet drie korte straten rond een splitsing neer (aan het eind van de
-straat waar je staat een hoekpoort en een rechte poort, in de andere twee de poorten terug), met de minimap;
-**Weg** haalt ze weg.
+Onder De stad, **Knooppunten** (zie `notities/stad.md`). De oude knop **Straten**, **Drie straten** (met de hoekpoort)
+is weg: **Kruising** doet hetzelfde op de manier van nu.
