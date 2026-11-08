@@ -28,6 +28,12 @@ een speer die neerkomt (`javStick`) en een sluipkill (klein). Een puls gaat door
 Amir (`sneakPx`), want de steek reikt op een telefoon minder pixels dan op een laptop, en de maten schalen mee.
 Voor hem geldt gewoon het zicht; lawaai hoort hij ook als je voor hem buiten zijn halve cirkel staat.
 
+Lopend (en met de renstoot) hoort hij je altijd minstens voorbij je steek (`sneakSteekVer`: de verste speerpunt uit
+`TIP_DX` plus `steekR`, keer `SNEAK.gehoor.steek` 1,3, plus `steekLijf` 0,6 Amir voor zijn lijf), ook met Soft Step. Zonder
+die vloer kon je in een testlevel (daar heb je alle talents, dus Soft Step halveerde het gehoor naar 162 px) gewoon
+lopend binnen steekafstand komen (de steek raakt een bandiet tot zo'n 280 px op 1280x720). Nu hoort hij je daar op
+ongeveer 400 px, op 852x393 op 220 px, en wie lopend aanvalt mist of treft een wakkere vijand.
+
 Gewoon lopen (op de grond, niet gebukt, ook zonder Shift) vult daarnaast de argwaanklok van verder weg: binnen
 `SNEAK.loopArg.bereik` (8 Amir, `loopArgR`, elk beeld gezet met `loopArgNu`; Soft Step halveert het) achter hem op zijn
 niveau loopt de klok mee, aan de rand in `van` (1,5 s), pal achter hem in `tot` (0,3 s), opgeteld bij de gewone klok.

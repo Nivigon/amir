@@ -222,7 +222,7 @@ Elke tribe heeft een **talent tree**: een verticale boom zoals in World of Warcr
 | **Thorn Breaker** | een doornbos gaat in een klap om in plaats van drie |
 | **Twin Sweep** | de lage zwaai heeft twee ladingen in plaats van een: de tweede is een reserve terwijl de eerste herlaadt |
 | **True Flight** | een rol-worp kan een crit zijn: die telt als twee treffers, en op een schildbandiet slaat hij het schild een stand extra kapot. Een perfecte rol-worp is altijd een crit; van de gewone is precies een op de vier het, zonder lange reeksen pech of geluk (het spel trekt knikkers uit een zak: twee crits op acht, zonder terugleggen). Een crit geeft een witgouden ster en een korte klap. Op een eindbaas werkt hij niet |
-| **Soft Step** | Amir zijn voetstappen dragen half zo ver: in een level met de sluipaanval (zie hieronder) hoort een vijand hem lopend pas van dichtbij. Tijdelijk talent, tot de echte sluip-talents er zijn |
+| **Soft Step** | Amir zijn voetstappen dragen half zo ver: in een level met de sluipaanval (zie hieronder) hoort een vijand hem lopend pas van dichterbij (maar nooit binnen steekafstand) en loopt zijn argwaan minder ver mee. Tijdelijk talent, tot de echte sluip-talents er zijn |
 
 De lage zwaai zelf (bukken en aanvallen) heeft iedereen, bij elke tribe. Hij raakt slangen, fosforslangen, de schorpioen, hyena's en de panter als hij na een sprong plat ligt. Na een zwaai herlaadt hij 1,4 seconde voor je hem opnieuw kunt doen; dat zie je rechtsboven, links van de kalebas, aan het icoon met de speer in de wervel, dat donker wordt en weer vrijdraait. Met Twin Sweep staan er twee stipjes naast: een per lading. De ladingen laden een voor een bij, en een misser kost er ook een.
 
@@ -666,7 +666,7 @@ waar hij kijkt.
 
 In een level met de sluipaanval (Test 61, en in de sandbox onder Vijanden, bij **Sluipaanval**) hoort een
 bandiet, schildbandiet, kooiman, meelman, kruisboogbandiet of zweepman je achter zijn rug in plaats van je te zien.
-Kruipen, stilstaan en springen zijn stil, lopend hoort hij je tot net buiten steekafstand, sprintend van ver, en een worp, een
+Kruipen, stilstaan en springen zijn stil, lopend hoort hij je altijd voor je kunt steken (ook met Soft Step), sprintend van ver, en een worp, een
 treffer, een klap die je krijgt en een speer die neerkomt maken lawaai op die plek. Boven zijn hoofd staat een oog:
 dicht zolang hij je niet opgemerkt heeft. Sta je vlak achter hem, dan loopt een gele boog om dat oog vol en kijkt hij
 om; ziet hij je dan, dan is hij wakker (een rood uitroepteken). Loop je gewoon (zonder Shift, niet gebukt) achter hem,
