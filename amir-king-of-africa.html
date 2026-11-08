@@ -21433,6 +21433,8 @@ function drawChips(groundY, scale, cx){
 const TON = {
   dir: 'design/stad/ton/',
   h: 0.62,                 // hoogte van een hele ton, in Amir
+  kiep: { w0: 0.6, versnel: 10, los: 1.1 },   // een ton die over de rand van een buurton kiept: begin- en draaiversnelling (rad/s, rad/s²), na zoveel rad valt hij vrij
+  recht: 0.35,             // een ton draagt een ton alleen als die zo dicht bij zijn midden staat (deel van de halve romp)
   stapel: 0.53,            // zo hoog staat een ton op een ton: hij zakt in het deksel van de onderste, anders zweeft hij
   schaduw: { breed: 0.58, plat: 0.065, hoog: 0.025, kern: 0.8 },   // de schaduw op de vloer: halve breedte (t.o.v. de ton), hoogte, hoe ver omhoog, hoe donker
   zak: 0.012,              // zoveel van zijn hoogte zakt het plaatje in die schaduw, zodat de bodem erin staat
@@ -21546,7 +21548,7 @@ const tonKies = soort => { const l = TON.soort[soort]; return l[Math.floor(Math.
 function tonRaak(t, from){
   if (t.weg) return false;
   t.stand = Math.min(TON.treffers, t.stand + 1);
-  t.shake = TON.shake;
+  t.shake = TON.shake; t.van = from;
   const rnd = (a, b) => a + Math.random() * (b - a), weg = -from, hb = tonHoog();
   if (t.stand < TON.treffers){
     houtRaak(t.stand === 1 ? 1.05 : 0.92);
@@ -21614,16 +21616,27 @@ function tonStap(dt){
   for (const t of tonnen){
     if (t.shake > 0) t.shake = Math.max(0, t.shake - dt);
     if (t.lensT > 0 && !t.weg && (t.lensT -= dt) <= 0) tonBreek(t, 1, true, true);   // de sandbox: vanzelf, als door Nyundo
+    if (t.lig || t.kiep){ if (t.kiep && !t.weg) tonKiepStap(t, dt); continue; }   // gekiept of aan het kiepen: hij ligt waar hij viel
     if (!t.weg && t.src && (t.src.put != null || t.src.luifel != null || t.src.kraam != null)) t.x = tonPlekX(t.src);   // het scherm kan van maat veranderen
     if (!t.weg && t.src && t.src.dak){ const op = tonOp(t.src); t.x = op.x; t.vloer = op.vloer; }   // een dak schaalt mee
     if (t.weg || t.y <= 0) continue;
-    // staat er nog een hele ton onder hem? anders valt hij
-    const onder = tonnen.find(o => o !== t && !o.weg && Math.abs(o.x - t.x) < half * 1.3 && o.y < t.y - 0.01 && t.y - o.y <= TON.h + 0.02);
+    // staat er nog een ton met een heel deksel onder hem? anders valt hij. Is de bovenkant van de onderste
+    // eruit (stand 2), dan bezwijkt die onder zijn gewicht en zakt de bovenste erdoor naar beneden
+    // alleen recht eronder (TON.recht van de halve romp): een buurton die half opzij staat draagt hem niet, anders
+    // hing hij scheef over de rand als zijn eigen ton weg was
+    const eronder = o => o !== t && !o.weg && !o.lig && !o.kiep && Math.abs(o.x - t.x) < half * TON.recht && o.y < t.y - 0.01 && t.y - o.y <= TON.h + 0.02;
+    const onder = tonnen.find(o => eronder(o) && o.stand < 2);
+    if (!onder && !t.vy){
+      for (const o of tonnen) if (eronder(o)) tonBreek(o, o.van || 1, false);
+      // staat er nog een buurton half onder hem, dan kiept hij over de rand daarvan, weg van die ton, en komt plat te liggen
+      const buur = tonnen.find(o => o !== t && !o.weg && !o.lig && !o.kiep && o.y < t.y - 0.01 && t.y - o.y <= TON.h + 0.02 && Math.abs(o.x - t.x) < half * 2.2);
+      if (buur){ tonKiepStart(t, buur); continue; }
+    }
     const steun = onder ? onder.y + TON.stapel : 0;
     if (t.y > steun + 0.001 || t.vy){
       t.vy -= TON.zwaarte / CHAR_H * dt; t.y += t.vy * dt;
       if (t.y <= steun){ const hard = t.vy < -2; t.y = steun; t.vy = 0;
-        if (hard){ houtRaak(0.8); shake = Math.max(shake, 0.12); banStofWolk(t.x, tonBodem(t), 4, 0, 0.8); t.shake = TON.shake; } }
+        if (hard) tonLandt(t, t.van || 1); }
     }
   }
   for (let i = tonStukken.length - 1; i >= 0; i--){
@@ -21646,6 +21659,35 @@ function tonStap(dt){
         s.liggen += s.age;
       }
     }
+  }
+}
+// een vallende ton komt neer: een klap, stof, en het telt als een treffer (de derde breekt hem)
+function tonLandt(t, from){
+  shake = Math.max(shake, 0.14); banStofWolk(t.x, tonBodem(t), 5, 0, 0.9); houtRaak(0.75);
+  tonRaak(t, from);
+}
+// kiepen: hij draait om de rand van de buurton (px, py), tot hij voorbij los is; dan valt hij vrij verder, draaiend,
+// tot hij plat op zijn zij ligt (t.lig). x in wereld-px, hoogtes in Amir boven de vloer; t.kiep.cx/cy is het midden
+function tonKiepStart(t, buur){
+  const A = CHAR_H * nowScale(), k = Math.sign(t.x - buur.x) || (t.f ? -1 : 1), K = TON.kiep;
+  const px = buur.x + k * tonBreed(nowScale()) / 2, py = t.y;
+  t.kiep = { k, px, py, x0: (t.x - px) / A, y0: TON.h / 2, a: 0, w: K.w0, vrij: false, cx: t.x, cy: t.y + TON.h / 2, vx: 0, vy: 0 };
+  t.shake = TON.shake * 0.5; houtRaak(1.2, HOUT.vol * 0.4);
+}
+function tonKiepStap(t, dt){
+  const q = t.kiep, K = TON.kiep, A = CHAR_H * nowScale(), lig = TON.h * TON.romp / 2, g = TON.zwaarte / CHAR_H;
+  if (!q.vrij){
+    q.w += K.versnel * dt; q.a += q.w * dt;
+    const c = Math.cos(q.a), sn = Math.sin(q.a), vx = q.x0 * c + q.k * q.y0 * sn, vy = -q.k * q.x0 * sn + q.y0 * c;
+    const nx = q.px + vx * A, ny = q.py + vy;
+    q.vx = (nx - q.cx) / Math.max(dt, 1e-4); q.vy = (ny - q.cy) / Math.max(dt, 1e-4); q.cx = nx; q.cy = ny;
+    if (q.a >= K.los) q.vrij = true;
+  } else {
+    q.vy -= g * dt; q.cy += q.vy * dt; q.cx += q.vx * dt; q.a = Math.min(Math.PI / 2, q.a + q.w * dt);
+  }
+  if (q.vrij && q.cy <= lig){                                  // neer: plat op zijn zij
+    t.x = q.cx; t.y = 0; t.lig = q.k; t.kiep = null; t.vy = 0;
+    tonLandt(t, -q.k);
   }
 }
 function tonStukTeken(s, groundY, scale, cx){
@@ -21671,22 +21713,30 @@ function tonTeken(groundY, scale, cx){
   for (const t of rij){
     const im = tonImgs.stand[t.stand]; if (!im || !imgReady(im)) continue;
     const w = hS * im.naturalWidth / im.naturalHeight;
-    const sx = cx + (t.x - world), sy = groundY - tonBodem(t) * scale;
+    const q = t.kiep, vx = q ? q.cx : t.x, vl = (t.vloer ? t.vloer.h : terrainH(vx));
+    const sx = cx + (vx - world), sy = q ? groundY - (vl + q.cy * CHAR_H) * scale : groundY - tonBodem(t) * scale;
     if (sx + w < -50 || sx - w > W / Math.min(1, viewZoom()) + 50) continue;
     const tril = t.shake > 0 ? Math.sin(t.shake * 90) * 3 * scale * (t.shake / TON.shake) : 0;
     ctx.save();
     if (t.y <= 0){                                                       // de schaduw op de vloer: zacht en breed, en donker onder de bodem
       // De bodem van de ton is rond (je kijkt er wat op neer): aan de zijkanten komt hij een stukje van de vloer. Zonder een
       // donkere kern daaronder zag je daar de straat en leek hij te zweven (TON.schaduw).
-      const S = TON.schaduw, rx = w * S.breed, ry = hS * S.plat;
+      const S = TON.schaduw, rx = (t.lig ? hS : w) * S.breed, ry = hS * S.plat;
       ctx.save(); ctx.translate(sx, sy - hS * S.hoog); ctx.scale(1, ry / rx);   // een ovale verloop: donker tot onder de randen van de bodem
       const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
       g.addColorStop(0, 'rgba(29,20,15,' + S.kern + ')'); g.addColorStop(0.72, 'rgba(29,20,15,' + S.kern * 0.8 + ')'); g.addColorStop(1, 'rgba(29,20,15,0)');
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, rx, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
     if (t.y <= 0 && !t.vloer && stadAan() && STAD_SLAG_AAN)                         // in de stad ook de slagschaduw, schuin weg van de zon
       stadSlagVlek(sx - w * 0.42, sx + w * 0.42, sy, STAD_SLAG.ton, CHAR_H * scale, stadSlagScheef());
-    if (t.y > 0){ ctx.globalAlpha = 0.35; ctx.fillStyle = '#2a1a10'; ctx.beginPath();   // op een ton: een schaduw op het deksel eronder, de naad
+    if (t.y > 0 && !q){ ctx.globalAlpha = 0.35; ctx.fillStyle = '#2a1a10'; ctx.beginPath();   // op een ton: een schaduw op het deksel eronder, de naad
       ctx.ellipse(sx, sy - hS * 0.01, w * 0.4, hS * 0.045, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; }
+    if (q || t.lig){                                                   // aan het kiepen of plat op zijn zij: om het midden gedraaid
+      const lh = TON.h * TON.romp / 2 * CHAR_H * scale;
+      ctx.translate(sx + tril, q ? sy : sy - lh * (1 - TON.zak * 2)); ctx.rotate(q ? q.k * q.a : t.lig * Math.PI / 2);
+      if (t.f) ctx.scale(-1, 1);
+      ctx.drawImage(im, -w * TON.mid, -hS / 2, w, hS);
+      ctx.restore(); continue;
+    }
     ctx.translate(sx + tril, sy);
     if (t.f) ctx.scale(-1, 1);
     ctx.drawImage(im, -w * TON.mid, -hS * (1 - (t.y <= 0 ? TON.zak : 0)), w, hS);
@@ -21816,8 +21866,8 @@ function tonLensKlap(){
 }
 // het raakvak van een ton op het scherm (voor de treffers van Amir in de tekenlus)
 function tonVak(t, groundY, scale, cx){
-  const hw = tonBreed(scale) / 2, sx = cx + (t.x - world), b = groundY - tonBodem(t) * scale;
-  return { l: sx - hw, r: sx + hw, t: b - tonHoog() * scale, b };
+  const hw = t.lig ? tonHoog() * scale / 2 : tonBreed(scale) / 2, sx = cx + (t.x - world), b = groundY - tonBodem(t) * scale;
+  return { l: sx - hw, r: sx + hw, t: b - (t.lig ? tonBreed(scale) : tonHoog() * scale), b };
 }
 
 function waterList(){ return (level && level.water) ? level.water : []; }
