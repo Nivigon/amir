@@ -345,6 +345,9 @@ Elk huis met een binnenkant is een eigen strook ver van de straat (van `r` tot `
 - **Vast in het huis**: Amir (`binnenKlem`, in plaats van de klif), de camera (`binnenCamKlem`) en de vijanden
   (`binnenVijandKlem`) blijven tussen `l` en `r`. Binnen geeft `endWall()` geen grens, anders hielden de botsingen van de
   vijanden ze tegen (het huis ligt voorbij de klif van de straat).
+- **De speer binnen**: een geworpen speer botst op de muren van de kamer (in `javUpdate`, links `binnenLinks`, dus ook de
+  toonbank) en blijft erin steken, zoals in een rotswand; na `JAV.muurT` wrikt hij los en valt hij binnen op de vloer.
+  Begint de punt al voorbij de muur (Amir vlak ertegen), dan telt het huis van Amir. Zonder dit vloog hij de leegte in.
 - **Een smalle kamer**: is een kamer smaller dan het scherm, dan zoomt de camera in tot hij het scherm precies vult
   (`binnenZoom`, in `viewZoom`). Zo valt de rand van de kamer altijd samen met de rand van het scherm, net als in een brede
   kamer, en zie je er nooit de straat naast. De sprong valt in de fade van de deur of de boog.
