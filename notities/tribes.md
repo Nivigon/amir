@@ -26,3 +26,11 @@ Het vierde talent van beide trees. Het houten plaatje is `4_true_flight.png` en 
   Een oefendoel telt niet: dat loopt niet via `javHitEnemy`.
 - Afstellen in de pauze onder Rol-worp: test, het groepje Talents. Test 60 heeft `talentKeuze`, in de sandbox staan ze
   bij Tribe Mkuki en Tribe Bhubesi.
+
+## De plaatjes van Soft Step (Mkuki) en Lion's Patience (Bhubesi)
+
+Het vijfde talent van beide trees: `5_soft_step.png` en `5_lions_patience.png` in `design/tribes/<tribe>/abilities/`
+(Grok, image-to-image op True Flight, op 400 bij 400 met de donkere rand doorzichtig). De voet is naar het midden geschoven
+(het oude symbool met hout van links ingevuld; de nerf loopt horizontaal, dus geen naad), en het hout van de leeuw is naar
+het roodbruin van Bhubesi gekleurd. De leeuw loert uit het gras: het talent gaat over sluipen en toeslaan, een rustige of
+liggende leeuw las te vriendelijk.
