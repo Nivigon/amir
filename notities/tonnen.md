@@ -62,9 +62,11 @@ paar lege in de roverskampen van Valse Koning 2 en 5 (met toestemming, regel 1).
 - **Kapot is kapot**: wat Nyundo breekt (`tonBruut`) onthoudt `tonKapot` (per level, per sessie, de index in `level.tonnen`),
   en `tonReset` zet die na een dood niet terug. Wat Amir breekt komt bij een nieuwe poging gewoon weer heel terug.
   Sandbox: De stad, **Tonnen naar de lens** (`sbtonlens`): drie tonnen die na `lensT` (1,2 s) in een klap gaan, met de lens.
-- Een ton op een ton valt als de onderste weg is (`tonStap`), met een tik en wat stof. Alleen een ton recht eronder
-  draagt (`TON.recht`): staat de buurton half opzij, dan valt hij toch, in plaats van scheef over de rand te hangen. Is van de onderste de bovenkant eruit
-  (stand 2), dan bezwijkt die onder het gewicht (`tonBreek`) en zakt de bovenste naar beneden: op een open ton kan niets staan.
+- Een ton op een ton valt als de onderste weg is (`tonStap`). Alleen een ton recht eronder draagt (`TON.recht`). Is van
+  de onderste de bovenkant eruit (stand 2), dan bezwijkt die onder het gewicht (`tonBreek`): op een open ton kan niets staan.
+  Staat er dan nog een buurton half onder hem (de stapel van twee net over elkaar), dan kiept hij over de rand daarvan, weg
+  van die ton, draait in de val en komt plat op zijn zij te liggen (`tonKiepStart`, `tonKiepStap`, `TON.kiep`, `t.lig`). Zo niet,
+  dan valt hij rechtop naar beneden. Elke landing is een klap met stof en telt als een treffer (`tonLandt`); de derde breekt hem.
 - Hooguit `TON.max` losse stukken; daarna vervaagt de oudste.
 
 ## De plaatjes
