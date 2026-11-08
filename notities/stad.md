@@ -114,6 +114,16 @@ Een houten looprichel langs een gevel, 9-slice uit `galerij.png` (links, het mid
 meeschaalt. `h` is de hoogte van het dek (zonder `h` de tweede verdieping, 730, `stadVerdieping(2)`; de eerste is 401). Het dek is een dun platform: van
 onderen spring je erdoorheen. De reling staat achteraan, Amir loopt ervoor.
 
+Het dek ligt schuin in beeld (de planken lopen in `galerij.png` van bronrij 104 tot 157), dus er zijn twee rijen:
+`STAD.galerij.dek` (104) is de achterrand, de voet van de leuning, en `STAD.galerij.sta` (130) is waar je op staat, het
+midden van de planken. Het plaatje komt met `sta` op de hoogte `h` (in `stadTeken`, `stadStrook`, de schaduw onder de
+galerij in `stadSlagMuur` en in de Maker in `mkGalerijMaat` en `mkTrapMaat`); de opening in de leuning, de planknaden van
+de doorgang en de achterrand die de doorgang zoekt (`stadDoorgangen`) blijven aan `dek` hangen. Eerst stond iedereen
+met `dek` op de achterrand, tegen de leuning: met de planken nog voor zijn voeten leek Amir boven het dek te zweven.
+Alleen het beeld veranderde: `h` en dus de sprong, de vijanden, de lift en de levels bleven hetzelfde. Het bordes boven
+aan een stadstrap (`stadStrook` met `alleenTop`) is alleen beeld en sluit op de bovenste trede aan, dus dat ligt nog met
+`dek` op `h`. Een lift bij een galerij (`TAKEL.galerijBoven`, 17) sluit nu bijna gelijk aan op de achterrand van het dek.
+
 Amir springt 208 hoog. Een verdieping (329) is dus te hoog om zomaar te halen: een route naar boven gaat via de
 kraam, de doek, of galerijen die tussen twee verdiepingen hangen (Stad 1 heeft er drie boven elkaar langs de toren).
 
