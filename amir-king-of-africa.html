@@ -28643,7 +28643,7 @@ function zichtTeken(groundY, scale, cx){
 // bandiet), en op een telefoon is een Amir minder pixels, net als die steek. Lopend hoor je hem dus net buiten
 // steekafstand: het laatste stuk kruip je, of je gooit.
 const SNEAK = {
-  gehoor: { loop: 1.8, sprint: 1100, lucht: 0 },   // hoe ver je voetstappen dragen (Amir): lopend, sprintend (px, tot zichtBereik), in de lucht (0: springen en vallen zijn stil, zo kom je van een muurtje achter hem); kruipen en stilstaan zijn stil
+  gehoor: { loop: 1.8, sprint: 1100, lucht: 0, steek: 1.3, steekLijf: 0.6 },   // hoe ver je voetstappen dragen (Amir): lopend, sprintend (px, tot zichtBereik), in de lucht (0: springen en vallen zijn stil, zo kom je van een muurtje achter hem); kruipen en stilstaan zijn stil
   puls: { worp: 0.8, treffer: 3.5, klap: 3.5, speer: 2.2, kill: 1.4, duur: 0.35 },   // de lawaaipulsen (Amir): het loslaten van de speer (alleen vlakbij te horen), een treffer op een vijand, een klap op Amir, een speer die neerkomt, een sluipkill; en hoe lang ze klinken (s)
   argwaan: { bereik: 2.4, van: 3.6, tot: 1.8, kijk: 0.8, rust: 0.6 },   // binnen zoveel Amir achter hem loopt de klok; van: seconden aan de rand, tot: pal achter hem; kijk: zo lang kijkt hij om; rust: zo lang na het omkijken loopt de klok niet
   draaiSpreiding: 0.35,       // een draai-interval wijkt tot zoveel (deel) af, zodat je het niet op de tel kunt lopen
@@ -28663,13 +28663,25 @@ function sneakPx(amir){ return amir * CHAR_H * zichtSc(); }   // een maat in Ami
 function sneakVoor(s){ return sneakAan() && zichtVoor(s) && s.sMens === true; }   // s.sMens: een mens-vijand (gezet in vijandZiet)
 // hoe ver Amirs voetstappen nu dragen: kruipen en stilstaan zijn stil, lopen hoor je dichtbij, sprinten tot aan het
 // oude zichtbereik; in de lucht zoveel als lopen; de renstoot ook. Soft Step maakt alles korter.
+// Lopend hoort hij je altijd voorbij je steek (sneakSteekVer), ook met Soft Step: wie gewoon loopt kan niet ongehoord
+// binnen steekafstand komen; alleen kruipend kom je zo dichtbij.
 function lawaaiNu(dir, crawling, loopFactor){
   if (!sneakAan() || dead) return 0;
   let r = 0;
+  const loopt = onGround && dir !== 0 && !crawling;
   if (!onGround) r = SNEAK.gehoor.lucht ? sneakPx(SNEAK.gehoor.lucht) : 0;
-  else if (dir !== 0 && !crawling) r = loopFactor > 1 ? zichtBereik(SNEAK.gehoor.sprint) : sneakPx(SNEAK.gehoor.loop);
+  else if (loopt) r = loopFactor > 1 ? zichtBereik(SNEAK.gehoor.sprint) : sneakPx(SNEAK.gehoor.loop);
   if (glij !== 0) r = Math.max(r, sneakPx(SNEAK.gehoor.loop));
-  return r * abilityWaarde('soft_step', 'factor', 1);
+  r *= abilityWaarde('soft_step', 'factor', 1);
+  if (loopt || glij !== 0) r = Math.max(r, sneakSteekVer());
+  return r;
+}
+// tot waar de gewone steek reikt (de verste speerpunt plus zijn straal, TIP_DX en steekR), met speling voor het lijf van
+// de vijand en een stap voorwaarts (SNEAK.gehoor.steek en steekLijf): zo ver hoort hij je lopend minstens
+function sneakSteekVer(){
+  let tip = 0;
+  for (const d of TIP_DX) tip = Math.max(tip, Math.abs(d));
+  return (tip + 40) * nowScale() * SNEAK.gehoor.steek + sneakPx(SNEAK.gehoor.steekLijf);
 }
 // gewoon lopen (op de grond, niet gebukt): tot zover vult het de argwaanklok van wie Amir de rug toekeert. Soft Step maakt het korter.
 function loopArgNu(dir, crawling){
