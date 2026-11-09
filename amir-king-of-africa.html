@@ -23398,16 +23398,21 @@ function waterRivierTeken(o, i, groundY, s){
   const SR = WATER.soort.rivier, v = (o.v || (o.val ? SR.v : SR.vRustig));
   // de bedding: van achteren smal (ver weg) naar voren breed, met golvende oevers
   const pts = [], n = 40, oever = (k, kant) => Math.sin(k * 7 + i + kant * 2) * 5 + Math.sin(k * 15 + kant) * 2.5 + Math.sin(k * 41 + kant * 3) * 1.2;
-  const breed = k => w * (0.4 + 0.6 * k) / 2;                       // ver weg smaller
+  // ver weg smaller; voorbij de lip (met `voor`) groeit hij nog maar zacht door
+  const breed = k => w * (k <= 1 ? 0.4 + 0.6 * k : 1 + 0.25 * (k - 1)) / 2;
   // en hij kronkelt, vooraan recht; onder een brug loopt hij recht (anders steekt de bocht als een los stuk achter de leuning uit)
-  const kron = k => o.brug ? 0 : Math.sin(k * 3.6 + i * 1.3) * w * 0.22 * (1 - k * 0.8);
-  for (let j = 0; j <= n; j++){ const k = j / n; pts.push([cx + kron(k) - breed(k) + oever(k, -1), yT + (yB - yT) * k]); }
-  for (let j = n; j >= 0; j--){ const k = j / n; pts.push([cx + kron(k) + breed(k) + oever(k, 1), yT + (yB - yT) * k]); }
+  const kron = k => o.brug ? 0 : Math.sin(Math.min(1, k) * 3.6 + i * 1.3) * w * 0.22 * (1 - Math.min(1, k) * 0.8);
+  // met `voor: true` valt hij niet over de lip maar loopt hij door naar de camera, tot onder uit beeld (zoals het pad van een
+  // kruispunt in de stad)
+  const m = ctx.getTransform(), yO = o.voor && m.d ? (cv.height - m.f) / m.d + 20 : yB;
+  const kM = (yO - yT) / (yB - yT), yE = yO;
+  for (let j = 0; j <= n; j++){ const k = j / n * kM; pts.push([cx + kron(k) - breed(k) + oever(k, -1), yT + (yB - yT) * k]); }
+  for (let j = n; j >= 0; j--){ const k = j / n * kM; pts.push([cx + kron(k) + breed(k) + oever(k, 1), yT + (yB - yT) * k]); }
   const pad = waterPadVan(pts);
-  waterVul(pad, yT, yB, cx - w / 2, cx + w / 2, { v, seed: i * 97, ringen: waterRingenVan(i, cx, (yT + yB) / 2, w * 0.4, (yB - yT) / 2) });
+  waterVul(pad, yT, yE, cx - w / 2, cx + w / 2, { v, seed: i * 97, ringen: waterRingenVan(i, cx, (yT + yE) / 2, w * 0.4, (yE - yT) / 2) });
   // de oevers, maar niet over de achterkant (daar loopt hij door) en de voorkant (daar valt hij)
   ctx.save();
-  ctx.beginPath(); ctx.rect(cx - w, yT + 4, w * 2, yB - yT - 6); ctx.clip();
+  ctx.beginPath(); ctx.rect(cx - w * 2, yT + 4, w * 4, (o.voor ? yE + 40 : yB) - yT - 6); ctx.clip();
   waterRand(pad, 1.8);
   ctx.restore();
   // ver weg loopt hij weg in de vlakte: de achterkant vervaagt in het land
@@ -23416,7 +23421,7 @@ function waterRivierTeken(o, i, groundY, s){
   fg.addColorStop(0, waterRgb(waterMeng(waterLuchtKleur(), land, 0.2), 0.9)); fg.addColorStop(1, waterRgb(land, 0));
   ctx.save(); ctx.clip(pad); ctx.fillStyle = fg; ctx.fillRect(cx - w, yT - 2, w * 2, (yB - yT) * 0.35 + 2); ctx.restore();
   // en vooraan valt hij over de lip, langs de wand van de grond naar beneden; een rustige rivier valt trager (valRustig)
-  waterValGordijn(cx + kron(1) - breed(1) + 6, cx + kron(1) + breed(1) - 6, yB - 4, groundY + H * 1.2, o.val ? v * 6 : SR.valRustig, i, true);
+  if (!o.voor) waterValGordijn(cx + kron(1) - breed(1) + 6, cx + kron(1) + breed(1) - 6, yB - 4, groundY + H * 1.2, o.val ? v * 6 : SR.valRustig, i, true);
 }
 // een vallend gordijn van water tussen xl en xr, van y0 naar y1; met donker: loopt weg in de diepte
 function waterValGordijn(xl, xr, y0, y1, v, seed, donker, buig){

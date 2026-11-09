@@ -25,7 +25,7 @@ avond kleurt de lichtlaag het water mee, net als de rest van de wereld.
 | --- | --- | --- |
 | `plas` | een ondiepe platte ovaal | 0,28: je spettert, maar loopt bijna even snel |
 | `poel` | een grotere kom | 1: wegzakken, trager, lager springen |
-| `rivier` | een band die van achteren naar de camera stroomt en kronkelt (onder een brug recht) en vooraan over de lip van de grond langs de wand naar beneden valt. Standaard rustig: trage rimpels en een trage val (`vRustig`, `valRustig`); met `val: true` stroomt en valt hij snel, zoals in Test 67 | 0,9 |
+| `rivier` | een band die van achteren naar de camera stroomt en kronkelt (onder een brug recht) en vooraan over de lip van de grond langs de wand naar beneden valt. Standaard rustig: trage rimpels en een trage val (`vRustig`, `valRustig`); met `val: true` stroomt en valt hij snel, zoals in Test 67. Met `voor: true` (proef, nog in geen level) valt hij niet maar loopt hij door naar de camera tot onder uit beeld, zoals het pad van een kruispunt | 0,9 |
 | `val` | een waterval van de rechterkant (`r`) van het terras op `x`: een beekje op het bovenvlak (`waterTerrasTeken`), het gordijn voor Amir langs (`waterVoorTeken`) en een kom eronder (`kom` keer `w` breed) met schuim en stuifwater | 0,6 in de kom, ondiep bij de wand zodat je het terras op komt |
 | `bron` | een kom met een straal (`hoog` in Amir) en een kroon van druppels | 0,5 |
 | `fontein` | decor voor de stad: een geschilderde plaat van leem met het water erin (zie hieronder) | 0 |
