@@ -73,3 +73,29 @@ Het spel kende een geworpen speer (`jav`). De tweede staat in `jav2`: `jav2Updat
 die een losse speer). Is `jav` leeg, dan schuift `jav2` door. Getekend met `jav2Draw`. Nog geen houten plaatjes: het teken
 in `TB_TEKEN` (`icoon: null`). In de sandbox onder Speer en spullen, bij Tribe Mkuki, en als level **Test 64: De tweede speer** (`TEST_64`: de
 oefendoelen en de volle rug van Test 60 met `rolWorpProef`, `rugMax: 3`, en daarna vijanden die om twee speren vragen).
+
+## De algemene boom: The Road
+
+Een tweede boom naast die van je tribe, met talents die bij geen tribe horen. `TRIBE_CONFIG.algemeen` (geen tribe: hij
+staat niet in `tribes` en dus niet op het keuzescherm), en `TRIBE_CONFIG.bomen` is de tribes plus deze, voor alles wat
+over alle talents loopt (`abilityVan`, `tribeLijst`, `talentKeuzeBouw`, de foutafhandeling van de plaatjes). Hij heeft
+nog geen logo op schijf: `ALG_LOGO` is een getekende weg met een speer, `boomLogo(t)` kiest.
+
+- **Talents:** Thorn Breaker (hoorde bij Mkuki, de rest van Mkuki is een plek opgeschoven), Breaker (`treffers`, in
+  `tonRaak` met de derde parameter `amir`: alleen een klap van Amir, een vallende ton in `tonLandt` niet) en Keen Eye
+  (`bereik`, `bereikOnzichtbaar`, in Amir; `scherpOogTeken` vanuit `zegelTeken`: een verstopt zegel glinstert, een
+  onzichtbaar zwakker en van dichterbij). Breaker en Keen Eye hebben nog geen houten plaatje: het teken in `TB_TEKEN`.
+- **Vrij:** `vrij: true`, geen volgorde (`tbStaat` slaat de eis van het vorige talent over), in het venster "Any order".
+- **Punten:** een eigen soort, `RUN.algPunten`, na het uitspelen van level `algLevels` (1, 3 en 5) van de episode
+  (`tribeNaLevel`, met `levelIdx`); `RUN.algGehaald` onthoudt welke levels er al een gaven, zodat opnieuw spelen er geen
+  tweede geeft. Geleerd staat in `RUN.alg`; `tribeLijst` geeft `RUN.abilities` plus `RUN.alg`. Alles blijft tot
+  `runReset`, net als de tribe-boom. In de Test levels gelden ze allemaal, zoals de tribe-talents.
+- **De munt van de koning:** een vrij punt, `RUN.vrij`, uit te geven in de boom die je wilt. `tbRun` telt het bij de
+  punten van beide bomen; `tbKlik` gebruikt eerst het eigen punt van de boom, dan het vrije. Er komt er alleen een bij
+  als er in de twee bomen samen nog iets te leren valt (`tbRuimte`).
+- **Het scherm:** dezelfde boom (`tribeBoomToon`), met `tbAlg` voor welke boom in beeld staat. De knop `#tbwissel`
+  bovenaan wisselt (`tbWissel`, `tbAndere`) en gloeit (`.punt`) als daar nog een punt klaarligt. `tbMoetIn` zegt of er
+  nog ergens een punt uit te geven is; zolang dat zo is blijft Continue dicht ("Choose a talent in The Road"). Na een
+  level opent de boom waar het punt binnenkwam, de tribe eerst. Tijdens het kiezen van een tribe (`tbKijk`) is er geen
+  wisselknop.
+- **Sandbox:** onder Speer en spullen, de rij Algemeen.

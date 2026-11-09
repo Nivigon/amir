@@ -227,7 +227,6 @@ Wie Mkuki kiest heeft vanaf het begin, in elk level, **stof in de ogen** (bukken
 | ability | wat hij doet |
 |---|---|
 | **Quick Hand** | na een speerworp sta je korter vast: het herstel na het loslaten gaat 1,6 keer zo snel (0,47 in plaats van 0,75 seconde) |
-| **Thorn Breaker** | een doornbos gaat in een klap om in plaats van drie |
 | **Twin Sweep** | de lage zwaai heeft twee ladingen in plaats van een: de tweede is een reserve terwijl de eerste herlaadt |
 | **True Flight** | een rol-worp kan een crit zijn: die telt als twee treffers, en op een schildbandiet slaat hij het schild een stand extra kapot. Een perfecte rol-worp is altijd een crit; van de gewone is precies een op de vier het, zonder lange reeksen pech of geluk (het spel trekt knikkers uit een zak: twee crits op acht, zonder terugleggen). Een crit geeft een witgouden ster en een korte klap. Op een eindbaas werkt hij niet |
 | **Soft Step** | Amir zijn voetstappen dragen half zo ver: in een level met de sluipaanval (zie hieronder) hoort een vijand hem lopend pas van dichterbij (maar nooit binnen steekafstand) en loopt zijn argwaan minder ver mee. Tijdelijk talent, tot de echte sluip-talents er zijn |
@@ -247,6 +246,20 @@ De lage zwaai zelf (bukken en aanvallen) heeft iedereen, bij elke tribe. Hij raa
 | **Lion's Patience** | een vijand met zijn rug naar je toe krijgt half zo snel argwaan: twee keer zoveel tijd om toe te slaan voor hij omkijkt (zie de sluipaanval). Tijdelijk talent, tot de echte sluip-talents er zijn |
 
 De woedemeter staat onder de kalebas, met het leeuwenlogo en een balk. Hij is er alleen met Long Breath, Blood Rush of The Pounce. Elke gedode vijand vult een tiende, en elke rake klap op een eindbaas die hem nog niet doodt 0,08. Hij blijft staan tussen levels en na game over, en gaat pas terug naar nul bij een nieuwe run uit het menu. Is hij vol, dan pulseert hij, licht de leeuw op en klinkt er een trommelslag, maar hij gaat niet vanzelf af: druk op **G** (of klik op de meter), op de telefoon op de ronde knop met de leeuw links van ✦. Dan neemt Amir een tijd geen schade, van beten, klappen, vallen en de fosforslang, en loopt de meter leeg als aflopende tijd. Hij wordt er niet sterker van. Om hem heen hangt een warme gloed met opstijgende vonkjes, die aan het eind flakkert. Een val in een ravijn blijft het einde. Is de meter niet vol, ben je al in de woede of ben je dood, dan doet G niets.
+
+### De algemene boom: The Road
+
+Naast de boom van je tribe is er een tweede boom, **The Road**, met talents die bij geen tribe horen: iedereen kan ze halen. Ze kosten een eigen soort punt, een **road mark**. Daarvan krijg je er een als je het eerste, het derde en het vijfde level van een episode uitspeelt. Er zit geen volgorde in: met elk punt kies je zelf welk talent je neemt. Net als je tribe-boom blijft hij staan zolang je dezelfde run speelt, en begint hij leeg bij een nieuwe run uit het menu.
+
+In de boom staat bovenaan een knop om te wisselen tussen je tribe en The Road. Ligt er in de andere boom nog een punt klaar, dan gloeit die knop op, en je kunt pas verder als alle punten op zijn.
+
+| talent | wat het doet |
+|---|---|
+| **Thorn Breaker** | een doornbos gaat in een klap om in plaats van drie (hoorde eerst bij Mkuki) |
+| **Breaker** | een ton breekt in een klap van Amir in plaats van drie (steek, lage zwaai of speer). Een ton die op een andere valt telt nog gewoon als een klap |
+| **Keen Eye** | een verstopt zegel glinstert als Amir in de buurt komt, en hoe dichterbij hoe feller. Een onzichtbaar zegel geeft van heel dichtbij een zwakke glinstering |
+
+De **munt van de koning** geeft een vrij punt: je geeft het uit in de boom die je wilt, die van je tribe of The Road.
 
 ### Impungushe, nog op slot
 
@@ -571,7 +584,7 @@ Onder Episodes staat ook **De Gouden Poort**: tien stadslevels, van makkelijk to
 - **Inventory.** Druk op **I** (of tik op het tasje rechtsboven) en het spel staat stil. Je hebt vijf plekken: een kalebas of een gif neemt er elk een, dus je kunt tot vijf kalebassen dragen. Klik op een vak voor wat het doet, en op **Drinken** of **Op speren smeren**.
 - **Gif.** Smeer je het op je speren, dan krijgen ze een groene punt die druipt, en vergiftigen de volgende tien treffers een vijand. Wie vergiftigd is, krijgt een groene waas en belletjes, zijn balk loopt langzaam leeg, en elke drie seconden verliest hij een leven met een spat bloed en gif, tot hij dood is (dat telt gewoon als jouw kill, met goud). Een baas of aanvoerder verliest er eenmalig een half leven. Alleen mensen en hyena's worden ziek. Een treffer op het schild van een schildbandiet, op iemand die al vergiftigd is, of een treffer die meteen doodt, kost geen gif.
 - **Kalebassen** zitten in tonnen, en een paar liggen verstopt: hoog op een galerij die je alleen met de veer van een doek haalt, boven op een stelling, op de toren, of achter een boog in een kamer die je niet meteen ziet.
-- **De munt van de koning.** Ergens in de eerste levels ligt een gouden munt die glimt en draait. Pak hem met **E**, speel dat level uit, en je krijgt een talentpunt extra (een keer per run).
+- **De munt van de koning.** Ergens in de eerste levels ligt een gouden munt die glimt en draait. Pak hem met **E**, speel dat level uit, en je krijgt een talentpunt extra (een keer per run), dat je uitgeeft in de boom die je wilt: die van je tribe of The Road.
 - **Sluipen.** Veel rovers staan met hun rug naar je toe, draaien zich af en toe om of lopen heen en weer. Wie bukt en van achteren komt, steekt ze in een keer neer. Zo kun je een gevecht overslaan.
 - **Anders eindigen.** Niet elk level eindigt bij de fakkels. Soms moet je een aanvoerder verslaan: hij heeft een eigen kleur, een kroontje en zijn naam boven zijn balk, en meer levens. In De Gouden Poort opent zijn dood het hek van de poort, en onder de boog door ga je met **E** het plein op, waar Nyundo wacht.
 - **De Stadsmuur** gaat de hoogte in: trap voor trap de oude muur op, over de kam, en aan de andere kant weer naar beneden.
