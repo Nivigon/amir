@@ -5685,7 +5685,37 @@ const TEST_66 = {
           { x: -5800, t: 'Stof werkt alleen op de bandiet: verblind hem, dan heb je de schildbandiet even voor jezelf' },
           { x: -7300, t: 'Drie tegelijk, en stof koelt 8 seconden af. Kies wie je verblindt' } ]
 };
-const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31, TEST_32, TEST_33, TEST_34, TEST_35, TEST_36, TEST_37, TEST_38, TEST_39, TEST_40, TEST_41, TEST_42, TEST_43, TEST_44, TEST_45, TEST_46, TEST_47, TEST_48, TEST_49, TEST_50, TEST_51, TEST_52, TEST_53, TEST_54, TEST_55, TEST_56, TEST_57, TEST_58, TEST_59, TEST_60, TEST_61, TEST_62, TEST_63, TEST_64, TEST_65, TEST_66];
+// Test 67: Water. Het proefstuk van het watermateriaal (WATER, zie notities/water.md): elke vorm water die het spel
+// kent achter elkaar, zonder vijanden, zodat je alleen naar het water kijkt. Zelf ontworpen (regel 3, met toestemming):
+// eerst drie plassen, dan een poel om door te waden, een rivier die naar je toe stroomt en over de rand van de grond
+// valt, onder de regen door naar een waterval van een terras (je loopt eronderdoor en klimt erop), en na het terras
+// een bron die spuit. Het regent van de rivier tot voorbij de val: de ringen komen op elk water, ook de plassen.
+const TEST_67 = {
+  name: 'Test 67: Water',
+  lagen: 'waterkant',
+  view: 0.8, hpBalk: true, zicht: true, sneak: true, camera: true, rand: true, slangEenKlap: true,
+  speerInHand: true, vredig: true,
+  wateren: [ {k: 'plas', x: -520, w: 120}, {k: 'plas', x: -700, w: 80}, {k: 'plas', x: -860, w: 170},
+             {k: 'poel', x: -1350, w: 480},
+             {k: 'rivier', x: -2150, w: 260},
+             {k: 'val', x: -2900, w: 110},
+             {k: 'plas', x: -3750, w: 140}, {k: 'plas', x: -3930, w: 90},
+             {k: 'bron', x: -4500, w: 300} ],
+  terraces: [ {r: -2900, l: -3450, h: 150} ],
+  weer: [ {x: -1700, soort: 'regen', sterkte: 0.7}, {x: -3500, soort: 'droog'} ],
+  props: [ {x: -1050, k: 'struik', s: 0.8}, {x: -1700, k: 'gras', s: 1}, {x: -2420, k: 'boulder', s: 0.7, f: 1},
+           {x: -4300, k: 'boulder', s: 0.6}, {x: -4720, k: 'boulder', s: 0.75, f: 1}, {x: -4850, k: 'tree', s: 1} ],
+  rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], spawns: [],
+  cliffs: [ {x: -5800} ],
+  ends: [ {x: -5300} ],
+  tips: [ { x: -60, t: 'Testlevel: water. Alles hier is hetzelfde water, alleen de vorm verschilt' },
+          { x: -450, t: 'Plassen: ondiep, je spettert erdoorheen' },
+          { x: -1150, t: 'Een poel: hier zak je weg en loop je trager' },
+          { x: -1950, t: 'Een rivier stroomt naar je toe en valt over de rand van de grond' },
+          { x: -2650, t: 'Een waterval: loop eronderdoor en spring dan het terras op' },
+          { x: -4250, t: 'Een bron. Ga eens onder de straal staan' } ]
+};
+const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31, TEST_32, TEST_33, TEST_34, TEST_35, TEST_36, TEST_37, TEST_38, TEST_39, TEST_40, TEST_41, TEST_42, TEST_43, TEST_44, TEST_45, TEST_46, TEST_47, TEST_48, TEST_49, TEST_50, TEST_51, TEST_52, TEST_53, TEST_54, TEST_55, TEST_56, TEST_57, TEST_58, TEST_59, TEST_60, TEST_61, TEST_62, TEST_63, TEST_64, TEST_65, TEST_66, TEST_67];
 // ---- Episode Test levels stad: de Sahelstad, stuk voor stuk ----
 // Proefstukken in de stad (zie "de stad"), los van de echte episodes (regel 1 geldt niet). Het is een episode, dus met
 // de tribekeuze aan het begin; het eerste level was Test 59.
@@ -22845,7 +22875,7 @@ function waterDepthAt(x, h){                // 0 = droog, 1 = midden in het wate
     if (a <= 0 || b <= 0) continue;
     best = Math.max(best, smooth01(Math.min(a, b) / POOL.ramp));
   }
-  return best;
+  return Math.max(best, waterenDiep(x));          // en het water van WATER (plas, poel, rivier, de kom van een val of bron)
 }
 function drawWaterStrips(groundY){
   if (!edgeReady() || !imgReady(poolImg.links) || !imgReady(poolImg.rechts)) return;
@@ -22863,6 +22893,436 @@ function drawWaterStrips(groundY){
     }
     ctx.drawImage(poolImg.rechts, x - 0.5, top, poolImg.rechts.naturalWidth * s, th);
   }
+}
+// ---- water: één materiaal voor plas, poel, rivier, waterval en bron ----
+// Het veld `wateren` van een level: [{k, x, w, ...}]. Elke vorm gebruikt hetzelfde materiaal (WATER): het palet
+// uit de oude poel, een kleurverloop van de verre oever (lucht erin) naar de diepte vooraan, twee lagen rimpels
+// die over elkaar schuiven, glinsters, een natte rand en schuim. Per vorm verschillen alleen de vorm en de
+// stroming: een plas en een poel staan stil, een rivier stroomt naar de camera en valt over de rand van de grond,
+// een waterval valt van een terras in een kom, een bron spuit omhoog en valt terug in zijn kom.
+// Alles wordt getekend, er zijn geen plaatjes; de spetters en het geluid van de oude poel doen gewoon mee, omdat
+// waterDepthAt ook deze vormen kent. Proefstuk: Test 67 (zie notities/water.md).
+const WATER = {
+  palet: { diep: [52, 92, 110], midden: [80, 128, 144], ondiep: [112, 160, 168], glans: [226, 246, 244],
+           schuim: [236, 244, 238], nat: [70, 44, 26] },
+  lucht: 0.35,                 // zoveel van de horizonkleur ligt er op de verre kant van het water
+  rimpel: { a: 0.42, b: 0.30, v: [10, 4], vb: [-7, 3] },   // twee lagen: dekking en schuifsnelheid (px per s)
+  glinster: { dicht: 1 / 2600, a: 0.9 },                 // een glinster per zoveel vierkante pixel
+  rand: { nat: 0.38, natW: 7, schuim: 0.55 },             // de donkere natte rand en de schuimlijn
+  soort: {
+    plas:    { diep: 0.28, ramp: 40,  ry: 15, y: 6,  ruw: 0.14 },
+    poel:    { diep: 1,    ramp: 90,  ry: 36, y: 10, ruw: 0.06 },
+    rivier:  { diep: 0.9,  ramp: 50, v: 70 },                // v: hoe snel de rimpels naar je toe stromen
+    val:     { diep: 0.6,  ramp: 80,  ry: 30, y: 10, ruw: 0.08, v: 520, kom: 2.4 },
+    bron:    { diep: 0.5,  ramp: 70,  ry: 30, y: 10, ruw: 0.08, hoog: 1.5, v: 380 }
+  },
+  rug: 52, lip: 56,            // de grond in beeld: de verre rand en de voorste lip, in eenheden van de grondtegel vanaf de looplijn
+  geluid: { val: 0.32, rivier: 0.2, bron: 0.14, ver: 520, hz: 750 }
+};
+function waterenLijst(){ return (level && Array.isArray(level.wateren)) ? level.wateren : []; }
+let waterKlok = 0;                                  // speltijd, zodat het water in de pauze stilstaat
+function waterRgb(c, a){ return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + (a === undefined ? 1 : a) + ')'; }
+function waterMeng(a, b, t){ return [0, 1, 2].map(i => Math.round(a[i] + (b[i] - a[i]) * t)); }
+function waterHash(i, z){ const v = Math.sin(i * 127.1 + z * 311.7) * 43758.5453; return v - Math.floor(v); }
+// de terras-rand waar een waterval vanaf valt: het terras waarvan de rechterkant (r) het dichtst bij x ligt
+function waterValTerras(o){
+  let best = null;
+  for (const t of terraceList()) if (t.h > 0 && Math.abs(t.r - o.x) < 60 && (!best || t.h > best.h)) best = t;
+  return best;
+}
+// de kom van een vorm (plas, poel, de kom van een val of bron): midden en breedte in wereld-px
+function waterKom(o){
+  const S = WATER.soort[o.k]; if (!S) return null;
+  if (o.k === 'rivier') return null;
+  if (o.k === 'val'){ const w = (o.w || 110) * (o.kom || S.kom); return { x: o.x + (o.w || 110) * 0.55, w }; }
+  return { x: o.x, w: o.w || 200 };
+}
+// hoe diep het nieuwe water hier is (0 tot 1), voor waterDepthAt
+function waterenDiep(x){
+  let best = 0;
+  for (const o of waterenLijst()){
+    const S = WATER.soort[o.k]; if (!S) continue;
+    let l, r;
+    if (o.k === 'rivier'){ const w = o.w || 240; l = o.x - w / 2; r = o.x + w / 2; }
+    else { const k = waterKom(o); l = k.x - k.w / 2; r = k.x + k.w / 2; }
+    const a = Math.min(x - l, r - x);
+    if (a <= 0) continue;
+    best = Math.max(best, (o.diep !== undefined ? o.diep : S.diep) * smooth01(a / S.ramp));
+  }
+  return best;
+}
+// ---- de textuur: rimpels, eenmaal getekend en daarna alleen verschoven ----
+let waterTex = null;
+function waterTextuur(){
+  if (waterTex) return waterTex;
+  const maak = (w, h, n, kleur, lang, dik, staand) => {
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d');
+    for (let i = 0; i < n; i++){
+      const x = waterHash(i, 1) * w, y = waterHash(i, 2) * h;
+      const l = lang[0] + waterHash(i, 3) * (lang[1] - lang[0]), d = dik[0] + waterHash(i, 4) * (dik[1] - dik[0]);
+      g.fillStyle = waterRgb(kleur, 0.35 + waterHash(i, 5) * 0.65);
+      for (const dx of [-w, 0, w]) for (const dy of [-h, 0, h]){          // naadloos: ook over de randen heen
+        g.beginPath();
+        if (staand) g.ellipse(x + dx, y + dy, d, l, 0, 0, Math.PI * 2);
+        else g.ellipse(x + dx, y + dy, l, d, 0, 0, Math.PI * 2);
+        g.fill();
+      }
+    }
+    return c;
+  };
+  const P = WATER.palet;
+  waterTex = {
+    licht: maak(256, 96, 70, P.glans, [6, 22], [0.8, 1.8]),
+    donker: maak(256, 96, 50, P.diep, [8, 26], [1, 2.2]),
+    val: maak(96, 256, 46, P.glans, [14, 46], [1, 2.6], true),
+    valDonker: maak(96, 256, 30, P.diep, [16, 50], [1.4, 3], true)
+  };
+  return waterTex;
+}
+// een textuurlaag over het pad, geschoven met (ox, oy)
+function waterLaag(pad, img, a, ox, oy, k){
+  const pat = ctx.createPattern(img, 'repeat');
+  if (!pat) return;
+  if (pat.setTransform) pat.setTransform(new DOMMatrix().translate(ox, oy).scale(k || 1));
+  ctx.save(); ctx.globalAlpha *= a; ctx.fillStyle = pat; ctx.fill(pad); ctx.restore();
+}
+// ---- de vormen als pad op het scherm ----
+// een kom: een afgeplatte ovaal met een grillige rand, plat op de grond (de verre kant smaller dan de voorkant)
+function waterKomPad(cx, cy, rx, ry, ruw, seed){
+  const p = new Path2D(), n = 48;
+  for (let i = 0; i <= n; i++){
+    const t = i / n * Math.PI * 2;
+    const rr = 1 + ruw * (Math.sin(t * 3 + seed) * 0.5 + Math.sin(t * 5 + seed * 2.3) * 0.3 + Math.sin(t * 9 + seed * 0.7) * 0.2);
+    const c = Math.cos(t), sn = Math.sin(t);
+    const x = cx + Math.sign(c) * Math.pow(Math.abs(c), 0.8) * rx * rr;
+    const y = cy + Math.sign(sn) * Math.pow(Math.abs(sn), 0.9) * ry * rr * (sn < 0 ? 0.8 : 1);
+    i ? p.lineTo(x, y) : p.moveTo(x, y);
+  }
+  p.closePath();
+  return p;
+}
+function waterLuchtKleur(){
+  const sc = sceneCfg();
+  const k = sc && sc.sky ? leesKleur(sc.sky[2]) : [224, 160, 110];
+  return waterMeng(WATER.palet.ondiep, k, WATER.lucht);
+}
+// het water zelf in een pad: verloop, rimpels, glinsters; van boven (yT) naar onder (yB)
+function waterVul(pad, yT, yB, x0, x1, opts){
+  const P = WATER.palet, R = WATER.rimpel, T = waterTextuur(), t = waterKlok;
+  const g = ctx.createLinearGradient(0, yT, 0, yB);
+  g.addColorStop(0, waterRgb(waterLuchtKleur()));
+  g.addColorStop(0.45, waterRgb(P.midden));
+  g.addColorStop(1, waterRgb(P.diep));
+  ctx.save();
+  ctx.fillStyle = g; ctx.fill(pad);
+  ctx.clip(pad);
+  const vy = opts.v || 0;                        // stroming naar de camera (rivier)
+  waterLaag(pad, T.donker, R.b, -t * R.vb[0], t * (R.vb[1] + vy * 0.8), 1);
+  waterLaag(pad, T.licht, R.a, t * R.v[0], t * (R.v[1] + vy), 1);
+  if (vy) waterLaag(pad, T.licht, R.a * 0.6, t * R.v[0] * -0.5 + 40, t * vy * 1.35 + 30, 0.8);
+  // glinsters: vaste plekken die op en neer flonkeren
+  const n = Math.min(60, Math.round((x1 - x0) * (yB - yT) * WATER.glinster.dicht));
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < n; i++){
+    const z = (opts.seed || 0) + i;
+    const fl = Math.pow(Math.max(0, Math.sin(t * (1.3 + waterHash(z, 7) * 2.2) + waterHash(z, 8) * 6.28)), 8);
+    if (fl < 0.05) continue;
+    let gx = x0 + waterHash(z, 9) * (x1 - x0), gy = yT + (0.08 + waterHash(z, 10) * 0.84) * (yB - yT);
+    if (vy) gy = yT + ((waterHash(z, 10) * (yB - yT) + t * vy * 1.1) % (yB - yT));
+    const d = 1 + (gy - yT) / Math.max(1, yB - yT);   // vooraan iets groter
+    ctx.fillStyle = waterRgb(P.glans, WATER.glinster.a * fl);
+    ctx.beginPath(); ctx.ellipse(gx, gy, 4.5 * d, 1.1 * d, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+  // de verre oever werpt een smalle schaduw op het water: zo ligt het in de grond en niet erop
+  ctx.translate(0, 3); ctx.strokeStyle = waterRgb(P.nat, 0.45); ctx.lineWidth = 3; ctx.stroke(pad);
+  ctx.restore();
+  waterRegenRingen(opts.ringen, pad);
+}
+// de natte rand eromheen en het schuim op de waterlijn
+function waterRand(pad, schuimDik){
+  const P = WATER.palet, Rd = WATER.rand;
+  ctx.save();
+  ctx.strokeStyle = waterRgb(P.nat, Rd.nat); ctx.lineWidth = Rd.natW; ctx.lineJoin = 'round'; ctx.stroke(pad);
+  ctx.setLineDash([10, 7, 3, 9]); ctx.lineDashOffset = -waterKlok * 6;
+  ctx.strokeStyle = waterRgb(P.schuim, Rd.schuim); ctx.lineWidth = schuimDik || 1.6; ctx.stroke(pad);
+  ctx.restore();
+}
+// ---- regen: ringen op elk water ----
+const waterRingen = [];
+function waterRegenRingen(lijst, pad){
+  if (!lijst) return;
+  ctx.save(); ctx.clip(pad);
+  ctx.strokeStyle = waterRgb(WATER.palet.glans, 0.6);
+  for (const r of lijst){
+    const k = r.t / r.duur;
+    ctx.globalAlpha = 0.7 * (1 - k); ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.ellipse(r.sx, r.sy, 2 + k * 14, (2 + k * 14) * 0.3, 0, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.restore();
+}
+// ---- druppels: de straal van de bron, het stuifwater van de val, de spetters op Amir ----
+const waterDruppels = [];       // {x, h: hoogte boven de grond in eenheden, vx, vh, t, duur, r}
+function waterDruppel(x, h, vx, vh, duur, r){
+  if (waterDruppels.length > 420) return;
+  waterDruppels.push({ x, h, vx, vh, t: 0, duur, r: r || 1 });
+}
+// ---- de grond: de kommen, de rivier en zijn val over de rand ----
+function waterTeken(groundY){
+  const lijst = waterenLijst();
+  if (!lijst.length || !edgeReady()) return;
+  const s = edgeScale(H * 0.18), vr = W / viewZoom() + W;
+  for (let i = 0; i < lijst.length; i++){
+    const o = lijst[i], S = WATER.soort[o.k];
+    if (!S) continue;
+    if (o.k === 'rivier'){ waterRivierTeken(o, i, groundY, s); continue; }
+    const k = waterKom(o);
+    const cx = W / 2 + (k.x - world), rx = k.w / 2;
+    if (cx - rx > vr || cx + rx < -W) continue;
+    const ry = Math.min(rx * 0.5, (o.ry || S.ry) * s), cy = groundY + S.y * s;
+    const pad = waterKomPad(cx, cy, rx, ry, S.ruw, i * 1.7 + 0.4);
+    waterVul(pad, cy - ry, cy + ry, cx - rx, cx + rx, { seed: i * 97, ringen: waterRingenVan(i, cx, cy, rx, ry) });
+    waterRand(pad, o.k === 'plas' ? 1.2 : 1.8);
+    if (o.k === 'val') waterKomSchuim(W / 2 + (o.x + (o.w || 110) * 0.55 - world), cy, (o.w || 110) * 0.55, ry, i);
+    if (o.k === 'bron') waterKomSchuim(cx, cy, Math.max(14, rx * 0.16), ry * 0.35, i);
+  }
+}
+// waar de val of de straal in de kom komt: een wolk schuim die opbruist
+function waterKomSchuim(cx, cy, rx, ry, seed){
+  ctx.save();
+  for (let j = 0; j < 14; j++){
+    const z = seed * 31 + j, t = waterKlok * (0.8 + waterHash(z, 1)) + waterHash(z, 2) * 10;
+    const f = t % 1, a = Math.sin(f * Math.PI);
+    const x = cx + (waterHash(z, 3) - 0.5) * 2 * rx * (0.5 + f * 0.6), y = cy + (waterHash(z, 4) - 0.5) * ry * 0.9;
+    ctx.fillStyle = waterRgb(WATER.palet.schuim, 0.55 * a);
+    ctx.beginPath(); ctx.ellipse(x, y, (5 + 9 * f) * (rx > 30 ? 1.3 : 0.8), (2 + 3 * f), 0, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+function waterRingenVan(i, cx, cy, rx, ry){
+  const uit = [];
+  for (const r of waterRingen) if (r.o === i) uit.push({ sx: cx + r.u * rx, sy: cy + r.v * ry, t: r.t, duur: r.duur });
+  return uit;
+}
+function waterRivierTeken(o, i, groundY, s){
+  const w = o.w || 240, cx = W / 2 + (o.x - world);
+  if (cx - w > W / viewZoom() + W || cx + w < -W) return;
+  const yT = groundY - WATER.rug * s, yB = groundY + WATER.lip * s;
+  const v = (o.v || WATER.soort.rivier.v);
+  // de bedding: van achteren smal (ver weg) naar voren breed, met golvende oevers
+  const pad = new Path2D(), n = 20, oever = (k, kant) => Math.sin(k * 7 + i + kant * 2) * 5 + Math.sin(k * 15 + kant) * 2.5;
+  const breed = k => w * (0.4 + 0.6 * k) / 2;                       // ver weg smaller
+  const kron = k => Math.sin(k * 3.6 + i * 1.3) * w * 0.22 * (1 - k * 0.8);   // en hij kronkelt, vooraan recht naar de val
+  for (let j = 0; j <= n; j++){ const k = j / n; const y = yT + (yB - yT) * k; const x = cx + kron(k) - breed(k) + oever(k, -1); j ? pad.lineTo(x, y) : pad.moveTo(x, y); }
+  for (let j = n; j >= 0; j--){ const k = j / n; const y = yT + (yB - yT) * k; pad.lineTo(cx + kron(k) + breed(k) + oever(k, 1), y); }
+  pad.closePath();
+  waterVul(pad, yT, yB, cx - w / 2, cx + w / 2, { v, seed: i * 97, ringen: waterRingenVan(i, cx, (yT + yB) / 2, w * 0.4, (yB - yT) / 2) });
+  // de oevers, maar niet over de achterkant (daar loopt hij door) en de voorkant (daar valt hij)
+  ctx.save();
+  ctx.beginPath(); ctx.rect(cx - w, yT + 4, w * 2, yB - yT - 6); ctx.clip();
+  waterRand(pad, 1.8);
+  ctx.restore();
+  // ver weg loopt hij weg in de vlakte: de achterkant vervaagt in het land
+  const sc = sceneCfg(), land = leesKleur(sc && sc.land ? sc.land : '#3a2a30');
+  const fg = ctx.createLinearGradient(0, yT, 0, yT + (yB - yT) * 0.35);
+  fg.addColorStop(0, waterRgb(waterMeng(waterLuchtKleur(), land, 0.2), 0.9)); fg.addColorStop(1, waterRgb(land, 0));
+  ctx.save(); ctx.clip(pad); ctx.fillStyle = fg; ctx.fillRect(cx - w, yT - 2, w * 2, (yB - yT) * 0.35 + 2); ctx.restore();
+  // en vooraan valt hij over de lip, langs de wand van de grond naar beneden
+  waterValGordijn(cx + kron(1) - breed(1) + 6, cx + kron(1) + breed(1) - 6, yB - 4, groundY + H * 1.2, v * 6, i, true);
+}
+// een vallend gordijn van water tussen xl en xr, van y0 naar y1; met donker: loopt weg in de diepte
+function waterValGordijn(xl, xr, y0, y1, v, seed, donker, buig){
+  const T = waterTextuur(), P = WATER.palet, h = y1 - y0;
+  if (h <= 0) return;
+  const pad = new Path2D(), n = 18, b = buig || 0;
+  for (let j = 0; j <= n; j++){ const k = j / n; pad[j ? 'lineTo' : 'moveTo'](xl + b * Math.sqrt(k) * 0.4 + Math.sin(k * 9 + seed) * 2, y0 + h * k); }
+  for (let j = n; j >= 0; j--){ const k = j / n; pad.lineTo(xr + b * Math.sqrt(k) + Math.sin(k * 7 + seed * 2) * 3, y0 + h * k); }
+  pad.closePath();
+  ctx.save();
+  const g = ctx.createLinearGradient(0, y0, 0, y1);
+  g.addColorStop(0, waterRgb(P.ondiep, 0.92));
+  g.addColorStop(0.5, waterRgb(P.midden, 0.85));
+  g.addColorStop(1, donker ? waterRgb(P.diep, 0) : waterRgb(P.midden, 0.75));
+  ctx.fillStyle = g; ctx.fill(pad);
+  ctx.clip(pad);
+  waterLaag(pad, T.valDonker, 0.35, seed * 13, waterKlok * v * 0.8, 1);
+  waterLaag(pad, T.val, 0.75, seed * 29, waterKlok * v, 1);
+  waterLaag(pad, T.val, 0.45, seed * 7 + 30, waterKlok * v * 1.3 + 50, 0.7);
+  // de lip: wit waar het water over de rand buigt
+  const lg = ctx.createLinearGradient(0, y0, 0, y0 + 14);
+  lg.addColorStop(0, waterRgb(P.schuim, 0.7)); lg.addColorStop(1, waterRgb(P.schuim, 0));
+  ctx.fillStyle = lg; ctx.fillRect(Math.min(xl, xr) - 4, y0, Math.abs(xr - xl) + Math.abs(b) + 8, 14);
+  if (donker){                                   // de diepte: hoe lager, hoe meer het in het donker valt
+    const dg = ctx.createLinearGradient(0, y0, 0, y0 + Math.min(h, H * 0.5));
+    dg.addColorStop(0, 'rgba(10,8,12,0)'); dg.addColorStop(1, 'rgba(10,8,12,0.75)');
+    ctx.fillStyle = dg; ctx.fillRect(xl - 10, y0, xr - xl + 20 + Math.abs(b), h);
+  }
+  ctx.restore();
+}
+// het bovenvlak van het terras waar het beekje over loopt: van y0 (ver) tot y1 (de looplijn)
+function waterValVlak(t, groundY, scale){
+  const st = terScale(scale), y1 = groundY - t.h * scale, d = (TER.walk - (TER.trimTop || 0)) * st;
+  return { y0: y1 - d * 0.62, y1: y1 + 2 };
+}
+// het beekje op het terras naar de rand toe, achter Amir (die erin kan staan)
+function waterTerrasTeken(groundY, scale, cx){
+  const lijst = waterenLijst();
+  for (let i = 0; i < lijst.length; i++){
+    const o = lijst[i];
+    if (o.k !== 'val') continue;
+    const t = waterValTerras(o); if (!t) continue;
+    const w = o.w || 110, x = cx + (o.x - world);
+    if (x > W / viewZoom() + W || x < -W) continue;
+    const vl = waterValVlak(t, groundY, scale), lang = Math.min(w * 3, Math.max(40, (t.r - t.l) * 0.6));
+    // een bron achteraan op het vlak, en het beekje dat breder wordt naar de rand
+    const pad = new Path2D(), n = 16;
+    const yM = (vl.y0 + vl.y1) / 2;
+    for (let j = 0; j <= n; j++){ const k = j / n; const hw = (vl.y1 - vl.y0) / 2 * (0.25 + 0.75 * Math.sqrt(k)); pad[j ? 'lineTo' : 'moveTo'](x - lang * (1 - k), yM - hw + Math.sin(k * 9 + i) * 1.5); }
+    for (let j = n; j >= 0; j--){ const k = j / n; const hw = (vl.y1 - vl.y0) / 2 * (0.25 + 0.75 * Math.sqrt(k)); pad.lineTo(x - lang * (1 - k), yM + hw + Math.sin(k * 7 + i) * 1.5); }
+    pad.closePath();
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x - lang - 20, vl.y0 - 10, lang + 21, vl.y1 - vl.y0 + 20); ctx.clip();   // niet voorbij de rand
+    waterVul(pad, vl.y0, vl.y1, x - lang, x, { v: 0, seed: i * 53 });
+    // het stroomt naar de rand: de rimpels schuiven mee naar rechts
+    const T = waterTextuur();
+    waterLaag(pad, T.licht, 0.45, waterKlok * 90, 0, 0.8);
+    waterRand(pad, 1.4);
+    ctx.restore();
+  }
+}
+// ---- voor Amir langs: het gordijn van een waterval en de straal van een bron, en alle druppels ----
+function waterVoorTeken(groundY, scale, cx){
+  const lijst = waterenLijst();
+  if (!lijst.length) return;
+  const s = edgeScale(H * 0.18), P = WATER.palet;
+  for (let i = 0; i < lijst.length; i++){
+    const o = lijst[i];
+    if (o.k === 'val'){
+      const t = waterValTerras(o); if (!t) continue;
+      const w = o.w || 110, x = cx + (o.x - world);
+      if (x > W / viewZoom() + W || x + w * 2 < -W) continue;
+      const vl = waterValVlak(t, groundY, scale), yBot = groundY + WATER.soort.val.y * s;
+      ctx.save(); ctx.globalAlpha = 0.88;
+      waterValGordijn(x - 3, x + w * 0.35, vl.y0, yBot, WATER.soort.val.v, i, false, w * 0.55);
+      ctx.restore();
+      // een sluier van stuifwater onderaan
+      const mg = ctx.createRadialGradient(x + w * 0.6, yBot, 2, x + w * 0.6, yBot, w * 1.1);
+      mg.addColorStop(0, waterRgb(P.schuim, 0.35)); mg.addColorStop(1, waterRgb(P.schuim, 0));
+      ctx.fillStyle = mg; ctx.fillRect(x - w * 0.6, yBot - w * 1.1, w * 2.4, w * 1.3);
+    } else if (o.k === 'bron'){
+      const x = cx + (o.x - world), hoog = (o.hoog || WATER.soort.bron.hoog) * CHAR_H * scale;
+      if (x > W / viewZoom() + W || x < -W) continue;
+      const yB = groundY + WATER.soort.bron.y * s, yT = yB - hoog * (0.94 + 0.06 * Math.sin(waterKlok * 7));
+      const bw = Math.max(6, CHAR_H * scale * 0.055);
+      const pad = new Path2D();
+      pad.moveTo(x - bw, yB);
+      pad.bezierCurveTo(x - bw * 0.9, yB - hoog * 0.5, x - bw * 0.5, yT + 10, x, yT);
+      pad.bezierCurveTo(x + bw * 0.5, yT + 10, x + bw * 0.9, yB - hoog * 0.5, x + bw, yB);
+      pad.closePath();
+      const T = waterTextuur();
+      ctx.save();
+      // een waas om de straal: het nevelt
+      const ng = ctx.createLinearGradient(x - bw * 3, 0, x + bw * 3, 0);
+      ng.addColorStop(0, waterRgb(P.glans, 0)); ng.addColorStop(0.5, waterRgb(P.glans, 0.22)); ng.addColorStop(1, waterRgb(P.glans, 0));
+      ctx.fillStyle = ng; ctx.fillRect(x - bw * 3, yT, bw * 6, yB - yT);
+      const g = ctx.createLinearGradient(x - bw, 0, x + bw, 0);
+      g.addColorStop(0, waterRgb(P.ondiep, 0.55)); g.addColorStop(0.35, waterRgb(P.glans, 0.85));
+      g.addColorStop(0.65, waterRgb(P.midden, 0.75)); g.addColorStop(1, waterRgb(P.diep, 0.55));
+      ctx.fillStyle = g; ctx.fill(pad); ctx.clip(pad);
+      waterLaag(pad, T.val, 0.8, i * 11, -waterKlok * WATER.soort.bron.v, 0.6);
+      waterLaag(pad, T.valDonker, 0.4, i * 5, -waterKlok * WATER.soort.bron.v * 0.7, 0.6);
+      ctx.restore();
+      // de kroon bovenop
+      ctx.fillStyle = waterRgb(P.schuim, 0.6);
+      ctx.globalAlpha = 0.7; ctx.beginPath(); ctx.ellipse(x, yT + 3, bw * 1.3, bw * 0.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+    }
+  }
+  // de druppels
+  ctx.save();
+  for (const d of waterDruppels){
+    const x = cx + (d.x - world), y = groundY - d.h * scale;
+    const k = d.t / d.duur;
+    // een streepje in de richting waarin hij vliegt: zo leest het als water, niet als hagel
+    ctx.strokeStyle = waterRgb(k < 0.5 ? P.glans : P.ondiep, 0.8 * (1 - k * k));
+    ctx.lineWidth = d.r * Math.max(1, CHAR_H * scale * 0.0045); ctx.lineCap = 'round';
+    const sl = 0.018 * scale;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - d.vx * sl, y + d.vh * sl); ctx.stroke();
+  }
+  ctx.restore();
+}
+// ---- de stap: klok, druppels, regenringen, Amir onder de val en het geluid ----
+let waterValNat = 0;
+function waterStap(dt){
+  const lijst = waterenLijst();
+  if (!lijst.length){ waterDruppels.length = 0; waterRingen.length = 0; waterGeluid(0); return; }
+  waterKlok += dt;
+  // druppels vallen
+  for (let i = waterDruppels.length - 1; i >= 0; i--){
+    const d = waterDruppels[i];
+    d.t += dt; d.vh -= GRAVITY * 0.9 * dt; d.x += d.vx * dt; d.h += d.vh * dt;
+    if (d.t >= d.duur || d.h < -6) waterDruppels.splice(i, 1);
+  }
+  // regenringen
+  const regen = weerNu ? (weerNu.regen || 0) : 0;
+  for (let i = waterRingen.length - 1; i >= 0; i--){ waterRingen[i].t += dt; if (waterRingen[i].t >= waterRingen[i].duur) waterRingen.splice(i, 1); }
+  let geluid = 0;
+  const px = playerX();
+  for (let i = 0; i < lijst.length; i++){
+    const o = lijst[i], S = WATER.soort[o.k];
+    if (!S) continue;
+    const bijX = o.k === 'val' ? o.x + (o.w || 110) * 0.55 : o.x;
+    const ver = Math.abs(bijX - px);
+    if (regen > 0.05 && ver < W * 1.5){
+      const opp = (o.w || 200) / 200;
+      if (Math.random() < regen * opp * dt * 14 && waterRingen.length < 160){
+        const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * 0.85;
+        waterRingen.push({ o: i, u: Math.cos(a) * r, v: Math.sin(a) * r, t: 0, duur: 0.5 + Math.random() * 0.3 });
+      }
+    }
+    if (ver > W * 1.4) continue;
+    if (o.k === 'bron'){
+      const hoog = (o.hoog || S.hoog) * CHAR_H, v = Math.sqrt(2 * GRAVITY * 0.9 * hoog);
+      for (let j = 0; j < 5; j++) if (Math.random() < dt * 40)      // de kroon: druppels die in een parasol terugvallen
+        waterDruppel(o.x + (Math.random() - 0.5) * 8, hoog * 0.92, (Math.random() - 0.5) * 300, Math.random() * 160, 1.0 + Math.random() * 0.4, 0.9 + Math.random() * 1.1);
+      if (Math.random() < dt * 12) waterDruppel(o.x, 2, (Math.random() - 0.5) * 60, v * (0.3 + Math.random() * 0.2), 0.6, 1);
+      geluid += WATER.geluid.bron / (1 + ver / WATER.geluid.ver);
+      if (ver < 22 && ph < hoog * 0.9 && Math.random() < dt * 18)          // onder de straal: het klettert op je hoofd
+        waterDruppel(px + (Math.random() - 0.5) * 30, ph + CHAR_H * 0.95, (Math.random() - 0.5) * 260, 200 + Math.random() * 200, 0.5, 1.1);
+    } else if (o.k === 'val'){
+      const t = waterValTerras(o); if (!t) continue;
+      const w = o.w || 110, voet = o.x + w * 0.55;
+      if (Math.random() < dt * 30) waterDruppel(voet + (Math.random() - 0.6) * w, 4, (Math.random() - 0.3) * 260, 140 + Math.random() * 260, 0.6 + Math.random() * 0.3, 0.8 + Math.random());
+      geluid += WATER.geluid.val / (1 + ver / WATER.geluid.ver);
+      // Amir onder het gordijn: het spat van zijn hoofd en schouders
+      const onder = px > o.x - 10 && px < o.x + w * 0.85 && ph < t.h - CHAR_H * 0.3;
+      waterValNat = onder ? Math.min(1, waterValNat + dt * 4) : Math.max(0, waterValNat - dt * 2);
+      if (onder && Math.random() < dt * 30)
+        waterDruppel(px + (Math.random() - 0.5) * 50, ph + CHAR_H * (0.85 + Math.random() * 0.15), (Math.random() - 0.5) * 380, 120 + Math.random() * 260, 0.5, 1.2);
+    } else if (o.k === 'rivier'){
+      geluid += WATER.geluid.rivier / (1 + ver / WATER.geluid.ver);
+    }
+  }
+  waterGeluid((running && !paused) ? Math.min(0.5, geluid) : 0);
+}
+// ---- het geluid: ruis door een laagdoorlaat, harder naarmate je dichter bij stromend water bent ----
+let waterRuis = null;
+function waterGeluid(doel){
+  if (!wantSound){ doel = 0; }
+  if (!waterRuis){
+    if (doel <= 0.001) return;
+    const ac = acLoopt();
+    if (!ac) return;
+    const n = Math.floor(ac.sampleRate * 3), buf = ac.createBuffer(1, n, ac.sampleRate), d = buf.getChannelData(0);
+    let b = 0;
+    for (let i = 0; i < n; i++){ b = (b + 0.04 * (Math.random() * 2 - 1)) / 1.04; d[i] = b * 3.2 + (Math.random() * 2 - 1) * 0.05; }
+    const src = ac.createBufferSource(), lp = ac.createBiquadFilter(), g = ac.createGain();
+    src.buffer = buf; src.loop = true; lp.type = 'lowpass'; lp.frequency.value = WATER.geluid.hz;
+    g.gain.value = 0; src.connect(lp); lp.connect(g); g.connect(ac.destination); src.start();
+    waterRuis = { ac, g, lp };
+  }
+  const t = waterRuis.ac.currentTime;
+  waterRuis.g.gain.setTargetAtTime(doel, t, 0.25);
 }
 // ---- watergeluid ------------------------------------------------------
 // Elke spetter die je ziet hoor je ook, en overal dezelfde plons: watersplash.mp3,
@@ -30706,7 +31166,7 @@ function drinkHppotion(uitInv){                  // uitInv: vanuit de inventory,
 // --- vrije modus: af en toe ligt er vanzelf eentje ---------------------------
 function hppotionFreeMode(){
   return HPPOTION_FREE_ON && running && !sandbox && !won && !dead
-      && !(level && level.spawns && level.spawns.length);
+      && !(level && ((level.spawns && level.spawns.length) || level.vredig));
 }
 function hppotionFreeSpot(scale){
   const c = cliffAt(), left = endWall(), plats = platsNear(scale), dir = facing || -1;
@@ -32060,7 +32520,7 @@ function updateSnakes(dt, plats, halfWNow, cliff){
       zichtZet(s, sp);
       snakes.push(s);
     }
-  } else if (!sandbox && !(level && (level.bandietGolf || level.duoArena))) {   // een bandietgolf-level en de duo-arena sturen geen vrije slangen
+  } else if (!sandbox && !(level && (level.bandietGolf || level.duoArena || level.vredig))) {   // een bandietgolf-level en de duo-arena sturen geen vrije slangen
     spawnTimer -= dt;
     if (spawnTimer <= 0){
       spawnTimer = spawnInterval();
@@ -42258,6 +42718,7 @@ function sceneGrond(groundY){
     }
     drawSneeuwdek(top, tw, th, x0, left, right, s);      // de sneeuw die erop ligt, op dezelfde tegelmaat
     drawWaterStrips(groundY);                            // poelen liggen over de grond heen
+    waterTeken(groundY);                                 // en het water van WATER: plassen, poelen, rivieren, de kommen
     ctx.restore();
   } else {
   const strip = buildSandStrip(bandH);
@@ -42801,6 +43262,7 @@ function loop(now){
   balkHud();                      // de actiebalk onderaan (laptop)
   if (bruGeluid && (paused || won || !brutus || !running)) bruAdemSpeel(false);   // Brutus' ademhaling stil buiten het gevecht
   if (bruGeluid) bruSpraakStap();
+  if (waterRuis && (paused || won || !running || !waterenLijst().length)) waterGeluid(0);   // het geruis van stromend water stil buiten het spel
   dt *= zwmTraagNu();             // testoptie: de wereld vertraagd zolang een zweepman slaat (Zweepman: test)
   dt *= dubbelTraagNu(realDt);    // even vertraagd na een perfecte tweede speer (DUBBEL)
   if (hitstop > 0){ hitstop -= dt; dt = 0; }     // een korte freeze op een klap (nu de parry): alles staat heel even stil, de shake schudt door
@@ -43088,6 +43550,7 @@ function loop(now){
   const set = (spear && !exeSpeerWeg()) ? sets.sp : sets.ns;   // in de executie (de steek, het knielen) zit zijn speer in de schildbandiet
   const moving = dir !== 0;
   updateSplashes(dt, wetNow, moving);
+  waterStap(dt);                                   // het water van WATER: klok, druppels, regenringen, geluid
   if (moving){
     idleFrame = 0; idleAcc = 0;
     if (crawling){                               // de crawllus loopt op zijn eigen tempo
@@ -43457,6 +43920,7 @@ function loop(now){
     stadVoorTeken(groundY, scale, cx);            // kramen, de put en het voetdecor: op de straat, voor de stoep
     rotsenTeken(groundY, scale, cx);              // losse rotsen als decor, achter de terrassen en de zwevers
     drawClimb(groundY, scale, cx, false);          // terrassen en richels
+    waterTerrasTeken(groundY, scale, cx);          // het beekje op een terras naar zijn waterval (zie "water")
     stadVoorTeken(groundY, scale, cx, true);       // kramen en voetdecor op een hoger stuk straat: op het terras, niet erachter
     binnenNa(groundY, scale, cx);                 // binnen: het schemer, het licht van de ramen en de stofjes (zie "binnen")
 
@@ -43729,6 +44193,7 @@ function loop(now){
       ctx.beginPath(); ctx.rect(pcx - hw, groundY - 3, hw * 2, sinkPx + 10); ctx.clip();
       ctx.globalAlpha = 0.82;
       drawWaterStrips(groundY);
+      waterTeken(groundY);
       ctx.restore();
     }
     drawSplashes(groundY, scale, cx);
@@ -45117,6 +45582,7 @@ function loop(now){
     if (!exeAmirWeg() && stadTrapAlfa() > 0.5) amirHpBalk(pcx, pbox.t, scale);   // Amir zijn levens boven zijn hoofd (met hpBalk), na de vijanden zodat niets eroverheen tekent
     if (stadAan()) stadTrapUitLaag(groundY, scale, cx);   // de stadstrap: waar je uitkomt, boven de personages
     straatPoortVoor(groundY, scale, cx);          // de voorkant van een hoekpoort, half doorzichtig over Amir in de boog
+    waterVoorTeken(groundY, scale, cx);           // het gordijn van een waterval, de straal van een bron en de druppels: voor Amir langs
     }
     maskerTeken(groundY, scaleNow, W / 2);           // het masker over alles heen (ook Amir en de vijanden), binnen de zoom
     vormenTeken(groundY, scaleNow);                  // de vrije zwarte voorgrond-vormen uit de Maker: bovenste laag
@@ -46419,6 +46885,9 @@ function readLevel(txt){
            sneeuw: leesSneeuw(o.sneeuw),                // bodem en sneeuwdek, zie die sectie
            grondSoort: leesGrondSoort(o.grondSoort),    // stroken straat of rots in de bodem, zie "grondsoort per plek"
            weer: leesWeer(o.weer),                      // regen, onweer, stormen en sneeuw, zie "het weer"
+           wateren: Array.isArray(o.wateren) ? o.wateren.filter(w => w && WATER.soort[w.k] && Number.isFinite(Number(w.x)))
+                                                       .map(w => Object.assign({}, w, { x: Number(w.x) })) : [],   // het water van WATER
+           vredig: !!o.vredig,                          // geen vijanden, ook geen vrije slangen of kalebassen (Test 67)
            voorgrond: leesVoorgrond(o.voorgrond),       // gras en keien vlak voor de camera, zie "voorgrond"
            tips: (o.tips || []).map(t => ({ x: Number(t.x), t: String(t.t) })),
            // rode pijlen in de lucht, om iets in een testlevel aan te wijzen (zie "pijlen")
@@ -47582,6 +48051,7 @@ const SUBS = {
   'Test 63: Stof in de ogen': 'Drie bandieten na elkaar: gebukt F vasthouden gooit stof in hun ogen, en de volgende treffer telt dubbel',
   'Test 64: De tweede speer': 'Gooi en druk meteen weer F: een tweede speer achter de eerste aan, ook uit de rol',
   'Test 66: Nacht in de stad': 'Een lege straat bij nacht en bandieten in het fakkellicht. Gebukt F vasthouden is nu stof in de ogen',
+  'Test 67: Water': 'Plassen, een poel, een rivier, een waterval en een bron, allemaal hetzelfde water. Geen vijanden',
   'Test 65: Oude speren': 'Tien bandieten en geen speer: raap oude speren op, elk is na drie keer gebruiken kapot',
   'Test 61: De sluipaanval': 'Zeven vijanden met hun rug naar je toe: kom stil van achteren en steek. Een patrouille, een schildbandiet en een paar om een voor een te nemen',
   'Test 59: De zweepman, fase 2': 'Twee treffers en zijn arm gaat eraf. Dan lacht hij en raast hij: alleen als hij uitrust is hij te raken',
