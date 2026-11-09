@@ -65,13 +65,16 @@ bank (`goudVerder`), en `restart` zet alles terug op de bank (`goudReset`, na `r
 level kwijt, en Opnieuw na een gewonnen level geeft geen dubbel goud.
 
 Verkopen (`winkelVerkoop`, `GOUD.verkoop`: kalebas 2, speer 6, gif 16, zo'n 40% van de koopprijs): ruim onder de koopprijs,
-zodat kopen en terugverkopen nooit winst geeft. Een kalebas en een gif uit de inventory, een speer alleen van de rug
-(`rugSperen.pop`), niet die in de hand en niet het gif dat al op de speren zit (`gifHits`). Gevonden spul mag ook, want tonnen,
-rekken en kalebassen in een level zijn per level op. Geen bevestigingsvraag: **Terugkopen** (`winkelTerug`,
+zodat kopen en terugverkopen nooit winst geeft. Een kalebas en een gif uit de inventory, een speer alleen als hij gekocht is
+en op de rug zit, niet die in de hand en niet het gif dat al op de speren zit (`gifHits`). Een gekochte speer heeft een geel
+vaantje (`SPEER_SOORTEN.geel`, de vlag `blauw: 'geel'` op de speer, `speerSoortId`); de verkoop haalt de laatste gele van
+de rug. Je eigen speren (rood) en de skeletspeer (blauw) zijn nooit te koop, ook niet een rode uit een rek: elk level begint met
+een volle rug, dus anders was de reservespeer elk level 6 gratis goud. Gevonden kalebassen mogen wel, want tonnen en kalebassen
+in een level zijn per level op. Geen bevestigingsvraag: **Terugkopen** (`winkelTerug`,
 `winkelTerugkoop`) haalt het laatst verkochte terug voor dezelfde prijs, zolang het scherm open is. Koop je met een volle tas,
 dan zegt de uitleg "Je tas is vol. Verkoop eerst iets." en lichten de verkoopknoppen op (`winkelVolTekst`). Bij dood telt
-het verkopen in dat level niet, want `goudReset` zet goud, kalebassen en gif terug op de bank. De reservespeer is per winkel
-een kleine bron (elk level begint met een volle rug), maar dan ben je hem voor de rest van het level kwijt: een keuze.
+het verkopen in dat level niet, want `goudReset` zet goud, kalebassen en gif terug op de bank. Een gekochte speer geldt
+maar voor dat level, net als vroeger.
 Onderzoek bij het ontwerp: spelers willen terugkopen boven een bevestiging, een andere kleur voor verkopen op een telefoon, en
 geen spul dat alleen te verkopen is; 25 tot 50% van de koopprijs is gangbaar.
 

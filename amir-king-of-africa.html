@@ -15976,7 +15976,7 @@ const BAV_MOND = {
 const BAV_SPEER = { top: 100, hoog: 60, tot: 150, schacht: [150, 240], zak: 3, lang: 495, midden: 27 };
 const beetSpeer = {};
 function beetSpeerMaak(blauw){
-  const sl = blauw ? 'blauw' : 'rood';
+  const sl = speerSoortId(blauw) || 'rood';
   if (beetSpeer[sl]) return beetSpeer[sl];
   const bron = atkImgs[BAV_BEET.steek];
   if (!imgReady(bron)) return null;
@@ -20089,8 +20089,10 @@ const SPEER_SOORTEN = {
   // (OUDE_SPEER.beeld), in Amirs handen alleen het lint, vaal bruin (vaan met dof)
   oud3:      { naam: 'Oude speer', vaan: 26, dof: 0.6, oud: 3 },
   oud2:      { naam: 'Oude speer', vaan: 26, dof: 0.6, oud: 2 },
-  oud1:      { naam: 'Oude speer', vaan: 26, dof: 0.6, oud: 1 }
+  oud1:      { naam: 'Oude speer', vaan: 26, dof: 0.6, oud: 1 },
+  geel:      { naam: 'Gekochte speer', vaan: 48 }          // alleen het vaantje, geel: gekocht in de winkel, de enige die te verkopen is
 };
+// Een gekochte speer draagt de soort 'geel' (de vlag blauw op de speer), alleen die is in de winkel te verkopen.
 const speerMaskCache = new WeakMap();                    // plaatje -> {lint, w, h} of null (geen lint gevonden)
 const speerKopie = new Map();                            // soort-id -> WeakMap(plaatje -> gekleurd canvas)
 function speerMask(img){
@@ -25872,10 +25874,13 @@ function winkelVoor(groundY, scale, cx){
 // het gif. Zonder goud (goudAan, zie "goud") is alles gratis; in een level met goud kost een kalebas GOUD.kalebas, een
 // speer GOUD.speer en het gif GOUD.gif. Een kalebas en een gif nemen elk een plek in de inventory (INV_MAX, zie
 // "inventory"); de speer gaat op de rug en vult alleen aan wat je kwijt bent (hand plus rug, RUG_MAX), en geldt alleen
-// voor dit level, want elk level begint met een volle rug. Escape, E of Verder sluit het.
+// voor dit level, want elk level begint met een volle rug. Escape, E of Verder sluit het. Een gekochte speer heeft een
+// geel vaantje (SPEER_SOORTEN.geel).
 // Verkopen (alleen met goud): onder elk ding een knop in een andere kleur met de opbrengst erop, GOUD.verkoop, ruim onder
 // de koopprijs (zo'n 40%), zodat kopen en terugverkopen nooit winst geeft. Een kalebas en een gif uit de inventory, een
-// speer alleen van je rug (die in je hand en het gif dat al op je speren zit niet). Gevonden spul mag ook: tonnen en
+// speer alleen als hij gekocht is (geel vaantje) en op je rug zit (die in je hand en het gif dat al op je speren zit niet).
+// Je eigen speren (rood) en de skeletspeer (blauw) zijn nooit te koop: elk level begint met een volle rug, dus anders
+// was de reservespeer elk level 6 gratis goud. Gevonden kalebassen mogen ook: tonnen en
 // rekken zijn per level op. Spijt: Terugkopen haalt het laatst verkochte terug voor dezelfde prijs, zolang het scherm
 // open is (winkelTerug); geen bevestigingsvraag. Ga je dood, dan sta je weer op de bank (goudReset): verkopen in dat
 // level telt dan niet. Rechts staat je tas (winkelTasToon): de vijf plekken, je hand en rug, het gif op je speren.
@@ -25889,7 +25894,8 @@ function winkelVerkoopNiet(soort){
   if (soort === 'gif') return gifCarry > 0 ? null
     : (gifHits > 0 ? 'Het gif zit al op je speren, dat krijg je er niet meer af.' : 'Je hebt geen gif om te verkopen.');
   if (!rugAan()) return 'Hier draag je geen reservespeer.';
-  return rugSperen.length ? null : 'Alleen een speer van je rug is te koop, niet die in je hand.';
+  if (rugSperen.some(r => r.blauw === 'geel')) return null;
+  return 'Alleen een gekochte speer (geel vaantje) van je rug is te koop. Je eigen speren niet.';
 }
 // je tas naast de winkel: de vijf plekken (zoals de inventory), je hand en rug, het gif op je speren
 function winkelTasToon(){
@@ -25961,7 +25967,10 @@ function winkelVerkoop(soort){
   let blauw = false;
   if (soort === 'kalebas'){ hppotionCarry--; hppotionHud(); }
   else if (soort === 'gif'){ gifCarry--; invHud(); }
-  else { blauw = rugSperen.pop().blauw; setSpearLabel(); }
+  else {                                            // alleen een gekochte speer (geel), de laatste op de rug
+    let i = rugSperen.length - 1; while (rugSperen[i].blauw !== 'geel') i--;
+    blauw = rugSperen.splice(i, 1)[0].blauw; setSpearLabel();
+  }
   goud += prijs; goudHud('pulse'); playHppotionPickupSound();
   winkelTerug = { soort, prijs, blauw };
   winkelUIToon();
@@ -26014,7 +26023,7 @@ document.getElementById('wkkalebas').onclick = () => {
 };
 document.getElementById('wkspeer').onclick = () => {
   if (!winkelBetaal('wkspeer', GOUD.speer, winkelSpeerNiet())) return;
-  rugErbij(false);
+  rugErbij('geel');                                 // een gekochte speer heeft een geel vaantje: alleen die is weer te verkopen
   if (!spear && !spearFound && rugTrekT <= 0) rugTrekKlaar();   // je hand was leeg: hij gaat meteen in de hand
   setSpearLabel(); playHppotionPickupSound();
   winkelUIToon();
@@ -29970,6 +29979,10 @@ function warmBouw(){
     // zodat het oppakken en de eerste worp nooit haperen. De lint-detectie is het dure (tot 0,1 s op
     // een groot werpframe); WARM_BUDGET deelt ze over de beelden, een frame dat nog onderweg is wacht.
     for (const img of new Set(speerVoorafFrames())) if (img) rij.push(() => { if (!klaar(img)) return false; speerKleur(img, 'blauw'); });
+  }
+  if ((level.binnen || []).some(b => b && b.winkel)){
+    // een winkel: een gekochte speer heeft een geel vaantje (SPEER_SOORTEN.geel), bak die frames ook alvast
+    for (const img of new Set(speerVoorafFrames())) if (img) rij.push(() => { if (!klaar(img)) return false; speerKleur(img, 'geel'); });
   }
   if (level.tekens && level.tekens.length){ try { tekenLaad(); } catch (e) {} warmDing(tkImg); }
   if (level.fakkels && level.fakkels.length){ try { fakkelLaad(); } catch (e) {} warmDing(fakkelImgs); }
