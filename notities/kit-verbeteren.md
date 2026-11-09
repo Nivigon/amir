@@ -51,6 +51,9 @@ of baas zonder toestemming, aansluiten op wat er is). Een taak per keer, liefst 
   *Onderweg (Test 68, sandbox Combo):* alleen contact telt (een treffer of een parade, een misser zet de reeks op nul),
   de terugslag klinkt als een doffe houtklap, zet verder terug en de vijand staat daarna stil en komt traag op gang.
   Zie `notities/combo.md`. Bijlage: de speer omdraaien, hieronder.
+  *Nieuwe richting (gebouwd, nog bijsturen):* geen derde slag meer maar het talent Full Circle van Mkuki: een steek naar
+  een open vijand (verblind, of net mis geslagen) wordt de draaislag, 1 schade en een kleine terugslag; daaronder de keuze
+  Crushing Circle (1,5 en ver terug) of Wide Circle (alles voor je). Zie "Full Circle" in `notities/combo.md`.
 - [ ] **M2** Neerhalende sweep: de lage zwaai legt een vijand op de grond, daarna een steek naar beneden. **+1**
 - [ ] **M3** Spin strike op een verblinde vijand, raakt ook achter Amir. **+0,5**
 

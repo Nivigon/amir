@@ -1,14 +1,42 @@
-# De derde slag (COMBO)
+# De draaislag (COMBO) en Full Circle
 
-Drie steken kort na elkaar: de derde is geen steek maar een draaislag. Amir draait op de plek (even met zijn rug naar
-de camera), de speer gaat in een cirkel over zijn hoofd en slaat voor hem neer tot op de grond, en hij eindigt laag
-met de speer in een hand achter zich en de vrije hand naar voren. Een beloning voor ritme: hij telt dubbel en geeft
-een flits op de treffer.
+De draaislag: Amir draait op de plek (even met zijn rug naar de camera), de speer gaat in een cirkel over zijn hoofd en
+slaat voor hem neer tot op de grond, en hij eindigt laag met de speer in een hand achter zich en de vrije hand naar voren.
+Het is een finisher, en daarom hoort hij bij een opening, niet bij een telling.
 
-Standaard aan, in elk level (`readLevel`: `combo` is waar tenzij een level `combo: false` zet) en in de sandbox (de knop
-**Combo** bij Stof begint op terugslag). De standaard is de terugslag; het talent **Full Circle** van Mkuki (`full_circle`, links in
-rij V onder True Flight) maakt er `beide` van: ver terug en dubbel. Grep: `COMBO`, `comboStart`, `comboStap`, `comboKan`,
-`atkCombo`, `comboSoort`, `comboTerug`, `comboDubbel`, `comboTerugNu`.
+## Full Circle: de draaislag op een open vijand (9 november 2026)
+
+Gekozen na een gesprek met de opdrachtgever: als derde slag kwam hij bijna nooit (de bandiet pareert, de schildbandiet
+blokt, en met de doorbraak werd het "drie keer slaan en klaar"), en als duw op X was de grote animatie te zwaar voor een
+duw zonder schade. Nu is het een talent van Mkuki dat je verdient door een opening te maken of te lezen.
+
+- **Full Circle** (`full_circle`, links in rij V onder True Flight): steek je met de speer naar een **open** vijand voor
+  je, dan wordt die steek de draaislag (`startAttack`: `fcModus`, `fcOpenDoel`, `comboStart`, `fcSoort`). 1 schade en
+  de kleine terugslag `FC.terug` (bandiet 750 px/s, 0,6 s rust en 0,6 s traag; schildbandiet 1,6 keer zijn flinch-duw).
+- **Open** is een vijand uit `STOF_SOORTEN` (bandiet, schildbandiet, kruisboogbandiet, zweepman, kooiman, slang) die
+  binnen `FC.bereik` (300 sprite-eenheden) voor Amir op zijn hoogte staat en verblind is (`s.verblind`, het stof) of net
+  mis sloeg: `fcOpenZet` zet `s.fcOpenTot` op `FC.openT` (0,9 s) als de slag van de bandiet afloopt zonder `hitUsed`, of
+  de strike van de schildbandiet zonder `geraaktAmir`. Een verblinde vijand krijgt er de dubbele treffer van het stof bij.
+- Daaronder de keuze (rij VI, `sluit`, zie "Een keuze tussen twee" in `notities/tribes.md`):
+  - **Crushing Circle** (`fc_kracht`): een halve treffer erbij (`fcHalf` naast `critPak` in de hit-functies; de levens
+    mogen een half zijn, de balk tekent dat) en de grote terugslag `COMBO.terug`. Op de schildbandiet (standen in plaats
+    van levens) alleen de grote terugslag.
+  - **Wide Circle** (`fc_breed`): de raakzone wordt een cirkel voor Amir (`FC.breed`, in `steekDX`/`steekY`/`steekR`) en
+    `slagEen` laat `swingUsed` uit, zodat hij elke vijand daarin een keer raakt (`s.fcSlag`, zoals `duwId` bij de duw).
+    Alleen naar voren: de animatie slaat voor hem neer. Kleine terugslag.
+- Een Test level zonder tribe heeft alle talents: daar geldt Crushing Circle. De oude reeks van drie steken is overal uit
+  (`comboKetenKan` alleen in de sandbox en Test 68).
+- **Uitproberen:** Test 68 kiest aan het begin en na R (Full Circle, Crushing Circle, Wide Circle, Drie steken, Duw op X;
+  `dkcombo`), de sandboxknop Combo wisselt rond (Full Circle, Crushing, Wide, terugslag, schade, beide, doorbraak, knop).
+  Gemeten met een script in Chromium op Test 68: een gewone steek 1 treffer; verblind 2 en een stukje terug; mis
+  geslagen 1 en een stukje terug; Crushing 1,5 en ver terug; Wide raakt meerdere bandieten in een rij.
+
+De rest van deze notitie is de oude derde slag, die nu alleen in Test 68 en de sandbox bestaat.
+
+## De oude derde slag (alleen Test 68 en de sandbox)
+
+Drie steken kort na elkaar: de derde is geen steek maar de draaislag. Een beloning voor ritme: hij telt dubbel en geeft
+een flits op de treffer. Alleen nog met de knop Combo in de sandbox en de keuze Drie steken in Test 68.
 
 ## Drie soorten: terugslag, schade of beide
 

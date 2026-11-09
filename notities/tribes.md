@@ -17,9 +17,15 @@ drie kolommen, staand twee met het venster eronder.
   in `tbWanneer`). Een vrije boom (`vrij`, Perks) staat in een kolom zonder lijnen. `tbStaat` kijkt of alles uit
   `tbEis` geleerd is.
 - **Mkuki:** Quick Hand, Twin Sweep, Soft Step onder elkaar; dan de rol (True Flight, links) of de worp (Second Spear,
-  rechts); Tumbling Spear eist ze allebei. Full Circle (links, onder True Flight: de derde slag ook dubbel, zie
-  `notities/combo.md`) eist alleen True Flight, Third Spear (rechts, onder Second Spear) alleen Second Spear. Zo blijft
-  Mkuki op vijf rijen, met in rij V drie talents naast elkaar. **Bhubesi:** Long Breath; dan de woede (Blood Rush, The Pounce, links) of
+  rechts); Tumbling Spear eist ze allebei. Full Circle (links, onder True Flight: de draaislag op een open vijand, zie
+  `notities/combo.md`) eist alleen True Flight, Third Spear (rechts, onder Second Spear) alleen Second Spear. In rij VI
+  de keuze onder Full Circle: Crushing Circle (links) of Wide Circle (midden). Mkuki heeft zo zes rijen.
+- **Een keuze tussen twee:** een talent met `sluit` (de ids die het uitsluiten) blijft dicht als een daarvan geleerd is
+  (`tbGekozen` in `tbStaat`; onder de naam "Not chosen", in het venster "You chose ... instead"), en `tbMoetIn` telt het
+  niet meer mee. Tussen de twee staat "or" (`.tbof`, een eigen grid-item op de grens van de cel rechts: niet in de
+  `.tbrij`, want een `position` daarop maakt hem de offsetParent en dan meet `tbLijnen` verkeerd).
+- **Geen scrollen:** de boom past op elk scherm, ook staand op een telefoon: daar volgen de ringen de hoogte, valt de stand
+  onder de namen weg (die staat in het venster) en staan de knoppen naast elkaar. **Bhubesi:** Long Breath; dan de woede (Blood Rush, The Pounce, links) of
   overleven en sluipen (Fourth Life, Lion's Patience, rechts). Impungushe heeft geen `eis`, dus een rechte kolom.
 - **Tekenen:** `tbTakBouw` zet per boom de tiercijfers en de talents in het grid (rij en kolom inline). `tbLijnen` tekent
   daarna een svg (`.tblijnen`) met de lijnen, gemeten met offsetLeft en offsetTop (de openingsanimatie is een schaal,
