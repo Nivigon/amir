@@ -35,7 +35,7 @@ of baas zonder toestemming, aansluiten op wat er is). Een taak per keer, liefst 
 | onderdeel | cijfer | doel |
 | --- | --- | --- |
 | Melee (steek, lage zwaai) | 6,5 | 9 |
-| Werpen en ophalen | 7,5 | 9 |
+| Werpen en ophalen | 8 (met W5) | 9 |
 | Beweging (rol, renstoot, sprong) | 7 | 9 |
 | Groepsgevecht en controle | 6,5 (zonder stof 5) | 9 |
 | Sneak | 6,5 | 9 |
@@ -60,10 +60,12 @@ of baas zonder toestemming, aansluiten op wat er is). Een taak per keer, liefst 
   en raakt wie erachter staat of landt verderop in de grond. Basis: elke dodelijke worp. Het idee in
   `notities/kit-ideeen.md` (doorboren) bouwt op `krbSpeerVolg`; let op `javRaakt`/`jav.hit` (een worp raakt nu
   maar een vijand). Als talent erbovenop: een crit raakt de tweede ook met een crit. **+1**
-- [ ] **W5** De dubbele worp: vlak na het loslaten (rond 0,3 s) F nog eens, en Amir grijpt over zijn schouder
+- [x] **W5** De dubbele worp: vlak na het loslaten (rond 0,3 s) F nog eens, en Amir grijpt over zijn schouder
   en gooit meteen een tweede, vlak en snel. Vraagt een speer op de rug (`RUG`, `rugTrekKlaar`). Voorstel: de
   tribe-ability van Mkuki (zie `notities/kit-ideeen.md`), niet de basis, zodat Mkuki zijn eigen gezicht houdt.
   Eerste versie met de gewone worp versneld, echte frames later. **+1** (voor wie Mkuki speelt)
+  *Gebouwd:* twee talents bij Mkuki, Second Spear (na een gewone worp) en Tumbling Spear (ook na de rol-worp, een
+  verbetering van de eerste). `DUBBEL`, `jav2`, `dubbelKan`, `javWissel`; zie `notities/tribes.md`.
 
 ### Beweging (B)
 

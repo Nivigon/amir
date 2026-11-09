@@ -1495,6 +1495,8 @@
         <button data-ability="low_sweep" class="on">Twin Sweep: aan</button>
         <button data-ability="true_flight">True Flight: uit</button>
         <button data-ability="soft_step">Soft Step: uit</button>
+        <button data-ability="second_spear">Second Spear: uit</button>
+        <button data-ability="tumbling_spear">Tumbling Spear: uit</button>
       </div>
       <div class="row">
         <label>Lage zwaai</label>
@@ -2456,7 +2458,15 @@ const TRIBE_CONFIG = {
           // De sluipaanval (zie "sneak"): alles wat Amir aan lawaai maakt met zijn voeten (lopen, sprinten, in de lucht)
           // draagt zoveel keer zo ver. Een puls (een worp, een treffer, een klap) blijft even hard. Tijdelijk talent,
           // tot de echte sluip-tree er is. Het teken in TB_TEKEN blijft de reserve als het plaatje niet laadt.
-          factor: 0.5 }
+          factor: 0.5 },
+        { id: 'second_spear', naam: 'Second Spear', icoon: null,   // nog geen houten plaatje: het teken in TB_TEKEN
+          tekst: 'Press throw again right after a throw: Amir pulls a spear from his back and hurls a second one at once.',
+          // De tweede speer (zie DUBBEL): na een gewone worp, met een speer op de rug. Het venster en het tempo staan in DUBBEL.
+          dubbel: true },
+        { id: 'tumbling_spear', naam: 'Tumbling Spear', icoon: null,   // nog geen houten plaatje: het teken in TB_TEKEN
+          tekst: 'Second Spear works after a roll throw too: roll, throw, and the second one follows out of the landing.',
+          // Een verbetering van Second Spear: hetzelfde venster, nu ook na de rol-worp (rolW.losT).
+          dubbel: true }
       ] },
     { id: 'bhubesi', naam: 'Bhubesi', titel: 'Tribe of the Lion', logo: 'design/tribes/bhubesi/logo.png',
       locked: false,
@@ -18359,6 +18369,70 @@ function rugUpdate(dt){
   // Een losse speer raap je met E op als je erbij staat (toggleSpear -> losTrek), niet vanzelf: is je
   // hand leeg dan gaat hij in de hand, is die vol dan op de rug (rugErbij). Geen oprapen onder het lopen.
 }
+// ---- de tweede speer: vlak na een worp meteen een tweede (Second Spear en Tumbling Spear, Mkuki) ----
+// Druk F nog eens binnen DUBBEL.venster na het loslaten en Amir grijpt over zijn schouder een speer van zijn rug en
+// gooit hem meteen, vlak en zonder opspannen: de worpanimatie vanaf DUBBEL.vanFrame, het stuk tot het loslaten
+// DUBBEL.tempo keer zo snel. Na een gewone worp met het talent Second Spear, na een rol-worp met Tumbling Spear.
+// Er moet een speer zijn om te grijpen (de rug, of al in de hand), en een keer per worp: de tweede heeft geen derde.
+// Het spel kende maar een geworpen speer (jav). De tweede krijgt een eigen plek, jav2: hij vliegt met dezelfde code
+// (jav2Update zet hem even op de plek van jav en zet alles daarna terug) en raakt via dezelfde test (javRaakt, met
+// javWissel). Komt hij ergens tot stilstand, dan wordt hij een losse speer (eigenSpeerLos), die je met E oppakt, in
+// de hand of op de rug. Alleen een rune houdt hem vast, zoals elke speer (regel 9). Is de eerste speer weg (opgepakt,
+// of in een lijk getekend), dan schuift de tweede door naar jav en is hij gewoon de speer.
+const DUBBEL = {
+  venster: 0.4,      // zo lang na het loslaten (s) mag F de tweede speer gooien
+  vanFrame: 7,       // vanaf dit frame van de worp (net na het uittrekken, THR_WIND is 6), het loslaten is THR_LOOSE (10)
+  tempo: 2           // en zoveel keer zo snel tot het loslaten: drie frames in 0,125 s
+};
+let jav2 = null;     // de tweede speer, zolang de eerste ook nog ergens is
+function dubbelKan(){
+  if (jav2 || dead || hurt > 0 || !onGround || jump || fell) return false;
+  if (!spear && !rugSperen.length) return false;          // niets meer om te grijpen
+  if (beetVast || exeVries || sneakRegie || poortRegie) return false;
+  const v = DUBBEL.venster * 1000;
+  if (thr && thr.gone && !thr.dubbel && thr.losT && bavKlok - thr.losT <= v) return tribeHeeft('second_spear');
+  if (rolW && rolW.los && rolW.losT && bavKlok - rolW.losT <= v) return tribeHeeft('tumbling_spear');
+  return false;
+}
+function dubbelStart(){
+  if (rolW){ const k = rolW.kant; rolWorpEind(); facing = k; }   // uit de rol-worp: de nazwaai gaat over in de tweede
+  if (!spear){                                                   // over de schouder: zonder de beat van RUG.trek
+    rugTrekT = 0;
+    const r = rugSperen.shift();
+    spear = true; spearFound = true; speerBlauw = r.blauw; setSpearLabel();
+  }
+  thr = { frame: DUBBEL.vanFrame, acc: 0, held: false, rel: bavKlok, gone: false, lob: false, glint: 0,
+          hoek: 0, t0: 0, vol: false, dubbel: true };
+}
+// de eerste speer maakt plaats: in de lucht ruilen ze gewoon, ligt hij al ergens dan wordt hij een losse speer
+function javWissel(){
+  if (!jav2) return;
+  if (jav && javLost <= 0 && (jav.state === 'vlucht' || jav.state === 'val')){ const t = jav; jav = jav2; jav2 = t; return; }
+  if (javLost > 0){ eigenSpeerLos(javReturnX(), 1, javLostBlauw); javLost = 0; javOver = null; }
+  else if (jav){ eigenSpeerLos(jav.x, jav.dir, jav.blauw, jav.h); spearX = null; spearH = null; }   // een lijk laat hem los (krbSpeerVolg)
+  jav = jav2; jav2 = null;
+}
+function jav2Update(dt, plats, scale){
+  if (!jav2) return;
+  if (!jav && javLost <= 0){ jav = jav2; jav2 = null; return; }   // de eerste is weg: de tweede is nu de speer
+  const m = { jav, javLost, javOver, javLostBlauw, spearX, spearH, spearFound, spear };
+  jav = jav2; javLost = 0; javOver = null;
+  javUpdate(dt, plats, scale);
+  let j = jav;
+  if (javLost > 0){ eigenSpeerLos(javReturnX(), 1, javLostBlauw); j = null; }          // kwijt: hij ligt meteen weer op vaste grond
+  else if (j && j.state !== 'vlucht' && j.state !== 'val'){ eigenSpeerLos(j.x, j.dir, j.blauw, j.h); j = null; }   // tot stilstand: los
+  jav2 = j;
+  jav = m.jav; javLost = m.javLost; javOver = m.javOver; javLostBlauw = m.javLostBlauw;
+  spearX = m.spearX; spearH = m.spearH; spearFound = m.spearFound;
+  if (spear !== m.spear){ spear = m.spear; setSpearLabel(); }
+}
+function jav2Draw(groundY, scale, cx){
+  if (!jav2) return;
+  const m = jav; jav = jav2;
+  const tx = cx + (jav.x - world), ty = groundY - jav.h * scale;
+  if (tx > -W && tx < W / viewZoom() + W){ javSpoorTeken(groundY, scale, cx); javSchacht(tx, ty, scale); }
+  jav = m;
+}
 // De reserve op zijn rug: de echte speer-afbeelding (javImg, met het blauwe vaantje via vaanBlauw),
 // klein en schuin, per reserve gestapeld zodat je ze kunt tellen. Dit is tegelijk de HUD (geen apart
 // schermpje). Getekend in schermruimte vlak voor het lijf, dus hij valt er deels achter weg, als een
@@ -18417,6 +18491,7 @@ function thrPress(){
   // telefoon (gameTempo) duurt het opladen even lang als de rest van zijn bewegingen
   thrPressT = bavKlok;
   if (rol){ rolWorpDruk(); return; }               // tijdens de rol: de rol-worp (zie ROL_WORP)
+  if (dubbelKan()){ dubbelStart(); return; }       // vlak na een worp: meteen een tweede (zie DUBBEL)
   if (amirVast()) return;                          // de baviaan heeft je speer vast, of hij sterft net
   if (schijnLigt()) return;                        // Feign Death: hij ligt nog
   glijStart();                                     // in volle sprint: hij glijdt door (zie renstoot)
@@ -18498,7 +18573,9 @@ function updateThrow(dt){
   const stop = thr.held ? thrStop() : THR_N;
   if (thr.held && (thr.frame >= stop || thr.t0)){ thr.acc = 0; return; }   // uitgetrokken: wachten op je duim
   // na het loslaten (frames 11 tot en met 19) staat hij vast; met Quick Hand gaat dat sneller
-  thr.acc += dt * THR_FPS * (thr.frame > THR_LOOSE ? abilityWaarde('quick_hand', 'herstelTempo', 1) : 1);
+  // de tweede speer (DUBBEL): het stuk tot het loslaten gaat sneller, zonder opspannen
+  thr.acc += dt * THR_FPS * (thr.frame > THR_LOOSE ? abilityWaarde('quick_hand', 'herstelTempo', 1)
+                           : thr.dubbel ? DUBBEL.tempo : 1);
   while (thr.acc >= 1){
     thr.acc -= 1;
     thr.frame++;
@@ -18518,7 +18595,7 @@ function thrHurt(){
 }
 function looseSpear(){
   if (!thr || thr.gone) return;
-  thr.gone = true;
+  thr.gone = true; thr.losT = bavKlok;              // vanaf nu loopt het venster voor de tweede speer (DUBBEL)
   spear = false; spearFound = false; spearX = null; spearH = null;
   setSpearLabel();
   if (rugAan() && rugSperen.length && !rugTrekT) rugTrekT = RUG.trek;   // je grijpt de volgende van je rug
@@ -18536,15 +18613,17 @@ function looseSpear(){
   // wordt door scale gedeeld; op het scherm klopt de hoek dan precies
   const ox = (THR_TIP.x - THR_ANCHOR) * THR_S * scale * dir;   // de punt staat op THR_TIP
   const oh = (THR_GROUND - THR_TIP.y) * THR_S;
-  jav = { x: world + ox, h: ph + oh, vx: dir * V * Math.cos(a), vh: -Math.sin(a) * V / scale,
+  const nieuw = { x: world + ox, h: ph + oh, vx: dir * V * Math.cos(a), vh: -Math.sin(a) * V / scale,
           dir, state: 'vlucht', sa: dir === 1 ? a : Math.PI - a, t: 0,
           wob: 0, sag: 0, stand: false, hit: false, blauw: speerBlauw };   // blauw: onthoud het vaantje voor als hij een losse speer wordt
-  javLost = 0;
+  // de tweede speer gaat naar zijn eigen plek (jav2) zolang de eerste nog ergens is
+  if (thr.dubbel && (jav || javLost > 0)) jav2 = nieuw;
+  else { jav = nieuw; javLost = 0; }
   lawaaiPuls(playerX(), ph, SNEAK.puls.worp);         // het loslaten hoor je alleen vlakbij (zie "sneak")
   krbWerpGezien();                                    // een schutter met de hoorn ontwijkt hem (KRB_HOORN)
   if (wantSound){
     const t = document.getElementById('thrust');
-    t.currentTime = 0; t.volume = 0.8; t.playbackRate = 0.85; t.play().catch(() => {});
+    t.currentTime = 0; t.volume = 0.8; t.playbackRate = thr.dubbel ? 1.05 : 0.85; t.play().catch(() => {});
   }
 }
 
@@ -20218,7 +20297,7 @@ function rolWorpUpdate(dt, halfW, scale){
   if (stap !== 0 && !gatOp(world + stap + rolW.kant * halfW * 0.5, ph)) world += stap;
   facing = rolW.kant;
   rolWorpStofFrame(f, scale);
-  if (!rolW.los && f >= ROL_WORP.los){ rolW.los = true; rolWorpLos(scale); }
+  if (!rolW.los && f >= ROL_WORP.los){ rolW.los = true; rolW.losT = bavKlok; rolWorpLos(scale); }
   else if (rolW.los){                                // de nazwaai: na afbreek breekt lopen hem af
     rolW.naLos += dt;
     const left = keys['ArrowLeft'] || keys['a'] || keys['A'], right = keys['ArrowRight'] || keys['d'] || keys['D'];
@@ -29282,7 +29361,7 @@ function restart(){
   goudapen = [];                                     // de goudaapjes weg bij een nieuw begin
   arenaReset();                                      // de arena-spawner weer op nul
   atkFrame = -1; atkAcc = 0; atkCooldown = 0; swFrame = -1; swAcc = 0; sweepBuf = 0; duckT = 0; swRecover = 0; sand.length = 0; sweepVol();
-  thr = null; jav = null; javLost = 0; javOver = null; spearH = null; lastSolid = 0; glij = 0;
+  thr = null; jav = null; jav2 = null; javLost = 0; javOver = null; spearH = null; lastSolid = 0; glij = 0;
   rol = null; rolW = null; rolKoel = 0; rolRaak = { raak: 0, perfect: 0 };   // de rol en de rol-worp
   rolDoelen = level && level.rolWorpProef ? [-900, -1700, -2600].map(x => ({ x, h: ROL_DOEL.hoog * CHAR_H, flits: -9 })) : [];
   muurReset();                                      // de rotswand weer dicht, zonder speer erin
@@ -41507,6 +41586,7 @@ function loop(now){
   updateThrow(dt);                               // spannen, uithalen, herstellen
   rugUpdate(dt);                                 // de beat van het van je rug trekken na een worp
   javUpdate(dt, plats, scaleNow);                // en de speer die onderweg is
+  jav2Update(dt, plats, scaleNow);               // en de tweede speer (DUBBEL)
   speerNaastAmir(dt, plats);                     // achter een doornbos of boven op een berg: naast je
   muurUpdate(dt, scaleNow);                      // het rotsblok schuift, en de speer komt terug in de grond
   if (atkFrame >= 0){
@@ -42387,9 +42467,16 @@ function loop(now){
     // javOp sluit hem ook af als die vijand hem terugkaatst. Zo raakt hij er geen twee die op dezelfde plek staan.
     // Alleen de lage zwaai (swbox) raakt er meer tegelijk.
     let javOp = false;
+    // De tweede speer (jav2, zie DUBBEL) raakt via dezelfde test: raakt hij, dan wordt hij voor deze treffer de
+    // speer (javWissel), zodat javHitEnemy en de vijand met de goede speer rekenen
+    const jav2Box = (jav2 && jav2.state === 'vlucht' && !jav2.hit)
+                  ? { l: cx + (jav2.x - world) - javR, r: cx + (jav2.x - world) + javR,
+                      t: groundY - jav2.h * scale - javR, b: groundY - jav2.h * scale + javR } : null;
     const javRaakt = box => {
-      if (!javBox || javOp || !jav || jav.hit || jav.state !== 'vlucht' || !hitBy(javBox, box)) return false;
-      javOp = true; return true;
+      if (javOp) return false;
+      if (javBox && jav && !jav.hit && jav.state === 'vlucht' && hitBy(javBox, box)){ javOp = true; return true; }
+      if (jav2Box && jav2 && !jav2.hit && jav2.state === 'vlucht' && hitBy(jav2Box, box)){ javOp = true; javWissel(); return true; }
+      return false;
     };
     if (showBoxes){
       ctx.save();
@@ -43613,6 +43700,7 @@ function loop(now){
     stadDeurVoorTeken(groundY, scale, cx);           // en wie uit een deur van de stad stapt
     stadKanteelVoor(groundY, scale, cx);             // wie op een dak staat, staat achter de kartels
     javDraw(groundY, scale, cx);                     // de geworpen speer, voor de dieren langs
+    jav2Draw(groundY, scale, cx);                    // en de tweede (DUBBEL)
     skETeken(groundY, scale, cx);                    // de E bij een skelet of een losse speer
     rekETeken(groundY, scale, cx);                   // en bij een wapenrek met speren erin
     exeETeken(groundY, scale, cx);                   // en bij een wankelende schildbandiet (de executie)
@@ -45692,7 +45780,7 @@ function tribeKies(verder){
       b.setAttribute('aria-label', t.naam + ', ' + t.titel + ', coming soon');
       h += '<span class="trslot">' + SLOT_SVG + 'Coming soon</span>';
     } else {
-      h += '<span class="trabs">' + t.abilities.map(a => '<img src="' + a.icoon + '" alt="' + a.naam + '" title="' + a.naam + '">').join('') + '</span>';
+      h += '<span class="trabs">' + t.abilities.map(a => '<img src="' + tkIcoon(a) + '" alt="' + a.naam + '" title="' + a.naam + '">').join('') + '</span>';
     }
     b.onclick = () => tribeBekijk(t.id);             // ook een tribe op slot is te bekijken
     b.innerHTML = h;
@@ -45760,7 +45848,7 @@ function tribeNaLevel(verder){
 // dicht (daarna). Een open talent leer je door erop te klikken of te tikken, of met de knop in het
 // venster ernaast; zolang je een punt hebt, kun je niet verder. Vanuit het pauzemenu (pztalents)
 // is de boom alleen te bekijken.
-const TB_ROMEINS = ['I', 'II', 'III', 'IV', 'V', 'VI'];
+const TB_ROMEINS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
 // de ring om een talent, in een vak van 160 bij 160: een krans van manen of van speerpunten
 const TB_RING = {
   manen: '80.0,0.0 88.8,18.6 102.5,3.2 105.8,23.6 123.3,12.7 120.6,33.1 140.5,27.6 132.2,46.5 152.8,46.8 139.5,62.5 159.2,68.6 142.0,80.0 159.2,91.4 139.5,97.5 152.8,113.2 132.2,113.5 140.5,132.4 120.6,126.9 123.3,147.3 105.8,136.4 102.5,156.8 88.8,141.4 80.0,160.0 71.2,141.4 57.5,156.8 54.2,136.4 36.7,147.3 39.4,126.9 19.5,132.4 27.8,113.5 7.2,113.2 20.5,97.5 0.8,91.4 18.0,80.0 0.8,68.6 20.5,62.5 7.2,46.8 27.8,46.5 19.5,27.6 39.4,33.1 36.7,12.7 54.2,23.6 57.5,3.2 71.2,18.6',
@@ -45779,6 +45867,9 @@ const TB_TEKEN = {
   // een speer met een ster op de punt, en een springende klauw boven een boog
   true_flight: '<g stroke="#f3dfb8" stroke-width="3.5" stroke-linecap="round"><path d="M8 40 L30 18"/></g><path d="M38 10 L27 15 L33 21 Z" fill="#f3dfb8"/><g stroke="#f3dfb8" stroke-width="2.5" stroke-linecap="round"><path d="M38 4 V16 M32 10 H44 M34 6 L42 14 M42 6 L34 14"/></g>',
   the_pounce: '<g stroke="#f3dfb8" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M6 40 C12 22 30 14 42 22"/><path d="M16 30 L12 22 M24 26 L22 17 M32 24 L33 15"/></g><path d="M38 16 L45 23 L36 26 Z" fill="#f3dfb8"/>',
+  // de tweede speer: twee speren naast elkaar, en twee speren boven een boog (de rol)
+  second_spear: '<g stroke="#f3dfb8" stroke-width="3.5" stroke-linecap="round"><path d="M6 34 L30 10 M14 42 L38 18"/></g><path d="M36 4 L27 9 L31 13 Z M44 12 L35 17 L39 21 Z" fill="#f3dfb8"/>',
+  tumbling_spear: '<g stroke="#f3dfb8" stroke-width="3" fill="none" stroke-linecap="round"><path d="M6 42 C10 30 22 28 26 36 C30 44 40 38 42 30"/></g><g stroke="#f3dfb8" stroke-width="3" stroke-linecap="round"><path d="M8 22 L26 6 M16 26 L34 10"/></g><path d="M31 3 L24 7 L27 10 Z M39 7 L32 11 L35 14 Z" fill="#f3dfb8"/>',
   fourth_life: '<g fill="#f3dfb8"><ellipse cx="24" cy="31" rx="9" ry="7"/><circle cx="12.5" cy="20" r="3.8"/><circle cx="19.5" cy="13.5" r="3.8"/><circle cx="28.5" cy="13.5" r="3.8"/><circle cx="35.5" cy="20" r="3.8"/></g>',
   // Impungushe: een mes, ontblote tanden, en een gesloten oog
   jackal_fang: '<path d="M33 6 L37 10 L20 29 L17 28 L16 25 Z" fill="#f3dfb8"/><g stroke="#f3dfb8" stroke-width="3.5" stroke-linecap="round"><path d="M18 29 L10 38"/><path d="M13 25 L21 33"/></g>',
@@ -53054,7 +53145,7 @@ document.getElementById('sbglij').onclick = e => {
   cv.focus();
 };
 document.getElementById('sbspear').onclick = () => {          // weer met een speer in de hand
-  thr = null; jav = null; javLost = 0; rugTrekT = 0;
+  thr = null; jav = null; jav2 = null; javLost = 0; rugTrekT = 0;
   spearFound = true; spear = true; spearX = null; spearH = null;
   if (rugAan()) while (!rugVol()) rugSperen.push({ blauw: false });   // en de rug meteen weer vol
   setSpearLabel(); cv.focus();
@@ -53071,7 +53162,7 @@ sbRug0.onclick = () => {
 };
 for (const b of document.querySelectorAll('[data-rug]')) b.onclick = e => {
   RUG_MAX = +e.currentTarget.dataset.rug; rugTrekT = 0;
-  thr = null; jav = null; javLost = 0;
+  thr = null; jav = null; jav2 = null; javLost = 0;
   spearFound = true; spear = true; spearX = null; spearH = null;                       // 1 speer in de hand
   rugSperen.length = 0; while (!rugVol()) rugSperen.push({ blauw: false });            // en de rug vol
   rugToon(); setSpearLabel();
@@ -53079,7 +53170,7 @@ for (const b of document.querySelectorAll('[data-rug]')) b.onclick = e => {
 };
 document.getElementById('sbrugvul').onclick = () => {
   if (!rugAan()){ flashHint('Zet eerst de rug aan'); cv.focus(); return; }
-  thr = null; jav = null; javLost = 0; rugTrekT = 0;
+  thr = null; jav = null; jav2 = null; javLost = 0; rugTrekT = 0;
   spearFound = true; spear = true; spearX = null; spearH = null;
   rugSperen.length = 0; while (!rugVol()) rugSperen.push({ blauw: false });
   setSpearLabel();
@@ -53382,7 +53473,7 @@ sbPatBtn.onclick = () => {
 const sbGodBtn = document.getElementById('sbgod');
 function setGodLabel(){ sbGodBtn.textContent = godMode ? 'Onsterfelijk aan' : 'Onsterfelijk uit'; sbGodBtn.classList.toggle('on', godMode); }
 sbGodBtn.onclick = () => { godMode = !godMode; setGodLabel(); cv.focus(); };
-document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; schildmannen.length = 0; zweepmannen.length = 0; brutus = null; venom.length = 0; thickets.length = 0; chips.length = 0; tonnen.length = 0; tonStukken.length = 0; wapenrekken.length = 0; hppotions.length = 0; hppotionFx.length = 0; level.rocks.length = 0; if (level.gaps) level.gaps.length = 0; if (level.grotten) level.grotten.length = 0; if (level.plafond) level.plafond.length = 0; if (level.terraces) level.terraces.length = 0; if (level.skeletten) level.skeletten.length = 0; if (level.tekens) level.tekens.length = 0; level.baviaan = null; sbBavInfo(); sbSpeervalWeg(); if (level.runes) level.runes.length = 0; level.takel = null; ravijnReset(); losseSperen.length = 0; arena = null; thr = null; jav = null; javLost = 0; cv.focus(); };
+document.getElementById('sbclear').onclick = () => { scorps.length = 0; snakes.length = 0; panthers.length = 0; hyenas.length = 0; schildmannen.length = 0; zweepmannen.length = 0; brutus = null; venom.length = 0; thickets.length = 0; chips.length = 0; tonnen.length = 0; tonStukken.length = 0; wapenrekken.length = 0; hppotions.length = 0; hppotionFx.length = 0; level.rocks.length = 0; if (level.gaps) level.gaps.length = 0; if (level.grotten) level.grotten.length = 0; if (level.plafond) level.plafond.length = 0; if (level.terraces) level.terraces.length = 0; if (level.skeletten) level.skeletten.length = 0; if (level.tekens) level.tekens.length = 0; level.baviaan = null; sbBavInfo(); sbSpeervalWeg(); if (level.runes) level.runes.length = 0; level.takel = null; ravijnReset(); losseSperen.length = 0; arena = null; thr = null; jav = null; jav2 = null; javLost = 0; cv.focus(); };
 document.getElementById('sbback').onclick = stopSandbox;
 // het pijltje onderin het beeld: de testbalk met schuifjes uit- en inklappen (in de sandbox standaard ingeklapt)
 const barPijlEl = document.getElementById('barpijl');
