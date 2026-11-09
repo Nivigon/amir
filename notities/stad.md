@@ -423,6 +423,10 @@ binnen: [{ ..., winkel: { x, seed, koopman }, planken: [{ x, h, soort, seed }] }
   als je wilt, ook voorbij de 3 die Amir normaal draagt (`HPPOTION_MAX` geldt alleen voor oppakken). Escape, E of Verder
   sluit het, en de pauzeknop op de telefoon ook. Niet in een gevecht, net als de deur. In een level met `goud: true` (De Gouden
   Poort) kost een kalebas 5 goud en draag je er hooguit 3 (zie "goud" in `notities/episodes.md`).
+- **Verkopen en je spullen** (`winkelVerkoop`, `winkelTerugkoop`, `winkelTasToon`, `GOUD.verkoop`): rechts in het scherm staat
+  je tas (`.wktas`: de vijf plekken, hand en rug, het gif op je speren), op een smal scherm eronder. Met goud staat onder elk
+  ding een verkoopknop (`.wkverkoop`, goudkleurig, de opbrengst erop); zonder goud zijn ze weg (`#winkelui.gratis`). Zie
+  "verkopen" in `notities/episodes.md`.
 
 In de sandbox onder De stad: **Winkel** en **Kamer ingericht**. De Gouden Poort heeft drie winkels (Goud 3, 6 en 9).
 

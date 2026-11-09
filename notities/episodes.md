@@ -64,6 +64,17 @@ zonder goud blijft de winkel gratis. `winLevel` onthoudt goud en gedragen kaleba
 bank (`goudVerder`), en `restart` zet alles terug op de bank (`goudReset`, na `resetHppotions`): wie sterft is het goud van dat
 level kwijt, en Opnieuw na een gewonnen level geeft geen dubbel goud.
 
+Verkopen (`winkelVerkoop`, `GOUD.verkoop`: kalebas 2, speer 6, gif 16, zo'n 40% van de koopprijs): ruim onder de koopprijs,
+zodat kopen en terugverkopen nooit winst geeft. Een kalebas en een gif uit de inventory, een speer alleen van de rug
+(`rugSperen.pop`), niet die in de hand en niet het gif dat al op de speren zit (`gifHits`). Gevonden spul mag ook, want tonnen,
+rekken en kalebassen in een level zijn per level op. Geen bevestigingsvraag: **Terugkopen** (`winkelTerug`,
+`winkelTerugkoop`) haalt het laatst verkochte terug voor dezelfde prijs, zolang het scherm open is. Koop je met een volle tas,
+dan zegt de uitleg "Je tas is vol. Verkoop eerst iets." en lichten de verkoopknoppen op (`winkelVolTekst`). Bij dood telt
+het verkopen in dat level niet, want `goudReset` zet goud, kalebassen en gif terug op de bank. De reservespeer is per winkel
+een kleine bron (elk level begint met een volle rug), maar dan ben je hem voor de rest van het level kwijt: een keuze.
+Onderzoek bij het ontwerp: spelers willen terugkopen boven een bevestiging, een andere kleur voor verkopen op een telefoon, en
+geen spul dat alleen te verkopen is; 25 tot 50% van de koopprijs is gangbaar.
+
 De munt: `munt: {x, y, vast}` in het level, `y` een hoogte zoals bij een kalebas (een dak of galerij via `stadKalebasPlek`),
 met `vast` precies op `y` (binnen op een verdieping). Hij draait, gloeit en fonkelt (`drawMunt`); E erbij (`muntE`, voor alles
 in `eDruk`) pakt hem. `tribeNaLevel` geeft voor dat level een punt extra, tot de boom vol is, en zet `RUN.munt` zodat het een
