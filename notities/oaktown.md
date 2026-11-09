@@ -34,9 +34,9 @@ straten: { raster: true, start: 'kasuwa', doel: 50, aanvul: 30, muur: 300,
 Eerst had een straat zonder `raster` aan elk uiteinde een hoekpoort (`poort_hoek.png`, een vleugel in 3/4 die je
 inliep, voor rechtdoor) en op een splitsing de rechte poort ernaast (`straatPoorten`, `straatPoortVoor`, `straatEind`,
 `straatFade`). Een poort rechtdoor bleek in zijaanzicht niet goed te maken, en op een kruising is hij ook niet nodig:
-rechtdoor is gewoon de straat die doorloopt. Sinds 08-11-2026 werken alle straten met knooppunten; Oaktown is omgezet.
-Alleen De Kroonwijk (`GP_5_STRATEN`, schuine straten) gebruikt hem nog, tot er een raster voor is; daarna gaat de
-hoekpoort met alle code die alleen voor hem bestond eruit. Zet hem in geen nieuw level.
+rechtdoor is gewoon de straat die doorloopt. Sinds 08-11-2026 werken alle straten met knooppunten; Oaktown is omgezet,
+en sinds 09-11-2026 ook De Kroonwijk (`GP_5_STRATEN`, nu een raster van drie bij drie in plaats van een kroon met schuine
+straten). Geen level gebruikt de hoekpoort nog; de code die alleen voor hem bestond kan eruit. Zet hem in geen nieuw level.
 
 ## Vijanden, aanvullen en het einde
 

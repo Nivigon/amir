@@ -49,7 +49,7 @@ dubbelklik op een kaartje gaan via `gpSpeel`: de tribekeuze, het goud op 0 (`gou
 
 Per level: 1 losse rovers en sluipen; 2 binnen, met de munt boven in het huis van de baas (een slapende wacht ervoor); 3 de
 eerste winkel en Bako (aanvoerder, einde); 4 de stadsmuur van leem (terrassen van 170 tot 1530, een houten stelling tot 1870);
-5 De Kroonwijk, acht straten als een kroon (`GP_5_STRATEN`, `doel: 0`), kapitein Zaki in de Goudsmedenpunt; 6 binnen en de
+5 De Kroonwijk, acht rechte straten in een raster van drie bij drie (`GP_5_STRATEN`, `raster: true`, `doel: 0`), kapitein Zaki in de Goudsmedenpunt; 6 binnen en de
 tweede winkel; 7 Kwame de poortwachter en de eindpoort (een pleinpoort met `einde: true`); 8 het plein met Nyundo, zoals
 Stad 6; 9 de garde, de derde winkel en de schatkamer met de kluis; 10 een `bandietGolf`, geen winkel, de goudvorst (16 levens,
 `sluip: false`).
