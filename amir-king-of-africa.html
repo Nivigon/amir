@@ -18018,7 +18018,9 @@ const COMBO = {
   stop: 0.12, schok: 0.25,  // hitstop en schermschok op de treffer
   // de twee soorten (Test 68 kiest aan het begin en na R, comboKeuze; de sandbox met de knop Combo): 'schade' telt dubbel,
   // 'terugslag' telt enkel maar zet de vijand ver terug, tegengehouden door kei en ravijn (regel 7, via banMove/schbMove)
-  terug: { v: 1100, rust: 0.8, schb: 2.2 }   // beginsnelheid bandiet (wereld-px/s, dooft uit tot ~280 px), zo lang staat hij stil, en zoveel keer de flinch-duw van de schildbandiet
+  // terugslag: beginsnelheid bandiet (wereld-px/s, dooft uit tot ~380 px), zo lang staat hij stil, dan `traag` s op gang komen
+  // vanaf `traagV` van zijn tempo; de schildbandiet krijgt `schb` keer zijn flinch-duw en staat daarna `schbRust` s in zijn wacht
+  terug: { v: 1500, rust: 1.2, traag: 1.2, traagV: 0.4, schb: 3, schbRust: 1.0, toon: 0.75 }
 };
 let sbComboSoort = 'terugslag';   // de sandbox: welke derde slag de knop Combo aanzet
 function comboSoort(){ return sandbox ? sbComboSoort : level && level.comboKeuze ? duoKeuze.combo : 'schade'; }
@@ -18056,7 +18058,8 @@ function comboStap(dt){
 }
 // de eerste treffer van de slag: de flits van True Flight op de speerpunt, en wat langer stil
 function comboTreffer(wx, h){
-  if (comboSoort() === 'terugslag') puffWorld(wx, 8, 0, 1.1, 0); else critFx(wx, h);
+  if (comboSoort() === 'terugslag'){ puffWorld(wx, 8, 0, 1.1, 0); houtRaak(COMBO.terug.toon, 1); }   // de schacht op zijn lijf: een doffe houtklap
+  else critFx(wx, h);
   hitstop = Math.max(hitstop, COMBO.stop); shake = Math.max(shake, COMBO.schok);
 }
 
@@ -37631,6 +37634,7 @@ function updateBandiet(s, dt, plats, cliff){
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
   if (s.inv > 0) s.inv = Math.max(0, s.inv - dt);
   if (s.rust > 0) s.rust = Math.max(0, s.rust - dt);
+  else if (s.traag > 0) s.traag = Math.max(0, s.traag - dt);   // na de terugslag: eerst stil (rust), dan traag op gang
   s.t += dt;
   s.base = vloerBij(s.x, s.base);
   if (!s.dropping) rijsDraagtMob(s, dt);             // mee omhoog en omlaag met een lift of rijzend blok
@@ -37833,8 +37837,9 @@ function updateBandiet(s, dt, plats, cliff){
     return;
   }
 
-  // 'run': op je af rennen
-  banAnim(s, dt);
+  // 'run': op je af rennen; na de terugslag van de derde slag eerst traag, en dan weer op tempo (COMBO.terug)
+  const tempo = s.traag > 0 ? COMBO.terug.traagV + (1 - COMBO.terug.traagV) * (1 - s.traag / COMBO.terug.traag) : 1;
+  banAnim(s, dt * tempo);
   // eerst de dolk gooien: een dolkbandiet wil altijd eerst werpen voor hij met het zwaard aanvalt, ook van
   // dichtbij en ook als je hem raakte voor de dolk weg was. Pas als de dolk weg is (s.gegooid) valt hij aan
   if (s.dolk && !s.gegooid && banZelfdeHoogte(s) && gap <= banWorpRange()){
@@ -37853,8 +37858,8 @@ function updateBandiet(s, dt, plats, cliff){
     if (kei){ banStartVault(s, kei, naarJe); return; }
   }
   const voor = s.x;
-  banMove(s, naarJe * BAN_RUN_SPD * dt, plats, cliff);
-  if (Math.abs(s.x - voor) < BAN_RUN_SPD * dt * 0.4){   // een kei, een ravijnrand of de klifwand
+  banMove(s, naarJe * BAN_RUN_SPD * tempo * dt, plats, cliff);
+  if (Math.abs(s.x - voor) < BAN_RUN_SPD * tempo * dt * 0.4){   // een kei, een ravijnrand of de klifwand
     s.stuck += dt;
     if (s.stuck >= BAN_STUCK_T){ s.stuck = 0; banSet(s, 'look'); }
   } else s.stuck = 0;
@@ -37884,7 +37889,7 @@ function hitBandiet(s){
   hits++; hitsEl.textContent = hits; gifRaak(s, 'bandiet');   // een gifspeer vergiftigt hem (zie "het gif")
   const terug = comboTerugNu();                    // de derde slag als terugslag: ver weg en even stil (COMBO.terug)
   s.knock = (s.x < playerX() ? -1 : 1) * (terug ? COMBO.terug.v : BAN_KNOCK);   // altijd bij jou vandaan
-  if (s.hp > 0){ if (s.bloed) bloedSnedeZet(s); s.flash = 0.3; s.inv = BAN_INV_T; banSet(s, 'run'); s.rust = terug ? COMBO.terug.rust : BAN_NA_HIT; return true; }
+  if (s.hp > 0){ if (s.bloed) bloedSnedeZet(s); s.flash = 0.3; s.inv = BAN_INV_T; banSet(s, 'run'); s.rust = terug ? COMBO.terug.rust : BAN_NA_HIT; s.traag = terug ? COMBO.terug.traag : 0; return true; }
   s.deadFace = s.face;                                // de kant waar hij op keek: zo valt hij
   banSet(s, 'dood'); s.flash = 0.3; s.lig = 0;        // de doodanimatie speelt nu (63 frames)
   if (s.bloed) s.bloedWacht = true;                   // bloed: de val loopt op tot het reel-frame, dan spuit het bloed uit zijn borst
@@ -40743,6 +40748,7 @@ function updateSchildman(s, dt, plats, cliff){
     }
     if (s.frame >= SCHB.flinchN - 1 && s.acc >= (SCHB.flinchDur[SCHB.flinchN - 1] || 0)){
       schbSet(s, 'loop'); s.cool = Math.max(s.cool, SCHB.flinchCool);
+      if (s.naTerug){ s.naTerug = false; s.stil = COMBO.terug.schbRust; s.cool = Math.max(s.cool, COMBO.terug.schbRust); }   // na de terugslag even bijkomen
       s.wraak = schbN(s, 'wraakT');                               // zijn antwoord: de volgende sprong begint gepantserd
     }
     return;
@@ -40790,6 +40796,7 @@ function updateSchildman(s, dt, plats, cliff){
     s.frame = 0; s.acc = 0; return;
   }
   s.face = naarJe;
+  if (s.stil > 0){ s.stil = Math.max(0, s.stil - dt); s.frame = 0; s.acc = 0; return; }   // na de terugslag: in zijn wacht, nog niet op je af
   schbAnim(s, dt);
   // regel 7-uitzondering: een kei met Amir aan de overkant springt hij over (geen ravijn)
   const kei = schbKeiVoor(s, naarJe, plats);
@@ -40858,6 +40865,7 @@ function hitSchildman(s, wijze, richting){               // wijze: 'steek', 'wor
     s.state = 'flinch'; s.frame = SCHB.flinchVan; s.acc = 0;   // meteen de reactie, ook als hij al flinchte
     s.knockV = (wijze === 'pijl' ? richting : Math.sign(s.x - playerX() || 1)) * SCHB.flinchDuw   // bij Amir vandaan, of mee met de bout
              * (wijze !== 'pijl' && comboTerugNu() ? COMBO.terug.schb : 1);   // de derde slag als terugslag duwt hem verder
+    s.naTerug = wijze !== 'pijl' && comboTerugNu();      // en daarna staat hij even in zijn wacht
     const zS = schbScale();
     steenStof(s.x - 70 * zS, s.x + 70 * zS, s.base || 0, 1.0, (s.base || 0) + 60);   // stofwolk onder zijn voeten
     puffWorld(s.x, 6, 0, 0.9, s.base || 0);
@@ -44157,10 +44165,11 @@ function loop(now){
   else if (atkFrame >= 0){
     atkAcc += dt * (atkMes ? mesWaarde('fps') : ATK_FPS);           // het mes steekt sneller
     while (atkAcc >= 1){ atkFrame++; atkAcc -= 1; }
-    if (comboBuf && comboTel >= 2 && atkFrame >= COMBO.aftak && comboKan()) comboStart();   // de tweede steek takt af naar de derde slag
+    if (comboBuf && comboTel >= 2 && swingUsed && atkFrame >= COMBO.aftak && comboKan()) comboStart();   // de tweede steek takt af naar de derde slag
     else if (atkFrame >= steekEind()){                             // attack finished
       atkFrame = -1; atkAcc = 0; atkCooldown = atkMes ? mesWaarde('rust') : ATK_COOLDOWN;
       comboSinds = 0;
+      if (!swingUsed && !atkMes) comboTel = 0;                      // de derde slag: alleen contact telt, een steek in de lucht zet de reeks op nul
       if (comboBuf) atkCooldown = 0;                               // al gedrukt: de volgende steek komt meteen
     }
   }
@@ -45979,6 +45988,7 @@ function loop(now){
               const vonkX = s.face === 1 ? Math.max(tipX, front) : Math.min(tipX, front);
               banPareer(s, s.x + (vonkX - bodyX), tipY);            // clang, vonk op het snijpunt, en zijn snelle counter
               swingUsed = true; atkFrame = -1; atkAcc = 0; atkCooldown = ATK_COOLDOWN;   // je stoot kaatst af; Amir schuift niet weg (afstand pak je zelf)
+              comboSinds = 0;                                       // een gepareerde steek is ook contact: hij telt mee voor de derde slag
             }
           }
           // de tweede speer (DUBBEL) pareert hij niet: die gaat door zijn dekking heen (dubbelDoor)

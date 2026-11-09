@@ -48,6 +48,9 @@ of baas zonder toestemming, aansluiten op wat er is). Een taak per keer, liefst 
 ### Melee (M)
 
 - [ ] **M1** Derde slag na twee steken: een duw die de vijand terugzet, met een timingvenster. **+1**
+  *Onderweg (Test 68, sandbox Combo):* alleen contact telt (een treffer of een parade, een misser zet de reeks op nul),
+  de terugslag klinkt als een doffe houtklap, zet verder terug en de vijand staat daarna stil en komt traag op gang.
+  Zie `notities/combo.md`. Bijlage: de speer omdraaien, hieronder.
 - [ ] **M2** Neerhalende sweep: de lage zwaai legt een vijand op de grond, daarna een steek naar beneden. **+1**
 - [ ] **M3** Spin strike op een verblinde vijand, raakt ook achter Amir. **+0,5**
 
@@ -103,3 +106,15 @@ of baas zonder toestemming, aansluiten op wat er is). Een taak per keer, liefst 
 ## Grootste winst eerst
 
 G1 en M2. Voor de worp: W4.
+
+## Bijlage: de speer omdraaien bij de terugslag (bij M1)
+
+Een idee voor later, nog niet gebouwd. De terugslag is een duw, dus Amir slaat dan met de achterkant van de speer
+(de schacht, stomp) en niet met de punt. Dat past bij de houtklap en de stofwolk zonder bloed. De schade-variant
+houdt de punt naar voren en wordt een talent: de speer omgedraaid, dubbele schade (Perks, of een T-splitsing
+terugslag tegen schade).
+
+- **Snel:** een script dat in de 15 frames van `aanval/combo/` de grijze punt van het voorste eind haalt, daar
+  een stompe, omwikkelde kont tekent en de punt achteraan zet. `COMBO.punt` blijft staan, want hij raakt nog
+  steeds met het voorste eind. De frames met de punt naar voren blijven bewaard voor het schade-talent.
+- **Mooier:** een nieuwe Grok-clip met de speer al omgekeerd in de handen; dan kloppen de handen beter.
