@@ -16,19 +16,34 @@ voelt lame. De rol-worp als finisher voelt juist goed.
 
 ## Nu aan de beurt: stof in de ogen
 
-**Prototype gebouwd (sandbox).** `STOF`, `stofStart`, `stofWerp`, `stofRaak`, `stofDwaal`, `stofTeken`. Onder Speer en
-spullen de knop **Stof (X)**; staat hij aan, dan doet X de stofveeg. De beweging is voorlopig de lage zwaai (`swFrame`, met
-`stofT >= 0` raakt de zwaaibox dan niets); op `STOF.werpFrame` vliegt het stof (`puffWorld`). Een bandiet voor Amir, binnen
-`STOF.bereik`, op zijn niveau (`banZelfdeHoogte`) en met zijn gezicht naar Amir krijgt `s.verblind = STOF.duur`: hij wankelt
-eerst weg van Amir en dwaalt dan heen en weer in de patrouillegang (`walk`) rond die plek, valt niet aan en werpt niet
-(`updateBandiet` keert vroeg terug), met drie draaiende zandsterretjes boven zijn hoofd. De volgende treffer in
-`hitBandiet` telt dubbel (met `critFx`) en maakt hem wakker; met twee levens is hij dan dood. Alleen de bandiet nog.
-Testlevel: **Test 63: Stof in de ogen** (veld `stof: true`, dan doet X de stofveeg ook buiten de sandbox; `restart`
-zet `STOF.aan` uit het level), drie gewone bandieten na elkaar met hun gezicht naar Amir.
-Komt de animatie, dan vervangt die de zwaai-frames in `stofStart` en kiest `STOF.werpFrame` het moment van het stof.
+**Gebouwd, met de eigen animatie.** `STOF`, `STOFA`, `stofStart`, `stofStap`, `stofWerp`, `stofEind`, `stofRaak`,
+`stofDwaal`, `stofTeken`. Onder Speer en spullen de knop **Stof (X)**; staat hij aan, of heeft het level `stof: true`
+(Test 63; `restart` zet `STOF.aan` uit het level), dan doet X de stofveeg.
 
-De opdrachtgever maakt de animatie: Amir sleept de punt van zijn speer van achter hem over de grond naar voren
-en gooit stof (of gruis) naar de vijand.
+De animatie staat in `karakters/amir/aanval/stofsweep/` (14 frames, `metadata.json`, ook in `klein/`): Amir staat
+zijwaarts met de speerpunt achter zich op de grond (frame 0, 6 ticks: de tell), schraapt de punt over de grond naar voren,
+zet een pas en draait door tot zijn rug naar de camera staat, de speer schuin omhoog (de veeg 0,46 s, daarna 12 ticks
+uithouden). Eigen frame-teller (`stofA`, ticks van 1/24 s uit `STOFA.ticks`), eigen canvas en voetpunt (`STOFA.W`, `H`,
+`GROUND`, `ANKER`), schaal `STOFA.schaal` (49/53: zijn hoofd in de clip tegen idle_ns). De frames kijken naar links en
+spiegelen zoals de gewone sets. De standvoet blijft staan en de pas zit in de frames; aan het eind zet `stofEind` Amir
+op het lijfmidden van het laatste frame (`STOFA.EIND`, niet over een ravijn), net als de rol. Tijdens de veeg staat hij
+(`dir = 0`), en steken, werpen, springen, rollen, bukken, de lage zwaai en de renstoot wachten tot hij klaar is. Een
+treffer, een val of een sprong breekt hem af. Lui geladen (`stofLaad`, `stofLaadLevel` in `laadLevel`, en bij het
+aanzetten van de sandbox-knop); zonder frames gaat X niet af.
+
+Het geluid `sounds/stofveeg.mp3` (ElevenLabs, 1 s: het schrapen piekt van 0,15 tot 0,45 s) gaat af als de punt de grond
+raakt (frame 1, `STOFA.geluid`), via `banStemmen`/`banStemSpeel`, zodat het ook op een telefoon klinkt.
+
+Op `STOF.werpFrame` (9, de punt laat de grond los) vliegt het stof (`puffWorld` op `STOFA.wolk`, voor Amir uit). De veeg
+zelf raakt niets, alleen `stofWerp` verblindt. Een bandiet voor Amir, binnen `STOF.bereik`, op zijn niveau
+(`banZelfdeHoogte`) en met zijn gezicht naar Amir krijgt `s.verblind = STOF.duur`: hij wankelt eerst weg van Amir en dwaalt
+dan heen en weer in de patrouillegang (`walk`) rond die plek, valt niet aan en werpt niet (`updateBandiet` keert vroeg
+terug), met drie draaiende zandsterretjes boven zijn hoofd. De volgende treffer in `hitBandiet` telt dubbel (met `critFx`)
+en maakt hem wakker; met twee levens is hij dan dood. Alleen de bandiet nog. Let op: van de knop tot het stof duurt het
+0,58 s, en een bandiet die op Amir af stormt is dan al bij hem; zijn slag wordt afgebroken als het stof hem raakt.
+Testlevel: **Test 63: Stof in de ogen**, drie gewone bandieten na elkaar met hun gezicht naar Amir.
+
+Het idee:
 
 - Werkt alleen als de vijand naar Amir kijkt (sluit aan op `zicht`, de halve cirkel voor hem).
 - Verblind: hij loopt een stukje heen en weer, met een symbooltje boven zijn hoofd, en ziet Amir even niet.
