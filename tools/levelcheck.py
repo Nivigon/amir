@@ -1241,6 +1241,32 @@ def deuren(lv, sp):
                and min(g.get('van', 0), g.get('tot', g.get('van', 0))) <= gi <= max(g.get('van', 0), g.get('tot', g.get('van', 0)))]
         if not gal:
             yield fout(s.get('x'), "vijand '%s' in een deur op verdieping %d van gevel %d, maar daar loopt geen galerij: hij komt niet" % (k, v, gi))
+    # de deur naar binnen op een verdieping (binnen met verdieping): daar sta je op een galerij of balkon, anders kom je er niet
+    # en elke extra deur (deuren: beneden erin, hoger eruit), met de gevel van de kamer als hij er zelf geen heeft
+    alle = []
+    for b in lv.d.get('binnen') or []:
+        alle.append(b)
+        for q in b.get('deuren') or []:
+            alle.append(dict(q, gevel=q.get('gevel', b.get('gevel'))))
+    for b in alle:
+        v = int(b.get('verdieping') or 0)
+        if v <= 0 or b.get('gevel') is None:
+            continue
+        gi = int(b.get('gevel') or 0)
+        if gi < 0 or gi >= len(gevels):
+            yield fout(b.get('deur'), "de deur naar binnen hoort bij gevel %d, maar die gevel is er niet" % gi)
+            continue
+        g = gevels[gi]
+        hoog = max(1, min(4, int(g.get('hoog') or 1)))
+        if v >= hoog:
+            yield fout(b.get('deur'), "de deur naar binnen op verdieping %d van gevel %d, maar dat huis is %d hoog" % (v, gi, hoog))
+            continue
+        gal = [q for q in stad.get('galerijen') or []
+               if abs((q.get('h') if q.get('h') is not None else 730) - verd(v)) < 30
+               and min(q.get('van', 0), q.get('tot', q.get('van', 0))) <= gi <= max(q.get('van', 0), q.get('tot', q.get('van', 0)))]
+        balkon = g.get('balkon') and int(g.get('balkonV') or hoog - 1) == v
+        if not gal and not balkon:
+            yield fout(b.get('deur'), "de deur naar binnen op verdieping %d van gevel %d, maar daar loopt geen galerij of balkon: je komt er niet bij" % (v, gi))
 
 
 @regel('putten')
