@@ -265,6 +265,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | vegetatie, water, doornbos | `props`, `water`, `thickets` | notities/wegwijzers.md |
 | water: één materiaal voor plas, poel, rivier, waterval en bron (palet, rimpels, glinsters, schuim, regenringen, geruis); proefstuk Test 67 | `WATER`, `waterTeken`, `waterVoorTeken`, `waterStap` | notities/water.md |
 | de brug: een houten brug over een rivier, de galerij van de stad op straathoogte, je loopt er droog over (`brug: true` op een rivier) | `BRUG`, `brugTeken`, `brugIn` | notities/water.md |
+| de fontein: een plaat van leem met het water erin, decor met de rand als trede; een steek in het water geeft een plons (sandbox, Fontein) | `WATER.soort.fontein`, `waterFonteinTeken`, `waterFonteinSlag` | notities/water.md |
 | schilden in de wind | `SCHILD`, `schildStofUpdate`, `schildTil` | notities/decor.md |
 | tonnen: houten tonnen die breken (drie treffers, Nyundo in een keer, een kalebas erin), ook op een dak of zwevende laag | `TON`, `tonRaak`, `tonBruut`, `tonPlekX`, `tonOp` | notities/tonnen.md |
 | wapenrek: een houten rek in de stad met speren; E pakt er een, in de hand of op de rug | `WAPENREK`, `wapenrekken`, `rekTrek` | notities/wapenrek.md |
@@ -490,6 +491,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **Schade in de pleinvloer van Nyundo** (`design/stad/plein_schade_*.png`, `plein_brokken.png`, uit de Grok-platen in `design/stad/bron/`) → `tools/plein_schade.py`, daarna `gen-offline-manifest.py`; nieuwe brokken geven nieuwe rechthoeken voor `BRU_SCHADE.brokken`
 - **Nyundo** (`enemies/brutus/frames/`, ook na `tools/brutus_donker.py`) → `tools/brutus_spleet.py` (de spleet tussen steel en bal van de knots) en `tools/brutus_rand.py` (de stippelrand om de donkere set), daarna `gen-klein.py` en `gen-offline-manifest.py`
 - **Het bloed onder Nyundo als hij in zijn knots valt** (`design/bloed/nyundo_stroom.png`, uit het lijk van de schildman) → `tools/nyundo_bloed.py`, daarna `gen-offline-manifest.py`
+- **Fontein** (`design/stad/fontein.png`, uit de Grok-plaat in `design/stad/bron/fontein.webp`) → `tools/fontein_knip.py`, daarna `gen-offline-manifest.py`; een nieuwe plaat vraagt nieuwe maten in `WATER.soort.fontein`
 - **Wapenrek** (`design/stad/wapenrek/`, uit de Grok-plaat in `bron/`) → `tools/wapenrek_knip.py`, daarna `gen-offline-manifest.py`
 - **Deurgordijnen** (`design/stad/gordijn/`, uit de Grok-platen in `bron/`) → `tools/gordijn_knip.py`, daarna `gen-klein.py` en `gen-offline-manifest.py` (de gordijnmap staat niet in de lijst van `gen-klein.py`, dus het spel laadt de grote versie, net als bij de tonnen)
 - **Tonnen** (`design/stad/ton/`, uit de Grok-platen in `bron/`) → `tools/ton_kleur.py`, daarna `gen-offline-manifest.py`
