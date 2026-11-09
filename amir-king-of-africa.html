@@ -26952,17 +26952,22 @@ function stadTeken(groundY, scale, cx){
   }
   stadTrapVoor(groundY, scale, cx);              // de balkons van de trappen, met de opening en de gloed
 }
-// wat op de straat zelf staat: na de poorten en de stoep (stadStoep), voor de personages
-function stadVoorTeken(groundY, scale, cx){
+// wat op de straat zelf staat: na de poorten en de stoep (stadStoep), voor de personages.
+// Twee keer aangeroepen: eerst wat op de gewone straat staat, en met `hoog` na de terrassen (drawClimb) wat op een
+// hoger stuk staat (een verhoogde straat, een leemmuur), anders valt de rand van dat terras over zijn voet
+function stadVoorTeken(groundY, scale, cx, hoog){
   if (!stadAan() || !stadKlaar('gevel')) return;
   const S = level.stad;
   const zicht = (sx, w) => !(sx > W / viewZoom() + W || sx + w < -W);
-  stadSlagStraat(groundY, scale, cx);            // slagschaduwen op de straat: de huizen en de kramen
-  volkTeken(groundY, scale, cx);                 // het stadsvolk op de stoep: achter de kramen en de straat (zie "stadsvolk")
+  const hier = x => (terrainH(x) > 0) === !!hoog;  // hoort dit stuk bij deze beurt
+  if (!hoog){
+    stadSlagStraat(groundY, scale, cx);          // slagschaduwen op de straat: de huizen en de kramen
+    volkTeken(groundY, scale, cx);               // het stadsvolk op de stoep: achter de kramen en de straat (zie "stadsvolk")
+  }
   // kramen: iets rustiger voorgebakken; de doek buigt mee als je erop landt
   (S.kramen || []).forEach((k, i) => {
     const soort = k.soort === 'doek' ? 'doek' : 'riet';
-    if (!stadKlaar(soort)) return;
+    if (!stadKlaar(soort) || !hier(k.x)) return;
     const m = stadKraamMaat(k, scale), sx = cx + (m.left - world);
     if (!zicht(sx, m.w)) return;
     const Z = STAD.kraamZacht;
@@ -26987,12 +26992,12 @@ function stadVoorTeken(groundY, scale, cx){
     } else ctx.drawImage(c, 0, 0, c.width, c.height, 0, top, m.w, m.h);
     ctx.restore();
   });
-  stadPutTeken(groundY, scale, cx, zicht);       // de put midden op het plein
+  if (!hoog) stadPutTeken(groundY, scale, cx, zicht);   // de put midden op het plein
   // voetdecor
   if (stadKlaar('voet')){
     const vi = stadImgs.voet, V = STAD.voet, f = CHAR_H * scale / V.amir;
     for (const v of (S.voet || [])){
-      const r = V.stukken[v.stuk]; if (!r) continue;
+      const r = V.stukken[v.stuk]; if (!r || !hier(v.x)) continue;
       const w = r[2] * f, h = r[3] * f, sx = cx + (v.x - world) - w / 2;
       if (!zicht(sx, w)) continue;
       const c = stadGebakken('voet_' + v.stuk, () => stadBak(vi, r[2], r[3], V.straatKleur[v.stuk] ? (a, b, d) => [a * V.tint[0], b * V.tint[1], d * V.tint[2]] : null,
@@ -42938,6 +42943,7 @@ function loop(now){
     stadVoorTeken(groundY, scale, cx);            // kramen, de put en het voetdecor: op de straat, voor de stoep
     rotsenTeken(groundY, scale, cx);              // losse rotsen als decor, achter de terrassen en de zwevers
     drawClimb(groundY, scale, cx, false);          // terrassen en richels
+    stadVoorTeken(groundY, scale, cx, true);       // kramen en voetdecor op een hoger stuk straat: op het terras, niet erachter
     binnenNa(groundY, scale, cx);                 // binnen: het schemer, het licht van de ramen en de stofjes (zie "binnen")
 
     // decor dat jij zelf hebt neergezet: staat op de grondlijn, geen parallax
