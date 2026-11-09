@@ -34,6 +34,29 @@ hoogtes vast in sprite-eenheden.
 - Het deurgat is donker. De rechthoek staat in metadata.json (`deurgat`), en in `STAD_DEUR.gat`: daar stapt een vijand uit
   (zie "Deuren" hieronder).
 
+### Huizen tegen elkaar
+
+`aan` in een gevel, `stadAanVan`, `stadGevelX`, `stadGevelXCache`; in de sandbox onder De stad **Huizen tegen elkaar**
+
+Een huis schaalt mee met het scherm (zijn breedte hangt aan Amir), maar zijn `x` ligt vast. Twee huizen die op de laptop
+(Amir 180, een muur van zo'n 500) net aansluiten, overlappen op 1920x1080 en staan op een telefoon (Amir 98, een muur van
+zo'n 270) ver uit elkaar. Daarom staan de huizen in De Gouden Poort zo'n 900 uit elkaar: dat is de marge waarbij ze op geen
+scherm over elkaar schuiven.
+
+Met `aan` rekent het spel de plek van een huis op elk scherm opnieuw uit (`stadGevelX`, in `stadGevelMaat`): zijn muur
+sluit aan op de muur van het vorige huis in de lijst, het huis rechts ervan.
+
+- `aan: true`: strak ertegen, de muren raken elkaar.
+- `aan: 0.5` (een getal): een steeg van zoveel Amir ertussen. Die schaalt mee, dus op een telefoon is hij net zo smal
+  ten opzichte van Amir als op de laptop.
+- De `x` van een huis met `aan` telt in het spel niet. Zet er wel de plek op de laptop neer: de tools (levelcheck) en
+  `stadPlats` (welke daken in de buurt zijn) lezen hem nog.
+- Een rij kan zo lang zijn als je wilt: het eerste huis zonder `aan` is het anker op zijn vaste `x`, de rest hangt eraan.
+  Op een groter scherm groeit de rij dus naar links; laat er voor het volgende vaste huis wat ruimte, of geef dat ook `aan`.
+- Galerijen, trappen, daken, deuren en vijanden op een dak lopen mee, want die lezen allemaal `stadGevelMaat`.
+- In een stadje met een raster (`straatRaster`) doet `aan` niets: daar schuift `straatGevelX` de huizen al naar de poorten.
+- De Maker nieuwstijl kent `aan` nog niet; geen bestaand level gebruikt het.
+
 ## Huistypes
 
 `STAD.gevelSoort`, `stadGevelG`, `stadGevelDelen`, `stadSoortLaad`, `tools/gevel_soorten.py`
@@ -446,6 +469,13 @@ binnen: [{ gevel, r, l, deur, ramen: [{x, h}], palen: [{x, h}], ladders: [{x, va
 
 Elk huis met een binnenkant is een eigen strook ver van de straat (van `r` tot `l`, in Stad 7 op -20000, -30000 en -40000).
 
+- **Een deur boven** (`verdieping`, `deurH`, `binnenDeurV`, `binnenDeurH`, `stadDeurenBinnen`; in de sandbox **Deur boven naar
+  binnen**): met `verdieping: 1` (of hoger) zit de deur naar buiten op die verdieping van de gevel. Buiten staat daar dan een
+  open houten deur in het gat in plaats van het raam (`stadDeurenBoven`), en je komt er met E in vanaf de vloer ervoor: een
+  galerij of balkon op die hoogte (`stadDeurVloer`). Binnen sta je bij `deur` op de houten vloer van die hoogte: `deurH`, of
+  zonder `deurH` de zoveelste zwever van onder bij de deur (verdieping 1 is de eerste vloer boven de grond). E daar en je
+  staat weer op de galerij. Het gordijn binnen hoort bij een deur op de straat en komt boven niet. `levelcheck.py` (regel
+  `deuren`) meldt een deur boven zonder galerij of balkon ervoor, of op een verdieping die het huis niet heeft.
 - **In en uit**: voor het deurgat van gevel `gevel` (`stadDeurMaat`, verdieping 0) staat een E; E en het beeld wordt even
   zwart (`BINNEN.fade`, via `stadTrapFade` met `binnen: true`: de camera springt mee, geen glijvlucht) en je staat binnen bij
   de deur (`deur`, een wereld-x op de begane grond). E bij die deur en je staat weer buiten voor het deurgat. Niet in een
