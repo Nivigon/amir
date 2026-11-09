@@ -48,4 +48,5 @@ Het spel kende een geworpen speer (`jav`). De tweede staat in `jav2`: `jav2Updat
 (`eigenSpeerLos`). Een rune houdt hem vast, zoals elke speer (regel 9). `javRaakt` test ook `jav2`; raakt die, dan ruilt
 `javWissel` hem naar `jav`, zodat `javHitEnemy` en de vijand met de goede speer rekenen (ligt de eerste al ergens, dan wordt
 die een losse speer). Is `jav` leeg, dan schuift `jav2` door. Getekend met `jav2Draw`. Nog geen houten plaatjes: het teken
-in `TB_TEKEN` (`icoon: null`). In de sandbox onder Speer en spullen, bij Tribe Mkuki.
+in `TB_TEKEN` (`icoon: null`). In de sandbox onder Speer en spullen, bij Tribe Mkuki, en als level **Test 64: De tweede speer** (`TEST_64`: de
+oefendoelen en de volle rug van Test 60 met `rolWorpProef`, `rugMax: 3`, en daarna vijanden die om twee speren vragen).
