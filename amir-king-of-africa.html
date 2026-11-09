@@ -13830,7 +13830,7 @@ function playSkelet(){
   skeletSnd.play().catch(() => {});
 }
 function playNee(){
-  if (!wantSound) return;
+  if (!wantSound || amirZwijg()) return;
   try { neeSnd.currentTime = 0; } catch (e) {}
   neeSnd.volume = SKELET.nee.vol;
   neeSnd.play().catch(() => {});
@@ -31536,7 +31536,7 @@ const raakSnd = SFX_RAAK.map(q => {
 const RAAK_KOEL = 2.6;                             // zo lang blijft het stil na een kreet
 let raakKoel = 0, raakVorige = -1;
 function playRaak(){
-  if (!wantSound || raakKoel > 0) return;
+  if (!wantSound || raakKoel > 0 || amirZwijg()) return;
   let i = Math.floor(Math.random() * raakSnd.length);
   if (i === raakVorige) i = (i + 1) % raakSnd.length;    // nooit twee keer dezelfde
   raakVorige = i; raakKoel = RAAK_KOEL;
@@ -31545,6 +31545,22 @@ function playRaak(){
   a.volume = SFX_RAAK[i].vol;
   a.play().catch(() => {});
 }
+// ---- Amir zwijgt als een baas of een ander praat -----------------------------
+// In een gevecht met een baas en zolang een vijand of baas iets zegt, roept Amir niets tussendoor: geen
+// kreet als hij geraakt wordt, geen "ta soul, rest" na een gewone kill en geen "don't need this". Een
+// gesproken zin meld je aan met praatStem (om een banStemmen-pool heen); praatBezig kijkt of er een loopt.
+// Het "ta soul, rest" na een verslagen baas blijft, maar wacht tot diens laatste woorden uit zijn.
+const PRAAT_STEMMEN = [];
+function praatStem(k){ if (k) for (const a of k.pool) PRAAT_STEMMEN.push(a); return k; }
+function praatBezig(){ return PRAAT_STEMMEN.some(a => !a.paused && !a.ended); }
+function baasBezig(){
+  if (brutus && brutus.state !== 'dood') return true;                                      // Nyundo op het plein
+  if (panthers.some(p => p.boss && p.engaged && p.state !== 'dying' && p.state !== 'gone')) return true;   // de panter in zijn arena
+  const b = level && !sandbox && level.baviaan;                                            // de baviaan, zodra hij afgezet heeft
+  if (b && b.lvl && b.afzet != null){ const r = bavRust.get(b); if (!(r && r.fase === 'dood')) return true; }
+  return false;
+}
+function amirZwijg(){ return praatBezig() || baasBezig(); }
 function stopRaak(){
   raakKoel = 0; raakVorige = -1;
   for (const a of raakSnd) a.pause();
@@ -31567,14 +31583,21 @@ function vijandDood(baas){
   woedeVul(woedeWaarde('perKill'));                // elke kill vult de woedemeter (als je die hebt)
   goudKill();                                      // een goudstuk per kill, in een level met goud (zie "goud")
   if (!baas && Math.random() * DOOD_KANS >= 1) return;
-  setTimeout(() => {
+  if (!baas && amirZwijg()) return;                // niet midden in een baasgevecht of een zin van een ander
+  let wacht = 0;
+  const zeg = () => {
     if (!wantSound || dead || !running) return;
-    if (!baas && !rustSnd.paused) return;          // hij is nog bezig met de vorige
+    if (!baas && (!rustSnd.paused || amirZwijg())) return;   // hij is nog bezig met de vorige, of een ander praat
+    if (baas && praatBezig()){                     // de baas zegt zijn laatste woorden: wacht tot hij uitgepraat is
+      if ((wacht += 0.2) < 8) setTimeout(zeg, 200);
+      return;
+    }
     try { rustSnd.currentTime = 0; } catch (e) {}
     rustSnd.volume = SFX_RUST.vol;
     rustSnd.play().catch(() => {});
     raakKoel = Math.max(raakKoel, 1.5);            // en roept niet meteen daarna
-  }, DOOD_WACHT * 1000);
+  };
+  setTimeout(zeg, DOOD_WACHT * 1000);
 }
 
 function hurtPlayer(fromLeft, schade = 1){           // schade: hoeveel levens de klap kost (standaard een heel, een halve bij de snelle kooislag)
@@ -35630,7 +35653,7 @@ function kooiGrondGeluid(wx, vol = 1){
 // hoort alleen bij het loslaten van een vogel uit de kooi (als de kooi opengaat). Eigen stemmen (banStemmen) zodat ze elkaar en jouw stoot
 // niet afsnijden, net als de kreten van de bandiet.
 const KOOI_ROEP_VOL = 0.95;
-const kooiRoepSnd = [banStemmen('sounds/kooidownyougo.mp3', 2), banStemmen('sounds/kooiweakboy.mp3', 2)];
+const kooiRoepSnd = [praatStem(banStemmen('sounds/kooidownyougo.mp3', 2)), praatStem(banStemmen('sounds/kooiweakboy.mp3', 2))];
 function kooiRoep(){ banStemSpeel(kooiRoepSnd[Math.random() < 0.5 ? 0 : 1], KOOI_ROEP_VOL); }
 // Af en toe gromt hij tijdens het slepen (sounds/kooigrr.mp3), op een willekeurig interval, luider
 // naarmate hij dichterbij staat. Elke kooiman heeft zijn eigen teller (s.grrT) die in de sleep-tak
@@ -36067,7 +36090,7 @@ function vogelLaadLevel(lv){
   if (lv && (lv.spawns || []).some(s => s.kind === 'kooiman' && s.vogel)) vogelLaad();
 }
 // zijn kreet als de vogel de kooi uit schiet (sounds/kooidinnertime.mp3), een paar stemmen
-const kooiDinnerSnd = banStemmen('sounds/kooidinnertime.mp3', 2);
+const kooiDinnerSnd = praatStem(banStemmen('sounds/kooidinnertime.mp3', 2));
 function kooiDinnertime(){ banStemSpeel(kooiDinnerSnd, 0.95); }
 
 // ---- knoppen om aan te draaien ----
@@ -37380,7 +37403,7 @@ function banStemSpeel(k, vol){
   a.play().catch(() => {});
 }
 const BAN_ROEP_VOL = 0.95;
-const banRoepSnd = [banStemmen('sounds/banditdie.mp3', 2), banStemmen('sounds/banditfalseking.mp3', 2)];  // charge: 1 van 2
+const banRoepSnd = [praatStem(banStemmen('sounds/banditdie.mp3', 2)), praatStem(banStemmen('sounds/banditfalseking.mp3', 2))];  // charge: 1 van 2
 const banDoodSnd = banStemmen('sounds/banditdeath.mp3', 2);                                                // dood
 const banAfzetSnd = banStemmen('sounds/banditafzet.mp3', 2);                                                // de afzet van de vault (physical effort)
 function banRoep(){ banStemSpeel(banRoepSnd[Math.random() < 0.5 ? 0 : 1], BAN_ROEP_VOL); }   // Die! of False king!, bij de charge
@@ -38223,11 +38246,11 @@ function bruLaad(){
                   speer: banStemmen('sounds/brutus_speerraak.mp3', 3),
                   bloed: banStemmen('sounds/brutus_bloed.mp3', 1),   // het bloed op de klap van zijn val (bloedspuit.mp3, 13 dB harder)
                   hits: BRU_HITS.map(f => banStemmen(f, 1)),   // zijn kreet als hij geraakt wordt, naast de speer in zijn vlees
-                  start: [banStemmen('sounds/brutus_start1.mp3', 1), banStemmen('sounds/brutus_start2.mp3', 1)],   // zijn woorden in de opening
+                  start: [praatStem(banStemmen('sounds/brutus_start1.mp3', 1)), praatStem(banStemmen('sounds/brutus_start2.mp3', 1))],   // zijn woorden in de opening
                   raak: banStemmen('sounds/brutus_raak.mp3', 2),   // de knots op Amir: een zware dreun
                   inslag: banStemmen('sounds/brutus_inslag.mp3', 2),   // de knots slaat in de grond (de kap)
-                  dood: banStemmen('sounds/brutus_dood.mp3', 1),   // zijn laatste woorden (bruDoodStap)
-                  fase2: banStemmen('sounds/brutus_fase2.mp3', 1), fase3: banStemmen('sounds/brutus_fase3.mp3', 1),   // na treffer 6 en bij zijn woede
+                  dood: praatStem(banStemmen('sounds/brutus_dood.mp3', 1)),   // zijn laatste woorden (bruDoodStap)
+                  fase2: praatStem(banStemmen('sounds/brutus_fase2.mp3', 1)), fase3: praatStem(banStemmen('sounds/brutus_fase3.mp3', 1)),   // na treffer 6 en bij zijn woede
                   plof: banStemmen('sounds/bavland.mp3', 1),
                   hek: geluidAan(new Audio('sounds/takelen.mp3')) };   // de hekken van het plein die optakelen
     bruGeluid.hek.loop = true; bruGeluid.hek.preload = 'auto';
@@ -39620,8 +39643,8 @@ function zwmZeg(wat, kans){
 }
 function zwmLaad(){
   laadNodig('zwm');
-  if (!zwmStem) zwmStem = { lach: banStemmen('sounds/zweeplach.mp3', 2), kom: banStemmen('sounds/zweepcomehereboy.mp3', 2),
-                            voel: banStemmen('sounds/zweepfeelmyhurt.mp3', 2), knal: banStemmen('sounds/zweepslag.mp3', 3),
+  if (!zwmStem) zwmStem = { lach: praatStem(banStemmen('sounds/zweeplach.mp3', 2)), kom: praatStem(banStemmen('sounds/zweepcomehereboy.mp3', 2)),
+                            voel: praatStem(banStemmen('sounds/zweepfeelmyhurt.mp3', 2)), knal: banStemmen('sounds/zweepslag.mp3', 3),
                             geraakt: banStemmen('sounds/zweepgeraakt.mp3', 2), armeraf: banStemmen('sounds/zweeparmeraf.mp3', 1),
                             sterf: banStemmen('sounds/zweepsterf.mp3', 1) };
   bloedSneeLaad();
