@@ -18535,9 +18535,16 @@ const DUBBEL = {
   // loopt op traag en komt in traagDuur echte seconden weer op gang
   perfVan: 0.06, perfTot: 0.24,
   stop: 0.05, stoot: 20,
-  traag: 0.3, traagDuur: 0.4
+  traag: 0.3, traagDuur: 0.4,
+  // de eerste zoveel seconden raakt de tweede speer ook wat vlak voor Amir staat (tussen hem en de punt)
+  dichtT: 0.08
 };
-let dubbelTraagT = 0;   // zolang dit loopt (echte seconden) is de wereld vertraagd, na een perfecte tweede
+let dubbelTraagT = 0;
+// raakt de tweede speer (j.dubbel) een gewone vijand die net door de eerste geraakt is, dan telt hij toch: zijn korte
+// onkwetsbaarheid na een treffer (s.inv) gaat eraf. Bazen (panter, baviaan, Nyundo) geven geen s mee en houden die
+function dubbelDoor(j, s){ if (s && j && j.dubbel && s.inv > 0) s.inv = 0; }
+// vliegt er een tweede speer? Voor een vijand die de worp pas test als hij niet onkwetsbaar is (de hyena)
+function dubbelVliegt(){ return !!((jav && jav.dubbel && jav.state === 'vlucht' && !jav.hit) || (jav2 && jav2.dubbel && jav2.state === 'vlucht' && !jav2.hit)); }   // zolang dit loopt (echte seconden) is de wereld vertraagd, na een perfecte tweede
 // wanneer de vorige speer losging (de eerste worp of de rol-worp), 0 als er geen tweede op kan volgen
 function dubbelLosT(){
   if (thr && thr.gone && !thr.dubbel && thr.losT) return thr.losT;
@@ -18817,6 +18824,7 @@ function looseSpear(){
   // de tweede speer gaat naar zijn eigen plek (jav2) zolang de eerste nog ergens is
   if (thr.dubbel && (jav || javLost > 0)) jav2 = nieuw;
   else { jav = nieuw; javLost = 0; }
+  nieuw.dubbel = !!thr.dubbel;                        // de tweede speer: gaat door de onkwetsbaarheid heen (dubbelDoor)
   if (thr.dubbel && thr.perfect){                     // de perfecte tweede (zie DUBBEL): goud, een klik en even traag
     nieuw.perfect = true; nieuw.spoor = [];
     hitstop = Math.max(hitstop, DUBBEL.stop);
@@ -43082,22 +43090,29 @@ function loop(now){
     // de geworpen speer: een vak rond de punt, net als de speerpunt bij de stoot
     const javR = 26 * scale;
     critNu = false;                                 // True Flight: een crit uit een vorig beeld telt niet meer
-    const javBox = (jav && jav.state === 'vlucht' && !jav.hit)
-                 ? { l: cx + (jav.x - world) - javR, r: cx + (jav.x - world) + javR,
-                     t: groundY - jav.h * scale - javR, b: groundY - jav.h * scale + javR } : null;
+    // het raakvlak van een geworpen speer: een vak om de punt. De tweede speer (DUBBEL) raakt de eerste
+    // DUBBEL.dichtT seconden ook alles tussen Amir en de punt: een vijand die na de eerste treffer meteen
+    // terugstormt staat dan al voor de punt, en daar vloog de tweede eerst gewoon langs
+    const javVak = j => {
+      const px = cx + (j.x - world), py = groundY - j.h * scale;
+      const v = { l: px - javR, r: px + javR, t: py - javR, b: py + javR };
+      if (j.dubbel && j.t < DUBBEL.dichtT){ const ax = cx + (playerX() - world); v.l = Math.min(v.l, ax); v.r = Math.max(v.r, ax); }
+      return v;
+    };
+    const javBox = (jav && jav.state === 'vlucht' && !jav.hit) ? javVak(jav) : null;
     // een geworpen speer raakt maar een vijand: de eerste die hij raakt houdt hem op (javHitEnemy zet jav.hit), en
     // javOp sluit hem ook af als die vijand hem terugkaatst. Zo raakt hij er geen twee die op dezelfde plek staan.
     // Alleen de lage zwaai (swbox) raakt er meer tegelijk.
     let javOp = false;
     // De tweede speer (jav2, zie DUBBEL) raakt via dezelfde test: raakt hij, dan wordt hij voor deze treffer de
     // speer (javWissel), zodat javHitEnemy en de vijand met de goede speer rekenen
-    const jav2Box = (jav2 && jav2.state === 'vlucht' && !jav2.hit)
-                  ? { l: cx + (jav2.x - world) - javR, r: cx + (jav2.x - world) + javR,
-                      t: groundY - jav2.h * scale - javR, b: groundY - jav2.h * scale + javR } : null;
-    const javRaakt = box => {
+    const jav2Box = (jav2 && jav2.state === 'vlucht' && !jav2.hit) ? javVak(jav2) : null;
+    // Met s (een gewone vijand, geen baas): de tweede speer gaat door zijn korte onkwetsbaarheid na een treffer heen
+    // (dubbelDoor), anders kwam hij altijd in het venster van de eerste aan en viel hij zonder schade op de grond
+    const javRaakt = (box, s) => {
       if (javOp) return false;
-      if (javBox && jav && !jav.hit && jav.state === 'vlucht' && hitBy(javBox, box)){ javOp = true; return true; }
-      if (jav2Box && jav2 && !jav2.hit && jav2.state === 'vlucht' && hitBy(jav2Box, box)){ javOp = true; javWissel(); return true; }
+      if (javBox && jav && !jav.hit && jav.state === 'vlucht' && hitBy(javBox, box)){ javOp = true; dubbelDoor(jav, s); return true; }
+      if (jav2Box && jav2 && !jav2.hit && jav2.state === 'vlucht' && hitBy(jav2Box, box)){ javOp = true; javWissel(); dubbelDoor(jav, s); return true; }
       return false;
     };
     if (showBoxes){
@@ -43200,7 +43215,7 @@ function loop(now){
         }
       }
       // ---- de geworpen speer ------------------------------------------
-      if (s.state !== 'dying' && javRaakt(sbox)){
+      if (s.state !== 'dying' && javRaakt(sbox, s)){
         javHitEnemy();
         if (enemyTakeHit(s)){
         hits++; hitsEl.textContent = hits;
@@ -43362,7 +43377,7 @@ function loop(now){
           }
         }
       }
-      if (s.state !== 'dying' && javRaakt(kbox)){
+      if (s.state !== 'dying' && javRaakt(kbox, s)){
         javHitEnemy();
         if (enemyTakeHit(s)){
         hits++; hitsEl.textContent = hits;
@@ -43578,7 +43593,7 @@ function loop(now){
           }
         }
         // de geworpen speer: in elke staat raak
-        if (s.inv <= 0 && javRaakt(nbox)){ javHitEnemy(); hitHyena(s); continue; }
+        if ((s.inv <= 0 || dubbelVliegt()) && javRaakt(nbox, s)){ javHitEnemy(); hitHyena(s); continue; }
         // lage zwaai: ook raak, één keer per zwaai
         if (s.sweptId !== sweepId && hitBy(zwaaiVak(swbox, 'hyena'), nbox)){ s.sweptId = sweepId; hitHyena(s); }
       }
@@ -43740,7 +43755,7 @@ function loop(now){
           if (showBoxes){ ctx.save(); ctx.globalAlpha = 0.5; ctx.lineWidth = 2; ctx.strokeStyle = '#ff6b6b'; ctx.strokeRect(sbox.l, sbox.t, sbox.r - sbox.l, sbox.b - sbox.t); ctx.restore(); }
         }
         if (showBoxes){ ctx.save(); ctx.globalAlpha = 0.5; ctx.lineWidth = 2; ctx.strokeStyle = '#7fd4ff'; ctx.strokeRect(nbox.l, nbox.t, nbox.r - nbox.l, nbox.b - nbox.t); ctx.restore(); }
-        if (s.inv > 0) continue;                            // net geraakt: even met rust laten
+        if (s.inv > 0){ if (dubbelVliegt() && javRaakt(nbox, s)){ javHitEnemy(); hitMeelman(s); } continue; }   // net geraakt: even met rust laten, behalve voor de tweede speer (DUBBEL)
         // de speerpunt (stoot)
         if (attacking && !swingUsed && steekLive() && steekRaakt('meelman')){
           const dxv = steekDX() * scale;
@@ -43753,7 +43768,7 @@ function loop(now){
           }
         }
         // de geworpen speer
-        if (javRaakt(nbox)){ javHitEnemy(); hitMeelman(s); continue; }
+        if (javRaakt(nbox, s)){ javHitEnemy(); hitMeelman(s); continue; }
         // lage zwaai: een keer per zwaai
         if (s.sweptId !== sweepId && hitBy(zwaaiVak(swbox, 'meelman'), nbox)){ s.sweptId = sweepId; hitMeelman(s); }
       }
@@ -43839,7 +43854,10 @@ function loop(now){
         vijandHpBalk(bodyX, nbox.t, s, scale);
         if (s.verblind > 0) stofTeken(bodyX, nbox.t, s, scale);   // blind van het stof: sterretjes om zijn hoofd
         if (showBoxes){ ctx.save(); ctx.globalAlpha = 0.5; ctx.lineWidth = 2; ctx.strokeStyle = '#7fd4ff'; ctx.strokeRect(nbox.l, nbox.t, nbox.r - nbox.l, nbox.b - nbox.t); ctx.restore(); }
-        if (s.inv > 0 || krbOntwijkt(s)) continue;      // de hoorn: van opbergen tot terugpakken niet te raken
+        if (s.inv > 0 || krbOntwijkt(s)){                // de hoorn: van opbergen tot terugpakken niet te raken
+          if (!krbOntwijkt(s) && dubbelVliegt() && javRaakt(nbox, s)){ javHitEnemy(); hitKruisboog(s, 'worp'); }   // net geraakt: wel voor de tweede speer (DUBBEL)
+          continue;
+        }
         if (attacking && !swingUsed && steekLive() && steekRaakt('kruisboogbandiet')){
           const dxv = steekDX() * scale;
           const tipX = pcx + (facing === 1 ? -dxv : dxv);
@@ -43849,7 +43867,7 @@ function loop(now){
             swingUsed = true; hitKruisboog(s, 'steek'); continue;   // geen verweer: ook het mes raakt hem gewoon
           }
         }
-        if (javRaakt(nbox)){ javHitEnemy(); hitKruisboog(s, 'worp'); continue; }
+        if (javRaakt(nbox, s)){ javHitEnemy(); hitKruisboog(s, 'worp'); continue; }
         if (s.sweptId !== sweepId && hitBy(zwaaiVak(swbox, 'kruisboogbandiet'), nbox)){ s.sweptId = sweepId; hitKruisboog(s, 'zwaai'); }
       }
     }
@@ -43999,6 +44017,8 @@ function loop(now){
               swingUsed = true; atkFrame = -1; atkAcc = 0; atkCooldown = ATK_COOLDOWN;   // je stoot kaatst af; Amir schuift niet weg (afstand pak je zelf)
             }
           }
+          // de tweede speer (DUBBEL) pareert hij niet: die gaat door zijn dekking heen (dubbelDoor)
+          if (dubbelVliegt() && javRaakt(nbox, s)){ javHitEnemy(); if (s.bloed) bloedTref(s, bodyX, voeten, bS, face, bodyX, voeten - BAN.fig * 0.5 * bS); hitBandiet(s); }
           continue;
         }
         // de speerpunt: in elke staat raak
@@ -44014,7 +44034,7 @@ function loop(now){
           }
         }
         // de geworpen speer
-        if (javRaakt(nbox)){ javHitEnemy(); if (s.bloed) bloedTref(s, bodyX, voeten, bS, face, bodyX, voeten - BAN.fig * 0.5 * bS); hitBandiet(s); continue; }   // bloed: een snee op borsthoogte
+        if (javRaakt(nbox, s)){ javHitEnemy(); if (s.bloed) bloedTref(s, bodyX, voeten, bS, face, bodyX, voeten - BAN.fig * 0.5 * bS); hitBandiet(s); continue; }   // bloed: een snee op borsthoogte
         // lage zwaai: één keer per zwaai
         if (s.sweptId !== sweepId && hitBy(zwaaiVak(swbox, 'bandiet'), nbox)){ s.sweptId = sweepId; if (s.bloed) bloedTref(s, bodyX, voeten, bS, face, bodyX, voeten - BAN.fig * 0.2 * bS); hitBandiet(s); }   // bloed: een snee laag op het lijf
       }
@@ -44065,7 +44085,7 @@ function loop(now){
           ctx.save(); ctx.globalAlpha = 0.5; ctx.lineWidth = 2; ctx.strokeStyle = '#c9a06b';
           ctx.strokeRect(nbox.l, nbox.t, nbox.r - nbox.l, nbox.b - nbox.t); ctx.restore();
         }
-        if (s.inv > 0) continue;                          // net geraakt
+        if (s.inv > 0){ if (dubbelVliegt() && javRaakt(nbox, s)){ javHitEnemy(); hitSchildman(s, 'worp'); } continue; }   // net geraakt, behalve voor de tweede speer (DUBBEL)
         if (schbOnaantastbaar(s)) continue;               // in de sprong onaantastbaar
         // de speerpunt / steek
         if (attacking && !swingUsed && steekLive() && steekRaakt('schildman')){
@@ -44079,7 +44099,7 @@ function loop(now){
           }
         }
         // de geworpen speer
-        if (javRaakt(nbox)){ javHitEnemy(); hitSchildman(s, 'worp'); continue; }
+        if (javRaakt(nbox, s)){ javHitEnemy(); hitSchildman(s, 'worp'); continue; }
         // de lage zwaai: één keer per zwaai
         if (s.sweptId !== sweepId && hitBy(zwaaiVak(swbox, 'schildman'), nbox)){ s.sweptId = sweepId; hitSchildman(s, 'zwaai'); }
       }
@@ -44113,7 +44133,10 @@ function loop(now){
           if (invuln > 0) knock = (s.x < px ? 1 : -1) * (s.state === 'f2' ? (s.f2 === 'mep' ? ZWM2.mepDuw : ZWM2.sprongDuw) * (zwmNieuwer() ? ZWM_NIEUWER.duw : 1) : 260);
           if (invuln > 0 && s.state === 'f2' && zwmNieuwer()) hurt = Math.max(hurt, ZWM_NIEUWER.stun);   // nieuwer: korter weg, maar even verdoofd
         }
-        if (s.inv > 0) continue;
+        if (s.inv > 0){                                  // net geraakt, behalve voor de tweede speer (DUBBEL)
+          if (dubbelVliegt() && javRaakt(nbox, s)){ if (s.mepSpeer) zwmSpeerNeer(s); else { javHitEnemy(); hitZweepman(s); } }
+          continue;
+        }
         if (attacking && !swingUsed && steekLive() && steekRaakt('zweepman')){
           const dxv = steekDX() * scale, tipX = pcx + (facing === 1 ? -dxv : dxv), tipY = y + steekY() * scale, reach = steekR() * scale;
           const lo = nbox.schacht ? Math.min(tipX, pcx) : tipX, hi = nbox.schacht ? Math.max(tipX, pcx) : tipX;   // uithijgen: punt of schacht
@@ -44121,7 +44144,7 @@ function loop(now){
             swingUsed = true; if (atkMes){ s.flash = Math.max(s.flash || 0, 0.2); continue; } hitZweepman(s); continue;
           }
         }
-        if (javRaakt(nbox)){ if (s.mepSpeer){ zwmSpeerNeer(s); continue; } javHitEnemy(); hitZweepman(s); continue; }
+        if (javRaakt(nbox, s)){ if (s.mepSpeer){ zwmSpeerNeer(s); continue; } javHitEnemy(); hitZweepman(s); continue; }
         if (s.sweptId !== sweepId && hitBy(zwaaiVak(swbox, 'zweepman'), nbox)){ s.sweptId = sweepId; hitZweepman(s); }
       }
     }
