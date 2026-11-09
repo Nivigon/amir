@@ -1242,7 +1242,13 @@ def deuren(lv, sp):
         if not gal:
             yield fout(s.get('x'), "vijand '%s' in een deur op verdieping %d van gevel %d, maar daar loopt geen galerij: hij komt niet" % (k, v, gi))
     # de deur naar binnen op een verdieping (binnen met verdieping): daar sta je op een galerij of balkon, anders kom je er niet
+    # en elke extra deur (deuren: beneden erin, hoger eruit), met de gevel van de kamer als hij er zelf geen heeft
+    alle = []
     for b in lv.d.get('binnen') or []:
+        alle.append(b)
+        for q in b.get('deuren') or []:
+            alle.append(dict(q, gevel=q.get('gevel', b.get('gevel'))))
+    for b in alle:
         v = int(b.get('verdieping') or 0)
         if v <= 0 or b.get('gevel') is None:
             continue

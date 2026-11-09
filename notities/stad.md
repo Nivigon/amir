@@ -476,6 +476,12 @@ Elk huis met een binnenkant is een eigen strook ver van de straat (van `r` tot `
   zonder `deurH` de zoveelste zwever van onder bij de deur (verdieping 1 is de eerste vloer boven de grond). E daar en je
   staat weer op de galerij. Het gordijn binnen hoort bij een deur op de straat en komt boven niet. `levelcheck.py` (regel
   `deuren`) meldt een deur boven zonder galerij of balkon ervoor, of op een verdieping die het huis niet heeft.
+- **Meer deuren naar buiten** (`deuren: [{deur, verdieping, gevel, deurH}]`, `binnenDeuren`; in de sandbox **Beneden erin,
+  boven eruit**): naast de hoofddeur nog deuren naar buiten, elk met een eigen plek binnen (`deur`), verdieping en vloer, en
+  een eigen gevel (zonder `gevel` die van de kamer). Elke deur werkt twee kanten op. Zo ga je beneden naar binnen en kom je
+  hoger op een galerij weer buiten, ook in het huis ernaast (een pand achter twee gevels, met `aan` strak tegen elkaar). In
+  de sandbox: het deurgat van het rechter huis op de straat, de ladder op, en de deur op de eerste verdieping van het
+  linker huis brengt je op een galerij die je van de straat niet haalt. `levelcheck.py` kijkt elke deur na.
 - **In en uit**: voor het deurgat van gevel `gevel` (`stadDeurMaat`, verdieping 0) staat een E; E en het beeld wordt even
   zwart (`BINNEN.fade`, via `stadTrapFade` met `binnen: true`: de camera springt mee, geen glijvlucht) en je staat binnen bij
   de deur (`deur`, een wereld-x op de begane grond). E bij die deur en je staat weer buiten voor het deurgat. Niet in een
