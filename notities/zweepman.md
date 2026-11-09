@@ -159,6 +159,10 @@ Alleen met `fasen: true` in de spawn (Test 59), of in de sandbox met **Fasen aan
   doorgedraaid.
 - **Kwetsbaar** (`zwmF2Kwetsbaar`): alleen in `rustin`, `rust`, `rustuit` en de eindpose van de sprong. Daarbuiten ketst je speer
   af (de houtklap, een korte flits). `ZWM2.hp2` (2) treffers en hij is dood (zie De dood).
+- **Raakvak in het uithijgen** (`zwmF2RustVak`): in `rustin`, `rust` en `rustuit` ligt `cx` ver voor zijn lijf uit (bij de zweep
+  op de grond), dus het vak rond `cx` miste zijn lichaam en een steek van dichtbij ging door de lucht; alleen de lage zwaai
+  raakte. Daar loopt het vak nu over het hele getekende lijf, en telt ook de schacht van de speer (`nbox.schacht`), zodat
+  een steek raakt als Amir er vlak op staat.
 - **Het touw per segment**: `set.touw` is een lijst `{van, knal, tot, boogVan, boog, kracht, hang, blijf}`. In een segment volgt
   het touw de hand (`fr.hand`), met de boog uit dat segment (`s.f2C` in `zwmTouwStap`). Aan het eind vervaagt het, behalve met
   `blijf`. Daarbuiten zit de zweep als leer in het plaatje.
