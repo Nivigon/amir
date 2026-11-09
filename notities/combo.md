@@ -12,10 +12,13 @@ Aan met `combo: true` in een level (alleen Test 68) of de knop **Combo** in de s
 
 Welke derde slag beter is (controle of schade) proberen we uit. `comboSoort()` geeft er een:
 
-- **Terugslag**: de slag telt enkel, maar zet de vijand ver terug. Een bandiet krijgt `COMBO.terug.v` (1100 px/s, dooft uit
-  tot zo'n 285 px) in plaats van `BAN_KNOCK` en staat `COMBO.terug.rust` (0,8 s) stil voor hij weer stormt; een
-  schildbandiet krijgt `COMBO.terug.schb` (2,2) keer zijn flinch-duw. Kei en ravijn houden hem tegen (regel 7, via
-  `banMove` en `schbMove`). Op de treffer een stofwolk in plaats van de ster van de crit.
+- **Terugslag**: de slag telt enkel, maar zet de vijand ver terug. Een bandiet krijgt `COMBO.terug.v` (1500 px/s, dooft uit
+  tot zo'n 380 px) in plaats van `BAN_KNOCK`, staat `COMBO.terug.rust` (1,2 s) stil en komt dan in `COMBO.terug.traag`
+  (1,2 s) op gang, van `traagV` (0,4) van zijn tempo terug naar vol (`s.traag`, in de run van `updateBandiet`); een
+  schildbandiet krijgt `COMBO.terug.schb` (3) keer zijn flinch-duw en staat na de flinch `schbRust` (1 s) in zijn wacht
+  (`s.naTerug`, `s.stil`). Kei en ravijn houden hem tegen (regel 7, via `banMove` en `schbMove`). Op de treffer een
+  stofwolk in plaats van de ster van de crit, en een doffe houtklap (`houtRaak` op `COMBO.terug.toon`, 0,75): de schacht
+  op zijn lijf. Later misschien met de speer omgedraaid (zie de bijlage in `notities/kit-verbeteren.md`).
 - **Schade**: de slag telt dubbel (`critNu`), met de ster, zoals hij eerst was.
 
 Test 68 heeft `comboKeuze: true`: aan het begin en na elke R (`opnieuw`) staat het scherm van `duoKeuze` open met alleen
@@ -32,6 +35,10 @@ schildbandiet (de vijanden van Test 68); bij andere vijanden telt hij gewoon als
 - Is er tijdens de tweede steek al gedrukt, dan takt die op `COMBO.aftak` (frame 8, de uitgestoken speer) af naar de
   derde slag. De clip begint precies in die pose. Komt de derde druk pas na de tweede steek, dan start de slag vanaf
   frame 0.
+- Alleen contact telt: een steek die niets raakt (`swingUsed` blijft uit) zet `comboTel` op nul aan het eind van de
+  steek, en de tweede steek takt pas af naar de derde slag als hij al raak was. Een gepareerde steek telt wel
+  (`comboSinds = 0` in de pareer-tak). Zo kun je niet eerst een keer in de lucht prikken om de derde slag klaar te
+  zetten: tegen de bandiet is het raak, parade, en dan breekt de derde slag door zijn dekking.
 - Een treffer op Amir breekt de reeks af (net als de steek zelf). Het mes doet niet mee.
 
 ## De slag
@@ -56,6 +63,6 @@ in de bewogen schacht terug naar bruin, in de punt naar grijs. Op frame 6 en 8 i
 
 ## Open
 
-- Tegen de bandiet: de tweede steek valt in zijn dekking (1,15 s na een treffer) en wordt gepareerd, en zijn counter
-  breekt de reeks meestal af. Keuze nog open: ook de tweede steek van een reeks door de dekking, of zo laten.
+- Tegen de bandiet: de tweede steek valt in zijn dekking en wordt gepareerd; dat telt nu als contact, maar zijn counter
+  kan de reeks nog afbreken. Uitproberen of dat te zwaar is.
 - Het naar voren schuiven gebeurt terwijl de voeten in de frames staan: een beetje glijden.
