@@ -25,7 +25,7 @@ avond kleurt de lichtlaag het water mee, net als de rest van de wereld.
 | --- | --- | --- |
 | `plas` | een ondiepe platte ovaal | 0,28: je spettert, maar loopt bijna even snel |
 | `poel` | een grotere kom | 1: wegzakken, trager, lager springen |
-| `rivier` | een band die van achteren naar de camera stroomt, kronkelt, en over de lip van de grond langs de wand naar beneden valt | 0,9 |
+| `rivier` | een band die van achteren naar de camera stroomt en kronkelt (onder een brug recht); vooraan zie je de bedding in doorsnede, een rustige rivier met trage rimpels (`vRustig`, `bed`, `waterBedding`). Met `val: true` valt hij over de lip van de grond langs de wand naar beneden, zoals in Test 67 | 0,9 |
 | `val` | een waterval van de rechterkant (`r`) van het terras op `x`: een beekje op het bovenvlak (`waterTerrasTeken`), het gordijn voor Amir langs (`waterVoorTeken`) en een kom eronder (`kom` keer `w` breed) met schuim en stuifwater | 0,6 in de kom, ondiep bij de wand zodat je het terras op komt |
 | `bron` | een kom met een straal (`hoog` in Amir) en een kroon van druppels | 0,5 |
 | `fontein` | decor voor de stad: een geschilderde plaat van leem met het water erin (zie hieronder) | 0 |
@@ -57,7 +57,10 @@ gaat werken voor elke vorm zoals bij de oude poel.
 `BRUG`, `brugTeken`, `brugIn`. Een rivier met `brug: true` krijgt een houten brug op straathoogte: de galerij van de stad
 (`galerij.png` via `stadStrook`, links, het midden zo vaak als nodig, rechts) met het midden van de planken op de looplijn
 en zonder palen. De zware onderbalk ligt op het water, de rivier stroomt eronder door en valt ervoor over de rand.
-De brug ligt aan elke kant `BRUG.oever` (0,3 Amir) op de oever.
+De brug ligt aan elke kant `BRUG.oever` (0,3 Amir) op de oever. Onder een brug kronkelt de rivier niet (de bocht stak
+anders als een los blauw stuk achter de leuning uit).
+
+De brug is een gewoon onderdeel: een nieuw level (met toestemming, regel 3) mag hem gebruiken.
 
 - **Droog**: `waterenDiep` slaat een rivier met een brug over, dus op de brug zak je niet weg, de speer gaat niet
   verloren en vijanden lopen er gewoon overheen. Het geruis blijft.

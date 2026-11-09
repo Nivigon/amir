@@ -5742,7 +5742,7 @@ const TEST_67 = {
   speerInHand: true, vredig: true,
   wateren: [ {k: 'plas', x: -520, w: 120}, {k: 'plas', x: -700, w: 80}, {k: 'plas', x: -860, w: 170},
              {k: 'poel', x: -1350, w: 480},
-             {k: 'rivier', x: -2150, w: 260},
+             {k: 'rivier', x: -2150, w: 260, val: true},
              {k: 'val', x: -2900, w: 110},
              {k: 'plas', x: -3750, w: 140}, {k: 'plas', x: -3930, w: 90},
              {k: 'bron', x: -4500, w: 300} ],
@@ -23077,7 +23077,9 @@ const WATER = {
   soort: {
     plas:    { diep: 0.28, ramp: 40,  ry: 15, y: 6,  ruw: 0.14 },
     poel:    { diep: 1,    ramp: 90,  ry: 36, y: 10, ruw: 0.06 },
-    rivier:  { diep: 0.9,  ramp: 50, v: 70 },                // v: hoe snel de rimpels naar je toe stromen
+    // v: hoe snel de rimpels naar je toe stromen (met `val: true` valt hij over de rand, anders de rustige rivier: vRustig,
+    // en vooraan de doorsnede van de bedding, bed diep in eenheden van de grondtegel)
+    rivier:  { diep: 0.9,  ramp: 50, v: 70, vRustig: 22, bed: 150 },
     val:     { diep: 0.6,  ramp: 80,  ry: 30, y: 10, ruw: 0.08, v: 520, kom: 2.4 },
     bron:    { diep: 0.5,  ramp: 70,  ry: 30, y: 10, ruw: 0.08, hoog: 1.5, v: 380 },
     // de fontein: decor, een geschilderde plaat (design/stad/fontein.png, uit tools/fontein_knip.py) met het water van
@@ -23393,11 +23395,12 @@ function waterRivierTeken(o, i, groundY, s){
   const w = o.w || 240, cx = W / 2 + (o.x - world);
   if (cx - w > W / viewZoom() + W || cx + w < -W) return;
   const yT = groundY - WATER.rug * s, yB = groundY + WATER.lip * s;
-  const v = (o.v || WATER.soort.rivier.v);
+  const SR = WATER.soort.rivier, v = (o.v || (o.val ? SR.v : SR.vRustig));
   // de bedding: van achteren smal (ver weg) naar voren breed, met golvende oevers
   const pts = [], n = 40, oever = (k, kant) => Math.sin(k * 7 + i + kant * 2) * 5 + Math.sin(k * 15 + kant) * 2.5 + Math.sin(k * 41 + kant * 3) * 1.2;
   const breed = k => w * (0.4 + 0.6 * k) / 2;                       // ver weg smaller
-  const kron = k => Math.sin(k * 3.6 + i * 1.3) * w * 0.22 * (1 - k * 0.8);   // en hij kronkelt, vooraan recht naar de val
+  // en hij kronkelt, vooraan recht; onder een brug loopt hij recht (anders steekt de bocht als een los stuk achter de leuning uit)
+  const kron = k => o.brug ? 0 : Math.sin(k * 3.6 + i * 1.3) * w * 0.22 * (1 - k * 0.8);
   for (let j = 0; j <= n; j++){ const k = j / n; pts.push([cx + kron(k) - breed(k) + oever(k, -1), yT + (yB - yT) * k]); }
   for (let j = n; j >= 0; j--){ const k = j / n; pts.push([cx + kron(k) + breed(k) + oever(k, 1), yT + (yB - yT) * k]); }
   const pad = waterPadVan(pts);
@@ -23412,8 +23415,51 @@ function waterRivierTeken(o, i, groundY, s){
   const fg = ctx.createLinearGradient(0, yT, 0, yT + (yB - yT) * 0.35);
   fg.addColorStop(0, waterRgb(waterMeng(waterLuchtKleur(), land, 0.2), 0.9)); fg.addColorStop(1, waterRgb(land, 0));
   ctx.save(); ctx.clip(pad); ctx.fillStyle = fg; ctx.fillRect(cx - w, yT - 2, w * 2, (yB - yT) * 0.35 + 2); ctx.restore();
-  // en vooraan valt hij over de lip, langs de wand van de grond naar beneden
-  waterValGordijn(cx + kron(1) - breed(1) + 6, cx + kron(1) + breed(1) - 6, yB - 4, groundY + H * 1.2, v * 6, i, true);
+  // vooraan: met `val: true` valt hij over de lip langs de wand naar beneden, anders zie je de bedding in doorsnede
+  if (o.val) waterValGordijn(cx + kron(1) - breed(1) + 6, cx + kron(1) + breed(1) - 6, yB - 4, groundY + H * 1.2, v * 6, i, true);
+  else waterBedding(cx + kron(1) - breed(1) + 6, cx + kron(1) + breed(1) - 6, yB - 4, s, i);
+}
+// de rustige rivier vooraan: de grond is doorgesneden en je ziet het water in zijn bedding liggen, een kom van water
+// met een lichte waterlijn bovenaan, trage strepen die zijwaarts drijven, zwevend gruis en een natte oever eromheen
+function waterBedding(xl, xr, y0, s, i){
+  const P = WATER.palet, T = waterTextuur(), t = waterKlok, w = xr - xl, d = WATER.soort.rivier.bed * s, n = 32;
+  if (w <= 0) return;
+  const pts = [];
+  for (let j = 0; j <= n; j++){ const k = j / n; pts.push([xl + w * k, y0 + Math.sin(k * 5 + t * 0.7 + i) * 0.9]); }
+  for (let j = n; j >= 0; j--){                  // de bodem: steil bij de oevers, vlak in het midden
+    const k = j / n, b = Math.pow(Math.sin(Math.PI * k), 0.45);
+    pts.push([xl + w * k, y0 + d * b + Math.sin(k * 13 + i) * 2 * b]);
+  }
+  const pad = waterPadVan(pts);
+  ctx.save();
+  // de natte oever: een donkere zoom in de grond rond de bedding
+  ctx.lineJoin = 'round';
+  for (const [lw, a] of [[10, 0.12], [5, 0.22]]){ ctx.strokeStyle = waterRgb(P.nat, a); ctx.lineWidth = lw; ctx.stroke(pad); }
+  const g = ctx.createLinearGradient(0, y0, 0, y0 + d);
+  g.addColorStop(0, waterRgb(P.ondiep, 0.95));
+  g.addColorStop(0.35, waterRgb(P.midden, 0.95));
+  g.addColorStop(1, waterRgb(waterMeng(P.diep, [20, 30, 34], 0.5), 0.98));
+  ctx.fillStyle = g; ctx.fill(pad);
+  ctx.clip(pad);
+  // trage strepen die zijwaarts drijven: geen val, gewoon water dat er ligt
+  waterLaag(pad, T.donker, 0.22, t * 5 + i * 40, i * 17, 1.4);
+  waterLaag(pad, T.licht, 0.16, -t * 3 + i * 23, 30 + i * 11, 1.8);
+  // zwevend gruis in het water
+  for (let j = 0; j < 14; j++){
+    const z = i * 37 + j, k = (waterHash(z, 1) + t * (0.004 + waterHash(z, 2) * 0.006)) % 1;
+    const x = xl + w * k, y = y0 + d * (0.2 + waterHash(z, 3) * 0.65) + Math.sin(t * 0.6 + z) * 2;
+    ctx.fillStyle = waterRgb(P.glans, 0.12 + 0.1 * waterHash(z, 4));
+    ctx.beginPath(); ctx.arc(x, y, 0.8 + waterHash(z, 5) * 1.1, 0, Math.PI * 2); ctx.fill();
+  }
+  // naar de bodem toe donkerder, en de bodem zelf een zachte modderige rand
+  ctx.strokeStyle = waterRgb(waterMeng(P.nat, [20, 16, 12], 0.4), 0.5); ctx.lineWidth = 6; ctx.stroke(pad);
+  ctx.restore();
+  // de waterlijn: een smalle glans die zacht ademt, geen schuim
+  ctx.save();
+  ctx.beginPath();
+  for (let j = 0; j <= n; j++) ctx[j ? 'lineTo' : 'moveTo'](pts[j][0], pts[j][1] + 1);
+  ctx.strokeStyle = waterRgb(P.glans, 0.4 + 0.12 * Math.sin(t * 1.1 + i)); ctx.lineWidth = 1.6; ctx.stroke();
+  ctx.restore();
 }
 // een vallend gordijn van water tussen xl en xr, van y0 naar y1; met donker: loopt weg in de diepte
 function waterValGordijn(xl, xr, y0, y1, v, seed, donker, buig){
@@ -23688,7 +23734,7 @@ function waterStap(dt){
       if (onder && Math.random() < dt * 30)
         waterDruppel(px + (Math.random() - 0.5) * 50, ph + CHAR_H * (0.85 + Math.random() * 0.15), (Math.random() - 0.5) * 380, 120 + Math.random() * 260, 0.5, 1.2);
     } else if (o.k === 'rivier'){
-      geluid += WATER.geluid.rivier / (1 + ver / WATER.geluid.ver);
+      geluid += WATER.geluid.rivier * (o.val ? 1 : 0.5) / (1 + ver / WATER.geluid.ver);   // een rustige rivier ruist zachter
     } else if (o.k === 'fontein'){
       const m = waterFonteinMaat(o, nowScale()), th = terrainH(o.x), hu = py => th + (S.h - py) * CHAR_H / S.amir;
       const kom = hu(S.schaal[1]), top = kom + S.hoog * CHAR_H, opp = hu(S.bassin[1]), sx = m.left + S.schaal[0] * m.f, sb = S.schaal[2] * m.f;
