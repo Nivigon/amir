@@ -117,8 +117,34 @@ Een huis van een hoog heeft geen balkon, een ruine ook niet, en een torenhuis ge
 - **De platen** knipt `tools/balkon_knip.py` uit `design/stad/bron/balkon_grok.png`: de balustrade van de voorkant
   (`balkon_voor.png`) en van de smalle zijkant (`balkon_zij.png`). Ze laden pas als een gevel een balkon heeft (`stadSoortLaad`).
 - **Sandbox**: onder De stad de knop **Balkons**: de nis en de hoek, links en rechts, op verschillende verdiepingen en types.
-- Nog niet: een keuze in de Maker, en een vaste regel als het spel zelf accenten kiest (hooguit een per huis, niet twee
-  naast elkaar, ongeveer een op de vier).
+- **In de Maker**: bij een gevel de keuze **Balkon** (geen, de nis of de hoek links of rechts, op de bovenste of de eerste
+  verdieping; `MK_BALKONS`).
+- Met `stad.accenten` kiest het spel ook zelf balkons (zie "Accenten").
+
+## Accenten
+
+`STAD_TAKEL`, `STAD_RAMEN`, `STAD_ACCENT`, `stadAccenten`, `stadTakelTeken`, `stadRamenTeken`, `tools/takel_knip.py`,
+`tools/ramen_knip.py`
+
+Losse stukken die een huis anders maken zonder nieuwe gevelplaat (D2 in `notities/stad-verbeteren.md`).
+
+- **De takel** (`takel: 'l'` of `'r'` in een gevel): een ruwe stam die op de bovenste balkenrij uit de zijkant van het huis
+  steekt, met een schuine tak eronder, een katrol en een mand. De mand slingert om de katrol op dezelfde wind als de
+  deurgordijnen (`gordijnVlaag`, de sandboxknop Wind): bijna stil tussen de vlagen, verder uit bij een vlaag, elk huis in
+  een eigen ritme. Decor: Amir loopt eronder door. Staat er aan die kant een buurhuis te dichtbij (`STAD_TAKEL.ruimte`),
+  dan geen takel; ook niet op een ruine, en niet aan de torenkant van het torenhuis. `tools/takel_knip.py` knipt de arm en
+  de mand uit `design/stad/bron/takel_grok.png` (de muurstrook links gaat eraf). In de Maker de keuze **Takel**.
+- **Andere ramen** op het oude huis: zes stukken muur met een ander raam (spitsboog, doek over de vensterbank,
+  dichtgemetseld, luiken half open, traliewerk, pot op de vensterbank), over het raam van `gevel.png` gelegd
+  (`STAD_NACHT.ramen.gevel`). `tools/ramen_knip.py` zoekt per stuk het kozijn, laat een randje muur met een zachte rand staan
+  en kleurt die naar de leem rond het raam van het oude huis. Alleen met `stad.accenten`; `ramen: false` in een gevel zet
+  het daar uit. Een nis van een balkon vervangt het raam van die verdieping.
+- **Zelf kiezen** (`stad.accenten: true`, `stadAccenten`): per seed vast. Ongeveer een op de vier huizen krijgt een balkon
+  of een takel (`STAD_ACCENT`), hooguit een per huis en nooit twee huizen met een accent naast elkaar; een huis dat zelf
+  een balkon of takel heeft telt mee. Op het oude huis wordt ongeveer 40 procent van de ramen een ander raam. Geen
+  bestaand level heeft het; een nieuw stadslevel mag het aanzetten.
+- **Sandbox**: onder De stad de knop **Accenten**: een straat met de accenten aan, elke klik een andere seed, en twee vaste
+  takels vooraan om de mand te zien slingeren.
 
 ## Achter de kartels
 

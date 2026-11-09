@@ -1252,6 +1252,8 @@
           <div class="mkveld"><label for="mkstadsoort" id="mkstadsoortlab">Hoogte</label><select id="mkstadsoort"></select></div>
           <div class="mkveld" id="mkgeveltyperij"><label for="mkgeveltype">Type</label><select id="mkgeveltype"></select></div>
           <div class="mkveld" id="mkgordijnrij"><label for="mkgordijn">Deur</label><select id="mkgordijn"></select></div>
+          <div class="mkveld" id="mkbalkonrij"><label for="mkbalkon">Balkon</label><select id="mkbalkon"></select></div>
+          <div class="mkveld" id="mktakelrij"><label for="mktakel">Takel</label><select id="mktakel"></select></div>
           <div class="mkrij"><button id="mkstadf">Gespiegeld: nee</button></div>
           <div id="mkstadinfo" class="mkhint"></div>
           </details>
@@ -1863,6 +1865,7 @@
         <button id="sbhuistypes">Huistypes</button>
         <button id="sbhuisnieuw">Nieuwe huizen</button>
         <button id="sbbalkons">Balkons</button>
+        <button id="sbaccenten">Accenten</button>
         <button id="sbdichtestraat">Dichte straat</button>
         <button id="sbgordijnen">Gordijnen</button>
         <button id="sbgordwind">Wind: vlagen</button>
@@ -3048,6 +3051,7 @@ const KLEIN_FAM = [
   'design/stad/gevel_vervallen.png', 'design/stad/gevel_toren.png', 'design/stad/gevel_ruine.png', 'design/stad/gevel_ruine2.png',
   'design/stad/gevel_winkel.png', 'design/stad/gevel_winkel_dicht.png',
   'design/stad/balkon_voor.png', 'design/stad/balkon_zij.png',
+  'design/stad/takel_arm.png', 'design/stad/takel_mand.png', 'design/stad/raam_',
   'design/stad/paleis.png',
   'design/stad/kraam_riet.png',
   'design/stad/kraam_doek.png',
@@ -24387,7 +24391,10 @@ function stadSoortLaad(st){
     stadImgs[k] = zetBron(new Image(), STAD_DIR + src, () => console.warn('ontbreekt: stad ' + src));
   }
   if (st) gordijnLaad(st);                          // de deurgordijnen die deze stad echt heeft (zie "gordijnen")
-  if (((st && st.gevels) || []).some(g => STAD_BALKON.soorten.includes(g.balkon))){   // de balustrades van een balkon
+  const zet = (k, src) => { if (!stadImgs[k]) stadImgs[k] = zetBron(new Image(), STAD_DIR + src, () => console.warn('ontbreekt: stad ' + src)); };
+  if (st && (st.accenten || (st.gevels || []).some(g => g.takel))){ zet('takelArm', STAD_TAKEL.arm.src); zet('takelMand', STAD_TAKEL.mand.src); }
+  if (st && st.accenten) for (const n in STAD_RAMEN.soorten) zet('raam_' + n, 'raam_' + n + '.png');
+  if (((st && st.gevels) || []).some(g => STAD_BALKON.soorten.includes(g.balkon)) || (st && st.accenten)){   // de balustrades van een balkon
     if (!stadImgs.balkonVoor) stadImgs.balkonVoor = zetBron(new Image(), STAD_DIR + STAD_BALKON.voor.src, () => console.warn('ontbreekt: stad ' + STAD_BALKON.voor.src));
     if (!stadImgs.balkonZij) stadImgs.balkonZij = zetBron(new Image(), STAD_DIR + STAD_BALKON.zij.src, () => console.warn('ontbreekt: stad ' + STAD_BALKON.zij.src));
     deurLaad();
@@ -24399,8 +24406,10 @@ function stadLees(o){
            gevels: (o.gevels || []).map(q => ({ x: n(q.x), hoog: Math.max(1, Math.min(4, Math.round(n(q.hoog) || 1))), f: q.f ? 1 : 0,
                                                  ...(STAD.gevelSoort[q.soort] ? { soort: q.soort } : {}),
                                                  ...(STAD_BALKON.soorten.includes(q.balkon) ? { balkon: q.balkon, ...(q.balkonV ? { balkonV: Math.max(1, Math.round(n(q.balkonV))) } : {}) } : {}),
+                                                 ...(q.takel === 'l' || q.takel === 'r' ? { takel: q.takel } : {}), ...(q.ramen === false ? { ramen: false } : {}),
                                                  ...(q.gordijn === false || GORDIJN.namen.includes(q.gordijn) ? { gordijn: q.gordijn } : {}) })),
            ...(o.gordijnen ? { gordijnen: true } : {}),
+           ...(o.accenten ? { accenten: true } : {}),
            ...(o.onder ? { onder: true } : {}),
            galerijen: (o.galerijen || []).map(q => ({ van: n(q.van), tot: q.tot != null ? n(q.tot) : n(q.van), h: q.h != null ? n(q.h) : null,
                                                      meer: Array.isArray(q.meer) ? [n(q.meer[0]), n(q.meer[1])] : null })),
@@ -24584,11 +24593,11 @@ const STAD_BALKON = {
   donker: 0.5,        // de achterwand van de nis
   soorten: ['nis', 'hoekL', 'hoekR']
 };
-const stadBalkonSoort = g => g && STAD_BALKON.soorten.includes(g.balkon) && !stadGeenDak(g)
-  && !(g.balkon !== 'nis' && g.soort === 'toren') ? g.balkon : null;     // een torenhuis heeft zijn toren op de hoek
+const stadBalkonSoort = (g, b = g && g.balkon) => g && STAD_BALKON.soorten.includes(b) && !stadGeenDak(g)
+  && !(b !== 'nis' && g.soort === 'toren') ? b : null;     // een torenhuis heeft zijn toren op de hoek
 // de nis van een gevel, in bronpx vanaf de bovenkant van zijn stapel banden, of null
-function stadBalkonMaat(g, G, hoog){
-  const soort = stadBalkonSoort(g); if (!soort || hoog < 2) return null;
+function stadBalkonMaat(g, G, hoog, b){
+  const soort = stadBalkonSoort(g, b === undefined ? g.balkon : b); if (!soort || hoog < 2) return null;
   const B = STAD_BALKON, v = Math.max(1, Math.min(hoog - 1, g.balkonV || hoog - 1));
   const delen = stadGevelDelen(G, hoog), Hs = delen.reduce((t, d) => t + d[1] - d[0], 0);
   const verH = G.ver[1] - G.ver[0], onder = Hs - ((G.bod[1] - G.bod[0]) + (v - 1) * verH);
@@ -24598,7 +24607,7 @@ function stadBalkonMaat(g, G, hoog){
     return { soort, v, x0: STAD_DEUR.midden - w / 2, x1: STAD_DEUR.midden + w / 2, y0, y1, onder, sc };
   }
   // de hoek: rechts in de bron, tenzij het huis gespiegeld is (dan valt de bron-rechterkant links in beeld)
-  const rechts = (soort === 'hoekR') !== !!g.f, M = STAD.gevel.muur, w = B.zij.w * sc + B.dik;
+  const rechts = (soort === 'hoekR') !== !!g.f, M = STAD.gevel.muur, w = B.zij.w * sc + B.dik;   // let op: 'hoekR' blijft rechts in beeld
   return rechts ? { soort, v, rechts, x0: M[1] - w, x1: 990, muur: M[1], y0, y1, onder, sc }
                 : { soort, v, rechts, x0: -20, x1: M[0] + w, muur: M[0], y0, y1, onder, sc };
 }
@@ -24639,6 +24648,107 @@ function stadBalkonTeken(Bm, gi, f, y){
     ctx.save(); if (!Bm.rechts){ ctx.translate((2 * bx + bw) * f, 0); ctx.scale(-1, 1); }
     ctx.drawImage(im, bx * f, fy - B.hoog * f, bw * f, B.hoog * f); ctx.restore();
   }
+}
+// ---- accenten: de takel en andere ramen op een gevel ----
+// De takel (takel: 'l' of 'r' in een gevel): een ruwe stam uit de zijkant van het huis, op de bovenste balkenrij, met een
+// katrol en een mand die in de wind slingert (dezelfde wind als de deurgordijnen, gordijnVlaag). Decor: je loopt eronder door.
+// Uit tools/takel_knip.py, maten in px van de Grok-plaat; schaal: gevel-bronpx per plaat-px.
+const STAD_TAKEL = {
+  arm:  { src: 'takel_arm.png',  w: 1074, h: 834, stam: 93 },          // stam: het midden van de stam, vanaf de bovenkant
+  mand: { src: 'takel_mand.png', w: 312, h: 549, x: 738, y: 351 },     // waar de mand in de plaat zit (t.o.v. de arm)
+  draai: [928, 351],  // het punt waar de mand aan hangt
+  schaal: 0.38,       // de stam is dan ongeveer anderhalve balkkop dik
+  hoger: 22,          // de stam zit zoveel bronpx boven de onderkant van de dakband: op de bovenste balkenrij
+  slinger: 0.13,      // zo ver zwaait de mand uit bij een vlaag (radialen, ongeveer 7 graden)
+  rust: 0.012,        // en zo ver als het bijna windstil is
+  periode: 2.3,       // seconden heen en terug
+  ruimte: 1.05        // zoveel keer de lengte van de arm moet er naast het huis vrij zijn, anders geen takel
+};
+// Andere ramen op het oude huis: een stuk muur met een ander raam, over het raam van gevel.png gelegd. k: het kozijn in
+// het stuk (links, boven, rechts, onder), dat komt precies op STAD_NACHT.ramen.gevel. Uit tools/ramen_knip.py.
+const STAD_RAMEN = {
+  soorten: {
+    spitsboog: { w: 303, h: 386, k: [47, 47, 257, 340] },
+    doek:      { w: 290, h: 405, k: [45, 45, 246, 365] },
+    dicht:     { w: 303, h: 371, k: [47, 47, 257, 325] },
+    luiken:    { w: 326, h: 377, k: [50, 50, 277, 328] },
+    tralie:    { w: 292, h: 337, k: [45, 45, 248, 293] },
+    pot:       { w: 317, h: 416, k: [49, 49, 269, 368] }
+  },
+  kans: 0.4           // met accenten aan: zoveel van de ramen van een oud huis wordt een ander raam
+};
+// Met stad.accenten: true kiest het spel zelf: ongeveer een op de vier huizen krijgt een balkon of een takel, hooguit een
+// per huis en nooit twee huizen met een accent naast elkaar, en op het oude huis zijn sommige ramen anders. Wat een gevel
+// zelf zegt (balkon, takel, ramen: false) gaat voor. Per seed vast. Geen bestaand level heeft het.
+const STAD_ACCENT = { kans: 0.27, takel: 0.45 };   // kans op een accent per huis, en daarvan zoveel een takel (de rest een balkon)
+function stadAccenten(st){
+  if (st._acc && st._acc.n === (st.gevels || []).length) return st._acc.lijst;
+  const lijst = (st.gevels || []).map(() => ({}));
+  if (st.accenten){
+    let vorig = false;
+    (st.gevels || []).forEach((g, gi) => {
+      const a = lijst[gi], h = k => gordijnHash(st.seed, gi, 40 + k);
+      if (g.balkon || g.takel){ vorig = true; return; }
+      if (stadGeenDak(g) || vorig || h(0) >= STAD_ACCENT.kans){ vorig = false; return; }
+      vorig = true;
+      if (h(1) < STAD_ACCENT.takel && g.soort !== 'toren') a.takel = h(2) < 0.5 ? 'l' : 'r';
+      else if ((g.hoog || 1) >= 2) a.balkon = h(2) < 0.5 ? 'nis' : (h(3) < 0.5 ? 'hoekL' : 'hoekR');
+      else vorig = false;
+    });
+  }
+  st._acc = { n: (st.gevels || []).length, lijst };
+  return lijst;
+}
+// het balkon en de takel van gevel gi: wat hij zelf zegt, anders wat de accenten kozen
+const stadAccentVan = (st, gi) => {
+  const g = st.gevels[gi], a = stadAccenten(st)[gi] || {};
+  return { balkon: g.balkon || a.balkon || null, takel: g.takel || a.takel || null };
+};
+// tekent de takel van een gevel in de ruimte van de gevel (vertaald en eventueel gespiegeld); y: de bovenkant van de stapel
+function stadTakelTeken(g, gi, G, m, y, kant){
+  const T = STAD_TAKEL, arm = stadImgs.takelArm, mand = stadImgs.takelMand;
+  if (!arm || !imgReady(arm) || !mand || !imgReady(mand)) return;
+  const rechts = (kant === 'r') !== !!g.f, M = STAD.gevel.muur, f = m.f, k = T.schaal * f;
+  const stamY = y + (G.dak[1] - T.hoger) * f, top = stamY - T.arm.stam * k;
+  const t = stadNu(), ph = gi * 2.1 + (rechts ? 0.7 : 0);
+  const wind = gordijnVlaag(t, ph, m.x);
+  const hoek = (T.rust + T.slinger * Math.min(1.2, wind)) * Math.sin(t * 2 * Math.PI / T.periode + ph);
+  ctx.save();
+  ctx.translate((rechts ? M[1] : M[0]) * f, top);
+  if (!rechts) ctx.scale(-1, 1);
+  ctx.drawImage(arm, 0, 0, T.arm.w * k, T.arm.h * k);
+  ctx.translate(T.draai[0] * k, T.draai[1] * k); ctx.rotate(rechts ? hoek : -hoek);
+  ctx.drawImage(mand, (T.mand.x - T.draai[0]) * k, (T.mand.y - T.draai[1]) * k, T.mand.w * k, T.mand.h * k);
+  ctx.restore();
+}
+// is er naast gevel gi aan die kant (in beeld) genoeg ruimte voor de takel?
+function stadTakelRuimte(st, gi, m, kant, scale){
+  const nodig = STAD_TAKEL.arm.w * STAD_TAKEL.schaal * m.f * STAD_TAKEL.ruimte;
+  for (let j = 0; j < (st.gevels || []).length; j++){
+    if (j === gi) continue;
+    const q = stadGevelMaat(st.gevels[j], scale);
+    if (kant === 'r' ? (q.left >= m.right - 2 && q.left - m.right < nodig) : (q.right <= m.left + 2 && m.left - q.right < nodig)) return false;
+  }
+  return true;
+}
+// andere ramen: per raam van het oude huis (STAD_NACHT.ramen.gevel) een vaste keuze uit de seed, of het gewone raam
+function stadRamenTeken(gi, G, delen, hoog, y0, f, geenRaam){
+  if ((G.img || 'gevel') !== 'gevel') return;
+  const st = level.stad, g = st.gevels[gi]; if (!st.accenten || g.ramen === false) return;
+  const R = STAD_NACHT.ramen.gevel, namen = Object.keys(STAD_RAMEN.soorten);
+  let y = y0;
+  delen.forEach((d, j) => {
+    const v = j === delen.length - 1 ? 0 : hoog - j, dh = (d[1] - d[0]) * f;
+    if (j > 0 && v > 0 && !(geenRaam && geenRaam.has(v))) R.forEach((q, ri) => {
+      if (q[1] < d[0] || q[3] > d[1]) return;
+      if (gordijnHash(st.seed, gi, 60 + v * 7 + ri) >= STAD_RAMEN.kans) return;
+      const naam = namen[Math.floor(gordijnHash(st.seed, gi, 80 + v * 7 + ri) * namen.length)];
+      const im = stadImgs['raam_' + naam], S = STAD_RAMEN.soorten[naam]; if (!im || !imgReady(im)) return;
+      const sx = (q[2] - q[0]) / (S.k[2] - S.k[0]), sy = (q[3] - q[1]) / (S.k[3] - S.k[1]);
+      ctx.drawImage(im, (q[0] - S.k[0] * sx) * f, y + (q[1] - d[0] - S.k[1] * sy) * f, S.w * sx * f, S.h * sy * f);
+    });
+    y += dh;
+  });
 }
 function stadGevelDelen(G, hoog){
   if (G.ruine) return [G.dak].concat(hoog > 1 ? [G.ver] : [], Array(Math.max(0, hoog - 2)).fill(G.alt), [G.bod]);
@@ -27886,7 +27996,7 @@ function stadTeken(groundY, scale, cx){
     let y = groundY - terrainH(m.x) * scale - hh;
     ctx.save();
     if (g.f){ ctx.translate(sx + m.w, 0); ctx.scale(-1, 1); } else ctx.translate(sx, 0);
-    const yTop = y, Bm = stadBalkonMaat(g, G, m.hoog);       // een ingebouwd balkon (zie "balkon")
+    const acc = stadAccentVan(S, gi), yTop = y, Bm = stadBalkonMaat(g, G, m.hoog, acc.balkon);   // een ingebouwd balkon (zie "balkon")
     if (Bm && Bm.soort !== 'nis'){                             // de hoek is uitgespaard: daar wordt de gevel niet getekend
       ctx.save(); ctx.beginPath(); ctx.rect(-40 * m.f, y - 2, m.w + 80 * m.f, hh + 4);
       ctx.rect(Bm.x0 * m.f, y + Bm.y0 * m.f, (Bm.x1 - Bm.x0) * m.f, (Bm.y1 - Bm.y0) * m.f); ctx.clip('evenodd');
@@ -27898,8 +28008,11 @@ function stadTeken(groundY, scale, cx){
     if (Bm && Bm.soort !== 'nis') ctx.restore();
     // 's nachts: brandende ramen (STAD_NACHT); in de nis van een balkon zit geen raam meer
     const geenRaam = Bm && Bm.soort === 'nis' ? new Set([...(deurBoven[gi] || []), Bm.v]) : deurBoven[gi];
+    stadRamenTeken(gi, G, delen, m.hoog, yTop, m.f, geenRaam);    // andere ramen op het oude huis (zie "accenten")
     stadNachtRamen(gi, G, delen, m.hoog, yTop, m.f, geenRaam);
     if (Bm && stadKlaar('gevel')) stadBalkonTeken(Bm, gi, m.f, yTop);
+    if (acc.takel && !stadGeenDak(g) && !(g.soort === 'toren' && (acc.takel === 'r') !== !!g.f) && stadTakelRuimte(S, gi, m, acc.takel, scale))
+      stadTakelTeken(g, gi, G, m, yTop, acc.takel);
     // een deur op een verdieping: het deurgat van de begane grond, iets kleiner, in de plaats van het raam (zie "deuren")
     if (deurBoven[gi] && !stadGeenDeur(g)) for (const v of deurBoven[gi]){
       if (v < 1 || v >= m.hoog) continue;
@@ -49114,6 +49227,17 @@ const mkGevelHoog = o => Math.max(1, Math.min(4, Math.round(Number(o.hoog) || 2)
 const mkGevelSoort = o => STAD.gevelSoort[o.soort] ? o.soort : null;      // het huistype, of null voor de oude gevel
 const MK_GORDIJNEN = [['', 'Houten deur'], ['geel', 'Gordijn geel'], ['olijf', 'Gordijn olijf'], ['terracotta', 'Gordijn terracotta'],
   ['indigo_streep', 'Gordijn indigo'], ['adire', 'Gordijn adire'], ['bogolan', 'Gordijn bogolan'], ['rood_oker', 'Gordijn rood-oker']];
+// het balkon van een gevel (zie "balkon" in notities/stad.md): soort en verdieping in een keuze ('nis:1' is de nis op de eerste)
+const MK_BALKONS = [['', 'Geen'], ['nis', 'Nis, bovenste verdieping'], ['nis:1', 'Nis, eerste verdieping'],
+  ['hoekL', 'Hoek links, bovenste'], ['hoekL:1', 'Hoek links, eerste'], ['hoekR', 'Hoek rechts, bovenste'], ['hoekR:1', 'Hoek rechts, eerste']];
+const MK_TAKELS = [['', 'Geen'], ['l', 'Links'], ['r', 'Rechts']];
+const mkBalkonWaarde = o => STAD_BALKON.soorten.includes(o.balkon) ? o.balkon + (o.balkonV === 1 ? ':1' : '') : '';
+// de velden van balkon en takel van een gevel in de Maker naar een spel-gevel (b)
+function mkAccentNaar(o, b){
+  if (STAD_BALKON.soorten.includes(o.balkon)){ b.balkon = o.balkon; if (o.balkonV === 1) b.balkonV = 1; }
+  if (o.takel === 'l' || o.takel === 'r') b.takel = o.takel;
+  return b;
+}
 const MK_GEVEL_TYPES = [['', 'Oud huis'], ['relief', 'Reliefhuis'], ['koopman', 'Koopmanshuis'], ['pilaren', 'Pilarenhuis'],
   ['vervallen', 'Vervallen huis'], ['toren', 'Torenhuis'], ['ruine', 'Ruine met gaten'], ['ruine2', 'Ruine met V'],
   ['winkel', 'Winkelhuis (open)'], ['winkel_dicht', 'Winkelhuis (dicht)']];
@@ -49234,6 +49358,19 @@ function mkVulStad(){
     for (const [v, n] of MK_GEVEL_TYPES){ const op = document.createElement('option'); op.value = v; op.textContent = n; ts.appendChild(op); }
     ts.value = mkGevelSoort(o) || '';
     ts.onchange = () => { o.soort = mkGevelSoort({ soort: ts.value }) || undefined; mkVulStad(); mkBewaar(); mkTeken(); };
+  }
+  // het balkon en de takel (zie "balkon" en "accenten" in notities/stad.md)
+  const blr = document.getElementById('mkbalkonrij'), bs = document.getElementById('mkbalkon');
+  const tkr = document.getElementById('mktakelrij'), tks = document.getElementById('mktakel');
+  blr.style.display = tkr.style.display = o.k === 'gevel' ? '' : 'none';
+  if (o.k === 'gevel'){
+    bs.innerHTML = ''; tks.innerHTML = '';
+    for (const [v, n] of MK_BALKONS){ const op = document.createElement('option'); op.value = v; op.textContent = n; bs.appendChild(op); }
+    for (const [v, n] of MK_TAKELS){ const op = document.createElement('option'); op.value = v; op.textContent = n; tks.appendChild(op); }
+    bs.value = mkBalkonWaarde(o); tks.value = o.takel === 'l' || o.takel === 'r' ? o.takel : '';
+    bs.onchange = () => { const [b, v] = bs.value.split(':'); o.balkon = STAD_BALKON.soorten.includes(b) ? b : undefined; o.balkonV = v ? 1 : undefined;
+      mkVulStad(); mkBewaar(); mkTeken(); };
+    tks.onchange = () => { o.takel = tks.value === 'l' || tks.value === 'r' ? tks.value : undefined; mkVulStad(); mkBewaar(); mkTeken(); };
   }
   // de deur op de straat: de houten deur, of een gordijn (zie "gordijnen" in notities/gordijnen.md)
   const gr = document.getElementById('mkgordijnrij'), gs = document.getElementById('mkgordijn');
@@ -50983,7 +51120,7 @@ function mkNaarJSON(){
              if (o.k === 'huisdeur' && o.gevel) b.gevel = String(o.gevel);                  // het huis waar de deur naar buiten bij hoort
              if (o.k === 'ladder' && o.f) b.f = true;                                        // leunt naar rechts
 
-             if (o.k === 'gevel'){ b.id = o.id; b.hoog = mkGevelHoog(o); if (o.f) b.f = true; if (mkGevelSoort(o)) b.soort = o.soort; if (GORDIJN.namen.includes(o.gordijn)) b.gordijn = o.gordijn; }   // het id blijft: een galerij of trap wijst ernaar
+             if (o.k === 'gevel'){ b.id = o.id; b.hoog = mkGevelHoog(o); if (o.f) b.f = true; if (mkGevelSoort(o)) b.soort = o.soort; if (GORDIJN.namen.includes(o.gordijn)) b.gordijn = o.gordijn; mkAccentNaar(o, b); }   // het id blijft: een galerij of trap wijst ernaar
              if (o.k === 'galerij'){ b.van = o.van; b.tot = o.tot != null ? o.tot : o.van; b.niveau = mkGalNiveau(o); if (o.meer && (o.meer[0] || o.meer[1])) b.meer = [o.meer[0] || 0, o.meer[1] || 0]; }
              if (o.k === 'deur'){ b.gevel = o.gevel; b.verdieping = mkDeurVerd(o); if (o.vijand) b.vijand = o.vijand; if (o.n > 1) b.n = Math.min(MK_POORT_N, o.n); }
              if (o.k === 'trap'){ b.gevel = o.gevel; b.kant = o.kant === 'r' ? 'r' : 'l'; b.niveau = mkTrapNiveau(o); b.balkon = o.balkon != null ? o.balkon : MK_TRAP_BALKON; }
@@ -51049,7 +51186,7 @@ function mkUitJSON(o){
     if (q.k === 'huisdeur' && typeof q.gevel === 'string' && q.gevel) b.gevel = q.gevel.slice(0, 12);
     if (q.k === 'ladder' && q.f) b.f = true;
 
-    if (q.k === 'gevel'){ b.id = typeof q.id === 'string' ? q.id.slice(0, 12) : null; b.hoog = mkGevelHoog(q); if (q.f) b.f = true; if (mkGevelSoort(q)) b.soort = q.soort; if (GORDIJN.namen.includes(q.gordijn)) b.gordijn = q.gordijn; }   // een dubbel of leeg id herstelt mkStadHeel
+    if (q.k === 'gevel'){ b.id = typeof q.id === 'string' ? q.id.slice(0, 12) : null; b.hoog = mkGevelHoog(q); if (q.f) b.f = true; if (mkGevelSoort(q)) b.soort = q.soort; if (GORDIJN.namen.includes(q.gordijn)) b.gordijn = q.gordijn; mkAccentNaar(q, b); }   // een dubbel of leeg id herstelt mkStadHeel
     const meerKlem = v => Math.max(0, Math.min(4, Number(v) || 0));
     if (q.k === 'galerij'){ b.van = String(q.van || ''); b.tot = q.tot != null ? String(q.tot) : b.van; b.niveau = mkGalNiveau(q); if (Array.isArray(q.meer)) b.meer = [meerKlem(q.meer[0]), meerKlem(q.meer[1])]; }   // zonder zijn gevel valt hij weg (mkStadKoppel)
     if (q.k === 'deur'){ b.gevel = String(q.gevel || ''); b.verdieping = mkDeurVerd(q); if (typeof q.vijand === 'string' && q.vijand) b.vijand = q.vijand; if (q.n > 1) b.n = Math.min(MK_POORT_N, Math.round(q.n)); }
@@ -51560,7 +51697,7 @@ function mkNaarLevel(opt){
     const mid = c => { const [l, r2] = lr(c); return Math.round((l + r2) / 2); };
     const gv = MK.objects.filter(o => o.k === 'gevel').sort((a, b) => b.c - a.c);
     stad = { seed: MK.stadSeed || 1,
-             gevels: gv.map((o, i) => { gevelIdx[o.id] = i; const e = { x: Math.round(lr(o.c)[0]), hoog: mkGevelHoog(o) }; if (o.f) e.f = 1; if (mkGevelSoort(o)) e.soort = o.soort; if (GORDIJN.namen.includes(o.gordijn)) e.gordijn = o.gordijn; return e; }),
+             gevels: gv.map((o, i) => { gevelIdx[o.id] = i; const e = { x: Math.round(lr(o.c)[0]), hoog: mkGevelHoog(o) }; if (o.f) e.f = 1; if (mkGevelSoort(o)) e.soort = o.soort; if (GORDIJN.namen.includes(o.gordijn)) e.gordijn = o.gordijn; return mkAccentNaar(o, e); }),
              kramen: MK.objects.filter(o => o.k === 'kraam').map(o => { const e = { x: mid(o.c), soort: o.soort === 'doek' ? 'doek' : 'riet' }; if (o.f) e.f = 1; return e; }),
              voet: MK.objects.filter(o => o.k === 'voet').map(o => { const e = { x: mid(o.c), stuk: mkVoetStuk(o.stuk) }; if (o.f) e.f = 1; return e; }) };
     const pal = MK.objects.find(o => o.k === 'paleis'); if (pal) stad.paleis = mid(pal.c);
@@ -54546,6 +54683,25 @@ function sbBalkons(){
   cv.focus();
 }
 document.getElementById('sbbalkons').onclick = () => sbBalkons();
+// een straat met de accenten aan (zie "accenten" in notities/stad.md): het spel kiest zelf balkons en takels, hooguit een
+// per huis en nooit twee naast elkaar, en op de oude huizen sommige ramen anders. Elke klik een andere seed. De eerste twee
+// huizen hebben een vaste takel (links en rechts), zodat je de mand in de wind ziet; Wind (onder Gordijnen) zet hem harder.
+let sbAccentSeed = 11;
+function sbAccenten(){
+  const x0 = world - 400, hoog = [3, 2, 3, 4, 2, 3, 3, 2, 4, 3, 2, 3], soort = [null, null, 'relief', null, 'vervallen', null, 'koopman', null, null, 'pilaren', null, 'toren'];
+  let x = x0 - 500;
+  const gevels = hoog.map((h, i) => { const g = { x, hoog: h, ...(soort[i] ? { soort: soort[i] } : {}) };
+    x -= i % 3 === 2 ? 1500 : 905; return g; });   // muur tegen muur, en om de drie huizen een steeg
+  gevels[0].takel = 'r'; gevels[1].takel = 'l';
+  level.stad = stadLees({ paleis: x0 - 3000, seed: sbAccentSeed, accenten: true, gevels,
+    kramen: [ {x: x0 - 3300, soort: 'doek'} ], voet: [ {x: x0 - 2000, stuk: 'kruik'} ] });
+  sbAccentSeed += 7;
+  stadSoortLaad(level.stad);
+  sbLagen = 'stad_dag'; lichtMengKey = null; sbLagenToon();
+  flashHint('Accenten: het spel kiest zelf balkons, takels en andere ramen (elke klik een andere straat)');
+  cv.focus();
+}
+document.getElementById('sbaccenten').onclick = () => sbAccenten();
 // een dichte straat: de huizen muur tegen muur, alle types door elkaar. De breedte van een huis schaalt mee met het
 // scherm, dus de stap rekent met de schaal van nu (net als het tekenen); na een andere schermmaat opnieuw neerzetten.
 function sbDichteStraat(){
