@@ -32,9 +32,18 @@ treffer, een val of een sprong breekt hem af. Lui geladen (`stofLaad`, `stofLaad
 aanzetten van de sandbox-knop); zonder frames gaat X niet af.
 
 Het geluid `sounds/stofveeg.mp3` (ElevenLabs, 1 s: het schrapen piekt van 0,15 tot 0,45 s) gaat af als de punt de grond
-raakt (frame 1, `STOFA.geluid`), via `banStemmen`/`banStemSpeel`, zodat het ook op een telefoon klinkt.
+raakt (frame 1, `STOFA.geluid`), via `banStemmen`/`banStemSpeel`, zodat het ook op een telefoon klinkt. De opname was te
+zacht (gemiddeld -25 dB); hij is 18 dB opgehaald met een limiter (ffmpeg `volume=18dB,alimiter=limit=0.97`), nu
+gemiddeld -13,5 dB, zo hard als de zwaardslag van de bandiet, en speelt op vol 1. De zachte versie zit in de git-geschiedenis.
 
-Op `STOF.werpFrame` (9, de punt laat de grond los) vliegt het stof (`puffWorld` op `STOFA.wolk`, voor Amir uit). De veeg
+De stofwolken (`STOF_FX`): tijdens het schrapen (frame 1 tot 8, `stofSchraap`) komt aan de speerpunt een sliert stof en
+korrels op, steeds meer naarmate hij naar voren komt; waar de punt per frame staat zegt `STOFA.punt` (canvas-x op de
+grondlijn). Op `STOF.werpFrame` (9, de punt laat de grond los) gooit `stofWerp` drie dingen: een waaier zand
+(`stofStraal`, korrels als streepjes in een boog naar gezichtshoogte, eigen stap en tekenlaag `stofStraalStap`,
+`stofStraalTeken`; geland verdwijnen ze), een pluim wolken over de hele baan tot `STOF.bereik` die oploopt van de grond
+naar gezichtshoogte en blijft hangen (`stofWolk`, de zweef van de baviaan, met een zandkleurige kern onder het plaatje:
+`kleur` in `wdust`), en een dikke wolk aan de punt, met een tikje schok. Wie geraakt wordt krijgt een wolk om zijn hoofd en
+zand dat van hem af valt (`stofRaak`). In de sneeuw (`stofSneeuw`) is het allemaal wit. De veeg
 zelf raakt niets, alleen `stofWerp` verblindt. Een bandiet voor Amir, binnen `STOF.bereik`, op zijn niveau
 (`banZelfdeHoogte`) en met zijn gezicht naar Amir krijgt `s.verblind = STOF.duur`: hij wankelt eerst weg van Amir en dwaalt
 dan heen en weer in de patrouillegang (`walk`) rond die plek, valt niet aan en werpt niet (`updateBandiet` keert vroeg

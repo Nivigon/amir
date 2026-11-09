@@ -3042,8 +3042,23 @@ const STOFA = {
   ticks: [6, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 10],  // 1/24 s: de tell (0,25 s), de veeg (0,46 s), uithouden
   geluid: 1,                       // de punt raakt de grond: het schrapen begint (sounds/stofveeg.mp3 piekt van 0,15 tot 0,45 s)
   wolk: [230, 310],                // canvas-px voor het lijfmidden uit: daar komt het stof van de grond op het werpframe
-  snd: { src: 'sounds/stofveeg.mp3', vol: 0.85 }
+  snd: { src: 'sounds/stofveeg.mp3', vol: 1 },  // de opname is 18 dB opgehaald (met een limiter), dus vol 1 is flink hard
+  // waar de speerpunt per frame over de grond gaat (canvas-x, op de grondlijn); null: hij is los van de grond
+  punt: [null, 535, 300, 196, 118, 106, 102, 80, 44]
 };
+// De stofwolken van de veeg (stofSchraap, stofWerp, stofRaak). Schraap: per frame aan de punt een sliert stof en
+// korrels die hij voor zich uit schuift, steeds meer. Worp: een waaier zand (stofStraal, korrels als streepjes die in
+// een boog naar gezichtshoogte vliegen en neerdwarrelen), een wolk die over de hele baan opbolt en blijft hangen,
+// en een dikke wolk aan de punt. Raak: een wolk om zijn hoofd. Hoogtes in sprite-eenheden (CHAR_H), x in wereld-px.
+const STOF_FX = {
+  schraap: { wolk: [0, 1, 2, 2, 3, 3, 4, 5], korrel: [0, 6, 8, 10, 12, 14, 16, 20], r: 1.6 },
+  straal: { n: 170, vx: [380, 1100], vh: [300, 800], zwaar: 760, rem: 1.6, leven: [0.6, 1.25] },
+  sluier: { n: 30, r: 3.0, leven: [1.3, 2.2], a: 0.85 },
+  punt: { wolk: 16, r: 3.2 },
+  raak: { wolk: 12, r: 2.2, korrel: 26 },
+  schok: 0.1           // een klein tikje van het scherm als het zand loskomt
+};
+const stofStraal = [];
 let stofA = null;                  // {f, acc, kant, geworpen}: de stofveeg loopt
 let stofBank = null, stofSnd = null;
 function stofLaad(){
@@ -3072,6 +3087,7 @@ function stofStap(dt){                          // elk beeld: de frames, het gel
     stofA.acc -= STOFA.ticks[stofA.f];
     stofA.f++;
     if (stofA.f === STOFA.geluid && stofSnd) banStemSpeel(stofSnd, STOFA.snd.vol);
+    if (stofA.f < STOF.werpFrame) stofSchraap(stofA.f);
     if (stofA.f >= STOF.werpFrame && !stofA.geworpen) stofWerp();
     if (stofA.f >= STOFA.ticks.length) stofEind();
   }
@@ -3082,11 +3098,57 @@ function stofEind(){                           // hij staat waar zijn lijf aan h
   stofA = null;
   atkCooldown = Math.max(atkCooldown, 0.15);
 }
+const stofRnd = (a, b) => a + Math.random() * (b - a);
+function stofSneeuw(wx){ return winterOn() || sneeuwAt(wx) >= BAV_STOF.sneeuwVanaf; }
+// een wolk die opbolt en blijft hangen (de zweef van de baviaan): op wx, h boven de vloer base
+function stofWolk(wx, h, base, vx, r, leven, a){
+  const kleur = stofSneeuw(wx) ? 'rgba(236,242,250,' : (Math.random() < 0.5 ? 'rgba(206,160,104,' : 'rgba(184,138,88,');
+  wdust.push({ wx, y: -h, base, vx, vy: -10 - Math.random() * 30, r, a, zweef: 14 + Math.random() * 14,
+               life: leven, age: 0, rot: Math.random() * 6.28, kleur });
+}
+function stofKorrel(wx, base, vx, vh){
+  grains.push({ wx, base, h: 0, vx, vh, r: 1.1 + Math.random() * 1.6, age: 0, life: 0.35 + Math.random() * 0.35,
+                dark: Math.random() < 0.4 });
+}
+function stofPuntX(f){ const c = STOFA.punt[f]; return c == null ? null : world + stofA.kant * stofPx(STOFA.ANKER - c); }
+function stofSchraap(f){                       // de punt schuift over de grond: een sliert stof en korrels voor zich uit
+  const wx = stofPuntX(f), S = STOF_FX.schraap;
+  if (wx == null || inGap(wx)) return;
+  const dir = stofA.kant;
+  for (let i = 0; i < (S.wolk[f] || 0); i++)
+    stofWolk(wx + (Math.random() - 0.5) * 30, Math.random() * 12, ph, dir * stofRnd(60, 200), (10 + Math.random() * 8) * S.r,
+             stofRnd(0.6, 1.0), 0.6);
+  for (let i = 0; i < (S.korrel[f] || 0); i++) stofKorrel(wx, ph, dir * stofRnd(80, 320), stofRnd(40, 200));
+}
 function stofWerp(){
   stofA.geworpen = true;
-  const dir = stofA.kant;
-  puffWorld(world + dir * stofPx(STOFA.wolk[0]), STOF.wolk, dir * 420, 1.2, ph);
-  puffWorld(world + dir * stofPx(STOFA.wolk[1]), Math.round(STOF.wolk / 2), dir * 300, 0.9, ph);
+  const dir = stofA.kant, F = STOF_FX;
+  const px = world + dir * stofPx(STOFA.ANKER - STOFA.punt[STOFA.punt.length - 1]);   // de punt laat hier de grond los
+  const sneeuw = stofSneeuw(px);
+  // de waaier: zand dat in een boog naar gezichtshoogte vliegt
+  for (let i = 0; i < F.straal.n; i++){
+    const t = Math.random();
+    stofStraal.push({ wx: px + (Math.random() - 0.5) * 40, base: ph, h: Math.random() * 10,
+                      vx: dir * (F.straal.vx[0] + t * (F.straal.vx[1] - F.straal.vx[0])),
+                      vh: stofRnd(F.straal.vh[0], F.straal.vh[1]) * (0.7 + 0.3 * (1 - t)),
+                      r: 1 + Math.random() * 1.8, age: 0, life: stofRnd(F.straal.leven[0], F.straal.leven[1]),
+                      tint: Math.random(), sneeuw });
+  }
+  // de sluier: wolken over de hele baan, laag bij Amir en op gezichtshoogte verderop
+  for (let i = 0; i < F.sluier.n; i++){
+    const t = (i + Math.random()) / F.sluier.n, ver = t * STOF.bereik * 0.9;
+    const top = CHAR_H * (0.1 + 0.75 * Math.sqrt(t));   // de pluim loopt op van de grond naar gezichtshoogte
+    stofWolk(px + dir * ver, top * (0.3 + 0.7 * Math.random()), ph, dir * stofRnd(140, 380) * (1 - t * 0.5),
+             (12 + Math.random() * 10) * F.sluier.r * (0.65 + t * 0.6), stofRnd(F.sluier.leven[0], F.sluier.leven[1]), F.sluier.a);
+  }
+  // de dikke wolk aan de punt, en de oude stofwolkjes
+  for (let i = 0; i < F.punt.wolk; i++)
+    stofWolk(px + (Math.random() - 0.5) * 70, Math.random() * CHAR_H * 0.25, ph, dir * stofRnd(40, 260), (12 + Math.random() * 10) * F.punt.r,
+             stofRnd(0.9, 1.5), 0.85);
+  for (let i = 0; i < 24; i++) stofKorrel(px, ph, dir * stofRnd(120, 420), stofRnd(80, 300));
+  if (sneeuw) snowBurst(px, ph, 0.9);
+  puffWorld(px, STOF.wolk, dir * 420, 1.2, ph);
+  shake = Math.max(shake, F.schok);
   for (const s of bandieten){
     if (s.state === 'dood' || s.state === 'weg' || s.state === 'vault' || s.dropping || s.air > 0 || s.introKind) continue;
     const dx = s.x - world;
@@ -3102,7 +3164,40 @@ function stofRaak(s){
   s.face = s.x >= playerX() ? 1 : -1;          // eerst wankelt hij achteruit, weg van Amir
   s.vbThuis = s.x + s.face * STOF.dwaalBreed * 0.6;
   banSet(s, 'walk');
-  puffWorld(s.x, 8, 0, 0.8, (s.base || 0) + CHAR_H * 0.75);
+  const F = STOF_FX.raak, base = s.base || 0;   // een wolk om zijn hoofd, en zand dat van hem af valt
+  for (let i = 0; i < F.wolk; i++)
+    stofWolk(s.x + (Math.random() - 0.5) * 70, CHAR_H * stofRnd(0.6, 0.95), base, -s.face * stofRnd(20, 120),
+             (10 + Math.random() * 10) * F.r, stofRnd(1.0, 1.8), 0.75);
+  for (let i = 0; i < F.korrel; i++)
+    grains.push({ wx: s.x + (Math.random() - 0.5) * 60, base, h: CHAR_H * stofRnd(0.6, 0.9), vx: (Math.random() - 0.5) * 160,
+                  vh: stofRnd(-40, 120), r: 1.1 + Math.random() * 1.5, age: 0, life: 0.6 + Math.random() * 0.4, dark: Math.random() < 0.4 });
+  puffWorld(s.x, 8, 0, 0.8, base + CHAR_H * 0.75);
+}
+function stofStraalStap(dt){                    // de korrels van de waaier: remmen af, vallen, en liggen dan stil
+  const S = STOF_FX.straal;
+  for (let i = stofStraal.length - 1; i >= 0; i--){
+    const d = stofStraal[i];
+    d.age += dt;
+    if (d.age >= d.life){ stofStraal.splice(i, 1); continue; }
+    d.wx += d.vx * dt; d.h += d.vh * dt;
+    d.vx *= Math.exp(-S.rem * dt); d.vh -= S.zwaar * dt; d.vh *= Math.exp(-0.8 * dt);
+    if (d.h < 0){ d.h = 0; d.vh = 0; d.vx = 0; d.life = Math.min(d.life, d.age + 0.12); }   // geland: weg in de grond
+  }
+}
+function stofStraalTeken(groundY, scale, cx){  // streepjes langs hun baan, zandkleurig (of sneeuw)
+  if (!stofStraal.length) return;
+  ctx.save();
+  ctx.lineCap = 'round';
+  for (const d of stofStraal){
+    const k = 1 - d.age / d.life;
+    const x = cx + (d.wx - world), y = groundY - (d.base + d.h) * scale;
+    const v = Math.hypot(d.vx, d.vh * scale) || 1, l = Math.max(2, Math.min(22, v * 0.02)) * (0.6 + scale * 0.6);
+    ctx.globalAlpha = Math.min(1, k * 2.2) * 0.85;
+    ctx.strokeStyle = d.sneeuw ? (d.tint < 0.4 ? '#c8d2e0' : '#f4f7fb') : (d.tint < 0.4 ? '#7a5430' : d.tint < 0.8 ? '#b88a55' : '#dcb47c');
+    ctx.lineWidth = Math.max(1, d.r * scale * 1.3);
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - d.vx / v * l, y + d.vh * scale / v * l); ctx.stroke();
+  }
+  ctx.restore();
 }
 function stofDwaal(s, dt, plats, cliff){       // blind: heen en weer rond de plek waar het stof hem raakte
   s.verblind -= dt;
@@ -30896,6 +30991,7 @@ function makeScorp(x, side){
 // en de creatures.
 function updateWereldStof(dt){
   updateGrains(dt);
+  stofStraalStap(dt);
   for (let i = wdust.length - 1; i >= 0; i--){
     const d = wdust[i];
     d.age += dt;
@@ -42248,6 +42344,12 @@ function loop(now){
         if (d.zweef) k = Math.min(1, d.age / 0.06) * Math.sqrt(k);   // zacht erin, en hij blijft langer dicht
         const px = cx + (d.wx - world), py = groundY + d.y * scale - (d.base || 0) * scale;
         const pimg = puffPic();
+        if (d.kleur){                                  // de stofveeg: een zachte zandkleurige kern onder het plaatje
+          const g = ctx.createRadialGradient(px, py, 0, px, py, rr * 1.15);
+          g.addColorStop(0, d.kleur + (0.5 * d.a * k).toFixed(3) + ')'); g.addColorStop(0.55, d.kleur + (0.28 * d.a * k).toFixed(3) + ')');
+          g.addColorStop(1, d.kleur + '0)');
+          ctx.globalAlpha = 1; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px, py, rr * 1.15, 0, Math.PI * 2); ctx.fill();
+        }
         if (imgReady(pimg)){
           ctx.globalAlpha = (d.a || 0.55) * k;          // d.a: een dichtere wolk (de baviaan)
           const pw = rr * 2.6, phh = pw * pimg.naturalHeight / pimg.naturalWidth;
@@ -43332,6 +43434,7 @@ function loop(now){
     drawChips(groundY, scale, cx);
     banVonkenTeken(groundY, scale, cx, dt);          // de parry-vonken: staal op staal
     drawGrains(groundY, scale, cx);
+    stofStraalTeken(groundY, scale, cx);
     drawVenom(groundY, scale);
     drawVillageFg(groundY, scale, cx, pWorld, dt);   // dorpsdecor dat vóór Amir langs staat
     drawWind(groundY, scale, cx);              // stof waait vóór alles langs
