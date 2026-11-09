@@ -2,7 +2,7 @@
 
 Een beoordeling van de basiskit van Amir (wat hij kan zonder tribe), met per onderdeel een cijfer
 en de taken om het naar ongeveer een 9 te krijgen. Gemaakt op 9 november 2026, met stof in de ogen
-(X, `STOF`) gerekend als vast onderdeel van de basis. Ideeën die nog los rondzweven staan in
+(`STOF`) gerekend als vast onderdeel van de basis. Ideeën die nog los rondzweven staan in
 `notities/kit-ideeen.md`.
 
 ## Zo werken we (lees dit eerst)
@@ -40,8 +40,8 @@ of baas zonder toestemming, aansluiten op wat er is). Een taak per keer, liefst 
 | Groepsgevecht en controle | 6,5 (zonder stof 5) | 9 |
 | Sneak | 6,5 | 9 |
 | Gevoel en feedback | 7 | 9 |
-| Leerbaarheid | 5,5 | 9 |
-| **gemiddeld** | **6,6** | **9** |
+| Leerbaarheid | 7 (met L1) | 9 |
+| **gemiddeld** | **6,9** | **9** |
 
 ## Taken
 
@@ -93,10 +93,13 @@ of baas zonder toestemming, aansluiten op wat er is). Een taak per keer, liefst 
 
 ### Leerbaarheid (L)
 
-- [ ] **L1** Stof op de knop van de lage zwaai: tikken is zwaaien, vasthouden is stof. Scheelt een knop. **+1,5**
+- [x] **L1** Stof op de knop van de lage zwaai: tikken is zwaaien, vasthouden is stof. Scheelt een knop. **+1,5**
+  *Gebouwd:* overal, ook in de bestaande levels en bij Mkuki: gebukt F tikken is de lage zwaai, vasthouden (`STOF.houdT`,
+  0,22 s; `zwaaiHoud`, `zwaaiNu`) is stof. X en de telefoonknop voor stof zijn weg. Kan stof niet, dan gaat de zwaai meteen
+  af. Uitgeprobeerd in Test 66, Nacht in de stad (Nivigon/amir#675), standaard gemaakt in de pull request daarna.
 - [ ] **L2** Een oefenkamer per vaardigheid met een kleine uitdaging (nieuw testlevel: eerst toestemming, regel 3). **+1**
 - [ ] **L3** Een icoontje boven een vijand zolang een treffer dubbel telt. **+1**
 
 ## Grootste winst eerst
 
-G1, L1 en M2. Voor de worp: W4.
+G1 en M2. Voor de worp: W4.

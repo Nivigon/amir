@@ -41,8 +41,10 @@ verschillen van het gif. Nog niets gebouwd.
 ## Nu aan de beurt: stof in de ogen
 
 **Gebouwd, met de eigen animatie.** `STOF`, `STOFA`, `stofStart`, `stofStap`, `stofWerp`, `stofEind`, `stofRaak`,
-`stofDwaal`, `stofTeken`. Onder Speer en spullen de knop **Stof (X)**; staat hij aan, of heeft het level `stof: true`
-(Test 63; `restart` zet `STOF.aan` uit het level), dan doet X de stofveeg.
+`stofDwaal`, `stofTeken`. Onder Speer en spullen de knop **Stof**; staat hij aan, of heeft het level `stof: true`
+(Test 63; `restart` zet `STOF.aan` uit het level), dan doet gebukt F vasthouden de stofveeg (L1 uit
+`notities/kit-verbeteren.md`): gebukt F tikken blijft de lage zwaai, vasthouden (`STOF.houdT`, 0,22 s, `zwaaiHoud`) is stof.
+Kan stof niet (afkoeling, geen speer), dan gaat de zwaai meteen bij het indrukken af. Vroeger was het X; die toets is weg.
 
 De animatie staat in `karakters/amir/aanval/stofsweep/` (14 frames, `metadata.json`, ook in `klein/`): Amir staat
 zijwaarts met de speerpunt achter zich op de grond (frame 0, 6 ticks: de tell), schraapt de punt over de grond naar voren,
@@ -78,8 +80,8 @@ Testlevel: **Test 63: Stof in de ogen**, drie gewone bandieten na elkaar met hun
 
 **Bij Mkuki, en voor elke vijand uit De Gouden Poort.** De stofveeg hoort bij de tribe Mkuki zelf (geen talent):
 `stofveeg: true` in zijn blok in `TRIBE_CONFIG`, en `stofVanTribe` zet `STOF.aan` in elk level (in `restart`, en meteen
-bij `tribeVastleggen`). In de Test levels zonder tribe heb je alles, dus ook dit. Op de telefoon is er een stofknop
-(`stof` in `TOUCH_BTNS`, `drawBtnStof`) en de uitleg van de toetsen bij het begin noemt X (`HINT_START`).
+bij `tribeVastleggen`). In de Test levels zonder tribe heb je alles, dus ook dit. Op de telefoon is er geen eigen stofknop
+meer: de joystick omlaag en de aanvalsknop vasthouden. De uitleg van de toetsen bij het begin noemt het (`HINT_START`).
 
 Afkoeling: `STOF.koel` (8 s), vanaf het stof (`stofKoel`, `stofGereed`). Blind is 4 s met een dubbele treffer erna, dus
 ongeveer een keer per gevecht. In de HUD een tegel naast de lage zwaai (`#stofhud`, `stofHud`) met de taartpunt die

@@ -51,9 +51,18 @@ speer er nooit uit), en knipte een druk op het loslaten de nazwaai weg.
 De perfecte tweede: druk F tussen `DUBBEL.perfVan` en `perfTot` (0,06 tot 0,24 s) na het loslaten van de eerste (of van
 de rol-worp), dan licht Amir op met de ster van de rol-worp (`dubbelGlansTeken`, `glansSter`). Een druk tijdens de eerste
 worp telt niet als perfect (anders was rammen genoeg). De perfecte (`thr.perfect`, `jav.perfect`) krijgt het gouden spoor,
-een stop van 0,05 s, een camerastoot (`rolStoot`) en even vertraagd beeld: de wereld begint op `traag` (0,3) en is in
-`traagDuur` (0,4 echte seconden) weer op gang (`dubbelTraagT`, `dubbelTraagNu`, in de lus naast `zwmTraagNu`). Het
-vertraagde beeld zit bewust alleen op de perfecte: elke keer zou snel gaan vervelen. Second Spear geeft het
+een stop van 0,05 s, een camerastoot (`rolStoot`) en even vertraagd beeld: de wereld begint op `traag` (0,22) en is in
+`traagDuur` (0,55 echte seconden) weer op gang (`dubbelTraagT`, `dubbelTraagNu`, in de lus naast `zwmTraagNu`). Het
+vertraagde beeld zit bewust alleen op de perfecte: elke keer zou snel gaan vervelen.
+
+De tweede speer raakt door de onkwetsbaarheid heen. Een vijand is na een treffer even onkwetsbaar (`s.inv`, bij de bandiet
+1,15 s), en de tweede komt zo'n 0,55 s na de eerste aan: hij viel dan zonder schade op de grond, of werd niet eens getest.
+Een speer met `jav.dubbel` zet bij een gewone vijand `s.inv` op 0 (`dubbelDoor`, via `javRaakt(box, s)`), en waar een
+vijand tijdens zijn onkwetsbaarheid de speertest oversloeg (bandiet, meelman, kruisboogbandiet, schildbandiet, zweepman,
+en bij de hyena de test vooraf) test hij nu toch de tweede (`dubbelVliegt`). De bandiet pareert hem niet. Uitgezonderd: de
+bazen (panter, baviaan, Nyundo) en de kooiman (alleen te raken als zijn kooi open is). En de eerste `DUBBEL.dichtT`
+(0,08 s) raakt de tweede ook wat tussen Amir en de punt staat (`javVak`): een bandiet stormt na de eerste treffer meteen
+terug en stond dan al voor de punt. Second Spear geeft het
 na een gewone worp, Tumbling Spear na de rol-worp (een verbetering: in de rij komt hij na Second Spear). Een per worp; de
 tweede heeft geen derde.
 
