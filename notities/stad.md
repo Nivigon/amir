@@ -290,7 +290,8 @@ ziet de straat eruit zoals altijd: de bestaande stadslevels veranderen niet.
 
 Treden zijn om op te springen, niet om op te lopen: een derde Amir (85) is een goede maat, en Amir heeft geen opstap voor
 kleine hoogtes. Stad 8 (De hoge wijk) is het proefstuk: drie treden van 85 omhoog naar een wijk op 255 met twee huizen, en
-twee treden weer omlaag. In de sandbox onder De stad **Hoge wijk met trap** (`sbtrap`, met `sbTrap` op de terrassen): drie
+twee treden weer omlaag. Daarna een tweede stuk met minder maar hogere treden: twee van 170 (twee derde Amir; de sprong
+haalt zo'n 200, op een traag toestel 184) naar een wijk op 340 met een huis, een kraam en een bandiet, en een keer 170 omlaag. In de sandbox onder De stad **Hoge wijk met trap** (`sbtrap`, met `sbTrap` op de terrassen): drie
 treden, een stuk wijk en twee treden omlaag voor je uit, en staat de stad er, dan ook de onderlaag onder de straat.
 
 Hoort bij de stadsverbetering verticaliteit (H) in `notities/stad-verbeteren.md`.
