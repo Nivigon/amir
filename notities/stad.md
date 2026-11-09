@@ -443,8 +443,11 @@ Een veld `straten` met `raster: true` (zie ook `notities/oaktown.md`): elke stra
 (`straatKlem`, `straatCamKlem`, `straatVijandKlem`, het aanvullen, de spawns per straat), met knooppunten: een poort de
 diepte in en een pad naar voren. Rechtdoor is gewoon de straat die doorloopt. Zo werken alle straten: Sandville, Oaktown
 (sinds 08-11-2026) en elk nieuw level met straten. De oude hoekpoort (`poort_hoek`) gaat eruit; sinds De Kroonwijk is
-omgezet (09-11-2026) gebruikt geen level hem nog. Twee straten in elkaars verlengde op dezelfde knoop (zoals in Oaktown) hebben geen
-uitgang tussen elkaar: je gaat via de straat die er dwars op ligt.
+omgezet (09-11-2026) gebruikt geen level hem nog. Twee straten in elkaars verlengde op dezelfde knoop (zoals in Oaktown en De
+Kroonwijk) blijven aparte straten, maar hebben een **doorgang**: aan dat uiteinde staat geen leemmuur, en wie tegen de rand
+van de straat aan loopt staat na de wissel aan de rand van de volgende straat (`straatUitgangen` geeft een uitgang met
+`soort: 'door'` en `kant` -1 of 1, `straatDoorDruk` vanuit `straatKlem`, de maten in `STRATEN.door`). Er staat een bordje
+met een pijl naar de rand. Niet in een gevecht, net als de poort en het pad. Laat aan zo'n uiteinde de leemmuur weg in het level.
 
 **Alleen rechte straten.** Een straat is een rij of een kolom op de kaart: al zijn knopen liggen op dezelfde y (een rij)
 of dezelfde x (een kolom). Schuine straten, zoals de punten van de oude Kroonwijk, komen er niet meer bij; een raster kent
