@@ -38,12 +38,25 @@ hoogtes vast in sprite-eenheden.
 
 `STAD.gevelSoort`, `stadGevelG`, `stadGevelDelen`, `stadSoortLaad`, `tools/gevel_soorten.py`
 
-Naast `gevel.png` zijn er drie andere huizen, elk met een eigen plaat in `design/stad/`. Je kiest het type met `soort`
+Naast `gevel.png` zijn er negen andere huizen, elk met een eigen plaat in `design/stad/`. Je kiest het type met `soort`
 in een gevel: `gevels: [{x, hoog, f, soort}]`. Zonder `soort` blijft het de oude gevel, dus geen bestaand level verandert.
 
 - `relief`: het reliefhuis, licht zand met rode en blauwe versiering rond de deur en de ramen (Hausa-stijl).
 - `koopman`: het koopmanshuis, warm rossig zand met een houten erker op de eerste verdieping.
 - `pilaren`: het pilarenhuis, donkerder leem met staande pilaren met punten erop en bundels stokken (Djenne-stijl).
+- `vervallen`: het vervallen huis, kale baksteen, dichtgemetselde ramen, een hangend luik, een afgebrokkelde dakhoek. Nog
+  bewoonbaar: het dak is beloopbaar.
+- `toren`: het torenhuis, een ronde toren aan de rechterkant die een halve verdieping boven het dak uitsteekt. Het dak is
+  beloopbaar, de toren is decor (wie op het dak staat, staat ervoor).
+- `ruine` en `ruine2`: twee ruines, de ene met gaten in de bovenste verdiepingen, de andere met een V in het midden en een
+  balk over het gat. Door de gaten zie je de lucht (`gaten` in het script: elk wit vlak in de muur wordt doorzichtig).
+  Een ruine heeft **geen beloopbaar dak** (`ruine: true`, `stadGeenDak`): geen vloer in `stadPlats`, `stadVloeren` en
+  `mkStadVloeren`, en geen kartels. Zet er dus geen galerij, trap, ton of vijand op het dak.
+  In het deurgat staat geen houten deur en geen gordijn: het is leeg en donker.
+- `winkel` en `winkel_dicht`: het winkelhuis, een brede lage opening met een luik op een stok, een rieten matje erboven en
+  een leembank als toonbank; open of met het luik dicht. De twee platen liggen precies over elkaar. De winkel staat **op de
+  plek van de deur**, want naast de deur paste hij niet in de breedte van een huis (`geenDeur: true`, `stadGeenDeur`): geen
+  houten deur, geen gordijn, geen binnenkant en geen vijand uit de deur (`stadDeurMaat` geeft null).
 
 De muren blijven zandkleurig, elk met een eigen tint (`zand` in `tools/gevel_soorten.py`, ten opzichte van `gevel.png`).
 Grok gaf wit, roze en chocoladebruin: dat werd een kleurenfestival. De kleur in de straat hoort van doeken, was en
@@ -57,6 +70,10 @@ precies dezelfde hoogte als bij een oud huis, en kun je de types vrij door elkaa
 - **Twee soorten verdieping.** Elke plaat heeft naast `ver` ook `alt`: de bovenste verdieping uit de Grok-plaat. De eerste
   verdieping is `ver` (de erker, de stokbundels), alles erboven `alt` (`stadGevelDelen`). Een koopmanshuis van vier hoog
   heeft dus een erker en daarboven twee gewone ramen.
+- **De ruine andersom.** Bij een ruine is het dak de hele ingestorte verdieping (600 bronpx hoog). Daaronder eerst `ver`, de
+  verdieping met de gaten, en pas daaronder `alt`: de dichte verdieping van het vervallen huis, die het script onderaan de
+  plaat van de ruine plakt. Zo staan er bij drie of vier hoog nooit twee keer dezelfde gaten boven elkaar, en wordt de
+  ruine naar beneden toe heler. Een ruine van een hoog is de ingestorte verdieping op de begane grond.
 - **De deur.** Voorlopig krijgt een huistype dezelfde houten deur als een oud huis, dicht of (soms) open, geschaald op
   zijn eigen deurgat (`deur` in `STAD.gevelSoort`, het gat ten opzichte van dat van `gevel.png`; ook `stadDeurMaat`
   rekent ermee). De latei van `gevel.png` komt er niet overheen, want elk type heeft zijn eigen kozijn.
@@ -66,14 +83,18 @@ precies dezelfde hoogte als bij een oud huis, en kun je de types vrij door elkaa
   wit weg, een strook kale muur eruit (links een smalle zodat de deur op x 473 valt, rechts een brede), en elke band op zijn
   maat. Het print de maten voor `STAD.gevelSoort` en zet ze in `metadata.json` (`gevel_soorten`). Daarna `gen-klein.py` en
   `gen-offline-manifest.py`.
-- **Sandbox.** Onder Terrein, bij De stad, de knop **Huistypes**: een straat met de oude gevel en de drie types door elkaar,
+- **Sandbox.** Onder Terrein, bij De stad, de knop **Nieuwe huizen**: het vervallen huis, het torenhuis, de twee ruines en het
+  winkelhuis (open en dicht), elk in meer hoogtes, ook een verdieping, met een oud huis als maat. De knop **Huistypes**: een
+  straat met de oude gevel en de drie eerste types door elkaar,
   in elke hoogte, met een galerij over een oud huis en een reliefhuis. Daarnaast **Dichte straat**: tien huizen muur
   tegen muur (10 bronpx over elkaar, de randen zijn niet kaarsrecht). De breedte van een huis schaalt mee met het scherm,
   dus de knop rekent met de schaal van dat moment.
 - **In de Maker.** Een gevel heeft in het paneel naast Hoogte de keuze **Type** (`MK_GEVEL_TYPES`, `mkGevelSoort`): Oud
-  huis, Reliefhuis, Koopmanshuis of Pilarenhuis. Het grid tekent het gekozen type, en `mkNaarLevel` zet `soort` in de gevel.
+  huis, Reliefhuis, Koopmanshuis, Pilarenhuis, Vervallen huis, Torenhuis, Ruine met gaten, Ruine met V, of het Winkelhuis
+  open of dicht. Het grid tekent het gekozen type, en `mkNaarLevel` zet `soort` in de gevel.
 - **Een type erbij.** Een Grok-plaat in `design/stad/bron/`, een regel in `SOORTEN` van `tools/gevel_soorten.py` (de maten
-  nameten op een raster), het script draaien, de uitvoer in `STAD.gevelSoort` en een regel in `MK_GEVEL_TYPES`, `KLEIN_FAM`
+  nameten op een raster; staat de deur links van het midden, dan plakt een negatieve knip kale muur bij in plaats van eruit
+  te halen, en `schaal` maakt een plaat met te lage verdiepingen eerst groter), het script draaien, de uitvoer in `STAD.gevelSoort` en een regel in `MK_GEVEL_TYPES`, `KLEIN_FAM`
   en de lijst van `gen-klein.py`.
 - Nog niet: de verre rijen achter de straat (`STAD.rijen`) blijven de oude gevel.
 
