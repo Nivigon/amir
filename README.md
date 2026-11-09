@@ -734,7 +734,11 @@ geen E, Steek-kill en Worp-kill, en **Test 50: De executie** is een vlak level m
 schildbandiet waar elke kill de executie is (R begint opnieuw), en na elke dode schildbandiet komt er
 vanzelf een nieuwe aanwandelen. Bij de ruk neemt de speerpunt het bloed mee: een rode boog die de baan
 van de punt volgt, van de wond tot boven Amirs hoofd, met druppels die eraf schieten en op de grond blijven
-liggen.
+liggen. En wat er in die backswing staat, krijgt de speer mee: een ton (ook een stapel) tussen de schildbandiet en
+waar Amir landt gaat in een keer uit elkaar, de stukken hangen stil in het beeld en vliegen weg als de wereld weer
+loopt, en een vijand daar krijgt een treffer (een slang of schorpioen is dood, een mens verliest een leven). In
+Test 50 staan daarvoor tonnen en twee zandslangen langs de weg; in de sandbox zet **Bonus** onder Schildbandiet
+het aan en uit.
 
 De schildbandiet is de uitzondering: zijn schild vangt de klappen op, hij zelf niet. Boven zijn
 groene balk staat daarom een houten schildbalk met drie vakjes. Elke klap op het schild kost een

@@ -1397,6 +1397,7 @@
         <button id="sbschdood">Dood</button>
         <button id="sbschexe">Executie: kans</button>
         <button id="sbschgeene">Wankel: E aan</button>
+        <button id="sbschexebonus">Bonus: aan</button>
         <button id="sbschexesteek">Steek-kill</button>
         <button id="sbschexeworp">Worp-kill</button>
         <span class="hint">loopt met zijn houten schild op je af en valt aan met een sprong: hij zakt door zijn knieen (tell), springt naar waar je stond (dan is hij onstuitbaar en onaantastbaar) en landt met zijn speer. Stap weg om de sprong te ontwijken. Zijn schild vangt drie treffers op (witte flits, houtklap, houtsnippers); daarna is hij in een klap dood: hij zakt op zijn knieen, valt voorover en blijft liggen, met de doodskreet van de bandiet. Dood je hem met een worp, dan zit je speer in zijn borst en ligt hij na de val naast hem op de grond (Dood hoog); na een steek of de lage zwaai houd je hem in de hand (Dood laag). Dood laat elke schildbandiet meteen zo sterven (Dood laag). Komt hij bij een kei met jou aan de overkant, dan springt hij er met dezelfde sprong overheen (een ravijn houdt hem wel tegen). Je ziet het schild bij elke treffer verder kapot gaan: een hap eruit, twee happen, en na de derde is het weg en loopt, slaat en flincht hij zonder schild. Hij wordt getekend uit lagen (lagen.json): het schild is een los plaatje op het lijf, en de hap eruit is een wissel van alleen dat plaatje. De executie: een steek-kill (1 op 5) of een worp-kill (1 op 3) wordt soms de special execution uit executie.json: hij knielt, en bij de steek volgt meteen de executie (alles staat stil, Amir rukt de speer eruit en splijt hem); bij de worp wankelt hij drie seconden, loop naar hem toe en druk E, anders valt hij en ligt je speer naast hem. Executie: altijd maakt elke steek- en worp-kill een executie, Wankel: geen E laat hem vallen zonder E (de E komt niet), Steek-kill en Worp-kill doden de eerste levende schildbandiet meteen zo (bij de worp zit je speer in hem)</span>
@@ -5206,13 +5207,17 @@ const TEST_50 = {
   speerInHand: true,
   executie: true,
   herhaal: true,
-  spawns: [ {x: -1800, k: 'schildman', niveau: 'makkelijk'} ],
+  spawns: [ {x: -1800, k: 'schildman', niveau: 'makkelijk'},
+            {x: -1450, k: 'groen'}, {x: -2650, k: 'groen'} ],   // twee zandslangen bij de tonnen: de bonus van de executie op een vijand
+  // tonnen langs de hele weg, alleen en op een stapel, zodat er bij elke executie wel een in de boog staat (exeBonus)
+  tonnen: [ {x: -950}, {x: -1350}, {x: -1400, f: true}, {x: -1400, y: 0.62},
+            {x: -2000, kalebas: true}, {x: -2550}, {x: -2600, f: true}, {x: -3150}, {x: -3200, f: true}, {x: -3200, y: 0.62} ],
   rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [],
   props: [ {x: -400, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -1100, k: 'struik', s: 1.0, f: 1, v: 0},
            {x: -2400, k: 'gras', s: 0.9, f: 1, v: 0} ],
   cliffs: [ {x: -4400} ],
   ends: [ {x: -3800} ],
-  tips: [ { x: -60, t: 'Testlevel: de executie. Elke kill op de schildbandiet is hier de executie: steek (meteen) of worp (loop naar hem toe en druk E). Na elke executie komt er een nieuwe aanwandelen. R begint opnieuw' } ]
+  tips: [ { x: -60, t: 'Testlevel: de executie. Elke kill op de schildbandiet is hier de executie: steek (meteen) of worp (loop naar hem toe en druk E). Na elke executie komt er een nieuwe aanwandelen. Staan er tonnen of een slang in de boog van de executie, dan neemt Amir die mee. R begint opnieuw' } ]
 };
 // Test 51: de poorten. Drie rondes en een finale, elk voor een rotswand met een stenen poort met een ijzeren valhek
 // (zie "het hek van de poort"). Komt een poort helemaal in beeld, dan staat Amir stil, takelt het hek langzaam op
@@ -39161,6 +39166,7 @@ function exeTick(s, dt){
   if (!exeData){ s.state = 'weg'; return; }
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt);
   exeBoogStap(s, dt);                              // de bloedboog groeit met de speerpunt mee (ook in de hitstop op de ruk: daar begint hij)
+  exeBonusStap(e, dt);                             // de flitsen van wie er in de boog geraakt is (exeBonus)
   if (e.stop > 0){                                 // een hitstop binnen de executie: het beeld staat stil, de schok rommelt na
     e.stop = Math.max(0, e.stop - dt);
     if (e.stop === 0 && e.naStop){ const f = e.naStop; e.naStop = null; f(); }
@@ -39434,9 +39440,72 @@ function exeEindeSpuitTeken(s, gs){
 // de haakjes voor de effecten en het geluid (komen later): begin van de freeze (de steek of E), de ruk
 // (executie frame 5 naar 6), de landing (frame 16) en het splijten
 function exeHaakFreeze(s){}
-function exeHaakRuk(s){}
+function exeHaakRuk(s){ exeBonus(s); }
 function exeHaakLanding(s){}
 function exeHaakSplijt(s){}
+// ---- de bonus van de executie: wat in de boog staat, krijgt de speer mee ----
+// Op de ruk rukt Amir de speer omhoog door hem heen en springt achteruit, van amir_start_x naar amir_eind_x (allebei
+// aan zijn kant): de backswing. De strook loopt van de schildbandiet zelf tot waar Amir landt. Een ton daarin
+// (op dezelfde vloer, ook een stapel) gaat in een keer uit elkaar, de stukken weg in de richting van de sprong;
+// ze hangen stil in de freeze en vliegen pas als de wereld weer loopt. Een vijand in de strook krijgt een
+// treffer (geen kill, geen tweede executie): een slang of schorpioen is daarmee wel dood, een mens verliest een
+// leven of zijn schild, via zijn eigen hit-functie zonder sluipaanval of afketsen (zoals een tik van het gif).
+// Bazen niet. Zijn flits dooft op echte tijd (exeBonusStap), anders bleef hij de hele freeze wit.
+// In de sandbox onder Schildbandiet: Bonus aan/uit (EXE_BONUS.aan).
+const EXE_BONUS = { aan: true, rand: 40 };          // rand: zoveel wereld-px extra aan weerszijden van de strook
+function exeBonus(s){
+  if (!EXE_BONUS.aan) return;
+  const ex = exeBew('executie');
+  if (!ex) return;
+  const a = exeAmirX(s, ex.amir_start_x), b = exeAmirX(s, ex.amir_eind_x);
+  const l = Math.min(s.x, a, b) - EXE_BONUS.rand, r = Math.max(s.x, a, b) + EXE_BONUS.rand;
+  const vloer = s.base || 0, zelfde = h => Math.abs((h || 0) - vloer) < CHAR_H * 0.5;
+  const sprong = Math.sign(b - a) || 1;             // de richting van de sprong: daarheen vliegen de stukken
+  const e = s.exe, geraakt = e.bonus = [];
+  // de tonnen: van onder naar boven, zodat een stapel als geheel gaat
+  const half = typeof tonnen !== 'undefined' && tonnen.length ? tonBreed(nowScale()) / 2 : 0;
+  for (const t of (half ? tonnen.slice().sort((p, q) => p.y - q.y) : [])){
+    if (t.weg || t.x + half < l || t.x - half > r) continue;
+    if (!zelfde(t.vloer ? t.vloer.h : terrainH(t.x))) continue;
+    tonBreek(t, -sprong, false);
+    const i = level && !sandbox && level.tonnen ? level.tonnen.indexOf(t.src) : -1;
+    if (i >= 0) (tonKapot[level.name] || (tonKapot[level.name] = new Set())).add(i);
+  }
+  const binnen = o => o !== s && o.x >= l && o.x <= r && zelfde(o.base);
+  // slangen en schorpioenen: een treffer is (meestal) hun dood
+  for (const [lijst, scp] of [[snakes, false], [scorps, true]]){
+    for (const o of lijst){
+      if (o.state === 'dying' || o.state === 'gone' || !binnen(o)) continue;
+      o.inv = 0;
+      if (enemyTakeHit(o)){
+        hits++; hitsEl.textContent = hits;
+        o.state = 'dying'; o.flash = 0.25; o.vx = sprong * 420; o.frame = 0; o.acc = 0;
+        vijandDood(false);
+        if (scp && !scorps.some(q => q.state === 'charge')) document.getElementById('scatter').pause();
+      }
+      geraakt.push(o);
+    }
+  }
+  // de mensen en de hyena: hun eigen hit-functie, als een tik van het gif (geen sluipaanval, crit of afketsen)
+  const mensen = [[bandieten, 'bandiet'], [kooimannen, 'kooiman'], [meelmannen, 'meelman'], [kruisbogen, 'kruisboog'],
+                  [zweepmannen, 'zweepman'], [schildmannen, 'schildman'], [hyenas, 'hyena']];
+  for (const [lijst, soort] of mensen){
+    for (const o of lijst.slice()){
+      if (o.boss || o.exe || !gifLeeft(o, soort) || !binnen(o)) continue;
+      const h0 = hits;
+      o.inv = 0; gifTikNu = true;
+      try { if (soort === 'schildman') hitSchildman(o, 'pijl', sprong); else GIF_SOORTEN[soort](o); }   // 'pijl': nooit een executie
+      finally { gifTikNu = false; }
+      hits = h0 + 1; hitsEl.textContent = hits;     // wel Amirs treffer
+      geraakt.push(o);
+    }
+  }
+}
+// de flitsen van wie er in de boog geraakt is: op echte tijd, in exeTick
+function exeBonusStap(e, dt){
+  if (!e.bonus || !e.bonus.length) return;
+  for (const o of e.bonus) if (o.flash > 0) o.flash = Math.max(0, o.flash - dt);
+}
 // de wankelende schildbandiet bij wie E nu de executie start: Amir binnen eReik van hem (aan beide
 // kanten, want bij E komt Amir toch op amir_start_x te staan), op dezelfde vloer, en geen freeze bezig
 function exeBij(){
@@ -52272,6 +52341,11 @@ function sbExeLabel(){
 }
 sbExeBtn.onclick = () => { sbExeAltijd = !sbExeAltijd; sbExeLabel(); cv.focus(); };
 sbGeenEBtn.onclick = () => { sbExeGeenE = !sbExeGeenE; sbExeLabel(); cv.focus(); };
+// de bonus van de executie (exeBonus): tonnen en vijanden in de boog krijgen de speer mee
+const sbExeBonusBtn = document.getElementById('sbschexebonus');
+function sbExeBonusLabel(){ sbExeBonusBtn.textContent = EXE_BONUS.aan ? 'Bonus: aan' : 'Bonus: uit'; sbExeBonusBtn.classList.toggle('on', EXE_BONUS.aan); }
+sbExeBonusBtn.onclick = () => { EXE_BONUS.aan = !EXE_BONUS.aan; sbExeBonusLabel(); cv.focus(); };
+sbExeBonusLabel();
 sbExeLabel();
 document.getElementById('sbschexesteek').onclick = () => { sbExeNu('steek'); cv.focus(); };
 document.getElementById('sbschexeworp').onclick = () => { sbExeNu('worp'); cv.focus(); };

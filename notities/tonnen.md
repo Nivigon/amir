@@ -44,6 +44,9 @@ paar lege in de roverskampen van Valse Koning 2 en 5 (met toestemming, regel 1).
   `houtRaak`. 2: de bovenkant breekt eruit (`ton_2`, de losse hoepel uit de Grok-plaat is weggelaten), een duig vliegt weg.
   3: `tonBreek`: het breekgeluid (`tonBreekGeluid`: `sounds/ton_breek.mp3` na een paar treffers, `sounds/ton_zwaar.mp3` als hij in een klap gaat, zoals bij Nyundo; breken er meer tegelijk, dan klinkt het een keer), stof (`banStofWolk`, `puffWorld`) en negen losse stukken die van Amir af spatten, stuiteren
   (met een tikje), gaan liggen (plat, of op hun kant als ze lang en smal zijn) en na `TON.liggen` vervagen.
+- **De executie** (`exeBonus`, zie "de bonus in de backswing" in `notities/schildbandiet.md`): op de ruk gaat elke ton
+  tussen de schildbandiet en de landing van Amir in een keer uit elkaar (`tonBreek`, niet bruut); in de freeze hangen de
+  stukken stil tot de wereld weer loopt.
 - **Nyundo** (`tonBruut(l, r, top, from)`, wereld-x): alles in dat vak gaat in een keer. Aangeroepen vanuit het Brutus-blok
   in de tekenlus (zijn lijf in de storm, het raakvak van de zwaai of de kap), `bruInslag` (de kap, 110 grote-set-px om de bal)
   en `bruSprongInslag` (260 om de bal). Dan valt hij in een hoopje (zeven stukken op de plek, `TON.hoopLiggen` 45 s), vliegen

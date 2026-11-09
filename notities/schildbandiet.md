@@ -135,6 +135,19 @@ grondlijn liggen). De plaat loopt op zijn eigen klok af (`bloedSpuitStap` op `bo
 splijten op de trage klok) en lost zo vanzelf op in losse spatten; bij het lijk vervaagt hij met de rest. Hij wordt
 in `exeTeken` als laatste getekend, over Amir en de speer heen.
 
+**De bonus in de backswing** (`EXE_BONUS`, `exeBonus`, `exeBonusStap`, via `exeHaakRuk`): op de ruk rukt Amir de speer
+omhoog door hem heen en springt achteruit, van `amir_start_x` naar `amir_eind_x` (allebei aan zijn kant, in de json
+-264 en -468: zo'n 170 en 300 wereld-px achter hem op Formaat 25). Wat in de strook van de schildbandiet tot de landing
+staat (plus `EXE_BONUS.rand`, 40 px) en op zijn vloer, krijgt de speer mee. Een ton gaat in een keer uit elkaar
+(`tonBreek`, niet bruut: de stukken spatten weg in de richting van de sprong, en tellen mee in `tonKapot`); omdat de
+wereld in de freeze stilstaat, hangen de stukken stil in het beeld en vliegen ze pas als de wereld weer loopt. Een slang
+of schorpioen krijgt de treffer van de steek (`enemyTakeHit`, meestal dood). Een mens of hyena krijgt een treffer via zijn
+eigen hit-functie met `gifTikNu` aan (zoals een tik van het gif: geen sluipaanval, crit of afketsen), en telt als Amirs
+treffer; een andere schildbandiet via `hitSchildman(o, 'pijl')`, zodat het nooit een tweede executie wordt. Bazen niet.
+Hun flits dooft op echte tijd (`exeBonusStap` in `exeTick`), anders bleef hij de hele freeze wit. Alleen de executie zelf
+(niet het knielen bij de gewone dood of de wankel zonder E) geeft de bonus. Test 50 heeft er tonnen (alleen en op een
+stapel) en twee zandslangen voor langs de weg. Sandbox: **Bonus: aan/uit** onder Schildbandiet (`sbschexebonus`).
+
 **Herhalen** (`herhaal: true`, `exeHerhaalStap`, `EXE.herhaalWacht`): is de laatste schildbandiet weg (na de executie of
 de gewone dood), dan komt er na `herhaalWacht` een nieuwe aanwandelen op `spawnPoint` net buiten beeld voor Amir uit,
 met het `niveau` van de eerste schildman-spawn van het level. Alleen Test 50 heeft het; een herstart wist de
