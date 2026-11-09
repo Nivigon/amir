@@ -403,6 +403,8 @@ De versie in `offline-assets.json` verandert mee, en de service worker ziet daar
 | woede (Bhubesi, meter vol) | G | de knop met de leeuw |
 | schild op (alleen met een schild) | C vasthouden | de schildknop vasthouden |
 
+Sprint Amir, dan schopt elke pas een klein wolkje stof op (in de winter sneeuwstof). Binnen en op een houten vloer niet, op de straat van de stad minder. In de sandbox staat het onder Speer en spullen, bij **Loopstof**: alleen in de sprint, ook bij gewoon lopen, of uit, en met **Wolkjes** hoe groot.
+
 ### De speerworp
 
 Er wordt niet gemikt. Hoe lang je de knop vasthoudt bepaalt de worp, en de

@@ -1641,6 +1641,12 @@
         <button id="sbglij">Glijden: middel</button>
       </div>
       <div class="row">
+        <label>Loopstof</label>
+        <button id="sbloopstof" class="on" title="Een klein wolkje zand als een voet neerkomt">Loopstof: sprint</button>
+        <button id="sbloopstofmaat">Wolkjes: middel</button>
+        <span class="hint">stof onder zijn voeten bij het rennen</span>
+      </div>
+      <div class="row">
         <label>Rol</label>
         <button id="sbrol" class="on" title="Een gevechtsrol naar voren: V, of op een telefoon de rolknop. Tijdens het duiken en rollen is Amir onkwetsbaar, daarna koelt de rol even af">Rol: aan</button>
         <span class="hint">V, of de rolknop</span>
@@ -20790,6 +20796,43 @@ function glijUpdate(dt, halfW){
     glijStof = RENSTOOT.stof;
     const k = Math.abs(glij) / (330 * 1.5);                 // minder stof naarmate hij stilvalt
     glijWolk(zij, 0.45 + 0.55 * k);
+  }
+}
+// ---- loopstof: een klein wolkje zand als een voet neerkomt, vooral in de sprint ----
+// Bij elke pas waarin een voet de grond raakt (de laagste frames van de renlus, per set) een paar
+// wolkjes, zoals het stof van de renstoot (sand, drawSweepDust) maar kleiner en korter, en het waait
+// achter hem weg. In de sprint altijd (als het aan staat), bij gewoon lopen alleen met `loop` op meer
+// dan 0. Niet binnen en niet op een houten vloer; in de stad op de straat minder (`stad`). In het water,
+// gebukt, kruipend en in de lucht niet: dat volgt amirRenStand. In de winter is het sneeuwstof (puffPic).
+const LOOPSTOF = {
+  aan: true,
+  loop: 0,                         // bij gewoon lopen: 0 is geen stof, 1 is net zo veel als in de sprint
+  sprint: 1,                       // in de sprint
+  groot: 1.8,                      // hoe groot een wolkje is (de renstoot is 2,4)
+  schop: 0.08,                     // hoeveel van zijn vaart het stof meekrijgt, naar achteren
+  stad: 0.5,                       // op de straat van de stad minder stof
+  frames: { sp: [3, 7], ns: [1, 5] }   // de frames waarin een voet neerkomt (met en zonder speer)
+};
+function loopStofHier(){                                   // hoeveel stof de grond hier geeft (0 tot 1)
+  if (binnenBij(world)) return 0;
+  for (const z of zweefList()) if (z.look === 'hout' && world >= z.l && world <= z.r && Math.abs(z.h - ph) < 4) return 0;
+  return stadAan() ? LOOPSTOF.stad : 1;
+}
+function loopStofPas(stand){
+  if (!LOOPSTOF.aan) return;
+  const k = (stand === 2 ? LOOPSTOF.sprint : LOOPSTOF.loop) * loopStofHier();
+  if (k <= 0) return;
+  const zij = facing === 1 ? 1 : -1;                       // de kant waarheen hij loopt; het stof gaat de andere kant op
+  const v = 330 * walkK() * (stand === 2 ? 1.5 : 1);
+  const n = Math.round(2 + 2 * Math.min(1, k));             // over elkaar heen: stofwolk.png is ijl
+  for (let i = 0; i < n; i++){
+    sand.push({ ax: world, ah: ph, x: -zij * (Math.random() * 22), y: -3,
+                back: Math.random() < 0.5,
+                vx: -zij * v * LOOPSTOF.schop * (0.4 + Math.random() * 0.8),
+                vy: -(18 + Math.random() * 34),
+                r: (8 + Math.random() * 6) * LOOPSTOF.groot * (0.6 + 0.4 * Math.min(1, k)),
+                life: 0.45 + Math.random() * 0.35, age: 0,
+                rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 1.6 });
   }
 }
 // ---- de rol: een gevechtsrol naar voren, V of de rolknop --------------------
@@ -44296,7 +44339,11 @@ function loop(now){
       crawlFrame = 0; crawlAcc = 0;
       frameAcc += dt * Number(fpsEl.value) * (wetNow > 0.3 || schildOp() ? 1 : sprint) * (1 - 0.3 * wetNow) * (houding.aan ? houdingWaarde('tempo') : 1) * Math.sqrt(schildTempo());
       const achteruit = houding.aan && dir === -facing;   // in de houding achteruit: de looppas achterstevoren
-      while (frameAcc >= 1){ frame = (frame + (achteruit ? set.run.length - 1 : 1)) % set.run.length; frameAcc -= 1; }
+      const stofF = LOOPSTOF.frames[set === sets.sp ? 'sp' : 'ns'];
+      while (frameAcc >= 1){
+        frame = (frame + (achteruit ? set.run.length - 1 : 1)) % set.run.length; frameAcc -= 1;
+        if (amirRenStand > 0 && stofF.includes(frame)) loopStofPas(amirRenStand);   // een voet komt neer (zie loopstof)
+      }
     }
   } else {
     frame = 0; frameAcc = 0; crawlFrame = 0; crawlAcc = 0;
@@ -56027,6 +56074,22 @@ document.getElementById('sbrenstoot').onclick = e => {
   RENSTOOT.aan = !RENSTOOT.aan; glij = 0;
   e.currentTarget.textContent = 'Renstoot: ' + (RENSTOOT.aan ? 'aan' : 'uit');
   e.currentTarget.classList.toggle('on', RENSTOOT.aan);
+  cv.focus();
+};
+// ---- loopstof: alleen in de sprint, ook bij lopen, of uit; en hoe groot (zie LOOPSTOF) ----
+document.getElementById('sbloopstof').onclick = e => {
+  const stand = !LOOPSTOF.aan ? 0 : LOOPSTOF.loop > 0 ? 2 : 1;   // 0 uit, 1 sprint, 2 sprint en lopen
+  const nieuw = (stand + 1) % 3;
+  LOOPSTOF.aan = nieuw > 0; LOOPSTOF.loop = nieuw === 2 ? 0.5 : 0;
+  e.currentTarget.textContent = 'Loopstof: ' + ['uit', 'sprint', 'sprint en lopen'][nieuw];
+  e.currentTarget.classList.toggle('on', LOOPSTOF.aan);
+  cv.focus();
+};
+document.getElementById('sbloopstofmaat').onclick = e => {
+  const maten = [[1.2, 'klein'], [1.8, 'middel'], [2.5, 'groot']];
+  const i = (maten.findIndex(m => m[0] === LOOPSTOF.groot) + 1) % maten.length;
+  LOOPSTOF.groot = maten[i][0];
+  e.currentTarget.textContent = 'Wolkjes: ' + maten[i][1];
   cv.focus();
 };
 document.getElementById('sbrol').onclick = e => {      // de rol aan of uit (zie ROL)
