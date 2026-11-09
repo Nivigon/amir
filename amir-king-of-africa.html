@@ -1540,6 +1540,7 @@
       <div class="row">
         <label>Stof in de ogen</label>
         <button id="sbstof" title="X: Amir veegt stof op naar een vijand die hem aankijkt (nu alleen de bandiet). Hij is even blind en de volgende treffer telt dubbel.">Stof (X): uit</button>
+        <button id="sbstofhoud" title="Stof op de knop van de lage zwaai: gebukt F tikken is de zwaai, vasthouden is stof. X doet dan niets.">Knop: X</button>
       </div>
       <div class="row">
         <label>Reserve op de rug</label>
@@ -3189,7 +3190,9 @@ let swFrame = -1, swAcc = 0, sweepId = 0, swRecover = 0;
 // (in hitBandiet). De veeg zelf raakt niets: alleen stofWerp verblindt. Zie notities/kit-ideeen.md.
 // koel: zoveel seconden na het stof voor het weer kan (stofKoel, de tegel #stofhud en de ring om de telefoonknop).
 // Blind is 3,5 s met een dubbele treffer erna, dus ongeveer een keer per gevecht, niet bij elke vijand opnieuw.
-const STOF = { aan: false, werpFrame: 9, bereik: 420, duur: 4, dwaal: 0.22, dwaalBreed: 110, wolk: 14, koel: 8 };
+// houd: stof zit op de knop van de lage zwaai (L1 uit notities/kit-verbeteren.md): gebukt F tikken is de zwaai,
+// vasthouden (houdT seconden) is stof, en X doet dan niets. Aan met stofHoud: true in het level of de sandboxknop.
+const STOF = { aan: false, houd: false, houdT: 0.22, werpFrame: 9, bereik: 420, duur: 4, dwaal: 0.22, dwaalBreed: 110, wolk: 14, koel: 8 };
 // De animatie: karakters/amir/aanval/stofsweep (metadata.json), 14 frames uit een Grok-clip, kijkt naar links.
 // Maten in canvas-px; STOFA.schaal zet ze om naar sprite-eenheden (zijn hoofd is hier 53 px, in idle_ns 49).
 // De standvoet blijft de hele veeg op zijn plek; het lijf eindigt STOFA.ANKER - STOFA.EIND px verder naar voren,
@@ -3262,8 +3265,19 @@ function stofStart(){
   duckT = 0;
   return true;
 }
+// Stof op de knop van de lage zwaai (STOF.houd). Gebukt F indrukken onthoudt hij in zwaaiHoud: laat je los voor
+// STOF.houdT, dan is het de lage zwaai (zwaaiNu), hou je vast, dan gaat het stof. Kan stof nu niet (afkoeling, geen
+// speer), dan gaat de zwaai gewoon meteen bij het indrukken af, zonder te wachten.
+let zwaaiHoud = null;
+function stofHoudKan(){ return STOF.aan && STOF.houd && stofKoel <= 0 && spear && onGround && !jump && !stofA; }
+function zwaaiNu(){
+  if (swFrame < 0 && atkCooldown <= 0 && onGround && !stofA && sweepReady()){
+    if (swLading >= 1) startSweep(); else sweepLeeg();
+  }
+}
 function stofStap(dt){                          // elk beeld: de afkoeling, de frames, het geluid, het werpmoment en het eind
   if (stofKoel > 0) stofKoel = Math.max(0, stofKoel - dt);
+  if (zwaaiHoud && bavKlok - zwaaiHoud.t >= STOF.houdT * 1000){ zwaaiHoud = null; stofStart(); }   // lang genoeg vast: stof
   stofHud();
   if (!stofA) return;
   if (dead || hurt > 0 || fell || jump || !onGround){ stofA = null; return; }
@@ -5590,7 +5604,44 @@ const TEST_65 = {
   tips: [ { x: -60, t: 'Testlevel: oude speren. Je hebt geen speer, maar onderweg liggen er oude' },
           { x: -330, t: 'E pakt een oude speer: in je hand, of op je rug als je hand al vol is. Hij kan drie keer: een worp of een steek die raakt. Daarna breekt hij' } ]
 };
-const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31, TEST_32, TEST_33, TEST_34, TEST_35, TEST_36, TEST_37, TEST_38, TEST_39, TEST_40, TEST_41, TEST_42, TEST_43, TEST_44, TEST_45, TEST_46, TEST_47, TEST_48, TEST_49, TEST_50, TEST_51, TEST_52, TEST_53, TEST_54, TEST_55, TEST_56, TEST_57, TEST_58, TEST_59, TEST_60, TEST_61, TEST_62, TEST_63, TEST_64, TEST_65];
+// Test 66: nacht in de stad (met toestemming, regel 3: de opdracht vroeg een leuk testlevel voor L1, stof op de knop
+// van de lage zwaai, in de stad bij nacht). Een lege straat onder een smalle maan, fakkels aan de gevels. Eerst een
+// bandiet om het te leren, dan een paar, een met zijn rug naar je toe om te besluipen, een schildbandiet met een
+// bandiet erbij (stof werkt alleen op de bandiet) en aan het eind drie tegelijk, waar de afkoeling van 8 s telt.
+const TEST_66 = {
+  name: 'Test 66: Nacht in de stad',
+  lagen: 'stad_nacht', muziek: 'darkafrica',
+  view: 0.8, hpBalk: true, zicht: true, sneak: true, camera: true, rand: true, slangEenKlap: true,
+  speerInHand: true, stof: true, stofHoud: true,
+  stad: {
+    paleis: -4600, seed: 66, gordijnen: true,
+    gevels: [ {x: -1300, hoog: 2}, {x: -2500, hoog: 3, f: 1}, {x: -3700, hoog: 2}, {x: -4900, hoog: 4, f: 1},
+              {x: -6100, hoog: 2}, {x: -7300, hoog: 3, f: 1}, {x: -8500, hoog: 2} ],
+    kramen: [ {x: -600, soort: 'riet'}, {x: -5500, soort: 'doek', f: 1} ],
+    voet: [ {x: -1250, stuk: 'kruik'}, {x: -2450, stuk: 'zandhoop'}, {x: -3650, stuk: 'scherven'},
+            {x: -4850, stuk: 'stro', f: 1}, {x: -6050, stuk: 'puin'}, {x: -7250, stuk: 'zandhoop'} ]
+  },
+  fakkels: [ {x: -950, y: 0.5, s: 1.0, f: 0}, {x: -2150, y: 0.5, s: 1.0, f: 1}, {x: -3350, y: 0.5, s: 1.0, f: 0},
+             {x: -4550, y: 0.5, s: 1.0, f: 1}, {x: -5750, y: 0.5, s: 1.0, f: 0}, {x: -6950, y: 0.5, s: 1.0, f: 1},
+             {x: -8150, y: 0.5, s: 1.0, f: 0} ],
+  tonnen: [ {kraam: 1, a: 1.1, kalebas: true}, {kraam: 1, a: 1.5, f: true} ],
+  spawns: [ {x: -1900, k: 'bandiet'},
+            {x: -3200, k: 'bandiet'}, {x: -3550, k: 'bandiet', dolk: true},
+            {x: -4700, k: 'bandiet', rug: true},
+            {x: -6200, k: 'schildman'}, {x: -6450, k: 'bandiet'},
+            {x: -7700, k: 'bandiet'}, {x: -7950, k: 'bandiet', dolk: true}, {x: -8200, k: 'bandiet'} ],
+  rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
+  voorgrond: false,
+  hppotions: [ {x: -4200, y: null} ],
+  cliffs: [ {x: -9600} ],
+  ends: [ {x: -9000} ],
+  tips: [ { x: -60, t: 'Testlevel: nacht in de stad. Stof in de ogen zit nu onder de knop van de lage zwaai' },
+          { x: -500, t: 'Gebukt F tikken is de lage zwaai. Gebukt F vasthouden gooit stof in de ogen van een bandiet die je aankijkt' },
+          { x: -4300, t: 'Deze kijkt de andere kant op. In het donker sluip je zo achter hem' },
+          { x: -5800, t: 'Stof werkt alleen op de bandiet: verblind hem, dan heb je de schildbandiet even voor jezelf' },
+          { x: -7300, t: 'Drie tegelijk, en stof koelt 8 seconden af. Kies wie je verblindt' } ]
+};
+const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31, TEST_32, TEST_33, TEST_34, TEST_35, TEST_36, TEST_37, TEST_38, TEST_39, TEST_40, TEST_41, TEST_42, TEST_43, TEST_44, TEST_45, TEST_46, TEST_47, TEST_48, TEST_49, TEST_50, TEST_51, TEST_52, TEST_53, TEST_54, TEST_55, TEST_56, TEST_57, TEST_58, TEST_59, TEST_60, TEST_61, TEST_62, TEST_63, TEST_64, TEST_65, TEST_66];
 // ---- Episode Test levels stad: de Sahelstad, stuk voor stuk ----
 // Proefstukken in de stad (zie "de stad"), los van de echte episodes (regel 1 geldt niet). Het is een episode, dus met
 // de tribekeuze aan het begin; het eerste level was Test 59.
@@ -18753,6 +18804,12 @@ function thrStop(){
   return (bavKlok - thrPressT >= THR_CHARGE * 1000) ? THR_WIND : THR_DRAW1;
 }
 function thrRelease(cancel){
+  if (zwaaiHoud){                                  // gebukt losgelaten voor het stof kwam: een tik is de lage zwaai
+    const kort = bavKlok - zwaaiHoud.t < STOF.houdT * 1000;
+    zwaaiHoud = null;
+    if (kort && !cancel) zwaaiNu();
+    return;
+  }
   if (!thr) return;
   const tik = bavKlok - thrPressT < THR_TAP * 1000;
   if ((cancel || tik) && thr.frame <= THR_WIND && !thr.gone && thr.held){   // een worp die al loopt (ook de tweede) gaat door
@@ -20900,9 +20957,8 @@ function startAttack(){
   if (duckT > 0){                                // gebukt: lage zwaai in plaats van een stoot
     if (!spear && mesInHand()){ flashHint('Met het mes kun je niet laag uithalen: daar is je speer voor'); return; }
     if (!spear){ flashHint(spearFound ? 'Zet eerst de speer aan met E' : 'Pak eerst je speer op: ga erbij staan en druk op E'); return; }
-    if (swFrame < 0 && atkCooldown <= 0 && onGround && !stofA && sweepReady()){
-      if (swLading >= 1) startSweep(); else sweepLeeg();
-    }
+    if (atkKeyHeld && stofHoudKan()){ zwaaiHoud = { t: bavKlok }; return; }   // stof op de zwaaiknop: eerst kijken of hij vasthoudt
+    zwaaiNu();
     return;
   }
   if (atkCooldown > 0) return;                   // still recovering
@@ -20957,7 +21013,7 @@ addEventListener('keydown', e => {
     flashHint('Lichtsterkte ' + LICHT.sterkte.toFixed(1).replace('.', ','));
     return;
   }
-  if ((e.key === 'x' || e.key === 'X') && STOF.aan){ if (!e.repeat) stofStart(); return; }   // stof in de ogen (sandbox, zie STOF)
+  if ((e.key === 'x' || e.key === 'X') && STOF.aan && !STOF.houd){ if (!e.repeat) stofStart(); return; }   // stof in de ogen (sandbox, zie STOF)
   if (e.key === ' ' || e.key === 'f' || e.key === 'F'){
     e.preventDefault();
     if (e.repeat || atkKeyHeld) return;          // holding the key does not re-fire
@@ -30370,8 +30426,8 @@ function restart(){
     SLANG_EEN_KLAP = !!(level && level.slangEenKlap);   // slangen (ook de fosforslang) in een klap dood, ook met de balk aan
   }
   if (!sandbox) ZICHT_AAN = !!(level && level.zicht);   // vijanden zien je alleen als er niets tussen zit (zie "zicht"); de sandbox met een knop
-  if (!sandbox){ STOF.aan = !!(level && level.stof) || stofVanTribe(); } stofA = null; stofKoel = 0;
-  if (!hintEl.classList.contains('gone')) hintEl.textContent = HINT_START.replace(', Q drinken', STOF.aan ? ', X stof in de ogen, Q drinken' : ', Q drinken');   // stof in de ogen (zie STOF): X, met stof: true in het level of met Mkuki
+  if (!sandbox){ STOF.aan = !!(level && level.stof) || stofVanTribe(); STOF.houd = !!(level && level.stofHoud); } stofA = null; stofKoel = 0; zwaaiHoud = null;
+  if (!hintEl.classList.contains('gone')) hintEl.textContent = HINT_START.replace(', Q drinken', STOF.aan ? (STOF.houd ? ', S+F vasthouden stof in de ogen, Q drinken' : ', X stof in de ogen, Q drinken') : ', Q drinken');   // stof in de ogen (zie STOF): X, met stof: true in het level of met Mkuki
   if (!sandbox) SNEAK_AAN = !!(level && level.sneak && level.zicht);   // de sluipaanval (zie "sneak"), alleen met het zicht; de sandbox met een knop
   lawaaiPulsen.length = 0; lawaai = 0; sneakKills = 0; sneakRegie = null;   // en het lawaai en de regie van het vorige potje weg
   if (!sandbox) bloedAan = !!(level && level.bloed);   // de bloed-mechaniek (snedes + death-spuit) alleen als een level het veld bloed zet; de sandbox met een knop
@@ -46234,6 +46290,7 @@ function readLevel(txt){
            goud: !!o.goud,                              // een goudstuk per kill en een prijs in de winkel (zie "goud")
            munt: o.munt ? { x: Number(o.munt.x), y: o.munt.y == null ? null : Number(o.munt.y), vast: !!o.munt.vast } : undefined,   // de munt van de koning (zie "goud")
            stof: !!o.stof,                              // stof in de ogen: X verblindt een bandiet die je aankijkt (zie STOF)
+           stofHoud: !!o.stofHoud,                      // stof op de knop van de lage zwaai: gebukt F vasthouden in plaats van X (zie STOF.houd)
            sneak: !!o.sneak,                            // de sluipaanval: een mens-vijand hoort je achter zijn rug in plaats van je te zien, en een treffer van achteren op wie je niet opmerkte is dodelijk (alleen met zicht, zie "sneak")
            executie: !!o.executie,                      // elke steek- en worp-kill op een schildbandiet is de executie (Test 50, zie "de executie")
            herhaal: !!o.herhaal,                        // na elke dode schildbandiet komt er een nieuwe aanwandelen (Test 50, zie exeHerhaalStap)
@@ -46843,7 +46900,7 @@ const BALK = [
       const p = rolKlaar();
       return { zien: ROL.aan, klaar: p >= 1, p, sec: rol ? 0 : rolKoel };
     } },
-  { id: 'stof', toets: 'X', icoon: () => document.querySelector('#stoftegel svg').outerHTML, staat(){
+  { id: 'stof', toets: () => STOF.houd ? 'S+F vast' : 'X', icoon: () => document.querySelector('#stoftegel svg').outerHTML, staat(){
       const p = stofGereed();
       return { zien: STOF.aan, klaar: p >= 1, p, sec: stofKoel, dim: !spear || !!stofA };
     } },
@@ -47378,6 +47435,7 @@ const SUBS = {
   'Test 62: Sluipdood bandiet': 'Vier bandieten met hun rug naar je toe: besluip ze en zie hoe ze aan je speer hangen en vallen',
   'Test 63: Stof in de ogen': 'Drie bandieten na elkaar: X gooit stof in hun ogen, en de volgende treffer telt dubbel',
   'Test 64: De tweede speer': 'Gooi en druk meteen weer F: een tweede speer achter de eerste aan, ook uit de rol',
+  'Test 66: Nacht in de stad': 'Een lege straat bij nacht en bandieten in het fakkellicht. Gebukt F vasthouden is nu stof in de ogen',
   'Test 65: Oude speren': 'Tien bandieten en geen speer: raap oude speren op, elk is na drie keer gebruiken kapot',
   'Test 61: De sluipaanval': 'Zeven vijanden met hun rug naar je toe: kom stil van achteren en steek. Een patrouille, een schildbandiet en een paar om een voor een te nemen',
   'Test 59: De zweepman, fase 2': 'Twee treffers en zijn arm gaat eraf. Dan lacht hij en raast hij: alleen als hij uitrust is hij te raken',
@@ -54281,8 +54339,11 @@ function sbHppotion(drop){
 // zolang je vasthoudt. Zie THR_HOEK_MAX bij de speerworp.
 function stofKnopToon(){
   const b = document.getElementById('sbstof'); if (!b) return;
-  b.textContent = 'Stof (X): ' + (STOF.aan ? 'aan' : 'uit'); b.classList.toggle('on', STOF.aan);
+  b.textContent = 'Stof (' + (STOF.houd ? 'S+F vast' : 'X') + '): ' + (STOF.aan ? 'aan' : 'uit'); b.classList.toggle('on', STOF.aan);
+  const h = document.getElementById('sbstofhoud');
+  if (h){ h.textContent = 'Knop: ' + (STOF.houd ? 'S+F vasthouden' : 'X'); h.classList.toggle('on', STOF.houd); }
 }
+document.getElementById('sbstofhoud').onclick = () => { STOF.houd = !STOF.houd; zwaaiHoud = null; stofKnopToon(); hudToon(); cv.focus(); };
 document.getElementById('sbstof').onclick = () => { STOF.aan = !STOF.aan; if (STOF.aan) stofLaad(); stofKnopToon(); cv.focus(); };
 document.getElementById('sbworp').onclick = e => {
   sbWorpSchaal = !sbWorpSchaal;
@@ -54794,7 +54855,7 @@ function btnVisible(b){
   if (b.when === 'pickup') return eNodig();        // alleen als er iets met E te doen is: speer, deur, skelet
   if (b.when === 'woede') return heeftWoede();
   if (b.when === 'rol') return ROL.aan;
-  if (b.when === 'stof') return STOF.aan;
+  if (b.when === 'stof') return STOF.aan && !STOF.houd;   // stof op de zwaaiknop: geen eigen knop
   if (b.when === 'schild') return SCHILD_AAN;      // alleen met een schild     // alleen met de woedemeter (Long Breath of Blood Rush)
   return true;
 }
