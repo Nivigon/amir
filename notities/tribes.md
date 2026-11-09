@@ -34,3 +34,19 @@ Het vijfde talent van beide trees: `5_soft_step.png` en `5_lions_patience.png` i
 (het oude symbool met hout van links ingevuld; de nerf loopt horizontaal, dus geen naad), en het hout van de leeuw is naar
 het roodbruin van Bhubesi gekleurd. De leeuw loert uit het gras: het talent gaat over sluipen en toeslaan, een rustige of
 liggende leeuw las te vriendelijk.
+
+## De tweede speer: Second Spear en Tumbling Spear (Mkuki)
+
+Het zesde en zevende talent van Mkuki. `DUBBEL` (venster 0,4 s, `vanFrame` 7, `tempo` 2), `dubbelKan`, `dubbelStart`:
+F binnen het venster na het loslaten (`thr.losT`, of `rolW.losT` na de rol-worp) grijpt zonder de beat van `RUG.trek` een
+speer van de rug en speelt de worp vanaf frame 7, tot het loslaten twee keer zo snel, altijd vlak. Second Spear geeft het
+na een gewone worp, Tumbling Spear na de rol-worp (een verbetering: in de rij komt hij na Second Spear). Een per worp; de
+tweede heeft geen derde.
+
+Het spel kende een geworpen speer (`jav`). De tweede staat in `jav2`: `jav2Update` zet hem even op de plek van `jav`, laat
+`javUpdate` lopen en zet alle speer-globals terug; komt hij tot stilstand of is hij kwijt, dan wordt hij een losse speer
+(`eigenSpeerLos`). Een rune houdt hem vast, zoals elke speer (regel 9). `javRaakt` test ook `jav2`; raakt die, dan ruilt
+`javWissel` hem naar `jav`, zodat `javHitEnemy` en de vijand met de goede speer rekenen (ligt de eerste al ergens, dan wordt
+die een losse speer). Is `jav` leeg, dan schuift `jav2` door. Getekend met `jav2Draw`. Nog geen houten plaatjes: het teken
+in `TB_TEKEN` (`icoon: null`). In de sandbox onder Speer en spullen, bij Tribe Mkuki, en als level **Test 64: De tweede speer** (`TEST_64`: de
+oefendoelen en de volle rug van Test 60 met `rolWorpProef`, `rugMax: 3`, en daarna vijanden die om twee speren vragen).
