@@ -35,7 +35,7 @@ de punt is geschilferd. Uit de keuze van 09-11-2026: ontwerp 2 (gespalkt) met de
 ## In een level
 
 `oudeSperen: [{x, n, f}]`: losse oude speren op de grond, `n` hoe vaak nog (standaard 3). Zo'n level begint met een
-lege rug. Alleen Test 64 heeft het (met `geenSpeer` en `rugMax: 2`).
+lege rug. Alleen Test 65 heeft het (met `geenSpeer` en `rugMax: 2`).
 
 ## Sandbox
 

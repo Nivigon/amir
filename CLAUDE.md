@@ -134,6 +134,10 @@ lees dan eerst `notities/stad-verbeteren.md` en volg "Zo werken we": een stap pe
 suggesties zonder iets te bouwen, de opdrachtgever kiest er een, bijsturen tot het goed is, en pas dan
 afvinken en het cijfer bijwerken.
 
+**13b. De kit van Amir verbeteren gaat volgens de takenlijst.** Vraagt de opdrachtgever om de kit-lijst
+("verbeter Amir kit"), lees dan `notities/kit-verbeteren.md` en volg "Zo werken we": laat de open taken zien,
+de opdrachtgever kiest er een, bouwen en bijsturen tot het goed is, en pas dan afstrepen en het cijfer bijwerken.
+
 **14. Impungushe ligt stil.** Breng de tribe Impungushe (de jakhals, het mes, Feign Death) niet zelf
 ter sprake: stel er geen ideeën, talents of abilities voor in, en deel er niets bij in, tot de opdrachtgever
 er zelf weer mee begint. Bestaande code en knoppen blijven gewoon staan. Een talent mag wel bij twee tribes
@@ -284,6 +288,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | elk level nakijken op decor boven een ravijn | `schoonLevel`, `schoonKomend`, `komendeRavijnen` | notities/ravijn.md |
 | wat er staat waar een ravijn openscheurt | `RAVIJN_DECOR`, `ravijnDecor`, `ravijnDecorStap` | notities/ravijn.md |
 | golvende rand: terreinmassa's met een organische omtrek | `GOLF`, `golfAan`, `golfGrondTeken`, `golfTerrasTeken` | notities/golf.md |
+| de kit van Amir verbeteren: takenlijst met cijfers per onderdeel; bij "verbeter Amir kit" de lijst tonen, de opdrachtgever kiest, afstrepen | `kit-lijst`, `G1`, `L1`, `M2` | notities/kit-verbeteren.md |
 | de stad verbeteren: werklijst met cijfers en stappen; bij "stadsverbetering" eerst 3 suggesties, de opdrachtgever kiest | `stadsverbetering`, `S1`, `L1`, `V1` | notities/stad-verbeteren.md |
 | ideeën voor de kit van Amir: basis, tribe-ability of talent; stof in de ogen (X, de veeg met eigen animatie en geluid) | `STOF`, `STOFA`, `stofStap`, `stofWerp`, `stofDwaal` | notities/kit-ideeen.md |
 | sandbox | de vrije testmodus |  |
@@ -354,7 +359,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `plafond` | de rots boven je als hoogtelijn: `[{x, y}, ...]` (zie hieronder) |
 | `muur` | de rotswand met het rune-symbool: `{x, speer}`, of met `soort: 'grot'` de rotsboog met de kei (zie hieronder) |
 | `hppotions` | drinkkalebassen: `{x, y}` |
-| `oudeSperen` | losse oude speren op de grond: `{x, n, f}`, `n` hoe vaak nog (standaard 3); het level begint met een lege rug (alleen Test 64, zie `notities/oude-speer.md`) |
+| `oudeSperen` | losse oude speren op de grond: `{x, n, f}`, `n` hoe vaak nog (standaard 3); het level begint met een lege rug (alleen Test 65, zie `notities/oude-speer.md`) |
 | `skeletten` | een zittend skelet met een speer erin: `{x, f}`, `x` is het midden van het skelet, `f` spiegelt; E bij de schacht trekt hem eruit (zie hieronder) |
 | `tekens` | speertekens: `{x, v, f}`, `v` is `teken`, `gebroken`, `gekruist`, `jagers` of `kalebas`, `f` spiegelt; decor, behalve dat het mes de kalebas lossnijdt |
 | `fakkels` | geanimeerde wandfakkels: `{x, y, s, f}`, `x` de schacht, `y` de hoogte van de voet boven de grond in Amir (0 = op de grond, hoger = tegen een wand), `s` schaal, `f` spiegelen; brandend decor met gloed, vonken, schaduw en vuurgeluid (zie "fakkel") |

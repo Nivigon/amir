@@ -95,6 +95,9 @@ tot aan zijn knie.
   spring je voor de muur langs, na de landing sta je erachter. Een vijand telt als zijn vloer (`base`) het dak is.
 - Een galerij of trapbalkon hangt voor de gevel. Ligt het dek op dezelfde hoogte als een dak, dan staat wie op het dek
   staat toch voor de kartels: alleen wie echt op het dak staat, staat erachter.
+- De schildbandiet krijgt een strook om zijn hele huidige plaatje (`schbKanteelVak`, uit de bijgesneden lagen van
+  lagen.json, nooit smaller dan `kanteelBreed`): in zijn sprongaanval waaien mantel en achterbeen ver uit, en die
+  staken anders buiten de strook voor de kartels langs.
 - Een dode ligt languit: om hem heen is de strook breder (`STAD.kanteelLijk`, 1,6 Amir), anders steken zijn voeten
   links of rechts onder de tanden uit.
   De kruisboogbandiet ligt als lijk bijna 4 Amir lang en zakt 50 bronpixels onder zijn grondlijn, dus onder de
@@ -423,6 +426,10 @@ binnen: [{ ..., winkel: { x, seed, koopman }, planken: [{ x, h, soort, seed }] }
   als je wilt, ook voorbij de 3 die Amir normaal draagt (`HPPOTION_MAX` geldt alleen voor oppakken). Escape, E of Verder
   sluit het, en de pauzeknop op de telefoon ook. Niet in een gevecht, net als de deur. In een level met `goud: true` (De Gouden
   Poort) kost een kalebas 5 goud en draag je er hooguit 3 (zie "goud" in `notities/episodes.md`).
+- **Verkopen en je spullen** (`winkelVerkoop`, `winkelTerugkoop`, `winkelTasToon`, `GOUD.verkoop`): rechts in het scherm staat
+  je tas (`.wktas`: de vijf plekken, hand en rug, het gif op je speren), op een smal scherm eronder. Met goud staat onder elk
+  ding een verkoopknop (`.wkverkoop`, goudkleurig, de opbrengst erop); zonder goud zijn ze weg (`#winkelui.gratis`). Zie
+  "verkopen" in `notities/episodes.md`.
 
 In de sandbox onder De stad: **Winkel** en **Kamer ingericht**. De Gouden Poort heeft drie winkels (Goud 3, 6 en 9).
 

@@ -13,7 +13,7 @@ Nog geen level heeft het aan; te zien in de sandbox (De stad, **Gordijnen** en *
   een vaste keuze uit seed en index (`gordijnHash`). Zo verandert er in een bestaand level niets.
 - `gordijnLaad(st)`, vanuit `stadSoortLaad`: laadt alleen de doeken die de stad echt gebruikt.
 - `gordijnBron(n, w)`: het doek op stokbreedte, warm getint, met de gemeten spleet; een keer per naam en maat.
-- `gordijnVlaag`, `gordijnDoek(n, gi, o, sleutel, st)`: de wind en het golvende doek in een eigen canvas per deur,
+- `gordijnVlaag`, `gordijnDoek(n, gi, o, sleutel, st)`: de wind en het wapperende doek in een eigen canvas per deur,
   hooguit 30 keer per seconde opnieuw (15 op een telefoon, `camTelefoon`, met rijen van 4 in plaats van 2 px).
 - `stadGordijnTeken`: in `stadTeken`, op de straat (verdieping 0) in plaats van `stadDeurPlaatTeken`; latei en
   schaduw zoals bij de deur. Buiten beeld (`zichtVak`) rekent hij het doek niet opnieuw. Op een verdieping blijft
@@ -30,7 +30,7 @@ Nog geen level heeft het aan; te zien in de sandbox (De stad, **Gordijnen** en *
 ## Wat het is
 
 Een geweven katoenen doek in twee banen aan een ruwe houten stok, in het deurgat van een gevel in plaats van de
-houten deur. De stok staat stil, de banen golven zacht in de wind, met af en toe een vlaag. In rust vallen de
+houten deur. De stok staat stil, de banen wapperen licht in de wind, met af en toe een vlaag. In rust vallen de
 twee banen over elkaar (dicht); bij een vlaag wijken ze onderaan even uiteen. Binnen hangt hetzelfde doek in de
 deur naar buiten, gespiegeld (je ziet de achterkant), met donker erachter.
 
@@ -71,12 +71,16 @@ en gordijnen door elkaar), `gordijn_binnen_rust.jpg` en `gordijn_binnen_vlaag.jp
 
 - `vlaag = 0.55 + 0.25 sin(0.45 t + ph) + 0.35 max(0, sin(0.23 t + ph/2))^3`, met `ph = gevel-index x 1,7`, zodat
   niet alle deuren tegelijk bewegen.
-- Het doek in rijen van 2 px; rij `y` schuift opzij met `A k (golf + 0,9)`, `A = 20 x vlaag` (in canvas-px op
-  stokbreedte 236), `k = ((y - stok) / (h - stok))^1,35` (bovenaan niets, onderaan het meest),
-  `golf = 0,65 sin(1,8 t + 0,016 y + ph) + 0,35 sin(3,3 t + 0,045 y + 2 ph)`. Elke baan een eigen fase (+1,3 voor
-  de rechter). De onderkant tilt iets op (`lift = 1 - 0,07 vlaag k`).
-- Bewegende plooien: een horizontaal verloop van licht en donker, `source-atop` over het doek, sterkte mee met
-  de vlaag.
+- Het doek in rijen van 2 px; rij `y` schuift opzij met `A k (zwaai + 0,6) + wapper`, `A = 8 x vlaag` (`GORDIJN.amp`,
+  in canvas-px op stokbreedte 236), `k = ((y - stok) / (h - stok))^1,35` (bovenaan niets, onderaan het meest).
+  `zwaai = 0,7 sin(1,1 t - 0,5 fr + ph) + 0,3 sin(1,9 t - 0,4 fr + 1,3 ph)`, met `fr` de plek van boven (0) naar
+  onder (1): de hele baan zwaait mee, de onderkant iets achter de bovenkant aan. De `wapper` is klein en snel
+  (`GORDIJN.wapper` 3 px, 8,5 en 12,7 rad/s) en zit alleen vlak boven de zoom (`fr^3`). Elke baan een eigen fase.
+  De onderkant tilt iets op (`lift = 1 - 0,07 vlaag k`).
+- Eerst liep er een golf langs het doek (`sin(1,8 t + 0,016 y)`, 20 px): dat zag eruit als golven in plaats van
+  wapperen. Een golf die met `y` meeloopt dus niet terugzetten; houd de beweging in een stuk over de hele hoogte.
+- Plooien: een horizontaal verloop van licht en donker, `source-atop` over het doek. De plooien staan stil en
+  ademen alleen (geen strepen die opzij schuiven), sterkte mee met de vlaag.
 - Dicht in rust: elke baan wordt naar het midden breder getrokken met de halve spleet plus 3 px (de spleet
   gemeten uit de alfa rond het midden), de linker over de rechter; de buitenranden blijven staan. Bij een vlaag
   (`open = clamp((vlaag - 0,85) / 0,35)`) neemt dat onderaan af, zodat de banen even uiteen gaan.
