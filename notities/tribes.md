@@ -37,9 +37,13 @@ liggende leeuw las te vriendelijk.
 
 ## De tweede speer: Second Spear en Tumbling Spear (Mkuki)
 
-Het zesde en zevende talent van Mkuki. `DUBBEL` (venster 0,4 s, `vanFrame` 7, `tempo` 2), `dubbelKan`, `dubbelStart`:
+Het zesde en zevende talent van Mkuki. `DUBBEL` (venster 0,4 s, `vanFrame` 5, `ritme`), `dubbelKan`, `dubbelStart`:
 F binnen het venster na het loslaten (`thr.losT`, of `rolW.losT` na de rol-worp) grijpt zonder de beat van `RUG.trek` een
-speer van de rug en speelt de worp vanaf frame 7, tot het loslaten twee keer zo snel, altijd vlak. Second Spear geeft het
+speer van de rug en speelt de worp vanaf frame 5, altijd vlak. `ritme` zegt per frame hoe lang het staat (0,10, 0,08, 0,08,
+0,07, 0,05: 0,38 s tot het loslaten): eerst overeind met de speer op de schouder (de greep), dan de uitval in en steeds
+sneller, een zweep. Eerst was het frame 7 op dubbel tempo, 0,125 s: dat las als een worp in plaats van twee, en omdat hij
+alleen de lage uitval liet zien leek Amir kleiner dan bij de eerste worp (de frames zelf zijn even groot). Een tik op F breekt de tweede
+niet af (`thrRelease`). Second Spear geeft het
 na een gewone worp, Tumbling Spear na de rol-worp (een verbetering: in de rij komt hij na Second Spear). Een per worp; de
 tweede heeft geen derde.
 
