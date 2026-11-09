@@ -225,6 +225,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | lift bij een galerij: het takelplateau voegt zich naar het eind van een galerij | `takelGalerijStap`, `mkLiftGalerij`, `galerij` | notities/stad.md |
 | slagschaduwen in de stad: de galerij op de muur, een hoger huis op een lager, huizen en kramen schuin over de straat | `STAD_SLAG`, `stadSlagMuur`, `stadSlagStraat` | notities/stad.md |
 | de stoep: een strook straat over de voet van de huizen, zodat niemand op de muurvoet staat | `STAD_STOEP`, `stadStoep`, `stadVoorTeken` | notities/stad.md |
+| de stad bij avond en nacht: de verte per uitzicht, brandende ramen, een olielampje bij elke kraam, de gloed na de lichtlaag (`stad_middag`, `stad_avond`, `stad_nacht`) | `STAD_NACHT`, `stadVerte`, `stadNachtNa`, `stadNacht` | notities/stad.md |
 | stadsvolk: dorpelingen op de stoep, omgekleurd, weg als er gevochten wordt | `STAD_VOLK`, `volkTeken`, `volkRustig` | notities/stad.md |
 | de leemmuur: een terras met de look van de stad | `LEEM`, `leemMuurTeken`, `look: 'leem'` | notities/stad.md |
 | de verhoogde straat: een terras met de look van de straat, treden en een hoge wijk, de onderlaag eronder (`stad.onder`) | `STRAAT_TREDE`, `straatTredeTeken`, `look: 'straat'` | notities/stad.md |
