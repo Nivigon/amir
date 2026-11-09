@@ -33,3 +33,30 @@ beeld: de plaatjes worden per soort, laag en tint een keer onscherp gemaakt en b
 ## voorgrond: de laag tussen de camera en Amir
 
 `VOORGROND`, `VG_SOORT`, `VG_LAGEN`, `vgStandaard`, `drawVoorgrond`: onscherp gras, struiken, keien en een schedel vlak voor de camera, in twee lagen; schuift sneller dan de wereld, ook verticaal, en valt onder de grond weg. Elk level heeft er een (zie "de voorgrond hoort bij elk level")
+
+## de stadsvoorgrond
+
+`VG_STAD`, `vgStad`, `vgMixKies`, `vgStadKnoopVrij`, `vgLaadLevel`: met `voorgrond: 'stad'` krijgt een level in plaats
+van gras spullen uit de straat. Alle tien de levels van De Gouden Poort hebben het (gevraagd, "Gemengd" uit drie
+proefbeelden: markt, steeg en muurtje); de andere stadslevels houden `voorgrond: false`.
+
+- **De soorten** staan gewoon in `VG_SOORT`, met `lui: true`, zodat ze pas laden als een level ze gebruikt
+  (`vgLaadLevel` in `laadLevel`): `kruik`, `mand`, `potten`, `stenen` (uit `design/stad/voorgrond/`, geknipt uit
+  `voetdecor.png` door `tools/stad_voorgrond.py`), `muur` (`leem_rand.png`), `rek` (het wapenrek) en `gordijn`,
+  `gordijn2` (twee doeken uit `design/stad/gordijn/`). Nieuw in een soort: `alleen` (alleen in die laag van
+  `VG_LAGEN`, 0 ver en 1 dichtbij; het rek staat alleen ver, de doeken alleen dichtbij) en `boven` (hangt van de
+  bovenrand het beeld in, zwaait om zijn bovenkant; `onder` is dan het deel boven de rand).
+- **Gemengd.** `vgStad` hakt het level om de `VG_STAD.stuk` (1500) in stukken en geeft elk een thema uit
+  `VG_STAD.themas` (markt, muur of kaal, met hun kans), vast per level: het zaad komt uit de naam. Twee gelijke
+  stukken naast elkaar worden een strook. Een strook heeft een `mix` (soort en gewicht) in plaats van `struik`
+  en `kei`, en een eigen `dicht` (het muurtje dichter, zodat het een muur wordt).
+- **Open plekken**: het einde, een poort (`poorten`), de binnenkant van een huis (`binnen`, een eigen strook),
+  het veld van Nyundo (`brutus.van` tot `tot`) en een arena (`VG_STAD.open`). Bij een knooppunt van een stadje
+  (`straten`) slaat `drawVoorgrond` de plek over (`vgStadKnoopVrij`): het pad `kruis_voor.png` heeft al zijn eigen
+  donkere voorgrond.
+- **De zoom.** Een stadslevel speelt uitgezoomd; de stadsvoorgrond schaalt en schuift met `viewZoom()` mee, zodat hij
+  zich tot de straat verhoudt zoals het gras tot de savanne. De gewone voorgrond doet dat niet (zoals voorheen).
+- **Donker**: `VG_STAD.donker` (0,6) maakt hem donkerder dan het gras, een silhouet in de felle straat; het
+  voorbakken in `warmBouw` gebruikt dezelfde tint.
+- **De hoogte in**: zodra de camera omhoog gaat (`camY` boven nul: een galerij, een trap, een dak) vervagen de
+  hangende doeken over een halve Amir, anders hangen ze voor de daken. De rest schuift zoals altijd onder de rand weg.

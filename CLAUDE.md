@@ -281,6 +281,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | speerbeet: de baviaan pakt je speer | `BAV_BEET`, `BAV_MOND`, `BAV_SPEER` | notities/baviaan.md |
 | speer in de baviaan: de speerval blijft in zijn borst zitten | `BAV_VALSPEER`, `bavSpeerTeken`, `baviaanTeken` | notities/baviaan.md |
 | voorgrond: de laag tussen de camera en Amir | `VOORGROND`, `VG_SOORT`, `VG_LAGEN` | notities/voorgrond.md |
+| de stadsvoorgrond: kruiken, een leemmuurtje en hangende doeken voor de camera, gemengd per stuk straat (De Gouden Poort) | `VG_STAD`, `vgStad`, `voorgrond: 'stad'` | notities/voorgrond.md |
 | achtergrondlagen, uitzicht per level | `SCENE0`, `SCENES` | notities/wegwijzers.md |
 | startscherm, menu: kaartjes per level | menu |  |
 | kaarslicht: de startfoto van onderen belicht | `KAARS`, `kaarsStart`, `kaarsLus` | notities/kaarslicht.md |
@@ -378,7 +379,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `speervallen` | speren in de rotswand: `{x, h}`, `x` de klif waar hij in zit (uit `cliffs`), `h` de hoogte in Amir (standaard 0,82); een zegel met `speerval` schiet hem los (zie "speerval") |
 | `runes` | ravijnen met een rune op een rots ervoor: `{x, breed, rots, groot, hoog, doel}` (zie `notities/velden.md`) |
 | `fg` | strook waarover de voorgrondbegroeiing ligt: `{from, to}` |
-| `voorgrond` | de onscherpe laag vlak voor de camera: `{stroken: [{van, tot, dicht, struik, kei}], los: [{x, k, s, f}]}`, `k` uit `VG_SOORT`; los van `fg`. Zonder dit veld krijgt het level de standaard, met `false` heeft het er geen (zie hieronder) |
+| `voorgrond` | de onscherpe laag vlak voor de camera: `{stroken: [{van, tot, dicht, struik, kei}], los: [{x, k, s, f}]}`, `k` uit `VG_SOORT`; los van `fg`. Zonder dit veld krijgt het level de standaard, met `false` heeft het er geen, met `'stad'` de stadsvoorgrond (De Gouden Poort, zie `notities/voorgrond.md`) |
 | `arena` | het veld van de eindbaas: `{c}` |
 | `cliffs` | de afsluitende rotswand: `{x}`, staat altijd achter `ends` |
 | `ends` | de fakkels die het level uitspelen: `{x}` |
@@ -482,6 +483,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **Deurgordijnen** (`design/stad/gordijn/`, uit de Grok-platen in `bron/`) → `tools/gordijn_knip.py`, daarna `gen-klein.py` en `gen-offline-manifest.py` (de gordijnmap staat niet in de lijst van `gen-klein.py`, dus het spel laadt de grote versie, net als bij de tonnen)
 - **Tonnen** (`design/stad/ton/`, uit de Grok-platen in `bron/`) → `tools/ton_kleur.py`, daarna `gen-offline-manifest.py`
 - **Rotsdecor** (`design/rotsdecor/`, losse rotsstukken uit de platen in `bron/`) → `tools/rotsdecor_knip.py`, daarna `gen-offline-manifest.py`
+- **Stadsvoorgrond** (`design/stad/voorgrond/`, geknipt uit `design/stad/voetdecor.png`) → `tools/stad_voorgrond.py`, daarna `gen-offline-manifest.py`
 - **Oude speer** (`design/speer/oud/`, uit de gewone speer) → `tools/oude_speer.py`, daarna `gen-offline-manifest.py`
 - **Tribe-logo's** → `tools/tribe_logos.py`
 - **Winterversies** → `tools/sneeuw.py`, `sneeuw_bg.py`, `sneeuw_dorp.py`, `winter_art.py`
