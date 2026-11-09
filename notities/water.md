@@ -88,6 +88,24 @@ neemt de plek van het water in en je kunt er niet naast het water in stappen.
 - Winter: hetzelfde materiaal als ijs.
 - Sandbox-knoppen en de Maker, als het materiaal goed is bevonden.
 
+### Verder met de rivier (opties, besproken op 09-11-2026)
+
+De waterval over de rand blijft de standaard (rustig: trage rimpels en een trage val, `vRustig` en `valRustig`;
+`val: true` voor de snelle). Wat we geprobeerd hebben en waar we mee verder kunnen:
+
+- **Niet meer doen: de doorsnede.** Vooraan de bedding in doorsnede (de grond doorgesneden, het water in een kom)
+  zag er vlak uit, een downgrade van de val. Weggehaald.
+- **Optie 1, doorlopen naar de camera** (`voor: true`, zit erin als proef, in geen level): de rivier valt niet maar
+  loopt door tot onder uit beeld, zoals het pad van een kruispunt (`straatKnoopVoor`); voorbij de lip groeit hij nog
+  maar zacht (`breed` in `waterRivierTeken`). Zag er goed uit, ook onder de brug. Nog te doen als we hem kiezen: de
+  camera iets laten zakken bij de rivier, net als `straatPadZak` bij een pad, zodat je meer van het water ziet.
+- **Optie 2, begroeiing in de voorgrond die het einde verbergt.** Geprobeerd met `voorgrond.los` (droog gras en een
+  struik, `s` rond 0,85, een stuk rechts van de rivier-x omdat de voorgrond sneller schuift): werkt, mits laag, anders
+  dekt het Amir af. Beter met echt riet (lange stengels, pluimen): dat plaatje is er nog niet, eerst een Grok-asset
+  (skill grok-environment-asset) en dan een soort `riet` in `VG_SOORT`. Past bij de val en bij de doorloop.
+- **Onder een brug** loopt de rivier recht (geen bocht achter de leuning). Dat blijft zo.
+- **De brug** mag in elk nieuw level. In de Maker zit nog geen water; een rivier met brug in de Maker is een eigen klus.
+
 ## De spetters van Amir (`SPETTER`)
 
 Landen in het water en door water lopen gaven vroeger de plaatjes `spetter_01..08` en `rimpel_01..08`. Nu tekent het
