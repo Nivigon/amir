@@ -195,6 +195,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de aanvoerder en de eindpoort: een level dat eindigt op een kill of door een poort | `AANV`, `aanvoerderDood`, `eindPoorten`, `aanvKlem` | notities/episodes.md |
 | goudaapje: het kleine gouden aapje en de arena (arena, regel 12) | `GAAP`, `gaapSpawn`, `updateGoudapen` | notities/goudaapje.md |
 | het mes: Jackal Fang van Impungushe | `MES`, `mesInHand`, `mesTeken` | notities/mes.md |
+| de algemene boom (The Road): talents voor elke tribe, een punt na level 1, 3 en 5, de munt als vrij punt | `TRIBE_CONFIG.algemeen`, `RUN.alg`, `tbAlg`, `tbWissel`, `scherpOogTeken` | notities/tribes.md |
 | T-splitsing in de talent tree | `varianten`, `TRIBE_CONFIG`, `tbSplit` | notities/tribes.md |
 | Feign Death | `SCHIJN`, `schijnDoodVang`, `hurtPlayer` | notities/wegwijzers.md |
 | lichtkaart: het licht onder de grond | `LK`, `drawLichtkaart` | notities/lichtkaart.md |

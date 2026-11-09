@@ -14,6 +14,30 @@ voelt lame. De rol-worp als finisher voelt juist goed.
   passen.
 - De tribes blijven fysiek en geloofwaardig: geen magie bij Mkuki (terugroepen van de speer viel daarom af).
 
+## De algemene boom (The Road): wat er nog bij kan
+
+Gebouwd met drie talents (Thorn Breaker, Breaker, Keen Eye; zie "De algemene boom" in `notities/tribes.md`). Met drie
+punten (na level 1, 3 en 5) en drie talents heb je ze na level 5 allemaal; pas met een vierde wordt het kiezen. Ideeen
+uit het gesprek, nog niet gebouwd:
+
+- **Gourd Cutter:** de speer snijdt een hangende kalebas los (het speerteken `kalebas`), en je komt ze vaker tegen.
+- **Scavenger / Gold Nose:** een ton geeft vaker iets, een kalebas of goud.
+- **Rack Hand:** bij een wapenrek twee speren tegelijk, een in de hand en een op de rug.
+- **Sand Sweeper:** de lage zwaai veegt een verstopt zegel in een keer bloot.
+- **Bone Reader:** een speer uit een skelet trekken in 1 s in plaats van 2.
+- **Mender:** een oude speer gaat een keer langer mee.
+- **Soft Landing, Climber, Desert Eyes, Deep Drink, Haggler, Deep Pockets, Deep Quiver.** Let op: Deep Quiver en Soft
+  Landing schuiven over een keuze van het level heen (`rugMax`, `valschade`).
+
+Een level mag nooit op een algemeen talent rekenen: zonder moet het te halen zijn.
+
+## Een richting kiezen in de tribe-boom (idee)
+
+Mkuki splitsen in twee takken, afstand (werper) en dichtbij (vechter), elk met halverwege een T-splitsing bloed
+(verwonden) of doden (afmaken), en een paar bruggen tussen de takken (zoals Spear in the Flesh: de worp blijft steken,
+de vijand bloedt, je trekt hem eruit voor een treffer extra). Let op: bloed met 3 levens moet grof zijn, en moet
+verschillen van het gif. Nog niets gebouwd.
+
 ## Nu aan de beurt: stof in de ogen
 
 **Gebouwd, met de eigen animatie.** `STOF`, `STOFA`, `stofStart`, `stofStap`, `stofWerp`, `stofEind`, `stofRaak`,
