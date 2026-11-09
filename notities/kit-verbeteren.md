@@ -34,20 +34,25 @@ of baas zonder toestemming, aansluiten op wat er is). Een taak per keer, liefst 
 
 | onderdeel | cijfer | doel |
 | --- | --- | --- |
-| Melee (steek, lage zwaai) | 6,5 | 9 |
+| Melee (steek, lage zwaai) | 7,5 (met M1) | 9 |
 | Werpen en ophalen | 8 (met W5) | 9 |
 | Beweging (rol, renstoot, sprong) | 7 | 9 |
 | Groepsgevecht en controle | 6,5 (zonder stof 5) | 9 |
 | Sneak | 6,5 | 9 |
 | Gevoel en feedback | 7 | 9 |
 | Leerbaarheid | 7 (met L1) | 9 |
-| **gemiddeld** | **6,9** | **9** |
+| **gemiddeld** | **7,1** | **9** |
 
 ## Taken
 
 ### Melee (M)
 
-- [ ] **M1** Derde slag na twee steken: een duw die de vijand terugzet, met een timingvenster. **+1**
+- [x] **M1** Derde slag na twee steken: een duw die de vijand terugzet, met een timingvenster. **+1**
+  *Gebouwd:* de derde slag (`COMBO`, Nivigon/amir#681, zie `notities/combo.md`): drie steken binnen 0,45 s, de derde een
+  draaislag die dubbel telt (`critNu`). Nu alleen in Test 68 en de sandboxknop Combo. Open: de duw (de vijand terugzetten,
+  tegengehouden door kei en ravijn) in plaats van of naast de dubbele treffer, met de schade dan als talent; de tweede steek
+  van een reeks wordt door de bandiet gepareerd; stof en de derde slag stapelen (een verblinde bandiet in een slag dood);
+  hem standaard maken in de basis.
 - [ ] **M2** Neerhalende sweep: de lage zwaai legt een vijand op de grond, daarna een steek naar beneden. **+1**
 - [ ] **M3** Spin strike op een verblinde vijand, raakt ook achter Amir. **+0,5**
 
