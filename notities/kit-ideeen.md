@@ -52,6 +52,24 @@ en maakt hem wakker; met twee levens is hij dan dood. Alleen de bandiet nog. Let
 0,58 s, en een bandiet die op Amir af stormt is dan al bij hem; zijn slag wordt afgebroken als het stof hem raakt.
 Testlevel: **Test 63: Stof in de ogen**, drie gewone bandieten na elkaar met hun gezicht naar Amir.
 
+**Bij Mkuki, en voor elke vijand uit De Gouden Poort.** De stofveeg hoort bij de tribe Mkuki zelf (geen talent):
+`stofveeg: true` in zijn blok in `TRIBE_CONFIG`, en `stofVanTribe` zet `STOF.aan` in elk level (in `restart`, en meteen
+bij `tribeVastleggen`). In de Test levels zonder tribe heb je alles, dus ook dit. Op de telefoon is er een stofknop
+(`stof` in `TOUCH_BTNS`, `drawBtnStof`) en de uitleg van de toetsen bij het begin noemt X (`HINT_START`).
+
+Afkoeling: `STOF.koel` (8 s), vanaf het stof (`stofKoel`, `stofGereed`). Blind is 3,5 s met een dubbele treffer erna, dus
+ongeveer een keer per gevecht. In de HUD een tegel naast de lage zwaai (`#stofhud`, `stofHud`) met de taartpunt die
+wegdraait, op de telefoon een ring om de knop; te vroeg drukken schudt de tegel.
+
+Wie verblind wordt staat in `STOF_SOORTEN`: de bandiet, de schildbandiet, de kruisboogbandiet, de zweepman, de kooiman en
+de slangen (alles wat in De Gouden Poort meedoet). Per soort: of hij nu te verblinden is (niet dood, niet midden in een
+sprong, slag of hoorn), zijn kijkrichting, zijn hoogte, hoe zijn blindheid begint, waar zijn hoofd zit en zijn kreet. Elke
+update heeft een blinde tak (`stofTel`, `stofKeer`: traag heen en weer rond de plek, niet aanvallen), elke hit-functie een
+dubbele treffer met `critFx`, en een blinde schildbandiet dekt zich niet, een blinde zweepman en kooiman zijn altijd te
+raken (`zwmF1Kwetsbaar`, `kooiRaakbaar`). Bazen (de panter, de baviaan, Nyundo) staan er niet in. De kreet (`stofKreet`):
+de mannen krijgen `sounds/banditpijn.mp3` (het begin van de doodskreet van de bandiet, 10% hoger, 0,5 s, met ffmpeg uit
+`banditdeath.mp3`), elk op een eigen toonhoogte (`toon`); de zweepman zijn eigen `zweepgeraakt`; een slang sist.
+
 Het idee:
 
 - Werkt alleen als de vijand naar Amir kijkt (sluit aan op `zicht`, de halve cirkel voor hem).

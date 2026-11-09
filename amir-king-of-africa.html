@@ -788,6 +788,16 @@
   #zwpips i{width:8px;height:8px;border-radius:50%;background:rgba(20,16,30,.55);box-shadow:0 0 0 1.5px rgba(242,232,213,.5)}
   #zwpips i.op{background:#f0b25a;box-shadow:0 0 0 1.5px rgba(242,232,213,.7),0 0 5px rgba(255,176,80,.7)}
   #zwaai.schud{animation:hppshake .38s ease}
+  /* stof in de ogen (X): dezelfde tegel als de lage zwaai, met een speer en zand; de taartpunt is de afkoeling */
+  #stofhud{display:none;align-items:center}
+  #stofhud.on{display:flex}
+  #stoftegel{--p:1;position:relative;width:32px;height:32px;display:block;border-radius:3px;
+    background:linear-gradient(160deg,#7a5532,#4e3420);box-shadow:inset 0 0 0 1.5px rgba(242,232,213,.35);filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
+  #stoftegel svg{width:100%;height:100%;display:block}
+  #stoftegel::after{content:'';position:absolute;inset:0;border-radius:3px;
+    background:conic-gradient(transparent calc(var(--p) * 360deg),rgba(12,9,18,.62) 0)}
+  #stofhud.klaar #stoftegel::after{display:none}
+  #stofhud.schud{animation:hppshake .38s ease}
   @keyframes woedepuls{0%{transform:scale(1)}40%{transform:scale(1.18)}100%{transform:scale(1)}}
   #lives span.weg{display:none}
   /* Feign Death: het tegeltje naast de zwaai, licht als hij nog klaar staat, grijs als hij op is */
@@ -2007,6 +2017,7 @@
   <div id="lives"><span></span><span></span><span></span><span class="extra weg"></span></div>
   <div id="hudrij">
     <div id="zwaai" aria-label="Low sweep"><span id="zwtegel"><img src="design/tribes/mkuki/abilities/3_low_sweep.png" alt=""></span><span id="zwpips"></span></div>
+    <div id="stofhud" aria-label="Sand in the eyes"><span id="stoftegel"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 27h26" stroke="#f2e8d5" stroke-width="2" stroke-linecap="round"/><path d="M27 6L13 24" stroke="#f2e8d5" stroke-width="2.4" stroke-linecap="round"/><path d="M10 26l3-6 3 3z" fill="#f2e8d5"/><circle cx="8" cy="19" r="1.5" fill="#e6c58f"/><circle cx="5" cy="15" r="1.5" fill="#e6c58f"/><circle cx="9" cy="13" r="1.3" fill="#e6c58f"/><circle cx="4" cy="21" r="1.3" fill="#e6c58f"/><circle cx="6" cy="10" r="1.1" fill="#e6c58f"/></svg></span></div>
     <div id="schijn" title="Feign Death"><img alt=""></div>
     <div id="hppotion" class="none"><img id="hppotionicon" src="items/potions/hppotion.png" alt=""><span id="hppotioncount">0</span></div>
     <div id="goud" class="weg" title="Goud"><i></i><span id="goudtel">0</span></div>
@@ -3033,7 +3044,9 @@ let swFrame = -1, swAcc = 0, sweepId = 0, swRecover = 0;
 // een bandiet voor Amir, binnen STOF.bereik, op zijn niveau en met zijn gezicht naar Amir, is STOF.duur seconden
 // blind. Hij dwaalt heen en weer met sterretjes boven zijn hoofd, valt niet aan, en de volgende treffer telt dubbel
 // (in hitBandiet). De veeg zelf raakt niets: alleen stofWerp verblindt. Zie notities/kit-ideeen.md.
-const STOF = { aan: false, werpFrame: 9, bereik: 420, duur: 3.5, dwaal: 0.22, dwaalBreed: 110, wolk: 14 };
+// koel: zoveel seconden na het stof voor het weer kan (stofKoel, de tegel #stofhud en de ring om de telefoonknop).
+// Blind is 3,5 s met een dubbele treffer erna, dus ongeveer een keer per gevecht, niet bij elke vijand opnieuw.
+const STOF = { aan: false, werpFrame: 9, bereik: 420, duur: 3.5, dwaal: 0.22, dwaalBreed: 110, wolk: 14, koel: 8 };
 // De animatie: karakters/amir/aanval/stofsweep (metadata.json), 14 frames uit een Grok-clip, kijkt naar links.
 // Maten in canvas-px; STOFA.schaal zet ze om naar sprite-eenheden (zijn hoofd is hier 53 px, in idle_ns 49).
 // De standvoet blijft de hele veeg op zijn plek; het lijf eindigt STOFA.ANKER - STOFA.EIND px verder naar voren,
@@ -3063,11 +3076,24 @@ const STOF_FX = {
 };
 const stofStraal = [];
 let stofA = null;                  // {f, acc, kant, geworpen}: de stofveeg loopt
+let stofKoel = 0;                  // de afkoeling na het stof, in seconden (zie STOF.koel)
+function stofGereed(){ return STOF.koel > 0 ? 1 - stofKoel / STOF.koel : 1; }   // 1: klaar, daaronder koelt hij af
+const stofHudEl = document.getElementById('stofhud'), stofTegelEl = document.getElementById('stoftegel');
+let stofHudStand = '';
+function stofHud(){                              // de tegel naast de lage zwaai: de taartpunt draait weg tot hij weer kan
+  const zien = running && STOF.aan, p = stofGereed(), stand = zien ? Math.round(p * 40) : -1;
+  if (stand === stofHudStand) return;
+  stofHudStand = stand;
+  stofHudEl.classList.toggle('on', zien);
+  stofHudEl.classList.toggle('klaar', p >= 1);
+  stofTegelEl.style.setProperty('--p', p.toFixed(3));
+}
 let stofBank = null, stofSnd = null;
 function stofLaad(){
   if (stofBank) return;
   stofBank = STOFA.ticks.map((_, i) => loadQuiet(uniq([AMIR, AMIR_GROOT]).map(d => d + STOFA.dir + 'stof_' + (i < 10 ? '0' : '') + i + '.png')));
   if (!stofSnd) stofSnd = banStemmen(STOFA.snd.src, 2);
+  if (!stofKreetSnd) stofKreetSnd = { man: banStemmen('sounds/banditpijn.mp3', 3), sis: banStemmen('music/snakehiss.mp3', 2) };
 }
 function stofLaadLevel(lv){ if ((lv && lv.stof) || stofVanTribe()) stofLaad(); }
 // De stofveeg via de tribe (stofveeg in TRIBE_CONFIG, nu Mkuki): met die tribe in elk level. In de Test levels zonder
@@ -3082,6 +3108,10 @@ function stofKlaar(){ return !!stofBank && stofBank.every(i => i.complete && i.n
 function stofPx(c){ return c * STOFA.schaal * nowScale(); }   // canvas-px naar wereld-px, op dit scherm
 function stofStart(){
   if (!STOF.aan || stofA || !spear || !onGround || jump || fell || dead || hurt > 0) return false;
+  if (stofKoel > 0){                             // nog niet afgekoeld: de tegel schudt even
+    stofHudEl.classList.remove('schud'); void stofHudEl.offsetWidth; stofHudEl.classList.add('schud');
+    return false;
+  }
   if (atkFrame >= 0 || swFrame >= 0 || swRecover > 0 || atkCooldown > 0 || thr || rol || glij !== 0 || amirVast()) return false;
   stofLaad();
   if (!stofKlaar()) return false;
@@ -3089,7 +3119,9 @@ function stofStart(){
   duckT = 0;
   return true;
 }
-function stofStap(dt){                          // elk beeld: de frames, het geluid, het werpmoment en het eind
+function stofStap(dt){                          // elk beeld: de afkoeling, de frames, het geluid, het werpmoment en het eind
+  if (stofKoel > 0) stofKoel = Math.max(0, stofKoel - dt);
+  stofHud();
   if (!stofA) return;
   if (dead || hurt > 0 || fell || jump || !onGround){ stofA = null; return; }
   facing = stofA.kant;
@@ -3141,6 +3173,7 @@ function stofSchraap(f){                       // de punt schuift over de grond:
 }
 function stofWerp(){
   stofA.geworpen = true;
+  stofKoel = STOF.koel;                          // vanaf het stof telt de afkoeling
   const dir = stofA.kant, F = STOF_FX;
   const px = world + dir * stofPx(STOFA.ANKER - STOFA.punt[STOFA.punt.length - 1]);   // de punt laat hier de grond los
   const sneeuw = stofSneeuw(px);
@@ -3168,29 +3201,79 @@ function stofWerp(){
   if (sneeuw) snowBurst(px, ph, 0.9);
   puffWorld(px, STOF.wolk, dir * 420, 1.2, ph);
   shake = Math.max(shake, F.schok);
-  for (const s of bandieten){
-    if (s.state === 'dood' || s.state === 'weg' || s.state === 'vault' || s.dropping || s.air > 0 || s.introKind) continue;
+  for (const S of STOF_SOORTEN) for (const s of S.lijst()){
+    if (!S.mag(s)) continue;
     const dx = s.x - world;
     if (Math.sign(dx) !== dir || Math.abs(dx) > STOF.bereik) continue;   // voor Amir en dichtbij genoeg
-    if (s.face !== -Math.sign(dx)) continue;                              // hij moet Amir aankijken
-    if (!banZelfdeHoogte(s)) continue;
-    stofRaak(s);
+    if (S.kijk(s) !== -Math.sign(dx)) continue;                           // hij moet Amir aankijken
+    if (!S.hoogte(s)) continue;
+    stofRaak(s, S);
   }
 }
-function stofRaak(s){
-  banLaadIdle(!!s.elite);                       // de patrouillegang; tot die binnen is tekent hij de run
-  s.verblind = STOF.duur; s.vbThuis = s.x;
-  s.face = s.x >= playerX() ? 1 : -1;          // eerst wankelt hij achteruit, weg van Amir
-  s.vbThuis = s.x + s.face * STOF.dwaalBreed * 0.6;
-  banSet(s, 'walk');
-  const F = STOF_FX.raak, base = s.base || 0;   // een wolk om zijn hoofd, en zand dat van hem af valt
+// Wie het stof verblindt: elke vijand die in De Gouden Poort meedoet (de bandiet, de schildbandiet, de kruisboogbandiet,
+// de zweepman, de kooiman en de slangen). Per soort: de lijst, of hij nu te verblinden is (niet dood, niet midden in een
+// sprong of slag), zijn kijkrichting (1 = naar +x; de slang kijkt naar -side), of hij op Amirs hoogte staat, hoe zijn
+// blindheid begint (de loopstand), waar zijn hoofd zit (deel van een Amir) en zijn kreet (stofKreet). Bazen (de panter,
+// de baviaan, Nyundo) staan er niet in: die reageren niet op het stof. De dwaalgang zelf staat in de update van elke
+// soort (stofTel, stofKeer); de dubbele treffer in zijn hit-functie.
+const stofOpHoogte = s => Math.abs(vloerBij(playerX(), ph) - (s.base || 0)) <= 90;
+const STOF_SOORTEN = [
+  { soort: 'bandiet', lijst: () => bandieten, kijk: s => s.face, hoogte: s => banZelfdeHoogte(s), hoofd: 0.75, kreet: 'man',
+    mag: s => !(s.state === 'dood' || s.state === 'weg' || s.state === 'vault' || s.dropping || s.air > 0 || s.introKind),
+    start: s => { banLaadIdle(!!s.elite); banSet(s, 'walk'); } },   // de patrouillegang; tot die binnen is tekent hij de run
+  { soort: 'schildman', lijst: () => schildmannen, kijk: s => s.face, hoogte: stofOpHoogte, hoofd: 0.8, kreet: 'man', toon: 0.93,
+    mag: s => !s.exe && s.state !== 'weg' && s.state !== 'exe' && s.state !== 'flinch' && s.state !== 'vault' && !schbOnaantastbaar(s),
+    start: s => schbSet(s, 'loop') },
+  { soort: 'kruisboogbandiet', lijst: () => kruisbogen, kijk: s => s.face, hoogte: stofOpHoogte, hoofd: 0.75, kreet: 'man', toon: 1.08,
+    mag: s => s.state !== 'dood' && s.state !== 'weg' && !krbOntwijkt(s) && !s.vrij,
+    start: s => { s.state = 'loop'; krbSpeel(s, 'loop'); } },
+  { soort: 'zweepman', lijst: () => zweepmannen, kijk: s => s.face, hoogte: stofOpHoogte, hoofd: 0.7, kreet: 'zweep',
+    mag: s => (s.state === 'idle' || s.state === 'loop') && !s.mepSpeer && !s.vrij,
+    start: s => zwmSet(s, 'loop') },
+  { soort: 'kooiman', lijst: () => kooimannen, kijk: s => s.face, hoogte: stofOpHoogte, hoofd: 0.8, kreet: 'man', toon: 0.82,
+    mag: s => (s.state === 'drag' || s.state === 'duw') && !(s.duel && !s.vogelGedaan) && !s.vrij,
+    start: s => { if (s.state !== 'drag') kooiSet(s, 'drag'); } },
+  { soort: 'slang', lijst: () => snakes, kijk: s => -s.side, hoogte: stofOpHoogte, hoofd: 0.15, kreet: 'sis',
+    mag: s => s.state === 'walk' || s.state === 'wait' || s.state === 'patrouille',
+    start: s => { s.state = 'walk'; s.frame = 0; s.acc = 0; s.stuck = 0; } }
+];
+function stofRaak(s, S){
+  s.verblind = STOF.duur;
+  const weg = s.x >= playerX() ? 1 : -1;        // eerst wankelt hij achteruit, weg van Amir
+  if (S.soort === 'slang') s.side = -weg; else s.face = weg;
+  s.vbThuis = s.x + weg * STOF.dwaalBreed * 0.6;
+  S.start(s);
+  stofKreet(S);
+  const F = STOF_FX.raak, base = s.base || 0, h = S.hoofd;   // een wolk om zijn hoofd, en zand dat van hem af valt
   for (let i = 0; i < F.wolk; i++)
-    stofWolk(s.x + (Math.random() - 0.5) * 70, CHAR_H * stofRnd(0.6, 0.95), base, -s.face * stofRnd(20, 120),
+    stofWolk(s.x + (Math.random() - 0.5) * 70, CHAR_H * stofRnd(h - 0.15, h + 0.2), base, -weg * stofRnd(20, 120),
              (10 + Math.random() * 10) * F.r, stofRnd(1.0, 1.8), 0.75);
   for (let i = 0; i < F.korrel; i++)
-    grains.push({ wx: s.x + (Math.random() - 0.5) * 60, base, h: CHAR_H * stofRnd(0.6, 0.9), vx: (Math.random() - 0.5) * 160,
+    grains.push({ wx: s.x + (Math.random() - 0.5) * 60, base, h: CHAR_H * stofRnd(h - 0.15, h + 0.15), vx: (Math.random() - 0.5) * 160,
                   vh: stofRnd(-40, 120), r: 1.1 + Math.random() * 1.5, age: 0, life: 0.6 + Math.random() * 0.4, dark: Math.random() < 0.4 });
-  puffWorld(s.x, 8, 0, 0.8, base + CHAR_H * 0.75);
+  puffWorld(s.x, 8, 0, 0.8, base + CHAR_H * h);
+}
+// De kreet als het stof in zijn ogen komt. De mannen zonder eigen pijnkreet (de bandiet, de schildbandiet, de schutter en
+// de kooiman) krijgen sounds/banditpijn.mp3 (het begin van de doodskreet van de bandiet, hoger en kort), elk op een eigen
+// toonhoogte (toon); de zweepman zijn eigen geraakt-kreet; een slang sist.
+let stofKreetSnd = null;
+function stofKreet(S){
+  if (S.kreet === 'zweep'){ zwmKreet('geraakt'); return; }
+  const k = stofKreetSnd && stofKreetSnd[S.kreet];
+  if (!k || !wantSound) return;
+  const a = k.pool[k.beurt++ % k.pool.length];
+  try { a.currentTime = 0; } catch (e){}
+  a.volume = S.kreet === 'sis' ? 0.75 : 0.95;
+  a.preservesPitch = false;
+  a.playbackRate = (S.toon || 1) * (0.95 + Math.random() * 0.1);
+  a.play().catch(() => {});
+}
+// de blindheid tikt af; true zolang hij nog blind is
+function stofTel(s, dt){ s.verblind -= dt; if (s.verblind <= 0){ s.verblind = 0; return false; } return true; }
+// moet hij omkeren: te ver van de plek waar het stof hem raakte, of een rand voor hem
+function stofKeer(s, kijk, stap){
+  const nx = s.x + stap;
+  return (Math.abs(nx - s.vbThuis) > STOF.dwaalBreed && Math.sign(nx - s.vbThuis) === kijk) || dropAhead(nx + kijk * 40, s.base || 0);
 }
 function stofStraalStap(dt){                    // de korrels van de waaier: remmen af, vallen, en liggen dan stil
   const S = STOF_FX.straal;
@@ -3219,13 +3302,11 @@ function stofStraalTeken(groundY, scale, cx){  // streepjes langs hun baan, zand
   ctx.restore();
 }
 function stofDwaal(s, dt, plats, cliff){       // blind: heen en weer rond de plek waar het stof hem raakte
-  s.verblind -= dt;
-  if (s.verblind <= 0){ s.verblind = 0; banSet(s, 'run'); return; }
+  if (!stofTel(s, dt)){ banSet(s, 'run'); return; }
   if (s.state !== 'walk') banSet(s, 'walk');
   banAnim(s, dt);
-  const stap = s.face * BAN_RUN_SPD * STOF.dwaal * dt, nx = s.x + stap;
-  const voorbij = Math.abs(nx - s.vbThuis) > STOF.dwaalBreed && Math.sign(nx - s.vbThuis) === s.face;
-  if (voorbij || dropAhead(nx + s.face * 40, s.base || 0) || !banMove(s, stap, plats, cliff)) s.face = -s.face;
+  const stap = s.face * BAN_RUN_SPD * STOF.dwaal * dt;
+  if (stofKeer(s, s.face, stap) || !banMove(s, stap, plats, cliff)) s.face = -s.face;
 }
 function stofTeken(sx, topY, s, scale){        // drie zandsterretjes die om zijn hoofd draaien
   const ah = CHAR_H * scale, r = ah * 0.03, t = performance.now() / 1000;
@@ -29202,7 +29283,7 @@ function restart(){
     SLANG_EEN_KLAP = !!(level && level.slangEenKlap);   // slangen (ook de fosforslang) in een klap dood, ook met de balk aan
   }
   if (!sandbox) ZICHT_AAN = !!(level && level.zicht);   // vijanden zien je alleen als er niets tussen zit (zie "zicht"); de sandbox met een knop
-  if (!sandbox){ STOF.aan = !!(level && level.stof) || stofVanTribe(); } stofA = null;
+  if (!sandbox){ STOF.aan = !!(level && level.stof) || stofVanTribe(); } stofA = null; stofKoel = 0;
   if (!hintEl.classList.contains('gone')) hintEl.textContent = HINT_START.replace(', Q drinken', STOF.aan ? ', X stof in de ogen, Q drinken' : ', Q drinken');   // stof in de ogen (zie STOF): X, met stof: true in het level of met Mkuki
   if (!sandbox) SNEAK_AAN = !!(level && level.sneak && level.zicht);   // de sluipaanval (zie "sneak"), alleen met het zicht; de sandbox met een knop
   lawaaiPulsen.length = 0; lawaai = 0; sneakKills = 0; sneakRegie = null;   // en het lawaai en de regie van het vorige potje weg
@@ -29763,6 +29844,7 @@ function enemyTakeHit(s){
   if (!s.hpBalk) return true;
   if (s.inv > 0) return false;
   s.hp--; if (critPak()) s.hp--;                   // True Flight: een crit telt als twee treffers
+  if (s.verblind > 0){ s.hp--; s.verblind = 0; critFx(s.x, (s.base || 0) + CHAR_H * 0.2); }   // blind van het stof (STOF): dubbel
   s.inv = HP_BALK_INV;
   if (s.hp <= 0) return true;
   s.flash = Math.max(s.flash || 0, 0.18);          // een niet-dodelijke treffer is een witte flits
@@ -30902,6 +30984,13 @@ function updateSnake(s, dt, plats, cliff){
     s.acc += dt * 10;
     while (s.acc >= 1){ s.frame = (s.frame + 1) % 8; s.acc -= 1; }
     if (s.alpha <= 0) s.state = 'gone';
+    return;
+  }
+  if (s.verblind > 0 && stofTel(s, dt)){            // blind van het stof (STOF): kronkelt traag heen en weer, bijt niet
+    const kijk = -s.side, stap = kijk * snakeSpeed() * (s.speed || 1) * STOF.dwaal * dt;
+    if (stofKeer(s, kijk, stap)) s.side = -s.side;
+    else { const r = slangSchuif(s, dt, plats, cliff, STOF.dwaal); if (r.edge || r.vast) s.side = -s.side; }
+    s.acc += dt * 6; while (s.acc >= 1){ s.frame = (s.frame + 1) % 8; s.acc -= 1; }
     return;
   }
   // afgeweerd met het mes: even terugdeinzen, maar nooit over een kei of ravijn
@@ -32942,6 +33031,13 @@ function updateKooiman(s, dt, plats, cliff){
     else { s.knock *= Math.pow(0.02, dt); if (Math.abs(s.knock) < 4) s.knock = 0; }
   }
 
+  if (s.verblind > 0 && (s.state === 'drag' || s.state === 'duw') && stofTel(s, dt)){   // blind van het stof (STOF): sleept traag heen en weer, slaat niet
+    if (s.state !== 'drag') kooiSet(s, 'drag');
+    kooiAnim(s, dt * 0.6);
+    const stap = s.face * KOOI_RUN_SPD * STOF.dwaal * 2 * dt;
+    if (stofKeer(s, s.face, stap) || !kooiMove(s, stap, plats, cliff)) s.face = -s.face;
+    return;
+  }
   const dx = playerX() - s.x, gap = Math.abs(dx), naarJe = dx >= 0 ? 1 : -1;
 
   // zijn stem, een keer, zodra hij in beeld komt (binnen een halve schermbreedte, de uitzoom mee).
@@ -33200,6 +33296,7 @@ function kooiFrameImg(s){
 // slag uit te lokken en in zijn herstel te raken, van afstand of door een slag te baiten.
 function kooiRaakbaar(s){
   if (s.inv > 0 || s.state === 'dood') return false;
+  if (s.verblind > 0) return true;                    // blind van het stof (STOF): de kooi dekt hem niet
   return kooiOpen(s);                                 // worp, stoot en lage zwaai: alleen in zijn herstel
 }
 // buiten zijn herstel is hij gedekt: de kooi staat voor hem (het duwen) of hij is midden in zijn slag. Een stoot
@@ -33223,6 +33320,7 @@ function hitKooiman(s){
   if (!sneak && !kooiRaakbaar(s)) return false;   // raak alleen in zijn herstel (worp of steek)
   if (sneak){ sneakDoe(s); s.hp = 1; } else lawaaiPuls(s.x, s.base || 0, SNEAK.puls.treffer);
   s.hp--; if (critPak()) s.hp--;                   // True Flight: een crit telt als twee treffers
+  if (s.verblind > 0){ s.hp--; s.verblind = 0; critFx(s.x, (s.base || 0) + CHAR_H * 0.6); }   // blind van het stof (STOF): dubbel
   hits++; hitsEl.textContent = hits;
   s.knock = (s.x < playerX() ? -1 : 1) * KOOI_KNOCK;   // altijd bij jou vandaan
   if (s.hp > 0){ s.inv = KOOI_INV_T; s.flash = 0.3; return true; }
@@ -34090,6 +34188,12 @@ function updateKruisboog(s, dt, plats, cliff){
   rijsDraagtMob(s, dt);
   if (s.vrij){ krbAnim(s, dt); return; }            // sandbox: AI uit
   if (krbOntwijkt(s)){ krbHoornStap(s, dt, plats, cliff); return; }   // de hoorn: opbergen, rollen, blazen, terugpakken
+  if (s.verblind > 0 && stofTel(s, dt)){            // blind van het stof (STOF): langzaam heen en weer, hij mikt niet
+    if (s.set !== 'loop') krbSpeel(s, 'loop');
+    const stap = s.face * KRB.loopV * STOF.dwaal * 2 * dt;
+    if (stofKeer(s, s.face, stap) || !krbMove(s, stap, plats, cliff)) s.face = -s.face; else krbAnim(s, dt * 0.6);
+    return;
+  }
   const dx = playerX() - s.x, gap = Math.abs(dx), naar = dx >= 0 ? 1 : -1;
   const sRust = sneakAan() && zichtVoor(s) && s.zWacht;   // de sluipaanval: in rust staat hij stil op zijn plek en kijkt hij zijn eigen kant op (zie "sneak")
   let kijk = s.state === 'loop' && !sRust ? naar : s.face;
@@ -34192,6 +34296,7 @@ function hitKruisboog(s, soort){
   if (s.state === 'dood' || s.state === 'weg' || s.inv > 0 || krbOntwijkt(s)) return false;
   if (sneakKan(s)){ sneakDoe(s); s.hp = 1; } else lawaaiPuls(s.x, s.base || 0, SNEAK.puls.treffer);   // de sluipaanval (zie "sneak")
   s.hp--; if (critPak()) s.hp--; hits++; hitsEl.textContent = hits;   // True Flight: twee treffers
+  if (s.verblind > 0){ s.hp--; s.verblind = 0; critFx(s.x, (s.base || 0) + CHAR_H * 0.6); }   // blind van het stof (STOF): dubbel
   if (s.hp > 0){ s.inv = 0.45; s.flash = 0.3; return true; }
   s.state = 'dood'; s.dood = soort || 'steek'; s.doodT = 0; s.flash = 0.25; s.alpha = 1; s.slag = 0;
   krbSpeel(s, s.dood === 'zwaai' ? 'dood_laag' : 'dood_hoog');
@@ -37035,6 +37140,14 @@ function updateZweepman(s, dt, plats, cliff){
   if (!zwmData) return;
   zwmDruppelStap(s, dt);
   if (s.state === 'f2'){ zwmF2Stap(s, dt, plats, cliff); return; }   // fase 2: zie ZWM2
+  if (s.verblind > 0 && (s.state === 'idle' || s.state === 'loop') && stofTel(s, dt)){   // blind van het stof (STOF): langzaam heen en weer
+    zwmSet(s, 'loop');
+    const N = zwmData.bewegingen.loop.frames.length, spf = 2 / ZWM.loopFps;
+    s.acc += dt; while (s.acc >= spf){ s.acc -= spf; s.frame = (s.frame + 1) % N; }
+    const stap = s.face * ZWM.loopV * STOF.dwaal * 2 * dt;
+    if (stofKeer(s, s.face, stap) || !zwmMove(s, stap, plats, cliff)) s.face = -s.face;
+    return;
+  }
   if ((s.state === 'idle' || s.state === 'loop' || s.state === 'terug') && !s.vrij && zwmMepSpeerKan(s)){ zwmMepSpeerStart(s); return; }
   if (s.state === 'slag'){
     const C = ZWM_SLAG[s.soort || 'laag'];
@@ -37119,6 +37232,7 @@ function updateZweepmannen(dt, plats, cliff){
   }
 }
 function zwmF1Kwetsbaar(s){
+  if (s.verblind > 0) return true;                          // blind van het stof (STOF): hij dekt zich niet
   if (zwmSchreeuw() && !s.vrij){                            // nieuwer schreeuw: alleen in de slag zelf (en de inzet) niet
     if (s.state !== 'slag') return true;
     const C = ZWM_SLAG[s.soort || 'laag'];
@@ -37134,6 +37248,7 @@ function hitZweepman(s){
   if (sneak){ sneakDoe(s); s.hp = 1; } else lawaaiPuls(s.x, s.base || 0, SNEAK.puls.treffer);
   hits++; hitsEl.textContent = hits;
   s.hp--; if (s.hp > 0 && critPak()) s.hp = Math.max(s.fasen && s.fase === 1 ? 1 : 0, s.hp - 1);   // True Flight; de arm eraf slaat hij niet over
+  if (s.verblind > 0){ s.verblind = 0; if (s.hp > 0) s.hp = Math.max(s.fasen && s.fase === 1 ? 1 : 0, s.hp - 1); critFx(s.x, (s.base || 0) + CHAR_H * 0.6); }   // blind: dubbel
   s.flash = 0.3; s.inv = ZWM.invHit;
   hitstop = Math.max(hitstop, 0.06); shake = Math.max(shake, 0.12);
   s.knockV = (s.x < playerX() ? -1 : 1) * ZWM.knockV;
@@ -38025,6 +38140,12 @@ function updateSchildman(s, dt, plats, cliff){
   const scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H;
 
   if (s.state === 'exe'){ if (exeVries !== s) exeTick(s, dt); return; }   // knielen, wankelen, vallen of de executie (die loopt in de freeze via loop)
+  if (s.verblind > 0 && s.state !== 'flinch' && stofTel(s, dt)){   // blind van het stof (STOF): langzaam heen en weer, geen aanval
+    schbSet(s, 'loop'); schbAnim(s, dt * 0.5);
+    const stap = s.face * SCHB.loopSpd * STOF.dwaal * dt;
+    if (stofKeer(s, s.face, stap) || !schbMove(s, stap, plats, cliff)) s.face = -s.face;
+    return;
+  }
   if (s.state === 'flinch'){                               // de geraakt-reactie: hij twist naar de camera en schuift terug
     schbAnim(s, dt);
     if (s.knockV !== 0){                                   // de knockback: naar achteren, maar nooit over een kei of ravijn (regel 7)
@@ -38123,7 +38244,7 @@ function hitSchildman(s, wijze, richting){               // wijze: 'steek', 'wor
     return true;
   }
   if (wijze !== 'pijl') lawaaiPuls(s.x, s.base || 0, SNEAK.puls.treffer);   // een gevecht hoor je (zie "sneak")
-  if (s.state === 'flinch' && s.frame >= SCHB.dekVan && s.metSchild && !(s.open > 0)){   // hij dekt zich: de speer ketst af op het schild
+  if (s.state === 'flinch' && s.frame >= SCHB.dekVan && s.metSchild && !(s.open > 0) && !(s.verblind > 0)){   // hij dekt zich: de speer ketst af op het schild
     s.flash = Math.max(s.flash, 0.12); s.inv = SCHB.invHit; houtRaak(HOUT.kets.toon, HOUT.kets.vol); schbSplinters(s, 2);
     return false;
   }
@@ -38132,6 +38253,7 @@ function hitSchildman(s, wijze, richting){               // wijze: 'steek', 'wor
   const pantser = s.state === 'strike' && s.frame >= schbN(s, 'pantserVan') && s.frame < SCHB.leapVan;
   if (s.schild > 0){                                      // het schild vangt de treffer op
     s.schild--; if (s.schild > 0 && critPak()) s.schild--;   // True Flight: het schild een stand extra kapot
+    if (s.verblind > 0){ s.verblind = 0; if (s.schild > 0) s.schild--; critFx(s.x, (s.base || 0) + CHAR_H * 0.6); }   // blind van het stof: dubbel
     s.flash = 0.3; s.inv = SCHB.invHit;
     houtDuik();                                           // de stoot duikt weg voor de klap
     if (s.schild === 0) houtBreek();                      // het schild breekt: de zware, gestapelde klap
@@ -42262,6 +42384,7 @@ function loop(now){
       const sbox = { l: sx + bl * sScale, r: sx + br * sScale,
                      t: sy + SNK_BOX.t * sScale, b: sy + SNK_BOX.b * sScale };
       vijandHpBalk((sbox.l + sbox.r) / 2, sbox.t, s, sScale);   // het health-balkje boven de kop (met hpBalk)
+      if (s.verblind > 0 && s.state !== 'dying') stofTeken((sbox.l + sbox.r) / 2, sbox.t, s, scale * 0.7);   // blind van het stof
 
       if (spuwer(s) && s.state === 'bite' && s.frame >= SPIT_FRAME && !s.spat
           && s.state !== 'dying' && !dead){
@@ -42763,6 +42886,7 @@ function loop(now){
         const lhalf = KOOI_LIJF.half * kS;
         const nbox = { l: bodyX - lhalf, r: bodyX + lhalf, t: voeten - KOOI_LIJF.hoog * kS, b: voeten };
         vijandHpBalk(bodyX, nbox.t, s, scale);           // het health-balkje boven zijn hoofd (met hpBalk)
+        if (s.verblind > 0) stofTeken(bodyX, nbox.t, s, scale);   // blind van het stof: sterretjes om zijn hoofd
         // zolang hij slaat en nog niet openligt is zijn lijf zelf een gevaar, op de grond en in de lucht:
         // loop je er tijdens de slag doorheen, dan raakt de kooi je en zet de terugstoot je terug. Zo kom je
         // hem tijdens zijn aanval niet voorbij zoals bij de gewone bandiet (de klap-box vooruit laat vlak
@@ -42963,6 +43087,7 @@ function loop(now){
         if (dood || s.state === 'weg') continue;
         const nbox = { l: bodyX - half, r: bodyX + half, t: voeten - fh * 0.98, b: voeten };
         vijandHpBalk(bodyX, nbox.t, s, scale);
+        if (s.verblind > 0) stofTeken(bodyX, nbox.t, s, scale);   // blind van het stof: sterretjes om zijn hoofd
         if (showBoxes){ ctx.save(); ctx.globalAlpha = 0.5; ctx.lineWidth = 2; ctx.strokeStyle = '#7fd4ff'; ctx.strokeRect(nbox.l, nbox.t, nbox.r - nbox.l, nbox.b - nbox.t); ctx.restore(); }
         if (s.inv > 0 || krbOntwijkt(s)) continue;      // de hoorn: van opbergen tot terugpakken niet te raken
         if (attacking && !swingUsed && steekLive() && steekRaakt('kruisboogbandiet')){
@@ -43185,6 +43310,7 @@ function loop(now){
         const lhalf = SCHB_LIJF.half * gs;
         const nbox = { l: bodyX - lhalf, r: bodyX + lhalf, t: voeten - SCHB.fig * gs, b: voeten };
         schildHpBalk(bodyX, nbox.t, s, scale);            // zijn leven (vol tot de laatste klap) met het schild erboven (met hpBalk)
+        if (s.verblind > 0) stofTeken(bodyX, nbox.t - (s.hpBalk ? Math.max(4, CHAR_H * scale * 0.045) * 1.6 : 0), s, scale);   // blind: boven de schildbalk
         if (showBoxes){
           ctx.save(); ctx.globalAlpha = 0.5; ctx.lineWidth = 2; ctx.strokeStyle = '#c9a06b';
           ctx.strokeRect(nbox.l, nbox.t, nbox.r - nbox.l, nbox.b - nbox.t); ctx.restore();
@@ -43227,6 +43353,7 @@ function loop(now){
         const lx = bodyX + zwmLijfDX(s, gs);
         const nbox = { l: lx - lhalf, r: lx + lhalf, t: voeten - ZWM.fig * gs, b: voeten };
         vijandHpBalk(lx, nbox.t, s, scale);
+        if (s.verblind > 0) stofTeken(lx, nbox.t, s, scale);   // blind van het stof: sterretjes om zijn hoofd
         if (showBoxes){ ctx.save(); ctx.globalAlpha = 0.5; ctx.lineWidth = 2; ctx.strokeStyle = '#c9a06b'; ctx.strokeRect(nbox.l, nbox.t, nbox.r - nbox.l, nbox.b - nbox.t); ctx.restore(); }
         // de zweep raakt Amir (laag: springen helpt, bukken niet)
         if (zwmRaakt(s, bodyX, voeten, gs, pbox)){
@@ -53201,7 +53328,7 @@ function btnVisible(b){
 function btnDim(b){                                // lege drinkknop staat er wat flauwer bij
   if (b.id === 'woede') return RUN.woede < 1 && !woedeAan();   // en de woedeknop zolang hij niet vol is
   if (b.id === 'rol') return rolKlaar() < 1;     // de rolknop koelt af
-  if (b.id === 'stof') return !spear || !!stofA; // zonder speer in de hand of tijdens de veeg
+  if (b.id === 'stof') return !spear || !!stofA || stofKoel > 0;   // zonder speer, tijdens de veeg of zolang hij afkoelt
   return b.id === 'drink' ? hppotionCarry === 0 : !!b.dim;
 }
 
@@ -53500,6 +53627,14 @@ function drawBtnStof(x, y, r, a){
   for (let i = 0; i < 6; i++){                                                                      // de waaier zand
     const h = -Math.PI * (0.62 + i * 0.07), d = r * (0.3 + (i % 3) * 0.13);
     tctx.beginPath(); tctx.arc(px - r * 0.05 + Math.cos(h) * d, py - r * 0.08 + Math.sin(h) * d, Math.max(1.5, r * 0.06), 0, Math.PI * 2); tctx.fill();
+  }
+  const klaar = stofGereed();
+  if (klaar < 1){                                          // afkoelen: de ring vult zich met de klok mee, zoals bij de rol
+    tctx.lineWidth = Math.max(3, r * 0.14);
+    tctx.strokeStyle = 'rgba(20,16,30,0.40)';
+    tctx.beginPath(); tctx.arc(x, y, r + tctx.lineWidth * 0.5, 0, Math.PI * 2); tctx.stroke();
+    tctx.strokeStyle = '#e2b04a';
+    tctx.beginPath(); tctx.arc(x, y, r + tctx.lineWidth * 0.5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * klaar); tctx.stroke();
   }
   tctx.restore();
 }
