@@ -94,6 +94,8 @@ of baas zonder toestemming, aansluiten op wat er is). Een taak per keer, liefst 
 ### Leerbaarheid (L)
 
 - [ ] **L1** Stof op de knop van de lage zwaai: tikken is zwaaien, vasthouden is stof. Scheelt een knop. **+1,5**
+  *In aanbouw:* `STOF.houd` (vasthouden `STOF.houdT`, 0,22 s; `zwaaiHoud`, `zwaaiNu`), aan met `stofHoud: true` of de
+  sandboxknop naast Stof. Om te proberen: Test 66, Nacht in de stad (met het nieuwe uitzicht `stad_nacht`).
 - [ ] **L2** Een oefenkamer per vaardigheid met een kleine uitdaging (nieuw testlevel: eerst toestemming, regel 3). **+1**
 - [ ] **L3** Een icoontje boven een vijand zolang een treffer dubbel telt. **+1**
 
