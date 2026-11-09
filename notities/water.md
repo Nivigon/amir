@@ -28,6 +28,26 @@ avond kleurt de lichtlaag het water mee, net als de rest van de wereld.
 | `rivier` | een band die van achteren naar de camera stroomt, kronkelt, en over de lip van de grond langs de wand naar beneden valt | 0,9 |
 | `val` | een waterval van de rechterkant (`r`) van het terras op `x`: een beekje op het bovenvlak (`waterTerrasTeken`), het gordijn voor Amir langs (`waterVoorTeken`) en een kom eronder (`kom` keer `w` breed) met schuim en stuifwater | 0,6 in de kom, ondiep bij de wand zodat je het terras op komt |
 | `bron` | een kom met een straal (`hoog` in Amir) en een kroon van druppels | 0,5 |
+| `fontein` | decor voor de stad: een geschilderde plaat van leem met het water erin (zie hieronder) | 0 |
+
+## De fontein (`k: 'fontein'`)
+
+`WATER.soort.fontein`, `fonteinLaad`, `waterFonteinTeken`, `waterPlats`, `waterFonteinSlag`, `waterFonteinPlons`, `waterStraal`, `sbfontein`
+
+Een fontein van leem voor het plein: een rond bassin, een zuil en een schaal, als plaat (`design/stad/fontein.png`, uit de
+Grok-plaat `design/stad/bron/fontein.webp` met `tools/fontein_knip.py`, met de put als stijlreferentie). Het bouwwerk is
+geschilderd en het water komt uit dit materiaal: het oppervlak in de opening van het bassin (de zuil wordt er daarna nog eens
+overheen getekend), het water in de schaal, twee slierten die over de schaal in het bassin lopen, de straal (`waterStraal`,
+gedeeld met de bron), de druppels en het geruis. Alles achter Amir, na `stadVoorTeken`. De maten staan in px van de plaat
+(`binnen`, `bassin`, `zuil`, `schaal`, `over`); `amir` maakt de rand even hoog als die van de put.
+
+- **Decor, geen water om in te lopen** (diep 0, `waterenDiep` slaat hem over): je loopt er voorlangs. De rand is een lage
+  trede over de hele breedte (`waterPlats`, in `platsNear`), zoals de put, dus je loopt er ook overheen.
+- **Slaan in het water**: een steek of de lage zwaai waarvan de punt bij het water komt (het bassin, of vanaf de rand de
+  schaal) geeft een plons: een kroon van water die opspringt (`waterPlonzen`), spetters, twee ringen en het plonsgeluid. Het
+  water houdt de speer niet tegen, en per vak komt er hooguit elke `plons` (0,3) seconde een.
+- Eerst getekend in code (een ring, zuil en schaal van vlakken): dat paste niet bij de geschilderde stad, vandaar de plaat.
+- **Sandbox**: onder De stad de knop **Fontein**: het plein met de fontein in het midden. Geen level heeft hem nog.
 
 De diepte telt mee in `waterDepthAt`, dus de spetters, het watergeluid, het wegzakken en de speer die in het water verloren
 gaat werken voor elke vorm zoals bij de oude poel.

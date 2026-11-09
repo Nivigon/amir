@@ -638,6 +638,9 @@ grondSoort: [{van, tot, soort: 'plein'}]
   uitgang van de baas: Brutus (`notities/brutus.md`) zet hem dicht bij de start en open als hij sterft (in een klap,
   zonder takelen). De wanden van het gevecht komen uit `brutus.van` en `brutus.tot`, niet uit de poorten.
 
+Een fontein voor het plein staat bij het water, als `wateren: [{k: 'fontein', x}]`: zie "de fontein" in `notities/water.md`
+(sandbox: **Fontein** onder De stad).
+
 ## De luifel bij de put
 
 `STAD.plein.luifel`, `stadLuifelMaat`, `stadLuifelWorp`, `stadLuifelStap`, `stadLuifelVx`, `stadLuifelTeken`, `sbluifel`
