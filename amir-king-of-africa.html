@@ -2514,7 +2514,7 @@
   <div id="duokeuze" role="dialog" aria-modal="true" aria-labelledby="dktitel"><div id="dktitel">Instellingen</div>
     <div class="dkrij">Kruisboogbandiet<small>Hoeveel bouten hij per keer herladen opneemt. Met een tweede bout op de kruisboog schiet hij snel opnieuw</small><div id="dksalvo"></div></div>
     <div class="dkrij">Schildbandiet<small>Moeilijk: een kortere tell, een snellere sprong en minder rust tussen zijn aanvallen</small><div id="dkniveau"></div></div>
-    <div class="dkrij">Derde slag<small>Terugslag: de draaislag telt enkel, maar zet de vijand ver terug en hij staat even stil. Schade: de draaislag telt dubbel</small><div id="dkcombo"></div></div>
+    <div class="dkrij">Derde slag<small>Terugslag: de draaislag telt enkel, maar zet de vijand ver terug en hij staat even stil. Schade: de draaislag telt dubbel. Doorbraak: telt dubbel, en pareert de bandiet je tweede steek, dan volgt de draaislag meteen en kan zijn tegenklap je niet onderbreken</small><div id="dkcombo"></div></div>
     <div class="dkrij">Zweepman<small>Nieuw: hij sluipt sneller op je af, en zonder arm slaat hij sneller en haalt hij uit van ver. Nieuwer: zoals nieuw, maar zonder arm is hij alleen in zijn slag onaantastbaar, zijn klap slaat je minder ver weg en verdooft je even, en hij kan een treffer meer hebben. Nieuwer schreeuw: zoals nieuwer, en ook met arm alleen in zijn slag onaantastbaar en sneller; je treffer onderbreekt hem niet, dus blijf je staan, dan moet je zijn slag ontwijken. Zijn schreeuw duwt je weg en zijn lach is te raken. Oud: zoals hij was</small><div id="dkzweep"></div></div>
     <button id="dkstart" type="button">Start level</button></div>
   <div id="verhaal"><div id="vhtitel"></div><div id="vhtekst"></div><button id="vhstart" type="button">Start level</button></div>
@@ -18020,10 +18020,15 @@ const COMBO = {
   // 'terugslag' telt enkel maar zet de vijand ver terug, tegengehouden door kei en ravijn (regel 7, via banMove/schbMove)
   // terugslag: beginsnelheid bandiet (wereld-px/s, dooft uit tot ~380 px), zo lang staat hij stil, dan `traag` s op gang komen
   // vanaf `traagV` van zijn tempo; de schildbandiet krijgt `schb` keer zijn flinch-duw en staat daarna `schbRust` s in zijn wacht
-  terug: { v: 1500, rust: 1.2, traag: 1.2, traagV: 0.4, schb: 3, schbRust: 1.0, toon: 0.75 }
+  terug: { v: 1500, rust: 1.2, traag: 1.2, traagV: 0.4, schb: 3, schbRust: 1.0, toon: 0.75 },
+  // 'doorbraak' telt dubbel zoals 'schade', en pareert de bandiet de tweede steek, dan volgt de slag zonder afkoeling;
+  // tot en met frame `pantserTot` (de draai en de slag) kan geen klap Amir raken of de slag onderbreken
+  pantserTot: 9
 };
 let sbComboSoort = 'terugslag';   // de sandbox: welke derde slag de knop Combo aanzet
 function comboSoort(){ return sandbox ? sbComboSoort : level && level.comboKeuze ? duoKeuze.combo : 'schade'; }
+function comboDoor(){ return COMBO.aan && comboSoort() === 'doorbraak'; }
+function comboPantser(){ return atkCombo && atkFrame >= 0 && atkFrame <= COMBO.pantserTot && comboDoor(); }   // doorbraak: de draai is niet te onderbreken
 function comboTerugNu(){ return atkCombo && atkFrame >= 0 && steekLive() && comboSoort() === 'terugslag'; }
 let comboBank = null, atkCombo = false, comboTel = 0, comboSinds = 99, comboBuf = false, comboRaak = false;
 function comboLaad(){
@@ -31472,7 +31477,7 @@ function vijandDood(baas){
 }
 
 function hurtPlayer(fromLeft, schade = 1){           // schade: hoeveel levens de klap kost (standaard een heel, een halve bij de snelle kooislag)
-  if (!running || invuln > 0 || dead || godMode || woedeAan() || exeVries || bruVries || (sneakRegie && !sneakRegie.vrij)) return;   // in de woede raakt niets hem, en in de executie en de sluipaanval (tot het loslaten) ook niet
+  if (!running || invuln > 0 || dead || godMode || woedeAan() || exeVries || bruVries || (sneakRegie && !sneakRegie.vrij) || comboPantser()) return;   // in de woede raakt niets hem, en in de executie en de sluipaanval (tot het loslaten) ook niet
   if (schildVang(fromLeft, 'klap')) return;        // het schild van Amir vangt een klap van voren (AMIR_SCHILD)
   thrHurt();                                       // de hele worp is kwetsbaar (zie thrHurt)
   playRaak();
@@ -41922,7 +41927,7 @@ const duoKeuze = (() => {
   try { k = JSON.parse(localStorage.getItem('amir.duoKeuze') || '{}') || {}; } catch (e) {}
   return { salvo: KRB_SALVO[k.salvo] ? k.salvo : '2dan1', niveau: k.niveau === 'moeilijk' ? 'moeilijk' : 'makkelijk',
            zweep: ['oud', 'nieuw', 'nieuwer', 'schreeuw'].includes(k.zweep) ? k.zweep : ZWM_STANDAARD,
-           combo: k.combo === 'schade' ? 'schade' : 'terugslag' };
+           combo: ['schade', 'doorbraak'].includes(k.combo) ? k.combo : 'terugslag' };
 })();
 const duoKeuzeEl = document.getElementById('duokeuze');
 let duoKeuzeVerder = null, duoKeuzeDoor = false;
@@ -41941,7 +41946,7 @@ function duoKeuzeBouw(){
   rij('dksalvo', ['2dan1', '2', '1'].map(w => [w, KRB_SALVO[w].naam]), 'salvo');
   rij('dkniveau', [['makkelijk', 'Makkelijk'], ['moeilijk', 'Moeilijk']], 'niveau');
   rij('dkzweep', [['oud', 'Oud'], ['nieuw', 'Nieuw'], ['nieuwer', 'Nieuwer'], ['schreeuw', 'Nieuwer schreeuw']], 'zweep');
-  rij('dkcombo', [['terugslag', 'Terugslag'], ['schade', 'Schade']], 'combo');
+  rij('dkcombo', [['terugslag', 'Terugslag'], ['schade', 'Schade'], ['doorbraak', 'Doorbraak']], 'combo');
   const toon = (id, aan) => { document.getElementById(id).parentElement.style.display = aan ? '' : 'none'; };   // alleen de rijen van dit level
   toon('dksalvo', duoKeuzeDuo()); toon('dkniveau', duoKeuzeDuo()); toon('dkzweep', !!(level && level.zweepKeuze));
   toon('dkcombo', !!(level && level.comboKeuze));
@@ -45062,7 +45067,7 @@ function loop(now){
     // de geworpen speer: een vak rond de punt, net als de speerpunt bij de stoot
     const javR = 26 * scale;
     critNu = false;                                 // True Flight: een crit uit een vorig beeld telt niet meer
-    if (atkCombo && attacking && steekLive() && comboSoort() === 'schade') critNu = true;   // de derde slag: zijn treffer telt dubbel, net als een crit
+    if (atkCombo && attacking && steekLive() && comboSoort() !== 'terugslag') critNu = true;   // de derde slag: zijn treffer telt dubbel, net als een crit
     // het raakvlak van een geworpen speer: een vak om de punt. De tweede speer (DUBBEL) raakt de eerste
     // DUBBEL.dichtT seconden ook alles tussen Amir en de punt: een vijand die na de eerste treffer meteen
     // terugstormt staat dan al voor de punt, en daar vloog de tweede eerst gewoon langs
@@ -45989,6 +45994,9 @@ function loop(now){
               banPareer(s, s.x + (vonkX - bodyX), tipY);            // clang, vonk op het snijpunt, en zijn snelle counter
               swingUsed = true; atkFrame = -1; atkAcc = 0; atkCooldown = ATK_COOLDOWN;   // je stoot kaatst af; Amir schuift niet weg (afstand pak je zelf)
               comboSinds = 0;                                       // een gepareerde steek is ook contact: hij telt mee voor de derde slag
+              if (comboDoor() && comboTel >= 2 && comboKan()){       // doorbraak: na de parade meteen de derde slag, voor zijn counter landt
+                if (comboBuf) comboStart(); else atkCooldown = 0;
+              }
             }
           }
           // de tweede speer (DUBBEL) pareert hij niet: die gaat door zijn dekking heen (dubbelDoor)
@@ -56027,9 +56035,10 @@ function comboKnopToon(){
   const b = document.getElementById('sbcombo'); if (!b) return;
   b.textContent = 'Combo: ' + (COMBO.aan ? sbComboSoort : 'uit'); b.classList.toggle('on', COMBO.aan);
 }
-document.getElementById('sbcombo').onclick = () => {   // rond: uit, terugslag, schade
+document.getElementById('sbcombo').onclick = () => {   // rond: uit, terugslag, schade, doorbraak
   if (!COMBO.aan){ COMBO.aan = true; sbComboSoort = 'terugslag'; comboLaad(); }
   else if (sbComboSoort === 'terugslag') sbComboSoort = 'schade';
+  else if (sbComboSoort === 'schade') sbComboSoort = 'doorbraak';
   else COMBO.aan = false;
   comboKnopToon(); cv.focus();
 };

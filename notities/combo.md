@@ -20,10 +20,15 @@ Welke derde slag beter is (controle of schade) proberen we uit. `comboSoort()` g
   stofwolk in plaats van de ster van de crit, en een doffe houtklap (`houtRaak` op `COMBO.terug.toon`, 0,75): de schacht
   op zijn lijf. Later misschien met de speer omgedraaid (zie de bijlage in `notities/kit-verbeteren.md`).
 - **Schade**: de slag telt dubbel (`critNu`), met de ster, zoals hij eerst was.
+- **Doorbraak**: telt dubbel zoals Schade, en lost de parade van de bandiet op (optie A). Pareert hij de tweede steek
+  van een reeks, dan volgt de derde slag zonder afkoeling: al gedrukt (`comboBuf`) en hij start meteen, anders is de
+  afkoeling weg en start de volgende druk hem (in de pareer-tak, `comboDoor`). Tot en met frame `COMBO.pantserTot` (9, de
+  draai en de slag) raakt geen klap Amir (`comboPantser` in `hurtPlayer`), zodat zijn tegenklap (die na zo'n 0,07 s landt,
+  tegen 0,43 s voor de slag met afkoeling) de reeks niet meer breekt.
 
 Test 68 heeft `comboKeuze: true`: aan het begin en na elke R (`opnieuw`) staat het scherm van `duoKeuze` open met alleen
-de rij Derde slag (`dkcombo`, bewaard in `amir.duoKeuze`). Een level met `combo` zonder `comboKeuze` krijgt schade. In de
-sandbox wisselt de knop Combo rond: uit, terugslag, schade (`sbComboSoort`). De terugslag werkt nu op de bandiet en de
+de rij Derde slag (terugslag, schade of doorbraak) (`dkcombo`, bewaard in `amir.duoKeuze`). Een level met `combo` zonder `comboKeuze` krijgt schade. In de
+sandbox wisselt de knop Combo rond: uit, terugslag, schade, doorbraak (`sbComboSoort`). De terugslag werkt nu op de bandiet en de
 schildbandiet (de vijanden van Test 68); bij andere vijanden telt hij gewoon als een treffer.
 
 ## Zo telt hij
@@ -63,6 +68,6 @@ in de bewogen schacht terug naar bruin, in de punt naar grijs. Op frame 6 en 8 i
 
 ## Open
 
-- Tegen de bandiet: de tweede steek valt in zijn dekking en wordt gepareerd; dat telt nu als contact, maar zijn counter
-  kan de reeks nog afbreken. Uitproberen of dat te zwaar is.
+- Tegen de bandiet: de tweede steek valt in zijn dekking en wordt gepareerd; dat telt als contact, maar met terugslag en
+  schade breekt zijn counter de reeks bijna altijd af. Doorbraak is het antwoord daarop; uitproberen welke blijft.
 - Het naar voren schuiven gebeurt terwijl de voeten in de frames staan: een beetje glijden.
