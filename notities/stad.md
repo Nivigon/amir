@@ -288,8 +288,10 @@ trede op), en een huis, kraam of vijand die erop staat krijgt vanzelf die hoogte
 Met `stad.onder: true` krijgt de straat zelf dezelfde onderlaag (in `sceneGrond`), zodat alles een laag is. Zonder dat veld
 ziet de straat eruit zoals altijd: de bestaande stadslevels veranderen niet.
 
-Treden zijn om op te springen, niet om op te lopen: een derde Amir (85) is een goede maat, en Amir heeft geen opstap voor
-kleine hoogtes. Stad 8 (De hoge wijk) is het proefstuk: drie treden van 85 omhoog naar een wijk op 255 met twee huizen, en
+Treden zijn om op te springen, niet om op te lopen, en hebben twee vaste maten (`STRAAT_TREDE.laag` en `.hoog`):
+**laag 85** (een derde Amir, een stap die je zonder mikken haalt) en **hoog 170** (twee derde Amir, een echte sprong; de
+sprong haalt zo'n 200, op een traag toestel 184). Hoger gaat niet: zet er dan een trede tussen. Amir heeft geen opstap voor
+kleine hoogtes. `levelcheck.py` geeft LET OP op een trede van straat met een andere hoogte (regel `treden van straat`). Stad 8 (De hoge wijk) is het proefstuk: drie treden van 85 omhoog naar een wijk op 255 met twee huizen, en
 twee treden weer omlaag. Daarna een tweede stuk met minder maar hogere treden: twee van 170 (twee derde Amir; de sprong
 haalt zo'n 200, op een traag toestel 184) naar een wijk op 340 met een huis, een kraam en een bandiet, en een keer 170 omlaag. In de sandbox onder De stad **Hoge wijk met trap** (`sbtrap`, met `sbTrap` op de terrassen): drie
 treden, een stuk wijk en twee treden omlaag voor je uit, en staat de stad er, dan ook de onderlaag onder de straat.

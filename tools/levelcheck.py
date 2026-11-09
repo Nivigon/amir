@@ -370,6 +370,7 @@ class Spel:
         self.PLAT = b.const('PLAT')
         self.CLIFF = b.const('CLIFF')
         self.FIN = b.const('FIN')
+        self.STRAAT_TREDE = b.const('STRAAT_TREDE')
         self.POOL = b.const('POOL')
         self.EDGE = b.const('EDGE')
         self.PROPS = b.const('PROPS')
@@ -1888,6 +1889,26 @@ def terrassen(lv, sp):
     for o in lv.ledges:
         if not any(abs(o['x'] - t['r']) < 60 and t['h'] > o['h'] for t in lv.terraces):
             yield letop(o['x'], 'richel op %s hangt niet aan een terraswand' % n0(o['x']))
+
+
+@regel('treden van straat')
+def treden_van_straat(lv, sp):
+    """Een trede van straat (look: 'straat') heeft een van de twee vaste maten uit STRAAT_TREDE: laag (85, een
+    stap) of hoog (170, een echte sprong). Elke rand waar de straat omhoog of omlaag gaat telt; een andere hoogte
+    werkt wel, maar is LET OP, zodat elk level dezelfde treden heeft."""
+    T = sp.STRAAT_TREDE
+    maten = (T['laag'], T['hoog'])
+    for t in lv.terraces:
+        if t.get('look') != 'straat' or t['l'] >= t['r']:
+            continue
+        for x, buiten in ((t['r'], t['r'] + 1), (t['l'], t['l'] - 1)):
+            hier, ernaast = lv.terrein(x - 1 if x == t['r'] else x + 1), lv.terrein(buiten)
+            if hier <= ernaast:
+                continue
+            d = hier - ernaast
+            if all(abs(d - m) > 1 for m in maten):
+                yield letop(x, 'trede van straat van %s hoog: de vaste maten zijn %s (stap) en %s (sprong)'
+                            % (n0(d), n0(maten[0]), n0(maten[1])))
 
 
 @regel('zwevende lagen')
