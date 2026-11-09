@@ -64,3 +64,17 @@ neemt de plek van het water in en je kunt er niet naast het water in stappen.
 - De oude poel overzetten op dit materiaal (daar is een droge kuil voor nodig in plaats van de plaat met water).
 - Winter: hetzelfde materiaal als ijs.
 - Sandbox-knoppen en de Maker, als het materiaal goed is bevonden.
+
+## De spetters van Amir (`SPETTER`)
+
+Landen in het water en door water lopen gaven vroeger de plaatjes `spetter_01..08` en `rimpel_01..08`. Nu tekent het
+spel ze zelf, in de kleuren van `WATER.palet` (`SPETTER`, `splashAt`, `updateSplashes`, `drawSplashes`):
+
+- **plons** (landen, `splashAt`): een doorzichtig zuiltje dat omhoog schiet en terugzakt, een druppel die van de top
+  losschiet, twee kringen, schuim en acht druppels die terugvallen met een kringetje.
+- **spat** (lopen): lage spatjes achter de voet weg, een kleine kring en wat schuim.
+- **kring** (stilstaan): alleen een kring.
+
+`SPETTER.maat` is de grootte (een eenheid is zoveel `CHAR_H`), `SPETTER.nieuw: false` zet de oude plaatjes terug.
+In de sandbox, tabblad Terrein, rij **Water**: **Poel** en **Plas** zetten water voor Amir neer, **Spetter nieuw/oud**
+wisselt tussen de nieuwe en de oude.
