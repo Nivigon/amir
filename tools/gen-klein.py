@@ -131,6 +131,22 @@ DOELEN = [
     ('design/stad/gevel_relief.png', 60),   # de huistypes (tools/gevel_soorten.py)
     ('design/stad/gevel_koopman.png', 60),
     ('design/stad/gevel_pilaren.png', 60),
+    ('design/stad/gevel_vervallen.png', 60),
+    ('design/stad/gevel_toren.png', 60),
+    ('design/stad/gevel_ruine.png', 60),
+    ('design/stad/gevel_ruine2.png', 60),
+    ('design/stad/gevel_winkel.png', 60),
+    ('design/stad/gevel_winkel_dicht.png', 60),
+    ('design/stad/balkon_voor.png', 60),   # de balustrades van het ingebouwde balkon (tools/balkon_knip.py)
+    ('design/stad/balkon_zij.png', 60),
+    ('design/stad/takel_arm.png', 60),     # de takel (tools/takel_knip.py)
+    ('design/stad/takel_mand.png', 60),
+    ('design/stad/raam_spitsboog.png', 60),      # de andere ramen (tools/ramen_knip.py)
+    ('design/stad/raam_doek.png', 60),
+    ('design/stad/raam_dicht.png', 60),
+    ('design/stad/raam_luiken.png', 60),
+    ('design/stad/raam_tralie.png', 60),
+    ('design/stad/raam_pot.png', 60),
     ('design/stad/paleis.png', 60),     # 2,9x  voorgebakken met nevel
     ('design/stad/kraam_riet.png', 60), # 6,5x
     ('design/stad/kraam_doek.png', 60), # 5,6x

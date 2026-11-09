@@ -220,7 +220,9 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | achter de kartels: wie op een dak in de stad staat, staat achter de tanden | `STAD_KANTEEL`, `dakAchter`, `stadKanteelVoor` | notities/stad.md |
 | de stadstrap: een buitentrap achter een huis langs, E en een fade | `STAD_TRAP`, `stadTrapE`, `stadInGevecht` | notities/stad.md |
 | deurgordijnen: een geweven doek in het deurgat in plaats van de houten deur, golft in de wind, binnen gespiegeld; per gevel `gordijn`, of `stad.gordijnen: true` voor een vaste keuze per huis | `GORDIJN`, `stadGordijn`, `gordijnDoek`, `stadGordijnTeken`, `binnenGordijnTeken` | notities/gordijnen.md |
-| huistypes: andere gevels (reliefhuis, koopmanshuis, pilarenhuis) met `soort`, ook in de Maker | `STAD.gevelSoort`, `stadGevelG`, `MK_GEVEL_TYPES` | notities/stad.md |
+| huistypes: andere gevels (reliefhuis, koopmanshuis, pilarenhuis, vervallen huis, torenhuis, twee ruines zonder dak, het winkelhuis zonder deur) met `soort`, ook in de Maker | `STAD.gevelSoort`, `stadGevelG`, `stadGeenDak`, `stadGeenDeur`, `MK_GEVEL_TYPES` | notities/stad.md |
+| balkon: een ingebouwd balkon in een gevel, de nis met een dichte deur of de doorkijk in de hoek (`balkon` in een gevel) | `STAD_BALKON`, `stadBalkonMaat`, `stadBalkonTeken` | notities/stad.md |
+| accenten: de takel met een mand in de wind, andere ramen op het oude huis, en `stad.accenten` die per seed zelf kiest | `STAD_TAKEL`, `STAD_RAMEN`, `stadAccenten`, `stadTakelTeken` | notities/stad.md |
 | deuren in de stad: een vijand die uit een deurgat van een gevel stapt | `STAD_DEUR`, `stadDeurMaat`, `stadDeurUpdate`, `mkDeurMaat` | notities/stad.md |
 | de doorgang: bij de opening van een trap op een galerij loopt het dek de diepte in, langs het huis | `STAD_DOORGANG`, `stadDoorgangen`, `stadDoorgangBeeld` | notities/stad.md |
 | lift bij een galerij: het takelplateau voegt zich naar het eind van een galerij | `takelGalerijStap`, `mkLiftGalerij`, `galerij` | notities/stad.md |

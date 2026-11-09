@@ -38,12 +38,25 @@ hoogtes vast in sprite-eenheden.
 
 `STAD.gevelSoort`, `stadGevelG`, `stadGevelDelen`, `stadSoortLaad`, `tools/gevel_soorten.py`
 
-Naast `gevel.png` zijn er drie andere huizen, elk met een eigen plaat in `design/stad/`. Je kiest het type met `soort`
+Naast `gevel.png` zijn er negen andere huizen, elk met een eigen plaat in `design/stad/`. Je kiest het type met `soort`
 in een gevel: `gevels: [{x, hoog, f, soort}]`. Zonder `soort` blijft het de oude gevel, dus geen bestaand level verandert.
 
 - `relief`: het reliefhuis, licht zand met rode en blauwe versiering rond de deur en de ramen (Hausa-stijl).
 - `koopman`: het koopmanshuis, warm rossig zand met een houten erker op de eerste verdieping.
 - `pilaren`: het pilarenhuis, donkerder leem met staande pilaren met punten erop en bundels stokken (Djenne-stijl).
+- `vervallen`: het vervallen huis, kale baksteen, dichtgemetselde ramen, een hangend luik, een afgebrokkelde dakhoek. Nog
+  bewoonbaar: het dak is beloopbaar.
+- `toren`: het torenhuis, een ronde toren aan de rechterkant die een halve verdieping boven het dak uitsteekt. Het dak is
+  beloopbaar, de toren is decor (wie op het dak staat, staat ervoor).
+- `ruine` en `ruine2`: twee ruines, de ene met gaten in de bovenste verdiepingen, de andere met een V in het midden en een
+  balk over het gat. Door de gaten zie je de lucht (`gaten` in het script: elk wit vlak in de muur wordt doorzichtig).
+  Een ruine heeft **geen beloopbaar dak** (`ruine: true`, `stadGeenDak`): geen vloer in `stadPlats`, `stadVloeren` en
+  `mkStadVloeren`, en geen kartels. Zet er dus geen galerij, trap, ton of vijand op het dak.
+  In het deurgat staat geen houten deur en geen gordijn: het is leeg en donker.
+- `winkel` en `winkel_dicht`: het winkelhuis, een brede lage opening met een luik op een stok, een rieten matje erboven en
+  een leembank als toonbank; open of met het luik dicht. De twee platen liggen precies over elkaar. De winkel staat **op de
+  plek van de deur**, want naast de deur paste hij niet in de breedte van een huis (`geenDeur: true`, `stadGeenDeur`): geen
+  houten deur, geen gordijn, geen binnenkant en geen vijand uit de deur (`stadDeurMaat` geeft null).
 
 De muren blijven zandkleurig, elk met een eigen tint (`zand` in `tools/gevel_soorten.py`, ten opzichte van `gevel.png`).
 Grok gaf wit, roze en chocoladebruin: dat werd een kleurenfestival. De kleur in de straat hoort van doeken, was en
@@ -57,6 +70,10 @@ precies dezelfde hoogte als bij een oud huis, en kun je de types vrij door elkaa
 - **Twee soorten verdieping.** Elke plaat heeft naast `ver` ook `alt`: de bovenste verdieping uit de Grok-plaat. De eerste
   verdieping is `ver` (de erker, de stokbundels), alles erboven `alt` (`stadGevelDelen`). Een koopmanshuis van vier hoog
   heeft dus een erker en daarboven twee gewone ramen.
+- **De ruine andersom.** Bij een ruine is het dak de hele ingestorte verdieping (600 bronpx hoog). Daaronder eerst `ver`, de
+  verdieping met de gaten, en pas daaronder `alt`: de dichte verdieping van het vervallen huis, die het script onderaan de
+  plaat van de ruine plakt. Zo staan er bij drie of vier hoog nooit twee keer dezelfde gaten boven elkaar, en wordt de
+  ruine naar beneden toe heler. Een ruine van een hoog is de ingestorte verdieping op de begane grond.
 - **De deur.** Voorlopig krijgt een huistype dezelfde houten deur als een oud huis, dicht of (soms) open, geschaald op
   zijn eigen deurgat (`deur` in `STAD.gevelSoort`, het gat ten opzichte van dat van `gevel.png`; ook `stadDeurMaat`
   rekent ermee). De latei van `gevel.png` komt er niet overheen, want elk type heeft zijn eigen kozijn.
@@ -66,16 +83,68 @@ precies dezelfde hoogte als bij een oud huis, en kun je de types vrij door elkaa
   wit weg, een strook kale muur eruit (links een smalle zodat de deur op x 473 valt, rechts een brede), en elke band op zijn
   maat. Het print de maten voor `STAD.gevelSoort` en zet ze in `metadata.json` (`gevel_soorten`). Daarna `gen-klein.py` en
   `gen-offline-manifest.py`.
-- **Sandbox.** Onder Terrein, bij De stad, de knop **Huistypes**: een straat met de oude gevel en de drie types door elkaar,
+- **Sandbox.** Onder Terrein, bij De stad, de knop **Nieuwe huizen**: het vervallen huis, het torenhuis, de twee ruines en het
+  winkelhuis (open en dicht), elk in meer hoogtes, ook een verdieping, met een oud huis als maat. De knop **Huistypes**: een
+  straat met de oude gevel en de drie eerste types door elkaar,
   in elke hoogte, met een galerij over een oud huis en een reliefhuis. Daarnaast **Dichte straat**: tien huizen muur
   tegen muur (10 bronpx over elkaar, de randen zijn niet kaarsrecht). De breedte van een huis schaalt mee met het scherm,
   dus de knop rekent met de schaal van dat moment.
 - **In de Maker.** Een gevel heeft in het paneel naast Hoogte de keuze **Type** (`MK_GEVEL_TYPES`, `mkGevelSoort`): Oud
-  huis, Reliefhuis, Koopmanshuis of Pilarenhuis. Het grid tekent het gekozen type, en `mkNaarLevel` zet `soort` in de gevel.
+  huis, Reliefhuis, Koopmanshuis, Pilarenhuis, Vervallen huis, Torenhuis, Ruine met gaten, Ruine met V, of het Winkelhuis
+  open of dicht. Het grid tekent het gekozen type, en `mkNaarLevel` zet `soort` in de gevel.
 - **Een type erbij.** Een Grok-plaat in `design/stad/bron/`, een regel in `SOORTEN` van `tools/gevel_soorten.py` (de maten
-  nameten op een raster), het script draaien, de uitvoer in `STAD.gevelSoort` en een regel in `MK_GEVEL_TYPES`, `KLEIN_FAM`
+  nameten op een raster; staat de deur links van het midden, dan plakt een negatieve knip kale muur bij in plaats van eruit
+  te halen, en `schaal` maakt een plaat met te lage verdiepingen eerst groter), het script draaien, de uitvoer in `STAD.gevelSoort` en een regel in `MK_GEVEL_TYPES`, `KLEIN_FAM`
   en de lijst van `gen-klein.py`.
 - Nog niet: de verre rijen achter de straat (`STAD.rijen`) blijven de oude gevel.
+
+## Balkon
+
+`STAD_BALKON`, `stadBalkonMaat`, `stadBalkonTeken`, `tools/balkon_knip.py`
+
+Een ingebouwd balkon in een gevel, plat: er steekt niets uit, de diepte komt van de schaduw en van wat je erdoor ziet.
+In een gevel: `balkon: 'nis'`, `'hoekL'` of `'hoekR'`, en `balkonV` de verdieping (1 = de eerste, standaard de bovenste).
+Een huis van een hoog heeft geen balkon, een ruine ook niet, en een torenhuis geen hoekbalkon (daar staat de toren).
+
+- **De nis** (`nis`): midden in de gevel, op de plek van het raam. Een donkere achterwand met schaduw bovenin en langs een
+  zijwand, een dichte houten deur achterin (`STAD_BALKON.deur`, kleiner dan een voordeur, warm gekleurd door
+  `stadDeurWarm`), een houten latei over de nis en de balustrade gelijk met de gevel.
+- **De hoek** (`hoekL`, `hoekR`): de hoek van het huis is op die verdieping uitgespaard (een clip met `evenodd` over de banden),
+  dus je kijkt erdoorheen naar de stad erachter. Een strook muurdikte langs de binnenrand, een plafondje, een latei en voorin de
+  smalle balustrade. Op een gespiegeld huis blijft `hoekR` rechts in beeld.
+- **De vloer** is de balkenrij van het huis zelf (`STAD_BALKON.vloer`): de vloerrand met balkkoppen uit de Grok-plaat is weg,
+  anders staan er twee balkenrijen boven elkaar.
+- **De platen** knipt `tools/balkon_knip.py` uit `design/stad/bron/balkon_grok.png`: de balustrade van de voorkant
+  (`balkon_voor.png`) en van de smalle zijkant (`balkon_zij.png`). Ze laden pas als een gevel een balkon heeft (`stadSoortLaad`).
+- **Sandbox**: onder De stad de knop **Balkons**: de nis en de hoek, links en rechts, op verschillende verdiepingen en types.
+- **In de Maker**: bij een gevel de keuze **Balkon** (geen, de nis of de hoek links of rechts, op de bovenste of de eerste
+  verdieping; `MK_BALKONS`).
+- Met `stad.accenten` kiest het spel ook zelf balkons (zie "Accenten").
+
+## Accenten
+
+`STAD_TAKEL`, `STAD_RAMEN`, `STAD_ACCENT`, `stadAccenten`, `stadTakelTeken`, `stadRamenTeken`, `tools/takel_knip.py`,
+`tools/ramen_knip.py`
+
+Losse stukken die een huis anders maken zonder nieuwe gevelplaat (D2 in `notities/stad-verbeteren.md`).
+
+- **De takel** (`takel: 'l'` of `'r'` in een gevel): een ruwe stam die op de bovenste balkenrij uit de zijkant van het huis
+  steekt, met een schuine tak eronder, een katrol en een mand. De mand slingert om de katrol op dezelfde wind als de
+  deurgordijnen (`gordijnVlaag`, de sandboxknop Wind): bijna stil tussen de vlagen, verder uit bij een vlaag, elk huis in
+  een eigen ritme. Decor: Amir loopt eronder door. Staat er aan die kant een buurhuis te dichtbij (`STAD_TAKEL.ruimte`),
+  dan geen takel; ook niet op een ruine, en niet aan de torenkant van het torenhuis. `tools/takel_knip.py` knipt de arm en
+  de mand uit `design/stad/bron/takel_grok.png` (de muurstrook links gaat eraf). In de Maker de keuze **Takel**.
+- **Andere ramen** op het oude huis: zes stukken muur met een ander raam (spitsboog, doek over de vensterbank,
+  dichtgemetseld, luiken half open, traliewerk, pot op de vensterbank), over het raam van `gevel.png` gelegd
+  (`STAD_NACHT.ramen.gevel`). `tools/ramen_knip.py` zoekt per stuk het kozijn, laat een randje muur met een zachte rand staan
+  en kleurt die naar de leem rond het raam van het oude huis. Alleen met `stad.accenten`; `ramen: false` in een gevel zet
+  het daar uit. Een nis van een balkon vervangt het raam van die verdieping.
+- **Zelf kiezen** (`stad.accenten: true`, `stadAccenten`): per seed vast. Ongeveer een op de vier huizen krijgt een balkon
+  of een takel (`STAD_ACCENT`), hooguit een per huis en nooit twee huizen met een accent naast elkaar; een huis dat zelf
+  een balkon of takel heeft telt mee. Op het oude huis wordt ongeveer 40 procent van de ramen een ander raam. Geen
+  bestaand level heeft het; een nieuw stadslevel mag het aanzetten.
+- **Sandbox**: onder De stad de knop **Accenten**: een straat met de accenten aan, elke klik een andere seed, en twee vaste
+  takels vooraan om de mand te zien slingeren.
 
 ## Achter de kartels
 

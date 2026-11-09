@@ -5,6 +5,12 @@ Bron (1296x1536, witte achtergrond):
   gevel_relief_grok.jpg    het reliefhuis: lichte kalk met rode en blauwe versiering (Hausa)
   gevel_koopman_grok.jpg   het koopmanshuis: rozerode leem met een houten erker
   gevel_pilaren_grok.jpg   het pilarenhuis: staande pilaren met punten erop (Djenne)
+  gevel_vervallen_grok.jpg het vervallen huis: kale baksteen, dichtgemetselde ramen, een hangend luik
+  gevel_toren_grok.jpg     het torenhuis: een ronde toren rechts, een halve verdieping boven het dak
+  gevel_ruine_grok.jpg     de ruine met gaten: de bovenste verdieping ingestort, de lucht door de gaten
+  gevel_ruine2_grok.jpg    de ruine met de V: het midden ingestort, een balk over het gat
+  gevel_winkel_grok.jpg    het winkelhuis: een brede opening met een luik op een stok, een leembank (geen deur)
+  gevel_winkel_dicht_grok.jpg  hetzelfde met het luik dicht
 
 Uit: design/stad/gevel_<soort>.png, op de maat van gevel.png, zodat alles wat aan een gevel hangt
 (het dak, de verdiepingen, de deur, de kartels, de galerijen) gewoon doorwerkt:
@@ -48,6 +54,27 @@ SOORTEN = {
                     knipL=140, knipR=700, zand=(-4, 3, 1)),
     'pilaren': dict(muur=(45, 1255), deur=(400, 612), dak=210, alt=(210, 655), ver=(655, 1058), bod=(1058, 1534),
                     knipL=222, knipR=690, zand=(-9, 2, -2)),
+    # de tweede ronde (gemaakt uit gevel_breed_start.png): de deur staat hier links van het midden, dus links komt er
+    # kale muur bij in plaats van eraf (een negatieve knip plakt de strook knipL - n .. knipL er nog een keer achter)
+    'vervallen': dict(muur=(46, 1251), deur=(306, 496), dak=205, alt=(205, 600), ver=(600, 1010), bod=(1010, 1515),
+                      knipL=290, knipR=620, zand=(-4, 2, 1)),
+    # het torenhuis: de verdiepingen zijn lager dan bij de rest, dus eerst de hele plaat 1,2 keer groter (schaal);
+    # de maten hier zijn die van de Grok-plaat zelf. Rechts gaat de raamkolom eruit, de toren blijft.
+    'toren':   dict(muur=(108, 1188), deur=(317, 456), dak=440, alt=(440, 762), ver=(762, 1092), bod=(1092, 1500),
+                    knipL=280, knipR=492, schaal=1.2, zand=(3, 1, 2)),
+    # de ruines: de ingestorte verdieping is het dak (dak tot net onder de middelste balkenrij), de verdieping met de
+    # gaten de eerste (ver), en de verdiepingen daartussen (alt) komen uit het vervallen huis: beschadigd maar dicht,
+    # zodat er nooit twee keer dezelfde gaten boven elkaar staan. gaten: elk wit vlak in de muur wordt doorzichtig.
+    'ruine':   dict(muur=(41, 1256), deur=(342, 538), dak=600, ver=(600, 1010), bod=(1010, 1535),
+                    knipL=300, knipR=560, zand=(-6, 1, 0), ruine=True),
+    'ruine2':  dict(muur=(85, 1229), deur=(366, 548), dak=600, ver=(600, 1010), bod=(1010, 1519),
+                    knipL=300, knipR=700, zand=(-6, 1, 0), ruine=True),
+    # het winkelhuis zonder deur (de winkel staat op de plek van de deur): midden is het midden van de winkel, de
+    # deur en de raamkolom erboven gaan er links uit, rechts komt kale muur bij. Open en dicht liggen precies over elkaar.
+    'winkel':  dict(muur=(46, 1250), midden=878, dak=205, alt=(205, 600), ver=(600, 1010), bod=(1010, 1508),
+                    knipL=140, knipR=1235, zand=(5, 2, 3)),
+    'winkel_dicht': dict(muur=(46, 1250), midden=878, dak=205, alt=(205, 600), ver=(600, 1010), bod=(1010, 1508),
+                         knipL=140, knipR=1235, zand=(5, 2, 3)),
 }
 #   zand   de tint ten opzichte van gevel.png, in Lab (licht, rood, geel): de huizen blijven zandkleurig, elk met een
 #          eigen tint (relief licht zand, koopman warm rossig zand, pilaren donkere leem). De kleur in de straat komt van
@@ -97,12 +124,16 @@ def zand(a, tint):
     return uit
 
 
-def wit_weg(rgb):
-    """Het witte vlak rond de gevel doorzichtig: flood-fill vanaf de rand op bijna zuiver wit."""
+def wit_weg(rgb, gaten=False):
+    """Het witte vlak rond de gevel doorzichtig: flood-fill vanaf de rand op bijna zuiver wit.
+    gaten: ook elk groot wit vlak binnen in de muur (de gaten van een ruine, waar je de lucht door ziet)."""
     a = rgb.astype(int)
     wit = (a.min(2) > 238) & ((a.max(2) - a.min(2)) < 18)
     lab, _ = nd.label(wit)
     rand = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
+    if gaten:
+        maat = np.bincount(lab.ravel())
+        rand |= set(np.nonzero(maat > 300)[0]) - {0}
     weg = np.isin(lab, list(rand))
     weg = nd.binary_dilation(weg, iterations=1)          # de lichte jpg-rand mee
     alpha = np.where(weg, 0, 255).astype(np.uint8)
@@ -125,13 +156,20 @@ def band(a, y0, y1, h):
 
 
 def maak(naam, S):
-    bron = np.asarray(Image.open(os.path.join(BRON, f'gevel_{naam}_grok.jpg')).convert('RGB'))
-    a = zand(wit_weg(bron).astype(float), S['zand'])
+    S = dict(S)
+    im = Image.open(os.path.join(BRON, f'gevel_{naam}_grok.jpg')).convert('RGB')
+    k = S.pop('schaal', 1)
+    if k != 1:                                            # de hele plaat groter, en alle maten mee
+        im = im.resize((round(im.width * k), round(im.height * k)), Image.LANCZOS)
+        for n, v in list(S.items()):
+            if n in ('zand', 'ruine'): continue
+            S[n] = tuple(round(x * k) for x in v) if isinstance(v, tuple) else round(v * k)
+    bron = np.asarray(im)
+    a = zand(wit_weg(bron, S.get('ruine')).astype(float), S['zand'])
     m0, m1 = S['muur']
-    mid = (S['deur'][0] + S['deur'][1]) / 2
-    remL = round((mid - m0) - (MIDDEN - MUUR[0]))       # zo komt het midden van de deur op MIDDEN
+    mid = S['midden'] if 'midden' in S else (S['deur'][0] + S['deur'][1]) / 2
+    remL = round((mid - m0) - (MIDDEN - MUUR[0]))       # zo komt het midden van de deur op MIDDEN (negatief: er komt muur bij)
     remR = round((m1 - m0 - remL) - (MUUR[1] - MUUR[0]))  # en de muur op zijn breedte
-    assert remL >= 0 and remR >= 0, (naam, remL, remR)
     a = knip(a, S['knipR'], S['knipR'] + remR)
     a = knip(a, S['knipL'], S['knipL'] + remL)
     # links bijsnijden of aanvullen zodat de muur op x 44 begint, dan op 970 breed
@@ -141,25 +179,39 @@ def maak(naam, S):
     a = a[:, :W_UIT]
     # de banden op hun maat
     dak = a[:S['dak']]
-    delen = [dak, band(a, *S['alt'], VER_H), band(a, *S['ver'], VER_H), band(a, *S['bod'], BOD_H)]
+    D = S['dak']
+    if S.get('ruine'):
+        # de ruine: dak, de verdieping met de gaten, de begane grond, en onderaan de dichte verdieping van het vervallen huis
+        alt = np.asarray(Image.open(os.path.join(STAD, 'gevel_vervallen.png')).convert('RGBA')).astype(float)
+        V = META_VERVALLEN['alt']
+        delen = [dak, band(a, *S['ver'], VER_H), band(a, *S['bod'], BOD_H), alt[V[0]:V[1]]]
+        maat = {'dak': [0, D], 'ver': [D, D + VER_H], 'bod': [D + VER_H, D + VER_H + BOD_H],
+                'alt': [D + VER_H + BOD_H, D + 2 * VER_H + BOD_H], 'ruine': True}
+    else:
+        delen = [dak, band(a, *S['alt'], VER_H), band(a, *S['ver'], VER_H), band(a, *S['bod'], BOD_H)]
+        maat = {'dak': [0, D], 'alt': [D, D + VER_H], 'ver': [D + VER_H, D + 2 * VER_H], 'bod': [D + 2 * VER_H, D + 2 * VER_H + BOD_H]}
     uit = np.concatenate(delen, axis=0).round().clip(0, 255).astype(np.uint8)
     Image.fromarray(uit, 'RGBA').save(os.path.join(STAD, f'gevel_{naam}.png'), optimize=True)
-    D = S['dak']
-    deurW = (S['deur'][1] - S['deur'][0]) / 214         # het deurgat ten opzichte van dat van gevel.png
-    return {'src': f'gevel_{naam}.png', 'h': uit.shape[0], 'dak': [0, D], 'alt': [D, D + VER_H],
-            'ver': [D + VER_H, D + 2 * VER_H], 'bod': [D + 2 * VER_H, D + 2 * VER_H + BOD_H],
-            'dakAchter': D - DAK_ONDER, 'deur': round(deurW, 3)}
+    deurW = (S['deur'][1] - S['deur'][0]) / 214 if 'deur' in S else 0   # het deurgat t.o.v. dat van gevel.png; 0: geen deur
+    return {'src': f'gevel_{naam}.png', 'h': uit.shape[0], **maat, 'dakAchter': D - DAK_ONDER, 'deur': round(deurW, 3)}
+
+
+META_VERVALLEN = None
 
 
 def main():
-    maten = {naam: maak(naam, S) for naam, S in SOORTEN.items()}
+    global META_VERVALLEN
+    maten = {}
+    for naam, S in SOORTEN.items():                     # in volgorde: het vervallen huis voor de ruines
+        maten[naam] = maak(naam, S)
+        if naam == 'vervallen': META_VERVALLEN = maten[naam]
     pad = os.path.join(STAD, 'metadata.json')
     meta = json.load(open(pad))
     meta['gevel_soorten'] = maten
     json.dump(meta, open(pad, 'w'), indent=1, ensure_ascii=False)
     for naam, m in maten.items():
         print(f"  {naam}: {{ src: '{m['src']}', dak: {m['dak']}, alt: {m['alt']}, ver: {m['ver']}, bod: {m['bod']}, "
-              f"dakAchter: {m['dakAchter']}, deur: {m['deur']} }},")
+              f"dakAchter: {m['dakAchter']}, deur: {m['deur']}{', ruine: true' if m.get('ruine') else ''} }},")
 
 
 if __name__ == '__main__':
