@@ -56,6 +56,14 @@ of baas zonder toestemming, aansluiten op wat er is). Een taak per keer, liefst 
 - [ ] **W1** Een speer uit de grond plukken vanuit een sprint, zonder te stoppen. **+0,5**
 - [ ] **W2** Een hoeklijntje bij de schaalworp, alleen zolang je vasthoudt. **+0,5**
 - [ ] **W3** Even slow motion bij de worp die de laatste vijand doodt. **+0,5**
+- [ ] **W4** Doorvliegen: een worp die een vijand doodt vliegt door hem heen, met bloed en een eigen geluid,
+  en raakt wie erachter staat of landt verderop in de grond. Basis: elke dodelijke worp. Het idee in
+  `notities/kit-ideeen.md` (doorboren) bouwt op `krbSpeerVolg`; let op `javRaakt`/`jav.hit` (een worp raakt nu
+  maar een vijand). Als talent erbovenop: een crit raakt de tweede ook met een crit. **+1**
+- [ ] **W5** De dubbele worp: vlak na het loslaten (rond 0,3 s) F nog eens, en Amir grijpt over zijn schouder
+  en gooit meteen een tweede, vlak en snel. Vraagt een speer op de rug (`RUG`, `rugTrekKlaar`). Voorstel: de
+  tribe-ability van Mkuki (zie `notities/kit-ideeen.md`), niet de basis, zodat Mkuki zijn eigen gezicht houdt.
+  Eerste versie met de gewone worp versneld, echte frames later. **+1** (voor wie Mkuki speelt)
 
 ### Beweging (B)
 
@@ -89,4 +97,4 @@ of baas zonder toestemming, aansluiten op wat er is). Een taak per keer, liefst 
 
 ## Grootste winst eerst
 
-G1, L1 en M2.
+G1, L1 en M2. Voor de worp: W4.
