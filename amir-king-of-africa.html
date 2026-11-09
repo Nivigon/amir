@@ -43994,7 +43994,10 @@ function loop(now){
   const set = (spear && !exeSpeerWeg()) ? sets.sp : sets.ns;   // in de executie (de steek, het knielen) zit zijn speer in de schildbandiet
   const moving = dir !== 0;
   updateSplashes(dt, wetNow, moving);
-  waterStap(dt);                                   // het water van WATER: klok, druppels, regenringen, geluid
+  waterStap(dt);
+  // de voetstappen (amirRenGeluid): 1 rennen, 2 sprinten, 0 stil (in de lucht, kruipen, bukken, glijden, door het water)
+  amirRenStand = (moving && onGround && !crawling && !fell && glij === 0 && duckT <= 0 && wetNow <= 0.3 && !dead)
+    ? (loopFactor > 1 ? 2 : 1) : 0;                                   // het water van WATER: klok, druppels, regenringen, geluid
   if (moving){
     idleFrame = 0; idleAcc = 0;
     if (crawling){                               // de crawllus loopt op zijn eigen tempo
@@ -46081,6 +46084,36 @@ function loop(now){
   requestAnimationFrame(safeLoop);
 }
 
+// ---- de voetstappen van Amir ----
+// Een lus (sounds/amirren.mp3, uit ElevenLabs) die loopt zolang Amir op de grond rent. Bij gewoon rennen
+// speelt hij vertraagd (AMIR_REN.loop), bij sprinten met Shift op zijn eigen tempo (AMIR_REN.sprint); de
+// toonhoogte blijft gelijk (preservesPitch). amirRenStand zet loop() elk beeld; hier, na het tekenen,
+// komt het geluid aan of uit, ook als het spel gepauzeerd is of in het menu staat. Het bestand komt pas
+// binnen als Amir voor het eerst rent (laadpoort: niet bovenaan laden).
+const AMIR_REN = { src: 'sounds/amirren.mp3', vol: 0.55, loop: 0.75, sprint: 1, inVal: 0.06, uitVal: 0.12 };
+let amirRenStand = 0, amirRenSnd = null, amirRenVol = 0, amirRenKlok = null;
+function amirRenGeluid(){
+  const nu = performance.now() / 1000;
+  const dt = amirRenKlok === null ? 0 : Math.min(0.2, nu - amirRenKlok);
+  amirRenKlok = nu;
+  const aan = wantSound && running && !paused && !won && amirRenStand > 0;
+  if (!aan && !amirRenSnd) return;
+  if (!amirRenSnd){
+    amirRenSnd = geluidAan(new Audio()); amirRenSnd.preload = 'auto'; amirRenSnd.loop = true;
+    amirRenSnd.preservesPitch = true; amirRenSnd.src = AMIR_REN.src;
+  }
+  const doel = aan ? 1 : 0;                       // kort in- en uitfaden, zodat stoppen geen tik geeft
+  const tau = aan ? AMIR_REN.inVal : AMIR_REN.uitVal;
+  amirRenVol += (doel - amirRenVol) * Math.min(1, dt / tau);
+  if (aan){
+    const rate = amirRenStand === 2 ? AMIR_REN.sprint : AMIR_REN.loop;
+    if (amirRenSnd.playbackRate !== rate) amirRenSnd.playbackRate = rate;
+    if (amirRenSnd.paused) amirRenSnd.play().catch(() => {});
+  }
+  amirRenSnd.volume = Math.max(0, Math.min(1, AMIR_REN.vol * amirRenVol));
+  if (!aan && amirRenVol < 0.01 && !amirRenSnd.paused){ amirRenSnd.pause(); amirRenVol = 0; }
+}
+
 function safeLoop(now){
   try { loop(now); }
   catch (err){
@@ -46089,6 +46122,7 @@ function safeLoop(now){
     meldFout(foutSleutel(err), 'Er ging iets mis bij het tekenen: ' + foutKort(err), err);
     requestAnimationFrame(safeLoop);
   }
+  try { amirRenGeluid(); } catch (err){ meldFout(foutSleutel(err), 'Er ging iets mis met de voetstappen: ' + foutKort(err), err); }
   try { drawTouch(); } catch (err){ meldFout(foutSleutel(err), 'Er ging iets mis bij het tekenen: ' + foutKort(err), err); }
 }
 
