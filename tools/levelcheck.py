@@ -1023,7 +1023,7 @@ def voorbij(lv, sp):
 
 @regel('vijanden')
 def vijanden(lv, sp):
-    if not lv.d.get('spawns') and not lv.d.get('bandietGolf') and not lv.d.get('duoArena'):
+    if not lv.d.get('spawns') and not lv.d.get('bandietGolf') and not lv.d.get('duoArena') and not lv.d.get('vredig'):
         yield letop(None, 'lege spawns: het spel valt dan terug op de vrije modus en stuurt zelf slangen op je af')
     for o in lv.d.get('spawns') or []:
         if not isinstance(o.get('x'), (int, float)):

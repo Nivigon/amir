@@ -51,9 +51,18 @@ speer er nooit uit), en knipte een druk op het loslaten de nazwaai weg.
 De perfecte tweede: druk F tussen `DUBBEL.perfVan` en `perfTot` (0,06 tot 0,24 s) na het loslaten van de eerste (of van
 de rol-worp), dan licht Amir op met de ster van de rol-worp (`dubbelGlansTeken`, `glansSter`). Een druk tijdens de eerste
 worp telt niet als perfect (anders was rammen genoeg). De perfecte (`thr.perfect`, `jav.perfect`) krijgt het gouden spoor,
-een stop van 0,05 s, een camerastoot (`rolStoot`) en even vertraagd beeld: de wereld begint op `traag` (0,3) en is in
-`traagDuur` (0,4 echte seconden) weer op gang (`dubbelTraagT`, `dubbelTraagNu`, in de lus naast `zwmTraagNu`). Het
-vertraagde beeld zit bewust alleen op de perfecte: elke keer zou snel gaan vervelen. Second Spear geeft het
+een stop van 0,05 s, een camerastoot (`rolStoot`) en even vertraagd beeld: de wereld begint op `traag` (0,22) en is in
+`traagDuur` (0,55 echte seconden) weer op gang (`dubbelTraagT`, `dubbelTraagNu`, in de lus naast `zwmTraagNu`). Het
+vertraagde beeld zit bewust alleen op de perfecte: elke keer zou snel gaan vervelen.
+
+De tweede speer raakt door de onkwetsbaarheid heen. Een vijand is na een treffer even onkwetsbaar (`s.inv`, bij de bandiet
+1,15 s), en de tweede komt zo'n 0,55 s na de eerste aan: hij viel dan zonder schade op de grond, of werd niet eens getest.
+Een speer met `jav.dubbel` zet bij een gewone vijand `s.inv` op 0 (`dubbelDoor`, via `javRaakt(box, s)`), en waar een
+vijand tijdens zijn onkwetsbaarheid de speertest oversloeg (bandiet, meelman, kruisboogbandiet, schildbandiet, zweepman,
+en bij de hyena de test vooraf) test hij nu toch de tweede (`dubbelVliegt`). De bandiet pareert hem niet. Uitgezonderd: de
+bazen (panter, baviaan, Nyundo) en de kooiman (alleen te raken als zijn kooi open is). En de eerste `DUBBEL.dichtT`
+(0,08 s) raakt de tweede ook wat tussen Amir en de punt staat (`javVak`): een bandiet stormt na de eerste treffer meteen
+terug en stond dan al voor de punt. Second Spear geeft het
 na een gewone worp, Tumbling Spear na de rol-worp (een verbetering: in de rij komt hij na Second Spear). Een per worp; de
 tweede heeft geen derde.
 
@@ -64,3 +73,29 @@ Het spel kende een geworpen speer (`jav`). De tweede staat in `jav2`: `jav2Updat
 die een losse speer). Is `jav` leeg, dan schuift `jav2` door. Getekend met `jav2Draw`. Nog geen houten plaatjes: het teken
 in `TB_TEKEN` (`icoon: null`). In de sandbox onder Speer en spullen, bij Tribe Mkuki, en als level **Test 64: De tweede speer** (`TEST_64`: de
 oefendoelen en de volle rug van Test 60 met `rolWorpProef`, `rugMax: 3`, en daarna vijanden die om twee speren vragen).
+
+## De algemene boom: The Road
+
+Een tweede boom naast die van je tribe, met talents die bij geen tribe horen. `TRIBE_CONFIG.algemeen` (geen tribe: hij
+staat niet in `tribes` en dus niet op het keuzescherm), en `TRIBE_CONFIG.bomen` is de tribes plus deze, voor alles wat
+over alle talents loopt (`abilityVan`, `tribeLijst`, `talentKeuzeBouw`, de foutafhandeling van de plaatjes). Hij heeft
+nog geen logo op schijf: `ALG_LOGO` is een getekende weg met een speer, `boomLogo(t)` kiest.
+
+- **Talents:** Thorn Breaker (hoorde bij Mkuki, de rest van Mkuki is een plek opgeschoven), Breaker (`treffers`, in
+  `tonRaak` met de derde parameter `amir`: alleen een klap van Amir, een vallende ton in `tonLandt` niet) en Keen Eye
+  (`bereik`, `bereikOnzichtbaar`, in Amir; `scherpOogTeken` vanuit `zegelTeken`: een verstopt zegel glinstert, een
+  onzichtbaar zwakker en van dichterbij). Breaker en Keen Eye hebben nog geen houten plaatje: het teken in `TB_TEKEN`.
+- **Vrij:** `vrij: true`, geen volgorde (`tbStaat` slaat de eis van het vorige talent over), in het venster "Any order".
+- **Punten:** een eigen soort, `RUN.algPunten`, na het uitspelen van level `algLevels` (1, 3 en 5) van de episode
+  (`tribeNaLevel`, met `levelIdx`); `RUN.algGehaald` onthoudt welke levels er al een gaven, zodat opnieuw spelen er geen
+  tweede geeft. Geleerd staat in `RUN.alg`; `tribeLijst` geeft `RUN.abilities` plus `RUN.alg`. Alles blijft tot
+  `runReset`, net als de tribe-boom. In de Test levels gelden ze allemaal, zoals de tribe-talents.
+- **De munt van de koning:** een vrij punt, `RUN.vrij`, uit te geven in de boom die je wilt. `tbRun` telt het bij de
+  punten van beide bomen; `tbKlik` gebruikt eerst het eigen punt van de boom, dan het vrije. Er komt er alleen een bij
+  als er in de twee bomen samen nog iets te leren valt (`tbRuimte`).
+- **Het scherm:** dezelfde boom (`tribeBoomToon`), met `tbAlg` voor welke boom in beeld staat. De knop `#tbwissel`
+  bovenaan wisselt (`tbWissel`, `tbAndere`) en gloeit (`.punt`) als daar nog een punt klaarligt. `tbMoetIn` zegt of er
+  nog ergens een punt uit te geven is; zolang dat zo is blijft Continue dicht ("Choose a talent in The Road"). Na een
+  level opent de boom waar het punt binnenkwam, de tribe eerst. Tijdens het kiezen van een tribe (`tbKijk`) is er geen
+  wisselknop.
+- **Sandbox:** onder Speer en spullen, de rij Algemeen.

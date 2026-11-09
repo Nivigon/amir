@@ -195,6 +195,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de aanvoerder en de eindpoort: een level dat eindigt op een kill of door een poort | `AANV`, `aanvoerderDood`, `eindPoorten`, `aanvKlem` | notities/episodes.md |
 | goudaapje: het kleine gouden aapje en de arena (arena, regel 12) | `GAAP`, `gaapSpawn`, `updateGoudapen` | notities/goudaapje.md |
 | het mes: Jackal Fang van Impungushe | `MES`, `mesInHand`, `mesTeken` | notities/mes.md |
+| de algemene boom (The Road): talents voor elke tribe, een punt na level 1, 3 en 5, de munt als vrij punt | `TRIBE_CONFIG.algemeen`, `RUN.alg`, `tbAlg`, `tbWissel`, `scherpOogTeken` | notities/tribes.md |
 | T-splitsing in de talent tree | `varianten`, `TRIBE_CONFIG`, `tbSplit` | notities/tribes.md |
 | Feign Death | `SCHIJN`, `schijnDoodVang`, `hurtPlayer` | notities/wegwijzers.md |
 | lichtkaart: het licht onder de grond | `LK`, `drawLichtkaart` | notities/lichtkaart.md |
@@ -226,6 +227,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | lift bij een galerij: het takelplateau voegt zich naar het eind van een galerij | `takelGalerijStap`, `mkLiftGalerij`, `galerij` | notities/stad.md |
 | slagschaduwen in de stad: de galerij op de muur, een hoger huis op een lager, huizen en kramen schuin over de straat | `STAD_SLAG`, `stadSlagMuur`, `stadSlagStraat` | notities/stad.md |
 | de stoep: een strook straat over de voet van de huizen, zodat niemand op de muurvoet staat | `STAD_STOEP`, `stadStoep`, `stadVoorTeken` | notities/stad.md |
+| de stad bij avond en nacht: de verte per uitzicht, brandende ramen, een olielampje bij elke kraam, de gloed na de lichtlaag (`stad_middag`, `stad_avond`, `stad_nacht`) | `STAD_NACHT`, `stadVerte`, `stadNachtNa`, `stadNacht` | notities/stad.md |
 | stadsvolk: dorpelingen op de stoep, omgekleurd, weg als er gevochten wordt | `STAD_VOLK`, `volkTeken`, `volkRustig` | notities/stad.md |
 | de leemmuur: een terras met de look van de stad | `LEEM`, `leemMuurTeken`, `look: 'leem'` | notities/stad.md |
 | de verhoogde straat: een terras met de look van de straat, treden en een hoge wijk, de onderlaag eronder (`stad.onder`) | `STRAAT_TREDE`, `straatTredeTeken`, `look: 'straat'` | notities/stad.md |
@@ -259,6 +261,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | stof, sneeuwval, het weer | deeltjes en het weerplan per potje |  |
 | het weer: regen, onweer, zandstorm, sneeuw en sneeuwstorm | `WEER`, `weerDoel`, `updateWeer` | notities/wegwijzers.md |
 | vegetatie, water, doornbos | `props`, `water`, `thickets` | notities/wegwijzers.md |
+| water: één materiaal voor plas, poel, rivier, waterval en bron (palet, rimpels, glinsters, schuim, regenringen, geruis); proefstuk Test 67 | `WATER`, `waterTeken`, `waterVoorTeken`, `waterStap` | notities/water.md |
 | schilden in de wind | `SCHILD`, `schildStofUpdate`, `schildTil` | notities/decor.md |
 | tonnen: houten tonnen die breken (drie treffers, Nyundo in een keer, een kalebas erin), ook op een dak of zwevende laag | `TON`, `tonRaak`, `tonBruut`, `tonPlekX`, `tonOp` | notities/tonnen.md |
 | wapenrek: een houten rek in de stad met speren; E pakt er een, in de hand of op de rug | `WAPENREK`, `wapenrekken`, `rekTrek` | notities/wapenrek.md |
@@ -282,6 +285,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | speerbeet: de baviaan pakt je speer | `BAV_BEET`, `BAV_MOND`, `BAV_SPEER` | notities/baviaan.md |
 | speer in de baviaan: de speerval blijft in zijn borst zitten | `BAV_VALSPEER`, `bavSpeerTeken`, `baviaanTeken` | notities/baviaan.md |
 | voorgrond: de laag tussen de camera en Amir | `VOORGROND`, `VG_SOORT`, `VG_LAGEN` | notities/voorgrond.md |
+| de stadsvoorgrond: kruiken, manden en een leemmuurtje voor de camera, per stuk straat naar wat er staat (De Gouden Poort) | `VG_STAD`, `vgStad`, `vgStadThema`, `voorgrond: 'stad'` | notities/voorgrond.md |
 | achtergrondlagen, uitzicht per level | `SCENE0`, `SCENES` | notities/wegwijzers.md |
 | startscherm, menu: kaartjes per level | menu |  |
 | kaarslicht: de startfoto van onderen belicht | `KAARS`, `kaarsStart`, `kaarsLus` | notities/kaarslicht.md |
@@ -291,7 +295,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | golvende rand: terreinmassa's met een organische omtrek | `GOLF`, `golfAan`, `golfGrondTeken`, `golfTerrasTeken` | notities/golf.md |
 | de kit van Amir verbeteren: takenlijst met cijfers per onderdeel; bij "verbeter Amir kit" de lijst tonen, de opdrachtgever kiest, afstrepen | `kit-lijst`, `G1`, `L1`, `M2` | notities/kit-verbeteren.md |
 | de stad verbeteren: werklijst met cijfers en stappen; bij "stadsverbetering" eerst 3 suggesties, de opdrachtgever kiest | `stadsverbetering`, `S1`, `L1`, `V1` | notities/stad-verbeteren.md |
-| ideeën voor de kit van Amir: basis, tribe-ability of talent; stof in de ogen (X, de veeg met eigen animatie en geluid) | `STOF`, `STOFA`, `stofStap`, `stofWerp`, `stofDwaal` | notities/kit-ideeen.md |
+| ideeën voor de kit van Amir: basis, tribe-ability of talent; stof in de ogen (gebukt F vasthouden, de veeg met eigen animatie en geluid) | `STOF`, `STOFA`, `stofStap`, `stofWerp`, `stofDwaal` | notities/kit-ideeen.md |
 | sandbox | de vrije testmodus |  |
 
 Op schijf: `karakters/` (Amir, dorpeling, dorpelinge), `enemies/`, `design/` (decor,
@@ -328,12 +332,14 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `zichtBreed` | een doel-wereldbreedte in beeld in plaats van een vaste `view`; geen level gebruikt het nog (zie `notities/velden.md`) |
 | `camera` | `true` of `{voor, verken, vecht, telefoon}`: de meekijkende camera. Vooruitkijken in de looprichting, en op een laptop 0,75 onderweg en 0,8 in een gevecht; een telefoon houdt 0,8 en kijkt minder ver vooruit. Gaat boven `view`; in een arena neemt de arena-camera het over en geldt `view`. De standaard voor een nieuw level (Test 51 tot en met 55 en de Maker); in de sandbox de knop Meekijken (`CAM`, `camUpdate`) |
 | `worp` | `'schaal'` zet de schaalworp aan: de hoek loopt op zolang je vasthoudt, van vlak tot 30 graden (`THR_HOEK_MAX`); zonder dit veld de twee trappen. In de sandbox de knop Worp onder Speerworp |
-| `stof` | `true`: stof in de ogen, X veegt stof naar een bandiet die Amir aankijkt; even blind, de volgende treffer telt dubbel (alleen Test 63, zie `notities/kit-ideeen.md`) |
+| `stof` | `true`: stof in de ogen, gebukt F vasthouden veegt stof naar een bandiet die Amir aankijkt; even blind, de volgende treffer telt dubbel (alleen Test 63, zie `notities/kit-ideeen.md`) |
 | `schild` | `true`: Amir heeft een schild, C (of de schildknop) houdt het op; het vangt alles van voren en net op tijd is het een parade (alleen Test 56, zie `notities/schild.md`) |
 | `rand` | `true`: het level begint aan de rand. Geen rotswand en hut aan de start, de rechtergrens ligt `RAND.ruimte` (320) achter de start (een getal in plaats van `true` is die ruimte zelf) en de camera kijkt niet voorbij die grens (`randCam`, in `camUpdate`). De standaard voor elk nieuw level (Stad 1); de bestaande levels hebben het niet |
 | `speerInHand` | `true`: Amir begint met de speer in de hand in plaats van hem voor zich uit de grond te pakken; de Level Maker nieuwstijl zet dit in elk level, de echte episodes hebben het niet |
 | `executie` | `true`: elke dodelijke steek, worp of lage zwaai op een schildbandiet is de executie, in plaats van 1 op 5 en 1 op 3 (alleen Test 50, zie `notities/schildbandiet.md`) |
 | `herhaal` | `true`: is de laatste schildbandiet weg (na de executie of de gewone dood), dan komt er na `EXE.herhaalWacht` een nieuwe aanwandelen, net buiten beeld voor Amir uit, met de vlaggen van de eerste schildman-spawn (alleen Test 50, `exeHerhaalStap`) |
+| `wateren` | het water van `WATER`: `[{k, x, w}]`, `k` is `plas`, `poel`, `rivier`, `val` (van de rechterkant van een terras op `x`) of `bron` (met `hoog` in Amir); een poel en rivier laten je waden zoals de oude `water` (zie `notities/water.md`). Alleen Test 67 |
+| `vredig` | `true`: geen vijanden, en ook geen vrije slangen of kalebassen die het spel anders bij lege `spawns` stuurt (Test 67) |
 | `rocks` | keien om op te springen: `{x, s}` |
 | `tonnen` | houten tonnen die breken: `{x, y, f, kalebas}`, of `put`/`luifel`/`kraam` met `a` (Amir van die put, losse luifel of kraam) in plaats van `x`; hoger op met `dak` (een dak of galerij van de stad, met `a` vanaf het midden van dat dak) of `zwever: true` (zie `notities/tonnen.md`) |
 | `wapenrekken` | houten rekken met speren: `{x, f, n}`, `n` speren (standaard en hooguit 4, een per touwlus), of `put`/`luifel`/`kraam` met `a` zoals bij `tonnen`; E pakt er een (zie `notities/wapenrek.md`) |
@@ -379,7 +385,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `speervallen` | speren in de rotswand: `{x, h}`, `x` de klif waar hij in zit (uit `cliffs`), `h` de hoogte in Amir (standaard 0,82); een zegel met `speerval` schiet hem los (zie "speerval") |
 | `runes` | ravijnen met een rune op een rots ervoor: `{x, breed, rots, groot, hoog, doel}` (zie `notities/velden.md`) |
 | `fg` | strook waarover de voorgrondbegroeiing ligt: `{from, to}` |
-| `voorgrond` | de onscherpe laag vlak voor de camera: `{stroken: [{van, tot, dicht, struik, kei}], los: [{x, k, s, f}]}`, `k` uit `VG_SOORT`; los van `fg`. Zonder dit veld krijgt het level de standaard, met `false` heeft het er geen (zie hieronder) |
+| `voorgrond` | de onscherpe laag vlak voor de camera: `{stroken: [{van, tot, dicht, struik, kei}], los: [{x, k, s, f}]}`, `k` uit `VG_SOORT`; los van `fg`. Zonder dit veld krijgt het level de standaard, met `false` heeft het er geen, met `'stad'` de stadsvoorgrond (De Gouden Poort, zie `notities/voorgrond.md`) |
 | `arena` | het veld van de eindbaas: `{c}` |
 | `cliffs` | de afsluitende rotswand: `{x}`, staat altijd achter `ends` |
 | `ends` | de fakkels die het level uitspelen: `{x}` |
@@ -483,6 +489,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **Deurgordijnen** (`design/stad/gordijn/`, uit de Grok-platen in `bron/`) → `tools/gordijn_knip.py`, daarna `gen-klein.py` en `gen-offline-manifest.py` (de gordijnmap staat niet in de lijst van `gen-klein.py`, dus het spel laadt de grote versie, net als bij de tonnen)
 - **Tonnen** (`design/stad/ton/`, uit de Grok-platen in `bron/`) → `tools/ton_kleur.py`, daarna `gen-offline-manifest.py`
 - **Rotsdecor** (`design/rotsdecor/`, losse rotsstukken uit de platen in `bron/`) → `tools/rotsdecor_knip.py`, daarna `gen-offline-manifest.py`
+- **Stadsvoorgrond** (`design/stad/voorgrond/`, geknipt uit `design/stad/voetdecor.png`) → `tools/stad_voorgrond.py`, daarna `gen-offline-manifest.py`
 - **Oude speer** (`design/speer/oud/`, uit de gewone speer) → `tools/oude_speer.py`, daarna `gen-offline-manifest.py`
 - **Tribe-logo's** → `tools/tribe_logos.py`
 - **Winterversies** → `tools/sneeuw.py`, `sneeuw_bg.py`, `sneeuw_dorp.py`, `winter_art.py`

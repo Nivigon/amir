@@ -239,6 +239,40 @@ ze de rechte lijn tussen muur en straat.
 - De rijen worden gebouwd uit dezelfde `gevel.png`, kleiner en met nevel (`STAD.rijen`), voorgebakken op
   `STAD.bak` van de bronmaat. De hoogtes komen uit `stadReeks` met de `seed` van het level.
 - Onder de verste rij loopt de nevelkleur door tot de grond, zodat er nergens lucht onder een huis zichtbaar is.
+- De nevel, de straat onder de voorste rij en hoe donker de huizen daar zijn komen uit het uitzicht (`stadVerte` in
+  `SCENES`, gelezen door `stadVerte()`); zonder dat veld de stad overdag (`STAD.nevel`, `STAD.verteStraat`). Alles wat
+  met die nevel voorgebakken is (paleis, rijen, strook, pleinwand) heeft de sleutel ervan in zijn naam, dus een ander
+  uitzicht bakt opnieuw. Na `stadAchter` komt ook in de stad de `dim`-laag van het uitzicht; die werd eerder overgeslagen.
+
+## De stad bij namiddag, avond en nacht
+
+Vier uitzichten: `stad_dag`, `stad_middag` (de zon lager, warme nevel), `stad_avond` (rozige nevel, paarsbruine
+schaduwen, de helft van de lichten aan) en `stad_nacht` (blauwe lucht, de maan links en vrij hoog, de verte een
+blauwe nevel met donkere huizen, een koele lichtlaag naar het voorbeeld van `winter_nacht`). Per uitzicht:
+
+- `stadVerte: {nevel, straat, donker}`: de verte (zie hierboven).
+- `slag: {kleur, alfa}`: kleur en sterkte van de slagschaduwen (`stadSlagKleur`); 's nachts koel en zwak.
+- `nacht` (0 tot 1): steekt de lichten aan (`STAD_NACHT`, `stadNacht()`). Zonder het veld blijft alles uit.
+
+De lichten (`STAD_NACHT`):
+
+- **Ramen**: per gevelplaatje de raamvlakken in bronpx (`STAD_NACHT.ramen`); een raam hoort bij de band waar het in valt,
+  dus alleen de verdiepingen die getekend worden. Een vaste helft brandt (`aan`, per raam uit `stadNachtHash` met de seed);
+  een deur op een verdieping slaat dat raam over. Het raam licht op in de gevel (`stadNachtRamen`, in `stadTeken`, dus
+  iedereen staat ervoor) en flakkert een beetje; de gloed eromheen komt na de lichtlaag.
+- **De verte**: in `stadRijHuis` krijgt 's nachts een deel van de verdiepingen een oranje raam (`STAD_NACHT.verte`).
+- **Een olielampje** onder het dak van elke kraam, bij de paal (`stadNachtLamp`, in `stadVoorTeken`), getekend met
+  canvas. Het telt als licht op personages, net als een fakkel (`stadNachtLicht` in `plichtBronnen`).
+- **De gloed** van ramen en lampen gaat op een lijst met de transformatie van dat moment, en `stadNachtNa` telt hem op
+  na `drawLichtlaag`, anders dooft de lichtlaag hem weer uit.
+- **Binnen** valt 's nachts zwak, koel maanlicht door het raam in plaats van de zonnebundel (`binnenNa`).
+- Fakkels (`fakkels`) werken in de stad al gewoon, ook aan een leemmuur.
+
+In de sandbox kiezen de knoppen onder **Tijd van de dag** in de stad het stad-uitzicht (`data-stad`; Ochtend heet daar
+Dag). In de Maker staan onder **Uitzicht** ook Stad, namiddag, Stad, avond en Stad, nacht.
+
+Nog niet: het stadsvolk, de kramen en de gordijnen hebben een vaste daglichttint (alleen de lichtlaag gaat erover), het
+raamlicht op Amir binnen blijft warm, en de maan als lichtbron op personages volgt de zonregel van `PLICHT`.
 
 ## De stadstrap
 

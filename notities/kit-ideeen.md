@@ -14,11 +14,37 @@ voelt lame. De rol-worp als finisher voelt juist goed.
   passen.
 - De tribes blijven fysiek en geloofwaardig: geen magie bij Mkuki (terugroepen van de speer viel daarom af).
 
+## De algemene boom (The Road): wat er nog bij kan
+
+Gebouwd met drie talents (Thorn Breaker, Breaker, Keen Eye; zie "De algemene boom" in `notities/tribes.md`). Met drie
+punten (na level 1, 3 en 5) en drie talents heb je ze na level 5 allemaal; pas met een vierde wordt het kiezen. Ideeen
+uit het gesprek, nog niet gebouwd:
+
+- **Gourd Cutter:** de speer snijdt een hangende kalebas los (het speerteken `kalebas`), en je komt ze vaker tegen.
+- **Scavenger / Gold Nose:** een ton geeft vaker iets, een kalebas of goud.
+- **Rack Hand:** bij een wapenrek twee speren tegelijk, een in de hand en een op de rug.
+- **Sand Sweeper:** de lage zwaai veegt een verstopt zegel in een keer bloot.
+- **Bone Reader:** een speer uit een skelet trekken in 1 s in plaats van 2.
+- **Mender:** een oude speer gaat een keer langer mee.
+- **Soft Landing, Climber, Desert Eyes, Deep Drink, Haggler, Deep Pockets, Deep Quiver.** Let op: Deep Quiver en Soft
+  Landing schuiven over een keuze van het level heen (`rugMax`, `valschade`).
+
+Een level mag nooit op een algemeen talent rekenen: zonder moet het te halen zijn.
+
+## Een richting kiezen in de tribe-boom (idee)
+
+Mkuki splitsen in twee takken, afstand (werper) en dichtbij (vechter), elk met halverwege een T-splitsing bloed
+(verwonden) of doden (afmaken), en een paar bruggen tussen de takken (zoals Spear in the Flesh: de worp blijft steken,
+de vijand bloedt, je trekt hem eruit voor een treffer extra). Let op: bloed met 3 levens moet grof zijn, en moet
+verschillen van het gif. Nog niets gebouwd.
+
 ## Nu aan de beurt: stof in de ogen
 
 **Gebouwd, met de eigen animatie.** `STOF`, `STOFA`, `stofStart`, `stofStap`, `stofWerp`, `stofEind`, `stofRaak`,
-`stofDwaal`, `stofTeken`. Onder Speer en spullen de knop **Stof (X)**; staat hij aan, of heeft het level `stof: true`
-(Test 63; `restart` zet `STOF.aan` uit het level), dan doet X de stofveeg.
+`stofDwaal`, `stofTeken`. Onder Speer en spullen de knop **Stof**; staat hij aan, of heeft het level `stof: true`
+(Test 63; `restart` zet `STOF.aan` uit het level), dan doet gebukt F vasthouden de stofveeg (L1 uit
+`notities/kit-verbeteren.md`): gebukt F tikken blijft de lage zwaai, vasthouden (`STOF.houdT`, 0,22 s, `zwaaiHoud`) is stof.
+Kan stof niet (afkoeling, geen speer), dan gaat de zwaai meteen bij het indrukken af. Vroeger was het X; die toets is weg.
 
 De animatie staat in `karakters/amir/aanval/stofsweep/` (14 frames, `metadata.json`, ook in `klein/`): Amir staat
 zijwaarts met de speerpunt achter zich op de grond (frame 0, 6 ticks: de tell), schraapt de punt over de grond naar voren,
@@ -54,8 +80,8 @@ Testlevel: **Test 63: Stof in de ogen**, drie gewone bandieten na elkaar met hun
 
 **Bij Mkuki, en voor elke vijand uit De Gouden Poort.** De stofveeg hoort bij de tribe Mkuki zelf (geen talent):
 `stofveeg: true` in zijn blok in `TRIBE_CONFIG`, en `stofVanTribe` zet `STOF.aan` in elk level (in `restart`, en meteen
-bij `tribeVastleggen`). In de Test levels zonder tribe heb je alles, dus ook dit. Op de telefoon is er een stofknop
-(`stof` in `TOUCH_BTNS`, `drawBtnStof`) en de uitleg van de toetsen bij het begin noemt X (`HINT_START`).
+bij `tribeVastleggen`). In de Test levels zonder tribe heb je alles, dus ook dit. Op de telefoon is er geen eigen stofknop
+meer: de joystick omlaag en de aanvalsknop vasthouden. De uitleg van de toetsen bij het begin noemt het (`HINT_START`).
 
 Afkoeling: `STOF.koel` (8 s), vanaf het stof (`stofKoel`, `stofGereed`). Blind is 4 s met een dubbele treffer erna, dus
 ongeveer een keer per gevecht. In de HUD een tegel naast de lage zwaai (`#stofhud`, `stofHud`) met de taartpunt die
