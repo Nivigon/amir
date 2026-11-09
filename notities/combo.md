@@ -23,11 +23,16 @@ rij V onder True Flight) maakt er `beide` van: ver terug en dubbel. Grep: `COMBO
   op zijn lijf. Later misschien met de speer omgedraaid (zie de bijlage in `notities/kit-verbeteren.md`).
 - **Schade**: de slag telt dubbel (`critNu`), met de ster, zoals hij eerst was. Alleen in Test 68 en de sandbox.
 - **Beide**: wat het talent Full Circle geeft. De terugslag en dubbel, met de stofwolk, de houtklap en de ster.
+- **Doorbraak**: telt dubbel zoals Schade, en lost de parade van de bandiet op (optie A). Pareert hij de tweede steek
+  van een reeks, dan volgt de derde slag zonder afkoeling: al gedrukt (`comboBuf`) en hij start meteen, anders is de
+  afkoeling weg en start de volgende druk hem (in de pareer-tak, `comboDoor`). Tot en met frame `COMBO.pantserTot` (9, de
+  draai en de slag) raakt geen klap Amir (`comboPantser` in `hurtPlayer`), zodat zijn tegenklap (die na zo'n 0,07 s landt,
+  tegen 0,43 s voor de slag met afkoeling) de reeks niet meer breekt. Alleen in Test 68 en de sandbox.
 
 Test 68 heeft `comboKeuze: true`: aan het begin en na elke R (`opnieuw`) staat het scherm van `duoKeuze` open met alleen
 de rij Derde slag (`dkcombo`, bewaard in `amir.duoKeuze`); daar telt Full Circle niet mee, zodat je de twee kunt vergelijken.
 Elk ander level krijgt de terugslag, of beide met Full Circle. In de sandbox wisselt de knop Combo rond: uit, terugslag,
-schade, beide (`sbComboSoort`). De terugslag werkt nu op de bandiet en de
+schade, beide, doorbraak (`sbComboSoort`). De terugslag werkt nu op de bandiet en de
 schildbandiet (de vijanden van Test 68); bij andere vijanden telt hij gewoon als een treffer.
 
 ## Zo telt hij
@@ -67,6 +72,6 @@ in de bewogen schacht terug naar bruin, in de punt naar grijs. Op frame 6 en 8 i
 
 ## Open
 
-- Tegen de bandiet: de tweede steek valt in zijn dekking en wordt gepareerd; dat telt nu als contact, maar zijn counter
-  kan de reeks nog afbreken. Uitproberen of dat te zwaar is.
+- Tegen de bandiet: de tweede steek valt in zijn dekking en wordt gepareerd; dat telt als contact, maar met terugslag en
+  schade breekt zijn counter de reeks bijna altijd af. Doorbraak is het antwoord daarop; uitproberen welke blijft.
 - Het naar voren schuiven gebeurt terwijl de voeten in de frames staan: een beetje glijden.
