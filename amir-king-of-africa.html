@@ -2379,6 +2379,9 @@ const TRIBE_CONFIG = {
               doel: 'to bind a talent', geleerd: 'Bound', klaar: 'Ready to bind', leer: 'Bind it to the spear' },
       // Zoveel talentpunten krijg je meteen bij het kiezen, om in de talent tree uit te geven (zie Bhubesi).
       bijStart: 1,
+      // Stof in de ogen (X, zie STOF): de stofveeg hoort bij de tribe zelf, geen talent. Wie Mkuki kiest heeft
+      // hem in elk level, vanaf het begin (stofVanTribe).
+      stofveeg: true,
       // in unlockvolgorde: een per uitgespeeld level, de eerste na level 1
       abilities: [
         { id: 'quick_hand', naam: 'Quick Hand', icoon: 'design/tribes/mkuki/abilities/1_quick_recovery.png',
@@ -3066,7 +3069,15 @@ function stofLaad(){
   stofBank = STOFA.ticks.map((_, i) => loadQuiet(uniq([AMIR, AMIR_GROOT]).map(d => d + STOFA.dir + 'stof_' + (i < 10 ? '0' : '') + i + '.png')));
   if (!stofSnd) stofSnd = banStemmen(STOFA.snd.src, 2);
 }
-function stofLaadLevel(lv){ if (lv && lv.stof) stofLaad(); }
+function stofLaadLevel(lv){ if ((lv && lv.stof) || stofVanTribe()) stofLaad(); }
+// De stofveeg via de tribe (stofveeg in TRIBE_CONFIG, nu Mkuki): met die tribe in elk level. In de Test levels zonder
+// tribe heb je alles, dus ook dit (net als tribeLijst); de sandbox heeft zijn eigen knop.
+function stofVanTribe(){
+  if (sandbox) return false;
+  if (RUN.tribeId){ const t = tribeVan(RUN.tribeId); return !!(t && t.stofveeg); }
+  if (levelList === TEST_LEVELS) return TRIBE_CONFIG.tribes.some(t => t.stofveeg && !t.locked);
+  return false;
+}
 function stofKlaar(){ return !!stofBank && stofBank.every(i => i.complete && i.naturalWidth); }
 function stofPx(c){ return c * STOFA.schaal * nowScale(); }   // canvas-px naar wereld-px, op dit scherm
 function stofStart(){
@@ -19496,6 +19507,7 @@ function vulVak(x, y, w, h){
 }
 
 const hintEl = document.getElementById('hint');
+const HINT_START = hintEl.textContent;            // de uitleg van de toetsen bij het begin; restart zet er X bij als de stofveeg aan staat
 let hintTimer = null;
 function flashHint(msg, ms){
   hintEl.textContent = msg;
@@ -29190,7 +29202,8 @@ function restart(){
     SLANG_EEN_KLAP = !!(level && level.slangEenKlap);   // slangen (ook de fosforslang) in een klap dood, ook met de balk aan
   }
   if (!sandbox) ZICHT_AAN = !!(level && level.zicht);   // vijanden zien je alleen als er niets tussen zit (zie "zicht"); de sandbox met een knop
-  if (!sandbox){ STOF.aan = !!(level && level.stof); } stofA = null;   // stof in de ogen (zie STOF): X, met stof: true in het level
+  if (!sandbox){ STOF.aan = !!(level && level.stof) || stofVanTribe(); } stofA = null;
+  if (!hintEl.classList.contains('gone')) hintEl.textContent = HINT_START.replace(', Q drinken', STOF.aan ? ', X stof in de ogen, Q drinken' : ', Q drinken');   // stof in de ogen (zie STOF): X, met stof: true in het level of met Mkuki
   if (!sandbox) SNEAK_AAN = !!(level && level.sneak && level.zicht);   // de sluipaanval (zie "sneak"), alleen met het zicht; de sandbox met een knop
   lawaaiPulsen.length = 0; lawaai = 0; sneakKills = 0; sneakRegie = null;   // en het lawaai en de regie van het vorige potje weg
   if (!sandbox) bloedAan = !!(level && level.bloed);   // de bloed-mechaniek (snedes + death-spuit) alleen als een level het veld bloed zet; de sandbox met een knop
@@ -45586,6 +45599,7 @@ function tbStaat(t, i){
 function tribeVastleggen(t){
   RUN.tribeId = t.id; RUN.abilities = []; RUN.gehaald = 0; RUN.punten = t.bijStart || 0; RUN.munt = false;
   RUN.woede = 0;
+  if (t.stofveeg){ stofLaad(); if (running && !sandbox) STOF.aan = true; }   // de stofveeg van Mkuki: de frames alvast binnenhalen
   tbKijk = null;
 }
 // wanneer het punt voor talent i binnenkomt: bij de start, of na zoveel uitgespeelde levels
@@ -53171,19 +53185,23 @@ const TOUCH_BTNS = [
   // het schild van Amir: vasthouden, net als C. Alleen als hij er een heeft (level.schild of de sandbox)
   { id: 'schild', label: '',       ang: 78, arc: 170, r: 30, hit: 1.80, act: 'schild', when: 'schild', icon: 'schild' },
   // de rol: onderaan, links van de E, waar de duim van de springknop naartoe schuift
-  { id: 'rol',    label: '',       ang: 0,  arc: 200, r: 30, hit: 1.70, act: 'rol', when: 'rol', icon: 'rol' }
+  { id: 'rol',    label: '',       ang: 0,  arc: 200, r: 30, hit: 1.70, act: 'rol', when: 'rol', icon: 'rol' },
+  // stof in de ogen (X): op de buitenste boog tussen de woede en het schild, zodat hij met allebei vrij staat
+  { id: 'stof',   label: '',       ang: 44, arc: 200, r: 28, hit: 1.60, act: 'stof', when: 'stof', icon: 'stof' }
 ];
 function btnVisible(b){
   if (b.when === 'never') return false;            // gereserveerd voor een spell
   if (b.when === 'pickup') return eNodig();        // alleen als er iets met E te doen is: speer, deur, skelet
   if (b.when === 'woede') return heeftWoede();
   if (b.when === 'rol') return ROL.aan;
+  if (b.when === 'stof') return STOF.aan;
   if (b.when === 'schild') return SCHILD_AAN;      // alleen met een schild     // alleen met de woedemeter (Long Breath of Blood Rush)
   return true;
 }
 function btnDim(b){                                // lege drinkknop staat er wat flauwer bij
   if (b.id === 'woede') return RUN.woede < 1 && !woedeAan();   // en de woedeknop zolang hij niet vol is
   if (b.id === 'rol') return rolKlaar() < 1;     // de rolknop koelt af
+  if (b.id === 'stof') return !spear || !!stofA; // zonder speer in de hand of tijdens de veeg
   return b.id === 'drink' ? hppotionCarry === 0 : !!b.dim;
 }
 
@@ -53267,6 +53285,7 @@ function pressBtn(id){
   else if (b.act === 'drink') drinkHppotion();                         // net als Q
   else if (b.act === 'woede') woedeStart();
   else if (b.act === 'rol') rolStart();                                // net als V
+  else if (b.act === 'stof') stofStart();                              // net als X
   else if (b.act === 'schild') setTKey('c', true);                     // net als C: vasthouden                            // net als G
 }
 function releaseBtn(id, cancel){
@@ -53466,6 +53485,24 @@ function drawBtnWoede(x, y, r, a){
   }
   tctx.restore();
 }
+// De stofknop: een speer schuin over de grond, met een waaier zandkorrels die van de punt opspatten.
+function drawBtnStof(x, y, r, a){
+  const inkt = 'rgba(18,12,10,' + Math.min(1, a + 0.45).toFixed(3) + ')';
+  tctx.save();
+  tctx.lineCap = 'round'; tctx.strokeStyle = inkt; tctx.fillStyle = inkt;
+  const gy = y + r * 0.55;
+  tctx.lineWidth = Math.max(2, r * 0.09);
+  tctx.beginPath(); tctx.moveTo(x - r * 0.6, gy); tctx.lineTo(x + r * 0.6, gy); tctx.stroke();   // de grond
+  tctx.lineWidth = Math.max(2.5, r * 0.11);
+  const px = x - r * 0.2, py = gy - r * 0.06;                                                      // de punt, net boven de grond
+  tctx.beginPath(); tctx.moveTo(x + r * 0.55, y - r * 0.35); tctx.lineTo(px + r * 0.12, py - r * 0.06); tctx.stroke();   // de schacht
+  tctx.beginPath(); tctx.moveTo(px, py); tctx.lineTo(px + r * 0.2, py - r * 0.16); tctx.lineTo(px + r * 0.24, py + r * 0.02); tctx.closePath(); tctx.fill();
+  for (let i = 0; i < 6; i++){                                                                      // de waaier zand
+    const h = -Math.PI * (0.62 + i * 0.07), d = r * (0.3 + (i % 3) * 0.13);
+    tctx.beginPath(); tctx.arc(px - r * 0.05 + Math.cos(h) * d, py - r * 0.08 + Math.sin(h) * d, Math.max(1.5, r * 0.06), 0, Math.PI * 2); tctx.fill();
+  }
+  tctx.restore();
+}
 // De rolknop: een balletje (zijn hoofd, ingedoken) met de boog van de rol eromheen, linksom zoals hij
 // rolt, met een stukje grond eronder. Na een rol loopt een ring om de knop vol: is hij rond, dan kan het weer.
 function drawBtnRol(x, y, r, a){
@@ -53534,6 +53571,7 @@ function drawTouch(){
     if (it.b.icon === 'woede') drawBtnWoede(it.x, it.y, it.r, a);
     if (it.b.icon === 'schild') drawBtnSchild(it.x, it.y, it.r, a);
     if (it.b.icon === 'rol') drawBtnRol(it.x, it.y, it.r, a);
+    if (it.b.icon === 'stof') drawBtnStof(it.x, it.y, it.r, a);
   }
 }
 
