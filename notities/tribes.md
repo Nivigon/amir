@@ -46,7 +46,14 @@ alleen de lage uitval liet zien leek Amir kleiner dan bij de eerste worp (de fra
 niet af (`thrRelease`). Een druk tijdens de eerste worp, voor het loslaten of vlak erna, wordt onthouden (`dubbelVraag`,
 `thr.wil`) en de tweede begint pas op `DUBBEL.naFrame` (12) van de eerste, zodat je de eerste speer los ziet gaan en de
 arm ziet doorzwaaien. Eerst begon een druk net voor het loslaten de eerste worp opnieuw bij frame 0 (en ging de eerste
-speer er nooit uit), en knipte een druk op het loslaten de nazwaai weg. Second Spear geeft het
+speer er nooit uit), en knipte een druk op het loslaten de nazwaai weg.
+
+De perfecte tweede: druk F tussen `DUBBEL.perfVan` en `perfTot` (0,06 tot 0,24 s) na het loslaten van de eerste (of van
+de rol-worp), dan licht Amir op met de ster van de rol-worp (`dubbelGlansTeken`, `glansSter`). Een druk tijdens de eerste
+worp telt niet als perfect (anders was rammen genoeg). De perfecte (`thr.perfect`, `jav.perfect`) krijgt het gouden spoor,
+een stop van 0,05 s, een camerastoot (`rolStoot`) en even vertraagd beeld: de wereld begint op `traag` (0,3) en is in
+`traagDuur` (0,4 echte seconden) weer op gang (`dubbelTraagT`, `dubbelTraagNu`, in de lus naast `zwmTraagNu`). Het
+vertraagde beeld zit bewust alleen op de perfecte: elke keer zou snel gaan vervelen. Second Spear geeft het
 na een gewone worp, Tumbling Spear na de rol-worp (een verbetering: in de rij komt hij na Second Spear). Een per worp; de
 tweede heeft geen derde.
 

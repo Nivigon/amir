@@ -18528,8 +18528,45 @@ const DUBBEL = {
   // een druk tijdens de eerste worp wordt onthouden (thr.wil), en de tweede begint pas op dit frame van de eerste:
   // je ziet de eerste speer los gaan en de arm doorzwaaien. Zonder dit begon een druk net voor het loslaten de
   // eerste worp opnieuw bij frame 0, en een druk op frame 10 knipte de nazwaai weg
-  naFrame: 12
+  naFrame: 12,
+  // de perfecte tweede: druk F tussen perfVan en perfTot (s) na het loslaten van de eerste, dan licht Amir op (een ster,
+  // zoals het perfecte venster van de rol-worp). Te vroeg (al tijdens de eerste worp) of te laat is een gewone tweede.
+  // Een perfecte krijgt het gouden spoor, een kleine klik (stop), een camerastoot en even vertraagd beeld: de wereld
+  // loopt op traag en komt in traagDuur echte seconden weer op gang
+  perfVan: 0.06, perfTot: 0.24,
+  stop: 0.05, stoot: 20,
+  traag: 0.3, traagDuur: 0.4
 };
+let dubbelTraagT = 0;   // zolang dit loopt (echte seconden) is de wereld vertraagd, na een perfecte tweede
+// wanneer de vorige speer losging (de eerste worp of de rol-worp), 0 als er geen tweede op kan volgen
+function dubbelLosT(){
+  if (thr && thr.gone && !thr.dubbel && thr.losT) return thr.losT;
+  if (rolW && rolW.los && rolW.losT) return rolW.losT;
+  return 0;
+}
+function dubbelPerfectNu(){
+  const t = dubbelLosT();
+  if (!t) return false;
+  const sinds = (bavKlok - t) / 1000;
+  return sinds >= DUBBEL.perfVan && sinds <= DUBBEL.perfTot;
+}
+function dubbelTraagNu(realDt){
+  if (dubbelTraagT <= 0) return 1;
+  dubbelTraagT = Math.max(0, dubbelTraagT - realDt);
+  const p = 1 - dubbelTraagT / DUBBEL.traagDuur;          // 0 tot 1: eerst traag, dan steeds sneller terug
+  return DUBBEL.traag + (1 - DUBBEL.traag) * p * p;
+}
+// de ster op Amir zolang het perfecte venster open is (zie rolGlansTeken)
+function dubbelGlansTeken(pcx, voetY, scale){
+  if ((thr && thr.wil) || !dubbelKan()) return;            // al gedrukt, of er kan geen tweede
+  const t = dubbelLosT();
+  if (!t) return;
+  const sinds = (bavKlok - t) / 1000, a = DUBBEL.perfVan - 0.03;
+  if (sinds < a || sinds > DUBBEL.perfTot) return;
+  const k = Math.sin(Math.PI * (sinds - a) / (DUBBEL.perfTot - a));
+  const kant = rolW ? rolW.kant : thrDir();
+  glansSter(pcx + kant * CHAR_H * scale * 0.1, voetY - CHAR_H * scale * 0.62, CHAR_H * scale * 0.3 * (0.7 + 0.3 * k), k, scale);
+}
 let jav2 = null;     // de tweede speer, zolang de eerste ook nog ergens is
 function dubbelKan(){
   if (jav2 || dead || hurt > 0 || !onGround || jump || fell) return false;
@@ -18544,10 +18581,10 @@ function dubbelKan(){
 function dubbelVraag(){
   if (!thr || thr.held || thr.dubbel || !tribeHeeft('second_spear')) return false;
   if (thr.gone && thr.frame >= DUBBEL.naFrame) return false;   // dan gaat dubbelKan er meteen over
-  thr.wil = true;
+  thr.wil = true; thr.wilPerfect = dubbelPerfectNu();
   return true;
 }
-function dubbelStart(){
+function dubbelStart(perfect){
   if (rolW){ const k = rolW.kant; rolWorpEind(); facing = k; }   // uit de rol-worp: de nazwaai gaat over in de tweede
   if (!spear){                                                   // over de schouder: zonder de beat van RUG.trek
     rugTrekT = 0;
@@ -18555,7 +18592,7 @@ function dubbelStart(){
     spear = true; spearFound = true; speerBlauw = r.blauw; setSpearLabel();
   }
   thr = { frame: DUBBEL.vanFrame, acc: 0, held: false, rel: bavKlok, gone: false, lob: false, glint: 0,
-          hoek: 0, t0: 0, vol: false, dubbel: true };
+          hoek: 0, t0: 0, vol: false, dubbel: true, perfect: !!perfect };
 }
 // de eerste speer maakt plaats: in de lucht ruilen ze gewoon, ligt hij al ergens dan wordt hij een losse speer
 function javWissel(){
@@ -18647,7 +18684,7 @@ function thrPress(){
   thrPressT = bavKlok;
   if (rol){ rolWorpDruk(); return; }               // tijdens de rol: de rol-worp (zie ROL_WORP)
   if (dubbelVraag()) return;                       // tijdens de eerste worp: onthouden (zie DUBBEL.naFrame)
-  if (dubbelKan()){ dubbelStart(); return; }       // vlak na een worp: meteen een tweede (zie DUBBEL)
+  if (dubbelKan()){ dubbelStart(dubbelPerfectNu()); return; }   // vlak na een worp: meteen een tweede (zie DUBBEL)
   if (amirVast()) return;                          // de baviaan heeft je speer vast, of hij sterft net
   if (schijnLigt()) return;                        // Feign Death: hij ligt nog
   glijStart();                                     // in volle sprint: hij glijdt door (zie renstoot)
@@ -18740,7 +18777,7 @@ function updateThrow(dt){
     if (thr.frame === THR_LOOSE) looseSpear();
     if (thr.wil && thr.gone && thr.frame >= DUBBEL.naFrame){   // de onthouden druk (dubbelVraag)
       thr.wil = false;
-      if (dubbelKan()){ dubbelStart(); return; }
+      if (dubbelKan()){ dubbelStart(thr.wilPerfect); return; }
     }
     if (thr.frame >= THR_N){ thr = null; return; }
     if (thr.held && thr.frame >= stop){ thr.acc = 0; return; }
@@ -18780,11 +18817,18 @@ function looseSpear(){
   // de tweede speer gaat naar zijn eigen plek (jav2) zolang de eerste nog ergens is
   if (thr.dubbel && (jav || javLost > 0)) jav2 = nieuw;
   else { jav = nieuw; javLost = 0; }
+  if (thr.dubbel && thr.perfect){                     // de perfecte tweede (zie DUBBEL): goud, een klik en even traag
+    nieuw.perfect = true; nieuw.spoor = [];
+    hitstop = Math.max(hitstop, DUBBEL.stop);
+    rolStoot = { t: 0, kant: dir, a: DUBBEL.stoot };
+    dubbelTraagT = DUBBEL.traagDuur;
+    flashHint('Perfecte tweede speer!');
+  }
   lawaaiPuls(playerX(), ph, SNEAK.puls.worp);         // het loslaten hoor je alleen vlakbij (zie "sneak")
   krbWerpGezien();                                    // een schutter met de hoorn ontwijkt hem (KRB_HOORN)
   if (wantSound){
     const t = document.getElementById('thrust');
-    t.currentTime = 0; t.volume = 0.8; t.playbackRate = thr.dubbel ? 1.05 : 0.85; t.play().catch(() => {});
+    t.currentTime = 0; t.volume = 0.8; t.playbackRate = thr.dubbel ? (thr.perfect ? 1.2 : 1.05) : 0.85; t.play().catch(() => {});
   }
 }
 
@@ -20591,8 +20635,10 @@ function rolGlansTeken(pcx, voetY, scale){
   const p = (f - (a - 0.5)) / (ROL_WORP.tak - a + 0.5);   // 0 tot 1 over het venster
   const k = Math.sin(Math.PI * Math.min(1, p * 1.3)) * Math.min(1.5, ROL_WORP.glans) * (rol.worp && rol.perfect ? 1.4 : 1);
   if (k <= 0) return;
-  const x = pcx + rol.kant * CHAR_H * scale * 0.18, y = voetY - CHAR_H * scale * 0.42;
-  const r = CHAR_H * scale * 0.3 * (0.7 + 0.3 * k);
+  glansSter(pcx + rol.kant * CHAR_H * scale * 0.18, voetY - CHAR_H * scale * 0.42, CHAR_H * scale * 0.3 * (0.7 + 0.3 * k), k, scale);
+}
+// een gloed met een vierpuntige ster, k van 0 tot 1,5 (de glans van de rol-worp en van de tweede speer)
+function glansSter(x, y, r, k, scale){
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   const g = ctx.createRadialGradient(x, y, 0, x, y, r);
@@ -29916,7 +29962,7 @@ function restart(){
   laadPoort();                                      // pas verder als alles binnen is (zie laadpoort)
   won = false; document.getElementById('win').classList.remove('on');
   critZak = []; critNu = false;                   // True Flight: een verse knikkerzak per level
-  lives = levensStart(); invuln = 0; invulnStil = 0; hurt = 0; knock = 0; shake = 0; hitstop = 0; kooiVries = 0; kooiVriesS = null; exeVries = null; bruVries = null; stadTrapFade = null; stadLuifelVx = 0; exeZoomNu = 1; exeSnijStop(); dead = false;
+  lives = levensStart(); invuln = 0; invulnStil = 0; hurt = 0; knock = 0; shake = 0; hitstop = 0; dubbelTraagT = 0; kooiVries = 0; kooiVriesS = null; exeVries = null; bruVries = null; stadTrapFade = null; stadLuifelVx = 0; exeZoomNu = 1; exeSnijStop(); dead = false;
   woedeStop();                                      // de woede houdt op bij een nieuw begin
   schijnT = 0; schijnKeer = abilityWaarde('feign_death', 'keer', 0);   // Feign Death: weer klaar
   if (level && level.tekens) for (const t of level.tekens) t.gesneden = false;   // de kalebassen hangen weer
@@ -42052,6 +42098,7 @@ function loop(now){
   if (bruGeluid && (paused || won || !brutus || !running)) bruAdemSpeel(false);   // Brutus' ademhaling stil buiten het gevecht
   if (bruGeluid) bruSpraakStap();
   dt *= zwmTraagNu();             // testoptie: de wereld vertraagd zolang een zweepman slaat (Zweepman: test)
+  dt *= dubbelTraagNu(realDt);    // even vertraagd na een perfecte tweede speer (DUBBEL)
   if (hitstop > 0){ hitstop -= dt; dt = 0; }     // een korte freeze op een klap (nu de parry): alles staat heel even stil, de shake schudt door
   // de deur-freeze: op de klap van de open deur staat het beeld even stil. De wereld bevriest (dt 0), maar de
   // bandiet komt wel op uit het donker (vFade op echte tijd) en de shake zakt weg, zodat de klap narommelt.
@@ -42965,6 +43012,7 @@ function loop(now){
     if (!amirWeg && !blink && amirSteen <= 0 && trapAlfa > 0.01)   // het licht op hem: zon, fakkel en het raam binnen (zie "licht op personages")
       persLicht(img, x, y, w, h, useThrow ? thrFlip() : (autoFlip && facing === 1), playerX(), ph, CHAR_H * scale, groundY, scale, cx, trapAlfa);   // binnen: het licht van een raam valt op hem
     rolGlansTeken(pcx, groundY + lift, scale);        // het perfecte venster van de rol-worp: een korte ster
+    dubbelGlansTeken(pcx, groundY + lift, scale);     // en dat van de tweede speer (DUBBEL)
     critFxTeken(groundY, scale, cx);                  // True Flight: de ster van een crit
     gifFxTeken(groundY, scale, cx);                   // het gif: druppels bloed en gif van een treffer of een tik
     gifHandTeken(pcx, y, groundY, scale, lift);       // en de groene punt van de speer in zijn hand, bij de steek en het spannen
