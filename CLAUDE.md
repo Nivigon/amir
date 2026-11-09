@@ -259,6 +259,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | stof, sneeuwval, het weer | deeltjes en het weerplan per potje |  |
 | het weer: regen, onweer, zandstorm, sneeuw en sneeuwstorm | `WEER`, `weerDoel`, `updateWeer` | notities/wegwijzers.md |
 | vegetatie, water, doornbos | `props`, `water`, `thickets` | notities/wegwijzers.md |
+| water: één materiaal voor plas, poel, rivier, waterval en bron (palet, rimpels, glinsters, schuim, regenringen, geruis); proefstuk Test 67 | `WATER`, `waterTeken`, `waterVoorTeken`, `waterStap` | notities/water.md |
 | schilden in de wind | `SCHILD`, `schildStofUpdate`, `schildTil` | notities/decor.md |
 | tonnen: houten tonnen die breken (drie treffers, Nyundo in een keer, een kalebas erin), ook op een dak of zwevende laag | `TON`, `tonRaak`, `tonBruut`, `tonPlekX`, `tonOp` | notities/tonnen.md |
 | wapenrek: een houten rek in de stad met speren; E pakt er een, in de hand of op de rug | `WAPENREK`, `wapenrekken`, `rekTrek` | notities/wapenrek.md |
@@ -335,6 +336,8 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `speerInHand` | `true`: Amir begint met de speer in de hand in plaats van hem voor zich uit de grond te pakken; de Level Maker nieuwstijl zet dit in elk level, de echte episodes hebben het niet |
 | `executie` | `true`: elke dodelijke steek, worp of lage zwaai op een schildbandiet is de executie, in plaats van 1 op 5 en 1 op 3 (alleen Test 50, zie `notities/schildbandiet.md`) |
 | `herhaal` | `true`: is de laatste schildbandiet weg (na de executie of de gewone dood), dan komt er na `EXE.herhaalWacht` een nieuwe aanwandelen, net buiten beeld voor Amir uit, met de vlaggen van de eerste schildman-spawn (alleen Test 50, `exeHerhaalStap`) |
+| `wateren` | het water van `WATER`: `[{k, x, w}]`, `k` is `plas`, `poel`, `rivier`, `val` (van de rechterkant van een terras op `x`) of `bron` (met `hoog` in Amir); een poel en rivier laten je waden zoals de oude `water` (zie `notities/water.md`). Alleen Test 67 |
+| `vredig` | `true`: geen vijanden, en ook geen vrije slangen of kalebassen die het spel anders bij lege `spawns` stuurt (Test 67) |
 | `rocks` | keien om op te springen: `{x, s}` |
 | `tonnen` | houten tonnen die breken: `{x, y, f, kalebas}`, of `put`/`luifel`/`kraam` met `a` (Amir van die put, losse luifel of kraam) in plaats van `x`; hoger op met `dak` (een dak of galerij van de stad, met `a` vanaf het midden van dat dak) of `zwever: true` (zie `notities/tonnen.md`) |
 | `wapenrekken` | houten rekken met speren: `{x, f, n}`, `n` speren (standaard en hooguit 4, een per touwlus), of `put`/`luifel`/`kraam` met `a` zoals bij `tonnen`; E pakt er een (zie `notities/wapenrek.md`) |
