@@ -6,7 +6,22 @@ met de speer in een hand achter zich en de vrije hand naar voren. Een beloning v
 een flits op de treffer.
 
 Aan met `combo: true` in een level (alleen Test 68) of de knop **Combo** in de sandbox (bij Stof). Grep: `COMBO`,
-`comboStart`, `comboStap`, `comboKan`, `atkCombo`.
+`comboStart`, `comboStap`, `comboKan`, `atkCombo`, `comboSoort`, `comboTerugNu`.
+
+## Twee soorten: terugslag of schade
+
+Welke derde slag beter is (controle of schade) proberen we uit. `comboSoort()` geeft er een:
+
+- **Terugslag**: de slag telt enkel, maar zet de vijand ver terug. Een bandiet krijgt `COMBO.terug.v` (1100 px/s, dooft uit
+  tot zo'n 285 px) in plaats van `BAN_KNOCK` en staat `COMBO.terug.rust` (0,8 s) stil voor hij weer stormt; een
+  schildbandiet krijgt `COMBO.terug.schb` (2,2) keer zijn flinch-duw. Kei en ravijn houden hem tegen (regel 7, via
+  `banMove` en `schbMove`). Op de treffer een stofwolk in plaats van de ster van de crit.
+- **Schade**: de slag telt dubbel (`critNu`), met de ster, zoals hij eerst was.
+
+Test 68 heeft `comboKeuze: true`: aan het begin en na elke R (`opnieuw`) staat het scherm van `duoKeuze` open met alleen
+de rij Derde slag (`dkcombo`, bewaard in `amir.duoKeuze`). Een level met `combo` zonder `comboKeuze` krijgt schade. In de
+sandbox wisselt de knop Combo rond: uit, terugslag, schade (`sbComboSoort`). De terugslag werkt nu op de bandiet en de
+schildbandiet (de vijanden van Test 68); bij andere vijanden telt hij gewoon als een treffer.
 
 ## Zo telt hij
 
@@ -26,7 +41,7 @@ Aan met `combo: true` in een level (alleen Test 68) of de knop **Combo** in de s
   De straal om de punt is `COMBO.reik` (60, de steek 40).
 - Onder het draaien schuift hij `COMBO.stap` (110 sprite-eenheden) naar voren, verdeeld over frame 0 tot 5
   (`comboSchuif`, niet over een ravijn), zodat hij een vijand haalt die na twee steken iets is teruggestuiterd.
-- De treffer telt dubbel via `critNu` (dezelfde weg als True Flight: elke `hitX` met `critPak` haalt er een treffer
+- Bij schade telt de treffer dubbel via `critNu` (dezelfde weg als True Flight: elke `hitX` met `critPak` haalt er een treffer
   extra uit). De eerste treffer geeft de witgouden ster van de crit op de speerpunt (`comboTreffer`), een hitstop
   (`COMBO.stop`) en een schok.
 - De bandiet: de slag gaat door zijn dekking heen (`s.inv`), hij pareert hem niet (`hitBandiet`, en de pareer-tak).
