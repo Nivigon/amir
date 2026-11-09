@@ -57,7 +57,7 @@ Testlevel: **Test 63: Stof in de ogen**, drie gewone bandieten na elkaar met hun
 bij `tribeVastleggen`). In de Test levels zonder tribe heb je alles, dus ook dit. Op de telefoon is er een stofknop
 (`stof` in `TOUCH_BTNS`, `drawBtnStof`) en de uitleg van de toetsen bij het begin noemt X (`HINT_START`).
 
-Afkoeling: `STOF.koel` (8 s), vanaf het stof (`stofKoel`, `stofGereed`). Blind is 3,5 s met een dubbele treffer erna, dus
+Afkoeling: `STOF.koel` (8 s), vanaf het stof (`stofKoel`, `stofGereed`). Blind is 4 s met een dubbele treffer erna, dus
 ongeveer een keer per gevecht. In de HUD een tegel naast de lage zwaai (`#stofhud`, `stofHud`) met de taartpunt die
 wegdraait, op de telefoon een ring om de knop; te vroeg drukken schudt de tegel.
 
