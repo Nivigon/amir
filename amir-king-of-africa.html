@@ -22909,17 +22909,41 @@ function waterLaag(pad, img, a, ox, oy, k){
 // ---- de vormen als pad op het scherm ----
 // een kom: een afgeplatte ovaal met een grillige rand, plat op de grond (de verre kant smaller dan de voorkant)
 function waterKomPad(cx, cy, rx, ry, ruw, seed){
-  const p = new Path2D(), n = 48;
-  for (let i = 0; i <= n; i++){
+  const pts = [], n = 96;
+  for (let i = 0; i < n; i++){
     const t = i / n * Math.PI * 2;
-    const rr = 1 + ruw * (Math.sin(t * 3 + seed) * 0.5 + Math.sin(t * 5 + seed * 2.3) * 0.3 + Math.sin(t * 9 + seed * 0.7) * 0.2);
+    // grote bochten uit ruw, en daarbovenop een fijne grilligheid, zodat de oever geen getekende lijn is
+    const rr = 1 + ruw * (Math.sin(t * 3 + seed) * 0.5 + Math.sin(t * 5 + seed * 2.3) * 0.3 + Math.sin(t * 9 + seed * 0.7) * 0.2)
+                 + 0.025 * Math.sin(t * 17 + seed * 3.1) + 0.015 * Math.sin(t * 31 + seed * 1.9);
     const c = Math.cos(t), sn = Math.sin(t);
     const x = cx + Math.sign(c) * Math.pow(Math.abs(c), 0.8) * rx * rr;
     const y = cy + Math.sign(sn) * Math.pow(Math.abs(sn), 0.9) * ry * rr * (sn < 0 ? 0.8 : 1);
-    i ? p.lineTo(x, y) : p.moveTo(x, y);
+    pts.push([x, y]);
   }
+  return waterPadVan(pts);
+}
+// een gesloten pad uit punten; de punten blijven erbij voor de oever (waterOeverOnder, waterRand)
+function waterPadVan(pts){
+  const p = new Path2D();
+  pts.forEach((q, i) => i ? p.lineTo(q[0], q[1]) : p.moveTo(q[0], q[1]));
   p.closePath();
+  let a = 0;                                     // de draairichting, zodat de normaal altijd naar buiten wijst
+  for (let i = 0; i < pts.length; i++){ const q = pts[i], r = pts[(i + 1) % pts.length]; a += q[0] * r[1] - r[0] * q[1]; }
+  p.pts = pts; p.draai = a > 0 ? 1 : -1;
   return p;
+}
+// per punt: de lengte langs de oever en de normaal naar buiten (het zand in)
+function waterOeverPunten(pad){
+  const pts = pad.pts, n = pts.length, uit = [];
+  let u = 0;
+  for (let i = 0; i < n; i++){
+    const a = pts[(i - 1 + n) % n], b = pts[(i + 1) % n];
+    let tx = b[0] - a[0], ty = b[1] - a[1];
+    const l = Math.hypot(tx, ty) || 1; tx /= l; ty /= l;
+    if (i) u += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+    uit.push({ x: pts[i][0], y: pts[i][1], nx: ty * pad.draai, ny: -tx * pad.draai, u });
+  }
+  return uit;
 }
 function waterLuchtKleur(){
   const sc = sceneCfg();
@@ -22929,6 +22953,7 @@ function waterLuchtKleur(){
 // het water zelf in een pad: verloop, rimpels, glinsters; van boven (yT) naar onder (yB)
 function waterVul(pad, yT, yB, x0, x1, opts){
   const P = WATER.palet, R = WATER.rimpel, T = waterTextuur(), t = waterKlok;
+  if (pad.pts) waterOeverOnder(pad);
   const g = ctx.createLinearGradient(0, yT, 0, yB);
   g.addColorStop(0, waterRgb(waterLuchtKleur()));
   g.addColorStop(0.45, waterRgb(P.midden));
@@ -22960,12 +22985,56 @@ function waterVul(pad, yT, yB, x0, x1, opts){
   waterRegenRingen(opts.ringen, pad);
 }
 // de natte rand eromheen en het schuim op de waterlijn
+// het natte zand rond het water: een zachte donkere zoom die naar buiten uitloopt, onder het water getekend
+function waterOeverOnder(pad){
+  const P = WATER.palet, Rd = WATER.rand, m = waterMaat();
+  ctx.save(); ctx.lineJoin = 'round';
+  for (const [w, a] of [[Rd.natW * 2.6, 0.10], [Rd.natW * 1.6, 0.14], [Rd.natW * 0.9, 0.2]]){
+    ctx.strokeStyle = waterRgb(P.nat, a * Rd.nat / 0.38); ctx.lineWidth = w * m; ctx.stroke(pad);
+  }
+  ctx.restore();
+}
+function waterMaat(){ return Math.max(0.7, H / 720); }
+// de waterlijn: een dun donker randje waar het water het zand raakt, een lichtrand die met de golfslag
+// aanspoelt en wegtrekt (geen streepjes, maar een glans die langs de oever ademt), schuimvlokjes en
+// steentjes op het natte zand. Alles op vaste plekken langs de oever, zodat het niet flikkert.
 function waterRand(pad, schuimDik){
-  const P = WATER.palet, Rd = WATER.rand;
-  ctx.save();
-  ctx.strokeStyle = waterRgb(P.nat, Rd.nat); ctx.lineWidth = Rd.natW; ctx.lineJoin = 'round'; ctx.stroke(pad);
-  ctx.setLineDash([10, 7, 3, 9]); ctx.lineDashOffset = -waterKlok * 6;
-  ctx.strokeStyle = waterRgb(P.schuim, Rd.schuim); ctx.lineWidth = schuimDik || 1.6; ctx.stroke(pad);
+  if (!pad.pts) return;
+  const P = WATER.palet, Rd = WATER.rand, m = waterMaat(), t = waterKlok;
+  const pt = waterOeverPunten(pad), n = pt.length, seed = pad.pts.length + Math.round(pt[0].x * 0.01);
+  ctx.save(); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.strokeStyle = waterRgb(P.nat, 0.42); ctx.lineWidth = 1.3 * m; ctx.stroke(pad);   // de waterlijn
+  // de golfslag: een lichtrand net binnen de oever, die langs de oever aan- en wegtrekt
+  for (let i = 0; i < n; i++){
+    const a = pt[i], b = pt[(i + 1) % n];
+    const golf = Math.sin(a.u * 0.045 - t * 1.4 + seed) * 0.6 + Math.sin(a.u * 0.11 + t * 0.9) * 0.4;
+    const k = Math.max(0, golf);
+    if (k < 0.08) continue;
+    const terug = (1.6 + 2.2 * (1 - k)) * m;    // hoe verder hij terugtrekt, hoe zwakker
+    ctx.strokeStyle = waterRgb(P.schuim, Rd.schuim * k * k);
+    ctx.lineWidth = (schuimDik || 1.6) * (0.6 + 0.6 * k) * m;
+    ctx.beginPath(); ctx.moveTo(a.x - a.nx * terug, a.y - a.ny * terug); ctx.lineTo(b.x - b.nx * terug, b.y - b.ny * terug); ctx.stroke();
+  }
+  // schuimvlokjes die op de rand dobberen
+  for (let i = 0; i < n; i += 3){
+    const z = seed * 7 + i;
+    if (waterHash(z, 1) < 0.62) continue;
+    const a = pt[i], d = (2.5 + waterHash(z, 2) * 3) * m, k = 0.5 + 0.5 * Math.sin(t * (0.7 + waterHash(z, 3)) + z);
+    ctx.fillStyle = waterRgb(P.schuim, 0.35 * k + 0.1);
+    ctx.beginPath(); ctx.ellipse(a.x - a.nx * d, a.y - a.ny * d, (1.6 + waterHash(z, 4) * 2.4) * m, (0.7 + waterHash(z, 5)) * m, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  // steentjes en kiezels op het natte zand, met een lichtpuntje bovenop
+  const zand = [196, 150, 96];
+  for (let i = 0; i < n; i++){
+    const z = seed * 13 + i;
+    if (waterHash(z, 6) < 0.6) continue;
+    const a = pt[i], d = (2 + waterHash(z, 7) * 5) * m;
+    const x = a.x + a.nx * d, y = a.y + a.ny * d * 0.6, r = (0.9 + waterHash(z, 8) * 1.9) * m;
+    ctx.fillStyle = waterRgb(waterMeng(P.nat, zand, 0.15 + waterHash(z, 9) * 0.6), 0.9);
+    ctx.beginPath(); ctx.ellipse(x, y, r * 1.3, r * 0.75, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = waterRgb(zand, 0.55);
+    ctx.beginPath(); ctx.ellipse(x - r * 0.3, y - r * 0.35, r * 0.5, r * 0.25, 0, 0, Math.PI * 2); ctx.fill();
+  }
   ctx.restore();
 }
 // ---- regen: ringen op elk water ----
@@ -23030,12 +23099,12 @@ function waterRivierTeken(o, i, groundY, s){
   const yT = groundY - WATER.rug * s, yB = groundY + WATER.lip * s;
   const v = (o.v || WATER.soort.rivier.v);
   // de bedding: van achteren smal (ver weg) naar voren breed, met golvende oevers
-  const pad = new Path2D(), n = 20, oever = (k, kant) => Math.sin(k * 7 + i + kant * 2) * 5 + Math.sin(k * 15 + kant) * 2.5;
+  const pts = [], n = 40, oever = (k, kant) => Math.sin(k * 7 + i + kant * 2) * 5 + Math.sin(k * 15 + kant) * 2.5 + Math.sin(k * 41 + kant * 3) * 1.2;
   const breed = k => w * (0.4 + 0.6 * k) / 2;                       // ver weg smaller
   const kron = k => Math.sin(k * 3.6 + i * 1.3) * w * 0.22 * (1 - k * 0.8);   // en hij kronkelt, vooraan recht naar de val
-  for (let j = 0; j <= n; j++){ const k = j / n; const y = yT + (yB - yT) * k; const x = cx + kron(k) - breed(k) + oever(k, -1); j ? pad.lineTo(x, y) : pad.moveTo(x, y); }
-  for (let j = n; j >= 0; j--){ const k = j / n; const y = yT + (yB - yT) * k; pad.lineTo(cx + kron(k) + breed(k) + oever(k, 1), y); }
-  pad.closePath();
+  for (let j = 0; j <= n; j++){ const k = j / n; pts.push([cx + kron(k) - breed(k) + oever(k, -1), yT + (yB - yT) * k]); }
+  for (let j = n; j >= 0; j--){ const k = j / n; pts.push([cx + kron(k) + breed(k) + oever(k, 1), yT + (yB - yT) * k]); }
+  const pad = waterPadVan(pts);
   waterVul(pad, yT, yB, cx - w / 2, cx + w / 2, { v, seed: i * 97, ringen: waterRingenVan(i, cx, (yT + yB) / 2, w * 0.4, (yB - yT) / 2) });
   // de oevers, maar niet over de achterkant (daar loopt hij door) en de voorkant (daar valt hij)
   ctx.save();
@@ -23095,11 +23164,11 @@ function waterTerrasTeken(groundY, scale, cx){
     if (x > W / viewZoom() + W || x < -W) continue;
     const vl = waterValVlak(t, groundY, scale), lang = Math.min(w * 3, Math.max(40, (t.r - t.l) * 0.6));
     // een bron achteraan op het vlak, en het beekje dat breder wordt naar de rand
-    const pad = new Path2D(), n = 16;
+    const pts = [], n = 32;
     const yM = (vl.y0 + vl.y1) / 2;
-    for (let j = 0; j <= n; j++){ const k = j / n; const hw = (vl.y1 - vl.y0) / 2 * (0.25 + 0.75 * Math.sqrt(k)); pad[j ? 'lineTo' : 'moveTo'](x - lang * (1 - k), yM - hw + Math.sin(k * 9 + i) * 1.5); }
-    for (let j = n; j >= 0; j--){ const k = j / n; const hw = (vl.y1 - vl.y0) / 2 * (0.25 + 0.75 * Math.sqrt(k)); pad.lineTo(x - lang * (1 - k), yM + hw + Math.sin(k * 7 + i) * 1.5); }
-    pad.closePath();
+    for (let j = 0; j <= n; j++){ const k = j / n; const hw = (vl.y1 - vl.y0) / 2 * (0.25 + 0.75 * Math.sqrt(k)); pts.push([x - lang * (1 - k), yM - hw + Math.sin(k * 9 + i) * 1.5 + Math.sin(k * 33) * 0.8]); }
+    for (let j = n; j >= 0; j--){ const k = j / n; const hw = (vl.y1 - vl.y0) / 2 * (0.25 + 0.75 * Math.sqrt(k)); pts.push([x - lang * (1 - k), yM + hw + Math.sin(k * 7 + i) * 1.5 + Math.sin(k * 29) * 0.8]); }
+    const pad = waterPadVan(pts);
     ctx.save();
     ctx.beginPath(); ctx.rect(x - lang - 20, vl.y0 - 10, lang + 21, vl.y1 - vl.y0 + 20); ctx.clip();   // niet voorbij de rand
     waterVul(pad, vl.y0, vl.y1, x - lang, x, { v: 0, seed: i * 53 });
