@@ -18524,7 +18524,11 @@ const DUBBEL = {
   // over de schouder (frame 5, de greep), dan zakt hij in de uitval en gaat het steeds sneller naar het loslaten, een
   // zweep. Met tempo 2 vanaf frame 7 ging hij er na 0,125 s al uit, las je de twee speren als een worp, en bleef hij
   // in de lage uitval hangen, zodat hij kleiner leek dan bij de eerste worp
-  ritme: [0.10, 0.08, 0.08, 0.07, 0.05]
+  ritme: [0.10, 0.08, 0.08, 0.07, 0.05],
+  // een druk tijdens de eerste worp wordt onthouden (thr.wil), en de tweede begint pas op dit frame van de eerste:
+  // je ziet de eerste speer los gaan en de arm doorzwaaien. Zonder dit begon een druk net voor het loslaten de
+  // eerste worp opnieuw bij frame 0, en een druk op frame 10 knipte de nazwaai weg
+  naFrame: 12
 };
 let jav2 = null;     // de tweede speer, zolang de eerste ook nog ergens is
 function dubbelKan(){
@@ -18535,6 +18539,13 @@ function dubbelKan(){
   if (thr && thr.gone && !thr.dubbel && thr.losT && bavKlok - thr.losT <= v) return tribeHeeft('second_spear');
   if (rolW && rolW.los && rolW.losT && bavKlok - rolW.losT <= v) return tribeHeeft('tumbling_spear');
   return false;
+}
+// F tijdens de eerste worp, voor of vlak na het loslaten: onthouden, updateThrow start de tweede op DUBBEL.naFrame
+function dubbelVraag(){
+  if (!thr || thr.held || thr.dubbel || !tribeHeeft('second_spear')) return false;
+  if (thr.gone && thr.frame >= DUBBEL.naFrame) return false;   // dan gaat dubbelKan er meteen over
+  thr.wil = true;
+  return true;
 }
 function dubbelStart(){
   if (rolW){ const k = rolW.kant; rolWorpEind(); facing = k; }   // uit de rol-worp: de nazwaai gaat over in de tweede
@@ -18635,6 +18646,7 @@ function thrPress(){
   // telefoon (gameTempo) duurt het opladen even lang als de rest van zijn bewegingen
   thrPressT = bavKlok;
   if (rol){ rolWorpDruk(); return; }               // tijdens de rol: de rol-worp (zie ROL_WORP)
+  if (dubbelVraag()) return;                       // tijdens de eerste worp: onthouden (zie DUBBEL.naFrame)
   if (dubbelKan()){ dubbelStart(); return; }       // vlak na een worp: meteen een tweede (zie DUBBEL)
   if (amirVast()) return;                          // de baviaan heeft je speer vast, of hij sterft net
   if (schijnLigt()) return;                        // Feign Death: hij ligt nog
@@ -18651,7 +18663,7 @@ function thrStop(){
 function thrRelease(cancel){
   if (!thr) return;
   const tik = bavKlok - thrPressT < THR_TAP * 1000;
-  if ((cancel || tik) && thr.frame <= THR_WIND && !thr.gone && !thr.dubbel){   // de tweede speer gaat altijd door
+  if ((cancel || tik) && thr.frame <= THR_WIND && !thr.gone && thr.held){   // een worp die al loopt (ook de tweede) gaat door
     thr = null;                                    // afgebroken: hij houdt zijn speer
     if (tik && !cancel) startAttack();             // een tik op dezelfde knop is de oude stoot
     return;
@@ -18726,6 +18738,10 @@ function updateThrow(dt){
     thr.frame++;
     if (thr.frame === THR_WIND && thr.held && !worpSchaal()) thr.glint = 1;   // tweede trap bereikt: even een lichtje op de punt
     if (thr.frame === THR_LOOSE) looseSpear();
+    if (thr.wil && thr.gone && thr.frame >= DUBBEL.naFrame){   // de onthouden druk (dubbelVraag)
+      thr.wil = false;
+      if (dubbelKan()){ dubbelStart(); return; }
+    }
     if (thr.frame >= THR_N){ thr = null; return; }
     if (thr.held && thr.frame >= stop){ thr.acc = 0; return; }
   }
