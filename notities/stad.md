@@ -98,6 +98,28 @@ precies dezelfde hoogte als bij een oud huis, en kun je de types vrij door elkaa
   en de lijst van `gen-klein.py`.
 - Nog niet: de verre rijen achter de straat (`STAD.rijen`) blijven de oude gevel.
 
+## Balkon
+
+`STAD_BALKON`, `stadBalkonMaat`, `stadBalkonTeken`, `tools/balkon_knip.py`
+
+Een ingebouwd balkon in een gevel, plat: er steekt niets uit, de diepte komt van de schaduw en van wat je erdoor ziet.
+In een gevel: `balkon: 'nis'`, `'hoekL'` of `'hoekR'`, en `balkonV` de verdieping (1 = de eerste, standaard de bovenste).
+Een huis van een hoog heeft geen balkon, een ruine ook niet, en een torenhuis geen hoekbalkon (daar staat de toren).
+
+- **De nis** (`nis`): midden in de gevel, op de plek van het raam. Een donkere achterwand met schaduw bovenin en langs een
+  zijwand, een dichte houten deur achterin (`STAD_BALKON.deur`, kleiner dan een voordeur, warm gekleurd door
+  `stadDeurWarm`), een houten latei over de nis en de balustrade gelijk met de gevel.
+- **De hoek** (`hoekL`, `hoekR`): de hoek van het huis is op die verdieping uitgespaard (een clip met `evenodd` over de banden),
+  dus je kijkt erdoorheen naar de stad erachter. Een strook muurdikte langs de binnenrand, een plafondje, een latei en voorin de
+  smalle balustrade. Op een gespiegeld huis blijft `hoekR` rechts in beeld.
+- **De vloer** is de balkenrij van het huis zelf (`STAD_BALKON.vloer`): de vloerrand met balkkoppen uit de Grok-plaat is weg,
+  anders staan er twee balkenrijen boven elkaar.
+- **De platen** knipt `tools/balkon_knip.py` uit `design/stad/bron/balkon_grok.png`: de balustrade van de voorkant
+  (`balkon_voor.png`) en van de smalle zijkant (`balkon_zij.png`). Ze laden pas als een gevel een balkon heeft (`stadSoortLaad`).
+- **Sandbox**: onder De stad de knop **Balkons**: de nis en de hoek, links en rechts, op verschillende verdiepingen en types.
+- Nog niet: een keuze in de Maker, en een vaste regel als het spel zelf accenten kiest (hooguit een per huis, niet twee
+  naast elkaar, ongeveer een op de vier).
+
 ## Achter de kartels
 
 `STAD_KANTEEL`, `STAD.gevel.dakAchter`, `STAD.kanteelBreed`, `stadKanteelVoor`, `stadKanteelAmir`

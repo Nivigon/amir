@@ -137,6 +137,8 @@ DOELEN = [
     ('design/stad/gevel_ruine2.png', 60),
     ('design/stad/gevel_winkel.png', 60),
     ('design/stad/gevel_winkel_dicht.png', 60),
+    ('design/stad/balkon_voor.png', 60),   # de balustrades van het ingebouwde balkon (tools/balkon_knip.py)
+    ('design/stad/balkon_zij.png', 60),
     ('design/stad/paleis.png', 60),     # 2,9x  voorgebakken met nevel
     ('design/stad/kraam_riet.png', 60), # 6,5x
     ('design/stad/kraam_doek.png', 60), # 5,6x

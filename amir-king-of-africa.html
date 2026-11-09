@@ -1852,6 +1852,7 @@
         <button id="sbstadweg">Weg</button>
         <button id="sbhuistypes">Huistypes</button>
         <button id="sbhuisnieuw">Nieuwe huizen</button>
+        <button id="sbbalkons">Balkons</button>
         <button id="sbdichtestraat">Dichte straat</button>
         <button id="sbgordijnen">Gordijnen</button>
         <button id="sbgordwind">Wind: vlagen</button>
@@ -3001,6 +3002,7 @@ const KLEIN_FAM = [
   'design/stad/gevel_relief.png', 'design/stad/gevel_koopman.png', 'design/stad/gevel_pilaren.png',
   'design/stad/gevel_vervallen.png', 'design/stad/gevel_toren.png', 'design/stad/gevel_ruine.png', 'design/stad/gevel_ruine2.png',
   'design/stad/gevel_winkel.png', 'design/stad/gevel_winkel_dicht.png',
+  'design/stad/balkon_voor.png', 'design/stad/balkon_zij.png',
   'design/stad/paleis.png',
   'design/stad/kraam_riet.png',
   'design/stad/kraam_doek.png',
@@ -23713,12 +23715,18 @@ function stadSoortLaad(st){
     stadImgs[k] = zetBron(new Image(), STAD_DIR + src, () => console.warn('ontbreekt: stad ' + src));
   }
   if (st) gordijnLaad(st);                          // de deurgordijnen die deze stad echt heeft (zie "gordijnen")
+  if (((st && st.gevels) || []).some(g => STAD_BALKON.soorten.includes(g.balkon))){   // de balustrades van een balkon
+    if (!stadImgs.balkonVoor) stadImgs.balkonVoor = zetBron(new Image(), STAD_DIR + STAD_BALKON.voor.src, () => console.warn('ontbreekt: stad ' + STAD_BALKON.voor.src));
+    if (!stadImgs.balkonZij) stadImgs.balkonZij = zetBron(new Image(), STAD_DIR + STAD_BALKON.zij.src, () => console.warn('ontbreekt: stad ' + STAD_BALKON.zij.src));
+    deurLaad();
+  }
 }
 function stadLees(o){
   const n = v => Number(v) || 0;
   return { paleis: o.paleis != null ? n(o.paleis) : null, seed: n(o.seed) || 1,
            gevels: (o.gevels || []).map(q => ({ x: n(q.x), hoog: Math.max(1, Math.min(4, Math.round(n(q.hoog) || 1))), f: q.f ? 1 : 0,
                                                  ...(STAD.gevelSoort[q.soort] ? { soort: q.soort } : {}),
+                                                 ...(STAD_BALKON.soorten.includes(q.balkon) ? { balkon: q.balkon, ...(q.balkonV ? { balkonV: Math.max(1, Math.round(n(q.balkonV))) } : {}) } : {}),
                                                  ...(q.gordijn === false || GORDIJN.namen.includes(q.gordijn) ? { gordijn: q.gordijn } : {}) })),
            ...(o.gordijnen ? { gordijnen: true } : {}),
            ...(o.onder ? { onder: true } : {}),
@@ -23786,6 +23794,79 @@ const stadGeenDak = g => !!(stadSoortVan(g) || {}).ruine;
 const stadGeenDeur = g => !!(stadSoortVan(g) || {}).geenDeur;
 // de banden van onder naar boven gelezen van boven: het dak, dan de bovenste verdieping (alt), dan de gewone, dan de begane grond.
 // Een ruine andersom: onder de instorting eerst de verdieping met de gaten (ver), daaronder de dichte (alt).
+// ---- balkon: een ingebouwd balkon in een gevel, de nis in het midden of de doorkijk in de hoek ----
+// Een gevel met balkon: 'nis' (een nis midden in de gevel met een dichte deur en een balustrade, niets steekt uit) of
+// 'hoekL'/'hoekR' (de hoek van het huis is uitgespaard: een doorkijk met een smalle balustrade voorin). balkonV is de
+// verdieping (1 = de eerste, standaard de bovenste). Alles plat: de diepte komt van de schaduw in de nis en van wat je
+// door de hoek ziet. Maten in bronpx van een gevel (970 breed). Uit tools/balkon_knip.py (zie "balkon" in notities/stad.md).
+const STAD_BALKON = {
+  voor: { src: 'balkon_voor.png', w: 474, h: 153 },  // de balustrade van de nis
+  zij:  { src: 'balkon_zij.png',  w: 234, h: 153 },  // de smalle balustrade van de hoek
+  hoog: 150,          // zo hoog is de balustrade (tot het middel van Amir)
+  vloer: 38,          // de vloer ligt zoveel boven de onderkant van de band: op de eigen balkenrij van het huis
+  boven: 40,          // de nis begint zoveel onder de bovenkant van de band (onder de balkenrij erboven)
+  rand: 16,           // de nis is zoveel breder dan de balustrade, aan elke kant
+  dik: 22, plafond: 16,   // de hoek: de dikte van de muur langs de binnenrand en het plafondje
+  deur: 0.8,          // de deur in de nis: zoveel keer een bovendeur (STAD_DEUR.boven), kleiner dan een voordeur
+  donker: 0.5,        // de achterwand van de nis
+  soorten: ['nis', 'hoekL', 'hoekR']
+};
+const stadBalkonSoort = g => g && STAD_BALKON.soorten.includes(g.balkon) && !stadGeenDak(g)
+  && !(g.balkon !== 'nis' && g.soort === 'toren') ? g.balkon : null;     // een torenhuis heeft zijn toren op de hoek
+// de nis van een gevel, in bronpx vanaf de bovenkant van zijn stapel banden, of null
+function stadBalkonMaat(g, G, hoog){
+  const soort = stadBalkonSoort(g); if (!soort || hoog < 2) return null;
+  const B = STAD_BALKON, v = Math.max(1, Math.min(hoog - 1, g.balkonV || hoog - 1));
+  const delen = stadGevelDelen(G, hoog), Hs = delen.reduce((t, d) => t + d[1] - d[0], 0);
+  const verH = G.ver[1] - G.ver[0], onder = Hs - ((G.bod[1] - G.bod[0]) + (v - 1) * verH);
+  const y1 = onder - B.vloer, y0 = onder - verH + B.boven, sc = B.hoog / B.voor.h;
+  if (soort === 'nis'){
+    const w = B.voor.w * sc + 2 * B.rand;
+    return { soort, v, x0: STAD_DEUR.midden - w / 2, x1: STAD_DEUR.midden + w / 2, y0, y1, onder, sc };
+  }
+  // de hoek: rechts in de bron, tenzij het huis gespiegeld is (dan valt de bron-rechterkant links in beeld)
+  const rechts = (soort === 'hoekR') !== !!g.f, M = STAD.gevel.muur, w = B.zij.w * sc + B.dik;
+  return rechts ? { soort, v, rechts, x0: M[1] - w, x1: 990, muur: M[1], y0, y1, onder, sc }
+                : { soort, v, rechts, x0: -20, x1: M[0] + w, muur: M[0], y0, y1, onder, sc };
+}
+// tekent het balkon in de ruimte van de gevel (vertaald en eventueel gespiegeld); y: de bovenkant van de stapel op het scherm
+function stadBalkonTeken(Bm, gi, f, y){
+  const B = STAD_BALKON, Y = q => y + q * f;
+  const lat = (x0, x1, top) => { const L = STAD_DEUR.latei, gim = stadImgs.gevel;
+    ctx.drawImage(gim, stadQ(gim, L[0]), stadQ(gim, L[1]), stadQ(gim, L[2]), stadQ(gim, L[3]), x0 * f, top, (x1 - x0) * f, L[3] * 1.1 * f); };
+  if (Bm.soort === 'nis'){
+    const x0 = Bm.x0 * f, w = (Bm.x1 - Bm.x0) * f, t = Y(Bm.y0), h = (Bm.y1 - Bm.y0) * f;
+    ctx.fillStyle = 'rgba(32,18,10,' + B.donker + ')'; ctx.fillRect(x0, t, w, h);
+    let gr = ctx.createLinearGradient(0, t, 0, t + 70 * f);                 // schaduw bovenin: de muur erboven
+    gr.addColorStop(0, 'rgba(25,12,6,0.45)'); gr.addColorStop(1, 'rgba(25,12,6,0)'); ctx.fillStyle = gr; ctx.fillRect(x0, t, w, 70 * f);
+    gr = ctx.createLinearGradient(x0, 0, x0 + 45 * f, 0);                   // en langs een zijwand
+    gr.addColorStop(0, 'rgba(25,12,6,0.35)'); gr.addColorStop(1, 'rgba(25,12,6,0)'); ctx.fillStyle = gr; ctx.fillRect(x0, t, 45 * f, h);
+    // de dichte deur achterin: het deurgat van de gevel en de houten deur, kleiner dan een voordeur
+    const D = STAD_DEUR, s = D.boven * B.deur, gim = stadImgs.gevel, fy = Y(Bm.y1);
+    const stuk = (q, top) => ctx.drawImage(gim, stadQ(gim, q[0]), stadQ(gim, q[1]), stadQ(gim, q[2]), stadQ(gim, q[3]),
+      (D.midden + (q[0] - D.midden) * s) * f, top, q[2] * s * f, q[3] * s * f + 0.6);
+    const pTop = fy - D.posten[3] * s * f;
+    stuk(D.posten, pTop);
+    stadDeurPlaatTeken(gi, 99, fy, f, top => stuk(D.latei, top), false, B.deur);   // 99: een eigen sleutel, de deur blijft dicht
+    lat(Bm.x0 - 10, Bm.x1 + 10, t - D.latei[3] * 1.1 * f + 6);
+    const im = stadImgs.balkonVoor;
+    if (im && imgReady(im)) ctx.drawImage(im, (D.midden - B.voor.w * Bm.sc / 2) * f, fy - B.hoog * f, B.voor.w * Bm.sc * f, B.hoog * f);
+    return;
+  }
+  // de hoek: het plafondje en de dikte van de muur langs de binnenrand, de latei, en voorin de smalle balustrade
+  const t = Y(Bm.y0), fy = Y(Bm.y1), binnen = Bm.rechts ? Bm.x0 : Bm.x1 - B.dik;
+  ctx.fillStyle = 'rgb(122,84,52)'; ctx.fillRect(binnen * f, t, B.dik * f, fy - t);
+  ctx.fillStyle = 'rgba(30,16,8,0.45)'; ctx.fillRect(binnen * f, t, B.dik * f, fy - t);
+  const pl0 = Bm.rechts ? Bm.x0 : Bm.muur, pl1 = Bm.rechts ? Bm.muur : Bm.x1;
+  ctx.fillStyle = 'rgb(84,56,34)'; ctx.fillRect(pl0 * f, t, (pl1 - pl0) * f, B.plafond * f);
+  lat(Bm.rechts ? Bm.x0 - 10 : Bm.muur, Bm.rechts ? Bm.muur : Bm.x1 + 10, t - STAD_DEUR.latei[3] * 1.1 * f + 6);
+  const im = stadImgs.balkonZij;
+  if (im && imgReady(im)){
+    const bx = Bm.rechts ? Bm.x0 + B.dik : Bm.muur, bw = (Bm.rechts ? Bm.muur : Bm.x1 - B.dik) - bx;
+    ctx.save(); if (!Bm.rechts){ ctx.translate((2 * bx + bw) * f, 0); ctx.scale(-1, 1); }
+    ctx.drawImage(im, bx * f, fy - B.hoog * f, bw * f, B.hoog * f); ctx.restore();
+  }
+}
 function stadGevelDelen(G, hoog){
   if (G.ruine) return [G.dak].concat(hoog > 1 ? [G.ver] : [], Array(Math.max(0, hoog - 2)).fill(G.alt), [G.bod]);
   const ver = Array(hoog - 1).fill(G.ver);
@@ -27008,10 +27089,17 @@ function stadTeken(groundY, scale, cx){
     let y = groundY - terrainH(m.x) * scale - hh;
     ctx.save();
     if (g.f){ ctx.translate(sx + m.w, 0); ctx.scale(-1, 1); } else ctx.translate(sx, 0);
+    const yStapel = y, Bm = stadBalkonMaat(g, G, m.hoog);     // een ingebouwd balkon (zie "balkon")
+    if (Bm && Bm.soort !== 'nis'){                             // de hoek is uitgespaard: daar wordt de gevel niet getekend
+      ctx.save(); ctx.beginPath(); ctx.rect(-40 * m.f, y - 2, m.w + 80 * m.f, hh + 4);
+      ctx.rect(Bm.x0 * m.f, y + Bm.y0 * m.f, (Bm.x1 - Bm.x0) * m.f, (Bm.y1 - Bm.y0) * m.f); ctx.clip('evenodd');
+    }
     for (const d of delen){
       const dh = (d[1] - d[0]) * m.f;
       ctx.drawImage(im, 0, stadQ(im, d[0]), stadQ(im, 970), stadQ(im, d[1] - d[0]), 0, y, m.w, dh + 0.6); y += dh;
     }
+    if (Bm && Bm.soort !== 'nis') ctx.restore();
+    if (Bm && stadKlaar('gevel')) stadBalkonTeken(Bm, gi, m.f, yStapel);
     // een deur op een verdieping: het deurgat van de begane grond, iets kleiner, in de plaats van het raam (zie "deuren")
     if (deurBoven[gi] && !stadGeenDeur(g)) for (const v of deurBoven[gi]){
       if (v < 1 || v >= m.hoog) continue;
@@ -53409,6 +53497,21 @@ function sbHuisNieuw(){
   cv.focus();
 }
 document.getElementById('sbhuisnieuw').onclick = () => sbHuisNieuw();
+// de ingebouwde balkons (zie "balkon"): de nis in het midden en de doorkijk in de hoek, links en rechts, op verschillende
+// verdiepingen en huistypes, met wat ruimte tussen de huizen zodat je door de hoek de stad erachter ziet
+function sbBalkons(){
+  const x0 = world - 400, st = [ {hoog: 3, balkon: 'nis'}, {hoog: 3, balkon: 'hoekR'}, {hoog: 4, soort: 'koopman', balkon: 'hoekL'},
+    {hoog: 2, soort: 'relief', balkon: 'nis'}, {hoog: 4, balkon: 'nis', balkonV: 2}, {hoog: 3, soort: 'vervallen', balkon: 'hoekR', f: 1},
+    {hoog: 3, soort: 'pilaren', balkon: 'hoekL'}, {hoog: 2, soort: 'winkel', balkon: 'nis'}, {hoog: 3, balkon: 'hoekR', balkonV: 1} ];
+  level.stad = stadLees({ paleis: x0 - 3000, seed: 9,
+    gevels: st.map((g, i) => ({ x: x0 - 500 - i * 1150, ...g })),
+    voet: [ {x: x0 - 2400, stuk: 'kruik'}, {x: x0 - 6000, stuk: 'stro'} ] });
+  stadSoortLaad(level.stad);
+  sbLagen = 'stad_dag'; lichtMengKey = null; sbLagenToon();
+  flashHint('Balkons: de nis in het midden (een dichte deur) en de doorkijk in de hoek, links en rechts');
+  cv.focus();
+}
+document.getElementById('sbbalkons').onclick = () => sbBalkons();
 // een dichte straat: de huizen muur tegen muur, alle types door elkaar. De breedte van een huis schaalt mee met het
 // scherm, dus de stap rekent met de schaal van nu (net als het tekenen); na een andere schermmaat opnieuw neerzetten.
 function sbDichteStraat(){
