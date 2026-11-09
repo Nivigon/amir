@@ -18543,8 +18543,8 @@ function rugUpdate(dt){
 }
 // ---- de tweede speer: vlak na een worp meteen een tweede (Second Spear en Tumbling Spear, Mkuki) ----
 // Druk F nog eens binnen DUBBEL.venster na het loslaten en Amir grijpt over zijn schouder een speer van zijn rug en
-// gooit hem meteen, vlak en zonder opspannen: de worpanimatie vanaf DUBBEL.vanFrame, het stuk tot het loslaten
-// DUBBEL.tempo keer zo snel. Na een gewone worp met het talent Second Spear, na een rol-worp met Tumbling Spear.
+// gooit hem meteen, vlak en zonder opspannen: de worpanimatie vanaf DUBBEL.vanFrame, elk frame tot het loslaten
+// zo lang als DUBBEL.ritme zegt. Na een gewone worp met het talent Second Spear, na een rol-worp met Tumbling Spear.
 // Er moet een speer zijn om te grijpen (de rug, of al in de hand), en een keer per worp: de tweede heeft geen derde.
 // Het spel kende maar een geworpen speer (jav). De tweede krijgt een eigen plek, jav2: hij vliegt met dezelfde code
 // (jav2Update zet hem even op de plek van jav en zet alles daarna terug) en raakt via dezelfde test (javRaakt, met
@@ -18553,8 +18553,12 @@ function rugUpdate(dt){
 // of in een lijk getekend), dan schuift de tweede door naar jav en is hij gewoon de speer.
 const DUBBEL = {
   venster: 0.4,      // zo lang na het loslaten (s) mag F de tweede speer gooien
-  vanFrame: 7,       // vanaf dit frame van de worp (net na het uittrekken, THR_WIND is 6), het loslaten is THR_LOOSE (10)
-  tempo: 2           // en zoveel keer zo snel tot het loslaten: drie frames in 0,125 s
+  vanFrame: 5,       // vanaf dit frame van de worp (rechtop, de speer op de schouder), het loslaten is THR_LOOSE (10)
+  // hoe lang (s) elk frame staat, vanaf vanFrame tot het loslaten: 0,38 s samen. Eerst komt hij overeind met de speer
+  // over de schouder (frame 5, de greep), dan zakt hij in de uitval en gaat het steeds sneller naar het loslaten, een
+  // zweep. Met tempo 2 vanaf frame 7 ging hij er na 0,125 s al uit, las je de twee speren als een worp, en bleef hij
+  // in de lage uitval hangen, zodat hij kleiner leek dan bij de eerste worp
+  ritme: [0.10, 0.08, 0.08, 0.07, 0.05]
 };
 let jav2 = null;     // de tweede speer, zolang de eerste ook nog ergens is
 function dubbelKan(){
@@ -18681,7 +18685,7 @@ function thrStop(){
 function thrRelease(cancel){
   if (!thr) return;
   const tik = bavKlok - thrPressT < THR_TAP * 1000;
-  if ((cancel || tik) && thr.frame <= THR_WIND && !thr.gone){
+  if ((cancel || tik) && thr.frame <= THR_WIND && !thr.gone && !thr.dubbel){   // de tweede speer gaat altijd door
     thr = null;                                    // afgebroken: hij houdt zijn speer
     if (tik && !cancel) startAttack();             // een tik op dezelfde knop is de oude stoot
     return;
@@ -18747,9 +18751,10 @@ function updateThrow(dt){
   const stop = thr.held ? thrStop() : THR_N;
   if (thr.held && (thr.frame >= stop || thr.t0)){ thr.acc = 0; return; }   // uitgetrokken: wachten op je duim
   // na het loslaten (frames 11 tot en met 19) staat hij vast; met Quick Hand gaat dat sneller
-  // de tweede speer (DUBBEL): het stuk tot het loslaten gaat sneller, zonder opspannen
+  // de tweede speer (DUBBEL): het stuk tot het loslaten in zijn eigen ritme, zonder opspannen
+  const dubR = thr.dubbel && thr.frame < THR_LOOSE ? DUBBEL.ritme[thr.frame - DUBBEL.vanFrame] : 0;
   thr.acc += dt * THR_FPS * (thr.frame > THR_LOOSE ? abilityWaarde('quick_hand', 'herstelTempo', 1)
-                           : thr.dubbel ? DUBBEL.tempo : 1);
+                           : dubR ? 1 / (THR_FPS * dubR) : 1);
   while (thr.acc >= 1){
     thr.acc -= 1;
     thr.frame++;
