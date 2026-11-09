@@ -13,7 +13,6 @@ UIT = os.path.join(STAD, 'voorgrond')
 # de kolommen in voetdecor.png (links, boven, rechts, onder): elk stuk staat los
 STUKKEN = {
     'potten': (331, 440, 573, 600),
-    'stenen': (603, 420, 800, 600),
     'kruik':  (1117, 370, 1254, 600),
     'mand':   (1311, 380, 1457, 600),
 }

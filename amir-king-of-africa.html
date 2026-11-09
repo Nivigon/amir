@@ -32810,18 +32810,11 @@ const VG_SOORT = {
   gras:    { src: 'design/drygrass.png',             h: [0.6, 1.5],  onder: 0.10, laag: 4, wieg: 1,   voet: 0.3,
              winter: 'design/drygrass_sneeuw.png' },
   // de stad (voorgrond: 'stad', zie "de stadsvoorgrond"): lui geladen, alleen in een level dat ze gebruikt.
-  // laag 0 en 1 staan achter de rest; alleen: alleen in die laag van VG_LAGEN (0 ver, 1 dichtbij);
-  // boven: hangt van de bovenrand het beeld in, onder is dan zo'n deel van zijn hoogte boven de rand
+  // het muurtje (laag 0) staat achter de rest
   muur:    { src: 'design/stad/leem_rand.png',        h: [1.0, 1.3],  onder: 0.34, laag: 0, wieg: 0, voet: 0.3, lui: true },
-  rek:     { src: 'design/stad/wapenrek/wapenrek.png', h: [1.4, 1.7], onder: 0.30, laag: 1, wieg: 0, voet: 0.3, lui: true, alleen: 0 },
   potten:  { src: 'design/stad/voorgrond/potten.png', h: [0.7, 1.0],  onder: 0.30, laag: 2, wieg: 0, voet: 0.3, lui: true },
   mand:    { src: 'design/stad/voorgrond/mand.png',   h: [0.9, 1.3],  onder: 0.35, laag: 2, wieg: 0, voet: 0.3, lui: true },
-  kruik:   { src: 'design/stad/voorgrond/kruik.png',  h: [1.1, 1.6],  onder: 0.40, laag: 3, wieg: 0, voet: 0.3, lui: true },
-  stenen:  { src: 'design/stad/voorgrond/stenen.png', h: [0.35, 0.5], onder: 0.10, laag: 4, wieg: 0, voet: 0.3, lui: true },
-  gordijn: { src: 'design/stad/gordijn/rood_oker.png', h: [2.2, 2.8], onder: 0.20, laag: 5, wieg: 0.4, voet: 0, lui: true,
-             boven: true, alleen: 1 },
-  gordijn2:{ src: 'design/stad/gordijn/indigo_streep.png', h: [2.2, 2.8], onder: 0.20, laag: 5, wieg: 0.4, voet: 0, lui: true,
-             boven: true, alleen: 1 }
+  kruik:   { src: 'design/stad/voorgrond/kruik.png',  h: [1.1, 1.6],  onder: 0.40, laag: 3, wieg: 0, voet: 0.3, lui: true }
 };
 for (const k in VG_SOORT) if (!VG_SOORT[k].lui) VG_SOORT[k].img = zetBron(new Image(), VG_SOORT[k].src);
 // de stadsvoorgrond pas ophalen als een level hem heeft (zie laadLevel)
@@ -32893,31 +32886,50 @@ function vgStandaard(lv){
 }
 // ---- de stadsvoorgrond ----
 // Een level met voorgrond: 'stad' krijgt in plaats van gras en struiken spullen uit de straat: kruiken,
-// manden, aardewerk en stenen, een leemmuurtje met een wapenrek erachter, en hier en daar een doek dat
-// van boven het beeld in hangt. Gemengd: om de zoveel wereld (stuk) een ander thema, vast per level
-// (thema's, met hun kans; mix is wat er staat, met gewichten). Open blijft het rond het einde, een poort,
-// de binnenkant van een huis (een eigen strook ver van de straat) en het veld van Nyundo; bij een
+// manden en aardewerk, of een leemmuurtje. Gemengd: om de zoveel wereld (stuk) een thema, en dat volgt
+// wat er in dat stuk straat staat (vgStadThema): een kraam geeft de markt, een leemmuur het muurtje, en
+// waar twee of meer vijanden op straat staan blijft het kaal, want daar wordt gevochten. Staat er niets,
+// dan kiest het zaad van het level (uit zijn naam) met de kansen hieronder. Open blijft het rond het einde,
+// een poort, de binnenkant van een huis (een eigen strook ver van de straat), het veld van Nyundo en alles
+// wat je op straat moet vinden: een kalebas, een ton met een kalebas, de munt en een wapenrek. Bij een
 // knooppunt van een stadje (straten) laat drawVoorgrond het pad vrij (kruis_voor heeft zijn eigen voorgrond).
 const VG_STAD = {
   stuk: 1500,
   donker: 0.6,           // zo veel donkerder dan het gras: in de felle straat staat hij als een silhouet
-  themas: [
-    { naam: 'markt', kans: 0.45, dicht: 0.42, mix: { kruik: 0.3, mand: 0.25, potten: 0.25, stenen: 0.1, gordijn: 0.07, gordijn2: 0.07 } },
-    { naam: 'muur',  kans: 0.35, dicht: 0.62, mix: { muur: 0.7, kruik: 0.12, rek: 0.18 } },
-    { naam: 'kaal',  kans: 0.2,  mix: null }
-  ],
-  open: { eind: 450, poort: 500, binnen: 200, baas: 400, arena: 1300, knoop: 450 }
+  themas: {
+    markt: { kans: 0.5,  dicht: 0.42, mix: { kruik: 0.38, mand: 0.32, potten: 0.3 } },
+    muur:  { kans: 0.25, dicht: 0.62, mix: { muur: 0.82, kruik: 0.18 } },
+    kaal:  { kans: 0.25, mix: null }
+  },
+  vecht: 2,              // zoveel vijanden op straat in een stuk: daar blijft het kaal
+  open: { eind: 450, poort: 500, binnen: 200, baas: 400, arena: 1300, knoop: 450, vind: 320 }
 };
+// het thema van het stuk straat van van tot tot (van > tot), of null als er niets staat om op te gaan
+function vgStadThema(lv, van, tot){
+  const in_ = x => x <= van && x > tot;
+  const st = lv.stad || {};
+  if ((st.kramen || []).some(k => in_(k.x))) return 'markt';
+  if ((lv.terraces || []).some(t => t.look === 'leem' && Math.max(t.r, t.l) > tot && Math.min(t.r, t.l) <= van)) return 'muur';
+  const straat = (lv.spawns || []).filter(sp => in_(sp.x) && !sp.dak && sp.vloer == null);
+  if (straat.length >= VG_STAD.vecht) return 'kaal';
+  return null;
+}
 function vgStad(lv){
   if (lv.vgStad) return lv.vgStad;
   const D = VG_STAD, open = [];
   const zone = (lo, hi) => open.push([Math.min(lo, hi), Math.max(lo, hi)]);
+  const vind = x => { if (isFinite(x)) zone(x - D.open.vind, x + D.open.vind); };
   for (const e of lv.ends || []) zone(e.x - D.open.eind, e.x + D.open.eind);
   for (const p of lv.poorten || []) if (isFinite(p.x)) zone(p.x - D.open.poort, p.x + D.open.poort);
   for (const b of lv.binnen || []) zone(b.l - D.open.binnen, b.r + D.open.binnen);
   if (lv.brutus) zone(Math.min(lv.brutus.van, lv.brutus.tot) - D.open.baas, Math.max(lv.brutus.van, lv.brutus.tot) + D.open.baas);
   if (lv.arena && isFinite(lv.arena.c)) zone(lv.arena.c - D.open.arena, lv.arena.c + D.open.arena);
-  // tot waar de straat loopt: de verste wand, het verste einde of de verste straat
+  // wat je op straat moet vinden (hoger op een dak of galerij staat het boven de voorgrond)
+  for (const h of lv.hppotions || []) if (h.y == null || h.y < 100) vind(h.x);
+  for (const t of lv.tonnen || []) if (t.kalebas && !t.dak && !t.zwever) vind(tonPlekX(t));
+  for (const r of lv.wapenrekken || []) if (!r.dak && !r.zwever) vind(tonPlekX(r));
+  if (lv.munt) vind(lv.munt.x);
+  // tot waar de straat loopt: de verste wand of het verste einde
   let eind = -12000;
   for (const c of lv.cliffs || []) eind = Math.min(eind, c.x);
   for (const e of lv.ends || []) eind = Math.min(eind, e.x);
@@ -32926,9 +32938,12 @@ function vgStad(lv){
   let zaad = 0;                                   // elk level een eigen volgorde, uit zijn naam
   for (const ch of String(lv.name || '')) zaad = (zaad * 31 + ch.charCodeAt(0)) % 9973;
   for (let i = 0, van = 900; van > eind - D.stuk; i++, van -= D.stuk){
-    let r = rnd(i + zaad, 41), T = D.themas[D.themas.length - 1];
-    for (const t of D.themas){ if (r < t.kans){ T = t; break; } r -= t.kans; }
-    const laatst = stukken[stukken.length - 1];
+    let naam = vgStadThema(lv, van, van - D.stuk);
+    if (!naam){
+      let r = rnd(i + zaad, 41); naam = 'kaal';
+      for (const k in D.themas){ if (r < D.themas[k].kans){ naam = k; break; } r -= D.themas[k].kans; }
+    }
+    const T = D.themas[naam], laatst = stukken[stukken.length - 1];
     if (laatst && laatst.T === T) laatst.tot = van - D.stuk;
     else stukken.push({ T, van, tot: van - D.stuk });
   }
@@ -33042,11 +33057,7 @@ function drawVoorgrond(groundY, scale){
   // de stad speelt uitgezoomd: daar zoomt de voorgrond mee, zodat hij even groot en even snel blijft
   // ten opzichte van de straat als het gras op de savanne (de oude voorgrond blijft zoals hij was)
   const zf = cfg.stad ? viewZoom() : 1;
-  // een doek dat van boven hangt: weg zodra de camera omhoog gaat (een galerij, een dak), anders hangt het
-  // voor de daken
-  const hangZicht = 1 - Math.max(0, Math.min(1, camY / (CHAR_H * scale * 0.5)));
-  for (let li = 0; li < VG_LAGEN.length; li++){   // van ver naar dichtbij
-    const L = VG_LAGEN[li];
+  for (const L of VG_LAGEN){                     // van ver naar dichtbij
     const lx = cam * L.par * zf;                 // waar de laag staat, in schermpixels
     const rand0 = groundY + camY * (L.parY - 1) + (H - H * 0.82);   // de rand van het scherm, meegeschoven
     const lt = tint.map(v => Math.round((1 - (1 - v) * L.schaduw) * (cfg.stad ? VG_STAD.donker : 1) * 100) / 100);
@@ -33062,7 +33073,7 @@ function drawVoorgrond(groundY, scale){
       const r = rnd(i, 5 + z);
       const k = st.q.mix ? vgMixKies(st.q.mix, r)
               : r < st.q.kei ? 'kei' : r < st.q.kei + st.q.struik ? 'struik' : 'gras';
-      if (!k || (VG_SOORT[k].alleen != null && VG_SOORT[k].alleen !== li)) continue;
+      if (!k) continue;
       if (cfg.stad && straatAan() && !vgStadKnoopVrij(wx, scale)) continue;
       const t = k === 'gras' ? rnd(i, 3 + z) * rnd(i, 3 + z) : rnd(i, 3 + z);   // gras meestal laag
       stuks.push({ k, pos, t, f: rnd(i, 4 + z) < 0.5, ph: i * 2.3 + z, s: 1 });
@@ -33077,24 +33088,21 @@ function drawVoorgrond(groundY, scale){
     for (const o of stuks){
       const S = VG_SOORT[o.k], img = vgImg(S);
       if (!img || !imgReady(img)) continue;
-      if (S.boven && hangZicht <= 0) continue;
       const p = vgPlaatje(img, sbVoorgrondScherp && sandbox, S.voet, lt, L.vaag);
       const sx = W / 2 + o.pos - lx;
       const hh = CHAR_H * scale * zf * (S.h[0] + (S.h[1] - S.h[0]) * o.t) * o.s * L.schaal;
       const ww = p.w * hh / p.h, mm = p.m * hh / p.h;
-      // een hangend stuk: zijn onderkant ligt zoveel onder de bovenrand (onder is het deel boven de rand)
-      const voet = S.boven ? hh * (1 - S.onder) + Math.max(0, camY) * (L.parY - 1)
-                           : rand0 + S.onder * CHAR_H * scale * zf * L.onder;
+      const voet = rand0 + S.onder * CHAR_H * scale * zf * L.onder;
       if (sx + ww < -20 || sx - ww > W + 20 || voet - hh > H) continue;
       ctx.save();
-      ctx.globalAlpha = zicht * (S.boven ? hangZicht : 1);
-      ctx.translate(sx, S.boven ? voet - hh : voet);   // een hangend stuk zwaait om zijn bovenkant
+      ctx.globalAlpha = zicht;
+      ctx.translate(sx, voet);
       if (S.wieg){
         const lean = windAt(cam - (sx - W / 2) / (L.par * zf)) * VEG.gras.lean;
         ctx.transform(1, 0, S.wieg * (Math.sin(tijd * 1.1 + o.ph) * 0.035 - lean), 1, 0, 0);
       }
       if (o.f) ctx.scale(-1, 1);
-      ctx.drawImage(p.c, -ww / 2 - mm, (S.boven ? 0 : -hh) - mm, ww + mm * 2, hh + mm * 2);
+      ctx.drawImage(p.c, -ww / 2 - mm, -hh - mm, ww + mm * 2, hh + mm * 2);
       ctx.restore();
     }
   }

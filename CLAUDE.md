@@ -281,7 +281,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | speerbeet: de baviaan pakt je speer | `BAV_BEET`, `BAV_MOND`, `BAV_SPEER` | notities/baviaan.md |
 | speer in de baviaan: de speerval blijft in zijn borst zitten | `BAV_VALSPEER`, `bavSpeerTeken`, `baviaanTeken` | notities/baviaan.md |
 | voorgrond: de laag tussen de camera en Amir | `VOORGROND`, `VG_SOORT`, `VG_LAGEN` | notities/voorgrond.md |
-| de stadsvoorgrond: kruiken, een leemmuurtje en hangende doeken voor de camera, gemengd per stuk straat (De Gouden Poort) | `VG_STAD`, `vgStad`, `voorgrond: 'stad'` | notities/voorgrond.md |
+| de stadsvoorgrond: kruiken, manden en een leemmuurtje voor de camera, per stuk straat naar wat er staat (De Gouden Poort) | `VG_STAD`, `vgStad`, `vgStadThema`, `voorgrond: 'stad'` | notities/voorgrond.md |
 | achtergrondlagen, uitzicht per level | `SCENE0`, `SCENES` | notities/wegwijzers.md |
 | startscherm, menu: kaartjes per level | menu |  |
 | kaarslicht: de startfoto van onderen belicht | `KAARS`, `kaarsStart`, `kaarsLus` | notities/kaarslicht.md |

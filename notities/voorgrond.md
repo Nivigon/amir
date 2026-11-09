@@ -36,27 +36,30 @@ beeld: de plaatjes worden per soort, laag en tint een keer onscherp gemaakt en b
 
 ## de stadsvoorgrond
 
-`VG_STAD`, `vgStad`, `vgMixKies`, `vgStadKnoopVrij`, `vgLaadLevel`: met `voorgrond: 'stad'` krijgt een level in plaats
-van gras spullen uit de straat. Alle tien de levels van De Gouden Poort hebben het (gevraagd, "Gemengd" uit drie
-proefbeelden: markt, steeg en muurtje); de andere stadslevels houden `voorgrond: false`.
+`VG_STAD`, `vgStad`, `vgStadThema`, `vgMixKies`, `vgStadKnoopVrij`, `vgLaadLevel`: met `voorgrond: 'stad'` krijgt een
+level in plaats van gras spullen uit de straat. Alle tien de levels van De Gouden Poort hebben het; de andere
+stadslevels houden `voorgrond: false`.
 
 - **De soorten** staan gewoon in `VG_SOORT`, met `lui: true`, zodat ze pas laden als een level ze gebruikt
-  (`vgLaadLevel` in `laadLevel`): `kruik`, `mand`, `potten`, `stenen` (uit `design/stad/voorgrond/`, geknipt uit
-  `voetdecor.png` door `tools/stad_voorgrond.py`), `muur` (`leem_rand.png`), `rek` (het wapenrek) en `gordijn`,
-  `gordijn2` (twee doeken uit `design/stad/gordijn/`). Nieuw in een soort: `alleen` (alleen in die laag van
-  `VG_LAGEN`, 0 ver en 1 dichtbij; het rek staat alleen ver, de doeken alleen dichtbij) en `boven` (hangt van de
-  bovenrand het beeld in, zwaait om zijn bovenkant; `onder` is dan het deel boven de rand).
-- **Gemengd.** `vgStad` hakt het level om de `VG_STAD.stuk` (1500) in stukken en geeft elk een thema uit
-  `VG_STAD.themas` (markt, muur of kaal, met hun kans), vast per level: het zaad komt uit de naam. Twee gelijke
+  (`vgLaadLevel` in `laadLevel`): `kruik`, `mand`, `potten` (uit `design/stad/voorgrond/`, geknipt uit
+  `voetdecor.png` door `tools/stad_voorgrond.py`) en `muur` (`leem_rand.png`).
+- **Gemengd, en het volgt de straat.** `vgStad` hakt het level om de `VG_STAD.stuk` (1500) in stukken. Elk stuk
+  krijgt een thema van `vgStadThema`: een kraam (`stad.kramen`) geeft `markt`, een terras met `look: 'leem'` geeft
+  `muur`, en waar `VG_STAD.vecht` (2) of meer vijanden op straat staan (geen `dak` of `vloer`) blijft het `kaal`.
+  Staat er niets, dan kiest het zaad van het level (uit zijn naam) met de kansen in `VG_STAD.themas`. Twee gelijke
   stukken naast elkaar worden een strook. Een strook heeft een `mix` (soort en gewicht) in plaats van `struik`
   en `kei`, en een eigen `dicht` (het muurtje dichter, zodat het een muur wordt).
-- **Open plekken**: het einde, een poort (`poorten`), de binnenkant van een huis (`binnen`, een eigen strook),
-  het veld van Nyundo (`brutus.van` tot `tot`) en een arena (`VG_STAD.open`). Bij een knooppunt van een stadje
-  (`straten`) slaat `drawVoorgrond` de plek over (`vgStadKnoopVrij`): het pad `kruis_voor.png` heeft al zijn eigen
-  donkere voorgrond.
+- **Open plekken** (`VG_STAD.open`): het einde, een poort (`poorten`), de binnenkant van een huis (`binnen`, een
+  eigen strook), het veld van Nyundo (`brutus.van` tot `tot`), een arena, en alles wat je op straat moet vinden
+  (`vind`): een kalebas op de grond (`hppotions` zonder of met een lage `y`), een ton met een kalebas, een wapenrek
+  (allebei op `tonPlekX`, niet op een dak of zwever) en de munt. Bij een knooppunt van een stadje (`straten`) slaat
+  `drawVoorgrond` de plek over (`vgStadKnoopVrij`): het pad `kruis_voor.png` heeft al zijn eigen donkere voorgrond.
 - **De zoom.** Een stadslevel speelt uitgezoomd; de stadsvoorgrond schaalt en schuift met `viewZoom()` mee, zodat hij
   zich tot de straat verhoudt zoals het gras tot de savanne. De gewone voorgrond doet dat niet (zoals voorheen).
 - **Donker**: `VG_STAD.donker` (0,6) maakt hem donkerder dan het gras, een silhouet in de felle straat; het
   voorbakken in `warmBouw` gebruikt dezelfde tint.
-- **De hoogte in**: zodra de camera omhoog gaat (`camY` boven nul: een galerij, een trap, een dak) vervagen de
-  hangende doeken over een halve Amir, anders hangen ze voor de daken. De rest schuift zoals altijd onder de rand weg.
+- **Wat er uit ging.** Eerst stonden er ook een wapenrek (alleen in de verre laag), losse stenen en hangende doeken in.
+  Het rek en de stenen waren in beeld nauwelijks te zien. De doeken hingen als een zwart blok aan niets, en ze hingen
+  waar vijanden op galerijen staan. Komen ze terug, dan met een balk of luifelrand bovenin, met wat kleur, en niet
+  boven een galerij of dak met vijanden. Het muurtje staat nog ter beoordeling: het is een rij gelijke kartels en
+  kan op een rij hoofden lijken.
