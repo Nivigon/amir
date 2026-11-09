@@ -54,6 +54,45 @@ tweede winkel; 7 Kwame de poortwachter en de eindpoort (een pleinpoort met `eind
 Stad 6; 9 de garde, de derde winkel en de schatkamer met de kluis; 10 een `bandietGolf`, geen winkel, de goudvorst (16 levens,
 `sluip: false`).
 
+## Episode De Rivierstad
+
+`RIV_1` tot en met `RIV_15` en `RIV_LEVELS`: vijftien stadslevels van makkelijk tot mega, zelf ontworpen op verzoek (regel 3), met
+Nyundo als baas van level 10 (regel 12, gevraagd). Geen echte episode in de zin van regel 1. Een knop in `menuEpisodes` (`btnRiv`),
+het scherm `menuRiv` met `cardsRiv`; spelen gaat via `gpSpeel`, net als De Gouden Poort (tribekeuze, `goudBegin`, `verhaalAan`),
+met een tekstje per level in `VERHAAL` en `SLOT` na level 15.
+
+Drie dagen, elk van `stad_ochtend` (het ochtendgloren, een nieuwe scene) via `stad_dag` en `stad_middag` naar `stad_avond` en
+`stad_nacht`. Weer: regen in 4, 5 en 11, een zandstorm in 8, onweer in 14 en 15. Elk level heeft `goud`, `kopgeld` en `schildKleur`.
+
+Per level: 1 losse rovers, de eerste brug, een kist in een huis; 2 een rivier met en een zonder brug, hyena's, een kist op de
+galerij; 3 de eerste winkel, een kist boven de doeken, Jabari (aanvoerder, 6, einde); 4 regen, de eerste zweepman, een snelle val
+(`val: true`), een kist boven in een huis met een verdieping; 5 de eerste nacht, sluipen, een kist achter een boog; 6 de dam van leem
+(de opzet van Goud 4) met een meelman op de trap en een kist op de stelling; 7 drie kamers achter elkaar (de kist in de achterste) en
+de tweede winkel; 8 zandstorm, hyena's in roedels, twee bruggen, de takel als enige weg naar de kist; 9 Kofi (12) en de eindpoort;
+10 het plein met Nyundo bij nacht, `hp: 24` en rode oker (`tint`); 11 de derde winkel en een kist boven op de toren (1388);
+12 schutters op alle galerijen, een kist boven in een huis; 13 drie rivieren (de laatste zonder brug), de vierde winkel en twee
+kisten; 14 onweer, een `bandietGolf` en de grote dam met een kist op de stelling; 15 een golf die niet ophoudt en Simba Kivuli (20,
+`sluip: false`). De tinten van de bazen staan in `RIV_TINT`.
+
+## de schatkist: E en het goud spat eruit
+
+`KIST`, `kisten`, `kistMaak`, `kistReset`, `kistE`, `kistStap`, `drawKisten`, `kistLaadLevel`
+
+`kisten: [{x, y, vast, goud, f}]` in het level, `y` en `vast` zoals bij de munt (een dak of galerij via `stadKalebasPlek`, met `vast`
+precies op `y`, binnen op een verdieping). Het plaatje is de kist uit de winkel (`design/stad/binnen/spul_kist.png`), lui geladen.
+E erbij (`kistE`, in `eDruk` na `muntE`) tilt het deksel op, `KIST.munten` munten springen eruit, en in een level met goud komt
+`goud` (zonder veld `KIST.goud`, 20) bij je goud. `goudReset` roept `kistReset`: na een dood zijn de kisten weer dicht, net als de
+munt, en het goud staat weer op de bank. Een dichte kist fonkelt om de `KIST.fonkel` seconden. In de sandbox onder De stad: de
+knop **Schatkist** (een op de straat, een op de galerij als er een stad staat).
+
+## kopgeld en de kleur van de makkelijke schildbandiet
+
+`kopgeld: true` in een level met goud: `goudKopgeld` geeft bij de dood van een aanvoerder (`aanvoerderDood`) `GOUD.kopgeld.aanvoerder`
+(10) en bij Nyundo (`hitBrutus`, niet in de sandbox) `GOUD.kopgeld.nyundo` (25), met een melding. `schildKleur: true` geeft elke
+schildman met `niveau: 'makkelijk'` de filter `SCHB_TINT.makkelijk` (een bruin kleed in plaats van blauw); een spawn kan ook zelf
+`tint` hebben. In de sandbox onder Vijanden, Schildbandiet: **Makkelijk, kleur**. Nyundo neemt `hp` en `tint` uit `level.brutus`
+(`makeBrutus`); de woede blijft bij 6 levens over (`BRU.woedeHp`).
+
 ## goud: een goudstuk per kill, de winkelprijs en de munt van de koning
 
 `GOUD`, `goudAan`, `goudKill`, `goudReset`, `goudWin`, `goudVerder`, `goudBegin`, `muntE`, `drawMunt`

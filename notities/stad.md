@@ -295,7 +295,9 @@ ze de rechte lijn tussen muur en straat.
 
 ## De stad bij namiddag, avond en nacht
 
-Vier uitzichten: `stad_dag`, `stad_middag` (de zon lager, warme nevel), `stad_avond` (rozige nevel, paarsbruine
+Vijf uitzichten: `stad_ochtend` (het ochtendgloren uit De Rivierstad: een bleke lucht, roze en goud aan de horizon, de zon
+laag links, een koele nevel en de laatste lampen nog aan, `nacht: 0.15`; in de sandbox de knop **Gloren**, alleen in de stad),
+`stad_dag`, `stad_middag` (de zon lager, warme nevel), `stad_avond` (rozige nevel, paarsbruine
 schaduwen, de helft van de lichten aan) en `stad_nacht` (blauwe lucht, de maan links en vrij hoog, de verte een
 blauwe nevel met donkere huizen, een koele lichtlaag naar het voorbeeld van `winter_nacht`). Per uitzicht:
 

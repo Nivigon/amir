@@ -171,7 +171,8 @@ shirtloze bruut met een stekelknots op zijn schouder. Hij is een baas (regel 12)
 ## Het level
 Het laadscherm van een level met `brutus` is `design/menu/laadscherm_brutus.jpg` (Amir tegenover Nyundo in de poort,
 de klasse `brutus` op `#laad`, in `laadPoort`); het gaat boven het stadsbeeld.
-`brutus: { x, van, tot }` in de leveldefinitie (ook door `readLevel`), en bij de pleinpoorten
+`brutus: { x, van, tot }` in de leveldefinitie (ook door `readLevel`), met `hp` voor meer of minder treffers dan `BRU.hp` en
+`tint` een canvas-filter over zijn lijf (niet over de knots), zoals Rivier 10 (24 treffers, rode oker), en bij de pleinpoorten
 `uit: true` voor elke uitgang. Stad 6 is een dicht plein: aan beide kanten een poort met een hek, geen fakkels.
 Amir komt niet verder dan onder de boog (`pleinKlem`). Ligt Brutus, dan takelen na `BRU.hekWacht` beide hekken op
 in `BRU.hekDuur` (`pleinHekStap`, het takelgeluid, stof bij de voet), en onder een open poort staat het bordje

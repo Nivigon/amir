@@ -606,6 +606,17 @@ Onder Episodes staat ook **De Gouden Poort**: tien stadslevels, van makkelijk to
 - **De Stadsmuur** gaat de hoogte in: trap voor trap de oude muur op, over de kam, en aan de andere kant weer naar beneden.
 - **De Kroonwijk** heeft een eigen plattegrond: acht rechte straten in een raster, met de kaart rechtsonder. Elke straat komt aan beide kanten uit op een andere straat. Ergens in de wijk zit kapitein Zaki.
 - In het laatste level houden de rovers niet op met komen, er is geen winkel, en op de goudvorst zelf werkt de sluipaanval niet.
+
+### De Rivierstad
+
+Onder Episodes staat ook **De Rivierstad**: vijftien stadslevels, van makkelijk tot mega moeilijk, verdeeld over drie dagen en drie nachten in Sabani, de stad waar de rivier in watervallen door de straten valt. Elke dag begint bij het ochtendgloren en loopt via de volle dag en de namiddag naar de avond en de nacht, met regen, een zandstorm en onweer onderweg. Simba Kivuli, de sluisheer, heeft de sluizen dichtgezet en verkoopt het water, en Nyundo slaat voor hem. Er zijn hyena's en alle menselijke vijanden. Het goud, de winkels, de inventory en het gif werken zoals in De Gouden Poort.
+
+- **Bruggen en watervallen.** Bijna elk level heeft een rivier die vooraan over de rand naar beneden valt. Over de meeste ligt een houten brug, maar niet over allemaal: in het water ben je trager, en een speer die erin valt ben je kwijt.
+- **Schatkisten.** Een houten kist met koperen hoeken, die af en toe fonkelt. Ga ervoor staan en druk op **E**: het deksel gaat open, het goud spat eruit en telt bij je goud op (van 15 tot 50). De meeste staan op een moeilijke plek: hoog op een galerij die je alleen met de veer van een doek haalt, boven in een huis, achter een boog, op de stelling van een dam, boven op een toren of op een galerij waar alleen de takel komt. Ga je dood, dan is de kist weer dicht en het goud weer weg.
+- **Kopgeld.** Een aanvoerder levert 10 goud extra op, Nyundo 25.
+- **Winkels** zitten in vier levels: De Vismarkt, Het Badhuis, De Morgen Erna en De Watervallen.
+- **De makkelijke schildbandiet** heeft hier een bruin kleed in plaats van een blauw, zodat je van ver ziet welke het is.
+- **De bazen** hebben hun eigen kleur en meer levens: Jabari de vismeester (6), Kofi de poortwachter (12) en Simba Kivuli de sluisheer (20, en de sluipaanval werkt niet op hem). Nyundo is terug, ingesmeerd met rode oker, met 24 treffers in plaats van 16.
 ## Het decor staat een stap naar achteren
 
 De grond is geen lijn maar een band. De tegel `design/grondrand.png` heeft 49 rijen
