@@ -5749,7 +5749,7 @@ const TEST_67 = {
   speerInHand: true, vredig: true,
   wateren: [ {k: 'plas', x: -520, w: 120}, {k: 'plas', x: -700, w: 80}, {k: 'plas', x: -860, w: 170},
              {k: 'poel', x: -1350, w: 480},
-             {k: 'rivier', x: -2150, w: 260},
+             {k: 'rivier', x: -2150, w: 260, val: true},
              {k: 'val', x: -2900, w: 110},
              {k: 'plas', x: -3750, w: 140}, {k: 'plas', x: -3930, w: 90},
              {k: 'bron', x: -4500, w: 300} ],
@@ -23127,7 +23127,9 @@ const WATER = {
   soort: {
     plas:    { diep: 0.28, ramp: 40,  ry: 15, y: 6,  ruw: 0.14 },
     poel:    { diep: 1,    ramp: 90,  ry: 36, y: 10, ruw: 0.06 },
-    rivier:  { diep: 0.9,  ramp: 50, v: 70 },                // v: hoe snel de rimpels naar je toe stromen
+    // v: hoe snel de rimpels naar je toe stromen en (keer 6) hoe snel hij vooraan over de rand valt, met `val: true`;
+    // zonder is het de rustige rivier: trage rimpels (vRustig) en een trage val over de rand (valRustig, px per s)
+    rivier:  { diep: 0.9,  ramp: 50, v: 70, vRustig: 22, valRustig: 110 },
     val:     { diep: 0.6,  ramp: 80,  ry: 30, y: 10, ruw: 0.08, v: 520, kom: 2.4 },
     bron:    { diep: 0.5,  ramp: 70,  ry: 30, y: 10, ruw: 0.08, hoog: 1.5, v: 380 },
     // de fontein: decor, een geschilderde plaat (design/stad/fontein.png, uit tools/fontein_knip.py) met het water van
@@ -23443,18 +23445,24 @@ function waterRivierTeken(o, i, groundY, s){
   const w = o.w || 240, cx = W / 2 + (o.x - world);
   if (cx - w > W / viewZoom() + W || cx + w < -W) return;
   const yT = groundY - WATER.rug * s, yB = groundY + WATER.lip * s;
-  const v = (o.v || WATER.soort.rivier.v);
+  const SR = WATER.soort.rivier, v = (o.v || (o.val ? SR.v : SR.vRustig));
   // de bedding: van achteren smal (ver weg) naar voren breed, met golvende oevers
   const pts = [], n = 40, oever = (k, kant) => Math.sin(k * 7 + i + kant * 2) * 5 + Math.sin(k * 15 + kant) * 2.5 + Math.sin(k * 41 + kant * 3) * 1.2;
-  const breed = k => w * (0.4 + 0.6 * k) / 2;                       // ver weg smaller
-  const kron = k => Math.sin(k * 3.6 + i * 1.3) * w * 0.22 * (1 - k * 0.8);   // en hij kronkelt, vooraan recht naar de val
-  for (let j = 0; j <= n; j++){ const k = j / n; pts.push([cx + kron(k) - breed(k) + oever(k, -1), yT + (yB - yT) * k]); }
-  for (let j = n; j >= 0; j--){ const k = j / n; pts.push([cx + kron(k) + breed(k) + oever(k, 1), yT + (yB - yT) * k]); }
+  // ver weg smaller; voorbij de lip (met `voor`) groeit hij nog maar zacht door
+  const breed = k => w * (k <= 1 ? 0.4 + 0.6 * k : 1 + 0.25 * (k - 1)) / 2;
+  // en hij kronkelt, vooraan recht; onder een brug loopt hij recht (anders steekt de bocht als een los stuk achter de leuning uit)
+  const kron = k => o.brug ? 0 : Math.sin(Math.min(1, k) * 3.6 + i * 1.3) * w * 0.22 * (1 - Math.min(1, k) * 0.8);
+  // met `voor: true` valt hij niet over de lip maar loopt hij door naar de camera, tot onder uit beeld (zoals het pad van een
+  // kruispunt in de stad)
+  const m = ctx.getTransform(), yO = o.voor && m.d ? (cv.height - m.f) / m.d + 20 : yB;
+  const kM = (yO - yT) / (yB - yT), yE = yO;
+  for (let j = 0; j <= n; j++){ const k = j / n * kM; pts.push([cx + kron(k) - breed(k) + oever(k, -1), yT + (yB - yT) * k]); }
+  for (let j = n; j >= 0; j--){ const k = j / n * kM; pts.push([cx + kron(k) + breed(k) + oever(k, 1), yT + (yB - yT) * k]); }
   const pad = waterPadVan(pts);
-  waterVul(pad, yT, yB, cx - w / 2, cx + w / 2, { v, seed: i * 97, ringen: waterRingenVan(i, cx, (yT + yB) / 2, w * 0.4, (yB - yT) / 2) });
+  waterVul(pad, yT, yE, cx - w / 2, cx + w / 2, { v, seed: i * 97, ringen: waterRingenVan(i, cx, (yT + yE) / 2, w * 0.4, (yE - yT) / 2) });
   // de oevers, maar niet over de achterkant (daar loopt hij door) en de voorkant (daar valt hij)
   ctx.save();
-  ctx.beginPath(); ctx.rect(cx - w, yT + 4, w * 2, yB - yT - 6); ctx.clip();
+  ctx.beginPath(); ctx.rect(cx - w * 2, yT + 4, w * 4, (o.voor ? yE + 40 : yB) - yT - 6); ctx.clip();
   waterRand(pad, 1.8);
   ctx.restore();
   // ver weg loopt hij weg in de vlakte: de achterkant vervaagt in het land
@@ -23462,8 +23470,8 @@ function waterRivierTeken(o, i, groundY, s){
   const fg = ctx.createLinearGradient(0, yT, 0, yT + (yB - yT) * 0.35);
   fg.addColorStop(0, waterRgb(waterMeng(waterLuchtKleur(), land, 0.2), 0.9)); fg.addColorStop(1, waterRgb(land, 0));
   ctx.save(); ctx.clip(pad); ctx.fillStyle = fg; ctx.fillRect(cx - w, yT - 2, w * 2, (yB - yT) * 0.35 + 2); ctx.restore();
-  // en vooraan valt hij over de lip, langs de wand van de grond naar beneden
-  waterValGordijn(cx + kron(1) - breed(1) + 6, cx + kron(1) + breed(1) - 6, yB - 4, groundY + H * 1.2, v * 6, i, true);
+  // en vooraan valt hij over de lip, langs de wand van de grond naar beneden; een rustige rivier valt trager (valRustig)
+  if (!o.voor) waterValGordijn(cx + kron(1) - breed(1) + 6, cx + kron(1) + breed(1) - 6, yB - 4, groundY + H * 1.2, o.val ? v * 6 : SR.valRustig, i, true);
 }
 // een vallend gordijn van water tussen xl en xr, van y0 naar y1; met donker: loopt weg in de diepte
 function waterValGordijn(xl, xr, y0, y1, v, seed, donker, buig){
@@ -23738,7 +23746,7 @@ function waterStap(dt){
       if (onder && Math.random() < dt * 30)
         waterDruppel(px + (Math.random() - 0.5) * 50, ph + CHAR_H * (0.85 + Math.random() * 0.15), (Math.random() - 0.5) * 380, 120 + Math.random() * 260, 0.5, 1.2);
     } else if (o.k === 'rivier'){
-      geluid += WATER.geluid.rivier / (1 + ver / WATER.geluid.ver);
+      geluid += WATER.geluid.rivier * (o.val ? 1 : 0.5) / (1 + ver / WATER.geluid.ver);   // een rustige rivier ruist zachter
     } else if (o.k === 'fontein'){
       const m = waterFonteinMaat(o, nowScale()), th = terrainH(o.x), hu = py => th + (S.h - py) * CHAR_H / S.amir;
       const kom = hu(S.schaal[1]), top = kom + S.hoog * CHAR_H, opp = hu(S.bassin[1]), sx = m.left + S.schaal[0] * m.f, sb = S.schaal[2] * m.f;

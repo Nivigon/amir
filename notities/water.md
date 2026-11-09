@@ -25,7 +25,7 @@ avond kleurt de lichtlaag het water mee, net als de rest van de wereld.
 | --- | --- | --- |
 | `plas` | een ondiepe platte ovaal | 0,28: je spettert, maar loopt bijna even snel |
 | `poel` | een grotere kom | 1: wegzakken, trager, lager springen |
-| `rivier` | een band die van achteren naar de camera stroomt, kronkelt, en over de lip van de grond langs de wand naar beneden valt | 0,9 |
+| `rivier` | een band die van achteren naar de camera stroomt en kronkelt (onder een brug recht) en vooraan over de lip van de grond langs de wand naar beneden valt. Standaard rustig: trage rimpels en een trage val (`vRustig`, `valRustig`); met `val: true` stroomt en valt hij snel, zoals in Test 67. Met `voor: true` (proef, nog in geen level) valt hij niet maar loopt hij door naar de camera tot onder uit beeld, zoals het pad van een kruispunt | 0,9 |
 | `val` | een waterval van de rechterkant (`r`) van het terras op `x`: een beekje op het bovenvlak (`waterTerrasTeken`), het gordijn voor Amir langs (`waterVoorTeken`) en een kom eronder (`kom` keer `w` breed) met schuim en stuifwater | 0,6 in de kom, ondiep bij de wand zodat je het terras op komt |
 | `bron` | een kom met een straal (`hoog` in Amir) en een kroon van druppels | 0,5 |
 | `fontein` | decor voor de stad: een geschilderde plaat van leem met het water erin (zie hieronder) | 0 |
@@ -57,7 +57,10 @@ gaat werken voor elke vorm zoals bij de oude poel.
 `BRUG`, `brugTeken`, `brugIn`. Een rivier met `brug: true` krijgt een houten brug op straathoogte: de galerij van de stad
 (`galerij.png` via `stadStrook`, links, het midden zo vaak als nodig, rechts) met het midden van de planken op de looplijn
 en zonder palen. De zware onderbalk ligt op het water, de rivier stroomt eronder door en valt ervoor over de rand.
-De brug ligt aan elke kant `BRUG.oever` (0,3 Amir) op de oever.
+De brug ligt aan elke kant `BRUG.oever` (0,3 Amir) op de oever. Onder een brug kronkelt de rivier niet (de bocht stak
+anders als een los blauw stuk achter de leuning uit).
+
+De brug is een gewoon onderdeel: een nieuw level (met toestemming, regel 3) mag hem gebruiken.
 
 - **Droog**: `waterenDiep` slaat een rivier met een brug over, dus op de brug zak je niet weg, de speer gaat niet
   verloren en vijanden lopen er gewoon overheen. Het geruis blijft.
@@ -84,6 +87,25 @@ neemt de plek van het water in en je kunt er niet naast het water in stappen.
 - De oude poel overzetten op dit materiaal (daar is een droge kuil voor nodig in plaats van de plaat met water).
 - Winter: hetzelfde materiaal als ijs.
 - Sandbox-knoppen en de Maker, als het materiaal goed is bevonden.
+
+### Verder met de rivier (opties, besproken op 09-11-2026)
+
+**Vanaf nu bouwbaar:** de rivier met de waterval over de rand, met of zonder brug, mag in elk nieuw level (met
+toestemming voor het level zelf, regel 3). De waterval over de rand blijft de standaard (rustig: trage rimpels en een trage val, `vRustig` en `valRustig`;
+`val: true` voor de snelle). Wat we geprobeerd hebben en waar we mee verder kunnen:
+
+- **Niet meer doen: de doorsnede.** Vooraan de bedding in doorsnede (de grond doorgesneden, het water in een kom)
+  zag er vlak uit, een downgrade van de val. Weggehaald.
+- **Optie 1, doorlopen naar de camera** (`voor: true`, zit erin als proef, in geen level): de rivier valt niet maar
+  loopt door tot onder uit beeld, zoals het pad van een kruispunt (`straatKnoopVoor`); voorbij de lip groeit hij nog
+  maar zacht (`breed` in `waterRivierTeken`). Zag er goed uit, ook onder de brug. Nog te doen als we hem kiezen: de
+  camera iets laten zakken bij de rivier, net als `straatPadZak` bij een pad, zodat je meer van het water ziet.
+- **Optie 2, begroeiing in de voorgrond die het einde verbergt.** Geprobeerd met `voorgrond.los` (droog gras en een
+  struik, `s` rond 0,85, een stuk rechts van de rivier-x omdat de voorgrond sneller schuift): werkt, mits laag, anders
+  dekt het Amir af. Beter met echt riet (lange stengels, pluimen): dat plaatje is er nog niet, eerst een Grok-asset
+  (skill grok-environment-asset) en dan een soort `riet` in `VG_SOORT`. Past bij de val en bij de doorloop.
+- **Onder een brug** loopt de rivier recht (geen bocht achter de leuning). Dat blijft zo.
+- **De brug** mag in elk nieuw level. In de Maker zit nog geen water; een rivier met brug in de Maker is een eigen klus.
 
 ## De spetters van Amir (`SPETTER`)
 
