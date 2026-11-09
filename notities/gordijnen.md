@@ -67,10 +67,27 @@ en gordijnen door elkaar), `gordijn_binnen_rust.jpg` en `gordijn_binnen_vlaag.jp
   hangt. Eerst de opening donker vullen (verloop `rgba(14,8,6,0.97)` naar `rgba(26,16,12,0.92)`), dan het doek
   gespiegeld erover. Tom wil het **donker** achter het doek, geen daglicht.
 
-## De wind (uit de proef)
+## De wind en het langslopen
 
-- `vlaag = 0.55 + 0.25 sin(0.45 t + ph) + 0.35 max(0, sin(0.23 t + ph/2))^3`, met `ph = gevel-index x 1,7`, zodat
-  niet alle deuren tegelijk bewegen.
+Eerst bewoog het doek altijd (een ademende wind van 0,3 tot 0,8 met vlagen erbovenop); Tom vond dat te constant.
+Nu hangt het tussen de vlagen bijna stil, en beweegt het alleen echt bij een vlaag of als Amir erlangs loopt.
+
+- `gordijnVlaag(t, ph, wx)`: in rust `GORDIJN.rust` (0,06, met een heel klein beetje adem), dan zo nu en dan een vlaag
+  van een paar seconden (twee reeksen, `sin(0,31 u)^8` en `sin(0,17 u + 1)^10`, ongeveer een kwart van de tijd), elke keer
+  anders sterk, tot ongeveer 1,2. `u = t + wx / GORDIJN.vlaagV`: een vlaag komt bij de volgende deur iets later aan, zodat
+  hij door de straat trekt. Wind **zacht** (sandbox) geeft alleen een rustige `GORDIJN.rustZacht` zonder vlagen.
+- `gordijnLangs(c, bij, t)`: een veer per deur (op het canvas van die deur). Loopt Amir binnen `langs.bereik` halve
+  stokbreedtes langs het deurgat, op dezelfde vloer (`langs.hoog`, een dak erboven telt niet), dan duwt hij het doek in
+  zijn looprichting, met een kracht die meegaat met zijn snelheid (`|v| / langs.v`, lopen 1, rennen tot `langs.max`) en
+  met hoe dicht hij erbij is. De veer (`kracht`, `veer`, `demp`) laat het doek meegaan en een keer nazwaaien. Gemeten
+  (wind uit): langzaam ongeveer 0,5, lopen 0,73, rennen 1,0. De uitslag telt in de zwaai, de wapper aan de zoom, de
+  plooien, en boven 0,35 wijken de banen onderaan iets uiteen.
+- Amirs plek: tijdens het tekenen kan `world` de camera zijn (meekijkende camera, binnen een huis); Amir zelf staat dan
+  in `camSwap`. Binnen is het doek gespiegeld, dus de duw ook (`spiegel`).
+
+## De vorm van de beweging (uit de proef)
+
+- Elke deur een eigen fase (`gevel-index x 1,7`), zodat de zwaai niet overal gelijk loopt.
 - Het doek in rijen van 2 px; rij `y` schuift opzij met `A k (zwaai + 0,6) + wapper`, `A = 8 x vlaag` (`GORDIJN.amp`,
   in canvas-px op stokbreedte 236), `k = ((y - stok) / (h - stok))^1,35` (bovenaan niets, onderaan het meest).
   `zwaai = 0,7 sin(1,1 t - 0,5 fr + ph) + 0,3 sin(1,9 t - 0,4 fr + 1,3 ph)`, met `fr` de plek van boven (0) naar
