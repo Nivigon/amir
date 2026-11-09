@@ -95,6 +95,9 @@ tot aan zijn knie.
   spring je voor de muur langs, na de landing sta je erachter. Een vijand telt als zijn vloer (`base`) het dak is.
 - Een galerij of trapbalkon hangt voor de gevel. Ligt het dek op dezelfde hoogte als een dak, dan staat wie op het dek
   staat toch voor de kartels: alleen wie echt op het dak staat, staat erachter.
+- De schildbandiet krijgt een strook om zijn hele huidige plaatje (`schbKanteelVak`, uit de bijgesneden lagen van
+  lagen.json, nooit smaller dan `kanteelBreed`): in zijn sprongaanval waaien mantel en achterbeen ver uit, en die
+  staken anders buiten de strook voor de kartels langs.
 - Een dode ligt languit: om hem heen is de strook breder (`STAD.kanteelLijk`, 1,6 Amir), anders steken zijn voeten
   links of rechts onder de tanden uit.
   De kruisboogbandiet ligt als lijk bijna 4 Amir lang en zakt 50 bronpixels onder zijn grondlijn, dus onder de
