@@ -37754,6 +37754,16 @@ function zwmLijfDX(s, gs){
   const set = zwmF2Data(s), fr = set && set.frames[zwmF2Idx(s)];
   return fr && fr.cx != null ? (fr.cx - 84) * gs * (s.face === 1 ? -1 : 1) : 0;
 }
+// het raakvak tijdens het uithijgen: daar ligt cx voor zijn lijf uit (bij de zweep op de grond), zodat een steek van
+// dichtbij door de lucht ging en alleen de brede lage zwaai raakte. In rustin, rust en rustuit loopt het vak daarom
+// over het hele getekende lijf.
+function zwmF2RustVak(s, nbox, bodyX, gs){
+  if (s.state !== 'f2' || (s.f2 !== 'rust' && s.f2 !== 'rustin' && s.f2 !== 'rustuit')) return;
+  const set = zwmF2Data(s), fr = set && set.frames[zwmF2Idx(s)], l = fr && fr.lijf; if (!l) return;
+  const a = s.face === 1 ? bodyX - (l.dx + l.w) * gs : bodyX + l.dx * gs;
+  nbox.l = Math.min(nbox.l, a); nbox.r = Math.max(nbox.r, a + l.w * gs);
+  nbox.schacht = true;   // en staat Amir er vlak op, dan telt de schacht van de speer ook, niet alleen de punt
+}
 // raakt de zweep Amir? Rond de knal, elk touwpunt tegen Amirs vak (op elke hoogte: hier helpt alleen afstand of je schild)
 function zwmF2Raakt(s, bodyX, voeten, gs, pbox){
   if (!s.touw || !s.f2C || s.f2C.hang || s.geraaktAmir || dead || invuln > 0 || !kooiZelfdeHoogte(s)) return false;
@@ -43352,6 +43362,7 @@ function loop(now){
         const lhalf = ZWM.half * gs;
         const lx = bodyX + zwmLijfDX(s, gs);
         const nbox = { l: lx - lhalf, r: lx + lhalf, t: voeten - ZWM.fig * gs, b: voeten };
+        zwmF2RustVak(s, nbox, bodyX, gs);
         vijandHpBalk(lx, nbox.t, s, scale);
         if (s.verblind > 0) stofTeken(lx, nbox.t, s, scale);   // blind van het stof: sterretjes om zijn hoofd
         if (showBoxes){ ctx.save(); ctx.globalAlpha = 0.5; ctx.lineWidth = 2; ctx.strokeStyle = '#c9a06b'; ctx.strokeRect(nbox.l, nbox.t, nbox.r - nbox.l, nbox.b - nbox.t); ctx.restore(); }
@@ -43365,7 +43376,8 @@ function loop(now){
         if (s.inv > 0) continue;
         if (attacking && !swingUsed && steekLive() && steekRaakt('zweepman')){
           const dxv = steekDX() * scale, tipX = pcx + (facing === 1 ? -dxv : dxv), tipY = y + steekY() * scale, reach = steekR() * scale;
-          if (tipX + reach > nbox.l && tipX - reach < nbox.r && tipY + reach > nbox.t && tipY - reach < nbox.b){
+          const lo = nbox.schacht ? Math.min(tipX, pcx) : tipX, hi = nbox.schacht ? Math.max(tipX, pcx) : tipX;   // uithijgen: punt of schacht
+          if (hi + reach > nbox.l && lo - reach < nbox.r && tipY + reach > nbox.t && tipY - reach < nbox.b){
             swingUsed = true; if (atkMes){ s.flash = Math.max(s.flash || 0, 0.2); continue; } hitZweepman(s); continue;
           }
         }
