@@ -90,7 +90,8 @@ neemt de plek van het water in en je kunt er niet naast het water in stappen.
 
 ### Verder met de rivier (opties, besproken op 09-11-2026)
 
-De waterval over de rand blijft de standaard (rustig: trage rimpels en een trage val, `vRustig` en `valRustig`;
+**Vanaf nu bouwbaar:** de rivier met de waterval over de rand, met of zonder brug, mag in elk nieuw level (met
+toestemming voor het level zelf, regel 3). De waterval over de rand blijft de standaard (rustig: trage rimpels en een trage val, `vRustig` en `valRustig`;
 `val: true` voor de snelle). Wat we geprobeerd hebben en waar we mee verder kunnen:
 
 - **Niet meer doen: de doorsnede.** Vooraan de bedding in doorsnede (de grond doorgesneden, het water in een kom)
