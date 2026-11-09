@@ -1498,7 +1498,7 @@ design/
                            onderweg van stand kan wisselen zonder dat er sneeuw verdwijnt.
                            Allebei uit tools/sneeuwdek.py
   vegetatie/               boom_sheet, drygrass_sheet, struik_sheet (bewegende vegetatie)
-  water/                   pool_links/midden/rechts, rimpel_01..08, spetter_01..08
+  water/                   pool_links/midden/rechts, rimpel_01..08, spetter_01..08 (alleen nog met Spetter oud in de sandbox)
 
 sounds/                    hyena_bite.mp3 (lange opname; alleen 14,0-16,0 s is de hap die het spel
                            afspeelt), hyena_laugh.mp3 (de lach), en ahhit.mp3 en stopit.mp3: de twee
