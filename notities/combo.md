@@ -6,8 +6,8 @@ met de speer in een hand achter zich en de vrije hand naar voren. Een beloning v
 een flits op de treffer.
 
 Standaard aan, in elk level (`readLevel`: `combo` is waar tenzij een level `combo: false` zet) en in de sandbox (de knop
-**Combo** bij Stof begint op terugslag). De standaard is de terugslag; de perk **Full Circle** (`full_circle` in
-`TRIBE_CONFIG.algemeen`) maakt er `beide` van: ver terug en dubbel. Grep: `COMBO`, `comboStart`, `comboStap`, `comboKan`,
+**Combo** bij Stof begint op terugslag). De standaard is de terugslag; het talent **Full Circle** van Mkuki (`full_circle`, links in
+rij V onder True Flight) maakt er `beide` van: ver terug en dubbel. Grep: `COMBO`, `comboStart`, `comboStap`, `comboKan`,
 `atkCombo`, `comboSoort`, `comboTerug`, `comboDubbel`, `comboTerugNu`.
 
 ## Drie soorten: terugslag, schade of beide
@@ -22,7 +22,7 @@ Standaard aan, in elk level (`readLevel`: `combo` is waar tenzij een level `comb
   stofwolk in plaats van de ster van de crit, en een doffe houtklap (`houtRaak` op `COMBO.terug.toon`, 0,75): de schacht
   op zijn lijf. Later misschien met de speer omgedraaid (zie de bijlage in `notities/kit-verbeteren.md`).
 - **Schade**: de slag telt dubbel (`critNu`), met de ster, zoals hij eerst was. Alleen in Test 68 en de sandbox.
-- **Beide**: wat de perk Full Circle geeft. De terugslag en dubbel, met de stofwolk, de houtklap en de ster.
+- **Beide**: wat het talent Full Circle geeft. De terugslag en dubbel, met de stofwolk, de houtklap en de ster.
 
 Test 68 heeft `comboKeuze: true`: aan het begin en na elke R (`opnieuw`) staat het scherm van `duoKeuze` open met alleen
 de rij Derde slag (`dkcombo`, bewaard in `amir.duoKeuze`); daar telt Full Circle niet mee, zodat je de twee kunt vergelijken.
