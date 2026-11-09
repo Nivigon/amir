@@ -1996,10 +1996,10 @@
       </div>
       <div class="row">
         <label>Tijd van de dag</label>
-        <button data-lagen="ochtend">Ochtend</button>
-        <button data-lagen="middag">Middag</button>
-        <button data-lagen="" class="on">Avond</button>
-        <button data-lagen="dark_hart">Nacht</button>
+        <button data-lagen="ochtend" data-stad="stad_dag" data-stadnaam="Dag">Ochtend</button>
+        <button data-lagen="middag" data-stad="stad_middag">Middag</button>
+        <button data-lagen="" data-stad="stad_avond" class="on">Avond</button>
+        <button data-lagen="dark_hart" data-stad="stad_nacht">Nacht</button>
       </div>
       <div class="row">
         <label>Zon</label>
@@ -23743,6 +23743,107 @@ function stadBak(im, w, h, f, sx = 0, sy = 0, sw = null, sh = null){
 }
 const stadBakken = {};
 function stadGebakken(key, maak){ return stadBakken[key] || (stadBakken[key] = maak()); }
+// de verte van de stad volgt het uitzicht (stadVerte in SCENES): de kleur van de nevel, de straat onder de voorste
+// achterrij en hoe donker de huizen in de verte zijn (donker x de donker van de rij). Zonder veld de stad overdag.
+// sleutel gaat mee in de naam van alles wat met die nevel voorgebakken wordt, zodat een ander uitzicht opnieuw bakt.
+function stadVerte(){
+  const sc = sceneCfg(), v = (sc && sc.stadVerte) || {};
+  const nevel = v.nevel || STAD.nevel, straat = v.straat || STAD.verteStraat, donker = v.donker != null ? v.donker : 1;
+  const nacht = stadNacht();
+  return { nevel, straat, donker, nacht, sleutel: nevel.join(',') + '|' + donker + '|' + nacht };
+}
+// ---- de stad bij nacht: ramen die gloeien, een olielampje bij elke kraam ----
+// Een uitzicht met nacht (0 tot 1, in SCENES) steekt de lichten aan: stad_avond half, stad_nacht helemaal. Het raam zelf
+// licht op in de gevel (gewoon getekend, dus Amir en de vijanden staan ervoor), en de gloed eromheen komt na de lichtlaag
+// (stadNachtNa), anders dooft die hem weer uit. De lampen tellen ook mee als licht op personages (plichtBronnen).
+const STAD_NACHT = {
+  // de raamvlakken per gevelplaatje, in bronpx: links, boven, rechts, onder (een raam telt in de band waar het in valt)
+  ramen: { gevel: [[411, 668, 536, 848]],
+           gevel_relief: [[433, 350, 496, 500], [433, 735, 496, 920]],
+           gevel_koopman: [[392, 262, 500, 462], [333, 653, 590, 887]],
+           gevel_pilaren: [[405, 300, 535, 487], [405, 700, 535, 903]] },
+  aan: 0.5,                    // zoveel van de ramen brandt licht (per raam vast, uit de seed van het level)
+  kleur: '255,170,84',         // het licht binnen: olielamp en vuur
+  raam: 0.62,                  // zo fel licht het raam zelf op (bij volle nacht)
+  halo: 0.30, haloR: 1.5,      // de gloed eromheen na de lichtlaag: zo sterk, en zo ver (keer de grootte van het raam)
+  flik: 0.08,                  // een raam flakkert zo veel (een vlam binnen)
+  verte: { raam: [428, 104, 520, 258], aan: 0.4, kleur: [255, 150, 52] },   // de huizen in de verte: raamvlak in een verdieping
+  lamp: { x: 0.2, y: { riet: 0.12, doek: 0.27 }, ketting: 0.1, maat: 0.13,   // waar het lampje hangt (deel van de kraam), in Amir
+          halo: 0.55, haloR: 1.6, bereik: 3.2, op: 0.9 }                    // de gloed in Amir, en als licht op personages
+};
+function stadNacht(){ const sc = sceneCfg(); return sc && sc.nacht ? Math.max(0, Math.min(1, sc.nacht)) : 0; }
+function stadNachtHash(a, b, c, d){
+  let h = (Math.imul(a | 0, 73856093) ^ Math.imul(b | 0, 19349663) ^ Math.imul(c | 0, 83492791) ^ Math.imul(d | 0, 40503)) >>> 0;
+  h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0; h = Math.imul(h ^ (h >>> 13), 3266489917) >>> 0;
+  return ((h ^ (h >>> 16)) >>> 0) % 1000 / 1000;
+}
+let stadNachtGloed = [], stadNachtLampen = [], stadNachtLicht = [];   // stadNachtLicht: de lampen van het vorige beeld, voor plichtBronnen
+// in stadTeken, binnen de spiegeling van de gevel: elk brandend raam licht op, en zijn gloed gaat op de lijst
+function stadNachtRamen(gi, G, delen, hoog, y0, f, deurBoven){
+  const n = stadNacht(); if (!n) return;
+  const lijst = STAD_NACHT.ramen[G.img || 'gevel']; if (!lijst) return;
+  const N = STAD_NACHT, seed = (level.stad.seed || 1), t = stadNu();
+  let y = y0;
+  delen.forEach((d, j) => {
+    const v = j === delen.length - 1 ? 0 : hoog - j;          // de verdieping (0 de begane grond, het dak telt niet)
+    const dh = (d[1] - d[0]) * f;
+    if (j > 0 && v > 0 && !(deurBoven && deurBoven.has(v))) lijst.forEach((q, ri) => {
+      if (q[1] < d[0] || q[3] > d[1]) return;
+      if (stadNachtHash(seed, gi, v, ri) >= N.aan * (0.4 + 0.6 * n)) return;
+      const x0 = q[0] * f, w = (q[2] - q[0]) * f, yy = y + (q[1] - d[0]) * f, h = (q[3] - q[1]) * f;
+      const fl = 1 - N.flik + N.flik * Math.sin(t * (5 + ri) + gi * 1.7 + v * 2.3);
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      const gr = ctx.createLinearGradient(0, yy, 0, yy + h);
+      gr.addColorStop(0, 'rgba(' + N.kleur + ',' + (N.raam * n * fl * 0.7) + ')');
+      gr.addColorStop(1, 'rgba(' + N.kleur + ',' + (N.raam * n * fl) + ')');
+      ctx.fillStyle = gr; ctx.fillRect(x0, yy, w, h);
+      ctx.restore();
+      stadNachtGloed.push({ T: ctx.getTransform(), x: x0 + w / 2, y: yy + h / 2, r: Math.max(w, h) * N.haloR, a: N.halo * n * fl });
+    });
+    y += dh;
+  });
+}
+// in stadVoorTeken, binnen de spiegeling van een kraam: een olielampje onder het dak, bij de paal
+function stadNachtLamp(k, m, top, gy, scale){
+  const n = stadNacht(); if (!n) return;
+  const L = STAD_NACHT.lamp, A = CHAR_H * scale, soort = k.soort === 'doek' ? 'doek' : 'riet';
+  const lx = m.w * L.x, ly0 = top + m.h * L.y[soort], ly1 = ly0 + L.ketting * A, b = L.maat * A;
+  const fl = 0.9 + 0.1 * Math.sin(stadNu() * 7 + k.x * 0.01);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(28,18,10,0.9)'; ctx.lineWidth = Math.max(1, 0.012 * A);
+  ctx.beginPath(); ctx.moveTo(lx, ly0); ctx.lineTo(lx, ly1); ctx.stroke();
+  ctx.fillStyle = '#3a2614';                                   // de koperen kap
+  ctx.beginPath(); ctx.moveTo(lx - b * 0.12, ly1); ctx.lineTo(lx + b * 0.12, ly1);
+  ctx.lineTo(lx + b * 0.3, ly1 + b * 0.22); ctx.lineTo(lx - b * 0.3, ly1 + b * 0.22); ctx.closePath(); ctx.fill();
+  const gr = ctx.createLinearGradient(0, ly1 + b * 0.22, 0, ly1 + b * 0.8);   // het glas, met de vlam erin
+  gr.addColorStop(0, 'rgba(255,236,180,' + n + ')'); gr.addColorStop(1, 'rgba(255,150,60,' + n + ')');
+  ctx.fillStyle = 'rgb(70,46,24)'; ctx.fillRect(lx - b * 0.24, ly1 + b * 0.22, b * 0.48, b * 0.58);
+  ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = gr; ctx.fillRect(lx - b * 0.2, ly1 + b * 0.24, b * 0.4, b * 0.54);
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#3a2614'; ctx.fillRect(lx - b * 0.28, ly1 + b * 0.8, b * 0.56, b * 0.1);   // het voetje
+  ctx.restore();
+  const cy = ly1 + b * 0.5;
+  stadNachtGloed.push({ T: ctx.getTransform(), x: lx, y: cy, r: L.haloR * A, a: L.halo * n * fl });
+  const wx = k.f ? m.left + m.w - lx : m.left + lx;            // voor het licht op personages: in de wereld
+  stadNachtLampen.push({ x: wx, h: (gy - cy) / scale + terrainH(k.x), sterk: n * fl });
+}
+// na de lichtlaag: de gloed van de ramen en de lampen, opgeteld bij wat er staat
+function stadNachtNa(){
+  const lijst = stadNachtGloed; stadNachtGloed = [];
+  stadNachtLicht = stadNachtLampen; stadNachtLampen = [];
+  if (!lijst.length) return;
+  const kl = STAD_NACHT.kleur;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (const g of lijst){
+    if (!(g.a > 0.01) || !(g.r > 1)) continue;
+    ctx.setTransform(g.T);
+    const gr = ctx.createRadialGradient(g.x, g.y, 0, g.x, g.y, g.r);
+    gr.addColorStop(0, 'rgba(' + kl + ',' + g.a + ')'); gr.addColorStop(0.35, 'rgba(' + kl + ',' + (g.a * 0.4) + ')');
+    gr.addColorStop(1, 'rgba(' + kl + ',0)');
+    ctx.fillStyle = gr; ctx.fillRect(g.x - g.r, g.y - g.r, g.r * 2, g.r * 2);
+  }
+  ctx.restore();
+}
 function stadKlaar(k){ return stadImgs && stadImgs[k] && imgReady(stadImgs[k]); }
 function stadBodem(){ return stadKlaar('straat') ? stadImgs.straat : null; }
 
@@ -24343,7 +24444,8 @@ function stadSprong(){
 
 // ---- tekenen: de verte (in sceneAchter, na de zon) ----
 function stadRijHuis(rij, n){                    // een huis van n hoog voor achterrij rij, voorgebakken met nevel
-  return stadGebakken('rij' + rij + '_' + n, () => {
+  const V = stadVerte();
+  return stadGebakken('rij' + rij + '_' + n + '_' + V.sleutel, () => {
     const im = stadImgs.gevel, G = STAD.gevel, R = STAD.rijen[rij], k = STAD.bak;
     // in de verte geen deurgaten (daar komt nooit iemand uit, en in de nevel werden het grijze vlakken): ook de
     // begane grond is een verdieping met een raam
@@ -24355,12 +24457,20 @@ function stadRijHuis(rij, n){                    // een huis van n hoog voor ach
       const dh = (d[1] - d[0]) * k;
       x.drawImage(im, 0, stadQ(im, d[0]), stadQ(im, 970), stadQ(im, d[1] - d[0]), 0, y, c.width, dh + 0.5); y += dh;
     }
-    const N = STAD.nevel, d = x.getImageData(0, 0, c.width, c.height), p = d.data;
+    const N = V.nevel, dk = R.donker * V.donker, d = x.getImageData(0, 0, c.width, c.height), p = d.data;
     for (let i = 0; i < p.length; i += 4){
       if (!p[i + 3]) continue;
-      for (let j = 0; j < 3; j++) p[i + j] = p[i + j] * R.donker * (1 - R.nevel) + N[j] * R.nevel;
+      for (let j = 0; j < 3; j++) p[i + j] = p[i + j] * dk * (1 - R.nevel) + N[j] * R.nevel;
     }
     x.putImageData(d, 0, 0);
+    if (V.nacht){                                    // 's nachts brandt er hier en daar licht (STAD_NACHT.verte)
+      const NV = STAD_NACHT.verte, q = NV.raam, c0 = NV.kleur, top = (G.dak[1] - G.dak[0]) * k, vh = (G.ver[1] - G.ver[0]) * k;
+      for (let j = 0; j < n; j++){
+        if (stadNachtHash(rij, n, j, 7) >= NV.aan) continue;
+        x.fillStyle = 'rgba(' + c0.join(',') + ',' + (0.85 * V.nacht) + ')';
+        x.fillRect(q[0] * k, top + j * vh + q[1] * k, (q[2] - q[0]) * k, (q[3] - q[1]) * k);
+      }
+    }
     return c;
   });
 }
@@ -24374,13 +24484,13 @@ function stadReeks(seed, rij, i){
 function stadAchter(sc, horizonY, groundY){
   if (!stadKlaar('gevel')) return;
   const S = level.stad, seed = S.seed || 1, f0 = stadGevelF(nowScale());
-  const N = STAD.nevel, neveltekst = 'rgb(' + N.join(',') + ')';
+  const V = stadVerte(), N = V.nevel, neveltekst = 'rgb(' + N.join(',') + ')';
   const voeten = STAD.rijen.map(R => groundY - camY * R.cam - R.lift * H);
   // het paleis in de verte, met nevel voorgebakken
   if (stadKlaar('paleis')){
-    const P = stadGebakken('paleis', () => {
-      const im = stadImgs.paleis, a = STAD.paleis.nevel;
-      return stadBak(im, im.naturalWidth, im.naturalHeight, (r, g, b) => [r * (1 - a) + N[0] * a, g * (1 - a) + N[1] * a, b * (1 - a) + N[2] * a]);
+    const P = stadGebakken('paleis_' + V.sleutel, () => {
+      const im = stadImgs.paleis, a = STAD.paleis.nevel, k = V.donker;
+      return stadBak(im, im.naturalWidth, im.naturalHeight, (r, g, b) => [r * k * (1 - a) + N[0] * a, g * k * (1 - a) + N[1] * a, b * k * (1 - a) + N[2] * a]);
     });
     const ph = H * STAD.paleis.hoog, pw = P.width * ph / P.height;
     const px = (S.paleis != null ? S.paleis : -2500);
@@ -24393,7 +24503,7 @@ function stadAchter(sc, horizonY, groundY){
     // onder de voorste rij: als de camera meeklimt (een galerij, een dak) zakt de straat onder uit beeld en kom je
     // onder die rij in de lichte nevel. Daar loopt een stoffige straat in de verte door (STAD.verteStraat)
     if (rij === STAD.rijen.length - 1 && groundY > voeten[rij]){
-      ctx.fillStyle = STAD.verteStraat; ctx.fillRect(0, voeten[rij] - 2, W, groundY - voeten[rij] + 4);
+      ctx.fillStyle = V.straat; ctx.fillRect(0, voeten[rij] - 2, W, groundY - voeten[rij] + 4);
     }
     const hw = 970 * f0 * R.s, G = STAD.gevel, stap = hw * (G.muur[1] - G.muur[0]) / 970 - 2;   // muur tegen muur, de balken steken over
     const m0 = hw * G.muur[0] / 970;
@@ -24453,7 +24563,7 @@ function stadRijStrookMaak(rij, R, seed, f0, hw, stap, m0, ia, ib){
     x.drawImage(c, 0, top - h.hh, hw, h.hh);
     x.restore();
   }
-  return { cv: cv2, seed, f0, d, ia, ib, top, vs, k, rust: 0, rustF: f0 };
+  return { cv: cv2, seed, f0, d, ia, ib, top, vs, k, rust: 0, rustF: f0, vk: stadVerte().sleutel };
 }
 // tekent rij `rij` uit zijn strook; false als het (nog) niet kan, dan doet stadAchter het huis voor huis
 function stadRijStrookTeken(rij, R, seed, f0, hw, stap, m0, off, voet, groundY){
@@ -24463,7 +24573,7 @@ function stadRijStrookTeken(rij, R, seed, f0, hw, stap, m0, off, voet, groundY){
   const basis = off - W * 0.25 - m0;
   const v0 = Math.ceil((-hw - basis) / stap), v1 = Math.floor((W - basis) / stap);
   let S = stadStroken[rij];
-  let bak = !S || S.seed !== seed || S.d !== DPR || v0 < S.ia || v1 > S.ib;
+  let bak = !S || S.seed !== seed || S.d !== DPR || S.vk !== stadVerte().sleutel || v0 < S.ia || v1 > S.ib;
   if (!bak && S.f0 !== f0){
     // de maat verandert (de meekijkende camera zoomt): even de oude strook verschaald, en pas opnieuw bakken als de
     // maat STROOK.rust beelden vast staat of te ver weg is
@@ -25796,16 +25906,19 @@ function binnenNa(groundY, scale, cx){
   }
   // het licht van de ramen
   const bundels = binnenBundels(groundY, scale, cx);
+  // 's nachts (een uitzicht met nacht, zie STAD_NACHT) valt er geen zon maar zwak, koel maanlicht door het raam
+  const nn = stadNacht(), mk = (r, g, b) => Math.round(r + (170 - r) * nn) + ',' + Math.round(g + (190 - g) * nn) + ',' + Math.round(b + (235 - b) * nn);
+  const kg = mk(255, 205, 130), kb = mk(255, 200, 120), kv = mk(255, 205, 140), ka = 1 - 0.55 * nn;
   ctx.globalCompositeOperation = 'lighter';
   for (const q of bundels){
     const gl = ctx.createRadialGradient(q.sx, q.sy, 0, q.sx, q.sy, q.breed * 0.55);   // het glas gloeit door het schemer heen
-    gl.addColorStop(0, 'rgba(255,205,130,0.45)'); gl.addColorStop(1, 'rgba(255,205,130,0)');
+    gl.addColorStop(0, 'rgba(' + kg + ',' + (0.45 * ka) + ')'); gl.addColorStop(1, 'rgba(' + kg + ',0)');
     ctx.fillStyle = gl; ctx.fillRect(q.sx - q.breed, q.sy - q.breed, 2 * q.breed, 2 * q.breed);
     const g = ctx.createLinearGradient(0, q.y, 0, q.vy);
-    g.addColorStop(0, 'rgba(255,200,120,0.20)'); g.addColorStop(1, 'rgba(255,200,120,0.07)');
+    g.addColorStop(0, 'rgba(' + kb + ',' + (0.20 * ka) + ')'); g.addColorStop(1, 'rgba(' + kb + ',' + (0.07 * ka) + ')');
     ctx.fillStyle = g; binnenBundelPad(q); ctx.fill();
     const rg = ctx.createRadialGradient(q.mx, q.vy, 0, q.mx, q.vy, 0.7 * A);
-    rg.addColorStop(0, 'rgba(255,205,140,0.28)'); rg.addColorStop(1, 'rgba(255,205,140,0)');
+    rg.addColorStop(0, 'rgba(' + kv + ',' + (0.28 * ka) + ')'); rg.addColorStop(1, 'rgba(' + kv + ',0)');
     ctx.fillStyle = rg; ctx.fillRect(q.mx - 0.7 * A, q.vy - 0.7 * A, 1.4 * A, 1.0 * A);
   }
   // stofjes in de lucht: overal zacht, in een lichtbundel helder
@@ -26594,6 +26707,16 @@ function plichtBronnen(wx, vloer, lengte = 1){
                                    rand: F.rand, boven: vlamH > mid ? F.boven : -F.boven * 0.5 });
     }
   }
+  if (P.fakkel.aan && stadNachtLicht.length){        // de olielampjes bij de kramen in de nachtstad, als een fakkel
+    const F = P.fakkel, LA = STAD_NACHT.lamp, mid = (vloer || 0) + CHAR_H * lengte * 0.5;
+    for (const o of stadNachtLicht){
+      const afst = Math.hypot(o.x - wx, o.h - mid) / CHAR_H;
+      if (afst >= LA.bereik) continue;
+      const sterk = (1 - afst / LA.bereik) * o.sterk * LA.op;
+      if (sterk > 0.02) uit.push({ soort: 'lamp', dir: o.x > wx ? 1 : -1, sterk: sterk * F.op, kleur: 'rgb(' + F.kleur + ')',
+                                   rand: F.rand, boven: o.h > mid ? F.boven : -F.boven * 0.5 });
+    }
+  }
   uit.sort((a, b) => b.sterk - a.sterk);
   return uit.slice(0, P.maxBron);
 }
@@ -26854,8 +26977,10 @@ function stadSlagScheef(){
 }
 // 's avonds en 's nachts (een uitzicht met dim) is het licht zachter, dus ook de schaduw
 function stadSlagKleur(a){
-  const sc = sceneCfg(), dim = sc && sc.dim ? sc.dim[1] : 0;
-  return 'rgba(' + STAD_SLAG.kleur + ',' + Math.max(0, a * (1 - dim * STAD_SLAG.dimZacht)) + ')';
+  // een uitzicht kan de kleur en de sterkte zelf zetten (slag: {kleur, alfa}): 's nachts koel en zwak, de maan
+  const sc = sceneCfg(), dim = sc && sc.dim ? sc.dim[1] : 0, S = (sc && sc.slag) || {};
+  const k = S.alfa != null ? S.alfa : 1;
+  return 'rgba(' + (S.kleur || STAD_SLAG.kleur) + ',' + Math.max(0, a * k * (1 - dim * STAD_SLAG.dimZacht)) + ')';
 }
 // de voorgevels op het scherm: links, rechts, de bovenkant van de dichte muur en de voet
 function stadSlagHuizen(groundY, scale, cx){
@@ -26989,10 +27114,12 @@ function stadTeken(groundY, scale, cx){
     let y = groundY - terrainH(m.x) * scale - hh;
     ctx.save();
     if (g.f){ ctx.translate(sx + m.w, 0); ctx.scale(-1, 1); } else ctx.translate(sx, 0);
+    const yTop = y;
     for (const d of delen){
       const dh = (d[1] - d[0]) * m.f;
       ctx.drawImage(im, 0, stadQ(im, d[0]), stadQ(im, 970), stadQ(im, d[1] - d[0]), 0, y, m.w, dh + 0.6); y += dh;
     }
+    stadNachtRamen(gi, G, delen, m.hoog, yTop, m.f, deurBoven[gi]);   // 's nachts: brandende ramen (STAD_NACHT)
     // een deur op een verdieping: het deurgat van de begane grond, iets kleiner, in de plaats van het raam (zie "deuren")
     if (deurBoven[gi]) for (const v of deurBoven[gi]){
       if (v < 1 || v >= m.hoog) continue;
@@ -27096,6 +27223,7 @@ function stadVoorTeken(groundY, scale, cx, hoog){
         ctx.drawImage(c, c.width * j / kolom, 0, c.width / kolom + 1, ch, m.w * j / kolom, top + dy, m.w / kolom + 1, m.h * knip);
       }
     } else ctx.drawImage(c, 0, 0, c.width, c.height, 0, top, m.w, m.h);
+    stadNachtLamp(k, m, top, gy, scale);         // 's nachts een olielampje onder het dak (STAD_NACHT)
     ctx.restore();
   });
   if (!hoog) stadPutTeken(groundY, scale, cx, zicht);   // de put midden op het plein
@@ -27353,9 +27481,9 @@ function stadZachteSchaduw(l, r, gy, A){
 function stadPleinWandTeken(groundY, scale, cx, zicht){
   const S = level.stad; if (!(S.pleinwanden || []).length || !stadKlaar('pleinwand')) return;
   const PW = STAD.plein.wand, im = stadImgs.pleinwand, f = CHAR_H * scale / PW.amir;
-  const w = bronW(im) * f, h = bronH(im) * f, N = STAD.nevel;
-  const c = stadGebakken('pleinwand', () => stadBak(im, im.naturalWidth, im.naturalHeight,
-    (r, g, b) => [r + (N[0] - r) * PW.nevel, g + (N[1] - g) * PW.nevel, b + (N[2] - b) * PW.nevel]));
+  const w = bronW(im) * f, h = bronH(im) * f, V = stadVerte(), N = V.nevel, k = V.donker;
+  const c = stadGebakken('pleinwand_' + V.sleutel, () => stadBak(im, im.naturalWidth, im.naturalHeight,
+    (r, g, b) => [r * k + (N[0] - r * k) * PW.nevel, g * k + (N[1] - g * k) * PW.nevel, b * k + (N[2] - b * k) * PW.nevel]));
   for (const q of S.pleinwanden){
     const sx = cx + (q.x - world) - w / 2; if (!zicht(sx, w)) continue;
     const gy = groundY - terrainH(q.x) * scale - PW.lift * CHAR_H * scale;
@@ -41434,10 +41562,22 @@ const SCENES = {
   // de stad in de namiddag en tegen de avond (De Gouden Poort): dezelfde stad, de zon lager en warmer
   stad_middag: { mid: false, mtn2: false, sky: ['#4a6fae', '#d9a978', '#f3d2a2'], sun: [0.78, 0.36, 0.06, '#ffe2a8'],
                  mistColor: '228,196,160', land: '#d8b894',
+                 stadVerte: { nevel: [226, 200, 172], straat: 'rgb(186, 150, 114)', donker: 0.96 },
                  licht: { schaduwKleur: [214,196,190], lichtKleur: [255,236,206], gloedSterkte: 0.16, bodemDonker: 0.08 } },
+  // stadVerte: de nevel in de verte warm en rozig, de huizen daar al wat donkerder; slag: de schaduwen paarsbruin
   stad_avond:  { mid: false, mtn2: false, sky: ['#2a2346', '#8a4a5c', '#f08a4c'], sun: [0.70, 0.18, 0.07, '#f6a35a'],
                  mistColor: '196,140,120', land: '#b48272', dim: ['24,14,32', 0.10],
-                 licht: { schaduwKleur: [190,168,186], lichtKleur: [255,214,170], gloedSterkte: 0.22, bodemDonker: 0.12 } }
+                 stadVerte: { nevel: [196, 132, 120], straat: 'rgb(150, 104, 92)', donker: 0.8 }, slag: { kleur: '48,18,32' }, nacht: 0.45,
+                 licht: { schaduwKleur: [190,168,186], lichtKleur: [255,214,170], gloedSterkte: 0.22, bodemDonker: 0.12 } },
+  // de stad bij nacht: een donkerblauwe lucht, de maan links en vrij hoog (de schaduwen vallen kort naar rechts),
+  // de verte een blauwe nevel met donkere huizen, en een koele lichtlaag naar het voorbeeld van winter_nacht.
+  // Het licht komt van de ramen en lampen (STAD_NACHT): zonder die zou het een egaal donker plaatje zijn.
+  stad_nacht:  { mid: false, mtn2: false, sky: ['#04060f', '#111936', '#2a3356'], sun: [0.24, 0.42, 0.03, '#dfe4f4'],
+                 mistColor: '52,58,90', land: '#2a2e44', dim: ['8,10,24', 0.30],
+                 stadVerte: { nevel: [46, 52, 84], straat: 'rgb(40, 42, 62)', donker: 0.42 }, slag: { kleur: '6,8,26', alfa: 0.6 },
+                 nacht: 1,
+                 licht: { schaduwKleur: [96,106,150], lichtKleur: [140,150,192],
+                          gloedSterkte: 0.07, gloedStraal: 0.40, bodemDonker: 0.26 } }
 };
 const sceneMix = {};                     // samengestelde instellingen, een keer per soort
 function sceneCfg(){
@@ -41722,7 +41862,14 @@ function sceneAchter(groundY){
   zonScherm.x = zonX; zonScherm.y = zonY; zonScherm.kleur = sc.sun[3];   // hier hangt de gloed straks aan
   zonScherm.geldig = true;
   drawZon(sc, horizonY, zonX, zonY);
-  if (stadAan()){ stadAchter(sc, horizonY, groundY); world = camEcht; return; }   // de stad: het paleis en de rijen huizen, geen bergen
+  if (stadAan()){                                   // de stad: het paleis en de rijen huizen, geen bergen
+    stadAchter(sc, horizonY, groundY);
+    if (sc.dim){                                    // ook in de stad: de verte een tint donkerder (avond, nacht)
+      ctx.fillStyle = 'rgba(' + sc.dim[0] + ',' + sc.dim[1] + ')';
+      ctx.fillRect(0, 0, W, Math.max(horizonY, groundY) + 1);
+    }
+    world = camEcht; return;
+  }
   // het land in de verte: alles onder een horizonlijn. Elke bergrij heeft haar eigen (geheven)
   // lijn; het laagste paneel komt daar precies op, de rest zakt erachter weg. Dat wegzakkende
   // stuk moet dus na de laag worden afgedekt, anders steekt het als een rechthoek onder de rij uit
@@ -44706,6 +44853,7 @@ function loop(now){
       ctx.restore();
     }
     drawLichtlaag();                                // de hele wereld in dezelfde belichting
+    stadNachtNa();                                  // 's nachts: de gloed van de ramen en lampen in de stad, over de lichtlaag
     drawSnowfall(groundY, holteDiepT(scaleNow));    // de vlokken vallen over alles heen, maar niet in een gang
     drawWeer(groundY, holteDiepT(scaleNow));        // en de regen en de stormen net zo
     drawVoorgrond(groundY, scaleNow);               // het gras vlak voor de camera
@@ -48673,7 +48821,8 @@ mkMuziekEl.value = MK.muziek;
 mkMuziekEl.addEventListener('change', () => { MK.muziek = mkMuziekEl.value; mkBewaar(); });
 // het uitzicht: een sleutel uit SCENES voor lvl.lagen. '' is vanzelf (zie mkUitzichtVan), 'basis' de gewone savanne in de avond
 const MK_UITZICHT = [ ['', 'Vanzelf'], ['basis', 'Savanne, avond'], ['ochtend', 'Savanne, ochtend'], ['middag', 'Savanne, middag'],
-                      ['dark_hart', 'Nacht'], ['stad_dag', 'Stad overdag'] ];
+                      ['dark_hart', 'Nacht'], ['stad_dag', 'Stad overdag'],
+                      ['stad_middag', 'Stad, namiddag'], ['stad_avond', 'Stad, avond'], ['stad_nacht', 'Stad, nacht'] ];
 const mkUitzichtEl = document.getElementById('mkuitzicht');
 for (const [id, naam] of MK_UITZICHT){ const o = document.createElement('option'); o.value = id; o.textContent = naam; mkUitzichtEl.appendChild(o); }
 mkUitzichtEl.value = MK.uitzicht;
@@ -54336,11 +54485,17 @@ sandboxEl.querySelectorAll('button[data-muziek]').forEach(b => b.onclick = () =>
   sbMuziekToon(); zetMuziek(); tryPlay(); cv.focus();
 });
 // tijd van de dag: een uitzicht uit SCENES, alleen voor de sandbox (sceneCfg en lichtNu lezen sbLagen)
+// In de stad kiest dezelfde knop het stad-uitzicht (data-stad): dag, namiddag, avond of nacht.
 function sbLagenToon(){
-  sandboxEl.querySelectorAll('button[data-lagen]').forEach(b => b.classList.toggle('on', b.dataset.lagen === sbLagen));
+  const st = stadAan();
+  sandboxEl.querySelectorAll('button[data-lagen]').forEach(b => {
+    if (!b.dataset.naam) b.dataset.naam = b.textContent;
+    b.textContent = st && b.dataset.stadnaam ? b.dataset.stadnaam : b.dataset.naam;
+    b.classList.toggle('on', (st && b.dataset.stad ? b.dataset.stad : b.dataset.lagen) === sbLagen);
+  });
 }
 sandboxEl.querySelectorAll('button[data-lagen]').forEach(b => b.onclick = () => {
-  sbLagen = b.dataset.lagen; lichtMengKey = null; sbLagenToon(); cv.focus();
+  sbLagen = stadAan() && b.dataset.stad ? b.dataset.stad : b.dataset.lagen; lichtMengKey = null; sbLagenToon(); cv.focus();
 });
 // de zon: de gloed van alles samen, en hoe ver de ring ademt. De waarden staan erbij om in ZON over te nemen
 function sbZonToon(){
