@@ -300,7 +300,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | golvende rand: terreinmassa's met een organische omtrek | `GOLF`, `golfAan`, `golfGrondTeken`, `golfTerrasTeken` | notities/golf.md |
 | de kit van Amir verbeteren: takenlijst met cijfers per onderdeel; bij "verbeter Amir kit" de lijst tonen, de opdrachtgever kiest, afstrepen | `kit-lijst`, `G1`, `L1`, `M2` | notities/kit-verbeteren.md |
 | de stad verbeteren: werklijst met cijfers en stappen; bij "stadsverbetering" eerst 3 suggesties, de opdrachtgever kiest | `stadsverbetering`, `S1`, `L1`, `V1` | notities/stad-verbeteren.md |
-| de derde slag: drie steken kort na elkaar, de derde is een draaislag; standaard een terugslag, met het talent Full Circle (Mkuki) ook dubbel (Test 68 kiest aan het begin en na R, de sandboxknop Combo) | `COMBO`, `comboStart`, `comboSoort`, `comboTerug`, `comboDubbel`, `atkCombo` | notities/combo.md |
+| de derde slag: drie steken kort na elkaar, de derde is een draaislag; standaard een terugslag, met het talent Full Circle (Mkuki) ook dubbel (Test 68 kiest aan het begin en na R, de sandboxknop Combo); om uit te proberen de duw: de draaislag als ability op X, zonder schade, 8 s afkoeling | `COMBO`, `comboStart`, `comboSoort`, `comboTerug`, `comboDubbel`, `atkCombo`, `DUW`, `duwStart`, `comboX` | notities/combo.md |
 | ideeën voor de kit van Amir: basis, tribe-ability of talent; stof in de ogen (gebukt F vasthouden, de veeg met eigen animatie en geluid) | `STOF`, `STOFA`, `stofStap`, `stofWerp`, `stofDwaal` | notities/kit-ideeen.md |
 | sandbox | de vrije testmodus |  |
 

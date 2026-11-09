@@ -28,11 +28,19 @@ rij V onder True Flight) maakt er `beide` van: ver terug en dubbel. Grep: `COMBO
   afkoeling weg en start de volgende druk hem (in de pareer-tak, `comboDoor`). Tot en met frame `COMBO.pantserTot` (9, de
   draai en de slag) raakt geen klap Amir (`comboPantser` in `hurtPlayer`), zodat zijn tegenklap (die na zo'n 0,07 s landt,
   tegen 0,43 s voor de slag met afkoeling) de reeks niet meer breekt. Alleen in Test 68 en de sandbox.
+- **Knop** (de duw, `DUW`): om uit te proberen, alleen in de sandbox en Test 68. De terugslag als ability: drie steken takken
+  niet meer af naar de draaislag (`comboKetenKan`), en X speelt hem los af (`duwStart`, `comboX`), met `DUW.koel` (8 s)
+  afkoeling, `duwKoel`, en een vak X in de actiebalk. Hij doet geen schade: een bandiet krijgt de terugslag van hierboven
+  zonder treffer (ook uit zijn slag en door zijn dekking), een schildbandiet wankelt `COMBO.terug.schb` keer zijn flinch-duw
+  terug zonder schild te verliezen (ook door zijn dekking en zijn korte onkwetsbaarheid). Hij raakt ze allemaal, een keer per
+  duw (`duwId`, `swingUsed` blijft uit), en laat al het andere met rust (`duwRaakt` in `steekRaakt`; tonnen en het takelrad
+  ook niet). Waarom: met de doorbraak werd de bandiet te makkelijk (drie keer slaan en klaar), terwijl het wegslaan zelf de
+  interessante kant was. Nog geen telefoonknop.
 
 Test 68 heeft `comboKeuze: true`: aan het begin en na elke R (`opnieuw`) staat het scherm van `duoKeuze` open met alleen
 de rij Derde slag (`dkcombo`, bewaard in `amir.duoKeuze`); daar telt Full Circle niet mee, zodat je de twee kunt vergelijken.
 Elk ander level krijgt de terugslag, of beide met Full Circle. In de sandbox wisselt de knop Combo rond: uit, terugslag,
-schade, beide, doorbraak (`sbComboSoort`). De terugslag werkt nu op de bandiet en de
+schade, beide, doorbraak, knop (`sbComboSoort`); Test 68 heeft de rij Terugslag, Schade, Doorbraak, Duw op X. De terugslag werkt nu op de bandiet en de
 schildbandiet (de vijanden van Test 68); bij andere vijanden telt hij gewoon als een treffer.
 
 ## Zo telt hij

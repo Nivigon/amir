@@ -1563,7 +1563,7 @@
       <div class="row">
         <label>Stof in de ogen</label>
         <button id="sbstof" title="Gebukt F vasthouden: Amir veegt stof op naar een vijand die hem aankijkt. Hij is even blind en de volgende treffer telt dubbel. Gebukt F tikken blijft de lage zwaai.">Stof: uit</button>
-        <button id="sbcombo" title="Drie steken kort na elkaar: de derde is een draaislag. Standaard aan als terugslag. Rond: uit, terugslag (telt enkel, zet de vijand ver terug), schade (telt dubbel, met een flits op de treffer) en beide (wat het talent Full Circle van Mkuki geeft). Druk tijdens de tweede steek nog een keer en hij gaat er direct in over.">Combo: uit</button>
+        <button id="sbcombo" title="Drie steken kort na elkaar: de derde is een draaislag. Standaard aan als terugslag. Rond: uit, terugslag (telt enkel, zet de vijand ver terug), schade (telt dubbel, met een flits op de treffer) beide (wat het talent Full Circle van Mkuki geeft) en knop (geen derde slag; X speelt de draaislag los af als duw, zonder schade, met 8 s afkoeling). Druk tijdens de tweede steek nog een keer en hij gaat er direct in over.">Combo: uit</button>
       </div>
       <div class="row">
         <label>Reserve op de rug</label>
@@ -2517,7 +2517,7 @@
   <div id="duokeuze" role="dialog" aria-modal="true" aria-labelledby="dktitel"><div id="dktitel">Instellingen</div>
     <div class="dkrij">Kruisboogbandiet<small>Hoeveel bouten hij per keer herladen opneemt. Met een tweede bout op de kruisboog schiet hij snel opnieuw</small><div id="dksalvo"></div></div>
     <div class="dkrij">Schildbandiet<small>Moeilijk: een kortere tell, een snellere sprong en minder rust tussen zijn aanvallen</small><div id="dkniveau"></div></div>
-    <div class="dkrij">Derde slag<small>Terugslag: de draaislag telt enkel, maar zet de vijand ver terug en hij staat even stil. Schade: de draaislag telt dubbel. Doorbraak: telt dubbel, en pareert de bandiet je tweede steek, dan volgt de draaislag meteen en kan zijn tegenklap je niet onderbreken</small><div id="dkcombo"></div></div>
+    <div class="dkrij">Derde slag<small>Terugslag: de draaislag telt enkel, maar zet de vijand ver terug en hij staat even stil. Schade: de draaislag telt dubbel. Doorbraak: telt dubbel, en pareert de bandiet je tweede steek, dan volgt de draaislag meteen en kan zijn tegenklap je niet onderbreken. Duw op X: geen derde slag meer; X speelt de draaislag los af, zonder schade, slaat de bandieten voor je ver terug en koelt 8 s af</small><div id="dkcombo"></div></div>
     <div class="dkrij">Zweepman<small>Nieuw: hij sluipt sneller op je af, en zonder arm slaat hij sneller en haalt hij uit van ver. Nieuwer: zoals nieuw, maar zonder arm is hij alleen in zijn slag onaantastbaar, zijn klap slaat je minder ver weg en verdooft je even, en hij kan een treffer meer hebben. Nieuwer schreeuw: zoals nieuwer, en ook met arm alleen in zijn slag onaantastbaar en sneller; je treffer onderbreekt hem niet, dus blijf je staan, dan moet je zijn slag ontwijken. Zijn schreeuw duwt je weg en zijn lach is te raken. Oud: zoals hij was</small><div id="dkzweep"></div></div>
     <button id="dkstart" type="button">Start level</button></div>
   <div id="verhaal"><div id="vhtitel"></div><div id="vhtekst"></div><button id="vhstart" type="button">Start level</button></div>
@@ -18046,10 +18046,28 @@ function comboSoort(){
   if (level && level.comboKeuze) return duoKeuze.combo;
   return tribeHeeft('full_circle') ? 'beide' : 'terugslag';
 }
-function comboTerug(){ const k = comboSoort(); return k === 'terugslag' || k === 'beide'; }   // de vijand ver terug (terugslag of beide)
-function comboDubbel(){ return comboSoort() !== 'terugslag'; } // de treffer telt dubbel (schade of beide)
+function comboTerug(){ const k = comboSoort(); return k === 'terugslag' || k === 'beide' || k === 'knop'; }   // de vijand ver terug (terugslag, beide of de duw)
+function comboDubbel(){ const k = comboSoort(); return k !== 'terugslag' && k !== 'knop'; }   // de treffer telt dubbel (schade, beide of doorbraak; de duw doet geen schade)
 function comboDoor(){ return COMBO.aan && comboSoort() === 'doorbraak'; }
 function comboPantser(){ return atkCombo && atkFrame >= 0 && atkFrame <= COMBO.pantserTot && comboDoor(); }   // doorbraak: de draai is niet te onderbreken
+// De soort 'knop': de draaislag is geen derde slag meer maar een ability op X, de duw (DUW). Drie steken
+// takken dan niet meer af naar de draaislag (comboKetenKan); X speelt hem los af, met een afkoeling. Hij doet geen
+// schade: hij slaat de bandieten en schildbandieten die hij raakt ver terug (alle, niet alleen de eerste) en laat al
+// het andere (slangen, hyena's, de andere mensen, doornbossen, tonnen) met rust. comboX zegt dat de slag die nu
+// loopt de duw is.
+const DUW = { koel: 8 };   // de afkoeling in seconden: de terugslag geeft zo'n 2,4 s lucht (COMBO.terug.rust + traag)
+let comboX = false, duwKoel = 0, duwId = 0, duwRaak = false;   // duwRaak: de duw heeft iemand geraakt (voor het effect)
+function comboKetenKan(){ return comboKan() && comboSoort() !== 'knop'; }
+function duwAan(){ return COMBO.aan && comboSoort() === 'knop'; }
+function duwStart(){
+  if (!duwAan() || !running || dead || paused) return;
+  if (duwKoel > 0 || atkFrame >= 0 || atkCooldown > 0 || rol || swFrame >= 0 || duckT > 0) return;
+  if (!spear){ flashHint(spearFound ? 'Zet eerst de speer aan met E' : 'Pak eerst je speer op: ga erbij staan en druk op E'); return; }
+  if (!comboKan()) return;                          // de frames zijn er nog niet
+  comboStart(); comboX = true; duwId++; duwKoel = DUW.koel; duwRaak = false;
+}
+// tijdens de duw raakt de slag alleen wie hij kan wegslaan
+function duwRaakt(soort){ return !comboX || soort === 'bandiet' || soort === 'schildman'; }
 function comboTerugNu(){ return atkCombo && atkFrame >= 0 && steekLive() && comboTerug(); }
 let comboBank = null, atkCombo = false, comboTel = 0, comboSinds = 99, comboBuf = false, comboRaak = false;
 function comboLaad(){
@@ -18079,7 +18097,7 @@ function comboStap(dt){
     atkAcc -= COMBO.ticks[atkFrame];
     if (atkFrame < COMBO.stapTot) comboSchuif(COMBO.stap / COMBO.stapTot);
     atkFrame++;
-    if (atkFrame >= COMBO.ticks.length){ atkFrame = -1; atkAcc = 0; atkCombo = false; atkCooldown = ATK_COOLDOWN; comboSinds = 99; }
+    if (atkFrame >= COMBO.ticks.length){ atkFrame = -1; atkAcc = 0; atkCombo = false; comboX = false; atkCooldown = ATK_COOLDOWN; comboSinds = 99; }
   }
 }
 // de eerste treffer van de slag: de flits van True Flight op de speerpunt, en wat langer stil
@@ -18136,7 +18154,7 @@ function comboPunt(){ return COMBO.punt[atkFrame] || [COMBO.ANKER, COMBO.GROUND]
 function steekDX(){ return atkCombo ? (comboPunt()[0] - COMBO.ANKER) * COMBO.schaal : atkMes ? mesPunt(Math.min(atkFrame, MES.steek.length - 1)).dx : TIP_DX[atkFrame]; }
 function steekY(){ return atkCombo ? comboPunt()[1] * COMBO.schaal : atkMes ? mesPunt(Math.min(atkFrame, MES.steek.length - 1)).y : TIP_Y[atkFrame]; }
 function steekR(){ return atkCombo ? COMBO.reik : atkMes ? (mesWaarde('reik') || 34) : 40; }
-function steekRaakt(soort){ const r = mesWaarde('raakt'); return !atkMes || !r || r[soort] !== false; }
+function steekRaakt(soort){ if (!duwRaakt(soort)) return false; const r = mesWaarde('raakt'); return !atkMes || !r || r[soort] !== false; }
 function steekEind(){ return atkCombo ? COMBO.ticks.length : atkMes ? MES.steek.length : atkImgs.length; }
 // ---- afweren met het mes ----
 // Het mes doodt niets. Een steek duwt een vijand terug (afweer.duw) en breekt zijn aanval af, en
@@ -20927,6 +20945,7 @@ function rolStart(){
 function rolEind(){ rol = null; rolKoel = ROL.koel; }
 function rolUpdate(dt, halfW){
   rolStootStap(dt);
+  if (duwKoel > 0) duwKoel = Math.max(0, duwKoel - dt);   // de afkoeling van de duw (DUW)
   if (!rol){ if (rolKoel > 0) rolKoel = Math.max(0, rolKoel - dt); return; }
   if (dead || hurt > 0 || fell || !onGround || jump){ rolEind(); return; }
   const f0 = rolVoortgang(rol.t);
@@ -21311,7 +21330,7 @@ function startAttack(){
   }
   if (atkCooldown > 0){ if (COMBO.aan && comboTel > 0) comboBuf = true; return; }   // still recovering (de derde slag onthoudt de druk)
   if (!spear && !mesInHand()){ flashHint(spearFound ? 'Zet eerst de speer aan met E' : 'Pak eerst je speer op: ga erbij staan en druk op E'); return; }
-  if (comboKan()){                                 // de derde slag: tel de steken in de reeks
+  if (comboKetenKan()){                            // de derde slag: tel de steken in de reeks (niet met de duw op X)
     comboTel = comboSinds <= COMBO.keten ? comboTel + 1 : 1;
     if (comboTel >= 3){ comboStart(); return; }
   }
@@ -21351,6 +21370,7 @@ addEventListener('keydown', e => {
   if (e.key === 'q' || e.key === 'Q'){ drinkHppotion(); return; }
   if (e.key === 'i' || e.key === 'I'){ if (!e.repeat) invUIOpen(); return; }   // de inventory (zie "inventory")
   if (e.key === 'v' || e.key === 'V'){ if (!e.repeat) rolStart(); return; }   // de rol
+  if ((e.key === 'x' || e.key === 'X') && duwAan()){ if (!e.repeat) duwStart(); return; }   // de duw: de draaislag als ability (DUW)
   if ((e.key === 't' || e.key === 'T') && (sandbox || (level && level.rolWorpProef))){ if (!e.repeat) rolDoelZet(); return; }   // een oefendoel neerzetten
   if (sandbox && (e.key === 'j' || e.key === 'J')){ if (!e.repeat) bavAfzetWissel(); return; }   // de afzet van de baviaan
   if (sandbox && (e.key === 'k' || e.key === 'K')){ if (!e.repeat) bavSchudNu(); return; }   // het hoofdschudden meteen
@@ -31824,7 +31844,7 @@ function restart(){
   if (!sandbox) ZICHT_AAN = !!(level && level.zicht);   // vijanden zien je alleen als er niets tussen zit (zie "zicht"); de sandbox met een knop
   if (!sandbox){ STOF.aan = !!(level && level.stof) || stofVanTribe(); } stofA = null; stofKoel = 0; zwaaiHoud = null;
   if (!sandbox) COMBO.aan = !!(level && level.combo);   // de derde slag (zie COMBO)
-  atkCombo = false; comboBuf = false; comboTel = 0; comboSinds = 99;
+  atkCombo = false; comboBuf = false; comboTel = 0; comboSinds = 99; comboX = false; duwKoel = 0;
   if (!hintEl.classList.contains('gone')) hintEl.textContent = HINT_START.replace(', Q drinken', STOF.aan ? ', gebukt F vasthouden stof in de ogen, Q drinken' : ', Q drinken');   // stof in de ogen (zie STOF): X, met stof: true in het level of met Mkuki
   if (!sandbox) SNEAK_AAN = !!(level && level.sneak && level.zicht);   // de sluipaanval (zie "sneak"), alleen met het zicht; de sandbox met een knop
   lawaaiPulsen.length = 0; lawaai = 0; sneakKills = 0; sneakRegie = null;   // en het lawaai en de regie van het vorige potje weg
@@ -37969,6 +37989,13 @@ function banPareer(s, vonkWx, vonkY){
 function hitBandiet(s){
   const doorDekking = atkCombo && atkFrame >= 0 && steekLive();   // de derde slag (COMBO) slaat door zijn dekking heen
   if ((s.inv > 0 && !doorDekking) || s.state === 'dood' || s.state === 'vault') return false;   // in de lucht (de vault) is hij niet te raken
+  if (comboX){                                     // de duw (DUW): geen schade, alleen ver terug en even stil
+    if (s.duwId === duwId) return false;            // een keer per duw
+    s.duwId = duwId; duwRaak = true; lawaaiPuls(s.x, s.base || 0, SNEAK.puls.treffer);
+    s.knock = (s.x < playerX() ? -1 : 1) * COMBO.terug.v;
+    s.flash = 0.3; s.inv = BAN_INV_T; s.counter = false; banSet(s, 'run'); s.rust = COMBO.terug.rust; s.traag = COMBO.terug.traag;
+    return true;
+  }
   const sneak = !s.sluipVrij && sneakKan(s);       // de sluipaanval: van achteren op wie je niet opmerkte, in een klap dood (zie "sneak")
   if (sneak){ sneakDoe(s); s.hp = 1; } else lawaaiPuls(s.x, s.base || 0, SNEAK.puls.treffer);
   s.hp--; if (critPak()) s.hp--;                   // True Flight: een crit telt als twee treffers
@@ -40917,8 +40944,19 @@ function updateSchildmannen(dt, plats, cliff){
   exeHerhaalStap(dt);
 }
 function hitSchildman(s, wijze, richting){               // wijze: 'steek', 'worp', 'zwaai' of 'pijl' (de steek en de worp kunnen een executie worden, zie EXE); richting: bij een pijl de kant waarheen hij vloog
-  if (s.state === 'weg' || s.exe || s.inv > 0) return false;   // dood (s.exe) of weg: niets meer te raken
+  if (s.state === 'weg' || s.exe || (s.inv > 0 && !(comboX && wijze === 'steek'))) return false;   // dood (s.exe) of weg: niets meer te raken; de duw gaat door zijn korte onkwetsbaarheid
   if (schbOnaantastbaar(s)) return false;                 // in de sprong is hij onaantastbaar
+  if (comboX && wijze === 'steek'){                       // de duw (DUW): geen schade, ook door zijn dekking; hij wankelt ver terug
+    if (s.duwId === duwId) return false;
+    s.duwId = duwId; duwRaak = true; lawaaiPuls(s.x, s.base || 0, SNEAK.puls.treffer);
+    s.state = 'flinch'; s.frame = SCHB.flinchVan; s.acc = 0;
+    s.knockV = Math.sign(s.x - playerX() || 1) * SCHB.flinchDuw * COMBO.terug.schb;
+    s.naTerug = true; s.flash = 0.3; s.inv = SCHB.invHit;
+    const zS = schbScale();
+    steenStof(s.x - 70 * zS, s.x + 70 * zS, s.base || 0, 1.0, (s.base || 0) + 60);
+    puffWorld(s.x, 6, 0, 0.9, s.base || 0);
+    return true;
+  }
   if (wijze !== 'pijl' && sneakKan(s)){                   // de sluipaanval: van achteren op wie je niet opmerkte, langs het schild in een klap dood (zie "sneak")
     sneakDoe(s); hits++; hitsEl.textContent = hits;
     s.schild = 0; s.metSchild = false; schbSplinters(s, SCHB.perBreuk);
@@ -42009,7 +42047,7 @@ const duoKeuze = (() => {
   try { k = JSON.parse(localStorage.getItem('amir.duoKeuze') || '{}') || {}; } catch (e) {}
   return { salvo: KRB_SALVO[k.salvo] ? k.salvo : '2dan1', niveau: k.niveau === 'moeilijk' ? 'moeilijk' : 'makkelijk',
            zweep: ['oud', 'nieuw', 'nieuwer', 'schreeuw'].includes(k.zweep) ? k.zweep : ZWM_STANDAARD,
-           combo: ['schade', 'doorbraak'].includes(k.combo) ? k.combo : 'terugslag' };
+           combo: ['schade', 'doorbraak', 'knop'].includes(k.combo) ? k.combo : 'terugslag' };
 })();
 const duoKeuzeEl = document.getElementById('duokeuze');
 let duoKeuzeVerder = null, duoKeuzeDoor = false;
@@ -42028,7 +42066,7 @@ function duoKeuzeBouw(){
   rij('dksalvo', ['2dan1', '2', '1'].map(w => [w, KRB_SALVO[w].naam]), 'salvo');
   rij('dkniveau', [['makkelijk', 'Makkelijk'], ['moeilijk', 'Moeilijk']], 'niveau');
   rij('dkzweep', [['oud', 'Oud'], ['nieuw', 'Nieuw'], ['nieuwer', 'Nieuwer'], ['schreeuw', 'Nieuwer schreeuw']], 'zweep');
-  rij('dkcombo', [['terugslag', 'Terugslag'], ['schade', 'Schade'], ['doorbraak', 'Doorbraak']], 'combo');
+  rij('dkcombo', [['terugslag', 'Terugslag'], ['schade', 'Schade'], ['doorbraak', 'Doorbraak'], ['knop', 'Duw op X']], 'combo');
   const toon = (id, aan) => { document.getElementById(id).parentElement.style.display = aan ? '' : 'none'; };   // alleen de rijen van dit level
   toon('dksalvo', duoKeuzeDuo()); toon('dkniveau', duoKeuzeDuo()); toon('dkzweep', !!(level && level.zweepKeuze));
   toon('dkcombo', !!(level && level.comboKeuze));
@@ -44247,12 +44285,12 @@ function loop(now){
   jav2Update(dt, plats, scaleNow);               // en de tweede speer (DUBBEL)
   speerNaastAmir(dt, plats);                     // achter een doornbos of boven op een berg: naast je
   muurUpdate(dt, scaleNow);                      // het rotsblok schuift, en de speer komt terug in de grond
-  if (atkFrame < 0){ atkCombo = false; comboSinds += dt; }        // de derde slag: hoe lang geleden de vorige steek klaar was
+  if (atkFrame < 0){ atkCombo = false; comboX = false; comboSinds += dt; }   // de derde slag: hoe lang geleden de vorige steek klaar was (een afgebroken duw is ook voorbij)
   if (atkFrame >= 0 && atkCombo) comboStap(dt);                    // de derde slag loopt op zijn eigen ticks
   else if (atkFrame >= 0){
     atkAcc += dt * (atkMes ? mesWaarde('fps') : ATK_FPS);           // het mes steekt sneller
     while (atkAcc >= 1){ atkFrame++; atkAcc -= 1; }
-    if (comboBuf && comboTel >= 2 && swingUsed && atkFrame >= COMBO.aftak && comboKan()) comboStart();   // de tweede steek takt af naar de derde slag
+    if (comboBuf && comboTel >= 2 && swingUsed && atkFrame >= COMBO.aftak && comboKetenKan()) comboStart();   // de tweede steek takt af naar de derde slag
     else if (atkFrame >= steekEind()){                             // attack finished
       atkFrame = -1; atkAcc = 0; atkCooldown = atkMes ? mesWaarde('rust') : ATK_COOLDOWN;
       comboSinds = 0;
@@ -46094,7 +46132,7 @@ function loop(now){
           if (tipX + reach > nbox.l && tipX - reach < nbox.r && tipY + reach > nbox.t && tipY - reach < nbox.b){
             if (atkMes){ if (mesAfweer(s, 'bandiet')) swingUsed = true; continue; }   // het mes weert af
             if (s.bloed) bloedTref(s, bodyX, voeten, bS, face, tipX, tipY);           // bloed: de snee komt op de speerpunt
-            swingUsed = true; hitBandiet(s); continue;
+            if (!comboX) swingUsed = true; hitBandiet(s); continue;   // de duw raakt ze allemaal (een keer per duw, duwId)
           }
         }
         // de geworpen speer
@@ -46149,7 +46187,7 @@ function loop(now){
           ctx.save(); ctx.globalAlpha = 0.5; ctx.lineWidth = 2; ctx.strokeStyle = '#c9a06b';
           ctx.strokeRect(nbox.l, nbox.t, nbox.r - nbox.l, nbox.b - nbox.t); ctx.restore();
         }
-        if (s.inv > 0){ if (dubbelVliegt() && javRaakt(nbox, s)){ javHitEnemy(); hitSchildman(s, 'worp'); } continue; }   // net geraakt, behalve voor de tweede speer (DUBBEL)
+        if (s.inv > 0 && !comboX){ if (dubbelVliegt() && javRaakt(nbox, s)){ javHitEnemy(); hitSchildman(s, 'worp'); } continue; }   // net geraakt, behalve voor de tweede speer (DUBBEL)
         if (schbOnaantastbaar(s)) continue;               // in de sprong onaantastbaar
         // de speerpunt / steek
         if (attacking && !swingUsed && steekLive() && steekRaakt('schildman')){
@@ -46159,9 +46197,10 @@ function loop(now){
           const reach = steekR() * scale;
           if (tipX + reach > nbox.l && tipX - reach < nbox.r && tipY + reach > nbox.t && tipY - reach < nbox.b){
             if (atkMes){ swingUsed = true; s.flash = Math.max(s.flash || 0, 0.2); continue; }   // het mes breekt geen schild en doodt niets
-            swingUsed = true; hitSchildman(s, 'steek'); continue;
+            if (!comboX) swingUsed = true; hitSchildman(s, 'steek'); continue;   // de duw raakt ze allemaal (duwId)
           }
         }
+        if (s.inv > 0) continue;                          // de duw ging door zijn onkwetsbaarheid, de rest niet
         // de geworpen speer
         if (javRaakt(nbox, s)){ javHitEnemy(); hitSchildman(s, 'worp'); continue; }
         // de lage zwaai: één keer per zwaai
@@ -46326,7 +46365,7 @@ function loop(now){
         const rwx = cx + (rad.x - world), cy = groundY - wielBasis(rad) * scale - wielH * 194 / 325;
         return { box: { l: rwx - rw, r: rwx + rw, t: cy - rw, b: cy + rw }, dir: rad.dir, modus: rad.modus, x: rad.x, off: rad.off || 0 };
       });
-      if (attacking && !atkMes && !swingUsed && steekLive()){
+      if (attacking && !atkMes && !swingUsed && !comboX && steekLive()){
         const dxv = steekDX() * scale;
         const tipX = pcx + (facing === 1 ? -dxv : dxv);
         const tipY = y + steekY() * scale;
@@ -46392,7 +46431,7 @@ function loop(now){
     for (const t of tonnen){
       if (t.weg) continue;
       const tb = tonVak(t, groundY, scale, cx), from = pWorld < t.x ? -1 : 1;
-      if (attacking && !swingUsed && steekLive()){
+      if (attacking && !swingUsed && !comboX && steekLive()){
         const dxv = steekDX() * scale, tipX = pcx + (facing === 1 ? -dxv : dxv), tipY = y + steekY() * scale, reach = steekR() * scale;
         if (tipX + reach > tb.l && tipX - reach < tb.r && tipY + reach > tb.t && tipY - reach < tb.b){ swingUsed = true; tonRaak(t, from, true); continue; }
       }
@@ -46412,7 +46451,7 @@ function loop(now){
       if (tekenSnij(groundY, scale, cx, pcx + (facing === 1 ? -dxv : dxv), y + steekY() * scale, steekR() * scale)) swingUsed = true;
     }
     // de derde slag (COMBO): de eerste treffer krijgt de flits op de punt, de hitstop en de schok
-    if (atkCombo && attacking && swingUsed && !comboRaak){
+    if (atkCombo && attacking && (swingUsed || (comboX && duwRaak)) && !comboRaak){
       comboRaak = true;
       const dxv = steekDX() * scale, tipX = pcx + (facing === 1 ? -dxv : dxv), tipY = y + steekY() * scale;
       comboTreffer(tipX - cx + world, (groundY - tipY) / scale);
@@ -48389,6 +48428,7 @@ function schijnHud(){
 const balkEl = document.getElementById('actiebalk');
 const BALK_SVG = {
   rol: '<svg viewBox="0 0 32 32"><path d="M23 21A9 9 0 1 1 22 9" fill="none" stroke="#f2e8d5" stroke-width="2.6" stroke-linecap="round"/><path d="M17 6l6 3-4 5" fill="none" stroke="#f2e8d5" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  duw: '<svg viewBox="0 0 32 32"><path d="M26 16A10 10 0 1 1 20 7" fill="none" stroke="#f2e8d5" stroke-width="2.4" stroke-linecap="round"/><path d="M17 3l6 4-5 4" fill="none" stroke="#f2e8d5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 22L22 10" stroke="#e6c58f" stroke-width="2.4" stroke-linecap="round"/></svg>',
   schild: '<svg viewBox="0 0 32 32"><path d="M16 4l10 4v7c0 7-5 11-10 13C11 26 6 22 6 15V8z" fill="none" stroke="#f2e8d5" stroke-width="2.4" stroke-linejoin="round"/><path d="M16 9v15" stroke="#e6c58f" stroke-width="1.6"/></svg>'
 };
 // per vak: of hij er is, hoe ver de afkoeling is (p, 1 is klaar), de seconden die nog over zijn, en wat er verder bij hoort
@@ -48405,6 +48445,10 @@ const BALK = [
   { id: 'stof', toets: 'S+F vast', icoon: () => document.querySelector('#stoftegel svg').outerHTML, staat(){
       const p = stofGereed();
       return { zien: STOF.aan, klaar: p >= 1, p, sec: stofKoel, dim: !spear || !!stofA };
+    } },
+  { id: 'duw', toets: 'X', icoon: () => BALK_SVG.duw, staat(){
+      const p = duwKoel > 0 ? 1 - duwKoel / DUW.koel : 1;
+      return { zien: duwAan(), klaar: p >= 1, p, sec: duwKoel, dim: !spear };
     } },
   { id: 'schild', toets: 'C', icoon: () => BALK_SVG.schild, staat(){
       return { zien: SCHILD_AAN, klaar: true, p: 1, aan: schildOp() };
@@ -56173,11 +56217,12 @@ function comboKnopToon(){
   const b = document.getElementById('sbcombo'); if (!b) return;
   b.textContent = 'Combo: ' + (COMBO.aan ? sbComboSoort : 'uit'); b.classList.toggle('on', COMBO.aan);
 }
-document.getElementById('sbcombo').onclick = () => {   // rond: uit, terugslag, schade, beide (wat het talent Full Circle geeft), doorbraak
+document.getElementById('sbcombo').onclick = () => {   // rond: uit, terugslag, schade, beide (wat het talent Full Circle geeft), doorbraak, knop (de duw op X, DUW)
   if (!COMBO.aan){ COMBO.aan = true; sbComboSoort = 'terugslag'; comboLaad(); }
   else if (sbComboSoort === 'terugslag') sbComboSoort = 'schade';
   else if (sbComboSoort === 'schade') sbComboSoort = 'beide';
   else if (sbComboSoort === 'beide') sbComboSoort = 'doorbraak';
+  else if (sbComboSoort === 'doorbraak') sbComboSoort = 'knop';
   else COMBO.aan = false;
   comboKnopToon(); cv.focus();
 };
