@@ -68,7 +68,7 @@ De brug ligt aan elke kant `BRUG.oever` (0,3 Amir) op de oever.
 - **Sandbox**: onder De stad de knoppen **Brug** (een straat met een rivier ertussen en de brug erover) en **Brug met
   bandiet** (dezelfde, met een bandiet aan de overkant die over de brug op je af komt). **Weg** haalt de brug mee weg.
 
-Nog in geen enkel level. Een rivier op een plek zonder brug blijft gewoon water: de looplijn is een lijn, dus een brug
+In **Test 69: De brug**: een stadsstraat met een rivier met brug (een bandiet erop) en een zonder, om het verschil te voelen. Een rivier op een plek zonder brug blijft gewoon water: de looplijn is een lijn, dus een brug
 neemt de plek van het water in en je kunt er niet naast het water in stappen.
 
 ## Wat er beweegt
