@@ -43,7 +43,17 @@ speer van de rug en speelt de worp vanaf frame 5, altijd vlak. `ritme` zegt per 
 0,07, 0,05: 0,38 s tot het loslaten): eerst overeind met de speer op de schouder (de greep), dan de uitval in en steeds
 sneller, een zweep. Eerst was het frame 7 op dubbel tempo, 0,125 s: dat las als een worp in plaats van twee, en omdat hij
 alleen de lage uitval liet zien leek Amir kleiner dan bij de eerste worp (de frames zelf zijn even groot). Een tik op F breekt de tweede
-niet af (`thrRelease`). Second Spear geeft het
+niet af (`thrRelease`). Een druk tijdens de eerste worp, voor het loslaten of vlak erna, wordt onthouden (`dubbelVraag`,
+`thr.wil`) en de tweede begint pas op `DUBBEL.naFrame` (12) van de eerste, zodat je de eerste speer los ziet gaan en de
+arm ziet doorzwaaien. Eerst begon een druk net voor het loslaten de eerste worp opnieuw bij frame 0 (en ging de eerste
+speer er nooit uit), en knipte een druk op het loslaten de nazwaai weg.
+
+De perfecte tweede: druk F tussen `DUBBEL.perfVan` en `perfTot` (0,06 tot 0,24 s) na het loslaten van de eerste (of van
+de rol-worp), dan licht Amir op met de ster van de rol-worp (`dubbelGlansTeken`, `glansSter`). Een druk tijdens de eerste
+worp telt niet als perfect (anders was rammen genoeg). De perfecte (`thr.perfect`, `jav.perfect`) krijgt het gouden spoor,
+een stop van 0,05 s, een camerastoot (`rolStoot`) en even vertraagd beeld: de wereld begint op `traag` (0,3) en is in
+`traagDuur` (0,4 echte seconden) weer op gang (`dubbelTraagT`, `dubbelTraagNu`, in de lus naast `zwmTraagNu`). Het
+vertraagde beeld zit bewust alleen op de perfecte: elke keer zou snel gaan vervelen. Second Spear geeft het
 na een gewone worp, Tumbling Spear na de rol-worp (een verbetering: in de rij komt hij na Second Spear). Een per worp; de
 tweede heeft geen derde.
 
