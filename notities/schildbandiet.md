@@ -140,6 +140,13 @@ de gewone dood), dan komt er na `herhaalWacht` een nieuwe aanwandelen op `spawnP
 met het `niveau` van de eerste schildman-spawn van het level. Alleen Test 50 heeft het; een herstart wist de
 wachttijd (`exeHerhaalNodig`).
 
+**Niet bij een rand** (`exeVloerVrij`, `EXE.vloerTol`, `EXE.vloerMarge`): in de executie springt Amir van `amir_start_x`
+naar `amir_eind_x`, een paar honderd px opzij, en hij blijft op de vloer van de schildbandiet. Ligt er in dat stuk (plus
+`vloerMarge` aan beide kanten) een ravijn, put, rand van een dak of zwever, trede of muur, dan liep hij op de lucht. Dan
+is een dodelijke steek de gewone dood (`exeKans`, ook in een level met `executie` of met de sandbox-knop aan), en staat er
+bij de wankelende schildbandiet na een worp geen E (`exeBij`). De sandbox-knoppen die meteen executeren (`sbExeNu`)
+kijken er niet naar.
+
 **De worp-kill**: `exeStart` haalt de geworpen speer weg (`jav = null`, de lagen tekenen hem in zijn borst), de wereld
 loopt gewoon door: `knielen`, dan `wankel` in een loop, `EXE.wankelDuur` (3 s) lang. Staat Amir binnen `EXE.eReik` (ruim een
 Amir) van hem, aan beide kanten, op dezelfde vloer (`exeBij`), dan staat er een E boven hem (staat Amir achter hem, dan
