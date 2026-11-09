@@ -83,7 +83,12 @@ Elke gevel is dezelfde plaat met dezelfde luiken op dezelfde plek. Na drie huize
 - [ ] **D1. Gevelvarianten.** 3 tot 4 varianten per gevel: andere raamplekken, een ronde hoektoren,
   een dichtgemetseld raam, en twee of drie leemkleuren (oker, roze leem, bijna wit). Naar **7,5**.
 - [ ] **D2. Losse stukken op de gevel.** Een lap stof uit een raam, een kapotte luifel, een nis met
-  een kruik. Dan wordt elk huis anders zonder nieuwe gevelplaten. Naar **7**.
+  een kruik. Dan wordt elk huis anders zonder nieuwe gevelplaten. Naar **7**. Idee van de opdrachtgever erbij: een houten takel als
+  sier aan de zijkant en andere soorten ramen (spitsboog, traliewerk, dichtgemetseld, een doek over de vensterbank). De
+  Grok-prompt voor een vel met die stukken staat klaar in de chat van 9 november; per huistype de plekken van de ramen
+  noteren en per seed kiezen. Bezig (9 november): de takel met een mand die in de wind slingert, zes andere ramen op het
+  oude huis, het ingebouwde balkon (de nis en de doorkijk in de hoek) en `stad.accenten` die ze zelf kiest; zie "balkon" en
+  "accenten" in `notities/stad.md`. Nog niet goedgekeurd.
 
 Beide samen: **8,5**.
 
@@ -173,7 +178,10 @@ volgende stadsverbetering.
 2. [x] V1, figuren op de achtergrond: suggestie 1, het stadsvolk (de dorpelingen omgekleurd op de stoep, weg bij een gevecht), in Stad 1 en Sandville
 3. [ ] D1, gevelvarianten (de herhaling weg): bezig. Suggestie 3 gekozen, echt andere huizen. Er zijn er drie
    (reliefhuis, koopmanshuis, pilarenhuis, in zandtinten, met deur, ook in de Maker; zie "Huistypes" in `notities/stad.md`).
-   De opdrachtgever wil nog meer types voor hij D1 afvinkt.
+   De opdrachtgever wil nog meer types voor hij D1 afvinkt. Tweede ronde (9 november): het vervallen huis, het torenhuis,
+   twee ruines (geen beloopbaar dak, de lucht door de gaten) en het winkelhuis open en dicht (de winkel op de plek van de
+   deur), in de sandbox onder **Nieuwe huizen** en in de Maker. Nog open: een winkel naast de deur (een Grok-plaat met een
+   smallere opening) en accenten op de gevel (zie D2).
 4. [ ] S2, de galerij warmer
 5. [ ] L2, lucht met stofwaas
 6. [ ] H1, de trap zonder fade
@@ -189,6 +197,12 @@ volgende stadsverbetering.
 16. [ ] P2, de menigte op de markt
 17. [ ] V1b, eigen stadsfiguren (suggestie 2 van V1: een koopman en een vrouw met een kruik, nieuwe art via `grok-imagine-prompts`) in plaats van de dorpelingen: tegen de herhaling, Leven van 5 naar **6**
 18. [ ] A3, kleur uit doeken: was, vaandels, tapijten, unieke gebouwen, misschien een fontein (de muren blijven zand)
+19. [ ] D1b, het winkelhuis met deur: de deur per huistype op een andere plek dan het midden (`STAD_DEUR.midden` per type),
+    zodat de eerste winkelplaat (`gevel_winkel_grok.jpg`, de deur links en de brede winkel rechts) met deur past, net als de
+    dichte versie. Geen nieuwe art nodig.
+20. [ ] D3, huizen van een andere breedte: een smal huis, een poorthuis, en het winkelhuis met de brede winkel naast de deur
+    (de Grok-plaat `design/stad/bron/gevel_winkel_grok.jpg` heeft hem al). Het spel rekent nu overal met een huisbreedte
+    (daken, galerijen, trappen, schaduwen, de Maker); dit leert het een breedte per type. Breekt het ritme van de straat.
 
 ## Gedaan
 

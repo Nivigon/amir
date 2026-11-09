@@ -52,6 +52,25 @@ gedeeld met de bron), de druppels en het geruis. Alles achter Amir, na `stadVoor
 De diepte telt mee in `waterDepthAt`, dus de spetters, het watergeluid, het wegzakken en de speer die in het water verloren
 gaat werken voor elke vorm zoals bij de oude poel.
 
+## De brug (`brug: true` op een rivier)
+
+`BRUG`, `brugTeken`, `brugIn`. Een rivier met `brug: true` krijgt een houten brug op straathoogte: de galerij van de stad
+(`galerij.png` via `stadStrook`, links, het midden zo vaak als nodig, rechts) met het midden van de planken op de looplijn
+en zonder palen. De zware onderbalk ligt op het water, de rivier stroomt eronder door en valt ervoor over de rand.
+De brug ligt aan elke kant `BRUG.oever` (0,3 Amir) op de oever.
+
+- **Droog**: `waterenDiep` slaat een rivier met een brug over, dus op de brug zak je niet weg, de speer gaat niet
+  verloren en vijanden lopen er gewoon overheen. Het geruis blijft.
+- **De stoep**: `stadStoep` slaat elke rivier over (net als een ravijn). Eerst schilderde hij straat over de achterkant
+  van het dek, zodat er een laag zand tussen de leuning en de planken lag.
+- **Laden**: het plaatje hoort bij de stad; `stadLaadLevel` laadt de stadsplaatjes ook in een level met een brug (`brugIn`).
+- **Getekend** na de stoep (`brugTeken` in de tekenlus, achter Amir), dus de leuning staat achteraan en Amir loopt ervoor.
+- **Sandbox**: onder De stad de knoppen **Brug** (een straat met een rivier ertussen en de brug erover) en **Brug met
+  bandiet** (dezelfde, met een bandiet aan de overkant die over de brug op je af komt). **Weg** haalt de brug mee weg.
+
+Nog in geen enkel level. Een rivier op een plek zonder brug blijft gewoon water: de looplijn is een lijn, dus een brug
+neemt de plek van het water in en je kunt er niet naast het water in stappen.
+
 ## Wat er beweegt
 
 - `waterStap(dt)`: de klok (speltijd, stil in de pauze), de druppels (`waterDruppels`, als streepjes in hun vliegrichting),

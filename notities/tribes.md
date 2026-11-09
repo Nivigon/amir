@@ -2,7 +2,36 @@
 
 ## tribes: de keuze per run en de abilities
 
-`TRIBE_CONFIG` (bovenin het script: alle namen, teksten en getallen) en `RUN` (tribeId, verdiende abilities, uitgespeelde levels); onder "tribes: keuzescherm, ability, HUD" `tribeKies`, `tribeNaLevel` (vanuit `winLevel`, geeft een talentpunt in `RUN.punten`), de talent tree onder "talent tree" (optie A uit de voorstellen: een tak van links (tier I) naar rechts, de kop met je punten erboven en het venster als brede strook eronder, links de tekst (`.tbilinks`) en rechts de knoppen (`.tbirechts`); het thema per tribe in `boom` in `TRIBE_CONFIG`, met `TB_RING`, `tbLijn` (in `.tbstam` een kwartslag gedraaid, zodat de staande tekening liggend tussen twee ringen zit), de ringmaat `--tbr` die zich uit het aantal talents (`--tbn`, gezet in `tribeBoomToon`), de breedte en de hoogte rekent zodat het scherm liggend nooit scrolt, de T-splitsing onder de naam (op een scherm lager dan 450 px alleen in het venster), pijltjes links en rechts (en op en neer) lopen langs de talents, `TB_TEKEN` voor plaatjes die nog ontbreken en `tbVergelijk` voor zonder en met; `tribeBoomToon`, `tbStaat`, `tbKlik`, `tbBijwerken`; in `#trunlock`, ook te bekijken via `pztalents` in de pauze; op het keuzescherm opent een kaart de boom zonder te kiezen (`tribeBekijk`, `tbKijk`, `tbRun`), en `tribeVastleggen` legt de tribe pas vast bij het eerste talent of bij Join; een tribe op slot laat `TB_LEEG` lege plekken zien), `opnieuw` (na game over hetzelfde level, abilities blijven), `hudToon`, `tribeHeeft` en `abilityWaarde`. Een ability werkt alleen via die twee: Quick Hand in `updateThrow`, Thorn Breaker in `hitThicket`, Twin Sweep (id `low_sweep`, `ladingen`) in `sweepMax`; de lage zwaai zelf heeft iedereen, met ladingen die in `SWEEP_HERLAAD` seconden terugkomen (`swLading`, `sweepLaden`, `zwaaiHud` rechtsboven), en wat hij raakt staat voor iedereen in `zwaaiVak`, Fourth Life in `levensStart`. Een tribe met `bijStart` krijgt zoveel talentpunten meteen bij het kiezen; nu staat dat bij alle tribes op 1, zodat je keuze vanaf level 1 telt (`tbWanneer` zegt dan `From the start`). De woedemeter van Bhubesi (`woede` in zijn blok, stand in `RUN.woede`) staat onder "woede": `heeftWoede` (Long Breath of Blood Rush), `woedeVul` (vanuit `vijandDood` en `hitPanther`), `woedeStart` (G, de meter, de knop `woede` in `TOUCH_BTNS`), `woedeAan` houdt `hurtPlayer`, `valLand` en `fosforBijt` tegen, `woedeGloed` en `woedeVonken` bij het tekenen van Amir. Elke episode begint met de tribekeuze (`runStart` in zijn speelknoppen, en bij dubbelklikken op een kaartje in `buildCards`), nu De Poorten en Baboon tests; de Test levels niet, tenzij daar expliciet om gevraagd wordt, en daar gelden alle abilities van de tribes die niet op slot staan, net als in de Test van de Maker (Test 14 laat je kiezen, zie `talentKeuze`). Een tribe op slot (nu Impungushe) mag al abilities hebben: die gelden dan alleen in de sandbox en in Test 14; zijn boom laat ze dicht zien en zijn kaart op het keuzescherm blijft leeg. De sandbox heeft `sbAbilities`, de speelrobot speelt zonder tribe en dus zonder abilities. De plaatjes in `design/tribes/` komen uit `tools/tribe_logos.py`; de drie ability-plaatjes van Bhubesi zijn uitgeknipt (tot 400 bij 400, grijs eromheen doorzichtig) uit de JPG's in `notities/` (`notities/fastereimmortal.jpg`, `notities/longerimmortal.jpg`, `notities/extralife.jpg`), waarvan twee namen omgewisseld zijn: `fastereimmortal.jpg` is Long Breath, `longerimmortal.jpg` Blood Rush, `extralife.jpg` Fourth Life
+`TRIBE_CONFIG` (bovenin het script: alle namen, teksten en getallen) en `RUN` (tribeId, verdiende abilities, uitgespeelde levels); onder "tribes: keuzescherm, ability, HUD" `tribeKies`, `tribeNaLevel` (vanuit `winLevel`, geeft een talentpunt in `RUN.punten`), de talent tree onder "talent tree" (zie "Het scherm: twee bomen naast elkaar" hieronder; in `#trunlock`, ook te bekijken via `pztalents` in de pauze; op het keuzescherm opent een kaart de boom zonder te kiezen (`tribeBekijk`, `tbKijk`, `tbRun`), en `tribeVastleggen` legt de tribe pas vast bij het eerste talent of bij Join; een tribe op slot laat `TB_LEEG` lege plekken zien), `opnieuw` (na game over hetzelfde level, abilities blijven), `hudToon`, `tribeHeeft` en `abilityWaarde`. Een ability werkt alleen via die twee: Quick Hand in `updateThrow`, Thorn Breaker in `hitThicket`, Twin Sweep (id `low_sweep`, `ladingen`) in `sweepMax`; de lage zwaai zelf heeft iedereen, met ladingen die in `SWEEP_HERLAAD` seconden terugkomen (`swLading`, `sweepLaden`, `zwaaiHud` rechtsboven), en wat hij raakt staat voor iedereen in `zwaaiVak`, Fourth Life in `levensStart`. Een tribe met `bijStart` krijgt zoveel talentpunten meteen bij het kiezen; nu staat dat bij alle tribes op 1, zodat je keuze vanaf level 1 telt (`tbWanneer` zegt dan `From the start`). De woedemeter van Bhubesi (`woede` in zijn blok, stand in `RUN.woede`) staat onder "woede": `heeftWoede` (Long Breath of Blood Rush), `woedeVul` (vanuit `vijandDood` en `hitPanther`), `woedeStart` (G, de meter, de knop `woede` in `TOUCH_BTNS`), `woedeAan` houdt `hurtPlayer`, `valLand` en `fosforBijt` tegen, `woedeGloed` en `woedeVonken` bij het tekenen van Amir. Elke episode begint met de tribekeuze (`runStart` in zijn speelknoppen, en bij dubbelklikken op een kaartje in `buildCards`), nu De Poorten en Baboon tests; de Test levels niet, tenzij daar expliciet om gevraagd wordt, en daar gelden alle abilities van de tribes die niet op slot staan, net als in de Test van de Maker (Test 14 laat je kiezen, zie `talentKeuze`). Een tribe op slot (nu Impungushe) mag al abilities hebben: die gelden dan alleen in de sandbox en in Test 14; zijn boom laat ze dicht zien en zijn kaart op het keuzescherm blijft leeg. De sandbox heeft `sbAbilities`, de speelrobot speelt zonder tribe en dus zonder abilities. De plaatjes in `design/tribes/` komen uit `tools/tribe_logos.py`; de drie ability-plaatjes van Bhubesi zijn uitgeknipt (tot 400 bij 400, grijs eromheen doorzichtig) uit de JPG's in `notities/` (`notities/fastereimmortal.jpg`, `notities/longerimmortal.jpg`, `notities/extralife.jpg`), waarvan twee namen omgewisseld zijn: `fastereimmortal.jpg` is Long Breath, `longerimmortal.jpg` Blood Rush, `extralife.jpg` Fourth Life
+
+## Het scherm: twee bomen naast elkaar
+
+Zoals in World of Warcraft (gekozen uit drie voorstellen: het venster in het midden). Links de boom van je tribe
+(`#tbtribe`, `#tbtak`), in het midden het venster (`#tbinfo`, de tekst, de knop om te leren, zonder en met, Continue),
+rechts Perks (`#tbperks`, `#tbptak`). Beide bomen lopen van boven (tier I) naar beneden; `#tbveld` is een grid van
+drie kolommen, staand twee met het venster eronder.
+
+- **De vorm van een boom:** elk talent heeft in `TRIBE_CONFIG` een `eis` (de ids die er eerst moeten zijn; zonder `eis`
+  het talent ervoor, behalve het eerste) en een `kant` (-1 of 1: een tak links of rechts, zonder in het midden).
+  `tbEis`, `tbRij` (een onder het diepste van wat hij eist) en `tbVoor` (alles wat er eerst moet, voor "After level n"
+  in `tbWanneer`). Een vrije boom (`vrij`, Perks) staat in een kolom zonder lijnen. `tbStaat` kijkt of alles uit
+  `tbEis` geleerd is.
+- **Mkuki:** Quick Hand, Twin Sweep, Soft Step onder elkaar; dan de rol (True Flight, links) of de worp (Second Spear,
+  rechts); Tumbling Spear eist ze allebei. **Bhubesi:** Long Breath; dan de woede (Blood Rush, The Pounce, links) of
+  overleven en sluipen (Fourth Life, Lion's Patience, rechts). Impungushe heeft geen `eis`, dus een rechte kolom.
+- **Tekenen:** `tbTakBouw` zet per boom de tiercijfers en de talents in het grid (rij en kolom inline). `tbLijnen` tekent
+  daarna een svg (`.tblijnen`) met de lijnen, gemeten met offsetLeft en offsetTop (de openingsanimatie is een schaal,
+  die telt zo niet mee): van de rand van het vak van het talent erboven (de ring met zijn naam, zodat de lijn niet door
+  de naam loopt) tot de rand van de ring eronder. Een speerschacht (`.tbschacht`, rood omwonden met `.vol`), drie
+  klauwhalen of een spoor van pootjes, met `.vol` als het talent erboven geleerd is. `tbBijwerken` tekent ze opnieuw,
+  en bij een ander formaat ook.
+- **Perks** heeft een eigen ring, `TB_KRAAL` (een krans van zestien kralen, `boom.ring: 'kraal'`), en `TB_PUNT.kraal`.
+- **De ringmaat** `--tbr` volgt het aantal rijen van de tribe-boom (`--tbrijen`, gezet in `tribeBoomToon`) en de
+  hoogte; op een scherm lager dan 450 px een eigen rekensom en geen stand onder de namen (die staat in het venster).
+- **Welke boom het venster toont:** `tbAlg` (true bij Perks) met `tbSel`; `tbKies(i, alg)`, `tbKlik(i, alg)`. `tbTribe()`
+  is de boom van het venster, `tbEigen()` die van je tribe, `tbRun(t)` de stand van boom t (bij `tbKijk` zonder perks).
+  `tribeBoomToon` begint bij een open talent, in Perks als de aanroeper `tbAlg` zette (na een level waarin daar het
+  punt binnenkwam). Pijltjes: op en neer langs een boom, links naar je tribe, rechts naar Perks.
 
 ## T-splitsing in de talent tree
 
@@ -74,18 +103,19 @@ die een losse speer). Is `jav` leeg, dan schuift `jav2` door. Getekend met `jav2
 in `TB_TEKEN` (`icoon: null`). In de sandbox onder Speer en spullen, bij Tribe Mkuki, en als level **Test 64: De tweede speer** (`TEST_64`: de
 oefendoelen en de volle rug van Test 60 met `rolWorpProef`, `rugMax: 3`, en daarna vijanden die om twee speren vragen).
 
-## De algemene boom: The Road
+## De algemene boom: Perks (eerst The Road)
 
 Een tweede boom naast die van je tribe, met talents die bij geen tribe horen. `TRIBE_CONFIG.algemeen` (geen tribe: hij
 staat niet in `tribes` en dus niet op het keuzescherm), en `TRIBE_CONFIG.bomen` is de tribes plus deze, voor alles wat
-over alle talents loopt (`abilityVan`, `tribeLijst`, `talentKeuzeBouw`, de foutafhandeling van de plaatjes). Hij heeft
-nog geen logo op schijf: `ALG_LOGO` is een getekende weg met een speer, `boomLogo(t)` kiest.
+over alle talents loopt (`abilityVan`, `tribeLijst`, `talentKeuzeBouw`, de foutafhandeling van de plaatjes). Hij heette
+The Road; nu Perks, met perk points. Hij heeft nog geen logo op schijf: `ALG_LOGO` is een getekende weg met een speer,
+`boomLogo(t)` kiest (in de boom zelf staat geen logo boven Perks).
 
 - **Talents:** Thorn Breaker (hoorde bij Mkuki, de rest van Mkuki is een plek opgeschoven), Breaker (`treffers`, in
   `tonRaak` met de derde parameter `amir`: alleen een klap van Amir, een vallende ton in `tonLandt` niet) en Keen Eye
   (`bereik`, `bereikOnzichtbaar`, in Amir; `scherpOogTeken` vanuit `zegelTeken`: een verstopt zegel glinstert, een
   onzichtbaar zwakker en van dichterbij). Breaker en Keen Eye hebben nog geen houten plaatje: het teken in `TB_TEKEN`.
-- **Vrij:** `vrij: true`, geen volgorde (`tbStaat` slaat de eis van het vorige talent over), in het venster "Any order".
+- **Vrij:** `vrij: true`, geen volgorde (`tbEis` geeft niets), in het venster "Perks, any order".
 - **Punten:** een eigen soort, `RUN.algPunten`, na het uitspelen van level `algLevels` (1, 3 en 5) van de episode
   (`tribeNaLevel`, met `levelIdx`); `RUN.algGehaald` onthoudt welke levels er al een gaven, zodat opnieuw spelen er geen
   tweede geeft. Geleerd staat in `RUN.alg`; `tribeLijst` geeft `RUN.abilities` plus `RUN.alg`. Alles blijft tot
@@ -93,9 +123,8 @@ nog geen logo op schijf: `ALG_LOGO` is een getekende weg met een speer, `boomLog
 - **De munt van de koning:** een vrij punt, `RUN.vrij`, uit te geven in de boom die je wilt. `tbRun` telt het bij de
   punten van beide bomen; `tbKlik` gebruikt eerst het eigen punt van de boom, dan het vrije. Er komt er alleen een bij
   als er in de twee bomen samen nog iets te leren valt (`tbRuimte`).
-- **Het scherm:** dezelfde boom (`tribeBoomToon`), met `tbAlg` voor welke boom in beeld staat. De knop `#tbwissel`
-  bovenaan wisselt (`tbWissel`, `tbAndere`) en gloeit (`.punt`) als daar nog een punt klaarligt. `tbMoetIn` zegt of er
-  nog ergens een punt uit te geven is; zolang dat zo is blijft Continue dicht ("Choose a talent in The Road"). Na een
-  level opent de boom waar het punt binnenkwam, de tribe eerst. Tijdens het kiezen van een tribe (`tbKijk`) is er geen
-  wisselknop.
+- **Het scherm:** rechts naast de boom van je tribe (zie "Het scherm: twee bomen naast elkaar"); de wisselknop van
+  eerst is weg. `tbMoetIn` zegt of er nog ergens een punt uit te geven is; zolang dat zo is blijft Continue dicht
+  ("Choose a talent" of "Choose a perk"). Is het punt van de ene boom op en ligt er in de andere nog een, dan springt de
+  focus daarheen (`tbKlik`).
 - **Sandbox:** onder Speer en spullen, de rij Algemeen.

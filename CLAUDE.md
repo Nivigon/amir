@@ -195,7 +195,8 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de aanvoerder en de eindpoort: een level dat eindigt op een kill of door een poort | `AANV`, `aanvoerderDood`, `eindPoorten`, `aanvKlem` | notities/episodes.md |
 | goudaapje: het kleine gouden aapje en de arena (arena, regel 12) | `GAAP`, `gaapSpawn`, `updateGoudapen` | notities/goudaapje.md |
 | het mes: Jackal Fang van Impungushe | `MES`, `mesInHand`, `mesTeken` | notities/mes.md |
-| de algemene boom (The Road): talents voor elke tribe, een punt na level 1, 3 en 5, de munt als vrij punt | `TRIBE_CONFIG.algemeen`, `RUN.alg`, `tbAlg`, `tbWissel`, `scherpOogTeken` | notities/tribes.md |
+| de algemene boom (Perks, eerst The Road): talents voor elke tribe, rechts naast de tribe-boom, een punt na level 1, 3 en 5, de munt als vrij punt | `TRIBE_CONFIG.algemeen`, `RUN.alg`, `tbAlg`, `tbEigen`, `scherpOogTeken` | notities/tribes.md |
+| talent tree: twee bomen naast elkaar (tribe links, Perks rechts, het venster ertussen), van boven naar beneden, takken met `eis` en `kant` | `tbEis`, `tbRij`, `tbTakBouw`, `tbLijnen`, `TB_KRAAL` | notities/tribes.md |
 | T-splitsing in de talent tree | `varianten`, `TRIBE_CONFIG`, `tbSplit` | notities/tribes.md |
 | Feign Death | `SCHIJN`, `schijnDoodVang`, `hurtPlayer` | notities/wegwijzers.md |
 | lichtkaart: het licht onder de grond | `LK`, `drawLichtkaart` | notities/lichtkaart.md |
@@ -220,7 +221,9 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | achter de kartels: wie op een dak in de stad staat, staat achter de tanden | `STAD_KANTEEL`, `dakAchter`, `stadKanteelVoor` | notities/stad.md |
 | de stadstrap: een buitentrap achter een huis langs, E en een fade | `STAD_TRAP`, `stadTrapE`, `stadInGevecht` | notities/stad.md |
 | deurgordijnen: een geweven doek in het deurgat in plaats van de houten deur, golft in de wind, binnen gespiegeld; per gevel `gordijn`, of `stad.gordijnen: true` voor een vaste keuze per huis | `GORDIJN`, `stadGordijn`, `gordijnDoek`, `stadGordijnTeken`, `binnenGordijnTeken` | notities/gordijnen.md |
-| huistypes: andere gevels (reliefhuis, koopmanshuis, pilarenhuis) met `soort`, ook in de Maker | `STAD.gevelSoort`, `stadGevelG`, `MK_GEVEL_TYPES` | notities/stad.md |
+| huistypes: andere gevels (reliefhuis, koopmanshuis, pilarenhuis, vervallen huis, torenhuis, twee ruines zonder dak, het winkelhuis zonder deur) met `soort`, ook in de Maker | `STAD.gevelSoort`, `stadGevelG`, `stadGeenDak`, `stadGeenDeur`, `MK_GEVEL_TYPES` | notities/stad.md |
+| balkon: een ingebouwd balkon in een gevel, de nis met een dichte deur of de doorkijk in de hoek (`balkon` in een gevel) | `STAD_BALKON`, `stadBalkonMaat`, `stadBalkonTeken` | notities/stad.md |
+| accenten: de takel met een mand in de wind, andere ramen op het oude huis, en `stad.accenten` die per seed zelf kiest | `STAD_TAKEL`, `STAD_RAMEN`, `stadAccenten`, `stadTakelTeken` | notities/stad.md |
 | deuren in de stad: een vijand die uit een deurgat van een gevel stapt | `STAD_DEUR`, `stadDeurMaat`, `stadDeurUpdate`, `mkDeurMaat` | notities/stad.md |
 | de doorgang: bij de opening van een trap op een galerij loopt het dek de diepte in, langs het huis | `STAD_DOORGANG`, `stadDoorgangen`, `stadDoorgangBeeld` | notities/stad.md |
 | lift bij een galerij: het takelplateau voegt zich naar het eind van een galerij | `takelGalerijStap`, `mkLiftGalerij`, `galerij` | notities/stad.md |
@@ -261,6 +264,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | het weer: regen, onweer, zandstorm, sneeuw en sneeuwstorm | `WEER`, `weerDoel`, `updateWeer` | notities/wegwijzers.md |
 | vegetatie, water, doornbos | `props`, `water`, `thickets` | notities/wegwijzers.md |
 | water: één materiaal voor plas, poel, rivier, waterval en bron (palet, rimpels, glinsters, schuim, regenringen, geruis); proefstuk Test 67 | `WATER`, `waterTeken`, `waterVoorTeken`, `waterStap` | notities/water.md |
+| de brug: een houten brug over een rivier, de galerij van de stad op straathoogte, je loopt er droog over (`brug: true` op een rivier) | `BRUG`, `brugTeken`, `brugIn` | notities/water.md |
 | de fontein: een plaat van leem met het water erin, decor met de rand als trede; een steek in het water geeft een plons (sandbox, Fontein) | `WATER.soort.fontein`, `waterFonteinTeken`, `waterFonteinSlag` | notities/water.md |
 | schilden in de wind | `SCHILD`, `schildStofUpdate`, `schildTil` | notities/decor.md |
 | tonnen: houten tonnen die breken (drie treffers, Nyundo in een keer, een kalebas erin), ook op een dak of zwevende laag | `TON`, `tonRaak`, `tonBruut`, `tonPlekX`, `tonOp` | notities/tonnen.md |
@@ -295,6 +299,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | golvende rand: terreinmassa's met een organische omtrek | `GOLF`, `golfAan`, `golfGrondTeken`, `golfTerrasTeken` | notities/golf.md |
 | de kit van Amir verbeteren: takenlijst met cijfers per onderdeel; bij "verbeter Amir kit" de lijst tonen, de opdrachtgever kiest, afstrepen | `kit-lijst`, `G1`, `L1`, `M2` | notities/kit-verbeteren.md |
 | de stad verbeteren: werklijst met cijfers en stappen; bij "stadsverbetering" eerst 3 suggesties, de opdrachtgever kiest | `stadsverbetering`, `S1`, `L1`, `V1` | notities/stad-verbeteren.md |
+| de derde slag: drie steken kort na elkaar, de derde is een draaislag die dubbel telt (Test 68, de sandboxknop Combo) | `COMBO`, `comboStart`, `comboStap`, `atkCombo` | notities/combo.md |
 | ideeën voor de kit van Amir: basis, tribe-ability of talent; stof in de ogen (gebukt F vasthouden, de veeg met eigen animatie en geluid) | `STOF`, `STOFA`, `stofStap`, `stofWerp`, `stofDwaal` | notities/kit-ideeen.md |
 | sandbox | de vrije testmodus |  |
 
@@ -333,12 +338,13 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `camera` | `true` of `{voor, verken, vecht, telefoon}`: de meekijkende camera. Vooruitkijken in de looprichting, en op een laptop 0,75 onderweg en 0,8 in een gevecht; een telefoon houdt 0,8 en kijkt minder ver vooruit. Gaat boven `view`; in een arena neemt de arena-camera het over en geldt `view`. De standaard voor een nieuw level (Test 51 tot en met 55 en de Maker); in de sandbox de knop Meekijken (`CAM`, `camUpdate`) |
 | `worp` | `'schaal'` zet de schaalworp aan: de hoek loopt op zolang je vasthoudt, van vlak tot 30 graden (`THR_HOEK_MAX`); zonder dit veld de twee trappen. In de sandbox de knop Worp onder Speerworp |
 | `stof` | `true`: stof in de ogen, gebukt F vasthouden veegt stof naar een bandiet die Amir aankijkt; even blind, de volgende treffer telt dubbel (alleen Test 63, zie `notities/kit-ideeen.md`) |
+| `combo` | `true`: de derde slag, drie steken kort na elkaar en de derde is een draaislag die dubbel telt (alleen Test 68, zie `notities/combo.md`) |
 | `schild` | `true`: Amir heeft een schild, C (of de schildknop) houdt het op; het vangt alles van voren en net op tijd is het een parade (alleen Test 56, zie `notities/schild.md`) |
 | `rand` | `true`: het level begint aan de rand. Geen rotswand en hut aan de start, de rechtergrens ligt `RAND.ruimte` (320) achter de start (een getal in plaats van `true` is die ruimte zelf) en de camera kijkt niet voorbij die grens (`randCam`, in `camUpdate`). De standaard voor elk nieuw level (Stad 1); de bestaande levels hebben het niet |
 | `speerInHand` | `true`: Amir begint met de speer in de hand in plaats van hem voor zich uit de grond te pakken; de Level Maker nieuwstijl zet dit in elk level, de echte episodes hebben het niet |
 | `executie` | `true`: elke dodelijke steek, worp of lage zwaai op een schildbandiet is de executie, in plaats van 1 op 5 en 1 op 3 (alleen Test 50, zie `notities/schildbandiet.md`) |
 | `herhaal` | `true`: is de laatste schildbandiet weg (na de executie of de gewone dood), dan komt er na `EXE.herhaalWacht` een nieuwe aanwandelen, net buiten beeld voor Amir uit, met de vlaggen van de eerste schildman-spawn (alleen Test 50, `exeHerhaalStap`) |
-| `wateren` | het water van `WATER`: `[{k, x, w}]`, `k` is `plas`, `poel`, `rivier`, `val` (van de rechterkant van een terras op `x`) of `bron` (met `hoog` in Amir); een poel en rivier laten je waden zoals de oude `water` (zie `notities/water.md`). Alleen Test 67 |
+| `wateren` | het water van `WATER`: `[{k, x, w}]`, `k` is `plas`, `poel`, `rivier`, `val` (van de rechterkant van een terras op `x`) of `bron` (met `hoog` in Amir); een poel en rivier laten je waden zoals de oude `water`, een rivier met `brug: true` krijgt een houten brug waar je droog overheen loopt (zie `notities/water.md`). Alleen Test 67 |
 | `vredig` | `true`: geen vijanden, en ook geen vrije slangen of kalebassen die het spel anders bij lege `spawns` stuurt (Test 67) |
 | `rocks` | keien om op te springen: `{x, s}` |
 | `tonnen` | houten tonnen die breken: `{x, y, f, kalebas}`, of `put`/`luifel`/`kraam` met `a` (Amir van die put, losse luifel of kraam) in plaats van `x`; hoger op met `dak` (een dak of galerij van de stad, met `a` vanaf het midden van dat dak) of `zwever: true` (zie `notities/tonnen.md`) |

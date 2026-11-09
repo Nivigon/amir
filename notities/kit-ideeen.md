@@ -14,7 +14,7 @@ voelt lame. De rol-worp als finisher voelt juist goed.
   passen.
 - De tribes blijven fysiek en geloofwaardig: geen magie bij Mkuki (terugroepen van de speer viel daarom af).
 
-## De algemene boom (The Road): wat er nog bij kan
+## De algemene boom (Perks, eerst The Road): wat er nog bij kan
 
 Gebouwd met drie talents (Thorn Breaker, Breaker, Keen Eye; zie "De algemene boom" in `notities/tribes.md`). Met drie
 punten (na level 1, 3 en 5) en drie talents heb je ze na level 5 allemaal; pas met een vierde wordt het kiezen. Ideeen
