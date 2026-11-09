@@ -17,7 +17,8 @@ drie kolommen, staand twee met het venster eronder.
   in `tbWanneer`). Een vrije boom (`vrij`, Perks) staat in een kolom zonder lijnen. `tbStaat` kijkt of alles uit
   `tbEis` geleerd is.
 - **Mkuki:** Quick Hand, Twin Sweep, Soft Step onder elkaar; dan de rol (True Flight, links) of de worp (Second Spear,
-  rechts); Tumbling Spear eist ze allebei. **Bhubesi:** Long Breath; dan de woede (Blood Rush, The Pounce, links) of
+  rechts); Tumbling Spear eist ze allebei, en Third Spear (rechts, onder Second Spear) eist alleen Second Spear. Zo
+  blijft Mkuki op vijf rijen, met in rij V drie talents naast elkaar. **Bhubesi:** Long Breath; dan de woede (Blood Rush, The Pounce, links) of
   overleven en sluipen (Fourth Life, Lion's Patience, rechts). Impungushe heeft geen `eis`, dus een rechte kolom.
 - **Tekenen:** `tbTakBouw` zet per boom de tiercijfers en de talents in het grid (rij en kolom inline). `tbLijnen` tekent
   daarna een svg (`.tblijnen`) met de lijnen, gemeten met offsetLeft en offsetTop (de openingsanimatie is een schaal,
@@ -26,8 +27,8 @@ drie kolommen, staand twee met het venster eronder.
   klauwhalen of een spoor van pootjes, met `.vol` als het talent erboven geleerd is. `tbBijwerken` tekent ze opnieuw,
   en bij een ander formaat ook.
 - **Perks** heeft een eigen ring, `TB_KRAAL` (een krans van zestien kralen, `boom.ring: 'kraal'`), en `TB_PUNT.kraal`.
-- **De ringmaat** `--tbr` volgt het aantal rijen van de tribe-boom (`--tbrijen`, gezet in `tribeBoomToon`) en de
-  hoogte; op een scherm lager dan 450 px een eigen rekensom en geen stand onder de namen (die staat in het venster).
+- **De ringmaat** `--tbr` volgt het aantal rijen van de langste boom, de tribe of Perks (`--tbrijen`, gezet in
+  `tribeBoomToon`; Perks heeft er vier, Bhubesi drie) en de hoogte; op een scherm lager dan 450 px een eigen rekensom en geen stand onder de namen (die staat in het venster).
 - **Welke boom het venster toont:** `tbAlg` (true bij Perks) met `tbSel`; `tbKies(i, alg)`, `tbKlik(i, alg)`. `tbTribe()`
   is de boom van het venster, `tbEigen()` die van je tribe, `tbRun(t)` de stand van boom t (bij `tbKijk` zonder perks).
   `tribeBoomToon` begint bij een open talent, in Perks als de aanroeper `tbAlg` zette (na een level waarin daar het
@@ -111,7 +112,8 @@ over alle talents loopt (`abilityVan`, `tribeLijst`, `talentKeuzeBouw`, de fouta
 The Road; nu Perks, met perk points. Hij heeft nog geen logo op schijf: `ALG_LOGO` is een getekende weg met een speer,
 `boomLogo(t)` kiest (in de boom zelf staat geen logo boven Perks).
 
-- **Talents:** Thorn Breaker (hoorde bij Mkuki, de rest van Mkuki is een plek opgeschoven), Breaker (`treffers`, in
+- **Talents:** Full Circle (`full_circle`: de derde slag, standaard een terugslag, telt ook dubbel, zie
+  `notities/combo.md`; vier perks voor drie punten, dus een echte keuze), Thorn Breaker (hoorde bij Mkuki, de rest van Mkuki is een plek opgeschoven), Breaker (`treffers`, in
   `tonRaak` met de derde parameter `amir`: alleen een klap van Amir, een vallende ton in `tonLandt` niet) en Keen Eye
   (`bereik`, `bereikOnzichtbaar`, in Amir; `scherpOogTeken` vanuit `zegelTeken`: een verstopt zegel glinstert, een
   onzichtbaar zwakker en van dichterbij). Breaker en Keen Eye hebben nog geen houten plaatje: het teken in `TB_TEKEN`.

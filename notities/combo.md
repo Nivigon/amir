@@ -5,12 +5,14 @@ de camera), de speer gaat in een cirkel over zijn hoofd en slaat voor hem neer t
 met de speer in een hand achter zich en de vrije hand naar voren. Een beloning voor ritme: hij telt dubbel en geeft
 een flits op de treffer.
 
-Aan met `combo: true` in een level (alleen Test 68) of de knop **Combo** in de sandbox (bij Stof). Grep: `COMBO`,
-`comboStart`, `comboStap`, `comboKan`, `atkCombo`, `comboSoort`, `comboTerugNu`.
+Standaard aan, in elk level (`readLevel`: `combo` is waar tenzij een level `combo: false` zet) en in de sandbox (de knop
+**Combo** bij Stof begint op terugslag). De standaard is de terugslag; de perk **Full Circle** (`full_circle` in
+`TRIBE_CONFIG.algemeen`) maakt er `beide` van: ver terug en dubbel. Grep: `COMBO`, `comboStart`, `comboStap`, `comboKan`,
+`atkCombo`, `comboSoort`, `comboTerug`, `comboDubbel`, `comboTerugNu`.
 
-## Twee soorten: terugslag of schade
+## Drie soorten: terugslag, schade of beide
 
-Welke derde slag beter is (controle of schade) proberen we uit. `comboSoort()` geeft er een:
+`comboSoort()` geeft er een; `comboTerug()` (terugslag of beide) en `comboDubbel()` (schade of beide) zeggen wat hij doet:
 
 - **Terugslag**: de slag telt enkel, maar zet de vijand ver terug. Een bandiet krijgt `COMBO.terug.v` (1500 px/s, dooft uit
   tot zo'n 380 px) in plaats van `BAN_KNOCK`, staat `COMBO.terug.rust` (1,2 s) stil en komt dan in `COMBO.terug.traag`
@@ -19,11 +21,13 @@ Welke derde slag beter is (controle of schade) proberen we uit. `comboSoort()` g
   (`s.naTerug`, `s.stil`). Kei en ravijn houden hem tegen (regel 7, via `banMove` en `schbMove`). Op de treffer een
   stofwolk in plaats van de ster van de crit, en een doffe houtklap (`houtRaak` op `COMBO.terug.toon`, 0,75): de schacht
   op zijn lijf. Later misschien met de speer omgedraaid (zie de bijlage in `notities/kit-verbeteren.md`).
-- **Schade**: de slag telt dubbel (`critNu`), met de ster, zoals hij eerst was.
+- **Schade**: de slag telt dubbel (`critNu`), met de ster, zoals hij eerst was. Alleen in Test 68 en de sandbox.
+- **Beide**: wat de perk Full Circle geeft. De terugslag en dubbel, met de stofwolk, de houtklap en de ster.
 
 Test 68 heeft `comboKeuze: true`: aan het begin en na elke R (`opnieuw`) staat het scherm van `duoKeuze` open met alleen
-de rij Derde slag (`dkcombo`, bewaard in `amir.duoKeuze`). Een level met `combo` zonder `comboKeuze` krijgt schade. In de
-sandbox wisselt de knop Combo rond: uit, terugslag, schade (`sbComboSoort`). De terugslag werkt nu op de bandiet en de
+de rij Derde slag (`dkcombo`, bewaard in `amir.duoKeuze`); daar telt Full Circle niet mee, zodat je de twee kunt vergelijken.
+Elk ander level krijgt de terugslag, of beide met Full Circle. In de sandbox wisselt de knop Combo rond: uit, terugslag,
+schade, beide (`sbComboSoort`). De terugslag werkt nu op de bandiet en de
 schildbandiet (de vijanden van Test 68); bij andere vijanden telt hij gewoon als een treffer.
 
 ## Zo telt hij
