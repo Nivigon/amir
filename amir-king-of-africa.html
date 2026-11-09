@@ -1540,6 +1540,7 @@
       <div class="row">
         <label>Stof in de ogen</label>
         <button id="sbstof" title="X: Amir veegt stof op naar een vijand die hem aankijkt (nu alleen de bandiet). Hij is even blind en de volgende treffer telt dubbel.">Stof (X): uit</button>
+        <button id="sbstofhoud" title="Stof op de knop van de lage zwaai: gebukt F tikken is de zwaai, vasthouden is stof. X doet dan niets.">Knop: X</button>
       </div>
       <div class="row">
         <label>Reserve op de rug</label>
@@ -3189,7 +3190,9 @@ let swFrame = -1, swAcc = 0, sweepId = 0, swRecover = 0;
 // (in hitBandiet). De veeg zelf raakt niets: alleen stofWerp verblindt. Zie notities/kit-ideeen.md.
 // koel: zoveel seconden na het stof voor het weer kan (stofKoel, de tegel #stofhud en de ring om de telefoonknop).
 // Blind is 3,5 s met een dubbele treffer erna, dus ongeveer een keer per gevecht, niet bij elke vijand opnieuw.
-const STOF = { aan: false, werpFrame: 9, bereik: 420, duur: 4, dwaal: 0.22, dwaalBreed: 110, wolk: 14, koel: 8 };
+// houd: stof zit op de knop van de lage zwaai (L1 uit notities/kit-verbeteren.md): gebukt F tikken is de zwaai,
+// vasthouden (houdT seconden) is stof, en X doet dan niets. Aan met stofHoud: true in het level of de sandboxknop.
+const STOF = { aan: false, houd: false, houdT: 0.22, werpFrame: 9, bereik: 420, duur: 4, dwaal: 0.22, dwaalBreed: 110, wolk: 14, koel: 8 };
 // De animatie: karakters/amir/aanval/stofsweep (metadata.json), 14 frames uit een Grok-clip, kijkt naar links.
 // Maten in canvas-px; STOFA.schaal zet ze om naar sprite-eenheden (zijn hoofd is hier 53 px, in idle_ns 49).
 // De standvoet blijft de hele veeg op zijn plek; het lijf eindigt STOFA.ANKER - STOFA.EIND px verder naar voren,
@@ -3262,8 +3265,19 @@ function stofStart(){
   duckT = 0;
   return true;
 }
+// Stof op de knop van de lage zwaai (STOF.houd). Gebukt F indrukken onthoudt hij in zwaaiHoud: laat je los voor
+// STOF.houdT, dan is het de lage zwaai (zwaaiNu), hou je vast, dan gaat het stof. Kan stof nu niet (afkoeling, geen
+// speer), dan gaat de zwaai gewoon meteen bij het indrukken af, zonder te wachten.
+let zwaaiHoud = null;
+function stofHoudKan(){ return STOF.aan && STOF.houd && stofKoel <= 0 && spear && onGround && !jump && !stofA; }
+function zwaaiNu(){
+  if (swFrame < 0 && atkCooldown <= 0 && onGround && !stofA && sweepReady()){
+    if (swLading >= 1) startSweep(); else sweepLeeg();
+  }
+}
 function stofStap(dt){                          // elk beeld: de afkoeling, de frames, het geluid, het werpmoment en het eind
   if (stofKoel > 0) stofKoel = Math.max(0, stofKoel - dt);
+  if (zwaaiHoud && bavKlok - zwaaiHoud.t >= STOF.houdT * 1000){ zwaaiHoud = null; stofStart(); }   // lang genoeg vast: stof
   stofHud();
   if (!stofA) return;
   if (dead || hurt > 0 || fell || jump || !onGround){ stofA = null; return; }
@@ -18746,6 +18760,12 @@ function thrStop(){
   return (bavKlok - thrPressT >= THR_CHARGE * 1000) ? THR_WIND : THR_DRAW1;
 }
 function thrRelease(cancel){
+  if (zwaaiHoud){                                  // gebukt losgelaten voor het stof kwam: een tik is de lage zwaai
+    const kort = bavKlok - zwaaiHoud.t < STOF.houdT * 1000;
+    zwaaiHoud = null;
+    if (kort && !cancel) zwaaiNu();
+    return;
+  }
   if (!thr) return;
   const tik = bavKlok - thrPressT < THR_TAP * 1000;
   if ((cancel || tik) && thr.frame <= THR_WIND && !thr.gone && thr.held){   // een worp die al loopt (ook de tweede) gaat door
@@ -20892,9 +20912,8 @@ function startAttack(){
   if (duckT > 0){                                // gebukt: lage zwaai in plaats van een stoot
     if (!spear && mesInHand()){ flashHint('Met het mes kun je niet laag uithalen: daar is je speer voor'); return; }
     if (!spear){ flashHint(spearFound ? 'Zet eerst de speer aan met E' : 'Pak eerst je speer op: ga erbij staan en druk op E'); return; }
-    if (swFrame < 0 && atkCooldown <= 0 && onGround && !stofA && sweepReady()){
-      if (swLading >= 1) startSweep(); else sweepLeeg();
-    }
+    if (atkKeyHeld && stofHoudKan()){ zwaaiHoud = { t: bavKlok }; return; }   // stof op de zwaaiknop: eerst kijken of hij vasthoudt
+    zwaaiNu();
     return;
   }
   if (atkCooldown > 0) return;                   // still recovering
@@ -20949,7 +20968,7 @@ addEventListener('keydown', e => {
     flashHint('Lichtsterkte ' + LICHT.sterkte.toFixed(1).replace('.', ','));
     return;
   }
-  if ((e.key === 'x' || e.key === 'X') && STOF.aan){ if (!e.repeat) stofStart(); return; }   // stof in de ogen (sandbox, zie STOF)
+  if ((e.key === 'x' || e.key === 'X') && STOF.aan && !STOF.houd){ if (!e.repeat) stofStart(); return; }   // stof in de ogen (sandbox, zie STOF)
   if (e.key === ' ' || e.key === 'f' || e.key === 'F'){
     e.preventDefault();
     if (e.repeat || atkKeyHeld) return;          // holding the key does not re-fire
@@ -30233,8 +30252,8 @@ function restart(){
     SLANG_EEN_KLAP = !!(level && level.slangEenKlap);   // slangen (ook de fosforslang) in een klap dood, ook met de balk aan
   }
   if (!sandbox) ZICHT_AAN = !!(level && level.zicht);   // vijanden zien je alleen als er niets tussen zit (zie "zicht"); de sandbox met een knop
-  if (!sandbox){ STOF.aan = !!(level && level.stof) || stofVanTribe(); } stofA = null; stofKoel = 0;
-  if (!hintEl.classList.contains('gone')) hintEl.textContent = HINT_START.replace(', Q drinken', STOF.aan ? ', X stof in de ogen, Q drinken' : ', Q drinken');   // stof in de ogen (zie STOF): X, met stof: true in het level of met Mkuki
+  if (!sandbox){ STOF.aan = !!(level && level.stof) || stofVanTribe(); STOF.houd = !!(level && level.stofHoud); } stofA = null; stofKoel = 0; zwaaiHoud = null;
+  if (!hintEl.classList.contains('gone')) hintEl.textContent = HINT_START.replace(', Q drinken', STOF.aan ? (STOF.houd ? ', S+F vasthouden stof in de ogen, Q drinken' : ', X stof in de ogen, Q drinken') : ', Q drinken');   // stof in de ogen (zie STOF): X, met stof: true in het level of met Mkuki
   if (!sandbox) SNEAK_AAN = !!(level && level.sneak && level.zicht);   // de sluipaanval (zie "sneak"), alleen met het zicht; de sandbox met een knop
   lawaaiPulsen.length = 0; lawaai = 0; sneakKills = 0; sneakRegie = null;   // en het lawaai en de regie van het vorige potje weg
   if (!sandbox) bloedAan = !!(level && level.bloed);   // de bloed-mechaniek (snedes + death-spuit) alleen als een level het veld bloed zet; de sandbox met een knop
@@ -46554,7 +46573,7 @@ const BALK = [
       const p = rolKlaar();
       return { zien: ROL.aan, klaar: p >= 1, p, sec: rol ? 0 : rolKoel };
     } },
-  { id: 'stof', toets: 'X', icoon: () => document.querySelector('#stoftegel svg').outerHTML, staat(){
+  { id: 'stof', toets: () => STOF.houd ? 'S+F vast' : 'X', icoon: () => document.querySelector('#stoftegel svg').outerHTML, staat(){
       const p = stofGereed();
       return { zien: STOF.aan, klaar: p >= 1, p, sec: stofKoel, dim: !spear || !!stofA };
     } },
@@ -53991,8 +54010,11 @@ function sbHppotion(drop){
 // zolang je vasthoudt. Zie THR_HOEK_MAX bij de speerworp.
 function stofKnopToon(){
   const b = document.getElementById('sbstof'); if (!b) return;
-  b.textContent = 'Stof (X): ' + (STOF.aan ? 'aan' : 'uit'); b.classList.toggle('on', STOF.aan);
+  b.textContent = 'Stof (' + (STOF.houd ? 'S+F vast' : 'X') + '): ' + (STOF.aan ? 'aan' : 'uit'); b.classList.toggle('on', STOF.aan);
+  const h = document.getElementById('sbstofhoud');
+  if (h){ h.textContent = 'Knop: ' + (STOF.houd ? 'S+F vasthouden' : 'X'); h.classList.toggle('on', STOF.houd); }
 }
+document.getElementById('sbstofhoud').onclick = () => { STOF.houd = !STOF.houd; zwaaiHoud = null; stofKnopToon(); hudToon(); cv.focus(); };
 document.getElementById('sbstof').onclick = () => { STOF.aan = !STOF.aan; if (STOF.aan) stofLaad(); stofKnopToon(); cv.focus(); };
 document.getElementById('sbworp').onclick = e => {
   sbWorpSchaal = !sbWorpSchaal;
@@ -54498,7 +54520,7 @@ function btnVisible(b){
   if (b.when === 'pickup') return eNodig();        // alleen als er iets met E te doen is: speer, deur, skelet
   if (b.when === 'woede') return heeftWoede();
   if (b.when === 'rol') return ROL.aan;
-  if (b.when === 'stof') return STOF.aan;
+  if (b.when === 'stof') return STOF.aan && !STOF.houd;   // stof op de zwaaiknop: geen eigen knop
   if (b.when === 'schild') return SCHILD_AAN;      // alleen met een schild     // alleen met de woedemeter (Long Breath of Blood Rush)
   return true;
 }
