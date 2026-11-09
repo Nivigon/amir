@@ -1563,7 +1563,7 @@
       <div class="row">
         <label>Stof in de ogen</label>
         <button id="sbstof" title="Gebukt F vasthouden: Amir veegt stof op naar een vijand die hem aankijkt. Hij is even blind en de volgende treffer telt dubbel. Gebukt F tikken blijft de lage zwaai.">Stof: uit</button>
-        <button id="sbcombo" title="Drie steken kort na elkaar: de derde is een draaislag. Rond: uit, terugslag (telt enkel, zet de vijand ver terug) en schade (telt dubbel, met een flits op de treffer). Druk tijdens de tweede steek nog een keer en hij gaat er direct in over.">Combo: uit</button>
+        <button id="sbcombo" title="Drie steken kort na elkaar: de derde is een draaislag. Standaard aan als terugslag. Rond: uit, terugslag (telt enkel, zet de vijand ver terug), schade (telt dubbel, met een flits op de treffer) en beide (wat het talent Full Circle van Mkuki geeft). Druk tijdens de tweede steek nog een keer en hij gaat er direct in over.">Combo: uit</button>
       </div>
       <div class="row">
         <label>Reserve op de rug</label>
@@ -2628,7 +2628,17 @@ const TRIBE_CONFIG = {
         { id: 'tumbling_spear', eis: ['true_flight', 'second_spear'], naam: 'Tumbling Spear', icoon: null,   // nog geen houten plaatje: het teken in TB_TEKEN
           tekst: 'Second Spear works after a roll throw too: roll, throw, and the second one follows out of the landing.',
           // Een verbetering van Second Spear: hetzelfde venster, nu ook na de rol-worp (rolW.losT).
-          dubbel: true }
+          dubbel: true },
+        { id: 'full_circle', eis: ['true_flight'], kant: -1, naam: 'Full Circle', icoon: null,   // nog geen houten plaatje: het teken in TB_TEKEN
+          tekst: 'The third strike of a combo still knocks the enemy back, and now it hits hard too: it counts as two hits.'
+          // De derde slag (COMBO) is standaard een terugslag; met dit talent is hij 'beide' (comboSoort): ver terug en dubbel
+          // (critNu), met de ster van de crit op de treffer. Op een baas niet, net als True Flight. Links in rij V, onder True Flight.
+        },
+        { id: 'third_spear', eis: ['second_spear'], kant: 1, naam: 'Third Spear', icoon: null,   // nog geen houten plaatje: het teken in TB_TEKEN
+          tekst: 'Amir carries one more spear on his back: three spears to throw before he has to pick one up.',
+          // Zoveel reserve-speren extra op de rug (RUG_MAX, in restart), boven wat het level geeft (standaard 1, dus 1 in de
+          // hand en 2 op de rug). Een level zonder rug (rugMax: 0, geenSpeer) krijgt er ook met dit talent geen.
+          extra: 1 }
       ] },
     { id: 'bhubesi', naam: 'Bhubesi', titel: 'Tribe of the Lion', logo: 'design/tribes/bhubesi/logo.png',
       locked: false,
@@ -18026,8 +18036,16 @@ const COMBO = {
   terug: { v: 1500, rust: 1.2, traag: 1.2, traagV: 0.4, schb: 3, schbRust: 1.0, toon: 0.75 }
 };
 let sbComboSoort = 'terugslag';   // de sandbox: welke derde slag de knop Combo aanzet
-function comboSoort(){ return sandbox ? sbComboSoort : level && level.comboKeuze ? duoKeuze.combo : 'schade'; }
-function comboTerugNu(){ return atkCombo && atkFrame >= 0 && steekLive() && comboSoort() === 'terugslag'; }
+// De standaard is de terugslag. Met het talent Full Circle van Mkuki (full_circle) wordt het 'beide': hij duwt
+// weg en telt dubbel. De sandbox (de knop Combo, ook beide) en Test 68 (comboKeuze, om te vergelijken) kiezen zelf.
+function comboSoort(){
+  if (sandbox) return sbComboSoort;
+  if (level && level.comboKeuze) return duoKeuze.combo;
+  return tribeHeeft('full_circle') ? 'beide' : 'terugslag';
+}
+function comboTerug(){ return comboSoort() !== 'schade'; }     // de vijand ver terug (terugslag of beide)
+function comboDubbel(){ return comboSoort() !== 'terugslag'; } // de treffer telt dubbel (schade of beide)
+function comboTerugNu(){ return atkCombo && atkFrame >= 0 && steekLive() && comboTerug(); }
 let comboBank = null, atkCombo = false, comboTel = 0, comboSinds = 99, comboBuf = false, comboRaak = false;
 function comboLaad(){
   if (comboBank) return;
@@ -18061,8 +18079,8 @@ function comboStap(dt){
 }
 // de eerste treffer van de slag: de flits van True Flight op de speerpunt, en wat langer stil
 function comboTreffer(wx, h){
-  if (comboSoort() === 'terugslag'){ puffWorld(wx, 8, 0, 1.1, 0); houtRaak(COMBO.terug.toon, 1); }   // de schacht op zijn lijf: een doffe houtklap
-  else critFx(wx, h);
+  if (comboTerug()){ puffWorld(wx, 8, 0, 1.1, 0); houtRaak(COMBO.terug.toon, 1); }   // de schacht op zijn lijf: een doffe houtklap
+  if (comboDubbel()) critFx(wx, h);                 // dubbel: de ster van de crit
   hitstop = Math.max(hitstop, COMBO.stop); shake = Math.max(shake, COMBO.schok);
 }
 
@@ -31792,6 +31810,7 @@ function restart(){
   amirSchildReset();
   if (!sandbox) RUG_MAX = (level && level.rugMax != null) ? level.rugMax
     : (level && !level.geenSpeer) ? RUG_STANDAARD : 0;
+  if (!sandbox && RUG_MAX > 0) RUG_MAX += abilityWaarde('third_spear', 'extra', 0);   // Third Spear: een speer extra op de rug
   if (!sandbox){                                    // de health-balk alleen als een level het zet; de sandbox met een knop
     HP_BALK = (level && level.hpBalk) ? HP_BALK_LEVENS : 0;
     HP_BALK_SOORTEN = (level && Array.isArray(level.hpBalk)) ? level.hpBalk : null;   // een lijst = alleen die soorten de balk, de rest blijft één klap
@@ -45125,7 +45144,7 @@ function loop(now){
     // de geworpen speer: een vak rond de punt, net als de speerpunt bij de stoot
     const javR = 26 * scale;
     critNu = false;                                 // True Flight: een crit uit een vorig beeld telt niet meer
-    if (atkCombo && attacking && steekLive() && comboSoort() === 'schade') critNu = true;   // de derde slag: zijn treffer telt dubbel, net als een crit
+    if (atkCombo && attacking && steekLive() && comboDubbel()) critNu = true;   // de derde slag: zijn treffer telt dubbel, net als een crit
     // het raakvlak van een geworpen speer: een vak om de punt. De tweede speer (DUBBEL) raakt de eerste
     // DUBBEL.dichtT seconden ook alles tussen Amir en de punt: een vijand die na de eerste treffer meteen
     // terugstormt staat dan al voor de punt, en daar vloog de tweede eerst gewoon langs
@@ -47758,7 +47777,7 @@ function readLevel(txt){
            goud: !!o.goud,                              // een goudstuk per kill en een prijs in de winkel (zie "goud")
            munt: o.munt ? { x: Number(o.munt.x), y: o.munt.y == null ? null : Number(o.munt.y), vast: !!o.munt.vast } : undefined,   // de munt van de koning (zie "goud")
            stof: !!o.stof,                              // stof in de ogen: gebukt F vasthouden verblindt een bandiet die je aankijkt (zie STOF)
-           combo: !!o.combo,                            // de derde slag: drie snelle steken en de derde is een draaislag (zie COMBO)
+           combo: o.combo !== false,                    // de derde slag: drie snelle steken en de derde is een draaislag (zie COMBO); standaard aan, combo: false zet hem uit
            sneak: !!o.sneak,                            // de sluipaanval: een mens-vijand hoort je achter zijn rug in plaats van je te zien, en een treffer van achteren op wie je niet opmerkte is dodelijk (alleen met zicht, zie "sneak")
            executie: !!o.executie,                      // elke steek- en worp-kill op een schildbandiet is de executie (Test 50, zie "de executie")
            herhaal: !!o.herhaal,                        // na elke dode schildbandiet komt er een nieuwe aanwandelen (Test 50, zie exeHerhaalStap)
@@ -48631,6 +48650,10 @@ const TB_TEKEN = {
   // de tweede speer: twee speren naast elkaar, en twee speren boven een boog (de rol)
   second_spear: '<g stroke="#f3dfb8" stroke-width="3.5" stroke-linecap="round"><path d="M6 34 L30 10 M14 42 L38 18"/></g><path d="M36 4 L27 9 L31 13 Z M44 12 L35 17 L39 21 Z" fill="#f3dfb8"/>',
   tumbling_spear: '<g stroke="#f3dfb8" stroke-width="3" fill="none" stroke-linecap="round"><path d="M6 42 C10 30 22 28 26 36 C30 44 40 38 42 30"/></g><g stroke="#f3dfb8" stroke-width="3" stroke-linecap="round"><path d="M8 22 L26 6 M16 26 L34 10"/></g><path d="M31 3 L24 7 L27 10 Z M39 7 L32 11 L35 14 Z" fill="#f3dfb8"/>',
+  // de derde speer: drie speren in een waaier
+  third_spear: '<g stroke="#f3dfb8" stroke-width="3" stroke-linecap="round"><path d="M24 44 L24 14 M22 44 L10 18 M26 44 L38 18"/></g><path d="M24 4 L20 14 H28 Z M8 9 L7 19 L13 17 Z M40 9 L41 19 L35 17 Z" fill="#f3dfb8"/>',
+  // de derde slag: een speer in een cirkel, met een pijl in de draairichting
+  full_circle: '<g stroke="#f3dfb8" stroke-width="3" fill="none" stroke-linecap="round"><path d="M40 24 A16 16 0 1 1 30 9"/></g><path d="M27 3 L37 10 L27 15 Z" fill="#f3dfb8"/><g stroke="#f3dfb8" stroke-width="3.5" stroke-linecap="round"><path d="M14 34 L32 16"/></g><path d="M36 12 L29 15 L33 19 Z" fill="#f3dfb8"/>',
   // de algemene boom: een ton met een barst, en een oog met een glinstering
   breaker: '<g stroke="#f3dfb8" stroke-width="3" fill="none" stroke-linejoin="round"><path d="M14 8 C10 18 10 30 14 40 H34 C38 30 38 18 34 8 Z"/><path d="M12 16 H36 M12 32 H36"/></g><path d="M25 6 L21 18 L27 22 L22 34 L26 42" stroke="#3b2414" stroke-width="3" fill="none"/><path d="M25 6 L21 18 L27 22 L22 34 L26 42" stroke="#f3dfb8" stroke-width="1" fill="none" stroke-dasharray="2 3"/>',
   keen_eye: '<g stroke="#f3dfb8" stroke-width="3" fill="none" stroke-linecap="round"><path d="M4 26 C12 14 30 14 38 26 C30 38 12 38 4 26 Z"/></g><circle cx="21" cy="26" r="5.5" fill="#f3dfb8"/><path d="M40 4 L41.6 10.4 L48 12 L41.6 13.6 L40 20 L38.4 13.6 L32 12 L38.4 10.4 Z" fill="#f3dfb8"/>',
@@ -48843,8 +48866,9 @@ function tribeBoomToon(verder){
   document.getElementById('tbptitel').textContent = A.titel;
   document.getElementById('tbpnaam').textContent = tbBoom(A).kop;
   const rijen = tbTakBouw(document.getElementById('tbtak'), t, false);
-  tbTakBouw(document.getElementById('tbptak'), A, true);
-  document.getElementById('trunlock').style.setProperty('--tbrijen', Math.max(3, rijen));   // de ringmaat volgt de rijen
+  const prijen = tbTakBouw(document.getElementById('tbptak'), A, true);
+  // de ringmaat volgt de langste boom, de tribe of Perks
+  document.getElementById('trunlock').style.setProperty('--tbrijen', Math.max(3, rijen, prijen));
   // waar je op begint: het talent dat je nu kunt leren (in de boom van tbAlg eerst), anders het laatst geleerde
   const open = (boom) => tbLijst(boom).findIndex((a, i) => tbStaat(boom, i) === 'open');
   const volgorde = tbAlg ? [[A, true], [t, false]] : [[t, false], [A, true]];
@@ -53474,7 +53498,7 @@ function startSandbox(arena, gates){
   HP_BALK = 0; hpBalkToon();                            // en de health-balk (bandiet/kooiman 3 levens) begint uit
   ZICHT_AAN = false; zichtToon = false; zichtKnopToon();  // en het zicht (zie "zicht") ook
   STOF.aan = false; stofKnopToon();                     // en stof in de ogen
-  COMBO.aan = false; comboKnopToon();                   // en de derde slag
+  COMBO.aan = true; sbComboSoort = 'terugslag'; comboLaad(); comboKnopToon();   // de derde slag: standaard aan, als terugslag
   SNEAK_AAN = false; sneakToon = false; sbSneakRug = false; sbSneakDraai = 0; sbSneakPat = false; sneakKnopToon();   // en de sluipaanval (zie "sneak")
   document.getElementById('lives').style.display = sbArena ? '' : 'none';   // geen levens in de sandbox, wel in de arena-modus
   sbArenaCfg.aan = false;                                // de arena wacht op Start
@@ -56141,9 +56165,10 @@ function comboKnopToon(){
   const b = document.getElementById('sbcombo'); if (!b) return;
   b.textContent = 'Combo: ' + (COMBO.aan ? sbComboSoort : 'uit'); b.classList.toggle('on', COMBO.aan);
 }
-document.getElementById('sbcombo').onclick = () => {   // rond: uit, terugslag, schade
+document.getElementById('sbcombo').onclick = () => {   // rond: uit, terugslag, schade, beide (wat het talent Full Circle geeft)
   if (!COMBO.aan){ COMBO.aan = true; sbComboSoort = 'terugslag'; comboLaad(); }
   else if (sbComboSoort === 'terugslag') sbComboSoort = 'schade';
+  else if (sbComboSoort === 'schade') sbComboSoort = 'beide';
   else COMBO.aan = false;
   comboKnopToon(); cv.focus();
 };
