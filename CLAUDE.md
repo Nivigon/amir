@@ -186,6 +186,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | Episode De Belegerde Stad: zeven stadslevels, moeilijk tot extreem | `BEL_1`, `BEL_LEVELS`, `menuBel` | notities/episodes.md |
 | Episode De Gouden Poort: tien stadslevels, makkelijk tot mega, met goud, winkels en Nyundo | `GP_1`, `GP_LEVELS`, `menuGP`, `gpSpeel` | notities/episodes.md |
 | goud: een goudstuk per kill, de winkelprijs (5 goud) en de munt van de koning (een talentpunt extra) | `GOUD`, `goudKill`, `goudReset`, `muntE` | notities/episodes.md |
+| het gif en de inventory: de speer (15) en het gif (40) in de winkel, I voor vijf plekken, een gifspeer laat een mens elke 3 s een leven verliezen | `GIF`, `gifRaak`, `gifTik`, `invUIOpen`, `INV_MAX` | notities/gif.md |
 | de aanvoerder en de eindpoort: een level dat eindigt op een kill of door een poort | `AANV`, `aanvoerderDood`, `eindPoorten`, `aanvKlem` | notities/episodes.md |
 | goudaapje: het kleine gouden aapje en de arena (arena, regel 12) | `GAAP`, `gaapSpawn`, `updateGoudapen` | notities/goudaapje.md |
 | het mes: Jackal Fang van Impungushe | `MES`, `mesInHand`, `mesTeken` | notities/mes.md |
