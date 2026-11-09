@@ -565,7 +565,7 @@ Onder Episodes staat ook **De Gouden Poort**: tien stadslevels, van makkelijk to
 - **Sluipen.** Veel rovers staan met hun rug naar je toe, draaien zich af en toe om of lopen heen en weer. Wie bukt en van achteren komt, steekt ze in een keer neer. Zo kun je een gevecht overslaan.
 - **Anders eindigen.** Niet elk level eindigt bij de fakkels. Soms moet je een aanvoerder verslaan: hij heeft een eigen kleur, een kroontje en zijn naam boven zijn balk, en meer levens. In De Gouden Poort opent zijn dood het hek van de poort, en onder de boog door ga je met **E** het plein op, waar Nyundo wacht.
 - **De Stadsmuur** gaat de hoogte in: trap voor trap de oude muur op, over de kam, en aan de andere kant weer naar beneden.
-- **De Kroonwijk** heeft een eigen plattegrond: acht straten in de vorm van een kroon, met de kaart rechtsonder. Ergens in een van de punten zit kapitein Zaki.
+- **De Kroonwijk** heeft een eigen plattegrond: acht rechte straten in een raster, met de kaart rechtsonder. Elke straat komt aan beide kanten uit op een andere straat. Ergens in de wijk zit kapitein Zaki.
 - In het laatste level houden de rovers niet op met komen, er is geen winkel, en op de goudvorst zelf werkt de sluipaanval niet.
 ## Het decor staat een stap naar achteren
 

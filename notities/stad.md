@@ -434,12 +434,12 @@ In de sandbox onder De stad: **Winkel** en **Kamer ingericht**. De Gouden Poort 
 Een veld `straten` met `raster: true` (zie ook `notities/oaktown.md`): elke straat een eigen strook ver uit de buurt
 (`straatKlem`, `straatCamKlem`, `straatVijandKlem`, het aanvullen, de spawns per straat), met knooppunten: een poort de
 diepte in en een pad naar voren. Rechtdoor is gewoon de straat die doorloopt. Zo werken alle straten: Sandville, Oaktown
-(sinds 08-11-2026) en elk nieuw level met straten. De oude hoekpoort (`poort_hoek`) gaat eruit; alleen De Kroonwijk
-gebruikt hem nog tot die is omgezet. Twee straten in elkaars verlengde op dezelfde knoop (zoals in Oaktown) hebben geen
+(sinds 08-11-2026) en elk nieuw level met straten. De oude hoekpoort (`poort_hoek`) gaat eruit; sinds De Kroonwijk is
+omgezet (09-11-2026) gebruikt geen level hem nog. Twee straten in elkaars verlengde op dezelfde knoop (zoals in Oaktown) hebben geen
 uitgang tussen elkaar: je gaat via de straat die er dwars op ligt.
 
 **Alleen rechte straten.** Een straat is een rij of een kolom op de kaart: al zijn knopen liggen op dezelfde y (een rij)
-of dezelfde x (een kolom). Schuine straten, zoals de punten van De Kroonwijk nu, komen er niet meer bij; een raster kent
+of dezelfde x (een kolom). Schuine straten, zoals de punten van de oude Kroonwijk, komen er niet meer bij; een raster kent
 alleen links, rechts, de diepte in en naar voren, dus een schuine straat geeft geen goede poort of pad.
 
 ```
