@@ -320,7 +320,9 @@ Stap 3 van `notities/plan-stad-maker.md`. Onder Decor in de stand Stad: groep **
 
 **Uitzicht** in de balk (`#mkuitzicht`, `MK_UITZICHT`, `MK.uitzicht`, `mkUitzichtVan`): de achtergrond van het level,
 naar `lvl.lagen`. Vanzelf (`''`) is de stad (`stad_dag`) als er een stadsstuk in het grid staat (`mkHeeftStad`: een cel
-met `thema: 'stad'`), anders de gewone savanne in de avond. `basis` is die savanne-avond ook bij stadsstukken. Het gaat
+met `thema: 'stad'`), anders de gewone savanne in de avond. `basis` is die savanne-avond ook bij stadsstukken. Voor de
+stad zijn er ook `stad_middag`, `stad_avond` en `stad_nacht` (zie "De stad bij namiddag, avond en nacht" in
+`notities/stad.md`). Het gaat
 mee in de JSON (`uitzicht`, alleen als het gekozen is).
 
 ### De gekoppelde stukken: galerij en trap
