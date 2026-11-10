@@ -200,6 +200,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | multikill: kills binnen 3 s na elkaar zijn een reeks, een kraal per kill, Double, Triple of Multi Kill, een stinger en 1 goud extra; het levelrapport na het level (Test 70) | `MKILL`, `mkillKill`, `mkillStap`, `mkillRapport`, `mkStat` | notities/multikill.md |
 | het gif en de inventory: de speer (15) en het gif (40) in de winkel, I voor vijf plekken, een gifspeer laat een mens elke 3 s een leven verliezen | `GIF`, `gifRaak`, `gifTik`, `invUIOpen`, `INV_MAX` | notities/gif.md |
 | de aanvoerder en de eindpoort: een level dat eindigt op een kill of door een poort | `AANV`, `aanvoerderDood`, `eindPoorten`, `aanvKlem` | notities/episodes.md |
+| de razernij van de aanvoerder: een meter die oploopt, dan razend (ontwijken, niet aanvallen), dan uitgeput; met `schaduw` onzichtbaar met een stofspoor (De Rivierstad) | `RAZ`, `razStap`, `razSchaduw`, `razMeterTeken` | notities/bandiet.md |
 | goudaapje: het kleine gouden aapje en de arena (arena, regel 12) | `GAAP`, `gaapSpawn`, `updateGoudapen` | notities/goudaapje.md |
 | het mes: Jackal Fang van Impungushe | `MES`, `mesInHand`, `mesTeken` | notities/mes.md |
 | de algemene boom (Perks, eerst The Road): talents voor elke tribe, rechts naast de tribe-boom, een punt na level 1, 3 en 5, de munt als vrij punt | `TRIBE_CONFIG.algemeen`, `RUN.alg`, `tbAlg`, `tbEigen`, `scherpOogTeken` | notities/tribes.md |
