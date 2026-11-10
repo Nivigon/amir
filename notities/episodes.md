@@ -58,7 +58,15 @@ Stad 6; 9 de garde, de derde winkel en de schatkamer met de kluis; 10 een `bandi
 
 `GOUD`, `goudAan`, `goudKill`, `goudReset`, `goudWin`, `goudVerder`, `goudBegin`, `muntE`, `drawMunt`
 
-Alleen in een level met `goud: true`. `vijandDood` roept `goudKill`: `GOUD.perKill` goud. De HUD (`#goud`) staat naast de
+Alleen in een level met `goud: true`. `vijandDood(baas, wie)` roept `goudKill(wie)`: `GOUD.perKill` goud.
+
+**Goud dat vliegt** (`GOUD_VLIEG`, `goudVlieg`, `goudVliegStap`, `goudTink`, `#goudlaag`): het goudstuk springt draaiend uit de
+gevallen vijand (`wie.x`, `wie.base`, op `borst` Amir hoogte), hangt even en vliegt in een boog naar het icoon rechtsboven.
+`goud` telt meteen, de teller (`goudHud`) trekt `goudOnderweg` eraf en telt pas bij aankomst, met de pulse en een tink
+(WebAudio, geen bestand). De positie op het scherm komt uit de wereldtekening (`goudVliegProj`, naast het stof). Zonder
+`wie` springt hij bij Amir op. `goudReset` en `goudBegin` ruimen wat onderweg is op (`goudVliegWeg`). In de sandbox:
+Vijanden, **Goud bij een kill** (`sbGoud`, `goudTelt`), zonder winkelprijzen.
+ De HUD (`#goud`) staat naast de
 kalebassen. In de winkel (`winkelUIToon`, `#wkkalebas`) kost een kalebas `GOUD.kalebas` en draag je er hooguit `HPPOTION_MAX`;
 zonder goud blijft de winkel gratis. `winLevel` onthoudt goud en gedragen kalebassen (`goudWin`), pas `wnnext` zet ze op de
 bank (`goudVerder`), en `restart` zet alles terug op de bank (`goudReset`, na `resetHppotions`): wie sterft is het goud van dat
