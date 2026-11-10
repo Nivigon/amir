@@ -45,7 +45,8 @@ Wat er in de inventory zit en hoeveel gif de speren nog hebben, gaat mee naar he
   dan probeert hij het 0,2 s later opnieuw.
 - **Een baas of aanvoerder** (`gifBaas`: Brutus, `aanvoerder`, `boss`) verliest eenmalig `GIF.baas` leven (alleen de
   flits en de spetters), en dan is het gif op. Heeft hij niet meer dan dat over, dan is de tik zijn laatste klap.
-- **Zweepman in fase 2** (`f2`): het gif is uitgewerkt.
+- **Zweepman met fasen**: neemt het gif zijn laatste leven van fase 1, dan is hij gewoon dood, geen arm eraf en geen fase 2
+  (net als bij een sluipaanval, `!gifTikNu` in `hitZweepman`). Komt hij toch in fase 2 (`f2`), door een speer, dan is het gif uitgewerkt.
 
 ### Te zien
 

@@ -142,6 +142,7 @@ Alleen met `fasen: true` in de spawn (Test 59), of in de sandbox met **Fasen aan
 (de zweepmannen die er staan gaan meteen door). Alles staat in `ZWM2` en de sectie "de zweepman, fase 2".
 
 - **Fase 1** duurt `ZWM2.hp1` (2) treffers. De laatste start `zwmArmEraf`: witte flits, hitstop en de set `armeraf`.
+  Een sluipaanval of een tik van het gif (`gifTikNu`) slaat dat over: dan is hij gewoon dood.
 - **De arm** (`s.arm`, `zwmArmStap`, `zwmArmTeken`): vanaf frame `los` van `armeraf` hangt de losse arm
   (`lagen/f2_arm.png`, met draaipunt `px, py`, hoek `th0` en lengte `L`) aan de stomp en slingert hij achter het lijf.
   Na `ZWM2.armHang` s scheurt hij los, valt hij, kiept hij plat (0 of 180 graden) en blijft hij `armLig` s op de wereld
