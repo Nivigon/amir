@@ -27,9 +27,11 @@ aan jou, en je legt achteraf uit wat je gekozen hebt.
 **4. Sluit aan op wat er is.** Er is al een laadsysteem, een decorregister, een
 tekenlaag en een sandbox. Gebruik die in plaats van er een tweede naast te zetten.
 
-**5. Nederlands, en geen em-dashes.** Code, commentaar, teksten in het spel, commits
-en pull requests zijn Nederlands. Gebruik komma's of haakjes, nooit een lang
-gedachtestreepje.
+**5. Nederlands achter de schermen, Engels in het spel, en geen em-dashes.** Code, commentaar,
+notities, commits en pull requests zijn Nederlands. Wat de speler leest is Engels: een nieuwe tekst
+in het spel (een melding, een scherm, een knop, het levelrapport, "Double Kill") schrijf je in het
+Engels, zoals de talents al heten. De menu's en teksten die nu nog Nederlands zijn blijven staan tot
+de opdrachtgever vraagt ze te vertalen. Gebruik komma's of haakjes, nooit een lang gedachtestreepje.
 
 **6. Werk op een `claude/*`-branch.** Push daarheen en maak alleen een pull request
 als daarom gevraagd wordt.
