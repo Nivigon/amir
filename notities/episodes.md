@@ -57,8 +57,18 @@ zwarte rook in `murRook`). Bezeten spuwt de roep kevers (`murKevers`, `MUR.kever
 maken hem trager (`murKeverTraag`, in de loopformule) en kosten `schade` leven per `tik` seconden zolang hij erin staat. Op een
 kei kunnen ze niet: ze krioelen om de voet van de kei waar Amir op staat, en na `duur` seconden gaan ze op in rook. De lage
 zwaai veegt ze weg (`murKeverVeeg`). Murghtaan zelf springt over een kei heen en staat er ook op (`murLift`): de uitzondering
-van regel 7 voor een eindbaas, anders splitst een kei de arena in tweeen. In de sandbox: Vijanden, **Murghtaan**, **Bezeten**
-en **Kevers nu**.
+van regel 7 voor een eindbaas, anders splitst een kei de arena in tweeen. In de sandbox: Vijanden, **Murghtaan**, **Bezeten**,
+**Kevers nu** en **Finale** (bezeten met nog een treffer).
+
+De finale, de echte dood (`murFinaleStart`, `murFinaleStap`, `MUR.finale`, state `finale` met `ffase`): na de laatste treffer
+bezeten staat Amir vast (`murFinaleVast` in `amirVast`) en de balk is weg. De oranje poot geeft het op (`poot_op`, staan naar de
+driepoot), hij draait weg van Amir en hinkt (`mank`, een manke stap als lus; bij het rondgaan schuift `s.x` een stap op, `reis` in
+de metadata, root motion), kijkt over zijn schouder om (`omkijken`), hinkt verder en zakt in (`dood_echt`, met `duur_ms` per frame:
+strompelen, neerglijden, omrollen, bek op een kier). Tijdens het vallen dooft de gloed in zijn oogkassen (`s.gloed`), daarna trekt
+de rook terug in zijn bek (rook met `naar`) en kruipt er een kevertje uit en weg van Amir (kever met fase `uit`): Ndoki ontsnapt.
+Dan is hij `dood` en is de arena open. De hinkende stappen houden zich aan de arena (`murArena`). De sets komen uit
+`tools/murg_finale.py` (zelfde canvas als `murg_sets.py`, elke clip met schaal en verschuiving op de vorige gelegd), daarna
+`murg_kleur.py`; de oogkassen per frame staan met de hand gekozen en geïnterpoleerd in `ogen` (bij het omkijken draait de kop).
 
 De sets komen uit Grok-clips via `tools/murg_sets.py` (keyen, schalen, een offset per clip, de zoom eruit), `tools/murg_kleur.py`
 (fase 1: de oranje zone als kale grauwe huid; bezeten: bijna zwart, verkoolde poot met paarse gloed) en `tools/murg_oog.py`
