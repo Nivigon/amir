@@ -19630,11 +19630,25 @@ const THR_OMLAAG_FR = [ { a: 8,  x: 562, y: 314, n: '08' },
                         { a: 18, x: 549, y: 368, n: '18' },
                         { a: 30, x: 521, y: 432, n: '30' },
                         { a: 45, x: 469, y: 500, n: '45' } ];
+// De worp omlaag zelf (THR_OMW): na het loslaten van F niet de gewone frames 7 tot 19, maar een eigen worp schuin
+// omlaag (Grok-clip test3, 7 frames: hij zakt in een diepe uitval, de speer gaat weg op frame `los`, het laatste is de
+// uitval met lege hand) en daarna het opstaan (Grok-clip restand, 13 frames, met begin- en eindbeeld gemaakt: het
+// eind is speerworp_19, dus daarna loopt hij gewoon door). Alleen als hij echt omlaag mikt (vanaf `vanaf` graden).
+// thr.frame telt gewoon door: frame THR_WIND + 1 is worp 0. De speer vertrekt van zijn punt op het losframe (`punt`).
+const THR_OMW = { worp: 7, op: 13, los: 4, vanaf: 4, punt: { x: 769, y: 779 } };
 let thrOmImgs = null;                    // lui: pas in een level met worpOmlaag of met de sandboxknop
+let thrOmWImgs = null;                   // de worp en het opstaan, achter elkaar
 function thrOmLaad(){
   if (thrOmImgs) return;
   thrOmImgs = THR_OMLAAG_FR.map(r => loadQuiet(THR_DIRS.map(d => d + 'speerworp_omlaag_' + r.n + '.png')));
+  thrOmWImgs = [...Array.from({ length: THR_OMW.worp }, (_, i) => 'worp_' + pad2(i)),
+                ...Array.from({ length: THR_OMW.op }, (_, i) => 'op_' + pad2(i))]
+    .map(n => loadQuiet(THR_DIRS.map(d => d + 'speerworp_omlaag_' + n + '.png')));
 }
+// Staat de worp omlaag klaar (alle plaatjes binnen)? Anders gooit hij met de gewone frames.
+function thrOmWKlaar(){ return !!thrOmWImgs && thrOmWImgs.every(i => i.complete && i.naturalWidth); }
+const thrOmWLos = () => THR_WIND + 1 + THR_OMW.los;                    // het frame waarop de speer weggaat
+const thrOmWEind = () => THR_WIND + 1 + THR_OMW.worp + THR_OMW.op;     // en waar de animatie op is
 // De houdpose omlaag die nu getekend wordt (index in THR_OMLAAG_FR), of -1: dan het gewone frame.
 function thrOmBeeld(){
   if (!thr || !thrOmImgs || !(thr.om > 0) || thr.frame !== THR_WIND || thr.gone || !worpOmlaag()) return -1;
@@ -20275,6 +20289,7 @@ function thrRelease(cancel){
   if (!thr.held) return;
   thr.held = false; thr.rel = bavKlok;
   thr.lob = thr.frame >= THR_WIND && !thr.omT;     // helemaal uitgetrokken? Dan wordt het de boog (niet als hij omlaag mikt)
+  thr.omW = !!(thr.om >= THR_OMW.vanaf && worpOmlaag() && !thr.dubbel && thrOmWKlaar());   // de worp omlaag (THR_OMW)
   // bij de schaalworp staat de hoek vanaf nu vast: de speer gaat pas op THR_LOOSE weg
 }
 // Het frame dat bij een hoek hoort: het plaatje waarin de speer het dichtst bij die hoek staat.
@@ -20350,12 +20365,13 @@ function updateThrow(dt){
     thr.acc -= 1;
     thr.frame++;
     if (thr.frame === THR_WIND && thr.held && !worpSchaal()) thr.glint = 1;   // tweede trap bereikt: even een lichtje op de punt
-    if (thr.frame === THR_LOOSE) looseSpear();
+    if (thr.frame === (thr.omW ? thrOmWLos() : THR_LOOSE)) looseSpear();
+    if (thr.wil && thr.gone && thr.omW) thr.wil = false;   // na de worp omlaag zit hij diep: geen tweede speer
     if (thr.wil && thr.gone && thr.frame >= DUBBEL.naFrame){   // de onthouden druk (dubbelVraag)
       thr.wil = false;
       if (dubbelKan()){ dubbelStart(thr.wilPerfect); return; }
     }
-    if (thr.frame >= THR_N){ thr = null; return; }
+    if (thr.frame >= (thr.omW ? thrOmWEind() : THR_N)){ thr = null; return; }
     if (thr.held && thr.frame >= stop){ thr.acc = 0; return; }
   }
 }
@@ -20385,8 +20401,9 @@ function looseSpear(){
   const V = JAV.tiles * JAV.tile * CHAR_H * scale * deel;
   // hoogte rekent in sprite-eenheden en x in wereld-pixels, dus de verticale kant
   // wordt door scale gedeeld; op het scherm klopt de hoek dan precies
-  const ox = (THR_TIP.x - THR_ANCHOR) * THR_S * scale * dir;   // de punt staat op THR_TIP
-  const oh = (THR_GROUND - THR_TIP.y) * THR_S;
+  const tip = thr.omW ? THR_OMW.punt : THR_TIP;       // de worp omlaag: laag voor hem, waar zijn hand de speer loslaat
+  const ox = (tip.x - THR_ANCHOR) * THR_S * scale * dir;   // de punt staat op THR_TIP
+  const oh = (THR_GROUND - tip.y) * THR_S;
   const nieuw = { x: world + ox, h: ph + oh, vx: dir * V * Math.cos(a), vh: -Math.sin(a) * V / scale,
           dir, state: 'vlucht', sa: dir === 1 ? a : Math.PI - a, t: 0,
           wob: 0, sag: 0, stand: false, hit: false, blauw: speerBlauw };   // blauw: onthoud het vaantje voor als hij een losse speer wordt
@@ -46839,7 +46856,10 @@ function loop(now){
     const useRolW = !!(rwImg && rwImg.complete && rwImg.naturalWidth);
     const useRol = useRol0 || useRolW;
     const thrOmI = thr && !useRol ? thrOmBeeld() : -1;   // omlaag mikken: de houdpose met de speer schuin omlaag
-    const thrImg = thr && !useRol ? (thrOmI >= 0 ? thrOmImgs[thrOmI] : thrImgs[Math.min(THR_N - 1, thr.frame)]) : null;
+    const thrOmWI = thr && !useRol && thr.omW ? thr.frame - THR_WIND - 1 : -1;   // de worp omlaag (THR_OMW)
+    const thrImg = thr && !useRol ? (thrOmI >= 0 ? thrOmImgs[thrOmI]
+                                   : thrOmWI >= 0 ? thrOmWImgs[Math.min(thrOmWImgs.length - 1, thrOmWI)]
+                                   : thrImgs[Math.min(THR_N - 1, thr.frame)]) : null;
     const useThrow = !!(thrImg && thrImg.complete && thrImg.naturalWidth);
     const jf = useThrow || useRol ? -1 : jumpFrame();
     const wantSpear = spear && jf >= 0 && jumpSpearImg[jf].complete && jumpSpearImg[jf].naturalWidth;
