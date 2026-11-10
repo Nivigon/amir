@@ -81,7 +81,8 @@ kisten; 14 onweer, een `bandietGolf` en de grote dam met een kist op de stelling
 `kisten: [{x, y, vast, goud, f}]` in het level, `y` en `vast` zoals bij de munt (een dak of galerij via `stadKalebasPlek`, met `vast`
 precies op `y`, binnen op een verdieping). Het plaatje is de kist uit de winkel (`design/stad/binnen/spul_kist.png`), lui geladen.
 E erbij (`kistE`, in `eDruk` na `muntE`) tilt het deksel op, `KIST.munten` munten springen eruit, en in een level met goud komt
-`goud` (zonder veld `KIST.goud`, 20) bij je goud. `goudReset` roept `kistReset`: na een dood zijn de kisten weer dicht, net als de
+`goud` (zonder veld `KIST.goud`, 20) bij je goud; het vliegt in een keer uit de kist naar de teller (`goudVlieg`), net als het
+kopgeld uit de verslagen aanvoerder of Nyundo. `goudReset` roept `kistReset`: na een dood zijn de kisten weer dicht, net als de
 munt, en het goud staat weer op de bank. Een dichte kist fonkelt om de `KIST.fonkel` seconden. In de sandbox onder De stad: de
 knop **Schatkist** (een op de straat, een op de galerij als er een stad staat).
 
@@ -97,7 +98,15 @@ schildman met `niveau: 'makkelijk'` de filter `SCHB_TINT.makkelijk` (een bruin k
 
 `GOUD`, `goudAan`, `goudKill`, `goudReset`, `goudWin`, `goudVerder`, `goudBegin`, `muntE`, `drawMunt`
 
-Alleen in een level met `goud: true`. `vijandDood` roept `goudKill`: `GOUD.perKill` goud. De HUD (`#goud`) staat naast de
+Alleen in een level met `goud: true`. `vijandDood(baas, wie)` roept `goudKill(wie)`: `GOUD.perKill` goud.
+
+**Goud dat vliegt** (`GOUD_VLIEG`, `goudVlieg`, `goudVliegStap`, `goudTink`, `#goudlaag`): het goudstuk springt draaiend uit de
+gevallen vijand (`wie.x`, `wie.base`, op `borst` Amir hoogte), hangt even en vliegt in een boog naar het icoon rechtsboven.
+`goud` telt meteen, de teller (`goudHud`) trekt `goudOnderweg` eraf en telt pas bij aankomst, met de pulse en een tink
+(WebAudio, geen bestand). De positie op het scherm komt uit de wereldtekening (`goudVliegProj`, naast het stof). Zonder
+`wie` springt hij bij Amir op. `goudReset` en `goudBegin` ruimen wat onderweg is op (`goudVliegWeg`). In de sandbox:
+Vijanden, **Goud bij een kill** (`sbGoud`, `goudTelt`), zonder winkelprijzen.
+ De HUD (`#goud`) staat naast de
 kalebassen. In de winkel (`winkelUIToon`, `#wkkalebas`) kost een kalebas `GOUD.kalebas` en draag je er hooguit `HPPOTION_MAX`;
 zonder goud blijft de winkel gratis. `winLevel` onthoudt goud en gedragen kalebassen (`goudWin`), pas `wnnext` zet ze op de
 bank (`goudVerder`), en `restart` zet alles terug op de bank (`goudReset`, na `resetHppotions`): wie sterft is het goud van dat

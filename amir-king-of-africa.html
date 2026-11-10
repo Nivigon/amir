@@ -123,6 +123,11 @@
   #goud span{font-size:15px;font-weight:800;letter-spacing:.02em;color:#ffe08a;text-shadow:0 1px 3px rgba(20,16,30,.85)}
   #goud.pulse i{animation:hpppulse .45s ease}
   #goud.shake i{animation:hppshake .38s ease}
+  /* het goudstuk van een kill dat naar de teller vliegt (zie "goud dat vliegt") */
+  #goudlaag{position:absolute;inset:0;z-index:5;pointer-events:none;overflow:hidden}
+  #goudlaag i{position:absolute;left:0;top:0;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;will-change:transform;
+    background:radial-gradient(circle at 36% 34%,#fff4c2 0,#f2c75a 38%,#c58a26 72%,#7d5414 100%);
+    box-shadow:0 0 0 1.5px rgba(20,16,30,.45),0 0 10px 3px rgba(255,214,107,.55),inset 0 0 0 2px rgba(255,236,170,.35)}
   #hppotion.none{opacity:.42}
   #hppotion img{display:block;height:28px;width:auto;
     filter:drop-shadow(0 0 2px rgba(20,16,30,.55));transform-origin:50% 60%}
@@ -1377,6 +1382,11 @@
         <button id="sbpat">Op patrouille</button>
         <button id="sbklim">Klimt terrassen</button>
         <span class="hint">op patrouille: alsof ze je kwijt zijn. Klimt: nieuwe slangen en fosforslangen stappen terrassen op en af (zet er een Terras bij)</span>
+      </div>
+      <div class="row">
+        <label>Goud</label>
+        <button id="sbgoud">Goud bij een kill</button>
+        <span class="hint">elke kill geeft een goudstuk dat uit de vijand springt en naar de teller rechtsboven vliegt, zoals in De Gouden Poort</span>
       </div>
       <div class="row">
         <label>Panter</label>
@@ -13816,7 +13826,7 @@ function takelSnijden(t, kant){
 function takelBrugWeg(){
   for (let i = bandieten.length - 1; i >= 0; i--){
     const b = bandieten[i];
-    if (b.rijsId === 'takel'){ vijandDood(false); bandieten.splice(i, 1); }   // alleen wie nog op het dek rijdt stort mee; wie al afstapte vecht door
+    if (b.rijsId === 'takel'){ vijandDood(false, b); bandieten.splice(i, 1); }   // alleen wie nog op het dek rijdt stort mee; wie al afstapte vecht door
   }
   let onthuld = false;
   for (const z of (level && level.zegels) || []) if (z.naTakelVal && !z.onthuld){ z.onthuld = true; onthuld = true; }
@@ -17996,7 +18006,7 @@ function goudapenTeken(o){
 // blijft er dan in steken en is met E terug te halen; nu valt de speer gewoon en gaat de aap dood).
 function gaapDood(m, doorSpeer){
   m.fase = 'dood'; m.act = null; m.doodT0 = bavKlok;
-  vijandDood(false);
+  vijandDood(false, m);
   arenaKill();
   if (doorSpeer && jav){
     // de speer blijft in de aap steken; hij valt dood neer en E haalt de speer eruit (gaapSpeerTrek)
@@ -28955,26 +28965,122 @@ let goud = 0, goudBank = 0, kalebasBank = 0, goudWinst = null;
 let munt = null;                                   // {x, h, t, gepakt, pakT}: de munt in dit level
 const goudEl = document.getElementById('goud'), goudTelEl = document.getElementById('goudtel');
 function goudAan(){ return !!(level && level.goud) && !sandbox; }
+function goudTelt(){ return goudAan() || (sandbox && sbGoud); }   // de sandbox-knop Goud bij een kill telt mee, zonder winkelprijzen
 function goudHud(anim){
-  goudEl.classList.toggle('weg', !goudAan());
-  goudTelEl.textContent = goud;
+  goudEl.classList.toggle('weg', !goudTelt());
+  goudTelEl.textContent = Math.max(0, goud - goudOnderweg);   // wat nog onderweg is, telt de teller pas bij aankomst
   if (anim){ goudEl.classList.remove('pulse', 'shake'); void goudEl.offsetWidth; goudEl.classList.add(anim); }
 }
-function goudKill(){
-  if (!goudAan() || dead) return;
-  goud += GOUD.perKill; goudHud('pulse');
+// wie: de vijand die net viel ({x, base}); daar springt het goudstuk uit
+function goudKill(wie){
+  if (!goudTelt() || dead) return;
+  goud += GOUD.perKill; goudOnderweg += GOUD.perKill;
+  goudVlieg(wie, GOUD.perKill);
+  goudHud();
 }
-// kopgeld: een aanvoerder of Nyundo levert in een level met kopgeld een buidel goud op, bovenop zijn goudstuk
-function goudKopgeld(n, wie){
-  if (!goudAan() || !level.kopgeld || !(n > 0)) return;
-  goud += n; goudHud('pulse');
+function goudBegin(){ goudVliegWeg(); goud = goudBank = kalebasBank = gifBank = gifHitsBank = 0; goudWinst = null; }
+
+// ---- goud dat vliegt: het goudstuk van een kill springt uit de vijand en vliegt naar de teller ----
+// Het goud telt meteen (goud), maar de teller laat het pas zien als het stuk aankomt (goudOnderweg), zodat
+// het getal, de pulse en de tink bij de munt horen die je net zag vliegen. Drie stappen, zoals de meeste
+// spellen het doen: losspringen boven de vijand (draaiend, aan de wereld vast, dus hij loopt mee met de
+// camera), even hangen, en in een boog die rustig begint en afremt naar het icoon rechtsboven. Het is HUD
+// en loopt op zijn eigen requestAnimationFrame: een hitstop of de pauze houdt hem niet op.
+// sprong, hang en vlucht in seconden; hoog en zij in schermpixels; borst: waar hij uitspringt, in Amir boven de voet.
+const GOUD_VLIEG = { sprong: 0.3, hang: 0.1, vlucht: 0.55, hoog: 62, zij: 22, borst: 0.5, draai: 13, tink: 0.13 };
+let goudOnderweg = 0, sbGoud = false, goudProj = null, goudVliegRaf = 0;
+const goudVliegers = [];
+const goudLaag = document.createElement('div'); goudLaag.id = 'goudlaag';
+document.getElementById('hudrij').before(goudLaag);
+// vanuit de wereldtekening: genoeg om een wereld-x en een hoogte naar het scherm te rekenen
+function goudVliegProj(cx, groundY, scale){
+  if (goudVliegers.length) goudProj = { T: ctx.getTransform(), cx, groundY, scale, world };
+}
+function goudNaarLaag(x, h){
+  const P = goudProj; if (!P) return null;
+  const p = P.T.transformPoint(new DOMPoint(P.cx + (x - P.world), P.groundY - h * P.scale));
+  const c = cv.getBoundingClientRect(), l = goudLaag.getBoundingClientRect();
+  return { x: c.left - l.left + p.x * c.width / cv.width, y: c.top - l.top + p.y * c.height / cv.height };
+}
+function goudVlieg(wie, n){
+  const G = GOUD_VLIEG;
+  const x = wie && Number.isFinite(wie.x) ? wie.x : world;
+  const h = (wie && Number.isFinite(wie.base) ? wie.base : terrainH(x)) + CHAR_H * G.borst;
+  const el = document.createElement('i'); goudLaag.appendChild(el);
+  const zij = (Math.random() * 2 - 1) * G.zij;
+  goudVliegers.push({ el, x, h, n, zij, hoog: G.hoog * (0.85 + Math.random() * 0.3), t0: null, van: null });
+  if (!goudVliegRaf) goudVliegRaf = requestAnimationFrame(goudVliegStap);
+}
+function goudVliegWeg(){
+  for (const v of goudVliegers) v.el.remove();
+  goudVliegers.length = 0; goudOnderweg = 0; goudProj = null;
+}
+function goudVliegStap(nu){
+  goudVliegRaf = 0;
+  const G = GOUD_VLIEG, l = goudLaag.getBoundingClientRect(), d = goudEl.querySelector('i').getBoundingClientRect();
+  const dx = d.left - l.left + d.width / 2, dy = d.top - l.top + d.height / 2;
+  for (let i = goudVliegers.length - 1; i >= 0; i--){
+    const v = goudVliegers[i];
+    if (v.t0 === null) v.t0 = nu;
+    const t = (nu - v.t0) / 1000;
+    let px, py, s, sx = 1;
+    if (t < G.sprong + G.hang){                       // 1 en 2: losspringen en hangen, draaiend
+      const p = goudNaarLaag(v.x, v.h) || v.van;
+      if (!p){ v.el.style.opacity = '0'; v.t0 = null; continue; }   // nog geen wereldbeeld getekend: een beeld wachten
+      v.el.style.opacity = '';
+      const k = Math.min(1, t / G.sprong), e = 1 - (1 - k) * (1 - k);
+      px = p.x + v.zij * e; py = p.y - v.hoog * e;
+      s = 0.5 + 0.5 * e + 0.2 * Math.sin(k * Math.PI);
+      sx = 0.3 + 0.7 * Math.abs(Math.cos(t * G.draai));
+      v.van = { x: px, y: py };
+    } else {                                          // 3: de boog naar het icoon, eerst omhoog en dan opzij
+      const k = Math.min(1, (t - G.sprong - G.hang) / G.vlucht);
+      const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(2 - 2 * k, 2) / 2;
+      const a = v.van, cx = a.x + (dx - a.x) * 0.15, cy = dy + (a.y - dy) * 0.1;
+      const u = 1 - e;
+      px = u * u * a.x + 2 * u * e * cx + e * e * dx; py = u * u * a.y + 2 * u * e * cy + e * e * dy;
+      s = 1 + 0.15 * Math.sin(e * Math.PI);
+      if (k >= 1){
+        v.el.remove(); goudVliegers.splice(i, 1);
+        goudOnderweg = Math.max(0, goudOnderweg - v.n);
+        goudHud('pulse'); goudTink();
+        continue;
+      }
+    }
+    v.el.style.transform = 'translate(' + px.toFixed(1) + 'px,' + py.toFixed(1) + 'px) scale(' + (s * sx).toFixed(3) + ',' + s.toFixed(3) + ')';
+  }
+  if (goudVliegers.length) goudVliegRaf = requestAnimationFrame(goudVliegStap);
+  else goudProj = null;
+}
+// de tink bij aankomst: twee hoge tonen die snel uitsterven, elke keer net iets anders van toon
+function goudTink(){
+  if (!wantSound) return;
+  const ac = acLoopt(); if (!ac) return;
+  const t = ac.currentTime, toon = 1 + (Math.random() - 0.5) * 0.08;
+  const g = ac.createGain(); g.connect(ac.destination);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(GOUD_VLIEG.tink, t + 0.005);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.32);
+  for (const [f, v, w] of [[2093, 1, 0], [3136, 0.55, 0.04]]){
+    const o = ac.createOscillator(), og = ac.createGain();
+    o.type = 'sine'; o.frequency.value = f * toon; og.gain.value = v;
+    o.connect(og); og.connect(g); o.start(t + w); o.stop(t + 0.36);
+  }
+}
+// kopgeld: een aanvoerder of Nyundo levert in een level met kopgeld een buidel goud op, bovenop zijn goudstuk;
+// het vliegt net als dat goudstuk van hem naar de teller (goudVlieg)
+function goudKopgeld(n, wie, van){
+  if (!goudAan() || !level.kopgeld || !(n > 0) || dead) return;
+  goud += n; goudOnderweg += n;
+  goudVlieg(van, n);
+  goudHud();
   flashHint('Kopgeld voor ' + wie + ': ' + n + ' goud', 3000);
 }
-function goudBegin(){ goud = goudBank = kalebasBank = gifBank = gifHitsBank = 0; goudWinst = null; }
 function goudWin(){ goudWinst = goudAan() ? { goud, kalebas: hppotionCarry, gif: gifCarry, gifHits } : null; }   // bij winLevel; pas bij wnnext op de bank (het gif gaat mee, zie "het gif")
 function goudVerder(){ if (goudWinst){ goudBank = goudWinst.goud; kalebasBank = goudWinst.kalebas; gifBank = goudWinst.gif; gifHitsBank = goudWinst.gifHits; } goudWinst = null; }
 // bij restart, na resetHppotions: terug naar de bank, en de munt weer op zijn plek
 function goudReset(){
+  goudVliegWeg();
   goudWinst = null;
   if (goudAan()){ gifCarry = Math.min(INV_MAX, gifBank); gifHits = gifHitsBank; hppotionCarry = Math.min(INV_MAX - gifCarry, kalebasBank); goud = goudBank; hppotionHud(); }
   invHud();
@@ -29096,7 +29202,7 @@ function kistE(){
   for (let i = 0; i < KIST.munten; i++)
     k.munten.push({ x: (Math.random() - 0.5) * 0.25, y: 0.24, vx: (Math.random() - 0.5) * 1.6, vy: 2.2 + Math.random() * 1.6,
                     t: 0, draai: Math.random() * 6, rust: false });
-  if (goudAan()){ goud += k.goud; goudHud('pulse'); }
+  if (goudTelt()){ goud += k.goud; goudOnderweg += k.goud; goudVlieg({ x: k.x, base: k.h - CHAR_H * 0.3 }, k.goud); goudHud(); }   // het vliegt naar de teller (goudVlieg)
   banStemSpeel(houtRaakSnd, 0.5);                  // het deksel
   playHppotionPickupSound();
   flashHint('Een schatkist! ' + k.goud + ' goud', 3200);
@@ -32630,11 +32736,11 @@ const DOOD_KANS = 7, DOOD_WACHT = 0.4;
 const rustSnd = geluidAan(new Audio());
 rustSnd.onerror = () => console.warn('ontbreekt: ' + SFX_RUST.src);
 rustSnd.preload = 'auto'; rustSnd.src = SFX_RUST.src;
-function vijandDood(baas){
+function vijandDood(baas, wie){
   if (sbArena) sbArenaKill();
   straatKill();                                    // de teller van een stadje met straten (zie "straten")                      // de teller van de arena-modus
   woedeVul(woedeWaarde('perKill'));                // elke kill vult de woedemeter (als je die hebt)
-  goudKill();                                      // een goudstuk per kill, in een level met goud (zie "goud")
+  goudKill(wie);                                   // een goudstuk per kill, in een level met goud: hij vliegt uit wie naar de teller (zie "goud dat vliegt")
   if (!baas && Math.random() * DOOD_KANS >= 1) return;
   if (!baas && amirZwijg()) return;                // niet midden in een baasgevecht of een zin van een ander
   let wacht = 0;
@@ -35872,7 +35978,7 @@ function hitPanther(s){
   s.dieFrame = Math.min(s.frame, PAN_N[s.dieSet] - 1);
   s.state = 'dying'; s.flash = 0.25;
   s.vx = (s.x < playerX() ? -420 : 420);
-  vijandDood(!!s.boss);
+  vijandDood(!!s.boss, s);
   return true;
 }
 
@@ -36268,7 +36374,7 @@ function hitHyena(s){
   if (s.hp > 0){ s.inv = HY_INV_T; s.flash = 0.3; return true; }
   s.flash = 0.25; s.fall = 0;
   s.state = 'dood';                                 // ook midden in de storm: die stopt meteen
-  vijandDood(false);
+  vijandDood(false, s);
   return true;
 }
 
@@ -37090,7 +37196,7 @@ function hitKooiman(s){
   if (s.hp > 0){ s.inv = KOOI_INV_T; s.flash = 0.3; return true; }
   kooiSet(s, 'dood'); s.alpha = 1; s.flash = 0.25; s.knock = 0; s.doodGeluid = false;   // de dood-animatie, met de witte flits op frame 0 (zoals de bandiet); in de plek blijven, niet wegglijden
   puffWorld(s.x, 7, 0, 1.0, s.base || 0);
-  vijandDood(false);
+  vijandDood(false, s);
   return true;
 }
 // is de kooiman helemaal in beeld (zijn lijf en de kooi erachter), zodat de vogel pas opstijgt als
@@ -37571,7 +37677,7 @@ function hitMeelman(s){
   if (s.hp > 0){ s.inv = MEEL.inv; s.flash = 0.3; return true; }
   meelSet(s, 'dood'); s.doodT = 0; s.flash = 0.25; s.knock = 0; s.alpha = 1;
   puffWorld(s.x, 8, 0, 1.0, s.base || 0);
-  vijandDood(false);
+  vijandDood(false, s);
   return true;
 }
 // het stapeltje staande zakken naast hem (decor): de brede zak onderop, de smalle erbovenop
@@ -38077,7 +38183,7 @@ function hitKruisboog(s, soort){
   s.wond = s.dood === 'steek';
   puffWorld(s.x, 8, 0, 1.0, s.base || 0);
   banSterf();                                      // de doodskreet van de bandiet: hij is er een
-  vijandDood(false);
+  vijandDood(false, s);
   return true;
 }
 // het blinken van de punt: het slot voor het schot
@@ -39090,7 +39196,7 @@ function hitBandiet(s){
   puffWorld(s.x, 6, 0, 0.9, s.base || 0);
   if (level && level.bandietGolf) golfKill();
   if (arenaAap && arenaAap.ban) arenaAap.kills++;              // de teller van de bandiet-arena (ook de takel-passagiers)
-  vijandDood(false);
+  vijandDood(false, s);
   if (s.aanvoerder) aanvoerderDood(s);               // de aanvoerder: het level is uit of de eindpoort gaat open
   return true;
 }
@@ -40089,7 +40195,7 @@ function hitBrutus(s){
     bruVries = null; bruZwijg(bruGeluid.fase2); bruZwijg(bruGeluid.fase3);
     bruZeg(bruGeluid.dood, s);                                // zijn laatste woorden: dreig en drop rekken erop (bruDoodStap)
     s.doodT = 0;                                            // pleinHekStap takelt de hekken op als hij ligt
-    if (!s.sandbox) goudKopgeld(GOUD.kopgeld.nyundo, BRU.naam);   // in een level met kopgeld (zie "goud")
+    if (!s.sandbox) goudKopgeld(GOUD.kopgeld.nyundo, BRU.naam, s);   // in een level met kopgeld (zie "goud")
     return true;
   }
   if (s.maxHp - s.hp === BRU.spraak.fase2Na && !bruWoede(s)){   // de freeze: hij spreekt (fase2), de wereld staat stil
@@ -40157,7 +40263,7 @@ function bruDoodStap(s, dt){
     }
     else {                                                  // hij ligt: het gevecht is voorbij
       s.fase = 'lig'; s.acc = 0;
-      vijandDood(true);                                     // de hekken takelen daarna op (pleinHekStap)
+      vijandDood(true, s);                                  // de hekken takelen daarna op (pleinHekStap)
       return;
     }
   }
@@ -40583,7 +40689,7 @@ function aanvReset(){
 function aanvoerderDood(s){
   if (sandbox || won) return;
   flashHint((s.naam || 'De aanvoerder') + ' is verslagen!' + (eindPoorten().length ? ' De poort gaat open' : ''), 3200);
-  goudKopgeld(GOUD.kopgeld.aanvoerder, s.naam || 'de aanvoerder');   // in een level met kopgeld (zie "goud")
+  goudKopgeld(GOUD.kopgeld.aanvoerder, s.naam || 'de aanvoerder', s);   // in een level met kopgeld (zie "goud")
   shake = Math.max(shake, 0.12);
   if (eindPoorten().length) aanvHekT = 0;
   else { aanvWinT = AANV.win; invuln = Math.max(invuln, AANV.win + 0.5); invulnStil = Math.max(invulnStil, invuln); }
@@ -41035,7 +41141,7 @@ function hitZweepman(s){
   if (s.hp <= 0 && !sneak && s.fasen && s.fase === 1 && zwmData && zwmData.bewegingen.armeraf){ zwmBloedRaak(s, false); zwmArmEraf(s); return true; }   // fase 2: de arm eraf (een sluipaanval slaat die over)
   zwmBloedRaak(s, s.hp > 0); zwmKreet(s.hp > 0 ? 'geraakt' : 'sterf');   // bloed (een snee als hij het overleeft) en een korte kreet, of zijn doodskreet
   if (s.hp <= 0){
-    s.state = 'dood'; s.alpha = 1; s.flash = 0.6; s.touw = null; puffWorld(s.x, 6, 0, 0.9, s.base || 0); vijandDood(false);
+    s.state = 'dood'; s.alpha = 1; s.flash = 0.6; s.touw = null; puffWorld(s.x, 6, 0, 0.9, s.base || 0); vijandDood(false, s);
     return true;
   }
   if (s.state === 'slag' && !zwmSchreeuw() && s.frame < ZWM_SLAG[s.soort || 'laag'].pantserVan){ zwmSet(s, 'idle'); s.cool = ZWM.coolOnderbreek; s.touw = null; s.mepSpeer = false; }   // vroeg in de tell: onderbroken
@@ -41569,7 +41675,7 @@ function zwmF2Hit(s){
   s.hp--; s.flash = 0.3; s.inv = ZWM.invHit;
   hitstop = Math.max(hitstop, 0.07); shake = Math.max(shake, 0.14);
   zwmBloedRaak(s, false); zwmKreet(s.hp > 0 ? 'geraakt' : 'sterf');   // bij de laatste treffer zijn doodskreet onder de val
-  if (s.hp <= 0){ s.state = 'dood'; s.alpha = 1; s.flash = 0.6; s.touw = null; s.dood = { t: 0, lig: -1, van: null }; hitstop = Math.max(hitstop, 0.12); vijandDood(false); }
+  if (s.hp <= 0){ s.state = 'dood'; s.alpha = 1; s.flash = 0.6; s.touw = null; s.dood = { t: 0, lig: -1, van: null }; hitstop = Math.max(hitstop, 0.12); vijandDood(false, s); }
   return true;
 }
 // de dood in fase 2: een halve seconde bevroren in zijn houding, dan de Grok-val (de set `dood`, vanuit de uitrust-houding):
@@ -42250,7 +42356,7 @@ function exeStart(s, wijze, dood){
             blauw: wijze === 'worp' ? ((jav && jav.blauw) || false) : speerBlauw };
   if (wijze === 'worp'){ jav = null; javLost = 0; spearX = null; spearH = null; }   // Amirs speer zit in zijn borst: de lagen tekenen hem
   puffWorld(s.x, 6, 0, 0.9, s.base || 0);
-  vijandDood(false);
+  vijandDood(false, s);
   if (dood) return;
   bloedLaadSpuit(bloedSpuitNaam);                  // alvast, voor het splijten
   if (wijze === 'steek'){ shake = Math.max(shake, EXE.schokSteek); exeBevries(s, EXE.t.steekStop); }
@@ -42615,7 +42721,7 @@ function exeBonus(s){
       if (enemyTakeHit(o)){
         hits++; hitsEl.textContent = hits;
         o.state = 'dying'; o.flash = 0.25; o.vx = sprong * 420; o.frame = 0; o.acc = 0;
-        vijandDood(false);
+        vijandDood(false, o);
         if (scp && !scorps.some(q => q.state === 'charge')) document.getElementById('scatter').pause();
       }
       geraakt.push(o);
@@ -43578,7 +43684,7 @@ function fosforRaak(s, van){
     if (!s.vleesDood) fosforBrokken(s, 18, 1.1);
     puffWorld(s.x, 10, 0, 1.1, s.base);
     s.state = 'dood'; s.t = 0;
-    vijandDood(false);
+    vijandDood(false, s);
     return;
   }
   fosforBrokken(s, 12, 1); puffWorld(van, 8, 0, 1, s.base);
@@ -46399,7 +46505,7 @@ function loop(now){
           hits++; hitsEl.textContent = hits;
           s.state = 'dying'; s.flash = 0.25;
           s.vx = (facing === 1 ? 420 : -420);
-          vijandDood(false);
+          vijandDood(false, s);
           s.frame = 0; s.acc = 0;
           }
           tutEvent('thrust');
@@ -46413,7 +46519,7 @@ function loop(now){
         hits++; hitsEl.textContent = hits;
         s.state = 'dying'; s.flash = 0.25;
         s.vx = (jav.dir === 1 ? 420 : -420);
-        vijandDood(false);
+        vijandDood(false, s);
         s.frame = 0; s.acc = 0;
         }
       }
@@ -46424,7 +46530,7 @@ function loop(now){
         hits++; hitsEl.textContent = hits;
         s.state = 'dying'; s.flash = 0.25;
         s.vx = (s.x < playerX() ? -420 : 420);
-        vijandDood(false);
+        vijandDood(false, s);
         s.frame = 0; s.acc = 0;
         }
         tutEvent('sweep');
@@ -46436,6 +46542,7 @@ function loop(now){
                (attacking && steekLive() && steekRaakt('skelet'))
                  ? { x: pcx + (facing === 1 ? -1 : 1) * steekDX() * scale, y: y + steekY() * scale, van: pcx } : null,
                javBox, swbox, sweepId);
+    goudVliegProj(cx, groundY, scale);               // voor het goud dat vliegt: waar de gevallen vijand in beeld staat
     // ---- stof van de schorpioenen ------------------------------------
     if (wdust.length){
       ctx.save();
@@ -46562,7 +46669,7 @@ function loop(now){
           hits++; hitsEl.textContent = hits;
           s.state = 'dying'; s.flash = 0.25;
           s.vx = (facing === 1 ? 420 : -420);
-          vijandDood(false);
+          vijandDood(false, s);
           if (!scorps.some(o => o.state === 'charge')) document.getElementById('scatter').pause();
           }
           }
@@ -46574,7 +46681,7 @@ function loop(now){
         hits++; hitsEl.textContent = hits;
         s.state = 'dying'; s.flash = 0.25;
         s.vx = (jav.dir === 1 ? 420 : -420);
-        vijandDood(false);
+        vijandDood(false, s);
         if (!scorps.some(o => o.state === 'charge')) document.getElementById('scatter').pause();
         }
       }
@@ -46584,7 +46691,7 @@ function loop(now){
         hits++; hitsEl.textContent = hits;
         s.state = 'dying'; s.flash = 0.25;
         s.vx = (s.x < playerX() ? -420 : 420);
-        vijandDood(false);
+        vijandDood(false, s);
         if (!scorps.some(o => o.state === 'charge')) document.getElementById('scatter').pause();
         }
       }
@@ -55750,6 +55857,8 @@ sbArenaToon();
 let sbKlim = false;
 const sbKlimBtn = document.getElementById('sbklim');
 sbKlimBtn.onclick = () => { sbKlim = !sbKlim; sbKlimBtn.classList.toggle('on', sbKlim); cv.focus(); };
+const sbGoudBtn = document.getElementById('sbgoud');   // goud dat vliegt: elke kill een goudstuk naar de teller
+sbGoudBtn.onclick = () => { sbGoud = !sbGoud; sbGoudBtn.classList.toggle('on', sbGoud); goudHud(); cv.focus(); };
 sandboxEl.querySelectorAll('button[data-spawn]').forEach(b => b.onclick = () => sbSpawn(b.dataset.spawn));
 // De kooiman los bekijken: AI uit speelt alleen de gekozen set.
 let sbKooiVrij = false;
