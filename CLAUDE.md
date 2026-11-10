@@ -27,9 +27,11 @@ aan jou, en je legt achteraf uit wat je gekozen hebt.
 **4. Sluit aan op wat er is.** Er is al een laadsysteem, een decorregister, een
 tekenlaag en een sandbox. Gebruik die in plaats van er een tweede naast te zetten.
 
-**5. Nederlands, en geen em-dashes.** Code, commentaar, teksten in het spel, commits
-en pull requests zijn Nederlands. Gebruik komma's of haakjes, nooit een lang
-gedachtestreepje.
+**5. Nederlands achter de schermen, Engels in het spel, en geen em-dashes.** Code, commentaar,
+notities, commits en pull requests zijn Nederlands. Wat de speler leest is Engels: een nieuwe tekst
+in het spel (een melding, een scherm, een knop, het levelrapport, "Double Kill") schrijf je in het
+Engels, zoals de talents al heten. De menu's en teksten die nu nog Nederlands zijn blijven staan tot
+de opdrachtgever vraagt ze te vertalen. Gebruik komma's of haakjes, nooit een lang gedachtestreepje.
 
 **6. Werk op een `claude/*`-branch.** Push daarheen en maak alleen een pull request
 als daarom gevraagd wordt.
@@ -195,6 +197,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | Episode De Rivierstad: vijftien stadslevels over drie dagen, bruggen, schatkisten, vier winkels en Nyundo in rode oker | `RIV_1`, `RIV_LEVELS`, `menuRiv`, `RIV_TINT` | notities/episodes.md |
 | de schatkist: E en het goud spat eruit, vaak op een moeilijke plek; kopgeld voor een aanvoerder en Nyundo; de makkelijke schildbandiet in een bruin kleed | `KIST`, `kistE`, `drawKisten`, `goudKopgeld`, `SCHB_TINT` | notities/episodes.md |
 | goud: een goudstuk per kill, de winkelprijs (5 goud) en de munt van de koning (een talentpunt extra) | `GOUD`, `goudKill`, `goudReset`, `muntE` | notities/episodes.md |
+| multikill: kills binnen 3 s na elkaar zijn een reeks, een kraal per kill, Double, Triple of Multi Kill, een stinger en 1 goud extra; het levelrapport na het level (Test 70) | `MKILL`, `mkillKill`, `mkillStap`, `mkillRapport`, `mkStat` | notities/multikill.md |
 | het gif en de inventory: de speer (15) en het gif (40) in de winkel, I voor vijf plekken, een gifspeer laat een mens elke 3 s een leven verliezen | `GIF`, `gifRaak`, `gifTik`, `invUIOpen`, `INV_MAX` | notities/gif.md |
 | de aanvoerder en de eindpoort: een level dat eindigt op een kill of door een poort | `AANV`, `aanvoerderDood`, `eindPoorten`, `aanvKlem` | notities/episodes.md |
 | goudaapje: het kleine gouden aapje en de arena (arena, regel 12) | `GAAP`, `gaapSpawn`, `updateGoudapen` | notities/goudaapje.md |
@@ -356,6 +359,8 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `wapenrekken` | houten rekken met speren: `{x, f, n}`, `n` speren (standaard en hooguit 4, een per touwlus), of `put`/`luifel`/`kraam` met `a` zoals bij `tonnen`; E pakt er een (zie `notities/wapenrek.md`) |
 | `spawns` | vijanden: `{x, k}`, `k` is groen/zwart/knock/scorp/hyenas/panter/fosfor/bandiet/kooiman/meelman/schildman/kruisboogbandiet, met vlaggen per soort (zie `notities/velden.md`) |
 | `goud` | `true`: een goudstuk per kill, een kalebas kost 5 goud in de winkel, goud en kalebassen gaan mee naar het volgende level (De Gouden Poort, zie "goud" in `notities/episodes.md`) |
+| `multikill` | `true`: kills binnen 3 s na elkaar zijn een reeks, met het snoer kralen, het woord, de stinger en vanaf de tweede kill 1 goud extra (alleen Test 70, zie `notities/multikill.md`) |
+| `rapport` | `true`: na het level het levelrapport in het winscherm: kills, multikills, langste reeks, tijd en goud (alleen Test 70, zie `notities/multikill.md`) |
 | `munt` | de munt van de koning: `{x, y, vast}`; E pakt hem, en na het level is er een talentpunt extra (een keer per run) |
 | `kisten` | schatkisten: `{x, y, vast, goud, f}`, `y` en `vast` zoals bij de munt; E maakt hem open en `goud` (standaard 20) gaat bij je goud. Sterf je, dan is hij weer dicht (zie "de schatkist" in `notities/episodes.md`) |
 | `kopgeld` | `true` (naast `goud`): een aanvoerder geeft 10 goud extra, Nyundo 25 (`GOUD.kopgeld`) |
