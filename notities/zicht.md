@@ -14,7 +14,9 @@ lobben. Met het veld `zicht: true` kijkt hij echt.
 
 - **Voor hem** (in zijn kijkrichting `kijk`, in wereld-x: 1 is naar rechts): een halve cirkel met straal
   `bereik`, en een zichtlijn van zijn ogen (`ZICHT.oog`, per soort in CHAR_H boven zijn vloer) naar het
-  hoofd en naar het midden van Amir. Is een van de twee vrij, dan ziet hij je. De lijn wordt om de
+  hoofd en naar het midden van Amir. Is een van de twee vrij, dan ziet hij je. Gebukt of kruipend is Amir lager
+  (`DUCK_BOX`, met `duckT`), en de lijn mikt dan ook lager: achter een rand of muurtje zie je hem gebukt niet en
+  staand wel (voor Test 71, "van boven"). Zonder dat zag een vijand beneden je gebukt aan de rand even goed als staand. De lijn wordt om de
   `ZICHT.stap` px nagelopen met `zichtVast`: `lkVastPunt` (dezelfde vraag als de lichtkaart: grond,
   terrassen, zuilen, de grond boven een gang, het plafond en de grotten) plus de zwevende lagen. Een terras
   of muur op het oppervlak boven een gang telt in de gang eronder niet mee (`terrainHGang`): daar kijkt hij
