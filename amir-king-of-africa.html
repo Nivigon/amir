@@ -1412,6 +1412,8 @@
         <button id="sbanhurk">Hinderlaag</button>
         <button data-spawn="bandiet_neer">Van boven</button>
         <button data-spawn="bandiet_aanv" title="de aanvoerder: zes levens, goud gekleurd, een kroontje en een naam boven zijn balk (zie &quot;de aanvoerder&quot;)">Aanvoerder</button>
+        <button data-spawn="bandiet_raz" title="een aanvoerder met de razernij: de rode meter onder zijn balk loopt in 6 s vol, dan brult hij en is hij 6 s razend (ontwijken, niet aanvallen), daarna even uitgeput en open (zie RAZ)">Razernij</button>
+        <button data-spawn="bandiet_schaduw" title="een aanvoerder met de schaduwslag: is de meter vol, dan vervaagt hij, rent onzichtbaar tot achter je (let op zijn stof), verschijnt en hakt (zie RAZ)">Schaduw</button>
         <button id="sbanvrij">AI uit</button>
         <button id="sbandolk">Dolk uit</button>
         <button id="sbanvault">Vault uit</button>
@@ -7454,7 +7456,8 @@ const RIV_3 = {
             {x: -7300, k: 'kruisboogbandiet', dak: 401, wijk: false},
             {x: -7700, k: 'bandiet', pat: true},
             {x: -8650, k: 'hyenas', n: 2},
-            {x: -9300, k: 'bandiet', aanvoerder: true, naam: 'Jabari', titel: 'de vismeester', hp: 6, dolk: true, tint: RIV_TINT.jabari} ],
+            {x: -9300, k: 'bandiet', aanvoerder: true, naam: 'Jabari', titel: 'de vismeester', hp: 6, dolk: true, tint: RIV_TINT.jabari,
+             razernij: {laad: 18}} ],
   hppotions: [],
   cliffs: [ {x: -10500} ],
   ends: [],
@@ -7787,7 +7790,8 @@ const RIV_9 = {
             {x: -7300, k: 'kruisboogbandiet', dak: 730, wijk: false, inBeeld: true},
             {x: -7900, k: 'bandiet', elite: true, dolk: true},
             {x: -8600, k: 'bandiet', elite: true, pat: true},
-            {x: -9400, k: 'bandiet', aanvoerder: true, naam: 'Kofi', titel: 'de poortwachter', hp: 12, dolk: true, tint: RIV_TINT.kofi} ],
+            {x: -9400, k: 'bandiet', aanvoerder: true, naam: 'Kofi', titel: 'de poortwachter', hp: 12, dolk: true, tint: RIV_TINT.kofi,
+             razernij: {laad: 15}} ],
   hppotions: [],
   cliffs: [ {x: -11400} ],
   ends: [],
@@ -8137,7 +8141,7 @@ const RIV_15 = {
             {x: -9300, k: 'kruisboogbandiet', hoorn: true},
             {x: -9800, k: 'schildman'}, {x: -10100, k: 'bandiet', elite: true, dolk: true}, {x: -10400, k: 'bandiet', elite: true},
             {x: -11300, k: 'bandiet', aanvoerder: true, naam: 'Simba Kivuli', titel: 'de sluisheer', hp: 20, dolk: true,
-             sluip: false, tint: RIV_TINT.simba} ],
+             sluip: false, tint: RIV_TINT.simba, razernij: {laad: 14}, schaduw: true} ],
   hppotions: [ {x: -4350, y: 730} ],
   cliffs: [ {x: -12800} ],
   ends: [],
@@ -34582,6 +34586,7 @@ function updateSnakes(dt, plats, halfWNow, cliff){
         if (sp.aanvoerder){                     // de aanvoerder: meer levens, een eigen kleur, zijn dood speelt het level uit
           b.aanvoerder = true; b.naam = sp.naam || null; b.tint = sp.tint || null; b.sluipVrij = sp.sluip === false;
           if (sp.hp){ b.hp = b.maxHp = sp.hp; b.hpBalk = true; }
+          if (sp.razernij){ b.raz = razMaak(sp.razernij); b.schaduw = !!sp.schaduw; b.hpBalk = true; }   // de razernij en de schaduwslag (zie RAZ)
           if (b.naam) flashHint(b.naam + (sp.titel ? ', ' + sp.titel : ''), 2600);
         }
         if (sp.neer) banStartDrop(b);           // van boven de arena in
@@ -36672,6 +36677,7 @@ function vijandHpBalk(sx, topY, s, scale){
       ctx.strokeText('\u265B ' + s.naam, sx, y0 - fs * 0.35); ctx.fillText('\u265B ' + s.naam, sx, y0 - fs * 0.35);
     }
   }
+  if (s.raz) razMeterTeken(x0, y0 + h + Math.max(3, ah * 0.012), w, Math.max(3, h * 0.6), s);   // de razernij (zie RAZ)
   ctx.restore();
 }
 // De schildbandiet met de health-balk: het schild vangt de klappen op, hij zelf niet. Zijn health-balk
@@ -38893,7 +38899,7 @@ function banAnim(s, dt){
     }
     return;
   }
-  s.acc += dt * (s.state === 'slag' ? banSlagFps(s.frame, s.counter) : (BAN.fps[s.state] || 24));
+  s.acc += dt * (s.state === 'slag' ? banSlagFps(s.frame, s.counter) * razSlagFps(s) : (BAN.fps[s.state] || 24));
   while (s.acc >= 1){
     s.acc -= 1;
     if (BAN_LOOP[s.state]) s.frame = (s.frame + 1) % n;
@@ -38950,7 +38956,19 @@ function banStartVault(s, kei, naarJe){
   s.landStof = false;
   banStofWolk(s.x, s.base || 0, 10, naarJe * 55, 1.6);    // de afzetstofwolk bij zijn voeten
 }
-function banLoopStof(s){ puffWorld(s.x - s.face * 20, 1, 0, 0.42, s.base || 0); }
+// het stof van een voet die neerkomt onder het rennen: een paar wolkjes die achter hem wegstuiven, net als bij
+// Amir in de sprint (LOOPSTOF). Op de straat van de stad minder, binnen, in een ravijn en in het water niets
+function banLoopStof(s){
+  const x = s.x - s.face * 20, b = s.base || 0;
+  if (inGap(x) || waterDepthAt(x, b) > 0.2 || binnenBij(x)) return;
+  const k = stadAan() ? LOOPSTOF.stad : 1;
+  const n = Math.round(1 + 2 * k);
+  for (let i = 0; i < n; i++)
+    wdust.push({ wx: x + (Math.random() - 0.5) * 30, y: -Math.random() * 4, base: b,
+                 vx: -s.face * (25 + Math.random() * 45), vy: -18 - Math.random() * 34,
+                 r: (9 + Math.random() * 8) * (0.7 + 0.5 * k), a: 0.7, zweef: 10,
+                 life: 0.45 + Math.random() * 0.35, age: 0, rot: Math.random() * 6.28 });
+}
 // een duidelijke, dichte zandwolk, zoals bij de landing van de baviaan en bij Amir: dichtere wolkjes die
 // afremmen en langzaam opstijgen (zweef) in plaats van meteen te vallen, met wat zandkorrels erbij voor de
 // scherpte. `kick` is de zijwaartse schop (tegen de loop in), `grootte` de maat van de wolk.
@@ -39096,6 +39114,7 @@ function updateBandiet(s, dt, plats, cliff){
 
   const dx = playerX() - s.x, gap = Math.abs(dx), naarJe = dx >= 0 ? 1 : -1;
   if (s.verblind > 0){ stofDwaal(s, dt, plats, cliff); return; }   // stof in de ogen: blind, hij dwaalt (zie STOF)
+  if (s.raz && razStap(s, dt, plats, cliff, naarJe)) return;   // de razernij van de aanvoerder (zie RAZ)
 
   // ---- zicht: in rust staan idlen tot hij je ziet, en terug in rust als hij je kwijt is (zie "zicht") ----
   if (zichtVoor(s) && (s.state === 'run' || s.state === 'look' || s.state === 'idle' || s.state === 'walk')){
@@ -39165,7 +39184,7 @@ function updateBandiet(s, dt, plats, cliff){
     } else if (s.lunge !== 0){                         // de haal is voorbij: planten (geen nadrift), met een laatste wolk
       s.lunge = 0; banStofWolk(s.x, s.base || 0, 7, 0, 1.4);
     }
-    if (s.klaar){ if (!s.hitUsed) fcOpenZet(s); banSet(s, 'run'); s.rust = BAN_NA_SLAG; }   // mis geslagen: even open (Full Circle)   // na-hijgen, dan omdraaien en weer op je af
+    if (s.klaar){ if (!s.hitUsed) fcOpenZet(s); banSet(s, 'run'); s.rust = razNaSlag(s); }   // mis geslagen: even open (Full Circle)   // na-hijgen, dan omdraaien en weer op je af
     return;
   }
 
@@ -39214,9 +39233,9 @@ function updateBandiet(s, dt, plats, cliff){
     const kei = banKeiVoor(s, naarJe, plats);
     if (kei){ banStartVault(s, kei, naarJe); return; }
   }
-  const voor = s.x;
-  banMove(s, naarJe * BAN_RUN_SPD * tempo * dt, plats, cliff);
-  if (Math.abs(s.x - voor) < BAN_RUN_SPD * tempo * dt * 0.4){   // een kei, een ravijnrand of de klifwand
+  const voor = s.x, v = BAN_RUN_SPD * tempo * razV(s);   // in de razernij iets sneller (RAZ.v)
+  banMove(s, naarJe * v * dt, plats, cliff);
+  if (Math.abs(s.x - voor) < v * dt * 0.4){   // een kei, een ravijnrand of de klifwand
     s.stuck += dt;
     if (s.stuck >= BAN_STUCK_T){ s.stuck = 0; banSet(s, 'look'); }
   } else s.stuck = 0;
@@ -39226,6 +39245,7 @@ function updateBandiet(s, dt, plats, cliff){
 // meteen zijn snelle tegenklap in. Stond hij al te slaan, dan loopt die slag gewoon door (alleen de clang).
 // Zo kun je hem niet vastzetten door te blijven rammen: elke stoot pareert alleen maar, en de haal valt op je.
 function banPareer(s, vonkWx, vonkY){
+  if (s.raz && s.raz.sch) return;                  // als schaduw (RAZ.schaduw) is hij er niet: je steekt door de lucht
   banClang(s.x);
   banVonk(vonkWx, vonkY);
   if (s.state === 'run' || s.state === 'look'){    // nog niet aan het slaan: hij vangt je speer en countert direct
@@ -39239,6 +39259,7 @@ function banPareer(s, vonkWx, vonkY){
 function hitBandiet(s){
   const doorDekking = atkCombo && atkFrame >= 0 && steekLive();   // de derde slag (COMBO) slaat door zijn dekking heen
   if ((s.inv > 0 && !doorDekking) || s.state === 'dood' || s.state === 'vault') return false;   // in de lucht (de vault) is hij niet te raken
+  if (razAan(s) && !gifTikNu) return false;          // razend (zie RAZ): niets komt erdoor, ook de derde slag en de tweede speer niet
   if (comboX){                                     // de duw (DUW): geen schade, alleen ver terug en even stil
     if (s.duwId === duwId) return false;            // een keer per duw
     s.duwId = duwId; duwRaak = true; lawaaiPuls(s.x, s.base || 0, SNEAK.puls.treffer);
@@ -39265,6 +39286,124 @@ function hitBandiet(s){
   vijandDood(false, s);
   if (s.aanvoerder) aanvoerderDood(s);               // de aanvoerder: het level is uit of de eindpoort gaat open
   return true;
+}
+
+// ---- de razernij van de aanvoerder: een meter die oploopt, dan even razend, dan uitgeput ----
+// Een bandiet met `razernij` in zijn spawn (true, of {laad, duur} in seconden) bouwt in het gevecht een meter op:
+// de rode balk onder zijn levens. Is hij vol, dan brult hij (RAZ.brul) en is hij `duur` seconden razend: hij hakt
+// zonder adem te halen, rent net onder je sprint, gloeit rood, en je speer ketst op hem af (een steek geeft zijn
+// counter, een worp valt op de grond). De meter loopt dan leeg. Ontwijken of wegrennen, niet aanvallen. Daarna staat
+// hij RAZ.uit seconden uitgeput te hijgen en ligt hij helemaal open (geen dekking), en dan loopt de meter opnieuw op.
+// Met `schaduw: true` (Simba Kivuli) is de razernij een reeks schaduwslagen: hij vervaagt, rent onzichtbaar tot net
+// achter Amir (alleen zijn stof verraadt waar hij loopt), verschijnt en hakt, en weer, tot de meter leeg is.
+// In de sandbox onder Vijanden, Bandiet: Razernij en Schaduw (een aanvoerder met een korte meter).
+const RAZ = {
+  laad: 16, duur: 6,              // zo lang gevecht tot de meter vol is, en zo lang duurt de razernij (s)
+  brul: 0.9,                      // de aankondiging: hij staat stil en brult, al onraakbaar
+  uit: 2.2,                       // daarna uitgeput: stil, en elke treffer telt (geen dekking)
+  v: 490,                         // zijn vaart in de razernij (je sprint is 495: wegrennen kan nog net)
+  slagFps: 1.35, naSlag: 0.06,    // de slag sneller, en bijna geen adem ertussen
+  gloed: [255, 48, 24],           // de rode gloed om hem heen
+  schaduw: { uit: 0.35, in: 0.3, v: 620, achter: 0.75, stof: 0.07, max: 2.4 }   // vervagen, verschijnen, zijn vaart als schaduw, hoe ver achter Amir (deel van zijn reik), om de hoeveel s een stofje, en hoe lang hij hooguit onzichtbaar loopt
+};
+function razMaak(o){
+  o = (o && typeof o === 'object') ? o : {};
+  return { laad: o.laad || RAZ.laad, duur: o.duur || RAZ.duur, meter: 0, fase: 'laad', t: 0, sch: null };
+}
+function razAan(s){ return !!(s.raz && (s.raz.fase === 'brul' || s.raz.fase === 'raz')); }
+function razSlagFps(s){ return razAan(s) ? RAZ.slagFps : 1; }
+function razNaSlag(s){ return razAan(s) ? RAZ.naSlag : BAN_NA_SLAG; }
+function razV(s){ return razAan(s) ? RAZ.v / BAN_RUN_SPD : 1; }
+// de gloed over zijn kleur (in de tekenlus, na s.tint)
+function razFilter(s){
+  const basis = s.tint || '';
+  if (!razAan(s)) return basis;
+  const p = 0.6 + 0.35 * Math.sin(performance.now() / 70), [r, g, b] = RAZ.gloed;
+  return (basis + ' saturate(1.35) drop-shadow(0 0 ' + (8 + 6 * p).toFixed(1) + 'px rgba(' + r + ',' + g + ',' + b + ',' + p.toFixed(2) + '))').trim();
+}
+// neemt het over (true) tijdens het brullen, de schaduwslagen en het uitgeput staan; in de razernij zelf loopt de
+// gewone bandiet door, met de factoren hierboven
+function razStap(s, dt, plats, cliff, naarJe){
+  const r = s.raz;
+  if (r.fase === 'laad'){
+    if (s.geroepen && s.state !== 'idle' && s.state !== 'walk') r.meter = Math.min(1, r.meter + dt / r.laad);
+    if (r.meter >= 1 && (s.state === 'run' || s.state === 'look') && s.rust <= 0 && banZelfdeHoogte(s)){
+      r.fase = 'brul'; r.t = 0; banSet(s, 'look'); s.face = naarJe; s.knock = 0;
+      banRoep(); shake = Math.max(shake, 8);
+      banStofWolk(s.x, s.base || 0, 12, 0, 1.6);
+    }
+    return false;
+  }
+  r.t += dt;
+  if (r.fase === 'uit'){                             // uitgeput: hij hijgt, en je kunt erop in
+    s.inv = 0;
+    if (s.state === 'slag') return false;            // een slag die al liep maakt hij af
+    s.face = naarJe; s.frame = 0; s.acc = 0;
+    if (r.t >= RAZ.uit){ r.fase = 'laad'; r.t = 0; r.meter = 0; s.rust = 0; }
+    return true;
+  }
+  s.inv = Math.max(s.inv, 0.1);                      // brullend en razend: niets komt erdoor
+  if (r.fase === 'brul'){
+    s.face = naarJe; banAnim(s, dt);
+    if (r.t >= RAZ.brul){ r.fase = 'raz'; r.t = 0; banSet(s, 'run'); s.rust = 0; }
+    return true;
+  }
+  r.meter = Math.max(0, 1 - r.t / r.duur);           // de razernij: de meter loopt leeg
+  if (s.schaduw && razSchaduw(s, dt, plats, cliff, naarJe)) return true;
+  if (r.t >= r.duur && s.state !== 'slag' && s.state !== 'vault' && s.state !== 'worp'){
+    r.fase = 'uit'; r.t = 0; s.inv = 0; s.schA = 1; banSet(s, 'run');
+    puffWorld(s.x, 5, 0, 0.8, s.base || 0);
+  }
+  return false;
+}
+// de schaduwslag: vervagen, onzichtbaar tot achter Amir rennen, verschijnen en hakken
+function razSchaduw(s, dt, plats, cliff, naarJe){
+  const r = s.raz, S = RAZ.schaduw;
+  if (!r.sch){
+    if (s.state === 'slag' || s.state === 'vault' || s.state === 'worp' || r.t >= r.duur) return false;   // eerst zijn slag afmaken; is de tijd op, dan niet opnieuw
+    r.sch = { f: 'uit', t: 0, stofT: 0, kant: naarJe };
+    banSet(s, 'run');
+  }
+  const c = r.sch;
+  c.t += dt;
+  if (c.f === 'uit'){                                // vervagen op zijn plek
+    s.schA = Math.max(0, 1 - c.t / S.uit); s.face = naarJe; banAnim(s, dt);
+    if (c.t >= S.uit){ c.f = 'weg'; c.t = 0; c.kant = naarJe; s.schA = 0; }
+    return true;
+  }
+  if (c.f === 'weg'){                                // onzichtbaar: alleen zijn stof en zijn voetstappen
+    const doel = playerX() + c.kant * banReik() * S.achter;   // voorbij Amir, aan de kant waar hij heen rende
+    const dx = doel - s.x, dir = dx >= 0 ? 1 : -1;
+    s.face = dir;
+    banAnim(s, dt * S.v / BAN_RUN_SPD);
+    const ok = Math.abs(dx) < 1 || banMove(s, Math.min(Math.abs(dx), S.v * dt) * dir, plats, cliff);
+    c.stofT += dt;
+    if (c.stofT >= S.stof){ c.stofT = 0; banStofWolk(s.x - s.face * 20, s.base || 0, 3, -s.face * 60, 1.15); }
+    if (Math.abs(dx) < 14 || !ok || c.t >= S.max){ c.f = 'in'; c.t = 0; }
+    return true;
+  }
+  s.face = playerX() >= s.x ? 1 : -1;                // verschijnen, naar Amir toe, en dan meteen hakken
+  s.schA = Math.min(1, c.t / S.in); banAnim(s, dt);
+  if (c.t >= S.in){
+    s.schA = 1; r.sch = null;
+    if (banZelfdeHoogte(s)){ banSet(s, 'slag'); s.lunge = BAN_LUNGE_IN * s.face; s.dustT = 0; banStofWolk(s.x - s.face * 20, s.base || 0, 8, s.face * 40, 1.5); }
+    else banSet(s, 'run');
+  }
+  return true;
+}
+// de meter onder zijn levens: rood dat oploopt, vol en fel tijdens de razernij (en dan leegloopt), grijs als hij uitgeput is
+function razMeterTeken(x0, y0, w, h, s){
+  const r = s.raz;
+  const fel = r.fase === 'brul' || r.fase === 'raz';
+  const f = r.fase === 'brul' ? 1 : r.fase === 'uit' ? 0 : r.meter;
+  ctx.fillStyle = 'rgba(16,10,14,0.6)'; ctx.fillRect(x0, y0, w, h);
+  if (f > 0){
+    const p = fel ? 0.75 + 0.25 * Math.sin(performance.now() / 70) : 1;
+    ctx.fillStyle = fel ? 'rgba(255,' + Math.round(60 + 60 * p) + ',40,' + p.toFixed(2) + ')' : (f > 0.8 ? '#d23a24' : '#8e2418');
+    ctx.fillRect(x0, y0, w * f, h);
+  }
+  ctx.strokeStyle = fel ? 'rgba(255,190,120,0.95)' : 'rgba(8,5,7,0.85)'; ctx.lineWidth = 1;
+  ctx.strokeRect(x0, y0, w, h);
 }
 
 // ---- Brutus: de eerste baas, een bruut met een knots (baas, regel 12) ----
@@ -47703,13 +47842,14 @@ function loop(now){
           ctx.save(); ctx.fillStyle = '#1d140f'; ctx.globalAlpha = 0.22 * dropK;
           ctx.beginPath(); ctx.ellipse(bodyX, voeten, BAN_LIJF.half * bS * 1.15 * dropK, BAN_LIJF.half * bS * 0.17 * dropK, 0, 0, Math.PI * 2);
           ctx.fill(); ctx.restore();
-        } else {
-          banSchaduw(s, bodyX, voeten, scale, bS);       // staand: zijn eigen silhouet
+        } else if ((s.schA ?? 1) > 0.3){
+          banSchaduw(s, bodyX, voeten, scale, bS);       // staand: zijn eigen silhouet (als schaduw, RAZ.schaduw, niet)
         }
 
         ctx.save();
-        const bBlink = s.inv > 0 && s.state !== 'dood' && Math.floor(s.inv * 14) % 2 === 0;
-        ctx.globalAlpha = Math.max(0, s.alpha) * (bBlink ? 0.45 : 1) * (s.vFade != null ? s.vFade : 1);
+        const bBlink = s.inv > 0 && s.state !== 'dood' && !razAan(s) && Math.floor(s.inv * 14) % 2 === 0;   // razend knippert hij niet: dan is hij onraakbaar, niet geraakt
+        const schA = s.schA ?? 1;                        // de schaduwslag (RAZ.schaduw): hij vervaagt
+        ctx.globalAlpha = Math.max(0, s.alpha) * (bBlink ? 0.45 : 1) * (s.vFade != null ? s.vFade : 1) * schA;
         // de vault lijnt per frame uit op zijn laagste punt (BAN_VAULT_GROND) en wordt door de engine
         // verticaal opgetild (de liftcurve maal de obstakelhoogte), zodat zijn hand op het obstakel landt
         const vault = s.state === 'vault';
@@ -47719,7 +47859,8 @@ function loop(now){
         ctx.translate(bodyX, voeten - vaultLift - dropLift); if (s.hang) hangDraai(s);   // aan Amirs speer: gekanteld (de sluipaanval)
         if (face === 1) ctx.scale(-1, 1);               // de frames kijken naar links
         const img = banFrameImg(s);
-        if (s.tint) ctx.filter = s.tint;               // de aanvoerder: een eigen kleur (zie "de aanvoerder")
+        const filt = razFilter(s);                     // de aanvoerder: een eigen kleur (zie "de aanvoerder"), razend met een rode gloed (RAZ)
+        if (filt) ctx.filter = filt;
         // het voetpunt van de set hoort op zijn voeten te liggen, anders verspringt hij bij een wissel
         if (img && imgReady(img))
           ctx.drawImage(s.flash > 0 ? whiteCopy(img, s.flash * 4) : img,
@@ -47729,7 +47870,7 @@ function loop(now){
           const lx = -geo.anker * gs, fw = geo.w * gs;
           persLicht(img, face === 1 ? bodyX - (lx + fw) : bodyX + lx, voeten - vaultLift - dropLift - grondRij * gs, fw, geo.h * gs,
                     face === 1, s.x, s.base || 0, BAN.fig * bS, groundY, scale, cx,
-                    Math.max(0, s.alpha) * (bBlink ? 0.45 : 1) * (s.vFade != null ? s.vFade : 1));
+                    Math.max(0, s.alpha) * (bBlink ? 0.45 : 1) * (s.vFade != null ? s.vFade : 1) * schA);
         }
         if (s.bloed) bloedTeken(s, bodyX, voeten, bS, face, geo, gs, grondRij, img);   // bloed: de snedes (geclipt) en de death-spuit over de bandiet, ook als lijk
         if (s.state === 'dood'){                         // het lijk blijft liggen; alleen een lage zwaai veegt het weg
@@ -47746,7 +47887,7 @@ function loop(now){
 
         const lmid = bodyX + s.face * BAN_LIJF.mid * bS, lhalf = BAN_LIJF.half * bS;
         const nbox = { l: lmid - lhalf, r: lmid + lhalf, t: voeten - BAN.fig * bS, b: voeten };
-        vijandHpBalk(bodyX, nbox.t, s, scale);           // het health-balkje boven zijn hoofd (met hpBalk)
+        if (schA > 0.5) vijandHpBalk(bodyX, nbox.t, s, scale);   // het health-balkje boven zijn hoofd (met hpBalk); als schaduw niet, dat zou hem verraden
         if (s.verblind > 0) stofTeken(bodyX, nbox.t, s, scale);   // blind van het stof: sterretjes om zijn hoofd
         let zbox = null;
         if (s.state === 'slag'){                         // de kling: alleen tijdens de raakframes
@@ -47783,6 +47924,7 @@ function loop(now){
               }
             }
           }
+          if (razAan(s) && !s.raz.sch && javRaakt(nbox, s)){ javHitEnemy(); banClang(s.x); continue; }   // razend: je worp ketst af en valt (RAZ)
           // de tweede speer (DUBBEL) pareert hij niet: die gaat door zijn dekking heen (dubbelDoor)
           if (dubbelVliegt() && javRaakt(nbox, s)){ javHitEnemy(); if (s.bloed) bloedTref(s, bodyX, voeten, bS, face, bodyX, voeten - BAN.fig * 0.5 * bS); hitBandiet(s); }
           continue;
@@ -55452,11 +55594,16 @@ function sbSpawn(kind, kant, plek, hoogte){       // kant en plek: de arena-modu
     b.vrij = sbBanVrij;
     bandieten.push(b);
   }
-  else if (kind === 'bandiet_aanv'){                 // de aanvoerder (zie "de aanvoerder"): zes levens, een eigen kleur, een naam
+  else if (kind === 'bandiet_aanv' || kind === 'bandiet_raz' || kind === 'bandiet_schaduw'){   // de aanvoerder (zie "de aanvoerder"): zes levens, een eigen kleur, een naam
     const b = makeBandiet(x, side, sbBanDolk, false, sbBanVault, false, false, null, sbBanDuin ? 'duin' : sbBanElite);
     b.base = vlBij(x); b.vrij = sbBanVrij;
     b.aanvoerder = true; b.naam = 'Aanvoerder'; b.hp = b.maxHp = 6; b.hpBalk = true;
     b.tint = 'sepia(0.9) saturate(3.2) hue-rotate(-25deg) brightness(1.05)';
+    if (kind !== 'bandiet_aanv'){                     // de razernij met een korte meter, zodat je niet lang hoeft te wachten (zie RAZ)
+      b.raz = razMaak({ laad: 6 }); b.schaduw = kind === 'bandiet_schaduw'; b.hp = b.maxHp = 10;
+      b.naam = b.schaduw ? 'Schaduw' : 'Razernij';
+      if (b.schaduw) b.tint = RIV_TINT.simba;
+    }
     bandieten.push(b);
   }
   else if (kind === 'bandiet_neer'){                 // van boven de arena in: valt en landt met stof

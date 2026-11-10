@@ -619,6 +619,7 @@ Onder Episodes staat ook **De Rivierstad**: vijftien stadslevels, van makkelijk 
 - **Winkels** zitten in vier levels: De Vismarkt, Het Badhuis, De Morgen Erna en De Watervallen.
 - **De makkelijke schildbandiet** heeft hier een bruin kleed in plaats van een blauw, zodat je van ver ziet welke het is.
 - **De bazen** hebben hun eigen kleur en meer levens: Jabari de vismeester (6), Kofi de poortwachter (12) en Simba Kivuli de sluisheer (20, en de sluipaanval werkt niet op hem). Nyundo is terug, ingesmeerd met rode oker, met 24 treffers in plaats van 16.
+- **Razernij.** Onder de balk van Jabari, Kofi en Simba Kivuli loopt een rode meter op. Is hij vol, dan brult de aanvoerder en is hij een paar seconden razend: hij gloeit rood, hakt zonder op adem te komen en je speer ketst op hem af. Ontwijk hem of ren weg, en val niet aan. Daarna staat hij even uitgeput te hijgen, en dan raakt elke treffer. Simba Kivuli doet het als een schaduw: hij vervaagt, rent onzichtbaar tot achter je (alleen zijn stof verraadt waar hij loopt), verschijnt en hakt.
 ## Het decor staat een stap naar achteren
 
 De grond is geen lijn maar een band. De tegel `design/grondrand.png` heeft 49 rijen
