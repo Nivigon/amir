@@ -24362,8 +24362,12 @@ function waterTextuur(){
   return waterTex;
 }
 // een textuurlaag over het pad, geschoven met (ox, oy)
+// het patroon per textuur een keer maken en bewaren (elk beeld een nieuw patroon kostte tijd); de transformatie zetten
+// we elke keer opnieuw, vlak voor het vullen
+const waterPatronen = new WeakMap();
 function waterLaag(pad, img, a, ox, oy, k){
-  const pat = ctx.createPattern(img, 'repeat');
+  let pat = waterPatronen.get(img);
+  if (!pat){ pat = ctx.createPattern(img, 'repeat'); if (pat && pat.setTransform) waterPatronen.set(img, pat); }
   if (!pat) return;
   if (pat.setTransform) pat.setTransform(new DOMMatrix().translate(ox, oy).scale(k || 1));
   ctx.save(); ctx.globalAlpha *= a; ctx.fillStyle = pat; ctx.fill(pad); ctx.restore();
@@ -26703,6 +26707,9 @@ const GORDIJN = {
   amp: 8,                                 // zoveel canvas-px zwaait de onderkant uit bij vlaag 1, op stokbreedte 236
   wapper: 3,                              // zo groot is de snelle wapper aan de zoom bij vlaag 1, in canvas-px
   fps: 30, fpsTel: 15,                    // zo vaak tekenen we een doek opnieuw (laptop, telefoon)
+  // hangt het doek stil (geen vlaag, niemand loopt erlangs, de tell niet bezig), dan beweegt het minder dan een pixel:
+  // dan is dit genoeg. Elke deur in beeld kost bij een nieuw doek een paar honderd reepjes, dat gaf lag op een laptop
+  fpsRust: 8, rustTot: 0.15,              // zo vaak in rust, en tot zoveel wind (vlaag of langslopen) telt als rust
   rij: 2, rijTel: 4,                      // de hoogte van een rij in bronpx (laptop, telefoon)
   opzij: { op: 0.3, neer: 0.7, dicht: 0.78, zwaai: 1.6, zwaaiV: 7 },   // de tell: zo snel opzij en terug, zo ver dicht, het nazwaaien
   // de wind: in rust hangt het doek bijna stil; af en toe trekt er een vlaag door de straat (van deur naar deur)
@@ -26797,13 +26804,16 @@ function gordijnDoek(n, gi, o, sleutel, st, bij){
   const src = gordijnBron(n, o.stok); if (!src) return null;
   const tel = camTelefoon(), t = performance.now() / 1000;
   let c = gordijnDoeken[sleutel];
-  if (c && c.naam === n && t - c.t < 1 / (tel ? GORDIJN.fpsTel : GORDIJN.fps)) return c;
+  const bezig = st && ((st.gordijnOpzij || 0) > 0 || (st.gordijnZwaai || 0) > 0);   // de tell loopt: altijd vol tempo
+  const fps = c && c.rustig && !bezig ? GORDIJN.fpsRust : (tel ? GORDIJN.fpsTel : GORDIJN.fps);
+  if (c && c.naam === n && t - c.t < 1 / fps) return c;
   if (!c) c = gordijnDoeken[sleutel] = document.createElement('canvas');
   if (c.width !== o.cw || c.height !== o.ch){ c.width = o.cw; c.height = o.ch; }
   c.naam = n; c.t = t;
   const g = c.getContext('2d'); g.clearRect(0, 0, o.cw, o.ch);
   const lu = gordijnLangs(c, bij, t), la = Math.min(1, Math.abs(lu));   // langslopen: de uitslag en hoe hard
   const fase = gi * 1.7, vlaag = gordijnVlaag(t, fase, bij && bij.x), wind = GORDIJN.wind ? 1 : 0, roer = Math.max(vlaag, la);
+  c.rustig = roer < GORDIJN.rustTot && !bezig;                              // het volgende doek mag even wachten (GORDIJN.fpsRust)
   const A = GORDIJN.amp * (o.stok / 236) * vlaag;
   const w = src.width, h = src.height, rod = Math.round(h * 0.075), mid = Math.round(w / 2), rij = tel ? GORDIJN.rijTel : GORDIJN.rij;
   const x0 = o.cx - w / 2, y0 = o.top + 2, sq = o.sq;

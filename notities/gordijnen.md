@@ -15,6 +15,9 @@ Nog geen level heeft het aan; te zien in de sandbox (De stad, **Gordijnen** en *
 - `gordijnBron(n, w)`: het doek op stokbreedte, warm getint, met de gemeten spleet; een keer per naam en maat.
 - `gordijnVlaag`, `gordijnDoek(n, gi, o, sleutel, st)`: de wind en het wapperende doek in een eigen canvas per deur,
   hooguit 30 keer per seconde opnieuw (15 op een telefoon, `camTelefoon`, met rijen van 4 in plaats van 2 px).
+  Hangt het doek stil (wind en langslopen onder `GORDIJN.rustTot`, de tell niet bezig), dan maar `GORDIJN.fpsRust` (8)
+  keer per seconde: het beweegt dan minder dan een pixel. Een nieuw doek is een paar honderd reepjes (binnen het dubbele),
+  en met twee of drie deuren in beeld gaf dat lag op een laptop in De Gouden Poort en De Rivierstad.
 - `stadGordijnTeken`: in `stadTeken`, op de straat (verdieping 0) in plaats van `stadDeurPlaatTeken`; latei en
   schaduw zoals bij de deur. Buiten beeld (`zichtVak`) rekent hij het doek niet opnieuw. Op een verdieping blijft
   het de houten deur.
