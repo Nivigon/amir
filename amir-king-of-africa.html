@@ -7800,6 +7800,9 @@ const RIV_10 = {
   },
   tonnen: [ {luifel: 0, a: -1.82, f: true}, {luifel: 0, a: -1.42}, {luifel: 0, a: -1.42, y: 0.62, f: true},
             {put: 0, a: 1.85, f: true, kalebas: true}, {put: 0, a: 1.45, kalebas: true} ],
+  // fakkels rond het plein: bij nacht is het anders te donker om Amir te zien (ze leggen ook licht op hem en Nyundo)
+  fakkels: [ {x: -2950, y: 0.5, s: 1.0, f: 0}, {x: -3950, y: 0.5, s: 1.0, f: 1}, {x: -5150, y: 0.5, s: 1.0, f: 0},
+             {x: -6250, y: 0.5, s: 1.0, f: 1} ],
   grondSoort: [ {van: -1500, tot: -7300, soort: 'plein'} ],
   rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
   voorgrond: 'stad',
@@ -8021,7 +8024,7 @@ const RIV_14 = {
   voorgrond: 'stad',
   lagen: 'stad_avond',
   weer: [ {x: -100, soort: 'onweer', sterkte: 1.0} ],
-  bandietGolf: { van: 14, tot: 10, ramp: 90, max: 4, dolk: true },
+  bandietGolf: { van: 14, tot: 10, ramp: 90, max: 4, dolk: true, niveau: true },   // niveau: niet op een trede van de dam waar ze vastzitten
   stad: {
     paleis: -8000, seed: 557, gordijnen: true,
     gevels: [ {x: -1300, hoog: 2}, {x: -2200, hoog: 3, f: 1}, {x: -4000, hoog: 2},
@@ -43134,6 +43137,7 @@ function banDolkenUpdate(dt){
 // in beeld houdt bij hoeveel je er verslagen hebt en hoe lang je het volhoudt. Alleen in een echt
 // level (niet in de sandbox, die heeft een eigen knop).
 let golf = null;
+const GOLF_NIVEAU = 60;                            // met bandietGolf.niveau: zo dicht bij Amirs vloer telt als zijn niveau (px)
 function golfReset(){
   golf = (level && level.bandietGolf) ? { t: level.bandietGolf.van, elapsed: 0, kant: -1, kills: 0, t0: 0 } : null;
 }
@@ -43142,16 +43146,24 @@ function updateBandietGolf(dt){
   const g = level && level.bandietGolf;
   if (!g || !golf || !running || dead || sandbox) return;
   golf.elapsed += dt; golf.t0 += dt;
-  if (bandieten.filter(b => b.state !== 'dood' && b.state !== 'weg').length >= g.max) return;   // vol: wacht
+  // niveau (opt-in, De Rivierstad): een rover op een ander niveau dan Amir (een trede van een dam) komt daar nooit
+  // vanaf (vijanden gaan niet over treden), dus hij telt niet mee voor max, en een nieuwe komt alleen op Amirs hoogte
+  const vloer = terrainH(world), opNiveau = x => Math.abs(terrainH(x) - vloer) < GOLF_NIVEAU;
+  const levend = bandieten.filter(b => b.state !== 'dood' && b.state !== 'weg' && (!g.niveau || Math.abs((b.base || 0) - vloer) < GOLF_NIVEAU));
+  if (levend.length >= g.max) return;                // vol: wacht
   golf.t -= dt;
   if (golf.t > 0) return;
+  const half = W / 2 / viewZoom() + 320;
+  const plekVan = kant => Math.max(Math.min(world + kant * half, cliffAt().wall - 200), endWall() + 200);
+  let kant = -golf.kant;                             // om en om links en rechts
+  if (g.niveau && !opNiveau(plekVan(kant))){
+    kant = -kant;                                    // daar is het hoger of lager: dan de andere kant
+    if (!opNiveau(plekVan(kant))){ golf.t = 1; return; }   // allebei niet: over een tel opnieuw kijken
+  }
   const f = Math.min(1, golf.elapsed / g.ramp);
   golf.t = g.van + (g.tot - g.van) * f;              // het interval krimpt met de tijd
-  golf.kant = -golf.kant;                            // om en om links en rechts
-  const half = W / 2 / viewZoom() + 320;
-  let x = world + golf.kant * half;
-  x = Math.min(x, cliffAt().wall - 200);
-  x = Math.max(x, endWall() + 200);
+  golf.kant = kant;
+  const x = plekVan(kant);
   const b = makeBandiet(x, x > world ? 1 : -1, g.dolk);
   b.base = terrainH(x);
   bandieten.push(b);
@@ -49015,7 +49027,8 @@ function readLevel(txt){
                                           tot: Math.max(0.3, Number(o.bandietGolf.tot) || 0.8),
                                           ramp: Math.max(1, Number(o.bandietGolf.ramp) || 55),
                                           max: Math.max(1, Math.round(Number(o.bandietGolf.max) || 12)),
-                                          dolk: o.bandietGolf.dolk === true } : undefined,   // de bandieten gooien eerst hun dolk
+                                          dolk: o.bandietGolf.dolk === true,   // de bandieten gooien eerst hun dolk
+                                          niveau: o.bandietGolf.niveau === true } : undefined,   // alleen op Amirs hoogte, vastzittende tellen niet (GOLF_NIVEAU)
            grotArena: o.grotArena ? { overleef: Number(o.grotArena.overleef) || 60 } : undefined,   // door de grot-opening de arena in; overleef zoveel seconden en het level is uit
            onsterfelijk: !!o.onsterfelijk,              // om iets te proberen: je raakt geen levens kwijt
            rugMax: o.rugMax != null ? Math.max(0, Math.min(5, Math.round(Number(o.rugMax) || 0))) : undefined,   // reserve-speren op de rug: 1 in de hand plus zoveel op de rug (zie "reserve-speren op de rug"); 0 is uit

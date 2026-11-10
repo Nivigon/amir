@@ -360,7 +360,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `schildKleur` | `true`: de makkelijke schildbandiet (`niveau: 'makkelijk'`) krijgt een bruin kleed (`SCHB_TINT`); een schildman-spawn kan ook zelf `tint` hebben |
 | `bandArena` | `true`: het level is een bandiet-arena (Valse Koning 8), zoals de goudaap-arena maar met de elite-garde (zie "de bandiet-arena") |
 | `duoArena` | `{c, golven, pauze, eerste, niveau}`: een arena op de open savanne rond `c` (vaste camera, geen wanden); per golf tegelijk een kruisboogbandiet en een schildbandiet, elk willekeurig van links of rechts. De schutter schiet pas helemaal in beeld (`inBeeld`, `krbInBeeld`) en zijn bouten raken de schildman (`vriendVuur`, `krbPijlVriend`). Na `golven` golven is het level uit (Test 55 en 56, `duoTick`). Met `keuze: true` kies je voor het begin de lading van de schutter (`KRB_SALVO`, standaard 2 bouten en daarna 1) en het niveau van de schildman, in plaats van `niveau` (`duoKeuze`, alleen Test 56) |
-| `bandietGolf` | een oplopende golf bandieten: `{van, tot, ramp, max, dolk}` (zie `notities/velden.md`) |
+| `bandietGolf` | een oplopende golf bandieten: `{van, tot, ramp, max, dolk, niveau}`; met `niveau: true` komt een nieuwe rover alleen op de hoogte waar Amir staat, en telt een rover die op een ander niveau vastzit niet mee (Rivier 14) (zie `notities/velden.md`) |
 | `duel` | per kooiman-spawn `{x, k: 'kooiman', duel}`; standaard aan is het 1-op-1 duel, `duel: false` de gewone kooiman (zie `notities/velden.md`) |
 | `props` | decor: `{x, k, s, f, v}`, `k` uit `PROPS`, `f` spiegelen, `v` verre laag |
 | `village` | dorpsplaten uit `VILLAGE`: `{id, x, depth, flip}` |
