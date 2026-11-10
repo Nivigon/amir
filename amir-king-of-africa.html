@@ -1491,8 +1491,9 @@
         <label>Murghtaan (baas)</label>
         <button data-spawn="murg">Murghtaan</button>
         <button data-spawn="murg_bz">Bezeten</button>
+        <button data-spawn="murg_fin">Finale</button>
         <button id="sbmurkever">Kevers nu</button>
-        <span class="hint">de hyena-baas: rent, grauwt (de tell), springt met een hap, rent weg en brult. Fase 1 roept dan een hyena, bezeten spuwt hij kevers. Na acht treffers de reveal. Kevers nu: hij brult meteen kevers (zet hem eerst neer)</span>
+        <span class="hint">de hyena-baas: rent, grauwt (de tell), springt met een hap, rent weg en brult. Fase 1 roept dan een hyena, bezeten spuwt hij kevers. Na acht treffers de reveal. Kevers nu: hij brult meteen kevers (zet hem eerst neer). Finale: bezeten met nog een treffer, dan zie je de echte dood (weghinken, omkijken, inzakken, de kever)</span>
       </div>
       <div class="row">
         <label>Brutus (baas)</label>
@@ -17134,7 +17135,7 @@ function bavFocusX(p){
 }
 // de entree van de bandiet-arena: Amir staat vast en kijkt toe terwijl de garde hem opmerken, tot het gevecht vrij is
 const arenaIntroVast = () => { const A = arenaAap; return !!(A && A.ban && A.fase === 'intro'); };
-const amirVast = () => !!rol || !!rolW || beetVast || bavDramaNu() || arenaIntroVast() || bruIntroVast() || !!exeVries || !!bruVries || !!poortRegie || !!sneakRegie;   // de speerbeet, het drama, de arena-entree of de executie: Amir staat vast
+const amirVast = () => !!rol || !!rolW || beetVast || bavDramaNu() || arenaIntroVast() || bruIntroVast() || !!exeVries || !!bruVries || !!poortRegie || !!sneakRegie || murFinaleVast();   // de speerbeet, het drama, de arena-entree of de executie: Amir staat vast
 // het gevecht in de tekenlus, na de andere vijanden: raakt zijn bek Amir, en raakt Amir hem
 function bavGevecht({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, valRaakt, attacking, hitBy }){
   const b = level && level.baviaan, r = b && bavRust.get(b), g = b && bavGeo.get(b);
@@ -40953,6 +40954,10 @@ const MUR = {
   reveal: { lig: 1.1, rood: 1.3, zakFps: 12, opFps: 9 },   // de valse dood: inzakken, stil liggen, rood, verkeerd opstaan
   rook: { perS: 9, perSBz: 16 },
   kever: { n: 44, perS: 26, duur: 6.5, snel: 300, schade: 0.5, tik: 0.6, traag: 0.55, maat: 0.095 },
+  // de finale (de echte dood, bezeten): Amir staat vast, de poot geeft het op, hij hinkt weg van Amir, kijkt nog een keer
+  // om, hinkt verder en zakt in (dood_echt, met een eigen duur per frame). De gloed dooft, de rook trekt terug in zijn
+  // bek, en er kruipt een kevertje uit (Ndoki ontsnapt). stappen: manke stappen voor en na het omkijken.
+  finale: { opFps: 12, mankFps: 10, kijkFps: 10, stappen1: 2, stappen2: 1, rookIn: 1.6, rust: 0.6, bek: [318, 268], keverDuur: 3.2 },
 };
 const murBank = { f1: {}, bz: {} };
 let murMeta = null, murBezig = false, murg = null;
@@ -41051,8 +41056,8 @@ function updateMurg(dt){
   if (!murMeta) return;
   s.t += dt;
   const A = murAmir(), dx = playerX() - s.x, afst = Math.abs(dx);
-  if (s.state !== 'dood' && s.state !== 'weg' && s.state !== 'sprong') s.face = murNaar(s);
-  if (s.bz && s.state !== 'dood') murRookAdem(s, dt);
+  if (s.state !== 'dood' && s.state !== 'weg' && s.state !== 'sprong' && s.state !== 'finale') s.face = murNaar(s);
+  if (s.bz && s.state !== 'dood' && !(s.state === 'finale' && (s.ffase === 'val' || s.ffase === 'in' || s.ffase === 'uit'))) murRookAdem(s, dt);
   switch (s.state){
     case 'wacht':
       murSpeel(s, dt, 8, 'heen');
@@ -41140,22 +41145,80 @@ function updateMurg(dt){
       else if (murSpeel(s, dt, MUR.reveal.opFps, 'een')){ murSet(s, 'roep', 'brul'); s.roepKlaar = false; }
       break;
     case 'dood':
-      murSpeel(s, dt, MUR.reveal.zakFps, 'een');      // de echte dood: inzakken, en blijven liggen
+      if (s.set !== 'dood_echt') murSpeel(s, dt, MUR.reveal.zakFps, 'een');      // de echte dood: blijven liggen
+      break;
+    case 'finale':
+      murFinaleStap(s, dt);
       break;
   }
   s.lift = murLift(s.x);
 }
 function hitMurg(s){
-  if (!s || s.inv > 0 || s.state === 'dood' || s.state === 'reveal' || s.state === 'wacht') return;
+  if (!s || s.inv > 0 || s.state === 'dood' || s.state === 'finale' || s.state === 'reveal' || s.state === 'wacht') return;
   s.hp--; if (critPak()) s.hp--; fcHalf(s, 0);
   hits++; hitsEl.textContent = hits;
   s.inv = MUR.inv; s.flash = 0.35;
   if (s.hp > 0) return;
   s.hp = 0;
   if (!s.bz){ murSet(s, 'reveal', 'inzakken'); s.rfase = 'zak'; s.revealT = 0; hitstop = Math.max(hitstop, 0.2); s.sprongen = 0; return; }
-  murSet(s, 'dood', 'inzakken');
   vijandDood(true, s);
   for (const k of murKevers) if (k.fase !== 'weg'){ k.fase = 'weg'; k.t = 0; }
+  if (murMeta && murMeta.sets.dood_echt) murFinaleStart(s);
+  else murSet(s, 'dood', 'inzakken');
+}
+// ---- de finale: weghinken, omkijken, en de echte dood ----
+function murFinaleVast(){ return !!(murg && murg.state === 'finale'); }
+function murFinaleStart(s){
+  murSet(s, 'finale', 'poot_op'); s.ffase = 'op'; s.stappen = 0; s.gloed = 1; s.inv = 0; s.flash = 0;
+  hitstop = Math.max(hitstop, 0.12); shake = Math.max(shake, 0.25);
+}
+// een manke stap: de frames schuiven zelf naar voren; bij het rondgaan schuift s.x een stap op (root motion)
+function murMankStap(s, dt){
+  const voor = s.frame;
+  murSpeel(s, dt, MUR.finale.mankFps, 'lus');
+  if (s.frame >= voor) return false;
+  const stap = Math.abs(murMeta.sets.mank.reis || 47) * murScale(), ar = murArena(s);
+  s.x = Math.max(ar.lo, Math.min(ar.hi, s.x + s.face * stap));
+  return true;                                       // een stap klaar
+}
+function murFinaleStap(s, dt){
+  const F = MUR.finale;
+  if (s.ffase === 'op'){
+    if (murSpeel(s, dt, F.opFps, 'een')){ s.face = -murNaar(s); murAnimZet(s, 'mank'); s.ffase = 'weg1'; s.stappen = 0; }
+  } else if (s.ffase === 'weg1' || s.ffase === 'weg2'){
+    if (murMankStap(s, dt)){
+      s.stappen++;
+      const ar = murArena(s), opRand = s.x <= ar.lo + 1 || s.x >= ar.hi - 1;
+      if (s.ffase === 'weg1' && (s.stappen >= F.stappen1 || opRand)){ murAnimZet(s, 'omkijken'); s.ffase = 'kijk'; }
+      else if (s.ffase === 'weg2' && (s.stappen >= F.stappen2 || opRand)){ murAnimZet(s, 'dood_echt'); s.ffase = 'val'; s.dacc = 0; }
+    }
+  } else if (s.ffase === 'kijk'){
+    if (murSpeel(s, dt, F.kijkFps, 'een')){ murAnimZet(s, 'mank'); s.ffase = 'weg2'; s.stappen = 0; }
+  } else if (s.ffase === 'val'){
+    const duur = murMeta.sets.dood_echt.duur_ms || [], n = murN('dood_echt');
+    s.dacc += dt * 1000;
+    while (s.frame < n - 1 && s.dacc >= (duur[s.frame] || 100)){ s.dacc -= duur[s.frame] || 100; s.frame++; }
+    s.gloed = Math.max(0, 1 - s.frame / 8);         // de kolen in zijn oogkassen doven terwijl hij valt
+    if (s.frame >= n - 1 && s.dacc > 300){ s.ffase = 'in'; s.t = 0; }
+  } else if (s.ffase === 'in'){
+    // de rook trekt terug in zijn bek
+    const m = murFinaleBek(s);
+    if (s.t < F.rookIn * 0.7 && Math.random() < dt * 22){
+      const a = Math.random() * Math.PI * 2, r = murAmir() * (0.5 + Math.random() * 0.6);
+      murRook.push({ x: m.x + Math.cos(a) * r, h: Math.max(4, m.h + Math.sin(a) * r * 0.6), vx: 0, vh: 0, r: 32 * murScale(), age: 0, life: 0.8, naar: m });
+    }
+    if (s.t > F.rookIn){
+      murKevers.push({ x: m.x, h: m.h, vx: 0, vh: 0, t: 0, fase: 'uit', tempo: 1, wiebel: 0, poot: 0, zij: 0, dir: s.face });
+      s.ffase = 'uit'; s.t = 0;
+    }
+  } else if (s.ffase === 'uit'){
+    if (s.t > F.keverDuur + F.rust){ s.state = 'dood'; s.ffase = null; }
+  }
+}
+// waar zijn bek is op het liggende frame, in wereld-x en hoogte boven de grond
+function murFinaleBek(s){
+  const gs = murScale(), b = MUR.finale.bek;
+  return { x: s.x + s.face * -(b[0] - MUR.anker) * gs, h: (MUR.ground - b[1]) * gs + s.lift };
 }
 function murBlokkeert(){ return !!(murg && murg.state !== 'dood'); }
 function murKlem(halfWNow){
@@ -41178,6 +41241,11 @@ function murRookAdem(s, dt){
 function murRookStap(dt){
   for (let i = murRook.length - 1; i >= 0; i--){
     const p = murRook[i]; p.age += dt;
+    if (p.naar){                                     // de finale: de rook trekt terug in de bek en wordt kleiner
+      const k = Math.min(1, dt * 4.5); p.x += (p.naar.x - p.x) * k; p.h += (p.naar.h - p.h) * k; p.r *= 1 - dt * 1.4;
+      if (p.age > p.life) murRook.splice(i, 1);
+      continue;
+    }
     p.x += p.vx * dt; p.h += p.vh * dt; p.vx *= 0.97; p.r *= 1 + dt * 0.6;
     if (p.age > p.life) murRook.splice(i, 1);
   }
@@ -41223,6 +41291,10 @@ function murKeverStap(dt){
     if (k.fase === 'val'){
       k.vh -= 1400 * dt; k.h += k.vh * dt; k.x += k.vx * dt;
       if (k.h <= 0){ k.h = 0; k.fase = 'kruip'; }
+    } else if (k.fase === 'uit'){                     // Ndoki ontsnapt: het kevertje valt uit de bek en kruipt weg van Amir
+      if (k.h > 0){ k.vh -= 900 * dt; k.h = Math.max(0, k.h + k.vh * dt); }
+      else { k.wiebel += dt * 5; k.x += k.dir * K.snel * 0.28 * dt * (0.7 + 0.3 * Math.sin(k.wiebel * 3)); }
+      if (k.t > MUR.finale.keverDuur){ k.fase = 'weg'; k.t = 0; murRook.push({ x: k.x, h: 6, vx: 0, vh: 30, r: 16, age: 0, life: 0.9 }); }
     } else if (k.fase === 'kruip'){
       if (k.t > K.duur){ k.fase = 'weg'; k.t = 0; murRook.push({ x: k.x, h: 6, vx: 0, vh: 30, r: 16, age: 0, life: 0.9 }); continue; }
       k.wiebel += dt * 9;
@@ -41266,7 +41338,7 @@ function murKeverTeken(groundY, scale, cx){
     if (a <= 0) continue;
     const x = cx + (k.x - world), y = groundY - k.h - r * 0.55;
     ctx.save(); ctx.globalAlpha = a; ctx.translate(x, y);
-    const dir = k.fase === 'kruip' ? (playerX() > k.x ? 1 : -1) : 1;
+    const dir = k.fase === 'kruip' ? (playerX() > k.x ? 1 : -1) : k.fase === 'uit' ? k.dir : 1;
     ctx.scale(dir, 1);
     ctx.strokeStyle = '#120a0c'; ctx.lineWidth = Math.max(1, r * 0.18);
     for (let j = -1; j <= 1; j++){                   // zes pootjes die trippelen
@@ -41302,9 +41374,9 @@ function murTeken(s, bodyX, voeten, gs){
   if (imgReady(img)) ctx.drawImage(s.flash > 0 ? whiteCopy(img, s.flash * 4) : img, -MUR.anker * gs, -MUR.ground * gs, MUR.w * gs, MUR.h * gs);
   // bezeten: de dichte oogkassen gloeien als kolen
   const oog = murMeta && murMeta.ogen[set] && murMeta.ogen[set][fr];
-  if (s.bz && oog && s.state !== 'dood'){
+  if (s.bz && oog && s.state !== 'dood' && (s.gloed == null || s.gloed > 0.02)){
     const ox = (oog[0] - MUR.anker) * gs, oy = (oog[1] - MUR.ground) * gs;
-    const fl = 0.75 + 0.25 * Math.sin(s.t * 23) * Math.sin(s.t * 7.3);
+    const fl = (0.75 + 0.25 * Math.sin(s.t * 23) * Math.sin(s.t * 7.3)) * (s.gloed == null ? 1 : s.gloed);
     ctx.globalCompositeOperation = 'lighter';
     const g = ctx.createRadialGradient(ox, oy, 0, ox, oy, 15 * gs * 2.4);
     g.addColorStop(0, 'rgba(255,70,40,' + 0.95 * fl + ')'); g.addColorStop(0.35, 'rgba(220,20,10,' + 0.55 * fl + ')'); g.addColorStop(1, 'rgba(160,0,0,0)');
@@ -41313,7 +41385,7 @@ function murTeken(s, bodyX, voeten, gs){
   ctx.restore();
 }
 function murBalkTeken(){
-  const s = murg; if (!s || s.state === 'dood' || !s.actief || (s.state === 'reveal' && (s.rfase === 'zak' || s.rfase === 'lig'))) return;   // tijdens de valse dood is de balk weg
+  const s = murg; if (!s || s.state === 'dood' || s.state === 'finale' || !s.actief || (s.state === 'reveal' && (s.rfase === 'zak' || s.rfase === 'lig'))) return;   // tijdens de valse dood is de balk weg
   const bw = Math.min(420, W * 0.55), bh = 12, x0 = (W - bw) / 2, y0 = H - 30, gap = 3;
   ctx.save();
   ctx.fillStyle = 'rgba(14,10,12,0.55)'; ctx.fillRect(x0 - 10, y0 - 26, bw + 20, bh + 32);
@@ -55818,7 +55890,7 @@ function sbSpawn(kind, kant, plek, hoogte){       // kant en plek: de arena-modu
     bandieten.push(b);
   }
   else if (kind === 'brutus'){ brutus = makeBrutus(x, { sandbox: true, huid: sbBruHuid }); brutus.base = vlBij(x); }
-  else if (kind === 'murg' || kind === 'murg_bz'){ murg = makeMurg(x, { sandbox: true }); murg.base = vlBij(x); if (kind === 'murg_bz'){ murg.bz = true; murg.hp = murg.maxHp = MUR.hp2; } }
+  else if (kind === 'murg' || kind === 'murg_bz' || kind === 'murg_fin'){ murg = makeMurg(x, { sandbox: true }); murg.base = vlBij(x); if (kind !== 'murg'){ murg.bz = true; murg.hp = murg.maxHp = MUR.hp2; if (kind === 'murg_fin') murg.hp = 1; } }
   else if (kind === 'zweepman'){ const m = makeZweepman(x, side, sbZwmFasen); m.base = vlBij(x); m.vrij = sbZwmVrij; m.slagVast = sbZwmSlag; zweepmannen.push(m); }
   else if (kind === 'schildman' || kind === 'schildman_makkelijk' || kind === 'schildman_kleur'){   // de moeilijke (standaard) of de makkelijke vorm (niveau: 'makkelijk'), die ook in zijn eigen kleur (SCHB_TINT)
     const m = makeSchildman(x, side, kind === 'schildman' ? 'moeilijk' : 'makkelijk'); m.base = vlBij(x); m.vrij = sbSchVrij; schildmannen.push(m);
