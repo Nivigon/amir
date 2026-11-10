@@ -33,7 +33,17 @@ daarna komt hij omhoog uit een tweede clip (restand, met begin- en eindbeeld: he
 `thr.frame` telt gewoon door tot `thrOmWEind`. De speer vertrekt van zijn punt op het losframe (`THR_OMW.punt`, laag
 voor hem, zo'n 0,7 Amir vooruit) in plaats van `THR_TIP` op hoofdhoogte: hij komt dus lager uit zijn hand en raakt van
 boven dichterbij dan de metingen hieronder (die zijn van voor deze worp). Na de worp omlaag is er geen tweede speer
-(DUBBEL). Zonder de plaatjes binnen (`thrOmWKlaar`) gooit hij met de gewone frames. Het richtstreepje van de schaalworp (`drawThrowRicht`) wijst de hoek, en `looseSpear`
+(DUBBEL). Zonder de plaatjes binnen (`thrOmWKlaar`) gooit hij met de gewone frames.
+
+Hoe het mikken omlaag werkt is een keuze (`MIK`, `mikModus`): in Test 71 (`mikKeuze: true`) aan het begin en na R op
+het scherm van `duoKeuze` (rij Aiming down, `duoKeuze.mik`, onthouden in localStorage), in de sandbox met de knop
+**Aim** naast Aim down (`sbMikModus`). Vijf versies, om te vergelijken of het streepje het niet te makkelijk maakt:
+`streep` (zoals het was), `zonder` (geen streepje, de houdpose zegt de hoek), `kort` (het streepje alleen de eerste
+`kortZie` s na het eerste omlaag, dan vervaagt het in `kortWeg` s; `thr.omStart`), `wiebel` (een keer omlaag en de punt
+gaat vanzelf heen en weer tussen 0 en `wiebelMax` graden, `wiebelT` s per kant, geen streepje: loslaten op het goede
+moment) en `tril` (het streepje blijft, maar wie langer dan `trilNa` s gespannen staat wijkt af, tot `trilMax` graden
+na `trilVol` s, willekeurig; `thr.losWacht`, want `thr.wacht` begint opnieuw bij frame 7). Nagemeten in Chromium: de
+wiebel loopt 0 tot 45 en terug, en tril geeft na 3,5 s gespannen 3 tot 6 graden afwijking, na 0,7 s geen. Het richtstreepje van de schaalworp (`drawThrowRicht`) wijst de hoek, en `looseSpear`
 gooit onder vlak met de volle snelheid van de vlakke worp (geen boog, `thr.lob` blijft uit). Bukken kan tijdens het
 spannen toch niet (`canDuck` vraagt `!throwing`).
 

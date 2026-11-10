@@ -1657,6 +1657,7 @@
         <button id="sbworp">Worp: twee trappen</button>
         <button id="sbworpwacht" class="on">Spannen: nieuw</button>
         <button id="sbworpomlaag">Aim down: off</button>
+        <button id="sbmikmodus" title="Hoe het mikken omlaag werkt (MIK): Line, No line, Fading line, Sweep, Shaky hand">Aim: Line</button>
       </div>
       <div class="row">
         <label>Stof in de ogen</label>
@@ -2621,6 +2622,7 @@
     <div class="dkrij">Schildbandiet<small>Moeilijk: een kortere tell, een snellere sprong en minder rust tussen zijn aanvallen</small><div id="dkniveau"></div></div>
     <div class="dkrij">Draaislag<small>Full Circle: steek je een open vijand (verblind door stof, of net mis geslagen), dan wordt je steek de draaislag: een treffer en een kleine terugslag. Crushing Circle: anderhalve treffer en een grote terugslag. Wide Circle: hij raakt elke vijand voor je. Drie steken: de oude derde slag, drie steken kort na elkaar. Duw op X: X speelt de draaislag los af, zonder schade, en koelt 8 s af</small><div id="dkcombo"></div></div>
     <div class="dkrij">Zweepman<small>Nieuw: hij sluipt sneller op je af, en zonder arm slaat hij sneller en haalt hij uit van ver. Nieuwer: zoals nieuw, maar zonder arm is hij alleen in zijn slag onaantastbaar, zijn klap slaat je minder ver weg en verdooft je even, en hij kan een treffer meer hebben. Nieuwer schreeuw: zoals nieuwer, en ook met arm alleen in zijn slag onaantastbaar en sneller; je treffer onderbreekt hem niet, dus blijf je staan, dan moet je zijn slag ontwijken. Zijn schreeuw duwt je weg en zijn lach is te raken. Oud: zoals hij was</small><div id="dkzweep"></div></div>
+    <div class="dkrij">Aiming down<small>Line: the dotted line shows the angle. No line: only Amir's pose shows the angle. Fading line: the line shows only when you start aiming, then fades. Sweep: press down once and the spear tip moves down and up by itself, let go of F at the right moment. Shaky hand: the line stays, but aim too long and your hand starts to shake and the throw goes off</small><div id="dkmik"></div></div>
     <button id="dkstart" type="button">Start level</button></div>
   <div id="verhaal"><div id="vhtitel"></div><div id="vhtekst"></div><button id="vhstart" type="button">Start level</button></div>
   <div id="updates"><div id="updtitel">Updates</div><div id="updstand"></div><ul id="updlijst"></ul><button id="updsluit" type="button">Terug</button></div>
@@ -5977,7 +5979,7 @@ const TEST_71 = {
   name: 'Test 71: From above',
   lagen: 'tafelbergen',
   view: 0.8, hpBalk: true, zicht: true, sneak: true, camera: true, rand: true, slangEenKlap: true,
-  speerInHand: true, rugMax: 4, worpOmlaag: true,
+  speerInHand: true, rugMax: 4, worpOmlaag: true, mikKeuze: true,   // aan het begin en na R kies je hoe het mikken omlaag werkt (MIK)
   terraces: [ {r: -700, l: -850, h: 150, grond: true}, {r: -850, l: -2300, h: 300, grond: true},                  // balkon 1
               {r: -4300, l: -4450, h: 150, grond: true}, {r: -4450, l: -4600, h: 300, grond: true},
               {r: -4600, l: -5800, h: 450, grond: true},                                                          // balkon 2
@@ -19658,6 +19660,18 @@ function thrOmBeeld(){
   return im && im.complete && im.naturalWidth ? best : -1;
 }
 let sbWorpOmlaag = false;                // de schakelaar in de sandbox
+// Hoe het mikken omlaag werkt (Test 71 kiest aan het begin en na R, mikKeuze; de sandbox met de knop Aim):
+//   streep  het richtstreepje wijst de hoek, zoals het was
+//   zonder  geen streepje: de houdpose laat de hoek zien, de rest is inschatten
+//   kort    het streepje alleen even als je begint met mikken (kortZie s), dan vervaagt het (kortWeg s)
+//   wiebel  geen streepje en geen instellen: pijl omlaag zet de punt in beweging, hij zakt en komt terug
+//           (0 tot wiebelMax graden, wiebelT s per kant); de skill is het moment van loslaten
+//   tril    het streepje blijft, maar wie lang blijft mikken trilt: na trilNa s wijkt de worp af, tot trilMax
+//           graden na trilVol s (willekeurig omhoog of omlaag)
+const MIK = { modi: ['streep', 'zonder', 'kort', 'wiebel', 'tril'], kortZie: 0.5, kortWeg: 0.6,
+              wiebelT: 0.8, wiebelMax: 45, trilNa: 0.8, trilVol: 2.3, trilMax: 8 };
+let sbMikModus = 'streep';               // de knop Aim in de sandbox
+function mikModus(){ return sandbox ? sbMikModus : level && level.mikKeuze ? duoKeuze.mik : 'streep'; }
 function worpOmlaag(){ return sandbox ? sbWorpOmlaag : !!(level && level.worpOmlaag); }
 let thrPressT = 0;       // wanneer de knop ingedrukt ging, voor de tik- en oplaaddrempel (bavKlok, speltijd in ms)
 
@@ -20289,6 +20303,7 @@ function thrRelease(cancel){
   if (!thr.held) return;
   thr.held = false; thr.rel = bavKlok;
   thr.lob = thr.frame >= THR_WIND && !thr.omT;     // helemaal uitgetrokken? Dan wordt het de boog (niet als hij omlaag mikt)
+  thr.losWacht = thr.wacht || 0;                   // hoe lang hij gespannen stond (MIK tril), want wacht begint opnieuw bij frame 7
   thr.omW = !!(thr.om >= THR_OMW.vanaf && worpOmlaag() && !thr.dubbel && thrOmWKlaar());   // de worp omlaag (THR_OMW)
   // bij de schaalworp staat de hoek vanaf nu vast: de speer gaat pas op THR_LOOSE weg
 }
@@ -20312,9 +20327,19 @@ function thrHoek(){
 // Omlaag mikken (zie THR_OMLAAG): pas als hij de eerste trap uitgetrokken heeft, zodat de pose niet versprint
 function thrOmlaag(dt){
   if (!thr.held || thr.gone || thr.dubbel || !worpOmlaag() || thr.frame < THR_DRAW1) return;
-  if (!(keys['ArrowDown'] || keys['s'] || keys['S'])) return;   // losgelaten: de hoek blijft staan
-  thr.omT += dt;
-  thr.om = THR_OMLAAG.max * Math.pow(Math.min(1, thr.omT / THR_OMLAAG.t), THR_OMLAAG.krom);
+  const neer = keys['ArrowDown'] || keys['s'] || keys['S'];
+  if (mikModus() === 'wiebel'){                       // de wiebel (MIK): eenmaal omlaag gedrukt beweegt de punt vanzelf
+    if (!thr.omT && !neer) return;
+    if (!thr.omT) thr.omStart = bavKlok;
+    thr.omT += dt;
+    const f = (thr.omT / MIK.wiebelT) % 2;
+    thr.om = Math.max(0.5, MIK.wiebelMax * (f < 1 ? f : 2 - f));   // nooit precies 0: dan zou hij als vlak gelden
+  } else {
+    if (!neer) return;                               // losgelaten: de hoek blijft staan
+    if (!thr.omT) thr.omStart = bavKlok;
+    thr.omT += dt;
+    thr.om = THR_OMLAAG.max * Math.pow(Math.min(1, thr.omT / THR_OMLAAG.t), THR_OMLAAG.krom);
+  }
   thr.frame = THR_WIND; thr.acc = 0;                 // de speer ligt vlak in zijn hand
 }
 function thrCancel(){ if (thr && !thr.gone) thr = null; }
@@ -20392,7 +20417,11 @@ function looseSpear(){
   if (jav && jav.rug){ eigenSpeerLos(jav.x, jav.dir, jav.blauw, jav.h); jav = null; }   // de speer in het lijk valt eruit en ligt los
   const scale = nowScale(), dir = thrDir();
   const lob = !!thr.lob, schaal = worpSchaal();
-  const graden = thr.om ? -thr.om : schaal ? thr.hoek : lob ? THR_LOB_DEG : 0;   // omlaag mikken: onder vlak
+  let graden = thr.om ? -thr.om : schaal ? thr.hoek : lob ? THR_LOB_DEG : 0;   // omlaag mikken: onder vlak
+  if (thr.om && worpOmlaag() && mikModus() === 'tril'){   // MIK: lang gemikt, dan wijkt hij af
+    const k = Math.max(0, Math.min(1, ((thr.losWacht || 0) - MIK.trilNa) / (MIK.trilVol - MIK.trilNa)));
+    graden += (Math.random() * 2 - 1) * MIK.trilMax * k;
+  }
   const a = -graden * Math.PI / 180;                  // schermhoek: omhoog is negatief
   // V is de worpsnelheid in wereld-pixels per seconde: bij de vlakke worp de volle
   // 14 tegels, bij de boog minder, zodat hij hoger maar niet eindeloos ver gaat. De
@@ -21057,6 +21086,11 @@ function drawThrowGlint(pcx, groundY, scale, lift){
 function drawThrowRicht(pcx, groundY, scale, lift){
   const om = !!(thr && thr.om > 0 && worpOmlaag());   // omlaag mikken: hetzelfde streepje, onder vlak
   if (!thr || !thr.held || thr.gone || (!om && (!worpSchaal() || !thr.t0))) return;
+  const modus = om ? mikModus() : 'streep';
+  if (modus === 'zonder' || modus === 'wiebel') return;   // MIK: geen streepje, de pose zegt het
+  const zicht = modus === 'kort'                        // MIK: alleen even, dan vervaagt het
+    ? Math.max(0, Math.min(1, 1 - ((bavKlok - (thr.omStart || bavKlok)) / 1000 - MIK.kortZie) / MIK.kortWeg)) : 1;
+  if (zicht <= 0) return;
   const hoek = om ? -thr.om : thr.hoek;
   const omI = om ? thrOmBeeld() : -1;            // omlaag: de punt van de houdpose die getekend wordt
   const ts = THR_S * scale, pt = omI >= 0 ? THR_OMLAAG_FR[omI] : thrSchaalFr(om ? 0 : thr.hoek);
@@ -21066,7 +21100,7 @@ function drawThrowRicht(pcx, groundY, scale, lift){
   const x = pcx + kant * (pt.x - THR_ANCHOR) * ts + kant * Math.cos(a) * vrij;
   const y = groundY + lift - (THR_GROUND - pt.y) * ts - Math.sin(a) * vrij;
   ctx.save();
-  ctx.strokeStyle = 'rgba(255,244,220,0.45)';
+  ctx.strokeStyle = 'rgba(255,244,220,' + (0.45 * zicht).toFixed(3) + ')';
   ctx.lineWidth = Math.max(1.5, CHAR_H * scale * 0.012);
   ctx.lineCap = 'round';
   ctx.setLineDash([L * 0.14, L * 0.1]);
@@ -44251,13 +44285,14 @@ const duoKeuze = (() => {
   try { k = JSON.parse(localStorage.getItem('amir.duoKeuze') || '{}') || {}; } catch (e) {}
   return { salvo: KRB_SALVO[k.salvo] ? k.salvo : '2dan1', niveau: k.niveau === 'moeilijk' ? 'moeilijk' : 'makkelijk',
            zweep: ['oud', 'nieuw', 'nieuwer', 'schreeuw'].includes(k.zweep) ? k.zweep : ZWM_STANDAARD,
-           combo: ['fc_kracht', 'fc_breed', 'terugslag', 'knop'].includes(k.combo) ? k.combo : 'fc' };
+           combo: ['fc_kracht', 'fc_breed', 'terugslag', 'knop'].includes(k.combo) ? k.combo : 'fc',
+           mik: MIK.modi.includes(k.mik) ? k.mik : 'streep' };
 })();
 const duoKeuzeEl = document.getElementById('duokeuze');
 let duoKeuzeVerder = null, duoKeuzeDoor = false;
 function duoKeuzeOpen(){ return duoKeuzeEl.classList.contains('on'); }
 function duoKeuzeDuo(){ return !!(level && level.duoArena && level.duoArena.keuze); }
-function duoKeuzeNodig(){ return !!(level && (duoKeuzeDuo() || level.zweepKeuze || level.comboKeuze) && !sandbox && !duoKeuzeDoor); }
+function duoKeuzeNodig(){ return !!(level && (duoKeuzeDuo() || level.zweepKeuze || level.comboKeuze || level.mikKeuze) && !sandbox && !duoKeuzeDoor); }
 function duoKeuzeBouw(){
   const rij = (id, lijst, veld) => {
     const el = document.getElementById(id); el.innerHTML = '';
@@ -44270,10 +44305,11 @@ function duoKeuzeBouw(){
   rij('dksalvo', ['2dan1', '2', '1'].map(w => [w, KRB_SALVO[w].naam]), 'salvo');
   rij('dkniveau', [['makkelijk', 'Makkelijk'], ['moeilijk', 'Moeilijk']], 'niveau');
   rij('dkzweep', [['oud', 'Oud'], ['nieuw', 'Nieuw'], ['nieuwer', 'Nieuwer'], ['schreeuw', 'Nieuwer schreeuw']], 'zweep');
+  rij('dkmik', [['streep', 'Line'], ['zonder', 'No line'], ['kort', 'Fading line'], ['wiebel', 'Sweep'], ['tril', 'Shaky hand']], 'mik');
   rij('dkcombo', [['fc', 'Full Circle'], ['fc_kracht', 'Crushing Circle'], ['fc_breed', 'Wide Circle'], ['terugslag', 'Drie steken'], ['knop', 'Duw op X']], 'combo');
   const toon = (id, aan) => { document.getElementById(id).parentElement.style.display = aan ? '' : 'none'; };   // alleen de rijen van dit level
   toon('dksalvo', duoKeuzeDuo()); toon('dkniveau', duoKeuzeDuo()); toon('dkzweep', !!(level && level.zweepKeuze));
-  toon('dkcombo', !!(level && level.comboKeuze));
+  toon('dkcombo', !!(level && level.comboKeuze)); toon('dkmik', !!(level && level.mikKeuze));
   duoKeuzeStand();
 }
 function duoKeuzeStand(){
@@ -44281,6 +44317,7 @@ function duoKeuzeStand(){
   for (const b of duoKeuzeEl.querySelectorAll('#dkniveau button')) b.classList.toggle('on', b.dataset.w === duoKeuze.niveau);
   for (const b of duoKeuzeEl.querySelectorAll('#dkzweep button')) b.classList.toggle('on', b.dataset.w === duoKeuze.zweep);
   for (const b of duoKeuzeEl.querySelectorAll('#dkcombo button')) b.classList.toggle('on', b.dataset.w === duoKeuze.combo);
+  for (const b of duoKeuzeEl.querySelectorAll('#dkmik button')) b.classList.toggle('on', b.dataset.w === duoKeuze.mik);
 }
 function duoKeuzeToon(verder){
   duoKeuzeVerder = verder;
@@ -49176,8 +49213,8 @@ function pauseGame(){
   document.getElementById('pztalents').style.display = RUN.tribeId && !sandbox ? '' : 'none';   // de boom van je tribe
   document.getElementById('pzkeuze').style.display = level && level.talentKeuze && !sandbox ? '' : 'none';
   const pzDuo = document.getElementById('pzduo');
-  pzDuo.style.display = (duoKeuzeDuo() || (level && (level.zweepKeuze || level.comboKeuze))) && !sandbox ? '' : 'none';
-  pzDuo.textContent = duoKeuzeDuo() ? 'Arena instellen' : 'Zweepman: welke versie';
+  pzDuo.style.display = (duoKeuzeDuo() || (level && (level.zweepKeuze || level.comboKeuze || level.mikKeuze))) && !sandbox ? '' : 'none';
+  pzDuo.textContent = duoKeuzeDuo() ? 'Arena instellen' : level && level.mikKeuze ? 'Aiming: choose a version' : 'Zweepman: welke versie';
   document.getElementById('pzmesbtn').style.display = tribeHeeft('jackal_fang') ? '' : 'none';   // alleen met het mes
   if (!tribeHeeft('jackal_fang')) document.getElementById('pzmes').classList.remove('on');
   mesAfstelToon();
@@ -50142,6 +50179,7 @@ function readLevel(txt){
            rolWorpProef: !!o.rolWorpProef,              // Test 60: oefendoelen, speren genoeg, en de rol-worp in de instellingen
            talentKeuze: !!o.talentKeuze,                // aan het begin kies je zelf de talents (Test 14)
            comboKeuze: !!o.comboKeuze,                  // aan het begin en na R de derde slag als terugslag of schade (Test 68)
+           mikKeuze: !!o.mikKeuze,                      // aan het begin en na R hoe het mikken omlaag werkt (MIK, Test 71)
            zweepKeuze: !!o.zweepKeuze,                  // aan het begin de oude of de nieuwe zweepman (Test 58 en 59)
            worp: o.worp === 'schaal' ? 'schaal' : '',   // 'schaal': de hoek loopt op zolang je vasthoudt
            worpOmlaag: !!o.worpOmlaag,                  // pijl omlaag tijdens het spannen mikt omlaag (THR_OMLAAG); Test 71
@@ -51469,7 +51507,7 @@ document.getElementById('truverder').onclick = () => {
 function runStart(verder){ tribeKies(verder); }
 // Opnieuw, ook na game over: hetzelfde level, met je tribe en de abilities die je al had.
 function opnieuw(){
-  if (level && level.comboKeuze && !sandbox){        // Test 68: na R eerst opnieuw de derde slag kiezen (comboKeuze)
+  if (level && (level.comboKeuze || level.mikKeuze) && !sandbox){   // Test 68 en 71: na R eerst opnieuw kiezen (comboKeuze, mikKeuze)
     deadEl.classList.remove('on');
     duoKeuzeToon(() => { restart(); hudToon(); cv.focus(); });
     return;
@@ -58708,6 +58746,12 @@ document.getElementById('sbworpwacht').onclick = e => {
   thrCancel(); cv.focus();
 };
 // Omlaag mikken (THR_OMLAAG): pijl omlaag tijdens het spannen laat de punt zakken in plaats van af te breken
+document.getElementById('sbmikmodus').onclick = e => {   // MIK: de volgende manier van mikken omlaag
+  sbMikModus = MIK.modi[(MIK.modi.indexOf(sbMikModus) + 1) % MIK.modi.length];
+  const naam = { streep: 'Line', zonder: 'No line', kort: 'Fading line', wiebel: 'Sweep', tril: 'Shaky hand' };
+  e.currentTarget.textContent = 'Aim: ' + naam[sbMikModus];
+  thrCancel(); cv.focus();
+};
 document.getElementById('sbworpomlaag').onclick = e => {
   sbWorpOmlaag = !sbWorpOmlaag;
   if (sbWorpOmlaag) thrOmLaad();
