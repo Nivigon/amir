@@ -38,6 +38,30 @@ De opbouw leunt op de stadlevels: 1 en 6 op Stad 1 (lift en toren), 2 op Stad 2 
 
 `BAB_1` tot en met `BAB_4` en `BAB_LEVELS`: proefstukken voor de baviaan, met de tribekeuze (`runStart`) zoals De Valse Koning; menu `menuBab`, `cardsBab`. Baboon 1 is de wand en de kooi, Baboon 2 dezelfde vlakte met de speerbeet in plaats daarvan, Baboon 3 de speerval, Baboon 4 de goudaap-arena (`apenArena`, zie hieronder). De eerste en de derde stonden eerst tussen de Test levels
 
+## Episode Murghtaan
+
+`MUR_1` en `MUR_LEVELS`: proefstukken voor Murghtaan, de hyena-baas (regel 12, gevraagd door de opdrachtgever). Net als Baboon
+tests een eigen knop onder Levels (`btnMur`), het scherm `menuMur` met `cardsMur`, en de tribekeuze (`runStart`). Geen echte
+episode in de zin van regel 1: aanpassen mag.
+
+Murghtaan 1: De roedel. Eerst een losse hyena en dan een paar, dan de arena (`murg: {x, van, tot}`, Amir blijft erin met
+`murKlem` zolang hij leeft). De baas zelf staat in de HTML onder `// ---- Murghtaan` (`MUR`, `makeMurg`, `updateMurg`,
+`hitMurg`, `murTeken`, `murBalkTeken`). Zijn ronde: `nader` (ren), `grauw` (de tell: de lippen trekken op), `sprong` (de hap
+zit in de frames `hap` uit metadata.json, de afstand in `reis`), `herstel` (het strafvenster), na `MUR.sprongenPerRonde`
+sprongen `weg` en `roep` (brul). In fase 1 haalt de roep een hyena (`MUR.maxHyenas` naast hem); na `MUR.hp1` treffers de
+`reveal`: hij zakt in (de set `inzakken`), ligt stil (`MUR.reveal.lig`, de balk is weg), wordt bezeten en komt
+verkeerd overeind (`inzakken` achterstevoren); hij wordt bezeten (de set uit `enemies/hyena_baas/bezeten/`, rode gloed op de oogkassen uit `ogen` in de metadata,
+zwarte rook in `murRook`). Bezeten spuwt de roep kevers (`murKevers`, `MUR.kever`): ze vallen uit zijn bek, kruipen naar Amir,
+maken hem trager (`murKeverTraag`, in de loopformule) en kosten `schade` leven per `tik` seconden zolang hij erin staat. Op een
+kei kunnen ze niet: ze krioelen om de voet van de kei waar Amir op staat, en na `duur` seconden gaan ze op in rook. De lage
+zwaai veegt ze weg (`murKeverVeeg`). Murghtaan zelf springt over een kei heen en staat er ook op (`murLift`): de uitzondering
+van regel 7 voor een eindbaas, anders splitst een kei de arena in tweeen. In de sandbox: Vijanden, **Murghtaan**, **Bezeten**
+en **Kevers nu**.
+
+De sets komen uit Grok-clips via `tools/murg_sets.py` (keyen, schalen, een offset per clip, de zoom eruit), `tools/murg_kleur.py`
+(fase 1: de oranje zone als kale grauwe huid; bezeten: bijna zwart, verkoolde poot met paarse gloed) en `tools/murg_oog.py`
+(de oogkas per frame, template matching vanaf een gekozen punt).
+
 ## Episode De Gouden Poort
 
 `GP_1` tot en met `GP_10` en `GP_LEVELS`: tien stadslevels van makkelijk tot mega, zelf ontworpen op verzoek (regel 3), met

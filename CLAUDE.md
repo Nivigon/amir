@@ -10,7 +10,7 @@ en beschrijft wat het spel kan; dit document beschrijft hoe je eraan werkt.
 ## Regels
 
 **1. Levels van een echte episode blijven met rust.** Nu is dat De Valse Koning (`VK_1` tot en met
-`VK_8`). De Episode Test levels (`TEST_1` en verder) de episode Baboon tests (`BAB_1` en verder) en de episode Test levels stad (`STAD_1` en verder) vallen niet onder deze regel: ze zijn er
+`VK_8`). De Episode Test levels (`TEST_1` en verder) de episode Baboon tests (`BAB_1` en verder), de episode Murghtaan (`MUR_1` en verder) en de episode Test levels stad (`STAD_1` en verder) vallen niet onder deze regel: ze zijn er
 juist om aan te rommelen. De leveldefinities van een echte episode zijn bevroren: er komt geen nieuwe vijand, prop, tip, potion of aangepast
 getal in, ook niet even om iets te laten zien. Alleen als de opdracht een level bij naam noemt
 ("zet dit in level 6") mag dat ene level veranderen. Twijfel je of iets eronder valt, dan valt
@@ -113,7 +113,8 @@ soorten tegenstanders:
   kooiman, meelman, kruisboogbandiet, zweepman en goudaapje. Die mag je in de sandbox en in een testlevel (regel 1 en 3) gewoon neerzetten.
 - **Bazen**: de panter (zwart, en wit in een winterlevel: dezelfde spawn `k: 'panter'`, altijd met `boss: true`
   en de arena-camera, drie treffers), de baviaan (`BAVIAAN`, de eindbaas in wording) en Brutus (in beeld Nyundo,
-  `BRU`, de baas van Stad 6: Het plein, zestien treffers, zie `notities/brutus.md`). Een baas zet jij
+  `BRU`, de baas van Stad 6: Het plein, zestien treffers, zie `notities/brutus.md`) en Murghtaan (`MUR`, de bezeten
+  hyena, de baas van de episode Murghtaan, zie `notities/episodes.md`). Een baas zet jij
   nergens neer zonder dat de opdrachtgever het goed vindt: niet in een level, niet in een arena-golf, en ook
   niet "even om iets te laten zien". Dat vraag je vooraf, per geval, voordat je iets bouwt. Mag het, dan bouw
   je het; zonder antwoord bouw je het niet.
@@ -186,6 +187,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | Episode De Valse Koning | `VK_1`, `VK_8`, `VK_LEVELS` | notities/episodes.md |
 | Episode Test levels | `TEST_1`, `TEST_51`, `KAART_BLAD` | notities/episodes.md |
 | Episode Baboon tests | `BAB_1`, `BAB_4`, `BAB_LEVELS` | notities/episodes.md |
+| Episode Murghtaan: de hyena-baas (baas, regel 12), de roedel, de reveal en de kevers | `MUR_1`, `MUR`, `makeMurg`, `updateMurg`, `hitMurg`, `murKevers`, `murKlem` | notities/episodes.md |
 | Episode Test levels stad | `STAD_1`, `STAD_LEVELS`, `menuStad` | notities/episodes.md |
 | Episode Oaktown: zeven straten met poorten, 50 kills | `OAK_1`, `OAK_STRATEN`, `menuOak` | notities/oaktown.md |
 | Episode De Belegerde Stad: zeven stadslevels, moeilijk tot extreem | `BEL_1`, `BEL_LEVELS`, `menuBel` | notities/episodes.md |
