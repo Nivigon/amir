@@ -21,8 +21,12 @@ de speerworp; een geworpen speer raakt maar een vijand, ook als er twee op dezel
 Met `worpOmlaag: true` in een level (alleen Test 71) of de sandboxknop **Aim down** (`sbWorpOmlaag`, onder Speerworp)
 breekt pijl omlaag tijdens het spannen de worp niet af (`thrAfbreken` in de lus slaat het dan over), maar laat hij de
 punt zakken: zodra de eerste trap uitgetrokken is (`THR_DRAW1`) loopt `thr.om` zolang de pijl ingedrukt is van 0 tot
-`THR_OMLAAG.max` (60 graden) in `t` (0,9 s), en losgelaten blijft de hoek staan. Hij houdt de speer vlak (frame
-`THR_WIND`, geen eigen frames), het richtstreepje van de schaalworp (`drawThrowRicht`) wijst de hoek, en `looseSpear`
+`THR_OMLAAG.max` (60 graden) in `t` (0,9 s), en losgelaten blijft de hoek staan. Hij houdt de pose van frame
+`THR_WIND`, maar met de speer schuin omlaag: vier houdposes (`THR_OMLAAG_FR`, `speerworp_omlaag_08`, `_18`, `_30` en
+`_45` in de map van de speerworp, lui geladen met `thrOmLaad`), en `thrOmBeeld` kiest de dichtstbijzijnde (onder de 4
+graden het gewone frame, boven de 45 blijft de laatste staan). De 18 is een Grok-beeld (image-to-image vanaf
+`speerworp_06`), de 8, 30 en 45 zijn die pose met de speer om zijn hoofd gedraaid; elk heeft zijn eigen speerpunt, waar
+het richtstreepje en het glimmen beginnen. Het richtstreepje van de schaalworp (`drawThrowRicht`) wijst de hoek, en `looseSpear`
 gooit onder vlak met de volle snelheid van de vlakke worp (geen boog, `thr.lob` blijft uit). Bukken kan tijdens het
 spannen toch niet (`canDuck` vraagt `!throwing`).
 

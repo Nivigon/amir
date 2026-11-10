@@ -19619,9 +19619,30 @@ function worpWacht(){ return sandbox ? sbWorpWacht : true; }
 // Omlaag mikken (worpOmlaag in een level, de knop Aim down in de sandbox): pijl omlaag tijdens het spannen breekt de
 // worp dan niet af maar laat de punt zakken, hoe langer hoe steiler, tot THR_OMLAAG.max graden onder vlak. Bedoeld
 // voor een worp van een hogere laag naar beneden (Test 71): vlak vliegt de speer daar ver over iedereen heen
-// (vanaf 300 hoog komt hij pas zo'n 1500 px verder op lijfhoogte). De speer ligt in de hand vlak (frame THR_WIND),
-// het richtstreepje wijst de hoek; de worp gaat met de volle snelheid van de vlakke worp.
+// (vanaf 300 hoog komt hij pas zo'n 1500 px verder op lijfhoogte). Hij houdt de pose van frame THR_WIND, maar met
+// de speer schuin omlaag (THR_OMLAAG_FR), het richtstreepje wijst de hoek; de worp gaat met de volle snelheid van de vlakke worp.
 const THR_OMLAAG = { max: 60, t: 0.9, krom: 1 };   // nagemeten vanaf 300 hoog (1280x720): 18 graden raakt op 700 tot 930 px, 30 op 525 tot 680, 50 op 350 tot 490
+// De houdposes omlaag: dezelfde pose als frame THR_WIND, met de speer schuin omlaag. De 18 is een Grok-beeld vanaf
+// speerworp_06, de andere drie zijn die pose met de speer om zijn hoofd gedraaid. a = graden onder vlak, x en y = de
+// speerpunt op het worpcanvas. Het spel kiest de dichtstbijzijnde; onder de 4 graden blijft het frame THR_WIND (vlak),
+// boven de 45 blijft hij in de laatste en wijst alleen het streepje verder.
+const THR_OMLAAG_FR = [ { a: 8,  x: 562, y: 314, n: '08' },
+                        { a: 18, x: 549, y: 368, n: '18' },
+                        { a: 30, x: 521, y: 432, n: '30' },
+                        { a: 45, x: 469, y: 500, n: '45' } ];
+let thrOmImgs = null;                    // lui: pas in een level met worpOmlaag of met de sandboxknop
+function thrOmLaad(){
+  if (thrOmImgs) return;
+  thrOmImgs = THR_OMLAAG_FR.map(r => loadQuiet(THR_DIRS.map(d => d + 'speerworp_omlaag_' + r.n + '.png')));
+}
+// De houdpose omlaag die nu getekend wordt (index in THR_OMLAAG_FR), of -1: dan het gewone frame.
+function thrOmBeeld(){
+  if (!thr || !thrOmImgs || !(thr.om > 0) || thr.frame !== THR_WIND || thr.gone || !worpOmlaag()) return -1;
+  let best = -1, bd = thr.om;                    // vlak (0 graden) telt mee als kandidaat
+  THR_OMLAAG_FR.forEach((r, i) => { const d = Math.abs(r.a - thr.om); if (d < bd){ bd = d; best = i; } });
+  const im = best >= 0 ? thrOmImgs[best] : null;
+  return im && im.complete && im.naturalWidth ? best : -1;
+}
 let sbWorpOmlaag = false;                // de schakelaar in de sandbox
 function worpOmlaag(){ return sandbox ? sbWorpOmlaag : !!(level && level.worpOmlaag); }
 let thrPressT = 0;       // wanneer de knop ingedrukt ging, voor de tik- en oplaaddrempel (bavKlok, speltijd in ms)
@@ -20998,7 +21019,8 @@ function javDraw(groundY, scale, cx, laag){
 function drawThrowGlint(pcx, groundY, scale, lift){
   if (!thr || thr.glint <= 0) return;
   const ts = THR_S * scale, k = thr.glint;
-  const pt = (worpSchaal() && thr.t0) ? thrSchaalFr(thr.hoek) : THR_HEAD;   // schaalworp: op de punt van dit frame
+  const omI = thrOmBeeld();
+  const pt = omI >= 0 ? THR_OMLAAG_FR[omI] : (worpSchaal() && thr.t0) ? thrSchaalFr(thr.hoek) : THR_HEAD;   // schaalworp of omlaag: op de punt van dit frame
   const col = thrFlip() ? THR_ANCHOR - pt.x : pt.x - THR_ANCHOR;
   const x = pcx + col * ts, y = groundY + lift - (THR_GROUND - pt.y) * ts;
   const r = CHAR_H * scale * 0.16 * (1.4 - k * 0.4);
@@ -21019,7 +21041,8 @@ function drawThrowRicht(pcx, groundY, scale, lift){
   const om = !!(thr && thr.om > 0 && worpOmlaag());   // omlaag mikken: hetzelfde streepje, onder vlak
   if (!thr || !thr.held || thr.gone || (!om && (!worpSchaal() || !thr.t0))) return;
   const hoek = om ? -thr.om : thr.hoek;
-  const ts = THR_S * scale, pt = thrSchaalFr(om ? 0 : thr.hoek);
+  const omI = om ? thrOmBeeld() : -1;            // omlaag: de punt van de houdpose die getekend wordt
+  const ts = THR_S * scale, pt = omI >= 0 ? THR_OMLAAG_FR[omI] : thrSchaalFr(om ? 0 : thr.hoek);
   const kant = thrFlip() ? -1 : 1;                 // de kant waar de punt naar wijst
   const a = hoek * Math.PI / 180, L = CHAR_H * scale * THR_RICHT;
   const vrij = CHAR_H * scale * 0.08;              // een stukje lucht tussen de punt en het streepje
@@ -46815,7 +46838,8 @@ function loop(now){
     const rwImg = rwF >= 0 ? rolWorpImgs[rwF] : null;
     const useRolW = !!(rwImg && rwImg.complete && rwImg.naturalWidth);
     const useRol = useRol0 || useRolW;
-    const thrImg = thr && !useRol ? thrImgs[Math.min(THR_N - 1, thr.frame)] : null;
+    const thrOmI = thr && !useRol ? thrOmBeeld() : -1;   // omlaag mikken: de houdpose met de speer schuin omlaag
+    const thrImg = thr && !useRol ? (thrOmI >= 0 ? thrOmImgs[thrOmI] : thrImgs[Math.min(THR_N - 1, thr.frame)]) : null;
     const useThrow = !!(thrImg && thrImg.complete && thrImg.naturalWidth);
     const jf = useThrow || useRol ? -1 : jumpFrame();
     const wantSpear = spear && jf >= 0 && jumpSpearImg[jf].complete && jumpSpearImg[jf].naturalWidth;
@@ -50178,6 +50202,7 @@ function laadLevel(lv){
   krbLaadLevel(lv);                                // de kruisboogbandiet als dit level hem gebruikt
   schbLaadLevel(lv);
   zwmLaadLevel(lv);                                // de zweepman als dit level hem gebruikt
+  if (lv.worpOmlaag) thrOmLaad();                  // de houdposes omlaag (THR_OMLAAG_FR)
   bruLaadLevel(lv);                                // Brutus, de baas van het plein, als dit level hem heeft
   murLaadLevel(lv);                                // Murghtaan, de hyena-baas, als dit level hem heeft
   tonLaadLevel(lv);                                // de houten tonnen die breken
@@ -58665,6 +58690,7 @@ document.getElementById('sbworpwacht').onclick = e => {
 // Omlaag mikken (THR_OMLAAG): pijl omlaag tijdens het spannen laat de punt zakken in plaats van af te breken
 document.getElementById('sbworpomlaag').onclick = e => {
   sbWorpOmlaag = !sbWorpOmlaag;
+  if (sbWorpOmlaag) thrOmLaad();
   e.currentTarget.textContent = sbWorpOmlaag ? 'Aim down: on' : 'Aim down: off';
   e.currentTarget.classList.toggle('on', sbWorpOmlaag);
   thrCancel(); cv.focus();
