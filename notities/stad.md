@@ -357,6 +357,11 @@ een verdieping omhoog. De treden zijn altijd even groot (de schaal hangt aan de 
   ook `dak` hebben).
 - Een galerij kan met `meer: [links, rechts]` (in Amir) langer zijn dan zijn huizen, zodat hij voor de trap langs loopt.
 - De doek van een kraam vangt elke val op: nooit valschade.
+- Het rieten dak (0,76 Amir boven de tafel) en de doek (0,78) liggen op de rand van een sprong vanaf de tafel: die haalt
+  200 op 60 beelden per seconde, 184 op een traag toestel (`SPRONG_TRAAG` in `levelcheck.py`) en 178 met daarbij het
+  speltempo op 1,2. Vooral de doek lukte daardoor vaak net niet, in elk level met kramen. Daarom haken je voeten erop
+  zolang ze op het hoogste punt hooguit `STAD.kraamGrijp` (0,1 Amir) onder de rand blijven (`grijp` in `stadPlats`,
+  gebruikt in `updateJump`). Van de straat haal je het dak zo nog steeds niet.
 - Op de telefoon staat de E-knop erbij zodra je bij een trap staat (`eNodig`). Ligt er iets anders voor E (een losse speer,
   een skelet, een wankelende schildbandiet), dan gaat dat voor de trap (`eSpeerIets`).
 - Na de glijvlucht staat de camera precies op de nieuwe hoogte en plek (daarna neemt de gewone camera het naadloos over),
