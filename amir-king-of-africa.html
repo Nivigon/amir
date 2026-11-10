@@ -29592,18 +29592,21 @@ function plichtRand(img, kant, boven, d){
   let per = plichtCache.get(img); if (!per){ per = {}; plichtCache.set(img, per); }
   const sl = kant + '|' + boven.toFixed(2) + '|' + d;
   if (per[sl]) return per[sl];
+  if (!persBakMag()) return null;                   // het bakbudget van dit beeld is op (PERS_BAK): dit beeld zonder rand
   const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
   const k = Math.min(1, PLICHT.bak / ih), w = Math.max(1, Math.round(iw * k)), h = Math.max(1, Math.round(ih * k));
-  const sil = document.createElement('canvas'); sil.width = w; sil.height = h;
+  // twee hulpdoeken (persKladDoek, hergebruikt); alleen het masker zelf is een nieuw doek. De hulpdoeken kunnen
+  // groter zijn dan w bij h, dus overal met een bronvak.
+  const sil = persKladDoek(0, w, h);
   const sg = sil.getContext('2d'); sg.drawImage(img, 0, 0, w, h);
   sg.globalCompositeOperation = 'source-in'; sg.fillStyle = '#fff'; sg.fillRect(0, 0, w, h);
-  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const c = persKladDoek(1, w, h);
   const g = c.getContext('2d');
-  g.drawImage(sil, 0, 0);
-  g.globalCompositeOperation = 'destination-out'; g.drawImage(sil, -kant * d, boven * d);   // wat overblijft: de rand naar het licht
+  g.drawImage(sil, 0, 0, w, h, 0, 0, w, h);
+  g.globalCompositeOperation = 'destination-out'; g.drawImage(sil, 0, 0, w, h, -kant * d, boven * d, w, h);   // wat overblijft: de rand naar het licht
   const z = document.createElement('canvas'); z.width = w; z.height = h;      // zacht maken, en weer binnen het silhouet
-  const zg = z.getContext('2d'); zg.filter = 'blur(' + Math.max(0.5, d * 0.3) + 'px)'; zg.drawImage(c, 0, 0);
-  zg.filter = 'none'; zg.globalCompositeOperation = 'destination-in'; zg.drawImage(sil, 0, 0);
+  const zg = z.getContext('2d'); zg.filter = 'blur(' + Math.max(0.5, d * 0.3) + 'px)'; zg.drawImage(c, 0, 0, w, h, 0, 0, w, h);
+  zg.filter = 'none'; zg.globalCompositeOperation = 'destination-in'; zg.drawImage(sil, 0, 0, w, h, 0, 0, w, h);
   per[sl] = z;
   return z;
 }
@@ -29623,14 +29626,19 @@ function persLicht(img, x, y, w, h, flip, wx, vloer, fig, groundY, scale, cx, al
     const kant = flip ? -dir : dir;                                          // de kant in het frame
     const d = Math.max(1, Math.round(b.rand * fig * bakH / h));
     const m = plichtRand(img, kant, b.boven, d);
-    if (plichtKleurCv.width !== m.width || plichtKleurCv.height !== m.height){ plichtKleurCv.width = m.width; plichtKleurCv.height = m.height; }
+    if (!m) continue;
+    // het kleurdoek groeit alleen: eerst kreeg het elke keer de maat van het masker, en wisselden Amir en een
+    // bandiet elkaar af, dan maakte de browser het doek elk beeld een paar keer opnieuw aan. Nu met een bronvak.
+    if (plichtKleurCv.width < m.width || plichtKleurCv.height < m.height){
+      plichtKleurCv.width = Math.max(plichtKleurCv.width, m.width); plichtKleurCv.height = Math.max(plichtKleurCv.height, m.height);
+    }
     const g = plichtKleurCv.getContext('2d');
     g.globalCompositeOperation = 'source-over'; g.clearRect(0, 0, m.width, m.height); g.drawImage(m, 0, 0);
     g.globalCompositeOperation = 'source-in'; g.fillStyle = b.kleur; g.fillRect(0, 0, m.width, m.height);
     ctx.save();
     ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= Math.min(1, b.sterk) * alfa;
     ctx.translate(x, y); if (flip){ ctx.translate(w, 0); ctx.scale(-1, 1); }
-    ctx.drawImage(plichtKleurCv, 0, 0, w, h);
+    ctx.drawImage(plichtKleurCv, 0, 0, m.width, m.height, 0, 0, w, h);
     ctx.restore();
   }
 }
@@ -33174,6 +33182,21 @@ function warmBouw(){
   if (level.fakkels && level.fakkels.length){ try { fakkelLaad(); } catch (e) {} warmDing(fakkelImgs); }
   // elk huis in de stad heeft een houten deur
   if (level.deur || (level.stad && (level.stad.gevels || []).length)){ try { deurLaad(); } catch (e) {} warmDing(deurImgs); }
+  // het stadsvolk: elk frame in zijn kleur. volkBeeld leest daarvoor de pixels terug (getImageData), en dat gebeurde
+  // anders midden in het spel, bij elk nieuw frame van een dorpeling die in beeld kwam: een korte stop per keer.
+  if (level.stad && (level.stad.volk || []).length){
+    const gedaan = new Set();
+    for (const q of level.stad.volk){
+      const d = NPCS[q.k]; if (!d) continue;
+      const kl = q.kleur || 'blauw', frames = [];
+      const zoek = v => { if (v instanceof HTMLImageElement) frames.push(v); else if (Array.isArray(v)) v.forEach(zoek); else if (v && typeof v === 'object') for (const k in v) zoek(v[k]); };
+      zoek(d.frames); zoek(d.cycli);
+      for (const fr of frames){
+        const sl = fr.src + '|' + kl; if (gedaan.has(sl)) continue; gedaan.add(sl);
+        rij.push(() => { if (!fr.complete) return false; if (fr.naturalWidth > 0) volkBeeld(fr, kl); });
+      }
+    }
+  }
   if (takelLijst().length){ try { takelLaad(); } catch (e) {} warmDing([takelImgs, takelPlateau, takelTouwImg, takelKnop, stamTop, stamMid, stamBottom, stamMini]); }
   // de goudaap-arena en de resterende baviaan-reeksen (de zes gevechtsreeksen deed bavKaderVooraf hierboven al)
   if (level.apenArena){ try { goudaapLaad(); } catch (e) {} warmDing([gaapImg, gaapHangImgs, gaapAfzetImgs, gaapValImgs, gaapLandingImgs, gaapRunImgs, gaapHapImgs, gaapBrulImgs, gaapGromImgs, gaapDoodImgs, gaapSprongImgs, gaapWandImg]); }
@@ -45993,17 +46016,45 @@ const AMIR_SCHADUW = {
 };
 // Per plaatje een keer: het frame klein, volledig in de schaduwkleur, met een zachte rand.
 // Een browser zonder canvasfilter tekent hem scherp; door het verkleinen is hij toch niet hard.
+// Het bakbudget. Een schaduw (amirSilhouet) of een lichtrand (plichtRand) wordt gebakken op het moment dat een
+// frame voor het eerst in beeld komt: een paar canvassen en een blur. Kwam er een bandiet in beeld of begon hij
+// aan een nieuwe beweging, dan waren dat er tien tegelijk in een beeld, en dat was een hapering (Rivier, Goud, ook
+// Valse Koning). Nu hoogstens perBeeld per beeld; de rest komt de beelden erna. Op het laadscherm (warmBouw) geldt
+// het budget niet. Een schaduw die moet wachten leent die van het vorige frame uit dezelfde animatie (bijna
+// dezelfde vorm), een lichtrand die moet wachten valt dat ene beeld weg.
+const PERS_BAK = { perBeeld: 3 };
+let persBakTeller = 0;
+function persBakMag(){
+  if (laadWacht) return true;
+  if (persBakTeller >= PERS_BAK.perBeeld) return false;
+  persBakTeller++;
+  return true;
+}
+// hulpdoeken voor het bakken: een keer gemaakt en daarna alleen groter, in plaats van elke keer nieuwe
+const persKlad = [];
+function persKladDoek(i, w, h){
+  let c = persKlad[i];
+  if (!c){ c = persKlad[i] = document.createElement('canvas'); c.width = w; c.height = h; }
+  else if (c.width < w || c.height < h){ c.width = Math.max(c.width, w); c.height = Math.max(c.height, h); }
+  const g = c.getContext('2d');
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.filter = 'none';
+  g.clearRect(0, 0, c.width, c.height);
+  return c;
+}
 const amirSilCache = new WeakMap();
+const amirSilLeen = {};          // per animatie (de map van het frame) en sleutel: de laatst gebakken schaduw
 function amirSilhouet(img, kleur, vaag = AMIR_SCHADUW.vaag, dik = 0){
   let per = amirSilCache.get(img);
   if (!per){ per = {}; amirSilCache.set(img, per); }
   const sleutel = kleur + '|' + vaag + '|' + dik;
   let c = per[sleutel];
   if (c) return c;
+  const map = img.src ? img.src.slice(0, img.src.lastIndexOf('/')) + '|' + sleutel : null;
+  if (!persBakMag()) return map ? amirSilLeen[map] || null : null;
   const S = AMIR_SCHADUW, k = Math.min(1, S.maat / img.naturalHeight);
   const w = Math.max(1, Math.round(img.naturalWidth * k)), h = Math.max(1, Math.round(img.naturalHeight * k));
   const pad = Math.ceil(vaag * 3) + dik;
-  const t = document.createElement('canvas'); t.width = w; t.height = h;
+  const t = persKladDoek(0, w, h);
   const tc = t.getContext('2d');
   tc.drawImage(img, 0, 0, w, h);
   tc.globalCompositeOperation = 'source-in'; tc.fillStyle = kleur; tc.fillRect(0, 0, w, h);
@@ -46013,14 +46064,15 @@ function amirSilhouet(img, kleur, vaag = AMIR_SCHADUW.vaag, dik = 0){
     // dikker maken, zijwaarts: een keer vervagen en die vervaagde kopie verschoven stapelen. Verschuiven
     // en vervagen mogen omgedraaid, dus dit is hetzelfde beeld als elke kopie apart vervagen, maar met
     // een blur in plaats van 2 * dik + 1.
-    const u = document.createElement('canvas'); u.width = w + pad * 2; u.height = h + pad * 2;
+    const u = persKladDoek(1, w + pad * 2, h + pad * 2);
     const uc = u.getContext('2d');
     uc.filter = 'blur(' + vaag + 'px)';
-    uc.drawImage(t, pad, pad);
-    for (let d = -dik; d <= dik; d++) cc.drawImage(u, d, 0);
+    uc.drawImage(t, 0, 0, w, h, pad, pad, w, h);
+    uc.filter = 'none';
+    for (let d = -dik; d <= dik; d++) cc.drawImage(u, 0, 0, w + pad * 2, h + pad * 2, d, 0, w + pad * 2, h + pad * 2);
   } else {
     cc.filter = 'blur(' + vaag + 'px)';
-    for (let d = -dik; d <= dik; d++) cc.drawImage(t, pad + d, pad);
+    for (let d = -dik; d <= dik; d++) cc.drawImage(t, 0, 0, w, h, pad + d, pad, w, h);
   }
   // van de voeten naar het hoofd ijler
   const v = cc.createLinearGradient(0, c.height, 0, 0);
@@ -46029,6 +46081,7 @@ function amirSilhouet(img, kleur, vaag = AMIR_SCHADUW.vaag, dik = 0){
   cc.fillStyle = v; cc.fillRect(0, 0, c.width, c.height);
   c.bw = w; c.bh = h; c.pad = pad;
   per[sleutel] = c;
+  if (map) amirSilLeen[map] = c;
   return c;
 }
 // Hoeveel zon er op Amir valt, 0 tot 1. Bovengronds de hele zon; onder de grond of onder rots
@@ -46058,6 +46111,7 @@ function zonSchaduw(){
 // Het silhouet op de grond leggen: een punt t boven zijn voeten komt dx * t opzij en dy * t naar
 // voren (omlaag in beeld). In een sprong blijven zijn voeten op de vloer recht onder hem.
 function amirSilLeg(sil, x, y, w, h, flip, pcx, voetY, shY, dx, dy, mid = 0){
+  if (!sil) return;                               // nog niet gebakken en niets te lenen (PERS_BAK): dit beeld zonder
   const sx = w / sil.bw, sy = h / sil.bh;
   ctx.save();
   ctx.translate(pcx, shY - mid);                  // mid: zoveel schuift de band terug, om de voeten heen
@@ -46230,6 +46284,7 @@ function winLevel(){
 document.getElementById('wnreplay').onclick = () => { restart(); cv.focus(); };
 document.getElementById('wnmenu').onclick = () => { won = false; document.getElementById('win').classList.remove('on'); toMenu(); };
 function loop(now){
+  persBakTeller = 0;              // het bakbudget voor schaduwen en lichtranden begint elk beeld opnieuw (PERS_BAK)
   const wacht = laadStap(Math.max(0, Math.min((now - last) / 1000, 0.1)));   // nog aan het laden: stilstaan
   const realDt = Math.max(0, Math.min((now - last) / 1000, 0.1));   // echte verstreken tijd, ook tijdens een freeze
   let dt = (paused || won || wacht) ? 0 : Math.max(0, Math.min((now - last) / 1000, 0.05)); last = now;
