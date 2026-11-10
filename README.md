@@ -759,6 +759,19 @@ hinderlaag-bandiet (gehurkt met zijn rug naar je) hoort je zoals altijd en doet 
 Amir** een vijand van je af kijken, **Draait om** laat hem in rust om de zoveel seconden omdraaien, **Patrouille**
 laat een bandiet heen en weer lopen, en **Toon gehoor** tekent hoe ver je te horen bent.
 
+Gebukt of kruipend ben je ook lager voor wie je ziet: een vijand voor je kijkt naar je echte hoogte, dus gebukt achter een
+rand of een muurtje zie je hem niet, en staand wel.
+
+### Van boven
+
+In **Test 71: From above** sluip je naar de rand van een hogere laag en gooi je je speer naar een vijand beneden. Gebukt
+achter de rand zien ze je niet; om te gooien sta je op, en dan ben je even te zien (een schutter die zich omdraait
+schiet dan). Sta op, houd F vast en houd dan de pijl omlaag ingedrukt: de punt zakt, hoe langer hoe steiler (tot 60
+graden), met een streepje dat de richting wijst. Laat F los om te gooien. Een treffer is gewone schade, en de vijand
+wordt wakker; loop terug van de rand en buk, en ziet hij je 3 seconden niet, dan vergeet hij je weer. Staat hij vlak
+onder de rand, dan raak je hem van boven niet. Je speren liggen beneden: haal ze op voor het volgende balkon. In de
+sandbox zet **Aim down** onder Speerworp het omlaag mikken aan.
+
 ## De health-balk
 
 In een level met de health-balk hebben de meeste vijanden drie levens, met een balkje boven zijn hoofd dat bij

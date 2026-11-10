@@ -15,3 +15,24 @@ de speerworp; een geworpen speer raakt maar een vijand, ook als er twee op dezel
 ## de vallende speer
 
 `JAV.valHoek`, `javValDraai`, `javDirHoek`, `jav.kantel`: een speer in de toestand `val` (een vijand geraakt, uit een wand geschoten, tegen een gangdak) draait in de val met de punt voorover, in zijn eigen richting, tot `valHoek` graden. Op de grond raakt de punt eerst, en dan valt de schacht in `JAV.kantelT` seconden om de punt heen plat (`jav.kantel` in `javSchacht`), met een kleine natril. Vroeger bleef hij in de hoek van het moment hangen en sprong hij bij de landing in een beeld plat.
+
+## omlaag mikken: van een hogere laag naar beneden (`worpOmlaag`, `THR_OMLAAG`, `thrOmlaag`)
+
+Met `worpOmlaag: true` in een level (alleen Test 71) of de sandboxknop **Aim down** (`sbWorpOmlaag`, onder Speerworp)
+breekt pijl omlaag tijdens het spannen de worp niet af (`thrAfbreken` in de lus slaat het dan over), maar laat hij de
+punt zakken: zodra de eerste trap uitgetrokken is (`THR_DRAW1`) loopt `thr.om` zolang de pijl ingedrukt is van 0 tot
+`THR_OMLAAG.max` (60 graden) in `t` (0,9 s), en losgelaten blijft de hoek staan. Hij houdt de speer vlak (frame
+`THR_WIND`, geen eigen frames), het richtstreepje van de schaalworp (`drawThrowRicht`) wijst de hoek, en `looseSpear`
+gooit onder vlak met de volle snelheid van de vlakke worp (geen boog, `thr.lob` blijft uit). Bukken kan tijdens het
+spannen toch niet (`canDuck` vraagt `!throwing`).
+
+Waarom: vlak vliegt de speer van boven ver over iedereen heen. Nagemeten op 1280x720 vanaf een laag van 300 hoog, Amir
+op de rand: lijfhoogte (100 tot 250) op 1500 tot 1800 px vlak, 700 tot 930 op 18 graden, 525 tot 680 op 30, 350 tot 490
+op 50. Dichter dan zo'n 250 px is niet te raken, want de speer komt pas zo'n 185 px voor Amir uit zijn hand: een vijand
+die vlak onder de rand staat raak je van boven niet. Vanaf 450 hoog raakt rond 11 graden op zo'n 700 px.
+
+In Test 71 (Playwright, 1280x720): gebukt aan de rand blijft de bandiet op 700 px in rust; opstaan, 17 graden omlaag,
+treffer (3 naar 2 levens), hij wordt wakker en rent naar de wand; terug van de rand en bukken, na zo'n 3 s is hij weer in
+rust. Hij blijft dan op zo'n 140 px van de wand staan, en daar is hij van boven niet te raken; terugkruipen naar de rand
+wekt hem op zo'n 375 px weer, want hij kijkt omhoog naar de rand. De speelrobot loopt het level zonder vijanden uit en komt
+met vijanden vechtend tot de schildbandiet (zoals in Test 61). Op 852x393 raakt dezelfde worp ook.
