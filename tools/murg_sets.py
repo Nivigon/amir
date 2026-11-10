@@ -30,11 +30,19 @@ def key(rgb):
             if cx > kopgrens: continue
             m = lab == i
             a[m] = [92, 18, 24]; al[m] = 1
-    # despill: terugrekenen tegen magenta
-    M = np.array([255, 0, 255], np.float32)
-    aa = np.clip(al, 1e-3, 1)[..., None]
-    c = (a - (1 - aa) * M) / aa
-    c = np.where((al[..., None] > 0.02) & (al[..., None] < 0.98), c, a)
+    # despill: het magenta-overschot (min(r,b) boven g) eraf, zonder te delen (dat gaf groene randen)
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    over = np.clip(np.minimum(r, b) - g, 0, None) * (al < 0.98)
+    c = a.copy(); c[..., 0] -= over; c[..., 2] -= over
+    # Grok kleurt de verre poot in de vlucht soms groen of blauw: een hyena heeft geen groen of blauw,
+    # dus die pixels worden donkerbruin op dezelfde helderheid
+    r, g, b = c[..., 0], c[..., 1], c[..., 2]
+    Y = 0.299 * r + 0.587 * g + 0.114 * b
+    mx = np.maximum(np.maximum(r, g), b); sat = (mx - np.minimum(np.minimum(r, g), b)) / np.maximum(mx, 1)
+    mn = np.minimum(np.minimum(r, g), b)
+    tint = np.where(mx == r, 60 * (g - b) / np.maximum(mx - mn, 1), np.where(mx == g, 120 + 60 * (b - r) / np.maximum(mx - mn, 1), 240 + 60 * (r - g) / np.maximum(mx - mn, 1)))
+    fout = (tint > 42) & (tint < 270) & (sat > 0.25) & (Y < 210) & (al > 0.05)   # de vacht zit rond 30 graden, oranje op 29
+    c[fout] = np.stack([Y[fout] * 1.18, Y[fout] * 0.98, Y[fout] * 0.78], -1)
     c = np.clip(c, 0, 255)
     return np.dstack([c, al * 255]).astype(np.uint8)
 def zoomfix(frames):

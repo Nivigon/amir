@@ -46,9 +46,10 @@ episode in de zin van regel 1: aanpassen mag.
 
 Murghtaan 1: De roedel. Eerst een losse hyena en dan een paar, dan de arena (`murg: {x, van, tot}`, Amir blijft erin met
 `murKlem` zolang hij leeft). De baas zelf staat in de HTML onder `// ---- Murghtaan` (`MUR`, `makeMurg`, `updateMurg`,
-`hitMurg`, `murTeken`, `murBalkTeken`). Zijn ronde: `nader` (ren), `grauw` (de tell: de lippen trekken op), `sprong` (de hap
-zit in de frames `hap` uit metadata.json, de afstand in `reis`; de bijtklap van de gewone hyena, `SFX_HYENA_BITE`, valt
-op de beet als hij Amir raakt, anders op frame `MUR.hapKlap`, het verste punt van de sprong), `herstel` (het strafvenster), na `MUR.sprongenPerRonde`
+`hitMurg`, `murTeken`, `murBalkTeken`). Zijn ronde: `nader` (ren), `grauw` (de tell: de lippen trekken op), `sprong` (een reeks
+frames met eigen duur, `MUR.sprong.reeks`: korte afzet, snelle vlucht met de bek open; de engine schuift hem `extra` Amir naar
+voren, nooit door Amir heen), `klap` (de bek klapt dicht: het laatste grauwframe, met hitstop, schok en de bijtklap
+`SFX_HYENA_BITE`), `herstel` (laag grommend in de grauw-lus, het strafvenster), na `MUR.sprongenPerRonde`
 sprongen `weg` en `roep` (brul). In fase 1 haalt de roep een hyena (`MUR.maxHyenas` naast hem); na `MUR.hp1` treffers de
 `reveal`: hij zakt in (de set `inzakken`), ligt stil (`MUR.reveal.lig`, de balk is weg), wordt bezeten en komt
 verkeerd overeind (`inzakken` achterstevoren); hij wordt bezeten (de set uit `enemies/hyena_baas/bezeten/`, rode gloed op de oogkassen uit `ogen` in de metadata,

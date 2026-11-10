@@ -40791,10 +40791,14 @@ const MUR = {
   hp1: 8, hp2: 8, inv: 0.45,
   ren: 470, renBz: 590,                         // rennen, in wereld-px per seconde (Amir loopt 330)
   sprongAfst: 1.9, wegAfst: 4.2, wakker: 6.5,   // in Amir: springen, ver genoeg weg, en wanneer hij begint
-  grauwFps: 16, grauwFpsBz: 26, grauwHou: 0.3, grauwHouBz: 0.12,
-  sprongFps: 15, sprongFpsBz: 19, herstel: 0.8, herstelBz: 0.5,
+  grauwFps: 20, grauwFpsBz: 28, grauwHou: 0.3, grauwHouBz: 0.12,
+  // de sprong: een reeks [frame, seconden] uit de set sprong. Afzet kort, vlucht snel met de bek wijd open, landing;
+  // dan klapt de bek dicht (het laatste grauwframe, kaken op elkaar) met hitstop en schok, en staat hij laag te grommen.
+  // vlucht: vanaf dit reeksnummer schuift de engine hem extra naar voren (extra, in Amir), zodat het een echte uitval is
+  sprong: { reeks: [[0, 0.06], [2, 0.05], [4, 0.05], [5, 0.04], [6, 0.035], [7, 0.035], [8, 0.035], [9, 0.035], [10, 0.035], [11, 0.04], [12, 0.045], [13, 0.05]],
+            vlucht: 3, extra: 1.15, bekVan: 5, klapT: 0.18, tempoBz: 1.25 },
+  herstel: 0.75, herstelBz: 0.45,
   sprongenPerRonde: 2,
-  hapKlap: 10,                                  // de bijtklap van de gewone hyena: op dit sprongframe (verst vooruit), of eerder als de bek Amir raakt
   roepT: 1.4, keverRoepT: 1.9,                  // zolang houdt hij de bek open (brul_lus)
   maxHyenas: 1,                                 // nooit meer dan een gewone hyena naast hem
   reveal: { lig: 1.1, rood: 1.3, zakFps: 12, opFps: 9 },   // de valse dood: inzakken, stil liggen, rood, verkeerd opstaan
@@ -40912,22 +40916,36 @@ function updateMurg(dt){
       break;
     case 'grauw':
       if (s.set === 'grauw'){ if (murSpeel(s, dt, s.bz ? MUR.grauwFpsBz : MUR.grauwFps, 'een')){ s.set = 'grauw_hou'; s.t = 0; } }
-      else if (s.t > (s.bz ? MUR.grauwHouBz : MUR.grauwHou)){ murSet(s, 'sprong', 'sprong'); s.hitUsed = false; s.face = murNaar(s); s.happed = false; }
+      else if (s.t > (s.bz ? MUR.grauwHouBz : MUR.grauwHou)){ murSet(s, 'sprong', 'sprong'); s.hitUsed = false; s.face = murNaar(s); s.ri = null; }
       break;
     case 'sprong': {
-      const klaar = murSpeel(s, dt, s.bz ? MUR.sprongFpsBz : MUR.sprongFps, 'een');
-      const hap = murMeta.sets.sprong.hap;
-      if (!s.happed && s.frame >= Math.max(hap[0], Math.min(hap[1], MUR.hapKlap))){ s.happed = true; hyPlay(SFX_HYENA_BITE); }
-      if (klaar){
-        // de sprong zit in de frames: nu zetten we hem echt op de plek waar hij geland is
-        const reis = murMeta.sets.sprong.reis * murScale();
-        const ar = murArena(s);
-        s.x = Math.max(ar.lo, Math.min(ar.hi, s.x - s.face * reis));      // reis is negatief: naar links in de ongespiegelde frames
-        murSet(s, 'herstel'); s.frame = murN('sprong') - 1;
+      const S = MUR.sprong, R = S.reeks, tempo = s.bz ? S.tempoBz : 1;
+      if (s.ri == null){ s.ri = 0; s.rt = 0; }
+      s.rt += dt * tempo;
+      while (s.ri < R.length && s.rt >= R[s.ri][1]){ s.rt -= R[s.ri][1]; s.ri++; }
+      const ar = murArena(s);
+      if (s.ri >= S.vlucht && s.ri < R.length){                // de uitval: verder naar voren dan in de frames zit
+        let duur = 0; for (let i = S.vlucht; i < R.length; i++) duur += R[i][1];
+        let nx = s.x + s.face * S.extra * A * dt * tempo / duur;
+        const px = playerX(), grens = px - s.face * 0.45 * A;            // niet door Amir heen: hij landt voor hem
+        if ((s.face === 1 && nx > grens && s.x <= grens) || (s.face === -1 && nx < grens && s.x >= grens)) nx = grens;
+        else if ((s.face === 1 && s.x > grens) || (s.face === -1 && s.x < grens)) nx = s.x;
+        s.x = Math.max(ar.lo, Math.min(ar.hi, nx));
       }
+      if (s.ri < R.length){ s.frame = R[s.ri][0]; break; }
+      // geland: de bek klapt dicht. De plek waar hij geland is blijft staan als we naar het grauwframe wisselen.
+      const sp = murMeta.sets.sprong.bbox[R[R.length - 1][0]], gr = murMeta.sets.grauw.bbox[murN('grauw') - 1];
+      const dxC = (sp[0] + sp[2]) / 2 - (gr[0] + gr[2]) / 2;
+      s.x = Math.max(ar.lo, Math.min(ar.hi, s.x + (s.face === 1 ? -1 : 1) * dxC * murScale()));
+      murSet(s, 'klap'); s.set = 'grauw_hou'; s.ri = null;
+      hyPlay(SFX_HYENA_BITE); hitstop = Math.max(hitstop, 0.06); shake = Math.max(shake, 0.14);
       break;
     }
+    case 'klap':
+      if (s.t > MUR.sprong.klapT){ murSet(s, 'herstel', 'grauw_lus'); }
+      break;
     case 'herstel':
+      murSpeel(s, dt, 8, 'heen');                             // laag, kaken dicht, grommend
       if (s.t > (s.bz ? MUR.herstelBz : MUR.herstel)){
         s.sprongen++;
         if (s.sprongen >= MUR.sprongenPerRonde){ s.sprongen = 0; murSet(s, 'weg', 'ren'); s.face = -murNaar(s); }
@@ -48140,13 +48158,12 @@ function loop(now){
         const nbox = { l: bl + bw * 0.12, r: br - bw * 0.12, t: bt + (bb - bt) * 0.12, b: bb };
         // de bek: het voorste kwart, alleen in de frames waarin hij hapt
         let bek = null;
-        const hap = murMeta.sets.sprong.hap;
-        if (s.state === 'sprong' && s.frame >= hap[0] && s.frame <= hap[1]){
+        // de bek: open in de vlucht, en de klap zelf
+        if ((s.state === 'sprong' && s.ri != null && s.ri >= MUR.sprong.bekVan) || (s.state === 'klap' && s.t < 0.1)){
           const kop = bw * 0.26;
           bek = s.face === 1 ? { l: br - kop, r: br, t: bt, b: bt + (bb - bt) * 0.75 } : { l: bl, r: bl + kop, t: bt, b: bt + (bb - bt) * 0.75 };
           if (!s.hitUsed && invuln <= 0 && !dead && hitBy(bek, pbox)){
             s.hitUsed = true;
-            if (!s.happed){ s.happed = true; hyPlay(SFX_HYENA_BITE); }   // de klap valt samen met de beet
             hurtPlayer(s.x < playerX());
           }
         }
