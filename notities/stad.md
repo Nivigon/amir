@@ -781,6 +781,46 @@ gekoppeld en niet aan de toren, omdat de toren van een pleinpoort met de schermg
   die Nyundo in de opening kapotslaat.
 - **Sandbox**: onder De stad de knop **Luifel**: het plein met de put zo neergezet dat de paal tegen de toren staat.
 
+## De springdoek
+
+`STAD_SPRINGDOEK`, `stadLuifelBeeld`, `stadKleurMat`, `stadLuifelMaat`, `stadLuifelTeken`, `sbSpringdoek`, `sbspringdoek`
+
+De luifel van het plein, maar aan de muur van een huis in plaats van bij een put: `stad.luifels: [{gevel, wand, h, voet, maat,
+kleur, zak, worp}]`. De paal staat net buiten de muur van gevel `gevel` (`wand` `'r'` de rechtermuur, `'l'` de linker) en de
+doek steekt van het huis af de straat in; wie erop landt wordt van het huis af weggeworpen (wand `'r'` naar rechts).
+
+- `h`: de hoogte van het lage eind, `voet`: waar de paal ophoudt (met een touwbinding), beide in sprite-eenheden boven de grond.
+  Op een balkon is `voet` de vloer van het balkon, op een dak het dak.
+- `maat`: de grootte (0,85 in Stad 9), `zak`: hoe ver hij in Amir doorzakt, het diepst iets voorbij het midden. De stukken om op
+  te landen zakken mee (`lm.zak` in `stadLuifelPlats`). Met `zak` krijgt hij ook een donkere onderrand: dezelfde doek, donker,
+  iets lager en naar het lage eind dikker (`STAD_SPRINGDOEK.dik`). Die onderrand laat de paal en de schoor weg (`schoor`), anders
+  staat de schoor er twee keer.
+- `kleur: 'indigo'`: de doek omgekleurd (hue-rotate en saturate per pixel, `stadKleurMat`, een keer gebakken met `stadGebakken`);
+  de paal en de schoor blijven hout. Geen `ctx.filter`, dat kent Safari niet.
+- `worp`: de opsprong in plaats van `worp.vy` (0,8) van het plein. Opzij blijft het 4 Amir per seconde, dus de boog is in Amir op
+  elk scherm hetzelfde; de hoogte in sprite-eenheden ook. Een steeg tussen de huizen (`aan` in Amir) schaalt mee, dus zet de
+  huizen die bij een worp horen met `aan` tegen elkaar.
+- Geen slagschaduw op straat: hij hangt daar te hoog voor.
+- **Bereikbaar**: landen kan alleen van boven. Een sprong haalt zo'n 208 boven je vloer, dus het lage eind hangt hooguit
+  ongeveer 150 boven het balkon of dak (Stad 9: 155). Bij de muur hangt hij boven je hoofd en spring je eronder door; onder het
+  lage eind recht omhoog springen werkt. Met een aanloop spring je er voorbij. Van een hoger dak eraf stappen en erop vallen werkt
+  ook, behalve op een telefoon, waar Amir zo ver per stap komt dat hij de korte doek mist: dan landt hij op het dak eronder en
+  springt hij van daar omhoog.
+- **Stad 9**: op het balkon van de tweede trap (`h` 885 boven vloer 730, `worp` 1,7, landt op het dak van 1429) en op het lage
+  huis tegen de muur van het hogere (`h` 926 boven dak 771, `worp` 1,25, landt op het volgende dak van 1100). Nagemeten op
+  852x393, 1280x720 en 1920x1080.
+- **Sandbox**: onder De stad de knop **Bounce cloth**: een trap naar een balkon met de doek erboven en een hoger huis ernaast.
+
+## De einddeur
+
+`eindDeur`, `eindDeurBij`, `eindDeurUit`, `eindDeurTeken`
+
+`eindDeur: {gevel, verdieping}` in een stadslevel: die deur staat open (`stadDeurenBinnen` neemt hem mee), met gouden pijltjes
+erboven die je van ver al ziet (`stadTrapUitTeken`), en E ervoor speelt het level uit (`eindDeurUit` in `eDruk`, dan `winLevel`).
+Op een verdieping hoort er een galerij op die hoogte voor te lopen (`stadDeurVloer`), anders kom je er niet. Zo kan het einde
+hoog in een huis liggen in plaats van bij de fakkels; het level heeft dan `ends: []`. `levelcheck.py` kent hem (regels `einde`
+en `einddeur`). Alleen Stad 9.
+
 ## Geen outline op de stadsplaatjes
 
 Een donkere outline om de stadsplaatjes is geprobeerd (2 november 2026) en weer teruggedraaid: Tom vond het lelijk.
