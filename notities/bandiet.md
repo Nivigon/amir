@@ -14,7 +14,7 @@
 
 Een bandiet met `razernij` in zijn spawn (`true`, of `{laad, duur}` in seconden, standaard `RAZ.laad` 16 en `RAZ.duur` 6)
 krijgt een rode meter onder zijn levensbalk (`razMeterTeken`, in `vijandHpBalk`), even hoog als die balk, met een gouden rand en
-eronder het woord RAZERNIJ (razend: RAZEND, daarna UITGEPUT). Vanaf driekwart knippert hij met een rode gloed als waarschuwing,
+eronder het woord FURY (razend: ENRAGED, daarna EXHAUSTED; in het spel Engels, regel 5). Vanaf driekwart knippert hij met een rode gloed als waarschuwing,
 en bij het brullen zegt een melding dat hij razend wordt. De meter loopt op zodra hij in het gevecht
 is (`s.geroepen`, niet in rust). Vol, en staat hij op Amirs hoogte in `run` of `look`, dan:
 
@@ -34,7 +34,8 @@ Amir (`achter`, een deel van zijn reik), terwijl alleen zijn stof (om de `stof` 
 waar hij loopt; geen schaduw op de grond en geen balk. Hij verschijnt (`in`) naar Amir toe en hakt meteen. Is de tijd nog niet
 om, dan vervaagt hij opnieuw. Een kei houdt hem als schaduw gewoon tegen (regel 7): dan verschijnt hij daar.
 
-In De Rivierstad: Jabari (`laad: 18`), Kofi (`laad: 15`) en Simba Kivuli (`laad: 14`, `schaduw`). In de sandbox onder
+Een level geeft `razernij` en `schaduw` door via de spawnkopie in `readLevel` (bij `aanvoerder`, `tint`, `naam`);
+zonder die regel kwam het veld nooit aan, alleen de sandbox ging erbuiten om. In De Rivierstad: Jabari (`laad: 18`), Kofi (`laad: 15`) en Simba Kivuli (`laad: 14`, `schaduw`). In de sandbox onder
 Vijanden, Bandiet: **Razernij** en **Schaduw** (een aanvoerder met 10 levens en een meter van 6 s).
 
 ## het stof onder het rennen
