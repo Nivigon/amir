@@ -11,3 +11,8 @@
 **Amir.** Staat de balk aan (`HP_BALK`), dan krijgt Amir hetzelfde balkje boven zijn hoofd (`amirHpBalk`, getekend aan het eind van de personages zodat niets eroverheen valt, op `pbox.t`), gevuld met `lives / levensStart()`; een half leven is een halve stap. Het geldt ook bij een lijst soorten (De Valse Koning). Niet in de sandbox (daar heeft Amir geen levens).
 
 **De schildbandiet** (`makeSchildman`) doet mee onder de soortnaam `schildman`, maar anders dan de rest: zijn schild vangt de klappen op, hij zelf niet. Hij heeft `hp: 1, maxHp: 1`, dus zijn groene balk blijft vol, en daarboven tekent `schildHpBalk` een houten schildbalk met een vakje per `SCHB.schild` (3), gevuld met wat het schild nog opvangt (`s.schild`). Is het schild gebroken, dan valt die balk weg en is de volgende klap dodelijk (`hitSchildman` zet `s.hp = 0`), van vol naar leeg in een keer. Zijn gevecht verandert dus niet: drie schildtreffers en een klap, net als zonder balk. De sandbox-knop zet bij een al neergezette schildbandiet alleen de balk aan of uit.
+
+**De maat.** `HP_BALK_MAAT` (in delen van Amirs hoogte) zet de breedte (0,62), de hoogte (0,068, minstens 6 px) en de
+houten schildbalk erboven (0,048, minstens 5 px); `hpBalkHoog` en `hpSchildHoog` geven die hoogtes, ook voor wat erboven
+staat (het oog van de sluipaanval, de sterretjes van het stof). Eerder was de balk 0,5 breed en 0,045 hoog, maar dat las
+slecht. De meter van de razernij (`razMeterTeken`) rekent mee met de balkhoogte.
