@@ -159,6 +159,17 @@ Beide samen: **8,5**.
 - [ ] **A3. Kleur uit doeken, niet uit de muren.** De huizen blijven zandkleurig (elk een eigen tint, zie D1); de kleur
   in de straat komt van was aan een lijn, vaandels, tapijten over een dakrand of balkon, doeken en een paar unieke
   gebouwen, misschien een fontein. Idee van de opdrachtgever bij D1. Variatie van 6 naar **7**, Sfeer van 8 naar **8,5**.
+- [ ] **A4. Een ruine met een gat in het dak.** Een huis met een deur en een binnenkant, maar het dak is deels
+  ingestort: tussen twee palen is het plafond weg, met een smalle strook grijze lucht boven een kapotte muurrand.
+  Daar valt koel daglicht in en regent het binnen (met een plas, spetters en puin), terwijl het onder het dak ernaast
+  warm en droog blijft. Idee van de opdrachtgever. Gekozen in de schets: alleen deels open, niet helemaal (dan is het
+  gewoon buiten met muren eromheen), en weinig lucht (zonder lucht lijkt het een lek, met veel lucht geen huis meer).
+  De schetsen staan in `notities/ruine-dak/` (`1_deels_open.jpg`, en ter vergelijking `2_helemaal_open.jpg`); die
+  randen, de hangende plank en het puin zijn er in elkaar geplakt, dus eerst een echte plaat van een ingestort dak
+  (gebroken balken, rietmatten, afgebrokkeld leem) via de skill grok-environment-asset. In code: een veld op de
+  binnenkant met de open stukken (bijvoorbeeld `dak: [{van, tot}]`), en `weerDak` (sinds de regenfix: binnen regent
+  het niet) per plek in plaats van per huis, met het weergeluid minder gedempt naarmate er meer dak weg is. Knoppen in
+  de sandbox bij het huis met binnenkant. Sfeer van 8 naar **8,5**, Variatie van 6 naar **6,5**.
 
 ### Speelelementen (P)
 
