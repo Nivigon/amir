@@ -21,8 +21,29 @@ de speerworp; een geworpen speer raakt maar een vijand, ook als er twee op dezel
 Met `worpOmlaag: true` in een level (alleen Test 71) of de sandboxknop **Aim down** (`sbWorpOmlaag`, onder Speerworp)
 breekt pijl omlaag tijdens het spannen de worp niet af (`thrAfbreken` in de lus slaat het dan over), maar laat hij de
 punt zakken: zodra de eerste trap uitgetrokken is (`THR_DRAW1`) loopt `thr.om` zolang de pijl ingedrukt is van 0 tot
-`THR_OMLAAG.max` (60 graden) in `t` (0,9 s), en losgelaten blijft de hoek staan. Hij houdt de speer vlak (frame
-`THR_WIND`, geen eigen frames), het richtstreepje van de schaalworp (`drawThrowRicht`) wijst de hoek, en `looseSpear`
+`THR_OMLAAG.max` (60 graden) in `t` (0,9 s), en losgelaten blijft de hoek staan. Hij houdt de pose van frame
+`THR_WIND`, maar met de speer schuin omlaag: vier houdposes (`THR_OMLAAG_FR`, `speerworp_omlaag_08`, `_18`, `_30` en
+`_45` in de map van de speerworp, lui geladen met `thrOmLaad`), en `thrOmBeeld` kiest de dichtstbijzijnde (onder de 4
+graden het gewone frame, boven de 45 blijft de laatste staan). De 18 is een Grok-beeld (image-to-image vanaf
+`speerworp_06`), de 8, 30 en 45 zijn die pose met de speer om zijn hoofd gedraaid; elk heeft zijn eigen speerpunt, waar
+het richtstreepje en het glimmen beginnen. Laat hij los vanaf 4 graden omlaag, dan speelt hij niet de gewone frames 7 tot 19 maar
+de worp omlaag (`THR_OMW`, `speerworp_omlaag_worp_00` tot `_06` en `speerworp_omlaag_op_00` tot `_12`): uit een
+Grok-clip (test3, vanaf de 18-graden pose) zakt hij in een diepe uitval en gaat de speer op worp 4 weg (`thrOmWLos`),
+daarna komt hij omhoog uit een tweede clip (restand, met begin- en eindbeeld: het eind is `speerworp_19`, 96% overlap).
+`thr.frame` telt gewoon door tot `thrOmWEind`. De speer vertrekt van zijn punt op het losframe (`THR_OMW.punt`, laag
+voor hem, zo'n 0,7 Amir vooruit) in plaats van `THR_TIP` op hoofdhoogte: hij komt dus lager uit zijn hand en raakt van
+boven dichterbij dan de metingen hieronder (die zijn van voor deze worp). Na de worp omlaag is er geen tweede speer
+(DUBBEL). Zonder de plaatjes binnen (`thrOmWKlaar`) gooit hij met de gewone frames.
+
+Hoe het mikken omlaag werkt is een keuze (`MIK`, `mikModus`): in Test 71 (`mikKeuze: true`) aan het begin en na R op
+het scherm van `duoKeuze` (rij Aiming down, `duoKeuze.mik`, onthouden in localStorage), in de sandbox met de knop
+**Aim** naast Aim down (`sbMikModus`). Vijf versies, om te vergelijken of het streepje het niet te makkelijk maakt:
+`streep` (zoals het was), `zonder` (geen streepje, de houdpose zegt de hoek), `kort` (het streepje alleen de eerste
+`kortZie` s na het eerste omlaag, dan vervaagt het in `kortWeg` s; `thr.omStart`), `wiebel` (een keer omlaag en de punt
+gaat vanzelf heen en weer tussen 0 en `wiebelMax` graden, `wiebelT` s per kant, geen streepje: loslaten op het goede
+moment) en `tril` (het streepje blijft, maar wie langer dan `trilNa` s gespannen staat wijkt af, tot `trilMax` graden
+na `trilVol` s, willekeurig; `thr.losWacht`, want `thr.wacht` begint opnieuw bij frame 7). Nagemeten in Chromium: de
+wiebel loopt 0 tot 45 en terug, en tril geeft na 3,5 s gespannen 3 tot 6 graden afwijking, na 0,7 s geen. Het richtstreepje van de schaalworp (`drawThrowRicht`) wijst de hoek, en `looseSpear`
 gooit onder vlak met de volle snelheid van de vlakke worp (geen boog, `thr.lob` blijft uit). Bukken kan tijdens het
 spannen toch niet (`canDuck` vraagt `!throwing`).
 

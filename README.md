@@ -770,7 +770,10 @@ schiet dan). Sta op, houd F vast en houd dan de pijl omlaag ingedrukt: de punt z
 graden), met een streepje dat de richting wijst. Laat F los om te gooien. Een treffer is gewone schade, en de vijand
 wordt wakker; loop terug van de rand en buk, en ziet hij je 3 seconden niet, dan vergeet hij je weer. Staat hij vlak
 onder de rand, dan raak je hem van boven niet. Je speren liggen beneden: haal ze op voor het volgende balkon. In de
-sandbox zet **Aim down** onder Speerworp het omlaag mikken aan.
+sandbox zet **Aim down** onder Speerworp het omlaag mikken aan. Voor je begint (en na R) kies je hoe het mikken werkt: met het streepje (Line),
+zonder streepje (No line, alleen zijn houding laat de hoek zien), met een streepje dat vervaagt (Fading line), met een punt
+die vanzelf op en neer gaat zodat je op het goede moment loslaat (Sweep), of met een hand die gaat trillen als je te lang
+mikt (Shaky hand). In de sandbox wissel je dat met de knop **Aim**.
 
 ## De health-balk
 
