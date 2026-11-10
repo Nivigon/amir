@@ -875,6 +875,7 @@ In de sandbox onder De stad: **Slagschaduw: aan/uit** (`sbslag`) om te vergelijk
 
 `STAD_VOLK`, `volkTeken`, `volkUpdate`, `volkRustig`, `volkKleur`, `npcStap`. Het veld `stad.volk: [{x, k, kleur, f}]` zet de
 dorpelingen uit `NPCS` (`k` is `dorpelinge` of `dorpeling`, met hun eigen animatie) in de stad, als achtergrond die niet meedoet.
+Elk frame in zijn kleur bakt vooraf op het laadscherm (`warmBouw`): `volkBeeld` leest daarvoor de pixels terug, en dat gaf midden in het spel een korte stop bij elk nieuw frame.
 
 - **De laag**: de voeten staan op de stoep, op `stoep` (0,6) van `stadStoepH` boven de looplijn: voor de muurvoet, achter de straat
   waar Amir en de vijanden lopen, en iets dieper dan het voetdecor (0,4). Getekend in `stadVoorTeken` na de slagschaduw op de straat

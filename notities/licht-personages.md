@@ -36,3 +36,8 @@ aanroep na zijn `drawImage`, met zijn frame op het scherm.
 
 In de sandbox onder Beeld en geluid, **Licht op personages**: alles aan of uit, en per bron (Zon, Fakkel, Raam). Om te
 bekijken: Tijd van de dag Ochtend of Avond (de zon), Decor, Fakkel, In het donker, en De stad, Huis met binnenkant.
+
+Het randmasker bakt onder het bakbudget van de schaduw (`PERS_BAK`, zie "het bakbudget" in `notities/schaduw-amir.md`):
+is het op, dan valt dat ene randje een beeld weg. Het kleurdoek (`plichtKleurCv`) groeit alleen en tekent met een bronvak;
+eerst kreeg het elke keer de maat van het masker, en met Amir en een bandiet in beeld maakte de browser het dan elk beeld
+een paar keer opnieuw aan.
