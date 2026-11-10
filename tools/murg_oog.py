@@ -2,7 +2,7 @@
 import numpy as np, json, glob, sys, cv2
 from PIL import Image
 START = {'grauw': (272.5, 194), 'grauw_lus': (265, 202.5), 'sprong': (252.5, 205),
-         'brul': (267.5, 190), 'brul_lus': (252.0, 156.5), 'ren': (230, 182.5)}
+         'brul': (267.5, 190), 'brul_lus': (252.0, 156.5), 'ren': (230, 182.5), 'inzakken': (272.5, 192.5)}
 def grijs(p):
     a = np.array(Image.open(p)).astype(np.float32)
     g = 0.299 * a[..., 0] + 0.587 * a[..., 1] + 0.114 * a[..., 2]

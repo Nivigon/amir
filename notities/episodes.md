@@ -49,7 +49,8 @@ Murghtaan 1: De roedel. Eerst een losse hyena en dan een paar, dan de arena (`mu
 `hitMurg`, `murTeken`, `murBalkTeken`). Zijn ronde: `nader` (ren), `grauw` (de tell: de lippen trekken op), `sprong` (de hap
 zit in de frames `hap` uit metadata.json, de afstand in `reis`), `herstel` (het strafvenster), na `MUR.sprongenPerRonde`
 sprongen `weg` en `roep` (brul). In fase 1 haalt de roep een hyena (`MUR.maxHyenas` naast hem); na `MUR.hp1` treffers de
-`reveal`: hij wordt bezeten (de set uit `enemies/hyena_baas/bezeten/`, rode gloed op de oogkassen uit `ogen` in de metadata,
+`reveal`: hij zakt in (de set `inzakken`), ligt stil (`MUR.reveal.lig`, de balk is weg), wordt bezeten en komt
+verkeerd overeind (`inzakken` achterstevoren); hij wordt bezeten (de set uit `enemies/hyena_baas/bezeten/`, rode gloed op de oogkassen uit `ogen` in de metadata,
 zwarte rook in `murRook`). Bezeten spuwt de roep kevers (`murKevers`, `MUR.kever`): ze vallen uit zijn bek, kruipen naar Amir,
 maken hem trager (`murKeverTraag`, in de loopformule) en kosten `schade` leven per `tik` seconden zolang hij erin staat. Op een
 kei kunnen ze niet: ze krioelen om de voet van de kei waar Amir op staat, en na `duur` seconden gaan ze op in rook. De lage
