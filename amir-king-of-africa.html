@@ -36853,7 +36853,7 @@ function vijandHpBalk(sx, topY, s, scale){
       ctx.strokeText('\u265B ' + s.naam, sx, y0 - fs * 0.35); ctx.fillText('\u265B ' + s.naam, sx, y0 - fs * 0.35);
     }
   }
-  if (s.raz) razMeterTeken(x0, y0 + h + Math.max(3, ah * 0.012), w, Math.max(3, h * 0.6), s);   // de razernij (zie RAZ)
+  if (s.raz) razMeterTeken(x0, y0 + h + Math.max(4, ah * 0.018), w, Math.max(5, h * 1.1), s, sx, ah);   // de razernij (zie RAZ)
   ctx.restore();
 }
 // De schildbandiet met de health-balk: het schild vangt de klappen op, hij zelf niet. Zijn health-balk
@@ -39506,6 +39506,7 @@ function razStap(s, dt, plats, cliff, naarJe){
     if (r.meter >= 1 && (s.state === 'run' || s.state === 'look') && s.rust <= 0 && banZelfdeHoogte(s)){
       r.fase = 'brul'; r.t = 0; banSet(s, 'look'); s.face = naarJe; s.knock = 0;
       banRoep(); shake = Math.max(shake, 8);
+      flashHint((s.naam || 'Hij') + ' wordt razend! Ontwijk hem, val niet aan', 2200);
       banStofWolk(s.x, s.base || 0, 12, 0, 1.6);
     }
     return false;
@@ -39568,18 +39569,33 @@ function razSchaduw(s, dt, plats, cliff, naarJe){
   return true;
 }
 // de meter onder zijn levens: rood dat oploopt, vol en fel tijdens de razernij (en dan leegloopt), grijs als hij uitgeput is
-function razMeterTeken(x0, y0, w, h, s){
-  const r = s.raz;
+function razMeterTeken(x0, y0, w, h, s, sx, ah){
+  const r = s.raz, nu = performance.now();
   const fel = r.fase === 'brul' || r.fase === 'raz';
   const f = r.fase === 'brul' ? 1 : r.fase === 'uit' ? 0 : r.meter;
-  ctx.fillStyle = 'rgba(16,10,14,0.6)'; ctx.fillRect(x0, y0, w, h);
-  if (f > 0){
-    const p = fel ? 0.75 + 0.25 * Math.sin(performance.now() / 70) : 1;
-    ctx.fillStyle = fel ? 'rgba(255,' + Math.round(60 + 60 * p) + ',40,' + p.toFixed(2) + ')' : (f > 0.8 ? '#d23a24' : '#8e2418');
-    ctx.fillRect(x0, y0, w * f, h);
+  const bijna = r.fase === 'laad' && f > 0.75;               // bijna vol: de balk knippert als waarschuwing
+  ctx.save();
+  if (fel || bijna){                                          // een rode gloed om de balk
+    ctx.shadowColor = 'rgba(255,60,30,0.9)'; ctx.shadowBlur = fel ? 12 : 6 + 4 * Math.sin(nu / 90);
   }
-  ctx.strokeStyle = fel ? 'rgba(255,190,120,0.95)' : 'rgba(8,5,7,0.85)'; ctx.lineWidth = 1;
+  ctx.fillStyle = 'rgba(16,10,14,0.7)'; ctx.fillRect(x0, y0, w, h);
+  ctx.shadowBlur = 0;
+  if (f > 0){
+    const p = fel ? 0.75 + 0.25 * Math.sin(nu / 70) : bijna ? 0.7 + 0.3 * Math.sin(nu / 60) : 1;
+    ctx.fillStyle = fel ? 'rgba(255,' + Math.round(60 + 60 * p) + ',40,' + p.toFixed(2) + ')'
+                  : bijna ? 'rgba(230,60,36,' + p.toFixed(2) + ')' : '#b02a1c';
+    ctx.fillRect(x0, y0, w * f, h);
+    ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(x0, y0, w * f, h * 0.35);   // een glans, zoals de levensbalk
+  }
+  ctx.strokeStyle = fel ? 'rgba(255,190,120,0.95)' : '#f2c75a'; ctx.lineWidth = Math.max(1, ah * 0.006);
   ctx.strokeRect(x0, y0, w, h);
+  const fs = Math.max(11, ah * 0.068);                         // het woord eronder, zodat je weet wat de balk is
+  ctx.font = '800 ' + fs.toFixed(0) + 'px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  const tekst = r.fase === 'uit' ? 'UITGEPUT' : fel ? 'RAZEND' : 'RAZERNIJ';
+  ctx.lineWidth = Math.max(2, fs * 0.25); ctx.strokeStyle = 'rgba(20,8,6,0.85)';
+  ctx.fillStyle = r.fase === 'uit' ? '#cfc6b8' : fel ? '#ff8a5a' : '#e0705a';
+  ctx.strokeText(tekst, sx, y0 + h + 2); ctx.fillText(tekst, sx, y0 + h + 2);
+  ctx.restore();
 }
 
 // ---- Brutus: de eerste baas, een bruut met een knots (baas, regel 12) ----
