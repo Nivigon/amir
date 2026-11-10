@@ -69,9 +69,10 @@ galerij; 3 de eerste winkel, een kist boven de doeken, Jabari (aanvoerder, 6, ei
 (`val: true`), een kist boven in een huis met een verdieping; 5 de eerste nacht, sluipen, een kist achter een boog; 6 de dam van leem
 (de opzet van Goud 4) met een meelman op de trap en een kist op de stelling; 7 drie kamers achter elkaar (de kist in de achterste) en
 de tweede winkel; 8 zandstorm, hyena's in roedels, twee bruggen, de takel als enige weg naar de kist; 9 Kofi (12) en de eindpoort;
-10 het plein met Nyundo bij nacht, `hp: 24` en rode oker (`tint`); 11 de derde winkel en een kist boven op de toren (1388);
+10 het plein met Nyundo bij nacht, `hp: 24` en rode oker (`tint`), met vier fakkels zodat Amir te zien blijft; 11 de derde winkel en een kist boven op de toren (1388);
 12 schutters op alle galerijen, een kist boven in een huis; 13 drie rivieren (de laatste zonder brug), de vierde winkel en twee
-kisten; 14 onweer, een `bandietGolf` en de grote dam met een kist op de stelling; 15 een golf die niet ophoudt en Simba Kivuli (20,
+kisten; 14 onweer, een `bandietGolf` met `niveau: true` (een nieuwe rover alleen op Amirs hoogte, en een rover die op een trede
+van de dam vastzit telt niet mee voor `max`, `GOLF_NIVEAU`) en de grote dam met een kist op de stelling; 15 een golf die niet ophoudt en Simba Kivuli (20,
 `sluip: false`). De tinten van de bazen staan in `RIV_TINT`.
 
 ## de schatkist: E en het goud spat eruit
