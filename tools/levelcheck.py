@@ -945,6 +945,8 @@ def einde(lv, sp):
     _plein = ((lv.d.get('stad') or {}).get('pleinpoorten') or [])
     if lv.d.get('brutus') and any(p.get('uit') for p in _plein):
         return                        # het plein van Brutus: als hij ligt takelen de hekken op en speel je met E onder een open poort uit (pleinUitgang), geen fakkels
+    if lv.d.get('eindDeur') and lv.d.get('stad'):
+        return                        # de einddeur: E voor die deur op een verdieping speelt het level uit (eindDeurUit, winLevel), geen fakkels; de regel 'deuren' kijkt of je er kunt staan
     if any(x.get('aanvoerder') and x.get('k') == 'bandiet' for x in (lv.d.get('spawns') or [])):
         return                        # de aanvoerder: zijn dood speelt het level uit, of opent de eindpoort en E onder de boog (zie "de aanvoerder"), geen fakkels
     if not lv.ends and not lv.muur:
@@ -1267,6 +1269,41 @@ def deuren(lv, sp):
         balkon = g.get('balkon') and int(g.get('balkonV') or hoog - 1) == v
         if not gal and not balkon:
             yield fout(b.get('deur'), "de deur naar binnen op verdieping %d van gevel %d, maar daar loopt geen galerij of balkon: je komt er niet bij" % (v, gi))
+
+
+def _einddeur(lv):
+    """De einddeur (eindDeur: {gevel, verdieping}): de gevel moet er zijn, de verdieping onder zijn dak, en op een
+    verdieping moet er een galerij voor lopen (stadDeurVloer), anders kom je er niet en is het level niet uit te spelen."""
+    ed = lv.d.get('eindDeur')
+    if not ed:
+        return
+    stad = lv.d.get('stad') or {}
+    gevels = stad.get('gevels') or []
+    gi, v = int(ed.get('gevel') or 0), int(ed.get('verdieping') or 0)
+    if not stad:
+        yield fout(None, 'een einddeur zonder stad: er is geen gevel om hem in te zetten')
+        return
+    if gi < 0 or gi >= len(gevels):
+        yield fout(None, 'de einddeur hoort bij gevel %d, maar die gevel is er niet: het level is niet uit te spelen' % gi)
+        return
+    hoog = max(1, min(4, int(gevels[gi].get('hoog') or 1)))
+    if v < 0 or v >= hoog:
+        yield fout(gevels[gi].get('x'), 'de einddeur op verdieping %d van gevel %d, maar dat huis is %d hoog' % (v, gi, hoog))
+        return
+    if v == 0:
+        return
+    h = 401 + (v - 1) * 329
+    gal = [q for q in stad.get('galerijen') or []
+           if abs((q.get('h') if q.get('h') is not None else 730) - h) < 30
+           and min(q.get('van', 0), q.get('tot', q.get('van', 0))) <= gi <= max(q.get('van', 0), q.get('tot', q.get('van', 0)))]
+    if not gal:
+        yield fout(gevels[gi].get('x'), 'de einddeur op verdieping %d van gevel %d, maar daar loopt geen galerij op %d: je komt er niet bij' % (v, gi, h))
+
+
+@regel('einddeur')
+def einddeur(lv, sp):
+    """De einddeur moet te bereiken zijn: een galerij voor de deur op zijn verdieping."""
+    yield from _einddeur(lv)
 
 
 @regel('putten')
