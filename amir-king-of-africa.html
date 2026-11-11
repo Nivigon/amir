@@ -19173,6 +19173,13 @@ const SNK_HEAD = { x: 240, y: 34 };                // the reared head, in snake 
 const SNK_STRIKE = { 2: 60, 3: 120 };              // how far the tongue reaches, per bite frame
 const SNK_STRIKE_R = 36;
 const PLAYER_HALF_W = 0.17;                        // hurtbox width, as a share of body height
+// De steun: zo breed zijn de voeten van Amir als het om staan gaat (aan elke kant van zijn midden, als deel van zijn
+// lengte). Vroeger droeg een platform hem zolang zijn hele lijfbreedte (PLAYER_HALF_W) het nog raakte, en dan stond hij
+// met zijn midden een derde lijf naast de rand in de lucht (op het smalle trapbalkon van Stad 10 zag je dat meteen). Nu
+// staat hij pas als zijn voeten erboven zijn, en gaat zijn midden over de rand, dan valt hij. Tegen een wand botsen
+// (blockByPlatforms) gaat nog wel met de hele lijfbreedte, zodat hij langs de rand naar beneden glijdt en er niet in zakt.
+const PLAYER_STEUN_W = 0.05;
+const steunVan = halfW => halfW * PLAYER_STEUN_W / PLAYER_HALF_W;   // de steunbreedte bij deze lijfbreedte (schaalt mee)
 const TIP_DX = [-52,-170,-178,-200,-246,-293,-280,-279,-166,-58];
 const TIP_Y  = [199,182,119,136,132,132,126,125,24,77];
 const ATK_ACTIVE = [4,5,6,7];                      // frames where the spear can hit
@@ -27447,7 +27454,7 @@ function stadLuifelStap(dt){
 function stadDoekOnder(){
   if (!onGround || !stadAan()) return null;
   // de voeten zo breed als bij het landen: een springdoek is in stukken, en je staat op het hoogste stuk onder je voeten
-  const hw = Math.max(20, PLAYER_HALF_W * CHAR_H * nowScale());
+  const hw = PLAYER_STEUN_W * CHAR_H * nowScale();
   return stadPlats(nowScale()).find(q => q.veer && world + hw > q.left && world - hw < q.right && Math.abs(q.topH - ph) < 2) || null;
 }
 // in startJump: wie op de doek staat springt hoog (de doek is een trampoline), en wie vlak na het opwippen
@@ -31985,6 +31992,7 @@ function supportHeight(plats, halfW){          // waar je voeten steun vinden
   let s = vloer == null ? 0 : vloer, raak = vloer != null;
   // Sta je boven een gang op de savanne, dan dragen de treden eronder niet: daar zit het dak tussen.
   const opDak = ph >= -1 && holteAt(world) && !inGap(world);
+  const sw = steunVan(halfW);                    // de voeten, niet de hele lijfbreedte (PLAYER_STEUN_W)
   for (const p of plats){
     if (opDak && p.topH < -1) continue;
     // de rijzende grond draagt pas als hij boven het ravijn (of de put) staat: diep in het gat trekt hij je niet
@@ -31992,12 +32000,13 @@ function supportHeight(plats, halfW){          // waar je voeten steun vinden
     if (p.rijs && vloer != null && p.topH < vloer - 1) continue;
     // een blok dat stijgt (p.stijg: zoveel kwam het er het vorige beeld bij) draagt ook als het net boven zijn voeten uitkwam
     // p.stap: op de helling van de strakke luifel stap je lopend een paar eenheden op naar het volgende stuk
-    if (world + halfW > p.left && world - halfW < p.right && p.topH <= ph + 1 + (p.stijg || 0) + (onGround && p.stap || 0) && (!raak || p.topH > s)){ s = p.topH; raak = true; }
+    if (world + sw > p.left && world - sw < p.right && p.topH <= ph + 1 + (p.stijg || 0) + (onGround && p.stap || 0) && (!raak || p.topH > s)){ s = p.topH; raak = true; }
   }
   return s;
 }
 
 function updateJump(dt, plats, halfW){
+  const sw = steunVan(halfW);                 // staan en landen gaat op de voeten, niet op de hele lijfbreedte
   if (onGround) valVan = ph;                  // zolang je staat: hier komt een val vandaan
   for (let i = dust.length - 1; i >= 0; i--){
     const d = dust[i];
@@ -32048,7 +32057,7 @@ function updateJump(dt, plats, halfW){
   const bodem = grondVloer(world, Math.max(ph, prevH));   // grond, bodem van een gang, of niets
   let target = bodem === null ? -Infinity : bodem, targetPlat = null;
   for (const p of plats){
-    if (world + halfW <= p.left || world - halfW >= p.right) continue;
+    if (world + sw <= p.left || world - sw >= p.right) continue;
     // Van bovenaf. Een blok dat stijgt kan hem in een beeld inhalen, ook als hij zelf nog omhoog gaat:
     // stonden zijn voeten boven waar de bovenkant het vorige beeld was, dan landt hij erop (p.stijg).
     // Het dak en de doek van een kraam (p.grijp): ook als je voeten op het hoogste punt net onder de rand bleven.
@@ -32078,7 +32087,7 @@ function updateJump(dt, plats, halfW){
     // RIJS.terug, zodat je er niet elk beeld even afvalt. valVan loopt zo mee omlaag (zie boven), dus
     // meerijden kost geen valschade. Pas bij springen (takeOff wist amirPlat) of eraf lopen laat je los.
     const drager = amirPlat != null
-      ? plats.find(p => (p.id || null) === amirPlat && world + halfW > p.left && world - halfW < p.right && p.topH <= ph + 1)
+      ? plats.find(p => (p.id || null) === amirPlat && world + sw > p.left && world - sw < p.right && p.topH <= ph + 1)
       : null;
     const s = supportHeight(plats, halfW);
     const floor = s !== 0 ? s : grondVloer(world, ph);
@@ -32093,7 +32102,7 @@ function updateJump(dt, plats, halfW){
     // op welk bewegend plateau sta je nu? daaraan bind je je voor het volgende beeld (ook als je er net
     // vanaf de grond op bent gelopen, zonder landing-event)
     if (onGround){
-      const op = plats.find(p => (p.takel || p.rijs) && world + halfW > p.left && world - halfW < p.right && Math.abs(p.topH - ph) < 2);
+      const op = plats.find(p => (p.takel || p.rijs) && world + sw > p.left && world - sw < p.right && Math.abs(p.topH - ph) < 2);
       amirPlat = op ? (op.id || null) : null;
     }
   }
@@ -47485,7 +47494,7 @@ function loop(now){
   // staat hij op de speer? Dan buigt de schacht door (zie javUpdate)
   if (jav && jav.state === 'muur'){
     const jp = javPlat(scaleNow);
-    jav.stand = !!(jp && onGround && world + halfWNow > jp.left && world - halfWNow < jp.right
+    jav.stand = !!(jp && onGround && world + steunVan(halfWNow) > jp.left && world - steunVan(halfWNow) < jp.right
                    && Math.abs(ph - jp.raw) < 6);
     if (jav.stand && jav.landed !== true){ jav.landed = true; jav.wob = Math.max(jav.wob, 0.5); }
     else if (!jav.stand) jav.landed = false;
