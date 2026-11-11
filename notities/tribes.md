@@ -41,6 +41,14 @@ drie kolommen, staand twee met het venster eronder.
   `tribeBoomToon` begint bij een open talent, in Perks als de aanroeper `tbAlg` zette (na een level waarin daar het
   punt binnenkwam). Pijltjes: op en neer langs een boom, links naar je tribe, rechts naar Perks.
 
+## De knop All talents
+
+Rechtsboven in de talent tree staat **All talents** (`tbAlles`). Die leert alles in de tribe-boom en in Perks
+tegelijk (bij een keuze tussen twee, zoals Crushing en Wide Circle, de eerste), zet de punten op nul en zet
+`RUN.alles` aan. Zolang dat aan staat zet een klik op een talent het uit, met alles wat erop bouwt, of weer aan
+als wat het eist er is (`tbAllesWissel`), zonder punten; Continue is dan altijd vrij (`tbMoetIn` geeft null).
+Bij het kijken naar een tribe legt de knop eerst de keuze vast. Een nieuwe run (`tribeVastleggen`) zet het weer uit.
+
 ## T-splitsing in de talent tree
 
 een talent met `varianten` in `TRIBE_CONFIG` krijgt naast zijn naam een gestippelde splitsing met de namen (`tbSplit`, `.tbsplit`) en in het venster de varianten met hun tekst (`.tbivar`). Nog niets te kiezen; nu alleen bij Jackal Fang. Een tribe op slot laat zijn talents dicht zien; `TB_LEEG` alleen als hij er nog geen heeft Tijdelijk getekend: het plaatje komt uit `tools/mes.py` (`design/mes/mes.png`), zijn lijf schiet naar voren omdat er geen frames met een mes zijn. De kalebas is de speertekenvariant `kalebas`
