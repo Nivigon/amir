@@ -17905,6 +17905,7 @@ function banSchaduw(s, bodyX, voeten, scale, bS){
   const Y = voetY - grondRij * gs;                  // de bovenkant van het frame op het scherm
   const lx = -geo.anker * gs;                        // de linkerrand van het ongespiegelde frame, t.o.v. bodyX
   const X = face === 1 ? bodyX - (lx + fw) : bodyX + lx;
+  if (buitenDoek(X, fw, fh * AMIR_SCHADUW.lang * 1.5)) return;   // ver buiten beeld (de schaduw valt hooguit zo ver opzij): niets te tekenen of te bakken
   const fc = fakkelCast(s.x, s.base || 0);            // de fakkel neemt de richtingsschaduw over waar het donker is
   drawAmirSchaduw(img, X, Y, fw, fh, face === 1, bodyX, voetY, voeten,
                   (voeten - voetY) / scale, scale, amirZon(s.base || 0, s.x) * (1 - fc.w), 1);
@@ -29811,35 +29812,50 @@ function plichtRand(img, kant, boven, d){
   per[sl] = z;
   return z;
 }
-let plichtKleurCv = null;
+// Staat het vak (x, y, w, h, in de huidige tekencoordinaten) helemaal links of rechts buiten het doek, op `marge`
+// pixels na? Via de transform van ctx, zodat zoom, de executie-camera en het schudden vanzelf meetellen. Vijanden
+// worden tot een heel scherm buiten beeld getekend (het mag niet knipperen aan de rand); hun licht en schaduw slaan
+// we daar over, zodat er ook niets voor gebakken wordt (PERS_BAK) voor iemand die je niet ziet.
+function buitenDoek(x, w, marge = 0){
+  const T = ctx.getTransform();
+  const a = T.a * x + T.e, b = T.a * (x + w) + T.e;
+  return Math.max(a, b) < -marge || Math.min(a, b) > cv.width + marge;
+}
+// Het randmasker in de kleur van zijn bron. Eerst werd het elk beeld opnieuw ingekleurd op een gedeeld hulpdoek en
+// dat dan getekend: per personage en per bron een doek dat net beschreven was, en dat laat de browser elke keer wachten
+// tot het klaar is (en het doek kopieren). Met zeven rovers in beeld (Rivier 14) was dat zo'n veertien keer per beeld.
+// Nu kleuren we het masker zelf een keer in (source-in houdt de vorm) en tekenen we dat; de sterkte gaat via
+// globalAlpha. Elk masker hoort bij een bron (de sleutel heeft zijn `boven`), dus de kleur wisselt alleen als het
+// uitzicht een andere zon krijgt; dan kleuren we hem gewoon opnieuw in. Geen extra doek, dus geen extra geheugen.
+function plichtGekleurd(m, kleur){
+  if (m.plichtKl === kleur) return m;
+  const g = m.getContext('2d');
+  g.globalCompositeOperation = 'source-in'; g.fillStyle = kleur; g.fillRect(0, 0, m.width, m.height);
+  g.globalCompositeOperation = 'source-over';
+  m.plichtKl = kleur;
+  return m;
+}
 // Het licht op een personage. img zijn frame (het gewone, niet een geflitste kopie), (x, y, w, h) waar het op het scherm
 // staat, flip of het gespiegeld getekend is, wx en vloer zijn plek in de wereld, fig zijn lengte op het scherm (px),
 // alfa zijn doorzichtigheid (vervagen, knipperen).
 function persLicht(img, x, y, w, h, flip, wx, vloer, fig, groundY, scale, cx, alfa = 1){
   if (!PLICHT.aan || !img || !(img.naturalWidth || img.width) || alfa <= 0.01) return;
+  if (buitenDoek(x, w)) return;                     // buiten beeld: geen licht (en niets bakken)
   if (PLICHT.raam.aan){ ctx.save(); ctx.globalAlpha *= alfa; binnenLichtOp(img, x, y, w, h, flip, groundY, scale, cx); ctx.restore(); }
   const bronnen = plichtBronnen(wx, vloer, fig / (CHAR_H * scale));
   if (!bronnen.length) return;
   const ih = img.naturalHeight || img.height, bakH = Math.min(PLICHT.bak, ih);
-  if (!plichtKleurCv) plichtKleurCv = document.createElement('canvas');
   for (const b of bronnen){
     const dir = b.soort === 'zon' ? (b.zonX > x + w / 2 ? 1 : -1) : b.dir;   // de kant op het scherm
     const kant = flip ? -dir : dir;                                          // de kant in het frame
     const d = Math.max(1, Math.round(b.rand * fig * bakH / h));
     const m = plichtRand(img, kant, b.boven, d);
     if (!m) continue;
-    // het kleurdoek groeit alleen: eerst kreeg het elke keer de maat van het masker, en wisselden Amir en een
-    // bandiet elkaar af, dan maakte de browser het doek elk beeld een paar keer opnieuw aan. Nu met een bronvak.
-    if (plichtKleurCv.width < m.width || plichtKleurCv.height < m.height){
-      plichtKleurCv.width = Math.max(plichtKleurCv.width, m.width); plichtKleurCv.height = Math.max(plichtKleurCv.height, m.height);
-    }
-    const g = plichtKleurCv.getContext('2d');
-    g.globalCompositeOperation = 'source-over'; g.clearRect(0, 0, m.width, m.height); g.drawImage(m, 0, 0);
-    g.globalCompositeOperation = 'source-in'; g.fillStyle = b.kleur; g.fillRect(0, 0, m.width, m.height);
+    const kl = plichtGekleurd(m, b.kleur);
     ctx.save();
     ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= Math.min(1, b.sterk) * alfa;
     ctx.translate(x, y); if (flip){ ctx.translate(w, 0); ctx.scale(-1, 1); }
-    ctx.drawImage(plichtKleurCv, 0, 0, m.width, m.height, 0, 0, w, h);
+    ctx.drawImage(kl, 0, 0, w, h);
     ctx.restore();
   }
 }
@@ -45154,8 +45170,12 @@ function scpImg(s){
 const flashCv = document.createElement('canvas');
 function whiteCopy(img, amount){
   if (!(img.naturalWidth || img.width)) return img;
-  flashCv.width = img.naturalWidth || img.width; flashCv.height = img.naturalHeight || img.height;
+  // de maat alleen zetten als hij anders is: width zetten maakt het doek altijd helemaal nieuw, ook bij dezelfde
+  // waarde, en dat gebeurde elk beeld voor elke vijand die net geraakt is. Frames van een soort zijn even groot.
+  const bw = img.naturalWidth || img.width, bh = img.naturalHeight || img.height;
   const g = flashCv.getContext('2d');
+  if (flashCv.width !== bw || flashCv.height !== bh){ flashCv.width = bw; flashCv.height = bh; }
+  else { g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.clearRect(0, 0, bw, bh); }
   g.drawImage(img, 0, 0);
   g.globalCompositeOperation = 'source-atop';
   g.globalAlpha = Math.max(0, Math.min(1, amount));
