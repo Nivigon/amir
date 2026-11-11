@@ -714,6 +714,9 @@
   .trkaart.opslot:hover,.trkaart.opslot:focus-visible{opacity:.8}
   #tbterug{min-width:0;width:100%;padding:clamp(5px,1.2vh,8px) 16px;font-size:clamp(12px,2.2vh,14px);color:rgba(243,227,200,.75);border-color:rgba(243,227,200,.28)}
   #tbterug[hidden]{display:none}
+  #tballes{position:absolute;top:10px;right:12px;z-index:2;min-width:0;padding:6px 14px;font-size:13px;
+    color:var(--trtekst);border-color:rgba(243,227,200,.35);background:rgba(28,18,12,.6)}
+  #tballes.aan{border-color:var(--tracc);color:var(--tracc)}
   #trjoin,#truverder{min-width:220px;padding:10px 22px;font-size:17px;border-color:rgba(243,227,200,.3);color:rgba(243,227,200,.5)}
   #trjoin:not([disabled]),#truverder{border-color:var(--tracc);background:var(--tracc);color:#1c120c;font-weight:800;
     box-shadow:0 3px 10px rgba(0,0,0,.45);transition:transform .15s ease,box-shadow .15s ease}
@@ -858,6 +861,7 @@
   @media (max-height:450px){
     #trunlock{--tbr:clamp(30px,min(calc((100vh - 80px) / var(--tbrijen) - 22px),7vw),80px)}
     #tbveld{grid-template-columns:minmax(0,1.15fr) clamp(200px,27vw,300px) minmax(0,.75fr)}
+    #tballes{top:3px;right:4px;padding:2px 8px;font-size:10px}
     .tbnaam small{display:none}
     #tbinfo .tbivgl{padding:4px 8px}
   }
@@ -2292,6 +2296,7 @@
     <div id="trkaarten" role="radiogroup" aria-labelledby="trkop"></div>
   </div>
   <div id="trunlock" class="trscherm" role="dialog" aria-modal="true" aria-labelledby="trukop">
+    <button id="tballes" type="button" title="Learn every talent; click a talent to turn it off or on again">All talents</button>
     <div id="tbveld">
       <div class="tbkol" id="tbtribe">
         <img id="tbwater" src="" alt="">
@@ -2901,7 +2906,7 @@ function boomLogo(t){ return (t && t.logo) || ALG_LOGO; }
 // en ook de woedemeter.
 // abilities: wat je in de talent tree geleerd hebt; punten: talentpunten die je nog kunt uitgeven.
 const RUN = { tribeId: null, abilities: [], gehaald: 0, punten: 0, woede: 0, munt: false,   // woede: de meter, 0 tot 1; munt: de munt van de koning is al verzilverd (zie "goud")
-              alg: [], algPunten: 0, algGehaald: [], vrij: 0 };
+              alg: [], algPunten: 0, algGehaald: [], vrij: 0, alles: false };
 // alg: wat je in de algemene boom geleerd hebt; algPunten: zijn punten; algGehaald: de levels (index in de episode)
 // die al een algemeen punt gaven, zodat hetzelfde level het niet twee keer geeft; vrij: het punt van de munt van de
 // koning, dat je in de boom uitgeeft waar je wilt (eerst gaan de eigen punten van een boom op, dan dit)
@@ -51409,6 +51414,7 @@ function tbRun(t){
 // valt er nog een punt uit te geven, in een van beide bomen? Dan kun je nog niet verder. Geeft de boom terug
 // waar het kan ('tribe' of 'alg'), of null.
 function tbMoetIn(){
+  if (RUN.alles) return null;                       // alle talents aan (de knop rechtsboven): niets meer te verplichten
   const t = tribeVan(RUN.tribeId), A = TRIBE_CONFIG.algemeen;
   const tribeOpen = !!t && !t.locked && t.abilities.some((a, i) => RUN.abilities.indexOf(a.id) < 0 && !tbGekozen(t, i));
   const algOpen = RUN.alg.length < A.abilities.length;
@@ -51457,12 +51463,12 @@ function tbStaat(t, i){
   if (r.abilities.indexOf(a.id) >= 0) return 'geleerd';
   if (tbGekozen(t, i)) return 'dicht';
   if (tbEis(t, i).some(e => r.abilities.indexOf(e) < 0)) return 'dicht';
-  return r.punten > 0 ? 'open' : 'wacht';
+  return r.punten > 0 || (RUN.alles && !tbKijk) ? 'open' : 'wacht';
 }
 // de keuze vastleggen: een nieuwe run met deze tribe, en zijn startpunten
 function tribeVastleggen(t){
   RUN.tribeId = t.id; RUN.abilities = []; RUN.gehaald = 0; RUN.punten = t.bijStart || 0; RUN.munt = false;
-  RUN.woede = 0;
+  RUN.woede = 0; RUN.alles = false;
   if (t.stofveeg){ stofLaad(); if (running && !sandbox) STOF.aan = true; }   // de stofveeg van Mkuki: de frames alvast binnenhalen
   tbKijk = null;
 }
@@ -51555,6 +51561,7 @@ function tbKlik(i, alg){
   tbKies(i, alg);
   const t = tbTribe();
   if (!t) return;
+  if (RUN.alles && !tbKijk && tbAllesWissel(t, i)) return;   // na All talents: vrij aan en uit, zonder punten
   if (tbStaat(t, i) !== 'open') return;             // op slot of al geleerd: alleen bekijken
   if (tbKijk) tribeVastleggen(t);                   // het eerste talent: nu ligt de keuze vast
   const isAlg = t === TRIBE_CONFIG.algemeen;
@@ -51575,6 +51582,38 @@ function tbKlik(i, alg){
   (doel || document.getElementById('truverder')).focus();
 }
 document.getElementById('tbleer').onclick = () => tbKlik(tbSel, tbAlg);
+// De knop All talents rechtsboven: alles in de tribe-boom en in Perks geleerd, zonder punten. Bij een keuze tussen
+// twee (sluit) de eerste. Daarna zet een klik op een talent het uit (met wat erop bouwt) of weer aan (tbAllesWissel).
+function tbAlles(){
+  if (tbKijk){ const t = tribeVan(tbKijk); if (!t || t.locked) return; tribeVastleggen(t); }
+  RUN.alles = true;
+  RUN.punten = 0; RUN.algPunten = 0; RUN.vrij = 0;  // punten tellen in deze stand niet meer
+  for (const [t, l] of [[tbEigen(), RUN.abilities], [TRIBE_CONFIG.algemeen, RUN.alg]]){
+    if (!t || t.locked) continue;
+    for (let i = 0; i < t.abilities.length; i++){
+      const a = t.abilities[i];
+      if (l.indexOf(a.id) < 0 && !tbGekozen(t, i)) l.push(a.id);
+    }
+  }
+  hudToon();
+  tbBijwerken();
+}
+// talent i aan of uit in de vrije stand; true als de klik iets deed
+function tbAllesWissel(t, i){
+  if (t.locked || !t.abilities[i]) return false;
+  const l = t === TRIBE_CONFIG.algemeen ? RUN.alg : RUN.abilities, id = t.abilities[i].id;
+  if (l.indexOf(id) >= 0){                          // uit, en ook alles wat dit talent eist
+    for (let j = t.abilities.length - 1; j >= 0; j--){
+      const ander = t.abilities[j].id;
+      if (j === i || tbVoor(t, j).has(id)){ const n = l.indexOf(ander); if (n >= 0) l.splice(n, 1); }
+    }
+  } else if (tbStaat(t, i) === 'open') l.push(id);  // weer aan, als wat het eist er is
+  else return false;
+  hudToon();
+  tbBijwerken();
+  return true;
+}
+document.getElementById('tballes').onclick = tbAlles;
 // de punten van een boom, in de kop van zijn kolom
 function tbPuntBijwerken(el, t){
   const b = tbBoom(t), run = tbRun(t), pt = run.punten;
@@ -51647,6 +51686,7 @@ function tbBijwerken(){
     knop.textContent = !waar ? (tribeVerder ? 'Continue' : 'Close') : waar === 'alg' ? 'Choose a perk' : 'Choose a talent';
   }
   document.getElementById('tbterug').hidden = !tbKijk;
+  document.getElementById('tballes').classList.toggle('aan', RUN.alles && !tbKijk);
 }
 // een ander formaat: de lijnen opnieuw meten
 addEventListener('resize', () => { if (tribeUnlockEl.classList.contains('on')) tbBijwerken(); });
