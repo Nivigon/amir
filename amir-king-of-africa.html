@@ -1502,7 +1502,7 @@
       </div>
       <div class="row">
         <label>Murghtaan (baas)</label>
-        <button data-spawn="murg">Murghtaan</button>
+        <button data-spawn="murg">Murghtaan</button><button data-spawn="murg_charge">Murghtaan charge</button>
         <button data-spawn="murg_bz">Bezeten</button>
         <button data-spawn="murg_fin">Finale</button>
         <button id="sbmurkever">Kevers nu</button>
@@ -8542,7 +8542,26 @@ const MUR_1 = {
           { x: -2500, t: 'Daar staat hij. Grauwt hij, dan springt hij: opzij of eroverheen' },
           { x: -2800, t: 'Kevers? Op een kei, of veeg ze weg met de lage zwaai' } ]
 };
-const MUR_LEVELS = [MUR_1];
+// Murghtaan 2: de charge. Het nieuwe ontwerp van Murghtaan (MURC), alleen zijn charge-ronde: je loopt de arena in, hij brult,
+// zakt in, breekt uit en galoppeert op je af, slipt voorbij in een stofwolk, draait om en doet het opnieuw. Hij doet Amir
+// niets: dit is een proefstuk voor de animaties. Vijf treffers en het level is uit.
+const MUR_2 = {
+  name: 'Murghtaan 2: The charge',
+  lagen: 'renew_vlakte',
+  view: 0.8, hpBalk: true, slangEenKlap: true, zicht: true, sneak: true, camera: true, rand: true, speerInHand: true,
+  vredig: true,
+  murg: { x: -2900, van: -4300, tot: -1500, charge: true },
+  rocks: [],
+  spawns: [],
+  props: [ {x: -400, k: 'gras', s: 1.1, f: 0, v: 0}, {x: -1100, k: 'struik', s: 1.0, f: 1, v: 0},
+           {x: -3500, k: 'buffel', s: 1.0, f: 0, v: 0}, {x: -4800, k: 'struik', s: 1.0, f: 0, v: 0} ],
+  gaps: [], terraces: [], ledges: [], village: [], npcs: [], water: [], thickets: [],
+  hppotions: [],
+  cliffs: [ {x: -5700} ],
+  ends: [ {x: -5200} ],
+  tips: [ { x: -300, t: 'He charges. Step aside or jump over him, and strike when he turns' } ]
+};
+const MUR_LEVELS = [MUR_1, MUR_2];
 
 // ---- Episode De Valse Koning: acht zware levels tegen de rovers en hun koning ----
 // Een roverhoofdman heeft zichzelf tot koning gekroond en zijn horde roept Amir "False king!" toe
@@ -34136,7 +34155,7 @@ function restart(){
   mkillReset();                                     // de multikill-reeks en de telling voor het rapport op nul (zie "multikill")
   aanvReset();                                      // de eindpoort dicht (zie "de aanvoerder")
   straatReset();                                    // de straten: terug in de startstraat, de kills op 0
-  tutReset(); venom.length = 0; splat.length = 0; splashes.length = 0; stopWater(); stopHyena(); stopBan(); stopKrb(); stopWind();
+  tutReset(); venom.length = 0; splat.length = 0; splashes.length = 0; stopWater(); stopHyena(); murcStil(); stopBan(); stopKrb(); stopWind();
   greenSince = 0; blackAfter = 3 + Math.floor(Math.random() * 3); forceBlack = false; setKindLabel();
   if (level && level.spawns) for (const sp of level.spawns){ sp.used = false; sp.armed = false; }
   poortReset();                                     // de poorten weer dicht, hun vijanden weer binnen
@@ -41824,24 +41843,72 @@ function murLaad(){
     murMeta = m;
   }).catch(() => {}).finally(() => { murBezig = false; laadJsonOpen--; });
 }
-function murLaadLevel(lv){ if (lv && lv.murg) murLaad(); }
+function murLaadLevel(lv){ if (lv && lv.murg){ if (lv.murg.charge) murcLaad(); else murLaad(); } }
 function murVrij(nodigNog){
-  if (nodigNog || !murMeta) return;
+  if (nodigNog) return;
+  if (murcMeta){ murcBank = {}; murcMeta = null; }
+  if (!murMeta) return;
   murBank.f1 = {}; murBank.bz = {}; murMeta = null;
 }
+// ---- Murghtaan, de charge (Murghtaan 2): het nieuwe ontwerp, alleen de charge-ronde ----
+// Een eigen set (enemies/hyena_baas/charge/, canvas 800x400, kijkrichting links): brul, aanzet (inzakken en uitbreken),
+// galop (lus van 25), slip (de noodstop) en draai (via de voorkant om). Wakker: brul, dan steeds aanzet, galop langs Amir,
+// slip met stof, draai, en weer de aanzet. Hij doet Amir niets; MURC.hp treffers en het level is uit.
+// reis in de metadata: hoeveel canvas-px hij in die set naar links schuift (root motion), opgeteld als de set klaar is.
+const MURC = {
+  map: 'enemies/hyena_baas/charge/', w: 800, h: 400, ground: 380, anker: 400,
+  fig: 180, hShare: 1.0,                        // staand 180 canvaspixels hoog, zo hoog als een Amir
+  hp: 5, inv: 0.45, wakker: 7,                  // treffers, onkwetsbaar na een treffer, en wanneer hij wakker wordt (in Amir)
+  ren: 900,                                     // de galop, in wereld-px per seconde (Amir loopt 330)
+  fps: { brul: 12, galop: 24, slip: 12, draai: 12 },
+  voorbij: 0.6,                                 // zo ver (in Amir) voorbij Amir begint hij te remmen
+  remVenster: [12, 18],                         // het galopframe waarin hij de slip inzet (frame 15 is de pose van de slip)
+  stofTot: 15, stofElke: 0.05,                  // stof van de slip tot dit frame, zo vaak
+  loer: 0.35,                                   // na de draai even laag blijven staan voor de nieuwe aanzet
+  aanzetKlap: 11,                               // het frame waarop hij uitbreekt (het afzetgeluid)
+  winNa: 1.6                                    // seconden na de laatste treffer tot het level uit is
+};
+let murcMeta = null, murcBezig = false, murcBank = {};
+function murcLaad(){
+  laadNodig('mur');
+  if (murcMeta || murcBezig) return;
+  murcBezig = true; laadJsonOpen++;
+  fetch(MURC.map + 'metadata.json').then(r => r.json()).then(m => {
+    murcBank = {};
+    for (const set in m.sets){
+      murcBank[set] = [];
+      for (let i = 0; i < m.sets[set].frames; i++) murcBank[set].push(loadQuiet([MURC.map + set + '/' + set + '_' + pad2(i) + '.png']));
+    }
+    murcMeta = m;
+  }).catch(() => {}).finally(() => { murcBezig = false; laadJsonOpen--; });
+}
+// geluid: een stem per bestand, de galop als lus
+const MURC_SND = { brul: 0.9, aanzet: 0.9, galop: 0.7, slip: 0.95, draai: 0.8, grom: 0.75 };
+const murcSnd = {};
+function murcZeg(naam, lus){
+  if (!wantSound) return;
+  let a = murcSnd[naam];
+  if (!a){ a = murcSnd[naam] = geluidAan(new Audio()); a.preload = 'auto'; a.src = 'sounds/murc_' + naam + '.mp3'; }
+  a.loop = !!lus; a.volume = MURC_SND[naam] || 0.8;
+  try { a.currentTime = 0; } catch (e) {}
+  a.play().catch(() => {});
+}
+function murcZwijg(naam){ const a = murcSnd[naam]; if (a) a.pause(); }
+function murcStil(){ for (const k in murcSnd) murcSnd[k].pause(); }
 function murScale(){ const scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H; return (CHAR_H * scale * MUR.hShare) / MUR.fig; }
 function murAmir(){ const scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H; return CHAR_H * scale; }   // een Amir in wereld-px
 function makeMurg(x, opts){
-  murLaad();
   const o = opts || {};
+  if (o.charge) murcLaad(); else murLaad();
   return { x, face: 1, state: 'wacht', set: 'grauw_lus', frame: 0, acc: 0, terug: false, heen: 1, t: 0,
            inv: 0, flash: 0, base: 0, hp: MUR.hp1, maxHp: MUR.hp1, bz: false, actief: false,
            van: o.van, tot: o.tot, sandbox: !!o.sandbox, sprongen: 0, hitUsed: false, sweptId: -1,
-           roepKlaar: false, keversOver: 0, keverAcc: 0, rookAcc: 0, val: 0, lift: 0, revealT: 0 };
+           roepKlaar: false, keversOver: 0, keverAcc: 0, rookAcc: 0, val: 0, lift: 0, revealT: 0,
+           charge: !!o.charge, ...(o.charge ? { hp: MURC.hp, maxHp: MURC.hp, set: 'brul' } : {}) };
 }
 function murStart(){
   const b = level && level.murg; if (!b) return;
-  murg = makeMurg(b.x, { van: b.van, tot: b.tot });
+  murg = makeMurg(b.x, { van: b.van, tot: b.tot, charge: !!b.charge });
   murg.base = terrainH(b.x);
   murKevers.length = 0; murRook.length = 0; murKeverTikT = 0;
 }
@@ -41897,6 +41964,7 @@ function updateMurg(dt){
   const s = murg; if (!s) return;
   if (s.inv > 0) s.inv -= dt;
   if (s.flash > 0) s.flash = Math.max(0, s.flash - dt * 3);
+  if (s.charge){ murcStap(s, dt); return; }
   if (!murMeta) return;
   s.t += dt;
   const A = murAmir(), dx = playerX() - s.x, afst = Math.abs(dx);
@@ -41998,6 +42066,7 @@ function updateMurg(dt){
   s.lift = murLift(s.x);
 }
 function hitMurg(s){
+  if (s && s.charge){ murcRaak(s); return; }
   if (!s || s.inv > 0 || s.state === 'dood' || s.state === 'finale' || s.state === 'reveal' || s.state === 'wacht') return;
   s.hp--; if (critPak()) s.hp--; fcHalf(s, 0);
   hits++; hitsEl.textContent = hits;
@@ -42009,6 +42078,123 @@ function hitMurg(s){
   for (const k of murKevers) if (k.fase !== 'weg'){ k.fase = 'weg'; k.t = 0; }
   if (murMeta && murMeta.sets.dood_echt) murFinaleStart(s);
   else murSet(s, 'dood', 'inzakken');
+}
+// ---- Murghtaan 2: de charge (zie MURC) ----
+function murcScale(){ const scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H; return (CHAR_H * scale * MURC.hShare) / MURC.fig; }
+function murcN(set){ return murcMeta && murcMeta.sets[set] ? murcMeta.sets[set].frames : 1; }
+function murcSet(s, state, set, frame){ s.state = state; s.t = 0; s.set = set; s.frame = frame || 0; s.acc = 0; }
+// speelt de set een keer af (of rond met lus); true als hij klaar is. Met duur_ms in de metadata een eigen duur per frame.
+function murcSpeel(s, dt, lus){
+  const m = murcMeta.sets[s.set], n = m.frames;
+  s.acc += dt;
+  for (;;){
+    const duur = m.duur_ms ? m.duur_ms[s.frame] / 1000 : 1 / (MURC.fps[s.set] || 12);
+    if (s.acc < duur) return false;
+    s.acc -= duur;
+    if (s.frame >= n - 1){ if (lus){ s.frame = 0; continue; } return true; }
+    s.frame++;
+  }
+}
+// de root motion van een set: zijn reis (canvas-px naar links) in de wereld, met de kijkrichting mee
+function murcReis(s, set){ const r = (murcMeta.sets[set].reis || 0) * murcScale(); return s.face === 1 ? -r : r; }
+// waar canvas-x cx van zijn frame in de wereld ligt
+function murcWereldX(s, cx){ return s.x + (s.face === 1 ? -1 : 1) * (cx - MURC.anker) * murcScale(); }
+function murcStap(s, dt){
+  if (!murcMeta) return;
+  s.t += dt;
+  const A = murAmir(), px = playerX();
+  switch (s.state){
+    case 'wacht':                                       // staat laag, de brul nog op frame 0, en kijkt naar Amir
+      s.set = 'brul'; s.frame = 0; s.face = murNaar(s);
+      if (Math.abs(px - s.x) < MURC.wakker * A){ s.actief = true; murcSet(s, 'brul', 'brul'); murcZeg('brul'); }
+      break;
+    case 'brul':
+      if (murcSpeel(s, dt)) murcAanzet(s);
+      break;
+    case 'loer':                                        // na de draai: even laag, dan de aanzet
+      if (s.t > MURC.loer) murcAanzet(s);
+      break;
+    case 'aanzet': {
+      const voor = s.frame;
+      if (murcSpeel(s, dt)){
+        s.x += murcReis(s, 'aanzet');
+        const g = murcMeta.sets.galop;
+        murcSet(s, 'galop', 'galop', g.in != null ? g.in : 0); s.remmen = false;
+        murcZeg('galop', true);
+      } else if (voor < MURC.aanzetKlap && s.frame >= MURC.aanzetKlap){ murcZeg('aanzet'); shake = Math.max(shake, 0.08); }
+      break;
+    }
+    case 'galop': {
+      murcSpeel(s, dt, true);
+      const ar = murArena(s), nx = s.x + s.face * MURC.ren * dt;
+      // hoeveel ruimte de slip en de draai nog nodig hebben, met wat marge voor het remvenster
+      const nodig = Math.abs(murcReis(s, 'slip')) + Math.abs(murcReis(s, 'draai')) + MURC.ren * 0.25;
+      const rand = s.face === 1 ? ar.hi - nx < nodig : nx - ar.lo < nodig;
+      s.x = Math.max(ar.lo, Math.min(ar.hi, nx));
+      const voorbij = s.face === 1 ? s.x > px + MURC.voorbij * A : s.x < px - MURC.voorbij * A;
+      if (voorbij) s.remmen = true;
+      const v = MURC.remVenster;
+      if (rand || (s.remmen && s.frame >= v[0] && s.frame <= v[1])){
+        murcZwijg('galop'); murcSet(s, 'slip', 'slip'); murcZeg('slip'); s.stofAcc = 0;
+      }
+      break;
+    }
+    case 'slip':
+      if (s.frame <= MURC.stofTot){                     // het stof: voor zijn voorpoten en onder zijn lijf, de kant op waar hij heen glijdt
+        s.stofAcc += dt;
+        while (s.stofAcc >= MURC.stofElke){
+          s.stofAcc -= MURC.stofElke;
+          const b = murcMeta.sets.slip.bbox[s.frame];
+          const voorX = murcWereldX(s, b[0] + 30), midX = murcWereldX(s, (b[0] + b[2]) / 2);
+          bavStof(voorX, 'rem', -s.face, 1);
+          if (Math.random() < 0.5) bavStof(midX, 'stap', -s.face, 1.2);
+        }
+      }
+      if (murcSpeel(s, dt)){ s.x += murcReis(s, 'slip'); murcSet(s, 'draai', 'draai'); murcZeg('draai'); s.gromt = false; }
+      break;
+    case 'draai':
+      if (!s.gromt && s.frame >= 4){ s.gromt = true; murcZeg('grom'); }
+      if (murcSpeel(s, dt)){
+        s.x += murcReis(s, 'draai'); s.face = -s.face;
+        const ar = murArena(s); s.x = Math.max(ar.lo, Math.min(ar.hi, s.x));
+        if (murNaar(s) !== s.face) murcSet(s, 'draai', 'draai');   // staat Amir nu achter hem, dan nog een keer om
+        else { murcSet(s, 'loer', 'aanzet', 0); }
+      }
+      break;
+    case 'dood':                                        // geraakt voor de laatste keer: hij blijft staan, en het level is uit
+      if (!s.winKlaar && s.t > MURC.winNa && !won && !dead){ s.winKlaar = true; murcStil(); winLevel(); }
+      break;
+  }
+  s.lift = murLift(s.x);
+}
+function murcAanzet(s){ s.face = murNaar(s); murcSet(s, 'aanzet', 'aanzet'); }
+function murcRaak(s){
+  if (s.inv > 0 || s.state === 'dood') return;
+  s.hp--; if (critPak()) s.hp--; fcHalf(s, 0);
+  hits++; hitsEl.textContent = hits;
+  s.inv = MURC.inv; s.flash = 0.35;
+  hitstop = Math.max(hitstop, 0.05); shake = Math.max(shake, 0.1);
+  if (s.hp > 0){ if (s.state === 'wacht'){ s.actief = true; murcSet(s, 'brul', 'brul'); murcZeg('brul'); } return; }
+  s.hp = 0; s.t = 0; s.state = 'dood'; s.inv = 0;
+  hitstop = Math.max(hitstop, 0.25); shake = Math.max(shake, 0.4);
+  murcStil(); hyPlay(SFX_HYENA_BITE);
+  vijandDood(true, s);
+  flashHint('Murghtaan is defeated!', 2400);
+}
+function murcBox(s){
+  if (!murcMeta) return null;
+  const b = murcMeta.sets[s.set] && murcMeta.sets[s.set].bbox[s.frame];
+  return b ? { l: b[0], t: b[1], r: b[2], b: b[3] } : null;
+}
+function murcTeken(s, bodyX, voeten, gs){
+  const img = (murcBank[s.set] || [])[s.frame];
+  if (!img) return;
+  ctx.save();
+  ctx.translate(bodyX, voeten);
+  if (s.face === 1) ctx.scale(-1, 1);
+  if (s.inv > 0 && s.state !== 'dood' && Math.floor(s.inv * 14) % 2 === 0) ctx.globalAlpha = 0.55;
+  if (imgReady(img)) ctx.drawImage(s.flash > 0 ? whiteCopy(img, s.flash * 4) : img, -MURC.anker * gs, -MURC.ground * gs, MURC.w * gs, MURC.h * gs);
+  ctx.restore();
 }
 // ---- de finale: weghinken, omkijken, en de echte dood ----
 function murFinaleVast(){ return !!(murg && murg.state === 'finale'); }
@@ -49453,19 +49639,20 @@ function loop(now){
 
     // ---- Murghtaan, de hyena-baas: zijn rook, hijzelf, de kevers, en wat er raakt ----
     murRookTeken(groundY, cx);                       // de rook achter en om hem heen (alleen bezeten)
-    if (murg && murMeta){
-      const s = murg, gs = murScale();
+    if (murg && (murg.charge ? murcMeta : murMeta)){
+      const s = murg, gs = s.charge ? murcScale() : murScale();
+      const ANK = s.charge ? MURC.anker : MUR.anker, GRD = s.charge ? MURC.ground : MUR.ground;
       const bodyX = cx + (s.x - world);
       const grondV = groundY - (s.base || 0) * scale;
       const voeten = grondV - (s.lift || 0);
       if (s.state !== 'dood'){ const k = 1 / (1 + (s.lift || 0) / 200); ctx.save(); ctx.globalAlpha = 0.24 * k; ctx.fillStyle = '#1d140f'; ctx.beginPath();
         ctx.ellipse(bodyX, grondV, 130 * gs * k, 14 * gs * k, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
-      murTeken(s, bodyX, voeten, gs);
-      const b = murBox(s);
+      if (s.charge) murcTeken(s, bodyX, voeten, gs); else murTeken(s, bodyX, voeten, gs);
+      const b = s.charge ? murcBox(s) : murBox(s);
       if (b && s.state !== 'dood'){
-        const sx = v => bodyX + (s.face === 1 ? -(v - MUR.anker) : (v - MUR.anker)) * gs;
+        const sx = v => bodyX + (s.face === 1 ? -(v - ANK) : (v - ANK)) * gs;
         const a1 = sx(b.l), a2 = sx(b.r), bl = Math.min(a1, a2), br = Math.max(a1, a2), bw = br - bl;
-        const bt = voeten + (b.t - MUR.ground) * gs, bb = voeten + (b.b - MUR.ground) * gs;
+        const bt = voeten + (b.t - GRD) * gs, bb = voeten + (b.b - GRD) * gs;
         const nbox = { l: bl + bw * 0.12, r: br - bw * 0.12, t: bt + (bb - bt) * 0.12, b: bb };
         // de bek: het voorste kwart, alleen in de frames waarin hij hapt
         let bek = null;
@@ -51061,7 +51248,7 @@ function readLevel(txt){
            // tussen de wanden start in plaats van ernaartoe te lopen (zie "schacht")
            start: (o.start === undefined || o.start === null) ? null : Number(o.start),
            // Brutus, de baas van het plein (zie notities/brutus.md): waar hij staat en de wanden van zijn arena
-           murg: o.murg ? { x: Number(o.murg.x), van: o.murg.van != null ? Number(o.murg.van) : undefined, tot: o.murg.tot != null ? Number(o.murg.tot) : undefined } : undefined,
+           murg: o.murg ? { x: Number(o.murg.x), van: o.murg.van != null ? Number(o.murg.van) : undefined, tot: o.murg.tot != null ? Number(o.murg.tot) : undefined, charge: !!o.murg.charge } : undefined,
            brutus: o.brutus ? { x: Number(o.brutus.x), van: o.brutus.van != null ? Number(o.brutus.van) : undefined, tot: o.brutus.tot != null ? Number(o.brutus.tot) : undefined, huid: o.brutus.huid === 'donker' ? 'donker' : undefined, intro: !!o.brutus.intro, hp: Number(o.brutus.hp) > 0 ? Math.round(Number(o.brutus.hp)) : undefined, tint: typeof o.brutus.tint === 'string' ? o.brutus.tint : undefined || undefined } : undefined,
            geenSpeer: !!o.geenSpeer,                    // geen speer voor je in de grond (haal er een uit een skelet)
            rand: o.rand ? (typeof o.rand === 'number' ? Number(o.rand) : true) : undefined,   // de rand: geen rotswand en hut aan de start, Amir begint aan de rand van het level (RAND); de standaard voor een nieuw level
@@ -52629,6 +52816,7 @@ const SUBS = {
   'Test 13: Het weer': 'Na elk ravijn slaat het weer om: regen, onweer, zandstorm, sneeuw en sneeuwstorm',
   'Test 14: De drie stammen': 'Kies je talents en probeer ze alle negen, ook de drie van Impungushe',
   'Murghtaan 1: De roedel': 'Eerst de roedel, dan de alfa, en dan wat er in hem zit',
+  'Murghtaan 2: The charge': 'He roars, charges, slides past and turns. Five hits',
   'Baboon 1: De baviaan': 'Hij springt van de wand en houdt je vast tussen twee ravijnen',
   'Baboon 3: De speerval': 'Een zegel, een speer in de wand, en bukken als de baviaan achter je is',
   'Baboon 4: De arena': 'Twee muren, jij in het midden, en steeds meer gouden aapjes tot je valt',
@@ -57096,6 +57284,7 @@ function sbSpawn(kind, kant, plek, hoogte){       // kant en plek: de arena-modu
     bandieten.push(b);
   }
   else if (kind === 'brutus'){ brutus = makeBrutus(x, { sandbox: true, huid: sbBruHuid }); brutus.base = vlBij(x); }
+  else if (kind === 'murg_charge'){ murg = makeMurg(x, { sandbox: true, charge: true }); murg.base = vlBij(x); }
   else if (kind === 'murg' || kind === 'murg_bz' || kind === 'murg_fin'){ murg = makeMurg(x, { sandbox: true }); murg.base = vlBij(x); if (kind !== 'murg'){ murg.bz = true; murg.hp = murg.maxHp = MUR.hp2; if (kind === 'murg_fin') murg.hp = 1; } }
   else if (kind === 'zweepman'){ const m = makeZweepman(x, side, sbZwmFasen); m.base = vlBij(x); m.vrij = sbZwmVrij; m.slagVast = sbZwmSlag; zweepmannen.push(m); }
   else if (kind === 'schildman' || kind === 'schildman_makkelijk' || kind === 'schildman_kleur'){   // de moeilijke (standaard) of de makkelijke vorm (niveau: 'makkelijk'), die ook in zijn eigen kleur (SCHB_TINT)
