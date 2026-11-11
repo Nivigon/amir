@@ -1,8 +1,8 @@
 # Deurgordijnen in de stad
 
 Status: **ingebouwd** in `amir-king-of-africa.html`, onder de kop `// ---- gordijnen: ... ----` (na de deuren).
-Nog geen level heeft het aan; te zien in de sandbox (De stad, **Gordijnen** en **Wind**) en in de Maker (gevel,
-**Deur**). Hoort bij A3 (kleur uit doeken) en V2 (kleine beweging) in `notities/stad-verbeteren.md`.
+Aan in de stadslevels met `gordijnen: true` (onder meer De Gouden Poort en De Rivierstad); te zien in de sandbox
+(De stad, **Gordijnen** en **Wind**) en in de Maker (gevel, **Deur**). Hoort bij A3 (kleur uit doeken) en V2 (kleine beweging) in `notities/stad-verbeteren.md`.
 
 ## Zo zit het in de code
 
@@ -13,7 +13,7 @@ Nog geen level heeft het aan; te zien in de sandbox (De stad, **Gordijnen** en *
   een vaste keuze uit seed en index (`gordijnHash`). Zo verandert er in een bestaand level niets.
 - `gordijnLaad(st)`, vanuit `stadSoortLaad`: laadt alleen de doeken die de stad echt gebruikt.
 - `gordijnBron(n, w)`: het doek op stokbreedte, warm getint, met de gemeten spleet; een keer per naam en maat.
-- `gordijnVlaag`, `gordijnDoek(n, gi, o, sleutel, st)`: de wind en het wapperende doek in een eigen canvas per deur,
+- `gordijnWind`, `gordijnDoek(n, gi, o, sleutel, st)`: de wind en het wapperende doek in een eigen canvas per deur,
   hooguit 30 keer per seconde opnieuw (15 op een telefoon, `camTelefoon`, met rijen van 4 in plaats van 2 px).
   Hangt het doek stil (wind en langslopen onder `GORDIJN.rustTot`, de tell niet bezig), dan maar `GORDIJN.fpsRust` (8)
   keer per seconde: het beweegt dan minder dan een pixel. Een nieuw doek is een paar honderd reepjes (binnen het dubbele),
@@ -25,6 +25,7 @@ Nog geen level heeft het aan; te zien in de sandbox (De stad, **Gordijnen** en *
   `GORDIJN.opzij.op + 0,15` s in plaats van de 20 frames van de deur, en `stadGordijnStap` schuift de banen opzij
   zolang er nog iemand uit moet of net uitstapt (`uitT`), laat ze dan terugvallen en zet het nazwaaien aan. Geen
   deurklap en geen schok.
+- `gordijnLamp(gi)`: 's avonds en 's nachts brandt achter een deel van de gordijnen een lamp (zie "Bij avond en nacht").
 - `binnenGordijnTeken`: in `binnenAchter`, na `binnen/deur_recht.png`: het donker en het doek van die gevel, gespiegeld.
 - Sandbox: `sbGordijnen` (een dichte straat met alle zeven doeken, houten deuren en een open deur, het eerste huis met
   een binnenkant; **Uit de deur** stapt daar door het gordijn) en de knop Wind (`sbgordwind`).
@@ -73,12 +74,19 @@ en gordijnen door elkaar), `gordijn_binnen_rust.jpg` en `gordijn_binnen_vlaag.jp
 ## De wind en het langslopen
 
 Eerst bewoog het doek altijd (een ademende wind van 0,3 tot 0,8 met vlagen erbovenop); Tom vond dat te constant.
-Nu hangt het tussen de vlagen bijna stil, en beweegt het alleen echt bij een vlaag of als Amir erlangs loopt.
+Daarna hing het tussen de vlagen bijna stil, met een eigen klok voor de vlagen, maar die vlagen waren zo zwak (8 px) en zo
+los van de rest dat het doek in de praktijk alleen bewoog als Amir erlangs liep. Nu (11 november) is de wind die van het spel:
 
-- `gordijnVlaag(t, ph, wx)`: in rust `GORDIJN.rust` (0,06, met een heel klein beetje adem), dan zo nu en dan een vlaag
-  van een paar seconden (twee reeksen, `sin(0,31 u)^8` en `sin(0,17 u + 1)^10`, ongeveer een kwart van de tijd), elke keer
-  anders sterk, tot ongeveer 1,2. `u = t + wx / GORDIJN.vlaagV`: een vlaag komt bij de volgende deur iets later aan, zodat
-  hij door de straat trekt. Wind **zacht** (sandbox) geeft alleen een rustige `GORDIJN.rustZacht` zonder vlagen.
+- `gordijnWind(t, ph, bij)`: in rust `GORDIJN.rust` (0,06, met een heel klein beetje adem), en daarbovenop `windAt` op de
+  plek van de deur, keer `GORDIJN.mee`: dezelfde vlaag die het gras laat buigen, de stofslierten over de straat jaagt en
+  het windgeluid geeft (`startGust`, ongeveer elke 9 tot 19 s), en die als een front van deur naar deur trekt. In een storm
+  (`weerWind`: zandstorm, onweer, sneeuwstorm) waait het aan een stuk door en hard. Naast die vlaag een `duw` in de richting
+  waar de wind heen waait (`gust.dir`, keer `GORDIJN.duw`), die net als het langslopen het hele doek die kant op legt; hij
+  veert in (`c.wd`) zodat hij niet springt. Gespiegeld in een gespiegelde gevel en binnen; binnen is de wind zwakker
+  (`GORDIJN.binnen`). Wind **zacht** (sandbox) geeft alleen een rustige `GORDIJN.rustZacht` zonder vlagen.
+- `GORDIJN.amp` ging van 8 naar 16 en `wapper` van 3 naar 5: een vlaag is nu te zien. Uiteen wijken de banen door de wind
+  maar een beetje (een kwart): verder leek het in een storm op een broek in plaats van een doek.
+- De takel met de mand (`stadTakelTeken`) slingert op dezelfde `gordijnWind`.
 - `gordijnLangs(c, bij, t)`: een veer per deur (op het canvas van die deur). Loopt Amir binnen `langs.bereik` halve
   stokbreedtes langs het deurgat, op dezelfde vloer (`langs.hoog`, een dak erboven telt niet), dan duwt hij het doek in
   zijn looprichting, met een kracht die meegaat met zijn snelheid (`|v| / langs.v`, lopen 1, rennen tot `langs.max`) en
@@ -117,3 +125,18 @@ Nu hangt het tussen de vlagen bijna stil, en beweegt het alleen echt bij een vla
 - Komt er een vijand uit een deur met een gordijn (`deur` in een spawn), dan gaat het doek opzij in plaats van
   dat er een deur openzwaait: de banen wijken uiteen (een sterke `open`), de vijand stapt erdoor, het doek valt
   terug en zwaait na. Dat is zijn tell, net als het opengaan van de deur.
+
+## Bij avond en nacht
+
+In een uitzicht met `nacht` (`stad_avond`, `stad_nacht`) brandt achter ongeveer `GORDIJN.nacht.aan` (0,6) van de gordijnen
+een lamp, vast per huis (`stadNachtHash`, zoals de ramen in `stadNachtRamen`) en flakkerend als een vlam (`STAD_NACHT.flik`).
+`gordijnLamp(gi)` geeft hoe fel. Dan, in `stadGordijnTeken`:
+
+- eerst het deurgat achter het doek in warm licht (`lighter`, `STAD_NACHT.kleur`, onderaan het felst), zodat het licht in de
+  spleet, langs de posten en onder de zoom te zien is;
+- het doek, en daarna nog eens met `lighter` (`GORDIJN.nacht.doek`): de stof licht op in zijn eigen kleur, alsof de lamp
+  erdoor schijnt;
+- een gloed na de lichtlaag (`stadNachtGloed`, `GORDIJN.nacht.halo`) en een lichtbron voor de personages (`stadNachtLampen`),
+  zodat Amir die vlak voor de deur staat er een rand van licht van krijgt.
+
+Binnen en op een verdieping (daar hangt de houten deur) doet het niets.
