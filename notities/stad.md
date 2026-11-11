@@ -879,6 +879,9 @@ eigenlijke voethoogte getekend, wat op de straat wegvalt in de strook bovenkant 
   (`maat` van de luifels in de sandbox), **Shutter height** (`raamZij.hoog`) en **Gap under awning** (`raamZij.onder`,
   negatief: het luik loopt tot achter de luifel). Ze werken meteen, en de regel eronder geeft de waarden zoals ze in de code
   horen; die zet je daarna in het level en in `luifelStrak.raamZij`.
+- **Stad 11: Awning tuning**: hetzelfde paneel, maar in een eigen testlevel (gevraagd, in plaats van de sandbox): de opbouw
+  van Stad 10 zonder vijanden (`vredig`), met `luifelAfstel: true`. Het paneel zweeft linksboven (`#sbluifelpaneel`, getoond
+  in `beginPlay`, weg in `toMenu` met `luifelPaneelUit`), en de schuifjes houden hun stand bij een herstart.
 - **Het raam** (`raam: true`, `stadRaamZijTeken`, de maten in `luifelStrak.raamZij`): een luifel hangt niet zomaar aan een muur,
   dus onder de doek zit een raam in de zijmuur. De zijmuur zie je van opzij niet, dus je ziet het luik dat naar buiten is
   opengeklapt recht van voren (de rechtervleugel uit `raam_luiken.png`, met de scharnieren aan de muur), met de kozijnrand
