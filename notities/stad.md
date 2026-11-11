@@ -875,7 +875,10 @@ eigenlijke voethoogte getekend, wat op de straat wegvalt in de strook bovenkant 
   toppen 415 en 640 boven de doek, op 852x393, 1280x720 en 1920x1080; met drie was het te veel gestuiter). Zonder ritme haal je hem niet: een gewone sprong
   van het dak komt tot 979, de indigo luifel tot 960.
 - **Sandbox**: onder De stad de knop **Trampoline**: een trap naar een kort balkon, de rode trampoline ertegenover en een huis
-  van drie hoog om op te stuiteren.
+  van drie hoog om op te stuiteren. Eronder verschijnen drie schuifjes om af te stellen (`sbLuifelPaneel`): **Awning size**
+  (`maat` van de luifels in de sandbox), **Shutter height** (`raamZij.hoog`) en **Gap under awning** (`raamZij.onder`,
+  negatief: het luik loopt tot achter de luifel). Ze werken meteen, en de regel eronder geeft de waarden zoals ze in de code
+  horen; die zet je daarna in het level en in `luifelStrak.raamZij`.
 - **Het raam** (`raam: true`, `stadRaamZijTeken`, de maten in `luifelStrak.raamZij`): een luifel hangt niet zomaar aan een muur,
   dus onder de doek zit een raam in de zijmuur. De zijmuur zie je van opzij niet, dus je ziet het luik dat naar buiten is
   opengeklapt recht van voren (de rechtervleugel uit `raam_luiken.png`, met de scharnieren aan de muur), met de kozijnrand
