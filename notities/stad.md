@@ -153,7 +153,8 @@ Losse stukken die een huis anders maken zonder nieuwe gevelplaat (D2 in `notitie
 
 - **De takel** (`takel: 'l'` of `'r'` in een gevel): een ruwe stam die op de bovenste balkenrij uit de zijkant van het huis
   steekt, met een schuine tak eronder, een katrol en een mand. De mand slingert om de katrol op dezelfde wind als de
-  deurgordijnen (`gordijnVlaag`, de sandboxknop Wind): bijna stil tussen de vlagen, verder uit bij een vlaag, elk huis in
+  deurgordijnen (`gordijnWind`, de sandboxknop Wind): de vlagen van het spel (`windAt`) en de storm van het weer, bijna stil
+  ertussen, verder uit bij een vlaag, elk huis in
   een eigen ritme. Decor: Amir loopt eronder door. Staat er aan die kant een buurhuis te dichtbij (`STAD_TAKEL.ruimte`),
   dan geen takel; ook niet op een ruine, en niet aan de torenkant van het torenhuis. `tools/takel_knip.py` knipt de arm en
   de mand uit `design/stad/bron/takel_grok.png` (de muurstrook links gaat eraf). In de Maker de keuze **Takel**.
