@@ -163,6 +163,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | foutmelding: een fout een keer melden, ook als hij elk beeld terugkomt | `meldFout`, `tekenHerstel`, `ctxDiepte`, `laadMist` |  |
 | versie: welke update er live staat | `versieTijd`, `document.lastModified`, `toonUpdates` | notities/wegwijzers.md |
 | niet verder tekenen dan er in beeld komt | `zichtVak(marge)`, `view`, `null` | notities/tekenlagen.md |
+| de verte als platen: de lucht met de zon en per bergrij een strook met land en nevel erin, in plaats van ruim tien vullingen per beeld | `VERTE`, `VERTE_PLAAT`, `vertePlaten`, `verteBak`, `verteTeken` | notities/tekenlagen.md |
 | de zon: schijf, krans en ademende ring | `ZON`, `drawZon`, `ringAdem` | notities/zon.md |
 | globale lichtlaag | `licht`, `SCENES` | notities/wegwijzers.md |
 | de schaduw van Amir | `AMIR_SCHADUW`, `amirSilhouet`, `amirSilLeg` | notities/schaduw-amir.md |
