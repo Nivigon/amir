@@ -806,10 +806,18 @@ doek steekt van het huis af de straat in; wie erop landt wordt van het huis af w
   lage eind recht omhoog springen werkt. Met een aanloop spring je er voorbij. Van een hoger dak eraf stappen en erop vallen werkt
   ook, behalve op een telefoon, waar Amir zo ver per stap komt dat hij de korte doek mist: dan landt hij op het dak eronder en
   springt hij van daar omhoog.
-- **Stad 9**: op het balkon van de tweede trap (`h` 885 boven vloer 730, `worp` 1,7, landt op het dak van 1429) en op het lage
-  huis tegen de muur van het hogere (`h` 926 boven dak 771, `worp` 1,25, landt op het volgende dak van 1100). Nagemeten op
-  852x393, 1280x720 en 1920x1080.
-- **Sandbox**: onder De stad de knop **Bounce cloth**: een trap naar een balkon met de doek erboven en een hoger huis ernaast.
+- **Recht** (`recht: true`): de rechte springdoek. Het plaatje wordt per kolom omlaag geschoven (`stadLuifelSchuif`, gebakken
+  in `stadLuifelBeeld(kleur, onder, true)`), zodat de bovenkant van de doek overal op `h` ligt; de paal zakt mee en de schoor
+  wordt zo vanzelf een steun schuin omhoog. Hij gooit je niet weg maar veert zoals de doek van een kraam (`stadVeer`, met
+  `veer: true` en `springdoek` in `stadLuifelPlats`): zacht neerkomen en je blijft staan, hard neerkomen en je wipt recht
+  terug, en springen erop staand of net bij het landen (`STAD.veer.raam`) geeft de hoge sprong. Die is dan `worp` maal jumpV
+  in plaats van `STAD.veer.hoog`. Opzij stuur je zelf in de lucht, zoals bij elke sprong; er is geen eigen zijvaart.
+- **Stad 9** (recht): op het balkon van de tweede trap (`h` 885 boven vloer 730, `worp` 1,85, je stuurt naar het dak van 1429)
+  en op het lage huis 2, nu strak tegen huis 1, tegen de muur van huis 1 (`h` 926 boven dak 771, `worp` 1,4, je stuurt naar
+  het dak van 1100). Vroeger hing die tweede tegen de muur van huis 3 en gooide hij je over het hele lage dak; recht omhoog
+  met sturen haalt die afstand niet. Nagemeten op 852x393, 1280x720 en 1920x1080.
+- **Sandbox**: onder De stad de knop **Bounce cloth** (de schuine doek die je wegwerpt) en **Straight cloth** (de rechte):
+  een trap naar een balkon met de doek erboven en een hoger huis ernaast.
 
 ## De einddeur
 
