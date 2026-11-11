@@ -264,6 +264,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | vallen: schade bij een diepe val | hoe diep een val telt en wat hij kost |  |
 | schorpioen, het projectiel, spannen en werpen, de geworpen speer | `javTegenDak`, `javFloor`, `vloerBij` | notities/speer.md |
 | omlaag mikken: van een hogere laag naar beneden gooien, pijl omlaag tijdens het spannen (Test 71) | `THR_OMLAAG`, `worpOmlaag`, `thrOmlaag` | notities/speer.md |
+| de mik-rig: vrij mikken met losse delen (arm, hoofd en speer draaien mee), pijl op en neer tijdens het spannen; proefveld Test 72 | `RIG`, `rigMik`, `rigBeeld`, `rigMikStap`, `speerOneindig`, `geenEinde` | notities/speer.md |
 | fakkel: een geanimeerde wandfakkel | `FAKKEL`, `fakkelLaad`, `fakkelFrame` | notities/fakkel.md |
 | personages, dorpsdecor | `VILLAGE` | notities/wegwijzers.md |
 | Amir zegt er iets van als hij geraakt wordt | `SFX_RAAK`, `playRaak()` | notities/geluid.md |

@@ -789,6 +789,10 @@ zonder streepje (No line, alleen zijn houding laat de hoek zien), met een streep
 die vanzelf op en neer gaat zodat je op het goede moment loslaat (Sweep), of met een hand die gaat trillen als je te lang
 mikt (Shaky hand). In de sandbox wissel je dat met de knop **Aim**.
 
+Test 72 (Aim rig) is een proefveld voor een nieuwe manier van mikken: houd F vast en mik met pijl omhoog en omlaag, van
+schuin omhoog tot steil omlaag; zijn arm en speer draaien mee. Je speren raken niet op, er is een trap om van verschillende
+hoogtes te gooien, en het level heeft geen einde: je gaat eruit via het menu. In de sandbox zet **Aim rig** het aan.
+
 ## De health-balk
 
 In een level met de health-balk hebben de meeste vijanden drie levens, met een balkje boven zijn hoofd dat bij
