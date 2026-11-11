@@ -867,15 +867,20 @@ eigenlijke voethoogte getekend, wat op de straat wegvalt in de strook bovenkant 
 - **De trampoline** (`ritme: true`, `stadRitme`, `stadRitmeV`, `stadVeerVin`): hoogte bouw je op. Val je erop, dan stuiter je
   vanzelf terug met `ritme.demp` (0,6) keer de valsnelheid; onder `ritme.rust` (0,45 jumpV) blijf je staan, dus niets doen
   stuitert uit in een stuit of twee. Spring je op tijd bij een landing (binnen `ritme.raam`, 0,2 s ervoor of erna), dan is de
-  volgende stuit `ritme.stap` (0,25 jumpV) sneller, tot `ritme.max` (1,9). Vanaf stilstand springen is een gewone sprong
+  volgende stuit `ritme.stap` (0,35 jumpV) sneller, tot `ritme.max` (1,9). Vanaf stilstand springen is een gewone sprong
   (`stadVeerHoogte` geeft 1). Het naveren van de kuil schaalt met hoe hard de stuit was (`p.sterk` in `stadKuil`).
 - **Stad 10**: na de indigo luifel (`worp` 1,5, nu naar het dak van 771: huis 1 is twee hoog) de rode trampoline op de
   linkermuur van de toren (`h` 520), in de steeg van 1,8 Amir tussen huis 1 en de toren, onder de galerij van 1059 die een Amir
-  de steeg in steekt. Van het dak val je erop, en drie keer op tijd springen brengt je hoog genoeg voor de galerij (nagemeten:
-  toppen 350, 490 en 650 boven de doek, op 852x393, 1280x720 en 1920x1080). Zonder ritme haal je hem niet: een gewone sprong
+  de steeg in steekt. Van het dak val je erop, en twee keer op tijd springen brengt je hoog genoeg voor de galerij (nagemeten:
+  toppen 415 en 640 boven de doek, op 852x393, 1280x720 en 1920x1080; met drie was het te veel gestuiter). Zonder ritme haal je hem niet: een gewone sprong
   van het dak komt tot 979, de indigo luifel tot 960.
 - **Sandbox**: onder De stad de knop **Trampoline**: een trap naar een kort balkon, de rode trampoline ertegenover en een huis
   van drie hoog om op te stuiteren.
+- **Het raam** (`raam: true`, `stadRaamZijTeken`, de maten in `luifelStrak.raamZij`): een luifel hangt niet zomaar aan een muur,
+  dus onder de doek zit een raam in de zijmuur. De zijmuur zie je van opzij niet, dus je ziet het luik dat naar buiten is
+  opengeklapt recht van voren (de rechtervleugel uit `raam_luiken.png`, met de scharnieren aan de muur), met de kozijnrand
+  langs de muur, een vensterbankje en bovenin de schaduw van de luifel. Getekend voor de luifel, die er dus overheen valt.
+- **Maat**: in Stad 10 en de sandbox `maat` 0,7 (eerst 0,85: groot voor een raam).
 - Alleen Stad 10. De plaat laadt pas als een stad hem gebruikt (`stadSoortLaad`).
 
 ## De einddeur
