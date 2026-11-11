@@ -816,6 +816,16 @@ doek steekt van het huis af de straat in; wie erop landt wordt van het huis af w
   en op het lage huis 2, nu strak tegen huis 1, tegen de muur van huis 1 (`h` 926 boven dak 771, `worp` 1,4, je stuurt naar
   het dak van 1100). Vroeger hing die tweede tegen de muur van huis 3 en gooide hij je over het hele lage dak; recht omhoog
   met sturen haalt die afstand niet. Nagemeten op 852x393, 1280x720 en 1920x1080.
+- **Kozijn** (`kozijn: true`, alleen met `recht`): de losse luifel boven een raam. Geen paal: die is uit het gebakken plaatje
+  geknipt (`stadLuifelBeeld(kleur, onder, true, kaal)`) en er loopt niets naar `voet`. De schoor steunt tegen de muur, en
+  onder de doek staat een smalle houten lat met een vensterbankje, de zijkant van een kozijn (in `stadLuifelTeken`). De regel
+  erachter: een luifel moet je onder kunnen staan, of hij hangt waar niemand loopt. Hang hem dus boven een steeg, niet boven
+  een balkon of dak: Amir springt 208 hoog en is 251 lang, dus een luifel boven een vloer die je vanaf die vloer haalt, hangt
+  altijd op borsthoogte.
+- **Stad 10**: de losse luifel op de linkermuur van huis 1 (`h` 520, `worp` 1,95), boven de steeg naast een kort balkon (de
+  trap van huis 2, `balkon` 0,6, vloer 401). Van de rand van het balkon spring je schuin op de doek (er blijft ruim een halve
+  Amir tussen), en met de hoge sprong stuur je het dak van 1100 op. Nagemeten op 852x393, 1280x720 en 1920x1080: op een
+  telefoon moet je pijl rechts loslaten boven de doek, anders schiet je erover.
 - **Sandbox**: onder De stad de knop **Bounce cloth** (de schuine doek die je wegwerpt) en **Straight cloth** (de rechte):
   een trap naar een balkon met de doek erboven en een hoger huis ernaast.
 
