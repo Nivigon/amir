@@ -1662,6 +1662,7 @@
         <button id="sbworp">Worp: twee trappen</button>
         <button id="sbworpwacht" class="on">Spannen: nieuw</button>
         <button id="sbworpomlaag">Aim down: off</button>
+        <button id="sbrigmik" title="De mik-rig (RIG): mikken met pijl op en neer, de arm en speer draaien mee">Aim rig: off</button>
         <button id="sbmikmodus" title="Hoe het mikken omlaag werkt (MIK): Line, No line, Fading line, Sweep, Shaky hand">Aim: Line</button>
       </div>
       <div class="row">
@@ -6014,7 +6015,23 @@ const TEST_71 = {
           { x: -5300, t: 'Higher up. The crossbowman turns around every few seconds, and if he sees you standing, he shoots' },
           { x: -8800, t: 'One more ledge: a bandit on patrol and a whip man who turns around' } ]
 };
-const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31, TEST_32, TEST_33, TEST_34, TEST_35, TEST_36, TEST_37, TEST_38, TEST_39, TEST_40, TEST_41, TEST_42, TEST_43, TEST_44, TEST_45, TEST_46, TEST_47, TEST_48, TEST_49, TEST_50, TEST_51, TEST_52, TEST_53, TEST_54, TEST_55, TEST_56, TEST_57, TEST_58, TEST_59, TEST_60, TEST_61, TEST_62, TEST_63, TEST_64, TEST_65, TEST_66, TEST_67, TEST_68, TEST_69, TEST_70, TEST_71];
+const TEST_72 = {
+  name: 'Test 72: Aim rig',
+  lagen: 'tafelbergen',
+  view: 0.8, camera: true, rand: true, vredig: true,
+  speerInHand: true, rugMax: 0, rigMik: true, speerOneindig: true, geenEinde: true,   // de mik-rig (RIG), na elke worp meteen een nieuwe speer, geen einde
+  // een trap omhoog en weer omlaag, met brede treden: op elke hoogte een rand om vanaf te gooien
+  terraces: [ {r: -400, l: -600, h: 150, grond: true}, {r: -600, l: -800, h: 300, grond: true},
+              {r: -800, l: -1000, h: 450, grond: true}, {r: -1000, l: -1500, h: 600, grond: true},
+              {r: -1500, l: -1950, h: 450, grond: true}, {r: -1950, l: -2400, h: 300, grond: true},
+              {r: -2400, l: -2850, h: 150, grond: true} ],
+  spawns: [],
+  props: [ {x: -300, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -3400, k: 'struik', s: 0.9, f: 1, v: 0},
+           {x: -4600, k: 'gras', s: 1.1, f: 1, v: 0} ],
+  cliffs: [ {x: -6000} ],
+  tips: [ { x: -80, t: 'Hold F, aim with up and down, let go to throw. Your spears never run out. Leave through the menu' } ]
+};
+const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31, TEST_32, TEST_33, TEST_34, TEST_35, TEST_36, TEST_37, TEST_38, TEST_39, TEST_40, TEST_41, TEST_42, TEST_43, TEST_44, TEST_45, TEST_46, TEST_47, TEST_48, TEST_49, TEST_50, TEST_51, TEST_52, TEST_53, TEST_54, TEST_55, TEST_56, TEST_57, TEST_58, TEST_59, TEST_60, TEST_61, TEST_62, TEST_63, TEST_64, TEST_65, TEST_66, TEST_67, TEST_68, TEST_69, TEST_70, TEST_71, TEST_72];
 // ---- Episode Test levels stad: de Sahelstad, stuk voor stuk ----
 // Proefstukken in de stad (zie "de stad"), los van de echte episodes (regel 1 geldt niet). Het is een episode, dus met
 // de tribekeuze aan het begin; het eerste level was Test 59.
@@ -19720,6 +19737,96 @@ function thrOmBeeld(){
   return im && im.complete && im.naturalWidth ? best : -1;
 }
 let sbWorpOmlaag = false;                // de schakelaar in de sandbox
+// ---- de mik-rig: vrij mikken met losse delen (Test 72, sandbox Aim rig) ----
+// Een proef voor de jacht: in plaats van een plaatje per hoek tekent het spel Amir uit losse delen (karakters/amir/
+// mikrig/): het lijf, de werparm (draait om de schouder) en het hoofd uit de Grok-pose van 18 graden omlaag, en de speer
+// (het projectiel-plaatje, heel op elke hoek) die achter zijn hoofd om het draaipunt draait. Tijdens het spannen kies je
+// met pijl op en neer de hoek, van RIG.min (omhoog) tot RIG.max (omlaag), RIG.snel graden per seconde. Laat je los, dan
+// speelt de worp: vanaf RIG.omlaagVanaf graden de worp omlaag (Grok-clip test3), daaronder de gewone worp (frame 7 tot 19);
+// in de frames met de speer in de hand draait die speer om de vuist naar de mikhoek, en de speer vertrekt waar zijn punt
+// dan staat. Alles op het worpcanvas (THR_W x THR_H), in een eigen canvas samengesteld (rigCv) dat als worpframe getekend
+// wordt. Hoeken: plus is omlaag (zoals thr.om), min is omhoog.
+const RIG = { min: -30, max: 45, snel: 60, elleboog: 0.35, kop: 0.2, maxKop: 8, basis: 17.7, omlaagVanaf: 28, fps: 12,
+  sch: [192, 372], nek: [232, 343], piv: [231.4, 268.1], tip0: [549.2, 367.8],
+  speer: { w: 624 * 0.8668, h: 67 * 0.8668, tip: [540, 28.6] },          // de speer in de hand: het projectiel op 0,867
+  gewoon: { los: 3, gesplitst: [ { vuist: [262, 377], hoek: -10.01, tip: [568, 310] },
+                                 { vuist: [322, 385], hoek: -16.57, tip: [648, 280] },
+                                 { vuist: [325, 385], hoek: -16.86, tip: [638, 283] } ] },
+  omlaag: { los: 2, gesplitst: [ { vuist: [457, 488], hoek: 42.36, tip: [695, 705] },
+                                 { vuist: [522, 565], hoek: 40.97, tip: [765, 776] } ] } };
+let sbRigMik = false;                    // de knop Aim rig in de sandbox
+function rigMik(){ return sandbox ? sbRigMik : !!(level && level.rigMik); }
+let rigImgs = null;
+function rigLaad(){
+  if (rigImgs) return;
+  const ld = n => loadQuiet([AMIR_GROOT + 'mikrig/' + n + '.png']);
+  rigImgs = { lijf: ld('rig_lijf'), arm: ld('rig_arm'), hoofd: ld('rig_hoofd'),
+    gewoon: [0, 1, 2].map(k => ({ lijf: ld('gewoon_' + k + '_lijf'), speer: ld('gewoon_' + k + '_speer'), voor: ld('gewoon_' + k + '_voor') })),
+    gewoon3: ld('gewoon_3'),
+    omlaag: [0, 1].map(k => ({ lijf: ld('omlaag_' + k + '_lijf'), speer: ld('omlaag_' + k + '_speer') })) };
+  thrOmLaad();                                     // het einde van de worp omlaag en het opstaan (THR_OMW)
+}
+const rigCv = document.createElement('canvas'); rigCv.width = 984; rigCv.height = 814;
+rigCv.complete = true; rigCv.naturalWidth = 984; rigCv.naturalHeight = 814;   // zodat het tekenen hem als een geladen worpframe ziet
+const rigCtx = rigCv.getContext('2d');
+const rigKlaar = im => !!(im && im.complete && im.naturalWidth);
+function rigDraai(p, c, g){ const t = g * Math.PI / 180, dx = p[0] - c[0], dy = p[1] - c[1];
+  return [c[0] + dx * Math.cos(t) - dy * Math.sin(t), c[1] + dx * Math.sin(t) + dy * Math.cos(t)]; }
+function rigLaag(im, draai, om){                  // een laag van het volle worpcanvas, eventueel gedraaid om een punt
+  if (!rigKlaar(im)) return;
+  const c = rigCtx; c.save();
+  if (draai){ c.translate(om[0], om[1]); c.rotate(draai * Math.PI / 180); c.translate(-om[0], -om[1]); }
+  c.drawImage(im, 0, 0, 984, 814); c.restore();
+}
+function rigSpeerHand(tip, hoek){                 // de speer, met zijn punt op tip, onder de hoek (plus is omlaag)
+  if (!rigKlaar(javImg)) return;
+  const c = rigCtx; c.save(); c.translate(tip[0], tip[1]); c.rotate(hoek * Math.PI / 180);
+  c.drawImage(javImg, -RIG.speer.tip[0], -RIG.speer.tip[1], RIG.speer.w, RIG.speer.h); c.restore();
+}
+// De mikpose op een hoek: geeft de punt van de speer terug (worpcanvas)
+function rigPose(h){
+  rigCtx.clearRect(0, 0, 984, 814);
+  const d = h - RIG.basis;
+  rigLaag(rigImgs.arm, RIG.elleboog * d, RIG.sch);
+  rigLaag(rigImgs.lijf);
+  const tip = rigDraai(RIG.tip0, RIG.piv, d);
+  rigSpeerHand(tip, h);
+  rigLaag(rigImgs.hoofd, Math.max(-RIG.maxKop, Math.min(RIG.maxKop, RIG.kop * d)), RIG.nek);
+  return tip;
+}
+// De worp: frame i van het gekozen pad. De frames met de speer in de hand draaien die speer naar de mikhoek.
+function rigWorpBeeld(pad, i, h){
+  rigCtx.clearRect(0, 0, 984, 814);
+  const P = RIG[pad], f = P.gesplitst[i];
+  if (f){
+    const im = pad === 'gewoon' ? rigImgs.gewoon[i] : rigImgs.omlaag[i], dl = h - f.hoek;
+    rigLaag(im.lijf); rigLaag(im.speer, dl, f.vuist); if (im.voor) rigLaag(im.voor);
+    return rigDraai(f.tip, f.vuist, dl);
+  }
+  let im;
+  if (pad === 'gewoon') im = i === 3 ? rigImgs.gewoon3 : thrImgs[Math.min(THR_N - 1, i + 7)];   // 10 zonder de veeg, dan 11 tot 19
+  else im = thrOmWImgs ? thrOmWImgs[Math.min(thrOmWImgs.length - 1, i + 3)] : null;              // worp 5 en 6, dan het opstaan
+  rigLaag(im);
+  return null;
+}
+const rigWorpLengte = pad => pad === 'gewoon' ? 13 : 2 + 2 + THR_OMW.op;
+// Elk beeld: het rig-canvas bijwerken voor de worp die loopt; geeft rigCv terug, of null als de rig niet aan de beurt is
+function rigBeeld(){
+  if (!thr || !rigMik() || !rigImgs || !rigKlaar(rigImgs.lijf)) return null;
+  amirSilCache.delete(rigCv); plichtCache.delete(rigCv);   // elk beeld een ander plaatje: schaduw en licht opnieuw bakken
+  if (thr.rigW){ const t = rigWorpBeeld(thr.rigW.pad, Math.floor(thr.rigW.t * RIG.fps), thr.rigH || 0); if (t) thr.rigTip = t; return rigCv; }
+  if (thr.held && thr.frame >= THR_WIND){ thr.rigTip = rigPose(thr.rigH || 0); return rigCv; }
+  return null;
+}
+// Het mikken zelf: pijl op en neer zolang hij vasthoudt (in updateThrow)
+function rigMikStap(dt){
+  if (!thr.held || thr.gone || thr.dubbel || thr.frame < THR_DRAW1) return;
+  thr.frame = THR_WIND; thr.acc = 0;               // hij blijft in de mikpose
+  if (thr.rigH === undefined) thr.rigH = 0;
+  const op = keys['ArrowUp'] || keys['w'] || keys['W'], neer = keys['ArrowDown'] || keys['s'] || keys['S'];
+  if (op && !neer) thr.rigH = Math.max(RIG.min, thr.rigH - RIG.snel * dt);
+  if (neer && !op) thr.rigH = Math.min(RIG.max, thr.rigH + RIG.snel * dt);
+}
 // Hoe het mikken omlaag werkt (Test 71 kiest aan het begin en na R, mikKeuze; de sandbox met de knop Aim):
 //   streep  het richtstreepje wijst de hoek, zoals het was
 //   zonder  geen streepje: de houdpose laat de hoek zien, de rest is inschatten
@@ -20365,6 +20472,8 @@ function thrRelease(cancel){
   thr.lob = thr.frame >= THR_WIND && !thr.omT;     // helemaal uitgetrokken? Dan wordt het de boog (niet als hij omlaag mikt)
   thr.losWacht = thr.wacht || 0;                   // hoe lang hij gespannen stond (MIK tril), want wacht begint opnieuw bij frame 7
   thr.omW = !!(thr.om >= THR_OMW.vanaf && worpOmlaag() && !thr.dubbel && thrOmWKlaar());   // de worp omlaag (THR_OMW)
+  if (rigMik() && rigImgs && thr.frame >= THR_WIND && !thr.dubbel)   // de mik-rig (RIG): een eigen worp op de mikhoek
+    thr.rigW = { pad: (thr.rigH || 0) >= RIG.omlaagVanaf ? 'omlaag' : 'gewoon', t: 0 };
   // bij de schaalworp staat de hoek vanaf nu vast: de speer gaat pas op THR_LOOSE weg
 }
 // Het frame dat bij een hoek hoort: het plaatje waarin de speer het dichtst bij die hoek staat.
@@ -20436,6 +20545,14 @@ function thrWachtZet(px, py){
 function updateThrow(dt){
   if (!thr) return;
   if (thr.glint > 0) thr.glint = Math.max(0, thr.glint - dt / 0.30);
+  if (thr.rigW){                                     // de worp van de mik-rig (RIG): eigen frames, eigen klok
+    thr.rigW.t += dt;
+    const i = Math.floor(thr.rigW.t * RIG.fps), P = RIG[thr.rigW.pad];
+    if (!thr.gone && i >= P.los) looseSpear();
+    if (i >= rigWorpLengte(thr.rigW.pad)){ thr = null; if (level && level.speerOneindig){ spear = true; setSpearLabel(); } }
+    return;
+  }
+  if (rigMik() && rigImgs) rigMikStap(dt);
   thrHoek();
   thrOmlaag(dt);
   thrWachtBij(dt);
@@ -20456,7 +20573,7 @@ function updateThrow(dt){
       thr.wil = false;
       if (dubbelKan()){ dubbelStart(thr.wilPerfect); return; }
     }
-    if (thr.frame >= (thr.omW ? thrOmWEind() : THR_N)){ thr = null; return; }
+    if (thr.frame >= (thr.omW ? thrOmWEind() : THR_N)){ thr = null; if (level && level.speerOneindig){ spear = true; setSpearLabel(); } return; }
     if (thr.held && thr.frame >= stop){ thr.acc = 0; return; }
   }
 }
@@ -20477,7 +20594,7 @@ function looseSpear(){
   if (jav && jav.rug){ eigenSpeerLos(jav.x, jav.dir, jav.blauw, jav.h); jav = null; }   // de speer in het lijk valt eruit en ligt los
   const scale = nowScale(), dir = thrDir();
   const lob = !!thr.lob, schaal = worpSchaal();
-  let graden = thr.om ? -thr.om : schaal ? thr.hoek : lob ? THR_LOB_DEG : 0;   // omlaag mikken: onder vlak
+  let graden = thr.rigW ? -(thr.rigH || 0) : thr.om ? -thr.om : schaal ? thr.hoek : lob ? THR_LOB_DEG : 0;   // omlaag mikken: onder vlak
   if (thr.om && worpOmlaag() && mikModus() === 'tril'){   // MIK: lang gemikt, dan wijkt hij af
     const k = Math.max(0, Math.min(1, ((thr.losWacht || 0) - MIK.trilNa) / (MIK.trilVol - MIK.trilNa)));
     graden += (Math.random() * 2 - 1) * MIK.trilMax * k;
@@ -20486,11 +20603,12 @@ function looseSpear(){
   // V is de worpsnelheid in wereld-pixels per seconde: bij de vlakke worp de volle
   // 14 tegels, bij de boog minder, zodat hij hoger maar niet eindeloos ver gaat. De
   // schaalworp schuift daartussen mee met de hoek.
-  const deel = thr.om ? 1 : schaal ? 1 - (1 - THR_LOB_V) * graden / THR_LOB_DEG : lob ? THR_LOB_V : 1;
+  const deel = thr.rigW || thr.om ? 1 : schaal ? 1 - (1 - THR_LOB_V) * graden / THR_LOB_DEG : lob ? THR_LOB_V : 1;
   const V = JAV.tiles * JAV.tile * CHAR_H * scale * deel;
   // hoogte rekent in sprite-eenheden en x in wereld-pixels, dus de verticale kant
   // wordt door scale gedeeld; op het scherm klopt de hoek dan precies
-  const tip = thr.omW ? THR_OMW.punt : THR_TIP;       // de worp omlaag: laag voor hem, waar zijn hand de speer loslaat
+  const tip = thr.rigW && thr.rigTip ? { x: thr.rigTip[0], y: thr.rigTip[1] }   // de mik-rig: waar de punt in zijn hand stond
+            : thr.omW ? THR_OMW.punt : THR_TIP;       // de worp omlaag: laag voor hem, waar zijn hand de speer loslaat
   const ox = (tip.x - THR_ANCHOR) * THR_S * scale * dir;   // de punt staat op THR_TIP
   const oh = (THR_GROUND - tip.y) * THR_S;
   const nieuw = { x: world + ox, h: ph + oh, vx: dir * V * Math.cos(a), vh: -Math.sin(a) * V / scale,
@@ -21144,6 +21262,14 @@ function drawThrowGlint(pcx, groundY, scale, lift){
 // uit THR_SCHAAL_FR, per frame), in de hoek die hij nu heeft. Het wijst de richting aan, niet
 // de landing: waar hij neerkomt moet je zelf leren inschatten.
 function drawThrowRicht(pcx, groundY, scale, lift){
+  if (thr && thr.held && !thr.gone && rigMik() && thr.rigTip && thr.frame >= THR_WIND){   // de mik-rig: vanaf de punt in zijn hand
+    const ts = THR_S * scale, kant = thrFlip() ? -1 : 1, a = -(thr.rigH || 0) * Math.PI / 180, L = CHAR_H * scale * THR_RICHT;
+    const x = pcx + kant * (thr.rigTip[0] - THR_ANCHOR) * ts, y = groundY + lift - (THR_GROUND - thr.rigTip[1]) * ts;
+    ctx.save(); ctx.strokeStyle = 'rgba(255,244,220,0.45)'; ctx.lineWidth = Math.max(1.5, CHAR_H * scale * 0.012);
+    ctx.lineCap = 'round'; ctx.setLineDash([L * 0.14, L * 0.1]); ctx.beginPath(); ctx.moveTo(x, y);
+    ctx.lineTo(x + kant * Math.cos(a) * L, y - Math.sin(a) * L); ctx.stroke(); ctx.restore();
+    return;
+  }
   const om = !!(thr && thr.om > 0 && worpOmlaag());   // omlaag mikken: hetzelfde streepje, onder vlak
   if (!thr || !thr.held || thr.gone || (!om && (!worpSchaal() || !thr.t0))) return;
   const modus = om ? mikModus() : 'streep';
@@ -22621,6 +22747,7 @@ addEventListener('keydown', e => {
   if (typing(e)) return;                         // in een tekstvak typ je gewoon
   if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W'){
     e.preventDefault();
+    keys[e.key] = true;                            // de mik-rig (RIG) leest pijl omhoog als mikken
     if (!e.repeat && straatKnoopToets('op')) return;   // onder een poort van een knooppunt: de poort in (zie "knooppunten")
     startJump(); return;
   }
@@ -22702,6 +22829,7 @@ function startJump(){
   if (amirVast()) return;                            // de baviaan heeft je speer vast
   if (arenaGeenSprong()) return;                     // in de bandiet-arena-aankomst en tijdens het takelen springt Amir niet van het plateau af
   if (typeof tutEvent === 'function') tutEvent('jump');
+  if (thr && thr.held && rigMik()) return;         // de mik-rig: pijl omhoog is mikken, geen sprong
   thrAfbreken();                                   // springen tijdens het spannen: de worp gaat niet door
   if (dead || hurt > 0 || schijnLigt() || atkFrame >= 0 || swFrame >= 0 || swRecover > 0 || thr || stofA) return;
   if (stadAan() && stadSprong()) return;             // de stad: net na het opwippen van een doek alsnog de hoge sprong
@@ -46742,7 +46870,7 @@ function loop(now){
   if (left && !right) dir = -1;
   if (right && !left) dir = 1;
   // tijdens het spannen: de andere kant op of bukken breekt de worp af (zie WORP_WACHT)
-  if (thr && ((dir !== 0 && dir !== facing) || (!worpOmlaag() && (keys['ArrowDown'] || keys['s'] || keys['S'])))) thrAfbreken();   // met omlaag mikken is pijl omlaag de hoek
+  if (thr && ((dir !== 0 && dir !== facing) || (!worpOmlaag() && !rigMik() && (keys['ArrowDown'] || keys['s'] || keys['S'])))) thrAfbreken();   // met omlaag mikken is pijl omlaag de hoek
   houdingZet(dir);                                 // Bared Teeth: in de dreighouding kijkt hij de vijand aan
   if (beetVast) dir = 0;                           // de baviaan heeft de speer: Amir draait zich ook niet om
   if (exeVries || sneakRegie) dir = 0;             // de executie en de sluipaanval: Amir staat vast en draait zich niet om
@@ -47124,7 +47252,8 @@ function loop(now){
     const useRol = useRol0 || useRolW;
     const thrOmI = thr && !useRol ? thrOmBeeld() : -1;   // omlaag mikken: de houdpose met de speer schuin omlaag
     const thrOmWI = thr && !useRol && thr.omW ? thr.frame - THR_WIND - 1 : -1;   // de worp omlaag (THR_OMW)
-    const thrImg = thr && !useRol ? (thrOmI >= 0 ? thrOmImgs[thrOmI]
+    const rigI = !useRol ? rigBeeld() : null;          // de mik-rig (RIG): het samengestelde beeld
+    const thrImg = thr && !useRol ? (rigI ? rigI : thrOmI >= 0 ? thrOmImgs[thrOmI]
                                    : thrOmWI >= 0 ? thrOmWImgs[Math.min(thrOmWImgs.length - 1, thrOmWI)]
                                    : thrImgs[Math.min(THR_N - 1, thr.frame)]) : null;
     const useThrow = !!(thrImg && thrImg.complete && thrImg.naturalWidth);
@@ -50476,6 +50605,9 @@ function readLevel(txt){
            talentKeuze: !!o.talentKeuze,                // aan het begin kies je zelf de talents (Test 14)
            comboKeuze: !!o.comboKeuze,                  // aan het begin en na R de derde slag als terugslag of schade (Test 68)
            mikKeuze: !!o.mikKeuze,                      // aan het begin en na R hoe het mikken omlaag werkt (MIK, Test 71)
+           rigMik: !!o.rigMik,                          // de mik-rig: vrij mikken met losse delen (RIG, Test 72)
+           speerOneindig: !!o.speerOneindig,            // na elke worp meteen een nieuwe speer in de hand (Test 72)
+           geenEinde: !!o.geenEinde,                    // een proefveld zonder einde: eruit via het menu (Test 72)
            zweepKeuze: !!o.zweepKeuze,                  // aan het begin de oude of de nieuwe zweepman (Test 58 en 59)
            worp: o.worp === 'schaal' ? 'schaal' : '',   // 'schaal': de hoek loopt op zolang je vasthoudt
            worpOmlaag: !!o.worpOmlaag,                  // pijl omlaag tijdens het spannen mikt omlaag (THR_OMLAAG); Test 71
@@ -50557,6 +50689,7 @@ function laadLevel(lv){
   schbLaadLevel(lv);
   zwmLaadLevel(lv);                                // de zweepman als dit level hem gebruikt
   if (lv.worpOmlaag) thrOmLaad();                  // de houdposes omlaag (THR_OMLAAG_FR)
+  if (lv.rigMik) rigLaad();                        // de mik-rig (RIG)
   bruLaadLevel(lv);                                // Brutus, de baas van het plein, als dit level hem heeft
   murLaadLevel(lv);                                // Murghtaan, de hyena-baas, als dit level hem heeft
   tonLaadLevel(lv);                                // de houten tonnen die breken
@@ -51941,6 +52074,7 @@ const SUBS = {
   'Test 69: De brug': 'Een rivier met een houten brug en een zonder: over de planken of door het water',
   'Test 70: Multikill': 'Kills in quick succession: Double, Triple and Multi Kill, bonus gold and a level report',
   'Test 71: From above': 'Sneak to the edge, stand up and aim your spear down at the enemies below',
+  'Test 72: Aim rig': 'Climb the steps and try the new aiming: up and down, from every height',
   'Test 64: De tweede speer': 'Gooi en druk meteen weer F: een tweede speer achter de eerste aan, ook uit de rol',
   'Test 66: Nacht in de stad': 'Een lege straat bij nacht en bandieten in het fakkellicht. Gebukt F vasthouden is nu stof in de ogen',
   'Test 67: Water': 'Plassen, een poel, een rivier, een waterval en een bron, allemaal hetzelfde water. Geen vijanden',
@@ -59092,6 +59226,12 @@ document.getElementById('sbworpwacht').onclick = e => {
   thrCancel(); cv.focus();
 };
 // Omlaag mikken (THR_OMLAAG): pijl omlaag tijdens het spannen laat de punt zakken in plaats van af te breken
+document.getElementById('sbrigmik').onclick = e => {   // RIG: de mik-rig aan of uit
+  sbRigMik = !sbRigMik; if (sbRigMik) rigLaad();
+  e.currentTarget.textContent = sbRigMik ? 'Aim rig: on' : 'Aim rig: off';
+  e.currentTarget.classList.toggle('on', sbRigMik);
+  thrCancel(); cv.focus();
+};
 document.getElementById('sbmikmodus').onclick = e => {   // MIK: de volgende manier van mikken omlaag
   sbMikModus = MIK.modi[(MIK.modi.indexOf(sbMikModus) + 1) % MIK.modi.length];
   const naam = { streep: 'Line', zonder: 'No line', kort: 'Fading line', wiebel: 'Sweep', tril: 'Shaky hand' };

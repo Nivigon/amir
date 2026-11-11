@@ -57,3 +57,26 @@ treffer (3 naar 2 levens), hij wordt wakker en rent naar de wand; terug van de r
 rust. Hij blijft dan op zo'n 140 px van de wand staan, en daar is hij van boven niet te raken; terugkruipen naar de rand
 wekt hem op zo'n 375 px weer, want hij kijkt omhoog naar de rand. De speelrobot loopt het level zonder vijanden uit en komt
 met vijanden vechtend tot de schildbandiet (zoals in Test 61). Op 852x393 raakt dezelfde worp ook.
+
+
+## de mik-rig: vrij mikken met losse delen (`RIG`, `rigMik`, Test 72)
+
+Een proef voor de jacht, waar mikken de kern wordt. In plaats van een plaatje per hoek tekent het spel Amir tijdens het
+spannen uit losse delen (`karakters/amir/mikrig/`, geknipt uit de Grok-pose van 18 graden omlaag): het lijf
+(`rig_lijf`), de werparm (`rig_arm`, draait om de schouder `RIG.sch` met `RIG.elleboog` keer de hoek, zodat de elleboog
+omhoog gaat als hij omlaag mikt), het hoofd (`rig_hoofd`, knikt `RIG.kop` keer mee, hooguit `RIG.maxKop`) en de speer: het
+projectiel-plaatje (`javImg`) op 0,867, dat achter zijn hoofd om `RIG.piv` draait en dus op elke hoek heel is. Pijl op en
+neer tijdens het spannen kiest de hoek (`thr.rigH`, plus is omlaag) van `RIG.min` (-30) tot `RIG.max` (45) met `RIG.snel`
+graden per seconde (`rigMikStap`); pijl omhoog springt dan niet en pijl omlaag breekt niet af.
+
+Loslaten speelt de worp (`thr.rigW`): vanaf `RIG.omlaagVanaf` (28) graden de worp omlaag (de Grok-clip test3: twee frames
+met de speer in de hand, dan worp 5 en 6 en het opstaan uit `THR_OMW`), daaronder de gewone worp (frame 7 tot 19, met frame
+10 zonder de veeg van de speer). In de frames met de speer in de hand (`gewoon_*`, `omlaag_*`, met `_lijf`, `_speer` en bij
+de gewone ook `_voor`: hoofd en vuist erover) draait de speer om de vuist naar de mikhoek, en de vliegende speer vertrekt
+waar die punt staat (`thr.rigTip`). Het beeld wordt elk frame in een eigen canvas samengesteld (`rigCv`, `rigBeeld`) en als
+worpframe getekend; schaduw en licht worden daarom elk beeld opnieuw gebakken.
+
+Test 72 (Aim rig) is een proefveld: een trap van 150 tot 600 hoog en weer terug, geen vijanden (`vredig`), geen einde
+(`geenEinde`, eruit via het menu) en na elke worp meteen een nieuwe speer (`speerOneindig`). In de sandbox de knop
+**Aim rig** onder Speerworp. Om de rig los van het spel te bekijken is er ook een artifact (Amir mik-rig proef).
+Nagekeken in Chromium: de hoeken -20, 0, 16, 37 en 45 gooien op die hoek, het pad wisselt op 28 graden, geen fouten.

@@ -949,6 +949,8 @@ def einde(lv, sp):
         return                        # de einddeur: E voor die deur op een verdieping speelt het level uit (eindDeurUit, winLevel), geen fakkels; de regel 'deuren' kijkt of je er kunt staan
     if any(x.get('aanvoerder') and x.get('k') == 'bandiet' for x in (lv.d.get('spawns') or [])):
         return                        # de aanvoerder: zijn dood speelt het level uit, of opent de eindpoort en E onder de boog (zie "de aanvoerder"), geen fakkels
+    if lv.d.get('geenEinde'):
+        return                        # een proefveld zonder einde (Test 72): eruit via het menu, met opzet
     if not lv.ends and not lv.muur:
         yield fout(None, 'geen ends en geen muur: dit level is niet uit te spelen')
         return
