@@ -46790,6 +46790,59 @@ function bouwLicht(){
   bod.addColorStop(1, 'rgb(' + d + ',' + d + ',' + d + ')');
   return { hor, gl, bod, r, top };
 }
+// De lichtlaag als platen. De drie stappen hieronder (het kleurverloop erdoor, de gloed erbij, de bodem
+// donkerder) zijn samen beeld * (verloop * bodem) + gloed * bodem. Die twee delen staan klaar als twee kleine
+// plaatjes op de maat van het doek (uitrekken van een kleiner plaatje bleek trager dan het verloop zelf): een
+// om mee te vermenigvuldigen en een om bij op te tellen. Twee stappen in plaats van drie, zonder een verloop per
+// pixel uit te rekenen.
+// De gloed hangt aan de plek van de zon: schuift die (de camera klimt) of verandert het licht, dan loopt de
+// oude weg tot het twee beelden stilstaat. LICHT_PLAAT uit geeft overal de oude weg (tools/beeldgelijk.js).
+var LICHT_PLAAT = true;
+const LICHT_PLAAT_MAX = 5e6;       // zoveel pixels is een plaatje hoogstens; daarboven wordt het kleiner gemaakt en uitgerekt
+let lichtPl = null;
+function lichtPlaatTeken(c, L, zx, zy, m){
+  const bw = W + 2 * m, bh = H + 2 * m, q = Math.min(DPR, Math.sqrt(LICHT_PLAAT_MAX / (bw * bh)));
+  const pw = Math.max(1, Math.round(bw * q)), ph = Math.max(1, Math.round(bh * q));
+  const gs = zx + '|' + zy;
+  let P = lichtPl;
+  if (!P || P.c !== c || P.gs !== gs || P.pw !== pw || P.ph !== ph)
+    P = lichtPl = { c, gs, pw, ph, tel: 0, klaar: false, keer: P ? P.keer : null, gloed: P ? P.gloed : null };
+  if (!P.klaar){
+    if (++P.tel < 2) return false;
+    const doek = (oud) => { const d = oud || document.createElement('canvas'); d.width = pw; d.height = ph;
+                            const g = d.getContext('2d'); g.setTransform(pw / bw, 0, 0, ph / bh, m * pw / bw, m * ph / bh); return d; };
+    P.keer = doek(P.keer);
+    let g = P.keer.getContext('2d');
+    g.fillStyle = c.hor; g.fillRect(-m, -m, bw, bh);
+    g.globalCompositeOperation = 'multiply'; g.fillStyle = c.bod; g.fillRect(-m, c.top, bw, H - c.top + m);
+    P.gloed = doek(P.gloed);
+    g = P.gloed.getContext('2d');
+    g.save(); g.translate(zx, zy); g.scale(L.gloedBreedte, 1); g.fillStyle = c.gl; g.fillRect(-c.r, -c.r, c.r * 2, c.r * 2); g.restore();
+    // de bodem dempt ook de gloed: zwart erover met de dekking die het grijs van de bodem mist
+    const dem = 1 - Math.max(0, Math.min(1, 1 - Math.max(0, Math.min(1, L.bodemDonker * L.sterkte))));
+    const zw = g.createLinearGradient(0, c.top, 0, H);
+    zw.addColorStop(0, 'rgba(0,0,0,0)'); zw.addColorStop(1, 'rgba(0,0,0,' + dem.toFixed(4) + ')');
+    g.globalCompositeOperation = 'source-atop'; g.fillStyle = zw; g.fillRect(-m, c.top, bw, H - c.top + m);
+    P.klaar = true;
+  }
+  ctx.save();
+  ctx.imageSmoothingEnabled = true;
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'multiply';
+  ctx.drawImage(P.keer, -m, -m, bw, bh);
+  const a = 1 - holteDiepT(nowScale());             // onder de grond schijnt de zon niet door de rots
+  if (a > 0){
+    // alleen het vak waar de gloed komt
+    const x0 = Math.max(-m, zx - c.r * L.gloedBreedte), x1 = Math.min(W + m, zx + c.r * L.gloedBreedte);
+    const y0 = Math.max(-m, zy - c.r), y1 = Math.min(H + m, zy + c.r);
+    if (x1 > x0 && y1 > y0){
+      const fx = pw / bw, fy = ph / bh;
+      ctx.globalAlpha = a; ctx.globalCompositeOperation = 'lighter';
+      ctx.drawImage(P.gloed, (x0 + m) * fx, (y0 + m) * fy, (x1 - x0) * fx, (y1 - y0) * fy, x0, y0, x1 - x0, y1 - y0);
+    }
+  }
+  ctx.restore();
+  return true;
+}
 function drawLichtlaag(){
   const L = lichtNu();
   if (!L.aan || !(W > 0) || !(H > 0)) return;
@@ -46797,13 +46850,14 @@ function drawLichtlaag(){
   if (!lichtCache || sleutel !== lichtSleutel){ lichtCache = bouwLicht(); lichtSleutel = sleutel; }
   const c = lichtCache;
   const m = 48;                     // marge: de camera schudt een paar pixels heen en weer
+  const zx = zonScherm.geldig ? zonScherm.x : L.zonX * W;
+  const zy = zonScherm.geldig ? zonScherm.y : L.zonY * H;
+  if (window.LICHT_PLAAT && lichtPlaatTeken(c, L, zx, zy, m)) return;
   ctx.save();
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'multiply';
   ctx.fillStyle = c.hor;
   vulVak(-m, -m, W + m * 2, H + m * 2);
-  const zx = zonScherm.geldig ? zonScherm.x : L.zonX * W;
-  const zy = zonScherm.geldig ? zonScherm.y : L.zonY * H;
   ctx.save();
   ctx.translate(zx, zy);
   ctx.scale(L.gloedBreedte, 1);

@@ -18,3 +18,13 @@ De platen hangen aan alles wat de hoogte bepaalt (`groundY`, de horizon, de heuv
 Het beeld is niet pixel voor pixel gelijk: elk paneel staat op de strook op een hele pixel, dus bergranden kunnen een halve pixel verschuiven (gemeten: 87 tot 92 procent van de pixels gelijk, de rest op de randen, hoogstens enkele tientallen stappen). Nameten: `node tools/beeldgelijk.js --vlag VERTE_PLAAT`.
 
 Gemeten zonder grafische kaart (software, 1280x720): Valse Koning 1 van 37 naar 31 ms per beeld, op 2x van 117 naar 92, Test 13 van 33 naar 26, Baboon 1 van 35 naar 28, Test 24 (veel klimmen) van 33 naar 29. Dat is 18 tot 22 procent; de bovengrens (de verte als een stilstaande foto) was 35.
+
+## de lichtlaag als platen
+
+`drawLichtlaag` deed elk beeld drie schermvullende mengstappen: het kleurverloop erdoor (multiply), de gloed van de zon erbij (lighter), de onderste kwart donkerder (multiply). Dat is beeld * (verloop * bodem) + gloed * bodem, dus twee plaatjes volstaan (`lichtPlaatTeken`): een om mee te vermenigvuldigen en een om bij op te tellen, op de maat van het doek (hoogstens `LICHT_PLAAT_MAX` pixels per stuk).
+
+Een kleiner plaatje uitrekken is geprobeerd (halve maat) en was in software trager dan de oude verlopen; op volle maat is het sneller. De gloed hangt aan de plek van de zon: schuift die of verandert het licht, dan loopt de oude weg tot het twee beelden stilstaat.
+
+Het beeld wijkt hoogstens een paar stappen af. Een enkele pixel in de onderste kwart die door de gloed verzadigt wordt iets lichter (de bodem dempt nu voor het optellen in plaats van erna). Nameten: `node tools/beeldgelijk.js --vlag LICHT_PLAAT`.
+
+Gemeten in software: Valse Koning 1 van 30,5 naar 28 ms (7 procent), op 2x van 91 naar 80 (12 procent), Rivier 1 van 41 naar 39 (5 procent), Test 10 (onder de grond) geen verschil. De bovengrens (de lichtlaag helemaal uit) was ruim 20 procent: de twee mengstappen over het hele beeld blijven.

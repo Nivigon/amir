@@ -166,6 +166,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de verte als platen: de lucht met de zon en per bergrij een strook met land en nevel erin, in plaats van ruim tien vullingen per beeld | `VERTE`, `VERTE_PLAAT`, `vertePlaten`, `verteBak`, `verteTeken` | notities/tekenlagen.md |
 | de zon: schijf, krans en ademende ring | `ZON`, `drawZon`, `ringAdem` | notities/zon.md |
 | globale lichtlaag | `licht`, `SCENES` | notities/wegwijzers.md |
+| de lichtlaag als platen: het kleurverloop en de gloed als twee plaatjes, twee mengstappen in plaats van drie | `LICHT_PLAAT`, `lichtPlaatTeken`, `lichtPl` | notities/tekenlagen.md |
 | de schaduw van Amir | `AMIR_SCHADUW`, `amirSilhouet`, `amirSilLeg` | notities/schaduw-amir.md |
 | licht op personages: zon, fakkel en raam leggen een rand van licht op Amir en de vijanden | `PLICHT`, `persLicht`, `plichtBronnen` | notities/licht-personages.md |
 | tribes: de keuze per run en de abilities | `TRIBE_CONFIG`, `RUN`, `tribeKies` | notities/tribes.md |
