@@ -1,0 +1,357 @@
+#!/usr/bin/env node
+// Het profiel: meet wat een beeld kost. Gebouwd op de speelrobot (dezelfde robot loopt het level uit), met erbij:
+// een CPU-profiel, het aantal tekenacties per beeld, en de beeldtijd met een geforceerde flush aan het eind van
+// elk beeld (anders stelt de browser het tekenwerk uit en klopt de tijd niet). Zie notities/lag.md.
+//
+//   node tools/profiel.js "Valse Koning 1" --taai --max 20         de regel PROF: gemiddelde, p95, max, overdraw
+//   --uit bestand.json     het hele profiel (self en incl per functie, aanroepen per beeld)
+//   --zonder a,b           die functies leeg maken, om te zien wat ze kosten (drawLichtlaag, stadAchter, ...)
+//   --oud / --lichtoud     de verte of de lichtlaag de oude weg (VERTE_PLAAT, LICHT_PLAAT uit)
+//   --modus soepel         de beeldstand (scherp, auto, soepel)
+//   --dpr 2                een scherp scherm
+//
+// Zonder grafische kaart (software): de milliseconden zijn hoger dan bij een speler, de verhoudingen kloppen.
+// Draai twee varianten naast elkaar (met & en wait) en vergelijk alleen binnen zo'n paar: de tijd hangt af van
+// wat er tegelijk draait.
+'use strict';
+const fs = require('fs');
+const path = require('path');
+const http = require('http');
+
+function laadPlaywright(){
+  const plekken = ['playwright', path.join(process.execPath, '../../lib/node_modules/playwright')];
+  for (const p of plekken){ try { return require(p); } catch (e) { /* volgende */ } }
+  console.error('speelrobot: Playwright ontbreekt (npm i -g playwright)');
+  process.exit(2);
+}
+const { chromium } = laadPlaywright();
+
+const ROOT = path.dirname(__dirname);
+const args = process.argv.slice(2);
+const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
+const doel = args[0];
+if (!doel || doel.startsWith('--')){ console.log(fs.readFileSync(__filename, 'utf8').split('\n').slice(1, 30).join('\n')); process.exit(0); }
+const fps = Number(opt('--fps', 60)), maxS = Number(opt('--max', 90));
+const breed = Number(opt('--breed', 1280)), hoog = Number(opt('--hoog', 720));
+const shots = opt('--shots', null), elke = Number(opt('--elke', 1.5));
+
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png',
+                '.jpg': 'image/jpeg', '.mp3': 'audio/mpeg', '.webmanifest': 'application/manifest+json', '.css': 'text/css' };
+function server(){
+  return new Promise(ok => {
+    const s = http.createServer((req, res) => {
+      const p = path.join(ROOT, decodeURIComponent(req.url.split('?')[0]));
+      if (!p.startsWith(ROOT)){ res.writeHead(403); res.end(); return; }
+      fs.readFile(p, (err, data) => {
+        if (err){ res.writeHead(404); res.end(); return; }
+        res.writeHead(200, { 'Content-Type': TYPES[path.extname(p)] || 'application/octet-stream' });
+        res.end(data);
+      });
+    });
+    s.listen(0, '127.0.0.1', () => ok(s));
+  });
+}
+
+async function start(){
+  try { return await chromium.launch(); }
+  catch (e){
+    const map = process.env.PLAYWRIGHT_BROWSERS_PATH || '/opt/pw-browsers';
+    const kandidaten = fs.existsSync(map) ? fs.readdirSync(map).filter(d => /^chromium-\d+$/.test(d)).sort().reverse() : [];
+    for (const d of kandidaten){
+      const exe = path.join(map, d, 'chrome-linux', 'chrome');
+      if (fs.existsSync(exe)) return chromium.launch({ executablePath: exe });
+    }
+    throw e;
+  }
+}
+
+// Dit draait in de pagina, na elk beeld. Het gebruikt de globale namen van het spel.
+function robot([lopen, taai, wachten, vredig, richtForce]){
+  const B = window.__robot = { spoor: [], ev: [], klaar: null, t0: null, beelden: 0, vijand: {}, regel7: [] };
+  // regel 7: een vijand komt niet over een kei of een ravijn. Per vijand onthouden we aan welke
+  // kant van elk obstakel hij stond; staat hij ineens aan de andere kant, dan is hij erover.
+  const ids = new WeakMap(); let volg = 0;
+  const kant = new WeakMap();
+  const keien = (level && level.rocks ? level.rocks : []).map(r => measurePlat({ x: r.x, scale: r.s || 1 }, (H * (Number(sizeEl.value) / 100)) / CHAR_H));
+  let wachtTot = null, wachtKlaar = new Set();
+  let lastX = world, stuckT = 0, lastT = null, lastLives = lives, wasGround = true, top = 0;
+  let vastX = null, vastT = 0, laatsteSp = -1;
+  const schaal = () => (H * (Number(sizeEl.value) / 100)) / CHAR_H;
+  // de looprichting: -1 naar links (x zakt), +1 naar rechts (x stijgt). Standaard links; --rechts/--links
+  // forceert; anders uit de finish (de fakkels, level.ends) afgeleid: naar het eind toe. world staat nu op
+  // de startplek, dus het teken van (eind - start) zegt welke kant het eind op ligt.
+  let dir = -1;
+  if (richtForce) dir = richtForce;
+  else if (level && level.ends && level.ends.length) dir = Math.sign(level.ends[0].x - world) || -1;
+  const gaKey = () => dir < 0 ? 'ArrowLeft' : 'ArrowRight';
+  let draais = 0; const MAX_DRAAI = 2;                 // bij helemaal vastlopen de andere kant proberen, hoogstens zo vaak
+  keys[gaKey()] = true; if (!lopen) keys['Shift'] = true;
+  window.__robotStap = tt => {
+    if (B.klaar) return;
+    if (B.t0 === null){ B.t0 = tt; lastT = tt; }
+    const dt = tt - lastT; lastT = tt; B.beelden++;
+    const t = tt - B.t0, r2 = v => Math.round(v);
+    let go = true;                                     // of hij deze beurt in zijn looprichting mag; de toetsen worden onderaan hieruit gezet
+    if (won){ B.klaar = { uitkomst: 'gewonnen', t, x: r2(world), h: r2(ph) }; return; }
+    if (dead && !taai){ B.klaar = { uitkomst: 'dood', t, x: r2(world), h: r2(ph) }; return; }
+    if (lives !== lastLives){
+      // wie was het? de dichtstbijzijnde vijand, en of er gif of een steekje onderweg was
+      let wie = '', dmin = 1e9;
+      for (const [naam, l] of [['slang', snakes], ['schorpioen', scorps], ['kooiman', kooimannen], ['hyena', hyenas], ['panter', panthers], ['fosfor', fosforSlangen]])
+        for (const e of l){ const d = Math.abs(e.x - world); if (d < dmin){ dmin = d; wie = naam + ' op ' + r2(e.x) + (e.state ? ' (' + e.state + ')' : ''); } }
+      B.ev.push({ t: +t.toFixed(2), wat: 'levens ' + lastLives + ' naar ' + lives, x: r2(world), h: r2(ph), wie: wie + (venom.length ? ', gif in de lucht' : '') });
+      if (taai && lives < lastLives){
+        const put = typeof putBij === 'function' && ph < -1 && putBij(world);
+        if ((ph < -200 && !holteAt(world)) || put){      // in een ravijn of een put: terug naar vaste grond
+          B.ev.push({ t: +t.toFixed(2), wat: 'in een ravijn, teruggezet', x: r2(world) });
+          world = lastSolid; ph = Math.min(0, terrainH(world)); pvh = 0; onGround = true; fell = false; jump = null; coyote = 0;
+        }
+        lives = 3; dead = false; deadEl.classList.remove('on'); drawLives();
+      }
+      lastLives = lives;
+    }
+    if (!onGround) top = Math.max(top, ph);
+    if (onGround && !wasGround) B.ev.push({ t: +t.toFixed(2), wat: 'land', x: r2(world), h: +ph.toFixed(1), top: +top.toFixed(1) });
+    if (!onGround && wasGround) top = ph;
+    wasGround = onGround;
+    const sc = schaal(), hw = PLAYER_HALF_W * CHAR_H * sc, vl = grondVloer(world, ph);
+    // dalend boven iets waar hij op kan landen: pijl los
+    let loslaten = false;
+    if (!onGround && pvh < 0)
+      for (const p of platsNear(sc))
+        if (world + hw > p.left && world - hw < p.right && ph > p.topH && p.topH > (vl === null ? -1e9 : vl) + 20) loslaten = true;
+    if (loslaten) go = false;
+    // --wacht x:t  op x even blijven staan, zodat de vijanden hem kunnen bereiken
+    for (const [wx, wt] of wachten){
+      const bereikt = dir < 0 ? world <= wx : world >= wx;   // op wx aangekomen, in de looprichting
+      if (!wachtKlaar.has(wx) && bereikt && onGround){ wachtKlaar.add(wx); wachtTot = t + wt; B.ev.push({ t: +t.toFixed(2), wat: 'blijft ' + wt + ' s staan', x: r2(world), h: r2(ph) }); }
+    }
+    const wacht = wachtTot !== null && t < wachtTot;
+    if (wacht){ go = false; vastT = t; }
+    // de laadpoort staat dicht (een winterlevel haalt zijn plaatjes op): de lus staat stil en
+    // toetsen doen niets. Niet meetellen als vastlopen, anders springt hij zodra hij weer mag en
+    // vliegt hij over zijn eigen speer heen
+    if (typeof laadWacht !== 'undefined' && laadWacht){ stuckT = 0; lastX = world; vastT = t; return; }
+    // een kalebas bij zich en niet vol: drinken
+    if (hppotionCarry > 0 && lives < 3 && !dead) drinkHppotion();
+    // de speer oppakken, en steken naar wat voor hem staat
+    if (!spearFound && spearNear()) toggleSpear();
+    const voor = [];
+    for (const b of thickets) if (b.stage < THICKET_HITS) voor.push([b.x, b.base]);
+    for (const l of [snakes, scorps, kooimannen, hyenas, panthers, fosforSlangen, bandieten, schildmannen, kruisbogen, zweepmannen, meelmannen])
+      for (const e of l) if (!e.dead) voor.push([e.x, e.base || 0]);
+    const iets = voor.some(([x, b]) => { const d = (x - world) * dir; return d > -40 && d < 200 && Math.abs(b - ph) < 60; });
+    if (!vredig && spear && iets && onGround && !jump) startAttack();
+    // de vijanden: op welke hoogte liepen ze, en hoe hoog kwamen ze
+    for (const [naam, l] of [['slang', snakes], ['schorpioen', scorps], ['kooiman', kooimannen], ['hyena', hyenas], ['panter', panthers], ['fosfor', fosforSlangen]]){
+      l.forEach((e, i) => {
+        if (!ids.has(e)) ids.set(e, ++volg);
+        const k = naam + ' ' + ids.get(e), v = B.vijand[k] || (B.vijand[k] = { laag: 1e9, hoog: -1e9, top: -1e9, van: r2(e.x), tot: r2(e.x) });
+        const b = e.base || 0;
+        v.laag = Math.min(v.laag, b); v.hoog = Math.max(v.hoog, b); v.top = Math.max(v.top, b + (e.lift || 0)); v.tot = r2(e.x);
+        if (B.beelden % 3 === 0) (B.vs || (B.vs = [])).push([+t.toFixed(2), k, r2(e.x), r2(b), e.state || '', r2(e.vx || 0)]);
+        if (e.dead || e.over) return;                 // een panter met over: true mag het wel
+        const k7 = kant.get(e) || new Map(); kant.set(e, k7);
+        const obst = [];
+        for (const g of gapList()) if (gatOp(g.x, b)) obst.push(['ravijn op ' + r2(g.x), g.x - g.w / 2, g.x + g.w / 2]);
+        if (typeof putLijst === 'function' && b < -1)   // beneden in een gang: de putten
+          for (const g of putLijst()) obst.push(['put op ' + r2(g.x), g.x - g.w / 2, g.x + g.w / 2]);
+        for (const p of keien) if (Math.abs((p.base || 0) - b) < 2) obst.push(['kei op ' + r2(p.x), p.left, p.right]);
+        for (const [wat, l, r] of obst){
+          const z = e.x < l ? -1 : e.x > r ? 1 : 0;
+          if (!z) continue;
+          const oud = k7.get(wat);
+          if (oud && oud !== z) B.regel7.push({ t: +t.toFixed(2), wie: k, wat, van: oud > 0 ? 'rechts' : 'links', x: r2(e.x) });
+          k7.set(wat, z);
+        }
+      });
+    }
+    // een ravijn voor hem zonder gang eronder: aan de rand springen
+    const g = inGap(world + dir * 60);
+    if (!wacht && onGround && ph >= -1 && g && !holteAt(g.x) && !inGap(world)) startJump();
+    // en beneden in een gang een put in de vloer (PUT): ook aan de rand springen
+    const pu = typeof putBij === 'function' && ph < -1 ? putBij(world + dir * 60) : null;
+    if (!wacht && onGround && pu && !putBij(world)) startJump();
+    // op een kei: eerst neerkomen, dan aan de rand eraf springen
+    if (onGround){
+      const ps = platsNear(sc).filter(p => !p.terrace);
+      const op = ps.some(p => world + hw > p.left && world - hw < p.right && Math.abs(p.topH - ph) < 2);
+      const pb = world + dir * 12;                                   // net voor zijn voeten, in de looprichting
+      const verder = ps.some(p => (dir < 0 ? (pb > p.left && pb < p.right + 2 * hw)     // nog kei voor hem (naar links)
+                                           : (pb < p.right && pb > p.left - 2 * hw))    // of naar rechts
+                                  && p.topH >= ph - 2);
+      if (op && jump && jump.phase === 'land') go = false;
+      else if (op && !verder && vl !== null && ph > vl + 1 && !wacht) startJump();
+    }
+    // een stadje met straten (zie "straten" in het spel): onder een poort naar een straat die hij nog niet zag E,
+    // en aan het eind (de hoekpoort) altijd; na de fade loopt hij de nieuwe straat in, weg van de poort
+    if (typeof straatAan === 'function' && straatAan()){
+      // een raster (Sandville) wisselt via de fade van de stadstrap (stadTrapFade met straat), zie "knooppunten"
+      if (straatFade || (typeof stadTrapFade !== 'undefined' && stadTrapFade && stadTrapFade.straat)) B.inFade = true;
+      else if (B.inFade){
+        B.inFade = false; const s = straatHier();
+        dir = world < (s.l + s.r) / 2 ? 1 : -1; vastX = null; draais = 0; stuckT = 0;
+        B.ev.push({ t: +t.toFixed(2), wat: 'door de poort, nu in de ' + s.naam, x: r2(world), h: r2(ph) });
+        (B.straten || (B.straten = new Set())).add(s.id);
+      }
+      // in een raster loopt elke straat dood op een leemmuur: daar keert hij om
+      if (typeof straatRaster === 'function' && straatRaster()){
+        const s = straatHier(), mu = level.straten.muur || 0;
+        if (s && dir < 0 && world < s.l + mu + 90){ dir = 1; vastX = null; }
+        else if (s && dir > 0 && world > s.r - mu - 90){ dir = -1; vastX = null; }
+      }
+      const pt = !straatFade && !stadTrapFade && onGround && !wacht ? straatPoortBij() : null;
+      if (pt && !stadInGevecht()){
+        const nieuw = !(straatStand[pt.naar] && straatStand[pt.naar].bezocht);
+        if (nieuw || pt.soort === 'hoek') eDruk();
+      }
+    }
+    // vast tegen iets: springen (behalve voor een doornbos, dat steekt hij weg)
+    if (Math.abs(world - lastX) < 0.3 && onGround) stuckT += dt; else stuckT = 0;
+    lastX = world;
+    if (!wacht && stuckT > 0.1 && onGround && !(iets && spear && !vredig)){ startJump(); stuckT = 0; }
+    // helemaal vast: acht seconden niet meer dan 30 px verder in de looprichting
+    const prog = dir < 0 ? vastX - world : world - vastX;
+    if (vastX === null || prog > 30){ vastX = world; vastT = t; }
+    if (t - vastT > 8){
+      if (draais < MAX_DRAAI){                         // misschien een bocht: de andere kant proberen
+        draais++; dir = -dir; vastX = null; vastT = t; stuckT = 0;
+        B.ev.push({ t: +t.toFixed(2), wat: 'vast, draait om naar ' + (dir < 0 ? 'links' : 'rechts'), x: r2(world), h: r2(ph) });
+      } else { B.klaar = { uitkomst: 'vast', t, x: r2(world), h: r2(ph), grond: onGround }; return; }
+    }
+    keys['ArrowLeft'] = go && dir < 0; keys['ArrowRight'] = go && dir > 0;   // de toetsen uit de looprichting en go
+    if (t - laatsteSp >= 0.1){ laatsteSp = t; B.spoor.push([+t.toFixed(1), r2(world), r2(ph), onGround ? 1 : 0, lives]); }
+  };
+}
+
+(async () => {
+  const srv = await server();
+  const url = 'http://127.0.0.1:' + srv.address().port + '/amir-king-of-africa.html';
+  const browser = await start();
+  const page = await browser.newPage({ viewport: { width: breed, height: hoog }, deviceScaleFactor: Number(opt('--dpr', 1)) });
+  await page.addInitScript(() => {
+    const T = window.__tel = { n: {}, px: 0, frames: 0, ft: [], groot: {} };
+    const P = CanvasRenderingContext2D.prototype;
+    const hoofd = c => c.canvas && c.canvas.id === 'c';
+    for (const m of ['drawImage','fill','stroke','fillRect','clip','save','createPattern','createLinearGradient','createRadialGradient','getImageData','putImageData','fillText','clearRect']){
+      const o = P[m];
+      P[m] = function(...a){
+        const k = (hoofd(this) ? '' : 'off:') + m; T.n[k] = (T.n[k] || 0) + 1;
+        if (m === 'drawImage'){ const w = a.length >= 9 ? a[7] : a.length >= 5 ? a[3] : (a[0].width || 0), h = a.length >= 9 ? a[8] : a.length >= 5 ? a[4] : (a[0].height || 0);
+          const tr = this.getTransform(); T.px += Math.abs(w * h * (tr.a * tr.d - tr.b * tr.c)); }
+        return o.apply(this, a);
+      };
+    }
+    for (const p of ['filter','shadowBlur','globalCompositeOperation']){
+      const d = Object.getOwnPropertyDescriptor(P, p);
+      Object.defineProperty(P, p, { get: d.get, set(v){ if (v && v !== 'none' && v !== 'source-over'){ const k = p + '=' + (p === 'shadowBlur' ? '>0' : String(v).replace(/[0-9.]+/g, 'N')); T.n[k] = (T.n[k] || 0) + 1; } d.set.call(this, v); } });
+    }
+    const dc = document.createElement.bind(document);
+    document.createElement = function(t, ...r){ if (String(t).toLowerCase() === 'canvas') T.n['nieuw canvas'] = (T.n['nieuw canvas'] || 0) + 1; return dc(t, ...r); };
+  });
+  const console_ = new Set();
+  page.on('pageerror', e => console_.add('fout: ' + e.message));
+  page.on('console', m => { if (m.type() === 'error') console_.add('console: ' + m.text()); });
+  page.on('response', r => { if (r.status() >= 400) console_.add(r.status() + ' ' + r.url().replace(/^https?:\/\/[^/]+\//, '')); });
+  // virtuele tijd: elk beeld is precies 1/fps seconde, hoe lang het tekenen hier ook duurt
+  await page.addInitScript(fps => {
+    let vt = 1000;
+    window.__vt = () => vt;
+    window.requestAnimationFrame = cb => setTimeout(() => {
+      vt += 1000 / fps;
+      const _t0 = performance.now(); cb(vt); try { document.getElementById('c').getContext('2d').getImageData(0, 0, 1, 1); } catch (e) {} if (window.__tel && window.__robot){ window.__tel.frames++; window.__tel.ft.push(performance.now() - _t0); }
+      if (window.__robotStap){ try { window.__robotStap(vt / 1000); } catch (e){ console.error('robot: ' + e.message); } }
+    }, 0);
+  }, fps);
+  await page.goto(url);
+  await page.waitForFunction(() => typeof setLevel === 'function' && typeof TEST_LEVELS !== 'undefined');
+  await page.waitForTimeout(1500);                 // de plaatjes
+  const def = doel.endsWith('.json') ? JSON.parse(fs.readFileSync(doel, 'utf8')) : null;
+  const naam = await page.evaluate(([doel, def]) => {
+    let lijst = null, i = 0;
+    if (def) lijst = [def];
+    else for (const l of [VK_LEVELS, TEST_LEVELS, BAB_LEVELS, MUR_LEVELS, STAD_LEVELS, OAK_LEVELS, BEL_LEVELS, GP_LEVELS, RIV_LEVELS])
+      l.forEach((d, j) => { if (!lijst && d.name.toLowerCase().includes(doel.toLowerCase())){ lijst = l; i = j; } });
+    if (!lijst) return null;
+    setLevel(i, lijst);
+    beginPlay('medium');
+    return level.name;
+  }, [doel, def]);
+  if (!naam){ console.log('geen level gevonden: ' + doel); await browser.close(); srv.close(); process.exit(2); }
+  console.log(naam + ' (' + fps + ' beelden per seconde, ' + breed + ' bij ' + hoog + ')');
+  const wachten = (opt('--wacht', '') || '').split(',').filter(Boolean).map(w => w.split(':').map(Number));
+  await page.evaluate(robot, [args.includes('--lopen'), args.includes('--taai'), wachten, args.includes('--vredig'),
+                              args.includes('--rechts') ? 1 : args.includes('--links') ? -1 : 0]);
+  await page.evaluate(([zonder, modus]) => { for (const k of zonder) if (typeof window[k] === 'function') window[k] = () => {}; if (modus){ beeldModus = modus; resize(); } }, [(opt('--zonder', '') || '').split(',').filter(Boolean), opt('--modus', '')]);
+  if (args.includes('--plaat')) await page.evaluate(() => {
+    const echt = window.sceneAchter; let snap = null, n = 0, zs = null;
+    window.sceneAchter = function(gy){
+      if (n++ < 30 || !snap){ echt(gy); if (n >= 30){ snap = document.createElement('canvas'); snap.width = cv.width; snap.height = cv.height; snap.getContext('2d').drawImage(cv, 0, 0); zs = { x: zonScherm.x, y: zonScherm.y, kleur: zonScherm.kleur }; } return; }
+      zonScherm.x = zs.x; zonScherm.y = zs.y; zonScherm.kleur = zs.kleur; zonScherm.geldig = true;
+      ctx.drawImage(snap, 0, 0, W, H);
+    };
+  });
+  if (args.includes('--oud')) await page.evaluate(() => { window.VERTE_PLAAT = false; }); if (args.includes('--q1')) await page.evaluate(() => { window.LICHT_PLAAT_Q = 1; }); if (args.includes('--lichtoud')) await page.evaluate(() => { window.LICHT_PLAAT = false; });
+  await page.evaluate(() => { const e = window.vertePlaatBak; window.__bak = 0; window.vertePlaatBak = P => { window.__bak++; return e(P); }; });
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 250 });
+  await page.evaluate(() => { const T = window.__tel; T.n = {}; T.px = 0; T.frames = 0; T.ft = []; });
+  await cdp.send('Profiler.start');
+  const klok = Date.now();
+  let n = 0, volgende = 0;
+  for (;;){
+    await page.waitForTimeout(250);
+    const st = await page.evaluate(() => ({ k: window.__robot.klaar, t: window.__robot.t0 === null ? 0 : window.__vt() / 1000 - window.__robot.t0 }));
+    if (shots && st.t >= volgende){
+      fs.mkdirSync(shots, { recursive: true });
+      await page.screenshot({ path: path.join(shots, 's' + String(n++).padStart(3, '0') + '.png') });
+      volgende = st.t + elke;
+    }
+    if (st.k || st.t > maxS || (Date.now() - klok) / 1000 > maxS * 20) break;
+  }
+  const { profile } = await cdp.send('Profiler.stop');
+  const T = await page.evaluate(() => { const T = window.__tel; return { n: T.n, px: T.px, frames: T.frames, ft: T.ft, cw: document.getElementById('c').width, ch: document.getElementById('c').height }; });
+  {
+    const self = {}, dts = profile.timeDeltas, byId = {};
+    for (const nd of profile.nodes) byId[nd.id] = nd;
+    let tot = 0;
+    profile.samples.forEach((id, i) => { const nd = byId[id], nm = nd.callFrame.functionName || '(anoniem:' + nd.callFrame.lineNumber + ')'; self[nm] = (self[nm] || 0) + dts[i]; tot += dts[i]; });
+    // totaaltijd (inclusief kinderen) per functie
+    const kids = {}; for (const nd of profile.nodes) kids[nd.id] = nd.children || [];
+    const selfId = {}; profile.samples.forEach((id, i) => { selfId[id] = (selfId[id] || 0) + dts[i]; });
+    const incl = {};
+    (function loop(id, stack){ const nm = byId[id].callFrame.functionName || '(anoniem)'; let s = selfId[id] || 0; const nieuw = !stack.has(nm); if (nieuw) stack.add(nm);
+      for (const k of kids[id]) s += loop(k, stack); if (nieuw){ stack.delete(nm); incl[nm] = (incl[nm] || 0) + s; } return s; })(profile.nodes[0].id, new Set());
+    const F = Math.max(1, T.frames), ft = T.ft.slice().sort((a, b) => a - b);
+    const q = p => ft[Math.min(ft.length - 1, Math.floor(ft.length * p))] || 0;
+    const uit = { level: naam, frames: T.frames, canvas: T.cw + 'x' + T.ch, ms: { gem: ft.reduce((a, b) => a + b, 0) / F, p50: q(0.5), p95: q(0.95), p99: q(0.99), max: ft[ft.length - 1] },
+      perFrame: Object.fromEntries(Object.entries(T.n).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, +(v / F).toFixed(2)])), schermenPx: +(T.px / F / (T.cw * T.ch)).toFixed(2),
+      self: Object.entries(self).sort((a, b) => b[1] - a[1]).slice(0, 45).map(([k, v]) => [k, +(v / 1000 / F).toFixed(3)]),
+      incl: Object.entries(incl).sort((a, b) => b[1] - a[1]).slice(0, 70).map(([k, v]) => [k, +(v / 1000 / F).toFixed(3)]) };
+    fs.writeFileSync(opt('--uit', 'prof.json'), JSON.stringify(uit, null, 1));
+    console.log('BAK ' + await page.evaluate(() => window.__bak + ' klaar ' + verte.klaar + ' vlag ' + window.VERTE_PLAAT));
+    console.log('PROF ' + naam + ' frames ' + T.frames + ' gem ' + uit.ms.gem.toFixed(2) + ' p95 ' + uit.ms.p95.toFixed(1) + ' max ' + uit.ms.max.toFixed(0) + ' ms, drawImage/f ' + (uit.perFrame.drawImage || 0) + ', overdraw ' + uit.schermenPx + ' schermen');
+  }
+  const B = await page.evaluate(() => ({ r: window.__robot, x: Math.round(world), h: Math.round(ph) }));
+  const k = B.r.klaar || { uitkomst: 'tijd op', x: B.x, h: B.h };
+  console.log('uitkomst: ' + k.uitkomst + ' op x=' + k.x + ', hoogte ' + k.h + (k.t ? ', na ' + k.t.toFixed(1) + ' s' : ''));
+  const ST = await page.evaluate(() => typeof straatAan === 'function' && straatAan()
+    ? { kills: straatKills, doel: straatDoel(), bezocht: straatLijst().filter(s => straatStand[s.id] && straatStand[s.id].bezocht).map(s => s.naam), van: straatLijst().length } : null);
+  if (ST) console.log('straten: ' + ST.bezocht.length + ' van ' + ST.van + ' bezocht (' + ST.bezocht.join(', ') + '), kills ' + ST.kills + ' / ' + ST.doel);
+  for (const e of B.r.ev) console.log('  ' + e.t.toFixed(2).padStart(6) + '  ' + e.wat.padEnd(26) + ' x=' + e.x + (e.h !== undefined ? ' h=' + e.h : '') + (e.top !== undefined ? ' (top ' + e.top + ')' : '') + (e.wie ? '  [' + e.wie + ']' : ''));
+  if (args.includes('--vijanden'))
+    for (const [k2, v] of Object.entries(B.r.vijand))
+      console.log('  ' + k2.padEnd(14) + ' van x=' + v.van + ' tot x=' + v.tot + ', liep op ' + (v.laag === v.hoog ? v.laag : v.laag + ' tot ' + v.hoog) + ', kwam tot ' + v.top);
+  for (const r of B.r.regel7){
+    console.log('  REGEL 7  ' + r.t.toFixed(2).padStart(6) + '  ' + r.wie + ' kwam van ' + r.van + ' over de ' + r.wat + ', staat nu op x=' + r.x);
+    if (args.includes('--hoe'))                    // het stukje ervoor: waar liep hij, en wat deed hij
+      for (const v of (B.r.vs || []).filter(v => v[1] === r.wie && v[0] > r.t - 1.2 && v[0] <= r.t + 0.1))
+        console.log('           ' + v[0].toFixed(2) + ' x=' + v[2] + ' vloer ' + v[3] + ' ' + v[4] + ' vx ' + v[5]);
+  }
+  if (args.includes('--spoor')) for (const r of B.r.spoor) console.log('  spoor ' + r.join(' '));
+  // mp3 speelt Chromium zonder de codecs niet af: de terugvalpaden van de geluiden geven hier
+  // 404's die in een gewone browser niet voorkomen
+  for (const f of console_) if (!/\.mp3|Failed to load resource|fonts\.g/.test(f)) console.log('  ' + f);
+  await browser.close();
+  srv.close();
+})();

@@ -160,6 +160,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | lui laden per level: wat niet elk level gebruikt komt pas binnen als het nodig is | `laadLevel`, `slangLaadLevel`, `hyLaadLevel`, `dorpLaadLevel` | notities/laadpoort.md |
 | geheugen vrijgeven bij een levelwissel: wat het nieuwe level niet gebruikt gaat weer weg | `laadNodig`, `laadNieuw`, `laadVrij` | notities/laadpoort.md |
 | prestatiemeter: F9 toont fps, beeldtijd, eigen JS-tijd, vijanden, bakbeurten en het dieptepunt per level | `METER`, `meterStap`, `meterVijanden`, `buitenDoek` |  |
+| lag: wat een beeld kost, wat er gedaan is en wat er nog ligt; meten met `tools/profiel.js` | `VERTE_PLAAT`, `LICHT_PLAAT`, `perfTick`, `drawLichtkaart` | notities/lag.md |
 | foutmelding: een fout een keer melden, ook als hij elk beeld terugkomt | `meldFout`, `tekenHerstel`, `ctxDiepte`, `laadMist` |  |
 | versie: welke update er live staat | `versieTijd`, `document.lastModified`, `toonUpdates` | notities/wegwijzers.md |
 | niet verder tekenen dan er in beeld komt | `zichtVak(marge)`, `view`, `null` | notities/tekenlagen.md |
