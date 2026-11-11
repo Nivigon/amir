@@ -823,12 +823,42 @@ doek steekt van het huis af de straat in; wie erop landt wordt van het huis af w
   erachter: een luifel moet je onder kunnen staan, of hij hangt waar niemand loopt. Hang hem dus boven een steeg, niet boven
   een balkon of dak: Amir springt 208 hoog en is 251 lang, dus een luifel boven een vloer die je vanaf die vloer haalt, hangt
   altijd op borsthoogte.
-- **Stad 10**: de losse luifel op de linkermuur van huis 1 (`h` 520, `worp` 1,95), boven de steeg naast een kort balkon (de
-  trap van huis 2, `balkon` 0,6, vloer 401). Van de rand van het balkon spring je schuin op de doek (er blijft ruim een halve
-  Amir tussen), en met de hoge sprong stuur je het dak van 1100 op. Nagemeten op 852x393, 1280x720 en 1920x1080: op een
-  telefoon moet je pijl rechts loslaten boven de doek, anders schiet je erover.
+- **Stad 10**: de strakke luifel (zie hieronder) op de linkermuur van huis 1 (`h` 515, `maat` 0,85, `worp` 1,95), boven de
+  steeg naast een kort balkon (de trap van huis 2, `balkon` 0,6, vloer 401; de steeg is 2,4 Amir, zodat de doek niet boven het
+  balkon hangt). Van de rand van het balkon spring je schuin op de doek, en met de hoge sprong stuur je het dak van 1100 op.
+  Nagemeten op 852x393, 1280x720 en 1920x1080: op een telefoon moet je pijl rechts loslaten boven de doek, anders schiet je
+  erover. De kozijn-luifel van hierboven staat nu in geen level meer.
 - **Sandbox**: onder De stad de knop **Bounce cloth** (de schuine doek die je wegwerpt) en **Straight cloth** (de rechte):
   een trap naar een balkon met de doek erboven en een hoger huis ernaast.
+
+## De strakke luifel
+
+`STAD.plein.luifelStrak`, `stadLuifelStrakMaat`, `stadStalY`, `stadKuilStap`, `stadKuil`, `stadLuifelStrakTeken`,
+`stadLuifelStrakKolommen`, `stadLuifelVoor`, `stadOpStrak`, `stadAmirX`
+
+`stad.luifels: [{gevel, wand, h, maat, worp, stijl: 'strak'}]`: een indigo doek in een houten raam (`design/stad/luifel_strak.png`,
+een Grok-plaat), los aan de muur van gevel `gevel`, de muurkant (`wand` in de constanten) op de muur, de doek de steeg in.
+`h` is de hoogte van de stallijn aan het lage eind. Hij veert zoals de rechte springdoek (`stadVeer`, `worp`).
+
+Het probleem dat hij oplost: op een doek van opzij leek Amir altijd te zweven. Twee oorzaken. Een dunne rand heeft geen
+bovenvlak, dus zijn achterste voet (in zijaanzicht iets hoger) stond in de lucht; en Amir wordt een paar pixels boven zijn
+eigenlijke voethoogte getekend, wat op de straat wegvalt in de strook bovenkant maar op een dunne rand niet. Daarom:
+
+- **De plaat toont het bovenvlak**: de doek is een strook, en Amir staat niet op de bovenrand maar op de **stallijn** in die
+  strook (`stal`, een derde vanaf de voorrand, gemeten in bron-px).
+- **Eén stuk dat de hoogte onder zijn midden neemt** (`stadLuifelPlats`): met smalle stukken pakte `supportHeight` de hoogste
+  plek onder zijn voeten, op de helling de bergopwaartse kant. `stap` laat hem lopend een paar eenheden opstappen.
+- **De kuil**: waar hij staat zakt de doek in (`kuil.diep` en `kuil.breed` in Amir), hij zakt `kuil.amir` daarvan mee, en
+  bij een landing veert de kuil na (`veer`, via `luifelT`). Alleen de doek zakt: wat onder de onderrand ligt (`onder`, het hout
+  van de steun) blijft staan.
+- **Twee lagen**: de doek met de kuil voor Amir, en na Amir alleen de voorrand rond zijn voeten (`stadLuifelVoor`, in de
+  render-lus voor `critFxTeken`), minder diep ingezakt (`kuil.voor`), vanaf `kuil.rand` boven de stallijn. Zo vallen zijn
+  zolen en tenen achter de voorrand en loopt de doek achter hem omhoog.
+- **Schaduw**: geen harde schaduw van Amir op de luifel (`amirSchaduw` slaat over), wel een zachte vlek in de kuil.
+- **Let op**: tijdens het tekenen is `world` het midden van de camera, niet Amir (`pWorld`). Daarom legt `stadKuilStap`
+  (in `stadLuifelStap`, de spelstap) vast of en waar hij erop staat (`kuilOp`, `kuilX`, `stadAmirX`), en leest het tekenen
+  alleen dat.
+- Alleen Stad 10. De plaat laadt pas als een stad hem gebruikt (`stadSoortLaad`).
 
 ## De einddeur
 
