@@ -369,6 +369,18 @@ Wat eraan gedaan is, allemaal zonder dat het beeld verandert:
 
 Dat het beeld niet verandert is nagemeten, niet aangenomen: `tools/beeldgelijk.js` tekent hetzelfde bevroren beeld twee keer, een keer langs de oude weg en een keer langs de nieuwe, en vergelijkt pixel voor pixel.
 
+### Veel vijanden tegelijk, en de meter (F9)
+
+In Rivier 14 werd het traag met een stuk of zeven vijanden in beeld. Drie dingen kostten per vijand per beeld werk dat
+niet nodig was: het lichtrandje werd elk beeld opnieuw ingekleurd op een los doek (nu een keer), de witte flits na een
+treffer maakte zijn doek elk beeld nieuw aan (nu alleen als de maat verandert), en vijanden net buiten beeld kregen
+toch licht en schaduw (nu niet meer). Het beeld blijft hetzelfde.
+
+Druk op **F9** voor de prestatiemeter linksboven: beelden per seconde, hoe lang een beeld duurt en hoeveel daarvan
+het spel zelf rekent ("our JS"; de rest is de browser en de grafische kaart), haperingen boven 50 ms, het aantal
+levende vijanden, hoeveel schaduwen en lichtranden er per seconde gebakken worden, het stof, en onderaan het
+dieptepunt van dit level met hoeveel vijanden er toen waren. Nog een keer F9 zet hem uit; hij onthoudt zijn stand.
+
 ### Hoe het werkt
 
 | bestand | rol |
