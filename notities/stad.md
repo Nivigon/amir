@@ -851,6 +851,10 @@ eigenlijke voethoogte getekend, wat op de straat wegvalt in de strook bovenkant 
 - **De kuil**: waar hij staat zakt de doek in (`kuil.diep` en `kuil.breed` in Amir), hij zakt `kuil.amir` daarvan mee, en
   bij een landing veert de kuil na (`veer`, via `luifelT`). Alleen de doek zakt: wat onder de onderrand ligt (`onder`, het hout
   van de steun) blijft staan.
+- **Diep genoeg om weg te zakken**: de kuil is 0,12 Amir diep, hij zakt 0,6 daarvan mee, en de onderkant van de doek rekt
+  verder uit dan de bovenkant (`kuil.buik`), zodat je onder de doek een uitgezakte buik ziet. Gebukt staan zijn voeten verder
+  uit elkaar, dus dan is de kuil breder (`kuil.buk`, `stadKuilBreed`). Het stuk is een halve Amir-breedte korter dan de
+  stallijn aan elke kant: voorbij het eind val je eraf in plaats van te zweven.
 - **Twee lagen**: de doek met de kuil voor Amir, en na Amir alleen de voorrand rond zijn voeten (`stadLuifelVoor`, in de
   render-lus voor `critFxTeken`), minder diep ingezakt (`kuil.voor`), vanaf `kuil.rand` boven de stallijn. Zo vallen zijn
   zolen en tenen achter de voorrand en loopt de doek achter hem omhoog.
