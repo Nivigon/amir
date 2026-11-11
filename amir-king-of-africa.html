@@ -26210,7 +26210,7 @@ function stadLees(o){
            luifels: (o.luifels || []).filter(q => q.kant === 'l' || q.kant === 'r' || q.gevel != null).map(q => q.gevel != null
              ? { gevel: Math.round(n(q.gevel)), wand: q.wand === 'l' ? 'l' : 'r', luifel: q.wand === 'l' ? 'r' : 'l',
                  h: n(q.h), voet: n(q.voet), maat: n(q.maat) || 1, zak: n(q.zak), worp: n(q.worp) || 0,
-                 ...(q.kleur === 'indigo' ? { kleur: 'indigo' } : {}), ...(q.recht ? { recht: true } : {}) }
+                 ...(q.kleur === 'indigo' ? { kleur: 'indigo' } : {}), ...(q.recht ? { recht: true } : {}), ...(q.kozijn ? { kozijn: true } : {}) }
              : { x: n(q.x), luifel: q.kant }),
            // het stadsvolk op de stoep (zie "stadsvolk"): k een dorpeling uit NPCS, kleur uit STAD_VOLK.kleuren
            volk: (o.volk || []).filter(q => NPCS[q.k]).map(q => ({ x: n(q.x), k: q.k, kleur: STAD_VOLK.kleuren[q.kleur] !== undefined ? q.kleur : 'blauw', f: q.f ? 1 : 0 })),
@@ -30674,14 +30674,15 @@ function stadLuifelSchuif(x){
   }
   return 0;
 }
-function stadLuifelBeeld(kleur, onder, recht){
+function stadLuifelBeeld(kleur, onder, recht, kaal){
   if (recht){
     const bron = stadLuifelBeeld(kleur, onder, false), b = bron._bron || 1;
-    return stadGebakken('luifelRecht:' + (kleur || '') + (onder ? ':onder:' : ':') + b, () => {
+    return stadGebakken('luifelRecht:' + (kleur || '') + (onder ? ':onder:' : ':') + (kaal ? 'kaal:' : '') + b, () => {
       const w = bron.width, h = bron.height, extra = Math.ceil(stadLuifelSchuif(0) / b);
       const c = document.createElement('canvas'); c.width = w; c.height = h + extra;
       const x = c.getContext('2d');
       for (let i = 0; i < w; i += 2) x.drawImage(bron, i, 0, 2, h, i, Math.round(stadLuifelSchuif((i + 1) * b) / b), 2, h);
+      if (kaal) x.clearRect(0, 0, Math.ceil((STAD.plein.luifel.paal[1] + 2) / b), c.height);   // los aan de muur: zonder paal
       c._bron = b;
       return c;
     });
@@ -30713,7 +30714,8 @@ function stadLuifelTeken(p, groundY, scale, cx, zicht){
   if (!stadKlaar('luifel')) return;
   const lm = stadLuifelMaat(p, scale), L = lm.L, sx = cx + (lm.left - world);
   if (!zicht(sx, lm.w)) return;
-  const im = p.kleur || lm.recht ? stadLuifelBeeld(p.kleur, false, lm.recht) : stadImgs.luifel, Lh = lm.h / lm.fs;   // Lh: de hoogte in bron-eenheden
+  const kaal = lm.recht && p.kozijn;                // los aan de muur, boven een raam: geen paal, wel de zijkant van het kozijn
+  const im = p.kleur || lm.recht ? stadLuifelBeeld(p.kleur, false, lm.recht, kaal) : stadImgs.luifel, Lh = lm.h / lm.fs;   // Lh: de hoogte in bron-eenheden
   const gy = groundY - terrainH(lm.paal) * scale, top = gy - lm.top * scale, q = stadQ(im, 1);
   const A = CHAR_H * scale, pm = (L.paal[0] + L.paal[1]) / 2 * lm.fs;
   const paalX = lm.paal - lm.kant * pm;
@@ -30722,7 +30724,13 @@ function stadLuifelTeken(p, groundY, scale, cx, zicht){
   });
   ctx.save();
   if (lm.kant > 0){ ctx.translate(sx + lm.w, 0); ctx.scale(-1, 1); } else ctx.translate(sx, 0);
-  if (!tegenToren){                               // de paal tot op de grond, uit een stuk van de paal zelf
+  if (kaal){                                      // de zijkant van het kozijn: een smalle lat tegen de muur, onder de luifel
+    const yc = top + STAD.plein.luifel.opp[L.opp.length - 1][1] * lm.fs, x0 = 4 * lm.fs, lb = 0.07 * A, lh = 0.8 * A;
+    ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(x0 + lb, yc + 0.04 * A, 0.035 * A, lh);   // schaduw op de muur
+    ctx.fillStyle = '#5a3a20'; ctx.fillRect(x0, yc, lb, lh);
+    ctx.fillStyle = '#7d5530'; ctx.fillRect(x0, yc, lb * 0.5, lh);
+    ctx.fillStyle = '#3d2614'; ctx.fillRect(x0, yc + lh - 0.035 * A, lb * 1.5, 0.035 * A);
+  } else if (!tegenToren){                        // de paal tot op de grond, uit een stuk van de paal zelf
     const zs = lm.recht ? stadLuifelSchuif(0) : 0;  // de rechte doek: de paal zit zoveel lager in het plaatje
     const p0 = L.paal[0], pw = L.paal[1] - L.paal[0], y0 = 200 + zs, yb = top + (340 + zs) * lm.fs;
     const yv = p.gevel != null ? gy - (p.voet || 0) * scale : gy;   // een springdoek: tot zijn voet, met een touwbinding
@@ -30735,7 +30743,7 @@ function stadLuifelTeken(p, groundY, scale, cx, zicht){
     const dy = j => amp * Math.sin(Math.PI * (j + 0.5) / kolom) + lm.zak(van + (j + 0.5) * bw) * scale;
     ctx.drawImage(im, 0, 0, van * q, Lh * q, 0, top, van * lm.fs, lm.h);
     if (lm.zakH){                                 // de onderrand: dezelfde doek, donker, iets lager en naar het lage eind dikker
-      const on = stadLuifelBeeld(p.kleur, true, lm.recht), qo = stadQ(on, 1), dik = STAD_SPRINGDOEK.dik * A * lm.mt * (lm.recht ? 0.6 : 1);
+      const on = stadLuifelBeeld(p.kleur, true, lm.recht, kaal), qo = stadQ(on, 1), dik = STAD_SPRINGDOEK.dik * A * lm.mt * (lm.recht ? 0.6 : 1);
       for (let j = 0; j < kolom; j++){
         const bx = van + j * bw, u = lm.recht ? 1 : (j + 0.5) / kolom;   // recht: overal even dik
         ctx.drawImage(on, bx * qo, 0, (bw + 1) * qo, Lh * qo, bx * lm.fs, top + dy(j) + dik * (0.4 + 0.6 * u), (bw + 1) * lm.fs, lm.h);
