@@ -862,6 +862,20 @@ eigenlijke voethoogte getekend, wat op de straat wegvalt in de strook bovenkant 
 - **Let op**: tijdens het tekenen is `world` het midden van de camera, niet Amir (`pWorld`). Daarom legt `stadKuilStap`
   (in `stadLuifelStap`, de spelstap) vast of en waar hij erop staat (`kuilOp`, `kuilX`, `stadAmirX`), en leest het tekenen
   alleen dat.
+- **Kleur** (`kleur: 'oker'`): de doek omgekleurd naar rode oker, alleen de blauwe pixels (het hout blijft), een keer gebakken
+  (`stadLuifelStrakBeeld`, de kleuren in `luifelStrak.kleuren`).
+- **De trampoline** (`ritme: true`, `stadRitme`, `stadRitmeV`, `stadVeerVin`): hoogte bouw je op. Val je erop, dan stuiter je
+  vanzelf terug met `ritme.demp` (0,6) keer de valsnelheid; onder `ritme.rust` (0,45 jumpV) blijf je staan, dus niets doen
+  stuitert uit in een stuit of twee. Spring je op tijd bij een landing (binnen `ritme.raam`, 0,2 s ervoor of erna), dan is de
+  volgende stuit `ritme.stap` (0,25 jumpV) sneller, tot `ritme.max` (1,9). Vanaf stilstand springen is een gewone sprong
+  (`stadVeerHoogte` geeft 1). Het naveren van de kuil schaalt met hoe hard de stuit was (`p.sterk` in `stadKuil`).
+- **Stad 10**: na de indigo luifel (`worp` 1,5, nu naar het dak van 771: huis 1 is twee hoog) de rode trampoline op de
+  linkermuur van de toren (`h` 520), in de steeg van 1,8 Amir tussen huis 1 en de toren, onder de galerij van 1059 die een Amir
+  de steeg in steekt. Van het dak val je erop, en drie keer op tijd springen brengt je hoog genoeg voor de galerij (nagemeten:
+  toppen 350, 490 en 650 boven de doek, op 852x393, 1280x720 en 1920x1080). Zonder ritme haal je hem niet: een gewone sprong
+  van het dak komt tot 979, de indigo luifel tot 960.
+- **Sandbox**: onder De stad de knop **Trampoline**: een trap naar een kort balkon, de rode trampoline ertegenover en een huis
+  van drie hoog om op te stuiteren.
 - Alleen Stad 10. De plaat laadt pas als een stad hem gebruikt (`stadSoortLaad`).
 
 ## De einddeur
