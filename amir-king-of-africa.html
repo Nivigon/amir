@@ -49112,7 +49112,67 @@ function amirRenGeluid(){
   if (!aan && amirRenVol < 0.01 && !amirRenSnd.paused){ amirRenSnd.pause(); amirRenVol = 0; }
 }
 
+// ---- prestatiemeter: F9 laat zien hoe vlot het spel loopt ----
+// Een vakje linksboven (gewone HTML, dus het kost het tekenen zelf niets): beelden per seconde, hoe lang een beeld
+// duurt en hoeveel daarvan ons eigen JavaScript is (de rest is de browser en de grafische kaart), het aantal levende
+// vijanden, de bakbeurten per seconde (schaduwen en lichtranden, PERS_BAK) en het stof. Daaronder het dieptepunt van
+// dit level: de laagste seconde, met hoeveel vijanden er toen waren. Zo is te zien waar en waarom het inzakt op het
+// apparaat van de speler zelf. De stand blijft bewaard (localStorage).
+const METER = { toets: 'F9', sleutel: 'amir.meter', traag: 50 };   // traag: een beeld boven zoveel ms telt als hapering
+let meterAan = false, meterEl = null;
+const meterSec = { t0: 0, n: 0, som: 0, max: 0, js: 0, jsMax: 0, bak: 0, traag: 0 }, meterLaag = { fps: Infinity, vij: 0, naam: '' };
+let meterVorig = 0;
+try { meterAan = localStorage.getItem(METER.sleutel) === '1'; } catch (e) {}
+function meterVijanden(){
+  let n = 0;
+  for (const lijst of [snakes, scorps, panthers, hyenas, kooimannen, meelmannen, kruisbogen, bandieten, zweepmannen, schildmannen])
+    for (const s of lijst) if (s && s.state !== 'dood' && !s.dood && !s.dead) n++;
+  return n;
+}
+function meterToon(){
+  if (!meterEl){
+    meterEl = document.createElement('div');
+    meterEl.style.cssText = 'position:fixed;left:6px;top:18px;z-index:50;pointer-events:none;font:11px/1.35 ui-monospace,Menlo,Consolas,monospace;' +
+      'color:#e8f0e0;background:rgba(10,12,8,0.72);padding:5px 7px;border-radius:5px;white-space:pre';
+    document.body.appendChild(meterEl);
+  }
+  meterEl.style.display = meterAan ? 'block' : 'none';
+}
+function meterStap(now, jsMs){
+  if (!meterAan) return;
+  const dt = meterVorig ? now - meterVorig : 0; meterVorig = now;
+  const S = meterSec;
+  if (!S.t0) S.t0 = now;
+  if (dt > 0 && dt < 1000){ S.n++; S.som += dt; S.max = Math.max(S.max, dt); if (dt > METER.traag) S.traag++; }
+  S.js += jsMs; S.jsMax = Math.max(S.jsMax, jsMs); S.bak += persBakTeller;
+  if (now - S.t0 < 1000) return;
+  const fps = S.n * 1000 / (now - S.t0), vij = meterVijanden(), naam = level && level.name ? level.name : '';
+  if (meterLaag.naam !== naam){ meterLaag.fps = Infinity; meterLaag.naam = naam; }
+  if (running && !paused && !laadWacht && fps < meterLaag.fps){ meterLaag.fps = fps; meterLaag.vij = vij; }
+  let mem = '';
+  try { if (performance.memory) mem = '\nJS heap   ' + Math.round(performance.memory.usedJSHeapSize / 1048576) + ' MB'; } catch (e) {}
+  meterToon();
+  meterEl.textContent =
+    'FPS       ' + fps.toFixed(0) + '\n' +
+    'frame     ' + (S.som / Math.max(1, S.n)).toFixed(1) + ' ms, worst ' + S.max.toFixed(0) + ' ms\n' +
+    'our JS    ' + (S.js / Math.max(1, S.n)).toFixed(1) + ' ms, worst ' + S.jsMax.toFixed(0) + ' ms\n' +
+    'hitches   ' + S.traag + ' (>' + METER.traag + ' ms)\n' +
+    'enemies   ' + vij + '\n' +
+    'bakes/s   ' + S.bak + '\n' +
+    'dust      ' + wdust.length + mem + '\n' +
+    (meterLaag.fps < Infinity ? 'low       ' + meterLaag.fps.toFixed(0) + ' fps at ' + meterLaag.vij + ' enemies' : 'low       -');
+  S.t0 = now; S.n = 0; S.som = 0; S.max = 0; S.js = 0; S.jsMax = 0; S.bak = 0; S.traag = 0;
+}
+addEventListener('keydown', e => {
+  if (e.key !== METER.toets) return;
+  e.preventDefault();
+  meterAan = !meterAan; meterVorig = 0; meterSec.t0 = 0;
+  try { localStorage.setItem(METER.sleutel, meterAan ? '1' : '0'); } catch (err) {}
+  meterToon();
+  if (meterAan) meterEl.textContent = 'measuring...';
+});
 function safeLoop(now){
+  const meterT0 = meterAan ? performance.now() : 0;
   try { loop(now); }
   catch (err){
     if (camSwap !== null){ world = camSwap; camSwap = null; }
@@ -49122,6 +49182,7 @@ function safeLoop(now){
   }
   try { amirRenGeluid(); } catch (err){ meldFout(foutSleutel(err), 'Er ging iets mis met de voetstappen: ' + foutKort(err), err); }
   try { drawTouch(); } catch (err){ meldFout(foutSleutel(err), 'Er ging iets mis bij het tekenen: ' + foutKort(err), err); }
+  if (meterAan) try { meterStap(now, performance.now() - meterT0); } catch (err) {}
 }
 
 const bg = document.getElementById('bg'), soundBtn = document.getElementById('sound');
