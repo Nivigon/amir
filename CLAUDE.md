@@ -252,7 +252,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de springdoek: de luifel aan de muur van een huis, indigo, doorgezakt, met een eigen hoogte en worp (Stad 9) | `STAD_SPRINGDOEK`, `stadLuifelBeeld`, `sbSpringdoek` | notities/stad.md |
 | de einddeur: E voor een open deur hoog in een huis speelt het level uit (Stad 9) | `eindDeur`, `eindDeurUit`, `eindDeurTeken` | notities/stad.md |
 | de luifel bij de put: een schuine doek die je meteen terugwerpt, vanaf de balk te halen | `STAD.plein.luifel`, `stadLuifelWorp`, `stadLuifelTeken` | notities/stad.md |
-| de strakke luifel: een indigo doek in een houten raam aan de muur, je staat in de stof en de doek zakt in onder je voeten (Stad 10) | `luifelStrak`, `stadKuil`, `stadLuifelVoor`, `stijl: 'strak'` | notities/stad.md |
+| de strakke luifel: een indigo doek in een houten raam aan de muur, je staat in de stof en de doek zakt in onder je voeten; met `ritme` een trampoline waar je hoogte opbouwt door op tijd te springen (Stad 10) | `luifelStrak`, `stadKuil`, `stadLuifelVoor`, `stadRitme`, `stijl: 'strak'` | notities/stad.md |
 | poort: een stenen boog, decor of de plek waar een vijand uitkomt | `POORT`, `poortOpen`, `poortKlaar` | notities/poort.md |
 | het hek van de poort: een ijzeren valhek dat omhoog getakeld wordt | `HEK`, `hekTeken`, `hekUpdate`, `poortRegie` | notities/poort.md |
 | rotsen als decor: een runerots zonder rune, achter de plateaus | `rotsen`, `rotsenTeken`, `rotsenLaadLevel` | notities/decor.md |
