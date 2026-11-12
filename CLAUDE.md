@@ -9,8 +9,10 @@ en beschrijft wat het spel kan; dit document beschrijft hoe je eraan werkt.
 
 ## Regels
 
-**1. Levels van een echte episode blijven met rust.** Nu is dat De Valse Koning (`VK_1` tot en met
-`VK_8`). De Episode Test levels (`TEST_1` en verder) de episode Baboon tests (`BAB_1` en verder), de episode Murghtaan (`MUR_1` en verder) en de episode Test levels stad (`STAD_1` en verder) vallen niet onder deze regel: ze zijn er
+**1. Levels van een echte episode blijven met rust.** Nu is er geen bevroren episode meer: De Valse Koning is
+op verzoek weggehaald, en The Roofs of Kumbasa (`KUM_1` tot en met `KUM_8`) staat net als De Belegerde Stad, De Gouden
+Poort en De Rivierstad tussenin (geen proefstuk, wel aanpassen als de opdracht erom vraagt). Wijst de opdrachtgever
+weer een episode als bevroren aan, dan geldt het volgende daarvoor. De Episode Test levels (`TEST_1` en verder) de episode Baboon tests (`BAB_1` en verder), de episode Murghtaan (`MUR_1` en verder) en de episode Test levels stad (`STAD_1` en verder) vallen niet onder deze regel: ze zijn er
 juist om aan te rommelen. De leveldefinities van een echte episode zijn bevroren: er komt geen nieuwe vijand, prop, tip, potion of aangepast
 getal in, ook niet even om iets te laten zien. Alleen als de opdracht een level bij naam noemt
 ("zet dit in level 6") mag dat ene level veranderen. Twijfel je of iets eronder valt, dan valt
@@ -188,7 +190,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | bodem en sneeuwdek | `sneeuw` | notities/wegwijzers.md |
 | grondsoort per plek: stroken straat of rots in de bodem | `GRONDSOORT`, `grondStrokenTeken`, `grondTegelVan` | notities/grondsoort.md |
 | het verhaal bij een episode | `VERHAAL`, `SLOT`, `verhaalToon()` | notities/episodes.md |
-| Episode De Valse Koning | `VK_1`, `VK_8`, `VK_LEVELS` | notities/episodes.md |
+| Episode The Roofs of Kumbasa: acht stadslevels, makkelijk tot extreem, verstopte kisten op de daken, Nyundo in indigo | `KUM_1`, `KUM_LEVELS`, `KUM_TINT`, `menuKum` | notities/episodes.md |
 | Episode Test levels | `TEST_1`, `TEST_51`, `KAART_BLAD` | notities/episodes.md |
 | Episode Baboon tests | `BAB_1`, `BAB_4`, `BAB_LEVELS` | notities/episodes.md |
 | Episode Murghtaan: de hyena-baas (baas, regel 12), de roedel, de reveal en de kevers | `MUR_1`, `MUR`, `makeMurg`, `updateMurg`, `hitMurg`, `murKevers`, `murKlem` | notities/episodes.md |
@@ -439,7 +441,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
    en hut aan de start, Amir begint aan de rand van het level en de camera kijkt er niet voorbij
    (zie het veld `rand`). Dat geldt voor elk nieuw level vanaf nu; de bestaande levels houden hun
    rotswand (rule 1, en een speerval zit in die wand). De Maker had al een kale start (`kaleKlif`).
-2. De naam in de array van die reeks (`VK_LEVELS`, `TEST_LEVELS`, `BAB_LEVELS`, `STAD_LEVELS`, `OAK_LEVELS`, `BEL_LEVELS`, `GP_LEVELS` of `RIV_LEVELS`).
+2. De naam in de array van die reeks (`KUM_LEVELS`, `TEST_LEVELS`, `BAB_LEVELS`, `STAD_LEVELS`, `OAK_LEVELS`, `BEL_LEVELS`, `GP_LEVELS`, `RIV_LEVELS` of `KUM_LEVELS`).
 3. Een ondertitel in `SUBS`, op de naam van het level.
 4. Een eigen uitzicht in `SCENES` als het level er anders uit moet zien.
    De voorgrond komt er vanzelf bij (zie hierboven); zet alleen een eigen `voorgrond` als het level
@@ -453,13 +455,13 @@ Die vijf stappen, plus: een knop in `menuEpisodes` (het scherm met alle episodes
 Episodes in `menuChoose` hangt; een nieuwe losse reeks die geen episode is, zoals Baboon tests, krijgt
 juist een knop in `menuChoose` zelf), een eigen `menuXxx`-blok in de
 HTML naar het voorbeeld van `menuTest`, en die aanmelden in `buildCards`,
-`markCards` en `showMenu` (die kiezen nu tussen `cardsVK`/`menuVK`, `cardsBab`/`menuBab`,
+`markCards` en `showMenu` (die kiezen nu tussen `cardsKum`/`menuKum`, `cardsBab`/`menuBab`,
 `cardsStad`/`menuStad`, `cardsOak`/`menuOak` en `cardsTest`/`menuTest`, en `toMenu` ook), en de reeks in `tools/speelrobot.js`,
 `tools/runecheck.js` en `tools/beeldgelijk.js`. De Terug-knop van een episodescherm krijgt de klasse `menuepisodes` (terug naar
 Episodes), niet `menuback` (dat gaat naar het Levels-scherm). Een nieuwe episode begint altijd met de tribekeuze: `runStart` in zijn speelknop, en `tribeLijst` geeft
 hem alleen wat de speler verdiend heeft (alleen `TEST_LEVELS` krijgt alles). Wil de episode een
-verhaal, zet dan de tekst in `VERHAAL` en `SLOT` en `verhaalAan` in zijn speelknop. De Valse Koning is het
-voorbeeld van een episode met verhaal en Nightmare.
+verhaal, zet dan de tekst in `VERHAAL` en `SLOT` en `verhaalAan` in zijn speelknop. The Roofs of Kumbasa is het
+voorbeeld van een episode met verhaal, goud en Nightmare (`btnnightmareKum`).
 
 ### Een vijand of prop toevoegen
 
@@ -570,7 +572,7 @@ of `muur` raakt, en of die strook in beeld ligt.
 
 ```
 node tools/runecheck.js                 alle levels, op 1280x720, 852x393, 1440x620 en 1920x1080
-node tools/runecheck.js "Valse"         alleen de levels waarvan de naam dit bevat
+node tools/runecheck.js "Roofs"         alleen de levels waarvan de naam dit bevat
 node tools/runecheck.js --formaat 25    het schuifje Formaat
 node tools/runecheck.js --schermen 1280x720,852x393
 ```

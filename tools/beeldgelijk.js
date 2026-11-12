@@ -33,8 +33,8 @@ const vlag = opt('--vlag', null);
 if (!vlag){ console.error('beeldgelijk: geef de vlag mee, bijvoorbeeld --vlag LAGFIX'); process.exit(2); }
 const SCHAKELS = ['--breed', '--hoog', '--plekken', '--vlag'];
 const namen = args.filter(a => !a.startsWith('--') && !SCHAKELS.includes(args[args.indexOf(a) - 1]));
-const STANDAARD = ['Valse Koning 1', 'Valse Koning 3', 'Valse Koning 4', 'Valse Koning 5', 'Valse Koning 6',
-                   'Valse Koning 8', 'Test 1', 'Test 10', 'Test 27', 'Test 45', 'Baboon 1', 'Baboon 4'];
+const STANDAARD = ['Roofs 1', 'Roofs 3', 'Roofs 4', 'Roofs 5', 'Roofs 6',
+                   'Roofs 8', 'Test 1', 'Test 10', 'Test 27', 'Test 45', 'Baboon 1', 'Baboon 4'];
 const LEVELS = namen.length ? namen : STANDAARD;
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.mp3': 'audio/mpeg',
@@ -111,7 +111,7 @@ function beeldPak(){
     await page.waitForTimeout(2500);
     const echt = await page.evaluate(d => {
       let lijst = null, i = 0;
-      for (const l of [VK_LEVELS, TEST_LEVELS, BAB_LEVELS, MUR_LEVELS, STAD_LEVELS, OAK_LEVELS, BEL_LEVELS, GP_LEVELS, RIV_LEVELS])
+      for (const l of [KUM_LEVELS, TEST_LEVELS, BAB_LEVELS, MUR_LEVELS, STAD_LEVELS, OAK_LEVELS, BEL_LEVELS, GP_LEVELS, RIV_LEVELS])
         l.forEach((def, j) => { if (!lijst && def.name.toLowerCase().includes(d.toLowerCase())){ lijst = l; i = j; } });
       if (!lijst) return null;
       setLevel(i, lijst); beginPlay('medium'); return level.name;
