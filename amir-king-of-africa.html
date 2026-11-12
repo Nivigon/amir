@@ -26402,14 +26402,14 @@ const STAD = {
     // Amir zakt zelf amir x diep mee, en de voorrand van de kuil (voor x diep, vanaf rand Amir boven de stallijn) valt
     // na Amir over zijn voeten. veer: het inveren bij een landing.
     luifelStrak: { src: 'luifel_strak.png', w: 927, h: 279, wand: 924, breed: 1.75,
-                   stal: [[116, 186], [176, 190], [236, 191], [296, 188], [356, 184], [416, 177], [476, 169], [536, 160],
+                   stal: [[130, 187], [176, 190], [236, 191], [296, 188], [356, 184], [416, 177], [476, 169], [536, 160],
                           [596, 149], [656, 138], [716, 126], [776, 113], [836, 99]],
                    // de onderrand van de doek: alleen wat erboven ligt zakt in de kuil, het hout eronder blijft staan
                    onder: [[116, 192], [176, 202], [236, 207], [296, 208], [356, 206], [416, 201], [476, 194], [536, 185],
                            [596, 175], [656, 164], [716, 151], [776, 138], [836, 123], [900, 110]],
                    // buik: de onderkant van de doek zakt zoveel keer verder dan de bovenkant (hij rekt uit onder het gewicht);
                    // buk: gebukt staan zijn voeten verder uit elkaar, dan is de kuil zoveel breder
-                   kuil: { diep: 0.12, breed: 0.36, amir: 0.6, voor: 0.3, rand: 0.05, uit: 0.15, buik: 1.8, buk: 1.45 },
+                   kuil: { diep: 0.12, breed: 0.36, amir: 0.6, voor: 0.3, rand: 0.05, uit: 0.15, buik: 1.8, buk: 1.45, voet: 0.12 },   // voet: halve voetafstand in Amir
                    veer: { amp: 1.3, demp: 6, freq: 18, duur: 0.7 }, stap: 6,
                    // kleur: de doek omgekleurd (alleen de blauwe pixels, het hout blijft), zie stadLuifelStrakBeeld
                    kleuren: { oker: { hue: 150, sat: 1.15, licht: 1.0 } },
@@ -27493,12 +27493,14 @@ function stadStalY(L, x, S){
 function stadLuifelPlats(p, scale, out){
   if (p.stijl === 'strak' && p.gevel != null){     // de strakke luifel: een stuk, op de hoogte van de stallijn onder Amirs midden
     // (op de helling anders de hoogste plek onder zijn voeten, en dan stond hij op de bovenrand), iets lager: je staat in de kuil
-    const lm = stadLuifelMaat(p, scale), L = lm.L, th = terrainH(lm.wand), S = L.stal, zak = L.kuil.amir * L.kuil.diep * CHAR_H;
-    const hw = 0.4 * PLAYER_HALF_W * CHAR_H * scale;   // zijn midden blijft bijna boven de stallijn, anders zweeft hij aan het eind; ruimer zou op een kleine luifel te krap zijn
+    const lm = stadLuifelMaat(p, scale), L = lm.L, th = terrainH(lm.wand), S = L.stal, zak = L.kuil.amir * stadKuilDiep(p) * CHAR_H;
+    const hw = L.kuil.voet * CHAR_H * scale;       // allebei zijn voeten boven de stallijn: aan het eind hing er anders een boven de paal of in de lucht
     const a = lm.bx(S[0][0]), b = lm.bx(S[S.length - 1][0]), l = Math.min(a, b) + hw, r = Math.max(a, b) - hw;
     const ax = stadAmirX != null ? stadAmirX : world;   // Amirs plek, ook tijdens het tekenen (dan is world de camera)
     const bronX = Math.max(S[0][0], Math.min(S[S.length - 1][0], L.wand - (ax - lm.wand) / (lm.dir * lm.fs)));
-    const hh = th + lm.bh(stadStalY(L, bronX)) - zak;
+    // op de hoogte van zijn laagste voet: op de helling (en vlak bij de voorste paal) hing de andere voet anders boven de doek
+    const vb = L.kuil.voet * CHAR_H / lm.fsH;       // een halve voetafstand, in bron-px
+    const hh = th + lm.bh(Math.max(stadStalY(L, bronX - vb), stadStalY(L, bronX + vb))) - zak;
     out.push({ x: (l + r) / 2, left: l, right: r, topH: hh, base: hh, wPx: r - l, hPx: 0, thin: true, stad: 'luifel', veer: true,
                springdoek: p, id: 'springdoek', grijp: STAD.kraamGrijp * CHAR_H, stap: L.stap });
     return;
@@ -31120,6 +31122,9 @@ function stadKuilStap(){
     else if (p.kuilUit == null) p.kuilUit = stadNu();
   }
 }
+// de diepte van de kuil in Amir schaalt mee met de luifel: op een kleine luifel (maat 0,45) is de doek maar een paar pixels
+// dik, en een kuil van de volle maat liet hem dan ver onder Amirs voeten wegzakken
+function stadKuilDiep(p){ return STAD.plein.luifelStrak.kuil.diep * Math.min(1, (p.maat || 1) / 0.85); }
 function stadKuilBreed(L){ return L.kuil.breed * (1 + (L.kuil.buk - 1) * Math.max(0, Math.min(1, duckT))); }   // in Amir
 function stadOpStrak(p){
   return stadAan() && (level.stad.luifels || []).some(q => q.kuilOp && (!p || q === p));
@@ -31160,7 +31165,7 @@ function stadLuifelStrakKolommen(p, lm, groundY, scale, cx, dip, voor){
     const sxm = wx0 + lm.dir * (L.wand - (x + stap / 2)) * fs, d = dip(sxm);
     const ob = Math.min(L.h, Math.ceil(stadStalY(L, x + stap / 2, L.onder)) + 2);   // de onderrand van de doek in deze kolom
     if (voor){
-      if (Math.abs(sxm - kx) > reik) continue;
+      if (Math.abs(sxm - kx) > reik || x + stap < L.stal[0][0] || x > L.stal[L.stal.length - 1][0]) continue;   // alleen de doek zelf, niet de paal of de franje
       const sy = Math.max(0, stadStalY(L, x + stap / 2) - L.kuil.rand * CHAR_H / lm.fsH);
       // tot op de uitgezakte onderkant van de achterste laag, zodat er niets van Amir onderuit steekt
       if (ob > sy) ctx.drawImage(im, x * q, sy * q, (stap + 1) * q, (ob - sy) * q, (x - L.wand) * fs, top + sy * fs + d * L.kuil.voor, (stap + 1) * fs, (ob - sy) * fs + d * (L.kuil.buik - L.kuil.voor));
@@ -31197,7 +31202,7 @@ function stadLuifelStrakTeken(p, groundY, scale, cx, zicht){
   const lm = stadLuifelMaat(p, scale), L = lm.L, A = CHAR_H * scale;
   if (!zicht(cx + (lm.left - world), lm.w)) return;
   stadRaamZijTeken(p, lm, groundY, scale, cx);    // het raam eronder, achter de luifel
-  const K = stadKuil(p), D = L.kuil.diep * A * K.amp, sg = stadKuilBreed(L) * A, kx = cx + (K.x - world);
+  const K = stadKuil(p), D = stadKuilDiep(p) * A * K.amp, sg = stadKuilBreed(L) * A, kx = cx + (K.x - world);
   if (Math.abs(D) < 0.3){                          // geen kuil: de plaat in een keer
     const im = stadLuifelStrakBeeld(p.kleur), q = stadQ(im, 1), th = terrainH(lm.wand);
     ctx.save(); ctx.translate(cx + (lm.wand - world), 0); ctx.scale(-lm.dir, 1);
@@ -31221,7 +31226,7 @@ function stadLuifelVoor(groundY, scale, cx){
   for (const p of (level.stad.luifels || [])){
     if (p.stijl !== 'strak' || p.gevel == null || !stadKlaar('luifelStrak')) continue;
     const K = stadKuil(p); if (K.rust < 0.05) continue;
-    const L = STAD.plein.luifelStrak, A = CHAR_H * scale, D = L.kuil.diep * A * K.amp, sg = stadKuilBreed(L) * A, kx = cx + (K.x - world);
+    const L = STAD.plein.luifelStrak, A = CHAR_H * scale, D = stadKuilDiep(p) * A * K.amp, sg = stadKuilBreed(L) * A, kx = cx + (K.x - world);
     stadLuifelStrakKolommen(p, stadLuifelMaat(p, scale), groundY, scale, cx, x => D * Math.exp(-Math.pow((x - kx) / sg, 2)), true);
   }
 }
