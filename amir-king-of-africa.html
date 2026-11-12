@@ -41862,7 +41862,10 @@ const MURC = {
   fig: 180, hShare: 1.0,                        // staand 180 canvaspixels hoog, zo hoog als een Amir
   hp: 5, inv: 0.45, wakker: 7,                  // treffers, onkwetsbaar na een treffer, en wanneer hij wakker wordt (in Amir)
   ren: 900,                                     // de galop, in wereld-px per seconde (Amir loopt 330)
-  fps: { brul: 12, galop: 24, slip: 12, draai: 12 },
+  fps: { brul: 15, galop: 24, slip: 12, draai: 12 },    // de brul op 15 in plaats van 12: 4,2 s in plaats van 5,3
+  aanzetTempo: 1.6,                             // na de eerste aanzet speelt hij die zoveel sneller (2,5 s wordt 1,6 s)
+  poten: [5, 8, 16, 21],                        // galopframes waarop een poot neerkomt: twee achter na de zweeffase, dan twee voor
+  stapVol: 0.55,                                // de pootstap (sounds/murc_stap.mp3), naast de galoplus die zachter is gezet
   voorbij: 0.6,                                 // zo ver (in Amir) voorbij Amir begint hij te remmen
   remVenster: [12, 18],                         // het galopframe waarin hij de slip inzet (frame 15 is de pose van de slip)
   stofTot: 15, stofElke: 0.05,                  // stof van de slip tot dit frame, zo vaak
@@ -41888,13 +41891,23 @@ function murcLaad(){
   }).catch(() => {}).finally(() => { murcBezig = false; laadJsonOpen--; });
 }
 // geluid: een stem per bestand, de galop als lus
-const MURC_SND = { brul: 0.9, aanzet: 0.9, galop: 0.7, slip: 0.95, draai: 0.8, grom: 0.75 };
+const MURC_SND = { brul: 0.9, aanzet: 0.9, galop: 0.4, slip: 0.95, draai: 0.8, grom: 0.75 };
 const murcSnd = {};
 function murcZeg(naam, lus){
   if (!wantSound) return;
   let a = murcSnd[naam];
   if (!a){ a = murcSnd[naam] = geluidAan(new Audio()); a.preload = 'auto'; a.src = 'sounds/murc_' + naam + '.mp3'; }
   a.loop = !!lus; a.volume = MURC_SND[naam] || 0.8;
+  try { a.currentTime = 0; } catch (e) {}
+  a.play().catch(() => {});
+}
+// de pootstap: een klein rijtje stemmen, zodat snel opeenvolgende stappen elkaar niet afkappen
+const murcStapPool = []; let murcStapI = 0;
+function murcStap1(){
+  if (!wantSound) return;
+  if (!murcStapPool.length) for (let i = 0; i < 4; i++){ const a = geluidAan(new Audio()); a.preload = 'auto'; a.src = 'sounds/murc_stap.mp3'; murcStapPool.push(a); }
+  const a = murcStapPool[murcStapI++ % murcStapPool.length];
+  a.volume = MURC.stapVol * (0.85 + Math.random() * 0.3); a.playbackRate = 0.92 + Math.random() * 0.16;
   try { a.currentTime = 0; } catch (e) {}
   a.play().catch(() => {});
 }
@@ -42087,11 +42100,11 @@ function hitMurg(s){
 // ---- Murghtaan 2: de charge (zie MURC) ----
 function murcScale(){ const scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H; return (CHAR_H * scale * MURC.hShare) / MURC.fig; }
 function murcN(set){ return murcMeta && murcMeta.sets[set] ? murcMeta.sets[set].frames : 1; }
-function murcSet(s, state, set, frame){ s.state = state; s.t = 0; s.set = set; s.frame = frame || 0; s.acc = 0; }
+function murcSet(s, state, set, frame){ s.state = state; s.t = 0; s.set = set; s.frame = frame || 0; s.acc = 0; s.tempo = 1; }
 // speelt de set een keer af (of rond met lus); true als hij klaar is. Met duur_ms in de metadata een eigen duur per frame.
 function murcSpeel(s, dt, lus){
   const m = murcMeta.sets[s.set], n = m.frames;
-  s.acc += dt;
+  s.acc += dt * (s.tempo || 1);
   for (;;){
     const duur = m.duur_ms ? m.duur_ms[s.frame] / 1000 : 1 / (MURC.fps[s.set] || 12);
     if (s.acc < duur) return false;
@@ -42130,7 +42143,11 @@ function murcStap(s, dt){
       break;
     }
     case 'galop': {
+      const fVoor = s.frame;
       murcSpeel(s, dt, true);
+      if (s.frame !== fVoor) for (const p of MURC.poten){                       // een poot komt neer: de stap
+        if (fVoor < s.frame ? fVoor < p && s.frame >= p : fVoor < p || s.frame >= p){ murcStap1(); break; }
+      }
       const ar = murArena(s), nx = s.x + s.face * MURC.ren * dt;
       // hoeveel ruimte de slip en de draai nog nodig hebben, met wat marge voor het remvenster
       const nodig = Math.abs(murcReis(s, 'slip')) + Math.abs(murcReis(s, 'draai')) + MURC.ren * 0.25 + murcGlijAfstand();
@@ -42186,7 +42203,11 @@ function murcStap(s, dt){
 // de vaart van de slip op tijd t (wereld-px per seconde), en hoe ver hij daarmee in totaal glijdt
 function murcGlij(t){ const u = 1 - t / MURC.glijDuur; return u > 0 ? MURC.ren * MURC.glijStart * u * u : 0; }
 function murcGlijAfstand(){ return MURC.ren * MURC.glijStart * MURC.glijDuur / 3; }
-function murcAanzet(s){ s.face = murNaar(s); murcSet(s, 'aanzet', 'aanzet'); }
+function murcAanzet(s){
+  s.face = murNaar(s); murcSet(s, 'aanzet', 'aanzet');
+  if (s.aanzetten) s.tempo = MURC.aanzetTempo;        // de eerste keer helemaal, daarna sneller
+  s.aanzetten = (s.aanzetten || 0) + 1;
+}
 function murcRaak(s){
   if (s.inv > 0 || s.state === 'dood') return;
   s.hp--; if (critPak()) s.hp--; fcHalf(s, 0);
