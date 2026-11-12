@@ -16805,6 +16805,8 @@ const BAV_STOF = {
   land: { wolk: 24, grootte: 3.2, korrel: 36, breed: 170, sneeuw: 1.25, schop: 220, lang: 1.5 },
   stap: { wolk: 2, grootte: 1.2, korrel: 4, breed: 40, sneeuw: 0.3, schop: 110 },
   rem:  { wolk: 6, grootte: 1.7, korrel: 12, breed: 70, sneeuw: 0.6, schop: 150 },
+  // de slip van de hyenabaas (MURC): dikke wolken die voor zijn voorpoten uit opstuiven en langer blijven hangen
+  slip: { wolk: 9, grootte: 2.6, korrel: 16, breed: 120, sneeuw: 0.9, schop: 280, lang: 1.6 },
   // hij ploft dood neer: een brede wolk langs zijn hele lijf, die langzamer wegschuift en langer blijft hangen (`lang`)
   plof: { wolk: 36, grootte: 3.3, korrel: 50, breed: 380, sneeuw: 1.7, schop: 120, lang: 2.2 },
   dicht: 0.9,                                               // stofwolk.png is ijl, vandaar groot en dicht (net als bij het skelet)
@@ -41864,6 +41866,9 @@ const MURC = {
   voorbij: 0.6,                                 // zo ver (in Amir) voorbij Amir begint hij te remmen
   remVenster: [12, 18],                         // het galopframe waarin hij de slip inzet (frame 15 is de pose van de slip)
   stofTot: 15, stofElke: 0.05,                  // stof van de slip tot dit frame, zo vaak
+  glijStart: 0.85, glijDuur: 1.15,              // de slip glijdt echt door: hij begint op zoveel van de galop en valt in zoveel s
+                                                //   kwadratisch stil (afstand ren * glijStart * glijDuur / 3, zo'n 1,6 Amir), bovenop de reis van de set
+  stofBurst: 2.2,                               // de klap van stof als hij de poten in de grond zet
   loer: 0.35,                                   // na de draai even laag blijven staan voor de nieuwe aanzet
   aanzetKlap: 11,                               // het frame waarop hij uitbreekt (het afzetgeluid)
   winNa: 1.6                                    // seconden na de laatste treffer tot het level uit is
@@ -42128,7 +42133,7 @@ function murcStap(s, dt){
       murcSpeel(s, dt, true);
       const ar = murArena(s), nx = s.x + s.face * MURC.ren * dt;
       // hoeveel ruimte de slip en de draai nog nodig hebben, met wat marge voor het remvenster
-      const nodig = Math.abs(murcReis(s, 'slip')) + Math.abs(murcReis(s, 'draai')) + MURC.ren * 0.25;
+      const nodig = Math.abs(murcReis(s, 'slip')) + Math.abs(murcReis(s, 'draai')) + MURC.ren * 0.25 + murcGlijAfstand();
       const rand = s.face === 1 ? ar.hi - nx < nodig : nx - ar.lo < nodig;
       s.x = Math.max(ar.lo, Math.min(ar.hi, nx));
       const voorbij = s.face === 1 ? s.x > px + MURC.voorbij * A : s.x < px - MURC.voorbij * A;
@@ -42136,22 +42141,33 @@ function murcStap(s, dt){
       const v = MURC.remVenster;
       if (rand || (s.remmen && s.frame >= v[0] && s.frame <= v[1])){
         murcZwijg('galop'); murcSet(s, 'slip', 'slip'); murcZeg('slip'); s.stofAcc = 0;
+        // de poten gaan de grond in: een klap stof voor zijn voorpoten, de kant op waar hij heen glijdt
+        const b = murcMeta.sets.slip.bbox[0];
+        bavStof(murcWereldX(s, b[0] + 30), 'slip', s.face, MURC.stofBurst);
+        bavStof(murcWereldX(s, (b[0] + b[2]) / 2), 'stap', s.face, 1.6);
+        shake = Math.max(shake, 0.1);
       }
       break;
     }
-    case 'slip':
-      if (s.frame <= MURC.stofTot){                     // het stof: voor zijn voorpoten en onder zijn lijf, de kant op waar hij heen glijdt
-        s.stofAcc += dt;
+    case 'slip': {
+      // hij glijdt echt door: de vaart van de galop loopt kwadratisch weg, en de wereld schuift mee (binnen de arena)
+      const g = murcGlij(s.t);
+      if (g > 0){ const ar = murArena(s); s.x = Math.max(ar.lo, Math.min(ar.hi, s.x + s.face * g * dt)); }
+      const vaart = g / MURC.ren;                       // 0 tot glijStart: hoe harder hij glijdt, hoe meer stof
+      if (s.frame <= MURC.stofTot || vaart > 0.05){     // het stof: voor zijn voorpoten en onder zijn lijf, de kant op waar hij heen glijdt
+        s.stofAcc += dt * (0.6 + vaart);
         while (s.stofAcc >= MURC.stofElke){
           s.stofAcc -= MURC.stofElke;
           const b = murcMeta.sets.slip.bbox[s.frame];
-          const voorX = murcWereldX(s, b[0] + 30), midX = murcWereldX(s, (b[0] + b[2]) / 2);
-          bavStof(voorX, 'rem', -s.face, 1);
-          if (Math.random() < 0.5) bavStof(midX, 'stap', -s.face, 1.2);
+          const voorX = murcWereldX(s, b[0] + 30), midX = murcWereldX(s, (b[0] + b[2]) / 2), achterX = murcWereldX(s, b[2] - 40);
+          bavStof(voorX, vaart > 0.2 ? 'slip' : 'rem', s.face, 0.6 + vaart);
+          if (Math.random() < 0.5) bavStof(midX, 'stap', s.face, 1.2);
+          if (vaart > 0.3 && Math.random() < 0.4) bavStof(achterX, 'stap', -s.face, 0.8);   // achter hem waait het spoor op
         }
       }
       if (murcSpeel(s, dt)){ s.x += murcReis(s, 'slip'); murcSet(s, 'draai', 'draai'); murcZeg('draai'); s.gromt = false; }
       break;
+    }
     case 'draai':
       if (!s.gromt && s.frame >= 4){ s.gromt = true; murcZeg('grom'); }
       if (murcSpeel(s, dt)){
@@ -42167,6 +42183,9 @@ function murcStap(s, dt){
   }
   s.lift = murLift(s.x);
 }
+// de vaart van de slip op tijd t (wereld-px per seconde), en hoe ver hij daarmee in totaal glijdt
+function murcGlij(t){ const u = 1 - t / MURC.glijDuur; return u > 0 ? MURC.ren * MURC.glijStart * u * u : 0; }
+function murcGlijAfstand(){ return MURC.ren * MURC.glijStart * MURC.glijDuur / 3; }
 function murcAanzet(s){ s.face = murNaar(s); murcSet(s, 'aanzet', 'aanzet'); }
 function murcRaak(s){
   if (s.inv > 0 || s.state === 'dood') return;

@@ -116,7 +116,7 @@ soorten tegenstanders:
 - **Bazen**: de panter (zwart, en wit in een winterlevel: dezelfde spawn `k: 'panter'`, altijd met `boss: true`
   en de arena-camera, drie treffers), de baviaan (`BAVIAAN`, de eindbaas in wording) en Brutus (in beeld Nyundo,
   `BRU`, de baas van Stad 6: Het plein, zestien treffers, zie `notities/brutus.md`) en Murghtaan (`MUR`, de bezeten
-  hyena, de baas van de episode Murghtaan, zie `notities/episodes.md`). Een baas zet jij
+  hyena, door de opdrachtgever ook **de hyenabaas** genoemd, de baas van de episode Murghtaan, zie `notities/episodes.md`). Een baas zet jij
   nergens neer zonder dat de opdrachtgever het goed vindt: niet in een level, niet in een arena-golf, en ook
   niet "even om iets te laten zien". Dat vraag je vooraf, per geval, voordat je iets bouwt. Mag het, dan bouw
   je het; zonder antwoord bouw je het niet.
