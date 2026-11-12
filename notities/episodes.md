@@ -86,6 +86,7 @@ hij staan en is het level na `MURC.winNa` uit (`winLevel`). Geluid uit de Grok-c
 als lus). In de sandbox: Vijanden, **Murghtaan charge**. De sets komen uit de Grok-clips met een eenmalig script: keyen op de
 eigen achtergrondkleur van elke clip, registreren op het startbeeld (schaal en verschuiving op maximale overlap), in de
 draai de tweede oranje poot terug naar vacht, daarna `tools/murg_kleur.py` (fase 1: de oranje zone wordt kale grauwe huid).
+Let op bij het live zetten: een directe push van Claude op `main` start de Pages-build niet; live gaat via een pull request die wordt samengevoegd.
 Proefrit: `node tools/murc_test.js [map]` laadt het level, volgt de toestanden, maakt schermafdrukken en raakt hem vijf keer.
 
 ## Episode De Gouden Poort
