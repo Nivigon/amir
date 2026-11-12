@@ -879,7 +879,7 @@ eigenlijke voethoogte getekend, wat op de straat wegvalt in de strook bovenkant 
   de eerste verdieping (730), in de steeg. De indigo luifel hangt aan de toren boven het raam van de eerste verdieping
   (staan op 682): van de rand van het balkon spring je erop. Met een sprong op tijd stuiter je naar de rode trampoline aan de
   overkant, boven het raam van de tweede verdieping (993; hij hangt een kleine Amir boven het balkon, je kunt er net onder
-  staan). Daar stuiter je hoger en stuur je de steeg over naar de galerij (toppen 320 en 410 boven de doek). Let op: opzij gaat
+  staan). Nu zijn ze allebei een trampoline: op blauw een goede stuit om rood te halen, op rood naar de galerij. Daar stuiter je hoger en stuur je de steeg over naar de galerij (toppen 320 en 410 boven de doek). Let op: opzij gaat
   Amir in wereld-px even snel op elk scherm (330 px/s), maar hij is groter op een groot scherm, dus in Amir gerekend komt hij
   op 1920x1080 minder ver dan op 1280x720 en op een telefoon veel verder. Nagemeten: op 1280x720 haal je de galerij met een
   goede stuit, op 1920x1080 met twee, op 852x393 al met een gewone sprong. Met een steeg van 2 Amir lukte het op 1920 niet.
@@ -903,7 +903,12 @@ eigenlijke voethoogte getekend, wat op de straat wegvalt in de strook bovenkant 
   voetafstand), zijn beide voeten blijven boven de stallijn (het stuk is `kuil.voet` korter aan elke kant), de voorste laag
   tekent alleen de doek zelf (niet de paal of de franje), en de kuil schaalt mee met de luifel (`stadKuilDiep`: op maat 0,45
   is de doek maar een paar pixels dik, en een kuil van volle diepte zakte ver onder zijn voeten weg).
-- **Maat**: in Stad 10, Stad 11 en de sandbox `maat` 0,45 (afgesteld in Stad 11). Het stuk om op te staan is aan elke kant
+- **Landingsplek**: de hele doek (van het eerste tot het laatste punt van `stal`), zonder inkorting: aan het eind mag een voet
+  over de rand hangen, pas met zijn midden ervan af valt hij. Met de inkorting bleef er een derde Amir over en viel je er na
+  een stap af.
+- **Kleur**: blauw en rood zijn allebei een trampoline (`ritme`); de kleur doet nu nog niets. Idee voor later (opdrachtgever):
+  een kleur die na een paar stuiten voorgoed scheurt, zodat je het in een keer goed moet doen of erdoorheen zakt.
+- **Maat**: in Stad 10, Stad 11 en de sandbox `maat` 0,55 (0,45 uit Stad 11 gaf te weinig landingsruimte). Het stuk om op te staan is aan elke kant
   0,4 halve Amir-breedte korter dan de stallijn; een hele halve breedte liet op zo'n kleine luifel maar 0,27 Amir over.
 - Alleen Stad 10. De plaat laadt pas als een stad hem gebruikt (`stadSoortLaad`).
 
