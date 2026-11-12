@@ -899,6 +899,10 @@ eigenlijke voethoogte getekend, wat op de straat wegvalt in de strook bovenkant 
   Amir) boven de vloer van verdieping k, net als het midden van het voorraam (`STAD_NACHT.ramen.gevel`), en de luifel hangt
   `raamZij.onder` erboven: zijn hoogte volgt uit het raam, `h` doet dan niets. Een raam in de zijmuur op een andere hoogte dan
   de voorramen viel op. De maten komen uit Stad 11: luik 0,66 Amir, 0,10 ertussen.
+- **Zweven aan de uiteinden** (opgelost): Amir staat op de hoogte van zijn laagste voet (`kuil.voet`, een halve
+  voetafstand), zijn beide voeten blijven boven de stallijn (het stuk is `kuil.voet` korter aan elke kant), de voorste laag
+  tekent alleen de doek zelf (niet de paal of de franje), en de kuil schaalt mee met de luifel (`stadKuilDiep`: op maat 0,45
+  is de doek maar een paar pixels dik, en een kuil van volle diepte zakte ver onder zijn voeten weg).
 - **Maat**: in Stad 10, Stad 11 en de sandbox `maat` 0,45 (afgesteld in Stad 11). Het stuk om op te staan is aan elke kant
   0,4 halve Amir-breedte korter dan de stallijn; een hele halve breedte liet op zo'n kleine luifel maar 0,27 Amir over.
 - Alleen Stad 10. De plaat laadt pas als een stad hem gebruikt (`stadSoortLaad`).
