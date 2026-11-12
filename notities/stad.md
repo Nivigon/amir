@@ -867,13 +867,22 @@ eigenlijke voethoogte getekend, wat op de straat wegvalt in de strook bovenkant 
 - **De trampoline** (`ritme: true`, `stadRitme`, `stadRitmeV`, `stadVeerVin`): hoogte bouw je op. Val je erop, dan stuiter je
   vanzelf terug met `ritme.demp` (0,6) keer de valsnelheid; onder `ritme.rust` (0,45 jumpV) blijf je staan, dus niets doen
   stuitert uit in een stuit of twee. Spring je op tijd bij een landing (binnen `ritme.raam`, 0,2 s ervoor of erna), dan is de
-  volgende stuit `ritme.stap` (0,35 jumpV) sneller, tot `ritme.max` (1,9). Vanaf stilstand springen is een gewone sprong
+  volgende stuit `ritme.stap` (0,25 jumpV) sneller, tot `ritme.max` (1,42: ongeveer 1,3 verdieping, zie hieronder). Vanaf stilstand springen is een gewone sprong
   (`stadVeerHoogte` geeft 1). Het naveren van de kuil schaalt met hoe hard de stuit was (`p.sterk` in `stadKuil`).
-- **Stad 10**: na de indigo luifel (`worp` 1,5, nu naar het dak van 771: huis 1 is twee hoog) de rode trampoline op de
-  linkermuur van de toren (`h` 520), in de steeg van 1,8 Amir tussen huis 1 en de toren, onder de galerij van 1059 die een Amir
-  de steeg in steekt. Van het dak val je erop, en twee keer op tijd springen brengt je hoog genoeg voor de galerij (nagemeten:
-  toppen 415 en 640 boven de doek, op 852x393, 1280x720 en 1920x1080; met drie was het te veel gestuiter). Zonder ritme haal je hem niet: een gewone sprong
-  van het dak komt tot 979, de indigo luifel tot 960.
+- **Hoe hoog**: een verdieping is 1,31 Amir (329 eenheden), een gewone sprong ongeveer 0,6 verdieping. Een stuit blijft
+  realistisch onder anderhalve verdieping: de indigo luifel (`worp` 1,38) geeft ongeveer 1,2 verdieping, de trampoline
+  hooguit 1,3 (`ritme.max` 1,42; met 1,55 kwam je in Stad 10 op het dak van de toren, en daar kun je niet bij de deur). Zo haal je met een luifel de volgende verdieping, en kom je hoger via de volgende luifel. Grijpen en optrekken
+  (aan de voorste paal, een galerij of een reling) is nog niet gebouwd; komt het, dan op vaste grijpplekken, zodat deze
+  routes niet te makkelijk worden.
+- **Stad 10** (de zigzag-steeg): de toren (vier hoog, de deur op de derde verdieping met de galerij van 1059 alleen voor zijn
+  gevel) en over een steeg van 1,7 Amir een huis van vier hoog. Twee stadstrappen (zoals in Stad 9) naar een kort balkon op
+  de eerste verdieping (730), in de steeg. De indigo luifel hangt aan de toren boven het raam van de eerste verdieping
+  (staan op 682): van de rand van het balkon spring je erop. Met een sprong op tijd stuiter je naar de rode trampoline aan de
+  overkant, boven het raam van de tweede verdieping (993; hij hangt een kleine Amir boven het balkon, je kunt er net onder
+  staan). Daar stuiter je hoger en stuur je de steeg over naar de galerij (toppen 320 en 410 boven de doek). Let op: opzij gaat
+  Amir in wereld-px even snel op elk scherm (330 px/s), maar hij is groter op een groot scherm, dus in Amir gerekend komt hij
+  op 1920x1080 minder ver dan op 1280x720 en op een telefoon veel verder. Nagemeten: op 1280x720 haal je de galerij met een
+  goede stuit, op 1920x1080 met twee, op 852x393 al met een gewone sprong. Met een steeg van 2 Amir lukte het op 1920 niet.
 - **Sandbox**: onder De stad de knop **Trampoline**: een trap naar een kort balkon, de rode trampoline ertegenover en een huis
   van drie hoog om op te stuiteren. Eronder verschijnen drie schuifjes om af te stellen (`sbLuifelPaneel`): **Awning size**
   (`maat` van de luifels in de sandbox), **Shutter height** (`raamZij.hoog`) en **Gap under awning** (`raamZij.onder`,
@@ -882,11 +891,16 @@ eigenlijke voethoogte getekend, wat op de straat wegvalt in de strook bovenkant 
 - **Stad 11: Awning tuning**: hetzelfde paneel, maar in een eigen testlevel (gevraagd, in plaats van de sandbox): de opbouw
   van Stad 10 zonder vijanden (`vredig`), met `luifelAfstel: true`. Het paneel zweeft linksboven (`#sbluifelpaneel`, getoond
   in `beginPlay`, weg in `toMenu` met `luifelPaneelUit`), en de schuifjes houden hun stand bij een herstart.
-- **Het raam** (`raam: true`, `stadRaamZijTeken`, de maten in `luifelStrak.raamZij`): een luifel hangt niet zomaar aan een muur,
+- **Het raam** (`raam: k` of `raam: true`, `stadRaamZijTeken`, de maten in `luifelStrak.raamZij`): een luifel hangt niet zomaar aan een muur,
   dus onder de doek zit een raam in de zijmuur. De zijmuur zie je van opzij niet, dus je ziet het luik dat naar buiten is
   opengeklapt recht van voren (de rechtervleugel uit `raam_luiken.png`, met de scharnieren aan de muur), met de kozijnrand
   langs de muur, een vensterbankje en bovenin de schaduw van de luifel. Getekend voor de luifel, die er dus overheen valt.
-- **Maat**: in Stad 10 en de sandbox `maat` 0,7 (eerst 0,85: groot voor een raam).
+  Met `raam: k` (een verdieping) zit het raam op de hoogte van de voorramen: het midden van het luik `raamZij.midden` (0,752
+  Amir) boven de vloer van verdieping k, net als het midden van het voorraam (`STAD_NACHT.ramen.gevel`), en de luifel hangt
+  `raamZij.onder` erboven: zijn hoogte volgt uit het raam, `h` doet dan niets. Een raam in de zijmuur op een andere hoogte dan
+  de voorramen viel op. De maten komen uit Stad 11: luik 0,66 Amir, 0,10 ertussen.
+- **Maat**: in Stad 10, Stad 11 en de sandbox `maat` 0,45 (afgesteld in Stad 11). Het stuk om op te staan is aan elke kant
+  0,4 halve Amir-breedte korter dan de stallijn; een hele halve breedte liet op zo'n kleine luifel maar 0,27 Amir over.
 - Alleen Stad 10. De plaat laadt pas als een stad hem gebruikt (`stadSoortLaad`).
 
 ## De einddeur
