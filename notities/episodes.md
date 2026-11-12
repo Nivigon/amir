@@ -127,6 +127,17 @@ script: keyen, gruis en gaatjes weg, elke clip op zijn startbeeld geregistreerd 
 vacht, daarna `tools/murg_kleur.py`. Proefrit: `node tools/murc_pin_test.js [map]` speelt drie potjes (niets doen, elke hap
 pareren, rollen bij de landing).
 
+Murghtaan 3: The feast (`MUR_3`, `murg.intro: true`, onder `// ---- Murghtaan 3: de opening`, `MURC_INTRO`): de opening voor de
+charge. Hij staat `MURC_INTRO.rand` Amir binnen `murg.van`, kijkt naar links en vreet aan een dode bandiet (`dood_62` van de bandiet,
+gespiegeld, met getekend bloed: tijdelijk). Toestanden `iVreet`, `iRust`, `iBlik` (omkijken), `iKijk`, `iTerug`, `iWhoop`. Binnen
+`zie` Amir: omkijken, dan de freeze met balken en naam (`murcVries`, `murcBalk`, `murcIntroTeken`; de wereld staat stil op dt 0),
+de whoop, en de roedel van drie (`murcRoedelKomt`, `h.murcRoedel`). De roedel stormt nooit met twee tegelijk (`murcRoedelBezig`),
+staat aan een kant in een rij (`murcRoedelRij` in `hyThreatGap`) en draait na een storm om (`omkeer`). Een muur `muur` Amir rechts
+van hem (`murg.muurX`, in `murKlem`, getekend als lijn) houdt Amir weg; een speer gaat erover. Een treffer laat hem omkijken. Is de
+roedel dood: omkijken, een korte freeze, en dan `murcAanzet` (de draai naar Amir is nog een harde wissel). De camera schuift in de
+opening naar hem toe (`murcIntroCam`). De sets `vreet`, `omkijk`, `omkijk_lus` en `whoop` komen uit `tools/murc_intro_sets.py`
+(clips in `enemies/hyena_baas/bron/`); proefrit: `node tools/murc_intro_test.js [map]`.
+
 ## Episode De Gouden Poort
 
 `GP_1` tot en met `GP_10` en `GP_LEVELS`: tien stadslevels van makkelijk tot mega, zelf ontworpen op verzoek (regel 3), met
