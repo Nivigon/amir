@@ -26417,6 +26417,10 @@ const STAD = {
                    // ritme (ritme: true): de trampoline. Op tijd springen bij een landing (raam, in seconden) maakt de volgende
                    // stuit stap x jumpV sneller, tot max; niets doen dempt hem (demp x de valsnelheid), en onder rust x jumpV
                    // blijf je staan. Vanaf stilstand springen is een gewone sprong: hoogte bouw je op
+                   // geluid (stadLuifelPlof, geen bestand): een doffe plof van strakke stof (toon in Hz, zakt in duur s), wat ruis
+                   // voor de klap van het doek, een zacht kraken van hout en touw, en per trede van de trampoline een
+                   // hogere toon (trede: zoveel keer hoger per jumpV boven 1). vol: het volume bij een harde landing
+                   plof: { vol: 0.55, toon: 150, laag: 55, duur: 0.22, ruis: 0.5, kraak: 0.18, trede: 0.35 },
                    ritme: { stap: 0.25, max: 1.42, demp: 0.6, rust: 0.45, raam: 0.2 },   // max 1,42 jumpV: ongeveer 1,3 verdieping (anderhalve is het plafond)
                    // raam (raam: true): het raam in de zijmuur waar de luifel schaduw op geeft. Van opzij zie je de muur niet,
                    // dus je ziet het opengeklapte luik recht van voren, met de scharnieren aan de muur, en de kozijnrand langs
@@ -27458,12 +27462,39 @@ function stadDoekBuig(p, a){                     // de doek buigt mee: de kraam 
 // de trampoline (ritme: true op een strakke luifel): hoogte bouw je op door bij elke landing op tijd te springen
 let stadVeerVin = 0;                             // de valsnelheid (in jumpV) van de laatste landing op de trampoline
 function stadRitmeV(vin){ const R = STAD.plein.luifelStrak.ritme; return Math.min(R.max, Math.max(vin, 1) + R.stap); }
+// de plof van een strakke luifel: sterk 0 tot 1 (hoe hard de landing), v de nieuwe opsprong in jumpV (voor de toonhoogte)
+function stadLuifelPlof(sterk, v){
+  if (!wantSound) return;
+  const ac = acLoopt(); if (!ac) return;
+  const P = STAD.plein.luifelStrak.plof, vol = P.vol * Math.max(0.25, Math.min(1, sterk));
+  const hoger = 1 + P.trede * Math.max(0, (v || 0) - 1);   // de trampoline: hoe hoger de stuit, hoe hoger de plof
+  try {
+    const t = ac.currentTime;
+    const o = ac.createOscillator(), g = ac.createGain();            // de doffe plof van het gespannen doek
+    o.type = 'sine'; o.frequency.setValueAtTime(P.toon * hoger, t); o.frequency.exponentialRampToValueAtTime(P.laag * hoger, t + P.duur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.008); g.gain.exponentialRampToValueAtTime(0.001, t + P.duur + 0.05);
+    o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + P.duur + 0.1);
+    const n = Math.ceil(ac.sampleRate * 0.09), buf = ac.createBuffer(1, n, ac.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 4);
+    const src = ac.createBufferSource(), bp = ac.createBiquadFilter(), g2 = ac.createGain();   // de klap van de stof
+    bp.type = 'bandpass'; bp.frequency.value = 700 * hoger; bp.Q.value = 0.9; g2.gain.value = vol * P.ruis; src.buffer = buf;
+    src.connect(bp); bp.connect(g2); g2.connect(ac.destination); src.start(t);
+    if (sterk > 0.35){                                               // een hard landing: hout en touw kraken mee
+      const m = Math.ceil(ac.sampleRate * 0.25), kb = ac.createBuffer(1, m, ac.sampleRate), k = kb.getChannelData(0);
+      for (let i = 0; i < m; i++){ const tik = Math.random() < 0.02 ? 1 : 0.15; k[i] = (Math.random() * 2 - 1) * tik * Math.pow(1 - i / m, 2); }
+      const ks = ac.createBufferSource(), hp = ac.createBiquadFilter(), g3 = ac.createGain();
+      hp.type = 'bandpass'; hp.frequency.value = 1800; hp.Q.value = 3; g3.gain.value = vol * P.kraak * sterk; ks.buffer = kb;
+      ks.connect(hp); hp.connect(g3); g3.connect(ac.destination); ks.start(t + 0.03);
+    }
+  } catch (e) {}
+}
 function stadRitme(p, vIn){
   const R = STAD.plein.luifelStrak.ritme, J = jumpV(), vin = vIn / J, timed = stadNu() - stadSprongDruk < R.raam;
   const d = p.springdoek;
-  if (!timed && vin < R.rust){ d.sterk = vin; stadDoekBuig(p, 0); return false; }   // uitgestuiterd: je blijft staan
+  if (!timed && vin < R.rust){ d.sterk = vin; stadDoekBuig(p, 0); if (vin > 0.12) stadLuifelPlof(vin * 0.8, 0); return false; }   // uitgestuiterd: je blijft staan
   const v = timed ? stadRitmeV(vin) : vin * R.demp;
   d.sterk = Math.max(vin, v); stadDoekBuig(p, 0);
+  stadLuifelPlof(Math.max(vin, timed ? 0.6 : 0), timed ? v : 0);   // de plof, en op tijd gesprongen: hoger naar de trede
   jump = { phase: 'air', t: 0 }; onGround = false; fell = false; coyote = 0; amirPlat = null;
   pvh = v * J; stadVeerT = stadNu(); stadVeerHoog = timed; stadVeerDoek = p; stadVeerVin = vin;
   puffDust(timed ? 7 : 4);
@@ -27552,12 +27583,15 @@ function stadSprong(){
   if (d && !jump){
     takeOff(); pvh = jumpV() * stadVeerHoogte(d); stadVeerT = stadNu(); stadVeerHoog = true; stadVeerDoek = d;
     stadDoekBuig(d, 0.8);
+    if (d.springdoek && d.springdoek.stijl === 'strak') stadLuifelPlof(0.45, 0);   // afzetten van de doek: een zachte plof
     return true;
   }
   const ritme = stadIsRitme(stadVeerDoek);
   if (!stadVeerHoog && stadNu() - stadVeerT < (ritme ? STAD.plein.luifelStrak.ritme.raam : STAD.veer.raam) && pvh > 0){
     // net te laat gedrukt: de hoge sprong alsnog; op de trampoline de volgende trede
-    pvh = Math.max(pvh, jumpV() * (ritme ? stadRitmeV(stadVeerVin) : stadVeerHoogte(stadVeerDoek))); stadVeerHoog = true; return true;
+    pvh = Math.max(pvh, jumpV() * (ritme ? stadRitmeV(stadVeerVin) : stadVeerHoogte(stadVeerDoek))); stadVeerHoog = true;
+    if (ritme) stadLuifelPlof(0.5, stadRitmeV(stadVeerVin));   // net te laat gedrukt: toch de hogere toon van de trede
+    return true;
   }
   return false;
 }

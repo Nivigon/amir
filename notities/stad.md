@@ -903,6 +903,10 @@ eigenlijke voethoogte getekend, wat op de straat wegvalt in de strook bovenkant 
   voetafstand), zijn beide voeten blijven boven de stallijn (het stuk is `kuil.voet` korter aan elke kant), de voorste laag
   tekent alleen de doek zelf (niet de paal of de franje), en de kuil schaalt mee met de luifel (`stadKuilDiep`: op maat 0,45
   is de doek maar een paar pixels dik, en een kuil van volle diepte zakte ver onder zijn voeten weg).
+- **Geluid** (`stadLuifelPlof`, de maten in `luifelStrak.plof`, geen bestand): een doffe plof van strakke stof (een
+  sinustoon die zakt), wat ruis voor de klap van het doek, en bij een harde landing een zacht kraken van hout en touw. Het
+  volume volgt hoe hard je landt, en op de trampoline klinkt elke goede stuit hoger (`plof.trede`), zodat je hoort dat je
+  hoogte opbouwt. Uitstuiteren geeft ploffen die zachter worden.
 - **Landingsplek**: de hele doek (van het eerste tot het laatste punt van `stal`), zonder inkorting: aan het eind mag een voet
   over de rand hangen, pas met zijn midden ervan af valt hij. Met de inkorting bleef er een derde Amir over en viel je er na
   een stap af.
