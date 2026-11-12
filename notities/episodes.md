@@ -74,6 +74,8 @@ De sets komen uit Grok-clips via `tools/murg_sets.py` (keyen, schalen, een offse
 (fase 1: de oranje zone als kale grauwe huid; bezeten: bijna zwart, verkoolde poot met paarse gloed) en `tools/murg_oog.py`
 (de oogkas per frame, template matching vanaf een gekozen punt).
 
+De opdrachtgever noemt Murghtaan ook **de hyenabaas**: met "de hyenabaas" is hij bedoeld, in elk ontwerp (fase 1, bezeten, de charge).
+
 Murghtaan 2: The charge (`MUR_2`, `murg.charge: true`): een proefstuk voor het nieuwe ontwerp van Murghtaan (grotere manen,
 melkwitte blinde blik, botkraag met slagtanden), alleen zijn charge-ronde. Eigen sets in `enemies/hyena_baas/charge/` (canvas
 800x400, grondlijn 380, anker 400, kijkrichting links): `brul`, `aanzet` (inzakken en uitbreken, met `duur_ms` per frame), `galop`
@@ -81,8 +83,18 @@ melkwitte blinde blik, botkraag met slagtanden), alleen zijn charge-ronde. Eigen
 eindigt de andere kant op). Elke set heeft `reis`: de root motion in canvas-px, die de engine bij het eind van de set bij `s.x`
 optelt (`murcReis`). Het gedrag staat onder `// ---- Murghtaan 2: de charge` (`MURC`, `murcStap`, `murcRaak`, `murcTeken`):
 wacht, brul, dan steeds aanzet, galop langs Amir (`MURC.voorbij`, en in het remvenster de slip, of eerder bij de arenarand),
-slip met stof (`bavStof` 'rem'), draai, even loeren en weer de aanzet. Hij doet Amir niets; na `MURC.hp` (5) treffers blijft
-hij staan en is het level na `MURC.winNa` uit (`winLevel`). Geluid uit de Grok-clips: `sounds/murc_*.mp3` (`murcZeg`, de galop
+slip met stof, draai, even loeren en weer de aanzet. Hij doet Amir niets; na `MURC.hp` (5) treffers blijft
+hij staan en is het level na `MURC.winNa` uit (`winLevel`).
+De slip glijdt echt door: de vaart van de galop (`MURC.glijStart` maal `ren`) valt in `MURC.glijDuur` kwadratisch stil
+(`murcGlij`, in totaal `murcGlijAfstand`, zo'n 1,6 Amir bovenop de `reis` van de set), en de arenarand houdt daar rekening mee.
+Bij het inzetten een klap stof (`MURC.stofBurst`), daarna wolken voor zijn voorpoten uit die meegroeien met de vaart
+(`BAV_STOF.slip`, groter en langer dan 'rem'), en bij hoge vaart een spoor achter hem.
+Tempo: de brul speelt op 15 fps (4,2 s); de eerste aanzet speelt helemaal (2,5 s), elke volgende `MURC.aanzetTempo` (1,6) keer
+zo snel (`s.tempo` in `murcSpeel`, `s.aanzetten`). Pootstappen: op de galopframes in `MURC.poten` (5 en 8 de achterpoten na de
+zweeffase, 16 en 21 de voorpoten, uit de alfa op de grondlijn) speelt `murcStap1` `sounds/murc_stap.mp3` (de eerste 0,3 s van
+`brutus_stap.mp3`, hoger en lichter gemaakt met ffmpeg), uit een rijtje van vier stemmen met wat variatie; de galoplus staat
+daarom zachter (0,4). Nog niet gebouwd, bewust uitgesteld door de opdrachtgever: schade bij contact in de galop, en een
+reactie op een treffer (struikelen, kortere slip). Geluid uit de Grok-clips: `sounds/murc_*.mp3` (`murcZeg`, de galop
 als lus). In de sandbox: Vijanden, **Murghtaan charge**. De sets komen uit de Grok-clips met een eenmalig script: keyen op de
 eigen achtergrondkleur van elke clip, registreren op het startbeeld (schaal en verschuiving op maximale overlap), in de
 draai de tweede oranje poot terug naar vacht, daarna `tools/murg_kleur.py` (fase 1: de oranje zone wordt kale grauwe huid).
