@@ -4,9 +4,36 @@
 
 `VERHAAL` en `SLOT`, `verhaalToon()`: tekst op een zwart scherm voor elk level en na het laatste, alleen als je bij het eerste level begint. Op de naam van het level, dus een nieuwe episode hoeft alleen tekst toe te voegen en `verhaalAan` te zetten in zijn speelknop
 
-## Episode De Valse Koning
+## Episode The Roofs of Kumbasa
 
-`VK_1` tot en met `VK_8` en `VK_LEVELS`: acht zware levels met een verhaal (`VERHAAL`, `SLOT`) en Nightmare; menu `menuVK`, `cardsVK`, knop `btnVK` in `menuEpisodes`. Het is nu de enige echte episode (regel 1). De Poorten, De Honingjacht, De Hoge Schijven, De Klim en De Diepte zijn eruit, samen met de zwaardvechter; in Valse Koning 1 en 5 stappen nu twee bandieten op het zegel met het teken van de val (`zegelVijand` en `ravijnLaatVallen` tellen de bandiet mee).
+`KUM_1` tot en met `KUM_8` en `KUM_LEVELS`: acht stadslevels, van makkelijk tot extreem, gevraagd als vervanging van De
+Valse Koning (die is weggehaald, met zijn menu, verhaal en ondertitels). Menu `menuKum`, `cardsKum`, knop `btnKum` in
+`menuEpisodes`; Spelen is `gpSpeel` (tribekeuze, goud op 0, het verhaal), en de knop Nightmare (`btnnightmareKum`) neemt
+de Nightmare over die De Valse Koning had. Teksten in het spel in het Engels (regel 5).
+
+Alleen mensen (geen meelman) en hyena's, en Nyundo als enige baas (Roofs 8, gevraagd, regel 12), in indigo
+(`KUM_TINT.nyundo`, dertig treffers). Twee aanvoerders in eigen kleur: Sefu de wever (3, groen, razernij) en Zuri de
+verfmeester (6, schaduw met stofspoor en razernij, opent de eindpoort).
+
+De rode draad zijn verstopte kisten die je alleen haalt met de volle sprong en een doek. Die plekken zijn letterlijk
+overgenomen uit levels waar de sprongen al nagemeten zijn, met dezelfde maten: de doekkraam naar de galerij op 730
+(Rivier 3, in 1 en 5), de springdoek aan de muur naar het hoogste dak (Stad 9, in 2 met de munt, en in 7 helemaal met de
+einddeur), de trampoline-luifels in de steeg (Stad 10, in 3, naar de galerij op 1059), de takel (Rivier 8, in 4) en de
+stelling op de dam (Rivier 6, in 6). Verschuif je daar een huis, meet de sprong dan opnieuw.
+
+| level | moeite | wat erin zit |
+| --- | --- | --- |
+| 1 The Ferry Steps | makkelijk | wapenrek, winkel, waterval met brug, kist boven de doeken |
+| 2 The Dyers' Lane | makkelijk | stadstrappen, springdoek, kist en munt op het hoogste dak, waterval, rover uit een deur |
+| 3 The Weavers' Court | gemiddeld | trampoline, alle huistypes (reliefhuis met nis, pilarenhuis met takel en gordijn, vervallen huis, ruine, toren, winkelhuis), winkel, verdieping met ladder en boog, leemmuur, wapenrek bij een kraam, Sefu |
+| 4 The Fountain Square | gemiddeld/zwaar | regen, takel naar de galerij, fontein op een plein, verhoogde straat met de onderlaag, deuren beneden en boven, kooiman-duel |
+| 5 The Lantern Alleys | zwaar | nacht, vier straten in een raster met minimap en `accenten`, dertig kills, hinderlaag, zweepman in fasen, hoorn |
+| 6 The Dye Falls | heel zwaar | onweer, de dam, wapenrek op de kam, stelling met kist, waterval, winkel, `bandietGolf` met `niveau`, Zuri, eindpoort |
+| 7 The High Door | extreem | de volledige route van Stad 9 naar de einddeur, de garde op de daken |
+| 8 The Indigo Brute | extreem | het plein met Nyundo (opzet van Rivier 10) |
+
+Wapenrekken stonden nog in geen enkel level, en `readLevel` nam het veld niet over; dat doet hij nu. Een rek staat op de
+grond of de terrashoogte (`terrainH`), niet op een dak of zwever.
 
 ## Episode Test levels
 
@@ -29,7 +56,7 @@ veld `straten`, zie `notities/oaktown.md`). Beide levels delen de kaart (`OAK_ST
 ## Episode De Belegerde Stad
 
 `BEL_1` tot en met `BEL_7` en `BEL_LEVELS`: zeven stadslevels, moeilijk tot extreem, zelf ontworpen op verzoek. Geen echte
-episode in de zin van regel 1 (alleen De Valse Koning is bevroren), maar ook geen proefstuk: pas ze aan als de opdracht erom vraagt.
+episode in de zin van regel 1 (er is nu geen bevroren episode), maar ook geen proefstuk: pas ze aan als de opdracht erom vraagt.
 Geen baas (regel 12). Met de tribekeuze (`runStart`); een knop in `menuEpisodes` (`btnBel`), het scherm `menuBel` met `cardsBel`.
 De opbouw leunt op de stadlevels: 1 en 6 op Stad 1 (lift en toren), 2 op Stad 2 (trappen), 3 op Stad 3 (bruggen), 5 op Stad 4
 (de koningsweg); 4 en 7 zijn nieuw. Level 7 heeft een `bandietGolf` met dolken bovenop de vaste spawns.
