@@ -193,6 +193,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | Episode Baboon tests | `BAB_1`, `BAB_4`, `BAB_LEVELS` | notities/episodes.md |
 | Episode Murghtaan: de hyena-baas (baas, regel 12), de roedel, de reveal en de kevers | `MUR_1`, `MUR`, `makeMurg`, `updateMurg`, `hitMurg`, `murKevers`, `murKlem` | notities/episodes.md |
 | Murghtaan 2: de charge van het nieuwe ontwerp (brul, aanzet, galop, slip met stof, draai; vijf treffers) | `MUR_2`, `MURC`, `murcStap`, `murcRaak`, `murcTeken`, `murcZeg` | notities/episodes.md |
+| de pin van Murghtaan 2: schouderblik in de slip (tell), sprong, alleen de rol ontwijkt; happen in het ritme 1, 1, 2, steken op de hap pareert; startkeuze levens/onaantastbaar en extra hyena's; afstellen onder Instellingen | `MURC.pin`, `murcPinStap`, `murcPinHap`, `murcPinAmir`, `MURC_PIN_SCHUIF`, `murcKeuze` | notities/episodes.md |
 | Episode Test levels stad | `STAD_1`, `STAD_LEVELS`, `menuStad` | notities/episodes.md |
 | Episode Oaktown: zeven straten met poorten, 50 kills | `OAK_1`, `OAK_STRATEN`, `menuOak` | notities/oaktown.md |
 | Episode De Belegerde Stad: zeven stadslevels, moeilijk tot extreem | `BEL_1`, `BEL_LEVELS`, `menuBel` | notities/episodes.md |
