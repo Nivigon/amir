@@ -101,6 +101,32 @@ draai de tweede oranje poot terug naar vacht, daarna `tools/murg_kleur.py` (fase
 Let op bij het live zetten: een directe push van Claude op `main` start de Pages-build niet; live gaat via een pull request die wordt samengevoegd.
 Proefrit: `node tools/murc_test.js [map]` laadt het level, volgt de toestanden, maakt schermafdrukken en raakt hem vijf keer.
 
+De pin (`MURC.pin`, onder `// ---- Murghtaan 2: de pin`, het ontwerp in het project-document `hyena_pin_aanval.md`): na de
+galop kiest hij met kans `kans` (en minstens `afkoel` s na de vorige, nooit twee keer achter elkaar, `murcPinMag`) de pin
+in plaats van de draai. Op slipframe `blikFrame` gaat hij over in `pin_blik`: laag, lijf van Amir af, kop over de schouder
+naar Amir (de tell, `blikT`). Dan `pin_draai` (via de voorkant om, eindigt de andere kant op), `pin_loer` (plat, `loerT`),
+`pin_sprong` en `pin_land`. In de lucht stuurt hij naar Amir (`volg`) en hangt hij in een boog (`boog`, `murcPinBoog` op
+`s.lift`). Bij de landing (frame 3 van `pin_land`) ligt Amir eronder als hij niet rolt (`murcAmirOntwijkt`: alleen `rol` en
+`rolW`) en binnen `reik` Amir van de bek is (`mondX`, canvas-x 455). Een speerworp (`worpTref`) in de tell breekt hem af
+(`pinOnder`, telt als treffer); in de pin, de sprong en de landing is hij niet te raken. Ligt Amir eronder (`murcPinAmir`):
+`amirVast` en `exeAmirWeg` houden hem vast en verborgen, en `murcPinAmirTeken` tekent hem tijdelijk plat op zijn rug (het
+gewone idlebeeld gedraaid, de speer als lijn bij een steek, een vonk bij een parry), tot er echte animaties van Amir zijn.
+Vier happen (`murcPinHap`): `hap_op` (`opT`), `hap_boven` (`hou1` tot `hou4`, de tell van die hap, met een grom), `hap_neer`
+(`neerT`, aan het eind valt de hap), `hap_bodem` (`bodemT`) en `hap_terug` (`terugT`); de laatste twee zijn de dubbele hap
+(de tweede maar half omhoog, `opHalfT`, zonder terug ertussen). De aanvalstoets (`thrPress` zet `murcPinDruk`) binnen
+`voor` s voor tot `na` s na de hap pareert (klink `sounds/brutus_speerraak.mp3`); te vroeg zet steken `straf` s uit. Een
+gemiste hap kost `schade` levens via `murcAmirSchade` (hurtPlayer zonder terugslag en zonder de onkwetsbaarheid). Beide
+happen van de dubbele gepareerd: `pinTrap` (hij schuift weg) en `pinStraf` (`strafT` s treffers x2); anders `pinEraf` (hij
+springt eraf) en een nieuwe aanzet. Bij de start kiest `murcKeuze` (het scherm van `duoKeuze`): levens of onaantastbaar
+(`duoKeuze.murcOnst`, in `onsterfelijk`) en 0 tot 2 gewone hyena's (`duoKeuze.murcHy`, `murcRoedelAanvul` vult aan); tijdens
+de pin vallen die niet aan en giechelen ze (`murcRoedelStap`). Afstellen: onder Instellingen in de pauze **Murghtaan pin:
+tune** (`MURC_PIN_SCHUIF`, gebouwd door `murcPinPaneelBouw`), bewaard in localStorage (`amir_murc_pin`), Default zet
+`MURC_PIN_STANDAARD` terug. De sets (`pin_*`, `hap_*` in `enemies/hyena_baas/charge/`) komen uit vijf Grok-clips met een eenmalig
+script: keyen, gruis en gaatjes weg, elke clip op zijn startbeeld geregistreerd en het startbeeld van de tell op slipframe 11
+(schaal 0,255), vanaf `pin_loer` gespiegeld naar de kijkrichting van de charge, in de draai de tweede oranje poot terug naar
+vacht, daarna `tools/murg_kleur.py`. Proefrit: `node tools/murc_pin_test.js [map]` speelt drie potjes (niets doen, elke hap
+pareren, rollen bij de landing).
+
 ## Episode De Gouden Poort
 
 `GP_1` tot en met `GP_10` en `GP_LEVELS`: tien stadslevels van makkelijk tot mega, zelf ontworpen op verzoek (regel 3), met
