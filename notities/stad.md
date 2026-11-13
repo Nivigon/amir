@@ -65,9 +65,9 @@ de kant van het lage dak; wie voor de gevel van het hoge huis staat (een galerij
 binnen ook niet. Een steeg (`aan: 0.8` en meer) blijft een steeg waar je in valt.
 
 Let op bij een nieuw level: een laag dak tussen twee hogere huizen die er strak tegen staan is nu een put. Een verdieping
-(329) is hoger dan een sprong, dus geef zo'n dak een uitweg (een springdoek, een trap) of zet er een steeg naast. Nu
-hebben Stad 9, Roofs 2 en Roofs 7 zo'n dak (huis 2), elk met de springdoek op de linkermuur van huis 1; Roofs 2 kreeg die
-doek erbij toen de muur er kwam.
+(329) is hoger dan een sprong, dus geef zo'n dak een uitweg (een luifel, een trap) of zet er een steeg naast. Alleen Stad 9
+heeft zo'n dak nog (huis 2), met de springdoek op de linkermuur van huis 1. Roofs 7 kreeg daar een steeg; in Roofs 2 is
+huis 2 toen 3 hoog geworden, even hoog als zijn buren, omdat je er anders niet meer af kwam.
 
 ## Huistypes
 
@@ -167,7 +167,9 @@ Losse stukken die een huis anders maken zonder nieuwe gevelplaat (D2 in `notitie
   steekt, met een schuine tak eronder, een katrol en een mand. De mand slingert om de katrol op dezelfde wind als de
   deurgordijnen (`gordijnWind`, de sandboxknop Wind): de vlagen van het spel (`windAt`) en de storm van het weer, bijna stil
   ertussen, verder uit bij een vlaag, elk huis in
-  een eigen ritme. Decor: Amir loopt eronder door. Staat er aan die kant een buurhuis te dichtbij (`STAD_TAKEL.ruimte`),
+  een eigen ritme. De stam begint op de muur van zijn eigen huistype (`STAD_TAKEL.muur`, gemeten op de platen; de oude
+  `STAD.gevel.muur` liet een spleet, bij het pilarenhuis 15 px), steekt er `inMuur` in en loopt daar donker uit (`inzak`).
+  Decor: Amir loopt eronder door. Staat er aan die kant een buurhuis te dichtbij (`STAD_TAKEL.ruimte`),
   dan geen takel; ook niet op een ruine, en niet aan de torenkant van het torenhuis. `tools/takel_knip.py` knipt de arm en
   de mand uit `design/stad/bron/takel_grok.png` (de muurstrook links gaat eraf). In de Maker de keuze **Takel**.
 - **Andere ramen** op het oude huis: zes stukken muur met een ander raam (spitsboog, doek over de vensterbank,
@@ -911,6 +913,8 @@ eigenlijke voethoogte getekend, wat op de straat wegvalt in de strook bovenkant 
   Amir) boven de vloer van verdieping k, net als het midden van het voorraam (`STAD_NACHT.ramen.gevel`), en de luifel hangt
   `raamZij.onder` erboven: zijn hoogte volgt uit het raam, `h` doet dan niets. Een raam in de zijmuur op een andere hoogte dan
   de voorramen viel op. De maten komen uit Stad 11: luik 0,66 Amir, 0,10 ertussen.
+  Een luifel aan een muur hangt altijd boven een raam (wens van de opdrachtgever): `levelcheck.py` geeft FOUT op een luifel
+  zonder `raam` in een echte episode, en LET OP in de testreeks Stad (Stad 9 heeft nog de rechte springdoeken).
 - **Zweven aan de uiteinden** (opgelost): Amir staat op de hoogte van zijn laagste voet (`kuil.voet`, een halve
   voetafstand), zijn beide voeten blijven boven de stallijn (het stuk is `kuil.voet` korter aan elke kant), de voorste laag
   tekent alleen de doek zelf (niet de paal of de franje), en de kuil schaalt mee met de luifel (`stadKuilDiep`: op maat 0,45

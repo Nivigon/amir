@@ -1308,6 +1308,20 @@ def einddeur(lv, sp):
     yield from _einddeur(lv)
 
 
+@regel('luifel boven een raam')
+def luifel_raam(lv, sp):
+    """Een luifel aan de muur van een huis hangt boven een raam, op de hoogte van de voorramen (raam: de verdieping,
+    zoals in Stad 10; zie "de strakke luifel" in notities/stad.md). Een springdoek met alleen een hoogte (h) hangt
+    zomaar aan de muur, vaak boven een balkon of dak. In een echte episode is dat FOUT; in de testreeks Stad (Stad 9,
+    het proefstuk van de springdoek) LET OP."""
+    for q in ((lv.d.get('stad') or {}).get('luifels') or []):
+        if not isinstance(q, dict) or q.get('gevel') is None or isinstance(q.get('raam'), (int, float)):
+            continue
+        t = 'luifel aan gevel %s (%s) zonder raam: hij hangt niet boven een raam; geef hem raam: de verdieping, zoals Stad 10' % (
+            q.get('gevel'), 'rechtermuur' if q.get('wand') == 'r' else 'linkermuur')
+        yield (letop if str(lv.d.get('name') or '').startswith('Stad ') else fout)(None, t)
+
+
 @regel('putten')
 def putten(lv, sp):
     """Een put is een ravijn in de vloer van een gang (PUT in de HTML): hij moet helemaal in een gang
