@@ -901,6 +901,8 @@ eigenlijke voethoogte getekend, wat op de straat wegvalt in de strook bovenkant 
   Amir) boven de vloer van verdieping k, net als het midden van het voorraam (`STAD_NACHT.ramen.gevel`), en de luifel hangt
   `raamZij.onder` erboven: zijn hoogte volgt uit het raam, `h` doet dan niets. Een raam in de zijmuur op een andere hoogte dan
   de voorramen viel op. De maten komen uit Stad 11: luik 0,66 Amir, 0,10 ertussen.
+  Een luifel aan een muur hangt altijd boven een raam (wens van de opdrachtgever): `levelcheck.py` geeft FOUT op een luifel
+  zonder `raam` in een echte episode, en LET OP in de testreeks Stad (Stad 9 heeft nog de rechte springdoeken).
 - **Zweven aan de uiteinden** (opgelost): Amir staat op de hoogte van zijn laagste voet (`kuil.voet`, een halve
   voetafstand), zijn beide voeten blijven boven de stallijn (het stuk is `kuil.voet` korter aan elke kant), de voorste laag
   tekent alleen de doek zelf (niet de paal of de franje), en de kuil schaalt mee met de luifel (`stadKuilDiep`: op maat 0,45

@@ -17,19 +17,28 @@ verfmeester (6, schaduw met stofspoor en razernij, opent de eindpoort).
 
 De rode draad zijn verstopte kisten die je alleen haalt met de volle sprong en een doek. Die plekken zijn letterlijk
 overgenomen uit levels waar de sprongen al nagemeten zijn, met dezelfde maten: de doekkraam naar de galerij op 730
-(Rivier 3, in 1 en 5), de springdoek aan de muur naar het hoogste dak (Stad 9, in 2 met de munt, en in 7 helemaal met de
-einddeur), de trampoline-luifels in de steeg (Stad 10, in 3, naar de galerij op 1059), de takel (Rivier 8, in 4) en de
-stelling op de dam (Rivier 6, in 6). Verschuif je daar een huis, meet de sprong dan opnieuw.
+(Rivier 3, in 1 en 5), de trampoline-luifels in de steeg (Stad 10, in 3 naar de galerij op 1059, en in 2 en 7 naar het
+hoogste dak), de takel (Rivier 8, in 4) en de stelling op de dam (Rivier 6, in 6). Verschuif je daar een huis, meet de
+sprong dan opnieuw.
+
+Een luifel hangt altijd boven een raam, op de hoogte van de voorramen (`raam`, zoals Stad 10); `levelcheck.py` geeft FOUT op
+een luifel aan een muur zonder raam (regel `luifel boven een raam`). In 2 en 7 hingen eerst de rechte springdoeken van Stad 9
+(boven het balkon en boven het lage dak); die zijn vervangen door de steeg van Stad 10: het korte balkon (`balkon` 0,6), een
+steeg van 1,7 Amir, indigo boven het raam van de eerste verdieping, rood aan de overkant boven dat van de tweede, en een
+derde (indigo, raam 3) onder het dak van huis 4. Rood naar die derde vraagt een stuit van 1,3 of meer (de top van 1,42 ligt
+zo'n 50 boven de doek), dus twee goede stuiten; indigo naar rood de volle 1,42, net als in Stad 10. In 7 kreeg het lage huis
+(2) dezelfde steeg naar huis 1 (indigo op raam 1 van huis 2, rood op raam 2 van huis 1, dan het dak op); alles links van
+huis 1 schoof daarvoor 306 naar links. Wie daar mist valt op straat en loopt de route opnieuw.
 
 | level | moeite | wat erin zit |
 | --- | --- | --- |
 | 1 The Ferry Steps | makkelijk | wapenrek, winkel, waterval met brug, kist boven de doeken |
-| 2 The Dyers' Lane | makkelijk | stadstrappen, springdoek, kist en munt op het hoogste dak, waterval, rover uit een deur |
+| 2 The Dyers' Lane | makkelijk | stadstrappen, drie luifels in de steeg, kist en munt op het hoogste dak, waterval, rover uit een deur |
 | 3 The Weavers' Court | gemiddeld | trampoline, alle huistypes (reliefhuis met nis, pilarenhuis met takel en gordijn, vervallen huis, ruine, toren, winkelhuis), winkel, verdieping met ladder en boog, leemmuur, wapenrek bij een kraam, Sefu |
 | 4 The Fountain Square | gemiddeld/zwaar | regen, takel naar de galerij, fontein op een plein, verhoogde straat met de onderlaag, deuren beneden en boven, kooiman-duel |
 | 5 The Lantern Alleys | zwaar | nacht, vier straten in een raster met minimap en `accenten`, dertig kills, hinderlaag, zweepman in fasen, hoorn |
 | 6 The Dye Falls | heel zwaar | onweer, de dam, wapenrek op de kam, stelling met kist, waterval, winkel, `bandietGolf` met `niveau`, Zuri, eindpoort |
-| 7 The High Door | extreem | de volledige route van Stad 9 naar de einddeur, de garde op de daken |
+| 7 The High Door | extreem | de route van Stad 9 naar de einddeur, met twee steegjes luifels (Stad 10) in plaats van de springdoeken, de garde op de daken |
 | 8 The Indigo Brute | extreem | het plein met Nyundo (opzet van Rivier 10) |
 
 Wapenrekken stonden nog in geen enkel level, en `readLevel` nam het veld niet over; dat doet hij nu. Een rek staat op de
