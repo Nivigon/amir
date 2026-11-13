@@ -8677,7 +8677,7 @@ const KUM_2 = {
     paleis: -3800, seed: 607, gordijnen: true,
     gevels: [ {x: -1500, hoog: 4, soort: 'koopman'},           // 0: het koopmanshuis
               {x: -2177, hoog: 3, aan: 1.0},                      // 1
-              {x: -2757, hoog: 2, aan: true, f: 1},               // 2: het lage huis
+              {x: -2757, hoog: 3, aan: true, f: 1},               // 2: even hoog als 1 en 3, anders een put zonder uitweg (stadMuurBlok)
               {x: -3254, hoog: 3, aan: true},                     // 3
               {x: -3884, hoog: 4, aan: 0.8, f: 1},                // 4: het hoogste dak, de kist en de munt
               {x: -4813, hoog: 3, aan: 1.7},                      // 5: het korte balkon, de steeg met de luifels (zoals Stad 10)
@@ -26585,6 +26585,7 @@ const STAD = {
   kanteelLijk: 1.6,                 // idem voor een dode: hij ligt languit, dus de strook is breder, anders steken zijn voeten erbuiten
   vijandMarge: 30,                  // een dak is de vloer van een vijand vanaf zoveel onder de looplijn (stadVloerBij)
   vijandNaad: 0.4,                  // een kier tot zoveel Amir tussen twee vloeren op dezelfde hoogte is voor een vijand dicht (stadVloeren)
+  muurKier: 0.3,                    // twee huizen tot zoveel Amir uit elkaar staan tegen elkaar: de muur van het hogere is een wand voor wie op het lagere dak staat (stadMuurBlok)
   // het plein (zie "het plein" in notities/stad.md): de pleinwand achteraan, de put en de poorten met hek
   plein: {
     wand: { src: 'pleinwand.png', amir: 250, lift: 0.13, nevel: 0.22 },   // lift: de voet staat zoveel Amir boven de looplijn (verder weg)
@@ -27216,6 +27217,36 @@ function stadVloeren(){
   }
   stadVloerKey = { s: sc, stad: S }; stadVloerLijst = out;
   return out;
+}
+// ---- de muur van een hoger buurhuis: wie op een dak staat, loopt niet door het huis ernaast ----
+// Een dak is een dunne vloer, zonder muren. Staat er een hoger huis strak tegen een lager (aan: true, of een kier tot
+// STAD.muurKier Amir), dan liep Amir van het lage dak dwars door de muur van het hoge en viel hij binnen dat huis naar
+// de straat. Nu is die muur een wand, van het lage dak tot het hoge: net als een terras klim je er niet doorheen, en
+// boven het hoge dak (een sprong, de springdoek) kom je er wel overheen. Alleen vanaf de kant van het lage huis: wie
+// voor de gevel van het hoge huis staat (een galerij, een trapbalkon) staat er al binnen en merkt er niets van.
+let stadMuurKey = null, stadMuurLijst = [];
+function stadMuren(sc){
+  const S = level.stad;
+  if (stadMuurKey && stadMuurKey.s === sc && stadMuurKey.stad === S) return stadMuurLijst;
+  const hs = (S.gevels || []).filter(g => !stadGeenDak(g)).map(g => { const m = stadGevelMaat(g, sc); return { left: m.left, right: m.right, top: terrainH(m.x) + stadGevelH(m.hoog) }; })
+    .sort((a, b) => a.left - b.left);
+  const out = [], kier = STAD.muurKier * CHAR_H * sc;
+  for (let i = 0; i + 1 < hs.length; i++){
+    const a = hs[i], b = hs[i + 1];
+    if (b.left - a.right > kier || Math.abs(a.top - b.top) < 2) continue;
+    // de wand ligt op de rand van het hoge huis; kant zegt aan welke kant het lage dak ligt (-1 links, +1 rechts)
+    out.push(a.top > b.top ? { x: a.right, kant: 1, laag: b.top, hoog: a.top } : { x: b.left, kant: -1, laag: a.top, hoog: b.top });
+  }
+  stadMuurKey = { s: sc, stad: S }; stadMuurLijst = out;
+  return out;
+}
+function stadMuurBlok(halfW){
+  if (!stadAan() || binnenBij(world)) return;
+  for (const w of stadMuren(nowScale())){
+    if (ph < w.laag - 2 || ph >= w.hoog - 2) continue;          // onder het lage dak (de straat) of boven het hoge
+    if (w.kant > 0 ? world > w.x + halfW || world < w.x : world < w.x - halfW || world > w.x) continue;
+    world = w.x + w.kant * halfW;                                  // terug naar de kant van het lage dak
+  }
 }
 function stadVloerBij(x, h){
   if (!stadAan()) return -Infinity;
@@ -48590,6 +48621,7 @@ function loop(now){
     else winLevel();
   }
   blockByPlatforms(plats, halfWNow);
+  stadMuurBlok(halfWNow);              // in de stad: de muur van een hoger huis dat tegen het dak staat
   blockByThickets(scaleNow, halfWNow);
   grotBlok(halfWNow, scaleNow);        // de wanden van een rotsgebied
   plafondBlok(halfWNow);              // en het steen waar de plafondlijn onder je kruin duikt
