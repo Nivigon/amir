@@ -37,9 +37,25 @@ huis 1 schoof daarvoor 306 naar links. Wie daar mist valt op straat en loopt de 
 | 3 The Weavers' Court | gemiddeld | trampoline, alle huistypes (reliefhuis met nis, pilarenhuis met takel en gordijn, vervallen huis, ruine, toren, winkelhuis), winkel, verdieping met ladder en boog, leemmuur, wapenrek bij een kraam, Sefu |
 | 4 The Fountain Square | gemiddeld/zwaar | regen, takel naar de galerij, fontein op een plein, verhoogde straat met de onderlaag, deuren beneden en boven, kooiman-duel |
 | 5 The Lantern Alleys | zwaar | nacht, vier straten in een raster met minimap en `accenten`, dertig kills, hinderlaag, zweepman in fasen, hoorn |
-| 6 The Dye Falls | heel zwaar | onweer, de dam, wapenrek op de kam, stelling met kist, waterval, winkel, `bandietGolf` met `niveau`, Zuri, eindpoort |
+| 6 The Dye Falls | heel zwaar | onweer, de dam, wapenrek op de kam, stelling met kist, waterval, `bandietGolf` met `niveau`, Zuri, eindpoort |
 | 7 The High Door | extreem | de route van Stad 9 naar de einddeur, met twee steegjes luifels (Stad 10) in plaats van de springdoeken, de garde op de daken |
 | 8 The Indigo Brute | extreem | het plein met Nyundo (opzet van Rivier 10) |
+
+### Moeilijker gemaakt (na de eerste versie)
+
+De eerste versie speelde te makkelijk. De oorzaken, en wat er veranderd is:
+
+- **Hoogteverschil als schuilplek.** Vijanden gaan geen trede op en de bandiet slaat niet over een hoogteverschil
+  (`banZelfdeHoogte`). Op de dam van 6 stond elke rover alleen op een smalle trede, een schietschijf; die staan nu als
+  groep voor de dam (schildman met twee rovers) en als groep boven op de kam, met de schutter die de trap af schiet. De
+  leemmuur vlak voor Sefu in 3 is weg: bovenop was Amir voor hem onbereikbaar.
+- **Vijanden een voor een.** In 4, 5, 6 en 7 staan ze vaker in groepjes van twee of drie.
+- **Te veel genezing.** De kisten geven ongeveer een derde minder (20 tot 35), elk level heeft hooguit een kalebas in
+  de tonnen (op het plein van 8 een van de twee), en de winkel van Nana Efua in 6 is weg.
+- **Gratis sluipkills.** Vanaf 4 staan schutters en elites met `draai` of `pat` in plaats van `rug`; 1 tot 3 houden hun
+  ruggen, om het sluipen te leren.
+- **Overslaan in 7.** De elite, de kooiman en de hoornschutter stonden links van de trap omhoog (de voet op -5772),
+  buiten de route. Nu staan de elite en de kooiman bij de voet van de trap en de schutter op de galerij.
 
 Wapenrekken stonden nog in geen enkel level, en `readLevel` nam het veld niet over; dat doet hij nu. Een rek staat op de
 grond of de terrashoogte (`terrainH`), niet op een dak of zwever.
