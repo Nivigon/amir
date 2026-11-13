@@ -61444,16 +61444,55 @@ function pvpLib(){
   });
 }
 function pvpCode(){ let c = ''; for (let i = 0; i < 4; i++) c += PVP.letters[Math.floor(Math.random() * PVP.letters.length)]; return c; }
-function pvpPeerWeg(){ if (pvpPeer){ try { pvpPeer.destroy(); } catch (e){} pvpPeer = null; } }
+function pvpPeerWeg(){ if (typeof pvpWaakStop === 'function') pvpWaakStop(); if (pvpPeer){ try { pvpPeer.destroy(); } catch (e){} pvpPeer = null; } }
 // Host: een peer met de kamercode als naam, en wachten tot de ander verbindt
+// De weg naar elkaar: STUN laat elk zijn eigen adres op internet zien, en lukt rechtstreeks niet (een telefoon op
+// mobiele data zit vaak achter een NAT waar peer-to-peer niet doorheen komt), dan stuurt de TURN-server het verkeer door.
+// Open Relay is een gratis openbare TURN; de gebruikersnaam en het wachtwoord zijn openbaar.
+const PVP_ICE = { config: { iceServers: [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+] } };
+const PVP_GEDULD = 25;                  // seconden voor we opgeven met een uitleg in plaats van eeuwig "Connecting..."
+let pvpWaak = null;
+function pvpWaakStop(){ if (pvpWaak){ clearInterval(pvpWaak); pvpWaak = null; } }
+// volgt een verbinding in wording: toont de stap waar hij is, en meldt het als de rechtstreekse lijn mislukt of te lang duurt
+function pvpWaakStart(c){
+  pvpWaakStop();
+  const t0 = performance.now();
+  pvpWaak = setInterval(() => {
+    if (pvp){ pvpWaakStop(); return; }
+    const pc = c.peerConnection, ice = pc && pc.iceConnectionState;
+    const sec = (performance.now() - t0) / 1000;
+    if (ice === 'failed'){
+      pvpWaakStop();
+      pvpStatus('The direct link failed: one of your networks blocks it. Try both on the same wifi.');
+    } else if (sec > PVP_GEDULD){
+      pvpWaakStop();
+      pvpStatus('No link after ' + PVP_GEDULD + ' s (stuck at: ' + (ice || 'signalling') + '). Try both on the same wifi, or the other one hosts.');
+    } else if (ice === 'checking' || ice === 'new'){
+      pvpStatus('Found each other, setting up the link... (' + Math.floor(sec) + ' s)');
+    }
+  }, 500);
+}
 async function pvpHost(){
-  pvpPeerWeg();
-  pvpStatus('Connecting...');
+  pvpPeerWeg(); pvpWaakStop();
+  pvpStatus('Loading...');
   try { await pvpLib(); } catch (e){ pvpStatus('Could not load the connection library. Check your internet.'); return; }
-  const code = pvpCode(), peer = new Peer(PVP.pre + code);
+  pvpStatus('Reaching the server...');
+  const code = pvpCode(), peer = new Peer(PVP.pre + code, PVP_ICE);
   pvpPeer = peer;
   peer.on('open', () => pvpStatus('Your code: ' + code + '. Waiting for your opponent...'));
-  peer.on('connection', c => { if (pvp) { c.close(); return; } c.on('open', () => pvpVerbonden(c, true)); });
+  peer.on('connection', c => {
+    if (pvp) { c.close(); return; }
+    pvpStatus('Your opponent is calling...');
+    pvpWaakStart(c);
+    c.on('open', () => { pvpWaakStop(); pvpVerbonden(c, true); });
+    c.on('error', e => pvpStatus('Link error: ' + (e && e.type || e)));
+  });
   peer.on('error', e => {
     if (e.type === 'unavailable-id') pvpHost();                     // die code is net bezet: een nieuwe
     else pvpStatus('Connection error: ' + e.type);
@@ -61462,16 +61501,22 @@ async function pvpHost(){
 async function pvpJoin(){
   const code = pvpEl('pvpcode').value.trim().toUpperCase();
   if (code.length !== 4){ pvpStatus('Type the 4-letter code of the host.'); return; }
-  pvpPeerWeg();
-  pvpStatus('Connecting...');
+  pvpPeerWeg(); pvpWaakStop();
+  pvpStatus('Loading...');
   try { await pvpLib(); } catch (e){ pvpStatus('Could not load the connection library. Check your internet.'); return; }
-  const peer = new Peer();
+  pvpStatus('Reaching the server...');
+  const peer = new Peer(PVP_ICE);
   pvpPeer = peer;
+  const stil = setTimeout(() => { if (pvpPeer === peer && !peer.open) pvpStatus('Cannot reach the PvP server. Check your internet, or try another network.'); }, 12000);
   peer.on('open', () => {
+    clearTimeout(stil);
+    pvpStatus('Calling ' + code + '...');
     const c = peer.connect(PVP.pre + code, { reliable: true });
-    c.on('open', () => pvpVerbonden(c, false));
+    pvpWaakStart(c);
+    c.on('open', () => { pvpWaakStop(); pvpVerbonden(c, false); });
+    c.on('error', e => pvpStatus('Link error: ' + (e && e.type || e)));
   });
-  peer.on('error', e => pvpStatus(e.type === 'peer-unavailable' ? 'No duel with code ' + code + '.' : 'Connection error: ' + e.type));
+  peer.on('error', e => { clearTimeout(stil); pvpWaakStop(); pvpStatus(e.type === 'peer-unavailable' ? 'No duel with code ' + code + '. Is the host still waiting?' : 'Connection error: ' + e.type); });
 }
 // verbonden: het stadje laden en de eerste ronde beginnen
 function pvpVerbonden(conn, host){
