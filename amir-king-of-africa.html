@@ -26989,6 +26989,7 @@ const STAD_TAKEL = {
   muur: { gevel: [49, 917], relief: [56, 909], koopman: [51, 914], pilaren: [59, 901], vervallen: [54, 916],
           toren: [54, 905], winkel: [53, 912], winkel_dicht: [53, 911] },
   inMuur: 6,          // zoveel bronpx steekt de stam de muur in, zodat hij er echt in zit
+  loop: { top: 32, tot: 1010 },             // de stam is een vloer (armpx): zijn bovenkant, en van de muur tot zo ver (net voorbij de katrol)
   inzak: { y: [32, 165], w: 40, a: 0.55 }   // het eind bij de muur loopt donker uit (armpx: de stam van boven tot onder,
                                              // de breedte en hoe donker), dan verdwijnt hij in het gat in plaats van plat erop te liggen
 };
@@ -27032,6 +27033,24 @@ const stadAccentVan = (st, gi) => {
   const g = st.gevels[gi], a = stadAccenten(st)[gi] || {};
   return { balkon: g.balkon || a.balkon || null, takel: g.takel || a.takel || null };
 };
+// de takel van gevel gi, als hij er echt staat: de kant ('l' of 'r'), anders null. Dezelfde voorwaarden voor tekenen en lopen.
+function stadTakelKant(S, g, gi, m, scale){
+  const kant = stadAccentVan(S, gi).takel;
+  if (!kant || stadGeenDak(g) || (g.soort === 'toren' && (kant === 'r') !== !!g.f) || !stadTakelRuimte(S, gi, m, kant, scale)) return null;
+  return kant;
+}
+// de stam als vloer: van de muur tot net voorbij de katrol, net onder het dak (een stapje omlaag). Wereld-x en sprite-eenheden.
+function stadTakelVloer(g, gi, m, scale){
+  const kant = stadTakelKant(level.stad, g, gi, m, scale); if (!kant) return null;
+  const T = STAD_TAKEL, G = { ...STAD.gevel, ...(STAD.gevelSoort[g.soort] || {}) }, B = STAD.gevel;
+  const rechts = (kant === 'r') !== !!g.f, M = T.muur[g.soort] || T.muur.gevel, s = T.schaal;
+  const u0 = rechts ? M[1] - T.inMuur : M[0] + T.inMuur, u1 = u0 + (rechts ? 1 : -1) * T.loop.tot * s;   // bronpx van de gevel
+  const wx = u => g.f ? m.x + m.w - u * m.f : m.x + u * m.f;
+  const rij = G.dak[1] - T.hoger + (T.loop.top - T.arm.stam) * s;      // de bovenkant van de stam, bronpx van boven
+  const boven = (B.bod[1] - B.bod[0]) + (m.hoog - 1) * (B.ver[1] - B.ver[0]) + G.dak[1] - rij;
+  const a = wx(u0), b = wx(u1), topH = terrainH(m.x) + boven * CHAR_H / B.amir;
+  return { left: Math.min(a, b), right: Math.max(a, b), topH };
+}
 // tekent de takel van een gevel in de ruimte van de gevel (vertaald en eventueel gespiegeld); y: de bovenkant van de stapel
 function stadTakelTeken(g, gi, G, m, y, kant){
   const T = STAD_TAKEL, arm = stadImgs.takelArm, mand = stadImgs.takelMand;
@@ -27165,6 +27184,11 @@ function stadPlats(scale){
     const m = stadGevelMaat(g, scale), top = terrainH(m.x) + stadGevelH(m.hoog);   // op een hoger stuk straat staat het huis hoger
     out.push({ x: (m.left + m.right) / 2, left: m.left, right: m.right, topH: top, base: top, wPx: m.right - m.left, hPx: 0, thin: true, stad: 'dak' });
   }
+  (S.gevels || []).forEach((g, gi) => {                  // de stam van een takel: een smalle balk om op te lopen
+    if (!bij(stadGevelX(g, scale))) return;
+    const t = stadTakelVloer(g, gi, stadGevelMaat(g, scale), scale); if (!t) return;
+    out.push({ x: (t.left + t.right) / 2, left: t.left, right: t.right, topH: t.topH, base: t.topH, wPx: t.right - t.left, hPx: 0, thin: true, stad: 'takel' });
+  });
   for (const gl of (S.galerijen || [])){
     const m = stadGalerijMaat(gl, scale); if (!m || !bij((m.left + m.right) / 2)) continue;
     out.push({ x: (m.left + m.right) / 2, left: m.left + m.lw * 0.15, right: m.right - m.rw * 0.15, topH: m.h, base: m.h, wPx: m.right - m.left, hPx: 0, thin: true, stad: 'galerij' });
@@ -27211,6 +27235,7 @@ function stadVloeren(){
   const S = level.stad, out = [];
   for (const g of (S.gevels || [])){ if (stadGeenDak(g)) continue; const m = stadGevelMaat(g, sc), th = terrainH(m.x); out.push({ left: m.left, right: m.right, topH: th + stadGevelH(m.hoog), oud: th + stadGevelH(m.hoog, true) }); }
   for (const gl of (S.galerijen || [])){ const m = stadGalerijMaat(gl, sc); if (m) out.push({ left: m.left + m.lw * 0.15, right: m.right - m.rw * 0.15, topH: m.h }); }
+  (S.gevels || []).forEach((g, gi) => { const t = stadTakelVloer(g, gi, stadGevelMaat(g, sc), sc); if (t) out.push({ ...t, takel: true }); });   // de stam van een takel (geen plek voor een spawn met dak)
   for (const p of stadTrapPlats(sc)) out.push({ left: p.left, right: p.right, topH: p.topH });
   // Twee vloeren op dezelfde hoogte met maar een kiertje ertussen (een trapbalkon tegen een galerij, op een groot
   // scherm schuiven ze tegen elkaar) worden een vloer. Anders ging een vijand eroverheen: zijn voorste voet stond al
@@ -27271,6 +27296,7 @@ function stadDakPlek(x, hoog){
   if (!stadAan()) return null;
   let best = null, bd = Infinity;
   for (const p of stadVloeren()){
+    if (p.takel) continue;
     // een dak telt ook op zijn oude hoogte (van voor de kartels): de levels zeggen nog dak: 487 of 816
     const dh = typeof hoog === 'number' ? Math.min(Math.abs(p.topH - hoog), p.oud != null ? Math.abs(p.oud - hoog) : Infinity) : 0;
     const d = (x < p.left ? p.left - x : x > p.right ? x - p.right : 0) + dh * 100;
@@ -30898,8 +30924,8 @@ function stadTeken(groundY, scale, cx){
     stadRamenTeken(gi, G, delen, m.hoog, yTop, m.f, geenRaam);    // andere ramen op het oude huis (zie "accenten")
     stadNachtRamen(gi, G, delen, m.hoog, yTop, m.f, geenRaam);
     if (Bm && stadKlaar('gevel')) stadBalkonTeken(Bm, gi, m.f, yTop);
-    if (acc.takel && !stadGeenDak(g) && !(g.soort === 'toren' && (acc.takel === 'r') !== !!g.f) && stadTakelRuimte(S, gi, m, acc.takel, scale))
-      stadTakelTeken(g, gi, G, m, yTop, acc.takel);
+    const tk = stadTakelKant(S, g, gi, m, scale);
+    if (tk) stadTakelTeken(g, gi, G, m, yTop, tk);
     // een deur op een verdieping: het deurgat van de begane grond, iets kleiner, in de plaats van het raam (zie "deuren")
     if (deurBoven[gi] && !stadGeenDeur(g)) for (const v of deurBoven[gi]){
       if (v < 1 || v >= m.hoog) continue;
