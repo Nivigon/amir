@@ -18,6 +18,16 @@ vier letters, de ander tikt die in en drukt op **Join**. Daarna spelen ze allebe
   openbare gebruikersnaam en het wachtwoord). Nodig voor een telefoon op mobiele data: die zit vaak achter een NAT waar
   rechtstreeks niet doorheen komt (de eerste proef, iPhone tegen laptop, bleef op Connecting staan). Een gratis dienst kan
   verdwijnen of traag zijn; werkt hij niet meer, dan is een eigen TURN (Metered of Cloudflare, met een account) de stap.
+- **Het relais** (`PVP_RELAY`, `pvpRelayLuister`, `pvpJoinRelay`, `pvpRelayConn`): de TURN-servers zonder account bleken niet
+  te helpen (de iPhone op mobiele data gaf "negotiation-failed": ICE mislukt). Daarom probeert de gast eerst rechtstreeks,
+  en na een fout of `PVP_RELAY.na` (8) seconden gaat hij via een openbare MQTT-broker (HiveMQ, EMQX of Mosquitto, de eerste
+  die antwoordt; mqtt.js lui van jsdelivr of unpkg). Dat is een websocket over https, dus het komt door elk netwerk. De host
+  luistert vanaf Host meteen op allebei. Onderwerp: `PVP_RELAY.pre` plus de code, `/h` naar de host en `/g` naar de gast;
+  de gast roept `relayHallo` met zijn `sid` tot de host `relayOk` antwoordt (of na `bel` seconden opgeeft). Elk bericht
+  draagt de `sid`. Via het relais 15 berichten per seconde (`PVP_RELAY.hz`). Openbaar en zonder garantie: wie de code en het
+  voorvoegsel kent kan meelezen (alleen posities), en valt een broker weg dan pakt het de volgende uit de lijst.
+- **Hartslag**: hoort een kant `PVP.stilte` (15) seconden niets, dan is de verbinding weg en gaat hij terug naar het menu.
+  Wie pauzeert stuurt niets, dus een pauze langer dan dat verbreekt het duel.
 - De service worker laat andere hosts met rust (`sw.js`, `url.origin`), dus de bibliotheek komt altijd van internet. Offline
   is er geen PvP.
 - Deze sandbox (de cloud waar Claude in werkt) mag PeerJS niet bereiken; daar is het getest met een nagebootste `Peer` die
