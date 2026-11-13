@@ -322,6 +322,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de stad verbeteren: werklijst met cijfers en stappen; bij "stadsverbetering" eerst 3 suggesties, de opdrachtgever kiest | `stadsverbetering`, `S1`, `L1`, `V1` | notities/stad-verbeteren.md |
 | de draaislag: het talent Full Circle (Mkuki) maakt een steek naar een open vijand (verblind, of net mis geslagen) een draaislag met 1 schade en een kleine terugslag; daaronder de keuze Crushing Circle (1,5 en ver terug) of Wide Circle (alles voor je). De oude reeks van drie steken en de duw op X zijn er alleen nog in Test 68 en de sandboxknop Combo | `COMBO`, `FC`, `fcModus`, `fcOpenDoel`, `fcOpenZet`, `slagEen`, `fcHalf`, `comboT`, `comboStart`, `comboSoort`, `atkCombo`, `DUW`, `duwStart`, `comboX`; de keuze in de boom: `sluit`, `tbGekozen` | notities/combo.md |
 | ideeën voor de kit van Amir: basis, tribe-ability of talent; stof in de ogen (gebukt F vasthouden, de veeg met eigen animatie en geluid) | `STOF`, `STOFA`, `stofStap`, `stofWerp`, `stofDwaal` | notities/kit-ideeen.md |
+| PvP: een tegen een over internet (PeerJS), de knop PvP in het hoofdmenu, de andere Amir, wie beslist, rondes en het stadje | `PVP`, `PVP_LEVEL`, `pvpStap`, `pvpTeken`, `pvpVang` | notities/pvp.md |
 | sandbox | de vrije testmodus |  |
 
 Op schijf: `karakters/` (Amir, dorpeling, dorpelinge), `enemies/`, `design/` (decor,
