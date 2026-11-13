@@ -210,8 +210,10 @@ tot aan zijn knie.
   De kruisboogbandiet ligt als lijk bijna 4 Amir lang en zakt 50 bronpixels onder zijn grondlijn, dus onder de
   dakrand: hij krijgt een eigen vak om zijn hele laatste frame (`KRB.lijk`, `krbLijkVak`), en daar tekent
   `stadKanteelVoor` ook het stukje muur onder de dakrand opnieuw. Sterft hij vlak bij de rand van een huis, dan schuift hij tijdens
-  het vallen naar binnen tot zijn hele lijk op het dak past (`krbDakDoel`, `krbDakSchuif`): aan de zijkant steekt
-  nooit iets de lucht in.
+  het vallen naar binnen tot zijn hele lijk op het dak past (`dakLijkDoel`, `krbDakSchuif`): aan de zijkant steekt
+  nooit iets de lucht in. De bandiet doet hetzelfde (`banDakSchuif`, `BAN_LIJK`: het laatste doodframe loopt van kolom
+  8 tot 460), en de schaduw onder zijn lijk wordt op dat dak afgeknipt (`s.dakRand`). De sluipdood heeft zijn eigen val
+  en schuift niet mee.
 - Het dak is 45 lager, dus soms makkelijker te halen: vanaf het rieten dak van een kraam (263) haal je nu het dak van
   een huis van 1 hoog (442), dat lag eerst net buiten een sprong (208).
 - In de sandbox onder Terrein, De stad: **Achter de kartels** (aan of uit, uit is de oude manier met iedereen voor de

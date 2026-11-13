@@ -39290,22 +39290,26 @@ function krbLijkVak(s){
 }
 // Ligt hij op het dak van een huis, dan schuift hij tijdens het vallen naar binnen tot zijn hele lijk op dat dak
 // past: anders staken zijn voeten of hoofd aan de zijkant van het huis de lucht in, waar geen kartels voor staan.
-// Het doel ligt vast bij de eerste stap (krbDakDoel); daarna loopt hij er met de doodanimatie geleidelijk heen.
-function krbDakDoel(s){
+// Het doel ligt vast bij de eerste stap (dakLijkDoel); daarna loopt hij er met de doodanimatie geleidelijk heen.
+function krbDakSchuif(s){ dakLijkSchuif(s, () => krbLijkVak(s), KRB.n[s.set] || 1); }
+// Algemeen (ook de bandiet, banDakSchuif): v is het vak van het hele lijk rond s.x ({l, r} in wereld-px), n het
+// aantal frames van de doodanimatie; het doel ligt vast bij de eerste stap, daarna schuift hij er geleidelijk heen.
+function dakLijkDoel(s, v){
   if (!STAD_KANTEEL || !stadAan() || !(s.base > 0)) return null;
-  const sc = nowScale(), v = krbLijkVak(s), marge = 0.08 * CHAR_H * sc;
+  const sc = nowScale(), marge = 0.08 * CHAR_H * sc;
   for (const g of (level.stad.gevels || [])){
     const m = stadGevelMaat(g, sc);
     if (stadGeenDak(g) || s.x <= m.left || s.x >= m.right || Math.abs(s.base - terrainH(m.x) - stadGevelH(m.hoog)) >= 3) continue;
+    s.dakRand = { l: m.left, r: m.right };          // de schaduw van het lijk blijft ook op dit dak (zie de bandiet)
     const lo = m.left + marge - v.l, hi = m.right - marge - v.r;
     return lo > hi ? (lo + hi) / 2 : Math.max(lo, Math.min(hi, s.x));
   }
   return null;
 }
-function krbDakSchuif(s){
-  if (s.dakDoel === undefined){ s.dakDoel = krbDakDoel(s); s.dakVan = s.x; }
+function dakLijkSchuif(s, vak, n){
+  if (s.dakDoel === undefined){ s.dakDoel = dakLijkDoel(s, vak()); s.dakVan = s.x; }
   if (s.dakDoel == null || s.dakDoel === s.dakVan) return;
-  const n = KRB.n[s.set] || 1, t = s.klaar ? 1 : Math.min(1, (s.frame + 1) / n);
+  const t = s.klaar ? 1 : Math.min(1, (s.frame + 1) / n);
   const e = t * t * (3 - 2 * t);
   s.x = s.dakVan + (s.dakDoel - s.dakVan) * e;
 }
@@ -40174,6 +40178,15 @@ function banScale(){
   return (CHAR_H * scale * BAN_H_SHARE) / BAN.fig;
 }
 // een set met een eigen canvas wordt zo geschaald dat de figuur even groot op het scherm komt
+// het lijk van de bandiet op een dak: het laatste doodframe (dood_62) loopt van kolom 8 tot 460 rond het anker (219),
+// en stierf hij vlak bij de rand van een huis, dan staken zijn hoofd of voeten de lucht in naast het huis. Net als de
+// kruisboogbandiet (krbDakSchuif) schuift hij tijdens het vallen naar binnen tot zijn hele lijk op het dak past.
+const BAN_LIJK = { l: 8, r: 460 };
+function banLijkVak(s){
+  const k = banSetScale('dood'), a = (BAN_LIJK.l - BAN_SETGEO.dood.anker) * k, b = (BAN_LIJK.r - BAN_SETGEO.dood.anker) * k;
+  return s.deadFace === 1 ? { l: -b, r: -a } : { l: a, r: b };
+}
+function banDakSchuif(s){ if (!s.snk) dakLijkSchuif(s, () => banLijkVak(s), BAN.n.dood); }
 function banSetScale(state){ return banScale() * BAN.fig / banGeo(state).fig; }
 function banReik(){ return BAN_ZWAARD.to * banScale(); }          // hoe ver zijn kling komt, in wereld-px
 // Hij haalt niet uit naar een Amir die duidelijk hoger of lager staat (een terras, een gang): daar
@@ -40387,6 +40400,7 @@ function updateBandiet(s, dt, plats, cliff){
   }
 
   if (s.state === 'dood'){                           // de doodanimatie, dan blijft het lijk liggen
+    banDakSchuif(s);                                 // op een dak: het hele lijk blijft op het dak
     if (s.spuit) bloedSpuitStap(s, dt);              // bloed: de spuit loopt door terwijl hij valt en blijft liggen
     if (s.bloedWacht){                               // bloed: de val loopt op tot hij geraakt achterover reelt, dan spuit het
       banAnim(s, dt);
@@ -50273,6 +50287,7 @@ function loop(now){
         // een kleine vage ellips die de landing aanwijst; staand en tijdens een vault het silhouet.
         if (s.state === 'dood' && s.klaar){              // liggend raakt hij de grond over zijn lengte
           ctx.save(); ctx.fillStyle = '#1d140f'; ctx.globalAlpha = 0.24 * Math.max(0, s.alpha);
+          if (s.dakRand){ ctx.beginPath(); ctx.rect(cx + (s.dakRand.l - world), 0, s.dakRand.r - s.dakRand.l, H * 4); ctx.clip(); }   // op een dak: niet de lucht in
           ctx.beginPath(); ctx.ellipse(bodyX - face * 90 * bS, voeten - 6 * bS, 300 * bS, 22 * bS, 0, 0, Math.PI * 2);
           ctx.fill(); ctx.restore();
         } else if (s.air > 0){                           // hoog in de lucht: een kleine schaduw die de landing aanwijst
