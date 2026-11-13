@@ -11,6 +11,13 @@ vier letters, de ander tikt die in en drukt op **Join**. Daarna spelen ze allebe
   De openbare PeerJS-server koppelt de twee een keer: de host heet daar `PVP.pre` plus de code. Daarna gaan de berichten
   rechtstreeks. Geen eigen server, geen account. Thuis werkt dat bijna altijd; achter een strenge router kan het mislukken
   (dan zie je een foutmelding), en dan is een TURN-server of een eigen doorgeefluik de volgende stap.
+- Onderweg zegt het scherm waar het is: Loading, Reaching the server, Calling, Found each other (`pvpWaakStart` kijkt elke
+  halve seconde naar `iceConnectionState`). Mislukt de rechtstreekse lijn (`failed`) of duurt het langer dan `PVP_GEDULD`
+  (25 s), dan staat er waarom, in plaats van eeuwig "Connecting...". Komt de joiner na 12 s niet bij de server, ook.
+- `PVP_ICE`: STUN van Google, en als vangnet de gratis openbare TURN-server van Open Relay (openrelay.metered.ca, met de
+  openbare gebruikersnaam en het wachtwoord). Nodig voor een telefoon op mobiele data: die zit vaak achter een NAT waar
+  rechtstreeks niet doorheen komt (de eerste proef, iPhone tegen laptop, bleef op Connecting staan). Een gratis dienst kan
+  verdwijnen of traag zijn; werkt hij niet meer, dan is een eigen TURN (Metered of Cloudflare, met een account) de stap.
 - De service worker laat andere hosts met rust (`sw.js`, `url.origin`), dus de bibliotheek komt altijd van internet. Offline
   is er geen PvP.
 - Deze sandbox (de cloud waar Claude in werkt) mag PeerJS niet bereiken; daar is het getest met een nagebootste `Peer` die
@@ -62,4 +69,3 @@ beide kramen naar de galerij en beide trappen. `geenEinde`: het duel eindigt op 
 
 - De andere Amir heeft dezelfde kleuren als jij; alleen het pijltje maakt het verschil.
 - Zijn speren op de rug, de schaduw en het licht op hem worden niet getekend.
-- Een TURN-server als vangnet als de verbinding niet lukt.
