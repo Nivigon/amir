@@ -573,7 +573,7 @@ Je hebt de gewone kit: lopen, sprinten, springen, bukken, steken, de lage zwaai,
 
 Het is best of 3: elke ronde heb je 3 levens, wie het eerst twee rondes wint, wint het duel. Daarna drukken jullie allebei op **R** voor een rematch. Escape en terug naar het menu verbreekt de verbinding.
 
-Je hebt internet nodig: de verbinding loopt rechtstreeks tussen de twee laptops. Lukt verbinden niet, dan zit een van jullie waarschijnlijk achter een strenge router.
+Je hebt internet nodig. Het spel probeert eerst een rechtstreekse lijn tussen de twee toestellen; lukt dat niet (een telefoon op mobiele data, bijvoorbeeld), dan gaat het na een paar seconden vanzelf via een openbare berichtenserver. Dat heet dan "Connected via relay" en heeft iets meer vertraging. Pauzeer niet te lang: na 15 seconden stilte verbreekt het duel.
 
 ## De stad
 

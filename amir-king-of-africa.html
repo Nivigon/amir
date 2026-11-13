@@ -61403,7 +61403,8 @@ const PVP = {
   winst: 2,                         // rondes om te winnen (best of 3)
   starts: [-250, -2550],            // de startplek van de host (rechts) en de gast (links)
   pauze: 2.6,                       // seconden tussen twee rondes
-  volg: 14                          // hoe snel de andere Amir naar zijn doorgestuurde plek schuift
+  volg: 14,                         // hoe snel de andere Amir naar zijn doorgestuurde plek schuift
+  stilte: 15                        // seconden niets gehoord: de verbinding is weg (pauzeert de ander, dan stuurt hij niets)
 };
 // het stadje voor PvP: drie huizen met een galerij op de eerste verdieping, een rieten kraam aan elke kant om op de
 // galerij te komen, en op de twee lage huizen een stadstrap (E) van de galerij in de steeg naar een balkon aan de
@@ -61444,7 +61445,7 @@ function pvpLib(){
   });
 }
 function pvpCode(){ let c = ''; for (let i = 0; i < 4; i++) c += PVP.letters[Math.floor(Math.random() * PVP.letters.length)]; return c; }
-function pvpPeerWeg(){ if (typeof pvpWaakStop === 'function') pvpWaakStop(); if (pvpPeer){ try { pvpPeer.destroy(); } catch (e){} pvpPeer = null; } }
+function pvpPeerWeg(){ if (typeof pvpRelayWeg === 'function') pvpRelayWeg(); if (typeof pvpWaakStop === 'function') pvpWaakStop(); if (pvpPeer){ try { pvpPeer.destroy(); } catch (e){} pvpPeer = null; } }
 // Host: een peer met de kamercode als naam, en wachten tot de ander verbindt
 // De weg naar elkaar: STUN laat elk zijn eigen adres op internet zien, en lukt rechtstreeks niet (een telefoon op
 // mobiele data zit vaak achter een NAT waar peer-to-peer niet doorheen komt), dan stuurt de TURN-server het verkeer door.
@@ -61454,7 +61455,8 @@ const PVP_ICE = { config: { iceServers: [
   { urls: 'stun:stun1.l.google.com:19302' },
   { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
   { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-  { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+  { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:freestun.net:3478', username: 'free', credential: 'free' }    // nog een gratis TURN zonder account
 ] } };
 const PVP_GEDULD = 25;                  // seconden voor we opgeven met een uitleg in plaats van eeuwig "Connecting..."
 let pvpWaak = null;
@@ -61467,9 +61469,10 @@ function pvpWaakStart(c){
     if (pvp){ pvpWaakStop(); return; }
     const pc = c.peerConnection, ice = pc && pc.iceConnectionState;
     const sec = (performance.now() - t0) / 1000;
+    if (pvpRelayBezig){ pvpWaakStop(); return; }   // het relais is al aan de beurt
     if (ice === 'failed'){
       pvpWaakStop();
-      pvpStatus('The direct link failed: one of your networks blocks it. Try both on the same wifi.');
+      pvpStatus('The direct link failed, trying the relay...');
     } else if (sec > PVP_GEDULD){
       pvpWaakStop();
       pvpStatus('No link after ' + PVP_GEDULD + ' s (stuck at: ' + (ice || 'signalling') + '). Try both on the same wifi, or the other one hosts.');
@@ -61485,44 +61488,166 @@ async function pvpHost(){
   pvpStatus('Reaching the server...');
   const code = pvpCode(), peer = new Peer(PVP.pre + code, PVP_ICE);
   pvpPeer = peer;
+  pvpRelayLuister(code);                          // en tegelijk op het relais, voor wie rechtstreeks niet binnenkomt
   peer.on('open', () => pvpStatus('Your code: ' + code + '. Waiting for your opponent...'));
   peer.on('connection', c => {
     if (pvp) { c.close(); return; }
     pvpStatus('Your opponent is calling...');
     pvpWaakStart(c);
-    c.on('open', () => { pvpWaakStop(); pvpVerbonden(c, true); });
+    c.on('open', () => { if (pvp){ c.close(); return; } pvpWaakStop(); pvpVerbonden(c, true); });   // al verbonden via het relais: deze niet
     c.on('error', e => pvpStatus('Link error: ' + (e && e.type || e)));
   });
   peer.on('error', e => {
     if (e.type === 'unavailable-id') pvpHost();                     // die code is net bezet: een nieuwe
-    else pvpStatus('Connection error: ' + e.type);
+    else if (!pvp && !pvpRelayClient) pvpStatus('Connection error: ' + e.type);   // met het relais wacht de host gewoon door
   });
 }
 async function pvpJoin(){
   const code = pvpEl('pvpcode').value.trim().toUpperCase();
   if (code.length !== 4){ pvpStatus('Type the 4-letter code of the host.'); return; }
-  pvpPeerWeg(); pvpWaakStop();
+  pvpPeerWeg(); pvpWaakStop(); pvpRelayBezig = false;
+  clearTimeout(pvpRelayNa);
   pvpStatus('Loading...');
-  try { await pvpLib(); } catch (e){ pvpStatus('Could not load the connection library. Check your internet.'); return; }
+  // lukt de rechtstreekse lijn niet binnen PVP_RELAY.na seconden, of komt er een fout, dan via het relais
+  const relais = () => { clearTimeout(pvpRelayNa); if (!pvp) pvpJoinRelay(code); };
+  pvpRelayNa = setTimeout(relais, PVP_RELAY.na * 1000);
+  try { await pvpLib(); } catch (e){ relais(); return; }
   pvpStatus('Reaching the server...');
   const peer = new Peer(PVP_ICE);
   pvpPeer = peer;
-  const stil = setTimeout(() => { if (pvpPeer === peer && !peer.open) pvpStatus('Cannot reach the PvP server. Check your internet, or try another network.'); }, 12000);
   peer.on('open', () => {
-    clearTimeout(stil);
+    if (pvp || pvpRelayBezig) return;
     pvpStatus('Calling ' + code + '...');
     const c = peer.connect(PVP.pre + code, { reliable: true });
     pvpWaakStart(c);
-    c.on('open', () => { pvpWaakStop(); pvpVerbonden(c, false); });
-    c.on('error', e => pvpStatus('Link error: ' + (e && e.type || e)));
+    c.on('open', () => { if (pvp){ c.close(); return; } clearTimeout(pvpRelayNa); pvpWaakStop(); pvpVerbonden(c, false); });
+    c.on('error', relais);
   });
-  peer.on('error', e => { clearTimeout(stil); pvpWaakStop(); pvpStatus(e.type === 'peer-unavailable' ? 'No duel with code ' + code + '. Is the host still waiting?' : 'Connection error: ' + e.type); });
+  peer.on('error', relais);
+}
+// ---- pvp: het relais, als de rechtstreekse lijn niet lukt ----
+// Een telefoon op mobiele data komt meestal niet rechtstreeks bij een laptop. Dan lopen de berichten via een openbare,
+// gratis MQTT-broker (een berichtenserver, over een websocket op https, dus door elk netwerk heen). Geen account; de
+// eerste die verbindt uit PVP_RELAY.brokers wordt gebruikt. Het onderwerp is de kamercode met een vast voorvoegsel; de
+// gast stuurt naar /h (de host), de host naar /g. Elk bericht draagt de sid van de gast, zodat oude of vreemde berichten
+// wegvallen. pvpRelayConn heeft dezelfde vorm als een PeerJS-verbinding (send, close, on), zodat de rest niets merkt.
+const PVP_RELAY = {
+  libs: ['https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js', 'https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js'],
+  brokers: ['wss://broker.hivemq.com:8884/mqtt', 'wss://broker.emqx.io:8084/mqtt', 'wss://test.mosquitto.org:8081'],
+  pre: 'amir-koning-pvp-q7x2/',
+  na: 8,                      // seconden rechtstreeks proberen voor de gast op het relais overstapt
+  hz: 15,                     // standberichten per seconde via het relais (een openbare broker: niet te druk)
+  bel: 20                     // seconden roepen voor de gast opgeeft
+};
+let pvpRelayClient = null, pvpRelayCode = null, pvpRelayBezig = false, pvpRelayNa = null, pvpRelayBel = null;
+function pvpRelayWeg(){
+  clearTimeout(pvpRelayNa); clearInterval(pvpRelayBel); pvpRelayCode = null; pvpRelayBezig = false;
+  if (pvpRelayClient){ const c = pvpRelayClient; pvpRelayClient = null; setTimeout(() => { try { c.end(true); } catch (e){} }, 300); }
+}
+async function pvpRelayLib(){
+  if (window.mqtt) return;
+  for (const src of PVP_RELAY.libs){
+    try {
+      await new Promise((ok, mis) => { const sc = document.createElement('script'); sc.src = src; sc.onload = ok; sc.onerror = mis; document.head.appendChild(sc); });
+      if (window.mqtt) return;
+    } catch (e){}
+  }
+  throw new Error('relaylib');
+}
+// de eerste broker die antwoordt
+async function pvpBroker(){
+  for (const url of PVP_RELAY.brokers){
+    const cl = await new Promise(ok => {
+      let c;
+      try { c = mqtt.connect(url, { connectTimeout: 6000, reconnectPeriod: 0, clientId: 'amir_' + Math.random().toString(36).slice(2, 12) }); }
+      catch (e){ ok(null); return; }
+      const t = setTimeout(() => { try { c.end(true); } catch (e){} ok(null); }, 7000);
+      c.once('connect', () => { clearTimeout(t); ok(c); });
+      c.once('error', () => { clearTimeout(t); try { c.end(true); } catch (e){} ok(null); });
+    });
+    if (cl) return cl;
+  }
+  return null;
+}
+function pvpRelayConn(cl, uit, sid){
+  return { open: true, relay: true, sid, h: {},
+    on(e, f){ this.h[e] = f; }, emit(e, a){ if (this.h[e]) this.h[e](a); },
+    send(o){ if (this.open) cl.publish(uit, JSON.stringify(Object.assign({ sid }, o))); },
+    close(){ if (!this.open) return; this.send({ t: 'bye' }); this.open = false; setTimeout(() => { try { cl.end(true); } catch (e){} }, 300); } };
+}
+function pvpRelayLees(buf){ try { return JSON.parse(typeof buf === 'string' ? buf : buf.toString()); } catch (e){ return null; } }
+// de host luistert ook op het relais, naast PeerJS
+async function pvpRelayLuister(code){
+  pvpRelayCode = code;
+  try { await pvpRelayLib(); } catch (e){ return; }
+  const cl = await pvpBroker();
+  if (!cl) return;
+  if (pvpRelayCode !== code || pvp){ try { cl.end(true); } catch (e){} return; }   // intussen een andere code, of al verbonden
+  pvpRelayClient = cl;
+  const uit = PVP_RELAY.pre + code + '/g';
+  let conn = null;
+  cl.subscribe(PVP_RELAY.pre + code + '/h');
+  cl.on('message', (topic, buf) => {
+    const m = pvpRelayLees(buf); if (!m) return;
+    if (!conn){
+      if (m.t !== 'relayHallo' || pvp) return;
+      conn = pvpRelayConn(cl, uit, m.sid);
+      conn.send({ t: 'relayOk' });
+      pvpVerbonden(conn, true);
+      pvpBanner('Connected via relay', 2.5);
+      return;
+    }
+    if (m.sid !== conn.sid) return;
+    if (m.t === 'relayHallo'){ conn.send({ t: 'relayOk' }); return; }   // ons antwoord kwam niet aan: nog een keer
+    conn.emit('data', m);
+  });
+  cl.on('close', () => { if (conn && conn.open && pvp && pvp.conn === conn) pvpWeg('Lost the relay connection.'); });
+}
+// de gast: via het relais de host roepen tot hij antwoordt
+async function pvpJoinRelay(code){
+  if (pvp || pvpRelayBezig) return;
+  pvpRelayBezig = true; pvpWaakStop();
+  pvpStatus('Direct link did not work, trying the relay...');
+  try { await pvpRelayLib(); } catch (e){ pvpStatus('Could not load the relay. Check your internet.'); pvpRelayBezig = false; return; }
+  const cl = await pvpBroker();
+  if (!cl){ pvpStatus('No relay server reachable. Check your internet, or try wifi.'); pvpRelayBezig = false; return; }
+  if (pvp){ try { cl.end(true); } catch (e){} return; }   // de rechtstreekse lijn kwam intussen toch
+  pvpRelayClient = cl;
+  const sid = Math.random().toString(36).slice(2, 10), uit = PVP_RELAY.pre + code + '/h';
+  const conn = pvpRelayConn(cl, uit, sid);
+  let klaar = false;
+  cl.subscribe(PVP_RELAY.pre + code + '/g');
+  cl.on('message', (topic, buf) => {
+    const m = pvpRelayLees(buf); if (!m || m.sid !== sid) return;
+    if (!klaar){
+      if (m.t !== 'relayOk' || pvp) return;
+      klaar = true; clearInterval(pvpRelayBel);
+      pvpVerbonden(conn, false);
+      pvpBanner('Connected via relay', 2.5);
+      return;
+    }
+    if (m.t === 'relayOk') return;
+    conn.emit('data', m);
+  });
+  cl.on('close', () => { if (klaar && conn.open && pvp && pvp.conn === conn) pvpWeg('Lost the relay connection.'); });
+  const t0 = performance.now();
+  const roep = () => {
+    if (klaar) return;
+    if (performance.now() - t0 > PVP_RELAY.bel * 1000){
+      clearInterval(pvpRelayBel);
+      pvpStatus('No duel with code ' + code + ' found. Is the host still waiting?');
+      return;
+    }
+    cl.publish(uit, JSON.stringify({ t: 'relayHallo', sid }));
+    pvpStatus('Calling ' + code + ' via the relay... (' + Math.floor((performance.now() - t0) / 1000) + ' s)');
+  };
+  roep(); pvpRelayBel = setInterval(roep, 1000);
 }
 // verbonden: het stadje laden en de eerste ronde beginnen
 function pvpVerbonden(conn, host){
   pvp = { conn, host, mij: host ? 0 : 1, sc: [0, 0], ronde: 1, fase: 'vecht', t: 0, zendT: 0, ander: null,
           sn: 0, wn: 0, jn: 0, laatsteAtk: -1, laatsteSw: -1, laatsteJav: null, mijn: null,
-          raakSteek: -1, raakZwaai: -1, raakSpeer: -1, jVorig: null, bannerT: 0, rematch: [false, false], beelden: {} };
+          raakSteek: -1, raakZwaai: -1, raakSpeer: -1, jVorig: null, bannerT: 0, rematch: [false, false], beelden: {}, gehoord: 0, weg: false };
   conn.on('data', pvpOntvang);
   conn.on('close', () => { if (pvp && pvp.conn === conn) pvpWeg('Your opponent left.'); });
   pvpStatus('');
@@ -61560,6 +61685,7 @@ function pvpHud(){
 }
 function pvpOntvang(m){
   if (!pvp || !m || typeof m !== 'object') return;
+  pvp.gehoord = pvp.t;
   if (m.t === 's'){
     const a = pvp.ander;
     if (!a || Math.abs(a.x - m.x) > 500){ pvp.ander = Object.assign({}, m); return; }   // eerste keer of een sprong (nieuwe ronde): meteen erheen
@@ -61614,7 +61740,8 @@ function pvpRematchKijk(){
   pvpNieuweRonde(1);
 }
 function pvpWeg(t){
-  if (!pvp) return;
+  if (!pvp || pvp.weg) return;
+  pvp.weg = true;
   pvpBanner(t, 3);
   const p = pvp;
   setTimeout(() => { if (pvp === p) toMenu(); }, 2500);
@@ -61645,6 +61772,7 @@ function pvpVang(img, x, y, w, h, fl, pcx, voet, scale){
 function pvpStap(rdt){
   if (!pvp) return;
   pvp.t += rdt;
+  if (pvp.t - pvp.gehoord > PVP.stilte && !pvp.weg) pvpWeg('Lost the connection to your opponent.');   // al een tijd niets van hem gehoord
   if (pvp.bannerT > 0){ pvp.bannerT -= rdt; if (pvp.bannerT <= 0){ pvp.banner = ''; pvpHud(); } }
   if (atkFrame >= 0 && pvp.laatsteAtk < 0) pvp.sn++;
   pvp.laatsteAtk = atkFrame;
@@ -61659,7 +61787,7 @@ function pvpStap(rdt){
   if (a && a.tx != null){ const k = Math.min(1, rdt * PVP.volg); a.x += (a.tx - a.x) * k; a.h += (a.th - a.h) * k; }
   pvp.zendT -= rdt;
   if (pvp.zendT <= 0 && pvp.mijn){
-    pvp.zendT = 1 / PVP.hz;
+    pvp.zendT = 1 / (pvp.conn.relay ? PVP_RELAY.hz : PVP.hz);
     const j = jav && jav.state !== 'weg' ? { x: Math.round(jav.x), h: Math.round(jav.h), sa: +jav.sa.toFixed(3), dir: jav.dir, st: jav.state, t: +(jav.t || 0).toFixed(2), b: jav.blauw || 0, n: pvp.jn } : null;
     pvpZend(Object.assign({ t: 's', x: Math.round(playerX()), h: Math.round(ph), f: facing, hu: +hurt.toFixed(2),
       sf: atkFrame, sl: steekLive() && !atkMes ? 1 : 0, sn: pvp.sn, sw: swFrame, wn: pvp.wn, j, l: lives, d: dead ? 1 : 0 }, pvp.mijn));
