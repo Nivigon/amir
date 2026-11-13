@@ -57,6 +57,18 @@ sluit aan op de muur van het vorige huis in de lijst, het huis rechts ervan.
 - In een stadje met een raster (`straatRaster`) doet `aan` niets: daar schuift `straatGevelX` de huizen al naar de poorten.
 - De Maker nieuwstijl kent `aan` nog niet; geen bestaand level gebruikt het.
 
+**De muur van een hoger buurhuis** (`stadMuren`, `stadMuurBlok`, `STAD.muurKier`): een dak is een dunne vloer zonder muren,
+dus van een laag dak liep Amir dwars door de muur van het hogere huis ernaast en viel hij binnen dat huis naar de straat.
+Staan twee huizen tegen elkaar (`aan: true`, of een kier tot `muurKier` Amir, 0,3), dan is de muur van het hogere nu een
+wand van het lage dak tot het hoge: klimmen kan er niet, een sprong of springdoek over het hoge dak heen wel. Alleen vanaf
+de kant van het lage dak; wie voor de gevel van het hoge huis staat (een galerij, een trapbalkon) merkt er niets van, en
+binnen ook niet. Een steeg (`aan: 0.8` en meer) blijft een steeg waar je in valt.
+
+Let op bij een nieuw level: een laag dak tussen twee hogere huizen die er strak tegen staan is nu een put. Een verdieping
+(329) is hoger dan een sprong, dus geef zo'n dak een uitweg (een springdoek, een trap) of zet er een steeg naast. Nu
+hebben Stad 9, Roofs 2 en Roofs 7 zo'n dak (huis 2), elk met de springdoek op de linkermuur van huis 1; Roofs 2 kreeg die
+doek erbij toen de muur er kwam.
+
 ## Huistypes
 
 `STAD.gevelSoort`, `stadGevelG`, `stadGevelDelen`, `stadSoortLaad`, `tools/gevel_soorten.py`
