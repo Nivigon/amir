@@ -3097,6 +3097,8 @@ const laadOpen = new Set();
 let laadGedaan = 0;                               // plaatjes die binnen zijn sinds het begin
 const laadMis = new Set();                        // plaatjes die definitief niet laadden (een 404), op naam
 let laadMisLaatst = '';                           // de laatste daarvan sinds laadPoort, voor het laadscherm
+const LAAD_OPNIEUW = { wacht: [1.5, 4, 10] };      // een kapot plaatje nog zo vaak opnieuw vragen, na zoveel seconden (samen ruim onder LAAD.max)
+const laadKapot = new Set();                      // plaatjes die na alle herkansingen kapot bleven: laadPoort vraagt ze nog eens
 // Een plaatje dat niet laadt houdt het spel bewust niet tegen (het telt als binnen), maar stil mag het
 // niet meer: een keer in de console met de naam, en het eerste ook in beeld. Pas na de andere handlers
 // kijken (mis, in de laadpoort hieronder): zet onerror een volgend pad (een terugval), dan is het nog
@@ -3123,7 +3125,23 @@ function laadMist(src){
   // eigen draad, dus het laadscherm blijft soepel). Mislukt het uitpakken, dan tellen we het toch
   // als binnen, zodat de poort nooit blijft hangen.
   // kapot is: klaar zonder pixels. Heeft onerror al een volgend pad gezet, dan laadt dat nog (niet klaar).
-  function mis(){ const img = this; setTimeout(() => { if (img.complete && img.naturalWidth === 0) laadMist(img.src); }, 0); }
+  // Een kapot plaatje krijgt eerst herkansingen (LAAD_OPNIEUW): een haperende verbinding (de gast in
+  // co-op, die tegelijk met de host praat) gaf anders een sprite die tot een paginaherlaad wegbleef.
+  // Tijdens het wachten staat het weer in laadOpen, zodat de poort erop wacht. Pas na de laatste
+  // poging is het opgegeven (laadMist), en dan probeert de volgende laadPoort het nog eens (laadKapot).
+  function mis(){ const img = this, src = img.src; setTimeout(() => {
+    if (!img.complete || img.naturalWidth !== 0 || img.src !== src) return;
+    const n = img._laadPoging || 0;
+    if (n < LAAD_OPNIEUW.wacht.length){
+      img._laadPoging = n + 1; laadOpen.add(img);
+      setTimeout(() => {
+        if (img.src !== src || img.naturalWidth !== 0){ laadOpen.delete(img); return; }
+        img._laadHerhaal = true; img.src = src;
+      }, LAAD_OPNIEUW.wacht[n] * 1000);
+      return;
+    }
+    laadKapot.add(img); laadMist(src);
+  }, 0); }
   function klaar(){ const img = this; setTimeout(() => {
     if (!img.complete || !laadOpen.has(img)) return;
     const af = () => { if (laadOpen.delete(img)) laadGedaan++; };
@@ -3133,6 +3151,8 @@ function laadMist(src){
     configurable: true, enumerable: d.enumerable, get: d.get,
     set(v){
       d.set.call(this, v);
+      if (!this._laadHerhaal) this._laadPoging = 0;   // een nieuw pad begint weer met alle herkansingen
+      this._laadHerhaal = false;
       if (!this._laadVolg){ this._laadVolg = true; this.addEventListener('load', klaar); this.addEventListener('error', klaar); this.addEventListener('error', mis); }
       if (!this.complete) laadOpen.add(this);
     }
@@ -3144,6 +3164,13 @@ let warmRij = null, warmTotaal = 0;               // de wachtrij met bak-taken, 
 const WARM_BUDGET = 8;                            // hoogstens zoveel ms per beeld warmen, zodat het laadscherm leeft
 function laadPoort(){
   laadWacht = true; laadT = 0; laadLeeg = 0; laadVan = laadGedaan; warmRij = null; laadMisLaatst = '';
+  // Wat bij een vorig level kapot bleef nog een keer vragen, met verse herkansingen: zo komt een sprite
+  // die bij een hapering wegviel bij het volgende potje (een nieuw co-op spel, een herstart) terug.
+  for (const img of laadKapot){
+    laadKapot.delete(img);
+    if (img.naturalWidth !== 0 || !img.src) continue;
+    const src = img.src; img._laadPoging = 0; img._laadHerhaal = true; img.src = src;
+  }
   const naam = level && level.name ? level.name : '';
   laadMin = naam !== laadVorig;
   const el = document.getElementById('laadnaam'); if (el) el.textContent = naam;
