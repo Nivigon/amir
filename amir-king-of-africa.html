@@ -217,6 +217,19 @@
   /* de lobby van Multiplayer: de host stelt in, de gast kijkt mee en drukt Ready */
   #mpverbind,#mplobby{display:flex;flex-direction:column;align-items:center;gap:14px}
   #mplobby{display:none;max-width:min(760px,calc(100vw - 32px))}
+  /* naast de lobby, midden in de strook links van het menupaneel: je eigen Amir, met de pijltjes kies je de kleur
+     van zijn broek (BROEK, mpBroek). Alleen zichtbaar als de lobby open is (#start.mplobby) */
+  #mpamir{position:absolute;z-index:3;top:50%;left:calc((100% - max(50%, 500px)) / 2);transform:translate(-50%,-50%);
+    display:none;flex-direction:column;align-items:center;gap:6px;flex:0 0 auto;padding:10px 12px;border:1px solid rgba(231,173,82,.3);border-radius:12px;background:rgba(44,27,14,.45)}
+  #mpbroek{display:flex;align-items:center;gap:4px}
+  #mpbroek button{font-size:22px;padding:8px 12px}
+  #mpbrcv{width:160px;height:200px}
+  #mpbrnaam{color:var(--gold);font-weight:700;font-size:17px}
+  #mpbrander{color:rgba(242,232,213,.65);font-size:12px;text-align:center;max-width:14em;min-height:1.2em}
+  #start.mplobby #mpamir{display:flex}
+  #start #mpamir p.mpkop{margin:0}
+  @media (max-height:520px){ #mpbrcv{width:104px;height:130px} #mpbroek button{font-size:16px;padding:5px 8px} #mpamir{gap:2px;padding:6px 8px} }
+  @media (max-width:700px){ #mpamir{top:8px;left:8px;transform:none} }
   #menuPvp.lobby #mplobby{display:flex}
   #menuPvp.lobby #mpverbind,#menuPvp.lobby #pvpterug{display:none}
   #mpwie{margin:0;color:#f3e2bf;text-align:center}
@@ -1080,6 +1093,13 @@
   <button id="pausebtn" type="button" aria-label="Pauze">II</button>
   <div id="versie"></div>
   <div id="start">
+    <!-- Multiplayer: naast de lobby je eigen Amir, met de kleur van zijn broek (mpBroek) -->
+    <div id="mpamir">
+          <p class="mpkop">Your trousers</p>
+          <div id="mpbroek"><button id="mpbrlinks" type="button" aria-label="Previous colour">&#9664;</button><canvas id="mpbrcv" width="200" height="250"></canvas><button id="mpbrrechts" type="button" aria-label="Next colour">&#9654;</button></div>
+          <span id="mpbrnaam"></span>
+          <small id="mpbrander"></small>
+        </div>
     <div class="startart"></div>
     <div class="startpanel">
     <h1>Amir<br><small>King of Africa</small></h1>
@@ -22424,7 +22444,10 @@ const broekLapCache = new Map();                         // kleur-id -> WeakMap(
 // na een keuze: de lapjes van kleuren die niemand draagt weg (het voorbeeld in het keuzescherm bakte ze ook)
 function broekOpruim(houd){ for (const id of [...broekLapCache.keys()]) if (!houd.includes(id)) broekLapCache.delete(id); }
 function broekKleurVan(id){ return BROEK.kleuren.find(k => k.id === id) || null; }
-function broekNu(){ return level && level.broekKeuze && !sandbox ? broekKleurVan(duoKeuze.broek) : null; }
+function broekNu(){
+  if (pvp && pvp.broek && !sandbox) return broekKleurVan(pvp.broek[pvp.mij]);   // Multiplayer: de kleur uit de lobby (mpBroek)
+  return level && level.broekKeuze && !sandbox ? broekKleurVan(duoKeuze.broek) : null;
+}
 function broekLap(img, kl){
   let cache = broekLapCache.get(kl.id);
   if (!cache){ cache = new WeakMap(); broekLapCache.set(kl.id, cache); }
@@ -62113,16 +62136,87 @@ function mpLobbyOpen(){
   if (!pvp) return;
   pvp.fase = 'lobby'; pvp.klaar = false;
   pvpEl('menuPvp').classList.add('lobby');
+  pvpEl('start').classList.add('mplobby');          // je eigen Amir naast de lobby (mpBroek)
   pvpStatus('');
   mpLobbyToon();
   if (pvp.host) pvpZend({ t: 'lobby', inst: pvp.inst });
+  pvpZend({ t: 'broek', id: pvp.broek[pvp.mij] });
+  mpBroekToon(); mpBroekStart();
 }
-function mpLobbyDicht(){ pvpEl('menuPvp').classList.remove('lobby'); }
+function mpLobbyDicht(){ pvpEl('menuPvp').classList.remove('lobby'); pvpEl('start').classList.remove('mplobby'); }
+// ---- de broekkleur in Multiplayer: naast de lobby je eigen Amir, de pijltjes wisselen de kleur van zijn broek ----
+// Zoals de broekkeuze van Test 73 (BROEK), plus het eigen paars van Amir (geen lapje, het origineel). Ieder kiest zelf,
+// los van wie host is, en een kleur die de ander al draagt sla je over. Kiezen ze tegelijk dezelfde, dan houdt de host
+// hem en schuift de gast door naar de eerste vrije. Je keuze blijft bewaard op dit apparaat (amir.mpbroek).
+const MP_BROEK = [{ id: 'paars', naam: 'Purple' }].concat(BROEK.kleuren.map(k => ({ id: k.id, naam: k.naam })));
+function mpBroekNaam(id){ const k = MP_BROEK.find(b => b.id === id); return k ? k.naam : ''; }
+function mpBroekEigen(host){
+  let id = null;
+  try { id = localStorage.getItem('amir.mpbroek'); } catch (e){}
+  return MP_BROEK.some(b => b.id === id) ? id : (host ? 'paars' : 'rood');
+}
+function mpBroekZet(id){
+  if (!pvp || id === pvp.broek[pvp.mij]) return;
+  pvp.broekVan = pvp.broek[pvp.mij]; pvp.broekT0 = performance.now();
+  pvp.broek[pvp.mij] = id;
+  try { localStorage.setItem('amir.mpbroek', id); } catch (e){}
+  pvpZend({ t: 'broek', id });
+  mpBroekToon();
+}
+// de volgende kleur die de ander niet draagt
+function mpBroekVrij(van, stap){
+  const L = MP_BROEK, ander = pvp.broek[1 - pvp.mij];
+  let i = Math.max(0, L.findIndex(b => b.id === van));
+  for (let n = 0; n < L.length; n++){ i = (i + stap + L.length) % L.length; if (L[i].id !== ander) return L[i].id; }
+  return van;
+}
+function mpBroekWissel(stap){ if (pvp && pvp.fase === 'lobby') mpBroekZet(mpBroekVrij(pvp.broek[pvp.mij], stap)); }
+function mpBroekAnder(id){
+  if (!pvp || !MP_BROEK.some(b => b.id === id)) return;
+  pvp.broek[1 - pvp.mij] = id;
+  if (!pvp.host && id === pvp.broek[pvp.mij]) mpBroekZet(mpBroekVrij(id, 1));   // dezelfde: de gast schuift door
+  mpBroekToon();
+}
+function mpBroekToon(){
+  if (!pvp) return;
+  pvpEl('mpbrnaam').textContent = mpBroekNaam(pvp.broek[pvp.mij]);
+  const a = pvp.broek[1 - pvp.mij];
+  pvpEl('mpbrander').textContent = a ? 'The other player wears ' + mpBroekNaam(a).toLowerCase() : 'Waiting for the other player';
+}
+let mpBroekLoopt = false;
+const mpBroekA = document.createElement('canvas'), mpBroekB = document.createElement('canvas');
+function mpBroekStart(){
+  broekVbLaad();
+  if (mpBroekLoopt) return;
+  mpBroekLoopt = true;
+  const cv = pvpEl('mpbrcv'), g = cv.getContext('2d');
+  const stap = now => {
+    if (!pvp || pvp.fase !== 'lobby' || !pvpEl('menuPvp').classList.contains('lobby')){ mpBroekLoopt = false; return; }
+    const img = broekVbBeelden[Math.floor(now / 1000 * BROEK_VB.fps) % broekVbBeelden.length];
+    g.clearRect(0, 0, cv.width, cv.height);
+    if (imgReady(img)){
+      const iw = img.naturalWidth, ih = img.naturalHeight, sx = iw * BROEK_VB.uit[0], sw = iw * BROEK_VB.uit[1];
+      const k = Math.min(cv.width / sw, cv.height / ih), dw = sw * k, dh = ih * k, dx = (cv.width - dw) / 2, dy = cv.height - dh;
+      const teken = (id, doek, a) => {
+        g.globalAlpha = a; g.drawImage(broekBeeld(img, img, broekKleurVan(id), doek), sx, 0, sw, ih, dx, dy, dw, dh); g.globalAlpha = 1;
+      };
+      const f = pvp.broekVan ? Math.min(1, (now - pvp.broekT0) / 1000 / BROEK_VB.over) : 1;
+      if (f < 1) teken(pvp.broekVan, mpBroekA, 1);
+      teken(pvp.broek[pvp.mij], mpBroekB, f);
+      if (f >= 1) pvp.broekVan = null;
+    }
+    requestAnimationFrame(stap);
+  };
+  requestAnimationFrame(stap);
+}
+pvpEl('mpbrlinks').onclick = () => mpBroekWissel(-1);
+pvpEl('mpbrrechts').onclick = () => mpBroekWissel(1);
 function pvpVerbonden(conn, host){
   pvp = { conn, host, mij: host ? 0 : 1, sc: [0, 0], ronde: 1, fase: 'lobby', t: 0, zendT: 0, ander: null,
           sn: 0, wn: 0, jn: 0, laatsteAtk: -1, laatsteSw: -1, laatsteJav: null, mijn: null,
           raakSteek: -1, raakZwaai: -1, raakSpeer: -1, jVorig: null, bannerT: 0, rematch: [false, false], beelden: {}, gehoord: 0, weg: false,
-          inst: host ? mpLaadInst() : mpStandaard(), klaar: false, regels: null };
+          inst: host ? mpLaadInst() : mpStandaard(), klaar: false, regels: null, broek: [null, null], broekVan: null, broekT0: 0 };
+  pvp.broek[pvp.mij] = mpBroekEigen(host);
   conn.on('data', pvpOntvang);
   conn.on('close', () => { if (pvp && pvp.conn === conn) pvpWeg(host ? 'The other player left.' : 'The host left.'); });
   mpLobbyOpen();
@@ -62215,6 +62309,8 @@ function pvpOntvang(m){
     if (pvp.host) return;
     pvp.inst = m.inst; pvp.klaar = false;
     if (pvp.fase === 'lobby') mpLobbyToon();
+  } else if (m.t === 'broek'){
+    mpBroekAnder(m.id);
   } else if (m.t === 'klaar'){
     if (!pvp.host) return;
     pvp.klaar = !!m.aan; mpKnoppen();
@@ -62347,7 +62443,8 @@ function pvpTeken(groundY, scale, cx, pbox, hitBy){
     ctx.translate(sx + g.dx * scale, voet + g.dy * scale);
     if (g.fl){ ctx.translate(w, 0); ctx.scale(-1, 1); }
     if (pvp.coop && g.d) mpcLig(w, h, -g.dy * scale);  // Co-op: mijn teamgenoot ligt dood
-    ctx.drawImage(g.hu > 0 ? amirRood(im, Math.min(0.75, g.hu * 2)) : im, 0, 0, w, h);
+    const kb = broekBeeld(im, im, pvp.broek ? broekKleurVan(pvp.broek[1 - pvp.mij]) : null);   // zijn broekkleur uit de lobby
+    ctx.drawImage(g.hu > 0 ? amirRood(kb, Math.min(0.75, g.hu * 2)) : kb, 0, 0, w, h);
     ctx.restore();
   }
   // boven zijn hoofd: een rood pijltje en zijn levens, zodat je hem van jezelf onderscheidt
