@@ -1,7 +1,8 @@
 # Multiplayer: de lobby, Co-op Survival en Duel
 
 `MP_KAARTEN`, `MP_SOORTEN`, `mpStandaard`, `mpLobbyToon`, `mpWijzig`, `mpStart`, `mpSpelStart`, `pvpDuelStart`, `mpNaarLobby`;
-Co-op: `MPC`, `MP_COOP_LEVEL`, `mpCoopStart`, `mpCoopStap`, `mpcUpdate`, `mpcHitDoor`, `mpcStandZend`, `mpcStandLees`, `mpcHostStap`
+Co-op: `MPC`, `MP_COOP_LEVEL`, `mpCoopStart`, `mpCoopStap`, `mpcUpdate`, `mpcHitDoor`, `mpcStandZend`, `mpcStandLees`, `mpcHostStap`;
+de winkel: `MPC_WINKEL`, `MPC_WINKEL_KAMER`, `mpcWinkelIn`, `mpcWinkelUit`, `mpcWinkelToon`, `mpcWinkelKoop`, `mpcKlaarDruk`, `mpcGoudAllebei`, `mpcFcModus`
 
 De knop **Multiplayer** in het hoofdmenu (was PvP, de id is nog `btnpvp`, het scherm nog `menuPvp`). De verbinding is die
 van `notities/pvp.md` (PeerJS, met het relais als vangnet). Dit document is het plan voor de hele modus, uit een grill met de
@@ -14,7 +15,8 @@ opdrachtgever (november 2026). Wat gebouwd is staat erbij; de rest is de afspraa
    (pauze, Menu) brengt allebei terug naar de lobby met de verbinding nog open; **Leave the lobby** verbreekt hem.
 2. **Co-op Survival** (gebouwd, zie "Co-op Survival: hoe het gebouwd is" onderaan). De aangepaste map, rondes met
    vijanden, elkaar niet raken, tonnen met de knikkerzak, de revive, het wapenrek, punten en het eindscherm.
-3. **De winkel en de economie** (open). De binnenkamer, goud, de prijslijst, Ready, de upgrades.
+3. **De winkel en de economie** (gebouwd, zie "De winkel: hoe het gebouwd is" onderaan). De binnenkamer, goud, de
+   prijslijst, Ready, de upgrades.
 
 
 ## De lobby (gebouwd)
@@ -42,7 +44,7 @@ opdrachtgever (november 2026). Wat gebouwd is staat erbij; de rest is de afspraa
 | --- | --- | --- |
 | Enemies in round 1 | 1 | 1 tot 6 |
 | Extra enemies per round | 1 | 1 tot 3 |
-| Shop after every | 3 rondes | 2 tot 6 (nog zonder werking: de winkel is stuk 3) |
+| Shop after every | 3 rondes | 2 tot 6 |
 | Time between rounds | 10 s | 5 tot 30 |
 | Spears in the rack | 4 | 0 tot 4 |
 | Gourd chance in a barrel | 30% | 0 tot 100, per 10 |
@@ -95,7 +97,7 @@ Bazen (panter, baviaan, Nyundo, Murghtaan) staan er niet in (regel 12, en de opd
 - **Eindscherm:** alleen het team: score, de ronde waarin het eindigde, tijd. Een highscore op het apparaat, per keuze van
   vijanden.
 
-## De winkel en de economie (stuk 3, de afspraak)
+## De winkel en de economie (stuk 3, de afspraak; gebouwd)
 
 - Na elke `winkelNa` rondes (zodra de laatste vijand dood is) gaan allebei met een fade naar de binnenkamer van de winkel
   (`binnen` met `winkel`). Wie dood was staat daar gratis weer op. Ieder doet E bij de toonbank en krijgt zijn eigen
@@ -183,7 +185,6 @@ Het blok `// ---- multiplayer: Co-op Survival ... ----` in de HTML, na de lobby.
 - Op de galerij staat een deur per huis, niet twee: het deursysteem van de stad kent een deur per verdieping per huis (op
   de plek van het raam). Twee vraagt een tweede deurplek in `STAD_DEUR`.
 - De elite-garde is niet sneller dan de gewone bandiet; alleen de levens en de dolk zijn anders.
-- Het goud van een kill en van een overleefde ronde (de economie) hoort bij stuk 3; nu komt goud alleen uit een ton.
 
 ### Wat nog kan
 
@@ -192,10 +193,53 @@ Het blok `// ---- multiplayer: Co-op Survival ... ----` in de HTML, na de lobby.
 - Een vijand op de galerij die achter een speler op de straat aan zit, blijft boven staan kijken (regel: geen treden). Zo is
   het bedoeld, maar met een ronde die daardoor niet opraakt moet je naar boven.
 
+## De winkel: hoe het gebouwd is
+
+Het blok `// ---- multiplayer: de winkel en de economie van Co-op (stuk 3) ----` in de HTML, na Co-op.
+
+- **De kamer.** `MP_COOP_LEVEL` heeft een `binnen` met een `winkel` (de toonbank, de marktman, een plank) ver van de straat
+  (`MPC_WINKEL_KAMER`, van -20000 tot -21700), zonder deur naar buiten (`gevel: null`), en een houten plafond (`zwevers`).
+  Het gewone systeem van "binnen" doet de rest: de camera, de muren, E bij de toonbank (`binnenE` opent `winkelUIOpen`).
+- **Erheen.** Is de ronde op (`mpcHostStap`) en is het rondenummer een veelvoud van `winkelNa`, dan stuurt de host `winkel`
+  en roepen allebei `mpcWinkelIn` aan: de fase `winkel` (`C.inWinkel`), wie dood was staat op met 1 leven, de revive-ton en
+  het symbool zijn weg, ieder krijgt zijn speren terug (`mpcSperenTerug`) en een fade (`stadTrapFade` met `BINNEN.fade`) zet
+  hem bij de deurkant van de kamer (`MPC_WINKEL_KAMER.plek`, per speler). Zolang de fase `winkel` is, doet `mpcHostStap`
+  verder niets.
+- **Het winkelscherm.** Hetzelfde `#winkelui`, met de klasse `coop`: de drie dingen met verkopen en terugkopen zijn weg, in
+  de plaats komt `#wkcoop`, de prijslijst `MPC_WINKEL` als knoppen (`mpcWinkelToon`, `mpcWinkelNiet` zegt waarom iets niet
+  kan, `mpcWinkelKoop` koopt), en de knop **Ready** (`#wkklaar`). Het scherm pauzeert zoals altijd, maar `pvpStap` loopt in
+  de pauze door, dus de verbinding blijft leven en de ander speelt gewoon. De banner van Co-op is weg zolang het scherm open is.
+- **Ready.** `mpcKlaarDruk` zet het aan of uit en stuurt `wkklaar` naar de ander (die toont "Your teammate is ready"); de host
+  telt (`mpcWinkelKlaar`), en zijn het er twee, dan stuurt hij `winkelUit` en roepen allebei `mpcWinkelUit` aan: het scherm
+  dicht, het rek weer vol (`rek` uit de lobby), een fade terug naar de startplek, en bij de host de pauze naar de volgende
+  ronde (`mpcVolgendeRonde`).
+- **Goud.** De host ziet de kill (`mpcKill`) en geeft ieder `MPC.killGoud` (dier 1, mens 2, schildbandiet en kruisboog 3), en
+  aan het eind van elke ronde ieder `MPC.rondeGoud` (5), via `mpcGoudAllebei`: zichzelf meteen, de gast met `cg`. Give 5 gold
+  is `geef`. Ieder houdt zijn eigen beurs in `pvp.coop.goud`; die gaat niet over de lijn.
+- **De upgrades** staan in `pvp.coop.koop` (ieder de zijne). Full Circle: `fcModus` geeft in Co-op `mpcFcModus`, met
+  `basis`, `kracht`, `rond` of `kracht_rond`; het level heeft `combo: true`. `fcKracht` (de 1,5 en de grote terugslag) en
+  `fcRondNu` (rondom) lezen `fcSoort`; rondom is een raakzone om Amir heen (`MPC.rond`, in `steekDX`, `steekY`, `steekR`) en
+  raakt iedereen een keer, net als Wide Circle (`fcBreedNu`, `slagEen`). Het extra speerslot is `RUG_MAX` plus een, een extra
+  leven `pvp.levens` plus een (dat is wat `levensStart` in een potje geeft).
+
+### Anders dan de afspraak, of zelf ingevuld
+
+- **Kalebas, "tot je levens vol zijn":** een gekochte kalebas is meteen een leven terug, en kan alleen als je levens niet vol
+  zijn. Een kalebas uit een ton gaat nog wel in je zak (Q).
+- **Gif, "per speer":** het gif gaat in je tas, zoals in de levels (I om het op je speren te smeren), en je hebt er hooguit
+  zoveel in je tas als je speerplekken hebt (hand plus rug: 2, of 3 met het extra slot).
+- **Speren terug:** bij het binnenkomen van de winkel, niet bij het weggaan, zodat je ziet wat je hebt. Terug krijg je de
+  speer in de hand en de gewone plek op de rug; het extra slot vul je zelf (een speer kopen, of van het rek). Wat er nog op
+  straat lag (een gegooide speer, ook een van het rek) is weg.
+- **Rondom:** de draaislag begint nog steeds met een steek naar een open vijand voor je (`fcOpenDoel`); pas de slag zelf raakt
+  rondom.
+- Wie dood de winkel in gaat, staat op met 1 leven (de kalebas in de winkel vult de rest).
+
 ## Testen
 
 `node tools/mptest.js` speelt Co-op met twee vensters en een nagebootste verbinding (Node geeft de berichten door). `--proef`
-loopt de vaste stappen na (een ton breken als gast, een treffer van de gast, allebei dood, het eindscherm, R, Escape) en
+loopt de vaste stappen na (een ton breken als gast, een treffer van de gast, de winkel met kopen, Give 5 gold, Ready en
+terug, Full Circle rondom voor en achter, allebei dood, het eindscherm, R, Escape) en
 meldt per stap OK of FOUT; zonder `--proef` lopen twee simpele spelers op de vijanden af, met `--taai` zonder dood te gaan,
 `--sterf gast` om de revive te zien, `--soorten bandiet,slang` voor een paar soorten en `--shots map` voor plaatjes.
 

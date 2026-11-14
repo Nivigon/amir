@@ -325,6 +325,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | PvP: een tegen een over internet (PeerJS), de andere Amir, wie beslist, rondes en het stadje | `PVP`, `PVP_LEVEL`, `pvpStap`, `pvpTeken`, `pvpVang` | notities/pvp.md |
 | Multiplayer: de knop in het hoofdmenu, de lobby (de host kiest Co-op Survival of Duel, de map en de regels, de gast drukt Ready), en het plan voor de winkel | `MP_SOORTEN`, `mpLobbyToon`, `mpWijzig`, `mpStart`, `mpNaarLobby`, `pvpDuelStart` | notities/multiplayer.md |
 | Co-op Survival: de host denkt voor de vijanden (twee doelen voor dezelfde AI), de gast tekent ze en meldt zijn treffers; rondes uit de deuren, tonnen met de knikkerzak, de revive, punten en het eindscherm; testen met `tools/mptest.js --proef` | `MPC`, `mpcUpdate`, `mpcHitDoor`, `mpcStandZend`, `mpcHostStap`, `mpcSpawn` | notities/multiplayer.md |
+| de winkel van Co-op: na `winkelNa` rondes allebei naar een binnenkamer, ieder zijn eigen prijslijst en beurs, goud per kill en per ronde, Full Circle met twee upgrades die samen mogen, Ready van allebei | `MPC_WINKEL`, `mpcWinkelIn`, `mpcWinkelUit`, `mpcWinkelKoop`, `mpcGoudAllebei`, `mpcFcModus` | notities/multiplayer.md |
 | sandbox | de vrije testmodus |  |
 
 Op schijf: `karakters/` (Amir, dorpeling, dorpelinge), `enemies/`, `design/` (decor,
