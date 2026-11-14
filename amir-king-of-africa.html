@@ -620,6 +620,19 @@
   #wkvakken .invvak img,#wkvakken .invvak svg{max-height:42px;max-width:42px}
   #wkaantal,#wkrug{font-size:13px;color:rgba(242,232,213,.8);max-width:220px}
   #winkelui .wkonder{display:flex;gap:10px;justify-content:center}
+  /* Co-op (stuk 3): de prijslijst als een raster van knoppen in plaats van de drie dingen met verkopen, en Ready */
+  #wkcoop,#wkklaar{display:none}
+  #winkelui.coop #wkcoop{display:grid;grid-template-columns:repeat(3,minmax(140px,190px));gap:8px}
+  #winkelui.coop #wkklaar{display:inline-block;background:rgba(60,110,40,.6);border-color:#8fc06a}
+  #winkelui.coop .wkrij,#winkelui.coop .wkverkoop{display:none}
+  .wkcoopknop{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:8px 10px;text-align:left;cursor:pointer}
+  .wkcoopknop b{font-size:15px}
+  .wkcoopknop small{font-size:12px;line-height:1.25;color:rgba(242,232,213,.75)}
+  .wkcoopknop em{font-style:normal;font-size:13px;color:#f6d77a}
+  .wkcoopknop.duur{opacity:.55}
+  .wkcoopknop.heb{opacity:.7}
+  .wkcoopknop.heb em{color:#a8c98a}
+  .wkcoopknop.shake{animation:hppshake .38s ease}
   @media (max-height:480px){
     #winkelui .wkdoos{padding:10px 16px;gap:6px}
     #winkelui strong{font-size:20px}
@@ -631,6 +644,9 @@
     #wkvakken{grid-template-columns:repeat(5,34px);gap:4px}
     #wkvakken .invvak{width:34px;height:34px;padding:2px}
     #wkvakken .invvak img,#wkvakken .invvak svg{max-height:28px;max-width:28px}
+    #winkelui.coop #wkcoop{grid-template-columns:repeat(3,minmax(110px,160px));gap:4px}
+    .wkcoopknop{padding:4px 6px;gap:1px}
+    .wkcoopknop small{display:none}
   }
   /* de inventory (I of het tasje): vijf vakken, het spel staat stil (zie "inventory") */
   #invui{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(20,12,6,.62);z-index:6}
@@ -2436,6 +2452,7 @@
         <div class="wkkol"><button id="wkgif" class="wkding"><svg viewBox="0 0 48 84" aria-hidden="true"><path d="M18 8h12v16c9 4 14 13 14 24 0 17-9 32-20 32S4 65 4 48c0-11 5-20 14-24z" fill="#3d6b2a" stroke="#1d3314" stroke-width="2"/><path d="M8 50c3 3 9 4 16 1s13-2 16 1c0 13-7 24-16 24S8 63 8 50z" fill="#8fe04a"/><rect x="16" y="3" width="16" height="7" rx="2" fill="#6b4424"/><circle cx="18" cy="60" r="3" fill="#d6ff9c" opacity=".7"/><circle cx="28" cy="66" r="2" fill="#d6ff9c" opacity=".6"/></svg><span>Gif</span><em id="wkgifprijs">gratis</em></button>
           <button id="wkvgif" class="wkverkoop">Verkoop</button></div>
       </div>
+      <div id="wkcoop"></div>
       <div class="wktas">
         <span class="wktaskop">Jouw spullen</span>
         <div id="wkvakken"></div>
@@ -2443,7 +2460,7 @@
         <span id="wkrug"></span>
       </div>
       </div>
-      <div class="wkonder"><button id="wkterug" class="wkverkoop weg">Terugkopen</button><button id="wkdicht">Verder</button></div>
+      <div class="wkonder"><button id="wkterug" class="wkverkoop weg">Terugkopen</button><button id="wkklaar">Ready</button><button id="wkdicht">Verder</button></div>
     </div>
   </div>
   <div id="invui">
@@ -19582,6 +19599,7 @@ let fcSoort = null, fcSlagId = 0;   // tijdens de draaislag van Full Circle: 'ba
 // Welke Full Circle geldt nu: null als er geen is. De sandbox (de knop Combo) en Test 68 (comboKeuze) kiezen zelf
 // (fc, fc_kracht, fc_breed); elders het talent. Een Test level zonder tribe heeft alle talents tegelijk: dan Crushing Circle.
 function fcModus(){
+  if (typeof mpCoopAan === 'function' && mpCoopAan()) return mpcFcModus();   // Co-op: wat je in de winkel kocht
   const k = sandbox ? sbComboSoort : level && level.comboKeuze ? duoKeuze.combo : null;
   if (k !== null) return k === 'fc' ? 'basis' : k === 'fc_kracht' ? 'kracht' : k === 'fc_breed' ? 'breed' : null;
   if (!tribeHeeft('full_circle')) return null;
@@ -19599,9 +19617,14 @@ function fcOpenDoel(){
   return null;
 }
 function fcOpenZet(s){ s.fcOpenTot = bavKlok + FC.openT * 1000; }   // hij sloeg mis: even open
-function fcBreedNu(){ return atkCombo && fcSoort === 'breed'; }
+// Crushing Circle, ook samen met rondom (kracht_rond, alleen in de winkel van Co-op)
+function fcKracht(){ return fcSoort === 'kracht' || fcSoort === 'kracht_rond'; }
+// rondom (Co-op): de draaislag raakt iedereen om Amir heen (MPC.rond), ook achter hem
+function fcRondNu(){ return atkCombo && (fcSoort === 'rond' || fcSoort === 'kracht_rond'); }
+// Wide Circle en rondom: de slag raakt iedereen in de zone een keer (slagEen)
+function fcBreedNu(){ return atkCombo && (fcSoort === 'breed' || fcRondNu()); }
 // Crushing Circle: een halve treffer bovenop de ene (min: daar gaat hij niet onder, voor de zweepman met zijn arm)
-function fcHalf(s, min){ if (atkCombo && fcSoort === 'kracht' && steekLive() && !gifTikNu) s.hp = Math.max(min === undefined ? -1 : min, s.hp - 0.5); }
+function fcHalf(s, min){ if (atkCombo && fcKracht() && steekLive() && !gifTikNu) s.hp = Math.max(min === undefined ? -1 : min, s.hp - 0.5); }
 // De draaislag raakt deze vijand: zet swingUsed (dan raakt hij verder niemand), behalve bij de duw en Wide Circle, die
 // iedereen een keer raken. Geeft false als Wide Circle hem in deze slag al raakte.
 function slagEen(s){
@@ -19620,7 +19643,7 @@ function comboFc(){ return comboSoort().indexOf('fc') === 0; }
 function comboTerug(){ const k = comboSoort(); return k === 'terugslag' || k === 'beide' || k === 'knop' || comboFc(); }   // de vijand terug (terugslag, beide, de duw of Full Circle)
 function comboDubbel(){ const k = comboSoort(); return k === 'schade' || k === 'beide' || k === 'doorbraak'; }   // de treffer telt dubbel (de duw en Full Circle niet)
 // de terugslag die nu geldt: de grote (COMBO.terug), of bij Full Circle zonder Crushing Circle de kleine (FC.terug)
-function comboT(){ return fcSoort && fcSoort !== 'kracht' ? FC.terug : COMBO.terug; }
+function comboT(){ return fcSoort && !fcKracht() ? FC.terug : COMBO.terug; }
 function comboDoor(){ return COMBO.aan && comboSoort() === 'doorbraak'; }
 function comboPantser(){ return atkCombo && atkFrame >= 0 && atkFrame <= COMBO.pantserTot && comboDoor(); }   // doorbraak: de draai is niet te onderbreken
 // De soort 'knop': de draaislag is geen derde slag meer maar een ability op X, de duw (DUW). Drie steken
@@ -19678,7 +19701,7 @@ function comboStap(dt){
 }
 // de eerste treffer van de slag: de flits van True Flight op de speerpunt, en wat langer stil
 function comboTreffer(wx, h){
-  if (comboTerug()){ puffWorld(wx, 8, 0, fcSoort && fcSoort !== 'kracht' ? 0.8 : 1.1, 0); houtRaak(COMBO.terug.toon, 1); }   // de schacht op zijn lijf: een doffe houtklap
+  if (comboTerug()){ puffWorld(wx, 8, 0, fcSoort && !fcKracht() ? 0.8 : 1.1, 0); houtRaak(COMBO.terug.toon, 1); }   // de schacht op zijn lijf: een doffe houtklap
   if (comboDubbel()) critFx(wx, h);                 // dubbel: de ster van de crit
   hitstop = Math.max(hitstop, COMBO.stop); shake = Math.max(shake, COMBO.schok);
 }
@@ -19727,9 +19750,9 @@ function steekLive(){ return atkFrame >= 0 && (atkCombo ? COMBO.actief : atkMes 
 // de derde slag (COMBO): de punt in canvas-px, omgerekend naar sprite-eenheden; y vanaf de bovenkant van zijn eigen canvas
 // (de y waarmee getekend wordt), zodat y + steekY() * scale ook hier de punt is
 function comboPunt(){ return COMBO.punt[atkFrame] || [COMBO.ANKER, COMBO.GROUND]; }
-function steekDX(){ return fcBreedNu() ? FC.breed.dx * COMBO.schaal : atkCombo ? (comboPunt()[0] - COMBO.ANKER) * COMBO.schaal : atkMes ? mesPunt(Math.min(atkFrame, MES.steek.length - 1)).dx : TIP_DX[atkFrame]; }
-function steekY(){ return fcBreedNu() ? FC.breed.y * COMBO.schaal : atkCombo ? comboPunt()[1] * COMBO.schaal : atkMes ? mesPunt(Math.min(atkFrame, MES.steek.length - 1)).y : TIP_Y[atkFrame]; }
-function steekR(){ return fcBreedNu() ? FC.breed.r : atkCombo ? COMBO.reik : atkMes ? (mesWaarde('reik') || 34) : 40; }
+function steekDX(){ return fcRondNu() ? MPC.rond.dx * COMBO.schaal : fcBreedNu() ? FC.breed.dx * COMBO.schaal : atkCombo ? (comboPunt()[0] - COMBO.ANKER) * COMBO.schaal : atkMes ? mesPunt(Math.min(atkFrame, MES.steek.length - 1)).dx : TIP_DX[atkFrame]; }
+function steekY(){ return fcRondNu() ? MPC.rond.y * COMBO.schaal : fcBreedNu() ? FC.breed.y * COMBO.schaal : atkCombo ? comboPunt()[1] * COMBO.schaal : atkMes ? mesPunt(Math.min(atkFrame, MES.steek.length - 1)).y : TIP_Y[atkFrame]; }
+function steekR(){ return fcRondNu() ? MPC.rond.r : fcBreedNu() ? FC.breed.r : atkCombo ? COMBO.reik : atkMes ? (mesWaarde('reik') || 34) : 40; }
 function steekRaakt(soort){ if (!duwRaakt(soort)) return false; const r = mesWaarde('raakt'); return !atkMes || !r || r[soort] !== false; }
 function steekEind(){ return atkCombo ? COMBO.ticks.length : atkMes ? MES.steek.length : atkImgs.length; }
 // ---- afweren met het mes ----
@@ -29843,6 +29866,11 @@ function winkelSpeerNiet(){
 }
 function winkelPrijs(n){ return goudAan() ? n + ' goud' : 'gratis'; }
 function winkelUIToon(){
+  const coop = typeof mpCoopAan === 'function' && mpCoopAan();   // Co-op: de eigen prijslijst (mpcWinkelToon, MPC_WINKEL)
+  winkelUIEl.classList.toggle('coop', coop);
+  winkelUIEl.querySelector('strong').textContent = coop ? 'Shop' : 'Winkel';
+  document.getElementById('wkdicht').textContent = coop ? 'Close' : 'Verder';
+  if (coop){ winkelUIEl.classList.remove('gratis'); mpcWinkelToon(); return; }
   const g = goudAan();
   document.getElementById('wkprijs').textContent = winkelPrijs(GOUD.kalebas);
   document.getElementById('wkspeerprijs').textContent = winkelPrijs(GOUD.speer);
@@ -29954,6 +29982,7 @@ document.getElementById('wkgif').onclick = () => {
   document.getElementById('wkuitleg').textContent = 'Gif in je inventory. Druk op I om het op je speren te smeren.';
 };
 document.getElementById('wkdicht').onclick = winkelUIDicht;
+document.getElementById('wkklaar').onclick = () => mpcKlaarDruk();
 for (const soort of ['kalebas', 'speer', 'gif']) document.getElementById('wkv' + soort).onclick = () => winkelVerkoop(soort);
 document.getElementById('wkterug').onclick = winkelTerugkoop;
 
@@ -62391,8 +62420,25 @@ const MPC = {
   moeilijk: 5,              // de moeilijke versie: zoveel punten extra
   reeks: 10, reeksT: 3,     // een multikill: zoveel punten extra per kill in de reeks, kills binnen zoveel seconden
   knikkers: 10, goud: 3,    // de knikkerzak van de tonnen, en zoveel goud voor wie een ton met goud breekt
-  elite: { hp: 5 }          // de elite-garde in Co-op: vijf levens en altijd een dolk die hij eerst werpt
+  elite: { hp: 5 },         // de elite-garde in Co-op: vijf levens en altijd een dolk die hij eerst werpt
+  // de economie (stuk 3): het goud van een kill gedeeld, ieder zoveel; per overleefde ronde ieder rondeGoud; geef: Give 5 gold
+  killGoud: { dier: 1, mens: 2, zwaar: 3 }, rondeGoud: 5, geef: 5,
+  rond: { dx: 0, y: 290, r: 330 }   // Full Circle rondom (alleen hier te koop): een cirkel om Amir heen, net als FC.breed in canvas-px van de combo
 };
+// de winkelkamer van Co-op: de strook (r tot l) en de toonbank; de spelers komen binnen bij de deurkant
+const MPC_WINKEL_KAMER = { r: -20000, l: -21700, toonbank: -21250, plek: [-20300, -20480] };
+// de prijslijst van de winkel in Co-op (per speler). prijs een getal, of een rij voor de zoveelste keer; eis: eerst dat
+const MPC_WINKEL = [
+  { k: 'kalebas', naam: 'Gourd',                    prijs: 5,  uitleg: 'One life back, until your lives are full' },
+  { k: 'speer',   naam: 'New spear',                prijs: 10, uitleg: 'Until your hand and back are full' },
+  { k: 'gif',     naam: 'Poison',                   prijs: 25, uitleg: 'One per spear slot. Press I to smear it on' },
+  { k: 'fc',      naam: 'Full Circle',              prijs: 30, uitleg: 'A stab at an open enemy (blinded by dust, or one that just missed) becomes a spinning strike' },
+  { k: 'kracht',  naam: 'Full Circle: more damage', prijs: 50, uitleg: '1.5 damage and a big knockback', eis: 'fc' },
+  { k: 'rond',    naam: 'Full Circle: all around',  prijs: 50, uitleg: 'The spin hits everyone around you, also behind you', eis: 'fc' },
+  { k: 'slot',    naam: 'Extra spear slot',         prijs: 45, uitleg: 'A second spare spear on your back' },
+  { k: 'leven',   naam: 'Extra life',               prijs: [60, 90, 120], uitleg: 'One more life, for the rest of the game' },
+  { k: 'geef',    naam: 'Give 5 gold',              prijs: 5,  uitleg: 'To your teammate' }
+];
 // de map: het stadje van PvP, met een balkon hoog in het middenhuis (de deur voor de kruisboogschutters, niet te
 // bereiken), een wapenrek in het midden en geen vaste ton (die komen per ronde). Rondom gesloten: de rand rechts, de
 // rotswand links; dieren komen van die twee kanten, mensen uit de deuren.
@@ -62405,6 +62451,15 @@ const MP_COOP_LEVEL = (() => {
   lv.wapenrekken = [{ x: -1640, n: 4 }];
   delete lv.stad.gordijnen;                           // houten deuren, want daar komen ze uit
   Object.assign(lv.stad.gevels[1], { balkon: 'nis', balkonV: 2 });
+  lv.combo = true;                                    // Full Circle, als je hem in de winkel koopt (fcModus, mpcFcModus)
+  // de winkel (stuk 3): een binnenkamer ver van de straat, zonder deur naar buiten. Na elke winkelNa rondes gaan allebei
+  // er met een fade heen (mpcWinkelIn) en ook weer uit (mpcWinkelUit); E bij de toonbank opent het winkelscherm
+  lv.binnen = [{ gevel: null, r: MPC_WINKEL_KAMER.r, l: MPC_WINKEL_KAMER.l,
+                 ramen: [ { x: -20600, h: 420 }, { x: -21050, h: 420 } ],
+                 palen: [ { x: -20850, h: 0 } ],
+                 winkel: { x: MPC_WINKEL_KAMER.toonbank, seed: 523, koopman: true },
+                 planken: [ { x: -20450, h: 380, soort: 'touw', seed: 71 } ] }];
+  lv.zwevers = [{ r: MPC_WINKEL_KAMER.r, l: MPC_WINKEL_KAMER.l, h: 900, onder: 750, look: 'hout' }];
   return lv;
 })();
 // de deuren waar mensen uit komen: beneden het deurgat van elk huis, op de galerij (401) een per huis, en het balkon
@@ -62680,7 +62735,9 @@ function mpcVolgStap(rdt){
 function mpCoopNieuw(){
   return { ronde: 0, fase: 'wacht', klok: MPC.eerst, rij: [], spawnKlok: 0, score: 0, kills: 0, t: 0, id: 0, tonId: 0,
            zak: [], goud: 0, reeks: { n: 0, t: -99 }, doodT: [null, null], reviveTon: null, symbool: null, eind: null,
-           leeg: {}, losWeg: new Set(), losVorig: {}, gezien: new Map(), gastWeg: false, sleutelT: 0, zendT: 0, reviveRust: 0 };
+           leeg: {}, losWeg: new Set(), losVorig: {}, gezien: new Map(), gastWeg: false, sleutelT: 0, zendT: 0, reviveRust: 0,
+           koop: { fc: false, kracht: false, rond: false, slot: false, leven: 0 },   // wat ik in de winkel kocht (ieder het zijne)
+           wkKlaar: [false, false], mijnKlaar: false };   // Ready in de winkel: de host telt allebei, ieder weet het zijne
 }
 // wat er in een ronde komt: willekeurig uit de soorten die aan staan, bij Both de helft van de keren de moeilijke
 function mpcRonde(n){
@@ -62813,6 +62870,7 @@ function mpcKill(o){
   let p = (MPC.punten[o.mpSoort] || 10) + (o.mpHard ? MPC.moeilijk : 0);
   if (C.t - C.reeks.t <= MPC.reeksT){ C.reeks.n++; p += MPC.reeks * (C.reeks.n === 2 ? 2 : 1); } else C.reeks.n = 1;
   C.reeks.t = C.t; C.kills++; C.score += p;
+  mpcGoudAllebei(mpcKillGoud(o.mpSoort));             // het goud van de kill, gedeeld: ieder evenveel
   if (C.reeks.n >= 2) mpcBanner(C.reeks.n === 2 ? 'Double Kill' : C.reeks.n === 3 ? 'Triple Kill' : 'Multi Kill', 1.2);
 }
 function mpcKillKijk(){
@@ -62835,6 +62893,7 @@ function mpcHostStap(dt){
   const C = pvp.coop, R = pvp.regels.coop;
   if (C.fase === 'uit') return;
   mpcKillKijk();
+  if (C.fase === 'winkel') return;                    // in de winkel: wachten op Ready van allebei (mpcWinkelKlaar)
   // de doden: wie dood is, wacht; na MPC.reviveNa komt de revive-ton bij de ander. Allebei dood: game over
   const doden = [dead, !!(pvp.ander && pvp.ander.d)];
   for (let i = 0; i < 2; i++){ if (doden[i] && C.doodT[i] == null) C.doodT[i] = C.t; if (!doden[i]) C.doodT[i] = null; }
@@ -62860,9 +62919,15 @@ function mpcHostStap(dt){
   if (C.rij.length){
     if (C.spawnKlok <= 0 && lev.n < MPC.tegelijk){ mpcSpawn(C.rij.shift()); C.spawnKlok = MPC.tussen * (0.7 + Math.random() * 0.6); }
   } else if (!lev.n){
-    C.fase = 'wacht'; C.klok = R.pauze;
-    mpcBanner('Round ' + (C.ronde + 1) + ' in ' + R.pauze + ' s', 2);
+    mpcGoudAllebei(MPC.rondeGoud, 'round survived');   // de ronde is overleefd: ieder rondeGoud
+    if (C.ronde % R.winkelNa === 0){ pvpZend({ t: 'winkel' }); mpcWinkelIn(); return; }   // tijd voor de winkel
+    mpcVolgendeRonde();
   }
+}
+function mpcVolgendeRonde(){
+  const C = pvp.coop, R = pvp.regels.coop;
+  C.fase = 'wacht'; C.klok = R.pauze;
+  mpcBanner('Round ' + (C.ronde + 1) + ' in ' + R.pauze + ' s', 2);
 }
 function mpcEinde(){
   const C = pvp.coop;
@@ -62958,7 +63023,7 @@ function mpCoopHud(){
   const C = pvp.coop;
   pvpEl('pvpscore').textContent = (C.ronde ? 'Round ' + C.ronde + '   ' : '') + 'Score ' + C.score + '   Gold ' + C.goud;
   const wacht = dead && C.fase !== 'uit' ? (pvp.ander && !pvp.ander.d ? 'Waiting for revive' : '') : '';
-  const b = wacht || pvp.banner || '';
+  const b = winkelUIAan ? '' : (wacht || pvp.banner || '');   // het winkelscherm heeft zijn eigen uitleg
   if (pvpEl('pvpbanner').textContent !== b) pvpEl('pvpbanner').textContent = b;
 }
 // het symbool en de letters op de revive-ton, in het tekenblok na Amir
@@ -63010,6 +63075,11 @@ function mpCoopOntvang(m){
     return true;
   }
   if (m.t === 'cnieuw'){ if (!pvp.host) mpCoopStart(); return true; }
+  if (m.t === 'cg'){ mpcGoudErbij(m.n, m.w); return true; }
+  if (m.t === 'geef'){ mpcGoudErbij(m.n, 'from your teammate'); return true; }
+  if (m.t === 'winkel'){ if (!pvp.host && !laadWacht) mpcWinkelIn(); return true; }
+  if (m.t === 'winkelUit'){ if (!pvp.host) mpcWinkelUit(); return true; }
+  if (m.t === 'wkklaar'){ C.anderKlaar = !!m.aan; if (pvp.host) mpcWinkelKlaar(1, !!m.aan); if (C.inWinkel){ mpcWinkelBanner(); if (winkelUIAan) mpcWinkelToon(); } return true; }
   return false;
 }
 // de vijanden die aan staan alvast laden, bij allebei: de gast maakt ze nooit zelf, dus zijn make-functies laden niets
@@ -63030,6 +63100,7 @@ function mpCoopLaad(){
 function mpCoopStart(){
   Object.assign(pvp, { sc: [0, 0], ronde: 1, t: 0, gehoord: 0, zendT: 0, ander: null, sn: 0, wn: 0, jn: 0, laatsteAtk: -1, laatsteSw: -1,
                        laatsteJav: null, mijn: null, jVorig: null, rematch: [false, false], levens: 3, banner: '', bannerT: 0 });
+  winkelUIDicht();
   pvp.coop = mpCoopNieuw();
   pvpEl('mpeind').classList.remove('on');
   runReset();
@@ -63056,8 +63127,141 @@ function mpCoopOpnieuw(){
 }
 function mpCoopStop(){
   if (!pvp) return;
+  winkelUIDicht();
   pvp.coop = null; mpcWissel = null;
   pvpEl('mpeind').classList.remove('on');
+}
+// ---- multiplayer: de winkel en de economie van Co-op (stuk 3) ----
+// Goud: het goud van een kill is gedeeld (ieder MPC.killGoud, naar de soort), en per overleefde ronde krijgt ieder
+// MPC.rondeGoud. De host ziet de kill en het eind van de ronde en stuurt het deel van de gast mee (cg). Ieder heeft zijn
+// eigen beurs (pvp.coop.goud); Give 5 gold geeft de ander MPC.geef van de jouwe (geef). Na elke winkelNa rondes, zodra de
+// laatste vijand dood is, gaan allebei met een fade naar de winkelkamer (mpcWinkelIn, MPC_WINKEL_KAMER): wie dood was staat
+// er gratis op met 1 leven, en ieder krijgt zijn speren terug (mpcSperenTerug: de hand en de gewone plek op de rug; het
+// extra slot vul je met een gekochte speer of van het rek). E bij de toonbank opent het winkelscherm, in Co-op met de
+// prijslijst MPC_WINKEL (mpcWinkelToon). Het winkelscherm pauzeert, maar pvpStap loopt in de pauze door, dus de verbinding
+// en de ander merken er niets van. Ready meldt het aan de ander (wkklaar); de host telt, en zijn ze er allebei, dan gaan
+// ze terug de straat op (mpcWinkelUit) met een vol wapenrek en begint de pauze naar de volgende ronde. Zie notities/multiplayer.md.
+function mpcKillGoud(k){
+  if (MPC_DIER.has(k)) return MPC.killGoud.dier;
+  return k === 'schildman' || k === 'kruisboog' ? MPC.killGoud.zwaar : MPC.killGoud.mens;
+}
+function mpcGoudErbij(n, waarom){
+  if (!pvp || !pvp.coop || !(n > 0)) return;
+  pvp.coop.goud += n;
+  if (waarom) flashHint('+' + n + ' gold: ' + waarom);
+  mpCoopHud();
+  if (winkelUIAan) mpcWinkelToon();
+}
+function mpcGoudAllebei(n, waarom){ mpcGoudErbij(n, waarom); pvpZend({ t: 'cg', n, w: waarom || '' }); }
+// je speren terug: een in de hand en de gewone plek op de rug vol; wat er nog ligt of vliegt is weg
+function mpcSperenTerug(){
+  jav = null; losseSperen.length = 0; rugTrekT = 0;
+  spear = true; spearFound = true; spearX = null; spearH = null; speerBlauw = false;
+  while (rugSperen.length < Math.min(RUG_MAX, RUG_STANDAARD)) rugSperen.push({ blauw: false });
+  setSpearLabel();
+}
+// naar de winkel, bij allebei (de host besluit het, de gast hoort het met winkel)
+function mpcWinkelIn(){
+  const C = pvp.coop;
+  C.fase = 'winkel'; C.inWinkel = true; C.wkKlaar = [false, false]; C.mijnKlaar = false; C.anderKlaar = false;
+  C.doodT = [null, null]; C.symbool = null; C.reviveRust = C.t + 3;
+  for (const t of tonnen) if (t.revive) t.weg = true;
+  C.reviveTon = null;
+  if (dead){                                          // wie dood was staat hier gratis op
+    dead = false; lives = 1; hurt = 0; deadEl.classList.remove('on');
+    drawLives(); hudToon();
+  }
+  invuln = Math.max(invuln, 1.5);
+  mpcSperenTerug();
+  const x = MPC_WINKEL_KAMER.plek[pvp.mij];
+  stadTrapFade = { t: 0, gewisseld: false, doel: { x, h: binnenVloer(x, 0), face: -1 }, T: BINNEN.fade, binnen: true };
+  mpcWinkelBanner();
+}
+function mpcWinkelBanner(){
+  const C = pvp.coop;
+  pvpBanner(C.mijnKlaar ? 'Ready. Waiting for your teammate...'
+    : (C.anderKlaar ? 'Your teammate is ready. ' : '') + 'Shop: press E at the counter, then Ready');
+}
+// weer de straat op, bij allebei: het rek is weer vol, en bij de host begint de pauze naar de volgende ronde
+function mpcWinkelUit(){
+  const C = pvp.coop;
+  if (!C.inWinkel) return;
+  C.inWinkel = false; C.mijnKlaar = false; C.anderKlaar = false;
+  winkelUIDicht();
+  const r = wapenrekken[0]; if (r){ r.n = pvp.regels.coop.rek; r.uit = null; }
+  const x = PVP.starts[pvp.mij];
+  stadTrapFade = { t: 0, gewisseld: false, doel: { x, h: terrainH(x), face: pvp.mij === 0 ? -1 : 1 }, T: BINNEN.fade, binnen: true };
+  pvpBanner('');
+  if (pvp.host) mpcVolgendeRonde();
+}
+// Ready in het winkelscherm (nog een keer: toch niet). De ander hoort het altijd, de host telt
+function mpcKlaarDruk(){
+  const C = pvp && pvp.coop; if (!C || !C.inWinkel) return;
+  C.mijnKlaar = !C.mijnKlaar;
+  pvpZend({ t: 'wkklaar', aan: C.mijnKlaar });
+  if (C.mijnKlaar) winkelUIDicht(); else if (winkelUIAan) mpcWinkelToon();
+  mpcWinkelBanner();
+  if (pvp.host) mpcWinkelKlaar(0, C.mijnKlaar);
+}
+function mpcWinkelKlaar(i, aan){
+  const C = pvp.coop; if (!C.inWinkel) return;
+  C.wkKlaar[i] = aan;
+  if (C.wkKlaar[0] && C.wkKlaar[1]){ pvpZend({ t: 'winkelUit' }); mpcWinkelUit(); }
+}
+// de prijslijst: wat het nu kost (een extra leven wordt duurder), en waarom het niet kan (null: het kan)
+function mpcWinkelPrijs(q){ return Array.isArray(q.prijs) ? q.prijs[Math.min(pvp.coop.koop.leven, q.prijs.length - 1)] : q.prijs; }
+function mpcWinkelHeb(q){ const K = pvp.coop.koop; return q.k === 'leven' ? K.leven >= q.prijs.length : (q.k in K) && !!K[q.k]; }
+function mpcWinkelNiet(q){
+  const C = pvp.coop, K = C.koop, handVol = spear || spearFound || rugTrekT > 0;
+  let r = null;
+  if (mpcWinkelHeb(q)) r = q.k === 'leven' ? 'Sold out: you bought all three.' : 'You already have this.';
+  else if (q.eis && !K[q.eis]) r = 'Buy Full Circle first.';
+  else if (q.k === 'kalebas' && lives >= levensStart()) r = 'Your lives are full.';
+  else if (q.k === 'speer' && (!rugAan() || (rugVol() && handVol))) r = 'Your hand and back are full.';
+  else if (q.k === 'gif' && gifCarry >= 1 + RUG_MAX) r = 'One poison per spear slot (' + (1 + RUG_MAX) + ').';
+  else if (q.k === 'gif' && invVol()) r = 'Your bag is full.';
+  if (!r && C.goud < mpcWinkelPrijs(q)) r = 'Not enough gold: you have ' + C.goud + ', this costs ' + mpcWinkelPrijs(q) + '.';
+  return r;
+}
+function mpcWinkelKoop(q){
+  const C = pvp.coop, K = C.koop, reden = mpcWinkelNiet(q);
+  if (reden){ winkelSchud('wkc_' + q.k, reden); return; }
+  C.goud -= mpcWinkelPrijs(q);
+  let tekst = 'Bought: ' + q.naam + '.';
+  if (q.k === 'kalebas'){ lives++; drawLives(); }
+  else if (q.k === 'speer'){ rugErbij(false); if (!spear && !spearFound && rugTrekT <= 0) rugTrekKlaar(); setSpearLabel(); }
+  else if (q.k === 'gif'){ gifCarry++; invHud(); tekst = 'Poison in your bag. Press I to smear it on your spears.'; }
+  else if (q.k === 'leven'){ K.leven++; pvp.levens++; lives++; drawLives(); }
+  else if (q.k === 'geef'){ pvpZend({ t: 'geef', n: MPC.geef }); tekst = 'You gave your teammate ' + MPC.geef + ' gold.'; }
+  else { K[q.k] = true; if (q.k === 'slot'){ RUG_MAX++; setSpearLabel(); } }
+  playHppotionPickupSound();
+  mpCoopHud(); mpcWinkelToon();
+  document.getElementById('wkuitleg').textContent = tekst;
+}
+// het winkelscherm in Co-op: de prijslijst als knoppen, je goud, en Ready
+function mpcWinkelToon(){
+  const C = pvp.coop, el = document.getElementById('wkcoop');
+  el.innerHTML = '';
+  for (const q of MPC_WINKEL){
+    const b = document.createElement('button'), heb = mpcWinkelHeb(q), niet = mpcWinkelNiet(q);
+    b.id = 'wkc_' + q.k; b.className = 'wkcoopknop' + (heb ? ' heb' : niet ? ' duur' : '');
+    const naam = document.createElement('b'), uit = document.createElement('small'), prijs = document.createElement('em');
+    naam.textContent = q.naam + (q.k === 'leven' && C.koop.leven ? ' (' + C.koop.leven + ' of ' + q.prijs.length + ')' : '');
+    uit.textContent = q.uitleg;
+    prijs.textContent = heb ? (q.k === 'leven' ? 'Sold out' : 'Bought') : mpcWinkelPrijs(q) + ' gold';
+    b.append(naam, uit, prijs);
+    b.onclick = () => mpcWinkelKoop(q);
+    el.append(b);
+  }
+  document.getElementById('wkuitleg').textContent = 'You have ' + C.goud + ' gold.' + (C.anderKlaar ? ' Your teammate is ready.' : '');
+  document.getElementById('wkklaar').textContent = C.mijnKlaar ? 'Not ready' : 'Ready';
+  winkelTasToon();
+}
+// Full Circle in Co-op: wat je kocht. De twee upgrades mogen samen (anders dan de keuze in de talent tree)
+function mpcFcModus(){
+  const K = pvp.coop.koop;
+  if (!K.fc) return null;
+  return K.kracht && K.rond ? 'kracht_rond' : K.kracht ? 'kracht' : K.rond ? 'rond' : 'basis';
 }
 pvpEl('btnpvp').onclick = () => { pvpStatus(''); showMenu('menuPvp'); };
 pvpEl('pvphost').onclick = () => pvpHost();

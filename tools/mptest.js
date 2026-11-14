@@ -12,7 +12,7 @@
 //   node tools/mptest.js --stil          de spelers doen niets (dan gaan ze dood: game over en de revive)
 //   node tools/mptest.js --sterf gast   die speler is meteen dood: de revive-ton, het symbool en het opstaan
 //   node tools/mptest.js --taai          de spelers kunnen niet dood (godMode): om lang door te spelen
-//   node tools/mptest.js --proef         de vaste proef: een ton breken als gast, een treffer van de gast, game over, R, Escape
+//   node tools/mptest.js --proef         de vaste proef: een ton breken als gast, een treffer van de gast, de winkel, game over, R, Escape
 //   node tools/mptest.js --elk           elke soort makkelijk en moeilijk neerzetten, de gast raakt ze: fouten in het tekenen
 //   node tools/mptest.js --debug         elke 4 s de stand van allebei: plek, levens en de vijanden
 const fs = require('fs');
@@ -85,6 +85,48 @@ async function proef(H, G){
   }
   meld(await H.page.evaluate(k => pvp.coop.kills > k, kills), 'treffers van de gast doden een vijand bij de host (kills ' + kills + ' -> ' + await H.page.evaluate(() => pvp.coop.kills) + ')');
   meld(await tot(G.page, k => pvp.coop.kills > k, kills, 3000), 'en de gast ziet de score mee');
+  // de winkel (stuk 3): de ronde is op na winkelNa rondes, allebei naar de winkelkamer, kopen, Ready en terug
+  const goudVoor = await G.page.evaluate(() => pvp.coop.goud);
+  await H.page.evaluate(() => { const C = pvp.coop; C.rij = []; C.fase = 'golf'; C.ronde = pvp.regels.coop.winkelNa; for (const q of MPC_LIJSTEN) mpcZet(q, []); });
+  meld(await tot(H.page, () => pvp.coop.inWinkel && !stadTrapFade && !!binnenBij(world), null, 6000), 'na winkelNa rondes: de host in de winkelkamer');
+  meld(await tot(G.page, () => pvp.coop.inWinkel && !stadTrapFade && !!binnenBij(world), null, 6000), 'en de gast ook');
+  meld(await tot(G.page, v => pvp.coop.goud >= v + 5, goudVoor, 3000), 'de gast krijgt het goud van de overleefde ronde (' + goudVoor + ' -> ' + await G.page.evaluate(() => pvp.coop.goud) + ')');
+  const scherm = await G.page.evaluate(() => { world = MPC_WINKEL_KAMER.toonbank + 40; onGround = true; jump = null; binnenE();
+    return winkelUIAan && winkelUIEl.classList.contains('coop') && document.querySelectorAll('#wkcoop button').length === MPC_WINKEL.length; });
+  meld(scherm, 'E bij de toonbank: het winkelscherm met de prijslijst van Co-op');
+  if (shots){ fs.mkdirSync(shots, { recursive: true }); await G.page.screenshot({ path: path.join(shots, 'winkel_scherm.png') }); await H.page.screenshot({ path: path.join(shots, 'winkel_kamer_host.png') }); }
+  const hGoud = await H.page.evaluate(() => pvp.coop.goud);
+  const koop = await G.page.evaluate(() => {
+    pvp.coop.goud = 300; const klik = k => document.getElementById('wkc_' + k).click();
+    const voorFc = fcModus(); klik('kracht'); const zonder = !pvp.coop.koop.kracht;
+    klik('fc'); klik('rond'); klik('kracht'); klik('slot'); klik('leven'); klik('geef');
+    return { voorFc, zonder, fc: fcModus(), rug: RUG_MAX, levens: pvp.levens, lives, goud: pvp.coop.goud };
+  });
+  meld(koop.voorFc === null && koop.zonder, 'zonder Full Circle geen upgrade');
+  meld(koop.fc === 'kracht_rond', 'Full Circle met allebei de upgrades (' + koop.fc + ')');
+  meld(koop.rug === 2 && koop.levens === 4, 'het extra speerslot en een extra leven (rug ' + koop.rug + ', levens ' + koop.levens + ')');
+  meld(koop.goud === 300 - 30 - 50 - 50 - 45 - 60 - 5, 'de prijzen kloppen (over: ' + koop.goud + ')');
+  meld(await tot(H.page, v => pvp.coop.goud === v + 5, hGoud, 3000), 'Give 5 gold komt aan bij de host');
+  await G.page.evaluate(() => document.getElementById('wkklaar').click());
+  meld(await G.page.evaluate(() => !winkelUIAan && pvp.coop.mijnKlaar), 'Ready bij de gast: het scherm dicht');
+  meld(await tot(H.page, () => pvp.coop.anderKlaar && pvp.coop.inWinkel, null, 3000), 'de host hoort het, en wacht nog op zichzelf');
+  await H.page.evaluate(() => mpcKlaarDruk());
+  meld(await tot(H.page, () => !pvp.coop.inWinkel && !stadTrapFade && !binnenBij(world) && pvp.coop.fase === 'wacht' && wapenrekken[0].n === pvp.regels.coop.rek, null, 6000), 'allebei Ready: de host weer op straat, het rek vol, de pauze loopt');
+  meld(await tot(G.page, () => !pvp.coop.inWinkel && !stadTrapFade && !binnenBij(world), null, 6000), 'en de gast ook');
+  // Full Circle rondom: een verblinde bandiet voor de host en een achter hem; de draaislag raakt ze allebei
+  const rond = await H.page.evaluate(async () => {
+    godMode = true; pvp.coop.koop.fc = true; pvp.coop.koop.rond = true; facing = -1;
+    const voor = mpcMaak({ k: 'bandiet', hard: false }, world - 150, 1, terrainH(world - 150));
+    const achter = mpcMaak({ k: 'bandiet', hard: false }, world + 150, -1, terrainH(world + 150));
+    voor.verblind = 5; achter.verblind = 0;
+    const hp0 = [voor.hp, achter.hp];
+    atkCooldown = 0; startAttack();
+    const soort = fcSoort;
+    await new Promise(ok => setTimeout(ok, 1200));
+    return { soort, voor: [hp0[0], voor.hp], achter: [hp0[1], achter.hp] };
+  });
+  meld(rond.soort === 'rond' && rond.voor[1] < rond.voor[0] && rond.achter[1] < rond.achter[0],
+       'Full Circle rondom raakt voor en achter (' + JSON.stringify(rond) + ')');
   // allebei dood: game over en het eindscherm
   for (const r of [H, G]) await r.page.evaluate(() => { godMode = false; invuln = 0; lives = 1; hurtPlayer(true); });
   meld(await tot(H.page, () => pvp.coop.fase === 'uit' && pvpEl('mpeind').classList.contains('on'), null, 5000), 'allebei dood: game over, het eindscherm bij de host');
