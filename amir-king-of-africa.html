@@ -22375,12 +22375,24 @@ function speerSoortId(v){ return typeof v === 'string' ? v : v ? 'blauw' : null;
 const BROEK = {
   tint: [205, 325],      // de paarse tinten die broek zijn (graden), met een zachte rand van 10 graden
   sat: 0.08,             // daaronder is het grijs of contour en blijft het staan
-  kleuren: [             // tint (graden), verzadiging en helderheid als factor op het origineel
-    { id: 'rood',  naam: 'Fire red',    h: 358, s: 2.6, v: 1.55 },
-    { id: 'blauw', naam: 'Cobalt blue', h: 215, s: 2.6, v: 1.6 },
-    { id: 'goud',  naam: 'Gold',        h: 46,  s: 2.6, v: 2.0 } ]
+  // de broek is niet in elke animatie even paars: gebukt sluipen is hij per frame donkerder en valer (helderheid
+  // 0,23 tot 0,40), de mik-rig juist feller. Paars ziet er dan nog als dezelfde broek uit, goud wordt khaki. Daarom
+  // trekken we per frame het midden (de mediaan) van de broek eerst naar dat van de idle, en dan pas de kleur erop
+  ref: { v: 0.40, s: 0.37 },
+  rand: 2,               // zoveel px van doorzichtig blijft het origineel (de magenta rand, een speerpunt)
+  // tint (graden), verzadiging en helderheid als factor op het origineel. Geen blauw of indigo: dat lijkt in een
+  // gevecht op het kleed van de bandiet. Zwart valt weg tegen donkere bergen en 's nachts, maar mag gekozen worden
+  kleuren: [
+    { id: 'rood',  naam: 'Fire red',  h: 358, s: 2.6,  v: 1.55 },
+    { id: 'oranje', naam: 'Orange',   h: 24,  s: 2.6,  v: 1.9 },
+    { id: 'goud',  naam: 'Gold',      h: 46,  s: 2.6,  v: 2.0 },
+    { id: 'turq',  naam: 'Turquoise', h: 178, s: 2.4,  v: 1.6 },
+    { id: 'wit',   naam: 'White',     h: 40,  s: 0.18, v: 2.25 },
+    { id: 'zwart', naam: 'Black',     h: 230, s: 0.25, v: 0.55 } ]
 };
 const broekLapCache = new Map();                         // kleur-id -> WeakMap(plaatje -> {cv, x, y} of null)
+// na een keuze: de lapjes van kleuren die niemand draagt weg (het voorbeeld in het keuzescherm bakte ze ook)
+function broekOpruim(houd){ for (const id of [...broekLapCache.keys()]) if (!houd.includes(id)) broekLapCache.delete(id); }
 function broekKleurVan(id){ return BROEK.kleuren.find(k => k.id === id) || null; }
 function broekNu(){ return level && level.broekKeuze && !sandbox ? broekKleurVan(duoKeuze.broek) : null; }
 function broekLap(img, kl){
@@ -22395,20 +22407,40 @@ function broekLap(img, kl){
     const g = c.getContext('2d', { willReadFrequently: true });
     g.drawImage(img, 0, 0);
     const d = g.getImageData(0, 0, w, h), p = d.data;
-    const [t0, t1] = BROEK.tint;
-    let x0 = w, y0 = h, x1 = -1, y1 = -1;
-    for (let j = 0, i = 0; j < w * h; j++, i += 4){
-      const a = p[i + 3];
-      if (!a){ continue; }
+    const [t0, t1] = BROEK.tint, n = w * h;
+    const mk = new Float32Array(n), sv = new Float32Array(n), vv = new Float32Array(n);
+    const hs = new Uint32Array(64), hv = new Uint32Array(64);   // voor de mediaan van de broek in deze frame
+    let tel = 0;
+    for (let j = 0, i = 0; j < n; j++, i += 4){
+      if (!p[i + 3]) continue;
       const r = p[i] / 255, gr = p[i + 1] / 255, b = p[i + 2] / 255;
       const mx = Math.max(r, gr, b), mn = Math.min(r, gr, b), dd = mx - mn;
       const s = mx > 0 ? dd / mx : 0;
       let t = 0;
       if (dd > 0) t = (mx === r ? ((gr - b) / dd + 6) % 6 : mx === gr ? (b - r) / dd + 2 : (r - gr) / dd + 4) * 60;
       const m = Math.min(1, Math.max(0, (s - BROEK.sat) / 0.06)) * Math.min(1, Math.max(0, Math.min(t - t0, t1 - t) / 10));
-      if (m <= 0){ p[i + 3] = 0; continue; }
-      // de nieuwe kleur: de tint vast, verzadiging en helderheid van het origineel opgeschaald (hsv naar rgb)
-      const ns = Math.min(1, s * kl.s), nv = Math.min(1, mx * kl.v), hh = kl.h / 60;
+      mk[j] = m; sv[j] = s; vv[j] = mx;
+      if (m >= 1 && p[i + 3] > 230){ hs[Math.min(63, s * 64 | 0)]++; hv[Math.min(63, mx * 64 | 0)]++; tel++; }
+    }
+    // de rand: wat binnen BROEK.rand px van doorzichtig ligt is geen broek (die heeft daar een donkere contour), maar
+    // het restje magenta om de sluipframes of een dunne speerpunt; dat blijft van het origineel
+    const R = BROEK.rand;
+    for (let j = 0; j < n; j++){
+      if (mk[j] <= 0) continue;
+      const x = j % w, y = (j - x) / w;
+      rand: for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++){
+        const xx = x + dx, yy = y + dy;
+        if (xx < 0 || yy < 0 || xx >= w || yy >= h || p[(yy * w + xx) * 4 + 3] < 128){ mk[j] = 0; break rand; }
+      }
+    }
+    const mediaan = hist => { let k = 0; for (let b = 0; b < 64; b++){ k += hist[b]; if (k * 2 >= tel) return (b + 0.5) / 64; } return 0.5; };
+    const fs = tel > 50 ? BROEK.ref.s / mediaan(hs) : 1, fv = tel > 50 ? BROEK.ref.v / mediaan(hv) : 1;
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let j = 0, i = 0; j < n; j++, i += 4){
+      const a = p[i + 3], m = mk[j];
+      if (!a || m <= 0){ p[i + 3] = 0; continue; }
+      // de nieuwe kleur: de tint vast, verzadiging en helderheid van het origineel (eerst naar de idle getrokken) opgeschaald
+      const ns = Math.min(1, sv[j] * fs * kl.s), nv = Math.min(1, vv[j] * fv * kl.v), hh = kl.h / 60;
       const f = hh - Math.floor(hh), q1 = nv * (1 - ns), q2 = nv * (1 - ns * f), q3 = nv * (1 - ns * (1 - f));
       const rgb = [[nv, q3, q1], [q2, nv, q1], [q1, nv, q3], [q1, q2, nv], [q3, q1, nv], [nv, q1, q2]][Math.floor(hh) % 6];
       p[i] = rgb[0] * 255; p[i + 1] = rgb[1] * 255; p[i + 2] = rgb[2] * 255; p[i + 3] = a * m;
@@ -46283,6 +46315,7 @@ function duoKeuzeStart(){
   duoKeuzeEl.classList.remove('on');
   paused = false;
   try { localStorage.setItem('amir.duoKeuze', JSON.stringify(duoKeuze)); } catch (e) {}
+  if (level && level.broekKeuze) broekOpruim([duoKeuze.broek]);
   const f = duoKeuzeVerder; duoKeuzeVerder = null;
   duoKeuzeDoor = true;                               // de talentkeuze die hierna komt vraagt het niet nog een keer
   try { if (f) f(); } finally { duoKeuzeDoor = false; }

@@ -809,7 +809,7 @@ Test 72 (Aim rig) is een proefveld voor een nieuwe manier van mikken: houd F vas
 schuin omhoog tot steil omlaag; zijn arm en speer draaien mee. Je speren raken niet op, er is een trap om van verschillende
 hoogtes te gooien, en het level heeft geen einde: je gaat eruit via het menu. In de sandbox zet **Aim rig** het aan.
 
-In **Test 73: Trousers** kies je voor het begin de kleur van Amirs broek: Fire red, Cobalt blue of Gold. Met de pijltjes
+In **Test 73: Trousers** kies je voor het begin de kleur van Amirs broek: Fire red, Orange, Gold, Turquoise, White of Black. Met de pijltjes
 (op het scherm of op het toetsenbord) wissel je, en de broek kleurt in het voorbeeld zacht over; **Choose** start het level.
 Daarna sta je tegenover drie verschillende tegenstanders: een bandiet, een schildbandiet en een zweepman. De keuze blijft
 bewaard, en via het pauzemenu kies je opnieuw.
