@@ -1,6 +1,7 @@
 # Multiplayer: de lobby, Co-op Survival en Duel
 
-`MP_KAARTEN`, `MP_SOORTEN`, `mpStandaard`, `mpLobbyToon`, `mpWijzig`, `mpStart`, `mpSpelStart`, `pvpDuelStart`, `mpNaarLobby`
+`MP_KAARTEN`, `MP_SOORTEN`, `mpStandaard`, `mpLobbyToon`, `mpWijzig`, `mpStart`, `mpSpelStart`, `pvpDuelStart`, `mpNaarLobby`;
+Co-op: `MPC`, `MP_COOP_LEVEL`, `mpCoopStart`, `mpCoopStap`, `mpcUpdate`, `mpcHitDoor`, `mpcStandZend`, `mpcStandLees`, `mpcHostStap`
 
 De knop **Multiplayer** in het hoofdmenu (was PvP, de id is nog `btnpvp`, het scherm nog `menuPvp`). De verbinding is die
 van `notities/pvp.md` (PeerJS, met het relais als vangnet). Dit document is het plan voor de hele modus, uit een grill met de
@@ -11,11 +12,10 @@ opdrachtgever (november 2026). Wat gebouwd is staat erbij; de rest is de afspraa
 1. **Multiplayer en de lobby** (gebouwd). Host of Join, daarna allebei in de lobby. De host kiest de modus, de map en de
    regels; de gast kijkt mee en drukt Ready; de host drukt Start. Duel werkt zoals PvP, met de regels uit de lobby. Escape
    (pauze, Menu) brengt allebei terug naar de lobby met de verbinding nog open; **Leave the lobby** verbreekt hem.
-2. **Co-op Survival** (open). De aangepaste map, rondes met vijanden, elkaar niet raken, tonnen met de knikkerzak, de
-   revive, het wapenrek, punten en het eindscherm.
+2. **Co-op Survival** (gebouwd, zie "Co-op Survival: hoe het gebouwd is" onderaan). De aangepaste map, rondes met
+   vijanden, elkaar niet raken, tonnen met de knikkerzak, de revive, het wapenrek, punten en het eindscherm.
 3. **De winkel en de economie** (open). De binnenkamer, goud, de prijslijst, Ready, de upgrades.
 
-Tot stuk 2 er is staat Start in Co-op Survival uit, met de uitleg "Co-op Survival arrives in the next update".
 
 ## De lobby (gebouwd)
 
@@ -36,13 +36,13 @@ Tot stuk 2 er is staat Start in Co-op Survival uit, met de uitleg "Co-op Surviva
 | Lives per round | 3 | 1 tot 5 (`pvp.levens`, `levensStart` geeft dit in een potje; er zijn nu 6 hartjes in de HUD) |
 | Longer roll cooldown | aan | `PVP.rolKoel` (1,2 s) of de gewone `ROL.koel` |
 
-### Co-op-instellingen (al in de lobby, nog niet in het spel)
+### Co-op-instellingen
 
 | instelling | standaard | bereik |
 | --- | --- | --- |
 | Enemies in round 1 | 1 | 1 tot 6 |
 | Extra enemies per round | 1 | 1 tot 3 |
-| Shop after every | 3 rondes | 2 tot 6 |
+| Shop after every | 3 rondes | 2 tot 6 (nog zonder werking: de winkel is stuk 3) |
 | Time between rounds | 10 s | 5 tot 30 |
 | Spears in the rack | 4 | 0 tot 4 |
 | Gourd chance in a barrel | 30% | 0 tot 100, per 10 |
@@ -61,7 +61,7 @@ De soorten en hun twee versies (`MP_SOORTEN`):
 
 Bazen (panter, baviaan, Nyundo, Murghtaan) staan er niet in (regel 12, en de opdrachtgever wil ze voorlopig uit).
 
-## Co-op Survival (stuk 2, de afspraak)
+## Co-op Survival (stuk 2, de afspraak; gebouwd)
 
 - **Wie stuurt de vijanden:** de laptop van de host denkt voor alle vijanden en stuurt hun plek en plaatje naar de gast (net
   zoals `pvpVang` dat voor Amir doet). Op dezelfde wifi merk je de vertraging niet. Een treffer van de gast gaat als bericht
@@ -121,8 +121,85 @@ Bazen (panter, baviaan, Nyundo, Murghtaan) staan er niet in (regel 12, en de opd
   Wide Circle raakt alleen voor je, dus rondom vraagt een eigen raakzone.
 - Afgewezen: de Ankh, planken voor een deur en de gouden speerpunt.
 
+## Co-op Survival: hoe het gebouwd is
+
+Het blok `// ---- multiplayer: Co-op Survival ... ----` in de HTML, na de lobby.
+
+- **De host denkt, de gast tekent.** De update-functies van de vijanden (`updateSnakes`, `updateBandieten` en de rest, met
+  `updateGoudapen` en `updateFosforSlangen`) zijn omwikkeld met `mpcUpdate`. Bij de gast doen ze niets. Bij de host splitst
+  de wikkel de lijst in wie achter de host aan zit en wie achter de gast (`mpcDoel`: de dichtstbijzijnde levende Amir, met
+  een marge `MPC.wissel` zodat hij niet heen en weer wisselt), draait de functie voor de eerste groep gewoon en voor de tweede
+  met de stand van de gast in `world`, `ph`, `dead`, `invuln`, `lives`, `facing`, `duckT`, `duckShare` (`mpcWisselIn`/`Uit`).
+  Zo gaat dezelfde AI achter de gast aan zonder dat er een regel AI veranderd is. Roept een vijand in die tweede ronde
+  `hurtPlayer` aan (een slag in de update, zoals de zweepman en de schildbandiet), dan gaat dat als `au2` naar de gast; schrijft
+  hij levens rechtstreeks (de fosfor), dan gaat het verschil.
+- **De stand over de lijn** (`mpcStandZend`, `MPC.hz` keer per seconde): per lijst (`MPC_LIJSTEN`) de id's in volgorde, en
+  per vijand alleen de velden die veranderd zijn; elke `MPC.sleutel` seconde alles. Een veld is een getal op twee decimalen,
+  een tekst, of een object dat JSON wil (een kring zoals `groep` van de fosfor, een plaatje of een groot brok gaat niet mee,
+  `mpcWaarde`). De gast bouwt zijn lijsten daaruit op (`mpcStandLees`) en laat een vijand naar zijn plek schuiven
+  (`MPC.volg`). Kogels, dolken, meelzakken en gif (`los` in `MPC_LIJSTEN`) komen een keer over en vliegen daarna bij de gast
+  zelf, zodat ze hem ook raken; komt er een bij hem neer, dan komt hij niet terug (`losWeg`). De goudaapjes rekenen in
+  `bavKlok`: hun tijden schuiven bij de gast mee met het verschil tussen de klokken (`MPC_GAAP_TIJD`), want zijn eigen
+  `bavKlok` meet ook de tik van zijn speer.
+- **Wie raakt wie.** Het tekenblok van de gast tekent de vijanden met de gewone code, en die kijkt ook of een vijand de gast
+  raakt (zoals in PvP beslist het slachtoffer). De hit-functies (`enemyTakeHit`, `hitBandiet`, `hitSchildman`, ...,
+  `gaapDood`, `MPC_HIT`) zijn bij de gast een doorgeefluik (`mpcHitDoor`): ze sturen `mh` met de lijst en de id, hooguit een
+  keer per `MPC.dubbel`, en doen zelf niets. De host roept de echte functie aan met de stand van de gast in de globalen
+  (`mpcTrefferVanGast`), voor een slang of schorpioen de uitgeschreven dood uit het tekenblok (`mpcInlineDood`).
+- **Elkaar niet raken:** `pvpTeken` tekent in Co-op alleen de ander (met een groen pijltje) en stopt voor zijn speer en de
+  treffers.
+- **De rondes** (`mpcHostStap`, alleen de host): eerst wacht ronde 1 tot de gast geladen is (`cklaar`; tijdens het laden stuurt
+  ieder `hb`, anders verbreekt `PVP.stilte` het potje). Dan `wacht` (de pauze, met "Round N in .. s") en `golf`: de rij uit
+  `mpcRonde` druppelt binnen, `MPC.tussen` seconden uit elkaar en hooguit `MPC.tegelijk` tegelijk. Op is de ronde als de rij
+  leeg is en er niemand met `mpSoort` meer leeft (`mpcLevend`, `mpcLeeft`).
+- **Waar ze vandaan komen** (`mpcSpawn`): dieren op de rand (rechts `cliffAt().wall - 220`, links `endWall() + 220`), mensen uit
+  een deur van `MPC_DEUREN`. De deuren zijn het systeem van `STAD_DEUR`: `stadDeurenAlle` en `stadDeurenBoven` zijn omwikkeld
+  zodat er in Co-op een houten deur hangt en op de galerij een deur staat in plaats van het raam, en `mpcDeurOpen` zet de
+  staat die `stadDeurUpdate` openzwaait; na `MPC.deurOpen` valt hij dicht met `deurSlamSpeel` (`mpcDeurStap`). Boven (galerij
+  en balkon) hooguit `MPC.boven`, alleen voor de soorten van `STAD_DEUR.bovenSoorten`. De kruisboog kiest zes op de tien keer
+  het balkon (hooguit `MPC.balkon` daar): de nis van `balkon: 'nis'` op de tweede verdieping van het middenhuis (`mpcBalkonMaat`).
+- **De soorten** (`mpcMaak`): slangen makkelijk de zandslang, moeilijk zwart of knock, of een op de drie keer een groep fosfor;
+  de bandiet moeilijk is de elite-garde met `MPC.elite.hp` levens en een dolk; de kooiman moeilijk is het duel, zonder de
+  bevroren opening (`vogelGedaan`), want een freeze kan niet als de ander doorspeelt; de kruisboog moeilijk met de hoorn.
+- **Geen executies:** `exeKans` geeft in Co-op altijd false. De sluipaanval staat uit omdat het level geen `sneak` heeft.
+- **Tonnen** (`mpcTonNieuw`, `MPC_TONPLEK`): bij het begin van elke ronde een op een vrije plek, bij allebei met dezelfde id
+  (`ton`). Een treffer van de gast gaat naar de host (`tonH`, de omwikkelde `tonRaak`), de host telt en stuurt elke treffer
+  terug voor het beeld (`tonR`). Breekt hij, dan krijgt wie brak een knikker uit de zak (`mpcKnikker`, `buit`). De kalebas
+  gaat in je zak (Q), het goud in `pvp.coop.goud` (ieder zijn eigen, in de HUD).
+- **Dood en revive:** wie dood is ligt (`mpcLig`, het plaatje plat om zijn voeten, want het spel heeft geen doodspose), het
+  dood-scherm komt niet, en de camera volgt de ander (`mpCoopCam`, in de hoofdlus vlak voor `camSwap`). Na `MPC.reviveNa`
+  zet de host een revive-ton (drie treffers, "REVIVE" erop, `mpCoopTeken`) bij de levende; breekt hij, dan valt het symbool
+  (`sym`), en wie het aanraakt (`mpcSymboolStap`) laat de ander naast zich opstaan met 1 leven (`symPak`, `mpcOpstaan`).
+  Allebei dood: `mpcEinde`.
+- **Het wapenrek:** een `wapenrekken` in het midden met `rek` speren, en `rugMax: 1`. Wie er een pakt meldt de nieuwe stand
+  (`rek`). "Na elke winkel weer vol" komt met stuk 3.
+- **Punten en einde:** de host ziet een kill aan een vijand die leefde en nu niet meer (`mpcKillKijk`), telt `MPC.punten`
+  plus de reeks (`mpcKill`, met "Double Kill" in beeld) en stuurt de stand mee (`cs`). Het eindscherm (`#mpeind`,
+  `mpcEindToon`) met de beste score per keuze van vijanden in localStorage (`mpcEindSleutel`). R bij allebei: opnieuw
+  (`mpCoopOpnieuw`, `cnieuw`); Escape: de lobby.
+
+### Anders dan de afspraak
+
+- Op de galerij staat een deur per huis, niet twee: het deursysteem van de stad kent een deur per verdieping per huis (op
+  de plek van het raam). Twee vraagt een tweede deurplek in `STAD_DEUR`.
+- De elite-garde is niet sneller dan de gewone bandiet; alleen de levens en de dolk zijn anders.
+- Het goud van een kill en van een overleefde ronde (de economie) hoort bij stuk 3; nu komt goud alleen uit een ton.
+
+### Wat nog kan
+
+- De gast ziet de vijanden een tikje later dan de host (netwerk plus `MPC.volg`). Een slag die bij de host nog loopt, kan bij
+  de gast al raken of net niet. Op dezelfde wifi valt het niet op; via het relais (15 per seconde) meer.
+- Een vijand op de galerij die achter een speler op de straat aan zit, blijft boven staan kijken (regel: geen treden). Zo is
+  het bedoeld, maar met een ronde die daardoor niet opraakt moet je naar boven.
+
 ## Testen
 
-`tools/` heeft nog geen multiplayertest. Gebruikt is een script met een nagebootste `Peer` die berichten tussen twee
+`node tools/mptest.js` speelt Co-op met twee vensters en een nagebootste verbinding (Node geeft de berichten door). `--proef`
+loopt de vaste stappen na (een ton breken als gast, een treffer van de gast, allebei dood, het eindscherm, R, Escape) en
+meldt per stap OK of FOUT; zonder `--proef` lopen twee simpele spelers op de vijanden af, met `--taai` zonder dood te gaan,
+`--sterf gast` om de revive te zien, `--soorten bandiet,slang` voor een paar soorten en `--shots map` voor plaatjes.
+
+
+Voor de lobby is eerder een los script gebruikt met een nagebootste `Peer` die berichten tussen twee
 vensters in een browsercontext doorgeeft via een `BroadcastChannel` (Host, Join, lobby, instellen, Ready, Start, Escape
 naar de lobby, Leave). De echte PeerJS-server is vanuit de cloud van Claude niet te bereiken.
