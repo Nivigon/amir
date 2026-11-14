@@ -19796,6 +19796,9 @@ function comboTreffer(wx, h){
 // Hitpunten in canvas-px van deze set: dx vanaf het anker (negatief is voor hem), y vanaf de bovenkant.
 const STOK = {
   dir: 'stokken/', W: 440, H: 328, ANKER: 256, GROUND: 323, schaal: 1,
+  // de maat per set: de vechtsets (slag, draaislag, draaiterug, blok) kwamen uit de Grok-clips een kwart groter dan
+  // staan en rennen; op 0,8 is zijn hoofd even groot als in staan en in zijn gewone steek (attack_sp, COMBO)
+  maat: { rennen: 1, staan: 1, slag: 0.8, draaislag: 0.8, draaiterug: 0.8, blok: 0.8 },
   sets: { rennen: 8, staan: 1, slag: 18, draaislag: 15, draaiterug: 6, blok: 13 },
   ms: { slag: [42, 42, 42, 42, 42, 42, 42, 42, 60, 90, 120, 60, 50, 50, 50, 50, 50, 80],
         draaislag: [60, 42, 42, 42, 42, 42, 42, 42, 42, 42, 50, 60, 80, 100, 200],
@@ -19812,9 +19815,10 @@ const STOK = {
   toon: { slag: 1.25, draaislag: 0.72, blok: 1.45 }   // houtRaak: hoger is droger, lager is zwaarder
 };
 let STOK_AAN = false, sbStokken = false;
-let stokBank = null, atkStok = null;             // atkStok: 'slag', 'draaislag' of 'draaiterug' zolang er een loopt
+let stokBank = null, atkStok = null, stokSetNu = 'staan';   // stokSetNu: de set van het beeld dat stokBeeld gaf (voor STOK.maat)             // atkStok: 'slag', 'draaislag' of 'draaiterug' zolang er een loopt
 const stokBlok = { f: -1, acc: 0, venster: 0 };  // f: het blok-frame (-1 = geen blok)
 function stokAan(){ return STOK_AAN && !!stokBank; }
+function stokMaat(set){ return STOK.schaal * (STOK.maat[set] || 1); }
 function stokLaad(){
   if (stokBank) return;
   stokBank = {};
@@ -19883,8 +19887,9 @@ function stokBlokVang(fromLeft){
 function stokBeeld(attacking, moving, frame){
   if (!stokAan()) return null;
   const B = stokBank;
-  if (attacking && atkStok) return B[atkStok][Math.min(B[atkStok].length - 1, atkFrame)];
-  if (stokBlok.f >= 0) return B.blok[Math.min(B.blok.length - 1, stokBlok.f)];
+  if (attacking && atkStok){ stokSetNu = atkStok; return B[atkStok][Math.min(B[atkStok].length - 1, atkFrame)]; }
+  if (stokBlok.f >= 0){ stokSetNu = 'blok'; return B.blok[Math.min(B.blok.length - 1, stokBlok.f)]; }
+  stokSetNu = moving ? 'rennen' : 'staan';
   return moving ? B.rennen[frame % B.rennen.length] : B.staan[0];
 }
 function stokPunt(){ return STOK.punt[atkStok] || [0, 0]; }
@@ -19951,8 +19956,8 @@ function steekLive(){ if (atkStok) return atkFrame >= 0 && (STOK.actief[atkStok]
 // de derde slag (COMBO): de punt in canvas-px, omgerekend naar sprite-eenheden; y vanaf de bovenkant van zijn eigen canvas
 // (de y waarmee getekend wordt), zodat y + steekY() * scale ook hier de punt is
 function comboPunt(){ return COMBO.punt[atkFrame] || [COMBO.ANKER, COMBO.GROUND]; }
-function steekDX(){ if (atkStok) return stokPunt()[0] * STOK.schaal; return fcRondNu() ? MPC.rond.dx * COMBO.schaal : fcBreedNu() ? FC.breed.dx * COMBO.schaal : atkCombo ? (comboPunt()[0] - COMBO.ANKER) * COMBO.schaal : atkMes ? mesPunt(Math.min(atkFrame, MES.steek.length - 1)).dx : TIP_DX[atkFrame]; }
-function steekY(){ if (atkStok) return stokPunt()[1] * STOK.schaal; return fcRondNu() ? MPC.rond.y * COMBO.schaal : fcBreedNu() ? FC.breed.y * COMBO.schaal : atkCombo ? comboPunt()[1] * COMBO.schaal : atkMes ? mesPunt(Math.min(atkFrame, MES.steek.length - 1)).y : TIP_Y[atkFrame]; }
+function steekDX(){ if (atkStok) return stokPunt()[0] * stokMaat(atkStok); return fcRondNu() ? MPC.rond.dx * COMBO.schaal : fcBreedNu() ? FC.breed.dx * COMBO.schaal : atkCombo ? (comboPunt()[0] - COMBO.ANKER) * COMBO.schaal : atkMes ? mesPunt(Math.min(atkFrame, MES.steek.length - 1)).dx : TIP_DX[atkFrame]; }
+function steekY(){ if (atkStok) return stokPunt()[1] * stokMaat(atkStok); return fcRondNu() ? MPC.rond.y * COMBO.schaal : fcBreedNu() ? FC.breed.y * COMBO.schaal : atkCombo ? comboPunt()[1] * COMBO.schaal : atkMes ? mesPunt(Math.min(atkFrame, MES.steek.length - 1)).y : TIP_Y[atkFrame]; }
 function steekR(){ if (atkStok) return STOK.reik[atkStok] || 40; return fcRondNu() ? MPC.rond.r : fcBreedNu() ? FC.breed.r : atkCombo ? COMBO.reik : atkMes ? (mesWaarde('reik') || 34) : 40; }
 function steekRaakt(soort){ if (!duwRaakt(soort)) return false; const r = mesWaarde('raakt'); return !atkMes || !r || r[soort] !== false; }
 function steekEind(){ if (atkStok) return STOK.ms[atkStok].length; return atkCombo ? COMBO.ticks.length : atkMes ? MES.steek.length : atkImgs.length; }
@@ -41081,7 +41086,7 @@ function banPareer(s, vonkWx, vonkY){
   }
 }
 function hitBandiet(s){
-  const doorDekking = atkCombo && atkFrame >= 0 && steekLive();   // de derde slag (COMBO) slaat door zijn dekking heen
+  const doorDekking = (atkCombo || stokDoor()) && atkFrame >= 0 && steekLive();   // de derde slag (COMBO) en de counter met de stokken slaan door zijn dekking heen
   if ((s.inv > 0 && !doorDekking) || s.state === 'dood' || s.state === 'vault') return false;   // in de lucht (de vault) is hij niet te raken
   if (razAan(s) && !gifTikNu) return false;          // razend (zie RAZ): niets komt erdoor, ook de derde slag en de tweede speer niet
   if (comboX){                                     // de duw (DUW): geen schade, alleen ver terug en even stil
@@ -49464,7 +49469,7 @@ function loop(now){
       x = pcx - ((autoFlip && facing === 1) ? STOFA.W - STOFA.ANKER : STOFA.ANKER) * ss; y = groundY - STOFA.GROUND * ss + lift;
     } else if (useStok){
       // de stokken: eigen canvas met het lijfmidden als anker, net als de derde slag (STOK)
-      const ks = STOK.schaal * scale;
+      const ks = stokMaat(stokSetNu) * scale;          // per set een eigen maat (STOK.maat)
       w = STOK.W * ks; h = STOK.H * ks;
       x = pcx - ((autoFlip && facing === 1) ? STOK.W - STOK.ANKER : STOK.ANKER) * ks; y = groundY - STOK.GROUND * ks + lift;
     } else if (useCombo){
@@ -50947,7 +50952,7 @@ function loop(now){
           if (tipX + reach > nbox.l && tipX - reach < nbox.r && tipY + reach > nbox.t && tipY - reach < nbox.b){
             if (atkMes){ if (mesAfweer(s, 'bandiet')) swingUsed = true; continue; }   // het mes weert af
             if (s.bloed) bloedTref(s, bodyX, voeten, bS, face, tipX, tipY);           // bloed: de snee komt op de speerpunt
-            if (slagEen(s)){ hitBandiet(s); if (atkStok) stokTreffer(s, s.x, tipY); } continue;   // de duw en Wide Circle raken ze allemaal (een keer per slag, duwId en fcSlag); de stokken: klap en stun (STOK)
+            if (slagEen(s)){ if (hitBandiet(s) && atkStok) stokTreffer(s, s.x, tipY); } continue;   // de duw en Wide Circle raken ze allemaal (een keer per slag, duwId en fcSlag); de stokken: klap en stun (STOK)
           }
         }
         // de geworpen speer
