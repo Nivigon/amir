@@ -20173,7 +20173,7 @@ function rigLaag(im, draai, om){                  // een laag van het volle worp
   if (!rigKlaar(im)) return;
   const c = rigCtx; c.save();
   if (draai){ c.translate(om[0], om[1]); c.rotate(draai * Math.PI / 180); c.translate(-om[0], -om[1]); }
-  c.drawImage(im, 0, 0, 984, 814); c.restore();
+  c.drawImage(broekBeeld(im, im), 0, 0, 984, 814); c.restore();   // per deel de broekkleur (BROEK)
 }
 function rigSpeerHand(tip, hoek){                 // de speer, met zijn punt op tip, onder de hoek (plus is omlaag)
   if (!rigKlaar(javImg)) return;
@@ -22386,6 +22386,7 @@ const BROEK = {
   // trekken we per frame het midden (de mediaan) van de broek eerst naar dat van de idle, en dan pas de kleur erop
   ref: { v: 0.40, s: 0.37 },
   rand: 2,               // zoveel px van doorzichtig blijft het origineel (de magenta rand, een speerpunt)
+  eiland: 0.15,          // een los stuk paars kleiner dan dit deel van het grootste is geen broek (een vuist, een hand)
   // tint (graden), verzadiging en helderheid als factor op het origineel. Geen blauw of indigo: dat lijkt in een
   // gevecht op het kleed van de bandiet. Zwart valt weg tegen donkere bergen en 's nachts, maar mag gekozen worden
   kleuren: [
@@ -22439,6 +22440,27 @@ function broekLap(img, kl){
         if (xx < 0 || yy < 0 || xx >= w || yy >= h || p[(yy * w + xx) * 4 + 3] < 128){ mk[j] = 0; break rand; }
       }
     }
+    // alleen grote samenhangende stukken zijn broek: in de executie hebben armen en vuisten een paarse zweem, en
+    // een losse vuist of hand is een klein eilandje naast de broek (BROEK.eiland: als deel van het grootste stuk)
+    const stukVan = new Int32Array(n).fill(-1), maten = [], stapel = [];
+    for (let j0 = 0; j0 < n; j0++){
+      if (mk[j0] <= 0 || stukVan[j0] >= 0) continue;
+      const id = maten.length; let tal = 0;
+      stukVan[j0] = id; stapel.push(j0);
+      while (stapel.length){
+        const j = stapel.pop(); tal++;
+        const x = j % w, y = (j - x) / w;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++){
+          const xx = x + dx, yy = y + dy;
+          if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+          const q = yy * w + xx;
+          if (mk[q] > 0 && stukVan[q] < 0){ stukVan[q] = id; stapel.push(q); }
+        }
+      }
+      maten.push(tal);
+    }
+    const grootste = maten.length ? Math.max(...maten) : 0;
+    for (let j = 0; j < n; j++) if (mk[j] > 0 && maten[stukVan[j]] < grootste * BROEK.eiland) mk[j] = 0;
     const mediaan = hist => { let k = 0; for (let b = 0; b < 64; b++){ k += hist[b]; if (k * 2 >= tel) return (b + 0.5) / 64; } return 0.5; };
     const fs = tel > 50 ? BROEK.ref.s / mediaan(hs) : 1, fv = tel > 50 ? BROEK.ref.v / mediaan(hv) : 1;
     let x0 = w, y0 = h, x1 = -1, y1 = -1;
@@ -22465,8 +22487,10 @@ function broekLap(img, kl){
 }
 // basis: wat er getekend zou worden (vaanBlauw en zo), img: het originele frame waar de broek uit komt
 let broekCv = null;
+// Alleen een echt plaatje krijgt een lapje: een doek dat elk beeld anders is (rigCv van de mik-rig) zou het lapje
+// van zijn eerste stand houden. De rig kleurt daarom zijn losse delen (rigLaag) en zijn doek gaat er hier langs.
 function broekBeeld(basis, img, kl = broekNu(), cv = null){
-  if (!kl || !img || !imgReady(img)) return basis;
+  if (!kl || !img || !(img instanceof HTMLImageElement) || !imgReady(img)) return basis;
   const lap = broekLap(img, kl);
   if (!lap) return basis;
   const bw = basis.naturalWidth || basis.width, bh = basis.naturalHeight || basis.height;
@@ -43284,7 +43308,8 @@ function murcPinAmirTeken(s, bodyX, voeten){
   ctx.translate(ax, voeten - 0.14 * CHAR_H * scale);
   ctx.rotate(s.face === 1 ? Math.PI / 2 : -Math.PI / 2);   // op zijn rug, met zijn hoofd de kant op waar de hyena kijkt
   ctx.translate(-w / 2, -(SPR_GROUND - CHAR_H * 0.5) * scale);
-  ctx.drawImage(a.rood > 0 ? amirRood(img, a.rood) : img, 0, 0, w, h);
+  const b = broekBeeld(img, img);                      // zijn broekkleur (BROEK)
+  ctx.drawImage(a.rood > 0 ? amirRood(b, a.rood) : b, 0, 0, w, h);
   ctx.restore();
   if (a.steek > 0){                                     // de speer schiet omhoog naar de bek
     const L = CHAR_H * scale * 0.55 * a.steek;
@@ -45637,7 +45662,7 @@ function exeEindePlof(s){
 // tekenen, binnen de translate naar zijn voeten en de spiegeling van de schildbandiet (zoals exeTeken)
 function exeEindeTeken(s, gs, laag){
   const e = s.exe, E = exeBew('einde'), T = E.tijd, ms = e.t2 * 1000, bank = schbBank.executie || {};
-  const teken = (l, ox, oy) => { const im = bank[l.src]; if (im && imgReady(im)) ctx.drawImage(im, (l.dx + ox) * gs, (l.dy + oy) * gs, l.w * gs, l.h * gs); };
+  const teken = (l, ox, oy) => { const im = bank[l.src]; if (im && imgReady(im)) ctx.drawImage(l.item === 'amir' ? broekBeeld(im, im) : im, (l.dx + ox) * gs, (l.dy + oy) * gs, l.w * gs, l.h * gs); };
   if (e.bew === 'snee'){
     // de spasmes: korte schokjes om zijn voet, gelijk met de stoten van de spuit
     let r = 0, px = 0;
@@ -45795,8 +45820,10 @@ function exeETeken(groundY, scale, cx){            // de E boven de wankelende s
 function exeTeken(s, gs){
   const e = s.exe, bank = schbBank.executie || {};
   const laag = l => {
-    const im = bank[l.src];
-    if (im && imgReady(im)) ctx.drawImage(s.flash > 0 ? whiteCopy(im, s.flash * 4) : im, l.dx * gs, l.dy * gs, l.w * gs, l.h * gs);
+    let im = bank[l.src];
+    if (!(im && imgReady(im))) return;
+    if (l.item === 'amir') im = broekBeeld(im, im);    // Amir in de executie: ook zijn broekkleur (BROEK)
+    ctx.drawImage(s.flash > 0 ? whiteCopy(im, s.flash * 4) : im, l.dx * gs, l.dy * gs, l.w * gs, l.h * gs);
   };
   if (e.einde){ exeEindeTeken(s, gs, laag); return; }
   if (e.bew === 'splijt' || e.bew === 'lijk'){
