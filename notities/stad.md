@@ -286,7 +286,10 @@ in de verte door (`STAD.verteStraat` in `stadAchter`), in plaats van de lichte n
 
 ## Kramen
 
-- `riet`: de tafel (72) en het rieten dak (263) dragen allebei. Samen een trap: grond, tafel, dak, galerij.
+- `riet`: de tafel (94) en het rieten dak (264) dragen allebei. Samen een trap: grond, tafel, dak, galerij.
+  Het dak zien we van schuin boven (plaat uit `design/stad/bron/kraam_riet.webp`): je staat midden op het dakvlak
+  (`dak: 105` in de plaat) en midden op het tafelblad (`tafel: 620`), niet op de bovenrand, waar Amir op de oude
+  plaat leek te zweven. Het dak staat even hoog als vroeger, dus de galerijen in de levels blijven net zo te halen.
 - `doek`: de tafel draagt; de doek (267) veert. Na een val wip je terug (`terug` x de valsnelheid, vanaf `min`),
   sta je erop en spring je, of druk je springen net voor of vlak na het landen (`raam`), dan schiet je hoog
   (`hoog` x jumpV, ongeveer 900): tot op het dak van een huis van 2 hoog. De doek buigt mee (`stadDoekDip`).
@@ -377,7 +380,7 @@ een verdieping omhoog. De treden zijn altijd even groot (de schaal hangt aan de 
   ook `dak` hebben).
 - Een galerij kan met `meer: [links, rechts]` (in Amir) langer zijn dan zijn huizen, zodat hij voor de trap langs loopt.
 - De doek van een kraam vangt elke val op: nooit valschade.
-- Het rieten dak (0,76 Amir boven de tafel) en de doek (0,78) liggen op de rand van een sprong vanaf de tafel: die haalt
+- Het rieten dak (0,68 Amir boven de tafel, eerst 0,76) en de doek (0,78) liggen op de rand van een sprong vanaf de tafel: die haalt
   200 op 60 beelden per seconde, 184 op een traag toestel (`SPRONG_TRAAG` in `levelcheck.py`) en 178 met daarbij het
   speltempo op 1,2. Vooral de doek lukte daardoor vaak net niet, in elk level met kramen. Daarom haken je voeten erop
   zolang ze op het hoogste punt hooguit `STAD.kraamGrijp` (0,1 Amir) onder de rand blijven (`grijp` in `stadPlats`,
