@@ -170,7 +170,8 @@ Losse stukken die een huis anders maken zonder nieuwe gevelplaat (D2 in `notitie
   een eigen ritme. De stam begint op de muur van zijn eigen huistype (`STAD_TAKEL.muur`, gemeten op de platen; de oude
   `STAD.gevel.muur` liet een spleet, bij het pilarenhuis 15 px), steekt er `inMuur` in en loopt daar donker uit (`inzak`).
   De stam is een smalle vloer (`STAD_TAKEL.loop`, `stadTakelVloer`, in `stadPlats` en `stadVloeren`): van de muur tot net
-  voorbij de katrol, een stapje onder het dak, dus je loopt van het dak zo de balk op en aan het eind val je eraf. Een vijand
+  voorbij de katrol, een stapje onder het dak (op het bovenvlak van de ronde stam, niet op zijn bovenrand, anders zweven
+  de voeten), dus je loopt van het dak zo de balk op en aan het eind val je eraf. Een vijand
   op het dak mag er ook op; een spawn met `dak` komt er niet op terecht. De mand is decor. Staat er aan die kant een buurhuis te dichtbij (`STAD_TAKEL.ruimte`),
   dan geen takel; ook niet op een ruine, en niet aan de torenkant van het torenhuis. `tools/takel_knip.py` knipt de arm en
   de mand uit `design/stad/bron/takel_grok.png` (de muurstrook links gaat eraf). In de Maker de keuze **Takel**.
