@@ -15,6 +15,12 @@
 //   node tools/mptest.js --proef         de vaste proef: een ton breken als gast, een treffer van de gast, de winkel, game over, R, Escape
 //   node tools/mptest.js --elk           elke soort makkelijk en moeilijk neerzetten, de gast raakt ze: fouten in het tekenen
 //   node tools/mptest.js --debug         elke 4 s de stand van allebei: plek, levens en de vijanden
+//   node tools/mptest.js --net 60,25,0.05   een echte lijn nabootsen: 60 ms vertraging, tot 25 ms jitter, 5% verlies op het
+//                                        snelle kanaal (het betrouwbare kanaal verliest niets, maar wacht op volgorde: een
+//                                        verloren pakket kost daar een extra rondje). Meldt aan het eind de ping en hoe
+//                                        goed de andere Amir en de vijanden bij de gast de echte baan volgden: bij de best
+//                                        passende vertraging (ms) de gemiddelde afwijking in px (lager is vloeiender en klopt beter)
+//   node tools/mptest.js --geensnel      zonder het nagebootste snelle kanaal (zoals via het relais)
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
@@ -31,6 +37,8 @@ const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const duur = Number(opt('--duur', 90)), shots = opt('--shots', null), stil = args.includes('--stil');
 const soorten = opt('--soorten', null);
+const net = (opt('--net', '0,0,0')).split(',').map(Number), [LAT, JIT, VERLIES] = [net[0] || 0, net[1] || 0, net[2] || 0];
+const geenSnel = args.includes('--geensnel');
 
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png',
                 '.jpg': 'image/jpeg', '.mp3': 'audio/mpeg', '.webmanifest': 'application/manifest+json', '.css': 'text/css', '.webp': 'image/webp' };
@@ -180,10 +188,23 @@ async function elk(H, G){
     page.on('response', r => { if (r.status() >= 400) fouten.add(r.status() + ' ' + r.url().replace(/^https?:\/\/[^/]+\//, '')); });
     ramen.push({ wie, page, fouten, bus: [] });
   }
-  // de nagebootste verbinding: send gaat via Node naar het andere venster
+  // de nagebootste verbinding: send gaat via Node naar het andere venster, met --net een vertraging, jitter en verlies.
+  // Het betrouwbare kanaal levert op volgorde: een verloren pakket wordt opnieuw verstuurd en alles erachter wacht.
+  // Het snelle kanaal levert zonder volgorde en verliest gewoon.
+  const toeval = () => Math.random() * JIT;
   for (const r of ramen){
     const ander = ramen.find(q => q !== r);
-    await r.page.exposeFunction('__mpZend', s => { ander.bus.push(s); });
+    let laatst = 0;
+    await r.page.exposeFunction('__mpZend', s => {
+      let at = Date.now() + LAT + toeval();
+      if (Math.random() < VERLIES) at += 2 * LAT + 2 * toeval() + 20;   // kwijt: na een rondje opnieuw
+      at = Math.max(at, laatst); laatst = at;
+      ander.bus.push({ s, at, snel: false });
+    });
+    await r.page.exposeFunction('__mpSnel', s => {
+      if (Math.random() < VERLIES) return;
+      ander.bus.push({ s, at: Date.now() + LAT + toeval(), snel: true });
+    });
   }
   for (const r of ramen){
     await r.page.goto(url);
@@ -191,23 +212,43 @@ async function elk(H, G){
   }
   await Promise.all(ramen.map(r => r.page.waitForTimeout(1500)));
   for (const r of ramen){
-    await r.page.evaluate(host => {
+    await r.page.evaluate(([host, geenSnel]) => {
       const h = {};
       window.__conn = { open: true, relay: false, send: o => window.__mpZend(JSON.stringify(o)),
                         on: (k, f) => { h[k] = f; }, close: () => {} };
       window.__ontvang = s => { if (h.data) h.data(JSON.parse(s)); };
+      if (!geenSnel){                                  // het snelle kanaal van pvpSnelOpen, nagebootst
+        const dc = { readyState: 'open', bufferedAmount: 0, send: s => window.__mpSnel(s), close(){} };
+        window.__conn.peerConnection = { createDataChannel: () => dc };
+        window.__ontvangSnel = s => { if (dc.onmessage) dc.onmessage({ data: s }); };
+      }
+      // de baan meten: elk beeld (met Date.now, dezelfde klok in beide vensters) mijn eigen plek en die van de vijanden
+      // (echt), en de plek waar ik de ander en de vijanden teken (beeld). Node legt ze aan het eind naast elkaar.
+      window.__baan = { echt: {}, beeld: {} };
+      const leg = (w, k, x) => { const a = w[k] || (w[k] = []); if (a.length < 20000) a.push([Date.now(), Math.round(x * 10) / 10]); };
+      const meetBeeld = () => {
+        requestAnimationFrame(meetBeeld);
+        if (typeof pvp === 'undefined' || !pvp || !running || !pvp.coop) return;
+        const B = window.__baan;
+        leg(B.echt, pvp.host ? 'amir_h' : 'amir_g', playerX());
+        if (pvp.ander) leg(B.beeld, pvp.host ? 'amir_g' : 'amir_h', pvp.ander.x);
+        for (const q of MPC_LIJSTEN) if (!q.los) for (const o of q.l()) if (o.mpId != null && mpcLeeft(o)) leg(pvp.host ? B.echt : B.beeld, 'v' + o.mpId, o.x);
+      };
+      requestAnimationFrame(meetBeeld);
       showMenu('menuPvp');
       pvpVerbonden(window.__conn, host);
-    }, r.wie === 'host');
+    }, [r.wie === 'host', geenSnel]);
   }
   // berichten doorgeven, zo vaak als het kan
   let loopt = true;
   const pomp = async r => {
     while (loopt){
-      if (r.bus.length){
-        const rij = r.bus.splice(0);
-        await r.page.evaluate(rij => { for (const s of rij) window.__ontvang(s); }, rij).catch(() => {});
-      } else await new Promise(ok => setTimeout(ok, 8));
+      const nu = Date.now(), klaar = r.bus.filter(b => b.at <= nu);
+      if (klaar.length){
+        r.bus = r.bus.filter(b => b.at > nu);
+        klaar.sort((a, b) => a.at - b.at);
+        await r.page.evaluate(rij => { for (const b of rij) (b.snel ? window.__ontvangSnel : window.__ontvang)(b.s); }, klaar).catch(() => {});
+      } else await new Promise(ok => setTimeout(ok, 4));
     }
   };
   const pompen = ramen.map(pomp);
@@ -289,10 +330,44 @@ async function elk(H, G){
     if (H.laatst && H.laatst.eind) break;
     await new Promise(ok => setTimeout(ok, 100));
   }
+  for (const r of ramen) r.net = await r.page.evaluate(() => ({
+    ping: pvp && pvp.net && pvp.net.ping != null ? Math.round(pvp.net.ping) : null, snel: typeof pvpSnelAan === 'function' ? pvpSnelAan() : false,
+    baan: window.__baan })).catch(() => null);
+  // per vertraging D: hoe ver het beeld afwijkt van de echte plek D ms eerder; de beste D en die afwijking
+  const vergelijk = (beeld, echt) => {
+    const paren = Object.keys(beeld).filter(k => echt[k] && echt[k].length > 30);
+    let best = null;
+    for (let D = 0; D <= 600; D += 10){
+      let som = 0, n = 0;
+      for (const k of paren){
+        const e = echt[k]; let j = 0;
+        for (const [t, x] of beeld[k]){
+          const te = t - D;
+          while (j < e.length - 2 && e[j + 1][0] < te) j++;
+          if (te < e[0][0] || te > e[e.length - 1][0]) continue;
+          const [t0, x0] = e[j], [t1, x1] = e[j + 1], xe = t1 > t0 ? x0 + (x1 - x0) * Math.max(0, Math.min(1, (te - t0) / (t1 - t0))) : x0;
+          const f = Math.abs(x - xe); if (f > 300) continue;   // een sprong (een nieuwe plek, opstaan): telt niet
+          som += f; n++;
+        }
+      }
+      if (n && (!best || som / n < best.afwijking)) best = { vertraging: D, afwijking: +(som / n).toFixed(2), n };
+    }
+    return best;
+  };
+  const Hn = ramen[0].net, Gn = ramen[1].net;
+  if (Hn && Gn){
+    const pak = (b, pre) => Object.fromEntries(Object.entries(b).filter(([k]) => k.startsWith(pre)));
+    for (const r of ramen) r.net.volgt = {
+      amir: vergelijk(pak(r.net.baan.beeld, 'amir'), pak((r === ramen[0] ? Gn : Hn).baan.echt, 'amir')),
+      vijanden: r === ramen[1] ? vergelijk(pak(Gn.baan.beeld, 'v'), pak(Hn.baan.echt, 'v')) : null
+    };
+    for (const r of ramen) delete r.net.baan;
+  }
   loopt = false;
   await Promise.all(pompen);
   for (const r of ramen){
     console.log('\n== ' + r.wie + ' ==');
+    if (r.net) console.log('lijn: ' + JSON.stringify(r.net));
     console.log(JSON.stringify(r.laatst));
     console.log('doden: ' + doden[r.wie] + ', weer op: ' + revives[r.wie]);
     if (r.fouten.size){ console.log('fouten:'); for (const f of r.fouten) console.log('  ' + f); }
