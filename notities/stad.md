@@ -290,6 +290,11 @@ in de verte door (`STAD.verteStraat` in `stadAchter`), in plaats van de lichte n
   Het dak zien we van schuin boven (plaat uit `design/stad/bron/kraam_riet.webp`): je staat midden op het dakvlak
   (`dak: 105` in de plaat) en midden op het tafelblad (`tafel: 620`), niet op de bovenrand, waar Amir op de oude
   plaat leek te zweven. Het dak staat even hoog als vroeger, dus de galerijen in de levels blijven net zo te halen.
+  Beloopbaar is het dakvlak van 0,07 tot 0,93 van de plaat (`dakL`, `dakR`): daarbuiten rafelt het riet uit en stond
+  Amir met een voet in de lucht.
+- De schaduw van Amir op een kraam: `amirSchaduw` zoekt zijn steun op zijn eigen plek (`pWorld`), niet op `world`, want
+  tijdens het tekenen is dat de camera. Met de meekijkende camera lag die een eind voor hem uit, en op een smalle steun
+  (het rieten dak, een tafel, een kei) viel zijn schaduw dan op de straat in plaats van onder zijn voeten.
 - `doek`: de tafel draagt; de doek (267) veert. Na een val wip je terug (`terug` x de valsnelheid, vanaf `min`),
   sta je erop en spring je, of druk je springen net voor of vlak na het landen (`raam`), dan schiet je hoog
   (`hoog` x jumpV, ongeveer 900): tot op het dak van een huis van 2 hoog. De doek buigt mee (`stadDoekDip`).
