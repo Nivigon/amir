@@ -61448,6 +61448,7 @@ const PVP = {
   starts: [-250, -2550],            // de startplek van de host (rechts) en de gast (links)
   pauze: 2.6,                       // seconden tussen twee rondes
   volg: 14,                         // hoe snel de andere Amir naar zijn doorgestuurde plek schuift
+  raak: { src: 'sounds/brutus_speerraak.mp3', vol: 0.8, stop: 0.06, schok: 0.12 },   // wat de aanvaller hoort en voelt bij een treffer (pvpRaakFx)
   stilte: 15                        // seconden niets gehoord: de verbinding is weg (pauzeert de ander, dan stuurt hij niets)
 };
 // het stadje voor PvP: drie huizen met een galerij op de eerste verdieping, een rieten kraam aan elke kant om op de
@@ -61736,7 +61737,7 @@ function pvpOntvang(m){
     const x = a.x, h = a.h;
     Object.assign(a, m); a.x = x; a.h = h; a.tx = m.x; a.th = m.h;
   } else if (m.t === 'au'){
-    // ik heb hem geraakt: niets te doen, zijn rode flits komt met zijn stand mee
+    pvpRaakFx();                                     // ik heb hem geraakt: dat wil de aanvaller voelen en horen
   } else if (m.t === 'speerRaak'){
     if (jav && pvp.jn === m.n && jav.state === 'vlucht'){ jav.hit = true; jav.state = 'val'; jav.vx = 0; jav.vh = 0; }
   } else if (m.t === 'ko'){
@@ -61749,6 +61750,14 @@ function pvpOntvang(m){
   } else if (m.t === 'rematch'){
     pvp.rematch[1 - pvp.mij] = true; pvpRematchKijk();
   }
+}
+// de aanvaller merkt zijn treffer: de speer die in vlees gaat, een korte hitstop en een kleine schok. Zonder dit zag hij
+// alleen een rode flits die pas met het volgende standbericht van de ander binnenkwam. Het geluid pas bij de eerste treffer.
+let pvpRaakSnd = null;
+function pvpRaakFx(){
+  if (!pvpRaakSnd) pvpRaakSnd = banStemmen(PVP.raak.src, 2);
+  banStemSpeel(pvpRaakSnd, PVP.raak.vol);
+  hitstop = Math.max(hitstop, PVP.raak.stop); shake = Math.max(shake, PVP.raak.schok);
 }
 // een ronde is uit: winnaar w (0 de host, 1 de gast). De host telt en start de volgende.
 function pvpRondeUit(w){
@@ -61874,6 +61883,10 @@ function pvpTeken(groundY, scale, cx, pbox, hitBy){
     jav = { x: j.x, h: j.h, sa: j.sa, dir: j.dir, state: j.st, t: j.t, blauw: j.b, wob: 0, sag: 0, kantel: 0, los: 0 };
     try { javSchacht(cx + (j.x - world), groundY - j.h * scale, scale); } finally { jav = eigen; }
   }
+  // de vorige plek van zijn speer altijd bijwerken, ook als ik onkwetsbaar ben of hieronder al geraakt word: anders
+  // bleef een oude plek staan, en na een rol trok de speer een vak van daar tot nu en raakte hij alsnog
+  const jVorig = pvp.jVorig;
+  pvp.jVorig = j ? { n: j.n, x: j.x, h: j.h } : null;
   // treffers: alleen in een lopende ronde, en mijn laptop beslist
   if (pvp.fase !== 'vecht' || dead || invuln > 0) return;
   const raak = () => { const voor = lives; hurtPlayer(g.x < playerX()); if (lives < voor) pvpZend({ t: 'au', l: lives }); };
@@ -61888,13 +61901,12 @@ function pvpTeken(groundY, scale, cx, pbox, hitBy){
   }
   if (j && j.st === 'vlucht' && j.n !== pvp.raakSpeer){
     // het stuk sinds het vorige bericht, zodat een snelle speer tussen twee berichten niet door hem heen vliegt
-    const v = pvp.jVorig && pvp.jVorig.n === j.n ? pvp.jVorig : j, R = 26 * scale;
+    const v = jVorig && jVorig.n === j.n ? jVorig : j, R = 26 * scale;
     const x1 = cx + (v.x - world), y1 = groundY - v.h * scale, x2 = cx + (j.x - world), y2 = groundY - j.h * scale;
     if (hitBy({ l: Math.min(x1, x2) - R, r: Math.max(x1, x2) + R, t: Math.min(y1, y2) - R, b: Math.max(y1, y2) + R }, pbox)){
       pvp.raakSpeer = j.n; pvpZend({ t: 'speerRaak', n: j.n }); raak();
     }
   }
-  pvp.jVorig = j ? { n: j.n, x: j.x, h: j.h } : null;
 }
 pvpEl('btnpvp').onclick = () => { pvpStatus(''); showMenu('menuPvp'); };
 pvpEl('pvphost').onclick = () => pvpHost();
