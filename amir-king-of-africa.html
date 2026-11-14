@@ -19813,8 +19813,15 @@ const STOK = {
   rust: 0.12,                // afkoeling na een slag
   blokTerug: 380,            // een bandiet die op het blok slaat: zijn doorschuif stopt en hij kaatst zo hard terug (wereld-px/s, s.knock)
   stun: { duur: 2, terug: 1100 },   // de counter als stun: zo lang stil, en zo hard terug (wereld-px/s, zie s.knock)
-  toon: { slag: 1.25, draaislag: 0.72, blok: 1.45 }   // houtRaak: hoger is droger, lager is zwaarder
+  toon: { slag: 1.25, draaislag: 0.72, blok: 1.45 },  // houtRaak: hoger is droger, lager is zwaarder
+  // de counter als stun: een stapel lage houtklappen tegelijk (een element kan niet boven volume 1, zoals HOUT.breek),
+  // een naklap erachter, en het bloedgeluid; [toon, volume] per stem
+  stunKlap: { lagen: [[0.72, 1], [0.56, 1], [0.44, 1]], na: 0.06, nalagen: [[0.6, 1], [0.48, 0.8]], bloed: true },
+  // bloed op de lens bij de stun: klein en heel kort, bij het trefpunt op het scherm (dezelfde vorm als BRU.bloed.dood.lens)
+  lens: { groot: { r: 18, dx: 0, dy: -10 }, klein: { n: 6, r: [3, 8], ver: [28, 75] },
+          in: 0.04, drup: [4, 14], drupT: 0.5, weg: [0.3, 0.7] }
 };
+const stokLens = { lijst: null, t: 0, x: 0, y: 0 };   // de spatten van de laatste stun-counter (stokLensTeken)
 let STOK_AAN = false, sbStokken = false;
 let stokBank = null, atkStok = null, stokSetNu = 'staan';   // stokSetNu: de set van het beeld dat stokBeeld gaf (voor STOK.maat)             // atkStok: 'slag', 'draaislag' of 'draaiterug' zolang er een loopt
 const stokBlok = { f: -1, acc: 0, venster: 0, vang: 0 };   // vang: telt elke gevangen klap (zie stokBlokGestuit)  // f: het blok-frame (-1 = geen blok)
@@ -19858,6 +19865,7 @@ function stokStap(dt){
 }
 // het blok: C vasthouden. Omhoog op de blok-frames, dan blijft hij staan; loslaten speelt ze terug en opent het venster
 function stokBlokStap(dt){
+  if (stokLens.lijst){ stokLens.t += dt; if (stokLens.t > STOK.lens.weg[1]) stokLens.lijst = null; }
   if (!stokAan()){ stokBlok.f = -1; return; }
   if (stokBlok.venster > 0) stokBlok.venster = Math.max(0, stokBlok.venster - dt);
   const B = stokBlok, n = STOK.sets.blok;
@@ -19901,12 +19909,22 @@ function stokBeeld(attacking, moving, frame){
 }
 function stokPunt(){ return STOK.punt[atkStok] || [0, 0]; }
 // een treffer met de stok op een bandiet (na hitBandiet): de klap, en bij de counter de stun als die gekozen is
-function stokTreffer(s, wx, h){
+function stokTreffer(s, wx, h, sx){
   if (atkStok === 'draaislag'){
-    houtRaak(STOK.toon.draaislag, 1);
+    const stun = duoKeuze.stokCounter === 'stun';
+    if (stun){                                       // de harde klap: de stapel, de naklap en het bloed (STOK.stunKlap)
+      const K = STOK.stunKlap;
+      for (const [toon, vol] of K.lagen) houtRaak(toon, vol);
+      setTimeout(() => { for (const [toon, vol] of K.nalagen) houtRaak(toon, vol); }, K.na * 1000);
+      if (K.bloed) bloedSpeel();
+      if (sx !== undefined){                         // de spetter op de lens, op het trefpunt op het scherm
+        const q = ctx.getTransform().transformPoint({ x: sx, y: h });
+        stokLens.lijst = lensSpatMaak(STOK.lens); stokLens.t = 0; stokLens.x = q.x / DPR; stokLens.y = q.y / DPR;
+      }
+    } else houtRaak(STOK.toon.draaislag, 1);
     puffWorld(wx, 8, 0, 1.1, 0);
-    hitstop = Math.max(hitstop, 0.12); shake = Math.max(shake, 0.25);
-    if (duoKeuze.stokCounter === 'stun' && s && s.hp > 0){
+    hitstop = Math.max(hitstop, stun ? 0.16 : 0.12); shake = Math.max(shake, stun ? 0.35 : 0.25);
+    if (stun && s && s.hp > 0){
       s.knock = (s.x < playerX() ? -1 : 1) * STOK.stun.terug;
       s.rust = STOK.stun.duur; s.traag = 0; s.inv = 0;   // stil, en open: de volgende slag pareert hij niet
       s.stokStun = STOK.stun.duur;
@@ -19916,6 +19934,7 @@ function stokTreffer(s, wx, h){
     hitstop = Math.max(hitstop, 0.04);
   }
 }
+function stokLensTeken(){ if (stokLens.lijst) lensSpatTeken(stokLens.lijst, STOK.lens, stokLens.t, stokLens); }
 // de counter gaat door een dekking heen, zoals de derde slag
 function stokDoor(){ return atkStok === 'draaislag'; }
 
@@ -42427,8 +42446,11 @@ function bruBalVlekTeken(s, r, gs){
 }
 // bloed op de camera als hij in zijn knots valt: een paar spatten op vaste plekken (bij de klap geloot), elk een vlek
 // met spikkels en een druiper die langzaam naar beneden loopt; schermruimte, over alles heen (zoals tonLensTeken)
-function bruLensStart(s){
-  const L = BRU.bloed.dood.lens, rnd = (a, b) => a + Math.random() * (b - a);
+function bruLensStart(s){ s.lens = lensSpatMaak(BRU.bloed.dood.lens); }
+// spatten op de lens loten volgens L (de vorm van BRU.bloed.dood.lens); ox en oy ten opzichte van het punt waar ze zitten.
+// Ook voor de stun-counter van de stokken (STOK.lens)
+function lensSpatMaak(L){
+  const rnd = (a, b) => a + Math.random() * (b - a);
   const spat = (ox, oy, r, dik) => { const hoek = rnd(0, Math.PI * 2);
     return { ox, oy, r, dik, hoek, rek: dik ? rnd(1.05, 1.25) : rnd(1.1, 1.6),
              rand: Array.from({ length: 16 }, () => rnd(0.84, 1.12)),
@@ -42436,16 +42458,20 @@ function bruLensStart(s){
              spik: Array.from({ length: dik ? 10 : 3 }, () => { const a = rnd(0, Math.PI * 2), d = rnd(1.3, 2.6); return [Math.cos(a) * d, Math.sin(a) * d, rnd(0.04, 0.1)]; }),
              drup: dik ? L.drup[1] : rnd(0, L.drup[0]) * (r / 15), dx: rnd(-0.08, 0.08), wacht: dik ? 0 : rnd(0, 0.1) }; };
   const G = L.groot, K = L.klein;
-  s.lens = [spat(G.dx, G.dy, G.r, true)];
+  const lijst = [spat(G.dx, G.dy, G.r, true)];
   for (let i = 0; i < K.n; i++){ const a = rnd(0, Math.PI * 2), d = rnd(K.ver[0], K.ver[1]);
-    s.lens.push(spat(G.dx + Math.cos(a) * d, G.dy + Math.sin(a) * d * 0.8, rnd(K.r[0], K.r[1]), false)); }
+    lijst.push(spat(G.dx + Math.cos(a) * d, G.dy + Math.sin(a) * d * 0.8, rnd(K.r[0], K.r[1]), false)); }
+  return lijst;
 }
 function bruLensTeken(){
   const s = brutus; if (!s || !s.lens || s.kopBloed === undefined || !s.kopScherm) return;
-  const L = BRU.bloed.dood.lens, t0 = s.kopBloed, K0 = s.kopScherm;
+  lensSpatTeken(s.lens, BRU.bloed.dood.lens, s.kopBloed, s.kopScherm);
+}
+// de spatten tekenen: t0 seconden na de klap, rond het schermpunt K0 (css-px)
+function lensSpatTeken(lijst, L, t0, K0){
   if (t0 > L.weg[1]) return;
   ctx.save(); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  for (const v of s.lens){
+  for (const v of lijst){
     const t = t0 - v.wacht; if (t <= 0) continue;
     const op = Math.min(1, t / L.in), weg = 1 - Math.max(0, Math.min(1, (t0 - L.weg[0]) / (L.weg[1] - L.weg[0])));
     const x = K0.x + v.ox, y = K0.y + v.oy, r = v.r * (0.6 + 0.4 * op), lang = v.drup * Math.min(1, Math.sqrt(t / L.drupT));
@@ -50960,7 +50986,7 @@ function loop(now){
           if (tipX + reach > nbox.l && tipX - reach < nbox.r && tipY + reach > nbox.t && tipY - reach < nbox.b){
             if (atkMes){ if (mesAfweer(s, 'bandiet')) swingUsed = true; continue; }   // het mes weert af
             if (s.bloed) bloedTref(s, bodyX, voeten, bS, face, tipX, tipY);           // bloed: de snee komt op de speerpunt
-            if (slagEen(s)){ if (hitBandiet(s) && atkStok) stokTreffer(s, s.x, tipY); } continue;   // de duw en Wide Circle raken ze allemaal (een keer per slag, duwId en fcSlag); de stokken: klap en stun (STOK)
+            if (slagEen(s)){ if (hitBandiet(s) && atkStok) stokTreffer(s, s.x, tipY, tipX); } continue;   // de duw en Wide Circle raken ze allemaal (een keer per slag, duwId en fcSlag); de stokken: klap en stun (STOK)
           }
         }
         // de geworpen speer
@@ -51432,6 +51458,7 @@ function loop(now){
     murcIntroTeken();                               // de opening van Murghtaan 3: balken en de naam
     tonLensTeken();                                 // en de stukken ton die daar tegen de lens vliegen, over de balken heen
     bruLensTeken();                                 // het bloed op de lens als Nyundo in zijn knots valt
+    stokLensTeken();                                // en de korte spetter van de stun-counter met de stokken (STOK.lens)
     arenaHudTeken();                                // de teller van de goudaap-arena (kills, tijd, punten)
     golfHudTeken();                                 // de teller van de bandietgolf (verslagen, tijd)
     duoHudTeken();                                  // de teller van de duo-arena (welke golf)
