@@ -19811,12 +19811,13 @@ const STOK = {
   blokOp: 8,                 // vanaf dit blok-frame dekken de stokken
   venster: 0.7,              // seconden na het loslaten van het blok (of na een gevangen klap) dat een slag de counter is
   rust: 0.12,                // afkoeling na een slag
+  blokTerug: 380,            // een bandiet die op het blok slaat: zijn doorschuif stopt en hij kaatst zo hard terug (wereld-px/s, s.knock)
   stun: { duur: 2, terug: 1100 },   // de counter als stun: zo lang stil, en zo hard terug (wereld-px/s, zie s.knock)
   toon: { slag: 1.25, draaislag: 0.72, blok: 1.45 }   // houtRaak: hoger is droger, lager is zwaarder
 };
 let STOK_AAN = false, sbStokken = false;
 let stokBank = null, atkStok = null, stokSetNu = 'staan';   // stokSetNu: de set van het beeld dat stokBeeld gaf (voor STOK.maat)             // atkStok: 'slag', 'draaislag' of 'draaiterug' zolang er een loopt
-const stokBlok = { f: -1, acc: 0, venster: 0 };  // f: het blok-frame (-1 = geen blok)
+const stokBlok = { f: -1, acc: 0, venster: 0, vang: 0 };   // vang: telt elke gevangen klap (zie stokBlokGestuit)  // f: het blok-frame (-1 = geen blok)
 function stokAan(){ return STOK_AAN && !!stokBank; }
 function stokMaat(set){ return STOK.schaal * (STOK.maat[set] || 1); }
 function stokLaad(){
@@ -19880,8 +19881,14 @@ function stokBlokVang(fromLeft){
   houtRaak(STOK.toon.blok, 1);
   knock = fromLeft ? 140 : -140; invuln = Math.max(invuln, 0.35);
   hitstop = Math.max(hitstop, 0.06); shake = Math.max(shake, 0.12);
-  stokBlok.venster = STOK.venster;
+  stokBlok.venster = STOK.venster; stokBlok.vang++;
   return true;
+}
+// een bandiet wiens klap op het blok landde: geen doorschuif door Amir heen, hij kaatst terug
+function stokBlokGestuit(s){
+  s.lunge = 0; s.drive = true;
+  s.knock = (s.x < playerX() ? -1 : 1) * STOK.blokTerug;
+  banStofWolk(s.x, s.base || 0, 8, 0, 1.4);
 }
 // het beeld met de stokken, of null als een andere pose voorgaat
 function stokBeeld(attacking, moving, frame){
@@ -50910,7 +50917,8 @@ function loop(now){
                    t: voeten - BAN_ZWAARD.high * bS, b: voeten - BAN_ZWAARD.low * bS };
           const live = s.frame >= BAN.raak[0] && s.frame <= BAN.raak[1] && !s.hitUsed;
           if (live && invuln <= 0 && !dead && hitBy(zbox, pbox)){
-            s.hitUsed = true; hurtPlayer(s.x < playerX());
+            s.hitUsed = true; const vang = stokBlok.vang; hurtPlayer(s.x < playerX());
+            if (stokBlok.vang !== vang) stokBlokGestuit(s);   // op het blok (STOK): niet door Amir heen glijden
           }
           if (!live) zbox = null;
         }

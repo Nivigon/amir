@@ -23,6 +23,8 @@ Alleen in Test 74 (`stokken: true`) en de sandboxknop **Stokken**.
 - Blok: C vasthouden (op een telefoon de schildknop). Vanaf blok-frame `STOK.blokOp` vangt `hurtPlayer` een klap van
   voren af (houtklap, duwtje). Projectielen met een eigen schade-ingang (bouten, de speer van de schildbandiet) vangt
   het nog niet.
+- Een bandiet die op het blok slaat glijdt niet meer door Amir heen: zijn doorschuif stopt en hij kaatst
+  `STOK.blokTerug` terug (`stokBlokGestuit`, herkend aan `stokBlok.vang`, dat `stokBlokVang` ophoogt).
 - De counter slaat ook in `hitBandiet` door zijn dekking (`doorDekking`), en `stokTreffer` (klap, stun) volgt alleen
   op een echte treffer.
 - Counter: slaan tijdens het blok of binnen `STOK.venster` na het loslaten of na een gevangen klap. De draaislag gaat
