@@ -48,9 +48,14 @@ Het blok `// ---- multiplayer: de netcode ... ----` (`PVP_NET`). Stap 1 van het 
   is er geen snel kanaal: daar gaat alles zoals eerst.
 - **De speelbuffer** (`pvpNetIn`, `pvpNetSpeel`, `pvpNetKlok`). Elk standbericht draagt de klok van de afzender (`tm`,
   `performance.now`). De ontvanger schat het verschil tussen de klokken uit de kortste reistijd van de laatste
-  `PVP_NET.venster` seconden, en speelt een bericht pas af als het `PVP_NET.buffer` (0,1 s) oud is. De andere Amir staat dan
-  tussen twee bekende standen in (`pvpAnderStap`, zijn speer in de vlucht ook), in plaats van naar de laatste plek te schuiven
-  zoals eerst (`PVP.volg`, weg). Verder dan `PVP_NET.sprong` tussen twee standen (een nieuwe ronde) springt hij meteen.
+  `PVP_NET.venster` seconden, en speelt een bericht pas af als het oud genoeg is. Hoe oud hangt af van de lijn: de spreiding
+  van de reistijd (`PVP_NET.spreid`, een enkele uitschieter telt niet) plus `PVP_NET.marge` keer de tijd tussen twee
+  berichten, tussen de grenzen van `PVP_NET.buffer`, en hij schuift er langzaam naartoe (`bufStap`) zodat niemand verspringt.
+  De andere Amir staat dan tussen twee bekende standen in (`pvpAnderStap`, zijn speer in de vlucht ook), in plaats van naar de
+  laatste plek te schuiven zoals eerst (`PVP.volg`, weg). Verder dan `PVP_NET.sprong` tussen twee standen (een nieuwe ronde)
+  springt hij meteen. Is er nog geen volgende stand, dan blijft hij op de laatste staan. Doorrekenen in de richting waarin hij
+  ging is geprobeerd en weer weggehaald: bij vijanden die plots stoppen of uitvallen schoot het voorbij, en de afwijking werd
+  op een slechte lijn drie keer zo groot.
 - **Wie beslist met welke stand.** Het beeld en de treffers gebruiken de gebufferde stand (`pvp.ander`), zodat wat je ziet ook
   is wat telt. De host laat de vijanden achter de nieuwste stand van de gast aan gaan (`pvp.anderNu`, `pvpAnderNu`), want de
   gebufferde loopt 0,1 s achter.
@@ -58,9 +63,18 @@ Het blok `// ---- multiplayer: de netcode ... ----` (`PVP_NET`). Stap 1 van het 
   onder de eerste regel (`#mpping`, met de soort lijn: direct, direct met het snelle kanaal, of relay) en in de HUD.
 - **Testen:** `tools/mptest.js --net 60,25,0.05` bootst 60 ms vertraging, tot 25 ms jitter en 5% verlies na (het betrouwbare
   kanaal wacht dan op volgorde, het snelle verliest gewoon), met een nagebootst snel kanaal; `--geensnel` zonder. Aan het eind
-  de ping en de schok (de gemiddelde sprong in snelheid per beeld) van de andere Amir en de vijanden. De eerste meting, 60 s
-  op die lijn: de andere Amir bij de host van 0,74 naar 0,44, de vijanden bij de gast van 1,41 naar 0,86. De ping in de test
-  is hoger dan de nagebootste lijn, want het doorgeven door Node kost zelf ook tijd. Een echte proef over internet kan alleen
+  de ping, en hoe goed het beeld van de andere Amir en van de vijanden bij de gast de echte baan volgt: bij de best passende
+  vertraging de gemiddelde afwijking in px. De eerste meting (november 2026, 50 s met bandieten en hyena's):
+
+  | lijn | wat | oud | nieuw |
+  | --- | --- | --- | --- |
+  | 60 ms, 25 jitter, 5% verlies | de andere Amir | 1,0 tot 2,4 px | 0,5 tot 0,6 px |
+  | | de vijanden bij de gast | 1,1 px, 240 ms | 0,11 px, 240 ms |
+  | 80 ms, 40 jitter, 20% verlies | de andere Amir | 1,3 tot 2,0 px, 290 ms | 0,8 tot 0,9 px, 220 ms |
+  | | de vijanden bij de gast | 0,2 px, 410 ms | 1,1 px, 280 ms |
+
+  Op een slechte lijn ruilt het een tikje afwijking bij de vijanden voor 130 ms minder achterlopen. De ping in de test is
+  hoger dan de nagebootste lijn, want het doorgeven door Node kost zelf ook tijd. Een echte proef over internet kan alleen
   buiten de cloud (PeerJS is daar niet te bereiken).
 
 ## Wat er over de lijn gaat
@@ -119,7 +133,7 @@ beide kramen naar de galerij en beide trappen. `geenEinde`: het duel eindigt op 
   zomaar dichtmaken.
 - De lage zwaai is sterk: eerder, langer, aan beide kanten en zonder dode zone. Temperen alleen in PvP kan met een getal
   in `PVP`, zoals `rolKoel`.
-- Het slachtoffer beslist met een vertraagd beeld van de aanvaller (netwerk plus `PVP_NET.buffer`): een steek die bij de aanvaller
+- Het slachtoffer beslist met een vertraagd beeld van de aanvaller (netwerk plus de speelbuffer): een steek die bij de aanvaller
   raakt, kan bij de ander missen. Terugrekenen (lag compensation) is nog niet gedaan.
 
 - De andere Amir heeft dezelfde kleuren als jij; alleen het pijltje maakt het verschil.

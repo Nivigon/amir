@@ -62017,7 +62017,8 @@ async function pvpJoinRelay(code){
 //    het verleden, netjes tussen twee bekende standen in, in plaats van naar de laatste plek te schuiven. Zo loopt hij
 //    gelijkmatig, ook als de berichten onregelmatig binnenkomen. De klok van de ander schat hij uit de kortste reistijd van
 //    de laatste seconden (pvpNetKlok); hoe ver in het verleden hangt af van hoe onregelmatig de lijn is (de buffer groeit
-//    en krimpt langzaam mee). Komt er even niets, dan rekent hij kort door in de richting waarin de ander ging.
+//    en krimpt langzaam mee). Komt er even niets, dan blijft hij op de laatste stand staan: doorrekenen in de richting
+//    waarin hij ging is geprobeerd, maar schoot voorbij bij vijanden die plots stoppen (tools/mptest.js --net).
 // 3. De ping: elke PVP_NET.ping seconde heen en terug, te zien in de lobby en in de HUD. Hij houdt de verbinding ook
 //    levend tijdens een pauze.
 // De vijandstand in Co-op is een delta (alleen wat veranderd is). Over het snelle kanaal kan een delta wegvallen, dus
@@ -62029,7 +62030,6 @@ const PVP_NET = {
   marge: 1.3,           // de buffer is de spreiding van de reistijd plus zoveel keer de tijd tussen twee berichten
   spreid: 0.9,          // de spreiding: dit deel van de reistijden valt erbinnen (een enkele uitschieter telt niet)
   bufStap: 0.05,        // zo snel (seconden per seconde) schuift de buffer naar wat de lijn vraagt, zodat niemand verspringt
-  verder: 0.12,         // zolang (seconden) doorrekenen als het volgende bericht er nog niet is
   venster: 4,           // over zoveel seconden telt de kortste reistijd voor de klok van de ander
   ping: 1,              // elke zoveel seconden een ping
   sprong: 300,          // verder dan dit tussen twee standen: meteen erheen, niet ertussen schuiven
@@ -62060,7 +62060,7 @@ function pvpZendSnel(o){
   }
   pvpZend(o);
 }
-function pvpNetNieuw(){ return { klok: [], off: null, buf: 0.1, doel: 0.1, speelT: null, s: { rij: [], q: -1, nu: null, vorig: null }, v: { rij: [], q: -1, nu: null, vorig: null }, ping: null, pingT: null }; }
+function pvpNetNieuw(){ return { klok: [], off: null, buf: 0.1, doel: 0.1, speelT: null, s: { rij: [], q: -1, nu: null }, v: { rij: [], q: -1, nu: null }, ping: null, pingT: null }; }
 function pvpNetStart(){
   pvp.net = pvpNetNieuw(); pvp.qs = 0; pvp.qv = 0; pvp.vAk = -1;
   pvp.netT = setInterval(() => { if (pvp) pvpZendSnel({ t: 'pi', c: +pvpNu().toFixed(3) }); }, PVP_NET.ping * 1000);
@@ -62085,10 +62085,9 @@ function pvpNetIn(soort, m, speel){
   if (m.tm == null){ B.rij.length = 0; B.nu = m; speel(m); return; }   // een bericht zonder klok: meteen
   pvpNetKlok(m.tm);
   B.rij.push(m);
-  while (B.rij.length > PVP_NET.max){ const o = B.rij.shift(); B.vorig = B.nu; B.nu = o; speel(o); }
+  while (B.rij.length > PVP_NET.max){ const o = B.rij.shift(); B.nu = o; speel(o); }
 }
-// elk beeld: afspelen wat aan de beurt is, en hoe ver we tussen de huidige en de volgende stand zitten (0 tot 1). Is er
-// nog geen volgende, dan tussen de vorige en de huidige, voorbij 1: kort doorrekenen (`verder`)
+// elk beeld: afspelen wat aan de beurt is, en hoe ver we tussen de huidige en de volgende stand zitten (0 tot 1)
 function pvpNetSpeel(soort, speel){
   const N = pvp.net; if (!N) return null;
   const B = N[soort];
@@ -62096,14 +62095,10 @@ function pvpNetSpeel(soort, speel){
   const nu = pvpNu(), dt = N.speelT == null ? 0 : Math.min(0.1, nu - N.speelT);
   if (soort === 's' || N.speelT == null){ N.speelT = nu; N.buf += Math.max(-PVP_NET.bufStap * dt, Math.min(PVP_NET.bufStap * dt, N.doel - N.buf)); }
   const t = nu - N.off - N.buf;
-  while (B.rij.length && B.rij[0].tm <= t){ const o = B.rij.shift(); B.vorig = B.nu; B.nu = o; speel(o); }
+  while (B.rij.length && B.rij[0].tm <= t){ const o = B.rij.shift(); B.nu = o; speel(o); }
   const a = B.nu, b = B.rij[0];
-  if (!a || a.tm == null) return null;
-  if (b && b.tm > a.tm) return { a, b, k: Math.max(0, Math.min(1, (t - a.tm) / (b.tm - a.tm))), verder: false };
-  const v = B.vorig;
-  if (b || !v || v.tm == null || a.tm <= v.tm || a.tm - v.tm > 0.3) return null;
-  const d = a.tm - v.tm;
-  return { a: v, b: a, k: Math.max(1, Math.min(1 + PVP_NET.verder / d, (t - v.tm) / d)), verder: true };
+  if (!a || !b || a.tm == null || b.tm <= a.tm) return null;
+  return { a, b, k: Math.max(0, Math.min(1, (t - a.tm) / (b.tm - a.tm))) };
 }
 const pvpTussen = (a, b, k) => Math.abs(b - a) > PVP_NET.sprong ? a : a + (b - a) * k;
 // de Amir van de ander: zijn stand afspelen, en zijn plek en speer tussen twee standen in zetten
@@ -62964,9 +62959,9 @@ function mpcStandLees(m){
         if (q.los && pvp.coop.losWeg.has(id)) continue; // een kogel die bij mij al neerkwam
         o = Object.assign({ mpId: id }, d);
         o.mpX0 = o.x;
-      } else if (!q.los){
-        o.mpXv = o.mpX0;                                // zijn plek bij het vorige bericht, om door te rekenen
-        if (d){ Object.assign(o, d); if (d.x != null) o.mpX0 = d.x; }   // zijn plek op het moment van dit bericht; mpcVolgStap schuift naar het volgende
+      } else if (d && !q.los){
+        Object.assign(o, d);
+        if (d.x != null) o.mpX0 = d.x;                  // zijn plek op het moment van dit bericht; mpcVolgStap schuift naar het volgende
       }
       nieuw.push(o);
     }
@@ -62981,10 +62976,7 @@ function mpcVolgStap(rdt){
   if (!s) for (const q of MPC_LIJSTEN){                 // niets om tussen te schuiven: op de plek van het laatste bericht
     if (q.los) continue;
     for (const o of q.l()) if (o.mpX0 != null) o.x = o.mpX0;
-  } else if (s.verder) for (const q of MPC_LIJSTEN){      // nog geen volgend bericht: kort doorrekenen vanaf het vorige
-    if (q.los) continue;
-    for (const o of q.l()) if (o.mpX0 != null) o.x = o.mpXv == null ? o.mpX0 : pvpTussen(o.mpXv, o.mpX0, s.k);
-  } else if (s) for (const q of MPC_LIJSTEN){
+  } else for (const q of MPC_LIJSTEN){
     if (q.los) continue;
     const kaarten = s.b._kaart || (s.b._kaart = {});
     let kaart = kaarten[q.k];

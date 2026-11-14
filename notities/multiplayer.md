@@ -205,7 +205,7 @@ Het blok `// ---- multiplayer: Co-op Survival ... ----` in de HTML, na de lobby.
 
 ### Wat nog kan
 
-- De gast ziet de vijanden een tikje later dan de host (netwerk plus `PVP_NET.buffer`). Een slag die bij de host nog loopt,
+- De gast ziet de vijanden een tikje later dan de host (netwerk plus de speelbuffer). Een slag die bij de host nog loopt,
   kan bij de gast al raken of net niet. Op dezelfde wifi valt het niet op; via het relais (15 per seconde) meer. Stap 2 is
   drie spelers, stap 3 een eigen TURN-server zodat niemand meer op het relais hoeft (zie "De netcode" in `notities/pvp.md`).
 - Een vijand op de galerij die achter een speler op de straat aan zit, blijft boven staan kijken (regel: geen treden). Zo is
