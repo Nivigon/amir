@@ -233,6 +233,7 @@
   #menuPvp.lobby #mplobby{display:flex}
   #menuPvp.lobby #mpverbind,#menuPvp.lobby #pvpterug{display:none}
   #mpwie{margin:0;color:#f3e2bf;text-align:center}
+  #mpspelers{margin:0;color:#e7d3a6;font-size:.9em;text-align:center}
   #mpping{margin:0;min-height:1.2em;color:#cdb98f;font-size:.85em;text-align:center}
   .mpmodus{min-width:200px;padding:12px 18px!important;font-size:17px!important;font-weight:700;border:1px solid rgba(231,173,82,.4);border-radius:11px;background:rgba(44,27,14,.55)}
   .mpmodus small{display:block;font-size:12px;font-weight:500;color:rgba(242,232,213,.6);margin-top:3px}
@@ -1177,7 +1178,7 @@
     <div id="menuPvp">
       <p class="epititle">Multiplayer</p>
       <div id="mpverbind">
-        <p id="pvpuitleg">Two players, each on their own device. One of you hosts and gets a code, the other types it in. In the lobby the host picks Co-op Survival or Duel.</p>
+        <p id="pvpuitleg">Two or three players, each on their own device. One of you hosts and gets a code, the others type it in. In the lobby the host picks Co-op Survival (two or three players) or Duel (two players).</p>
         <div class="row">
           <button id="pvphost" class="bigbtn">Host a game<small>You get a code to pass on</small></button>
         </div>
@@ -1188,6 +1189,7 @@
       </div>
       <div id="mplobby">
         <p id="mpwie"></p>
+        <p id="mpspelers"></p>
         <p id="mpping"></p>
         <div class="row mpmodi">
           <button class="mpmodus" data-modus="coop">Co-op Survival<small>Together against rounds of enemies</small></button>
@@ -61796,7 +61798,8 @@ const PVP = {
   hz: 20,                           // standberichten per seconde
   rolKoel: 1.2,                     // de afkoeling van de rol in PvP (ROL.koel is 0,5): anders rol je elke worp weg
   winst: 2,                         // rondes om te winnen zonder lobby (de lobby zet pvp.winst)
-  starts: [-250, -2550],            // de startplek van de host (rechts) en de gast (links)
+  starts: [-250, -2550, -1150],     // de startplek van de host (rechts), de eerste gast (links) en de tweede gast (in het midden)
+  max: 3,                           // hooguit zoveel spelers: de host en twee gasten (Co-op; het Duel is een tegen een)
   pauze: 2.6,                       // seconden tussen twee rondes
   raak: { src: 'sounds/brutus_speerraak.mp3', vol: 0.8, stop: 0.06, schok: 0.12 },   // wat de aanvaller hoort en voelt bij een treffer (pvpRaakFx)
   stilte: 15                        // seconden niets gehoord: de verbinding is weg (pauzeert de ander, dan stuurt hij niets)
@@ -61828,7 +61831,7 @@ const PVP_LEVEL = {
   tips: []
 };
 const PVP_LEVELS = [PVP_LEVEL];
-let pvp = null, pvpTerug = false, pvpPeer = null;
+let pvp = null, pvpTerug = false, pvpPeer = null, pvpHostCode = null;
 const pvpEl = id => document.getElementById(id);
 function pvpStatus(t){ pvpEl('pvpstatus').textContent = t; }
 function pvpLib(){
@@ -61882,18 +61885,17 @@ async function pvpHost(){
   try { await pvpLib(); } catch (e){ pvpStatus('Could not load the connection library. Check your internet.'); return; }
   pvpStatus('Reaching the server...');
   const code = pvpCode(), peer = new Peer(PVP.pre + code, PVP_ICE);
-  pvpPeer = peer;
+  pvpPeer = peer; pvpHostCode = code;
   pvpRelayLuister(code);                          // en tegelijk op het relais, voor wie rechtstreeks niet binnenkomt
-  peer.on('open', () => pvpStatus('Your code: ' + code + '. Waiting for your opponent...'));
+  peer.on('open', () => pvpStatus('Your code: ' + code + '. Waiting for the other players...'));
+  // een ster: de host houdt een verbinding per gast (pvp.peers), tot PVP.max spelers, en alleen zolang de lobby open is
   peer.on('connection', c => {
-    if (pvp) { c.close(); return; }
-    pvpStatus('Your opponent is calling...');
-    pvpWaakStart(c);
-    c.on('open', () => { if (pvp){ c.close(); return; } pvpWaakStop(); pvpVerbonden(c, true); });   // al verbonden via het relais: deze niet
-    c.on('error', e => pvpStatus('Link error: ' + (e && e.type || e)));
+    if (!pvp){ pvpStatus('A player is calling...'); pvpWaakStart(c); }
+    c.on('open', () => { if (!pvp) pvpWaakStop(); pvpNieuweGast(c); });
+    c.on('error', e => { if (!pvp) pvpStatus('Link error: ' + (e && e.type || e)); });
   });
   peer.on('error', e => {
-    if (e.type === 'unavailable-id') pvpHost();                     // die code is net bezet: een nieuwe
+    if (e.type === 'unavailable-id' && !pvp) pvpHost();             // die code is net bezet: een nieuwe
     else if (!pvp && !pvpRelayClient) pvpStatus('Connection error: ' + e.type);   // met het relais wacht de host gewoon door
   });
 }
@@ -61924,8 +61926,10 @@ async function pvpJoin(){
 // Een telefoon op mobiele data komt meestal niet rechtstreeks bij een laptop. Dan lopen de berichten via een openbare,
 // gratis MQTT-broker (een berichtenserver, over een websocket op https, dus door elk netwerk heen). Geen account; de
 // eerste die verbindt uit PVP_RELAY.brokers wordt gebruikt. Het onderwerp is de kamercode met een vast voorvoegsel; de
-// gast stuurt naar /h (de host), de host naar /g. Elk bericht draagt de sid van de gast, zodat oude of vreemde berichten
-// wegvallen. pvpRelayConn heeft dezelfde vorm als een PeerJS-verbinding (send, close, on), zodat de rest niets merkt.
+// gast stuurt naar /h/<sid> (de host luistert op /h/+), de host naar /g/<sid>: elke gast een eigen onderwerp, zodat
+// met twee gasten niemand de stand voor de ander binnenkrijgt. Elk bericht draagt ook de sid van de gast, zodat oude of
+// vreemde berichten wegvallen. pvpRelayConn heeft dezelfde vorm als een PeerJS-verbinding (send, close, on), zodat de rest
+// niets merkt.
 const PVP_RELAY = {
   libs: ['https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js', 'https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js'],
   brokers: ['wss://broker.hivemq.com:8884/mqtt', 'wss://broker.emqx.io:8084/mqtt', 'wss://test.mosquitto.org:8081'],
@@ -61964,11 +61968,17 @@ async function pvpBroker(){
   }
   return null;
 }
-function pvpRelayConn(cl, uit, sid){
+// gedeeld: de host heeft een client voor alle gasten; een gast sluiten laat die client open (pvpRelayWeg sluit hem)
+function pvpRelayConn(cl, uit, sid, gedeeld){
   return { open: true, relay: true, sid, h: {},
     on(e, f){ this.h[e] = f; }, emit(e, a){ if (this.h[e]) this.h[e](a); },
-    send(o){ if (this.open) cl.publish(uit, JSON.stringify(Object.assign({ sid }, o))); },
-    close(){ if (!this.open) return; this.send({ t: 'bye' }); this.open = false; setTimeout(() => { try { cl.end(true); } catch (e){} }, 300); } };
+    send(o){ if (this.open) cl.publish(uit, JSON.stringify(Object.assign({}, o, { sid }))); },   // de sid van deze lijn, ook bij een doorgestuurd bericht
+    close(){
+      if (!this.open) return;
+      this.send({ t: 'bye' }); this.open = false;
+      if (gedeeld){ if (this.weg) this.weg(); return; }
+      setTimeout(() => { try { cl.end(true); } catch (e){} }, 300);
+    } };
 }
 function pvpRelayLees(buf){ try { return JSON.parse(typeof buf === 'string' ? buf : buf.toString()); } catch (e){ return null; } }
 // de host luistert ook op het relais, naast PeerJS
@@ -61979,24 +61989,26 @@ async function pvpRelayLuister(code){
   if (!cl) return;
   if (pvpRelayCode !== code || pvp){ try { cl.end(true); } catch (e){} return; }   // intussen een andere code, of al verbonden
   pvpRelayClient = cl;
-  const uit = PVP_RELAY.pre + code + '/g';
-  let conn = null;
-  cl.subscribe(PVP_RELAY.pre + code + '/h');
+  const conns = new Map();                        // per gast (sid) een verbinding
+  cl.subscribe(PVP_RELAY.pre + code + '/h/+');
   cl.on('message', (topic, buf) => {
-    const m = pvpRelayLees(buf); if (!m) return;
+    const m = pvpRelayLees(buf); if (!m || !m.sid) return;
+    let conn = conns.get(m.sid);
     if (!conn){
-      if (m.t !== 'relayHallo' || pvp) return;
-      conn = pvpRelayConn(cl, uit, m.sid);
+      if (m.t !== 'relayHallo') return;
+      conn = pvpRelayConn(cl, PVP_RELAY.pre + code + '/g/' + m.sid, m.sid, true);
+      conn.weg = () => conns.delete(m.sid);
+      conns.set(m.sid, conn);
       conn.send({ t: 'relayOk' });
-      pvpVerbonden(conn, true);
-      pvpBanner('Connected via relay', 2.5);
+      pvpNieuweGast(conn);                          // of een weigering: vol, of het potje loopt al
+      if (pvp && pvp.peers[Object.keys(pvp.peers).find(k => pvp.peers[k].conn === conn)]) pvpBanner('A player joined via relay', 2.5);
       return;
     }
-    if (m.sid !== conn.sid) return;
     if (m.t === 'relayHallo'){ conn.send({ t: 'relayOk' }); return; }   // ons antwoord kwam niet aan: nog een keer
+    if (m.t === 'bye'){ conn.open = false; conns.delete(m.sid); }
     conn.emit('data', m);
   });
-  cl.on('close', () => { if (conn && conn.open && pvp && pvp.conn === conn) pvpWeg('Lost the relay connection.'); });
+  cl.on('close', () => { for (const c of [...conns.values()]) if (c.open){ c.open = false; c.emit('close'); } conns.clear(); });
 }
 // de gast: via het relais de host roepen tot hij antwoordt
 async function pvpJoinRelay(code){
@@ -62008,10 +62020,10 @@ async function pvpJoinRelay(code){
   if (!cl){ pvpStatus('No relay server reachable. Check your internet, or try wifi.'); pvpRelayBezig = false; return; }
   if (pvp){ try { cl.end(true); } catch (e){} return; }   // de rechtstreekse lijn kwam intussen toch
   pvpRelayClient = cl;
-  const sid = Math.random().toString(36).slice(2, 10), uit = PVP_RELAY.pre + code + '/h';
+  const sid = Math.random().toString(36).slice(2, 10), uit = PVP_RELAY.pre + code + '/h/' + sid;
   const conn = pvpRelayConn(cl, uit, sid);
   let klaar = false;
-  cl.subscribe(PVP_RELAY.pre + code + '/g');
+  cl.subscribe(PVP_RELAY.pre + code + '/g/' + sid);
   cl.on('message', (topic, buf) => {
     const m = pvpRelayLees(buf); if (!m || m.sid !== sid) return;
     if (!klaar){
@@ -62024,13 +62036,13 @@ async function pvpJoinRelay(code){
     if (m.t === 'relayOk') return;
     conn.emit('data', m);
   });
-  cl.on('close', () => { if (klaar && conn.open && pvp && pvp.conn === conn) pvpWeg('Lost the relay connection.'); });
+  cl.on('close', () => { if (klaar && conn.open && pvp && pvp.peers[0] && pvp.peers[0].conn === conn) pvpWeg('Lost the relay connection.'); });
   const t0 = performance.now();
   const roep = () => {
     if (klaar) return;
     if (performance.now() - t0 > PVP_RELAY.bel * 1000){
       clearInterval(pvpRelayBel);
-      pvpStatus('No duel with code ' + code + ' found. Is the host still waiting?');
+      pvpStatus('No game with code ' + code + ' found. Is the host still waiting?');
       return;
     }
     cl.publish(uit, JSON.stringify({ t: 'relayHallo', sid }));
@@ -62071,59 +62083,101 @@ const PVP_NET = {
   vol: 65536            // staat er meer dan dit in de wachtrij van het snelle kanaal, dan dit bericht overslaan
 };
 const pvpNu = () => performance.now() / 1000;
+// ---- de ster: een verbinding per gast ----
+// De host is het middelpunt: pvp.peers heeft per gast (slot 1 en 2) zijn verbinding, zijn snelle kanaal en hoe ver hij
+// de vijandstand bevestigd heeft (vAk). Een gast heeft er een, naar de host (slot 0). Elk bericht draagt het slot van wie
+// het maakte (`p`); de host zet het zelf op wat binnenkomt (een gast kan niet voor een ander spreken) en stuurt wat de
+// andere gasten ook moeten weten door (MP_DOOR), en een bericht voor een gast (`naar`) alleen naar die. Zie notities/pvp.md.
+const MP_DOOR = new Set(['s', 'broek', 'rek', 'symPak', 'wkklaar', 'rematch']);
+function pvpGasten(){ return pvp ? Object.keys(pvp.peers).map(Number).filter(p => p !== 0) : []; }
+function pvpRelay(){ return !!pvp && Object.values(pvp.peers).some(pe => pe.conn.relay); }
+function pvpPeerNieuw(conn, p){
+  const pe = { conn, p, snel: null, snelDc: null, vAk: -1, gehoord: pvp.t };
+  pvp.peers[p] = pe;
+  pvpSnelOpen(pe);
+  conn.on('data', m => pvpVanPeer(pe, m));
+  conn.on('close', () => {
+    if (!pvp || pvp.peers[p] !== pe) return;
+    if (pvp.host) pvpGastWeg(p, 'A player left.'); else pvpWeg('The host left.');
+  });
+  return pe;
+}
+// een bericht van een peer: de host stempelt het met zijn slot en stuurt het zo nodig door
+function pvpVanPeer(pe, m){
+  if (!pvp || pvp.peers[pe.p] !== pe || !m || typeof m !== 'object') return;
+  pe.gehoord = pvp.t;
+  if (pvp.host){
+    m.p = pe.p;
+    if (m.naar != null && m.naar !== 0){ const doel = pvp.peers[m.naar]; if (doel) pvpStuur(doel, m); return; }   // voor een andere gast
+    if (MP_DOOR.has(m.t)) for (const q of pvpGasten()) if (q !== pe.p) (m.t === 's' ? pvpStuurSnel : pvpStuur)(pvp.peers[q], m);
+  } else if (m.p == null) m.p = 0;
+  pvpOntvang(m);
+}
 // het snelle kanaal openen naast de verbinding van PeerJS (allebei de kanten, met hetzelfde id, zonder onderhandelen)
-function pvpSnelOpen(conn){
-  const pc = conn && conn.peerConnection;
+function pvpSnelOpen(pe){
+  const conn = pe.conn, pc = conn && conn.peerConnection;
   if (!pc || conn.relay || typeof pc.createDataChannel !== 'function') return;
   try {
     const dc = pc.createDataChannel('amir-snel', { negotiated: true, id: PVP_NET.kanaal, ordered: false, maxRetransmits: 0 });
-    dc.onopen = () => { if (pvp && pvp.conn === conn) pvp.snel = dc; };
-    dc.onclose = () => { if (pvp && pvp.snel === dc) pvp.snel = null; };
+    dc.onopen = () => { if (pvp && pvp.peers[pe.p] === pe) pe.snel = dc; };
+    dc.onclose = () => { if (pe.snel === dc) pe.snel = null; };
     dc.onerror = () => {};
-    dc.onmessage = e => { let m = null; try { m = JSON.parse(e.data); } catch (f){} if (m) pvpOntvang(m); };
-    pvp.snelDc = dc;
-    if (dc.readyState === 'open') pvp.snel = dc;
+    dc.onmessage = e => { let m = null; try { m = JSON.parse(e.data); } catch (f){} if (m) pvpVanPeer(pe, m); };
+    pe.snelDc = dc;
+    if (dc.readyState === 'open') pe.snel = dc;
   } catch (e){}
 }
-function pvpSnelAan(){ return !!(pvp && pvp.snel && pvp.snel.readyState === 'open'); }
-// een standbericht: over het snelle kanaal als dat open is, anders gewoon
-function pvpZendSnel(o){
-  if (pvpSnelAan()){
-    if (pvp.snel.bufferedAmount > PVP_NET.vol) return;   // de lijn zit vol: dit bericht is straks toch al oud
-    try { pvp.snel.send(JSON.stringify(o)); return; } catch (e){}
+function pvpSnelOpenBij(pe){ return !!(pe && pe.snel && pe.snel.readyState === 'open'); }
+function pvpSnelAan(){ const L = pvp ? Object.values(pvp.peers) : []; return L.length > 0 && L.every(pvpSnelOpenBij); }
+function pvpStuur(pe, o){ try { if (pe && pe.conn.open) pe.conn.send(o); } catch (e){} }
+// een standbericht naar een peer: over het snelle kanaal als dat open is, anders gewoon
+function pvpStuurSnel(pe, o){
+  if (pvpSnelOpenBij(pe)){
+    if (pe.snel.bufferedAmount > PVP_NET.vol) return;    // de lijn zit vol: dit bericht is straks toch al oud
+    try { pe.snel.send(JSON.stringify(o)); return; } catch (e){}
   }
-  pvpZend(o);
+  pvpStuur(pe, o);
+}
+function pvpZendSnel(o){
+  if (!pvp) return;
+  if (o.p == null) o.p = pvp.mij;
+  for (const k in pvp.peers) pvpStuurSnel(pvp.peers[k], o);
 }
 function pvpNetNieuw(){ return { klok: [], off: null, buf: 0.1, doel: 0.1, speelT: null, s: { rij: [], q: -1, nu: null }, v: { rij: [], q: -1, nu: null }, ping: null, pingT: null }; }
+// de speelbuffer en de klok per afzender: een doorgestuurd bericht van de andere gast draagt zijn eigen klok (tm)
+function pvpNetVan(p){ return pvp.nets[p] || (pvp.nets[p] = pvpNetNieuw()); }
 function pvpNetStart(){
-  pvp.net = pvpNetNieuw(); pvp.qs = 0; pvp.qv = 0; pvp.vAk = -1;
+  pvp.nets = {}; pvp.qs = 0; pvp.qv = 0;
   pvp.netT = setInterval(() => { if (pvp) pvpZendSnel({ t: 'pi', c: +pvpNu().toFixed(3) }); }, PVP_NET.ping * 1000);
 }
-function pvpNetStop(){ if (pvp && pvp.netT){ clearInterval(pvp.netT); pvp.netT = null; } if (pvp && pvp.snelDc){ try { pvp.snelDc.close(); } catch (e){} } }
+function pvpNetStop(){
+  if (pvp && pvp.netT){ clearInterval(pvp.netT); pvp.netT = null; }
+  if (pvp) for (const k in pvp.peers){ const dc = pvp.peers[k].snelDc; if (dc) try { dc.close(); } catch (e){} }
+}
 // de klok van de ander: de kleinste (mijn tijd min zijn tijd) over de laatste seconden, dat is zijn klok plus de kortste reistijd
-function pvpNetKlok(tm){
-  const N = pvp.net, nu = pvpNu();
+function pvpNetKlok(N, tm){
+  const nu = pvpNu();
   N.klok.push([nu, nu - tm]);
   while (N.klok.length > 1 && N.klok[0][0] < nu - PVP_NET.venster) N.klok.shift();
   const rij = N.klok.map(k => k[1]).sort((a, b) => a - b);
   N.off = rij[0];
   // de spreiding van de reistijd, plus de tijd tussen twee berichten: zo ver moet de buffer terug om er altijd een te hebben
   const spreid = rij[Math.min(rij.length - 1, Math.floor(rij.length * PVP_NET.spreid))] - rij[0];
-  const tussen = 1 / (pvp.conn.relay ? PVP_RELAY.hz : PVP.hz);
+  const tussen = 1 / (pvpRelay() ? PVP_RELAY.hz : PVP.hz);
   N.doel = Math.max(PVP_NET.buffer[0], Math.min(PVP_NET.buffer[1], spreid + PVP_NET.marge * tussen));
 }
 // een standbericht komt binnen: te laat of dubbel weg, anders achter in de wachtrij
-function pvpNetIn(soort, m, speel){
-  const N = pvp.net || (pvp.net = pvpNetNieuw()), B = N[soort];
+function pvpNetIn(N, soort, m, speel){
+  const B = N[soort];
   if (m.q != null){ if (m.q <= B.q) return; B.q = m.q; }
   if (m.tm == null){ B.rij.length = 0; B.nu = m; speel(m); return; }   // een bericht zonder klok: meteen
-  pvpNetKlok(m.tm);
+  pvpNetKlok(N, m.tm);
   B.rij.push(m);
   while (B.rij.length > PVP_NET.max){ const o = B.rij.shift(); B.nu = o; speel(o); }
 }
 // elk beeld: afspelen wat aan de beurt is, en hoe ver we tussen de huidige en de volgende stand zitten (0 tot 1)
-function pvpNetSpeel(soort, speel){
-  const N = pvp.net; if (!N) return null;
+function pvpNetSpeel(N, soort, speel){
+  if (!N) return null;
   const B = N[soort];
   if (N.off == null) return null;
   const nu = pvpNu(), dt = N.speelT == null ? 0 : Math.min(0.1, nu - N.speelT);
@@ -62135,25 +62189,33 @@ function pvpNetSpeel(soort, speel){
   return { a, b, k: Math.max(0, Math.min(1, (t - a.tm) / (b.tm - a.tm))) };
 }
 const pvpTussen = (a, b, k) => Math.abs(b - a) > PVP_NET.sprong ? a : a + (b - a) * k;
-// de Amir van de ander: zijn stand afspelen, en zijn plek en speer tussen twee standen in zetten
-function pvpAnderSpeel(m){ pvp.ander = Object.assign({}, m); }
+// de andere Amirs, een per slot (pvp.anders): g is de gebufferde stand voor het beeld, nu de nieuwste voor beslissingen
+function pvpAnderVan(p){ return pvp.anders[p] || (pvp.anders[p] = { g: null, nu: null }); }
+// wie er naast mij speelt en al een stand stuurde, in volgorde van slot
+function pvpAnderen(){ return pvp ? pvp.spelers.filter(p => p !== pvp.mij && pvp.anders[p] && pvp.anders[p].g) : []; }
+// de Amir van een ander: zijn stand afspelen, en zijn plek en speer tussen twee standen in zetten
 function pvpAnderStap(){
-  const s = pvpNetSpeel('s', pvpAnderSpeel), g = pvp.ander;
-  if (!s || !g) return;
-  g.x = pvpTussen(s.a.x, s.b.x, s.k); g.h = pvpTussen(s.a.h, s.b.h, s.k);
-  const ja = s.a.j, jb = s.b.j;
-  if (ja && jb && g.j && ja.n === jb.n && ja.st === 'vlucht' && jb.st === 'vlucht'){
-    g.j = Object.assign({}, ja, { x: pvpTussen(ja.x, jb.x, s.k), h: pvpTussen(ja.h, jb.h, s.k), sa: ja.sa + (jb.sa - ja.sa) * s.k });
+  for (const k in pvp.anders){
+    const p = +k, A = pvp.anders[k];
+    const s = pvpNetSpeel(pvp.nets[p], 's', m => { A.g = Object.assign({}, m); }), g = A.g;
+    if (!s || !g) continue;
+    g.x = pvpTussen(s.a.x, s.b.x, s.k); g.h = pvpTussen(s.a.h, s.b.h, s.k);
+    const ja = s.a.j, jb = s.b.j;
+    if (ja && jb && g.j && ja.n === jb.n && ja.st === 'vlucht' && jb.st === 'vlucht'){
+      g.j = Object.assign({}, ja, { x: pvpTussen(ja.x, jb.x, s.k), h: pvpTussen(ja.h, jb.h, s.k), sa: ja.sa + (jb.sa - ja.sa) * s.k });
+    }
   }
 }
-// de stand van de ander voor beslissingen (de host laat de vijanden achter de gast aan gaan): de nieuwste, niet de
+// de stand van een ander voor beslissingen (de host laat de vijanden achter een gast aan gaan): de nieuwste, niet de
 // gebufferde, want die loopt een buffer achter (N.buf)
-function pvpAnderNu(){ return (pvp && (pvp.anderNu || pvp.ander)) || null; }
-// de ping: 'pi' terugsturen als 'po', en bij 'po' de reistijd heen en terug
+function pvpAnderNu(p){ const A = pvp && pvp.anders[p]; return (A && (A.nu || A.g)) || null; }
+// het Duel is een tegen een: de tegenstander is de enige andere speler
+function pvpDuelAnder(){ return pvp.spelers.find(p => p !== pvp.mij); }
+// de ping: 'pi' terugsturen als 'po' (alleen naar wie hem stuurde), en bij 'po' de reistijd heen en terug
 function pvpPingIn(m){
-  if (m.t === 'pi'){ pvpZendSnel({ t: 'po', c: m.c }); return true; }
+  if (m.t === 'pi'){ const pe = pvp.peers[pvp.host ? m.p : 0]; if (pe) pvpStuurSnel(pe, { t: 'po', c: m.c, p: pvp.mij }); return true; }
   if (m.t === 'po'){
-    const N = pvp.net || (pvp.net = pvpNetNieuw()), r = Math.max(0, pvpNu() - m.c) * 1000;
+    const N = pvpNetVan(pvp.host ? m.p : 0), r = Math.max(0, pvpNu() - m.c) * 1000;
     N.ping = N.ping == null ? r : N.ping * 0.7 + r * 0.3;
     N.pingT = pvpNu();
     pvpPingToon();
@@ -62161,13 +62223,15 @@ function pvpPingIn(m){
   }
   return false;
 }
+// de ping van mijn lijnen: een gast naar de host, de host naar elke gast
+function pvpPings(){ return pvp ? (pvp.host ? pvpGasten() : [0]).map(p => pvp.nets[p] && pvp.nets[p].ping).filter(v => v != null).map(Math.round) : []; }
 function pvpPingTekst(){
-  const N = pvp && pvp.net;
-  if (!N || N.ping == null) return '';
-  const lijn = pvp.conn.relay ? 'relay' : pvpSnelAan() ? 'direct, fast channel' : 'direct';
-  return 'Ping ' + Math.round(N.ping) + ' ms (' + lijn + ')';
+  const L = pvpPings();
+  if (!L.length) return '';
+  const lijn = pvpRelay() ? 'relay' : pvpSnelAan() ? 'direct, fast channel' : 'direct';
+  return 'Ping ' + L.join(' / ') + ' ms (' + lijn + ')';
 }
-function pvpPingHud(){ const N = pvp && pvp.net; return N && N.ping != null ? '   Ping ' + Math.round(N.ping) : ''; }
+function pvpPingHud(){ const L = pvpPings(); return L.length ? '   Ping ' + L.join('/') : ''; }
 function pvpPingToon(){
   const el = pvpEl('mpping');
   if (el) el.textContent = pvpPingTekst();
@@ -62183,9 +62247,10 @@ function pvpRaakLokaal(o){
 }
 
 // ---- multiplayer: de lobby, waar de host de modus, de map en de regels kiest ----
-// Na het verbinden staan allebei in de lobby (het scherm menuPvp met de klasse lobby). De host stelt in, de gast kijkt
-// mee (elke wijziging gaat als 'lobby' over de lijn) en drukt Ready; daarna mag de host op Start. Escape in een potje
-// brengt allebei terug naar de lobby, zonder de verbinding te verbreken; Leave the lobby verbreekt hem wel.
+// Na het verbinden staan allemaal in de lobby (het scherm menuPvp met de klasse lobby). De host stelt in, de gasten kijken
+// mee (elke wijziging gaat als 'lobby' over de lijn) en drukken Ready; zijn ze allemaal klaar, dan mag de host op Start.
+// Co-op is voor twee of drie spelers, het Duel voor twee. Zolang de lobby open is kan er nog iemand bij met de code.
+// Escape in een potje brengt iedereen terug naar de lobby, zonder de verbinding te verbreken; Leave the lobby verbreekt hem.
 // Zie notities/multiplayer.md.
 const MP_KAARTEN = { duel: [{ id: 'dye', naam: 'The Dye Yard' }], coop: [{ id: 'dye', naam: 'The Dye Yard (co-op)' }] };
 // de vijanden die de host in Co-op Survival kan kiezen; met twee namen in var is er een makkelijke en een moeilijke versie
@@ -62269,7 +62334,8 @@ function mpLobbyToon(){
   if (!pvp) return;
   const I = pvp.inst, host = pvp.host, lob = pvpEl('mplobby');
   lob.classList.toggle('host', host); lob.classList.toggle('gast', !host);
-  pvpEl('mpwie').textContent = host ? 'Connected. You are the host: choose the mode and the rules.' : 'Connected. The host chooses the mode and the rules.';
+  pvpEl('mpwie').textContent = host ? 'You are the host' + (pvpHostCode ? ' (code ' + pvpHostCode + ')' : '') + ': choose the mode and the rules.' : 'Connected. The host chooses the mode and the rules.';
+  pvpEl('mpspelers').textContent = mpSpelersTekst();
   lob.querySelectorAll('.mpmodus').forEach(b => b.classList.toggle('on', b.dataset.modus === I.modus));
   const ks = pvpEl('mpkaart'); ks.innerHTML = '';
   for (const k of MP_KAARTEN[I.modus]){ const o = document.createElement('option'); o.value = k.id; o.textContent = k.naam; ks.append(o); }
@@ -62292,46 +62358,57 @@ function mpLobbyToon(){
   }
   mpKnoppen();
 }
+// wie er in de lobby staat: per speler de kleur van zijn broek, en bij de host wie al Ready is
+function mpSpelersTekst(){
+  const n = pvp.spelers.map(p => (p === pvp.mij ? 'You' : (mpBroekNaam(pvp.broek[p]) || 'Player ' + (p + 1))) + (p === 0 ? ' (host)' : pvp.host && pvp.klaarVan[p] ? ' (ready)' : ''));
+  return 'Players (' + pvp.spelers.length + ' of ' + PVP.max + '): ' + n.join(', ');
+}
 function mpKnoppen(){
   if (!pvp) return;
   const I = pvp.inst, start = pvpEl('mpstart'), uitleg = pvpEl('mpstartuitleg');
   const vijanden = MP_SOORTEN.some(q => I.coop.vij[q.k] !== 'uit');
+  const gasten = pvpGasten(), klaar = gasten.filter(p => pvp.klaarVan[p]).length;
   pvpEl('mpready').classList.toggle('on', pvp.klaar);
   pvpEl('mpready').firstChild.textContent = pvp.klaar ? 'Ready!' : 'Ready';
+  pvpEl('mpspelers').textContent = mpSpelersTekst();
   if (I.modus === 'coop' && !vijanden){ start.disabled = true; uitleg.textContent = 'Switch on at least one enemy'; }
-  else if (!pvp.klaar){ start.disabled = true; uitleg.textContent = 'Waiting until the other player is ready'; }
-  else { start.disabled = false; uitleg.textContent = 'Both ready'; }
+  else if (!gasten.length){ start.disabled = true; uitleg.textContent = 'Waiting for another player'; }
+  else if (I.modus === 'duel' && gasten.length !== 1){ start.disabled = true; uitleg.textContent = 'A duel is for two players'; }
+  else if (klaar < gasten.length){ start.disabled = true; uitleg.textContent = gasten.length > 1 ? 'Waiting until everyone is ready (' + klaar + ' of ' + gasten.length + ')' : 'Waiting until the other player is ready'; }
+  else { start.disabled = false; uitleg.textContent = gasten.length > 1 ? 'Everyone ready' : 'Both ready'; }
 }
-// de host verandert iets: bewaren, doorsturen, en de gast moet opnieuw Ready drukken
+// de host verandert iets: bewaren, doorsturen, en de gasten moeten opnieuw Ready drukken
 function mpWijzig(f){
   if (!pvp || !pvp.host) return;
   f(); mpBewaar();
-  pvp.klaar = false;
-  pvpZend({ t: 'lobby', inst: pvp.inst });
+  pvp.klaar = false; pvp.klaarVan = {};
+  pvpZend({ t: 'lobby', inst: pvp.inst, spelers: pvp.spelers });
   mpLobbyToon();
 }
 function mpLobbyOpen(){
   if (!pvp) return;
-  pvp.fase = 'lobby'; pvp.klaar = false;
+  pvp.fase = 'lobby'; pvp.klaar = false; pvp.klaarVan = {};
   pvpEl('menuPvp').classList.add('lobby');
   pvpEl('start').classList.add('mplobby');          // je eigen Amir naast de lobby (mpBroek)
   pvpStatus('');
   mpLobbyToon();
-  if (pvp.host) pvpZend({ t: 'lobby', inst: pvp.inst });
+  if (pvp.host) pvpZend({ t: 'lobby', inst: pvp.inst, spelers: pvp.spelers });
   pvpZend({ t: 'broek', id: pvp.broek[pvp.mij] });
   mpBroekToon(); mpBroekStart();
 }
 function mpLobbyDicht(){ pvpEl('menuPvp').classList.remove('lobby'); pvpEl('start').classList.remove('mplobby'); }
 // ---- de broekkleur in Multiplayer: naast de lobby je eigen Amir, de pijltjes wisselen de kleur van zijn broek ----
 // Zoals de broekkeuze van Test 73 (BROEK), plus het eigen paars van Amir (geen lapje, het origineel). Ieder kiest zelf,
-// los van wie host is, en een kleur die de ander al draagt sla je over. Kiezen ze tegelijk dezelfde, dan houdt de host
-// hem en schuift de gast door naar de eerste vrije. Je keuze blijft bewaard op dit apparaat (amir.mpbroek).
+// los van wie host is, en een kleur die een ander al draagt sla je over. Kiezen twee tegelijk dezelfde, dan houdt het
+// laagste slot hem (de host eerst) en schuift de ander door naar de eerste vrije. Standaard paars, rood en turkoois.
+// Je keuze blijft bewaard op dit apparaat (amir.mpbroek).
 const MP_BROEK = [{ id: 'paars', naam: 'Purple' }].concat(BROEK.kleuren.map(k => ({ id: k.id, naam: k.naam })));
 function mpBroekNaam(id){ const k = MP_BROEK.find(b => b.id === id); return k ? k.naam : ''; }
-function mpBroekEigen(host){
+const MP_BROEK_STANDAARD = ['paars', 'rood', 'turq'];   // per slot: de host, de eerste en de tweede gast
+function mpBroekEigen(slot){
   let id = null;
   try { id = localStorage.getItem('amir.mpbroek'); } catch (e){}
-  return MP_BROEK.some(b => b.id === id) ? id : (host ? 'paars' : 'rood');
+  return MP_BROEK.some(b => b.id === id) ? id : MP_BROEK_STANDAARD[slot] || 'paars';
 }
 function mpBroekZet(id){
   if (!pvp || id === pvp.broek[pvp.mij]) return;
@@ -62341,25 +62418,30 @@ function mpBroekZet(id){
   pvpZend({ t: 'broek', id });
   mpBroekToon();
 }
-// de volgende kleur die de ander niet draagt
+// wat de anderen dragen
+function mpBroekAnders(){ return pvp.spelers.filter(p => p !== pvp.mij && pvp.broek[p]).map(p => pvp.broek[p]); }
+// de volgende kleur die niemand anders draagt
 function mpBroekVrij(van, stap){
-  const L = MP_BROEK, ander = pvp.broek[1 - pvp.mij];
+  const L = MP_BROEK, bezet = mpBroekAnders();
   let i = Math.max(0, L.findIndex(b => b.id === van));
-  for (let n = 0; n < L.length; n++){ i = (i + stap + L.length) % L.length; if (L[i].id !== ander) return L[i].id; }
+  for (let n = 0; n < L.length; n++){ i = (i + stap + L.length) % L.length; if (!bezet.includes(L[i].id)) return L[i].id; }
   return van;
 }
 function mpBroekWissel(stap){ if (pvp && pvp.fase === 'lobby') mpBroekZet(mpBroekVrij(pvp.broek[pvp.mij], stap)); }
-function mpBroekAnder(id){
-  if (!pvp || !MP_BROEK.some(b => b.id === id)) return;
-  pvp.broek[1 - pvp.mij] = id;
-  if (!pvp.host && id === pvp.broek[pvp.mij]) mpBroekZet(mpBroekVrij(id, 1));   // dezelfde: de gast schuift door
+// een ander (slot p) kiest een kleur; is het de mijne en heeft hij een lager slot, dan schuif ik door
+function mpBroekAnder(p, id){
+  if (!pvp || pvp.mij == null || p === pvp.mij || !MP_BROEK.some(b => b.id === id)) return;
+  pvp.broek[p] = id;
+  if (p < pvp.mij && id === pvp.broek[pvp.mij]) mpBroekZet(mpBroekVrij(id, 1));
   mpBroekToon();
 }
 function mpBroekToon(){
-  if (!pvp) return;
+  if (!pvp || pvp.mij == null) return;
   pvpEl('mpbrnaam').textContent = mpBroekNaam(pvp.broek[pvp.mij]);
-  const a = pvp.broek[1 - pvp.mij];
-  pvpEl('mpbrander').textContent = a ? 'The other player wears ' + mpBroekNaam(a).toLowerCase() : 'Waiting for the other player';
+  const a = mpBroekAnders().map(id => mpBroekNaam(id).toLowerCase());
+  pvpEl('mpbrander').textContent = !a.length ? 'Waiting for the other players'
+    : (a.length === 1 ? 'The other player wears ' : 'The others wear ') + a.join(' and ');
+  if (pvp.fase === 'lobby') pvpEl('mpspelers').textContent = mpSpelersTekst();
 }
 let mpBroekLoopt = false;
 const mpBroekA = document.createElement('canvas'), mpBroekB = document.createElement('canvas');
@@ -62389,22 +62471,59 @@ function mpBroekStart(){
 }
 pvpEl('mpbrlinks').onclick = () => mpBroekWissel(-1);
 pvpEl('mpbrrechts').onclick = () => mpBroekWissel(1);
+// verbonden. De host maakt het potje bij de eerste gast en neemt daarna nog gasten aan (pvpGastErbij); een gast wacht op
+// 'welkom' met zijn slot voor hij de lobby opent
 function pvpVerbonden(conn, host){
-  pvp = { conn, host, mij: host ? 0 : 1, sc: [0, 0], ronde: 1, fase: 'lobby', t: 0, zendT: 0, ander: null,
-          sn: 0, wn: 0, jn: 0, laatsteAtk: -1, laatsteSw: -1, laatsteJav: null, mijn: null,
-          raakSteek: -1, raakZwaai: -1, raakSpeer: -1, jVorig: null, bannerT: 0, rematch: [false, false], beelden: {}, gehoord: 0, weg: false,
-          inst: host ? mpLaadInst() : mpStandaard(), klaar: false, regels: null, broek: [null, null], broekVan: null, broekT0: 0 };
-  pvp.broek[pvp.mij] = mpBroekEigen(host);
-  pvpNetStart(); pvpSnelOpen(conn);                 // de ping, de speelbuffer en het snelle kanaal (zie "de netcode")
-  conn.on('data', pvpOntvang);
-  conn.on('close', () => { if (pvp && pvp.conn === conn) pvpWeg(host ? 'The other player left.' : 'The host left.'); });
-  mpLobbyOpen();
+  pvp = { host, mij: host ? 0 : null, peers: {}, nets: {}, anders: {}, spelers: host ? [0] : [], sc: [0, 0, 0], ronde: 1, fase: host ? 'lobby' : 'welkom',
+          t: 0, zendT: 0, sn: 0, wn: 0, jn: 0, laatsteAtk: -1, laatsteSw: -1, laatsteJav: null, mijn: null,
+          raakSteek: -1, raakZwaai: -1, raakSpeer: -1, jVorig: null, bannerT: 0, rematch: [false, false, false], beelden: {}, weg: false,
+          inst: host ? mpLaadInst() : mpStandaard(), klaar: false, klaarVan: {}, regels: null, broek: [null, null, null], broekVan: null, broekT0: 0 };
+  pvpNetStart();                                    // de ping en de speelbuffer (zie "de netcode"); het snelle kanaal per peer
+  if (host){ pvp.broek[0] = mpBroekEigen(0); pvpGastErbij(conn); mpLobbyOpen(); }
+  else { pvpPeerNieuw(conn, 0); pvpStatus('Connected, joining the lobby...'); }
+}
+// er belt iemand bij de host: het eerste potje, een gast erbij, of een weigering
+function pvpNieuweGast(conn){
+  if (!pvp){ pvpVerbonden(conn, true); return; }
+  const reden = !pvp.host || pvp.weg ? 'This game is closed.' : pvp.fase !== 'lobby' ? 'This game has already started.'
+    : pvp.spelers.length >= PVP.max ? 'This game is full (' + PVP.max + ' players).' : null;
+  if (reden){ try { conn.send({ t: 'vol', r: reden, p: 0 }); } catch (e){} setTimeout(() => { try { conn.close(); } catch (e){} }, 400); return; }
+  pvpGastErbij(conn);
+}
+function pvpGastErbij(conn){
+  let p = 1; while (pvp.peers[p]) p++;
+  pvpPeerNieuw(conn, p);
+  pvp.spelers = pvp.spelers.concat(p).sort((a, b) => a - b);
+  pvp.klaarVan[p] = false;
+  pvpStuur(pvp.peers[p], { t: 'welkom', mij: p, p: 0 });
+  for (const q of pvp.spelers) if (q !== p && pvp.broek[q]) pvpStuur(pvp.peers[p], { t: 'broek', id: pvp.broek[q], p: q });
+  if (pvp.fase === 'lobby' && pvp.spelers.length > 2){ pvpZend({ t: 'lobby', inst: pvp.inst, spelers: pvp.spelers }); mpLobbyToon(); mpBroekToon(); }
+}
+// de host: een gast is weg. Is er niemand meer, dan zoals eerst; anders speelt de rest door (of blijft in de lobby)
+function pvpGastWeg(p, t){
+  if (!pvp || !pvp.host || !pvp.peers[p]) return;
+  const pe = pvp.peers[p], naam = mpBroekNaam(pvp.broek[p]) || 'A player';
+  delete pvp.peers[p]; delete pvp.anders[p]; delete pvp.nets[p]; delete pvp.klaarVan[p];
+  if (pe.snelDc) try { pe.snelDc.close(); } catch (e){}
+  try { pe.conn.close(); } catch (e){}
+  pvp.spelers = pvp.spelers.filter(q => q !== p); pvp.broek[p] = null; pvp.rematch[p] = false;
+  if (!pvpGasten().length){ pvpWeg(t || 'The other player left.'); return; }
+  pvpZend({ t: 'weg', wie: p });
+  mpSpelerWeg(p, naam);
+}
+// bij iedereen: een speler is weg (de host weet het zelf, een gast hoort het met 'weg')
+function mpSpelerWeg(p, naam){
+  if (!pvp.host){ delete pvp.anders[p]; delete pvp.nets[p]; pvp.spelers = pvp.spelers.filter(q => q !== p); pvp.broek[p] = null; }
+  if (pvp.fase === 'lobby'){ mpLobbyToon(); mpBroekToon(); return; }
+  if (!pvp.coop){ pvpWeg(naam + ' left.'); return; }
+  flashHint(naam + ' left the game');
+  if (pvp.host) mpcSpelersKijk();                   // Ready in de winkel, R na game over: wie er nog is telt
 }
 // de host drukt Start: de regels gaan mee, zodat allebei met dezelfde spelen
 function mpStart(){
   if (!pvp || !pvp.host || pvp.fase !== 'lobby' || pvpEl('mpstart').disabled) return;
   const regels = JSON.parse(JSON.stringify({ modus: pvp.inst.modus, kaart: pvp.inst.kaart, duel: pvp.inst.duel, coop: pvp.inst.coop }));
-  pvpZend({ t: 'start', regels });
+  pvpZend({ t: 'start', regels, spelers: pvp.spelers });
   mpSpelStart(regels);
 }
 function mpSpelStart(regels){
@@ -62415,8 +62534,8 @@ function mpSpelStart(regels){
 }
 function pvpDuelStart(){
   const D = pvp.regels.duel;
-  Object.assign(pvp, { sc: [0, 0], ronde: 1, t: 0, gehoord: 0, zendT: 0, ander: null, anderNu: null, sn: 0, wn: 0, jn: 0, laatsteAtk: -1, laatsteSw: -1,
-                       laatsteJav: null, mijn: null, jVorig: null, rematch: [false, false], winst: Math.ceil(D.rondes / 2), levens: D.levens });
+  Object.assign(pvp, { sc: [0, 0, 0], ronde: 1, zendT: 0, anders: {}, sn: 0, wn: 0, jn: 0, laatsteAtk: -1, laatsteSw: -1,
+                       laatsteJav: null, mijn: null, jVorig: null, rematch: [false, false, false], winst: Math.ceil(D.rondes / 2), levens: D.levens });
   runReset();
   levelList = PVP_LEVELS;                         // niet TEST_LEVELS: die geeft alle talents (een vierde leven)
   level = readLevel(JSON.stringify(PVP_LEVEL));
@@ -62443,8 +62562,10 @@ function mpNaarLobby(zelf){
   if (running) toMenu();
   mpLobbyOpen();
 }
+// de startplek: in Co-op per slot (de tweede gast in het midden), in het Duel de host rechts en de gast links
+function pvpStartSlot(){ return pvp.coop ? pvp.mij : (pvp.mij === 0 ? 0 : 1); }
 function pvpPlaats(){
-  world = PVP.starts[pvp.mij]; facing = pvp.mij === 0 ? -1 : 1; autoFlip = true;
+  world = PVP.starts[pvpStartSlot()]; facing = pvpStartSlot() === 1 ? 1 : -1; autoFlip = true;
 }
 function pvpRondeStart(n){
   pvp.ronde = n; pvp.fase = 'vecht'; godMode = false;
@@ -62455,27 +62576,49 @@ function pvpNieuweRonde(n){
   pvpRondeStart(n);
   restart(); pvpPlaats(); hudToon(); pvpHud();
 }
-function pvpZend(o){ try { if (pvp && pvp.conn.open) pvp.conn.send(o); } catch (e){} }
+// naar iedereen (de host naar alle gasten, een gast naar de host); elk bericht krijgt mijn slot
+function pvpZend(o){
+  if (!pvp) return;
+  if (o.p == null) o.p = pvp.mij;
+  for (const k in pvp.peers) pvpStuur(pvp.peers[k], o);
+}
+// naar een speler: de host rechtstreeks, een gast via de host (die stuurt het door, zie pvpVanPeer)
+function pvpZendAan(p, o){
+  if (!pvp || p === pvp.mij) return;
+  o.p = pvp.mij;
+  if (pvp.host) pvpStuur(pvp.peers[p], o);
+  else pvpStuur(pvp.peers[0], p === 0 ? o : Object.assign(o, { naar: p }));
+}
 function pvpBanner(t, dur){ pvp.banner = t; pvp.bannerT = dur || 0; pvpHud(); }
 function pvpHud(){
   if (!pvp) return;
   if (pvp.coop){ mpCoopHud(); return; }
-  const mijn = pvp.sc[pvp.mij], zijn = pvp.sc[1 - pvp.mij];
+  const mijn = pvp.sc[pvp.mij], zijn = pvp.sc[pvpDuelAnder()] || 0;
   pvpEl('pvpscore').textContent = 'You ' + mijn + '  -  ' + zijn + ' Opponent' + pvpPingHud();
   pvpEl('pvpbanner').textContent = pvp.banner || '';
 }
 function pvpOntvang(m){
   if (!pvp || !m || typeof m !== 'object') return;
-  pvp.gehoord = pvp.t;
   if (pvpPingIn(m)) return;                         // de ping (zie "de netcode")
+  if (m.t === 'welkom'){                            // de host geeft mij mijn slot: nu pas de lobby
+    if (pvp.host || pvp.mij != null) return;
+    pvp.mij = m.mij; pvp.broek[pvp.mij] = mpBroekEigen(pvp.mij);
+    if (!pvp.spelers.includes(pvp.mij)) pvp.spelers = [0, pvp.mij];
+    mpLobbyOpen();
+    return;
+  }
+  if (m.t === 'vol'){ pvpStop(); pvpTerug = false; pvpStatus(m.r || 'Could not join this game.'); return; }
+  if (pvp.mij == null) return;                      // nog geen slot: de rest wacht niet op mij
   if (pvp.coop && mpCoopOntvang(m)) return;         // Co-op: de vijanden, tonnen, deuren en de revive
   if (m.t === 's'){
     // zijn stand: de nieuwste meteen voor beslissingen (pvpAnderNu), en in de speelbuffer voor het beeld (pvpAnderStap)
-    const N = pvp.net || (pvp.net = pvpNetNieuw());
+    if (m.p === pvp.mij) return;
+    const N = pvpNetVan(m.p), A = pvpAnderVan(m.p);
     if (m.q != null && m.q <= N.s.q) return;        // over het snelle kanaal kwam er al een nieuwer
-    pvp.anderNu = m;
-    if (m.ak != null && m.ak > pvp.vAk) pvp.vAk = m.ak;   // Co-op: tot hier heeft de gast de vijandstand binnen
-    pvpNetIn('s', m, pvpAnderSpeel);
+    A.nu = m;
+    const pe = pvp.host && pvp.peers[m.p];
+    if (pe && m.ak != null && m.ak > pe.vAk) pe.vAk = m.ak;   // Co-op: tot hier heeft deze gast de vijandstand binnen
+    pvpNetIn(N, 's', m, o => { A.g = Object.assign({}, o); });
   } else if (m.t === 'au'){
     pvpRaakFx();                                     // ik heb hem geraakt: dat wil de aanvaller voelen en horen
   } else if (m.t === 'speerRaak'){
@@ -62490,21 +62633,25 @@ function pvpOntvang(m){
   } else if (m.t === 'lobby'){
     if (pvp.host) return;
     pvp.inst = m.inst; pvp.klaar = false;
-    if (pvp.fase === 'lobby') mpLobbyToon();
+    if (m.spelers) pvp.spelers = m.spelers.slice();
+    if (pvp.fase === 'lobby'){ mpLobbyToon(); mpBroekToon(); }
   } else if (m.t === 'broek'){
-    mpBroekAnder(m.id);
+    mpBroekAnder(m.p, m.id);
   } else if (m.t === 'klaar'){
     if (!pvp.host) return;
-    pvp.klaar = !!m.aan; mpKnoppen();
+    pvp.klaarVan[m.p] = !!m.aan; mpKnoppen();
   } else if (m.t === 'start'){
     if (pvp.host || pvp.fase !== 'lobby') return;
+    if (m.spelers) pvp.spelers = m.spelers.slice();
     mpSpelStart(m.regels);
   } else if (m.t === 'lobbyTerug'){
-    mpNaarLobby(false);
+    mpNaarLobby(pvp.host);                           // een gast drukte Escape: de host stuurt iedereen terug
+  } else if (m.t === 'weg'){
+    if (!pvp.host) mpSpelerWeg(m.wie, mpBroekNaam(pvp.broek[m.wie]) || 'A player');
   } else if (m.t === 'bye'){
-    pvpWeg(pvp.host ? 'The other player left.' : 'The host left.');
+    if (pvp.host) pvpGastWeg(m.p, 'The other player left.'); else pvpWeg('The host left.');
   } else if (m.t === 'rematch'){
-    pvp.rematch[1 - pvp.mij] = true; pvpRematchKijk();
+    pvp.rematch[m.p] = true; pvpRematchKijk();
   }
 }
 // de aanvaller merkt zijn treffer: de speer die in vlees gaat, een korte hitstop en een kleine schok. Zonder dit zag hij
@@ -62525,14 +62672,14 @@ function pvpRondeUit(w){
   pvpHud();
   setTimeout(() => {
     if (!pvp || pvp.fase !== 'pauze') return;      // intussen terug naar de lobby
-    const eind = pvp.sc[0] >= pvp.winst || pvp.sc[1] >= pvp.winst;
+    const eind = pvp.sc.some(v => v >= pvp.winst);
     pvpZend({ t: 'ronde', sc: pvp.sc, n: pvp.ronde + 1, eind });
     if (eind) pvpEinde(); else pvpNieuweRonde(pvp.ronde + 1);
   }, PVP.pauze * 1000);
 }
 function pvpEinde(){
   pvp.fase = 'uit'; godMode = true; pvp.rematch = [false, false];
-  pvpBanner((pvp.sc[pvp.mij] > pvp.sc[1 - pvp.mij] ? 'You win the duel!' : 'Your opponent wins the duel') + '  (R: rematch, Esc: lobby)');
+  pvpBanner((pvp.sc[pvp.mij] > (pvp.sc[pvpDuelAnder()] || 0) ? 'You win the duel!' : 'Your opponent wins the duel') + '  (R: rematch, Esc: lobby)');
 }
 // R in PvP: na het duel een rematch vragen; pas als allebei willen begint het opnieuw
 function pvpRematchDruk(){
@@ -62543,14 +62690,14 @@ function pvpRematchDruk(){
   pvpRematchKijk();
 }
 function pvpRematchKijk(){
-  if (!pvp || !pvp.host || pvp.fase !== 'uit' || !pvp.rematch[0] || !pvp.rematch[1]) return;
-  pvp.sc = [0, 0];
+  if (!pvp || !pvp.host || pvp.fase !== 'uit' || !pvp.spelers.every(p => pvp.rematch[p])) return;
+  pvp.sc = [0, 0, 0];
   pvpZend({ t: 'ronde', sc: pvp.sc, n: 1, eind: false });
   pvpNieuweRonde(1);
 }
 function pvpWeg(t){
   if (!pvp || pvp.weg) return;
-  if (pvp.fase === 'lobby'){ pvpStop(); pvpTerug = false; pvpStatus(t); return; }   // in de lobby: terug naar Host en Join
+  if (pvp.fase === 'lobby' || pvp.fase === 'welkom'){ pvpStop(); pvpTerug = false; pvpStatus(t); return; }   // in de lobby: terug naar Host en Join
   pvp.weg = true;
   pvpBanner(t, 3); pvpStatus(t);
   const p = pvp;
@@ -62561,8 +62708,8 @@ function pvpStop(){
   if (!pvp) return;
   pvpZend({ t: 'bye' });
   pvpNetStop();
-  try { pvp.conn.close(); } catch (e){}
-  pvpPeerWeg();
+  for (const k in pvp.peers){ try { pvp.peers[k].conn.close(); } catch (e){} }
+  pvpPeerWeg(); pvpHostCode = null;
   if (ROL.koelOud != null){ ROL.koel = ROL.koelOud; ROL.koelOud = null; }
   mpCoopStop();
   pvp = null; godMode = false; pvpTerug = true;
@@ -62585,7 +62732,11 @@ function pvpVang(img, x, y, w, h, fl, pcx, voet, scale){
 function pvpStap(rdt){
   if (!pvp) return;
   pvp.t += rdt;
-  if (pvp.t - pvp.gehoord > PVP.stilte && !pvp.weg) pvpWeg('Lost the connection to your opponent.');   // al een tijd niets van hem gehoord
+  for (const k in pvp.peers){                        // al een tijd niets van hem gehoord: die lijn is weg
+    if (pvp.t - pvp.peers[k].gehoord <= PVP.stilte || pvp.weg) continue;
+    if (pvp.host) pvpGastWeg(+k, 'Lost the connection to the other player.'); else pvpWeg('Lost the connection to the host.');
+    if (!pvp) return;
+  }
   if (pvp.bannerT > 0){ pvp.bannerT -= rdt; if (pvp.bannerT <= 0){ pvp.banner = ''; pvpHud(); } }
   if (atkFrame >= 0 && pvp.laatsteAtk < 0) pvp.sn++;
   pvp.laatsteAtk = atkFrame;
@@ -62594,14 +62745,14 @@ function pvpStap(rdt){
   if (jav && jav !== pvp.laatsteJav){ pvp.jn++; pvp.laatsteJav = jav; }
   if (dead){
     deadEl.classList.remove('on');                   // geen "Je bent dood": de ronde gaat door
-    if (pvp.fase === 'vecht'){ pvpZend({ t: 'ko' }); pvpRondeUit(1 - pvp.mij); }
+    if (pvp.fase === 'vecht'){ pvpZend({ t: 'ko' }); pvpRondeUit(pvpDuelAnder()); }
   }
-  pvpAnderStap();                                    // de andere Amir uit de speelbuffer, tussen twee standen in
+  pvpAnderStap();                                    // de andere Amirs uit de speelbuffer, tussen twee standen in
   pvp.zendT -= rdt;
   if (pvp.zendT <= 0 && pvp.mijn){
-    pvp.zendT = 1 / (pvp.conn.relay ? PVP_RELAY.hz : PVP.hz);
+    pvp.zendT = 1 / (pvpRelay() ? PVP_RELAY.hz : PVP.hz);
     const j = jav && jav.state !== 'weg' ? { x: Math.round(jav.x), h: Math.round(jav.h), sa: +jav.sa.toFixed(3), dir: jav.dir, st: jav.state, t: +(jav.t || 0).toFixed(2), b: jav.blauw || 0, n: pvp.jn } : null;
-    pvpZendSnel(Object.assign({ t: 's', q: ++pvp.qs, tm: +pvpNu().toFixed(3), ak: pvp.coop && !pvp.host && pvp.net ? pvp.net.v.q : undefined, x: Math.round(playerX()), h: Math.round(ph), f: facing, hu: +hurt.toFixed(2),
+    pvpZendSnel(Object.assign({ t: 's', q: ++pvp.qs, tm: +pvpNu().toFixed(3), ak: pvp.coop && !pvp.host && pvp.nets[0] ? pvp.nets[0].v.q : undefined, x: Math.round(playerX()), h: Math.round(ph), f: facing, hu: +hurt.toFixed(2),
       sf: atkFrame, sl: steekLive() && !atkMes ? 1 : 0, sn: pvp.sn, sw: swFrame, wn: pvp.wn, j, l: lives, d: dead ? 1 : 0,
       iv: invuln > 0 ? 1 : 0, du: +duckT.toFixed(2), ds: +duckShare.toFixed(2) }, pvp.mijn));   // iv, du en ds: de stand voor de vijanden van Co-op (mpcGastStand)
   }
@@ -62612,10 +62763,14 @@ function pvpBeeld(src){
   if (!im){ im = new Image(); im.src = src; pvp.beelden[src] = im; }
   return im.complete && im.naturalWidth ? im : null;
 }
-// in het tekenblok, na Amir: de andere Amir, zijn speer, en of zijn steek, zwaai of worp mijn Amir raakt
+// in het tekenblok, na Amir: de andere Amirs (in Co-op een of twee teamgenoten, in het Duel de tegenstander)
 function pvpTeken(groundY, scale, cx, pbox, hitBy){
-  const g = pvp && pvp.ander;
-  if (!g) return;
+  if (!pvp) return;
+  for (const p of pvpAnderen()) pvpTekenEen(p, pvp.anders[p].g, groundY, scale, cx, pbox, hitBy);
+  if (pvp.coop) mpCoopTeken(groundY, scale, cx);    // Co-op: de revive-tonnen en hun symbolen
+}
+// een andere Amir, zijn speer, en (in het Duel) of zijn steek, zwaai of worp mijn Amir raakt
+function pvpTekenEen(p, g, groundY, scale, cx, pbox, hitBy){
   const sx = cx + (g.x - world), voet = groundY - g.h * scale;
   const im = g.im && pvpBeeld(g.im);
   if (im){
@@ -62625,7 +62780,7 @@ function pvpTeken(groundY, scale, cx, pbox, hitBy){
     ctx.translate(sx + g.dx * scale, voet + g.dy * scale);
     if (g.fl){ ctx.translate(w, 0); ctx.scale(-1, 1); }
     if (pvp.coop && g.d) mpcLig(w, h, -g.dy * scale);  // Co-op: mijn teamgenoot ligt dood
-    const kb = broekBeeld(im, im, pvp.broek ? broekKleurVan(pvp.broek[1 - pvp.mij]) : null);   // zijn broekkleur uit de lobby
+    const kb = broekBeeld(im, im, broekKleurVan(pvp.broek[p]));   // zijn broekkleur uit de lobby
     ctx.drawImage(g.hu > 0 ? amirRood(kb, Math.min(0.75, g.hu * 2)) : kb, 0, 0, w, h);
     ctx.restore();
   }
@@ -62640,7 +62795,7 @@ function pvpTeken(groundY, scale, cx, pbox, hitBy){
     ctx.fillStyle = i < (g.l || 0) ? '#e0412b' : 'rgba(0,0,0,0.5)'; ctx.fill(); ctx.stroke();
   }
   ctx.restore();
-  if (pvp.coop){ mpCoopTeken(groundY, scale, cx); return; }   // Co-op: je ziet alleen je eigen speren, en elkaar raken kan niet
+  if (pvp.coop) return;                             // Co-op: je ziet alleen je eigen speren, en elkaar raken kan niet
   // zijn speer, in de vlucht of in de grond (javSchacht tekent de globale jav: even wisselen)
   const j = g.j;
   if (j && imgReady(javImg)){
@@ -62675,13 +62830,14 @@ function pvpTeken(groundY, scale, cx, pbox, hitBy){
 }
 // ---- multiplayer: Co-op Survival, samen tegen rondes vijanden ----
 // De host denkt voor alle vijanden: zijn laptop draait hun AI en stuurt hun stand (alle velden die veranderd zijn)
-// MPC.hz keer per seconde naar de gast. De gast draait hun AI niet (de update-functies slaan bij hem over), maar tekent
-// ze met dezelfde tekencode, en die kijkt ook of een vijand hem raakt (zoals elk slachtoffer in PvP zelf beslist). Een
-// treffer van de gast op een vijand gaat als bericht naar de host (de hit-functies zijn bij de gast een doorgeefluik), en
-// de host roept de echte hit-functie aan. Een vijand kiest de dichtstbijzijnde levende Amir: bij de host draait elke
-// update-functie twee keer, een keer voor de vijanden op de host en een keer met de stand van de gast in world, ph en de
-// rest (mpWissel), zodat dezelfde AI achter de gast aan gaat. Kogels, dolken en meelzakken komen een keer over en vliegen
-// daarna bij de gast zelf, zodat ze hem ook raken. Zie notities/multiplayer.md.
+// MPC.hz keer per seconde naar de gasten (een of twee: Co-op is voor twee of drie spelers). Een gast draait hun AI niet
+// (de update-functies slaan bij hem over), maar tekent ze met dezelfde tekencode, en die kijkt ook of een vijand hem
+// raakt (zoals elk slachtoffer in PvP zelf beslist). Een treffer van een gast op een vijand gaat als bericht naar de
+// host (de hit-functies zijn bij de gast een doorgeefluik), en de host roept de echte hit-functie aan. Een vijand kiest
+// de dichtstbijzijnde levende Amir: bij de host draait elke update-functie een keer per groep, eerst voor de vijanden op
+// de host en dan per gast met de stand van die gast in world, ph en de rest (mpcWisselIn), zodat dezelfde AI achter elke
+// gast aan gaat. Kogels, dolken en meelzakken komen een keer over en vliegen daarna bij de gast zelf, zodat ze hem ook
+// raken. Zie notities/multiplayer.md.
 const MPC = {
   eerst: 3,                 // seconden tot ronde 1
   tussen: 1.5,              // seconden tussen twee vijanden die binnendruppelen
@@ -62689,7 +62845,7 @@ const MPC = {
   boven: 5,                 // hooguit zoveel boven (galerij en balkon) tegelijk, daarna komen ze beneden
   balkon: 2,                // hooguit zoveel kruisboogschutters op het balkon van het middenhuis
   reviveNa: 20,             // zoveel seconden na een dood komt de revive-ton
-  wissel: 150,              // een vijand wisselt pas van doel als de ander zoveel dichterbij is
+  wissel: 150,              // een vijand wisselt pas van doel als een ander zoveel dichterbij is
   hz: 20,                   // standberichten van de vijanden per seconde (via het relais PVP_RELAY.hz)
   sleutel: 1,               // elke zoveel seconden alle velden opnieuw, niet alleen wat veranderd is
   deurOpen: 1.6,            // zo lang staat een deur open na de vijand, dan valt hij dicht
@@ -62704,7 +62860,7 @@ const MPC = {
   rond: { dx: 0, y: 290, r: 330 }   // Full Circle rondom (alleen hier te koop): een cirkel om Amir heen, net als FC.breed in canvas-px van de combo
 };
 // de winkelkamer van Co-op: de strook (r tot l) en de toonbank; de spelers komen binnen bij de deurkant
-const MPC_WINKEL_KAMER = { r: -20000, l: -21700, toonbank: -21250, plek: [-20300, -20480] };
+const MPC_WINKEL_KAMER = { r: -20000, l: -21700, toonbank: -21250, plek: [-20300, -20480, -20660] };   // per slot
 // de prijslijst van de winkel in Co-op (per speler). prijs een getal, of een rij voor de zoveelste keer; eis: eerst dat
 const MPC_WINKEL = [
   { k: 'kalebas', naam: 'Gourd',                    prijs: 5,  uitleg: 'One life back, until your lives are full' },
@@ -62715,7 +62871,7 @@ const MPC_WINKEL = [
   { k: 'rond',    naam: 'Full Circle: all around',  prijs: 50, uitleg: 'The spin hits everyone around you, also behind you', eis: 'fc' },
   { k: 'slot',    naam: 'Extra spear slot',         prijs: 45, uitleg: 'A second spare spear on your back' },
   { k: 'leven',   naam: 'Extra life',               prijs: [60, 90, 120], uitleg: 'One more life, for the rest of the game' },
-  { k: 'geef',    naam: 'Give 5 gold',              prijs: 5,  uitleg: 'To your teammate' }
+  { k: 'geef',    naam: 'Give 5 gold',              prijs: 5,  uitleg: 'To your teammate' }   // met twee teamgenoten een knop per teamgenoot (mpcWinkelToon)
 ];
 // de map: het stadje van PvP, met een balkon hoog in het middenhuis (de deur voor de kruisboogschutters, niet te
 // bereiken), een wapenrek in het midden en geen vaste ton (die komen per ronde). Rondom gesloten: de rand rechts, de
@@ -62769,50 +62925,58 @@ function mpCoopAan(){ return !!(pvp && pvp.coop); }
 function mpcGast(){ return mpCoopAan() && !pvp.host; }
 function mpcLeeft(o){ return sbLeeft(o) && o.fase !== 'dood' && o.fase !== 'weg' && !(o.doodT0 > 0); }
 
-// ---- de host: twee doelen voor dezelfde AI ----
-// de stand van de gast in de globalen van de speler zetten, en daarna weer terug
+// ---- de host: een doel per speler voor dezelfde AI ----
+// de stand van een gast in de globalen van de speler zetten, en daarna weer terug
 const MPC_WISSEL = ['world', 'ph', 'dead', 'invuln', 'lives', 'facing', 'duckT', 'duckShare', 'camSwap'];
-let mpcWissel = null;
+let mpcWissel = null;                                // { p: het slot van de gast, oud: de stand van de host }
 function mpcLees(){ return [world, ph, dead, invuln, lives, facing, duckT, duckShare, camSwap]; }
 function mpcSchrijf(v){ [world, ph, dead, invuln, lives, facing, duckT, duckShare, camSwap] = v; }
-function mpcGastStand(){
-  const g = pvpAnderNu();
+function mpcGastStand(p){
+  const g = pvpAnderNu(p);
   return [g.x, g.h, !!g.d, g.iv || 0, g.l || 0, g.f || -1, g.du || 0, g.ds || 1, null];
 }
-function mpcWisselIn(){ mpcWissel = mpcLees(); mpcSchrijf(mpcGastStand()); }
+function mpcWisselIn(p){ mpcWissel = { p, oud: mpcLees() }; mpcSchrijf(mpcGastStand(p)); }
 function mpcWisselUit(){
-  const voor = pvpAnderNu().l || 0, na = lives;           // de fosfor schrijft levens rechtstreeks: dat verschil gaat naar de gast
-  mpcSchrijf(mpcWissel); mpcWissel = null;
-  if (na < voor) pvpZend({ t: 'au2', l: 0, s: voor - na });
+  const p = mpcWissel.p, voor = pvpAnderNu(p).l || 0, na = lives;   // de fosfor schrijft levens rechtstreeks: dat verschil gaat naar die gast
+  mpcSchrijf(mpcWissel.oud); mpcWissel = null;
+  if (na < voor) pvpZendAan(p, { t: 'au2', l: 0, s: voor - na });
 }
-// heeft de gast een doel dat de vijanden mogen kiezen?
-function mpcGastDoel(){ const g = pvpAnderNu(); return !!(g && g.x != null && !g.d && !(pvp.coop && pvp.coop.gastWeg)); }
-// voor wie is deze vijand bezig: 'g' de gast, anders de host. Met een marge, zodat hij niet heen en weer wisselt
+// heeft gast p een doel dat de vijanden mogen kiezen?
+function mpcGastDoel(p){ const g = pvpAnderNu(p); return !!(g && g.x != null && !g.d && pvp.spelers.includes(p)); }
+// voor wie is deze vijand bezig: het slot van de dichtstbijzijnde levende speler (0 de host). Met een marge, zodat hij
+// niet heen en weer wisselt: zijn doel blijft tot een ander MPC.wissel dichterbij is. Leeft niemand, dan de host
 function mpcDoel(o){
-  if (!mpcGastDoel()) return 'h';
-  if (dead) return 'g';
-  const g = pvpAnderNu(), oh = o.base || 0;
-  const dh = Math.abs(o.x - world) + Math.abs(oh - ph) * 1.5, dg = Math.abs(o.x - g.x) + Math.abs(oh - g.h) * 1.5;
-  const nu = o.mpDoel === 'g' ? (dh < dg - MPC.wissel ? 'h' : 'g') : (dg < dh - MPC.wissel ? 'g' : 'h');
-  o.mpDoel = nu; return nu;
+  const oh = o.base || 0, afst = (x, h) => Math.abs(o.x - x) + Math.abs(oh - h) * 1.5;
+  let best = null, bd = Infinity, nd = null;
+  const kijk = (p, x, h) => { const d = afst(x, h); if (d < bd){ bd = d; best = p; } if (p === o.mpDoel) nd = d; };
+  if (!dead) kijk(0, world, ph);
+  for (const p of pvp.spelers) if (p !== 0 && mpcGastDoel(p)){ const g = pvpAnderNu(p); kijk(p, g.x, g.h); }
+  if (best == null) return 0;
+  const keus = nd != null && nd < bd + MPC.wissel ? o.mpDoel : best;
+  o.mpDoel = keus; return keus;
 }
-// een update-functie van een soort: bij de gast niets, bij de host eerst voor wie achter de host aan zit, dan met de
-// stand van de gast voor de rest. De lijst wordt daarvoor even gesplitst en daarna weer samengevoegd (met wat erbij kwam)
+// een update-functie van een soort: bij de gast niets, bij de host een keer per groep: eerst voor wie achter de host aan
+// zit, dan per gast met de stand van die gast. De lijst wordt daarvoor even gesplitst en daarna weer samengevoegd (met
+// wat erbij kwam)
 function mpcUpdate(orig, k){
   return function(...a){
     if (!mpCoopAan()) return orig.apply(this, a);
     if (!pvp.host) return;
-    const q = mpcLijst(k), alle = q.l().slice();
-    const gast = alle.filter(o => mpcDoel(o) === 'g');
-    if (!gast.length) return orig.apply(this, a);
-    const host = alle.filter(o => !gast.includes(o));
+    const q = mpcLijst(k), alle = q.l().slice(), groep = new Map();
+    for (const o of alle){ const p = mpcDoel(o); if (!groep.has(p)) groep.set(p, []); groep.get(p).push(o); }
+    if (!alle.length || (groep.size === 1 && groep.has(0))) return orig.apply(this, a);
+    const host = groep.get(0) || [];
     mpcZet(q, host);
     if (host.length || !dead) orig.apply(this, a);
-    const naHost = q.l().slice();
-    mpcZet(q, gast);
-    mpcWisselIn();
-    try { orig.apply(this, a); } finally { mpcWisselUit(); }
-    mpcZet(q, naHost.concat(q.l()));
+    let samen = q.l().slice();
+    for (const [p, rij] of groep){
+      if (p === 0) continue;
+      mpcZet(q, rij);
+      mpcWisselIn(p);
+      try { orig.apply(this, a); } finally { mpcWisselUit(); }
+      samen = samen.concat(q.l());
+    }
+    mpcZet(q, samen);
   };
 }
 updateSnakes = mpcUpdate(updateSnakes, 'snakes');
@@ -62827,11 +62991,11 @@ updateSchildmannen = mpcUpdate(updateSchildmannen, 'schildmannen');
 updateZweepmannen = mpcUpdate(updateZweepmannen, 'zweepmannen');
 updateFosforSlangen = mpcUpdate(updateFosforSlangen, 'fosforSlangen');
 updateGoudapen = mpcUpdate(updateGoudapen, 'goudapen');
-// raakt een vijand de gast terwijl de host voor hem denkt (een slag in de update, niet in het tekenblok), dan krijgt de
-// gast het bericht en beslist zijn eigen hurtPlayer (de rol, het schild, onkwetsbaar)
+// raakt een vijand een gast terwijl de host voor hem denkt (een slag in de update, niet in het tekenblok), dan krijgt
+// die gast het bericht en beslist zijn eigen hurtPlayer (de rol, het schild, onkwetsbaar)
 const mpcHurtOrig = hurtPlayer;
 hurtPlayer = function(fromLeft, schade){
-  if (mpcWissel){ pvpZend({ t: 'au2', l: fromLeft ? 1 : 0, s: schade == null ? 1 : schade }); return; }
+  if (mpcWissel){ pvpZendAan(mpcWissel.p, { t: 'au2', l: fromLeft ? 1 : 0, s: schade == null ? 1 : schade }); return; }
   return mpcHurtOrig.apply(this, arguments);
 };
 
@@ -62850,7 +63014,7 @@ function mpcHitDoor(naam){
     if (k && !(o.mpGemeld > nu - MPC.dubbel)){
       o.mpGemeld = nu;
       pvpRaakLokaal(o);                                 // de gast voelt het meteen; de host stuurt de schade terug
-      pvpZend({ t: 'mh', a: k, id: o.mpId, f: naam, g: a.map(v => (v == null || typeof v === 'object') ? null : v) });
+      pvpZendAan(0, { t: 'mh', a: k, id: o.mpId, f: naam, g: a.map(v => (v == null || typeof v === 'object') ? null : v) });
     }
     return false;                                       // bij de gast gebeurt er niets: de host stuurt het gevolg terug
   };
@@ -62868,11 +63032,11 @@ function mpcInlineDood(s){
   vijandDood(false, s);
   s.frame = 0; s.acc = 0;
 }
-// de host krijgt een treffer van de gast: met de stand van de gast in de globalen, zodat de terugslag van hem af gaat
+// de host krijgt een treffer van gast m.p: met de stand van die gast in de globalen, zodat de terugslag van hem af gaat
 function mpcTrefferVanGast(m){
   const q = mpcLijst(m.a); if (!q) return;
-  const o = q.l().find(v => v.mpId === m.id); if (!o || !mpcLeeft(o) || !pvpAnderNu()) return;
-  mpcWisselIn();
+  const o = q.l().find(v => v.mpId === m.id); if (!o || !mpcLeeft(o) || !pvpAnderNu(m.p)) return;
+  mpcWisselIn(m.p);
   try {
     if (m.f === 'enemyTakeHit'){
       if (m.a === 'snakes' || m.a === 'scorps') mpcInlineDood(o);
@@ -62893,10 +63057,10 @@ const mpcTonRaakOrig = tonRaak;
 tonRaak = function(t, from, amir){
   if (!mpCoopAan() || !t || t.mpId == null) return mpcTonRaakOrig.apply(this, arguments);
   if (!pvp.host){
-    if (amir && !t.weg && !(t.mpGemeld > performance.now() / 1000 - MPC.dubbel)){ t.mpGemeld = performance.now() / 1000; pvpZend({ t: 'tonH', id: t.mpId, from }); }
+    if (amir && !t.weg && !(t.mpGemeld > performance.now() / 1000 - MPC.dubbel)){ t.mpGemeld = performance.now() / 1000; pvpZendAan(0, { t: 'tonH', id: t.mpId, from }); }
     return !t.weg;
   }
-  return mpcTonRaak(t, from, 'h');
+  return mpcTonRaak(t, from, 0);
 };
 function mpcTonRaak(t, from, wie){
   if (t.weg) return false;
@@ -62905,14 +63069,14 @@ function mpcTonRaak(t, from, wie){
   if (t.weg) mpcTonBuit(t, wie);
   return r;
 }
-// het rek: wie een speer pakt, zegt het de ander
+// het rek: wie een speer pakt, zegt het de anderen (een gast via de host, die het doorstuurt)
 const mpcRekOrig = rekTrek;
 rekTrek = function(){
   const r = rekBij(), n = r ? r.n : null, uit = mpcRekOrig.apply(this, arguments);
   if (mpCoopAan() && r && r.n !== n) pvpZend({ t: 'rek', n: r.n });
   return uit;
 };
-// geen executies in Co-op: die bevriezen de wereld, en de ander speelt door
+// geen executies in Co-op: die bevriezen de wereld, en de anderen spelen door
 const mpcExeKansOrig = exeKans;
 exeKans = function(){ return mpCoopAan() ? false : mpcExeKansOrig.apply(this, arguments); };
 // de deuren van de map: houten deuren beneden en een deur op de galerij per huis, ook zonder spawn in het level
@@ -62940,10 +63104,13 @@ function mpcWaarde(v){
 function mpcVeld(k){ return k[0] !== '_' && !k.startsWith('mp') && k !== 'sweptId' && k !== 'groep'; }
 // de host: per lijst de vijanden met hun id, en per vijand alleen de velden die anders zijn dan de vorige keer
 // Over het snelle kanaal kan een bericht wegvallen, dus is "veranderd" hier: veranderd na het laatste bericht dat de gast
-// bevestigde (pvp.vAk, uit zijn 's'). Elk veld onthoudt in welk bericht het het laatst veranderde (mpSeq). Over het
+// bevestigde (pvp.peers[p].vAk, uit zijn 's'). Elk veld onthoudt in welk bericht het het laatst veranderde (mpSeq). Over het
 // betrouwbare kanaal komt alles aan, en is dat gewoon het vorige bericht.
+// Met twee gasten gaat hetzelfde bericht naar allebei, dus telt het laagste wat een van hen bevestigde.
 function mpcStandZend(alles){
-  const C = pvp.coop, l = {}, q = ++pvp.qv, ak = pvpSnelAan() ? pvp.vAk : q - 1;
+  const C = pvp.coop, l = {}, q = ++pvp.qv;
+  let ak = q - 1;
+  for (const p of pvpGasten()){ const pe = pvp.peers[p]; ak = Math.min(ak, pvpSnelOpenBij(pe) ? pe.vAk : q - 1); }
   const leeg = C.leegQ || (C.leegQ = {});
   for (const lq of MPC_LIJSTEN){
     const rij = [];
@@ -63006,7 +63173,7 @@ function mpcStandLees(m){
 }
 function mpcVolgStap(rdt){
   // de vijandstand uit de speelbuffer afspelen, en elke vijand tussen dit bericht en het volgende in zetten
-  const s = pvpNetSpeel('v', mpcStandLees);
+  const s = pvpNetSpeel(pvp.nets[0], 'v', mpcStandLees);
   if (!s) for (const q of MPC_LIJSTEN){                 // niets om tussen te schuiven: op de plek van het laatste bericht
     if (q.los) continue;
     for (const o of q.l()) if (o.mpX0 != null) o.x = o.mpX0;
@@ -63032,10 +63199,11 @@ function mpcVolgStap(rdt){
 // ---- de rondes, alleen bij de host ----
 function mpCoopNieuw(){
   return { ronde: 0, fase: 'wacht', klok: MPC.eerst, rij: [], spawnKlok: 0, score: 0, kills: 0, t: 0, id: 0, tonId: 0,
-           zak: [], goud: 0, reeks: { n: 0, t: -99 }, doodT: [null, null], reviveTon: null, symbool: null, eind: null,
-           leegQ: {}, losWeg: new Set(), losVorig: {}, gezien: new Map(), gastWeg: false, sleutelT: 0, zendT: 0, reviveRust: 0,
+           zak: [], goud: 0, reeks: { n: 0, t: -99 }, eind: null,
+           doodT: {}, reviveTon: {}, symbolen: [], reviveRust: {}, symId: 0,   // per slot: sinds wanneer dood, zijn revive-ton, zijn symbool
+           leegQ: {}, losWeg: new Set(), losVorig: {}, gezien: new Map(), sleutelT: 0, zendT: 0, klaarVan: new Set(),
            koop: { fc: false, kracht: false, rond: false, slot: false, leven: 0 },   // wat ik in de winkel kocht (ieder het zijne)
-           wkKlaar: [false, false], mijnKlaar: false };   // Ready in de winkel: de host telt allebei, ieder weet het zijne
+           wkKlaar: {}, mijnKlaar: false };   // Ready in de winkel per slot: de host telt iedereen, ieder weet wie al klaar is
 }
 // wat er in een ronde komt: willekeurig uit de soorten die aan staan, bij Both de helft van de keren de moeilijke
 function mpcRonde(n){
@@ -63139,7 +63307,7 @@ function mpcKnikker(){
 }
 // een ton erbij, bij allebei met dezelfde id
 function mpcTonZet(d, gast){
-  const t = tonMaak(d); t.mpId = d.id; t.revive = !!d.revive; t.kalebas = false;
+  const t = tonMaak(d); t.mpId = d.id; t.revive = !!d.revive; t.voor = d.voor; t.kalebas = false;   // voor: de revive-ton van dat slot
   tonnen.push(t);
   if (!gast) pvpZend({ t: 'ton', d });
   return t;
@@ -63150,12 +63318,17 @@ function mpcTonNieuw(){
   const p = vrij[Math.floor(Math.random() * vrij.length)];
   mpcTonZet(Object.assign({ id: ++C.tonId }, p));
 }
-// de ton is stuk: wat erin zat gaat naar wie hem brak (h de host, g de gast); de revive-ton laat het symbool vallen
+// de ton is stuk: wat erin zat gaat naar wie hem brak (het slot, 0 de host); de revive-ton laat het symbool van zijn dode vallen
 function mpcTonBuit(t, wie){
   const C = pvp.coop;
-  if (t.revive){ C.reviveTon = null; C.symbool = { x: t.x, h: tonBodem(t) }; pvpZend({ t: 'sym', x: C.symbool.x, h: C.symbool.h }); return; }
+  if (t.revive){
+    delete C.reviveTon[t.voor];
+    const S = { id: ++C.symId, x: t.x, h: tonBodem(t), voor: t.voor };
+    C.symbolen.push(S); pvpZend(Object.assign({ t: 'sym' }, S));
+    return;
+  }
   const k = mpcKnikker();
-  if (wie === 'h') mpcBuitKrijg(k); else pvpZend({ t: 'buit', k });
+  if (wie === 0) mpcBuitKrijg(k); else pvpZendAan(wie, { t: 'buit', k });
 }
 function mpcBuitKrijg(k){
   if (k === 'kalebas'){ hppotionCarry++; hppotionHud(); hppotionHudAnim('pulse'); flashHint('A gourd from the barrel (Q to drink)'); }
@@ -63168,7 +63341,7 @@ function mpcKill(o){
   let p = (MPC.punten[o.mpSoort] || 10) + (o.mpHard ? MPC.moeilijk : 0);
   if (C.t - C.reeks.t <= MPC.reeksT){ C.reeks.n++; p += MPC.reeks * (C.reeks.n === 2 ? 2 : 1); } else C.reeks.n = 1;
   C.reeks.t = C.t; C.kills++; C.score += p;
-  mpcGoudAllebei(mpcKillGoud(o.mpSoort));             // het goud van de kill, gedeeld: ieder evenveel
+  mpcGoudIedereen(mpcKillGoud(o.mpSoort));            // het goud van de kill, gedeeld: ieder evenveel
   if (C.reeks.n >= 2) mpcBanner(C.reeks.n === 2 ? 'Double Kill' : C.reeks.n === 3 ? 'Triple Kill' : 'Multi Kill', 1.2);
 }
 function mpcKillKijk(){
@@ -63192,17 +63365,8 @@ function mpcHostStap(dt){
   if (C.fase === 'uit') return;
   mpcKillKijk();
   if (C.fase === 'winkel') return;                    // in de winkel: wachten op Ready van allebei (mpcWinkelKlaar)
-  // de doden: wie dood is, wacht; na MPC.reviveNa komt de revive-ton bij de ander. Allebei dood: game over
-  const doden = [dead, !!(pvpAnderNu() && pvpAnderNu().d)];
-  for (let i = 0; i < 2; i++){ if (doden[i] && C.doodT[i] == null) C.doodT[i] = C.t; if (!doden[i]) C.doodT[i] = null; }
-  if (doden[0] && doden[1]){ mpcEinde(); return; }
-  const dode = doden[0] ? 0 : doden[1] ? 1 : -1;
-  if (dode < 0 && C.reviveTon && !C.reviveTon.weg){ C.reviveTon.weg = true; pvpZend({ t: 'tonWeg', id: C.reviveTon.mpId }); C.reviveTon = null; }   // niemand meer dood: weg ermee
-  if (dode >= 0 && C.t - C.doodT[dode] >= MPC.reviveNa && !C.reviveTon && !C.symbool && C.t > C.reviveRust){
-    const lx = dode === 0 ? pvpAnderNu().x : world;
-    const x = Math.max(endWall() + 260, Math.min(cliffAt().wall - 260, lx + (lx > -1500 ? -220 : 220)));
-    C.reviveTon = mpcTonZet({ id: ++C.tonId, x, revive: true });
-  }
+  mpcDodenStap();
+  if (C.fase === 'uit') return;                       // iedereen dood: game over
   if (C.fase === 'wacht'){
     C.klok -= dt;
     if (C.klok <= 0){
@@ -63217,10 +63381,44 @@ function mpcHostStap(dt){
   if (C.rij.length){
     if (C.spawnKlok <= 0 && lev.n < MPC.tegelijk){ mpcSpawn(C.rij.shift()); C.spawnKlok = MPC.tussen * (0.7 + Math.random() * 0.6); }
   } else if (!lev.n){
-    mpcGoudAllebei(MPC.rondeGoud, 'round survived');   // de ronde is overleefd: ieder rondeGoud
+    mpcGoudIedereen(MPC.rondeGoud, 'round survived');  // de ronde is overleefd: ieder rondeGoud
     if (C.ronde % R.winkelNa === 0){ pvpZend({ t: 'winkel' }); mpcWinkelIn(); return; }   // tijd voor de winkel
     mpcVolgendeRonde();
   }
+}
+// de doden, bij de host: wie dood is wacht; na MPC.reviveNa komt er een revive-ton voor hem bij de dichtstbijzijnde
+// levende speler, een per dode. Wie niet meer dood is (of weg) heeft geen ton of symbool meer. Iedereen dood: game over
+function mpcDood(p){ return p === 0 ? dead : !!(pvpAnderNu(p) && pvpAnderNu(p).d); }
+function mpcPlek(p){ return p === 0 ? { x: world, h: ph } : { x: pvpAnderNu(p).x, h: pvpAnderNu(p).h }; }
+function mpcDodenStap(){
+  const C = pvp.coop, S = pvp.spelers;
+  for (const p of S){ if (mpcDood(p)){ if (C.doodT[p] == null) C.doodT[p] = C.t; } else delete C.doodT[p]; }
+  for (const k in C.doodT) if (!S.includes(+k)) delete C.doodT[k];
+  if (S.every(mpcDood)){ mpcEinde(); return; }
+  for (const k in C.reviveTon){                       // niet meer dood: weg met zijn ton
+    if (C.doodT[k] != null) continue;
+    const t = C.reviveTon[k]; delete C.reviveTon[k];
+    if (t && !t.weg){ t.weg = true; pvpZend({ t: 'tonWeg', id: t.mpId }); }
+  }
+  for (const Sy of C.symbolen.slice()) if (C.doodT[Sy.voor] == null){ C.symbolen.splice(C.symbolen.indexOf(Sy), 1); pvpZend({ t: 'symWeg', id: Sy.id }); }
+  for (const k in C.doodT){
+    const p = +k;
+    if (C.t - C.doodT[p] < MPC.reviveNa || C.reviveTon[p] || C.symbolen.some(Sy => Sy.voor === p) || C.t < (C.reviveRust[p] || 0)) continue;
+    const lijk = mpcPlek(p);
+    let lx = null;
+    for (const q of S) if (!mpcDood(q)){ const x = mpcPlek(q).x; if (lx == null || Math.abs(x - lijk.x) < Math.abs(lx - lijk.x)) lx = x; }
+    if (lx == null) continue;
+    let x = lx + (lx > -1500 ? -220 : 220);
+    if (Object.values(C.reviveTon).some(t => Math.abs(t.x - x) < 150)) x = lx + (lx > -1500 ? 220 : -220);   // niet op een andere revive-ton
+    x = Math.max(endWall() + 260, Math.min(cliffAt().wall - 260, x));
+    C.reviveTon[p] = mpcTonZet({ id: ++C.tonId, x, revive: true, voor: p });
+  }
+}
+// bij de host, als er een speler weg is: telt Ready in de winkel of R na game over nu al voor iedereen die er nog is?
+function mpcSpelersKijk(){
+  const C = pvp.coop; if (!C) return;
+  if (C.inWinkel) mpcWinkelKlaar(null);
+  if (C.fase === 'uit') mpCoopRematchKijk();
 }
 function mpcVolgendeRonde(){
   const C = pvp.coop, R = pvp.regels.coop;
@@ -63252,28 +63450,29 @@ function mpcEindToon(e){
   regel('Team score: ' + e.score);
   regel('Survived until round ' + e.ronde + ', in ' + m + ':' + s + ' (' + e.kills + ' kills)');
   regel(e.score > best ? 'New best score with these enemies!' : 'Best with these enemies: ' + best, 'best');
-  regel('R: play again (both press R)   Esc: back to the lobby', 'klein');
+  regel('R: play again (' + (pvp.spelers.length > 2 ? 'everyone presses' : 'both press') + ' R)   Esc: back to the lobby', 'klein');
   el.classList.add('on');
   pvpBanner('');
 }
-// het symbool van de revive-ton: wie erbij is pakt het, en de ander staat naast hem op
+// de symbolen van de revive-tonnen: wie erbij is pakt er een, en de dode van dat symbool staat naast hem op
 function mpcSymboolStap(){
-  const C = pvp.coop, S = C.symbool;
-  if (!S || dead) return;
-  if (Math.abs(world - S.x) < 60 && Math.abs(ph - S.h) < CHAR_H * 0.6){
-    C.symbool = null;
-    pvpZend({ t: 'symPak', x: Math.round(world), h: Math.round(ph) });
-    mpcSymboolOp();
+  const C = pvp.coop;
+  if (dead) return;
+  for (const S of C.symbolen.slice()){
+    if (Math.abs(world - S.x) >= 60 || Math.abs(ph - S.h) >= CHAR_H * 0.6) continue;
+    C.symbolen.splice(C.symbolen.indexOf(S), 1);
+    pvpZend({ t: 'symPak', id: S.id, voor: S.voor, x: Math.round(world), h: Math.round(ph) });
+    mpcSymboolOp(S.voor);
   }
 }
 // net gepakt: de dode staat zo op, maar zijn standbericht zegt misschien nog even dat hij dood is. Zolang geen nieuwe ton
-function mpcSymboolOp(){ playHppotionDrinkSound(); flashHint('Revive!'); pvp.coop.reviveRust = pvp.coop.t + 3; }
+function mpcSymboolOp(voor){ playHppotionDrinkSound(); flashHint('Revive!'); pvp.coop.reviveRust[voor] = pvp.coop.t + 3; }
 function mpcOpstaan(x, h){
   if (!dead) return;
   dead = false; lives = 1; hurt = 0; invuln = 2; world = x + (x > -1500 ? -70 : 70); ph = h; pvh = 0;
   deadEl.classList.remove('on');
   drawLives(); hudToon();
-  pvp.coop.doodT[pvp.mij] = null;
+  delete pvp.coop.doodT[pvp.mij];
   flashHint('Revived by your teammate');
 }
 // wie dood is ligt op zijn zij: het plaatje (w bij h, de voeten op fy) draait om zijn voeten plat op de grond. Het spel
@@ -63283,11 +63482,15 @@ function mpcLig(w, h, fy){
   ctx.rotate(Math.PI / 2);
   ctx.translate(-w / 2, -fy);
 }
-// de camera: wie dood is kijkt mee met de ander
+// de camera: wie dood is kijkt mee met de dichtstbijzijnde levende teamgenoot
 function mpCoopCam(){
-  if (!mpCoopAan() || !dead || !pvp.ander || pvp.ander.d) return null;
-  return pvp.ander.x;
+  if (!mpCoopAan() || !dead) return null;
+  let x = null;
+  for (const p of pvpAnderen()){ const g = pvp.anders[p].g; if (!g.d && (x == null || Math.abs(g.x - world) < Math.abs(x - world))) x = g.x; }
+  return x;
 }
+// leeft er nog een teamgenoot?
+function mpcIemandLeeft(){ return pvpAnderen().some(p => !pvp.anders[p].g.d); }
 // het beeld bij iedereen: de rondes (host), de deuren, de vijanden laten bijschuiven (gast) en de stand doorsturen
 function mpCoopStap(rdt, dt){
   const C = pvp.coop;
@@ -63297,10 +63500,12 @@ function mpCoopStap(rdt, dt){
     return;
   }
   if (!C.klaarGemeld){ C.klaarGemeld = true; pvpZend({ t: 'cklaar' }); }
-  if (pvp.host && !C.gastKlaar){                    // de gast laadt nog: ronde 1 wacht op hem
-    if (pvpEl('pvpbanner').textContent !== 'Waiting for your teammate...') pvpBanner('Waiting for your teammate...');
+  if (pvp.host && !pvpGasten().every(p => C.klaarVan.has(p))){   // een gast laadt nog: ronde 1 wacht op iedereen
+    const t = pvpGasten().length > 1 ? 'Waiting for your teammates...' : 'Waiting for your teammate...';
+    if (pvpEl('pvpbanner').textContent !== t) pvpBanner(t);
     return;
   }
+  if (pvp.host && !C.allenKlaar){ C.allenKlaar = true; pvpBanner(''); }
   C.t += dt;
   mpcDeurStap(dt);
   if (C.fase !== 'uit') mpcSymboolStap();
@@ -63308,7 +63513,7 @@ function mpCoopStap(rdt, dt){
     mpcHostStap(dt);
     C.zendT -= rdt; C.sleutelT -= rdt;
     if (C.zendT <= 0){
-      C.zendT = 1 / (pvp.conn.relay ? PVP_RELAY.hz : MPC.hz);
+      C.zendT = 1 / (pvpRelay() ? PVP_RELAY.hz : MPC.hz);
       const alles = C.sleutelT <= 0; if (alles) C.sleutelT = MPC.sleutel;
       mpcStandZend(alles);
       if (alles) pvpZend({ t: 'cs', r: C.ronde, s: C.score, k: C.kills, f: C.fase });
@@ -63321,11 +63526,12 @@ function mpCoopHud(){
   const C = pvp.coop;
   const sc = (C.ronde ? 'Round ' + C.ronde + '   ' : '') + 'Score ' + C.score + '   Gold ' + C.goud + pvpPingHud();
   if (pvpEl('pvpscore').textContent !== sc) pvpEl('pvpscore').textContent = sc;
-  const wacht = dead && C.fase !== 'uit' ? (pvp.ander && !pvp.ander.d ? 'Waiting for revive' : '') : '';
+  const wacht = dead && C.fase !== 'uit' && mpcIemandLeeft() ? 'Waiting for revive' : '';
   const b = winkelUIAan ? '' : (wacht || pvp.banner || '');   // het winkelscherm heeft zijn eigen uitleg
   if (pvpEl('pvpbanner').textContent !== b) pvpEl('pvpbanner').textContent = b;
 }
-// het symbool en de letters op de revive-ton, in het tekenblok na Amir
+// de symbolen en de letters op de revive-tonnen, in het tekenblok na Amir. Met drie spelers staat op het symbool de
+// kleur van de broek van wie ermee opstaat
 function mpCoopTeken(groundY, scale, cx){
   const C = pvp.coop;
   ctx.save();
@@ -63336,8 +63542,7 @@ function mpCoopTeken(groundY, scale, cx){
     ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(20,10,0,0.85)'; ctx.strokeText('REVIVE', sx, y);
     ctx.fillStyle = '#ffe28a'; ctx.fillText('REVIVE', sx, y);
   }
-  const S = C.symbool;
-  if (S){
+  for (const S of C.symbolen){
     const t = performance.now() / 1000, sx = cx + (S.x - world), y = groundY - (S.h + CHAR_H * 0.45 + Math.sin(t * 3) * 8) * scale, r = 16 * scale / 0.7;
     const gl = ctx.createRadialGradient(sx, y, 0, sx, y, r * 3);
     gl.addColorStop(0, 'rgba(255,226,138,0.75)'); gl.addColorStop(1, 'rgba(255,226,138,0)');
@@ -63345,40 +63550,46 @@ function mpCoopTeken(groundY, scale, cx){
     ctx.strokeStyle = '#fff3c4'; ctx.lineWidth = 3.5 * scale / 0.7;      // een hartje met een kruis erin: opstaan
     ctx.beginPath(); ctx.arc(sx, y - r * 0.35, r * 0.55, 0, Math.PI * 2); ctx.moveTo(sx, y + r * 0.2); ctx.lineTo(sx, y + r * 1.2);
     ctx.moveTo(sx - r * 0.6, y + r * 0.55); ctx.lineTo(sx + r * 0.6, y + r * 0.55); ctx.stroke();
+    if (pvp.spelers.length > 2 && S.voor !== pvp.mij){
+      const naam = mpBroekNaam(pvp.broek[S.voor]);
+      if (naam){ ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(20,10,0,0.85)'; ctx.strokeText(naam, sx, y - r * 1.6); ctx.fillStyle = '#fff3c4'; ctx.fillText(naam, sx, y - r * 1.6); }
+    }
   }
   ctx.restore();
 }
 // de berichten van Co-op
 function mpCoopOntvang(m){
   const C = pvp.coop; if (!C) return false;
-  if (m.t === 'v'){ if (!pvp.host) pvpNetIn('v', m, mpcStandLees); return true; }   // in de speelbuffer (zie "de netcode")
+  if (m.t === 'v'){ if (!pvp.host) pvpNetIn(pvpNetVan(0), 'v', m, mpcStandLees); return true; }   // in de speelbuffer (zie "de netcode")
   if (m.t === 'hb') return true;
-  if (m.t === 'cklaar'){ if (pvp.host && !C.gastKlaar){ C.gastKlaar = true; pvpBanner(''); } return true; }
+  if (m.t === 'cklaar'){ if (pvp.host) C.klaarVan.add(m.p); return true; }
   if (m.t === 'mh'){ if (pvp.host) mpcTrefferVanGast(m); return true; }
   if (m.t === 'au2'){ if (!laadWacht) mpcHurtOrig(!!m.l, m.s || 1); return true; }
   if (m.t === 'deur'){ mpcDeurOpen({ gevel: m.g, verdieping: m.v }, true); return true; }
   if (m.t === 'ton'){ if (!tonnen.some(t => t.mpId === m.d.id)) mpcTonZet(m.d, true); return true; }
-  if (m.t === 'tonH'){ const t = tonnen.find(o => o.mpId === m.id); if (pvp.host && t) mpcTonRaak(t, m.from, 'g'); return true; }
+  if (m.t === 'tonH'){ const t = tonnen.find(o => o.mpId === m.id); if (pvp.host && t) mpcTonRaak(t, m.from, m.p); return true; }
   if (m.t === 'tonR'){ const t = tonnen.find(o => o.mpId === m.id); if (!pvp.host && t) mpcTonRaakOrig(t, m.from, true); return true; }
   if (m.t === 'buit'){ mpcBuitKrijg(m.k); return true; }
   if (m.t === 'tonWeg'){ const t = tonnen.find(o => o.mpId === m.id); if (t) t.weg = true; return true; }
   if (m.t === 'rek'){ const r = wapenrekken[0]; if (r && r.n !== m.n){ r.uit = { i: Math.max(0, m.n), t: WAPENREK.uit }; r.n = m.n; } return true; }
-  if (m.t === 'sym'){ C.symbool = { x: m.x, h: m.h }; return true; }
-  if (m.t === 'symPak'){ C.symbool = null; mpcSymboolOp(); if (dead) mpcOpstaan(m.x, m.h); return true; }
+  if (m.t === 'sym'){ if (!C.symbolen.some(S => S.id === m.id)) C.symbolen.push({ id: m.id, x: m.x, h: m.h, voor: m.voor }); return true; }
+  if (m.t === 'symWeg'){ C.symbolen = C.symbolen.filter(S => S.id !== m.id); return true; }
+  if (m.t === 'symPak'){
+    C.symbolen = C.symbolen.filter(S => S.id !== m.id);
+    mpcSymboolOp(m.voor);
+    if (m.voor === pvp.mij && dead) mpcOpstaan(m.x, m.h);
+    return true;
+  }
   if (m.t === 'cb'){ pvpBanner(m.b, m.d); return true; }
   if (m.t === 'cs'){ if (!pvp.host){ C.ronde = m.r; C.score = m.s; C.kills = m.k; if (m.f !== 'uit') C.fase = m.f; } return true; }
   if (m.t === 'ceind'){ mpcEindToon(m.e); return true; }
-  if (m.t === 'rematch'){
-    pvp.rematch[1 - pvp.mij] = true;
-    if (pvp.host && pvp.rematch[0] && pvp.rematch[1]){ pvpZend({ t: 'cnieuw' }); mpCoopStart(); }
-    return true;
-  }
+  if (m.t === 'rematch'){ pvp.rematch[m.p] = true; mpCoopRematchKijk(); return true; }
   if (m.t === 'cnieuw'){ if (!pvp.host) mpCoopStart(); return true; }
   if (m.t === 'cg'){ mpcGoudErbij(m.n, m.w); return true; }
-  if (m.t === 'geef'){ mpcGoudErbij(m.n, 'from your teammate'); return true; }
+  if (m.t === 'geef'){ mpcGoudErbij(m.n, pvp.spelers.length > 2 ? 'from ' + mpBroekNaam(pvp.broek[m.p]).toLowerCase() : 'from your teammate'); return true; }
   if (m.t === 'winkel'){ if (!pvp.host && !laadWacht) mpcWinkelIn(); return true; }
   if (m.t === 'winkelUit'){ if (!pvp.host) mpcWinkelUit(); return true; }
-  if (m.t === 'wkklaar'){ C.anderKlaar = !!m.aan; if (pvp.host) mpcWinkelKlaar(1, !!m.aan); if (C.inWinkel){ mpcWinkelBanner(); if (winkelUIAan) mpcWinkelToon(); } return true; }
+  if (m.t === 'wkklaar'){ C.wkKlaar[m.p] = !!m.aan; if (pvp.host) mpcWinkelKlaar(); if (C.inWinkel){ mpcWinkelBanner(); if (winkelUIAan) mpcWinkelToon(); } return true; }
   return false;
 }
 // de vijanden die aan staan alvast laden, bij allebei: de gast maakt ze nooit zelf, dus zijn make-functies laden niets
@@ -63397,8 +63608,8 @@ function mpCoopLaad(){
   deurLaad(); tonLaad(); rekLaad();
 }
 function mpCoopStart(){
-  Object.assign(pvp, { sc: [0, 0], ronde: 1, t: 0, gehoord: 0, zendT: 0, ander: null, anderNu: null, sn: 0, wn: 0, jn: 0, laatsteAtk: -1, laatsteSw: -1,
-                       laatsteJav: null, mijn: null, jVorig: null, rematch: [false, false], levens: 3, banner: '', bannerT: 0 });
+  Object.assign(pvp, { sc: [0, 0, 0], ronde: 1, zendT: 0, anders: {}, sn: 0, wn: 0, jn: 0, laatsteAtk: -1, laatsteSw: -1,
+                       laatsteJav: null, mijn: null, jVorig: null, rematch: [false, false, false], levens: 3, banner: '', bannerT: 0 });
   winkelUIDicht();
   pvp.coop = mpCoopNieuw();
   pvpEl('mpeind').classList.remove('on');
@@ -63415,14 +63626,19 @@ function mpCoopStart(){
   pvpEl('pvphud').classList.add('on');
   mpCoopHud();
 }
-// R na het einde: allebei R en het begint opnieuw, met dezelfde regels
+// R na het einde: iedereen R en het begint opnieuw, met dezelfde regels
 function mpCoopOpnieuw(){
   const C = pvp.coop;
   if (!C || C.fase !== 'uit') return;
   pvp.rematch[pvp.mij] = true;
   pvpZend({ t: 'rematch' });
-  if (!pvp.rematch[1 - pvp.mij]) pvpBanner('Waiting for your teammate...');
-  if (pvp.host && pvp.rematch[0] && pvp.rematch[1]){ pvpZend({ t: 'cnieuw' }); mpCoopStart(); }
+  if (!pvp.spelers.every(p => pvp.rematch[p])) pvpBanner(pvp.spelers.length > 2 ? 'Waiting for your teammates...' : 'Waiting for your teammate...');
+  mpCoopRematchKijk();
+}
+function mpCoopRematchKijk(){
+  const C = pvp.coop;
+  if (!pvp.host || !C || C.fase !== 'uit' || !pvp.spelers.every(p => pvp.rematch[p])) return;
+  pvpZend({ t: 'cnieuw' }); mpCoopStart();
 }
 function mpCoopStop(){
   if (!pvp) return;
@@ -63451,7 +63667,8 @@ function mpcGoudErbij(n, waarom){
   mpCoopHud();
   if (winkelUIAan) mpcWinkelToon();
 }
-function mpcGoudAllebei(n, waarom){ mpcGoudErbij(n, waarom); pvpZend({ t: 'cg', n, w: waarom || '' }); }
+// de host geeft iedereen evenveel: zichzelf meteen, de gasten met cg
+function mpcGoudIedereen(n, waarom){ mpcGoudErbij(n, waarom); pvpZend({ t: 'cg', n, w: waarom || '' }); }
 // je speren terug: een in de hand en de gewone plek op de rug vol; wat er nog ligt of vliegt is weg
 function mpcSperenTerug(){
   jav = null; losseSperen.length = 0; rugTrekT = 0;
@@ -63459,13 +63676,14 @@ function mpcSperenTerug(){
   while (rugSperen.length < Math.min(RUG_MAX, RUG_STANDAARD)) rugSperen.push({ blauw: false });
   setSpearLabel();
 }
-// naar de winkel, bij allebei (de host besluit het, de gast hoort het met winkel)
+// naar de winkel, bij iedereen (de host besluit het, de gasten horen het met winkel)
 function mpcWinkelIn(){
   const C = pvp.coop;
-  C.fase = 'winkel'; C.inWinkel = true; C.wkKlaar = [false, false]; C.mijnKlaar = false; C.anderKlaar = false;
-  C.doodT = [null, null]; C.symbool = null; C.reviveRust = C.t + 3;
+  C.fase = 'winkel'; C.inWinkel = true; C.wkKlaar = {}; C.mijnKlaar = false;
+  C.doodT = {}; C.symbolen = []; C.reviveRust = {};
+  for (const p of pvp.spelers) C.reviveRust[p] = C.t + 3;
   for (const t of tonnen) if (t.revive) t.weg = true;
-  C.reviveTon = null;
+  C.reviveTon = {};
   if (dead){                                          // wie dood was staat hier gratis op
     dead = false; lives = 1; hurt = 0; deadEl.classList.remove('on');
     drawLives(); hudToon();
@@ -63476,36 +63694,43 @@ function mpcWinkelIn(){
   stadTrapFade = { t: 0, gewisseld: false, doel: { x, h: binnenVloer(x, 0), face: -1 }, T: BINNEN.fade, binnen: true };
   mpcWinkelBanner();
 }
-function mpcWinkelBanner(){
-  const C = pvp.coop;
-  pvpBanner(C.mijnKlaar ? 'Ready. Waiting for your teammate...'
-    : (C.anderKlaar ? 'Your teammate is ready. ' : '') + 'Shop: press E at the counter, then Ready');
+// wie van mijn teamgenoten in de winkel al Ready drukte: een zin voor de banner en het winkelscherm ('' als niemand)
+function mpcWinkelAnderKlaar(){
+  const C = pvp.coop, anderen = pvp.spelers.filter(p => p !== pvp.mij), n = anderen.filter(p => C.wkKlaar[p]).length;
+  if (!n) return '';
+  if (anderen.length === 1) return 'Your teammate is ready.';
+  return n === anderen.length ? 'Both teammates are ready.' : n + ' of ' + anderen.length + ' teammates ready.';
 }
-// weer de straat op, bij allebei: het rek is weer vol, en bij de host begint de pauze naar de volgende ronde
+function mpcWinkelBanner(){
+  const C = pvp.coop, wie = pvp.spelers.length > 2 ? 'your teammates' : 'your teammate', ander = mpcWinkelAnderKlaar();
+  pvpBanner(C.mijnKlaar ? 'Ready. Waiting for ' + wie + '...'
+    : (ander ? ander + ' ' : '') + 'Shop: press E at the counter, then Ready');
+}
+// weer de straat op, bij iedereen: het rek is weer vol, en bij de host begint de pauze naar de volgende ronde
 function mpcWinkelUit(){
   const C = pvp.coop;
   if (!C.inWinkel) return;
-  C.inWinkel = false; C.mijnKlaar = false; C.anderKlaar = false;
+  C.inWinkel = false; C.mijnKlaar = false; C.wkKlaar = {};
   winkelUIDicht();
   const r = wapenrekken[0]; if (r){ r.n = pvp.regels.coop.rek; r.uit = null; }
-  const x = PVP.starts[pvp.mij];
-  stadTrapFade = { t: 0, gewisseld: false, doel: { x, h: terrainH(x), face: pvp.mij === 0 ? -1 : 1 }, T: BINNEN.fade, binnen: true };
+  const x = PVP.starts[pvpStartSlot()];
+  stadTrapFade = { t: 0, gewisseld: false, doel: { x, h: terrainH(x), face: pvpStartSlot() === 1 ? 1 : -1 }, T: BINNEN.fade, binnen: true };
   pvpBanner('');
   if (pvp.host) mpcVolgendeRonde();
 }
-// Ready in het winkelscherm (nog een keer: toch niet). De ander hoort het altijd, de host telt
+// Ready in het winkelscherm (nog een keer: toch niet). De anderen horen het altijd (een gast via de host), de host telt
 function mpcKlaarDruk(){
   const C = pvp && pvp.coop; if (!C || !C.inWinkel) return;
-  C.mijnKlaar = !C.mijnKlaar;
+  C.mijnKlaar = !C.mijnKlaar; C.wkKlaar[pvp.mij] = C.mijnKlaar;
   pvpZend({ t: 'wkklaar', aan: C.mijnKlaar });
   if (C.mijnKlaar) winkelUIDicht(); else if (winkelUIAan) mpcWinkelToon();
   mpcWinkelBanner();
-  if (pvp.host) mpcWinkelKlaar(0, C.mijnKlaar);
+  if (pvp.host) mpcWinkelKlaar();
 }
-function mpcWinkelKlaar(i, aan){
+// de host: is iedereen die er nog is Ready, dan de straat weer op
+function mpcWinkelKlaar(){
   const C = pvp.coop; if (!C.inWinkel) return;
-  C.wkKlaar[i] = aan;
-  if (C.wkKlaar[0] && C.wkKlaar[1]){ pvpZend({ t: 'winkelUit' }); mpcWinkelUit(); }
+  if (pvp.spelers.every(p => C.wkKlaar[p])){ pvpZend({ t: 'winkelUit' }); mpcWinkelUit(); }
 }
 // de prijslijst: wat het nu kost (een extra leven wordt duurder), en waarom het niet kan (null: het kan)
 function mpcWinkelPrijs(q){ return Array.isArray(q.prijs) ? q.prijs[Math.min(pvp.coop.koop.leven, q.prijs.length - 1)] : q.prijs; }
@@ -63522,16 +63747,16 @@ function mpcWinkelNiet(q){
   if (!r && C.goud < mpcWinkelPrijs(q)) r = 'Not enough gold: you have ' + C.goud + ', this costs ' + mpcWinkelPrijs(q) + '.';
   return r;
 }
-function mpcWinkelKoop(q){
+function mpcWinkelKoop(q, aan){
   const C = pvp.coop, K = C.koop, reden = mpcWinkelNiet(q);
-  if (reden){ winkelSchud('wkc_' + q.k, reden); return; }
+  if (reden){ winkelSchud('wkc_' + q.k + (aan != null ? '_' + aan : ''), reden); return; }
   C.goud -= mpcWinkelPrijs(q);
   let tekst = 'Bought: ' + q.naam + '.';
   if (q.k === 'kalebas'){ lives++; drawLives(); }
   else if (q.k === 'speer'){ rugErbij(false); if (!spear && !spearFound && rugTrekT <= 0) rugTrekKlaar(); setSpearLabel(); }
   else if (q.k === 'gif'){ gifCarry++; invHud(); tekst = 'Poison in your bag. Press I to smear it on your spears.'; }
   else if (q.k === 'leven'){ K.leven++; pvp.levens++; lives++; drawLives(); }
-  else if (q.k === 'geef'){ pvpZend({ t: 'geef', n: MPC.geef }); tekst = 'You gave your teammate ' + MPC.geef + ' gold.'; }
+  else if (q.k === 'geef'){ pvpZendAan(aan, { t: 'geef', n: MPC.geef }); tekst = 'You gave ' + (pvp.spelers.length > 2 ? mpBroekNaam(pvp.broek[aan]).toLowerCase() : 'your teammate') + ' ' + MPC.geef + ' gold.'; }
   else { K[q.k] = true; if (q.k === 'slot'){ RUG_MAX++; setSpearLabel(); } }
   playHppotionPickupSound();
   mpCoopHud(); mpcWinkelToon();
@@ -63541,18 +63766,23 @@ function mpcWinkelKoop(q){
 function mpcWinkelToon(){
   const C = pvp.coop, el = document.getElementById('wkcoop');
   el.innerHTML = '';
+  const anderen = pvp.spelers.filter(p => p !== pvp.mij);
   for (const q of MPC_WINKEL){
-    const b = document.createElement('button'), heb = mpcWinkelHeb(q), niet = mpcWinkelNiet(q);
-    b.id = 'wkc_' + q.k; b.className = 'wkcoopknop' + (heb ? ' heb' : niet ? ' duur' : '');
-    const naam = document.createElement('b'), uit = document.createElement('small'), prijs = document.createElement('em');
-    naam.textContent = q.naam + (q.k === 'leven' && C.koop.leven ? ' (' + C.koop.leven + ' of ' + q.prijs.length + ')' : '');
-    uit.textContent = q.uitleg;
-    prijs.textContent = heb ? (q.k === 'leven' ? 'Sold out' : 'Bought') : mpcWinkelPrijs(q) + ' gold';
-    b.append(naam, uit, prijs);
-    b.onclick = () => mpcWinkelKoop(q);
-    el.append(b);
+    // Give 5 gold: een knop per teamgenoot (wkc_geef_<slot>), met twee teamgenoten de kleur van zijn broek erbij
+    for (const aan of (q.k === 'geef' ? anderen : [null])){
+      const b = document.createElement('button'), heb = mpcWinkelHeb(q), niet = mpcWinkelNiet(q);
+      b.id = 'wkc_' + q.k + (aan != null ? '_' + aan : ''); b.className = 'wkcoopknop' + (heb ? ' heb' : niet ? ' duur' : '');
+      const naam = document.createElement('b'), uit = document.createElement('small'), prijs = document.createElement('em');
+      naam.textContent = q.naam + (q.k === 'leven' && C.koop.leven ? ' (' + C.koop.leven + ' of ' + q.prijs.length + ')' : '');
+      uit.textContent = aan != null && anderen.length > 1 ? 'To ' + mpBroekNaam(pvp.broek[aan]).toLowerCase() : q.uitleg;
+      prijs.textContent = heb ? (q.k === 'leven' ? 'Sold out' : 'Bought') : mpcWinkelPrijs(q) + ' gold';
+      b.append(naam, uit, prijs);
+      b.onclick = () => mpcWinkelKoop(q, aan);
+      el.append(b);
+    }
   }
-  document.getElementById('wkuitleg').textContent = 'You have ' + C.goud + ' gold.' + (C.anderKlaar ? ' Your teammate is ready.' : '');
+  const ander = mpcWinkelAnderKlaar();
+  document.getElementById('wkuitleg').textContent = 'You have ' + C.goud + ' gold.' + (ander ? ' ' + ander : '');
   document.getElementById('wkklaar').textContent = C.mijnKlaar ? 'Not ready' : 'Ready';
   winkelTasToon();
 }
@@ -63568,7 +63798,7 @@ pvpEl('pvpjoin').onclick = () => pvpJoin();
 pvpEl('pvpcode').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') pvpJoin(); });
 pvpEl('pvpterug').addEventListener('click', () => { pvpPeerWeg(); pvpStatus(''); });
 pvpEl('mpleave').onclick = () => { pvpStop(); pvpTerug = false; pvpStatus(''); };
-pvpEl('mpready').onclick = () => { if (!pvp || pvp.host || pvp.fase !== 'lobby') return; pvp.klaar = !pvp.klaar; pvpZend({ t: 'klaar', aan: pvp.klaar }); mpKnoppen(); };
+pvpEl('mpready').onclick = () => { if (!pvp || pvp.host || pvp.fase !== 'lobby') return; pvp.klaar = !pvp.klaar; pvpZendAan(0, { t: 'klaar', aan: pvp.klaar }); mpKnoppen(); };
 pvpEl('mpstart').onclick = () => mpStart();
 pvpEl('mpkaart').onchange = e => mpWijzig(() => { pvp.inst.kaart = e.target.value; });
 document.querySelectorAll('#mplobby .mpmodus').forEach(b => b.onclick = () => mpWijzig(() => { pvp.inst.modus = b.dataset.modus; pvp.inst.kaart = MP_KAARTEN[b.dataset.modus][0].id; }));
