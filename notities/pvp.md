@@ -86,10 +86,8 @@ beide kramen naar de galerij en beide trappen. `geenEinde`: het duel eindigt op 
   lopen door elkaar heen, dus van dichtbij gaat de steek over de ander heen. De opdrachtgever ziet dat mogelijk als
   gameplay (van dichtbij is een speer zwak, met het oog op andere wapens), eventueel met een ability ervoor; niet
   zomaar dichtmaken.
-- De lage zwaai was sterk: eerder, langer, aan beide kanten en zonder dode zone. De opdrachtgever wil de rollen zo: de
-  zwaai om je heen en dichtbij, de steek naar voren. Daarom (overal, PvE en PvP) de steek sneller (`ATK_FPS` 22, was 18:
-  raakt na 0,18 s, klaar na 0,45 s) en de zwaai trager (`SWEEP_FPS` 20, was 24: raakt na 0,2 s tot 0,65 s, klaar na 0,9 s
-  plus `SWEEP_RECOVER`). Bereik ongewijzigd: de steek 0,65 tot 1,5 Amir, de zwaai 0 tot 1,22 Amir (midden tot midden).
+- De lage zwaai is sterk: eerder, langer, aan beide kanten en zonder dode zone. Temperen alleen in PvP kan met een getal
+  in `PVP`, zoals `rolKoel`.
 - Het slachtoffer beslist met een vertraagd beeld van de aanvaller (netwerk plus `PVP.volg`): een steek die bij de aanvaller
   raakt, kan bij de ander missen. Terugrekenen (lag compensation) is nog niet gedaan.
 - Zijn speer wordt rauw op de berichtfrequentie getekend, zonder bijschuiven: hij verspringt.
