@@ -48,7 +48,12 @@ De laptop van wie geraakt wordt. `pvpTeken` (in het tekenblok, na `hitBy` en `pb
 en kijkt of zijn steek (de punt uit `TIP_DX`/`TIP_Y`, net als bij een vijand), zijn lage zwaai (`SWEEP_REACH`,
 `SWEEP_HIGH`) of zijn speer de eigen `pbox` raakt, en roept dan gewoon `hurtPlayer`. Zo telt de rol (onkwetsbaar via
 `invuln`) vanzelf mee. Voor de speer telt het hele stuk sinds het vorige bericht, anders vloog een snelle speer tussen
-twee berichten door hem heen. Elke steek, zwaai en worp raakt een keer (`raakSteek`, `raakZwaai`, `raakSpeer`).
+twee berichten door hem heen. Elke steek, zwaai en worp raakt een keer (`raakSteek`, `raakZwaai`, `raakSpeer`). De vorige
+plek van de speer (`jVorig`) wordt elk beeld bijgewerkt, ook als je onkwetsbaar bent: eerst niet, en dan raakte een speer
+waar je net doorheen rolde je alsnog zodra de rol voorbij was.
+
+De aanvaller merkt zijn treffer (`pvpRaakFx`, op het bericht `au`): het geluid van een speer in vlees, een hitstop van
+0,06 s en een kleine schok (`PVP.raak`). Daarvoor zag hij alleen de rode flits, die pas met het volgende standbericht kwam.
 
 De andere Amir schuift naar zijn doorgestuurde plek (`PVP.volg`); springt hij meer dan 500 (een nieuwe ronde), dan staat
 hij er meteen. Boven zijn hoofd een rood pijltje en zijn drie levens.
@@ -76,6 +81,16 @@ dak op (771). Het hoge middenhuis heeft geen weg omhoog. Een ton met een kalebas
 beide kramen naar de galerij en beide trappen. `geenEinde`: het duel eindigt op de rondes, niet bij fakkels.
 
 ## Wat nog kan
+
+- Nagerekend (november 2026): de steek raakt pas vanaf zo'n 0,65 Amir afstand (het raakvak zit rond de punt), en spelers
+  lopen door elkaar heen, dus van dichtbij gaat de steek over de ander heen. De opdrachtgever ziet dat mogelijk als
+  gameplay (van dichtbij is een speer zwak, met het oog op andere wapens), eventueel met een ability ervoor; niet
+  zomaar dichtmaken.
+- De lage zwaai is sterk: eerder, langer, aan beide kanten en zonder dode zone. Temperen alleen in PvP kan met een getal
+  in `PVP`, zoals `rolKoel`.
+- Het slachtoffer beslist met een vertraagd beeld van de aanvaller (netwerk plus `PVP.volg`): een steek die bij de aanvaller
+  raakt, kan bij de ander missen. Terugrekenen (lag compensation) is nog niet gedaan.
+- Zijn speer wordt rauw op de berichtfrequentie getekend, zonder bijschuiven: hij verspringt.
 
 - De andere Amir heeft dezelfde kleuren als jij; alleen het pijltje maakt het verschil.
 - Zijn speren op de rug, de schaduw en het licht op hem worden niet getekend.
