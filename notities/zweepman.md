@@ -289,3 +289,15 @@ is geprobeerd en afgekeurd.
   laag. Een clip waarin hij van onderen of opzij uithaalt (de hand onder de heup) maakt het helemaal zuiver.
 
 De vangst (de zweep om je speer, touwtrekken) en een flinch.
+
+## Speerworp raakt (`ZWM_TEST.worp`, standaard aan)
+
+`zwmWorpRaakt`, in `hitZweepman` en `zwmMepSpeerKan`. Een geworpen speer raakt de zweepman in fase 1 altijd, ook buiten
+zijn herstel, met het gewone bloed, de snee en de kreet; van dichtbij steken werkt nog steeds alleen in zijn zone. Het
+wegslaan uit de lucht (`mepSpeer`) blijft, maar alleen als hij rustig staat of sluipt (niet op de terugweg na een slag) en
+Amir in het oog heeft (`!s.zWacht`). Gooi je terwijl hij slaat of uitrust, dan raak je hem.
+
+Waarom: twee zweepmannen tegelijk met tegengestelde slagen (een laag, een hoog) waren alleen met een getimede rol te
+ontwijken. Nu bestrijd je ze ook op afstand, maar met drie treffers en twee speren (hand en rug) moet je minstens een keer
+je speer bij ze ophalen. Uit te zetten in de pauze onder Zweepman: test (**Spear throw hits**). Fase 2 heeft zijn eigen
+regel en is niet veranderd.

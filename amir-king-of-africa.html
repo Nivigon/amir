@@ -2627,12 +2627,14 @@
         <button id="pzzwmslag">Slag: wissel</button>
         <button id="pzzwmgloed">Gloed op de zweep: aan</button>
         <button id="pzzwmwijs">Waarschuwing vooraf: aan</button>
+        <button id="pzzwmworp">Spear throw hits: on</button>
         <button id="pzzwmstd">Zweepman: standaard</button>
         <span class="hint">De rode laag ligt achter de zweep: zacht waar hij is, fel waar hij op dat moment kan raken, en
           de stippellijn is de raakhoogte (laag: alles eronder raakt, dus springen; hoog: alles erboven, dus bukken).
           Het tempo vertraagt de hele wereld zolang een zweepman slaat (100% is normaal). Slag kiest laag, hoog of
           wisselend. De gloed is warm licht op de zweep, feller waar hij snel gaat. De waarschuwing laat al in de tell
           zien waar hij gaat slaan: een gloed over de grond (laag) of een lichte band op hoofdhoogte (hoog).
+          Spear throw hits: a thrown spear always wounds him, unless he is calm, has seen you and whips it out of the air.
           Geldt meteen; de browser onthoudt je stand.</span>
       </div>
       <button id="pzbrubtn">Nyundo: test</button>
@@ -43885,7 +43887,7 @@ const ZWM_FX = { spoorDuur: 0.22, laagSpoor: '#e8c890', laagBreed: 22,
 // testopties in de pauze (Instellingen, Zweepman: test): de rode laag achter de zweep (waar hij is, en fel waar hij
 // nu kan raken, met een stippellijn op de raakhoogte), de wereld vertragen zolang een zweepman slaat, en welke slag
 const ZWM_TEST_KEY = 'amir.zweep';
-const ZWM_TEST = { rood: false, traag: 1, slag: null, gloed: true, wijs: true };   // gloed en wijs: zie ZWM_FX
+const ZWM_TEST = { rood: false, traag: 1, slag: null, gloed: true, wijs: true, worp: true };   // gloed en wijs: zie ZWM_FX; worp: een speerworp raakt hem altijd (zie zwmWorpRaakt)
 try { Object.assign(ZWM_TEST, JSON.parse(localStorage.getItem(ZWM_TEST_KEY) || '{}')); } catch (e) {}
 function zwmTraagNu(){
   if (ZWM_TEST.traag >= 1) return 1;
@@ -44107,6 +44109,7 @@ function zwmInzet(s){ return zwmNieuw() && s.fase === 1 && !s.mepSpeer && !s.vri
 function zwmMepSpeerKan(s){
   if (!zwmNieuw() || s.fase !== 1 || !zwmData || !jav || jav.state !== 'vlucht' || jav.hit) return false;
   if ((s.x - jav.x) * jav.vx <= 0) return false;                          // hij vliegt niet op hem af
+  if (ZWM_TEST.worp && (s.state === 'terug' || s.zWacht)) return false;   // worp raakt: alleen wie rustig staat of sluipt en Amir in het oog heeft slaat hem weg
   const C = ZWM_SLAG.hoog, van = C.slagVan - ZWM_NIEUW.mepSpeer.voor;
   let slag = 0; for (let i = van; i < C.knal; i++) slag += zwmDur(C, i);
   const bereik = zwmLengte() * zwmScale() * 0.9;
@@ -44243,11 +44246,15 @@ function zwmF1Kwetsbaar(s){
   }
   return !zwmNieuw() || s.vrij || s.state === 'herstel' || s.state === 'terug';
 }
+// worp raakt (ZWM_TEST.worp): een geworpen speer die niet weggeslagen wordt raakt hem altijd, ook buiten zijn herstel;
+// van dichtbij steken blijft alleen in zijn zone werken. Zo zijn twee zweepmannen op afstand te bestrijden, maar je moet
+// je speren daarna wel bij ze ophalen
+function zwmWorpRaakt(){ return ZWM_TEST.worp && worpTref; }
 function hitZweepman(s){
   if (s.state === 'f2') return zwmF2Hit(s);
   if (s.state === 'dood' || s.state === 'weg' || s.inv > 0) return false;
   const sneak = sneakKan(s);                        // de sluipaanval: van achteren op wie je niet opmerkte, in een klap dood, ook langs zijn pantser (zie "sneak")
-  if (!sneak && !zwmF1Kwetsbaar(s) && !gifTikNu){ s.flash = Math.max(s.flash, 0.12); s.inv = 0.25; houtRaak(HOUT.kets.toon, HOUT.kets.vol); return false; }   // nieuw: buiten zijn herstel ketst je speer af
+  if (!sneak && !zwmF1Kwetsbaar(s) && !gifTikNu && !zwmWorpRaakt()){ s.flash = Math.max(s.flash, 0.12); s.inv = 0.25; houtRaak(HOUT.kets.toon, HOUT.kets.vol); return false; }   // nieuw: buiten zijn herstel ketst je speer af
   if (sneak){ sneakDoe(s); s.hp = 1; } else lawaaiPuls(s.x, s.base || 0, SNEAK.puls.treffer);
   hits++; hitsEl.textContent = hits; gifRaak(s, 'zweepman');
   s.hp--; if (s.hp > 0 && critPak()) s.hp = Math.max(s.fasen && s.fase === 1 ? 1 : 0, s.hp - 1); if (s.hp > 0) fcHalf(s, s.fasen && s.fase === 1 ? 1 : 0);   // True Flight; de arm eraf slaat hij niet over
@@ -51885,6 +51892,7 @@ function zwmTestToon(){
   document.getElementById('pzzwmslag').textContent = 'Slag: ' + ZWM_SLAG_NAAM[ZWM_TEST.slag];
   document.getElementById('pzzwmgloed').textContent = 'Gloed op de zweep: ' + (ZWM_TEST.gloed ? 'aan' : 'uit');
   document.getElementById('pzzwmwijs').textContent = 'Waarschuwing vooraf: ' + (ZWM_TEST.wijs ? 'aan' : 'uit');
+  document.getElementById('pzzwmworp').textContent = 'Spear throw hits: ' + (ZWM_TEST.worp ? 'on' : 'off');
 }
 function zwmTestKnopToon(){
   const heeft = (level && Array.isArray(level.spawns) && level.spawns.some(sp => sp && sp.kind === 'zweepman')) || zweepmannen.length > 0;
@@ -51897,7 +51905,8 @@ document.getElementById('pzzwmtraag').addEventListener('input', e => { ZWM_TEST.
 document.getElementById('pzzwmslag').onclick = () => { ZWM_TEST.slag = ZWM_TEST.slag === null ? 'laag' : ZWM_TEST.slag === 'laag' ? 'hoog' : null; zwmTestToon(); zwmTestBewaar(); };
 document.getElementById('pzzwmgloed').onclick = () => { ZWM_TEST.gloed = !ZWM_TEST.gloed; zwmTestToon(); zwmTestBewaar(); };
 document.getElementById('pzzwmwijs').onclick = () => { ZWM_TEST.wijs = !ZWM_TEST.wijs; zwmTestToon(); zwmTestBewaar(); };
-document.getElementById('pzzwmstd').onclick = () => { Object.assign(ZWM_TEST, { rood: false, traag: 1, slag: null, gloed: true, wijs: true }); zwmTestToon(); zwmTestBewaar(); };
+document.getElementById('pzzwmworp').onclick = () => { ZWM_TEST.worp = !ZWM_TEST.worp; zwmTestToon(); zwmTestBewaar(); };
+document.getElementById('pzzwmstd').onclick = () => { Object.assign(ZWM_TEST, { rood: false, traag: 1, slag: null, gloed: true, wijs: true, worp: true }); zwmTestToon(); zwmTestBewaar(); };
 // het gevecht met Nyundo afstellen (BRU_TEST): de duur van tell, slag, raam en adem, en Amir onsterfelijk
 const BRU_SCHUIF = [['pzbrutell', 'tell'], ['pzbruslag', 'slag'], ['pzbruraam', 'raam'], ['pzbruadem', 'adem']];
 function bruTestBewaar(){ try { localStorage.setItem(BRU_TEST_KEY, JSON.stringify(BRU_TEST)); } catch (err) {} }
