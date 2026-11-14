@@ -63,6 +63,18 @@ De soorten en hun twee versies (`MP_SOORTEN`):
 
 Bazen (panter, baviaan, Nyundo, Murghtaan) staan er niet in (regel 12, en de opdrachtgever wil ze voorlopig uit).
 
+### De broekkleur (gebouwd)
+
+`MP_BROEK`, `mpBroekZet`, `mpBroekVrij`, `mpBroekAnder`, `mpBroekStart`, `pvp.broek`
+
+Links naast de lobby (`#mpamir`, een kind van `#start`, zichtbaar met de klasse `mplobby` op `#start`) staat je eigen Amir
+in de idle, met pijltjes ernaast, zoals de broekkeuze van Test 73 (`BROEK`, `broekBeeld`). De lijst is het eigen paars van
+Amir (geen lapje) plus `BROEK.kleuren`. Ieder kiest zelf, ook de gast; `{t: 'broek', id}` gaat naar de ander bij het openen
+van de lobby en bij elke wissel. Een kleur die de ander draagt slaan de pijltjes over. Kiezen ze tegelijk dezelfde, dan
+houdt de host hem en schuift de gast door naar de eerste vrije (`mpBroekAnder`). Standaard is de host paars en de gast
+rood; de laatste keuze staat op het apparaat (`amir.mpbroek`). In het spel geeft `broekNu` de eigen kleur zolang `pvp`
+loopt, en `pvpTeken` tekent de ander in de zijne. Geldt in Co-op en in Duel, want de lobby is dezelfde.
+
 ## Co-op Survival (stuk 2, de afspraak; gebouwd)
 
 - **Wie stuurt de vijanden:** de laptop van de host denkt voor alle vijanden en stuurt hun plek en plaatje naar de gast (net
