@@ -822,6 +822,12 @@ In **Test 73: Trousers** kies je voor het begin de kleur van Amirs broek: Fire r
 Daarna sta je tegenover drie verschillende tegenstanders: een bandiet, een schildbandiet en een zweepman. De keuze blijft
 bewaard, en via het pauzemenu kies je opnieuw.
 
+In **Test 74: Sticks** vecht Amir met twee stokken in plaats van de speer, en je kunt er niet dood. Spatie of F slaat,
+**C** vasthouden blokt (de stokken gekruist voor zijn gezicht): een klap van voren kaatst af. Sla je terwijl je blokt of vlak
+na het blok, dan komt de **counter**: een draaislag met zijn rug naar je toe. Voor het begin (en na R) kies je wat de counter
+doet: **Stun and knock back** (de vijand staat 2 seconden versuft en vliegt een stuk terug) of **Normal hit**. Je staat
+tegenover drie elite-bandieten met elk vijf levens, een voor een. In de sandbox zet de knop **Stokken** het aan.
+
 ## De health-balk
 
 In een level met de health-balk hebben de meeste vijanden drie levens, met een balkje boven zijn hoofd dat bij
