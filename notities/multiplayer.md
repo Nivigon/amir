@@ -147,18 +147,23 @@ Het blok `// ---- multiplayer: Co-op Survival ... ----` in de HTML, na de lobby.
   Zo gaat dezelfde AI achter de gast aan zonder dat er een regel AI veranderd is. Roept een vijand in die tweede ronde
   `hurtPlayer` aan (een slag in de update, zoals de zweepman en de schildbandiet), dan gaat dat als `au2` naar de gast; schrijft
   hij levens rechtstreeks (de fosfor), dan gaat het verschil.
-- **De stand over de lijn** (`mpcStandZend`, `MPC.hz` keer per seconde): per lijst (`MPC_LIJSTEN`) de id's in volgorde, en
-  per vijand alleen de velden die veranderd zijn; elke `MPC.sleutel` seconde alles. Een veld is een getal op twee decimalen,
+- **De stand over de lijn** (`mpcStandZend`, `MPC.hz` keer per seconde, over het snelle kanaal van `notities/pvp.md`): per
+  lijst (`MPC_LIJSTEN`) de id's in volgorde, en per vijand alleen de velden die veranderd zijn sinds het laatste bericht dat de
+  gast bevestigde. De gast stuurt in zijn `s` het hoogste volgnummer `ak` dat hij kreeg (`pvp.vAk` bij de host); elk veld
+  onthoudt in welk bericht het het laatst veranderde (`mpSeq`). Zo maakt een weggevallen bericht niets uit: het volgende
+  draagt het mee. Een kogel gaat mee tot hij bevestigd is, een lege lijst ook (`leegQ`). Over het betrouwbare kanaal (het
+  relais) is "bevestigd" gewoon het vorige bericht. Elke `MPC.sleutel` seconde alles. Een veld is een getal op twee decimalen,
   een tekst, of een object dat JSON wil (een kring zoals `groep` van de fosfor, een plaatje of een groot brok gaat niet mee,
-  `mpcWaarde`). De gast bouwt zijn lijsten daaruit op (`mpcStandLees`) en laat een vijand naar zijn plek schuiven
-  (`MPC.volg`). Kogels, dolken, meelzakken en gif (`los` in `MPC_LIJSTEN`) komen een keer over en vliegen daarna bij de gast
+  `mpcWaarde`). De gast zet elk bericht in de speelbuffer (`pvpNetIn`) en bouwt zijn lijsten op als het aan de beurt
+  is (`mpcStandLees`, vanuit `mpcVolgStap`); daarna staat elke vijand tussen dat bericht en het volgende in (`mpX0`). Kogels, dolken, meelzakken en gif (`los` in `MPC_LIJSTEN`) komen een keer over en vliegen daarna bij de gast
   zelf, zodat ze hem ook raken; komt er een bij hem neer, dan komt hij niet terug (`losWeg`). De goudaapjes rekenen in
   `bavKlok`: hun tijden schuiven bij de gast mee met het verschil tussen de klokken (`MPC_GAAP_TIJD`), want zijn eigen
   `bavKlok` meet ook de tik van zijn speer.
 - **Wie raakt wie.** Het tekenblok van de gast tekent de vijanden met de gewone code, en die kijkt ook of een vijand de gast
   raakt (zoals in PvP beslist het slachtoffer). De hit-functies (`enemyTakeHit`, `hitBandiet`, `hitSchildman`, ...,
   `gaapDood`, `MPC_HIT`) zijn bij de gast een doorgeefluik (`mpcHitDoor`): ze sturen `mh` met de lijst en de id, hooguit een
-  keer per `MPC.dubbel`, en doen zelf niets. De host roept de echte functie aan met de stand van de gast in de globalen
+  keer per `MPC.dubbel`. Zelf doen ze alleen wat de gast meteen moet voelen (`pvpRaakLokaal`): een witte flits, het geluid
+  van een speer in vlees en een korte hitstop; de schade komt van de host. De host roept de echte functie aan met de stand van de gast in de globalen
   (`mpcTrefferVanGast`), voor een slang of schorpioen de uitgeschreven dood uit het tekenblok (`mpcInlineDood`).
 - **Elkaar niet raken:** `pvpTeken` tekent in Co-op alleen de ander (met een groen pijltje) en stopt voor zijn speer en de
   treffers.
@@ -200,8 +205,9 @@ Het blok `// ---- multiplayer: Co-op Survival ... ----` in de HTML, na de lobby.
 
 ### Wat nog kan
 
-- De gast ziet de vijanden een tikje later dan de host (netwerk plus `MPC.volg`). Een slag die bij de host nog loopt, kan bij
-  de gast al raken of net niet. Op dezelfde wifi valt het niet op; via het relais (15 per seconde) meer.
+- De gast ziet de vijanden een tikje later dan de host (netwerk plus de speelbuffer). Een slag die bij de host nog loopt,
+  kan bij de gast al raken of net niet. Op dezelfde wifi valt het niet op; via het relais (15 per seconde) meer. Stap 2 is
+  drie spelers, stap 3 een eigen TURN-server zodat niemand meer op het relais hoeft (zie "De netcode" in `notities/pvp.md`).
 - Een vijand op de galerij die achter een speler op de straat aan zit, blijft boven staan kijken (regel: geen treden). Zo is
   het bedoeld, maar met een ronde die daardoor niet opraakt moet je naar boven.
 
