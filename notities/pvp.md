@@ -2,8 +2,9 @@
 
 `PVP`, `PVP_LEVEL`, `pvpHost`, `pvpJoin`, `pvpVerbonden`, `pvpStap`, `pvpVang`, `pvpTeken`, `pvpRondeUit`, `pvpStop`
 
-De knop **PvP** in het hoofdmenu (`btnpvp`, het scherm `menuPvp`). De een drukt op **Host a duel** en krijgt een code van
-vier letters, de ander tikt die in en drukt op **Join**. Daarna spelen ze allebei het stadje `PVP_LEVEL`.
+De knop **Multiplayer** in het hoofdmenu (`btnpvp`, het scherm `menuPvp`). De een drukt op **Host a game** en krijgt een code van
+vier letters, de ander tikt die in en drukt op **Join**. Daarna staan ze in de lobby (zie `notities/multiplayer.md`), en
+kiest de host Duel, dan spelen ze allebei het stadje `PVP_LEVEL` (`pvpDuelStart`).
 
 ## De verbinding
 
@@ -60,7 +61,7 @@ hij er meteen. Boven zijn hoofd een rood pijltje en zijn drie levens.
 
 ## Rondes
 
-Best of 3 (`PVP.winst`), elke ronde 3 levens. Wie doodgaat stuurt `ko`; de host telt de stand, wacht `PVP.pauze` en
+Standaard best of 3, elke ronde 3 levens; de host stelt dat in de lobby in (`pvp.winst`, `pvp.levens`, zie `notities/multiplayer.md`). Wie doodgaat stuurt `ko`; de host telt de stand, wacht `PVP.pauze` en
 start de volgende ronde (`restart`, dan `pvpPlaats`: de host rechts op `-250`, de gast links op `-2550`). Tussen twee
 rondes is iedereen onkwetsbaar (`godMode`). Na het duel vraagt R een rematch; die begint pas als allebei R drukten
 (`opnieuw` stuurt in PvP naar `pvpRematchDruk`). Het dood-scherm komt in PvP niet.

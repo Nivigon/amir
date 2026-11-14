@@ -565,13 +565,15 @@ In de sandbox staat onder **Slangen** de knop **Op patrouille**: die zet alles w
 meteen op patrouille en houdt het daar, zodat je het kunt bekijken zonder zelf uit beeld te
 lopen. Nog een keer drukken en ze komen weer op je af.
 
-## PvP
+## Multiplayer
 
-Speel tegen een vriend of collega, ieder op zijn eigen laptop. Druk in het hoofdmenu op **PvP**. De een drukt op **Host a duel** en krijgt een code van vier letters; die geef je door, de ander tikt hem in en drukt op **Join**. Jullie staan dan allebei in een klein stadje bij avond, de host rechts en de ander links. De ander zie je als tweede Amir met een rood pijltje en zijn levens boven zijn hoofd.
+Speel met of tegen een vriend of collega, ieder op zijn eigen laptop. Druk in het hoofdmenu op **Multiplayer**. De een drukt op **Host a game** en krijgt een code van vier letters; die geef je door, de ander tikt hem in en drukt op **Join**. Jullie komen dan samen in de lobby. Daar kiest de host de modus (**Co-op Survival** of **Duel**), de map en de regels, en de ander kijkt mee. Als de ander op **Ready** drukt, kan de host op **Start** drukken. Co-op Survival kun je al instellen (hoeveel vijanden, welke soorten, makkelijk of moeilijk, de winkel, het wapenrek en de kans op een kalebas), maar spelen kan pas in een volgende update.
+
+In een duel staan jullie allebei in een klein stadje bij avond, de host rechts en de ander links. De ander zie je als tweede Amir met een rood pijltje en zijn levens boven zijn hoofd.
 
 Je hebt de gewone kit: lopen, sprinten, springen, bukken, steken, de lage zwaai, werpen (een speer in de hand en een op je rug; een gegooide speer raap je zelf weer op met E) en de rol, die in PvP wat langer moet afkoelen. Hogerop kom je via het rieten dak van een kraam naar de galerij, en met **E** bij de trap in een steegje naar een balkon en het dak. In het midden staat een ton met een kalebas.
 
-Het is best of 3: elke ronde heb je 3 levens, wie het eerst twee rondes wint, wint het duel. Daarna drukken jullie allebei op **R** voor een rematch. Escape en terug naar het menu verbreekt de verbinding.
+Standaard is het best of 3 met 3 levens per ronde. In de lobby kiest de host een ronde, best of 3 of best of 5, 1 tot 5 levens per ronde, en of de rol langer moet afkoelen. Na het duel drukken jullie allebei op **R** voor een rematch. Met Escape en Menu ga je allebei terug naar de lobby, en de verbinding blijft open. **Leave the lobby** verbreekt hem.
 
 Je hebt internet nodig. Het spel probeert eerst een rechtstreekse lijn tussen de twee toestellen; lukt dat niet (een telefoon op mobiele data, bijvoorbeeld), dan gaat het na een paar seconden vanzelf via een openbare berichtenserver. Dat heet dan "Connected via relay" en heeft iets meer vertraging. Pauzeer niet te lang: na 15 seconden stilte verbreekt het duel.
 
