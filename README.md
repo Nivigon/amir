@@ -830,8 +830,8 @@ tegenover drie elite-bandieten met elk vijf levens, een voor een. In de sandbox 
 De stokken zijn van donker hardhout, met een grip van gebrand oker; de twee slippen van die doek hangen onder zijn vuist
 en slepen na bij een slag, waaien achter hem uit als hij rent en gaan mee met de wind.
 
-In **Test 75: New run** rent Amir met de nieuwe ren: voorover, met lange passen en twee pompende armen, in plaats
-van de oude ren met de speer rechtop. Een lange vlakte om te sprinten, twee keien om over te springen en daarna twee
+In **Test 75: New run** sprint Amir (Shift) met de nieuwe ren: voorover, met lange passen en twee pompende armen;
+gewoon lopen blijft de oude ren, en het tempo van zijn benen volgt zijn snelheid, zodat zijn voeten niet glijden. Een lange vlakte om te sprinten, twee keien om over te springen en daarna twee
 bandieten; je kunt er niet dood. In de sandbox zet de knop **Nieuwe ren** het aan.
 
 ## De health-balk
