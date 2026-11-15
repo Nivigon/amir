@@ -51,7 +51,7 @@ Alleen in Test 74 (`stokken: true`) en de sandboxknop **Stokken**.
   wegtrekt (`STOK.lens`, `stokLens`, `stokLensTeken`). De lens-code van Nyundo is daarvoor algemeen gemaakt
   (`lensSpatMaak`, `lensSpatTeken`). De gewone counter (`gewoon`) houdt de oude klap.
 - Twee keer slaan: na de eerste treffer met de slag wankelt een bandiet (`STOK.reeks`): geen dekking, geen aanval
-  (`rust` 0,75 s) en minder ver terug, zodat de tweede slag erin gaat. Pas de tweede treffer binnen 1,1 s geeft de
+  (`rust` 0,75 s) en minder ver terug (`reeks.knock` 0,7 van de gewone knockback; was 0,4, maar sinds de stap naar voren voelde dat als geen knockback), zodat de tweede slag erin gaat. Pas de tweede treffer binnen 1,1 s geeft de
   gewone dekking van 1,15 s (`BAN_INV_T`). Een druk vanaf slag-frame `STOK.buf` (6) staat klaar en de volgende slag
   begint al op frame `STOK.annuleer` (11), zonder de rest van het herstel (`stokBuf`, `stokBegin`). Gemeten met een
   robot die 8 s F ramt tegen de eerste elite: eerst 3 treffers, nu 5 en hij is dood.
