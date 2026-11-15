@@ -19812,6 +19812,12 @@ const STOK = {
   blokOp: 8,                 // vanaf dit blok-frame dekken de stokken
   venster: 0.7,              // seconden na het loslaten van het blok (of na een gevangen klap) dat een slag de counter is
   rust: 0.12,                // afkoeling na een slag
+  // de buffer: een druk vanaf slag-frame buf telt voor de volgende slag, en die begint al op frame annuleer (de rest van
+  // het herstel valt weg), zodat twee slagen vlak na elkaar komen
+  buf: 6, annuleer: 11,
+  // de reeks: na een treffer met de slag staat een bandiet even te wankelen in plaats van in dekking (geen parade, geen
+  // aanval, minder ver terug), tot de n-de treffer binnen tussen s; die geeft de gewone dekking (BAN_INV_T)
+  reeks: { n: 2, rust: 0.75, knock: 0.4, tussen: 1.1 },
   blokTerug: 380,            // een bandiet die op het blok slaat: zijn doorschuif stopt en hij kaatst zo hard terug (wereld-px/s, s.knock)
   stun: { duur: 2, terug: 1100 },   // de counter als stun: zo lang stil, en zo hard terug (wereld-px/s, zie s.knock)
   toon: { slag: 1.25, draaislag: 0.72, blok: 1.45 },  // houtRaak: hoger is droger, lager is zwaarder
@@ -19825,7 +19831,8 @@ const STOK = {
 const stokLens = { lijst: null, t: 0, x: 0, y: 0 };   // de spatten van de laatste stun-counter (stokLensTeken)
 let STOK_AAN = false, sbStokken = false;
 let stokBank = null, atkStok = null, stokSetNu = 'staan';   // stokSetNu: de set van het beeld dat stokBeeld gaf (voor STOK.maat)             // atkStok: 'slag', 'draaislag' of 'draaiterug' zolang er een loopt
-const stokBlok = { f: -1, acc: 0, venster: 0, vang: 0 };   // vang: telt elke gevangen klap (zie stokBlokGestuit)  // f: het blok-frame (-1 = geen blok)
+const stokBlok = { f: -1, acc: 0, venster: 0, vang: 0 };   // vang: telt elke gevangen klap (zie stokBlokGestuit)
+let stokBuf = false;                             // er is gedrukt tijdens de slag: de volgende komt meteen (STOK.buf)   // vang: telt elke gevangen klap (zie stokBlokGestuit)  // f: het blok-frame (-1 = geen blok)
 function stokAan(){ return STOK_AAN && !!stokBank; }
 function stokMaat(set){ return STOK.schaal * (STOK.maat[set] || 1); }
 function stokLaad(){
@@ -19837,13 +19844,17 @@ function stokLaad(){
   }
 }
 function stokLaadLevel(lv){ if (lv && lv.stokken) stokLaad(); }
-function stokReset(){ atkStok = null; stokBlok.f = -1; stokBlok.acc = 0; stokBlok.venster = 0; }
+function stokReset(){ stokBuf = false; atkStok = null; stokBlok.f = -1; stokBlok.acc = 0; stokBlok.venster = 0; }
 function stokBlokOp(){ return stokAan() && stokBlok.f >= STOK.blokOp && !dead; }
 function stokBlokNu(){ return stokAan() && stokBlok.f >= 0; }
 // de aanvalsknop met de stokken: de gewone slag, of de counter na een blok
 function stokAanval(){
+  if (atkFrame >= 0 && atkStok === 'slag' && atkFrame >= STOK.buf){ stokBuf = true; return; }   // de volgende slag staat klaar
   if (atkFrame >= 0 || atkCooldown > 0) return;
-  const counter = stokBlokOp() || stokBlok.venster > 0;
+  stokBegin(stokBlokOp() || stokBlok.venster > 0);
+}
+function stokBegin(counter){
+  stokBuf = false;
   atkStok = counter ? 'draaislag' : 'slag';
   atkFrame = 0; atkAcc = 0; swingUsed = false; atkMes = false; atkCombo = false; comboBuf = false;
   stokBlok.f = -1; stokBlok.venster = 0;
@@ -19858,6 +19869,7 @@ function stokStap(dt){
     const ms = STOK.ms[atkStok][atkFrame] * STOK.tempo[atkStok];
     if (atkAcc < ms) break;
     atkAcc -= ms; atkFrame++;
+    if (atkStok === 'slag' && stokBuf && atkFrame >= STOK.annuleer){ stokBegin(false); break; }   // gebufferd: meteen de volgende
     if (atkFrame >= STOK.ms[atkStok].length){
       if (atkStok === 'draaislag'){ atkStok = 'draaiterug'; atkFrame = 0; swingUsed = true; continue; }   // en weer terug in de stand
       atkStok = null; atkFrame = -1; atkAcc = 0; atkCooldown = STOK.rust; break;
@@ -19933,6 +19945,12 @@ function stokTreffer(s, wx, h, sx){
   } else {
     houtRaak(STOK.toon.slag, 0.8);
     hitstop = Math.max(hitstop, 0.04);
+    if (s && s.hp > 0){                              // de reeks (STOK.reeks): na de eerste treffer wankelt hij, open voor de tweede
+      const R = STOK.reeks, nu = performance.now() / 1000;
+      s.stokReeks = nu - (s.stokReeksT || -99) < R.tussen ? (s.stokReeks || 0) + 1 : 1; s.stokReeksT = nu;
+      if (s.stokReeks < R.n){ s.inv = 0; s.rust = R.rust; s.knock *= R.knock; }
+      else s.stokReeks = 0;                          // de laatste van de reeks: de gewone dekking die hitBandiet zette
+    }
   }
 }
 function stokLensTeken(){ if (stokLens.lijst) lensSpatTeken(stokLens.lijst, STOK.lens, stokLens.t, stokLens); }
