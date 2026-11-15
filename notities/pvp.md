@@ -23,9 +23,9 @@ kiest de host Duel, dan spelen ze allebei het stadje `PVP_LEVEL` (`pvpDuelStart`
   te helpen (de iPhone op mobiele data gaf "negotiation-failed": ICE mislukt). Daarom probeert de gast eerst rechtstreeks,
   en na een fout of `PVP_RELAY.na` (8) seconden gaat hij via een openbare MQTT-broker (HiveMQ, EMQX of Mosquitto, de eerste
   die antwoordt; mqtt.js lui van jsdelivr of unpkg). Dat is een websocket over https, dus het komt door elk netwerk. De host
-  luistert vanaf Host meteen op allebei. Onderwerp: `PVP_RELAY.pre` plus de code, `/h` naar de host en `/g` naar de gast;
-  de gast roept `relayHallo` met zijn `sid` tot de host `relayOk` antwoordt (of na `bel` seconden opgeeft). Elk bericht
-  draagt de `sid`. Via het relais 15 berichten per seconde (`PVP_RELAY.hz`). Openbaar en zonder garantie: wie de code en het
+  luistert vanaf Host meteen op allebei. Onderwerp: `PVP_RELAY.pre` plus de code, `/h/<sid>` naar de host (hij luistert op
+  `/h/+`) en `/g/<sid>` naar die gast, zodat met twee gasten ieder zijn eigen onderwerp heeft; de gast roept `relayHallo`
+  met zijn `sid` tot de host `relayOk` antwoordt (of na `bel` seconden opgeeft). Elk bericht draagt de `sid`. Via het relais 15 berichten per seconde (`PVP_RELAY.hz`). Openbaar en zonder garantie: wie de code en het
   voorvoegsel kent kan meelezen (alleen posities), en valt een broker weg dan pakt het de volgende uit de lijst.
 - **Hartslag**: hoort een kant `PVP.stilte` (15) seconden niets, dan is de verbinding weg en gaat hij terug naar het menu.
   De ping (zie "De netcode") loopt los van het spel door, dus ook een pauze houdt de verbinding nu levend.
@@ -37,7 +37,9 @@ kiest de host Duel, dan spelen ze allebei het stadje `PVP_LEVEL` (`pvpDuelStart`
 ## De netcode: het snelle kanaal, de speelbuffer en de ping
 
 Het blok `// ---- multiplayer: de netcode ... ----` (`PVP_NET`). Stap 1 van het plan voor vloeiend online spelen (november
-2026); stap 2 is drie spelers, stap 3 een eigen TURN-server.
+2026); stap 2, drie spelers, is gebouwd (de ster: een verbinding per gast, zie "Drie spelers: de ster" in
+`notities/multiplayer.md`); stap 3 is een eigen TURN-server. Alles hieronder geldt per lijn: het snelle kanaal per peer
+(`pvp.peers[p].snel`), de speelbuffer en de klok per afzender (`pvp.nets[p]`), de ping per lijn (de host naar elke gast).
 
 - **Het snelle kanaal** (`pvpSnelOpen`, `pvpZendSnel`, `pvpSnelAan`). PeerJS opent een betrouwbaar kanaal: op volgorde, en
   een verloren pakket wordt opnieuw verstuurd terwijl alles erachter wacht. Daarnaast openen allebei de kanten op dezelfde
@@ -56,9 +58,9 @@ Het blok `// ---- multiplayer: de netcode ... ----` (`PVP_NET`). Stap 1 van het 
   springt hij meteen. Is er nog geen volgende stand, dan blijft hij op de laatste staan. Doorrekenen in de richting waarin hij
   ging is geprobeerd en weer weggehaald: bij vijanden die plots stoppen of uitvallen schoot het voorbij, en de afwijking werd
   op een slechte lijn drie keer zo groot.
-- **Wie beslist met welke stand.** Het beeld en de treffers gebruiken de gebufferde stand (`pvp.ander`), zodat wat je ziet ook
-  is wat telt. De host laat de vijanden achter de nieuwste stand van de gast aan gaan (`pvp.anderNu`, `pvpAnderNu`), want de
-  gebufferde loopt 0,1 s achter.
+- **Wie beslist met welke stand.** Het beeld en de treffers gebruiken de gebufferde stand (`pvp.anders[p].g`), zodat wat je
+  ziet ook is wat telt. De host laat de vijanden achter de nieuwste stand van een gast aan gaan (`pvp.anders[p].nu`,
+  `pvpAnderNu(p)`), want de gebufferde loopt 0,1 s achter.
 - **De ping** (`pvpPingIn`, `pvpPingTekst`): elke `PVP_NET.ping` seconde `pi` en terug `po`, over het snelle kanaal. In de lobby
   onder de eerste regel (`#mpping`, met de soort lijn: direct, direct met het snelle kanaal, of relay) en in de HUD.
 - **Testen:** `tools/mptest.js --net 60,25,0.05` bootst 60 ms vertraging, tot 25 ms jitter en 5% verlies na (het betrouwbare
@@ -77,6 +79,10 @@ Het blok `// ---- multiplayer: de netcode ... ----` (`PVP_NET`). Stap 1 van het 
   hoger dan de nagebootste lijn, want het doorgeven door Node kost zelf ook tijd. Een echte proef over internet kan alleen
   buiten de cloud (PeerJS is daar niet te bereiken).
 
+  Met drie spelers (`tools/mptest.js --net 60,25,0.05`, standaard drie vensters) volgt de host de gasten even goed als met
+  twee; een gast ziet de andere gast een sprong later (zo'n 320 tegen 210 ms bij de host), want die stand gaat via de host.
+  De getallen schommelen in de cloud sterk met de belasting van drie Chromium-vensters tegelijk.
+
 ## Wat er over de lijn gaat
 
 - `s`, 20 keer per seconde (`PVP.hz`), over het snelle kanaal met `q` en `tm` (en in Co-op bij de gast `ak`, zie
@@ -85,7 +91,8 @@ Het blok `// ---- multiplayer: de netcode ... ----` (`PVP_NET`). Stap 1 van het 
   voeten, en of het gespiegeld is), `hurt` (de rode flits), de steek (`sf` het frame, `sl` of hij raakt, `sn` een teller
   per steek), de lage zwaai (`sw`, `wn`), de geworpen speer (`j`, met een teller `n` per worp) en de levens.
 - `au` (ik ben geraakt), `speerRaak` (jouw speer zit in mij: die valt dan neer), `ko` (ik ben dood), `ronde` (de host
-  start een ronde of meldt het einde), `rematch`, `bye`; `pi` en `po` de ping.
+  start een ronde of meldt het einde), `rematch`, `bye`; `pi` en `po` de ping; `welkom` (je slot), `vol` (geweigerd),
+  `weg` (een gast is weg). Elk bericht draagt `p`, het slot van wie het maakte, en een bericht voor een andere gast `naar`.
 
 ## Wie beslist
 
@@ -100,7 +107,8 @@ waar je net doorheen rolde je alsnog zodra de rol voorbij was.
 De aanvaller merkt zijn treffer (`pvpRaakFx`, op het bericht `au`): het geluid van een speer in vlees, een hitstop van
 0,06 s en een kleine schok (`PVP.raak`). Daarvoor zag hij alleen de rode flits, die pas met het volgende standbericht kwam.
 
-De andere Amir komt uit de speelbuffer (zie "De netcode"); springt hij meer dan `PVP_NET.sprong` (een nieuwe ronde), dan
+Het Duel is een tegen een (`pvpDuelAnder`); met drie spelers in de lobby mag het niet starten. De andere Amir komt uit de
+speelbuffer (zie "De netcode"); springt hij meer dan `PVP_NET.sprong` (een nieuwe ronde), dan
 staat hij er meteen. Boven zijn hoofd een rood pijltje en zijn drie levens.
 
 ## Rondes

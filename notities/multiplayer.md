@@ -2,7 +2,8 @@
 
 `MP_KAARTEN`, `MP_SOORTEN`, `mpStandaard`, `mpLobbyToon`, `mpWijzig`, `mpStart`, `mpSpelStart`, `pvpDuelStart`, `mpNaarLobby`;
 Co-op: `MPC`, `MP_COOP_LEVEL`, `mpCoopStart`, `mpCoopStap`, `mpcUpdate`, `mpcHitDoor`, `mpcStandZend`, `mpcStandLees`, `mpcHostStap`;
-de winkel: `MPC_WINKEL`, `MPC_WINKEL_KAMER`, `mpcWinkelIn`, `mpcWinkelUit`, `mpcWinkelToon`, `mpcWinkelKoop`, `mpcKlaarDruk`, `mpcGoudAllebei`, `mpcFcModus`
+de winkel: `MPC_WINKEL`, `MPC_WINKEL_KAMER`, `mpcWinkelIn`, `mpcWinkelUit`, `mpcWinkelToon`, `mpcWinkelKoop`, `mpcKlaarDruk`, `mpcGoudIedereen`, `mpcFcModus`;
+drie spelers: `PVP.max`, `pvp.peers`, `pvp.spelers`, `pvp.anders`, `pvpGastErbij`, `pvpGastWeg`, `pvpZendAan`, `MP_DOOR`, `mpcDodenStap`
 
 De knop **Multiplayer** in het hoofdmenu (was PvP, de id is nog `btnpvp`, het scherm nog `menuPvp`). De verbinding is die
 van `notities/pvp.md` (PeerJS, met het relais als vangnet). Dit document is het plan voor de hele modus, uit een grill met de
@@ -17,6 +18,8 @@ opdrachtgever (november 2026). Wat gebouwd is staat erbij; de rest is de afspraa
    vijanden, elkaar niet raken, tonnen met de knikkerzak, de revive, het wapenrek, punten en het eindscherm.
 3. **De winkel en de economie** (gebouwd, zie "De winkel: hoe het gebouwd is" onderaan). De binnenkamer, goud, de
    prijslijst, Ready, de upgrades.
+4. **Drie spelers** (gebouwd, stap 2 van de netcode, zie "Drie spelers: de ster" onderaan). Co-op voor twee of drie; het
+   Duel blijft een tegen een.
 
 
 ## De lobby (gebouwd)
@@ -24,8 +27,10 @@ opdrachtgever (november 2026). Wat gebouwd is staat erbij; de rest is de afspraa
 - `pvpVerbonden` start niet meer meteen het duel, maar opent de lobby (`mpLobbyOpen`, de klasse `lobby` op `menuPvp`).
 - De host bewaart zijn instellingen op het apparaat (`amir.mp` in localStorage, `mpLaadInst`); elke wijziging gaat als
   `{t: 'lobby', inst}` naar de gast (`mpWijzig`) en zet de Ready van de gast weer uit.
-- De gast drukt Ready (`{t: 'klaar', aan}`); pas dan mag de host op Start (`mpKnoppen`). Start stuurt `{t: 'start', regels}`
-  en allebei starten met dezelfde regels (`mpSpelStart`).
+- Elke gast drukt Ready (`{t: 'klaar', aan}`, bij de host in `pvp.klaarVan` per slot); pas als iedereen klaar is mag de host
+  op Start (`mpKnoppen`; met drie spelers mag het Duel niet). Start stuurt `{t: 'start', regels, spelers}` en iedereen start
+  met dezelfde regels (`mpSpelStart`). Onder de eerste regel staat wie er in de lobby staat (`#mpspelers`), bij de host met
+  de code erbij, zodat een derde nog kan inbellen.
 - In een potje: `toMenu` stuurt `{t: 'lobbyTerug'}` en allebei gaan naar de lobby (`mpNaarLobby`). Is de verbinding weg
   (`pvp.weg`), dan sluit `toMenu` hem (`pvpStop`) en sta je weer bij Host en Join.
 - Wat de gast kan kiezen: niets. Alleen de host stelt in.
@@ -69,10 +74,11 @@ Bazen (panter, baviaan, Nyundo, Murghtaan) staan er niet in (regel 12, en de opd
 
 Links naast de lobby (`#mpamir`, een kind van `#start`, zichtbaar met de klasse `mplobby` op `#start`) staat je eigen Amir
 in de idle, met pijltjes ernaast, zoals de broekkeuze van Test 73 (`BROEK`, `broekBeeld`). De lijst is het eigen paars van
-Amir (geen lapje) plus `BROEK.kleuren`. Ieder kiest zelf, ook de gast; `{t: 'broek', id}` gaat naar de ander bij het openen
-van de lobby en bij elke wissel. Een kleur die de ander draagt slaan de pijltjes over. Kiezen ze tegelijk dezelfde, dan
-houdt de host hem en schuift de gast door naar de eerste vrije (`mpBroekAnder`). Standaard is de host paars en de gast
-rood; de laatste keuze staat op het apparaat (`amir.mpbroek`). In het spel geeft `broekNu` de eigen kleur zolang `pvp`
+Amir (geen lapje) plus `BROEK.kleuren`. Ieder kiest zelf, ook een gast; `{t: 'broek', id}` gaat naar de anderen bij het
+openen van de lobby en bij elke wissel (een gast via de host). Een kleur die een ander draagt slaan de pijltjes over. Kiezen
+twee tegelijk dezelfde, dan houdt het laagste slot hem (de host eerst) en schuift de ander door naar de eerste vrije
+(`mpBroekAnder`). Standaard is de host paars, de eerste gast rood en de tweede turkoois (`MP_BROEK_STANDAARD`); de laatste
+keuze staat op het apparaat (`amir.mpbroek`). In het spel geeft `broekNu` de eigen kleur zolang `pvp`
 loopt, en `pvpTeken` tekent de ander in de zijne. Geldt in Co-op en in Duel, want de lobby is dezelfde.
 
 ## Co-op Survival (stuk 2, de afspraak; gebouwd)
@@ -206,8 +212,11 @@ Het blok `// ---- multiplayer: Co-op Survival ... ----` in de HTML, na de lobby.
 ### Wat nog kan
 
 - De gast ziet de vijanden een tikje later dan de host (netwerk plus de speelbuffer). Een slag die bij de host nog loopt,
-  kan bij de gast al raken of net niet. Op dezelfde wifi valt het niet op; via het relais (15 per seconde) meer. Stap 2 is
-  drie spelers, stap 3 een eigen TURN-server zodat niemand meer op het relais hoeft (zie "De netcode" in `notities/pvp.md`).
+  kan bij de gast al raken of net niet. Op dezelfde wifi valt het niet op; via het relais (15 per seconde) meer. Stap 2
+  (drie spelers) is gebouwd; stap 3 is een eigen TURN-server zodat niemand meer op het relais hoeft (zie "De netcode" in
+  `notities/pvp.md`).
+- Met drie spelers draait elke update-functie bij de host tot drie keer per beeld (een keer per groep). Een klok in zo'n
+  functie die niet per vijand is, loopt dan ook vaker; tot nu toe is daar niets van te merken.
 - Een vijand op de galerij die achter een speler op de straat aan zit, blijft boven staan kijken (regel: geen treden). Zo is
   het bedoeld, maar met een ronde die daardoor niet opraakt moet je naar boven.
 
@@ -253,13 +262,76 @@ Het blok `// ---- multiplayer: de winkel en de economie van Co-op (stuk 3) ----`
   rondom.
 - Wie dood de winkel in gaat, staat op met 1 leven (de kalebas in de winkel vult de rest).
 
+## Drie spelers: de ster (stap 2 van de netcode)
+
+Co-op is voor twee of drie spelers (`PVP.max`), het Duel voor twee. De host blijft denken voor de vijanden en is het
+middelpunt van een ster: hij heeft een verbinding per gast, een gast alleen een naar de host.
+
+- **Slots.** De host is slot 0, de gasten 1 en 2 (het laagste vrije). Wie inbelt terwijl de lobby open is en er plek is,
+  krijgt `{t: 'welkom', mij}` en opent pas dan de lobby (`pvpNieuweGast`, `pvpGastErbij`); anders `{t: 'vol', r}` met de
+  reden (vol, of het potje loopt al). `pvp.spelers` is wie er meedoet, `pvp.peers` per slot de lijn met zijn snelle kanaal
+  en `vAk`, `pvp.nets` per afzender de speelbuffer en de klok, `pvp.anders` per slot de andere Amir (`g` gebufferd voor
+  het beeld, `nu` de nieuwste voor de vijanden; `pvpAnderNu(p)`, `pvpAnderen()`).
+- **Berichten.** Elk bericht draagt het slot van wie het maakte (`p`). De host zet het zelf op wat binnenkomt (een gast
+  spreekt niet voor een ander) en stuurt door wat de andere gast ook moet weten (`MP_DOOR`: de stand `s` over het snelle
+  kanaal, de broek, het rek, het opgepakte symbool, Ready in de winkel, R na het einde). Een bericht voor een speler gaat met
+  `pvpZendAan(p, o)`: de host rechtstreeks, een gast via de host met `naar` (zo gaan `au2`, `buit` en Give 5 gold naar
+  precies die speler). De doorgestuurde stand van de andere gast draagt zijn eigen klok, dus elke afzender heeft een eigen
+  speelbuffer; hij loopt een sprong verder achter dan de host (nagemeten: zo'n 320 tegen 210 ms bij 60 ms per sprong).
+- **De vijanden.** `mpcDoel` geeft het slot van de dichtstbijzijnde levende speler (met de marge `MPC.wissel`); `mpcUpdate`
+  draait de update-functie een keer per groep, de host eerst en dan per gast met diens stand (`mpcWisselIn(p)`). De
+  vijandstand gaat als een bericht naar alle gasten; de delta telt vanaf het laagste wat een van hen bevestigde.
+- **De revive** (`mpcDodenStap`): per dode een eigen revive-ton (`C.reviveTon[slot]`), bij de levende speler die het dichtst
+  bij zijn lijk staat, en een eigen symbool (`C.symbolen`, met `voor`). Met drie spelers staat boven het symbool de kleur van
+  wie ermee opstaat. Wie niet meer dood is (of weg) verliest zijn ton en symbool. Game over pas als iedereen dood is. De camera
+  van een dode volgt de dichtstbijzijnde levende teamgenoot (`mpCoopCam`).
+- **Ready en goud voor iedereen.** De winkel gaat pas dicht als iedereen Ready is (`C.wkKlaar` per slot, de banner zegt
+  "1 of 2 teammates ready"), R na game over pas als iedereen R drukte (`mpCoopRematchKijk`), ronde 1 wacht tot iedere gast
+  geladen is (`C.klaarVan`). Het goud van een kill en van een ronde krijgt iedereen (`mpcGoudIedereen`). Give 5 gold heeft
+  met twee teamgenoten een knop per teamgenoot (`wkc_geef_<slot>`).
+- **De derde.** Een derde broekkleur (turkoois) en startplek (`PVP.starts[2]`, -1150, in het midden), en een derde plek in de
+  winkelkamer (`MPC_WINKEL_KAMER.plek`).
+- **Het relais per sid.** Een gast stuurt naar `/h/<sid>`, de host luistert op `/h/+` en stuurt naar `/g/<sid>`: elke gast
+  zijn eigen onderwerp. De host heeft een client voor alle gasten (`pvpRelayConn` met `gedeeld`).
+- **Weg.** Gaat een gast weg (Leave, of `PVP.stilte` niets gehoord), dan meldt de host `{t: 'weg', wie}` en spelen de andere
+  twee door (in de lobby blijven ze staan); is er niemand meer, dan zoals eerst. Gaat de host weg, dan is het voor iedereen
+  uit.
+
+### Anders dan de afspraak, of zelf ingevuld
+
+- **Het Duel blijft een tegen een.** Met drie spelers in de lobby mag Start niet in Duel ("A duel is for two players").
+- **Wie dood de revive-ton krijgt:** bij de levende die het dichtst bij het lijk staat, niet bij een vaste speler.
+- **Een gast die weggaat:** de rest speelt door. Een nieuwe kan pas weer bij in de lobby, niet midden in een potje.
+
+### Voorstel: zwaardere rondes met drie man (nog niet gebouwd)
+
+Met drie spelers is elke ronde nu even groot als met twee, terwijl er een derde speer, een derde revive en meer goud bij
+komt. Het voorstel, in volgorde van belang:
+
+1. **Meer vijanden per ronde:** het aantal uit `mpcRonde` keer 1,5 met drie spelers (naar boven afgerond), zodat ronde 1
+   met de standaard 1 vijand er 2 heeft en ronde 5 er 8 in plaats van 5.
+2. **Meer tegelijk en sneller binnen:** `MPC.tegelijk` van 10 naar 14 en `MPC.tussen` van 1,5 naar 1,1 s, zodat de extra
+   vijanden niet alleen de ronde langer maken maar ook de druk verhogen. `MPC.boven` van 5 naar 6.
+3. **Vaker de moeilijke versie:** bij Both 60 in plaats van 50 procent de moeilijke.
+4. **De revive duurder:** met drie spelers komt de revive-ton na 25 in plaats van 20 s, want er staan er nog twee rechtop.
+5. **Goud gelijk per persoon** (geen verandering): ieder krijgt al evenveel, dus het team krijgt vanzelf anderhalf keer zoveel.
+
+Alles als getallen in `MPC` met een tweede waarde voor drie man (bijvoorbeeld `MPC.drie = { keer: 1.5, tegelijk: 14, ... }`),
+zodat het met twee spelers precies blijft zoals nu.
+
 ## Testen
 
-`node tools/mptest.js` speelt Co-op met twee vensters en een nagebootste verbinding (Node geeft de berichten door). `--proef`
-loopt de vaste stappen na (een ton breken als gast, een treffer van de gast, de winkel met kopen, Give 5 gold, Ready en
-terug, Full Circle rondom voor en achter, allebei dood, het eindscherm, R, Escape) en
-meldt per stap OK of FOUT; zonder `--proef` lopen twee simpele spelers op de vijanden af, met `--taai` zonder dood te gaan,
-`--sterf gast` om de revive te zien, `--soorten bandiet,slang` voor een paar soorten en `--shots map` voor plaatjes.
+`node tools/mptest.js` speelt Co-op met drie vensters (de host en twee gasten, `--spelers 2` voor twee) en een nagebootste
+ster: de host een verbinding per gast, Node geeft de berichten door. `--proef` loopt de vaste stappen na (de lobby met drie
+slots, drie broeken, een vierde die geweigerd wordt, Start pas als iedereen Ready is, geen Duel met drie; in het spel drie
+startplekken en iedereen ziet de anderen, een ton breken als gast, een treffer van de gast, een vijand die achter de tweede
+gast aan gaat en hem raakt, de winkel met kopen, Give 5 gold aan de host en via de host aan de tweede gast, Ready van
+iedereen en terug, Full Circle rondom voor en achter, twee doden met elk een revive-ton, de camera en de banner van een dode,
+een revive voor een van de twee, iedereen dood, het eindscherm, R pas bij iedereen, Escape, en een gast die de lobby verlaat)
+en meldt per stap OK of FOUT. `--duel --spelers 2` loopt het Duel na. Zonder `--proef` lopen simpele spelers op de vijanden
+af, met `--taai` zonder dood te gaan, `--sterf gast,gast2` om de revive te zien, `--soorten bandiet,slang` voor een paar
+soorten en `--shots map` voor plaatjes. `--net` meet per venster hoe goed elke andere Amir zijn echte baan volgt (per speler,
+want de doorgestuurde gast loopt een sprong verder achter) en per gast de vijanden.
 
 
 Voor de lobby is eerder een los script gebruikt met een nagebootste `Peer` die berichten tussen twee
