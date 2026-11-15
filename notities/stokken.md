@@ -28,6 +28,18 @@ Alleen in Test 74 (`stokken: true`) en de sandboxknop **Stokken**.
   (`STOK.stunKlap`), meer hitstop en schok, en een kleine bloedspetter op de lens bij het trefpunt die binnen 0,7 s
   wegtrekt (`STOK.lens`, `stokLens`, `stokLensTeken`). De lens-code van Nyundo is daarvoor algemeen gemaakt
   (`lensSpatMaak`, `lensSpatTeken`). De gewone counter (`gewoon`) houdt de oude klap.
+- Twee keer slaan: na de eerste treffer met de slag wankelt een bandiet (`STOK.reeks`): geen dekking, geen aanval
+  (`rust` 0,75 s) en minder ver terug, zodat de tweede slag erin gaat. Pas de tweede treffer binnen 1,1 s geeft de
+  gewone dekking van 1,15 s (`BAN_INV_T`). Een druk vanaf slag-frame `STOK.buf` (6) staat klaar en de volgende slag
+  begint al op frame `STOK.annuleer` (11), zonder de rest van het herstel (`stokBuf`, `stokBegin`). Gemeten met een
+  robot die 8 s F ramt tegen de eerste elite: eerst 3 treffers, nu 5 en hij is dood.
+- Het ritme: klap, klap, blok, counter. De slag is een halve treffer, de counter een hele (`STOK.schade`, `stokSchade`
+  in `hitBandiet`; de sluipaanval blijft in een klap dood). De slag loopt op tempo 0,65 (was 0,75). Vanaf slag-frame
+  `STOK.annuleer` breekt C het herstel af, zodat je na de tweede klap meteen kunt blokken. Na de reeks zet hij na
+  `reeks.naRust` (0,2 s) in, het wankelen na de eerste klap is `reeks.rust` (0,5 s), en na de gewone counter wankelt hij
+  `STOK.counterRust` (0,6 s), want Amir zit na de draaislag en het terugdraaien nog zo'n 0,85 s vast. Gemeten met een
+  robot die het ritme speelt tegen de eerste elite (5 levens): drie rondes, Amir nooit geraakt. Van de tweede klap tot
+  zijn kling op het blok zit zo'n 0,95 s, want hij moet na het terugduwtje eerst weer inlopen.
 - Een bandiet die op het blok slaat glijdt niet meer door Amir heen: zijn doorschuif stopt en hij kaatst
   `STOK.blokTerug` terug (`stokBlokGestuit`, herkend aan `stokBlok.vang`, dat `stokBlokVang` ophoogt).
 - De counter slaat ook in `hitBandiet` door zijn dekking (`doorDekking`), en `stokTreffer` (klap, stun) volgt alleen
@@ -41,9 +53,9 @@ Alleen in Test 74 (`stokken: true`) en de sandboxknop **Stokken**.
 - Staan is ontspannen, elke slag en het blok beginnen in een diepe gevechtshouding: bij elke actie springt de pose.
   Een wachthouding als stilstaan (in gevecht) zou dat gladstrijken; daar is nog geen frame voor.
 - De slag duurt 0,71 s, raakt pas na 0,19 s, en daarna 0,35 s herstel plus `rust` 0,12: bijna een halve seconde dood.
-  Een druk tijdens de slag gaat verloren (geen buffer). Voor een licht wapen is dat traag; de tweede stok doet niets.
-- Na een treffer staat de bandiet 1,15 s in dekking (`BAN_INV_T`). Een volle slagcyclus is korter, dus de tweede slag
-  wordt bijna altijd gepareerd: raak, clang, raak. Met vijf levens voelt dat als tegen een muur slaan.
+  De tweede stok doet niets. (Opgelost voor een tweede slag: de buffer, zie hierboven.)
+- Na een treffer stond de bandiet 1,15 s in dekking (`BAN_INV_T`), dus de tweede slag werd bijna altijd gepareerd:
+  raak, clang, raak. (Opgelost met de reeks, zie hierboven.)
 - De counter is gratis: elk blok dat je loslaat (vanaf frame 8) opent het venster, ook zonder gevangen klap.
 - In de draaislag vallen de raakframes (3 tot 6) voor de zichtbare draai (8 tot 14); de draai is uitloop, en met
   draaiterug sta je ruim een seconde vast.
