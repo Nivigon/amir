@@ -37,6 +37,12 @@ Alleen in Test 74 (`stokken: true`) en de sandboxknop **Stokken**.
   `stokBlokStap`, `stokBlokVang`, `stokBeeld`, `stokTreffer`.
 - De slag loopt op `atkFrame` met `atkStok` (zoals `atkCombo`), dus `steekLive`, `steekDX`, `steekY`, `steekR` en
   `steekEind` gelden vanzelf voor elke vijand.
+- De stap: onder de opzwaai van de gewone slag schuift Amir naar voren, zodat hij in de klap stapt (`STOK.stap`,
+  `stokSchuif`, `stokStapK`). 90 frame-px (zo'n derde Amir) verdeeld over slag-frames 0 tot 5, langzaam op gang en de
+  meeste vaart vlak voor de treffer op frame 6, met een wolkje stof bij de voorvoet op frame 5. Een gebufferde tweede
+  slag stapt `vervolg` (0,6) zo ver, de counter stapt niet. Niet in de lucht en niet over de rand van een ravijn
+  (`gatOp`); muren en de klif klemmen daarna zoals bij lopen. Alleen de engine: de voeten in de frames blijven staan.
+  In de sandbox de knop **Stokstap** (aan of uit) om te vergelijken.
 - Blok: C vasthouden (op een telefoon de schildknop). Vanaf blok-frame `STOK.blokOp` vangt `hurtPlayer` een klap van
   voren af (houtklap, duwtje). Projectielen met een eigen schade-ingang (bouten, de speer van de schildbandiet) vangt
   het nog niet.
