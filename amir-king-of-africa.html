@@ -22420,22 +22420,40 @@ const sets = {
 // ---- de nieuwe ren (proef): de sprint uit Grok, voorover, lange passen, twee pompende armen ----
 // Acht frames op hetzelfde canvas (594 x 301, grond 297) als de oude ren, dus de wissel is alleen een andere lijst.
 // De speer is erin gebakken (achter het lijf, door de voorste vuist); de kale set is ook de basis voor de stokken.
-// Aan in een level met nieuweRen: true (Test 75) en in de sandbox met de knop Nieuwe ren. Lui geladen.
+// Aan in een level met nieuweRen: true (Test 75) en in de sandbox met de knop Nieuwe ren, alleen tijdens de sprint. Lui geladen.
 const REN_NIEUW = {
   ns: nums(8).map(i => uniq([AMIR + 'beweging/run/nieuw/ren_ns_' + i + '.png', AMIR_GROOT + 'beweging/run/nieuw/ren_ns_' + i + '.png'])),
   sp: nums(8).map(i => uniq([AMIR + 'beweging/run/nieuw/ren_sp_' + i + '.png', AMIR_GROOT + 'beweging/run/nieuw/ren_sp_' + i + '.png'])),
   stof: { sp: [1, 5], ns: [1, 5] },  // de frames waarin een voet neerkomt
+  // Het tempo van de frames volgt zijn snelheid, zoals bij de baviaan (BAV_RUN): de voet op de grond schuift in de frames
+  // `pas` canvaspixels per frame naar achteren (gemeten), dus bij `v` wereld-px per seconde horen v / (pas * schaal)
+  // frames per seconde, en dan glijden zijn voeten niet. De nieuwe ren is een sprint met lange passen (55), de oude
+  // ren 50. Alleen met Shift (de sprint) de nieuwe ren, gewoon lopen is de oude ren; allebei op dit tempo.
+  v: 330, pas: 55, pasOud: 50, fpsMin: 6, fpsMax: 24,
   oud: { ns: sets.ns.run, sp: sets.sp.run },
   img: null
 };
 let renNieuwAan = false, sbRenNieuw = false;
 function renNieuwLaad(){ if (!REN_NIEUW.img) REN_NIEUW.img = { ns: REN_NIEUW.ns.map(loadAny), sp: REN_NIEUW.sp.map(loadAny) }; }
 function renNieuwLaadLevel(lv){ if (lv && lv.nieuweRen) renNieuwLaad(); }
+let renSprintNu = false;                           // nu de nieuwe ren in beeld (aan en sprinten)
 function renNieuwZet(aan){
   renNieuwAan = !!aan;
   if (renNieuwAan) renNieuwLaad();
-  sets.ns.run = renNieuwAan ? REN_NIEUW.img.ns : REN_NIEUW.oud.ns;
-  sets.sp.run = renNieuwAan ? REN_NIEUW.img.sp : REN_NIEUW.oud.sp;
+  renSprintNu = true; renSprintZet(false);
+}
+function renSprintZet(aan){
+  aan = !!aan && renNieuwAan && !!REN_NIEUW.img;
+  if (aan === renSprintNu) return;
+  renSprintNu = aan;
+  sets.ns.run = aan ? REN_NIEUW.img.ns : REN_NIEUW.oud.ns;
+  sets.sp.run = aan ? REN_NIEUW.img.sp : REN_NIEUW.oud.sp;
+}
+// frames per seconde bij lopen; de sprint (x 1,5) en het water doet de looplus er zelf nog overheen
+function renFpsBasis(){
+  if (!renNieuwAan) return Number(fpsEl.value);
+  const pas = renSprintNu ? REN_NIEUW.pas : REN_NIEUW.pasOud;
+  return Math.max(REN_NIEUW.fpsMin, Math.min(REN_NIEUW.fpsMax, REN_NIEUW.v / (pas * nowScale())));
 }
 // stilstaand plaatje, of het juiste frame van de idle-animatie als die er is
 function idleImg(set){
@@ -49419,6 +49437,7 @@ function loop(now){
   aanvStap(dt);                                    // de aanvoerder en de eindpoort
   updateHppotionFx(dt);
   vegDt = dt; vegTick++;
+  if (renNieuwAan) renSprintZet(sprint > 1 && dir !== 0 && !(wetNow > 0.3 || schildOp()));   // de nieuwe ren alleen in de sprint
   const set = (spear && !exeSpeerWeg()) ? sets.sp : sets.ns;   // in de executie (de steek, het knielen) zit zijn speer in de schildbandiet
   const moving = dir !== 0;
   updateSplashes(dt, wetNow, moving);
@@ -49434,9 +49453,9 @@ function loop(now){
       while (crawlAcc >= 1){ crawlFrame = (crawlFrame + 1) % crawlSet().n; crawlAcc -= 1; }
     } else {
       crawlFrame = 0; crawlAcc = 0;
-      frameAcc += dt * Number(fpsEl.value) * (wetNow > 0.3 || schildOp() ? 1 : sprint) * (1 - 0.3 * wetNow) * (houding.aan ? houdingWaarde('tempo') : 1) * Math.sqrt(schildTempo());
+      frameAcc += dt * renFpsBasis() * (wetNow > 0.3 || schildOp() ? 1 : sprint) * (1 - 0.3 * wetNow) * (houding.aan ? houdingWaarde('tempo') : 1) * Math.sqrt(schildTempo());
       const achteruit = houding.aan && dir === -facing;   // in de houding achteruit: de looppas achterstevoren
-      const stofF = (renNieuwAan ? REN_NIEUW.stof : LOOPSTOF.frames)[set === sets.sp ? 'sp' : 'ns'];
+      const stofF = (renSprintNu ? REN_NIEUW.stof : LOOPSTOF.frames)[set === sets.sp ? 'sp' : 'ns'];
       while (frameAcc >= 1){
         frame = (frame + (achteruit ? set.run.length - 1 : 1)) % set.run.length; frameAcc -= 1;
         if (amirRenStand > 0 && stofF.includes(frame)) loopStofPas(amirRenStand);   // een voet komt neer (zie loopstof)
