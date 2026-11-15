@@ -19805,7 +19805,7 @@ const STOK = {
         draaislag: [60, 42, 42, 42, 42, 42, 42, 42, 42, 42, 50, 60, 80, 100, 200],
         draaiterug: [50, 42, 42, 42, 42, 60],
         blok: [40, 33, 33, 33, 33, 33, 33, 33, 33, 33, 40, 60, 150] },
-  tempo: { slag: 0.75, draaislag: 0.85, draaiterug: 0.9, blok: 0.6, blokNeer: 0.35 },   // minder is sneller
+  tempo: { slag: 0.65, draaislag: 0.85, draaiterug: 0.9, blok: 0.6, blokNeer: 0.35 },   // minder is sneller
   actief: { slag: [6, 7, 8, 9], draaislag: [3, 4, 5, 6] },
   punt: { slag: [-110, 120], draaislag: [-150, 110] },
   reik: { slag: 40, draaislag: 55 },
@@ -19813,11 +19813,17 @@ const STOK = {
   venster: 0.7,              // seconden na het loslaten van het blok (of na een gevangen klap) dat een slag de counter is
   rust: 0.12,                // afkoeling na een slag
   // de buffer: een druk vanaf slag-frame buf telt voor de volgende slag, en die begint al op frame annuleer (de rest van
-  // het herstel valt weg), zodat twee slagen vlak na elkaar komen
+  // het herstel valt weg), zodat twee slagen vlak na elkaar komen. Vanaf annuleer breekt C (het blok) het herstel ook af
   buf: 6, annuleer: 11,
   // de reeks: na een treffer met de slag staat een bandiet even te wankelen in plaats van in dekking (geen parade, geen
-  // aanval, minder ver terug), tot de n-de treffer binnen tussen s; die geeft de gewone dekking (BAN_INV_T)
-  reeks: { n: 2, rust: 0.75, knock: 0.4, tussen: 1.1 },
+  // aanval, minder ver terug), tot de n-de treffer binnen tussen s; die geeft de gewone dekking (BAN_INV_T) en na naRust
+  // zet hij in. Het ritme: klap, klap, en dan zo'n 0,4 s om het blok op te zetten voor zijn kling landt
+  reeks: { n: 2, rust: 0.5, knock: 0.4, tussen: 1.1, naRust: 0.2 },
+  // schade per treffer op een bandiet, in levens: de slag een halve, de counter een hele (stokSchade, in hitBandiet)
+  schade: { slag: 0.5, draaislag: 1 },
+  // de gewone counter (niet de stun): zo lang wankelt hij daarna, zodat Amir uit de draai en het terugdraaien komt
+  // (samen zo'n 0,85 s na de treffer) voor zijn kling landt
+  counterRust: 0.6,
   blokTerug: 380,            // een bandiet die op het blok slaat: zijn doorschuif stopt en hij kaatst zo hard terug (wereld-px/s, s.knock)
   stun: { duur: 2, terug: 1100 },   // de counter als stun: zo lang stil, en zo hard terug (wereld-px/s, zie s.knock)
   toon: { slag: 1.25, draaislag: 0.72, blok: 1.45 },  // houtRaak: hoger is droger, lager is zwaarder
@@ -19882,7 +19888,11 @@ function stokBlokStap(dt){
   if (!stokAan()){ stokBlok.f = -1; return; }
   if (stokBlok.venster > 0) stokBlok.venster = Math.max(0, stokBlok.venster - dt);
   const B = stokBlok, n = STOK.sets.blok;
-  const houd = !!(keys['c'] || keys['C']) && onGround && !jump && !dead && hurt <= 0 && atkFrame < 0 && !rol;
+  const cVast = !!(keys['c'] || keys['C']);
+  if (cVast && atkStok === 'slag' && atkFrame >= STOK.annuleer && onGround && !dead && hurt <= 0){   // het blok breekt het herstel af
+    atkStok = null; atkFrame = -1; atkAcc = 0; atkCooldown = 0; stokBuf = false;
+  }
+  const houd = cVast && onGround && !jump && !dead && hurt <= 0 && atkFrame < 0 && !rol;
   if (houd){
     if (B.f < 0){ B.f = 0; B.acc = 0; }
     B.acc += dt * 1000;
@@ -19937,6 +19947,7 @@ function stokTreffer(s, wx, h, sx){
     } else houtRaak(STOK.toon.draaislag, 1);
     puffWorld(wx, 8, 0, 1.1, 0);
     hitstop = Math.max(hitstop, stun ? 0.16 : 0.12); shake = Math.max(shake, stun ? 0.35 : 0.25);
+    if (!stun && s && s.hp > 0) s.rust = Math.max(s.rust, STOK.counterRust);   // de gewone counter: hij wankelt even
     if (stun && s && s.hp > 0){
       s.knock = (s.x < playerX() ? -1 : 1) * STOK.stun.terug;
       s.rust = STOK.stun.duur; s.traag = 0; s.inv = 0;   // stil, en open: de volgende slag pareert hij niet
@@ -19949,11 +19960,13 @@ function stokTreffer(s, wx, h, sx){
       const R = STOK.reeks, nu = performance.now() / 1000;
       s.stokReeks = nu - (s.stokReeksT || -99) < R.tussen ? (s.stokReeks || 0) + 1 : 1; s.stokReeksT = nu;
       if (s.stokReeks < R.n){ s.inv = 0; s.rust = R.rust; s.knock *= R.knock; }
-      else s.stokReeks = 0;                          // de laatste van de reeks: de gewone dekking die hitBandiet zette
+      else { s.stokReeks = 0; s.rust = R.naRust; }   // de laatste van de reeks: de gewone dekking die hitBandiet zette
     }
   }
 }
 function stokLensTeken(){ if (stokLens.lijst) lensSpatTeken(stokLens.lijst, STOK.lens, stokLens.t, stokLens); }
+// de schade van de stokken (STOK.schade): hitBandiet trekt een heel leven af, dit geeft het verschil terug
+function stokSchade(s){ if (atkStok && steekLive()) s.hp += 1 - (STOK.schade[atkStok] ?? 1); }
 // de counter gaat door een dekking heen, zoals de derde slag
 function stokDoor(){ return atkStok === 'draaislag'; }
 
@@ -41143,7 +41156,7 @@ function hitBandiet(s){
   }
   const sneak = !s.sluipVrij && sneakKan(s);       // de sluipaanval: van achteren op wie je niet opmerkte, in een klap dood (zie "sneak")
   if (sneak){ sneakDoe(s); s.hp = 1; } else lawaaiPuls(s.x, s.base || 0, SNEAK.puls.treffer);
-  s.hp--; if (critPak()) s.hp--; fcHalf(s);       // True Flight: een crit telt als twee treffers; Crushing Circle een halve erbij
+  s.hp--; if (!sneak) stokSchade(s); if (critPak()) s.hp--; fcHalf(s);   // de stokken: de slag een halve (STOK.schade). True Flight: een crit telt als twee treffers; Crushing Circle een halve erbij
   if (s.verblind > 0){ s.hp--; s.verblind = 0; critFx(s.x, (s.base || 0) + CHAR_H * 0.6); }   // blind van het stof (STOF): deze treffer telt dubbel
   hits++; hitsEl.textContent = hits; gifRaak(s, 'bandiet');   // een gifspeer vergiftigt hem (zie "het gif")
   const terug = comboTerugNu();                    // de derde slag als terugslag: ver weg en even stil (COMBO.terug)

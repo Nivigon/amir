@@ -33,6 +33,13 @@ Alleen in Test 74 (`stokken: true`) en de sandboxknop **Stokken**.
   gewone dekking van 1,15 s (`BAN_INV_T`). Een druk vanaf slag-frame `STOK.buf` (6) staat klaar en de volgende slag
   begint al op frame `STOK.annuleer` (11), zonder de rest van het herstel (`stokBuf`, `stokBegin`). Gemeten met een
   robot die 8 s F ramt tegen de eerste elite: eerst 3 treffers, nu 5 en hij is dood.
+- Het ritme: klap, klap, blok, counter. De slag is een halve treffer, de counter een hele (`STOK.schade`, `stokSchade`
+  in `hitBandiet`; de sluipaanval blijft in een klap dood). De slag loopt op tempo 0,65 (was 0,75). Vanaf slag-frame
+  `STOK.annuleer` breekt C het herstel af, zodat je na de tweede klap meteen kunt blokken. Na de reeks zet hij na
+  `reeks.naRust` (0,2 s) in, het wankelen na de eerste klap is `reeks.rust` (0,5 s), en na de gewone counter wankelt hij
+  `STOK.counterRust` (0,6 s), want Amir zit na de draaislag en het terugdraaien nog zo'n 0,85 s vast. Gemeten met een
+  robot die het ritme speelt tegen de eerste elite (5 levens): drie rondes, Amir nooit geraakt. Van de tweede klap tot
+  zijn kling op het blok zit zo'n 0,95 s, want hij moet na het terugduwtje eerst weer inlopen.
 - Een bandiet die op het blok slaat glijdt niet meer door Amir heen: zijn doorschuif stopt en hij kaatst
   `STOK.blokTerug` terug (`stokBlokGestuit`, herkend aan `stokBlok.vang`, dat `stokBlokVang` ophoogt).
 - De counter slaat ook in `hitBandiet` door zijn dekking (`doorDekking`), en `stokTreffer` (klap, stun) volgt alleen
