@@ -254,6 +254,7 @@
   #pvphud.on{display:flex}
   #pvpscore{font-size:20px;background:rgba(0,0,0,.45);padding:4px 14px;border-radius:8px}
   #pvpbanner{font-size:34px;font-weight:700;min-height:1em}
+  #mpkijk{font-size:18px;font-weight:600;opacity:.9}
   #mpeind{display:none;margin-top:40px;background:rgba(20,12,6,.86);border:1px solid #8a6a3a;border-radius:12px;padding:18px 30px;text-align:center;font-size:19px}
   #mpeind.on{display:block}
   #mpeind p{margin:6px 0}
@@ -2767,7 +2768,7 @@
     <button id="dkstart" type="button">Start level</button></div>
   <div id="verhaal"><div id="vhtitel"></div><div id="vhtekst"></div><button id="vhstart" type="button">Start level</button></div>
   <div id="updates"><div id="updtitel">Updates</div><div id="updstand"></div><ul id="updlijst"></ul><button id="updsluit" type="button">Terug</button></div>
-  <div id="pvphud"><div id="pvpscore"></div><div id="pvpbanner"></div><div id="mpeind"></div></div>
+  <div id="pvphud"><div id="pvpscore"></div><div id="pvpbanner"></div><div id="mpkijk"></div><div id="mpeind"></div></div>
   <div id="dead"><strong>Je bent dood</strong><span>Druk op R om opnieuw te beginnen</span><button id="dvagain" type="button">Opnieuw</button></div>
   <div id="task"><span class="lbl">Opdracht</span><span class="txt"></span></div>
   <div id="turn">
@@ -63717,12 +63718,35 @@ function mpcLig(w, h, fy){
   ctx.rotate(Math.PI / 2);
   ctx.translate(-w / 2, -fy);
 }
-// de camera: wie dood is kijkt mee met de dichtstbijzijnde levende teamgenoot
+// de camera: wie dood is kijkt mee met een levende teamgenoot, of bij zijn eigen lichaam. Pijl links en rechts (ook de
+// knoppen op een telefoon) wisselen tussen 'zelf' en elke levende teamgenoot; zonder keuze (pvp.coop.kijk null) de
+// dichtstbijzijnde. Valt de gekozen teamgenoot ook, dan weer de dichtstbijzijnde; na de revive vergeten
+function mpcKijkLijst(){ return ['zelf', ...pvpAnderen().filter(p => !pvp.anders[p].g.d)]; }
+function mpcKijkNu(){
+  const C = pvp.coop, L = mpcKijkLijst();
+  if (C.kijk != null && L.includes(C.kijk)) return C.kijk;
+  let best = 'zelf', bx = null;
+  for (const p of L) if (p !== 'zelf'){ const x = pvp.anders[p].g.x; if (bx == null || Math.abs(x - world) < Math.abs(bx - world)){ bx = x; best = p; } }
+  return best;
+}
+function mpcKijkStap(){
+  const C = pvp.coop, l = !!(keys['ArrowLeft'] || keys['a'] || keys['A']), r = !!(keys['ArrowRight'] || keys['d'] || keys['D']);
+  const was = C.kijkToets || {};
+  C.kijkToets = { l, r };
+  if (!dead || C.fase === 'uit'){ C.kijk = null; return; }
+  const stap = (r && !was.r ? 1 : 0) - (l && !was.l ? 1 : 0);
+  if (!stap) return;
+  const L = mpcKijkLijst(); if (L.length < 2) return;
+  C.kijk = L[(L.indexOf(mpcKijkNu()) + stap + L.length) % L.length];
+}
+function mpcKijkNaam(p){
+  if (p === 'zelf') return 'yourself';
+  return mpBroekNaam(pvp.broek[p]) || 'your teammate';
+}
 function mpCoopCam(){
   if (!mpCoopAan() || !dead) return null;
-  let x = null;
-  for (const p of pvpAnderen()){ const g = pvp.anders[p].g; if (!g.d && (x == null || Math.abs(g.x - world) < Math.abs(x - world))) x = g.x; }
-  return x;
+  const k = mpcKijkNu();
+  return k === 'zelf' ? null : pvp.anders[k].g.x;
 }
 // leeft er nog een teamgenoot?
 function mpcIemandLeeft(){ return pvpAnderen().some(p => !pvp.anders[p].g.d); }
@@ -63761,7 +63785,10 @@ function mpCoopHud(){
   const C = pvp.coop;
   const sc = (C.ronde ? 'Round ' + C.ronde + '   ' : '') + 'Score ' + C.score + '   Gold ' + C.goud + pvpPingHud();
   if (pvpEl('pvpscore').textContent !== sc) pvpEl('pvpscore').textContent = sc;
+  mpcKijkStap();
   const wacht = dead && C.fase !== 'uit' && mpcIemandLeeft() ? 'Waiting for revive' : '';
+  const kijk = wacht && !winkelUIAan ? 'Watching ' + mpcKijkNaam(mpcKijkNu()) + '   \u2190 \u2192 to switch' : '';
+  if (pvpEl('mpkijk').textContent !== kijk) pvpEl('mpkijk').textContent = kijk;
   const b = winkelUIAan ? '' : (wacht || pvp.banner || '');   // het winkelscherm heeft zijn eigen uitleg
   if (pvpEl('pvpbanner').textContent !== b) pvpEl('pvpbanner').textContent = b;
 }
