@@ -192,7 +192,10 @@ Het blok `// ---- multiplayer: Co-op Survival ... ----` in de HTML, na de lobby.
   terug voor het beeld (`tonR`). Breekt hij, dan krijgt wie brak een knikker uit de zak (`mpcKnikker`, `buit`). De kalebas
   gaat in je zak (Q), het goud in `pvp.coop.goud` (ieder zijn eigen, in de HUD).
 - **Dood en revive:** wie dood is ligt (`mpcLig`, het plaatje plat om zijn voeten, want het spel heeft geen doodspose), het
-  dood-scherm komt niet, en de camera volgt de ander (`mpCoopCam`, in de hoofdlus vlak voor `camSwap`). Na `MPC.reviveNa`
+  dood-scherm komt niet, en de camera volgt de ander (`mpCoopCam`, in de hoofdlus de eerste keus van de camera, met `camVast`
+  uit: anders zette de meekijkende camera hem elk beeld terug op het lijk en schudde het beeld). Pijl links en rechts (ook de
+  stick op een telefoon) wisselen tussen je eigen lichaam en elke levende teamgenoot (`mpcKijkStap`, `mpcKijkNu`,
+  `pvp.coop.kijk`); zonder keuze de dichtstbijzijnde, en onder de banner staat naar wie je kijkt (`#mpkijk`). Na `MPC.reviveNa`
   zet de host een revive-ton (drie treffers, "REVIVE" erop, `mpCoopTeken`) bij de levende; breekt hij, dan valt het symbool
   (`sym`), en wie het aanraakt (`mpcSymboolStap`) laat de ander naast zich opstaan met 1 leven (`symPak`, `mpcOpstaan`).
   Allebei dood: `mpcEinde`.
@@ -284,7 +287,7 @@ middelpunt van een ster: hij heeft een verbinding per gast, een gast alleen een 
 - **De revive** (`mpcDodenStap`): per dode een eigen revive-ton (`C.reviveTon[slot]`), bij de levende speler die het dichtst
   bij zijn lijk staat, en een eigen symbool (`C.symbolen`, met `voor`). Met drie spelers staat boven het symbool de kleur van
   wie ermee opstaat. Wie niet meer dood is (of weg) verliest zijn ton en symbool. Game over pas als iedereen dood is. De camera
-  van een dode volgt de dichtstbijzijnde levende teamgenoot (`mpCoopCam`).
+  van een dode volgt de dichtstbijzijnde levende teamgenoot (`mpCoopCam`), of wie hij met de pijlen kiest.
 - **Ready en goud voor iedereen.** De winkel gaat pas dicht als iedereen Ready is (`C.wkKlaar` per slot, de banner zegt
   "1 of 2 teammates ready"), R na game over pas als iedereen R drukte (`mpCoopRematchKijk`), ronde 1 wacht tot iedere gast
   geladen is (`C.klaarVan`). Het goud van een kill en van een ronde krijgt iedereen (`mpcGoudIedereen`). Give 5 gold heeft
