@@ -1858,6 +1858,7 @@
       <div class="row">
         <label>Schild</label>
         <button id="sbrennieuw" title="De nieuwe ren (proef): de sprint uit Grok, voorover met lange passen en twee pompende armen, in plaats van de oude ren. Zie REN_NIEUW">Nieuwe ren: uit</button>
+        <button id="sbstokstap" class="on" title="Met de stokken: Amir stapt bij elke slag naar voren (STOK.stap)">Stokstap: aan</button>
         <button id="sbstokken" title="Amir vecht met twee stokken in plaats van de speer: spatie of F slaat, C vasthouden blokt (de stokken gekruist), en slaan tijdens of vlak na het blok is de draaislag (de counter). Zie STOK">Stokken: uit</button>
         <button id="sbschildamir" title="Amir krijgt een schild: houd C vast (op een telefoon de schildknop) en het gaat omhoog. Het vangt alles van voren: bouten blijven erin steken, de speer van de schildbandiet duwt je terug. Til je het net voor de klap op, dan is het de parade: een bout kaatst terug en de schildbandiet wankelt">Schild: uit</button>
         <span class="hint">Houd C vast. Net op tijd optillen is de parade</span>
@@ -19833,6 +19834,11 @@ const STOK = {
   punt: { slag: [-110, 120], draaislag: [-150, 110] },
   reik: { slag: 40, draaislag: 55 },
   blokOp: 8,                 // vanaf dit blok-frame dekken de stokken
+  // de stap: onder de opzwaai van de slag schuift Amir naar voren (stokSchuif), zodat hij in de klap stapt. px in
+  // frame-pixels (Amirs spelmaat), verdeeld over de frames tot en met tot (de treffer begint op frame 6), met deze
+  // gewichten per frame (langzaam op gang, de meeste vaart vlak voor de klap). vervolg: de maat voor een gebufferde
+  // tweede slag, zodat snel achter elkaar slaan niet over de grond schaatst. stof: op dit frame landt de voorvoet
+  stap: { aan: true, px: 90, tot: 5, w: [0.5, 0.8, 1.1, 1.3, 1.3, 1], vervolg: 0.6, stof: 5 },
   venster: 0.7,              // seconden na het loslaten van het blok (of na een gevangen klap) dat een slag de counter is
   rust: 0.12,                // afkoeling na een slag
   // de buffer: een druk vanaf slag-frame buf telt voor de volgende slag, en die begint al op frame annuleer (de rest van
@@ -19876,6 +19882,7 @@ const stokLens = { lijst: null, t: 0, x: 0, y: 0 };   // de spatten van de laats
 let STOK_AAN = false, sbStokken = false;
 let stokBank = null, atkStok = null, stokSetNu = 'staan', stokFrameNu = 0, stokSlipImg = null;   // stokSetNu: de set van het beeld dat stokBeeld gaf (voor STOK.maat), stokFrameNu het frame daarin (voor STOK.slip.punt)   // atkStok: 'slag', 'draaislag' of 'draaiterug' zolang er een loopt
 const stokBlok = { f: -1, acc: 0, venster: 0, vang: 0 };   // vang: telt elke gevangen klap (zie stokBlokGestuit)
+let stokStapK = 0;                               // de stap van de lopende slag: 1, STOK.stap.vervolg, of 0 (counter)
 let stokBuf = false;                             // er is gedrukt tijdens de slag: de volgende komt meteen (STOK.buf)   // vang: telt elke gevangen klap (zie stokBlokGestuit)  // f: het blok-frame (-1 = geen blok)
 function stokAan(){ return STOK_AAN && !!stokBank; }
 function stokMaat(set){ return STOK.schaal * (STOK.maat[set] || 1); }
@@ -19898,8 +19905,9 @@ function stokAanval(){
   if (atkFrame >= 0 || atkCooldown > 0) return;
   stokBegin(stokBlokOp() || stokBlok.venster > 0);
 }
-function stokBegin(counter){
+function stokBegin(counter, vervolg){
   stokBuf = false;
+  stokStapK = counter ? 0 : (vervolg ? STOK.stap.vervolg : 1);   // de stap hoort bij de gewone slag
   atkStok = counter ? 'draaislag' : 'slag';
   atkFrame = 0; atkAcc = 0; swingUsed = false; atkMes = false; atkCombo = false; comboBuf = false;
   stokBlok.f = -1; stokBlok.venster = 0;
@@ -19914,11 +19922,33 @@ function stokStap(dt){
     const ms = STOK.ms[atkStok][atkFrame] * STOK.tempo[atkStok];
     if (atkAcc < ms) break;
     atkAcc -= ms; atkFrame++;
-    if (atkStok === 'slag' && stokBuf && atkFrame >= STOK.annuleer){ stokBegin(false); break; }   // gebufferd: meteen de volgende
+    if (atkStok === 'slag' && atkFrame - 1 <= STOK.stap.tot) stokSchuif(atkFrame - 1);   // het frame dat net voorbij is
+    if (atkStok === 'slag' && stokBuf && atkFrame >= STOK.annuleer){ stokBegin(false, true); break; }   // gebufferd: meteen de volgende
     if (atkFrame >= STOK.ms[atkStok].length){
       if (atkStok === 'draaislag'){ atkStok = 'draaiterug'; atkFrame = 0; swingUsed = true; continue; }   // en weer terug in de stand
       atkStok = null; atkFrame = -1; atkAcc = 0; atkCooldown = STOK.rust; break;
     }
+  }
+}
+// de stap van de slag: een stukje naar voren per frame tot STOK.stap.tot, net als comboSchuif. Niet in de lucht en niet
+// over de rand van een ravijn; muren en de klif klemmen hem daarna gewoon, zoals bij lopen. Op STOK.stap.stof een
+// klein wolkje bij de voorvoet
+function stokSchuif(f){
+  const S = STOK.stap;
+  if (!S.aan || !stokStapK || !onGround) return;
+  const som = S.w.reduce((a, b) => a + b, 0);
+  const kant = facing === 1 ? 1 : -1;
+  const stap = kant * S.px * (S.w[f] || 0) / som * stokStapK * stokMaat('slag') * nowScale();
+  if (!stap || gatOp(world + stap, ph)) return;
+  if (camEase === null) camEase = world;
+  camVast = false;
+  if (camVorig !== null) camVorig += stap;
+  world += stap;
+  if (f === S.stof && !inGap(world)){
+    const voet = world + kant * 40 * nowScale();
+    for (let i = 0; i < 3; i++)
+      stofWolk(voet + (Math.random() - 0.5) * 24, Math.random() * 8, ph, kant * stofRnd(30, 110), 7 + Math.random() * 6,
+               stofRnd(0.4, 0.7), 0.45);
   }
 }
 // het blok: C vasthouden. Omhoog op de blok-frames, dan blijft hij staan; loslaten speelt ze terug en opent het venster
@@ -61747,6 +61777,11 @@ document.getElementById('sbrennieuw').onclick = e => {
   cv.focus();
 };
 // ---- de stokken: aan of uit (zie STOK) ----
+document.getElementById('sbstokstap').onclick = e => {
+  STOK.stap.aan = !STOK.stap.aan;
+  e.currentTarget.textContent = 'Stokstap: ' + (STOK.stap.aan ? 'aan' : 'uit');
+  e.currentTarget.classList.toggle('on', STOK.stap.aan);
+};
 document.getElementById('sbstokken').onclick = e => {
   sbStokken = !sbStokken; STOK_AAN = sbStokken; stokReset(); if (sbStokken) stokLaad();
   e.currentTarget.textContent = 'Stokken: ' + (sbStokken ? 'aan' : 'uit');
