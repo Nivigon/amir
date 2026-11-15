@@ -7,9 +7,10 @@ Alleen in Test 74 (`stokken: true`) en de sandboxknop **Stokken**.
 - `karakters/amir/stokken/<set>/<set>_NN.png`, sets `rennen` (8), `staan` (1), `slag` (18), `draaislag` (15),
   `draaiterug` (6), `blok` (13). Een gedeeld canvas 440 x 328, anker 256, grond 323, schaal 1 (Amirs spelschaal),
   alles kijkt naar links. `metadata.json` heeft de ms per frame.
-- De vechtsets (slag, draaislag, draaiterug, blok) kwamen uit de clips een kwart groter dan staan en rennen. Het spel
-  tekent ze daarom op `STOK.maat` 0,8 (`stokMaat`, `stokSetNu`): dan is zijn hoofd even groot als in staan en in zijn
-  gewone steek. Het hitpunt (`steekDX`, `steekY`) schaalt mee; `reik` niet.
+- De vechtsets (slag, draaislag, draaiterug, blok) zijn groter getekend dan staan en rennen. Het spel tekent ze op
+  `STOK.maat` 0,9 (`stokMaat`, `stokSetNu`): gemeten op de hoofdbreedte (0,875), de voeten (0,85) en in het spel naast
+  de speersteek (0,92). Eerst stond het op 0,8, gemeten op de hoogte van het hoofd, maar dat staat in de vechtframes
+  schuin en gaf een te kleine Amir. Het hitpunt (`steekDX`, `steekY`) schaalt mee; `reik` niet.
 - Gebakken uit de Animeer tool Amir stokken (https://claude.ai/artifact/W4e5eqpQ5PEfBRKZPzpWog): het lijf uit Grok-clips
   met groene stokken (verwijderd), de stok als item geplaatst door de opdrachtgever, en met de tool zelf samengesteld
   (dezelfde `compose`). `plaatsing.json` is de export van de tool (per frame stok_voor en stok_achter): de bron als de
