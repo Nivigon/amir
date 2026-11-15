@@ -16,6 +16,22 @@ Alleen in Test 74 (`stokken: true`) en de sandboxknop **Stokken**.
   (dezelfde `compose`). `plaatsing.json` is de export van de tool (per frame stok_voor en stok_achter): de bron als de
   stok later een losse laag wordt om om te kleuren of te upgraden.
 
+## De nieuwe stok (gebrand oker)
+- Donker hardhout met drie lichte ringen bij de slagkant en een grip van doek in gebrand oker (170,108,40), waarvan de
+  twee slippen aan de onderkant van de grip hangen. Uit Grok (`bron/stok_grok.jpg`, de grip en de slippen in egaal geel
+  #FFFF00 zodat ze om te kleuren zijn), op de lijf-frames uit de Animeer tool (`bron/lijf/`, het lijf zonder stokken).
+- `tools/stok_bak.py` bakt de speelframes: dezelfde samenstelling als de Animeer tool (`plaatsing.json`: de plek, de
+  draaiing en de maskers per frame), de grip van de nieuwe stok in de vuist waar de oude grip zat, 155 px lang (1,35 keer
+  de oude) en 1,15 keer zo dik. Opties `--kleur`, `--lengte`, `--dikte`, `--slip`; daarna `gen-klein.py` en
+  `gen-offline-manifest.py`. Het script ruimt ook de olijfgroene en paarsroze resten uit de clips op.
+- Gemeten koppeling Animeer naar spel: 41 px naar links en 26 px omlaag; de vechtsets staan in de Animeer tool gespiegeld
+  (naar rechts), en draaiterug is draaislag 13, 11, 9, 6, 3 en 1. Het canvas groeide mee met de langere stok:
+  498 x 354, anker 285, grond 349 (`STOK.W`, `H`, `ANKER`, `GROUND`).
+- De slippen zitten niet in de frames: `slip.png` hangt aan de knoop (`STOK.slip.punt`, per frame per stok x, y en of
+  die stok achter Amir valt, geschreven door `stok_bak.py`). Per stok een slinger (`stokSlipStap`, `stokSlipTeken`):
+  de knoop die over het scherm versnelt zwaait hem de andere kant op, de rijwind (`STOK.lucht`) blaast hem naar achter,
+  een vlaag (`windAt`, `STOK.wind`) neemt hem mee. Zwaarte, lengte en demping: `STOK.zwaar`, `lang`, `demp`.
+
 ## Spel
 - `STOK` (tempo, actieve frames, hitpunt en reik per slag, blok, venster, stun), `stokAanval`, `stokStap`,
   `stokBlokStap`, `stokBlokVang`, `stokBeeld`, `stokTreffer`.
@@ -59,4 +75,5 @@ Alleen in Test 74 (`stokken: true`) en de sandboxknop **Stokken**.
 - De counter is gratis: elk blok dat je loslaat (vanaf frame 8) opent het venster, ook zonder gevangen klap.
 - In de draaislag vallen de raakframes (3 tot 6) voor de zichtbare draai (8 tot 14); de draai is uitloop, en met
   draaiterug sta je ruim een seconde vast.
-- Slag-frame 6 heeft een paarsroze stok (een vlek uit de clip).
+- Slag-frame 6 had een paarsroze stok (een vlek uit de clip); met de nieuwe stok is die weg. Een paar paarsroze
+  vlekjes bij de handen (slag 13, draaiterug) zitten nog in het lijf zelf.
