@@ -828,6 +828,10 @@ na het blok, dan komt de **counter**: een draaislag met zijn rug naar je toe. Vo
 doet: **Stun and knock back** (de vijand staat 2 seconden versuft en vliegt een stuk terug) of **Normal hit**. Je staat
 tegenover drie elite-bandieten met elk vijf levens, een voor een. In de sandbox zet de knop **Stokken** het aan.
 
+In **Test 75: New run** rent Amir met de nieuwe ren: voorover, met lange passen en twee pompende armen, in plaats
+van de oude ren met de speer rechtop. Een lange vlakte om te sprinten, twee keien om over te springen en daarna twee
+bandieten; je kunt er niet dood. In de sandbox zet de knop **Nieuwe ren** het aan.
+
 ## De health-balk
 
 In een level met de health-balk hebben de meeste vijanden drie levens, met een balkje boven zijn hoofd dat bij
