@@ -827,6 +827,8 @@ In **Test 74: Sticks** vecht Amir met twee stokken in plaats van de speer, en je
 na het blok, dan komt de **counter**: een draaislag met zijn rug naar je toe. Voor het begin (en na R) kies je wat de counter
 doet: **Stun and knock back** (de vijand staat 2 seconden versuft en vliegt een stuk terug) of **Normal hit**. Je staat
 tegenover drie elite-bandieten met elk vijf levens, een voor een. In de sandbox zet de knop **Stokken** het aan.
+De stokken zijn van donker hardhout, met een grip van gebrand oker; de twee slippen van die doek hangen onder zijn vuist
+en slepen na bij een slag, waaien achter hem uit als hij rent en gaan mee met de wind.
 
 ## De health-balk
 
