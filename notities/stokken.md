@@ -4,7 +4,7 @@ Een tweede wapenset voor Amir: twee slanke stokken met een leren greep (Nguni-st
 Alleen in Test 74 (`stokken: true`) en de sandboxknop **Stokken**.
 
 ## Frames
-- `karakters/amir/stokken/<set>/<set>_NN.png`, sets `rennen` (12), `staan` (1), `slag` (18), `draaislag` (15),
+- `karakters/amir/stokken/<set>/<set>_NN.png`, sets `rennen` (12), `staan` (1), `slag` (18), `stapslag` (28), `slag2` (27), `draaislag` (15),
   `draaiterug` (6), `blok` (13). Een gedeeld canvas 440 x 328, anker 256, grond 323, schaal 1 (Amirs spelschaal),
   alles kijkt naar links. `metadata.json` heeft de ms per frame.
 - De vechtsets (slag, draaislag, draaiterug, blok) zijn groter getekend dan staan en rennen. Het spel tekent ze op
@@ -59,6 +59,20 @@ Alleen in Test 74 (`stokken: true`) en de sandboxknop **Stokken**.
   sets zijn daarvoor opgevuld en hun slip-knopen mee verschoven). Gebakken met `tools/stok_bak.py --alleen stapslag
   --canvas 511,384,298,379`. De vlekjes op de vacht zijn op de rugframes (19-27) weggehaald (Tom). Verwerking: zie het
   projectdocument `claude/animeer_tool_stokken.md`.
+- Slag 2 (16-11-2026): een tweede slag vlak na de stapslag (gebufferd vanaf positie `STOK.stapslag.buf`, begint op
+  `annuleer`) is `slag2` (27 frames, eigen set): het achterste been stapt nog een keer door, de linkerstok zakt horizontaal
+  achter zijn rug en zwaait vlak, op borsthoogte, zijwaarts voor hem langs (een hook); de rechterstok gaat omhoog als
+  dekking. Zelfde opzet als de stapslag: `STOK.slag2.seq` (16 posities, de stap om het andere frame), `STOK.ms.slag2`,
+  `root` (stokRoot schuift de wereld mee), `buf` 11, `annuleer` 14, `landt`, `stop`. De klap (posities 11-13) komt na
+  zo'n 0,19 s en hij is na 0,58 s klaar, ongeveer het tempo van de oude tweede slag (0,16 s en 0,65 s). Hij stapt wel
+  verder: zo'n 140 wereld-px tegen 74 bij de stapslag. Een gebufferde derde slag is weer de gewone `slag`. Schade een
+  halve, net als de slag; de reeks (STOK.reeks) telt hem als de tweede treffer. Sandboxknop **Slag 2** (aan of uit).
+  Herkomst: Grok-clip 4 (start = doorstap-clipframe 62, 2,4x opgeschaald) voor de doorstap, Grok-clip 5 (start = een
+  tussenframe met de stok schuin voor de borst, geen eindframe) voor de zwaai; de lijf-frames staan in
+  `bron/lijf/slag2_NN.png` en de stokken in `plaatsing.json` (uit de Animeer tool). In de frames zit een schuif van 110
+  Animeer-px naar achteren tijdens de stap, zodat de klap met de lange stok in het canvas past; die zit ook in `root`.
+  Gebakken met `tools/stok_bak.py --alleen slag2`. Hoe de Grok-prompts liepen: projectdocument
+  `claude/animeer_tool_stokken.md`.
 - Blok: C vasthouden (op een telefoon de schildknop). Vanaf blok-frame `STOK.blokOp` vangt `hurtPlayer` een klap van
   voren af (houtklap, duwtje). Projectielen met een eigen schade-ingang (bouten, de speer van de schildbandiet) vangt
   het nog niet.
