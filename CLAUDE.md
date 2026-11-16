@@ -181,6 +181,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | beeld: de grote of de kleine spriteset | `KLEIN_FAM`, `zetBron` | notities/wegwijzers.md |
 | hppotion | de drinkkalebas |  |
 | renstoot: sprinten en dan stoten | `RENSTOOT`, `glijStart`, `glijUpdate` | notities/speer.md |
+| de ren van Amir: de nieuwe ren is de standaard, de oude zit er nog in (`nieuweRen: false`), met de open punten om op terug te komen | `REN_NIEUW`, `renNieuwZet`, `renSprintZet` | notities/ren.md |
 | de rol: V of de rolknop, induiken en doorrollen, even onkwetsbaar en een korte afkoeling | `ROL`, `rolStart`, `rolUpdate` | notities/rol.md |
 | de rol-worp: F tijdens de rol, hij gooit uit de landing; Test 60 met oefendoelen en afstellen | `ROL_WORP`, `rolWorpDruk`, `rolWorpLos`, `rolDoelen` | notities/rol.md |
 | het schild van Amir: C vasthouden, vangen en de parade | `AMIR_SCHILD`, `schildVang`, `schildTeken` | notities/schild.md |
@@ -372,7 +373,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `worp` | `'schaal'` zet de schaalworp aan: de hoek loopt op zolang je vasthoudt, van vlak tot 30 graden (`THR_HOEK_MAX`); zonder dit veld de twee trappen. In de sandbox de knop Worp onder Speerworp |
 | `worpOmlaag` | `true`: pijl omlaag tijdens het spannen breekt de worp niet af maar mikt omlaag, tot 60 graden (`THR_OMLAAG`), voor een worp van een hogere laag naar beneden (alleen Test 71, zie `notities/speer.md`). In de sandbox de knop Aim down onder Speerworp; met `mikKeuze: true` kies je aan het begin en na R hoe het mikken werkt (`MIK`: streepje, zonder, vervagend, wiebel, trillen; ook de sandboxknop Aim) |
 | `stof` | `true`: stof in de ogen, gebukt F vasthouden veegt stof naar een bandiet die Amir aankijkt; even blind, de volgende treffer telt dubbel (alleen Test 63, zie `notities/kit-ideeen.md`) |
-| `nieuweRen` | `true`: de nieuwe ren (proef), uit Grok, in plaats van de oude ren bij lopen en sprinten, en het tempo van de looplus volgt de snelheid (`REN_NIEUW`, `renNieuwZet`, `renSprintZet`, `renFpsBasis`); alleen Test 75, in de sandbox de knop Nieuwe ren |
+| `nieuweRen` | de nieuwe ren (uit Grok) is de standaard in elk level, en het tempo van de looplus volgt de snelheid (`REN_NIEUW`, `renNieuwZet`, `renSprintZet`, `renFpsBasis`); `nieuweRen: false` geeft de oude ren, in de sandbox de knop Nieuwe ren (zie `notities/ren.md`) |
 | `stokken` | `true`: Amir vecht met twee stokken in plaats van de speer (zie `notities/stokken.md`); met `stokKeuze: true` kies je aan het begin en na R of de counter een stun is of een gewone treffer (alleen Test 74) |
 | `combo` | de draaislag van Full Circle (Mkuki): standaard aan in elk level, `combo: false` zet hem uit (zie `notities/combo.md`); met `comboKeuze: true` kies je aan het begin en na R Full Circle, Crushing, Wide, de oude drie steken of de duw (alleen Test 68) |
 | `schild` | `true`: Amir heeft een schild, C (of de schildknop) houdt het op; het vangt alles van voren en net op tijd is het een parade (alleen Test 56, zie `notities/schild.md`) |
