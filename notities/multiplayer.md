@@ -215,13 +215,16 @@ Het blok `// ---- multiplayer: Co-op Survival ... ----` in de HTML, na de lobby.
   `mpcEindToon`) met de beste score per keuze van vijanden in localStorage (`mpcEindSleutel`). R bij allebei: opnieuw
   (`mpCoopOpnieuw`, `cnieuw`); Escape: de lobby.
 
-### De versies van de map (avond, nacht, diepe nacht)
+### De versies van de map (dag, avond, nacht, diepe nacht)
 
-The Dye Yard heeft in Co-op drie versies (`MPC_VERSIE`): de **avond** zoals hij altijd was (`stad_avond`, geen fakkels),
+The Dye Yard heeft in Co-op vier versies (`MPC_VERSIE`): de **dag** (`stad_dag`, blauwe lucht en zon, geen fakkels), de **avond** zoals hij altijd was (`stad_avond`, geen fakkels),
 de **nacht** (`stad_nacht`) met acht fakkels, en de **diepe nacht** (`stad_diepnacht`) met dezelfde fakkels, waar het
 donker echt donker is en alleen de fakkels en de ramen er licht in snijden (`donkerGatenNa`, zie `notities/fakkel.md`).
 
-- **Kiezen:** de host kiest bij de start (`mpCoopStart`, ook na R) een willekeurige uit de drie, en aan het begin van ronde
+- **De lobby:** onder "Time of day" vinkt de host aan welke versies meedoen (`pvp.inst.coop.licht`, bewaard in `amir.mp`).
+  Standaard staan de dag, de avond en de nacht aan en de diepe nacht uit (`MPC_VERSIE.standaard`), want die is echt
+  zwaarder. De laatste die aan staat kun je niet uitvinken. Staat er maar een aan, dan wisselt de map niet.
+- **Kiezen:** de host kiest bij de start (`mpCoopStart`, ook na R) een willekeurige uit de aangevinkte (`mpcVersieKies`, `mpcVersiesAan`), en aan het begin van ronde
   4, 7, 10 enzovoort (`MPC_VERSIE.elke`, in `mpcHostStap`) een andere dan de huidige. Dat staat los van `winkelNa`.
 - **Sync:** `mpcVersieWissel` stuurt `{t: 'cv', v}` naar de gasten; ook elke `cs` draagt `v`, zodat een gast die er een
   mist hem binnen een seconde toch heeft. Een gast begint op de avond tot de host het zegt.
@@ -232,7 +235,7 @@ donker echt donker is en alleen de fakkels en de ramen er licht in snijden (`don
 - **Wisselen tijdens het spel:** alleen `level.lagen` en `level.fakkels`; alles wat van het uitzicht afhangt leest
   `sceneCfg()` per beeld of zit in een cache met de scène in de sleutel. De eerste beelden na een wissel bakken de stad
   opnieuw. De fakkelplaatjes laadt `mpCoopLaad` al vooraf, zodat er geen laadscherm komt.
-- **Geluid:** het knetteren van `fakkelGeluid` werkt ook hier; bij een wissel naar de avond dooft het uit.
+- **Geluid:** het knetteren van `fakkelGeluid` werkt ook hier; bij een wissel naar de dag of de avond dooft het uit (alleen `MPC_VERSIE.fakkel` heeft fakkels).
 - **Testen:** de proef van `tools/mptest.js` kijkt na dat iedereen dezelfde versie heeft en dat ronde 4 bij iedereen een
   andere geeft.
 

@@ -135,7 +135,7 @@ async function proef(R, L){
   // de versie van de map (MPC_VERSIE): iedereen dezelfde, met de fakkels aan de muren, en om de drie rondes een andere
   const versie = () => Promise.all(R.map(r => r.page.evaluate(() => mpcVersieNu + ':' + (level.fakkels || []).length)));
   const v0 = await versie();
-  meld(new Set(v0).size === 1 && /^(avond:0|nacht:8|donker:8)$/.test(v0[0]), 'iedereen dezelfde versie van de map (' + v0.join(' ') + ')');
+  meld(new Set(v0).size === 1 && /^(dag:0|avond:0|nacht:8|donker:8)$/.test(v0[0]), 'iedereen dezelfde versie van de map (' + v0.join(' ') + ')');
   await H.page.evaluate(() => { const C = pvp.coop; for (const q of MPC_LIJSTEN) mpcZet(q, []); C.rij = []; C.ronde = 3; C.fase = 'wacht'; C.klok = 0; });
   meld(await elk(v => mpcVersieNu !== v, v0[0].split(':')[0], 4000) === null, 'ronde 4: een andere versie van de map, bij iedereen');
   const v1 = await versie();

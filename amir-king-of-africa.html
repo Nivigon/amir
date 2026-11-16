@@ -62920,7 +62920,7 @@ function mpStandaard(){
   for (const q of MP_SOORTEN) vij[q.k] = q.var ? 'beide' : 'aan';
   return { modus: 'coop', kaart: 'dye',
            duel: { rondes: 3, levens: 3, rolKoel: true },
-           coop: { start: 1, erbij: 1, winkelNa: 3, pauze: 10, rek: 4, kalebas: 30, vij } };
+           coop: { start: 1, erbij: 1, winkelNa: 3, pauze: 10, rek: 4, kalebas: 30, vij, licht: Object.assign({}, MPC_VERSIE.standaard) } };
 }
 // de instellingen van de host, bewaard op dit apparaat; wat ontbreekt komt uit de standaard
 function mpLaadInst(){
@@ -62933,6 +62933,8 @@ function mpLaadInst(){
       const c = w.coop || {};
       for (const k of ['start', 'erbij', 'winkelNa', 'pauze', 'rek', 'kalebas']) if (typeof c[k] === 'number') st.coop[k] = c[k];
       for (const q of MP_SOORTEN) if (c.vij && typeof c.vij[q.k] === 'string') st.coop.vij[q.k] = c.vij[q.k];
+      for (const v of MPC_VERSIE.soorten) if (c.licht && typeof c.licht[v] === 'boolean') st.coop.licht[v] = c.licht[v];
+      if (!MPC_VERSIE.soorten.some(v => st.coop.licht[v])) st.coop.licht = Object.assign({}, MPC_VERSIE.standaard);
     }
   } catch (e){}
   return st;
@@ -63004,6 +63006,19 @@ function mpLobbyToon(){
     sel.value = I.coop.vij[q.k];
     sel.onchange = () => mpWijzig(() => { I.coop.vij[q.k] = sel.value; });
     lab.append(sel); raster.append(lab);
+  }
+  // het licht van de map: welke versies meedoen (om de MPC_VERSIE.elke rondes een andere); minstens een blijft aan
+  const lkop = document.createElement('p'); lkop.className = 'mpkop'; lkop.textContent = 'Time of day (changes every ' + MPC_VERSIE.elke + ' rounds)'; coop.append(lkop);
+  const lras = document.createElement('div'); lras.className = 'mpvij'; coop.append(lras);
+  if (!I.coop.licht) I.coop.licht = Object.assign({}, MPC_VERSIE.standaard);   // een gast met een oude host
+  for (const v of MPC_VERSIE.soorten){
+    const lab = document.createElement('label'); lab.className = 'mprij'; lab.append(MPC_VERSIE.namen[v]);
+    const inv = document.createElement('input'); inv.type = 'checkbox'; inv.checked = !!I.coop.licht[v];
+    inv.onchange = () => {
+      if (!inv.checked && !MPC_VERSIE.soorten.some(w => w !== v && I.coop.licht[w])){ inv.checked = true; return; }   // de laatste blijft aan
+      mpWijzig(() => { I.coop.licht[v] = inv.checked; });
+    };
+    lab.append(inv); lras.append(lab);
   }
   mpKnoppen();
 }
@@ -63554,24 +63569,33 @@ const MP_COOP_LEVEL = (() => {
 // huizen: per gevel [deel van de muur, van links naar rechts; hoogte van de voet in Amir], naast de deuren, op de
 // galerij naast de ramen en bij het balkon van het middenhuis, niet in de stegen
 const MPC_VERSIE = {
-  soorten: ['avond', 'nacht', 'donker'],
-  lagen: { avond: 'stad_avond', nacht: 'stad_nacht', donker: 'stad_diepnacht' },
+  soorten: ['dag', 'avond', 'nacht', 'donker'],
+  lagen: { dag: 'stad_dag', avond: 'stad_avond', nacht: 'stad_nacht', donker: 'stad_diepnacht' },
+  namen: { dag: 'Day (sun)', avond: 'Evening', nacht: 'Night with torches', donker: 'Deep night' },   // in de lobby
+  fakkel: ['nacht', 'donker'],                        // alleen in deze versies branden de fakkels aan de muren
+  standaard: { dag: true, avond: true, nacht: true, donker: false },   // de diepe nacht is zwaar, dus standaard uit
   elke: 3,
   fakkels: [ [[0.08, 0.55], [0.83, 2.05]],                                  // 0: rechts, laag
              [[0.06, 0.55], [0.94, 0.55], [0.18, 3.35], [0.87, 3.35]],      // 1: het hoge middenhuis
              [[0.64, 0.55], [0.21, 2.05]] ]                                 // 2: links, laag
 };
 let mpcVersieNu = 'avond', mpcFakSc = 0;
+// kiest uit de versies die de host in de lobby aan heeft staan (pvp.inst.coop.licht); staat er maar een aan, dan blijft het die
 function mpcVersieKies(behalve){
-  const l = MPC_VERSIE.soorten.filter(v => v !== behalve);
+  const aan = mpcVersiesAan(), l = aan.filter(v => v !== behalve);
+  if (!l.length) return aan[0] || 'avond';
   return l[Math.floor(Math.random() * l.length)];
+}
+function mpcVersiesAan(){
+  const L = (pvp && pvp.inst && pvp.inst.coop && pvp.inst.coop.licht) || MPC_VERSIE.standaard;
+  return MPC_VERSIE.soorten.filter(v => L[v]);
 }
 function mpcVersieZet(v){
   if (!MPC_VERSIE.lagen[v] || !level) return;
   mpcVersieNu = v; mpcFakSc = 0;
   level.lagen = MPC_VERSIE.lagen[v];
   level.fakkels = [];
-  if (v !== 'avond'){ fakkelLaad(); mpcFakkelsStap(); }
+  if (MPC_VERSIE.fakkel.includes(v)){ fakkelLaad(); mpcFakkelsStap(); }
 }
 // de host: een andere versie, en de gasten laten weten
 function mpcVersieWissel(v){
@@ -63580,7 +63604,7 @@ function mpcVersieWissel(v){
 }
 // de x van een gevel schuift mee met de schaal, dus de fakkels opnieuw zetten als die verandert
 function mpcFakkelsStap(){
-  if (mpcVersieNu === 'avond' || !level || !level.stad) return;
+  if (!MPC_VERSIE.fakkel.includes(mpcVersieNu) || !level || !level.stad) return;
   const sc = nowScale();
   if (sc === mpcFakSc) return;
   mpcFakSc = sc;
