@@ -19364,7 +19364,10 @@ function fakkelFlik(o){
 // alles van de fakkels: de schaduw, het frame, de gloed en de vonken, en het geluid van de dichtstbijzijnde.
 // Getekend na de deur (fakkelTeken), binnen de zoom-transform, met dezelfde (groundY, scale, cx) als de rest.
 function fakkelTeken(groundY, scale, cx, dt){
-  if (!level || !level.fakkels || !level.fakkels.length) return;
+  if (!level || !level.fakkels || !level.fakkels.length){
+    if (fakkelVol > 0.003) fakkelGeluid(dt, 0);       // de fakkels zijn weg (de avond in Co-op): het vuur dooft uit
+    return;
+  }
   fakkelLaad();
   fakkelKlok += dt;
   const unit = CHAR_H * scale;
@@ -19438,6 +19441,8 @@ function fakkelTeken(groundY, scale, cx, dt){
         r: unit * V.straal * uh * (0.6 + Math.random() * 0.8)
       });
     }
+    // zijn licht voor een uitzicht met gaten in het donker (donkerGatenNa)
+    if (fakkelLichten.length < 64) fakkelLichten.push({ T: ctx.getTransform(), x: coreX, y: coreY, r: spriteH, a: flik });
     // hoe dichtbij deze fakkel voor het geluid: het dichtst bij Amir telt
     nabij = Math.max(nabij, Math.max(0, 1 - Math.abs(o.x - playerX()) / FAKKEL.geluid.bereik));
   }
@@ -27555,6 +27560,50 @@ function stadNachtLamp(k, m, top, gy, scale){
   stadNachtLampen.push({ x: wx, h: (gy - cy) / scale + terrainH(k.x), sterk: n * fl });
 }
 // na de lichtlaag: de gloed van de ramen en de lampen, opgeteld bij wat er staat
+// ---- donker met gaten: alleen de fakkels en de ramen snijden door de diepe nacht ----
+// Een uitzicht met `gaten` (SCENES.stad_diepnacht) legt na de lichtlaag een multiply over de wereld: overal de kleur
+// `kleur`, behalve rond elke fakkel (fakkelLichten, uit fakkelTeken, flakkert mee) en elk brandend raam of lampje
+// (stadNachtGloed), waar het weer naar wit loopt. Daarna een zachte warme gloed om de vlam. Op een kwart van de
+// resolutie (`schaal`): het zijn alleen zachte verlopen. Moet voor stadNachtNa, die stadNachtGloed leegmaakt.
+let fakkelLichten = [], gatenDoek = null;
+function donkerGatenNa(){
+  const fak = fakkelLichten; fakkelLichten = [];
+  const D = sceneCfg().gaten;
+  if (!D) return;
+  const cw = ctx.canvas.width, ch = ctx.canvas.height, k = D.schaal;
+  const w = Math.max(1, Math.ceil(cw * k)), h = Math.max(1, Math.ceil(ch * k));
+  if (!gatenDoek) gatenDoek = document.createElement('canvas');
+  if (gatenDoek.width !== w || gatenDoek.height !== h){ gatenDoek.width = w; gatenDoek.height = h; }
+  const g = gatenDoek.getContext('2d');
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over';
+  g.fillStyle = 'rgb(' + D.kleur + ')'; g.fillRect(0, 0, w, h);
+  g.globalCompositeOperation = 'lighter';
+  const gat = (T, x, y, r, a) => {
+    const p = T.transformPoint(new DOMPoint(x, y)), R = r * Math.hypot(T.a, T.b) * k;
+    if (!(R > 0.5) || !(a > 0.01)) return;
+    const px = p.x * k, py = p.y * k;
+    if (px < -R || px > w + R || py < -R || py > h + R) return;
+    const gr = g.createRadialGradient(px, py, 0, px, py, R);
+    gr.addColorStop(0, 'rgba(255,236,206,' + a + ')'); gr.addColorStop(0.3, 'rgba(255,220,180,' + (a * 0.62) + ')');
+    gr.addColorStop(0.62, 'rgba(255,205,160,' + (a * 0.2) + ')'); gr.addColorStop(1, 'rgba(255,200,150,0)');
+    g.fillStyle = gr; g.fillRect(px - R, py - R, R * 2, R * 2);
+  };
+  for (const f of fak) gat(f.T, f.x, f.y + f.r * 0.25, f.r * D.fakkelR * (0.93 + 0.14 * f.a), 1);
+  for (const q of stadNachtGloed) gat(q.T, q.x, q.y, q.r * D.raamR, Math.min(1, q.a * 4) * D.raamA);
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalCompositeOperation = 'multiply'; ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(gatenDoek, 0, 0, cw, ch);
+  ctx.globalCompositeOperation = 'lighter';           // de warme gloed om de vlam, over het donker heen
+  for (const f of fak){
+    ctx.setTransform(f.T);
+    const R = f.r * D.warmR * (0.9 + 0.2 * f.a), cy = f.y + f.r * 0.1;
+    const gr = ctx.createRadialGradient(f.x, cy, 0, f.x, cy, R);
+    gr.addColorStop(0, 'rgba(' + D.warm + ',' + D.warmA + ')'); gr.addColorStop(1, 'rgba(' + D.warm + ',0)');
+    ctx.fillStyle = gr; ctx.fillRect(f.x - R, cy - R, R * 2, R * 2);
+  }
+  ctx.restore();
+}
 function stadNachtNa(){
   const lijst = stadNachtGloed; stadNachtGloed = [];
   stadNachtLicht = stadNachtLampen; stadNachtLampen = [];
@@ -48125,6 +48174,15 @@ const SCENES = {
                  licht: { schaduwKleur: [96,106,150], lichtKleur: [140,150,192],
                           gloedSterkte: 0.07, gloedStraal: 0.40, bodemDonker: 0.26 } }
 };
+// de diepe nacht: stad_nacht, maar donkerder, met gaten van licht rond de fakkels en de ramen (zie donkerGatenNa). Co-op
+// gebruikt hem als een van de versies van de map (MPC_VERSIE)
+SCENES.stad_diepnacht = Object.assign({}, SCENES.stad_nacht, {
+  dim: ['4,5,14', 0.42],
+  stadVerte: Object.assign({}, SCENES.stad_nacht.stadVerte, { donker: 0.32 }),
+  licht: Object.assign({}, SCENES.stad_nacht.licht, { bodemDonker: 0.34 }),
+  gaten: { kleur: '48,54,90', schaal: 0.25, fakkelR: 2.1, raamR: 0.8, raamA: 0.5,
+           warm: '255,150,70', warmA: 0.16, warmR: 1.1 }
+});
 const sceneMix = {};                     // samengestelde instellingen, een keer per soort
 function sceneCfg(){
   const key = sandbox ? (SCENES[sbLagen] ? sbLagen : 'basis')
@@ -51761,6 +51819,7 @@ function loop(now){
       ctx.restore();
     }
     drawLichtlaag();                                // de hele wereld in dezelfde belichting
+    donkerGatenNa();                                // een uitzicht met gaten: de diepe nacht met licht rond fakkels en ramen
     stadNachtNa();                                  // 's nachts: de gloed van de ramen en lampen in de stad, over de lichtlaag
     drawSnowfall(groundY, weerDak(scaleNow));       // de vlokken vallen over alles heen, maar niet in een gang of een huis
     drawWeer(groundY, weerDak(scaleNow));           // en de regen en de stormen net zo
@@ -63467,6 +63526,51 @@ const MP_COOP_LEVEL = (() => {
   lv.zwevers = [{ r: MPC_WINKEL_KAMER.r, l: MPC_WINKEL_KAMER.l, h: 900, onder: 750, look: 'hout' }];
   return lv;
 })();
+// ---- Co-op: drie versies van de map ----
+// De map is de avond (zoals hij was), de nacht met fakkels, of de diepe nacht waar alleen de fakkels en de ramen
+// licht geven (stad_diepnacht, donkerGatenNa). De host kiest bij de start een willekeurige en om de `elke` rondes
+// een andere, en stuurt hem met 'cv' (en in elke 'cs') naar de gasten. De fakkels hangen aan de muren van de drie
+// huizen: per gevel [deel van de muur, van links naar rechts; hoogte van de voet in Amir], naast de deuren, op de
+// galerij naast de ramen en bij het balkon van het middenhuis, niet in de stegen
+const MPC_VERSIE = {
+  soorten: ['avond', 'nacht', 'donker'],
+  lagen: { avond: 'stad_avond', nacht: 'stad_nacht', donker: 'stad_diepnacht' },
+  elke: 3,
+  fakkels: [ [[0.08, 0.55], [0.83, 2.05]],                                  // 0: rechts, laag
+             [[0.06, 0.55], [0.94, 0.55], [0.18, 3.35], [0.87, 3.35]],      // 1: het hoge middenhuis
+             [[0.64, 0.55], [0.21, 2.05]] ]                                 // 2: links, laag
+};
+let mpcVersieNu = 'avond', mpcFakSc = 0;
+function mpcVersieKies(behalve){
+  const l = MPC_VERSIE.soorten.filter(v => v !== behalve);
+  return l[Math.floor(Math.random() * l.length)];
+}
+function mpcVersieZet(v){
+  if (!MPC_VERSIE.lagen[v] || !level) return;
+  mpcVersieNu = v; mpcFakSc = 0;
+  level.lagen = MPC_VERSIE.lagen[v];
+  level.fakkels = [];
+  if (v !== 'avond'){ fakkelLaad(); mpcFakkelsStap(); }
+}
+// de host: een andere versie, en de gasten laten weten
+function mpcVersieWissel(v){
+  mpcVersieZet(v || mpcVersieKies(mpcVersieNu));
+  pvpZend({ t: 'cv', v: mpcVersieNu });
+}
+// de x van een gevel schuift mee met de schaal, dus de fakkels opnieuw zetten als die verandert
+function mpcFakkelsStap(){
+  if (mpcVersieNu === 'avond' || !level || !level.stad) return;
+  const sc = nowScale();
+  if (sc === mpcFakSc) return;
+  mpcFakSc = sc;
+  const l = [];
+  MPC_VERSIE.fakkels.forEach((rij, i) => {
+    const g = level.stad.gevels[i]; if (!g) return;
+    const m = stadGevelMaat(g, sc);
+    for (const [a, y] of rij) l.push({ x: Math.round(m.left + a * (m.right - m.left)), y, s: 1, f: a < 0.5 });
+  });
+  level.fakkels = l;
+}
 // de deuren waar mensen uit komen: beneden het deurgat van elk huis, op de galerij (401) een per huis, en het balkon
 const MPC_DEUREN = [
   { gevel: 0, verdieping: 0 }, { gevel: 1, verdieping: 0 }, { gevel: 2, verdieping: 0 },
@@ -63944,6 +64048,7 @@ function mpcHostStap(dt){
       C.ronde++; C.rij = mpcRonde(C.ronde); C.fase = 'golf'; C.spawnKlok = 0;
       mpcBanner('Round ' + C.ronde, 1.6);
       mpcTonNieuw();
+      if (C.ronde > 1 && (C.ronde - 1) % MPC_VERSIE.elke === 0) mpcVersieWissel();   // om de 3 rondes een andere map
     }
     return;
   }
@@ -64088,6 +64193,7 @@ function mpcIemandLeeft(){ return pvpAnderen().some(p => !pvp.anders[p].g.d); }
 // het beeld bij iedereen: de rondes (host), de deuren, de vijanden laten bijschuiven (gast) en de stand doorsturen
 function mpCoopStap(rdt, dt){
   const C = pvp.coop;
+  mpcFakkelsStap();
   if (laadWacht){                                   // nog aan het laden: alleen laten weten dat ik er nog ben (PVP.stilte)
     C.hartT = (C.hartT || 0) - rdt;
     if (C.hartT <= 0){ C.hartT = 1; pvpZend({ t: 'hb' }); }
@@ -64110,7 +64216,7 @@ function mpCoopStap(rdt, dt){
       C.zendT = 1 / (pvpRelay() ? PVP_RELAY.hz : MPC.hz);
       const alles = C.sleutelT <= 0; if (alles) C.sleutelT = MPC.sleutel;
       mpcStandZend(alles);
-      if (alles) pvpZend({ t: 'cs', r: C.ronde, s: C.score, k: C.kills, f: C.fase });
+      if (alles) pvpZend({ t: 'cs', r: C.ronde, s: C.score, k: C.kills, f: C.fase, v: mpcVersieNu });
     }
   } else mpcVolgStap(rdt);
   mpCoopHud();
@@ -64178,7 +64284,9 @@ function mpCoopOntvang(m){
     return true;
   }
   if (m.t === 'cb'){ pvpBanner(m.b, m.d); return true; }
-  if (m.t === 'cs'){ if (!pvp.host){ C.ronde = m.r; C.score = m.s; C.kills = m.k; if (m.f !== 'uit') C.fase = m.f; } return true; }
+  if (m.t === 'cs'){ if (!pvp.host){ C.ronde = m.r; C.score = m.s; C.kills = m.k; if (m.f !== 'uit') C.fase = m.f;
+                                      if (m.v && m.v !== mpcVersieNu) mpcVersieZet(m.v); } return true; }
+  if (m.t === 'cv'){ if (!pvp.host) mpcVersieZet(m.v); return true; }
   if (m.t === 'ceind'){ mpcEindToon(m.e); return true; }
   if (m.t === 'rematch'){ pvp.rematch[m.p] = true; mpCoopRematchKijk(); return true; }
   if (m.t === 'cnieuw'){ if (!pvp.host) mpCoopStart(); return true; }
@@ -64203,6 +64311,7 @@ function mpCoopLaad(){
   if (aan('zweepman')) zwmLaad();
   if (aan('kruisboog')){ krbLaad(); if (hard('kruisboog')) hyLoad(); }
   deurLaad(); tonLaad(); rekLaad();
+  fakkelLaad();                                     // de nachtversies van de map (MPC_VERSIE): al binnen voor een wissel
 }
 function mpCoopStart(){
   Object.assign(pvp, { sc: [0, 0, 0], ronde: 1, zendT: 0, anders: {}, sn: 0, wn: 0, jn: 0, laatsteAtk: -1, laatsteSw: -1,
@@ -64219,6 +64328,8 @@ function mpCoopStart(){
   sandbox = false; godMode = false;
   if (ROL.koelOud != null){ ROL.koel = ROL.koelOud; ROL.koelOud = null; }
   beginPlay('normal');
+  if (pvp.host) mpcVersieWissel(mpcVersieKies(null));   // een willekeurige versie van de map; de gast krijgt hem met 'cv'
+  else mpcVersieZet('avond');
   pvpPlaats();
   pvpEl('pvphud').classList.add('on');
   mpCoopHud();

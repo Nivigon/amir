@@ -3,6 +3,7 @@
 `MP_KAARTEN`, `MP_SOORTEN`, `mpStandaard`, `mpLobbyToon`, `mpWijzig`, `mpStart`, `mpSpelStart`, `pvpDuelStart`, `mpNaarLobby`;
 Co-op: `MPC`, `MP_COOP_LEVEL`, `mpCoopStart`, `mpCoopStap`, `mpcUpdate`, `mpcHitDoor`, `mpcStandZend`, `mpcStandLees`, `mpcHostStap`;
 de winkel: `MPC_WINKEL`, `MPC_WINKEL_KAMER`, `mpcWinkelIn`, `mpcWinkelUit`, `mpcWinkelToon`, `mpcWinkelKoop`, `mpcKlaarDruk`, `mpcGoudIedereen`, `mpcFcModus`;
+de versies van de map: `MPC_VERSIE`, `mpcVersieZet`, `mpcVersieWissel`, `mpcFakkelsStap`, `stad_diepnacht`, `donkerGatenNa`;
 drie spelers: `PVP.max`, `pvp.peers`, `pvp.spelers`, `pvp.anders`, `pvpGastErbij`, `pvpGastWeg`, `pvpZendAan`, `MP_DOOR`, `mpcDodenStap`
 
 De knop **Multiplayer** in het hoofdmenu (was PvP, de id is nog `btnpvp`, het scherm nog `menuPvp`). De verbinding is die
@@ -213,6 +214,27 @@ Het blok `// ---- multiplayer: Co-op Survival ... ----` in de HTML, na de lobby.
   plus de reeks (`mpcKill`, met "Double Kill" in beeld) en stuurt de stand mee (`cs`). Het eindscherm (`#mpeind`,
   `mpcEindToon`) met de beste score per keuze van vijanden in localStorage (`mpcEindSleutel`). R bij allebei: opnieuw
   (`mpCoopOpnieuw`, `cnieuw`); Escape: de lobby.
+
+### De versies van de map (avond, nacht, diepe nacht)
+
+The Dye Yard heeft in Co-op drie versies (`MPC_VERSIE`): de **avond** zoals hij altijd was (`stad_avond`, geen fakkels),
+de **nacht** (`stad_nacht`) met acht fakkels, en de **diepe nacht** (`stad_diepnacht`) met dezelfde fakkels, waar het
+donker echt donker is en alleen de fakkels en de ramen er licht in snijden (`donkerGatenNa`, zie `notities/fakkel.md`).
+
+- **Kiezen:** de host kiest bij de start (`mpCoopStart`, ook na R) een willekeurige uit de drie, en aan het begin van ronde
+  4, 7, 10 enzovoort (`MPC_VERSIE.elke`, in `mpcHostStap`) een andere dan de huidige. Dat staat los van `winkelNa`.
+- **Sync:** `mpcVersieWissel` stuurt `{t: 'cv', v}` naar de gasten; ook elke `cs` draagt `v`, zodat een gast die er een
+  mist hem binnen een seconde toch heeft. Een gast begint op de avond tot de host het zegt.
+- **De fakkels hangen aan de muren:** per gevel een deel van de muur (van links naar rechts) en een hoogte in Amir
+  (`MPC_VERSIE.fakkels`): naast de deuren beneden, op de galerij naast de ramen van de lage huizen en naast het balkon
+  van het middenhuis, nooit in een steeg. De x van een gevel schuift mee met de schaal (`stadGevelX`), dus
+  `mpcFakkelsStap` zet ze opnieuw uit `stadGevelMaat` als `nowScale()` verandert (elk beeld in `mpCoopStap`).
+- **Wisselen tijdens het spel:** alleen `level.lagen` en `level.fakkels`; alles wat van het uitzicht afhangt leest
+  `sceneCfg()` per beeld of zit in een cache met de scène in de sleutel. De eerste beelden na een wissel bakken de stad
+  opnieuw. De fakkelplaatjes laadt `mpCoopLaad` al vooraf, zodat er geen laadscherm komt.
+- **Geluid:** het knetteren van `fakkelGeluid` werkt ook hier; bij een wissel naar de avond dooft het uit.
+- **Testen:** de proef van `tools/mptest.js` kijkt na dat iedereen dezelfde versie heeft en dat ronde 4 bij iedereen een
+  andere geeft.
 
 ### Anders dan de afspraak
 
