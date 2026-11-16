@@ -20038,6 +20038,10 @@ const STOK = {
   reeks: { n: 2, rust: 0.5, knock: 0.7, tussen: 1.1, naRust: 0.2 },
   // schade per treffer op een bandiet, in levens: de slag een halve, de counter een hele (stokSchade, in hitBandiet)
   schade: { slag: 0.5, stapslag: 0.5, slag2: 0.5, grondklap: 1, laag: 1, draaislag: 1 },
+  // de lage slag (stokLaagSlag): alleen met de punt, op afstand, doet hij de hele schade (schade.laag); staat de bandiet
+  // dichterbij dan ver (wereld-px van Amir tot zijn midden), dan dicht. Slangen, schorpioenen en hyena's zijn in een klap
+  // dood (laagDood), wat hun levens ook zijn. Hardwood sticks telt niet mee
+  laag: { ver: 170, dicht: 0.5 },
   schadeHout: 0.75,          // met Hardwood sticks (de winkel van Co-op): de slag, de stapslag en slag 2, niet de counter
   // de gewone counter (niet de stun): zo lang wankelt hij daarna, zodat Amir uit de draai en het terugdraaien komt
   // (samen zo'n 0,85 s na de treffer) voor zijn kling landt
@@ -21047,8 +21051,14 @@ function stokSlipTeken(achter, w, h, flip){
 // de schade van de stokken (STOK.schade): hitBandiet trekt een heel leven af, dit geeft het verschil terug
 function stokSchade(s){
   if (!atkStok || !steekLive()) return;
-  s.hp += 1 - (atkStok !== 'draaislag' && stokHoutNu() ? STOK.schadeHout : (STOK.schade[atkStok] ?? 1)) * straalSchadeK()   // ontketend (STRAAL): dubbel
+  s.hp += 1 - (atkStok === 'laag' ? laagSchade(s) : atkStok !== 'draaislag' && stokHoutNu() ? STOK.schadeHout : (STOK.schade[atkStok] ?? 1)) * straalSchadeK()   // ontketend (STRAAL): dubbel
     - (straalBurst() ? stokTalentWaarde('stok_zon3', 'schade', 0) : 0);   // Sun King (stoktribe): ontketend een halve erbij
+}
+// de lage slag op een bandiet: de hele schade met de punt op afstand, anders een halve (STOK.laag)
+function laagSchade(s){ return Math.abs(s.x - playerX()) >= STOK.laag.ver ? STOK.schade.laag : STOK.laag.dicht; }
+// de lage slag op het kleine spul (slangen, fosforslangen, schorpioenen, hyena's): in een klap dood, ook met een health-balk
+function laagDood(s){
+  return atkStok === 'laag' && steekLive() && (snakes.includes(s) || fosforSlangen.includes(s) || scorps.includes(s) || hyenas.includes(s));
 }
 // Hardwood sticks uit de winkel van Co-op: van mij, of tijdens een treffer van een gast de zijne (stokHoutGast, mpcTrefferVanGast)
 let stokHoutGast = null;
@@ -24650,6 +24660,8 @@ function startAttack(){
   }
   if (gkKan()){ gkStart(); return; }             // de grondklap: met de stokken in de lucht omlaag plus aanval (GK)
   if (gkAan() && !onGround && downKey() && !gkKan() && !gkFase && (gkKoelT > 0 || straalMoe())) balkSchud('grondklap');   // nog aan het afkoelen: het vak schudt
+  // de stoktribe: omlaag is ook mediteren (STRAAL). Slaan breekt de meditatie af (ook de trance), dan is het de lage slag
+  if (stokAan() && straalTrance && !straalFase && onGround && !dead && hurt <= 0){ straalMediT = 0; straalNu = null; straalVrijZ = null; straalTrance = false; }
   if (dead || hurt > 0 || schijnLigt() || jump || amirVast() || stofA) return;
   if (stokAan() && duckT > 0){ stokLaagSlag(); return; }   // gebukt met de stokken: de lage slag naar voren (STOK.laag), ook in Multiplayer
   if (stokAan()){ stokAanval(); return; }       // de stokken: de slag, of de counter na een blok (zie STOK)
@@ -36732,6 +36744,7 @@ const HP_BALK_INV = 0.4;
 function enemyTakeHit(s){
   lawaaiPuls(s.x, s.base || 0, SNEAK.puls.treffer);   // een gevecht hoor je (zie "sneak")
   if (!s.hpBalk) return true;
+  if (laagDood(s)){ s.hp = 0; return true; }       // de lage slag met de stokken: klein spul is in een klap dood
   if (s.inv > 0) return false;
   s.hp--; if (critPak()) s.hp--; fcHalf(s);       // True Flight: een crit telt als twee treffers; Crushing Circle een halve erbij
   if (s.verblind > 0){ s.hp--; s.verblind = 0; critFx(s.x, (s.base || 0) + CHAR_H * 0.2); }   // blind van het stof (STOF): dubbel
@@ -39532,6 +39545,7 @@ function hitHyena(s){
   if (s.inv > 0 || s.state === 'dood' || s.state === 'gone') return false;
   lawaaiPuls(s.x, s.base || 0, SNEAK.puls.treffer);   // een gevecht hoor je (zie "sneak")
   s.hp--; if (critPak()) s.hp--; fcHalf(s);       // True Flight: een crit telt als twee treffers; Crushing Circle een halve erbij
+  if (laagDood(s)) s.hp = 0;                       // de lage slag met de stokken: een hyena is in een klap dood
   hits++; hitsEl.textContent = hits; gifRaak(s, 'hyena');
   if (s.hp > 0){ s.inv = HY_INV_T; s.flash = 0.3; return true; }
   s.flash = 0.25; s.fall = 0;
@@ -48564,7 +48578,7 @@ function fosforBijt(s){
 function fosforRaak(s, van){
   if (s.inv > 0 || s.state === 'dood') return;
   s.inv = 0.35;
-  s.hp--; hits++; hitsEl.textContent = hits;
+  s.hp--; if (laagDood(s)) s.hp = 0; hits++; hitsEl.textContent = hits;   // de lage slag met de stokken: in een klap dood
   shake = Math.max(shake, 0.2);
   if (s.hp <= 0){
     s.vleesDood = s.state !== 'steen';             // op het lijf: hij valt om in zijn eigen kleur

@@ -839,7 +839,9 @@ na het blok, dan komt de **counter**: een draaislag met zijn rug naar je toe. Vo
 doet: **Stun and knock back** (de vijand staat 2 seconden versuft en vliegt een stuk terug) of **Normal hit**. Je staat
 tegenover drie elite-bandieten met elk vijf levens, een voor een. In de sandbox zet de knop **Stokken** het aan.
 Gebukt slaan (omlaag vasthouden en F) is de **lage slag**: een stok blijft op de grond, de andere slaat van boven ver voor
-hem in de grond. Hij raakt een kant op en kost een lading, net als de lage zwaai met de speer.
+hem in de grond. Hij raakt een kant op en kost een lading, net als de lage zwaai met de speer. Een bandiet verliest er een heel leven door als
+je hem met de punt raakt, op afstand; staat hij dichtbij, dan een half. Slangen, schorpioenen en hyena's zijn in een klap dood.
+Mediteer je (omlaag vasthouden), dan breekt slaan de meditatie af en doe je de lage slag.
 De eerste slag is een **stapslag**: Amir stapt met zijn achterste been door naar voren en slaat van boven, en blijft
 daarna op die plek staan; sla je meteen nog eens, dan volgt **slag 2**: hij stapt nog een keer door en slaat met zijn linkerstok
 vlak en zijwaarts voor zich langs, met de andere stok omhoog als dekking (de sandboxknop **Slag 2** zet hem aan of uit). In de sandbox zet **Stapslag** hem aan of uit (uit is de
