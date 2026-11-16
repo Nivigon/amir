@@ -30,7 +30,12 @@ SW, SH = 440, 328                 # het oude canvas van het spel; het nieuwe gro
 P = 80                            # marge om het Animeer-canvas tijdens het samenstellen: de stok steekt erbuiten
 DX, DY = -41, 26                  # Animeer naar spel: anker 297 -> 256, grond 297 -> 323 (nagemeten op het lijf)
 GESPIEGELD = ('slag', 'stapslag', 'slag2', 'grondklap', 'draaislag', 'draaiterug', 'blok')   # die kijken in de Animeer tool naar rechts
-DRAAITERUG = [13, 11, 9, 6, 3, 1]  # draaiterug is draaislag achterstevoren, op deze frames (nagemeten)
+DRAAITERUG = [13, 11, 9, 6, 3, 1]
+# sets waarvan het lijf in de clip wegzakt: in de lage slag (Grok-clip 2.mp4) zakt de hele Amir midden in de slag zo'n
+# 28 px en vallen zijn voeten onder de rand van het Animeer-canvas. De stok op de grond volgde dat in de plaatsing, dus
+# die stok is de maat: per frame schuift alles (lijf, stokken, maskers) zoveel omhoog dat hij op de hoogte van frame 0
+# blijft, en waar de voeten afgesneden zijn komen de voeten van het voetframe (het laatste, waar ze heel zijn) terug
+VAST = {'laag': {'stok': 'stok_achter', 'voeten': 22}}  # draaiterug is draaislag achterstevoren, op deze frames (nagemeten)
 # de stok in stok_grok.jpg: de schacht en de slippen, in pixels van dat beeld
 STOK_BOX = (107, 517, 1643, 650)  # links, boven, rechts, onder (de onderkant snijdt de slippen eraf, de knoop blijft)
 SLIP_BOX = (1370, 650, 1590, 995)
@@ -128,9 +133,9 @@ def main():
     grip = (GRIP_X - ncx) * s
     knoop = ((KNOOP_X - ncx) * s, (STOK_BOX[3] - ncy) * s * o.dikte)
 
-    def item(L, ims, sid):
+    def item(L, ims, sid, zak=0):
         flip, deg = L.get('flip', False), L['rot']
-        oc = (L['cx'] * AW + P, L['cy'] * AH + P)
+        oc = (L['cx'] * AW + P, L['cy'] * AH + P - zak)
         g = draai((OUD_GRIP, 0), deg, flip); gp = (oc[0] + g[0], oc[1] + g[1])   # de grip blijft in de vuist
         v = draai((grip, 0), deg, flip); nc = (gp[0] - v[0], gp[1] - v[1])
         im = stok.transpose(Image.FLIP_LEFT_RIGHT) if flip else stok
@@ -151,17 +156,30 @@ def main():
         if alleen and zet not in alleen: continue
         punten[zet] = []
         os.makedirs(os.path.join(DIR, zet), exist_ok=True)
+        vast = VAST.get(zet)
+        zakVan = (lambda fr: (fr['L'][vast['stok']]['cy'] - frames[0]['L'][vast['stok']]['cy']) * AH) if vast else (lambda fr: 0)
+        voeten = None
+        if vast:                                  # de voeten, heel, op de hoogte van frame 0
+            vb = olijf_weg(Image.open(os.path.join(DIR, 'bron', 'lijf', f"{zet}_{vast['voeten']:02d}.png")).convert('RGBA'))
+            voeten = Image.new('RGBA', (AW + 2 * P, AH + 2 * P))
+            voeten.alpha_composite(vb, (P, P - round(zakVan(frames[vast['voeten']]))))
         for i, fr in enumerate(frames):
             bron = f'draaislag_{DRAAITERUG[i]:02d}' if zet == 'draaiterug' else f'{zet}_{i:02d}'
             # (de stapslag heeft root motion: STOK.root in de HTML, uit plaatsing.json 'root' per frame)
             lijf = olijf_weg(Image.open(os.path.join(DIR, 'bron', 'lijf', bron + '.png')).convert('RGBA'))
+            zak = zakVan(fr); zr = round(zak)
             delen = []
             for sid in ('stok_achter', 'stok_voor'):
                 L = fr['L'].get(sid)
-                if L and L.get('on', True): delen.append((L,) + item(L, fr.get('im'), sid))
+                if L and L.get('on', True): delen.append((L,) + item(L, fr.get('im'), sid, zak))
             bs = (fr.get('body') or {}).get('basis') or []
-            bmp = lambda p: (p[0] * AW + P, p[1] * AH + P)
-            pl = Image.new('RGBA', (AW + 2 * P, AH + 2 * P)); pl.alpha_composite(lijf, (P, P)); lijf = pl
+            bmp = lambda p: (p[0] * AW + P, p[1] * AH + P - zak)
+            pl = Image.new('RGBA', (AW + 2 * P, AH + 2 * P)); pl.alpha_composite(lijf, (P, P - zr)); lijf = pl
+            if voeten is not None and zr > 0:     # onder de snijrand (een rij erboven mee) de hele voeten
+                la, va = np.array(lijf), np.array(voeten)
+                snij = P + AH - 1 - zr - 1
+                la[snij:] = va[snij:]
+                lijf = Image.fromarray(la)
             lijf = alfa_keer(lijf, 255 - masker(bs, 'weg', bmp, AW))
             mv = masker(bs, 'voor', bmp, AW)
             uit = Image.new('RGBA', (AW + 2 * P, AH + 2 * P))
