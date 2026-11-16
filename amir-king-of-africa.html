@@ -2990,7 +2990,7 @@ const TRIBE_CONFIG = {
               doel: 'to claim a talent', geleerd: 'Claimed', klaar: 'Ready to claim', leer: 'Claim with a roar' },
       bijStart: 1,
       blokKoel: 4,             // s na het loslaten van het blok voor je weer kunt blokken (de talents halen eraf)
-      zon: { keer: 1, burst: 5, toets: 'g' },   // mediteren zonder straal: zo vaak per level, zo lang Sun Lion, op deze toets
+      zon: { keer: 1, burst: 5 },   // mediteren zonder straal (omlaag vasthouden): zo vaak per level, zo lang Sun Lion
       abilities: [
         { id: 'stok_blok1', naam: 'Quick Guard', icoon: null,   // het teken in TB_TEKEN
           tekst: 'Your block is ready again 2 seconds sooner.',
@@ -17892,7 +17892,7 @@ function bavFocusX(p){
 }
 // de entree van de bandiet-arena: Amir staat vast en kijkt toe terwijl de garde hem opmerken, tot het gevecht vrij is
 const arenaIntroVast = () => { const A = arenaAap; return !!(A && A.ban && A.fase === 'intro'); };
-const amirVast = () => !!rol || !!rolW || beetVast || bavDramaNu() || arenaIntroVast() || bruIntroVast() || !!exeVries || !!bruVries || !!poortRegie || !!sneakRegie || murFinaleVast() || murcPinBezet() || !!murcVries || straalTrance;   // de speerbeet, het drama, de arena-entree of de executie: Amir staat vast
+const amirVast = () => !!rol || !!rolW || beetVast || bavDramaNu() || arenaIntroVast() || bruIntroVast() || !!exeVries || !!bruVries || !!poortRegie || !!sneakRegie || murFinaleVast() || murcPinBezet() || !!murcVries || straalVast();   // de speerbeet, het drama, de arena-entree of de executie: Amir staat vast
 // het gevecht in de tekenlus, na de andere vijanden: raakt zijn bek Amir, en raakt Amir hem
 function bavGevecht({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, valRaakt, attacking, hitBy }){
   const b = level && level.baviaan, r = b && bavRust.get(b), g = b && bavGeo.get(b);
@@ -20577,12 +20577,13 @@ function straalReset(){
   straalWis();
   straalVrijKeer = stokZonKeer();                  // de stoktribe: zo vaak mediteren zonder straal in dit level
 }
-// ---- de stoktribe: mediteren zonder straal (G) ----
-// Wie Bhubesi met de stokken speelt, kan zonder zonnestraal mediteren: G (op de telefoon de leeuwknop) en de straal
-// daalt op hem neer (straalVrijZ, een straal die niet in straalLijst staat). Geen omlaag nodig, anders begon elke keer
-// bukken een trance. Bewegen of slaan in de eerste STRAAL.instap breekt het af, daarna zit hij vast zoals in een
-// gewone straal. Zo vaak per level als zon.keer plus Second Sun en Sun King (stokZonKeer), en de Sun Lion duurt
-// zon.burst plus Long Roar (straalBurstDuur).
+// ---- de stoktribe: mediteren zonder straal (omlaag) ----
+// Wie Bhubesi met de stokken speelt, mediteert gewoon door omlaag vast te houden en stil te zitten: geen losse ability
+// of toets. Zodra hij bukt (stil, op de grond, nog een keer over) daalt de straal op hem neer (straalVrijZ, een straal
+// die niet in straalLijst staat), loopt de meter en komt Tau langzaam op; zit hij STRAAL.medi stil, dan barst hij los.
+// Anders dan in een echte straal zit hij in deze trance niet vast: loslaten, bewegen of slaan breekt het af, en dan kost
+// het niets (zo blijft gewoon bukken en de lage zwaai mogelijk). Een treffer breekt het niet. Zo vaak per level als
+// zon.keer plus Second Sun en Sun King (stokZonKeer), en de Sun Lion duurt zon.burst plus Long Roar (straalBurstDuur).
 let straalVrijKeer = 0, straalVrijZ = null;
 function stokZonKeer(){
   const t = stokTribe(); if (!t) return 0;
@@ -20592,14 +20593,8 @@ function straalBurstDuur(){
   const t = stokTribe(); if (!t || !t.zon) return STRAAL.burst;
   return t.zon.burst + stokTalentWaarde('stok_zon2', 'duur', 0);
 }
-function stokZonToets(){ const t = stokTribe(); return t && t.zon ? t.zon.toets : null; }
-function stokZonDruk(){
-  if (!tribeStok() || !stokAan()) return false;
-  if (straalFase || straalTrance || straalMediT > 0 || straalVrijKeer <= 0 || !onGround || jump || dead || hurt > 0
-      || atkFrame >= 0 || rol || amirVast() || straalBij()){ balkSchud('zon'); return false; }
-  straalVrijZ = { x: world, h: ph, vrij: true };
-  return true;
-}
+// de vrije trance van de stoktribe zet Amir niet vast (amirVast): loslaten, bewegen of slaan breekt hem af
+function straalVast(){ return straalTrance && !(straalNu && straalNu.vrij); }
 function straalWis(){ straalVrijZ = null; straalFase = null; straalT = 0; straalMediT = 0; straalNu = null; straalMotes.length = 0; straalTrance = false; straalTranceSchade = 0; straalGolf = null; tauBrul = null; }
 function straalBurst(){ return straalFase === 'burst'; }
 function straalMoe(){ return straalFase === 'moe'; }
@@ -20625,8 +20620,11 @@ function straalUpdate(dt){
     }
   }
   if (straalTrance && dead) straalWis();
-  const z = straalTrance ? straalNu : !straalFase ? (straalBij() || straalVrijZ) : null;   // straalVrijZ: de stoktribe (G)
-  const houd = straalTrance || z && (z.vrij || downKey()) && onGround && !jump && !dead && hurt <= 0 && atkFrame < 0 && !rol
+  if (!straalFase && !straalTrance && !straalVrijZ && tribeStok() && straalVrijKeer > 0 && downKey() && !straalBij())
+    straalVrijZ = { x: world, h: ph, vrij: true };   // de stoktribe: omlaag is mediteren, de straal daalt op hem neer
+  const z = straalTrance ? straalNu : !straalFase ? (straalBij() || straalVrijZ) : null;
+  const beweegt = keys['ArrowLeft'] || keys['ArrowRight'] || keys['a'] || keys['A'] || keys['d'] || keys['D'];
+  const houd = straalTrance && (!straalNu.vrij || downKey() && !beweegt && atkFrame < 0 && !rol && !dead) || z && downKey() && onGround && !jump && !dead && hurt <= 0 && atkFrame < 0 && !rol
     && !keys['ArrowLeft'] && !keys['ArrowRight'] && !keys['a'] && !keys['A'] && !keys['d'] && !keys['D'] && !amirVast();
   if (houd){
     straalNu = z; straalMediT += dt;
@@ -20643,7 +20641,7 @@ function straalUpdate(dt){
       if (straalGeluid){ banStemSpeel(straalGeluid.burst, STRAAL.vol.burst); banStemSpeel(straalGeluid.brul, STRAAL.vol.brul); }   // en de brul van Tau
       for (let i = 0; i < 26; i++){ const a = Math.random() * Math.PI * 2; straalMotes.push({ dx: Math.cos(a) * 0.1, dh: 0.5, vx: Math.cos(a), vh: Math.sin(a), t: 0, life: 0.6, uit: true }); }
     }
-  } else { straalMediT = 0; straalNu = null; straalVrijZ = null; }   // afgebroken: de straal van G trekt weer op
+  } else { straalMediT = 0; straalNu = null; straalVrijZ = null; straalTrance = false; }   // afgebroken: de vrije straal trekt weer op
   if (straalGolf && (straalGolf.t += dt) > 0.6) straalGolf = null;
   if (tauBrul && (tauBrul.t += dt) > tauDuur()) tauBrul = null;
   for (let i = straalMotes.length - 1; i >= 0; i--){
@@ -24717,7 +24715,6 @@ addEventListener('keydown', e => {
   if ((e.key === 't' || e.key === 'T') && (sandbox || (level && level.rolWorpProef))){ if (!e.repeat) rolDoelZet(); return; }   // een oefendoel neerzetten
   if (sandbox && (e.key === 'j' || e.key === 'J')){ if (!e.repeat) bavAfzetWissel(); return; }   // de afzet van de baviaan
   if (sandbox && (e.key === 'k' || e.key === 'K')){ if (!e.repeat) bavSchudNu(); return; }   // het hoofdschudden meteen
-  if (stokZonToets() && e.key.toLowerCase() === stokZonToets()){ if (!e.repeat) stokZonDruk(); return; }   // de stoktribe: mediteren (G)
   if (e.key.toLowerCase() === woedeWaarde('toets')){ if (!e.repeat) woedeStart(); return; }   // de woede van Bhubesi
   if (e.key === 'r' || e.key === 'R'){ opnieuw(); return; }
   if (e.key === 'h' || e.key === 'H'){ showBoxes = !showBoxes; setBoxLabel(); return; }
@@ -54946,7 +54943,7 @@ const BALK = [
       const aan = woedeT > 0;
       return { zien: heeftWoede(), klaar: true, p: 1, vul: RUN.woede, aan: aan || RUN.woede >= 1, sec: aan ? woedeT : 0, dim: !aan && RUN.woede < 1 };
     } },
-  { id: 'zon', toets: () => String(stokZonToets() || 'g').toUpperCase(), icoon: () => BALK_SVG.zon, staat(){   // de stoktribe: mediteren zonder straal (stokZonDruk)
+  { id: 'zon', toets: '\u2193', icoon: () => BALK_SVG.zon, staat(){   // de stoktribe: mediteren zonder straal (omlaag vasthouden)
       const b = straalBurst(), m = straalMoe();
       const p = b ? straalT / straalBurstDuur() : m ? 1 - straalT / STRAAL.moe : straalMediT > 0 ? straalMediT / STRAAL.medi : 1;
       return { zien: tribeStok() && STOK_AAN, klaar: !straalFase && straalVrijKeer > 0, p, tel: straalVrijKeer, aan: b || straalMediT > 0,
@@ -65750,13 +65747,13 @@ const TOUCH_BTNS = [
 function btnVisible(b){
   if (b.when === 'never') return false;            // gereserveerd voor een spell
   if (b.when === 'pickup') return eNodig();        // alleen als er iets met E te doen is: speer, deur, skelet
-  if (b.when === 'woede') return heeftWoede() || (tribeStok() && STOK_AAN);   // de stoktribe: de leeuwknop is mediteren
+  if (b.when === 'woede') return heeftWoede();   // de stoktribe mediteert met omlaag, zonder leeuwknop
   if (b.when === 'rol') return ROL.aan;
   if (b.when === 'schild') return SCHILD_AAN || STOK_AAN;      // alleen met een schild, of met de stokken (daar blokt hij, zie STOK)     // alleen met de woedemeter (Long Breath of Blood Rush)
   return true;
 }
 function btnDim(b){                                // lege drinkknop staat er wat flauwer bij
-  if (b.id === 'woede') return tribeStok() ? !!straalFase || straalVrijKeer <= 0 : RUN.woede < 1 && !woedeAan();   // en de woedeknop zolang hij niet vol is
+  if (b.id === 'woede') return RUN.woede < 1 && !woedeAan();   // en de woedeknop zolang hij niet vol is
   if (b.id === 'rol') return rolKlaar() < 1;     // de rolknop koelt af
   return b.id === 'drink' ? hppotionCarry === 0 : !!b.dim;
 }
@@ -65839,7 +65836,7 @@ function pressBtn(id){
   else if (b.act === 'attack'){ if (!atkKeyHeld){ atkKeyHeld = true; thrPress(); } }   // net als spatie: vasthouden is spannen
   else if (b.act === 'spear') eDruk();                                 // net als E, dus ook door de deur
   else if (b.act === 'drink') drinkHppotion();                         // net als Q
-  else if (b.act === 'woede'){ if (tribeStok()) stokZonDruk(); else woedeStart(); }
+  else if (b.act === 'woede') woedeStart();
   else if (b.act === 'rol') rolStart();                                // net als V
   else if (b.act === 'schild') setTKey('c', true);                     // net als C: vasthouden                            // net als G
 }

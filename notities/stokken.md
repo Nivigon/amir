@@ -250,7 +250,7 @@ zonneschijf in de lucht), `straalUpdate`, `straalTeken`, `straalAmirTeken`, `str
   verduistering (`straalDimNa`), zodat hij in het donker licht geeft, met een zachte gloed. De frames (`karakters/amir/tau/`)
   komen uit de Grok-clip `bron/tau_brul.mp4` via `tools/tau_leeuw.py`; een andere kleur is `KLEUR` in dat script.
   Bij de brul klinkt `sounds/tau_brul.mp3` (ElevenLabs, `straalGeluid.brul`, `STRAAL.vol.brul`), naast het geluid van het
-  losbarsten. Het werkt net zo bij mediteren zonder straal (G, de stoktribe): dezelfde trance en hetzelfde losbarsten.
+  losbarsten. Het werkt net zo bij mediteren zonder straal (omlaag, de stoktribe): dezelfde trance en hetzelfde losbarsten.
 - Twee kandidaat-talents, voorlopig alleen sandboxknoppen (`STRAAL.talent`, `sbzonterug`, `sbzonbarst`), nog niet in een boom:
   **Trance: schade terug** (`STRAAL.terug`, de helft van de trance-schade komt terug bij het losbarsten, tot het maximum) en
   **Trance: uitbarsting** (`STRAAL.uitbarst`: alles binnen 3,2 Amir op zijn hoogte vliegt weg en is even traag, zoals na de
@@ -287,11 +287,13 @@ en nieuwe talents.
 - De grondklap: `GK.schade.licht` (0,5) vast, ook als `duoKeuze.gkSchade` anders staat; Heavy Slam `schade` 0,5 erbij en
   `knock` 1,25, Crushing Slam `knock` 1,2 (samen 1,5) en `traagK` 0,9 (`gkRaak.traagK`, `s.gkTraagK`, `s.traagK`: het
   tempo van de bandiet zolang hij traag is maal dit; alleen de bandiet kent `traag`).
-- Mediteren zonder straal (`stokZonDruk`, G of de leeuwknop, `stokZonToets`): `straalVrijZ` is een straal op de plek van
-  Amir die niet in `straalLijst` staat; geen omlaag nodig (anders begon elk bukken een trance). Bewegen of slaan voor
-  `STRAAL.instap` breekt het af (`straalVrijZ` weer null). `straalVrijKeer` (gezet in `straalReset`, `stokZonKeer`: `zon.keer`
+- Mediteren zonder straal (16-11-2026, op verzoek geen losse ability meer, geen G en geen leeuwknop): omlaag vasthouden
+  is het begin. Zodra hij stil op de grond bukt zet `straalUpdate` `straalVrijZ`, een straal op de plek van Amir die niet
+  in `straalLijst` staat; de meter loopt en Tau komt op. Deze vrije trance zet hem niet vast (`straalVast` in `amirVast`):
+  loslaten, bewegen of slaan breekt hem af en kost niets, zodat gewoon bukken, kruipen en de lage zwaai blijven werken.
+  Een treffer breekt hem niet (half schade, zoals in de trance). `straalVrijKeer` (gezet in `straalReset`, `stokZonKeer`: `zon.keer`
   plus Second Sun en Sun King) gaat eraf bij het losbarsten. De duur is `straalBurstDuur()` (`zon.burst` 5 plus Long Roar 2).
-  Vak `zon` in de actiebalk met de teller; op de telefoon wordt de leeuwknop van de woede de meditatieknop. Een straal in het
+  Vak `zon` in de actiebalk met de teller en de meter (toets ↓); op de telefoon geen leeuwknop, het bukken is de knop. Een straal in het
   level (`zonnestralen`) werkt daarnaast gewoon, met omlaag en zonder dat het een keer kost.
 - Ontketend geen dubbele schade voor de stoktribe (`straalSchadeK`); Sun King geeft een halve erbij op een stokslag
   (`stokSchade`, dus op de bandiet; een slag op een andere soort is al een hele) en `stokDoor()` laat dan elke slag door
