@@ -828,7 +828,8 @@ na het blok, dan komt de **counter**: een draaislag met zijn rug naar je toe. Vo
 doet: **Stun and knock back** (de vijand staat 2 seconden versuft en vliegt een stuk terug) of **Normal hit**. Je staat
 tegenover drie elite-bandieten met elk vijf levens, een voor een. In de sandbox zet de knop **Stokken** het aan.
 De eerste slag is een **stapslag**: Amir stapt met zijn achterste been door naar voren en slaat van boven, en blijft
-daarna op die plek staan; sla je meteen nog eens, dan volgt een snelle tweede slag op de plek. In de sandbox zet **Stapslag** hem aan of uit (uit is de
+daarna op die plek staan; sla je meteen nog eens, dan volgt **slag 2**: hij stapt nog een keer door en slaat met zijn linkerstok
+vlak en zijwaarts voor zich langs, met de andere stok omhoog als dekking (de sandboxknop **Slag 2** zet hem aan of uit). In de sandbox zet **Stapslag** hem aan of uit (uit is de
 gewone slag).
 De stokken zijn van donker hardhout, met een grip van gebrand oker; de twee slippen van die doek hangen onder zijn vuist
 en slepen na bij een slag, waaien achter hem uit als hij rent en gaan mee met de wind.
