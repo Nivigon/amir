@@ -9,7 +9,7 @@ laatste vijf updates, rechtstreeks van GitHub, met bij elke of hij al in jouw ve
 
 ## Episodes
 
-In het menu onder **Levels** staan drie knoppen: **Episodes** (met onder meer **The Roofs of Kumbasa**, De Rivierstad en De Gouden Poort), de **Test levels** en **Baboon tests**. De episodes De Poorten, De Honingjacht, De Hoge Schijven, De Klim en De Diepte zijn eruit, net als eerder De Jagers, Testrun, De Runen, De Vorst, Renew en Winter World; wat ze gebruikten (de uitzichten, de nachtmuziek, de winteruitrusting, de witte panter, zegels, runes en de poort in de rots) zit nog in het spel. De Valse Koning, die er veel van gebruikte, is inmiddels ook weg; de poort in de rots zelf staat nog in Test 3 en Test 7. In **Test 47** liggen zes zegels verstopt onder het zand, heel licht zichtbaar als een gleuf, elk onder een rode pijl: buk en sla het zand eraf met de lage zwaai. Het beeld staat even stil, een stofwolk bolt op (drie trage en drie snelle, van klein naar groot), en als hij optrekt loopt het licht door het teken met een ring over de grond; daarna werkt het zegel. In de sandbox staan ze onder **Verstopt zegel**, **Veeg** en **Wolk**. De traag-middel-wolk is nu de standaard voor elk verstopt zegel. In de nieuwe Maker (nieuwe stijl) kies je bij een zegel onder **Te zien** voor **Verborgen (onder het zand)**: dan ligt het in de test onder het zand en gaat het pas aan als je eerst de lage zwaai erop hebt gedaan, ook zonder masker. Of je kiest **Onzichtbaar (tot je erop stapt)**: dan is er helemaal niets van te zien, geen gleuf en geen ring, tot je erop stapt. Dan gaat hij meteen aan, klinkt het geluid van ontdekken en komt het zegel gloeiend in beeld ("Een onzichtbaar zegel!"); daarna is het een gewoon zegel. In de sandbox staat het onder **Onzichtbaar zegel**. Het zand heeft de kleur van de vloer: savanne, het schemerige zand in een gang, de zwarte vloer, sneeuw of rots; op zwart is de gleuf extra verstopt, op rots iets beter te zien. In de sandbox kies je dat onder **Vloer**.
+In het menu onder **Levels** staan vier knoppen: **Episodes** (met onder meer **The Roofs of Kumbasa**, De Rivierstad en De Gouden Poort), de **Test levels**, **Test levels sticks** (alle proefstukken met de stokken bij elkaar, zonder tribekeuze, net als de Test levels) en **Baboon tests**. De episodes De Poorten, De Honingjacht, De Hoge Schijven, De Klim en De Diepte zijn eruit, net als eerder De Jagers, Testrun, De Runen, De Vorst, Renew en Winter World; wat ze gebruikten (de uitzichten, de nachtmuziek, de winteruitrusting, de witte panter, zegels, runes en de poort in de rots) zit nog in het spel. De Valse Koning, die er veel van gebruikte, is inmiddels ook weg; de poort in de rots zelf staat nog in Test 3 en Test 7. In **Test 47** liggen zes zegels verstopt onder het zand, heel licht zichtbaar als een gleuf, elk onder een rode pijl: buk en sla het zand eraf met de lage zwaai. Het beeld staat even stil, een stofwolk bolt op (drie trage en drie snelle, van klein naar groot), en als hij optrekt loopt het licht door het teken met een ring over de grond; daarna werkt het zegel. In de sandbox staan ze onder **Verstopt zegel**, **Veeg** en **Wolk**. De traag-middel-wolk is nu de standaard voor elk verstopt zegel. In de nieuwe Maker (nieuwe stijl) kies je bij een zegel onder **Te zien** voor **Verborgen (onder het zand)**: dan ligt het in de test onder het zand en gaat het pas aan als je eerst de lage zwaai erop hebt gedaan, ook zonder masker. Of je kiest **Onzichtbaar (tot je erop stapt)**: dan is er helemaal niets van te zien, geen gleuf en geen ring, tot je erop stapt. Dan gaat hij meteen aan, klinkt het geluid van ontdekken en komt het zegel gloeiend in beeld ("Een onzichtbaar zegel!"); daarna is het een gewoon zegel. In de sandbox staat het onder **Onzichtbaar zegel**. Het zand heeft de kleur van de vloer: savanne, het schemerige zand in een gang, de zwarte vloer, sneeuw of rots; op zwart is de gleuf extra verstopt, op rots iets beter te zien. In de sandbox kies je dat onder **Vloer**.
 
 **The Roofs of Kumbasa** vervangt De Valse Koning: acht stadslevels, van makkelijk tot extreem, in Kumbasa, de stad van de ververs. Je vecht alleen tegen mensen en hyena's, met twee aanvoerders in hun eigen kleur (Sefu de wever, en Zuri de verfmeester die als een schaduw beweegt) en aan het eind Nyundo, ingesmeerd met indigo, op het plein. Kijk omhoog: in bijna elk level ligt een kist op een plek die je alleen haalt met de volle sprong en een doek om op te veren (een doekkraam, de springdoek aan de muur, de trampoline-luifels in een steeg), of met de takel, en op het hoogste dak van level 2 ligt de munt van de koning. Er zijn winkels in level 1 en 3 (in level 6 niet meer: wat je daar wilt hebben, koop je vooraf), wapenrekken waar je met E een speer uit pakt (level 1, 3 en 6), watervallen met bruggen, een fontein, een raster van straten met een minimap (level 5) en een open deur hoog in een toren als uitgang (level 7). Je begint met de tribekeuze, er is een verhaal, goud gaat mee van level naar level, en er is een **Nightmare**.
 
@@ -824,7 +824,10 @@ In **Test 73: Trousers** kies je voor het begin de kleur van Amirs broek: Fire r
 Daarna sta je tegenover drie verschillende tegenstanders: een bandiet, een schildbandiet en een zweepman. De keuze blijft
 bewaard, en via het pauzemenu kies je opnieuw.
 
-In **Test 74: Sticks** vecht Amir met twee stokken in plaats van de speer, en je kunt er niet dood. Spatie of F slaat,
+De proefstukken met de stokken staan onder **Test levels sticks**. Voor het begin (en na R) kies je daar bij **Amir** of je
+levens hebt (**Lives**) of niet dood kunt (**Invulnerable**).
+
+In **Test 74: Sticks** vecht Amir met twee stokken in plaats van de speer. Spatie of F slaat,
 **C** vasthouden blokt (de stokken gekruist voor zijn gezicht): een klap van voren kaatst af. Sla je terwijl je blokt of vlak
 na het blok, dan komt de **counter**: een draaislag met zijn rug naar je toe. Voor het begin (en na R) kies je wat de counter
 doet: **Stun and knock back** (de vijand staat 2 seconden versuft en vliegt een stuk terug) of **Normal hit**. Je staat
@@ -841,10 +844,19 @@ lucht. Hij hangt even in de opzwaai, valt dan snel en slaat bij de landing beide
 hem staat krijgt een halve treffer extra en vliegt verder weg; dan rolt een golf door de vloer naar voren, de kant op waar hij
 kijkt (achter hem raakt hij niets, anders dan de lage zwaai), met een bult in de grond, een muur van stof en opspringende
 steentjes. Wie de golf raakt wordt teruggeduwd en wankelt even, zodat jij weer in beweging kunt komen; slangen en schorpioenen
-wippen omhoog. Een trede of terras houdt de golf tegen. Hij werkt pas vanaf een halve Amir boven de grond, en daarna is er een
-seconde afkoeling. Voor het begin (en na R) kies je hoe ver de golf rolt (**Short**, **Medium**, **Long**) en hoeveel schade hij
+wippen omhoog. Een trede of terras houdt de golf tegen. Hij werkt pas vanaf een halve Amir boven de grond, en daarna is er
+8 seconden afkoeling. Voor het begin (en na R) kies je hoe ver de golf rolt (**Short**, **Medium**, **Long**) en hoeveel schade hij
 doet (**0.5**, **1** of **1.5** per treffer). Keien en twee plateaus om vanaf te springen, met onder elke rand een groepje
-vijanden; je kunt er niet dood. In de sandbox zet de knop **Grondklap** hem aan (met **Stokken** aan).
+vijanden. In de sandbox zet de knop **Grondklap** hem aan (met **Stokken** aan).
+
+In **Test 77: Sun ray** vallen bundels zonlicht in de straten van de stad. Sta met de stokken in zo'n straal en houd **omlaag**
+3 seconden vast: Amir mediteert, het licht trekt naar hem toe (een treffer, bewegen of loslaten breekt het af). Dan is hij
+6 seconden de **Sun Lion**: een gouden gloed en een ring boven zijn hoofd die leegloopt. Hij kan dan niet blokken (dus ook niet
+counteren), elke treffer telt dubbel, hij is sneller, springt in een keer op een galerij, en heeft twee grondklappen los van de
+afkoeling. Daarna is hij een paar seconden **Tired**: geen grondklap, en trager lopen, springen, rollen, slaan en blokken.
+Daarna kan het in elke straal opnieuw. Het level: een straal om te proberen, een lange galerij zonder trap of kraam (alleen de
+Sun Lion komt erop), een pleintje met drie bandieten en een elite met een bandiet erachter. In de sandbox zet de knop
+**Zonnestraal** een straal voor Amir neer, en **Zonnestralen weg** haalt ze weer weg.
 
 Amir rent in elk level met de nieuwe ren: licht voorover, met lange passen, de speer rechtop in zijn hand, bij
 lopen en sprinten. In **Test 75: New run** kun je hem goed bekijken. Het tempo van zijn benen volgt zijn snelheid, zodat zijn voeten niet glijden. Een lange vlakte om te sprinten, twee keien om over te springen en daarna twee

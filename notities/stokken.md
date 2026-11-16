@@ -186,3 +186,35 @@ Met de stokken in de lucht omlaag plus aanval (`GK`, `gkKan`, `gkStart`, `gkLuch
   geluid mee: grotere en hogere wolken (`GK.stofMaat`, en de hoogte van de kam en de pluim in `gkGolfStof`/`gkPluim`) en
   een zwaardere dreun (`GK.vol`, langer beven, meer schok en freeze). Een idee om erbij te nemen: hetzelfde laten
   meeschalen met hoe diep Amir valt voor de klap (een hupje 80%, van een terras tot 150%, niet verder).
+
+
+## De zonnestraal (16-11-2026, Test 77)
+
+Mediteren in een bundel zonlicht en dan even ontketend: de Sun Lion. Alleen met de stokken. `STRAAL` (de naam `ZON` is de
+zonneschijf in de lucht), `straalUpdate`, `straalTeken`, `straalAmirTeken`, `straalBij`.
+- Een level zet stralen met `zonnestralen: [{x, h}]` (`h` voor een straal op een galerij of dak, zonder op de grond); in de
+  sandbox zet **Zonnestraal** er een anderhalve Amir voor Amir neer, **Zonnestralen weg** haalt ze weg.
+- Mediteren: met zijn midden in de straal (`STRAAL.breed`), op de grond, stil (geen links of rechts), omlaag vasthouden,
+  `STRAAL.medi` (3 s). Een treffer, een aanval, bewegen of loslaten zet het op nul. Stofjes trekken naar hem toe
+  (`straalMotes`) en een ring boven zijn hoofd loopt vol. Het beeld is voorlopig het gewone bukken.
+- Ontketend (`straalBurst`, `STRAAL.burst` 6 s, geluid `zegelontdek`): geen blok (in `stokBlokStap`, dus ook geen counter),
+  `STRAAL.schade` 2 op elke stokslag (`stokSchade`) en de grondklap (`gkSchadeOp`), lopen maal `STRAAL.loop` 1,35, opsprong
+  maal `STRAAL.sprong` 1,48 (in `takeOff` en de afzet in `updateJump`; de hoogte wordt 444, de galerij ligt op 401, gemeten),
+  en `STRAAL.klappen` (2) grondklappen los van de afkoeling (`straalKlappen`, `gkZon`: zo'n klap zet `gkKoelT` niet), op het
+  lange bereik. Gouden gloed om zijn rand (de truc van de woede, `straalGloed`), en SUN LION met de ring die leegloopt.
+- Uitgeput (`straalMoe`, `STRAAL.moe` 3 s, geluid `brutus_adem`): geen grondklap (`gkKan`), lopen maal `moeLoop`, opsprong
+  maal `moeSprong`, de rol maal `moeRol`, een slag `moeSlag` keer zo traag en het blok `moeBlok` keer zo traag. TIRED met een
+  grijze ring. Daarna kan het in elke straal opnieuw; een gebruikte straal is zwakker zolang het loopt.
+- De grondklap heeft nu altijd `GK.koel` 8 s afkoeling (was 1 s), ook in Test 76.
+- Test 77 (stad bij dag): een straal om te proberen, een lange galerij op 401 zonder kraam, trap of lift (alleen ontketend
+  kom je erop, met een bandiet en een kalebas boven), een pleintje met drie bandieten en een straal in het midden, en een
+  elite met vijf levens met een bandiet erachter.
+- De dubbele schade geldt voor de bandieten (`hitBandiet`) en voor alles wat de grondklap raakt; een stokslag op een andere
+  soort telt nog gewoon.
+
+## Test levels sticks
+
+Alle stoklevels staan in een eigen reeks, `STOK_LEVELS` (Test 74, 76 en 77), met een knop onder Levels (`btnStok`,
+`menuStok`, `cardsStok`). Net als de Test levels zonder tribekeuze en met alle abilities (`testReeks`). Elk heeft
+`onstKeuze`: aan het begin en na R kies je **Lives** of **Invulnerable** (`duoKeuze.onst`, in `onsterfelijk()`); dat kwam
+in de plaats van de vaste `onsterfelijk: true` van Test 74 en 76.
