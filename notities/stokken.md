@@ -203,6 +203,22 @@ Met de stokken in de lucht omlaag plus aanval (`GK`, `gkKan`, `gkStart`, `gkLuch
   meeschalen met hoe diep Amir valt voor de klap (een hupje 80%, van een terras tot 150%, niet verder).
 
 
+## De lage slag (16-11-2026)
+
+Gebukt (omlaag) plus aanval met de stokken, in elk level met stokken en in Multiplayer (`stokLaag`, set `laag`). Een hand
+blijft met de stok op de grond, de andere slaat van boven naar voren omlaag tot de punt ver voor hem de grond raakt. Een
+kant op en een vijand (de punt, `STOK.punt.laag`, `reik.laag`), anders dan de lage zwaai van de speer die naar beide kanten
+alles laag raakt. Hij kost een lading van de lage zwaai (`swLading`, het vak in de actiebalk), schade 1 (`STOK.schade.laag`),
+en tijdens de slag blijft hij gebukt staan (zoals de zwaai).
+- Frames: 23, uit Grok-clip 2.mp4 (begin de bukpose, eind de klap, zie `claude/lage_slag_stokken.md` in het project):
+  clipframes 0, 10-24 per 2, 34 (de tell), 54-87 per 3 en 89 (de klap). Lijf in `bron/lijf/laag_NN.png` (niet gespiegeld,
+  hij kijkt naar links zoals bukken), de stokken in `plaatsing.json` (startplaatsing uit het groen; in de laatste frames
+  vlakker gedraaid rond de vuist zodat de spelstok van 155 px de grond raakt en er niet door gaat). Gebakken met
+  `tools/stok_bak.py --alleen laag`, maat 1 (gelijk aan het bukken).
+- Tempo `STOK.ms.laag`: de arm omhoog (0,2 s), de tell (0,11 s), de slag (0,24 s), de klap op positie 20-22 (zo'n 0,55 s na
+  de druk), dan 0,26 s vast. Actief `STOK.actief.laag` 20-22.
+- Proefrit: `tools/laag_test.js [map]` (een slang voor hem, bukken, slaan, schermafdrukken).
+
 ## De zonnestraal (16-11-2026, Test 77)
 
 Mediteren in een bundel zonlicht en dan even ontketend: de Sun Lion. Alleen met de stokken. `STRAAL` (de naam `ZON` is de

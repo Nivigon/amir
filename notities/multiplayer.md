@@ -108,8 +108,9 @@ de broek: per speler, bewaard op het apparaat (`amir.mpwapen`), `{t: 'wapen', w}
 gast krijgt de keuzes in `pvpGastErbij`). Met de stokken start het potje (Co-op en Duel) als een level met stokken: `mpWapenLevel`
 zet `stokken`, `geenSpeer` en `rugMax: 0` in de kopie van het level, dus geen speer, geen rug en geen worp. Het voorbeeld naast
 de lobby staat dan in het staande stokframe.
-- **De lage zwaai:** gebukt slaan is in Multiplayer de lage zwaai van de speer (`startAttack`, alleen met `pvp`), met de
-  speerbeelden. Afspraak met de opdrachtgever: voorlopig, tot er een zwaai met de stokken is.
+- **De lage slag (16-11-2026):** gebukt slaan is met de stokken de lage slag (`stokLaag`, zie "De lage slag" in
+  `notities/stokken.md`), in plaats van de lage zwaai van de speer die hier eerst tijdelijk zat. Hij loopt op `atkStok`
+  en `atkFrame`, dus de andere Amir, de treffers van de gast (`mh`) en Duel (`ss`, `STOK.punt`) werken zoals bij de slag.
 - **De counter** is in Multiplayer altijd de stun (`stokTreffer`), zodat het op elke laptop hetzelfde is.
 - **Co-op, een treffer van de gast:** de gast stuurt in `mh` zijn slag mee (`st` de set, `sf` het frame, `co` Full Circle,
   `hw` Hardwood); `mpcTrefferVanGast` zet die tijdens de treffer in `atkStok`, `atkFrame` en `atkCombo` (en `stokHoutGast`),
