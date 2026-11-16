@@ -20081,6 +20081,7 @@ function stokTreffer(s, wx, h, sx){
       s.knock = (s.x < playerX() ? -1 : 1) * STOK.stun.terug;
       s.rust = STOK.stun.duur; s.traag = 0; s.inv = 0;   // stil, en open: de volgende slag pareert hij niet
       s.stokStun = STOK.stun.duur;
+      banLaadIdle(s.duin ? 'duin' : s.elite);       // de staande idle voor het wankelen (al binnen in een level met zicht)
     }
   } else {
     houtRaak(STOK.toon.slag, 0.8);
@@ -41092,6 +41093,11 @@ function banStofWolk(wx, base, n, kick, grootte){
 }
 // het stof van de doorschuif onderweg: een dichte zandsliert bij zijn voeten, tegen zijn vaart in
 function banGlijStof(s){ banStofWolk(s.x - s.face * 28, s.base || 0, 4, -s.lunge * 0.12, 1.3); }
+// de staande idle van deze rover is binnen (alle frames geladen), zodat een wissel ernaar nooit een leeg beeld geeft
+function banIdleKlaar(s){
+  const set = (s.duin ? banBankDuin : s.elite ? banBankElite : banBank).idle;
+  return !!set && set.every(im => im && im.complete && im.naturalWidth > 0);
+}
 function banFrameImg(s){
   const bank = s.duin ? banBankDuin : s.elite ? banBankElite : banBank;
   const set = bank[s.state] || bank.run;
@@ -41219,6 +41225,13 @@ function updateBandiet(s, dt, plats, cliff){
 
   const dx = playerX() - s.x, gap = Math.abs(dx), naarJe = dx >= 0 ? 1 : -1;
   if (s.verblind > 0){ stofDwaal(s, dt, plats, cliff); return; }   // stof in de ogen: blind, hij dwaalt (zie STOF)
+  // verdoofd door de stun-counter van de stokken (STOK.stun): hij staat te wankelen in de staande idle, met de sterretjes,
+  // in plaats van op zijn plek door te rennen. Na de stun weer op je af (stokStunIdle onthoudt dat de idle van de stun was)
+  if (s.stokStun > 0 && (s.state === 'run' || s.state === 'look' || s.state === 'idle') && banIdleKlaar(s)){
+    if (s.state !== 'idle'){ banSet(s, 'idle'); s.stokStunIdle = true; }
+    banAnim(s, dt); return;
+  }
+  if (s.stokStunIdle){ s.stokStunIdle = false; if (s.state === 'idle'){ banSet(s, 'run'); s.face = naarJe; } }
   if (s.raz && razStap(s, dt, plats, cliff, naarJe)) return;   // de razernij van de aanvoerder (zie RAZ)
 
   // ---- zicht: in rust staan idlen tot hij je ziet, en terug in rust als hij je kwijt is (zie "zicht") ----
