@@ -138,6 +138,21 @@ Zonder nieuwe ren (de sandboxknop Stokken alleen) wordt de oude lus van 8 over d
 Scripts uit de sessie: /home/claude/stok/puppet2.py (tilt 3, stokken 5 en 7).
 - Vuisten (16-11-2026): Grok had de vuisten om de gespiegelde diagonaal getekend. Nieuwe still van Grok vanaf een collage met de groene stokken al in de goede hoek (de handen om de stokken laten sluiten); lijf en vuisten daaruit, de vuisten als bovenste laag met gaten waar het groen zat, zodat de stok door de vuist loopt (/home/claude/stok/puppet3.py).
 
+## Bukken en kruipen met de stokken (16-11-2026)
+
+- Gebukt en kruipend tekent het spel met de stokken aan de sets `bukken` (12) en `sluipen` (28) uit de stokbank in plaats van
+  de speerloze buk- en kruipframes (`stokLaag`, in de tekenlus gekozen waar anders `stokBeeld` niets geeft). Bukken: frame 0-7
+  is het zakken (`duckT`, zoals `duckFrame`), 8-11 het vasthouden (`DUCK_HOLD_SEQ`); sluipen volgt `crawlFrame`.
+- Het lijf is de bestaande speerloze set (`beweging/bukken/bukken`, `beweging/sluipen`), op schaal `JMP_S` (0,45) naar het
+  Animeer-canvas gezet: midden op x 297, de grondrij (637 min `DUCK_DROP`, en 411 voor het kruipen) op y 297. Staat in
+  `bron/lijf/bukken_NN.png` en `sluipen_NN.png`; de plaatsing uit de Animeer tool staat in `plaatsing.json`.
+- Plaatsing (Tom): sluipen met beide stokken onderhands langs onderarm en dij naar achter, de borststok achter het lijf; als
+  de hand op de grond steunt ligt de stok plat onder de hand. Bukken: de stokken hangen eerst omlaag, dan een stok bij de kin
+  en de andere plat onder de geplante hand.
+- Bakken: `python3 tools/stok_bak.py --alleen bukken,sluipen`, de regels `bukken` en `sluipen` in `STOK.slip.punt`.
+- Open: in de vasthoudframes van het bukken (8-11) draait de kinstok van vlak naar voren tot rechtop; in de ademlus
+  (`DUCK_HOLD_SEQ`) zwaait hij dus heen en weer.
+
 ## De grondklap (16-11-2026, Test 76)
 
 Met de stokken in de lucht omlaag plus aanval (`GK`, `gkKan`, `gkStart`, `gkLucht`, `gkLand`, `gkStokStap`, `gkInslag`,
