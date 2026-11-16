@@ -153,7 +153,9 @@ Met de stokken in de lucht omlaag plus aanval (`GK`, `gkKan`, `gkStart`, `gkLuch
   hij met `GK.val`. Bij de landing (`updateJump`, `gkLand`) springt hij naar positie 10, en op positie 15 (het contactframe)
   is de klap (`gkInslag`): hitstop, schok, stof bij allebei de stokpunten (ook om te verbergen als een punt de grond net niet
   raakt), steentjes, het geluid, en de golf. Het contactframe blijft 320 ms staan, dan de gewone houding (geen opkomen: de
-  freeze en de golf dekken de wissel), en `GK.koel` afkoeling. Geraakt worden breekt hem af.
+  freeze en de golf dekken de wissel), en `GK.koel` afkoeling: 8 s, een grondklap per 8 s. In de actiebalk staat hij
+  als vak `grondklap` (toets ↓+F, de taartpunt telt af); probeer je hem te vroeg, dan schudt het vak en sla je gewoon.
+  Geraakt worden breekt hem af.
 - Het geluid (gerecycled): `brutus_inslag`, `kooihitground` en `ton_zwaar` tegelijk, twee lage houtklappen en een korte
   beving (`bavBeving`).
 - De golf: begint bij de punt van de voorste stok (`STOK.punt.grondklap`), rolt met `GK.golfV` vooruit tot het gekozen
