@@ -87,6 +87,8 @@ Alleen in Test 74 (`stokken: true`) en de sandboxknop **Stokken**.
   `duoKeuze.stokCounter`: `stun` (bandiet `rust` 2 s, `knock` terug, `inv` 0 en sterretjes via `stokStun`) of `gewoon`.
   Zolang `stokStun` loopt staat hij in de staande idle (wankelen, niet rennen op zijn plek), ook terwijl hij terugglijdt;
   daarna weer `run` op Amir af (`stokStunIdle`, `banIdleKlaar`: alleen als de idle-frames binnen zijn).
+  Boven zijn health-balk staat dan STUNNED in geel, dat zacht naklopt en in de laatste 0,3 s vervaagt (`stunLabelTeken`,
+  in `vijandHpBalk`).
 - Een spawn met `hp` (zonder aanvoerder) geeft een bandiet zoveel levens; Test 74 gebruikt de elite-garde met 5, zoals Co-op.
 
 ## Waarom het nog niet lekker voelt (analyse)
