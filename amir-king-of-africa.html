@@ -20038,6 +20038,8 @@ const GK = {
   minHoog: 0.5,              // pas vanaf zoveel Amir boven de grond, anders gewoon landen
   val: 1700,                 // de val na de opzwaai (eenheden per seconde omlaag)
   koel: 1.0,                 // afkoeling na de klap (s)
+  koelCoop: 5,               // in Co-op: zoveel afkoeling (mpCoopAan)
+  zwaar: { schade: 1, knock: 1.6 },   // Co-op, gekocht in de winkel (Ground slam: heavier, gkZwaarNu): zoveel schade en zoveel keer verder terug
   bereik: { kort: 1, middel: 2, lang: 4 },          // hoe ver de golf rolt, in Amir-hoogtes voor de stokpunt
   schade: { licht: 0.5, middel: 1, zwaar: 1.5 },     // per treffer van de golf, in levens
   onder: 0.5, onderR: 0.55,  // recht onder hem (binnen onderR Amir van de stokpunt of achter tot Amir): zoveel schade erbij
@@ -20090,9 +20092,10 @@ function gkStokStap(dt){
     if (atkAcc < ms) break;
     atkAcc -= ms; atkFrame++;
     if (atkFrame === G.klap) gkInslag();
-    if (atkFrame >= STOK.ms.grondklap.length){ gkFase = null; atkStok = null; atkFrame = -1; atkAcc = 0; atkCooldown = STOK.rust; gkKoelT = GK.koel; break; }
+    if (atkFrame >= STOK.ms.grondklap.length){ gkFase = null; atkStok = null; atkFrame = -1; atkAcc = 0; atkCooldown = STOK.rust; gkKoelT = mpCoopAan() ? GK.koelCoop : GK.koel; break; }
   }
 }
+function gkZwaarNu(){ return !!(pvp && pvp.coop && pvp.coop.koop && pvp.coop.koop.slam); }   // de winkel van Co-op (MPC_WINKEL)
 function gkRichting(){ return facing === 1 ? 1 : -1; }      // de kijkrichting in de wereld (zie steekDX)
 // de klap: de stokken in de grond. Hitstop, schok, het geluid, stof bij de stokpunten en de golf
 function gkInslag(){
@@ -20105,7 +20108,14 @@ function gkInslag(){
   const ber = (GK.bereik[(typeof duoKeuze !== 'undefined' && duoKeuze.gkBereik) || 'middel'] || 2) * CHAR_H * sc;
   gkRaak = { x0: px - dir * 0.08 * CHAR_H * sc, tip, front: tip, staart: px - dir * 0.08 * CHAR_H * sc, dir, ver: tip + dir * ber, t: 0,
              onderTot: tip + dir * GK.onderR * CHAR_H * sc,
-             schade: GK.schade[(typeof duoKeuze !== 'undefined' && duoKeuze.gkSchade) || 'licht'] ?? 0.5 };
+             schade: gkZwaarNu() ? GK.zwaar.schade : GK.schade[(typeof duoKeuze !== 'undefined' && duoKeuze.gkSchade) || 'licht'] ?? 0.5,
+             knock: gkZwaarNu() ? GK.zwaar.knock : 1 };
+  gkKlapBeeld(tip, tip2, dir, sc, ber, vloer);
+  if (mpCoopAan()) pvpZend({ t: 'gk', x: Math.round(tip), x2: Math.round(tip2), d: dir, b: Math.round(ber / sc), v: Math.round(vloer) });   // de anderen zien de klap ook
+}
+// de golf, het stof en het geluid van een klap; ook voor de klap van een andere speler in Co-op (zonder treffers)
+function gkKlapBeeld(tip, tip2, dir, sc, ber, vloer){
+  gkLaad(); gkSchaal = sc;
   const soort = gkStofSoort();
   gkFx.golven.push({ x: tip, x0: tip, dir, ver: ber, stofAcc: 0, vloer, soort });
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -20140,7 +20150,7 @@ function gkKlapStofNu(tip, tip2, dir, sc){
 // 'kroon' kroon en ring: het stof spuit in een V omhoog (sneller is hoger en verder), en een lage ring rolt over de
 // grond weg, ook de diepte in (z), met een lage stofrol die met de golf meeloopt.
 // De getallen komen uit de mock-up, waar Amir 90 px hoog is; gkWolk zet ze om naar de wereld.
-function gkStofSoort(){ return (typeof duoKeuze !== 'undefined' && ['kam', 'kroon'].includes(duoKeuze.gkStof)) ? duoKeuze.gkStof : 'nu'; }
+function gkStofSoort(){ return (typeof duoKeuze !== 'undefined' && ['nu', 'kroon'].includes(duoKeuze.gkStof)) ? duoKeuze.gkStof : 'kam'; }   // Growing crest is de standaard
 function gkWolk(o){
   const X = CHAR_H * gkSchaal / 90, Y = CHAR_H / 90;
   bruStofDeeltje(gkFx, { wx: o.x, y: -(o.y || 0) * Y, z: o.z || 0, vx: (o.vx || 0) * X, vy: -(o.vy || 0) * Y, vz: o.vz || 0,
@@ -20259,7 +20269,7 @@ function gkSchadeOp(s, min){
   const onder = (x - R.x0) * R.dir >= -1 && (x - R.onderTot) * R.dir <= 0;
   const sch = R.schade + (onder ? GK.onder : 0);
   s.hp = Math.max(min === undefined ? -1 : min, s.hp + 1 - sch);
-  s.gkId = gkId; s.gkOnder = onder; s.gkKlaar = false;
+  s.gkId = gkId; s.gkOnder = onder; s.gkKlaar = false; s.gkVan = R.x0; s.gkKnock = R.knock || 1;   // gkVan: waar de klap was (in Co-op misschien een andere speler)
 }
 // het vak waarin de golf dit beeld raakt (schermcoordinaten, zoals swbox): op de klap van vlak achter Amir tot de
 // stokpunt, daarna alleen de strook die het front net passeert
@@ -20275,9 +20285,9 @@ function gkNaTreffer(dt){
     if (s.gkH > 0 || s.gkVh){ s.gkVh = (s.gkVh || 0) - 1700 * dt; s.gkH = Math.max(0, (s.gkH || 0) + s.gkVh * dt); if (s.gkH === 0) s.gkVh = 0; }
     if (s.gkId !== gkId || s.gkKlaar) continue;
     s.gkKlaar = true;
-    const weg = s.x < playerX() ? -1 : 1, sc = gkSchaal;
+    const weg = s.x < (s.gkVan ?? playerX()) ? -1 : 1, sc = gkSchaal;
     if (L === snakes || L === scorps){ s.gkVh = GK.wip * (s.gkOnder ? 1.25 : 1); s.gkH = 1; continue; }
-    if ('knock' in s || L === bandieten) s.knock = weg * (s.gkOnder ? GK.knockOnder : GK.knock);
+    if ('knock' in s || L === bandieten) s.knock = weg * (s.gkOnder ? GK.knockOnder : GK.knock) * (s.gkKnock || 1);
     s.rust = Math.max(s.rust || 0, GK.rust); s.traag = Math.max(s.traag || 0, GK.traag); s.traagMax = Math.max(s.traagMax || 0, s.traag);
     puffWorld(s.x, 5, weg * 200, 1, s.base || 0);
   }
@@ -47357,7 +47367,7 @@ const duoKeuze = (() => {
            stokCounter: k.stokCounter === 'gewoon' ? 'gewoon' : 'stun',
            gkBereik: ['kort', 'middel', 'lang'].includes(k.gkBereik) ? k.gkBereik : 'middel',   // de grondklap: hoe ver de golf rolt (Test 76)
            gkSchade: ['licht', 'middel', 'zwaar'].includes(k.gkSchade) ? k.gkSchade : 'licht',
-           gkStof: ['nu', 'kam', 'kroon'].includes(k.gkStof) ? k.gkStof : 'nu' };   // het stof van de grondklap (Test 76)   // en hoeveel schade hij doet   // de stokken: de counter na een blok als stun of als gewone treffer (Test 74)
+           gkStof: ['nu', 'kam', 'kroon'].includes(k.gkStof) ? k.gkStof : 'kam' };   // het stof van de grondklap (Test 76)   // en hoeveel schade hij doet   // de stokken: de counter na een blok als stun of als gewone treffer (Test 74)
 })();
 const duoKeuzeEl = document.getElementById('duokeuze');
 let duoKeuzeVerder = null, duoKeuzeDoor = false;
@@ -63165,7 +63175,7 @@ const pvpNu = () => performance.now() / 1000;
 // de vijandstand bevestigd heeft (vAk). Een gast heeft er een, naar de host (slot 0). Elk bericht draagt het slot van wie
 // het maakte (`p`); de host zet het zelf op wat binnenkomt (een gast kan niet voor een ander spreken) en stuurt wat de
 // andere gasten ook moeten weten door (MP_DOOR), en een bericht voor een gast (`naar`) alleen naar die. Zie notities/pvp.md.
-const MP_DOOR = new Set(['s', 'broek', 'wapen', 'rek', 'symPak', 'wkklaar', 'rematch']);
+const MP_DOOR = new Set(['s', 'broek', 'wapen', 'rek', 'symPak', 'wkklaar', 'rematch', 'gk']);
 function pvpGasten(){ return pvp ? Object.keys(pvp.peers).map(Number).filter(p => p !== 0) : []; }
 function pvpRelay(){ return !!pvp && Object.values(pvp.peers).some(pe => pe.conn.relay); }
 function pvpPeerNieuw(conn, p){
@@ -63599,7 +63609,10 @@ function mpWapenToon(){
 // speel ik met de stokken? (de keuze uit de lobby)
 function mpStokken(){ return !!(pvp && pvp.mij != null && pvp.wapen && pvp.wapen[pvp.mij] === 'stok'); }
 // het level van een potje: met de stokken als een level met stokken, zonder speer en zonder rug
-function mpWapenLevel(lv){ if (mpStokken()){ lv.stokken = true; lv.geenSpeer = true; lv.rugMax = 0; } return lv; }
+function mpWapenLevel(lv){
+  if (mpStokken()){ lv.stokken = true; lv.geenSpeer = true; lv.rugMax = 0; if (mpCoopAan()) lv.grondklap = true; }   // Co-op: ook de grondklap (GK.koelCoop)
+  return lv;
+}
 pvpEl('mpwpspeer').onclick = () => mpWapenZet('speer');
 pvpEl('mpwpstok').onclick = () => mpWapenZet('stok');
 pvpEl('mpbrlinks').onclick = () => mpBroekWissel(-1);
@@ -64016,6 +64029,7 @@ const MPC_WINKEL = [
   { k: 'rond',    naam: 'Full Circle: all around',  prijs: 50, uitleg: 'The spin hits everyone around you, also behind you', eis: 'fc', speer: true },
   { k: 'slot',    naam: 'Extra spear slot',         prijs: 45, uitleg: 'A second spare spear on your back', speer: true },
   { k: 'hout',    naam: 'Hardwood sticks',          prijs: 40, uitleg: 'Your strikes hit harder: 0.75 of a life instead of 0.5', stok: true },   // STOK.schadeHout
+  { k: 'slam',    naam: 'Ground slam: heavier',     prijs: 50, uitleg: 'Your ground slam hits for a full life instead of half, and throws enemies further back', stok: true },   // GK.zwaar
   { k: 'leven',   naam: 'Extra life',               prijs: [60, 90, 120], uitleg: 'One more life, for the rest of the game' },
   { k: 'amulet',  naam: 'Gris-gris',                prijs: [40, 75, 110], uitleg: ['A charm against harm: 10% chance a hit costs you no life',
                                                                             'Stronger charm: 20% chance', 'Strongest charm: 30% chance'] },   // GRISGRIS
@@ -64217,7 +64231,8 @@ function mpcHitDoor(naam){
       o.mpGemeld = nu;
       pvpRaakLokaal(o);                                 // de gast voelt het meteen; de host stuurt de schade terug
       pvpZendAan(0, { t: 'mh', a: k, id: o.mpId, f: naam, g: a.map(v => (v == null || typeof v === 'object') ? null : v),
-                      st: atkStok || undefined, sf: atkFrame, co: atkCombo ? 1 : 0, hw: stokHoutNu() ? 1 : 0 });   // zijn slag: de host rekent met zijn stand, niet met die van zichzelf
+                      st: atkStok || undefined, sf: atkFrame, co: atkCombo ? 1 : 0, hw: stokHoutNu() ? 1 : 0,
+                      gk: gkRaak ? [Math.round(gkRaak.x0), Math.round(gkRaak.onderTot), gkRaak.dir, gkRaak.schade, gkRaak.knock] : undefined });   // de golf van zijn grondklap   // zijn slag: de host rekent met zijn stand, niet met die van zichzelf
     }
     return false;                                       // bij de gast gebeurt er niets: de host stuurt het gevolg terug
   };
@@ -64240,8 +64255,9 @@ function mpcTrefferVanGast(m){
   const q = mpcLijst(m.a); if (!q) return;
   const o = q.l().find(v => v.mpId === m.id); if (!o || !mpcLeeft(o) || !pvpAnderNu(m.p)) return;
   mpcWisselIn(m.p);
-  const eig = [atkStok, atkFrame, atkCombo];          // de slag van de gast, niet die van de host (de stokken, Full Circle)
+  const eig = [atkStok, atkFrame, atkCombo, gkRaak];  // de slag van de gast, niet die van de host (de stokken, Full Circle, de grondklap)
   atkStok = m.st || null; atkFrame = m.sf ?? -1; atkCombo = !!m.co; stokHoutGast = !!m.hw;
+  gkRaak = m.gk ? { x0: m.gk[0], onderTot: m.gk[1], dir: m.gk[2], schade: m.gk[3], knock: m.gk[4] || 1 } : null;   // zijn golf: zijn schade (gkSchadeOp)
   let raak = false;
   try {
     if (m.f === 'enemyTakeHit'){
@@ -64257,7 +64273,7 @@ function mpcTrefferVanGast(m){
       else MPC_ORIG.enemyTakeHit(o);
     } else if (MPC_ORIG[m.f]) raak = MPC_ORIG[m.f](o, ...(m.g || []));
     if (raak && atkStok && m.a === 'bandieten') stokTreffer(o, o.x, 0, undefined, 'gevolg');   // de reeks, het wankelen en de stun
-  } finally { [atkStok, atkFrame, atkCombo] = eig; stokHoutGast = null; mpcWisselUit(); }
+  } finally { [atkStok, atkFrame, atkCombo, gkRaak] = eig; stokHoutGast = null; mpcWisselUit(); }
 }
 // de tonnen: een treffer van de gast gaat naar de host, die telt; de host stuurt elke treffer terug, voor het beeld
 const mpcTonRaakOrig = tonRaak;
@@ -64410,7 +64426,7 @@ function mpCoopNieuw(){
            zak: [], goud: 0, reeks: { n: 0, t: -99 }, eind: null,
            doodT: {}, reviveTon: {}, symbolen: [], reviveRust: {}, symId: 0,   // per slot: sinds wanneer dood, zijn revive-ton, zijn symbool
            leegQ: {}, losWeg: new Set(), losVorig: {}, gezien: new Map(), sleutelT: 0, zendT: 0, klaarVan: new Set(),
-           koop: { fc: false, kracht: false, rond: false, slot: false, hout: false, leven: 0, amulet: 0 },   // wat ik in de winkel kocht (ieder het zijne)
+           koop: { fc: false, kracht: false, rond: false, slot: false, hout: false, slam: false, leven: 0, amulet: 0 },   // wat ik in de winkel kocht (ieder het zijne)
            wkKlaar: {}, mijnKlaar: false };   // Ready in de winkel per slot: de host telt iedereen, ieder weet wie al klaar is
 }
 // wat er in een ronde komt: willekeurig uit de soorten die aan staan, bij Both de helft van de keren de moeilijke
@@ -64800,6 +64816,7 @@ function mpCoopOntvang(m){
   if (m.t === 'hb') return true;
   if (m.t === 'cklaar'){ if (pvp.host) C.klaarVan.add(m.p); return true; }
   if (m.t === 'mh'){ if (pvp.host) mpcTrefferVanGast(m); return true; }
+  if (m.t === 'gk'){ if (!laadWacht) gkKlapBeeld(m.x, m.x2, m.d, nowScale(), m.b * nowScale(), m.v); return true; }   // de grondklap van een ander: alleen beeld en geluid
   if (m.t === 'au2'){ if (!laadWacht) mpcHurtOrig(!!m.l, m.s || 1); return true; }
   if (m.t === 'deur'){ mpcDeurOpen({ gevel: m.g, verdieping: m.v }, true); return true; }
   if (m.t === 'ton'){ if (!tonnen.some(t => t.mpId === m.d.id)) mpcTonZet(m.d, true); return true; }
