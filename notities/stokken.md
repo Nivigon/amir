@@ -43,18 +43,18 @@ Alleen in Test 74 (`stokken: true`) en de sandboxknop **Stokken**.
   slag stapt `vervolg` (0,6) zo ver, de counter stapt niet. Niet in de lucht en niet over de rand van een ravijn
   (`gatOp`); muren en de klif klemmen daarna zoals bij lopen. Alleen de engine: de voeten in de frames blijven staan.
   In de sandbox de knop **Stokstap** (aan of uit) om te vergelijken.
-- De stapslag: de eerste slag (niet gebufferd) is `stapslag` (22 frames, Grok-clip 1.mp4, clipframes 19-36 en 58-67): de
-  achtervoet schuift bij, de voorvoet zet een pas en landt op frame 12 met de klap (actief 12-14, stof bij de voorvoet),
-  15 houdt de klap vast, 16-21 terug in de gevechtshouding. Grok liet hem na de landing met beide voeten terugglijden
-  naar het eindframe; dat zit nog in de frames en wordt opgeheven met root motion: `STOK.stapslag.root` (frame-px naar
-  voren per frame, de geplante achtervoet vastgezet, uit `plaatsing.json` `root`), en `stokRoot` schuift de wereld per
-  frame met het verschil, zoals `stokSchuif`. Samen zo'n halve Amir (gemeten 93 wereld-px in de sandbox). Een gebufferde
-  tweede slag is de gewone `slag` op de plek (met de kleine engine-stap `STOK.stap`, vervolg 0,6). Buffer vanaf frame
-  `STOK.stapslag.buf` (10), de volgende begint en C breekt af vanaf `annuleer` (17). Sandboxknop **Stapslag** (uit = de
-  gewone slag als eerste). Gebakken met `tools/stok_bak.py --alleen stapslag` (alleen die set, op het huidige canvas,
-  omdat de ren met stokken niet meer uit `plaatsing.json` komt). De lijf-frames en de verwerking (stokken ook blauw en
-  cyaan in de snelle frames, inpaint met eerst de achtergrond gevuld met de kleur van het dichtstbijzijnde lijfpixel):
-  zie het projectdocument `claude/animeer_tool_stokken.md`.
+- De stapslag (doorstap): de eerste slag (niet gebufferd) is `stapslag` (28 frames, Grok-clip 3.mp4, elke tweede
+  clipframe van 8 tot 62, zonder eindframe gegenereerd: met een eindframe in de oude stand wisselde Grok de benen). Het
+  achterste (rechter)been stapt door en landt voor (frame 12, stof), dan de slag van boven, de klap op 25-27. Daarna speelt
+  hij dezelfde frames achterstevoren: de stok weer omhoog en de rechtervoet terug (`STOK.stapslag.seq`, atkFrame telt
+  posities; `STOK.ms.stapslag` per positie). Root motion: `STOK.stapslag.root` (frame-px per frame, de geplante voet
+  vastgezet; eerst de oude voorvoet, na de landing de nieuwe), `stokRoot` schuift per positie met het verschil, terug weer
+  terug: hij eindigt waar hij begon (gemeten: hooguit 74 wereld-px naar voren, eind 0). Een gebufferde tweede slag
+  (vanaf positie `buf` 25, begint op `annuleer` 47) is de gewone `slag` op de plek. Sandboxknop **Stapslag**.
+  Het canvas groeide voor de opgeheven stok: 511 x 384, anker 298, grond 379 (links 13 en boven 30 erbij; de andere
+  sets zijn daarvoor opgevuld en hun slip-knopen mee verschoven). Gebakken met `tools/stok_bak.py --alleen stapslag
+  --canvas 511,384,298,379`. De vlekjes op de vacht zijn op de rugframes (19-27) weggehaald (Tom). Verwerking: zie het
+  projectdocument `claude/animeer_tool_stokken.md`.
 - Blok: C vasthouden (op een telefoon de schildknop). Vanaf blok-frame `STOK.blokOp` vangt `hurtPlayer` een klap van
   voren af (houtklap, duwtje). Projectielen met een eigen schade-ingang (bouten, de speer van de schildbandiet) vangt
   het nog niet.

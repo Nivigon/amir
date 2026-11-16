@@ -1,11 +1,11 @@
-# Eenmalig gebruikt (16-11-2026): de stapslag-clip (1.mp4) naar lijf-frames voor de Animeer tool Amir stokken.
-# Bron: de clipframes in /tmp/c1/f (ffmpeg -i 1.mp4 %03d.png). Uit: f/stapslag_NN.png en stapslag.json (plaatsing + root).
+# Eenmalig gebruikt (16-11-2026): de doorstap-clip (3.mp4, omgerekend x1,02 naar normaalrechts-coordinaten in /tmp/c3/ns)
+# naar lijf-frames voor de Animeer tool Amir stokken, met root motion per frame.
 # Stapslag: clipframes 19-46 uit 1.mp4 naar de Animeer tool Amir stokken (594x301, grond 297, anker 297)
 import numpy as np, cv2, json, sys
 from PIL import Image
-SRC='/tmp/c1/f/%03d.png'   # ffmpeg-nummering vanaf 1
+SRC='/tmp/c3/ns/%03d.png'   # clip 3 (doorstap), omgerekend naar normaalrechts-coordinaten (x1,02)
 F0,F1=19,46
-DX=-102                    # zelfde plek als normaalrechts (voeten gelijk gelegd)
+DX=0
 S=0.95; CP=(356,377); TP=(297,297); W,H=594,301; L=115
 def voeten(rgb):
   a=rgb.astype(int); m=((np.minimum(a[:,:,0],a[:,:,2])-a[:,:,1])<90)
@@ -14,8 +14,8 @@ def voeten(rgb):
     if v-pv>6: g.append((s,pv)); s=v
     pv=v
   g.append((s,pv)); return g
-SLUIT={62:23,64:15}   # stok over het hoofd: groter dichtmaken
-OPEN={25:7}         # dunne stokveeg weg
+SLUIT={}   # stok over het hoofd: groter dichtmaken
+OPEN={}         # dunne stokveeg weg
 def verwerk(rgb,f=None):
   a=rgb.astype(np.float32); r,g,b=a[...,0],a[...,1],a[...,2]
   mx=np.maximum(np.maximum(r,b),1)
@@ -75,13 +75,14 @@ def verwerk(rgb,f=None):
   o[...,0]=np.where(spill,np.minimum(o[...,0],np.maximum(lim,o[...,0]*0.8)),o[...,0])
   o[...,2]=np.where(spill,np.minimum(o[...,2],lim),o[...,2])
   return np.dstack([np.clip(o,0,255),al*255]).astype(np.uint8), groen
-def naarTool(rgba):
-  M=np.float32([[S,0,TP[0]-S*(CP[0]-DX)],[0,S,TP[1]-S*CP[1]]])
+def naarTool(rgba,sx=0.0):
+  M=np.float32([[S,0,TP[0]-S*(CP[0]-DX)+sx],[0,S,TP[1]-S*CP[1]]])
   pm=rgba.astype(np.float32); pm[...,:3]*=pm[...,3:]/255
   w=cv2.warpAffine(pm,M,(W,H),flags=cv2.INTER_AREA if S<1 else cv2.INTER_LINEAR,borderValue=0)
   a=w[...,3:]; w[...,:3]=np.where(a>0,w[...,:3]*255/np.maximum(a,1e-3),0)
   return np.clip(w,0,255).astype(np.uint8)
-def pt(x,y): return ((x+DX-CP[0])*S+TP[0],(y-CP[1])*S+TP[1])
+SX=0.0
+def pt(x,y): return ((x+DX-CP[0])*S+TP[0]+SX,(y-CP[1])*S+TP[1])
 def lijnen(groen):
   global ROMP
   n,lab,st,_=cv2.connectedComponentsWithStats(groen.astype(np.uint8))
@@ -118,25 +119,39 @@ def lijnen(groen):
     res.append(dict(vuist=vuist,u=u,c=c,len=len(P),gok=False))
   return res
 frames=[];vorige=None
-LIJST=list(range(19,37))+list(range(58,69))
+LIJST=list(range(8,64,2))
 for f in LIJST:
   rgb=np.array(Image.open(SRC%(f+1)).convert('RGB'))
   if vorige is not None and (np.abs(rgb.astype(int)-vorige.astype(int)).max(2)>40).mean()<0.012:
-    frames[-1]['ms']+=42; frames[-1]['dub'].append(f); continue
+    frames[-1]['ms']+=84; frames[-1]['dub'].append(f); continue
   vorige=rgb
-  frames.append(dict(f=f,rgb=rgb,ms=42,dub=[]))
-for x in frames:
-  if x['f']==36: x['ms']=120   # de klap even vasthouden
+  frames.append(dict(f=f,rgb=rgb,ms=84,dub=[]))
 print(len(frames),'unieke frames:',[x['f'] for x in frames])
 # root motion: de geplante voet vastzetten vanaf frame 26 (achtervoet staat dan naast de voorvoet)
-def achterL(rgb): return voeten(rgb)[0][0]
+P={}
+vals=[294,296,296,296,296,296,296,295,294,292,290,288]
+for i,v in enumerate(vals): P[8+i]=v
+for i,v in enumerate([285,282,279,276]): P[20+i]=v
+for i,v in enumerate([274,270,268,266,262,260,259,258,256,256,254,252]): P[24+i]=v
+ROOT={}; acc=0.0
+for f in range(0,146):
+  if f<=8: ROOT[f]=0.0; continue
+  if f<=35: d=P.get(f,P[35] if f>35 else None)-P.get(f-1)
+  else:
+    nf=[422,422,420,418,416,414,412,408,406,406,404,402]
+    a=nf[min(f-35,11)]; b=nf[min(f-36,11)]; d=a-b
+  acc-=d; ROOT[f]=acc
+SCHUIF=55.0                 # tool-px: het canvas schuift tijdens de stap zoveel naar links (anders valt het eind erbuiten)
+def helling(f): return max(0.0,min(1.0,(f-8)/(35-8)))
 for x in frames:
-  x['root']=0.0 if x['f']<26 else float((450-achterL(x['rgb']))*S)
+  x['schuif']=-SCHUIF*helling(x['f'])
+  x['root']=float(ROOT[x['f']]*1.02*S - x['schuif'])
 out={'anim':'stapslag','frames':[]}
 vorigL=None
 for i,x in enumerate(frames):
   rgba,groen=verwerk(x['rgb'],x['f'])
-  Image.fromarray(naarTool(rgba)).save(f'/home/claude/stapslag/f/stapslag_{i:02d}.png')
+  globals()['SX']=x['schuif']
+  Image.fromarray(naarTool(rgba,SX)).save(f'/home/claude/stapslag/f3/stapslag_{i:02d}.png')
   ys,xs=np.where(rgba[...,3]>128); top=ys<np.percentile(ys,45)
   ROMP=np.array([xs[top].mean(),ys[top].mean()])
   ls=lijnen(groen); items={}
@@ -162,5 +177,5 @@ for i,x in enumerate(frames):
   L_={n:dict(on=True,angle='zij',cx=round(l['cx']/W,4),cy=round(l['cy']/H,4),w=round(L/W,4),rot=int(round(l['rot'])),flip=False,behind=False,op=1,locked=False) for n,l in cur.items()}
   body={'basis':[{'t':'voor','s':0.037,'p':[[round(l['vx']/W,4),round(l['vy']/H,4)],[round((l['vx']+1)/W,4),round(l['vy']/H,4)]]} for l in cur.values()]}
   out['frames'].append(dict(src=f'f/stapslag_{i:02d}.png',orig=x['f'],ms=x['ms'],root=round(x['root'],1),L=L_,body=body,gok=[bool(l.get('gok')) for l in cur.values()]))
-json.dump(out,open('/home/claude/stapslag/stapslag.json','w'),indent=1)
+json.dump(out,open('/home/claude/stapslag/stapslag3.json','w'),indent=1)
 for fr in out['frames']: print(fr['orig'],fr['ms'],fr['root'],{k:(v['rot'],round(v['cx']*W),round(v['cy']*H)) for k,v in fr['L'].items()},fr['gok'])
