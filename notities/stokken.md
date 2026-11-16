@@ -169,8 +169,8 @@ Met de stokken in de lucht omlaag plus aanval (`GK`, `gkKan`, `gkStart`, `gkLuch
 - Keuze in Test 76 (`gkKeuze`): `duoKeuze.gkBereik` en `duoKeuze.gkSchade` in het instellingenscherm.
 - Het stof (16-11-2026): drie soorten, in Test 76 te kiezen onder **Slam dust** (`duoKeuze.gkStof`, `gkStofSoort`).
   `nu` (Current, de standaard) is het oude stof (`gkKlapStofNu`). `kam` (Growing crest): een kleine kroon op de klap, en
-  de golf gooit stof op dat hoger wordt naarmate hij verder rolt, met een pluim waar hij ophoudt, ook tegen een trede
-  (`gkGolfStof`, `gkPluim`). `kroon` (Crown and ring): het stof spuit in een V omhoog (55 tot 72 graden, sneller is hoger
+  de golf gooit stof op dat hoger wordt naarmate hij verder rolt (aan het eind zo'n twee Amir), met een hoge pluim
+  (tot zo'n drie Amir) waar hij ophoudt, ook tegen een trede (`gkGolfStof`, `gkPluim`). `kroon` (Crown and ring): het stof spuit in een V omhoog (55 tot 72 graden, sneller is hoger
   en verder), een lage ring rolt over de grond weg en de diepte in, en een lage stofrol loopt met de golf mee
   (`gkKlapStof`). De getallen komen uit de mock-ups (Amir 90 px hoog), `gkWolk` zet ze om naar de wereld.
   De diepte: een stofdeeltje kan een `z` hebben (-1 ver, +1 dichtbij, `GK.diep` Amir naar voren) en eigen `zw`
