@@ -90,6 +90,33 @@ twee tegelijk dezelfde, dan houdt het laagste slot hem (de host eerst) en schuif
 keuze staat op het apparaat (`amir.mpbroek`). In het spel geeft `broekNu` de eigen kleur zolang `pvp`
 loopt, en `pvpTeken` tekent de ander in de zijne. Geldt in Co-op en in Duel, want de lobby is dezelfde.
 
+### Het wapen: speer of stokken (gebouwd, 16-11-2026)
+
+`mpWapenEigen`, `mpWapenZet`, `mpWapenAnder`, `mpWapenToon`, `mpStokken`, `mpWapenLevel`, `pvp.wapen`, `#mpwapen`
+
+Onder de broek naast de lobby kiest ieder zijn wapen, **Spear** of **Sticks** (de stokken van `notities/stokken.md`), net als
+de broek: per speler, bewaard op het apparaat (`amir.mpwapen`), `{t: 'wapen', w}` naar de anderen (in `MP_DOOR`, en een nieuwe
+gast krijgt de keuzes in `pvpGastErbij`). Met de stokken start het potje (Co-op en Duel) als een level met stokken: `mpWapenLevel`
+zet `stokken`, `geenSpeer` en `rugMax: 0` in de kopie van het level, dus geen speer, geen rug en geen worp. Het voorbeeld naast
+de lobby staat dan in het staande stokframe.
+- **De lage zwaai:** gebukt slaan is in Multiplayer de lage zwaai van de speer (`startAttack`, alleen met `pvp`), met de
+  speerbeelden. Afspraak met de opdrachtgever: voorlopig, tot er een zwaai met de stokken is.
+- **De counter** is in Multiplayer altijd de stun (`stokTreffer`), zodat het op elke laptop hetzelfde is.
+- **Co-op, een treffer van de gast:** de gast stuurt in `mh` zijn slag mee (`st` de set, `sf` het frame, `co` Full Circle,
+  `hw` Hardwood); `mpcTrefferVanGast` zet die tijdens de treffer in `atkStok`, `atkFrame` en `atkCombo` (en `stokHoutGast`),
+  zodat de schade, de counter door de dekking en de stun van de gast zijn en niet van de host. Daarna `stokTreffer` met
+  `'gevolg'` (de reeks, het wankelen, de stun); de gast speelt zelf `'gevoel'` (de klap, hitstop, de lens). Dat lost ook op
+  dat een treffer van een gast vroeger met de steek van de host rekende.
+- **Duel:** het `s`-bericht heeft `ss` (de stokset); `pvpTekenEen` rekent de punt en de reik van die slag uit `STOK.punt` en
+  `STOK.reik`. Elke nieuwe slag telt als nieuwe steek (`pvp.sn`, ook een gebufferde die op frame 0 begint). De stapslag stapt
+  niet door de andere Amir heen (`stokVijandVoor`). Het blok vangt een klap van de ander via `hurtPlayer`, zoals in een level.
+- **De winkel:** een artikel met `speer: true` (speer, gif, Full Circle en zijn upgrades, extra speerslot) ziet een stokspeler
+  niet, een met `stok: true` (**Hardwood sticks**, 40 goud: de slag, stapslag en slag 2 kosten 0,75 in plaats van 0,5,
+  `STOK.schadeHout`, `stokHoutNu`) alleen hij (`mpcWinkelVoorMij`). Het rek en `mpcSperenTerug` geven hem geen speer.
+- **Open:** de stokken doen alleen bij een bandiet een halve treffer (`stokSchade` zit alleen in `hitBandiet`); bij de andere
+  vijanden is een stokslag een hele. In het Duel kost elke stokslag een leven, net als een steek. De slippen aan de grip
+  tekent alleen je eigen Amir. Testen: `tools/mptest.js --stokken gast` (of `host`, met `--duel`).
+
 ## Co-op Survival (stuk 2, de afspraak; gebouwd)
 
 - **Wie stuurt de vijanden:** de laptop van de host denkt voor alle vijanden en stuurt hun plek en plaatje naar de gast (net

@@ -227,6 +227,10 @@
   #mpbrnaam{color:var(--gold);font-weight:700;font-size:17px}
   #mpbrander{color:rgba(242,232,213,.65);font-size:12px;text-align:center;max-width:14em;min-height:1.2em}
   #start.mplobby #mpamir{display:flex}
+  #mpwapen{display:flex;gap:6px}
+  #mpwapen button{font-size:15px;padding:6px 12px;opacity:.55}
+  #mpwapen button.on{opacity:1;border-color:var(--gold);color:var(--gold)}
+  #mpwpuitleg{color:rgba(242,232,213,.65);font-size:12px;text-align:center;max-width:14em;min-height:1.2em}
   #start #mpamir p.mpkop{margin:0}
   @media (max-height:520px){ #mpbrcv{width:104px;height:130px} #mpbroek button{font-size:16px;padding:5px 8px} #mpamir{gap:2px;padding:6px 8px} }
   @media (max-width:700px){ #mpamir{top:8px;left:8px;transform:none} }
@@ -1104,6 +1108,9 @@
           <div id="mpbroek"><button id="mpbrlinks" type="button" aria-label="Previous colour">&#9664;</button><canvas id="mpbrcv" width="200" height="250"></canvas><button id="mpbrrechts" type="button" aria-label="Next colour">&#9654;</button></div>
           <span id="mpbrnaam"></span>
           <small id="mpbrander"></small>
+          <p class="mpkop">Your weapon</p>
+          <div id="mpwapen"><button id="mpwpspeer" type="button">Spear</button><button id="mpwpstok" type="button">Sticks</button></div>
+          <small id="mpwpuitleg"></small>
         </div>
     <div class="startart"></div>
     <div class="startpanel">
@@ -19885,6 +19892,7 @@ const STOK = {
   reeks: { n: 2, rust: 0.5, knock: 0.7, tussen: 1.1, naRust: 0.2 },
   // schade per treffer op een bandiet, in levens: de slag een halve, de counter een hele (stokSchade, in hitBandiet)
   schade: { slag: 0.5, stapslag: 0.5, slag2: 0.5, draaislag: 1 },
+  schadeHout: 0.75,          // met Hardwood sticks (de winkel van Co-op): de slag, de stapslag en slag 2, niet de counter
   // de gewone counter (niet de stun): zo lang wankelt hij daarna, zodat Amir uit de draai en het terugdraaien komt
   // (samen zo'n 0,85 s na de treffer) voor zijn kling landt
   counterRust: 0.6,
@@ -20004,6 +20012,10 @@ function stokVijandVoor(afstand){
       if (d > 0 && d < afstand) return true;
     }
   }
+  if (pvp && !pvp.coop) for (const p of pvpAnderen()){   // het Duel: ook niet door de andere Amir heen
+    const g = pvpAnderNu(p), d = g ? (g.x - px) * kant : -1;
+    if (g && !g.d && d > 0 && d < afstand) return true;
+  }
   return false;
 }
 // de stapslag en slag 2: de wereld schuift mee met de root van het frame dat nu begint (STOK.stapslag.root,
@@ -20084,10 +20096,14 @@ function stokBeeld(attacking, moving, frame){
 }
 function stokPunt(){ return STOK.punt[atkStok] || [0, 0]; }
 // een treffer met de stok op een bandiet (na hitBandiet): de klap, en bij de counter de stun als die gekozen is
-function stokTreffer(s, wx, h, sx){
+// deel: 'gevoel' alleen de klap en het beeld (de gast in Co-op, de host rekent), 'gevolg' alleen wat de bandiet doet (de
+// host voor een treffer van de gast), anders allebei. In Multiplayer is de counter altijd de stun
+function stokTreffer(s, wx, h, sx, deel){
+  const voel = deel !== 'gevolg';
+  if (deel === 'gevoel') s = null;                 // de bandiet zelf laat ik dan met rust
   if (atkStok === 'draaislag'){
-    const stun = duoKeuze.stokCounter === 'stun';
-    if (stun){                                       // de harde klap: de stapel, de naklap en het bloed (STOK.stunKlap)
+    const stun = !!pvp || duoKeuze.stokCounter === 'stun';
+    if (voel && stun){                                       // de harde klap: de stapel, de naklap en het bloed (STOK.stunKlap)
       const K = STOK.stunKlap;
       for (const [toon, vol] of K.lagen) houtRaak(toon, vol);
       setTimeout(() => { for (const [toon, vol] of K.nalagen) houtRaak(toon, vol); }, K.na * 1000);
@@ -20096,9 +20112,9 @@ function stokTreffer(s, wx, h, sx){
         const q = ctx.getTransform().transformPoint({ x: sx, y: h });
         stokLens.lijst = lensSpatMaak(STOK.lens); stokLens.t = 0; stokLens.x = q.x / DPR; stokLens.y = q.y / DPR;
       }
-    } else houtRaak(STOK.toon.draaislag, 1);
-    puffWorld(wx, 8, 0, 1.1, 0);
-    hitstop = Math.max(hitstop, stun ? 0.16 : 0.12); shake = Math.max(shake, stun ? 0.35 : 0.25);
+    } else if (voel) houtRaak(STOK.toon.draaislag, 1);
+    if (voel){ puffWorld(wx, 8, 0, 1.1, 0);
+      hitstop = Math.max(hitstop, stun ? 0.16 : 0.12); shake = Math.max(shake, stun ? 0.35 : 0.25); }
     if (!stun && s && s.hp > 0) s.rust = Math.max(s.rust, STOK.counterRust);   // de gewone counter: hij wankelt even
     if (stun && s && s.hp > 0){
       s.knock = (s.x < playerX() ? -1 : 1) * STOK.stun.terug;
@@ -20107,8 +20123,7 @@ function stokTreffer(s, wx, h, sx){
       banLaadIdle(s.duin ? 'duin' : s.elite);       // de staande idle voor het wankelen (al binnen in een level met zicht)
     }
   } else {
-    houtRaak(STOK.toon.slag, 0.8);
-    hitstop = Math.max(hitstop, 0.04);
+    if (voel){ houtRaak(STOK.toon.slag, 0.8); hitstop = Math.max(hitstop, 0.04); }
     if (s && s.hp > 0){                              // de reeks (STOK.reeks): na de eerste treffer wankelt hij, open voor de tweede
       const R = STOK.reeks, nu = performance.now() / 1000;
       s.stokReeks = nu - (s.stokReeksT || -99) < R.tussen ? (s.stokReeks || 0) + 1 : 1; s.stokReeksT = nu;
@@ -20162,7 +20177,13 @@ function stokSlipTeken(achter, w, h, flip){
   }
 }
 // de schade van de stokken (STOK.schade): hitBandiet trekt een heel leven af, dit geeft het verschil terug
-function stokSchade(s){ if (atkStok && steekLive()) s.hp += 1 - (STOK.schade[atkStok] ?? 1); }
+function stokSchade(s){
+  if (!atkStok || !steekLive()) return;
+  s.hp += 1 - (atkStok !== 'draaislag' && stokHoutNu() ? STOK.schadeHout : (STOK.schade[atkStok] ?? 1));
+}
+// Hardwood sticks uit de winkel van Co-op: van mij, of tijdens een treffer van een gast de zijne (stokHoutGast, mpcTrefferVanGast)
+let stokHoutGast = null;
+function stokHoutNu(){ return stokHoutGast != null ? stokHoutGast : !!(pvp && pvp.coop && pvp.coop.koop && pvp.coop.koop.hout); }
 // de counter gaat door een dekking heen, zoals de derde slag
 function stokDoor(){ return atkStok === 'draaislag'; }
 
@@ -23759,6 +23780,7 @@ function startAttack(){
     return;
   }
   if (dead || hurt > 0 || schijnLigt() || jump || amirVast() || stofA) return;
+  if (stokAan() && pvp && duckT > 0){ zwaaiNu(); return; }   // Multiplayer: gebukt is het de lage zwaai (voorlopig de speerbeelden, zie mpWapenLevel)
   if (stokAan()){ stokAanval(); return; }       // de stokken: de slag, of de counter na een blok (zie STOK)
   if (atkFrame >= 0){                            // already thrusting
     if (COMBO.aan && !atkCombo && !atkMes && atkFrame >= COMBO.buf) comboBuf = true;   // de derde slag: deze druk telt mee in de reeks
@@ -51378,7 +51400,7 @@ function loop(now){
           if (tipX + reach > nbox.l && tipX - reach < nbox.r && tipY + reach > nbox.t && tipY - reach < nbox.b){
             if (atkMes){ if (mesAfweer(s, 'bandiet')) swingUsed = true; continue; }   // het mes weert af
             if (s.bloed) bloedTref(s, bodyX, voeten, bS, face, tipX, tipY);           // bloed: de snee komt op de speerpunt
-            if (slagEen(s)){ if (hitBandiet(s) && atkStok) stokTreffer(s, s.x, tipY, tipX); } continue;   // de duw en Wide Circle raken ze allemaal (een keer per slag, duwId en fcSlag); de stokken: klap en stun (STOK)
+            if (slagEen(s)){ const rb = hitBandiet(s); if (atkStok && (rb || mpcGast())) stokTreffer(s, s.x, tipY, tipX, rb ? undefined : 'gevoel'); } continue;   // de duw en Wide Circle raken ze allemaal (een keer per slag, duwId en fcSlag); de stokken: klap en stun (STOK)
           }
         }
         // de geworpen speer
@@ -62737,7 +62759,7 @@ const pvpNu = () => performance.now() / 1000;
 // de vijandstand bevestigd heeft (vAk). Een gast heeft er een, naar de host (slot 0). Elk bericht draagt het slot van wie
 // het maakte (`p`); de host zet het zelf op wat binnenkomt (een gast kan niet voor een ander spreken) en stuurt wat de
 // andere gasten ook moeten weten door (MP_DOOR), en een bericht voor een gast (`naar`) alleen naar die. Zie notities/pvp.md.
-const MP_DOOR = new Set(['s', 'broek', 'rek', 'symPak', 'wkklaar', 'rematch']);
+const MP_DOOR = new Set(['s', 'broek', 'wapen', 'rek', 'symPak', 'wkklaar', 'rematch']);
 function pvpGasten(){ return pvp ? Object.keys(pvp.peers).map(Number).filter(p => p !== 0) : []; }
 function pvpRelay(){ return !!pvp && Object.values(pvp.peers).some(pe => pe.conn.relay); }
 function pvpPeerNieuw(conn, p){
@@ -63058,7 +63080,9 @@ function mpLobbyOpen(){
   mpLobbyToon();
   if (pvp.host) pvpZend({ t: 'lobby', inst: pvp.inst, spelers: pvp.spelers });
   pvpZend({ t: 'broek', id: pvp.broek[pvp.mij] });
-  mpBroekToon(); mpBroekStart();
+  if (!pvp.wapen[pvp.mij]) pvp.wapen[pvp.mij] = mpWapenEigen();
+  pvpZend({ t: 'wapen', w: pvp.wapen[pvp.mij] });
+  mpBroekToon(); mpWapenToon(); mpBroekStart();
 }
 function mpLobbyDicht(){ pvpEl('menuPvp').classList.remove('lobby'); pvpEl('start').classList.remove('mplobby'); }
 // ---- de broekkleur in Multiplayer: naast de lobby je eigen Amir, de pijltjes wisselen de kleur van zijn broek ----
@@ -63116,10 +63140,12 @@ function mpBroekStart(){
   const cv = pvpEl('mpbrcv'), g = cv.getContext('2d');
   const stap = now => {
     if (!pvp || pvp.fase !== 'lobby' || !pvpEl('menuPvp').classList.contains('lobby')){ mpBroekLoopt = false; return; }
-    const img = broekVbBeelden[Math.floor(now / 1000 * BROEK_VB.fps) % broekVbBeelden.length];
+    const stok = mpStokken() && stokBank && imgReady(stokBank.staan[0]);   // met de stokken: zijn staande stokframe
+    const img = stok ? stokBank.staan[0] : broekVbBeelden[Math.floor(now / 1000 * BROEK_VB.fps) % broekVbBeelden.length];
     g.clearRect(0, 0, cv.width, cv.height);
     if (imgReady(img)){
-      const iw = img.naturalWidth, ih = img.naturalHeight, sx = iw * BROEK_VB.uit[0], sw = iw * BROEK_VB.uit[1];
+      const iw = img.naturalWidth, ih = img.naturalHeight;
+      const sx = stok ? Math.max(0, iw * (STOK.ANKER - 170) / STOK.W) : iw * BROEK_VB.uit[0], sw = stok ? iw * 300 / STOK.W : iw * BROEK_VB.uit[1];
       const k = Math.min(cv.width / sw, cv.height / ih), dw = sw * k, dh = ih * k, dx = (cv.width - dw) / 2, dy = cv.height - dh;
       const teken = (id, doek, a) => {
         g.globalAlpha = a; g.drawImage(broekBeeld(img, img, broekKleurVan(id), doek), sx, 0, sw, ih, dx, dy, dw, dh); g.globalAlpha = 1;
@@ -63133,6 +63159,43 @@ function mpBroekStart(){
   };
   requestAnimationFrame(stap);
 }
+// ---- het wapen in Multiplayer: de speer of de stokken (STOK), ieder kiest zelf ----
+// Net als de broek: per speler, in de lobby, bewaard op dit apparaat (amir.mpwapen), en {t: 'wapen', w} naar de anderen.
+// Met de stokken start je potje als een level met stokken (mpWapenLevel): geen speer, geen rug, F slaat, C blokt. Gebukt
+// slaan is in Multiplayer de lage zwaai van de speer (voorlopig met de speerbeelden, zie startAttack). In de winkel van
+// Co-op ziet de stokspeler de speerspullen niet en heeft hij Hardwood sticks (MPC_WINKEL, mpcWinkelVoorMij).
+function mpWapenEigen(){
+  let w = null;
+  try { w = localStorage.getItem('amir.mpwapen'); } catch (e){}
+  return w === 'stok' ? 'stok' : 'speer';
+}
+function mpWapenZet(w){
+  if (!pvp || pvp.fase !== 'lobby' || pvp.mij == null || (w !== 'speer' && w !== 'stok')) return;
+  pvp.wapen[pvp.mij] = w;
+  try { localStorage.setItem('amir.mpwapen', w); } catch (e){}
+  if (w === 'stok') stokLaad();                    // voor het voorbeeld naast de lobby, en het potje
+  pvpZend({ t: 'wapen', w });
+  mpWapenToon();
+}
+function mpWapenAnder(p, w){
+  if (!pvp || p == null || p === pvp.mij || (w !== 'speer' && w !== 'stok')) return;
+  pvp.wapen[p] = w; mpWapenToon();
+}
+function mpWapenToon(){
+  if (!pvp || pvp.mij == null) return;
+  const w = pvp.wapen[pvp.mij] || 'speer';
+  pvpEl('mpwpspeer').classList.toggle('on', w === 'speer');
+  pvpEl('mpwpstok').classList.toggle('on', w === 'stok');
+  const a = pvp.spelers.filter(p => p !== pvp.mij && pvp.wapen[p] === 'stok').map(p => mpBroekNaam(pvp.broek[p]).toLowerCase());
+  pvpEl('mpwpuitleg').textContent = (w === 'stok' ? 'F strikes, C blocks, crouch and strike for a low sweep.' : 'F throws, tap to stab.')
+    + (a.length ? ' ' + a.join(' and ') + ' fights with sticks.' : '');
+}
+// speel ik met de stokken? (de keuze uit de lobby)
+function mpStokken(){ return !!(pvp && pvp.mij != null && pvp.wapen && pvp.wapen[pvp.mij] === 'stok'); }
+// het level van een potje: met de stokken als een level met stokken, zonder speer en zonder rug
+function mpWapenLevel(lv){ if (mpStokken()){ lv.stokken = true; lv.geenSpeer = true; lv.rugMax = 0; } return lv; }
+pvpEl('mpwpspeer').onclick = () => mpWapenZet('speer');
+pvpEl('mpwpstok').onclick = () => mpWapenZet('stok');
 pvpEl('mpbrlinks').onclick = () => mpBroekWissel(-1);
 pvpEl('mpbrrechts').onclick = () => mpBroekWissel(1);
 // verbonden. De host maakt het potje bij de eerste gast en neemt daarna nog gasten aan (pvpGastErbij); een gast wacht op
@@ -63141,7 +63204,7 @@ function pvpVerbonden(conn, host){
   pvp = { host, mij: host ? 0 : null, peers: {}, nets: {}, anders: {}, spelers: host ? [0] : [], sc: [0, 0, 0], ronde: 1, fase: host ? 'lobby' : 'welkom',
           t: 0, zendT: 0, sn: 0, wn: 0, jn: 0, laatsteAtk: -1, laatsteSw: -1, laatsteJav: null, mijn: null,
           raakSteek: -1, raakZwaai: -1, raakSpeer: -1, jVorig: null, bannerT: 0, rematch: [false, false, false], beelden: {}, weg: false,
-          inst: host ? mpLaadInst() : mpStandaard(), klaar: false, klaarVan: {}, regels: null, broek: [null, null, null], broekVan: null, broekT0: 0 };
+          inst: host ? mpLaadInst() : mpStandaard(), klaar: false, klaarVan: {}, regels: null, broek: [null, null, null], broekVan: null, broekT0: 0, wapen: [null, null, null] };
   pvpNetStart();                                    // de ping en de speelbuffer (zie "de netcode"); het snelle kanaal per peer
   if (host){ pvp.broek[0] = mpBroekEigen(0); pvpGastErbij(conn); mpLobbyOpen(); }
   else { pvpPeerNieuw(conn, 0); pvpStatus('Connected, joining the lobby...'); }
@@ -63161,6 +63224,7 @@ function pvpGastErbij(conn){
   pvp.klaarVan[p] = false;
   pvpStuur(pvp.peers[p], { t: 'welkom', mij: p, p: 0 });
   for (const q of pvp.spelers) if (q !== p && pvp.broek[q]) pvpStuur(pvp.peers[p], { t: 'broek', id: pvp.broek[q], p: q });
+  for (const q of pvp.spelers) if (q !== p && pvp.wapen[q]) pvpStuur(pvp.peers[p], { t: 'wapen', w: pvp.wapen[q], p: q });
   if (pvp.fase === 'lobby' && pvp.spelers.length > 2){ pvpZend({ t: 'lobby', inst: pvp.inst, spelers: pvp.spelers }); mpLobbyToon(); mpBroekToon(); }
 }
 // de host: een gast is weg. Is er niemand meer, dan zoals eerst; anders speelt de rest door (of blijft in de lobby)
@@ -63202,7 +63266,7 @@ function pvpDuelStart(){
                        laatsteJav: null, mijn: null, jVorig: null, rematch: [false, false, false], winst: Math.ceil(D.rondes / 2), levens: D.levens });
   runReset();
   levelList = PVP_LEVELS;                         // niet TEST_LEVELS: die geeft alle talents (een vierde leven)
-  level = readLevel(JSON.stringify(PVP_LEVEL));
+  level = readLevel(JSON.stringify(mpWapenLevel(JSON.parse(JSON.stringify(PVP_LEVEL)))));   // met de stokken: een level met stokken
   laadNieuw(); laadLevel(level);
   sandbox = false; godMode = false;
   if (ROL.koelOud == null) ROL.koelOud = ROL.koel;
@@ -63301,6 +63365,8 @@ function pvpOntvang(m){
     if (pvp.fase === 'lobby'){ mpLobbyToon(); mpBroekToon(); }
   } else if (m.t === 'broek'){
     mpBroekAnder(m.p, m.id);
+  } else if (m.t === 'wapen'){
+    mpWapenAnder(m.p, m.w);
   } else if (m.t === 'klaar'){
     if (!pvp.host) return;
     pvp.klaarVan[m.p] = !!m.aan; mpKnoppen();
@@ -63402,7 +63468,8 @@ function pvpStap(rdt){
     if (!pvp) return;
   }
   if (pvp.bannerT > 0){ pvp.bannerT -= rdt; if (pvp.bannerT <= 0){ pvp.banner = ''; pvpHud(); } }
-  if (atkFrame >= 0 && pvp.laatsteAtk < 0) pvp.sn++;
+  if (atkFrame >= 0 && (pvp.laatsteAtk < 0 || atkFrame < pvp.laatsteAtk || atkStok !== pvp.laatsteStok)) pvp.sn++;
+  pvp.laatsteStok = atkStok;
   pvp.laatsteAtk = atkFrame;
   if (swFrame >= 0 && pvp.laatsteSw < 0) pvp.wn++;
   pvp.laatsteSw = swFrame;
@@ -63417,7 +63484,7 @@ function pvpStap(rdt){
     pvp.zendT = 1 / (pvpRelay() ? PVP_RELAY.hz : PVP.hz);
     const j = jav && jav.state !== 'weg' ? { x: Math.round(jav.x), h: Math.round(jav.h), sa: +jav.sa.toFixed(3), dir: jav.dir, st: jav.state, t: +(jav.t || 0).toFixed(2), b: jav.blauw || 0, n: pvp.jn } : null;
     pvpZendSnel(Object.assign({ t: 's', q: ++pvp.qs, tm: +pvpNu().toFixed(3), ak: pvp.coop && !pvp.host && pvp.nets[0] ? pvp.nets[0].v.q : undefined, x: Math.round(playerX()), h: Math.round(ph), f: facing, hu: +hurt.toFixed(2),
-      sf: atkFrame, sl: steekLive() && !atkMes ? 1 : 0, sn: pvp.sn, sw: swFrame, wn: pvp.wn, j, l: lives, d: dead ? 1 : 0,
+      sf: atkFrame, ss: atkStok || undefined, sl: steekLive() && !atkMes ? 1 : 0, sn: pvp.sn, sw: swFrame, wn: pvp.wn, j, l: lives, d: dead ? 1 : 0,
       iv: invuln > 0 ? 1 : 0, du: +duckT.toFixed(2), ds: +duckShare.toFixed(2) }, pvp.mijn));   // iv, du en ds: de stand voor de vijanden van Co-op (mpcGastStand)
   }
   if (pvp.coop) mpCoopStap(rdt, rdt);                // Co-op: de rondes, de deuren en de vijanden
@@ -63474,7 +63541,15 @@ function pvpTekenEen(p, g, groundY, scale, cx, pbox, hitBy){
   // treffers: alleen in een lopende ronde, en mijn laptop beslist
   if (pvp.fase !== 'vecht' || dead || invuln > 0) return;
   const raak = () => { const voor = lives; hurtPlayer(g.x < playerX()); if (lives < voor) pvpZend({ t: 'au', l: lives }); };
-  if (g.sl && g.sn !== pvp.raakSteek && g.sf >= 0 && g.sf < TIP_DX.length){
+  if (g.sl && g.ss && STOK.ms[g.ss] && g.sn !== pvp.raakSteek && g.sf >= 0){   // zijn stokslag: de punt en de reik van die slag (STOK.punt, STOK.reik)
+    const eig = [atkStok, atkFrame];
+    atkStok = g.ss; atkFrame = g.sf;
+    let dxv, ty, R;
+    try { dxv = steekDX() * scale; ty = steekY() * scale; R = steekR() * scale; } finally { [atkStok, atkFrame] = eig; }
+    const tipX = sx + (g.f === 1 ? -dxv : dxv), tipY = voet - SPR_GROUND * scale + ty;
+    if (hitBy({ l: tipX - R, r: tipX + R, t: tipY - R, b: tipY + R }, pbox)){ pvp.raakSteek = g.sn; raak(); return; }
+  }
+  else if (g.sl && g.sn !== pvp.raakSteek && g.sf >= 0 && g.sf < TIP_DX.length){
     const dxv = TIP_DX[g.sf] * scale, tipX = sx + (g.f === 1 ? -dxv : dxv);
     const tipY = voet - SPR_GROUND * scale + TIP_Y[g.sf] * scale, R = 40 * scale;
     if (hitBy({ l: tipX - R, r: tipX + R, t: tipY - R, b: tipY + R }, pbox)){ pvp.raakSteek = g.sn; raak(); return; }
@@ -63528,12 +63603,13 @@ const MPC_WINKEL_KAMER = { r: -20000, l: -21700, toonbank: -21250, plek: [-20300
 // de prijslijst van de winkel in Co-op (per speler). prijs een getal, of een rij voor de zoveelste keer; eis: eerst dat
 const MPC_WINKEL = [
   { k: 'kalebas', naam: 'Gourd',                    prijs: 5,  uitleg: 'One life back, until your lives are full' },
-  { k: 'speer',   naam: 'New spear',                prijs: 10, uitleg: 'Until your hand and back are full' },
-  { k: 'gif',     naam: 'Poison',                   prijs: 25, uitleg: 'One per spear slot. Press I to smear it on' },
-  { k: 'fc',      naam: 'Full Circle',              prijs: 30, uitleg: 'A stab at an open enemy (blinded by dust, or one that just missed) becomes a spinning strike' },
-  { k: 'kracht',  naam: 'Full Circle: more damage', prijs: 50, uitleg: '1.5 damage and a big knockback', eis: 'fc' },
-  { k: 'rond',    naam: 'Full Circle: all around',  prijs: 50, uitleg: 'The spin hits everyone around you, also behind you', eis: 'fc' },
-  { k: 'slot',    naam: 'Extra spear slot',         prijs: 45, uitleg: 'A second spare spear on your back' },
+  { k: 'speer',   naam: 'New spear',                prijs: 10, uitleg: 'Until your hand and back are full', speer: true },
+  { k: 'gif',     naam: 'Poison',                   prijs: 25, uitleg: 'One per spear slot. Press I to smear it on', speer: true },
+  { k: 'fc',      naam: 'Full Circle',              prijs: 30, uitleg: 'A stab at an open enemy (blinded by dust, or one that just missed) becomes a spinning strike', speer: true },
+  { k: 'kracht',  naam: 'Full Circle: more damage', prijs: 50, uitleg: '1.5 damage and a big knockback', eis: 'fc', speer: true },
+  { k: 'rond',    naam: 'Full Circle: all around',  prijs: 50, uitleg: 'The spin hits everyone around you, also behind you', eis: 'fc', speer: true },
+  { k: 'slot',    naam: 'Extra spear slot',         prijs: 45, uitleg: 'A second spare spear on your back', speer: true },
+  { k: 'hout',    naam: 'Hardwood sticks',          prijs: 40, uitleg: 'Your strikes hit harder: 0.75 of a life instead of 0.5', stok: true },   // STOK.schadeHout
   { k: 'leven',   naam: 'Extra life',               prijs: [60, 90, 120], uitleg: 'One more life, for the rest of the game' },
   { k: 'amulet',  naam: 'Gris-gris',                prijs: [40, 75, 110], uitleg: ['A charm against harm: 10% chance a hit costs you no life',
                                                                             'Stronger charm: 20% chance', 'Strongest charm: 30% chance'] },   // GRISGRIS
@@ -63734,7 +63810,8 @@ function mpcHitDoor(naam){
     if (k && !(o.mpGemeld > nu - MPC.dubbel)){
       o.mpGemeld = nu;
       pvpRaakLokaal(o);                                 // de gast voelt het meteen; de host stuurt de schade terug
-      pvpZendAan(0, { t: 'mh', a: k, id: o.mpId, f: naam, g: a.map(v => (v == null || typeof v === 'object') ? null : v) });
+      pvpZendAan(0, { t: 'mh', a: k, id: o.mpId, f: naam, g: a.map(v => (v == null || typeof v === 'object') ? null : v),
+                      st: atkStok || undefined, sf: atkFrame, co: atkCombo ? 1 : 0, hw: stokHoutNu() ? 1 : 0 });   // zijn slag: de host rekent met zijn stand, niet met die van zichzelf
     }
     return false;                                       // bij de gast gebeurt er niets: de host stuurt het gevolg terug
   };
@@ -63757,10 +63834,13 @@ function mpcTrefferVanGast(m){
   const q = mpcLijst(m.a); if (!q) return;
   const o = q.l().find(v => v.mpId === m.id); if (!o || !mpcLeeft(o) || !pvpAnderNu(m.p)) return;
   mpcWisselIn(m.p);
+  const eig = [atkStok, atkFrame, atkCombo];          // de slag van de gast, niet die van de host (de stokken, Full Circle)
+  atkStok = m.st || null; atkFrame = m.sf ?? -1; atkCombo = !!m.co; stokHoutGast = !!m.hw;
+  let raak = false;
   try {
     if (m.f === 'enemyTakeHit'){
       if (m.a === 'snakes' || m.a === 'scorps') mpcInlineDood(o);
-      else if (m.a === 'bandieten') MPC_ORIG.hitBandiet(o);
+      else if (m.a === 'bandieten') raak = MPC_ORIG.hitBandiet(o);
       else if (m.a === 'hyenas') MPC_ORIG.hitHyena(o);
       else if (m.a === 'kooimannen') MPC_ORIG.hitKooiman(o);
       else if (m.a === 'meelmannen') MPC_ORIG.hitMeelman(o);
@@ -63769,8 +63849,9 @@ function mpcTrefferVanGast(m){
       else if (m.a === 'schildmannen') MPC_ORIG.hitSchildman(o, 'steek');
       else if (m.a === 'fosforSlangen') MPC_ORIG.fosforRaak(o);
       else MPC_ORIG.enemyTakeHit(o);
-    } else if (MPC_ORIG[m.f]) MPC_ORIG[m.f](o, ...(m.g || []));
-  } finally { mpcWisselUit(); }
+    } else if (MPC_ORIG[m.f]) raak = MPC_ORIG[m.f](o, ...(m.g || []));
+    if (raak && atkStok && m.a === 'bandieten') stokTreffer(o, o.x, 0, undefined, 'gevolg');   // de reeks, het wankelen en de stun
+  } finally { [atkStok, atkFrame, atkCombo] = eig; stokHoutGast = null; mpcWisselUit(); }
 }
 // de tonnen: een treffer van de gast gaat naar de host, die telt; de host stuurt elke treffer terug, voor het beeld
 const mpcTonRaakOrig = tonRaak;
@@ -63792,6 +63873,7 @@ function mpcTonRaak(t, from, wie){
 // het rek: wie een speer pakt, zegt het de anderen (een gast via de host, die het doorstuurt)
 const mpcRekOrig = rekTrek;
 rekTrek = function(){
+  if (mpCoopAan() && stokAan()) return false;       // met de stokken: geen speren van het rek
   const r = rekBij(), n = r ? r.n : null, uit = mpcRekOrig.apply(this, arguments);
   if (mpCoopAan() && r && r.n !== n) pvpZend({ t: 'rek', n: r.n });
   return uit;
@@ -63922,7 +64004,7 @@ function mpCoopNieuw(){
            zak: [], goud: 0, reeks: { n: 0, t: -99 }, eind: null,
            doodT: {}, reviveTon: {}, symbolen: [], reviveRust: {}, symId: 0,   // per slot: sinds wanneer dood, zijn revive-ton, zijn symbool
            leegQ: {}, losWeg: new Set(), losVorig: {}, gezien: new Map(), sleutelT: 0, zendT: 0, klaarVan: new Set(),
-           koop: { fc: false, kracht: false, rond: false, slot: false, leven: 0, amulet: 0 },   // wat ik in de winkel kocht (ieder het zijne)
+           koop: { fc: false, kracht: false, rond: false, slot: false, hout: false, leven: 0, amulet: 0 },   // wat ik in de winkel kocht (ieder het zijne)
            wkKlaar: {}, mijnKlaar: false };   // Ready in de winkel per slot: de host telt iedereen, ieder weet wie al klaar is
 }
 // wat er in een ronde komt: willekeurig uit de soorten die aan staan, bij Both de helft van de keren de moeilijke
@@ -64368,6 +64450,7 @@ function mpCoopStart(){
   levelList = PVP_LEVELS;                         // niet TEST_LEVELS: die geeft alle talents (een vierde leven)
   const lv = JSON.parse(JSON.stringify(MP_COOP_LEVEL));
   lv.wapenrekken[0].n = pvp.regels.coop.rek;
+  mpWapenLevel(lv);                                 // met de stokken: een level met stokken (geen speer, geen rug)
   level = readLevel(JSON.stringify(lv));
   laadNieuw(); laadLevel(level); mpCoopLaad();
   sandbox = false; godMode = false;
@@ -64425,6 +64508,7 @@ function mpcGoudIedereen(n, waarom){ mpcGoudErbij(n, waarom); pvpZend({ t: 'cg',
 // je speren terug: een in de hand en de gewone plek op de rug vol; wat er nog ligt of vliegt is weg
 function mpcSperenTerug(){
   jav = null; losseSperen.length = 0; rugTrekT = 0;
+  if (stokAan()) return;                            // met de stokken: geen speer (mpWapenLevel)
   spear = true; spearFound = true; spearX = null; spearH = null; speerBlauw = false;
   while (rugSperen.length < Math.min(RUG_MAX, RUG_STANDAARD)) rugSperen.push({ blauw: false });
   setSpearLabel();
@@ -64489,10 +64573,13 @@ function mpcWinkelKlaar(){
 // een item met trappen (prijs is een lijst: Extra life, Gris-gris) telt in koop hoe vaak je het kocht
 function mpcWinkelPrijs(q){ return Array.isArray(q.prijs) ? q.prijs[Math.min(pvp.coop.koop[q.k] || 0, q.prijs.length - 1)] : q.prijs; }
 function mpcWinkelHeb(q){ const K = pvp.coop.koop; return Array.isArray(q.prijs) ? (K[q.k] || 0) >= q.prijs.length : (q.k in K) && !!K[q.k]; }
+// de speerspullen (speer: true) ziet een stokspeler niet, en Hardwood sticks (stok: true) alleen hij
+function mpcWinkelVoorMij(q){ return stokAan() ? !q.speer : !q.stok; }
 function mpcWinkelNiet(q){
   const C = pvp.coop, K = C.koop, handVol = spear || spearFound || rugTrekT > 0;
   let r = null;
-  if (mpcWinkelHeb(q)) r = Array.isArray(q.prijs) ? 'Sold out: you bought all three.' : 'You already have this.';
+  if (!mpcWinkelVoorMij(q)) r = 'Not for your weapon.';
+  else if (mpcWinkelHeb(q)) r = Array.isArray(q.prijs) ? 'Sold out: you bought all three.' : 'You already have this.';
   else if (q.eis && !K[q.eis]) r = 'Buy Full Circle first.';
   else if (q.k === 'kalebas' && lives >= levensStart()) r = 'Your lives are full.';
   else if (q.k === 'speer' && (!rugAan() || (rugVol() && handVol))) r = 'Your hand and back are full.';
@@ -64523,6 +64610,7 @@ function mpcWinkelToon(){
   el.innerHTML = '';
   const anderen = pvp.spelers.filter(p => p !== pvp.mij);
   for (const q of MPC_WINKEL){
+    if (!mpcWinkelVoorMij(q)) continue;
     // Give 5 gold: een knop per teamgenoot (wkc_geef_<slot>), met twee teamgenoten de kleur van zijn broek erbij
     for (const aan of (q.k === 'geef' ? anderen : [null])){
       const b = document.createElement('button'), heb = mpcWinkelHeb(q), niet = mpcWinkelNiet(q);
