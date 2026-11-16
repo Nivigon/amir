@@ -850,13 +850,19 @@ doet (**0.5**, **1** of **1.5** per treffer). Keien en twee plateaus om vanaf te
 vijanden. In de sandbox zet de knop **Grondklap** hem aan (met **Stokken** aan).
 
 In **Test 77: Sun ray** vallen bundels zonlicht in de straten van de stad. Sta met de stokken in zo'n straal en houd **omlaag**
-3 seconden vast: Amir mediteert, het licht trekt naar hem toe (een treffer, bewegen of loslaten breekt het af). Dan is hij
+3 seconden vast: Amir mediteert, het licht trekt naar hem toe. Na een korte instap gaat hij in trance: hij sluit zich af van
+de wereld (alles om hem heen wordt donker) en roept **Tau** op, de leeuwengod. Vanaf dan zit hij vast tot hij losbarst: loslaten
+of bewegen breekt het niet meer af, en een treffer ook niet. Die kost wel, maar de helft, en duwt hem niet weg. Je kunt dus kiezen
+om een paar klappen te incasseren, of eerst een plek te zoeken waar niemand je ziet (in Test 77 hoort een bandiet je niet zolang
+je stil zit). Dan is hij
 6 seconden de **Sun Lion**: een gouden gloed en een ring boven zijn hoofd die leegloopt. Hij kan dan niet blokken (dus ook niet
 counteren), elke treffer telt dubbel, hij is sneller, springt in een keer op een galerij, en heeft twee grondklappen los van de
 afkoeling. Daarna is hij een paar seconden **Tired**: geen grondklap, en trager lopen, springen, rollen, slaan en blokken.
 Daarna kan het in elke straal opnieuw. Het level: een straal om te proberen, een lange galerij zonder trap of kraam (alleen de
 Sun Lion komt erop), een pleintje met drie bandieten en een elite met een bandiet erachter. In de sandbox zet de knop
-**Zonnestraal** een straal voor Amir neer, en **Zonnestralen weg** haalt ze weer weg.
+**Zonnestraal** een straal voor Amir neer, en **Zonnestralen weg** haalt ze weer weg. Twee knoppen proberen mogelijke talents:
+**Trance: schade terug** geeft bij het losbarsten de helft van de schade uit de trance terug, en **Trance: uitbarsting** slaat bij
+het losbarsten alles om Amir heen weg.
 
 Amir rent in elk level met de nieuwe ren: licht voorover, met lange passen, de speer rechtop in zijn hand, bij
 lopen en sprinten. In **Test 75: New run** kun je hem goed bekijken. Het tempo van zijn benen volgt zijn snelheid, zodat zijn voeten niet glijden. Een lange vlakte om te sprinten, twee keien om over te springen en daarna twee

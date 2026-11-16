@@ -205,6 +205,17 @@ zonneschijf in de lucht), `straalUpdate`, `straalTeken`, `straalAmirTeken`, `str
 - Uitgeput (`straalMoe`, `STRAAL.moe` 3 s, geluid `brutus_adem`): geen grondklap (`gkKan`), lopen maal `moeLoop`, opsprong
   maal `moeSprong`, de rol maal `moeRol`, een slag `moeSlag` keer zo traag en het blok `moeBlok` keer zo traag. TIRED met een
   grijze ring. Daarna kan het in elke straal opnieuw; een gebruikte straal is zwakker zolang het loopt.
+- De trance (16-11-2026, `straalTrance`): na `STRAAL.instap` (0,35 s) omlaag sluit Amir zich af van de wereld en roept hij Tau
+  op, de leeuwengod (TAU boven de ring). Vanaf dan zit hij vast (`straalTrance` in `amirVast`, hij blijft geknield in `canDuck`,
+  geen blok) tot hij losbarst; loslaten, bewegen of een treffer breken het niet meer af. Een treffer kost
+  `STRAAL.trance.schade` (0,5) keer en duwt hem niet weg (in `hurtPlayer`, `straalTranceSchadeK`). De wereld om hem heen wordt
+  donker (`STRAAL.trance.dim`, `straalDimNa`, na de lichtlaag; in `straalAmirTeken` tekende de wereld er weer overheen). Het idee
+  van de opdrachtgever: een afweging, schade incasseren of eerst een plek zoeken waar niemand je ziet (Test 77 heeft `sneak`, en
+  stilzitten is stil). Bij het losbarsten een gouden ring (`straalLosbarst`, `straalGolf`).
+- Twee kandidaat-talents, voorlopig alleen sandboxknoppen (`STRAAL.talent`, `sbzonterug`, `sbzonbarst`), nog niet in een boom:
+  **Trance: schade terug** (`STRAAL.terug`, de helft van de trance-schade komt terug bij het losbarsten, tot het maximum) en
+  **Trance: uitbarsting** (`STRAAL.uitbarst`: alles binnen 3,2 Amir op zijn hoogte vliegt weg en is even traag, zoals na de
+  grondklap; slangen en schorpioenen wippen. Geen schade.)
 - De grondklap heeft nu altijd `GK.koel` 8 s afkoeling (was 1 s), ook in Test 76.
 - Test 77 (stad bij dag): een straal om te proberen, een lange galerij op 401 zonder kraam, trap of lift (alleen ontketend
   kom je erop, met een bandiet en een kalebas boven), een pleintje met drie bandieten en een straal in het midden, en een

@@ -1884,6 +1884,8 @@
         <button id="sbgrondklap" title="Met de stokken: in de lucht omlaag plus aanval is de grondklap, de stokken in de grond en een golf naar voren (GK)">Grondklap: uit</button>
         <button id="sbzon" title="Met de stokken: een zonnestraal voor Amir. Sta erin en houd omlaag 3 s vast: 5 s Sun Lion (geen blok, dubbele schade, sneller, de hoge sprong), daarna moe (STRAAL)">Zonnestraal</button>
         <button id="sbzonweg" title="Alle zonnestralen weg">Zonnestralen weg</button>
+        <button id="sbzonterug" title="Kandidaat-talent: bij het losbarsten na de trance komt de helft van de schade uit de trance terug (STRAAL.talent.terug)">Trance: schade terug</button>
+        <button id="sbzonbarst" title="Kandidaat-talent: het losbarsten na de trance slaat alles om Amir heen weg (STRAAL.talent.uitbarst)">Trance: uitbarsting</button>
         <button id="sbstokken" title="Amir vecht met twee stokken in plaats van de speer: spatie of F slaat, C vasthouden blokt (de stokken gekruist), en slaan tijdens of vlak na het blok is de draaislag (de counter). Zie STOK">Stokken: uit</button>
         <button id="sbschildamir" title="Amir krijgt een schild: houd C vast (op een telefoon de schildknop) en het gaat omhoog. Het vangt alles van voren: bouten blijven erin steken, de speer van de schildbandiet duwt je terug. Til je het net voor de klap op, dan is het de parade: een bout kaatst terug en de schildbandiet wankelt">Schild: uit</button>
         <span class="hint">Houd C vast. Net op tijd optillen is de parade</span>
@@ -17852,7 +17854,7 @@ function bavFocusX(p){
 }
 // de entree van de bandiet-arena: Amir staat vast en kijkt toe terwijl de garde hem opmerken, tot het gevecht vrij is
 const arenaIntroVast = () => { const A = arenaAap; return !!(A && A.ban && A.fase === 'intro'); };
-const amirVast = () => !!rol || !!rolW || beetVast || bavDramaNu() || arenaIntroVast() || bruIntroVast() || !!exeVries || !!bruVries || !!poortRegie || !!sneakRegie || murFinaleVast() || murcPinBezet() || !!murcVries;   // de speerbeet, het drama, de arena-entree of de executie: Amir staat vast
+const amirVast = () => !!rol || !!rolW || beetVast || bavDramaNu() || arenaIntroVast() || bruIntroVast() || !!exeVries || !!bruVries || !!poortRegie || !!sneakRegie || murFinaleVast() || murcPinBezet() || !!murcVries || straalTrance;   // de speerbeet, het drama, de arena-entree of de executie: Amir staat vast
 // het gevecht in de tekenlus, na de andere vijanden: raakt zijn bek Amir, en raakt Amir hem
 function bavGevecht({ cx, groundY, scale, pbox, pcx, y, swbox, javRaakt, valRaakt, attacking, hitBy }){
   const b = level && level.baviaan, r = b && bavRust.get(b), g = b && bavGeo.get(b);
@@ -20422,8 +20424,18 @@ function gkWis(){ gkFx.stof.length = 0; gkFx.stenen.length = 0; gkFx.golven.leng
 // opsprong, de hoogte gaat in het kwadraat) en twee grondklappen los van de afkoeling (STRAAL.klappen; normaal een per
 // GK.koel, 8 s). Daarna STRAAL.moe seconden uitgeput: geen grondklap, en trager lopen, springen, rollen, slaan en blokken.
 // Na de uitputting kan het in elke straal opnieuw. Alleen met de stokken. Zie notities/stokken.md.
+// De trance: na STRAAL.instap omlaag sluit Amir zich af van de wereld en roept hij Tau op, de leeuwengod. Vanaf dan zit
+// hij vast tot hij losbarst: loslaten, bewegen of een treffer breken het niet meer af. Een treffer kost wel, maar minder
+// (STRAAL.trance.schade) en duwt hem niet weg. Twee kandidaat-talents, voorlopig sandboxknoppen (STRAAL.talent):
+// terug, bij het losbarsten een deel van de schade uit de trance terug, en uitbarst, de uitbarsting slaat alles om hem
+// heen weg.
 const STRAAL = {
-  medi: 3,                  // s omlaag vasthouden in de straal
+  medi: 3,                  // s omlaag vasthouden in de straal (de instap telt mee)
+  instap: 0.35,             // s omlaag tot de trance begint; daarvoor breekt loslaten of bewegen het nog af
+  trance: { schade: 0.5, dim: 0.5 },   // in de trance: een treffer kost zoveel keer, en zo donker wordt de wereld om hem heen
+  talent: { terug: false, uitbarst: false },   // de kandidaat-talents (sandbox): schade terug, en alles wegslaan
+  terug: 0.5,               // talent terug: dit deel van de schade uit de trance komt terug bij het losbarsten
+  uitbarst: { r: 3.2, knock: 620, rust: 1.4, traag: 1.2, wip: 620 },   // talent uitbarst: straal in Amir, en de klap zoals bij de grondklap
   burst: 6,                 // s ontketend
   klappen: 2,               // ontketend: zoveel grondklappen, los van de afkoeling van 8 s (GK.koel)
   moe: 3,                   // s uitgeput
@@ -20440,6 +20452,7 @@ const STRAAL = {
 };
 let straalKlappen = 0;      // grondklappen in deze burst (STRAAL.klappen)
 let straalLijst = [], straalFase = null, straalT = 0, straalMediT = 0, straalNu = null, sbStraal = false, straalGeluid = null;
+var straalTrance = false, straalTranceSchade = 0, straalGolf = null, straalDim = null;   // var: amirVast leest het (zie de trance)
 const straalMotes = [];        // stofjes in het licht die tijdens het mediteren naar Amir toe trekken
 function straalLaad(){
   if (straalGeluid) return;
@@ -20450,7 +20463,7 @@ function straalReset(){
   straalLijst = sandbox ? straalLijst : ((level && level.zonnestralen) || []).map(z => ({ x: Number(z.x) || 0, h: Number(z.h) || 0 }));
   straalWis();
 }
-function straalWis(){ straalFase = null; straalT = 0; straalMediT = 0; straalNu = null; straalMotes.length = 0; }
+function straalWis(){ straalFase = null; straalT = 0; straalMediT = 0; straalNu = null; straalMotes.length = 0; straalTrance = false; straalTranceSchade = 0; straalGolf = null; }
 function straalBurst(){ return straalFase === 'burst'; }
 function straalMoe(){ return straalFase === 'moe'; }
 function straalLoopK(){ return straalBurst() ? STRAAL.loop : straalMoe() ? STRAAL.moeLoop : 1; }
@@ -20474,22 +20487,26 @@ function straalUpdate(dt){
       else { straalFase = null; straalT = 0; }
     }
   }
-  const z = !straalFase ? straalBij() : null;
-  const houd = z && downKey() && onGround && !jump && !dead && hurt <= 0 && atkFrame < 0 && !rol
+  if (straalTrance && dead) straalWis();
+  const z = straalTrance ? straalNu : !straalFase ? straalBij() : null;
+  const houd = straalTrance || z && downKey() && onGround && !jump && !dead && hurt <= 0 && atkFrame < 0 && !rol
     && !keys['ArrowLeft'] && !keys['ArrowRight'] && !keys['a'] && !keys['A'] && !keys['d'] && !keys['D'] && !amirVast();
   if (houd){
     straalNu = z; straalMediT += dt;
+    if (!straalTrance && straalMediT >= STRAAL.instap){ straalTrance = true; straalTranceSchade = 0; }   // afgesloten van de wereld: Tau
     if (Math.random() < dt * (10 + 30 * straalMediT / STRAAL.medi)){   // stofjes die naar hem toe trekken, sneller naarmate het laadt
       const a = Math.random() * Math.PI * 2, r = 0.55 + Math.random() * 0.4;
       straalMotes.push({ dx: Math.cos(a) * r, dh: 0.5 + Math.sin(a) * r * 0.8, t: 0, life: 0.5 + Math.random() * 0.4 });
     }
     if (straalMediT >= STRAAL.medi){
-      straalFase = 'burst'; straalT = STRAAL.burst; straalMediT = 0; straalKlappen = 0;
+      straalFase = 'burst'; straalT = STRAAL.burst; straalMediT = 0; straalKlappen = 0; straalTrance = false;
+      straalLosbarst();
       shake = Math.max(shake, 0.25); hitstop = Math.max(hitstop, 0.08);
       if (straalGeluid) banStemSpeel(straalGeluid.burst, STRAAL.vol.burst);
       for (let i = 0; i < 26; i++){ const a = Math.random() * Math.PI * 2; straalMotes.push({ dx: Math.cos(a) * 0.1, dh: 0.5, vx: Math.cos(a), vh: Math.sin(a), t: 0, life: 0.6, uit: true }); }
     }
   } else { straalMediT = 0; straalNu = null; }
+  if (straalGolf && (straalGolf.t += dt) > 0.6) straalGolf = null;
   for (let i = straalMotes.length - 1; i >= 0; i--){
     const m = straalMotes[i]; m.t += dt;
     if (m.uit){ m.dx += m.vx * dt * 1.6; m.dh += m.vh * dt * 1.6; }
@@ -20497,6 +20514,41 @@ function straalUpdate(dt){
     if (m.t >= m.life) straalMotes.splice(i, 1);
   }
 }
+// het losbarsten na de trance: de gouden golf, en de twee kandidaat-talents
+function straalLosbarst(){
+  straalGolf = { t: 0 };
+  if (STRAAL.talent.terug && straalTranceSchade > 0 && !onsterfelijk()){   // talent terug: een deel van de trance-schade komt terug
+    lives = Math.min(Math.max(HPPOTION_HP_MAX, levensStart()), lives + straalTranceSchade * STRAAL.terug);
+    drawLives(); hppotionLivesAnim();
+  }
+  straalTranceSchade = 0;
+  if (!STRAAL.talent.uitbarst) return;                   // talent uitbarst: alles om hem heen wordt weggeslagen, zoals de grondklap
+  const U = STRAAL.uitbarst, sc = nowScale(), px = playerX(), r = U.r * CHAR_H * sc;
+  shake = Math.max(shake, 0.45); hitstop = Math.max(hitstop, 0.12);
+  const lijsten = [bandieten, schildmannen, zweepmannen, kruisbogen, kooimannen, meelmannen, hyenas, snakes, scorps];
+  for (const L of lijsten) for (const s of L){
+    if (!sbLeeft(s) || Math.abs(s.x - px) > r || Math.abs((s.base || 0) - ph) > CHAR_H * sc) continue;
+    const weg = s.x < px ? -1 : 1, k = 1 - 0.5 * Math.abs(s.x - px) / r;
+    if (L === snakes || L === scorps){ s.gkVh = U.wip * k; s.gkH = 1; continue; }
+    if ('knock' in s || L === bandieten) s.knock = weg * U.knock * k;
+    s.rust = Math.max(s.rust || 0, U.rust); s.traag = Math.max(s.traag || 0, U.traag); s.traagMax = Math.max(s.traagMax || 0, s.traag);
+    puffWorld(s.x, 6, weg * 260, 1.2, s.base || 0);
+  }
+  for (let i = 0; i < 40; i++){ const a = Math.random() * Math.PI * 2; straalMotes.push({ dx: Math.cos(a) * 0.2, dh: 0.5, vx: Math.cos(a) * 2.2, vh: Math.sin(a) * 0.9, t: 0, life: 0.7, uit: true }); }
+}
+// de verduistering van de trance, over de lichtlaag heen (anders tekende de wereld er weer overheen), in schermpixels
+function straalDimNa(){
+  const D = straalDim; straalDim = null;
+  if (!D || !straalTrance) return;
+  const p = D.T.transformPoint(new DOMPoint(D.x, D.y)), k = Math.hypot(D.T.a, D.T.b), cv = ctx.canvas;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const g = ctx.createRadialGradient(p.x, p.y, D.r0 * k, p.x, p.y, D.r1 * k);
+  g.addColorStop(0, 'rgba(8,5,2,0)'); g.addColorStop(1, 'rgba(8,5,2,' + D.d.toFixed(3) + ')');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.restore();
+}
+// in de trance: een treffer kost minder en duwt hem niet weg (hurtPlayer)
+function straalTranceSchadeK(){ return straalTrance ? STRAAL.trance.schade : 1; }
 // hoe fel de gouden gloed om Amir nu is, 0 tot 1: tijdens het mediteren groeit hij, ontketend brandt hij, en aan het
 // eind flakkert hij, zodat je ziet dat het ophoudt
 function straalGloed(){
@@ -20552,6 +20604,17 @@ function straalTeken(groundY, scale, cx){
 // grijs uitgeput, en tijdens het mediteren een ring die volloopt)
 function straalAmirTeken(pcx, feetY, scale){
   const A = CHAR_H * scale;
+  if (straalTrance){                                   // afgesloten van de wereld: alles om hem heen wordt donker
+    const d = STRAAL.trance.dim * Math.min(1, (straalMediT - STRAAL.instap) / 0.6);
+    straalDim = { T: ctx.getTransform(), x: pcx, y: feetY - A * 0.5, r0: A * 0.55, r1: A * 3.2, d };   // getekend na de lichtlaag (straalDimNa)
+  }
+  if (straalGolf){                                     // het losbarsten: een gouden ring die wegrolt
+    const k = straalGolf.t / 0.6, rr = A * (0.4 + (STRAAL.talent.uitbarst ? STRAAL.uitbarst.r : 1.6) * k);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = 'rgba(255,214,110,' + (0.8 * (1 - k)).toFixed(3) + ')'; ctx.lineWidth = Math.max(2, A * 0.05 * (1 - k));
+    ctx.beginPath(); ctx.ellipse(pcx, feetY - A * 0.45, rr, rr * 0.55, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
   if (straalMotes.length){
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     for (const m of straalMotes){
@@ -20573,10 +20636,10 @@ function straalAmirTeken(pcx, feetY, scale){
   ctx.beginPath(); ctx.arc(pcx, cy, r, 0, Math.PI * 2); ctx.stroke();
   ctx.strokeStyle = 'rgba(' + kleur + ',0.95)';
   ctx.beginPath(); ctx.arc(pcx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, Math.min(1, deel))); ctx.stroke();
-  if (!straalMediT){
+  if (!straalMediT || straalTrance){
     ctx.font = 'bold ' + Math.max(13, Math.round(A * 0.085)) + 'px sans-serif'; ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(' + kleur + ',0.95)'; ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 3;
-    const t = straalBurst() ? 'SUN LION' : 'TIRED';
+    const t = straalTrance ? 'TAU' : straalBurst() ? 'SUN LION' : 'TIRED';
     ctx.strokeText(t, pcx, cy - r - A * 0.03); ctx.fillText(t, pcx, cy - r - A * 0.03);
   }
   ctx.restore();
@@ -20667,7 +20730,7 @@ function stokBlokStap(dt){
     if (atkStok !== 'slag') stokAnker(atkStok, stokFrameIdx(atkStok, atkFrame), 'blok', 0);
     atkStok = null; atkFrame = -1; atkAcc = 0; atkCooldown = 0; stokBuf = false;
   }
-  const houd = cVast && onGround && !jump && !dead && hurt <= 0 && atkFrame < 0 && !rol && !straalBurst();   // ontketend (STRAAL): geen blok
+  const houd = cVast && onGround && !jump && !dead && hurt <= 0 && atkFrame < 0 && !rol && !straalBurst() && !straalTrance;   // ontketend (STRAAL): geen blok
   if (houd){
     if (B.f < 0){ B.f = 0; B.acc = 0; }
     B.acc += dt * 1000;
@@ -35620,14 +35683,17 @@ function hurtPlayer(fromLeft, schade = 1){           // schade: hoeveel levens d
   thrHurt();                                       // de hele worp is kwetsbaar (zie thrHurt)
   playRaak();
   lawaaiPuls(playerX(), ph, SNEAK.puls.klap);      // een klap op Amir hoor je (zie "sneak")
+  const trance = straalTrance;                     // in de trance van de zonnestraal: minder schade en niet weggeduwd (STRAAL)
+  schade *= straalTranceSchadeK();
   if (sandbox && !sbArena){                        // sandbox: je ziet de klap, maar dood ga je nooit (de arena-modus wel, daar tel je hoe lang je het volhoudt)
-    invuln = 1.3; hurt = 0.38; shake = 0.28; knock = fromLeft ? 260 : -260;
+    invuln = 1.3; hurt = 0.38; shake = 0.28; knock = trance ? 0 : fromLeft ? 260 : -260;
+    if (trance) straalTranceSchade += schade;
     return;
   }
-  knock = fromLeft ? 260 : -260;
+  knock = trance ? 0 : fromLeft ? 260 : -260;
   if (grisGrisVang()) return;                      // het amulet uit de co-op winkel: de klap kost geen leven (GRISGRIS)
   if (!onsterfelijk() && schijnDoodVang(schade)){ hurt = 0.38; shake = 0.28; return; }   // Feign Death
-  if (!onsterfelijk()){ lives = Math.max(0, lives - schade); drawLives(); }   // een level kan je onsterfelijk maken om iets te proberen
+  if (!onsterfelijk()){ lives = Math.max(0, lives - schade); drawLives(); if (trance) straalTranceSchade += schade; }   // een level kan je onsterfelijk maken om iets te proberen
   invuln = 1.3; hurt = 0.38; shake = 0.28;
   if (lives <= 0){ dead = true; deadEl.classList.add('on'); }
 }
@@ -50221,7 +50287,7 @@ function loop(now){
     // ook zonder pijl omlaag: anders stond hij daar gebukt stil. Overal elders blijft het: geen pijl omlaag, geen sluipen.
     const dakNu = zweefDakBoven(halfWNow);
     const laagDak = onGround && dakNu - ph < CHAR_H && dir !== 0;
-    const canDuck = (downHeld || laagDak) && onGround && !jump && !dead && hurt <= 0 && !schijnLigt() && !attacking && !throwing && !fell && !amirVast() && !schildOp() && !stofA;
+    const canDuck = (downHeld || laagDak) && onGround && !jump && !dead && hurt <= 0 && !schijnLigt() && !attacking && !throwing && !fell && !amirVast() && !schildOp() && !stofA || straalTrance && onGround;   // in de trance (STRAAL) blijft hij geknield
     if (canDuck) duckT = Math.min(1, duckT + dt / DUCK_IN_T);
     else duckT = Math.max(0, duckT - dt / DUCK_OUT_T);
     if (duckT >= 1) duckHoldAcc += dt * DUCK_HOLD_FPS; else duckHoldAcc = 0;
@@ -52537,6 +52603,7 @@ function loop(now){
     drawLichtlaag();                                // de hele wereld in dezelfde belichting
     donkerGatenNa();                                // een uitzicht met gaten: de diepe nacht met licht rond fakkels en ramen
     stadNachtNa();                                  // 's nachts: de gloed van de ramen en lampen in de stad, over de lichtlaag
+    straalDimNa();                                  // de trance van de zonnestraal: de wereld om Amir wordt donker (STRAAL)
     drawSnowfall(groundY, weerDak(scaleNow));       // de vlokken vallen over alles heen, maar niet in een gang of een huis
     drawWeer(groundY, weerDak(scaleNow));           // en de regen en de stormen net zo
     drawVoorgrond(groundY, scaleNow);               // het gras vlak voor de camera
@@ -62708,6 +62775,8 @@ document.getElementById('sbzon').onclick = () => {
   cv.focus();
 };
 document.getElementById('sbzonweg').onclick = () => { straalLijst = []; straalWis(); cv.focus(); };
+for (const [id, k] of [['sbzonterug', 'terug'], ['sbzonbarst', 'uitbarst']])   // de kandidaat-talents van de trance (STRAAL.talent)
+  document.getElementById(id).onclick = e => { STRAAL.talent[k] = !STRAAL.talent[k]; e.currentTarget.classList.toggle('on', STRAAL.talent[k]); cv.focus(); };
 // ---- de stokken: aan of uit (zie STOK) ----
 document.getElementById('sbstapslag').onclick = e => {
   STOK.stapslag.aan = !STOK.stapslag.aan;
