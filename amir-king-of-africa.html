@@ -19816,7 +19816,7 @@ function comboStap(dt){
 }
 // de eerste treffer van de slag: de flits van True Flight op de speerpunt, en wat langer stil
 function comboTreffer(wx, h){
-  if (comboTerug()){ puffWorld(wx, 8, 0, fcSoort && !fcKracht() ? 0.8 : 1.1, 0); houtRaak(COMBO.terug.toon, 1); }   // de schacht op zijn lijf: een doffe houtklap
+  if (comboTerug()){ puffWorld(wx, 8, 0, fcSoort && !fcKracht() ? 0.8 : 1.1, vloerBij(wx, ph)); houtRaak(COMBO.terug.toon, 1); }   // de schacht op zijn lijf: een doffe houtklap
   if (comboDubbel()) critFx(wx, h);                 // dubbel: de ster van de crit
   hitstop = Math.max(hitstop, COMBO.stop); shake = Math.max(shake, COMBO.schok);
 }
@@ -20113,7 +20113,7 @@ function stokTreffer(s, wx, h, sx, deel){
         stokLens.lijst = lensSpatMaak(STOK.lens); stokLens.t = 0; stokLens.x = q.x / DPR; stokLens.y = q.y / DPR;
       }
     } else if (voel) houtRaak(STOK.toon.draaislag, 1);
-    if (voel){ puffWorld(wx, 8, 0, 1.1, 0);
+    if (voel){ puffWorld(wx, 8, 0, 1.1, vloerBij(wx, ph));
       hitstop = Math.max(hitstop, stun ? 0.16 : 0.12); shake = Math.max(shake, stun ? 0.35 : 0.25); }
     if (!stun && s && s.hp > 0) s.rust = Math.max(s.rust, STOK.counterRust);   // de gewone counter: hij wankelt even
     if (stun && s && s.hp > 0){
@@ -36795,15 +36795,19 @@ function updateSnakes(dt, plats, halfWNow, cliff){
         zichtZet(fosforGroep(lx, lx > world ? 1 : -1, sp.boven ? bovenVloer(lx) : undefined, !!sp.klim), sp); continue;   // boven: op het dak van een gang, niet op de bodem
       }
       if (sp.kind === 'kooiman'){
-        let kx = plek(sp.x);
+        let kx = sp.dak ? sp.x : plek(sp.x);
         if (sp.achter > 0) kx += (kx > world ? 1 : -1) * sp.achter;   // tegelijk gestart, maar verder weg
+        const dak = sp.dak ? stadDakPlek(kx, sp.dak) : null;   // op een dak of galerij van de stad (zie de bandiet); zonder dit stond hij op straat
+        if (dak) kx = dak.x;
         const k = makeKooiman(kx, kx > world ? 1 : -1, sp.vogel, sp.duel);
-        k.base = sp.boven ? bovenVloer(kx) : terrainH(kx); if (!k.duel) zichtZet(k, sp); kooimannen.push(k); continue;   // het duel is geensceneerd; boven: op het dak van een gang
+        k.base = dak ? dak.h : sp.boven ? bovenVloer(kx) : terrainH(kx); if (!k.duel) zichtZet(k, sp); kooimannen.push(k); continue;   // het duel is geensceneerd; boven: op het dak van een gang
       }
       if (sp.kind === 'meelman'){
-        const mx = sp.x;                               // op zijn ontworpen plek (de rand van de afgrond), niet verschoven
+        let mx = sp.x;                                 // op zijn ontworpen plek (de rand van de afgrond), niet verschoven
+        const dak = sp.dak ? stadDakPlek(mx, sp.dak) : null;   // op een dak of galerij van de stad
+        if (dak) mx = dak.x;
         const m = makeMeelman(mx, mx > world ? 1 : -1);
-        m.base = sp.boven ? bovenVloer(mx) : terrainH(mx); zichtZet(m, sp); meelmannen.push(m); continue;   // boven: op het dak van een gang
+        m.base = dak ? dak.h : sp.boven ? bovenVloer(mx) : terrainH(mx); zichtZet(m, sp); meelmannen.push(m); continue;   // boven: op het dak van een gang
       }
       if (sp.kind === 'kruisboogbandiet'){
         let mx = sp.x;                                 // op zijn ontworpen plek (een schutter staat ergens met opzet, zoals op een terras)
@@ -36819,10 +36823,12 @@ function updateSnakes(dt, plats, halfWNow, cliff){
         m.base = dak ? dak.h : sp.boven ? bovenVloer(mx) : terrainH(mx); zichtZet(m, sp); kruisbogen.push(m); continue;
       }
       if (sp.kind === 'zweepman'){
-        let mx = sp.boven ? sp.x : plek(sp.x);
+        let mx = (sp.boven || sp.dak) ? sp.x : plek(sp.x);
         if (sp.achter > 0) mx += (mx > world ? 1 : -1) * sp.achter;
+        const dak = sp.dak ? stadDakPlek(mx, sp.dak) : null;   // op een dak of galerij van de stad
+        if (dak) mx = dak.x;
         const m = makeZweepman(mx, mx > world ? 1 : -1, sp.fasen);   // fasen: de arm eraf en een tweede ronde (ZWM2)
-        m.base = sp.boven ? bovenVloer(mx) : terrainH(mx); zichtZet(m, sp); zweepmannen.push(m); continue;
+        m.base = dak ? dak.h : sp.boven ? bovenVloer(mx) : terrainH(mx); zichtZet(m, sp); zweepmannen.push(m); continue;
       }
       if (sp.kind === 'schildman'){
         let mx = (sp.boven || sp.dak) ? sp.x : plek(sp.x);
@@ -39618,7 +39624,7 @@ function vogelAnim(v, dt){
   }
 }
 function vogelKapot(v){
-  puffWorld(v.x, 10, 0, 1.1, terrainH(v.x));          // veren en stof waar hij de grond raakt
+  puffWorld(v.x, 10, 0, 1.1, Math.max(v.h, terrainH(v.x)));   // veren en stof waar hij neerkomt (op de grond of een dak)
   v.weg = true;
 }
 // tijdens de stamp-freeze: de net geboren vogel stijgt uit de kooi op en zweeft, maar zijn AI
@@ -39690,7 +39696,7 @@ function updateVogels(dt){
       if (!dead && invuln <= 0 && !godMode && !woedeAan()
           && Math.abs(v.x - playerX()) < hx && v.h + hh > ph && v.h - hh < ph + CHAR_H){
         hurtPlayer(v.vx > 0, v.duel ? 0.5 : 1); v.weg = true;    // de duel-vogel doet een half leven
-      } else if (v.h <= 0){ v.h = 0; vogelKapot(v); }
+      } else if (v.h <= vloerBij(v.x, v.h)){ v.h = vloerBij(v.x, v.h); vogelKapot(v); }   // de grond, of een dak of galerij van de stad
       else if (v.t >= VOGEL_DUIK_MAX) vogelKapot(v);
     }
   }
@@ -47705,7 +47711,7 @@ function updateScorp(s, dt, plats, cliff){
       s.state = 'stance'; s.t = 0; s.acc = 0; s.fade = 0;   // s.frame blijft: tijdens het draaien staat hij in zijn looppose
       const before = scpMir(s);                       // hoe hij nu staat (lopend)
       s.side = s.x > world ? 1 : -1; s.dir = -s.side;
-      if (scpMir(s) !== before){ s.mirFrom = before; s.turnT = 0; puffWorld(s.x, 5, 0); }   // omdraaien
+      if (scpMir(s) !== before){ s.mirFrom = before; s.turnT = 0; puffWorld(s.x, 5, 0, 1, s.base || 0); }   // omdraaien (op zijn eigen vloer, ook op een dak)
     }
   } else if (s.state === 'stance'){
     s.t += dt;
@@ -47719,7 +47725,7 @@ function updateScorp(s, dt, plats, cliff){
         const sc = document.getElementById('scatter');
         sc.currentTime = 0; sc.volume = 0.9; sc.play().catch(() => {});
       }
-      puffWorld(s.x - s.dir * 60, 14, -s.dir * 120);    // stofwolk achter hem bij de start
+      puffWorld(s.x - s.dir * 60, 14, -s.dir * 120, 1, s.base || 0);    // stofwolk achter hem bij de start
     }
   } else if (s.state === 'charge'){
     s.t += dt;
@@ -47733,7 +47739,7 @@ function updateScorp(s, dt, plats, cliff){
     while (s.acc >= 1){
       s.frame = (s.frame + 1) % 12; s.acc -= 1;
       kickSand(s, 6, -s.dir * 130);                  // bij de charge spat het zand naar achteren
-      if (s.frame % 2 === 0) puffWorld(s.x - s.dir * 50, 1, -s.dir * 110, 0.55);   // en stof, net als bij Amirs landing
+      if (s.frame % 2 === 0) puffWorld(s.x - s.dir * 50, 1, -s.dir * 110, 0.55, s.base || 0);   // en stof, net als bij Amirs landing
     }
   } else if (s.state === 'rest'){
     s.t += dt;
