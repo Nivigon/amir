@@ -19942,6 +19942,8 @@ const STOK = {
   actief: { slag: [6, 7, 8, 9], stapslag: [19, 20, 21], slag2: [11, 12, 13], grondklap: [], draaislag: [3, 4, 5, 6] },   // de grondklap raakt met de golf (GK), niet met de punt
   punt: { slag: [-110, 120], stapslag: [-230, 120], slag2: [-235, 186], grondklap: [-103, 372], draaislag: [-150, 110] },   // grondklap: de punt van de voorste stok op het contactframe, daar begint de golf
   reik: { slag: 40, stapslag: 55, slag2: 50, grondklap: 0, draaislag: 55 },
+  tonOnder: 60,              // tegen een ton: de slag raakt over de hele stok, van Amir tot de punt, en zoveel sprite-eenheden
+                             // onder de punt (de punt komt op borsthoogte uit, boven de ton, en reikt er voorbij)
   blokOp: 8,                 // vanaf dit blok-frame dekken de stokken
   // de stap: onder de opzwaai van de slag schuift Amir naar voren (stokSchuif), zodat hij in de klap stapt. px in
   // frame-pixels (Amirs spelmaat), verdeeld over de frames tot en met tot (de treffer begint op frame 6), met deze
@@ -29547,11 +29549,14 @@ function stadTrapNabij(q){
   const bij = (x, h) => Math.abs(ph - h) < 40 && Math.abs(px - x) < T.gloed ? 1 - Math.abs(px - x) / T.gloed : 0;
   return { onder: bij(q.voetX, q.hb), boven: bij(q.gatX, q.ht) };
 }
+// mag Amir een trap op of een poort door? Met de speer in de hand of op de rug, of met de stokken (die hebben
+// geen speer, en hoeven er ook geen: STOK_AAN, ook als de stokplaatjes nog laden)
+function geenWapen(){ return !STOK_AAN && !spear && !rugSperen.length; }
 let stadTrapFade = null;                         // { t, doel: {x, h, face}, gewisseld, camX0, camY0 }
 function stadTrapE(){
   const b = stadTrapBij(); if (!b) return false;
   if (stadInGevecht()){ flashHint('Niet nu: er staat een vijand in de buurt'); return true; }
-  if (!spear && !rugSperen.length){ flashHint('Pak je speer eerst'); return true; }
+  if (geenWapen()){ flashHint('Pak je speer eerst'); return true; }
   const q = b.q;
   stadTrapFade = { t: 0, gewisseld: false,
                    doel: b.boven ? { x: q.voetX, h: q.hb, face: -q.uit } : { x: q.gatX, h: q.ht, face: q.uit } };
@@ -30062,7 +30067,7 @@ function straatE(){
   const p = straatPoortBij(); if (!p) return false;
   if (straatRaster()) return straatKnoopGa(p);
   if (stadInGevecht()){ flashHint('Niet nu: er staat een vijand in de buurt'); return true; }
-  if (!spear && !rugSperen.length){ flashHint('Pak je speer eerst'); return true; }
+  if (geenWapen()){ flashHint('Pak je speer eerst'); return true; }
   if (!straatVan(p.naar)) return true;
   straatFade = { t: 0, gewisseld: false, van: straatNu, naar: p.naar };
   return true;
@@ -30305,7 +30310,7 @@ function straatUitgangBij(){
 // de wissel: als de stadstrap (stadTrapFade), met de straat erbij; Amir kijkt de kant op waar hij heen ging
 function straatKnoopGa(u){
   if (stadInGevecht()){ flashHint('Niet nu: er staat een vijand in de buurt'); return true; }
-  if (!spear && !rugSperen.length){ flashHint('Pak je speer eerst'); return true; }
+  if (geenWapen()){ flashHint('Pak je speer eerst'); return true; }
   const t = straatVan(u.naar); if (!t) return true;
   const sc = nowScale(), j = t.knoop.indexOf(u.knoop), d = straatRichting(t);
   // door een doorgang kom je aan de rand van de volgende straat binnen, anders bij zijn knoop
@@ -52415,7 +52420,9 @@ function loop(now){
       const tb = tonVak(t, groundY, scale, cx), from = pWorld < t.x ? -1 : 1;
       if (attacking && !swingUsed && !comboX && steekLive()){
         const dxv = steekDX() * scale, tipX = pcx + (facing === 1 ? -dxv : dxv), tipY = y + steekY() * scale, reach = steekR() * scale;
-        if (tipX + reach > tb.l && tipX - reach < tb.r && tipY + reach > tb.t && tipY - reach < tb.b){ swingUsed = true; tonRaak(t, from, true); continue; }
+        // de stokken: een raakvak van Amir tot voorbij de punt, en naar beneden tot over de ton (STOK.tonOnder)
+        const l = atkStok ? Math.min(pcx, tipX) : tipX, r = atkStok ? Math.max(pcx, tipX) : tipX, onder = atkStok ? STOK.tonOnder * scale : 0;
+        if (r + reach > tb.l && l - reach < tb.r && tipY + reach + onder > tb.t && tipY - reach < tb.b){ swingUsed = true; tonRaak(t, from, true); continue; }
       }
       if (t.sweptId !== sweepId && hitBy(swbox, tb)){ t.sweptId = sweepId; tonRaak(t, from, true); continue; }
       if (javRaakt(tb)){ const kant = jav.vx > 0 ? -1 : 1; javHitEnemy(); tonRaak(t, kant, true); }
