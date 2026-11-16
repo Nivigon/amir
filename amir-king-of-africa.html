@@ -34950,6 +34950,22 @@ function vijandDood(baas, wie){
   setTimeout(zeg, DOOD_WACHT * 1000);
 }
 
+// ---- gris-gris: het amulet uit de co-op winkel ----
+// Een leren zakje met een spreuk, het beschermende amulet uit de Sahel. Gekocht in de co-op winkel (MPC_WINKEL, k 'amulet',
+// drie trappen): bij elke klap op Amir een kans dat hij geen leven kost. De klap landt wel (Amir wordt teruggeduwd en is even
+// onkwetsbaar, zodat dezelfde aanval niet elk beeld opnieuw gooit), maar zonder rode flits; een klokje en "Warded" in de banner
+// zeggen dat het amulet hem redde. De kans gooit ieder voor zichzelf: in co-op beslist elke speler zijn eigen hurtPlayer (au2).
+const GRISGRIS = { kans: [0, 0.10, 0.20, 0.30] };      // per trap (0 = niet gekocht)
+function grisGrisKans(){ return (pvp && pvp.coop && pvp.coop.koop) ? GRISGRIS.kans[Math.min(pvp.coop.koop.amulet || 0, GRISGRIS.kans.length - 1)] : 0; }
+function grisGrisVang(){
+  const k = grisGrisKans();
+  if (!(k > 0) || Math.random() >= k) return false;
+  invuln = 1.3; shake = 0.12;
+  puffWorld(world, 4, (knock > 0 ? 1 : -1) * 90, 0.7, ph);
+  if (wantSound){ const ac = acLoopt(); if (ac){ const t = ac.currentTime + 0.003; krbToon(ac, t, 'sine', 1320, 1180, 0.07, 0.35); krbToon(ac, t + 0.06, 'sine', 1760, 1560, 0.05, 0.4); } }
+  pvpBanner('Warded', 0.9);
+  return true;
+}
 function hurtPlayer(fromLeft, schade = 1){           // schade: hoeveel levens de klap kost (standaard een heel, een halve bij de snelle kooislag)
   if (!running || invuln > 0 || dead || godMode || woedeAan() || exeVries || bruVries || (sneakRegie && !sneakRegie.vrij) || comboPantser()) return;   // in de woede raakt niets hem, en in de executie en de sluipaanval (tot het loslaten) ook niet
   if (schildVang(fromLeft, 'klap')) return;        // het schild van Amir vangt een klap van voren (AMIR_SCHILD)
@@ -34962,6 +34978,7 @@ function hurtPlayer(fromLeft, schade = 1){           // schade: hoeveel levens d
     return;
   }
   knock = fromLeft ? 260 : -260;
+  if (grisGrisVang()) return;                      // het amulet uit de co-op winkel: de klap kost geen leven (GRISGRIS)
   if (!onsterfelijk() && schijnDoodVang(schade)){ hurt = 0.38; shake = 0.28; return; }   // Feign Death
   if (!onsterfelijk()){ lives = Math.max(0, lives - schade); drawLives(); }   // een level kan je onsterfelijk maken om iets te proberen
   invuln = 1.3; hurt = 0.38; shake = 0.28;
@@ -63501,6 +63518,8 @@ const MPC_WINKEL = [
   { k: 'rond',    naam: 'Full Circle: all around',  prijs: 50, uitleg: 'The spin hits everyone around you, also behind you', eis: 'fc' },
   { k: 'slot',    naam: 'Extra spear slot',         prijs: 45, uitleg: 'A second spare spear on your back' },
   { k: 'leven',   naam: 'Extra life',               prijs: [60, 90, 120], uitleg: 'One more life, for the rest of the game' },
+  { k: 'amulet',  naam: 'Gris-gris',                prijs: [40, 75, 110], uitleg: ['A charm against harm: 10% chance a hit costs you no life',
+                                                                            'Stronger charm: 20% chance', 'Strongest charm: 30% chance'] },   // GRISGRIS
   { k: 'geef',    naam: 'Give 5 gold',              prijs: 5,  uitleg: 'To your teammate' }   // met twee teamgenoten een knop per teamgenoot (mpcWinkelToon)
 ];
 // de map: het stadje van PvP, met een balkon hoog in het middenhuis (de deur voor de kruisboogschutters, niet te
@@ -63877,7 +63896,7 @@ function mpCoopNieuw(){
            zak: [], goud: 0, reeks: { n: 0, t: -99 }, eind: null,
            doodT: {}, reviveTon: {}, symbolen: [], reviveRust: {}, symId: 0,   // per slot: sinds wanneer dood, zijn revive-ton, zijn symbool
            leegQ: {}, losWeg: new Set(), losVorig: {}, gezien: new Map(), sleutelT: 0, zendT: 0, klaarVan: new Set(),
-           koop: { fc: false, kracht: false, rond: false, slot: false, leven: 0 },   // wat ik in de winkel kocht (ieder het zijne)
+           koop: { fc: false, kracht: false, rond: false, slot: false, leven: 0, amulet: 0 },   // wat ik in de winkel kocht (ieder het zijne)
            wkKlaar: {}, mijnKlaar: false };   // Ready in de winkel per slot: de host telt iedereen, ieder weet wie al klaar is
 }
 // wat er in een ronde komt: willekeurig uit de soorten die aan staan, bij Both de helft van de keren de moeilijke
@@ -64441,12 +64460,13 @@ function mpcWinkelKlaar(){
   if (pvp.spelers.every(p => C.wkKlaar[p])){ pvpZend({ t: 'winkelUit' }); mpcWinkelUit(); }
 }
 // de prijslijst: wat het nu kost (een extra leven wordt duurder), en waarom het niet kan (null: het kan)
-function mpcWinkelPrijs(q){ return Array.isArray(q.prijs) ? q.prijs[Math.min(pvp.coop.koop.leven, q.prijs.length - 1)] : q.prijs; }
-function mpcWinkelHeb(q){ const K = pvp.coop.koop; return q.k === 'leven' ? K.leven >= q.prijs.length : (q.k in K) && !!K[q.k]; }
+// een item met trappen (prijs is een lijst: Extra life, Gris-gris) telt in koop hoe vaak je het kocht
+function mpcWinkelPrijs(q){ return Array.isArray(q.prijs) ? q.prijs[Math.min(pvp.coop.koop[q.k] || 0, q.prijs.length - 1)] : q.prijs; }
+function mpcWinkelHeb(q){ const K = pvp.coop.koop; return Array.isArray(q.prijs) ? (K[q.k] || 0) >= q.prijs.length : (q.k in K) && !!K[q.k]; }
 function mpcWinkelNiet(q){
   const C = pvp.coop, K = C.koop, handVol = spear || spearFound || rugTrekT > 0;
   let r = null;
-  if (mpcWinkelHeb(q)) r = q.k === 'leven' ? 'Sold out: you bought all three.' : 'You already have this.';
+  if (mpcWinkelHeb(q)) r = Array.isArray(q.prijs) ? 'Sold out: you bought all three.' : 'You already have this.';
   else if (q.eis && !K[q.eis]) r = 'Buy Full Circle first.';
   else if (q.k === 'kalebas' && lives >= levensStart()) r = 'Your lives are full.';
   else if (q.k === 'speer' && (!rugAan() || (rugVol() && handVol))) r = 'Your hand and back are full.';
@@ -64464,6 +64484,7 @@ function mpcWinkelKoop(q, aan){
   else if (q.k === 'speer'){ rugErbij(false); if (!spear && !spearFound && rugTrekT <= 0) rugTrekKlaar(); setSpearLabel(); }
   else if (q.k === 'gif'){ gifCarry++; invHud(); tekst = 'Poison in your bag. Press I to smear it on your spears.'; }
   else if (q.k === 'leven'){ K.leven++; pvp.levens++; lives++; drawLives(); }
+  else if (q.k === 'amulet'){ K.amulet++; tekst = 'Bought: ' + q.naam + '. ' + Math.round(grisGrisKans() * 100) + '% chance a hit costs you no life.'; }
   else if (q.k === 'geef'){ pvpZendAan(aan, { t: 'geef', n: MPC.geef }); tekst = 'You gave ' + (pvp.spelers.length > 2 ? mpBroekNaam(pvp.broek[aan]).toLowerCase() : 'your teammate') + ' ' + MPC.geef + ' gold.'; }
   else { K[q.k] = true; if (q.k === 'slot'){ RUG_MAX++; setSpearLabel(); } }
   playHppotionPickupSound();
@@ -64481,9 +64502,11 @@ function mpcWinkelToon(){
       const b = document.createElement('button'), heb = mpcWinkelHeb(q), niet = mpcWinkelNiet(q);
       b.id = 'wkc_' + q.k + (aan != null ? '_' + aan : ''); b.className = 'wkcoopknop' + (heb ? ' heb' : niet ? ' duur' : '');
       const naam = document.createElement('b'), uit = document.createElement('small'), prijs = document.createElement('em');
-      naam.textContent = q.naam + (q.k === 'leven' && C.koop.leven ? ' (' + C.koop.leven + ' of ' + q.prijs.length + ')' : '');
-      uit.textContent = aan != null && anderen.length > 1 ? 'To ' + mpBroekNaam(pvp.broek[aan]).toLowerCase() : q.uitleg;
-      prijs.textContent = heb ? (q.k === 'leven' ? 'Sold out' : 'Bought') : mpcWinkelPrijs(q) + ' gold';
+      const trap = Array.isArray(q.prijs) ? (C.koop[q.k] || 0) : 0;
+      naam.textContent = q.naam + (trap ? ' (' + trap + ' of ' + q.prijs.length + ')' : '');
+      uit.textContent = aan != null && anderen.length > 1 ? 'To ' + mpBroekNaam(pvp.broek[aan]).toLowerCase()
+                      : Array.isArray(q.uitleg) ? q.uitleg[Math.min(trap, q.uitleg.length - 1)] : q.uitleg;
+      prijs.textContent = heb ? (Array.isArray(q.prijs) ? 'Sold out' : 'Bought') : mpcWinkelPrijs(q) + ' gold';
       b.append(naam, uit, prijs);
       b.onclick = () => mpcWinkelKoop(q, aan);
       el.append(b);
