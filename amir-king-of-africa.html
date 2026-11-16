@@ -2777,6 +2777,7 @@
     <div class="dkrij">Murghtaan<small>Lives: his bites cost lives as usual. Invulnerable: you take the hits but never lose a life, to learn the timing</small><div id="dkmurconst"></div></div>
     <div class="dkrij">Slam range<small>Jump, hold down and strike: how far the wave rolls in front of Amir</small><div id="dkgkbereik"></div></div>
     <div class="dkrij">Slam damage<small>Damage of the wave on every enemy it reaches (right under Amir half a hit more). Every hit pushes them back</small><div id="dkgkschade"></div></div>
+    <div class="dkrij">Slam dust<small>Current: a burst of dust at the sticks and lower puffs along the wave. Growing crest: the wave throws up dust that gets higher the further it rolls, and ends in a plume. Crown and ring: the dust sprays up in a V and a low ring rolls away over the ground, also towards you and away from you</small><div id="dkgkstof"></div></div>
     <div class="dkrij">Counter<small>Hold C to block with your sticks. Strike while blocking, or right after, for the spinning counter. Stun: he stands dazed for 2 seconds and is thrown back. Normal hit: just the damage</small><div id="dkstokcounter"></div></div>
     <div class="dkrij">Extra hyenas<small>Normal hyenas that join the fight and attack too. While he has you pinned they hold back and laugh</small><div id="dkmurchy"></div></div>
     <button id="dkstart" type="button">Start level</button></div>
@@ -20048,6 +20049,7 @@ const GK = {
   stop: 0.12, schok: 0.6,    // hitstop en schermschok op de klap
   bult: 30, breed: 95,       // de bult in de vloer: hoogte en breedte (px bij schaal 1)
   stof: { klap: 46, golf: 7, per: 34 },   // stof: op de klap, en per zoveel px golf een wolk van golf deeltjes
+  diep: 0.3,                 // het stof de diepte in (kroon en ring): z = 1 ligt zoveel Amir naar voren
   vol: { inslag: 1, grond: 1, ton: 0.75, hout: 1, beving: 0.9 },
 };
 const gkFx = { stof: [], stenen: [], golven: [] };   // het stof (Nyundo's deeltjes), de steentjes en de golven
@@ -20104,7 +20106,21 @@ function gkInslag(){
   gkRaak = { x0: px - dir * 0.08 * CHAR_H * sc, tip, front: tip, staart: px - dir * 0.08 * CHAR_H * sc, dir, ver: tip + dir * ber, t: 0,
              onderTot: tip + dir * GK.onderR * CHAR_H * sc,
              schade: GK.schade[(typeof duoKeuze !== 'undefined' && duoKeuze.gkSchade) || 'licht'] ?? 0.5 };
-  gkFx.golven.push({ x: tip, x0: tip, dir, ver: ber, stofAcc: 0, vloer });
+  const soort = gkStofSoort();
+  gkFx.golven.push({ x: tip, x0: tip, dir, ver: ber, stofAcc: 0, vloer, soort });
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  if (soort !== 'nu') gkKlapStof(soort, tip, tip2, dir);
+  else gkKlapStofNu(tip, tip2, dir, sc);
+  puffWorld(tip, 10, dir * 140, 1.3, vloer);
+  for (let i = 0; i < 18; i++) stofKorrel(tip + rnd(-20, 20), vloer, rnd(-1, 1) * 300, rnd(120, 420));
+  if (wantSound && gkGeluid){
+    banStemSpeel(gkGeluid.inslag, GK.vol.inslag); banStemSpeel(gkGeluid.grond, GK.vol.grond); banStemSpeel(gkGeluid.ton, GK.vol.ton);
+    houtRaak(0.5, GK.vol.hout); houtRaak(0.4, GK.vol.hout);   // het hout van de stokken, zwaar
+    if (typeof bavBeving === 'function') bavBeving(0.12, GK.vol.beving);   // en de vloer rommelt na
+  }
+}
+// het stof van de klap zoals het eerst was ('nu')
+function gkKlapStofNu(tip, tip2, dir, sc){
   // stof: een ring van wolken bij beide stokpunten (ook om de punt te verbergen als de stok de grond net niet raakt),
   // een hoge pluim, en laag stof dat naar voren en opzij wegschiet
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -20117,13 +20133,74 @@ function gkInslag(){
     }
     for (let i = 0; i < 10; i++) gkSteen(x + rnd(-14, 14) * sc, rnd(-1, 1) * 260 + dir * rnd(0, 200), rnd(260, 620), rnd(2.5, 5));
   }
-  puffWorld(tip, 10, dir * 140, 1.3, vloer);
-  for (let i = 0; i < 18; i++) stofKorrel(tip + rnd(-20, 20), vloer, rnd(-1, 1) * 300, rnd(120, 420));
-  if (wantSound && gkGeluid){
-    banStemSpeel(gkGeluid.inslag, GK.vol.inslag); banStemSpeel(gkGeluid.grond, GK.vol.grond); banStemSpeel(gkGeluid.ton, GK.vol.ton);
-    houtRaak(0.5, GK.vol.hout); houtRaak(0.4, GK.vol.hout);   // het hout van de stokken, zwaar
-    if (typeof bavBeving === 'function') bavBeving(0.12, GK.vol.beving);   // en de vloer rommelt na
+}
+// ---- het stof van de grondklap: drie soorten, te kiezen in Test 76 (duoKeuze.gkStof) ----
+// 'nu' zoals het was: een bos wolken bij de stokpunten, langs de golf steeds lagere wolkjes.
+// 'kam' de groeiende kam: de golf gooit stof op dat hoger wordt naarmate hij verder rolt, en eindigt in een pluim.
+// 'kroon' kroon en ring: het stof spuit in een V omhoog (sneller is hoger en verder), en een lage ring rolt over de
+// grond weg, ook de diepte in (z), met een lage stofrol die met de golf meeloopt.
+// De getallen komen uit de mock-up, waar Amir 90 px hoog is; gkWolk zet ze om naar de wereld.
+function gkStofSoort(){ return (typeof duoKeuze !== 'undefined' && ['kam', 'kroon'].includes(duoKeuze.gkStof)) ? duoKeuze.gkStof : 'nu'; }
+function gkWolk(o){
+  const X = CHAR_H * gkSchaal / 90, Y = CHAR_H / 90;
+  bruStofDeeltje(gkFx, { wx: o.x, y: -(o.y || 0) * Y, z: o.z || 0, vx: (o.vx || 0) * X, vy: -(o.vy || 0) * Y, vz: o.vz || 0,
+    r: (o.r + o.groei * o.life * 0.5) * 0.6 * Y, life: o.life, a: o.a ?? 0.9, zw: (o.zw ?? 300) * Y, rem: o.rem || 1.7,
+    zweef: o.zweef ? o.zweef * Y : 0 });
+}
+function gkKlapStof(soort, tip, tip2, dir){
+  const rnd = (a, b) => a + Math.random() * (b - a), X = CHAR_H * gkSchaal / 90, Y = CHAR_H / 90;
+  const steen = (vx, vy) => gkSteen(tip + rnd(-4, 4) * X, vx * X, vy * Y * 0.75, rnd(2.5, 5));
+  if (soort === 'kam'){                                     // een kleine kroon: de kam doet de rest
+    for (let i = 0; i < 24; i++){
+      const kant = Math.random() < 0.5 ? dir : -dir, th = rnd(35, 60) * Math.PI / 180, v = rnd(60, 160);
+      gkWolk({ x: tip, vx: kant * Math.cos(th) * v, vy: Math.sin(th) * v, r: rnd(6, 10), groei: 24, life: rnd(0.8, 1.3), zw: 200, rem: 1.8 });
+    }
+    for (let i = 0; i < 8; i++) steen(rnd(-1, 1) * 90, rnd(80, 180));
+    return;
   }
+  for (let i = 0; i < 50; i++){                             // de kroon: een V omhoog, vooral naar voren
+    const kant = Math.random() < 0.65 ? dir : -dir, th = rnd(55, 72) * Math.PI / 180, v = rnd(140, 430);
+    gkWolk({ x: tip + rnd(-6, 6) * X, y: rnd(0, 4), z: rnd(-0.08, 0.08), vx: kant * Math.cos(th) * v, vy: Math.sin(th) * v,
+             vz: rnd(-0.25, 0.25), r: rnd(5, 9), groei: rnd(26, 40), life: rnd(1.0, 1.7), zw: 300, rem: 1.7, zweef: rnd(0, 10) });
+  }
+  for (let i = 0; i < 16; i++){
+    const kant = Math.random() < 0.65 ? dir : -dir, th = rnd(55, 75) * Math.PI / 180, v = rnd(220, 420);
+    steen(kant * Math.cos(th) * v, Math.sin(th) * v);
+  }
+  for (let i = 0; i < 60; i++){                             // de ring: laag over de grond weg, alle kanten op en de diepte in
+    const phi = rnd(0, Math.PI * 2), v = rnd(120, 300);
+    gkWolk({ x: tip + Math.cos(phi) * 6 * X, y: rnd(0, 3), z: Math.sin(phi) * 0.05, vx: Math.cos(phi) * v, vz: Math.sin(phi) * v / 150,
+             vy: rnd(4, 26), r: rnd(7, 12), groei: rnd(26, 40), life: rnd(1.3, 2.2), zw: 40, rem: 2.3, a: 0.85 });
+  }
+  for (let i = 0; i < 14; i++)                              // en wat bij de achterste stok
+    gkWolk({ x: tip2 + rnd(-8, 8) * X, vx: rnd(-60, 60), vy: rnd(20, 60), r: rnd(7, 12), groei: 20, life: rnd(0.6, 1), zw: 200 });
+}
+// stof dat de golf opgooit (niet bij 'nu'): f is hoe ver hij is (0 tot 1), afM de afstand in mock-up-px
+function gkGolfStof(g){
+  const rnd = (a, b) => a + Math.random() * (b - a), X = CHAR_H * gkSchaal / 90, Y = CHAR_H / 90;
+  const afM = Math.abs(g.x - g.x0) / X, f = Math.min(1, Math.abs(g.x - g.x0) / Math.max(1, g.ver)), dir = g.dir;
+  if (g.soort === 'kam'){
+    const op = 30 + 190 * f + afM * 0.15;                   // hoe verder, hoe hoger
+    for (let i = 0; i < 3; i++)
+      gkWolk({ x: g.x - dir * rnd(0, 8) * X, z: rnd(-0.08, 0.08), vx: -dir * rnd(10, 50) + dir * rnd(0, 40), vy: op * rnd(0.75, 1.25),
+               r: rnd(6, 10) + f * 5, groei: 22 + f * 20, life: rnd(0.8, 1.3), zw: 220, rem: 1.6, zweef: rnd(0, 8) });
+    if (Math.random() < 0.7) gkSteen(g.x, -dir * rnd(10, 60) * X, op * rnd(0.9, 1.5) * Y * 0.75, rnd(2, 4));
+  } else {
+    for (let i = 0; i < 2; i++)
+      gkWolk({ x: g.x - dir * rnd(0, 10) * X, z: rnd(-0.25, 0.25), vx: dir * rnd(30, 120), vz: rnd(-0.3, 0.3),
+               vy: rnd(10, 34) * (1.2 - f * 0.6), r: rnd(7, 12), groei: 24, life: rnd(0.8, 1.3), zw: 80, rem: 2 });
+    if (Math.random() < 0.6) gkSteen(g.x, dir * rnd(20, 90) * X, rnd(60, 150) * (1.5 - f) * Y * 0.75, rnd(2, 4));
+  }
+}
+// de pluim aan het eind van de kam: waar de golf ophoudt (ook tegen een trede)
+function gkPluim(g){
+  const rnd = (a, b) => a + Math.random() * (b - a), X = CHAR_H * gkSchaal / 90, Y = CHAR_H / 90;
+  for (let i = 0; i < 40; i++){
+    const th = rnd(70, 100) * Math.PI / 180, v = rnd(160, 360);
+    gkWolk({ x: g.x + rnd(-10, 10) * X, vx: Math.cos(th) * v * g.dir, vy: Math.sin(th) * v, r: rnd(8, 13), groei: rnd(30, 44),
+             life: rnd(1.1, 1.8), zw: 240, rem: 1.8, zweef: rnd(4, 14) });
+  }
+  for (let i = 0; i < 10; i++) gkSteen(g.x, rnd(-1, 1) * 80 * X, rnd(220, 360) * Y * 0.75, rnd(2.5, 4.5));
 }
 function gkSteen(wx, vx, vh, r){
   gkFx.stenen.push({ wx, h: 0, vx, vh, r, rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 16, age: 0, life: 0.9 + Math.random() * 0.5,
@@ -20141,6 +20218,12 @@ function gkUpdate(dt){
       if (gkRaak && gkRaak.dir === g.dir) gkRaak.ver = g.x;
     }
     if (Math.abs(g.x - g.x0) < g.ver){ g.x += g.dir * stap; g.stofAcc += stap; }
+    if (g.soort && g.soort !== 'nu'){                       // kam of kroon: eigen stof (gkGolfStof), de kam eindigt in een pluim
+      const per = (g.soort === 'kam' ? 10 : 12) * CHAR_H * sc / 90;
+      while (g.stofAcc >= per && Math.abs(g.x - g.x0) < g.ver){ g.stofAcc -= per; gkGolfStof(g); }
+      if (g.soort === 'kam' && !g.pluim && Math.abs(g.x - g.x0) >= g.ver){ g.pluim = true; gkPluim(g); }
+      continue;
+    }
     while (g.stofAcc >= GK.stof.per * sc && Math.abs(g.x - g.x0) < g.ver){
       g.stofAcc -= GK.stof.per * sc;
       const rest = 1 - Math.abs(g.x - g.x0) / g.ver;
@@ -20245,7 +20328,11 @@ function gkStofTeken(cx, scale, groundY){
     }
     ctx.restore();
   }
-  bruStofTeken(gkFx, groundY - terrainH(playerX()) * scale, scale, cx);
+  bruStofTeken(gkFx, groundY - terrainH(playerX()) * scale, scale, cx, 'voor');
+}
+// het stof achter de looplijn (de ring en de kroon de diepte in), voor Amir getekend
+function gkStofAchter(cx, scale, groundY){
+  if (gkFx.stof.length) bruStofTeken(gkFx, groundY - terrainH(playerX()) * scale, scale, cx, 'achter');
 }
 function gkWis(){ gkFx.stof.length = 0; gkFx.stenen.length = 0; gkFx.golven.length = 0; gkRaak = null; gkFase = null; gkKoelT = 0; }
 // de stap van de slag: een stukje naar voren per frame tot STOK.stap.tot, net als comboSchuif. Niet in de lucht en niet
@@ -42414,23 +42501,28 @@ function bruStofStap(s, dt){
   for (const d of s.stof){
     if (d.wacht > 0){ d.wacht -= dt; continue; }
     d.age += dt; d.wx += d.vx * dt; d.y += d.vy * dt;
+    if (d.vz){ d.z = (d.z || 0) + d.vz * dt; d.vz *= Math.exp(-(d.rem || 1.6) * dt); }   // de diepte (grondklap)
     if (d.zweef){ d.vy += (-d.zweef - d.vy) * 3 * dt; d.vx *= Math.pow(0.15, dt); }
-    else { d.vy += 520 * dt; d.vx *= Math.pow(0.2, dt); }
+    else { d.vy += (d.zw ?? 520) * dt; d.vx *= d.rem ? Math.exp(-d.rem * dt) : Math.pow(0.2, dt); }
     if (d.y > 0){ d.y = 0; d.vy = 0; }
   }
   s.stof = s.stof.filter(d => d.age < d.life);
 }
-function bruStofTeken(s, grondY, gs, cx){
+// kant (de grondklap): 'achter' tekent alleen de wolken achter de looplijn (z < 0), 'voor' de rest; z = 1 ligt
+// GK.diep Amir naar voren, lager in beeld en groter
+function bruStofTeken(s, grondY, gs, cx, kant){
   if (!s.stof || !s.stof.length) return;
   const pimg = puffPic(); if (!imgReady(pimg)) return;
   ctx.save();
   for (const d of s.stof){
     if (d.wacht > 0) continue;
-    const k = 1 - d.age / d.life, rr = d.r * gs * (1.7 - k * 0.7);
+    const z = d.z || 0;
+    if (kant && (kant === 'achter') !== (z < 0)) continue;
+    const zs = 1 + z * 0.42, k = 1 - d.age / d.life, rr = d.r * gs * (1.7 - k * 0.7) * zs;
     const fade = d.zweef ? Math.min(1, d.age / 0.08) * Math.sqrt(k) : k;
-    ctx.globalAlpha = d.a * fade;
+    ctx.globalAlpha = d.a * fade * (z > 0.7 ? 0.8 : 1);
     const pw = rr * 2.6, phh = pw * pimg.naturalHeight / pimg.naturalWidth;
-    ctx.save(); ctx.translate(cx + (d.wx - world), grondY + d.y * gs); ctx.rotate(d.rot + d.age * 1.5);
+    ctx.save(); ctx.translate(cx + (d.wx - world), grondY + d.y * gs * zs + z * GK.diep * CHAR_H * gs); ctx.rotate(d.rot + d.age * 1.5);
     ctx.drawImage(pimg, -pw / 2, -phh / 2, pw, phh); ctx.restore();
   }
   ctx.restore();
@@ -47263,7 +47355,8 @@ const duoKeuze = (() => {
            broek: BROEK.kleuren.some(b => b.id === k.broek) ? k.broek : BROEK.kleuren[0].id,
            stokCounter: k.stokCounter === 'gewoon' ? 'gewoon' : 'stun',
            gkBereik: ['kort', 'middel', 'lang'].includes(k.gkBereik) ? k.gkBereik : 'middel',   // de grondklap: hoe ver de golf rolt (Test 76)
-           gkSchade: ['licht', 'middel', 'zwaar'].includes(k.gkSchade) ? k.gkSchade : 'licht' };   // en hoeveel schade hij doet   // de stokken: de counter na een blok als stun of als gewone treffer (Test 74)
+           gkSchade: ['licht', 'middel', 'zwaar'].includes(k.gkSchade) ? k.gkSchade : 'licht',
+           gkStof: ['nu', 'kam', 'kroon'].includes(k.gkStof) ? k.gkStof : 'nu' };   // het stof van de grondklap (Test 76)   // en hoeveel schade hij doet   // de stokken: de counter na een blok als stun of als gewone treffer (Test 74)
 })();
 const duoKeuzeEl = document.getElementById('duokeuze');
 let duoKeuzeVerder = null, duoKeuzeDoor = false;
@@ -47289,13 +47382,14 @@ function duoKeuzeBouw(){
   rij('dkstokcounter', [['stun', 'Stun and knock back'], ['gewoon', 'Normal hit']], 'stokCounter');
   rij('dkgkbereik', [['kort', 'Short'], ['middel', 'Medium'], ['lang', 'Long']], 'gkBereik');
   rij('dkgkschade', [['licht', '0.5 (base)'], ['middel', '1'], ['zwaar', '1.5']], 'gkSchade');
+  rij('dkgkstof', [['nu', 'Current'], ['kam', 'Growing crest'], ['kroon', 'Crown and ring']], 'gkStof');
   rij('dkcombo', [['fc', 'Full Circle'], ['fc_kracht', 'Crushing Circle'], ['fc_breed', 'Wide Circle'], ['terugslag', 'Drie steken'], ['knop', 'Duw op X']], 'combo');
   const toon = (id, aan) => { document.getElementById(id).parentElement.style.display = aan ? '' : 'none'; };   // alleen de rijen van dit level
   toon('dksalvo', duoKeuzeDuo()); toon('dkniveau', duoKeuzeDuo()); toon('dkzweep', !!(level && level.zweepKeuze));
   toon('dkcombo', !!(level && level.comboKeuze)); toon('dkmik', !!(level && level.mikKeuze));
   toon('dkmurconst', !!(level && level.murcKeuze)); toon('dkmurchy', !!(level && level.murcKeuze));
   toon('dkstokcounter', !!(level && level.stokKeuze));
-  toon('dkgkbereik', !!(level && level.gkKeuze)); toon('dkgkschade', !!(level && level.gkKeuze));
+  toon('dkgkbereik', !!(level && level.gkKeuze)); toon('dkgkschade', !!(level && level.gkKeuze)); toon('dkgkstof', !!(level && level.gkKeuze));
   const broek = !!(level && level.broekKeuze);
   document.getElementById('dkbroekrij').style.display = broek ? '' : 'none';
   document.getElementById('dktitel').textContent = broek ? 'Choose your trousers' : 'Instellingen';
@@ -47313,6 +47407,7 @@ function duoKeuzeStand(){
   for (const b of duoKeuzeEl.querySelectorAll('#dkstokcounter button')) b.classList.toggle('on', b.dataset.w === duoKeuze.stokCounter);
   for (const b of duoKeuzeEl.querySelectorAll('#dkgkbereik button')) b.classList.toggle('on', b.dataset.w === duoKeuze.gkBereik);
   for (const b of duoKeuzeEl.querySelectorAll('#dkgkschade button')) b.classList.toggle('on', b.dataset.w === duoKeuze.gkSchade);
+  for (const b of duoKeuzeEl.querySelectorAll('#dkgkstof button')) b.classList.toggle('on', b.dataset.w === duoKeuze.gkStof);
 }
 function duoKeuzeToon(verder){
   duoKeuzeVerder = verder;
@@ -50618,6 +50713,7 @@ function loop(now){
 
     javDraw(groundY, scale, cx, 'rust');              // een speer in de grond of in een wand: achter Amir
     drawSweepDust(true, cx, groundY, lift, scale);    // stof achter Amir langs
+    gkStofAchter(cx, scale, groundY);                 // de grondklap: het stof achter de looplijn (kroon en ring, GK)
     const amirWeg = exeAmirWeg();                     // de executie: de lagen tekenen Amir, de echte blijft weg (ook zijn schaduw en zijn rug)
     const trapAlfa = stadTrapAlfa();                  // de stadstrap: Amir vervaagt bij de trap en komt bij de uitgang terug
     ctx.save(); ctx.globalAlpha *= trapAlfa;
