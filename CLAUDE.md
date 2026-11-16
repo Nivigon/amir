@@ -280,6 +280,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | omlaag mikken: van een hogere laag naar beneden gooien, pijl omlaag tijdens het spannen (Test 71) | `THR_OMLAAG`, `worpOmlaag`, `thrOmlaag` | notities/speer.md |
 | de mik-rig: vrij mikken met losse delen (arm, hoofd en speer draaien mee), pijl op en neer tijdens het spannen; proefveld Test 72 | `RIG`, `rigMik`, `rigBeeld`, `rigMikStap`, `speerOneindig`, `geenEinde` | notities/speer.md |
 | fakkel: een geanimeerde wandfakkel | `FAKKEL`, `fakkelLaad`, `fakkelFrame` | notities/fakkel.md |
+| donker met gaten: de diepe nacht (`stad_diepnacht`) waar alleen de fakkels en de ramen licht geven | `donkerGatenNa`, `fakkelLichten`, `gaten` | notities/fakkel.md |
 | personages, dorpsdecor | `VILLAGE` | notities/wegwijzers.md |
 | Amir zegt er iets van als hij geraakt wordt | `SFX_RAAK`, `playRaak()` | notities/geluid.md |
 | Amir zegt iets als een vijand sterft | `SFX_RUST`, `vijandDood(baas)`, `DOOD_KANS` | notities/geluid.md |
@@ -334,6 +335,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | Multiplayer: de knop in het hoofdmenu, de lobby (de host kiest Co-op Survival of Duel, de map en de regels, de gasten drukken Ready), en het plan voor de winkel | `MP_SOORTEN`, `mpLobbyToon`, `mpWijzig`, `mpStart`, `mpNaarLobby`, `pvpDuelStart` | notities/multiplayer.md |
 | drie spelers: de ster (de host een verbinding per gast, een speler-id `p` in elk bericht, doorsturen met `MP_DOOR`, `pvpZendAan` voor een speler), per slot de andere Amir, de vijandgroep, de revive-ton en Ready; Duel blijft twee | `PVP.max`, `pvp.peers`, `pvp.anders`, `pvpGastErbij`, `pvpZendAan`, `mpcDodenStap` | notities/multiplayer.md |
 | Co-op Survival: de host denkt voor de vijanden (twee doelen voor dezelfde AI), de gast tekent ze en meldt zijn treffers; rondes uit de deuren, tonnen met de knikkerzak, de revive, punten en het eindscherm; testen met `tools/mptest.js --proef` (drie vensters, `--spelers 2` voor twee) | `MPC`, `mpcUpdate`, `mpcHitDoor`, `mpcStandZend`, `mpcHostStap`, `mpcSpawn` | notities/multiplayer.md |
+| de versies van de Co-op map: avond, nacht met fakkels aan de muren of diepe nacht, willekeurig en om de 3 rondes een andere, gesynchroniseerd met `cv` | `MPC_VERSIE`, `mpcVersieZet`, `mpcVersieWissel`, `mpcFakkelsStap` | notities/multiplayer.md |
 | de winkel van Co-op: na `winkelNa` rondes allebei naar een binnenkamer, ieder zijn eigen prijslijst en beurs, goud per kill en per ronde, Full Circle met twee upgrades die samen mogen, Ready van allebei | `MPC_WINKEL`, `mpcWinkelIn`, `mpcWinkelUit`, `mpcWinkelKoop`, `mpcGoudIedereen`, `mpcFcModus` | notities/multiplayer.md |
 | sandbox | de vrije testmodus |  |
 

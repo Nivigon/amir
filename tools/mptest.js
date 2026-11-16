@@ -132,6 +132,14 @@ async function proef(R, L){
     meld(await G.page.evaluate(() => lives === 3), 'en niet de eerste gast');
     await G2.page.evaluate(() => { godMode = true; lives = 3; drawLives(); });
   }
+  // de versie van de map (MPC_VERSIE): iedereen dezelfde, met de fakkels aan de muren, en om de drie rondes een andere
+  const versie = () => Promise.all(R.map(r => r.page.evaluate(() => mpcVersieNu + ':' + (level.fakkels || []).length)));
+  const v0 = await versie();
+  meld(new Set(v0).size === 1 && /^(avond:0|nacht:8|donker:8)$/.test(v0[0]), 'iedereen dezelfde versie van de map (' + v0.join(' ') + ')');
+  await H.page.evaluate(() => { const C = pvp.coop; for (const q of MPC_LIJSTEN) mpcZet(q, []); C.rij = []; C.ronde = 3; C.fase = 'wacht'; C.klok = 0; });
+  meld(await elk(v => mpcVersieNu !== v, v0[0].split(':')[0], 4000) === null, 'ronde 4: een andere versie van de map, bij iedereen');
+  const v1 = await versie();
+  meld(new Set(v1).size === 1, 'en weer bij iedereen dezelfde (' + v1.join(' ') + ')');
   // de winkel (stuk 3): de ronde is op na winkelNa rondes, iedereen naar de winkelkamer, kopen, Ready en terug
   const goudVoor = await Promise.all(R.map(r => r.page.evaluate(() => pvp.coop.goud)));
   await H.page.evaluate(() => { const C = pvp.coop; C.rij = []; C.fase = 'golf'; C.ronde = pvp.regels.coop.winkelNa; for (const q of MPC_LIJSTEN) mpcZet(q, []); });
