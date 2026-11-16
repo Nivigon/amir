@@ -26,6 +26,8 @@
 //                                        goed de andere Amir en de vijanden bij de gast de echte baan volgden: bij de best
 //                                        passende vertraging (ms) de gemiddelde afwijking in px (lager is vloeiender en klopt beter)
 //   node tools/mptest.js --duel --spelers 2   het Duel: allebei in de ronde, de gast valt, de ronde naar de host, ronde 2
+//   node tools/mptest.js --stokken gast  deze spelers kiezen in de lobby de stokken (ook host, gast2, of host,gast): kijkt na
+//                                        dat iedereen het weet, dat hun potje met stokken start zonder speer, en hun winkel
 //   node tools/mptest.js --geensnel      zonder het nagebootste snelle kanaal (zoals via het relais)
 const fs = require('fs');
 const path = require('path');
@@ -43,6 +45,7 @@ const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const duur = Number(opt('--duur', 90)), shots = opt('--shots', null), stil = args.includes('--stil');
 const soorten = opt('--soorten', null);
+const stokken = (opt('--stokken', '') || '').split(',').filter(Boolean);   // wie de stokken kiest
 const net = (opt('--net', '0,0,0')).split(',').map(Number), [LAT, JIT, VERLIES] = [net[0] || 0, net[1] || 0, net[2] || 0];
 const geenSnel = args.includes('--geensnel');
 const N_SPELERS = Math.max(2, Math.min(3, Number(opt('--spelers', 3))));
@@ -148,7 +151,7 @@ async function proef(R, L){
   const goudNa = await Promise.all(R.map(r => r.page.evaluate(() => pvp.coop.goud)));
   meld(goudNa.every((g, i) => g >= goudVoor[i] + 5), 'iedereen krijgt het goud van de overleefde ronde (' + goudVoor.join('/') + ' -> ' + goudNa.join('/') + ')');
   const scherm = await G.page.evaluate(() => { world = MPC_WINKEL_KAMER.toonbank + 40; onGround = true; jump = null; binnenE();
-    return winkelUIAan && winkelUIEl.classList.contains('coop') && document.querySelectorAll('#wkcoop button').length === MPC_WINKEL.length - 1 + pvp.spelers.length - 1; });
+    return winkelUIAan && winkelUIEl.classList.contains('coop') && document.querySelectorAll('#wkcoop button').length === MPC_WINKEL.filter(mpcWinkelVoorMij).length - 1 + pvp.spelers.length - 1; });   // alleen wat bij zijn wapen hoort
   meld(scherm, 'E bij de toonbank: het winkelscherm met de prijslijst van Co-op (Give 5 gold per teamgenoot)');
   if (shots){ fs.mkdirSync(shots, { recursive: true }); await G.page.screenshot({ path: path.join(shots, 'winkel_scherm.png') }); await H.page.screenshot({ path: path.join(shots, 'winkel_kamer_host.png') }); }
   const hGoud = await H.page.evaluate(() => pvp.coop.goud), g2Goud = drie ? await G2.page.evaluate(() => pvp.coop.goud) : 0;
@@ -372,6 +375,13 @@ async function elk(H, G){
     await H.page.evaluate(i => { const c = window.__maakConn('g' + i); if (typeof pvpNieuweGast === 'function') pvpNieuweGast(c); else pvpVerbonden(c, true); }, i);
     await tot(ramen[i].page, () => pvp && pvp.fase === 'lobby', null, 5000);
   }
+  for (const r of ramen) if (stokken.includes(r.wie)) await r.page.evaluate(() => pvpEl('mpwpstok').click());
+  if (stokken.length){
+    await H.page.waitForTimeout(300);
+    const wapens = await Promise.all(ramen.map(r => r.page.evaluate(() => pvp.wapen.slice(0, 3).join())));
+    const zou = ramen.map(r => stokken.includes(r.wie) ? 'stok' : 'speer').join();
+    meld(wapens.every(w => w.startsWith(zou)), 'het wapen uit de lobby, bij iedereen hetzelfde (' + wapens[0] + ')');
+  }
   if (args.includes('--duel')) await H.page.evaluate(() => { window.__duel = true; });
   await H.page.evaluate(soorten => {
     mpWijzig(() => {
@@ -403,6 +413,31 @@ async function elk(H, G){
   const start = await H.page.evaluate(() => { const ok = !pvpEl('mpstart').disabled; mpStart(); return ok; });
   lobby.push([start, 'iedereen Ready: Start mag']);
   console.log('Start mocht: ' + start);
+  if (stokken.length){
+    await wacht(1500);
+    for (const r of ramen){
+      const st = await r.page.evaluate(() => ({ aan: stokAan(), spear, rug: RUG_MAX,
+        winkel: typeof MPC_WINKEL !== 'undefined' ? MPC_WINKEL.filter(q => mpcWinkelVoorMij(q)).map(q => q.k).join() : '' }));
+      const wil = stokken.includes(r.wie);
+      meld(st.aan === wil && (!wil || (!st.spear && st.rug === 0)), r.wie + ': ' + (wil ? 'stokken, geen speer en geen rug' : 'de speer') + ' (' + JSON.stringify(st) + ')');
+      if (!args.includes('--duel')) meld(wil ? (st.winkel.includes('hout') && !/speer|gif|fc|slot/.test(st.winkel)) : !st.winkel.includes('hout'),
+        r.wie + ': de winkel voor zijn wapen (' + st.winkel + ')');
+    }
+    // een stokslag van een gast bij de host: een halve treffer, met Hardwood sticks 0,75, en de counter een hele
+    const gi = ramen.findIndex(r => r !== H && stokken.includes(r.wie));
+    if (gi > 0 && !args.includes('--duel') && await tot(H.page, () => bandieten.some(b => mpcLeeft(b) && b.mpId != null && b.hp >= 3), null, 20000)){
+      const d = await H.page.evaluate(p => {
+        const b = bandieten.find(b => mpcLeeft(b) && b.mpId != null && b.hp >= 3), uit = [];
+        for (const [st, hw] of [['slag', 0], ['stapslag', 1], ['draaislag', 0]]){
+          const voor = b.hp; b.inv = 0; b.mpGemeld = 0; b.rust = 0;
+          mpcTrefferVanGast({ p, a: 'bandieten', id: b.mpId, f: 'hitBandiet', g: [], st, sf: STOK.actief[st][0], co: 0, hw });
+          uit.push(+(voor - b.hp).toFixed(2));
+        }
+        return uit.join() + (atkStok == null && stokHoutGast == null ? '' : ' (de stand van de host lekt)');
+      }, gi);
+      meld(d === '0.5,0.75,1', 'de stokslag van de gast bij de host: slag, Hardwood, counter (' + d + ')');
+    }
+  }
   // de spelers: naar de dichtstbijzijnde vijand lopen en steken; R na game over
   const speler = ([stil, taai, sterf]) => {
     if (!pvp || !pvp.coop || !running) return;
@@ -449,6 +484,14 @@ async function elk(H, G){
     meld(await tot(H.page, () => pvp.sc[0] === 1, null, 5000), 'de gast valt: de ronde naar de host');
     meld(await tot(G.page, () => pvp.ronde === 2 && pvp.fase === 'vecht' && pvp.sc[0] === 1, null, 8000), 'ronde 2 begint, de gast weet de stand');
     meld(await G.page.evaluate(() => /You 0  -  1 Opponent/.test(pvpEl('pvpscore').textContent)), 'de stand bij de gast: ' + await G.page.evaluate(() => pvpEl('pvpscore').textContent));
+    if (stokken.includes('host')){                    // een stokslag van de host op de gast, die 200 px voor hem staat (de stapslag reikt ver)
+      await wacht(2500);
+      const hx = await H.page.evaluate(() => { laadWacht = false; godMode = false; return world; });   // de host blijft in deze opzet op het laadscherm staan (ook zonder stokken)
+      await G.page.evaluate(hx => { laadWacht = false; godMode = false; invuln = 0; world = hx - 200; facing = 1; window.__l0 = lives; }, hx);
+      await wacht(600);
+      await H.page.evaluate(() => { facing = -1; startAttack(); });
+      meld(await tot(G.page, () => lives < window.__l0, null, 3000), 'de stokslag van de host raakt de gast in het Duel');
+    }
     for (const r of ramen){ if (r.fouten.size){ console.log(r.wie + ' fouten:'); for (const f of r.fouten) console.log('  ' + f); } }
     loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return;
   }

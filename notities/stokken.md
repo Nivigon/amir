@@ -1,7 +1,8 @@
 # De stokken
 
 Een tweede wapenset voor Amir: twee slanke stokken met een leren greep (Nguni-stokvechten), in plaats van de speer.
-Alleen in Test 74 (`stokken: true`) en de sandboxknop **Stokken**.
+In Test 74 (`stokken: true`), de sandboxknop **Stokken**, en in Multiplayer als keuze per speler (zie "Het wapen" in
+`notities/multiplayer.md`).
 
 ## Frames
 - `karakters/amir/stokken/<set>/<set>_NN.png`, sets `rennen` (12), `staan` (1), `slag` (18), `stapslag` (28), `slag2` (27), `draaislag` (15),
