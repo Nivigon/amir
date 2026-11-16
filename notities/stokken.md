@@ -227,6 +227,11 @@ zonneschijf in de lucht), `straalUpdate`, `straalTeken`, `straalAmirTeken`, `str
   donker (`STRAAL.trance.dim`, `straalDimNa`, na de lichtlaag; in `straalAmirTeken` tekende de wereld er weer overheen). Het idee
   van de opdrachtgever: een afweging, schade incasseren of eerst een plek zoeken waar niemand je ziet (Test 77 heeft `sneak`, en
   stilzitten is stil). Bij het losbarsten een gouden ring (`straalLosbarst`, `straalGolf`).
+- Tau zelf (16-11-2026, `TAU`, `straalTauNa`, `tauBrul`): een leeuwenkop in grijswit tribal lijnwerk boven Amir, recht van
+  voren. In de trance komt hij langzaam op (het rustige frame, tot `TAU.op`, en hij ademt), bij het losbarsten brult hij
+  (`TAU.fps`), houdt de brul `TAU.vast` s vast, groeit iets (`TAU.groei`) en vervaagt omhoog (`TAU.weg`). Getekend na de
+  verduistering (`straalDimNa`), zodat hij in het donker licht geeft, met een zachte gloed. De frames (`karakters/amir/tau/`)
+  komen uit de Grok-clip `bron/tau_brul.mp4` via `tools/tau_leeuw.py`; een andere kleur is `KLEUR` in dat script.
 - Twee kandidaat-talents, voorlopig alleen sandboxknoppen (`STRAAL.talent`, `sbzonterug`, `sbzonbarst`), nog niet in een boom:
   **Trance: schade terug** (`STRAAL.terug`, de helft van de trance-schade komt terug bij het losbarsten, tot het maximum) en
   **Trance: uitbarsting** (`STRAAL.uitbarst`: alles binnen 3,2 Amir op zijn hoogte vliegt weg en is even traag, zoals na de

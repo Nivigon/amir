@@ -20522,7 +20522,31 @@ let straalKlappen = 0;      // grondklappen in deze burst (STRAAL.klappen)
 let straalLijst = [], straalFase = null, straalT = 0, straalMediT = 0, straalNu = null, sbStraal = false, straalGeluid = null;
 var straalTrance = false, straalTranceSchade = 0, straalGolf = null, straalDim = null;   // var: amirVast leest het (zie de trance)
 const straalMotes = [];        // stofjes in het licht die tijdens het mediteren naar Amir toe trekken
+// Tau, de leeuwengod: een geestkop in grijswit lijnwerk boven Amir. In de trance komt hij langzaam op (het rustige
+// frame tau_00), als de meter vol is en Amir losbarst brult hij (tau_01 tot het laatste frame), houdt die brul even
+// vast en vervaagt dan omhoog. De frames komen uit tools/tau_leeuw.py (de kleur staat daar, KLEUR).
+const TAU = {
+  dir: 'karakters/amir/tau/', frames: 23,
+  h: 0.95,                  // hoogte van de kop, in Amir
+  boven: 1.98,              // het midden van de kop boven zijn voeten, in Amir (boven de ring en TAU)
+  op: 0.42,                 // zo zichtbaar is hij aan het eind van de trance
+  brulAlfa: 0.85,           // en zo fel bij de brul
+  fps: 26,                  // de brul, beelden per seconde
+  vast: 0.9,                // s de volle brul vasthouden
+  weg: 0.7,                 // s vervagen en omhoog zweven
+  groei: 0.16,              // de kop wordt bij de brul zoveel groter
+};
+let tauImgs = null, tauBrul = null, tauPlek = null;   // tauBrul: {t} vanaf het losbarsten; tauPlek: waar hij dit beeld komt
+function tauDuur(){ return (TAU.frames - 1) / TAU.fps + TAU.vast + TAU.weg; }
 function straalLaad(){
+  if (!tauImgs){
+    tauImgs = [];
+    for (let i = 0; i < TAU.frames; i++){
+      const im = new Image();
+      zetBron(im, TAU.dir + 'tau_' + String(i).padStart(2, '0') + '.png', () => console.warn('ontbreekt: tau frame ' + i));
+      tauImgs.push(im);
+    }
+  }
   if (straalGeluid) return;
   straalGeluid = { burst: banStemmen('sounds/zegelontdek.mp3', 1), moe: banStemmen('sounds/brutus_adem.mp3', 1) };
 }
@@ -20555,7 +20579,7 @@ function stokZonDruk(){
   straalVrijZ = { x: world, h: ph, vrij: true };
   return true;
 }
-function straalWis(){ straalVrijZ = null; straalFase = null; straalT = 0; straalMediT = 0; straalNu = null; straalMotes.length = 0; straalTrance = false; straalTranceSchade = 0; straalGolf = null; }
+function straalWis(){ straalVrijZ = null; straalFase = null; straalT = 0; straalMediT = 0; straalNu = null; straalMotes.length = 0; straalTrance = false; straalTranceSchade = 0; straalGolf = null; tauBrul = null; }
 function straalBurst(){ return straalFase === 'burst'; }
 function straalMoe(){ return straalFase === 'moe'; }
 function straalLoopK(){ return straalBurst() ? STRAAL.loop : straalMoe() ? STRAAL.moeLoop : 1; }
@@ -20600,6 +20624,7 @@ function straalUpdate(dt){
     }
   } else { straalMediT = 0; straalNu = null; straalVrijZ = null; }   // afgebroken: de straal van G trekt weer op
   if (straalGolf && (straalGolf.t += dt) > 0.6) straalGolf = null;
+  if (tauBrul && (tauBrul.t += dt) > tauDuur()) tauBrul = null;
   for (let i = straalMotes.length - 1; i >= 0; i--){
     const m = straalMotes[i]; m.t += dt;
     if (m.uit){ m.dx += m.vx * dt * 1.6; m.dh += m.vh * dt * 1.6; }
@@ -20609,7 +20634,7 @@ function straalUpdate(dt){
 }
 // het losbarsten na de trance: de gouden golf, en de twee kandidaat-talents
 function straalLosbarst(){
-  straalGolf = { t: 0 };
+  straalGolf = { t: 0 }; tauBrul = { t: 0 };
   if (STRAAL.talent.terug && straalTranceSchade > 0 && !onsterfelijk()){   // talent terug: een deel van de trance-schade komt terug
     lives = Math.min(Math.max(HPPOTION_HP_MAX, levensStart()), lives + straalTranceSchade * STRAAL.terug);
     drawLives(); hppotionLivesAnim();
@@ -20638,6 +20663,34 @@ function straalDimNa(){
   const g = ctx.createRadialGradient(p.x, p.y, D.r0 * k, p.x, p.y, D.r1 * k);
   g.addColorStop(0, 'rgba(8,5,2,0)'); g.addColorStop(1, 'rgba(8,5,2,' + D.d.toFixed(3) + ')');
   ctx.fillStyle = g; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.restore();
+}
+// Tau boven Amir: na de verduistering van de trance getekend, zodat de geest in het donker licht geeft
+function straalTauNa(){
+  const P = tauPlek; tauPlek = null;
+  if (!P || !tauImgs || (!straalTrance && !tauBrul)) return;
+  const nu = performance.now() / 1000;
+  let fr = 0, alfa, groot = 1, op = 0;
+  if (tauBrul){
+    const t = tauBrul.t, brul = (TAU.frames - 1) / TAU.fps;
+    fr = Math.min(TAU.frames - 1, 1 + Math.floor(t * TAU.fps));
+    const aan = Math.min(1, t / 0.15), uit = Math.max(0, (t - brul - TAU.vast) / TAU.weg);
+    alfa = (TAU.op + (TAU.brulAlfa - TAU.op) * aan) * (1 - uit);
+    const g = Math.min(1, t / brul); groot = 1 + TAU.groei * g * g * (3 - 2 * g);
+    op = uit * uit * 0.35;                                // bij het vervagen zweeft hij omhoog
+  } else {
+    const k = Math.max(0, Math.min(1, (straalMediT - STRAAL.instap) / (STRAAL.medi - STRAAL.instap)));
+    alfa = TAU.op * k * k * (3 - 2 * k) * (0.88 + 0.12 * Math.sin(nu * 2.4));   // langzaam op, en hij ademt
+    op = 0.03 * Math.sin(nu * 1.6);
+  }
+  const im = tauImgs[fr];
+  if (alfa <= 0.01 || !im || !im.complete || !im.naturalWidth) return;
+  const A = P.A, h = A * TAU.h * groot, w = h * bronW(im) / bronH(im);
+  const cy = P.y - A * (TAU.boven + op);
+  ctx.save(); ctx.setTransform(P.T);
+  ctx.globalAlpha = alfa;
+  ctx.shadowColor = 'rgba(225,238,255,0.9)'; ctx.shadowBlur = A * 0.07 * Math.hypot(P.T.a, P.T.b);   // een zachte gloed om de lijnen
+  ctx.drawImage(im, P.x - w / 2, cy - h / 2, w, h);
   ctx.restore();
 }
 // in de trance: een treffer kost minder en duwt hem niet weg (hurtPlayer)
@@ -20697,6 +20750,7 @@ function straalTeken(groundY, scale, cx){
 // grijs uitgeput, en tijdens het mediteren een ring die volloopt)
 function straalAmirTeken(pcx, feetY, scale){
   const A = CHAR_H * scale;
+  tauPlek = straalTrance || tauBrul ? { T: ctx.getTransform(), x: pcx, y: feetY, A } : null;   // Tau, getekend na de verduistering (straalTauNa)
   if (straalTrance){                                   // afgesloten van de wereld: alles om hem heen wordt donker
     const d = STRAAL.trance.dim * Math.min(1, (straalMediT - STRAAL.instap) / 0.6);
     straalDim = { T: ctx.getTransform(), x: pcx, y: feetY - A * 0.5, r0: A * 0.55, r1: A * 3.2, d };   // getekend na de lichtlaag (straalDimNa)
@@ -52719,6 +52773,7 @@ function loop(now){
     donkerGatenNa();                                // een uitzicht met gaten: de diepe nacht met licht rond fakkels en ramen
     stadNachtNa();                                  // 's nachts: de gloed van de ramen en lampen in de stad, over de lichtlaag
     straalDimNa();                                  // de trance van de zonnestraal: de wereld om Amir wordt donker (STRAAL)
+    straalTauNa();                                  // en Tau, de leeuwengod, boven hem: opkomen in de trance, brullen bij het losbarsten
     drawSnowfall(groundY, weerDak(scaleNow));       // de vlokken vallen over alles heen, maar niet in een gang of een huis
     drawWeer(groundY, weerDak(scaleNow));           // en de regen en de stormen net zo
     drawVoorgrond(groundY, scaleNow);               // het gras vlak voor de camera
