@@ -212,3 +212,37 @@ executie), **Wankel: E aan/geen E (val)** (`sbExeGeenE`: de worp-kill krijgt gee
 en **Worp-kill** (`sbExeNu`: de eerste levende schildbandiet meteen zo doden; bij de steek krijgt Amir zijn speer in de
 hand, bij de worp zit zijn speer in de schildbandiet). Nagekeken op 1280 bij 720, groot en klein, naar links en
 gespiegeld: de steek, de worp met E, de worp zonder E (de speer ligt naast hem en is op te pakken), zonder consolefouten.
+
+## de stokexecutie: met de stokken op de schildbandiet
+
+`EXE.stok`, `exeStokKan`, `exeStokStart`, `exeStokStap`, `exeStokKlap`, `exeStokLos`, `exeStokTeken`, `exeStokLens`,
+`sbStokExeNu`. Uitgeprobeerd op de voorbeeldpagina Stokexecutie schildbandiet (16-11-2026) en zo gebouwd.
+
+Met de stokken (`stokAan()`) is elke dodelijke slag op een schildbandiet (schild weg, `hitSchildman` met `steek`) deze
+executie, in plaats van de gewone dood of de speerexecutie; niet in Multiplayer (`pvp`), want daar staat het beeld niet
+stil. Amirs speer zit niet in hem: `exeStart(s, 'stok')` met `e.laag`, dus zonder de lagen speer en wond, en zonder E
+(`e.geenE`). De wereld staat meteen stil (`exeVries`, de camera een stap dichterbij), zoals bij de steek-executie.
+
+- Hij knielt (`knielen`) en wankelt daarna (`wankel`, de loop blijft lopen tot de klap: `wankelT` staat op 0).
+- Amir rent naar `afstand` (215 wereld-px bij schaal 1, anker tot anker) aan zijn eigen kant, met `ren` en `renMs`;
+  staat hij dichterbij, dan schuift hij in zijn stand terug. Ligt die plek in een ravijn, dan slaat hij van waar hij
+  staat. `world` gaat mee, dus de camera ook. De echte Amir is weg (`exeAmirWeg`); `exeStokTeken` tekent hem met de
+  stokframes (`stokBank`, `stokMaat`, `broekBeeld`) in de lagen van de schildbandiet, naar hem toe gekeerd.
+- Dan de draaislag van de counter (`STOK.ms`, `STOK.tempo`, met de zwiep). Op frame `klap` (5): hitstop `stop`, schok,
+  een witte flits (`flits`), de harde klap van de stun (`STOK.stunKlap`), het bloedgeluid en de doodskreet. Uit zijn hoofd
+  (`kop`, canvas-px van executie.json) spuit de spuit van het bloedsysteem (`bloedSpuitCache`, `BLOED.ticks` en
+  `BLOED.snel`) van Amir af gekanteld (`spuitHoek`), `druppels` druppels vliegen dezelfde kant op en blijven op de
+  grond liggen (`e.druppels`, `exeDruppelStap`, `exeDruppelsTeken`), en er komt een grote spat op de lens (`lens`, de
+  vorm van Nyundo via `lensSpatMaak`, ruim twee keer zo groot als `STOK.lens`), `lensDx` van Amir af en `lensDy` omhoog,
+  die na `lens.weg` wegtrekt (`exeStokLens`, op echte tijd in `exeZoomStap`, getekend in de HUD-laag naast `stokLensTeken`).
+- Na de hitstop draait de klap hem om (`draai`: `s.face` en `e.dir` om, de druppels mee gespiegeld) en valt hij van Amir
+  af voorover (`val`), met even slowmotion (`traag`: `duur` op `f`, dan in `ramp` terug). `draai: false` laat hem naar
+  Amir toe vallen, zoals de valframes getekend zijn.
+- Na het terugdraaien (`draaiterug`) staat Amir in zijn stand, naar hem toe, `EXE.t.veilig` onkwetsbaar, en loopt de
+  wereld weer (`exeStokLos`); hij ligt als lijk en vervaagt zoals na de gewone dood.
+
+Zijn eigen speer ligt in de kniel- en wankelframes naast hem op de grond (in de lijf-laag gebakken), maar niet in de
+valframes: die verdwijnt als hij valt, net als bij de gewone dood.
+
+Sandbox, onder Schildbandiet: **Stokexecutie: aan/uit** (`EXE.stok.aan`) en **Stok-kill** (met de stokken aan: de eerste
+levende schildbandiet meteen zo).

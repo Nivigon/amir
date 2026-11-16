@@ -83,6 +83,8 @@ In Test 74 (`stokken: true`), de sandboxknop **Stokken**, en in Multiplayer als 
 - Blok: C vasthouden (op een telefoon de schildknop). Vanaf blok-frame `STOK.blokOp` vangt `hurtPlayer` een klap van
   voren af (houtklap, duwtje). Projectielen met een eigen schade-ingang (bouten, de speer van de schildbandiet) vangt
   het nog niet.
+- Een dodelijke slag op een schildbandiet is de stokexecutie: hij knielt zonder speer, Amir rent in en doet de
+  draaislag, met een grote bloedspat op de lens (`EXE.stok`, zie "de stokexecutie" in `notities/schildbandiet.md`).
 - De stun-counter klinkt en voelt harder: een stapel lage houtklappen met een naklap en het bloedgeluid
   (`STOK.stunKlap`), meer hitstop en schok, en een kleine bloedspetter op de lens bij het trefpunt die binnen 0,7 s
   wegtrekt (`STOK.lens`, `stokLens`, `stokLensTeken`). De lens-code van Nyundo is daarvoor algemeen gemaakt
@@ -208,8 +210,15 @@ Met de stokken in de lucht omlaag plus aanval (`GK`, `gkKan`, `gkStart`, `gkLuch
 Gebukt (omlaag) plus aanval met de stokken, in elk level met stokken en in Multiplayer (`stokLaag`, set `laag`). Een hand
 blijft met de stok op de grond, de andere slaat van boven naar voren omlaag tot de punt ver voor hem de grond raakt. Een
 kant op en een vijand (de punt, `STOK.punt.laag`, `reik.laag`), anders dan de lage zwaai van de speer die naar beide kanten
-alles laag raakt. Hij kost een lading van de lage zwaai (`swLading`, het vak in de actiebalk), schade 1 (`STOK.schade.laag`),
-en tijdens de slag blijft hij gebukt staan (zoals de zwaai).
+alles laag raakt. Hij kost een lading van de lage zwaai (`swLading`, het vak in de actiebalk), en tijdens de slag blijft hij gebukt staan
+(zoals de zwaai). De lage zwaai van de speer zit er met de stokken niet in, ook niet in de stoktribe.
+- Schade (17-11-2026, Tom: anders opende je elk gevecht met een gratis heel leven): op een bandiet doet alleen de punt op
+  afstand de hele schade (`STOK.schade.laag`, 1); staat hij dichter dan `STOK.laag.ver` (170 wereld-px, midden tot midden)
+  dan een halve (`STOK.laag.dicht`) (`laagSchade` in `stokSchade`). Hardwood sticks telt niet mee. Slangen, fosforslangen,
+  schorpioenen en hyena's zijn in een klap dood, ook met een health-balk (`laagDood`, in `enemyTakeHit`, `hitHyena` en
+  `fosforRaak`). Gemeten: bandiet op 230 px 3 naar 2, op 110 px 3 naar 2,5, hyena met 3 levens dood.
+- De stoktribe: omlaag is daar ook mediteren (STRAAL). Slaan breekt de meditatie (ook de trance) af en is dan de lage slag;
+  vroeger hield de trance Amir vast (`amirVast`) en deed F niets. Dat geldt ook in een straal.
 - Frames: 23, uit Grok-clip 2.mp4 (begin de bukpose, eind de klap, zie `claude/lage_slag_stokken.md` in het project):
   clipframes 0, 10-24 per 2, 34 (de tell), 54-87 per 3 en 89 (de klap). Lijf in `bron/lijf/laag_NN.png` (niet gespiegeld,
   hij kijkt naar links zoals bukken), de stokken in `plaatsing.json` (startplaatsing uit het groen; in de laatste frames

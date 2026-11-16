@@ -839,7 +839,9 @@ na het blok, dan komt de **counter**: een draaislag met zijn rug naar je toe. Vo
 doet: **Stun and knock back** (de vijand staat 2 seconden versuft en vliegt een stuk terug) of **Normal hit**. Je staat
 tegenover drie elite-bandieten met elk vijf levens, een voor een. In de sandbox zet de knop **Stokken** het aan.
 Gebukt slaan (omlaag vasthouden en F) is de **lage slag**: een stok blijft op de grond, de andere slaat van boven ver voor
-hem in de grond. Hij raakt een kant op en kost een lading, net als de lage zwaai met de speer.
+hem in de grond. Hij raakt een kant op en kost een lading, net als de lage zwaai met de speer. Een bandiet verliest er een heel leven door als
+je hem met de punt raakt, op afstand; staat hij dichtbij, dan een half. Slangen, schorpioenen en hyena's zijn in een klap dood.
+Mediteer je (omlaag vasthouden), dan breekt slaan de meditatie af en doe je de lage slag.
 De eerste slag is een **stapslag**: Amir stapt met zijn achterste been door naar voren en slaat van boven, en blijft
 daarna op die plek staan; sla je meteen nog eens, dan volgt **slag 2**: hij stapt nog een keer door en slaat met zijn linkerstok
 vlak en zijwaarts voor zich langs, met de andere stok omhoog als dekking (de sandboxknop **Slag 2** zet hem aan of uit). In de sandbox zet **Stapslag** hem aan of uit (uit is de
@@ -888,6 +890,11 @@ De schildbandiet wordt getekend uit losse lagen, met het schild als een eigen pl
 plaats van in elk frame meegebakken: een hap uit het schild is een wissel van alleen dat plaatje. Zo worden
 de animaties voortaan gemaakt; de oude complete sets per schildstand zijn uit het spel, net als de knop
 Nieuwe stijl in de sandbox (de gewone Schildbandiet is nu die versie).
+
+Vecht je met de **stokken**, dan is elke dodelijke klap op de schildbandiet de stokexecutie: alles staat stil,
+hij zakt op zijn knieen (zonder speer in zijn borst), Amir rent op hem af en slaat hem met de draaislag tegen zijn
+hoofd. Het bloed spuit eruit en spat groot op de camera, de klap draait hem om en hij valt van Amir af voorover;
+daarna loopt het spel weer. In de sandbox staan onder Schildbandiet de knoppen Stokexecutie (aan of uit) en Stok-kill.
 
 Een dodelijke klap op de schildbandiet wordt soms een **executie**. Steek je hem dood (1 op 5), dan staat
 alles stil: hij zakt met je speer in zijn borst op zijn knieen, Amir rukt de speer eruit en splijt hem in
