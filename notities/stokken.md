@@ -83,6 +83,8 @@ In Test 74 (`stokken: true`), de sandboxknop **Stokken**, en in Multiplayer als 
 - Blok: C vasthouden (op een telefoon de schildknop). Vanaf blok-frame `STOK.blokOp` vangt `hurtPlayer` een klap van
   voren af (houtklap, duwtje). Projectielen met een eigen schade-ingang (bouten, de speer van de schildbandiet) vangt
   het nog niet.
+- Een dodelijke slag op een schildbandiet is de stokexecutie: hij knielt zonder speer, Amir rent in en doet de
+  draaislag, met een grote bloedspat op de lens (`EXE.stok`, zie "de stokexecutie" in `notities/schildbandiet.md`).
 - De stun-counter klinkt en voelt harder: een stapel lage houtklappen met een naklap en het bloedgeluid
   (`STOK.stunKlap`), meer hitstop en schok, en een kleine bloedspetter op de lens bij het trefpunt die binnen 0,7 s
   wegtrekt (`STOK.lens`, `stokLens`, `stokLensTeken`). De lens-code van Nyundo is daarvoor algemeen gemaakt

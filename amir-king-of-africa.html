@@ -1665,6 +1665,8 @@
         <button id="sbschexebonus">Bonus: aan</button>
         <button id="sbschexesteek">Steek-kill</button>
         <button id="sbschexeworp">Worp-kill</button>
+        <button id="sbschstokexe">Stokexecutie: aan</button>
+        <button id="sbschstokkill">Stok-kill</button>
         <span class="hint">loopt met zijn houten schild op je af en valt aan met een sprong: hij zakt door zijn knieen (tell), springt naar waar je stond (dan is hij onstuitbaar en onaantastbaar) en landt met zijn speer. Stap weg om de sprong te ontwijken. Zijn schild vangt drie treffers op (witte flits, houtklap, houtsnippers); daarna is hij in een klap dood: hij zakt op zijn knieen, valt voorover en blijft liggen, met de doodskreet van de bandiet. Dood je hem met een worp, dan zit je speer in zijn borst en ligt hij na de val naast hem op de grond (Dood hoog); na een steek of de lage zwaai houd je hem in de hand (Dood laag). Dood laat elke schildbandiet meteen zo sterven (Dood laag). Komt hij bij een kei met jou aan de overkant, dan springt hij er met dezelfde sprong overheen (een ravijn houdt hem wel tegen). Je ziet het schild bij elke treffer verder kapot gaan: een hap eruit, twee happen, en na de derde is het weg en loopt, slaat en flincht hij zonder schild. Hij wordt getekend uit lagen (lagen.json): het schild is een los plaatje op het lijf, en de hap eruit is een wissel van alleen dat plaatje. De executie: een steek-kill (1 op 5) of een worp-kill (1 op 3) wordt soms de special execution uit executie.json: hij knielt, en bij de steek volgt meteen de executie (alles staat stil, Amir rukt de speer eruit en splijt hem); bij de worp wankelt hij drie seconden, loop naar hem toe en druk E, anders valt hij en ligt je speer naast hem. Executie: altijd maakt elke steek- en worp-kill een executie, Wankel: geen E laat hem vallen zonder E (de E komt niet), Steek-kill en Worp-kill doden de eerste levende schildbandiet meteen zo (bij de worp zit je speer in hem)</span>
       </div>
       <div class="row">
@@ -46816,6 +46818,7 @@ function hitSchildman(s, wijze, richting){               // wijze: 'steek', 'wor
   }
   if (level && level.executie && wijze === 'zwaai') wijze = 'steek';   // in het executie-level is ook de lage zwaai een executie
   if (wijze === 'pijl'){ schbSterf(s, 'steek'); return true; }   // een bout: de gewone dood (Dood laag), geen executie
+  if (wijze === 'steek' && exeStokKan()){ exeStokStart(s); return true; }   // met de stokken: de stokexecutie (EXE.stok)
   if (exeKans(wijze)) exeStart(s, wijze); else schbSterf(s, wijze);   // schild weg: een klap is dood, soms als executie
   return true;
 }
@@ -47003,6 +47006,7 @@ function exeAmirZet(s, glij){
 }
 // de camera-inzoom: tijdens de freeze kruipt hij naar zoom.tot, daarna veert hij terug naar 1 (elk beeld, op echte tijd)
 function exeZoomStap(dt){
+  if (exeStokLens.lijst){ exeStokLens.t += dt; if (exeStokLens.t > EXE.stok.lens.weg[1]) exeStokLens.lijst = null; }   // de lens van de stokexecutie, op echte tijd
   if (exeVries || (sneakRegie && !sneakRegie.vrij)) exeZoomNu += (EXE.zoom.tot - exeZoomNu) * Math.min(1, dt * EXE.zoom.kruip);   // ook de sluipaanval van Amir
   else if (exeZoomNu !== 1){ exeZoomNu += (1 - exeZoomNu) * Math.min(1, dt * EXE.zoom.terug); if (Math.abs(exeZoomNu - 1) < 0.002) exeZoomNu = 1; }
 }
@@ -47020,7 +47024,7 @@ function exeZet(s, bew){
 }
 // tijdens de freeze is de echte Amir weg (de lagen tekenen hem); bij de steek is hij tijdens het knielen
 // nog te zien, maar zonder speer (die zit in de schildbandiet)
-function exeAmirWeg(){ return !!(exeVries && exeVries.exe && exeVries.exe.bew !== 'knielen') || murcPinBezet(); }   // ook onder de pin van Murghtaan
+function exeAmirWeg(){ return !!(exeVries && exeVries.exe && (exeVries.exe.bew !== 'knielen' || exeVries.exe.stok)) || murcPinBezet(); }   // de stokexecutie: Amir komt uit exeStokAmirTeken   // ook onder de pin van Murghtaan
 function exeSpeerWeg(){ return !!(exeVries && exeVries.exe && exeVries.exe.bew === 'knielen' && !exeVries.exe.stop); }   // in de hitstop op de steek staat hij nog in zijn stootpose, met speer
 // een stap: de beweging die speelt (per frame zijn duur uit de json), en de overgangen
 function exeTick(s, dt){
@@ -47034,7 +47038,9 @@ function exeTick(s, dt){
     if (e.stop === 0 && e.naStop){ const f = e.naStop; e.naStop = null; f(); }
     return;
   }
+  if (e.stok) dt *= exeStokTraag(e, dt);          // de stokexecutie: na de klap even slowmotion
   e.t += dt;
+  if (e.stok) exeStokStap(s, dt);
   if (e.schuif){                                   // de steek: Amir glijdt naar amir_start_x (zacht af, smoothstep)
     const g = e.schuif; g.t = Math.min(1, g.t + dt / EXE.t.schuif);
     world = g.van + (g.naar - g.van) * g.t * g.t * (3 - 2 * g.t);
@@ -47060,7 +47066,8 @@ function exeTick(s, dt){
   }
   if (e.bew === 'val' && !e.laag && !e.speerWeg && e.frame >= EXE.speerLigtVan) exeSpeerNeer(s);   // Amirs speer ligt op de grond: echt
   if (!e.klaar) return;
-  if (e.bew === 'knielen'){ if (e.dood) exeZet(s, 'val'); else if (e.wijze === 'steek') exeExecutie(s); else exeZet(s, 'wankel'); }
+  if (e.bew === 'knielen' && e.stok){ exeZet(s, 'wankel'); e.stok.fase = 'ren'; }
+  else if (e.bew === 'knielen'){ if (e.dood) exeZet(s, 'val'); else if (e.wijze === 'steek') exeExecutie(s); else exeZet(s, 'wankel'); }
   else if (e.bew === 'wankel') exeZet(s, 'val');
   else if (e.bew === 'executie'){ if (exeBew('einde')) exeEindeStart(s); else exeSplijtStart(s); }
   else if (e.bew === 'val'){                       // hij blijft liggen als lijk en vervaagt dan (SCHB.lijk)
@@ -47165,6 +47172,166 @@ function exeAmirLos(s){
   invuln = Math.max(invuln, EXE.t.veilig);          // even onkwetsbaar: de cutscene straft je niet
   invulnStil = invuln;                              // zonder te knipperen: hij is niet geraakt
   exeVries = null;
+}
+// ---- de stokexecutie: met de stokken op de schildbandiet ----
+// Een dodelijke stokslag op een schildbandiet (schild weg) is altijd deze executie (EXE.stok.aan), in plaats van de gewone
+// dood: Amirs speer zit niet in hem, dus de lagen speer en wond blijven weg (e.laag). De wereld staat stil zoals bij de
+// steek-executie (exeVries), hij knielt en wankelt, Amir rent tot binnen bereik (afstand) en doet de draaislag van de
+// counter. Op frame klap: hitstop, schok, een witte flits, de harde klap van de stun, de doodskreet, de bloedspuit uit
+// zijn hoofd van Amir af, druppels die op de grond blijven liggen en een grote spat op de lens (de vorm van Nyundo). De
+// klap draait hem om (draai), zodat hij van Amir af voorover valt, met even slowmotion (traag). Na het terugdraaien
+// staat Amir in zijn stand en loopt de wereld weer; hij ligt als lijk en vervaagt zoals na de gewone dood.
+// Uitgeprobeerd op de voorbeeldpagina Stokexecutie schildbandiet. Sandbox: Stokexecutie aan/uit en Stok-kill.
+// Afstanden in wereld-px bij schaal 1 (Amir), kop in canvas-px van executie.json (t.o.v. anker en grondlijn).
+EXE.stok = {
+  aan: true,
+  afstand: 215,              // Amir slaat vanaf zoveel voor hem (zijn anker tot het hare): de stokpunt komt op zijn hoofd
+  ren: 340,                  // zo snel rent Amir erheen (per s, bij schaal 1)
+  renMs: 75,                 // per frame van de ren
+  klap: 5,                   // het draaislag-frame van de treffer (STOK.actief.draaislag is 3 tot 6)
+  stop: 0.14, schok: 0.4, flits: 0.12,
+  traag: { duur: 0.35, ramp: 0.25, f: 0.3 },   // na de klap: zo lang op f, dan in ramp terug naar 1
+  draai: true,               // de klap draait hem om: hij valt van Amir af (false: naar Amir toe, zoals de frames staan)
+  kop: [-7, -258],           // het trefpunt, zijn hoofd geknield
+  lens: { groot: { r: 46, dx: 0, dy: 0 }, klein: { n: 10, r: [5, 15], ver: [60, 175] }, in: 0.06, drup: [18, 64], drupT: 2.4, weg: [2.2, 3.2] },
+  lensDx: 95, lensDy: -75,   // de lens zoveel px (op het scherm) van Amir af en omhoog van het trefpunt
+  spuitH: 255, spuitHoek: 0.95,   // de spuit: hoogte in canvas-px en de kanteling van Amir af (rad)
+  druppels: 34
+};
+const exeStokLens = { lijst: null, t: 0, x: 0, y: 0 };
+function exeStokKan(){ return EXE.stok.aan && stokAan() && !!exeData && !pvp; }
+function exeStokStart(s){
+  hitstop = Math.max(hitstop, SCHB.breekStop); shake = Math.max(shake, 0.25);
+  houtRaak(STOK.toon.slag, 0.8);
+  exeStart(s, 'stok');
+  const e = s.exe;
+  e.laag = true; e.geenE = true;
+  e.stok = { fase: 'kniel', ax: world, set: 'staan', f: 0, acc: 0, traag: 0, spuit: -1, spuitAcc: 0, lensNu: false };
+  stokReset(); atkFrame = -1; atkAcc = 0; swFrame = -1; thr = null; knock = 0; pvh = 0;
+  exeVries = s; exeZoomNu = Math.max(exeZoomNu, EXE.zoom.snap);
+  exeHaakFreeze(s);
+}
+// de klok na de klap: eerst traag, dan terug naar 1
+function exeStokTraag(e, dt){
+  const T = EXE.stok.traag, k = e.stok; if (!(k.traag > 0)) return 1;
+  const u = k.traag; k.traag = Math.max(0, k.traag - dt);
+  if (u > T.ramp) return T.f;
+  const v = 1 - u / T.ramp; return T.f + (1 - T.f) * v * v * (3 - 2 * v);
+}
+function exeStokStap(s, dt){
+  const e = s.exe, k = e.stok, T = EXE.stok, sc = nowScale();
+  if (e.bew === 'wankel') e.wankelT = 0;           // hij wankelt tot de klap
+  exeDruppelStap(e, dt);
+  if (k.spuit >= 0){                               // de spuit (BLOED.ticks op 24 fps, BLOED.snel keer sneller)
+    k.spuitAcc += dt * 24 * BLOED.snel;
+    while (k.spuit < BLOED.frames && k.spuitAcc >= BLOED.ticks[k.spuit]){ k.spuitAcc -= BLOED.ticks[k.spuit]; k.spuit++; }
+    if (k.spuit >= BLOED.frames) k.spuit = -1;
+  }
+  if (k.fase === 'kniel' || k.fase === 'klaar') return;
+  const kant = k.ax >= s.x ? 1 : -1;              // aan welke kant van hem Amir staat
+  if (k.fase === 'ren'){
+    let doel = s.x + kant * T.afstand * sc;
+    if (inGap(doel)) doel = k.ax;                  // niet in een ravijn rennen: dan slaat hij van waar hij staat
+    const d = doel - k.ax, stap = T.ren * sc * dt;
+    if (Math.abs(d) <= stap){ k.ax = doel; k.fase = 'slag'; k.set = 'draaislag'; k.f = 0; k.acc = 0; exeStokZwiep(); }
+    else {
+      k.ax += Math.sign(d) * stap;
+      if (Math.sign(d) === -kant){ k.set = 'rennen'; k.acc += dt * 1000; while (k.acc >= T.renMs){ k.acc -= T.renMs; k.f = (k.f + 1) % STOK.sets.rennen; } }
+      else { k.set = 'staan'; k.f = 0; }           // te dicht: hij schuift terug in zijn stand
+    }
+    world = k.ax;                                  // de camera gaat mee
+    return;
+  }
+  k.acc += dt * 1000;
+  for (;;){
+    const ms = STOK.ms[k.set][k.f] * STOK.tempo[k.set];
+    if (k.acc < ms) break;
+    k.acc -= ms; k.f++;
+    if (k.set === 'draaislag' && k.f === T.klap){ exeStokKlap(s, kant); break; }
+    if (k.f >= STOK.ms[k.set].length){
+      if (k.set === 'draaislag'){ k.set = 'draaiterug'; k.f = 0; continue; }
+      k.fase = 'klaar'; exeStokLos(s, kant); break;
+    }
+  }
+}
+function exeStokZwiep(){
+  if (!wantSound) return;
+  const t = document.getElementById('thrust'); t.currentTime = 0; t.volume = 1; t.playbackRate = 0.75; t.play().catch(() => {});
+}
+// de klap: hitstop, schok, flits, geluid, bloed; na de hitstop draait hij om en valt
+function exeStokKlap(s, kant){
+  const e = s.exe, k = e.stok, T = EXE.stok;
+  e.stop = T.stop; e.acc = 0; shake = Math.max(shake, T.schok); s.flash = Math.max(s.flash, T.flits);
+  const K = STOK.stunKlap;
+  for (const [toon, vol] of K.lagen) houtRaak(toon, vol);
+  setTimeout(() => { for (const [toon, vol] of K.nalagen) houtRaak(toon, vol); }, K.na * 1000);
+  bloedSpeel(); banSterf();
+  bloedLaadSpuit(bloedSpuitNaam);
+  k.spuit = 0; k.spuitAcc = 0; k.lensNu = true; k.kant = kant;
+  const weg = -kant * (s.face === 1 ? -1 : 1);     // van Amir af, in zijn eigen (gespiegelde) lagen
+  e.druppels = e.druppels || [];
+  for (let i = 0; i < T.druppels; i++){
+    e.druppels.push({ x: T.kop[0], y: T.kop[1], vx: weg * (120 + Math.random() * 520), vy: -(120 + Math.random() * 480),
+                      r: 2 + Math.random() * 3.5, lig: false });
+  }
+  e.naStop = () => {
+    if (T.draai){                                  // de klap draait hem om: hij valt van Amir af
+      s.face = -s.face; e.dir = -e.dir;
+      for (const d of e.druppels){ d.x = -d.x; d.vx = -d.vx; }
+    }
+    exeZet(s, 'val'); k.traag = T.traag.duur + T.traag.ramp;
+  };
+}
+// klaar: Amir in zijn stand op zijn plek, naar hem toe, en de wereld loopt weer (hij valt verder en vervaagt)
+function exeStokLos(s, kant){
+  const e = s.exe;
+  world = e.stok.ax; ph = s.base || 0; pvh = 0; knock = 0;
+  facing = -kant;
+  frame = 0; frameAcc = 0; idleFrame = 0; idleAcc = 0;
+  stokReset(); atkFrame = -1; atkAcc = 0; atkCooldown = Math.max(atkCooldown, STOK.rust || 0);
+  invuln = Math.max(invuln, EXE.t.veilig); invulnStil = invuln;
+  e.amirLos = true;
+  exeVries = null;
+}
+// Amir met de stokken, de spuit en (een keer) de lens; in de lagen van de schildbandiet (gs, gespiegeld als hij naar rechts kijkt)
+function exeStokTeken(s, gs){
+  const e = s.exe, k = e.stok, T = EXE.stok, spiegel = s.face === 1 ? -1 : 1;
+  const kant = k.kant || (k.ax >= s.x ? 1 : -1);
+  if (k.spuit >= 0){
+    const im = (bloedSpuitCache[bloedSpuitNaam] || [])[k.spuit];
+    if (im && imgReady(im)){
+      const h = T.spuitH * gs, w = h * im.naturalWidth / im.naturalHeight;
+      ctx.save(); ctx.translate(T.kop[0] * gs, T.kop[1] * gs); ctx.rotate(-kant * spiegel * T.spuitHoek);
+      ctx.drawImage(im, -w / 2, -h, w, h); ctx.restore();
+    }
+  }
+  if (k.lensNu){                                   // de lens: het trefpunt op het scherm, van Amir af en omhoog
+    k.lensNu = false;
+    const q = ctx.getTransform().transformPoint({ x: T.kop[0] * gs, y: T.kop[1] * gs });
+    exeStokLens.lijst = lensSpatMaak(T.lens); exeStokLens.t = 0;
+    exeStokLens.x = q.x / DPR - kant * T.lensDx; exeStokLens.y = q.y / DPR + T.lensDy;
+  }
+  if (k.fase === 'klaar' || !stokBank) return;
+  const set = stokBank[k.set]; if (!set) return;
+  let im = set[Math.min(set.length - 1, k.f)]; if (!(im && imgReady(im))) return;
+  im = broekBeeld(im, im);
+  const sc = nowScale(), m = stokMaat(k.set), lx = (k.ax - s.x) * spiegel;
+  const amirSpiegel = (k.ax < s.x ? -1 : 1) * spiegel;   // de frames kijken naar links: Amir kijkt naar hem
+  ctx.save(); ctx.filter = 'none'; ctx.globalAlpha = 1;
+  ctx.translate(lx, 0);
+  ctx.fillStyle = 'rgba(29,20,15,.24)'; ctx.beginPath(); ctx.ellipse(0, 0, CHAR_H * sc * 0.28, CHAR_H * sc * 0.035, 0, 0, Math.PI * 2); ctx.fill();
+  if (amirSpiegel < 0) ctx.scale(-1, 1);
+  ctx.drawImage(im, -STOK.ANKER * m * sc, -STOK.GROUND * m * sc, STOK.W * m * sc, STOK.H * m * sc);
+  ctx.restore();
+}
+function exeStokLensTeken(){ if (exeStokLens.lijst) lensSpatTeken(exeStokLens.lijst, EXE.stok.lens, exeStokLens.t, exeStokLens); }
+function sbStokExeNu(){
+  if (!stokAan()){ flashHint('Zet eerst de stokken aan'); return; }
+  if (!exeData){ exeLaad(); flashHint('De executie-lagen zijn nog niet geladen'); return; }
+  const s = schildmannen.find(o => !o.exe && o.state !== 'weg');
+  if (!s){ flashHint('Zet eerst een schildbandiet neer'); return; }
+  hits++; hitsEl.textContent = hits;
+  exeStokStart(s);
 }
 // ---- het einde van de executie: een stuk eraf, de botten, het spuiten en de val ----
 // Na de landing (het laatste frame van 'executie') gaat er een stuk van zijn borst af, schuin omhoog in de
@@ -47419,12 +47586,14 @@ function exeTeken(s, gs){
   }
   const b = exeBew(e.bew); if (!b) return;
   const fr = b.frames[Math.min(e.frame, b.frames.length - 1)];
+  if (e.stok) exeDruppelsTeken(e, gs);              // de stokexecutie: het bloed op de grond onder hem
   for (const l of fr){
     if (e.laag && (l.item === 'speer' || l.item === 'wond')) continue;   // Dood laag: Amirs speer zit niet in hem
     if (e.speerWeg && l.item === 'speer') continue;                      // de speer ligt al echt op de grond
     laag(l);
   }
   exeBoogTeken(s, gs);                             // de bloedboog hangt voor hem en Amir in de lucht
+  if (e.stok) exeStokTeken(s, gs);                 // de stokexecutie: Amir met de stokken, de spuit en de lens
 }
 // de twee helften: de schildman-laag geclipt links en rechts van de snijlijn (doorgetrokken over de hele
 // laag), die uit elkaar schuiven en om hun voet omvallen (op de trage klok); als lijk blijven ze liggen
@@ -52805,6 +52974,7 @@ function loop(now){
     tonLensTeken();                                 // en de stukken ton die daar tegen de lens vliegen, over de balken heen
     bruLensTeken();                                 // het bloed op de lens als Nyundo in zijn knots valt
     stokLensTeken();                                // en de korte spetter van de stun-counter met de stokken (STOK.lens)
+    exeStokLensTeken();                             // en de grote spat van de stokexecutie (EXE.stok.lens)
     arenaHudTeken();                                // de teller van de goudaap-arena (kills, tijd, punten)
     golfHudTeken();                                 // de teller van de bandietgolf (verslagen, tijd)
     duoHudTeken();                                  // de teller van de duo-arena (welke golf)
@@ -61340,6 +61510,12 @@ sbExeBonusLabel();
 sbExeLabel();
 document.getElementById('sbschexesteek').onclick = () => { sbExeNu('steek'); cv.focus(); };
 document.getElementById('sbschexeworp').onclick = () => { sbExeNu('worp'); cv.focus(); };
+// de stokexecutie (EXE.stok): aan of uit, en meteen zo doden (met de stokken aan)
+const sbStokExeBtn = document.getElementById('sbschstokexe');
+function sbStokExeLabel(){ sbStokExeBtn.textContent = EXE.stok.aan ? 'Stokexecutie: aan' : 'Stokexecutie: uit'; sbStokExeBtn.classList.toggle('on', EXE.stok.aan); }
+sbStokExeBtn.onclick = () => { EXE.stok.aan = !EXE.stok.aan; sbStokExeLabel(); cv.focus(); };
+sbStokExeLabel();
+document.getElementById('sbschstokkill').onclick = () => { sbStokExeNu(); cv.focus(); };
 function sbMeelAnim(set){
   meelLaad();
   sbMeelVrij = true; sbMeelLabel();                 // anders neemt zijn AI het meteen weer over

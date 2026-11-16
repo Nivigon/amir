@@ -310,6 +310,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de lagen van de schildbandiet: het schild als losse laag uit lagen.json | `SCHB_LAGEN`, `schbLagenLaad`, `schbLagenLijst` | notities/schildbandiet.md |
 | de dood van de schildbandiet: knielen en vallen uit executie.json (Dood hoog, Dood laag) | `schbSterf`, `SCHB.lijk`, `exeStart` | notities/schildbandiet.md |
 | de executie van de schildbandiet: knielen, wankelen, vallen en de special execution | `EXE`, `exeStart`, `exeTick`, `exeVries` | notities/schildbandiet.md |
+| de stokexecutie: met de stokken knielt de schildbandiet zonder speer, Amir rent in en doet de draaislag, een grote bloedspat op de lens, hij draait om en valt | `EXE.stok`, `exeStokStart`, `exeStokStap`, `exeStokKlap`, `exeStokTeken` | notities/schildbandiet.md |
 | de bandiet-arena: het geënsceneerde eindgevecht (arena, regel 12) | `BANDARENA`, `bandArenaStart`, `bandArenaWachters` | notities/bandiet.md |
 | baviaan: de eindbaas in wording (baas, regel 12) | `BAVIAAN`, `baviaanLaad`, `baviaanTeken` | notities/baviaan.md |
 | Brutus (Nyundo): de bruut met de knots, baas van het plein; stormt, kapt, springt (golven door de vloer), zestien treffers (baas, regel 12) | `BRU`, `makeBrutus`, `updateBrutus`, `hitBrutus`, `bruKlem`, `bruSprongStap`, `bruGolfStap`; de gebarsten vloer: `BRU_SCHADE`, `bruSchadeTeken` | notities/brutus.md |

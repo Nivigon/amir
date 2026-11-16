@@ -889,6 +889,11 @@ plaats van in elk frame meegebakken: een hap uit het schild is een wissel van al
 de animaties voortaan gemaakt; de oude complete sets per schildstand zijn uit het spel, net als de knop
 Nieuwe stijl in de sandbox (de gewone Schildbandiet is nu die versie).
 
+Vecht je met de **stokken**, dan is elke dodelijke klap op de schildbandiet de stokexecutie: alles staat stil,
+hij zakt op zijn knieen (zonder speer in zijn borst), Amir rent op hem af en slaat hem met de draaislag tegen zijn
+hoofd. Het bloed spuit eruit en spat groot op de camera, de klap draait hem om en hij valt van Amir af voorover;
+daarna loopt het spel weer. In de sandbox staan onder Schildbandiet de knoppen Stokexecutie (aan of uit) en Stok-kill.
+
 Een dodelijke klap op de schildbandiet wordt soms een **executie**. Steek je hem dood (1 op 5), dan staat
 alles stil: hij zakt met je speer in zijn borst op zijn knieen, Amir rukt de speer eruit en splijt hem in
 een haal. Gooi je hem dood (1 op 3), dan knielt hij met je speer in zijn borst en wankelt hij een paar
