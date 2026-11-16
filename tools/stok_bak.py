@@ -29,7 +29,7 @@ AW, AH = 594, 301                 # het canvas van de Animeer tool
 SW, SH = 440, 328                 # het oude canvas van het spel; het nieuwe groeit mee met de stok (zie onderaan)
 P = 80                            # marge om het Animeer-canvas tijdens het samenstellen: de stok steekt erbuiten
 DX, DY = -41, 26                  # Animeer naar spel: anker 297 -> 256, grond 297 -> 323 (nagemeten op het lijf)
-GESPIEGELD = ('slag', 'stapslag', 'slag2', 'draaislag', 'draaiterug', 'blok')   # die kijken in de Animeer tool naar rechts
+GESPIEGELD = ('slag', 'stapslag', 'slag2', 'grondklap', 'draaislag', 'draaiterug', 'blok')   # die kijken in de Animeer tool naar rechts
 DRAAITERUG = [13, 11, 9, 6, 3, 1]  # draaiterug is draaislag achterstevoren, op deze frames (nagemeten)
 # de stok in stok_grok.jpg: de schacht en de slippen, in pixels van dat beeld
 STOK_BOX = (107, 517, 1643, 650)  # links, boven, rechts, onder (de onderkant snijdt de slippen eraf, de knoop blijft)

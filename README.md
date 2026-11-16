@@ -836,6 +836,16 @@ gewone slag).
 De stokken zijn van donker hardhout, met een grip van gebrand oker; de twee slippen van die doek hangen onder zijn vuist
 en slepen na bij een slag, waaien achter hem uit als hij rent en gaan mee met de wind.
 
+In **Test 76: Ground slam** heeft Amir met de stokken de **grondklap**: spring, houd **omlaag** vast en sla (F of spatie) in de
+lucht. Hij hangt even in de opzwaai, valt dan snel en slaat bij de landing beide stokken rechtop in de grond. Wat recht onder
+hem staat krijgt een halve treffer extra en vliegt verder weg; dan rolt een golf door de vloer naar voren, de kant op waar hij
+kijkt (achter hem raakt hij niets, anders dan de lage zwaai), met een bult in de grond, een muur van stof en opspringende
+steentjes. Wie de golf raakt wordt teruggeduwd en wankelt even, zodat jij weer in beweging kunt komen; slangen en schorpioenen
+wippen omhoog. Een trede of terras houdt de golf tegen. Hij werkt pas vanaf een halve Amir boven de grond, en daarna is er een
+seconde afkoeling. Voor het begin (en na R) kies je hoe ver de golf rolt (**Short**, **Medium**, **Long**) en hoeveel schade hij
+doet (**0.5**, **1** of **1.5** per treffer). Keien en twee plateaus om vanaf te springen, met onder elke rand een groepje
+vijanden; je kunt er niet dood. In de sandbox zet de knop **Grondklap** hem aan (met **Stokken** aan).
+
 Amir rent in elk level met de nieuwe ren: licht voorover, met lange passen, de speer rechtop in zijn hand, bij
 lopen en sprinten. In **Test 75: New run** kun je hem goed bekijken. Het tempo van zijn benen volgt zijn snelheid, zodat zijn voeten niet glijden. Een lange vlakte om te sprinten, twee keien om over te springen en daarna twee
 bandieten; je kunt er niet dood. In de sandbox zet de knop **Nieuwe ren** hem uit, dan rent hij weer de oude ren.
