@@ -72,7 +72,13 @@ In Test 74 (`stokken: true`), de sandboxknop **Stokken**, en in Multiplayer als 
   tussenframe met de stok schuin voor de borst, geen eindframe) voor de zwaai; de lijf-frames staan in
   `bron/lijf/slag2_NN.png` en de stokken in `plaatsing.json` (uit de Animeer tool). In de frames zit een schuif van 110
   Animeer-px naar achteren tijdens de stap, zodat de klap met de lange stok in het canvas past; die zit ook in `root`.
-  Gebakken met `tools/stok_bak.py --alleen slag2`. Hoe de Grok-prompts liepen: projectdocument
+  Gebakken met `tools/stok_bak.py --alleen slag2`.
+  Ramen (16-11-2026, Tom: bij F rammen zag je de linkerslag niet): de derde slag mocht al op positie 14 beginnen,
+  zodat de klap maar zo'n 0,12 s in beeld stond, en bij elke overgang sprong Amir terug, omdat elke set anders in
+  zijn canvas staat. Nu begint een gebufferde derde slag pas op `annuleer` 15 (de klap staat zo'n 0,2 s), en houdt
+  `stokAnker` de voeten op hun plek bij de overgang van de ene slag in de volgende, van slag 2 en de stapslag in de
+  houding, en van slag 2 of de stapslag in het blok: de wereld schuift het verschil van `STOK.voet` (het midden
+  tussen de voeten per frame, gemeten op de speelframes) mee. Van staan naar een eerste slag schuift niets. Hoe de Grok-prompts liepen: projectdocument
   `claude/animeer_tool_stokken.md`.
 - Blok: C vasthouden (op een telefoon de schildknop). Vanaf blok-frame `STOK.blokOp` vangt `hurtPlayer` een klap van
   voren af (houtklap, duwtje). Projectielen met een eigen schade-ingang (bouten, de speer van de schildbandiet) vangt
