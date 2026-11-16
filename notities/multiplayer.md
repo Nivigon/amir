@@ -89,6 +89,24 @@ twee tegelijk dezelfde, dan houdt het laagste slot hem (de host eerst) en schuif
 keuze staat op het apparaat (`amir.mpbroek`). In het spel geeft `broekNu` de eigen kleur zolang `pvp`
 loopt, en `pvpTeken` tekent de ander in de zijne. Geldt in Co-op en in Duel, want de lobby is dezelfde.
 
+### De naam (afspraak, nog niet gebouwd)
+
+Ieder kiest in de lobby een naam, en die staat in het spel boven zijn Amir. Zelfde opzet als de broekkleur:
+
+- **Kiezen:** een tekstveld onder de Amir van `#mpamir` (bij de broekpijltjes), met als placeholder "Your name". Hooguit
+  12 tekens, spaties aan de randen eraf; leeg is "Player 1", "Player 2" of "Player 3" naar het slot. Alleen in de lobby te
+  wijzigen.
+- **Versturen:** `{t: 'naam', naam}` bij het openen van de lobby en bij elke wijziging (na het typen, niet per toets), een gast
+  via de host, en de host stuurt een nieuwe gast de namen van wie er al is, zoals `{t: 'broek'}` nu. Bewaard in `pvp.naam[p]`.
+  Twee dezelfde namen mogen (anders dan de broek); de kleur maakt het verschil al.
+- **Bewaren:** de laatste naam op het apparaat (`amir.mpnaam`).
+- **Tonen:** in het spel boven het hoofd, boven de health-balk, klein en in de broekkleur van die speler met een donkere
+  rand, zodat hij leesbaar blijft op elke achtergrond. Boven de andere Amir altijd; boven je eigen Amir niet (je weet wie je
+  bent), of als optie. Ook in de lobby naast elk slot in plaats van "Host"/"Guest", bij "Waiting for revive" ("Waiting for
+  revive: Tom") en op het eindscherm.
+- **Veilig:** de naam als tekst tekenen (`fillText`, `textContent`), nooit als HTML, want hij komt van een andere laptop.
+- Geldt in Co-op en in Duel.
+
 ## Co-op Survival (stuk 2, de afspraak; gebouwd)
 
 - **Wie stuurt de vijanden:** de laptop van de host denkt voor alle vijanden en stuurt hun plek en plaatje naar de gast (net
