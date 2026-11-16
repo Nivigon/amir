@@ -2,7 +2,7 @@
 
 `MP_KAARTEN`, `MP_SOORTEN`, `mpStandaard`, `mpLobbyToon`, `mpWijzig`, `mpStart`, `mpSpelStart`, `pvpDuelStart`, `mpNaarLobby`;
 Co-op: `MPC`, `MP_COOP_LEVEL`, `mpCoopStart`, `mpCoopStap`, `mpcUpdate`, `mpcHitDoor`, `mpcStandZend`, `mpcStandLees`, `mpcHostStap`;
-de winkel: `MPC_WINKEL`, `MPC_WINKEL_KAMER`, `mpcWinkelIn`, `mpcWinkelUit`, `mpcWinkelToon`, `mpcWinkelKoop`, `mpcKlaarDruk`, `mpcGoudIedereen`, `mpcFcModus`;
+de winkel: `MPC_WINKEL`, `MPC_WINKEL_KAMER`, `mpcWinkelIn`, `mpcWinkelUit`, `mpcWinkelToon`, `mpcWinkelKoop`, `mpcKlaarDruk`, `mpcGoudIedereen`, `mpcFcModus`, `GRISGRIS`;
 drie spelers: `PVP.max`, `pvp.peers`, `pvp.spelers`, `pvp.anders`, `pvpGastErbij`, `pvpGastWeg`, `pvpZendAan`, `MP_DOOR`, `mpcDodenStap`
 
 De knop **Multiplayer** in het hoofdmenu (was PvP, de id is nog `btnpvp`, het scherm nog `menuPvp`). De verbinding is die
@@ -259,6 +259,13 @@ Het blok `// ---- multiplayer: de winkel en de economie van Co-op (stuk 3) ----`
   `fcRondNu` (rondom) lezen `fcSoort`; rondom is een raakzone om Amir heen (`MPC.rond`, in `steekDX`, `steekY`, `steekR`) en
   raakt iedereen een keer, net als Wide Circle (`fcBreedNu`, `slagEen`). Het extra speerslot is `RUG_MAX` plus een, een extra
   leven `pvp.levens` plus een (dat is wat `levensStart` in een potje geeft).
+- **De Gris-gris** (`GRISGRIS`, `grisGrisKans`, `grisGrisVang`): het beschermende amulet uit de Sahel, drie trappen in
+  `koop.amulet` (10%, 20%, 30% voor 40, 75 en 110 goud). Een item met een lijst als `prijs` (Extra life en de Gris-gris)
+  telt in `koop[k]` hoe vaak je het kocht, en een lijst als `uitleg` geeft per trap de tekst. `hurtPlayer` gooit de kans na
+  de rol, het schild en de stokken: gevangen is de klap er wel (terugduw, `invuln` zodat dezelfde aanval niet elk beeld
+  opnieuw gooit), maar zonder leven en zonder rode flits, met een klokje en "Warded" in de banner. Ieder gooit zelf: een
+  klap op een gast komt als `au2` bij zijn eigen `hurtPlayer`. De proef (`tools/mptest.js --proef`) koopt hem drie keer bij
+  de host en kijkt na dat gevangen geen leven kost en gemist wel.
 
 ### Anders dan de afspraak, of zelf ingevuld
 
