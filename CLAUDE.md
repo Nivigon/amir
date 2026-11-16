@@ -148,6 +148,12 @@ ter sprake: stel er geen ideeën, talents of abilities voor in, en deel er niets
 er zelf weer mee begint. Bestaande code en knoppen blijven gewoon staan. Een talent mag wel bij twee tribes
 passen; ideeën voor de kit staan in `notities/kit-ideeen.md`.
 
+**15. Online spelen is voorlopig voor laptops.** Multiplayer (Co-op en Duel) hoeft alleen op laptops te werken, ook op
+verschillende netwerken; een telefoon op mobiele data hoeft niet. Stap 3 van de netcode (een eigen TURN-server) staat
+daarom in de wacht: bouw hem niet en stel hem niet voor, tot de opdrachtgever er zelf om vraagt. Wat er al is (STUN,
+de gratis openbare TURN-servers en het relais) blijft staan: het relais is ook het vangnet voor een laptop op een
+streng netwerk. Zie "Voor wie" in `notities/multiplayer.md`.
+
 ## Waar wat staat
 
 De HTML is opgedeeld met commentaarkoppen (`// ---- ... ----`). Zoek daarop, niet op

@@ -9,6 +9,14 @@ De knop **Multiplayer** in het hoofdmenu (was PvP, de id is nog `btnpvp`, het sc
 van `notities/pvp.md` (PeerJS, met het relais als vangnet). Dit document is het plan voor de hele modus, uit een grill met de
 opdrachtgever (november 2026). Wat gebouwd is staat erbij; de rest is de afspraak voor de volgende stukken.
 
+## Voor wie (november 2026)
+
+Online spelen is voorlopig voor laptops: twee of drie, elk op zijn eigen netwerk mag. Een telefoon op mobiele data hoeft
+niet (afspraak met de opdrachtgever). Tussen gewone thuisnetwerken verbinden de laptops rechtstreeks (STUN); lukt dat niet,
+zoals op kantoor, een universiteit of hotel-wifi, dan gaat het na `PVP_RELAY.na` seconden vanzelf via het relais. Stap 3
+van de netcode (een eigen TURN-server, Metered of Cloudflare) staat daarom in de wacht tot de opdrachtgever erom vraagt
+(regel 15 in `CLAUDE.md`). Het relais en de gratis TURN-servers in `PVP_ICE` blijven staan.
+
 ## Bouwvolgorde
 
 1. **Multiplayer en de lobby** (gebouwd). Host of Join, daarna allebei in de lobby. De host kiest de modus, de map en de
@@ -216,8 +224,8 @@ Het blok `// ---- multiplayer: Co-op Survival ... ----` in de HTML, na de lobby.
 
 - De gast ziet de vijanden een tikje later dan de host (netwerk plus de speelbuffer). Een slag die bij de host nog loopt,
   kan bij de gast al raken of net niet. Op dezelfde wifi valt het niet op; via het relais (15 per seconde) meer. Stap 2
-  (drie spelers) is gebouwd; stap 3 is een eigen TURN-server zodat niemand meer op het relais hoeft (zie "De netcode" in
-  `notities/pvp.md`).
+  (drie spelers) is gebouwd; stap 3, een eigen TURN-server, staat in de wacht (zie "Voor wie" hierboven, en "De netcode"
+  in `notities/pvp.md`).
 - Met drie spelers draait elke update-functie bij de host tot drie keer per beeld (een keer per groep). Een klok in zo'n
   functie die niet per vijand is, loopt dan ook vaker; tot nu toe is daar niets van te merken.
 - Een vijand op de galerij die achter een speler op de straat aan zit, blijft boven staan kijken (regel: geen treden). Zo is
