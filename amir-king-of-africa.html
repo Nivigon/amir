@@ -62726,6 +62726,7 @@ const PVP_NET = {
   bufStap: 0.05,        // zo snel (seconden per seconde) schuift de buffer naar wat de lijn vraagt, zodat niemand verspringt
   venster: 4,           // over zoveel seconden telt de kortste reistijd voor de klok van de ander
   ping: 1,              // elke zoveel seconden een ping
+  route: 5,             // elke zoveel seconden opnieuw meten welke weg de lijn neemt (pvpRouteMeet)
   sprong: 300,          // verder dan dit tussen twee standen: meteen erheen, niet ertussen schuiven
   max: 8,               // hooguit zoveel standen in de wachtrij; daarboven speelt hij de oudste meteen af
   vol: 65536            // staat er meer dan dit in de wachtrij van het snelle kanaal, dan dit bericht overslaan
@@ -62796,8 +62797,32 @@ function pvpNetNieuw(){ return { klok: [], off: null, buf: 0.1, doel: 0.1, speel
 function pvpNetVan(p){ return pvp.nets[p] || (pvp.nets[p] = pvpNetNieuw()); }
 function pvpNetStart(){
   pvp.nets = {}; pvp.qs = 0; pvp.qv = 0;
-  pvp.netT = setInterval(() => { if (pvp) pvpZendSnel({ t: 'pi', c: +pvpNu().toFixed(3) }); }, PVP_NET.ping * 1000);
+  pvp.netT = setInterval(() => { if (pvp){ pvpZendSnel({ t: 'pi', c: +pvpNu().toFixed(3) }); pvpRouteMeet(); } }, PVP_NET.ping * 1000);
 }
+// de weg die de lijn echt neemt, uit de statistiek van WebRTC: 'lan' (rechtstreeks op hetzelfde netwerk), 'net' (rechtstreeks
+// over internet) of 'turn' (via een gratis openbare TURN-server: traag, en de ping loopt op). Het spel kiest zelf; dit meet het
+// alleen, zodat je in de lobby en de HUD ziet waarom het traag is. Safari op dezelfde wifi komt soms niet rechtstreeks binnen
+// (het verstopt zijn eigen adres achter een .local-naam) en belandt dan op TURN. Om de PVP_NET.route seconden opnieuw.
+function pvpRouteMeet(){
+  for (const k in pvp.peers){
+    const pe = pvp.peers[k], pc = pe.conn && pe.conn.peerConnection;
+    if (!pc || pe.conn.relay || typeof pc.getStats !== 'function' || pe.routeBezig) continue;
+    if (pe.routeT != null && pvpNu() - pe.routeT < PVP_NET.route) continue;
+    pe.routeBezig = true; pe.routeT = pvpNu();
+    pc.getStats().then(st => {
+      let paar = null;
+      st.forEach(r => { if (r.type === 'transport' && r.selectedCandidatePairId) paar = st.get(r.selectedCandidatePairId) || paar; });
+      if (!paar) st.forEach(r => { if (r.type === 'candidate-pair' && r.state === 'succeeded' && (r.nominated || r.selected) && !paar) paar = r; });
+      if (!paar) return;
+      const a = st.get(paar.localCandidateId), b = st.get(paar.remoteCandidateId);
+      const t = [a && a.candidateType, b && b.candidateType];
+      const oud = pe.route;
+      pe.route = t.includes('relay') ? 'turn' : t[0] === 'host' && t[1] === 'host' ? 'lan' : 'net';
+      if (pvp && pe.route !== oud){ console.log('multiplayer: lijn naar speler ' + pe.p + ' is ' + pe.route + ' (' + t.join('/') + ')'); pvpPingToon(); }
+    }).catch(() => {}).finally(() => { pe.routeBezig = false; });
+  }
+}
+function pvpTurn(){ return !!pvp && Object.values(pvp.peers).some(pe => pe.route === 'turn'); }
 function pvpNetStop(){
   if (pvp && pvp.netT){ clearInterval(pvp.netT); pvp.netT = null; }
   if (pvp) for (const k in pvp.peers){ const dc = pvp.peers[k].snelDc; if (dc) try { dc.close(); } catch (e){} }
@@ -62876,10 +62901,12 @@ function pvpPings(){ return pvp ? (pvp.host ? pvpGasten() : [0]).map(p => pvp.ne
 function pvpPingTekst(){
   const L = pvpPings();
   if (!L.length) return '';
-  const lijn = pvpRelay() ? 'relay' : pvpSnelAan() ? 'direct, fast channel' : 'direct';
+  const L2 = pvp ? Object.values(pvp.peers) : [];
+  const weg = pvpTurn() ? 'via TURN server, slow' : L2.length && L2.every(pe => pe.route === 'lan') ? 'direct, local network' : 'direct';
+  const lijn = pvpRelay() ? 'relay' : weg + (pvpSnelAan() ? ', fast channel' : '');
   return 'Ping ' + L.join(' / ') + ' ms (' + lijn + ')';
 }
-function pvpPingHud(){ const L = pvpPings(); return L.length ? '   Ping ' + L.join('/') : ''; }
+function pvpPingHud(){ const L = pvpPings(); return L.length ? '   Ping ' + L.join('/') + (pvpRelay() ? ' (relay)' : pvpTurn() ? ' (TURN)' : '') : ''; }
 function pvpPingToon(){
   const el = pvpEl('mpping');
   if (el) el.textContent = pvpPingTekst();
@@ -63822,7 +63849,11 @@ function mpcStandZend(alles){
     if (rij.length){ l[lq.k] = rij; leeg[lq.k] = null; }
     else { if (leeg[lq.k] == null) leeg[lq.k] = q; if (alles || leeg[lq.k] > ak) l[lq.k] = rij; }   // leeg geworden: tot de gast het weet
   }
-  pvpZendSnel({ t: 'v', q, tm: +pvpNu().toFixed(3), k: Math.round(bavKlok), l });
+  const m = { t: 'v', q, tm: +pvpNu().toFixed(3), k: Math.round(bavKlok), l };
+  // het sleutelbericht (alles, elke MPC.sleutel seconde) is groot: over het snelle kanaal valt het in zijn geheel weg zodra
+  // een van zijn stukjes zoekraakt, en dan wacht de gast een hele seconde op het volgende. Daarom over het betrouwbare kanaal.
+  if (alles){ m.p = pvp.mij; for (const k in pvp.peers) pvpStuur(pvp.peers[k], m); }
+  else pvpZendSnel(m);
 }
 function mpcVelden(o, alles, q, ak){
   const d = {}, oud = o.mpOud || (o.mpOud = {}), seq = o.mpSeq || (o.mpSeq = {});

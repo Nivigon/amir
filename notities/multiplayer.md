@@ -18,6 +18,15 @@ zoals op kantoor, een universiteit of hotel-wifi, dan gaat het na `PVP_RELAY.na`
 van de netcode (een eigen TURN-server, Metered of Cloudflare) staat daarom in de wacht tot de opdrachtgever erom vraagt
 (regel 15 in `CLAUDE.md`). Het relais en de gratis TURN-servers in `PVP_ICE` blijven staan.
 
+**Welke weg de lijn neemt (Safari, november 2026).** Een gast in Safari op dezelfde wifi had een hoge ping en een
+schokkerige Co-op. Safari verstopt zijn eigen adres achter een `.local`-naam, en lukt de rechtstreekse lijn op het netwerk
+dan niet, dan gaat PeerJS stil via een gratis openbare TURN-server: traag, en in Co-op merk je dat het meest. Daarom meet
+`pvpRouteMeet` (elke `PVP_NET.route` seconden, uit `getStats`) welke weg de lijn echt neemt: `lan`, `net` of `turn`
+(`pe.route`, `pvpTurn`). De lobby zegt `direct, local network`, `direct` of `via TURN server, slow`, en de HUD zet
+`(TURN)` of `(relay)` achter de ping. Verder gaat het sleutelbericht van de vijanden ('v' met alles, elke `MPC.sleutel`
+seconde) over het betrouwbare kanaal: over het snelle kanaal viel zo'n groot bericht in zijn geheel weg zodra een stukje
+zoekraakte. Blijkt het TURN te zijn, dan helpt alleen stap 3 echt, en die wacht op de opdrachtgever.
+
 ## Bouwvolgorde
 
 1. **Multiplayer en de lobby** (gebouwd). Host of Join, daarna allebei in de lobby. De host kiest de modus, de map en de
