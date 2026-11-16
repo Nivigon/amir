@@ -45,12 +45,13 @@ Alleen in Test 74 (`stokken: true`) en de sandboxknop **Stokken**.
   In de sandbox de knop **Stokstap** (aan of uit) om te vergelijken.
 - De stapslag (doorstap): de eerste slag (niet gebufferd) is `stapslag` (28 frames, Grok-clip 3.mp4, elke tweede
   clipframe van 8 tot 62, zonder eindframe gegenereerd: met een eindframe in de oude stand wisselde Grok de benen). Het
-  achterste (rechter)been stapt door en landt voor (frame 12, stof), dan de slag van boven, de klap op 25-27. Daarna speelt
-  hij dezelfde frames achterstevoren: de stok weer omhoog en de rechtervoet terug (`STOK.stapslag.seq`, atkFrame telt
-  posities; `STOK.ms.stapslag` per positie). Root motion: `STOK.stapslag.root` (frame-px per frame, de geplante voet
-  vastgezet; eerst de oude voorvoet, na de landing de nieuwe), `stokRoot` schuift per positie met het verschil, terug weer
-  terug: hij eindigt waar hij begon (gemeten: hooguit 74 wereld-px naar voren, eind 0). Een gebufferde tweede slag
-  (vanaf positie `buf` 25, begint op `annuleer` 47) is de gewone `slag` op de plek. Sandboxknop **Stapslag**.
+  achterste (rechter)been stapt door en landt voor, dan de slag van boven, de klap op frame 25-27. Hij stapt niet terug
+  (Tom: een versie die achterstevoren terugstapte was te traag en ongewenst); na de laatste positie staat hij in zijn
+  gewone houding op de plek waar de stap hem bracht (zo'n 74 wereld-px verder). `STOK.stapslag.seq` kiest per positie
+  het frame (de stap om het andere frame, voor het tempo), `STOK.ms.stapslag` per positie: de klap na zo'n 0,36 s, klaar
+  na 0,53 s. Root motion: `STOK.stapslag.root` (frame-px per frame, de geplante voet vastgezet; eerst de oude voorvoet,
+  na de landing de nieuwe), `stokRoot` schuift per positie met het verschil. Een gebufferde tweede slag (vanaf positie
+  `buf` 19, begint op `annuleer` 21) is de gewone `slag` op de plek. Sandboxknop **Stapslag**.
   Het canvas groeide voor de opgeheven stok: 511 x 384, anker 298, grond 379 (links 13 en boven 30 erbij; de andere
   sets zijn daarvoor opgevuld en hun slip-knopen mee verschoven). Gebakken met `tools/stok_bak.py --alleen stapslag
   --canvas 511,384,298,379`. De vlekjes op de vacht zijn op de rugframes (19-27) weggehaald (Tom). Verwerking: zie het
