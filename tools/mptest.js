@@ -463,6 +463,18 @@ async function elk(H, G){
       const zie = await H.page.evaluate(() => gkFx.golven.length + gkFx.stof.length);
       meld(zie > 0, 'de host ziet de grondklap van de gast (' + zie + ' golven en wolken)');
       meld(gk === '0.5,van,1,van,1,van', 'de golf van de gast bij de host: gewoon, recht eronder en heavier (' + gk + ')');
+      // de lijken: een dode vijand is binnen 6 s weg, bij de host en bij de gast
+      const lid = await H.page.evaluate(() => {
+        const b = bandieten.find(b => mpcLeeft(b) && b.mpId != null); if (!b) return null;
+        for (let i = 0; i < 12 && mpcLeeft(b); i++){ b.inv = 0; b.rust = 0; MPC_ORIG.hitBandiet(b); }
+        return mpcLeeft(b) ? null : b.mpId;
+      });
+      if (lid != null){
+        await wacht(6500);
+        const nog = [];
+        for (const r of ramen) if (await r.page.evaluate(id => bandieten.some(b => b.mpId === id), lid)) nog.push(r.wie);
+        meld(!nog.length, 'het lijk is binnen 6 s weg' + (nog.length ? ' (nog bij ' + nog.join() + ')' : ''));
+      } else meld(false, 'het lijk: geen bandiet dood te krijgen');
     }
   }
   // de spelers: naar de dichtstbijzijnde vijand lopen en steken; R na game over

@@ -64290,6 +64290,7 @@ const MPC = {
   hz: 20,                   // standberichten van de vijanden per seconde (via het relais PVP_RELAY.hz)
   sleutel: 1,               // elke zoveel seconden alle velden opnieuw, niet alleen wat veranderd is
   deurOpen: 1.6,            // zo lang staat een deur open na de vijand, dan valt hij dicht
+  lijkWeg: 5,               // een dode vijand is na zoveel seconden weg, met een wolkje stof (mpcLijkStap); de gast volgt de lijst van de host
   dubbel: 0.25,             // de gast meldt een treffer op dezelfde vijand hooguit zo vaak
   punten: { slang: 10, scorp: 10, goudaap: 10, hyena: 10, bandiet: 15, meelman: 15, zweepman: 15, kooiman: 20, kruisboog: 20, schildman: 25 },
   moeilijk: 5,              // de moeilijke versie: zoveel punten extra
@@ -64680,6 +64681,7 @@ function mpcStandLees(m){
     }
     if (q.los) for (const o of q.l()) if (o.mpId == null) nieuw.push(o);   // wat de gast zelf maakte (zijn eigen spat) blijft
     for (const [id, o] of had) if (q.los && !nieuw.includes(o)) pvp.coop.losWeg.add(id);
+    if (!q.los) for (const o of had.values()) if (!mpcLeeft(o) && !nieuw.includes(o)) mpcLijkWolk(o);   // een lijk is weg (mpcLijkStap)
     mpcZet(q, nieuw);
   }
 }
@@ -64856,6 +64858,23 @@ function mpcKill(o){
   mpcGoudIedereen(mpcKillGoud(o.mpSoort));            // het goud van de kill, gedeeld: ieder evenveel
   if (C.reeks.n >= 2) mpcBanner(C.reeks.n === 2 ? 'Double Kill' : C.reeks.n === 3 ? 'Triple Kill' : 'Multi Kill', 1.2);
 }
+// de lijken: wie dood is, telt af en is na MPC.lijkWeg seconden uit de lijst (bij de gast ook, via de stand)
+function mpcLijkStap(dt){
+  for (const q of MPC_LIJSTEN){
+    if (q.los) continue;
+    const l = q.l();
+    if (!l.some(o => !mpcLeeft(o))) continue;
+    const blijf = [];
+    for (const o of l){
+      if (mpcLeeft(o)){ o.mpcLijkT = 0; blijf.push(o); continue; }
+      o.mpcLijkT = (o.mpcLijkT || 0) + dt;
+      if (o.mpcLijkT < MPC.lijkWeg){ blijf.push(o); continue; }
+      mpcLijkWolk(o);
+    }
+    if (blijf.length !== l.length) mpcZet(q, blijf);
+  }
+}
+function mpcLijkWolk(o){ if (o && o.x != null) puffWorld(o.x, 6, 0, 1.0, o.base || 0); }
 function mpcKillKijk(){
   const C = pvp.coop, nu = new Set();
   for (const q of MPC_LIJSTEN){
@@ -64876,6 +64895,7 @@ function mpcHostStap(dt){
   const C = pvp.coop, R = pvp.regels.coop;
   if (C.fase === 'uit') return;
   mpcKillKijk();
+  mpcLijkStap(dt);
   if (C.fase === 'winkel') return;                    // in de winkel: wachten op Ready van allebei (mpcWinkelKlaar)
   mpcDodenStap();
   if (C.fase === 'uit') return;                       // iedereen dood: game over
