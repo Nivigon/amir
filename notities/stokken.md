@@ -178,3 +178,9 @@ Met de stokken in de lucht omlaag plus aanval (`GK`, `gkKan`, `gkStart`, `gkLuch
   De diepte: een stofdeeltje kan een `z` hebben (-1 ver, +1 dichtbij, `GK.diep` Amir naar voren) en eigen `zw`
   (zwaarte), `rem` en `vz`; `bruStofTeken` met `kant` tekent de wolken achter de looplijn voor Amir (`gkStofAchter`) en de
   rest na de vijanden. Zonder die velden (Nyundo) is alles zoals het was.
+- Sinds 16-11-2026 is `kam` (Growing crest) de standaard, en de wolken zijn per soort groter (`GK.stofMaat`: kam 1,1,
+  kroon 1,2, nu 1), gekozen in de stofproef (een artifact met een beeld uit Test 76 en schuifbalken).
+- **Afspraak voor later:** bij elke upgrade van de grondklap (een talent of een sterkere versie) groeien het stof en het
+  geluid mee: grotere en hogere wolken (`GK.stofMaat`, en de hoogte van de kam en de pluim in `gkGolfStof`/`gkPluim`) en
+  een zwaardere dreun (`GK.vol`, langer beven, meer schok en freeze). Een idee om erbij te nemen: hetzelfde laten
+  meeschalen met hoe diep Amir valt voor de klap (een hupje 80%, van een terras tot 150%, niet verder).
