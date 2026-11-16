@@ -63735,19 +63735,24 @@ function mpcLeeft(o){ return sbLeeft(o) && o.fase !== 'dood' && o.fase !== 'weg'
 
 // ---- de host: een doel per speler voor dezelfde AI ----
 // de stand van een gast in de globalen van de speler zetten, en daarna weer terug
-const MPC_WISSEL = ['world', 'ph', 'dead', 'invuln', 'lives', 'facing', 'duckT', 'duckShare', 'camSwap'];
+// knock hoort erbij: de landingsklap en de terugslag van de schildbandiet (en elke andere terugstoot uit een update)
+// schrijven hem, en zonder wissel kreeg de host de duw die voor de gast bedoeld was, uitgerekend vanaf de plek van de
+// gast. Stond de host op een dak of galerij, dan vloog hij er zo af, in een gevecht waar hij niet eens in zat
+const MPC_WISSEL = ['world', 'ph', 'dead', 'invuln', 'lives', 'facing', 'duckT', 'duckShare', 'camSwap', 'knock'];
 let mpcWissel = null;                                // { p: het slot van de gast, oud: de stand van de host }
-function mpcLees(){ return [world, ph, dead, invuln, lives, facing, duckT, duckShare, camSwap]; }
-function mpcSchrijf(v){ [world, ph, dead, invuln, lives, facing, duckT, duckShare, camSwap] = v; }
+function mpcLees(){ return [world, ph, dead, invuln, lives, facing, duckT, duckShare, camSwap, knock]; }
+function mpcSchrijf(v){ [world, ph, dead, invuln, lives, facing, duckT, duckShare, camSwap, knock] = v; }
 function mpcGastStand(p){
   const g = pvpAnderNu(p);
-  return [g.x, g.h, !!g.d, g.iv || 0, g.l || 0, g.f || -1, g.du || 0, g.ds || 1, null];
+  return [g.x, g.h, !!g.d, g.iv || 0, g.l || 0, g.f || -1, g.du || 0, g.ds || 1, null, 0];
 }
 function mpcWisselIn(p){ mpcWissel = { p, oud: mpcLees() }; mpcSchrijf(mpcGastStand(p)); }
 function mpcWisselUit(){
   const p = mpcWissel.p, voor = pvpAnderNu(p).l || 0, na = lives;   // de fosfor schrijft levens rechtstreeks: dat verschil gaat naar die gast
+  const duw = knock;                                                 // een terugstoot voor de gast: die gaat naar hem, niet naar de host
   mpcSchrijf(mpcWissel.oud); mpcWissel = null;
   if (na < voor) pvpZendAan(p, { t: 'au2', l: 0, s: voor - na });
+  if (duw) pvpZendAan(p, { t: 'duw2', k: duw });
 }
 // heeft gast p een doel dat de vijanden mogen kiezen?
 function mpcGastDoel(p){ const g = pvpAnderNu(p); return !!(g && g.x != null && !g.d && pvp.spelers.includes(p)); }
@@ -64407,6 +64412,8 @@ function mpCoopOntvang(m){
   if (m.t === 'cklaar'){ if (pvp.host) C.klaarVan.add(m.p); return true; }
   if (m.t === 'mh'){ if (pvp.host) mpcTrefferVanGast(m); return true; }
   if (m.t === 'au2'){ if (!laadWacht) mpcHurtOrig(!!m.l, m.s || 1); return true; }
+  // de terugstoot die de host voor mij uitrekende (de landingsklap van de schildbandiet): nooit zwakker dan een al lopende
+  if (m.t === 'duw2'){ if (!laadWacht && !dead && !godMode && !woedeAan() && Math.abs(m.k) > Math.abs(knock)) knock = m.k; return true; }
   if (m.t === 'deur'){ mpcDeurOpen({ gevel: m.g, verdieping: m.v }, true); return true; }
   if (m.t === 'ton'){ if (!tonnen.some(t => t.mpId === m.d.id)) mpcTonZet(m.d, true); return true; }
   if (m.t === 'tonH'){ const t = tonnen.find(o => o.mpId === m.id); if (pvp.host && t) mpcTonRaak(t, m.from, m.p); return true; }
