@@ -27,7 +27,7 @@ de kant; anders rolt hij de kant op die hij kijkt.
 
 ## De frames
 - `karakters/amir/beweging/rol/met/rol_1..28.png` (speer erin gebakken) en `.../zonder/` (zonder speer,
-  voor als hij hem kwijt is). Canvas 554 x 409, grondrij 387, kijkt naar links zoals de gewone sets.
+  voor als hij hem kwijt is). Canvas 554 x 409, grondrij 387, kijkt naar links zoals de gewone sets. Met de stokken (`STOK_AAN`) altijd de set zonder, ook als `spear` aan staat.
 - `ROL.anker` per frame is het midden van zijn lijf (gespiegeld draait de kolom mee, `ROL.w - anker`), dus het
   beeld rolt niet zelf vooruit: de wereld doet dat. `ROL.schaal` = 275/309: zijn lijf is staand 309 px in de rol
   en 275 in de gewone sets.
