@@ -227,6 +227,11 @@ alles laag raakt. Hij kost een lading van de lage zwaai (`swLading`, het vak in 
 - Tempo `STOK.ms.laag`: de arm omhoog (0,2 s), de tell (0,11 s), de slag (0,24 s), de klap op positie 20-22 (zo'n 0,55 s na
   de druk), dan 0,26 s vast. Actief `STOK.actief.laag` 20-22.
 - Proefrit: `tools/laag_test.js [map]` (een slang voor hem, bukken, slaan, schermafdrukken).
+- Wegzakken (16-11-2026): in de clip zakt de hele Amir midden in de slag tot 28 px (frame 9-12) en vallen zijn voeten
+  onder de rand van het Animeer-canvas, daarna komt hij 5 px hoger uit dan hij begon. In het spel zakte hij zo door de
+  vloer. `tools/stok_bak.py` zet dat recht (`VAST`): de stok op de grond volgde het zakken in de plaatsing, dus per frame
+  schuift alles zoveel omhoog dat die stok op de hoogte van frame 0 blijft, en onder de snijrand komen de voeten van
+  frame 22 (daar zijn ze heel). De bronframes en `plaatsing.json` blijven zoals ze zijn.
 
 ## De zonnestraal (16-11-2026, Test 77)
 
