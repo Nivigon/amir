@@ -131,3 +131,33 @@ Test 74 heeft `nieuweRen: true`, zodat de stokkenren gelijk oploopt met de loopl
 Zonder nieuwe ren (de sandboxknop Stokken alleen) wordt de oude lus van 8 over de 12 frames uitgesmeerd (`stokBeeld`).
 Scripts uit de sessie: /home/claude/stok/puppet2.py (tilt 3, stokken 5 en 7).
 - Vuisten (16-11-2026): Grok had de vuisten om de gespiegelde diagonaal getekend. Nieuwe still van Grok vanaf een collage met de groene stokken al in de goede hoek (de handen om de stokken laten sluiten); lijf en vuisten daaruit, de vuisten als bovenste laag met gaten waar het groen zat, zodat de stok door de vuist loopt (/home/claude/stok/puppet3.py).
+
+## De grondklap (16-11-2026, Test 76)
+
+Met de stokken in de lucht omlaag plus aanval (`GK`, `gkKan`, `gkStart`, `gkLucht`, `gkLand`, `gkStokStap`, `gkInslag`,
+`gkUpdate`). Alleen in een level met `grondklap: true` of met de sandboxknop **Grondklap** (`sbGrondklap`), naast de stokken.
+- Frames: set `grondklap` (26 frames, Grok-clip deze.mp4: begin lucht_links, tussenframe tussen_links met de armen geladen
+  achter het hoofd, eind inslag_links met het hoofd tussen de stokken), gebakken met `tools/stok_bak.py --alleen grondklap`
+  uit `bron/lijf/grondklap_NN.png` en de stokken uit `plaatsing.json` (startplaatsing uit het groen van de clip; op de
+  laatste frames schuift de stok 28 px door de vuist omlaag, zodat de vuist bovenop zit en de punt bij de grond komt).
+  `STOK.grondklap.seq` kiest per positie het frame: 0-8 de opzwaai, 9 het tussenframe, dan 17, 19, 21, 23, 24 en 25 (het
+  contactframe). Frames 10-16 (het neerkomen van de benen) zitten in de set maar spelen niet: die vallen in de val.
+  `STOK.grondklap.voet` zet in de luchtframes de voeten op de echte hoogte (de clip heeft de sprong erin).
+- Verloop: in de opzwaai hangt hij stil (`pvh` 0, posities 0-8, zo'n 0,3 s), daarna houdt hij het tussenframe vast en valt
+  hij met `GK.val`. Bij de landing (`updateJump`, `gkLand`) springt hij naar positie 10, en op positie 15 (het contactframe)
+  is de klap (`gkInslag`): hitstop, schok, stof bij allebei de stokpunten (ook om te verbergen als een punt de grond net niet
+  raakt), steentjes, het geluid, en de golf. Het contactframe blijft 320 ms staan, dan de gewone houding (geen opkomen: de
+  freeze en de golf dekken de wissel), en `GK.koel` afkoeling. Geraakt worden breekt hem af.
+- Het geluid (gerecycled): `brutus_inslag`, `kooihitground` en `ton_zwaar` tegelijk, twee lage houtklappen en een korte
+  beving (`bavBeving`).
+- De golf: begint bij de punt van de voorste stok (`STOK.punt.grondklap`), rolt met `GK.golfV` vooruit tot het gekozen
+  bereik (`GK.bereik`, in Amir-hoogtes: kort 1, middel 2, lang 4) of tot een trede of terras (30 hoger of lager). Hij raakt
+  via het vak van de lage zwaai (`gkVak` als `swbox`, met een nieuwe `sweepId`), dus elke vijandsoort met de lage zwaai
+  doet mee, een keer per klap. Op de klap van vlak achter Amir tot de stokpunt, daarna alleen de strook die het front net
+  passeert (wie er later inloopt krijgt niets). Schade via `fcHalf` (`gkSchadeOp`): de gekozen schade (0,5, 1 of 1,5) in
+  plaats van de hele treffer van de handler, recht onder hem (tot `GK.onderR` voorbij de stokpunt) `GK.onder` erbij.
+  Daarna (`gkNaTreffer`) terug met `GK.knock` (onder hem `knockOnder`), wankelen `GK.rust` en traag `GK.traag`; slangen en
+  schorpioenen wippen omhoog (`gkH`, in hun tekencode).
+- Beeld: de bult in de vloer is de truc van Nyundo (`gkGrondTeken`, voor Amir getekend), stof met de deeltjes van Nyundo
+  (`bruStofDeeltje`/`bruStofStap`/`bruStofTeken` op `gkFx`) en eigen steentjes (`gkStofTeken`, na de vijanden).
+- Keuze in Test 76 (`gkKeuze`): `duoKeuze.gkBereik` en `duoKeuze.gkSchade` in het instellingenscherm.
