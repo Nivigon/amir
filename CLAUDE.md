@@ -332,6 +332,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | ideeën voor de kit van Amir: basis, tribe-ability of talent; stof in de ogen (gebukt F vasthouden, de veeg met eigen animatie en geluid) | `STOF`, `STOFA`, `stofStap`, `stofWerp`, `stofDwaal` | notities/kit-ideeen.md |
 | de stokken: twee stokken in plaats van de speer, slaan, blokken op C en de counter (stun of gewoon); Test 74 en de sandboxknop Stokken | `STOK`, `stokAanval`, `stokBlokStap`, `stokBlokVang`, `stokTreffer`, `atkStok` | notities/stokken.md |
 | de grondklap: met de stokken in de lucht omlaag plus aanval, de stokken in de grond en een golf naar voren; Test 76 en de sandboxknop Grondklap | `GK`, `gkStart`, `gkInslag`, `gkUpdate`, `gkVak`, `gkSchadeOp` | notities/stokken.md |
+| de zonnestraal: met de stokken 3 s mediteren in het licht, dan 6 s Sun Lion (geen blok, dubbele schade, sneller, de hoge sprong, twee grondklappen), dan moe; Test 77 in de reeks Test levels sticks (`STOK_LEVELS`) | `STRAAL`, `straalUpdate`, `straalBurst`, `straalMoe`, `zonnestralen`, `STOK_LEVELS` | notities/stokken.md |
 | PvP: een tegen een over internet (PeerJS), de andere Amir, wie beslist, rondes en het stadje | `PVP`, `PVP_LEVEL`, `pvpStap`, `pvpTeken`, `pvpVang` | notities/pvp.md |
 | Multiplayer: de knop in het hoofdmenu, de lobby (de host kiest Co-op Survival of Duel, de map en de regels, de gasten drukken Ready), en het plan voor de winkel | `MP_SOORTEN`, `mpLobbyToon`, `mpWijzig`, `mpStart`, `mpNaarLobby`, `pvpDuelStart` | notities/multiplayer.md |
 | het wapen in Multiplayer: ieder kiest in de lobby de speer of de stokken; de stokspeler heeft de lage zwaai, eigen winkelwaar (Hardwood sticks) en geen speerspullen | `mpWapenZet`, `mpStokken`, `mpWapenLevel`, `mpcWinkelVoorMij`, `stokHoutNu` | notities/multiplayer.md |
@@ -386,6 +387,8 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `executie` | `true`: elke dodelijke steek, worp of lage zwaai op een schildbandiet is de executie, in plaats van 1 op 5 en 1 op 3 (alleen Test 50, zie `notities/schildbandiet.md`) |
 | `herhaal` | `true`: is de laatste schildbandiet weg (na de executie of de gewone dood), dan komt er na `EXE.herhaalWacht` een nieuwe aanwandelen, net buiten beeld voor Amir uit, met de vlaggen van de eerste schildman-spawn (alleen Test 50, `exeHerhaalStap`) |
 | `wateren` | het water van `WATER`: `[{k, x, w}]`, `k` is `plas`, `poel`, `rivier`, `val` (van de rechterkant van een terras op `x`) of `bron` (met `hoog` in Amir); een poel en rivier laten je waden zoals de oude `water`, een rivier met `brug: true` krijgt een houten brug waar je droog overheen loopt. De rivier met de waterval (vooraan over de rand, standaard rustig, met `val: true` snel) is af: hij mag, met en zonder brug, in elk nieuw level (zie `notities/water.md`). De andere vormen (plas, poel, val, bron) staan nog alleen in Test 67 |
+| `zonnestralen` | bundels zonlicht om met de stokken in te mediteren: `[{x, h}]` (zie "de zonnestraal" in `notities/stokken.md`; alleen Test 77) |
+| `onstKeuze` | `true`: aan het begin en na R kies je Lives of Invulnerable (`duoKeuze.onst`); de stoklevels |
 | `vredig` | `true`: geen vijanden, en ook geen vrije slangen of kalebassen die het spel anders bij lege `spawns` stuurt (Test 67) |
 | `rocks` | keien om op te springen: `{x, s}` |
 | `tonnen` | houten tonnen die breken: `{x, y, f, kalebas}`, of `put`/`luifel`/`kraam` met `a` (Amir van die put, losse luifel of kraam) in plaats van `x`; hoger op met `dak` (een dak of galerij van de stad, met `a` vanaf het midden van dat dak) of `zwever: true` (zie `notities/tonnen.md`) |
@@ -460,7 +463,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
    en hut aan de start, Amir begint aan de rand van het level en de camera kijkt er niet voorbij
    (zie het veld `rand`). Dat geldt voor elk nieuw level vanaf nu; de bestaande levels houden hun
    rotswand (rule 1, en een speerval zit in die wand). De Maker had al een kale start (`kaleKlif`).
-2. De naam in de array van die reeks (`KUM_LEVELS`, `TEST_LEVELS`, `BAB_LEVELS`, `STAD_LEVELS`, `OAK_LEVELS`, `BEL_LEVELS`, `GP_LEVELS`, `RIV_LEVELS` of `KUM_LEVELS`).
+2. De naam in de array van die reeks (`KUM_LEVELS`, `TEST_LEVELS`, `STOK_LEVELS`, `BAB_LEVELS`, `STAD_LEVELS`, `OAK_LEVELS`, `BEL_LEVELS`, `GP_LEVELS`, `RIV_LEVELS` of `KUM_LEVELS`).
 3. Een ondertitel in `SUBS`, op de naam van het level.
 4. Een eigen uitzicht in `SCENES` als het level er anders uit moet zien.
    De voorgrond komt er vanzelf bij (zie hierboven); zet alleen een eigen `voorgrond` als het level
