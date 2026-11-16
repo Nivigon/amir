@@ -107,7 +107,7 @@ def main():
     ap.add_argument('--dikte', type=float, default=1.15, help='de stok zoveel dikker dan in verhouding')
     ap.add_argument('--slip', type=float, default=0.75, help='de slippen zoveel kleiner')
     ap.add_argument('--alleen', default='', help='alleen deze sets bakken, met komma\'s (de rest blijft staan)')
-    ap.add_argument('--canvas', default='498,354,285,349', help='met --alleen: W,H,ANKER,GROUND van STOK')
+    ap.add_argument('--canvas', default='511,384,298,379', help='met --alleen: W,H,ANKER,GROUND van STOK')
     o = ap.parse_args()
     alleen = [z for z in o.alleen.split(',') if z]
     kleur = [int(v) for v in o.kleur.split(',')]
@@ -194,7 +194,8 @@ def main():
         NW, NH, LX, TY = cw, ch, ca - 256, cg - 323
     for zet, i, uit, rij in beelden:
         spel = Image.new('RGBA', (NW, NH))
-        spel.alpha_composite(uit, dest=(0, 0), source=(P - DX - LX, P - DY - TY))
+        sx, sy = P - DX - LX, P - DY - TY            # kan negatief worden als het canvas groter is dan de marge
+        spel.alpha_composite(uit, dest=(max(0, -sx), max(0, -sy)), source=(max(0, sx), max(0, sy)))
         spel.save(os.path.join(DIR, zet, f'{zet}_{i:02d}.png'))
         punten[zet].append([round(v + (LX if j % 3 == 0 else TY if j % 3 == 1 else 0), 1) if j % 3 < 2 else v
                             for j, v in enumerate(rij)])
