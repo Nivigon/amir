@@ -147,6 +147,9 @@ de lobby staat dan in het staande stokframe.
 - **Tonnen:** elke ronde een ton op een willekeurige bereikbare plek (straat, galerij, de daken van de lage huizen, de
   kramen). Wat erin zit komt uit een knikkerzak: 10 knikkers, `kalebas`% kalebassen en de rest goud (3 voor wie hem breekt).
   Is de zak leeg, dan wordt hij opnieuw gevuld. Zo komt het percentage echt uit, zonder lange droge reeksen.
+- **Lijken (16-11-2026):** een dode vijand is na `MPC.lijkWeg` (5) seconden weg, met een wolkje stof (`mpcLijkStap` bij de
+  host, `mpcLijkWolk`); de gast volgt de lijst van de host en zet dan ook een wolkje. `tools/mptest.js --stokken host,gast
+  --soorten bandiet` kijkt na dat het lijk bij allebei binnen 6 s weg is.
 - **Dood en revive:** wie doodgaat blijft als lijk liggen, de camera volgt de teamgenoot, bovenin "Waiting for revive".
   20 s na de dood komt er een revive-ton (met de letters REVIVE erop, drie treffers). Wie hem breekt en het symbool pakt,
   revivet de ander: die staat op naast hem met 1 leven. Zijn allebei dood, dan is het game over.
