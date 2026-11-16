@@ -144,3 +144,10 @@ The Road; nu Perks, met perk points. Hij heeft nog geen logo op schijf: `ALG_LOG
   ("Choose a talent" of "Choose a perk"). Is het punt van de ene boom op en ligt er in de andere nog een, dan springt de
   focus daarheen (`tbKlik`).
 - **Sandbox:** onder Speer en spullen, de rij Algemeen.
+
+## Bhubesi met de stokken
+
+Een vierde kaart, `bhubesi_stok` (zelfde logo, `boom.kop` The Sticks): een rechte boom van zeven talents (geen `eis` of
+`kant`), een per level. Alles over het spelen staat onder "De stoktribe" in `notities/stokken.md`. Het keuzescherm zet de
+plaatjes van de talents nu op twee rijen als ze niet passen (`.trkaart .trabs`, `flex-wrap`), want met vier kaarten liepen
+ze over elkaar heen.

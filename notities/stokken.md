@@ -229,3 +229,32 @@ Alle stoklevels staan in een eigen reeks, `STOK_LEVELS` (Test 74, 76 en 77), met
 `menuStok`, `cardsStok`). Net als de Test levels zonder tribekeuze en met alle abilities (`testReeks`). Elk heeft
 `onstKeuze`: aan het begin en na R kies je **Lives** of **Invulnerable** (`duoKeuze.onst`, in `onsterfelijk()`); dat kwam
 in de plaats van de vaste `onsterfelijk: true` van Test 74 en 76.
+
+## De stoktribe: Bhubesi met de stokken in de episodes (16-11-2026)
+
+Een eigen kaart op het keuzescherm, `bhubesi_stok` in `TRIBE_CONFIG.tribes` (`stokken: true`, `blokKoel`, `zon`), naast Bhubesi
+met de speer en zijn oude boom. Gekozen door de opdrachtgever: een tribe met de speer en de oude talents, een met de stokken
+en nieuwe talents.
+- `tribeStok()`: een run met een tribe met `stokken`, niet in de sandbox, Multiplayer (`pvp`), de Test van de Maker
+  (`mkTestActief`) of de Test levels (`testReeks`). `stokTribeLevel(level)` zet bovenin `restart` `stokken`, `geenSpeer`,
+  `rugMax: 0` en `grondklap` op het level (zoals `mpWapenLevel`), en laadt de stokken en de grondklap voor `laadPoort`;
+  `stokLaadLevel` doet het ook al bij `setLevel` als de tribe dan al vastligt.
+- Speren pakken doet hij niet: `rekBij`, `skeletBij` en `losBij` geven niets met de stoktribe.
+- Talents gelden alleen in zo'n run (`stokTalent`, `stokTalentWaarde`): in de Test levels sticks doen ze niets, ook al
+  geven die alle talents.
+- Het blok: na het loslaten pas na `stokBlokKoel()` weer (`blokKoel` 4 s, min `koelMin` van Quick Guard en Ready Guard),
+  `stokBlok.koel`, `stokBlok.vast`; een druk tijdens de afkoeling schudt het vak `schild` in de actiebalk, dat de taartpunt
+  en de seconden toont. Elders (Test 74, Co-op) is de afkoeling 0.
+- De grondklap: `GK.schade.licht` (0,5) vast, ook als `duoKeuze.gkSchade` anders staat; Heavy Slam `schade` 0,5 erbij en
+  `knock` 1,25, Crushing Slam `knock` 1,2 (samen 1,5) en `traagK` 0,9 (`gkRaak.traagK`, `s.gkTraagK`, `s.traagK`: het
+  tempo van de bandiet zolang hij traag is maal dit; alleen de bandiet kent `traag`).
+- Mediteren zonder straal (`stokZonDruk`, G of de leeuwknop, `stokZonToets`): `straalVrijZ` is een straal op de plek van
+  Amir die niet in `straalLijst` staat; geen omlaag nodig (anders begon elk bukken een trance). Bewegen of slaan voor
+  `STRAAL.instap` breekt het af (`straalVrijZ` weer null). `straalVrijKeer` (gezet in `straalReset`, `stokZonKeer`: `zon.keer`
+  plus Second Sun en Sun King) gaat eraf bij het losbarsten. De duur is `straalBurstDuur()` (`zon.burst` 5 plus Long Roar 2).
+  Vak `zon` in de actiebalk met de teller; op de telefoon wordt de leeuwknop van de woede de meditatieknop. Een straal in het
+  level (`zonnestralen`) werkt daarnaast gewoon, met omlaag en zonder dat het een keer kost.
+- Ontketend geen dubbele schade voor de stoktribe (`straalSchadeK`); Sun King geeft een halve erbij op een stokslag
+  (`stokSchade`, dus op de bandiet; een slag op een andere soort is al een hele) en `stokDoor()` laat dan elke slag door
+  een parade.
+- Houten plaatjes zijn er nog niet: het teken in `TB_TEKEN` (twee stokken, een golf, de zon).
