@@ -19,6 +19,7 @@ kiest de host Duel, dan spelen ze allebei het stadje `PVP_LEVEL` (`pvpDuelStart`
   openbare gebruikersnaam en het wachtwoord). Nodig voor een telefoon op mobiele data: die zit vaak achter een NAT waar
   rechtstreeks niet doorheen komt (de eerste proef, iPhone tegen laptop, bleef op Connecting staan). Een gratis dienst kan
   verdwijnen of traag zijn; werkt hij niet meer, dan is een eigen TURN (Metered of Cloudflare, met een account) de stap.
+  Die staat in de wacht: online spelen is voorlopig voor laptops (zie "Voor wie" in `notities/multiplayer.md`).
 - **Het relais** (`PVP_RELAY`, `pvpRelayLuister`, `pvpJoinRelay`, `pvpRelayConn`): de TURN-servers zonder account bleken niet
   te helpen (de iPhone op mobiele data gaf "negotiation-failed": ICE mislukt). Daarom probeert de gast eerst rechtstreeks,
   en na een fout of `PVP_RELAY.na` (8) seconden gaat hij via een openbare MQTT-broker (HiveMQ, EMQX of Mosquitto, de eerste
@@ -38,7 +39,8 @@ kiest de host Duel, dan spelen ze allebei het stadje `PVP_LEVEL` (`pvpDuelStart`
 
 Het blok `// ---- multiplayer: de netcode ... ----` (`PVP_NET`). Stap 1 van het plan voor vloeiend online spelen (november
 2026); stap 2, drie spelers, is gebouwd (de ster: een verbinding per gast, zie "Drie spelers: de ster" in
-`notities/multiplayer.md`); stap 3 is een eigen TURN-server. Alles hieronder geldt per lijn: het snelle kanaal per peer
+`notities/multiplayer.md`); stap 3, een eigen TURN-server, staat in de wacht: online spelen is voorlopig voor laptops,
+een telefoon op mobiele data hoeft niet (zie "Voor wie" in `notities/multiplayer.md`). Alles hieronder geldt per lijn: het snelle kanaal per peer
 (`pvp.peers[p].snel`), de speelbuffer en de klok per afzender (`pvp.nets[p]`), de ping per lijn (de host naar elke gast).
 
 - **Het snelle kanaal** (`pvpSnelOpen`, `pvpZendSnel`, `pvpSnelAan`). PeerJS opent een betrouwbaar kanaal: op volgorde, en
