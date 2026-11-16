@@ -20037,7 +20037,7 @@ function stokStap(dt){
 const GK = {
   minHoog: 0.5,              // pas vanaf zoveel Amir boven de grond, anders gewoon landen
   val: 1700,                 // de val na de opzwaai (eenheden per seconde omlaag)
-  koel: 1.0,                 // afkoeling na de klap (s)
+  koel: 8,                   // afkoeling na de klap (s): een grondklap per 8 s, met een vak in de actiebalk (BALK, 'grondklap')
   bereik: { kort: 1, middel: 2, lang: 4 },          // hoe ver de golf rolt, in Amir-hoogtes voor de stokpunt
   schade: { licht: 0.5, middel: 1, zwaar: 1.5 },     // per treffer van de golf, in levens
   onder: 0.5, onderR: 0.55,  // recht onder hem (binnen onderR Amir van de stokpunt of achter tot Amir): zoveel schade erbij
@@ -20050,6 +20050,9 @@ const GK = {
   bult: 30, breed: 95,       // de bult in de vloer: hoogte en breedte (px bij schaal 1)
   stof: { klap: 46, golf: 7, per: 34 },   // stof: op de klap, en per zoveel px golf een wolk van golf deeltjes
   diep: 0.3,                 // het stof de diepte in (kroon en ring): z = 1 ligt zoveel Amir naar voren
+  // de grootte van de wolken per soort (gkWolk). Een upgrade van de grondklap (talent) laat later het stof en het
+  // geluid meegroeien: dan hier en in vol omhoog, zie notities/stokken.md
+  stofMaat: { nu: 1, kam: 1.1, kroon: 1.2 },
   vol: { inslag: 1, grond: 1, ton: 0.75, hout: 1, beving: 0.9 },
 };
 const gkFx = { stof: [], stenen: [], golven: [] };   // het stof (Nyundo's deeltjes), de steentjes en de golven
@@ -20140,11 +20143,11 @@ function gkKlapStofNu(tip, tip2, dir, sc){
 // 'kroon' kroon en ring: het stof spuit in een V omhoog (sneller is hoger en verder), en een lage ring rolt over de
 // grond weg, ook de diepte in (z), met een lage stofrol die met de golf meeloopt.
 // De getallen komen uit de mock-up, waar Amir 90 px hoog is; gkWolk zet ze om naar de wereld.
-function gkStofSoort(){ return (typeof duoKeuze !== 'undefined' && ['kam', 'kroon'].includes(duoKeuze.gkStof)) ? duoKeuze.gkStof : 'nu'; }
+function gkStofSoort(){ return (typeof duoKeuze !== 'undefined' && ['nu', 'kam', 'kroon'].includes(duoKeuze.gkStof)) ? duoKeuze.gkStof : 'kam'; }
 function gkWolk(o){
   const X = CHAR_H * gkSchaal / 90, Y = CHAR_H / 90;
   bruStofDeeltje(gkFx, { wx: o.x, y: -(o.y || 0) * Y, z: o.z || 0, vx: (o.vx || 0) * X, vy: -(o.vy || 0) * Y, vz: o.vz || 0,
-    r: (o.r + o.groei * o.life * 0.5) * 0.6 * Y, life: o.life, a: o.a ?? 0.9, zw: (o.zw ?? 300) * Y, rem: o.rem || 1.7,
+    r: (o.r + o.groei * o.life * 0.5) * 0.6 * Y * (GK.stofMaat[gkStofSoort()] || 1), life: o.life, a: o.a ?? 0.9, zw: (o.zw ?? 300) * Y, rem: o.rem || 1.7,
     zweef: o.zweef ? o.zweef * Y : 0 });
 }
 function gkKlapStof(soort, tip, tip2, dir){
@@ -24153,6 +24156,7 @@ function startAttack(){
     return;
   }
   if (gkKan()){ gkStart(); return; }             // de grondklap: met de stokken in de lucht omlaag plus aanval (GK)
+  if (gkAan() && !onGround && downKey() && gkKoelT > 0) balkSchud('grondklap');   // nog aan het afkoelen: het vak schudt
   if (dead || hurt > 0 || schijnLigt() || jump || amirVast() || stofA) return;
   if (stokAan() && pvp && duckT > 0){ zwaaiNu(); return; }   // Multiplayer: gebukt is het de lage zwaai (voorlopig de speerbeelden, zie mpWapenLevel)
   if (stokAan()){ stokAanval(); return; }       // de stokken: de slag, of de counter na een blok (zie STOK)
@@ -47357,7 +47361,7 @@ const duoKeuze = (() => {
            stokCounter: k.stokCounter === 'gewoon' ? 'gewoon' : 'stun',
            gkBereik: ['kort', 'middel', 'lang'].includes(k.gkBereik) ? k.gkBereik : 'middel',   // de grondklap: hoe ver de golf rolt (Test 76)
            gkSchade: ['licht', 'middel', 'zwaar'].includes(k.gkSchade) ? k.gkSchade : 'licht',
-           gkStof: ['nu', 'kam', 'kroon'].includes(k.gkStof) ? k.gkStof : 'nu' };   // het stof van de grondklap (Test 76)   // en hoeveel schade hij doet   // de stokken: de counter na een blok als stun of als gewone treffer (Test 74)
+           gkStof: ['nu', 'kam', 'kroon'].includes(k.gkStof) ? k.gkStof : 'kam' };   // het stof van de grondklap (Test 76)   // en hoeveel schade hij doet   // de stokken: de counter na een blok als stun of als gewone treffer (Test 74)
 })();
 const duoKeuzeEl = document.getElementById('duokeuze');
 let duoKeuzeVerder = null, duoKeuzeDoor = false;
@@ -54369,6 +54373,7 @@ const balkEl = document.getElementById('actiebalk');
 const BALK_SVG = {
   rol: '<svg viewBox="0 0 32 32"><path d="M23 21A9 9 0 1 1 22 9" fill="none" stroke="#f2e8d5" stroke-width="2.6" stroke-linecap="round"/><path d="M17 6l6 3-4 5" fill="none" stroke="#f2e8d5" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   duw: '<svg viewBox="0 0 32 32"><path d="M26 16A10 10 0 1 1 20 7" fill="none" stroke="#f2e8d5" stroke-width="2.4" stroke-linecap="round"/><path d="M17 3l6 4-5 4" fill="none" stroke="#f2e8d5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 22L22 10" stroke="#e6c58f" stroke-width="2.4" stroke-linecap="round"/></svg>',
+  grondklap: '<svg viewBox="0 0 32 32"><path d="M11 4l2 20M21 4l-2 20" stroke="#e6c58f" stroke-width="2.6" stroke-linecap="round"/><path d="M3 26h26" stroke="#f2e8d5" stroke-width="2.2" stroke-linecap="round"/><path d="M5 21l3 3M27 21l-3 3M2 16l4 5M30 16l-4 5" stroke="#f2e8d5" stroke-width="1.8" stroke-linecap="round"/></svg>',
   schild: '<svg viewBox="0 0 32 32"><path d="M16 4l10 4v7c0 7-5 11-10 13C11 26 6 22 6 15V8z" fill="none" stroke="#f2e8d5" stroke-width="2.4" stroke-linejoin="round"/><path d="M16 9v15" stroke="#e6c58f" stroke-width="1.6"/></svg>'
 };
 // per vak: of hij er is, hoe ver de afkoeling is (p, 1 is klaar), de seconden die nog over zijn, en wat er verder bij hoort
@@ -54389,6 +54394,10 @@ const BALK = [
   { id: 'duw', toets: 'X', icoon: () => BALK_SVG.duw, staat(){
       const p = duwKoel > 0 ? 1 - duwKoel / DUW.koel : 1;
       return { zien: duwAan(), klaar: p >= 1, p, sec: duwKoel, dim: !spear };
+    } },
+  { id: 'grondklap', toets: '\u2193+F', icoon: () => BALK_SVG.grondklap, staat(){   // de grondklap (GK): in de lucht omlaag plus aanval
+      const p = gkKoelT > 0 ? 1 - gkKoelT / GK.koel : 1;
+      return { zien: gkAan(), klaar: p >= 1, p, sec: gkKoelT, aan: !!gkFase };
     } },
   { id: 'schild', toets: 'C', icoon: () => BALK_SVG.schild, staat(){
       return { zien: SCHILD_AAN || STOK_AAN, klaar: true, p: 1, aan: schildOp() || stokBlokNu() };   // met de stokken is C het blok (STOK)
