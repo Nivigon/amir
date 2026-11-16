@@ -4,7 +4,7 @@ Een tweede wapenset voor Amir: twee slanke stokken met een leren greep (Nguni-st
 Alleen in Test 74 (`stokken: true`) en de sandboxknop **Stokken**.
 
 ## Frames
-- `karakters/amir/stokken/<set>/<set>_NN.png`, sets `rennen` (8), `staan` (1), `slag` (18), `draaislag` (15),
+- `karakters/amir/stokken/<set>/<set>_NN.png`, sets `rennen` (12), `staan` (1), `slag` (18), `draaislag` (15),
   `draaiterug` (6), `blok` (13). Een gedeeld canvas 440 x 328, anker 256, grond 323, schaal 1 (Amirs spelschaal),
   alles kijkt naar links. `metadata.json` heeft de ms per frame.
 - De vechtsets (slag, draaislag, draaiterug, blok) zijn groter getekend dan staan en rennen. Het spel tekent ze op
@@ -83,3 +83,15 @@ Alleen in Test 74 (`stokken: true`) en de sandboxknop **Stokken**.
   draaiterug sta je ruim een seconde vast.
 - Slag-frame 6 had een paarsroze stok (een vlek uit de clip); met de nieuwe stok is die weg. Een paar paarsroze
   vlekjes bij de handen (slag 13, draaiterug) zitten nog in het lijf zelf.
+
+## De ren met stokken (16-11-2026)
+
+De oude renset (8 frames) zette de stokken per frame in een andere hoek, waardoor ze alle kanten op vlogen. Grok kon
+geen guard vasthouden tijdens een ren (de armen gingen altijd pompen), dus de nieuwe renset is geknipt en geplakt:
+- benen en heupen: de 12 frames van de nieuwe ren (`REN_NIEUW`, test4);
+- bovenlijf: Toms guard-pose (voorste onderarm dwars voor de borst, stok schuin omhoog over de schouder; achterste arm
+  achter op heuphoogte, stok schuin omlaag naar achteren), uit een Grok-still op 1728 px, op de tailleband gezet;
+- leven: het bovenlijf kantelt 3 graden mee met de pas, de stokken veren 5 en 7 graden na (iets na het lijf).
+Test 74 heeft `nieuweRen: true`, zodat de stokkenren gelijk oploopt met de looplus en het tempo de snelheid volgt.
+Zonder nieuwe ren (de sandboxknop Stokken alleen) wordt de oude lus van 8 over de 12 frames uitgesmeerd (`stokBeeld`).
+Scripts uit de sessie: /home/claude/stok/puppet2.py (tilt 3, stokken 5 en 7).
