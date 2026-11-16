@@ -233,6 +233,8 @@ zonneschijf in de lucht), `straalUpdate`, `straalTeken`, `straalAmirTeken`, `str
   (`TAU.fps`), houdt de brul `TAU.vast` s vast, groeit iets (`TAU.groei`) en vervaagt omhoog (`TAU.weg`). Getekend na de
   verduistering (`straalDimNa`), zodat hij in het donker licht geeft, met een zachte gloed. De frames (`karakters/amir/tau/`)
   komen uit de Grok-clip `bron/tau_brul.mp4` via `tools/tau_leeuw.py`; een andere kleur is `KLEUR` in dat script.
+  Bij de brul klinkt `sounds/tau_brul.mp3` (ElevenLabs, `straalGeluid.brul`, `STRAAL.vol.brul`), naast het geluid van het
+  losbarsten. Het werkt net zo bij mediteren zonder straal (G, de stoktribe): dezelfde trance en hetzelfde losbarsten.
 - Twee kandidaat-talents, voorlopig alleen sandboxknoppen (`STRAAL.talent`, `sbzonterug`, `sbzonbarst`), nog niet in een boom:
   **Trance: schade terug** (`STRAAL.terug`, de helft van de trance-schade komt terug bij het losbarsten, tot het maximum) en
   **Trance: uitbarsting** (`STRAAL.uitbarst`: alles binnen 3,2 Amir op zijn hoogte vliegt weg en is even traag, zoals na de
