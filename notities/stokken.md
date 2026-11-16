@@ -43,6 +43,18 @@ Alleen in Test 74 (`stokken: true`) en de sandboxknop **Stokken**.
   slag stapt `vervolg` (0,6) zo ver, de counter stapt niet. Niet in de lucht en niet over de rand van een ravijn
   (`gatOp`); muren en de klif klemmen daarna zoals bij lopen. Alleen de engine: de voeten in de frames blijven staan.
   In de sandbox de knop **Stokstap** (aan of uit) om te vergelijken.
+- De stapslag: de eerste slag (niet gebufferd) is `stapslag` (22 frames, Grok-clip 1.mp4, clipframes 19-36 en 58-67): de
+  achtervoet schuift bij, de voorvoet zet een pas en landt op frame 12 met de klap (actief 12-14, stof bij de voorvoet),
+  15 houdt de klap vast, 16-21 terug in de gevechtshouding. Grok liet hem na de landing met beide voeten terugglijden
+  naar het eindframe; dat zit nog in de frames en wordt opgeheven met root motion: `STOK.stapslag.root` (frame-px naar
+  voren per frame, de geplante achtervoet vastgezet, uit `plaatsing.json` `root`), en `stokRoot` schuift de wereld per
+  frame met het verschil, zoals `stokSchuif`. Samen zo'n halve Amir (gemeten 93 wereld-px in de sandbox). Een gebufferde
+  tweede slag is de gewone `slag` op de plek (met de kleine engine-stap `STOK.stap`, vervolg 0,6). Buffer vanaf frame
+  `STOK.stapslag.buf` (10), de volgende begint en C breekt af vanaf `annuleer` (17). Sandboxknop **Stapslag** (uit = de
+  gewone slag als eerste). Gebakken met `tools/stok_bak.py --alleen stapslag` (alleen die set, op het huidige canvas,
+  omdat de ren met stokken niet meer uit `plaatsing.json` komt). De lijf-frames en de verwerking (stokken ook blauw en
+  cyaan in de snelle frames, inpaint met eerst de achtergrond gevuld met de kleur van het dichtstbijzijnde lijfpixel):
+  zie het projectdocument `claude/animeer_tool_stokken.md`.
 - Blok: C vasthouden (op een telefoon de schildknop). Vanaf blok-frame `STOK.blokOp` vangt `hurtPlayer` een klap van
   voren af (houtklap, duwtje). Projectielen met een eigen schade-ingang (bouten, de speer van de schildbandiet) vangt
   het nog niet.

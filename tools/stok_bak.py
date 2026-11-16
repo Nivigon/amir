@@ -14,6 +14,9 @@ Uit:
   en op het scherm de regel `slipPunt` voor STOK in de HTML: per frame de knoop van elke stok en of hij achter Amir valt
 
 Gebruik:  python3 tools/stok_bak.py [--kleur 170,108,40] [--lengte 155] [--dikte 1.15] [--slip 0.75]
+          python3 tools/stok_bak.py --alleen stapslag
+          --alleen bakt alleen die sets, op het canvas dat nu in STOK staat (--canvas W,H,ANKER,GROUND); de rest blijft
+          staan. Nodig sinds de ren met stokken niet meer uit plaatsing.json komt (samengesteld, zie notities/stokken.md)
 Daarna:   python3 tools/gen-klein.py en python3 tools/gen-offline-manifest.py
 """
 import argparse, json, math, os
@@ -26,7 +29,7 @@ AW, AH = 594, 301                 # het canvas van de Animeer tool
 SW, SH = 440, 328                 # het oude canvas van het spel; het nieuwe groeit mee met de stok (zie onderaan)
 P = 80                            # marge om het Animeer-canvas tijdens het samenstellen: de stok steekt erbuiten
 DX, DY = -41, 26                  # Animeer naar spel: anker 297 -> 256, grond 297 -> 323 (nagemeten op het lijf)
-GESPIEGELD = ('slag', 'draaislag', 'draaiterug', 'blok')   # die kijken in de Animeer tool naar rechts
+GESPIEGELD = ('slag', 'stapslag', 'draaislag', 'draaiterug', 'blok')   # die kijken in de Animeer tool naar rechts
 DRAAITERUG = [13, 11, 9, 6, 3, 1]  # draaiterug is draaislag achterstevoren, op deze frames (nagemeten)
 # de stok in stok_grok.jpg: de schacht en de slippen, in pixels van dat beeld
 STOK_BOX = (107, 517, 1643, 650)  # links, boven, rechts, onder (de onderkant snijdt de slippen eraf, de knoop blijft)
@@ -103,7 +106,10 @@ def main():
     ap.add_argument('--lengte', type=float, default=155, help='lengte van de stok in Animeer-pixels')
     ap.add_argument('--dikte', type=float, default=1.15, help='de stok zoveel dikker dan in verhouding')
     ap.add_argument('--slip', type=float, default=0.75, help='de slippen zoveel kleiner')
+    ap.add_argument('--alleen', default='', help='alleen deze sets bakken, met komma\'s (de rest blijft staan)')
+    ap.add_argument('--canvas', default='498,354,285,349', help='met --alleen: W,H,ANKER,GROUND van STOK')
     o = ap.parse_args()
+    alleen = [z for z in o.alleen.split(',') if z]
     kleur = [int(v) for v in o.kleur.split(',')]
     PL = json.load(open(os.path.join(DIR, 'plaatsing.json')))
 
@@ -142,10 +148,12 @@ def main():
 
     punten, beelden = {}, []
     for zet, frames in PL['frames'].items():
+        if alleen and zet not in alleen: continue
         punten[zet] = []
         os.makedirs(os.path.join(DIR, zet), exist_ok=True)
         for i, fr in enumerate(frames):
             bron = f'draaislag_{DRAAITERUG[i]:02d}' if zet == 'draaiterug' else f'{zet}_{i:02d}'
+            # (de stapslag heeft root motion: STOK.root in de HTML, uit plaatsing.json 'root' per frame)
             lijf = olijf_weg(Image.open(os.path.join(DIR, 'bron', 'lijf', bron + '.png')).convert('RGBA'))
             delen = []
             for sid in ('stok_achter', 'stok_voor'):
@@ -179,6 +187,11 @@ def main():
             x0 = min(x0, rij[j] - slip.width); x1 = max(x1, rij[j] + slip.width)
     LX, TY = -math.floor(x0) + 2 if x0 < 0 else 0, -math.floor(y0) + 2 if y0 < 0 else 0
     NW, NH = math.ceil(x1) + LX + (2 if x1 > SW else 0), SH + TY
+    if alleen:                                    # het canvas blijft wat het is
+        cw, ch, ca, cg = [int(v) for v in o.canvas.split(',')]
+        if (NW, NH) != (cw, ch) and (NW > cw or NH > ch or LX > ca - 256 or TY > cg - 323):
+            print(f'LET OP: deze sets hebben {NW}x{NH} (links {LX}, boven {TY}) nodig, het canvas is {cw}x{ch}: er valt iets buiten')
+        NW, NH, LX, TY = cw, ch, ca - 256, cg - 323
     for zet, i, uit, rij in beelden:
         spel = Image.new('RGBA', (NW, NH))
         spel.alpha_composite(uit, dest=(0, 0), source=(P - DX - LX, P - DY - TY))
