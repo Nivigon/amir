@@ -155,6 +155,22 @@ async function proef(R, L){
   meld(koop.fc === 'kracht_rond', 'Full Circle met allebei de upgrades (' + koop.fc + ')');
   meld(koop.rug === 2 && koop.levens === 4, 'het extra speerslot en een extra leven (rug ' + koop.rug + ', levens ' + koop.levens + ')');
   meld(koop.goud === 300 - 30 - 50 - 50 - 45 - 60 - 5 * (drie ? 2 : 1), 'de prijzen kloppen (over: ' + koop.goud + ')');
+  // de Gris-gris bij de host (een eigen beurs, zodat de prijzen hierboven blijven kloppen): drie trappen, dan uitverkocht,
+  // en een klap die het amulet vangt kost geen leven, een die het mist wel (GRISGRIS)
+  const amu = await H.page.evaluate(() => {
+    const goud = pvp.coop.goud; pvp.coop.goud = 400; mpcWinkelToon();
+    const b = () => document.getElementById('wkc_amulet');
+    for (let i = 0; i < 4; i++) b().click();
+    const uit = { trap: pvp.coop.koop.amulet, kans: grisGrisKans(), over: pvp.coop.goud, knop: b().textContent };
+    const rnd = Math.random, voor = lives, r = running, god = godMode; godMode = false;
+    running = true; invuln = 0; Math.random = () => 0; hurtPlayer(true); uit.gevangen = lives === voor && invuln > 0;
+    invuln = 0; Math.random = () => 0.99; hurtPlayer(true); uit.geraakt = lives === voor - 1;
+    Math.random = rnd; lives = voor; invuln = 0; hurt = 0; dead = false; running = r; godMode = god; drawLives();
+    pvp.coop.goud = goud; pvp.banner = ''; return uit;
+  });
+  meld(amu.trap === 3 && Math.abs(amu.kans - 0.3) < 1e-9 && amu.over === 400 - 40 - 75 - 110 && /Sold out/.test(amu.knop),
+       'Gris-gris: drie trappen, 30%, de prijzen kloppen, dan uitverkocht (' + JSON.stringify(amu) + ')');
+  meld(amu.gevangen && amu.geraakt, 'Gris-gris: gevangen kost geen leven, gemist wel');
   meld(await tot(H.page, v => pvp.coop.goud === v + 5, hGoud, 3000), 'Give 5 gold aan de host komt bij de host aan');
   if (drie) meld(await tot(G2.page, v => pvp.coop.goud === v + 5, g2Goud, 3000), 'en Give 5 gold aan de tweede gast bij hem (via de host)');
   await G.page.evaluate(() => document.getElementById('wkklaar').click());
