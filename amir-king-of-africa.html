@@ -19843,7 +19843,7 @@ function comboStap(dt){
 }
 // de eerste treffer van de slag: de flits van True Flight op de speerpunt, en wat langer stil
 function comboTreffer(wx, h){
-  if (comboTerug()){ puffWorld(wx, 8, 0, fcSoort && !fcKracht() ? 0.8 : 1.1, 0); houtRaak(COMBO.terug.toon, 1); }   // de schacht op zijn lijf: een doffe houtklap
+  if (comboTerug()){ puffWorld(wx, 8, 0, fcSoort && !fcKracht() ? 0.8 : 1.1, vloerBij(wx, ph)); houtRaak(COMBO.terug.toon, 1); }   // de schacht op zijn lijf: een doffe houtklap
   if (comboDubbel()) critFx(wx, h);                 // dubbel: de ster van de crit
   hitstop = Math.max(hitstop, COMBO.stop); shake = Math.max(shake, COMBO.schok);
 }
@@ -20037,8 +20037,8 @@ function stokStap(dt){
 const GK = {
   minHoog: 0.5,              // pas vanaf zoveel Amir boven de grond, anders gewoon landen
   val: 1700,                 // de val na de opzwaai (eenheden per seconde omlaag)
-  koel: 1.0,                 // afkoeling na de klap (s)
-  koelCoop: 5,               // in Co-op: zoveel afkoeling (mpCoopAan)
+  koel: 8,                   // afkoeling na de klap (s): een grondklap per 8 s, met een vak in de actiebalk (BALK, 'grondklap')
+  koelCoop: 5,               // in Co-op: zoveel afkoeling (mpCoopAan, gkKoelDuur)
   zwaar: { schade: 1, knock: 1.6 },   // Co-op, gekocht in de winkel (Ground slam: heavier, gkZwaarNu): zoveel schade en zoveel keer verder terug
   bereik: { kort: 1, middel: 2, lang: 4 },          // hoe ver de golf rolt, in Amir-hoogtes voor de stokpunt
   schade: { licht: 0.5, middel: 1, zwaar: 1.5 },     // per treffer van de golf, in levens
@@ -20052,6 +20052,9 @@ const GK = {
   bult: 30, breed: 95,       // de bult in de vloer: hoogte en breedte (px bij schaal 1)
   stof: { klap: 46, golf: 7, per: 34 },   // stof: op de klap, en per zoveel px golf een wolk van golf deeltjes
   diep: 0.3,                 // het stof de diepte in (kroon en ring): z = 1 ligt zoveel Amir naar voren
+  // de grootte van de wolken per soort (gkWolk). Een upgrade van de grondklap (talent) laat later het stof en het
+  // geluid meegroeien: dan hier en in vol omhoog, zie notities/stokken.md
+  stofMaat: { nu: 1, kam: 1.1, kroon: 1.2 },
   vol: { inslag: 1, grond: 1, ton: 0.75, hout: 1, beving: 0.9 },
 };
 const gkFx = { stof: [], stenen: [], golven: [] };   // het stof (Nyundo's deeltjes), de steentjes en de golven
@@ -20092,9 +20095,10 @@ function gkStokStap(dt){
     if (atkAcc < ms) break;
     atkAcc -= ms; atkFrame++;
     if (atkFrame === G.klap) gkInslag();
-    if (atkFrame >= STOK.ms.grondklap.length){ gkFase = null; atkStok = null; atkFrame = -1; atkAcc = 0; atkCooldown = STOK.rust; gkKoelT = mpCoopAan() ? GK.koelCoop : GK.koel; break; }
+    if (atkFrame >= STOK.ms.grondklap.length){ gkFase = null; atkStok = null; atkFrame = -1; atkAcc = 0; atkCooldown = STOK.rust; gkKoelT = gkKoelDuur(); break; }
   }
 }
+function gkKoelDuur(){ return mpCoopAan() ? GK.koelCoop : GK.koel; }   // de afkoeling: in Co-op korter
 function gkZwaarNu(){ return !!(pvp && pvp.coop && pvp.coop.koop && pvp.coop.koop.slam); }   // de winkel van Co-op (MPC_WINKEL)
 function gkRichting(){ return facing === 1 ? 1 : -1; }      // de kijkrichting in de wereld (zie steekDX)
 // de klap: de stokken in de grond. Hitstop, schok, het geluid, stof bij de stokpunten en de golf
@@ -20150,11 +20154,11 @@ function gkKlapStofNu(tip, tip2, dir, sc){
 // 'kroon' kroon en ring: het stof spuit in een V omhoog (sneller is hoger en verder), en een lage ring rolt over de
 // grond weg, ook de diepte in (z), met een lage stofrol die met de golf meeloopt.
 // De getallen komen uit de mock-up, waar Amir 90 px hoog is; gkWolk zet ze om naar de wereld.
-function gkStofSoort(){ return (typeof duoKeuze !== 'undefined' && ['nu', 'kroon'].includes(duoKeuze.gkStof)) ? duoKeuze.gkStof : 'kam'; }   // Growing crest is de standaard
+function gkStofSoort(){ return (typeof duoKeuze !== 'undefined' && ['nu', 'kam', 'kroon'].includes(duoKeuze.gkStof)) ? duoKeuze.gkStof : 'kam'; }
 function gkWolk(o){
   const X = CHAR_H * gkSchaal / 90, Y = CHAR_H / 90;
   bruStofDeeltje(gkFx, { wx: o.x, y: -(o.y || 0) * Y, z: o.z || 0, vx: (o.vx || 0) * X, vy: -(o.vy || 0) * Y, vz: o.vz || 0,
-    r: (o.r + o.groei * o.life * 0.5) * 0.6 * Y, life: o.life, a: o.a ?? 0.9, zw: (o.zw ?? 300) * Y, rem: o.rem || 1.7,
+    r: (o.r + o.groei * o.life * 0.5) * 0.6 * Y * (GK.stofMaat[gkStofSoort()] || 1), life: o.life, a: o.a ?? 0.9, zw: (o.zw ?? 300) * Y, rem: o.rem || 1.7,
     zweef: o.zweef ? o.zweef * Y : 0 });
 }
 function gkKlapStof(soort, tip, tip2, dir){
@@ -20496,7 +20500,7 @@ function stokTreffer(s, wx, h, sx, deel){
         stokLens.lijst = lensSpatMaak(STOK.lens); stokLens.t = 0; stokLens.x = q.x / DPR; stokLens.y = q.y / DPR;
       }
     } else if (voel) houtRaak(STOK.toon.draaislag, 1);
-    if (voel){ puffWorld(wx, 8, 0, 1.1, 0);
+    if (voel){ puffWorld(wx, 8, 0, 1.1, vloerBij(wx, ph));
       hitstop = Math.max(hitstop, stun ? 0.16 : 0.12); shake = Math.max(shake, stun ? 0.35 : 0.25); }
     if (!stun && s && s.hp > 0) s.rust = Math.max(s.rust, STOK.counterRust);   // de gewone counter: hij wankelt even
     if (stun && s && s.hp > 0){
@@ -24163,6 +24167,7 @@ function startAttack(){
     return;
   }
   if (gkKan()){ gkStart(); return; }             // de grondklap: met de stokken in de lucht omlaag plus aanval (GK)
+  if (gkAan() && !onGround && downKey() && gkKoelT > 0) balkSchud('grondklap');   // nog aan het afkoelen: het vak schudt
   if (dead || hurt > 0 || schijnLigt() || jump || amirVast() || stofA) return;
   if (stokAan() && pvp && duckT > 0){ zwaaiNu(); return; }   // Multiplayer: gebukt is het de lage zwaai (voorlopig de speerbeelden, zie mpWapenLevel)
   if (stokAan()){ stokAanval(); return; }       // de stokken: de slag, of de counter na een blok (zie STOK)
@@ -36123,9 +36128,21 @@ function updateVenom(dt, scale){
     const v = venom[i];
     v.age += dt;
     v.trail.unshift({ x: v.x, h: v.h }); if (v.trail.length > 7) v.trail.pop();
+    const vorigH = v.h;
     v.x += v.vx * dt;
     v.h += v.vh * dt;
     v.vh -= SPIT_G * dt;
+    // in de stad zijn een dak, een galerij, een trapbalkon en een takeldek ook vloeren die terrainH niet kent: het gif
+    // vloog er dwars doorheen, van de straat naar Amir op de galerij (Co-op). Kruist de bal in dit beeld de bovenkant
+    // van zo'n vloer, van boven of van onder, dan spat hij daar (voor de treffer, zodat hij niet door de vloer raakt)
+    if (stadAan()){
+      let dek = null;
+      for (const p of stadVloeren()) if (v.x > p.left && v.x < p.right && (vorigH - p.topH) * (v.h - p.topH) <= 0){ dek = p; break; }
+      if (dek){ makeSplat(v.x, dek.topH, v.knock); venom.splice(i, 1); continue; }
+    }
+    // het dak van een gang: boven een gang geeft terrainH de gangvloer, dus het gif van een slang beneden vloog door het
+    // oppervlak naar Amir erboven (en andersom). Buiten een ravijn (de ingang) is de grondlijn daar een dichte vloer
+    if (holteAt(v.x) && !inGap(v.x) && (vorigH + 1) * (v.h + 1) <= 0){ makeSplat(v.x, 0, v.knock); venom.splice(i, 1); continue; }
     const px = cxWorld() + (v.x - world);
     const hitBody = Math.abs(v.x - world) < PLAYER_HALF_W * CHAR_H * scale + 10 * scale
                  && v.h > ph && v.h < ph + CHAR_H * duckShare;
@@ -37169,15 +37186,19 @@ function updateSnakes(dt, plats, halfWNow, cliff){
         zichtZet(fosforGroep(lx, lx > world ? 1 : -1, sp.boven ? bovenVloer(lx) : undefined, !!sp.klim), sp); continue;   // boven: op het dak van een gang, niet op de bodem
       }
       if (sp.kind === 'kooiman'){
-        let kx = plek(sp.x);
+        let kx = sp.dak ? sp.x : plek(sp.x);
         if (sp.achter > 0) kx += (kx > world ? 1 : -1) * sp.achter;   // tegelijk gestart, maar verder weg
+        const dak = sp.dak ? stadDakPlek(kx, sp.dak) : null;   // op een dak of galerij van de stad (zie de bandiet); zonder dit stond hij op straat
+        if (dak) kx = dak.x;
         const k = makeKooiman(kx, kx > world ? 1 : -1, sp.vogel, sp.duel);
-        k.base = sp.boven ? bovenVloer(kx) : terrainH(kx); if (!k.duel) zichtZet(k, sp); kooimannen.push(k); continue;   // het duel is geensceneerd; boven: op het dak van een gang
+        k.base = dak ? dak.h : sp.boven ? bovenVloer(kx) : terrainH(kx); if (!k.duel) zichtZet(k, sp); kooimannen.push(k); continue;   // het duel is geensceneerd; boven: op het dak van een gang
       }
       if (sp.kind === 'meelman'){
-        const mx = sp.x;                               // op zijn ontworpen plek (de rand van de afgrond), niet verschoven
+        let mx = sp.x;                                 // op zijn ontworpen plek (de rand van de afgrond), niet verschoven
+        const dak = sp.dak ? stadDakPlek(mx, sp.dak) : null;   // op een dak of galerij van de stad
+        if (dak) mx = dak.x;
         const m = makeMeelman(mx, mx > world ? 1 : -1);
-        m.base = sp.boven ? bovenVloer(mx) : terrainH(mx); zichtZet(m, sp); meelmannen.push(m); continue;   // boven: op het dak van een gang
+        m.base = dak ? dak.h : sp.boven ? bovenVloer(mx) : terrainH(mx); zichtZet(m, sp); meelmannen.push(m); continue;   // boven: op het dak van een gang
       }
       if (sp.kind === 'kruisboogbandiet'){
         let mx = sp.x;                                 // op zijn ontworpen plek (een schutter staat ergens met opzet, zoals op een terras)
@@ -37193,10 +37214,12 @@ function updateSnakes(dt, plats, halfWNow, cliff){
         m.base = dak ? dak.h : sp.boven ? bovenVloer(mx) : terrainH(mx); zichtZet(m, sp); kruisbogen.push(m); continue;
       }
       if (sp.kind === 'zweepman'){
-        let mx = sp.boven ? sp.x : plek(sp.x);
+        let mx = (sp.boven || sp.dak) ? sp.x : plek(sp.x);
         if (sp.achter > 0) mx += (mx > world ? 1 : -1) * sp.achter;
+        const dak = sp.dak ? stadDakPlek(mx, sp.dak) : null;   // op een dak of galerij van de stad
+        if (dak) mx = dak.x;
         const m = makeZweepman(mx, mx > world ? 1 : -1, sp.fasen);   // fasen: de arm eraf en een tweede ronde (ZWM2)
-        m.base = sp.boven ? bovenVloer(mx) : terrainH(mx); zichtZet(m, sp); zweepmannen.push(m); continue;
+        m.base = dak ? dak.h : sp.boven ? bovenVloer(mx) : terrainH(mx); zichtZet(m, sp); zweepmannen.push(m); continue;
       }
       if (sp.kind === 'schildman'){
         let mx = (sp.boven || sp.dak) ? sp.x : plek(sp.x);
@@ -39992,7 +40015,7 @@ function vogelAnim(v, dt){
   }
 }
 function vogelKapot(v){
-  puffWorld(v.x, 10, 0, 1.1, terrainH(v.x));          // veren en stof waar hij de grond raakt
+  puffWorld(v.x, 10, 0, 1.1, Math.max(v.h, terrainH(v.x)));   // veren en stof waar hij neerkomt (op de grond of een dak)
   v.weg = true;
 }
 // tijdens de stamp-freeze: de net geboren vogel stijgt uit de kooi op en zweeft, maar zijn AI
@@ -40064,7 +40087,7 @@ function updateVogels(dt){
       if (!dead && invuln <= 0 && !godMode && !woedeAan()
           && Math.abs(v.x - playerX()) < hx && v.h + hh > ph && v.h - hh < ph + CHAR_H){
         hurtPlayer(v.vx > 0, v.duel ? 0.5 : 1); v.weg = true;    // de duel-vogel doet een half leven
-      } else if (v.h <= 0){ v.h = 0; vogelKapot(v); }
+      } else if (v.h <= vloerBij(v.x, v.h)){ v.h = vloerBij(v.x, v.h); vogelKapot(v); }   // de grond, of een dak of galerij van de stad
       else if (v.t >= VOGEL_DUIK_MAX) vogelKapot(v);
     }
   }
@@ -48094,7 +48117,7 @@ function updateScorp(s, dt, plats, cliff){
       s.state = 'stance'; s.t = 0; s.acc = 0; s.fade = 0;   // s.frame blijft: tijdens het draaien staat hij in zijn looppose
       const before = scpMir(s);                       // hoe hij nu staat (lopend)
       s.side = s.x > world ? 1 : -1; s.dir = -s.side;
-      if (scpMir(s) !== before){ s.mirFrom = before; s.turnT = 0; puffWorld(s.x, 5, 0); }   // omdraaien
+      if (scpMir(s) !== before){ s.mirFrom = before; s.turnT = 0; puffWorld(s.x, 5, 0, 1, s.base || 0); }   // omdraaien (op zijn eigen vloer, ook op een dak)
     }
   } else if (s.state === 'stance'){
     s.t += dt;
@@ -48108,7 +48131,7 @@ function updateScorp(s, dt, plats, cliff){
         const sc = document.getElementById('scatter');
         sc.currentTime = 0; sc.volume = 0.9; sc.play().catch(() => {});
       }
-      puffWorld(s.x - s.dir * 60, 14, -s.dir * 120);    // stofwolk achter hem bij de start
+      puffWorld(s.x - s.dir * 60, 14, -s.dir * 120, 1, s.base || 0);    // stofwolk achter hem bij de start
     }
   } else if (s.state === 'charge'){
     s.t += dt;
@@ -48122,7 +48145,7 @@ function updateScorp(s, dt, plats, cliff){
     while (s.acc >= 1){
       s.frame = (s.frame + 1) % 12; s.acc -= 1;
       kickSand(s, 6, -s.dir * 130);                  // bij de charge spat het zand naar achteren
-      if (s.frame % 2 === 0) puffWorld(s.x - s.dir * 50, 1, -s.dir * 110, 0.55);   // en stof, net als bij Amirs landing
+      if (s.frame % 2 === 0) puffWorld(s.x - s.dir * 50, 1, -s.dir * 110, 0.55, s.base || 0);   // en stof, net als bij Amirs landing
     }
   } else if (s.state === 'rest'){
     s.t += dt;
@@ -54379,6 +54402,7 @@ const balkEl = document.getElementById('actiebalk');
 const BALK_SVG = {
   rol: '<svg viewBox="0 0 32 32"><path d="M23 21A9 9 0 1 1 22 9" fill="none" stroke="#f2e8d5" stroke-width="2.6" stroke-linecap="round"/><path d="M17 6l6 3-4 5" fill="none" stroke="#f2e8d5" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   duw: '<svg viewBox="0 0 32 32"><path d="M26 16A10 10 0 1 1 20 7" fill="none" stroke="#f2e8d5" stroke-width="2.4" stroke-linecap="round"/><path d="M17 3l6 4-5 4" fill="none" stroke="#f2e8d5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 22L22 10" stroke="#e6c58f" stroke-width="2.4" stroke-linecap="round"/></svg>',
+  grondklap: '<svg viewBox="0 0 32 32"><path d="M11 4l2 20M21 4l-2 20" stroke="#e6c58f" stroke-width="2.6" stroke-linecap="round"/><path d="M3 26h26" stroke="#f2e8d5" stroke-width="2.2" stroke-linecap="round"/><path d="M5 21l3 3M27 21l-3 3M2 16l4 5M30 16l-4 5" stroke="#f2e8d5" stroke-width="1.8" stroke-linecap="round"/></svg>',
   schild: '<svg viewBox="0 0 32 32"><path d="M16 4l10 4v7c0 7-5 11-10 13C11 26 6 22 6 15V8z" fill="none" stroke="#f2e8d5" stroke-width="2.4" stroke-linejoin="round"/><path d="M16 9v15" stroke="#e6c58f" stroke-width="1.6"/></svg>'
 };
 // per vak: of hij er is, hoe ver de afkoeling is (p, 1 is klaar), de seconden die nog over zijn, en wat er verder bij hoort
@@ -54399,6 +54423,10 @@ const BALK = [
   { id: 'duw', toets: 'X', icoon: () => BALK_SVG.duw, staat(){
       const p = duwKoel > 0 ? 1 - duwKoel / DUW.koel : 1;
       return { zien: duwAan(), klaar: p >= 1, p, sec: duwKoel, dim: !spear };
+    } },
+  { id: 'grondklap', toets: '\u2193+F', icoon: () => BALK_SVG.grondklap, staat(){   // de grondklap (GK): in de lucht omlaag plus aanval
+      const p = gkKoelT > 0 ? 1 - gkKoelT / gkKoelDuur() : 1;
+      return { zien: gkAan(), klaar: p >= 1, p, sec: gkKoelT, aan: !!gkFase };
     } },
   { id: 'schild', toets: 'C', icoon: () => BALK_SVG.schild, staat(){
       return { zien: SCHILD_AAN || STOK_AAN, klaar: true, p: 1, aan: schildOp() || stokBlokNu() };   // met de stokken is C het blok (STOK)
@@ -64143,19 +64171,24 @@ function mpcLeeft(o){ return sbLeeft(o) && o.fase !== 'dood' && o.fase !== 'weg'
 
 // ---- de host: een doel per speler voor dezelfde AI ----
 // de stand van een gast in de globalen van de speler zetten, en daarna weer terug
-const MPC_WISSEL = ['world', 'ph', 'dead', 'invuln', 'lives', 'facing', 'duckT', 'duckShare', 'camSwap'];
+// knock hoort erbij: de landingsklap en de terugslag van de schildbandiet (en elke andere terugstoot uit een update)
+// schrijven hem, en zonder wissel kreeg de host de duw die voor de gast bedoeld was, uitgerekend vanaf de plek van de
+// gast. Stond de host op een dak of galerij, dan vloog hij er zo af, in een gevecht waar hij niet eens in zat
+const MPC_WISSEL = ['world', 'ph', 'dead', 'invuln', 'lives', 'facing', 'duckT', 'duckShare', 'camSwap', 'knock'];
 let mpcWissel = null;                                // { p: het slot van de gast, oud: de stand van de host }
-function mpcLees(){ return [world, ph, dead, invuln, lives, facing, duckT, duckShare, camSwap]; }
-function mpcSchrijf(v){ [world, ph, dead, invuln, lives, facing, duckT, duckShare, camSwap] = v; }
+function mpcLees(){ return [world, ph, dead, invuln, lives, facing, duckT, duckShare, camSwap, knock]; }
+function mpcSchrijf(v){ [world, ph, dead, invuln, lives, facing, duckT, duckShare, camSwap, knock] = v; }
 function mpcGastStand(p){
   const g = pvpAnderNu(p);
-  return [g.x, g.h, !!g.d, g.iv || 0, g.l || 0, g.f || -1, g.du || 0, g.ds || 1, null];
+  return [g.x, g.h, !!g.d, g.iv || 0, g.l || 0, g.f || -1, g.du || 0, g.ds || 1, null, 0];
 }
 function mpcWisselIn(p){ mpcWissel = { p, oud: mpcLees() }; mpcSchrijf(mpcGastStand(p)); }
 function mpcWisselUit(){
   const p = mpcWissel.p, voor = pvpAnderNu(p).l || 0, na = lives;   // de fosfor schrijft levens rechtstreeks: dat verschil gaat naar die gast
+  const duw = knock;                                                 // een terugstoot voor de gast: die gaat naar hem, niet naar de host
   mpcSchrijf(mpcWissel.oud); mpcWissel = null;
   if (na < voor) pvpZendAan(p, { t: 'au2', l: 0, s: voor - na });
+  if (duw) pvpZendAan(p, { t: 'duw2', k: duw });
 }
 // heeft gast p een doel dat de vijanden mogen kiezen?
 function mpcGastDoel(p){ const g = pvpAnderNu(p); return !!(g && g.x != null && !g.d && pvp.spelers.includes(p)); }
@@ -64818,6 +64851,8 @@ function mpCoopOntvang(m){
   if (m.t === 'mh'){ if (pvp.host) mpcTrefferVanGast(m); return true; }
   if (m.t === 'gk'){ if (!laadWacht) gkKlapBeeld(m.x, m.x2, m.d, nowScale(), m.b * nowScale(), m.v); return true; }   // de grondklap van een ander: alleen beeld en geluid
   if (m.t === 'au2'){ if (!laadWacht) mpcHurtOrig(!!m.l, m.s || 1); return true; }
+  // de terugstoot die de host voor mij uitrekende (de landingsklap van de schildbandiet): nooit zwakker dan een al lopende
+  if (m.t === 'duw2'){ if (!laadWacht && !dead && !godMode && !woedeAan() && Math.abs(m.k) > Math.abs(knock)) knock = m.k; return true; }
   if (m.t === 'deur'){ mpcDeurOpen({ gevel: m.g, verdieping: m.v }, true); return true; }
   if (m.t === 'ton'){ if (!tonnen.some(t => t.mpId === m.d.id)) mpcTonZet(m.d, true); return true; }
   if (m.t === 'tonH'){ const t = tonnen.find(o => o.mpId === m.id); if (pvp.host && t) mpcTonRaak(t, m.from, m.p); return true; }
