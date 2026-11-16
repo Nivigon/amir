@@ -51,7 +51,10 @@ Alleen in Test 74 (`stokken: true`) en de sandboxknop **Stokken**.
   het frame (de stap om het andere frame, voor het tempo), `STOK.ms.stapslag` per positie: de klap na zo'n 0,36 s, klaar
   na 0,53 s. Root motion: `STOK.stapslag.root` (frame-px per frame, de geplante voet vastgezet; eerst de oude voorvoet,
   na de landing de nieuwe), `stokRoot` schuift per positie met het verschil. Een gebufferde tweede slag (vanaf positie
-  `buf` 19, begint op `annuleer` 21) is de gewone `slag` op de plek. Sandboxknop **Stapslag**.
+  `buf` 19, begint op `annuleer` 21) is de gewone `slag` op de plek. De stapslag duwt een bandiet echt terug (`STOK.stapslag.knock` 250, zo'n 65 px, in plaats van de verkleinde knock van
+  de reeks), en de stap houdt op met schuiven als er een vijand binnen `stop` (0,45 Amir) voor hem staat (`stokVijandVoor`),
+  zodat hij niet door hem heen stapt. Gemeten met een stilstaande bandiet op 90 en 150 px: de stapslag en de tweede slag
+  raken allebei (tussen 79 en 99 px na de stap). Sandboxknop **Stapslag**.
   Het canvas groeide voor de opgeheven stok: 511 x 384, anker 298, grond 379 (links 13 en boven 30 erbij; de andere
   sets zijn daarvoor opgevuld en hun slip-knopen mee verschoven). Gebakken met `tools/stok_bak.py --alleen stapslag
   --canvas 511,384,298,379`. De vlekjes op de vacht zijn op de rugframes (19-27) weggehaald (Tom). Verwerking: zie het
