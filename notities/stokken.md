@@ -95,3 +95,4 @@ geen guard vasthouden tijdens een ren (de armen gingen altijd pompen), dus de ni
 Test 74 heeft `nieuweRen: true`, zodat de stokkenren gelijk oploopt met de looplus en het tempo de snelheid volgt.
 Zonder nieuwe ren (de sandboxknop Stokken alleen) wordt de oude lus van 8 over de 12 frames uitgesmeerd (`stokBeeld`).
 Scripts uit de sessie: /home/claude/stok/puppet2.py (tilt 3, stokken 5 en 7).
+- Vuisten (16-11-2026): Grok had de vuisten om de gespiegelde diagonaal getekend. Nieuwe still van Grok vanaf een collage met de groene stokken al in de goede hoek (de handen om de stokken laten sluiten); lijf en vuisten daaruit, de vuisten als bovenste laag met gaten waar het groen zat, zodat de stok door de vuist loopt (/home/claude/stok/puppet3.py).
