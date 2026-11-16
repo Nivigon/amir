@@ -438,7 +438,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `fg` | strook waarover de voorgrondbegroeiing ligt: `{from, to}` |
 | `voorgrond` | de onscherpe laag vlak voor de camera: `{stroken: [{van, tot, dicht, struik, kei}], los: [{x, k, s, f}]}`, `k` uit `VG_SOORT`; los van `fg`. Zonder dit veld krijgt het level de standaard, met `false` heeft het er geen, met `'stad'` de stadsvoorgrond (De Gouden Poort, zie `notities/voorgrond.md`) |
 | `arena` | het veld van de eindbaas: `{c}` |
-| `cliffs` | de afsluitende rotswand: `{x}`, staat altijd achter `ends`; met `s` groter getekend (`s: 2.3` in The Dye Yard, zodat de top buiten beeld valt), de grens blijft op `x` |
+| `cliffs` | de afsluitende rotswand: `{x}`, staat altijd achter `ends`; met `s` groter getekend (`s: 2.3` in The Dye Yard, zodat de top buiten beeld valt), de voet zakt dan dieper (`CLIFF.sinkGroot`) en wordt op de grond afgeknipt; de grens blijft op `x` |
 | `ends` | de fakkels die het level uitspelen: `{x}` |
 | `npcs` | dorpelingen: `{x, k, f, s}` |
 | `tips` | tekst onderweg: `{x, t}` |
