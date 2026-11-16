@@ -420,11 +420,18 @@ async function elk(H, G){
         winkel: typeof MPC_WINKEL !== 'undefined' ? MPC_WINKEL.filter(q => mpcWinkelVoorMij(q)).map(q => q.k).join() : '' }));
       const wil = stokken.includes(r.wie);
       meld(st.aan === wil && (!wil || (!st.spear && st.rug === 0)), r.wie + ': ' + (wil ? 'stokken, geen speer en geen rug' : 'de speer') + ' (' + JSON.stringify(st) + ')');
-      if (!args.includes('--duel')) meld(wil ? (st.winkel.includes('hout') && !/speer|gif|fc|slot/.test(st.winkel)) : !st.winkel.includes('hout'),
+      if (!args.includes('--duel')) meld(wil ? (st.winkel.includes('hout') && st.winkel.includes('slam') && !/speer|gif|fc|slot/.test(st.winkel)) : !st.winkel.includes('hout'),
         r.wie + ': de winkel voor zijn wapen (' + st.winkel + ')');
     }
     // een stokslag van een gast bij de host: een halve treffer, met Hardwood sticks 0,75, en de counter een hele
     const gi = ramen.findIndex(r => r !== H && stokken.includes(r.wie));
+    // de grondklap in Co-op: aan bij de stokspelers, 5 s afkoeling, en de golf van de gast doet bij de host zijn schade
+    for (const r of ramen) if (stokken.includes(r.wie)){
+      const g = await r.page.evaluate(() => ({ aan: gkAan(), koel: (() => { const k = gkKoelT; gkKoelT = 0; gkFase = 'land';
+        atkStok = 'grondklap'; atkFrame = STOK.ms.grondklap.length - 1; atkAcc = 0; dead = false; hurt = 0; gkStokStap(1);
+        const uit = gkKoelT; gkKoelT = k; return uit; })() }));
+      meld(g.aan && g.koel === 5, r.wie + ': de grondklap aan, 5 s afkoeling (' + JSON.stringify(g) + ')');
+    }
     if (gi > 0 && !args.includes('--duel') && await tot(H.page, () => bandieten.some(b => mpcLeeft(b) && b.mpId != null && b.hp >= 3), null, 20000)){
       const d = await H.page.evaluate(p => {
         const b = bandieten.find(b => mpcLeeft(b) && b.mpId != null && b.hp >= 3), uit = [];
@@ -436,6 +443,38 @@ async function elk(H, G){
         return uit.join() + (atkStok == null && stokHoutGast == null ? '' : ' (de stand van de host lekt)');
       }, gi);
       meld(d === '0.5,0.75,1', 'de stokslag van de gast bij de host: slag, Hardwood, counter (' + d + ')');
+    }
+    if (gi > 0 && !args.includes('--duel') && await tot(H.page, () => bandieten.some(b => mpcLeeft(b) && b.mpId != null), null, 30000)){
+      const gk = await H.page.evaluate(p => {
+        const b = bandieten.find(b => mpcLeeft(b) && b.mpId != null);
+        if (!b) return 'geen bandiet';
+        const uit = [];
+        for (const [onder, sch, kn] of [[false, 0.5, 1], [true, 0.5, 1], [false, 1, 1.6]]){   // de laatste: Ground slam: heavier (GK.zwaar)
+          if (b.hp < 2) b.hp = 3;
+          const voor = b.hp; b.inv = 0; b.mpGemeld = 0; b.rust = 0;
+          const x0 = onder ? b.x + 20 : b.x + 400, tot = onder ? b.x - 20 : b.x + 300;   // dir -1: onder als x tussen tot en x0
+          mpcTrefferVanGast({ p, a: 'bandieten', id: b.mpId, f: 'hitBandiet', g: [], st: 'grondklap', sf: 15, co: 0, hw: 0, gk: [x0, tot, -1, sch, kn] });
+          uit.push(+(voor - b.hp).toFixed(2), b.gkVan === x0 && b.gkKnock === kn ? 'van' : 'mis');
+        }
+        return uit.join() + (gkRaak ? ' (gkRaak lekt)' : '');
+      }, gi);
+      await ramen[gi].page.evaluate(() => { const r = gkRaak; gkInslag(); gkRaak = r; });   // de klap van de gast: de anderen zien hem ('gk')
+      await wacht(800);
+      const zie = await H.page.evaluate(() => gkFx.golven.length + gkFx.stof.length);
+      meld(zie > 0, 'de host ziet de grondklap van de gast (' + zie + ' golven en wolken)');
+      meld(gk === '0.5,van,1,van,1,van', 'de golf van de gast bij de host: gewoon, recht eronder en heavier (' + gk + ')');
+      // de lijken: een dode vijand is binnen 6 s weg, bij de host en bij de gast
+      const lid = await H.page.evaluate(() => {
+        const b = bandieten.find(b => mpcLeeft(b) && b.mpId != null); if (!b) return null;
+        for (let i = 0; i < 12 && mpcLeeft(b); i++){ b.inv = 0; b.rust = 0; MPC_ORIG.hitBandiet(b); }
+        return mpcLeeft(b) ? null : b.mpId;
+      });
+      if (lid != null){
+        await wacht(6500);
+        const nog = [];
+        for (const r of ramen) if (await r.page.evaluate(id => bandieten.some(b => b.mpId === id), lid)) nog.push(r.wie);
+        meld(!nog.length, 'het lijk is binnen 6 s weg' + (nog.length ? ' (nog bij ' + nog.join() + ')' : ''));
+      } else meld(false, 'het lijk: geen bandiet dood te krijgen');
     }
   }
   // de spelers: naar de dichtstbijzijnde vijand lopen en steken; R na game over

@@ -113,6 +113,13 @@ de lobby staat dan in het staande stokframe.
 - **De winkel:** een artikel met `speer: true` (speer, gif, Full Circle en zijn upgrades, extra speerslot) ziet een stokspeler
   niet, een met `stok: true` (**Hardwood sticks**, 40 goud: de slag, stapslag en slag 2 kosten 0,75 in plaats van 0,5,
   `STOK.schadeHout`, `stokHoutNu`) alleen hij (`mpcWinkelVoorMij`). Het rek en `mpcSperenTerug` geven hem geen speer.
+- **De grondklap (16-11-2026):** een stokspeler heeft in Co-op de grondklap van `notities/stokken.md` (`mpWapenLevel` zet
+  `grondklap`, niet in het Duel), met 5 s afkoeling (`GK.koelCoop`). Een treffer van de golf van een gast gaat in `mh` met
+  `gk` (begin, eind van "recht eronder", richting, schade, knock) naar de host, die er tijdens de treffer `gkRaak` van maakt,
+  zodat de schade en de terugduw van de gast zijn (`gkVan`, `gkKnock` op de vijand). De klap zelf (golf, stof, geluid) gaat
+  met `{t: 'gk'}` naar de anderen (in `MP_DOOR`), alleen voor het beeld (`gkKlapBeeld`). In de winkel **Ground slam: heavier**
+  (50 goud, `slam`, `stok: true`): een hele treffer in plaats van een halve en 1,6 keer verder terug (`GK.zwaar`, `gkZwaarNu`).
+  `tools/mptest.js --stokken host,gast --soorten bandiet` kijkt het na.
 - **Open:** de stokken doen alleen bij een bandiet een halve treffer (`stokSchade` zit alleen in `hitBandiet`); bij de andere
   vijanden is een stokslag een hele. In het Duel kost elke stokslag een leven, net als een steek. De slippen aan de grip
   tekent alleen je eigen Amir. Testen: `tools/mptest.js --stokken gast` (of `host`, met `--duel`).
@@ -140,6 +147,9 @@ de lobby staat dan in het staande stokframe.
 - **Tonnen:** elke ronde een ton op een willekeurige bereikbare plek (straat, galerij, de daken van de lage huizen, de
   kramen). Wat erin zit komt uit een knikkerzak: 10 knikkers, `kalebas`% kalebassen en de rest goud (3 voor wie hem breekt).
   Is de zak leeg, dan wordt hij opnieuw gevuld. Zo komt het percentage echt uit, zonder lange droge reeksen.
+- **Lijken (16-11-2026):** een dode vijand is na `MPC.lijkWeg` (5) seconden weg, met een wolkje stof (`mpcLijkStap` bij de
+  host, `mpcLijkWolk`); de gast volgt de lijst van de host en zet dan ook een wolkje. `tools/mptest.js --stokken host,gast
+  --soorten bandiet` kijkt na dat het lijk bij allebei binnen 6 s weg is.
 - **Dood en revive:** wie doodgaat blijft als lijk liggen, de camera volgt de teamgenoot, bovenin "Waiting for revive".
   20 s na de dood komt er een revive-ton (met de letters REVIVE erop, drie treffers). Wie hem breekt en het symbool pakt,
   revivet de ander: die staat op naast hem met 1 leven. Zijn allebei dood, dan is het game over.

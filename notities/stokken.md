@@ -168,9 +168,11 @@ Met de stokken in de lucht omlaag plus aanval (`GK`, `gkKan`, `gkStart`, `gkLuch
   schorpioenen wippen omhoog (`gkH`, in hun tekencode).
 - Beeld: de bult in de vloer is de truc van Nyundo (`gkGrondTeken`, voor Amir getekend), stof met de deeltjes van Nyundo
   (`bruStofDeeltje`/`bruStofStap`/`bruStofTeken` op `gkFx`) en eigen steentjes (`gkStofTeken`, na de vijanden).
+- In Co-op (16-11-2026): elke stokspeler heeft de grondklap (`mpWapenLevel` zet `grondklap`), met 5 s afkoeling
+  in plaats van 8 (`GK.koelCoop`, `gkKoelDuur`; het vak in de actiebalk volgt dat). Zie "Het wapen" in `notities/multiplayer.md`.
 - Keuze in Test 76 (`gkKeuze`): `duoKeuze.gkBereik` en `duoKeuze.gkSchade` in het instellingenscherm.
 - Het stof (16-11-2026): drie soorten, in Test 76 te kiezen onder **Slam dust** (`duoKeuze.gkStof`, `gkStofSoort`).
-  `nu` (Current, de standaard) is het oude stof (`gkKlapStofNu`). `kam` (Growing crest): een kleine kroon op de klap, en
+  `nu` (Current) is het oude stof (`gkKlapStofNu`). `kam` (Growing crest): een kleine kroon op de klap, en
   de golf gooit stof op dat hoger wordt naarmate hij verder rolt (aan het eind zo'n twee Amir), met een hoge pluim
   (tot zo'n drie Amir) waar hij ophoudt, ook tegen een trede (`gkGolfStof`, `gkPluim`). `kroon` (Crown and ring): het stof spuit in een V omhoog (55 tot 72 graden, sneller is hoger
   en verder), een lage ring rolt over de grond weg en de diepte in, en een lage stofrol loopt met de golf mee
