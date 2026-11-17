@@ -20226,7 +20226,7 @@ function gkLaad(){
   gkGeluid = { inslag: banStemmen('sounds/brutus_inslag.mp3', 2), grond: banStemmen('sounds/kooihitground.mp3', 2),
                ton: banStemmen('sounds/ton_zwaar.mp3', 2) };
 }
-function gkBoven(){ return ph - Math.max(0, terrainH(world)); }   // hoe hoog boven de grond (zonder zwevers)
+function gkBoven(){ return ph - Math.max(0, gkVloerBij(playerX(), ph)); }   // hoe hoog boven de vloer eronder (ook een dak, galerij of zwever)
 function gkKan(){
   return gkAan() && !onGround && downKey() && !dead && hurt <= 0 && atkFrame < 0 && !gkFase
     && (straalBurst() ? straalKlappen < STRAAL.klappen : gkKoelT <= 0) && !straalMoe()   // de zonnestraal: ontketend twee keer, uitgeput niet
@@ -20266,7 +20266,7 @@ function gkRichting(){ return facing === 1 ? 1 : -1; }      // de kijkrichting i
 // de klap: de stokken in de grond. Hitstop, schok, het geluid, stof bij de stokpunten en de golf
 function gkInslag(){
   const sc = nowScale(), dir = gkRichting(), maat = stokMaat('grondklap');
-  const px = playerX(), tip = px + dir * -STOK.punt.grondklap[0] * maat * sc, vloer = terrainH(tip);
+  const px = playerX(), tip = px + dir * -STOK.punt.grondklap[0] * maat * sc, vloer = gkVloerBij(px, ph);   // de vloer onder Amir zelf (ook een dak, galerij of zwever), niet de grond onder de stokpunt
   const tip2 = px + dir * 10 * maat * sc;                   // de achterste stok staat vlak voor hem
   gkSchaal = sc;
   hitstop = Math.max(hitstop, GK.stop); shake = Math.max(shake, GK.schok);
@@ -20284,7 +20284,7 @@ function gkInslag(){
 }
 // de golf, het stof en het geluid van een klap; ook voor de klap van een andere speler in Co-op (zonder treffers)
 function gkKlapBeeld(tip, tip2, dir, sc, ber, vloer){
-  gkLaad(); gkSchaal = sc;
+  gkLaad(); gkSchaal = sc; gkFx.vloer = vloer;          // het stof hoort bij de vloer van deze klap, niet bij de grond eronder
   const soort = gkStofSoort();
   gkFx.golven.push({ x: tip, x0: tip, dir, ver: ber, stofAcc: 0, vloer, soort });
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -20384,8 +20384,10 @@ function gkPluim(g){
   }
   for (let i = 0; i < 12; i++) gkSteen(g.x, rnd(-1, 1) * 80 * X, rnd(380, 560) * Y * 0.75, rnd(2.5, 4.5));
 }
+// de vloer van de grondklap op x, voor wie op hoogte h staat: ook een dak, galerij, zwever of takeldek (vloerBij)
+function gkVloerBij(x, h){ const v = vloerBij(x, h); return v > -Infinity ? v : terrainH(x); }
 function gkSteen(wx, vx, vh, r){
-  gkFx.stenen.push({ wx, h: 0, vx, vh, r, rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 16, age: 0, life: 0.9 + Math.random() * 0.5,
+  gkFx.stenen.push({ wx, vl: gkFx.vloer ?? terrainH(wx), h: 0, vx, vh, r, rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 16, age: 0, life: 0.9 + Math.random() * 0.5,
                      kleur: Math.random() < 0.5 ? '#6b5236' : '#4a3826' });
 }
 // per beeld: de golf rolt, stof en steentjes, de vijanden die geraakt zijn wankelen en wippen, de afkoeling
@@ -20395,7 +20397,7 @@ function gkUpdate(dt){
   const sc = gkSchaal, rnd = (a, b) => a + Math.random() * (b - a);
   for (const g of gkFx.golven){
     const stap = GK.golfV * sc * dt;
-    if (Math.abs(terrainH(g.x + g.dir * stap) - g.vloer) > 30){   // een trede of terras houdt de golf tegen
+    if (Math.abs(gkVloerBij(g.x + g.dir * stap, g.vloer) - g.vloer) > 30){   // een trede, terras of de rand van een dak houdt de golf tegen
       g.ver = Math.min(g.ver, Math.abs(g.x - g.x0));
       if (gkRaak && gkRaak.dir === g.dir) gkRaak.ver = g.x;
     }
@@ -20413,7 +20415,7 @@ function gkUpdate(dt){
         bruStofDeeltje(gkFx, { wx: g.x - g.dir * rnd(0, 40) * sc, y: -rnd(0, 10), vx: g.dir * rnd(60, 320) + rnd(-60, 60),
                                vy: -rnd(60, 260) * (0.5 + rest), r: rnd(22, 46) * (0.6 + 0.6 * rest), life: rnd(0.6, 1.1), a: 0.8 });
       if (Math.random() < 0.8) gkSteen(g.x + rnd(-10, 10) * sc, g.dir * rnd(40, 220), rnd(180, 480) * (0.5 + rest), rnd(2, 4));
-      if (Math.random() < 0.5) stofKorrel(g.x, terrainH(g.x), g.dir * rnd(50, 250), rnd(80, 300));
+      if (Math.random() < 0.5) stofKorrel(g.x, g.vloer, g.dir * rnd(50, 250), rnd(80, 300));
     }
   }
   for (const g of gkFx.golven) if (Math.abs(g.x - g.x0) >= g.ver) g.uit = (g.uit || 0) + dt;   // aan het eind zakt de bult nog even weg
@@ -20472,7 +20474,7 @@ function gkGrondTeken(cx, scale, groundY){
   for (const g of gkFx.golven){
     const rest = Math.max(0, 1 - Math.abs(g.x - g.x0) / Math.max(1, g.ver)), weg = g.uit ? Math.max(0, 1 - g.uit / 0.25) : 1;
     const A = GK.bult * scale * (0.35 + 0.65 * rest) * weg, B = GK.breed * scale, sx = cx + (g.x - world);
-    const grondY = groundY - terrainH(g.x) * scale;
+    const grondY = groundY - g.vloer * scale;               // de bult op de vloer van de klap (ook een dak)
     const p0 = T.transformPoint({ x: sx - B * 1.6, y: grondY - 4 }), p1 = T.transformPoint({ x: sx + B * 1.6, y: grondY + 70 * scale });
     const kol = Math.max(2, Math.round(3 * T.a)), schaalY = T.d;
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -20504,7 +20506,7 @@ function gkStofTeken(cx, scale, groundY){
     ctx.save();
     for (const st of gkFx.stenen){
       const k = 1 - Math.max(0, (st.age - st.life + 0.3) / 0.3), r = st.r * scale, sx = cx + (st.wx - world);
-      const vloer = groundY - terrainH(st.wx) * scale;
+      const vloer = groundY - gkVloerBij(st.wx, st.vl) * scale;
       ctx.globalAlpha = k * 0.3; ctx.fillStyle = '#1d140f';
       ctx.beginPath(); ctx.ellipse(sx, vloer, r * 1.1, r * 0.3, 0, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = k; ctx.fillStyle = st.kleur; ctx.strokeStyle = '#241910'; ctx.lineWidth = Math.max(1, scale);
@@ -20514,12 +20516,14 @@ function gkStofTeken(cx, scale, groundY){
     }
     ctx.restore();
   }
-  bruStofTeken(gkFx, groundY - terrainH(playerX()) * scale, scale, cx, 'voor');
+  bruStofTeken(gkFx, groundY - gkStofVloer() * scale, scale, cx, 'voor');
 }
 // het stof achter de looplijn (de ring en de kroon de diepte in), voor Amir getekend
 function gkStofAchter(cx, scale, groundY){
-  if (gkFx.stof.length) bruStofTeken(gkFx, groundY - terrainH(playerX()) * scale, scale, cx, 'achter');
+  if (gkFx.stof.length) bruStofTeken(gkFx, groundY - gkStofVloer() * scale, scale, cx, 'achter');
 }
+// de hoogte waar het stof van de laatste klap op staat (gkFx.vloer); blijft staan als Amir weer verder loopt
+function gkStofVloer(){ return gkFx.vloer ?? terrainH(playerX()); }
 function gkWis(){ gkFx.stof.length = 0; gkFx.stenen.length = 0; gkFx.golven.length = 0; gkRaak = null; gkFase = null; gkKoelT = 0; }
 
 // ---- de zonnestraal: mediteren in het licht en dan even ontketend (Sun Lion), met de stokken ----
