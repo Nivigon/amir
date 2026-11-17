@@ -39589,7 +39589,11 @@ function hitHyena(s){
 // door een kei, ravijn of wand heen. Easing per beeld, zodat het soepel uit elkaar glijdt.
 const MOB_SCHEID_K = 6;       // hoe snel ze uit elkaar glijden (per seconde)
 const MOB_SCHEID_HOOG = 40;   // scheelt hun vloer meer dan dit, dan staan ze niet naast maar boven elkaar
-function scheidMobs(list, gap, move, dt, plats, cliff){
+// `houding(s)` (optioneel) zegt per maat hoe hij in de scheiding staat: 0 gewoon (allebei de helft van de duw),
+// 1 hij staat (in zijn aanval): hij wordt niet geduwd, de ander krijgt de hele duw, en 2 hij is uitgeschakeld
+// (verdoofd, blind, in zijn terugstoot): dan geen scheiding met hem, de ander loopt gewoon langs hem heen.
+// Anders duwde een rennende bandiet een gestunde maat voor zich uit naar Amir toe en kon hij hem nooit inhalen.
+function scheidMobs(list, gap, move, dt, plats, cliff, houding){
   const ease = Math.min(1, MOB_SCHEID_K * dt);
   for (let i = 0; i < list.length; i++){
     const a = list[i];
@@ -39605,10 +39609,14 @@ function scheidMobs(list, gap, move, dt, plats, cliff){
       if (!!a.zWacht !== !!b.zWacht) continue;
       const d = b.x - a.x, afst = Math.abs(d);
       if (afst >= gap) continue;
+      const ha = houding ? houding(a) : 0, hb = houding ? houding(b) : 0;
+      if (ha === 2 || hb === 2) continue;          // een uitgeschakelde maat: langs hem heen
+      if (ha === 1 && hb === 1) continue;          // allebei in hun aanval: niemand schuift
       const dir = d >= 0 ? 1 : -1;                 // b staat rechts van (of op) a
       const duw = (gap - afst) * 0.5 * ease;
-      move(b, dir * duw, plats, cliff);
-      move(a, -dir * duw, plats, cliff);
+      const fa = ha === 1 ? 0 : hb === 1 ? 2 : 1, fb = hb === 1 ? 0 : ha === 1 ? 2 : 1;
+      if (fb) move(b, dir * duw * fb, plats, cliff);
+      if (fa) move(a, -dir * duw * fa, plats, cliff);
     }
   }
 }
@@ -42185,7 +42193,15 @@ function updateBandieten(dt, plats, cliff){
     updateBandiet(s, dt, plats, cliff);
     if (s.state === 'weg') bandieten.splice(i, 1);
   }
-  scheidMobs(bandieten, BAN_SCHEID * banScale(), banMove, dt, plats, cliff);
+  scheidMobs(bandieten, BAN_SCHEID * banScale(), banMove, dt, plats, cliff, banScheidHouding);
+}
+// Hoe een bandiet in de scheiding staat (zie scheidMobs): uitgeschakeld (blind, verdoofd door de stokken, nog in de
+// terugstoot van een treffer) laat de ander langs, in zijn aanval (slag, worp, spot, vault) of zijn rust na een slag
+// schuift hij niet op, zodat twee maten bij Amir niet op elkaar gaan staan.
+function banScheidHouding(s){
+  if (s.verblind > 0 || s.stokStun > 0 || s.knock || (s.rust > 0 && s.flash > 0)) return 2;
+  if (s.rust > 0 || s.state === 'slag' || s.state === 'worp' || s.state === 'spot' || s.state === 'vault') return 1;
+  return 0;
 }
 function updateBandiet(s, dt, plats, cliff){
   if (achterMasker(s.x, s.base) || s.sneakVast) return;                     // bevroren achter een masker dat er nog ligt
