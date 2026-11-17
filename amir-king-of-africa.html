@@ -48436,8 +48436,10 @@ function fosforBrokken(s, n, kracht){
   }
 }
 
+// de versteende tijd van Amir telt los van de slangen af: in Co-op draait updateFosforSlangen alleen bij de host (en daar
+// een keer per groep), dus bij een gast bleef hij na een beet voorgoed grijs (zie mpcUpdate)
+function amirSteenStap(dt){ if (amirSteen > 0) amirSteen = Math.max(0, amirSteen - dt); }
 function updateFosforSlangen(dt, plats, cliff){
-  if (amirSteen > 0) amirSteen = Math.max(0, amirSteen - dt);
   for (let i = fosforBrok.length - 1; i >= 0; i--){
     const b = fosforBrok[i];
     b.t += dt;
@@ -50808,6 +50810,7 @@ function loop(now){
   duoTick(dt);                                     // de duo-arena: telkens een schutter en een schildman
   sbArenaUpdate(dt);                               // de golven van de arena-modus in de sandbox
   sbGolfTick(dt);                                  // dezelfde golf, maar met de sandbox-knop
+  amirSteenStap(dt);                               // versteend door de fosforslang: telt ook bij een gast af
   updateFosforSlangen(dt, platsV, cliff);
   arenaTick(dt);
   updateGoudapen(dt);
@@ -64718,6 +64721,7 @@ function pvpStap(rdt){
       sf: atkFrame, ss: atkStok || undefined, sl: steekLive() && !atkMes ? 1 : 0, sn: pvp.sn, sw: swFrame, wn: pvp.wn, j, l: lives, d: dead ? 1 : 0,
       iv: invuln > 0 ? 1 : 0, du: +duckT.toFixed(2), ds: +duckShare.toFixed(2) }, pvp.mijn));   // iv, du en ds: de stand voor de vijanden van Co-op (mpcGastStand)
   }
+  if (pvp.coop) mpcVriesWacht(rdt);                 // Co-op: een freeze die niet afloopt laat Amir niet voorgoed staan
   if (pvp.coop) mpCoopStap(rdt, rdt);                // Co-op: de rondes, de deuren en de vijanden
 }
 function pvpBeeld(src){
@@ -64815,6 +64819,7 @@ const MPC = {
   boven: 5,                 // hooguit zoveel boven (galerij en balkon) tegelijk, daarna komen ze beneden
   balkon: 2,                // hooguit zoveel kruisboogschutters op het balkon van het middenhuis
   reviveNa: 20,             // zoveel seconden na een dood komt de revive-ton
+  vriesMax: 6,              // staat de wereld langer zo lang stil (een freeze die niet afliep), dan gaat hij los (mpcVriesWacht)
   wissel: 150,              // een vijand wisselt pas van doel als een ander zoveel dichterbij is
   hz: 20,                   // standberichten van de vijanden per seconde (via het relais PVP_RELAY.hz)
   sleutel: 1,               // elke zoveel seconden alle velden opnieuw, niet alleen wat veranderd is
@@ -65779,8 +65784,27 @@ function mpcSperenTerug(){
   while (rugSperen.length < Math.min(RUG_MAX, RUG_STANDAARD)) rugSperen.push({ blauw: false });
   setSpearLabel();
 }
+// alles wat Amir laat stilstaan (de wereld op dt 0, of een pauze achter een scherm) weer los. Bij een gast liep het
+// eind van zo'n freeze soms via code die alleen de host draait (mpcUpdate), en dan bleef hij midden in een loopframe
+// staan, ook in de winkel. Bij de winkel in en uit gaat het daarom altijd los, en mpcVriesWacht vangt de rest
+function mpcOntdooi(){
+  hitstop = 0; deurFreeze = 0; kooiVries = 0; kooiVriesS = null; bruVries = null; murcVries = null;
+  if (exeVries){ exeVries = null; exeZoomNu = 1; exeSnijStop(); }
+  sneakRegie = null; rol = null; rolW = null; amirSteen = 0;
+  if (invUIAan) invUIDicht();
+  if (paused && pauseEl.classList.contains('on')) resumeGame();
+}
+// het vangnet: staat de wereld in Co-op langer dan MPC.vriesMax seconden stil (niet gepauzeerd), dan gaat het los
+let mpcVriesT = 0;
+function mpcVriesWacht(rdt){
+  const vast = !paused && (hitstop > 0 || deurFreeze > 0 || kooiVries > 0 || bruVries || murcVries || exeVries
+    || (sneakRegie && !sneakRegie.vrij));
+  mpcVriesT = vast ? mpcVriesT + rdt : 0;
+  if (mpcVriesT > MPC.vriesMax){ mpcVriesT = 0; mpcOntdooi(); }
+}
 // naar de winkel, bij iedereen (de host besluit het, de gasten horen het met winkel)
 function mpcWinkelIn(){
+  mpcOntdooi();
   const C = pvp.coop;
   C.fase = 'winkel'; C.inWinkel = true; C.wkKlaar = {}; C.mijnKlaar = false;
   C.doodT = {}; C.symbolen = []; C.reviveRust = {};
@@ -65814,7 +65838,7 @@ function mpcWinkelUit(){
   const C = pvp.coop;
   if (!C.inWinkel) return;
   C.inWinkel = false; C.mijnKlaar = false; C.wkKlaar = {};
-  winkelUIDicht();
+  winkelUIDicht(); mpcOntdooi();
   const r = wapenrekken[0]; if (r){ r.n = pvp.regels.coop.rek; r.uit = null; }
   const x = PVP.starts[pvpStartSlot()];
   stadTrapFade = { t: 0, gewisseld: false, doel: { x, h: terrainH(x), face: pvpStartSlot() === 1 ? 1 : -1 }, T: BINNEN.fade, binnen: true };
