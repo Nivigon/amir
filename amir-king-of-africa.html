@@ -20098,6 +20098,14 @@ function stokLaad(){
 function stokLaadLevel(lv){
   const tr = tribeStok();                          // de stoktribe: de stokken, de grondklap en de geluiden van de zon in elk level
   if (lv && (lv.stokken || tr)) stokLaad(); if (lv && (lv.grondklap || tr)) gkLaad(); straalLaadLevel(lv); if (tr) straalLaad();
+  // de stun-counter zet een rover in zijn staande idle (stokTreffer, banLaadIdle). Alleen een level met zicht laadde
+  // die sets vooraf; in de oudere episodes kwamen ze bij de eerste counter binnen, midden in het gevecht.
+  if (lv && (lv.stokken || tr)){
+    const sp = lv.spawns || [];
+    if (lv.bandietGolf || sp.some(s => s.kind === 'bandiet' && !s.elite && !s.duin)) banLaadIdle(false);
+    if (sp.some(s => s.kind === 'bandiet' && s.elite)) banLaadIdle(true);
+    if (sp.some(s => s.kind === 'bandiet' && s.duin)) banLaadIdle('duin');
+  }
 }
 function stokReset(){ stokBuf = false; atkStok = null; stokBlok.f = -1; stokBlok.acc = 0; stokBlok.venster = 0; stokBlok.koel = 0; stokBlok.vast = false; }
 // ---- de stoktribe: Bhubesi met de stokken in een episode ----
@@ -20311,8 +20319,10 @@ function gkKlapStofNu(tip, tip2, dir, sc){
 // 'kroon' kroon en ring: het stof spuit in een V omhoog (sneller is hoger en verder), en een lage ring rolt over de
 // grond weg, ook de diepte in (z), met een lage stofrol die met de golf meeloopt.
 // De getallen komen uit de mock-up, waar Amir 90 px hoog is; gkWolk zet ze om naar de wereld.
+const GK_STOF_MAX = 320;                             // hooguit zoveel stofwolken van de grondklap tegelijk (een klap met pluim is er zo'n 150)
 function gkStofSoort(){ return (typeof duoKeuze !== 'undefined' && ['nu', 'kam', 'kroon'].includes(duoKeuze.gkStof)) ? duoKeuze.gkStof : 'kam'; }
 function gkWolk(o){
+  if (gkFx.stof.length >= GK_STOF_MAX) return;       // snel na elkaar klappen: niet eindeloos meer wolken
   const X = CHAR_H * gkSchaal / 90, Y = CHAR_H / 90;
   bruStofDeeltje(gkFx, { wx: o.x, y: -(o.y || 0) * Y, z: o.z || 0, vx: (o.vx || 0) * X, vy: -(o.vy || 0) * Y, vz: o.vz || 0,
     r: (o.r + o.groei * o.life * 0.5) * 0.6 * Y * (GK.stofMaat[gkStofSoort()] || 1), life: o.life, a: o.a ?? 0.9, zw: (o.zw ?? 300) * Y, rem: o.rem || 1.7,
@@ -20469,16 +20479,19 @@ function gkGrondTeken(cx, scale, groundY){
     const x0 = Math.max(0, Math.floor(p0.x)), x1 = Math.min(cv.width, Math.ceil(p1.x)), y0 = Math.max(0, Math.floor(p0.y)), hh = Math.min(cv.height, Math.ceil(p1.y)) - y0;
     const bw = x1 - x0;
     if (hh > 4 && bw > 4 && A > 0.5){
+      // het hulpdoek: een keer op de maat van het scherm, zodat het niet bij elke bredere golf opnieuw wordt aangemaakt
       const kc = gkGrondTeken.kc || (gkGrondTeken.kc = document.createElement('canvas'));
-      if (kc.width < bw) kc.width = bw; if (kc.height < hh) kc.height = hh;
+      if (kc.width < bw || kc.height < hh){ kc.width = Math.max(kc.width, bw, cv.width); kc.height = Math.max(kc.height, hh, cv.height >> 1); }
       const kx = kc.getContext('2d'); kx.clearRect(0, 0, bw, hh); kx.drawImage(cv, x0, y0, bw, hh, 0, 0, bw, hh);
+      ctx.fillStyle = 'rgb(30,20,12)';                // de rand: vaste kleur, de dekking met globalAlpha (geen nieuwe string per kolom)
       for (let x = x0; x < x1; x += kol){
         const wx = (x - T.e) / T.a, d = (wx - sx) / B;
         const f = d * g.dir > 0 ? Math.exp(-d * d * 3) : Math.exp(-d * d) * (1 - 0.35 * Math.sin(d * 4));
         const op = A * f * schaalY;
         if (op < 0.6) continue;
+        ctx.globalAlpha = 1;
         ctx.drawImage(kc, x - x0, 0, kol, hh, x, y0 - op, kol, hh);
-        ctx.fillStyle = 'rgba(30,20,12,' + Math.min(0.55, op / (A * schaalY) * 0.55).toFixed(3) + ')';
+        ctx.globalAlpha = Math.min(0.55, op / (A * schaalY) * 0.55);
         ctx.fillRect(x, y0 - op + 1, kol, Math.min(op, 4 * schaalY));
       }
     }
@@ -35953,6 +35966,9 @@ function warmBouw(){
   const amFrames = [].concat(sets.ns.idle, sets.ns.run, sets.sp.idle, sets.sp.run, sets.sp.idleAnim || [],
                              atkImgs, thrImgs, sweepImgs, jumpImg, jumpSpearImg,
                              duckNs.in, duckNs.hold, duckSp.in, duckSp.hold, crawlImgs, crawlNsImgs);
+  // met de stokken (de stoktribe, de stoklevels) ook alle stokframes: die zaten er niet in, dus de eerste slag,
+  // blok, counter of grondklap bakte zijn schaduw midden in het gevecht, een frame per keer (stokLaad, STOK.sets)
+  if (stokBank && level && level.stokken) for (const set in stokBank) amFrames.push(...stokBank[set]);
   for (const img of new Set(amFrames)){
     if (!img) continue;
     rij.push(() => {
@@ -35975,8 +35991,12 @@ function warmBouw(){
     };
     rij.push(bak);
   }
-  // de plafond- en grotband: de grotset laadt lui, dus eerst laden en dan bakken zodra hij binnen is
-  if (level.grotten || level.holtes || level.plafond || maskerLijst().some(m => (m.look || 'grot') === 'grot') || (level.nep && (level.nep.holtes || level.nep.grotten))){
+  // de plafond- en grotband: de grotset laadt lui, dus eerst laden en dan bakken zodra hij binnen is.
+  // Alleen als er echt iets staat: veel stadslevels hebben lege lijsten (grotten: [], holtes: [], plafond: []),
+  // en een lege lijst telt als waar. Dan laadde en bakte elk stadslevel de hele grotset (twintig platen)
+  // tijdens het spelen, een reeks trage beelden een paar seconden na de start.
+  const vol = a => Array.isArray(a) ? a.length > 0 : !!a;
+  if (vol(level.grotten) || vol(level.holtes) || vol(level.plafond) || maskerLijst().some(m => (m.look || 'grot') === 'grot') || (level.nep && (vol(level.nep.holtes) || vol(level.nep.grotten)))){
     rij.push(() => { try { grotLaad(); } catch (e) {} });
     const bak = () => {
       if (!klaar(grotPic('plafond_strook'))){ if ((bak.n = (bak.n || 0) + 1) < 900) rij.push(bak); return; }
@@ -43053,7 +43073,9 @@ function bruStofStap(s, dt){
     else { d.vy += (d.zw ?? 520) * dt; d.vx *= d.rem ? Math.exp(-d.rem * dt) : Math.pow(0.2, dt); }
     if (d.y > 0){ d.y = 0; d.vy = 0; }
   }
-  s.stof = s.stof.filter(d => d.age < d.life);
+  let n = 0;                                          // de oude wolken eruit, ter plekke (geen nieuwe lijst per beeld)
+  for (const d of s.stof) if (d.age < d.life) s.stof[n++] = d;
+  s.stof.length = n;
 }
 // kant (de grondklap): 'achter' tekent alleen de wolken achter de looplijn (z < 0), 'voor' de rest; z = 1 ligt
 // GK.diep Amir naar voren, lager in beeld en groter
