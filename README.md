@@ -838,6 +838,8 @@ In **Test 74: Sticks** vecht Amir met twee stokken in plaats van de speer. Spati
 na het blok, dan komt de **counter**: een draaislag met zijn rug naar je toe. Voor het begin (en na R) kies je wat de counter
 doet: **Stun and knock back** (de vijand staat 2 seconden versuft en vliegt een stuk terug) of **Normal hit**. Je staat
 tegenover drie elite-bandieten met elk vijf levens, een voor een. In de sandbox zet de knop **Stokken** het aan.
+Een slag met de stokken raakt over de hele stok, dus ook een vijand die vlak tegen je aan staat (met de speer mis je die
+juist, de punt gaat erachter langs). In de sandbox zet **Hele stok** het uit, om het verschil te zien.
 Gebukt slaan (omlaag vasthouden en F) is de **lage slag**: een stok blijft op de grond, de andere slaat van boven ver voor
 hem in de grond. Hij raakt een kant op en kost een lading, net als de lage zwaai met de speer. Een bandiet verliest er een heel leven door als
 je hem met de punt raakt, op afstand; staat hij dichtbij, dan een half. Slangen, schorpioenen en hyena's zijn in een klap dood.
