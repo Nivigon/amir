@@ -270,6 +270,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | het hek van de poort: een ijzeren valhek dat omhoog getakeld wordt | `HEK`, `hekTeken`, `hekUpdate`, `poortRegie` | notities/poort.md |
 | rotsen als decor: een runerots zonder rune, achter de plateaus | `rotsen`, `rotsenTeken`, `rotsenLaadLevel` | notities/decor.md |
 | arena gates: de sandbox-modus met drie poorten en rondes | `SB_GATES`, `sbGates`, `sbGatesUpdate`, `gatesRand`, `gatesWeg` | notities/arena-gates.md |
+| Co-op solo: Co-op Survival (of de Co-op episode) voor een speler onder Sandbox, de lobby en de Co-op zonder verbinding | `MP_SOLO`, `mpSoloOpen`, `pvp.solo`, `btnsbcoop` | notities/multiplayer.md |
 | masker: geverfde stukken die een deel van het level verbergen | `MASKER`, `maskerLijst`, `maskerVan` | notities/masker.md |
 | de draaiende speer: rollen om de lengteas in de vlucht | `DRAAI`, `draaiImgs`, `draaiBeeld(soort, t)` | notities/speer.md |
 | skelet met speer | `SKELET`, `skeletTrek`, `skeletUpdate` | notities/skelet.md |
