@@ -30532,6 +30532,34 @@ function stadTrapMaat(t, scale){
   return { m, s, tw, hoog, hb, ht, links, muur, ander, uit, x0, voetX, gat, gatX, bw,
            balkL: Math.min(ander, ander + uit * bw), balkR: Math.max(ander, ander + uit * bw) };
 }
+// het galerijplaatje als donker silhouet, in de kleur van de slagschaduwen (STAD_SLAG, of slag.kleur van het uitzicht);
+// een keer gemaakt per plaatje en kleur
+function stadGalerijDonker(){
+  const gi = stadImgs.galerij, sc = sceneCfg(), kl = (sc && sc.slag && sc.slag.kleur) || STAD_SLAG.kleur, C = stadGalerijDonker;
+  if (C.c && C.bron === gi && C.kl === kl) return C.c;
+  const c = document.createElement('canvas'); c.width = gi.naturalWidth; c.height = gi.naturalHeight;
+  const g = c.getContext('2d'); g.drawImage(gi, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = 'rgb(' + kl + ')'; g.fillRect(0, 0, c.width, c.height);
+  c.naturalWidth = c.width; c.naturalHeight = c.height; c._bron = gi._bron;
+  Object.assign(C, { c, bron: gi, kl }); return c;
+}
+// het bordes loopt achter het huis de schaduw in: alleen het hout (leuning en planken) wordt naar de muur toe donkerder,
+// niet de muur erachter. Vroeger lag er een donkere rechthoek over (stadMuurSchaduw), die ook de lege muur tussen de
+// palen kleurde: een blok met harde randen. Nu in smalle banden van het donkere silhouet, zo smal dat je geen stap ziet,
+// even sterk als de slagschaduwen (ook 's avonds en 's nachts zachter, stadSlagKleur)
+function stadBordesDiepte(bl, br, ht, btop, groundY, scale, cx, naarRechts){
+  const sc = sceneCfg(), dim = sc && sc.dim ? sc.dim[1] : 0, S = (sc && sc.slag) || {};
+  const sterk = STAD_SLAG.alfa * (S.alfa != null ? S.alfa : 1) * (1 - dim * STAD_SLAG.dimZacht);
+  if (sterk <= 0.01) return;
+  const donker = stadGalerijDonker(), f = CHAR_H * scale / STAD.galerij.amir;
+  const sx0 = cx + (bl - world), bw = br - bl, N = Math.max(8, Math.min(40, Math.round(bw / 5))), w = bw / N;
+  for (let i = 0; i < N; i++){
+    const t = (i + 0.5) / N, d = naarRechts ? t : 1 - t;     // 0 aan de buitenkant, 1 tegen de muur
+    const a = sterk * d * d * (3 - 2 * d);                    // zacht in, vol tegen de muur
+    if (a < 0.01) continue;
+    ctx.save(); ctx.beginPath(); ctx.rect(sx0 + i * w - 0.25, btop - 4, w + 0.5, 140 * f); ctx.clip();
+    ctx.globalAlpha = a; stadStrook(bl, br, ht, groundY, scale, cx, null, true, donker); ctx.restore();
+  }
+}
 function stadTrappen(){ return stadAan() && level.stad.trappen ? level.stad.trappen : []; }
 // de voet van de trap (wereld-x): begint een trap op een galerij of balkon (niveau 1 of hoger), dan stond de leuning
 // van dat dek als een hekje laag voor de onderste treden. Daar hoort geen leuning; stadGalerijGaten en het balkon
@@ -30716,8 +30744,8 @@ function stadTrapE_Teken(x, y, boven){
   ctx.fill(); ctx.restore();
 }
 // een galerijstrook (zelfde 9-slice als een galerij) van left tot right met het dek op h, met openingen in de leuning
-function stadStrook(left, right, h, groundY, scale, cx, gaten, alleenTop){
-  const gi = stadImgs.galerij, GL = STAD.galerij, f = CHAR_H * scale / GL.amir;
+function stadStrook(left, right, h, groundY, scale, cx, gaten, alleenTop, beeld){
+  const gi = beeld || stadImgs.galerij, GL = STAD.galerij, f = CHAR_H * scale / GL.amir;
   const lw = (GL.links[1] - GL.links[0]) * f, mw = (GL.midden[1] - GL.midden[0]) * f, rw = (GL.rechts[1] - GL.rechts[0]) * f;
   const n = Math.max(0, Math.ceil((right - left - lw - rw) / mw));
   const tot = lw + n * mw + rw, sx = cx + (left - world);
@@ -30736,12 +30764,6 @@ function stadStrook(left, right, h, groundY, scale, cx, gaten, alleenTop){
   stuk(GL.rechts[0], GL.rechts[1], Math.min(x, sx + (right - left) - rw), rw);
   ctx.restore();
   return top;
-}
-// schaduw over een strook naar een muur toe: daar verdwijnt hij erachter
-function stadMuurSchaduw(x, y, w, h, naarRechts){
-  const g = ctx.createLinearGradient(x, 0, x + w, 0);
-  g.addColorStop(naarRechts ? 0 : 1, 'rgba(30,18,10,0)'); g.addColorStop(naarRechts ? 1 : 0, 'rgba(30,18,10,0.5)');
-  ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
 }
 // ---- de doorgang: het dek loopt bij de opening van een stadstrap achter de leuning door, de diepte in ----
 // Bij de opening in de leuning waar een stadstrap boven uitkomt op een galerij (balkon: 0) lopen de planken van het
@@ -30883,8 +30905,7 @@ function stadTrapAchter(groundY, scale, cx){
     // het bordes: een dun stuk dek met leuning op ht, van de buitenkant van de trap tot achter de muur
     const bl = q.links ? q.x0 + q.tw * 0.04 : q.muur - 10, br = q.links ? q.muur + 10 : q.x0 + q.tw * 0.96;
     const btop = stadStrook(bl, br, q.ht, groundY, scale, cx, null, true);
-    const GLf = CHAR_H * scale / STAD.galerij.amir;
-    stadMuurSchaduw(cx + (bl - world), btop, br - bl, 128 * GLf, q.links);
+    stadBordesDiepte(bl, br, q.ht, btop, groundY, scale, cx, q.links);   // het hout loopt donker weg naar de muur
     // de trap: onderaan op hb, zo hoog als de verdieping; wat hoger zou komen, valt weg achter het bordes
     const bronTop = T.h - q.hoog / q.s;                        // de bovenste bronrij die nog in beeld komt
     const dy = gyB - q.hoog;

@@ -404,6 +404,11 @@ een verdieping omhoog. De treden zijn altijd even groot (de schaal hangt aan de 
   gaat eruit; de rest van de leuning blijft, en de leuning van het bordes bovenaan ook (die hoort daar). Een nieuw soort
   dek waar een trap op kan beginnen haalt zijn openingen ook uit `stadTrapVoetGaten`. Komt er een nieuw trapplaatje, meet
   `voet` dan opnieuw.
+- Het bordes loopt achter het huis de schaduw in: alleen het hout (leuning en planken) wordt naar de muur toe donkerder
+  (`stadBordesDiepte`, met het donkere silhouet van de galerij, `stadGalerijDonker`), even sterk als de slagschaduwen en
+  's avonds en 's nachts net zo zacht. Vroeger lag er een donkere rechthoek over het hele bordes (`stadMuurSchaduw`), die
+  ook de lege muur tussen de palen kleurde: een blok met harde randen op de muur. Leg dus nooit een vlak over een stuk
+  met een leuning; donker het hout zelf.
 - E bij de voet of in de opening (`eDruk`): Amir vervaagt (`STAD_TRAP.uit`, `stadTrapAlfa`), staat dan al aan de andere
   kant, met zijn gezicht van het huis af, en de camera glijdt in `glij` seconden zacht van waar hij stond naar waar hij bij de
   uitgang hoort (`stadTrapCamX` in de camEase-keten, `stadTrapCamY` in `updateCamera`, met het vooruitkijken van de
