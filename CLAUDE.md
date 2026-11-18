@@ -59,6 +59,8 @@ gang niet tegen: dat staat op de savanne, niet in de gang (`blocksMonster`, `ter
 op zijn x omhoog of omlaag komt: dan rijdt hij mee, net zoals Amir (`rijsDraagtMob`, zie "rijzende
 grond"). De bandiet en de kooiman blijven daarnaast op hun eigen niveau en halen niet uit over een
 hoogteverschil (`banZelfdeHoogte`, `kooiZelfdeHoogte`: de vloer onder Amir vergeleken met hun eigen vloer).
+De uitzondering is een opstapje: een terras met `opstap: true` (tot `OPSTAP.max`, 32) lopen Amir en de lopende vijanden op en af,
+op verzoek van de opdrachtgever; slangen en schorpioenen niet (zie "opstapjes" in `notities/stad.md`).
 
 **Over plateaus klimmen is uit (opt-in, nergens in een level).** Met `klim: true` in een spawn stapt een
 slang of fosforslang wel terrassen op en af, stap voor stap (`KLIM_STAP`, `KLIM_V`, `klimBase`, in
@@ -257,6 +259,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | stadsvolk: dorpelingen op de stoep, omgekleurd, weg als er gevochten wordt | `STAD_VOLK`, `volkTeken`, `volkRustig` | notities/stad.md |
 | de leemmuur: een terras met de look van de stad | `LEEM`, `leemMuurTeken`, `look: 'leem'` | notities/stad.md |
 | de verhoogde straat: een terras met de look van de straat, treden en een hoge wijk, de onderlaag eronder (`stad.onder`) | `STRAAT_TREDE`, `straatTredeTeken`, `look: 'straat'` | notities/stad.md |
+| opstapjes: lage treden (`opstap: true`, tot 32) die Amir en de lopende vijanden oplopen in plaats van opspringen; slangen en schorpioenen niet (Test 78) | `OPSTAP`, `opstapBij`, `opstapVolg` | notities/stad.md |
 | de houten vloer: de vloer van een huis met verdiepingen, een zwever met look hout | `look: 'hout'`, `savanneLaag`, `vloer_hout` | notities/stad.md |
 | binnen: de binnenkant van een huis, E bij het deurgat, een ladder, licht en stof (in de Maker: kamers van Binnen-cellen); met `verdieping` de deur boven, vanaf een galerij, en met `deuren` meer deuren naar buiten (beneden erin, boven eruit) | `BINNEN`, `binnenE`, `binnenAchter`, `binnenNa`, `mkBinnenKamers` | notities/stad.md |
 | de winkel en de inrichting: een toonbank waar Amir tegenaan loopt, een schap, speren, planken met spullen; elke seed anders | `WINKEL`, `winkelOpbouw`, `winkelVoor`, `binnenLinks`; het winkelscherm (E, per klik een kalebas): `winkelUIOpen` | notities/stad.md |

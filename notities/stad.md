@@ -501,7 +501,28 @@ twee treden weer omlaag. Daarna een tweede stuk met minder maar hogere treden: t
 haalt zo'n 200, op een traag toestel 184) naar een wijk op 340 met een huis, een kraam en een bandiet, en een keer 170 omlaag. In de sandbox onder De stad **Hoge wijk met trap** (`sbtrap`, met `sbTrap` op de terrassen): drie
 treden, een stuk wijk en twee treden omlaag voor je uit, en staat de stad er, dan ook de onderlaag onder de straat.
 
-Hoort bij de stadsverbetering verticaliteit (H) in `notities/stad-verbeteren.md`.
+### Opstapjes
+
+`OPSTAP`, `opstapBij`, `opstapVolg`; in `blocksMonster`, `dropAhead`, `blocksMob`, `blockByPlatforms` en `updateJump`.
+
+Een terras met `opstap: true` (en `look: 'straat'`) is een opstapje: een trede tot `OPSTAP.max` (32) hoog die je oploopt in
+plaats van opspringt. Op verzoek van de opdrachtgever, voor de Co-op kaart met de brug, waar mensen van een plein naar de
+brug moeten kunnen lopen.
+
+- **Amir:** `blockByPlatforms` duwt hem niet terug zolang hij op de grond staat en het opstapje hooguit `OPSTAP.max` boven
+  zijn voeten ligt, `supportHeight` neemt het als steun (via `p.stap`, net als de helling van de strakke luifel), en in
+  `updateJump` glijdt `ph` met `OPSTAP.v` (400 px/s) omhoog en omlaag in plaats van te springen of te vallen.
+- **Vijanden:** `blocksMonster` en `dropAhead` laten een opstapje door, en de hoogte van de bandiet, schildbandiet,
+  kooiman, meelman, kruisboog, zweepman en hyena (en de panter, die `updateHyena` deelt) volgt de vloer met `opstapVolg`.
+  Een uitzondering op "vijanden gaan niet over treden", maar alleen voor terrassen met de vlag; elke andere trede houdt ze
+  tegen zoals altijd.
+- **Slangen en schorpioenen** blijven beneden (`geenOpstap` in `slangSchuif` en `scpBlocked`): voor hen is 28 een hele trede.
+- `opstapBij` zoekt tot 160 voorbij de rand van een opstapje: de bandiet kijkt een halve lijfbreedte vooruit, en met 60 bleef
+  hij op de laatste trede staan.
+- De Maker-JSON houdt de vlag (`opstap: true`); in het palet van de Maker zit hij nog niet.
+
+Test 78 (Small steps) is het proefstuk: drie opstapjes van 28 naar een plein met een bandiet en een schildbandiet, drie
+omlaag, een hyena en een slang, en een stoeprand met een kruisboogschutter en een bandiet.
 
 ## De leemmuur
 

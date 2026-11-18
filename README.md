@@ -886,6 +886,11 @@ Sun Lion komt erop), een pleintje met drie bandieten en een elite met een bandie
 **Trance: schade terug** geeft bij het losbarsten de helft van de schade uit de trance terug, en **Trance: uitbarsting** slaat bij
 het losbarsten alles om Amir heen weg.
 
+In **Test 78: Small steps** liggen **opstapjes** in de straat: lage treden van de verhoogde straat die je oploopt en afloopt
+zonder te springen. De bandieten, de schildbandiet, de kruisboogschutter en de hyena lopen ze ook, zodat een vijand op een
+plein gewoon de trap af komt. Slangen en schorpioenen blijven beneden. Gewone treden en terrassen houden vijanden tegen zoals
+altijd; alleen een terras met `opstap: true` is een opstapje.
+
 Amir rent in elk level met de nieuwe ren: licht voorover, met lange passen, de speer rechtop in zijn hand, bij
 lopen en sprinten. In **Test 75: New run** kun je hem goed bekijken. Het tempo van zijn benen volgt zijn snelheid, zodat zijn voeten niet glijden. Een lange vlakte om te sprinten, twee keien om over te springen en daarna twee
 bandieten; je kunt er niet dood. In de sandbox zet de knop **Nieuwe ren** hem uit, dan rent hij weer de oude ren.
