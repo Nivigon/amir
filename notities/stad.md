@@ -338,9 +338,10 @@ moskee als stijlreferentie voor de rest), de bronplaten staan in `verte/bron/` e
   beeld zelden raken; `stad.moskee: false` laat hem weg. Een groepje daken dat midden voor de moskee zou staan valt weg.
 - Rook (`stadVerteRook`): uit ongeveer een op drie groepjes stijgt een dunne kolom zachte vlokjes op, die uitdijen,
   wegdrijven en vervagen. Geen staat: elk vlokje is een vaste fase in een lus. 's Nachts gloeit de voet warm op.
-- Gieren (`stadVerteGieren`, `stadGierTeken`): per 3600 wereld-px (niet overal) een groepje van twee tot vier dat traag
+- Gieren (`stadVerteGieren`, `stadGierTeken`): per 1,2 schermbreedte een groepje van een tot drie (meestal een groepje in beeld) dat traag
   rondcirkelt boven de stad, zwevend met af en toe een paar slagen, in code getekend (een lijfje en twee brede vleugels),
-  zonder plaat. Bij nacht (meer dan half) vliegen ze niet.
+  zonder plaat. Bij nacht (meer dan half) vliegen ze niet. Eerst lag de afstand in wereld-px (3600), maar met de parallax van 0,06 gaf dat elke 216 schermpx een groepje: tien tot vijftien gieren tegelijk. Lege plekken (`leeg`) staan op 0: de laag schuift in een heel level maar een halve
+  schermbreedte op, dus een lege plek bleef het hele level leeg (Stad 1 had zo geen enkele gier).
 - In de sandbox onder De stad: **Verte** (daken of de oude minigevels), **Gieren** en **Rook**, elk aan en uit.
 
 Nog niet: lichtjes in de ramen van de daken en de moskee bij nacht (suggestie 3 van A2), palmen in de middelste rij.
