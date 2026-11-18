@@ -1448,7 +1448,7 @@ nieuw level en in de Level Maker; in de sandbox zet je het aan onder Beeld en ge
 ## De arena-modus van de sandbox
 
 Klik je in het startmenu op **Sandbox**, dan kies je eerst: de gewone **Sandbox** (vlakke grond, zet
-neer wat je wilt testen, geen levens), de **Arena modus** of de **Arena gates** (zie hieronder). De eerste twee beginnen uitgezoomd op view 0,8,
+neer wat je wilt testen, geen levens), de **Arena modus**, de **Arena gates** (zie hieronder) of **Co-op solo**: Co-op Survival uit Multiplayer, maar alleen en zonder verbinding (de stad met de rondes uit de deuren, de tonnen, het wapenrek en de winkel; ga je dood, dan is het meteen game over). Je stelt het in in dezelfde lobby als bij Multiplayer, ook de Co-op episode kan. De eerste twee beginnen uitgezoomd op view 0,8,
 zoals een nieuw level; **Uitzoomen** zet je dat anders (in de sandbox onder Beeld en geluid, in de arena in de opzet). De arena is de arena van de koning
 uit Valse Koning 8, maar zonder het takelen: je begint meteen midden op de vloer met je speer in de hand en een
 reservespeer op je rug (zoals in Valse Koning 8; de knop Rug in de opzet zet het anders), tussen

@@ -236,6 +236,8 @@
   @media (max-width:700px){ #mpamir{top:8px;left:8px;transform:none} }
   #menuPvp.lobby #mplobby{display:flex}
   #menuPvp.lobby #mpverbind,#menuPvp.lobby #pvpterug{display:none}
+  /* Co-op solo (mpSoloOpen): geen Duel, geen Ready, geen spelerslijst of ping */
+  #mplobby.solo .mpmodus[data-modus="duel"],#mplobby.solo #mpready,#mplobby.solo #mpspelers,#mplobby.solo #mpping,#start.mpsolo #mpbrander{display:none}
   #mpwie{margin:0;color:#f3e2bf;text-align:center}
   #mpspelers{margin:0;color:#e7d3a6;font-size:.9em;text-align:center}
   #mpping{margin:0;min-height:1.2em;color:#cdb98f;font-size:.85em;text-align:center}
@@ -1183,6 +1185,7 @@
         <button id="btnsbvrij" class="bigbtn">Sandbox<small>Vlakke grond, zet neer wat je wilt testen</small></button>
         <button id="btnsbarena" class="bigbtn">Arena modus<small>In de arena van de koning: golven vijanden van links en rechts, steeds meer</small></button>
         <button id="btnsbgates" class="bigbtn">Arena gates<small>Drie poorten in de rots: elke ronde komen er drie, een uit elke poort</small></button>
+        <button id="btnsbcoop" class="bigbtn">Co-op solo<small>Co-op Survival in the city for one player: rounds, shop and barrels, no connection</small></button>
       </div>
       <div class="row"><button class="menumain">Terug</button></div>
     </div>
@@ -65089,10 +65092,10 @@ function mpStandaard(){
            coop: { start: 1, erbij: 1, winkelNa: 3, pauze: 10, rek: 4, kalebas: 30, vij, licht: Object.assign({}, MPC_VERSIE.standaard) } };
 }
 // de instellingen van de host, bewaard op dit apparaat; wat ontbreekt komt uit de standaard
-function mpLaadInst(){
+function mpLaadInst(sleutel){
   const st = mpStandaard();
   try {
-    const w = JSON.parse(localStorage.getItem('amir.mp') || 'null');
+    const w = JSON.parse(localStorage.getItem(sleutel || 'amir.mp') || 'null');
     if (w && typeof w === 'object'){
       if (w.modus === 'duel' || w.modus === 'coop' || w.modus === 'ep') st.modus = w.modus;
       st.kaart = MP_KAARTEN[st.modus].some(k => k.id === w.kaart) ? w.kaart : MP_KAARTEN[st.modus][0].id;   // de Co-op episode: het startlevel
@@ -65106,7 +65109,7 @@ function mpLaadInst(){
   } catch (e){}
   return st;
 }
-function mpBewaar(){ try { localStorage.setItem('amir.mp', JSON.stringify(pvp.inst)); } catch (e){} }
+function mpBewaar(){ try { localStorage.setItem(pvp.solo ? MP_SOLO.sleutel : 'amir.mp', JSON.stringify(pvp.inst)); } catch (e){} }
 const MP_DUEL_RIJEN = [
   { k: 'rondes', naam: 'Rounds', keus: [[1, 'One round'], [3, 'Best of 3'], [5, 'Best of 5']] },
   { k: 'levens', naam: 'Lives per round', min: 1, max: 5, stap: 1 },
@@ -65151,8 +65154,9 @@ function mpRijen(doos, rijen, waarden, wijzig){
 function mpLobbyToon(){
   if (!pvp) return;
   const I = pvp.inst, host = pvp.host, lob = pvpEl('mplobby');
-  lob.classList.toggle('host', host); lob.classList.toggle('gast', !host);
-  pvpEl('mpwie').textContent = host ? 'You are the host' + (pvpHostCode ? ' (code ' + pvpHostCode + ')' : '') + ': choose the mode and the rules.' : 'Connected. The host chooses the mode and the rules.';
+  lob.classList.toggle('host', host); lob.classList.toggle('gast', !host); lob.classList.toggle('solo', !!pvp.solo); pvpEl('start').classList.toggle('mpsolo', !!pvp.solo);
+  pvpEl('menuPvp').querySelector('.epititle').textContent = pvp.solo ? MP_SOLO.titel : 'Multiplayer';
+  pvpEl('mpwie').textContent = pvp.solo ? 'Just you against the rounds: choose the mode and the rules.' : host ? 'You are the host' + (pvpHostCode ? ' (code ' + pvpHostCode + ')' : '') + ': choose the mode and the rules.' : 'Connected. The host chooses the mode and the rules.';
   pvpEl('mpspelers').textContent = mpSpelersTekst();
   lob.querySelectorAll('.mpmodus').forEach(b => b.classList.toggle('on', b.dataset.modus === I.modus));
   const ks = pvpEl('mpkaart'); ks.innerHTML = '';
@@ -65204,6 +65208,7 @@ function mpKnoppen(){
   pvpEl('mpready').firstChild.textContent = pvp.klaar ? 'Ready!' : 'Ready';
   pvpEl('mpspelers').textContent = mpSpelersTekst();
   if (I.modus === 'coop' && !vijanden){ start.disabled = true; uitleg.textContent = 'Switch on at least one enemy'; }
+  else if (pvp.solo){ start.disabled = I.modus === 'duel'; uitleg.textContent = I.modus === 'duel' ? 'A duel is for two players' : 'Solo'; }
   else if (!gasten.length){ start.disabled = true; uitleg.textContent = 'Waiting for another player'; }
   else if (I.modus === 'duel' && gasten.length !== 1){ start.disabled = true; uitleg.textContent = 'A duel is for two players'; }
   else if (klaar < gasten.length){ start.disabled = true; uitleg.textContent = gasten.length > 1 ? 'Waiting until everyone is ready (' + klaar + ' of ' + gasten.length + ')' : 'Waiting until the other player is ready'; }
@@ -65230,7 +65235,7 @@ function mpLobbyOpen(){
   pvpZend({ t: 'wapen', w: pvp.wapen[pvp.mij] });
   mpBroekToon(); mpWapenToon(); mpBroekStart();
 }
-function mpLobbyDicht(){ pvpEl('menuPvp').classList.remove('lobby'); pvpEl('start').classList.remove('mplobby'); }
+function mpLobbyDicht(){ pvpEl('menuPvp').classList.remove('lobby'); pvpEl('start').classList.remove('mplobby', 'mpsolo'); pvpEl('menuPvp').querySelector('.epititle').textContent = 'Multiplayer'; }
 // ---- de broekkleur in Multiplayer: naast de lobby je eigen Amir, de pijltjes wisselen de kleur van zijn broek ----
 // Zoals de broekkeuze van Test 73 (BROEK), plus het eigen paars van Amir (geen lapje, het origineel). Ieder kiest zelf,
 // los van wie host is, en een kleur die een ander al draagt sla je over. Kiezen twee tegelijk dezelfde, dan houdt het
@@ -66707,6 +66712,26 @@ function mpCoopStop(){
   pvp.coop = null; mpcWissel = null;
   pvpEl('mpeind').classList.remove('on');
 }
+// ---- multiplayer: Co-op solo, de stadsarena voor een speler ----
+// De vierde keuze onder Sandbox (btnsbcoop): Co-op Survival (of de Co-op episode) voor een speler, zonder verbinding.
+// Een pvp-object zonder peers met mij als host (pvp.solo): de lobby, de rondes uit de deuren, de tonnen, de winkel, de
+// versies van de map en het eindscherm draaien zoals in Co-op, alleen gaat elk bericht naar niemand. De ronde wacht op
+// niemand (geen gasten), en wie doodgaat is meteen game over (iedereen dood). Duel kan niet alleen. De instellingen apart
+// van die van de host bewaard (MP_SOLO.sleutel). Escape in een potje: terug naar deze lobby; Leave: terug naar Sandbox.
+const MP_SOLO = { sleutel: 'amir.mpsolo', titel: 'Co-op solo' };
+function mpSoloOpen(){
+  if (pvp) pvpStop();
+  const inst = mpLaadInst(MP_SOLO.sleutel);
+  if (inst.modus === 'duel'){ inst.modus = 'coop'; inst.kaart = MP_KAARTEN.coop[0].id; }
+  pvp = { host: true, solo: true, mij: 0, peers: {}, nets: {}, anders: {}, spelers: [0], sc: [0, 0, 0], ronde: 1, fase: 'lobby',
+          t: 0, zendT: 0, sn: 0, wn: 0, jn: 0, qs: 0, qv: 0, laatsteAtk: -1, laatsteSw: -1, laatsteJav: null, mijn: null,
+          raakSteek: -1, raakZwaai: -1, raakSpeer: -1, jVorig: null, bannerT: 0, rematch: [false, false, false], beelden: {}, weg: false,
+          inst, klaar: false, klaarVan: {}, regels: null, broek: [null, null, null], broekVan: null, broekT0: 0, wapen: [null, null, null] };
+  pvp.broek[0] = mpBroekEigen(0);
+  pvpStatus('');
+  showMenu('menuPvp');
+  mpLobbyOpen();
+}
 // ---- multiplayer: de Co-op episode, de levels samen uitspelen ----
 // Modus 'ep' in de lobby: de levels van COOPEP_LEVELS na elkaar, vanaf het level dat de host als map koos. Alles van
 // Co-op Survival werkt hier ook (de host denkt voor de vijanden, de revive-ton, de camera van een dode), maar zonder
@@ -67004,7 +67029,7 @@ pvpEl('pvphost').onclick = () => pvpHost();
 pvpEl('pvpjoin').onclick = () => pvpJoin();
 pvpEl('pvpcode').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') pvpJoin(); });
 pvpEl('pvpterug').addEventListener('click', () => { pvpPeerWeg(); pvpStatus(''); });
-pvpEl('mpleave').onclick = () => { pvpStop(); pvpTerug = false; pvpStatus(''); };
+pvpEl('mpleave').onclick = () => { const solo = pvp && pvp.solo; pvpStop(); pvpTerug = false; pvpStatus(''); if (solo) showMenu('menuSandbox'); };
 pvpEl('mpready').onclick = () => { if (!pvp || pvp.host || pvp.fase !== 'lobby') return; pvp.klaar = !pvp.klaar; pvpZendAan(0, { t: 'klaar', aan: pvp.klaar }); mpKnoppen(); };
 pvpEl('mpstart').onclick = () => mpStart();
 pvpEl('mpkaart').onchange = e => mpWijzig(() => { pvp.inst.kaart = e.target.value; });
@@ -67012,6 +67037,7 @@ document.querySelectorAll('#mplobby .mpmodus').forEach(b => b.onclick = () => mp
 document.getElementById('btnsbvrij').onclick = () => startSandbox(false);
 document.getElementById('btnsbarena').onclick = () => startSandbox(true);
 document.getElementById('btnsbgates').onclick = () => startSandbox(true, true);
+document.getElementById('btnsbcoop').onclick = () => mpSoloOpen();
 
 
 // ============================================================================

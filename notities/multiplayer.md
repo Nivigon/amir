@@ -449,6 +449,24 @@ tonnetje op verschillende plekken"). Bij Map kiest de host het level waar het te
 - **Testen:** `node tools/mptest.js --ep` (met `--spelers 2` voor twee) loopt het na: een spawn bij een gast, de host
   alleen bij de fakkels, een revive midden in het level, door naar level 2 met de score, game over en R, en het slot.
 
+## Co-op solo (gebouwd, 18-11-2026)
+
+De vierde keuze onder Sandbox (`btnsbcoop`): Co-op Survival, of de Co-op episode, voor een speler, zonder verbinding
+(`MP_SOLO`, `mpSoloOpen`, `pvp.solo`). Geen eigen arena naast Co-op (regel 4): `mpSoloOpen` maakt het `pvp`-object zoals
+`pvpVerbonden` dat voor een host doet, maar zonder peers en zonder `pvpNetStart`, en opent de gewone lobby. Alles daarna
+is de code van Co-op zelf; elk bericht gaat naar niemand.
+
+- **Wat vanzelf klopt met een speler:** ronde 1 wacht op geen gast (`pvpGasten()` is leeg), Ready in de winkel is alleen
+  de jouwe (`mpcWinkelKlaar`), R op het eindscherm begint meteen opnieuw, en wie doodgaat is iedereen, dus meteen game over
+  (`mpcDodenStap`): geen revive-ton.
+- **De lobby solo** (de klasse `solo` op `#mplobby`, `mpsolo` op `#start`): geen Duel, geen Ready, geen spelerslijst of ping,
+  geen "Waiting for the other players" onder de broek, de titel `MP_SOLO.titel`, en Start kan altijd (behalve zonder
+  vijanden). De broek en het wapen kies je zoals in Multiplayer.
+- **Bewaard apart:** de instellingen gaan naar `amir.mpsolo` (`MP_SOLO.sleutel`), niet naar die van de host (`amir.mp`).
+- **Terug:** Escape geeft het pauzemenu en Terug brengt je naar deze lobby (`mpNaarLobby`); Leave the lobby gaat terug naar
+  het Sandbox-scherm.
+- **Highscore:** dezelfde als in Co-op, per keuze van vijanden (`mpcEindSleutel`); solo en samen tellen in hetzelfde lijstje.
+
 ## Testen
 
 `node tools/mptest.js` speelt Co-op met drie vensters (de host en twee gasten, `--spelers 2` voor twee) en een nagebootste
