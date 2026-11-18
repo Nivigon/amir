@@ -28756,7 +28756,7 @@ const STAD = {
     winkel_dicht: { src: 'gevel_winkel_dicht.png', dak: [0, 205], alt: [205, 622], ver: [622, 1039], bod: [1039, 1547], dakAchter: 153, deur: 1, geenDeur: true }
   },
   galerij: { src: 'galerij.png', amir: 450, links: [0, 262], midden: [1205, 1348], rechts: [1492, 1767], dek: 104,
-             sta: 130 },   // dek: de achterrand van de planken (de voet van de leuning); sta: waar je op staat, midden op de planken (die lopen tot 157)
+             sta: 130, inMuur: 0.15 },   // inMuur: zoveel Amir loopt een dek de gevel in waar een trapbalkon in een galerij opgaat   // dek: de achterrand van de planken (de voet van de leuning); sta: waar je op staat, midden op de planken (die lopen tot 157)
   kraam: {
     // het rieten dak zien we van schuin boven: dak is het midden van het dakvlak (niet de bovenrand, daar leek Amir te zweven)
     // en tafel het midden van het tafelblad; w en h de maat van de plaat (uit design/stad/bron/kraam_riet.webp)
@@ -29471,9 +29471,13 @@ function stadGalerijMaten(scale){
     const o = samen.find(o => Math.abs(o.h - q.ht) < 3 && q.balkL <= o.R + mw && q.balkR >= o.L - mw);
     if (!o) continue;
     o.L = Math.min(o.L, q.balkL); o.R = Math.max(o.R, q.balkR); o.vast = true; stadBalkonSamen.add(t);
+    // aan de muurkant loopt het dek een stukje de gevel in, zonder eindpaal: zo zit het vast aan het huis
+    const inMuur = STAD.galerij.inMuur * CHAR_H * scale;
+    if (Math.abs(q.ander - o.R) < 2){ o.R += inMuur; o.muurR = true; }
+    if (Math.abs(q.ander - o.L) < 2){ o.L -= inMuur; o.muurL = true; }
   }
   stadGalKey = { s: scale, stad: S, n: (S.galerijen || []).length };
-  stadGalLijst = samen.map(q => stadGalerijSnij(q.L, q.R, q.h, scale, q.vast));
+  stadGalLijst = samen.map(q => ({ ...stadGalerijSnij(q.L, q.R, q.h, scale, q.vast), muurL: !!q.muurL, muurR: !!q.muurR }));
   return stadGalLijst;
 }
 
@@ -33471,10 +33475,15 @@ function stadTeken(groundY, scale, cx){
         for (const [a, b] of gaten) ctx.rect(cx + (b - world), top - 2, -(b - a), GL.dek * m.f - 1);
         ctx.clip('evenodd');
       }
+      // tegen een muur (muurL, muurR) geen eindstuk: het middenstuk loopt door tot de rand en wordt daar afgesneden
       let x = sx;
-      stuk(GL.links[0], GL.links[1], x, m.lw); x += m.lw;
-      for (let i = 0; i < m.n; i++){ stuk(GL.midden[0], GL.midden[1], x, m.mw); x += m.mw; }
-      stuk(GL.rechts[0], GL.rechts[1], Math.min(x, sx + (m.right - m.left) - m.rw), m.rw);
+      const nMid = (m.muurL || m.muurR) ? Math.ceil((m.right - m.left) / m.mw) : m.n;
+      if (!m.muurL){ stuk(GL.links[0], GL.links[1], x, m.lw); x += m.lw; }
+      for (let i = 0; i < nMid; i++){ stuk(GL.midden[0], GL.midden[1], x, m.mw); x += m.mw; }
+      if (!m.muurR) stuk(GL.rechts[0], GL.rechts[1], Math.min(x, sx + (m.right - m.left) - m.rw), m.rw);
+      const sw = STAD.galerij.inMuur * 2 * CHAR_H * scale;     // de schaduw van de muur over het stuk dat erin verdwijnt
+      if (m.muurR) stadMuurSchaduw(sx + (m.right - m.left) - sw, top, sw, hh, true);
+      if (m.muurL) stadMuurSchaduw(sx, top, sw, hh, false);
       ctx.restore();
     }
   }
