@@ -138,6 +138,25 @@ is hoger dan dat van een gewone slang); een zandslang of zwarte slang blijft voo
 - Slag-frame 6 had een paarsroze stok (een vlek uit de clip); met de nieuwe stok is die weg. Een paar paarsroze
   vlekjes bij de handen (slag 13, draaiterug) zitten nog in het lijf zelf.
 
+## De hele stok: geen dode zone dichtbij (17-11-2026)
+Elke aanval raakt met een punt plus een reik (`STOK.punt`, `STOK.reik`) tegen de doos van de vijand. Bij de stokken is die
+punt per slag een vast punt op het eind van de zwaai, en bij de stapslag en slag 2 ligt hij ver vooruit (ruim 0,6 Amir).
+Een bandiet is 0,64 Amir breed, dus stond zijn midden binnen ongeveer 0,3 Amir, dan ging de slag erachter langs: een dode
+zone vlak voor Amir, terwijl de stok in beeld wel door hem heen ging. (De speer heeft die ook, tot 0,5 Amir, en houdt hem:
+dat is de flaw van de speer, `TIP_DX`.)
+
+Nu raakt een stokslag over de hele stok (`STOK.heel`, standaard aan): op de raakframes telt alles van Amirs midden (`pcx`)
+tot voorbij de punt, alleen aan de voorkant. Een vijand met zijn midden achter Amir telt niet mee, ook al steekt zijn lijf
+over Amirs midden heen. De hoogte blijft die van de punt. Het zit in twee helpers naast `steekR`: `steekVakX` (het vak in x)
+en `steekOver` (raakt het vak de doos, met `steekVoor` voor de achterkant); alle raakplekken van vijanden en de bazen
+gebruiken `steekOver`, de zweepman telt de hele stok als zijn schacht, en in het Duel raakt de stokslag van de andere Amir
+ook over de hele stok. Doornbos, ton, takelwiel en fontein hebben hun eigen regel en zijn niet veranderd (de ton had al
+`tonOnder`). H tekent het raakvak met de stokken als een pil van Amir tot de punt.
+
+Nagemeten in de sandbox (Amir en een stilstaande bandiet vast op een afstand, een stapslag): zonder de hele stok mis op
+0,05, 0,15 en 0,25 Amir en raak vanaf 0,35; met de hele stok raak op elke afstand van 0,05 tot 1; achter Amir nergens raak.
+In de sandbox zet **Hele stok** (onder de stokken, naast Stokstap) het uit, om het verschil te zien.
+
 ## De ren met stokken (16-11-2026)
 
 De oude renset (8 frames) zette de stokken per frame in een andere hoek, waardoor ze alle kanten op vlogen. Grok kon
