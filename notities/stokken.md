@@ -114,6 +114,17 @@ In Test 74 (`stokken: true`), de sandboxknop **Stokken**, en in Multiplayer als 
   balkje dat in de duur van de stun leegloopt (`stunLabelTeken`, in `vijandHpBalk`).
 - Een spawn met `hp` (zonder aanvoerder) geeft een bandiet zoveel levens; Test 74 gebruikt de elite-garde met 5, zoals Co-op.
 
+## De punt zakt mee (18-11-2026)
+
+De stapslag en de gewone slag hadden een vast trefpunt (`STOK.punt`), dat van het eerste actieve frame. In de frames erna
+zakt de stok, maar de punt bleef hoog: de stapslag ging over een hyena heen (kop op 0,6 Amir) terwijl je de stok op zijn
+rug zag landen, en pas slag2 (de hook op borsthoogte) raakte. Nu heeft een set een punt per positie (`STOK.puntPer`,
+gelezen in `stokPunt`): de x blijft die van `STOK.punt` (het bereik naar voren is gelijk, tegen een bandiet verandert er
+niets), de y is waar de stok in dat frame op die x ligt, gemeten in de frames. Stapslag 145, 191 en 201 (frames 25-27),
+de slag 205 (frames 7-9); slag2 lag al goed. Gevolg: de stapslag raakt nu ook een hyena en een fosforslang (zijn trefvak
+is hoger dan dat van een gewone slang); een zandslang of zwarte slang blijft voor de lage slag. Gemeten met een proef op
+150, 220 en 290 px: hyena en fosfor raak op 150 en 220 (eerst nergens), bandiet ongewijzigd (raak tot 220).
+
 ## Waarom het nog niet lekker voelt (analyse)
 - Staan is ontspannen, elke slag en het blok beginnen in een diepe gevechtshouding: bij elke actie springt de pose.
   Een wachthouding als stilstaan (in gevecht) zou dat gladstrijken; daar is nog geen frame voor.
