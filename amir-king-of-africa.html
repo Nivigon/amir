@@ -1578,6 +1578,11 @@
         <button data-spawn="fosfor">3 fosforslangen</button>
       </div>
       <div class="row">
+        <label>Hyena's</label>
+        <button id="sbhyomkeer" class="on">Draaien om</button>
+        <span class="hint">aan: na hun uitval draaien ze net buiten beeld om en komen terug (de norm). Uit: de oude manier, ze rennen het level uit</span>
+      </div>
+      <div class="row">
         <label>Slangen</label>
         <button id="sbpat">Op patrouille</button>
         <button id="sbklim">Klimt terrassen</button>
@@ -39960,6 +39965,12 @@ const HY_PAIR_MIN = 1.0, HY_PAIR_MAX = 2.0;   // bij twee hyena's wacht de tweed
 const HY_ENTER = 260;          // zo ver buiten beeld komt hij opzetten
 const HY_EDGE = 150;           // en zo ver blijft zijn opkomstplek van een ravijnrand vandaan
 const HY_LEAVE = 420;          // en zo ver voorbij de rand is hij weg
+// Omkeren (level.hyOmkeer, de norm voor nieuw werk; Co-op, Co-op solo, de Maker en de sandbox): na zijn uitval rent een
+// hyena niet het level uit maar draait hij net buiten beeld om en komt opnieuw dreigen. Loopt hij eerder ergens tegenaan
+// (een kei, een ravijnrand, de klifwand), dan blijft hij daar al staan en draait hij om. Zonder het veld de oude manier.
+const HY_OMKEER = 90;          // zo ver buiten de rand van het beeld draait hij om
+function hyOmkeerAan(){ return sandbox ? sbHyOmkeer : !!(level && level.hyOmkeer); }
+function hyBuitenRand(gap){ return gap > W * 0.5 / viewZoom() + (hyOmkeerAan() ? HY_OMKEER : HY_LEAVE); }
 // de bek is tijdens de storm de raakzone: canvaspixels vanaf het canvasmidden in
 // de kijkrichting, en boven de grondlijn. Laag genoeg om overheen te springen.
 const HY_BITE = { from: 60, to: 100, low: 150, high: 250 };
@@ -40229,7 +40240,10 @@ function updateHyena(s, dt, plats, cliff){
     }
     // de roedel van Murghtaan 3 blijft: een eind voorbij Amir draait hij om en komt opnieuw dreigen (MURC_INTRO.omkeer)
     if (s.murcRoedel && (world - s.x) * s.dir < -MURC_INTRO.omkeer * murAmir()){ hySet(s, 'komen'); s.threatT = hyRand(HY_THREAT_MIN, HY_THREAT_MAX); return; }
-    if (gap > W * 0.5 / viewZoom() + HY_LEAVE) s.state = 'gone';        // voorbij en het beeld uit
+    if (hyBuitenRand(gap)){                         // voorbij en het beeld uit
+      if (hyOmkeerAan() && (world - s.x) * s.dir < 0){ hySet(s, 'komen'); s.face = -s.dir; s.threatT = hyRand(HY_THREAT_MIN, HY_THREAT_MAX); }   // omkeren en terugkomen
+      else if (!hyOmkeerAan()) s.state = 'gone';
+    }
     return;
   }
 
@@ -40245,9 +40259,10 @@ function updateHyena(s, dt, plats, cliff){
       if (hyZiet){ hySet(s, 'komen'); s.zMis = 0; }
       else {
         s.face = -naarJe; s.show = 'loop';
+        if (hyOmkeerAan() && hyBuitenRand(gap)){ s.show = 'dreigen'; return; }   // met omkeren: net buiten beeld blijft hij wachten
         hyMove(s, -naarJe * HY_WALK_SPD * dt, plats, cliff, false);
         hyAnim(s, dt, HY.fps.loop, HY.n.loop, false);
-        if (gap > W * 0.5 / viewZoom() + HY_LEAVE) s.state = 'gone';
+        if (hyBuitenRand(gap)) s.state = 'gone';
         return;
       }
     } else if ((s.state === 'komen' || s.state === 'dreigen') && s.forceT < 0 && zichtKwijt(s, dt, hyZiet)){
@@ -55178,6 +55193,7 @@ function readLevel(txt){
            rugMax: o.rugMax != null ? Math.max(0, Math.min(5, Math.round(Number(o.rugMax) || 0))) : undefined,   // reserve-speren op de rug: 1 in de hand plus zoveel op de rug (zie "reserve-speren op de rug"); 0 is uit
            hpBalk: Array.isArray(o.hpBalk) ? o.hpBalk.filter(k => typeof k === 'string') : !!o.hpBalk,   // true = elke vijand de balk, of een lijst soorten (['bandiet','kooiman']) = alleen die (zie HP_BALK)
            slangEenKlap: !!o.slangEenKlap,              // slangen in een klap dood, ook met de health-balk (zie SLANG_EEN_KLAP)
+           hyOmkeer: !!o.hyOmkeer,                      // hyena's draaien na hun uitval om in plaats van het level uit te rennen (zie HY_OMKEER)
            zicht: !!o.zicht,                            // vijanden zien je alleen als er niets tussen zit (zie "zicht")
            goud: !!o.goud,                              // een goudstuk per kill en een prijs in de winkel (zie "goud")
            kopgeld: !!o.kopgeld,                        // goud extra voor een aanvoerder en Nyundo (GOUD.kopgeld, De Rivierstad)
@@ -60166,7 +60182,7 @@ function mkNaarLevel(opt){
   // hpBalk: Amir en elke vijand een health-balk met 3 levens, behalve de slangen (zand, zwart, knock en fosfor): die
   // staan niet in de lijst en zijn dus in een klap dood (zie hpBalkAan en "health-balk").
   // camera: de meekijkende camera, de standaard voor een nieuw level (zie "camera")
-  const lvl = { name:'Level Maker test', view:0.8, zicht:true, camera:true, hpBalk:MK_HP_SOORTEN.slice(), rocks, props, spawns, kaleKlif:true, voorgrond:false,
+  const lvl = { name:'Level Maker test', view:0.8, zicht:true, camera:true, hyOmkeer:true, hpBalk:MK_HP_SOORTEN.slice(), rocks, props, spawns, kaleKlif:true, voorgrond:false,
                 overloop: true,             // savanne steekt met zijn bovenste laag over elke hogere wand ernaast (zie "overloopje")
                 speerInHand: true,          // nieuwe (Maker-)levels: Amir begint met de speer in de hand
                 rugMax: 1,                  // en met 1 reserve-speer op de rug (zie restart en "reserve-speren op de rug")
@@ -62113,6 +62129,8 @@ function sbArenaLaadCfg(){
 sbArenaToon();
 // opt-in plateau-traversal in de sandbox: nieuwe slangen en fosforslangen stappen terrassen op en af
 let sbKlim = false;
+let sbHyOmkeer = true;                              // hyena's draaien om na hun uitval (zie HY_OMKEER)
+document.getElementById('sbhyomkeer').onclick = e => { sbHyOmkeer = !sbHyOmkeer; e.currentTarget.classList.toggle('on', sbHyOmkeer); cv.focus(); };
 const sbKlimBtn = document.getElementById('sbklim');
 sbKlimBtn.onclick = () => { sbKlim = !sbKlim; sbKlimBtn.classList.toggle('on', sbKlim); cv.focus(); };
 const sbGoudBtn = document.getElementById('sbgoud');   // goud dat vliegt: elke kill een goudstuk naar de teller
@@ -66709,6 +66727,7 @@ function mpCoopStart(epI){
   runReset();
   levelList = PVP_LEVELS;                         // niet TEST_LEVELS: die geeft alle talents (een vierde leven)
   const lv = JSON.parse(JSON.stringify(ep ? COOPEP_LEVELS[pvp.coop.ep.i] : MP_COOP_LEVEL));
+  lv.hyOmkeer = true;                               // hyena's draaien na hun uitval om, ze verdwijnen niet uit het level
   if (ep){ lv.stof = true; lv.rugMax = 1; lv.multikill = false; lv.rapport = false; }   // zoals de map van Survival: stof, 1 speer op de rug, de reeks van het team
   else lv.wapenrekken[0].n = pvp.regels.coop.rek;
   mpWapenLevel(lv);                                 // met de stokken: een level met stokken (geen speer, geen rug)
