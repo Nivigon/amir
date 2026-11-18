@@ -397,6 +397,12 @@ een verdieping omhoog. De treden zijn altijd even groot (de schaal hangt aan de 
 - Aan de andere kant van het huis kom je boven uit: op een balkon (`balkon`: breedte in Amir, standaard 1,6, met twee
   schoren naar de muur), of met `balkon: 0` op een galerij die daar al loopt. Op die plek zit altijd een opening in de
   leuning (`gat`, 0,62 Amir); dat is ook de plek waar je weer naar beneden gaat.
+- Boven de treden zelf staat nooit een leuning: waar de bovenste trede op een dek uitkomt (het bordes, een galerij of
+  een balkon op die hoogte) gaat de leuning open, zo breed als de trap met zijn linkerbalk tot de muur (`STAD_TRAP.treden`,
+  in bronpx van `trap.png`; `stadTrapTopGat`, `stadTrapTopGaten`). Dat zit in de tekencode van het dek zelf
+  (`stadGalerijGaten`, het bordes in `stadTrapAchter`, het balkon in `stadTrapVoor`), dus elke trap, ook een nieuwe,
+  krijgt het vanzelf. Alleen het stuk boven de trap gaat eruit; de rest van de leuning blijft. Een nieuw soort dek waar een
+  trap op uit kan komen haalt zijn openingen ook uit `stadTrapTopGaten`. Komt er een nieuw trapplaatje, meet `treden` dan opnieuw.
 - E bij de voet of in de opening (`eDruk`): Amir vervaagt (`STAD_TRAP.uit`, `stadTrapAlfa`), staat dan al aan de andere
   kant, met zijn gezicht van het huis af, en de camera glijdt in `glij` seconden zacht van waar hij stond naar waar hij bij de
   uitgang hoort (`stadTrapCamX` in de camEase-keten, `stadTrapCamY` in `updateCamera`, met het vooruitkijken van de
