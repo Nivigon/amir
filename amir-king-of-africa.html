@@ -30501,7 +30501,7 @@ const STAD_TRAP = {
   src: 'trap.png', w: 462, h: 623, top: 31, binnen: 376,      // bronmaten: de bovenste trede, de binnenrand van de rechterbalk
   bordesW: 405,                                               // zoveel bronpx van de galerij (links + een middenstuk) als bordes
   gat: 0.62,                                                  // de opening in de leuning, in Amir
-  treden: [96, 376],                                          // bronpx: de bovenste trede met de linkerbalk, tot de muur; daar gaat de leuning open
+  voet: [8, 376],                                             // bronpx: de onderste trede met de leuningpaal, tot de muur; daar gaat een dek onder de trap open
   vang: 75,                                                   // zo dichtbij (wereld-px) staat Amir bij de trapvoet of de opening
   gloed: 420,                                                 // vanaf zo dichtbij gloeit de trap zacht op
   uit: 0.2, glij: 0.6, in: 0.22,                              // seconden: Amir vervaagt, de camera glijdt naar de uitgang, Amir komt terug
@@ -30533,18 +30533,19 @@ function stadTrapMaat(t, scale){
            balkL: Math.min(ander, ander + uit * bw), balkR: Math.max(ander, ander + uit * bw) };
 }
 function stadTrappen(){ return stadAan() && level.stad.trappen ? level.stad.trappen : []; }
-// de bovenkant van de trap zelf (wereld-x): waar je van de treden op het bordes of een galerij stapt. Daar hoort geen
-// leuning; stadGalerijGaten en het bordes snijden hem op dit stuk weg, voor elke trap, dus ook voor een nieuwe
-function stadTrapTopGat(q){
-  const [a, b] = STAD_TRAP.treden;
+// de voet van de trap (wereld-x): begint een trap op een galerij of balkon (niveau 1 of hoger), dan stond de leuning
+// van dat dek als een hekje laag voor de onderste treden. Daar hoort geen leuning; stadGalerijGaten en het balkon
+// snijden hem op dit stuk weg, voor elke trap, dus ook voor een nieuwe. De leuning van het bordes bovenaan blijft.
+function stadTrapVoetGat(q){
+  const [a, b] = STAD_TRAP.voet;
   return q.links ? [q.x0 + a * q.s, q.x0 + b * q.s] : [q.x0 + q.tw - b * q.s, q.x0 + q.tw - a * q.s];
 }
-// alle trapkoppen die op een dek op hoogte h tussen left en right uitkomen (een galerij, een bordes of een balkon)
-function stadTrapTopGaten(h, left, right, scale){
+// alle trapvoeten die op een dek op hoogte h tussen left en right staan (een galerij of een balkon)
+function stadTrapVoetGaten(h, left, right, scale){
   const out = [];
   for (const t of stadTrappen()){
-    const q = stadTrapMaat(t, scale); if (!q || Math.abs(q.ht - h) >= 20) continue;
-    const [a, b] = stadTrapTopGat(q);
+    const q = stadTrapMaat(t, scale); if (!q || q.hb <= 0 || Math.abs(q.hb - h) >= 20) continue;
+    const [a, b] = stadTrapVoetGat(q);
     if (b > left && a < right) out.push([Math.max(a, left), Math.min(b, right)]);
   }
   return out;
@@ -30684,8 +30685,8 @@ function stadGalerijGaten(m, scale){
     const q = stadTrapMaat(t, scale); if (!q) continue;
     if (Math.abs(q.ht - m.h) < 20 && q.gatX > m.left && q.gatX < m.right) out.push([q.gatX - q.gat / 2, q.gatX + q.gat / 2]);
   }
-  // en waar de treden van een trap boven op dit dek uitkomen: geen hekje voor de trap (elke trap, ook met een balkon)
-  out.push(...stadTrapTopGaten(m.h, m.left, m.right, scale));
+  // en waar een trap op dit dek begint: geen hekje voor de onderste treden (elke trap)
+  out.push(...stadTrapVoetGaten(m.h, m.left, m.right, scale));
   // en voor een deurgat op een verdieping dat op dit dek uitkomt: geen hekje voor de deur
   const deuren = stadDeurenBoven();
   for (const gi in deuren) for (const v of deuren[gi]){
@@ -30881,7 +30882,7 @@ function stadTrapAchter(groundY, scale, cx){
     const gyB = groundY - q.hb * scale, gyT = groundY - q.ht * scale;
     // het bordes: een dun stuk dek met leuning op ht, van de buitenkant van de trap tot achter de muur
     const bl = q.links ? q.x0 + q.tw * 0.04 : q.muur - 10, br = q.links ? q.muur + 10 : q.x0 + q.tw * 0.96;
-    const btop = stadStrook(bl, br, q.ht, groundY, scale, cx, stadTrapTopGaten(q.ht, bl, br, scale), true);   // boven de treden geen leuning
+    const btop = stadStrook(bl, br, q.ht, groundY, scale, cx, null, true);
     const GLf = CHAR_H * scale / STAD.galerij.amir;
     stadMuurSchaduw(cx + (bl - world), btop, br - bl, 128 * GLf, q.links);
     // de trap: onderaan op hb, zo hoog als de verdieping; wat hoger zou komen, valt weg achter het bordes
@@ -30908,7 +30909,7 @@ function stadTrapVoor(groundY, scale, cx){
   if (!stadKlaar('galerij')) return;
   for (const t of stadTrappen()){
     const q = stadTrapMaat(t, scale); if (!q) continue;
-    const gaten = [[q.gatX - q.gat / 2, q.gatX + q.gat / 2]].concat(stadTrapTopGaten(q.ht, q.balkL - q.bw, q.balkR + q.bw, scale));   // ook een andere trap die hier uitkomt
+    const gaten = [[q.gatX - q.gat / 2, q.gatX + q.gat / 2]].concat(stadTrapVoetGaten(q.ht, q.balkL - q.bw, q.balkR + q.bw, scale));   // en een trap die op dit balkon begint
     const gy = groundY - q.ht * scale;
     if (t.balkon){
       const sx = cx + (q.balkL - world); if (sx > W / viewZoom() + W || sx + q.bw < -W) continue;
