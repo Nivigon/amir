@@ -1804,6 +1804,7 @@
         <button id="sbworp">Worp: twee trappen</button>
         <button id="sbworpwacht" class="on">Spannen: nieuw</button>
         <button id="sbworpomlaag">Aim down: off</button>
+        <button id="sbsprintgreep" title="De sprintgreep (SPRINTGREEP): in de sprint mag E iets voor je speer al, Amir pakt hem dan zonder af te remmen">Sprint grab: off</button>
         <button id="sbrigmik" title="De mik-rig (RIG): mikken met pijl op en neer, de arm en speer draaien mee">Aim rig: off</button>
         <button id="sbmikmodus" title="Hoe het mikken omlaag werkt (MIK): Line, No line, Fading line, Sweep, Shaky hand">Aim: Line</button>
       </div>
@@ -22733,7 +22734,7 @@ function javThicket(x, h, scale){
 // oude vaste 85, dus dan groeit het bereik mee; kleiner wordt het nooit.
 function javReach(){
   const eigen = (PLAYER_HALF_W + 0.18) * CHAR_H * nowScale();
-  return Math.max(85, eigen) + (jav && jav.state === 'bos' ? (jav.bosHw || 0) : 0);
+  return Math.max(85, eigen) + sgRuim +(jav && jav.state === 'bos' ? (jav.bosHw || 0) : 0);
 }
 // Een speer waar je niet meer bij komt, krijg je nooit meer terug. Dat gebeurt achter een
 // doornbos (zonder speer hak je het niet weg, en eroverheen springen kan niet, zie THICKET),
@@ -24187,6 +24188,70 @@ function eigenSpeerPak(){
   }
   return false;
 }
+// ---- sprintgreep: de speer uit de grond plukken vanuit de sprint (kit-lijst W1) ----
+// In volle sprint is het raam om E te drukken bij je speer maar een tiende seconde. Met de sprintgreep mag E iets
+// eerder: ligt je eigen speer of een losse speer net voor je, dan onthoudt het spel de druk (SPRINTGREEP.buffer) en
+// pakt Amir hem zodra hij binnen bereik is, met wat meer reik (extra) en zonder af te remmen. Hij duikt er even
+// voor (sgDuik, alleen in beeld). Het gaat door dezelfde functies als E (losTrek, eigenSpeerPak), dus een skelet
+// (2 s trekken), een speer in een runeschijf (regel 9) en een volle hand en rug blijven zoals ze waren.
+// Nu alleen in de sandbox (knop Sprint grab onder Speerworp), of een level met sprintGreep: true.
+const SPRINTGREEP = {
+  buffer: 0.3,      // zo lang telt een E vooraf, in s
+  extra: 45,        // zoveel wereld-px meer reik in de sprint
+  vooruit: 170,     // zo ver voor je mag de speer liggen als je E drukt (sprint 495 px/s maal de buffer, plus wat)
+  duik: 0.3,        // de duik in beeld, in s
+  hoek: 0.2,        // zo ver leunt hij voorover, in radialen
+  zak: 0.07,        // en zo ver zakt hij, als deel van zijn hoogte
+};
+let sbSprintGreep = false, sgBuf = 0, sgDuik = 0, sgRuim = 0;   // sgRuim: de extra reik, alleen tijdens het zoeken
+function sprintGreepAan(){ return sandbox ? sbSprintGreep : !!(level && level.sprintGreep); }
+function sgSprint(){
+  const l = keys['ArrowLeft'] || keys['a'] || keys['A'], r = keys['ArrowRight'] || keys['d'] || keys['D'];
+  return !!keys['Shift'] && onGround && !jump && !rol && duckT <= 0 && !STOK_AAN && l !== r;
+}
+// de speer die de sprintgreep kan pakken, met zoveel extra reik: { x } of null; alleen voor hem uit of onder hem
+function sgDoel(extra){
+  sgRuim = extra;
+  let x = null;
+  try {
+    const g = spearGreep(), sp = losBij();
+    if (g) x = g.x; else if (sp) x = sp.x;
+  } finally { sgRuim = 0; }
+  if (x === null) return null;
+  return (x - world) * facing > -20 ? { x } : null;   // facing -1 is naar links: voor hem is een kleinere x
+}
+function sgPak(){
+  sgRuim = SPRINTGREEP.extra;
+  let ok;
+  try { ok = losTrek() || eigenSpeerPak(); } finally { sgRuim = 0; }
+  sgBuf = 0;
+  if (ok){ sgDuik = SPRINTGREEP.duik; puffDust(4); }
+  return ok;
+}
+// E in de sprint: meteen pakken, of de druk even onthouden. true als E daarmee op is.
+function sgDruk(){
+  if (!sprintGreepAan() || !sgSprint() || amirVast()) return false;
+  if (exeBij() || skeletBij() || gaapSpeerBij()) return false;   // die gaan zoals altijd
+  if (sgDoel(SPRINTGREEP.extra)) return sgPak();
+  if (sgDoel(SPRINTGREEP.extra + SPRINTGREEP.vooruit)){ sgBuf = SPRINTGREEP.buffer; return true; }
+  return false;
+}
+// elk beeld: de onthouden druk aflopen en pakken zodra het kan, en de duik laten uitlopen
+function sgStap(dt){
+  if (sgDuik > 0) sgDuik = Math.max(0, sgDuik - dt);
+  if (sgBuf <= 0) return;
+  sgBuf -= dt;
+  if (!sgSprint()){ sgBuf = 0; return; }
+  if (sgDoel(SPRINTGREEP.extra)) sgPak();
+}
+// de duik in beeld: om zijn voeten voorover (het beeld kijkt hier naar links, de spiegeling zit al in de transformatie)
+function sgDuikZet(w, h, voet){
+  if (sgDuik <= 0) return;
+  const k = Math.sin(Math.PI * (1 - sgDuik / SPRINTGREEP.duik));
+  ctx.translate(w / 2, voet + SPRINTGREEP.zak * h * k);
+  ctx.rotate(-SPRINTGREEP.hoek * k);
+  ctx.translate(-w / 2, -voet);
+}
 // E tijdens de rol: alleen een speer oprapen (je eigen of een losse), al rollend. Heeft hij er daarna een in
 // de hand, dan rolt hij verder met de frames met speer, en kan hij uit deze rol ook gooien (rolWorpDruk).
 function rolOppak(){
@@ -24197,7 +24262,7 @@ function rolOppak(){
 spearBtn.onclick = () => { toggleSpear(); cv.focus(); };
 // E, van het toetsenbord en van de knop op de telefoon: eerst de deur uit, anders de speer
 // (en daarin gaat een skelet met een speer weer voor). Zo doen ze altijd hetzelfde.
-function eDruk(){ if (rol){ rolOppak(); return; } if (amirVast()) return; if (stadTrapFade || straatFade) return; if (muntE() || kistE()) return; if (!eSpeerIets() && (stadTrapE() || straatE() || binnenE())) return; if (!muurUitgang() && !deurUitgang() && !pleinUitgang() && !eindDeurUit()) toggleSpear(); }
+function eDruk(){ if (rol){ rolOppak(); return; } if (sgDruk()) return; if (amirVast()) return; if (stadTrapFade || straatFade) return; if (muntE() || kistE()) return; if (!eSpeerIets() && (stadTrapE() || straatE() || binnenE())) return; if (!muurUitgang() && !deurUitgang() && !pleinUitgang() && !eindDeurUit()) toggleSpear(); }
 // ligt er iets voor E dat voor de stadstrap gaat: een executie, een skelet, een losse speer of de eerste speer in de grond
 function eSpeerIets(){ return !!exeBij() || !!skeletBij() || !!gaapSpeerBij() || !!losBij() || spearNear(); }
 // Is er iets om E voor te gebruiken? Dan staat de E-knop op de telefoon erbij.
@@ -50980,6 +51045,7 @@ function loop(now){
   loopArgR = loopArgNu(dir, crawling);           // en tot waar zijn lopen de argwaan vult
   worpTref = false;
   if (!fell && !bruFinale()) world += dir * 330 * walkK() * houdTempo * schildTempo() * loopFactor * (1 - (1 - POOL.slow) * wetNow) * murKeverTraag() * straalLoopK() * dt;
+  sgStap(dt);                                    // de sprintgreep: een E vooraf, en de duik (SPRINTGREEP)
   if (glij !== 0) glijUpdate(dt, halfWNow);      // de renstoot: remmend doorglijden
   rolUpdate(dt, halfWNow);                       // de rol: vooruit schuiven, en de afkoeling
   rolWorpUpdate(dt, halfWNow, scaleNow);         // de rol-worp: uitvallen en gooien
@@ -51746,6 +51812,7 @@ function loop(now){
     }
     if (attacking && atkMes) ctx.translate(mesLeun(Math.min(atkFrame, MES.steek.length - 1)) * scale, 0);   // de uitval
     schijnDoodZet(w, h, scale);                       // Feign Death: hij ligt op de grond
+    sgDuikZet(w, h, groundY + lift - y);              // de sprintgreep: even voorover naar de speer (SPRINTGREEP)
     const gloedW = woedeGloed(), gloedZ = straalGloed(), gloed = Math.max(gloedW, gloedZ), zonKl = gloedZ > gloedW;   // de zonnestraal (STRAAL): goud in plaats van oranje
     if (gloed > 0){                                   // de woede: een warme gloed die als een vlam om zijn rand likt
       const beeld = amirSteen > 0 ? fosforKopie(img, 'steen') : broekBeeld(vaanBlauw(img), img);
@@ -63425,6 +63492,12 @@ document.getElementById('sbmikmodus').onclick = e => {   // MIK: de volgende man
   const naam = { streep: 'Line', zonder: 'No line', kort: 'Fading line', wiebel: 'Sweep', tril: 'Shaky hand' };
   e.currentTarget.textContent = 'Aim: ' + naam[sbMikModus];
   thrCancel(); cv.focus();
+};
+document.getElementById('sbsprintgreep').onclick = e => {   // de sprintgreep (SPRINTGREEP)
+  sbSprintGreep = !sbSprintGreep; sgBuf = 0;
+  e.currentTarget.textContent = sbSprintGreep ? 'Sprint grab: on' : 'Sprint grab: off';
+  e.currentTarget.classList.toggle('on', sbSprintGreep);
+  cv.focus();
 };
 document.getElementById('sbworpomlaag').onclick = e => {
   sbWorpOmlaag = !sbWorpOmlaag;
