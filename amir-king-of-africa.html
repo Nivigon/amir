@@ -1578,6 +1578,11 @@
         <button data-spawn="fosfor">3 fosforslangen</button>
       </div>
       <div class="row">
+        <label>Hyena's</label>
+        <button id="sbhyomkeer" class="on">Draaien om</button>
+        <span class="hint">aan: na hun uitval draaien ze net buiten beeld om en komen terug (de norm). Uit: de oude manier, ze rennen het level uit</span>
+      </div>
+      <div class="row">
         <label>Slangen</label>
         <button id="sbpat">Op patrouille</button>
         <button id="sbklim">Klimt terrassen</button>
@@ -30541,6 +30546,7 @@ const STAD_TRAP = {
   src: 'trap.png', w: 462, h: 623, top: 31, binnen: 376,      // bronmaten: de bovenste trede, de binnenrand van de rechterbalk
   bordesW: 405,                                               // zoveel bronpx van de galerij (links + een middenstuk) als bordes
   gat: 0.62,                                                  // de opening in de leuning, in Amir
+  voet: [8, 376],                                             // bronpx: de onderste trede met de leuningpaal, tot de muur; daar gaat een dek onder de trap open
   vang: 75,                                                   // zo dichtbij (wereld-px) staat Amir bij de trapvoet of de opening
   gloed: 420,                                                 // vanaf zo dichtbij gloeit de trap zacht op
   uit: 0.2, glij: 0.6, in: 0.22,                              // seconden: Amir vervaagt, de camera glijdt naar de uitgang, Amir komt terug
@@ -30571,7 +30577,52 @@ function stadTrapMaat(t, scale){
   return { m, s, tw, hoog, hb, ht, links, muur, ander, uit, x0, voetX, gat, gatX, bw,
            balkL: Math.min(ander, ander + uit * bw), balkR: Math.max(ander, ander + uit * bw) };
 }
+// het galerijplaatje als donker silhouet, in de kleur van de slagschaduwen (STAD_SLAG, of slag.kleur van het uitzicht);
+// een keer gemaakt per plaatje en kleur
+function stadGalerijDonker(){
+  const gi = stadImgs.galerij, sc = sceneCfg(), kl = (sc && sc.slag && sc.slag.kleur) || STAD_SLAG.kleur, C = stadGalerijDonker;
+  if (C.c && C.bron === gi && C.kl === kl) return C.c;
+  const c = document.createElement('canvas'); c.width = gi.naturalWidth; c.height = gi.naturalHeight;
+  const g = c.getContext('2d'); g.drawImage(gi, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = 'rgb(' + kl + ')'; g.fillRect(0, 0, c.width, c.height);
+  c.naturalWidth = c.width; c.naturalHeight = c.height; c._bron = gi._bron;
+  Object.assign(C, { c, bron: gi, kl }); return c;
+}
+// het bordes loopt achter het huis de schaduw in: alleen het hout (leuning en planken) wordt naar de muur toe donkerder,
+// niet de muur erachter. Vroeger lag er een donkere rechthoek over (stadMuurSchaduw), die ook de lege muur tussen de
+// palen kleurde: een blok met harde randen. Nu in smalle banden van het donkere silhouet, zo smal dat je geen stap ziet,
+// even sterk als de slagschaduwen (ook 's avonds en 's nachts zachter, stadSlagKleur)
+function stadBordesDiepte(bl, br, ht, btop, groundY, scale, cx, naarRechts){
+  const sc = sceneCfg(), dim = sc && sc.dim ? sc.dim[1] : 0, S = (sc && sc.slag) || {};
+  const sterk = STAD_SLAG.alfa * (S.alfa != null ? S.alfa : 1) * (1 - dim * STAD_SLAG.dimZacht);
+  if (sterk <= 0.01) return;
+  const donker = stadGalerijDonker(), f = CHAR_H * scale / STAD.galerij.amir;
+  const sx0 = cx + (bl - world), bw = br - bl, N = Math.max(8, Math.min(40, Math.round(bw / 5))), w = bw / N;
+  for (let i = 0; i < N; i++){
+    const t = (i + 0.5) / N, d = naarRechts ? t : 1 - t;     // 0 aan de buitenkant, 1 tegen de muur
+    const a = sterk * d * d * (3 - 2 * d);                    // zacht in, vol tegen de muur
+    if (a < 0.01) continue;
+    ctx.save(); ctx.beginPath(); ctx.rect(sx0 + i * w - 0.25, btop - 4, w + 0.5, 140 * f); ctx.clip();
+    ctx.globalAlpha = a; stadStrook(bl, br, ht, groundY, scale, cx, null, true, donker); ctx.restore();
+  }
+}
 function stadTrappen(){ return stadAan() && level.stad.trappen ? level.stad.trappen : []; }
+// de voet van de trap (wereld-x): begint een trap op een galerij of balkon (niveau 1 of hoger), dan stond de leuning
+// van dat dek als een hekje laag voor de onderste treden. Daar hoort geen leuning; stadGalerijGaten en het balkon
+// snijden hem op dit stuk weg, voor elke trap, dus ook voor een nieuwe. De leuning van het bordes bovenaan blijft.
+function stadTrapVoetGat(q){
+  const [a, b] = STAD_TRAP.voet;
+  return q.links ? [q.x0 + a * q.s, q.x0 + b * q.s] : [q.x0 + q.tw - b * q.s, q.x0 + q.tw - a * q.s];
+}
+// alle trapvoeten die op een dek op hoogte h tussen left en right staan (een galerij of een balkon)
+function stadTrapVoetGaten(h, left, right, scale){
+  const out = [];
+  for (const t of stadTrappen()){
+    const q = stadTrapMaat(t, scale); if (!q || q.hb <= 0 || Math.abs(q.hb - h) >= 20) continue;
+    const [a, b] = stadTrapVoetGat(q);
+    if (b > left && a < right) out.push([Math.max(a, left), Math.min(b, right)]);
+  }
+  return out;
+}
 // de balkons dragen (Amir, en een vijand met dak)
 function stadTrapPlats(scale){
   const out = [];
@@ -30707,6 +30758,8 @@ function stadGalerijGaten(m, scale){
     const q = stadTrapMaat(t, scale); if (!q) continue;
     if (Math.abs(q.ht - m.h) < 20 && q.gatX > m.left && q.gatX < m.right) out.push([q.gatX - q.gat / 2, q.gatX + q.gat / 2]);
   }
+  // en waar een trap op dit dek begint: geen hekje voor de onderste treden (elke trap)
+  out.push(...stadTrapVoetGaten(m.h, m.left, m.right, scale));
   // en voor een deurgat op een verdieping dat op dit dek uitkomt: geen hekje voor de deur
   const deuren = stadDeurenBoven();
   for (const gi in deuren) for (const v of deuren[gi]){
@@ -30736,8 +30789,8 @@ function stadTrapE_Teken(x, y, boven){
   ctx.fill(); ctx.restore();
 }
 // een galerijstrook (zelfde 9-slice als een galerij) van left tot right met het dek op h, met openingen in de leuning
-function stadStrook(left, right, h, groundY, scale, cx, gaten, alleenTop){
-  const gi = stadImgs.galerij, GL = STAD.galerij, f = CHAR_H * scale / GL.amir;
+function stadStrook(left, right, h, groundY, scale, cx, gaten, alleenTop, beeld){
+  const gi = beeld || stadImgs.galerij, GL = STAD.galerij, f = CHAR_H * scale / GL.amir;
   const lw = (GL.links[1] - GL.links[0]) * f, mw = (GL.midden[1] - GL.midden[0]) * f, rw = (GL.rechts[1] - GL.rechts[0]) * f;
   const n = Math.max(0, Math.ceil((right - left - lw - rw) / mw));
   const tot = lw + n * mw + rw, sx = cx + (left - world);
@@ -30756,12 +30809,6 @@ function stadStrook(left, right, h, groundY, scale, cx, gaten, alleenTop){
   stuk(GL.rechts[0], GL.rechts[1], Math.min(x, sx + (right - left) - rw), rw);
   ctx.restore();
   return top;
-}
-// schaduw over een strook naar een muur toe: daar verdwijnt hij erachter
-function stadMuurSchaduw(x, y, w, h, naarRechts){
-  const g = ctx.createLinearGradient(x, 0, x + w, 0);
-  g.addColorStop(naarRechts ? 0 : 1, 'rgba(30,18,10,0)'); g.addColorStop(naarRechts ? 1 : 0, 'rgba(30,18,10,0.5)');
-  ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
 }
 // ---- de doorgang: het dek loopt bij de opening van een stadstrap achter de leuning door, de diepte in ----
 // Bij de opening in de leuning waar een stadstrap boven uitkomt op een galerij (balkon: 0) lopen de planken van het
@@ -30902,8 +30949,7 @@ function stadTrapAchter(groundY, scale, cx){
     // het bordes: een dun stuk dek met leuning op ht, van de buitenkant van de trap tot achter de muur
     const bl = q.links ? q.x0 + q.tw * 0.04 : q.muur - 10, br = q.links ? q.muur + 10 : q.x0 + q.tw * 0.96;
     const btop = stadStrook(bl, br, q.ht, groundY, scale, cx, null, true);
-    const GLf = CHAR_H * scale / STAD.galerij.amir;
-    stadMuurSchaduw(cx + (bl - world), btop, br - bl, 128 * GLf, q.links);
+    stadBordesDiepte(bl, br, q.ht, btop, groundY, scale, cx, q.links);   // het hout loopt donker weg naar de muur
     // de trap: onderaan op hb, zo hoog als de verdieping; wat hoger zou komen, valt weg achter het bordes
     const bronTop = T.h - q.hoog / q.s;                        // de bovenste bronrij die nog in beeld komt
     const dy = gyB - q.hoog;
@@ -30928,7 +30974,7 @@ function stadTrapVoor(groundY, scale, cx){
   if (!stadKlaar('galerij')) return;
   for (const t of stadTrappen()){
     const q = stadTrapMaat(t, scale); if (!q) continue;
-    const gaten = [[q.gatX - q.gat / 2, q.gatX + q.gat / 2]];
+    const gaten = [[q.gatX - q.gat / 2, q.gatX + q.gat / 2]].concat(stadTrapVoetGaten(q.ht, q.balkL - q.bw, q.balkR + q.bw, scale));   // en een trap die op dit balkon begint
     const gy = groundY - q.ht * scale;
     if (t.balkon){
       const sx = cx + (q.balkL - world); if (sx > W / viewZoom() + W || sx + q.bw < -W) continue;
@@ -40006,6 +40052,12 @@ const HY_PAIR_MIN = 1.0, HY_PAIR_MAX = 2.0;   // bij twee hyena's wacht de tweed
 const HY_ENTER = 260;          // zo ver buiten beeld komt hij opzetten
 const HY_EDGE = 150;           // en zo ver blijft zijn opkomstplek van een ravijnrand vandaan
 const HY_LEAVE = 420;          // en zo ver voorbij de rand is hij weg
+// Omkeren (level.hyOmkeer, de norm voor nieuw werk; Co-op, Co-op solo, de Maker en de sandbox): na zijn uitval rent een
+// hyena niet het level uit maar draait hij net buiten beeld om en komt opnieuw dreigen. Loopt hij eerder ergens tegenaan
+// (een kei, een ravijnrand, de klifwand), dan blijft hij daar al staan en draait hij om. Zonder het veld de oude manier.
+const HY_OMKEER = 90;          // zo ver buiten de rand van het beeld draait hij om
+function hyOmkeerAan(){ return sandbox ? sbHyOmkeer : !!(level && level.hyOmkeer); }
+function hyBuitenRand(gap){ return gap > W * 0.5 / viewZoom() + (hyOmkeerAan() ? HY_OMKEER : HY_LEAVE); }
 // de bek is tijdens de storm de raakzone: canvaspixels vanaf het canvasmidden in
 // de kijkrichting, en boven de grondlijn. Laag genoeg om overheen te springen.
 const HY_BITE = { from: 60, to: 100, low: 150, high: 250 };
@@ -40275,7 +40327,10 @@ function updateHyena(s, dt, plats, cliff){
     }
     // de roedel van Murghtaan 3 blijft: een eind voorbij Amir draait hij om en komt opnieuw dreigen (MURC_INTRO.omkeer)
     if (s.murcRoedel && (world - s.x) * s.dir < -MURC_INTRO.omkeer * murAmir()){ hySet(s, 'komen'); s.threatT = hyRand(HY_THREAT_MIN, HY_THREAT_MAX); return; }
-    if (gap > W * 0.5 / viewZoom() + HY_LEAVE) s.state = 'gone';        // voorbij en het beeld uit
+    if (hyBuitenRand(gap)){                         // voorbij en het beeld uit
+      if (hyOmkeerAan() && (world - s.x) * s.dir < 0){ hySet(s, 'komen'); s.face = -s.dir; s.threatT = hyRand(HY_THREAT_MIN, HY_THREAT_MAX); }   // omkeren en terugkomen
+      else if (!hyOmkeerAan()) s.state = 'gone';
+    }
     return;
   }
 
@@ -40291,9 +40346,10 @@ function updateHyena(s, dt, plats, cliff){
       if (hyZiet){ hySet(s, 'komen'); s.zMis = 0; }
       else {
         s.face = -naarJe; s.show = 'loop';
+        if (hyOmkeerAan() && hyBuitenRand(gap)){ s.show = 'dreigen'; return; }   // met omkeren: net buiten beeld blijft hij wachten
         hyMove(s, -naarJe * HY_WALK_SPD * dt, plats, cliff, false);
         hyAnim(s, dt, HY.fps.loop, HY.n.loop, false);
-        if (gap > W * 0.5 / viewZoom() + HY_LEAVE) s.state = 'gone';
+        if (hyBuitenRand(gap)) s.state = 'gone';
         return;
       }
     } else if ((s.state === 'komen' || s.state === 'dreigen') && s.forceT < 0 && zichtKwijt(s, dt, hyZiet)){
@@ -55224,6 +55280,7 @@ function readLevel(txt){
            rugMax: o.rugMax != null ? Math.max(0, Math.min(5, Math.round(Number(o.rugMax) || 0))) : undefined,   // reserve-speren op de rug: 1 in de hand plus zoveel op de rug (zie "reserve-speren op de rug"); 0 is uit
            hpBalk: Array.isArray(o.hpBalk) ? o.hpBalk.filter(k => typeof k === 'string') : !!o.hpBalk,   // true = elke vijand de balk, of een lijst soorten (['bandiet','kooiman']) = alleen die (zie HP_BALK)
            slangEenKlap: !!o.slangEenKlap,              // slangen in een klap dood, ook met de health-balk (zie SLANG_EEN_KLAP)
+           hyOmkeer: !!o.hyOmkeer,                      // hyena's draaien na hun uitval om in plaats van het level uit te rennen (zie HY_OMKEER)
            zicht: !!o.zicht,                            // vijanden zien je alleen als er niets tussen zit (zie "zicht")
            goud: !!o.goud,                              // een goudstuk per kill en een prijs in de winkel (zie "goud")
            kopgeld: !!o.kopgeld,                        // goud extra voor een aanvoerder en Nyundo (GOUD.kopgeld, De Rivierstad)
@@ -60212,7 +60269,7 @@ function mkNaarLevel(opt){
   // hpBalk: Amir en elke vijand een health-balk met 3 levens, behalve de slangen (zand, zwart, knock en fosfor): die
   // staan niet in de lijst en zijn dus in een klap dood (zie hpBalkAan en "health-balk").
   // camera: de meekijkende camera, de standaard voor een nieuw level (zie "camera")
-  const lvl = { name:'Level Maker test', view:0.8, zicht:true, camera:true, hpBalk:MK_HP_SOORTEN.slice(), rocks, props, spawns, kaleKlif:true, voorgrond:false,
+  const lvl = { name:'Level Maker test', view:0.8, zicht:true, camera:true, hyOmkeer:true, hpBalk:MK_HP_SOORTEN.slice(), rocks, props, spawns, kaleKlif:true, voorgrond:false,
                 overloop: true,             // savanne steekt met zijn bovenste laag over elke hogere wand ernaast (zie "overloopje")
                 speerInHand: true,          // nieuwe (Maker-)levels: Amir begint met de speer in de hand
                 rugMax: 1,                  // en met 1 reserve-speer op de rug (zie restart en "reserve-speren op de rug")
@@ -62159,6 +62216,8 @@ function sbArenaLaadCfg(){
 sbArenaToon();
 // opt-in plateau-traversal in de sandbox: nieuwe slangen en fosforslangen stappen terrassen op en af
 let sbKlim = false;
+let sbHyOmkeer = true;                              // hyena's draaien om na hun uitval (zie HY_OMKEER)
+document.getElementById('sbhyomkeer').onclick = e => { sbHyOmkeer = !sbHyOmkeer; e.currentTarget.classList.toggle('on', sbHyOmkeer); cv.focus(); };
 const sbKlimBtn = document.getElementById('sbklim');
 sbKlimBtn.onclick = () => { sbKlim = !sbKlim; sbKlimBtn.classList.toggle('on', sbKlim); cv.focus(); };
 const sbGoudBtn = document.getElementById('sbgoud');   // goud dat vliegt: elke kill een goudstuk naar de teller
@@ -66755,6 +66814,7 @@ function mpCoopStart(epI){
   runReset();
   levelList = PVP_LEVELS;                         // niet TEST_LEVELS: die geeft alle talents (een vierde leven)
   const lv = JSON.parse(JSON.stringify(ep ? COOPEP_LEVELS[pvp.coop.ep.i] : MP_COOP_LEVEL));
+  lv.hyOmkeer = true;                               // hyena's draaien na hun uitval om, ze verdwijnen niet uit het level
   if (ep){ lv.stof = true; lv.rugMax = 1; lv.multikill = false; lv.rapport = false; }   // zoals de map van Survival: stof, 1 speer op de rug, de reeks van het team
   else lv.wapenrekken[0].n = pvp.regels.coop.rek;
   mpWapenLevel(lv);                                 // met de stokken: een level met stokken (geen speer, geen rug)

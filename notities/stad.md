@@ -403,6 +403,18 @@ een verdieping omhoog. De treden zijn altijd even groot (de schaal hangt aan de 
 - Aan de andere kant van het huis kom je boven uit: op een balkon (`balkon`: breedte in Amir, standaard 1,6, met twee
   schoren naar de muur), of met `balkon: 0` op een galerij die daar al loopt. Op die plek zit altijd een opening in de
   leuning (`gat`, 0,62 Amir); dat is ook de plek waar je weer naar beneden gaat.
+- Voor de voet van een trap staat nooit een leuning: begint een trap op een galerij of balkon (`niveau` 1 of hoger),
+  dan gaat de leuning van dat dek open voor de onderste treden, van de leuningpaal tot de muur (`STAD_TRAP.voet`, in
+  bronpx van `trap.png`; `stadTrapVoetGat`, `stadTrapVoetGaten`). Dat zit in de tekencode van het dek zelf
+  (`stadGalerijGaten`, het balkon in `stadTrapVoor`), dus elke trap, ook een nieuwe, krijgt het vanzelf. Alleen dat stuk
+  gaat eruit; de rest van de leuning blijft, en de leuning van het bordes bovenaan ook (die hoort daar). Een nieuw soort
+  dek waar een trap op kan beginnen haalt zijn openingen ook uit `stadTrapVoetGaten`. Komt er een nieuw trapplaatje, meet
+  `voet` dan opnieuw.
+- Het bordes loopt achter het huis de schaduw in: alleen het hout (leuning en planken) wordt naar de muur toe donkerder
+  (`stadBordesDiepte`, met het donkere silhouet van de galerij, `stadGalerijDonker`), even sterk als de slagschaduwen en
+  's avonds en 's nachts net zo zacht. Vroeger lag er een donkere rechthoek over het hele bordes (`stadMuurSchaduw`), die
+  ook de lege muur tussen de palen kleurde: een blok met harde randen op de muur. Leg dus nooit een vlak over een stuk
+  met een leuning; donker het hout zelf.
 - E bij de voet of in de opening (`eDruk`): Amir vervaagt (`STAD_TRAP.uit`, `stadTrapAlfa`), staat dan al aan de andere
   kant, met zijn gezicht van het huis af, en de camera glijdt in `glij` seconden zacht van waar hij stond naar waar hij bij de
   uitgang hoort (`stadTrapCamX` in de camEase-keten, `stadTrapCamY` in `updateCamera`, met het vooruitkijken van de
