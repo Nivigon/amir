@@ -135,6 +135,16 @@ steegjes een stadstrap (E) van de galerij naar een balkon op 730 aan de buitenka
 dak op (771). Het hoge middenhuis heeft geen weg omhoog. Een ton met een kalebas in het midden van de straat. Nagemeten:
 beide kramen naar de galerij en beide trappen. `geenEinde`: het duel eindigt op de rondes, niet bij fakkels.
 
+**De randen (`huisMarge`, `huisMargeStap`).** Links en rechts ligt 3,5 Amir vrije straat naast de buitenste muren, op elk
+scherm: de huizen groeien mee met het scherm (en schuiven door `aan`), de grenzen in de wereld niet, dus `huisMargeStap`
+(aangeroepen uit `endWall` en `cliffAt`) zet bij elke nieuwe schaal de rechtergrens (`rechtsWall`) en de linker rotswand
+opnieuw. Vroeger lag de rots vast op -2950: op de laptop links twee keer zoveel straat als rechts, en op 1920x1080 stond
+het linkerhuis half in de rots. De rots is kleiner (`s: 1.6`, de inktlijn is dan dunner en de top valt nog buiten beeld) en
+heeft `voor: 2.2`: de grens ligt 2,2 Amir voor de wand, tegen een rotsval van rotsdecor (`props` met `aanRots`, x in Amir
+vanaf de wand, schuift mee) met een zachte schaduw eronder. In Co-op branden 's nachts twee fakkels in de rots
+(`MPC_VERSIE.rots`, in `mpcFakkelsStap`). Let op: elke speler rekent met zijn eigen scherm, dus de grenzen liggen per
+laptop op een andere wereld-x (net als de huizen zelf al deden).
+
 ## Wat nog kan
 
 - Nagerekend (november 2026): de steek raakt pas vanaf zo'n 0,65 Amir afstand (het raakvak zit rond de punt), en spelers

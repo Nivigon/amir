@@ -80,3 +80,15 @@ Test 72 (Aim rig) is een proefveld: een trap van 150 tot 600 hoog en weer terug,
 (`geenEinde`, eruit via het menu) en na elke worp meteen een nieuwe speer (`speerOneindig`). In de sandbox de knop
 **Aim rig** onder Speerworp. Om de rig los van het spel te bekijken is er ook een artifact (Amir mik-rig proef).
 Nagekeken in Chromium: de hoeken -20, 0, 16, 37 en 45 gooien op die hoek, het pad wisselt op 28 graden, geen fouten.
+
+## De sprintgreep (kit-lijst W1, in de maak)
+
+In volle sprint (495 px/s) was het raam om E te drukken bij je speer maar ongeveer een tiende seconde. Met de
+sprintgreep (`SPRINTGREEP`, `sgDruk`, `sgStap`, `sgDuikZet`) mag E eerder: ligt je eigen speer of een losse speer
+tot `vooruit` (170 px) plus de reik voor je, dan onthoudt het spel de druk `buffer` (0,3 s) en pakt Amir hem zodra
+hij binnen bereik is, met `extra` (45 px) meer reik en zonder af te remmen. Hij leunt even voorover (`duik`, `hoek`,
+`zak`; alleen in beeld, met de frames die er zijn). Het pakken loopt door `losTrek` en `eigenSpeerPak`, dus een
+skelet, een speer in een runeschijf en een volle hand en rug gaan zoals altijd.
+
+Nu alleen in de sandbox, knop **Sprint grab** onder Speerworp (`sbSprintGreep`), of een level met `sprintGreep: true`
+(geen level heeft het). Gemeten in Chromium: zonder greep mist E op 211 px, met greep pakt E op 121 tot 211 px.
