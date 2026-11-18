@@ -19471,11 +19471,31 @@ cliffImg.src = CLIFF.src;
 function cliffPic(){ return winterPic('cliff', cliffImg); }
 
 // kliffen die jij neerzet staan links van je start en zijn het einde van de wereld
+// de grenzen naast de huizen (veld huisMarge, The Dye Yard): een huis groeit mee met het scherm, een grens in de wereld
+// niet. Daarom zet dit op elk scherm opnieuw de linker rotswand en de rechtergrens (rechtsWall), zodat er links en rechts
+// huisMarge Amir vrije straat naast de buitenste muren ligt en geen huis achter de rots verdwijnt. Een wand met voor
+// houdt Amir zoveel Amir ervoor tegen (tegen het decor aan zijn voet); decor met aanRots schuift met de wand mee
+let huisMargeSc = 0, huisMargeLv = null;
+function huisMargeStap(){
+  if (!level || !level.huisMarge || !level.stad || !(level.stad.gevels || []).length) return;
+  const sc = nowScale();
+  if (sc === huisMargeSc && level === huisMargeLv) return;
+  huisMargeSc = sc; huisMargeLv = level;
+  let l = Infinity, r = -Infinity;
+  for (const g of level.stad.gevels){ const m = stadGevelMaat(g, sc); l = Math.min(l, m.left); r = Math.max(r, m.right); }
+  const A = CHAR_H * sc, d = level.huisMarge * A;
+  level.rechtsWall = Math.round(r + d);
+  const k = (level.cliffs || [])[0];
+  if (!k) return;
+  k.x = Math.round(l - d - (k.voor || 0) * A);
+  for (const p of level.props || []) if (p.aanRots != null) p.x = Math.round(k.x + p.aanRots * A);
+}
 function endWall(){
   if (!level || !level.cliffs || !level.cliffs.length) return -Infinity;
   if (level.binnen && binnenBij(world)) return -Infinity;   // binnen een huis (zie "binnen"): de muren van het huis, geen klif
+  huisMargeStap();
   let m = -Infinity;
-  for (const c of level.cliffs) if (c.x > m) m = c.x;
+  for (const c of level.cliffs){ const x = c.x + (c.voor || 0) * CHAR_H * nowScale(); if (x > m) m = x; }   // voor: de grens ligt voor de wand, tegen het decor
   return m;
 }
 // het einde van een level: rotsrichel met twee fakkels
@@ -19693,6 +19713,7 @@ function cliffAt(){
   // de rechterwand: standaard de vaste CLIFF.wall, maar een Maker-level mag hem uit zijn tekening zetten
   // (level.rechtsWall), zodat je content en je eindpunt rechts van de start kunt leggen zonder tegen de
   // vaste 620-grens te lopen. Zonder dat veld verandert er niets (alle bestaande levels, arena, baviaan).
+  huisMargeStap();                                 // de grenzen naast de huizen, per scherm (huisMarge)
   let w = (level && level.rechtsWall != null) ? level.rechtsWall : CLIFF.wall;
   if (randAan() && level.rechtsWall == null)       // de rand: de grens ligt vlak achter de start (RAND)
     w = (level.start != null ? level.start : 0) + (typeof level.rand === 'number' ? level.rand : RAND.ruimte);
@@ -51557,6 +51578,10 @@ function loop(now){
                         c.wPx - 1, 0, left + W + 2, c.hPx);
         }
         ctx.restore();
+        if (k.voor){                                     // een wand met decor aan zijn voet: een zachte schaduw over de straat eronder
+          const A = CHAR_H * scale;
+          stadZachteSchaduw(wallX - A * 0.6, wallX + (k.voor + 0.5) * A, groundY, A * 1.6);
+        }
         if (showBoxes){
           ctx.save();
           ctx.globalAlpha = 0.6; ctx.strokeStyle = '#ff6b6b'; ctx.lineWidth = 3;
@@ -54499,14 +54524,15 @@ function readLevel(txt){
            props: (o.props || []).filter(q => PROPS[q.k])
                                  .map(q => ({ x: Number(q.x), kind: q.k,
                                               scale: Number(q.s) || 1,
-                                              flip: !!q.f, far: !!q.v, y: Number(q.y) || 0 })),
+                                              flip: !!q.f, far: !!q.v, y: Number(q.y) || 0,
+                                              ...(q.aanRots != null ? { aanRots: Number(q.aanRots) } : {}) })),   // aanRots: x in Amir vanaf de linker rotswand (huisMargeStap)
            // dorpsdecor: id uit het VILLAGE-register, x in de wereld, flip en depth (0..1)
            village: (o.village || []).filter(q => VILLAGE[q.id])
                                      .map(q => ({ id: q.id, x: Number(q.x), flip: !!q.flip,
                                                   depth: Math.max(0, Math.min(1, Number(q.depth) || 0)) })),
            gaps: (o.gaps || []).map(q => ({ x: Number(q.x), w: Math.max(40, Number(q.w) || GAP_BASE) })),
            water: (o.water || []).map(q => ({ x: Number(q.x), n: Math.max(0, Math.round(Number(q.n) || 0)) })),
-           cliffs: (o.cliffs || []).map(q => q.s ? { x: Number(q.x), s: Number(q.s) } : { x: Number(q.x) }),   // s: de wand groter (The Dye Yard)
+           cliffs: (o.cliffs || []).map(q => ({ x: Number(q.x), ...(q.s ? { s: Number(q.s) } : {}), ...(Number(q.voor) > 0 ? { voor: Number(q.voor) } : {}) })),   // s: de wand groter, voor: de grens zoveel Amir voor de wand (The Dye Yard)
            ends: (o.ends || []).slice(0, 1).map(q => ({ x: Number(q.x), y: (q.y === undefined || q.y === null) ? undefined : Number(q.y) })),   // y: de hoogte van het eind, als de Maker hem meegeeft (de vloer onder de getekende cel)
            npcs: (o.npcs || []).filter(q => NPCS[q.k])
                                 .map(q => ({ x: Number(q.x), kind: q.k, scale: Number(q.s) || 1,
@@ -54708,6 +54734,7 @@ function readLevel(txt){
            murg: o.murg ? { x: Number(o.murg.x), van: o.murg.van != null ? Number(o.murg.van) : undefined, tot: o.murg.tot != null ? Number(o.murg.tot) : undefined, charge: !!o.murg.charge, intro: !!o.murg.intro } : undefined,
            brutus: o.brutus ? { x: Number(o.brutus.x), van: o.brutus.van != null ? Number(o.brutus.van) : undefined, tot: o.brutus.tot != null ? Number(o.brutus.tot) : undefined, huid: o.brutus.huid === 'donker' ? 'donker' : undefined, intro: !!o.brutus.intro, hp: Number(o.brutus.hp) > 0 ? Math.round(Number(o.brutus.hp)) : undefined, tint: typeof o.brutus.tint === 'string' ? o.brutus.tint : undefined || undefined } : undefined,
            geenSpeer: !!o.geenSpeer,                    // geen speer voor je in de grond (haal er een uit een skelet)
+           huisMarge: Number(o.huisMarge) > 0 ? Number(o.huisMarge) : undefined,   // de grenzen links en rechts zoveel Amir straat naast de buitenste huizen, op elk scherm (huisMargeStap)
            rand: o.rand ? (typeof o.rand === 'number' ? Number(o.rand) : true) : undefined,   // de rand: geen rotswand en hut aan de start, Amir begint aan de rand van het level (RAND); de standaard voor een nieuw level
            kaleKlif: !!o.kaleKlif,                       // de klifwand en de hut aan start en eind niet tekenen (de grenzen blijven onzichtbaar bestaan); nu alleen de Maker (kale start en eind)
            valschade: !!o.valschade,                    // een diepe val kost levens (standaard uit)
@@ -64049,8 +64076,18 @@ const PVP_LEVEL = {
     voet: [ {x: -350, stuk: 'kruik'}, {x: -1500, stuk: 'stenen'}, {x: -2650, stuk: 'zandhoop', f: 1} ]
   },
   tonnen: [ {x: -1450, kalebas: true} ],
-  spawns: [], rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
-  cliffs: [ {x: -2950, s: 2.3} ],      // de rots links, groot: zijn top valt buiten beeld, geen afgebroken rand tegen de stad
+  spawns: [], rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [],
+  // links en rechts evenveel vrije straat naast de huizen, op elk scherm: huisMargeStap zet de rots en de rechtergrens
+  // (en de rotsval, met aanRots) opnieuw als de huizen meeschalen. De x hieronder zijn die op de laptop
+  huisMarge: 3.5,
+  // de rotsval: brokken en keien uit het rotsdecor tegen de voet van de rots, zodat Amir ergens tegenaan loopt
+  props: [ {x: -3280, k: 'plaat_02', s: 1.21, f: 1, aanRots: 0.11},
+           {x: -3135, k: 'laag_02', s: 1.18, aanRots: 0.92},
+           {x: -3042, k: 'brok_05', s: 0.98, f: 1, aanRots: 1.43},
+           {x: -2950, k: 'kei_05', s: 1.08, aanRots: 1.94},
+           {x: -2898, k: 'brok_07', s: 0.65, aanRots: 2.23} ],
+  // de rots links: groot genoeg dat zijn top buiten beeld valt, en voor: de grens ligt tegen de rotsval, niet in de rots
+  cliffs: [ {x: -3300, s: 1.6, voor: 2.2} ],
   ends: [],
   tips: []
 };
@@ -65240,7 +65277,8 @@ const MPC_VERSIE = {
   elke: 3,
   fakkels: [ [[0.08, 0.55], [0.83, 2.05]],                                  // 0: rechts, laag
              [[0.06, 0.55], [0.94, 0.55], [0.18, 3.35], [0.87, 3.35]],      // 1: het hoge middenhuis
-             [[0.64, 0.55], [0.21, 2.05]] ]                                 // 2: links, laag
+             [[0.64, 0.55], [0.21, 2.05]] ],                                // 2: links, laag
+  rots: [ [0.95, 1.25, 1], [0.05, 3.0, 0.85] ]          // in de rots boven de rotsval: [Amir vanaf de wand, hoogte in Amir, schaal]
 };
 let mpcVersieNu = 'avond', mpcFakSc = 0;
 // kiest uit de versies die de host in de lobby aan heeft staan (pvp.inst.coop.licht); staat er maar een aan, dan blijft het die
@@ -65277,6 +65315,10 @@ function mpcFakkelsStap(){
     const m = stadGevelMaat(g, sc);
     for (const [a, y] of rij) l.push({ x: Math.round(m.left + a * (m.right - m.left)), y, s: 1, f: a < 0.5 });
   });
+  // en twee in de rots boven de rotsval (MPC_VERSIE.rots: [Amir vanaf de wand, hoogte in Amir, schaal]); de wand
+  // staat per scherm ergens anders (huisMargeStap), dus eerst die
+  const k = (level.cliffs || [])[0];
+  if (k){ huisMargeStap(); const A = CHAR_H * sc; for (const [a, y, s] of MPC_VERSIE.rots) l.push({ x: Math.round(k.x + a * A), y, s, f: false }); }
   level.fakkels = l;
 }
 // de deuren waar mensen uit komen: beneden het deurgat van elk huis, op de galerij (401) een per huis, en het balkon
