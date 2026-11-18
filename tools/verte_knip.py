@@ -26,6 +26,7 @@ BRON = os.path.join(MAP, 'bron')
 
 GROEPEER = 18   # pixels: stukjes binnen deze afstand horen bij elkaar
 GROEPEER_PLAAT = {'palm': 2}   # de palmen staan dicht op elkaar
+SCHAAL = {'moskee': 0.6, 'palm': 0.6}   # in het spel komen ze niet groter in beeld dan dit (STAD_VERTE)
 MIN_OPP = 600   # kleinere vlekjes zijn ruis
 MARGE = 3
 
@@ -64,9 +65,13 @@ def knip(pad):
         x1, y1 = min(uit.shape[1], x1 + MARGE + 1), min(uit.shape[0], y1 + MARGE + 1)
         stuk = uit[y0:y1, x0:x1].copy()
         stuk[~m[y0:y1, x0:x1], 3] = 0
+        im_s = Image.fromarray(stuk)
+        sk = SCHAAL.get(naam, 1)
+        if sk != 1:
+            im_s = im_s.resize((round(im_s.width * sk), round(im_s.height * sk)), Image.LANCZOS)
         doel = naam + ('.png' if len(stukken) == 1 else '_%02d.png' % k)
-        Image.fromarray(stuk).save(os.path.join(MAP, doel), optimize=True)
-        print('%-16s %4d x %4d' % (doel, x1 - x0, y1 - y0))
+        im_s.save(os.path.join(MAP, doel), optimize=True)
+        print('%-16s %4d x %4d' % (doel, im_s.width, im_s.height))
 
 
 for pad in sorted(glob.glob(os.path.join(BRON, '*'))):

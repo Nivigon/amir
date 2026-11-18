@@ -2173,6 +2173,9 @@
         <button id="sbstaddak">Bandiet op het dak</button>
         <button id="sbkanteel">Achter de kartels: aan</button>
         <button id="sbslag">Slagschaduw: aan</button>
+        <button id="sbverte" title="De verste rij huizen: groepjes daken met graanschuren, palmen en de moskee, of de oude minigevels">Verte: daken</button>
+        <button id="sbgieren" title="Gieren die traag rondcirkelen boven de stad (niet bij nacht)">Gieren: aan</button>
+        <button id="sbrook" title="Rook die uit een paar daken in de verte opstijgt">Rook: aan</button>
         <button id="sbvolk">Stadsvolk</button>
         <button id="sbdeurstraat">Uit de deur</button>
         <button id="sbdeurboven">Uit de deur boven</button>
@@ -28329,6 +28332,7 @@ function stadLaad(){
   zet('pleinwand', STAD.plein.wand.src); zet('put', STAD.plein.put.src); zet('plein', STAD.plein.vloer);   // het plein
   zet('luifel', STAD.plein.luifel.src);                                       // de luifel bij de put
   stadImgs.hek = zetBron(new Image(), HEK.src, () => console.warn('ontbreekt: ' + HEK.src));               // het valhek in een pleinpoort
+  stadVerteLaad();                                                            // de verte: daken, moskee en palmen
 }
 // een huistype laadt pas als een gevel het gebruikt (stadLaadLevel, of de sandbox)
 function stadSoortLaad(st){
@@ -28364,6 +28368,7 @@ function stadLees(o){
            ...(o.gordijnen ? { gordijnen: true } : {}),
            ...(o.accenten ? { accenten: true } : {}),
            ...(o.onder ? { onder: true } : {}),
+           ...(o.moskee === false ? { moskee: false } : o.moskee != null ? { moskee: n(o.moskee) } : {}),
            galerijen: (o.galerijen || []).map(q => ({ van: n(q.van), tot: q.tot != null ? n(q.tot) : n(q.van), h: q.h != null ? n(q.h) : null,
                                                      meer: Array.isArray(q.meer) ? [n(q.meer[0]), n(q.meer[1])] : null })),
            kramen: (o.kramen || []).map(q => ({ x: n(q.x), soort: q.soort === 'doek' ? 'doek' : 'riet', f: q.f ? 1 : 0 })),
@@ -29641,6 +29646,177 @@ function stadReeks(seed, rij, i){
   const r = (h % 1000) / 1000;
   return { n: r < 0.25 ? 1 : r < 0.6 ? 2 : r < 0.88 ? 3 : 4, flip: ((h >> 5) & 1) === 1 };
 }
+// ---- de verte van de stad: groepjes daken, de moskee en palmen, rook en gieren ----
+// In plaats van de verste rij huizen (STAD.rijen[0], minigevels van dezelfde plaat) staat daar een andere wijk: losse
+// groepjes huizen met graanschuren en torens (design/stad/verte/daken_*), palmen ertussen en een keer de moskee in
+// Djenne-stijl. Uit Grok, geknipt met tools/verte_knip.py. Ze liggen op de voet en de parallax van die rij, in de nevel
+// van die rij voorgebakken. Uit een paar daken stijgt rook op (geen plaat: zachte vlokjes), en boven de stad cirkelen
+// gieren, een paar donkere stipjes. Elk deel apart aan en uit (sandbox, De stad: Verte, Gieren, Rook).
+// stad.moskee: de wereld-x waar de moskee midden in beeld staat (standaard 3000 voor het paleis, zodat ze elkaar in
+// beeld zelden raken), false: geen moskee.
+const STAD_VERTE = {
+  daken: true, gieren: true, rook: true,
+  dir: 'verte/',
+  // s: schermpx per bronpx, keer de maat van een gevel (stadGevelF); een huis in een groepje is dan zo breed als een
+  // minigevel van de rij die hier stond
+  lift: 0.05,                                                 // de rij staat zoveel (deel van H) hoger dan de voet van de rij die hier stond
+  groep: { n: 4, s: 1.5, stap: 260, schuif: 60 },             // stap: bronpx per plek, schuif: zoveel bronpx heen en weer
+  palm: { n: 4, s: 0.7, kans: 0.5, voor: 0.4 },              // kans: een palm op de grens tussen twee plekken; voor: daarvan voor de huizen
+  moskee: { s: 1.2, nevel: 0.42, voor: 3000 },               // nevel als het paleis: hij springt er iets meer uit dan de daken
+  rook: { kans: 0.3, n: 16, duur: 10, hoog: 0.26, r: 0.012, groei: 4, drijf: 0.05, alpha: 0.42 },   // hoog, r, drijf: deel van H
+  gier: { elke: 3600, n: 3, par: 0.06, span: 0.024, rond: 26, rx: 0.07, ry: 0.018, hoog: [0.30, 0.42] }
+};
+let stadVerteImgs = null;
+function stadVerteLaad(){
+  if (stadVerteImgs) return;
+  stadVerteImgs = { groep: [], palm: [] };
+  const zet = src => zetBron(new Image(), STAD_DIR + STAD_VERTE.dir + src, () => console.warn('ontbreekt: stad ' + src));
+  for (let i = 1; i <= STAD_VERTE.groep.n; i++) stadVerteImgs.groep.push(zet('daken_0' + i + '.png'));
+  for (let i = 1; i <= STAD_VERTE.palm.n; i++) stadVerteImgs.palm.push(zet('palm_0' + i + '.png'));
+  stadVerteImgs.moskee = zet('moskee.png');
+}
+// een stuk, voorgebakken in de nevel van de verste rij (of eigen nevel)
+function stadVerteStuk(soort, i, nevel){
+  const V = stadVerte(), im = soort === 'moskee' ? stadVerteImgs.moskee : stadVerteImgs[soort][i];
+  if (!im || !imgReady(im)) return null;
+  return stadGebakken('verte_' + soort + i + '_' + V.sleutel, () => {
+    const R = STAD.rijen[0], a = nevel != null ? nevel : R.nevel, k = R.donker * V.donker, N = V.nevel;
+    return stadBak(im, im.naturalWidth, im.naturalHeight, (r, g, b) => [r * k * (1 - a) + N[0] * a, g * k * (1 - a) + N[1] * a, b * k * (1 - a) + N[2] * a]);
+  });
+}
+function stadVerteHash(seed, i, j){ return stadNachtHash(seed, i, j, 31); }
+function stadVerteZet(c, x, voet, s, flip){
+  const w = c.width * s, h = c.height * s;
+  if (x > W || x + w < 0) return;
+  if (flip){ ctx.save(); ctx.translate(x + w, 0); ctx.scale(-1, 1); ctx.drawImage(c, 0, voet - h, w, h); ctx.restore(); }
+  else ctx.drawImage(c, x, voet - h, w, h);
+}
+// de verste rij: de moskee, de groepjes daken met palmen, en de rook. true als hij getekend is
+function stadVerteRij(R, voet, f0, seed){
+  if (!STAD_VERTE.daken) return false;
+  stadVerteLaad();
+  const VG = STAD_VERTE.groep, VP = STAD_VERTE.palm, S = level.stad;
+  if (!stadVerteImgs.groep.every(imgReady)) return false;
+  const kd = VG.s * f0, kp = VP.s * f0, stap = VG.stap * kd, off = -world * R.par;
+  // de rij staat iets hoger: daaronder loopt de nevel door tot de voet van de rij (en verder tot de grond, stadAchter)
+  const lift = STAD_VERTE.lift * H;
+  ctx.fillStyle = 'rgb(' + stadVerte().nevel.join(',') + ')'; ctx.fillRect(0, voet - lift - 1, W, lift + 2);
+  voet -= lift;
+  // de moskee eerst: de daken staan ervoor
+  let mosL = null, mosR = null;
+  if (S.moskee !== false){
+    const c = stadVerteStuk('moskee', 0, STAD_VERTE.moskee.nevel);
+    if (c){
+      const km = STAD_VERTE.moskee.s * f0, mw = c.width * km;
+      const mx = S.moskee != null ? S.moskee : (S.paleis != null ? S.paleis : -2500) + STAD_VERTE.moskee.voor;
+      const sx = W / 2 + (mx - world) * R.par - mw / 2;
+      stadVerteZet(c, sx, voet + 0.004 * H, km, false);
+      mosL = sx + mw * 0.2; mosR = sx + mw * 0.8;
+    }
+  }
+  const i0 = Math.floor((-off - W) / stap) - 1, i1 = Math.ceil((W * 1.5 - off) / stap) + 1;
+  const palmen = (voor) => {
+    for (let i = i0; i <= i1; i++){
+      const h = stadVerteHash(seed, i, 2);
+      if (h >= VP.kans || (h < VP.kans * VP.voor) !== voor) continue;
+      const n = Math.floor(stadVerteHash(seed, i, 3) * VP.n), c = stadVerteStuk('palm', n);
+      if (!c) continue;
+      const x = off + i * stap - W * 0.25 - c.width * kp / 2;
+      if (mosL !== null && x + c.width * kp > mosL && x < mosR) continue;
+      stadVerteZet(c, x, voet + 0.003 * H, kp, stadVerteHash(seed, i, 4) < 0.5);
+    }
+  };
+  palmen(false);
+  const daken = [];
+  for (let i = i0; i <= i1; i++){
+    const n = Math.floor(stadVerteHash(seed, i, 0) * VG.n), c = stadVerteStuk('groep', n);
+    if (!c) continue;
+    const w = c.width * kd, mid = off + i * stap - W * 0.25 + stap / 2 + (stadVerteHash(seed, i, 1) - 0.5) * 2 * VG.schuif * kd;
+    if (mosL !== null && mid > mosL && mid < mosR) continue;   // de moskee blijft te lezen
+    const flip = stadVerteHash(seed, i, 5) < 0.5;
+    stadVerteZet(c, mid - w / 2, voet, kd, flip);
+    daken.push({ i, mid, w, h: c.height * kd });
+  }
+  palmen(true);
+  if (STAD_VERTE.rook) stadVerteRook(daken, voet, seed);
+  return true;
+}
+// rook: dunne kolommen zachte vlokjes die opstijgen, uitdijen, wegdrijven en vervagen. Geen staat: elk vlokje is een
+// vaste fase in een lus van `duur` seconden
+let stadRookVlok = null;
+function stadVerteRook(daken, voet, seed){
+  const RK = STAD_VERTE.rook, V = stadVerte();
+  if (!stadRookVlok){
+    stadRookVlok = {};
+    for (const [k, kl] of [['grijs', '104,98,94'], ['warm', '255,150,70']]){
+      const c = document.createElement('canvas'); c.width = c.height = 64;
+      const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+      g.addColorStop(0, 'rgba(' + kl + ',1)'); g.addColorStop(0.5, 'rgba(' + kl + ',0.55)'); g.addColorStop(1, 'rgba(' + kl + ',0)');
+      x.fillStyle = g; x.fillRect(0, 0, 64, 64); stadRookVlok[k] = c;
+    }
+  }
+  const t = stadNu(), a0 = ctx.globalAlpha;
+  for (const d of daken){
+    if (stadVerteHash(seed, d.i, 6) >= RK.kans) continue;
+    const bx = d.mid + (stadVerteHash(seed, d.i, 7) - 0.5) * d.w * 0.6, by = voet - d.h * (0.5 + 0.2 * stadVerteHash(seed, d.i, 8));
+    const fase = stadVerteHash(seed, d.i, 9) * RK.duur, dr = RK.drijf * H * (0.6 + 0.8 * stadVerteHash(seed, d.i, 10));
+    for (let j = 0; j < RK.n; j++){
+      const p = ((t + fase) / RK.duur + j / RK.n) % 1;
+      const r = RK.r * H * (1 + p * RK.groei);
+      const x = bx + p * p * dr + Math.sin(t * 0.5 + j * 1.7 + d.i) * RK.r * H * 0.6 * p;
+      const y = by - p * RK.hoog * H;
+      const a = RK.alpha * Math.min(1, p * 8) * (1 - p);
+      if (a <= 0.01) continue;
+      ctx.globalAlpha = a0 * a; ctx.drawImage(stadRookVlok.grijs, x - r, y - r, r * 2, r * 2);
+      if (V.nacht && p < 0.2){                        // 's nachts gloeit de voet van de rook op van het vuur eronder
+        ctx.globalAlpha = a0 * a * V.nacht * (1 - p / 0.2) * 0.8;
+        ctx.drawImage(stadRookVlok.warm, x - r, y - r, r * 2, r * 2);
+      }
+    }
+  }
+  ctx.globalAlpha = a0;
+}
+// gieren: per `elke` wereld-px een groepje dat traag rondcirkelt boven de stad, zwevend met af en toe een slag.
+// 's nachts vliegen ze niet
+function stadVerteGieren(voet, seed){
+  const G = STAD_VERTE.gier, V = stadVerte();
+  if (!STAD_VERTE.gieren || V.nacht > 0.5) return;
+  const t = stadNu(), span = G.span * H, stap = G.elke * G.par;
+  const off = -world * G.par;
+  const i0 = Math.floor((-off - W) / stap) - 1, i1 = Math.ceil((W * 2 - off) / stap) + 1;
+  const N = V.nevel;
+  ctx.fillStyle = 'rgb(' + [0, 1, 2].map(j => Math.round(38 * 0.75 + N[j] * 0.25)).join(',') + ')';
+  for (let i = i0; i <= i1; i++){
+    if (stadVerteHash(seed, i, 20) < 0.25) continue;          // niet boven elk stuk stad
+    const cx = off + i * stap + (stadVerteHash(seed, i, 21) - 0.5) * stap * 0.6;
+    const cy = voet - H * (G.hoog[0] + (G.hoog[1] - G.hoog[0]) * stadVerteHash(seed, i, 22));
+    const rx = G.rx * W * (0.7 + 0.6 * stadVerteHash(seed, i, 23)), ry = G.ry * H * (0.7 + 0.6 * stadVerteHash(seed, i, 24));
+    if (cx + rx + span < 0 || cx - rx - span > W) continue;
+    const n = 2 + Math.floor(stadVerteHash(seed, i, 25) * G.n);
+    for (let b = 0; b < n; b++){
+      const om = (Math.PI * 2 / G.rond) * (1 + 0.15 * b), a = t * om + b * (Math.PI * 2 / n) + i;
+      const x = cx + Math.cos(a) * rx * (1 - 0.12 * b), y = cy + Math.sin(a) * ry + b * 0.004 * H;
+      // af en toe een paar slagen, verder zweven met de vleugels licht omhoog
+      const slag = Math.pow(Math.max(0, Math.sin(t * 0.35 + b * 2.3 + i)), 12);
+      const op = -0.10 + slag * 0.35 * Math.sin(t * 9 + b);
+      const s = span * (0.8 + 0.2 * Math.abs(Math.cos(a)));   // naar ons toe of van ons af: iets korter
+      stadGierTeken(x, y, s, op);
+    }
+  }
+}
+// een gier van ver: een lijfje en twee lange, brede vleugels met gespreide punten; op: de punten omhoog (deel van de span)
+function stadGierTeken(x, y, s, op){
+  const h = s / 2, d = s * 0.07;
+  ctx.beginPath();
+  ctx.moveTo(x - h, y + op * s);
+  ctx.quadraticCurveTo(x - h * 0.45, y - d * 0.6 + op * s * 0.4, x, y - d * 0.3);
+  ctx.quadraticCurveTo(x + h * 0.45, y - d * 0.6 + op * s * 0.4, x + h, y + op * s);
+  ctx.lineTo(x + h * 0.92, y + op * s + d * 0.9);
+  ctx.quadraticCurveTo(x + h * 0.4, y + d * 1.1 + op * s * 0.4, x, y + d * 1.6);
+  ctx.quadraticCurveTo(x - h * 0.4, y + d * 1.1 + op * s * 0.4, x - h * 0.92, y + op * s + d * 0.9);
+  ctx.closePath(); ctx.fill();
+}
+
 function stadAchter(sc, horizonY, groundY){
   if (!stadKlaar('gevel')) return;
   const S = level.stad, seed = S.seed || 1, f0 = stadGevelF(nowScale());
@@ -29657,6 +29833,7 @@ function stadAchter(sc, horizonY, groundY){
     const sx = W / 2 + (px - world) * STAD.paleis.par - pw / 2;
     ctx.drawImage(P, sx, voeten[0] + 0.01 * H - ph, pw, ph);
   }
+  stadVerteGieren(voeten[0], seed);                // gieren boven de stad (zie "de verte van de stad")
   // onder de verste rij: de stad loopt door in de nevel tot de grond
   ctx.fillStyle = neveltekst; ctx.fillRect(0, voeten[0] - 2, W, groundY - voeten[0] + 4);
   STAD.rijen.forEach((R, rij) => {
@@ -29668,6 +29845,7 @@ function stadAchter(sc, horizonY, groundY){
     const hw = 970 * f0 * R.s, G = STAD.gevel, stap = hw * (G.muur[1] - G.muur[0]) / 970 - 2;   // muur tegen muur, de balken steken over
     const m0 = hw * G.muur[0] / 970;
     const off = -world * R.par;                            // wereld naar links: de rij schuift naar rechts
+    if (rij === 0 && stadVerteRij(R, voeten[rij], f0, seed)) return;   // de verste rij: daken, moskee en palmen
     if (STAD_STROOK && stadRijStrookTeken(rij, R, seed, f0, hw, stap, m0, off, voeten[rij], groundY)) return;
     const i0 = Math.floor((-off - W) / stap) - 1, i1 = Math.ceil((W * 1.5 - off) / stap) + 1;
     for (let i = i0; i <= i1; i++){
@@ -62742,6 +62920,22 @@ sandboxEl.querySelectorAll('button[data-plicht]').forEach(b => b.onclick = () =>
 document.getElementById('sbslag').onclick = e => {
   STAD_SLAG_AAN = !STAD_SLAG_AAN;
   e.target.textContent = 'Slagschaduw: ' + (STAD_SLAG_AAN ? 'aan' : 'uit');
+  cv.focus();
+};
+// de verte van de stad (zie "de verte van de stad" in notities/stad.md): de daken of de oude minigevels, de gieren en de rook
+document.getElementById('sbverte').onclick = e => {
+  STAD_VERTE.daken = !STAD_VERTE.daken; stadStroken = [];
+  e.target.textContent = 'Verte: ' + (STAD_VERTE.daken ? 'daken' : 'minigevels');
+  cv.focus();
+};
+document.getElementById('sbgieren').onclick = e => {
+  STAD_VERTE.gieren = !STAD_VERTE.gieren;
+  e.target.textContent = 'Gieren: ' + (STAD_VERTE.gieren ? 'aan' : 'uit');
+  cv.focus();
+};
+document.getElementById('sbrook').onclick = e => {
+  STAD_VERTE.rook = !STAD_VERTE.rook;
+  e.target.textContent = 'Rook: ' + (STAD_VERTE.rook ? 'aan' : 'uit');
   cv.focus();
 };
 document.getElementById('sbkanteel').onclick = e => {
