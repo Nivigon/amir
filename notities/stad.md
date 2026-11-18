@@ -275,6 +275,12 @@ en de meldingen van de stad" in `notities/maker.md`); daar staan ook de gevels, 
 `notities/plan-stad-maker.md` is klaar).
 
 Een galerij over meerdere huizen (`van` tot `tot`) loopt door over de kieren tussen de huizen, op elke schermmaat.
+Twee galerijen op dezelfde hoogte die elkaar raken (minder dan een middenstuk ertussen) tekent en beloopt het spel als
+een doorlopende galerij, en net zo een balkon van een buitentrap dat tegen een galerij op zijn hoogte aankomt (Stad 2 en
+Beleg 2 op een laptop): de galerij loopt dan door tot de muur, met de opening van de trap erin, zonder de eindpalen
+midden op het dek en zonder de schoren van het balkon (`stadGalerijMaten`, `stadBalkonSamen`). Alles wat een galerij
+tekent of als vloer kent leest die lijst; alleen de lift (`takelGalerijStap`) wijst nog naar een galerij op zijn index.
+Een echt gat, om over te springen, blijft een gat.
 Dat is de lange looprand van Stad 1, met het gevecht erop. Een rij daken loopt alleen door als de huizen elkaar op
 die schermmaat raken.
 
