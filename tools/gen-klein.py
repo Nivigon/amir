@@ -159,6 +159,9 @@ DOELEN = [
     # het plein: de put en de pleinwand (de tekencode rekt ze naar vaste maten); plein.png niet, net als straat.png
     ('design/stad/put.png', 60),
     ('design/stad/pleinwand.png', 60),
+    # de sluistoren (De sluis, notities/water.md): de tekencode rekent met bronW/bronH, dus de halve plaat komt op dezelfde maat
+    ('design/stad/sluis/sluis_heel.png', 60),
+    ('design/stad/sluis/sluis_breuk.png', 60),
 ]
 
 # Bronmateriaal dat het spel nooit opvraagt. Een bestand dat hierboven bij naam
