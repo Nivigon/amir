@@ -203,7 +203,7 @@ async function proef(R, L){
   // de winkel (stuk 3): de ronde is op na winkelNa rondes, iedereen naar de winkelkamer, kopen, Ready en terug
   const goudVoor = await Promise.all(R.map(r => r.page.evaluate(() => pvp.coop.goud)));
   await H.page.evaluate(() => { const C = pvp.coop; C.rij = []; C.fase = 'golf'; C.ronde = pvp.regels.coop.winkelNa; for (const q of MPC_LIJSTEN) mpcZet(q, []); });
-  meld(await elk(() => pvp.coop.inWinkel && !stadTrapFade && !!binnenBij(world), null, 6000) === null, 'na winkelNa rondes: iedereen in de winkelkamer');
+  meld(await elk(() => pvp.coop.inWinkel && !stadTrapFade && !!binnenBij(world), null, 12000) === null, 'na winkelNa rondes: iedereen in de winkelkamer');
   if (drie) meld(new Set(await Promise.all(R.map(r => r.page.evaluate(() => Math.round(world))))).size === 3, 'ieder op zijn eigen plek in de kamer');
   const goudNa = await Promise.all(R.map(r => r.page.evaluate(() => pvp.coop.goud)));
   meld(goudNa.every((g, i) => g >= goudVoor[i] + 5), 'iedereen krijgt het goud van de overleefde ronde (' + goudVoor.join('/') + ' -> ' + goudNa.join('/') + ')');

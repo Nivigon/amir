@@ -65758,6 +65758,9 @@ const MPC = {
 };
 // de winkelkamer van Co-op: de strook (r tot l) en de toonbank; de spelers komen binnen bij de deurkant
 const MPC_WINKEL_KAMER = { r: -20000, l: -21700, toonbank: -21250, plek: [-20300, -20480, -20660] };   // per slot
+// de weg naar de winkel: na de laatste kill van de ronde nog `wacht` seconden op straat (de host telt, fase 'naarWinkel'),
+// dan een trage fade naar zwart en weer open in de winkel (`fade`, ook terug de straat op)
+const MPC_WINKEL_WEG = { wacht: 3, fade: { uit: 1.1, glij: 0.25, in: 1.1, dim: 1 } };
 // de prijslijst van de winkel in Co-op (per speler). prijs een getal, of een rij voor de zoveelste keer; eis: eerst dat
 const MPC_WINKEL = [
   { k: 'kalebas', naam: 'Gourd',                    prijs: 5,  uitleg: 'One life back, until your lives are full' },
@@ -66382,6 +66385,11 @@ function mpcHostStap(dt){
   if (C.fase === 'winkel') return;                    // in de winkel: wachten op Ready van allebei (mpcWinkelKlaar)
   mpcDodenStap();
   if (C.fase === 'uit') return;                       // iedereen dood: game over
+  if (C.fase === 'naarWinkel'){                       // nog even op straat, dan allemaal naar de winkel
+    C.klok -= dt;
+    if (C.klok <= 0){ pvpZend({ t: 'winkel' }); mpcWinkelIn(); }
+    return;
+  }
   if (C.fase === 'wacht'){
     C.klok -= dt;
     if (C.klok <= 0){
@@ -66398,7 +66406,7 @@ function mpcHostStap(dt){
     if (C.spawnKlok <= 0 && lev.n < MPC.tegelijk){ mpcSpawn(C.rij.shift()); C.spawnKlok = MPC.tussen * (0.7 + Math.random() * 0.6); }
   } else if (!lev.n){
     mpcGoudIedereen(MPC.rondeGoud, 'round survived');  // de ronde is overleefd: ieder rondeGoud
-    if (C.ronde % R.winkelNa === 0){ pvpZend({ t: 'winkel' }); mpcWinkelIn(); return; }   // tijd voor de winkel
+    if (C.ronde % R.winkelNa === 0){ C.fase = 'naarWinkel'; C.klok = MPC_WINKEL_WEG.wacht; return; }   // tijd voor de winkel, na een korte adem
     mpcVolgendeRonde();
   }
 }
@@ -66915,7 +66923,7 @@ function mpcWinkelIn(){
   invuln = Math.max(invuln, 1.5);
   mpcSperenTerug();
   const x = MPC_WINKEL_KAMER.plek[pvp.mij];
-  stadTrapFade = { t: 0, gewisseld: false, doel: { x, h: binnenVloer(x, 0), face: -1 }, T: BINNEN.fade, binnen: true };
+  stadTrapFade = { t: 0, gewisseld: false, doel: { x, h: binnenVloer(x, 0), face: -1 }, T: MPC_WINKEL_WEG.fade, binnen: true };
   mpcWinkelBanner();
 }
 // wie van mijn teamgenoten in de winkel al Ready drukte: een zin voor de banner en het winkelscherm ('' als niemand)
@@ -66938,7 +66946,7 @@ function mpcWinkelUit(){
   winkelUIDicht(); mpcOntdooi();
   const r = wapenrekken[0]; if (r){ r.n = pvp.regels.coop.rek; r.uit = null; }
   const x = PVP.starts[pvpStartSlot()];
-  stadTrapFade = { t: 0, gewisseld: false, doel: { x, h: terrainH(x), face: pvpStartSlot() === 1 ? 1 : -1 }, T: BINNEN.fade, binnen: true };
+  stadTrapFade = { t: 0, gewisseld: false, doel: { x, h: terrainH(x), face: pvpStartSlot() === 1 ? 1 : -1 }, T: MPC_WINKEL_WEG.fade, binnen: true };
   pvpBanner('');
   if (pvp.host) mpcVolgendeRonde();
 }

@@ -310,9 +310,9 @@ Het blok `// ---- multiplayer: de winkel en de economie van Co-op (stuk 3) ----`
 - **De kamer.** `MP_COOP_LEVEL` heeft een `binnen` met een `winkel` (de toonbank, de marktman, een plank) ver van de straat
   (`MPC_WINKEL_KAMER`, van -20000 tot -21700), zonder deur naar buiten (`gevel: null`), en een houten plafond (`zwevers`).
   Het gewone systeem van "binnen" doet de rest: de camera, de muren, E bij de toonbank (`binnenE` opent `winkelUIOpen`).
-- **Erheen.** Is de ronde op (`mpcHostStap`) en is het rondenummer een veelvoud van `winkelNa`, dan stuurt de host `winkel`
-  en roepen allebei `mpcWinkelIn` aan: de fase `winkel` (`C.inWinkel`), wie dood was staat op met 1 leven, de revive-ton en
-  het symbool zijn weg, ieder krijgt zijn speren terug (`mpcSperenTerug`) en een fade (`stadTrapFade` met `BINNEN.fade`) zet
+- **Erheen.** Is de ronde op (`mpcHostStap`) en is het rondenummer een veelvoud van `winkelNa`, dan wacht de host eerst
+  `MPC_WINKEL_WEG.wacht` (3 s) op straat (fase `naarWinkel`), stuurt dan `winkel` en roepen allebei `mpcWinkelIn` aan: de fase `winkel` (`C.inWinkel`), wie dood was staat op met 1 leven, de revive-ton en
+  het symbool zijn weg, ieder krijgt zijn speren terug (`mpcSperenTerug`) en een trage fade (`stadTrapFade` met `MPC_WINKEL_WEG.fade`, ook terug de straat op) zet
   hem bij de deurkant van de kamer (`MPC_WINKEL_KAMER.plek`, per speler). Zolang de fase `winkel` is, doet `mpcHostStap`
   verder niets.
 - **Het winkelscherm.** Hetzelfde `#winkelui`, met de klasse `coop`: de drie dingen met verkopen en terugkopen zijn weg, in
