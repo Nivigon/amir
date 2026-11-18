@@ -28756,7 +28756,7 @@ const STAD = {
     winkel_dicht: { src: 'gevel_winkel_dicht.png', dak: [0, 205], alt: [205, 622], ver: [622, 1039], bod: [1039, 1547], dakAchter: 153, deur: 1, geenDeur: true }
   },
   galerij: { src: 'galerij.png', amir: 450, links: [0, 262], midden: [1205, 1348], rechts: [1492, 1767], dek: 104,
-             sta: 130 },   // dek: de achterrand van de planken (de voet van de leuning); sta: waar je op staat, midden op de planken (die lopen tot 157)
+             sta: 130, inMuur: 0.15 },   // inMuur: zoveel Amir loopt een dek de gevel in waar een trapbalkon in een galerij opgaat   // dek: de achterrand van de planken (de voet van de leuning); sta: waar je op staat, midden op de planken (die lopen tot 157)
   kraam: {
     // het rieten dak zien we van schuin boven: dak is het midden van het dakvlak (niet de bovenrand, daar leek Amir te zweven)
     // en tafel het midden van het tafelblad; w en h de maat van de plaat (uit design/stad/bron/kraam_riet.webp)
@@ -29422,18 +29422,63 @@ function stadVoetX(x, w, S, scale){
   }
   return x;
 }
-function stadGalerijMaat(gl, scale, gevels){
+// de ruwe strook van een galerij: van de linkerrand van het ene huis tot de rechterrand van het andere, plus meer
+function stadGalerijSpan(gl, scale, gevels){
   const gv = gevels || (level.stad.gevels || []);
   const a = gv[gl.van], b = gv[gl.tot != null ? gl.tot : gl.van];
   if (!a || !b) return null;
   const ma = stadGevelMaat(a, scale), mb = stadGevelMaat(b, scale);
   const A = CHAR_H * scale, meer = gl.meer || [0, 0];       // meer: zoveel Amir langer naar links en rechts (over een trap heen)
-  const L = Math.min(ma.left, mb.left) - meer[0] * A, R = Math.max(ma.right, mb.right) + meer[1] * A;
+  return { L: Math.min(ma.left, mb.left) - meer[0] * A, R: Math.max(ma.right, mb.right) + meer[1] * A, h: gl.h != null ? gl.h : stadVerdieping(2) };
+}
+// de 9-slice over een strook: links, het midden n keer, rechts, gecentreerd op de strook
+// Met vast ligt hij precies van L tot R (het middenstuk wordt afgesneden, zoals bij stadStrook): een balkon eindigt
+// tegen een muur, en daar mag het dek niet in of voor blijven steken.
+function stadGalerijSnij(L, R, h, scale, vast){
   const G = STAD.galerij, f = CHAR_H * scale / G.amir;
   const lw = (G.links[1] - G.links[0]) * f, mw = (G.midden[1] - G.midden[0]) * f, rw = (G.rechts[1] - G.rechts[0]) * f;
+  if (vast) return { f, lw, mw, rw, n: Math.max(0, Math.ceil((R - L - lw - rw) / mw)), left: L, right: R, h, vast: true };
   const n = Math.max(0, Math.round((R - L - lw - rw) / mw));
   const tot = lw + n * mw + rw, left = (L + R) / 2 - tot / 2;
-  return { f, lw, mw, rw, n, left, right: left + tot, h: gl.h != null ? gl.h : stadVerdieping(2) };
+  return { f, lw, mw, rw, n, left, right: left + tot, h };
+}
+function stadGalerijMaat(gl, scale, gevels){
+  const sp = stadGalerijSpan(gl, scale, gevels);
+  return sp ? stadGalerijSnij(sp.L, sp.R, sp.h, scale) : null;
+}
+// Alle galerijen van het level zoals ze getekend en belopen worden. Twee galerijen op dezelfde hoogte die elkaar raken
+// (of minder dan een middenstuk uit elkaar liggen) worden een doorlopende galerij: anders kreeg elk zijn eigen eindstukken
+// en zat er midden op het dek een naad met twee leuningpalen, terwijl je er gewoon overheen liep. Een echt gat (een steeg
+// om over te springen) blijft een gat. Net zo een balkon van een buitentrap dat tegen het eind van een galerij op zijn
+// hoogte aankomt (Stad 2, Beleg 2): dan loopt de galerij door tot de muur, met de opening van de trap erin, en tekent
+// stadTrapVoor alleen nog de schoren (stadBalkonSamen). Gecachet per schermmaat en level.
+let stadGalKey = null, stadGalLijst = [], stadBalkonSamen = new Set();
+function stadGalerijMaten(scale){
+  const S = level.stad;
+  if (stadGalKey && stadGalKey.s === scale && stadGalKey.stad === S && stadGalKey.n === (S.galerijen || []).length) return stadGalLijst;
+  const mw = (STAD.galerij.midden[1] - STAD.galerij.midden[0]) * CHAR_H * scale / STAD.galerij.amir;
+  const sp = (S.galerijen || []).map(gl => stadGalerijSpan(gl, scale)).filter(Boolean).sort((a, b) => a.L - b.L);
+  const samen = [];
+  for (const q of sp){
+    const o = samen.find(o => Math.abs(o.h - q.h) < 1 && q.L <= o.R + mw && q.R >= o.L - mw);
+    if (o){ o.L = Math.min(o.L, q.L); o.R = Math.max(o.R, q.R); } else samen.push({ ...q });
+  }
+  stadBalkonSamen = new Set();
+  for (const o of samen){ const r = stadGalerijSnij(o.L, o.R, o.h, scale); o.L = r.left; o.R = r.right; }   // de randen zoals getekend
+  for (const t of stadTrappen()){
+    if (!t.balkon) continue;
+    const q = stadTrapMaat(t, scale); if (!q) continue;
+    const o = samen.find(o => Math.abs(o.h - q.ht) < 3 && q.balkL <= o.R + mw && q.balkR >= o.L - mw);
+    if (!o) continue;
+    o.L = Math.min(o.L, q.balkL); o.R = Math.max(o.R, q.balkR); o.vast = true; stadBalkonSamen.add(t);
+    // aan de muurkant loopt het dek een stukje de gevel in, met het eindstuk erop: zo zit het vast aan het huis
+    const inMuur = STAD.galerij.inMuur * CHAR_H * scale;
+    if (Math.abs(q.ander - o.R) < 2){ o.R += inMuur; o.muurR = true; }
+    if (Math.abs(q.ander - o.L) < 2){ o.L -= inMuur; o.muurL = true; }
+  }
+  stadGalKey = { s: scale, stad: S, n: (S.galerijen || []).length };
+  stadGalLijst = samen.map(q => ({ ...stadGalerijSnij(q.L, q.R, q.h, scale, q.vast), muurL: !!q.muurL, muurR: !!q.muurR }));
+  return stadGalLijst;
 }
 
 // ---- wat draagt: daken, galerijen, de tafels, het rieten dak en de verende doek (allemaal dun) ----
@@ -29451,8 +29496,8 @@ function stadPlats(scale){
     const t = stadTakelVloer(g, gi, stadGevelMaat(g, scale), scale); if (!t) return;
     out.push({ x: (t.left + t.right) / 2, left: t.left, right: t.right, topH: t.topH, base: t.topH, wPx: t.right - t.left, hPx: 0, thin: true, stad: 'takel' });
   });
-  for (const gl of (S.galerijen || [])){
-    const m = stadGalerijMaat(gl, scale); if (!m || !bij((m.left + m.right) / 2)) continue;
+  for (const m of stadGalerijMaten(scale)){
+    if (!bij((m.left + m.right) / 2)) continue;
     out.push({ x: (m.left + m.right) / 2, left: m.left + m.lw * 0.15, right: m.right - m.rw * 0.15, topH: m.h, base: m.h, wPx: m.right - m.left, hPx: 0, thin: true, stad: 'galerij' });
   }
   (S.kramen || []).forEach((k, i) => {
@@ -29496,7 +29541,7 @@ function stadVloeren(){
   if (stadVloerKey && stadVloerKey.s === sc && stadVloerKey.stad === level.stad) return stadVloerLijst;
   const S = level.stad, out = [];
   for (const g of (S.gevels || [])){ if (stadGeenDak(g)) continue; const m = stadGevelMaat(g, sc), th = terrainH(m.x); out.push({ left: m.left, right: m.right, topH: th + stadGevelH(m.hoog), oud: th + stadGevelH(m.hoog, true) }); }
-  for (const gl of (S.galerijen || [])){ const m = stadGalerijMaat(gl, sc); if (m) out.push({ left: m.left + m.lw * 0.15, right: m.right - m.rw * 0.15, topH: m.h }); }
+  for (const m of stadGalerijMaten(sc)){ out.push({ left: m.left + m.lw * 0.15, right: m.right - m.rw * 0.15, topH: m.h }); }
   (S.gevels || []).forEach((g, gi) => { const t = stadTakelVloer(g, gi, stadGevelMaat(g, sc), sc); if (t) out.push({ ...t, takel: true }); });   // de stam van een takel (geen plek voor een spawn met dak)
   for (const p of stadTrapPlats(sc)) out.push({ left: p.left, right: p.right, topH: p.topH });
   // Twee vloeren op dezelfde hoogte met maar een kiertje ertussen (een trapbalkon tegen een galerij, op een groot
@@ -30658,7 +30703,7 @@ function stadTrapUitTeken(x, y, a, A){
 function stadGalerijGaten(m, scale){
   const out = [];
   for (const t of stadTrappen()){
-    if (t.balkon) continue;
+    if (t.balkon && !stadBalkonSamen.has(t)) continue;     // een balkon met een eigen dek heeft zijn opening zelf
     const q = stadTrapMaat(t, scale); if (!q) continue;
     if (Math.abs(q.ht - m.h) < 20 && q.gatX > m.left && q.gatX < m.right) out.push([q.gatX - q.gat / 2, q.gatX + q.gat / 2]);
   }
@@ -30831,9 +30876,8 @@ function stadDoorgangen(groundY, scale, cx){
     // alleen bij een galerij (balkon: 0): een balkon hangt aan schoren tegen de muur, een vloer erachter zou zweven
     if (t.balkon) continue;
     let fase = null;
-    for (const gl of (level.stad.galerijen || [])){
-      const m = stadGalerijMaat(gl, scale);
-      if (m && Math.abs(q.ht - m.h) < 20 && q.gatX > m.left && q.gatX < m.right){ fase = stadDoorgangFase(m.left, m.lw, m.f, q.ander); break; }
+    for (const m of stadGalerijMaten(scale)){
+      if (Math.abs(q.ht - m.h) < 20 && q.gatX > m.left && q.gatX < m.right){ fase = stadDoorgangFase(m.left, m.lw, m.f, q.ander); break; }
     }
     if (fase == null) continue;                                   // geen galerij: geen dek om op door te lopen
     const beeld = stadDoorgangBeeld(q.gat, q.uit, fase, scale);
@@ -30888,9 +30932,10 @@ function stadTrapVoor(groundY, scale, cx){
     const gy = groundY - q.ht * scale;
     if (t.balkon){
       const sx = cx + (q.balkL - world); if (sx > W / viewZoom() + W || sx + q.bw < -W) continue;
-      // de schoren: schuin van de muur naar onder het dek
+      // de schoren: schuin van de muur naar onder het dek; gaat het balkon op in een galerij, dan draagt die het zelf
       const A = CHAR_H * scale;
-      for (const d of [0.32, 0.7]){
+      stadGalerijMaten(scale);                               // (vult stadBalkonSamen)
+      if (!stadBalkonSamen.has(t)) for (const d of [0.32, 0.7]){
         const x1 = cx + (q.ander - world), x2 = cx + (q.ander + q.uit * q.bw * d - world);
         const y1 = gy + 8 + Math.abs(x2 - x1) * 0.8, y2 = gy + 6, w = Math.max(2, A * 0.022);
         ctx.save(); ctx.fillStyle = '#76603f'; ctx.strokeStyle = '#2e1e12'; ctx.lineWidth = 1.2;
@@ -30898,7 +30943,7 @@ function stadTrapVoor(groundY, scale, cx){
         ctx.fill(); ctx.stroke(); ctx.restore();
       }
       const ov = 10 * q.uit;                                 // het dek begint net in de muur
-      stadStrook(Math.min(q.balkL, q.balkL - ov), Math.max(q.balkR, q.balkR - ov), q.ht, groundY, scale, cx, gaten, false);
+      if (!stadBalkonSamen.has(t)) stadStrook(Math.min(q.balkL, q.balkL - ov), Math.max(q.balkR, q.balkR - ov), q.ht, groundY, scale, cx, gaten, false);
     }
     // de opening gloeit als je erbij staat, en ook als je beneden bij de trapvoet staat: dan zie je waar je uitkomt
     const nb = stadTrapNabij(q), A = CHAR_H * scale;
@@ -33242,8 +33287,7 @@ function stadSlagMuur(groundY, scale, cx){
   const rand = W / viewZoom() + W;
   ctx.save();
   // de galerij: een band onder het dek, schuin weg van de zon, die naar onder vervaagt
-  if (stadKlaar('galerij')) for (const gl of (level.stad.galerijen || [])){
-    const m = stadGalerijMaat(gl, scale); if (!m) continue;
+  if (stadKlaar('galerij')) for (const m of stadGalerijMaten(scale)){
     const gl0 = cx + (m.left - world), gr0 = cx + (m.right - world);
     if (gl0 > rand || gr0 < -W) continue;
     const dek = groundY - m.h * scale, onder = dek - STAD.galerij.sta * m.f + 293 * m.f, eind = onder + L.galerij.diep * A;
@@ -33419,23 +33463,25 @@ function stadTeken(groundY, scale, cx){
   // galerijen: links, het middenstuk zo vaak als nodig, rechts; het dek op de hoogte h
   if (stadKlaar('galerij')){
     const gi = stadImgs.galerij, GL = STAD.galerij;
-    for (const gl of (S.galerijen || [])){
-      const m = stadGalerijMaat(gl, scale); if (!m) continue;
+    for (const m of stadGalerijMaten(scale)){
       const sx = cx + (m.left - world); if (!zicht(sx, m.right - m.left)) continue;
       const top = groundY - m.h * scale - GL.sta * m.f, hh = 293 * m.f;
       const stuk = (a, b, x, w) => ctx.drawImage(gi, stadQ(gi, a), 0, stadQ(gi, b - a), gi.naturalHeight, x, top, w + 0.6, hh);
       // komt er een trap op uit, dan zit daar een opening in de leuning
       const gaten = stadGalerijGaten(m, scale);
       ctx.save();
-      if (gaten.length){
-        ctx.beginPath(); ctx.rect(sx - 2, top - 2, m.right - m.left + 4, hh + 4);
+      if (gaten.length || m.vast){
+        ctx.beginPath(); ctx.rect(sx - (m.vast ? 1 : 2), top - 2, m.right - m.left + (m.vast ? 2 : 4), hh + 4);
         for (const [a, b] of gaten) ctx.rect(cx + (b - world), top - 2, -(b - a), GL.dek * m.f - 1);
         ctx.clip('evenodd');
       }
       let x = sx;
       stuk(GL.links[0], GL.links[1], x, m.lw); x += m.lw;
       for (let i = 0; i < m.n; i++){ stuk(GL.midden[0], GL.midden[1], x, m.mw); x += m.mw; }
-      stuk(GL.rechts[0], GL.rechts[1], x, m.rw);
+      stuk(GL.rechts[0], GL.rechts[1], Math.min(x, sx + (m.right - m.left) - m.rw), m.rw);
+      const sw = STAD.galerij.inMuur * 2 * CHAR_H * scale;     // de schaduw van de muur over het stuk dat erin verdwijnt
+      if (m.muurR) stadMuurSchaduw(sx + (m.right - m.left) - sw, top, sw, hh, true);
+      if (m.muurL) stadMuurSchaduw(sx, top, sw, hh, false);
       ctx.restore();
     }
   }
@@ -33694,7 +33740,7 @@ function stadKanteelVoor(groundY, scale, cx){
   const halfLijk = CHAR_H * scale * STAD.kanteelLijk;
   // een galerij of trapbalkon hangt voor de gevel: wie daarop staat, staat ervoor, ook als het dek op de hoogte van een dak ligt
   const voor = [];
-  for (const gl of (level.stad.galerijen || [])){ const q = stadGalerijMaat(gl, scale); if (q) voor.push({ left: q.left, right: q.right, topH: q.h }); }
+  for (const q of stadGalerijMaten(scale)){ voor.push({ left: q.left, right: q.right, topH: q.h }); }
   for (const q of stadTrapPlats(scale)) voor.push(q);
   const opVoor = (x, h) => voor.some(q => x > q.left && x < q.right && Math.abs(h - q.topH) < 3);
   const op = (m, x, h) => x > m.left && x < m.right && Math.abs(h - terrainH(m.x) - stadGevelH(m.hoog)) < 3 && !opVoor(x, h) && !stadGeenDak(m.g);
