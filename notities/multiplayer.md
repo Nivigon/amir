@@ -465,6 +465,9 @@ is de code van Co-op zelf; elk bericht gaat naar niemand.
 - **Bewaard apart:** de instellingen gaan naar `amir.mpsolo` (`MP_SOLO.sleutel`), niet naar die van de host (`amir.mp`).
 - **Terug:** Escape geeft het pauzemenu en Terug brengt je naar deze lobby (`mpNaarLobby`); Leave the lobby gaat terug naar
   het Sandbox-scherm.
+- **20% meer goud:** alleen verdien je meer, uit kills en overleefde rondes (`MP_SOLO.goudFactor`, 1.2, in `mpcGoudErbij`).
+  De beurs blijft heel: het deel achter de komma spaart zich op in `pvp.coop.goudRest`, dus een ronde van 5 geeft 6 en vijf
+  kills van 1 samen ook 6.
 - **Highscore:** dezelfde als in Co-op, per keuze van vijanden (`mpcEindSleutel`); solo en samen tellen in hetzelfde lijstje.
 
 ## Testen
