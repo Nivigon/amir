@@ -3,7 +3,8 @@
 Een beoordeling van de basiskit van Amir (wat hij kan zonder tribe), met per onderdeel een cijfer
 en de taken om het naar ongeveer een 9 te krijgen. Gemaakt op 9 november 2026, met stof in de ogen
 (`STOF`) gerekend als vast onderdeel van de basis. Ideeën die nog los rondzweven staan in
-`notities/kit-ideeen.md`.
+`notities/kit-ideeen.md`. Een tweede analyse (de talents, de speer tegen de stokken, nieuwe taken A, SP en ST)
+staat in `notities/kit-analyse.md`.
 
 ## Zo werken we (lees dit eerst)
 
