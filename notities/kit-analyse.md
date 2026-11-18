@@ -4,6 +4,7 @@ Een nieuwe blik op Amir als personage: wat hem vet maakt, wat lekker speelt en w
 talents willen. Uitgangspunt: er zijn nu twee wapenrichtingen, de speer en de twee stokken, en het is nog niet duidelijk
 wat talents moeten doen. De bestaande takenlijst (`notities/kit-verbeteren.md`) blijft gelden; deze analyse zet er een
 kader omheen en voegt nieuwe taken toe. Nog niets hiervan is gebouwd.
+Wat spelers zoeken en hoe Amir in de eerste minuut lekker voelt, staat in `notities/speelgevoel.md`.
 
 ## 1. Waar we staan
 
