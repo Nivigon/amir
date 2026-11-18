@@ -203,7 +203,9 @@ volgende stadsverbetering.
 11. [ ] G1, vijanden van boven
 12. [ ] H2, een route bovenlangs
 13. [ ] A1, de overdekte soek
-14. [ ] A2, moskee en groen in de verte
+14. [ ] A2, moskee en groen in de verte: bezig (18 november). Suggestie 2 gekozen: de verste rij minigevels vervangen door
+    groepjes daken (Grok), palmen en de moskee (`STAD_VERTE`, zie "De verte van de stad" in `notities/stad.md`). Erbij gebouwd,
+    als stuk van V2: rook uit de daken en gieren boven de stad. Nog niet goedgekeurd.
 15. [ ] P1, waslijnen en doeken
 16. [ ] P2, de menigte op de markt
 17. [ ] V1b, eigen stadsfiguren (suggestie 2 van V1: een koopman en een vrouw met een kruik, nieuwe art via `grok-imagine-prompts`) in plaats van de dorpelingen: tegen de herhaling, Leven van 5 naar **6**

@@ -321,6 +321,33 @@ ze de rechte lijn tussen muur en straat.
   met die nevel voorgebakken is (paleis, rijen, strook, pleinwand) heeft de sleutel ervan in zijn naam, dus een ander
   uitzicht bakt opnieuw. Na `stadAchter` komt ook in de stad de `dim`-laag van het uitzicht; die werd eerder overgeslagen.
 
+### De verte van de stad: daken, moskee, palmen, rook en gieren (`STAD_VERTE`)
+
+De verste rij (`STAD.rijen[0]`) is geen rij minigevels meer, maar een andere wijk (`stadVerteRij`): vier groepjes huizen
+met graanschuren en torens (`design/stad/verte/daken_01..04.png`), palmen ertussen (`palm_01..04.png`, deels achter en
+deels voor de huizen) en een keer de moskee in Djenne-stijl (`moskee.png`). Uit Grok (skill grok-environment-asset, met de
+moskee als stijlreferentie voor de rest), de bronplaten staan in `verte/bron/` en `tools/verte_knip.py` knipt ze los
+(moskee en palmen op 60%, groter komen ze niet in beeld). Ze laden met de stad (`stadVerteLaad` in `stadLaad`).
+
+- Elk stuk is voorgebakken in de nevel van die rij (`stadVerteStuk`, met de sleutel van `stadVerte` in de naam); de
+  moskee met de nevel van het paleis (0,42), zodat hij er iets meer uitspringt.
+- De rij staat `lift` (0,05 H) hoger dan de rij die er stond, zodat de daken en torens net boven de middelste rij
+  uitkomen; daaronder loopt de nevel door. Maten in `STAD_VERTE` (`s` keer `stadGevelF`): een huis in een groepje is
+  zo breed als een minigevel. Welk groepje, palm of spiegeling waar staat komt uit de `seed` van het level.
+- De moskee staat midden in beeld op `stad.moskee` (wereld-x), standaard 3000 voor het paleis, zodat ze elkaar in
+  beeld zelden raken; `stad.moskee: false` laat hem weg. Een groepje daken dat midden voor de moskee zou staan valt weg.
+- Rook (`stadVerteRook`): uit ongeveer een op drie groepjes stijgt een dunne kolom zachte vlokjes op, die uitdijen,
+  wegdrijven en vervagen. Geen staat: elk vlokje is een vaste fase in een lus. 's Nachts gloeit de voet warm op.
+- Gieren (`stadVerteGieren`, `stadGierTeken`): per 3600 wereld-px (niet overal) een groepje van twee tot vier dat traag
+  rondcirkelt boven de stad, zwevend met af en toe een paar slagen, in code getekend (een lijfje en twee brede vleugels),
+  zonder plaat. Bij nacht (meer dan half) vliegen ze niet.
+- In de sandbox onder De stad: **Verte** (daken of de oude minigevels), **Gieren** en **Rook**, elk aan en uit.
+
+Nog niet: lichtjes in de ramen van de daken en de moskee bij nacht (suggestie 3 van A2), palmen in de middelste rij.
+
+Testlevel: **Stad 12: The far quarter** (`STAD_12`), een lage straat overdag met een open markt waar de moskee
+(`stad.moskee: -2900`) midden in beeld komt, en een dak om vanaf te kijken (galerijen op 401 en 590, dan het dak op 771).
+
 ## De stad bij namiddag, avond en nacht
 
 Vijf uitzichten: `stad_ochtend` (het ochtendgloren uit De Rivierstad: een bleke lucht, roze en goud aan de horizon, de zon
