@@ -345,6 +345,9 @@ moskee als stijlreferentie voor de rest), de bronplaten staan in `verte/bron/` e
 
 Nog niet: lichtjes in de ramen van de daken en de moskee bij nacht (suggestie 3 van A2), palmen in de middelste rij.
 
+Testlevel: **Stad 12: The far quarter** (`STAD_12`), een lage straat overdag met een open markt waar de moskee
+(`stad.moskee: -2900`) midden in beeld komt, en een dak om vanaf te kijken (galerijen op 401 en 590, dan het dak op 771).
+
 ## De stad bij namiddag, avond en nacht
 
 Vijf uitzichten: `stad_ochtend` (het ochtendgloren uit De Rivierstad: een bleke lucht, roze en goud aan de horizon, de zon
