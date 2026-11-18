@@ -409,6 +409,46 @@ komt. Het voorstel, in volgorde van belang:
 Alles als getallen in `MPC` met een tweede waarde voor drie man (bijvoorbeeld `MPC.drie = { keer: 1.5, tegelijk: 14, ... }`),
 zodat het met twee spelers precies blijft zoals nu.
 
+## De Co-op episode (gebouwd, 18-11-2026)
+
+`COOPEP_1`, `COOPEP_2`, `COOPEP_3`, `COOPEP_LEVELS`, `MPC_EP`, `MPC_EP_SOORT`, `mpEpNieuw`, `mpEpHostStap`, `mpEpAllenBijEind`,
+`mpEpLevelKlaar`, `mpEpVolgende`, `mpEpBijFakkels`, `mpEpReviveX`, `mpEpNaast`, `mpEpEindToon`, `mpcEpSpawnGasten`
+
+De derde modus in de lobby, **Co-op Episode** (`modus: 'ep'`, voor twee of drie spelers). Drie savannelevels na elkaar, van
+makkelijk naar moeilijk, op verzoek van de opdrachtgever ("alleen uit als je samen het eindpunt bereikt", "revive met een
+tonnetje op verschillende plekken"). Bij Map kiest de host het level waar het team begint (`MP_KAARTEN.ep`, id '0' tot '2').
+
+- **De levels.** Gewone leveldefinities met de standaard voor een nieuw level (`view`, `hpBalk`, `slangEenKlap`, `zicht`,
+  `camera`, `rand`, `speerInHand`), in de reeks `COOPEP_LEVELS`, zodat `levelcheck.py` ze nakijkt. Zonder `sneak`: de
+  sluipaanval is in Co-op uit (de regie bevriest het beeld). Zonder doornbossen: wie de stokken heeft kan die niet kappen.
+  `mpCoopStart` zet er net als op de map van Survival `stof`, `rugMax: 1` en de reeks van het team in.
+  1. **The Long Grass** (makkelijk, `vlakte`): zandslangen, een schorpioen, twee hyena's, drie bandieten, twee keien.
+  2. **Broken Ground** (middel, `hoogland`): een terras met een kruisboogschutter erop, twee ravijnen (220 en 240) om over te
+     springen, twee makkelijke schildbandieten, bandieten met een dolk.
+  3. **The Last Ridge** (moeilijk, `schemer`): een kruisboog op een terras, knock en zwart, een normale schildbandiet,
+     fosfor, drie hyena's, een gewone kooiman (`duel: false`, geen geënsceneerd duel) en een meelman, twee ravijnen en
+     aan het eind een elite-garde met vijf levens.
+- **Alles van Co-op Survival werkt hier:** de host denkt voor de vijanden, `mpcUpdate`, de revive-ton en het symbool, de
+  camera van een dode, de lijken. Geen rondes, geen winkel en geen goud (`mpcKill` geeft in de episode geen goud, de HUD
+  zegt "Level 1 of 3   Score").
+- **De spawns komen ook bij een gast.** De spawns van een level kijken alleen naar `world` (de lus in `updateSnakes`). Bij
+  de host draait `mpcEpSpawnGasten` daarom per levende gast `updateSnakes` nog een keer met de stand van die gast
+  (`mpcWisselIn`), dt 0 en een lege slangenlijst; wat dan komt, komt bij hem. `mpEpTag` geeft elke vijand uit een spawn
+  zijn `mpSoort`, zodat hij meetelt voor de punten.
+- **Het eind.** Bij de fakkels speelt `winLevel` niet uit: daar zegt `mpEpBijFakkels` alleen "Wait at the torches for your
+  teammate". De host kijkt elk beeld of iedereen leeft en binnen `MPC_EP.eind` van de fakkels staat (`mpEpAllenBijEind`,
+  een gast uit zijn nieuwste stand). Dan "Level complete" (`epklaar`, iedereen `godMode`), en na `MPC_EP.na` seconden het
+  volgende level (`epnaar` met het level, `mpCoopStart(i)`). Elk level begint iedereen weer met 3 levens.
+- **De revive-ton** komt bij de levende die het dichtst bij het lijk staat, waar dat ook is (`mpEpReviveX`): op zijn
+  hoogte, niet in een ravijn, niet op een andere ton, binnen het level; lukt dat niet op zijn hoogte (hij staat op een kei),
+  dan op de grond. Wie opstaat, staat naast wie het symbool pakte, ook niet in een ravijn (`mpEpNaast`).
+- **De score** is van het team en gaat mee naar het volgende level (`mpEpNieuw` met `door`). Game over: R (iedereen)
+  speelt hetzelfde level opnieuw, met de score, kills en tijd van het begin van dat level (`s0`, `k0`, `t0`). Na het
+  laatste level het eindscherm **Episode complete!** (`mpEpEindToon`, de beste score in `amir.coopEpBest`), en R begint
+  weer bij level 1 met score 0.
+- **Testen:** `node tools/mptest.js --ep` (met `--spelers 2` voor twee) loopt het na: een spawn bij een gast, de host
+  alleen bij de fakkels, een revive midden in het level, door naar level 2 met de score, game over en R, en het slot.
+
 ## Testen
 
 `node tools/mptest.js` speelt Co-op met drie vensters (de host en twee gasten, `--spelers 2` voor twee) en een nagebootste

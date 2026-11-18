@@ -247,6 +247,7 @@
   .mprij{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#f3e2bf;font-size:15px}
   .mprij select,.mprij input{font:inherit;font-size:14px}
   .mprij output{min-width:3.2em;text-align:right;color:var(--gold)}
+  .mpuitleg{margin:4px 0;font-size:14px;line-height:1.4;color:rgba(242,232,213,.85);text-align:center}
   .mpkop{margin:6px 0 0;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold)}
   .mpvij{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:6px 18px}
   .mpvij select{width:150px;max-width:150px;flex:none}
@@ -1204,11 +1205,13 @@
         <p id="mpping"></p>
         <div class="row mpmodi">
           <button class="mpmodus" data-modus="coop">Co-op Survival<small>Together against rounds of enemies</small></button>
+          <button class="mpmodus" data-modus="ep">Co-op Episode<small>Three levels, finish them together</small></button>
           <button class="mpmodus" data-modus="duel">Duel<small>One against one</small></button>
         </div>
         <label class="mprij">Map <select id="mpkaart"></select></label>
         <div id="mpduel" class="mpregels"></div>
         <div id="mpcoop" class="mpregels"></div>
+        <div id="mpep" class="mpregels"><p class="mpuitleg">Three savanna levels, from easy to hard. A level only ends when the whole team stands at the torches. Whoever falls gets a REVIVE barrel next to the nearest teammate. Map: the level you start at.</p></div>
         <div class="row">
           <button id="mpready" class="bigbtn">Ready<small>The host starts when you are ready</small></button>
           <button id="mpstart" class="bigbtn prim">Start<small id="mpstartuitleg"></small></button>
@@ -51487,6 +51490,7 @@ function loop(now){
       level.ends.some(f => { const vl = f.y != null ? f.y : Math.max(terrainH(f.x), zweefTopBij(f.x));   // de hoogte van het eind: de Maker geeft hem mee (de vloer onder de getekende cel), anders de grond of bovenop een zwevende laag
                              return !achterMasker(f.x) && Math.abs(world - f.x) < 50 && ph >= vl - 5 && ph < vl + HOLTE_DAK + CHAR_H; })){
     if (bossBlocking()){ if (!bossHintT || now - bossHintT > 2500){ bossHintT = now; flashHint(bavBlokkeert() ? 'Versla eerst de baviaan' : murBlokkeert() ? 'Versla eerst Murghtaan' : winterOn() ? 'Versla eerst de witte panter' : 'Versla eerst de zwarte panter'); } }
+    else if (pvp && pvp.coop && pvp.coop.ep) mpEpBijFakkels();   // de Co-op episode: pas uit als het hele team er staat (de host kijkt)
     else winLevel();
   }
   blockByPlatforms(plats, halfWNow);
@@ -64533,6 +64537,87 @@ const PVP_LEVEL = {
   tips: []
 };
 const PVP_LEVELS = [PVP_LEVEL];
+// ---- multiplayer: de Co-op episode, drie levels die je samen uitspeelt ----
+// Drie savannelevels voor Co-op (de lobby, modus 'ep'), van makkelijk naar moeilijk. Een level is pas uit als iedereen
+// levend bij de fakkels staat (mpEpEindKijk); wie valt krijgt een revive-ton bij de teamgenoot die het dichtst bij zijn lijk
+// staat, waar dat ook is in het level (mpEpReviveX). De vijanden komen uit de spawns, en de host laat ze ook komen als
+// een gast in de buurt is (mpcEpSpawnGasten). Geen thickets: een speler met de stokken kan die niet kappen. Geen sneak:
+// de sluipaanval is in Co-op uit (de regie bevriest het beeld). Zie notities/multiplayer.md, "De Co-op episode".
+const COOPEP_1 = {
+  name: 'Co-op 1: The Long Grass',
+  lagen: 'vlakte',
+  view: 0.8, hpBalk: true, slangEenKlap: true, zicht: true, camera: true, rand: true, speerInHand: true,
+  spawns: [ {x: -1700, k: 'groen'},
+            {x: -2700, k: 'scorp'},
+            {x: -3500, k: 'groen'}, {x: -3750, k: 'groen'},
+            {x: -4700, k: 'bandiet'},
+            {x: -5900, k: 'hyenas', n: 2},
+            {x: -7100, k: 'bandiet'}, {x: -7400, k: 'bandiet'} ],
+  rocks: [ {x: -3100, s: 1.0}, {x: -6500, s: 1.0} ],
+  gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [],
+  props: [ {x: -500, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -2200, k: 'struik', s: 1.0, f: 1, v: 0},
+           {x: -4200, k: 'gras', s: 0.9, f: 1, v: 0}, {x: -5400, k: 'struik', s: 0.9, f: 0, v: 0},
+           {x: -8200, k: 'gras', s: 1.0, f: 0, v: 0} ],
+  hppotions: [ {x: -5300, y: null} ],
+  cliffs: [ {x: -9600} ],
+  ends: [ {x: -9000} ],
+  tips: [ { x: -60,   t: 'Co-op: the level ends when the whole team stands at the torches' },
+          { x: -1100, t: 'Down? Your teammate gets a REVIVE barrel. Break it and grab the symbol to bring you back' } ]
+};
+const COOPEP_2 = {
+  name: 'Co-op 2: Broken Ground',
+  lagen: 'hoogland',
+  view: 0.8, hpBalk: true, slangEenKlap: true, zicht: true, camera: true, rand: true, speerInHand: true,
+  spawns: [ {x: -1800, k: 'zwart'},
+            {x: -2500, k: 'bandiet', dolk: true},
+            {x: -3200, k: 'kruisboogbandiet'},
+            {x: -3900, k: 'scorp'},
+            {x: -5600, k: 'schildman', niveau: 'makkelijk'},
+            {x: -6600, k: 'hyenas', n: 2},
+            {x: -7400, k: 'bandiet'}, {x: -7650, k: 'groen'},
+            {x: -9100, k: 'bandiet', dolk: true},
+            {x: -9600, k: 'kruisboogbandiet'},
+            {x: -10100, k: 'schildman', niveau: 'makkelijk'} ],
+  terraces: [ {r: -2800, l: -3600, h: 150} ],
+  rocks: [ {x: -6150, s: 1.0} ],
+  gaps: [ {x: -4500, w: 220}, {x: -8300, w: 240} ],
+  ledges: [], village: [], npcs: [], water: [], thickets: [],
+  props: [ {x: -600, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -2300, k: 'struik', s: 1.0, f: 1, v: 0},
+           {x: -5200, k: 'gras', s: 0.9, f: 1, v: 0}, {x: -7000, k: 'struik', s: 0.9, f: 0, v: 0},
+           {x: -10600, k: 'gras', s: 1.0, f: 1, v: 0} ],
+  hppotions: [ {x: -5000, y: null}, {x: -8900, y: null} ],
+  cliffs: [ {x: -11600} ],
+  ends: [ {x: -11000} ],
+  tips: [ { x: -60,   t: 'Broken ground: jump the ravines. Enemies cannot follow you across' },
+          { x: -2600, t: 'A crossbow on the ledge. One of you draws his bolts, the other climbs up' } ]
+};
+const COOPEP_3 = {
+  name: 'Co-op 3: The Last Ridge',
+  lagen: 'schemer',
+  view: 0.8, hpBalk: true, slangEenKlap: true, zicht: true, camera: true, rand: true, speerInHand: true,
+  spawns: [ {x: -1500, k: 'bandiet', dolk: true}, {x: -1800, k: 'zwart'},
+            {x: -2900, k: 'kruisboogbandiet'}, {x: -3300, k: 'knock'},
+            {x: -5000, k: 'schildman'}, {x: -5300, k: 'bandiet'},
+            {x: -6200, k: 'fosfor'},
+            {x: -7400, k: 'hyenas', n: 3},
+            {x: -8200, k: 'kooiman', duel: false}, {x: -8500, k: 'meelman'},
+            {x: -10000, k: 'schildman'}, {x: -10400, k: 'kruisboogbandiet'},
+            {x: -10800, k: 'bandiet', elite: true, hp: 5},
+            {x: -11400, k: 'bandiet', dolk: true}, {x: -11600, k: 'zwart'} ],
+  terraces: [ {r: -2600, l: -3500, h: 150} ],
+  rocks: [ {x: -6800, s: 1.0}, {x: -9900, s: 1.0} ],
+  gaps: [ {x: -4200, w: 240}, {x: -9200, w: 220} ],
+  ledges: [], village: [], npcs: [], water: [], thickets: [],
+  props: [ {x: -700, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -2300, k: 'struik', s: 1.0, f: 1, v: 0},
+           {x: -5800, k: 'gras', s: 0.9, f: 1, v: 0}, {x: -7900, k: 'struik', s: 0.9, f: 0, v: 0},
+           {x: -12200, k: 'gras', s: 1.0, f: 1, v: 0} ],
+  hppotions: [ {x: -4800, y: null}, {x: -7800, y: null}, {x: -9700, y: null} ],
+  cliffs: [ {x: -12900} ],
+  ends: [ {x: -12300} ],
+  tips: [ { x: -60,   t: 'The last ridge. Stay close: a revive is only a barrel away if your teammate is still standing' },
+          { x: -10500, t: 'The elite guard takes five hits. Hit him from two sides' } ]
+};
+const COOPEP_LEVELS = [COOPEP_1, COOPEP_2, COOPEP_3];
 let pvp = null, pvpTerug = false, pvpPeer = null, pvpHostCode = null;
 const pvpEl = id => document.getElementById(id);
 function pvpStatus(t){ pvpEl('pvpstatus').textContent = t; }
@@ -64981,7 +65066,8 @@ function pvpRaakLokaal(o){
 // Co-op is voor twee of drie spelers, het Duel voor twee. Zolang de lobby open is kan er nog iemand bij met de code.
 // Escape in een potje brengt iedereen terug naar de lobby, zonder de verbinding te verbreken; Leave the lobby verbreekt hem.
 // Zie notities/multiplayer.md.
-const MP_KAARTEN = { duel: [{ id: 'dye', naam: 'The Dye Yard' }], coop: [{ id: 'dye', naam: 'The Dye Yard (co-op)' }] };
+const MP_KAARTEN = { duel: [{ id: 'dye', naam: 'The Dye Yard' }], coop: [{ id: 'dye', naam: 'The Dye Yard (co-op)' }],
+                     ep: [{ id: '0', naam: '1. The Long Grass (easy)' }, { id: '1', naam: '2. Broken Ground (medium)' }, { id: '2', naam: '3. The Last Ridge (hard)' }] };
 // de vijanden die de host in Co-op Survival kan kiezen; met twee namen in var is er een makkelijke en een moeilijke versie
 const MP_SOORTEN = [
   { k: 'slang',     naam: 'Snakes',          var: ['sand snake', 'black, knock and phosphor'] },
@@ -65008,7 +65094,8 @@ function mpLaadInst(){
   try {
     const w = JSON.parse(localStorage.getItem('amir.mp') || 'null');
     if (w && typeof w === 'object'){
-      if (w.modus === 'duel' || w.modus === 'coop') st.modus = w.modus;
+      if (w.modus === 'duel' || w.modus === 'coop' || w.modus === 'ep') st.modus = w.modus;
+      st.kaart = MP_KAARTEN[st.modus].some(k => k.id === w.kaart) ? w.kaart : MP_KAARTEN[st.modus][0].id;   // de Co-op episode: het startlevel
       Object.assign(st.duel, w.duel || {});
       const c = w.coop || {};
       for (const k of ['start', 'erbij', 'winkelNa', 'pauze', 'rek', 'kalebas']) if (typeof c[k] === 'number') st.coop[k] = c[k];
@@ -65073,6 +65160,7 @@ function mpLobbyToon(){
   ks.value = I.kaart;
   pvpEl('mpduel').classList.toggle('on', I.modus === 'duel');
   pvpEl('mpcoop').classList.toggle('on', I.modus === 'coop');
+  pvpEl('mpep').classList.toggle('on', I.modus === 'ep');
   mpRijen(pvpEl('mpduel'), MP_DUEL_RIJEN, I.duel, (k, v) => mpWijzig(() => { I.duel[k] = v; }));
   const coop = pvpEl('mpcoop');
   mpRijen(coop, MP_COOP_RIJEN, I.coop, (k, v) => mpWijzig(() => { I.coop[k] = v; }));
@@ -65319,7 +65407,7 @@ function mpSpelStart(regels){
   pvp.regels = regels;
   mpLobbyDicht();
   if (regels.modus === 'duel') pvpDuelStart();
-  else { pvp.fase = 'coop'; mpCoopStart(); }
+  else { pvp.fase = 'coop'; mpCoopStart(regels.modus === 'ep' ? +regels.kaart || 0 : undefined); }   // de Co-op episode: vanaf het gekozen level
 }
 function pvpDuelStart(){
   const D = pvp.regels.duel;
@@ -65354,6 +65442,7 @@ function mpNaarLobby(zelf){
 // de startplek: in Co-op per slot (de tweede gast in het midden), in het Duel de host rechts en de gast links
 function pvpStartSlot(){ return pvp.coop ? pvp.mij : (pvp.mij === 0 ? 0 : 1); }
 function pvpPlaats(){
+  if (pvp.coop && pvp.coop.ep){ world = (level.start || 0) - MPC_EP.naast * pvp.mij; facing = -1; autoFlip = true; return; }   // de episode: naast elkaar aan de rand
   world = PVP.starts[pvpStartSlot()]; facing = pvpStartSlot() === 1 ? 1 : -1; autoFlip = true;
 }
 function pvpRondeStart(n){
@@ -65833,22 +65922,40 @@ function mpcUpdate(orig, k){
   return function(...a){
     if (!mpCoopAan()) return orig.apply(this, a);
     if (!pvp.host) return;
-    const q = mpcLijst(k), alle = q.l().slice(), groep = new Map();
-    for (const o of alle){ const p = mpcDoel(o); if (!groep.has(p)) groep.set(p, []); groep.get(p).push(o); }
-    if (!alle.length || (groep.size === 1 && groep.has(0))) return orig.apply(this, a);
-    const host = groep.get(0) || [];
-    mpcZet(q, host);
-    if (host.length || !dead) orig.apply(this, a);
-    let samen = q.l().slice();
-    for (const [p, rij] of groep){
-      if (p === 0) continue;
-      mpcZet(q, rij);
-      mpcWisselIn(p);
-      try { orig.apply(this, a); } finally { mpcWisselUit(); }
-      samen = samen.concat(q.l());
-    }
-    mpcZet(q, samen);
+    mpcUpdateGroepen(orig, k, this, a);
+    if (k === 'snakes' && pvp.coop.ep) mpcEpSpawnGasten(orig, this, a);   // de episode: de spawns van het level komen ook bij een gast
   };
+}
+function mpcUpdateGroepen(orig, k, self, a){
+  const q = mpcLijst(k), alle = q.l().slice(), groep = new Map();
+  for (const o of alle){ const p = mpcDoel(o); if (!groep.has(p)) groep.set(p, []); groep.get(p).push(o); }
+  if (!alle.length || (groep.size === 1 && groep.has(0))){ orig.apply(self, a); return; }
+  const host = groep.get(0) || [];
+  mpcZet(q, host);
+  if (host.length || !dead) orig.apply(self, a);
+  let samen = q.l().slice();
+  for (const [p, rij] of groep){
+    if (p === 0) continue;
+    mpcZet(q, rij);
+    mpcWisselIn(p);
+    try { orig.apply(self, a); } finally { mpcWisselUit(); }
+    samen = samen.concat(q.l());
+  }
+  mpcZet(q, samen);
+}
+// de Co-op episode, bij de host: de spawns van het level kijken alleen naar world (in updateSnakes). Per levende gast
+// draait updateSnakes daarom nog een keer met zijn stand en een lege slangenlijst en dt 0: wat dan komt, komt bij hem.
+// Zo wacht een vijand voor in het level niet tot de host er is
+function mpcEpSpawnGasten(orig, self, a){
+  if (!level || !(level.spawns || []).some(sp => !sp.used)) return;
+  for (const p of pvp.spelers){
+    if (p === 0 || !mpcGastDoel(p)) continue;
+    const oud = snakes.slice(); snakes.length = 0;
+    mpcWisselIn(p);
+    try { orig.apply(self, [0].concat(a.slice(1))); } finally { mpcWisselUit(); }
+    const nieuw = snakes.slice(); snakes.length = 0;
+    for (const o of oud.concat(nieuw)) snakes.push(o);
+  }
 }
 updateSnakes = mpcUpdate(updateSnakes, 'snakes');
 updateScorps = mpcUpdate(updateScorps, 'scorps');
@@ -65961,7 +66068,7 @@ exeKans = function(){ return mpCoopAan() ? false : mpcExeKansOrig.apply(this, ar
 // de deuren van de map: houten deuren beneden en een deur op de galerij per huis, ook zonder spawn in het level
 const mpcDeurAlleOrig = stadDeurenAlle, mpcDeurBovenOrig = stadDeurenBoven;
 function mpcDeurBij(u, boven){
-  if (!mpCoopAan()) return u;
+  if (!mpCoopAan() || pvp.coop.ep) return u;       // de episode speelt niet in de stad
   for (const d of MPC_DEUREN) if (!d.balkon && (!boven || d.verdieping > 0)) (u[d.gevel] || (u[d.gevel] = new Set())).add(d.verdieping);
   return u;
 }
@@ -66225,7 +66332,7 @@ function mpcKill(o){
   let p = (MPC.punten[o.mpSoort] || 10) + (o.mpHard ? MPC.moeilijk : 0);
   if (C.t - C.reeks.t <= MPC.reeksT){ C.reeks.n++; p += MPC.reeks * (C.reeks.n === 2 ? 2 : 1); } else C.reeks.n = 1;
   C.reeks.t = C.t; C.kills++; C.score += p;
-  mpcGoudIedereen(mpcKillGoud(o.mpSoort));            // het goud van de kill, gedeeld: ieder evenveel
+  if (!C.ep) mpcGoudIedereen(mpcKillGoud(o.mpSoort));   // het goud van de kill, gedeeld: ieder evenveel (de episode heeft geen winkel)
   if (C.reeks.n >= 2) mpcBanner(C.reeks.n === 2 ? 'Double Kill' : C.reeks.n === 3 ? 'Triple Kill' : 'Multi Kill', 1.2);
 }
 // de lijken: wie dood is, telt af en is na MPC.lijkWeg seconden uit de lijst (bij de gast ook, via de stand)
@@ -66264,6 +66371,7 @@ function mpcBanner(t, dur){ pvpBanner(t, dur); if (pvp.host) pvpZend({ t: 'cb', 
 function mpcHostStap(dt){
   const C = pvp.coop, R = pvp.regels.coop;
   if (C.fase === 'uit') return;
+  if (C.ep){ mpEpHostStap(dt); return; }              // de Co-op episode: geen rondes, wel de revive en het eind
   mpcKillKijk();
   mpcLijkStap(dt);
   if (C.fase === 'winkel') return;                    // in de winkel: wachten op Ready van allebei (mpcWinkelKlaar)
@@ -66308,12 +66416,16 @@ function mpcDodenStap(){
     const p = +k;
     if (C.t - C.doodT[p] < MPC.reviveNa || C.reviveTon[p] || C.symbolen.some(Sy => Sy.voor === p) || C.t < (C.reviveRust[p] || 0)) continue;
     const lijk = mpcPlek(p);
-    let lx = null;
-    for (const q of S) if (!mpcDood(q)){ const x = mpcPlek(q).x; if (lx == null || Math.abs(x - lijk.x) < Math.abs(lx - lijk.x)) lx = x; }
+    let lx = null, lh = 0;
+    for (const q of S) if (!mpcDood(q)){ const pl = mpcPlek(q); if (lx == null || Math.abs(pl.x - lijk.x) < Math.abs(lx - lijk.x)){ lx = pl.x; lh = pl.h; } }
     if (lx == null) continue;
-    let x = lx + (lx > -1500 ? -220 : 220);
-    if (Object.values(C.reviveTon).some(t => Math.abs(t.x - x) < 150)) x = lx + (lx > -1500 ? 220 : -220);   // niet op een andere revive-ton
-    x = Math.max(endWall() + 260, Math.min(cliffAt().wall - 260, x));
+    let x;
+    if (C.ep) x = mpEpReviveX(lx, lh);               // de episode: naast de levende, waar hij ook is, niet in een ravijn
+    else {
+      x = lx + (lx > -1500 ? -220 : 220);
+      if (Object.values(C.reviveTon).some(t => Math.abs(t.x - x) < 150)) x = lx + (lx > -1500 ? 220 : -220);   // niet op een andere revive-ton
+      x = Math.max(endWall() + 260, Math.min(cliffAt().wall - 260, x));
+    }
     C.reviveTon[p] = mpcTonZet({ id: ++C.tonId, x, revive: true, voor: p });
   }
 }
@@ -66332,7 +66444,7 @@ function mpcEinde(){
   const C = pvp.coop;
   if (C.fase === 'uit') return;
   C.fase = 'uit';
-  const e = { score: C.score, ronde: C.ronde, tijd: Math.round(C.t), kills: C.kills };
+  const e = { score: C.score, ronde: C.ronde, tijd: Math.round(C.t), kills: C.kills, ep: C.ep ? { i: C.ep.i, alles: !!C.ep.alles } : undefined };
   pvpZend({ t: 'ceind', e });
   mpcEindToon(e);
 }
@@ -66343,6 +66455,7 @@ function mpcEindSleutel(){
 }
 function mpcEindToon(e){
   const C = pvp.coop; C.fase = 'uit'; C.eind = e; godMode = true; pvp.rematch = [false, false];
+  if (e.ep){ mpEpEindToon(e); return; }             // de Co-op episode heeft zijn eigen eindscherm
   let best = 0;
   try { best = +(localStorage.getItem(mpcEindSleutel()) || 0); if (e.score > best) localStorage.setItem(mpcEindSleutel(), String(e.score)); } catch (err){}
   const m = Math.floor(e.tijd / 60), s = String(e.tijd % 60).padStart(2, '0');
@@ -66372,7 +66485,7 @@ function mpcSymboolStap(){
 function mpcSymboolOp(voor){ playHppotionDrinkSound(); flashHint('Revive!'); pvp.coop.reviveRust[voor] = pvp.coop.t + 3; }
 function mpcOpstaan(x, h){
   if (!dead) return;
-  dead = false; lives = 1; hurt = 0; invuln = 2; world = x + (x > -1500 ? -70 : 70); ph = h; pvh = 0;
+  dead = false; lives = 1; hurt = 0; invuln = 2; world = pvp.coop.ep ? mpEpNaast(x, h) : x + (x > -1500 ? -70 : 70); ph = h; pvh = 0;
   deadEl.classList.remove('on');
   drawLives(); hudToon();
   delete pvp.coop.doodT[pvp.mij];
@@ -66432,7 +66545,7 @@ function mpCoopStap(rdt, dt){
     if (pvpEl('pvpbanner').textContent !== t) pvpBanner(t);
     return;
   }
-  if (pvp.host && !C.allenKlaar){ C.allenKlaar = true; pvpBanner(''); }
+  if (pvp.host && !C.allenKlaar){ C.allenKlaar = true; if (C.ep) mpcBanner(COOPEP_LEVELS[C.ep.i].name.replace(/^Co-op \d+: /, 'Level ' + (C.ep.i + 1) + ': '), 2.5); else pvpBanner(''); }
   C.t += dt;
   mpcDeurStap(dt);
   if (C.fase !== 'uit') mpcSymboolStap();
@@ -66451,7 +66564,8 @@ function mpCoopStap(rdt, dt){
 function mpCoopHud(){
   if (!mpCoopAan()) return;
   const C = pvp.coop;
-  const sc = (C.ronde ? 'Round ' + C.ronde + '   ' : '') + 'Score ' + C.score + '   Gold ' + C.goud + pvpPingHud();
+  const sc = (C.ep ? 'Level ' + (C.ep.i + 1) + ' of ' + COOPEP_LEVELS.length + '   Score ' + C.score
+                   : (C.ronde ? 'Round ' + C.ronde + '   ' : '') + 'Score ' + C.score + '   Gold ' + C.goud) + pvpPingHud();
   if (pvpEl('pvpscore').textContent !== sc) pvpEl('pvpscore').textContent = sc;
   mpcKijkStap();
   const wacht = dead && C.fase !== 'uit' && mpcIemandLeeft() ? 'Waiting for revive' : '';
@@ -66519,7 +66633,9 @@ function mpCoopOntvang(m){
   if (m.t === 'cv'){ if (!pvp.host) mpcVersieZet(m.v); return true; }
   if (m.t === 'ceind'){ mpcEindToon(m.e); return true; }
   if (m.t === 'rematch'){ pvp.rematch[m.p] = true; mpCoopRematchKijk(); return true; }
-  if (m.t === 'cnieuw'){ if (!pvp.host) mpCoopStart(); return true; }
+  if (m.t === 'cnieuw'){ if (!pvp.host) mpCoopStart(m.i); return true; }
+  if (m.t === 'epklaar'){ if (!pvp.host) mpEpKlaarLokaal(); return true; }
+  if (m.t === 'epnaar'){ if (!pvp.host){ if (C.ep) C.ep.door = true; mpCoopStart(m.i); } return true; }
   if (m.t === 'cg'){ mpcGoudErbij(m.n, m.w); return true; }
   if (m.t === 'geef'){ mpcGoudErbij(m.n, pvp.spelers.length > 2 ? 'from ' + mpBroekNaam(pvp.broek[m.p]).toLowerCase() : 'from your teammate'); return true; }
   if (m.t === 'winkel'){ if (!pvp.host && !laadWacht) mpcWinkelIn(); return true; }
@@ -66543,23 +66659,28 @@ function mpCoopLaad(){
   deurLaad(); tonLaad(); rekLaad();
   fakkelLaad();                                     // de nachtversies van de map (MPC_VERSIE): al binnen voor een wissel
 }
-function mpCoopStart(){
+function mpCoopStart(epI){
+  const ep = pvp.regels.modus === 'ep', oud = pvp.coop;   // de Co-op episode: epI is het level (0, 1 of 2)
   Object.assign(pvp, { sc: [0, 0, 0], ronde: 1, zendT: 0, anders: {}, sn: 0, wn: 0, jn: 0, laatsteAtk: -1, laatsteSw: -1,
                        laatsteJav: null, mijn: null, jVorig: null, rematch: [false, false, false], levens: 3, banner: '', bannerT: 0 });
   winkelUIDicht();
   pvp.coop = mpCoopNieuw();
+  if (ep) mpEpNieuw(pvp.coop, oud, epI);
   pvpEl('mpeind').classList.remove('on');
   runReset();
   levelList = PVP_LEVELS;                         // niet TEST_LEVELS: die geeft alle talents (een vierde leven)
-  const lv = JSON.parse(JSON.stringify(MP_COOP_LEVEL));
-  lv.wapenrekken[0].n = pvp.regels.coop.rek;
+  const lv = JSON.parse(JSON.stringify(ep ? COOPEP_LEVELS[pvp.coop.ep.i] : MP_COOP_LEVEL));
+  if (ep){ lv.stof = true; lv.rugMax = 1; lv.multikill = false; lv.rapport = false; }   // zoals de map van Survival: stof, 1 speer op de rug, de reeks van het team
+  else lv.wapenrekken[0].n = pvp.regels.coop.rek;
   mpWapenLevel(lv);                                 // met de stokken: een level met stokken (geen speer, geen rug)
   level = readLevel(JSON.stringify(lv));
-  laadNieuw(); laadLevel(level); mpCoopLaad();
+  laadNieuw(); laadLevel(level);
+  if (ep) tonLaad(); else mpCoopLaad();             // de episode: de vijanden laden via laadLevel, de ton is voor de revive
   sandbox = false; godMode = false;
   if (ROL.koelOud != null){ ROL.koel = ROL.koelOud; ROL.koelOud = null; }
   beginPlay('normal');
-  if (pvp.host) mpcVersieWissel(mpcVersieKies(null));   // een willekeurige versie van de map; de gast krijgt hem met 'cv'
+  if (ep){ mpcVersieNu = 'ep'; mpcFakSc = 0; }      // het uitzicht van het level zelf, geen versies en geen fakkels
+  else if (pvp.host) mpcVersieWissel(mpcVersieKies(null));   // een willekeurige versie van de map; de gast krijgt hem met 'cv'
   else mpcVersieZet('avond');
   pvpPlaats();
   pvpEl('pvphud').classList.add('on');
@@ -66577,13 +66698,132 @@ function mpCoopOpnieuw(){
 function mpCoopRematchKijk(){
   const C = pvp.coop;
   if (!pvp.host || !C || C.fase !== 'uit' || !pvp.spelers.every(p => pvp.rematch[p])) return;
-  pvpZend({ t: 'cnieuw' }); mpCoopStart();
+  const i = C.ep ? (C.ep.alles ? 0 : C.ep.i) : undefined;   // de episode: na game over dit level opnieuw, na het slot weer vanaf 1
+  pvpZend({ t: 'cnieuw', i }); mpCoopStart(i);
 }
 function mpCoopStop(){
   if (!pvp) return;
   winkelUIDicht();
   pvp.coop = null; mpcWissel = null;
   pvpEl('mpeind').classList.remove('on');
+}
+// ---- multiplayer: de Co-op episode, de levels samen uitspelen ----
+// Modus 'ep' in de lobby: de levels van COOPEP_LEVELS na elkaar, vanaf het level dat de host als map koos. Alles van
+// Co-op Survival werkt hier ook (de host denkt voor de vijanden, de revive-ton, de camera van een dode), maar zonder
+// rondes, winkel en goud. Een level is uit als iedereen leeft en bij de fakkels staat (de host kijkt, mpEpHostStap);
+// wie er alleen staat krijgt een hint. Game over: R speelt dit level opnieuw, met de score van zijn begin. Na het
+// laatste level het eindscherm, en R begint weer bij level 1. Zie notities/multiplayer.md, "De Co-op episode".
+const MPC_EP = {
+  eind: 120,                // zo dicht bij de fakkels (voorbij of ervoor) telt als "erbij"
+  na: 3,                    // seconden tussen "Level complete" en het volgende level
+  naast: 90,                // de startplekken naast elkaar, per slot zoveel verder naar links
+  revive: [-200, 200, -320, 320, -130, 130]   // waar de revive-ton mag komen, vanaf de levende (de eerste die past)
+};
+// de soort van een vijand uit een spawn, voor de punten (MPC.punten): de lijst zegt het
+const MPC_EP_SOORT = { snakes: 'slang', scorps: 'scorp', hyenas: 'hyena', kooimannen: 'kooiman', meelmannen: 'meelman',
+                       kruisbogen: 'kruisboog', bandieten: 'bandiet', schildmannen: 'schildman', zweepmannen: 'zweepman',
+                       fosforSlangen: 'slang', goudapen: 'goudaap' };
+// het nieuwe potje van een level: verder na een gehaald level (door) met de stand van het team, opnieuw na game over
+// met de stand van het begin van dat level, en na het slot vanaf nul
+function mpEpNieuw(C, oud, epI){
+  const i = Math.max(0, Math.min(COOPEP_LEVELS.length - 1, epI | 0));
+  C.ep = { i, wachtT: 0, door: false, alles: false };
+  C.fase = 'ep';
+  const o = oud && oud.ep;
+  const erf = !o ? null : o.door ? { s: oud.score, k: oud.kills, t: oud.t } : (!o.alles && o.i === i) ? { s: o.s0, k: o.k0, t: o.t0 } : null;
+  if (erf){ C.score = erf.s; C.kills = erf.k; C.t = erf.t; }
+  C.ep.s0 = C.score; C.ep.k0 = C.kills; C.ep.t0 = C.t;
+}
+function mpEpTag(){
+  for (const q of MPC_LIJSTEN){
+    const s = MPC_EP_SOORT[q.k]; if (!s) continue;
+    for (const o of q.l()) if (!o.mpSoort && mpcLeeft(o)){ o.mpSoort = s; if (o.elite) o.mpHard = true; }
+  }
+}
+function mpEpHostStap(dt){
+  const C = pvp.coop;
+  mpEpTag();                                        // wie uit een spawn kwam telt mee voor de punten
+  mpcKillKijk();
+  mpcLijkStap(dt);
+  if (C.fase === 'klaar'){ C.ep.wachtT -= dt; if (C.ep.wachtT <= 0) mpEpVolgende(); return; }
+  mpcDodenStap();
+  if (C.fase === 'uit') return;                     // iedereen dood: game over
+  if (mpEpAllenBijEind()) mpEpLevelKlaar();
+}
+function mpEpBijEind(x){ return x != null && Math.abs(x - levelEndX()) <= MPC_EP.eind; }
+function mpEpAllenBijEind(){
+  return pvp.spelers.every(p => {
+    if (p === 0) return !dead && mpEpBijEind(world);
+    const g = pvpAnderNu(p);
+    return !!g && !g.d && mpEpBijEind(g.x);
+  });
+}
+function mpEpLevelKlaar(){
+  const C = pvp.coop, laatste = C.ep.i >= COOPEP_LEVELS.length - 1;
+  C.fase = 'klaar'; C.ep.wachtT = MPC_EP.na;
+  mpcBanner(laatste ? 'Episode complete!' : 'Level complete', MPC_EP.na);
+  pvpZend({ t: 'epklaar' });
+  mpEpKlaarLokaal();
+}
+// bij iedereen: het level is gehaald, niemand kan nu nog geraakt worden
+function mpEpKlaarLokaal(){ const C = pvp.coop; if (C) C.fase = 'klaar'; godMode = true; }
+function mpEpVolgende(){
+  const C = pvp.coop;
+  if (C.ep.i >= COOPEP_LEVELS.length - 1){ C.ep.alles = true; mpcEinde(); return; }
+  C.ep.door = true;
+  const i = C.ep.i + 1;
+  pvpZend({ t: 'epnaar', i });
+  mpCoopStart(i);
+}
+// staat Amir zelf bij de fakkels: de host beslist, dus hier alleen een hint (een keer per paar seconden)
+let mpEpHintT = 0;
+function mpEpBijFakkels(){
+  const C = pvp.coop;
+  if (C.fase !== 'ep') return;
+  const nu = performance.now();
+  if (nu - mpEpHintT < 4000) return;
+  mpEpHintT = nu;
+  const n = pvpAnderen().filter(p => !mpEpBijEind((pvp.anders[p].g || {}).x) || pvp.anders[p].g.d).length;
+  if (n) flashHint(n > 1 ? 'Wait at the torches for your teammates' : 'Wait at the torches for your teammate');
+}
+// de plek van een revive-ton bij de levende op (lx, lh): op zijn hoogte, niet in een ravijn, niet op een andere ton en
+// binnen het level. Lukt dat nergens op zijn hoogte (hij staat op een kei), dan de eerste plek op de grond
+function mpEpReviveX(lx, lh){
+  const C = pvp.coop, links = endWall() + 200, rechts = cliffAt().wall - 200;
+  const past = (x, hoogte) => x > links && x < rechts && !inGap(x) && !(hoogte && Math.abs(terrainH(x) - lh) > 20)
+                              && !Object.values(C.reviveTon).some(t => t && Math.abs(t.x - x) < 150);
+  for (const hoogte of [true, false]) for (const d of MPC_EP.revive){ const x = lx + d; if (past(x, hoogte)) return x; }
+  return Math.max(links, Math.min(rechts, lx - 200));
+}
+// waar de dode opstaat: naast wie het symbool pakte, op zijn hoogte en niet in een ravijn
+function mpEpNaast(x, h){
+  for (const d of [70, -70, 140, -140]) if (!inGap(x + d) && Math.abs(terrainH(x + d) - h) < 20) return x + d;
+  return x;
+}
+// het eindscherm van de episode: gehaald of game over in een level
+function mpEpEindToon(e){
+  const el = pvpEl('mpeind'), m = Math.floor(e.tijd / 60), s = String(e.tijd % 60).padStart(2, '0');
+  if (pvp.coop && pvp.coop.ep) pvp.coop.ep.alles = !!e.ep.alles;
+  let best = 0;
+  if (e.ep.alles) try { best = +(localStorage.getItem('amir.coopEpBest') || 0); if (e.score > best) localStorage.setItem('amir.coopEpBest', String(e.score)); } catch (err){}
+  el.innerHTML = '';
+  const regel = (t, k) => { const p = document.createElement('p'); p.textContent = t; if (k) p.className = k; el.append(p); };
+  const naam = COOPEP_LEVELS[e.ep.i].name.replace(/^Co-op \d+: /, '');
+  const iedereen = pvp.spelers.length > 2 ? 'everyone presses' : 'both press';
+  if (e.ep.alles){
+    regel('Episode complete!', 'kop');
+    regel('Team score: ' + e.score);
+    regel('All ' + COOPEP_LEVELS.length + ' levels in ' + m + ':' + s + ' (' + e.kills + ' kills)');
+    regel(e.score > best ? 'New best score!' : 'Best score: ' + best, 'best');
+    regel('R: play the episode again (' + iedereen + ' R)   Esc: back to the lobby', 'klein');
+  } else {
+    regel('Game over', 'kop');
+    regel('The whole team fell in level ' + (e.ep.i + 1) + ': ' + naam);
+    regel('Team score: ' + e.score + ', ' + m + ':' + s + ' (' + e.kills + ' kills)');
+    regel('R: try this level again (' + iedereen + ' R)   Esc: back to the lobby', 'klein');
+  }
+  el.classList.add('on');
+  pvpBanner('');
 }
 // ---- multiplayer: de winkel en de economie van Co-op (stuk 3) ----
 // Goud: het goud van een kill is gedeeld (ieder MPC.killGoud, naar de soort), en per overleefde ronde krijgt ieder

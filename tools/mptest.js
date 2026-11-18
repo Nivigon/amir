@@ -73,6 +73,63 @@ async function tot(page, f, arg, max = 30000){
   while (Date.now() - t < max){ if (await page.evaluate(f, arg).catch(() => false)) return true; await wacht(200); }
   return false;
 }
+// de Co-op episode (--ep): de levels samen uitspelen. Een spawn die bij een gast komt, het eind dat op iedereen wacht,
+// een revive-ton bij de levende ergens midden in het level, door naar het volgende level met de score, game over en R
+// voor hetzelfde level, en het slot na het laatste level
+async function epProef(R){
+  const [H, G] = R, allen = R.map(r => r.page);
+  const elk = async (f, arg, max) => { for (const r of R) if (!await tot(r.page, f, arg, max)) return r.wie; return null; };
+  const klaar = i => elk(i => running && !laadWacht && pvp.coop && pvp.coop.ep && pvp.coop.ep.i === i && pvp.coop.fase === 'ep' && level.name.startsWith('Co-op ' + (i + 1)), i, 60000);
+  meld(await klaar(0) === null, 'level 1 loopt bij iedereen');
+  meld(await tot(H.page, () => pvp.coop.allenKlaar, null, 20000), 'de host ziet dat iedereen geladen is');
+  for (const p of allen) await p.evaluate(() => { godMode = true; });
+  const xs = await Promise.all(allen.map(p => p.evaluate(() => Math.round(world))));
+  meld(new Set(xs).size === R.length, 'ieder een eigen startplek (' + xs.join(', ') + ')');
+  await G.page.evaluate(() => { world = -1450; ph = 0; });
+  meld(await tot(H.page, () => snakes.some(s => mpcLeeft(s)) && world > -600, null, 8000), 'de slang komt bij de gast, terwijl de host nog bij de start staat');
+  meld(await tot(G.page, () => snakes.some(s => s.mpId != null), null, 5000), 'en de gast ziet hem');
+  meld(await tot(H.page, () => snakes.some(s => s.mpSoort === 'slang'), null, 3000), 'hij telt mee voor de punten (mpSoort)');
+  await H.page.evaluate(() => { world = levelEndX() - 30; ph = 0; });
+  await wacht(1500);
+  meld(await H.page.evaluate(() => pvp.coop.fase === 'ep'), 'de host alleen bij de fakkels: het level is niet uit');
+  // een revive midden in het level, bij de host
+  await H.page.evaluate(() => { MPC.reviveNa = 1; world = -6100; ph = 0; });
+  if (R[2]) await R[2].page.evaluate(() => { world = -6250; ph = 0; });   // de ton komt bij de levende die het dichtst bij het lijk staat
+  await G.page.evaluate(() => { godMode = false; invuln = 0; lives = 1; hurtPlayer(true); });
+  meld(await tot(G.page, () => dead, null, 3000), 'de gast valt');
+  meld(await tot(H.page, () => Object.keys(pvp.coop.reviveTon).length > 0, null, 6000), 'er komt een revive-ton');
+  const tx = await H.page.evaluate(() => Object.values(pvp.coop.reviveTon)[0].x);
+  meld(Math.abs(tx + 6100) <= 330 && await H.page.evaluate(x => !inGap(x), tx), 'de ton staat bij de host, midden in het level (' + Math.round(tx) + ')');
+  meld(await tot(G.page, x => tonnen.some(t => t.revive && !t.weg && Math.abs(t.x - x) < 2), tx, 5000), 'de gast ziet de ton ook');
+  for (let i = 0; i < 3; i++){ await H.page.evaluate(() => { const t = tonnen.find(t => t.revive && !t.weg); if (t) tonRaak(t, 1, true); }); await wacht(300); }
+  meld(await tot(H.page, () => pvp.coop.symbolen.length > 0 || !Object.keys(pvp.coop.doodT).length, null, 4000), 'de ton is stuk en het symbool valt');
+  await H.page.evaluate(() => { if (pvp.coop.symbolen.length) world = pvp.coop.symbolen[0].x; });   // met drie kan de tweede gast het al gepakt hebben
+  meld(await tot(G.page, () => !dead && lives === 1 && Math.abs(world + 6100) < 600, null, 6000), 'de gast staat op naast de host (' + await G.page.evaluate(() => Math.round(world)) + ')');
+  // samen naar de fakkels
+  await H.page.evaluate(() => { MPC.reviveNa = 20; });
+  const sc1 = await H.page.evaluate(() => { pvp.coop.score += 77; pvp.coop.kills += 3; return pvp.coop.score; });   // een stand die mee moet
+  for (const p of allen) await p.evaluate(() => { godMode = true; world = levelEndX() - 30; ph = 0; });
+  meld(await tot(H.page, () => pvp.coop.fase === 'klaar' || (pvp.coop.ep.i === 1), null, 5000), 'iedereen bij de fakkels: level 1 is uit');
+  meld(await klaar(1) === null, 'level 2 loopt bij iedereen');
+  meld(await H.page.evaluate(s => pvp.coop.score >= s && pvp.coop.ep.s0 >= s, sc1), 'de score gaat mee naar level 2 (' + sc1 + ' en ' + await H.page.evaluate(() => pvp.coop.score) + ')');
+  // game over in level 2, en R speelt level 2 opnieuw
+  await H.page.evaluate(() => pvp.coop.allenKlaar = pvp.coop.allenKlaar);
+  await tot(H.page, () => pvp.coop.allenKlaar, null, 20000);
+  for (const p of allen) await p.evaluate(() => { godMode = false; invuln = 0; lives = 1; hurtPlayer(true); });
+  meld(await elk(() => pvp.coop.fase === 'uit' && /Game over/.test(pvpEl('mpeind').textContent) && /level 2/.test(pvpEl('mpeind').textContent), null, 8000) === null, 'iedereen dood: game over in level 2, bij iedereen');
+  for (const p of allen) await p.evaluate(() => mpCoopOpnieuw());
+  meld(await klaar(1) === null, 'R bij iedereen: level 2 opnieuw');
+  // door naar 3 en het slot
+  await tot(H.page, () => pvp.coop.allenKlaar, null, 20000);
+  for (const p of allen) await p.evaluate(() => { godMode = true; world = levelEndX() - 30; ph = 0; });
+  meld(await klaar(2) === null, 'level 3 loopt bij iedereen');
+  await tot(H.page, () => pvp.coop.allenKlaar, null, 20000);
+  for (const p of allen) await p.evaluate(() => { godMode = true; world = levelEndX() - 30; ph = 0; });
+  meld(await elk(() => pvp.coop.fase === 'uit' && /Episode complete/.test(pvpEl('mpeind').textContent), null, 10000) === null, 'na level 3: Episode complete, bij iedereen');
+  for (const p of allen) await p.evaluate(() => mpCoopOpnieuw());
+  meld(await klaar(0) === null && await H.page.evaluate(() => pvp.coop.score === 0), 'R bij iedereen: weer level 1, score 0');
+  for (const r of R){ if (r.fouten.size){ console.log(r.wie + ' fouten:'); for (const f of r.fouten) console.log('  ' + f); } }
+}
 // de vaste proef: wat de spelers niet vanzelf doen, stap voor stap, met OK of FOUT per stap. R de ramen (host, gast,
 // en met drie spelers gast2), L wat er in de lobby gebeurde
 const meld = (ok, t) => { console.log((ok ? 'OK   ' : 'FOUT ') + t); if (!ok) process.exitCode = 1; };
@@ -383,9 +440,11 @@ async function elk(H, G){
     meld(wapens.every(w => w.startsWith(zou)), 'het wapen uit de lobby, bij iedereen hetzelfde (' + wapens[0] + ')');
   }
   if (args.includes('--duel')) await H.page.evaluate(() => { window.__duel = true; });
+  if (args.includes('--ep')) await H.page.evaluate(() => { window.__ep = true; });
   await H.page.evaluate(soorten => {
     mpWijzig(() => {
-      pvp.inst.modus = window.__duel ? 'duel' : 'coop';
+      pvp.inst.modus = window.__duel ? 'duel' : window.__ep ? 'ep' : 'coop';
+      if (window.__ep) pvp.inst.kaart = '0';
       Object.assign(pvp.inst.coop, { start: 2, erbij: 1, pauze: 5 });
       for (const q of MP_SOORTEN) pvp.inst.coop.vij[q.k] = soorten ? (soorten.includes(q.k) ? (q.var ? 'beide' : 'aan') : 'uit') : (q.var ? 'beide' : 'aan');
     });
@@ -405,7 +464,7 @@ async function elk(H, G){
     await H.page.evaluate(() => mpWijzig(() => { pvp.inst.modus = 'duel'; }));
     await H.page.waitForTimeout(200);
     lobby.push([await H.page.evaluate(() => pvpEl('mpstart').disabled && /two players/.test(pvpEl('mpstartuitleg').textContent)), 'Duel met drie spelers mag niet']);
-    await H.page.evaluate(() => mpWijzig(() => { pvp.inst.modus = 'coop'; }));
+    await H.page.evaluate(() => mpWijzig(() => { pvp.inst.modus = window.__ep ? 'ep' : 'coop'; if (window.__ep) pvp.inst.kaart = '0'; }));
     await H.page.waitForTimeout(200);
     for (const r of [G, G2]) await r.page.evaluate(() => pvpEl('mpready').click());
   } else await G.page.evaluate(() => pvpEl('mpready').click());
@@ -534,6 +593,7 @@ async function elk(H, G){
     for (const r of ramen){ if (r.fouten.size){ console.log(r.wie + ' fouten:'); for (const f of r.fouten) console.log('  ' + f); } }
     loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return;
   }
+  if (args.includes('--ep')){ await epProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--elk')){ await elk(H, G); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--proef')){ await proef(ramen, lobby); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   const t0 = Date.now();
