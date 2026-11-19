@@ -29015,6 +29015,7 @@ function stadLees(o){
            ...(o.gordijnen ? { gordijnen: true } : {}),
            ...(o.accenten ? { accenten: true } : {}),
            ...(o.onder ? { onder: true } : {}),
+           ...(Number.isFinite(Number(o.achterTot)) && o.achterTot !== null ? { achterTot: n(o.achterTot) } : {}),   // links daarvan geen huizen in de verte (Ishmul)
            ...(o.moskee === false ? { moskee: false } : o.moskee != null ? { moskee: n(o.moskee) } : {}),
            galerijen: (o.galerijen || []).map(q => ({ van: n(q.van), tot: q.tot != null ? n(q.tot) : n(q.van), h: q.h != null ? n(q.h) : null,
                                                      meer: Array.isArray(q.meer) ? [n(q.meer[0]), n(q.meer[1])] : null })),
@@ -30518,6 +30519,7 @@ function stadAchter(sc, horizonY, groundY){
   const S = level.stad, seed = S.seed || 1, f0 = stadGevelF(nowScale());
   const V = stadVerte(), N = V.nevel, neveltekst = 'rgb(' + N.join(',') + ')';
   const voeten = STAD.rijen.map(R => groundY - camY * R.cam - R.lift * H);
+  const grens = Number.isFinite(S.achterTot) ? S.achterTot : null;   // zie hieronder bij achterTot
   // het paleis in de verte, met nevel voorgebakken
   if (stadKlaar('paleis')){
     const P = stadGebakken('paleis_' + V.sleutel, () => {
@@ -30527,12 +30529,25 @@ function stadAchter(sc, horizonY, groundY){
     const ph = H * STAD.paleis.hoog, pw = P.width * ph / P.height;
     const px = (S.paleis != null ? S.paleis : -2500);
     const sx = W / 2 + (px - world) * STAD.paleis.par - pw / 2;
-    ctx.drawImage(P, sx, voeten[0] + 0.01 * H - ph, pw, ph);
+    // met achterTot vaagt het paleis weg zodra de rand van de stad (de verste rij) zijn linkerkant nadert
+    const pa = grens == null ? 1 : Math.max(0, Math.min(1, (sx - (W / 2 + (grens - world) * STAD.rijen[0].par)) / (pw * 0.5) + 1));
+    if (pa > 0){ ctx.globalAlpha = pa; ctx.drawImage(P, sx, voeten[0] + 0.01 * H - ph, pw, ph); ctx.globalAlpha = 1; }
   }
   stadVerteGieren(voeten[0], seed);                // gieren boven de stad (zie "de verte van de stad")
+  // achterTot (Ishmul): links van die wereld-x houdt de stad in de verte op, daar is lucht boven de savanne. Per rij op
+  // zijn eigen parallax, en afgerond op de muur tussen twee huizen, zodat geen huis half afgeknipt wordt
+  const grensX = R => W / 2 + (grens - world) * R.par;
   // onder de verste rij: de stad loopt door in de nevel tot de grond
-  ctx.fillStyle = neveltekst; ctx.fillRect(0, voeten[0] - 2, W, groundY - voeten[0] + 4);
+  ctx.fillStyle = neveltekst;
+  const nevelL = grens == null ? 0 : Math.max(0, grensX(STAD.rijen[0]));
+  ctx.fillRect(nevelL, voeten[0] - 2, W - nevelL, groundY - voeten[0] + 4);
   STAD.rijen.forEach((R, rij) => {
+    if (grens != null){ ctx.save(); }
+    try { stadAchterRij(R, rij, V, voeten, f0, seed, groundY, grens, grensX); } finally { if (grens != null) ctx.restore(); }
+  });
+}
+function stadAchterRij(R, rij, V, voeten, f0, seed, groundY, grens, grensX){
+  {
     // onder de voorste rij: als de camera meeklimt (een galerij, een dak) zakt de straat onder uit beeld en kom je
     // onder die rij in de lichte nevel. Daar loopt een stoffige straat in de verte door (STAD.verteStraat)
     if (rij === STAD.rijen.length - 1 && groundY > voeten[rij]){
@@ -30541,6 +30556,10 @@ function stadAchter(sc, horizonY, groundY){
     const hw = 970 * f0 * R.s, G = STAD.gevel, stap = hw * (G.muur[1] - G.muur[0]) / 970 - 2;   // muur tegen muur, de balken steken over
     const m0 = hw * G.muur[0] / 970;
     const off = -world * R.par;                            // wereld naar links: de rij schuift naar rechts
+    if (grens != null){                                     // de grens van achterTot, op de muur tussen twee huizen
+      const k = Math.ceil((grensX(R) - (off - W * 0.25)) / stap), gx = off + k * stap - W * 0.25 - 1;
+      ctx.beginPath(); ctx.rect(gx, -H * 4, W * 6, H * 10); ctx.clip();
+    }
     if (rij === 0 && stadVerteRij(R, voeten[rij], f0, seed)) return;   // de verste rij: daken, moskee en palmen
     if (STAD_STROOK && stadRijStrookTeken(rij, R, seed, f0, hw, stap, m0, off, voeten[rij], groundY)) return;
     const i0 = Math.floor((-off - W) / stap) - 1, i1 = Math.ceil((W * 1.5 - off) / stap) + 1;
@@ -30559,7 +30578,7 @@ function stadAchter(sc, horizonY, groundY){
       ctx.drawImage(c, 0, voeten[rij] - hh, hw, hh);
       ctx.restore();
     }
-  });
+  }
 }
 
 // ---- de huizenrijen als strook: elke achterrij een keer voorgetekend, per beeld alleen verschoven ----
@@ -55389,6 +55408,7 @@ function readLevel(txt){
                                                     grond: q.grond === true, af: q.af === true, door: q.door > 0 ? Number(q.door) : undefined,
                                                     look: q.look === 'leem' || q.look === 'straat' ? q.look : undefined,   // leem: de stadsmuur (zie "de leemmuur"), straat: de verhoogde straat
                                                     opstap: q.opstap === true ? true : undefined,   // een opstapje (zie OPSTAP)
+                                                    vloer: q.vloer === 'plein' ? 'plein' : undefined,   // de pleinvloer op een trede van de verhoogde straat (Ishmul)
                                                     zwart: (q.zwart === 'savanne' || q.zwart === 'vulling') ? q.zwart : undefined })),   // zwarte terrein-variant, zie de tekenlagen
            // zwevende savannelagen: een dik savanneblok in de lucht, zie "zwevende savannelaag"
            zwevers: (o.zwevers || []).map(q => {
@@ -66129,13 +66149,14 @@ const MP_COOP_LEVEL = (() => {
 const MP_ISHMUL_LEVEL = (() => {
   const lv = {
     name: 'Co-op: Ishmul',
-    start: -120,
+    start: -120,                      // de rand rekent vanaf hier (rechts van het plein); waar iedereen begint staat in MPC_KAARTEN
     lagen: 'stad_avond',
     view: 0.8, hpBalk: true, zicht: true, camera: true, rand: true, speerInHand: true, slangEenKlap: true,
     vredig: true, combo: true, multikill: false, rapport: false, geenEinde: true,
     stof: true, rugMax: 1,
     stad: {
       paleis: -600, seed: 1907,
+      achterTot: -3300,                              // links daarvan geen huizen in de verte: lucht boven de savanne
       gevels: [ {x: -1425, hoog: 2},                 // 0: het huis aan de rivier, rechts (x is de linkerkant op de laptop)
                 {x: -3240, hoog: 2},                 // 1: de linkeroever, aan de rivier
                 {x: -4000, hoog: 3, aan: 1.0} ],     // 2: het hoge huis, met een steeg ernaast
@@ -66150,14 +66171,16 @@ const MP_ISHMUL_LEVEL = (() => {
       pleinwanden: [ {x: -300} ]                     // de lage wand met bogen achter het plein
     },
     // het plein: drie opstapjes van 28 omhoog naar 84, tot voorbij de rechtergrens
+    // elke trede 80 breed: een vijand kijkt zo'n 60 vooruit, en op een smallere trede zag hij al de straat eronder (56
+    // lager, geen opstapje meer) en bleef hij boven staan
     terraces: [ {r: 600, l: -905, h: 28, look: 'straat', opstap: true},
-                {r: 600, l: -850, h: 56, look: 'straat', opstap: true},
-                {r: 600, l: -795, h: 84, look: 'straat', opstap: true, vloer: 'plein'} ],
+                {r: 600, l: -825, h: 56, look: 'straat', opstap: true},
+                {r: 600, l: -745, h: 84, look: 'straat', opstap: true, vloer: 'plein'} ],
     wateren: [ {k: 'rivier', x: -2070, w: 1280, brug: true, achter: 0.9}, {k: 'fontein', x: -520} ],
     // na de opstapjes begint de stad: de geplaveide vloer van het plein van Nyundo (Stad 6), en links de savanne
-    grondSoort: [ {van: 700, tot: -795, soort: 'plein'}, {van: -4040, tot: -4750, soort: 'savanne'} ],
+    grondSoort: [ {van: 700, tot: -745, soort: 'plein'}, {van: -4040, tot: -6500, soort: 'savanne'} ],
     voorgrond: false,
-    wapenrekken: [ {x: -1410, n: 4} ],
+    wapenrekken: [ {x: -1340, n: 4} ],
     tonnen: [],
     spawns: [], rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [],
     props: [ {x: -4120, k: 'gras', s: 1.1, f: 0, v: 0}, {x: -4300, k: 'tree', s: 1.1, f: 1, v: 0},
@@ -66254,11 +66277,13 @@ const MPC_KAARTEN = {
                       { gevel: 0, verdieping: 1 }, { gevel: 1, verdieping: 1 }, { gevel: 2, verdieping: 1 } ],
             tonplek: [ { x: -80 }, { x: -1000 }, { x: -1200 }, { x: -2070 }, { x: -3090 }, { x: -3690 }, { x: -4240 },
                        { x: -1150, dak: 401 }, { x: -3040, dak: 401 }, { x: -3690, dak: 401 } ],
-            starts: [-120, -3090, -1100], midden: -2070, balkon: null,
+            // de host voor het huis aan de rivier, de gasten aan de overkant voor de twee huizen
+            starts: [-1150, -2950, -3550], midden: -2070, balkon: null,
             fakkels: [ [[0.08, 0.55], [0.83, 2.05]],
-                       [[0.64, 0.55], [0.21, 2.05]],
+                       [[0.12, 0.55], [0.21, 2.05]],   // niet bij 0,7: daar staat de kraam voor de muur
                        [[0.06, 0.55], [0.94, 0.55], [0.18, 3.35]] ],
-            rots: MPC_VERSIE.rots, dierKant: -1, mensKant: 1, mensKans: 0.35 }
+            // geen fakkels in de rots: die kwamen hier in de lucht uit
+            rots: [], dierKant: -1, mensKant: 1, mensKans: 0.35 }
 };
 function mpcKaart(){
   if (typeof pvp === 'undefined' || !pvp || (pvp.coop && pvp.coop.ep)) return MPC_KAARTEN.dye;
