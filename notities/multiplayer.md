@@ -442,8 +442,8 @@ De tweede map van Co-op Survival, uitgewerkt in een mockup met de opdrachtgever 
 **De kleur**: Ishmul is van wit zand (`tint: 'wit'`, zie "de tint van een level" in `notities/stad.md`) en speelt altijd
 overdag, met de blauwe lucht (`lagen: 'stad_dag'`, `versies: ['dag']` in `MPC_KAARTEN`: wit zand bij nacht werd grauw). De
 opdrachtgever koos uit vijf beelden variant 3. **De luifel** naar de galerij van het huis aan de rivier is de strakke luifel
-uit Stad 10, boven een laag raam aan de zijmuur (`h: 210, raam: true, ritme`): van de eerste trede erop, en met een sprong
-naar links de galerij op.
+uit Stad 10, boven een raam aan de zijmuur (`h: 255, raam: true, maat: 0.45, ritme`): van de bovenste trede (het plein) erop,
+en met een sprong naar links de galerij op. Eerst hing hij op 210 en was hij langer; dan leek het raam bijna op de grond te zitten.
 
 Waar je begint: de host voor het huis aan de rivier, de gasten aan de overkant voor de twee huizen (`starts` in
 `MPC_KAARTEN`). Het `start` van het level zelf blijft rechts op het plein: de rand (`rand: true`) rekent vanaf daar, en met
