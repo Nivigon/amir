@@ -260,6 +260,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de leemmuur: een terras met de look van de stad | `LEEM`, `leemMuurTeken`, `look: 'leem'` | notities/stad.md |
 | de verhoogde straat: een terras met de look van de straat, treden en een hoge wijk, de onderlaag eronder (`stad.onder`) | `STRAAT_TREDE`, `straatTredeTeken`, `look: 'straat'` | notities/stad.md |
 | opstapjes: lage treden (`opstap: true`, tot 32) die Amir en de lopende vijanden oplopen in plaats van opspringen; slangen en schorpioenen niet (Test 78) | `OPSTAP`, `opstapBij`, `opstapVolg` | notities/stad.md |
+| de tint van een level: de stad een keer omgekleurd, bijvoorbeeld wit zand (`tint: 'wit'`, Ishmul) | `TINT`, `tintStap`, `tintBak` | notities/stad.md |
 | de houten vloer: de vloer van een huis met verdiepingen, een zwever met look hout | `look: 'hout'`, `savanneLaag`, `vloer_hout` | notities/stad.md |
 | binnen: de binnenkant van een huis, E bij het deurgat, een ladder, licht en stof (in de Maker: kamers van Binnen-cellen); met `verdieping` de deur boven, vanaf een galerij, en met `deuren` meer deuren naar buiten (beneden erin, boven eruit) | `BINNEN`, `binnenE`, `binnenAchter`, `binnenNa`, `mkBinnenKamers` | notities/stad.md |
 | de winkel en de inrichting: een toonbank waar Amir tegenaan loopt, een schap, speren, planken met spullen; elke seed anders | `WINKEL`, `winkelOpbouw`, `winkelVoor`, `binnenLinks`; het winkelscherm (E, per klik een kalebas): `winkelUIOpen` | notities/stad.md |
@@ -373,6 +374,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `winter` | `true` zet het hele level in de sneeuw (witte dieren, sneeuwversies van het decor) |
 | `sneeuw` | sneeuw op de grond, los van `winter`: `{soort, dek, van, tot}` (zie hieronder) |
 | `grondSoort` | stroken grondsoort in de bodem: `[{van, tot, soort}]`, `soort` savanne, rots of straat; per strook een andere grondtegel, met een grillige rand die over een halve cel zacht uitloopt in de grond ernaast, ook op een savannelaag, zwever en gangvloer. De Maker schrijft het uit de grondlijn-cellen; geen bestaand level heeft het (zie `notities/grondsoort.md`) |
+| `tint` | `'wit'`: de stad in een andere kleur, een keer omgekleurd bij het laden (huizen, straat, vloer, fontein, verte; niet de luifels, Amir of de vijanden). Alleen Ishmul (zie "de tint van een level" in `notities/stad.md`) |
 | `weer` | het weer onderweg: `[{x, soort, sterkte}]`, `soort` uit `WEER.soorten` (`droog`, `regen`, `onweer`, `zandstorm`, `sneeuw`, `sneeuwstorm`); voorbij `x` slaat het om (zie "het weer") |
 | `valschade` | `true` laat een diepe val levens kosten (standaard uit): vanaf een Amir diep een leven, vanaf twee Amir twee (`VAL_VRIJ`, `VAL_ZWAAR`, `VAL_MAX`), en vanaf zes Amir diep is hij dodelijk (`VAL_DOOD`, `fallDeath` in `valLand`), ongeacht je levens. `levelcheck.py` (regel `vallen`) meldt een val van zes Amir of dieper als FOUT |
 | `rugMax` | reserve-speren op de rug: 1 in de hand plus zoveel op de rug (0 tot 5; zonder dit veld 1, `RUG_STANDAARD`, overal behalve een level met `geenSpeer`; `rugMax: 0` zet hem uit) (zie `notities/velden.md`) |
