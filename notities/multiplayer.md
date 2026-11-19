@@ -435,7 +435,15 @@ De tweede map van Co-op Survival, uitgewerkt in een mockup met de opdrachtgever 
   hoofdhoogte haal je vanaf de straat niet (een sprong is zo'n 190).
 - **De rivier** van 1280 breed met een brug op straathoogte: de enige weg naar de overkant.
 - **De linkeroever**: twee huizen met een gedeelde galerij (401), een rieten kraam als opstap, en het hoge huis.
-- **De savanne** tegen de rots (`grondSoort` savanne, gras, een acacia en een struik).
+- **De savanne** tegen de rots (`grondSoort` savanne tot voorbij de rots, gras, een acacia en een struik). Boven de savanne
+  houdt de stad in de verte op (`stad.achterTot`, -3300): links daarvan tekent `stadAchter` geen rijen huizen meer (per rij
+  op zijn parallax, afgerond op de muur tussen twee huizen) en vaagt het paleis weg, zodat je daar lucht ziet.
+
+Waar je begint: de host voor het huis aan de rivier, de gasten aan de overkant voor de twee huizen (`starts` in
+`MPC_KAARTEN`). Het `start` van het level zelf blijft rechts op het plein: de rand (`rand: true`) rekent vanaf daar, en met
+de start bij het huis lag de rechtergrens op -830 en het hele plein buiten de kaart. De treden zijn 80 breed: een vijand kijkt
+zo'n 60 vooruit, en op een smallere trede zag hij al de straat eronder en bleef hij boven staan. Geen fakkels in de rots
+(`rots: []`, die kwamen in de lucht uit), en op het huis met de kraam niet waar de kraam voor de muur staat.
 
 Alles is te halen zonder speer (ook met de stokken), en er is geen balkon dat je niet haalt: de kruisboog komt hier uit de
 deuren op de galerijen.
