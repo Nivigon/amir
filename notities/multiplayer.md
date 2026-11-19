@@ -440,6 +440,11 @@ De tweede map van Co-op Survival, uitgewerkt in een mockup met de opdrachtgever 
 - **De savanne** tegen de rots (`grondSoort` savanne tot voorbij de rots, gras, een acacia en een struik). Boven de savanne
   houdt de stad in de verte op (`stad.achterTot`, -3300): links daarvan tekent `stadAchter` geen rijen huizen meer (per rij
   op zijn parallax, afgerond op de muur tussen twee huizen) en vaagt het paleis weg, zodat je daar lucht ziet.
+- **De rotsreuzen** (`achterBeeld: {k: 'rotsreuzen', x}` in `stad`, `STAD_ACHTERBEELD`, `stadAchterBeeld`): in die lucht
+  staan granieten rotskoepels in de verte (`design/stad/verte/rotsreuzen.png`, een Grok-plaat, magenta uitgeknipt). Eigen
+  trage parallax (0.12), de horizon net boven de straat, een beetje nevel erover, rechts afgeknipt op de grens van de
+  verste rij huizen en naar links herhaald. Hij doet niet mee met de witte tint (`tintNiet`). Met x schuif je de rotsen:
+  -2050 zet de hoge rots tussen de acacia en het hoge huis als je bij de savanne staat.
 
 **De kleur**: Ishmul is van wit zand (`tint: 'wit'`, zie "de tint van een level" in `notities/stad.md`) en speelt altijd
 overdag, met de blauwe lucht (`lagen: 'stad_dag'`, `versies: ['dag']` in `MPC_KAARTEN`: wit zand bij nacht werd grauw). De

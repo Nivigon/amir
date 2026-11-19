@@ -586,7 +586,7 @@ the outskirts**, de voorstad aan een brede rivier, van wit zand onder een blauwe
 ene oever naar de andere. Rechts, waar de stad begint, ligt een plein op lage opstapjes met een fontein; van die kant komen
 ook rovers de straat op, die de opstapjes af lopen naar de brug. Aan de rivier staat een huis met een galerij: daar kom je via
 de rand van de fontein en de luifel aan zijn muur. Over de brug liggen twee huizen met een galerij (een rieten kraam is de
-opstap), en helemaal links een stuk savanne tegen de rots, waar de dieren binnenkomen. Alles is te halen zonder speer, ook
+opstap), en helemaal links een stuk savanne tegen de rots, waar de dieren binnenkomen. Daarachter staan in de verte granieten rotsreuzen op een witte zandvlakte. Alles is te halen zonder speer, ook
 met de stokken.
 
 Aan beide kanten van de huizen ligt even veel straat, op elk scherm: links eindigt die bij een rotsval tegen de rots (je loopt tegen de stenen aan in plaats van tegen een onzichtbare muur), rechts bij de rand van het beeld. 's Nachts branden er ook twee fakkels in de rots. Dat geldt ook voor het Duel.
