@@ -273,6 +273,19 @@ Het blok `// ---- multiplayer: Co-op Survival ... ----` in de HTML, na de lobby.
   `mpcEindToon`) met de beste score per keuze van vijanden in localStorage (`mpcEindSleutel`). R bij allebei: opnieuw
   (`mpCoopOpnieuw`, `cnieuw`); Escape: de lobby.
 
+### De host klikt weg (gebouwd, 19-11-2026)
+
+De lus van het spel hangt aan `requestAnimationFrame`, en dat zet de browser stil zodra het tabblad verborgen is (ander
+tabblad, venster geminimaliseerd of helemaal bedekt). In Co-op denkt de host voor de vijanden en de rondes, dus dan stond
+het spel voor iedereen stil. Nu tikt er bij de host een kleine Web Worker (`ACHTER`, `achterZet`, `achterTik`; zijn timers
+remt de browser niet af, anders dan `setTimeout` op de pagina) 30 keer per seconde, en zolang de pagina verborgen is draait
+elke tik een beeld van de lus. Komt de host terug, dan neemt `requestAnimationFrame` het weer over. `lusVraag` (en
+`lusRaf`) zorgt dat er altijd hooguit een beeld aangevraagd is, anders liepen er na terugkomst twee lussen naast elkaar.
+Alleen de host van Co-op (Survival en de episode); een gast die wegklikt staat zelf nog stil, en speelt de rest gewoon door.
+Ook het geluid van de host loopt door. De verbinding valt in geen van beide gevallen weg: de ping (`pvpNetStart`) houdt
+`PVP.stilte` op afstand. Gemeten in Chromium met een nagebootst verborgen tabblad (geen `requestAnimationFrame`): 30
+beelden per seconde, en na terugkomst één lus.
+
 ### De versies van de map (dag, avond, nacht, diepe nacht)
 
 The Dye Yard heeft in Co-op vier versies (`MPC_VERSIE`): de **dag** (`stad_dag`, blauwe lucht en zon, geen fakkels), de **avond** zoals hij altijd was (`stad_avond`, geen fakkels),
