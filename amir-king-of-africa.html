@@ -46463,6 +46463,7 @@ function zwmLaad(){
       for (const fr of m.bewegingen[b].frames)
         for (const l of [fr.lijf, fr.zweep]) if (l && !imgs[l.src]) imgs[l.src] = loadQuiet([ZWM_ROOT + l.src]); }
     zwmBank.lagen = imgs; zwmData = m; zwmF2Geladen = false;
+    zwmLaadSets(ZWM_DOOD_SETS); if (!zwmPofSnd) zwmPofSnd = banStemmen(ZWM2.pof.src, 2);   // de sterfval (arm eraf, dan de val) is er altijd, ook zonder fasen en bij een gast in Co-op
     if (zwmF2Wil) zwmLaadF2();
   }).catch(e => { zwmBezig = false; meldFout('zwmData', 'zweepman: zweepman.json niet geladen', e); })
     .finally(() => { laadJsonOpen--; });
@@ -46784,6 +46785,7 @@ function hitZweepman(s){
   hitstop = Math.max(hitstop, 0.06); shake = Math.max(shake, 0.12);
   s.knockV = (s.x < playerX() ? -1 : 1) * ZWM.knockV;
   if (s.hp <= 0 && !sneak && !gifTikNu && s.fasen && s.fase === 1 && zwmData && zwmData.bewegingen.armeraf){ zwmBloedRaak(s, false); zwmArmEraf(s); return true; }   // fase 2: de arm eraf (een sluipaanval of het gif slaat die over: dan is hij gewoon dood)
+  if (s.hp <= 0 && !sneak && !gifTikNu && !s.fasen && zwmData && zwmData.bewegingen.armeraf && zwmData.bewegingen.dood){ zwmBloedRaak(s, false); zwmArmDood(s); return true; }   // zonder fasen: de arm eraf en dan meteen de val
   zwmBloedRaak(s, s.hp > 0); zwmKreet(s.hp > 0 ? 'geraakt' : 'sterf');   // bloed (een snee als hij het overleeft) en een korte kreet, of zijn doodskreet
   if (s.hp <= 0){
     s.state = 'dood'; s.alpha = 1; s.flash = 0.6; s.touw = null; puffWorld(s.x, 6, 0, 0.9, s.base || 0); vijandDood(false, s);
@@ -47069,8 +47071,13 @@ let zwmF2Geladen = false;
 function zwmLaadF2(){                                       // de plaatjes van fase 2 pas als een zweepman met fasen er is
   if (zwmF2Geladen || !zwmData) return; zwmF2Geladen = true;
   if (!zwmPofSnd) zwmPofSnd = banStemmen(ZWM2.pof.src, 2);
+  zwmLaadSets(ZWM2_SETS);
+}
+const ZWM_DOOD_SETS = ['armeraf', 'dood'];                 // wat de sterfval zonder fasen nodig heeft (zwmArmDood)
+function zwmLaadSets(sets){
+  if (!zwmData) return;
   const B = zwmBank.lagen || (zwmBank.lagen = {});
-  for (const b of ZWM2_SETS){
+  for (const b of sets){
     const set = zwmData.bewegingen[b]; if (!set) continue;
     for (const fr of set.frames) if (fr.lijf && !B[fr.lijf.src]) B[fr.lijf.src] = loadQuiet([ZWM_ROOT + fr.lijf.src]);
     if (set.arm && !B[set.arm.src]) B[set.arm.src] = loadQuiet([ZWM_ROOT + set.arm.src]);
@@ -47098,6 +47105,18 @@ function zwmArmEraf(s){
   bloedSpeel();   // het bloedgeluid, net als bij de executie van de schildbandiet
   hitstop = Math.max(hitstop, 0.14); shake = Math.max(shake, 0.25);
   banSterf();
+}
+// de sterfval zonder fasen (Co-op en elk level zonder `fasen`): de dodelijke treffer slaat zijn arm eraf, met een flits en
+// de kreet, en na die set valt hij met de val van fase 2 (zwmDoodStap, `s.dood.arm`). Hij telt meteen als dood.
+function zwmArmDood(s){
+  s.fase = 2; s.hp = 0; s.flash = 0.45; s.inv = 0; s.knockV = 0;
+  s.stap = -1; s.arm = null; s.druppels = s.druppels || []; s.wond = null;
+  s.armSnedes = (s.snedes || []).filter(d => d.arm); s.snedes = (s.snedes || []).filter(d => !d.arm);   // de snee gaat mee met de arm
+  zwmF2Set(s, 'armeraf');
+  s.state = 'dood'; s.alpha = 1; s.dood = { t: 0, lig: -1, van: null, arm: true };
+  zwmKreet('armeraf'); bloedSpeel();
+  hitstop = Math.max(hitstop, 0.14); shake = Math.max(shake, 0.25);
+  vijandDood(false, s);
 }
 function zwmF2Volgende(s){
   if (s.f2 === 'armeraf'){ zwmF2Set(s, 'lach'); zwmKreet('lach'); return; }   // na de kreet: in plaats van te breken lacht hij
@@ -47338,6 +47357,14 @@ function zwmDoodSpuit(s, st){
 }
 function zwmDoodStap(s, dt){
   const D = s.dood, set = zwmData && zwmData.bewegingen.dood; D.t += dt;
+  if (D.arm){                                               // zwmArmDood: eerst de arm eraf, dan meteen de val (zonder bevriezen)
+    const A = zwmData && zwmData.bewegingen.armeraf, N = A ? A.frames.length : 0;
+    if (!s.arm && A) zwmArmStap(s, dt);                     // de arm scheurt los op frame `los` (daarna stapt updateZweepmannen hem)
+    s.acc += dt * 1000;
+    while (A && s.frame < N - 1 && s.acc >= zwmF2Ms(s, A, s.frame)){ s.acc -= zwmF2Ms(s, A, s.frame); s.frame++; }
+    if (A && s.frame < N - 1) return;
+    D.arm = false; D.t = ZWM2.doodVries; s.acc = 0; zwmKreet('sterf');
+  }
   if (D.t < ZWM2.doodVries) return;
   if (set && D.lig < 0){
     if (s.f2 !== 'dood'){
