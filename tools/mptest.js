@@ -198,7 +198,10 @@ async function proef(R, L){
   const v0 = await versie();
   meld(new Set(v0).size === 1 && /^(dag:0|avond:0|(nacht|donker):[1-9]\d*)$/.test(v0[0]), 'iedereen dezelfde versie van de map (' + v0.join(' ') + ')');
   await H.page.evaluate(() => { const C = pvp.coop; for (const q of MPC_LIJSTEN) mpcZet(q, []); C.rij = []; C.ronde = 3; C.fase = 'wacht'; C.klok = 0; });
-  meld(await elk(v => mpcVersieNu !== v, v0[0].split(':')[0], 4000) === null, 'ronde 4: een andere versie van de map, bij iedereen');
+  // een map met een vaste versie (Ishmul speelt altijd overdag) wisselt niet: dan blijft het bij iedereen die versie
+  const vast = await H.page.evaluate(() => (mpcKaart().versies || []).length === 1);
+  if (vast){ await H.page.waitForTimeout(4000); meld((await versie()).every(v => v.split(':')[0] === v0[0].split(':')[0]), 'ronde 4: de map heeft een vaste versie en blijft hem houden'); }
+  else meld(await elk(v => mpcVersieNu !== v, v0[0].split(':')[0], 4000) === null, 'ronde 4: een andere versie van de map, bij iedereen');
   const v1 = await versie();
   meld(new Set(v1).size === 1, 'en weer bij iedereen dezelfde (' + v1.join(' ') + ')');
   // de winkel (stuk 3): de ronde is op na winkelNa rondes, iedereen naar de winkelkamer, kopen, Ready en terug

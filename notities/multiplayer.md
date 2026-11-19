@@ -439,6 +439,12 @@ De tweede map van Co-op Survival, uitgewerkt in een mockup met de opdrachtgever 
   houdt de stad in de verte op (`stad.achterTot`, -3300): links daarvan tekent `stadAchter` geen rijen huizen meer (per rij
   op zijn parallax, afgerond op de muur tussen twee huizen) en vaagt het paleis weg, zodat je daar lucht ziet.
 
+**De kleur**: Ishmul is van wit zand (`tint: 'wit'`, zie "de tint van een level" in `notities/stad.md`) en speelt altijd
+overdag, met de blauwe lucht (`lagen: 'stad_dag'`, `versies: ['dag']` in `MPC_KAARTEN`: wit zand bij nacht werd grauw). De
+opdrachtgever koos uit vijf beelden variant 3. **De luifel** naar de galerij van het huis aan de rivier is de strakke luifel
+uit Stad 10, boven een laag raam aan de zijmuur (`h: 210, raam: true, ritme`): van de eerste trede erop, en met een sprong
+naar links de galerij op.
+
 Waar je begint: de host voor het huis aan de rivier, de gasten aan de overkant voor de twee huizen (`starts` in
 `MPC_KAARTEN`). Het `start` van het level zelf blijft rechts op het plein: de rand (`rand: true`) rekent vanaf daar, en met
 de start bij het huis lag de rechtergrens op -830 en het hele plein buiten de kaart. De treden zijn 80 breed: een vijand kijkt

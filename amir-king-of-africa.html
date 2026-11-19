@@ -50981,6 +50981,7 @@ function verteTeken(V){
   }
 }
 function scene(groundY){
+  tintStap();                                       // de stad in de kleur van het level (zie "de tint van een level")
   sceneAchter(groundY);                             // de lucht, de bergen en het verre decor
   sceneGrond(groundY);                              // de grond, de gaten en de ravijnen (ook los, voor het nep-terrein van een masker)
 }
@@ -55633,6 +55634,7 @@ function readLevel(txt){
            rugMax: o.rugMax != null ? Math.max(0, Math.min(5, Math.round(Number(o.rugMax) || 0))) : undefined,   // reserve-speren op de rug: 1 in de hand plus zoveel op de rug (zie "reserve-speren op de rug"); 0 is uit
            hpBalk: Array.isArray(o.hpBalk) ? o.hpBalk.filter(k => typeof k === 'string') : !!o.hpBalk,   // true = elke vijand de balk, of een lijst soorten (['bandiet','kooiman']) = alleen die (zie HP_BALK)
            slangEenKlap: !!o.slangEenKlap,              // slangen in een klap dood, ook met de health-balk (zie SLANG_EEN_KLAP)
+           ...(TINT && TINT[o.tint] ? { tint: o.tint } : {}),   // de stad in een andere kleur (zie "de tint van een level")
            hyOmkeer: !!o.hyOmkeer,                      // hyena's draaien na hun uitval om in plaats van het level uit te rennen (zie HY_OMKEER)
            zicht: !!o.zicht,                            // vijanden zien je alleen als er niets tussen zit (zie "zicht")
            goud: !!o.goud,                              // een goudstuk per kill en een prijs in de winkel (zie "goud")
@@ -66297,6 +66299,73 @@ const MP_COOP_LEVEL = (() => {
   lv.zwevers = [{ r: MPC_WINKEL_KAMER.r, l: MPC_WINKEL_KAMER.l, h: 900, onder: 750, look: 'hout' }];
   return lv;
 })();
+// ---- de tint van een level: de stad in een andere kleur ----
+// level.tint (een sleutel uit TINT) kleurt de platen van de stad om: de huizen, de verte en het paleis, de straat, de stoep,
+// de pleinvloer, de treden, de galerij en de brug, de kramen en de fontein. Niet de luifels en de gordijnen (die houden hun
+// doek), niet de savanne, Amir of de vijanden. Ishmul heeft 'wit': wit zand, zoals de steden verder naar de kust.
+// Elke plaat wordt een keer omgekleurd zodra hij geladen is (tintStap, per pixel, dus ook in Safari) en daarna tekent het
+// spel gewoon die plaat: per beeld kost het niets. Eerst was het ctx.filter om het tekenen heen; dat kostte in een
+// browser zonder grafische kaart dertig keer zoveel tijd per beeld. Bij een level zonder tint komen de echte platen terug.
+// De getallen (sepia, verzadiging, helderheid, zoals de CSS-filters) zijn variant 3 uit de beelden voor de opdrachtgever.
+// var en niet const: readLevel draait al bij het opstarten, voor deze regel (een const gaf daar een ReferenceError)
+var TINT = { wit: { sepia: 0.08, verzadig: 0.4, helder: 1.25 } };
+let tintNu = null;
+const tintOrig = new Map();                          // sleutel van stadImgs -> de echte plaat
+let tintFontein = null;                              // de echte fonteinplaat
+// de kleurmatrix van sepia, dan verzadiging, dan helderheid (dezelfde formules als de CSS-filters)
+function tintMatrix(t){
+  const a = t.sepia, s = t.verzadig, b = t.helder;
+  const sep = [[0.393 + 0.607 * (1 - a), 0.769 - 0.769 * (1 - a), 0.189 - 0.189 * (1 - a)],
+               [0.349 - 0.349 * (1 - a), 0.686 + 0.314 * (1 - a), 0.168 - 0.168 * (1 - a)],
+               [0.272 - 0.272 * (1 - a), 0.534 - 0.534 * (1 - a), 0.131 + 0.869 * (1 - a)]];
+  const sat = [[0.213 + 0.787 * s, 0.715 - 0.715 * s, 0.072 - 0.072 * s],
+               [0.213 - 0.213 * s, 0.715 + 0.285 * s, 0.072 - 0.072 * s],
+               [0.213 - 0.213 * s, 0.715 - 0.715 * s, 0.072 + 0.928 * s]];
+  const M = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) M[r][c] = b * (sat[r][0] * sep[0][c] + sat[r][1] * sep[1][c] + sat[r][2] * sep[2][c]);
+  return M;
+}
+function tintBak(im, M){
+  const w = im.naturalWidth, h = im.naturalHeight, c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const x = c.getContext('2d'); x.drawImage(im, 0, 0);
+  const d = x.getImageData(0, 0, w, h), p = d.data;
+  for (let i = 0; i < p.length; i += 4){
+    if (!p[i + 3]) continue;
+    const r = p[i], g = p[i + 1], bl = p[i + 2];
+    p[i] = M[0][0] * r + M[0][1] * g + M[0][2] * bl;
+    p[i + 1] = M[1][0] * r + M[1][1] * g + M[1][2] * bl;
+    p[i + 2] = M[2][0] * r + M[2][1] * g + M[2][2] * bl;
+  }
+  x.putImageData(d, 0, 0);
+  c.complete = true; c.naturalWidth = w; c.naturalHeight = h; c.tint = true;   // zodat imgReady en de maten werken zoals bij een plaat
+  return c;
+}
+// wat op de oude platen voorgebakken is opnieuw laten bakken
+function tintWis(){
+  for (const k in stadBakken) delete stadBakken[k];
+  stadStroken = []; stadStrookLevel = null; stadDoorgangCache.clear();
+}
+const tintNiet = k => /luifel|gordijn|raam_luiken/i.test(k);
+// elk beeld, voor het tekenen (scene): goedkoop als er niets nieuws te kleuren is
+function tintStap(){
+  const t = level && level.tint && TINT[level.tint] ? level.tint : null;
+  if (t !== tintNu){
+    if (stadImgs) for (const [k, im] of tintOrig) stadImgs[k] = im;
+    if (tintFontein){ fonteinImg = tintFontein; tintFontein = null; }
+    tintOrig.clear(); tintNu = t; tintWis();
+  }
+  if (!t) return;
+  const M = tintMatrix(TINT[t]);
+  let nieuw = false;
+  if (stadImgs) for (const k in stadImgs){
+    const im = stadImgs[k];
+    if (!im || im.tint || tintOrig.has(k) || tintNiet(k) || !imgReady(im)) continue;
+    tintOrig.set(k, im); stadImgs[k] = tintBak(im, M); nieuw = true;
+  }
+  if (fonteinImg && !fonteinImg.tint && imgReady(fonteinImg)){ tintFontein = fonteinImg; fonteinImg = tintBak(fonteinImg, M); nieuw = true; }
+  if (nieuw) tintWis();
+}
 // ---- Co-op: Ishmul, de voorstad ----
 // De tweede map van Co-op Survival: de rand van de stad aan een brede rivier met een houten brug. Rechts (bij de start)
 // een plein op opstapjes (OPSTAP) met een fontein en een luifel; daar begint de stad en daar komen ook mensen van de
@@ -66307,8 +66376,9 @@ const MP_COOP_LEVEL = (() => {
 const MP_ISHMUL_LEVEL = (() => {
   const lv = {
     name: 'Co-op: Ishmul',
+    tint: 'wit',                      // wit zand (zie "de tint van een level"); altijd overdag, met de blauwe lucht (versies in MPC_KAARTEN)
     start: -120,                      // de rand rekent vanaf hier (rechts van het plein); waar iedereen begint staat in MPC_KAARTEN
-    lagen: 'stad_avond',
+    lagen: 'stad_dag',
     view: 0.8, hpBalk: true, zicht: true, camera: true, rand: true, speerInHand: true, slangEenKlap: true,
     vredig: true, combo: true, multikill: false, rapport: false, geenEinde: true,
     stof: true, rugMax: 1,
@@ -66377,6 +66447,8 @@ function mpcVersieKies(behalve){
 }
 function mpcVersiesAan(){
   const L = (pvp && pvp.inst && pvp.inst.coop && pvp.inst.coop.licht) || MPC_VERSIE.standaard;
+  const K = mpcKaart();
+  if (K.versies) return K.versies.slice();                 // een map met vaste versies (Ishmul: alleen overdag)
   return MPC_VERSIE.soorten.filter(v => L[v]);
 }
 function mpcVersieZet(v){
@@ -66441,7 +66513,8 @@ const MPC_KAARTEN = {
                        [[0.12, 0.55], [0.21, 2.05]],   // niet bij 0,7: daar staat de kraam voor de muur
                        [[0.06, 0.55], [0.94, 0.55], [0.18, 3.35]] ],
             // geen fakkels in de rots: die kwamen hier in de lucht uit
-            rots: [], dierKant: -1, mensKant: 1, mensKans: 0.35 }
+            rots: [], dierKant: -1, mensKant: 1, mensKans: 0.35,
+            versies: ['dag'] }                 // alleen overdag: wit zand bij nacht werd grauw
 };
 function mpcKaart(){
   if (typeof pvp === 'undefined' || !pvp || (pvp.coop && pvp.coop.ep)) return MPC_KAARTEN.dye;
@@ -67274,7 +67347,7 @@ function mpCoopStart(epI){
   beginPlay('normal');
   if (ep){ mpcVersieNu = 'ep'; mpcFakSc = 0; }      // het uitzicht van het level zelf, geen versies en geen fakkels
   else if (pvp.host) mpcVersieWissel(mpcVersieKies(null));   // een willekeurige versie van de map; de gast krijgt hem met 'cv'
-  else mpcVersieZet('avond');
+  else mpcVersieZet((mpcKaart().versies || ['avond'])[0]);
   pvpPlaats();
   pvpEl('pvphud').classList.add('on');
   mpCoopHud();

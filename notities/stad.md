@@ -541,6 +541,24 @@ kwam van een speler in de Co-op-stad. Omlaag alleen kan niet: dat is bukken, kru
 Test 79 (Drop through) is het proefstuk: een kraam naar een galerij van 401 met een bandiet eronder, een toren van galerijen
 op 401, 580 en 760 met een bandiet boven en een schildbandiet beneden, en een markt met twee rieten kramen.
 
+## De tint van een level
+
+`TINT`, `tintStap`, `tintBak`, `tintMatrix`, `tintWis`; `level.tint`
+
+Een level met `tint: 'wit'` (een sleutel uit `TINT`) krijgt de stad in een andere kleur: de huizen, de verte en het paleis, de
+straat, de stoep, de pleinvloer, de treden, de galerij en de brug, de kramen en de fontein. De luifels, de gordijnen en de
+luiken houden hun eigen kleur (`tintNiet`), en de savanne, Amir en de vijanden blijven zoals ze zijn. Ishmul heeft 'wit'.
+
+- **Een keer omgekleurd**: `tintStap` (aan het begin van `scene`) kleurt elke plaat uit `stadImgs` en de fonteinplaat een keer
+  per pixel om zodra hij geladen is (`tintBak`, een canvas met `naturalWidth` en `complete`, zodat de rest hem als plaat
+  ziet), en gooit wat erop voorgebakken was weg (`tintWis`: `stadBakken`, de stroken, de doorgangen). Bij een level zonder
+  tint komen de echte platen terug. Per beeld kost het niets; werkt ook in Safari.
+- **Eerst was het `ctx.filter`** om de tekenfuncties heen: dat kostte in een browser zonder grafische kaart 1124 ms per beeld
+  in plaats van 34. Niet terugzetten.
+- **De getallen** zijn sepia, verzadiging en helderheid zoals de CSS-filters (`tintMatrix`), variant 3 uit de beelden die de
+  opdrachtgever koos.
+- `readLevel` houdt `tint` vast; `TINT` is een `var`, want `readLevel` draait al bij het opstarten.
+
 ## De leemmuur
 
 `LEEM`, `leemMuurTeken` (in `drawClimb`)
