@@ -54301,7 +54301,7 @@ function loop(now){
   }
   ctx.restore();
   if (camSwap !== null){ world = camSwap; camSwap = null; }
-  requestAnimationFrame(safeLoop);
+  lusVraag();
 }
 
 // ---- de voetstappen van Amir ----
@@ -54400,12 +54400,37 @@ function safeLoop(now){
     if (camSwap !== null){ world = camSwap; camSwap = null; }
     try { tekenHerstel(); } catch (e) {}
     meldFout(foutSleutel(err), 'Er ging iets mis bij het tekenen: ' + foutKort(err), err);
-    requestAnimationFrame(safeLoop);
+    lusVraag();
   }
   try { amirRenGeluid(); } catch (err){ meldFout(foutSleutel(err), 'Er ging iets mis met de voetstappen: ' + foutKort(err), err); }
   try { drawTouch(); } catch (err){ meldFout(foutSleutel(err), 'Er ging iets mis bij het tekenen: ' + foutKort(err), err); }
   if (meterAan) try { meterStap(now, performance.now() - meterT0); } catch (err) {}
 }
+// ---- de lus op de achtergrond: de host van Co-op loopt door als hij wegklikt ----
+// De lus hangt aan requestAnimationFrame, en dat zet de browser stil zodra het tabblad verborgen is (ander
+// tabblad, venster geminimaliseerd of helemaal bedekt). In Co-op denkt de host voor de vijanden en de rondes,
+// dus dan stond het spel voor iedereen stil. Daarom tikt een kleine Web Worker (zijn timers remt de browser niet
+// af, anders dan setTimeout op de pagina) `ACHTER.hz` keer per seconde, en zolang de pagina verborgen is en wij
+// de host van Co-op zijn, draait elke tik een beeld van de lus. Komt de pagina terug, dan neemt
+// requestAnimationFrame het weer over. lusVraag zorgt dat er altijd hooguit een beeld is aangevraagd: de lus vraagt
+// het volgende beeld ook aan als hij door de worker gedraaid wordt, en anders liepen er na terugkomst twee lussen.
+const ACHTER = { hz: 30 };
+let lusId = 0, achterWorker = null;
+function lusRaf(now){ lusId = 0; safeLoop(now); }
+function lusVraag(){ if (!lusId) lusId = requestAnimationFrame(lusRaf); }
+function achterNodig(){ return document.hidden && !!(pvp && pvp.host && pvp.coop); }
+function achterTik(){ if (achterNodig()) safeLoop(performance.now()); }
+function achterZet(){
+  if (achterNodig()){
+    if (achterWorker) return;
+    try {
+      const url = URL.createObjectURL(new Blob(['setInterval(() => postMessage(0), ' + Math.round(1000 / ACHTER.hz) + ');'], { type: 'text/javascript' }));
+      achterWorker = new Worker(url); URL.revokeObjectURL(url);
+      achterWorker.onmessage = achterTik;
+    } catch (e) { achterWorker = null; }        // geen worker: dan staat de host weer stil, zoals voorheen
+  } else if (achterWorker){ achterWorker.terminate(); achterWorker = null; }
+}
+document.addEventListener('visibilitychange', achterZet);
 
 const bg = document.getElementById('bg'), soundBtn = document.getElementById('sound');
 let wantSound = true, started = false;
@@ -68437,7 +68462,7 @@ tcReady = true;
 
 setLabel(); setSpearLabel(); setBoxLabel(); setRightLabel(); setKindLabel(); resize();
 loadGameCfg(); showGameCfg();   // na resize, want het advies kijkt naar de schermhoogte
-requestAnimationFrame(safeLoop);
+lusVraag();
 </script>
 
 <script>
