@@ -20176,6 +20176,12 @@ const STOK = {
   // het canvas is ruimer dan dat van de lijf-frames, zodat de langere stok (tools/stok_bak.py) er niet uitvalt; voor de
   // stapslag (de opgeheven stok in de doorstap) kwam er links 13 en boven 30 bij, de andere sets zijn daarvoor opgevuld
   dir: 'stokken/', W: 511, H: 384, ANKER: 298, GROUND: 379, schaal: 1,
+  // andere stokken uit de winkel van Co-op, gekozen met pvp.coop.koop[naam]: dezelfde sets en frames met een andere stok
+  // erin (tools/stok_variant.py), op hetzelfde canvas. klauw (Lion Claw sticks): de witte botstok met de leeuwenklauw en
+  // rode slippen. goud (Gold King sticks): de zwarte stok met het gouden leeuwenkopje; zijn slip is de kwast van gouden
+  // manen onder de grip, met een eigen maat (slip: w, h en piv in pixels van de frames, zoals STOK.slip)
+  skins: { klauw: { dir: 'stokken_klauw/' },
+           goud:  { dir: 'stokken_goud/', slip: { w: 24, h: 30, piv: 12 } } },
   // de maat per set: de vechtsets (slag, draaislag, draaiterug, blok) zijn groter getekend dan staan en rennen. Gemeten
   // op de hoofdbreedte (0,875), de voeten (0,85) en in het spel naast de speersteek (0,92): op 0,9 is hij even groot als
   // in zijn gewone steek. 0,8 (op de hoogte van het hoofd, dat in de vechtframes schuin staat) was te klein
@@ -20265,6 +20271,8 @@ const STOK = {
   // dood (laagDood), wat hun levens ook zijn. Hardwood sticks telt niet mee
   laag: { ver: 170, dicht: 0.5 },
   schadeHout: 0.75,          // met Hardwood sticks (de winkel van Co-op): de slag, de stapslag en slag 2, niet de counter
+  schadeKlauw: 1,            // met Lion Claw sticks (na Hardwood sticks): die slagen een heel leven
+  goudSchild: 0.5,           // met Gold King sticks (de keuze naast Lion Claw): zo vaak haalt een slag een stand extra van het schild (hitSchildman)
   // de gewone counter (niet de stun): zo lang wankelt hij daarna, zodat Amir uit de draai en het terugdraaien komt
   // (samen zo'n 0,85 s na de treffer) voor zijn kling landt
   counterRust: 0.6,
@@ -20308,14 +20316,39 @@ let stokStapK = 0;                               // de stap van de lopende slag:
 let stokBuf = false;                             // er is gedrukt tijdens de slag: de volgende komt meteen (STOK.buf)   // vang: telt elke gevangen klap (zie stokBlokGestuit)  // f: het blok-frame (-1 = geen blok)
 function stokAan(){ return STOK_AAN && !!stokBank; }
 function stokMaat(set){ return STOK.schaal * (STOK.maat[set] || 1); }
+function stokBankMaak(dir){
+  const B = { slip: loadQuiet(uniq([AMIR, AMIR_GROOT]).map(d => d + dir + 'slip.png')) };
+  for (const set in STOK.sets){
+    B[set] = Array.from({ length: STOK.sets[set] }, (_, i) =>
+      loadQuiet(uniq([AMIR, AMIR_GROOT]).map(d => d + dir + set + '/' + set + '_' + (i < 10 ? '0' : '') + i + '.png')));
+  }
+  return B;
+}
 function stokLaad(){
   if (stokBank) return;
-  stokBank = {};
+  stokBank = stokBankMaak(STOK.dir); delete stokBank.slip;
   stokSlipImg = loadQuiet(uniq([AMIR, AMIR_GROOT]).map(d => d + STOK.dir + 'slip.png'));
-  for (const set in STOK.sets){
-    stokBank[set] = Array.from({ length: STOK.sets[set] }, (_, i) =>
-      loadQuiet(uniq([AMIR, AMIR_GROOT]).map(d => d + STOK.dir + set + '/' + set + '_' + (i < 10 ? '0' : '') + i + '.png')));
-  }
+}
+// de andere stokken (STOK.skins): pas geladen als je ze koopt (mpcWinkelKoop). stokUitBank geeft het beeld uit de bank
+// van de stok die je hebt; is dat frame er nog niet, dan het gewone, zodat hij nooit even zonder stok staat
+const stokSkinBank = {};
+function stokSkinLaad(naam){ if (!stokSkinBank[naam]) stokSkinBank[naam] = stokBankMaak(STOK.skins[naam].dir); }
+function stokSkinNu(){
+  const K = pvp && pvp.coop && pvp.coop.koop;
+  if (!K) return null;
+  for (const naam in STOK.skins) if (K[naam] && stokSkinBank[naam]) return naam;
+  return null;
+}
+function stokUitBank(set, f){
+  const im = stokBank[set][f], naam = stokSkinNu();
+  if (!naam) return im;
+  const k = stokSkinBank[naam][set] && stokSkinBank[naam][set][f];
+  return k && imgReady(k) ? k : im;
+}
+// de slip die erbij hoort, en zijn maat
+function stokSlipNu(){
+  const naam = stokSkinNu(), B = naam && stokSkinBank[naam];
+  return B && imgReady(B.slip) ? { im: B.slip, S: STOK.skins[naam].slip || STOK.slip } : { im: stokSlipImg, S: STOK.slip };
 }
 function stokLaadLevel(lv){
   const tr = tribeStok();                          // de stoktribe: de stokken, de grondklap en de geluiden van de zon in elk level
@@ -21185,25 +21218,25 @@ function stokBeeld(attacking, moving, frame){
   if (attacking && atkStok){
     const Q = STOK[atkStok] && STOK[atkStok].seq;     // de stapslag en slag 2 kiezen per positie een frame
     const f = Q ? Q[Math.min(Q.length - 1, atkFrame)] : atkFrame;
-    stokSetNu = atkStok; stokFrameNu = Math.min(B[atkStok].length - 1, f); return B[atkStok][stokFrameNu];
+    stokSetNu = atkStok; stokFrameNu = Math.min(B[atkStok].length - 1, f); return stokUitBank(atkStok, stokFrameNu);
   }
-  if (stokBlok.f >= 0){ stokSetNu = 'blok'; stokFrameNu = Math.min(B.blok.length - 1, stokBlok.f); return B.blok[stokFrameNu]; }
+  if (stokBlok.f >= 0){ stokSetNu = 'blok'; stokFrameNu = Math.min(B.blok.length - 1, stokBlok.f); return stokUitBank('blok', stokFrameNu); }
   stokSetNu = moving ? 'rennen' : 'staan';
   // de ren met stokken (12 frames, de guard-ren op de benen van de nieuwe ren, zie REN_NIEUW): met de nieuwe ren
   // aan loopt hij gelijk op met de looplus, anders wordt de oude lus van 8 over de 12 frames uitgesmeerd
   stokFrameNu = moving ? Math.floor(frame * B.rennen.length / Math.max(1, sets.ns.run.length)) % B.rennen.length : 0;
-  return moving ? B.rennen[stokFrameNu] : B.staan[0];
+  return stokUitBank(moving ? 'rennen' : 'staan', stokFrameNu);
 }
 // gebukt en kruipend met de stokken (sets bukken en sluipen, de speerloze frames uit het spel met de stokken erin, zie
 // notities/stokken.md): dezelfde frame-keuze als duckFrame en het kruipen, maar uit de stokbank
 function stokLaag(kruipt){
   if (!stokAan()) return null;
   const B = stokBank;
-  if (kruipt){ stokSetNu = 'sluipen'; stokFrameNu = crawlFrame % B.sluipen.length; return B.sluipen[stokFrameNu]; }
+  if (kruipt){ stokSetNu = 'sluipen'; stokFrameNu = crawlFrame % B.sluipen.length; return stokUitBank('sluipen', stokFrameNu); }
   if (duckT <= 0) return null;
   stokSetNu = 'bukken';
   stokFrameNu = duckT >= 1 ? 8 + DUCK_HOLD_SEQ[Math.floor(duckHoldAcc) % DUCK_HOLD_SEQ.length] : Math.min(7, Math.round(duckT * 7));
-  return B.bukken[stokFrameNu];
+  return stokUitBank('bukken', stokFrameNu);
 }
 function stokPunt(){ const per = STOK.puntPer[atkStok]; return (per && per[atkFrame]) || STOK.punt[atkStok] || [0, 0]; }
 // een treffer met de stok op een bandiet (na hitBandiet): de klap, en bij de counter de stun als die gekozen is
@@ -21283,7 +21316,7 @@ function stokSlipStap(x, y, w, h, flip){
 // tekent de slippen in de ruimte van het stokframe (de context staat al op x, y en is gespiegeld als flip):
 // achter = true de slippen van een stok die achter Amir valt, anders die ervoor
 function stokSlipTeken(achter, w, h, flip){
-  const p = stokSlipPunten(), im = stokSlipImg, S = STOK.slip;
+  const p = stokSlipPunten(), { im, S } = stokSlipNu();
   if (!p || !im || !im.complete || !im.naturalWidth) return;
   const k = w / STOK.W;
   for (let j = 0; j * 3 < p.length && j < 2; j++){
@@ -21297,7 +21330,7 @@ function stokSlipTeken(achter, w, h, flip){
 // de schade van de stokken (STOK.schade): hitBandiet trekt een heel leven af, dit geeft het verschil terug
 function stokSchade(s){
   if (!atkStok || !steekLive()) return;
-  s.hp += 1 - (atkStok === 'laag' ? laagSchade(s) : atkStok !== 'draaislag' && stokHoutNu() ? STOK.schadeHout : (STOK.schade[atkStok] ?? 1)) * straalSchadeK()   // ontketend (STRAAL): dubbel
+  s.hp += 1 - (atkStok === 'laag' ? laagSchade(s) : atkStok !== 'draaislag' && stokHoutNu() ? (stokHoutNu() === 2 ? STOK.schadeKlauw : STOK.schadeHout) : (STOK.schade[atkStok] ?? 1)) * straalSchadeK()   // ontketend (STRAAL): dubbel
     - (straalBurst() ? stokTalentWaarde('stok_zon3', 'schade', 0) : 0);   // Sun King (stoktribe): ontketend een halve erbij
 }
 // de lage slag op een bandiet: de hele schade met de punt op afstand, anders een halve (STOK.laag)
@@ -21306,9 +21339,14 @@ function laagSchade(s){ return Math.abs(s.x - playerX()) >= STOK.laag.ver ? STOK
 function laagDood(s){
   return atkStok === 'laag' && steekLive() && (snakes.includes(s) || fosforSlangen.includes(s) || scorps.includes(s) || hyenas.includes(s));
 }
-// Hardwood sticks uit de winkel van Co-op: van mij, of tijdens een treffer van een gast de zijne (stokHoutGast, mpcTrefferVanGast)
+// Hardwood sticks en wat erna komt uit de winkel van Co-op: 0 geen, 1 Hardwood, 2 Lion Claw, 3 Gold King (die slaat als
+// Hardwood, plus de kans op het schild); van mij, of tijdens een treffer van een gast de zijne (stokHoutGast, mpcTrefferVanGast)
 let stokHoutGast = null;
-function stokHoutNu(){ return stokHoutGast != null ? stokHoutGast : !!(pvp && pvp.coop && pvp.coop.koop && pvp.coop.koop.hout); }
+function stokHoutNu(){
+  if (stokHoutGast != null) return stokHoutGast;
+  const K = pvp && pvp.coop && pvp.coop.koop;
+  return !K ? 0 : K.klauw ? 2 : K.goud ? 3 : K.hout ? 1 : 0;
+}
 // de counter gaat door een dekking heen, zoals de derde slag
 function stokDoor(){ return atkStok === 'draaislag' || (!!atkStok && straalBurst() && stokTalent('stok_zon3')); }   // Sun King: ontketend gaat elke slag door een parade
 
@@ -47878,6 +47916,7 @@ function hitSchildman(s, wijze, richting){               // wijze: 'steek', 'wor
   const pantser = s.state === 'strike' && s.frame >= schbN(s, 'pantserVan') && s.frame < SCHB.leapVan;
   if (s.schild > 0){                                      // het schild vangt de treffer op
     s.schild--; if (s.schild > 0 && critPak()) s.schild--;   // True Flight: het schild een stand extra kapot
+    else if (s.schild > 0 && atkStok && stokHoutNu() === 3 && Math.random() < STOK.goudSchild){ s.schild--; critFx(s.x, (s.base || 0) + CHAR_H * 0.6); }   // Gold King sticks
     if (s.verblind > 0){ s.verblind = 0; if (s.schild > 0) s.schild--; critFx(s.x, (s.base || 0) + CHAR_H * 0.6); }   // blind van het stof: dubbel
     s.flash = 0.3; s.inv = SCHB.invHit;
     houtDuik();                                           // de stoot duikt weg voor de klap
@@ -48402,7 +48441,7 @@ function exeStokTeken(s, gs){
   }
   if (k.fase === 'klaar' || !stokBank) return;
   const set = stokBank[k.set]; if (!set) return;
-  let im = set[Math.min(set.length - 1, k.f)]; if (!(im && imgReady(im))) return;
+  let im = stokUitBank(k.set, Math.min(set.length - 1, k.f)); if (!(im && imgReady(im))) return;
   im = broekBeeld(im, im);
   const sc = nowScale(), m = stokMaat(k.set), lx = (k.ax - s.x) * spiegel;
   const amirSpiegel = (k.ax < s.x ? -1 : 1) * spiegel;   // de frames kijken naar links: Amir kijkt naar hem
@@ -66206,6 +66245,8 @@ const MPC_WINKEL = [
   { k: 'rond',    naam: 'Full Circle: all around',  prijs: 50, uitleg: 'The spin hits everyone around you, also behind you', eis: 'fc', speer: true },
   { k: 'slot',    naam: 'Extra spear slot',         prijs: 45, uitleg: 'A second spare spear on your back', speer: true },
   { k: 'hout',    naam: 'Hardwood sticks',          prijs: 40, uitleg: 'Your strikes hit harder: 0.75 of a life instead of 0.5', stok: true },   // STOK.schadeHout
+  { k: 'klauw',   naam: 'Lion Claw sticks',         prijs: 80, uitleg: 'White bone sticks with a lion claw: your strikes tear for a full life', eis: 'hout', sluit: 'goud', stok: true },   // STOK.schadeKlauw, STOK.skins.klauw
+  { k: 'goud',    naam: 'Gold King sticks',         prijs: 80, uitleg: 'Black sticks with a golden lion head: half your strikes on a shield break off two pieces', eis: 'hout', sluit: 'klauw', stok: true },   // STOK.goudSchild, STOK.skins.goud
   { k: 'slam',    naam: 'Ground slam: heavier',     prijs: 50, uitleg: 'Your ground slam hits for a full life instead of half, and throws enemies further back', stok: true },   // GK.zwaar
   { k: 'leven',   naam: 'Extra life',               prijs: [60, 90, 120], uitleg: 'One more life, for the rest of the game' },
   { k: 'amulet',  naam: 'Gris-gris',                prijs: [40, 75, 110], uitleg: ['A charm against harm: 10% chance a hit costs you no life',
@@ -66509,7 +66550,7 @@ function mpcHitDoor(naam){
       o.mpGemeld = nu;
       pvpRaakLokaal(o);                                 // de gast voelt het meteen; de host stuurt de schade terug
       pvpZendAan(0, { t: 'mh', a: k, id: o.mpId, f: naam, g: a.map(v => (v == null || typeof v === 'object') ? null : v),
-                      st: atkStok || undefined, sf: atkFrame, co: atkCombo ? 1 : 0, hw: stokHoutNu() ? 1 : 0,
+                      st: atkStok || undefined, sf: atkFrame, co: atkCombo ? 1 : 0, hw: stokHoutNu(),
                       gk: gkRaak ? [Math.round(gkRaak.x0), Math.round(gkRaak.onderTot), gkRaak.dir, gkRaak.schade, gkRaak.knock] : undefined });   // de golf van zijn grondklap   // zijn slag: de host rekent met zijn stand, niet met die van zichzelf
     }
     return false;                                       // bij de gast gebeurt er niets: de host stuurt het gevolg terug
@@ -66534,7 +66575,7 @@ function mpcTrefferVanGast(m){
   const o = q.l().find(v => v.mpId === m.id); if (!o || !mpcLeeft(o) || !pvpAnderNu(m.p)) return;
   mpcWisselIn(m.p);
   const eig = [atkStok, atkFrame, atkCombo, gkRaak];  // de slag van de gast, niet die van de host (de stokken, Full Circle, de grondklap)
-  atkStok = m.st || null; atkFrame = m.sf ?? -1; atkCombo = !!m.co; stokHoutGast = !!m.hw;
+  atkStok = m.st || null; atkFrame = m.sf ?? -1; atkCombo = !!m.co; stokHoutGast = m.hw || 0;
   gkRaak = m.gk ? { x0: m.gk[0], onderTot: m.gk[1], dir: m.gk[2], schade: m.gk[3], knock: m.gk[4] || 1 } : null;   // zijn golf: zijn schade (gkSchadeOp)
   let raak = false;
   try {
@@ -67495,7 +67536,8 @@ function mpcWinkelNiet(q){
   let r = null;
   if (!mpcWinkelVoorMij(q)) r = 'Not for your weapon.';
   else if (mpcWinkelHeb(q)) r = Array.isArray(q.prijs) ? 'Sold out: you bought all three.' : 'You already have this.';
-  else if (q.eis && !K[q.eis]) r = 'Buy Full Circle first.';
+  else if (q.eis && !K[q.eis]) r = 'Buy ' + MPC_WINKEL.find(w => w.k === q.eis).naam + ' first.';
+  else if (q.sluit && K[q.sluit]) r = 'You chose ' + MPC_WINKEL.find(w => w.k === q.sluit).naam + '.';   // een keuze: het een of het ander
   else if (q.k === 'kalebas' && lives >= levensStart()) r = 'Your lives are full.';
   else if (q.k === 'speer' && (!rugAan() || (rugVol() && handVol))) r = 'Your hand and back are full.';
   else if (q.k === 'gif' && gifCarry >= 1 + RUG_MAX) r = 'One poison per spear slot (' + (1 + RUG_MAX) + ').';
@@ -67514,7 +67556,7 @@ function mpcWinkelKoop(q, aan){
   else if (q.k === 'leven'){ K.leven++; pvp.levens++; lives++; drawLives(); }
   else if (q.k === 'amulet'){ K.amulet++; tekst = 'Bought: ' + q.naam + '. ' + Math.round(grisGrisKans() * 100) + '% chance a hit costs you no life.'; }
   else if (q.k === 'geef'){ pvpZendAan(aan, { t: 'geef', n: MPC.geef }); tekst = 'You gave ' + (pvp.spelers.length > 2 ? mpBroekNaam(pvp.broek[aan]).toLowerCase() : 'your teammate') + ' ' + MPC.geef + ' gold.'; }
-  else { K[q.k] = true; if (q.k === 'slot'){ RUG_MAX++; setSpearLabel(); } }
+  else { K[q.k] = true; if (q.k === 'slot'){ RUG_MAX++; setSpearLabel(); } if (STOK.skins[q.k]) stokSkinLaad(q.k); }
   playHppotionPickupSound();
   mpCoopHud(); mpcWinkelToon();
   document.getElementById('wkuitleg').textContent = tekst;
