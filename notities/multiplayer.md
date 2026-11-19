@@ -123,6 +123,11 @@ de lobby staat dan in het staande stokframe.
 - **De winkel:** een artikel met `speer: true` (speer, gif, Full Circle en zijn upgrades, extra speerslot) ziet een stokspeler
   niet, een met `stok: true` (**Hardwood sticks**, 40 goud: de slag, stapslag en slag 2 kosten 0,75 in plaats van 0,5,
   `STOK.schadeHout`, `stokHoutNu`) alleen hij (`mpcWinkelVoorMij`). Het rek en `mpcSperenTerug` geven hem geen speer.
+- **Lion Claw sticks (19-11-2026):** na Hardwood sticks (`eis: 'hout'`, 80 goud) de klauwstokken: de slag, stapslag en
+  slag 2 kosten een heel leven (`STOK.schadeKlauw`), en Amir heeft de witte botstokken met de leeuwenklauw in elke set
+  (`STOK.klauwDir`, pas geladen bij de koop: `stokKlauwLaad`, `stokUitBank`, `stokSlipNu`). `stokHoutNu` geeft nu 0, 1
+  (Hardwood) of 2 (Lion Claw), en dat getal gaat als `hw` mee met een treffer van een gast. De teamgenoot ziet de klauwstokken
+  vanzelf, want het beeld gaat als pad over. Een `eis` in de winkel noemt nu de naam van wat eerst moet ("Buy Hardwood sticks first.").
 - **De grondklap (16-11-2026):** een stokspeler heeft in Co-op de grondklap van `notities/stokken.md` (`mpWapenLevel` zet
   `grondklap`, niet in het Duel), met 5 s afkoeling (`GK.koelCoop`). Een treffer van de golf van een gast gaat in `mh` met
   `gk` (begin, eind van "recht eronder", richting, schade, knock) naar de host, die er tijdens de treffer `gkRaak` van maakt,

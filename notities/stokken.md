@@ -343,3 +343,25 @@ en nieuwe talents.
   (`stokSchade`, dus op de bandiet; een slag op een andere soort is al een hele) en `stokDoor()` laat dan elke slag door
   een parade.
 - Houten plaatjes zijn er nog niet: het teken in `TB_TEKEN` (twee stokken, een golf, de zon).
+
+## De klauwstokken (19-11-2026)
+
+Een tweede stokset: de witte botstok met de rode grip en de leeuwenklauw aan de punt (rij 1 van
+`karakters/amir/stokken/bron/stokken_vet_grok.jpg`, de plaat met vier stokken van Tom: ijzer, bot, bloedoker, goudkoning).
+Te koop in de winkel van Co-op als **Lion Claw sticks** (zie `notities/multiplayer.md`).
+- `karakters/amir/stokken_klauw/`: dezelfde sets, frames en canvas als `stokken/`, plus een `slip.png` in het rood van de grip.
+  Ook in `klein/` (de frames zijn lager dan de drempel van `gen-klein.py`, dus een gewone kopie).
+- Gebakken met `tools/stok_variant.py --rij 1 --uit stokken_klauw --grip 125,30,35`, niet met `stok_bak.py`: het haalt de
+  gewone stok uit de gebakken speelframes en zet de nieuwe in dezelfde vuist en hoek. Zo zit hij ook in de ren (die niet uit
+  `plaatsing.json` komt). De plek per frame staat in `bron/stokhoeken.json` (gevonden door de gewone stok langs de knoop uit
+  `STOK.slip.punt` op elke hoek te leggen; de ren op vorm, met een vrije maat en 8 px langer uiteinde). Een andere stok van de
+  plaat is een andere `--rij` en `--uit`, plus een `xxxDir` in `STOK` zoals `klauwDir`.
+- Krijgt de gewone stokset nieuwe frames of een nieuwe set, dan moet `stokhoeken.json` mee voor `stok_variant.py` de nieuwe
+  frames kan wisselen (de zoekscripts staan niet in de repo: de oude stok uit `stok_bak.py` op elke hoek rond de knoop leggen
+  en de beste kleurmatch nemen).
+- In het spel: `stokUitBank(set, f)` geeft het klauwframe als `pvp.coop.koop.klauw` gezet is en het frame binnen is, anders
+  het gewone; ook in de stokexecutie. De slippen via `stokSlipNu`.
+- Bekende restjes: in slag 6 (de veeg) staat de oude stok nog als vage veeg, en in de laatste frames van de draaislag is de
+  stok achter de rug op een paar plekken onderbroken. De kop van de klauw steekt in een paar hoge frames (stapslag) net boven
+  het canvas uit en wordt daar afgesneden.
+
