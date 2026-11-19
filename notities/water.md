@@ -166,6 +166,8 @@ toestemming voor het level zelf, regel 3). De waterval over de rand blijft de st
   dekt het Amir af. Beter met echt riet (lange stengels, pluimen): dat plaatje is er nog niet, eerst een Grok-asset
   (skill grok-environment-asset) en dan een soort `riet` in `VG_SOORT`. Past bij de val en bij de doorloop.
 - **Onder een brug** loopt de rivier recht (geen bocht achter de leuning). Dat blijft zo.
+- **De achterkant** (`achter` op de rivier, standaard 0,4): de bedding loopt naar achteren smaller toe, tot zoveel maal
+  zijn breedte. Bij een brede rivier onder een lange brug leek de achterkant dan te kort achter de leuning; Ishmul heeft 0,9.
 - **De brug** mag in elk nieuw level. In de Maker zit nog geen water; een rivier met brug in de Maker is een eigen klus.
 
 ## De spetters van Amir (`SPETTER`)
