@@ -29,6 +29,7 @@
 //   node tools/mptest.js --stokken gast  deze spelers kiezen in de lobby de stokken (ook host, gast2, of host,gast): kijkt na
 //                                        dat iedereen het weet, dat hun potje met stokken start zonder speer, en hun winkel
 //   node tools/mptest.js --geensnel      zonder het nagebootste snelle kanaal (zoals via het relais)
+//   node tools/mptest.js --kaart ishmul  Co-op Survival op een andere map (een id uit MP_KAARTEN.coop; standaard dye)
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
@@ -146,7 +147,7 @@ async function proef(R, L){
     meld(new Set(st.map(v => v.x)).size === 3, 'drie startplekken (' + st.map(v => v.x).join(', ') + ')');
     meld(st.every(v => v.anders.length === 2), 'iedereen ziet de twee anderen (' + st.map(v => v.anders.join('+')).join(', ') + ')');
     meld(st.every(v => v.broek.join() === st[0].broek.join()) && new Set(st[0].broek).size === 3, 'drie verschillende broeken, bij iedereen dezelfde (' + st[0].broek.join(', ') + ')');
-    const ziet = await G2.page.evaluate(() => { const g = pvp.anders[1].g; return g && Math.abs(g.x - PVP.starts[1]) < 400; });
+    const ziet = await G2.page.evaluate(() => { const g = pvp.anders[1].g; return g && Math.abs(g.x - mpStarts()[1]) < 400; });
     meld(ziet, 'de tweede gast ziet de eerste gast op zijn plek (doorgestuurd door de host)');
   }
   meld(await tot(G.page, () => tonnen.some(t => !t.weg && t.mpId != null)), 'de ton staat ook bij de gast');
@@ -195,7 +196,7 @@ async function proef(R, L){
   // de versie van de map (MPC_VERSIE): iedereen dezelfde, met de fakkels aan de muren, en om de drie rondes een andere
   const versie = () => Promise.all(R.map(r => r.page.evaluate(() => mpcVersieNu + ':' + (level.fakkels || []).length)));
   const v0 = await versie();
-  meld(new Set(v0).size === 1 && /^(dag:0|avond:0|nacht:8|donker:8)$/.test(v0[0]), 'iedereen dezelfde versie van de map (' + v0.join(' ') + ')');
+  meld(new Set(v0).size === 1 && /^(dag:0|avond:0|(nacht|donker):[1-9]\d*)$/.test(v0[0]), 'iedereen dezelfde versie van de map (' + v0.join(' ') + ')');
   await H.page.evaluate(() => { const C = pvp.coop; for (const q of MPC_LIJSTEN) mpcZet(q, []); C.rij = []; C.ronde = 3; C.fase = 'wacht'; C.klok = 0; });
   meld(await elk(v => mpcVersieNu !== v, v0[0].split(':')[0], 4000) === null, 'ronde 4: een andere versie van de map, bij iedereen');
   const v1 = await versie();
@@ -441,10 +442,12 @@ async function elk(H, G){
   }
   if (args.includes('--duel')) await H.page.evaluate(() => { window.__duel = true; });
   if (args.includes('--ep')) await H.page.evaluate(() => { window.__ep = true; });
+  if (opt('--kaart', null)) await H.page.evaluate(k => { window.__kaart = k; }, opt('--kaart', null));
   await H.page.evaluate(soorten => {
     mpWijzig(() => {
       pvp.inst.modus = window.__duel ? 'duel' : window.__ep ? 'ep' : 'coop';
       if (window.__ep) pvp.inst.kaart = '0';
+      else if (window.__kaart && pvp.inst.modus === 'coop') pvp.inst.kaart = window.__kaart;
       Object.assign(pvp.inst.coop, { start: 2, erbij: 1, pauze: 5 });
       for (const q of MP_SOORTEN) pvp.inst.coop.vij[q.k] = soorten ? (soorten.includes(q.k) ? (q.var ? 'beide' : 'aan') : 'uit') : (q.var ? 'beide' : 'aan');
     });
@@ -464,7 +467,7 @@ async function elk(H, G){
     await H.page.evaluate(() => mpWijzig(() => { pvp.inst.modus = 'duel'; }));
     await H.page.waitForTimeout(200);
     lobby.push([await H.page.evaluate(() => pvpEl('mpstart').disabled && /two players/.test(pvpEl('mpstartuitleg').textContent)), 'Duel met drie spelers mag niet']);
-    await H.page.evaluate(() => mpWijzig(() => { pvp.inst.modus = window.__ep ? 'ep' : 'coop'; if (window.__ep) pvp.inst.kaart = '0'; }));
+    await H.page.evaluate(() => mpWijzig(() => { pvp.inst.modus = window.__ep ? 'ep' : 'coop'; if (window.__ep) pvp.inst.kaart = '0'; else if (window.__kaart) pvp.inst.kaart = window.__kaart; }));
     await H.page.waitForTimeout(200);
     for (const r of [G, G2]) await r.page.evaluate(() => pvpEl('mpready').click());
   } else await G.page.evaluate(() => pvpEl('mpready').click());

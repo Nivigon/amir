@@ -409,6 +409,37 @@ komt. Het voorstel, in volgorde van belang:
 Alles als getallen in `MPC` met een tweede waarde voor drie man (bijvoorbeeld `MPC.drie = { keer: 1.5, tegelijk: 14, ... }`),
 zodat het met twee spelers precies blijft zoals nu.
 
+## Ishmul, de voorstad (gebouwd, 19-11-2026)
+
+`MP_ISHMUL_LEVEL`, `MPC_KAARTEN`, `mpcKaart`, `mpStarts`; in de lobby `MP_KAARTEN.coop` (id `ishmul`, "Ishmul, the outskirts")
+
+De tweede map van Co-op Survival, uitgewerkt in een mockup met de opdrachtgever (eerst "The Flood Gate" genoemd). Van rechts
+(de start, bij de rand) naar links:
+
+- **Het plein** waar de stad begint: drie opstapjes van 28 naar 84 (`opstap: true`, zie "opstapjes" in `notities/stad.md`),
+  de pleinvloer van Nyundo op de bovenste trede (`vloer: 'plein'` op het terras, en `grondSoort` plein), een pleinwand met
+  bogen achteraan en een fontein. Een fontein op een terras wordt na de terrassen getekend (`waterFonteinTeken` met
+  `opTerras`), anders viel de rand van het plein over zijn voet.
+- **Het huis aan de rivier** met een galerij (401) en een deur boven. Erop: de rand van de fontein (197), dan de luifel boven
+  een raam aan de rechtermuur (de rechte springdoek met `kozijn`, `h: 350`, bovenkant 378), dan de galerij. De luifel hangt
+  hoog genoeg dat je er vanaf de trap onderdoor loopt; eerst hing hij op 150 en dat zag er toevallig uit, en een luifel op
+  hoofdhoogte haal je vanaf de straat niet (een sprong is zo'n 190).
+- **De rivier** van 1280 breed met een brug op straathoogte: de enige weg naar de overkant.
+- **De linkeroever**: twee huizen met een gedeelde galerij (401), een rieten kraam als opstap, en het hoge huis.
+- **De savanne** tegen de rots (`grondSoort` savanne, gras, een acacia en een struik).
+
+Alles is te halen zonder speer (ook met de stokken), en er is geen balkon dat je niet haalt: de kruisboog komt hier uit de
+deuren op de galerijen.
+
+**De instellingen per map** (`MPC_KAARTEN`): het level, de deuren, de tonplekken, de starts per slot, het midden (voor de
+revive-ton), het balkon voor de kruisboog, de fakkels per gevel en in de rots, en de kant van de dieren (`dierKant`) en van
+de mensen (`mensKant`, met `mensKans`). De Dye Yard houdt precies wat hij had; `mpcKaart()` geeft de map die speelt (in de
+episode altijd de Dye Yard-instellingen, die daar niet gebruikt worden). In Ishmul komen dieren alleen van links, en een
+mens komt in 35% van de keren van rechts (het plein) in plaats van uit een deur.
+
+**Testen:** `node tools/mptest.js --kaart ishmul --proef` loopt de hele proef op Ishmul. De controle op de fakkels verwachtte
+8 bij nacht, maar sinds de fakkels in de rots zijn het er 10 (op main gaf hij al FOUT); nu telt elk aantal boven 0.
+
 ## De Co-op episode (gebouwd, 18-11-2026)
 
 `COOPEP_1`, `COOPEP_2`, `COOPEP_3`, `COOPEP_LEVELS`, `MPC_EP`, `MPC_EP_SOORT`, `mpEpNieuw`, `mpEpHostStap`, `mpEpAllenBijEind`,

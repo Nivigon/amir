@@ -27276,11 +27276,13 @@ function waterVoorTeken(groundY, scale, cx){
 // ---- de fontein: de plaat met het water erin ----
 // Alles achter Amir: de plaat, het water in de opening van het bassin, de zuil nog eens over dat water heen, het water
 // in de schaal, de twee slierten die over de schaal lopen en de straal. De druppels komen uit waterStap.
-function waterFonteinTeken(groundY, scale, cx){
+function waterFonteinTeken(groundY, scale, cx, opTerras){
   if (!fonteinImg || !imgReady(fonteinImg)) return;
   const lijst = waterenLijst();
   for (let i = 0; i < lijst.length; i++){
     const o = lijst[i]; if (o.k !== 'fontein') continue;
+    // een fontein op een terras (een plein op opstapjes) komt na de terrassen, anders valt hun rand over zijn voet
+    if (!!opTerras !== (terrainH(o.x) > 0)) continue;
     const m = waterFonteinMaat(o, scale), S = m.S, f = m.f, sx = cx + (m.left - world);
     if (sx > W / viewZoom() + W || sx + m.w < -W) continue;
     const gy = groundY - terrainH(o.x) * scale, top = gy - m.h + 2;
@@ -33128,7 +33130,8 @@ function straatOpVoeg(xs, x0t, tw, eimg){
   return best === null ? xs : xs + best * tw;
 }
 function straatTredeTeken(t, groundY, scale, cx, bottom){
-  const eimg = stadBodem();
+  // vloer: 'plein' legt de geplaveide vloer van het plein (Stad 6) op de trede in plaats van de straat (Ishmul)
+  const eimg = t.vloer === 'plein' && stadKlaar('plein') ? stadImgs.plein : stadBodem();
   if (!eimg || !edgeReady() || !stadKlaar('straatOnder')) return;
   const xr = cx + (t.r - world), xl = cx + (t.l - world);
   if (xl > W / viewZoom() + W || xr < -W) return;
@@ -52067,6 +52070,7 @@ function loop(now){
     waterFonteinTeken(groundY, scale, cx);        // een fontein: het bassin, de zuil, de schaal en de straal (de voorkant komt na Amir)
     rotsenTeken(groundY, scale, cx);              // losse rotsen als decor, achter de terrassen en de zwevers
     drawClimb(groundY, scale, cx, false);          // terrassen en richels
+    waterFonteinTeken(groundY, scale, cx, true);   // een fontein die op een terras staat, over de rand van dat terras
     waterTerrasTeken(groundY, scale, cx);          // het beekje op een terras naar zijn waterval (zie "water")
     stadVoorTeken(groundY, scale, cx, true);       // kramen en voetdecor op een hoger stuk straat: op het terras, niet erachter
     binnenNa(groundY, scale, cx);                 // binnen: het schemer, het licht van de ramen en de stofjes (zie "binnen")
@@ -65158,7 +65162,7 @@ function pvpRaakLokaal(o){
 // Co-op is voor twee of drie spelers, het Duel voor twee. Zolang de lobby open is kan er nog iemand bij met de code.
 // Escape in een potje brengt iedereen terug naar de lobby, zonder de verbinding te verbreken; Leave the lobby verbreekt hem.
 // Zie notities/multiplayer.md.
-const MP_KAARTEN = { duel: [{ id: 'dye', naam: 'The Dye Yard' }], coop: [{ id: 'dye', naam: 'The Dye Yard (co-op)' }],
+const MP_KAARTEN = { duel: [{ id: 'dye', naam: 'The Dye Yard' }], coop: [{ id: 'dye', naam: 'The Dye Yard (co-op)' }, { id: 'ishmul', naam: 'Ishmul, the outskirts' }],
                      ep: [{ id: '0', naam: '1. The Long Grass (easy)' }, { id: '1', naam: '2. Broken Ground (medium)' }, { id: '2', naam: '3. The Last Ridge (hard)' }] };
 // de vijanden die de host in Co-op Survival kan kiezen; met twee namen in var is er een makkelijke en een moeilijke versie
 const MP_SOORTEN = [
@@ -65535,9 +65539,11 @@ function mpNaarLobby(zelf){
 }
 // de startplek: in Co-op per slot (de tweede gast in het midden), in het Duel de host rechts en de gast links
 function pvpStartSlot(){ return pvp.coop ? pvp.mij : (pvp.mij === 0 ? 0 : 1); }
+// de startplekken: in Co-op Survival die van de map (MPC_KAARTEN), in het Duel die van PVP
+function mpStarts(){ return pvp && pvp.coop && !pvp.coop.ep ? mpcKaart().starts : PVP.starts; }
 function pvpPlaats(){
   if (pvp.coop && pvp.coop.ep){ world = (level.start || 0) - MPC_EP.naast * pvp.mij; facing = -1; autoFlip = true; return; }   // de episode: naast elkaar aan de rand
-  world = PVP.starts[pvpStartSlot()]; facing = pvpStartSlot() === 1 ? 1 : -1; autoFlip = true;
+  world = mpStarts()[pvpStartSlot()]; facing = pvpStartSlot() === 1 ? 1 : -1; autoFlip = true;
 }
 function pvpRondeStart(n){
   pvp.ronde = n; pvp.fase = 'vecht'; godMode = false;
@@ -65889,6 +65895,56 @@ const MP_COOP_LEVEL = (() => {
   lv.zwevers = [{ r: MPC_WINKEL_KAMER.r, l: MPC_WINKEL_KAMER.l, h: 900, onder: 750, look: 'hout' }];
   return lv;
 })();
+// ---- Co-op: Ishmul, de voorstad ----
+// De tweede map van Co-op Survival: de rand van de stad aan een brede rivier met een houten brug. Rechts (bij de start)
+// een plein op opstapjes (OPSTAP) met een fontein en een luifel; daar begint de stad en daar komen ook mensen van de
+// kant binnen, die de opstapjes af lopen. Dan het huis aan de rivier met een galerij en een deur boven: de galerij haal je
+// alleen via de luifel. Over de brug de linkeroever met twee huizen, een gedeelde galerij en een rieten kraam als opstap,
+// en helemaal links een strook savanne tegen de rots, waar de dieren binnenkomen. Alles is te halen zonder speer (ook
+// met de stokken). De instellingen per map (deuren, tonplekken, starts, fakkels) staan in MPC_KAARTEN
+const MP_ISHMUL_LEVEL = (() => {
+  const lv = {
+    name: 'Co-op: Ishmul',
+    start: -120,
+    lagen: 'stad_avond',
+    view: 0.8, hpBalk: true, zicht: true, camera: true, rand: true, speerInHand: true, slangEenKlap: true,
+    vredig: true, combo: true, multikill: false, rapport: false, geenEinde: true,
+    stof: true, rugMax: 1,
+    stad: {
+      paleis: -600, seed: 1907,
+      gevels: [ {x: -1425, hoog: 2},                 // 0: het huis aan de rivier, rechts (x is de linkerkant op de laptop)
+                {x: -3240, hoog: 2},                 // 1: de linkeroever, aan de rivier
+                {x: -4000, hoog: 3, aan: 1.0} ],     // 2: het hoge huis, met een steeg ernaast
+      galerijen: [ {van: 0, tot: 0, h: 401}, {van: 1, tot: 2, h: 401} ],
+      kramen: [ {x: -2860, soort: 'riet'} ],         // de opstap naar de galerij van de linkeroever
+      // de weg naar de galerij van het huis aan de rivier: de rand van de fontein op, dan de luifel boven een raam aan de
+      // rechtermuur (de rechte springdoek met kozijn, zie "de springdoek" in notities/stad.md), dan de galerij. De luifel
+      // hangt hoog genoeg dat je er vanaf de trap onderdoor loopt, en alleen vanaf de fontein haal je hem
+      luifels: [ {gevel: 0, wand: 'r', h: 350, voet: 0, maat: 0.85, recht: true, kozijn: true, worp: 1.3, kleur: 'indigo'} ],
+
+      voet: [ {x: -1330, stuk: 'kruik'}, {x: -3390, stuk: 'stenen'} ],
+      pleinwanden: [ {x: -300} ]                     // de lage wand met bogen achter het plein
+    },
+    // het plein: drie opstapjes van 28 omhoog naar 84, tot voorbij de rechtergrens
+    terraces: [ {r: 600, l: -905, h: 28, look: 'straat', opstap: true},
+                {r: 600, l: -850, h: 56, look: 'straat', opstap: true},
+                {r: 600, l: -795, h: 84, look: 'straat', opstap: true, vloer: 'plein'} ],
+    wateren: [ {k: 'rivier', x: -2070, w: 1280, brug: true}, {k: 'fontein', x: -520} ],
+    // na de opstapjes begint de stad: de geplaveide vloer van het plein van Nyundo (Stad 6), en links de savanne
+    grondSoort: [ {van: 700, tot: -795, soort: 'plein'}, {van: -4040, tot: -4750, soort: 'savanne'} ],
+    voorgrond: false,
+    wapenrekken: [ {x: -1410, n: 4} ],
+    tonnen: [],
+    spawns: [], rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [],
+    props: [ {x: -4120, k: 'gras', s: 1.1, f: 0, v: 0}, {x: -4300, k: 'tree', s: 1.1, f: 1, v: 0},
+             {x: -4440, k: 'struik', s: 1.0, f: 0, v: 0}, {x: -4220, k: 'gras', s: 0.9, f: 1, v: 0} ],
+    cliffs: [ {x: -4590, s: 1.6} ],
+    ends: [], tips: []
+  };
+  lv.binnen = JSON.parse(JSON.stringify(MP_COOP_LEVEL.binnen));   // dezelfde winkel, ver van de straat
+  lv.zwevers = JSON.parse(JSON.stringify(MP_COOP_LEVEL.zwevers));
+  return lv;
+})();
 // ---- Co-op: drie versies van de map ----
 // De map is de avond (zoals hij was), de nacht met fakkels, of de diepe nacht waar alleen de fakkels en de ramen
 // licht geven (stad_diepnacht, donkerGatenNa). De host kiest bij de start een willekeurige en om de `elke` rondes
@@ -65937,7 +65993,7 @@ function mpcFakkelsStap(){
   if (sc === mpcFakSc) return;
   mpcFakSc = sc;
   const l = [];
-  MPC_VERSIE.fakkels.forEach((rij, i) => {
+  mpcKaart().fakkels.forEach((rij, i) => {
     const g = level.stad.gevels[i]; if (!g) return;
     const m = stadGevelMaat(g, sc);
     for (const [a, y] of rij) l.push({ x: Math.round(m.left + a * (m.right - m.left)), y, s: 1, f: a < 0.5 });
@@ -65945,7 +66001,7 @@ function mpcFakkelsStap(){
   // en twee in de rots boven de rotsval (MPC_VERSIE.rots: [Amir vanaf de wand, hoogte in Amir, schaal]); de wand
   // staat per scherm ergens anders (huisMargeStap), dus eerst die
   const k = (level.cliffs || [])[0];
-  if (k){ huisMargeStap(); const A = CHAR_H * sc; for (const [a, y, s] of MPC_VERSIE.rots) l.push({ x: Math.round(k.x + a * A), y, s, f: false }); }
+  if (k){ huisMargeStap(); const A = CHAR_H * sc; for (const [a, y, s] of mpcKaart().rots) l.push({ x: Math.round(k.x + a * A), y, s, f: false }); }
   level.fakkels = l;
 }
 // de deuren waar mensen uit komen: beneden het deurgat van elk huis, op de galerij (401) een per huis, en het balkon
@@ -65961,6 +66017,29 @@ const MPC_TONPLEK = [
   { x: -800, dak: 771 }, { x: -2200, dak: 771 },
   { x: -480, dak: 264 }, { x: -2280, dak: 264 }
 ];
+// ---- Co-op: de instellingen per map ----
+// Per map van Co-op Survival (de id uit MP_KAARTEN.coop): het level, de deuren, de tonplekken, de starts per slot, het
+// midden (de revive-ton komt aan de kant van het midden), het balkon voor de kruisboog, de fakkels per gevel en in de
+// rots, en van welke kant dieren (dierKant) en mensen (mensKant, met kans mensKans) binnenkomen; 0 is van beide kanten,
+// -1 links, 1 rechts. De Dye Yard houdt precies wat hij had. mpcKaart() geeft de map die nu speelt
+const MPC_KAARTEN = {
+  dye: { level: () => MP_COOP_LEVEL, deuren: MPC_DEUREN, tonplek: MPC_TONPLEK, starts: PVP.starts, midden: -1500,
+         balkon: { gevel: 1, verdieping: 2 }, fakkels: MPC_VERSIE.fakkels, rots: MPC_VERSIE.rots, dierKant: 0, mensKant: 0 },
+  ishmul: { level: () => MP_ISHMUL_LEVEL,
+            deuren: [ { gevel: 0, verdieping: 0 }, { gevel: 1, verdieping: 0 }, { gevel: 2, verdieping: 0 },
+                      { gevel: 0, verdieping: 1 }, { gevel: 1, verdieping: 1 }, { gevel: 2, verdieping: 1 } ],
+            tonplek: [ { x: -80 }, { x: -1000 }, { x: -1200 }, { x: -2070 }, { x: -3090 }, { x: -3690 }, { x: -4240 },
+                       { x: -1150, dak: 401 }, { x: -3040, dak: 401 }, { x: -3690, dak: 401 } ],
+            starts: [-120, -3090, -1100], midden: -2070, balkon: null,
+            fakkels: [ [[0.08, 0.55], [0.83, 2.05]],
+                       [[0.64, 0.55], [0.21, 2.05]],
+                       [[0.06, 0.55], [0.94, 0.55], [0.18, 3.35]] ],
+            rots: MPC_VERSIE.rots, dierKant: -1, mensKant: 1, mensKans: 0.35 }
+};
+function mpcKaart(){
+  if (typeof pvp === 'undefined' || !pvp || (pvp.coop && pvp.coop.ep)) return MPC_KAARTEN.dye;
+  return MPC_KAARTEN[pvp.regels && pvp.regels.kaart] || MPC_KAARTEN.dye;
+}
 // de lijsten die van de host naar de gast gaan; los: een kogel of dolk komt een keer over en vliegt daarna bij de gast zelf
 const MPC_LIJSTEN = [
   { k: 'snakes', l: () => snakes }, { k: 'scorps', l: () => scorps }, { k: 'hyenas', l: () => hyenas },
@@ -66166,7 +66245,7 @@ exeKans = function(){ return mpCoopAan() ? false : mpcExeKansOrig.apply(this, ar
 const mpcDeurAlleOrig = stadDeurenAlle, mpcDeurBovenOrig = stadDeurenBoven;
 function mpcDeurBij(u, boven){
   if (!mpCoopAan() || pvp.coop.ep) return u;       // de episode speelt niet in de stad
-  for (const d of MPC_DEUREN) if (!d.balkon && (!boven || d.verdieping > 0)) (u[d.gevel] || (u[d.gevel] = new Set())).add(d.verdieping);
+  for (const d of mpcKaart().deuren) if (!d.balkon && (!boven || d.verdieping > 0)) (u[d.gevel] || (u[d.gevel] = new Set())).add(d.verdieping);
   return u;
 }
 stadDeurenAlle = function(){ return mpcDeurBij(mpcDeurAlleOrig.apply(this, arguments), false); };
@@ -66314,13 +66393,17 @@ function mpcLevend(){
 const MPC_DIER = new Set(['slang', 'scorp', 'hyena', 'goudaap']);
 // een vijand erbij: een dier van de zijkant, een mens uit een deur (een kruisboog liefst op het balkon)
 function mpcSpawn(sp){
-  const lev = mpcLevend(), kant = Math.random() < 0.5 ? -1 : 1;
+  const K = mpcKaart(), dier = MPC_DIER.has(sp.k), vast = dier ? K.dierKant : K.mensKant;
+  const lev = mpcLevend(), kant = vast || (Math.random() < 0.5 ? -1 : 1);
   const rechts = cliffAt().wall - 220, links = endWall() + 220;
   let x = kant > 0 ? rechts : links, base = null, deur = null;
-  if (!MPC_DIER.has(sp.k)){
+  // op een map met een mensenkant (Ishmul) komt een mens soms van die kant in plaats van uit een deur
+  const vanKant = !dier && K.mensKant && Math.random() < (K.mensKans || 0);
+  if (!dier && !vanKant){
     const kanBoven = STAD_DEUR.bovenSoorten.has(sp.k === 'kruisboog' ? 'kruisboogbandiet' : sp.k);
-    let keus = MPC_DEUREN.filter(d => !d.balkon && (d.verdieping === 0 || (kanBoven && lev.boven < MPC.boven)));
-    if (sp.k === 'kruisboog' && lev.balkon < MPC.balkon && Math.random() < 0.6) keus = MPC_DEUREN.filter(d => d.balkon);
+    let keus = K.deuren.filter(d => !d.balkon && (d.verdieping === 0 || (kanBoven && lev.boven < MPC.boven)));
+    const bal = K.deuren.filter(d => d.balkon);
+    if (sp.k === 'kruisboog' && bal.length && lev.balkon < MPC.balkon && Math.random() < 0.6) keus = bal;
     deur = keus[Math.floor(Math.random() * keus.length)];
     const sc = nowScale(), dm = deur.balkon ? mpcBalkonMaat(sc) : stadDeurMaat(deur, sc);
     if (dm){ x = dm.cx; base = deur.balkon ? dm.vloer : stadDeurVloer(deur, sc); }
@@ -66334,7 +66417,7 @@ function mpcSpawn(sp){
 }
 // het balkon hoog in het middenhuis: de nis van stadBalkonMaat, in wereld-x en hoogte
 function mpcBalkonMaat(sc){
-  const d = { gevel: 1, verdieping: 2 }, dm = stadDeurMaat(d, sc);
+  const d = mpcKaart().balkon, dm = d && stadDeurMaat(d, sc);
   if (!dm) return null;
   return { cx: dm.cx, vloer: stadVloerBij(dm.cx, dm.vloer + 1) };
 }
@@ -66401,7 +66484,7 @@ function mpcTonZet(d, gast){
   return t;
 }
 function mpcTonNieuw(){
-  const C = pvp.coop, vrij = MPC_TONPLEK.filter(p => !tonnen.some(t => !t.weg && Math.abs(t.x - p.x) < 150));
+  const C = pvp.coop, vrij = mpcKaart().tonplek.filter(p => !tonnen.some(t => !t.weg && Math.abs(t.x - p.x) < 150));
   if (!vrij.length) return;
   const p = vrij[Math.floor(Math.random() * vrij.length)];
   mpcTonZet(Object.assign({ id: ++C.tonId }, p));
@@ -66524,8 +66607,8 @@ function mpcDodenStap(){
     let x;
     if (C.ep) x = mpEpReviveX(lx, lh);               // de episode: naast de levende, waar hij ook is, niet in een ravijn
     else {
-      x = lx + (lx > -1500 ? -220 : 220);
-      if (Object.values(C.reviveTon).some(t => Math.abs(t.x - x) < 150)) x = lx + (lx > -1500 ? 220 : -220);   // niet op een andere revive-ton
+      x = lx + (lx > mpcKaart().midden ? -220 : 220);
+      if (Object.values(C.reviveTon).some(t => Math.abs(t.x - x) < 150)) x = lx + (lx > mpcKaart().midden ? 220 : -220);   // niet op een andere revive-ton
       x = Math.max(endWall() + 260, Math.min(cliffAt().wall - 260, x));
     }
     C.reviveTon[p] = mpcTonZet({ id: ++C.tonId, x, revive: true, voor: p });
@@ -66587,7 +66670,7 @@ function mpcSymboolStap(){
 function mpcSymboolOp(voor){ playHppotionDrinkSound(); flashHint('Revive!'); pvp.coop.reviveRust[voor] = pvp.coop.t + 3; }
 function mpcOpstaan(x, h){
   if (!dead) return;
-  dead = false; lives = 1; hurt = 0; invuln = 2; world = pvp.coop.ep ? mpEpNaast(x, h) : x + (x > -1500 ? -70 : 70); ph = h; pvh = 0;
+  dead = false; lives = 1; hurt = 0; invuln = 2; world = pvp.coop.ep ? mpEpNaast(x, h) : x + (x > mpcKaart().midden ? -70 : 70); ph = h; pvh = 0;
   deadEl.classList.remove('on');
   drawLives(); hudToon();
   delete pvp.coop.doodT[pvp.mij];
@@ -66771,7 +66854,7 @@ function mpCoopStart(epI){
   pvpEl('mpeind').classList.remove('on');
   runReset();
   levelList = PVP_LEVELS;                         // niet TEST_LEVELS: die geeft alle talents (een vierde leven)
-  const lv = JSON.parse(JSON.stringify(ep ? COOPEP_LEVELS[pvp.coop.ep.i] : MP_COOP_LEVEL));
+  const lv = JSON.parse(JSON.stringify(ep ? COOPEP_LEVELS[pvp.coop.ep.i] : mpcKaart().level()));
   if (ep){ lv.stof = true; lv.rugMax = 1; lv.multikill = false; lv.rapport = false; }   // zoals de map van Survival: stof, 1 speer op de rug, de reeks van het team
   else lv.wapenrekken[0].n = pvp.regels.coop.rek;
   mpWapenLevel(lv);                                 // met de stokken: een level met stokken (geen speer, geen rug)
@@ -67041,7 +67124,7 @@ function mpcWinkelUit(){
   C.inWinkel = false; C.mijnKlaar = false; C.wkKlaar = {};
   winkelUIDicht(); mpcOntdooi();
   const r = wapenrekken[0]; if (r){ r.n = pvp.regels.coop.rek; r.uit = null; }
-  const x = PVP.starts[pvpStartSlot()];
+  const x = mpStarts()[pvpStartSlot()];
   stadTrapFade = { t: 0, gewisseld: false, doel: { x, h: terrainH(x), face: pvpStartSlot() === 1 ? 1 : -1 }, T: MPC_WINKEL_WEG.fade, binnen: true };
   pvpBanner('');
   if (pvp.host) mpcVolgendeRonde();
