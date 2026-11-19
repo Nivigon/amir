@@ -71,6 +71,8 @@ zoekraakte. Blijkt het TURN te zijn, dan helpt alleen stap 3 echt, en die wacht 
 | Time between rounds | 10 s | 5 tot 30 |
 | Spears in the rack | 4 | 0 tot 4 |
 | Gourd chance in a barrel | 30% | 0 tot 100, per 10 |
+| Starting gold | 0 | 0 tot 200, per 10: ieder begint met zoveel in zijn beurs (`goud0`, in `mpCoopStart`) |
+| Start in the shop | uit | vinkje: voor ronde 1 eerst allemaal naar de winkel; de host zet `fase: 'naarWinkel'` (`winkelEerst`) |
 | Enemies | alles aan | per soort Off/On, of Off/Easy/Hard/Both |
 
 De soorten en hun twee versies (`MP_SOORTEN`):
