@@ -101,6 +101,25 @@ twee tegelijk dezelfde, dan houdt het laagste slot hem (de host eerst) en schuif
 keuze staat op het apparaat (`amir.mpbroek`). In het spel geeft `broekNu` de eigen kleur zolang `pvp`
 loopt, en `pvpTeken` tekent de ander in de zijne. Geldt in Co-op en in Duel, want de lobby is dezelfde.
 
+### De naam en het team in de lobby (gebouwd, 19-11-2026)
+
+`MP_NAAM`, `mpNaamZet`, `mpNaamAnder`, `mpSpelerNoem`, `mpNamenZien`, `mpNaamTeken`, `mpTeamToon`, `mpTeamTeken`, `pvp.naam`, `#mpnaam`, `#mpteam`
+
+- **De naam.** Bovenaan naast de lobby (`#mpnaam`, hooguit `MP_NAAM.max` 14 tekens, `mpNaamSchoon` haalt stuurtekens en `<>`
+  weg) typt ieder zijn naam, bewaard op het apparaat (`amir.mpnaam`). Net als de broek en het wapen: `{t: 'naam', n}` naar de
+  anderen (in `MP_DOOR`, een nieuwe gast krijgt de namen in `pvpGastErbij`). Zonder naam heet je naar je broek.
+  `mpSpelerNoem(p, klein)` is hoe een speler heet in elke melding (weg, Give 5 gold, de revive, de camera van een dode).
+- **Boven het hoofd.** `pvpTekenEen` tekent boven het pijltje en de hartjes een naambordje (`mpNaamTeken`): Archivo 800, licht
+  met een zwarte rand, op een donkere pil met een streepje in de broekkleur (`MP_NAAM.kleur`); van een dode half doorzichtig.
+  Je eigen naam zie je niet. In Co-op en in het Duel.
+- **Namen zien of niet.** Het vinkje **Show names above heads** (`#mpnamen`, `amir.mpnamen`, standaard aan) is per speler en
+  gaat niet over de lijn. Solo is het weg.
+- **Het team.** In de lobby onder de spelersregel (`#mpteam`, niet solo) per speler een kaartje: zijn Amir in de idle in zijn
+  broek (met de stokken het staande stokframe; wie rechts van jou staat kijkt naar links), naam, broek, wapen en Host, Ready of
+  Not ready. Getekend in de lus van het voorbeeld (`mpTeamTeken` in `mpBroekStart`), opnieuw opgebouwd alleen als er iets
+  verandert (`mpTeamSleutel`). Ready zag eerst alleen de host; nu stuurt hij `{t: 'klaarStand', k}` na elke Ready, en een
+  `lobby`-bericht zet hem bij de gasten weer leeg.
+
 ### Het wapen: speer of stokken (gebouwd, 16-11-2026)
 
 `mpWapenEigen`, `mpWapenZet`, `mpWapenAnder`, `mpWapenToon`, `mpStokken`, `mpWapenLevel`, `pvp.wapen`, `#mpwapen`

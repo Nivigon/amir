@@ -232,6 +232,24 @@
   #mpwapen button.on{opacity:1;border-color:var(--gold);color:var(--gold)}
   #mpwpuitleg{color:rgba(242,232,213,.65);font-size:12px;text-align:center;max-width:14em;min-height:1.2em}
   #start #mpamir p.mpkop{margin:0}
+  /* je naam (mpNaam) en of je de namen boven de hoofden wilt zien (mpNamenZien) */
+  #mpnaam{font:inherit;font-size:15px;font-weight:700;width:11em;text-align:center;padding:6px 8px;border-radius:8px;border:1px solid #8a6a3a;background:#1d140b;color:var(--gold)}
+  #mpnaam::placeholder{color:rgba(231,173,82,.45);font-weight:500}
+  #mpnamenlab{display:flex;align-items:center;gap:6px;color:rgba(242,232,213,.8);font-size:12px;cursor:pointer}
+  #start.mpsolo #mpnamenlab{display:none}
+  /* het team in de lobby: per speler een kaartje met zijn Amir, naam, broek, wapen en Ready (mpTeamToon) */
+  #mpteam{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
+  #mplobby.solo #mpteam{display:none}
+  .mpkaart{display:flex;flex-direction:column;align-items:center;gap:2px;width:120px;padding:8px 6px 7px;border:1px solid rgba(231,173,82,.3);border-radius:11px;background:rgba(44,27,14,.55);position:relative}
+  .mpkaart.ik{border-color:rgba(231,173,82,.75)}
+  .mpkaart.klaar{border-color:#45e07a;box-shadow:0 0 10px rgba(69,224,122,.25)}
+  .mpkaart canvas{width:72px;height:90px}
+  .mpkaart b{color:var(--gold);font-size:14px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mpkaart span{font-size:11px;color:rgba(242,232,213,.75);display:flex;align-items:center;gap:4px}
+  .mpkaart i{display:inline-block;width:9px;height:9px;border-radius:50%;border:1px solid rgba(0,0,0,.6)}
+  .mpkaart em{font-style:normal;font-size:10px;letter-spacing:1px;text-transform:uppercase;padding:1px 6px;border-radius:6px;background:rgba(0,0,0,.35);color:rgba(242,232,213,.7)}
+  .mpkaart.klaar em{color:#7df0a2}
+  .mpkaart.host em{color:var(--gold)}
   @media (max-height:520px){ #mpbrcv{width:104px;height:130px} #mpbroek button{font-size:16px;padding:5px 8px} #mpamir{gap:2px;padding:6px 8px} }
   @media (max-width:700px){ #mpamir{top:8px;left:8px;transform:none} }
   #menuPvp.lobby #mplobby{display:flex}
@@ -1108,6 +1126,9 @@
   <div id="start">
     <!-- Multiplayer: naast de lobby je eigen Amir, met de kleur van zijn broek (mpBroek) -->
     <div id="mpamir">
+          <p class="mpkop">Your name</p>
+          <input id="mpnaam" maxlength="14" placeholder="Type your name" autocomplete="off" spellcheck="false">
+          <label id="mpnamenlab"><input type="checkbox" id="mpnamen"> Show names above heads</label>
           <p class="mpkop">Your trousers</p>
           <div id="mpbroek"><button id="mpbrlinks" type="button" aria-label="Previous colour">&#9664;</button><canvas id="mpbrcv" width="200" height="250"></canvas><button id="mpbrrechts" type="button" aria-label="Next colour">&#9654;</button></div>
           <span id="mpbrnaam"></span>
@@ -1206,6 +1227,7 @@
       <div id="mplobby">
         <p id="mpwie"></p>
         <p id="mpspelers"></p>
+        <div id="mpteam"></div>
         <p id="mpping"></p>
         <div class="row mpmodi">
           <button class="mpmodus" data-modus="coop">Co-op Survival<small>Together against rounds of enemies</small></button>
@@ -65424,7 +65446,7 @@ const pvpNu = () => performance.now() / 1000;
 // de vijandstand bevestigd heeft (vAk). Een gast heeft er een, naar de host (slot 0). Elk bericht draagt het slot van wie
 // het maakte (`p`); de host zet het zelf op wat binnenkomt (een gast kan niet voor een ander spreken) en stuurt wat de
 // andere gasten ook moeten weten door (MP_DOOR), en een bericht voor een gast (`naar`) alleen naar die. Zie notities/pvp.md.
-const MP_DOOR = new Set(['s', 'ls', 'broek', 'wapen', 'rek', 'symPak', 'wkklaar', 'rematch', 'gk']);
+const MP_DOOR = new Set(['s', 'ls', 'broek', 'wapen', 'naam', 'rek', 'symPak', 'wkklaar', 'rematch', 'gk']);
 function pvpGasten(){ return pvp ? Object.keys(pvp.peers).map(Number).filter(p => p !== 0) : []; }
 function pvpRelay(){ return !!pvp && Object.values(pvp.peers).some(pe => pe.conn.relay); }
 function pvpPeerNieuw(conn, p){
@@ -65744,8 +65766,8 @@ function mpLobbyToon(){
 }
 // wie er in de lobby staat: per speler de kleur van zijn broek, en bij de host wie al Ready is
 function mpSpelersTekst(){
-  const n = pvp.spelers.map(p => (p === pvp.mij ? 'You' : (mpBroekNaam(pvp.broek[p]) || 'Player ' + (p + 1))) + (p === 0 ? ' (host)' : pvp.host && pvp.klaarVan[p] ? ' (ready)' : ''));
-  return 'Players (' + pvp.spelers.length + ' of ' + PVP.max + '): ' + n.join(', ');
+  mpTeamToon();
+  return 'Players (' + pvp.spelers.length + ' of ' + PVP.max + ')';
 }
 function mpKnoppen(){
   if (!pvp) return;
@@ -65781,7 +65803,8 @@ function mpLobbyOpen(){
   pvpZend({ t: 'broek', id: pvp.broek[pvp.mij] });
   if (!pvp.wapen[pvp.mij]) pvp.wapen[pvp.mij] = mpWapenEigen();
   pvpZend({ t: 'wapen', w: pvp.wapen[pvp.mij] });
-  mpBroekToon(); mpWapenToon(); mpBroekStart();
+  pvp.naam[pvp.mij] = mpNaamEigen(); pvpZend({ t: 'naam', n: pvp.naam[pvp.mij] });
+  mpNaamVeld(); mpBroekToon(); mpWapenToon(); mpBroekStart();
 }
 function mpLobbyDicht(){ pvpEl('menuPvp').classList.remove('lobby'); pvpEl('start').classList.remove('mplobby', 'mpsolo'); pvpEl('menuPvp').querySelector('.epititle').textContent = 'Multiplayer'; }
 // ---- de broekkleur in Multiplayer: naast de lobby je eigen Amir, de pijltjes wisselen de kleur van zijn broek ----
@@ -65803,7 +65826,7 @@ function mpBroekZet(id){
   pvp.broek[pvp.mij] = id;
   try { localStorage.setItem('amir.mpbroek', id); } catch (e){}
   pvpZend({ t: 'broek', id });
-  mpBroekToon();
+  mpBroekToon(); mpTeamToon();
 }
 // wat de anderen dragen
 function mpBroekAnders(){ return pvp.spelers.filter(p => p !== pvp.mij && pvp.broek[p]).map(p => pvp.broek[p]); }
@@ -65820,6 +65843,7 @@ function mpBroekAnder(p, id){
   if (!pvp || pvp.mij == null || p === pvp.mij || !MP_BROEK.some(b => b.id === id)) return;
   pvp.broek[p] = id;
   if (p < pvp.mij && id === pvp.broek[pvp.mij]) mpBroekZet(mpBroekVrij(id, 1));
+  mpTeamToon();
   mpBroekToon();
 }
 function mpBroekToon(){
@@ -65854,9 +65878,116 @@ function mpBroekStart(){
       teken(pvp.broek[pvp.mij], mpBroekB, f);
       if (f >= 1) pvp.broekVan = null;
     }
+    mpTeamTeken(now);
     requestAnimationFrame(stap);
   };
   requestAnimationFrame(stap);
+}
+// ---- de naam in Multiplayer: ieder typt zijn naam naast de lobby, en die staat boven zijn Amir in het spel ----
+// Net als de broek en het wapen: per speler, bewaard op dit apparaat (amir.mpnaam), en {t: 'naam', n} naar de anderen (in
+// MP_DOOR, en een nieuwe gast krijgt de namen in pvpGastErbij). Zonder naam heet je naar je broek ("Fire red"). Of je de
+// namen boven de hoofden ziet kiest ieder zelf, met het vinkje onder de naam (amir.mpnamen, standaard aan).
+const MP_NAAM = { max: 14,
+  kleur: { paars: '#a070e8', rood: '#ec4a36', oranje: '#f39433', goud: '#eec24f', turq: '#3fd0c6', wit: '#f4eedf', zwart: '#3a3a40' } };
+function mpNaamSchoon(n){ return String(n == null ? '' : n).replace(/[\u0000-\u001f\u007f-\u009f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, MP_NAAM.max); }
+function mpNaamEigen(){ let n = ''; try { n = localStorage.getItem('amir.mpnaam') || ''; } catch (e){} return mpNaamSchoon(n); }
+function mpNaamZet(n){
+  if (!pvp || pvp.mij == null) return;
+  n = mpNaamSchoon(n);
+  try { localStorage.setItem('amir.mpnaam', n); } catch (e){}
+  if (n === (pvp.naam[pvp.mij] || '')) return;
+  pvp.naam[pvp.mij] = n;
+  pvpZend({ t: 'naam', n });
+  mpTeamToon(); mpBroekToon();
+}
+function mpNaamAnder(p, n){
+  if (!pvp || p == null || p === pvp.mij || !(p in pvp.naam)) return;
+  pvp.naam[p] = mpNaamSchoon(n);
+  if (pvp.fase === 'lobby'){ mpTeamToon(); mpBroekToon(); }
+}
+// hoe een speler heet: zijn naam, of anders de kleur van zijn broek (klein: midden in een zin)
+function mpSpelerNoem(p, klein){
+  if (!pvp || p == null) return '';
+  const n = pvp.naam && pvp.naam[p];
+  if (n) return n;
+  const b = mpBroekNaam(pvp.broek[p]);
+  return klein ? b.toLowerCase() : b;
+}
+function mpNamenZien(){ let v = null; try { v = localStorage.getItem('amir.mpnamen'); } catch (e){} return v !== '0'; }
+function mpNaamVeld(){
+  const inv = pvpEl('mpnaam');
+  if (document.activeElement !== inv) inv.value = pvp && pvp.mij != null ? pvp.naam[pvp.mij] || '' : mpNaamEigen();
+  pvpEl('mpnamen').checked = mpNamenZien();
+}
+pvpEl('mpnaam').addEventListener('input', e => mpNaamZet(e.target.value));
+pvpEl('mpnaam').addEventListener('change', e => { mpNaamZet(e.target.value); e.target.value = mpNaamSchoon(e.target.value); });
+pvpEl('mpnaam').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') e.target.blur(); });   // typen is geen spelknop
+pvpEl('mpnamen').addEventListener('change', e => { try { localStorage.setItem('amir.mpnamen', e.target.checked ? '1' : '0'); } catch (x){} });
+// het team in de lobby: per speler een kaartje met zijn Amir in zijn broek (en met de stokken het stokframe), zijn naam,
+// zijn broek, zijn wapen en of hij host, Ready of nog niet klaar is. De Ready van een gast hoort iedereen (klaarStand).
+let mpTeamSleutel = '';
+function mpTeamToon(){
+  if (!pvp || pvp.mij == null) return;
+  const doos = pvpEl('mpteam');
+  const rij = pvp.spelers.map(p => ({ p, ik: p === pvp.mij, naam: pvp.naam[p] || '', broek: pvp.broek[p] || 'paars', wapen: pvp.wapen[p] || 'speer',
+                                      host: p === 0, klaar: p !== 0 && !!pvp.klaarVan[p] }));
+  const sleutel = JSON.stringify(rij);
+  if (sleutel === mpTeamSleutel && doos.childElementCount === rij.length) return;
+  mpTeamSleutel = sleutel;
+  doos.innerHTML = '';
+  for (const r of rij){
+    const k = document.createElement('div');
+    k.className = 'mpkaart' + (r.ik ? ' ik' : '') + (r.host ? ' host' : '') + (r.klaar ? ' klaar' : '');
+    const cv = document.createElement('canvas'); cv.width = 144; cv.height = 180; cv.dataset.p = r.p;
+    const nm = document.createElement('b'); nm.textContent = (r.naam || mpBroekNaam(r.broek) || 'Player ' + (r.p + 1)) + (r.ik ? ' (you)' : '');
+    const br = document.createElement('span'), stip = document.createElement('i');
+    stip.style.background = MP_NAAM.kleur[r.broek] || '#a070e8';
+    br.append(stip, mpBroekNaam(r.broek) + ' \u00b7 ' + (r.wapen === 'stok' ? 'Sticks' : 'Spear'));
+    const st = document.createElement('em');
+    st.textContent = r.host ? 'Host' : r.klaar ? 'Ready' : 'Not ready';
+    k.append(cv, nm, br, st); doos.append(k);
+  }
+}
+// elk beeld uit de lus van het voorbeeld (mpBroekStart): de Amir op elk kaartje in de idle
+function mpTeamTeken(now){
+  if (!broekVbBeelden) return;
+  for (const cv of pvpEl('mpteam').querySelectorAll('canvas')){
+    const p = +cv.dataset.p, g = cv.getContext('2d');
+    const stok = pvp.wapen[p] === 'stok' && stokBank && imgReady(stokBank.staan[0]);
+    const img = stok ? stokBank.staan[0] : broekVbBeelden[(Math.floor(now / 1000 * BROEK_VB.fps) + p * 7) % broekVbBeelden.length];
+    g.clearRect(0, 0, cv.width, cv.height);
+    if (!imgReady(img)) continue;
+    const iw = img.naturalWidth, ih = img.naturalHeight;
+    const sx = stok ? Math.max(0, iw * (STOK.ANKER - 170) / STOK.W) : iw * BROEK_VB.uit[0], sw = stok ? iw * 300 / STOK.W : iw * BROEK_VB.uit[1];
+    const s = Math.min(cv.width / sw, cv.height / ih), dw = sw * s, dh = ih * s;
+    const fl = p !== pvp.mij && p > pvp.mij;          // wie rechts van jou staat kijkt naar links, naar het team toe
+    g.save();
+    if (fl){ g.translate(cv.width, 0); g.scale(-1, 1); }
+    g.drawImage(broekBeeld(img, img, broekKleurVan(pvp.broek[p])), sx, 0, sw, ih, (cv.width - dw) / 2, cv.height - dh, dw, dh);
+    g.restore();
+  }
+}
+// in het spel: de naam boven het hoofd van een teamgenoot of tegenstander, als een naambordje met de kleur van zijn broek
+function mpNaamTeken(p, sx, y, scale, a){
+  if (!mpNamenZien()) return;
+  const naam = mpSpelerNoem(p);
+  if (!naam) return;
+  const fs = Math.max(12, Math.round(17 * scale / 0.7));
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.font = '800 ' + fs + 'px Archivo, "Helvetica Neue", Arial, sans-serif';
+  if ('letterSpacing' in ctx) ctx.letterSpacing = Math.round(fs * 0.06) + 'px';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const w = ctx.measureText(naam).width, h = fs * 1.5, pad = fs * 0.7, kl = MP_NAAM.kleur[pvp.broek[p]] || MP_NAAM.kleur.paars;
+  const bx = sx - w / 2 - pad, bw = w + pad * 2, by = y - h / 2;
+  ctx.fillStyle = 'rgba(14,8,3,0.62)';
+  ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(bx, by, bw, h, h / 2); else ctx.rect(bx, by, bw, h); ctx.fill();
+  ctx.fillStyle = kl;                                // een streepje in zijn broekkleur onder de naam
+  ctx.fillRect(sx - w / 2, by + h - Math.max(2, fs * 0.14) - 1, w, Math.max(2, fs * 0.14));
+  ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(2, fs * 0.2); ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+  ctx.strokeText(naam, sx, y - fs * 0.05);
+  ctx.fillStyle = '#f6ead0'; ctx.fillText(naam, sx, y - fs * 0.05);
+  ctx.restore();
 }
 // ---- het wapen in Multiplayer: de speer of de stokken (STOK), ieder kiest zelf ----
 // Net als de broek: per speler, in de lobby, bewaard op dit apparaat (amir.mpwapen), en {t: 'wapen', w} naar de anderen.
@@ -65878,16 +66009,17 @@ function mpWapenZet(w){
 }
 function mpWapenAnder(p, w){
   if (!pvp || p == null || p === pvp.mij || (w !== 'speer' && w !== 'stok')) return;
-  pvp.wapen[p] = w; mpWapenToon();
+  pvp.wapen[p] = w;
+  if (w === 'stok') stokLaad();                    // zijn kaartje in de lobby staat dan in het stokframe
+  mpWapenToon();
 }
 function mpWapenToon(){
   if (!pvp || pvp.mij == null) return;
   const w = pvp.wapen[pvp.mij] || 'speer';
   pvpEl('mpwpspeer').classList.toggle('on', w === 'speer');
   pvpEl('mpwpstok').classList.toggle('on', w === 'stok');
-  const a = pvp.spelers.filter(p => p !== pvp.mij && pvp.wapen[p] === 'stok').map(p => mpBroekNaam(pvp.broek[p]).toLowerCase());
-  pvpEl('mpwpuitleg').textContent = (w === 'stok' ? 'F strikes, C blocks, crouch and strike for a low strike forward.' : 'F throws, tap to stab.')
-    + (a.length ? ' ' + a.join(' and ') + ' fights with sticks.' : '');
+  pvpEl('mpwpuitleg').textContent = w === 'stok' ? 'F strikes, C blocks, crouch and strike for a low strike forward.' : 'F throws, tap to stab.';
+  if (pvp.fase === 'lobby') mpTeamToon();
 }
 // speel ik met de stokken? (de keuze uit de lobby)
 function mpStokken(){ return !!(pvp && pvp.mij != null && pvp.wapen && pvp.wapen[pvp.mij] === 'stok'); }
@@ -65906,7 +66038,7 @@ function pvpVerbonden(conn, host){
   pvp = { host, mij: host ? 0 : null, peers: {}, nets: {}, anders: {}, spelers: host ? [0] : [], sc: [0, 0, 0], ronde: 1, fase: host ? 'lobby' : 'welkom',
           t: 0, zendT: 0, sn: 0, wn: 0, jn: 0, laatsteAtk: -1, laatsteSw: -1, laatsteJav: null, mijn: null,
           raakSteek: -1, raakZwaai: -1, raakSpeer: -1, jVorig: null, bannerT: 0, rematch: [false, false, false], beelden: {}, weg: false,
-          inst: host ? mpLaadInst() : mpStandaard(), klaar: false, klaarVan: {}, regels: null, broek: [null, null, null], broekVan: null, broekT0: 0, wapen: [null, null, null] };
+          inst: host ? mpLaadInst() : mpStandaard(), klaar: false, klaarVan: {}, regels: null, broek: [null, null, null], broekVan: null, broekT0: 0, wapen: [null, null, null], naam: [null, null, null] };
   pvpNetStart();                                    // de ping en de speelbuffer (zie "de netcode"); het snelle kanaal per peer
   if (host){ pvp.broek[0] = mpBroekEigen(0); pvpGastErbij(conn); mpLobbyOpen(); }
   else { pvpPeerNieuw(conn, 0); pvpStatus('Connected, joining the lobby...'); }
@@ -65927,23 +66059,24 @@ function pvpGastErbij(conn){
   pvpStuur(pvp.peers[p], { t: 'welkom', mij: p, p: 0 });
   for (const q of pvp.spelers) if (q !== p && pvp.broek[q]) pvpStuur(pvp.peers[p], { t: 'broek', id: pvp.broek[q], p: q });
   for (const q of pvp.spelers) if (q !== p && pvp.wapen[q]) pvpStuur(pvp.peers[p], { t: 'wapen', w: pvp.wapen[q], p: q });
+  for (const q of pvp.spelers) if (q !== p && pvp.naam[q]) pvpStuur(pvp.peers[p], { t: 'naam', n: pvp.naam[q], p: q });
   if (pvp.fase === 'lobby' && pvp.spelers.length > 2){ pvpZend({ t: 'lobby', inst: pvp.inst, spelers: pvp.spelers }); mpLobbyToon(); mpBroekToon(); }
 }
 // de host: een gast is weg. Is er niemand meer, dan zoals eerst; anders speelt de rest door (of blijft in de lobby)
 function pvpGastWeg(p, t){
   if (!pvp || !pvp.host || !pvp.peers[p]) return;
-  const pe = pvp.peers[p], naam = mpBroekNaam(pvp.broek[p]) || 'A player';
+  const pe = pvp.peers[p], naam = mpSpelerNoem(p) || 'A player';
   delete pvp.peers[p]; delete pvp.anders[p]; delete pvp.nets[p]; delete pvp.klaarVan[p];
   if (pe.snelDc) try { pe.snelDc.close(); } catch (e){}
   try { pe.conn.close(); } catch (e){}
-  pvp.spelers = pvp.spelers.filter(q => q !== p); pvp.broek[p] = null; pvp.rematch[p] = false;
+  pvp.spelers = pvp.spelers.filter(q => q !== p); pvp.broek[p] = null; pvp.naam[p] = null; pvp.rematch[p] = false;
   if (!pvpGasten().length){ pvpWeg(t || 'The other player left.'); return; }
   pvpZend({ t: 'weg', wie: p });
   mpSpelerWeg(p, naam);
 }
 // bij iedereen: een speler is weg (de host weet het zelf, een gast hoort het met 'weg')
 function mpSpelerWeg(p, naam){
-  if (!pvp.host){ delete pvp.anders[p]; delete pvp.nets[p]; pvp.spelers = pvp.spelers.filter(q => q !== p); pvp.broek[p] = null; }
+  if (!pvp.host){ delete pvp.anders[p]; delete pvp.nets[p]; pvp.spelers = pvp.spelers.filter(q => q !== p); pvp.broek[p] = null; pvp.naam[p] = null; }
   if (pvp.fase === 'lobby'){ mpLobbyToon(); mpBroekToon(); return; }
   if (!pvp.coop){ pvpWeg(naam + ' left.'); return; }
   flashHint(naam + ' left the game');
@@ -66067,7 +66200,7 @@ function pvpOntvang(m){
     if (m.eind) pvpEinde(); else pvpNieuweRonde(m.n);
   } else if (m.t === 'lobby'){
     if (pvp.host) return;
-    pvp.inst = m.inst; pvp.klaar = false;
+    pvp.inst = m.inst; pvp.klaar = false; pvp.klaarVan = {};
     if (m.spelers) pvp.spelers = m.spelers.slice();
     if (pvp.fase === 'lobby'){ mpLobbyToon(); mpBroekToon(); }
   } else if (m.t === 'broek'){
@@ -66077,6 +66210,13 @@ function pvpOntvang(m){
   } else if (m.t === 'klaar'){
     if (!pvp.host) return;
     pvp.klaarVan[m.p] = !!m.aan; mpKnoppen();
+    pvpZend({ t: 'klaarStand', k: pvp.klaarVan });   // de gasten zien op de kaartjes wie Ready is
+  } else if (m.t === 'klaarStand'){
+    if (pvp.host || !m.k || typeof m.k !== 'object') return;
+    pvp.klaarVan = {}; for (const q of [1, 2]) pvp.klaarVan[q] = !!m.k[q];
+    if (pvp.fase === 'lobby') mpTeamToon();
+  } else if (m.t === 'naam'){
+    mpNaamAnder(m.p, m.n);
   } else if (m.t === 'start'){
     if (pvp.host || pvp.fase !== 'lobby') return;
     if (m.spelers) pvp.spelers = m.spelers.slice();
@@ -66084,7 +66224,7 @@ function pvpOntvang(m){
   } else if (m.t === 'lobbyTerug'){
     mpNaarLobby(pvp.host);                           // een gast drukte Escape: de host stuurt iedereen terug
   } else if (m.t === 'weg'){
-    if (!pvp.host) mpSpelerWeg(m.wie, mpBroekNaam(pvp.broek[m.wie]) || 'A player');
+    if (!pvp.host) mpSpelerWeg(m.wie, mpSpelerNoem(m.wie) || 'A player');
   } else if (m.t === 'bye'){
     if (pvp.host) pvpGastWeg(m.p, 'The other player left.'); else pvpWeg('The host left.');
   } else if (m.t === 'rematch'){
@@ -66271,6 +66411,7 @@ function pvpTekenEen(p, g, groundY, scale, cx, pbox, hitBy){
     ctx.fillStyle = i < (g.l || 0) ? '#e0412b' : 'rgba(0,0,0,0.5)'; ctx.fill(); ctx.stroke();
   }
   ctx.restore();
+  mpNaamTeken(p, sx, kop - r * 8, scale, g.d ? 0.55 : 1);   // zijn naam erboven (mpNamenZien)
   // zijn speer, in de vlucht of in de grond (javSchacht tekent de globale jav: even wisselen); in Co-op alleen als
   // hij neerkwam (in de grond, een wand of een bos), want in de vlucht zie je alleen je eigen speren
   const j = g.j;
@@ -67293,7 +67434,7 @@ function mpcKijkStap(){
 }
 function mpcKijkNaam(p){
   if (p === 'zelf') return 'yourself';
-  return mpBroekNaam(pvp.broek[p]) || 'your teammate';
+  return mpSpelerNoem(p) || 'your teammate';
 }
 function mpCoopCam(){
   if (!mpCoopAan() || !dead) return null;
@@ -67367,7 +67508,7 @@ function mpCoopTeken(groundY, scale, cx){
     ctx.beginPath(); ctx.arc(sx, y - r * 0.35, r * 0.55, 0, Math.PI * 2); ctx.moveTo(sx, y + r * 0.2); ctx.lineTo(sx, y + r * 1.2);
     ctx.moveTo(sx - r * 0.6, y + r * 0.55); ctx.lineTo(sx + r * 0.6, y + r * 0.55); ctx.stroke();
     if (pvp.spelers.length > 2 && S.voor !== pvp.mij){
-      const naam = mpBroekNaam(pvp.broek[S.voor]);
+      const naam = mpSpelerNoem(S.voor);
       if (naam){ ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(20,10,0,0.85)'; ctx.strokeText(naam, sx, y - r * 1.6); ctx.fillStyle = '#fff3c4'; ctx.fillText(naam, sx, y - r * 1.6); }
     }
   }
@@ -67409,7 +67550,7 @@ function mpCoopOntvang(m){
   if (m.t === 'epklaar'){ if (!pvp.host) mpEpKlaarLokaal(); return true; }
   if (m.t === 'epnaar'){ if (!pvp.host){ if (C.ep) C.ep.door = true; mpCoopStart(m.i); } return true; }
   if (m.t === 'cg'){ mpcGoudErbij(m.n, m.w); return true; }
-  if (m.t === 'geef'){ mpcGoudErbij(m.n, pvp.spelers.length > 2 ? 'from ' + mpBroekNaam(pvp.broek[m.p]).toLowerCase() : 'from your teammate'); return true; }
+  if (m.t === 'geef'){ mpcGoudErbij(m.n, pvp.spelers.length > 2 ? 'from ' + mpSpelerNoem(m.p, true) : 'from your teammate'); return true; }
   if (m.t === 'winkel'){ if (!pvp.host && !laadWacht) mpcWinkelIn(); return true; }
   if (m.t === 'winkelUit'){ if (!pvp.host) mpcWinkelUit(); return true; }
   if (m.t === 'wkklaar'){ C.wkKlaar[m.p] = !!m.aan; if (pvp.host) mpcWinkelKlaar(); if (C.inWinkel){ mpcWinkelBanner(); if (winkelUIAan) mpcWinkelToon(); } return true; }
@@ -67500,7 +67641,7 @@ function mpSoloOpen(){
   pvp = { host: true, solo: true, mij: 0, peers: {}, nets: {}, anders: {}, spelers: [0], sc: [0, 0, 0], ronde: 1, fase: 'lobby',
           t: 0, zendT: 0, sn: 0, wn: 0, jn: 0, qs: 0, qv: 0, laatsteAtk: -1, laatsteSw: -1, laatsteJav: null, mijn: null,
           raakSteek: -1, raakZwaai: -1, raakSpeer: -1, jVorig: null, bannerT: 0, rematch: [false, false, false], beelden: {}, weg: false,
-          inst, klaar: false, klaarVan: {}, regels: null, broek: [null, null, null], broekVan: null, broekT0: 0, wapen: [null, null, null] };
+          inst, klaar: false, klaarVan: {}, regels: null, broek: [null, null, null], broekVan: null, broekT0: 0, wapen: [null, null, null], naam: [null, null, null] };
   pvp.broek[0] = mpBroekEigen(0);
   pvpStatus('');
   showMenu('menuPvp');
@@ -67765,7 +67906,7 @@ function mpcWinkelKoop(q, aan){
   else if (q.k === 'gif'){ gifCarry++; invHud(); tekst = 'Poison in your bag. Press I to smear it on your spears.'; }
   else if (q.k === 'leven'){ K.leven++; pvp.levens++; lives++; drawLives(); }
   else if (q.k === 'amulet'){ K.amulet++; tekst = 'Bought: ' + q.naam + '. ' + Math.round(grisGrisKans() * 100) + '% chance a hit costs you no life.'; }
-  else if (q.k === 'geef'){ pvpZendAan(aan, { t: 'geef', n: MPC.geef }); tekst = 'You gave ' + (pvp.spelers.length > 2 ? mpBroekNaam(pvp.broek[aan]).toLowerCase() : 'your teammate') + ' ' + MPC.geef + ' gold.'; }
+  else if (q.k === 'geef'){ pvpZendAan(aan, { t: 'geef', n: MPC.geef }); tekst = 'You gave ' + (pvp.spelers.length > 2 ? mpSpelerNoem(aan, true) : 'your teammate') + ' ' + MPC.geef + ' gold.'; }
   else { K[q.k] = true; if (q.k === 'slot'){ RUG_MAX++; setSpearLabel(); } if (STOK.skins[q.k]) stokSkinLaad(q.k); }
   playHppotionPickupSound();
   mpCoopHud(); mpcWinkelToon();
@@ -67785,7 +67926,7 @@ function mpcWinkelToon(){
       const naam = document.createElement('b'), uit = document.createElement('small'), prijs = document.createElement('em');
       const trap = Array.isArray(q.prijs) ? (C.koop[q.k] || 0) : 0;
       naam.textContent = q.naam + (trap ? ' (' + trap + ' of ' + q.prijs.length + ')' : '');
-      uit.textContent = aan != null && anderen.length > 1 ? 'To ' + mpBroekNaam(pvp.broek[aan]).toLowerCase()
+      uit.textContent = aan != null && anderen.length > 1 ? 'To ' + mpSpelerNoem(aan, true)
                       : Array.isArray(q.uitleg) ? q.uitleg[Math.min(trap, q.uitleg.length - 1)] : q.uitleg;
       prijs.textContent = heb ? (Array.isArray(q.prijs) ? 'Sold out' : 'Bought') : mpcWinkelPrijs(q) + ' gold';
       b.append(naam, uit, prijs);
