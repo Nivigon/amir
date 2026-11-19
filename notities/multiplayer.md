@@ -114,10 +114,17 @@ loopt, en `pvpTeken` tekent de ander in de zijne. Geldt in Co-op en in Duel, wan
   Je eigen naam zie je niet. In Co-op en in het Duel.
 - **Namen zien of niet.** Het vinkje **Show names above heads** (`#mpnamen`, `amir.mpnamen`, standaard aan) is per speler en
   gaat niet over de lijn. Solo is het weg.
-- **Het team.** In de lobby onder de spelersregel (`#mpteam`, niet solo) per speler een kaartje: zijn Amir in de idle in zijn
-  broek (met de stokken het staande stokframe; wie rechts van jou staat kijkt naar links), naam, broek, wapen en Host, Ready of
-  Not ready. Getekend in de lus van het voorbeeld (`mpTeamTeken` in `mpBroekStart`), opnieuw opgebouwd alleen als er iets
-  verandert (`mpTeamSleutel`). Ready zag eerst alleen de host; nu stuurt hij `{t: 'klaarStand', k}` na elke Ready, en een
+- **Het team.** In de lobby onder de spelersregel (`#mpteam`, niet solo) per speler een heldenkaart (de opdrachtgever koos
+  uit drie varianten, 19-11-2026): zijn Amir in de idle in een gloed van zijn broekkleur (`--kl`, uit `MP_NAAM.kleur`), met de
+  stokken het staande stokframe (wie rechts van jou staat kijkt naar links), de naam in hoofdletters, broek en wapen, en
+  onderaan een strook Host, Ready of Not ready. Je eigen kaart heeft een gouden rand eromheen. Getekend in de lus van het
+  voorbeeld (`mpTeamTeken` in `mpBroekStart`), opnieuw opgebouwd alleen als er iets verandert (`mpTeamSleutel`).
+- **Live meekijken.** Elke klik van een ander op zijn broekpijltjes of wapenknop komt meteen over (`broek`, `wapen`). Zijn
+  kaart licht dan even op in zijn kleur (`.wissel`, `pvp.teamFlits`) en zijn Amir vloeit over van de oude naar de nieuwe
+  keuze (`mpTeamWissel`, `pvp.teamOud`, net zo lang als je eigen voorbeeld, `BROEK_VB.over`).
+- **Even groot met de stokken.** Het stokframe heeft boven het hoofd meer lucht dan de idle, maar dezelfde pixels per Amir;
+  `mpAmirVak` knipt het even hoog als de idle om het lijfmidden, zodat Amir met de stokken net zo groot staat (in het
+  eigen voorbeeld en op de kaarten, allebei via `mpAmirTeken`). Ready zag eerst alleen de host; nu stuurt hij `{t: 'klaarStand', k}` na elke Ready, en een
   `lobby`-bericht zet hem bij de gasten weer leeg.
 
 ### Het wapen: speer of stokken (gebouwd, 16-11-2026)
