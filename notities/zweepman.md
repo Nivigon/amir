@@ -26,7 +26,12 @@ en in Test 58.
 - **Het herstel** (`herstel`, `ZWM.herstel` s): de spreidstand met zijn rug naar je toe, de zweep gestrekt op de grond. Dit is
   het raam om te straffen. Daarna de terugweg (`terug`, `ZWM.terugFps`, tot `terugTot`) en `ZWM.cool` rust.
 - **Geraakt**: drie treffers (`ZWM.hp`, met de health-balk), een witte flits, een korte hitstop en een terugstoot. Dood: een
-  witte flits en wegvagen (`ZWM.vervaag`), `banSterf` en `vijandDood`. Een flinch en een echte dood zijn er nog niet.
+  witte flits en wegvagen (`ZWM.vervaag`), `banSterf` en `vijandDood`. Een flinch is er nog niet.
+- **De sterfval zonder fasen** (`zwmArmDood`, Co-op en elk level zonder `fasen`): de dodelijke treffer slaat zijn arm eraf
+  (een flits, de kreet `armeraf`, het bloedgeluid, de set `armeraf`) en meteen daarna valt hij met de val van fase 2 (de set
+  `dood`, zie "De dood in fase 2"), zonder te bevriezen, onder zijn doodskreet. Hij telt al bij de treffer als dood
+  (`vijandDood`). In `zwmDoodStap` is dat `s.dood.arm`. Een sluipaanval of een tik van het gif geeft nog de witte flits en
+  het wegvagen. De twee sets (`ZWM_DOOD_SETS`) laadt `zwmLaad` altijd mee, zodat ook een gast in Co-op ze heeft.
 
 ## Het ritme
 
