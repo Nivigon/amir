@@ -998,6 +998,8 @@ eigenlijke voethoogte getekend, wat op de straat wegvalt in de strook bovenkant 
   alleen dat.
 - **Kleur** (`kleur: 'oker'`): de doek omgekleurd naar rode oker, alleen de blauwe pixels (het hout blijft), een keer gebakken
   (`stadLuifelStrakBeeld`, de kleuren in `luifelStrak.kleuren`).
+- **Kleiner raam** (`raamHoog`, in Amir): een kleiner luik voor deze luifel dan `raamZij.hoog` (0,66). Ishmul heeft 0,56, met de
+  luifel op `h: 300` zodat het luik op de hoogte van de bovenkant van de deur begint.
 - **De trampoline** (`ritme: true`, `stadRitme`, `stadRitmeV`, `stadVeerVin`): hoogte bouw je op. Val je erop, dan stuiter je
   vanzelf terug met `ritme.demp` (0,6) keer de valsnelheid; onder `ritme.rust` (0,45 jumpV) blijf je staan, dus niets doen
   stuitert uit in een stuit of twee. Spring je op tijd bij een landing (binnen `ritme.raam`, 0,2 s ervoor of erna), dan is de
