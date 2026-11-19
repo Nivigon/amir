@@ -19849,6 +19849,24 @@ function cliffAt(){
   return { wPx, hPx, wall: w, leftWorld: w - CLIFF.l * wPx };
 }
 
+// de doodsanimatie van de slangen, zie "de dood van de slang" bij snakeImg
+const SLANG_DOOD = {
+  n: 17, W: 380, off: 45,
+  sets: { gewoon: { f: [0, 1, 2, 3, 4, 5, 7, 8, 9, 11, 12, 13, 15, 16], t: 0.083 },
+          snel:   { f: [0, 4, 6, 8, 10, 12, 14, 16], t: 0.06 } },
+  glij: 0.35,                                      // de terugstoot: zoveel van de oude vaart (420) bij een doodsanimatie
+  lig: 3, vervaag: 0.8,                            // seconden het lijk, dan zo lang vervagen
+  // het trefpunt per doodframe, in canvas-px: [x, y, dikte] op 30 en 50 procent van zijn lengte (voor de snee)
+  punt: { 0.3: [[122,114,44],[122,114,44],[124,115,43],[128,115,43],[129,116,41],[129,116,40],[127,118,38],[126,118,38],[124,119,35],[122,120,34],[121,120,33],[121,120,32],[119,120,32],[114,121,31],[113,121,31],[114,121,31],[114,121,31]],
+          0.5: [[172,111,35],[172,111,35],[175,114,35],[181,117,39],[185,118,38],[188,123,27],[187,124,26],[187,123,27],[188,122,28],[188,118,35],[188,116,38],[189,113,37],[189,111,35],[183,114,29],[182,114,28],[183,116,26],[184,122,26]] },
+  // per soort kill: welke set, welke snee (null: geen), op welk punt, en hoeveel druppels
+  soort: { steek: { set: 'gewoon', snee: 'snee_recht', t: 0.5, rot: 0.2, k: 1.6, drup: 7 },
+           laag:  { set: 'gewoon', snee: 'snee_dwars', t: 0.3, rot: -0.15, k: 2.2, drup: 5 },
+           worp:  { set: 'snel', snee: null, t: 0.5, drup: 8 },
+           klap:  { set: 'snel', snee: null, t: 0.5, drup: 2 },
+           stok:  { set: 'gewoon', snee: null, t: 0.55, drup: 1 },
+           anders: { set: 'gewoon', snee: null, t: 0.5, drup: 3 } }
+};
 const SNAKE_DIRS = { groen: 'enemies/slang1_zand/', zwart: 'enemies/slang2_roet/', knock: 'enemies/slang1_knock/' };
 const frameList = (dir, n) => [1,2,3,4,5,6,7,8].map(i => dir + n + '_' + i + '.png');
 const SPIT_FRAME = 3;        // op dit frame gaat de bek open en spuwt hij
@@ -21538,7 +21556,8 @@ function slangLaad(k){
   const d = SNAKE_DIRS[k];
   snk[k] = { idle: frameList(d,'idle').map(load),
              move: frameList(d,'move').map(load),
-             atk:  frameList(d,'attack').map(load) };
+             atk:  frameList(d,'attack').map(load),
+             dood: Array.from({ length: SLANG_DOOD.n }, (_, i) => load(d + 'dood_' + String(i).padStart(2, '0') + '.png')) };
 }
 function slangLaadLevel(lv){
   if (!lv) return;
@@ -38891,6 +38910,7 @@ function updateSnake(s, dt, plats, cliff){
   }
 
   if (s.state === 'dying'){
+    if (slangDoodStap(s, dt, plats, cliff)) return;   // de doodsanimatie, het lijk en het vervagen (zie "de dood van de slang")
     knockStep(s, dt, plats, cliff, SNK_W * snakeSScale() * 0.45, 60);
     s.alpha -= dt * 1.6;
     s.acc += dt * 10;
@@ -49926,8 +49946,101 @@ function whiteCopy(img, amount){
   return flashCv;
 }
 
+// ---- de dood van de slang ----
+// Een doodsanimatie uit Grok (tools: de frames staan als dood_NN.png in de map van elke kleur, op een breder canvas dan de
+// gewone frames: SLANG_DOOD.W breed, met het gewone frame op x SLANG_DOOD.off, zelfde schaal en grondlijn). Twee sets uit
+// dezelfde frames: gewoon (de kop zakt weg, hij valt plat) en snel (bij een worp of de grondklap: hij klapt neer). Daarna
+// blijft het lijk SLANG_DOOD.lig seconden liggen en vervaagt het in SLANG_DOOD.vervaag. Een steek of de lage zwaai laat een
+// snee achter op het lijf (geclipt op zijn silhouet, schuift mee met het frame), stokken en de worp niet; elke kill geeft
+// een paar druppels die als spatjes op de grond blijven liggen tot het lijk weg is. Ontbreken de frames, dan de oude dood.
+function slangDoodKlaar(s){
+  const set = snk[s.kind] || snk.groen;
+  return !!(set && set.dood && set.dood.every(im => im && im.complete && im.naturalWidth));
+}
+// een stap van de dood; false als de frames er niet zijn (dan doet updateSnakes de oude dood)
+function slangDoodStap(s, dt, plats, cliff){
+  if (!s.dd){
+    if (!slangDoodKlaar(s)) return false;
+    const K = SLANG_DOOD.soort[s.ddSoort] || SLANG_DOOD.soort.anders;
+    s.dd = { K, set: SLANG_DOOD.sets[K.set], i: 0, t: 0, lig: 0, drup: [], spat: [], gespoten: false };
+    if (K.snee) bloedSneeLaad();
+    s.vx *= SLANG_DOOD.glij;
+  }
+  const d = s.dd;
+  knockStep(s, dt, plats, cliff, SNK_W * snakeSScale() * 0.45, 60);
+  if (d.i < d.set.f.length - 1){
+    d.t += dt;
+    while (d.t >= d.set.t && d.i < d.set.f.length - 1){ d.t -= d.set.t; d.i++; }
+  } else {
+    d.lig += dt;
+    if (d.lig > SLANG_DOOD.lig) s.alpha = Math.max(0, 1 - (d.lig - SLANG_DOOD.lig) / SLANG_DOOD.vervaag);
+    if (s.alpha <= 0) s.state = 'gone';
+  }
+  for (const p of d.drup){                         // de druppels: wereld-px opzij, hoogte in px boven zijn grond
+    p.x += p.vx * dt; p.h += p.vh * dt; p.vh -= 1400 * dt;
+    if (p.h <= 0){ p.weg = true; if (Math.random() < 0.7) slangDoodSpat(d, p.x); }
+  }
+  d.drup = d.drup.filter(p => !p.weg);
+  return true;
+}
+function slangDoodSpat(d, x){
+  const blobs = [];
+  for (let k = 0, n = 3 + (Math.random() * 3 | 0); k < n; k++)
+    blobs.push([Math.random() * 12 - 6, Math.random() * 2 - 1, 1.2 + Math.random() * 2.8]);
+  d.spat.push({ x, blobs });
+}
+// het frame van de dood, of null
+function slangDoodImg(s){
+  if (!s.dd) return null;
+  const set = snk[s.kind] || snk.groen;
+  return set.dood[s.dd.set.f[s.dd.i]];
+}
+// de slang in zijn doodsframe tekenen, met de snee, de druppels en de spatjes. (sx, sy) is de linkerbovenhoek van het
+// gewone frame op het scherm, sS de schaal, sw de breedte van het gewone frame, gy de grond onder hem
+function slangDoodTeken(s, img, sx, sy, sS, sw, gy){
+  const d = s.dd, D = SLANG_DOOD, f = d.set.f[d.i];
+  const W2 = Math.max(1, Math.round(D.W * sS)), H2 = Math.max(1, Math.round(SNK_H * sS));
+  const links = s.side === 1 ? sx + sw + D.off * sS - W2 : sx - D.off * sS;   // gespiegeld als hij van rechts kwam
+  const pt = D.punt[d.K.t >= 0.4 ? 0.5 : 0.3][f];
+  const px = s.side === 1 ? links + W2 - pt[0] * sS : links + pt[0] * sS, py = sy + pt[1] * sS;
+  if (!d.gespoten){                                // de druppels bij de treffer, van Amir af
+    d.gespoten = true;
+    const weg = s.x < playerX() ? -1 : 1, sc = sS / 0.5;
+    for (let k = 0; k < d.K.drup; k++)
+      d.drup.push({ x: s.x + (px - (sx + sw / 2)), h: Math.max(4, gy - py), vx: weg * (40 + Math.random() * 220) * sc,
+                    vh: (140 + Math.random() * 300) * sc, r: (1.6 + Math.random() * 2) * sc });
+    if (d.K.drup >= 3) for (let k = 0; k < 2; k++) slangDoodSpat(d, s.x + (Math.random() * 60 - 40) * sc);
+  }
+  const C = SNKD.kleur, a = Math.max(0, s.alpha);
+  const naarScherm = x => sx + sw / 2 + (x - s.x);
+  ctx.save(); ctx.globalAlpha = a * 0.85; ctx.fillStyle = C.vlek;          // de spatjes op de grond
+  for (const sp of d.spat) for (const b of sp.blobs){
+    ctx.beginPath(); ctx.ellipse(naarScherm(sp.x) + b[0] * sS * 2, gy + b[1], b[2] * sS * 3.2, b[2] * sS, 0, 0, 7); ctx.fill();
+  }
+  ctx.restore();
+  const wd = werkDoek('slangDood', W2, H2), g2 = wd.getContext('2d');
+  g2.save(); g2.globalCompositeOperation = 'source-over'; g2.globalAlpha = 1; g2.clearRect(0, 0, W2, H2);
+  if (s.side === 1){ g2.translate(W2, 0); g2.scale(-1, 1); }
+  g2.drawImage(s.flash > 0 ? whiteCopy(img, s.flash * 4) : img, 0, 0, W2, H2);
+  g2.restore();
+  const si = d.K.snee && bloedSnee[d.K.snee];
+  if (si && si.naturalWidth){                      // de snee, alleen op zijn eigen pixels
+    const ww = pt[2] * sS * d.K.k, hh = ww * si.naturalHeight / si.naturalWidth;
+    g2.save(); g2.globalCompositeOperation = 'source-atop'; g2.globalAlpha = 0.92;
+    g2.translate(px - links, py - sy); g2.rotate(s.side === 1 ? -d.K.rot : d.K.rot); if (s.side === 1) g2.scale(-1, 1);
+    g2.drawImage(si, -ww / 2, -hh / 2, ww, hh);
+    g2.restore();
+  }
+  ctx.save(); ctx.globalAlpha = a; ctx.drawImage(wd, links, sy); ctx.restore();
+  for (const p of d.drup){
+    const x = naarScherm(p.x), y = gy - p.h;
+    ctx.save(); ctx.globalAlpha = a; snkdDruppel(x, y, p.r, p.vx, -p.vh); ctx.restore();
+  }
+}
+
 function snakeImg(s){
   const set = snk[s.kind] || snk.groen;
+  if (s.state === 'dying' && s.dd) return slangDoodImg(s);
   if (s.state === 'bite') return set.atk[Math.min(s.frame, set.atk.length - 1)];
   if ((s.state === 'walk' && !s.edge) || s.state === 'retreat' || s.state === 'patrouille') return set.move[s.frame % set.move.length];
   return set.idle[s.frame % set.idle.length];
@@ -52675,12 +52788,15 @@ function loop(now){
       ctx.beginPath(); ctx.ellipse(sx + sw / 2, groundY - sBase, sw * 0.32, sh * 0.06, 0, 0, Math.PI * 2);
       ctx.fill(); ctx.restore();
 
+      if (s.state === 'dying' && s.dd) slangDoodTeken(s, simg, sx, sy, sScale, sw, groundY - sBase);
+      else {
       ctx.save();
       ctx.globalAlpha = Math.max(0, s.alpha);
       ctx.translate(sx, sy);
       if (s.side === 1){ ctx.translate(sw, 0); ctx.scale(-1, 1); }   // came from the right
       ctx.drawImage(s.flash > 0 ? whiteCopy(simg, s.flash * 4) : simg, 0, 0, sw, sh);
       ctx.restore();
+      }
 
       // boxes mirror along with the sprite
       const bl = s.side === 1 ? SNK_W - SNK_BOX.r : SNK_BOX.l;
@@ -52743,7 +52859,7 @@ function loop(now){
           else {
           if (slagEen(s) && stokRaakKlap(enemyTakeHit(s))){
           hits++; hitsEl.textContent = hits;
-          s.state = 'dying'; s.flash = 0.25;
+          s.state = 'dying'; s.flash = 0.25; s.ddSoort = atkStok ? 'stok' : 'steek';
           s.vx = (facing === 1 ? 420 : -420);
           vijandDood(false, s);
           s.frame = 0; s.acc = 0;
@@ -52757,7 +52873,7 @@ function loop(now){
         javHitEnemy();
         if (enemyTakeHit(s)){
         hits++; hitsEl.textContent = hits;
-        s.state = 'dying'; s.flash = 0.25;
+        s.state = 'dying'; s.flash = 0.25; s.ddSoort = 'worp';
         s.vx = (jav.dir === 1 ? 420 : -420);
         vijandDood(false, s);
         s.frame = 0; s.acc = 0;
@@ -52768,7 +52884,7 @@ function loop(now){
         s.sweptId = sweepId;
         if (enemyTakeHit(s)){
         hits++; hitsEl.textContent = hits;
-        s.state = 'dying'; s.flash = 0.25;
+        s.state = 'dying'; s.flash = 0.25; s.ddSoort = sweepLive ? (atkStok ? 'stok' : 'laag') : 'klap';
         s.vx = (s.x < playerX() ? -420 : 420);
         vijandDood(false, s);
         s.frame = 0; s.acc = 0;

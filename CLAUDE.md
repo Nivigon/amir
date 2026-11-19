@@ -306,6 +306,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | wapenrek: een houten rek in de stad met speren; E pakt er een, in de hand of op de rug | `WAPENREK`, `wapenrekken`, `rekTrek` | notities/wapenrek.md |
 | rotsdecor: losse rotsstukken als props, lui geladen, in de Maker onder Decor | `ROTS_FAM`, `rotsSoorten`, `propLaad`, `mkVulRots` | notities/decor.md |
 | slangen: kleur, zicht en patrouille | `SNAKE_DIRS`, `slangZiet`, `startPatrouille` | notities/slangen.md |
+| de dood van de slang: een doodsanimatie (gewoon of snel), snee en druppels per soort kill, het lijk vervaagt na 3 s | `SLANG_DOOD`, `slangDoodStap`, `slangDoodTeken` | notities/slangen.md |
 | zwarte panter, de witte panter (baas, regel 12), de hyena | de grote vijanden: `boss`, `arena`, `hitPanther` |  |
 | de bandiet: een rover met een kromzwaard | `BAN`, `banLaad`, `makeBandiet` | notities/bandiet.md |
 | de kruisboogbandiet: herlaadt (de tell), volgt Amir over twintig hoeken, blinkt en schiet; drie doden, de speer in zijn borst | `KRB`, `krbDoelHoek`, `krbSpeerVolg`, `hitKruisboog(s, soort)`; de hoorn (ontwijkt de worp, rolt, blaast twee hyena's erbij): `KRB_HOORN`, `krbWerpGezien`, `krbHoornStap` |  |
