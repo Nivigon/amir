@@ -52673,6 +52673,7 @@ function loop(now){
     speervalTeken(groundY, scale, cx, false);     // de speer uit de speerval, als hij uit de wand is
     skeletTeken(groundY, scale, cx);              // skeletten, met of zonder speer
     losTeken(groundY, scale, cx);                 // speren die los op de grond liggen
+    if (pvp) pvpLosTeken(groundY, scale, cx);     // en die van de ander in Co-op en het Duel
     ravijnRuneTeken(groundY, scale, cx);          // de rots met de rune bij het ravijn
     if (rolDoelen.length) rolDoelTeken(groundY, scale, cx);   // de oefendoelen van de rol-worp
 
@@ -65389,7 +65390,7 @@ const pvpNu = () => performance.now() / 1000;
 // de vijandstand bevestigd heeft (vAk). Een gast heeft er een, naar de host (slot 0). Elk bericht draagt het slot van wie
 // het maakte (`p`); de host zet het zelf op wat binnenkomt (een gast kan niet voor een ander spreken) en stuurt wat de
 // andere gasten ook moeten weten door (MP_DOOR), en een bericht voor een gast (`naar`) alleen naar die. Zie notities/pvp.md.
-const MP_DOOR = new Set(['s', 'broek', 'wapen', 'rek', 'symPak', 'wkklaar', 'rematch', 'gk']);
+const MP_DOOR = new Set(['s', 'ls', 'broek', 'wapen', 'rek', 'symPak', 'wkklaar', 'rematch', 'gk']);
 function pvpGasten(){ return pvp ? Object.keys(pvp.peers).map(Number).filter(p => p !== 0) : []; }
 function pvpRelay(){ return !!pvp && Object.values(pvp.peers).some(pe => pe.conn.relay); }
 function pvpPeerNieuw(conn, p){
@@ -66017,6 +66018,8 @@ function pvpOntvang(m){
     const pe = pvp.host && pvp.peers[m.p];
     if (pe && m.ak != null && m.ak > pe.vAk) pe.vAk = m.ak;   // Co-op: tot hier heeft deze gast de vijandstand binnen
     pvpNetIn(N, 's', m, o => { A.g = Object.assign({}, o); });
+  } else if (m.t === 'ls'){
+    if (m.p !== pvp.mij && Array.isArray(m.l)) pvpAnderVan(m.p).ls = m.l.slice(0, PVP_LOS.max);   // zijn losse speren (pvpLosTeken)
   } else if (m.t === 'au'){
     pvpRaakFx();                                     // ik heb hem geraakt: dat wil de aanvaller voelen en horen
   } else if (m.t === 'speerRaak'){
@@ -66149,6 +66152,7 @@ function pvpStap(rdt){
     if (pvp.fase === 'vecht'){ pvpZend({ t: 'ko' }); pvpRondeUit(pvpDuelAnder()); }
   }
   pvpAnderStap();                                    // de andere Amirs uit de speelbuffer, tussen twee standen in
+  pvpLosZend(rdt);                                   // mijn losse speren op de grond, voor het beeld van de anderen
   pvp.zendT -= rdt;
   if (pvp.zendT <= 0 && pvp.mijn){
     pvp.zendT = 1 / (pvpRelay() ? PVP_RELAY.hz : PVP.hz);
@@ -66164,6 +66168,42 @@ function pvpBeeld(src){
   let im = pvp.beelden[src];
   if (!im){ im = new Image(); im.src = src; pvp.beelden[src] = im; }
   return im.complete && im.naturalWidth ? im : null;
+}
+// ---- multiplayer: de losse speren van de ander ----
+// Mijn speren die los op de grond liggen (losseSperen, soort 'eigen': een die ik liet liggen voor een andere, een van het
+// rek die ik gooide en weer neerlegde) gaan als lijst naar de anderen, alleen als die lijst verandert en voor de zekerheid
+// elke PVP_LOS.opnieuw seconden zolang er iets ligt (een gast die later begon, een nieuwe ronde die anders leegmaakt).
+// Bij hen is het alleen beeld: oprapen kan alleen wie hem gooide. Zijn speer in de grond (jav) komt al mee in 's' (j).
+const PVP_LOS = { opnieuw: 2, max: 12 };
+function pvpLosZend(rdt){
+  const l = [];
+  for (const sp of losseSperen){
+    if (sp.soort !== 'eigen') continue;
+    l.push([Math.round(sp.x), Math.round(sp.h), sp.zij, sp.blauw || 0]);
+    if (l.length >= PVP_LOS.max) break;
+  }
+  const sig = JSON.stringify(l);
+  pvp.losT = (pvp.losT || 0) - rdt;
+  if (sig === pvp.losSig && (!l.length || pvp.losT > 0)) return;
+  pvp.losSig = sig; pvp.losT = PVP_LOS.opnieuw;
+  pvpZend({ t: 'ls', l });
+}
+// in het tekenblok, bij de eigen losse speren (losTeken): die van de anderen, net zo getekend
+function pvpLosTeken(groundY, scale, cx){
+  if (!pvp || !imgReady(javImg)) return;
+  const len = javLen(scale), kk = len / JAV.w;
+  for (const k in pvp.anders){
+    const l = +k !== pvp.mij && pvp.anders[k].ls;
+    if (!l) continue;
+    for (const [x, h, zij, b] of l){
+      const sx = cx + (x - world), gy = groundY - h * scale;
+      if (sx < -W || sx > W / viewZoom() + W) continue;
+      ctx.save();
+      ctx.translate(sx, gy - 6 * scale); ctx.scale(-zij, 1);
+      ctx.drawImage(vaanBlauw(javImg, b || false), -JAV.tipX * kk, -JAV.tipY * kk, JAV.w * kk, JAV.h * kk);
+      ctx.restore();
+    }
+  }
 }
 // in het tekenblok, na Amir: de andere Amirs (in Co-op een of twee teamgenoten, in het Duel de tegenstander)
 function pvpTeken(groundY, scale, cx, pbox, hitBy){
@@ -66197,14 +66237,15 @@ function pvpTekenEen(p, g, groundY, scale, cx, pbox, hitBy){
     ctx.fillStyle = i < (g.l || 0) ? '#e0412b' : 'rgba(0,0,0,0.5)'; ctx.fill(); ctx.stroke();
   }
   ctx.restore();
-  if (pvp.coop) return;                             // Co-op: je ziet alleen je eigen speren, en elkaar raken kan niet
-  // zijn speer, in de vlucht of in de grond (javSchacht tekent de globale jav: even wisselen)
+  // zijn speer, in de vlucht of in de grond (javSchacht tekent de globale jav: even wisselen); in Co-op alleen als
+  // hij neerkwam (in de grond, een wand of een bos), want in de vlucht zie je alleen je eigen speren
   const j = g.j;
-  if (j && imgReady(javImg)){
+  if (j && imgReady(javImg) && (!pvp.coop || j.st !== 'vlucht')){
     const eigen = jav;
     jav = { x: j.x, h: j.h, sa: j.sa, dir: j.dir, state: j.st, t: j.t, blauw: j.b, wob: 0, sag: 0, kantel: 0, los: 0 };
     try { javSchacht(cx + (j.x - world), groundY - j.h * scale, scale); } finally { jav = eigen; }
   }
+  if (pvp.coop) return;                             // Co-op: elkaar raken kan niet
   // de vorige plek van zijn speer altijd bijwerken, ook als ik onkwetsbaar ben of hieronder al geraakt word: anders
   // bleef een oude plek staan, en na een rol trok de speer een vak van daar tot nu en raakte hij alsnog
   const jVorig = pvp.jVorig;
