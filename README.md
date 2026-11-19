@@ -891,6 +891,11 @@ zonder te springen. De bandieten, de schildbandiet, de kruisboogschutter en de h
 plein gewoon de trap af komt. Slangen en schorpioenen blijven beneden. Gewone treden en terrassen houden vijanden tegen zoals
 altijd; alleen een terras met `opstap: true` is een opstapje.
 
+In **Test 79: Drop through** zak je door hout: hou **pijl omlaag** vast en druk **springen** op een houten galerij, een
+trapbalkon of het rieten dak of de tafel van een kraam, en Amir valt erdoorheen naar wat eronder ligt. Een dak van leem, een
+leemmuur en rots blijven dicht; daar loop je gewoon van de rand. Vijanden doen het niet. In de sandbox zet **Drop through**
+onder De stad het aan.
+
 Amir rent in elk level met de nieuwe ren: licht voorover, met lange passen, de speer rechtop in zijn hand, bij
 lopen en sprinten. In **Test 75: New run** kun je hem goed bekijken. Het tempo van zijn benen volgt zijn snelheid, zodat zijn voeten niet glijden. Een lange vlakte om te sprinten, twee keien om over te springen en daarna twee
 bandieten; je kunt er niet dood. In de sandbox zet de knop **Nieuwe ren** hem uit, dan rent hij weer de oude ren.

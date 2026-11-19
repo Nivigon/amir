@@ -524,6 +524,23 @@ brug moeten kunnen lopen.
 Test 78 (Small steps) is het proefstuk: drie opstapjes van 28 naar een plein met een bandiet en een schildbandiet, drie
 omlaag, een hyena en een slang, en een stoeprand met een kruisboogschutter en een bandiet.
 
+## Doorzakken
+
+`DOORVAL`, `doorvalStart`, `doorvalNegeer`, `doorvalAan`. Pijl omlaag vasthouden en springen op een dunne houten vloer
+(`galerij`, `balkon`, `putbalk`, `tafel`, `riet` uit `stadPlats`) en Amir zakt erdoorheen in plaats van te springen. Het idee
+kwam van een speler in de Co-op-stad. Omlaag alleen kan niet: dat is bukken, kruipen en de lage zwaai.
+
+- `doorvalStart` (in `startJump`) zet `onGround` uit en een afstapje in gang; `DOORVAL.duur` (0,3 s) lang telt de vloer
+  op die hoogte niet als landingsplek in `updateJump`. Daarna land je gewoon op wat eronder ligt, met de gewone landing.
+- Staat er op dezelfde hoogte iets massiefs onder de voeten (een dak, de grond, een terras), dan gebeurt er niets en is het
+  een gewone sprong. Een dak van leem (`stad: 'dak'`) en de stam van een takel doen niet mee.
+- Vijanden doen het niet: hun vloer komt uit `vloerBij` en daar verandert niets.
+- Aan met `doorval: true` in een level (alleen Test 79), in de sandbox met **Drop through** onder De stad. Nog niet in de
+  Co-op-map of de episodes: dat is de volgende keuze.
+
+Test 79 (Drop through) is het proefstuk: een kraam naar een galerij van 401 met een bandiet eronder, een toren van galerijen
+op 401, 580 en 760 met een bandiet boven en een schildbandiet beneden, en een markt met twee rieten kramen.
+
 ## De leemmuur
 
 `LEEM`, `leemMuurTeken` (in `drawClimb`)
