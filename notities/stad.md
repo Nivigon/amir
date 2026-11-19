@@ -546,8 +546,8 @@ op 401, 580 en 760 met een bandiet boven en een schildbandiet beneden, en een ma
 `TINT`, `tintStap`, `tintBak`, `tintMatrix`, `tintWis`; `level.tint`
 
 Een level met `tint: 'wit'` (een sleutel uit `TINT`) krijgt de stad in een andere kleur: de huizen, de verte en het paleis, de
-straat, de stoep, de pleinvloer, de treden, de galerij en de brug, de kramen en de fontein. De luifels, de gordijnen en de
-luiken houden hun eigen kleur (`tintNiet`), en de savanne, Amir en de vijanden blijven zoals ze zijn. Ishmul heeft 'wit'.
+straat, de stoep, de pleinvloer, de treden, de galerij en de brug, de kramen en de fontein. De luifels, de gordijnen, de
+luiken, de kruiken en de kramen houden hun eigen kleur (`tintNiet`), en de savanne, Amir en de vijanden blijven zoals ze zijn. Ishmul heeft 'wit'.
 
 - **Een keer omgekleurd**: `tintStap` (aan het begin van `scene`) kleurt elke plaat uit `stadImgs` en de fonteinplaat een keer
   per pixel om zodra hij geladen is (`tintBak`, een canvas met `naturalWidth` en `complete`, zodat de rest hem als plaat
@@ -557,6 +557,11 @@ luiken houden hun eigen kleur (`tintNiet`), en de savanne, Amir en de vijanden b
   in plaats van 34. Niet terugzetten.
 - **De getallen** zijn sepia, verzadiging en helderheid zoals de CSS-filters (`tintMatrix`), variant 3 uit de beelden die de
   opdrachtgever koos.
+- **De savanne en het stof**: een savannestrook (`grondSoort`) krijgt een mildere tint (`TINT.wit.savanne`, `tintSavanne`) en
+  de overgang naar de straat loopt in vier stappen over anderhalve rand; het stofwolkje is op de straat licht
+  (`TINT.wit.stof`, `puffPic(wx)`) en op de savanne gewoon.
+- **Kruiken en kramen** (`voet`, `riet`, `doek`) houden hun eigen kleur; van het voetdecor volgen alleen de stukken in de
+  straatkleur (zandhoop, stenen, puin) de tint (`voetTint`).
 - `readLevel` houdt `tint` vast; `TINT` is een `var`, want `readLevel` draait al bij het opstarten.
 
 ## De leemmuur
