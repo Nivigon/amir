@@ -380,6 +380,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `sneak` | `true` (naast `zicht`): de sluipaanval. Een mens-vijand (bandiet, schildbandiet, kooiman, meelman, kruisboogbandiet, zweepman) hoort je achter zijn rug in plaats van je te zien (kruipen en stilstaan stil, lopen tot net buiten steekafstand, sprinten van ver, een worp, treffer, klap of neerkomende speer geeft een puls), krijgt argwaan als je vlak achter hem staat en kijkt dan om, en een treffer van achteren op wie je niet opmerkte is in een klap dood (bij de schildbandiet langs het schild). Spawnvlaggen `rug`, `draai`, `pat`. Een nieuw level krijgt `sneak: true`; alleen Test 61 heeft het (zie `notities/sneak.md`) |
 | `hpBalk` | `true` of een lijst soorten: 3 levens met een health-balkje boven het hoofd, ook voor Amir; de schildbandiet krijgt een schildbalk erboven. Zonder veld uit, een nieuw level krijgt `hpBalk: true` (zie `notities/velden.md`) |
 | `slangEenKlap` | `true`: elke slang (zand, zwart, knock en fosfor) is in een klap dood, ook met `hpBalk` aan. Een nieuw level krijgt `slangEenKlap: true`; Oaktown (makkelijk) heeft het (`SLANG_EEN_KLAP`, in `hpBalkAan`) |
+| `hyOmkeer` | `true`: een hyena rent na zijn uitval niet het level uit maar draait net buiten beeld om (`HY_OMKEER`) en komt opnieuw dreigen, of eerder als hij ergens tegenaan loopt; met het zicht wacht een hyena die je kwijt is net buiten beeld. De norm: een nieuw level krijgt `hyOmkeer: true`, Co-op, Co-op solo, de Maker en de sandbox (knop **Draaien om** onder Vijanden) hebben het. De bestaande episodes niet: daar rennen ze nog weg (`hyOmkeerAan`, `hyBuitenRand`) |
 | `golf` | `true` of `{ruw}`: de golvende rand. De kruin van de grond, een rotsterras, het dak en de vloer van een gang en het zwarte terrein krijgen een golvende omtrek met textuur, druipstenen, keien en hangblokken (zie `notities/golf.md`); `ruw` schaalt de golven, 1 is de maat uit `GOLF`. Zonder veld uit; alleen Test 49 heeft het |
 | `hoogUitzicht` | `true`: gestapelde dikke grondlagen zien er op hoogte hetzelfde uit als de basis (zie `notities/velden.md`) |
 | `view` | een getal van 0,5 tot 1: uitgezoomd spelen; een nieuw level krijgt standaard `view: 0.8` (zie `notities/velden.md`) |
@@ -465,7 +466,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
    staat standaard op die laptop-zoom (zie het veld `view`). De bestaande episodes blijven staan
    zoals ze zijn (rule 1), dus pas hun view niet mee aan. Zet er ook `hpBalk: true` in: elke
    vijand en Amir krijgt in een nieuw level een health-balk (zie "health-balk"). Zet er ook
-   `slangEenKlap: true` bij: slangen blijven in een nieuw level altijd in een klap dood. En `zicht: true`:
+   `slangEenKlap: true` bij: slangen blijven in een nieuw level altijd in een klap dood. En `hyOmkeer: true`: hyena's draaien na hun uitval om in plaats van het level uit te rennen. En `zicht: true`:
    een vijand ziet je dan alleen als er niets tussen zit (zie "zicht"). En `sneak: true`: de
    sluipaanval, een mens-vijand hoort je achter zijn rug in plaats van je te zien (zie "sneak"). En `camera: true`: de
    meekijkende camera (zie het veld `camera`); een arena-level mag het ook hebben, daar neemt de

@@ -275,6 +275,12 @@ en de meldingen van de stad" in `notities/maker.md`); daar staan ook de gevels, 
 `notities/plan-stad-maker.md` is klaar).
 
 Een galerij over meerdere huizen (`van` tot `tot`) loopt door over de kieren tussen de huizen, op elke schermmaat.
+Twee galerijen op dezelfde hoogte die elkaar raken (minder dan een middenstuk ertussen) tekent en beloopt het spel als
+een doorlopende galerij, en net zo een balkon van een buitentrap dat tegen een galerij op zijn hoogte aankomt (Stad 2 en
+Beleg 2 op een laptop): de galerij loopt dan door tot de muur, met de opening van de trap erin, zonder de eindpalen
+midden op het dek en zonder de schoren van het balkon (`stadGalerijMaten`, `stadBalkonSamen`). Alles wat een galerij
+tekent of als vloer kent leest die lijst; alleen de lift (`takelGalerijStap`) wijst nog naar een galerij op zijn index.
+Een echt gat, om over te springen, blijft een gat.
 Dat is de lange looprand van Stad 1, met het gevecht erop. Een rij daken loopt alleen door als de huizen elkaar op
 die schermmaat raken.
 
@@ -397,6 +403,18 @@ een verdieping omhoog. De treden zijn altijd even groot (de schaal hangt aan de 
 - Aan de andere kant van het huis kom je boven uit: op een balkon (`balkon`: breedte in Amir, standaard 1,6, met twee
   schoren naar de muur), of met `balkon: 0` op een galerij die daar al loopt. Op die plek zit altijd een opening in de
   leuning (`gat`, 0,62 Amir); dat is ook de plek waar je weer naar beneden gaat.
+- Voor de voet van een trap staat nooit een leuning: begint een trap op een galerij of balkon (`niveau` 1 of hoger),
+  dan gaat de leuning van dat dek open voor de onderste treden, van de leuningpaal tot de muur (`STAD_TRAP.voet`, in
+  bronpx van `trap.png`; `stadTrapVoetGat`, `stadTrapVoetGaten`). Dat zit in de tekencode van het dek zelf
+  (`stadGalerijGaten`, het balkon in `stadTrapVoor`), dus elke trap, ook een nieuwe, krijgt het vanzelf. Alleen dat stuk
+  gaat eruit; de rest van de leuning blijft, en de leuning van het bordes bovenaan ook (die hoort daar). Een nieuw soort
+  dek waar een trap op kan beginnen haalt zijn openingen ook uit `stadTrapVoetGaten`. Komt er een nieuw trapplaatje, meet
+  `voet` dan opnieuw.
+- Het bordes loopt achter het huis de schaduw in: alleen het hout (leuning en planken) wordt naar de muur toe donkerder
+  (`stadBordesDiepte`, met het donkere silhouet van de galerij, `stadGalerijDonker`), even sterk als de slagschaduwen en
+  's avonds en 's nachts net zo zacht. Vroeger lag er een donkere rechthoek over het hele bordes (`stadMuurSchaduw`), die
+  ook de lege muur tussen de palen kleurde: een blok met harde randen op de muur. Leg dus nooit een vlak over een stuk
+  met een leuning; donker het hout zelf.
 - E bij de voet of in de opening (`eDruk`): Amir vervaagt (`STAD_TRAP.uit`, `stadTrapAlfa`), staat dan al aan de andere
   kant, met zijn gezicht van het huis af, en de camera glijdt in `glij` seconden zacht van waar hij stond naar waar hij bij de
   uitgang hoort (`stadTrapCamX` in de camEase-keten, `stadTrapCamY` in `updateCamera`, met het vooruitkijken van de
@@ -505,6 +523,23 @@ brug moeten kunnen lopen.
 
 Test 78 (Small steps) is het proefstuk: drie opstapjes van 28 naar een plein met een bandiet en een schildbandiet, drie
 omlaag, een hyena en een slang, en een stoeprand met een kruisboogschutter en een bandiet.
+
+## Doorzakken
+
+`DOORVAL`, `doorvalStart`, `doorvalTik`, `doorvalNegeer`, `doorvalAan`. Twee keer snel pijl omlaag (binnen `DOORVAL.tik`, 0,3 s; omlaag plus pijl omhoog was op een laptop onhandig), of op een telefoon de stick omlaag plus de springknop, op een dunne houten vloer
+(`galerij`, `balkon`, `putbalk`, `tafel`, `riet` uit `stadPlats`) en Amir zakt erdoorheen in plaats van te springen. Het idee
+kwam van een speler in de Co-op-stad. Omlaag alleen kan niet: dat is bukken, kruipen en de lage zwaai.
+
+- `doorvalStart` (in `startJump`) zet `onGround` uit en een afstapje in gang; `DOORVAL.duur` (0,3 s) lang telt de vloer
+  op die hoogte niet als landingsplek in `updateJump`. Daarna land je gewoon op wat eronder ligt, met de gewone landing.
+- Staat er op dezelfde hoogte iets massiefs onder de voeten (een dak, de grond, een terras), dan gebeurt er niets en is het
+  een gewone sprong. Een dak van leem (`stad: 'dak'`) en de stam van een takel doen niet mee.
+- Vijanden doen het niet: hun vloer komt uit `vloerBij` en daar verandert niets.
+- Aan met `doorval: true` in een level (alleen Test 79), in de sandbox met **Drop through** onder De stad. Nog niet in de
+  Co-op-map of de episodes: dat is de volgende keuze.
+
+Test 79 (Drop through) is het proefstuk: een kraam naar een galerij van 401 met een bandiet eronder, een toren van galerijen
+op 401, 580 en 760 met een bandiet boven en een schildbandiet beneden, en een markt met twee rieten kramen.
 
 ## De leemmuur
 
