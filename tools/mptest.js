@@ -193,6 +193,12 @@ async function proef(R, L){
     meld(await G.page.evaluate(() => lives === 3), 'en niet de eerste gast');
     await G2.page.evaluate(() => { godMode = true; lives = 3; drawLives(); });
   }
+  // de losse speren van een ander (pvpLosZend, pvpLosTeken): een speer die de gast liet liggen zien de anderen ook, en weer weg als hij weg is
+  const lsX = await G.page.evaluate(() => { const x = Math.round(world) - 200; losseSperen.push({ x, h: terrainH(x), zij: 1, soort: 'eigen', blauw: false, wiebel: 0 }); return x; });
+  meld(await tot(H.page, v => ((pvp.anders[1] || {}).ls || []).some(q => q[0] === v), lsX, 3000), 'de host ziet de losse speer van de gast');
+  if (drie) meld(await tot(G2.page, v => ((pvp.anders[1] || {}).ls || []).some(q => q[0] === v), lsX, 3000), 'en de tweede gast (doorgestuurd door de host)');
+  await G.page.evaluate(x => { const i = losseSperen.findIndex(s => s.x === x); if (i >= 0) losseSperen.splice(i, 1); }, lsX);
+  meld(await elk(v => pvp.mij === 1 || !((pvp.anders[1] || {}).ls || []).some(q => q[0] === v), lsX, 3000) === null, 'opgeraapt: bij iedereen weer weg');
   // de versie van de map (MPC_VERSIE): iedereen dezelfde, met de fakkels aan de muren, en om de drie rondes een andere
   const versie = () => Promise.all(R.map(r => r.page.evaluate(() => mpcVersieNu + ':' + (level.fakkels || []).length)));
   const v0 = await versie();

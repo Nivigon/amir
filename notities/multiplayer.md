@@ -150,7 +150,7 @@ de lobby staat dan in het staande stokframe.
 - **Wie stuurt de vijanden:** de laptop van de host denkt voor alle vijanden en stuurt hun plek en plaatje naar de gast (net
   zoals `pvpVang` dat voor Amir doet). Op dezelfde wifi merk je de vertraging niet. Een treffer van de gast gaat als bericht
   naar de host, die de hit-functie aanroept. Een vijand kiest de dichtstbijzijnde levende Amir als doel.
-- **Elkaar niet raken:** geen steek, zwaai of speer van de een raakt de ander. Je ziet alleen je eigen speren.
+- **Elkaar niet raken:** geen steek, zwaai of speer van de een raakt de ander. Een speer van de ander in de vlucht zie je niet, maar wel als hij neerkwam (zijn `jav` uit `s`, als `st` niet `vlucht` is) en zijn losse speren op de grond (`ls`, `pvpLosZend`, `pvpLosTeken`, zie "Wat er over de lijn gaat" in `notities/pvp.md`). Alleen beeld: oprapen kan alleen wie hem gooide. `tools/mptest.js --proef` kijkt na dat de host en de tweede gast een losse speer van de gast zien en dat hij weer weg is als de gast hem opraapt.
 - **Rondes:** ronde 1 heeft `start` vijanden, elke ronde `erbij` meer, willekeurig uit de gekozen soorten (bij Both de helft
   van de keren de moeilijke). Ze druppelen binnen over een paar seconden, niet allemaal tegelijk. Tussen twee rondes `pauze`
   seconden met "Round N" in beeld; dan raap je je speren op.
@@ -453,6 +453,11 @@ De tweede map van Co-op Survival, uitgewerkt in een mockup met de opdrachtgever 
 - **De savanne** tegen de rots (`grondSoort` savanne tot voorbij de rots, gras, een acacia en een struik). Boven de savanne
   houdt de stad in de verte op (`stad.achterTot`, -3300): links daarvan tekent `stadAchter` geen rijen huizen meer (per rij
   op zijn parallax, afgerond op de muur tussen twee huizen) en vaagt het paleis weg, zodat je daar lucht ziet.
+- **De rotsreuzen** (`achterBeeld: {k: 'rotsreuzen', x}` in `stad`, `STAD_ACHTERBEELD`, `stadAchterBeeld`): in die lucht
+  staan granieten rotskoepels in de verte (`design/stad/verte/rotsreuzen.png`, een Grok-plaat, magenta uitgeknipt). Eigen
+  trage parallax (0.12), de horizon net boven de straat, een beetje nevel erover, rechts afgeknipt op de grens van de
+  verste rij huizen en naar links herhaald. Hij doet niet mee met de witte tint (`tintNiet`). Met x schuif je de rotsen:
+  -2050 zet de hoge rots tussen de acacia en het hoge huis als je bij de savanne staat.
 
 **De kleur**: Ishmul is van wit zand (`tint: 'wit'`, zie "de tint van een level" in `notities/stad.md`) en speelt altijd
 overdag, met de blauwe lucht (`lagen: 'stad_dag'`, `versies: ['dag']` in `MPC_KAARTEN`: wit zand bij nacht werd grauw). De

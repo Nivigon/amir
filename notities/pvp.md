@@ -92,6 +92,9 @@ een telefoon op mobiele data hoeft niet (zie "Voor wie" in `notities/multiplayer
   (`pvpVang`, vlak voor de `drawImage` van zijn lijf: het pad van het plaatje en de rechthoek in sprite-eenheden vanaf zijn
   voeten, en of het gespiegeld is), `hurt` (de rode flits), de steek (`sf` het frame, `sl` of hij raakt, `sn` een teller
   per steek), de lage zwaai (`sw`, `wn`), de geworpen speer (`j`, met een teller `n` per worp) en de levens.
+- `ls`, alleen als hij verandert en elke `PVP_LOS.opnieuw` (2) seconden zolang er iets ligt: mijn losse speren op de grond
+  (`losseSperen` van soort `eigen`, hooguit `PVP_LOS.max`), als `[x, h, zij, vaantje]`. De anderen tekenen ze bij hun eigen
+  losse speren (`pvpLosTeken`, na `losTeken`), in het Duel en in Co-op; alleen beeld. In `MP_DOOR`.
 - `au` (ik ben geraakt), `speerRaak` (jouw speer zit in mij: die valt dan neer), `ko` (ik ben dood), `ronde` (de host
   start een ronde of meldt het einde), `rematch`, `bye`; `pi` en `po` de ping; `welkom` (je slot), `vol` (geweigerd),
   `weg` (een gast is weg). Elk bericht draagt `p`, het slot van wie het maakte, en een bericht voor een andere gast `naar`.

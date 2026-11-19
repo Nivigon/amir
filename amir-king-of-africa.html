@@ -28920,6 +28920,10 @@ function rotsenLaadLevel(lv){ for (const r of (lv && lv.rotsen) || []) runeBeeld
 // Hoogtes staan in sprite-eenheden (CHAR_H = een Amir), breedtes schalen mee met Amir, net als een kei.
 const STAD_DIR = 'design/stad/';
 let STAD_KANTEEL = true;            // achter de kartels: het dak een stuk lager, achter de tanden (zie stadKanteelVoor); de sandbox zet het uit
+// de achterbeelden: landschappen in de verte waar de stad ophoudt (zie stadAchterBeeld)
+const STAD_ACHTERBEELD = {
+  rotsreuzen: { src: 'verte/rotsreuzen.png', hoog: 0.46, horizon: 0.676, nevel: 0.16, par: 0.12, zak: 0.045 }
+};
 const STAD = {
   gevel:   { src: 'gevel.png', amir: 318, dak: [0, 177], ver: [580, 997], bod: [997, 1505], dakLoop: 68, muur: [44, 922],
              dakAchter: 125 },   // met de kartels (STAD_KANTEEL) ligt het dak op de balkkoppen: wie erop staat, staat achter de tanden
@@ -29086,6 +29090,7 @@ function stadLees(o){
            ...(o.accenten ? { accenten: true } : {}),
            ...(o.onder ? { onder: true } : {}),
            ...(Number.isFinite(Number(o.achterTot)) && o.achterTot !== null ? { achterTot: n(o.achterTot) } : {}),   // links daarvan geen huizen in de verte (Ishmul)
+           ...(o.achterBeeld && STAD_ACHTERBEELD[o.achterBeeld.k] ? { achterBeeld: { k: o.achterBeeld.k, x: n(o.achterBeeld.x) } } : {}),   // een plaat in de lucht links van achterTot (Ishmul)
            ...(o.moskee === false ? { moskee: false } : o.moskee != null ? { moskee: n(o.moskee) } : {}),
            galerijen: (o.galerijen || []).map(q => ({ van: n(q.van), tot: q.tot != null ? n(q.tot) : n(q.van), h: q.h != null ? n(q.h) : null,
                                                      meer: Array.isArray(q.meer) ? [n(q.meer[0]), n(q.meer[1])] : null })),
@@ -30604,6 +30609,7 @@ function stadAchter(sc, horizonY, groundY){
     const pa = grens == null ? 1 : Math.max(0, Math.min(1, (sx - (W / 2 + (grens - world) * STAD.rijen[0].par)) / (pw * 0.5) + 1));
     if (pa > 0){ ctx.globalAlpha = pa; ctx.drawImage(P, sx, voeten[0] + 0.01 * H - ph, pw, ph); ctx.globalAlpha = 1; }
   }
+  if (grens != null && S.achterBeeld) stadAchterBeeld(S.achterBeeld, V, grens, groundY);   // links van de stad: een landschap (Ishmul)
   stadVerteGieren(voeten[0], seed);                // gieren boven de stad (zie "de verte van de stad")
   // achterTot (Ishmul): links van die wereld-x houdt de stad in de verte op, daar is lucht boven de savanne. Per rij op
   // zijn eigen parallax, en afgerond op de muur tussen twee huizen, zodat geen huis half afgeknipt wordt
@@ -30616,6 +30622,34 @@ function stadAchter(sc, horizonY, groundY){
     if (grens != null){ ctx.save(); }
     try { stadAchterRij(R, rij, V, voeten, f0, seed, groundY, grens, grensX); } finally { if (grens != null) ctx.restore(); }
   });
+}
+// ---- het achterbeeld: een landschap in de verte waar de stad ophoudt (achterTot, Ishmul) ----
+// Links van achterTot was alleen lucht te zien tussen de rots en de huizen. Een plaat (uit Grok, magenta uitgeknipt) staat
+// daar in de verte: met een eigen trage parallax, de horizon van de plaat net boven de straat, in de nevel van de verte
+// voorgebakken, en rechts afgeknipt op de grens van de verste rij huizen. k: welke plaat, x: de wereld-x waar het midden
+// van de plaat staat als de camera daar is. hoog: de hoogte van de plaat op het scherm (deel van H), horizon: waar de
+// grond van de plaat begint (deel van de plaathoogte), nevel: hoeveel van de nevelkleur erover, par: de parallax.
+// (de platen staan in STAD_ACHTERBEELD, bij STAD)
+function stadAchterBeeld(AB, V, grens, groundY){
+  const D = STAD_ACHTERBEELD[AB.k]; if (!D) return;
+  const key = 'achterBeeld_' + AB.k;
+  if (!stadImgs[key]){ const im = new Image(); zetBron(im, STAD_DIR + D.src, () => console.warn('ontbreekt: stad ' + D.src)); stadImgs[key] = im; return; }
+  if (!stadKlaar(key)) return;
+  const N = V.nevel, a = D.nevel, k = V.donker;
+  const P = stadGebakken(key + '_' + V.sleutel, () => {
+    const im = stadImgs[key];
+    return stadBak(im, im.naturalWidth, im.naturalHeight, (r, g, b) => [r * k * (1 - a) + N[0] * a, g * k * (1 - a) + N[1] * a, b * k * (1 - a) + N[2] * a]);
+  });
+  const ph = H * D.hoog, pw = P.width * ph / P.height;
+  const hor = groundY - camY * 0.6 - D.zak * H;            // de horizon van de plaat: net boven de straat, zakt mee als de camera klimt
+  const y = hor - ph * D.horizon;
+  const rechts = W / 2 + (grens - world) * STAD.rijen[0].par;   // tot de grens van de verste rij huizen
+  if (rechts <= 0) return;
+  let sx = W / 2 + (AB.x - world) * D.par - pw / 2;
+  sx -= Math.ceil(sx / pw) * pw;                           // naar links herhalen tot het scherm vol is
+  ctx.save(); ctx.beginPath(); ctx.rect(0, -H, Math.min(W, rechts), H * 3); ctx.clip();
+  for (let x = sx; x < Math.min(W, rechts); x += pw) if (x + pw > 0) ctx.drawImage(P, x, y, pw, ph);
+  ctx.restore();
 }
 function stadAchterRij(R, rij, V, voeten, f0, seed, groundY, grens, grensX){
   {
@@ -52673,6 +52707,7 @@ function loop(now){
     speervalTeken(groundY, scale, cx, false);     // de speer uit de speerval, als hij uit de wand is
     skeletTeken(groundY, scale, cx);              // skeletten, met of zonder speer
     losTeken(groundY, scale, cx);                 // speren die los op de grond liggen
+    if (pvp) pvpLosTeken(groundY, scale, cx);     // en die van de ander in Co-op en het Duel
     ravijnRuneTeken(groundY, scale, cx);          // de rots met de rune bij het ravijn
     if (rolDoelen.length) rolDoelTeken(groundY, scale, cx);   // de oefendoelen van de rol-worp
 
@@ -65414,7 +65449,7 @@ const pvpNu = () => performance.now() / 1000;
 // de vijandstand bevestigd heeft (vAk). Een gast heeft er een, naar de host (slot 0). Elk bericht draagt het slot van wie
 // het maakte (`p`); de host zet het zelf op wat binnenkomt (een gast kan niet voor een ander spreken) en stuurt wat de
 // andere gasten ook moeten weten door (MP_DOOR), en een bericht voor een gast (`naar`) alleen naar die. Zie notities/pvp.md.
-const MP_DOOR = new Set(['s', 'broek', 'wapen', 'rek', 'symPak', 'wkklaar', 'rematch', 'gk']);
+const MP_DOOR = new Set(['s', 'ls', 'broek', 'wapen', 'rek', 'symPak', 'wkklaar', 'rematch', 'gk']);
 function pvpGasten(){ return pvp ? Object.keys(pvp.peers).map(Number).filter(p => p !== 0) : []; }
 function pvpRelay(){ return !!pvp && Object.values(pvp.peers).some(pe => pe.conn.relay); }
 function pvpPeerNieuw(conn, p){
@@ -66042,6 +66077,8 @@ function pvpOntvang(m){
     const pe = pvp.host && pvp.peers[m.p];
     if (pe && m.ak != null && m.ak > pe.vAk) pe.vAk = m.ak;   // Co-op: tot hier heeft deze gast de vijandstand binnen
     pvpNetIn(N, 's', m, o => { A.g = Object.assign({}, o); });
+  } else if (m.t === 'ls'){
+    if (m.p !== pvp.mij && Array.isArray(m.l)) pvpAnderVan(m.p).ls = m.l.slice(0, PVP_LOS.max);   // zijn losse speren (pvpLosTeken)
   } else if (m.t === 'au'){
     pvpRaakFx();                                     // ik heb hem geraakt: dat wil de aanvaller voelen en horen
   } else if (m.t === 'speerRaak'){
@@ -66174,6 +66211,7 @@ function pvpStap(rdt){
     if (pvp.fase === 'vecht'){ pvpZend({ t: 'ko' }); pvpRondeUit(pvpDuelAnder()); }
   }
   pvpAnderStap();                                    // de andere Amirs uit de speelbuffer, tussen twee standen in
+  pvpLosZend(rdt);                                   // mijn losse speren op de grond, voor het beeld van de anderen
   pvp.zendT -= rdt;
   if (pvp.zendT <= 0 && pvp.mijn){
     pvp.zendT = 1 / (pvpRelay() ? PVP_RELAY.hz : PVP.hz);
@@ -66189,6 +66227,42 @@ function pvpBeeld(src){
   let im = pvp.beelden[src];
   if (!im){ im = new Image(); im.src = src; pvp.beelden[src] = im; }
   return im.complete && im.naturalWidth ? im : null;
+}
+// ---- multiplayer: de losse speren van de ander ----
+// Mijn speren die los op de grond liggen (losseSperen, soort 'eigen': een die ik liet liggen voor een andere, een van het
+// rek die ik gooide en weer neerlegde) gaan als lijst naar de anderen, alleen als die lijst verandert en voor de zekerheid
+// elke PVP_LOS.opnieuw seconden zolang er iets ligt (een gast die later begon, een nieuwe ronde die anders leegmaakt).
+// Bij hen is het alleen beeld: oprapen kan alleen wie hem gooide. Zijn speer in de grond (jav) komt al mee in 's' (j).
+const PVP_LOS = { opnieuw: 2, max: 12 };
+function pvpLosZend(rdt){
+  const l = [];
+  for (const sp of losseSperen){
+    if (sp.soort !== 'eigen') continue;
+    l.push([Math.round(sp.x), Math.round(sp.h), sp.zij, sp.blauw || 0]);
+    if (l.length >= PVP_LOS.max) break;
+  }
+  const sig = JSON.stringify(l);
+  pvp.losT = (pvp.losT || 0) - rdt;
+  if (sig === pvp.losSig && (!l.length || pvp.losT > 0)) return;
+  pvp.losSig = sig; pvp.losT = PVP_LOS.opnieuw;
+  pvpZend({ t: 'ls', l });
+}
+// in het tekenblok, bij de eigen losse speren (losTeken): die van de anderen, net zo getekend
+function pvpLosTeken(groundY, scale, cx){
+  if (!pvp || !imgReady(javImg)) return;
+  const len = javLen(scale), kk = len / JAV.w;
+  for (const k in pvp.anders){
+    const l = +k !== pvp.mij && pvp.anders[k].ls;
+    if (!l) continue;
+    for (const [x, h, zij, b] of l){
+      const sx = cx + (x - world), gy = groundY - h * scale;
+      if (sx < -W || sx > W / viewZoom() + W) continue;
+      ctx.save();
+      ctx.translate(sx, gy - 6 * scale); ctx.scale(-zij, 1);
+      ctx.drawImage(vaanBlauw(javImg, b || false), -JAV.tipX * kk, -JAV.tipY * kk, JAV.w * kk, JAV.h * kk);
+      ctx.restore();
+    }
+  }
 }
 // in het tekenblok, na Amir: de andere Amirs (in Co-op een of twee teamgenoten, in het Duel de tegenstander)
 function pvpTeken(groundY, scale, cx, pbox, hitBy){
@@ -66222,14 +66296,15 @@ function pvpTekenEen(p, g, groundY, scale, cx, pbox, hitBy){
     ctx.fillStyle = i < (g.l || 0) ? '#e0412b' : 'rgba(0,0,0,0.5)'; ctx.fill(); ctx.stroke();
   }
   ctx.restore();
-  if (pvp.coop) return;                             // Co-op: je ziet alleen je eigen speren, en elkaar raken kan niet
-  // zijn speer, in de vlucht of in de grond (javSchacht tekent de globale jav: even wisselen)
+  // zijn speer, in de vlucht of in de grond (javSchacht tekent de globale jav: even wisselen); in Co-op alleen als
+  // hij neerkwam (in de grond, een wand of een bos), want in de vlucht zie je alleen je eigen speren
   const j = g.j;
-  if (j && imgReady(javImg)){
+  if (j && imgReady(javImg) && (!pvp.coop || j.st !== 'vlucht')){
     const eigen = jav;
     jav = { x: j.x, h: j.h, sa: j.sa, dir: j.dir, state: j.st, t: j.t, blauw: j.b, wob: 0, sag: 0, kantel: 0, los: 0 };
     try { javSchacht(cx + (j.x - world), groundY - j.h * scale, scale); } finally { jav = eigen; }
   }
+  if (pvp.coop) return;                             // Co-op: elkaar raken kan niet
   // de vorige plek van zijn speer altijd bijwerken, ook als ik onkwetsbaar ben of hieronder al geraakt word: anders
   // bleef een oude plek staan, en na een rol trok de speer een vak van daar tot nu en raakte hij alsnog
   const jVorig = pvp.jVorig;
@@ -66394,7 +66469,7 @@ function tintWis(){
   for (const k in stadBakken) delete stadBakken[k];
   stadStroken = []; stadStrookLevel = null; stadDoorgangCache.clear();
 }
-const tintNiet = k => /luifel|gordijn|raam_luiken|^voet$|^riet$|^doek$/i.test(k);   // voet: de kruiken en de stenen; riet en doek: de kramen met hun potten
+const tintNiet = k => /luifel|gordijn|raam_luiken|^voet$|^riet$|^doek$|^achterBeeld_/i.test(k);   // voet: de kruiken en de stenen; riet en doek: de kramen met hun potten; achterBeeld: het landschap achter de stad (eigen kleuren)
 // elk beeld, voor het tekenen (scene): goedkoop als er niets nieuws te kleuren is
 function tintStap(){
   const t = level && level.tint && TINT[level.tint] ? level.tint : null;
@@ -66438,6 +66513,7 @@ const MP_ISHMUL_LEVEL = (() => {
     stad: {
       paleis: -600, seed: 1907,
       achterTot: -3300,                              // links daarvan geen huizen in de verte: lucht boven de savanne
+      achterBeeld: { k: 'rotsreuzen', x: -2050 },     // en daar de granieten rotsreuzen in de verte (STAD_ACHTERBEELD)
       gevels: [ {x: -1425, hoog: 2},                 // 0: het huis aan de rivier, rechts (x is de linkerkant op de laptop)
                 {x: -3240, hoog: 2},                 // 1: de linkeroever, aan de rivier
                 {x: -4000, hoog: 3, aan: 1.0} ],     // 2: het hoge huis, met een steeg ernaast
