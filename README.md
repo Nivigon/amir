@@ -891,7 +891,7 @@ zonder te springen. De bandieten, de schildbandiet, de kruisboogschutter en de h
 plein gewoon de trap af komt. Slangen en schorpioenen blijven beneden. Gewone treden en terrassen houden vijanden tegen zoals
 altijd; alleen een terras met `opstap: true` is een opstapje.
 
-In **Test 79: Drop through** zak je door hout: hou **pijl omlaag** vast en druk **springen** op een houten galerij, een
+In **Test 79: Drop through** zak je door hout: tik **twee keer snel op pijl omlaag** op een houten galerij, een
 trapbalkon of het rieten dak of de tafel van een kraam, en Amir valt erdoorheen naar wat eronder ligt. Een dak van leem, een
 leemmuur en rots blijven dicht; daar loop je gewoon van de rand. Vijanden doen het niet. In de sandbox zet **Drop through**
 onder De stad het aan.

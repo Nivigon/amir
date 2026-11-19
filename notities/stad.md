@@ -526,7 +526,7 @@ omlaag, een hyena en een slang, en een stoeprand met een kruisboogschutter en ee
 
 ## Doorzakken
 
-`DOORVAL`, `doorvalStart`, `doorvalNegeer`, `doorvalAan`. Pijl omlaag vasthouden en springen op een dunne houten vloer
+`DOORVAL`, `doorvalStart`, `doorvalTik`, `doorvalNegeer`, `doorvalAan`. Twee keer snel pijl omlaag (binnen `DOORVAL.tik`, 0,3 s; omlaag plus pijl omhoog was op een laptop onhandig), of op een telefoon de stick omlaag plus de springknop, op een dunne houten vloer
 (`galerij`, `balkon`, `putbalk`, `tafel`, `riet` uit `stadPlats`) en Amir zakt erdoorheen in plaats van te springen. Het idee
 kwam van een speler in de Co-op-stad. Omlaag alleen kan niet: dat is bukken, kruipen en de lage zwaai.
 
