@@ -25420,7 +25420,16 @@ function snowDustReady(){
                  wisp: bakeSnowDust(dustWisp, 'rgba(206,216,230,0.70)', 2) };  // slierten: iets grijsblauw en dichter, anders zie je ze niet over de sneeuw
   return !!snowDust;
 }
-function puffPic(){ return snowDustReady() ? snowDust.puff : dustPuff; }
+// wx: waar het stof opwaait; in een level met tint is het op de straat licht (TINT.stof), op een savannestrook gewoon
+function puffPic(wx){
+  if (snowDustReady()) return snowDust.puff;
+  if (tintNu && tintStof && !(wx !== undefined && grondSoortBij(wx) === 'savanne')) return tintStof;
+  return dustPuff;
+}
+function grondSoortBij(wx){
+  for (const st of grondStroken()) if (wx <= Math.max(st.van, st.tot) && wx >= Math.min(st.van, st.tot)) return st.soort;
+  return null;
+}
 // hetzelfde wolkje in een andere kleur, een keer gebakken per kleur (voor het stof van een verstopt zegel op
 // zwarte grond, sneeuw of rots, zie ZEGEL_VLOER); tot het plaatje er is het gewone
 const stofPuffs = {};
@@ -28369,6 +28378,7 @@ function grondTegelVan(soort){
   if (soort === 'straat'){ stadLaad(); return stadBodem(); }
   if (soort === 'plein'){ stadLaad(); return stadKlaar('plein') ? stadImgs.plein : null; }   // de geplaveide vloer van het plein
   if (soort === 'rots'){ loadSneeuw(); return imgReady(sneeuwImg.rots) ? sneeuwImg.rots : null; }
+  if (tintNu && tintSavanne) return tintSavanne;      // een level met tint: de savanne wat bleker (TINT)
   return winterPic('edge', edgeImg);                 // savanne: de gewone grondrand
 }
 // een rij grondtegels van va tot vb, vast aan de wereld op hetzelfde anker als de grond zelf
@@ -28395,7 +28405,9 @@ function grondStrokenTeken(top, hoog, s, cx, xl, xr, teken){
     if (b + R < xl - 60 || a - R > xr + 60) continue;
     const ka = wl * 0.013, kb = wr * 0.013 + 2.7;    // eigen jag per rand, vast aan de wereld
     const y0 = top - 30, y1 = top + hoog + 30;
-    for (const [uit, alpha] of [[R / 2, GRONDSOORT.uitAlpha], [-R / 2, 1]]){
+    // met een tint ligt de stad wit naast de savanne: de overgang dan in vier stappen over anderhalve rand
+    const stappen = tintNu ? [[R, 0.2], [R / 2, 0.4], [0, 0.65], [-R / 2, 1]] : [[R / 2, GRONDSOORT.uitAlpha], [-R / 2, 1]];
+    for (const [uit, alpha] of stappen){
       ctx.save();
       ctx.beginPath();
       ctx.moveTo(a - uit + sneeuwJag(ka, y0, top, s), y0);
@@ -33772,7 +33784,9 @@ function stadVoorTeken(groundY, scale, cx, hoog){
       const r = V.stukken[v.stuk]; if (!r || !hier(v.x)) continue;
       const w = r[2] * f, h = r[3] * f, vx = stadVoetX(v.x, w, S, scale), sx = cx + (vx - world) - w / 2;
       if (!zicht(sx, w)) continue;
-      const c = stadGebakken('voet_' + v.stuk, () => stadBak(vi, r[2], r[3], V.straatKleur[v.stuk] ? (a, b, d) => [a * V.tint[0], b * V.tint[1], d * V.tint[2]] : null,
+      // in een level met tint: een stuk in de straatkleur (zandhoop, stenen, puin) volgt de straat, een kruik blijft zichzelf
+      const bi = V.straatKleur[v.stuk] && stadImgs.voetTint ? stadImgs.voetTint : vi;
+      const c = stadGebakken('voet_' + v.stuk, () => stadBak(bi, r[2], r[3], V.straatKleur[v.stuk] ? (a, b, d) => [a * V.tint[0], b * V.tint[1], d * V.tint[2]] : null,
                                                               stadQ(vi, r[0]), stadQ(vi, r[1]), stadQ(vi, r[2]), stadQ(vi, r[3])));
       // op de stoep voor de muur, niet op de muurvoet zelf: daar leek het boven de straat te hangen
       const th = terrainH(vx), gy = groundY - th * scale - (th ? 0 : stadStoepH(scale) * V.stoep);
@@ -52424,7 +52438,7 @@ function loop(now){
         const left = right - c.wPx;
         if (left > W / viewZoom() + W || right < -W) continue;
         ctx.save();
-        if (k.s){ ctx.beginPath(); ctx.rect(-W, -H, 3 * W + right, groundY + H + 3); ctx.clip(); }   // groot: afgeknipt op de straat, de voet zit eronder
+        if (k.s){ ctx.beginPath(); ctx.rect(-W, -H, 3 * W + right, groundY + H); ctx.clip(); }   // groot: afgeknipt op de straat, de voet zit eronder (precies op groundY: de plaat is over zijn hele breedte dicht, en een paar px eronder gaf een grijze streep door de vloer)
         ctx.translate(right, cyp); ctx.scale(-1, 1);
         ctx.drawImage(cliffImgNow, 0, 0, c.wPx, c.hPx);
         if (left > -W){                                  // links doorstrekken, geen kier
@@ -52766,7 +52780,7 @@ function loop(now){
       for (const d of dust){
         const k = 1 - d.age / d.life;
         const rr = d.r * scale * (1.7 - k * 0.7);
-        const pimg = puffPic();
+        const pimg = puffPic(world + d.x);
         if (imgReady(pimg)){
           ctx.globalAlpha = 0.55 * k;
           const pw = rr * 2.6, phh = pw * pimg.naturalHeight / pimg.naturalWidth;
@@ -52968,7 +52982,7 @@ function loop(now){
         const rr = d.r * scale * (1.7 - k * 0.7);
         if (d.zweef) k = Math.min(1, d.age / 0.06) * Math.sqrt(k);   // zacht erin, en hij blijft langer dicht
         const px = cx + (d.wx - world), py = groundY + d.y * scale - (d.base || 0) * scale;
-        const pimg = puffPic();
+        const pimg = puffPic(d.wx);
         if (d.kleur){                                  // de stofveeg: een zachte zandkleurige kern onder het plaatje
           const g = ctx.createRadialGradient(px, py, 0, px, py, rr * 1.15);
           g.addColorStop(0, d.kleur + (0.5 * d.a * k).toFixed(3) + ')'); g.addColorStop(0.55, d.kleur + (0.28 * d.a * k).toFixed(3) + ')');
@@ -66309,10 +66323,15 @@ const MP_COOP_LEVEL = (() => {
 // browser zonder grafische kaart dertig keer zoveel tijd per beeld. Bij een level zonder tint komen de echte platen terug.
 // De getallen (sepia, verzadiging, helderheid, zoals de CSS-filters) zijn variant 3 uit de beelden voor de opdrachtgever.
 // var en niet const: readLevel draait al bij het opstarten, voor deze regel (een const gaf daar een ReferenceError)
-var TINT = { wit: { sepia: 0.08, verzadig: 0.4, helder: 1.25 } };
+// savanne: de grond van een savannestrook (grondSoort) wat bleker, zodat hij bij het witte zand past; stof: het wolkje
+// op de straat (puffPic). Allebei een eigen, mildere set dan de stad
+var TINT = { wit: { sepia: 0.08, verzadig: 0.4, helder: 1.25,
+                    savanne: { sepia: 0.12, verzadig: 0.6, helder: 1.12 },
+                    stof: { sepia: 0.05, verzadig: 0.3, helder: 1.3 } } };
 let tintNu = null;
 const tintOrig = new Map();                          // sleutel van stadImgs -> de echte plaat
 let tintFontein = null;                              // de echte fonteinplaat
+let tintSavanne = null, tintStof = null;             // de savannetegel en het stofwolkje, omgekleurd (zie TINT)
 // de kleurmatrix van sepia, dan verzadiging, dan helderheid (dezelfde formules als de CSS-filters)
 function tintMatrix(t){
   const a = t.sepia, s = t.verzadig, b = t.helder;
@@ -66347,7 +66366,7 @@ function tintWis(){
   for (const k in stadBakken) delete stadBakken[k];
   stadStroken = []; stadStrookLevel = null; stadDoorgangCache.clear();
 }
-const tintNiet = k => /luifel|gordijn|raam_luiken/i.test(k);
+const tintNiet = k => /luifel|gordijn|raam_luiken|^voet$|^riet$|^doek$/i.test(k);   // voet: de kruiken en de stenen; riet en doek: de kramen met hun potten
 // elk beeld, voor het tekenen (scene): goedkoop als er niets nieuws te kleuren is
 function tintStap(){
   const t = level && level.tint && TINT[level.tint] ? level.tint : null;
@@ -66355,10 +66374,15 @@ function tintStap(){
     if (stadImgs) for (const [k, im] of tintOrig) stadImgs[k] = im;
     if (tintFontein){ fonteinImg = tintFontein; tintFontein = null; }
     tintOrig.clear(); tintNu = t; tintWis();
+    tintSavanne = tintStof = null;
+    if (stadImgs) delete stadImgs.voetTint;
   }
   if (!t) return;
   const M = tintMatrix(TINT[t]);
+  if (!tintSavanne && TINT[t].savanne && imgReady(edgeImg)) tintSavanne = tintBak(edgeImg, tintMatrix(TINT[t].savanne));
+  if (!tintStof && TINT[t].stof && imgReady(dustPuff)) tintStof = tintBak(dustPuff, tintMatrix(TINT[t].stof));
   let nieuw = false;
+  if (stadImgs && !stadImgs.voetTint && stadKlaar('voet')){ stadImgs.voetTint = tintBak(stadImgs.voet, M); nieuw = true; }
   if (stadImgs) for (const k in stadImgs){
     const im = stadImgs[k];
     if (!im || im.tint || tintOrig.has(k) || tintNiet(k) || !imgReady(im)) continue;
