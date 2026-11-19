@@ -359,8 +359,13 @@ Te koop in de winkel van Co-op als **Lion Claw sticks** (zie `notities/multiplay
 - Krijgt de gewone stokset nieuwe frames of een nieuwe set, dan moet `stokhoeken.json` mee voor `stok_variant.py` de nieuwe
   frames kan wisselen (de zoekscripts staan niet in de repo: de oude stok uit `stok_bak.py` op elke hoek rond de knoop leggen
   en de beste kleurmatch nemen).
-- In het spel: `stokUitBank(set, f)` geeft het klauwframe als `pvp.coop.koop.klauw` gezet is en het frame binnen is, anders
-  het gewone; ook in de stokexecutie. De slippen via `stokSlipNu`.
+- In het spel: `STOK.skins` (naam is de sleutel in `pvp.coop.koop`, met `dir` en eventueel een eigen `slip`-maat).
+  `stokUitBank(set, f)` geeft het frame van de stok die je hebt als het binnen is, anders het gewone; ook in de stokexecutie.
+  De slippen via `stokSlipNu` (beeld en maat).
+- Tweede skin: `stokken_goud/` (rij 3, de zwarte stok met het gouden leeuwenkopje), gebakken met
+  `tools/stok_variant.py --rij 3 --uit stokken_goud --slip 24,30,12`. De kwast van gouden manen die op de plaat onder de grip
+  hangt gaat niet mee in de stok: het script knipt hem eruit en maakt er de `slip.png` van, zodat hij aan de knoop slingert
+  (maat in `STOK.skins.goud.slip`).
 - Bekende restjes: in slag 6 (de veeg) staat de oude stok nog als vage veeg, en in de laatste frames van de draaislag is de
   stok achter de rug op een paar plekken onderbroken. De kop van de klauw steekt in een paar hoge frames (stapslag) net boven
   het canvas uit en wordt daar afgesneden.

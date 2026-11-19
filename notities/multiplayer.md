@@ -128,6 +128,10 @@ de lobby staat dan in het staande stokframe.
   (`STOK.klauwDir`, pas geladen bij de koop: `stokKlauwLaad`, `stokUitBank`, `stokSlipNu`). `stokHoutNu` geeft nu 0, 1
   (Hardwood) of 2 (Lion Claw), en dat getal gaat als `hw` mee met een treffer van een gast. De teamgenoot ziet de klauwstokken
   vanzelf, want het beeld gaat als pad over. Een `eis` in de winkel noemt nu de naam van wat eerst moet ("Buy Hardwood sticks first.").
+- **Gold King sticks (19-11-2026):** de keuze naast Lion Claw (`sluit` in `MPC_WINKEL`: heb je de een, dan "You chose ...", ook
+  80 goud na Hardwood). Slaat als Hardwood (0,75), en een stokslag op het schild van de schildbandiet haalt met kans
+  `STOK.goudSchild` (0,5) een stand extra af (`hitSchildman`, met de crit-ster). `stokHoutNu` geeft 3. De stokken uit
+  `STOK.skins.goud` (zwart met het gouden leeuwenkopje), en de kwast van gouden manen hangt als slip aan de knoop.
 - **De grondklap (16-11-2026):** een stokspeler heeft in Co-op de grondklap van `notities/stokken.md` (`mpWapenLevel` zet
   `grondklap`, niet in het Duel), met 5 s afkoeling (`GK.koelCoop`). Een treffer van de golf van een gast gaat in `mh` met
   `gk` (begin, eind van "recht eronder", richting, schade, knock) naar de host, die er tijdens de treffer `gkRaak` van maakt,

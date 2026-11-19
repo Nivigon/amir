@@ -17,9 +17,11 @@ Bron (in karakters/amir/stokken/bron/):
 
 Uit:
   karakters/amir/<uit>/<set>/<set>_NN.png  dezelfde sets en frames als stokken/, op hetzelfde canvas
-  karakters/amir/<uit>/slip.png            de slippen in de kleur van de grip
+  karakters/amir/<uit>/slip.png            de slippen in de kleur van de grip, of de kwast die op de plaat onder de grip
+                                           hangt (die gaat niet mee in de stok maar slingert als slip aan de knoop)
 
 Gebruik:  python3 tools/stok_variant.py --rij 1 --uit stokken_klauw --grip 125,30,35
+          python3 tools/stok_variant.py --rij 3 --uit stokken_goud --slip 24,30,12
           --rij: welke stok van de plaat (0 is de bovenste); --grip: de kleur van de slippen
 Daarna:   de map ook naar klein/karakters/amir/ kopieren (de frames zijn lager dan de drempel van gen-klein.py, die
           kopieert ze ongewijzigd) en python3 tools/gen-offline-manifest.py
@@ -85,6 +87,11 @@ def nieuwe_stok(rij, k=1.0, kont=0.0):
     while i < len(dik) - 1 and dik[i] <= schacht * 1.12: i += 1
     kop = xa + i
     rijen = np.where(band[:, (xa + kop) // 2])[0]; yc = y0 + (rijen[0] + rijen[-1]) / 2   # het midden van de schacht
+    # wat onder de schacht hangt (een kwast van manen aan de grip): niet in de stok, maar los als slip (kwast_maken)
+    onder = int(yc + schacht / 2 + 4)
+    grens = xa + (xb - xa) * 2 // 5                                     # alleen bij de grip (de kop hangt ook onder de schacht)
+    kwast = rgba.copy(); kwast[:onder] = 0; kwast[:, grens:] = 0; kwast[y1 + 1:] = 0
+    rgba = rgba.copy(); rgba[onder:y1 + 1, :grens, 3] = 0
     # de grip: het stuk van links dat niet de kleur van de schacht heeft (de schacht meten op driekwart)
     xs4 = xa + (kop - xa) * 3 // 4
     sk = rgba[int(yc), xs4, :3]
@@ -129,7 +136,7 @@ def nieuwe_stok(rij, k=1.0, kont=0.0):
     kn = (links + okx - W / 2, cy + (oky - ocy) - H / 2)
     if k != 1.0:
         can = can.resize((round(W * k), round(H * k)), Image.LANCZOS); kn = (kn[0] * k, kn[1] * k)
-    return can, kn
+    return can, kn, (kwast if (kwast[..., 3] > 128).sum() > 300 else None)
 
 
 def stokkleur(fr):
@@ -157,7 +164,7 @@ def wissel(fr_im, stokken, nieuw):
         weg |= (m > 200) & (fr[..., 3] > 60) & (np.abs(ol[..., :3] - fr[..., :3]).sum(-1) < 90)
         ruim = np.array(Image.fromarray(((m > 40) * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(5))) > 0
         weg |= ruim & S
-        ni, nkn = nieuw(k, kont)
+        ni, nkn = nieuw(k, kont)[:2]
         lagen.append(plaats(ni, nkn, (kx, ky), deg, flip, W, H))
     lijf = fr.copy(); lijf[weg, 3] = 0
     uit = Image.new('RGBA', (W, H))
@@ -168,6 +175,20 @@ def wissel(fr_im, stokken, nieuw):
     gat = weg & (ua[..., 3] < 128) & ~kern
     ua[gat] = fr[gat]
     return Image.fromarray(ua.astype(np.uint8))
+
+
+def kwast_maken(kwast, w=17, h=26, piv=7.9, x2=2):
+    """De kwast die onder de grip hing als slip: hangpunt bovenaan op piv, op de maat van STOK.slip (w x h, 2x zo scherp)."""
+    a = kwast[..., 3] > 60
+    ys, xs = np.where(a)
+    sub = Image.fromarray(kwast[ys.min():ys.max() + 1, xs.min():xs.max() + 1].astype(np.uint8))
+    bovenrij = a[ys.min():ys.min() + 6, xs.min():xs.max() + 1].any(0)   # waar hij vastzit: het midden van de bovenkant
+    hx = np.where(bovenrij)[0].mean()
+    s = min(h * x2 / sub.height, w * x2 / sub.width)
+    sub = sub.resize((max(1, round(sub.width * s)), max(1, round(sub.height * s))), Image.LANCZOS)
+    can = Image.new('RGBA', (w * x2, h * x2))
+    can.alpha_composite(sub, (max(0, min(w * x2 - sub.width, round(piv * x2 - hx * s))), 0))
+    return can
 
 
 def slip_maken(kleur):
@@ -183,6 +204,7 @@ def main():
     ap.add_argument('--rij', type=int, default=1)
     ap.add_argument('--uit', default='stokken_klauw')
     ap.add_argument('--grip', default='125,30,35')
+    ap.add_argument('--slip', default='24,30,12', help='w,h,piv van een kwast als slip (zet die ook in STOK.skins)')
     o = ap.parse_args()
     H = json.load(open(os.path.join(BRON, 'stokhoeken.json')))
     cache = {}
@@ -196,7 +218,9 @@ def main():
             fr = Image.open(os.path.join(AMIR, 'stokken', zet, f'{zet}_{i:02d}.png')).convert('RGBA')
             wissel(fr, st, nieuw).save(os.path.join(uit, zet, f'{zet}_{i:02d}.png'), optimize=True)
         print(zet, len(frames))
-    slip_maken([int(v) for v in o.grip.split(',')]).save(os.path.join(uit, 'slip.png'))
+    kw = nieuw(1.0)[2]
+    sw, sh, sp = [float(v) for v in o.slip.split(',')]
+    (kwast_maken(kw, int(sw), int(sh), sp) if kw is not None else slip_maken([int(v) for v in o.grip.split(',')])).save(os.path.join(uit, 'slip.png'))
 
 
 if __name__ == '__main__':
