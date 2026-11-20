@@ -87,6 +87,11 @@ trager weg dan het andere weer (`WEER.mist.tempo`), dus een punt in `weer` laat 
 
 `SCENE0` en `SCENES`
 
+Een andere biome (`BIOMES`, `biomeImgs`, `layerImgs`): eigen panelen voor de verre laag, de tweede rij en de middenlaag,
+met dezelfde tekenweg (`drawLayer`, `vertePlaten`). Een uitzicht kiest er een met `biome`; de panelen laden pas als zo'n uitzicht
+voor het eerst getekend wordt. Nu alleen `regenwoud` (uitzicht `regenwoud`, de warme ochtend, panelen uit `design/regenwoud/`,
+een per laag), in de sandbox onder Tijd van de dag, **Regenwoud**. De grond blijft nog de savanne.
+
 ## wolken in de lucht
 
 `STAD_LUCHT`, `luchtWolken`, `luchtWolkenAan`, `luchtWolkKleur`: wolken uit Grok (magenta of groen uitgeknipt) in drie lagen

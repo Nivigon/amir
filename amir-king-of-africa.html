@@ -2397,6 +2397,7 @@
         <button data-lagen="middag" data-stad="stad_middag">Middag</button>
         <button data-lagen="" data-stad="stad_avond" class="on">Avond</button>
         <button data-lagen="dark_hart" data-stad="stad_nacht">Nacht</button>
+        <button data-lagen="regenwoud">Regenwoud</button>
       </div>
       <div class="row">
         <label>Zon</label>
@@ -50989,6 +50990,11 @@ const SCENES = {
   avond:       { seqMid: 61, midHero: 3, midHeroAt: 57, seq: 12, hero: 0, heroAt: 2, midLift: 0.18, mist: 1.15, mistColor: '182,100,94',
                  sky: ['#141029', '#3d2547', '#cf6440'], land: '#32203a',
                  dim: ['22,12,32', 0.17], sun: [0.80, 0.17, 0.065, '#e8884c'] },
+  // het regenwoud: de ochtend van de savanne (warm, zo gekozen), met de panelen van het regenwoud
+  // (BIOMES) en wat meer nevel tussen de lagen. midHero en heroAt uit: er is maar een paneel per laag
+  regenwoud:   { biome: 'regenwoud', seqMid: 14, midHero: -1, midHeroAt: -1, seq: 5, hero: -1, heroAt: -1, midLift: 0.21, mist: 1.0,
+                 mistColor: '198,150,146', sky: ['#1d2748', '#5a4a6a', '#f0a878'], land: '#43304a',
+                 sun: [0.30, 0.22, 0.075, '#ffd39a'] },
   // vroege ochtend. Licht, rustig, weinig nevel en de zon voor je uit
   ochtend:     { seqMid: 14, midHero: 3, midHeroAt: 59, seq: 5, heroAt: 2, midLift: 0.21, mist: 0.7, mistColor: '198,150,146',
                  sky: ['#1d2748', '#5a4a6a', '#f0a878'], land: '#43304a',
@@ -51314,9 +51320,28 @@ function bakeWinterLayers(){
   midImgsW = bakeLayer(MID, TONE_WINTER.mid, '_sneeuw');
   mtn2ImgsW = bakeLayer(MTN2, TONE_WINTER.mtn2, '_sneeuw');
 }
-function layerImgs(){                          // de stapel die nu hoort: winter of savanne
-  if (winterOn() && mtnImgsW) return { mtn: mtnImgsW, mid: midImgsW, mtn2: mtn2ImgsW };
-  return { mtn: mtnImgs, mid: midImgs, mtn2: mtn2Imgs };
+// Een andere biome: eigen panelen voor dezelfde drie lagen, met dezelfde tekenweg. Een uitzicht kiest
+// er een met `biome` in SCENES. De panelen komen pas binnen als zo'n uitzicht voor het eerst getekend
+// wordt (tot dan zie je de lucht zonder lagen). Het regenwoud heeft een paneel per laag (Grok-edits van
+// midden_4 en verre_bergen_2, zie design/regenwoud/LEESMIJ.md); de verre laag dient gespiegeld ook als
+// tweede rij, net als bij de savanne.
+const BIOMES = {
+  regenwoud: {
+    mtn: Object.assign({}, MTN, { dir: 'design/regenwoud/', files: ['verre_regenwoud_a'], edge: [322], base: 322, kili: -1 }),
+    mid: Object.assign({}, MID, { dir: 'design/regenwoud/', files: ['midden_regenwoud_a'], edge: [414] })
+  }
+};
+BIOMES.regenwoud.mtn2 = Object.assign({}, MTN2, { dir: 'design/regenwoud/', files: ['verre_regenwoud_a'], edge: [322], base: 322 });
+const biomeImgs = {};
+function layerImgs(){                          // de stapel die nu hoort: een biome, winter of savanne
+  const b = sceneCfg().biome, B = b && BIOMES[b];
+  if (B){
+    const I = biomeImgs[b] || (biomeImgs[b] = { mtn: bakeLayer(B.mtn), mid: bakeLayer(B.mid), mtn2: bakeLayer(B.mtn2) });
+    return { mtn: I.mtn, mid: I.mid, mtn2: I.mtn2, L: B, key: b };
+  }
+  const L = { mtn: MTN, mid: MID, mtn2: MTN2 };
+  if (winterOn() && mtnImgsW) return { mtn: mtnImgsW, mid: midImgsW, mtn2: mtn2ImgsW, L, key: '' };
+  return { mtn: mtnImgs, mid: midImgs, mtn2: mtn2Imgs, L, key: '' };
 }
 const seqCache = {};                               // elke rij wordt een keer uitgerekend en onthouden
 function seqFor(key, L, seed, hero, at){
@@ -51514,18 +51539,18 @@ function verteBak(sc, LI, on2, groundY, horizonY, nearY, mtnLift, zonX, zonY){
     vertePlaatBak(P);
   };
   let n = 0;
-  plaat(n++, sc.mtnPar === undefined ? MTN.par : sc.mtnPar,
-        rij(MTN, LI.mtn, 'mtn', sc.seq, sc.hero, sc.heroAt, horizonY, mtnLift, sc.mtnSize), [horizonY], [], [], on2 ? horizonY - mtnLift * H : undefined);
+  plaat(n++, sc.mtnPar === undefined ? LI.L.mtn.par : sc.mtnPar,
+        rij(LI.L.mtn, LI.mtn, LI.key + 'mtn', sc.seq, sc.hero, sc.heroAt, horizonY, mtnLift, sc.mtnSize), [horizonY], [], [], on2 ? horizonY - mtnLift * H : undefined);
   if (on2){
     const achter = [horizonY - mtnLift * H];
     if (sc.mtn2){
-      plaat(n++, sc.mtn2Par === undefined ? MTN2.par : sc.mtn2Par,
-            rij(MTN2, LI.mtn2, 'mtn2', sc.seq2, -1, -1, horizonY, sc.mtn2Lift, sc.mtn2Size), achter,
-            [[horizonY - sc.mtn2Lift * H - MTN2.base * H * sc.mtn2Size, MIST.far * sc.mist]], [], horizonY - sc.mtn2Lift * H);
+      plaat(n++, sc.mtn2Par === undefined ? LI.L.mtn2.par : sc.mtn2Par,
+            rij(LI.L.mtn2, LI.mtn2, LI.key + 'mtn2', sc.seq2, -1, -1, horizonY, sc.mtn2Lift, sc.mtn2Size), achter,
+            [[horizonY - sc.mtn2Lift * H - LI.L.mtn2.base * H * sc.mtn2Size, MIST.far * sc.mist]], [], horizonY - sc.mtn2Lift * H);
       achter[0] = horizonY - sc.mtn2Lift * H;
     }
-    plaat(n++, sc.midPar === undefined ? MID.par : sc.midPar,
-          rij(MID, LI.mid, 'mid', sc.seqMid, sc.midHero, sc.midHeroAt, nearY, sc.midLift, sc.midSize, nearY), achter,
+    plaat(n++, sc.midPar === undefined ? LI.L.mid.par : sc.midPar,
+          rij(LI.L.mid, LI.mid, LI.key + 'mid', sc.seqMid, sc.midHero, sc.midHeroAt, nearY, sc.midLift, sc.midSize, nearY), achter,
           [[nearY - sc.midLift * H, MIST.near * sc.mist]], [[nearY - (groundY - edgeTop(groundY)), MIST.ground * sc.mist]]);
   }
   V.platen.length = n;
@@ -51633,13 +51658,13 @@ function sceneAchter(groundY){
   const La = landMaak(sc, horizonY - Math.max(mtnLift, sc.mtn2 ? sc.mtn2Lift : 0) * H, groundY);
   const landFrom = y => landVul(ctx, La, y, 0, W);
   landFrom(horizonY);
-  drawLayer(MTN, LI.mtn, seqFor('mtn', MTN, sc.seq, sc.hero, sc.heroAt), horizonY, mtnLift, sc.mtnPar, sc.mtnSize);   // laag 1: verre bergen
+  drawLayer(LI.L.mtn, LI.mtn, seqFor(LI.key + 'mtn', LI.L.mtn, sc.seq, sc.hero, sc.heroAt), horizonY, mtnLift, sc.mtnPar, sc.mtnSize);   // laag 1: verre bergen
   if (on2){
     landFrom(horizonY - mtnLift * H);
     if (sc.mtn2){
       const s2 = H * sc.mtn2Size;
-      drawMist(horizonY - sc.mtn2Lift * H - MTN2.base * s2, MIST.far * sc.mist, sc.mistColor);
-      drawLayer(MTN2, LI.mtn2, seqFor('mtn2', MTN2, sc.seq2, -1, -1), horizonY, sc.mtn2Lift, sc.mtn2Par, sc.mtn2Size);  // laag 1b: dichtere bergrij
+      drawMist(horizonY - sc.mtn2Lift * H - LI.L.mtn2.base * s2, MIST.far * sc.mist, sc.mistColor);
+      drawLayer(LI.L.mtn2, LI.mtn2, seqFor(LI.key + 'mtn2', LI.L.mtn2, sc.seq2, -1, -1), horizonY, sc.mtn2Lift, sc.mtn2Par, sc.mtn2Size);  // laag 1b: dichtere bergrij
       landFrom(horizonY - sc.mtn2Lift * H);
     }
     // deze nevel hangt op de rug van de heuvels zelf, niet op de horizon: zakt de rug weg als je
@@ -51647,7 +51672,7 @@ function sceneAchter(groundY){
     drawMist(nearY - sc.midLift * H, MIST.near * sc.mist, sc.mistColor);
   }
   if (on2){
-    drawLayer(MID, LI.mid, seqFor('mid', MID, sc.seqMid, sc.midHero, sc.midHeroAt), nearY, sc.midLift, sc.midPar, sc.midSize, nearY);    // laag 2: savanneheuvels, tot op de grond
+    drawLayer(LI.L.mid, LI.mid, seqFor(LI.key + 'mid', LI.L.mid, sc.seqMid, sc.midHero, sc.midHeroAt), nearY, sc.midLift, sc.midPar, sc.midSize, nearY);    // laag 2: savanneheuvels, tot op de grond
     drawMist(nearY - (groundY - edgeTop(groundY)), MIST.ground * sc.mist, sc.mistColor);
   }
   if (sc.dim){                                      // hele achtergrond een tint donkerder: het wordt avond
