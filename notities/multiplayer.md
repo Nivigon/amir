@@ -109,6 +109,10 @@ loopt, en `pvpTeken` tekent de ander in de zijne. Geldt in Co-op en in Duel, wan
   weg) typt ieder zijn naam, bewaard op het apparaat (`amir.mpnaam`). Net als de broek en het wapen: `{t: 'naam', n}` naar de
   anderen (in `MP_DOOR`, een nieuwe gast krijgt de namen in `pvpGastErbij`). Zonder naam heet je naar je broek.
   `mpSpelerNoem(p, klein)` is hoe een speler heet in elke melding (weg, Give 5 gold, de revive, de camera van een dode).
+- **De dobbelsteen** (`#mpnaamrol`, `mpNaamRol`, `MP_NAAM_ROL`): naast het naamveld geeft een klik een stoere naam uit een vaste
+  lijst van 50, van Afrikaanse koningen, krijgers en koninginnen (Shaka, Sundiata, Nzinga, Menelik, Taharqa) en woorden voor
+  kracht en roofdieren (Jabari, dapper; Simba, leeuw; Jomo, brandende speer; Gamba, krijger; Hondo, oorlog). Nooit je eigen
+  naam of een die een ander in de lobby al heeft. Elke naam past in `MP_NAAM.max`.
 - **Boven het hoofd.** `pvpTekenEen` tekent boven het pijltje en de hartjes een naambordje (`mpNaamTeken`): Archivo 800, licht
   met een zwarte rand, op een donkere pil met een streepje in de broekkleur (`MP_NAAM.kleur`); van een dode half doorzichtig.
   Je eigen naam zie je niet. In Co-op en in het Duel.
