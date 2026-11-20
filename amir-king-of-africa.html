@@ -2284,6 +2284,7 @@
         <label>Grondsoort</label>
         <button id="sbgsstraat">Strook straat</button>
         <button id="sbgsrots">Strook rots</button>
+        <button id="sbgsregenwoud">Strook regenwoud</button>
         <button id="sbgsweg">Weg</button>
         <span class="hint">een strook straat of rotsbodem in de grond voor je uit (het veld grondSoort), met een grillige rand die over een halve cel zacht uitloopt in de savanne; de Maker schrijft dit veld uit de terreincellen op de grondlijn</span>
       </div>
@@ -28457,8 +28458,16 @@ function sneeuwJag(i, y, top, s){
 }
 // de tegel waar je op loopt: de rotsbodem als het level daarom vraagt, anders de
 // gewone grond (of de ingebakken wintergrond van Winter World)
+// de mosgrond van het regenwoud (design/regenwoud/, zelfde maten en looplijn als grondrand.png),
+// lui geladen: de eerste keer dat een uitzicht met biome regenwoud of een strook regenwoud hem vraagt
+let rwBodemImg = null;
+function rwBodem(){
+  if (!rwBodemImg){ rwBodemImg = new Image(); rwBodemImg.src = 'design/regenwoud/grondrand_regenwoud.png'; }
+  return imgReady(rwBodemImg) ? rwBodemImg : null;
+}
 function bodemPic(){
   if (stadAan()){ const b = stadBodem(); if (b) return b; }      // de stad: de straattegel (zelfde maten als EDGE)
+  if (sceneCfg().biome === 'regenwoud' && !winterOn()){ const b = rwBodem(); if (b) return b; }   // het regenwoud: de mosgrond
   const p = sneeuwPlan();
   if (p && p.soort === 'rots'){
     loadSneeuw();
@@ -28606,7 +28615,10 @@ function drawSneeuwdek(top, tw, th, x0, left, right, s){
 // De sneeuwlaag (het veld sneeuw) ligt er gewoon overheen. De Maker schrijft dit veld uit
 // de terreincellen op de grondlijn (zie mkNaarLevel); geen bestaand level heeft het.
 // In de sandbox onder Terrein, Grondsoort.
-const GRONDSOORT = { rand: 88, uitAlpha: 0.5 };   // rand: de uitloop, ongeveer een halve cel (MK_CEL_PX / 2)
+const GRONDSOORT = { rand: 88, uitAlpha: 0.5,   // rand: de uitloop, ongeveer een halve cel (MK_CEL_PX / 2)
+  // een andere biome (het regenwoud naast de savanne) loopt veel langer in: over zo veel wereld-px aan elke kant,
+  // in zoveel stappen die elk een eigen grillige rand hebben, zodat het mos in vlekken over het zand kruipt
+  breed: { regenwoud: 520 }, stappen: 9 };
 function grondStroken(){
   if (sandbox) return sbGrondSoort;
   return (level && level.grondSoort) || [];
@@ -28617,6 +28629,7 @@ function grondTegelVan(soort){
   if (soort === 'straat'){ stadLaad(); return stadBodem(); }
   if (soort === 'plein'){ stadLaad(); return stadKlaar('plein') ? stadImgs.plein : null; }   // de geplaveide vloer van het plein
   if (soort === 'rots'){ loadSneeuw(); return imgReady(sneeuwImg.rots) ? sneeuwImg.rots : null; }
+  if (soort === 'regenwoud') return rwBodem();        // de mosgrond van het regenwoud
   if (tintNu && tintSavanne) return tintSavanne;      // een level met tint: de savanne wat bleker (TINT)
   return winterPic('edge', edgeImg);                 // savanne: de gewone grondrand
 }
@@ -28644,14 +28657,24 @@ function grondStrokenTeken(top, hoog, s, cx, xl, xr, teken){
     if (b + R < xl - 60 || a - R > xr + 60) continue;
     const ka = wl * 0.013, kb = wr * 0.013 + 2.7;    // eigen jag per rand, vast aan de wereld
     const y0 = top - 30, y1 = top + hoog + 30;
-    // met een tint ligt de stad wit naast de savanne: de overgang dan in vier stappen over anderhalve rand
-    const stappen = tintNu ? [[R, 0.2], [R / 2, 0.4], [0, 0.65], [-R / 2, 1]] : [[R / 2, GRONDSOORT.uitAlpha], [-R / 2, 1]];
-    for (const [uit, alpha] of stappen){
+    const RB = GRONDSOORT.breed[st.soort];
+    if (RB && (b + RB < xl - 60 || a - RB > xr + 60)) continue;
+    // met een tint ligt de stad wit naast de savanne: de overgang dan in vier stappen over anderhalve rand.
+    // Een brede soort: n stappen van buiten naar binnen, elk met zo'n alpha dat de dekking samen gelijk
+    // oploopt (1 - (1 - k/n) / (1 - (k-1)/n)), en een eigen jag per stap
+    let stappen;
+    if (RB){
+      const n = GRONDSOORT.stappen; stappen = [];
+      for (let k = 1; k <= n; k++) stappen.push([RB - (k - 0.5) * 2 * RB / n, k === n ? 1 : 1 - (1 - k / n) / (1 - (k - 1) / n), k]);
+    } else stappen = tintNu ? [[R, 0.2], [R / 2, 0.4], [0, 0.65], [-R / 2, 1]] : [[R / 2, GRONDSOORT.uitAlpha], [-R / 2, 1]];
+    for (const [uit, alpha, k] of stappen){
+      const j = RB ? 2.4 + k * 0.7 : 1;              // brede soort: per stap een grovere, andere jag
+      const ja = ka + (k || 0) * 1.9, jb = kb + (k || 0) * 2.3;
       ctx.save();
       ctx.beginPath();
-      ctx.moveTo(a - uit + sneeuwJag(ka, y0, top, s), y0);
-      for (let y = y0; y <= y1; y += 8) ctx.lineTo(a - uit + sneeuwJag(ka, y, top, s), y);
-      for (let y = y1; y >= y0; y -= 8) ctx.lineTo(b + uit + sneeuwJag(kb, y, top, s), y);
+      ctx.moveTo(a - uit + j * sneeuwJag(ja, y0, top, s), y0);
+      for (let y = y0; y <= y1; y += 8) ctx.lineTo(a - uit + j * sneeuwJag(ja, y, top, s), y);
+      for (let y = y1; y >= y0; y -= 8) ctx.lineTo(b + uit + j * sneeuwJag(jb, y, top, s), y);
       ctx.closePath();
       ctx.clip();
       ctx.globalAlpha = alpha;
@@ -55900,7 +55923,7 @@ function schoonKomend(lv){
 // stroken grondsoort in de bodem: [{van, tot, soort}], zie "grondsoort per plek"
 function leesGrondSoort(a){
   if (!Array.isArray(a)) return undefined;
-  const uit = a.filter(q => q && (q.soort === 'savanne' || q.soort === 'rots' || q.soort === 'straat' || q.soort === 'plein'))
+  const uit = a.filter(q => q && (q.soort === 'savanne' || q.soort === 'rots' || q.soort === 'straat' || q.soort === 'plein' || q.soort === 'regenwoud'))
                .map(q => ({ van: Number(q.van) || 0, tot: Number(q.tot) || 0, soort: q.soort }));
   return uit.length ? uit : undefined;
 }
@@ -65591,9 +65614,10 @@ let sbGrondSoort = [];
 function sbGrondStrook(soort){
   const van = world - SB_GS.van;
   sbGrondSoort.push({ van, tot: van - SB_GS.breed, soort });
-  if (soort === 'straat') stadLaad(); else loadSneeuw();
+  if (soort === 'straat') stadLaad(); else if (soort === 'regenwoud') rwBodem(); else loadSneeuw();
   cv.focus();
 }
+document.getElementById('sbgsregenwoud').onclick = () => sbGrondStrook('regenwoud');
 document.getElementById('sbgsstraat').onclick = () => sbGrondStrook('straat');
 document.getElementById('sbgsrots').onclick = () => sbGrondStrook('rots');
 document.getElementById('sbgsweg').onclick = () => { sbGrondSoort.length = 0; cv.focus(); };

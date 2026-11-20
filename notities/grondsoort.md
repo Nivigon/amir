@@ -6,7 +6,7 @@ Stap 2 van `notities/plan-stad-maker.md`. Een level kan de bodem per strook een 
 soort geven dan de rest:
 
 ```
-grondSoort: [{van, tot, soort}]      soort 'savanne', 'rots', 'straat' of 'plein'
+grondSoort: [{van, tot, soort}]      soort 'savanne', 'rots', 'straat', 'plein' of 'regenwoud'
 ```
 
 `van` is de startkant (minst negatief), `tot` verderop, zoals bij `sneeuw`; de code
@@ -40,6 +40,14 @@ De aanroepen:
   `holteVloerLaag` staat), binnen de put-clip, zodat een put er ook uit geknipt blijft.
 
 De sneeuwlaag (het veld `sneeuw`) ligt er gewoon overheen, zoals op de gewone bodem.
+
+## Het regenwoud
+
+Soort `regenwoud`: de mosgrond uit `design/regenwoud/grondrand_regenwoud.png` (`rwBodem`, lui geladen). Een biome
+naast de savanne mag niet in 88 px omslaan, dus een soort in `GRONDSOORT.breed` loopt veel langer in (regenwoud 520
+wereld-px aan elke kant) in `GRONDSOORT.stappen` lagen die elk een eigen, grovere jag hebben en samen gelijk in dekking
+oplopen: het mos kruipt in vlekken over het zand. In het uitzicht `regenwoud` (`biome` in SCENES) is de mosgrond de
+basis zelf (`bodemPic`), dus daar is een strook `savanne` de weg terug naar het zand. Sandbox: **Strook regenwoud**.
 
 ## Wat de basis houdt
 
