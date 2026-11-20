@@ -15,7 +15,7 @@
 | worp (`worp`) | snel | geen snee, 8 druppels |
 | grondklap (`klap`) | snel | geen snee, 2 druppels |
 | stokken (`stok`) | gewoon | geen snee, 1 druppel |
-| al het andere (sluis, Nyundo, co-op) | gewoon | geen snee, 3 druppels |
+| al het andere (Nyundo, co-op) | gewoon | geen snee, 3 druppels |
 
 De witte flits is de bestaande (`s.flash`). De druppels vliegen van Amir af en blijven als spatjes op de grond liggen. Het lijk ligt `SLANG_DOOD.lig` (3 s) en vervaagt dan in `SLANG_DOOD.vervaag` (0,8 s). Zijn de doodframes er niet (nog niet geladen), dan valt hij terug op de oude dood (wegglijden en vervagen). De fosforslang heeft zijn eigen update en houdt de oude dood.
 

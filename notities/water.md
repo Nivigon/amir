@@ -52,67 +52,6 @@ gedeeld met de bron), de druppels en het geruis. Alles achter Amir, na `stadVoor
 De diepte telt mee in `waterDepthAt`, dus de spetters, het watergeluid, het wegzakken en de speer die in het water verloren
 gaat werken voor elke vorm zoals bij de oude poel.
 
-## De sluis (`k: 'sluis'`)
-
-`SLUIS`, `sluisLaad`, `sluisBreek`, `sluisStap`, `sluisHoogte`, `sluisDiep`, `sluisAchterTeken`, `sluisVoorTeken`, `zegelSluis`, `sbSluis`
-
-Een sluistoren die breekt en een vloedgolf door de straat stuurt. Een vorm van dit materiaal: `wateren: [{k: 'sluis', x, tot,
-hoog, golfH, v, duur}]`. `x` is waar de stortvloed de straat raakt (het gat in de toren staat daar recht boven), `tot` waar de
-golf uitloopt (standaard 4000 voorbij `x`); `hoog`, `golfH`, `v` en `duur` overschrijven per sluis de getallen uit `SLUIS`.
-
-- **De toren** is een plaat: `design/stad/sluis/sluis_heel.png` (1036 bij 1571), met `sluis_breuk.png` als overlay op de plek uit
-  `metadata.json` (90, 227). De toren zelf wisselt nooit. Getekend achter de huizen (`sluisAchterTeken`, voor `stadTeken`),
-  `SLUIS.hoog` (4,4) Amir hoog, op wereld-x, dus in een level rechts achter de start. Lui geladen (`sluisLaadLevel` in
-  `laadLevel`, `sluisLaad` in de sandbox), en in de kleine set (`KLEIN_FAM`, `gen-klein.py`).
-- **Het water op de toren** tekent het spel, met `WATER.palet` en de rimpeltexturen: het bassin achter de voorste kartels tot
-  vlak onder de rand (`SLUIS.rand` is de omtrek van de kartels in px van de plaat, de spiegel staat op `bassinVol` en zakt na de
-  breuk naar `bassinLeeg`), de goot van het aquaduct (`SLUIS.goot`, stroomt naar de toren), straaltjes door de kieren onder de
-  schuif (`SLUIS.lek`, `waterValGordijn`, met druppels), en na de breuk de stortvloed uit het gat (`gatL`..`gatR` op `gatY`) langs
-  de gevel naar de straat, met stuifwater onderaan. De stortvloed is `stort` s vol en dunt daarna uit tot een straal.
-- **De trigger** is een zegel met `sluis: true` (in `zegelSchakel`, `zegelSluis`), standaard het teken `rune` (alleen de speler).
-  Gekozen boven het takelwiel: een zegel is al een schakelaar met een doel (zoals `rijs` en `poort`), werkt in een level met een
-  regel en een veld, en de speler kiest zelf het moment door erop te stappen; het takelwiel hangt vast aan een plateau dat hier
-  niets doet. Een takel kan het toch: een actie `{soort: 'sluis', bij: [...]}` op een sein (`koppelDoe`). Een keer per leven:
-  `sluisReset` (in `restart`) zet hem weer heel.
-- **De tell** (`SLUIS.tell`, 1,8 s): gekraak (`sluisKraak`, Web Audio, ruis door een bandpass met een tik eronder), steeds meer en
-  dikkere straaltjes, de toren beeft en het scherm schudt een beetje. De hint "The floodgate groans: get off the street!".
-- **De breuk** (`sluisBreukNu`): de overlay, een klap (`ton_breek` en `ton_zwaar`, een grote kraak, `shake`), puin en water uit
-  het gat. Dan rolt de golf van `x` naar links met `v` (950, Amir sprint 495).
-- **De golf** (`sluisHoogte`): een steile voorkant (`front`), een kam van `golfH` Amir (0,8) die over `kamLang` uitloopt, en
-  daarachter de overstroming (`poelH`). Getekend voor Amir en de vijanden (`sluisVoorTeken`, in `waterVoorTeken`): het lijf met
-  het verloop van het palet, twee lagen rimpels die naar links stromen, een schuimrand op de waterlijn die op de kam dik wordt, een
-  kuif van schuim op de voorkant en stuifwater (`waterDruppel`). Loopt hij uit bij `tot`, dan zakt de kam in.
-- **Het geraas**: `waterGeluid` krijgt de stortvloed en de golf erbij (`SLUIS.geluid`), mag dan harder (0,95) en de laagdoorlaat
-  gaat open (1700 Hz in plaats van 750), zodat het raast in plaats van ruist.
-- **Wie de kam raakt** (alleen zolang de golf loopt, op straat: een vloer lager dan `SLUIS.droog`, een halve Amir):
-  - **Amir** verliest een leven (`hurtPlayer`) en wordt `sleurTijd` s meegesleurd (`knock`). Springt hij hoger dan de kam, of
-    staat hij op een kraam, galerij of dak, dan blijft hij droog. Een kraamtafel (0,38) is te laag.
-  - **Een slang of schorpioen** spoelt weg: dood (telt als kill, ook voor de multikill), en hij drijft mee.
-  - **Een mens of hyena** (bandiet, schildbandiet, zweepman, kruisboogbandiet, kooiman, meelman) gaat met `mobK` van de golfvaart
-    mee, tegengehouden door wat een terugslag ook tegenhoudt (`knockBlocked`: kei, muur, ravijnrand, regel 7). Slaat hij ergens
-    tegen, dan verliest hij een leven met de treffer van zijn eigen soort (`sluisKlap`, zonder sluipaanval) en gaat de golf over
-    hem heen. Zonder iets in de weg sleurt de golf hem alleen mee.
-  - **Een baas** (`boss`, een aanvoerder, Nyundo, Murghtaan) doet niet mee.
-- **De overstroming**: na de golf staat de straat `duur` s (4) onder water en zakt dan in `zak` s weg. `sluisDiep` geeft de diepte
-  aan `waterenDiep` (alleen op straat), dus waden, trager lopen, lager springen en de spetters werken vanzelf. Een speer gaat er
-  niet in verloren (`waterDepthAt(x, h, true)` bij het neerkomen van de speer), want het water zakt weer weg.
-- **Sandbox**: onder Terrein, rij **Sluis**: **Sluis neerzetten** (een straat met de toren rechts achter je, een zegel voor je,
-  een rieten kraam en een galerij om op te vluchten en verderop een kei), **Golf nu** (breekt meteen, ook opnieuw), **Hoogte golf**
-  (0,5, 0,8, 1,1 Amir), **Snelheid** (650, 950, 1300), **Duur overstroming** (2, 4, 7 s), en **Bandieten en slangen** (twee van
-  elk in de straat, met de AI aan).
-- **Test level**: Stad 13: The Floodgate (onder Test levels stad).
-
-### Nog af te stellen
-
-- `SLUIS.tell` (1,8 s) en `v` (950): samen het venster. Stap je op het zegel in Stad 13, dan heb je de tell plus zo'n 0,6 s
-  looptijd van de golf om op de kraam te komen.
-- `golfH` (0,8), `kamLang` (1,4), `poelH` (0,14) en `diep` (0,8): hoe hoog en hoe nat het eruitziet en voelt.
-- `mobK` (0,85): hoe ver een vijand meegaat voor hij achter de kam valt.
-- `duur` (4 s) en `zak` (2,5 s): hoe lang de straat onder water staat.
-- `hoog` (4,4 Amir): de toren past zo met het bassin in beeld bij `view: 0.8`.
-- Het geluid: de kraak is getekend in Web Audio en de breuk leent de ton; een echte opname van brekend hout en ruisend water zou
-  beter zijn.
-
 ## De brug (`brug: true` op een rivier)
 
 `BRUG`, `brugTeken`, `brugIn`. Een rivier met `brug: true` krijgt een houten brug op straathoogte: de galerij van de stad
