@@ -791,6 +791,8 @@ async function elk(H, G){
     console.log('doden: ' + doden[r.wie] + ', weer op: ' + revives[r.wie]);
     if (r.fouten.size){ console.log('fouten:'); for (const f of r.fouten) console.log('  ' + f); }
     else console.log('geen fouten');
+    const mk = await r.page.evaluate(() => { const M = window.__meekijk || (typeof meekijk !== 'undefined' && meekijk); return M ? M.gevangen.map(v => v.soort + ' ' + JSON.stringify(v.info)) : null; }).catch(() => null);
+    if (mk) console.log('meekijker (tijdelijk): ' + (mk.length ? mk.length + ' gevangen: ' + mk.join(' | ') : 'niets gevangen'));
   }
   await browser.close(); srv.close();
 })();
