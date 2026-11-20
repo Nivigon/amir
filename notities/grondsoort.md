@@ -59,8 +59,10 @@ Onder de mosgrond geen egale bruine vlakte maar een tegel humus met een rij mosb
 van de wand loopt er zacht in over: van bronrij `van` (225) tot `tot` (300) ligt de tegel in `n` stroken met oplopende
 dekking over de wand, zoals de uitloop van de straattegel. Alleen waar de mosgrond de basis is (het uitzicht `regenwoud`);
 een strook van een andere soort houdt zijn eigen wand. Onder een terras van regenwoudgrond (`savanneLaag`) ligt hij ook,
-zonder het bijna-zwart van `SAV_LAAG`, vast aan de gewone grondlijn, en met de wand van de grond die voor de voet
-van het terras doorloopt (`rwVoetTeken`, vanaf bronrij `voet`). Een zwever en een strook `regenwoud` in een
+zonder het bijna-zwart van `SAV_LAAG` en vast aan de gewone grondlijn. Het terras en de grond zijn dan een wand: onder de
+wand van het terras loopt de wandband (bronrij `voet` tot `wand`, om en om gespiegeld) door tot de wand van de grond
+(`rwWandTeken`), en die begint onder het terras pas onder de blokjesrand van het loopvlak (`rwVoetTeken`, vanaf `voet`,
+zacht tot `voetTot`), met dezelfde overloop in de onderlaag. Een zwever en een strook `regenwoud` in een
 savanne-uitzicht hebben hem nog niet.
 
 ## Wat de basis houdt

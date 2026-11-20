@@ -10223,10 +10223,9 @@ function savanneLaag(t, groundY, scale, cx, bottom, st, floating){
   while (x > xl) x -= tw;
   // een terras van regenwoudgrond: de onderlaag ook onder de wand, met dezelfde overloop als de grond (rwOnderTeken)
   const rwStuk = (!zwart && !hout && !floating && eimg === rwBodemImg) ? rwOnderStukken(xl, xr) : null;
-  // Vast aan de gewone grondlijn (groundY), niet aan het terras: zo lopen de rijen door met de grond ernaast.
-  if (rwStuk) for (const [a, b] of rwStuk) rwOnderTeken(a, b, top, groundY, s, false, bottom, cx);
+  // De wand van het terras loopt door tot de wand van de grond (rwWandTeken); daaronder neemt rwVoetTeken het over.
+  if (rwStuk) for (const [a, b] of rwStuk) rwWandTeken(eimg, a, b, top, groundY, s, cx);
   for (; x < xr; x += tw) ctx.drawImage(eimg, x, top, tw + 1, th);
-  if (rwStuk) for (const [a, b] of rwStuk) rwOnderTeken(a, b, top, groundY, s, true, bottom, cx);
   // de stroken grondsoort (straat, rots) ook op de bovenkant van de laag (niet op zwart)
   if (!zwart) grondStrokenTeken(top, th, s, cx, xl, xr, (img, va, vb) => grondTegelRij(img, top, s, cx, va, vb));
   if (sneeuwOn() && !zwart){                          // de sneeuwlaag ligt ook op een hogere of zwevende savannelaag (niet op zwart)
@@ -28797,7 +28796,7 @@ function rwBodem(){
 // De wand loopt niet hard op de tegel uit maar vervaagt erin, net als de rand van de straattegel: van bronrij `van` tot
 // `tot` legt rwOnderTeken de tegel in `n` stroken met oplopende dekking over de wand, zodat de gekartelde onderrand
 // verdwijnt. Onder een terras van regenwoudgrond ook (savanneLaag), zonder het donker van SAV_LAAG en met de grondwand ervoor (rwVoetTeken). Alleen onder regenwoudgrond: een strook savanne (grondSoort) in een regenwoud-uitzicht houdt zijn wand.
-const RW_ONDER = { van: 225, tot: 300, n: 10, voet: 136, voetTot: 148 };   // voet..voetTot: waar de grondwand voor een terras begint (bronrijen, zie rwVoetTeken)
+const RW_ONDER = { van: 225, tot: 300, n: 10, voet: 176, voetTot: 206, wand: 296 };   // voet..voetTot: waar de grondwand voor een terras begint, voet..wand: de wandband (bronrijen, zie rwVoetTeken en rwWandTeken)
 let rwOnderImg = null;
 function rwOnder(){
   if (!rwOnderImg){ rwOnderImg = new Image(); rwOnderImg.src = 'design/regenwoud/regenwoud_onder.png'; }
@@ -28827,9 +28826,10 @@ function rwVoetTeken(eimg, xL, xR, groundY, s, yBot, cx){
   const R = RW_ONDER, nw = eimg.naturalWidth, tw = nw * s, gTop = groundY - EDGE.walk * s;
   let x = cx - (((world % tw) + tw) % tw);
   while (x > xL) x -= tw;
+  rwOnderTeken(xL, xR, gTop, groundY, s, false, yBot, cx);   // de onderlaag achter de wand
   ctx.save();
   ctx.beginPath(); ctx.rect(xL, gTop + R.voet * s, xR - xL, yBot - gTop - R.voet * s); ctx.clip();
-  const n = 4, st = (R.voetTot - R.voet) / n, hoog = eimg.naturalHeight;
+  const n = 8, st = (R.voetTot - R.voet) / n, hoog = eimg.naturalHeight;
   for (let xx = x; xx < xR; xx += tw){
     for (let i = 0; i < n; i++){                      // de bovenrand zacht
       ctx.globalAlpha = (i + 1) / n;
@@ -28840,6 +28840,23 @@ function rwVoetTeken(eimg, xL, xR, groundY, s, yBot, cx){
   }
   ctx.restore();
   rwOnderTeken(xL, xR, gTop, groundY, s, true, yBot, cx);
+}
+// De wand van een terras van regenwoudgrond, doorgetegeld van onder zijn eigen wand tot waar de grondwand begint (de
+// wandband van de grondrand, bronrij voet tot wand, om en om gespiegeld zodat de naad wegvalt). Zo is het een wand.
+function rwWandTeken(eimg, xL, xR, top, groundY, s, cx){
+  const R = RW_ONDER, nw = eimg.naturalWidth, tw = nw * s, bh = R.wand - R.voet, dh = bh * s;
+  const y0 = top + R.voet * s, y1 = groundY - EDGE.walk * s + R.voetTot * s;
+  if (y1 <= y0 || dh < 2) return;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(xL, y0, xR - xL, y1 - y0); ctx.clip();
+  let x = cx - (((world % tw) + tw) % tw);
+  while (x > xL) x -= tw;
+  let k = 0;
+  for (let y = y0; y < y1; y += dh, k++) for (let xx = x; xx < xR; xx += tw){
+    if (k % 2){ ctx.save(); ctx.translate(0, y + dh); ctx.scale(1, -1); ctx.drawImage(eimg, 0, R.voet, nw, bh, xx, 0, tw + 1, dh + 0.6); ctx.restore(); }
+    else ctx.drawImage(eimg, 0, R.voet, nw, bh, xx, y, tw + 1, dh + 0.6);
+  }
+  ctx.restore();
 }
 // groundY is de looplijn van deze grond (de grond zelf, of de bovenkant van een terras), yBot en cx zoals bij straatOnderVul
 function rwOnderTeken(xL, xR, top, groundY, s, over, yBot, cx){
