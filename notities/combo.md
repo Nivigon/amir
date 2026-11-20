@@ -111,3 +111,12 @@ in de bewogen schacht terug naar bruin, in de punt naar grijs. Op frame 6 en 8 i
 - Tegen de bandiet: de tweede steek valt in zijn dekking en wordt gepareerd; dat telt als contact, maar met terugslag en
   schade breekt zijn counter de reeks bijna altijd af. Doorbraak is het antwoord daarop; uitproberen welke blijft.
 - Het naar voren schuiven gebeurt terwijl de voeten in de frames staan: een beetje glijden.
+
+## Niet van de rand slaan
+
+`randOp(stap)`: een slag die Amir naar voren schuift (de draaislag en de combo met `comboSchuif`, de stokken met
+`stokSchuif`, `stokAnker` en `stokRoot`, de stofveeg met `stofEind`, de renstoot met `glijUpdate`) schuift niet als hij
+daarmee van zijn verhoging af zou gaan: een rieten dak, een luifel, de doek van een kraam, een galerij, een terras of een
+opstapje. Je slaat wel, maar je blijft op de rand staan. Zoals in de meeste actie-platformers: zelf eraf lopen, rollen of
+springen kan gewoon, alleen de slag duwt je er niet af. Een helling af (de strakke luifel) telt niet, pas een daling van
+meer dan 0,1 Amir. Gevraagd door de opdrachtgever: op de rand slaan om iets erboven te raken liet je eraf vallen.
