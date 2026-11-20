@@ -572,6 +572,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **Kelderluik** (`design/stad/kelder/wig.png` en `luik.png`, uit de Grok-platen in `bron/` en de textuur van `gevel.png`) → `tools/kelder_knip.py`, daarna `gen-offline-manifest.py`; een ander canvas vraagt nieuwe maten in `KELDER`
 - **Fontein** (`design/stad/fontein.png`, uit de Grok-plaat in `design/stad/bron/fontein.webp`) → `tools/fontein_knip.py`, daarna `gen-offline-manifest.py`; een nieuwe plaat vraagt nieuwe maten in `WATER.soort.fontein`
 - **Winkelspullen, het derde vel** (`design/stad/binnen/spul_*.png`, uit `bron/spullen_vel3.png`) → `tools/spul_knip.py`, daarna `gen-offline-manifest.py`
+- **Winkelinrichting** (`design/stad/binnen/toonbank_leem.png`, `plank_pin.png`, `wand_*.png`, `kruik_groot.png`, `zak_*.png`, `manden.png`, uit `bron/winkel_b.jpg`) → `tools/winkel_b_knip.py`, daarna `gen-offline-manifest.py`
 - **Wapenrek** (`design/stad/wapenrek/`, uit de Grok-plaat in `bron/`) → `tools/wapenrek_knip.py`, daarna `gen-offline-manifest.py`
 - **Deurgordijnen** (`design/stad/gordijn/`, uit de Grok-platen in `bron/`) → `tools/gordijn_knip.py`, daarna `gen-klein.py` en `gen-offline-manifest.py` (de gordijnmap staat niet in de lijst van `gen-klein.py`, dus het spel laadt de grote versie, net als bij de tonnen)
 - **Tonnen** (`design/stad/ton/`, uit de Grok-platen in `bron/`) → `tools/ton_kleur.py`, daarna `gen-offline-manifest.py`

@@ -718,14 +718,15 @@ binnen: [{ ..., winkel: { x, seed, koopman }, planken: [{ x, h, soort, seed }] }
   de toonbank is de grens van wat je kunt belopen (`binnenLinks`, in `binnenKlem` en `binnenVijandKlem`). Hij staat niet
   op de achtergrond maar op de vloer, op dezelfde lijn als Amir: zo loopt Amir er nooit overheen, wat met de paar pixels
   diepte van de vloer binnen altijd las als "op de bar".
-- **Achter de toonbank**, tegen de muur: het schap (`schap.png`, drie planken, de onderste zit achter de toonbank en blijft
-  leeg), daarnaast 2 tot 4 speren die tegen de muur leunen (rechtop: liggend op het blad leken ze te zweven), en de
-  marktman. Voorlopig is dat de dorpeling, gespiegeld zodat hij naar Amir kijkt; `koopman: false` laat hem weg.
-- Het achterbeeld loopt `WINKEL.speerMarge` (0,45 Amir) voorbij het eind van de toonbank door: een speer die naar buiten
-  leunt viel anders half buiten het beeld en was dan maar een sliertje.
+- **De inrichting (voorstel B, 21-11-2026)**: een toonbank van leem met een houten blad (`toonbank_leem.png`), daarachter
+  links een doorgang naar achter (de binnendeur met het waaiende adire-doek, `winkelDeur`, `WINKEL.deur`), de marktman,
+  twee wandplanken op pinnen met spullen (`plank_pin.png`, `WINKEL.wandPlank`), een geweven mat en een bos kruiden aan de
+  muur, naast het eind van de toonbank een grote kruik met 2 of 3 speren erin, en voor de toonbank zakken en een stapel manden
+  (`WINKEL.zakken`). De onderdelen komen uit een Grok-vel (`bron/winkel_b.jpg`, geknipt met `tools/winkel_b_knip.py`). Het oude
+  schap (`schap.png`) en de houten toonbank (`toonbank.png`) worden niet meer gebruikt. `koopman: false` laat de marktman weg.
 - **Op het blad** een tot drie kalebassen, en soms nog een spul. Dat is wat je straks kunt krijgen.
-- **Elke winkel is anders.** Wat er waar staat volgt uit `seed`: welke spullen op welke plank, de speren en hun hoek, of de
-  toonbank en het schap gespiegeld zijn, de kalebassen, waar de marktman staat. Een vast level heeft een vaste seed en ziet
+- **Elke winkel is anders.** Wat er waar staat volgt uit `seed`: welke spullen op welke plank, de hoogte van de planken, het
+  aantal speren, de volgorde van de zakken, of de toonbank gespiegeld is, de kalebassen, waar de marktman staat. Een vast level heeft een vaste seed en ziet
   er elke keer hetzelfde uit; een nieuw level krijgt een nieuwe seed (zonder seed volgt hij uit `x`). Elke klik op de
   sandbox-knop geeft een nieuwe.
 - **Planken** hangen aan de muur: `x` het midden, `h` de bovenkant van de plank boven de vloer (wereld-eenheden, net als
@@ -736,8 +737,6 @@ binnen: [{ ..., winkel: { x, seed, koopman }, planken: [{ x, h, soort, seed }] }
   een olielampje, een trommel en een mand dadels; alleen in een winkel het gifflesje (het gif uit het winkelscherm) en de kalebas (`items/potions/hppotion.png`). Hun hoogte staat in Amir, `spulMaat` maakt ze allemaal iets
   groter. Ze komen uit een vel van Grok in strikt zij-aanzicht op ooghoogte, zonder schaduw: een vel met de camera erboven
   (je ziet in de manden, de stof ligt plat) werkte niet.
-- **Op het schap**: de balken van `schap.png` hebben geen bovenvlak, dus eerst het schap en dan de spullen erop, met hun
-  onderkant `WINKEL.schapIn` (0,004 Amir) in de bovenrand. Andersom zakten ze achter de balk weg.
 - **Tekenen**: het schap met de speren en de planken worden een keer opgebouwd tot een beeld met een zachte schaduw op de
   muur eronder (`winkelMetSchaduw`), en getekend in `binnenAchter`, zodat het schemer van `binnenNa` erover valt. De
   toonbank komt na de personages van het level en voor Amir (`winkelVoor`), met de marktman ervoor; het schemer zit daarom
