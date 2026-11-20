@@ -29,6 +29,7 @@
 //   node tools/mptest.js --stokken gast  deze spelers kiezen in de lobby de stokken (ook host, gast2, of host,gast): kijkt na
 //                                        dat iedereen het weet, dat hun potje met stokken start zonder speer, en hun winkel
 //   node tools/mptest.js --geensnel      zonder het nagebootste snelle kanaal (zoals via het relais)
+//   node tools/mptest.js --proef --winkeleerst   met Start in the shop: kijkt na dat ook elke gast in de winkel begint
 //   node tools/mptest.js --kaart ishmul  Co-op Survival op een andere map (een id uit MP_KAARTEN.coop; standaard dye)
 //   node tools/mptest.js --hl            de tweede Co-op episode (The Smugglers' Cellar): de lijn van een hinderlaag, het
 //                                        leiband, wachten op het team, de regie (balken, camera, vijanden per shot), het
@@ -579,6 +580,7 @@ async function elk(H, G){
   // samen beginnen: de laatste gast laadt kunstmatig lang (mpLaadVast blijft waar), dan moet de host op het laadscherm wachten
   const traag = ramen[ramen.length - 1];
   await traag.page.evaluate(() => { window.__houd = true; const o = mpLaadVast; mpLaadVast = () => window.__houd || o(); });
+  if (args.includes('--winkeleerst')) await H.page.evaluate(() => { pvp.inst.coop.winkelEerst = true; });   // Start in the shop
   const start = await H.page.evaluate(() => { const ok = !pvpEl('mpstart').disabled; mpStart(); return ok; });
   lobby.push([start, 'iedereen Ready: Start mag']);
   console.log('Start mocht: ' + start);
@@ -590,6 +592,9 @@ async function elk(H, G){
   let los = true;
   for (const r of ramen) los = await tot(r.page, () => running && !laadWacht, null, 90000) && los;
   meld(los, 'de gast is geladen: iedereen los');
+  if (args.includes('--winkeleerst')){
+    for (const r of ramen) meld(await tot(r.page, () => pvp.coop.inWinkel && binnenBij(world), null, 10000), r.wie + ': Start in the shop, ook ' + r.wie + ' staat in de winkel');
+  }
   if (stokken.length){
     await wacht(1500);
     for (const r of ramen){
