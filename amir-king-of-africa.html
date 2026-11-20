@@ -33873,7 +33873,7 @@ function kistReset(){ kisten = ((level && level.kisten) || []).map(kistMaak); }
 function kistBij(){
   if (dead || won) return null;
   for (const k of kisten){
-    if (k.open || Math.abs(world - k.x) > KIST.bij) continue;
+    if (k.open || k.mpWacht || Math.abs(world - k.x) > KIST.bij) continue;
     if (k.h > ph + CHAR_H * KIST.hoog || k.h < ph - CHAR_H * 0.5) continue;
     return k;
   }
@@ -33882,15 +33882,20 @@ function kistBij(){
 function kistE(){
   const k = kistBij();
   if (!k) return false;
-  k.open = true; k.openT = 0;
-  for (let i = 0; i < KIST.munten; i++)
-    k.munten.push({ x: (Math.random() - 0.5) * 0.25, y: 0.24, vx: (Math.random() - 0.5) * 1.6, vy: 2.2 + Math.random() * 1.6,
-                    t: 0, draai: Math.random() * 6, rust: false });
+  if (typeof mpCoopAan === 'function' && mpCoopAan()){ mpcKistE(k); return true; }   // Co-op: de host beslist wie hem opent
+  kistOpenBeeld(k);
   if (goudTelt()){ goud += k.goud; goudOnderweg += k.goud; goudVlieg({ x: k.x, base: k.h - CHAR_H * 0.3 }, k.goud); goudHud(); }   // het vliegt naar de teller (goudVlieg)
   banStemSpeel(houtRaakSnd, 0.5);                  // het deksel
   playHppotionPickupSound();
   flashHint('Een schatkist! ' + k.goud + ' goud', 3200);
   return true;
+}
+// het deksel open en de munten eruit: alleen het beeld
+function kistOpenBeeld(k){
+  k.open = true; k.openT = 0; k.mpWacht = false;
+  for (let i = 0; i < KIST.munten; i++)
+    k.munten.push({ x: (Math.random() - 0.5) * 0.25, y: 0.24, vx: (Math.random() - 0.5) * 1.6, vy: 2.2 + Math.random() * 1.6,
+                    t: 0, draai: Math.random() * 6, rust: false });
 }
 function kistStap(dt){
   for (const k of kisten){
@@ -66467,6 +66472,7 @@ const COOPEP2_2 = {
   rocks: [], gaps: [ {x: -4700, w: 200} ], ledges: [], village: [], npcs: [], water: [], thickets: [],
   props: [ {x: -600, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -2500, k: 'struik', s: 1.0, f: 1, v: 0},
            {x: -5600, k: 'gras', s: 0.9, f: 1, v: 0}, {x: -8300, k: 'struik', s: 1.0, f: 0, v: 0} ],
+  kisten: [ {x: -5000, goud: 20} ],   // een kist voor een speler: wie hem opent krijgt al het goud (mpcKistE)
   hppotions: [ {x: -5100, y: null} ],
   cliffs: [ {x: -9300} ],
   ends: [ {x: -8700} ],
@@ -66501,6 +66507,7 @@ const COOPEP2_3 = {
   zwevers: [ {r: -20000, l: -22200, h: 900, onder: 750, look: 'hout'} ],
   rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
   voorgrond: false,
+  kisten: [ {x: -3900, y: 401, goud: 20} ],   // een kist voor een speler: wie hem opent krijgt al het goud (mpcKistE)
   hppotions: [ {x: -3500, y: null} ],
   cliffs: [ {x: -7200} ],
   ends: [ {x: -6600} ],
@@ -66540,6 +66547,7 @@ const COOPEP2_4 = {
   zwevers: [ {r: -20000, l: -22200, h: 900, onder: 750, look: 'hout'} ],
   rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
   voorgrond: false,
+  kisten: [ {x: -4300, y: 401, goud: 25} ],   // een kist voor een speler: wie hem opent krijgt al het goud (mpcKistE)
   hppotions: [ {x: -3900, y: null}, {x: -5700, y: null} ],
   cliffs: [ {x: -7200} ],
   ends: [],
@@ -66566,6 +66574,7 @@ const COOPEP2_5 = {
   gaps: [ {x: -4700, w: 230} ], ledges: [], village: [], npcs: [], water: [], thickets: [],
   props: [ {x: -700, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -2300, k: 'struik', s: 1.0, f: 1, v: 0},
            {x: -5000, k: 'gras', s: 0.9, f: 1, v: 0}, {x: -8200, k: 'struik', s: 0.9, f: 0, v: 0} ],
+  kisten: [ {x: -8000, goud: 25} ],   // een kist voor een speler: wie hem opent krijgt al het goud (mpcKistE)
   hppotions: [ {x: -4200, y: null}, {x: -7700, y: null} ],
   cliffs: [ {x: -9100} ],
   ends: [ {x: -8500} ],
@@ -66607,6 +66616,7 @@ const COOPEP2_6 = {
   zwevers: [ {r: -20000, l: -22200, h: 900, onder: 750, look: 'hout'} ],
   rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
   voorgrond: false,
+  kisten: [ {x: -2800, y: 401, goud: 30} ],   // een kist voor een speler: wie hem opent krijgt al het goud (mpcKistE)
   hppotions: [ {x: -3700, y: null}, {x: -6300, y: null} ],
   cliffs: [ {x: -8300} ],
   ends: [ {x: -7700} ],
@@ -68783,6 +68793,31 @@ function mpcBuitKrijg(k){
   else { pvp.coop.goud += MPC.goud; flashHint('+' + MPC.goud + ' gold'); }
   mpCoopHud();
 }
+// de schatkist in Co-op: een kist gaat maar voor een speler open, en die krijgt al het goud (niet gedeeld). De host
+// beslist: wie het eerst E drukt (de host zelf meteen, een gast met kistVraag), en iedereen hoort met kistOpen wie het
+// was; bij de rest gaat het deksel ook open, leeg. Een gast die te laat was hoort kistNee
+function mpcKistE(k){
+  const i = kisten.indexOf(k);
+  if (pvp.host){ mpcKistNeem(i, pvp.mij); return; }
+  k.mpWacht = true; k.mpWachtT = performance.now();
+  pvpZendAan(0, { t: 'kistVraag', i });
+  setTimeout(() => { if (k.mpWacht && !k.open) k.mpWacht = false; }, 3000);   // geen antwoord: weer te proberen
+}
+function mpcKistNeem(i, p){
+  const k = kisten[i]; if (!k) return;
+  if (k.open){ if (p !== pvp.mij) pvpZendAan(p, { t: 'kistNee', i }); return; }
+  pvpZend({ t: 'kistOpen', i, p });
+  mpcKistOpen(i, p);
+}
+function mpcKistOpen(i, p){
+  const k = kisten[i]; if (!k || k.open) return;
+  kistOpenBeeld(k);
+  banStemSpeel(houtRaakSnd, 0.5);
+  if (p === pvp.mij){
+    playHppotionPickupSound();
+    mpcGoudErbij(k.goud, 'a treasure chest, all yours');
+  } else if (Math.abs(world - k.x) < W) flashHint((pvp.spelers.length > 2 ? mpSpelerNoem(p, true) : 'Your teammate') + ' opened the chest', 2500);
+}
 // een kill, bij de host: punten voor het team, en de multikill van het team
 function mpcKill(o){
   const C = pvp.coop;
@@ -69095,6 +69130,9 @@ function mpCoopOntvang(m){
   if (m.t === 'epklaar'){ if (!pvp.host) mpEpKlaarLokaal(); return true; }
   if (m.t === 'epnaar'){ if (!pvp.host){ if (C.ep) C.ep.door = true; mpCoopStart(m.i); } return true; }
   if (m.t === 'cg'){ mpcGoudErbij(m.n, m.w); return true; }
+  if (m.t === 'kistVraag'){ if (pvp.host) mpcKistNeem(m.i, m.p); return true; }
+  if (m.t === 'kistOpen'){ if (!pvp.host) mpcKistOpen(m.i, m.p); return true; }
+  if (m.t === 'kistNee'){ const k = kisten[m.i]; if (k){ k.mpWacht = false; if (!k.open) kistOpenBeeld(k); } flashHint('Too late: the chest is already open', 2500); return true; }
   if (m.t === 'geef'){ mpcGoudErbij(m.n, pvp.spelers.length > 2 ? 'from ' + mpSpelerNoem(m.p, true) : 'from your teammate'); return true; }
   if (m.t === 'winkel'){ if (!pvp.host && !laadWacht) mpcWinkelIn(); return true; }
   if (m.t === 'winkelUit'){ if (!pvp.host) mpcWinkelUit(); return true; }

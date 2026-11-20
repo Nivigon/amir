@@ -35,7 +35,8 @@
 //                                        gevecht en de lijn weer open, en in level 7 de kelder als shot en als eind
 //   node tools/mptest.js --winkel        de winkels van The Smugglers' Cellar: de deur tussen de hinderlagen, goud per kill,
 //                                        de winkel in het huis zonder pauze en met alles van Survival, en goud, upgrades en
-//                                        tas mee naar het volgende level (en na game over die van het begin van het level)
+//                                        tas mee naar het volgende level (en na game over die van het begin van het level),
+//                                        en een kist die maar een speler opent
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
@@ -162,6 +163,17 @@ async function winkelProef(R){
   await H.page.evaluate(() => mpcKill({ mpSoort: 'bandiet' }));
   meld(await tot(G.page, g => pvp.coop.goud > g, g0, 4000), 'een kill geeft de gast goud (' + g0 + ' naar ' + await G.page.evaluate(() => pvp.coop.goud) + ')');
   meld(await H.page.evaluate(() => /Gold \d+/.test(pvpEl('pvpscore').textContent)), 'het goud staat in de HUD (' + await H.page.evaluate(() => pvpEl('pvpscore').textContent) + ')');
+  // de kist: allebei tegelijk E, maar maar een krijgt het goud, en bij allebei is hij open
+  meld(await H.page.evaluate(() => kisten.length === 1), 'er staat een kist in Ambush 3');
+  for (const p of allen) await p.evaluate(() => { hinder.stand[0] = 'vrij'; });
+  const kg = await Promise.all(allen.map(p => p.evaluate(() => { const k = kisten[0]; world = k.x; ph = k.h; onGround = true; jump = null; leibandOud = null; return pvp.coop.goud; })));
+  await wacht(200);
+  await Promise.all(allen.map(p => p.evaluate(() => kistE())));
+  meld(await elk(() => kisten[0].open, null, 4000) === null, 'de kist is bij iedereen open');
+  await wacht(800);
+  const kn = await Promise.all(allen.map(p => p.evaluate(() => pvp.coop.goud)));
+  const winst = kn.map((g, i) => g - kg[i]);
+  meld(winst.filter(w => w === 20).length === 1 && winst.filter(w => w === 0).length === allen.length - 1, 'maar een speler krijgt het goud (' + winst.join(', ') + ')');
   // de eerste hinderlaag als open, zodat de gast bij de deur mag staan
   for (const p of allen) await p.evaluate(() => { hinder.stand[0] = 'vrij'; });
   const dx = deuren[0].x;
@@ -192,6 +204,14 @@ async function winkelProef(R){
   const mee = await G.page.evaluate(() => ({ g: pvp.coop.goud, fc: pvp.coop.koop.fc, rug: RUG_MAX, rugN: rugSperen.length, lv: pvp.levens, lives, gif: gifCarry }));
   meld(mee.g === na.g + 10 && mee.fc && mee.rug === 2 && mee.rugN === 2 && mee.lv === 4 && mee.lives === 4 && mee.gif === 1,
     'mee naar level 4: goud plus 10, Full Circle, het slot gevuld, 4 levens, het gif (' + JSON.stringify(mee) + ')');
+  // de kist van level 4 opent de gast alleen: hij krijgt het goud, de host niets, en bij de host is hij ook open
+  const hg = await H.page.evaluate(() => pvp.coop.goud);
+  await G.page.evaluate(() => { hinder.stand = hinder.stand.map(() => 'vrij'); const k = kisten[0]; world = k.x; ph = k.h; onGround = true; jump = null; leibandOud = null; });
+  await wacht(200);
+  await G.page.evaluate(() => kistE());
+  meld(await tot(G.page, g => pvp.coop.goud === g + 25, mee.g, 4000) && await tot(H.page, () => kisten[0].open, null, 3000)
+       && await H.page.evaluate(g => pvp.coop.goud === g, hg), 'de gast opent de kist alleen: 25 goud voor hem, bij de host open en geen goud');
+  await G.page.evaluate(() => { pvp.coop.goud -= 25; });
   // game over in level 4: R geeft het goud van het begin van level 4 terug
   await tot(H.page, () => pvp.coop.allenKlaar, null, 20000);
   await G.page.evaluate(() => { pvp.coop.goud = 1; });

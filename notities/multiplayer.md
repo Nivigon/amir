@@ -623,7 +623,12 @@ regie die laat zien waar de vijanden binnenkomen, de kelder uit Stad 14, en een 
   - **Mee naar het volgende level** (`mpEpNieuw`, `mpEpNaStart`): ieder houdt zijn goud, `koop`, de kalebassen en het gif
     in zijn tas; een extra leven blijft (`pvp.levens`), een gekocht speerslot komt terug en is aan het begin van een level
     gevuld. Na game over de stand van het begin van dat level (`tas0`), na het slot niets.
-  - **Testen:** `node tools/mptest.js --winkel` (met `--spelers 2` voor twee).
+  - **Kisten** (gevraagd: "een kistje, maar maar voor een van de spelers te openen, en die krijgt het goud"): een in
+    Ambush 2 tot en met 6 (20 tot 30 goud, in 3, 4 en 6 op de galerij). De host beslist (`mpcKistE`, `mpcKistNeem`): de
+    host zelf meteen, een gast vraagt het met `kistVraag`. Iedereen hoort met `kistOpen` wie het was; die krijgt al het
+    goud (`mpcGoudErbij`, niet gedeeld), bij de rest gaat het deksel leeg open met "Your teammate opened the chest". Wie te
+    laat was hoort `kistNee` ("Too late"). Drukken twee tegelijk, dan wint wie het eerst bij de host aankomt.
+  - **Testen:** `node tools/mptest.js --winkel` (met `--spelers 2` voor twee). Daarin ook de kist: allebei tegelijk E, en de gast alleen.
 
 ## De hinderlaag en het leiband (gebouwd, 20-11-2026)
 
