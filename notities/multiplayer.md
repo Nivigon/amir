@@ -566,6 +566,75 @@ tonnetje op verschillende plekken"). Bij Map kiest de host het level waar het te
 - **Testen:** `node tools/mptest.js --ep` (met `--spelers 2` voor twee) loopt het na: een spawn bij een gast, de host
   alleen bij de fakkels, een revive midden in het level, door naar level 2 met de score, game over en R, en het slot.
 
+## De tweede Co-op episode: The Smugglers' Cellar (gebouwd, 20-11-2026)
+
+`COOPEP2_1` tot `COOPEP2_7`, `COOPEP2_LEVELS`, `MPC_EPS`, `mpEpLijst`, `mpEpReeks`, `mpEpKaartLevel`, `mpEpBestSleutel`
+
+Op verzoek van de opdrachtgever: een nieuwe Co-op episode van zeven levels, van makkelijk naar heel moeilijk, met een
+regie die laat zien waar de vijanden binnenkomen, de kelder uit Stad 14, en een team dat bij elkaar blijft. Zelf ontworpen
+(regel 3). Geen bazen (regel 12), geen doornbossen en geen sneak (zoals de eerste episode).
+
+- **Twee episodes in modus 'ep'.** De map in de lobby kiest episode en level: id '0' tot '2' is de eerste (The Long Grass),
+  'b0' tot 'b6' de tweede, in groepen (`optgroup`) in de lijst. `mpEpLijst` geeft de levels van de episode uit
+  `pvp.regels.kaart`, `mpEpKaartLevel` het startlevel; alle logica van de episode (banner, HUD, het slot, het eindscherm) leest
+  via `mpEpLijst`. De beste score per episode (`amir.coopEpBest`, `amir.coopEp2Best`). De banner haalt het begin van de
+  naam weg met `MPC_EP.naamKop` ("Co-op 2: " en "Ambush 5: ").
+- **De levels** (een smokkelbende volgen van de karavaanroute, door de poort, de stad in, tot hun kelder):
+  1. **The Caravan Trail** (makkelijk, `vlakte`): twee hinderlagen van twee shots, bandieten voor, een van achteren.
+  2. **The Dry Gate** (makkelijk, `tafelbergen`): een poort met hek en rotswand die in de regie opengaat, een ravijn, twee
+     bandieten die van boven invallen (`neer`) en een makkelijke schildbandiet.
+  3. **The Outer Quarter** (middel, `stad_dag`): een deur gaat open, een kruisboog op de galerij (de camera kijkt omhoog), nog
+     een deur.
+  4. **Market at Dusk** (middel, `stad_avond`): bandieten van de daken, een deur achter het team, de galerij, en het level
+     eindigt in de kelder tegen een hoge leemmuur.
+  5. **The Gatehouse** (moeilijk, `schemer`): twee poorten met een hek, een kruisboog van achteren, en een elite-garde met
+     vijf levens uit de tweede poort.
+  6. **Lantern Street** (moeilijk, `stad_nacht`, fakkels): deuren beneden en op de galerij, de daken, een meelman, een
+     zweepman van achteren; vier shots in de tweede hinderlaag.
+  7. **The Smugglers' Cellar** (heel moeilijk, `stad_nacht`, fakkels): drie hinderlagen; de laatste begint met het luik dat
+     openvliegt (**From the cellar!**) en een elite, en dan naar beneden: het hele team bij de kelder.
+- **De kelder in Co-op.** `kelderUit` speelt in de episode niet uit maar zegt "Wait at the cellar for your teammate"
+  (`mpEpBijFakkels(true)`); de host kijkt met `mpEpBijEind`, dat in een level met `kelder` de plek van de E neemt in plaats
+  van de fakkels.
+- **Testen:** `node tools/mptest.js --hl` (met `--spelers 2` voor twee, `--shots map` voor plaatjes van de regie in level 7).
+
+## De hinderlaag en het leiband (gebouwd, 20-11-2026)
+
+`MPC_HL`, `hinderlagen`, `hinderReset`, `hinderStart`, `hinderStap`, `hinderShot`, `hinderHostStap`, `hinderAllenBij`,
+`hinderVechtKlaar`, `hinderKlem`, `hinderHint`, `hinderCamX`, `hinderCamY`, `hinderBalken`, `hinderVast`, `MPC_LEIBAND`,
+`leibandKlem`
+
+Gevraagd: "bij bereiken van een punt freezed het spel en gaat de camera naar een paar plekken waar mobs binnenkomen (een
+deur, een poort, van boven, van achter), dan weten spelers: ok, dit is de fight", en "spelers kunnen maar max X van elkaar
+zijn, of ze kunnen door die freeze niet verder tot de andere speler levend en bij is". Beide zijn gebouwd.
+
+- **Het veld.** `hinderlagen: [{x, vecht, shots: [{x, h, t, poort, deur, kelder}]}]` in het level; een spawn met `hl` (de
+  index van de hinderlaag) en `shot` (het shot) hoort erbij. `readLevel` neemt het over, `levelcheck.py` kijkt het na (regel
+  `hinderlaag`: shots, volgorde, niet in een ravijn, voor het einde, de poort, gevel en kelder bestaan, en een spawn wijst naar
+  een shot dat er is; een poort die alleen door een shot opengaat telt bij `poorten` als geopend).
+- **De lijn.** Op `x` staat een onzichtbare muur (`hinderKlem`, na `aanvKlem` in de lus): niemand komt er voorbij tot de
+  hinderlaag open is. Wie er alleen staat krijgt een hint: wachten op het team, of eerst de dode teamgenoot reviven.
+- **Het begin.** De host (`hinderHostStap`, in `mpEpHostStap`) begint pas als iedereen leeft en binnen `MPC_HL.verzamel`
+  (650) van de lijn staat (`hinderAllenBij`), en stuurt `hl`. Bij iedereen dan de regie (`hinderStart`): zwarte balken
+  (`#hlbalken`), Amir staat vast (`hinderVast` in `amirVast`) en niets raakt hem (in `hurtPlayer` en `godMode`).
+- **De regie** (`hinderStap`, in `mpCoopStap`, op echte tijd): na `MPC_HL.aanloop` per shot `MPC_HL.shot` seconden. De
+  camera glijdt naar het shot (`hinderCamX`, een tak voor die van een dode in de lus; zonder `x` kijkt hij naar de deur,
+  poort of kelder van het shot) en kijkt mee omhoog naar een dak of een deur op een verdieping (`hinderCamY`, in
+  `updateCamera`). De kop van het shot (`t`, "From the gate!") komt als banner. Op het shot (`hinderShot`) komen de spawns
+  van dat shot los (`sp.hlVrij`), een poort gaat open (`poortOpen`, bij iedereen, zodat het hek ook bij de gast optakelt),
+  het kelderluik vliegt open, en een deur gaat open via de spawn (`stadDeurUpdate` slaat de in-beeld-eis over). De
+  spawns komen op hun eigen plek (niet net buiten beeld) en hoe ver het team ook staat (de spawnlus en `poortUpdate`). Het
+  beeld staat niet helemaal stil: de wereld loopt door, zodat je ze ziet binnenkomen; alleen de spelers staan vast.
+  Daarna terug naar Amir en **FIGHT!** (of de `vecht` van de hinderlaag).
+- **Het gevecht.** De lijn blijft dicht tot alle spawns van de hinderlaag er zijn geweest en er geen levende vijand meer is
+  binnen `MPC_HL.rond` van de lijn (`hinderVechtKlaar`), of na het vangnet (`MPC_HL.vangnet`, 150 s). Dan stuurt de host
+  `hlvrij` en zegt het spel "The way is open".
+- **Het leiband** (`leibandKlem`, in heel Co-op, ook Survival): een levende speler komt niet verder dan `MPC_LEIBAND.max`
+  (1000) van een levende teamgenoot; wie al verder weg was (na een revive of een val) mag alleen dichterbij. Niet in een
+  huis, de winkel of de regie. Een hint: "Stay close to your teammate".
+- **Anders dan gevraagd:** het spel bevriest niet echt (een `dt = 0` zou de vijanden ook stilzetten, en `mpcVriesWacht`
+  ontdooit een freeze die te lang duurt); de spelers staan vast en zijn onaantastbaar, de vijanden lopen binnen.
+
 ## Co-op solo (gebouwd, 18-11-2026)
 
 De derde keuze onder Single Player, Survival (`btnsbcoop`, City Survival): Co-op Survival, of de Co-op episode, voor een speler, zonder verbinding

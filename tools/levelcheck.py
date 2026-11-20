@@ -1179,11 +1179,61 @@ def poorten(lv, sp):
         if str(s.get('poort')) not in ids:
             yield fout(s.get('x'), "vijand '%s' wacht in poort '%s', maar die poort is er niet: hij komt nooit" % (s.get('k'), s.get('poort')))
         elif not any(str(z.get('poort')) == str(s.get('poort')) for z in bronnen) \
-                and not any(o.get('regie') and str(o.get('id')) == str(s.get('poort')) for o in ps):   # regie: hij gaat vanzelf open
+                and not any(o.get('regie') and str(o.get('id')) == str(s.get('poort')) for o in ps) \
+                and not any(str(S.get('poort')) == str(s.get('poort'))      # een shot van een hinderlaag opent hem (Co-op)
+                            for H in lv.d.get('hinderlagen') or [] for S in H.get('shots') or []):
             yield fout(s.get('x'), "vijand '%s' wacht in poort '%s', maar geen zegel of rune opent die poort: hij komt nooit"
                        % (s.get('k'), s.get('poort')))
         if s.get('k') in ('panter', 'hyenas'):
             yield letop(s.get('x'), "een %s uit poort '%s' komt van de rand van het beeld, niet uit de poort" % (s.get('k'), s.get('poort')))
+
+
+@regel('hinderlaag')
+def hinderlaag(lv, sp):
+    """De hinderlaag van Co-op (hinderlagen in de HTML, zie "de hinderlaag" in notities/multiplayer.md): een lijn op x die
+    het team pas voorbij kan als de vijanden van die hinderlaag op zijn. Een spawn met hl en shot komt pas als de regie dat
+    shot laat zien. Wijst hij naar een hinderlaag of shot dat er niet is, dan komt hij nooit en gaat de lijn pas open na het
+    vangnet. De lijnen staan van rechts naar links, niet in een ravijn, en voor het einde; een shot met een poort of deur
+    wijst naar iets dat er is."""
+    hl = lv.d.get('hinderlagen') or []
+    ids = [str(o.get('id')) for o in lv.d.get('poorten') or []]
+    gevels = len(((lv.d.get('stad') or {}).get('gevels')) or [])
+    vorige = None
+    for i, H in enumerate(hl):
+        x = H.get('x')
+        shots = H.get('shots') or []
+        if not shots:
+            yield fout(x, 'hinderlaag %d zonder shots: de regie toont niets' % i)
+        if vorige is not None and x >= vorige:
+            yield fout(x, 'hinderlaag %d ligt niet voorbij hinderlaag %d: de lijnen gaan van rechts naar links' % (i, i - 1))
+        vorige = x
+        if any(g['x'] - g['w'] / 2 - 100 <= x <= g['x'] + g['w'] / 2 + 100 for g in lv.gaps):
+            yield fout(x, 'hinderlaag %d: de lijn ligt in of tegen een ravijn' % i)
+        if lv.d.get('ends') and x <= lv.d['ends'][0].get('x'):
+            yield fout(x, 'hinderlaag %d ligt voorbij de fakkels' % i)
+        if lv.d.get('kelder') and x <= lv.d['kelder'].get('x'):
+            yield fout(x, 'hinderlaag %d ligt voorbij de kelder' % i)
+        for k, S in enumerate(shots):
+            if S.get('poort') is not None and str(S.get('poort')) not in ids:
+                yield fout(x, "hinderlaag %d, shot %d: poort '%s' is er niet" % (i, k, S.get('poort')))
+            d = S.get('deur')
+            if d is not None and not (0 <= int(d.get('gevel', -1)) < gevels):
+                yield fout(x, 'hinderlaag %d, shot %d: gevel %s is er niet' % (i, k, d.get('gevel')))
+            if S.get('kelder') and not lv.d.get('kelder'):
+                yield fout(x, 'hinderlaag %d, shot %d: kelder, maar het level heeft geen kelder' % (i, k))
+            if S.get('x') is None and d is None and S.get('poort') is None and not S.get('kelder'):
+                yield fout(x, 'hinderlaag %d, shot %d: geen x, deur, poort of kelder: de camera weet niet waar hij moet kijken' % (i, k))
+            if not any(s.get('hl') == i and (s.get('shot') or 0) == k for s in lv.d.get('spawns') or []):
+                yield letop(x, 'hinderlaag %d, shot %d: er komt niemand binnen' % (i, k))
+        yield info(x, 'hinderlaag %d: %d shots, %d vijanden' % (i, len(shots), sum(1 for s in lv.d.get('spawns') or [] if s.get('hl') == i)))
+    for s in lv.d.get('spawns') or []:
+        if s.get('hl') is None:
+            continue
+        i, k = s.get('hl'), s.get('shot') or 0
+        if not isinstance(i, int) or not (0 <= i < len(hl)):
+            yield fout(s.get('x'), "vijand '%s' hoort bij hinderlaag %s, maar die is er niet: hij komt nooit" % (s.get('k'), i))
+        elif not (0 <= k < len(hl[i].get('shots') or [])):
+            yield fout(s.get('x'), "vijand '%s' hoort bij shot %s van hinderlaag %d, maar dat shot is er niet: hij komt nooit" % (s.get('k'), k, i))
 
 
 @regel('lift bij een galerij')
