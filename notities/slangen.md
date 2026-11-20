@@ -29,3 +29,8 @@ hardheid volgt de treffer: een treffer die hem nog niet doodt (met `hpBalk`) is 
 de dodelijke is langer, voller en harder, per soort dood zoals de animatie (`dood`: de worp, die hem neerklapt, het hardst,
 dan de steek, dan de lage zwaai). Niet met de stokken (die geven de houtklap), niet met de grondklap en niet met het mes
 (dat weert af). De fosforslang (`fosforRaak`) heeft het niet.
+
+Bij de dodelijke treffer komt daar de laatste sis achteraan (`SLANG_SIS`, `slangSisSpeel`): een slang heeft geen stem,
+dus zijn doodskreet is zijn sis (`music/snakehiss.mp3`), maar stervend. Net na het bloed, lager afgespeeld, de toon zakt
+tijdens het afspelen verder weg (`preservesPitch` uit) en hij fadet snel uit. Per soort: de worp kapt hem af (0,22 s), de
+steek laat hem wegebben (0,65 s), de lage zwaai zit ertussen. Een plof van het lijf als hij neervalt zit er nog niet in.

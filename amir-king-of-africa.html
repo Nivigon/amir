@@ -50320,6 +50320,36 @@ const SLANG_BLOED = {
 const slangBloedSnd = geluidAan(new Audio());
 slangBloedSnd.preload = 'auto'; slangBloedSnd.src = 'sounds/bloedspuit.mp3';
 let slangBloedKlok = 0;
+// de laatste sis: een slang heeft geen stem, dus zijn doodskreet is zijn sis (music/snakehiss.mp3), maar dan stervend:
+// net na het bloed, lager, de toon zakt tijdens het afspelen verder weg (preservesPitch uit) en hij fadet snel uit, als
+// lucht die uit hem loopt. Per soort dood zoals de animatie: de worp kapt hem af, de steek laat hem wegebben, de lage
+// zwaai zit ertussen. Alleen bij de dodelijke treffer, en alleen waar ook het bloedgeluid klinkt.
+const SLANG_SIS = {
+  van: 0.03,                                       // seconden in het bestand: net in de scherpe aanzet
+  soort: { worp:  { wacht: 0.05, duur: 0.22, vol: 0.6, toon: [0.85, 0.65] },
+           steek: { wacht: 0.12, duur: 0.65, vol: 0.55, toon: [0.8, 0.5] },
+           laag:  { wacht: 0.08, duur: 0.4, vol: 0.55, toon: [0.82, 0.58] } }
+};
+const slangSisSnd = geluidAan(new Audio());
+slangSisSnd.preload = 'auto'; slangSisSnd.src = 'music/snakehiss.mp3';
+let slangSisKlok = 0, slangSisWacht = 0;
+function slangSisSpeel(soort){
+  if (!wantSound) return;
+  const K = SLANG_SIS.soort[soort] || SLANG_SIS.soort.steek, a = slangSisSnd;
+  clearTimeout(slangSisWacht); clearInterval(slangSisKlok);
+  slangSisWacht = setTimeout(() => {
+    a.preservesPitch = a.mozPreservesPitch = a.webkitPreservesPitch = false;   // lager afspelen is ook lager klinken
+    try { a.currentTime = SLANG_SIS.van; } catch (e) {}
+    a.playbackRate = K.toon[0]; a.volume = K.vol; a.play().catch(() => {});
+    const t0 = performance.now();
+    slangSisKlok = setInterval(() => {
+      const f = (performance.now() - t0) / 1000 / K.duur;   // 0..1 over de duur, in echte seconden
+      if (f >= 1 || a.paused){ a.pause(); clearInterval(slangSisKlok); return; }
+      a.playbackRate = K.toon[0] + (K.toon[1] - K.toon[0]) * f;   // de toon zakt weg
+      a.volume = K.vol * (1 - f) * (1 - f);                       // en hij sterft snel uit
+    }, 16);
+  }, K.wacht * 1000);
+}
 function slangBloedSpeel(dood, soort){
   if (!wantSound) return;
   const S = SLANG_BLOED, a = slangBloedSnd;
@@ -50327,6 +50357,7 @@ function slangBloedSpeel(dood, soort){
   clearInterval(slangBloedKlok);
   try { a.currentTime = S.van; } catch (e) {}
   a.playbackRate = K.snel; a.volume = K.vol; a.play().catch(() => {});
+  if (dood) slangSisSpeel(soort);                    // de dodelijke treffer: de laatste sis erachteraan (SLANG_SIS)
   slangBloedKlok = setInterval(() => {               // tot 'tot', de laatste 'uit' seconden zacht weg
     const rest = K.tot - a.currentTime;
     if (rest <= 0 || a.paused){ a.pause(); clearInterval(slangBloedKlok); return; }
