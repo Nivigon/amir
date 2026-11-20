@@ -519,6 +519,11 @@ brug moeten kunnen lopen.
 - **Slangen en schorpioenen** blijven beneden (`geenOpstap` in `slangSchuif` en `scpBlocked`): voor hen is 28 een hele trede.
 - `opstapBij` zoekt tot 160 voorbij de rand van een opstapje: de bandiet kijkt een halve lijfbreedte vooruit, en met 60 bleef
   hij op de laatste trede staan.
+- Een trap van opstapjes af (`opstapTrap`, met de plek waar hij staat als `x0` in `dropAhead`, vanuit `knockBlocked` en de
+  storm van de hyena): de kooiman en de meelman kijken verder vooruit dan een trede breed is (80 op Ishmul) en zagen bovenaan
+  het plein al de trede van 28, 56 lager. Dan bleven de meelman en de duel-kooiman daar voorgoed staan, en hield een ronde
+  van Co-op nooit op. Nu loopt `opstapTrap` de vloer ertussen na: alleen opstapjes, elk niet hoger dan `OPSTAP.max`, is
+  geen rand (20-11-2026).
 - De Maker-JSON houdt de vlag (`opstap: true`); in het palet van de Maker zit hij nog niet.
 
 Test 78 (Small steps) is het proefstuk: drie opstapjes van 28 naar een plein met een bandiet en een schildbandiet, drie

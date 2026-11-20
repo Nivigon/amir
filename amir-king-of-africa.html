@@ -39333,6 +39333,20 @@ function opstapBij(x, a, b){
     if (t.opstap && x >= t.l - 160 && x <= t.r + 160 && t.h >= lo - 1 && t.h <= hi + OPSTAP.max + 1) return true;
   return false;
 }
+// loopt de vloer van x0 naar x1 (vanaf hoogte base) alleen met opstapjes omlaag, elk niet hoger dan OPSTAP.max?
+function opstapTrap(x0, x1, base){
+  const d = x1 >= x0 ? 1 : -1, n = Math.ceil(Math.abs(x1 - x0) / 8);
+  let h = base;
+  for (let i = 1; i <= n; i++){
+    const x = i === n ? x1 : x0 + d * i * 8, vf = vloerBij(x, h);
+    if (vf > h + 1) return false;
+    if (vf < h - 1){
+      if (h - vf > OPSTAP.max + 1 || !opstapBij(x, h, vf)) return false;
+      h = vf;
+    }
+  }
+  return true;
+}
 // de hoogte van een vijand naar zijn vloer: over een opstapje glijdend, anders in een keer (zoals altijd)
 function opstapVolg(s, doel, dt){
   const b = s.base || 0, d = doel - b;
@@ -39357,10 +39371,14 @@ function blocksMonster(p, base, klim, geenOpstap){
 // Hier houdt zijn vloer op: de rand van zijn terras, of voor wie beneden in een gang staat de
 // eindwand van die gang (daarbuiten is het massief grondpakket, daar loopt niemand doorheen). Een
 // klimmer loopt een kleine trede naar beneden wel af; een ravijn (gatOp) blijft los hiervan een rand.
-function dropAhead(x, base, klim, geenOpstap){
+// x0: waar hij nu staat (optioneel). Kijkt hij verder vooruit dan een trede breed is (de kooiman, de meelman), dan
+// ziet hij op x al twee opstapjes lager; met x0 loopt opstapTrap de treden ertussen na, en is het een trap van
+// opstapjes, dan is dat geen rand (Ishmul: de meelman en de duel-kooiman bleven bovenaan het plein staan)
+function dropAhead(x, base, klim, geenOpstap, x0){
   if (base < -1 && !holteAt(x)) return true;                   // de eindwand van een gang: altijd
   const vf = vloerBij(x, base);
   if (vf < base - 1 && !geenOpstap && base - vf <= OPSTAP.max + 1 && opstapBij(x, base, vf)) return false;   // een opstapje af
+  if (vf < base - 1 && !geenOpstap && x0 != null && opstapTrap(x0, x, base)) return false;                   // een trap van opstapjes af
   if (vf < base - 1) return klim ? base - vf > KLIM_STAP : true;
   return false;
 }
@@ -41156,7 +41174,7 @@ function hyMove(s, stap, plats, cliff, stormt){
   const halfL = HY.bodyW * hyScale() * 0.35;
   const klem = stormt ? (hardBlocked(s, nx, plats, cliff, 60)
                          || (!takelDraagt(nx + d * halfL, s.base) && !takelAfstap(s, nx + d * halfL)   // over het takel-dek en ervan af
-                             && (gatOp(nx + d * halfL, s.base || 0) || dropAhead(nx + d * halfL, s.base || 0))))
+                             && (gatOp(nx + d * halfL, s.base || 0) || dropAhead(nx + d * halfL, s.base || 0, undefined, undefined, nx))))
                       : knockBlocked(s, nx, plats, cliff, halfL, 80);
   if (klem) return false;
   s.x = nx;
@@ -50753,7 +50771,7 @@ function knockBlocked(s, nx, plats, cliff, halfL, wallGap){
   if (takelDraagt(nx + d * halfL, s.base)) return false;
   if (takelAfstap(s, nx + d * halfL)) return false;          // en van het dek af naar een vloer die er net naast ligt
   if (gatOp(nx + d * halfL, s.base || 0)) return true;      // en de rand van een ravijn
-  if (dropAhead(nx + d * halfL, s.base || 0)) return true;
+  if (dropAhead(nx + d * halfL, s.base || 0, undefined, undefined, nx)) return true;
   return false;
 }
 function knockStep(s, dt, plats, cliff, halfL, wallGap){
