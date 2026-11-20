@@ -55483,12 +55483,18 @@ let lusId = 0, achterWorker = null;
 function lusRaf(now){ lusId = 0; safeLoop(now); }
 function lusVraag(){ if (!lusId) lusId = requestAnimationFrame(lusRaf); }
 function achterNodig(){ return document.hidden && !!(pvp && pvp.host && pvp.coop); }
-function achterTik(){ if (achterNodig()) safeLoop(performance.now()); }
+// De worker stuurt pas een nieuwe tik als wij de vorige beantwoord hebben (achterKlaar). Zonder dat stapelden de tikken
+// zich op zodra een beeld op de achtergrond langer duurde dan een tik: de wachtrij groeide, en een ping van de gast
+// stond achter al die tikken, tot de ping bij de gast opliep tot vele seconden.
+function achterTik(){
+  try { if (achterNodig()) safeLoop(performance.now()); }
+  finally { if (achterWorker) achterWorker.postMessage(0); }
+}
 function achterZet(){
   if (achterNodig()){
     if (achterWorker) return;
     try {
-      const url = URL.createObjectURL(new Blob(['setInterval(() => postMessage(0), ' + Math.round(1000 / ACHTER.hz) + ');'], { type: 'text/javascript' }));
+      const url = URL.createObjectURL(new Blob(['let bezig = false; onmessage = () => { bezig = false; }; setInterval(() => { if (!bezig){ bezig = true; postMessage(0); } }, ' + Math.round(1000 / ACHTER.hz) + ');'], { type: 'text/javascript' }));
       achterWorker = new Worker(url); URL.revokeObjectURL(url);
       achterWorker.onmessage = achterTik;
     } catch (e) { achterWorker = null; }        // geen worker: dan staat de host weer stil, zoals voorheen

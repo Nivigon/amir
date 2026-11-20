@@ -322,6 +322,14 @@ Ook het geluid van de host loopt door. De verbinding valt in geen van beide geva
 `PVP.stilte` op afstand. Gemeten in Chromium met een nagebootst verborgen tabblad (geen `requestAnimationFrame`): 30
 beelden per seconde, en na terugkomst één lus.
 
+**De ping liep op als de host wegklikte (gerepareerd, 20-11-2026).** De worker tikte 30 keer per seconde, ook als het vorige
+beeld nog niet klaar was. Op de achtergrond duurt een beeld langer, dus de tikken stapelden zich op in de wachtrij van de
+pagina, en een ping van de gast stond achter al die tikken: de ping bij de gast liep op tot 5000 ms en verder (nagemeten:
+15.000 ms na 25 s weg). Nu stuurt de worker pas een nieuwe tik als `achterTik` de vorige beantwoord heeft (een bericht
+terug na het beeld). Nagemeten in Chromium onder xvfb (het venster van de host bedekt en `document.hidden`): de ping
+blijft rond 40 tot 100 ms, de host draait 26 beelden per seconde. Een gast die wegklikt had dit niet: zijn lus staat
+stil en de ping wordt meteen beantwoord.
+
 ### De versies van de map (dag, avond, nacht, diepe nacht)
 
 The Dye Yard heeft in Co-op vier versies (`MPC_VERSIE`): de **dag** (`stad_dag`, blauwe lucht en zon, geen fakkels), de **avond** zoals hij altijd was (`stad_avond`, geen fakkels),
