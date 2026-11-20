@@ -641,7 +641,7 @@ zijn, of ze kunnen door die freeze niet verder tot de andere speler levend en bi
 - **Het gevecht.** De lijn blijft dicht tot alle spawns van de hinderlaag er zijn geweest en er geen levende vijand meer is
   binnen `MPC_HL.rond` van de lijn (`hinderVechtKlaar`), of na het vangnet (`MPC_HL.vangnet`, 150 s). Dan stuurt de host
   `hlvrij` en zegt het spel "The way is open".
-- **Het leiband** (`leibandKlem`, in heel Co-op, ook Survival): een levende speler komt niet verder dan `MPC_LEIBAND.max`
+- **Het leiband** (`leibandKlem`, alleen in de Co-op episodes; in Co-op Survival, ook Ishmul en Co-op solo, loop je vrij, op verzoek van de opdrachtgever): een levende speler komt niet verder dan `MPC_LEIBAND.max`
   (1000) van een levende teamgenoot; wie al verder weg was (na een revive of een val) mag alleen dichterbij. Niet in een
   huis, de winkel of de regie. Een hint: "Stay close to your teammate".
 - **Anders dan gevraagd:** het spel bevriest niet echt (een `dt = 0` zou de vijanden ook stilzetten, en `mpcVriesWacht`
