@@ -2422,6 +2422,8 @@
         <button data-weer="zandstorm">Zandstorm</button>
         <button data-weer="sneeuw">Sneeuw</button>
         <button data-weer="sneeuwstorm">Sneeuwstorm</button>
+        <button data-weer="mist">Mist</button>
+        <button data-weer="mistdik">Dikke mist</button>
         <span class="hint">zet er gras en een struik bij om de storm te zien</span>
       </div>
       <div class="row">
@@ -25747,9 +25749,11 @@ const WEER = {
     onweer:      { regen: 1, onweer: 1 },
     zandstorm:   { storm: 1, zand: 1 },
     sneeuw:      { sneeuw: 1 },
-    sneeuwstorm: { storm: 1, sneeuw: 1, jacht: 1 }
+    sneeuwstorm: { storm: 1, sneeuw: 1, jacht: 1 },
+    mist:        { mist: 1 },
+    mistdik:     { mist: 1.7 }
   },
-  lagen: ['regen', 'onweer', 'storm', 'zand', 'sneeuw', 'jacht'],
+  lagen: ['regen', 'onweer', 'storm', 'zand', 'sneeuw', 'jacht', 'mist'],
   overgang: 700,                  // zo veel wereld-px na het punt is de nieuwe soort helemaal aan
   tempo: 0.8,                     // hoe snel het weer naar het doel toe loopt (per seconde)
   koel: [10, 6, 0],               // regen: zoveel punten minder rood, groen en blauw, op volle sterkte
@@ -25758,7 +25762,14 @@ const WEER = {
   storm: { dir: -1, amp: 1.25, vlaag: 0.3, buig: 2.3, fladder: 0.22,
            vol: 0.85, versterk: 2.4 },          // het windgeluid: vol keer versterk, boven wat een audio-element kan
   zand: { korrels: 1500, v: 820, slierten: 26, band: 0.22, kleur: [212, 168, 108] },
-  jacht: { korrels: 900, v: 680, slierten: 26, band: 0.16, kleur: [240, 245, 252], meer: 1.2 }
+  jacht: { korrels: 900, v: 680, slierten: 26, band: 0.16, kleur: [240, 245, 252], meer: 1.2 },
+  // grondmist: zachte vlekken laag over de grond, voor Amir langs, zodat hij er zelf doorheen loopt.
+  // Twee lagen met een eigen parallax en een trage drift. Sterkte 1 ligt rond de enkels, mistdik
+  // (1,7) tot over de knieen; de hoogte groeit mee, dus de mist komt ook echt op. Hij komt
+  // trager op en trekt trager weg dan de rest van het weer (tempo).
+  mist: { tempo: 0.18, kleur: '232,214,186', strook: 48, tegel: [1400, 260],
+          lagen: [{ par: 1.15, drift: 9,  hoog: 0.17, a: 0.55, zaad: 7 },
+                  { par: 1.35, drift: 16, hoog: 0.12, a: 0.40, zaad: 31 }] }
 };
 function leesWeer(w){
   if (!Array.isArray(w)) return [];
@@ -25831,7 +25842,7 @@ function updateWeer(dt){
     weerNu = Object.assign({}, doel);                // eerste beeld: meteen op sterkte
   } else {
     const d = doel || {};
-    for (const l of WEER.lagen) weerNu[l] += ((d[l] || 0) - weerNu[l]) * Math.min(1, dt * WEER.tempo);
+    for (const l of WEER.lagen) weerNu[l] += ((d[l] || 0) - weerNu[l]) * Math.min(1, dt * (l === 'mist' ? WEER.mist.tempo : WEER.tempo));
   }
   const N = weerNu;
   const cam = camEase !== null ? camEase : world;
@@ -26122,7 +26133,60 @@ function drawWeer(grensY, onder){
     gb.addColorStop(1, `rgba(${kl},${(zand ? 0.18 : 0.25) * stormK * boven})`);
     ctx.fillStyle = gb; ctx.fillRect(0, grensY - bh, W, bh + 30);
   }
+  if (N.mist > 0.01) mistTeken(N.mist * boven);
   ctx.restore();
+}
+// De grondmist (WEER.mist): een keer per laag een naadloze tegel met zachte vlekken, onderin dicht en
+// naar boven en onder uitvagend. Getekend in stroken die de echte grond volgen (weerOppervlakY), dus
+// hij ligt op een terras even goed als op de savanne, en boven een ravijn ligt er niets.
+let mistTegels = null;
+function mistTegel(L){
+  const [TW, TH] = WEER.mist.tegel;
+  const c = document.createElement('canvas'); c.width = TW; c.height = TH;
+  const g = c.getContext('2d'); let z = L.zaad;
+  const rnd = () => (z = (z * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 140; i++){
+    const x = rnd() * TW, y = TH * (0.35 + rnd() * 0.5), r = 40 + rnd() * 120, a = 0.05 + rnd() * 0.09;
+    for (const dx of [-TW, 0, TW]){                   // over de naad heen, zodat hij naadloos herhaalt
+      const gr = g.createRadialGradient(x + dx, y, 0, x + dx, y, r);
+      gr.addColorStop(0, 'rgba(255,255,255,' + a + ')'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = gr; g.beginPath(); g.ellipse(x + dx, y, r * 1.8, r * 0.55, 0, 0, Math.PI * 2); g.fill();
+    }
+  }
+  g.globalCompositeOperation = 'destination-in';     // bovenin en onderin weg, in het midden dicht
+  const v = g.createLinearGradient(0, 0, 0, TH);
+  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(0.55, 'rgba(0,0,0,1)');
+  v.addColorStop(0.8, 'rgba(0,0,0,0.6)'); v.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = v; g.fillRect(0, 0, TW, TH);
+  g.globalCompositeOperation = 'source-in';          // en dan in de kleur van de mist
+  g.fillStyle = 'rgb(' + WEER.mist.kleur + ')'; g.fillRect(0, 0, TW, TH);
+  return c;
+}
+function mistTeken(k){
+  const M = WEER.mist, [TW, TH] = M.tegel;
+  if (!mistTegels) mistTegels = M.lagen.map(mistTegel);
+  const t = performance.now() / 1000, cam = camEase !== null ? camEase : world;
+  const zoom = viewZoom(), groei = 0.4 + 0.6 * k;   // dikker is vooral hoger, en een beetje dichter
+  // de grond per strook, en stroken op dezelfde hoogte samen: een naad per strook gaf streepjes
+  const runs = [];
+  for (let sx = 0; sx < W; sx += M.strook){
+    const gy = weerOppervlakY(sx + M.strook / 2), r = runs[runs.length - 1];
+    if (gy === null) continue;
+    if (r && r.r === sx && Math.abs(r.gy - gy) < 1.5) r.r = sx + M.strook;
+    else runs.push({ l: sx, r: sx + M.strook, gy });
+  }
+  M.lagen.forEach((L, i) => {
+    const img = mistTegels[i], h = Math.round(H * L.hoog * groei), w = Math.round(TW * h / TH);
+    const x0 = -(((Math.round(cam * zoom * L.par + t * L.drift) % w) + w) % w);
+    ctx.globalAlpha = Math.min(1, L.a * Math.min(1.3, 0.6 + 0.4 * k));
+    for (const r of runs){
+      ctx.save(); ctx.beginPath(); ctx.rect(r.l, 0, r.r - r.l, H); ctx.clip();
+      const y = Math.round(r.gy - h * 0.8);
+      for (let x = x0 + Math.floor((r.l - x0) / w) * w; x < r.r; x += w) ctx.drawImage(img, x, y, w, h);
+      ctx.restore();
+    }
+  });
+  ctx.globalAlpha = 1;
 }
 let weerSneeuwS = null;
 function weerSneeuwSliert(){                        // de stofsliert als stuifsneeuw, ook buiten een winterlevel
