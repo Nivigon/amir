@@ -107,8 +107,10 @@ schaduwkant naar de nevel en de lucht, de lichte kant naar de kleur van de zon (
 
 Een bemoste boomstam aan twee lianen (`hangstammen: [{x, h, breed}]`), proefstuk Test 82 in de reeks Test levels
 rainforest (`RW_LEVELS`, met Test 81; de knop Rainforest in het Test Lab, zonder tribekeuze). Het plaatje komt uit
-Grok (`design/regenwoud/hangstam/bron/hangstam_grok.png`); `tools/hangstam_knip.py` knipt er `stam.png` (de stam met
-de knopen) en `liaan.png` (een rechtgetrokken stuk liaan dat naadloos onder elkaar past) uit. Het spel stapelt de
+Grok (`design/regenwoud/hangstam/bron/hangstam_grok2.png`, de scherpere download van 1600x1200 die al doorzichtig is;
+de eerste plaat `hangstam_grok.png` staat er nog naast); `tools/hangstam_knip.py` houdt dan de eigen alpha, haalt het witte randje weg en knipt er `stam.png` (de stam met
+de knopen) en `liaan.png` (een rechtgetrokken stuk liaan dat naadloos onder elkaar past) uit. Een nieuwe plaat vraagt nieuwe maten in
+`HSTAM.bron`, `haak`, `haakRij` en `liaan`. Het spel stapelt de
 liaan van de knoop tot een anker `HSTAM.anker` boven de stam, dus ruim buiten beeld.
 
 - **Hangen** (`st: 'hangt'`): een dun platform (`hstamPlats`, met `takel: true` zodat Amir eraan bindt via
