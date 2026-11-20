@@ -102,3 +102,28 @@ schaduwkant naar de nevel en de lucht, de lichte kant naar de kleur van de zon (
 - Buiten de stad: de avondset `design/stad/verte/avondwolk_1..9.png` (lange strepen, oranje verlichte buik, donkere toppen,
   want de zon staat laag). Standaard aan in elk level, niet in de winter; `wolken: false` in een level zet ze uit.
 - In de stad alleen met `stad.lucht.wolken` (Ishmul): de middagset `wolk_1..8.png`, gefacetteerd zoals de rotsen.
+
+## De hangende stam (HSTAM) en het stof in het regenwoud
+
+Een bemoste boomstam aan twee lianen (`hangstammen: [{x, h, breed}]`), proefstuk Test 82 in de reeks Test levels
+rainforest (`RW_LEVELS`, met Test 81; de knop Rainforest in het Test Lab, zonder tribekeuze). Het plaatje komt uit
+Grok (`design/regenwoud/hangstam/bron/hangstam_grok.png`); `tools/hangstam_knip.py` knipt er `stam.png` (de stam met
+de knopen) en `liaan.png` (een rechtgetrokken stuk liaan dat naadloos onder elkaar past) uit. Het spel stapelt de
+liaan van de knoop tot een anker `HSTAM.anker` boven de stam, dus ruim buiten beeld.
+
+- **Hangen** (`st: 'hangt'`): een dun platform (`hstamPlats`, met `takel: true` zodat Amir eraan bindt via
+  `amirPlat`). Hij slingert uit zichzelf (`swayA`, `swayF`), een landing zakt hem in (`zak`) en zwaait hem mee
+  (`landDuw`), met een gesynthetiseerd kraken (`hstamKraak`). Amir schuift mee met de slinger en veert mee op en neer
+  (in `hstamUpdate`; anders zakt hij erdoor als de stam terugveert).
+- **Raken**: de steek (de hele schacht van Amir tot de punt, ook met de stokken) of een geworpen speer door het raakvak
+  van een liaan (`hstamVakken`: van onder de knoop tot `raakBoven` erboven). De speer vliegt door, net als bij het
+  touw van de takel. `hstamKnap` speelt de houten tik en de knap (`takelSnap`) en strooit splinters.
+- **Half** (`st: 'half'`): de stam draait om het haakpunt van de liaan die nog vastzit tot de losse punt de grond raakt
+  (bonk `ton_zwaar.mp3`, stof, een klein stuitje). Na `HSTAM.tweede` (3) seconden knapt de andere liaan vanzelf.
+- **Valt** en **lig**: de punt blijft op de grond, de andere kant valt (`valG2`); plat is hij een laag obstakel (geen dun
+  platform), met `kooihitground.mp3` en veel stof over de hele lengte. Het afgeknapte stuk liaan veert op (`rest`).
+- Sandbox: Terrein, **Hangende stam** (Neerzetten zet er telkens een bij, Weg haalt ze weg).
+
+Het stof in het regenwoud (`RW_STOF`, `regenwoudStof(wx)`): in een uitzicht met `biome: 'regenwoud'` of op een strook
+`regenwoud` (grondSoort) geven `puffPic`, `wispPic`, `dustColor` en `stofWolk` donkere humus met een groene zweem in
+plaats van savannezand. Een strook savanne in een regenwoud-uitzicht houdt het zand (Test 81 begint zo).
