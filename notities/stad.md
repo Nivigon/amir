@@ -533,6 +533,20 @@ brug moeten kunnen lopen.
 Test 78 (Small steps) is het proefstuk: drie opstapjes van 28 naar een plein met een bandiet en een schildbandiet, drie
 omlaag, een hyena en een slang, en een stoeprand met een kruisboogschutter en een bandiet.
 
+### De trappose van Amir
+
+`AMIR_TRAP`, `amirTrapPose`; frames in `karakters/amir/beweging/trap/` (bron op groot formaat in `bron/`).
+
+Staat Amir met de speer stil op de rand van een trede (tot `OPSTAP.max`), met een voet boven en een beneden, dan staat
+hij er zo bij in plaats van in de idle: `op` (voorste voet hoog, de trap op) of `af` (achterste voet hoog, de trap af).
+Twee stilstaande poses uit Grok (image-to-image vanaf `amirspear.png`, de treden fel groen en eruit gekeyd), op het
+canvas en de schaal van de idle; de hoge voet staat 32 boven de lage. Het spel kijkt op de plek van beide voeten naar de
+vloer (`vloerBij`) en zet hem op de vloer van de lage voet. Zonder speer, lopend of met de stokken: de gewone beelden.
+Nog niet: een idle-beweging in de pose (zie Tom: eerst kijken of het stijf oogt), en een versie zonder speer.
+
+Test 84 (Stairs, in de reeks Rainforest) is het proefstuk: de rechte opstapjes van de stad in het regenwoud, zonder
+vijanden en zonder mist.
+
 ### Opstapjes op de savanne
 
 `SAV_OPSTAP`, `savOpTeken`, `savOpLaad`, `savOpLaadLevel`; `tools/savanne_opstap.py`.
