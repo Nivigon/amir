@@ -270,8 +270,14 @@ Het blok `// ---- multiplayer: Co-op Survival ... ----` in de HTML, na de lobby.
   (`mpcTrefferVanGast`), voor een slang of schorpioen de uitgeschreven dood uit het tekenblok (`mpcInlineDood`).
 - **Elkaar niet raken:** `pvpTeken` tekent in Co-op alleen de ander (met een groen pijltje) en stopt voor zijn speer en de
   treffers.
-- **De rondes** (`mpcHostStap`, alleen de host): eerst wacht ronde 1 tot de gast geladen is (`cklaar`; tijdens het laden stuurt
-  ieder `hb`, anders verbreekt `PVP.stilte` het potje). Dan `wacht` (de pauze, met "Round N in .. s") en `golf`: de rij uit
+- **Samen beginnen** (`mpLaadVast`, `mpLaadLos`, `mpLaadReset`): een potje (Co-op, de Co-op episode, elk level daarvan,
+  en het Duel) begint pas als elke laptop geladen is. Tot dan blijft bij iedereen het laadscherm staan met "Waiting for your
+  teammate..." (laadStap vraagt het na het laden en bakken); een gast die klaar is stuurt `geladen`, de host telt
+  (`pvp.geladen`) en stuurt `los` als hij zelf en elke gast klaar zijn, dan gaat het laadscherm overal tegelijk weg. Vroeger
+  wachtte alleen ronde 1 (`cklaar`), en liep wie eerst geladen was al rond. Tijdens het laden stuurt ieder `hb`, anders
+  verbreekt `PVP.stilte` het potje. `tools/mptest.js` houdt bij de start de laatste gast kunstmatig aan het laden en kijkt
+  dat de host wacht.
+- **De rondes** (`mpcHostStap`, alleen de host): dan `wacht` (de pauze, met "Round N in .. s") en `golf`: de rij uit
   `mpcRonde` druppelt binnen, `MPC.tussen` seconden uit elkaar en hooguit `MPC.tegelijk` tegelijk. Op is de ronde als de rij
   leeg is en er niemand met `mpSoort` meer leeft (`mpcLevend`, `mpcLeeft`).
 - **Waar ze vandaan komen** (`mpcSpawn`): dieren op de rand (rechts `cliffAt().wall - 220`, links `endWall() + 220`), mensen uit
@@ -430,8 +436,8 @@ middelpunt van een ster: hij heeft een verbinding per gast, een gast alleen een 
   wie ermee opstaat. Wie niet meer dood is (of weg) verliest zijn ton en symbool. Game over pas als iedereen dood is. De camera
   van een dode volgt de dichtstbijzijnde levende teamgenoot (`mpCoopCam`), of wie hij met de pijlen kiest.
 - **Ready en goud voor iedereen.** De winkel gaat pas dicht als iedereen Ready is (`C.wkKlaar` per slot, de banner zegt
-  "1 of 2 teammates ready"), R na game over pas als iedereen R drukte (`mpCoopRematchKijk`), ronde 1 wacht tot iedere gast
-  geladen is (`C.klaarVan`). Het goud van een kill en van een ronde krijgt iedereen (`mpcGoudIedereen`). Give 5 gold heeft
+  "1 of 2 teammates ready"), R na game over pas als iedereen R drukte (`mpCoopRematchKijk`), het potje begint pas als iedere
+  laptop geladen is (zie "Samen beginnen"). Het goud van een kill en van een ronde krijgt iedereen (`mpcGoudIedereen`). Give 5 gold heeft
   met twee teamgenoten een knop per teamgenoot (`wkc_geef_<slot>`).
 - **De derde.** Een derde broekkleur (turkoois) en startplek (`PVP.starts[2]`, -1150, in het midden), en een derde plek in de
   winkelkamer (`MPC_WINKEL_KAMER.plek`).
