@@ -23,8 +23,9 @@ Hoe de frames gemaakt zijn: een Grok-clip vanaf frame 46 van `enemies/slang1/sna
 
 ## Het bloedgeluid bij een treffer
 
-Een slang die geraakt wordt met de punt of de kling (steek, worp, lage zwaai met de speer) geeft een klein bloedgeluid,
-ook bij een treffer die hem nog niet doodt (met `hpBalk`). Het is een kort stuk van `sounds/bloedspuit.mp3` (0,27 tot
-0,62 s, zachter en op 1,25 keer het tempo, met een eigen Audio), zie `SLANG_BLOED` en `slangBloedSpeel`. Niet met de
-stokken (die geven de houtklap), niet met de grondklap en niet met het mes (dat weert af). De fosforslang (`fosforRaak`)
-heeft het niet.
+Een slang die geraakt wordt met de punt of de kling (steek, worp, lage zwaai met de speer) geeft een bloedgeluid: een
+stuk van `sounds/bloedspuit.mp3` vanaf 0,27 s, met een eigen Audio (`SLANG_BLOED`, `slangBloedSpeel(dood, soort)`). De
+hardheid volgt de treffer: een treffer die hem nog niet doodt (met `hpBalk`) is klein, kort, zacht en wat hoger (`raak`);
+de dodelijke is langer, voller en harder, per soort dood zoals de animatie (`dood`: de worp, die hem neerklapt, het hardst,
+dan de steek, dan de lage zwaai). Niet met de stokken (die geven de houtklap), niet met de grondklap en niet met het mes
+(dat weert af). De fosforslang (`fosforRaak`) heeft het niet.
