@@ -6629,11 +6629,36 @@ const TEST_82 = {
           { x: -2200, t: 'This one hangs higher: jump from the mossy ledge' },
           { x: -3600, t: 'Cut the second vine yourself before it snaps' } ]
 };
+// Test 83: de helling (HSTAM, st 'half'). Op verzoek (regel 3), zelf ontworpen, in het regenwoud met lichte mist en
+// zonder vijanden. Hier knapt de tweede liaan niet vanzelf (tweede: false): sla er een door en de stam blijft schuin
+// hangen, een helling om op te lopen. Eerst een losse stam om het te voelen (ook: blijf erop staan en sla de liaan
+// aan jouw kant door, dan glijd je mee naar beneden). Dan een stam voor een hoog mosterras: sla de rechterliaan door,
+// de rechterkant zakt en de linkerkant blijft hoog bij het terras; loop omhoog en spring erop. Tot slot een stam waar
+// de tweede liaan wel na 3 s knapt, om te zien dat je dan snel moet zijn
+const TEST_83 = {
+  name: 'Test 83: Log ramp',
+  lagen: 'regenwoud',
+  view: 0.8, hpBalk: true, zicht: true, sneak: true, camera: true, rand: true, slangEenKlap: true, hyOmkeer: true,
+  speerInHand: true, vredig: true,
+  weer: [ {x: -10, soort: 'mist', sterkte: 0.45} ],
+  hangstammen: [ {x: -800, tweede: false},
+                 {x: -1800, h: 230, breed: 2.6, tweede: false},
+                 {x: -3600} ],
+  terraces: [ {r: -2100, l: -2700, h: 340, grond: true} ],
+  spawns: [],
+  rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
+  voorgrond: false,
+  cliffs: [ {x: -4800} ],
+  ends: [ {x: -4300} ],
+  tips: [ { x: -80, t: 'Test level: the log ramp. Cut one vine and the log stays tilted: walk up and down it. Stand on it while you cut the vine on your side, and you ride it down' },
+          { x: -1450, t: 'Cut the right vine, walk up the log and jump onto the ledge' },
+          { x: -3250, t: 'This one snaps after 3 seconds: be quick' } ]
+};
 const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31, TEST_32, TEST_33, TEST_34, TEST_35, TEST_36, TEST_37, TEST_38, TEST_39, TEST_40, TEST_41, TEST_42, TEST_43, TEST_44, TEST_45, TEST_46, TEST_47, TEST_48, TEST_49, TEST_50, TEST_51, TEST_52, TEST_53, TEST_54, TEST_55, TEST_56, TEST_57, TEST_58, TEST_59, TEST_60, TEST_61, TEST_62, TEST_63, TEST_64, TEST_65, TEST_66, TEST_67, TEST_68, TEST_69, TEST_70, TEST_71, TEST_72, TEST_73, TEST_75, TEST_78, TEST_79, TEST_80];
 // ---- Test levels sticks: alle proefstukken met de stokken, in een eigen reeks (zoals Baboon tests, zonder tribekeuze) ----
 const STOK_LEVELS = [TEST_74, TEST_76, TEST_77];
 // ---- Test levels rainforest: alle proefstukken in het regenwoud, in een eigen reeks (zoals Sticks, zonder tribekeuze) ----
-const RW_LEVELS = [TEST_81, TEST_82];
+const RW_LEVELS = [TEST_81, TEST_82, TEST_83];
 // ---- Episode Test levels stad: de Sahelstad, stuk voor stuk ----
 // Proefstukken in de stad (zie "de stad"), los van de echte episodes (regel 1 geldt niet). Het is een episode, dus met
 // de tribekeuze aan het begin; het eerste level was Test 59.
@@ -15642,6 +15667,20 @@ function hstamHaak(s, M, P, scale, i){
 function hstamVast(z, i){ return z.st === 'hangt' || (z.st === 'half' && i === (z.kant < 0 ? 1 : 0)); }
 function hstamAnker(s, M, i){ return { x: s.x + (HSTAM.haak[i] - 0.5) * M.bPx, h: terrainH(s.x) + (s.h || HSTAM.hoog) + HSTAM.anker }; }
 // het dunne platform zolang hij hangt; plat op de grond een laag obstakel (een kei van hout)
+// Het bovenvlak van de schuine stam (st 'half'): de hoogte onder wereld-x wx (sprite-eenheden), of null buiten het
+// begaanbare stuk. Zo loopt Amir over de helling: hstamPlats geeft een platform op de hoogte onder zijn voeten, en
+// hstamUpdate zet hem elk beeld op die hoogte. Zijn voeten volgen het midden; een voet zweeft een paar px, de andere
+// zakt in het mos (bij zo'n 14 graden valt dat weg).
+function hstamHelling(s, M, P, scale, wx){
+  const c = Math.cos(P.a), sn = Math.sin(P.a), ly = M.tm * scale;     // het bovenvlak ligt tm boven het hart
+  const lx = (wx - P.x - ly * sn) / c, half = M.bPx * HSTAM.plat;
+  if (lx < -half || lx > half) return null;
+  return P.h + (-lx * sn + ly * c) / scale;
+}
+function hstamHellingVak(s, M, P){                 // de x-strook van het begaanbare stuk van de schuine stam
+  const half = M.bPx * HSTAM.plat * Math.cos(P.a), dx = -Math.sin(P.a) * M.tm;   // het bovenvlak schuift iets op bij de kanteling
+  return { l: P.x + dx - half, r: P.x + dx + half };
+}
 function hstamPlats(scale){
   const out = [];
   if (!scale) return out;
@@ -15651,6 +15690,12 @@ function hstamPlats(scale){
       const top = P.h + M.tm;
       out.push({ x: P.x, left: P.x - half, right: P.x + half, topH: top, base: top, wPx: half * 2, hPx: 0,
                  thin: true, takel: true, hstam: true, id: 'hstam' + i });
+    } else if (z.st === 'half'){
+      // de helling: een dun platform over de hele strook, op de hoogte van het bovenvlak onder Amir
+      const v = hstamHellingVak(s, M, P), hw = Math.max(v.l, Math.min(v.r, world));
+      const top = hstamHelling(s, M, P, scale, hw);
+      if (top !== null) out.push({ x: (v.l + v.r) / 2, left: v.l, right: v.r, topH: top, base: top, wPx: v.r - v.l, hPx: 0,
+                                   thin: true, takel: true, hstam: true, helling: true, id: 'hstam' + i });
     } else if (z.st === 'lig'){
       const g = terrainH(s.x);
       out.push({ x: P.x, left: P.x - half, right: P.x + half, topH: P.h + M.tm, base: g, wPx: half * 2, hPx: 0, hstam: true, id: 'hstam' + i });
@@ -15663,6 +15708,7 @@ function hstamVanId(id){ const i = Number(String(id).slice(5)); return hstamLijs
 function hstamBons(id, vIn){
   const s = hstamVanId(id); if (!s) return;
   const z = hstamZ(s);
+  if (z.st !== 'hangt') return;                    // alleen de hangende stam veert en kraakt
   z.vdy += Math.min(HSTAM.zakMax, vIn * HSTAM.zakStoot) * 10;
   const kant = world < s.x + z.dx ? -1 : 1;
   z.vdx += kant * Math.min(HSTAM.landMax, vIn * HSTAM.landDuw);
@@ -15698,7 +15744,6 @@ function hstamKnap(s, i, door, hRaak){
     z.st = 'half'; z.kant = i ? 1 : -1; z.th = 0; z.om = 0.4; z.t2 = 0; z.geland = false; z.bounced = false;
     const j = i ? 0 : 1, u = (HSTAM.haak[j] - 0.5) * M.bPx;
     z.px = P.x + u; z.ph = P.h;
-    if (amirPlat === 'hstam' + hstamLijst().indexOf(s)) amirPlat = null;
   } else {
     // de laatste liaan: de punt blijft op de grond, de andere kant valt omlaag
     const d = hstamTipAf(M, z.kant);
@@ -15748,7 +15793,13 @@ function hstamUpdate(dt){
         }
       }
       z.t2 += dt;
-      if (z.t2 >= HSTAM.tweede) hstamKnap(s, z.kant < 0 ? 1 : 0, 'tijd');
+      const na = s.tweede === undefined ? HSTAM.tweede : s.tweede;      // false of 0: hij knapt nooit vanzelf (een helling die blijft)
+      if (na && z.t2 >= na) hstamKnap(s, z.kant < 0 ? 1 : 0, 'tijd');
+      // op de helling: Amir staat op het bovenvlak onder zijn voeten, ook terwijl de stam nog kantelt
+      if (amirPlat === 'hstam' + idx && onGround){
+        const P = hstamPose(s, M, scale), top = hstamHelling(s, M, P, scale, world);
+        if (top === null) amirPlat = null; else { ph = top; valVan = ph; }
+      }
     } else if (z.st === 'valt'){
       z.pv += HSTAM.valG2 * dt;
       z.ph -= z.pv * dt;
@@ -35982,7 +36033,7 @@ function updateJump(dt, plats, halfW){
     puffDust(9);
     if (winterOn() && waterDepthAt(world, target) < 0.2) snowBurst(world, target, vIn / 900);   // de sneeuw stuift op
     if (vIn > jumpV() * 0.9) mistStoot(world, Math.min(0.7, (vIn - jumpV() * 0.9) / (jumpV() * 1.6) + 0.15), 22);   // een harde landing duwt de mist opzij (MIST_STOOT)
-    if (targetPlat && targetPlat.hstam) hstamBons(targetPlat.id, vIn);   // op de hangende stam: inzakken, meezwaaien en het kraken van de liaan
+    if (targetPlat && targetPlat.hstam && !targetPlat.helling) hstamBons(targetPlat.id, vIn);   // op de hangende stam: inzakken, meezwaaien en het kraken van de liaan
     else if (targetPlat && targetPlat.takel){ const tk = takelById(targetPlat.id); if (tk) takelBons(tk, vIn, world >= tk.px ? 1 : -1); }   // op het plateau springen: inzakken plus schommelen naar de landingskant
     amirPlat = (targetPlat && (targetPlat.takel || targetPlat.rijs)) ? (targetPlat.id || null) : null;   // beland je op een bewegend plateau, dan bind je je eraan
     if (targetPlat && targetPlat.luifel) stadLuifelWorp(targetPlat);   // de luifel bij de put: meteen schuin weggeworpen, geen valschade
@@ -56475,7 +56526,7 @@ function readLevel(txt){
            npcs: (o.npcs || []).filter(q => NPCS[q.k])
                                 .map(q => ({ x: Number(q.x), kind: q.k, scale: Number(q.s) || 1,
                                              flip: !!q.f, y: Number(q.y) || 0 })),
-           hangstammen: (o.hangstammen || []).map(q => ({ x: Number(q.x), ...(q.h != null ? { h: Number(q.h) } : {}), ...(q.breed != null ? { breed: Number(q.breed) } : {}) })),   // de hangende stam (HSTAM)
+           hangstammen: (o.hangstammen || []).map(q => ({ x: Number(q.x), ...(q.h != null ? { h: Number(q.h) } : {}), ...(q.breed != null ? { breed: Number(q.breed) } : {}), ...(q.tweede !== undefined ? { tweede: q.tweede === false ? false : Number(q.tweede) } : {}) })),   // de hangende stam (HSTAM)
            tonnen: (o.tonnen || []).map(q => ({ x: Number(q.x), y: Number(q.y) || 0, kalebas: !!q.kalebas, f: !!q.f, put: q.put != null ? Number(q.put) : undefined, kraam: q.kraam != null ? Number(q.kraam) : undefined, luifel: q.luifel != null ? Number(q.luifel) : undefined, a: q.a != null ? Number(q.a) : undefined })),   // houten tonnen die breken
            wapenrekken: (o.wapenrekken || []).map(q => ({ x: Number(q.x), f: !!q.f, n: q.n != null ? Number(q.n) : undefined, put: q.put != null ? Number(q.put) : undefined, kraam: q.kraam != null ? Number(q.kraam) : undefined, luifel: q.luifel != null ? Number(q.luifel) : undefined, a: q.a != null ? Number(q.a) : undefined })),   // wapenrekken met speren (zie "wapenrek"); eerst nam readLevel ze niet over, nu staan ze in The Roofs of Kumbasa
            thickets: (o.thickets || []).map(q => ({ x: Number(q.x),
@@ -58258,6 +58309,7 @@ const SUBS = {
   'Test 80: Savanna steps': 'Low steps of savanna you walk up instead of jumping',
   'Test 81: Rainforest': 'Moss, giant trees and rising mist',
   'Test 82: Hanging log': 'A log on two vines: jump on it, cut it down',
+  'Test 83: Log ramp': 'Cut one vine and walk up the tilted log',
   'Test 76: Ground slam': 'Sticks from the air: slam into the ground and send a wave forward',
   'Test 77: Sun ray': 'Meditate in the sun, then six seconds of Sun Lion: double damage, fast, a huge jump, two ground slams',
   'Test 64: De tweede speer': 'Gooi en druk meteen weer F: een tweede speer achter de eerste aan, ook uit de rol',

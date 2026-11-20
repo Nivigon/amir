@@ -1955,6 +1955,11 @@ def terrassen(lv, sp):
             l, rr, top = sp.kei(r, lv.terrein)
             if t['r'] - 20 < rr and l < t['r'] + 400:
                 treden.append(top)
+        # een hangende stam (HSTAM) vlak voor de wand: sla een liaan door en hij wordt een helling, van een laag eind
+        # op de grond (de dikte van de stam, zo'n 90) tot de hoogte waar hij hing (h); daar spring je vanaf
+        for hs in lv.d.get('hangstammen') or []:
+            if isinstance(hs.get('x'), (int, float)) and t['r'] - 50 < hs['x'] + 700 and hs['x'] < t['r'] + 900:
+                treden += [90, hs.get('h', 190)]
 
         def kop(van):
             k = lv.plafond_min(t['r'] - 150, t['r'] + sp.halfW) - sp.CHAR_H
