@@ -79,3 +79,14 @@ het `tutorial`-systeem (staat klaar, geen level gebruikt het nu)
 ## achtergrondlagen, uitzicht per level
 
 `SCENE0` en `SCENES`
+
+## wolken in de lucht
+
+`STAD_LUCHT`, `luchtWolken`, `luchtWolkenAan`, `luchtWolkKleur`: wolken uit Grok (magenta of groen uitgeknipt) in drie lagen
+diepte (`lagen`: ver, midden, dichtbij). Ver is klein, laag tegen de horizon en deels achter de bergen (ze worden voor de
+bergplaten getekend), doffer (`waas`: ze lopen op in de kleur van de horizon, `sky[2]`) en bijna stil; dichtbij is groot, hoog
+en schuift het meest mee. Elke laag drijft ook als je stilstaat (`drijf`, pixels per seconde). Per uitzicht ingekleurd: de
+schaduwkant naar de nevel en de lucht, de lichte kant naar de kleur van de zon (`sc.wolkTint` stelt het bij).
+- Buiten de stad: de avondset `design/stad/verte/avondwolk_1..9.png` (lange strepen, oranje verlichte buik, donkere toppen,
+  want de zon staat laag). Standaard aan in elk level, niet in de winter; `wolken: false` in een level zet ze uit.
+- In de stad alleen met `stad.lucht.wolken` (Ishmul): de middagset `wolk_1..8.png`, gefacetteerd zoals de rotsen.

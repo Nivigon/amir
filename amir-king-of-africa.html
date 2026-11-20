@@ -28953,6 +28953,24 @@ function rotsenLaadLevel(lv){ for (const r of (lv && lv.rotsen) || []) runeBeeld
 // Hoogtes staan in sprite-eenheden (CHAR_H = een Amir), breedtes schalen mee met Amir, net als een kei.
 const STAD_DIR = 'design/stad/';
 let STAD_KANTEEL = true;            // achter de kartels: het dak een stuk lager, achter de tanden (zie stadKanteelVoor); de sandbox zet het uit
+// de lucht van een stad (stad.lucht, Ishmul): wolken uit Grok (design/stad/verte/wolk_1..5.png, magenta uitgeknipt), witte
+// reigers in een losse V in plaats van de gieren, en een warme gloed boven de horizon. Zie stadLucht.
+const STAD_LUCHT = {
+  // lagen van ver naar dichtbij: voet = waar de onderkant hangt (deel van H), waas = hoeveel ze opgaan in de kleur van de
+  // horizon (doffer verder weg), par en drijf = hoe snel ze meeschuiven en drijven, cam = hoeveel ze zakken als de camera klimt
+  wolk: { n: 8, src: i => 'verte/wolk_' + i + '.png', sluier: [4, 6], tint: [0.18, 0.78], lagen: [
+    { voet: [0.50, 0.62], maat: [0.045, 0.07], elke: 0.45, leeg: 0.35, par: 0.015, drijf: 2, waas: 0.45, alfa: 0.75, cam: 0.2 },
+    { voet: [0.30, 0.44], maat: [0.07, 0.11], elke: 0.6, leeg: 0.3, par: 0.035, drijf: 4, waas: 0.15, alfa: 0.9, cam: 0.35 },
+    { voet: [0.12, 0.26], maat: [0.11, 0.16], elke: 0.8, leeg: 0.3, par: 0.07, drijf: 7, waas: 0, alfa: 0.95, cam: 0.5 } ] },
+  // de savanne bij avond: lange strepen met donkere toppen en een oranje verlichte buik (de zon staat laag), laag boven
+  // de bergen, iets doorzichtig. De wolken van de stad zijn in middaglicht geschilderd en klopten daar niet
+  avond: { n: 9, src: i => 'verte/avondwolk_' + i + '.png', sluier: [8], tint: [0.2, 0.2], lagen: [
+    { voet: [0.38, 0.46], maat: [0.035, 0.06], elke: 0.4, leeg: 0.35, par: 0.012, drijf: 1.5, waas: 0.5, alfa: 0.7, cam: 0.1 },
+    { voet: [0.27, 0.36], maat: [0.06, 0.09], elke: 0.6, leeg: 0.3, par: 0.03, drijf: 3.5, waas: 0.2, alfa: 0.82, cam: 0.2 },
+    { voet: [0.10, 0.22], maat: [0.10, 0.15], elke: 1.0, leeg: 0.35, par: 0.06, drijf: 6, waas: 0, alfa: 0.9, cam: 0.35 } ] },
+  reiger: { elke: 0.55, leeg: 0.1, n: [3, 7], hoog: [0.20, 0.42], span: 0.022, v: 22, slag: 4.2, kleur: [250, 248, 240], rand: 'rgba(110,116,130,0.55)' },
+  gloed: { kleur: [246, 228, 196], a: 0.75, hoog: 0.5 }
+};
 // de achterbeelden: landschappen in de verte waar de stad ophoudt (zie stadAchterBeeld)
 const STAD_ACHTERBEELD = {
   rotsreuzen: { src: 'verte/rotsreuzen.png', hoog: 0.46, horizon: 0.676, nevel: 0.16, par: 0.12, zak: 0.045 }
@@ -29124,6 +29142,7 @@ function stadLees(o){
            ...(o.onder ? { onder: true } : {}),
            ...(Number.isFinite(Number(o.achterTot)) && o.achterTot !== null ? { achterTot: n(o.achterTot) } : {}),   // links daarvan geen huizen in de verte (Ishmul)
            ...(o.achterBeeld && STAD_ACHTERBEELD[o.achterBeeld.k] ? { achterBeeld: { k: o.achterBeeld.k, x: n(o.achterBeeld.x) } } : {}),   // een plaat in de lucht links van achterTot (Ishmul)
+           ...(o.lucht ? { lucht: { wolken: !!o.lucht.wolken, vogels: o.lucht.vogels === 'wit' ? 'wit' : null, gloed: !!o.lucht.gloed } } : {}),   // wolken, witte vogels, gloed (Ishmul)
            ...(o.moskee === false ? { moskee: false } : o.moskee != null ? { moskee: n(o.moskee) } : {}),
            galerijen: (o.galerijen || []).map(q => ({ van: n(q.van), tot: q.tot != null ? n(q.tot) : n(q.van), h: q.h != null ? n(q.h) : null,
                                                      meer: Array.isArray(q.meer) ? [n(q.meer[0]), n(q.meer[1])] : null })),
@@ -30610,6 +30629,88 @@ function stadVerteGieren(voet, seed){
     }
   }
 }
+function stadLucht(L, V, seed, groundY){
+  const hor = groundY - camY * 0.6;
+  if (L.gloed){                                            // een warme, zanderige gloed boven de horizon
+    const G = STAD_LUCHT.gloed, k = G.kleur.join(','), top = hor - G.hoog * H;
+    const g = ctx.createLinearGradient(0, top, 0, hor);
+    g.addColorStop(0, 'rgba(' + k + ',0)'); g.addColorStop(0.65, 'rgba(' + k + ',' + (G.a * 0.45) + ')'); g.addColorStop(1, 'rgba(' + k + ',' + G.a + ')');
+    ctx.fillStyle = g; ctx.fillRect(0, top, W, hor - top + 2);
+  }
+  if (L.wolken) luchtWolken(sceneCfg(), seed);
+}
+// ---- wolken in de lucht: de Grok-wolken (STAD_LUCHT.wolk), in de stad (stad.lucht) en in een savannelevel (wolken: true) ----
+// Ze drijven traag (ook als je stilstaat) en schuiven een klein beetje mee met de camera. Per uitzicht ingekleurd: de schaduwkant
+// gaat naar de nevel van dat uitzicht, de lichte kant naar de kleur van de zon, zodat ze bij avond warm en roze zijn en
+// overdag crème. Hoeveel: sc.wolkTint, anders STAD_LUCHT.wolk.tint (de stad wat minder, want daar staan ze in de middag).
+const wolkImgs = {};
+// in de stad alleen met stad.lucht.wolken (Ishmul); daarbuiten standaard aan, behalve in de winter, en wolken: false zet ze uit
+function luchtWolkenAan(){
+  if (!level) return false;
+  if (stadAan()) return !!(level.stad && level.stad.lucht && level.stad.lucht.wolken);
+  return level.wolken !== false && !winterOn();
+}
+function luchtWolkKleur(sc, C){
+  const hex = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
+  let mist = (sc.stadVerte && sc.stadVerte.nevel) || (sc.mistColor ? sc.mistColor.split(',').map(Number) : STAD.nevel);
+  // buiten de stad: de schaduwkant half de nevel, half de lucht halverwege (bij avond paarsroze, overdag blauwig)
+  if (!stadAan() && sc.sky && sc.sky[1]){ const m = hex(sc.sky[1]); mist = mist.map((v, j) => Math.round(v * 0.5 + m[j] * 0.5)); }
+  const zon = hex((sc.sun && sc.sun[3]) || '#fff4dc');
+  const a = sc.wolkTint != null ? sc.wolkTint : (stadAan() ? C.tint[0] : C.tint[1]);
+  return { mist, zon, a, sleutel: mist.join(',') + '|' + zon.join(',') + '|' + a };
+}
+function luchtWolken(sc, seed){
+  const soort = stadAan() ? 'wolk' : 'avond', C = STAD_LUCHT[soort], imgs = wolkImgs[soort] || (wolkImgs[soort] = []);
+  for (let i = 1; i <= C.n; i++) if (!imgs[i]) imgs[i] = zetBron(new Image(), STAD_DIR + C.src(i), () => console.warn('ontbreekt: stad ' + C.src(i)));
+  const K = luchtWolkKleur(sc, C), t = performance.now() / 1000;
+  // de kleur van de horizon: daar lopen de verre wolken in op (waas)
+  const hz = stadAan() ? K.mist : (sc.sky && sc.sky[2] ? [1, 3, 5].map(i => parseInt(sc.sky[2].slice(i, i + 2), 16)) : K.mist);
+  C.lagen.forEach((Lg, li) => {                            // van ver naar dichtbij
+    const stap = Lg.elke * W, off = -world * Lg.par + t * Lg.drijf, sd = seed + li * 101;
+    const i0 = Math.floor((-off - W) / stap) - 1, i1 = Math.ceil((W * 1.5 - off) / stap) + 1;
+    ctx.globalAlpha = Lg.alfa;
+    for (let i = i0; i <= i1; i++){
+      if (stadVerteHash(sd, i, 40) < Lg.leeg) continue;
+      const w = 1 + Math.floor(stadVerteHash(sd, i, 41) * C.n), im = imgs[w];
+      if (!imgReady(im)) continue;
+      const P = stadGebakken(soort + w + '_' + K.sleutel + '_' + Lg.waas, () => stadBak(im, im.naturalWidth, im.naturalHeight, (r, g, b) => {
+        const l = Math.min(1, (r + g + b) / 690);               // licht of schaduw
+        return [0, 1, 2].map(j => {
+          const doel = K.mist[j] + (K.zon[j] - K.mist[j]) * l, v = [r, g, b][j] * (1 - K.a) + doel * K.a;
+          return v * (1 - Lg.waas) + hz[j] * Lg.waas;             // verder weg: doffer, in de kleur van de horizon
+        });
+      }));
+      const ph = H * (Lg.maat[0] + (Lg.maat[1] - Lg.maat[0]) * stadVerteHash(sd, i, 42)) * (C.sluier.includes(w) ? 0.6 : 1), pw = P.width * ph / P.height;
+      const x = off + i * stap + (stadVerteHash(sd, i, 43) - 0.5) * stap * 0.6;
+      const voet = H * (Lg.voet[0] + (Lg.voet[1] - Lg.voet[0]) * stadVerteHash(sd, i, 44)) - camY * Lg.cam;
+      if (x + pw < 0 || x > W) continue;
+      ctx.drawImage(P, x, voet - ph, pw, ph);
+    }
+  });
+  ctx.globalAlpha = 1;
+}
+// witte reigers van ver: groepjes van een paar in een losse V die rustig over de lucht trekken, met trage slagen.
+// Elk groepje houdt zijn plek in de rij (j), dus ze trekken door zonder te verspringen
+function stadReigers(voet, seed){
+  const R = STAD_LUCHT.reiger, t = stadNu(), stap = R.elke * W, span = R.span * H;
+  const off = -world * 0.05 - t * R.v;                    // ze vliegen naar links, iets sneller dan de wolken
+  const j0 = Math.floor((-off - W) / stap) - 1, j1 = Math.ceil((W * 2 - off) / stap) + 1;
+  ctx.fillStyle = 'rgb(' + R.kleur.join(',') + ')'; ctx.strokeStyle = R.rand; ctx.lineWidth = Math.max(0.6, H / 900);
+  for (let j = j0; j <= j1; j++){
+    if (stadVerteHash(seed, j, 50) < R.leeg) continue;
+    const cx = off + j * stap + (stadVerteHash(seed, j, 51) - 0.5) * stap * 0.5;
+    const cy = voet - H * (R.hoog[0] + (R.hoog[1] - R.hoog[0]) * stadVerteHash(seed, j, 52));
+    const n = R.n[0] + Math.floor(stadVerteHash(seed, j, 53) * (R.n[1] - R.n[0] + 1));
+    if (cx - span * 4 > W || cx + span * (n * 2 + 4) < 0) continue;
+    for (let b = 0; b < n; b++){
+      const rij = Math.ceil(b / 2), kant = b % 2 ? -1 : 1;   // de kop voorop (links), de rest schuin erachter
+      const x = cx + rij * span * 1.5 + Math.sin(t * 0.7 + b) * span * 0.15;
+      const y = cy + kant * rij * span * 0.45 + Math.sin(t * 0.9 + b * 1.7 + j) * span * 0.12;
+      const op = Math.sin(t * R.slag + b * 0.9 + j) * 0.22;
+      stadGierTeken(x, y, span * (0.9 + 0.2 * stadVerteHash(seed, j * 9 + b, 54)), op); ctx.stroke();   // een dun randje, ook voor een wolk te zien
+    }
+  }
+}
 // een gier van ver: een lijfje en twee lange, brede vleugels met gespreide punten; op: de punten omhoog (deel van de span)
 function stadGierTeken(x, y, s, op){
   const h = s / 2, d = s * 0.07;
@@ -30629,6 +30730,16 @@ function stadAchter(sc, horizonY, groundY){
   const V = stadVerte(), N = V.nevel, neveltekst = 'rgb(' + N.join(',') + ')';
   const voeten = STAD.rijen.map(R => groundY - camY * R.cam - R.lift * H);
   const grens = Number.isFinite(S.achterTot) ? S.achterTot : null;   // zie hieronder bij achterTot
+  // achterTot: de rand op het scherm is de muur van de voorste rij, en daar houden alle rijen op (elk op een muur van
+  // zichzelf, rechts daarvan). Eerst had elke rij zijn eigen rand op zijn eigen parallax: dan liep de verste rij verder
+  // door dan de voorste, en onder die verste huizen zag je de nevel als een plat blauw vak tussen de huizen
+  let grensRand = null;
+  if (grens != null){
+    const RL = STAD.rijen[STAD.rijen.length - 1], G = STAD.gevel, hw = 970 * f0 * RL.s, stap = hw * (G.muur[1] - G.muur[0]) / 970 - 2;
+    const off = -world * RL.par, k = Math.ceil((W / 2 + (grens - world) * RL.par - (off - W * 0.25)) / stap);
+    grensRand = off + k * stap - W * 0.25 - 1;
+  }
+  if (S.lucht) stadLucht(S.lucht, V, seed, groundY);   // gloed en wolken, achter het paleis en de huizen (Ishmul)
   // het paleis in de verte, met nevel voorgebakken
   if (stadKlaar('paleis')){
     const P = stadGebakken('paleis_' + V.sleutel, () => {
@@ -30638,15 +30749,17 @@ function stadAchter(sc, horizonY, groundY){
     const ph = H * STAD.paleis.hoog, pw = P.width * ph / P.height;
     const px = (S.paleis != null ? S.paleis : -2500);
     const sx = W / 2 + (px - world) * STAD.paleis.par - pw / 2;
-    // met achterTot vaagt het paleis weg zodra de rand van de stad (de verste rij) zijn linkerkant nadert
-    const pa = grens == null ? 1 : Math.max(0, Math.min(1, (sx - (W / 2 + (grens - world) * STAD.rijen[0].par)) / (pw * 0.5) + 1));
+    // met achterTot vaagt het paleis weg voor de rand van de stad (de verste rij) zijn linkerkant bereikt: links van die
+    // rand staan geen huizen meer onder zijn voet, en dan zweefde hij boven de savanne (door een gat tussen de huizen te zien)
+    const pa = grens == null ? 1 : Math.max(0, Math.min(1, (sx - grensRand) / (pw * 0.5)));
     if (pa > 0){ ctx.globalAlpha = pa; ctx.drawImage(P, sx, voeten[0] + 0.01 * H - ph, pw, ph); ctx.globalAlpha = 1; }
   }
-  if (grens != null && S.achterBeeld) stadAchterBeeld(S.achterBeeld, V, grens, groundY);   // links van de stad: een landschap (Ishmul)
-  stadVerteGieren(voeten[0], seed);                // gieren boven de stad (zie "de verte van de stad")
+  if (grens != null && S.achterBeeld) stadAchterBeeld(S.achterBeeld, V, grensRand, groundY);   // links van de stad: een landschap (Ishmul)
+  if (S.lucht && S.lucht.vogels === 'wit') stadReigers(voeten[0], seed);   // witte reigers in plaats van de gieren (Ishmul)
+  else stadVerteGieren(voeten[0], seed);           // gieren boven de stad (zie "de verte van de stad")
   // achterTot (Ishmul): links van die wereld-x houdt de stad in de verte op, daar is lucht boven de savanne. Per rij op
   // zijn eigen parallax, en afgerond op de muur tussen twee huizen, zodat geen huis half afgeknipt wordt
-  const grensX = R => W / 2 + (grens - world) * R.par;
+  const grensX = R => grensRand;                       // dezelfde rand voor elke rij (zie grensRand)
   // onder de verste rij: de stad loopt door in de nevel tot de grond
   ctx.fillStyle = neveltekst;
   const nevelL = grens == null ? 0 : Math.max(0, grensX(STAD.rijen[0]));
@@ -30663,7 +30776,7 @@ function stadAchter(sc, horizonY, groundY){
 // van de plaat staat als de camera daar is. hoog: de hoogte van de plaat op het scherm (deel van H), horizon: waar de
 // grond van de plaat begint (deel van de plaathoogte), nevel: hoeveel van de nevelkleur erover, par: de parallax.
 // (de platen staan in STAD_ACHTERBEELD, bij STAD)
-function stadAchterBeeld(AB, V, grens, groundY){
+function stadAchterBeeld(AB, V, rechts, groundY){
   const D = STAD_ACHTERBEELD[AB.k]; if (!D) return;
   const key = 'achterBeeld_' + AB.k;
   if (!stadImgs[key]){ const im = new Image(); zetBron(im, STAD_DIR + D.src, () => console.warn('ontbreekt: stad ' + D.src)); stadImgs[key] = im; return; }
@@ -30676,8 +30789,7 @@ function stadAchterBeeld(AB, V, grens, groundY){
   const ph = H * D.hoog, pw = P.width * ph / P.height;
   const hor = groundY - camY * 0.6 - D.zak * H;            // de horizon van de plaat: net boven de straat, zakt mee als de camera klimt
   const y = hor - ph * D.horizon;
-  const rechts = W / 2 + (grens - world) * STAD.rijen[0].par;   // tot de grens van de verste rij huizen
-  if (rechts <= 0) return;
+  if (rechts <= 0) return;                                 // tot de rand van de stad (grensRand)
   let sx = W / 2 + (AB.x - world) * D.par - pw / 2;
   sx -= Math.ceil(sx / pw) * pw;                           // naar links herhalen tot het scherm vol is
   ctx.save(); ctx.beginPath(); ctx.rect(0, -H, Math.min(W, rechts), H * 3); ctx.clip();
@@ -51054,6 +51166,7 @@ function verteTeken(V){
     }
     ctx.drawImage(d, Z.x, Z.y, d.width / DPR, d.height / DPR);
   }
+  if (luchtWolkenAan()) luchtWolken(sceneCfg(), 7);   // wolken voor de bergen (wolken: true)
   for (const P of V.platen){
     let x = P.u0 - world * P.par;
     if (x > -VERTE.rand || x + P.breed < W + VERTE.rand){ vertePlaatBak(P); x = P.u0 - world * P.par; }   // de camera loopt de strook uit
@@ -51108,6 +51221,7 @@ function sceneAchter(groundY){
     world = camEcht; return;
   }
   verteLucht(ctx, sc, horizonY, zonX, zonY);
+  if (!stadAan() && luchtWolkenAan()) luchtWolken(sc, 7);   // wolken voor de bergen (wolken: true); de stad doet ze zelf
   if (stadAan()){                                   // de stad: het paleis en de rijen huizen, geen bergen
     stadAchter(sc, horizonY, groundY);
     if (sc.dim){                                    // ook in de stad: de verte een tint donkerder (avond, nacht)
@@ -66706,6 +66820,7 @@ const MP_ISHMUL_LEVEL = (() => {
       paleis: -600, seed: 1907,
       achterTot: -3300,                              // links daarvan geen huizen in de verte: lucht boven de savanne
       achterBeeld: { k: 'rotsreuzen', x: -2050 },     // en daar de granieten rotsreuzen in de verte (STAD_ACHTERBEELD)
+      lucht: { wolken: true, vogels: 'wit', gloed: true },   // wolken, witte reigers en een warme gloed (STAD_LUCHT)
       gevels: [ {x: -1425, hoog: 2},                 // 0: het huis aan de rivier, rechts (x is de linkerkant op de laptop)
                 {x: -3240, hoog: 2},                 // 1: de linkeroever, aan de rivier
                 {x: -4000, hoog: 3, aan: 1.0} ],     // 2: het hoge huis, met een steeg ernaast
