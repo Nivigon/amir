@@ -356,6 +356,8 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | drie spelers: de ster (de host een verbinding per gast, een speler-id `p` in elk bericht, doorsturen met `MP_DOOR`, `pvpZendAan` voor een speler), per slot de andere Amir, de vijandgroep, de revive-ton en Ready; Duel blijft twee | `PVP.max`, `pvp.peers`, `pvp.anders`, `pvpGastErbij`, `pvpZendAan`, `mpcDodenStap` | notities/multiplayer.md |
 | Co-op Survival: de host denkt voor de vijanden (twee doelen voor dezelfde AI), de gast tekent ze en meldt zijn treffers; rondes uit de deuren, tonnen met de knikkerzak, de revive, punten en het eindscherm; testen met `tools/mptest.js --proef` (drie vensters, `--spelers 2` voor twee) | `MPC`, `mpcUpdate`, `mpcHitDoor`, `mpcStandZend`, `mpcHostStap`, `mpcSpawn` | notities/multiplayer.md |
 | de Co-op episode: drie savannelevels samen, pas uit als het hele team levend bij de fakkels staat, de revive-ton bij de levende waar hij ook staat, de spawns ook bij een gast; testen met `tools/mptest.js --ep` | `COOPEP_LEVELS`, `MPC_EP`, `mpEpHostStap`, `mpEpReviveX`, `mpcEpSpawnGasten` | notities/multiplayer.md |
+| The Smugglers' Cellar: de tweede Co-op episode, zeven levels met hinderlagen, van de savanne de stad in tot de kelder; in de lobby map 'b0' tot 'b6'; testen met `tools/mptest.js --hl` | `COOPEP2_LEVELS`, `MPC_EPS`, `mpEpLijst`, `mpEpKaartLevel` | notities/multiplayer.md |
+| de hinderlaag en het leiband: een lijn die het team pas voorbij kan als iedereen levend bij is, dan een regie (balken, de camera langs de plekken waar de vijanden binnenkomen) en het gevecht; in heel Co-op niet verder dan 1000 van een teamgenoot | `MPC_HL`, `hinderlagen`, `hinderStart`, `hinderHostStap`, `hinderCamX`, `MPC_LEIBAND`, `leibandKlem` | notities/multiplayer.md |
 | Ishmul, de voorstad: de tweede map van Co-op Survival (rivier met brug, plein op opstapjes met fontein, luifel, savanne), en de instellingen per map | `MP_ISHMUL_LEVEL`, `MPC_KAARTEN`, `mpcKaart`, `mpStarts` | notities/multiplayer.md |
 | de versies van de Co-op map: avond, nacht met fakkels aan de muren of diepe nacht, willekeurig en om de 3 rondes een andere, gesynchroniseerd met `cv` | `MPC_VERSIE`, `mpcVersieZet`, `mpcVersieWissel`, `mpcFakkelsStap` | notities/multiplayer.md |
 | de winkel van Co-op: na `winkelNa` rondes allebei naar een binnenkamer, ieder zijn eigen prijslijst en beurs, goud per kill en per ronde, Full Circle met twee upgrades die samen mogen, Ready van allebei | `MPC_WINKEL`, `mpcWinkelIn`, `mpcWinkelUit`, `mpcWinkelKoop`, `mpcGoudIedereen`, `mpcFcModus` | notities/multiplayer.md |
@@ -470,6 +472,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `ends` | de fakkels die het level uitspelen: `{x}` |
 | `npcs` | dorpelingen: `{x, k, f, s}` |
 | `tips` | tekst onderweg: `{x, t}` |
+| `hinderlagen` | de hinderlaag van Co-op: `[{x, vecht, shots: [{x, h, t, poort, deur, kelder}]}]`, een lijn op `x` tot het hele team er levend is, dan de regie langs de shots en het gevecht; een spawn met `hl` en `shot` komt binnen op zijn shot (alleen de Co-op episode The Smugglers' Cellar, zie `notities/multiplayer.md`) |
 | `pijlen` | rode pijlen in de lucht die iets aanwijzen: `{x, t}`, alleen voor testlevels (Test 47) |
 
 ### Een level toevoegen (alleen na toestemming)
