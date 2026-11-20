@@ -732,8 +732,8 @@ binnen: [{ ..., winkel: { x, seed, koopman }, planken: [{ x, h, soort, seed }] }
   een raam), `soort` `touw` (met touw om de steunen) of `kaal`. Ook daarop volgen de spullen uit de seed, iets minder vol
   dan in een winkel, en zonder kalebassen: thuis lijkt een kalebas iets om te pakken.
 - **De spullen** (`WINKEL.spullen`, `spul_*.png`): mand met deksel, mand, schalen, stof, rollen, kist, schaal, kruik, en van het
-  tweede vel (`bron/spullen_vel2.png`, geknipt met `tools/spul_knip.py`) een zak kruiden, een dichte zak, een koperen kan, touw,
-  een kom, een trommel en een mand dadels; alleen in een winkel het gifflesje (het gif uit het winkelscherm) en de kalebas (`items/potions/hppotion.png`). Hun hoogte staat in Amir, `spulMaat` maakt ze allemaal iets
+  derde vel in de spelstijl (`bron/spullen_vel3.png`, met de speer en de kalebas als stijlvoorbeeld, geknipt met `tools/spul_knip.py`) een zak kruiden, een dichte zak, een koperen kan, touw,
+  een olielampje, een trommel en een mand dadels; alleen in een winkel het gifflesje (het gif uit het winkelscherm) en de kalebas (`items/potions/hppotion.png`). Hun hoogte staat in Amir, `spulMaat` maakt ze allemaal iets
   groter. Ze komen uit een vel van Grok in strikt zij-aanzicht op ooghoogte, zonder schaduw: een vel met de camera erboven
   (je ziet in de manden, de stof ligt plat) werkte niet.
 - **Op het schap**: de balken van `schap.png` hebben geen bovenvlak, dus eerst het schap en dan de spullen erop, met hun

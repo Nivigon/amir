@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Knipt de winkelspullen uit het tweede Grok-vel (design/stad/binnen/bron/spullen_vel2.png).
+"""Knipt de winkelspullen uit het derde Grok-vel (in de spelstijl, met de speer en de kalebas als voorbeeld) (design/stad/binnen/bron/spullen_vel3.png).
 
 Het vel heeft acht spullen in twee rijen van vier op wit. Wit wordt weggeknipt met een flood-fill
 vanaf de rand over bijna-wit (licht materiaal binnenin blijft staan), daarna per vak bijsnijden en
@@ -15,14 +15,14 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
 DIR = ROOT / 'design/stad/binnen'
-BRON = DIR / 'bron/spullen_vel2.png'
+BRON = DIR / 'bron/spullen_vel3.png'
 
 # links naar rechts, boven naar onder
-NAMEN = [['kruiden', 'zak', 'kan', 'flesje'], ['touw', 'kom', 'trommel', 'dadels']]
+NAMEN = [['kruiden', 'zak', 'kan', 'flesje'], ['touw', 'lamp', 'trommel', 'dadels']]
 SCHAAL = 0.5
 WIT = 232          # helderder dan dit en weinig kleur telt als achtergrond
 KLEUR = 18         # hooguit zoveel verschil tussen de kanalen
-GAT = 150          # ingesloten wit groter dan dit (pixels) is een gat, kleiner is glimlicht
+GAT = 25           # ingesloten wit groter dan dit (pixels) is een gat, kleiner is glimlicht
 MIN_BLOK = 3000    # kleinere blokken zijn spikkels
 
 
