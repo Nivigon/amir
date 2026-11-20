@@ -414,7 +414,11 @@ een verdieping omhoog. De treden zijn altijd even groot (de schaal hangt aan de 
   (`stadBordesDiepte`, met het donkere silhouet van de galerij, `stadGalerijDonker`), even sterk als de slagschaduwen en
   's avonds en 's nachts net zo zacht. Vroeger lag er een donkere rechthoek over het hele bordes (`stadMuurSchaduw`), die
   ook de lege muur tussen de palen kleurde: een blok met harde randen op de muur. Leg dus nooit een vlak over een stuk
-  met een leuning; donker het hout zelf.
+  met een leuning; donker het hout zelf. Het donker wordt een keer gebakken per trap, zoom en resolutie
+  (`STAD_BORDES_BAK`: de donkere strook met een verloop als masker), daarna is het elk beeld een drawImage; eerst waren
+  het tot 40 smalle banden per beeld (0,5 ms per trap in beeld, nu 0,1). Een galerij die de muur in loopt riep nog
+  `stadMuurSchaduw` aan nadat die weg was: in Stad 2 brak dat het tekenen halverwege af (Amir en de vijanden weg uit
+  beeld). Die aanroep is eruit.
 - E bij de voet of in de opening (`eDruk`): Amir vervaagt (`STAD_TRAP.uit`, `stadTrapAlfa`), staat dan al aan de andere
   kant, met zijn gezicht van het huis af, en de camera glijdt in `glij` seconden zacht van waar hij stond naar waar hij bij de
   uitgang hoort (`stadTrapCamX` in de camEase-keten, `stadTrapCamY` in `updateCamera`, met het vooruitkijken van de
