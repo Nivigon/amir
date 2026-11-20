@@ -723,7 +723,8 @@ binnen: [{ ..., winkel: { x, seed, koopman }, planken: [{ x, h, soort, seed }] }
   links een doorgang naar achter (de binnendeur met het waaiende adire-doek, `winkelDeur`, `WINKEL.deur`), de marktman,
   twee wandplanken op pinnen met spullen (`plank_pin.png`, `WINKEL.wandPlank`; eerst beide planken, dan alle spullen, anders
   hangen de pinnen van de bovenste over wat op de onderste staat), een bos kruiden aan het eind van de bovenste plank (de
-  geweven mat staat uit, `WINKEL.mat.aan`: er was geen vrije plek, rechts zat hij achter de speren), naast het eind van de toonbank een grote kruik met 2 of 3 speren erin (in het voorbeeld van de toonbank, zodat hij op de vloer staat en niet erachter), en voor de toonbank zakken, een stapel manden en daarvoor twee open zakken specerijen
+  geweven mat staat uit, `WINKEL.mat.aan`: er was geen vrije plek, rechts zat hij achter de speren), naast het eind van de toonbank een grote kruik met 2 of 3 speren erin, iets naar voren (`WINKEL.kruik.voor`) en getekend na Amir
+  (`winkelKruikVoor`), zodat Amir er achterlangs loopt: dat geeft diepte, en voor de toonbank zakken, een stapel manden en daarvoor twee open zakken specerijen
   (`WINKEL.zakken`). De onderdelen komen uit een Grok-vel (`bron/winkel_b.jpg`, geknipt met `tools/winkel_b_knip.py`). Het oude
   schap (`schap.png`) en de houten toonbank (`toonbank.png`) worden niet meer gebruikt. `koopman: false` laat de marktman weg.
 - **Op het blad** een tot drie kalebassen, en soms nog een spul. Dat is wat je straks kunt krijgen.

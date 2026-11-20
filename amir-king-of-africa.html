@@ -32955,7 +32955,7 @@ const WINKEL = {
   deur: { x: [0.62, 0.72], doek: 'adire' },   // de doorgang naar achter: het midden, en het doek (uit GORDIJN.namen)
   mat: { aan: false, breed: 0.45, x: 0.08, h: 1.72 },     // de geweven mat, rechts van de kruidenbos (x de ruimte ertussen, h de bovenkant)
   bos: { hoog: 0.5, x: 0.17 },                // de bos kruiden hangt aan het eind van de bovenste plank (x voorbij de plank, het midden)
-  kruik: { hoog: 0.55, x: 0.28 },             // de kruik met speren, x rechts van het eind van de toonbank
+  kruik: { hoog: 0.55, x: 0.32, voor: 0.16 },   // x rechts van het eind van de toonbank, voor zo ver naar voren (Amir loopt erachter)             // de kruik met speren, x rechts van het eind van de toonbank
   zakken: { hoog: [0.5, 0.48, 0.5], kruiden: 0.4, van: 0.15, tot: 1.75, onder: 0.1 },   // zakken en manden voor de toonbank, tot zo ver naar voren
   spulMaat: 1.15,          // alle spullen iets groter dan in het vel
   // de spullen: hoogte in Amir; alleenWinkel staat niet in een gewoon huis (een kalebas daar lijkt iets om te pakken)
@@ -33094,22 +33094,27 @@ function winkelOpbouw(w){
     zakken.push({ im: kr, x: Z.van + 0.25 + i * r(0.5, 0.65) + r(-0.05, 0.05), h: zh, b: zb, f: rnd() < 0.5, voor: true });
   }
   // voor: de toonbank met wat erop, en de zakken ervoor, al in het schemer van het huis (dit komt na binnenNa)
-  // de kruik met speren staat naast de toonbank op dezelfde vloerlijn, dus in hetzelfde beeld: zo staat hij op de vloer
-  // en niet erachter, en Amir loopt er nog steeds voor langs
-  const kRechts = WINKEL.kruik.x + kB / 2 + 0.15;
+  // de kruik met speren staat naast de toonbank, iets naar voren: hij komt na Amir (winkelKruikVoor), zodat Amir er
+  // achterlangs loopt. Dat geeft diepte. Een eigen beeld, met het schemer erin zoals de toonbank.
+  const kruikC = (() => {
+    const c = document.createElement('canvas'), sp = I.speer, sh = WINKEL.speerAmir * P, sw = sh * sp.naturalWidth / sp.naturalHeight;
+    const bW = kB + 0.5, hoog = kH * 0.6 + WINKEL.speerAmir + 0.1;
+    c.width = Math.ceil(bW * P); c.height = Math.ceil(hoog * P);
+    const g = c.getContext('2d'), mx = c.width / 2, vloer = c.height;
+    for (const s of speren){
+      g.save(); g.translate(mx + s.dx * P, vloer - kH * 0.6 * P); g.rotate(s.hoek); g.drawImage(sp, -sw / 2, -sh, sw, sh); g.restore();
+    }
+    g.drawImage(I.kruik, mx - kB / 2 * P, vloer - kH * P, kB * P, kH * P);
+    g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(20,11,5,' + BINNEN.donker + ')'; g.fillRect(0, 0, c.width, c.height);
+    return c;
+  })();
   const voor = (() => {
     const c = document.createElement('canvas'), onder = Z.onder;
-    const hoog = Math.max(tbH + 0.45, kH * 0.6 + WINKEL.speerAmir + 0.1);
-    c.width = Math.ceil((tbB + kRechts) * P); c.height = Math.ceil((hoog + onder) * P);
+    const hoog = tbH + 0.45;
+    c.width = Math.ceil(tbB * P); c.height = Math.ceil((hoog + onder) * P);
     const g = c.getContext('2d'), vloer = hoog * P, bladY = vloer - tbH * P;
     g.save(); if (tbF){ g.translate(tbB * P, 0); g.scale(-1, 1); } g.drawImage(I.toonbank, 0, bladY, tbB * P, tbH * P); g.restore();
     winkelZet(g, blad, bladY + WINKEL.toonbankStaan * tbH * P, P, 0, 0.004);   // op het blad, niet erachter
-    // de speren in de kruik: eerst de speren, dan de kruik eroverheen
-    const sp = I.speer, sh = WINKEL.speerAmir * P, sw = sh * sp.naturalWidth / sp.naturalHeight, kv = vloer + 0.02 * P;
-    for (const s of speren){
-      g.save(); g.translate(kX * P + s.dx * P, kv - kH * 0.6 * P); g.rotate(s.hoek); g.drawImage(sp, -sw / 2, -sh, sw, sh); g.restore();
-    }
-    g.drawImage(I.kruik, (kX - kB / 2) * P, kv - kH * P, kB * P, kH * P);
     // de zakken: eerst de achterste rij, dan de specerijen ervoor
     for (const voorRij of [false, true]) for (const z of zakken){
       if (z.voor !== voorRij) continue;
@@ -33120,7 +33125,7 @@ function winkelOpbouw(w){
     g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(20,11,5,' + BINNEN.donker + ')'; g.fillRect(0, 0, c.width, c.height);
     return c;
   })();
-  w._opbouw = { seed, tbB, koopman, achter, rechts, kRechts, deurX, voor, onder: Z.onder };
+  w._opbouw = { seed, tbB, koopman, achter, rechts, deurX, voor, onder: Z.onder, kruikC };
   return w._opbouw;
 }
 // de doorgang naar achter, achter de linkerkant van de toonbank: de binnendeur met donker erachter en het waaiende doek
@@ -33192,7 +33197,19 @@ function winkelVoor(groundY, scale, cx){
   ctx.beginPath(); ctx.ellipse(rechts - o.tbB * A / 2, vloer, o.tbB * A * 0.52, 0.035 * A, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
   const k = A / WINKEL.P;
   const bodem = vloer + o.onder * A;   // de zakken staan iets voor de toonbank, dus het beeld loopt wat verder naar voren
-  ctx.drawImage(o.voor, rechts + o.kRechts * A - o.voor.width * k, bodem - o.voor.height * k, o.voor.width * k, o.voor.height * k);
+  ctx.drawImage(o.voor, rechts - o.voor.width * k, bodem - o.voor.height * k, o.voor.width * k, o.voor.height * k);
+}
+
+// na Amir: de kruik met speren naast de toonbank, iets naar voren, zodat Amir er achterlangs loopt
+function winkelKruikVoor(groundY, scale, cx){
+  const b = binnenBij(world); if (!b || !b.winkel || !winkelImgs || !winkelKlaar()) return;
+  const o = winkelOpbouw(b.winkel), A = CHAR_H * scale, k = A / WINKEL.P, c = o.kruikC;
+  const mx = cx + (b.winkel.x - world) + WINKEL.kruik.x * A, vloer = groundY + (WINKEL.toonbankVoor + WINKEL.kruik.voor) * A;
+  const z = zichtVak(20); if (z && (mx + c.width * k / 2 < z.l || mx - c.width * k / 2 > z.r)) return;
+  // een zachte schaduw op de vloer, dan de kruik
+  ctx.save(); ctx.fillStyle = 'rgba(15,8,3,0.4)';
+  ctx.beginPath(); ctx.ellipse(mx, vloer, 0.2 * A, 0.03 * A, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  ctx.drawImage(c, mx - c.width * k / 2, vloer - c.height * k, c.width * k, c.height * k);
 }
 
 // Het winkelscherm: E bij de toonbank opent het en het spel staat stil. Er liggen drie dingen: de kalebas, de speer en
@@ -55504,6 +55521,7 @@ function loop(now){
     poortVoorTeken(groundY, scale, cx);              // wie net uit een poort stapt, staat nog even in het donker van de opening
     stadDeurVoorTeken(groundY, scale, cx);           // en wie uit een deur van de stad stapt
     stadKanteelVoor(groundY, scale, cx);             // wie op een dak staat, staat achter de kartels
+    winkelKruikVoor(groundY, scale, cx);             // binnen: Amir loopt achter de kruik met speren langs (zie "de winkel")
     javDraw(groundY, scale, cx);                     // de geworpen speer, voor de dieren langs
     jav2Draw(groundY, scale, cx);                    // en de tweede (DUBBEL)
     skETeken(groundY, scale, cx);                    // de E bij een skelet of een losse speer
