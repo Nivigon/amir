@@ -33235,7 +33235,9 @@ function winkelTerugkoop(){
 }
 function winkelUIOpen(){
   if (!running || paused) return;
-  paused = true; winkelUIAan = true; winkelTerug = null;
+  // in de Co-op episode loopt het spel door: de host denkt voor de vijanden, en zijn pauze zou ze ook bij de anderen
+  // stilzetten, die nog op straat kunnen vechten. Amir staat binnen, ver van de straat, en de toetsen doen niets
+  paused = !(typeof mpCoopAan === 'function' && mpCoopAan() && pvp.coop.ep); winkelUIAan = true; winkelTerug = null;
   for (const k in keys) keys[k] = false;          // geen toets blijft 'ingedrukt' hangen
   atkKeyHeld = false;
   winkelUIToon(); winkelUIEl.classList.add('on');
@@ -33871,7 +33873,7 @@ function kistReset(){ kisten = ((level && level.kisten) || []).map(kistMaak); }
 function kistBij(){
   if (dead || won) return null;
   for (const k of kisten){
-    if (k.open || Math.abs(world - k.x) > KIST.bij) continue;
+    if (k.open || k.mpWacht || Math.abs(world - k.x) > KIST.bij) continue;
     if (k.h > ph + CHAR_H * KIST.hoog || k.h < ph - CHAR_H * 0.5) continue;
     return k;
   }
@@ -33880,15 +33882,20 @@ function kistBij(){
 function kistE(){
   const k = kistBij();
   if (!k) return false;
-  k.open = true; k.openT = 0;
-  for (let i = 0; i < KIST.munten; i++)
-    k.munten.push({ x: (Math.random() - 0.5) * 0.25, y: 0.24, vx: (Math.random() - 0.5) * 1.6, vy: 2.2 + Math.random() * 1.6,
-                    t: 0, draai: Math.random() * 6, rust: false });
+  if (typeof mpCoopAan === 'function' && mpCoopAan()){ mpcKistE(k); return true; }   // Co-op: de host beslist wie hem opent
+  kistOpenBeeld(k);
   if (goudTelt()){ goud += k.goud; goudOnderweg += k.goud; goudVlieg({ x: k.x, base: k.h - CHAR_H * 0.3 }, k.goud); goudHud(); }   // het vliegt naar de teller (goudVlieg)
   banStemSpeel(houtRaakSnd, 0.5);                  // het deksel
   playHppotionPickupSound();
   flashHint('Een schatkist! ' + k.goud + ' goud', 3200);
   return true;
+}
+// het deksel open en de munten eruit: alleen het beeld
+function kistOpenBeeld(k){
+  k.open = true; k.openT = 0; k.mpWacht = false;
+  for (let i = 0; i < KIST.munten; i++)
+    k.munten.push({ x: (Math.random() - 0.5) * 0.25, y: 0.24, vx: (Math.random() - 0.5) * 1.6, vy: 2.2 + Math.random() * 1.6,
+                    t: 0, draai: Math.random() * 6, rust: false });
 }
 function kistStap(dt){
   for (const k of kisten){
@@ -66465,6 +66472,7 @@ const COOPEP2_2 = {
   rocks: [], gaps: [ {x: -4700, w: 200} ], ledges: [], village: [], npcs: [], water: [], thickets: [],
   props: [ {x: -600, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -2500, k: 'struik', s: 1.0, f: 1, v: 0},
            {x: -5600, k: 'gras', s: 0.9, f: 1, v: 0}, {x: -8300, k: 'struik', s: 1.0, f: 0, v: 0} ],
+  kisten: [ {x: -5000, goud: 20} ],   // een kist voor een speler: wie hem opent krijgt al het goud (mpcKistE)
   hppotions: [ {x: -5100, y: null} ],
   cliffs: [ {x: -9300} ],
   ends: [ {x: -8700} ],
@@ -66492,12 +66500,19 @@ const COOPEP2_3 = {
             {x: -4900, k: 'kruisboogbandiet', dak: 401, wijk: false, hl: 1, shot: 0},
             {x: -5300, k: 'schildman', niveau: 'makkelijk', deur: {gevel: 6, verdieping: 0}, hl: 1, shot: 1},
             {x: -5300, k: 'bandiet', deur: {gevel: 6, verdieping: 0}, hl: 1, shot: 1} ],
+  // de winkel in het huis tussen de twee hinderlagen: E bij de deur, binnen de toonbank met de prijslijst van Co-op (MPC_WINKEL, zie "de winkel in de episode")
+  binnen: [ { gevel: 4, r: -20000, l: -22200, deur: -20250,
+              ramen: [ {x: -20750, h: 420}, {x: -21500, h: 420} ], palen: [ {x: -21050, h: 0} ],
+              winkel: { x: -21550, seed: 811, koopman: true }, planken: [ {x: -20700, h: 380, soort: 'touw', seed: 37} ] } ],
+  zwevers: [ {r: -20000, l: -22200, h: 900, onder: 750, look: 'hout'} ],
   rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
   voorgrond: false,
+  kisten: [ {x: -3900, y: 401, goud: 20} ],   // een kist voor een speler: wie hem opent krijgt al het goud (mpcKistE)
   hppotions: [ {x: -3500, y: null} ],
   cliffs: [ {x: -7200} ],
   ends: [ {x: -6600} ],
-  tips: [ { x: -60, t: 'The outer quarter of the city. Doors can open on you: watch the houses' } ]
+  tips: [ { x: -60, t: 'The outer quarter of the city. Doors can open on you: watch the houses' },
+          { x: -3000, t: 'A shop in the next house: press E at its door. Every kill earns gold' } ]
 };
 const COOPEP2_4 = {
   name: 'Ambush 4: Market at Dusk',
@@ -66525,12 +66540,19 @@ const COOPEP2_4 = {
             {x: -4900, k: 'schildman', niveau: 'makkelijk', deur: {gevel: 5, verdieping: 0}, hl: 1, shot: 1},
             {x: -4900, k: 'bandiet', dolk: true, deur: {gevel: 5, verdieping: 0}, hl: 1, shot: 1},
             {x: -3450, k: 'bandiet', hl: 1, shot: 2} ],
+  // de winkel van de markt, tussen de twee hinderlagen: E bij de deur, binnen de toonbank met de prijslijst van Co-op (MPC_WINKEL, zie "de winkel in de episode")
+  binnen: [ { gevel: 3, r: -20000, l: -22200, deur: -20250,
+              ramen: [ {x: -20750, h: 420}, {x: -21500, h: 420} ], palen: [ {x: -21050, h: 0} ],
+              winkel: { x: -21550, seed: 823, koopman: true }, planken: [ {x: -20700, h: 380, soort: 'touw', seed: 41} ] } ],
+  zwevers: [ {r: -20000, l: -22200, h: 900, onder: 750, look: 'hout'} ],
   rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
   voorgrond: false,
+  kisten: [ {x: -4300, y: 401, goud: 25} ],   // een kist voor een speler: wie hem opent krijgt al het goud (mpcKistE)
   hppotions: [ {x: -3900, y: null}, {x: -5700, y: null} ],
   cliffs: [ {x: -7200} ],
   ends: [],
   tips: [ { x: -60, t: 'The market closes at dusk. The smugglers use it as a way in: their cellar is at the end of the street' },
+          { x: -2900, t: 'The trader of the market is still open: press E at his door' },
           { x: -5600, t: 'The cellar: the whole team at the open hatch, then you go down' } ]
 };
 const COOPEP2_5 = {
@@ -66552,6 +66574,7 @@ const COOPEP2_5 = {
   gaps: [ {x: -4700, w: 230} ], ledges: [], village: [], npcs: [], water: [], thickets: [],
   props: [ {x: -700, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -2300, k: 'struik', s: 1.0, f: 1, v: 0},
            {x: -5000, k: 'gras', s: 0.9, f: 1, v: 0}, {x: -8200, k: 'struik', s: 0.9, f: 0, v: 0} ],
+  kisten: [ {x: -8000, goud: 25} ],   // een kist voor een speler: wie hem opent krijgt al het goud (mpcKistE)
   hppotions: [ {x: -4200, y: null}, {x: -7700, y: null} ],
   cliffs: [ {x: -9100} ],
   ends: [ {x: -8500} ],
@@ -66586,12 +66609,19 @@ const COOPEP2_6 = {
             {x: -4800, k: 'schildman', deur: {gevel: 5, verdieping: 0}, hl: 1, shot: 1}, {x: -4800, k: 'meelman', deur: {gevel: 5, verdieping: 0}, hl: 1, shot: 1},
             {x: -5600, k: 'kruisboogbandiet', wijk: false, deur: {gevel: 6, verdieping: 1}, hl: 1, shot: 2},
             {x: -3400, k: 'zweepman', hl: 1, shot: 3} ],
+  // de laatste winkel voor de kelder, tussen de twee hinderlagen: E bij de deur, binnen de toonbank met de prijslijst van Co-op (MPC_WINKEL, zie "de winkel in de episode")
+  binnen: [ { gevel: 4, r: -20000, l: -22200, deur: -20250,
+              ramen: [ {x: -20750, h: 420}, {x: -21500, h: 420} ], palen: [ {x: -21050, h: 0} ],
+              winkel: { x: -21550, seed: 829, koopman: true }, planken: [ {x: -20700, h: 380, soort: 'touw', seed: 53} ] } ],
+  zwevers: [ {r: -20000, l: -22200, h: 900, onder: 750, look: 'hout'} ],
   rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
   voorgrond: false,
+  kisten: [ {x: -2800, y: 401, goud: 30} ],   // een kist voor een speler: wie hem opent krijgt al het goud (mpcKistE)
   hppotions: [ {x: -3700, y: null}, {x: -6300, y: null} ],
   cliffs: [ {x: -8300} ],
   ends: [ {x: -7700} ],
-  tips: [ { x: -60, t: 'Lantern Street at night. Every door and every gallery can hide one of them' } ]
+  tips: [ { x: -60, t: 'Lantern Street at night. Every door and every gallery can hide one of them' },
+          { x: -3400, t: 'The last shop before the cellar: press E at its door' } ]
 };
 const COOPEP2_7 = {
   name: "Ambush 7: The Smugglers' Cellar",
@@ -68763,13 +68793,38 @@ function mpcBuitKrijg(k){
   else { pvp.coop.goud += MPC.goud; flashHint('+' + MPC.goud + ' gold'); }
   mpCoopHud();
 }
+// de schatkist in Co-op: een kist gaat maar voor een speler open, en die krijgt al het goud (niet gedeeld). De host
+// beslist: wie het eerst E drukt (de host zelf meteen, een gast met kistVraag), en iedereen hoort met kistOpen wie het
+// was; bij de rest gaat het deksel ook open, leeg. Een gast die te laat was hoort kistNee
+function mpcKistE(k){
+  const i = kisten.indexOf(k);
+  if (pvp.host){ mpcKistNeem(i, pvp.mij); return; }
+  k.mpWacht = true; k.mpWachtT = performance.now();
+  pvpZendAan(0, { t: 'kistVraag', i });
+  setTimeout(() => { if (k.mpWacht && !k.open) k.mpWacht = false; }, 3000);   // geen antwoord: weer te proberen
+}
+function mpcKistNeem(i, p){
+  const k = kisten[i]; if (!k) return;
+  if (k.open){ if (p !== pvp.mij) pvpZendAan(p, { t: 'kistNee', i }); return; }
+  pvpZend({ t: 'kistOpen', i, p });
+  mpcKistOpen(i, p);
+}
+function mpcKistOpen(i, p){
+  const k = kisten[i]; if (!k || k.open) return;
+  kistOpenBeeld(k);
+  banStemSpeel(houtRaakSnd, 0.5);
+  if (p === pvp.mij){
+    playHppotionPickupSound();
+    mpcGoudErbij(k.goud, 'a treasure chest, all yours');
+  } else if (Math.abs(world - k.x) < W) flashHint((pvp.spelers.length > 2 ? mpSpelerNoem(p, true) : 'Your teammate') + ' opened the chest', 2500);
+}
 // een kill, bij de host: punten voor het team, en de multikill van het team
 function mpcKill(o){
   const C = pvp.coop;
   let p = (MPC.punten[o.mpSoort] || 10) + (o.mpHard ? MPC.moeilijk : 0);
   if (C.t - C.reeks.t <= MPC.reeksT){ C.reeks.n++; p += MPC.reeks * (C.reeks.n === 2 ? 2 : 1); } else C.reeks.n = 1;
   C.reeks.t = C.t; C.kills++; C.score += p;
-  if (!C.ep) mpcGoudIedereen(mpcKillGoud(o.mpSoort));   // het goud van de kill, gedeeld: ieder evenveel (de episode heeft geen winkel)
+  if (!C.ep || mpEpWinkel()) mpcGoudIedereen(mpcKillGoud(o.mpSoort));   // het goud van de kill, gedeeld: ieder evenveel (alleen een episode met winkels)
   if (C.reeks.n >= 2) mpcBanner(C.reeks.n === 2 ? 'Double Kill' : C.reeks.n === 3 ? 'Triple Kill' : 'Multi Kill', 1.2);
 }
 // de lijken: wie dood is, telt af en is na MPC.lijkWeg seconden uit de lijst (bij de gast ook, via de stand)
@@ -69001,7 +69056,7 @@ function mpCoopStap(rdt, dt){
 function mpCoopHud(){
   if (!mpCoopAan()) return;
   const C = pvp.coop;
-  const sc = (C.ep ? 'Level ' + (C.ep.i + 1) + ' of ' + mpEpLijst().length + '   Score ' + C.score
+  const sc = (C.ep ? 'Level ' + (C.ep.i + 1) + ' of ' + mpEpLijst().length + '   Score ' + C.score + (mpEpWinkel() ? '   Gold ' + C.goud : '')
                    : (C.ronde ? 'Round ' + C.ronde + '   ' : '') + 'Score ' + C.score + '   Gold ' + C.goud) + pvpPingHud();
   if (pvpEl('pvpscore').textContent !== sc) pvpEl('pvpscore').textContent = sc;
   mpcKijkStap();
@@ -69075,6 +69130,9 @@ function mpCoopOntvang(m){
   if (m.t === 'epklaar'){ if (!pvp.host) mpEpKlaarLokaal(); return true; }
   if (m.t === 'epnaar'){ if (!pvp.host){ if (C.ep) C.ep.door = true; mpCoopStart(m.i); } return true; }
   if (m.t === 'cg'){ mpcGoudErbij(m.n, m.w); return true; }
+  if (m.t === 'kistVraag'){ if (pvp.host) mpcKistNeem(m.i, m.p); return true; }
+  if (m.t === 'kistOpen'){ if (!pvp.host) mpcKistOpen(m.i, m.p); return true; }
+  if (m.t === 'kistNee'){ const k = kisten[m.i]; if (k){ k.mpWacht = false; if (!k.open) kistOpenBeeld(k); } flashHint('Too late: the chest is already open', 2500); return true; }
   if (m.t === 'geef'){ mpcGoudErbij(m.n, pvp.spelers.length > 2 ? 'from ' + mpSpelerNoem(m.p, true) : 'from your teammate'); return true; }
   if (m.t === 'winkel'){ if (!pvp.host && !laadWacht) mpcWinkelIn(); return true; }
   if (m.t === 'winkelUit'){ if (!pvp.host) mpcWinkelUit(); return true; }
@@ -69123,7 +69181,7 @@ function mpCoopStart(epI){
   sandbox = false; godMode = false;
   if (ROL.koelOud != null){ ROL.koel = ROL.koelOud; ROL.koelOud = null; }
   beginPlay('normal');
-  if (ep){ mpcVersieNu = 'ep'; mpcFakSc = 0; }      // het uitzicht van het level zelf, geen versies en geen fakkels
+  if (ep){ mpcVersieNu = 'ep'; mpcFakSc = 0; mpEpNaStart(); }   // het uitzicht van het level zelf, geen versies en geen fakkels; de tas uit het vorige level
   else if (pvp.host) mpcVersieWissel(mpcVersieKies(null));   // een willekeurige versie van de map; de gast krijgt hem met 'cv'
   else mpcVersieZet((mpcKaart().versies || ['avond'])[0]);
   hinderReset();                                    // de hinderlagen van dit level (alleen in de episode), en het leiband vanaf hier
@@ -69185,13 +69243,17 @@ const MPC_EP = {
   eind: 120,                // zo dicht bij de fakkels (voorbij of ervoor) telt als "erbij"
   na: 3,                    // seconden tussen "Level complete" en het volgende level
   naast: 90,                // de startplekken naast elkaar, per slot zoveel verder naar links
+  levelGoud: 10,            // een episode met winkels: zoveel goud voor ieder per gehaald level
   revive: [-200, 200, -320, 320, -130, 130],  // waar de revive-ton mag komen, vanaf de levende (de eerste die past)
   naamKop: /^[^:]*\d+: /   // het begin van een levelnaam ("Co-op 2: ", "Ambush 5: ") dat de banner vervangt
 };
 // De episodes van modus 'ep'. De map in de lobby zegt welke en vanaf welk level: id '0' tot '2' is de eerste (Co-op 1 tot 3),
 // 'b0' tot 'b6' de tweede, The Smugglers' Cellar (COOPEP2_LEVELS, met de hinderlagen, zie "de hinderlaag").
 const MPC_EPS = { a: { levels: () => COOPEP_LEVELS, best: 'amir.coopEpBest' },
-                  b: { levels: () => COOPEP2_LEVELS, best: 'amir.coopEp2Best' } };
+                  b: { levels: () => COOPEP2_LEVELS, best: 'amir.coopEp2Best', winkel: true } };
+// heeft deze episode goud en winkels (winkel: true)? Dan geeft een kill goud zoals in Survival, een gehaald level
+// MPC_EP.levelGoud, en staan er winkels in huizen met de prijslijst van Survival (zie "de winkel in de episode")
+function mpEpWinkel(){ const C = pvp && pvp.coop; return !!(C && C.ep && MPC_EPS[mpEpReeks(pvp.regels && pvp.regels.kaart)].winkel); }
 function mpEpReeks(kaart){ return String(kaart || '').charAt(0) === 'b' ? 'b' : 'a'; }
 function mpEpKaartLevel(kaart){ return parseInt(String(kaart || '0').replace(/^b/, ''), 10) || 0; }
 function mpEpLijst(){ return MPC_EPS[mpEpReeks(pvp && pvp.regels && pvp.regels.kaart)].levels(); }
@@ -69210,6 +69272,20 @@ function mpEpNieuw(C, oud, epI){
   const erf = !o ? null : o.door ? { s: oud.score, k: oud.kills, t: oud.t } : (!o.alles && o.i === i) ? { s: o.s0, k: o.k0, t: o.t0 } : null;
   if (erf){ C.score = erf.s; C.kills = erf.k; C.t = erf.t; }
   C.ep.s0 = C.score; C.ep.k0 = C.kills; C.ep.t0 = C.t;
+  // een episode met winkels: ieder houdt zijn goud, wat hij kocht en zijn tas (kalebassen, gif) over de levels heen; na
+  // game over die van het begin van het level, na het slot weer niets
+  const tas = !o ? null : o.door ? { g: oud.goud, koop: oud.koop, kal: hppotionCarry, gif: gifCarry }
+            : (!o.alles && o.i === i) ? o.tas0 : null;
+  if (tas){ C.goud = tas.g; C.koop = JSON.parse(JSON.stringify(tas.koop)); }
+  C.ep.tas0 = { g: C.goud, koop: JSON.parse(JSON.stringify(C.koop)), kal: tas ? tas.kal : 0, gif: tas ? tas.gif : 0 };
+  pvp.levens = 3 + (C.koop.leven || 0);             // een gekocht extra leven geldt voor de rest van de episode
+}
+// na het laden van een level van de episode: de tas terug, en een gekocht speerslot weer erbij (en gevuld)
+function mpEpNaStart(){
+  const C = pvp.coop, T = C.ep && C.ep.tas0; if (!T) return;
+  hppotionCarry = T.kal; gifCarry = T.gif;
+  hppotionHud(); invHud();
+  if (C.koop.slot && RUG_MAX > 0){ RUG_MAX++; if (!stokAan()) rugSperen.push({ blauw: false }); setSpearLabel(); }
 }
 function mpEpTag(){
   for (const q of MPC_LIJSTEN){
@@ -69246,6 +69322,7 @@ function mpEpLevelKlaar(){
   C.fase = 'klaar'; C.ep.wachtT = MPC_EP.na;
   mpcBanner(laatste ? 'Episode complete!' : 'Level complete', MPC_EP.na);
   pvpZend({ t: 'epklaar' });
+  if (mpEpWinkel() && !laatste) mpcGoudIedereen(MPC_EP.levelGoud, 'level complete');
   mpEpKlaarLokaal();
 }
 // bij iedereen: het level is gehaald, niemand kan nu nog geraakt worden
@@ -69423,7 +69500,7 @@ function hinderVechtKlaar(i, x){
 function hinderKlem(){
   const i = hinderNu(); if (i < 0) return;
   const x = hinderLijst()[i].x;
-  if (world < x) world = x;
+  if (world < x && !binnenBij(world)) world = x;   // in een huis (de winkel, ver van de straat) geldt de lijn niet
 }
 // een hint voor wie aan de lijn staat en wacht
 function hinderHint(){
@@ -69660,6 +69737,7 @@ function mpcWinkelToon(){
   const ander = mpcWinkelAnderKlaar();
   document.getElementById('wkuitleg').textContent = 'You have ' + C.goud + ' gold.' + (ander ? ' ' + ander : '');
   document.getElementById('wkklaar').textContent = C.mijnKlaar ? 'Not ready' : 'Ready';
+  document.getElementById('wkklaar').style.display = C.ep ? 'none' : '';   // de episode: geen Ready, Close is genoeg
   winkelTasToon();
 }
 // Full Circle in Co-op: wat je kocht. De twee upgrades mogen samen (anders dan de keuze in de talent tree)

@@ -609,6 +609,26 @@ regie die laat zien waar de vijanden binnenkomen, de kelder uit Stad 14, en een 
   (`mpEpBijFakkels(true)`); de host kijkt met `mpEpBijEind`, dat in een level met `kelder` de plek van de E neemt in plaats
   van de fakkels.
 - **Testen:** `node tools/mptest.js --hl` (met `--spelers 2` voor twee, `--shots map` voor plaatjes van de regie in level 7).
+- **De winkel in de episode (gebouwd, 20-11-2026).** Gevraagd: "in het nieuwste Co-op level twee of drie shops in
+  gebouwen, en goud te verdienen; alle items van Co-op Survival te koop". Episode b heeft `winkel: true` in `MPC_EPS`
+  (`mpEpWinkel`); de eerste episode niet.
+  - **Goud:** `mpcKill` geeft ook hier `MPC.killGoud` aan iedereen, en `mpEpLevelKlaar` per gehaald level
+    `MPC_EP.levelGoud` (10, niet na het laatste). De HUD toont `Gold`.
+  - **Drie winkels** in een huis, elk tussen twee hinderlagen (of ervoor), zodat de lijn de deur niet afsluit: Ambush 3
+    (gevel 4), Ambush 4 (gevel 3) en Ambush 6 (gevel 4). Een gewone `binnen` met `winkel` en een houten plafond
+    (`zwevers`), de strook van -20000 tot -22200, zoals de winkels in de stadslevels; een tip ervoor zegt het.
+  - **Het winkelscherm** is dat van Survival (`mpcWinkelToon`, de hele `MPC_WINKEL`), zonder Ready (Close is genoeg) en
+    zonder pauze (`winkelUIOpen`): de host denkt voor de vijanden, en zijn pauze zou ze ook stilzetten bij wie nog op
+    straat vecht. `hinderKlem` geldt niet in een huis (de lijn trok je anders de winkel uit).
+  - **Mee naar het volgende level** (`mpEpNieuw`, `mpEpNaStart`): ieder houdt zijn goud, `koop`, de kalebassen en het gif
+    in zijn tas; een extra leven blijft (`pvp.levens`), een gekocht speerslot komt terug en is aan het begin van een level
+    gevuld. Na game over de stand van het begin van dat level (`tas0`), na het slot niets.
+  - **Kisten** (gevraagd: "een kistje, maar maar voor een van de spelers te openen, en die krijgt het goud"): een in
+    Ambush 2 tot en met 6 (20 tot 30 goud, in 3, 4 en 6 op de galerij). De host beslist (`mpcKistE`, `mpcKistNeem`): de
+    host zelf meteen, een gast vraagt het met `kistVraag`. Iedereen hoort met `kistOpen` wie het was; die krijgt al het
+    goud (`mpcGoudErbij`, niet gedeeld), bij de rest gaat het deksel leeg open met "Your teammate opened the chest". Wie te
+    laat was hoort `kistNee` ("Too late"). Drukken twee tegelijk, dan wint wie het eerst bij de host aankomt.
+  - **Testen:** `node tools/mptest.js --winkel` (met `--spelers 2` voor twee). Daarin ook de kist: allebei tegelijk E, en de gast alleen.
 
 ## De hinderlaag en het leiband (gebouwd, 20-11-2026)
 
