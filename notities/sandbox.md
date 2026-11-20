@@ -14,10 +14,11 @@ kant (`sbFromRight`), altijd geklemd tussen `endWall()` en `cliffAt().wall`.
 
 ## Arena-modus
 
-De knop Sandbox in het menu opent eerst een keuzescherm (`menuSandbox`): de vrije sandbox
-(`startSandbox(false)`), de arena-modus (`startSandbox(true)`, vlag `sbArena`) of de arena gates
+De vrije sandbox (`startSandbox(false)`, knop Sandbox) staat in het Test Lab (`menuLab`, `btnlab` in het hoofdmenu).
+De wavemodi staan onder Single Player, Survival (`menuSurvival`, `btnSurvival`): de arena-modus (`startSandbox(true)`,
+vlag `sbArena`, knop King's Arena), de arena gates (knop The Gates)
 (`startSandbox(true, true)`, vlag `sbGates` naast `sbArena`: de arena-modus met een eigen veld van drie poorten en
-rondes in plaats van de stroom en de golven, zie `notities/arena-gates.md`), of Co-op solo (`btnsbcoop`, `mpSoloOpen`: Co-op Survival
+rondes in plaats van de stroom en de golven, zie `notities/arena-gates.md`), of Co-op solo (knop City Survival, `btnsbcoop`, `mpSoloOpen`: Co-op Survival
 voor een speler, geen sandbox maar de Co-op van Multiplayer zonder verbinding, zie "Co-op solo" in `notities/multiplayer.md`). De arena is de
 gewone sandbox met vier verschillen: het veld, de levens, de spawner en het paneel (de wizard, zie hieronder).
 
