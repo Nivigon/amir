@@ -44125,6 +44125,22 @@ function banReik(){ return BAN_ZWAARD.to * banScale(); }          // hoe ver zij
 // kan zijn kling niet bij. De vloer onder Amir vergelijken met zijn eigen vloer.
 const BAN_HOOGTE = 90;
 function banZelfdeHoogte(s){ return Math.abs(vloerBij(playerX(), ph) - (s.base || 0)) <= BAN_HOOGTE; }
+// Uitzondering voor zijn slag: staat Amir op een springdoek, een rieten kraamdak of de doek van een kraam (die tellen
+// niet als vloer, zie stadVloeren), dan haalt hij toch uit als zijn kling er in de animatie echt bij kan: genoeg van
+// Amirs lijf binnen de hoogte die het zwaard bestrijkt (BAN_ZWAARD.low tot .high boven zijn voeten). De raakcheck
+// zelf blijft de echte kling tegen Amirs hitbox. Alleen voor de slag: de dolk, de vault en de hinderlaag niet.
+const BAN_BIJ_MIN = 0.35;   // zoveel Amir (deel van zijn hoogte) moet binnen het bereik van de kling vallen
+function banKanBij(s){
+  if (banZelfdeHoogte(s)) return true;
+  if (!onGround || !stadAan()) return false;
+  const px = playerX();
+  const op = stadPlats(nowScale()).some(p => (p.stad === 'riet' || p.stad === 'luifel' || p.kraam != null)
+    && px > p.left && px < p.right && Math.abs(ph - p.topH) <= 8);
+  if (!op) return false;
+  const k = CHAR_H * BAN_H_SHARE / BAN.fig, b = s.base || 0;
+  const lo = b + BAN_ZWAARD.low * k, hi = b + BAN_ZWAARD.high * k;
+  return Math.min(hi, ph + CHAR_H * duckShare) - Math.max(lo, ph) >= BAN_BIJ_MIN * CHAR_H;
+}
 function makeBandiet(x, side, dolk, hurk, vault, takelaar, passagier, rol, variant){
   // variant: 'duin' de Duinwacht, truthy anders de elite-garde, falsy de gewone rover
   const wilVault = vault !== false;                       // vaulten is de standaard voor een rover: alleen vault: false zet het uit
@@ -44529,7 +44545,7 @@ function updateBandiet(s, dt, plats, cliff){
   // dichtbij en ook als je hem raakte voor de dolk weg was. Pas als de dolk weg is (s.gegooid) valt hij aan
   if (s.dolk && !s.gegooid && banZelfdeHoogte(s) && gap <= banWorpRange()){
     s.gegooid = true; banSet(s, 'worp'); s.face = naarJe; return; }
-  if (banZelfdeHoogte(s) && s.rust <= 0 && gap <= banReik() * BAN_SLAG_DEEL){
+  if (banKanBij(s) && s.rust <= 0 && gap <= banReik() * BAN_SLAG_DEEL){
     banSet(s, 'slag'); s.lunge = BAN_LUNGE_IN * s.face; s.dustT = 0;   // de opzwaai begint: hij glijdt nog in op zijn aanlooprest
     banStofWolk(s.x - s.face * 20, s.base || 0, 8, s.face * 40, 1.5);  // een wolkje bij de afzet; de grote komt bij de klap (de doorschuif)
     return;
@@ -44696,7 +44712,7 @@ function razSchaduw(s, dt, plats, cliff, naarJe){
   s.schA = Math.min(1, c.t / S.in); banAnim(s, dt);
   if (c.t >= S.in){
     s.schA = 1; r.sch = null;
-    if (banZelfdeHoogte(s)){ banSet(s, 'slag'); s.lunge = BAN_LUNGE_IN * s.face; s.dustT = 0; banStofWolk(s.x - s.face * 20, s.base || 0, 8, s.face * 40, 1.5); }
+    if (banKanBij(s)){ banSet(s, 'slag'); s.lunge = BAN_LUNGE_IN * s.face; s.dustT = 0; banStofWolk(s.x - s.face * 20, s.base || 0, 8, s.face * 40, 1.5); }
     else banSet(s, 'run');
   }
   return true;
