@@ -3872,7 +3872,7 @@ function stofStap(dt){                          // elk beeld: de afkoeling, de f
 // zodat camUpdate de stap niet voor lopen aanziet.
 function stofEind(){                           // hij staat waar zijn lijf aan het eind van de veeg is
   const stap = stofA.kant * stofPx(STOFA.ANKER - STOFA.EIND);
-  if (!gatOp(world + stap, ph)){
+  if (!gatOp(world + stap, ph) && !randOp(stap)){
     if (camEase === null) camEase = world;
     camVast = false;
     if (camVorig !== null) camVorig += stap;
@@ -20856,7 +20856,7 @@ function comboStart(){
 // een stukje naar voren onder het draaien, net als het eind van de stofveeg: niet over de rand van een ravijn
 function comboSchuif(px){
   const stap = (facing === 1 ? 1 : -1) * px * COMBO.schaal * nowScale();
-  if (gatOp(world + stap, ph)) return;
+  if (gatOp(world + stap, ph) || randOp(stap)) return;
   if (camEase === null) camEase = world;
   camVast = false;
   if (camVorig !== null) camVorig += stap;
@@ -21815,7 +21815,7 @@ function stokSchuif(f){
   const som = S.w.reduce((a, b) => a + b, 0);
   const kant = facing === 1 ? 1 : -1;
   const stap = kant * S.px * (S.w[f] || 0) / som * stokStapK * stokMaat('slag') * nowScale();
-  if (!stap || gatOp(world + stap, ph)) return;
+  if (!stap || gatOp(world + stap, ph) || randOp(stap)) return;
   if (camEase === null) camEase = world;
   camVast = false;
   if (camVorig !== null) camVorig += stap;
@@ -21854,7 +21854,7 @@ function stokAnker(oud, fo, nieuw, fn){
   const a = (V[oud][Math.min(V[oud].length - 1, fo)] - STOK.ANKER) * stokMaat(oud);
   const b = (V[nieuw][Math.min(V[nieuw].length - 1, fn)] - STOK.ANKER) * stokMaat(nieuw);
   const kant = facing === 1 ? 1 : -1, stap = kant * (b - a) * nowScale();
-  if (!stap || gatOp(world + stap, ph)) return;
+  if (!stap || gatOp(world + stap, ph) || randOp(stap)) return;
   if (camEase === null) camEase = world;
   camVast = false;
   if (camVorig !== null) camVorig += stap;
@@ -21868,7 +21868,7 @@ function stokRoot(f){
   const kant = facing === 1 ? 1 : -1;
   let stap = kant * (R[Q[f]] - R[Q[f - 1]]) * stokMaat(atkStok) * nowScale();
   if (stap * kant > 0 && stokVijandVoor(C.stop * CHAR_H * nowScale())) stap = 0;   // niet door een vijand heen
-  if (stap && !gatOp(world + stap, ph)){
+  if (stap && !gatOp(world + stap, ph) && !randOp(stap)){
     if (camEase === null) camEase = world;
     camVast = false;
     if (camVorig !== null) camVorig += stap;
@@ -25256,7 +25256,7 @@ function glijUpdate(dt, halfW){
   if (dead || hurt > 0 || fell || !onGround || waterDepthAt(world, ph) > 0.3){ glij = 0; return; }
   const zij = Math.sign(glij);
   const stap = glij * dt;
-  if (gatOp(world + stap + zij * halfW * 0.5, ph)){ glij = 0; return; }   // niet het ravijn in
+  if (gatOp(world + stap + zij * halfW * 0.5, ph) || randOp(stap)){ glij = 0; return; }   // niet het ravijn in, en niet van een verhoging af
   world += stap;
   const v = glij - zij * RENSTOOT.rem * dt;
   glij = Math.sign(v) === zij ? v : 0;
@@ -30948,6 +30948,21 @@ function stadLuifelStap(dt){
   if (onGround || dead || fell){ stadLuifelVx = 0; return; }
   world += stadLuifelVx * dt;
 }
+// de strakke luifel: wie erop staat, loopt aan de muurkant (het hoge eind, tegen het huis) niet van de doek af,
+// hij stopt bij het laatste punt van de stallijn. Aan de open kant val je er gewoon af, en springen gaat vrij.
+function stadLuifelKlem(){
+  if (!onGround || dead || !stadAan()) return;
+  const sc = nowScale(), A = CHAR_H * sc;
+  for (const q of stadPlats(sc)){
+    const p = q.springdoek;
+    if (!p || p.stijl !== 'strak' || p.gevel == null) continue;
+    // staat hij erop: op de hoogte van de doek (niet kuilOp: die valt weg bij een stapje op de helling) en hooguit een
+    // paar pixels voorbij het eind (zoveel loopt hij in een beeld)
+    if (Math.abs(q.topH - ph) > 0.15 * CHAR_H || world < q.left - 0.3 * A || world > q.right + 0.3 * A) continue;
+    const lm = stadLuifelMaat(p, sc), S = lm.L.stal, rand = lm.bx(S[S.length - 1][0]) + lm.dir;   // net binnen de rand, de doekkant op
+    world = lm.dir > 0 ? Math.max(rand, world) : Math.min(rand, world);
+  }
+}
 // de doek waar Amir nu op staat, of null
 function stadDoekOnder(){
   if (!onGround || !stadAan()) return null;
@@ -33220,7 +33235,9 @@ function winkelTerugkoop(){
 }
 function winkelUIOpen(){
   if (!running || paused) return;
-  paused = true; winkelUIAan = true; winkelTerug = null;
+  // in de Co-op episode loopt het spel door: de host denkt voor de vijanden, en zijn pauze zou ze ook bij de anderen
+  // stilzetten, die nog op straat kunnen vechten. Amir staat binnen, ver van de straat, en de toetsen doen niets
+  paused = !(typeof mpCoopAan === 'function' && mpCoopAan() && pvp.coop.ep); winkelUIAan = true; winkelTerug = null;
   for (const k in keys) keys[k] = false;          // geen toets blijft 'ingedrukt' hangen
   atkKeyHeld = false;
   winkelUIToon(); winkelUIEl.classList.add('on');
@@ -33856,7 +33873,7 @@ function kistReset(){ kisten = ((level && level.kisten) || []).map(kistMaak); }
 function kistBij(){
   if (dead || won) return null;
   for (const k of kisten){
-    if (k.open || Math.abs(world - k.x) > KIST.bij) continue;
+    if (k.open || k.mpWacht || Math.abs(world - k.x) > KIST.bij) continue;
     if (k.h > ph + CHAR_H * KIST.hoog || k.h < ph - CHAR_H * 0.5) continue;
     return k;
   }
@@ -33865,15 +33882,20 @@ function kistBij(){
 function kistE(){
   const k = kistBij();
   if (!k) return false;
-  k.open = true; k.openT = 0;
-  for (let i = 0; i < KIST.munten; i++)
-    k.munten.push({ x: (Math.random() - 0.5) * 0.25, y: 0.24, vx: (Math.random() - 0.5) * 1.6, vy: 2.2 + Math.random() * 1.6,
-                    t: 0, draai: Math.random() * 6, rust: false });
+  if (typeof mpCoopAan === 'function' && mpCoopAan()){ mpcKistE(k); return true; }   // Co-op: de host beslist wie hem opent
+  kistOpenBeeld(k);
   if (goudTelt()){ goud += k.goud; goudOnderweg += k.goud; goudVlieg({ x: k.x, base: k.h - CHAR_H * 0.3 }, k.goud); goudHud(); }   // het vliegt naar de teller (goudVlieg)
   banStemSpeel(houtRaakSnd, 0.5);                  // het deksel
   playHppotionPickupSound();
   flashHint('Een schatkist! ' + k.goud + ' goud', 3200);
   return true;
+}
+// het deksel open en de munten eruit: alleen het beeld
+function kistOpenBeeld(k){
+  k.open = true; k.openT = 0; k.mpWacht = false;
+  for (let i = 0; i < KIST.munten; i++)
+    k.munten.push({ x: (Math.random() - 0.5) * 0.25, y: 0.24, vx: (Math.random() - 0.5) * 1.6, vy: 2.2 + Math.random() * 1.6,
+                    t: 0, draai: Math.random() * 6, rust: false });
 }
 function kistStap(dt){
   for (const k of kisten){
@@ -36279,6 +36301,18 @@ function vloerOverGat(x, base){
   for (const p of rijsPlats())
     if (x > p.left && x < p.right && Math.abs(b - p.topH) < 20) return true;
   return false;
+}
+// randOp: zou deze schuif van een slag Amir van zijn verhoging af duwen (een rieten dak, een luifel, de doek van een
+// kraam, een galerij, een terras)? Dan schuift de slag niet: je slaat wel, maar je blijft op de rand staan. Zelf eraf
+// lopen, rollen of springen kan gewoon; alleen de slagen houden stil (comboSchuif, stokSchuif, stokAnker, stokRoot,
+// stofEind en de renstoot). Een helling af (de strakke luifel) telt niet: pas een flinke daling is een rand.
+function randOp(stap){
+  if (!onGround || !stap) return false;
+  const sc = nowScale(), hw = PLAYER_HALF_W * CHAR_H * sc, oud = world;
+  world = oud + stap;
+  const s = supportHeight(platsNear(sc), hw);
+  world = oud;
+  return s < ph - 0.1 * CHAR_H;
 }
 function gatOp(x, base){
   if (base < -1 && holteAt(x)){                   // beneden in de gang: de put, tenzij een rijzer hem op deze hoogte vult
@@ -40777,8 +40811,9 @@ const SB_VOORGROND = [null,
   { stroken: [{ van: Infinity, tot: -Infinity, dicht: 0.85, struik: 0, kei: 0 }], los: [] },
   { stroken: [{ van: Infinity, tot: -Infinity, dicht: 0.7, struik: 0.2, kei: 0.08 }], los: [] }];
 function voorgrondNu(){
-  if (sandbox) return SB_VOORGROND[sbVoorgrond];
+  if (sandbox) return rwSilhouetAan() && !sbVoorgrond ? vgRegenwoud(SB_RW_LEVEL) : SB_VOORGROND[sbVoorgrond];
   if (!level) return null;
+  if (rwSilhouetAan()) return vgRegenwoud(level);
   if (level.voorgrond) return level.voorgrond.uit ? null : level.voorgrond.stad ? vgStad(level) : level.voorgrond;
   return vgStandaard(level);
 }
@@ -40895,6 +40930,132 @@ function vgStad(lv){
   lv.vgStad = { stroken, los: [], stad: true };
   return lv.vgStad;
 }
+// ---- het regenwoud: silhouetten boven en onder ----
+// In een regenwoud-uitzicht (biome regenwoud) staat er voor de camera een bijna zwarte, onscherpe rand van
+// bestaande stukken: onderin struiken en gras (de gewone voorgrond, als silhouet), bovenin bladerdak (de struik
+// ondersteboven), een tak (de hangende stam) en lianen die eruit hangen (drawBladerdak). Zo kijk je niet van
+// buiten naar een bos maar loop je erin, en het donkere kader trekt het oog naar de lichte strook in het midden,
+// waar gevochten wordt. Het geldt voor elk regenwoudlevel vanzelf, ook als dat zelf voorgrond: false heeft; met
+// silhouet: false in een level zet je het uit.
+// Elk level ziet er anders uit: het zaad komt uit zijn naam. Hetzelfde level ziet er bij een nieuwe ronde dus
+// precies hetzelfde uit. Per stuk (stuk, in de wereld) kiest dat zaad hoe vol het is: dicht, ijl of kaal; bovenin
+// net zo per groep plekken (BLADERDAK.groep), met af en toe open lucht.
+const VG_RW = {
+  stuk: 1400,
+  kleur: [0.07, 0.10, 0.09],     // zo veel van de kleur blijft over: bijna zwart, een zweem groen
+  themas: {
+    dicht: { kans: 0.3,  dicht: 0.62 },
+    ijl:   { kans: 0.45, dicht: 0.32 },
+    kaal:  { kans: 0.25, dicht: 0 }
+  },
+  mix: { struik: 0.5, gras: 0.5 }
+};
+const SB_RW_LEVEL = { name: 'sandbox regenwoud', gaps: [], ends: [], spawns: [] };   // de sandbox: een eigen zaad
+function rwSilhouetAan(){
+  if (sceneCfg().biome !== 'regenwoud') return false;
+  return sandbox ? true : !!level && level.silhouet !== false;
+}
+function lvZaad(lv, mod){
+  let z = 0;
+  for (const ch of String((lv && lv.name) || '')) z = (z * 31 + ch.charCodeAt(0)) % (mod || 9973);
+  return z;
+}
+function vgRegenwoud(lv){
+  if (lv.vgRw) return lv.vgRw;
+  const D = VG_RW, zaad = lvZaad(lv), basis = vgStandaard(lv);   // de open plekken van de standaard (ravijnen, einde ...)
+  const stroken = [];
+  for (const q of basis.stroken){
+    const hi = q.van, lo = q.tot;
+    for (let van = Math.min(hi, 900), i = 0; van > Math.max(lo, -40000); van -= D.stuk, i++){
+      const tot = Math.max(lo, van - D.stuk);
+      let r = rnd(Math.round(van / D.stuk) + zaad, 43), T = D.themas.kaal;
+      for (const k in D.themas){ if (r < D.themas[k].kans){ T = D.themas[k]; break; } r -= D.themas[k].kans; }
+      if (T.dicht > 0) stroken.push({ van, tot, dicht: T.dicht, struik: 0, kei: 0, mix: D.mix });
+    }
+  }
+  lv.vgRw = { stroken, los: [], silhouet: D.kleur };
+  return lv.vgRw;
+}
+// Bovenin: plekken op een vaste afstand (in schermpixels bij 720 hoog), elke plek leeg, een kroon (met soms
+// lianen eronder) of een tak met lianen. Ze schuiven iets sneller dan de wereld (par) en nauwelijks in de hoogte
+// (dy: zo veel van de camerahoogte, begrensd): het dak hangt boven je, ook als je een terras op klimt. diep: tot
+// waar een stuk hooguit in beeld komt, als deel van de schermhoogte, zodat het nooit in de speelstrook hangt.
+const BLADERDAK = {
+  par: 1.3, dy: 0.12, dyMax: 50,
+  plek: 430,                     // afstand tussen twee plekken
+  groep: 4,                      // zoveel plekken samen hebben dezelfde dichtheid
+  vol: [0, 0.35, 0.6, 0.85],     // de dichtheden waaruit een groep kiest (0: open lucht)
+  diep: 0.27,                    // (een liaan wordt korter gemaakt als hij er anders voorbij zou hangen)
+  kroon: { h: [0.30, 0.42], zicht: [0.42, 0.6] },   // hoogte (deel van H), en zo veel van de kroon in beeld
+  tak:   { b: [0.55, 0.8], hoek: [-0.18, 0.12] },  // breedte (deel van H) en schuinte (radialen)
+  liaan: { h: [0.16, 0.26] },                       // lengte (deel van H)
+  vaag: 5
+};
+const bdImg = {};
+function bdPlaatje(naam){
+  const src = { struik: 'design/struik.png', stam: 'design/regenwoud/hangstam/stam.png', liaan: 'design/regenwoud/hangstam/liaan.png' }[naam];
+  const img = bdImg[naam] || (bdImg[naam] = zetBron(new Image(), src));
+  return imgReady(img) ? vgPlaatje(img, false, naam === 'liaan' ? 0.35 : 0, VG_RW.kleur, BLADERDAK.vaag) : null;
+}
+function drawBladerdak(groundY, scale){
+  if (!rwSilhouetAan()) return;
+  const B = BLADERDAK, lv = sandbox ? SB_RW_LEVEL : level, zaad = lvZaad(lv);
+  const diep = Math.max(0, camDiepte(scale));
+  const zicht = 1 - Math.max(0, Math.min(1, (diep - VOORGROND.weg[0]) / (VOORGROND.weg[1] - VOORGROND.weg[0])));
+  if (zicht <= 0) return;
+  const kroon = bdPlaatje('struik'), tak = bdPlaatje('stam'), liaan = bdPlaatje('liaan');
+  if (!kroon || !tak || !liaan) return;
+  const cam = camEase !== null ? camEase : world;
+  const u = H / 720, plek = B.plek * u;
+  const lx = cam * B.par;
+  const dy = Math.max(-B.dyMax, Math.min(B.dyMax, camY * B.dy)) * u;
+  const tijd = performance.now() / 1000;
+  const i0 = Math.floor((lx - W) / plek) - 1, i1 = Math.ceil((lx + W) / plek) + 1;
+  // een plaatje tekenen: p uit vgPlaatje, bovenkant op y, hoogte hh; flip spiegelt, kop zet hem op zijn kop
+  const teken = (p, x, y, hh, flip, kop, hoek) => {
+    const ww = p.w * hh / p.h, mm = p.m * hh / p.h;
+    ctx.save(); ctx.translate(x, y + hh / 2);
+    if (hoek) ctx.rotate(hoek);
+    ctx.scale(flip ? -1 : 1, kop ? -1 : 1);
+    ctx.drawImage(p.c, -ww / 2 - mm, -hh / 2 - mm, ww + mm * 2, hh + mm * 2);
+    ctx.restore();
+  };
+  const lianen = (x, y, n, i) => {
+    for (let k = 0; k < n; k++){
+      const r = rnd(i * 7 + k, 71 + zaad % 97);
+      const hh = Math.min(H * (B.liaan.h[0] + (B.liaan.h[1] - B.liaan.h[0]) * r), H * B.diep + Math.max(0, dy) - y);   // de punt blijft boven de speelstrook
+      if (hh < 30 * u) continue;
+      ctx.save(); ctx.translate(x + (r - 0.5) * 120 * u, y);
+      ctx.rotate(Math.sin(tijd * 0.6 + i + k) * 0.025);            // hangen en wiegen een heel klein beetje
+      teken(liaan, 0, 0, hh, rnd(i, 72 + k) < 0.5, false, 0);
+      ctx.restore();
+    }
+  };
+  ctx.save();
+  ctx.globalAlpha = zicht;
+  for (let i = i0; i <= i1; i++){
+    const g = Math.floor(i / B.groep);
+    const vol = B.vol[Math.floor(rnd(g + zaad, 63) * B.vol.length)];
+    if (rnd(i + zaad, 64) >= vol) continue;
+    const x = W / 2 + (i + rnd(i, 65 + zaad % 89) * 0.6) * plek - lx;
+    const soort = rnd(i + zaad, 66);
+    if (soort < 0.62){                         // een kroon, ondersteboven: het bladerdak hangt in beeld
+      const t = rnd(i, 67 + zaad % 83);
+      const hh = H * (B.kroon.h[0] + (B.kroon.h[1] - B.kroon.h[0]) * t);
+      const zicht01 = B.kroon.zicht[0] + (B.kroon.zicht[1] - B.kroon.zicht[0]) * rnd(i, 68);
+      const y = dy - hh * (1 - zicht01);
+      if (rnd(i, 69) < 0.5) lianen(x, y + hh * 0.75, 1 + Math.floor(rnd(i, 70) * 2), i);
+      teken(kroon, x, y, hh, rnd(i, 73) < 0.5, true, 0);
+    } else if (soort < 0.85){                  // een tak die schuin het beeld in steekt, met lianen
+      const bb = H * (B.tak.b[0] + (B.tak.b[1] - B.tak.b[0]) * rnd(i, 74));
+      const hh = bb * tak.h / tak.w, hoek = B.tak.hoek[0] + (B.tak.hoek[1] - B.tak.hoek[0]) * rnd(i, 75);
+      const y = dy + H * 0.02 - hh * 0.3;
+      lianen(x, y + hh * 0.5, 1 + Math.floor(rnd(i, 76) * 3), i);
+      teken(tak, x, y, hh, rnd(i, 77) < 0.5, false, hoek);
+    } else lianen(x, dy - 20 * u, 2 + Math.floor(rnd(i, 78) * 2), i);   // alleen lianen, uit het dak boven beeld
+  }
+  ctx.restore();
+}
 // welke soort er staat op een plek in een strook met een mix (r tussen 0 en 1)
 function vgMixKies(mix, r){
   let som = 0;
@@ -40989,7 +41150,8 @@ function drawVoorgrond(groundY, scale){
   for (const L of VG_LAGEN){                     // van ver naar dichtbij
     const lx = cam * L.par * zf;                 // waar de laag staat, in schermpixels
     const rand0 = groundY + camY * (L.parY - 1) + (H - H * 0.82);   // de rand van het scherm, meegeschoven
-    const lt = tint.map(v => Math.round((1 - (1 - v) * L.schaduw) * (cfg.stad ? VG_STAD.donker : 1) * 100) / 100);
+    const lt = cfg.silhouet ? cfg.silhouet.map(v => Math.round(v * (L.los ? 1 : 1.6) * 100) / 100)   // het regenwoud: bijna zwart
+             : tint.map(v => Math.round((1 - (1 - v) * L.schaduw) * (cfg.stad ? VG_STAD.donker : 1) * 100) / 100);
     const stap = V.stap / Math.sqrt(L.schaal);   // kleinere pollen staan dichter op elkaar
     const stuks = [];
     const i0 = Math.floor((lx - W) / stap), i1 = Math.ceil((lx + W) / stap);
@@ -42727,7 +42889,7 @@ function meelZakLand(x, vloer){                                         // de za
   kooiGrondGeluid(x, MEEL_ZAK.landVol);                                 // een zachtere kooislag, zoals de stamp
 }
 function meelZakUpdate(dt){
-  if (!running || (dead && !sandbox)) return;
+  if (!running || (dead && !sandbox && !mpCoopAan())) return;   // in Co-op loopt het spel door als jij dood bent: de worp vliegt verder in plaats van stil te hangen
   for (let i = meelzakken.length - 1; i >= 0; i--){
     const z = meelzakken[i];
     if (z.st === 'weg'){ z.lig += dt; z.squash = Math.max(0.5, 1 - z.lig / MEEL_ZAK.lig * 0.5); if (z.lig >= MEEL_ZAK.lig) meelzakken.splice(i, 1); continue; }
@@ -43175,7 +43337,7 @@ function krbSchiet(s){
   krbKlank('schot', s.x);
 }
 function krbPijlUpdate(dt){
-  if (!running || (dead && !sandbox)) return;
+  if (!running || (dead && !sandbox && !mpCoopAan())) return;   // in Co-op loopt het spel door als jij dood bent: de worp vliegt verder in plaats van stil te hangen
   for (let i = krbPijlen.length - 1; i >= 0; i--){
     const b = krbPijlen[i];
     b.t += dt;
@@ -50083,7 +50245,7 @@ function banGooiDolk(s){
   banPlayWorp();                                                 // het geluid van de geworpen dolk
 }
 function banDolkenUpdate(dt){
-  if (!running || (dead && !sandbox)) return;
+  if (!running || (dead && !sandbox && !mpCoopAan())) return;   // in Co-op loopt het spel door als jij dood bent: de worp vliegt verder in plaats van stil te hangen
   const g = GRAVITY * BAN_DOLK.g;
   for (let i = banDolken.length - 1; i >= 0; i--){
     const d = banDolken[i];
@@ -51778,8 +51940,15 @@ function bakeWinterLayers(){
 // tweede rij, net als bij de savanne.
 const BIOMES = {
   regenwoud: {
-    mtn: Object.assign({}, MTN, { dir: 'design/regenwoud/', files: ['verre_regenwoud_a'], edge: [322], base: 322, kili: -1 }),
-    mid: Object.assign({}, MID, { dir: 'design/regenwoud/', files: ['midden_regenwoud_a'], edge: [414] })
+    // de verre laag en de middenlaag gedempt (20-11-2026): donkerder, minder verzadigd, minder contrast en een
+    // tikje onscherp, zodat de figuren ervoor loskomen (de middenlaag stond even fel als het speelvlak). Een tikje
+    // naar het groen gedraaid: de vijanden zijn warm van kleur en springen dan beter uit het bos. Het waas is
+    // lager dan op de savanne, anders wordt het bos oranje.
+    mtn: Object.assign({}, MTN, { dir: 'design/regenwoud/', files: ['verre_regenwoud_a'], edge: [322], base: 322, kili: -1,
+                                  grade: 'brightness(0.85) saturate(0.6) contrast(0.8) blur(1px)' }),
+    mid: Object.assign({}, MID, { dir: 'design/regenwoud/', files: ['midden_regenwoud_a'], edge: [414],
+                                  grade: 'brightness(0.64) saturate(0.68) contrast(0.78) hue-rotate(12deg) blur(1px)',
+                                  hazeTop: 0.06, hazeBot: 0.12 })
   }
 };
 BIOMES.regenwoud.mtn2 = Object.assign({}, MTN2, { dir: 'design/regenwoud/', files: ['verre_regenwoud_a'], edge: [322], base: 322 });
@@ -53014,7 +53183,8 @@ function loop(now){
   murKlem(halfWNow);                               // Murghtaan: in zijn arena zolang hij leeft
   pleinKlem();                                     // en daarna niet verder dan onder de poort
   aanvKlem();                                      // niet langs het dichte hek van een eindpoort (zie "de aanvoerder")
-  if (pvp && pvp.coop){ hinderKlem(); if (pvp.coop.ep) leibandKlem(); }   // Co-op: niet langs een hinderlaag voor het hele team er is; in de episode ook niet te ver van elkaar (Survival niet)
+  stadLuifelKlem();                                // de strakke luifel: aan de muurkant loop je er niet af
+  if (pvp && pvp.coop){ hinderKlem(); leibandKlem(); }   // Co-op: niet langs een hinderlaag voor het hele team er is, en niet te ver van elkaar
   updateArena();
   checkTips();
   updateTut(dt);
@@ -55325,6 +55495,7 @@ function loop(now){
     drawSnowfall(groundY, weerDak(scaleNow));       // de vlokken vallen over alles heen, maar niet in een gang of een huis
     drawWeer(groundY, weerDak(scaleNow));           // en de regen en de stormen net zo
     drawVoorgrond(groundY, scaleNow);               // het gras vlak voor de camera
+    drawBladerdak(groundY, scaleNow);               // in het regenwoud: het bladerdak, de takken en lianen bovenin
     bavWerpTeken(scaleNow);                         // de speerpunt die de baviaan naar de camera smijt
     drawBossBar();
     bruBalkTeken();
@@ -55467,12 +55638,18 @@ let lusId = 0, achterWorker = null;
 function lusRaf(now){ lusId = 0; safeLoop(now); }
 function lusVraag(){ if (!lusId) lusId = requestAnimationFrame(lusRaf); }
 function achterNodig(){ return document.hidden && !!(pvp && pvp.host && pvp.coop); }
-function achterTik(){ if (achterNodig()) safeLoop(performance.now()); }
+// De worker stuurt pas een nieuwe tik als wij de vorige beantwoord hebben (achterKlaar). Zonder dat stapelden de tikken
+// zich op zodra een beeld op de achtergrond langer duurde dan een tik: de wachtrij groeide, en een ping van de gast
+// stond achter al die tikken, tot de ping bij de gast opliep tot vele seconden.
+function achterTik(){
+  try { if (achterNodig()) safeLoop(performance.now()); }
+  finally { if (achterWorker) achterWorker.postMessage(0); }
+}
 function achterZet(){
   if (achterNodig()){
     if (achterWorker) return;
     try {
-      const url = URL.createObjectURL(new Blob(['setInterval(() => postMessage(0), ' + Math.round(1000 / ACHTER.hz) + ');'], { type: 'text/javascript' }));
+      const url = URL.createObjectURL(new Blob(['let bezig = false; onmessage = () => { bezig = false; }; setInterval(() => { if (!bezig){ bezig = true; postMessage(0); } }, ' + Math.round(1000 / ACHTER.hz) + ');'], { type: 'text/javascript' }));
       achterWorker = new Worker(url); URL.revokeObjectURL(url);
       achterWorker.onmessage = achterTik;
     } catch (e) { achterWorker = null; }        // geen worker: dan staat de host weer stil, zoals voorheen
@@ -66295,6 +66472,7 @@ const COOPEP2_2 = {
   rocks: [], gaps: [ {x: -4700, w: 200} ], ledges: [], village: [], npcs: [], water: [], thickets: [],
   props: [ {x: -600, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -2500, k: 'struik', s: 1.0, f: 1, v: 0},
            {x: -5600, k: 'gras', s: 0.9, f: 1, v: 0}, {x: -8300, k: 'struik', s: 1.0, f: 0, v: 0} ],
+  kisten: [ {x: -5000, goud: 20} ],   // een kist voor een speler: wie hem opent krijgt al het goud (mpcKistE)
   hppotions: [ {x: -5100, y: null} ],
   cliffs: [ {x: -9300} ],
   ends: [ {x: -8700} ],
@@ -66322,12 +66500,19 @@ const COOPEP2_3 = {
             {x: -4900, k: 'kruisboogbandiet', dak: 401, wijk: false, hl: 1, shot: 0},
             {x: -5300, k: 'schildman', niveau: 'makkelijk', deur: {gevel: 6, verdieping: 0}, hl: 1, shot: 1},
             {x: -5300, k: 'bandiet', deur: {gevel: 6, verdieping: 0}, hl: 1, shot: 1} ],
+  // de winkel in het huis tussen de twee hinderlagen: E bij de deur, binnen de toonbank met de prijslijst van Co-op (MPC_WINKEL, zie "de winkel in de episode")
+  binnen: [ { gevel: 4, r: -20000, l: -22200, deur: -20250,
+              ramen: [ {x: -20750, h: 420}, {x: -21500, h: 420} ], palen: [ {x: -21050, h: 0} ],
+              winkel: { x: -21550, seed: 811, koopman: true }, planken: [ {x: -20700, h: 380, soort: 'touw', seed: 37} ] } ],
+  zwevers: [ {r: -20000, l: -22200, h: 900, onder: 750, look: 'hout'} ],
   rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
   voorgrond: false,
+  kisten: [ {x: -3900, y: 401, goud: 20} ],   // een kist voor een speler: wie hem opent krijgt al het goud (mpcKistE)
   hppotions: [ {x: -3500, y: null} ],
   cliffs: [ {x: -7200} ],
   ends: [ {x: -6600} ],
-  tips: [ { x: -60, t: 'The outer quarter of the city. Doors can open on you: watch the houses' } ]
+  tips: [ { x: -60, t: 'The outer quarter of the city. Doors can open on you: watch the houses' },
+          { x: -3000, t: 'A shop in the next house: press E at its door. Every kill earns gold' } ]
 };
 const COOPEP2_4 = {
   name: 'Ambush 4: Market at Dusk',
@@ -66355,12 +66540,19 @@ const COOPEP2_4 = {
             {x: -4900, k: 'schildman', niveau: 'makkelijk', deur: {gevel: 5, verdieping: 0}, hl: 1, shot: 1},
             {x: -4900, k: 'bandiet', dolk: true, deur: {gevel: 5, verdieping: 0}, hl: 1, shot: 1},
             {x: -3450, k: 'bandiet', hl: 1, shot: 2} ],
+  // de winkel van de markt, tussen de twee hinderlagen: E bij de deur, binnen de toonbank met de prijslijst van Co-op (MPC_WINKEL, zie "de winkel in de episode")
+  binnen: [ { gevel: 3, r: -20000, l: -22200, deur: -20250,
+              ramen: [ {x: -20750, h: 420}, {x: -21500, h: 420} ], palen: [ {x: -21050, h: 0} ],
+              winkel: { x: -21550, seed: 823, koopman: true }, planken: [ {x: -20700, h: 380, soort: 'touw', seed: 41} ] } ],
+  zwevers: [ {r: -20000, l: -22200, h: 900, onder: 750, look: 'hout'} ],
   rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
   voorgrond: false,
+  kisten: [ {x: -4300, y: 401, goud: 25} ],   // een kist voor een speler: wie hem opent krijgt al het goud (mpcKistE)
   hppotions: [ {x: -3900, y: null}, {x: -5700, y: null} ],
   cliffs: [ {x: -7200} ],
   ends: [],
   tips: [ { x: -60, t: 'The market closes at dusk. The smugglers use it as a way in: their cellar is at the end of the street' },
+          { x: -2900, t: 'The trader of the market is still open: press E at his door' },
           { x: -5600, t: 'The cellar: the whole team at the open hatch, then you go down' } ]
 };
 const COOPEP2_5 = {
@@ -66382,6 +66574,7 @@ const COOPEP2_5 = {
   gaps: [ {x: -4700, w: 230} ], ledges: [], village: [], npcs: [], water: [], thickets: [],
   props: [ {x: -700, k: 'gras', s: 1.0, f: 0, v: 0}, {x: -2300, k: 'struik', s: 1.0, f: 1, v: 0},
            {x: -5000, k: 'gras', s: 0.9, f: 1, v: 0}, {x: -8200, k: 'struik', s: 0.9, f: 0, v: 0} ],
+  kisten: [ {x: -8000, goud: 25} ],   // een kist voor een speler: wie hem opent krijgt al het goud (mpcKistE)
   hppotions: [ {x: -4200, y: null}, {x: -7700, y: null} ],
   cliffs: [ {x: -9100} ],
   ends: [ {x: -8500} ],
@@ -66416,12 +66609,19 @@ const COOPEP2_6 = {
             {x: -4800, k: 'schildman', deur: {gevel: 5, verdieping: 0}, hl: 1, shot: 1}, {x: -4800, k: 'meelman', deur: {gevel: 5, verdieping: 0}, hl: 1, shot: 1},
             {x: -5600, k: 'kruisboogbandiet', wijk: false, deur: {gevel: 6, verdieping: 1}, hl: 1, shot: 2},
             {x: -3400, k: 'zweepman', hl: 1, shot: 3} ],
+  // de laatste winkel voor de kelder, tussen de twee hinderlagen: E bij de deur, binnen de toonbank met de prijslijst van Co-op (MPC_WINKEL, zie "de winkel in de episode")
+  binnen: [ { gevel: 4, r: -20000, l: -22200, deur: -20250,
+              ramen: [ {x: -20750, h: 420}, {x: -21500, h: 420} ], palen: [ {x: -21050, h: 0} ],
+              winkel: { x: -21550, seed: 829, koopman: true }, planken: [ {x: -20700, h: 380, soort: 'touw', seed: 53} ] } ],
+  zwevers: [ {r: -20000, l: -22200, h: 900, onder: 750, look: 'hout'} ],
   rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
   voorgrond: false,
+  kisten: [ {x: -2800, y: 401, goud: 30} ],   // een kist voor een speler: wie hem opent krijgt al het goud (mpcKistE)
   hppotions: [ {x: -3700, y: null}, {x: -6300, y: null} ],
   cliffs: [ {x: -8300} ],
   ends: [ {x: -7700} ],
-  tips: [ { x: -60, t: 'Lantern Street at night. Every door and every gallery can hide one of them' } ]
+  tips: [ { x: -60, t: 'Lantern Street at night. Every door and every gallery can hide one of them' },
+          { x: -3400, t: 'The last shop before the cellar: press E at its door' } ]
 };
 const COOPEP2_7 = {
   name: "Ambush 7: The Smugglers' Cellar",
@@ -68596,13 +68796,38 @@ function mpcBuitKrijg(k){
   else { pvp.coop.goud += MPC.goud; flashHint('+' + MPC.goud + ' gold'); }
   mpCoopHud();
 }
+// de schatkist in Co-op: een kist gaat maar voor een speler open, en die krijgt al het goud (niet gedeeld). De host
+// beslist: wie het eerst E drukt (de host zelf meteen, een gast met kistVraag), en iedereen hoort met kistOpen wie het
+// was; bij de rest gaat het deksel ook open, leeg. Een gast die te laat was hoort kistNee
+function mpcKistE(k){
+  const i = kisten.indexOf(k);
+  if (pvp.host){ mpcKistNeem(i, pvp.mij); return; }
+  k.mpWacht = true; k.mpWachtT = performance.now();
+  pvpZendAan(0, { t: 'kistVraag', i });
+  setTimeout(() => { if (k.mpWacht && !k.open) k.mpWacht = false; }, 3000);   // geen antwoord: weer te proberen
+}
+function mpcKistNeem(i, p){
+  const k = kisten[i]; if (!k) return;
+  if (k.open){ if (p !== pvp.mij) pvpZendAan(p, { t: 'kistNee', i }); return; }
+  pvpZend({ t: 'kistOpen', i, p });
+  mpcKistOpen(i, p);
+}
+function mpcKistOpen(i, p){
+  const k = kisten[i]; if (!k || k.open) return;
+  kistOpenBeeld(k);
+  banStemSpeel(houtRaakSnd, 0.5);
+  if (p === pvp.mij){
+    playHppotionPickupSound();
+    mpcGoudErbij(k.goud, 'a treasure chest, all yours');
+  } else if (Math.abs(world - k.x) < W) flashHint((pvp.spelers.length > 2 ? mpSpelerNoem(p, true) : 'Your teammate') + ' opened the chest', 2500);
+}
 // een kill, bij de host: punten voor het team, en de multikill van het team
 function mpcKill(o){
   const C = pvp.coop;
   let p = (MPC.punten[o.mpSoort] || 10) + (o.mpHard ? MPC.moeilijk : 0);
   if (C.t - C.reeks.t <= MPC.reeksT){ C.reeks.n++; p += MPC.reeks * (C.reeks.n === 2 ? 2 : 1); } else C.reeks.n = 1;
   C.reeks.t = C.t; C.kills++; C.score += p;
-  if (!C.ep) mpcGoudIedereen(mpcKillGoud(o.mpSoort));   // het goud van de kill, gedeeld: ieder evenveel (de episode heeft geen winkel)
+  if (!C.ep || mpEpWinkel()) mpcGoudIedereen(mpcKillGoud(o.mpSoort));   // het goud van de kill, gedeeld: ieder evenveel (alleen een episode met winkels)
   if (C.reeks.n >= 2) mpcBanner(C.reeks.n === 2 ? 'Double Kill' : C.reeks.n === 3 ? 'Triple Kill' : 'Multi Kill', 1.2);
 }
 // de lijken: wie dood is, telt af en is na MPC.lijkWeg seconden uit de lijst (bij de gast ook, via de stand)
@@ -68835,7 +69060,7 @@ function mpCoopStap(rdt, dt){
 function mpCoopHud(){
   if (!mpCoopAan()) return;
   const C = pvp.coop;
-  const sc = (C.ep ? 'Level ' + (C.ep.i + 1) + ' of ' + mpEpLijst().length + '   Score ' + C.score
+  const sc = (C.ep ? 'Level ' + (C.ep.i + 1) + ' of ' + mpEpLijst().length + '   Score ' + C.score + (mpEpWinkel() ? '   Gold ' + C.goud : '')
                    : (C.ronde ? 'Round ' + C.ronde + '   ' : '') + 'Score ' + C.score + '   Gold ' + C.goud) + pvpPingHud();
   if (pvpEl('pvpscore').textContent !== sc) pvpEl('pvpscore').textContent = sc;
   mpcKijkStap();
@@ -68909,6 +69134,9 @@ function mpCoopOntvang(m){
   if (m.t === 'epklaar'){ if (!pvp.host) mpEpKlaarLokaal(); return true; }
   if (m.t === 'epnaar'){ if (!pvp.host){ if (C.ep) C.ep.door = true; mpCoopStart(m.i); } return true; }
   if (m.t === 'cg'){ mpcGoudErbij(m.n, m.w); return true; }
+  if (m.t === 'kistVraag'){ if (pvp.host) mpcKistNeem(m.i, m.p); return true; }
+  if (m.t === 'kistOpen'){ if (!pvp.host) mpcKistOpen(m.i, m.p); return true; }
+  if (m.t === 'kistNee'){ const k = kisten[m.i]; if (k){ k.mpWacht = false; if (!k.open) kistOpenBeeld(k); } flashHint('Too late: the chest is already open', 2500); return true; }
   if (m.t === 'geef'){ mpcGoudErbij(m.n, pvp.spelers.length > 2 ? 'from ' + mpSpelerNoem(m.p, true) : 'from your teammate'); return true; }
   if (m.t === 'winkel'){ if (!pvp.host){ if (laadWacht) C.winkelStraks = true; else mpcWinkelIn(); } return true; }   // nog aan het laden (Start in the shop): na het laden erheen
   if (m.t === 'winkelUit'){ if (!pvp.host) mpcWinkelUit(); return true; }
@@ -68957,7 +69185,7 @@ function mpCoopStart(epI){
   sandbox = false; godMode = false;
   if (ROL.koelOud != null){ ROL.koel = ROL.koelOud; ROL.koelOud = null; }
   beginPlay('normal');
-  if (ep){ mpcVersieNu = 'ep'; mpcFakSc = 0; }      // het uitzicht van het level zelf, geen versies en geen fakkels
+  if (ep){ mpcVersieNu = 'ep'; mpcFakSc = 0; mpEpNaStart(); }   // het uitzicht van het level zelf, geen versies en geen fakkels; de tas uit het vorige level
   else if (pvp.host) mpcVersieWissel(mpcVersieKies(null));   // een willekeurige versie van de map; de gast krijgt hem met 'cv'
   else mpcVersieZet((mpcKaart().versies || ['avond'])[0]);
   hinderReset();                                    // de hinderlagen van dit level (alleen in de episode), en het leiband vanaf hier
@@ -69019,13 +69247,17 @@ const MPC_EP = {
   eind: 120,                // zo dicht bij de fakkels (voorbij of ervoor) telt als "erbij"
   na: 3,                    // seconden tussen "Level complete" en het volgende level
   naast: 90,                // de startplekken naast elkaar, per slot zoveel verder naar links
+  levelGoud: 10,            // een episode met winkels: zoveel goud voor ieder per gehaald level
   revive: [-200, 200, -320, 320, -130, 130],  // waar de revive-ton mag komen, vanaf de levende (de eerste die past)
   naamKop: /^[^:]*\d+: /   // het begin van een levelnaam ("Co-op 2: ", "Ambush 5: ") dat de banner vervangt
 };
 // De episodes van modus 'ep'. De map in de lobby zegt welke en vanaf welk level: id '0' tot '2' is de eerste (Co-op 1 tot 3),
 // 'b0' tot 'b6' de tweede, The Smugglers' Cellar (COOPEP2_LEVELS, met de hinderlagen, zie "de hinderlaag").
 const MPC_EPS = { a: { levels: () => COOPEP_LEVELS, best: 'amir.coopEpBest' },
-                  b: { levels: () => COOPEP2_LEVELS, best: 'amir.coopEp2Best' } };
+                  b: { levels: () => COOPEP2_LEVELS, best: 'amir.coopEp2Best', winkel: true } };
+// heeft deze episode goud en winkels (winkel: true)? Dan geeft een kill goud zoals in Survival, een gehaald level
+// MPC_EP.levelGoud, en staan er winkels in huizen met de prijslijst van Survival (zie "de winkel in de episode")
+function mpEpWinkel(){ const C = pvp && pvp.coop; return !!(C && C.ep && MPC_EPS[mpEpReeks(pvp.regels && pvp.regels.kaart)].winkel); }
 function mpEpReeks(kaart){ return String(kaart || '').charAt(0) === 'b' ? 'b' : 'a'; }
 function mpEpKaartLevel(kaart){ return parseInt(String(kaart || '0').replace(/^b/, ''), 10) || 0; }
 function mpEpLijst(){ return MPC_EPS[mpEpReeks(pvp && pvp.regels && pvp.regels.kaart)].levels(); }
@@ -69044,6 +69276,20 @@ function mpEpNieuw(C, oud, epI){
   const erf = !o ? null : o.door ? { s: oud.score, k: oud.kills, t: oud.t } : (!o.alles && o.i === i) ? { s: o.s0, k: o.k0, t: o.t0 } : null;
   if (erf){ C.score = erf.s; C.kills = erf.k; C.t = erf.t; }
   C.ep.s0 = C.score; C.ep.k0 = C.kills; C.ep.t0 = C.t;
+  // een episode met winkels: ieder houdt zijn goud, wat hij kocht en zijn tas (kalebassen, gif) over de levels heen; na
+  // game over die van het begin van het level, na het slot weer niets
+  const tas = !o ? null : o.door ? { g: oud.goud, koop: oud.koop, kal: hppotionCarry, gif: gifCarry }
+            : (!o.alles && o.i === i) ? o.tas0 : null;
+  if (tas){ C.goud = tas.g; C.koop = JSON.parse(JSON.stringify(tas.koop)); }
+  C.ep.tas0 = { g: C.goud, koop: JSON.parse(JSON.stringify(C.koop)), kal: tas ? tas.kal : 0, gif: tas ? tas.gif : 0 };
+  pvp.levens = 3 + (C.koop.leven || 0);             // een gekocht extra leven geldt voor de rest van de episode
+}
+// na het laden van een level van de episode: de tas terug, en een gekocht speerslot weer erbij (en gevuld)
+function mpEpNaStart(){
+  const C = pvp.coop, T = C.ep && C.ep.tas0; if (!T) return;
+  hppotionCarry = T.kal; gifCarry = T.gif;
+  hppotionHud(); invHud();
+  if (C.koop.slot && RUG_MAX > 0){ RUG_MAX++; if (!stokAan()) rugSperen.push({ blauw: false }); setSpearLabel(); }
 }
 function mpEpTag(){
   for (const q of MPC_LIJSTEN){
@@ -69080,6 +69326,7 @@ function mpEpLevelKlaar(){
   C.fase = 'klaar'; C.ep.wachtT = MPC_EP.na;
   mpcBanner(laatste ? 'Episode complete!' : 'Level complete', MPC_EP.na);
   pvpZend({ t: 'epklaar' });
+  if (mpEpWinkel() && !laatste) mpcGoudIedereen(MPC_EP.levelGoud, 'level complete');
   mpEpKlaarLokaal();
 }
 // bij iedereen: het level is gehaald, niemand kan nu nog geraakt worden
@@ -69160,7 +69407,7 @@ function mpEpEindToon(e){
 //           kelder: true laat het kelderluik openvliegen, deur {gevel, verdieping} een deur; zonder x kijkt hij naar die
 //   spawns  {x, k, hl: index van de hinderlaag, shot: index van het shot}, met de gewone vlaggen (deur, poort, dak, neer)
 //
-// Het leiband (alleen de Co-op episodes, niet Survival): een levende speler komt niet verder dan MPC_LEIBAND.max van een levende teamgenoot. Was hij al
+// Het leiband (de Co-op episodes, niet Survival): een levende speler komt niet verder dan MPC_LEIBAND.max van een levende teamgenoot. Was hij al
 // verder weg (een revive, een val), dan mag hij alleen dichterbij. Binnen een huis of in de winkel geldt het niet.
 // Zie notities/multiplayer.md, "De hinderlaag en het leiband".
 const MPC_HL = {
@@ -69257,7 +69504,7 @@ function hinderVechtKlaar(i, x){
 function hinderKlem(){
   const i = hinderNu(); if (i < 0) return;
   const x = hinderLijst()[i].x;
-  if (world < x) world = x;
+  if (world < x && !binnenBij(world)) world = x;   // in een huis (de winkel, ver van de straat) geldt de lijn niet
 }
 // een hint voor wie aan de lijn staat en wacht
 function hinderHint(){
@@ -69302,10 +69549,10 @@ function hinderBalken(aan){
   }
   el.classList.toggle('on', !!aan);
 }
-// het leiband: niet verder dan MPC_LEIBAND.max van een levende teamgenoot; wie al verder weg was mag alleen dichterbij
+// het leiband (alleen in een Co-op episode): niet verder dan MPC_LEIBAND.max van een levende teamgenoot; wie al verder weg was mag alleen dichterbij
 function leibandKlem(){
   const C = pvp.coop;
-  if (dead || laadWacht || C.inWinkel || binnenBij(world) || hinderVast()){ leibandOud = null; return; }
+  if (!C.ep || dead || laadWacht || C.inWinkel || binnenBij(world) || hinderVast()){ leibandOud = null; return; }   // alleen in een episode, Survival is vrij
   const oud = leibandOud == null ? world : leibandOud;
   let vast = false;
   for (const p of pvpAnderen()){
@@ -69494,6 +69741,7 @@ function mpcWinkelToon(){
   const ander = mpcWinkelAnderKlaar();
   document.getElementById('wkuitleg').textContent = 'You have ' + C.goud + ' gold.' + (ander ? ' ' + ander : '');
   document.getElementById('wkklaar').textContent = C.mijnKlaar ? 'Not ready' : 'Ready';
+  document.getElementById('wkklaar').style.display = C.ep ? 'none' : '';   // de episode: geen Ready, Close is genoeg
   winkelTasToon();
 }
 // Full Circle in Co-op: wat je kocht. De twee upgrades mogen samen (anders dan de keuze in de talent tree)

@@ -1082,6 +1082,10 @@ eigenlijke voethoogte getekend, wat op de straat wegvalt in de strook bovenkant 
   sinustoon die zakt), wat ruis voor de klap van het doek, en bij een harde landing een zacht kraken van hout en touw. Het
   volume volgt hoe hard je landt, en op de trampoline klinkt elke goede stuit hoger (`plof.trede`), zodat je hoort dat je
   hoogte opbouwt. Uitstuiteren geeft ploffen die zachter worden.
+- **De muurkant** (`stadLuifelKlem`, na de andere klemmen in de beweging): wie op de doek staat, loopt aan de muurkant (het
+  hoge eind, tegen het huis) niet van de doek af maar stopt bij het laatste punt van `stal`. Aan de open kant val je er gewoon
+  af, en springen gaat vrij. Het herkent "erop staan" aan de hoogte van de doek, niet aan `kuilOp` (die valt even weg bij een
+  stapje op de helling).
 - **Landingsplek**: de hele doek (van het eerste tot het laatste punt van `stal`), zonder inkorting: aan het eind mag een voet
   over de rand hangen, pas met zijn midden ervan af valt hij. Met de inkorting bleef er een derde Amir over en viel je er na
   een stap af.
