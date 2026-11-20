@@ -33,6 +33,9 @@
 //   node tools/mptest.js --hl            de tweede Co-op episode (The Smugglers' Cellar): de lijn van een hinderlaag, het
 //                                        leiband, wachten op het team, de regie (balken, camera, vijanden per shot), het
 //                                        gevecht en de lijn weer open, en in level 7 de kelder als shot en als eind
+//   node tools/mptest.js --winkel        de winkels van The Smugglers' Cellar: de deur tussen de hinderlagen, goud per kill,
+//                                        de winkel in het huis zonder pauze en met alles van Survival, en goud, upgrades en
+//                                        tas mee naar het volgende level (en na game over die van het begin van het level)
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
@@ -136,6 +139,69 @@ async function epProef(R){
   for (const r of R){ if (r.fouten.size){ console.log(r.wie + ' fouten:'); for (const f of r.fouten) console.log('  ' + f); } }
 }
 // de hinderlaag (--hl): The Smugglers' Cellar, level 1 en level 7
+// de winkels in de Co-op episode (--winkel): The Smugglers' Cellar vanaf level 3
+async function winkelProef(R){
+  const [H, G] = R, allen = R.map(r => r.page);
+  const elk = async (f, arg, max) => { for (const r of R) if (!await tot(r.page, f, arg, max)) return r.wie; return null; };
+  const klaar = i => elk(i => running && !laadWacht && pvp.coop && pvp.coop.ep && pvp.coop.ep.i === i && pvp.coop.fase === 'ep' && level.name.startsWith('Ambush ' + (i + 1)), i, 60000);
+  meld(await klaar(2) === null, 'Ambush 3 loopt bij iedereen');
+  await tot(H.page, () => pvp.coop.allenKlaar, null, 20000);
+  for (const p of allen) await p.evaluate(() => { godMode = true; MPC_LEIBAND.max = 1e9; });
+  // de deuren van de winkels: elk tussen twee hinderlagen (of voor de eerste), dus te halen zonder dat de lijn het tegenhoudt
+  const deuren = await H.page.evaluate(() => [2, 3, 5].map(i => {
+    const lv = COOPEP2_LEVELS[i], b = lv.binnen[0], sc = nowScale();
+    const oud = level; level = readLevel(JSON.stringify(lv));
+    const dm = stadDeurMaat({ gevel: b.gevel, verdieping: 0 }, sc); level = oud;
+    const lijnen = lv.hinderlagen.map(h => h.x);
+    return { i, x: dm && Math.round(dm.cx), lijnen, eind: lv.kelder ? lv.kelder.x : lv.ends[0].x };
+  }));
+  for (const d of deuren) meld(d.x != null && d.x > d.eind && !d.lijnen.some(l => l > d.x - 120 && l < d.x + 120),
+    'Ambush ' + (d.i + 1) + ': de winkeldeur op ' + d.x + ', niet op een lijn (' + d.lijnen.join(', ') + ')');
+  // goud: een kill geeft iedereen goud
+  const g0 = await G.page.evaluate(() => pvp.coop.goud);
+  await H.page.evaluate(() => mpcKill({ mpSoort: 'bandiet' }));
+  meld(await tot(G.page, g => pvp.coop.goud > g, g0, 4000), 'een kill geeft de gast goud (' + g0 + ' naar ' + await G.page.evaluate(() => pvp.coop.goud) + ')');
+  meld(await H.page.evaluate(() => /Gold \d+/.test(pvpEl('pvpscore').textContent)), 'het goud staat in de HUD (' + await H.page.evaluate(() => pvpEl('pvpscore').textContent) + ')');
+  // de eerste hinderlaag als open, zodat de gast bij de deur mag staan
+  for (const p of allen) await p.evaluate(() => { hinder.stand[0] = 'vrij'; });
+  const dx = deuren[0].x;
+  await G.page.evaluate(x => { world = x; ph = 0; onGround = true; jump = null; leibandOud = null; }, dx);
+  await wacht(300);
+  meld(await G.page.evaluate(() => { const a = binnenEBij(); return a && a.soort === 'in'; }), 'E bij de deur: naar binnen');
+  await G.page.evaluate(() => binnenE());
+  meld(await tot(G.page, () => !stadTrapFade && binnenBij(world), null, 6000), 'de gast staat in de winkel (' + await G.page.evaluate(() => Math.round(world)) + ')');
+  await wacht(500);
+  meld(await G.page.evaluate(() => !!binnenBij(world)), 'de lijn van de volgende hinderlaag trekt hem niet terug de straat op');
+  await G.page.evaluate(() => { const b = binnenBij(world); world = b.winkel.x + 60; onGround = true; });
+  await wacht(200);
+  await G.page.evaluate(() => binnenE());
+  meld(await G.page.evaluate(() => winkelUIAan && !paused && winkelUIEl.classList.contains('coop')), 'de winkel is open, in Co-op-stijl, en het spel loopt door');
+  const knoppen = await G.page.evaluate(() => [...document.querySelectorAll('#wkcoop .wkcoopknop')].map(b => b.id));
+  const zou = await G.page.evaluate(() => MPC_WINKEL.filter(q => mpcWinkelVoorMij(q)).length);
+  meld(knoppen.length >= zou, 'alles van Survival te koop (' + knoppen.length + ' knoppen: ' + knoppen.join(' ') + ')');
+  meld(await G.page.evaluate(() => document.getElementById('wkklaar').style.display === 'none'), 'geen Ready in de episode');
+  meld(await H.page.evaluate(() => !paused), 'de host speelt gewoon door');
+  await G.page.evaluate(() => { pvp.coop.goud = 300; mpcWinkelToon(); for (const k of ['fc', 'slot', 'leven', 'gif', 'kracht']) document.getElementById('wkc_' + k).click(); });
+  const na = await G.page.evaluate(() => ({ g: pvp.coop.goud, fc: pvp.coop.koop.fc, kr: pvp.coop.koop.kracht, rug: RUG_MAX, lv: pvp.levens, gif: gifCarry }));
+  meld(na.fc && na.kr && na.rug === 2 && na.lv === 4 && na.gif === 1, 'gekocht: Full Circle, more damage, slot, extra life, gif (' + JSON.stringify(na) + ')');
+  await G.page.evaluate(() => winkelUIDicht());
+  meld(await G.page.evaluate(() => !winkelUIAan && !paused), 'Close: de winkel dicht');
+  // samen naar het eind: level 4, met alles mee
+  for (const p of allen) await p.evaluate(() => { hinder.stand = hinder.stand.map(() => 'vrij'); world = levelEndX() - 30; ph = 0; });
+  meld(await klaar(3) === null, 'Ambush 4 loopt bij iedereen');
+  const mee = await G.page.evaluate(() => ({ g: pvp.coop.goud, fc: pvp.coop.koop.fc, rug: RUG_MAX, rugN: rugSperen.length, lv: pvp.levens, lives, gif: gifCarry }));
+  meld(mee.g === na.g + 10 && mee.fc && mee.rug === 2 && mee.rugN === 2 && mee.lv === 4 && mee.lives === 4 && mee.gif === 1,
+    'mee naar level 4: goud plus 10, Full Circle, het slot gevuld, 4 levens, het gif (' + JSON.stringify(mee) + ')');
+  // game over in level 4: R geeft het goud van het begin van level 4 terug
+  await tot(H.page, () => pvp.coop.allenKlaar, null, 20000);
+  await G.page.evaluate(() => { pvp.coop.goud = 1; });
+  for (const p of allen) await p.evaluate(() => { godMode = false; invuln = 0; lives = 1; hurtPlayer(true); });
+  meld(await elk(() => pvp.coop.fase === 'uit', null, 8000) === null, 'iedereen dood: game over');
+  for (const p of allen) await p.evaluate(() => mpCoopOpnieuw());
+  meld(await klaar(3) === null, 'R: level 4 opnieuw');
+  meld(await G.page.evaluate(g => pvp.coop.goud === g && pvp.coop.koop.fc && RUG_MAX === 2, mee.g), 'het goud en de upgrades van het begin van level 4 (' + await G.page.evaluate(() => pvp.coop.goud) + ')');
+  for (const r of R){ if (r.fouten.size){ console.log(r.wie + ' fouten:'); for (const f of r.fouten) console.log('  ' + f); } }
+}
 async function hlProef(R){
   const [H, G] = R, allen = R.map(r => r.page);
   const elk = async (f, arg, max) => { for (const r of R) if (!await tot(r.page, f, arg, max)) return r.wie; return null; };
@@ -539,7 +605,8 @@ async function elk(H, G){
     meld(wapens.every(w => w.startsWith(zou)), 'het wapen uit de lobby, bij iedereen hetzelfde (' + wapens[0] + ')');
   }
   if (args.includes('--duel')) await H.page.evaluate(() => { window.__duel = true; });
-  if (args.includes('--ep') || args.includes('--hl')) await H.page.evaluate(hl => { window.__ep = true; window.__epKaart = hl ? 'b0' : '0'; }, args.includes('--hl'));
+  if (args.includes('--ep') || args.includes('--hl') || args.includes('--winkel'))
+    await H.page.evaluate(k => { window.__ep = true; window.__epKaart = k; }, args.includes('--hl') ? 'b0' : args.includes('--winkel') ? 'b2' : '0');
   if (opt('--kaart', null)) await H.page.evaluate(k => { window.__kaart = k; }, opt('--kaart', null));
   await H.page.evaluate(soorten => {
     mpWijzig(() => {
@@ -711,6 +778,7 @@ async function elk(H, G){
     for (const r of ramen){ if (r.fouten.size){ console.log(r.wie + ' fouten:'); for (const f of r.fouten) console.log('  ' + f); } }
     loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return;
   }
+  if (args.includes('--winkel')){ await winkelProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--hl')){ await hlProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--ep')){ await epProef(ramen); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
   if (args.includes('--elk')){ await elk(H, G); loopt = false; await Promise.all(pompen); await browser.close(); srv.close(); return; }
