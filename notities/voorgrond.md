@@ -63,3 +63,26 @@ stadslevels houden `voorgrond: false`.
   waar vijanden op galerijen staan. Komen ze terug, dan met een balk of luifelrand bovenin, met wat kleur, en niet
   boven een galerij of dak met vijanden. Het muurtje staat nog ter beoordeling: het is een rij gelijke kartels en
   kan op een rij hoofden lijken.
+
+## Het regenwoud: silhouetten boven en onder (20-11-2026)
+
+In een level met een regenwoud-uitzicht (`biome: 'regenwoud'` in `SCENES`) staat er vanzelf een bijna zwarte,
+onscherpe rand voor de camera, gemaakt van bestaande plaatjes:
+
+- **Onderin** de gewone voorgrond (`drawVoorgrond`), maar met `vgRegenwoud(lv)` als lijst: de open plekken van
+  `vgStandaard` (ravijnen, einde, arena) en daarbinnen per stuk van `VG_RW.stuk` een thema (dicht, ijl of kaal)
+  met struik en gras. De kleur is `VG_RW.kleur` (per kanaal, bijna zwart met een zweem groen; de verre laag
+  1,6 keer lichter), in plaats van de schaduw van het licht.
+- **Bovenin** `drawBladerdak`, na de voorgrond: plekken om de `BLADERDAK.plek` schermpixels, elke plek leeg, een
+  kroon (de struik ondersteboven, soms met lianen), een tak (de hangende stam) met lianen, of alleen lianen. Een
+  groep plekken (`groep`) kiest een dichtheid uit `vol`, met 0 voor open lucht. Het schuift iets sneller dan de
+  wereld (`par`) en nauwelijks in de hoogte (`dy`); een liaan wordt korter gemaakt als zijn punt anders onder
+  `diep` (deel van de schermhoogte) zou hangen, zodat er niets in de speelstrook hangt.
+
+Het zaad komt uit de naam van het level (`lvZaad`), dus elk level ziet er anders uit en hetzelfde level bij een
+nieuwe ronde precies hetzelfde. Onder de grond valt het weg zoals de gewone voorgrond (`VOORGROND.weg`). Een level
+zet het uit met `silhouet: false`. In de sandbox staat het aan zodra het uitzicht Regenwoud is en de knop
+Voorgrond op Uit staat.
+
+Tegelijk zijn de verre laag en de middenlaag van het regenwoud gedempt (`grade` in `BIOMES.regenwoud`): donkerder,
+minder verzadigd, minder contrast, iets groener en een tikje onscherp, zodat de figuren loskomen.
