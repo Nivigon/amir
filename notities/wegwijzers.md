@@ -117,7 +117,7 @@ liaan van de knoop tot een anker `HSTAM.anker` boven de stam, dus ruim buiten be
   (in `hstamUpdate`; anders zakt hij erdoor als de stam terugveert).
 - **Raken**: de steek (de hele schacht van Amir tot de punt, ook met de stokken) of een geworpen speer door het raakvak
   van een liaan (`hstamVakken`: van onder de knoop tot `raakBoven` erboven). De speer vliegt door, net als bij het
-  touw van de takel. `hstamKnap` speelt de houten tik en de knap (`takelSnap`) en strooit splinters.
+  touw van de takel. `hstamKnap` speelt de houten tik en de knap (`takelSnap`) en strooit splinters. De liaan breekt op de hoogte waar hij geraakt werd (`hRaak`: de punt van de steek of het midden van de speer, geklemd tussen de knoop en `raakBoven`): het stuk erboven veert op aan de tak (`rest`), het stuk eronder blijft aan de stam en flapt slap omlaag naar buiten (`stomp`). Vanzelf geknapt breekt hij net boven de knoop. De looplijn ligt in het mos (`bron.top` 56), zodat Amirs voeten in het mos staan en niet op de toppen.
 - **Half** (`st: 'half'`): de stam draait om het haakpunt van de liaan die nog vastzit tot de losse punt de grond raakt
   (bonk `ton_zwaar.mp3`, stof, een klein stuitje). Na `HSTAM.tweede` (3) seconden knapt de andere liaan vanzelf.
 - **Valt** en **lig**: de punt blijft op de grond, de andere kant valt (`valG2`); plat is hij een laag obstakel (geen dun

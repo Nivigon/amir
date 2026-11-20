@@ -15551,7 +15551,7 @@ function takelTekenEen(t, groundY, scale, cx){
 // van CHAR_H. Test 82 is het proefstuk, en in de sandbox onder Terrein, Hangende stam.
 const HSTAM = {
   dir: 'design/regenwoud/hangstam/',
-  bron: { b: 1117, h: 247, top: 30, mid: 105, bodem: 185 },   // stam.png: de looplijn, het hart en de onderkant van de bast (rijen)
+  bron: { b: 1117, h: 247, top: 56, mid: 105, bodem: 185 },   // stam.png: de looplijn (in het mos, niet op de toppen: zijn voeten staan erin), het hart en de onderkant van de bast (rijen)
   haak: [0.17, 0.855],      // waar de lianen om de stam zitten (deel van de breedte, links en rechts)
   haakRij: 8,               // de liaan begint zo veel bronrijen onder de bovenkant van stam.png (in de knoop)
   liaan: { b: 92, h: 389 }, // liaan.png: een rechtgetrokken stuk liaan dat naadloos onder elkaar past
@@ -15609,7 +15609,7 @@ function hstamMaat(s, scale){
 function hstamReset(){
   for (const s of hstamLijst()){
     s.z = { st: 'hangt', t: Math.random() * 10, dx: 0, vdx: 0, dy: 0, vdy: 0, kant: 0, th: 0, om: 0, t2: 0,
-            px: 0, ph: 0, pv: 0, tx: 0, lx: s.x, geland: false, rest: [null, null], bounced: false, vorigDx: 0 };
+            px: 0, ph: 0, pv: 0, tx: 0, lx: s.x, geland: false, rest: [null, null], stomp: [null, null], bounced: false, vorigDx: 0 };
   }
 }
 function hstamZ(s){ if (!s.z) hstamReset(); return s.z; }
@@ -15677,14 +15677,21 @@ function hstamStof(wx, breedte, n, base){
   for (let i = 0; i < n; i++) stofKorrel(wx + (Math.random() - 0.5) * breedte, base, (Math.random() - 0.5) * 360, 60 + Math.random() * 160);
 }
 // een liaan knapt (door de speer, de stokken, een worp, of vanzelf: door = 'tijd')
-function hstamKnap(s, i, door){
+// hRaak: de hoogte (sprite-eenheden) waar de speer, de stokken of de worp de liaan raakte. Daar breekt hij: het stuk
+// erboven blijft aan de tak hangen en veert op, het stuk eronder blijft aan de stam en flapt omlaag (stomp).
+// Zonder hRaak (vanzelf geknapt) breekt hij net boven de knoop, waar hij het zwaarst trekt.
+function hstamKnap(s, i, door, hRaak){
   const z = hstamZ(s); if (!hstamVast(z, i)) return;
   const scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H, M = hstamMaat(s, scale), P = hstamPose(s, M, scale);
-  const hk = hstamHaak(s, M, P, scale, i);
-  z.rest[i] = { x: hk.x, h: hk.h, h0: hk.h, v: 0, dx: 0, vdx: (i ? 1 : -1) * 40 };   // het afgeknapte stuk veert op
+  const hk = hstamHaak(s, M, P, scale, i), an = hstamAnker(s, M, i);
+  const ch = Math.max(hk.h, Math.min(hk.h + HSTAM.raakBoven * CHAR_H, hRaak == null ? hk.h + 0.3 * CHAR_H : hRaak));
+  const f = (ch - hk.h) / Math.max(1, an.h - hk.h), cx = hk.x + (an.x - hk.x) * f;
+  z.rest[i] = { x: cx, h: ch, h0: ch, v: 0, dx: 0, vdx: (i ? 1 : -1) * 40 };   // het stuk aan de tak veert op
+  if (ch - hk.h > 12)
+    z.stomp[i] = { L: ch - hk.h, a: Math.atan2(an.x - hk.x, (an.h - hk.h) * scale), om: 0, kant: i ? 1 : -1 };   // het stuk aan de stam
   if (door !== 'tijd') banStemSpeel(houtRaakSnd, HSTAM.vol.raak);
-  takelSnap({ px: hk.x });
-  wielSplinters(hk.x, hk.h - terrainH(hk.x), i ? 1 : -1, 6);
+  takelSnap({ px: cx });
+  wielSplinters(cx, ch - terrainH(cx), i ? 1 : -1, 6);
   shake = Math.max(shake, 0.08);
   if (z.st === 'hangt'){
     // de ene kant valt: de stam draait om het haakpunt van de andere liaan
@@ -15760,6 +15767,12 @@ function hstamUpdate(dt){
         void P;
       }
     }
+    // het stuk dat aan de stam bleef flapt omlaag, naar buiten, en zwaait uit (een slappe liaan, geen stok)
+    for (const t of z.stomp){
+      if (!t) continue;
+      const doel = t.kant * 2.75;                    // bijna recht omlaag, iets naar buiten
+      t.om += (-14 * (t.a - doel) - 3.2 * t.om) * dt; t.a += t.om * dt;
+    }
     // de afgeknapte stukken veren op en zwaaien uit
     for (const r of z.rest){
       if (!r) continue;
@@ -15770,14 +15783,18 @@ function hstamUpdate(dt){
   });
 }
 // een liaan van onder (x1, y1) naar boven (x2, y2), in schermpunten: de tegel gestapeld langs de lijn
-function hstamLiaanTeken(x1, y1, x2, y2, k){
+function hstamLiaanTeken(x1, y1, x2, y2, k, precies){
   const im = hstamLiaanImg; if (!im || !imgReady(im)) return;
   const L = HSTAM.liaan, w = L.b * k, th = L.h * k;
-  const len = Math.min(Math.hypot(x2 - x1, y2 - y1), 2 * H / viewZoom() + y1 + 400);
+  const len = precies != null ? precies : Math.min(Math.hypot(x2 - x1, y2 - y1), 2 * H / viewZoom() + y1 + 400);
   if (th < 2 || len <= 0) return;
   ctx.save();
   ctx.translate(x1, y1); ctx.rotate(Math.atan2(x2 - x1, -(y2 - y1)));
-  for (let o = 0; o < len; o += th - 1) ctx.drawImage(im, -w / 2, -o - th, w, th);
+  for (let o = 0; o < len; o += th - 1){
+    const r = len - o;
+    if (r >= th || precies == null) ctx.drawImage(im, -w / 2, -o - th, w, th);
+    else ctx.drawImage(im, 0, L.h * (1 - r / th), L.b, L.h * r / th, -w / 2, -o - r, w, r);   // het laatste stuk precies afgeknipt
+  }
   ctx.restore();
 }
 function hstamTeken(groundY, scale, cx){
@@ -15791,6 +15808,12 @@ function hstamTeken(groundY, scale, cx){
       if (!hstamVast(z, i)) continue;
       const hk = hstamHaak(s, M, P, scale, i), an = hstamAnker(s, M, i);
       hstamLiaanTeken(sx(hk.x), sy(hk.h), sx(an.x), sy(an.h), M.k);
+    }
+    // het stuk dat aan de stam bleef: vanaf de knoop, slap omlaag
+    for (let i = 0; i < 2; i++){
+      const t = z.stomp[i]; if (!t) continue;
+      const hk = hstamHaak(s, M, P, scale, i), x1 = sx(hk.x), y1 = sy(hk.h), L = t.L * scale;
+      hstamLiaanTeken(x1, y1, x1 + Math.sin(t.a) * L, y1 - Math.cos(t.a) * L, M.k, L);
     }
     // de afgeknapte stukken: ze hangen nog aan de tak, de onderkant veert op
     for (let i = 0; i < 2; i++){
@@ -55123,10 +55146,12 @@ function loop(now){
         if (attacking && !swingUsed && !comboX && steekLive()){
           const dxv = steekDX() * scale, tipX = pcx + (facing === 1 ? -dxv : dxv), tipY = y + steekY() * scale, reach = steekR() * scale;
           const l = Math.min(pcx, tipX), r = Math.max(pcx, tipX);   // de hele schacht (of de stokken) door de liaan, niet alleen de punt: van dichtbij snijdt hij ook
-          if (r + reach > tb.l && l - reach < tb.r && tipY + reach > tb.t && tipY - reach < tb.b){ swingUsed = true; hstamKnap(st, v.i, 'steek'); break; }
+          if (r + reach > tb.l && l - reach < tb.r && tipY + reach > tb.t && tipY - reach < tb.b){ swingUsed = true; hstamKnap(st, v.i, 'steek', (groundY - Math.max(tb.t, Math.min(tb.b, tipY))) / scale); break; }
         }
         if ((javBox && jav && !jav.hit && jav.state === 'vlucht' && hitBy(javBox, tb)) ||
-            (jav2Box && jav2 && !jav2.hit && jav2.state === 'vlucht' && hitBy(jav2Box, tb))){ hstamKnap(st, v.i, 'worp'); break; }
+            (jav2Box && jav2 && !jav2.hit && jav2.state === 'vlucht' && hitBy(jav2Box, tb))){
+          const jb = (javBox && hitBy(javBox, tb)) ? javBox : jav2Box;   // waar de speer door de liaan vloog
+          hstamKnap(st, v.i, 'worp', (groundY - Math.max(tb.t, Math.min(tb.b, (jb.t + jb.b) / 2))) / scale); break; }
       }
     }
 
