@@ -270,6 +270,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | knooppunten: een raster van straten met een poort de diepte in en een pad naar voren (Sandville) | `straatRaster`, `straatUitgangen`, `straatKnoopGa`, `straatGevelX` | notities/stad.md |
 | de springdoek: de luifel aan de muur van een huis, indigo, doorgezakt, met een eigen hoogte en worp (Stad 9) | `STAD_SPRINGDOEK`, `stadLuifelBeeld`, `sbSpringdoek` | notities/stad.md |
 | de einddeur: E voor een open deur hoog in een huis speelt het level uit (Stad 9) | `eindDeur`, `eindDeurUit`, `eindDeurTeken` | notities/stad.md |
+| het kelderluik: een schuine kelderingang tegen een muur, het luik vliegt open met de deurslag en E speelt het level uit (Stad 14) | `KELDER`, `kelderUpdate`, `kelderUit`, `kelderTeken` | notities/stad.md |
 | de luifel bij de put: een schuine doek die je meteen terugwerpt, vanaf de balk te halen | `STAD.plein.luifel`, `stadLuifelWorp`, `stadLuifelTeken` | notities/stad.md |
 | de strakke luifel: een indigo doek in een houten raam aan de muur, je staat in de stof en de doek zakt in onder je voeten; met `ritme` een trampoline waar je hoogte opbouwt door op tijd te springen (Stad 10) | `luifelStrak`, `stadKuil`, `stadLuifelVoor`, `stadRitme`, `stijl: 'strak'` | notities/stad.md |
 | poort: een stenen boog, decor of de plek waar een vijand uitkomt | `POORT`, `poortOpen`, `poortKlaar` | notities/poort.md |
@@ -415,6 +416,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `goud` | `true`: een goudstuk per kill, een kalebas kost 5 goud in de winkel, goud en kalebassen gaan mee naar het volgende level (De Gouden Poort, zie "goud" in `notities/episodes.md`) |
 | `multikill` | kills binnen 3 s na elkaar zijn een reeks, met het snoer kralen, het woord, de stinger en vanaf de tweede kill 1 goud extra (in een level met goud). Standaard aan in elk level, `multikill: false` zet hem uit (zie `notities/multikill.md`) |
 | `rapport` | na het level het levelrapport in het winscherm: kills, multikills, langste reeks, tijd en goud (in een level met goud). Standaard aan in elk level, `rapport: false` zet het uit (zie `notities/multikill.md`) |
+| `kelder` | het kelderluik: `{x}`, de achterkant van de wig tegen een hoge leemmuur; het luik vliegt open als Amir eraan komt en E speelt het level uit, in plaats van `ends` (alleen Stad 14, zie "het kelderluik" in `notities/stad.md`) |
 | `eindDeur` | de einddeur: `{gevel, verdieping}`, die deur staat open en E ervoor (op een galerij) speelt het level uit, in plaats van `ends` (alleen Stad 9, zie "de einddeur" in `notities/stad.md`) |
 | `munt` | de munt van de koning: `{x, y, vast}`; E pakt hem, en na het level is er een talentpunt extra (een keer per run) |
 | `kisten` | schatkisten: `{x, y, vast, goud, f}`, `y` en `vast` zoals bij de munt; E maakt hem open en `goud` (standaard 20) gaat bij je goud. Sterf je, dan is hij weer dicht (zie "de schatkist" in `notities/episodes.md`) |
@@ -559,6 +561,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **Schade in de pleinvloer van Nyundo** (`design/stad/plein_schade_*.png`, `plein_brokken.png`, uit de Grok-platen in `design/stad/bron/`) → `tools/plein_schade.py`, daarna `gen-offline-manifest.py`; nieuwe brokken geven nieuwe rechthoeken voor `BRU_SCHADE.brokken`
 - **Nyundo** (`enemies/brutus/frames/`, ook na `tools/brutus_donker.py`) → `tools/brutus_spleet.py` (de spleet tussen steel en bal van de knots) en `tools/brutus_rand.py` (de stippelrand om de donkere set), daarna `gen-klein.py` en `gen-offline-manifest.py`
 - **Het bloed onder Nyundo als hij in zijn knots valt** (`design/bloed/nyundo_stroom.png`, uit het lijk van de schildman) → `tools/nyundo_bloed.py`, daarna `gen-offline-manifest.py`
+- **Kelderluik** (`design/stad/kelder/wig.png` en `luik.png`, uit de Grok-platen in `bron/` en de textuur van `gevel.png`) → `tools/kelder_knip.py`, daarna `gen-offline-manifest.py`; een ander canvas vraagt nieuwe maten in `KELDER`
 - **Fontein** (`design/stad/fontein.png`, uit de Grok-plaat in `design/stad/bron/fontein.webp`) → `tools/fontein_knip.py`, daarna `gen-offline-manifest.py`; een nieuwe plaat vraagt nieuwe maten in `WATER.soort.fontein`
 - **Wapenrek** (`design/stad/wapenrek/`, uit de Grok-plaat in `bron/`) → `tools/wapenrek_knip.py`, daarna `gen-offline-manifest.py`
 - **Deurgordijnen** (`design/stad/gordijn/`, uit de Grok-platen in `bron/`) → `tools/gordijn_knip.py`, daarna `gen-klein.py` en `gen-offline-manifest.py` (de gordijnmap staat niet in de lijst van `gen-klein.py`, dus het spel laadt de grote versie, net als bij de tonnen)
