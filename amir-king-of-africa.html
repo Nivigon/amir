@@ -15721,6 +15721,7 @@ function hstamUpdate(dt){
             const tx = z.px + z.kant * d * Math.cos(max);
             hstamSpeel(hstamBonkSnd, HSTAM.vol.bonk, tx);
             hstamStof(tx, 80, 14, g);
+            mistStoot(tx, 0.6, 50);                   // de kant die neerkomt duwt de mist weg
             shake = Math.max(shake, 0.12);
           }
           z.om = z.bounced || z.om < 1 ? 0 : -z.om * HSTAM.stuit;
@@ -15742,6 +15743,7 @@ function hstamUpdate(dt){
         hstamSpeel(hstamKlapSnd, HSTAM.vol.klap, z.lx);
         hstamSpeel(hstamBonkSnd, HSTAM.vol.bonk * 0.7, z.lx);
         hstamStof(z.lx, M.bPx * 0.9, 26, g);
+        mistStoot(z.lx, 1, M.bPx * 0.45);           // de hele stam plat: een breed gat in de mist
         shake = Math.max(shake, 0.2);
         void P;
       }
@@ -21152,6 +21154,7 @@ function gkInslag(){
   const tip2 = px + dir * 10 * maat * sc;                   // de achterste stok staat vlak voor hem
   gkSchaal = sc;
   hitstop = Math.max(hitstop, GK.stop); shake = Math.max(shake, GK.schok);
+  mistStoot(tip, 0.85, 45, dir * -520);                      // de klap duwt de mist weg, en het gat rolt met de golf mee naar voren
   gkId++; sweepId++;                                        // een nieuwe zwaai: elke vijand een keer
   const ber = (GK.bereik[straalBurst() ? 'lang' : (typeof duoKeuze !== 'undefined' && duoKeuze.gkBereik) || 'middel'] || 2) * CHAR_H * sc;   // ontketend (STRAAL): het lange bereik
   gkRaak = { x0: px - dir * 0.08 * CHAR_H * sc, tip, front: tip, staart: px - dir * 0.08 * CHAR_H * sc, dir, ver: tip + dir * ber, t: 0,
@@ -26603,6 +26606,58 @@ function drawWeer(grensY, onder){
   if (N.mist > 0.01) mistTeken(N.mist * boven);
   ctx.restore();
 }
+// ---- een klap in de mist: een zware klap op de grond duwt de grondmist weg (MIST_STOOT) ----
+// Valt er iets zwaars op de grond in de mist (de hangende stam, een harde landing van Amir, de grondklap met de
+// stokken), dan duwt de luchtdruk de mist opzij: er komt een heldere plek die eerst snel breder wordt en dan in een
+// paar seconden weer dichtloopt, en de weggeduwde mist rolt als een dikkere rand naar buiten en vervaagt. Een stoot
+// is {wx, k, b, vx, t}: de plek, de kracht (0 tot 1), de halve breedte van de klap zelf (wereld-px) en eventueel een
+// snelheid waarmee het gat meeschuift (de golf van de grondklap). mistTeken leest het via mistDekking, per smal vak.
+// Zonder mist doet mistStoot niets, dus je kunt hem overal aanroepen.
+const MIST_STOOT = {
+  leven: 3.4,      // zo lang duurt een stoot (s): het gat loopt in de tweede helft weer dicht
+  uit: 230,        // zo ver duwt een volle klap het gat verder open dan de klap zelf breed is (wereld-px)
+  open: 5,         // hoe snel het gat opengaat (1/s; hoger is een hardere klap)
+  diep: 0.92,      // in het midden is de mist zo veel dunner (bij kracht 1)
+  rand: 0.7,       // de opgestuwde rand: zo veel dikker, op het hoogtepunt
+  randOp: 0.8,     // en hij bolt op: een extra laag mist die zo veel van de mistband boven de rand uitsteekt (per eenheid extra dikte)
+  randB: 70,       // en zo breed (wereld-px)
+  max: 8,          // hooguit zoveel stoten tegelijk
+  vak: 10,         // de mist wordt bij een stoot in vakken van zoveel scherm-px getekend
+  stap: 0.012      // en vakken die minder dan zoveel in dikte verschillen worden samen getekend
+};
+const mistStoten = [];
+function mistStoot(wx, kracht, breed, vx){
+  if (!weerNu || !(weerNu.mist > 0.01) || !(kracht > 0.02)) return;
+  if (mistStoten.length >= MIST_STOOT.max) mistStoten.shift();
+  mistStoten.push({ wx, k: Math.min(1, kracht), b: breed || 30, vx: vx || 0, t: 0 });
+}
+function mistStootStap(dt){
+  for (let i = mistStoten.length - 1; i >= 0; i--){
+    const m = mistStoten[i];
+    m.t += dt; m.wx += m.vx * dt; m.vx *= Math.exp(-3 * dt);   // een meeschuivend gat remt af
+    if (m.t >= MIST_STOOT.leven) mistStoten.splice(i, 1);
+  }
+}
+// hoe dik de mist op wereld-x wx is ten opzichte van normaal: onder 1 in een gat, boven 1 op de opgestuwde rand
+function mistDekking(wx){
+  const S = MIST_STOOT;
+  let f = 1;
+  for (const m of mistStoten){
+    const u = m.t / S.leven;
+    const R = m.b + S.uit * m.k * (1 - Math.exp(-m.t * S.open));       // het gat gaat snel open en staat dan stil
+    const terug = u < 0.35 ? 1 : 1 - (u - 0.35) / 0.65;                  // daarna loopt het weer dicht
+    const zacht = terug * terug * (3 - 2 * terug);
+    const d = Math.abs(wx - m.wx);
+    if (d < R){
+      const x = d / R, gat = x < 0.45 ? 1 : 0.5 + 0.5 * Math.cos(Math.PI * (x - 0.45) / 0.55);
+      f *= 1 - S.diep * m.k * zacht * gat;
+    }
+    const rr = (d - R) / S.randB;
+    if (rr > -1.5 && rr < 2.5) f += S.rand * m.k * Math.exp(-rr * rr) * (1 - u) * Math.min(1, m.t * 6);
+  }
+  return Math.max(0, Math.min(1.8, f));
+}
+
 // De grondmist (WEER.mist): een keer per laag een naadloze tegel met zachte vlekken, onderin dicht en
 // naar boven en onder uitvagend. Getekend in stroken die de echte grond volgen (weerOppervlakY), dus
 // hij ligt op een terras even goed als op de savanne, en boven een ravijn ligt er niets.
@@ -26653,16 +26708,32 @@ function mistTeken(k){
       for (let x = x0 + Math.floor((l - x0) / w) * w; x < r; x += w) ctx.drawImage(img, x, y, w, h);
       ctx.restore();
     };
+    // een vak op dikte d: onder 1 dunner, erboven dichter en met een opgebolde laag erboven (de rand die wegrolt)
+    const vakD = (l, r, y, f, d) => {
+      vak(l, r, y, Math.min(1 / Math.max(0.01, A), f * Math.min(1, d)));
+      if (d > 1.005) vak(l, r, y - (d - 1) * h * MIST_STOOT.randOp, Math.min(1 / Math.max(0.01, A), f * (d - 1) * 1.3));
+    };
+    // met een klap in de mist (MIST_STOOT): het stuk in smalle vakken, elk op zijn eigen dikte (gelijke naast elkaar samen)
+    const vakS = (l, r, y, f) => {
+      if (!mistStoten.length){ vak(l, r, y, f); return; }
+      let vl = l, vf = null;
+      for (let a = l; a < r; a += MIST_STOOT.vak){
+        const b = Math.min(r, a + MIST_STOOT.vak), d = mistDekking(world + ((a + b) / 2 - W / 2) / zoom);
+        if (vf === null) vf = d;
+        else if (Math.abs(d - vf) > MIST_STOOT.stap){ vakD(vl, a, y, f, vf); vl = a; vf = d; }
+      }
+      if (vf !== null) vakD(vl, r, y, f, vf);
+    };
     for (const r of runs){
       const y = Math.round(r.gy - h * 0.8);
       // waar de grond een stap maakt (een terras, een ravijn) loopt de mist zacht uit in plaats van met een rechte kant
       const vl = r.l > 0 ? V : 0, vr = r.r < W ? V : 0;
-      vak(r.l + vl, r.r - vr, y, 1);
+      vakS(r.l + vl, r.r - vr, y, 1);
       const n = M.veerStappen;
       for (let k = 0; k < n; k++){
         const f = (k + 0.5) / n;
-        if (vl) vak(r.l + vl * k / n, r.l + vl * (k + 1) / n, y, f);
-        if (vr) vak(r.r - vr * (k + 1) / n, r.r - vr * k / n, y, f);
+        if (vl) vakS(r.l + vl * k / n, r.l + vl * (k + 1) / n, y, f);
+        if (vr) vakS(r.r - vr * (k + 1) / n, r.r - vr * k / n, y, f);
       }
     }
   });
@@ -35843,6 +35914,7 @@ function updateJump(dt, plats, halfW){
     if (jump){ jump.phase = 'land'; jump.t = 0; }
     puffDust(9);
     if (winterOn() && waterDepthAt(world, target) < 0.2) snowBurst(world, target, vIn / 900);   // de sneeuw stuift op
+    if (vIn > jumpV() * 0.9) mistStoot(world, Math.min(0.7, (vIn - jumpV() * 0.9) / (jumpV() * 1.6) + 0.15), 22);   // een harde landing duwt de mist opzij (MIST_STOOT)
     if (targetPlat && targetPlat.hstam) hstamBons(targetPlat.id, vIn);   // op de hangende stam: inzakken, meezwaaien en het kraken van de liaan
     else if (targetPlat && targetPlat.takel){ const tk = takelById(targetPlat.id); if (tk) takelBons(tk, vIn, world >= tk.px ? 1 : -1); }   // op het plateau springen: inzakken plus schommelen naar de landingskant
     amirPlat = (targetPlat && (targetPlat.takel || targetPlat.rijs)) ? (targetPlat.id || null) : null;   // beland je op een bewegend plateau, dan bind je je eraan
@@ -37807,6 +37879,7 @@ function restart(){
   kooiSleepStop();                                  // en het sleepgeluid van de kooiman ook
   takelReset();                                     // en het takelwiel met het plateau weer op zijn beginstand
   hstamReset();                                     // en de hangende stam weer aan zijn twee lianen
+  mistStoten.length = 0;                            // en de mist weer heel
   deurReset();                                       // de deur in de rotswand weer dicht
   kelderReset();                                     // en het kelderluik weer dicht
   fakkelReset();                                     // de vonken weg en het vuurgeluid uit
@@ -52634,6 +52707,7 @@ function loop(now){
   const halfWNow = PLAYER_HALF_W * CHAR_H * scaleNow;
   if (dt > 0) takelUpdate(dt);                    // het takelwiel: het rad draait naar zijn doel, het plateau zakt en veert
   if (dt > 0) hstamUpdate(dt);                    // de hangende stam: slingert, valt een kant op, dan plat (HSTAM)
+  if (dt > 0) mistStootStap(dt);                  // een klap in de mist loopt weer dicht (MIST_STOOT)
   if (dt > 0) deurUpdate(dt);                     // de deur in de rotswand: vliegt open als Amir dichtbij komt, en laat een bandiet los
   if (dt > 0) kelderUpdate(dt);                   // het kelderluik: vliegt open als Amir dichtbij komt
   const plats = platsNear(scaleNow);

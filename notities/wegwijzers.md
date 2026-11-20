@@ -127,3 +127,12 @@ liaan van de knoop tot een anker `HSTAM.anker` boven de stam, dus ruim buiten be
 Het stof in het regenwoud (`RW_STOF`, `regenwoudStof(wx)`): in een uitzicht met `biome: 'regenwoud'` of op een strook
 `regenwoud` (grondSoort) geven `puffPic`, `wispPic`, `dustColor` en `stofWolk` donkere humus met een groene zweem in
 plaats van savannezand. Een strook savanne in een regenwoud-uitzicht houdt het zand (Test 81 begint zo).
+
+### Een klap in de mist (MIST_STOOT)
+
+Een zware klap op de grond in de grondmist (`mistStoot(wx, kracht, breed, vx)`) duwt de mist weg: een gat dat snel
+opengaat (`uit`, `open`) en in de tweede helft van `leven` weer dichtloopt, met een opgestuwde rand die dikker wordt en
+opbolt (`rand`, `randOp`, `randB`) en vervaagt. `mistTeken` tekent de mist dan in smalle vakken (`vak`, `stap`), elk op
+de dikte van `mistDekking(wx)`. Zonder mist doet `mistStoot` niets. Wie stoot: de hangende stam (een kant 0,6, plat 1
+over de hele lengte), een landing van Amir harder dan een gewone sprong (tot 0,7), en de grondklap (0,85, het gat rolt
+met de golf mee naar voren via `vx`). Bij een herstart is de mist weer heel.
