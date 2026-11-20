@@ -30982,6 +30982,23 @@ function stadVerteStuk(soort, i, nevel){
     return stadBak(im, im.naturalWidth, im.naturalHeight, (r, g, b) => [r * k * (1 - a) + N[0] * a, g * k * (1 - a) + N[1] * a, b * k * (1 - a) + N[2] * a]);
   });
 }
+// De kraam en het voetdecor, een keer gebakken (stadGebakken). Los van het tekenen, zodat warmBouw ze achter het
+// laadscherm al kan maken: eerst gebeurde dat pas als het stuk in beeld kwam, een hapering van 15 tot 130 ms midden
+// in het spel (een doekkraam is groot en gaat pixel voor pixel door stadBak).
+function stadKraamBak(soort){
+  const Z = STAD.kraamZacht;
+  return stadGebakken('kraam_' + soort, () => {
+    const ki = stadImgs[soort];
+    return stadBak(ki, ki.naturalWidth, ki.naturalHeight, (r, g, b) => [(r - 150) * Z.c + 150 + Z.lift, (g - 150) * Z.c + 150 + Z.lift, (b - 150) * Z.c + 150 + Z.lift]);
+  });
+}
+function stadVoetBak(stuk){
+  const vi = stadImgs.voet, V = STAD.voet, r = V.stukken[stuk];
+  // in een level met tint: een stuk in de straatkleur (zandhoop, stenen, puin) volgt de straat, een kruik blijft zichzelf
+  const bi = V.straatKleur[stuk] && stadImgs.voetTint ? stadImgs.voetTint : vi;
+  return stadGebakken('voet_' + stuk, () => stadBak(bi, r[2], r[3], V.straatKleur[stuk] ? (a, b, d) => [a * V.tint[0], b * V.tint[1], d * V.tint[2]] : null,
+                                                    stadQ(vi, r[0]), stadQ(vi, r[1]), stadQ(vi, r[2]), stadQ(vi, r[3])));
+}
 function stadVerteHash(seed, i, j){ return stadNachtHash(seed, i, j, 31); }
 function stadVerteZet(c, x, voet, s, flip){
   const w = c.width * s, h = c.height * s;
@@ -31456,16 +31473,39 @@ function stadBordesDiepte(bl, br, ht, btop, groundY, scale, cx, naarRechts){
   const sc = sceneCfg(), dim = sc && sc.dim ? sc.dim[1] : 0, S = (sc && sc.slag) || {};
   const sterk = STAD_SLAG.alfa * (S.alfa != null ? S.alfa : 1) * (1 - dim * STAD_SLAG.dimZacht);
   if (sterk <= 0.01) return;
-  const donker = stadGalerijDonker(), f = CHAR_H * scale / STAD.galerij.amir;
-  const sx0 = cx + (bl - world), bw = br - bl, N = Math.max(8, Math.min(40, Math.round(bw / 5))), w = bw / N;
-  for (let i = 0; i < N; i++){
-    const t = (i + 0.5) / N, d = naarRechts ? t : 1 - t;     // 0 aan de buitenkant, 1 tegen de muur
-    const a = sterk * d * d * (3 - 2 * d);                    // zacht in, vol tegen de muur
-    if (a < 0.01) continue;
-    ctx.save(); ctx.beginPath(); ctx.rect(sx0 + i * w - 0.25, btop - 4, w + 0.5, 140 * f); ctx.clip();
-    ctx.globalAlpha = a; stadStrook(bl, br, ht, groundY, scale, cx, null, true, donker); ctx.restore();
+  const donker = stadGalerijDonker(), GL = STAD.galerij, f = CHAR_H * scale / GL.amir;
+  // Eerst waren dit tot 40 smalle banden per beeld, elk met een eigen clip en de hele strook opnieuw (zo'n 0,5 ms per
+  // trap in beeld). Nu een keer gebakken per trap, zoom en resolutie: de donkere strook met het verloop er als masker
+  // overheen (hetzelfde zachte in, vol tegen de muur, maar zonder banden), en elk beeld alleen nog een drawImage.
+  const R = Math.max(1, Math.abs(ctx.getTransform().a));        // schermpixels per eenheid (DPR keer de zoom)
+  const bw = br - bl, hh = 128 * f, sleutel = bl + '|' + br + '|' + ht + '|' + (naarRechts ? 1 : 0) + '|' + scale.toFixed(4) + '|' + R.toFixed(3);
+  let B = STAD_BORDES_BAK.get(sleutel);
+  if (!B || B.donker !== donker){
+    if (STAD_BORDES_BAK.size > 24) STAD_BORDES_BAK.clear();   // een glijdende zoom bakt telkens opnieuw: niet laten oplopen
+    const c = document.createElement('canvas'), cw = bw + 2, ch = hh + 4;
+    c.width = Math.max(1, Math.ceil(cw * R)); c.height = Math.max(1, Math.ceil(ch * R));
+    const g = c.getContext('2d'); g.setTransform(R, 0, 0, R, 0, 0); g.imageSmoothingQuality = ctx.imageSmoothingQuality;
+    // de strook zoals stadStrook hem legt (alleenTop), met de linkerkant op 1 en de bovenkant op 2
+    const lw = (GL.links[1] - GL.links[0]) * f, mw = (GL.midden[1] - GL.midden[0]) * f, rw = (GL.rechts[1] - GL.rechts[0]) * f;
+    const n = Math.max(0, Math.ceil((bw - lw - rw) / mw));
+    const stuk = (a, b, x, w) => g.drawImage(donker, stadQ(donker, a), 0, stadQ(donker, b - a), stadQ(donker, 128), x, 2, w + 0.6, hh);
+    let x = 1;
+    stuk(GL.links[0], GL.links[1], x, lw); x += lw;
+    for (let i = 0; i < n; i++){ stuk(GL.midden[0], GL.midden[1], x, mw); x += mw; }
+    stuk(GL.rechts[0], GL.rechts[1], Math.min(x, 1 + bw - rw), rw);
+    const gr = g.createLinearGradient(1, 0, 1 + bw, 0);
+    for (let i = 0; i <= 12; i++){
+      const t = i / 12, d = naarRechts ? t : 1 - t;            // 0 aan de buitenkant, 1 tegen de muur
+      gr.addColorStop(t, 'rgba(0,0,0,' + (d * d * (3 - 2 * d)).toFixed(3) + ')');   // zacht in, vol tegen de muur
+    }
+    g.globalCompositeOperation = 'destination-in'; g.fillStyle = gr; g.fillRect(0, 0, cw, ch);
+    B = { c, cw, ch, donker }; STAD_BORDES_BAK.set(sleutel, B);
   }
+  ctx.save(); ctx.globalAlpha = sterk;
+  ctx.drawImage(B.c, cx + (bl - world) - 1, btop - 2, B.cw, B.ch);
+  ctx.restore();
 }
+const STAD_BORDES_BAK = new Map();
 function stadTrappen(){ return stadAan() && level.stad.trappen ? level.stad.trappen : []; }
 // de voet van de trap (wereld-x): begint een trap op een galerij of balkon (niveau 1 of hoger), dan stond de leuning
 // van dat dek als een hekje laag voor de onderste treden. Daar hoort geen leuning; stadGalerijGaten en het balkon
@@ -34387,9 +34427,6 @@ function stadTeken(groundY, scale, cx){
       stuk(GL.links[0], GL.links[1], x, m.lw); x += m.lw;
       for (let i = 0; i < m.n; i++){ stuk(GL.midden[0], GL.midden[1], x, m.mw); x += m.mw; }
       stuk(GL.rechts[0], GL.rechts[1], Math.min(x, sx + (m.right - m.left) - m.rw), m.rw);
-      const sw = STAD.galerij.inMuur * 2 * CHAR_H * scale;     // de schaduw van de muur over het stuk dat erin verdwijnt
-      if (m.muurR) stadMuurSchaduw(sx + (m.right - m.left) - sw, top, sw, hh, true);
-      if (m.muurL) stadMuurSchaduw(sx, top, sw, hh, false);
       ctx.restore();
     }
   }
@@ -34413,11 +34450,7 @@ function stadVoorTeken(groundY, scale, cx, hoog){
     if (!stadKlaar(soort) || !hier(k.x)) return;
     const m = stadKraamMaat(k, scale), sx = cx + (m.left - world);
     if (!zicht(sx, m.w)) return;
-    const Z = STAD.kraamZacht;
-    const c = stadGebakken('kraam_' + soort, () => {
-      const ki = stadImgs[soort];
-      return stadBak(ki, ki.naturalWidth, ki.naturalHeight, (r, g, b) => [(r - 150) * Z.c + 150 + Z.lift, (g - 150) * Z.c + 150 + Z.lift, (b - 150) * Z.c + 150 + Z.lift]);
-    });
+    const c = stadKraamBak(soort);
     const gy = groundY - terrainH(k.x) * scale, top = gy - m.h;
     ctx.save();
     if (k.f){ ctx.translate(sx + m.w, 0); ctx.scale(-1, 1); } else ctx.translate(sx, 0);
@@ -34444,10 +34477,7 @@ function stadVoorTeken(groundY, scale, cx, hoog){
       const r = V.stukken[v.stuk]; if (!r || !hier(v.x)) continue;
       const w = r[2] * f, h = r[3] * f, vx = stadVoetX(v.x, w, S, scale), sx = cx + (vx - world) - w / 2;
       if (!zicht(sx, w)) continue;
-      // in een level met tint: een stuk in de straatkleur (zandhoop, stenen, puin) volgt de straat, een kruik blijft zichzelf
-      const bi = V.straatKleur[v.stuk] && stadImgs.voetTint ? stadImgs.voetTint : vi;
-      const c = stadGebakken('voet_' + v.stuk, () => stadBak(bi, r[2], r[3], V.straatKleur[v.stuk] ? (a, b, d) => [a * V.tint[0], b * V.tint[1], d * V.tint[2]] : null,
-                                                              stadQ(vi, r[0]), stadQ(vi, r[1]), stadQ(vi, r[2]), stadQ(vi, r[3])));
+      const c = stadVoetBak(v.stuk);
       // op de stoep voor de muur, niet op de muurvoet zelf: daar leek het boven de straat te hangen
       const th = terrainH(vx), gy = groundY - th * scale - (th ? 0 : stadStoepH(scale) * V.stoep);
       ctx.save();
@@ -37811,6 +37841,28 @@ function warmBouw(){
         const sl = fr.src + '|' + kl; if (gedaan.has(sl)) continue; gedaan.add(sl);
         rij.push(() => { if (!fr.complete) return false; if (fr.naturalWidth > 0) volkBeeld(fr, kl); });
       }
+    }
+  }
+  // de stad: de kramen, het voetdecor en de stukken in de verte (daken, palmen, moskee) gaan door stadBak, en dat
+  // gebeurde pas als ze in beeld kwamen. Nog niet binnen: wachten (false); ontbreekt een plaat, dan niets.
+  if (level.stad){
+    const S = level.stad, wacht = k => stadImgs && stadImgs[k] && !stadImgs[k].complete;
+    for (const soort of new Set((S.kramen || []).map(k => k.soort === 'doek' ? 'doek' : 'riet')))
+      rij.push(() => { if (wacht(soort)) return false; if (stadKlaar(soort)) stadKraamBak(soort); });
+    for (const stuk of new Set((S.voet || []).map(v => v.stuk)))
+      rij.push(() => { if (wacht('voet')) return false; if (stadKlaar('voet') && STAD.voet.stukken[stuk]) stadVoetBak(stuk); });
+    // de huizen in de achterrijen: per rij een huis van 1 tot 4 hoog (stadReeks), in de nevel van die rij
+    for (let r = 0; r < STAD.rijen.length; r++) for (let n = 1; n <= 4; n++)
+      rij.push(() => { if (wacht('gevel')) return false; if (stadKlaar('gevel')) stadRijHuis(r, n); });
+    if (stadVerteImgs){
+      const stukken = [['moskee', 0, STAD_VERTE.moskee.nevel]];
+      for (let i = 0; i < stadVerteImgs.groep.length; i++) stukken.push(['groep', i]);
+      for (let i = 0; i < stadVerteImgs.palm.length; i++) stukken.push(['palm', i]);
+      for (const [soort, i, nevel] of stukken) rij.push(() => {
+        const im = soort === 'moskee' ? stadVerteImgs.moskee : stadVerteImgs[soort][i];
+        if (im && !im.complete) return false;
+        stadVerteStuk(soort, i, nevel);
+      });
     }
   }
   if (takelLijst().length){ try { takelLaad(); } catch (e) {} warmDing([takelImgs, takelPlateau, takelTouwImg, takelKnop, stamTop, stamMid, stamBottom, stamMini]); }
