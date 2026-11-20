@@ -243,6 +243,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | rijzende grond: steen dat op een zegel uit een ravijn komt | `RIJS`, `rijsUpdate`, `duur` | notities/rijzende-grond.md |
 | takelwiel met plateau: een rad dat je met je speer slaat | `TAKEL`, `takelLaad`, `takelReset` | notities/takelwiel.md |
 | de hangende stam: een boomstam aan twee lianen in het regenwoud, slingert, een liaan doorslaan laat hem schuin en dan plat vallen (Test 82) | `HSTAM`, `hstamKnap`, `hstamUpdate`, `hstamPlats`, `hstamTeken` | notities/wegwijzers.md |
+| een klap in de mist: de stam, een harde landing en de grondklap duwen de grondmist weg, een gat dat dichtloopt en een rand die opbolt en wegrolt | `MIST_STOOT`, `mistStoot`, `mistDekking`, `mistStootStap` | notities/wegwijzers.md |
 | stof in het regenwoud: donkere humus in plaats van zand | `RW_STOF`, `regenwoudStof`, `puffPic`, `stofWolk` | notities/wegwijzers.md |
 | de stad: een Sahelstraat met gevels, galerijen, kramen en het paleis | `STAD`, `stadPlats`, `stadAchter`, `stadTeken` | notities/stad.md |
 | achter de kartels: wie op een dak in de stad staat, staat achter de tanden | `STAD_KANTEEL`, `dakAchter`, `stadKanteelVoor` | notities/stad.md |
