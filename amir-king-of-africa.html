@@ -50305,6 +50305,25 @@ const bloedSnd = geluidAan(new Audio());
 bloedSnd.preload = 'auto'; bloedSnd.src = 'sounds/bloedspuit.mp3';
 bloedSnd.onerror = () => console.warn('ontbreekt: sounds/bloedspuit.mp3');
 function bloedSpeel(){ if (!wantSound) return; try { bloedSnd.currentTime = 0; } catch (e) {} bloedSnd.volume = 0.85; bloedSnd.play().catch(() => {}); }
+// een klein bloedgeluid als een slang geraakt wordt met de punt of de kling (steek, worp, lage zwaai met de speer); niet
+// met de stokken (die geven de houtklap) en niet met het mes (dat weert af). Een kort stuk van dezelfde spuit, zachter en
+// wat hoger, met een eigen Audio zodat het de grote spuit niet afkapt.
+const SLANG_BLOED = { van: 0.27, tot: 0.62, vol: 0.4, snel: 1.25, uit: 0.08 };   // seconden in het bestand, volume, tempo, uitfaden
+const slangBloedSnd = geluidAan(new Audio());
+slangBloedSnd.preload = 'auto'; slangBloedSnd.src = 'sounds/bloedspuit.mp3';
+let slangBloedKlok = 0;
+function slangBloedSpeel(){
+  if (!wantSound) return;
+  const S = SLANG_BLOED, a = slangBloedSnd;
+  clearInterval(slangBloedKlok);
+  try { a.currentTime = S.van; } catch (e) {}
+  a.playbackRate = S.snel; a.volume = S.vol; a.play().catch(() => {});
+  slangBloedKlok = setInterval(() => {               // tot 'tot', de laatste 'uit' seconden zacht weg
+    const rest = S.tot - a.currentTime;
+    if (rest <= 0 || a.paused){ a.pause(); clearInterval(slangBloedKlok); return; }
+    if (rest < S.uit) a.volume = S.vol * rest / S.uit;
+  }, 16);
+}
 // het trefpunt van een klap, set-onafhankelijk: dx naar zijn voorkant en dy boven zijn voeten, in basis-px
 function bloedTref(s, bodyX, voeten, bS, face, sx, sy){
   const front = face === 1 ? 1 : -1;
@@ -54324,7 +54343,10 @@ function loop(now){
             tipY + reach > sbox.t && tipY - reach < sbox.b){
           if (atkMes){ if (mesAfweer(s, 'slang')) swingUsed = true; }   // het mes weert af, het doodt niet
           else {
-          if (slagEen(s) && stokRaakKlap(enemyTakeHit(s))){
+          const hp0 = s.hp;
+          const dood = slagEen(s) && stokRaakKlap(enemyTakeHit(s));
+          if (!atkStok && (dood || s.hp < hp0)) slangBloedSpeel();   // een klein bloedgeluid bij de steek (SLANG_BLOED)
+          if (dood){
           hits++; hitsEl.textContent = hits;
           s.state = 'dying'; s.flash = 0.25; s.ddSoort = atkStok ? 'stok' : 'steek';
           s.vx = (facing === 1 ? 420 : -420);
@@ -54338,7 +54360,9 @@ function loop(now){
       // ---- de geworpen speer ------------------------------------------
       if (s.state !== 'dying' && javRaakt(sbox, s)){
         javHitEnemy();
-        if (enemyTakeHit(s)){
+        const hp0 = s.hp, dood = enemyTakeHit(s);
+        if (dood || s.hp < hp0) slangBloedSpeel();       // de speer zit erin: het kleine bloedgeluid
+        if (dood){
         hits++; hitsEl.textContent = hits;
         s.state = 'dying'; s.flash = 0.25; s.ddSoort = 'worp';
         s.vx = (jav.dir === 1 ? 420 : -420);
@@ -54349,7 +54373,9 @@ function loop(now){
       // ---- lage zwaai: raakt alles laag om hem heen, elke slang één keer ----
       if (s.state !== 'dying' && s.sweptId !== sweepId && hitBy(zwaaiVak(swbox, 'slang'), sbox)){
         s.sweptId = sweepId;
-        if (enemyTakeHit(s)){
+        const hp0 = s.hp, dood = enemyTakeHit(s);
+        if (sweepLive && !atkStok && (dood || s.hp < hp0)) slangBloedSpeel();   // de kling van de lage zwaai, niet de stokken of de grondklap
+        if (dood){
         hits++; hitsEl.textContent = hits;
         s.state = 'dying'; s.flash = 0.25; s.ddSoort = sweepLive ? (atkStok ? 'stok' : 'laag') : 'klap';
         s.vx = (s.x < playerX() ? -420 : 420);

@@ -20,3 +20,11 @@
 De witte flits is de bestaande (`s.flash`). De druppels vliegen van Amir af en blijven als spatjes op de grond liggen. Het lijk ligt `SLANG_DOOD.lig` (3 s) en vervaagt dan in `SLANG_DOOD.vervaag` (0,8 s). Zijn de doodframes er niet (nog niet geladen), dan valt hij terug op de oude dood (wegglijden en vervagen). De fosforslang heeft zijn eigen update en houdt de oude dood.
 
 Hoe de frames gemaakt zijn: een Grok-clip vanaf frame 46 van `enemies/slang1/snakemove.mp4`, gekeyd, het zwevende achterlijf per frame op de grond gezet, geschaald met 0,56 en uitgelijnd op `move_1` (IoU 0,95), daarna omgekleurd zoals `tools/slang_kleur.py` (op de grote clip, dan verkleind, zodat het oog klopt).
+
+## Het bloedgeluid bij een treffer
+
+Een slang die geraakt wordt met de punt of de kling (steek, worp, lage zwaai met de speer) geeft een klein bloedgeluid,
+ook bij een treffer die hem nog niet doodt (met `hpBalk`). Het is een kort stuk van `sounds/bloedspuit.mp3` (0,27 tot
+0,62 s, zachter en op 1,25 keer het tempo, met een eigen Audio), zie `SLANG_BLOED` en `slangBloedSpeel`. Niet met de
+stokken (die geven de houtklap), niet met de grondklap en niet met het mes (dat weert af). De fosforslang (`fosforRaak`)
+heeft het niet.
