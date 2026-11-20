@@ -524,6 +524,34 @@ brug moeten kunnen lopen.
 Test 78 (Small steps) is het proefstuk: drie opstapjes van 28 naar een plein met een bandiet en een schildbandiet, drie
 omlaag, een hyena en een slang, en een stoeprand met een kruisboogschutter en een bandiet.
 
+### Opstapjes op de savanne
+
+`SAV_OPSTAP`, `savOpTeken`, `savOpLaad`, `savOpLaadLevel`; `tools/savanne_opstap.py`.
+
+De vlag `opstap` kijkt niet naar de look, dus een terras met `grond: true, opstap: true` liep altijd al. Alleen het beeld
+was slecht: `savanneLaag` is gemaakt voor lagen van 300 en 600 en tekent de hele grondrand met het donker eronder, wat bij
+28 een stapel klifjes gaf. Daarom tekent `savOpTeken` (vanuit `drawClimb`, in plaats van `savanneLaag`) zo'n trede volgens
+het recept van de straat:
+
+- **De wand**: `design/opstap/savanne_onder.png`, de rotskolommen van de grondrand (rij 185 tot 297) naadloos onder elkaar,
+  per trede vast onder zijn eigen kap (zo sluiten kap en kolommen naadloos aan), met onderaan hetzelfde donker als de grond.
+- **Het zand met de kap**: de grondrand zelf, vast aan de wereld, afgeknipt onder de kap.
+- **Het eind**: `design/opstap/savanne_eind.png`, uit een Grok-plaat (`design/opstap/bron/`, met de prompts en de afgekeurde
+  rondes in `savanne_rand.md`): de kap brokkelt af, het zand buigt mee, keien en een graspol. Links gespiegeld. Het
+  begin vloeit over 80 px in de tegel; de wand volgt de onderrand ervan (`savOpImg.rand`, bij het laden uit de alfa gelezen)
+  en loopt onder de punt schuin terug naar de grond.
+
+Het eind is lang: ruim een halve Amir binnen de trede. Een trede met minstens `SAV_OPSTAP.breed` (240), liever 400, aan
+loopvlak leest als een los stapje; smaller vloeien de einden samen tot een glooiing (allebei goed, een keuze van het level).
+Er waren twee platen: plaat 1 (keien in het zand) is gekozen, plaat 2 (hoekige keien bovenop) staat alleen in `bron/`.
+Alleen op de gewone grondtegel: in de winter, op een rotsbodem (`sneeuw`) of in de stad valt hij terug op `savanneLaag`,
+en stroken `grondSoort` komen er niet op. In de Maker zit de vlag nog niet. Nog zichtbaar: zwakke verticale naden in de wand
+waar treden naast elkaar liggen (elke trede begint zijn wand op een eigen hoogte).
+
+Test 80 (Savanna steps) is het proefstuk: drie treden van 400 omhoog met een slang ervoor, een hyena en een bandiet op de
+top, drie van 160 omlaag met een schorpioen eronder, en een los stuk van 32 met een bandiet en een schildbandiet. In de
+sandbox onder Terrein, Savannelaag: **Opstapjes** (`sbsavopstap`).
+
 ## Doorzakken
 
 `DOORVAL`, `doorvalStart`, `doorvalTik`, `doorvalNegeer`, `doorvalAan`. Twee keer snel pijl omlaag (binnen `DOORVAL.tik`, 0,3 s; omlaag plus pijl omhoog was op een laptop onhandig), of op een telefoon de stick omlaag plus de springknop, op een dunne houten vloer

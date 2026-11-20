@@ -261,6 +261,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | de leemmuur: een terras met de look van de stad | `LEEM`, `leemMuurTeken`, `look: 'leem'` | notities/stad.md |
 | de verhoogde straat: een terras met de look van de straat, treden en een hoge wijk, de onderlaag eronder (`stad.onder`) | `STRAAT_TREDE`, `straatTredeTeken`, `look: 'straat'` | notities/stad.md |
 | opstapjes: lage treden (`opstap: true`, tot 32) die Amir en de lopende vijanden oplopen in plaats van opspringen; slangen en schorpioenen niet (Test 78) | `OPSTAP`, `opstapBij`, `opstapVolg` | notities/stad.md |
+| savanne-opstapjes: een opstapje met `grond: true` tekent als een lage trede van savanne, met een naadloze wand en een afgebrokkeld eind (Test 80) | `SAV_OPSTAP`, `savOpTeken`, `savOpLaad` | notities/stad.md |
 | de tint van een level: de stad een keer omgekleurd, bijvoorbeeld wit zand (`tint: 'wit'`, Ishmul) | `TINT`, `tintStap`, `tintBak` | notities/stad.md |
 | de houten vloer: de vloer van een huis met verdiepingen, een zwever met look hout | `look: 'hout'`, `savanneLaag`, `vloer_hout` | notities/stad.md |
 | binnen: de binnenkant van een huis, E bij het deurgat, een ladder, licht en stof (in de Maker: kamers van Binnen-cellen); met `verdieping` de deur boven, vanaf een galerij, en met `deuren` meer deuren naar buiten (beneden erin, boven eruit) | `BINNEN`, `binnenE`, `binnenAchter`, `binnenNa`, `mkBinnenKamers` | notities/stad.md |
@@ -562,6 +563,7 @@ Welk script draai je na welke wijziging (de volledige uitleg staat in `notities/
 - **Wapenrek** (`design/stad/wapenrek/`, uit de Grok-plaat in `bron/`) → `tools/wapenrek_knip.py`, daarna `gen-offline-manifest.py`
 - **Deurgordijnen** (`design/stad/gordijn/`, uit de Grok-platen in `bron/`) → `tools/gordijn_knip.py`, daarna `gen-klein.py` en `gen-offline-manifest.py` (de gordijnmap staat niet in de lijst van `gen-klein.py`, dus het spel laadt de grote versie, net als bij de tonnen)
 - **Tonnen** (`design/stad/ton/`, uit de Grok-platen in `bron/`) → `tools/ton_kleur.py`, daarna `gen-offline-manifest.py`
+- **Savanne-opstapjes** (`design/opstap/savanne_onder.png` uit de grondrand, `savanne_eind.png` uit de Grok-plaat in `bron/`) → `tools/savanne_opstap.py`, daarna `gen-offline-manifest.py`
 - **Rotsdecor** (`design/rotsdecor/`, losse rotsstukken uit de platen in `bron/`) → `tools/rotsdecor_knip.py`, daarna `gen-offline-manifest.py`
 - **Stadsvoorgrond** (`design/stad/voorgrond/`, geknipt uit `design/stad/voetdecor.png`) → `tools/stad_voorgrond.py`, daarna `gen-offline-manifest.py`
 - **De stokken van Amir** (`karakters/amir/stokken/`, uit `bron/lijf/` en `bron/stok_grok.jpg`) → `tools/stok_bak.py` (zet de regels die het print in `STOK`: de canvasmaat en `slip`), daarna `gen-klein.py` en `gen-offline-manifest.py`; `gen-klein.py` schrijft ook andere kleine plaatjes opnieuw, zet die terug

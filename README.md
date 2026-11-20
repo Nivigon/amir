@@ -910,6 +910,11 @@ trapbalkon of het rieten dak of de tafel van een kraam, en Amir valt erdoorheen 
 leemmuur en rots blijven dicht; daar loop je gewoon van de rand. Vijanden doen het niet. In de sandbox zet **Drop through**
 onder De stad het aan.
 
+In **Test 80: Savanna steps** liggen de opstapjes op de savanne: lage treden van zand en aarde die je oploopt zonder te
+springen, met een afgebrokkeld eind vol keien en een graspol. Eerst drie brede treden omhoog, dan drie smalle omlaag die samen
+een glooiing vormen, en een los verhoogd stuk savanne. Ook hier lopen de bandieten, de schildbandiet en de hyena mee, en
+blijven slangen en schorpioenen beneden. In de sandbox zet **Opstapjes** onder Terrein, Savannelaag ze voor je neer.
+
 Amir rent in elk level met de nieuwe ren: licht voorover, met lange passen, de speer rechtop in zijn hand, bij
 lopen en sprinten. In **Test 75: New run** kun je hem goed bekijken. Het tempo van zijn benen volgt zijn snelheid, zodat zijn voeten niet glijden. Een lange vlakte om te sprinten, twee keien om over te springen en daarna twee
 bandieten; je kunt er niet dood. In de sandbox zet de knop **Nieuwe ren** hem uit, dan rent hij weer de oude ren.
