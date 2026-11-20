@@ -562,7 +562,7 @@ tonnetje op verschillende plekken"). Bij Map kiest de host het level waar het te
 
 ## Co-op solo (gebouwd, 18-11-2026)
 
-De vierde keuze onder Sandbox (`btnsbcoop`): Co-op Survival, of de Co-op episode, voor een speler, zonder verbinding
+De derde keuze onder Single Player, Survival (`btnsbcoop`, City Survival): Co-op Survival, of de Co-op episode, voor een speler, zonder verbinding
 (`MP_SOLO`, `mpSoloOpen`, `pvp.solo`). Geen eigen arena naast Co-op (regel 4): `mpSoloOpen` maakt het `pvp`-object zoals
 `pvpVerbonden` dat voor een host doet, maar zonder peers en zonder `pvpNetStart`, en opent de gewone lobby. Alles daarna
 is de code van Co-op zelf; elk bericht gaat naar niemand.
