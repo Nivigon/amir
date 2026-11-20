@@ -6656,11 +6656,35 @@ const TEST_83 = {
           { x: -1450, t: 'Cut the right vine, walk up the log and jump onto the ledge' },
           { x: -3250, t: 'This one snaps after 3 seconds: be quick' } ]
 };
+// Test 84: de trappose (AMIR_TRAP). Op verzoek (regel 3), zelf ontworpen, in het regenwoud zonder mist en zonder vijanden
+// (vredig), zodat je rustig op elke trede kunt stilstaan en de voeten goed ziet. De treden zijn de rechte opstapjes van
+// de stad (look 'straat', zoals Test 78), niet de golvende van de savanne (Test 80), op verzoek van de opdrachtgever. Ze
+// zijn allemaal 32 hoog (OPSTAP.max), precies het hoogteverschil tussen de voeten in de poses. Eerst een trap van drie
+// treden van 240 omhoog naar een plateau en aan de andere kant drie treden omlaag: stop met een voet op de rand, de trap
+// op en de trap af, en draai je om. Dan twee brede treden (400) als een verhoogd stuk met nog een hogere trede erop.
+const TEST_84 = {
+  name: 'Test 84: Stairs',
+  lagen: 'regenwoud',
+  view: 0.8, hpBalk: true, zicht: true, sneak: true, camera: true, rand: true,
+  speerInHand: true, vredig: true,
+  terraces: [ {r: -600, l: -2640, h: 32, look: 'straat', opstap: true},
+              {r: -840, l: -2400, h: 64, look: 'straat', opstap: true},
+              {r: -1080, l: -2160, h: 96, look: 'straat', opstap: true},
+              {r: -3200, l: -4600, h: 32, look: 'straat', opstap: true},
+              {r: -3600, l: -4200, h: 64, look: 'straat', opstap: true} ],
+  spawns: [],
+  rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
+  voorgrond: false,
+  cliffs: [ {x: -5800} ],
+  ends: [ {x: -5300} ],
+  tips: [ { x: -80, t: 'Test level: stairs. Stop with one foot on a step: going up, the front foot is on the higher step; going down, the back foot. Turn around on the edge too' },
+          { x: -2900, t: 'Wide steps: plenty of room to stand on every edge' } ]
+};
 const TEST_LEVELS = [TEST_1, TEST_2, TEST_3, TEST_4, TEST_5, TEST_6, TEST_7, TEST_8, TEST_9, TEST_10, TEST_11, TEST_12, TEST_13, TEST_14, TEST_15, TEST_16, TEST_17, TEST_18, TEST_19, TEST_20, TEST_21, TEST_22, TEST_23, TEST_24, TEST_25, TEST_26, TEST_27, TEST_28, TEST_29, TEST_30, TEST_31, TEST_32, TEST_33, TEST_34, TEST_35, TEST_36, TEST_37, TEST_38, TEST_39, TEST_40, TEST_41, TEST_42, TEST_43, TEST_44, TEST_45, TEST_46, TEST_47, TEST_48, TEST_49, TEST_50, TEST_51, TEST_52, TEST_53, TEST_54, TEST_55, TEST_56, TEST_57, TEST_58, TEST_59, TEST_60, TEST_61, TEST_62, TEST_63, TEST_64, TEST_65, TEST_66, TEST_67, TEST_68, TEST_69, TEST_70, TEST_71, TEST_72, TEST_73, TEST_75, TEST_78, TEST_79, TEST_80];
 // ---- Test levels sticks: alle proefstukken met de stokken, in een eigen reeks (zoals Baboon tests, zonder tribekeuze) ----
 const STOK_LEVELS = [TEST_74, TEST_76, TEST_77];
 // ---- Test levels rainforest: alle proefstukken in het regenwoud, in een eigen reeks (zoals Sticks, zonder tribekeuze) ----
-const RW_LEVELS = [TEST_81, TEST_82, TEST_83];
+const RW_LEVELS = [TEST_81, TEST_82, TEST_83, TEST_84];
 // ---- Episode Test levels stad: de Sahelstad, stuk voor stuk ----
 // Proefstukken in de stad (zie "de stad"), los van de echte episodes (regel 1 geldt niet). Het is een episode, dus met
 // de tribekeuze aan het begin; het eerste level was Test 59.
@@ -24509,6 +24533,39 @@ function idleImg(set){
   if (!a) return set.idle;
   const f = a[idleFrame % a.length];
   return (f.complete && f.naturalWidth) ? f : set.idle;
+}
+// ---- de trappose: stilstaan met een voet op een trede ----
+// Staat Amir met de speer stil op de rand van een trede (een opstapje, tot OPSTAP.max hoog), met de ene voet boven en
+// de andere beneden, dan staat hij er zo bij in plaats van in de idle. Twee stilstaande poses uit Grok (image-to-image
+// vanaf amirspear.png, de treden fel groen en eruit gekeyd, bron in beweging/trap/bron/), op het canvas van de idle
+// (594 x 301, grond 297) en op dezelfde schaal (hoofd en lengte gelijk aan idle_sp):
+//   op: de voorste voet op de hoge trede (de trap op), af: de achterste voet op de hoge trede (de trap af).
+// In de frames staat de lage voet op de grondlijn en de hoge voet 32 hoger, precies een opstapje.
+// `laag` en `hoog` zijn waar de voeten staan, in canvaspixels vanaf het midden (297), met Amir naar links kijkend.
+// Het spel kijkt op die twee plekken naar de vloer (vloerBij); ligt de ene voet een trede hoger dan de andere, dan
+// de pose, op de vloer van de lage voet. Zonder speer, lopend, of met een hoogteverschil kleiner dan `min`: de idle.
+// Test 84 (Stairs) is het proefstuk.
+const AMIR_TRAP = {
+  op: { src: 'beweging/trap/trap_op.png', laag: 46.7, hoog: -21.5 },
+  af: { src: 'beweging/trap/trap_af.png', laag: -19.4, hoog: 45.2 },
+  min: 8,
+};
+let trapImgs = null;
+function amirTrapPose(scale, flip){
+  if (!trapImgs) trapImgs = { op: loadAny([AMIR + AMIR_TRAP.op.src, AMIR_GROOT + AMIR_TRAP.op.src]),
+                              af: loadAny([AMIR + AMIR_TRAP.af.src, AMIR_GROOT + AMIR_TRAP.af.src]) };
+  const sx = flip ? -scale : scale;
+  for (const k of ['op', 'af']){
+    const d = AMIR_TRAP[k], img = trapImgs[k];
+    if (!img.complete || !img.naturalWidth) continue;
+    const vl = vloerBij(world + d.laag * sx, ph), vh = vloerBij(world + d.hoog * sx, ph);
+    if (vl == null || vh == null || vl === -Infinity) continue;
+    const dh = vh - vl;
+    if (dh < AMIR_TRAP.min || dh > OPSTAP.max + 1) continue;
+    if (Math.abs(ph - vl) > 1 && Math.abs(ph - vh) > 1) continue;   // nog aan het glijden over de trede
+    return { img, vloer: vl };
+  }
+  return null;
 }
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 // Hoe diep de save-stapel van ctx nu is. Dat is niet uit te lezen, en na een fout in de lus moet
@@ -53613,6 +53670,9 @@ function loop(now){
                  : (!useSneak && !useStof && !useRolW && !useRol && !useThrow && !useJump && !useSweep && (useCrawl || useDuck)) ? stokLaag(useCrawl) : null;   // gebukt en kruipend: stokLaag   // de grondklap gaat ook in de lucht voor (GK)   // de stokken (STOK)
     const useStok = !!(stokImg && stokImg.complete && stokImg.naturalWidth);
     snkAmirVak = null;                               // de sluipdood van de bandiet leest hier waar de speer zit
+    // stil op de rand van een trede, met de speer: de trappose (AMIR_TRAP)
+    const trapNu = (!moving && !attacking && onGround && set === sets.sp && !mesInHand() && amirSteen <= 0 && !dead)
+      ? amirTrapPose(scaleNow, autoFlip && facing === 1) : null;
     const img = useSneak ? snkImg : useStof ? stofImg : useRolW ? rwImg : useRol ? rolImg
               : useThrow ? thrImg
               : useJump ? jimg
@@ -53622,7 +53682,7 @@ function loop(now){
               : useDuck ? dimg
               : useCombo ? comboImg
               : (attacking ? (atkMes ? sets.ns.idle : atkImgs[atkFrame])   // het mes: stilstaand, het mes doet de steek
-                           : (moving ? set.run[frame] : idleImg(set)));
+                           : (moving ? set.run[frame] : (trapNu ? trapNu.img : idleImg(set))));
     // het mes in zijn hand: bij een steek, stilstaand of lopend (in een sprong, gebukt of kruipend zit het weg)
     const mesHand = !mesInHand() || amirSteen > 0 || useStok ? null
                   : attacking && atkMes ? mesSteekHand(Math.min(atkFrame, MES.steek.length - 1))
@@ -53635,7 +53695,8 @@ function loop(now){
     const pcx = cx + (pWorld - world);            // Amir zelf (gelijk aan cx, behalve in de boss-arena)
     const wetDraw = waterDepthAt(pWorld, ph) * Math.max(0, 1 - ph / 40);
     const sinkPx = wetDraw * POOL.sink * CHAR_H * scale;   // in het water zak je een stukje weg
-    const lift = -ph * scale + sinkPx;            // hoogte boven de grond
+    const lift = trapNu && img === trapNu.img ? -trapNu.vloer * scale   // de trappose: op de vloer van de lage voet (AMIR_TRAP)
+               : -ph * scale + sinkPx;            // hoogte boven de grond
     gkGrondTeken(cx, scale, groundY);                      // de grondklap: de bult in de vloer, voor Amir (GK)
     let w, h, x, y;
     if (useSneak){
@@ -58645,6 +58706,7 @@ const SUBS = {
   'Test 81: Rainforest': 'Moss, giant trees and rising mist',
   'Test 82: Hanging log': 'A log on two vines: jump on it, cut it down',
   'Test 83: Log ramp': 'Cut one vine and walk up the tilted log',
+  'Test 84: Stairs': 'Stop on a step with one foot higher than the other, going up and going down',
   'Test 76: Ground slam': 'Sticks from the air: slam into the ground and send a wave forward',
   'Test 77: Sun ray': 'Meditate in the sun, then six seconds of Sun Lion: double damage, fast, a huge jump, two ground slams',
   'Test 64: De tweede speer': 'Gooi en druk meteen weer F: een tweede speer achter de eerste aan, ook uit de rol',
