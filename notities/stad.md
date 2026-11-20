@@ -757,7 +757,17 @@ binnen: [{ ..., winkel: { x, seed, koopman }, planken: [{ x, h, soort, seed }] }
   ding een verkoopknop (`.wkverkoop`, goudkleurig, de opbrengst erop); zonder goud zijn ze weg (`#winkelui.gratis`). Zie
   "verkopen" in `notities/episodes.md`.
 
-In de sandbox onder De stad: **Winkel** en **Kamer ingericht**. De Gouden Poort heeft drie winkels (Goud 3, 6 en 9).
+- **Het geheim (easter egg, 21-11-2026)** (`WINKEL.geheim`, `winkelGeheim`, `winkelGeheimZet`, `winkelGeheimStap`,
+  `winkelGeheimLinks`, `winkelGeheimDeurX`): een winkel met `geheim: { naar }` (nu alleen Ishmul) heeft af en toe een geheim
+  bezoek. Dan draait de marktman zich om de 5 tot 8 s om (2,6 s met zijn rug naar de winkel). Spring je in die tijd over
+  de toonbank (hoger dan `sprong` Amir), dan sta je erachter: de toonbank wordt dan na Amir getekend, zodat je alleen je
+  hoofd erboven ziet. Draait hij terug terwijl je erachter staat, dan na `betrap` s: "Hey! Get out from behind my
+  counter!" en een fade terug voor de toonbank. Achter de toonbank opent E niet de winkel maar het doek: een fade naar de
+  kamer op `geheim.naar`, met een kist met goud en een boog terug naar voor de toonbank.
+  Sandbox: **Geheime winkel** onder De stad (altijd aan, met een achterkamer en een kist).
+
+In de sandbox onder De stad: **Winkel**, **Geheime winkel** en **Kamer ingericht**. (De knop Winkel had dezelfde id als de
+knop Winkel bij Gif en deed daardoor niets; hij heet nu `sbwinkelkamer`.) De Gouden Poort heeft drie winkels (Goud 3, 6 en 9).
 
 ## Straten en knooppunten (Sandville)
 

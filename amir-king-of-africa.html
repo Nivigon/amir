@@ -2255,7 +2255,8 @@
         <button id="sbaaneen">Huizen tegen elkaar</button>
         <button id="sbbinnenboven">Deur boven naar binnen</button>
         <button id="sbbinnendoor">Beneden erin, boven eruit</button>
-        <button id="sbwinkel">Winkel</button>
+        <button id="sbwinkelkamer">Winkel</button>
+        <button id="sbwinkelgeheim" title="De winkel met het geheim: de marktman draait zich af en toe om; spring dan over de toonbank, en achter het doek staat een kist met goud">Geheime winkel</button>
         <button id="sbkamer">Kamer ingericht</button>
         <button id="sbstadban">Bandiet op de galerij</button>
         <button id="sbstadzwm" title="Een zweepman op de eerste galerij: raak hem bij de rand en zijn bloed druppelt van de plankrand naar de straat (zie BLOED_RAND)">Zweepman op de galerij</button>
@@ -32643,6 +32644,11 @@ function binnenEBij(px = world){
     }
     return null;
   }
+  if (hier.winkel && hier.winkel.geheim && winkelGeheim.achter && winkelImgs && winkelKlaar()){   // achter de toonbank: het doek naar de achterkamer
+    const dx = winkelGeheimDeurX(hier.winkel, sc), naar = hier.winkel.geheim.naar, ander = Number.isFinite(naar) && binnenBij(naar);
+    if (ander && Math.abs(world - dx) < V && Math.abs(ph) < 12) return { soort: 'boog', x: dx, h: 0, doel: { x: naar, h: binnenVloer(naar, 0), face: 1 } };
+    return null;
+  }
   if (hier.winkel && world - hier.winkel.x < WINKEL.eBij && Math.abs(ph - binnenVloer(world, 0)) < 12)   // voor de toonbank: de winkel (zie "de winkel")
     return { soort: 'winkel', x: hier.winkel.x + 40, h: 0 };
   for (const q of binnenDeuren(hier)){
@@ -32695,7 +32701,48 @@ function binnenDeurH(b){
 // heeft deze kamer een deur naar buiten (een gevel op de straat)?
 function binnenHeeftDeur(b){ return b.gevel !== null && b.gevel !== undefined && Number.isFinite(b.deur); }
 // Amir en de camera blijven in het huis
-function binnenKlem(b, halfW){ world = Math.max(binnenLinks(b) + halfW, Math.min(b.r - halfW, world)); }
+function binnenKlem(b, halfW){ world = Math.max(winkelGeheimLinks(b, halfW), Math.min(b.r - halfW, world)); }
+// het geheim van de winkel (WINKEL.geheim): aan of uit per bezoek, de marktman die zich omdraait, en of Amir achter de toonbank staat
+const winkelGeheim = { aan: false, fase: 'kijk', klok: 6, achter: false, betrap: 0, uitzet: false };
+function winkelGeheimZet(aan){
+  const G = winkelGeheim, K = WINKEL.geheim;
+  G.aan = !!aan; G.fase = 'kijk'; G.klok = K.kijk[0] + Math.random() * (K.kijk[1] - K.kijk[0]); G.achter = false; G.betrap = 0; G.uitzet = false;
+}
+// staat de marktman met zijn rug naar de winkel (helemaal omgedraaid)?
+function winkelGeheimOm(){ const G = winkelGeheim; return G.aan && G.fase === 'om' && G.klok < WINKEL.geheim.om - WINKEL.geheim.draai; }
+// de linkergrens voor Amir in een huis: de toonbank, tenzij hij er net overheen springt terwijl de marktman niet kijkt, of er al achter staat
+function winkelGeheimLinks(b, halfW){
+  const G = winkelGeheim, w = b.winkel;
+  if (!w || !w.geheim || !G.aan) return binnenLinks(b) + halfW;
+  if (G.achter){
+    if (world > w.x + halfW * 0.6 && !G.uitzet) G.achter = false;   // weer voor de toonbank gestapt
+    return b.l + halfW;
+  }
+  if (winkelGeheimOm() && ph > WINKEL.geheim.sprong * CHAR_H && world < w.x + halfW + 20){ G.achter = true; return b.l + halfW; }
+  return w.x + halfW;
+}
+// elk beeld: de marktman kijkt een tijd, draait zich om, en draait terug; staat Amir dan achter de toonbank, dan zet hij hem terug
+function winkelGeheimStap(dt){
+  const G = winkelGeheim, K = WINKEL.geheim, b = binnenBij(world);
+  if (!G.aan || !b || !b.winkel || !b.winkel.geheim){ if (G.achter && !b) G.achter = false; return; }
+  G.klok -= dt;
+  if (G.klok <= 0){
+    if (G.fase === 'kijk'){ G.fase = 'om'; G.klok = K.om; }
+    else { G.fase = 'kijk'; G.klok = K.kijk[0] + Math.random() * (K.kijk[1] - K.kijk[0]); }
+  }
+  if (G.uitzet){ if (!stadTrapFade || stadTrapFade.gewisseld){ G.achter = false; G.uitzet = false; } return; }
+  if (G.achter && G.fase === 'kijk' && world < b.winkel.x && !stadTrapFade){
+    G.betrap += dt;
+    if (G.betrap > K.betrap){
+      G.betrap = 0; G.uitzet = true;
+      flashHint('Hey! Get out from behind my counter!', 2200);
+      const x = b.winkel.x + 90;
+      stadTrapFade = { t: 0, gewisseld: false, doel: { x, h: binnenVloer(x, 0), face: -1 }, T: BINNEN.fade, binnen: true };
+    }
+  } else G.betrap = 0;
+}
+// de doorgang naar de achterkamer (alleen achter de toonbank): waar het doek hangt, in wereld-x
+function winkelGeheimDeurX(w, sc){ const o = winkelOpbouw(w); return w.x - (o.tbB - o.deurX) * CHAR_H * sc; }
 // de linkergrens van wat je in een huis kunt belopen: de muur, of het eind van de toonbank van een winkel (zie "de winkel")
 function binnenLinks(b){ return b.winkel ? Math.max(b.l, b.winkel.x) : b.l; }
 // in een kamer die smaller is dan het scherm zoomt de camera zo ver in dat de kamer het scherm precies vult: dan valt de
@@ -32972,6 +33019,9 @@ const WINKEL = {
   schaduw: { kleur: 'rgba(25,13,5,0.5)', blur: 0.05, dx: 0.02, dy: 0.035 },   // de schaduw op de muur, in Amir
   koopman: [0.4, 0.5],     // de marktman staat zo ver van het rechtereind, in toonbankbreedtes: tussen de doorgang en de planken
   eBij: 170,               // zo dicht bij het eind van de toonbank (wereld-x) opent E de winkel
+  // het geheim (alleen een winkel met geheim: true, nu Ishmul): af en toe draait de marktman zich om; spring dan over de
+  // toonbank, en E bij het doek brengt je naar de achterkamer met een kist met goud. Ziet hij je erachter, dan zet hij je terug
+  geheim: { kans: 0.35, kijk: [5, 8], om: 2.6, draai: 0.25, betrap: 0.35, sprong: 0.55 },
   P: 320                   // pixels per Amir in de opgebouwde beelden
 };
 let winkelImgs = null;
@@ -33188,11 +33238,15 @@ function winkelVoor(groundY, scale, cx){
     const d = NPCS.dorpeling, fr = d.frames.length ? d.frames[Math.floor(performance.now() / 1000 * d.fps) % d.frames.length] : null;
     if (fr && imgReady(fr)){
       const ns = npcSize('dorpeling', scale), nx = rechts - o.koopman * A;
-      ctx.save(); ctx.translate(nx + ns.w / 2, groundY + 0.04 * A - ns.ground); ctx.scale(-1, 1);   // gespiegeld: hij kijkt naar Amir, die van rechts komt
+      const om = w.geheim && winkelGeheim.aan && winkelGeheim.fase === 'om' && winkelGeheim.klok < WINKEL.geheim.om - WINKEL.geheim.draai * 0.5;
+      ctx.save(); ctx.translate(nx + ns.w / 2, groundY + 0.04 * A - ns.ground); if (!om) ctx.scale(-1, 1);   // gespiegeld: hij kijkt naar Amir, die van rechts komt; omgedraaid (het geheim) kijkt hij de andere kant op
       ctx.drawImage(fr, -ns.w / 2, 0, ns.w, ns.h); ctx.restore();
     }
   }
-  // de schaduw van de toonbank op de vloer, dan de toonbank zelf
+  if (!(w.geheim && winkelGeheim.achter)) winkelToonbankTeken(o, rechts, vloer, A);   // staat Amir erachter, dan komt de toonbank na hem (winkelKruikVoor)
+}
+// de toonbank met zijn schaduw op de vloer
+function winkelToonbankTeken(o, rechts, vloer, A){
   ctx.save(); ctx.fillStyle = 'rgba(15,8,3,0.4)';
   ctx.beginPath(); ctx.ellipse(rechts - o.tbB * A / 2, vloer, o.tbB * A * 0.52, 0.035 * A, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
   const k = A / WINKEL.P;
@@ -33204,6 +33258,7 @@ function winkelVoor(groundY, scale, cx){
 function winkelKruikVoor(groundY, scale, cx){
   const b = binnenBij(world); if (!b || !b.winkel || !winkelImgs || !winkelKlaar()) return;
   const o = winkelOpbouw(b.winkel), A = CHAR_H * scale, k = A / WINKEL.P, c = o.kruikC;
+  if (b.winkel.geheim && winkelGeheim.achter) winkelToonbankTeken(o, cx + (b.winkel.x - world), groundY + WINKEL.toonbankVoor * A, A);
   const mx = cx + (b.winkel.x - world) + WINKEL.kruik.x * A, vloer = groundY + (WINKEL.toonbankVoor + WINKEL.kruik.voor) * A;
   const z = zichtVak(20); if (z && (mx + c.width * k / 2 < z.l || mx - c.width * k / 2 > z.r)) return;
   // een zachte schaduw op de vloer, dan de kruik
@@ -53302,6 +53357,7 @@ function loop(now){
       if (world - halfWNow < endWall()) world = endWall() + halfWNow;    // en ook niet voorbij je eigen klif
     }
     binnenVijandKlem();
+    winkelGeheimStap(dt);                         // het geheim van de winkel: de marktman draait zich om (zie "de winkel")
     if (straatAan()){ straatKlem(halfWNow); straatVijandKlem(); }      // in een stadje van straten: binnen je eigen straat
   }
   bruKlem(halfWNow);                               // Brutus: tussen de wanden van het plein zolang hij leeft
@@ -65212,7 +65268,7 @@ document.getElementById('sbbinnendoor').onclick = () => {
 };
 // een huis van een verdieping met een inrichting (zie "de winkel"): Winkel zet links een winkel neer, Kamer ingericht alleen
 // planken aan de muur; elke klik een nieuwe seed, dus elke keer anders
-function sbInrichting(winkel){
+function sbInrichting(winkel, geheim){
   const x0 = world - 400, R = -60000, L = R - 2600, zaad = () => Math.floor(Math.random() * 1e9);
   level.stad = stadLees({ paleis: x0 - 2500, seed: 3, gevels: [ {x: x0 - 700, hoog: 1}, {x: x0 - 1600, hoog: 2, f: 1} ], galerijen: [], kramen: [], voet: [] });
   const huis = { gevel: 0, r: R, l: L, deur: R - 250, ramen: [ {x: R - 560, h: 330}, {x: L + 260, h: 330} ], palen: [ {x: R - 760, h: 0} ] };
@@ -65226,12 +65282,24 @@ function sbInrichting(winkel){
   }
   level.binnen = [huis];
   level.zwevers = (level.zwevers || []).filter(z => !z.sbBinnen).concat([ { r: R, l: L, h: 750, onder: 600, look: 'hout', sbBinnen: true } ]);
+  // de geheime winkel: een achterkamer met een kist, en de marktman die zich omdraait (zie WINKEL.geheim)
+  winkelGeheimZet(false);
+  if (winkel && geheim){
+    const AR = L - 400, AL = AR - 800;
+    huis.winkel.geheim = { naar: AR - 120 };
+    level.binnen.push({ gevel: null, r: AR, l: AL, ramen: [ {x: AL + 260, h: 330} ], bogen: [ {x: AR - 140, naar: huis.winkel.x + 150} ],
+                        planken: [ {x: AL + 560, h: 330, soort: 'kaal', seed: zaad()} ] });
+    level.zwevers.push({ r: AR, l: AL, h: 750, onder: 600, look: 'hout', sbBinnen: true });
+    level.kisten = [ { x: AL + 330, goud: 30 } ]; kistLaad(); kistReset();
+    winkelGeheimZet(true);
+  }
   stadLaad(); binnenLaad(); winkelLaad();
   sbLagen = 'stad_dag'; lichtMengKey = null; sbLagenToon();
-  flashHint(winkel ? 'Een winkel: ga voor het deurgat staan en druk op E' : 'Een ingerichte kamer: ga voor het deurgat staan en druk op E');
+  flashHint(winkel ? (geheim ? 'De geheime winkel: wacht tot de marktman zich omdraait, spring dan over de toonbank' : 'Een winkel: ga voor het deurgat staan en druk op E') : 'Een ingerichte kamer: ga voor het deurgat staan en druk op E');
   cv.focus();
 }
-document.getElementById('sbwinkel').onclick = () => sbInrichting(true);
+document.getElementById('sbwinkelkamer').onclick = () => sbInrichting(true);   // had dezelfde id als de knop Winkel bij Gif, en deed daardoor niets
+document.getElementById('sbwinkelgeheim').onclick = () => sbInrichting(true, true);
 document.getElementById('sbkamer').onclick = () => sbInrichting(false);
 // De doorgang (zie "de doorgang"): drie huizen met een galerij erlangs en twee trappen die op die galerij uitkomen, een
 // rechts van het eerste huis (opening links ervan) en een links van het derde (opening rechts ervan): zo zie je hem twee
@@ -68183,6 +68251,8 @@ const MPC = {
 };
 // de winkelkamer van Co-op: de strook (r tot l) en de toonbank; de spelers komen binnen bij de deurkant
 const MPC_WINKEL_KAMER = { r: -20000, l: -21700, toonbank: -21250, plek: [-20300, -20480, -20660] };   // per slot
+// de achterkamer van de winkel in Ishmul (het geheim, WINKEL.geheim): waar je uitkomt, de kist en wat erin zit
+const MPC_ACHTERKAMER = { r: -22200, l: -23000, plek: -22320, kist: -22700, goud: 30 };
 // de weg naar de winkel: na de laatste kill van de ronde nog `wacht` seconden op straat (de host telt, fase 'naarWinkel'),
 // dan een trage fade naar zwart en weer open in de winkel (`fade`, ook terug de straat op)
 const MPC_WINKEL_WEG = { wacht: 3, fade: { uit: 1.1, glij: 0.25, in: 1.1, dim: 1 } };
@@ -68360,6 +68430,15 @@ const MP_ISHMUL_LEVEL = (() => {
     ends: [], tips: []
   };
   lv.binnen = JSON.parse(JSON.stringify(MP_COOP_LEVEL.binnen));   // dezelfde winkel, ver van de straat
+  // het geheim (WINKEL.geheim): af en toe draait de marktman zich om, en achter het doek is een achterkamer met een kist
+  // met goud. Een kamer zonder deur naar buiten, met een boog terug naar de winkel, voor de toonbank
+  const AK = MPC_ACHTERKAMER;
+  lv.binnen[0].winkel.geheim = { naar: AK.plek };
+  lv.binnen.push({ gevel: null, r: AK.r, l: AK.l, ramen: [ { x: AK.l + 260, h: 420 } ],
+                   bogen: [ { x: AK.r - 140, naar: MPC_WINKEL_KAMER.toonbank + 150 } ],
+                   planken: [ { x: AK.l + 560, h: 360, soort: 'kaal', seed: 913 } ] });
+  lv.zwevers = (lv.zwevers || []).concat([{ r: AK.r, l: AK.l, h: 900, onder: 750, look: 'hout' }]);
+  lv.kisten = [ { x: AK.kist, goud: AK.goud } ];
   lv.zwevers = JSON.parse(JSON.stringify(MP_COOP_LEVEL.zwevers));
   return lv;
 })();
@@ -69009,7 +69088,7 @@ function mpcHostStap(dt){
   if (C.fase === 'uit') return;                       // iedereen dood: game over
   if (C.fase === 'naarWinkel'){                       // nog even op straat, dan allemaal naar de winkel
     C.klok -= dt;
-    if (C.klok <= 0){ pvpZend({ t: 'winkel' }); mpcWinkelIn(); }
+    if (C.klok <= 0){ const g = mpcWinkelGeheimKans(); pvpZend({ t: 'winkel', g }); mpcWinkelIn(g); }
     return;
   }
   if (C.fase === 'wacht'){
@@ -69174,7 +69253,7 @@ function mpCoopStap(rdt, dt){
     if (C.hartT <= 0){ C.hartT = 1; pvpZend({ t: 'hb' }); }
     return;
   }
-  if (C.winkelStraks){ C.winkelStraks = false; if (!C.inWinkel) mpcWinkelIn(); }   // de host stuurde ons naar de winkel terwijl we laadden
+  if (C.winkelStraks){ C.winkelStraks = false; if (!C.inWinkel) mpcWinkelIn(C.winkelGeheim); }   // de host stuurde ons naar de winkel terwijl we laadden
   if (pvp.host && !C.allenKlaar){ C.allenKlaar = true; if (C.ep) mpcBanner(mpEpLijst()[C.ep.i].name.replace(MPC_EP.naamKop, 'Level ' + (C.ep.i + 1) + ': '), 2.5); else pvpBanner(''); }
   C.t += dt;
   mpcDeurStap(dt);
@@ -69273,7 +69352,7 @@ function mpCoopOntvang(m){
   if (m.t === 'kistOpen'){ if (!pvp.host) mpcKistOpen(m.i, m.p); return true; }
   if (m.t === 'kistNee'){ const k = kisten[m.i]; if (k){ k.mpWacht = false; if (!k.open) kistOpenBeeld(k); } flashHint('Too late: the chest is already open', 2500); return true; }
   if (m.t === 'geef'){ mpcGoudErbij(m.n, pvp.spelers.length > 2 ? 'from ' + mpSpelerNoem(m.p, true) : 'from your teammate'); return true; }
-  if (m.t === 'winkel'){ if (!pvp.host){ if (laadWacht) C.winkelStraks = true; else mpcWinkelIn(); } return true; }   // nog aan het laden (Start in the shop): na het laden erheen
+  if (m.t === 'winkel'){ if (!pvp.host){ C.winkelGeheim = !!m.g; if (laadWacht) C.winkelStraks = true; else mpcWinkelIn(m.g); } return true; }   // nog aan het laden (Start in the shop): na het laden erheen
   if (m.t === 'winkelUit'){ if (!pvp.host) mpcWinkelUit(); return true; }
   if (m.t === 'wkklaar'){ C.wkKlaar[m.p] = !!m.aan; if (pvp.host) mpcWinkelKlaar(); if (C.inWinkel){ mpcWinkelBanner(); if (winkelUIAan) mpcWinkelToon(); } return true; }
   return false;
@@ -69799,9 +69878,13 @@ function mpcVriesWacht(rdt){
   if (mpcVriesT > MPC.vriesMax){ mpcVriesT = 0; mpcOntdooi(); }
 }
 // naar de winkel, bij iedereen (de host besluit het, de gasten horen het met winkel)
-function mpcWinkelIn(){
+// heeft deze winkel een geheim, dan is het bij zoveel bezoeken aan (WINKEL.geheim.kans); de host gooit, en stuurt het mee
+function mpcWinkelGeheimKans(){ return binnenLijst().some(b => b.winkel && b.winkel.geheim) && Math.random() < WINKEL.geheim.kans; }
+function mpcWinkelIn(geheim){
   mpcOntdooi();
   const C = pvp.coop;
+  winkelGeheimZet(geheim);
+  if (geheim) kistReset();                            // de kist in de achterkamer is bij elk geheim bezoek weer dicht en vol
   C.fase = 'winkel'; C.inWinkel = true; C.wkKlaar = {}; C.mijnKlaar = false;
   C.doodT = {}; C.symbolen = []; C.reviveRust = {};
   for (const p of pvp.spelers) C.reviveRust[p] = C.t + 3;
@@ -69834,7 +69917,7 @@ function mpcWinkelUit(){
   const C = pvp.coop;
   if (!C.inWinkel) return;
   C.inWinkel = false; C.mijnKlaar = false; C.wkKlaar = {};
-  winkelUIDicht(); mpcOntdooi();
+  winkelUIDicht(); mpcOntdooi(); winkelGeheimZet(false);
   const r = wapenrekken[0]; if (r){ r.n = pvp.regels.coop.rek; r.uit = null; }
   const x = mpStarts()[pvpStartSlot()];
   stadTrapFade = { t: 0, gewisseld: false, doel: { x, h: terrainH(x), face: pvpStartSlot() === 1 ? 1 : -1 }, T: MPC_WINKEL_WEG.fade, binnen: true };
