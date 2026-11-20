@@ -721,7 +721,7 @@ binnen: [{ ..., winkel: { x, seed, koopman }, planken: [{ x, h, soort, seed }] }
 - **De inrichting (voorstel B, 21-11-2026)**: een toonbank van leem met een houten blad (`toonbank_leem.png`), daarachter
   links een doorgang naar achter (de binnendeur met het waaiende adire-doek, `winkelDeur`, `WINKEL.deur`), de marktman,
   twee wandplanken op pinnen met spullen (`plank_pin.png`, `WINKEL.wandPlank`), een geweven mat en een bos kruiden aan de
-  muur, naast het eind van de toonbank een grote kruik met 2 of 3 speren erin, en voor de toonbank zakken en een stapel manden
+  muur, naast het eind van de toonbank een grote kruik met 2 of 3 speren erin (in het voorbeeld van de toonbank, zodat hij op de vloer staat en niet erachter), en voor de toonbank zakken, een stapel manden en daarvoor twee open zakken specerijen
   (`WINKEL.zakken`). De onderdelen komen uit een Grok-vel (`bron/winkel_b.jpg`, geknipt met `tools/winkel_b_knip.py`). Het oude
   schap (`schap.png`) en de houten toonbank (`toonbank.png`) worden niet meer gebruikt. `koopman: false` laat de marktman weg.
 - **Op het blad** een tot drie kalebassen, en soms nog een spul. Dat is wat je straks kunt krijgen.
