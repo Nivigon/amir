@@ -307,6 +307,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | wapenrek: een houten rek in de stad met speren; E pakt er een, in de hand of op de rug | `WAPENREK`, `wapenrekken`, `rekTrek` | notities/wapenrek.md |
 | rotsdecor: losse rotsstukken als props, lui geladen, in de Maker onder Decor | `ROTS_FAM`, `rotsSoorten`, `propLaad`, `mkVulRots` | notities/decor.md |
 | slangen: kleur, zicht en patrouille | `SNAKE_DIRS`, `slangZiet`, `startPatrouille` | notities/slangen.md |
+| bloed op hout: bloed op een galerij, trapbalkon of brug loopt naar de plankrand en druppelt naar beneden (sluipdood bandiet, executie schildbandiet, zweepman; hooguit twee plekken per vijand) | `BLOED_RAND`, `bloedRandMeld`, `bloedRandStap`, `bloedRandTeken`, `bloedHoutBij` | notities/bloed-rand.md |
 | de dood van de slang: een doodsanimatie (gewoon of snel), snee en druppels per soort kill, het lijk vervaagt na 3 s | `SLANG_DOOD`, `slangDoodStap`, `slangDoodTeken` | notities/slangen.md |
 | zwarte panter, de witte panter (baas, regel 12), de hyena | de grote vijanden: `boss`, `arena`, `hitPanther` |  |
 | de bandiet: een rover met een kromzwaard | `BAN`, `banLaad`, `makeBandiet` | notities/bandiet.md |

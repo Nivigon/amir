@@ -2194,6 +2194,9 @@
         <button id="sbwinkel">Winkel</button>
         <button id="sbkamer">Kamer ingericht</button>
         <button id="sbstadban">Bandiet op de galerij</button>
+        <button id="sbstadzwm" title="Een zweepman op de eerste galerij: raak hem bij de rand en zijn bloed druppelt van de plankrand naar de straat (zie BLOED_RAND)">Zweepman op de galerij</button>
+        <button id="sbstadschb" title="Een schildbandiet op de eerste galerij: een executie daar laat het bloed van de plankrand druppelen (met Executie: altijd zie je het elke keer)">Schildman op de galerij</button>
+        <button id="sbbloedrand" title="Een plas bloed op de eerste galerij voor je uit, of op de brug als die er staat: hij loopt naar de plankrand en druppelt naar beneden">Bloed op de galerij</button>
         <button id="sbstaddak">Bandiet op het dak</button>
         <button id="sbkanteel">Achter de kartels: aan</button>
         <button id="sbslag">Slagschaduw: aan</button>
@@ -38340,6 +38343,7 @@ function snkdLaad(){
   if (snkdBank) return;
   snkdBank = Array.from({ length: SNKD.val.n }, (_, i) => loadQuiet([SNKD.dir + 'val_' + (i < 10 ? '0' : '') + i + '.png']));
 }
+function snkdBloedOp(s){ return () => bandieten.includes(s) ? Math.max(0, s.alpha != null ? s.alpha : 1) : 0; }   // het bloed op hout leeft zo lang als het lijk
 function snkdKlaar(){ return !!snkdBank && snkdBank.every(im => im && im.complete && im.naturalWidth); }
 function snkdGs(){ return banScale() * SNKD.maat; }      // scherm-px per canvas-px van de bandiet
 // het raakframe: krijgt deze bandiet de sluipdood? Alleen de gewone rover, en alleen als de frames er zijn
@@ -38520,6 +38524,11 @@ function snkdTeken(s, scale, cx, voeten, groundY){
     if (k.val >= SNKD.val.n - 1){ k.klaar = true; if (k.plasT < 0) k.plasT = 0; }
     if (k.val >= SNKD.val.plat && k.plasT < 0) k.plasT = 0;
     if (k.plasT >= 0) k.plasT += dt;
+    if (k.plasT >= 1 && !k.randGemeld){                      // de plas is half gegroeid: op hout loopt hij naar de plankrand (zie BLOED_RAND)
+      k.randGemeld = true;
+      const fc = s.state === 'dood' ? s.deadFace : s.face;
+      bloedRandMeld(k.ax + (fc === 1 ? -1 : 1) * (SNKD.plas.x - SNKD.uit[0]) * gs, s.base || 0, 20, { plas: true, op: snkdBloedOp(s), bron: s });
+    }
   }
   // de spat bij de treffer: langs de speer naar voren
   if (!k.spat && wond){
@@ -38549,6 +38558,7 @@ function snkdTeken(s, scale, cx, voeten, groundY){
     const vl = vloerBij(p.x, s.base || 0);
     if (p.h <= vl){
       if (p.r > 1.4 * gs && k.vlekken.length < 40) k.vlekken.push({ x: p.x, h: vl, rx: p.r * 2.2 * 0.6 + 1, ry: p.r * 0.55 });
+      bloedRandMeld(p.x, vl, p.r / gs, { op: snkdBloedOp(s), bron: s });     // op hout: van de plankrand druppelen (zie BLOED_RAND)
       k.deeltjes.splice(i, 1);
     }
   }
@@ -46695,16 +46705,30 @@ function zwmDruppelStap(s, dt){
     if (Math.random() < dt * ZWM_BLOED.drupKans) s.druppels.push({ x: s.wond.x + (Math.random() - 0.5) * 10, y: s.wond.y, wx: s.x, face: s.face, vx: (Math.random() - 0.5) * 40, vy: 30, lig: 0 });
   }
   if (!s.druppels || !s.druppels.length) return;
-  for (const d of s.druppels){ if (d.lig) { d.lig += dt; continue; } d.vy += 1500 * dt; d.x += d.vx * dt; d.y += d.vy * dt; if (d.y >= 0){ d.y = 0; d.lig = dt; } }
+  const gs = s._druppelGs || 1, base = s.base || 0;           // gs zet zwmDruppelTeken (de zweepman en Nyundo hebben elk hun eigen maat)
+  for (const d of s.druppels){
+    if (d.lig) { d.lig += dt; continue; }
+    d.vy += 1500 * dt; d.x += d.vx * dt; d.y += d.vy * dt;
+    if (d.y < (d.bodem || 0)) continue;
+    if (d.bodem == null){                                       // op zijn voetlijn: ligt daar een vloer, of valt hij over de rand door?
+      const wx = d.wx + d.x * gs * (d.face === 1 ? -1 : 1), vl = vloerBij(wx, base);
+      d.bodem = vl < base - 1 ? (base - vl) * nowScale() / gs : 0; d.vl = vl;
+      if (d.y < d.bodem) continue;
+      bloedRandMeld(wx, vl, d.r || 3, { tot: ZWM_BLOED.lig, bron: s });  // op hout: van de plankrand druppelen (zie BLOED_RAND)
+    }
+    d.y = d.bodem; d.lig = dt;
+  }
   s.druppels = s.druppels.filter(d => d.lig < ZWM_BLOED.lig);
 }
 function zwmDruppelTeken(s, bodyX, voeten, gs, alpha){   // de druppels liggen op de wereld, niet mee met hem
+  s._druppelGs = gs;
   if (!s.druppels || !s.druppels.length) return;
   ctx.save(); ctx.fillStyle = '#8e0c10';
   for (const d of s.druppels){
     const r = (d.r || (d.lig ? 4 : 3)) * gs * (d.lig ? 1.3 : 1), x = bodyX + (d.wx - s.x) + d.x * gs * (d.face === 1 ? -1 : 1);
     ctx.globalAlpha = alpha * (d.lig > ZWM_BLOED.lig - 1 ? ZWM_BLOED.lig - d.lig : 1);
-    ctx.beginPath(); ctx.ellipse(x, voeten + d.y * gs, d.lig ? r * 1.6 : r, d.lig ? r * 0.5 : r, 0, 0, Math.PI * 2); ctx.fill();
+    const y = d.lig && d.vl != null ? voeten + ((s.base || 0) - d.vl) * nowScale() : voeten + d.y * gs;   // een gelande druppel blijft op zijn vloer
+    ctx.beginPath(); ctx.ellipse(x, y, d.lig ? r * 1.6 : r, d.lig ? r * 0.5 : r, 0, 0, Math.PI * 2); ctx.fill();
   }
   ctx.restore();
 }
@@ -48196,7 +48220,7 @@ function exeTick(s, dt){
   }
   if (e.einde){ exeEindeStap(s, dt); return; }
   if (e.bew === 'splijt' || e.bew === 'lijk'){ exeSplijtStap(s, dt); return; }
-  if (e.bew === 'executie') exeDruppelStap(e, dt);   // de druppels die van de speerpunt afschoten
+  if (e.bew === 'executie') exeDruppelStap(e, dt, s);   // de druppels die van de speerpunt afschoten
   const b = exeBew(e.bew), n = b.frames.length;
   if (e.bew === 'wankel'){
     e.wankelT += dt;
@@ -48289,7 +48313,7 @@ function exeSplijtStap(s, dt){
   e.tS += sdt;
   bloedSpuitStap(s, sdt);
   if (e.boog && e.boog.spuit) bloedSpuitStap(e.boog, sdt * EXE.boog.klok);   // de bloedboog loopt op dezelfde trage klok af
-  exeDruppelStap(e, sdt);
+  exeDruppelStap(e, sdt, s);
   if (e.bew === 'splijt' && e.tS >= EXE.splijt.duur) exeEinde(s);
   if (e.bew === 'lijk'){
     e.t3 += dt;
@@ -48369,7 +48393,7 @@ function exeStokTraag(e, dt){
 function exeStokStap(s, dt){
   const e = s.exe, k = e.stok, T = EXE.stok, sc = nowScale();
   if (e.bew === 'wankel') e.wankelT = 0;           // hij wankelt tot de klap
-  exeDruppelStap(e, dt);
+  exeDruppelStap(e, dt, s);
   if (k.spuit >= 0){                               // de spuit (BLOED.ticks op 24 fps, BLOED.snel keer sneller)
     k.spuitAcc += dt * 24 * BLOED.snel;
     while (k.spuit < BLOED.frames && k.spuitAcc >= BLOED.ticks[k.spuit]){ k.spuitAcc -= BLOED.ticks[k.spuit]; k.spuit++; }
@@ -48511,7 +48535,7 @@ function exeEindeStap(s, dt){
   if (!exeSnijSnd.paused && exeSnijSnd.currentTime >= EXE.snij.tot) exeSnijStop();
   exeEindeSpuitStap(s, dt);
   if (e.boog && e.boog.spuit) bloedSpuitStap(e.boog, dt * EXE.boog.klok);   // de bloedboog loopt nog af
-  exeDruppelStap(e, dt);
+  exeDruppelStap(e, dt, s);
   const ms = e.t2 * 1000;
   if (!e.amirLos && ms >= T.los) exeAmirLos(s);   // het spuiten is voorbij: Amir staat rechtop, de wereld loopt weer
   if (e.bew === 'snee' && ms >= T.val){ e.bew = 'nval'; e.vfr = 0; e.vacc = 0; }
@@ -48776,12 +48800,19 @@ function exeDruppelsTeken(e, gs){
   }
   ctx.restore();
 }
-function exeDruppelStap(e, dt){                     // de druppels vliegen met zwaartekracht en blijven op de grondlijn liggen als een spat
+function exeDruppelStap(e, dt, s){                  // de druppels vliegen met zwaartekracht en blijven op de vloer liggen als een spat
   if (!e.druppels) return;
   for (const d of e.druppels){
     if (d.lig) continue;
     d.vy += 1500 * dt; d.x += d.vx * dt; d.y += d.vy * dt;
-    if (d.y >= 0){ d.y = 0; d.lig = true; d.r *= 1.6; }
+    if (d.y < (d.bodem || 0)) continue;
+    if (s && d.bodem == null){                     // op zijn grondlijn: ligt daar een vloer, of valt hij over de rand van een galerij door?
+      const gs = schbScale(), base = s.base || 0, wx = s.x + e.dir * d.x * gs, vl = vloerBij(wx, base);
+      d.bodem = vl < base - 1 ? (base - vl) * nowScale() / gs : 0;
+      if (d.y < d.bodem) continue;
+      bloedRandMeld(wx, vl, d.r, { op: () => schildmannen.includes(s) ? Math.max(0, s.alpha != null ? s.alpha : 1) : 0, bron: s });   // op hout (zie BLOED_RAND)
+    }
+    d.y = d.bodem || 0; d.lig = true; d.r *= 1.6;
   }
 }
 // ---- de bloedboog: de speerpunt neemt het bloed mee ----
@@ -48903,6 +48934,163 @@ function sbExeNu(wijze){
   else { spear = false; spearFound = false; jav = null; javLost = 0; spearX = null; spearH = null; setSpearLabel(); }
   hits++; hitsEl.textContent = hits;
   exeStart(s, wijze);
+}
+
+// ---- bloed op hout: van de plankrand druppelen (galerij, trapbalkon, brug) ----
+// Bloed dat landt op een houten vloer met lucht eronder (een galerij, een trapbalkon, de brug boven de rivier) blijft
+// niet alleen liggen: een plas, of een paar druppels bij elkaar, trekt als een tong over de planken naar de voorrand,
+// en daar hangt telkens een druppel aan de lip die loslaat en voor de balk langs naar beneden valt, op de straat (een
+// vlekje) of in de waterval onder de brug. Eerst snel, dan trager, en na BLOED_RAND.duur houdt het op. Een dak van leem
+// druppelt niet. Wie het meldt (bloedRandMeld): de sluipdood van de bandiet (de plas en de vlekken), de executie van
+// de schildbandiet (ook met de stokken) en de zweepman. Zie notities/bloed-rand.md.
+const BLOED_RAND = {
+  lip: 157, sta: 130,          // in de galerijplaat: de voorkant van de planken, en de looplijn (STAD.galerij.sta)
+  samen: 34,                   // wereld-px: bloed binnen deze afstand op dezelfde vloer is een plek
+  drempel: 10,                 // zoveel massa (de stralen van de druppels opgeteld) voor een plek gaat druppelen; een plas meteen
+  perBron: 2,                  // hooguit zoveel druipende plekken per vijand: de grootste (anders werd een executie een gordijn)
+  zak: 0.6,                    // s dat losse druppels eerst liggen voor de grootste plek gekozen wordt
+  eerste: [0.35, 0.8],         // s tot de eerste druppel
+  tussen: [0.45, 0.9], trager: 1.35,   // de tijd tussen twee druppels, en zoveel keer trager na elke druppel
+  duur: 7,                     // s na de eerste: daarna geen nieuwe druppels meer
+  max: 20,                     // zoveel plekken tegelijk; de oudste gaat eruit
+  hang: 0.4,                   // s dat een druppel aan de lip groeit voor hij loslaat
+  g: 1800,                     // de val, in hoogte-eenheden per s2
+  r: [5, 7],                   // de straal van een druppel in plaat-px van de galerij (op ware grootte zo'n 1,5 tot 2 px)
+  tong: 0.6,                   // s dat de tong erover doet om de lip te halen
+  inWater: 0.9,                // onder de brug: zoveel Amir valt een druppel in de waterval, de laatste 40 procent vervaagt hij
+  leven: 9, vervaag: 1,        // zonder eigen leven (op) blijft een plek zo lang, de laatste seconde vervaagt hij
+  kleur: { tong: 'rgba(150,20,24,0.88)', veeg: 'rgba(130,14,18,0.9)', vul: '#8e0c10', rand: '#2a0507', vlek: '#7a0d14' }
+};
+const bloedRand = [];          // de plekken: {x, h, rivier, massa, t, start, op, tot, plas, zelf, drupT, tussen, br, drup, vlek}
+function bloedRandRnd(a){ return a[0] + Math.random() * (a[1] - a[0]); }
+function bloedRandLipOff(){ return (BLOED_RAND.lip - BLOED_RAND.sta) * CHAR_H / STAD.galerij.amir; }   // de lip onder de looplijn, in hoogte-eenheden
+// de houten vloer met lucht eronder op (x, h), of null: een galerij, een trapbalkon, of de brug boven het water
+function bloedHoutBij(x, h){
+  if (stadAan()){
+    const sc = nowScale();
+    for (const m of stadGalerijMaten(sc)) if (Math.abs(m.h - h) < 3 && x > m.left + m.lw * 0.15 && x < m.right - m.rw * 0.15) return { h: m.h };
+    for (const p of stadTrapPlats(sc)) if (Math.abs(p.topH - h) < 3 && x > p.left && x < p.right) return { h: p.topH };
+  }
+  const L = waterenLijst();
+  for (let i = 0; i < L.length; i++){
+    const o = L[i]; if (o.k !== 'rivier' || !o.brug) continue;
+    if (Math.abs(x - o.x) < (o.w || 240) / 2 - 6 && Math.abs(h - terrainH(x)) < 3) return { h: terrainH(x), rivier: i };
+  }
+  return null;
+}
+// er ligt bloed op (x, h): op hout telt het mee voor een plek. massa: de straal van de druppel (of 20 voor een plas);
+// opt.op: een functie die zegt hoe zichtbaar de bron nog is (0 is weg, het lijk), opt.tot: anders zoveel seconden;
+// opt.plas: een plas druppelt meteen; opt.zelf: de plek tekent zijn eigen vlek (de sandbox)
+function bloedRandMeld(x, h, massa, opt){
+  const hout = bloedHoutBij(x, h); if (!hout) return;
+  opt = opt || {};
+  const R = BLOED_RAND;
+  let b = bloedRand.find(q => Math.abs(q.h - hout.h) < 3 && Math.abs(q.x - x) < R.samen);
+  if (b){
+    b.x = (b.x * b.massa + x * massa) / (b.massa + massa); b.massa += massa;
+    if (opt.plas) b.plas = true;
+    if (opt.op && !b.op) b.op = opt.op;
+    if (opt.bron && !b.bron) b.bron = opt.bron;
+    if (opt.tot) b.tot = Math.max(b.tot || 0, b.t + opt.tot);
+    return;
+  }
+  if (bloedRand.length >= R.max) bloedRand.shift();
+  bloedRand.push({ x, h: hout.h, rivier: hout.rivier, massa, t: 0, start: -1, op: opt.op || null, tot: opt.tot || (opt.op ? null : R.leven),
+                   plas: !!opt.plas, zelf: !!opt.zelf, bron: opt.bron || null, drupT: 0, tussen: 0, br: 0, drup: [], vlek: [] });
+}
+// mag deze plek gaan druppelen? Per vijand hooguit BLOED_RAND.perBron plekken, en dan de grootste eerst (een plas altijd voor)
+function bloedRandMag(b){
+  if (!b.bron) return true;
+  let actief = 0;
+  for (const q of bloedRand){
+    if (q === b || q.bron !== b.bron) continue;
+    if (q.start >= 0) actief++;
+    else if (!b.plas && (q.plas || q.massa > b.massa) && q.massa >= BLOED_RAND.drempel) return false;
+  }
+  return actief < BLOED_RAND.perBron;
+}
+function bloedRandOp(b){
+  if (b.op) return Math.max(0, Math.min(1, b.op()));
+  if (b.tot != null) return Math.max(0, Math.min(1, (b.tot - b.t) / BLOED_RAND.vervaag));
+  return 1;
+}
+// de bodem onder de lip: de vloer eronder. Onder de brug valt de rivier vooraan over de rand (de waterval), dus daar
+// is geen oppervlak: de druppel valt in het vallende water en vervaagt onderweg (BLOED_RAND.inWater)
+function bloedRandBodem(b, x){
+  if (b.rivier != null) return b.h - BLOED_RAND.inWater * CHAR_H;
+  return vloerBij(x, b.h - bloedRandLipOff() - 40);
+}
+function bloedRandStap(dt){
+  if (!bloedRand.length) return;
+  const R = BLOED_RAND, lipOff = bloedRandLipOff();
+  for (let i = bloedRand.length - 1; i >= 0; i--){
+    const b = bloedRand[i]; b.t += dt;
+    const op = bloedRandOp(b);
+    if (op <= 0 && !b.drup.length){ bloedRand.splice(i, 1); continue; }
+    if (b.start < 0 && op > 0 && (b.plas || (b.massa >= R.drempel && b.t >= R.zak)) && bloedRandMag(b)){
+      b.start = b.t; b.drupT = bloedRandRnd(R.eerste); b.tussen = bloedRandRnd(R.tussen);
+      b.br = b.plas ? 14 : Math.min(12, 6 + b.massa * 0.4);
+    }
+    if (b.start >= 0 && op > 0 && b.t - b.start < R.duur && b.t - b.start > R.tong * 0.8){
+      b.drupT -= dt;
+      if (b.drupT <= 0){
+        b.drup.push({ x: b.x + (Math.random() - 0.5) * 2, t: 0, h: b.h - lipOff, vh: 0, los: false, r: bloedRandRnd(R.r) });
+        b.drupT = b.tussen * (0.7 + Math.random() * 0.6); b.tussen *= R.trager;
+      }
+    }
+    for (let j = b.drup.length - 1; j >= 0; j--){
+      const d = b.drup[j]; d.t += dt;
+      if (!d.los){ if (d.t >= R.hang){ d.los = true; d.bodem = bloedRandBodem(b, d.x); d.h -= (7 + d.r * 0.8) * CHAR_H / STAD.galerij.amir; d.van = d.h; } continue; }   // los onder het vegje
+      d.vh += R.g * dt; d.h -= d.vh * dt;
+      if (d.h > d.bodem) continue;
+      b.drup.splice(j, 1);
+      if (b.rivier == null && b.vlek.length < 24) b.vlek.push({ x: d.x + (Math.random() - 0.5) * 4, h: d.bodem, r: d.r * (1.2 + Math.random() * 0.6) });
+    }
+  }
+}
+// achter de vijanden, na de galerijen en de brug: de tong over de planken, het vegje over de lip, de druppels en de vlekjes
+function bloedRandTeken(groundY, scale, cx){
+  if (!bloedRand.length) return;
+  const R = BLOED_RAND, C = R.kleur, f = CHAR_H * scale / STAD.galerij.amir, vr = W / viewZoom() + W;
+  ctx.save();
+  for (const b of bloedRand){
+    const sx = cx + (b.x - world);
+    if (sx < -W || sx > vr) continue;
+    const op = bloedRandOp(b); ctx.globalAlpha = op;
+    const yLoop = groundY - b.h * scale, yLip = yLoop + (R.lip - R.sta) * f;
+    for (const v of b.vlek){                       // de vlekjes waar de druppels landden
+      const x = cx + (v.x - world), y = groundY - v.h * scale + 1, rx = v.r * f * 1.7;
+      ctx.fillStyle = C.rand; ctx.beginPath(); ctx.ellipse(x, y, rx + 0.8, rx * 0.36 + 0.6, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = C.vlek; ctx.beginPath(); ctx.ellipse(x, y, rx, rx * 0.36, 0, 0, 7); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'multiply';
+    if (b.zelf){                                   // een eigen vlek op de planken (de sandbox)
+      ctx.fillStyle = C.tong; ctx.beginPath(); ctx.ellipse(sx, yLoop + 4 * f, 70 * f, 12 * f, 0, 0, 7); ctx.fill();
+    }
+    if (b.start >= 0){                             // de tong over de planken naar de lip, en het korte vegje eroverheen
+      const k = Math.min(1, (b.t - b.start) / R.tong), br = b.br * f, y0 = yLoop - 2 * f, y1 = y0 + (yLip - y0) * k;
+      ctx.fillStyle = C.tong;
+      ctx.beginPath(); ctx.moveTo(sx - br * 0.5, y0); ctx.quadraticCurveTo(sx - br * 0.9, (y0 + y1) / 2, sx - br, y1);
+      ctx.lineTo(sx + br, y1); ctx.quadraticCurveTo(sx + br * 0.7, (y0 + y1) / 2, sx + br * 0.5, y0); ctx.fill();
+      if (k >= 1){
+        const veeg = 7 * f;
+        ctx.fillStyle = C.veeg;
+        ctx.beginPath(); ctx.moveTo(sx - br * 0.75, yLip); ctx.quadraticCurveTo(sx - br * 0.35, yLip + veeg * 0.6, sx - br * 0.22, yLip + veeg);
+        ctx.lineTo(sx + br * 0.22, yLip + veeg); ctx.quadraticCurveTo(sx + br * 0.35, yLip + veeg * 0.6, sx + br * 0.75, yLip); ctx.fill();
+      }
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    for (const d of b.drup){                       // de druppels: groeien aan het vegje, dan vallen ze rond
+      const x = cx + (d.x - world);
+      let y, rx, ry;
+      if (!d.los){ const p = Math.min(1, d.t / R.hang); rx = d.r * f * (0.4 + 0.6 * p); ry = rx * 1.15; y = yLip + 7 * f + ry * 0.6; }
+      else { rx = d.r * f * 0.8; ry = d.r * f * 1.3; y = groundY - d.h * scale; }
+      ctx.globalAlpha = op * (b.rivier != null && d.los ? Math.max(0, Math.min(1, (d.h - d.bodem) / (0.4 * (d.van - d.bodem)))) : 1);
+      ctx.fillStyle = C.rand; ctx.beginPath(); ctx.ellipse(x, y, rx + 0.7, ry + 0.7, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = C.vul; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, 7); ctx.fill();
+    }
+  }
+  ctx.restore();
 }
 
 // ---- bloed: snedes op het lichaam en de death-spuit ----
@@ -50037,17 +50225,20 @@ function slangDoodStap(s, dt, plats, cliff){
   }
   for (const p of d.drup){                         // de druppels: wereld-px opzij, hoogte in px boven zijn grond
     p.x += p.vx * dt; p.h += p.vh * dt; p.vh -= 1400 * dt;
-    if (p.h <= 0){ p.weg = true; if (Math.random() < 0.7) slangDoodSpat(d, p.x); }
+    if (p.h > (p.bodem || 0)) continue;
+    if (p.bodem == null){ p.bodem = -slangVloerDy(s, p.x); if (p.h > p.bodem) continue; }   // over de rand van een galerij: door naar de vloer eronder
+    p.weg = true; if (Math.random() < 0.7) slangDoodSpat(d, p.x, -p.bodem);
   }
   d.drup = d.drup.filter(p => !p.weg);
   return true;
 }
-function slangDoodSpat(d, x){
+function slangDoodSpat(d, x, dy){                  // dy: zoveel scherm-px onder zijn grond (over de rand gevallen)
   const blobs = [];
   for (let k = 0, n = 3 + (Math.random() * 3 | 0); k < n; k++)
     blobs.push([Math.random() * 12 - 6, Math.random() * 2 - 1, 1.2 + Math.random() * 2.8]);
-  d.spat.push({ x, blobs });
+  d.spat.push({ x, blobs, dy: dy || 0 });
 }
+function slangVloerDy(s, x){ const base = s.base || 0, vl = vloerBij(x, base); return vl < base - 1 ? (base - vl) * nowScale() : 0; }
 // het frame van de dood, of null
 function slangDoodImg(s){
   if (!s.dd) return null;
@@ -50068,13 +50259,13 @@ function slangDoodTeken(s, img, sx, sy, sS, sw, gy){
     for (let k = 0; k < d.K.drup; k++)
       d.drup.push({ x: s.x + (px - (sx + sw / 2)), h: Math.max(4, gy - py), vx: weg * (40 + Math.random() * 220) * sc,
                     vh: (140 + Math.random() * 300) * sc, r: (1.6 + Math.random() * 2) * sc });
-    if (d.K.drup >= 3) for (let k = 0; k < 2; k++) slangDoodSpat(d, s.x + (Math.random() * 60 - 40) * sc);
+    if (d.K.drup >= 3) for (let k = 0; k < 2; k++){ const x = s.x + (Math.random() * 60 - 40) * sc; slangDoodSpat(d, x, slangVloerDy(s, x)); }
   }
   const C = SNKD.kleur, a = Math.max(0, s.alpha);
   const naarScherm = x => sx + sw / 2 + (x - s.x);
   ctx.save(); ctx.globalAlpha = a * 0.85; ctx.fillStyle = C.vlek;          // de spatjes op de grond
   for (const sp of d.spat) for (const b of sp.blobs){
-    ctx.beginPath(); ctx.ellipse(naarScherm(sp.x) + b[0] * sS * 2, gy + b[1], b[2] * sS * 3.2, b[2] * sS, 0, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(naarScherm(sp.x) + b[0] * sS * 2, gy + (sp.dy || 0) + b[1], b[2] * sS * 3.2, b[2] * sS, 0, 0, 7); ctx.fill();
   }
   ctx.restore();
   const wd = werkDoek('slangDood', W2, H2), g2 = wd.getContext('2d');
@@ -52034,6 +52225,7 @@ function loop(now){
   const moving = dir !== 0;
   updateSplashes(dt, wetNow, moving);
   waterStap(dt);
+  bloedRandStap(dt);                               // bloed op hout: van de plankrand druppelen (zie BLOED_RAND)
   // de voetstappen (amirRenGeluid): 1 rennen, 2 sprinten, 0 stil (in de lucht, kruipen, bukken, glijden, door het water)
   amirRenStand = (moving && onGround && !crawling && !fell && glij === 0 && duckT <= 0 && wetNow <= 0.3 && !dead)
     ? (loopFactor > 1 ? 2 : 1) : 0;                                   // het water van WATER: klok, druppels, regenringen, geluid
@@ -52451,6 +52643,7 @@ function loop(now){
     straatPoortTeken(groundY, scale, cx);         // de poorten naar de andere straten (zie "straten")
     stadStoep(groundY, scale, cx);                // een strook straat over de voet van huizen en poorten (zie "de stoep")
     brugTeken(groundY, scale, cx);                // een houten brug over een rivier (zie "de brug" in notities/water.md)
+    bloedRandTeken(groundY, scale, cx);           // bloed op hout dat van de plankrand druppelt (zie BLOED_RAND), na de galerij en de brug, voor de vijanden
     if (brutus) bruSchadeTeken(brutus, cx, groundY - (brutus.base || 0) * scale);   // de gebarsten vloer en het puin van Nyundo: op de straat, onder de put, de tonnen en Amir
     stadVoorTeken(groundY, scale, cx);            // kramen, de put en het voetdecor: op de straat, voor de stoep
     waterFonteinTeken(groundY, scale, cx);        // een fontein: het bassin, de zuil, de schaal en de straal (de voorkant komt na Amir)
@@ -55835,6 +56028,7 @@ function setLevel(i, list, licht){
   levelIdx = Math.max(0, Math.min(levelList.length - 1, i));
   level = readLevel(JSON.stringify(levelList[levelIdx]));
   laadNieuw();                                     // een nieuwe lijst van wat dit level gebruikt (zie laadVrij)
+  bloedRand.length = 0;                            // het bloed op hout van het vorige level (zie BLOED_RAND)
   levelLaadLater = !!licht;
   if (!licht) laadLevel(level);                    // de plaatjes die dit level nodig heeft en die niet elk level heeft
   document.getElementById('lvname').textContent = level.name;
@@ -61077,6 +61271,7 @@ function mkTest(opt){
   if (mkBewaarTimer) mkBewaarNu();                  // de laatste wijziging meteen opslaan (de test kan lang duren)
   level = readLevel(JSON.stringify(mkNaarLevel(opt && opt.vanaf ? opt : undefined)));
   laadNieuw();                                     // een nieuwe lijst van wat dit level gebruikt (zie laadVrij)
+  bloedRand.length = 0;                            // het bloed op hout van het vorige level (zie BLOED_RAND)
   laadLevel(level);                                // dezelfde weg als een gewoon level: de vijanden en het decor van dit level
   if (level.sneeuw && level.sneeuw.soort) loadSneeuw();   // en het sneeuwdek voor een besneeuwde bodem
   mkTestActief = true; makerOpen = false;
@@ -63978,6 +64173,16 @@ document.getElementById('sbstadban').onclick = () => {
   const d = stadDakPlek(world - 900, 401);
   if (d) sbSpawn('bandiet', d.x > world ? 1 : -1, d.x, d.h);
   cv.focus();
+};
+// bloed op hout (zie BLOED_RAND): een zweepman of schildbandiet op de galerij, of meteen een plas die van de plankrand druppelt
+function sbGalerijPlek(){ if (!stadAan()) sbStad(); return stadDakPlek(world - 900, 401); }
+document.getElementById('sbstadzwm').onclick = () => { const d = sbGalerijPlek(); if (d) sbSpawn('zweepman', d.x > world ? 1 : -1, d.x, d.h); cv.focus(); };
+document.getElementById('sbstadschb').onclick = () => { const d = sbGalerijPlek(); if (d) sbSpawn('schildman', d.x > world ? 1 : -1, d.x, d.h); cv.focus(); };
+document.getElementById('sbbloedrand').onclick = () => {
+  const brug = waterenLijst().find(o => o.k === 'rivier' && o.brug && Math.abs(o.x - world) < W);
+  if (brug) bloedRandMeld(brug.x, terrainH(brug.x), 20, { plas: true, zelf: true, tot: 12 });
+  else { const d = sbGalerijPlek(); if (d) bloedRandMeld(d.x, d.h, 20, { plas: true, zelf: true, tot: 12 }); }
+  flashHint('Bloed op hout: de plas loopt naar de plankrand en druppelt naar beneden'); cv.focus();
 };
 // een bandiet op het dak van het huis van 2 hoog (een spawn met dak, zie stadDakPlek): achter de kartels
 document.getElementById('sbstaddak').onclick = () => {
