@@ -120,6 +120,12 @@ liaan van de knoop tot een anker `HSTAM.anker` boven de stam, dus ruim buiten be
   touw van de takel. `hstamKnap` speelt de houten tik en de knap (`takelSnap`) en strooit splinters. De liaan breekt op de hoogte waar hij geraakt werd (`hRaak`: de punt van de steek of het midden van de speer, geklemd tussen de knoop en `raakBoven`): het stuk erboven veert op aan de tak (`rest`), het stuk eronder blijft aan de stam en flapt slap omlaag naar buiten (`stomp`). Vanzelf geknapt breekt hij net boven de knoop. De looplijn ligt in het mos (`bron.top` 56), zodat Amirs voeten in het mos staan en niet op de toppen.
 - **Half** (`st: 'half'`): de stam draait om het haakpunt van de liaan die nog vastzit tot de losse punt de grond raakt
   (bonk `ton_zwaar.mp3`, stof, een klein stuitje). Na `HSTAM.tweede` (3) seconden knapt de andere liaan vanzelf.
+- **Helling**: schuin (`half`) is de stam een dun platform op de hoogte van het bovenvlak onder Amir (`hstamHelling`,
+  `hstamHellingVak`); hstamUpdate zet hem elk beeld op die hoogte, ook terwijl de stam nog kantelt (stond hij erop,
+  dan kantelt hij mee). Zijn voeten volgen het midden: bij zo'n 14 graden zweeft een voet een paar px, de andere zakt
+  in het mos. Het lage eind ligt een stamdikte (zo'n 90) boven de grond: daar spring je op. Met `tweede: false` in de
+  stam knapt de tweede liaan nooit vanzelf en blijft de helling (Test 83); `levelcheck.py` telt een stam vlak voor een
+  terras als treetje (90 en `h`).
 - **Valt** en **lig**: de punt blijft op de grond, de andere kant valt (`valG2`); plat is hij een laag obstakel (geen dun
   platform), met `kooihitground.mp3` en veel stof over de hele lengte. Het afgeknapte stuk liaan veert op (`rest`).
 - Sandbox: Terrein, **Hangende stam** (Neerzetten zet er telkens een bij, Weg haalt ze weg).
