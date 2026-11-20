@@ -929,8 +929,8 @@ blijven slangen en schorpioenen beneden. In de sandbox zet **Opstapjes** onder T
 
 Sta je met je speer stil op de rand van een opstapje, met de ene voet boven en de andere beneden, dan staat Amir er ook zo
 bij: de trap op met zijn voorste voet op de hoge trede, de trap af met zijn achterste. In **Test 84: Stairs** (onder
-**Rainforest** in het Test Lab) kun je dat rustig proberen: de rechte treden van de stad, maar dan in het regenwoud, zonder
-vijanden en zonder mist. Een trap omhoog naar een plateau en aan de andere kant weer omlaag, en daarna twee brede treden.
+**Rainforest** in het Test Lab) kun je dat rustig proberen: rechte treden van mos en regenwoudgrond, zonder vijanden en zonder
+mist. Een trap omhoog naar een plateau en aan de andere kant weer omlaag, en daarna twee brede treden.
 
 Amir rent in elk level met de nieuwe ren: licht voorover, met lange passen, de speer rechtop in zijn hand, bij
 lopen en sprinten. In **Test 75: New run** kun je hem goed bekijken. Het tempo van zijn benen volgt zijn snelheid, zodat zijn voeten niet glijden. Een lange vlakte om te sprinten, twee keien om over te springen en daarna twee
