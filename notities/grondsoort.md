@@ -49,6 +49,19 @@ wereld-px aan elke kant) in `GRONDSOORT.stappen` lagen die elk een eigen, grover
 oplopen: het mos kruipt in vlekken over het zand. In het uitzicht `regenwoud` (`biome` in SCENES) is de mosgrond de
 basis zelf (`bodemPic`), dus daar is een strook `savanne` de weg terug naar het zand. Sandbox: **Strook regenwoud**.
 
+### De onderlaag van het regenwoud
+
+`RW_ONDER`, `rwOnder`, `rwOnderStukken`, `rwOnderTeken`; `design/regenwoud/regenwoud_onder.png` (uit de Grok-plaat
+`bron/onder_grok.jpg` met `tools/regenwoud_onder.py`, een edit van `design/stad/straat_onder.png`).
+
+Onder de mosgrond geen egale bruine vlakte maar een tegel humus met een rij mosbrokken, wortels en botjes, getekend met
+`straatOnderVul`, net als de onderlaag van de straat: vast aan de wereld, naar onder donkerder. De gekartelde onderrand
+van de wand loopt er zacht in over: van bronrij `van` (225) tot `tot` (300) ligt de tegel in `n` stroken met oplopende
+dekking over de wand, zoals de uitloop van de straattegel. Alleen waar de mosgrond de basis is (het uitzicht `regenwoud`);
+een strook van een andere soort houdt zijn eigen wand. Onder een terras van regenwoudgrond (`savanneLaag`) ligt hij ook,
+met een lichter donker (`terrasDiep`) dan het bijna-zwart van `SAV_LAAG`. Een zwever en een strook `regenwoud` in een
+savanne-uitzicht hebben hem nog niet.
+
 ## Wat de basis houdt
 
 Een zuil, een rijzer (zijn `look`), het overloopje, de schachtkap en het nep-terrein van
