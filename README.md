@@ -228,7 +228,7 @@ handen, schudt hem grommend kapot, en smijt de punt recht naar je toe: het blad 
 schacht blijft in het zand liggen. Daarna loop je zonder speer verder, over twee ravijnen naar de fakkels. In de sandbox
 zet **Speerbeet** (bij Vijanden, onder Baviaan) hem zo op de grond, een stuk voor je, en geeft je je speer terug.
 
-In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen naar het volgende level van dezelfde reeks. Onder **Instellingen** staan daar ook het tempo van het spel, het looptempo van Amir, het formaat van het beeld en de muziek. Daar staat ook **Immortal**: zet hem aan en je raakt in elk level geen levens meer kwijt. Een klap landt nog wel (je schrikt en wordt teruggeduwd), maar er gaat geen hartje af, en val je in een ravijn of plet het plafond je, dan sta je weer op de laatste vaste grond. Hij blijft aan tot je hem uitzet of de pagina herlaadt. Tijdens een level is het speelveld verder leeg: de testbalk met schuifjes staat alleen in de sandbox, en ook daar begint hij ingeklapt: een klein pijltje onderin het midden van het beeld klapt hem uit en weer in (met B kan het ook, ook tijdens een level). Het menu van de sandbox klap je weg met **Verberg** rechtsboven in het paneel, en met **Toon** haal je het terug; het spel onthoudt hoe je het liet. Op een telefoon staat het onder de pauzeknop, zonder de uitlegregel, en weggeklapt ligt de joystick vrij.
+In het pauzemenu (II of Escape) staat **Level overslaan**: die brengt je meteen naar het volgende level van dezelfde reeks. Onder **Instellingen** staan daar ook het tempo van het spel, het looptempo van Amir, het formaat van het beeld en de muziek. Daar staat ook **Immortal**: zet hem aan en je raakt in elk level geen levens meer kwijt. Een klap landt nog wel (je schrikt en wordt teruggeduwd), maar er gaat geen hartje af, en val je in een ravijn of plet het plafond je, dan sta je weer op de laatste vaste grond. Hij blijft aan tot je hem uitzet of de pagina herlaadt. Tijdens een level is het speelveld verder leeg: de testbalk met schuifjes staat alleen in de sandbox, en ook daar begint hij ingeklapt: een klein pijltje onderin het midden van het beeld klapt hem uit en weer in (met B kan het ook, ook tijdens een level uit de testreeksen of de Maker, maar niet in Multiplayer en niet in de episodes van Campaign, zodat je hem daar niet per ongeluk naast V en C oproept). Het menu van de sandbox klap je weg met **Verberg** rechtsboven in het paneel, en met **Toon** haal je het terug; het spel onthoudt hoe je het liet. Op een telefoon staat het onder de pauzeknop, zonder de uitlegregel, en weggeklapt ligt de joystick vrij.
 
 ## Tribes
 
@@ -353,6 +353,8 @@ python3 tools/gen-offline-manifest.py
 ```
 
 Het eerste script print aan het eind de lijst die in de HTML onder `KLEIN_FAM` hoort te staan. Loopt die niet gelijk, dan laadt een familie stilletjes de grote versie.
+
+Een laptop met een aanraakscherm houdt in het menu en de lobby de laptopindeling: een tik op het scherm daar zet de telefoonindeling niet aan, en wie tijdens het spel op het scherm tikt krijgt de aanraakknoppen, maar na het spel weer het gewone menu.
 
 Op een aanraakscherm tekent het spel op anderhalve canvaspixel per schermpixel in plaats van twee: op zo'n klein scherm zie je dat niet, en het scheelt bijna de helft van het werk per frame. Haalt het toestel de frames dan nog niet, dan zakt het spel vanzelf nog een stap (naar 1) en blijft daar; in de console staat dan een regel met "resolutie omlaag".
 
