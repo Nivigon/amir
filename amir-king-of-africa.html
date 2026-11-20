@@ -28787,11 +28787,41 @@ function rwBodem(){
 // Onder de mosgrond geen egale bruine vlakte maar een tegel humus met mosbrokken, wortels en botjes (regenwoud_onder.png),
 // getekend met straatOnderVul zoals de onderlaag van de straat: vast aan de wereld, naar onder donkerder. Hij begint achter
 // de onderrand van de wand van de grondrand (bronrij `anker`), zodat die rand er gekarteld overheen valt. Lui geladen met rwBodem.
-const RW_ONDER = { anker: 292 };
+// De wand loopt niet hard op de tegel uit maar vervaagt erin, net als de rand van de straattegel: van bronrij `van` tot
+// `tot` legt rwOnderTeken de tegel in `n` stroken met oplopende dekking over de wand, zodat de gekartelde onderrand
+// verdwijnt. Alleen onder regenwoudgrond: een strook savanne (grondSoort) in een regenwoud-uitzicht houdt zijn wand.
+const RW_ONDER = { van: 225, tot: 300, n: 10 };
 let rwOnderImg = null;
 function rwOnder(){
   if (!rwOnderImg){ rwOnderImg = new Image(); rwOnderImg.src = 'design/regenwoud/regenwoud_onder.png'; }
   return imgReady(rwOnderImg) ? rwOnderImg : null;
+}
+// de stukken scherm tussen l en r waar regenwoudgrond ligt (een andere grondsoort-strook eruit geknipt)
+function rwOnderStukken(l, r){
+  if (!rwOnder()) return null;
+  let stuk = [[l, r]];
+  for (const st of grondStroken()){
+    if (st.soort === 'regenwoud') continue;
+    const a = W / 2 + (Math.min(st.van, st.tot) - world), b = W / 2 + (Math.max(st.van, st.tot) - world), nieuw = [];
+    for (const [p, q] of stuk){
+      if (b <= p || a >= q){ nieuw.push([p, q]); continue; }
+      if (a > p) nieuw.push([p, a]);
+      if (b < q) nieuw.push([b, q]);
+    }
+    stuk = nieuw;
+  }
+  return stuk.length ? stuk : null;
+}
+// achter (over = false): de tegel vanaf het eind van de overloop naar onder; over: de overloop zelf, over de wand heen
+function rwOnderTeken(xL, xR, top, groundY, s, over){
+  const R = RW_ONDER, im = rwOnder(), yT = top + R.tot * s;
+  if (!over){ straatOnderVul(xL, xR, yT - 2, groundY + H * 2, groundY, s, W / 2, im, R.van); return; }
+  const st = (R.tot - R.van) / R.n;
+  for (let i = 0; i < R.n; i++){
+    ctx.globalAlpha = (i + 1) / R.n;
+    straatOnderVul(xL, xR, top + (R.van + i * st) * s, top + (R.van + (i + 1) * st) * s + 0.5, groundY, s, W / 2, im, R.van);
+  }
+  ctx.globalAlpha = 1;
 }
 function bodemPic(){
   if (stadAan()){ const b = stadBodem(); if (b) return b; }      // de stad: de straattegel (zelfde maten als EDGE)
@@ -52396,11 +52426,10 @@ function sceneGrond(groundY){
     if (vg) while (x + tw < vg.l) x += tw;
     if (golfAan()) golfGrondTeken(groundY, left, tegelR);   // golvende rand: de kruin golft, zand op bruine rots
     else {
-      if (eimg === rwBodemImg){                           // het regenwoud: de onderlaag onder de mosgrond, achter de wand
-        const ro = rwOnder();
-        if (ro) straatOnderVul(vg ? Math.max(left, vg.l) : left, tegelR, top + RW_ONDER.anker * s, groundY + H * 2, groundY, s, W / 2, ro, RW_ONDER.anker);
-      }
+      const rwStuk = eimg === rwBodemImg ? rwOnderStukken(vg ? Math.max(left, vg.l) : left, tegelR) : null;
+      if (rwStuk) for (const [a, b] of rwStuk) rwOnderTeken(a, b, top, groundY, s, false);   // achter de wand
       for (; x < tegelR; x += tw) ctx.drawImage(eimg, x, top, tw + 1, th);
+      if (rwStuk) for (const [a, b] of rwStuk) rwOnderTeken(a, b, top, groundY, s, true);    // de wand vervaagt erin
       // de stroken grondsoort (straat, rots) over de basis heen, met hun grillige zachte rand
       grondStrokenTeken(top, th, s, W / 2, vg ? Math.max(left, vg.l) : left, tegelR,
                         (img, va, vb) => grondTegelRij(img, top, s, W / 2, va, vb));
