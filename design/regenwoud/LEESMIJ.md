@@ -11,4 +11,10 @@ looplijn als `design/grondrand.png` (EDGE walk 95, solid 305, kruin 46).
   grondsoort-overgang van het spel (GRONDSOORT.rand, 88 px) is hiervoor te kort.
 - `bron/sfeer_ochtendmist.png`: sfeerbeeld uit Grok (heeft perspectief, alleen voor kleur en licht)
 
+Achtergrond (Grok-edit van de savannelagen, zelfde stijl, magenta weggekeyd):
+- `midden_regenwoud_a.png` (1792x698): middenlaag, uit `design/bg/laag2/midden_4.png`. Paraplukronen, lianen, varens.
+- `verre_regenwoud_a.png` (1792x367): verre laag, uit `design/bg/laag1/verre_bergen_2_ruggen.png`. Beboste heuvelruggen.
+- de Grok-platen staan in `bron/` (`*_grok.png`).
+Ingame getest op de savanne-ochtend (warm): het licht van het spel maakt ze vanzelf goudgroen.
+
 Nog niet aangemeld in de code en niet in de offline-download.
