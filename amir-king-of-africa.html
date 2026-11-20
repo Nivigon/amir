@@ -30434,7 +30434,7 @@ const STAD_DEUR = {
   openKans: 0.15,                        // elk huis heeft een deur op de straat, dicht; zo vaak staat er een open (vast per huis)
   marge: 200,                            // de deur telt als in beeld als zijn midden zoveel binnen de rand van het beeld is (ruim: de hele deur)
   // wie op een verdieping uit een deur mag: de soorten die een galerij of dak als vloer kennen (dak in de spawner)
-  bovenSoorten: new Set(['bandiet', 'schildman', 'kruisboogbandiet', 'groen', 'zwart', 'knock'])
+  bovenSoorten: new Set(['bandiet', 'schildman', 'zweepman', 'kruisboogbandiet', 'groen', 'zwart', 'knock'])
 };
 let stadDeurStaat = {};                  // 'gevel:verdieping' -> { open, uitT }
 const stadDeurKey = d => (d.gevel | 0) + ':' + (d.verdieping | 0);
@@ -44129,18 +44129,30 @@ function banZelfdeHoogte(s){ return Math.abs(vloerBij(playerX(), ph) - (s.base |
 // niet als vloer, zie stadVloeren), dan haalt hij toch uit als zijn kling er in de animatie echt bij kan: genoeg van
 // Amirs lijf binnen de hoogte die het zwaard bestrijkt (BAN_ZWAARD.low tot .high boven zijn voeten). De raakcheck
 // zelf blijft de echte kling tegen Amirs hitbox. Alleen voor de slag: de dolk, de vault en de hinderlaag niet.
-const BAN_BIJ_MIN = 0.35;   // zoveel Amir (deel van zijn hoogte) moet binnen het bereik van de kling vallen
-function banKanBij(s){
-  if (banZelfdeHoogte(s)) return true;
+// Hetzelfde geldt voor de schildbandiet (zijn speerstoot) en de zweepman (zijn zweep): slagBij met hun eigen bereik.
+const BAN_BIJ_MIN = 0.35;   // zoveel Amir (deel van zijn hoogte) moet binnen het bereik van de slag vallen
+const SCHB_BIJ = { lo: 0, hi: 1.0 };   // de speer van de schildbandiet, in Amir boven zijn voeten
+const ZWM_BIJ  = { lo: 0, hi: 1.0 };   // de zweep: hij hangt nooit onder de voeten van de zweepman (het touw blijft boven y 0)
+// staat Amir op een springdoek, rieten kraamdak of kraamdoek? Die tellen niet als vloer (stadVloeren)
+function amirOpDoek(){
   if (!onGround || !stadAan()) return false;
   const px = playerX();
-  const op = stadPlats(nowScale()).some(p => (p.stad === 'riet' || p.stad === 'luifel' || p.kraam != null)
+  return stadPlats(nowScale()).some(p => (p.stad === 'riet' || p.stad === 'luifel' || p.kraam != null)
     && px > p.left && px < p.right && Math.abs(ph - p.topH) <= 8);
-  if (!op) return false;
-  const k = CHAR_H * BAN_H_SHARE / BAN.fig, b = s.base || 0;
-  const lo = b + BAN_ZWAARD.low * k, hi = b + BAN_ZWAARD.high * k;
-  return Math.min(hi, ph + CHAR_H * duckShare) - Math.max(lo, ph) >= BAN_BIJ_MIN * CHAR_H;
 }
+// genoeg van Amir binnen de hoogte lo..hi (in wereld-px boven de voeten van s)?
+function slagBij(s, lo, hi){
+  const b = s.base || 0;
+  return Math.min(b + hi, ph + CHAR_H * duckShare) - Math.max(b + lo, ph) >= BAN_BIJ_MIN * CHAR_H;
+}
+function banKanBij(s){
+  if (banZelfdeHoogte(s)) return true;
+  if (!amirOpDoek()) return false;
+  const k = CHAR_H * BAN_H_SHARE / BAN.fig;
+  return slagBij(s, BAN_ZWAARD.low * k, BAN_ZWAARD.high * k);
+}
+function schbKanBij(s){ return kooiZelfdeHoogte(s) || (amirOpDoek() && slagBij(s, SCHB_BIJ.lo * CHAR_H, SCHB_BIJ.hi * CHAR_H)); }
+function zwmKanBij(s){ return kooiZelfdeHoogte(s) || (amirOpDoek() && slagBij(s, ZWM_BIJ.lo * CHAR_H, ZWM_BIJ.hi * CHAR_H)); }
 function makeBandiet(x, side, dolk, hurk, vault, takelaar, passagier, rol, variant){
   // variant: 'duin' de Duinwacht, truthy anders de elite-garde, falsy de gewone rover
   const wilVault = vault !== false;                       // vaulten is de standaard voor een rover: alleen vault: false zet het uit
@@ -47898,7 +47910,7 @@ function updateZweepman(s, dt, plats, cliff){
   if (!zichtWaak(s, dt, zichtBereik(1100) * (s.zWacht ? 1 : 2), s.zWacht ? s.face : naarJe, 'mens')){ zwmSet(s, 'idle'); anim(ZWM.idleFps); return; }
   s.face = naarJe;
   const nw = zwmNieuw(), aanval = nw ? ZWM_NIEUW.aanval : ZWM.aanval, houd = nw ? ZWM_NIEUW.houd : ZWM.houd;
-  if (s.cool <= 0 && kooiZelfdeHoogte(s) && gap < aanval * zS && (nw || gap > ZWM.min * zS)){   // nieuw: ook tegen hem aan
+  if (s.cool <= 0 && zwmKanBij(s) && gap < aanval * zS && (nw || gap > ZWM.min * zS)){   // nieuw: ook tegen hem aan
     s.soort = s.slagVast || ZWM_TEST.slag || (Math.random() < ZWM.hoogKans ? 'hoog' : 'laag');   // slagVast: de sandbox, ZWM_TEST.slag: de pauze
     zwmSet(s, 'slag'); s.frame = ZWM_SLAG[s.soort].tellVan; s.geraaktAmir = false; s.knalT = -1; s.touw = null;
     s.inzetT = 0; s.inzetP = null; s.inzetC = null; s.inzetGevaar = false;
@@ -48098,7 +48110,7 @@ function zwmTouwTeken(s, a, gs){
 // raakt de zweep Amir? Elk punt van het touw (in schermpixels) tegen Amirs vak, in het venster van de slag
 function zwmRaakt(s, bodyX, voeten, gs, pbox){
   if (s.state === 'f2') return zwmF2Raakt(s, bodyX, voeten, gs, pbox);
-  if (!s.touw || s.geraaktAmir || dead || invuln > 0 || !kooiZelfdeHoogte(s)) return false;
+  if (!s.touw || s.geraaktAmir || dead || invuln > 0 || !zwmKanBij(s)) return false;
   const C = ZWM_SLAG[s.soort || 'laag'];
   const sp = s.face === 1 ? -1 : 1, t = s.touw;
   if (s.inzetGevaar){                                    // nieuw: de inzet raakt achter hem, met dezelfde hoogteregel (laag springen, hoog bukken)
@@ -48484,7 +48496,7 @@ function zwmF2RustVak(s, nbox, bodyX, gs){
 }
 // raakt de zweep Amir? Rond de knal, elk touwpunt tegen Amirs vak (op elke hoogte: hier helpt alleen afstand of je schild)
 function zwmF2Raakt(s, bodyX, voeten, gs, pbox){
-  if (!s.touw || !s.f2C || s.f2C.hang || s.geraaktAmir || dead || invuln > 0 || !kooiZelfdeHoogte(s)) return false;
+  if (!s.touw || !s.f2C || s.f2C.hang || s.geraaktAmir || dead || invuln > 0 || !zwmKanBij(s)) return false;
   const C = s.f2C, i = zwmF2Idx(s);
   const van = s.f2 === 'sprong' ? C.van + ZWM2.sprongGevaar : C.knal - ZWM2.gevaarVoor;
   const naKnal = C.strakNa ? i >= C.knal + C.strakNa : (s.knalT >= 0 && s.t - s.knalT > ZWM2.gevaarNa);   // nieuw, de sprong: zolang hij strak naar voren trekt
@@ -48911,9 +48923,9 @@ function updateSchildman(s, dt, plats, cliff){
       const px = playerX(), punt = s.x + s.face * SCHB.speerVoor * A;
       const opPunt = Math.abs(px - punt) < (SCHB.speerR + PLAYER_HALF_W) * A;
       const onder = Math.abs(px - s.x) < (SCHB.lijfR + PLAYER_HALF_W) * A;
-      const vang = !dead && kooiZelfdeHoogte(s) && (opPunt || onder) ? schildVang(s.x < px, 'speer') : false;
+      const vang = !dead && schbKanBij(s) && (opPunt || onder) ? schildVang(s.x < px, 'speer') : false;
       if (vang){ s.geraaktAmir = true; if (vang === 'pareer') schbWankel(s); }   // op Amirs schild: hij schuift terug, of de parade
-      else if (!dead && invuln <= 0 && kooiZelfdeHoogte(s) && (opPunt || onder)){
+      else if (!dead && invuln <= 0 && schbKanBij(s) && (opPunt || onder)){
         hurtPlayer(s.x < px); s.geraaktAmir = true;
         if (invuln > 0) knock = (s.x < px ? 1 : -1) * SCHB.raakDuw;   // de speer slaat hem achteruit
       }
@@ -48956,7 +48968,7 @@ function updateSchildman(s, dt, plats, cliff){
       return;
     }
   }
-  if (s.cool <= 0 && kooiZelfdeHoogte(s) && gap < schbN(s, 'aanval') * CHAR_H * scale){
+  if (s.cool <= 0 && schbKanBij(s) && gap < schbN(s, 'aanval') * CHAR_H * scale){
     schbSet(s, 'strike');
     if (s.wraak > 0){ s.frame = schbN(s, 'pantserVan'); s.wraak = 0; }   // het antwoord op een treffer: meteen de gepantserde tell
     s.geraaktAmir = false; s.landed = false;
