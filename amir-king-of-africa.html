@@ -28780,8 +28780,18 @@ function sneeuwJag(i, y, top, s){
 // lui geladen: de eerste keer dat een uitzicht met biome regenwoud of een strook regenwoud hem vraagt
 let rwBodemImg = null;
 function rwBodem(){
-  if (!rwBodemImg){ rwBodemImg = new Image(); rwBodemImg.src = 'design/regenwoud/grondrand_regenwoud.png'; }
+  if (!rwBodemImg){ rwBodemImg = new Image(); rwBodemImg.src = 'design/regenwoud/grondrand_regenwoud.png'; rwOnder(); }
   return imgReady(rwBodemImg) ? rwBodemImg : null;
+}
+// ---- de onderlaag van het regenwoud ----
+// Onder de mosgrond geen egale bruine vlakte maar een tegel humus met mosbrokken, wortels en botjes (regenwoud_onder.png),
+// getekend met straatOnderVul zoals de onderlaag van de straat: vast aan de wereld, naar onder donkerder. Hij begint achter
+// de onderrand van de wand van de grondrand (bronrij `anker`), zodat die rand er gekarteld overheen valt. Lui geladen met rwBodem.
+const RW_ONDER = { anker: 292 };
+let rwOnderImg = null;
+function rwOnder(){
+  if (!rwOnderImg){ rwOnderImg = new Image(); rwOnderImg.src = 'design/regenwoud/regenwoud_onder.png'; }
+  return imgReady(rwOnderImg) ? rwOnderImg : null;
 }
 function bodemPic(){
   if (stadAan()){ const b = stadBodem(); if (b) return b; }      // de stad: de straattegel (zelfde maten als EDGE)
@@ -34118,10 +34128,12 @@ function persLicht(img, x, y, w, h, flip, wx, vloer, fig, groundY, scale, cx, al
 const STRAAT_TREDE = { rand: 182, uitloop: 18, onder: 168, over: 18, voegZoek: 26, donker: 0.42, schaduw: 0.4 };
 function stadOnderAan(){ return !!(level && level.stad && level.stad.onder) && stadKlaar('straatOnder'); }
 // de onderlaag tussen xL en xR, van yTop tot yBot; naar onder donkerder, gemeten vanaf de grondlijn
-function straatOnderVul(xL, xR, yTop, yBot, groundY, s, cx){
-  if (!stadKlaar('straatOnder') || xR <= xL || yBot <= yTop) return;
-  const im = stadImgs.straatOnder, uw = im.naturalWidth * s, uh = im.naturalHeight * s;
-  const Y0 = groundY + (STRAAT_TREDE.onder - EDGE.walk) * s;      // waar de onderlaag onder de straat begint: het anker voor de rijen
+// Met im en anker een andere tegel (de onderlaag van het regenwoud, RW_ONDER), anker de bronrij van de grondrand waar hij begint.
+function straatOnderVul(xL, xR, yTop, yBot, groundY, s, cx, im, anker){
+  if (!im){ if (!stadKlaar('straatOnder')) return; im = stadImgs.straatOnder; }
+  if (!imgReady(im) || xR <= xL || yBot <= yTop) return;
+  const uw = im.naturalWidth * s, uh = im.naturalHeight * s;
+  const Y0 = groundY + ((anker != null ? anker : STRAAT_TREDE.onder) - EDGE.walk) * s;   // waar de onderlaag begint: het anker voor de rijen
   let x = cx - (((world % uw) + uw) % uw);
   while (x > xL) x -= uw;
   const y0 = Y0 + Math.floor((yTop - Y0) / uh) * uh;
@@ -52384,6 +52396,10 @@ function sceneGrond(groundY){
     if (vg) while (x + tw < vg.l) x += tw;
     if (golfAan()) golfGrondTeken(groundY, left, tegelR);   // golvende rand: de kruin golft, zand op bruine rots
     else {
+      if (eimg === rwBodemImg){                           // het regenwoud: de onderlaag onder de mosgrond, achter de wand
+        const ro = rwOnder();
+        if (ro) straatOnderVul(vg ? Math.max(left, vg.l) : left, tegelR, top + RW_ONDER.anker * s, groundY + H * 2, groundY, s, W / 2, ro, RW_ONDER.anker);
+      }
       for (; x < tegelR; x += tw) ctx.drawImage(eimg, x, top, tw + 1, th);
       // de stroken grondsoort (straat, rots) over de basis heen, met hun grillige zachte rand
       grondStrokenTeken(top, th, s, W / 2, vg ? Math.max(left, vg.l) : left, tegelR,
