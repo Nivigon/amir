@@ -60,7 +60,7 @@ van de wand loopt er zacht in over: van bronrij `van` (225) tot `tot` (300) ligt
 dekking over de wand, zoals de uitloop van de straattegel. Alleen waar de mosgrond de basis is (het uitzicht `regenwoud`);
 een strook van een andere soort houdt zijn eigen wand. Onder een terras van regenwoudgrond (`savanneLaag`) ligt hij ook,
 zonder het bijna-zwart van `SAV_LAAG` en vast aan de gewone grondlijn. Het terras en de grond zijn dan een wand: onder de
-wand van het terras loopt de wandband (bronrij `voet` tot `wand`, om en om gespiegeld) door tot de wand van de grond
+wand van het terras loopt de wandband (bronrij `voet` tot `wand`, in de hoogte uitgerekt, zacht over de eigen wand heen) door tot de wand van de grond
 (`rwWandTeken`), en die begint onder het terras pas onder de blokjesrand van het loopvlak (`rwVoetTeken`, vanaf `voet`,
 zacht tot `voetTot`), met dezelfde overloop in de onderlaag. Een zwever en een strook `regenwoud` in een
 savanne-uitzicht hebben hem nog niet.

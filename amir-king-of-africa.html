@@ -10224,8 +10224,8 @@ function savanneLaag(t, groundY, scale, cx, bottom, st, floating){
   // een terras van regenwoudgrond: de onderlaag ook onder de wand, met dezelfde overloop als de grond (rwOnderTeken)
   const rwStuk = (!zwart && !hout && !floating && eimg === rwBodemImg) ? rwOnderStukken(xl, xr) : null;
   // De wand van het terras loopt door tot de wand van de grond (rwWandTeken); daaronder neemt rwVoetTeken het over.
-  if (rwStuk) for (const [a, b] of rwStuk) rwWandTeken(eimg, a, b, top, groundY, s, cx);
   for (; x < xr; x += tw) ctx.drawImage(eimg, x, top, tw + 1, th);
+  if (rwStuk) for (const [a, b] of rwStuk) rwWandTeken(eimg, a, b, top, groundY, s, cx);
   // de stroken grondsoort (straat, rots) ook op de bovenkant van de laag (niet op zwart)
   if (!zwart) grondStrokenTeken(top, th, s, cx, xl, xr, (img, va, vb) => grondTegelRij(img, top, s, cx, va, vb));
   if (sneeuwOn() && !zwart){                          // de sneeuwlaag ligt ook op een hogere of zwevende savannelaag (niet op zwart)
@@ -28796,7 +28796,7 @@ function rwBodem(){
 // De wand loopt niet hard op de tegel uit maar vervaagt erin, net als de rand van de straattegel: van bronrij `van` tot
 // `tot` legt rwOnderTeken de tegel in `n` stroken met oplopende dekking over de wand, zodat de gekartelde onderrand
 // verdwijnt. Onder een terras van regenwoudgrond ook (savanneLaag), zonder het donker van SAV_LAAG en met de grondwand ervoor (rwVoetTeken). Alleen onder regenwoudgrond: een strook savanne (grondSoort) in een regenwoud-uitzicht houdt zijn wand.
-const RW_ONDER = { van: 225, tot: 300, n: 10, voet: 176, voetTot: 206, wand: 296 };   // voet..voetTot: waar de grondwand voor een terras begint, voet..wand: de wandband (bronrijen, zie rwVoetTeken en rwWandTeken)
+const RW_ONDER = { van: 225, tot: 300, n: 10, voet: 176, voetTot: 206, wand: 296, rekMax: 3, inzet: 24 };   // voet..voetTot: waar de grondwand voor een terras begint, voet..wand: de wandband (bronrijen, zie rwVoetTeken en rwWandTeken)
 let rwOnderImg = null;
 function rwOnder(){
   if (!rwOnderImg){ rwOnderImg = new Image(); rwOnderImg.src = 'design/regenwoud/regenwoud_onder.png'; }
@@ -28841,8 +28841,9 @@ function rwVoetTeken(eimg, xL, xR, groundY, s, yBot, cx){
   ctx.restore();
   rwOnderTeken(xL, xR, gTop, groundY, s, true, yBot, cx);
 }
-// De wand van een terras van regenwoudgrond, doorgetegeld van onder zijn eigen wand tot waar de grondwand begint (de
-// wandband van de grondrand, bronrij voet tot wand, om en om gespiegeld zodat de naad wegvalt). Zo is het een wand.
+// De wand van een terras van regenwoudgrond, doorgetrokken van onder zijn eigen wand tot waar de grondwand begint: de
+// wandband van de grondrand (bronrij voet tot wand) in de hoogte uitgerekt, zodat er geen naad in zit, en over de eigen
+// wand heen met een zachte bovenrand van inzet bronrijen. Zo is het een wand.
 function rwWandTeken(eimg, xL, xR, top, groundY, s, cx){
   const R = RW_ONDER, nw = eimg.naturalWidth, tw = nw * s, bh = R.wand - R.voet, dh = bh * s;
   const y0 = top + R.voet * s, y1 = groundY - EDGE.walk * s + R.voetTot * s;
@@ -28851,10 +28852,23 @@ function rwWandTeken(eimg, xL, xR, top, groundY, s, cx){
   ctx.beginPath(); ctx.rect(xL, y0, xR - xL, y1 - y0); ctx.clip();
   let x = cx - (((world % tw) + tw) % tw);
   while (x > xL) x -= tw;
-  let k = 0;
-  for (let y = y0; y < y1; y += dh, k++) for (let xx = x; xx < xR; xx += tw){
-    if (k % 2){ ctx.save(); ctx.translate(0, y + dh); ctx.scale(1, -1); ctx.drawImage(eimg, 0, R.voet, nw, bh, xx, 0, tw + 1, dh + 0.6); ctx.restore(); }
-    else ctx.drawImage(eimg, 0, R.voet, nw, bh, xx, y, tw + 1, dh + 0.6);
+  // Een keer uitgerekt over de hele hoogte: de rotsplaten worden langer, er komt geen naad. Is het verschil heel hoog,
+  // dan in gelijke stukken van hooguit rekMax keer de band, die elkaar met een zachte bovenrand overlappen.
+  // Hij ligt over de eigen wand van het terras heen (die begint op dezelfde bronrij) en zet zacht in, zodat diens
+  // gekartelde onderkant wegvalt.
+  const n = Math.max(1, Math.ceil((y1 - y0) / (dh * R.rekMax))), stuk = (y1 - y0) / n;
+  for (let k = 0; k < n; k++){
+    const over = k ? Math.min(stuk * 0.3, dh * 0.4) : R.inzet * s;
+    const ya = y0 + k * stuk - (k ? over : 0), hh = stuk + (k ? over : 0);
+    for (let xx = x; xx < xR; xx += tw){
+      const m = 6;                                     // de bovenrand zacht inzetten
+      for (let i = 0; i < m; i++){
+        ctx.globalAlpha = (i + 1) / m;
+        ctx.drawImage(eimg, 0, R.voet + bh * (over / hh) * i / m, nw, bh * (over / hh) / m, xx, ya + over * i / m, tw + 1, over / m + 0.5);
+      }
+      ctx.globalAlpha = 1;
+      ctx.drawImage(eimg, 0, R.voet + bh * (over / hh), nw, bh * (1 - over / hh), xx, ya + over, tw + 1, hh - over + 0.6);
+    }
   }
   ctx.restore();
 }
