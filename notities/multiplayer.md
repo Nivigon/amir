@@ -180,10 +180,6 @@ de lobby staat dan in het staande stokframe.
 - **Wie stuurt de vijanden:** de laptop van de host denkt voor alle vijanden en stuurt hun plek en plaatje naar de gast (net
   zoals `pvpVang` dat voor Amir doet). Op dezelfde wifi merk je de vertraging niet. Een treffer van de gast gaat als bericht
   naar de host, die de hit-functie aanroept. Een vijand kiest de dichtstbijzijnde levende Amir als doel.
-- **De andere Amir verdwijnt niet:** `pvpBeeld` laadt een plaatje van de ander pas als het voor het eerst langskomt (een
-  nieuwe animatie, en met een andere spriteset of over internet duurt dat even). Tot het er is tekent `pvpTekenEen` zijn
-  vorige beeld op zijn nieuwe plek (`vorigBeeld`); eerst sloeg hij die beelden over en verdween hij op het scherm van de
-  ander (gemeld op Ishmul, maar het gold overal).
 - **Elkaar niet raken:** geen steek, zwaai of speer van de een raakt de ander. Een speer van de ander in de vlucht zie je niet, maar wel als hij neerkwam (zijn `jav` uit `s`, als `st` niet `vlucht` is) en zijn losse speren op de grond (`ls`, `pvpLosZend`, `pvpLosTeken`, zie "Wat er over de lijn gaat" in `notities/pvp.md`). Alleen beeld: oprapen kan alleen wie hem gooide. `tools/mptest.js --proef` kijkt na dat de host en de tweede gast een losse speer van de gast zien en dat hij weer weg is als de gast hem opraapt.
 - **Rondes:** ronde 1 heeft `start` vijanden, elke ronde `erbij` meer, willekeurig uit de gekozen soorten (bij Both de helft
   van de keren de moeilijke). Ze druppelen binnen over een paar seconden, niet allemaal tegelijk. Tussen twee rondes `pauze`
