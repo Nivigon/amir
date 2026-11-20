@@ -757,14 +757,18 @@ binnen: [{ ..., winkel: { x, seed, koopman }, planken: [{ x, h, soort, seed }] }
   ding een verkoopknop (`.wkverkoop`, goudkleurig, de opbrengst erop); zonder goud zijn ze weg (`#winkelui.gratis`). Zie
   "verkopen" in `notities/episodes.md`.
 
+- **De marktman loopt rond** (`winkelMan`, `winkelManStap`, `WINKEL.man`): in elke winkel loopt hij heen en weer achter de
+  toonbank (zonder eigen loopanimatie, de dorpeling schuift), en staat dan even stil met zijn gezicht naar de klant.
 - **Het geheim (easter egg, 21-11-2026)** (`WINKEL.geheim`, `winkelGeheim`, `winkelGeheimZet`, `winkelGeheimStap`,
-  `winkelGeheimLinks`, `winkelGeheimDeurX`): een winkel met `geheim: { naar }` (nu alleen Ishmul) heeft af en toe een geheim
-  bezoek. Dan draait de marktman zich om de 5 tot 8 s om (2,6 s met zijn rug naar de winkel). Spring je in die tijd over
-  de toonbank (hoger dan `sprong` Amir), dan sta je erachter: de toonbank wordt dan na Amir getekend, zodat je alleen je
-  hoofd erboven ziet. Draait hij terug terwijl je erachter staat, dan na `betrap` s: "Hey! Get out from behind my
-  counter!" en een fade terug voor de toonbank. Achter de toonbank opent E niet de winkel maar het doek: een fade naar de
-  kamer op `geheim.naar`, met een kist met goud en een boog terug naar voor de toonbank.
-  Sandbox: **Geheime winkel** onder De stad (altijd aan, met een achterkamer en een kist).
+  `winkelGeheimLinks`, `winkelGeheimDeurX`): in een winkel met `geheim: { naar }` (nu alleen Ishmul) loopt hij soms
+  (`achterKans`, 1 op 10 keer dat hij verder loopt; in de sandbox `achterKansSandbox`) naar achteren, net links van het
+  doek, en staat daar 4 tot 5,5 s met zijn rug naar de winkel. Spring je dan over de toonbank (hoger dan `sprong` Amir),
+  dan sta je erachter; de toonbank is dan half doorzichtig (`doorzicht`), anders zie je jezelf niet als je gebukt sluipt.
+  Achter de toonbank moet je **sluipen**: rechtop lopen op de grond (langer dan `hoor` s) hoort hij ("Who is there?"),
+  dan draait hij zich om. Kijkt hij en sta je erachter, dan na `betrap` s: "Hey! Get out from behind my counter!" en een
+  fade terug voor de toonbank. Achter de toonbank opent E niet de winkel maar het doek: een fade naar de kamer op
+  `geheim.naar`, met een kist met goud en een boog terug naar voor de toonbank.
+  Sandbox: **Geheime winkel** onder De stad (met een achterkamer en een kist).
 
 In de sandbox onder De stad: **Winkel**, **Geheime winkel** en **Kamer ingericht**. (De knop Winkel had dezelfde id als de
 knop Winkel bij Gif en deed daardoor niets; hij heet nu `sbwinkelkamer`.) De Gouden Poort heeft drie winkels (Goud 3, 6 en 9).

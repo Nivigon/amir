@@ -32702,14 +32702,19 @@ function binnenDeurH(b){
 function binnenHeeftDeur(b){ return b.gevel !== null && b.gevel !== undefined && Number.isFinite(b.deur); }
 // Amir en de camera blijven in het huis
 function binnenKlem(b, halfW){ world = Math.max(winkelGeheimLinks(b, halfW), Math.min(b.r - halfW, world)); }
-// het geheim van de winkel (WINKEL.geheim): aan of uit per bezoek, de marktman die zich omdraait, en of Amir achter de toonbank staat
-const winkelGeheim = { aan: false, fase: 'kijk', klok: 6, achter: false, betrap: 0, uitzet: false };
-function winkelGeheimZet(aan){
-  const G = winkelGeheim, K = WINKEL.geheim;
-  G.aan = !!aan; G.fase = 'kijk'; G.klok = K.kijk[0] + Math.random() * (K.kijk[1] - K.kijk[0]); G.achter = false; G.betrap = 0; G.uitzet = false;
+// het geheim van de winkel (WINKEL.geheim): aan of uit per bezoek, en of Amir achter de toonbank staat
+const winkelGeheim = { aan: false, achter: false, betrap: 0, uitzet: false, kans: 0 };   // kans zet winkelGeheimZet (WINKEL staat verderop)
+// de marktman: zijn plek (deel van de toonbank vanaf het rechtereind), waar hij heen loopt, wat hij doet en waar hij naar kijkt
+// (1 naar de klant, rechts; -1 naar achteren). fase: rust, loop, naarAchter, achterin
+const winkelMan = { w: null, pos: 0.3, doel: 0.3, fase: 'rust', klok: 2, kijk: 1 };
+function winkelGeheimZet(aan, kans){
+  const G = winkelGeheim;
+  G.aan = !!aan; G.achter = false; G.betrap = 0; G.uitzet = false; G.kans = kans != null ? kans : WINKEL.geheim.achterKans;
+  winkelMan.w = null;                              // de marktman begint opnieuw op zijn plek
 }
-// staat de marktman met zijn rug naar de winkel (helemaal omgedraaid)?
-function winkelGeheimOm(){ const G = winkelGeheim; return G.aan && G.fase === 'om' && G.klok < WINKEL.geheim.om - WINKEL.geheim.draai; }
+const winkelRnd = (a, b) => a + Math.random() * (b - a);
+// kijkt de marktman niet (op weg naar achteren, of daar met zijn rug naar je toe)?
+function winkelGeheimOm(){ return winkelGeheim.aan && (winkelMan.fase === 'naarAchter' || winkelMan.fase === 'achterin'); }
 // de linkergrens voor Amir in een huis: de toonbank, tenzij hij er net overheen springt terwijl de marktman niet kijkt, of er al achter staat
 function winkelGeheimLinks(b, halfW){
   const G = winkelGeheim, w = b.winkel;
@@ -32721,17 +32726,47 @@ function winkelGeheimLinks(b, halfW){
   if (winkelGeheimOm() && ph > WINKEL.geheim.sprong * CHAR_H && world < w.x + halfW + 20){ G.achter = true; return b.l + halfW; }
   return w.x + halfW;
 }
-// elk beeld: de marktman kijkt een tijd, draait zich om, en draait terug; staat Amir dan achter de toonbank, dan zet hij hem terug
-function winkelGeheimStap(dt){
-  const G = winkelGeheim, K = WINKEL.geheim, b = binnenBij(world);
-  if (!G.aan || !b || !b.winkel || !b.winkel.geheim){ if (G.achter && !b) G.achter = false; return; }
-  G.klok -= dt;
-  if (G.klok <= 0){
-    if (G.fase === 'kijk'){ G.fase = 'om'; G.klok = K.om; }
-    else { G.fase = 'kijk'; G.klok = K.kijk[0] + Math.random() * (K.kijk[1] - K.kijk[0]); }
+// de marktman loopt rond; in een winkel met een geheim soms naar achteren
+function winkelManStap(dt, w){
+  const M = winkelMan, K = WINKEL.man, G = winkelGeheim;
+  if (M.w !== w){ const o = winkelOpbouw(w); M.w = w; M.pos = M.doel = o.koopman / o.tbB; M.fase = 'rust'; M.klok = winkelRnd(K.rust[0], K.rust[1]); M.kijk = 1; }
+  const o = winkelOpbouw(w);
+  // naar achteren: links van het doek, met zijn rug naar de winkel
+  const achterPos = Math.min(0.97, (o.tbB - o.deurX + WINKEL.geheim.achterNaast) / o.tbB);
+  if (M.fase === 'rust' || M.fase === 'achterin'){
+    M.kijk = M.fase === 'rust' ? 1 : -1;
+    M.klok -= dt;
+    if (M.klok > 0) return;
+    if (M.fase === 'rust' && w.geheim && G.aan && Math.random() < G.kans){ M.fase = 'naarAchter'; M.doel = achterPos; return; }
+    let d = M.pos;
+    for (let i = 0; i < 6 && Math.abs(d - M.pos) < 0.08; i++) d = winkelRnd(K.van, K.tot);
+    M.fase = 'loop'; M.doel = d; return;
   }
+  // lopen: een deel van de toonbank per seconde; naar links (hogere pos) kijkt hij van je weg
+  const stap = K.v / o.tbB * dt, rest = M.doel - M.pos;
+  M.kijk = rest > 0 ? -1 : 1;
+  if (Math.abs(rest) <= stap){
+    M.pos = M.doel;
+    if (M.fase === 'naarAchter'){ M.fase = 'achterin'; M.klok = winkelRnd(WINKEL.geheim.achterin[0], WINKEL.geheim.achterin[1]); }
+    else { M.fase = 'rust'; M.klok = winkelRnd(K.rust[0], K.rust[1]); }
+  } else M.pos += Math.sign(rest) * stap;
+}
+// elk beeld: de marktman loopt; achter de toonbank moet Amir sluipen, en ziet de marktman hem, dan zet hij hem terug
+function winkelGeheimStap(dt, kruipt, loopt){
+  const G = winkelGeheim, K = WINKEL.geheim, b = binnenBij(world);
+  if (!b || !b.winkel || !winkelImgs || !winkelKlaar()){ if (G.achter && !b) G.achter = false; return; }
+  winkelManStap(dt, b.winkel);
+  if (!G.aan || !b.winkel.geheim) return;
   if (G.uitzet){ if (!stadTrapFade || stadTrapFade.gewisseld){ G.achter = false; G.uitzet = false; } return; }
-  if (G.achter && G.fase === 'kijk' && world < b.winkel.x && !stadTrapFade){
+  // rechtop lopen achter de toonbank hoort hij: hij draait zich om en loopt terug naar zijn plek
+  // (alleen op de grond, en pas na even: een landing en een halve stap rechtop hoort hij nog niet)
+  G.lawaai = G.achter && ph < 2 && loopt && !kruipt ? (G.lawaai || 0) + dt : Math.max(0, (G.lawaai || 0) - dt);
+  if (G.achter && G.lawaai > K.hoor && winkelGeheimOm()){
+    G.lawaai = 0;
+    const M = winkelMan; M.fase = 'loop'; M.doel = winkelRnd(WINKEL.man.van, WINKEL.man.tot); M.kijk = 1;
+    flashHint('Who is there?', 1200);
+  }
+  if (G.achter && !winkelGeheimOm() && world < b.winkel.x && !stadTrapFade){
     G.betrap += dt;
     if (G.betrap > K.betrap){
       G.betrap = 0; G.uitzet = true;
@@ -33019,9 +33054,14 @@ const WINKEL = {
   schaduw: { kleur: 'rgba(25,13,5,0.5)', blur: 0.05, dx: 0.02, dy: 0.035 },   // de schaduw op de muur, in Amir
   koopman: [0.4, 0.5],     // de marktman staat zo ver van het rechtereind, in toonbankbreedtes: tussen de doorgang en de planken
   eBij: 170,               // zo dicht bij het eind van de toonbank (wereld-x) opent E de winkel
-  // het geheim (alleen een winkel met geheim: true, nu Ishmul): af en toe draait de marktman zich om; spring dan over de
-  // toonbank, en E bij het doek brengt je naar de achterkamer met een kist met goud. Ziet hij je erachter, dan zet hij je terug
-  geheim: { kans: 0.35, kijk: [5, 8], om: 2.6, draai: 0.25, betrap: 0.35, sprong: 0.55 },
+  // de marktman loopt heen en weer achter de toonbank (pos: zijn plek als deel van de toonbank, vanaf het rechtereind),
+  // staat dan even stil en kijkt naar de klant
+  man: { van: 0.2, tot: 0.55, v: 0.55, rust: [1.5, 4] },
+  // het geheim (alleen een winkel met geheim: { naar }, nu Ishmul): af en toe (achterKans per keer dat hij verder loopt) loopt
+  // hij naar achteren, voorbij het doek, en staat daar met zijn rug naar je toe (achterin). Spring dan over de toonbank en
+  // sluip (gebukt) naar het doek: E brengt je naar de achterkamer met een kist met goud. Loop je rechtop achter de toonbank,
+  // dan hoort hij je; kijkt hij en sta je erachter, dan zet hij je terug
+  geheim: { kans: 1, achterKans: 0.1, achterKansSandbox: 0.35, achterin: [4, 5.5], achterNaast: 0.45, betrap: 0.35, hoor: 0.35, sprong: 0.55, doorzicht: 0.55 },
   P: 320                   // pixels per Amir in de opgebouwde beelden
 };
 let winkelImgs = null;
@@ -33237,28 +33277,30 @@ function winkelVoor(groundY, scale, cx){
   if (w.koopman !== false){
     const d = NPCS.dorpeling, fr = d.frames.length ? d.frames[Math.floor(performance.now() / 1000 * d.fps) % d.frames.length] : null;
     if (fr && imgReady(fr)){
-      const ns = npcSize('dorpeling', scale), nx = rechts - o.koopman * A;
-      const om = w.geheim && winkelGeheim.aan && winkelGeheim.fase === 'om' && winkelGeheim.klok < WINKEL.geheim.om - WINKEL.geheim.draai * 0.5;
-      ctx.save(); ctx.translate(nx + ns.w / 2, groundY + 0.04 * A - ns.ground); if (!om) ctx.scale(-1, 1);   // gespiegeld: hij kijkt naar Amir, die van rechts komt; omgedraaid (het geheim) kijkt hij de andere kant op
+      const ns = npcSize('dorpeling', scale), nx = rechts - (winkelMan.w === w ? winkelMan.pos * o.tbB : o.koopman) * A;   // waar hij nu loopt (winkelManStap)
+      ctx.save(); ctx.translate(nx + ns.w / 2, groundY + 0.04 * A - ns.ground); if (winkelMan.w !== w || winkelMan.kijk > 0) ctx.scale(-1, 1);   // gespiegeld: hij kijkt naar Amir, die van rechts komt; naar achteren de andere kant op
       ctx.drawImage(fr, -ns.w / 2, 0, ns.w, ns.h); ctx.restore();
     }
   }
   if (!(w.geheim && winkelGeheim.achter)) winkelToonbankTeken(o, rechts, vloer, A);   // staat Amir erachter, dan komt de toonbank na hem (winkelKruikVoor)
 }
 // de toonbank met zijn schaduw op de vloer
-function winkelToonbankTeken(o, rechts, vloer, A){
-  ctx.save(); ctx.fillStyle = 'rgba(15,8,3,0.4)';
+function winkelToonbankTeken(o, rechts, vloer, A, alfa = 1){
+  ctx.save(); ctx.globalAlpha *= alfa; ctx.fillStyle = 'rgba(15,8,3,0.4)';
   ctx.beginPath(); ctx.ellipse(rechts - o.tbB * A / 2, vloer, o.tbB * A * 0.52, 0.035 * A, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
   const k = A / WINKEL.P;
   const bodem = vloer + o.onder * A;   // de zakken staan iets voor de toonbank, dus het beeld loopt wat verder naar voren
+  ctx.save(); ctx.globalAlpha *= alfa;
   ctx.drawImage(o.voor, rechts - o.voor.width * k, bodem - o.voor.height * k, o.voor.width * k, o.voor.height * k);
+  ctx.restore();
 }
 
 // na Amir: de kruik met speren naast de toonbank, iets naar voren, zodat Amir er achterlangs loopt
 function winkelKruikVoor(groundY, scale, cx){
   const b = binnenBij(world); if (!b || !b.winkel || !winkelImgs || !winkelKlaar()) return;
   const o = winkelOpbouw(b.winkel), A = CHAR_H * scale, k = A / WINKEL.P, c = o.kruikC;
-  if (b.winkel.geheim && winkelGeheim.achter) winkelToonbankTeken(o, cx + (b.winkel.x - world), groundY + WINKEL.toonbankVoor * A, A);
+  // staat Amir achter de toonbank, dan is die half doorzichtig: anders zie je jezelf niet als je gebukt sluipt
+  if (b.winkel.geheim && winkelGeheim.achter) winkelToonbankTeken(o, cx + (b.winkel.x - world), groundY + WINKEL.toonbankVoor * A, A, WINKEL.geheim.doorzicht);
   const mx = cx + (b.winkel.x - world) + WINKEL.kruik.x * A, vloer = groundY + (WINKEL.toonbankVoor + WINKEL.kruik.voor) * A;
   const z = zichtVak(20); if (z && (mx + c.width * k / 2 < z.l || mx - c.width * k / 2 > z.r)) return;
   // een zachte schaduw op de vloer, dan de kruik
@@ -53357,7 +53399,7 @@ function loop(now){
       if (world - halfWNow < endWall()) world = endWall() + halfWNow;    // en ook niet voorbij je eigen klif
     }
     binnenVijandKlem();
-    winkelGeheimStap(dt);                         // het geheim van de winkel: de marktman draait zich om (zie "de winkel")
+    winkelGeheimStap(dt, crawling, dir !== 0);    // de marktman loopt rond, en het geheim van de winkel: sluipen achter de toonbank (zie "de winkel")
     if (straatAan()){ straatKlem(halfWNow); straatVijandKlem(); }      // in een stadje van straten: binnen je eigen straat
   }
   bruKlem(halfWNow);                               // Brutus: tussen de wanden van het plein zolang hij leeft
@@ -65291,11 +65333,11 @@ function sbInrichting(winkel, geheim){
                         planken: [ {x: AL + 560, h: 330, soort: 'kaal', seed: zaad()} ] });
     level.zwevers.push({ r: AR, l: AL, h: 750, onder: 600, look: 'hout', sbBinnen: true });
     level.kisten = [ { x: AL + 330, goud: 30 } ]; kistLaad(); kistReset();
-    winkelGeheimZet(true);
+    winkelGeheimZet(true, WINKEL.geheim.achterKansSandbox);   // in de sandbox vaker naar achteren, om het te proberen
   }
   stadLaad(); binnenLaad(); winkelLaad();
   sbLagen = 'stad_dag'; lichtMengKey = null; sbLagenToon();
-  flashHint(winkel ? (geheim ? 'De geheime winkel: wacht tot de marktman zich omdraait, spring dan over de toonbank' : 'Een winkel: ga voor het deurgat staan en druk op E') : 'Een ingerichte kamer: ga voor het deurgat staan en druk op E');
+  flashHint(winkel ? (geheim ? 'De geheime winkel: wacht tot de marktman naar achteren loopt, spring over de toonbank en sluip gebukt naar het doek' : 'Een winkel: ga voor het deurgat staan en druk op E') : 'Een ingerichte kamer: ga voor het deurgat staan en druk op E');
   cv.focus();
 }
 document.getElementById('sbwinkelkamer').onclick = () => sbInrichting(true);   // had dezelfde id als de knop Winkel bij Gif, en deed daardoor niets
