@@ -6657,8 +6657,9 @@ const TEST_83 = {
           { x: -3250, t: 'This one snaps after 3 seconds: be quick' } ]
 };
 // Test 84: de trappose (AMIR_TRAP). Op verzoek (regel 3), zelf ontworpen, in het regenwoud zonder mist en zonder vijanden
-// (vredig), zodat je rustig op elke trede kunt stilstaan en de voeten goed ziet. De treden zijn de rechte opstapjes van
-// de stad (look 'straat', zoals Test 78), niet de golvende van de savanne (Test 80), op verzoek van de opdrachtgever. Ze
+// (vredig), zodat je rustig op elke trede kunt stilstaan en de voeten goed ziet. De treden zijn opstapjes van
+// regenwoudgrond (grond: true in een regenwoud-uitzicht: mos met de regenwoud-ondergrond en rechte randen), niet de
+// golvende eindjes van de savanne (Test 80) en niet de stenen van de stad, op verzoek van de opdrachtgever. Ze
 // zijn allemaal 32 hoog (OPSTAP.max), precies het hoogteverschil tussen de voeten in de poses. Eerst een trap van drie
 // treden van 240 omhoog naar een plateau en aan de andere kant drie treden omlaag: stop met een voet op de rand, de trap
 // op en de trap af, en draai je om. Dan twee brede treden (400) als een verhoogd stuk met nog een hogere trede erop.
@@ -6667,11 +6668,11 @@ const TEST_84 = {
   lagen: 'regenwoud',
   view: 0.8, hpBalk: true, zicht: true, sneak: true, camera: true, rand: true,
   speerInHand: true, vredig: true,
-  terraces: [ {r: -600, l: -2640, h: 32, look: 'straat', opstap: true},
-              {r: -840, l: -2400, h: 64, look: 'straat', opstap: true},
-              {r: -1080, l: -2160, h: 96, look: 'straat', opstap: true},
-              {r: -3200, l: -4600, h: 32, look: 'straat', opstap: true},
-              {r: -3600, l: -4200, h: 64, look: 'straat', opstap: true} ],
+  terraces: [ {r: -600, l: -2640, h: 32, grond: true, opstap: true},
+              {r: -840, l: -2400, h: 64, grond: true, opstap: true},
+              {r: -1080, l: -2160, h: 96, grond: true, opstap: true},
+              {r: -3200, l: -4600, h: 32, grond: true, opstap: true},
+              {r: -3600, l: -4200, h: 64, grond: true, opstap: true} ],
   spawns: [],
   rocks: [], gaps: [], ledges: [], village: [], npcs: [], water: [], thickets: [], props: [],
   voorgrond: false,
@@ -24541,25 +24542,39 @@ function idleImg(set){
 // (594 x 301, grond 297) en op dezelfde schaal (hoofd en lengte gelijk aan idle_sp):
 //   op: de voorste voet op de hoge trede (de trap op), af: de achterste voet op de hoge trede (de trap af).
 // In de frames staat de lage voet op de grondlijn en de hoge voet 32 hoger, precies een opstapje.
-// `laag` en `hoog` zijn waar de voeten staan, in canvaspixels vanaf het midden (297), met Amir naar links kijkend.
-// Het spel kijkt op die twee plekken naar de vloer (vloerBij); ligt de ene voet een trede hoger dan de andere, dan
-// de pose, op de vloer van de lage voet. Zonder speer, lopend, of met een hoogteverschil kleiner dan `min`: de idle.
+// `laag` en `hoog` zijn de stukken waar de lage en de hoge voet (met de speervoet) de vloer raken, in canvaspixels vanaf
+// het midden (297), met Amir naar links kijkend (gemeten in de onderste rijen van elke voet). Het spel kijkt over die hele
+// stukken naar de vloer (vloerBij, om de `stap` canvaspixels): ligt de lage voet helemaal op de ene vloer en de hoge voet
+// helemaal een trede hoger, dan de pose, op de vloer van de lage voet. Zo zit de rand van de trede altijd in het gat tussen
+// de voeten en hangt er geen voet half in de lucht (eerst keek hij naar een punt per voet en ging de pose te vroeg aan).
+// Zonder speer, lopend, of met een hoogteverschil kleiner dan `min`: de idle.
 // Test 84 (Stairs) is het proefstuk.
 const AMIR_TRAP = {
-  op: { src: 'beweging/trap/trap_op.png', laag: 46.7, hoog: -21.5 },
-  af: { src: 'beweging/trap/trap_af.png', laag: -19.4, hoog: 45.2 },
-  min: 8,
+  op: { src: 'beweging/trap/trap_op.png', laag: [34, 67], hoog: [-41, -2] },
+  af: { src: 'beweging/trap/trap_af.png', laag: [-49, 0], hoog: [37, 57] },
+  min: 8, stap: 4,
 };
 let trapImgs = null;
-function amirTrapPose(scale, flip){
+function amirTrapPose(scale, flip, x0){
+  if (x0 === undefined) x0 = world;               // waar Amir staat (bij het tekenen pWorld: world is dan de camera)
   if (!trapImgs) trapImgs = { op: loadAny([AMIR + AMIR_TRAP.op.src, AMIR_GROOT + AMIR_TRAP.op.src]),
                               af: loadAny([AMIR + AMIR_TRAP.af.src, AMIR_GROOT + AMIR_TRAP.af.src]) };
   const sx = flip ? -scale : scale;
+  // de vloer onder een heel stuk canvas [a, b]: een hoogte als die overal gelijk is, anders null
+  const vloerOnder = ([a, b]) => {
+    let v = null;
+    for (let c = a; ; c = Math.min(b, c + AMIR_TRAP.stap)){
+      const h = vloerBij(x0 + c * sx, ph);
+      if (h == null || h === -Infinity || (v !== null && Math.abs(h - v) > 1)) return null;
+      v = h;
+      if (c >= b) return v;
+    }
+  };
   for (const k of ['op', 'af']){
     const d = AMIR_TRAP[k], img = trapImgs[k];
     if (!img.complete || !img.naturalWidth) continue;
-    const vl = vloerBij(world + d.laag * sx, ph), vh = vloerBij(world + d.hoog * sx, ph);
-    if (vl == null || vh == null || vl === -Infinity) continue;
+    const vl = vloerOnder(d.laag), vh = vl === null ? null : vloerOnder(d.hoog);
+    if (vl === null || vh === null) continue;
     const dh = vh - vl;
     if (dh < AMIR_TRAP.min || dh > OPSTAP.max + 1) continue;
     if (Math.abs(ph - vl) > 1 && Math.abs(ph - vh) > 1) continue;   // nog aan het glijden over de trede
@@ -53731,7 +53746,7 @@ function loop(now){
     snkAmirVak = null;                               // de sluipdood van de bandiet leest hier waar de speer zit
     // stil op de rand van een trede, met de speer: de trappose (AMIR_TRAP)
     const trapNu = (!moving && !attacking && onGround && set === sets.sp && !mesInHand() && amirSteen <= 0 && !dead)
-      ? amirTrapPose(scaleNow, autoFlip && facing === 1) : null;
+      ? amirTrapPose(scaleNow, autoFlip && facing === 1, pWorld) : null;
     const img = useSneak ? snkImg : useStof ? stofImg : useRolW ? rwImg : useRol ? rolImg
               : useThrow ? thrImg
               : useJump ? jimg
