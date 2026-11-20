@@ -15576,7 +15576,7 @@ function takelTekenEen(t, groundY, scale, cx){
 // van CHAR_H. Test 82 is het proefstuk, en in de sandbox onder Terrein, Hangende stam.
 const HSTAM = {
   dir: 'design/regenwoud/hangstam/',
-  bron: { b: 1117, h: 247, top: 56, mid: 105, bodem: 185 },   // stam.png: de looplijn (in het mos, niet op de toppen: zijn voeten staan erin), het hart en de onderkant van de bast (rijen)
+  bron: { b: 1117, h: 247, top: 68, mid: 105, bodem: 185 },   // stam.png: de looplijn (diep in het mos, niet op de toppen: zijn voeten zakken erin, ook de achterste), het hart en de onderkant van de bast (rijen)
   haak: [0.17, 0.855],      // waar de lianen om de stam zitten (deel van de breedte, links en rechts)
   haakRij: 8,               // de liaan begint zo veel bronrijen onder de bovenkant van stam.png (in de knoop)
   liaan: { b: 92, h: 389 }, // liaan.png: een rechtgetrokken stuk liaan dat naadloos onder elkaar past
@@ -15586,7 +15586,9 @@ const HSTAM = {
   plat: 0.44,               // het begaanbare stuk, als deel van de breedte aan elke kant van het midden
   swayA: 4, swayF: 1.05,    // het rustige heen en weer uit zichzelf (wereld-px, rad/s)
   veerK: 7, veerC: 1.1,     // de slinger: terugveer en demping van de zijwaartse uitwijking (traag, het is een lange liaan)
-  landDuw: 0.09, landMax: 60,   // een landing geeft de slinger een zet naar de landingskant (per eenheid landingssnelheid, hoogstens)
+  landDuw: 0.05, landMax: 95,   // een landing geeft de slinger een zet naar de landingskant (per eenheid landingssnelheid, hoogstens)
+  landVx: 0.35,             // en de zijwaartse vaart van Amir gaat erin mee: spring je er schuin op, dan zwaait hij mee die kant op
+  loopDuw: 0.3,             // optrekken of afremmen op de stam duwt hem de andere kant op (actie en reactie, niet het gewone doorlopen), net als afzetten om eraf te springen
   zak: 8, zakK: 70, zakC: 7, zakStoot: 0.06, zakMax: 70,   // inzakken onder Amir (sprite-eenheden), veer, demping en de stoot van een landing
   valG: 6.5,                // hoekversnelling van de kant die valt (rad/s^2), naar de cosinus van de hoek
   valG2: 2400,              // valversnelling van de laatste kant (sprite-eenheden/s^2)
@@ -15632,6 +15634,7 @@ function hstamMaat(s, scale){
   return { bPx, k, tm: (B.mid - B.top) * k / scale, mb: (B.bodem - B.mid) * k / scale, mid: B.mid * k };
 }
 function hstamReset(){
+  hstamVx = 0; hstamVorigWorld = null;
   for (const s of hstamLijst()){
     s.z = { st: 'hangt', t: Math.random() * 10, dx: 0, vdx: 0, dy: 0, vdy: 0, kant: 0, th: 0, om: 0, t2: 0,
             px: 0, ph: 0, pv: 0, tx: 0, lx: s.x, geland: false, rest: [null, null], stomp: [null, null], bounced: false, vorigDx: 0 };
@@ -15711,7 +15714,8 @@ function hstamBons(id, vIn){
   if (z.st !== 'hangt') return;                    // alleen de hangende stam veert en kraakt
   z.vdy += Math.min(HSTAM.zakMax, vIn * HSTAM.zakStoot) * 10;
   const kant = world < s.x + z.dx ? -1 : 1;
-  z.vdx += kant * Math.min(HSTAM.landMax, vIn * HSTAM.landDuw);
+  const zet = kant * vIn * HSTAM.landDuw + hstamVx * HSTAM.landVx;   // de kant waar je landt, plus je vaart opzij
+  z.vdx += Math.max(-HSTAM.landMax, Math.min(HSTAM.landMax, zet));
   hstamKraak(s.x, Math.min(1, vIn / 900));
 }
 // stof waar de stam de grond raakt: wolken en korrels in de kleur van de grond (zie regenwoudStof)
@@ -15751,9 +15755,16 @@ function hstamKnap(s, i, door, hRaak){
     z.st = 'valt'; z.pv = 0;
   }
 }
+// De zijwaartse vaart van Amir (wereld-px/s), gemeten tussen twee beelden en licht gladgestreken: voor de zet bij een
+// landing en het duwen als hij erop loopt of eraf springt
+let hstamVx = 0, hstamVorigWorld = null;
 function hstamUpdate(dt){
   const lijst = hstamLijst(); if (!lijst.length) return;
   if (!hstamImg) hstamLaad();
+  if (hstamVorigWorld !== null && dt > 0){
+    const v = Math.max(-900, Math.min(900, (world - hstamVorigWorld) / dt));   // een sprong van de camera of een teleport telt niet
+    hstamVx += (v - hstamVx) * Math.min(1, dt * 20);
+  }
   const scale = (H * (Number(sizeEl.value) / 100)) / CHAR_H;
   lijst.forEach((s, idx) => {
     const z = hstamZ(s), M = hstamMaat(s, scale), g = terrainH(s.x);
@@ -15770,7 +15781,12 @@ function hstamUpdate(dt){
         world += z.dx - z.vorigDx;                      // Amir schuift mee met de slinger
         ph = g + (s.h || HSTAM.hoog) - z.dy;            // en veert mee op en neer (ook omhoog, anders zakt hij erdoor)
         valVan = ph;
+        if (z.wasOp) z.vdx -= (hstamVx - z.vxVorig) * HSTAM.loopDuw;   // optrekken of afremmen duwt de stam de andere kant op
+      } else if (z.wasOp && !onGround){
+        z.vdx -= hstamVx * HSTAM.loopDuw;               // eraf springen: een zet terug bij het afzetten
+        hstamKraak(s.x, 0.4);
       }
+      z.wasOp = op; z.vxVorig = hstamVx;
       z.vorigDx = z.dx;
     } else if (z.st === 'half'){
       const d = hstamTipAf(M, z.kant);
@@ -15832,6 +15848,7 @@ function hstamUpdate(dt){
       r.vdx += (-6 * r.dx - 1.2 * r.vdx) * dt; r.dx += r.vdx * dt;
     }
   });
+  hstamVorigWorld = world;                          // na het meeschuiven: het volgende verschil is alleen zijn eigen beweging
 }
 // een liaan van onder (x1, y1) naar boven (x2, y2), in schermpunten: de tegel gestapeld langs de lijn
 function hstamLiaanTeken(x1, y1, x2, y2, k, precies){
