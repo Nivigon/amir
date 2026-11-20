@@ -333,6 +333,7 @@ uitleg (leeg betekent: de wegwijzer hiernaast is alles wat er is).
 | speerbeet: de baviaan pakt je speer | `BAV_BEET`, `BAV_MOND`, `BAV_SPEER` | notities/baviaan.md |
 | speer in de baviaan: de speerval blijft in zijn borst zitten | `BAV_VALSPEER`, `bavSpeerTeken`, `baviaanTeken` | notities/baviaan.md |
 | voorgrond: de laag tussen de camera en Amir | `VOORGROND`, `VG_SOORT`, `VG_LAGEN` | notities/voorgrond.md |
+| het regenwoud: bijna zwarte silhouetten voor de camera, onderin struik en gras, bovenin bladerdak, een tak en lianen; per level een eigen indeling uit zijn naam, elke ronde dezelfde (`silhouet: false` zet het uit) | `VG_RW`, `vgRegenwoud`, `BLADERDAK`, `drawBladerdak`, `rwSilhouetAan` | notities/voorgrond.md |
 | de stadsvoorgrond: kruiken, manden en een leemmuurtje voor de camera, per stuk straat naar wat er staat (De Gouden Poort) | `VG_STAD`, `vgStad`, `vgStadThema`, `voorgrond: 'stad'` | notities/voorgrond.md |
 | achtergrondlagen, uitzicht per level | `SCENE0`, `SCENES` | notities/wegwijzers.md |
 | startscherm, menu: hoofdmenu (Single Player, Multiplayer, Level Editor, Test Lab, klein Updates en Settings), Single Player met Campaign en Survival, het Test Lab met de Sandbox en de testreeksen; kaartjes per level | `menuMain`, `menuChoose`, `menuSurvival`, `menuLab`, `showMenu` |  |
@@ -467,6 +468,7 @@ De velden met een langere uitleg staan in `notities/velden.md`; hieronder kort.
 | `runes` | ravijnen met een rune op een rots ervoor: `{x, breed, rots, groot, hoog, doel}` (zie `notities/velden.md`) |
 | `fg` | strook waarover de voorgrondbegroeiing ligt: `{from, to}` |
 | `voorgrond` | de onscherpe laag vlak voor de camera: `{stroken: [{van, tot, dicht, struik, kei}], los: [{x, k, s, f}]}`, `k` uit `VG_SOORT`; los van `fg`. Zonder dit veld krijgt het level de standaard, met `false` heeft het er geen, met `'stad'` de stadsvoorgrond (De Gouden Poort, zie `notities/voorgrond.md`) |
+| `silhouet` | `false`: een regenwoudlevel zonder de silhouetten voor de camera (bladerdak bovenin, struiken onderin); zonder dit veld heeft elk level met een regenwoud-uitzicht ze vanzelf, ook met `voorgrond: false` (zie `notities/voorgrond.md`) |
 | `arena` | het veld van de eindbaas: `{c}` |
 | `cliffs` | de afsluitende rotswand: `{x}`, staat altijd achter `ends`; met `s` groter getekend (`s: 2.3` in The Dye Yard, zodat de top buiten beeld valt), de voet zakt dan dieper (`CLIFF.sinkGroot`) en wordt op de grond afgeknipt; de grens blijft op `x` |
 | `ends` | de fakkels die het level uitspelen: `{x}` |

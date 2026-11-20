@@ -40804,8 +40804,9 @@ const SB_VOORGROND = [null,
   { stroken: [{ van: Infinity, tot: -Infinity, dicht: 0.85, struik: 0, kei: 0 }], los: [] },
   { stroken: [{ van: Infinity, tot: -Infinity, dicht: 0.7, struik: 0.2, kei: 0.08 }], los: [] }];
 function voorgrondNu(){
-  if (sandbox) return SB_VOORGROND[sbVoorgrond];
+  if (sandbox) return rwSilhouetAan() && !sbVoorgrond ? vgRegenwoud(SB_RW_LEVEL) : SB_VOORGROND[sbVoorgrond];
   if (!level) return null;
+  if (rwSilhouetAan()) return vgRegenwoud(level);
   if (level.voorgrond) return level.voorgrond.uit ? null : level.voorgrond.stad ? vgStad(level) : level.voorgrond;
   return vgStandaard(level);
 }
@@ -40922,6 +40923,132 @@ function vgStad(lv){
   lv.vgStad = { stroken, los: [], stad: true };
   return lv.vgStad;
 }
+// ---- het regenwoud: silhouetten boven en onder ----
+// In een regenwoud-uitzicht (biome regenwoud) staat er voor de camera een bijna zwarte, onscherpe rand van
+// bestaande stukken: onderin struiken en gras (de gewone voorgrond, als silhouet), bovenin bladerdak (de struik
+// ondersteboven), een tak (de hangende stam) en lianen die eruit hangen (drawBladerdak). Zo kijk je niet van
+// buiten naar een bos maar loop je erin, en het donkere kader trekt het oog naar de lichte strook in het midden,
+// waar gevochten wordt. Het geldt voor elk regenwoudlevel vanzelf, ook als dat zelf voorgrond: false heeft; met
+// silhouet: false in een level zet je het uit.
+// Elk level ziet er anders uit: het zaad komt uit zijn naam. Hetzelfde level ziet er bij een nieuwe ronde dus
+// precies hetzelfde uit. Per stuk (stuk, in de wereld) kiest dat zaad hoe vol het is: dicht, ijl of kaal; bovenin
+// net zo per groep plekken (BLADERDAK.groep), met af en toe open lucht.
+const VG_RW = {
+  stuk: 1400,
+  kleur: [0.07, 0.10, 0.09],     // zo veel van de kleur blijft over: bijna zwart, een zweem groen
+  themas: {
+    dicht: { kans: 0.3,  dicht: 0.62 },
+    ijl:   { kans: 0.45, dicht: 0.32 },
+    kaal:  { kans: 0.25, dicht: 0 }
+  },
+  mix: { struik: 0.5, gras: 0.5 }
+};
+const SB_RW_LEVEL = { name: 'sandbox regenwoud', gaps: [], ends: [], spawns: [] };   // de sandbox: een eigen zaad
+function rwSilhouetAan(){
+  if (sceneCfg().biome !== 'regenwoud') return false;
+  return sandbox ? true : !!level && level.silhouet !== false;
+}
+function lvZaad(lv, mod){
+  let z = 0;
+  for (const ch of String((lv && lv.name) || '')) z = (z * 31 + ch.charCodeAt(0)) % (mod || 9973);
+  return z;
+}
+function vgRegenwoud(lv){
+  if (lv.vgRw) return lv.vgRw;
+  const D = VG_RW, zaad = lvZaad(lv), basis = vgStandaard(lv);   // de open plekken van de standaard (ravijnen, einde ...)
+  const stroken = [];
+  for (const q of basis.stroken){
+    const hi = q.van, lo = q.tot;
+    for (let van = Math.min(hi, 900), i = 0; van > Math.max(lo, -40000); van -= D.stuk, i++){
+      const tot = Math.max(lo, van - D.stuk);
+      let r = rnd(Math.round(van / D.stuk) + zaad, 43), T = D.themas.kaal;
+      for (const k in D.themas){ if (r < D.themas[k].kans){ T = D.themas[k]; break; } r -= D.themas[k].kans; }
+      if (T.dicht > 0) stroken.push({ van, tot, dicht: T.dicht, struik: 0, kei: 0, mix: D.mix });
+    }
+  }
+  lv.vgRw = { stroken, los: [], silhouet: D.kleur };
+  return lv.vgRw;
+}
+// Bovenin: plekken op een vaste afstand (in schermpixels bij 720 hoog), elke plek leeg, een kroon (met soms
+// lianen eronder) of een tak met lianen. Ze schuiven iets sneller dan de wereld (par) en nauwelijks in de hoogte
+// (dy: zo veel van de camerahoogte, begrensd): het dak hangt boven je, ook als je een terras op klimt. diep: tot
+// waar een stuk hooguit in beeld komt, als deel van de schermhoogte, zodat het nooit in de speelstrook hangt.
+const BLADERDAK = {
+  par: 1.3, dy: 0.12, dyMax: 50,
+  plek: 430,                     // afstand tussen twee plekken
+  groep: 4,                      // zoveel plekken samen hebben dezelfde dichtheid
+  vol: [0, 0.35, 0.6, 0.85],     // de dichtheden waaruit een groep kiest (0: open lucht)
+  diep: 0.27,                    // (een liaan wordt korter gemaakt als hij er anders voorbij zou hangen)
+  kroon: { h: [0.30, 0.42], zicht: [0.42, 0.6] },   // hoogte (deel van H), en zo veel van de kroon in beeld
+  tak:   { b: [0.55, 0.8], hoek: [-0.18, 0.12] },  // breedte (deel van H) en schuinte (radialen)
+  liaan: { h: [0.16, 0.26] },                       // lengte (deel van H)
+  vaag: 5
+};
+const bdImg = {};
+function bdPlaatje(naam){
+  const src = { struik: 'design/struik.png', stam: 'design/regenwoud/hangstam/stam.png', liaan: 'design/regenwoud/hangstam/liaan.png' }[naam];
+  const img = bdImg[naam] || (bdImg[naam] = zetBron(new Image(), src));
+  return imgReady(img) ? vgPlaatje(img, false, naam === 'liaan' ? 0.35 : 0, VG_RW.kleur, BLADERDAK.vaag) : null;
+}
+function drawBladerdak(groundY, scale){
+  if (!rwSilhouetAan()) return;
+  const B = BLADERDAK, lv = sandbox ? SB_RW_LEVEL : level, zaad = lvZaad(lv);
+  const diep = Math.max(0, camDiepte(scale));
+  const zicht = 1 - Math.max(0, Math.min(1, (diep - VOORGROND.weg[0]) / (VOORGROND.weg[1] - VOORGROND.weg[0])));
+  if (zicht <= 0) return;
+  const kroon = bdPlaatje('struik'), tak = bdPlaatje('stam'), liaan = bdPlaatje('liaan');
+  if (!kroon || !tak || !liaan) return;
+  const cam = camEase !== null ? camEase : world;
+  const u = H / 720, plek = B.plek * u;
+  const lx = cam * B.par;
+  const dy = Math.max(-B.dyMax, Math.min(B.dyMax, camY * B.dy)) * u;
+  const tijd = performance.now() / 1000;
+  const i0 = Math.floor((lx - W) / plek) - 1, i1 = Math.ceil((lx + W) / plek) + 1;
+  // een plaatje tekenen: p uit vgPlaatje, bovenkant op y, hoogte hh; flip spiegelt, kop zet hem op zijn kop
+  const teken = (p, x, y, hh, flip, kop, hoek) => {
+    const ww = p.w * hh / p.h, mm = p.m * hh / p.h;
+    ctx.save(); ctx.translate(x, y + hh / 2);
+    if (hoek) ctx.rotate(hoek);
+    ctx.scale(flip ? -1 : 1, kop ? -1 : 1);
+    ctx.drawImage(p.c, -ww / 2 - mm, -hh / 2 - mm, ww + mm * 2, hh + mm * 2);
+    ctx.restore();
+  };
+  const lianen = (x, y, n, i) => {
+    for (let k = 0; k < n; k++){
+      const r = rnd(i * 7 + k, 71 + zaad % 97);
+      const hh = Math.min(H * (B.liaan.h[0] + (B.liaan.h[1] - B.liaan.h[0]) * r), H * B.diep + Math.max(0, dy) - y);   // de punt blijft boven de speelstrook
+      if (hh < 30 * u) continue;
+      ctx.save(); ctx.translate(x + (r - 0.5) * 120 * u, y);
+      ctx.rotate(Math.sin(tijd * 0.6 + i + k) * 0.025);            // hangen en wiegen een heel klein beetje
+      teken(liaan, 0, 0, hh, rnd(i, 72 + k) < 0.5, false, 0);
+      ctx.restore();
+    }
+  };
+  ctx.save();
+  ctx.globalAlpha = zicht;
+  for (let i = i0; i <= i1; i++){
+    const g = Math.floor(i / B.groep);
+    const vol = B.vol[Math.floor(rnd(g + zaad, 63) * B.vol.length)];
+    if (rnd(i + zaad, 64) >= vol) continue;
+    const x = W / 2 + (i + rnd(i, 65 + zaad % 89) * 0.6) * plek - lx;
+    const soort = rnd(i + zaad, 66);
+    if (soort < 0.62){                         // een kroon, ondersteboven: het bladerdak hangt in beeld
+      const t = rnd(i, 67 + zaad % 83);
+      const hh = H * (B.kroon.h[0] + (B.kroon.h[1] - B.kroon.h[0]) * t);
+      const zicht01 = B.kroon.zicht[0] + (B.kroon.zicht[1] - B.kroon.zicht[0]) * rnd(i, 68);
+      const y = dy - hh * (1 - zicht01);
+      if (rnd(i, 69) < 0.5) lianen(x, y + hh * 0.75, 1 + Math.floor(rnd(i, 70) * 2), i);
+      teken(kroon, x, y, hh, rnd(i, 73) < 0.5, true, 0);
+    } else if (soort < 0.85){                  // een tak die schuin het beeld in steekt, met lianen
+      const bb = H * (B.tak.b[0] + (B.tak.b[1] - B.tak.b[0]) * rnd(i, 74));
+      const hh = bb * tak.h / tak.w, hoek = B.tak.hoek[0] + (B.tak.hoek[1] - B.tak.hoek[0]) * rnd(i, 75);
+      const y = dy + H * 0.02 - hh * 0.3;
+      lianen(x, y + hh * 0.5, 1 + Math.floor(rnd(i, 76) * 3), i);
+      teken(tak, x, y, hh, rnd(i, 77) < 0.5, false, hoek);
+    } else lianen(x, dy - 20 * u, 2 + Math.floor(rnd(i, 78) * 2), i);   // alleen lianen, uit het dak boven beeld
+  }
+  ctx.restore();
+}
 // welke soort er staat op een plek in een strook met een mix (r tussen 0 en 1)
 function vgMixKies(mix, r){
   let som = 0;
@@ -41016,7 +41143,8 @@ function drawVoorgrond(groundY, scale){
   for (const L of VG_LAGEN){                     // van ver naar dichtbij
     const lx = cam * L.par * zf;                 // waar de laag staat, in schermpixels
     const rand0 = groundY + camY * (L.parY - 1) + (H - H * 0.82);   // de rand van het scherm, meegeschoven
-    const lt = tint.map(v => Math.round((1 - (1 - v) * L.schaduw) * (cfg.stad ? VG_STAD.donker : 1) * 100) / 100);
+    const lt = cfg.silhouet ? cfg.silhouet.map(v => Math.round(v * (L.los ? 1 : 1.6) * 100) / 100)   // het regenwoud: bijna zwart
+             : tint.map(v => Math.round((1 - (1 - v) * L.schaduw) * (cfg.stad ? VG_STAD.donker : 1) * 100) / 100);
     const stap = V.stap / Math.sqrt(L.schaal);   // kleinere pollen staan dichter op elkaar
     const stuks = [];
     const i0 = Math.floor((lx - W) / stap), i1 = Math.ceil((lx + W) / stap);
@@ -51805,8 +51933,15 @@ function bakeWinterLayers(){
 // tweede rij, net als bij de savanne.
 const BIOMES = {
   regenwoud: {
-    mtn: Object.assign({}, MTN, { dir: 'design/regenwoud/', files: ['verre_regenwoud_a'], edge: [322], base: 322, kili: -1 }),
-    mid: Object.assign({}, MID, { dir: 'design/regenwoud/', files: ['midden_regenwoud_a'], edge: [414] })
+    // de verre laag en de middenlaag gedempt (20-11-2026): donkerder, minder verzadigd, minder contrast en een
+    // tikje onscherp, zodat de figuren ervoor loskomen (de middenlaag stond even fel als het speelvlak). Een tikje
+    // naar het groen gedraaid: de vijanden zijn warm van kleur en springen dan beter uit het bos. Het waas is
+    // lager dan op de savanne, anders wordt het bos oranje.
+    mtn: Object.assign({}, MTN, { dir: 'design/regenwoud/', files: ['verre_regenwoud_a'], edge: [322], base: 322, kili: -1,
+                                  grade: 'brightness(0.85) saturate(0.6) contrast(0.8) blur(1px)' }),
+    mid: Object.assign({}, MID, { dir: 'design/regenwoud/', files: ['midden_regenwoud_a'], edge: [414],
+                                  grade: 'brightness(0.64) saturate(0.68) contrast(0.78) hue-rotate(12deg) blur(1px)',
+                                  hazeTop: 0.06, hazeBot: 0.12 })
   }
 };
 BIOMES.regenwoud.mtn2 = Object.assign({}, MTN2, { dir: 'design/regenwoud/', files: ['verre_regenwoud_a'], edge: [322], base: 322 });
@@ -55353,6 +55488,7 @@ function loop(now){
     drawSnowfall(groundY, weerDak(scaleNow));       // de vlokken vallen over alles heen, maar niet in een gang of een huis
     drawWeer(groundY, weerDak(scaleNow));           // en de regen en de stormen net zo
     drawVoorgrond(groundY, scaleNow);               // het gras vlak voor de camera
+    drawBladerdak(groundY, scaleNow);               // in het regenwoud: het bladerdak, de takken en lianen bovenin
     bavWerpTeken(scaleNow);                         // de speerpunt die de baviaan naar de camera smijt
     drawBossBar();
     bruBalkTeken();
