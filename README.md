@@ -820,7 +820,11 @@ Sta je gebukt binnen bereik en druk je aanval, dan steekt Amir zijn speer van
 schuin onder dwars door hem heen, tilt hem op en schudt hem er met een smak af. Een gewone bandiet heeft daar zijn eigen
 dood voor: hij hangt aan de speer met de punt voor hem uit, bloedt uit de wond, glijdt eraf, zakt door zijn knieen en valt
 voorover in een plas bloed, met het geluid van het bloed bij de steek (Test 62, en in de sandbox de knop **Sluipdood bandiet**); zolang hij aan de speer hangt staat de
-wereld stil, en daarna sta je even na te hijgen en ben je kwetsbaar. Ook een schildbandiet gaat zo langs zijn schild. Je kunt hem ook gewoon aanvallen; sluipen is een keuze, en handig tegen een groep. De
+wereld stil, en daarna sta je even na te hijgen en ben je kwetsbaar. Ligt hij op een houten galerij of trapbalkon, of op de brug,
+dan loopt het bloed over de planken naar de voorrand en druppelt het daar een paar seconden naar beneden, eerst snel en
+dan trager, met vlekjes op de straat (of in de waterval onder de brug). Dat doet ook het bloed van een executie van de
+schildbandiet en van de zweepman, met hooguit twee druipende plekken per vijand. In de sandbox, onder de stad: **Zweepman op
+de galerij**, **Schildman op de galerij** en **Bloed op de galerij**. Ook een schildbandiet gaat zo langs zijn schild. Je kunt hem ook gewoon aanvallen; sluipen is een keuze, en handig tegen een groep. De
 hinderlaag-bandiet (gehurkt met zijn rug naar je) hoort je zoals altijd en doet niet mee. In de sandbox laat **Rug naar
 Amir** een vijand van je af kijken, **Draait om** laat hem in rust om de zoveel seconden omdraaien, **Patrouille**
 laat een bandiet heen en weer lopen, en **Toon gehoor** tekent hoe ver je te horen bent.
