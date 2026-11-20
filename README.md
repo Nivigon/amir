@@ -609,7 +609,7 @@ Er is ook een tweede Co-op Episode, **The Smugglers' Cellar**: zeven levels, van
 
 In The Smugglers' Cellar verdien je ook **goud**, net als in Co-op Survival: elke kill geeft iedereen goud, en elk gehaald level 10 extra. In drie huizen zit een **winkel** (in The Outer Quarter, Market at Dusk en Lantern Street, steeds tussen twee hinderlagen): E bij de deur en je staat binnen, E bij de toonbank en je krijgt de hele prijslijst van Co-op Survival (Gourd, New spear, Poison, Full Circle en de twee upgrades, Extra spear slot, Extra life, Gris-gris, Give 5 gold, en met de stokken de stokspullen). Het spel loopt door terwijl je winkelt, en er is geen Ready: Close en je gaat verder. In Ambush 2 tot en met 6 staat ook een **schatkist**, soms op een galerij: die gaat maar voor een speler open, en wie het eerst E drukt krijgt al het goud. Je goud, wat je kocht en je tas gaan mee naar het volgende level; na game over begin je het level opnieuw met wat je aan het begin ervan had.
 
-In heel Co-op (ook Survival) blijven jullie bij elkaar: je komt niet verder dan een flink stuk (1000 px) van een levende teamgenoot. Loop je te ver vooruit of achter, dan houdt het spel je tegen met **Stay close to your teammate**. In een huis of in de winkel geldt dat niet.
+In de Co-op episodes blijven jullie bij elkaar (in Survival niet): je komt niet verder dan een flink stuk (1000 px) van een levende teamgenoot. Loop je te ver vooruit of achter, dan houdt het spel je tegen met **Stay close to your teammate**. In een huis of in de winkel geldt dat niet.
 
 In een duel staan jullie allebei in een klein stadje bij avond, de host rechts en de ander links. De ander zie je als tweede Amir met een rood pijltje en zijn levens boven zijn hoofd.
 
