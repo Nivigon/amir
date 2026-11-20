@@ -85,6 +85,7 @@ async function epProef(R){
   const elk = async (f, arg, max) => { for (const r of R) if (!await tot(r.page, f, arg, max)) return r.wie; return null; };
   const klaar = i => elk(i => running && !laadWacht && pvp.coop && pvp.coop.ep && pvp.coop.ep.i === i && pvp.coop.fase === 'ep' && level.name.startsWith('Co-op ' + (i + 1)), i, 60000);
   meld(await klaar(0) === null, 'level 1 loopt bij iedereen');
+  for (const p of allen) await p.evaluate(() => { MPC_LEIBAND.max = 1e9; });   // deze proef zet spelers ver uit elkaar neer: het leiband uit (--hl test het)
   meld(await tot(H.page, () => pvp.coop.allenKlaar, null, 20000), 'de host ziet dat iedereen geladen is');
   for (const p of allen) await p.evaluate(() => { godMode = true; });
   const xs = await Promise.all(allen.map(p => p.evaluate(() => Math.round(world))));
@@ -226,6 +227,7 @@ async function proef(R, L){
   const elk = async (f, arg, max) => { for (const r of R) if (!await tot(r.page, f, arg, max)) return r.wie; return null; };
   if (L) for (const [ok, t] of L) meld(ok, t);
   const zet = p => p.evaluate(() => { godMode = true; });
+  for (const p of allen) await p.evaluate(() => { MPC_LEIBAND.max = 1e9; });   // deze proef zet spelers ver uit elkaar neer: het leiband uit (--hl test het)
   meld(await tot(H.page, () => pvp.coop && pvp.coop.ronde >= 1 && tonnen.some(t => !t.weg), null, 60000), 'ronde 1 loopt en er staat een ton (host)');
   for (const p of allen) await zet(p);
   if (drie){
