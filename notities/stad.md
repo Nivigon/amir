@@ -718,10 +718,12 @@ binnen: [{ ..., winkel: { x, seed, koopman }, planken: [{ x, h, soort, seed }] }
   de toonbank is de grens van wat je kunt belopen (`binnenLinks`, in `binnenKlem` en `binnenVijandKlem`). Hij staat niet
   op de achtergrond maar op de vloer, op dezelfde lijn als Amir: zo loopt Amir er nooit overheen, wat met de paar pixels
   diepte van de vloer binnen altijd las als "op de bar".
-- **De inrichting (voorstel B, 21-11-2026)**: een toonbank van leem met een houten blad (`toonbank_leem.png`), daarachter
+- **De inrichting (voorstel B, 21-11-2026)**. Let op bij het schuiven: de planken mogen de leemrand om de doorgang niet
+  raken (dan lijkt de plank erachter te zitten), en het achterbeeld groeit mee met wat erin staat (anders knipt het af): een toonbank van leem met een houten blad (`toonbank_leem.png`), daarachter
   links een doorgang naar achter (de binnendeur met het waaiende adire-doek, `winkelDeur`, `WINKEL.deur`), de marktman,
-  twee wandplanken op pinnen met spullen (`plank_pin.png`, `WINKEL.wandPlank`), een geweven mat en een bos kruiden aan de
-  muur, naast het eind van de toonbank een grote kruik met 2 of 3 speren erin (in het voorbeeld van de toonbank, zodat hij op de vloer staat en niet erachter), en voor de toonbank zakken, een stapel manden en daarvoor twee open zakken specerijen
+  twee wandplanken op pinnen met spullen (`plank_pin.png`, `WINKEL.wandPlank`; eerst beide planken, dan alle spullen, anders
+  hangen de pinnen van de bovenste over wat op de onderste staat), een bos kruiden aan het eind van de bovenste plank (de
+  geweven mat staat uit, `WINKEL.mat.aan`: er was geen vrije plek, rechts zat hij achter de speren), naast het eind van de toonbank een grote kruik met 2 of 3 speren erin (in het voorbeeld van de toonbank, zodat hij op de vloer staat en niet erachter), en voor de toonbank zakken, een stapel manden en daarvoor twee open zakken specerijen
   (`WINKEL.zakken`). De onderdelen komen uit een Grok-vel (`bron/winkel_b.jpg`, geknipt met `tools/winkel_b_knip.py`). Het oude
   schap (`schap.png`) en de houten toonbank (`toonbank.png`) worden niet meer gebruikt. `koopman: false` laat de marktman weg.
 - **Op het blad** een tot drie kalebassen, en soms nog een spul. Dat is wat je straks kunt krijgen.
